@@ -1225,8 +1225,8 @@ static bool ab8500_chargalg_time_to_restart(struct ab8500_chargalg *di)
  */
 static void ab8500_chargalg_algorithm(struct ab8500_chargalg *di)
 {
+	const struct power_supply_maintenance_charge_table *mt;
 	struct power_supply_battery_info *bi = di->bm->bi;
-	struct power_supply_maintenance_charge_table *mt;
 	int charger_status;
 	int ret;
 

@@ -1106,6 +1106,7 @@ int adf_rl_init(struct adf_accel_dev *accel_dev)
 	mutex_init(&rl->rl_lock);
 	rl->device_data = &accel_dev->hw_device->rl_data;
 	rl->accel_dev = accel_dev;
+	init_rwsem(&rl->user_input.lock);
 	accel_dev->rate_limiting = rl;
 
 err_ret:

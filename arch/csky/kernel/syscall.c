@@ -20,7 +20,7 @@ SYSCALL_DEFINE6(mmap2,
 	unsigned long, prot,
 	unsigned long, flags,
 	unsigned long, fd,
-	off_t, offset)
+	unsigned long, offset)
 {
 	if (unlikely(offset & (~PAGE_MASK >> 12)))
 		return -EINVAL;

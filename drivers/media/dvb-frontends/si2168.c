@@ -744,7 +744,7 @@ static int si2168_probe(struct i2c_client *client)
 		goto err_kfree;
 	}
 	dev->muxc->priv = client;
-	ret = i2c_mux_add_adapter(dev->muxc, 0, 0, 0);
+	ret = i2c_mux_add_adapter(dev->muxc, 0, 0);
 	if (ret)
 		goto err_kfree;
 

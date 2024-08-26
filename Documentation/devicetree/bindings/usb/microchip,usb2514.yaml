@@ -1,0 +1,63 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/usb/microchip,usb2514.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Microchip USB2514 Hub Controller
+
+maintainers:
+  - Fabio Estevam <festevam@gmail.com>
+
+allOf:
+  - $ref: usb-hcd.yaml#
+
+properties:
+  compatible:
+    enum:
+      - usb424,2412
+      - usb424,2417
+      - usb424,2514
+
+  reg: true
+
+  reset-gpios:
+    description: GPIO connected to the RESET_N pin.
+
+  vdd-supply:
+    description: 3.3V power supply.
+
+  clocks:
+    description: External 24MHz clock connected to the CLKIN pin.
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/imx6qdl-clock.h>
+    #include <dt-bindings/gpio/gpio.h>
+
+    usb {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        usb-hub@1 {
+            compatible = "usb424,2514";
+            reg = <1>;
+            clocks = <&clks IMX6QDL_CLK_CKO>;
+            reset-gpios = <&gpio7 12 GPIO_ACTIVE_LOW>;
+            vdd-supply = <&reg_3v3_hub>;
+            #address-cells = <1>;
+            #size-cells = <0>;
+
+            ethernet@1 {
+                compatible = "usbb95,772b";
+                reg = <1>;
+            };
+        };
+    };

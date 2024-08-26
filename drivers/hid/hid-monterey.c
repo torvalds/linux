@@ -62,4 +62,5 @@ static struct hid_driver mr_driver = {
 };
 module_hid_driver(mr_driver);
 
+MODULE_DESCRIPTION("HID driver for some monterey \"special\" devices");
 MODULE_LICENSE("GPL");

@@ -115,7 +115,7 @@ struct btrfs_caching_control {
 
 struct btrfs_block_group {
 	struct btrfs_fs_info *fs_info;
-	struct inode *inode;
+	struct btrfs_inode *inode;
 	spinlock_t lock;
 	u64 start;
 	u64 length;
@@ -263,6 +263,7 @@ struct btrfs_block_group {
 	struct work_struct zone_finish_work;
 	struct extent_buffer *last_eb;
 	enum btrfs_block_group_size_class size_class;
+	u64 reclaim_mark;
 };
 
 static inline u64 btrfs_block_group_end(struct btrfs_block_group *block_group)

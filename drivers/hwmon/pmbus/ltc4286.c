@@ -58,8 +58,8 @@ static struct pmbus_driver_info ltc4286_info = {
 };
 
 static const struct i2c_device_id ltc4286_id[] = {
-	{ "ltc4286", 0 },
-	{ "ltc4287", 1 },
+	{ "ltc4286", },
+	{ "ltc4287", },
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, ltc4286_id);

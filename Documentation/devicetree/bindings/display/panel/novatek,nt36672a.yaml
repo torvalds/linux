@@ -29,6 +29,9 @@ properties:
       determines how the NT36672A panel driver is configured for the indicated
       panel. The novatek,nt36672a compatible shall always be provided as a fallback.
 
+  reg:
+    maxItems: 1
+
   reset-gpios:
     maxItems: 1
     description: phandle of gpio for reset line - This should be 8mA, gpio
@@ -44,7 +47,6 @@ properties:
   vddneg-supply:
     description: phandle of the negative boost supply regulator
 
-  reg: true
   port: true
   backlight: true
 

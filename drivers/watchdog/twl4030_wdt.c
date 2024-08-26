@@ -118,6 +118,7 @@ static struct platform_driver twl4030_wdt_driver = {
 module_platform_driver(twl4030_wdt_driver);
 
 MODULE_AUTHOR("Nokia Corporation");
+MODULE_DESCRIPTION("TWL4030 Watchdog");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:twl4030_wdt");
 

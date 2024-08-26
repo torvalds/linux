@@ -60,4 +60,6 @@ static struct platform_driver clk_mt2701_eth_drv = {
 	},
 };
 module_platform_driver(clk_mt2701_eth_drv);
+
+MODULE_DESCRIPTION("MediaTek MT2701 Ethernet clocks driver");
 MODULE_LICENSE("GPL");

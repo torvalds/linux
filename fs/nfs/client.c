@@ -994,6 +994,9 @@ struct nfs_server *nfs_alloc_server(void)
 
 	server->change_attr_type = NFS4_CHANGE_TYPE_IS_UNDEFINED;
 
+	init_waitqueue_head(&server->write_congestion_wait);
+	atomic_long_set(&server->writeback, 0);
+
 	ida_init(&server->openowner_id);
 	ida_init(&server->lockowner_id);
 	pnfs_init_server(server);

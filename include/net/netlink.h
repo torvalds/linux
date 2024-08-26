@@ -1905,10 +1905,11 @@ static inline struct nla_bitfield32 nla_get_bitfield32(const struct nlattr *nla)
  * @src: netlink attribute to duplicate from
  * @gfp: GFP mask
  */
-static inline void *nla_memdup(const struct nlattr *src, gfp_t gfp)
+static inline void *nla_memdup_noprof(const struct nlattr *src, gfp_t gfp)
 {
-	return kmemdup(nla_data(src), nla_len(src), gfp);
+	return kmemdup_noprof(nla_data(src), nla_len(src), gfp);
 }
+#define nla_memdup(...)	alloc_hooks(nla_memdup_noprof(__VA_ARGS__))
 
 /**
  * nla_nest_start_noflag - Start a new level of nested attributes

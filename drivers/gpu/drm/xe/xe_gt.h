@@ -8,6 +8,7 @@
 
 #include <drm/drm_util.h>
 
+#include "xe_device.h"
 #include "xe_device_types.h"
 #include "xe_hw_engine.h"
 
@@ -37,11 +38,25 @@ int xe_gt_init_hwconfig(struct xe_gt *gt);
 int xe_gt_init_early(struct xe_gt *gt);
 int xe_gt_init(struct xe_gt *gt);
 int xe_gt_record_default_lrcs(struct xe_gt *gt);
+
+/**
+ * xe_gt_record_user_engines - save data related to engines available to
+ * usersapce
+ * @gt: GT structure
+ *
+ * Walk the available HW engines from gt->info.engine_mask and calculate data
+ * related to those engines that may be used by userspace. To be used whenever
+ * available engines change in runtime (e.g. with ccs_mode) or during
+ * initialization
+ */
+void xe_gt_record_user_engines(struct xe_gt *gt);
+
 void xe_gt_suspend_prepare(struct xe_gt *gt);
 int xe_gt_suspend(struct xe_gt *gt);
 int xe_gt_resume(struct xe_gt *gt);
 void xe_gt_reset_async(struct xe_gt *gt);
 void xe_gt_sanitize(struct xe_gt *gt);
+int xe_gt_sanitize_freq(struct xe_gt *gt);
 void xe_gt_remove(struct xe_gt *gt);
 
 /**
@@ -53,10 +68,23 @@ void xe_gt_remove(struct xe_gt *gt);
 struct xe_hw_engine *
 xe_gt_any_hw_engine_by_reset_domain(struct xe_gt *gt, enum xe_engine_class class);
 
+/**
+ * xe_gt_any_hw_engine - scan the list of engines and return the
+ * first available
+ * @gt: GT structure
+ */
+struct xe_hw_engine *xe_gt_any_hw_engine(struct xe_gt *gt);
+
 struct xe_hw_engine *xe_gt_hw_engine(struct xe_gt *gt,
 				     enum xe_engine_class class,
 				     u16 instance,
 				     bool logical);
+
+static inline bool xe_gt_has_indirect_ring_state(struct xe_gt *gt)
+{
+	return gt->info.has_indirect_ring_state &&
+	       xe_device_uc_enabled(gt_to_xe(gt));
+}
 
 static inline bool xe_gt_is_media_type(struct xe_gt *gt)
 {

@@ -46,7 +46,7 @@
 
 static struct dentry *ocrdma_dbgfs_dir;
 
-static int ocrdma_add_stat(char *start, char *pcur,
+static noinline_for_stack int ocrdma_add_stat(char *start, char *pcur,
 				char *name, u64 count)
 {
 	char buff[128] = {0};
@@ -99,7 +99,7 @@ void ocrdma_release_stats_resources(struct ocrdma_dev *dev)
 	kfree(mem->debugfs_mem);
 }
 
-static char *ocrdma_resource_stats(struct ocrdma_dev *dev)
+static noinline_for_stack char *ocrdma_resource_stats(struct ocrdma_dev *dev)
 {
 	char *stats = dev->stats_mem.debugfs_mem, *pcur;
 	struct ocrdma_rdma_stats_resp *rdma_stats =
@@ -216,7 +216,7 @@ static char *ocrdma_resource_stats(struct ocrdma_dev *dev)
 	return stats;
 }
 
-static char *ocrdma_rx_stats(struct ocrdma_dev *dev)
+static noinline_for_stack char *ocrdma_rx_stats(struct ocrdma_dev *dev)
 {
 	char *stats = dev->stats_mem.debugfs_mem, *pcur;
 	struct ocrdma_rdma_stats_resp *rdma_stats =
@@ -284,7 +284,7 @@ static u64 ocrdma_sysfs_rcv_data(struct ocrdma_dev *dev)
 		rx_stats->roce_frame_bytes_hi))/4;
 }
 
-static char *ocrdma_tx_stats(struct ocrdma_dev *dev)
+static noinline_for_stack char *ocrdma_tx_stats(struct ocrdma_dev *dev)
 {
 	char *stats = dev->stats_mem.debugfs_mem, *pcur;
 	struct ocrdma_rdma_stats_resp *rdma_stats =
@@ -358,7 +358,7 @@ static u64 ocrdma_sysfs_xmit_data(struct ocrdma_dev *dev)
 				 tx_stats->read_rsp_bytes_hi))/4;
 }
 
-static char *ocrdma_wqe_stats(struct ocrdma_dev *dev)
+static noinline_for_stack char *ocrdma_wqe_stats(struct ocrdma_dev *dev)
 {
 	char *stats = dev->stats_mem.debugfs_mem, *pcur;
 	struct ocrdma_rdma_stats_resp *rdma_stats =
@@ -391,7 +391,7 @@ static char *ocrdma_wqe_stats(struct ocrdma_dev *dev)
 	return stats;
 }
 
-static char *ocrdma_db_errstats(struct ocrdma_dev *dev)
+static noinline_for_stack char *ocrdma_db_errstats(struct ocrdma_dev *dev)
 {
 	char *stats = dev->stats_mem.debugfs_mem, *pcur;
 	struct ocrdma_rdma_stats_resp *rdma_stats =
@@ -412,7 +412,7 @@ static char *ocrdma_db_errstats(struct ocrdma_dev *dev)
 	return stats;
 }
 
-static char *ocrdma_rxqp_errstats(struct ocrdma_dev *dev)
+static noinline_for_stack char *ocrdma_rxqp_errstats(struct ocrdma_dev *dev)
 {
 	char *stats = dev->stats_mem.debugfs_mem, *pcur;
 	struct ocrdma_rdma_stats_resp *rdma_stats =
@@ -438,7 +438,7 @@ static char *ocrdma_rxqp_errstats(struct ocrdma_dev *dev)
 	return stats;
 }
 
-static char *ocrdma_txqp_errstats(struct ocrdma_dev *dev)
+static noinline_for_stack char *ocrdma_txqp_errstats(struct ocrdma_dev *dev)
 {
 	char *stats = dev->stats_mem.debugfs_mem, *pcur;
 	struct ocrdma_rdma_stats_resp *rdma_stats =
@@ -462,7 +462,7 @@ static char *ocrdma_txqp_errstats(struct ocrdma_dev *dev)
 	return stats;
 }
 
-static char *ocrdma_tx_dbg_stats(struct ocrdma_dev *dev)
+static noinline_for_stack char *ocrdma_tx_dbg_stats(struct ocrdma_dev *dev)
 {
 	int i;
 	char *pstats = dev->stats_mem.debugfs_mem;
@@ -480,7 +480,7 @@ static char *ocrdma_tx_dbg_stats(struct ocrdma_dev *dev)
 	return dev->stats_mem.debugfs_mem;
 }
 
-static char *ocrdma_rx_dbg_stats(struct ocrdma_dev *dev)
+static noinline_for_stack char *ocrdma_rx_dbg_stats(struct ocrdma_dev *dev)
 {
 	int i;
 	char *pstats = dev->stats_mem.debugfs_mem;
@@ -498,7 +498,7 @@ static char *ocrdma_rx_dbg_stats(struct ocrdma_dev *dev)
 	return dev->stats_mem.debugfs_mem;
 }
 
-static char *ocrdma_driver_dbg_stats(struct ocrdma_dev *dev)
+static noinline_for_stack char *ocrdma_driver_dbg_stats(struct ocrdma_dev *dev)
 {
 	char *stats = dev->stats_mem.debugfs_mem, *pcur;
 

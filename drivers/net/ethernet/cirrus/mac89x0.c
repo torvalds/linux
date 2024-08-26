@@ -554,6 +554,7 @@ static int set_mac_address(struct net_device *dev, void *addr)
 	return 0;
 }
 
+MODULE_DESCRIPTION("Macintosh CS89x0-based Ethernet driver");
 MODULE_LICENSE("GPL");
 
 static void mac89x0_device_remove(struct platform_device *pdev)

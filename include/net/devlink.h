@@ -352,7 +352,7 @@ struct devlink_dpipe_table {
 	bool resource_valid;
 	u64 resource_id;
 	u64 resource_units;
-	struct devlink_dpipe_table_ops *table_ops;
+	const struct devlink_dpipe_table_ops *table_ops;
 	struct rcu_head rcu;
 };
 
@@ -1751,7 +1751,7 @@ void devl_sb_unregister(struct devlink *devlink, unsigned int sb_index);
 void devlink_sb_unregister(struct devlink *devlink, unsigned int sb_index);
 int devl_dpipe_table_register(struct devlink *devlink,
 			      const char *table_name,
-			      struct devlink_dpipe_table_ops *table_ops,
+			      const struct devlink_dpipe_table_ops *table_ops,
 			      void *priv, bool counter_control_extern);
 void devl_dpipe_table_unregister(struct devlink *devlink,
 				 const char *table_name);

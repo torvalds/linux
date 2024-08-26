@@ -34,4 +34,42 @@ void dc_stream_destruct(struct dc_stream_state *stream);
 
 void dc_stream_assign_stream_id(struct dc_stream_state *stream);
 
+/*
+ * Finds the highest refresh rate that can be achieved
+ * from starting_freq while staying within flicker criteria
+ */
+int dc_stream_calculate_max_flickerless_refresh_rate(struct dc_stream_state *stream,
+						      int starting_refresh_hz,
+						      bool is_gaming);
+
+/*
+ * Finds the lowest refresh rate that can be achieved
+ * from starting_freq while staying within flicker criteria
+ */
+int dc_stream_calculate_min_flickerless_refresh_rate(struct dc_stream_state *stream,
+						      int starting_refresh_hz,
+						      bool is_gaming);
+
+/*
+ * Determines if there will be a flicker when moving between 2 refresh rates
+ */
+bool dc_stream_is_refresh_rate_range_flickerless(struct dc_stream_state *stream,
+						  int hz1,
+						  int hz2,
+						  bool is_gaming);
+
+/*
+ * Determines the max instant vtotal delta increase that can be applied without
+ * flickering for a given stream
+ */
+unsigned int dc_stream_get_max_flickerless_instant_vtotal_decrease(struct dc_stream_state *stream,
+									  bool is_gaming);
+
+/*
+ * Determines the max instant vtotal delta decrease that can be applied without
+ * flickering for a given stream
+ */
+unsigned int dc_stream_get_max_flickerless_instant_vtotal_increase(struct dc_stream_state *stream,
+									  bool is_gaming);
+
 #endif // _DC_STREAM_PRIV_H_

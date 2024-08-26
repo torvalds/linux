@@ -21,6 +21,7 @@
 
 #include <linux/dma-buf.h>
 #include <linux/pfn_t.h>
+#include <linux/vmalloc.h>
 
 #include "v3d_drv.h"
 #include "uapi/drm/v3d_drm.h"

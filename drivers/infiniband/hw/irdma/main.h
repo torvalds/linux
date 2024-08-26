@@ -239,7 +239,7 @@ struct irdma_qv_info {
 
 struct irdma_qvlist_info {
 	u32 num_vectors;
-	struct irdma_qv_info qv_info[];
+	struct irdma_qv_info qv_info[] __counted_by(num_vectors);
 };
 
 struct irdma_gen_ops {

@@ -23,20 +23,6 @@
 #define HISI_MAX_PERIOD(nr) (GENMASK_ULL((nr) - 1, 0))
 
 /*
- * PMU format attributes
- */
-ssize_t hisi_format_sysfs_show(struct device *dev,
-			       struct device_attribute *attr, char *buf)
-{
-	struct dev_ext_attribute *eattr;
-
-	eattr = container_of(attr, struct dev_ext_attribute, attr);
-
-	return sysfs_emit(buf, "%s\n", (char *)eattr->var);
-}
-EXPORT_SYMBOL_GPL(hisi_format_sysfs_show);
-
-/*
  * PMU event attributes
  */
 ssize_t hisi_event_sysfs_show(struct device *dev,
@@ -551,4 +537,5 @@ void hisi_pmu_init(struct hisi_pmu *hisi_pmu, struct module *module)
 }
 EXPORT_SYMBOL_GPL(hisi_pmu_init);
 
+MODULE_DESCRIPTION("HiSilicon SoC uncore Performance Monitor driver framework");
 MODULE_LICENSE("GPL v2");

@@ -94,4 +94,5 @@ static struct hid_driver retrode_driver = {
 
 module_hid_driver(retrode_driver);
 
+MODULE_DESCRIPTION("HID driver for Retrode 2 controller adapter and plug-in extensions");
 MODULE_LICENSE("GPL");

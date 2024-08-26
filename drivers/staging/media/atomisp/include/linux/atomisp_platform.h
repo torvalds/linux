@@ -18,7 +18,7 @@
 #ifndef ATOMISP_PLATFORM_H_
 #define ATOMISP_PLATFORM_H_
 
-#include <asm/intel-family.h>
+#include <asm/cpu_device_id.h>
 #include <asm/processor.h>
 
 #include <linux/i2c.h>
@@ -109,28 +109,10 @@ enum atomisp_input_format {
 
 #define N_ATOMISP_INPUT_FORMAT (ATOMISP_INPUT_FORMAT_USER_DEF8 + 1)
 
-enum intel_v4l2_subdev_type {
-	RAW_CAMERA = 1,
-	CAMERA_MOTOR = 2,
-	LED_FLASH = 3,
-	TEST_PATTERN = 4,
-};
-
-struct intel_v4l2_subdev_id {
-	char name[17];
-	enum intel_v4l2_subdev_type type;
-	enum atomisp_camera_port    port;
-};
-
 struct intel_v4l2_subdev_table {
-	enum intel_v4l2_subdev_type type;
 	enum atomisp_camera_port port;
 	unsigned int lanes;
 	struct v4l2_subdev *subdev;
-};
-
-struct atomisp_platform_data {
-	struct intel_v4l2_subdev_table *subdevs;
 };
 
 /*
@@ -161,25 +143,6 @@ struct atomisp_input_stream_info {
 	struct atomisp_isys_config_info isys_info[MAX_STREAMS_PER_CHANNEL];
 };
 
-struct camera_vcm_control;
-struct camera_vcm_ops {
-	int (*power_up)(struct v4l2_subdev *sd, struct camera_vcm_control *vcm);
-	int (*power_down)(struct v4l2_subdev *sd,
-			  struct camera_vcm_control *vcm);
-	int (*queryctrl)(struct v4l2_subdev *sd, struct v4l2_queryctrl *qc,
-			 struct camera_vcm_control *vcm);
-	int (*g_ctrl)(struct v4l2_subdev *sd, struct v4l2_control *ctrl,
-		      struct camera_vcm_control *vcm);
-	int (*s_ctrl)(struct v4l2_subdev *sd, struct v4l2_control *ctrl,
-		      struct camera_vcm_control *vcm);
-};
-
-struct camera_vcm_control {
-	char camera_module[CAMERA_MODULE_ID_LEN];
-	struct camera_vcm_ops *ops;
-	struct list_head list;
-};
-
 struct camera_sensor_platform_data {
 	int (*flisclk_ctrl)(struct v4l2_subdev *subdev, int flag);
 	int (*csi_cfg)(struct v4l2_subdev *subdev, int flag);
@@ -193,8 +156,6 @@ struct camera_sensor_platform_data {
 	int (*v1p8_ctrl)(struct v4l2_subdev *subdev, int on);
 	int (*v2p8_ctrl)(struct v4l2_subdev *subdev, int on);
 	int (*v1p2_ctrl)(struct v4l2_subdev *subdev, int on);
-	struct camera_vcm_control *(*get_vcm_ctrl)(struct v4l2_subdev *subdev,
-		char *module_id);
 };
 
 struct camera_mipi_info {
@@ -208,7 +169,7 @@ struct camera_mipi_info {
 	const u32                       *metadata_effective_width;
 };
 
-const struct atomisp_platform_data *atomisp_get_platform_data(void);
+const struct intel_v4l2_subdev_table *atomisp_platform_get_subdevs(void);
 int atomisp_register_sensor_no_gmin(struct v4l2_subdev *subdev, u32 lanes,
 				    enum atomisp_input_format format,
 				    enum atomisp_bayer_order bayer_order);
@@ -217,22 +178,17 @@ void atomisp_unregister_subdev(struct v4l2_subdev *subdev);
 int v4l2_get_acpi_sensor_info(struct device *dev, char **module_id_str);
 
 /* API from old platform_camera.h, new CPUID implementation */
-#define __IS_SOC(x) (boot_cpu_data.x86_vendor == X86_VENDOR_INTEL && \
-		     boot_cpu_data.x86 == 6 &&                       \
-		     boot_cpu_data.x86_model == (x))
-#define __IS_SOCS(x,y) (boot_cpu_data.x86_vendor == X86_VENDOR_INTEL && \
-		        boot_cpu_data.x86 == 6 &&                       \
-		        (boot_cpu_data.x86_model == (x) || \
-		         boot_cpu_data.x86_model == (y)))
+#define __IS_SOC(x) (boot_cpu_data.x86_vfm == x)
+#define __IS_SOCS(x, y) (boot_cpu_data.x86_vfm == x || boot_cpu_data.x86_vfm == y)
 
-#define IS_MFLD	__IS_SOC(INTEL_FAM6_ATOM_SALTWELL_MID)
-#define IS_BYT	__IS_SOC(INTEL_FAM6_ATOM_SILVERMONT)
-#define IS_CHT	__IS_SOC(INTEL_FAM6_ATOM_AIRMONT)
-#define IS_MRFD	__IS_SOC(INTEL_FAM6_ATOM_SILVERMONT_MID)
-#define IS_MOFD	__IS_SOC(INTEL_FAM6_ATOM_AIRMONT_MID)
+#define IS_MFLD	__IS_SOC(INTEL_ATOM_SALTWELL_MID)
+#define IS_BYT	__IS_SOC(INTEL_ATOM_SILVERMONT)
+#define IS_CHT	__IS_SOC(INTEL_ATOM_AIRMONT)
+#define IS_MRFD	__IS_SOC(INTEL_ATOM_SILVERMONT_MID)
+#define IS_MOFD	__IS_SOC(INTEL_ATOM_AIRMONT_MID)
 
 /* Both CHT and MOFD come with ISP2401 */
-#define IS_ISP2401 __IS_SOCS(INTEL_FAM6_ATOM_AIRMONT, \
-			     INTEL_FAM6_ATOM_AIRMONT_MID)
+#define IS_ISP2401 __IS_SOCS(INTEL_ATOM_AIRMONT, \
+			     INTEL_ATOM_AIRMONT_MID)
 
 #endif /* ATOMISP_PLATFORM_H_ */

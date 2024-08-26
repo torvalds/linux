@@ -36,8 +36,8 @@
 		status = "okay";
 
 		display-timings {
-			480x800p60 {
-				native-mode;
+			native-mode = <&timing0>;
+			timing0: timing-480x800p60 {
 				clock-frequency = <30000000>;
 				hactive = <480>;
 				vactive = <800>;

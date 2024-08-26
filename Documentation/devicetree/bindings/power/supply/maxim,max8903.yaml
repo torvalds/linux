@@ -34,7 +34,7 @@ properties:
 
   flt-gpios:
     maxItems: 1
-    description: Fault pin (active low, output)
+    description: Fault pin (active low, input)
 
   dcm-gpios:
     maxItems: 1

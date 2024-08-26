@@ -1913,11 +1913,6 @@ static int criu_checkpoint_bos(struct kfd_process *p,
 			struct kfd_criu_bo_priv_data *bo_priv;
 			int i, dev_idx = 0;
 
-			if (!mem) {
-				ret = -ENOMEM;
-				goto exit;
-			}
-
 			kgd_mem = (struct kgd_mem *)mem;
 			dumper_bo = kgd_mem->bo;
 

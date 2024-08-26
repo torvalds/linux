@@ -6,6 +6,7 @@
 		#size-cells = <0>;
 
 		cpu@0 {
+			device_type = "cpu";
 			compatible = "mips,mips4KEc";
 			reg = <0>;
 			clocks = <&baseclk 0>;

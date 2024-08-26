@@ -134,7 +134,7 @@ static void output_sample_callchain_entry(struct perf_tool *tool,
 		output_json_key_string(out, false, 5, "symbol", al->sym->name);
 
 		if (dso) {
-			const char *dso_name = dso->short_name;
+			const char *dso_name = dso__short_name(dso);
 
 			if (dso_name && strlen(dso_name) > 0) {
 				fputc(',', out);

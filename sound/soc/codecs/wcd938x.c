@@ -206,7 +206,6 @@ struct wcd938x_priv {
 	bool comp1_enable;
 	bool comp2_enable;
 	bool ldoh;
-	bool bcs_dis;
 };
 
 static const SNDRV_CTL_TLVD_DECLARE_DB_MINMAX(ear_pa_gain, 600, -1800);
@@ -222,7 +221,7 @@ struct wcd938x_mbhc_zdet_param {
 	u16 btn7;
 };
 
-static struct wcd_mbhc_field wcd_mbhc_fields[WCD_MBHC_REG_FUNC_MAX] = {
+static const struct wcd_mbhc_field wcd_mbhc_fields[WCD_MBHC_REG_FUNC_MAX] = {
 	WCD_MBHC_FIELD(WCD_MBHC_L_DET_EN, WCD938X_ANA_MBHC_MECH, 0x80),
 	WCD_MBHC_FIELD(WCD_MBHC_GND_DET_EN, WCD938X_ANA_MBHC_MECH, 0x40),
 	WCD_MBHC_FIELD(WCD_MBHC_MECH_DETECTION_TYPE, WCD938X_ANA_MBHC_MECH, 0x20),
@@ -419,7 +418,7 @@ static int wcd938x_io_init(struct wcd938x_priv *wcd938x)
 
 }
 
-static int wcd938x_sdw_connect_port(struct wcd938x_sdw_ch_info *ch_info,
+static int wcd938x_sdw_connect_port(const struct wcd938x_sdw_ch_info *ch_info,
 				    struct sdw_port_config *port_config,
 				    u8 enable)
 {
@@ -1650,31 +1649,6 @@ static int wcd938x_ldoh_put(struct snd_kcontrol *kcontrol,
 	return 1;
 }
 
-static int wcd938x_bcs_get(struct snd_kcontrol *kcontrol,
-			   struct snd_ctl_elem_value *ucontrol)
-{
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
-	struct wcd938x_priv *wcd938x = snd_soc_component_get_drvdata(component);
-
-	ucontrol->value.integer.value[0] = wcd938x->bcs_dis;
-
-	return 0;
-}
-
-static int wcd938x_bcs_put(struct snd_kcontrol *kcontrol,
-			   struct snd_ctl_elem_value *ucontrol)
-{
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
-	struct wcd938x_priv *wcd938x = snd_soc_component_get_drvdata(component);
-
-	if (wcd938x->bcs_dis == ucontrol->value.integer.value[0])
-		return 0;
-
-	wcd938x->bcs_dis = ucontrol->value.integer.value[0];
-
-	return 1;
-}
-
 static const char * const tx_mode_mux_text_wcd9380[] = {
 	"ADC_INVALID", "ADC_HIFI", "ADC_LO_HIF", "ADC_NORMAL", "ADC_LP",
 };
@@ -1982,7 +1956,7 @@ static bool wcd938x_mbhc_micb_en_status(struct snd_soc_component *component, int
 	if (micb_num == MIC_BIAS_2) {
 		val = snd_soc_component_read_field(component,
 						   WCD938X_ANA_MICB2,
-						   WCD938X_ANA_MICB2_ENABLE_MASK);
+						   WCD938X_MICB_EN_MASK);
 		if (val == WCD938X_MICB_ENABLE)
 			return true;
 	}
@@ -2695,8 +2669,6 @@ static const struct snd_kcontrol_new wcd938x_snd_controls[] = {
 		       wcd938x_get_swr_port, wcd938x_set_swr_port),
 	SOC_SINGLE_EXT("LDOH Enable Switch", SND_SOC_NOPM, 0, 1, 0,
 		       wcd938x_ldoh_get, wcd938x_ldoh_put),
-	SOC_SINGLE_EXT("ADC2_BCS Disable Switch", SND_SOC_NOPM, 0, 1, 0,
-		       wcd938x_bcs_get, wcd938x_bcs_put),
 
 	SOC_SINGLE_TLV("ADC1 Volume", WCD938X_ANA_TX_CH1, 0, 20, 0, analog_gain),
 	SOC_SINGLE_TLV("ADC2 Volume", WCD938X_ANA_TX_CH2, 0, 20, 0, analog_gain),
@@ -3055,7 +3027,7 @@ static irqreturn_t wcd938x_wd_handle_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static struct irq_chip wcd_irq_chip = {
+static const struct irq_chip wcd_irq_chip = {
 	.name = "WCD938x",
 };
 

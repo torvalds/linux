@@ -244,7 +244,7 @@ static void __init test_find_nth_bit(void)
 	expect_eq_uint(60,  find_nth_bit(bmap, 64 * 3, 5));
 	expect_eq_uint(80,  find_nth_bit(bmap, 64 * 3, 6));
 	expect_eq_uint(123, find_nth_bit(bmap, 64 * 3, 7));
-	expect_eq_uint(64 * 3, find_nth_bit(bmap, 64 * 3, 8));
+	expect_eq_uint(0,   !!(find_nth_bit(bmap, 64 * 3, 8) < 64 * 3));
 
 	expect_eq_uint(10,  find_nth_bit(bmap, 64 * 3 - 1, 0));
 	expect_eq_uint(20,  find_nth_bit(bmap, 64 * 3 - 1, 1));
@@ -254,7 +254,7 @@ static void __init test_find_nth_bit(void)
 	expect_eq_uint(60,  find_nth_bit(bmap, 64 * 3 - 1, 5));
 	expect_eq_uint(80,  find_nth_bit(bmap, 64 * 3 - 1, 6));
 	expect_eq_uint(123, find_nth_bit(bmap, 64 * 3 - 1, 7));
-	expect_eq_uint(64 * 3 - 1, find_nth_bit(bmap, 64 * 3 - 1, 8));
+	expect_eq_uint(0,   !!(find_nth_bit(bmap, 64 * 3 - 1, 8) < 64 * 3 - 1));
 
 	for_each_set_bit(bit, exp1, EXP1_IN_BITS) {
 		b = find_nth_bit(exp1, EXP1_IN_BITS, cnt++);

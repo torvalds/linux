@@ -101,13 +101,9 @@ static int store_password_instance(struct kobject *kobj, const char *buf,
 
 	if (!ret) {
 		if (is_current)
-			strscpy(bioscfg_drv.password_data[id].current_password,
-				buf_cp,
-				sizeof(bioscfg_drv.password_data[id].current_password));
+			strscpy(bioscfg_drv.password_data[id].current_password, buf_cp);
 		else
-			strscpy(bioscfg_drv.password_data[id].new_password,
-				buf_cp,
-				sizeof(bioscfg_drv.password_data[id].new_password));
+			strscpy(bioscfg_drv.password_data[id].new_password, buf_cp);
 	}
 
 	kfree(buf_cp);
@@ -272,8 +268,7 @@ static int hp_populate_password_elements_from_package(union acpi_object *passwor
 		case VALUE:
 			break;
 		case PATH:
-			strscpy(password_data->common.path, str_value,
-				sizeof(password_data->common.path));
+			strscpy(password_data->common.path, str_value);
 			break;
 		case IS_READONLY:
 			password_data->common.is_readonly = int_value;
@@ -315,9 +310,7 @@ static int hp_populate_password_elements_from_package(union acpi_object *passwor
 				if (ret)
 					break;
 
-				strscpy(password_data->common.prerequisites[reqs],
-					str_value,
-					sizeof(password_data->common.prerequisites[reqs]));
+				strscpy(password_data->common.prerequisites[reqs], str_value);
 
 				kfree(str_value);
 				str_value = NULL;
@@ -359,9 +352,7 @@ static int hp_populate_password_elements_from_package(union acpi_object *passwor
 				if (ret)
 					break;
 
-				strscpy(password_data->encodings[pos_values],
-					str_value,
-					sizeof(password_data->encodings[pos_values]));
+				strscpy(password_data->encodings[pos_values], str_value);
 				kfree(str_value);
 				str_value = NULL;
 

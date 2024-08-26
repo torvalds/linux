@@ -475,4 +475,5 @@ static struct hid_driver ms_driver = {
 };
 module_hid_driver(ms_driver);
 
+MODULE_DESCRIPTION("HID driver for some microsoft \"special\" devices");
 MODULE_LICENSE("GPL");

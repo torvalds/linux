@@ -38,10 +38,12 @@ properties:
   compatible:
     const: olimex,lcd-olinuxino
 
+  reg:
+    maxItems: 1
+
   backlight: true
   enable-gpios: true
   power-supply: true
-  reg: true
 
 required:
   - compatible

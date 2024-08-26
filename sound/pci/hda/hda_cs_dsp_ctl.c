@@ -207,7 +207,7 @@ void hda_cs_dsp_control_remove(struct cs_dsp_coeff_ctl *cs_ctl)
 	struct hda_cs_dsp_coeff_ctl *ctl = cs_ctl->priv;
 
 	/* ctl and kctl may already have been removed by ALSA private_free */
-	if (ctl && ctl->kctl)
+	if (ctl)
 		snd_ctl_remove(ctl->card, ctl->kctl);
 }
 EXPORT_SYMBOL_NS_GPL(hda_cs_dsp_control_remove, SND_HDA_CS_DSP_CONTROLS);

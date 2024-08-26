@@ -13,7 +13,6 @@
 	thermal-zones {
 		pm660l-thermal {
 			polling-delay-passive = <250>;
-			polling-delay = <1000>;
 
 			thermal-sensors = <&pm660l_temp>;
 

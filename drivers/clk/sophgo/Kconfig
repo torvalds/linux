@@ -1,0 +1,39 @@
+# SPDX-License-Identifier: GPL-2.0
+# common clock support for SOPHGO SoC family.
+
+config CLK_SOPHGO_CV1800
+	tristate "Support for the Sophgo CV1800 series SoCs clock controller"
+	depends on ARCH_SOPHGO || COMPILE_TEST
+	help
+	  This driver supports clock controller of Sophgo CV18XX series SoC.
+	  The driver require a 25MHz Oscillator to function generate clock.
+	  It includes PLLs, common clock function and some vendor clock for
+	  IPs of CV18XX series SoC
+
+config CLK_SOPHGO_SG2042_PLL
+	tristate "Sophgo SG2042 PLL clock support"
+	depends on ARCH_SOPHGO || COMPILE_TEST
+	help
+	  This driver supports the PLL clock controller on the
+	  Sophgo SG2042 SoC. This clock IP uses three oscillators with
+	  frequency of 25 MHz as input, which are used for Main/Fixed
+	  PLL, DDR PLL 0 and DDR PLL 1 respectively.
+
+config CLK_SOPHGO_SG2042_CLKGEN
+	tristate "Sophgo SG2042 Clock Generator support"
+	depends on CLK_SOPHGO_SG2042_PLL
+	help
+	  This driver supports the Clock Generator on the
+	  Sophgo SG2042 SoC. This clock IP depends on SG2042 PLL clock
+	  because it uses PLL clocks as input.
+	  This driver provides clock function such as DIV/Mux/Gate.
+
+config CLK_SOPHGO_SG2042_RPGATE
+	tristate "Sophgo SG2042 RP subsystem clock controller support"
+	depends on CLK_SOPHGO_SG2042_CLKGEN
+	help
+	  This driver supports the RP((Riscv Processors)) subsystem clock
+	  controller on the Sophgo SG2042 SoC.
+	  This clock IP depends on SG2042 Clock Generator because it uses
+	  clock from Clock Generator IP as input.
+	  This driver provides Gate function for RP.

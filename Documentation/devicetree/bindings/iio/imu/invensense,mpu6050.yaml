@@ -62,14 +62,15 @@ properties:
 allOf:
   - $ref: /schemas/spi/spi-peripheral-props.yaml#
   - if:
-      not:
-        properties:
-          compatible:
-            contains:
-              enum:
-                - invensense,mpu9150
-                - invensense,mpu9250
-                - invensense,mpu9255
+      properties:
+        compatible:
+          contains:
+            enum:
+              - invensense,iam20680
+              - invensense,icm20602
+              - invensense,icm20608
+              - invensense,icm20609
+              - invensense,icm20689
     then:
       properties:
         i2c-gate: false

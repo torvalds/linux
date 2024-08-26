@@ -936,4 +936,5 @@ static struct platform_driver meson_a1_pinctrl_driver = {
 };
 
 module_platform_driver(meson_a1_pinctrl_driver);
+MODULE_DESCRIPTION("Amlogic Meson A1 SoC pinctrl driver");
 MODULE_LICENSE("Dual BSD/GPL");

@@ -239,11 +239,11 @@ TRACE_EVENT(sched_switch,
 	),
 
 	TP_fast_assign(
-		memcpy(__entry->next_comm, next->comm, TASK_COMM_LEN);
+		memcpy(__entry->prev_comm, prev->comm, TASK_COMM_LEN);
 		__entry->prev_pid	= prev->pid;
 		__entry->prev_prio	= prev->prio;
 		__entry->prev_state	= __trace_sched_switch_state(preempt, prev_state, prev);
-		memcpy(__entry->prev_comm, prev->comm, TASK_COMM_LEN);
+		memcpy(__entry->next_comm, next->comm, TASK_COMM_LEN);
 		__entry->next_pid	= next->pid;
 		__entry->next_prio	= next->prio;
 		/* XXX SCHED_DEADLINE */
@@ -411,7 +411,7 @@ TRACE_EVENT(sched_process_exec,
 	),
 
 	TP_fast_assign(
-		__assign_str(filename, bprm->filename);
+		__assign_str(filename);
 		__entry->pid		= p->pid;
 		__entry->old_pid	= old_pid;
 	),
@@ -445,10 +445,10 @@ TRACE_EVENT(sched_prepare_exec,
 	),
 
 	TP_fast_assign(
-		__assign_str(interp, bprm->interp);
-		__assign_str(filename, bprm->filename);
+		__assign_str(interp);
+		__assign_str(filename);
 		__entry->pid = task->pid;
-		__assign_str(comm, task->comm);
+		__assign_str(comm);
 	),
 
 	TP_printk("interp=%s filename=%s pid=%d comm=%s",

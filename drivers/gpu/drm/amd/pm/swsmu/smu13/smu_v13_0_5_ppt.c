@@ -643,7 +643,7 @@ static int smu_v13_0_5_get_dpm_level_count(struct smu_context *smu,
 		*count = clk_table->NumDfPstatesEnabled;
 		break;
 	default:
-		break;
+		return -EINVAL;
 	}
 
 	return 0;
@@ -733,31 +733,9 @@ static int smu_v13_0_5_get_dpm_ultimate_freq(struct smu_context *smu,
 	int ret = 0;
 
 	if (!smu_v13_0_5_clk_dpm_is_enabled(smu, clk_type)) {
-		switch (clk_type) {
-		case SMU_MCLK:
-		case SMU_UCLK:
-			clock_limit = smu->smu_table.boot_values.uclk;
-			break;
-		case SMU_FCLK:
-			clock_limit = smu->smu_table.boot_values.fclk;
-			break;
-		case SMU_GFXCLK:
-		case SMU_SCLK:
-			clock_limit = smu->smu_table.boot_values.gfxclk;
-			break;
-		case SMU_SOCCLK:
-			clock_limit = smu->smu_table.boot_values.socclk;
-			break;
-		case SMU_VCLK:
-			clock_limit = smu->smu_table.boot_values.vclk;
-			break;
-		case SMU_DCLK:
-			clock_limit = smu->smu_table.boot_values.dclk;
-			break;
-		default:
-			clock_limit = 0;
-			break;
-		}
+		ret = smu_v13_0_get_boot_freq_by_index(smu, clk_type, &clock_limit);
+		if (ret)
+			return ret;
 
 		/* clock in Mhz unit */
 		if (min)

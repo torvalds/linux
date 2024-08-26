@@ -56,6 +56,8 @@ static int clk_dvp_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
+	data->num = NR_CLOCKS;
+
 	data->hws[0] = clk_hw_register_gate_parent_data(&pdev->dev,
 							"hdmi0-108MHz",
 							&clk_dvp_parent, 0,
@@ -76,7 +78,6 @@ static int clk_dvp_probe(struct platform_device *pdev)
 		goto unregister_clk0;
 	}
 
-	data->num = NR_CLOCKS;
 	ret = of_clk_add_hw_provider(pdev->dev.of_node, of_clk_hw_onecell_get,
 				     data);
 	if (ret)

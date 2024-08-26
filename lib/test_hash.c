@@ -235,4 +235,5 @@ static struct kunit_suite hash_test_suite = {
 
 kunit_test_suite(hash_test_suite);
 
+MODULE_DESCRIPTION("Test cases for <linux/hash.h> and <linux/stringhash.h>");
 MODULE_LICENSE("GPL");

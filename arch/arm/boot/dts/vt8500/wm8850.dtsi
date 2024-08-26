@@ -244,13 +244,13 @@
 			interrupts = <26>;
 		};
 
-		uhci@d8007b00 {
+		usb@d8007b00 {
 			compatible = "platform-uhci";
 			reg = <0xd8007b00 0x200>;
 			interrupts = <26>;
 		};
 
-		uhci@d8008d00 {
+		usb@d8008d00 {
 			compatible = "platform-uhci";
 			reg = <0xd8008d00 0x200>;
 			interrupts = <26>;

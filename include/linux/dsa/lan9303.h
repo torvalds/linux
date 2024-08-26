@@ -5,8 +5,8 @@ struct lan9303;
 
 struct lan9303_phy_ops {
 	/* PHY 1 and 2 access*/
-	int	(*phy_read)(struct lan9303 *chip, int port, int regnum);
-	int	(*phy_write)(struct lan9303 *chip, int port,
+	int	(*phy_read)(struct lan9303 *chip, int addr, int regnum);
+	int	(*phy_write)(struct lan9303 *chip, int addr,
 			     int regnum, u16 val);
 };
 

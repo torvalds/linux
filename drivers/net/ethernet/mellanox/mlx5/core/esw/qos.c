@@ -531,7 +531,7 @@ static bool esw_qos_element_type_supported(struct mlx5_core_dev *dev, int type)
 	switch (type) {
 	case SCHEDULING_CONTEXT_ELEMENT_TYPE_TSAR:
 		return MLX5_CAP_QOS(dev, esw_element_type) &
-		       ELEMENT_TYPE_CAP_MASK_TASR;
+		       ELEMENT_TYPE_CAP_MASK_TSAR;
 	case SCHEDULING_CONTEXT_ELEMENT_TYPE_VPORT:
 		return MLX5_CAP_QOS(dev, esw_element_type) &
 		       ELEMENT_TYPE_CAP_MASK_VPORT;

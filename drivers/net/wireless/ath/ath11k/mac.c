@@ -4229,6 +4229,7 @@ static int ath11k_install_key(struct ath11k_vif *arvif,
 
 	switch (key->cipher) {
 	case WLAN_CIPHER_SUITE_CCMP:
+	case WLAN_CIPHER_SUITE_CCMP_256:
 		arg.key_cipher = WMI_CIPHER_AES_CCM;
 		/* TODO: Re-check if flag is valid */
 		key->flags |= IEEE80211_KEY_FLAG_GENERATE_IV_MGMT;
@@ -4238,12 +4239,10 @@ static int ath11k_install_key(struct ath11k_vif *arvif,
 		arg.key_txmic_len = 8;
 		arg.key_rxmic_len = 8;
 		break;
-	case WLAN_CIPHER_SUITE_CCMP_256:
-		arg.key_cipher = WMI_CIPHER_AES_CCM;
-		break;
 	case WLAN_CIPHER_SUITE_GCMP:
 	case WLAN_CIPHER_SUITE_GCMP_256:
 		arg.key_cipher = WMI_CIPHER_AES_GCM;
+		key->flags |= IEEE80211_KEY_FLAG_GENERATE_IV_MGMT;
 		break;
 	default:
 		ath11k_warn(ar->ab, "cipher %d is not supported\n", key->cipher);
@@ -5903,7 +5902,10 @@ static int ath11k_mac_mgmt_tx_wmi(struct ath11k *ar, struct ath11k_vif *arvif,
 {
 	struct ath11k_base *ab = ar->ab;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
+	struct ath11k_skb_cb *skb_cb = ATH11K_SKB_CB(skb);
 	struct ieee80211_tx_info *info;
+	enum hal_encrypt_type enctype;
+	unsigned int mic_len;
 	dma_addr_t paddr;
 	int buf_id;
 	int ret;
@@ -5927,7 +5929,12 @@ static int ath11k_mac_mgmt_tx_wmi(struct ath11k *ar, struct ath11k_vif *arvif,
 		     ieee80211_is_deauth(hdr->frame_control) ||
 		     ieee80211_is_disassoc(hdr->frame_control)) &&
 		     ieee80211_has_protected(hdr->frame_control)) {
-			skb_put(skb, IEEE80211_CCMP_MIC_LEN);
+			if (!(skb_cb->flags & ATH11K_SKB_CIPHER_SET))
+				ath11k_warn(ab, "WMI management tx frame without ATH11K_SKB_CIPHER_SET");
+
+			enctype = ath11k_dp_tx_get_encrypt_type(skb_cb->cipher);
+			mic_len = ath11k_dp_rx_crypto_mic_len(ar, enctype);
+			skb_put(skb, mic_len);
 		}
 	}
 
@@ -6108,7 +6115,7 @@ static int ath11k_mac_config_mon_status_default(struct ath11k *ar, bool enable)
 			tlv_filter.rx_filter = ath11k_debugfs_rx_filter(ar);
 	}
 
-	for (i = 0; i < ab->hw_params.num_rxmda_per_pdev; i++) {
+	for (i = 0; i < ab->hw_params.num_rxdma_per_pdev; i++) {
 		ring_id = ar->dp.rx_mon_status_refill_ring[i].refill_buf_ring.ring_id;
 		ret = ath11k_dp_tx_htt_rx_filter_setup(ar->ab, ring_id,
 						       ar->dp.mac_id + i,
@@ -6278,7 +6285,7 @@ err:
 	return ret;
 }
 
-static void ath11k_mac_op_stop(struct ieee80211_hw *hw)
+static void ath11k_mac_op_stop(struct ieee80211_hw *hw, bool suspend)
 {
 	struct ath11k *ar = hw->priv;
 	struct htt_ppdu_stats_info *ppdu_stats, *tmp;
@@ -7507,32 +7514,6 @@ static int ath11k_mac_stop_vdev_early(struct ieee80211_hw *hw,
 	return 0;
 }
 
-static u8 ath11k_mac_get_tpe_count(u8 txpwr_intrprt, u8 txpwr_cnt)
-{
-	switch (txpwr_intrprt) {
-	/* Refer "Table 9-276-Meaning of Maximum Transmit Power Count subfield
-	 * if the Maximum Transmit Power Interpretation subfield is 0 or 2" of
-	 * "IEEE Std 802.11ax 2021".
-	 */
-	case IEEE80211_TPE_LOCAL_EIRP:
-	case IEEE80211_TPE_REG_CLIENT_EIRP:
-		txpwr_cnt = txpwr_cnt <= 3 ? txpwr_cnt : 3;
-		txpwr_cnt = txpwr_cnt + 1;
-		break;
-	/* Refer "Table 9-277-Meaning of Maximum Transmit Power Count subfield
-	 * if Maximum Transmit Power Interpretation subfield is 1 or 3" of
-	 * "IEEE Std 802.11ax 2021".
-	 */
-	case IEEE80211_TPE_LOCAL_EIRP_PSD:
-	case IEEE80211_TPE_REG_CLIENT_EIRP_PSD:
-		txpwr_cnt = txpwr_cnt <= 4 ? txpwr_cnt : 4;
-		txpwr_cnt = txpwr_cnt ? (BIT(txpwr_cnt - 1)) : 1;
-		break;
-	}
-
-	return txpwr_cnt;
-}
-
 static u8 ath11k_mac_get_num_pwr_levels(struct cfg80211_chan_def *chan_def)
 {
 	if (chan_def->chan->flags & IEEE80211_CHAN_PSD) {
@@ -7688,7 +7669,7 @@ void ath11k_mac_fill_reg_tpc_info(struct ath11k *ar,
 	struct ieee80211_channel *chan, *temp_chan;
 	u8 pwr_lvl_idx, num_pwr_levels, pwr_reduction;
 	bool is_psd_power = false, is_tpe_present = false;
-	s8 max_tx_power[IEEE80211_MAX_NUM_PWR_LEVEL],
+	s8 max_tx_power[ATH11K_NUM_PWR_LEVELS],
 		psd_power, tx_power;
 	s8 eirp_power = 0;
 	u16 start_freq, center_freq;
@@ -7701,7 +7682,8 @@ void ath11k_mac_fill_reg_tpc_info(struct ath11k *ar,
 		is_tpe_present = true;
 		num_pwr_levels = arvif->reg_tpc_info.num_pwr_levels;
 	} else {
-		num_pwr_levels = ath11k_mac_get_num_pwr_levels(&ctx->def);
+		num_pwr_levels =
+			ath11k_mac_get_num_pwr_levels(&bss_conf->chanreq.oper);
 	}
 
 	for (pwr_lvl_idx = 0; pwr_lvl_idx < num_pwr_levels; pwr_lvl_idx++) {
@@ -7858,33 +7840,23 @@ static void ath11k_mac_parse_tx_pwr_env(struct ath11k *ar,
 	struct ath11k_base *ab = ar->ab;
 	struct ath11k_vif *arvif = ath11k_vif_to_arvif(vif);
 	struct ieee80211_bss_conf *bss_conf = &vif->bss_conf;
-	struct ieee80211_tx_pwr_env *single_tpe;
+	struct ieee80211_parsed_tpe_eirp *non_psd = NULL;
+	struct ieee80211_parsed_tpe_psd *psd = NULL;
 	enum wmi_reg_6ghz_client_type client_type;
 	struct cur_regulatory_info *reg_info;
+	u8 local_tpe_count, reg_tpe_count;
+	bool use_local_tpe;
 	int i;
-	u8 pwr_count, pwr_interpret, pwr_category;
-	u8 psd_index = 0, non_psd_index = 0, local_tpe_count = 0, reg_tpe_count = 0;
-	bool use_local_tpe, non_psd_set = false, psd_set = false;
 
 	reg_info = &ab->reg_info_store[ar->pdev_idx];
 	client_type = reg_info->client_type;
 
-	for (i = 0; i < bss_conf->tx_pwr_env_num; i++) {
-		single_tpe = &bss_conf->tx_pwr_env[i];
-		pwr_category = u8_get_bits(single_tpe->tx_power_info,
-					   IEEE80211_TX_PWR_ENV_INFO_CATEGORY);
-		pwr_interpret = u8_get_bits(single_tpe->tx_power_info,
-					    IEEE80211_TX_PWR_ENV_INFO_INTERPRET);
-
-		if (pwr_category == client_type) {
-			if (pwr_interpret == IEEE80211_TPE_LOCAL_EIRP ||
-			    pwr_interpret == IEEE80211_TPE_LOCAL_EIRP_PSD)
-				local_tpe_count++;
-			else if (pwr_interpret == IEEE80211_TPE_REG_CLIENT_EIRP ||
-				 pwr_interpret == IEEE80211_TPE_REG_CLIENT_EIRP_PSD)
-				reg_tpe_count++;
-		}
-	}
+	local_tpe_count =
+		bss_conf->tpe.max_local[client_type].valid +
+		bss_conf->tpe.psd_local[client_type].valid;
+	reg_tpe_count =
+		bss_conf->tpe.max_reg_client[client_type].valid +
+		bss_conf->tpe.psd_reg_client[client_type].valid;
 
 	if (!reg_tpe_count && !local_tpe_count) {
 		ath11k_warn(ab,
@@ -7897,83 +7869,44 @@ static void ath11k_mac_parse_tx_pwr_env(struct ath11k *ar,
 		use_local_tpe = false;
 	}
 
-	for (i = 0; i < bss_conf->tx_pwr_env_num; i++) {
-		single_tpe = &bss_conf->tx_pwr_env[i];
-		pwr_category = u8_get_bits(single_tpe->tx_power_info,
-					   IEEE80211_TX_PWR_ENV_INFO_CATEGORY);
-		pwr_interpret = u8_get_bits(single_tpe->tx_power_info,
-					    IEEE80211_TX_PWR_ENV_INFO_INTERPRET);
-
-		if (pwr_category != client_type)
-			continue;
-
-		/* get local transmit power envelope */
-		if (use_local_tpe) {
-			if (pwr_interpret == IEEE80211_TPE_LOCAL_EIRP) {
-				non_psd_index = i;
-				non_psd_set = true;
-			} else if (pwr_interpret == IEEE80211_TPE_LOCAL_EIRP_PSD) {
-				psd_index = i;
-				psd_set = true;
-			}
-		/* get regulatory transmit power envelope */
-		} else {
-			if (pwr_interpret == IEEE80211_TPE_REG_CLIENT_EIRP) {
-				non_psd_index = i;
-				non_psd_set = true;
-			} else if (pwr_interpret == IEEE80211_TPE_REG_CLIENT_EIRP_PSD) {
-				psd_index = i;
-				psd_set = true;
-			}
-		}
+	if (use_local_tpe) {
+		psd = &bss_conf->tpe.psd_local[client_type];
+		if (!psd->valid)
+			psd = NULL;
+		non_psd = &bss_conf->tpe.max_local[client_type];
+		if (!non_psd->valid)
+			non_psd = NULL;
+	} else {
+		psd = &bss_conf->tpe.psd_reg_client[client_type];
+		if (!psd->valid)
+			psd = NULL;
+		non_psd = &bss_conf->tpe.max_reg_client[client_type];
+		if (!non_psd->valid)
+			non_psd = NULL;
 	}
 
-	if (non_psd_set && !psd_set) {
-		single_tpe = &bss_conf->tx_pwr_env[non_psd_index];
-		pwr_count = u8_get_bits(single_tpe->tx_power_info,
-					IEEE80211_TX_PWR_ENV_INFO_COUNT);
-		pwr_interpret = u8_get_bits(single_tpe->tx_power_info,
-					    IEEE80211_TX_PWR_ENV_INFO_INTERPRET);
+	if (non_psd && !psd) {
 		arvif->reg_tpc_info.is_psd_power = false;
 		arvif->reg_tpc_info.eirp_power = 0;
 
-		arvif->reg_tpc_info.num_pwr_levels =
-			ath11k_mac_get_tpe_count(pwr_interpret, pwr_count);
+		arvif->reg_tpc_info.num_pwr_levels = non_psd->count;
 
 		for (i = 0; i < arvif->reg_tpc_info.num_pwr_levels; i++) {
 			ath11k_dbg(ab, ATH11K_DBG_MAC,
 				   "non PSD power[%d] : %d\n",
-				   i, single_tpe->tx_power[i]);
-			arvif->reg_tpc_info.tpe[i] = single_tpe->tx_power[i] / 2;
+				   i, non_psd->power[i]);
+			arvif->reg_tpc_info.tpe[i] = non_psd->power[i] / 2;
 		}
 	}
 
-	if (psd_set) {
-		single_tpe = &bss_conf->tx_pwr_env[psd_index];
-		pwr_count = u8_get_bits(single_tpe->tx_power_info,
-					IEEE80211_TX_PWR_ENV_INFO_COUNT);
-		pwr_interpret = u8_get_bits(single_tpe->tx_power_info,
-					    IEEE80211_TX_PWR_ENV_INFO_INTERPRET);
-		arvif->reg_tpc_info.is_psd_power = true;
+	if (psd) {
+		arvif->reg_tpc_info.num_pwr_levels = psd->count;
 
-		if (pwr_count == 0) {
+		for (i = 0; i < arvif->reg_tpc_info.num_pwr_levels; i++) {
 			ath11k_dbg(ab, ATH11K_DBG_MAC,
-				   "TPE PSD power : %d\n", single_tpe->tx_power[0]);
-			arvif->reg_tpc_info.num_pwr_levels =
-				ath11k_mac_get_num_pwr_levels(&ctx->def);
-
-			for (i = 0; i < arvif->reg_tpc_info.num_pwr_levels; i++)
-				arvif->reg_tpc_info.tpe[i] = single_tpe->tx_power[0] / 2;
-		} else {
-			arvif->reg_tpc_info.num_pwr_levels =
-				ath11k_mac_get_tpe_count(pwr_interpret, pwr_count);
-
-			for (i = 0; i < arvif->reg_tpc_info.num_pwr_levels; i++) {
-				ath11k_dbg(ab, ATH11K_DBG_MAC,
-					   "TPE PSD power[%d] : %d\n",
-					   i, single_tpe->tx_power[i]);
-				arvif->reg_tpc_info.tpe[i] = single_tpe->tx_power[i] / 2;
-			}
+				   "TPE PSD power[%d] : %d\n",
+				   i, psd->power[i]);
+			arvif->reg_tpc_info.tpe[i] = psd->power[i] / 2;
 		}
 	}
 }
@@ -7988,8 +7921,6 @@ ath11k_mac_op_assign_vif_chanctx(struct ieee80211_hw *hw,
 	struct ath11k_base *ab = ar->ab;
 	struct ath11k_vif *arvif = ath11k_vif_to_arvif(vif);
 	int ret;
-	struct cur_regulatory_info *reg_info;
-	enum ieee80211_ap_reg_power power_type;
 
 	mutex_lock(&ar->conf_mutex);
 
@@ -8000,17 +7931,6 @@ ath11k_mac_op_assign_vif_chanctx(struct ieee80211_hw *hw,
 	if (ath11k_wmi_supports_6ghz_cc_ext(ar) &&
 	    ctx->def.chan->band == NL80211_BAND_6GHZ &&
 	    arvif->vdev_type == WMI_VDEV_TYPE_STA) {
-		reg_info = &ab->reg_info_store[ar->pdev_idx];
-		power_type = vif->bss_conf.power_type;
-
-		ath11k_dbg(ab, ATH11K_DBG_MAC, "chanctx power type %d\n", power_type);
-
-		if (power_type == IEEE80211_REG_UNSET_AP) {
-			ret = -EINVAL;
-			goto out;
-		}
-
-		ath11k_reg_handle_chan_list(ab, reg_info, power_type);
 		arvif->chanctx = *ctx;
 		ath11k_mac_parse_tx_pwr_env(ar, vif, ctx);
 	}
@@ -8864,12 +8784,8 @@ ath11k_mac_op_reconfig_complete(struct ieee80211_hw *hw,
 		ieee80211_wake_queues(ar->hw);
 
 		if (ar->ab->hw_params.current_cc_support &&
-		    ar->alpha2[0] != 0 && ar->alpha2[1] != 0) {
-			struct wmi_set_current_country_params set_current_param = {};
-
-			memcpy(&set_current_param.alpha2, ar->alpha2, 2);
-			ath11k_wmi_send_set_current_country_cmd(ar, &set_current_param);
-		}
+		    ar->alpha2[0] != 0 && ar->alpha2[1] != 0)
+			ath11k_reg_set_cc(ar);
 
 		if (ab->is_reset) {
 			recovery_count = atomic_inc_return(&ab->recovery_count);
@@ -9068,8 +8984,11 @@ static void ath11k_mac_op_sta_statistics(struct ieee80211_hw *hw,
 		sinfo->filled |= BIT_ULL(NL80211_STA_INFO_SIGNAL);
 	}
 
-	sinfo->signal_avg = ewma_avg_rssi_read(&arsta->avg_rssi) +
-		ATH11K_DEFAULT_NOISE_FLOOR;
+	sinfo->signal_avg = ewma_avg_rssi_read(&arsta->avg_rssi);
+
+	if (!db2dbm)
+		sinfo->signal_avg += ATH11K_DEFAULT_NOISE_FLOOR;
+
 	sinfo->filled |= BIT_ULL(NL80211_STA_INFO_SIGNAL_AVG);
 }
 
@@ -9104,7 +9023,6 @@ static void ath11k_mac_op_ipv6_changed(struct ieee80211_hw *hw,
 	struct ath11k_vif *arvif = ath11k_vif_to_arvif(vif);
 	struct inet6_ifaddr *ifa6;
 	struct ifacaddr6 *ifaca6;
-	struct list_head *p;
 	u32 count, scope;
 
 	ath11k_dbg(ar->ab, ATH11K_DBG_MAC, "op ipv6 changed\n");
@@ -9112,7 +9030,12 @@ static void ath11k_mac_op_ipv6_changed(struct ieee80211_hw *hw,
 	offload = &arvif->arp_ns_offload;
 	count = 0;
 
-	/* Note: read_lock_bh() calls rcu_read_lock() */
+	/* The _ipv6_changed() is called with RCU lock already held in
+	 * atomic_notifier_call_chain(), so we don't need to call
+	 * rcu_read_lock() again here. But note that with CONFIG_PREEMPT_RT
+	 * enabled, read_lock_bh() also calls rcu_read_lock(). This is OK
+	 * because RCU read critical section is allowed to get nested.
+	 */
 	read_lock_bh(&idev->lock);
 
 	memset(offload->ipv6_addr, 0, sizeof(offload->ipv6_addr));
@@ -9120,11 +9043,10 @@ static void ath11k_mac_op_ipv6_changed(struct ieee80211_hw *hw,
 	memcpy(offload->mac_addr, vif->addr, ETH_ALEN);
 
 	/* get unicast address */
-	list_for_each(p, &idev->addr_list) {
+	list_for_each_entry(ifa6, &idev->addr_list, if_list) {
 		if (count >= ATH11K_IPV6_MAX_COUNT)
 			goto generate;
 
-		ifa6 = list_entry(p, struct inet6_ifaddr, if_list);
 		if (ifa6->flags & IFA_F_DADFAILED)
 			continue;
 		scope = ipv6_addr_src_scope(&ifa6->addr);
@@ -9626,6 +9548,8 @@ static int ath11k_mac_op_sta_state(struct ieee80211_hw *hw,
 	struct ath11k *ar = hw->priv;
 	struct ath11k_vif *arvif = ath11k_vif_to_arvif(vif);
 	struct ath11k_sta *arsta = ath11k_sta_to_arsta(sta);
+	enum ieee80211_ap_reg_power power_type;
+	struct cur_regulatory_info *reg_info;
 	struct ath11k_peer *peer;
 	int ret = 0;
 
@@ -9704,6 +9628,29 @@ static int ath11k_mac_op_sta_state(struct ieee80211_hw *hw,
 			if (ret)
 				ath11k_warn(ar->ab, "Unable to authorize peer %pM vdev %d: %d\n",
 					    sta->addr, arvif->vdev_id, ret);
+		}
+
+		if (!ret &&
+		    ath11k_wmi_supports_6ghz_cc_ext(ar) &&
+		    arvif->vdev_type == WMI_VDEV_TYPE_STA &&
+		    arvif->chanctx.def.chan &&
+		    arvif->chanctx.def.chan->band == NL80211_BAND_6GHZ) {
+			reg_info = &ar->ab->reg_info_store[ar->pdev_idx];
+			power_type = vif->bss_conf.power_type;
+
+			if (power_type == IEEE80211_REG_UNSET_AP) {
+				ath11k_warn(ar->ab, "invalid power type %d\n",
+					    power_type);
+				ret = -EINVAL;
+			} else {
+				ret = ath11k_reg_handle_chan_list(ar->ab,
+								  reg_info,
+								  power_type);
+				if (ret)
+					ath11k_warn(ar->ab,
+						    "failed to handle chan list with power type %d\n",
+						    power_type);
+			}
 		}
 	} else if (old_state == IEEE80211_STA_AUTHORIZED &&
 		   new_state == IEEE80211_STA_ASSOC) {
@@ -10313,11 +10260,8 @@ static int __ath11k_mac_register(struct ath11k *ar)
 	}
 
 	if (ab->hw_params.current_cc_support && ab->new_alpha2[0]) {
-		struct wmi_set_current_country_params set_current_param = {};
-
-		memcpy(&set_current_param.alpha2, ab->new_alpha2, 2);
 		memcpy(&ar->alpha2, ab->new_alpha2, 2);
-		ret = ath11k_wmi_send_set_current_country_cmd(ar, &set_current_param);
+		ret = ath11k_reg_set_cc(ar);
 		if (ret)
 			ath11k_warn(ar->ab,
 				    "failed set cc code for mac register: %d\n", ret);

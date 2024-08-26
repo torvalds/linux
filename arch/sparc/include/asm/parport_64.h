@@ -196,7 +196,7 @@ out_err:
 	return err;
 }
 
-static int ecpp_remove(struct platform_device *op)
+static void ecpp_remove(struct platform_device *op)
 {
 	struct parport *p = dev_get_drvdata(&op->dev);
 	int slot = p->dma;
@@ -216,8 +216,6 @@ static int ecpp_remove(struct platform_device *op)
 			   d_len);
 		clear_bit(slot, dma_slot_map);
 	}
-
-	return 0;
 }
 
 static const struct of_device_id ecpp_match[] = {
@@ -245,7 +243,7 @@ static struct platform_driver ecpp_driver = {
 		.of_match_table = ecpp_match,
 	},
 	.probe			= ecpp_probe,
-	.remove			= ecpp_remove,
+	.remove_new		= ecpp_remove,
 };
 
 static int parport_pc_find_nonpci_ports(int autoirq, int autodma)

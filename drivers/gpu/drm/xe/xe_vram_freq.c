@@ -87,7 +87,7 @@ static const struct attribute_group freq_group_attrs = {
 	.attrs = freq_attrs,
 };
 
-static void vram_freq_sysfs_fini(struct drm_device *drm, void *arg)
+static void vram_freq_sysfs_fini(void *arg)
 {
 	struct kobject *kobj = arg;
 
@@ -122,5 +122,5 @@ int xe_vram_freq_sysfs_init(struct xe_tile *tile)
 		return err;
 	}
 
-	return drmm_add_action_or_reset(&xe->drm, vram_freq_sysfs_fini, kobj);
+	return devm_add_action_or_reset(xe->drm.dev, vram_freq_sysfs_fini, kobj);
 }

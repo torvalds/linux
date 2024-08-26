@@ -170,9 +170,12 @@
 			};
 
 			watchdog: watchdog@90060000 {
-				compatible = "arm,primecell";
+				compatible = "arm,sp805", "arm,primecell";
 				reg = <0x90060000 0x1000>;
 				interrupts = <3>;
+				clocks = <&apb_pclk>, <&apb_pclk>;
+				clock-names = "wdog_clk", "apb_pclk";
+				status = "disabled";
 			};
 
 			rtc: rtc@90090000 {

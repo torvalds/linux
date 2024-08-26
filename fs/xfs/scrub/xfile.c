@@ -10,9 +10,9 @@
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
 #include "xfs_mount.h"
+#include "scrub/scrub.h"
 #include "scrub/xfile.h"
 #include "scrub/xfarray.h"
-#include "scrub/scrub.h"
 #include "scrub/trace.h"
 #include <linux/shmem_fs.h>
 
@@ -309,4 +309,16 @@ xfile_put_folio(
 
 	folio_unlock(folio);
 	folio_put(folio);
+}
+
+/* Discard the page cache that's backing a range of the xfile. */
+void
+xfile_discard(
+	struct xfile		*xf,
+	loff_t			pos,
+	u64			count)
+{
+	trace_xfile_discard(xf, pos, count);
+
+	shmem_truncate_range(file_inode(xf->file), pos, pos + count - 1);
 }

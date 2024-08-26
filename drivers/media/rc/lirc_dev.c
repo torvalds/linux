@@ -27,7 +27,9 @@ static dev_t lirc_base_dev;
 static DEFINE_IDA(lirc_ida);
 
 /* Only used for sysfs but defined to void otherwise */
-static struct class *lirc_class;
+static const struct class lirc_class = {
+	.name = "lirc",
+};
 
 /**
  * lirc_raw_event() - Send raw IR data to lirc to be relayed to userspace
@@ -724,7 +726,7 @@ int lirc_register(struct rc_dev *dev)
 		return minor;
 
 	device_initialize(&dev->lirc_dev);
-	dev->lirc_dev.class = lirc_class;
+	dev->lirc_dev.class = &lirc_class;
 	dev->lirc_dev.parent = &dev->dev;
 	dev->lirc_dev.release = lirc_release_device;
 	dev->lirc_dev.devt = MKDEV(MAJOR(lirc_base_dev), minor);
@@ -789,15 +791,13 @@ int __init lirc_dev_init(void)
 {
 	int retval;
 
-	lirc_class = class_create("lirc");
-	if (IS_ERR(lirc_class)) {
-		pr_err("class_create failed\n");
-		return PTR_ERR(lirc_class);
-	}
+	retval = class_register(&lirc_class);
+	if (retval)
+		return retval;
 
 	retval = alloc_chrdev_region(&lirc_base_dev, 0, RC_DEV_MAX, "lirc");
 	if (retval) {
-		class_destroy(lirc_class);
+		class_unregister(&lirc_class);
 		pr_err("alloc_chrdev_region failed\n");
 		return retval;
 	}
@@ -810,7 +810,7 @@ int __init lirc_dev_init(void)
 
 void __exit lirc_dev_exit(void)
 {
-	class_destroy(lirc_class);
+	class_unregister(&lirc_class);
 	unregister_chrdev_region(lirc_base_dev, RC_DEV_MAX);
 }
 

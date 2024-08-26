@@ -15,10 +15,6 @@
 #include <asm/early_ioremap.h>
 #include <asm/efi.h>
 
-#ifndef __efi_memmap_free
-#define __efi_memmap_free(phys, size, flags) do { } while (0)
-#endif
-
 /**
  * __efi_memmap_init - Common code for mapping the EFI memory map
  * @data: EFI memory map data
@@ -50,11 +46,6 @@ int __init __efi_memmap_init(struct efi_memory_map_data *data)
 		pr_err("Could not map the memory map!\n");
 		return -ENOMEM;
 	}
-
-	if (efi.memmap.flags & (EFI_MEMMAP_MEMBLOCK | EFI_MEMMAP_SLAB))
-		__efi_memmap_free(efi.memmap.phys_map,
-				  efi.memmap.desc_size * efi.memmap.nr_map,
-				  efi.memmap.flags);
 
 	map.phys_map = data->phys_map;
 	map.nr_map = data->size / data->desc_size;

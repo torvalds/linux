@@ -7,10 +7,6 @@
 #include "bpf_experimental.h"
 #include "bpf_misc.h"
 
-#ifndef ARRAY_SIZE
-#define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
-#endif
-
 struct generic_map_value {
 	void *data;
 };

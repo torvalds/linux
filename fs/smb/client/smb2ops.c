@@ -66,7 +66,7 @@ change_conf(struct TCP_Server_Info *server)
 
 static void
 smb2_add_credits(struct TCP_Server_Info *server,
-		 const struct cifs_credits *credits, const int optype)
+		 struct cifs_credits *credits, const int optype)
 {
 	int *val, rc = -1;
 	int scredits, in_flight;
@@ -94,7 +94,21 @@ smb2_add_credits(struct TCP_Server_Info *server,
 					    server->conn_id, server->hostname, *val,
 					    add, server->in_flight);
 	}
-	WARN_ON_ONCE(server->in_flight == 0);
+	if (credits->in_flight_check > 1) {
+		pr_warn_once("rreq R=%08x[%x] Credits not in flight\n",
+			     credits->rreq_debug_id, credits->rreq_debug_index);
+	} else {
+		credits->in_flight_check = 2;
+	}
+	if (WARN_ON_ONCE(server->in_flight == 0)) {
+		pr_warn_once("rreq R=%08x[%x] Zero in_flight\n",
+			     credits->rreq_debug_id, credits->rreq_debug_index);
+		trace_smb3_rw_credits(credits->rreq_debug_id,
+				      credits->rreq_debug_index,
+				      credits->value,
+				      server->credits, server->in_flight, 0,
+				      cifs_trace_rw_credits_zero_in_flight);
+	}
 	server->in_flight--;
 	if (server->in_flight == 0 &&
 	   ((optype & CIFS_OP_MASK) != CIFS_NEG_OP) &&
@@ -283,16 +297,23 @@ smb2_wait_mtu_credits(struct TCP_Server_Info *server, size_t size,
 
 static int
 smb2_adjust_credits(struct TCP_Server_Info *server,
-		    struct cifs_credits *credits,
-		    const unsigned int payload_size)
+		    struct cifs_io_subrequest *subreq,
+		    unsigned int /*enum smb3_rw_credits_trace*/ trace)
 {
-	int new_val = DIV_ROUND_UP(payload_size, SMB2_MAX_BUFFER_SIZE);
+	struct cifs_credits *credits = &subreq->credits;
+	int new_val = DIV_ROUND_UP(subreq->subreq.len, SMB2_MAX_BUFFER_SIZE);
 	int scredits, in_flight;
 
 	if (!credits->value || credits->value == new_val)
 		return 0;
 
 	if (credits->value < new_val) {
+		trace_smb3_rw_credits(subreq->rreq->debug_id,
+				      subreq->subreq.debug_index,
+				      credits->value,
+				      server->credits, server->in_flight,
+				      new_val - credits->value,
+				      cifs_trace_rw_credits_no_adjust_up);
 		trace_smb3_too_many_credits(server->CurrentMid,
 				server->conn_id, server->hostname, 0, credits->value - new_val, 0);
 		cifs_server_dbg(VFS, "request has less credits (%d) than required (%d)",
@@ -308,6 +329,12 @@ smb2_adjust_credits(struct TCP_Server_Info *server,
 		in_flight = server->in_flight;
 		spin_unlock(&server->req_lock);
 
+		trace_smb3_rw_credits(subreq->rreq->debug_id,
+				      subreq->subreq.debug_index,
+				      credits->value,
+				      server->credits, server->in_flight,
+				      new_val - credits->value,
+				      cifs_trace_rw_credits_old_session);
 		trace_smb3_reconnect_detected(server->CurrentMid,
 			server->conn_id, server->hostname, scredits,
 			credits->value - new_val, in_flight);
@@ -316,6 +343,11 @@ smb2_adjust_credits(struct TCP_Server_Info *server,
 		return -EAGAIN;
 	}
 
+	trace_smb3_rw_credits(subreq->rreq->debug_id,
+			      subreq->subreq.debug_index,
+			      credits->value,
+			      server->credits, server->in_flight,
+			      new_val - credits->value, trace);
 	server->credits += credits->value - new_val;
 	scredits = server->credits;
 	in_flight = server->in_flight;
@@ -2028,6 +2060,7 @@ smb2_duplicate_extents(const unsigned int xid,
 		 * size will be queried on next revalidate, but it is important
 		 * to make sure that file's cached size is updated immediately
 		 */
+		netfs_resize_file(netfs_inode(inode), dest_off + len, true);
 		cifs_setsize(inode, dest_off + len);
 	}
 	rc = SMB2_ioctl(xid, tcon, trgtfile->fid.persistent_fid,
@@ -3636,6 +3669,7 @@ static long smb3_insert_range(struct file *file, struct cifs_tcon *tcon,
 	rc = smb2_copychunk_range(xid, cfile, cfile, off, count, off + len);
 	if (rc < 0)
 		goto out_2;
+	cifsi->netfs.zero_point = new_eof;
 
 	rc = smb3_zero_data(file, tcon, off, len, xid);
 	if (rc < 0)
@@ -4994,6 +5028,9 @@ static int __cifs_sfu_make_node(unsigned int xid, struct inode *inode,
 		strscpy(pdev.type, "IntxBLK");
 		pdev.major = cpu_to_le64(MAJOR(dev));
 		pdev.minor = cpu_to_le64(MINOR(dev));
+		break;
+	case S_IFSOCK:
+		strscpy(pdev.type, "LnxSOCK");
 		break;
 	case S_IFIFO:
 		strscpy(pdev.type, "LnxFIFO");

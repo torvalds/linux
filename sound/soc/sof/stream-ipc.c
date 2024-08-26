@@ -125,5 +125,3 @@ int sof_stream_pcm_close(struct snd_sof_dev *sdev,
 	return 0;
 }
 EXPORT_SYMBOL(sof_stream_pcm_close);
-
-MODULE_LICENSE("Dual BSD/GPL");

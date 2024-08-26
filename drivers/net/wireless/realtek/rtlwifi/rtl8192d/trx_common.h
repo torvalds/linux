@@ -393,13 +393,13 @@ struct rx_fwinfo_92d {
 #endif
 } __packed;
 
-bool rtl92de_rx_query_desc(struct ieee80211_hw *hw,
-			   struct rtl_stats *stats,
-			   struct ieee80211_rx_status *rx_status,
-			   u8 *pdesc, struct sk_buff *skb);
-void rtl92de_set_desc(struct ieee80211_hw *hw, u8 *pdesc, bool istx,
-		      u8 desc_name, u8 *val);
-u64 rtl92de_get_desc(struct ieee80211_hw *hw,
-		     u8 *p_desc, bool istx, u8 desc_name);
+bool rtl92d_rx_query_desc(struct ieee80211_hw *hw,
+			  struct rtl_stats *stats,
+			  struct ieee80211_rx_status *rx_status,
+			  u8 *pdesc, struct sk_buff *skb);
+void rtl92d_set_desc(struct ieee80211_hw *hw, u8 *pdesc, bool istx,
+		     u8 desc_name, u8 *val);
+u64 rtl92d_get_desc(struct ieee80211_hw *hw,
+		    u8 *p_desc, bool istx, u8 desc_name);
 
 #endif

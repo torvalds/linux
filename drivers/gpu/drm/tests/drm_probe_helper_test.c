@@ -207,4 +207,5 @@ static struct kunit_suite drm_test_connector_helper_tv_get_modes_suite = {
 kunit_test_suite(drm_test_connector_helper_tv_get_modes_suite);
 
 MODULE_AUTHOR("Maxime Ripard <maxime@cerno.tech>");
+MODULE_DESCRIPTION("Kunit test for drm_probe_helper functions");
 MODULE_LICENSE("GPL");

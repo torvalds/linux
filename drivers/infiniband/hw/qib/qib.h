@@ -1359,7 +1359,6 @@ static inline u32 qib_get_rcvhdrtail(const struct qib_ctxtdata *rcd)
  * sysfs interface.
  */
 
-extern const char ib_qib_version[];
 extern const struct attribute_group qib_attr_group;
 extern const struct attribute_group *qib_attr_port_groups[];
 

@@ -339,6 +339,7 @@ static int nfs_write_begin(struct file *file, struct address_space *mapping,
 			   loff_t pos, unsigned len, struct page **pagep,
 			   void **fsdata)
 {
+	fgf_t fgp = FGP_WRITEBEGIN;
 	struct folio *folio;
 	int once_thru = 0;
 	int ret;
@@ -346,8 +347,9 @@ static int nfs_write_begin(struct file *file, struct address_space *mapping,
 	dfprintk(PAGECACHE, "NFS: write_begin(%pD2(%lu), %u@%lld)\n",
 		file, mapping->host->i_ino, len, (long long) pos);
 
+	fgp |= fgf_set_order(len);
 start:
-	folio = __filemap_get_folio(mapping, pos >> PAGE_SHIFT, FGP_WRITEBEGIN,
+	folio = __filemap_get_folio(mapping, pos >> PAGE_SHIFT, fgp,
 				    mapping_gfp_mask(mapping));
 	if (IS_ERR(folio))
 		return PTR_ERR(folio);
@@ -425,7 +427,7 @@ static int nfs_write_end(struct file *file, struct address_space *mapping,
 static void nfs_invalidate_folio(struct folio *folio, size_t offset,
 				size_t length)
 {
-	struct inode *inode = folio_file_mapping(folio)->host;
+	struct inode *inode = folio->mapping->host;
 	dfprintk(PAGECACHE, "NFS: invalidate_folio(%lu, %zu, %zu)\n",
 		 folio->index, offset, length);
 
@@ -434,7 +436,7 @@ static void nfs_invalidate_folio(struct folio *folio, size_t offset,
 	/* Cancel any unstarted writes on this page */
 	nfs_wb_folio_cancel(inode, folio);
 	folio_wait_private_2(folio); /* [DEPRECATED] */
-	trace_nfs_invalidate_folio(inode, folio);
+	trace_nfs_invalidate_folio(inode, folio_pos(folio) + offset, length);
 }
 
 /*
@@ -452,7 +454,7 @@ static bool nfs_release_folio(struct folio *folio, gfp_t gfp)
 		if ((current_gfp_context(gfp) & GFP_KERNEL) != GFP_KERNEL ||
 		    current_is_kswapd())
 			return false;
-		if (nfs_wb_folio(folio_file_mapping(folio)->host, folio) < 0)
+		if (nfs_wb_folio(folio->mapping->host, folio) < 0)
 			return false;
 	}
 	return nfs_fscache_release_folio(folio, gfp);
@@ -502,7 +504,8 @@ static int nfs_launder_folio(struct folio *folio)
 
 	folio_wait_private_2(folio); /* [DEPRECATED] */
 	ret = nfs_wb_folio(inode, folio);
-	trace_nfs_launder_folio_done(inode, folio, ret);
+	trace_nfs_launder_folio_done(inode, folio_pos(folio),
+			folio_size(folio), ret);
 	return ret;
 }
 
@@ -588,7 +591,7 @@ static vm_fault_t nfs_vm_page_mkwrite(struct vm_fault *vmf)
 
 	dfprintk(PAGECACHE, "NFS: vm_page_mkwrite(%pD2(%lu), offset %lld)\n",
 		 filp, filp->f_mapping->host->i_ino,
-		 (long long)folio_file_pos(folio));
+		 (long long)folio_pos(folio));
 
 	sb_start_pagefault(inode->i_sb);
 
@@ -604,7 +607,7 @@ static vm_fault_t nfs_vm_page_mkwrite(struct vm_fault *vmf)
 			   TASK_KILLABLE|TASK_FREEZABLE_UNSAFE);
 
 	folio_lock(folio);
-	mapping = folio_file_mapping(folio);
+	mapping = folio->mapping;
 	if (mapping != inode->i_mapping)
 		goto out_unlock;
 
@@ -730,7 +733,7 @@ do_getlk(struct file *filp, int cmd, struct file_lock *fl, int is_local)
 	}
 	fl->c.flc_type = saved_type;
 
-	if (NFS_PROTO(inode)->have_delegation(inode, FMODE_READ))
+	if (nfs_have_read_or_write_delegation(inode))
 		goto out_noconflict;
 
 	if (is_local)
@@ -813,7 +816,7 @@ do_setlk(struct file *filp, int cmd, struct file_lock *fl, int is_local)
 	 * This makes locking act as a cache coherency point.
 	 */
 	nfs_sync_mapping(filp->f_mapping);
-	if (!NFS_PROTO(inode)->have_delegation(inode, FMODE_READ)) {
+	if (!nfs_have_read_or_write_delegation(inode)) {
 		nfs_zap_caches(inode);
 		if (mapping_mapped(filp->f_mapping))
 			nfs_revalidate_mapping(inode, filp->f_mapping);

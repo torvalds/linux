@@ -57,9 +57,7 @@ static void update_ordered_list_value(int instance, char *attr_value)
 {
 	struct ordered_list_data *ordered_list_data = &bioscfg_drv.ordered_list_data[instance];
 
-	strscpy(ordered_list_data->current_value,
-		attr_value,
-		sizeof(ordered_list_data->current_value));
+	strscpy(ordered_list_data->current_value, attr_value);
 }
 
 ATTRIBUTE_S_COMMON_PROPERTY_SHOW(display_name, ordered_list);
@@ -179,13 +177,11 @@ static int hp_populate_ordered_list_elements_from_package(union acpi_object *ord
 		/* Assign appropriate element value to corresponding field*/
 		switch (eloc) {
 		case VALUE:
-			strscpy(ordered_list_data->current_value,
-				str_value, sizeof(ordered_list_data->current_value));
+			strscpy(ordered_list_data->current_value, str_value);
 			replace_char_str(ordered_list_data->current_value, COMMA_SEP, SEMICOLON_SEP);
 			break;
 		case PATH:
-			strscpy(ordered_list_data->common.path, str_value,
-				sizeof(ordered_list_data->common.path));
+			strscpy(ordered_list_data->common.path, str_value);
 			break;
 		case IS_READONLY:
 			ordered_list_data->common.is_readonly = int_value;
@@ -227,9 +223,7 @@ static int hp_populate_ordered_list_elements_from_package(union acpi_object *ord
 				if (ret)
 					continue;
 
-				strscpy(ordered_list_data->common.prerequisites[reqs],
-					str_value,
-					sizeof(ordered_list_data->common.prerequisites[reqs]));
+				strscpy(ordered_list_data->common.prerequisites[reqs], str_value);
 
 				kfree(str_value);
 				str_value = NULL;
@@ -271,9 +265,7 @@ static int hp_populate_ordered_list_elements_from_package(union acpi_object *ord
 			part = strsep(&part_tmp, COMMA_SEP);
 
 			for (olist_elem = 0; olist_elem < MAX_ELEMENTS_SIZE && part; olist_elem++) {
-				strscpy(ordered_list_data->elements[olist_elem],
-					part,
-					sizeof(ordered_list_data->elements[olist_elem]));
+				strscpy(ordered_list_data->elements[olist_elem], part);
 				part = strsep(&part_tmp, COMMA_SEP);
 			}
 			ordered_list_data->elements_size = olist_elem;

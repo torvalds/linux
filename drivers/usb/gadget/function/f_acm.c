@@ -854,4 +854,5 @@ static struct usb_function_instance *acm_alloc_instance(void)
 	return &opts->func_inst;
 }
 DECLARE_USB_FUNCTION_INIT(acm, acm_alloc_instance, acm_alloc_func);
+MODULE_DESCRIPTION("USB CDC serial (ACM) function driver");
 MODULE_LICENSE("GPL");

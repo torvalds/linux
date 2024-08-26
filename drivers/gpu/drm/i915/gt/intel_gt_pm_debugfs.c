@@ -71,6 +71,8 @@ static int fw_domains_show(struct seq_file *m, void *data)
 	struct intel_uncore_forcewake_domain *fw_domain;
 	unsigned int tmp;
 
+	spin_lock_irq(&uncore->lock);
+
 	seq_printf(m, "user.bypass_count = %u\n",
 		   uncore->user_forcewake_count);
 
@@ -78,6 +80,8 @@ static int fw_domains_show(struct seq_file *m, void *data)
 		seq_printf(m, "%s.wake_count = %u\n",
 			   intel_uncore_forcewake_domain_to_str(fw_domain->id),
 			   READ_ONCE(fw_domain->wake_count));
+
+	spin_unlock_irq(&uncore->lock);
 
 	return 0;
 }
@@ -367,7 +371,6 @@ void intel_gt_pm_frequency_dump(struct intel_gt *gt, struct drm_printer *p)
 		vlv_punit_put(i915);
 
 		drm_printf(p, "PUNIT_REG_GPU_FREQ_STS: 0x%08x\n", freq_sts);
-		drm_printf(p, "DDR freq: %d MHz\n", i915->mem_freq);
 
 		drm_printf(p, "actual GPU freq: %d MHz\n",
 			   intel_gpu_freq(rps, (freq_sts >> 8) & 0xff));

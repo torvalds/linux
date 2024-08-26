@@ -8,13 +8,6 @@
 
 #include <uapi/linux/kernel.h>
 
-/* Set bits in the first 'n' bytes when loaded from memory */
-#ifdef __LITTLE_ENDIAN
-#  define aligned_byte_mask(n) ((1UL << 8*(n))-1)
-#else
-#  define aligned_byte_mask(n) (~0xffUL << (BITS_PER_LONG - 8 - 8*(n)))
-#endif
-
 #define BITS_PER_TYPE(type)	(sizeof(type) * BITS_PER_BYTE)
 #define BITS_TO_LONGS(nr)	__KERNEL_DIV_ROUND_UP(nr, BITS_PER_TYPE(long))
 #define BITS_TO_U64(nr)		__KERNEL_DIV_ROUND_UP(nr, BITS_PER_TYPE(u64))
@@ -203,7 +196,7 @@ static __always_inline __s64 sign_extend64(__u64 value, int index)
 	return (__s64)(value << shift) >> shift;
 }
 
-static inline unsigned fls_long(unsigned long l)
+static inline unsigned int fls_long(unsigned long l)
 {
 	if (sizeof(l) == 4)
 		return fls(l);
@@ -239,7 +232,7 @@ static inline int get_count_order_long(unsigned long l)
  * The result is not defined if no bits are set, so check that @word
  * is non-zero before calling this.
  */
-static inline unsigned long __ffs64(u64 word)
+static inline unsigned int __ffs64(u64 word)
 {
 #if BITS_PER_LONG == 32
 	if (((u32)word) == 0UL)
@@ -255,18 +248,12 @@ static inline unsigned long __ffs64(u64 word)
  * @word: The word to search
  * @n: Bit to find
  */
-static inline unsigned long fns(unsigned long word, unsigned int n)
+static inline unsigned int fns(unsigned long word, unsigned int n)
 {
-	unsigned int bit;
+	while (word && n--)
+		word &= word - 1;
 
-	while (word) {
-		bit = __ffs(word);
-		if (n-- == 0)
-			return bit;
-		__clear_bit(bit, &word);
-	}
-
-	return BITS_PER_LONG;
+	return word ? __ffs(word) : BITS_PER_LONG;
 }
 
 /**

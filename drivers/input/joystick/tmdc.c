@@ -348,7 +348,8 @@ static int tmdc_connect(struct gameport *gameport, struct gameport_driver *drv)
 	int i;
 	int err;
 
-	if (!(tmdc = kzalloc(sizeof(struct tmdc), GFP_KERNEL)))
+	tmdc = kzalloc(sizeof(*tmdc), GFP_KERNEL);
+	if (!tmdc)
 		return -ENOMEM;
 
 	tmdc->gameport = gameport;

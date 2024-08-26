@@ -46,6 +46,8 @@
 
 #include "phy-qcom-qmp-pcs-v6.h"
 
+#include "phy-qcom-qmp-pcs-v6-n4.h"
+
 #include "phy-qcom-qmp-pcs-v6_20.h"
 
 #include "phy-qcom-qmp-pcs-v7.h"

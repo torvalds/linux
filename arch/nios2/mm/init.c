@@ -26,6 +26,7 @@
 #include <linux/memblock.h>
 #include <linux/slab.h>
 #include <linux/binfmts.h>
+#include <linux/execmem.h>
 
 #include <asm/setup.h>
 #include <asm/page.h>
@@ -143,3 +144,23 @@ static const pgprot_t protection_map[16] = {
 	[VM_SHARED | VM_EXEC | VM_WRITE | VM_READ]	= MKP(1, 1, 1)
 };
 DECLARE_VM_GET_PAGE_PROT
+
+#ifdef CONFIG_EXECMEM
+static struct execmem_info execmem_info __ro_after_init;
+
+struct execmem_info __init *execmem_arch_setup(void)
+{
+	execmem_info = (struct execmem_info){
+		.ranges = {
+			[EXECMEM_DEFAULT] = {
+				.start	= MODULES_VADDR,
+				.end	= MODULES_END,
+				.pgprot	= PAGE_KERNEL_EXEC,
+				.alignment = 1,
+			},
+		},
+	};
+
+	return &execmem_info;
+}
+#endif /* CONFIG_EXECMEM */

@@ -950,8 +950,11 @@ static int bnxt_hwrm_fwd_resp(struct bnxt *bp, struct bnxt_vf_info *vf,
 	struct hwrm_fwd_resp_input *req;
 	int rc;
 
-	if (BNXT_FWD_RESP_SIZE_ERR(msg_size))
+	if (BNXT_FWD_RESP_SIZE_ERR(msg_size)) {
+		netdev_warn_once(bp->dev, "HWRM fwd response too big (%d bytes)\n",
+				 msg_size);
 		return -EINVAL;
+	}
 
 	rc = hwrm_req_init(bp, req, HWRM_FWD_RESP);
 	if (!rc) {
@@ -1085,7 +1088,7 @@ static int bnxt_vf_set_link(struct bnxt *bp, struct bnxt_vf_info *vf)
 		rc = bnxt_hwrm_exec_fwd_resp(
 			bp, vf, sizeof(struct hwrm_port_phy_qcfg_input));
 	} else {
-		struct hwrm_port_phy_qcfg_output phy_qcfg_resp = {0};
+		struct hwrm_port_phy_qcfg_output_compat phy_qcfg_resp = {};
 		struct hwrm_port_phy_qcfg_input *phy_qcfg_req;
 
 		phy_qcfg_req =
@@ -1096,6 +1099,11 @@ static int bnxt_vf_set_link(struct bnxt *bp, struct bnxt_vf_info *vf)
 		mutex_unlock(&bp->link_lock);
 		phy_qcfg_resp.resp_len = cpu_to_le16(sizeof(phy_qcfg_resp));
 		phy_qcfg_resp.seq_id = phy_qcfg_req->seq_id;
+		/* New SPEEDS2 fields are beyond the legacy structure, so
+		 * clear the SPEEDS2_SUPPORTED flag.
+		 */
+		phy_qcfg_resp.option_flags &=
+			~PORT_PHY_QCAPS_RESP_FLAGS2_SPEEDS2_SUPPORTED;
 		phy_qcfg_resp.valid = 1;
 
 		if (vf->flags & BNXT_VF_LINK_UP) {

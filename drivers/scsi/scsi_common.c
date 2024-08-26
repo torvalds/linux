@@ -12,6 +12,7 @@
 #include <asm/unaligned.h>
 #include <scsi/scsi_common.h>
 
+MODULE_DESCRIPTION("SCSI functions used by both the initiator and the target code");
 MODULE_LICENSE("GPL v2");
 
 /* Command group 3 is reserved and should never be used.  */

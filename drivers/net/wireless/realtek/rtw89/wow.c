@@ -27,16 +27,22 @@ void rtw89_wow_parse_akm(struct rtw89_dev *rtwdev, struct sk_buff *skb)
 	rtw_wow->akm = rsn_ie->akm_cipher_suite.type;
 }
 
+#define RTW89_CIPHER_INFO_DEF(cipher) \
+	{WLAN_CIPHER_SUITE_ ## cipher, .fw_alg = RTW89_WOW_FW_ALG_ ## cipher, \
+	 .len = WLAN_KEY_LEN_ ## cipher}
+
 static const struct rtw89_cipher_info rtw89_cipher_info_defs[] = {
-	{WLAN_CIPHER_SUITE_WEP40,	.fw_alg = 1,	.len = WLAN_KEY_LEN_WEP40,},
-	{WLAN_CIPHER_SUITE_WEP104,	.fw_alg = 2,	.len = WLAN_KEY_LEN_WEP104,},
-	{WLAN_CIPHER_SUITE_TKIP,	.fw_alg = 3,	.len = WLAN_KEY_LEN_TKIP,},
-	{WLAN_CIPHER_SUITE_CCMP,	.fw_alg = 6,	.len = WLAN_KEY_LEN_CCMP,},
-	{WLAN_CIPHER_SUITE_GCMP,	.fw_alg = 8,	.len = WLAN_KEY_LEN_GCMP,},
-	{WLAN_CIPHER_SUITE_CCMP_256,	.fw_alg = 7,	.len = WLAN_KEY_LEN_CCMP_256,},
-	{WLAN_CIPHER_SUITE_GCMP_256,	.fw_alg = 23,	.len = WLAN_KEY_LEN_GCMP_256,},
-	{WLAN_CIPHER_SUITE_AES_CMAC,	.fw_alg = 32,	.len = WLAN_KEY_LEN_AES_CMAC,},
+	RTW89_CIPHER_INFO_DEF(WEP40),
+	RTW89_CIPHER_INFO_DEF(WEP104),
+	RTW89_CIPHER_INFO_DEF(TKIP),
+	RTW89_CIPHER_INFO_DEF(CCMP),
+	RTW89_CIPHER_INFO_DEF(GCMP),
+	RTW89_CIPHER_INFO_DEF(CCMP_256),
+	RTW89_CIPHER_INFO_DEF(GCMP_256),
+	RTW89_CIPHER_INFO_DEF(AES_CMAC),
 };
+
+#undef RTW89_CIPHER_INFO_DEF
 
 static const
 struct rtw89_cipher_info *rtw89_cipher_alg_recognize(u32 cipher)
@@ -717,12 +723,17 @@ static void rtw89_wow_show_wakeup_reason(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_wow_param *rtw_wow = &rtwdev->wow;
 	struct rtw89_wow_aoac_report *aoac_rpt = &rtw_wow->aoac_rpt;
-	u32 wow_reason_reg = rtwdev->chip->wow_reason_reg;
 	struct cfg80211_wowlan_nd_info nd_info;
 	struct cfg80211_wowlan_wakeup wakeup = {
 		.pattern_idx = -1,
 	};
+	u32 wow_reason_reg;
 	u8 reason;
+
+	if (RTW89_CHK_FW_FEATURE(WOW_REASON_V1, &rtwdev->fw))
+		wow_reason_reg = rtwdev->chip->wow_reason_reg[RTW89_WOW_REASON_V1];
+	else
+		wow_reason_reg = rtwdev->chip->wow_reason_reg[RTW89_WOW_REASON_V0];
 
 	reason = rtw89_read8(rtwdev, wow_reason_reg);
 	switch (reason) {
@@ -1284,11 +1295,15 @@ static int rtw89_wow_disable_trx_pre(struct rtw89_dev *rtwdev)
 
 static int rtw89_wow_disable_trx_post(struct rtw89_dev *rtwdev)
 {
+	struct rtw89_wow_param *rtw_wow = &rtwdev->wow;
+	struct ieee80211_vif *vif = rtw_wow->wow_vif;
 	int ret;
 
 	ret = rtw89_mac_cfg_ppdu_status(rtwdev, RTW89_MAC_0, true);
 	if (ret)
 		rtw89_err(rtwdev, "cfg ppdu status\n");
+
+	rtw89_fw_h2c_set_bcn_fltr_cfg(rtwdev, vif, true);
 
 	return ret;
 }

@@ -13,16 +13,15 @@ install-dir := $(MODLIB)/vdso
 
 define gen_install_rules
 
-src := $$(firstword $$(subst :,$(space),$(1)))
-dest := $(install-dir)/$$(or $$(word 2,$$(subst :,$(space),$(1))),$$(patsubst %.dbg,%,$$(notdir $(1))))
+dest := $(install-dir)/$$(patsubst %.dbg,%,$$(notdir $(1)))
 
 __default: $$(dest)
-$$(dest): $$(src) FORCE
+$$(dest): $(1) FORCE
 	$$(call cmd,install)
 
 # Some architectures create .build-id symlinks
-ifneq ($(filter arm sparc x86, $(SRCARCH)),)
-link := $(install-dir)/.build-id/$$(shell $(READELF) -n $$(src) | sed -n 's@^.*Build ID: \(..\)\(.*\)@\1/\2@p').debug
+ifneq ($(filter arm s390 sparc x86, $(SRCARCH)),)
+link := $(install-dir)/.build-id/$$(shell $(READELF) -n $(1) | sed -n 's@^.*Build ID: \(..\)\(.*\)@\1/\2@p').debug
 
 __default: $$(link)
 $$(link): $$(dest) FORCE

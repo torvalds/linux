@@ -1059,7 +1059,7 @@ struct vas_window *vas_tx_win_open(int vasid, enum vas_cop_type cop,
 		}
 	} else {
 		/*
-		 * Interrupt hanlder or fault window setup failed. Means
+		 * Interrupt handler or fault window setup failed. Means
 		 * NX can not generate fault for page fault. So not
 		 * opening for user space tx window.
 		 */

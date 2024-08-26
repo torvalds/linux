@@ -138,6 +138,6 @@ int hclge_ptp_set_cfg(struct hclge_dev *hdev, struct ifreq *ifr);
 int hclge_ptp_init(struct hclge_dev *hdev);
 void hclge_ptp_uninit(struct hclge_dev *hdev);
 int hclge_ptp_get_ts_info(struct hnae3_handle *handle,
-			  struct ethtool_ts_info *info);
+			  struct kernel_ethtool_ts_info *info);
 int hclge_ptp_cfg_qry(struct hclge_dev *hdev, u32 *cfg);
 #endif

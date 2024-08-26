@@ -72,7 +72,7 @@ static int add_system_zone(struct ext4_system_blocks *system_blks,
 {
 	struct ext4_system_zone *new_entry, *entry;
 	struct rb_node **n = &system_blks->root.rb_node, *node;
-	struct rb_node *parent = NULL, *new_node = NULL;
+	struct rb_node *parent = NULL, *new_node;
 
 	while (*n) {
 		parent = *n;

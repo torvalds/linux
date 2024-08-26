@@ -21,6 +21,7 @@
 #include <asm/opcodes-virt.h>
 #include <asm/asm-offsets.h>
 #include <asm/page.h>
+#include <asm/pgtable.h>
 #include <asm/thread_info.h>
 #include <asm/uaccess-asm.h>
 

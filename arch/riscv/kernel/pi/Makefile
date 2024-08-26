@@ -17,12 +17,6 @@ KBUILD_CFLAGS	+= -mcmodel=medany
 CFLAGS_cmdline_early.o += -D__NO_FORTIFY
 CFLAGS_lib-fdt_ro.o += -D__NO_FORTIFY
 
-GCOV_PROFILE	:= n
-KASAN_SANITIZE	:= n
-KCSAN_SANITIZE	:= n
-UBSAN_SANITIZE	:= n
-KCOV_INSTRUMENT	:= n
-
 $(obj)/%.pi.o: OBJCOPYFLAGS := --prefix-symbols=__pi_ \
 			       --remove-section=.note.gnu.property \
 			       --prefix-alloc-sections=.init.pi

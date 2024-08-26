@@ -15,7 +15,7 @@
 / {
 	pmu {
 		compatible = "arm,cortex-a72-pmu";
-		interrupts = <1 7 0x8>; /* PMU PPI, Level low type */
+		interrupts = <GIC_PPI 7 IRQ_TYPE_LEVEL_LOW>;
 	};
 };
 

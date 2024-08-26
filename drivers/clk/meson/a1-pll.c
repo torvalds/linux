@@ -299,6 +299,7 @@ static struct regmap_config a1_pll_regmap_cfg = {
 	.reg_bits   = 32,
 	.val_bits   = 32,
 	.reg_stride = 4,
+	.max_register = ANACTRL_HIFIPLL_STS,
 };
 
 static struct meson_clk_hw_data a1_pll_clks = {
@@ -353,8 +354,9 @@ static struct platform_driver a1_pll_clkc_driver = {
 		.of_match_table = a1_pll_clkc_match_table,
 	},
 };
-
 module_platform_driver(a1_pll_clkc_driver);
+
+MODULE_DESCRIPTION("Amlogic S4 PLL Clock Controller driver");
 MODULE_AUTHOR("Jian Hu <jian.hu@amlogic.com>");
 MODULE_AUTHOR("Dmitry Rokosov <ddrokosov@sberdevices.ru>");
 MODULE_LICENSE("GPL");

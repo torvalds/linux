@@ -18,16 +18,12 @@
 #include <linux/kvm_para.h>
 #include <linux/stringify.h>
 
-#include "../kvm_util.h"
+#include "kvm_util.h"
+#include "ucall_common.h"
 
 extern bool host_cpu_is_intel;
 extern bool host_cpu_is_amd;
-
-enum vm_guest_x86_subtype {
-	VM_SUBTYPE_NONE = 0,
-	VM_SUBTYPE_SEV,
-	VM_SUBTYPE_SEV_ES,
-};
+extern uint64_t guest_tsc_khz;
 
 /* Forced emulation prefix, used to invoke the emulator unconditionally. */
 #define KVM_FEP "ud2; .byte 'k', 'v', 'm';"
@@ -282,6 +278,7 @@ struct kvm_x86_cpu_property {
 #define X86_PROPERTY_MAX_EXT_LEAF		KVM_X86_CPU_PROPERTY(0x80000000, 0, EAX, 0, 31)
 #define X86_PROPERTY_MAX_PHY_ADDR		KVM_X86_CPU_PROPERTY(0x80000008, 0, EAX, 0, 7)
 #define X86_PROPERTY_MAX_VIRT_ADDR		KVM_X86_CPU_PROPERTY(0x80000008, 0, EAX, 8, 15)
+#define X86_PROPERTY_GUEST_MAX_PHY_ADDR		KVM_X86_CPU_PROPERTY(0x80000008, 0, EAX, 16, 23)
 #define X86_PROPERTY_SEV_C_BIT			KVM_X86_CPU_PROPERTY(0x8000001F, 0, EBX, 0, 5)
 #define X86_PROPERTY_PHYS_ADDR_REDUCTION	KVM_X86_CPU_PROPERTY(0x8000001F, 0, EBX, 6, 11)
 
@@ -820,6 +817,23 @@ static inline void cpu_relax(void)
 	asm volatile("rep; nop" ::: "memory");
 }
 
+static inline void udelay(unsigned long usec)
+{
+	uint64_t start, now, cycles;
+
+	GUEST_ASSERT(guest_tsc_khz);
+	cycles = guest_tsc_khz / 1000 * usec;
+
+	/*
+	 * Deliberately don't PAUSE, a.k.a. cpu_relax(), so that the delay is
+	 * as accurate as possible, e.g. doesn't trigger PAUSE-Loop VM-Exits.
+	 */
+	start = rdtsc();
+	do {
+		now = rdtsc();
+	} while (now - start < cycles);
+}
+
 #define ud2()			\
 	__asm__ __volatile__(	\
 		"ud2\n"	\
@@ -1139,8 +1153,6 @@ struct idt_entry {
 	uint32_t offset2; uint32_t reserved;
 };
 
-void vm_init_descriptor_tables(struct kvm_vm *vm);
-void vcpu_init_descriptor_tables(struct kvm_vcpu *vcpu);
 void vm_install_exception_handler(struct kvm_vm *vm, int vector,
 			void (*handler)(struct ex_regs *));
 

@@ -171,6 +171,12 @@ static ssize_t omap_kp_enable_store(struct device *dev, struct device_attribute 
 
 static DEVICE_ATTR(enable, S_IRUGO | S_IWUSR, omap_kp_enable_show, omap_kp_enable_store);
 
+static struct attribute *omap_kp_attrs[] = {
+	&dev_attr_enable.attr,
+	NULL
+};
+ATTRIBUTE_GROUPS(omap_kp);
+
 static int omap_kp_probe(struct platform_device *pdev)
 {
 	struct omap_kp *omap_kp;
@@ -214,10 +220,6 @@ static int omap_kp_probe(struct platform_device *pdev)
 	kp_tasklet.data = (unsigned long) omap_kp;
 	tasklet_enable(&kp_tasklet);
 
-	ret = device_create_file(&pdev->dev, &dev_attr_enable);
-	if (ret < 0)
-		goto err2;
-
 	/* setup input device */
 	input_dev->name = "omap-keypad";
 	input_dev->phys = "omap-keypad/input0";
@@ -235,12 +237,12 @@ static int omap_kp_probe(struct platform_device *pdev)
 					 pdata->rows, pdata->cols,
 					 omap_kp->keymap, input_dev);
 	if (ret < 0)
-		goto err3;
+		goto err2;
 
 	ret = input_register_device(omap_kp->input);
 	if (ret < 0) {
 		printk(KERN_ERR "Unable to register omap-keypad input device\n");
-		goto err3;
+		goto err2;
 	}
 
 	if (pdata->dbounce)
@@ -252,17 +254,15 @@ static int omap_kp_probe(struct platform_device *pdev)
 	if (omap_kp->irq >= 0) {
 		if (request_irq(omap_kp->irq, omap_kp_interrupt, 0,
 				"omap-keypad", omap_kp) < 0)
-			goto err4;
+			goto err3;
 	}
 	omap_writew(0, OMAP1_MPUIO_BASE + OMAP_MPUIO_KBD_MASKIT);
 
 	return 0;
 
-err4:
+err3:
 	input_unregister_device(omap_kp->input);
 	input_dev = NULL;
-err3:
-	device_remove_file(&pdev->dev, &dev_attr_enable);
 err2:
 	kfree(omap_kp);
 	input_free_device(input_dev);
@@ -293,6 +293,7 @@ static struct platform_driver omap_kp_driver = {
 	.remove_new	= omap_kp_remove,
 	.driver		= {
 		.name	= "omap-keypad",
+		.dev_groups = omap_kp_groups,
 	},
 };
 module_platform_driver(omap_kp_driver);

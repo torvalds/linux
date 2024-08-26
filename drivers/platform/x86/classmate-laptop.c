@@ -13,8 +13,6 @@
 #include <linux/input.h>
 #include <linux/rfkill.h>
 
-MODULE_LICENSE("GPL");
-
 struct cmpc_accel {
 	int sensitivity;
 	int g_select;
@@ -1139,3 +1137,5 @@ static const struct acpi_device_id cmpc_device_ids[] __maybe_unused = {
 };
 
 MODULE_DEVICE_TABLE(acpi, cmpc_device_ids);
+MODULE_DESCRIPTION("Support for Intel Classmate PC ACPI devices");
+MODULE_LICENSE("GPL");

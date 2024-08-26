@@ -106,13 +106,12 @@ unsigned long leon_get_irqmask(unsigned int irq)
 #ifdef CONFIG_SMP
 static int irq_choose_cpu(const struct cpumask *affinity)
 {
-	cpumask_t mask;
+	unsigned int cpu = cpumask_first_and(affinity, cpu_online_mask);
 
-	cpumask_and(&mask, cpu_online_mask, affinity);
-	if (cpumask_equal(&mask, cpu_online_mask) || cpumask_empty(&mask))
+	if (cpumask_subset(cpu_online_mask, affinity) || cpu >= nr_cpu_ids)
 		return boot_cpu_id;
 	else
-		return cpumask_first(&mask);
+		return cpu;
 }
 #else
 #define irq_choose_cpu(affinity) boot_cpu_id

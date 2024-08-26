@@ -218,7 +218,7 @@ static int npcm7xx_kcs_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int npcm7xx_kcs_remove(struct platform_device *pdev)
+static void npcm7xx_kcs_remove(struct platform_device *pdev)
 {
 	struct npcm7xx_kcs_bmc *priv = platform_get_drvdata(pdev);
 	struct kcs_bmc_device *kcs_bmc = &priv->kcs_bmc;
@@ -227,8 +227,6 @@ static int npcm7xx_kcs_remove(struct platform_device *pdev)
 
 	npcm7xx_kcs_enable_channel(kcs_bmc, false);
 	npcm7xx_kcs_irq_mask_update(kcs_bmc, (KCS_BMC_EVENT_TYPE_IBF | KCS_BMC_EVENT_TYPE_OBE), 0);
-
-	return 0;
 }
 
 static const struct of_device_id npcm_kcs_bmc_match[] = {
@@ -243,7 +241,7 @@ static struct platform_driver npcm_kcs_bmc_driver = {
 		.of_match_table	= npcm_kcs_bmc_match,
 	},
 	.probe	= npcm7xx_kcs_probe,
-	.remove	= npcm7xx_kcs_remove,
+	.remove_new = npcm7xx_kcs_remove,
 };
 module_platform_driver(npcm_kcs_bmc_driver);
 

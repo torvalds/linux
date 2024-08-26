@@ -89,7 +89,8 @@
 #define VBIOSSMC_MSG_DisableLSdma                 0x1A ///< Disable LSDMA; only sent by VBIOS
 #define VBIOSSMC_MSG_DpControllerPhyStatus        0x1B ///< Inform PMFW about the pre conditions for turning SLDO2 on/off . bit[0]==1 precondition is met, bit[1-2] are for DPPHY number
 #define VBIOSSMC_MSG_QueryIPS2Support             0x1C ///< Return 1: support; else not supported
-#define VBIOSSMC_Message_Count                    0x1D
+#define VBIOSSMC_MSG_NotifyHostRouterBW           0x1D
+#define VBIOSSMC_Message_Count                    0x1E
 
 #define VBIOSSMC_Status_BUSY                      0x0
 #define VBIOSSMC_Result_OK                        0x1
@@ -97,6 +98,14 @@
 #define VBIOSSMC_Result_UnknownCmd                0xFE
 #define VBIOSSMC_Result_CmdRejectedPrereq         0xFD
 #define VBIOSSMC_Result_CmdRejectedBusy           0xFC
+
+union dcn35_dpia_host_router_bw {
+	struct {
+		uint32_t hr_id : 16;
+		uint32_t bw_mbps : 16;
+	} bits;
+	uint32_t all;
+};
 
 /*
  * Function to be used instead of REG_WAIT macro because the wait ends when
@@ -486,4 +495,14 @@ int dcn35_smu_get_ips_supported(struct clk_mgr_internal *clk_mgr)
 
 	//smu_print("%s: VBIOSSMC_MSG_QueryIPS2Support return = %x\n", __func__, retv);
 	return retv;
+}
+
+void dcn35_smu_notify_host_router_bw(struct clk_mgr_internal *clk_mgr, uint32_t hr_id, uint32_t bw_kbps)
+{
+	union dcn35_dpia_host_router_bw msg_data = { 0 };
+
+	msg_data.bits.hr_id = hr_id;
+	msg_data.bits.bw_mbps = bw_kbps / 1000;
+
+	dcn35_smu_send_msg_with_param(clk_mgr, VBIOSSMC_MSG_NotifyHostRouterBW, msg_data.all);
 }

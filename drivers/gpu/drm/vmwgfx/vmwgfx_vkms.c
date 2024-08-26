@@ -31,7 +31,6 @@
 #include "vmwgfx_bo.h"
 #include "vmwgfx_drv.h"
 #include "vmwgfx_kms.h"
-#include "vmwgfx_vkms.h"
 
 #include "vmw_surface_cache.h"
 

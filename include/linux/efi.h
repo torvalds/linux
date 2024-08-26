@@ -74,10 +74,10 @@ typedef void *efi_handle_t;
  */
 typedef guid_t efi_guid_t __aligned(__alignof__(u32));
 
-#define EFI_GUID(a, b, c, d...) (efi_guid_t){ {					\
+#define EFI_GUID(a, b, c, d...) ((efi_guid_t){ {				\
 	(a) & 0xff, ((a) >> 8) & 0xff, ((a) >> 16) & 0xff, ((a) >> 24) & 0xff,	\
 	(b) & 0xff, ((b) >> 8) & 0xff,						\
-	(c) & 0xff, ((c) >> 8) & 0xff, d } }
+	(c) & 0xff, ((c) >> 8) & 0xff, d } })
 
 /*
  * Generic EFI table header
@@ -385,6 +385,7 @@ void efi_native_runtime_setup(void);
 #define EFI_MEMORY_ATTRIBUTES_TABLE_GUID	EFI_GUID(0xdcfa911d, 0x26eb, 0x469f,  0xa2, 0x20, 0x38, 0xb7, 0xdc, 0x46, 0x12, 0x20)
 #define EFI_CONSOLE_OUT_DEVICE_GUID		EFI_GUID(0xd3b36f2c, 0xd551, 0x11d4,  0x9a, 0x46, 0x00, 0x90, 0x27, 0x3f, 0xc1, 0x4d)
 #define APPLE_PROPERTIES_PROTOCOL_GUID		EFI_GUID(0x91bd12fe, 0xf6c3, 0x44fb,  0xa5, 0xb7, 0x51, 0x22, 0xab, 0x30, 0x3a, 0xe0)
+#define APPLE_SET_OS_PROTOCOL_GUID		EFI_GUID(0xc5c5da95, 0x7d5c, 0x45e6,  0xb2, 0xf1, 0x3f, 0xd5, 0x2b, 0xb1, 0x00, 0x77)
 #define EFI_TCG2_PROTOCOL_GUID			EFI_GUID(0x607f766c, 0x7455, 0x42be,  0x93, 0x0b, 0xe4, 0xd7, 0x6d, 0xb2, 0x72, 0x0f)
 #define EFI_TCG2_FINAL_EVENTS_TABLE_GUID	EFI_GUID(0x1e2ed096, 0x30e2, 0x4254,  0xbd, 0x89, 0x86, 0x3b, 0xbe, 0xf8, 0x23, 0x25)
 #define EFI_LOAD_FILE_PROTOCOL_GUID		EFI_GUID(0x56ec3091, 0x954c, 0x11d2,  0x8e, 0x3f, 0x00, 0xa0, 0xc9, 0x69, 0x72, 0x3b)
@@ -607,7 +608,11 @@ typedef struct {
 	u32 num_entries;
 	u32 desc_size;
 	u32 flags;
-	efi_memory_desc_t entry[0];
+	/*
+	 * There are @num_entries following, each of size @desc_size bytes,
+	 * including an efi_memory_desc_t header. See efi_memdesc_ptr().
+	 */
+	efi_memory_desc_t entry[];
 } efi_memory_attributes_table_t;
 
 typedef struct {
@@ -783,7 +788,7 @@ extern int efi_memattr_apply_permissions(struct mm_struct *mm,
 					 efi_memattr_perm_setter fn);
 
 /*
- * efi_early_memdesc_ptr - get the n-th EFI memmap descriptor
+ * efi_memdesc_ptr - get the n-th EFI memmap descriptor
  * @map: the start of efi memmap
  * @desc_size: the size of space for each EFI memmap descriptor
  * @n: the index of efi memmap descriptor
@@ -801,7 +806,7 @@ extern int efi_memattr_apply_permissions(struct mm_struct *mm,
  * during bootup since for_each_efi_memory_desc_xxx() is available after the
  * kernel initializes the EFI subsystem to set up struct efi_memory_map.
  */
-#define efi_early_memdesc_ptr(map, desc_size, n)			\
+#define efi_memdesc_ptr(map, desc_size, n)			\
 	(efi_memory_desc_t *)((void *)(map) + ((n) * (desc_size)))
 
 /* Iterate through an efi_memory_map */

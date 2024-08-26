@@ -17,13 +17,14 @@ A typical MFD can be:
 
 Optional properties:
 
-- compatible : "simple-mfd" - this signifies that the operating system should
-  consider all subnodes of the MFD device as separate devices akin to how
-  "simple-bus" indicates when to see subnodes as children for a simple
-  memory-mapped bus. For more complex devices, when the nexus driver has to
-  probe registers to figure out what child devices exist etc, this should not
-  be used. In the latter case the child devices will be determined by the
-  operating system.
+- compatible : "simple-mfd" - this signifies that the operating system
+  should consider all subnodes of the MFD device as separate and independent
+  devices, so not needing any resources to be provided by the parent device.
+  Similarly to how "simple-bus" indicates when to see subnodes as children for
+  a simple memory-mapped bus.
+  For more complex devices, when the nexus driver has to probe registers to
+  figure out what child devices exist etc, this should not be used. In the
+  latter case the child devices will be determined by the operating system.
 
 - ranges: Describes the address mapping relationship to the parent. Should set
   the child's base address to 0, the physical address within parent's address

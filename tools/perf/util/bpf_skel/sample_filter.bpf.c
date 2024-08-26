@@ -48,31 +48,54 @@ static inline __u64 perf_get_sample(struct bpf_perf_event_data_kern *kctx,
 {
 	struct perf_sample_data___new *data = (void *)kctx->data;
 
-	if (!bpf_core_field_exists(data->sample_flags) ||
-	    (data->sample_flags & entry->flags) == 0)
+	if (!bpf_core_field_exists(data->sample_flags))
 		return 0;
 
-	switch (entry->flags) {
-	case PERF_SAMPLE_IP:
+#define BUILD_CHECK_SAMPLE(x)					\
+	_Static_assert((1 << (PBF_TERM_##x - PBF_TERM_SAMPLE_START)) == PERF_SAMPLE_##x, \
+		"Mismatched PBF term to sample bit " #x)
+	BUILD_CHECK_SAMPLE(IP);
+	BUILD_CHECK_SAMPLE(TID);
+	BUILD_CHECK_SAMPLE(TIME);
+	BUILD_CHECK_SAMPLE(ADDR);
+	BUILD_CHECK_SAMPLE(ID);
+	BUILD_CHECK_SAMPLE(CPU);
+	BUILD_CHECK_SAMPLE(PERIOD);
+	BUILD_CHECK_SAMPLE(WEIGHT);
+	BUILD_CHECK_SAMPLE(DATA_SRC);
+	BUILD_CHECK_SAMPLE(TRANSACTION);
+	BUILD_CHECK_SAMPLE(PHYS_ADDR);
+	BUILD_CHECK_SAMPLE(DATA_PAGE_SIZE);
+	BUILD_CHECK_SAMPLE(CODE_PAGE_SIZE);
+	BUILD_CHECK_SAMPLE(WEIGHT_STRUCT);
+#undef BUILD_CHECK_SAMPLE
+
+	/* For sample terms check the sample bit is set. */
+	if (entry->term >= PBF_TERM_SAMPLE_START && entry->term <= PBF_TERM_SAMPLE_END &&
+	    (data->sample_flags & (1 << (entry->term - PBF_TERM_SAMPLE_START))) == 0)
+		return 0;
+
+	switch (entry->term) {
+	case PBF_TERM_IP:
 		return kctx->data->ip;
-	case PERF_SAMPLE_ID:
+	case PBF_TERM_ID:
 		return kctx->data->id;
-	case PERF_SAMPLE_TID:
+	case PBF_TERM_TID:
 		if (entry->part)
 			return kctx->data->tid_entry.pid;
 		else
 			return kctx->data->tid_entry.tid;
-	case PERF_SAMPLE_CPU:
+	case PBF_TERM_CPU:
 		return kctx->data->cpu_entry.cpu;
-	case PERF_SAMPLE_TIME:
+	case PBF_TERM_TIME:
 		return kctx->data->time;
-	case PERF_SAMPLE_ADDR:
+	case PBF_TERM_ADDR:
 		return kctx->data->addr;
-	case PERF_SAMPLE_PERIOD:
+	case PBF_TERM_PERIOD:
 		return kctx->data->period;
-	case PERF_SAMPLE_TRANSACTION:
+	case PBF_TERM_TRANSACTION:
 		return kctx->data->txn;
-	case PERF_SAMPLE_WEIGHT_STRUCT:
+	case PBF_TERM_WEIGHT_STRUCT:
 		if (entry->part == 1)
 			return kctx->data->weight.var1_dw;
 		if (entry->part == 2)
@@ -80,15 +103,15 @@ static inline __u64 perf_get_sample(struct bpf_perf_event_data_kern *kctx,
 		if (entry->part == 3)
 			return kctx->data->weight.var3_w;
 		/* fall through */
-	case PERF_SAMPLE_WEIGHT:
+	case PBF_TERM_WEIGHT:
 		return kctx->data->weight.full;
-	case PERF_SAMPLE_PHYS_ADDR:
+	case PBF_TERM_PHYS_ADDR:
 		return kctx->data->phys_addr;
-	case PERF_SAMPLE_CODE_PAGE_SIZE:
+	case PBF_TERM_CODE_PAGE_SIZE:
 		return kctx->data->code_page_size;
-	case PERF_SAMPLE_DATA_PAGE_SIZE:
+	case PBF_TERM_DATA_PAGE_SIZE:
 		return kctx->data->data_page_size;
-	case PERF_SAMPLE_DATA_SRC:
+	case PBF_TERM_DATA_SRC:
 		if (entry->part == 1)
 			return kctx->data->data_src.mem_op;
 		if (entry->part == 2)
@@ -117,6 +140,22 @@ static inline __u64 perf_get_sample(struct bpf_perf_event_data_kern *kctx,
 		}
 		/* return the whole word */
 		return kctx->data->data_src.val;
+	case PBF_TERM_UID:
+		return bpf_get_current_uid_gid() & 0xFFFFFFFF;
+	case PBF_TERM_GID:
+		return bpf_get_current_uid_gid() >> 32;
+	case PBF_TERM_NONE:
+	case __PBF_UNUSED_TERM4:
+	case __PBF_UNUSED_TERM5:
+	case __PBF_UNUSED_TERM9:
+	case __PBF_UNUSED_TERM10:
+	case __PBF_UNUSED_TERM11:
+	case __PBF_UNUSED_TERM12:
+	case __PBF_UNUSED_TERM13:
+	case __PBF_UNUSED_TERM16:
+	case __PBF_UNUSED_TERM18:
+	case __PBF_UNUSED_TERM20:
+	case __PBF_UNUSED_TERM21:
 	default:
 		break;
 	}

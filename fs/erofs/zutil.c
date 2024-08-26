@@ -148,7 +148,7 @@ int __init z_erofs_gbuf_init(void)
 
 void z_erofs_gbuf_exit(void)
 {
-	int i;
+	int i, j;
 
 	for (i = 0; i < z_erofs_gbuf_count + (!!z_erofs_rsvbuf); ++i) {
 		struct z_erofs_gbuf *gbuf = &z_erofs_gbufpool[i];
@@ -161,9 +161,9 @@ void z_erofs_gbuf_exit(void)
 		if (!gbuf->pages)
 			continue;
 
-		for (i = 0; i < gbuf->nrpages; ++i)
-			if (gbuf->pages[i])
-				put_page(gbuf->pages[i]);
+		for (j = 0; j < gbuf->nrpages; ++j)
+			if (gbuf->pages[j])
+				put_page(gbuf->pages[j]);
 		kfree(gbuf->pages);
 		gbuf->pages = NULL;
 	}

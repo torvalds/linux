@@ -46,9 +46,6 @@
 
 #include <xen/hvc-console.h>
 #include "xen-ops.h"
-#include "mmu.h"
-#include "smp.h"
-#include "pmu.h"
 
 cpumask_var_t xen_cpu_initialized_map;
 

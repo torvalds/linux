@@ -29,6 +29,9 @@
 
 #include "dc.h"
 
+int amdgpu_dm_plane_get_cursor_position(struct drm_plane *plane, struct drm_crtc *crtc,
+					struct dc_cursor_position *position);
+
 void amdgpu_dm_plane_handle_cursor_update(struct drm_plane *plane,
 			  struct drm_plane_state *old_plane_state);
 

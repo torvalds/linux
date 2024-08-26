@@ -213,7 +213,7 @@ $(OUTPUT)test-libtraceevent.bin:
 	$(BUILD) -ltraceevent
 
 $(OUTPUT)test-libtracefs.bin:
-	 $(BUILD) $(shell $(PKG_CONFIG) --cflags libtraceevent 2>/dev/null) -ltracefs
+	 $(BUILD) $(shell $(PKG_CONFIG) --cflags libtracefs 2>/dev/null) -ltracefs
 
 $(OUTPUT)test-libcrypto.bin:
 	$(BUILD) -lcrypto

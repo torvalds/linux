@@ -676,13 +676,7 @@ static struct pci_driver mvs_pci_driver = {
 	.remove		= mvs_pci_remove,
 };
 
-static ssize_t driver_version_show(struct device *cdev,
-				   struct device_attribute *attr, char *buffer)
-{
-	return sysfs_emit(buffer, "%s\n", DRV_VERSION);
-}
-
-static DEVICE_ATTR_RO(driver_version);
+static DEVICE_STRING_ATTR_RO(driver_version, 0444, DRV_VERSION);
 
 static ssize_t interrupt_coalescing_store(struct device *cdev,
 					  struct device_attribute *attr,
@@ -757,7 +751,7 @@ static void __exit mvs_exit(void)
 }
 
 static struct attribute *mvst_host_attrs[] = {
-	&dev_attr_driver_version.attr,
+	&dev_attr_driver_version.attr.attr,
 	&dev_attr_interrupt_coalescing.attr,
 	NULL,
 };

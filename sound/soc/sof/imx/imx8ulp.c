@@ -516,5 +516,6 @@ static struct platform_driver snd_sof_of_imx8ulp_driver = {
 };
 module_platform_driver(snd_sof_of_imx8ulp_driver);
 
-MODULE_IMPORT_NS(SND_SOC_SOF_XTENSA);
 MODULE_LICENSE("Dual BSD/GPL");
+MODULE_DESCRIPTION("SOF support for IMX8ULP platforms");
+MODULE_IMPORT_NS(SND_SOC_SOF_XTENSA);

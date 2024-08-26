@@ -370,6 +370,50 @@ Anche i tipi di dato per prototipi di funzione possono essere documentati::
    */
    typedef void (*type_name)(struct v4l2_ctrl *arg1, void *arg2);
 
+Documentazione di macro simili a oggetti
+----------------------------------------
+
+Le macro simili a oggetti si distinguono dalle macro simili a funzione. Esse si
+distinguono in base al fatto che il nome della macro simile a funzione sia
+immediatamente seguito da una parentesi sinistra ('(') mentre in quelle simili a
+oggetti no.
+
+Le macro simili a funzioni sono gestite come funzioni da ``scripts/kernel-doc``.
+Possono avere un elenco di parametri. Le macro simili a oggetti non hanno un
+elenco di parametri.
+
+Il formato generale di un commento kernel-doc per una macro simile a oggetti è::
+
+  /**
+   * define object_name - Brief description.
+   *
+   * Description of the object.
+   */
+
+Esempio::
+
+  /**
+   * define MAX_ERRNO - maximum errno value that is supported
+   *
+   * Kernel pointers have redundant information, so we can use a
+   * scheme where we can return either an error code or a normal
+   * pointer with the same return value.
+   */
+  #define MAX_ERRNO	4095
+
+Esempio::
+
+  /**
+   * define DRM_GEM_VRAM_PLANE_HELPER_FUNCS - \
+   *	Initializes struct drm_plane_helper_funcs for VRAM handling
+   *
+   * This macro initializes struct drm_plane_helper_funcs to use the
+   * respective helper functions.
+   */
+  #define DRM_GEM_VRAM_PLANE_HELPER_FUNCS \
+	.prepare_fb = drm_gem_vram_plane_helper_prepare_fb, \
+	.cleanup_fb = drm_gem_vram_plane_helper_cleanup_fb
+
 Marcatori e riferimenti
 -----------------------
 

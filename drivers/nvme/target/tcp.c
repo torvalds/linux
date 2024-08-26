@@ -416,10 +416,10 @@ static int nvmet_tcp_map_data(struct nvmet_tcp_cmd *cmd)
 	if (sgl->type == ((NVME_SGL_FMT_DATA_DESC << 4) |
 			  NVME_SGL_FMT_OFFSET)) {
 		if (!nvme_is_write(cmd->req.cmd))
-			return NVME_SC_INVALID_FIELD | NVME_SC_DNR;
+			return NVME_SC_INVALID_FIELD | NVME_STATUS_DNR;
 
 		if (len > cmd->req.port->inline_data_size)
-			return NVME_SC_SGL_INVALID_OFFSET | NVME_SC_DNR;
+			return NVME_SC_SGL_INVALID_OFFSET | NVME_STATUS_DNR;
 		cmd->pdu_len = len;
 	}
 	cmd->req.transfer_len += len;
@@ -2167,6 +2167,19 @@ static void nvmet_tcp_disc_port_addr(struct nvmet_req *req,
 	}
 }
 
+static ssize_t nvmet_tcp_host_port_addr(struct nvmet_ctrl *ctrl,
+			char *traddr, size_t traddr_len)
+{
+	struct nvmet_sq *sq = ctrl->sqs[0];
+	struct nvmet_tcp_queue *queue =
+		container_of(sq, struct nvmet_tcp_queue, nvme_sq);
+
+	if (queue->sockaddr_peer.ss_family == AF_UNSPEC)
+		return -EINVAL;
+	return snprintf(traddr, traddr_len, "%pISc",
+			(struct sockaddr *)&queue->sockaddr_peer);
+}
+
 static const struct nvmet_fabrics_ops nvmet_tcp_ops = {
 	.owner			= THIS_MODULE,
 	.type			= NVMF_TRTYPE_TCP,
@@ -2177,6 +2190,7 @@ static const struct nvmet_fabrics_ops nvmet_tcp_ops = {
 	.delete_ctrl		= nvmet_tcp_delete_ctrl,
 	.install_queue		= nvmet_tcp_install_queue,
 	.disc_traddr		= nvmet_tcp_disc_port_addr,
+	.host_traddr		= nvmet_tcp_host_port_addr,
 };
 
 static int __init nvmet_tcp_init(void)

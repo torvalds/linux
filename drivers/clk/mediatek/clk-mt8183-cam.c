@@ -58,4 +58,6 @@ static struct platform_driver clk_mt8183_cam_drv = {
 	},
 };
 module_platform_driver(clk_mt8183_cam_drv);
+
+MODULE_DESCRIPTION("MediaTek MT8183 Camera clocks driver");
 MODULE_LICENSE("GPL");

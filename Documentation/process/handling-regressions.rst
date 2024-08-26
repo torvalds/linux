@@ -40,10 +40,13 @@ The important bits (aka "The TL;DR")
        #regzbot from: Some N. Ice Human <some.human@example.com>
        #regzbot monitor: http://some.bugtracker.example.com/ticket?id=123456789
 
-#. When submitting fixes for regressions, add "Link:" tags to the patch
+#. When submitting fixes for regressions, add "Closes:" tags to the patch
    description pointing to all places where the issue was reported, as
    mandated by Documentation/process/submitting-patches.rst and
-   :ref:`Documentation/process/5.Posting.rst <development_posting>`.
+   :ref:`Documentation/process/5.Posting.rst <development_posting>`. If you are
+   only fixing part of the issue that caused the regression, you may use
+   "Link:" tags instead. regzbot currently makes no distinction between the
+   two.
 
 #. Try to fix regressions quickly once the culprit has been identified; fixes
    for most regressions should be merged within two weeks, but some need to be
@@ -91,10 +94,10 @@ When doing either, consider making the Linux kernel regression tracking bot
    Note the caret (^) before the "introduced": it tells regzbot to treat the
    parent mail (the one you reply to) as the initial report for the regression
    you want to see tracked; that's important, as regzbot will later look out
-   for patches with "Link:" tags pointing to the report in the archives on
+   for patches with "Closes:" tags pointing to the report in the archives on
    lore.kernel.org.
 
- * When forwarding a regressions reported to a bug tracker, include a paragraph
+ * When forwarding a regression reported to a bug tracker, include a paragraph
    with these regzbot commands::
 
        #regzbot introduced: 1f2e3d4c5b6a
@@ -102,7 +105,7 @@ When doing either, consider making the Linux kernel regression tracking bot
        #regzbot monitor: http://some.bugtracker.example.com/ticket?id=123456789
 
    Regzbot will then automatically associate patches with the report that
-   contain "Link:" tags pointing to your mail or the mentioned ticket.
+   contain "Closes:" tags pointing to your mail or the mentioned ticket.
 
 What's important when fixing regressions
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -112,10 +115,14 @@ remember to do what Documentation/process/submitting-patches.rst,
 :ref:`Documentation/process/5.Posting.rst <development_posting>`, and
 Documentation/process/stable-kernel-rules.rst already explain in more detail:
 
- * Point to all places where the issue was reported using "Link:" tags::
+ * Point to all places where the issue was reported using "Closes:" tags::
 
-       Link: https://lore.kernel.org/r/30th.anniversary.repost@klaava.Helsinki.FI/
-       Link: https://bugzilla.kernel.org/show_bug.cgi?id=1234567890
+       Closes: https://lore.kernel.org/r/30th.anniversary.repost@klaava.Helsinki.FI/
+       Closes: https://bugzilla.kernel.org/show_bug.cgi?id=1234567890
+
+   If you are only fixing part of the issue, you may use "Link:" instead as
+   described in the first document mentioned above. regzbot currently treats
+   both of these equivalently and considers the linked reports as resolved.
 
  * Add a "Fixes:" tag to specify the commit causing the regression.
 
@@ -126,7 +133,7 @@ All this is expected from you and important when it comes to regression, as
 these tags are of great value for everyone (you included) that might be looking
 into the issue weeks, months, or years later. These tags are also crucial for
 tools and scripts used by other kernel developers or Linux distributions; one of
-these tools is regzbot, which heavily relies on the "Link:" tags to associate
+these tools is regzbot, which heavily relies on the "Closes:" tags to associate
 reports for regression with changes resolving them.
 
 Expectations and best practices for fixing regressions
@@ -326,7 +333,7 @@ How does regression tracking work with regzbot?
 
 The bot watches for replies to reports of tracked regressions. Additionally,
 it's looking out for posted or committed patches referencing such reports
-with "Link:" tags; replies to such patch postings are tracked as well.
+with "Closes:" tags; replies to such patch postings are tracked as well.
 Combined this data provides good insights into the current state of the fixing
 process.
 
@@ -338,8 +345,7 @@ take care of that using ``#regzbot ^introduced``.
 
 For developers there normally is no extra work involved, they just need to make
 sure to do something that was expected long before regzbot came to light: add
-"Link:" tags to the patch description pointing to all reports about the issue
-fixed.
+links to the patch description pointing to all reports about the issue fixed.
 
 Do I have to use regzbot?
 ~~~~~~~~~~~~~~~~~~~~~~~~~

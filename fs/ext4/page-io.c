@@ -117,7 +117,6 @@ static void ext4_finish_bio(struct bio *bio)
 
 		if (bio->bi_status) {
 			int err = blk_status_to_errno(bio->bi_status);
-			folio_set_error(folio);
 			mapping_set_error(folio->mapping, err);
 		}
 		bh = head = folio_buffers(folio);
@@ -440,8 +439,6 @@ int ext4_bio_write_folio(struct ext4_io_submit *io, struct folio *folio,
 
 	BUG_ON(!folio_test_locked(folio));
 	BUG_ON(folio_test_writeback(folio));
-
-	folio_clear_error(folio);
 
 	/*
 	 * Comments copied from block_write_full_folio:

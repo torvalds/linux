@@ -26,7 +26,7 @@
 #define AXP288_ADC_TS_CURRENT_ON_ONDEMAND		(2 << 0)
 #define AXP288_ADC_TS_CURRENT_ON			(3 << 0)
 
-static struct pmic_table power_table[] = {
+static const struct pmic_table power_table[] = {
 	{
 		.address = 0x00,
 		.reg = 0x13,
@@ -129,7 +129,7 @@ static struct pmic_table power_table[] = {
 };
 
 /* TMP0 - TMP5 are the same, all from GPADC */
-static struct pmic_table thermal_table[] = {
+static const struct pmic_table thermal_table[] = {
 	{
 		.address = 0x00,
 		.reg = XPOWER_GPADC_LOW
@@ -255,7 +255,7 @@ static int intel_xpower_pmic_get_raw_temp(struct regmap *regmap, int reg)
 	if (ret)
 		return ret;
 
-	ret = regmap_bulk_read(regmap, AXP288_GP_ADC_H, buf, 2);
+	ret = regmap_bulk_read(regmap, AXP288_GP_ADC_H, buf, sizeof(buf));
 	if (ret == 0)
 		ret = (buf[0] << 4) + ((buf[1] >> 4) & 0x0f);
 
@@ -274,11 +274,12 @@ static int intel_xpower_exec_mipi_pmic_seq_element(struct regmap *regmap,
 						   u16 i2c_address, u32 reg_address,
 						   u32 value, u32 mask)
 {
+	struct device *dev = regmap_get_device(regmap);
 	int ret;
 
 	if (i2c_address != 0x34) {
-		pr_err("%s: Unexpected i2c-addr: 0x%02x (reg-addr 0x%x value 0x%x mask 0x%x)\n",
-		       __func__, i2c_address, reg_address, value, mask);
+		dev_err(dev, "Unexpected i2c-addr: 0x%02x (reg-addr 0x%x value 0x%x mask 0x%x)\n",
+			i2c_address, reg_address, value, mask);
 		return -ENXIO;
 	}
 

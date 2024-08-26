@@ -140,8 +140,22 @@ struct xe_reg_sr;
 	  .ver_start = ver_start__, .ver_end = ver_end__, }
 
 /**
- * XE_RTP_RULE_MEDIA_VERSION - Create rule matching media version
+ * XE_RTP_RULE_GRAPHICS_VERSION_ANY_GT - Create rule matching graphics version on any GT
  * @ver__: Graphics IP version to match
+ *
+ * Like XE_RTP_RULE_GRAPHICS_VERSION, but it matches even if the current GT
+ * being checked is not of the graphics type. It allows to add RTP entries to
+ * another GT when the device contains a Graphics IP with that version.
+ *
+ * Refer to XE_RTP_RULES() for expected usage.
+ */
+#define XE_RTP_RULE_GRAPHICS_VERSION_ANY_GT(ver__)				\
+	{ .match_type = XE_RTP_MATCH_GRAPHICS_VERSION_ANY_GT,			\
+	  .ver_start = ver__, }
+
+/**
+ * XE_RTP_RULE_MEDIA_VERSION - Create rule matching media version
+ * @ver__: Media IP version to match
  *
  * Refer to XE_RTP_RULES() for expected usage.
  */
@@ -164,6 +178,20 @@ struct xe_reg_sr;
 	  .ver_start = ver_start__, .ver_end = ver_end__, }
 
 /**
+ * XE_RTP_RULE_MEDIA_VERSION_ANY_GT - Create rule matching media version on any GT
+ * @ver__: Media IP version to match
+ *
+ * Like XE_RTP_RULE_MEDIA_VERSION, but it matches even if the current GT being
+ * checked is not of the media type. It allows to add RTP entries to another
+ * GT when the device contains a Media IP with that version.
+ *
+ * Refer to XE_RTP_RULES() for expected usage.
+ */
+#define XE_RTP_RULE_MEDIA_VERSION_ANY_GT(ver__)					\
+	{ .match_type = XE_RTP_MATCH_MEDIA_VERSION_ANY_GT,			\
+	  .ver_start = ver__, }
+
+/**
  * XE_RTP_RULE_IS_INTEGRATED - Create a rule matching integrated graphics devices
  *
  * Refer to XE_RTP_RULES() for expected usage.
@@ -178,6 +206,27 @@ struct xe_reg_sr;
  */
 #define XE_RTP_RULE_IS_DISCRETE							\
 	{ .match_type = XE_RTP_MATCH_DISCRETE }
+
+/**
+ * XE_RTP_RULE_OR - Create an OR condition for rtp rules
+ *
+ * RTP rules are AND'ed when evaluated and all of them need to match.
+ * XE_RTP_RULE_OR allows to create set of rules where any of them matching is
+ * sufficient for the action to trigger. Example:
+ *
+ * .. code-block:: c
+ *
+ *	const struct xe_rtp_entry_sr entries[] = {
+ *		...
+ *		{ XE_RTP_NAME("test-entry"),
+ *		  XE_RTP_RULES(PLATFORM(DG2), OR, PLATFORM(TIGERLAKE)),
+ *		  ...
+ *		},
+ *		...
+ *	};
+ */
+#define XE_RTP_RULE_OR								\
+	{ .match_type = XE_RTP_MATCH_OR }
 
 /**
  * XE_RTP_ACTION_WR - Helper to write a value to the register, overriding all
@@ -325,7 +374,7 @@ struct xe_reg_sr;
  * XE_RTP_RULES - Helper to set multiple rules to a struct xe_rtp_entry_sr entry
  * @...: Rules
  *
- * At least one rule is needed and up to 4 are supported. Multiple rules are
+ * At least one rule is needed and up to 6 are supported. Multiple rules are
  * AND'ed together, i.e. all the rules must evaluate to true for the entry to
  * be processed. See XE_RTP_MATCH_* for the possible match rules. Example:
  *
@@ -341,7 +390,7 @@ struct xe_reg_sr;
  *	};
  */
 #define XE_RTP_RULES(...)							\
-	.n_rules = _XE_COUNT_ARGS(__VA_ARGS__),					\
+	.n_rules = COUNT_ARGS(__VA_ARGS__),					\
 	.rules = (const struct xe_rtp_rule[]) {					\
 		XE_RTP_PASTE_FOREACH(RULE_, COMMA, (__VA_ARGS__))	\
 	}
@@ -350,7 +399,7 @@ struct xe_reg_sr;
  * XE_RTP_ACTIONS - Helper to set multiple actions to a struct xe_rtp_entry_sr
  * @...: Actions to be taken
  *
- * At least one action is needed and up to 4 are supported. See XE_RTP_ACTION_*
+ * At least one action is needed and up to 6 are supported. See XE_RTP_ACTION_*
  * for the possible actions. Example:
  *
  * .. code-block:: c
@@ -366,7 +415,7 @@ struct xe_reg_sr;
  *	};
  */
 #define XE_RTP_ACTIONS(...)							\
-	.n_actions = _XE_COUNT_ARGS(__VA_ARGS__),				\
+	.n_actions = COUNT_ARGS(__VA_ARGS__),					\
 	.actions = (const struct xe_rtp_action[]) {				\
 		XE_RTP_PASTE_FOREACH(ACTION_, COMMA, (__VA_ARGS__))	\
 	}

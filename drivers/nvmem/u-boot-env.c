@@ -249,5 +249,6 @@ static struct platform_driver u_boot_env_driver = {
 module_platform_driver(u_boot_env_driver);
 
 MODULE_AUTHOR("Rafał Miłecki");
+MODULE_DESCRIPTION("U-Boot environment variables support module");
 MODULE_LICENSE("GPL");
 MODULE_DEVICE_TABLE(of, u_boot_env_of_match_table);

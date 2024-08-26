@@ -118,7 +118,7 @@ config SATA_AHCI
 config SATA_MOBILE_LPM_POLICY
 	int "Default SATA Link Power Management policy"
 	range 0 4
-	default 0
+	default 3
 	depends on SATA_AHCI
 	help
 	  Select the Default SATA Link Power Management (LPM) policy to use

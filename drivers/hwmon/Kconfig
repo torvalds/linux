@@ -105,18 +105,6 @@ config SENSORS_AD7418
 	  This driver can also be built as a module. If so, the module
 	  will be called ad7418.
 
-config SENSORS_ADM1021
-	tristate "Analog Devices ADM1021 and compatibles"
-	depends on I2C
-	depends on SENSORS_LM90=n
-	help
-	  If you say yes here you get support for Analog Devices ADM1021
-	  and ADM1023 sensor chips and clones: Maxim MAX1617 and MAX1617A,
-	  Genesys Logic GL523SM, National Semiconductor LM84 and TI THMC10.
-
-	  This driver can also be built as a module. If so, the module
-	  will be called adm1021.
-
 config SENSORS_ADM1025
 	tristate "Analog Devices ADM1025 and compatibles"
 	depends on I2C
@@ -505,6 +493,17 @@ config SENSORS_CORSAIR_PSU
 
 	  This driver can also be built as a module. If so, the module
 	  will be called corsair-psu.
+
+config SENSORS_CROS_EC
+	tristate "ChromeOS Embedded Controller sensors"
+	depends on MFD_CROS_EC_DEV
+	default MFD_CROS_EC_DEV
+	help
+	  If you say yes here you get support for ChromeOS Embedded Controller
+	  sensors.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called cros_ec_hwmon.
 
 config SENSORS_DRIVETEMP
 	tristate "Hard disk drives with temperature sensors"
@@ -1240,18 +1239,6 @@ config SENSORS_MAX6639
 
 	  This driver can also be built as a module. If so, the module
 	  will be called max6639.
-
-config SENSORS_MAX6642
-	tristate "Maxim MAX6642 sensor chip"
-	depends on I2C
-	depends on SENSORS_LM90=n
-	help
-	  If you say yes here you get support for MAX6642 sensor chip.
-	  MAX6642 is a SMBus-Compatible Remote/Local Temperature Sensor
-	  with Overtemperature Alarm from Maxim.
-
-	  This driver can also be built as a module. If so, the module
-	  will be called max6642.
 
 config SENSORS_MAX6650
 	tristate "Maxim MAX6650 sensor chip"
@@ -2127,6 +2114,7 @@ config SENSORS_ADS7871
 config SENSORS_AMC6821
 	tristate "Texas Instruments AMC6821"
 	depends on I2C
+	select REGMAP_I2C
 	help
 	  If you say yes here you get support for the Texas Instruments
 	  AMC6821 hardware monitoring chips.
@@ -2180,6 +2168,37 @@ config SENSORS_INA3221
 
 	  This driver can also be built as a module. If so, the module
 	  will be called ina3221.
+
+config SENSORS_SPD5118
+	tristate "SPD5118 Compliant Temperature Sensors"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  If you say yes here you get support for SPD5118 (JEDEC JESD300)
+	  compliant temperature sensors. Such sensors are found on DDR5 memory
+	  modules.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called spd5118.
+
+config SENSORS_SPD5118_DETECT
+	bool "Enable detect function"
+	depends on SENSORS_SPD5118
+	default (!DMI || !X86)
+	help
+	  If enabled, the driver auto-detects if a chip in the SPD address
+	  range is compliant to the SPD51888 standard and auto-instantiates
+	  if that is the case. If disabled, SPD5118 compliant devices have
+	  to be instantiated by other means. On X86 systems with DMI support
+	  this will typically be done from DMI DDR detection code in the
+	  I2C SMBus subsystem. Devicetree based systems will instantiate
+	  attached devices if the DIMMs are listed in the devicetree file.
+
+	  Disabling the detect function will speed up boot time and reduce
+	  the risk of mis-detecting SPD5118 compliant devices. However, it
+	  may result in missed DIMMs under some circumstances.
+
+	  If unsure, say Y.
 
 config SENSORS_TC74
 	tristate "Microchip TC74"

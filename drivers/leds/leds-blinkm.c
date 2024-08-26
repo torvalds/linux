@@ -718,7 +718,7 @@ static void blinkm_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id blinkm_id[] = {
-	{"blinkm", 0},
+	{ "blinkm" },
 	{}
 };
 

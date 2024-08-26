@@ -3,7 +3,7 @@
 #include <linux/debugfs.h>
 #include <linux/slab.h>
 
-#include "debugfs.h"
+#include "xen-ops.h"
 
 static struct dentry *d_xen_debug;
 

@@ -8,6 +8,7 @@
 #include <linux/sched/signal.h>
 
 #include <asm/tlbflush.h>
+#include <asm/mmu_context.h>
 #include <as-layout.h>
 #include <mem_user.h>
 #include <os.h>
@@ -575,12 +576,6 @@ void flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
 	else fix_range(vma->vm_mm, start, end, 0);
 }
 EXPORT_SYMBOL(flush_tlb_range);
-
-void flush_tlb_mm_range(struct mm_struct *mm, unsigned long start,
-			unsigned long end)
-{
-	fix_range(mm, start, end, 0);
-}
 
 void flush_tlb_mm(struct mm_struct *mm)
 {

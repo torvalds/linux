@@ -1565,7 +1565,7 @@ static struct class_interface switchtec_interface  = {
 
 static int __init switchtec_ntb_init(void)
 {
-	switchtec_interface.class = switchtec_class;
+	switchtec_interface.class = &switchtec_class;
 	return class_interface_register(&switchtec_interface);
 }
 module_init(switchtec_ntb_init);

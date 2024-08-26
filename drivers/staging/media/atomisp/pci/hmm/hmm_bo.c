@@ -288,7 +288,7 @@ static void __bo_take_off_handling(struct hmm_buffer_object *bo)
 		/* 3. when bo->prev != NULL && bo->next == NULL, bo is not a rbtree
 		 *	node, bo is the last element of the linked list after rbtree
 		 *	node, to take off this bo, we just need set the "prev/next"
-		 *	pointers to NULL, the free rbtree stays unchaged
+		 *	pointers to NULL, the free rbtree stays unchanged
 		 */
 	} else if (bo->prev && !bo->next) {
 		bo->prev->next = NULL;
@@ -296,7 +296,7 @@ static void __bo_take_off_handling(struct hmm_buffer_object *bo)
 		/* 4. when bo->prev != NULL && bo->next != NULL ,bo is not a rbtree
 		 *	node, bo is in the middle of the linked list after rbtree node,
 		 *	to take off this bo, we just set take the "prev/next" pointers
-		 *	to NULL, the free rbtree stays unchaged
+		 *	to NULL, the free rbtree stays unchanged
 		 */
 	} else if (bo->prev && bo->next) {
 		bo->next->prev = bo->prev;

@@ -4,8 +4,8 @@
 #include <linux/preempt.h>
 #include <asm/break.h>
 
-#define KPROBE_BP_INSN		larch_insn_gen_break(BRK_KPROBE_BP)
-#define KPROBE_SSTEPBP_INSN	larch_insn_gen_break(BRK_KPROBE_SSTEPBP)
+#define KPROBE_BP_INSN		__emit_break(BRK_KPROBE_BP)
+#define KPROBE_SSTEPBP_INSN	__emit_break(BRK_KPROBE_SSTEPBP)
 
 DEFINE_PER_CPU(struct kprobe *, current_kprobe);
 DEFINE_PER_CPU(struct kprobe_ctlblk, kprobe_ctlblk);

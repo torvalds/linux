@@ -52,7 +52,6 @@ struct hists_stats {
 
 void events_stats__inc(struct events_stats *stats, u32 type);
 
-size_t events_stats__fprintf(struct events_stats *stats, FILE *fp,
-			     bool skip_empty);
+size_t events_stats__fprintf(struct events_stats *stats, FILE *fp);
 
 #endif /* __PERF_EVENTS_STATS_ */

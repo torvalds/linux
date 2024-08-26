@@ -213,8 +213,8 @@ static int sun4i_ps2_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	int error;
 
-	drvdata = kzalloc(sizeof(struct sun4i_ps2data), GFP_KERNEL);
-	serio = kzalloc(sizeof(struct serio), GFP_KERNEL);
+	drvdata = kzalloc(sizeof(*drvdata), GFP_KERNEL);
+	serio = kzalloc(sizeof(*serio), GFP_KERNEL);
 	if (!drvdata || !serio) {
 		error = -ENOMEM;
 		goto err_free_mem;

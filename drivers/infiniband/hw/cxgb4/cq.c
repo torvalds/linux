@@ -995,8 +995,9 @@ int c4iw_destroy_cq(struct ib_cq *ib_cq, struct ib_udata *udata)
 }
 
 int c4iw_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
-		   struct ib_udata *udata)
+		   struct uverbs_attr_bundle *attrs)
 {
+	struct ib_udata *udata = &attrs->driver_udata;
 	struct ib_device *ibdev = ibcq->device;
 	int entries = attr->cqe;
 	int vector = attr->comp_vector;

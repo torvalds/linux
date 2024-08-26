@@ -1150,4 +1150,5 @@ static void __exit usb_exit(void)
 
 subsys_initcall(usb_init);
 module_exit(usb_exit);
+MODULE_DESCRIPTION("USB core host-side support");
 MODULE_LICENSE("GPL");

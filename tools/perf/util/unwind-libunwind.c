@@ -25,7 +25,7 @@ int unwind__prepare_access(struct maps *maps, struct map *map, bool *initialized
 		return 0;
 
 	if (maps__addr_space(maps)) {
-		pr_debug("unwind: thread map already set, dso=%s\n", dso->name);
+		pr_debug("unwind: thread map already set, dso=%s\n", dso__name(dso));
 		if (initialized)
 			*initialized = true;
 		return 0;

@@ -257,7 +257,7 @@ static int sis5595_transaction(struct i2c_adapter *adap)
 	if (temp & 0x20) {
 		dev_err(&adap->dev, "Bus collision! SMBus may be locked until "
 			"next hard reset (or not...)\n");
-		/* Clock stops and slave is stuck in mid-transmission */
+		/* Clock stops and target is stuck in mid-transmission */
 		result = -EIO;
 	}
 

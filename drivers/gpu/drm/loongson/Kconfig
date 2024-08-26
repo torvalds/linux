@@ -6,6 +6,7 @@ config DRM_LOONGSON
 	depends on LOONGARCH || MIPS || COMPILE_TEST
 	select DRM_KMS_HELPER
 	select DRM_TTM
+	select DRM_TTM_HELPER
 	select I2C
 	select I2C_ALGOBIT
 	help

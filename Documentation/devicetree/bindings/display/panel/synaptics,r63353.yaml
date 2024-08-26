@@ -19,15 +19,17 @@ properties:
           - sharp,ls068b3sx02
       - const: syna,r63353
 
+  reg:
+    maxItems: 1
+
   avdd-supply: true
   dvdd-supply: true
-  reg: true
 
 required:
   - compatible
+  - reg
   - avdd-supply
   - dvdd-supply
-  - reg
   - reset-gpios
   - port
   - backlight

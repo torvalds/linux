@@ -36,6 +36,13 @@ Description
 
 Set the values of all requested output lines.
 
+The values set are logical, indicating if the line is to be active or inactive.
+The ``GPIOHANDLE_REQUEST_ACTIVE_LOW`` flag controls the mapping between logical
+values (active/inactive) and physical values (high/low).
+If  ``GPIOHANDLE_REQUEST_ACTIVE_LOW`` is not set then active is high and
+inactive is low. If ``GPIOHANDLE_REQUEST_ACTIVE_LOW`` is set then active is low
+and inactive is high.
+
 Only the values of output lines may be set.
 Attempting to set the value of input lines is an error (**EPERM**).
 

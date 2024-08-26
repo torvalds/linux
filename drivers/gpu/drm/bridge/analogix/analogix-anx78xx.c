@@ -67,7 +67,7 @@ struct anx78xx {
 	struct drm_dp_aux aux;
 	struct drm_bridge bridge;
 	struct i2c_client *client;
-	struct edid *edid;
+	const struct drm_edid *drm_edid;
 	struct drm_connector connector;
 	struct anx78xx_platform_data pdata;
 	struct mutex lock;
@@ -830,8 +830,8 @@ static int anx78xx_get_modes(struct drm_connector *connector)
 	if (WARN_ON(!anx78xx->powered))
 		return 0;
 
-	if (anx78xx->edid)
-		return drm_add_edid_modes(connector, anx78xx->edid);
+	if (anx78xx->drm_edid)
+		return drm_edid_connector_add_modes(connector);
 
 	mutex_lock(&anx78xx->lock);
 
@@ -841,20 +841,21 @@ static int anx78xx_get_modes(struct drm_connector *connector)
 		goto unlock;
 	}
 
-	anx78xx->edid = drm_get_edid(connector, &anx78xx->aux.ddc);
-	if (!anx78xx->edid) {
+	anx78xx->drm_edid = drm_edid_read_ddc(connector, &anx78xx->aux.ddc);
+
+	err = drm_edid_connector_update(connector, anx78xx->drm_edid);
+
+	if (!anx78xx->drm_edid) {
 		DRM_ERROR("Failed to read EDID\n");
 		goto unlock;
 	}
 
-	err = drm_connector_update_edid_property(connector,
-						 anx78xx->edid);
 	if (err) {
 		DRM_ERROR("Failed to update EDID property: %d\n", err);
 		goto unlock;
 	}
 
-	num_modes = drm_add_edid_modes(connector, anx78xx->edid);
+	num_modes = drm_edid_connector_add_modes(connector);
 
 unlock:
 	mutex_unlock(&anx78xx->lock);
@@ -895,11 +896,6 @@ static int anx78xx_bridge_attach(struct drm_bridge *bridge,
 	if (flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR) {
 		DRM_ERROR("Fix bridge driver to make connector optional!");
 		return -EINVAL;
-	}
-
-	if (!bridge->encoder) {
-		DRM_ERROR("Parent encoder object not found");
-		return -ENODEV;
 	}
 
 	/* Register aux channel */
@@ -1091,8 +1087,8 @@ static bool anx78xx_handle_common_int_4(struct anx78xx *anx78xx, u8 irq)
 		event = true;
 		anx78xx_poweroff(anx78xx);
 		/* Free cached EDID */
-		kfree(anx78xx->edid);
-		anx78xx->edid = NULL;
+		drm_edid_free(anx78xx->drm_edid);
+		anx78xx->drm_edid = NULL;
 	} else if (irq & SP_HPD_PLUG) {
 		DRM_DEBUG_KMS("IRQ: Hot plug detect - cable plug\n");
 		event = true;
@@ -1363,7 +1359,7 @@ static void anx78xx_i2c_remove(struct i2c_client *client)
 
 	unregister_i2c_dummy_clients(anx78xx);
 
-	kfree(anx78xx->edid);
+	drm_edid_free(anx78xx->drm_edid);
 }
 
 static const struct of_device_id anx78xx_match_table[] = {

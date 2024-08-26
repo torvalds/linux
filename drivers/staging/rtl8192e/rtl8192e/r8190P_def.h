@@ -88,9 +88,7 @@ enum version_8190_loopback {
 	VERSION_8190_BE
 };
 
-#define IC_VersionCut_C	0x2
 #define IC_VersionCut_D	0x3
-#define IC_VersionCut_E	0x4
 
 enum rf_optype {
 	RF_OP_By_SW_3wire = 0,
@@ -136,13 +134,6 @@ struct tx_fwinfo_8190pci {
 	u32			Retry_Limit:4;
 	u32			Reserved2:1;
 	u32			PacketID:13;
-};
-
-struct phy_ofdm_rx_status_rxsc_sgien_exintfflag {
-	u8			reserved:4;
-	u8			rxsc:2;
-	u8			sgi_en:1;
-	u8			ex_intf_flag:1;
 };
 
 struct phy_sts_ofdm_819xpci {

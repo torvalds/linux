@@ -66,8 +66,8 @@
 #include "sp.h"			/* cnd_sp_irq_enable() */
 #include "isp.h"		/* cnd_isp_irq_enable, ISP_VEC_NELEMS */
 #include "gp_device.h"		/* gp_device_reg_store() */
-#define __INLINE_GPIO__
-#include "gpio.h"
+#include <gpio_global.h>
+#include <gpio_private.h>
 #include "timed_ctrl.h"
 #include "ia_css_inputfifo.h"
 #define WITH_PC_MONITORING  0
@@ -462,9 +462,6 @@ ia_css_stream_input_format_bits_per_pixel(struct ia_css_stream *stream)
 	return bpp;
 }
 
-/* TODO: move define to proper file in tools */
-#define GP_ISEL_TPG_MODE 0x90058
-
 static int
 sh_css_config_input_network_2400(struct ia_css_stream *stream)
 {
@@ -500,21 +497,16 @@ sh_css_config_input_network_2400(struct ia_css_stream *stream)
 			return err;
 	}
 
-	if (stream->config.mode == IA_CSS_INPUT_MODE_TPG ||
-	    stream->config.mode == IA_CSS_INPUT_MODE_PRBS) {
-		unsigned int hblank_cycles = 100,
-		vblank_lines = 6,
-		width,
-		height,
-		vblank_cycles;
-		width  = (stream->config.input_config.input_res.width) / (1 +
-			(stream->config.pixels_per_clock == 2));
+	if (stream->config.mode == IA_CSS_INPUT_MODE_PRBS) {
+		unsigned int width, height, vblank_cycles;
+		const unsigned int hblank_cycles = 100;
+		const unsigned int vblank_lines = 6;
+
+		width = (stream->config.input_config.input_res.width) /
+			(1 + (stream->config.pixels_per_clock == 2));
 		height = stream->config.input_config.input_res.height;
 		vblank_cycles = vblank_lines * (width + hblank_cycles);
-		sh_css_sp_configure_sync_gen(width, height, hblank_cycles,
-					     vblank_cycles);
-		if (pipe->stream->config.mode == IA_CSS_INPUT_MODE_TPG)
-			ia_css_device_store_uint32(GP_ISEL_TPG_MODE, 0);
+		sh_css_sp_configure_sync_gen(width, height, hblank_cycles, vblank_cycles);
 	}
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE,
 			    "sh_css_config_input_network() leave:\n");
@@ -654,16 +646,6 @@ static bool sh_css_translate_stream_cfg_to_input_system_input_port_id(
 
 	rc = true;
 	switch (stream_cfg->mode) {
-	case IA_CSS_INPUT_MODE_TPG:
-
-		if (stream_cfg->source.tpg.id == IA_CSS_TPG_ID0)
-			isys_stream_descr->input_port_id = INPUT_SYSTEM_PIXELGEN_PORT0_ID;
-		else if (stream_cfg->source.tpg.id == IA_CSS_TPG_ID1)
-			isys_stream_descr->input_port_id = INPUT_SYSTEM_PIXELGEN_PORT1_ID;
-		else if (stream_cfg->source.tpg.id == IA_CSS_TPG_ID2)
-			isys_stream_descr->input_port_id = INPUT_SYSTEM_PIXELGEN_PORT2_ID;
-
-		break;
 	case IA_CSS_INPUT_MODE_PRBS:
 
 		if (stream_cfg->source.prbs.id == IA_CSS_PRBS_ID0)
@@ -700,11 +682,6 @@ static bool sh_css_translate_stream_cfg_to_input_system_input_port_type(
 
 	rc = true;
 	switch (stream_cfg->mode) {
-	case IA_CSS_INPUT_MODE_TPG:
-
-		isys_stream_descr->mode = INPUT_SYSTEM_SOURCE_TYPE_TPG;
-
-		break;
 	case IA_CSS_INPUT_MODE_PRBS:
 
 		isys_stream_descr->mode = INPUT_SYSTEM_SOURCE_TYPE_PRBS;
@@ -733,54 +710,6 @@ static bool sh_css_translate_stream_cfg_to_input_system_input_port_attr(
 
 	rc = true;
 	switch (stream_cfg->mode) {
-	case IA_CSS_INPUT_MODE_TPG:
-		if (stream_cfg->source.tpg.mode == IA_CSS_TPG_MODE_RAMP)
-			isys_stream_descr->tpg_port_attr.mode = PIXELGEN_TPG_MODE_RAMP;
-		else if (stream_cfg->source.tpg.mode == IA_CSS_TPG_MODE_CHECKERBOARD)
-			isys_stream_descr->tpg_port_attr.mode = PIXELGEN_TPG_MODE_CHBO;
-		else if (stream_cfg->source.tpg.mode == IA_CSS_TPG_MODE_MONO)
-			isys_stream_descr->tpg_port_attr.mode = PIXELGEN_TPG_MODE_MONO;
-		else
-			rc = false;
-
-		/*
-		 * TODO
-		 * - Make "color_cfg" as part of "ia_css_tpg_config".
-		 */
-		isys_stream_descr->tpg_port_attr.color_cfg.R1 = 51;
-		isys_stream_descr->tpg_port_attr.color_cfg.G1 = 102;
-		isys_stream_descr->tpg_port_attr.color_cfg.B1 = 255;
-		isys_stream_descr->tpg_port_attr.color_cfg.R2 = 0;
-		isys_stream_descr->tpg_port_attr.color_cfg.G2 = 100;
-		isys_stream_descr->tpg_port_attr.color_cfg.B2 = 160;
-
-		isys_stream_descr->tpg_port_attr.mask_cfg.h_mask =
-		    stream_cfg->source.tpg.x_mask;
-		isys_stream_descr->tpg_port_attr.mask_cfg.v_mask =
-		    stream_cfg->source.tpg.y_mask;
-		isys_stream_descr->tpg_port_attr.mask_cfg.hv_mask =
-		    stream_cfg->source.tpg.xy_mask;
-
-		isys_stream_descr->tpg_port_attr.delta_cfg.h_delta =
-		    stream_cfg->source.tpg.x_delta;
-		isys_stream_descr->tpg_port_attr.delta_cfg.v_delta =
-		    stream_cfg->source.tpg.y_delta;
-
-		/*
-		 * TODO
-		 * - Make "sync_gen_cfg" as part of "ia_css_tpg_config".
-		 */
-		isys_stream_descr->tpg_port_attr.sync_gen_cfg.hblank_cycles = 100;
-		isys_stream_descr->tpg_port_attr.sync_gen_cfg.vblank_cycles = 100;
-		isys_stream_descr->tpg_port_attr.sync_gen_cfg.pixels_per_clock =
-		    stream_cfg->pixels_per_clock;
-		isys_stream_descr->tpg_port_attr.sync_gen_cfg.nr_of_frames = (uint32_t)~(0x0);
-		isys_stream_descr->tpg_port_attr.sync_gen_cfg.pixels_per_line =
-		    stream_cfg->isys_config[IA_CSS_STREAM_DEFAULT_ISYS_STREAM_IDX].input_res.width;
-		isys_stream_descr->tpg_port_attr.sync_gen_cfg.lines_per_frame =
-		    stream_cfg->isys_config[IA_CSS_STREAM_DEFAULT_ISYS_STREAM_IDX].input_res.height;
-
-		break;
 	case IA_CSS_INPUT_MODE_PRBS:
 
 		isys_stream_descr->prbs_port_attr.seed0 = stream_cfg->source.prbs.seed;
@@ -1416,46 +1345,8 @@ ia_css_init(struct device *dev, const struct ia_css_env *env,
 {
 	int err;
 	ia_css_spctrl_cfg spctrl_cfg;
-
 	void (*flush_func)(struct ia_css_acc_fw *fw);
 	hrt_data select, enable;
-
-	/*
-	 * The C99 standard does not specify the exact object representation of structs;
-	 * the representation is compiler dependent.
-	 *
-	 * The structs that are communicated between host and SP/ISP should have the
-	 * exact same object representation. The compiler that is used to compile the
-	 * firmware is hivecc.
-	 *
-	 * To check if a different compiler, used to compile a host application, uses
-	 * another object representation, macros are defined specifying the size of
-	 * the structs as expected by the firmware.
-	 *
-	 * A host application shall verify that a sizeof( ) of the struct is equal to
-	 * the SIZE_OF_XXX macro of the corresponding struct. If they are not
-	 * equal, functionality will break.
-	 */
-
-	/* Check struct sh_css_ddr_address_map */
-	COMPILATION_ERROR_IF(sizeof(struct sh_css_ddr_address_map)		!= SIZE_OF_SH_CSS_DDR_ADDRESS_MAP_STRUCT);
-	/* Check struct host_sp_queues */
-	COMPILATION_ERROR_IF(sizeof(struct host_sp_queues)			!= SIZE_OF_HOST_SP_QUEUES_STRUCT);
-	COMPILATION_ERROR_IF(sizeof(struct ia_css_circbuf_desc_s)		!= SIZE_OF_IA_CSS_CIRCBUF_DESC_S_STRUCT);
-	COMPILATION_ERROR_IF(sizeof(struct ia_css_circbuf_elem_s)		!= SIZE_OF_IA_CSS_CIRCBUF_ELEM_S_STRUCT);
-
-	/* Check struct host_sp_communication */
-	COMPILATION_ERROR_IF(sizeof(struct host_sp_communication)		!= SIZE_OF_HOST_SP_COMMUNICATION_STRUCT);
-	COMPILATION_ERROR_IF(sizeof(struct sh_css_event_irq_mask)		!= SIZE_OF_SH_CSS_EVENT_IRQ_MASK_STRUCT);
-
-	/* Check struct sh_css_hmm_buffer */
-	COMPILATION_ERROR_IF(sizeof(struct sh_css_hmm_buffer)			!= SIZE_OF_SH_CSS_HMM_BUFFER_STRUCT);
-	COMPILATION_ERROR_IF(sizeof(struct ia_css_isp_3a_statistics)		!= SIZE_OF_IA_CSS_ISP_3A_STATISTICS_STRUCT);
-	COMPILATION_ERROR_IF(sizeof(struct ia_css_isp_dvs_statistics)		!= SIZE_OF_IA_CSS_ISP_DVS_STATISTICS_STRUCT);
-	COMPILATION_ERROR_IF(sizeof(struct ia_css_metadata)			!= SIZE_OF_IA_CSS_METADATA_STRUCT);
-
-	/* Check struct ia_css_init_dmem_cfg */
-	COMPILATION_ERROR_IF(sizeof(struct ia_css_sp_init_dmem_cfg)		!= SIZE_OF_IA_CSS_SP_INIT_DMEM_CFG_STRUCT);
 
 	if (!env)
 		return -EINVAL;
@@ -1472,10 +1363,8 @@ ia_css_init(struct device *dev, const struct ia_css_env *env,
 
 	ia_css_device_access_init(&env->hw_access_env);
 
-	select = gpio_reg_load(GPIO0_ID, _gpio_block_reg_do_select)
-	& (~GPIO_FLASH_PIN_MASK);
-	enable = gpio_reg_load(GPIO0_ID, _gpio_block_reg_do_e)
-	| GPIO_FLASH_PIN_MASK;
+	select = gpio_reg_load(GPIO0_ID, _gpio_block_reg_do_select) & ~GPIO_FLASH_PIN_MASK;
+	enable = gpio_reg_load(GPIO0_ID, _gpio_block_reg_do_e) | GPIO_FLASH_PIN_MASK;
 	sh_css_mmu_set_page_table_base_index(mmu_l1_base);
 
 	my_css_save.mmu_base = mmu_l1_base;
@@ -2903,7 +2792,6 @@ init_vf_frameinfo_defaults(struct ia_css_pipe *pipe,
 	assert(vf_frame);
 
 	sh_css_pipe_get_viewfinder_frame_info(pipe, &vf_frame->frame_info, idx);
-	vf_frame->flash_state = IA_CSS_FRAME_FLASH_STATE_NONE;
 	ia_css_pipeline_get_sp_thread_id(ia_css_pipe_get_pipe_num(pipe), &thread_id);
 	ia_css_query_internal_queue_id(IA_CSS_BUFFER_TYPE_VF_OUTPUT_FRAME + idx, thread_id, &queue_id);
 	vf_frame->dynamic_queue_id = queue_id;
@@ -3081,7 +2969,6 @@ init_in_frameinfo_memory_defaults(struct ia_css_pipe *pipe,
 	in_frame->frame_info.raw_bit_depth = ia_css_pipe_util_pipe_input_format_bpp(pipe);
 	ia_css_frame_info_set_width(&in_frame->frame_info,
 				    pipe->stream->config.input_config.input_res.width, 0);
-	in_frame->flash_state = IA_CSS_FRAME_FLASH_STATE_NONE;
 	ia_css_pipeline_get_sp_thread_id(ia_css_pipe_get_pipe_num(pipe), &thread_id);
 	ia_css_query_internal_queue_id(IA_CSS_BUFFER_TYPE_INPUT_FRAME, thread_id, &queue_id);
 	in_frame->dynamic_queue_id = queue_id;
@@ -3109,7 +2996,6 @@ init_out_frameinfo_defaults(struct ia_css_pipe *pipe,
 	assert(out_frame);
 
 	sh_css_pipe_get_output_frame_info(pipe, &out_frame->frame_info, idx);
-	out_frame->flash_state = IA_CSS_FRAME_FLASH_STATE_NONE;
 	ia_css_pipeline_get_sp_thread_id(ia_css_pipe_get_pipe_num(pipe), &thread_id);
 	ia_css_query_internal_queue_id(IA_CSS_BUFFER_TYPE_OUTPUT_FRAME + idx, thread_id, &queue_id);
 	out_frame->dynamic_queue_id = queue_id;
@@ -3890,12 +3776,6 @@ ia_css_pipe_dequeue_buffer(struct ia_css_pipe *pipe,
 				buffer->exp_id = ddr_buffer.payload.frame.exp_id;
 				frame->exp_id = ddr_buffer.payload.frame.exp_id;
 				frame->isp_config_id = ddr_buffer.payload.frame.isp_parameters_id;
-				if (ddr_buffer.payload.frame.flashed == 1)
-					frame->flash_state =
-					    IA_CSS_FRAME_FLASH_STATE_PARTIAL;
-				if (ddr_buffer.payload.frame.flashed == 2)
-					frame->flash_state =
-					    IA_CSS_FRAME_FLASH_STATE_FULL;
 				frame->valid = pipe->num_invalid_frames == 0;
 				if (!frame->valid)
 					pipe->num_invalid_frames--;
@@ -4690,6 +4570,7 @@ static int load_video_binaries(struct ia_css_pipe *pipe)
 						  sizeof(struct ia_css_binary),
 						  GFP_KERNEL);
 		if (!mycs->yuv_scaler_binary) {
+			mycs->num_yuv_scaler = 0;
 			err = -ENOMEM;
 			return err;
 		}
@@ -6856,8 +6737,6 @@ create_host_copy_pipeline(struct ia_css_pipe *pipe,
 	ia_css_pipeline_clean(me);
 
 	/* Construct out_frame info */
-	out_frame->flash_state = IA_CSS_FRAME_FLASH_STATE_NONE;
-
 	if (copy_on_sp(pipe) &&
 	    pipe->stream->config.input_config.format == ATOMISP_INPUT_FORMAT_BINARY_8) {
 		ia_css_frame_info_init(&out_frame->frame_info, JPEG_BYTES, 1,
@@ -6905,7 +6784,6 @@ create_host_isyscopy_capture_pipeline(struct ia_css_pipe *pipe)
 	err = sh_css_pipe_get_output_frame_info(pipe, &out_frame->frame_info, 0);
 	if (err)
 		return err;
-	out_frame->flash_state = IA_CSS_FRAME_FLASH_STATE_NONE;
 	ia_css_pipeline_get_sp_thread_id(ia_css_pipe_get_pipe_num(pipe), &thread_id);
 	ia_css_query_internal_queue_id(IA_CSS_BUFFER_TYPE_OUTPUT_FRAME, thread_id, &queue_id);
 	out_frame->dynamic_queue_id = queue_id;
@@ -7560,27 +7438,6 @@ int ia_css_stream_capture(struct ia_css_stream *stream, int num_captures,
 	return return_err;
 }
 
-void ia_css_stream_request_flash(struct ia_css_stream *stream)
-{
-	(void)stream;
-
-	assert(stream);
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
-			    "ia_css_stream_request_flash() enter: void\n");
-
-	if (!IS_ISP2401 || sh_css_sp_is_running()) {
-		if (!sh_css_write_host2sp_command(host2sp_cmd_start_flash) && IS_ISP2401) {
-			IA_CSS_ERROR("Call to 'sh-css_write_host2sp_command()' failed");
-			ia_css_debug_dump_sp_sw_debug_info();
-		}
-	} else {
-		IA_CSS_LOG("SP is not running!");
-	}
-
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
-			    "ia_css_stream_request_flash() leave: return_void\n");
-}
-
 static void
 sh_css_init_host_sp_control_vars(void)
 {
@@ -8151,23 +8008,6 @@ ia_css_stream_create(const struct ia_css_stream_config *stream_config,
 	case IA_CSS_INPUT_MODE_BUFFERED_SENSOR:
 		if (!IS_ISP2401)
 			ia_css_stream_configure_rx(curr_stream);
-		break;
-	case IA_CSS_INPUT_MODE_TPG:
-		if (!IS_ISP2401) {
-			IA_CSS_LOG("tpg_configuration: x_mask=%d, y_mask=%d, x_delta=%d, y_delta=%d, xy_mask=%d",
-				   curr_stream->config.source.tpg.x_mask,
-				   curr_stream->config.source.tpg.y_mask,
-				   curr_stream->config.source.tpg.x_delta,
-				   curr_stream->config.source.tpg.y_delta,
-				   curr_stream->config.source.tpg.xy_mask);
-
-			sh_css_sp_configure_tpg(
-			    curr_stream->config.source.tpg.x_mask,
-			    curr_stream->config.source.tpg.y_mask,
-			    curr_stream->config.source.tpg.x_delta,
-			    curr_stream->config.source.tpg.y_delta,
-			    curr_stream->config.source.tpg.xy_mask);
-		}
 		break;
 	case IA_CSS_INPUT_MODE_PRBS:
 		if (!IS_ISP2401) {

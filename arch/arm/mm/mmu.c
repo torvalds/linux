@@ -1687,9 +1687,8 @@ static void __init early_paging_init(const struct machine_desc *mdesc)
 	 */
 	cr = get_cr();
 	set_cr(cr & ~(CR_I | CR_C));
-	asm("mrc p15, 0, %0, c2, c0, 2" : "=r" (ttbcr));
-	asm volatile("mcr p15, 0, %0, c2, c0, 2"
-		: : "r" (ttbcr & ~(3 << 8 | 3 << 10)));
+	ttbcr = cpu_get_ttbcr();
+	cpu_set_ttbcr(ttbcr & ~(3 << 8 | 3 << 10));
 	flush_cache_all();
 
 	/*
@@ -1701,7 +1700,7 @@ static void __init early_paging_init(const struct machine_desc *mdesc)
 	lpae_pgtables_remap(offset, pa_pgd);
 
 	/* Re-enable the caches and cacheable TLB walks */
-	asm volatile("mcr p15, 0, %0, c2, c0, 2" : : "r" (ttbcr));
+	cpu_set_ttbcr(ttbcr);
 	set_cr(cr);
 }
 

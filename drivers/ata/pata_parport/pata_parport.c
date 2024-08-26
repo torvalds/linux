@@ -768,7 +768,6 @@ static struct parport_driver pata_parport_driver = {
 	.name = DRV_NAME,
 	.match_port = pata_parport_attach,
 	.detach = pata_parport_detach,
-	.devmodel = true,
 };
 
 static __init int pata_parport_init(void)

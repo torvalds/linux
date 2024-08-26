@@ -27,6 +27,8 @@
 
 #include <linux/spi/spi.h>
 
+#include "internals.h"
+
 #include <linux/platform_data/spi-omap2-mcspi.h>
 
 #define OMAP2_MCSPI_MAX_FREQ		48000000
@@ -1208,8 +1210,7 @@ static int omap2_mcspi_transfer_one(struct spi_controller *ctlr,
 		unsigned	count;
 
 		if ((mcspi_dma->dma_rx && mcspi_dma->dma_tx) &&
-		    ctlr->cur_msg_mapped &&
-		    ctlr->can_dma(ctlr, spi, t))
+		    spi_xfer_is_dma_mapped(ctlr, spi, t))
 			omap2_mcspi_set_fifo(spi, t, 1);
 
 		omap2_mcspi_set_enable(spi, 1);
@@ -1220,8 +1221,7 @@ static int omap2_mcspi_transfer_one(struct spi_controller *ctlr,
 					+ OMAP2_MCSPI_TX0);
 
 		if ((mcspi_dma->dma_rx && mcspi_dma->dma_tx) &&
-		    ctlr->cur_msg_mapped &&
-		    ctlr->can_dma(ctlr, spi, t))
+		    spi_xfer_is_dma_mapped(ctlr, spi, t))
 			count = omap2_mcspi_txrx_dma(spi, t);
 		else
 			count = omap2_mcspi_txrx_pio(spi, t);
@@ -1277,24 +1277,11 @@ static int omap2_mcspi_prepare_message(struct spi_controller *ctlr,
 
 		/*
 		 * Check if this transfer contains only one word;
-		 * OR contains 1 to 4 words, with bits_per_word == 8 and no delay between each word
-		 * OR contains 1 to 2 words, with bits_per_word == 16 and no delay between each word
-		 *
-		 * If one of the two last case is true, this also change the bits_per_word of this
-		 * transfer to make it a bit faster.
-		 * It's not an issue to change the bits_per_word here even if the multi-mode is not
-		 * applicable for this message, the signal on the wire will be the same.
 		 */
 		if (bits_per_word < 8 && tr->len == 1) {
 			/* multi-mode is applicable, only one word (1..7 bits) */
-		} else if (tr->word_delay.value == 0 && bits_per_word == 8 && tr->len <= 4) {
-			/* multi-mode is applicable, only one "bigger" word (8,16,24,32 bits) */
-			tr->bits_per_word = tr->len * bits_per_word;
-		} else if (tr->word_delay.value == 0 && bits_per_word == 16 && tr->len <= 2) {
-			/* multi-mode is applicable, only one "bigger" word (16,32 bits) */
-			tr->bits_per_word = tr->len * bits_per_word / 2;
 		} else if (bits_per_word >= 8 && tr->len == bits_per_word / 8) {
-			/* multi-mode is applicable, only one word (9..15,17..32 bits) */
+			/* multi-mode is applicable, only one word (8..32 bits) */
 		} else {
 			/* multi-mode is not applicable: more than one word in the transfer */
 			mcspi->use_multi_mode = false;
@@ -1671,4 +1658,5 @@ static struct platform_driver omap2_mcspi_driver = {
 };
 
 module_platform_driver(omap2_mcspi_driver);
+MODULE_DESCRIPTION("OMAP2 McSPI controller driver");
 MODULE_LICENSE("GPL");

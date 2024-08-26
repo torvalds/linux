@@ -237,7 +237,7 @@ run_cpucg_weight_test(
 {
 	int ret = KSFT_FAIL, i;
 	char *parent = NULL;
-	struct cpu_hogger children[3] = {NULL};
+	struct cpu_hogger children[3] = {};
 
 	parent = cg_name(root, "cpucg_test_0");
 	if (!parent)
@@ -408,7 +408,7 @@ run_cpucg_nested_weight_test(const char *root, bool overprovisioned)
 {
 	int ret = KSFT_FAIL, i;
 	char *parent = NULL, *child = NULL;
-	struct cpu_hogger leaf[3] = {NULL};
+	struct cpu_hogger leaf[3] = {};
 	long nested_leaf_usage, child_usage;
 	int nprocs = get_nprocs();
 
@@ -700,7 +700,7 @@ int main(int argc, char *argv[])
 	char root[PATH_MAX];
 	int i, ret = EXIT_SUCCESS;
 
-	if (cg_find_unified_root(root, sizeof(root)))
+	if (cg_find_unified_root(root, sizeof(root), NULL))
 		ksft_exit_skip("cgroup v2 isn't mounted\n");
 
 	if (cg_read_strstr(root, "cgroup.subtree_control", "cpu"))

@@ -43,19 +43,10 @@ config PPC_8xx
 	select HAVE_ARCH_VMAP_STACK
 	select HUGETLBFS
 
-config 40x
-	bool "AMCC 40x"
-	select PPC_DCR_NATIVE
-	select PPC_UDBG_16550
-	select 4xx_SOC
-	select HAVE_PCI
-	select PPC_KUEP if PPC_KUAP
-
 config 44x
 	bool "AMCC 44x, 46x or 47x"
 	select PPC_DCR_NATIVE
 	select PPC_UDBG_16550
-	select 4xx_SOC
 	select HAVE_PCI
 	select PHYS_64BIT
 	select PPC_KUEP
@@ -194,11 +185,6 @@ config E6500_CPU
 	depends on !CC_IS_CLANG
 	select PPC_HAS_LBARX_LHARX
 
-config 405_CPU
-	bool "40x family"
-	depends on 40x
-	depends on !CC_IS_CLANG
-
 config 440_CPU
 	bool "440 (44x family)"
 	depends on 44x
@@ -264,7 +250,6 @@ config TARGET_CPU
 	default "e6500" if E6500_CPU
 	default "power4" if POWERPC64_CPU && !CPU_LITTLE_ENDIAN
 	default "power8" if POWERPC64_CPU && CPU_LITTLE_ENDIAN
-	default "405" if 405_CPU
 	default "440" if 440_CPU
 	default "464" if 464_CPU
 	default "476" if 476_CPU
@@ -340,17 +325,12 @@ config FSL_EMB_PERF_EVENT_E500
 
 config 4xx
 	bool
-	depends on 40x || 44x
+	depends on 44x
 	default y
 
 config BOOKE
 	bool
 	depends on PPC_E500 || 44x
-	default y
-
-config BOOKE_OR_40x
-	bool
-	depends on BOOKE || 40x
 	default y
 
 config PTE_64BIT
@@ -495,8 +475,8 @@ config PPC_KERNEL_PCREL
 	  This option builds the kernel with the pc relative ABI model.
 
 config PPC_KUEP
-	bool "Kernel Userspace Execution Prevention" if !40x
-	default y if !40x
+	bool "Kernel Userspace Execution Prevention"
+	default y
 	help
 	  Enable support for Kernel Userspace Execution Prevention (KUEP)
 
@@ -582,7 +562,7 @@ config NR_CPUS
 
 config NOT_COHERENT_CACHE
 	bool
-	depends on 4xx || PPC_8xx || PPC_MPC512x || \
+	depends on 44x || PPC_8xx || PPC_MPC512x || \
 		GAMECUBE_COMMON || AMIGAONE
 	select ARCH_HAS_DMA_PREP_COHERENT
 	select ARCH_HAS_SYNC_DMA_FOR_DEVICE

@@ -1783,7 +1783,7 @@ static unsigned int CalculateVMAndRowBytes(
 		if (ScanDirection != dm_vert)
 			FractionOfPTEReturnDrop = 0;
 		else
-			FractionOfPTEReturnDrop = 7 / 8;
+			FractionOfPTEReturnDrop = 7.0 / 8;
 	} else if (GPUVMMinPageSize == 4 && MacroTileSizeBytes > 4096) {
 		PixelPTEReqHeightPTEs = 16;
 		*PixelPTEReqHeight = 16 * BlockHeight256Bytes;

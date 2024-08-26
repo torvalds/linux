@@ -1,6 +1,7 @@
 [
     {
         "BriefDescription": "Counts the number of machine clears due to memory order conflicts.",
+        "Counter": "0,1,2,3",
         "EventCode": "0xC3",
         "EventName": "MACHINE_CLEARS.MEMORY_ORDERING",
         "SampleAfterValue": "100003",
@@ -8,6 +9,7 @@
     },
     {
         "BriefDescription": "Loads with latency value being above 128",
+        "Counter": "3",
         "EventCode": "0xCD",
         "EventName": "MEM_TRANS_RETIRED.LOAD_LATENCY_GT_128",
         "MSRIndex": "0x3F6",
@@ -19,6 +21,7 @@
     },
     {
         "BriefDescription": "Loads with latency value being above 16",
+        "Counter": "3",
         "EventCode": "0xCD",
         "EventName": "MEM_TRANS_RETIRED.LOAD_LATENCY_GT_16",
         "MSRIndex": "0x3F6",
@@ -30,6 +33,7 @@
     },
     {
         "BriefDescription": "Loads with latency value being above 256",
+        "Counter": "3",
         "EventCode": "0xCD",
         "EventName": "MEM_TRANS_RETIRED.LOAD_LATENCY_GT_256",
         "MSRIndex": "0x3F6",
@@ -41,6 +45,7 @@
     },
     {
         "BriefDescription": "Loads with latency value being above 32",
+        "Counter": "3",
         "EventCode": "0xCD",
         "EventName": "MEM_TRANS_RETIRED.LOAD_LATENCY_GT_32",
         "MSRIndex": "0x3F6",
@@ -52,6 +57,7 @@
     },
     {
         "BriefDescription": "Loads with latency value being above 4",
+        "Counter": "3",
         "EventCode": "0xCD",
         "EventName": "MEM_TRANS_RETIRED.LOAD_LATENCY_GT_4",
         "MSRIndex": "0x3F6",
@@ -63,6 +69,7 @@
     },
     {
         "BriefDescription": "Loads with latency value being above 512",
+        "Counter": "3",
         "EventCode": "0xCD",
         "EventName": "MEM_TRANS_RETIRED.LOAD_LATENCY_GT_512",
         "MSRIndex": "0x3F6",
@@ -74,6 +81,7 @@
     },
     {
         "BriefDescription": "Loads with latency value being above 64",
+        "Counter": "3",
         "EventCode": "0xCD",
         "EventName": "MEM_TRANS_RETIRED.LOAD_LATENCY_GT_64",
         "MSRIndex": "0x3F6",
@@ -85,6 +93,7 @@
     },
     {
         "BriefDescription": "Loads with latency value being above 8",
+        "Counter": "3",
         "EventCode": "0xCD",
         "EventName": "MEM_TRANS_RETIRED.LOAD_LATENCY_GT_8",
         "MSRIndex": "0x3F6",
@@ -96,6 +105,7 @@
     },
     {
         "BriefDescription": "Sample stores and collect precise store operation via PEBS record. PMC3 only.",
+        "Counter": "3",
         "EventCode": "0xCD",
         "EventName": "MEM_TRANS_RETIRED.PRECISE_STORE",
         "PEBS": "2",
@@ -104,6 +114,7 @@
     },
     {
         "BriefDescription": "Speculative cache line split load uops dispatched to L1 cache",
+        "Counter": "0,1,2,3",
         "EventCode": "0x05",
         "EventName": "MISALIGN_MEM_REF.LOADS",
         "PublicDescription": "Speculative cache-line split load uops dispatched to L1D.",
@@ -112,6 +123,7 @@
     },
     {
         "BriefDescription": "Speculative cache line split STA uops dispatched to L1 cache",
+        "Counter": "0,1,2,3",
         "EventCode": "0x05",
         "EventName": "MISALIGN_MEM_REF.STORES",
         "PublicDescription": "Speculative cache-line split Store-address uops dispatched to L1D.",
@@ -120,6 +132,7 @@
     },
     {
         "BriefDescription": "Counts all demand & prefetch code reads that miss the LLC",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.ALL_CODE_RD.LLC_MISS.ANY_RESPONSE",
         "MSRIndex": "0x1a6,0x1a7",
@@ -129,6 +142,7 @@
     },
     {
         "BriefDescription": "Counts all demand & prefetch code reads that miss the LLC  and the data returned from remote dram",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.ALL_CODE_RD.LLC_MISS.REMOTE_DRAM",
         "MSRIndex": "0x1a6,0x1a7",
@@ -138,6 +152,7 @@
     },
     {
         "BriefDescription": "Counts all demand & prefetch code reads that miss the LLC  and the data forwarded from remote cache",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.ALL_CODE_RD.LLC_MISS.REMOTE_HIT_FORWARD",
         "MSRIndex": "0x1a6,0x1a7",
@@ -147,6 +162,7 @@
     },
     {
         "BriefDescription": "Counts all demand & prefetch data reads that hits the LLC",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.ALL_DATA_RD.LLC_MISS.ANY_RESPONSE",
         "MSRIndex": "0x1a6,0x1a7",
@@ -156,6 +172,7 @@
     },
     {
         "BriefDescription": "Counts all data/code/rfo reads (demand & prefetch) that hit the LLC",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.ALL_READS.LLC_MISS.ANY_RESPONSE",
         "MSRIndex": "0x1a6,0x1a7",
@@ -165,6 +182,7 @@
     },
     {
         "BriefDescription": "Counts all data/code/rfo reads (demand & prefetch) that miss the LLC  and the data returned from local dram",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.ALL_READS.LLC_MISS.LOCAL_DRAM",
         "MSRIndex": "0x1a6,0x1a7",
@@ -174,6 +192,7 @@
     },
     {
         "BriefDescription": "Counts all data/code/rfo reads (demand & prefetch) that miss the LLC  the data is found in M state in remote cache and forwarded from there",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.ALL_READS.LLC_MISS.REMOTE_HITM",
         "MSRIndex": "0x1a6,0x1a7",
@@ -183,6 +202,7 @@
     },
     {
         "BriefDescription": "Counts all data/code/rfo reads (demand & prefetch) that miss the LLC  and the data forwarded from remote cache",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.ALL_READS.LLC_MISS.REMOTE_HIT_FORWARD",
         "MSRIndex": "0x1a6,0x1a7",
@@ -192,6 +212,7 @@
     },
     {
         "BriefDescription": "Counts all demand code reads that miss the LLC",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.LLC_MISS.ANY_RESPONSE",
         "MSRIndex": "0x1a6,0x1a7",
@@ -201,6 +222,7 @@
     },
     {
         "BriefDescription": "Counts all demand code reads that miss the LLC  and the data returned from local dram",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.LLC_MISS.LOCAL_DRAM",
         "MSRIndex": "0x1a6,0x1a7",
@@ -210,6 +232,7 @@
     },
     {
         "BriefDescription": "Counts all demand code reads that miss the LLC  and the data returned from remote dram",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.LLC_MISS.REMOTE_DRAM",
         "MSRIndex": "0x1a6,0x1a7",
@@ -219,6 +242,7 @@
     },
     {
         "BriefDescription": "Counts all demand code reads that miss the LLC  the data is found in M state in remote cache and forwarded from there",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.LLC_MISS.REMOTE_HITM",
         "MSRIndex": "0x1a6,0x1a7",
@@ -228,6 +252,7 @@
     },
     {
         "BriefDescription": "Counts all demand code reads that miss the LLC  and the data forwarded from remote cache",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.LLC_MISS.REMOTE_HIT_FORWARD",
         "MSRIndex": "0x1a6,0x1a7",
@@ -237,6 +262,7 @@
     },
     {
         "BriefDescription": "Counts demand data reads that miss the LLC  and the data returned from remote & local dram",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.LLC_MISS.ANY_DRAM",
         "MSRIndex": "0x1a6,0x1a7",
@@ -246,6 +272,7 @@
     },
     {
         "BriefDescription": "Counts demand data reads that miss in the LLC",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.LLC_MISS.ANY_RESPONSE",
         "MSRIndex": "0x1a6,0x1a7",
@@ -255,6 +282,7 @@
     },
     {
         "BriefDescription": "Counts demand data reads that miss the LLC  and the data returned from local dram",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.LLC_MISS.LOCAL_DRAM",
         "MSRIndex": "0x1a6,0x1a7",
@@ -264,6 +292,7 @@
     },
     {
         "BriefDescription": "Counts demand data reads that miss the LLC  and the data returned from remote dram",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.LLC_MISS.REMOTE_DRAM",
         "MSRIndex": "0x1a6,0x1a7",
@@ -273,6 +302,7 @@
     },
     {
         "BriefDescription": "Counts demand data reads that miss the LLC  the data is found in M state in remote cache and forwarded from there",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.LLC_MISS.REMOTE_HITM",
         "MSRIndex": "0x1a6,0x1a7",
@@ -282,6 +312,7 @@
     },
     {
         "BriefDescription": "Counts demand data reads that miss the LLC  and the data forwarded from remote cache",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.LLC_MISS.REMOTE_HIT_FORWARD",
         "MSRIndex": "0x1a6,0x1a7",
@@ -291,6 +322,7 @@
     },
     {
         "BriefDescription": "Counts all demand data writes (RFOs) that miss the LLC and the data is found in M state in remote cache and forwarded from there.",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.LLC_MISS.REMOTE_HITM",
         "MSRIndex": "0x1a6,0x1a7",
@@ -300,6 +332,7 @@
     },
     {
         "BriefDescription": "Counts all prefetch (that bring data to L2) code reads that miss the LLC  and the data returned from remote & local dram",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.PF_L2_CODE_RD.LLC_MISS.ANY_RESPONSE",
         "MSRIndex": "0x1a6,0x1a7",
@@ -309,6 +342,7 @@
     },
     {
         "BriefDescription": "Counts prefetch (that bring data to L2) data reads that miss the LLC  and the data returned from remote & local dram",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.PF_L2_DATA_RD.LLC_MISS.ANY_DRAM",
         "MSRIndex": "0x1a6,0x1a7",
@@ -318,6 +352,7 @@
     },
     {
         "BriefDescription": "Counts prefetch (that bring data to L2) data reads that miss in the LLC",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.PF_L2_DATA_RD.LLC_MISS.ANY_RESPONSE",
         "MSRIndex": "0x1a6,0x1a7",
@@ -327,6 +362,7 @@
     },
     {
         "BriefDescription": "Counts prefetch (that bring data to L2) data reads that miss the LLC  and the data returned from local dram",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.PF_L2_DATA_RD.LLC_MISS.LOCAL_DRAM",
         "MSRIndex": "0x1a6,0x1a7",
@@ -336,6 +372,7 @@
     },
     {
         "BriefDescription": "Counts prefetch (that bring data to L2) data reads  that miss the LLC  and the data returned from remote dram",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.PF_L2_DATA_RD.LLC_MISS.REMOTE_DRAM",
         "MSRIndex": "0x1a6,0x1a7",
@@ -345,6 +382,7 @@
     },
     {
         "BriefDescription": "Counts prefetch (that bring data to L2) data reads that miss the LLC  the data is found in M state in remote cache and forwarded from there",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.PF_L2_DATA_RD.LLC_MISS.REMOTE_HITM",
         "MSRIndex": "0x1a6,0x1a7",
@@ -354,6 +392,7 @@
     },
     {
         "BriefDescription": "Counts prefetch (that bring data to L2) data reads that miss the LLC  and the data forwarded from remote cache",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.PF_L2_DATA_RD.LLC_MISS.REMOTE_HIT_FORWARD",
         "MSRIndex": "0x1a6,0x1a7",
@@ -363,6 +402,7 @@
     },
     {
         "BriefDescription": "Counts all prefetch (that bring data to LLC only) code reads that miss in the LLC",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.PF_LLC_CODE_RD.LLC_MISS.ANY_RESPONSE",
         "MSRIndex": "0x1a6,0x1a7",
@@ -372,6 +412,7 @@
     },
     {
         "BriefDescription": "Counts prefetch (that bring data to LLC only) data reads that miss in the LLC",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.PF_LLC_DATA_RD.LLC_MISS.ANY_RESPONSE",
         "MSRIndex": "0x1a6,0x1a7",

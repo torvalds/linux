@@ -10,9 +10,9 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/io.h>
 #include <linux/platform_device.h>
 #include <linux/mutex.h>
-#include <linux/fb.h>
 #include <linux/backlight.h>
 #include <linux/delay.h>
 #include <linux/dmi.h>
@@ -151,7 +151,7 @@ static int kb3886bl_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, kb3886_backlight_device);
 
-	kb3886_backlight_device->props.power = FB_BLANK_UNBLANK;
+	kb3886_backlight_device->props.power = BACKLIGHT_POWER_ON;
 	kb3886_backlight_device->props.brightness = machinfo->default_intensity;
 	backlight_update_status(kb3886_backlight_device);
 

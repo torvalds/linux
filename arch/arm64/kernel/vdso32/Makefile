@@ -136,7 +136,7 @@ $(obj)/vdso32.so.dbg: $(obj)/vdso.so.raw $(obj)/$(munge) FORCE
 	$(call if_changed,vdsomunge)
 
 # Link rule for the .so file, .lds has to be first
-$(obj)/vdso.so.raw: $(src)/vdso.lds $(obj-vdso) FORCE
+$(obj)/vdso.so.raw: $(obj)/vdso.lds $(obj-vdso) FORCE
 	$(call if_changed,vdsold_and_vdso_check)
 
 # Compilation rules for the vDSO sources

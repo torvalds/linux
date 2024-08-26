@@ -126,6 +126,26 @@ int adis_update_scan_mode(struct iio_dev *indio_dev,
 }
 EXPORT_SYMBOL_NS_GPL(adis_update_scan_mode, IIO_ADISLIB);
 
+static int adis_paging_trigger_handler(struct adis *adis)
+{
+	int ret;
+
+	guard(mutex)(&adis->state_lock);
+	if (adis->current_page != 0) {
+		adis->tx[0] = ADIS_WRITE_REG(ADIS_REG_PAGE_ID);
+		adis->tx[1] = 0;
+		ret = spi_write(adis->spi, adis->tx, 2);
+		if (ret) {
+			dev_err(&adis->spi->dev, "Failed to change device page: %d\n", ret);
+			return ret;
+		}
+
+		adis->current_page = 0;
+	}
+
+	return spi_sync(adis->spi, &adis->msg);
+}
+
 static irqreturn_t adis_trigger_handler(int irq, void *p)
 {
 	struct iio_poll_func *pf = p;
@@ -133,25 +153,10 @@ static irqreturn_t adis_trigger_handler(int irq, void *p)
 	struct adis *adis = iio_device_get_drvdata(indio_dev);
 	int ret;
 
-	if (adis->data->has_paging) {
-		mutex_lock(&adis->state_lock);
-		if (adis->current_page != 0) {
-			adis->tx[0] = ADIS_WRITE_REG(ADIS_REG_PAGE_ID);
-			adis->tx[1] = 0;
-			ret = spi_write(adis->spi, adis->tx, 2);
-			if (ret) {
-				dev_err(&adis->spi->dev, "Failed to change device page: %d\n", ret);
-				mutex_unlock(&adis->state_lock);
-				goto irq_done;
-			}
-
-			adis->current_page = 0;
-		}
-	}
-
-	ret = spi_sync(adis->spi, &adis->msg);
 	if (adis->data->has_paging)
-		mutex_unlock(&adis->state_lock);
+		ret = adis_paging_trigger_handler(adis);
+	else
+		ret = spi_sync(adis->spi, &adis->msg);
 	if (ret) {
 		dev_err(&adis->spi->dev, "Failed to read data: %d", ret);
 		goto irq_done;
@@ -175,31 +180,36 @@ static void adis_buffer_cleanup(void *arg)
 }
 
 /**
- * devm_adis_setup_buffer_and_trigger() - Sets up buffer and trigger for
- *					  the managed adis device
+ * devm_adis_setup_buffer_and_trigger_with_attrs() - Sets up buffer and trigger
+ * for the managed adis device with buffer attributes.
  * @adis: The adis device
  * @indio_dev: The IIO device
- * @trigger_handler: Optional trigger handler, may be NULL.
+ * @trigger_handler: Trigger handler: should handle the buffer readings.
+ * @ops: Optional buffer setup functions, may be NULL.
+ * @buffer_attrs: Extra buffer attributes.
  *
  * Returns 0 on success, a negative error code otherwise.
  *
- * This function sets up the buffer and trigger for a adis devices.  If
- * 'trigger_handler' is NULL the default trigger handler will be used. The
- * default trigger handler will simply read the registers assigned to the
- * currently active channels.
+ * This function sets up the buffer (with buffer setup functions and extra
+ * buffer attributes) and trigger for a adis devices with buffer attributes.
  */
 int
-devm_adis_setup_buffer_and_trigger(struct adis *adis, struct iio_dev *indio_dev,
-				   irq_handler_t trigger_handler)
+devm_adis_setup_buffer_and_trigger_with_attrs(struct adis *adis, struct iio_dev *indio_dev,
+					      irq_handler_t trigger_handler,
+					      const struct iio_buffer_setup_ops *ops,
+					      const struct iio_dev_attr **buffer_attrs)
 {
 	int ret;
 
 	if (!trigger_handler)
 		trigger_handler = adis_trigger_handler;
 
-	ret = devm_iio_triggered_buffer_setup(&adis->spi->dev, indio_dev,
-					      &iio_pollfunc_store_time,
-					      trigger_handler, NULL);
+	ret = devm_iio_triggered_buffer_setup_ext(&adis->spi->dev, indio_dev,
+						  &iio_pollfunc_store_time,
+						  trigger_handler,
+						  IIO_BUFFER_DIRECTION_IN,
+						  ops,
+						  buffer_attrs);
 	if (ret)
 		return ret;
 
@@ -212,5 +222,4 @@ devm_adis_setup_buffer_and_trigger(struct adis *adis, struct iio_dev *indio_dev,
 	return devm_add_action_or_reset(&adis->spi->dev, adis_buffer_cleanup,
 					adis);
 }
-EXPORT_SYMBOL_NS_GPL(devm_adis_setup_buffer_and_trigger, IIO_ADISLIB);
-
+EXPORT_SYMBOL_NS_GPL(devm_adis_setup_buffer_and_trigger_with_attrs, IIO_ADISLIB);

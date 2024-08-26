@@ -12,6 +12,7 @@ TEST_GEN_PROGS := \
 	vec-syscfg \
 	za-fork za-ptrace
 TEST_GEN_PROGS_EXTENDED := fp-pidbench fpsimd-test \
+	kernel-test \
 	rdvl-sme rdvl-sve \
 	sve-test \
 	ssve-test \

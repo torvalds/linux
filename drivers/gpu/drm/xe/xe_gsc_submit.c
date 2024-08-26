@@ -8,6 +8,7 @@
 #include <linux/poison.h>
 
 #include "abi/gsc_command_header_abi.h"
+#include "xe_assert.h"
 #include "xe_bb.h"
 #include "xe_exec_queue.h"
 #include "xe_gt_printk.h"

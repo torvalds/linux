@@ -50,7 +50,8 @@ static void hdp_v4_0_invalidate_hdp(struct amdgpu_device *adev,
 				    struct amdgpu_ring *ring)
 {
 	if (amdgpu_ip_version(adev, HDP_HWIP, 0) == IP_VERSION(4, 4, 0) ||
-	    amdgpu_ip_version(adev, HDP_HWIP, 0) == IP_VERSION(4, 4, 2))
+	    amdgpu_ip_version(adev, HDP_HWIP, 0) == IP_VERSION(4, 4, 2) ||
+	    amdgpu_ip_version(adev, HDP_HWIP, 0) == IP_VERSION(4, 4, 5))
 		return;
 
 	if (!ring || !ring->funcs->emit_wreg)
@@ -129,7 +130,8 @@ static void hdp_v4_0_get_clockgating_state(struct amdgpu_device *adev,
 {
 	int data;
 
-	if (amdgpu_ip_version(adev, HDP_HWIP, 0) == IP_VERSION(4, 4, 2)) {
+	if (amdgpu_ip_version(adev, HDP_HWIP, 0) == IP_VERSION(4, 4, 2) ||
+	    amdgpu_ip_version(adev, HDP_HWIP, 0) == IP_VERSION(4, 4, 5)) {
 		/* Default enabled */
 		*flags |= AMD_CG_SUPPORT_HDP_MGCG;
 		return;

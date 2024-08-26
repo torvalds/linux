@@ -118,7 +118,6 @@ is applicable::
 	HIBERNATION HIBERNATION is enabled.
 	HW	Appropriate hardware is enabled.
 	HYPER_V HYPERV support is enabled.
-	IA-64	IA-64 architecture is enabled.
 	IMA     Integrity measurement architecture is enabled.
 	IP_PNP	IP DHCP, BOOTP, or RARP is enabled.
 	IPV6	IPv6 support is enabled.

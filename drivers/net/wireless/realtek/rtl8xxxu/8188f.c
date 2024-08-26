@@ -697,9 +697,14 @@ static void rtl8188fu_init_statistics(struct rtl8xxxu_priv *priv)
 	rtl8xxxu_write32(priv, REG_OFDM0_FA_RSTC, val32);
 }
 
+#define TX_POWER_INDEX_MAX 0x3F
+#define TX_POWER_INDEX_DEFAULT_CCK 0x22
+#define TX_POWER_INDEX_DEFAULT_HT40 0x27
+
 static int rtl8188fu_parse_efuse(struct rtl8xxxu_priv *priv)
 {
 	struct rtl8188fu_efuse *efuse = &priv->efuse_wifi.efuse8188fu;
+	int i;
 
 	if (efuse->rtl_id != cpu_to_le16(0x8129))
 		return -EINVAL;
@@ -712,6 +717,16 @@ static int rtl8188fu_parse_efuse(struct rtl8xxxu_priv *priv)
 	memcpy(priv->ht40_1s_tx_power_index_A,
 	       efuse->tx_power_index_A.ht40_base,
 	       sizeof(efuse->tx_power_index_A.ht40_base));
+
+	for (i = 0; i < ARRAY_SIZE(priv->cck_tx_power_index_A); i++) {
+		if (priv->cck_tx_power_index_A[i] > TX_POWER_INDEX_MAX)
+			priv->cck_tx_power_index_A[i] = TX_POWER_INDEX_DEFAULT_CCK;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(priv->ht40_1s_tx_power_index_A); i++) {
+		if (priv->ht40_1s_tx_power_index_A[i] > TX_POWER_INDEX_MAX)
+			priv->ht40_1s_tx_power_index_A[i] = TX_POWER_INDEX_DEFAULT_HT40;
+	}
 
 	priv->ofdm_tx_power_diff[0].a = efuse->tx_power_index_A.ht20_ofdm_1s_diff.a;
 	priv->ht20_tx_power_diff[0].a = efuse->tx_power_index_A.ht20_ofdm_1s_diff.b;

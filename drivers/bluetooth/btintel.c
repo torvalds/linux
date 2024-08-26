@@ -26,19 +26,9 @@
 #define ECDSA_OFFSET		644
 #define ECDSA_HEADER_LEN	320
 
-#define BTINTEL_PPAG_NAME   "PPAG"
-
 enum {
 	DSM_SET_WDISABLE2_DELAY = 1,
 	DSM_SET_RESET_METHOD = 3,
-};
-
-/* structure to store the PPAG data read from ACPI table */
-struct btintel_ppag {
-	u32	domain;
-	u32     mode;
-	acpi_status status;
-	struct hci_dev *hdev;
 };
 
 #define CMD_WRITE_BOOT_PARAMS	0xfc0e
@@ -482,6 +472,7 @@ int btintel_version_info_tlv(struct hci_dev *hdev,
 	case 0x19:	/* Slr-F */
 	case 0x1b:      /* Mgr */
 	case 0x1c:	/* Gale Peak (GaP) */
+	case 0x1d:	/* BlazarU (BzrU) */
 	case 0x1e:	/* BlazarI (Bzr) */
 		break;
 	default:
@@ -640,6 +631,10 @@ int btintel_parse_version_tlv(struct hci_dev *hdev,
 			break;
 		case INTEL_TLV_GIT_SHA1:
 			version->git_sha1 = get_unaligned_le32(tlv->val);
+			break;
+		case INTEL_TLV_FW_ID:
+			snprintf(version->fw_id, sizeof(version->fw_id),
+				 "%s", tlv->val);
 			break;
 		default:
 			/* Ignore rest of information */
@@ -1322,65 +1317,6 @@ static int btintel_read_debug_features(struct hci_dev *hdev,
 	 */
 	kfree_skb(skb);
 	return 0;
-}
-
-static acpi_status btintel_ppag_callback(acpi_handle handle, u32 lvl, void *data,
-					 void **ret)
-{
-	acpi_status status;
-	size_t len;
-	struct btintel_ppag *ppag = data;
-	union acpi_object *p, *elements;
-	struct acpi_buffer string = {ACPI_ALLOCATE_BUFFER, NULL};
-	struct acpi_buffer buffer = {ACPI_ALLOCATE_BUFFER, NULL};
-	struct hci_dev *hdev = ppag->hdev;
-
-	status = acpi_get_name(handle, ACPI_FULL_PATHNAME, &string);
-	if (ACPI_FAILURE(status)) {
-		bt_dev_warn(hdev, "PPAG-BT: ACPI Failure: %s", acpi_format_exception(status));
-		return status;
-	}
-
-	len = strlen(string.pointer);
-	if (len < strlen(BTINTEL_PPAG_NAME)) {
-		kfree(string.pointer);
-		return AE_OK;
-	}
-
-	if (strncmp((char *)string.pointer + len - 4, BTINTEL_PPAG_NAME, 4)) {
-		kfree(string.pointer);
-		return AE_OK;
-	}
-	kfree(string.pointer);
-
-	status = acpi_evaluate_object(handle, NULL, NULL, &buffer);
-	if (ACPI_FAILURE(status)) {
-		ppag->status = status;
-		bt_dev_warn(hdev, "PPAG-BT: ACPI Failure: %s", acpi_format_exception(status));
-		return status;
-	}
-
-	p = buffer.pointer;
-	ppag = (struct btintel_ppag *)data;
-
-	if (p->type != ACPI_TYPE_PACKAGE || p->package.count != 2) {
-		kfree(buffer.pointer);
-		bt_dev_warn(hdev, "PPAG-BT: Invalid object type: %d or package count: %d",
-			    p->type, p->package.count);
-		ppag->status = AE_ERROR;
-		return AE_ERROR;
-	}
-
-	elements = p->package.elements;
-
-	/* PPAG table is located at element[1] */
-	p = &elements[1];
-
-	ppag->domain = (u32)p->package.elements[0].integer.value;
-	ppag->mode = (u32)p->package.elements[1].integer.value;
-	ppag->status = AE_OK;
-	kfree(buffer.pointer);
-	return AE_CTRL_TERMINATE;
 }
 
 static int btintel_set_debug_features(struct hci_dev *hdev,
@@ -2202,30 +2138,61 @@ static void btintel_get_fw_name_tlv(const struct intel_version_tlv *ver,
 				    const char *suffix)
 {
 	const char *format;
-	/* The firmware file name for new generation controllers will be
-	 * ibt-<cnvi_top type+cnvi_top step>-<cnvr_top type+cnvr_top step>
-	 */
-	switch (ver->cnvi_top & 0xfff) {
+	u32 cnvi, cnvr;
+
+	cnvi = INTEL_CNVX_TOP_PACK_SWAB(INTEL_CNVX_TOP_TYPE(ver->cnvi_top),
+					INTEL_CNVX_TOP_STEP(ver->cnvi_top));
+
+	cnvr = INTEL_CNVX_TOP_PACK_SWAB(INTEL_CNVX_TOP_TYPE(ver->cnvr_top),
+					INTEL_CNVX_TOP_STEP(ver->cnvr_top));
+
 	/* Only Blazar  product supports downloading of intermediate loader
 	 * image
 	 */
-	case BTINTEL_CNVI_BLAZARI:
-		if (ver->img_type == BTINTEL_IMG_BOOTLOADER)
-			format = "intel/ibt-%04x-%04x-iml.%s";
-		else
-			format = "intel/ibt-%04x-%04x.%s";
-		break;
-	default:
-			format = "intel/ibt-%04x-%04x.%s";
-		break;
-	}
+	if (INTEL_HW_VARIANT(ver->cnvi_bt) >= 0x1e) {
+		u8 zero[BTINTEL_FWID_MAXLEN];
 
-	snprintf(fw_name, len, format,
-		 INTEL_CNVX_TOP_PACK_SWAB(INTEL_CNVX_TOP_TYPE(ver->cnvi_top),
-					  INTEL_CNVX_TOP_STEP(ver->cnvi_top)),
-		 INTEL_CNVX_TOP_PACK_SWAB(INTEL_CNVX_TOP_TYPE(ver->cnvr_top),
-					  INTEL_CNVX_TOP_STEP(ver->cnvr_top)),
-		 suffix);
+		if (ver->img_type == BTINTEL_IMG_BOOTLOADER) {
+			format = "intel/ibt-%04x-%04x-iml.%s";
+			snprintf(fw_name, len, format, cnvi, cnvr, suffix);
+			return;
+		}
+
+		memset(zero, 0, sizeof(zero));
+
+		/* ibt-<cnvi_top type+cnvi_top step>-<cnvr_top type+cnvr_top step-fw_id> */
+		if (memcmp(ver->fw_id, zero, sizeof(zero))) {
+			format = "intel/ibt-%04x-%04x-%s.%s";
+			snprintf(fw_name, len, format, cnvi, cnvr,
+				 ver->fw_id, suffix);
+			return;
+		}
+		/* If firmware id is not present, fallback to legacy naming
+		 * convention
+		 */
+	}
+	/* Fallback to legacy naming convention for other controllers
+	 * ibt-<cnvi_top type+cnvi_top step>-<cnvr_top type+cnvr_top step>
+	 */
+	format = "intel/ibt-%04x-%04x.%s";
+	snprintf(fw_name, len, format, cnvi, cnvr, suffix);
+}
+
+static void btintel_get_iml_tlv(const struct intel_version_tlv *ver,
+				char *fw_name, size_t len,
+				const char *suffix)
+{
+	const char *format;
+	u32 cnvi, cnvr;
+
+	cnvi = INTEL_CNVX_TOP_PACK_SWAB(INTEL_CNVX_TOP_TYPE(ver->cnvi_top),
+					INTEL_CNVX_TOP_STEP(ver->cnvi_top));
+
+	cnvr = INTEL_CNVX_TOP_PACK_SWAB(INTEL_CNVX_TOP_TYPE(ver->cnvr_top),
+					INTEL_CNVX_TOP_STEP(ver->cnvr_top));
+
+	format = "intel/ibt-%04x-%04x-iml.%s";
+	snprintf(fw_name, len, format, cnvi, cnvr, suffix);
 }
 
 static int btintel_prepare_fw_download_tlv(struct hci_dev *hdev,
@@ -2233,7 +2200,7 @@ static int btintel_prepare_fw_download_tlv(struct hci_dev *hdev,
 					   u32 *boot_param)
 {
 	const struct firmware *fw;
-	char fwname[64];
+	char fwname[128];
 	int err;
 	ktime_t calltime;
 
@@ -2268,7 +2235,20 @@ static int btintel_prepare_fw_download_tlv(struct hci_dev *hdev,
 		}
 	}
 
-	btintel_get_fw_name_tlv(ver, fwname, sizeof(fwname), "sfi");
+	if (ver->img_type == BTINTEL_IMG_OP) {
+		/* Controller running OP image. In case of FW downgrade,
+		 * FWID TLV may not be present and driver may attempt to load
+		 * firmware image which doesn't exist. Lets compare the version
+		 * of IML image
+		 */
+		if (INTEL_HW_VARIANT(ver->cnvi_bt) >= 0x1e)
+			btintel_get_iml_tlv(ver, fwname, sizeof(fwname), "sfi");
+		else
+			btintel_get_fw_name_tlv(ver, fwname, sizeof(fwname), "sfi");
+	} else {
+		btintel_get_fw_name_tlv(ver, fwname, sizeof(fwname), "sfi");
+	}
+
 	err = firmware_request_nowarn(&fw, fwname, &hdev->dev);
 	if (err < 0) {
 		if (!btintel_test_flag(hdev, INTEL_BOOTLOADER)) {
@@ -2427,10 +2407,13 @@ error:
 
 static void btintel_set_ppag(struct hci_dev *hdev, struct intel_version_tlv *ver)
 {
-	struct btintel_ppag ppag;
 	struct sk_buff *skb;
 	struct hci_ppag_enable_cmd ppag_cmd;
 	acpi_handle handle;
+	struct acpi_buffer buffer = {ACPI_ALLOCATE_BUFFER, NULL};
+	union acpi_object *p, *elements;
+	u32 domain, mode;
+	acpi_status status;
 
 	/* PPAG is not supported if CRF is HrP2, Jfp2, JfP1 */
 	switch (ver->cnvr_top & 0xFFF) {
@@ -2448,22 +2431,34 @@ static void btintel_set_ppag(struct hci_dev *hdev, struct intel_version_tlv *ver
 		return;
 	}
 
-	memset(&ppag, 0, sizeof(ppag));
-
-	ppag.hdev = hdev;
-	ppag.status = AE_NOT_FOUND;
-	acpi_walk_namespace(ACPI_TYPE_PACKAGE, handle, 1, NULL,
-			    btintel_ppag_callback, &ppag, NULL);
-
-	if (ACPI_FAILURE(ppag.status)) {
-		if (ppag.status == AE_NOT_FOUND) {
+	status = acpi_evaluate_object(handle, "PPAG", NULL, &buffer);
+	if (ACPI_FAILURE(status)) {
+		if (status == AE_NOT_FOUND) {
 			bt_dev_dbg(hdev, "PPAG-BT: ACPI entry not found");
 			return;
 		}
+		bt_dev_warn(hdev, "PPAG-BT: ACPI Failure: %s", acpi_format_exception(status));
 		return;
 	}
 
-	if (ppag.domain != 0x12) {
+	p = buffer.pointer;
+	if (p->type != ACPI_TYPE_PACKAGE || p->package.count != 2) {
+		bt_dev_warn(hdev, "PPAG-BT: Invalid object type: %d or package count: %d",
+			    p->type, p->package.count);
+		kfree(buffer.pointer);
+		return;
+	}
+
+	elements = p->package.elements;
+
+	/* PPAG table is located at element[1] */
+	p = &elements[1];
+
+	domain = (u32)p->package.elements[0].integer.value;
+	mode = (u32)p->package.elements[1].integer.value;
+	kfree(buffer.pointer);
+
+	if (domain != 0x12) {
 		bt_dev_dbg(hdev, "PPAG-BT: Bluetooth domain is disabled in ACPI firmware");
 		return;
 	}
@@ -2474,19 +2469,22 @@ static void btintel_set_ppag(struct hci_dev *hdev, struct intel_version_tlv *ver
 	 * BIT 1 : 0 Disabled in China
 	 *         1 Enabled in China
 	 */
-	if ((ppag.mode & 0x01) != BIT(0) && (ppag.mode & 0x02) != BIT(1)) {
-		bt_dev_dbg(hdev, "PPAG-BT: EU, China mode are disabled in CB/BIOS");
+	mode &= 0x03;
+
+	if (!mode) {
+		bt_dev_dbg(hdev, "PPAG-BT: EU, China mode are disabled in BIOS");
 		return;
 	}
 
-	ppag_cmd.ppag_enable_flags = cpu_to_le32(ppag.mode);
+	ppag_cmd.ppag_enable_flags = cpu_to_le32(mode);
 
-	skb = __hci_cmd_sync(hdev, INTEL_OP_PPAG_CMD, sizeof(ppag_cmd), &ppag_cmd, HCI_CMD_TIMEOUT);
+	skb = __hci_cmd_sync(hdev, INTEL_OP_PPAG_CMD, sizeof(ppag_cmd),
+			     &ppag_cmd, HCI_CMD_TIMEOUT);
 	if (IS_ERR(skb)) {
 		bt_dev_warn(hdev, "Failed to send PPAG Enable (%ld)", PTR_ERR(skb));
 		return;
 	}
-	bt_dev_info(hdev, "PPAG-BT: Enabled (Mode %d)", ppag.mode);
+	bt_dev_info(hdev, "PPAG-BT: Enabled (Mode %d)", mode);
 	kfree_skb(skb);
 }
 
@@ -2600,6 +2598,24 @@ static void btintel_set_dsm_reset_method(struct hci_dev *hdev,
 	data->acpi_reset_method = btintel_acpi_reset_method;
 }
 
+#define BTINTEL_ISODATA_HANDLE_BASE 0x900
+
+static u8 btintel_classify_pkt_type(struct hci_dev *hdev, struct sk_buff *skb)
+{
+	/*
+	 * Distinguish ISO data packets form ACL data packets
+	 * based on their connection handle value range.
+	 */
+	if (hci_skb_pkt_type(skb) == HCI_ACLDATA_PKT) {
+		__u16 handle = __le16_to_cpu(hci_acl_hdr(skb)->handle);
+
+		if (hci_handle(handle) >= BTINTEL_ISODATA_HANDLE_BASE)
+			return HCI_ISODATA_PKT;
+	}
+
+	return hci_skb_pkt_type(skb);
+}
+
 int btintel_bootloader_setup_tlv(struct hci_dev *hdev,
 				 struct intel_version_tlv *ver)
 {
@@ -2635,7 +2651,7 @@ int btintel_bootloader_setup_tlv(struct hci_dev *hdev,
 		return err;
 
 	/* If image type returned is BTINTEL_IMG_IML, then controller supports
-	 * intermediae loader image
+	 * intermediate loader image
 	 */
 	if (ver->img_type == BTINTEL_IMG_IML) {
 		err = btintel_prepare_fw_download_tlv(hdev, ver, &boot_param);
@@ -2703,6 +2719,7 @@ void btintel_set_msft_opcode(struct hci_dev *hdev, u8 hw_variant)
 	case 0x19:
 	case 0x1b:
 	case 0x1c:
+	case 0x1d:
 	case 0x1e:
 		hci_set_msft_opcode(hdev, 0xFC1E);
 		break;
@@ -2713,7 +2730,7 @@ void btintel_set_msft_opcode(struct hci_dev *hdev, u8 hw_variant)
 }
 EXPORT_SYMBOL_GPL(btintel_set_msft_opcode);
 
-static void btintel_print_fseq_info(struct hci_dev *hdev)
+void btintel_print_fseq_info(struct hci_dev *hdev)
 {
 	struct sk_buff *skb;
 	u8 *p;
@@ -2825,6 +2842,7 @@ static void btintel_print_fseq_info(struct hci_dev *hdev)
 
 	kfree_skb(skb);
 }
+EXPORT_SYMBOL_GPL(btintel_print_fseq_info);
 
 static int btintel_setup_combined(struct hci_dev *hdev)
 {
@@ -3039,11 +3057,15 @@ static int btintel_setup_combined(struct hci_dev *hdev)
 		err = btintel_bootloader_setup(hdev, &ver);
 		btintel_register_devcoredump_support(hdev);
 		break;
+	case 0x18: /* GfP2 */
+	case 0x1c: /* GaP */
+		/* Re-classify packet type for controllers with LE audio */
+		hdev->classify_pkt_type = btintel_classify_pkt_type;
+		fallthrough;
 	case 0x17:
-	case 0x18:
 	case 0x19:
 	case 0x1b:
-	case 0x1c:
+	case 0x1d:
 	case 0x1e:
 		/* Display version information of TLV type */
 		btintel_version_info_tlv(hdev, &ver_tlv);

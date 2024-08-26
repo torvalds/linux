@@ -229,7 +229,30 @@ static const char * const prog_type_name[] = {
 static int __base_pr(enum libbpf_print_level level, const char *format,
 		     va_list args)
 {
-	if (level == LIBBPF_DEBUG)
+	const char *env_var = "LIBBPF_LOG_LEVEL";
+	static enum libbpf_print_level min_level = LIBBPF_INFO;
+	static bool initialized;
+
+	if (!initialized) {
+		char *verbosity;
+
+		initialized = true;
+		verbosity = getenv(env_var);
+		if (verbosity) {
+			if (strcasecmp(verbosity, "warn") == 0)
+				min_level = LIBBPF_WARN;
+			else if (strcasecmp(verbosity, "debug") == 0)
+				min_level = LIBBPF_DEBUG;
+			else if (strcasecmp(verbosity, "info") == 0)
+				min_level = LIBBPF_INFO;
+			else
+				fprintf(stderr, "libbpf: unrecognized '%s' envvar value: '%s', should be one of 'warn', 'debug', or 'info'.\n",
+					env_var, verbosity);
+		}
+	}
+
+	/* if too verbose, skip logging  */
+	if (level > min_level)
 		return 0;
 
 	return vfprintf(stderr, format, args);
@@ -549,6 +572,7 @@ struct bpf_map {
 	bool pinned;
 	bool reused;
 	bool autocreate;
+	bool autoattach;
 	__u64 map_extra;
 };
 
@@ -1377,6 +1401,7 @@ static int init_struct_ops_maps(struct bpf_object *obj, const char *sec_name,
 		map->def.value_size = type->size;
 		map->def.max_entries = 1;
 		map->def.map_flags = strcmp(sec_name, STRUCT_OPS_LINK_SEC) == 0 ? BPF_F_LINK : 0;
+		map->autoattach = true;
 
 		map->st_ops = calloc(1, sizeof(*map->st_ops));
 		if (!map->st_ops)
@@ -4794,6 +4819,20 @@ int bpf_map__set_autocreate(struct bpf_map *map, bool autocreate)
 
 	map->autocreate = autocreate;
 	return 0;
+}
+
+int bpf_map__set_autoattach(struct bpf_map *map, bool autoattach)
+{
+	if (!bpf_map__is_struct_ops(map))
+		return libbpf_err(-EINVAL);
+
+	map->autoattach = autoattach;
+	return 0;
+}
+
+bool bpf_map__autoattach(const struct bpf_map *map)
+{
+	return map->autoattach;
 }
 
 int bpf_map__reuse_fd(struct bpf_map *map, int fd)
@@ -10336,7 +10375,7 @@ __bpf_map__iter(const struct bpf_map *m, const struct bpf_object *obj, int i)
 struct bpf_map *
 bpf_object__next_map(const struct bpf_object *obj, const struct bpf_map *prev)
 {
-	if (prev == NULL)
+	if (prev == NULL && obj != NULL)
 		return obj->maps;
 
 	return __bpf_map__iter(prev, obj, 1);
@@ -10345,7 +10384,7 @@ bpf_object__next_map(const struct bpf_object *obj, const struct bpf_map *prev)
 struct bpf_map *
 bpf_object__prev_map(const struct bpf_object *obj, const struct bpf_map *next)
 {
-	if (next == NULL) {
+	if (next == NULL && obj != NULL) {
 		if (!obj->nr_maps)
 			return NULL;
 		return obj->maps + obj->nr_maps - 1;
@@ -12877,8 +12916,10 @@ struct bpf_link *bpf_map__attach_struct_ops(const struct bpf_map *map)
 	__u32 zero = 0;
 	int err, fd;
 
-	if (!bpf_map__is_struct_ops(map))
+	if (!bpf_map__is_struct_ops(map)) {
+		pr_warn("map '%s': can't attach non-struct_ops map\n", map->name);
 		return libbpf_err_ptr(-EINVAL);
+	}
 
 	if (map->fd < 0) {
 		pr_warn("map '%s': can't attach BPF map without FD (was it created?)\n", map->name);
@@ -13671,14 +13712,15 @@ int libbpf_num_possible_cpus(void)
 
 static int populate_skeleton_maps(const struct bpf_object *obj,
 				  struct bpf_map_skeleton *maps,
-				  size_t map_cnt)
+				  size_t map_cnt, size_t map_skel_sz)
 {
 	int i;
 
 	for (i = 0; i < map_cnt; i++) {
-		struct bpf_map **map = maps[i].map;
-		const char *name = maps[i].name;
-		void **mmaped = maps[i].mmaped;
+		struct bpf_map_skeleton *map_skel = (void *)maps + i * map_skel_sz;
+		struct bpf_map **map = map_skel->map;
+		const char *name = map_skel->name;
+		void **mmaped = map_skel->mmaped;
 
 		*map = bpf_object__find_map_by_name(obj, name);
 		if (!*map) {
@@ -13695,13 +13737,14 @@ static int populate_skeleton_maps(const struct bpf_object *obj,
 
 static int populate_skeleton_progs(const struct bpf_object *obj,
 				   struct bpf_prog_skeleton *progs,
-				   size_t prog_cnt)
+				   size_t prog_cnt, size_t prog_skel_sz)
 {
 	int i;
 
 	for (i = 0; i < prog_cnt; i++) {
-		struct bpf_program **prog = progs[i].prog;
-		const char *name = progs[i].name;
+		struct bpf_prog_skeleton *prog_skel = (void *)progs + i * prog_skel_sz;
+		struct bpf_program **prog = prog_skel->prog;
+		const char *name = prog_skel->name;
 
 		*prog = bpf_object__find_program_by_name(obj, name);
 		if (!*prog) {
@@ -13742,13 +13785,13 @@ int bpf_object__open_skeleton(struct bpf_object_skeleton *s,
 	}
 
 	*s->obj = obj;
-	err = populate_skeleton_maps(obj, s->maps, s->map_cnt);
+	err = populate_skeleton_maps(obj, s->maps, s->map_cnt, s->map_skel_sz);
 	if (err) {
 		pr_warn("failed to populate skeleton maps for '%s': %d\n", s->name, err);
 		return libbpf_err(err);
 	}
 
-	err = populate_skeleton_progs(obj, s->progs, s->prog_cnt);
+	err = populate_skeleton_progs(obj, s->progs, s->prog_cnt, s->prog_skel_sz);
 	if (err) {
 		pr_warn("failed to populate skeleton progs for '%s': %d\n", s->name, err);
 		return libbpf_err(err);
@@ -13778,20 +13821,20 @@ int bpf_object__open_subskeleton(struct bpf_object_subskeleton *s)
 		return libbpf_err(-errno);
 	}
 
-	err = populate_skeleton_maps(s->obj, s->maps, s->map_cnt);
+	err = populate_skeleton_maps(s->obj, s->maps, s->map_cnt, s->map_skel_sz);
 	if (err) {
 		pr_warn("failed to populate subskeleton maps: %d\n", err);
 		return libbpf_err(err);
 	}
 
-	err = populate_skeleton_progs(s->obj, s->progs, s->prog_cnt);
+	err = populate_skeleton_progs(s->obj, s->progs, s->prog_cnt, s->prog_skel_sz);
 	if (err) {
 		pr_warn("failed to populate subskeleton maps: %d\n", err);
 		return libbpf_err(err);
 	}
 
 	for (var_idx = 0; var_idx < s->var_cnt; var_idx++) {
-		var_skel = &s->vars[var_idx];
+		var_skel = (void *)s->vars + var_idx * s->var_skel_sz;
 		map = *var_skel->map;
 		map_type_id = bpf_map__btf_value_type_id(map);
 		map_type = btf__type_by_id(btf, map_type_id);
@@ -13838,10 +13881,11 @@ int bpf_object__load_skeleton(struct bpf_object_skeleton *s)
 	}
 
 	for (i = 0; i < s->map_cnt; i++) {
-		struct bpf_map *map = *s->maps[i].map;
+		struct bpf_map_skeleton *map_skel = (void *)s->maps + i * s->map_skel_sz;
+		struct bpf_map *map = *map_skel->map;
 		size_t mmap_sz = bpf_map_mmap_sz(map);
 		int prot, map_fd = map->fd;
-		void **mmaped = s->maps[i].mmaped;
+		void **mmaped = map_skel->mmaped;
 
 		if (!mmaped)
 			continue;
@@ -13889,8 +13933,9 @@ int bpf_object__attach_skeleton(struct bpf_object_skeleton *s)
 	int i, err;
 
 	for (i = 0; i < s->prog_cnt; i++) {
-		struct bpf_program *prog = *s->progs[i].prog;
-		struct bpf_link **link = s->progs[i].link;
+		struct bpf_prog_skeleton *prog_skel = (void *)s->progs + i * s->prog_skel_sz;
+		struct bpf_program *prog = *prog_skel->prog;
+		struct bpf_link **link = prog_skel->link;
 
 		if (!prog->autoload || !prog->autoattach)
 			continue;
@@ -13922,6 +13967,38 @@ int bpf_object__attach_skeleton(struct bpf_object_skeleton *s)
 		 */
 	}
 
+
+	for (i = 0; i < s->map_cnt; i++) {
+		struct bpf_map_skeleton *map_skel = (void *)s->maps + i * s->map_skel_sz;
+		struct bpf_map *map = *map_skel->map;
+		struct bpf_link **link;
+
+		if (!map->autocreate || !map->autoattach)
+			continue;
+
+		/* only struct_ops maps can be attached */
+		if (!bpf_map__is_struct_ops(map))
+			continue;
+
+		/* skeleton is created with earlier version of bpftool, notify user */
+		if (s->map_skel_sz < offsetofend(struct bpf_map_skeleton, link)) {
+			pr_warn("map '%s': BPF skeleton version is old, skipping map auto-attachment...\n",
+				bpf_map__name(map));
+			continue;
+		}
+
+		link = map_skel->link;
+		if (*link)
+			continue;
+
+		*link = bpf_map__attach_struct_ops(map);
+		if (!*link) {
+			err = -errno;
+			pr_warn("map '%s': failed to auto-attach: %d\n", bpf_map__name(map), err);
+			return libbpf_err(err);
+		}
+	}
+
 	return 0;
 }
 
@@ -13930,10 +14007,24 @@ void bpf_object__detach_skeleton(struct bpf_object_skeleton *s)
 	int i;
 
 	for (i = 0; i < s->prog_cnt; i++) {
-		struct bpf_link **link = s->progs[i].link;
+		struct bpf_prog_skeleton *prog_skel = (void *)s->progs + i * s->prog_skel_sz;
+		struct bpf_link **link = prog_skel->link;
 
 		bpf_link__destroy(*link);
 		*link = NULL;
+	}
+
+	if (s->map_skel_sz < sizeof(struct bpf_map_skeleton))
+		return;
+
+	for (i = 0; i < s->map_cnt; i++) {
+		struct bpf_map_skeleton *map_skel = (void *)s->maps + i * s->map_skel_sz;
+		struct bpf_link **link = map_skel->link;
+
+		if (link) {
+			bpf_link__destroy(*link);
+			*link = NULL;
+		}
 	}
 }
 
@@ -13942,8 +14033,7 @@ void bpf_object__destroy_skeleton(struct bpf_object_skeleton *s)
 	if (!s)
 		return;
 
-	if (s->progs)
-		bpf_object__detach_skeleton(s);
+	bpf_object__detach_skeleton(s);
 	if (s->obj)
 		bpf_object__close(*s->obj);
 	free(s->maps);

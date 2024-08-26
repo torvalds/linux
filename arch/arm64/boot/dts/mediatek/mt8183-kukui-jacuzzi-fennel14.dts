@@ -9,6 +9,7 @@
 
 / {
 	model = "Google fennel14 sku0 board";
+	chassis-type = "laptop";
 	compatible = "google,fennel-sku0", "google,fennel", "mediatek,mt8183";
 };
 

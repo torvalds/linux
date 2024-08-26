@@ -2086,8 +2086,8 @@ do_init:
 	status = nn->client_tracking_ops->init(net);
 out:
 	if (status) {
-		printk(KERN_WARNING "NFSD: Unable to initialize client "
-				    "recovery tracking! (%d)\n", status);
+		pr_warn("NFSD: Unable to initialize client recovery tracking! (%d)\n", status);
+		pr_warn("NFSD: Is nfsdcld running? If not, enable CONFIG_NFSD_LEGACY_CLIENT_TRACKING.\n");
 		nn->client_tracking_ops = NULL;
 	}
 	return status;

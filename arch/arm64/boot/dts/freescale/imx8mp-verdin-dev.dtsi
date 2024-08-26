@@ -4,6 +4,18 @@
  */
 
 / {
+	native-hdmi-connector {
+		compatible = "hdmi-connector";
+		label = "X37";
+		type = "a";
+
+		port {
+			native_hdmi_connector_in: endpoint {
+				remote-endpoint = <&hdmi_tx_out>;
+			};
+		};
+	};
+
 	reg_eth2phy: regulator-eth2phy {
 		compatible = "regulator-fixed";
 		enable-active-high;
@@ -103,6 +115,27 @@
 	vcc-supply = <&reg_1p8v>;
 };
 
+/* Verdin HDMI_1 */
+&hdmi_pvi {
+	status = "okay";
+};
+
+&hdmi_tx {
+	status = "okay";
+
+	ports {
+		port@1 {
+			hdmi_tx_out: endpoint {
+				remote-endpoint = <&native_hdmi_connector_in>;
+			};
+		};
+	};
+};
+
+&hdmi_tx_phy {
+	status = "okay";
+};
+
 /* Current measurement into module VCC */
 &hwmon {
 	status = "okay";
@@ -138,6 +171,10 @@
 
 /* Verdin I2C_3_HDMI */
 &i2c5 {
+	status = "okay";
+};
+
+&lcdif3 {
 	status = "okay";
 };
 

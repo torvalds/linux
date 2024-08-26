@@ -159,7 +159,6 @@
 			#clock-cells = <1>;
 			clocks = <&ref_100m>;
 			clock-names = "ref_100m";
-			status = "disabled";
 		};
 
 		gpio0: gpio@1fe00500 {

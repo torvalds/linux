@@ -10671,6 +10671,8 @@ enum mlxsw_reg_mcam_mng_feature_cap_mask_bits {
 	MLXSW_REG_MCAM_MCIA_128B = 34,
 	/* If set, MRSR.command=6 is supported. */
 	MLXSW_REG_MCAM_PCI_RESET = 48,
+	/* If set, MRSR.command=6 is supported with Secondary Bus Reset. */
+	MLXSW_REG_MCAM_PCI_RESET_SBR = 67,
 };
 
 #define MLXSW_REG_BYTES_PER_DWORD 0x4

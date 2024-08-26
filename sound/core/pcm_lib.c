@@ -516,21 +516,38 @@ void snd_pcm_set_ops(struct snd_pcm *pcm, int direction,
 EXPORT_SYMBOL(snd_pcm_set_ops);
 
 /**
- * snd_pcm_set_sync - set the PCM sync id
+ * snd_pcm_set_sync_per_card - set the PCM sync id with card number
  * @substream: the pcm substream
+ * @params: modified hardware parameters
+ * @id: identifier (max 12 bytes)
+ * @len: identifier length (max 12 bytes)
  *
- * Sets the PCM sync identifier for the card.
+ * Sets the PCM sync identifier for the card with zero padding.
+ *
+ * User space or any user should use this 16-byte identifier for a comparison only
+ * to check if two IDs are similar or different. Special case is the identifier
+ * containing only zeros. Interpretation for this combination is - empty (not set).
+ * The contents of the identifier should not be interpreted in any other way.
+ *
+ * The synchronization ID must be unique per clock source (usually one sound card,
+ * but multiple soundcard may use one PCM word clock source which means that they
+ * are fully synchronized).
+ *
+ * This routine composes this ID using card number in first four bytes and
+ * 12-byte additional ID. When other ID composition is used (e.g. for multiple
+ * sound cards), make sure that the composition does not clash with this
+ * composition scheme.
  */
-void snd_pcm_set_sync(struct snd_pcm_substream *substream)
+void snd_pcm_set_sync_per_card(struct snd_pcm_substream *substream,
+			       struct snd_pcm_hw_params *params,
+			       const unsigned char *id, unsigned int len)
 {
-	struct snd_pcm_runtime *runtime = substream->runtime;
-	
-	runtime->sync.id32[0] = substream->pcm->card->number;
-	runtime->sync.id32[1] = -1;
-	runtime->sync.id32[2] = -1;
-	runtime->sync.id32[3] = -1;
+	*(__u32 *)params->sync = cpu_to_le32(substream->pcm->card->number);
+	len = min(12, len);
+	memcpy(params->sync + 4, id, len);
+	memset(params->sync + 4 + len, 0, 12 - len);
 }
-EXPORT_SYMBOL(snd_pcm_set_sync);
+EXPORT_SYMBOL_GPL(snd_pcm_set_sync_per_card);
 
 /*
  *  Standard ioctl routine
@@ -1810,6 +1827,18 @@ static int snd_pcm_lib_ioctl_fifo_size(struct snd_pcm_substream *substream,
 	return 0;
 }
 
+static int snd_pcm_lib_ioctl_sync_id(struct snd_pcm_substream *substream,
+				     void *arg)
+{
+	static const unsigned char id[12] = { 0xff, 0xff, 0xff, 0xff,
+					      0xff, 0xff, 0xff, 0xff,
+					      0xff, 0xff, 0xff, 0xff };
+
+	if (substream->runtime->std_sync_id)
+		snd_pcm_set_sync_per_card(substream, arg, id, sizeof(id));
+	return 0;
+}
+
 /**
  * snd_pcm_lib_ioctl - a generic PCM ioctl callback
  * @substream: the pcm substream instance
@@ -1831,6 +1860,8 @@ int snd_pcm_lib_ioctl(struct snd_pcm_substream *substream,
 		return snd_pcm_lib_ioctl_channel_info(substream, arg);
 	case SNDRV_PCM_IOCTL1_FIFO_SIZE:
 		return snd_pcm_lib_ioctl_fifo_size(substream, arg);
+	case SNDRV_PCM_IOCTL1_SYNC_ID:
+		return snd_pcm_lib_ioctl_sync_id(substream, arg);
 	}
 	return -ENXIO;
 }
@@ -2556,6 +2587,7 @@ int snd_pcm_add_chmap_ctls(struct snd_pcm *pcm, int stream,
 	struct snd_kcontrol_new knew = {
 		.iface = SNDRV_CTL_ELEM_IFACE_PCM,
 		.access = SNDRV_CTL_ELEM_ACCESS_READ |
+			SNDRV_CTL_ELEM_ACCESS_VOLATILE |
 			SNDRV_CTL_ELEM_ACCESS_TLV_READ |
 			SNDRV_CTL_ELEM_ACCESS_TLV_CALLBACK,
 		.info = pcm_chmap_ctl_info,

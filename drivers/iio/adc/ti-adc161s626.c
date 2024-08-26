@@ -137,17 +137,13 @@ static int ti_adc_read_raw(struct iio_dev *indio_dev,
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
-		ret = iio_device_claim_direct_mode(indio_dev);
-		if (ret)
-			return ret;
-
-		ret = ti_adc_read_measurement(data, chan, val);
-		iio_device_release_direct_mode(indio_dev);
-
-		if (ret)
-			return ret;
-
-		return IIO_VAL_INT;
+		iio_device_claim_direct_scoped(return -EBUSY, indio_dev) {
+			ret = ti_adc_read_measurement(data, chan, val);
+			if (ret)
+				return ret;
+			return IIO_VAL_INT;
+		}
+		unreachable();
 	case IIO_CHAN_INFO_SCALE:
 		ret = regulator_get_voltage(data->ref);
 		if (ret < 0)

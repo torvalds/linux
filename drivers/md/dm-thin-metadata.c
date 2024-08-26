@@ -249,7 +249,7 @@ struct dm_thin_device {
  */
 #define SUPERBLOCK_CSUM_XOR 160774
 
-static void sb_prepare_for_write(struct dm_block_validator *v,
+static void sb_prepare_for_write(const struct dm_block_validator *v,
 				 struct dm_block *b,
 				 size_t block_size)
 {
@@ -261,7 +261,7 @@ static void sb_prepare_for_write(struct dm_block_validator *v,
 						      SUPERBLOCK_CSUM_XOR));
 }
 
-static int sb_check(struct dm_block_validator *v,
+static int sb_check(const struct dm_block_validator *v,
 		    struct dm_block *b,
 		    size_t block_size)
 {
@@ -294,7 +294,7 @@ static int sb_check(struct dm_block_validator *v,
 	return 0;
 }
 
-static struct dm_block_validator sb_validator = {
+static const struct dm_block_validator sb_validator = {
 	.name = "superblock",
 	.prepare_for_write = sb_prepare_for_write,
 	.check = sb_check

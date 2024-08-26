@@ -16,8 +16,20 @@
 
 #define MANA_IB_UVERBS_ABI_VERSION 1
 
+enum mana_ib_create_cq_flags {
+	MANA_IB_CREATE_RNIC_CQ	= 1 << 0,
+};
+
 struct mana_ib_create_cq {
 	__aligned_u64 buf_addr;
+	__u16	flags;
+	__u16	reserved0;
+	__u32	reserved1;
+};
+
+struct mana_ib_create_cq_resp {
+	__u32 cqid;
+	__u32 reserved;
 };
 
 struct mana_ib_create_qp {
@@ -31,6 +43,15 @@ struct mana_ib_create_qp_resp {
 	__u32 cqid;
 	__u32 tx_vp_offset;
 	__u32 reserved;
+};
+
+struct mana_ib_create_rc_qp {
+	__aligned_u64 queue_buf[4];
+	__u32 queue_size[4];
+};
+
+struct mana_ib_create_rc_qp_resp {
+	__u32 queue_id[4];
 };
 
 struct mana_ib_create_wq {

@@ -677,7 +677,7 @@ static void vlan_ethtool_get_drvinfo(struct net_device *dev,
 }
 
 static int vlan_ethtool_get_ts_info(struct net_device *dev,
-				    struct ethtool_ts_info *info)
+				    struct kernel_ethtool_ts_info *info)
 {
 	const struct vlan_dev_priv *vlan = vlan_dev_priv(dev);
 	return ethtool_get_ts_info_by_layer(vlan->real_dev, info);

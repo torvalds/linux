@@ -871,4 +871,5 @@ static struct platform_driver meson_gxl_pinctrl_driver = {
 	},
 };
 module_platform_driver(meson_gxl_pinctrl_driver);
+MODULE_DESCRIPTION("Amlogic Meson GXL pinctrl driver");
 MODULE_LICENSE("GPL v2");

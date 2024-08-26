@@ -114,7 +114,7 @@ static int inexio_connect(struct serio *serio, struct serio_driver *drv)
 	struct input_dev *input_dev;
 	int err;
 
-	pinexio = kzalloc(sizeof(struct inexio), GFP_KERNEL);
+	pinexio = kzalloc(sizeof(*pinexio), GFP_KERNEL);
 	input_dev = input_allocate_device();
 	if (!pinexio || !input_dev) {
 		err = -ENOMEM;

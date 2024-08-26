@@ -1319,6 +1319,23 @@ static const struct sdhci_pci_fixes sdhci_intel_mrfld_mmc = {
 	.probe_slot	= intel_mrfld_mmc_probe_slot,
 };
 
+#define JMB388_SAMPLE_COUNT	5
+
+static int jmicron_jmb388_get_ro(struct mmc_host *mmc)
+{
+	int i, ro_count;
+
+	ro_count = 0;
+	for (i = 0; i < JMB388_SAMPLE_COUNT; i++) {
+		if (sdhci_get_ro(mmc) > 0) {
+			if (++ro_count > JMB388_SAMPLE_COUNT / 2)
+				return 1;
+		}
+		msleep(30);
+	}
+	return 0;
+}
+
 static int jmicron_pmos(struct sdhci_pci_chip *chip, int on)
 {
 	u8 scratch;
@@ -1326,7 +1343,7 @@ static int jmicron_pmos(struct sdhci_pci_chip *chip, int on)
 
 	ret = pci_read_config_byte(chip->pdev, 0xAE, &scratch);
 	if (ret)
-		return ret;
+		goto fail;
 
 	/*
 	 * Turn PMOS on [bit 0], set over current detection to 2.4 V
@@ -1337,7 +1354,10 @@ static int jmicron_pmos(struct sdhci_pci_chip *chip, int on)
 	else
 		scratch &= ~0x47;
 
-	return pci_write_config_byte(chip->pdev, 0xAE, scratch);
+	ret = pci_write_config_byte(chip->pdev, 0xAE, scratch);
+
+fail:
+	return pcibios_err_to_errno(ret);
 }
 
 static int jmicron_probe(struct sdhci_pci_chip *chip)
@@ -1400,11 +1420,6 @@ static int jmicron_probe(struct sdhci_pci_chip *chip)
 		return ret;
 	}
 
-	/* quirk for unsable RO-detection on JM388 chips */
-	if (chip->pdev->device == PCI_DEVICE_ID_JMICRON_JMB388_SD ||
-	    chip->pdev->device == PCI_DEVICE_ID_JMICRON_JMB388_ESD)
-		chip->quirks |= SDHCI_QUIRK_UNSTABLE_RO_DETECT;
-
 	return 0;
 }
 
@@ -1458,6 +1473,11 @@ static int jmicron_probe_slot(struct sdhci_pci_slot *slot)
 		jmicron_enable_mmc(slot->host, 1);
 
 	slot->host->mmc->caps |= MMC_CAP_BUS_WIDTH_TEST;
+
+	/* Handle unstable RO-detection on JM388 chips */
+	if (slot->chip->pdev->device == PCI_DEVICE_ID_JMICRON_JMB388_SD ||
+	    slot->chip->pdev->device == PCI_DEVICE_ID_JMICRON_JMB388_ESD)
+		slot->host->mmc_host_ops.get_ro = jmicron_jmb388_get_ro;
 
 	return 0;
 }
@@ -2202,7 +2222,7 @@ static int sdhci_pci_probe(struct pci_dev *pdev,
 
 	ret = pci_read_config_byte(pdev, PCI_SLOT_INFO, &slots);
 	if (ret)
-		return ret;
+		return pcibios_err_to_errno(ret);
 
 	slots = PCI_SLOT_INFO_SLOTS(slots) + 1;
 	dev_dbg(&pdev->dev, "found %d slot(s)\n", slots);
@@ -2211,7 +2231,7 @@ static int sdhci_pci_probe(struct pci_dev *pdev,
 
 	ret = pci_read_config_byte(pdev, PCI_SLOT_INFO, &first_bar);
 	if (ret)
-		return ret;
+		return pcibios_err_to_errno(ret);
 
 	first_bar &= PCI_SLOT_INFO_FIRST_BAR_MASK;
 

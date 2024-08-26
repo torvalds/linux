@@ -668,7 +668,6 @@ static struct parport_driver portman_parport_driver = {
 	.probe		= snd_portman_dev_probe,
 	.match_port	= snd_portman_attach,
 	.detach		= snd_portman_detach,
-	.devmodel	= true,
 };
 
 /*********************************************************************

@@ -37,7 +37,7 @@ __be32 nfs4_callback_getattr(void *argp, void *resp,
 	if (!cps->clp) /* Always set for v4.0. Set in cb_sequence for v4.1 */
 		goto out;
 
-	res->bitmap[0] = res->bitmap[1] = 0;
+	memset(res->bitmap, 0, sizeof(res->bitmap));
 	res->status = htonl(NFS4ERR_BADHANDLE);
 
 	dprintk_rcu("NFS: GETATTR callback request from %s\n",
@@ -59,12 +59,16 @@ __be32 nfs4_callback_getattr(void *argp, void *resp,
 	res->change_attr = delegation->change_attr;
 	if (nfs_have_writebacks(inode))
 		res->change_attr++;
+	res->atime = inode_get_atime(inode);
 	res->ctime = inode_get_ctime(inode);
 	res->mtime = inode_get_mtime(inode);
-	res->bitmap[0] = (FATTR4_WORD0_CHANGE|FATTR4_WORD0_SIZE) &
-		args->bitmap[0];
-	res->bitmap[1] = (FATTR4_WORD1_TIME_METADATA|FATTR4_WORD1_TIME_MODIFY) &
-		args->bitmap[1];
+	res->bitmap[0] = (FATTR4_WORD0_CHANGE | FATTR4_WORD0_SIZE) &
+			 args->bitmap[0];
+	res->bitmap[1] = (FATTR4_WORD1_TIME_ACCESS |
+			  FATTR4_WORD1_TIME_METADATA |
+			  FATTR4_WORD1_TIME_MODIFY) & args->bitmap[1];
+	res->bitmap[2] = (FATTR4_WORD2_TIME_DELEG_ACCESS |
+			  FATTR4_WORD2_TIME_DELEG_MODIFY) & args->bitmap[2];
 	res->status = 0;
 out_iput:
 	rcu_read_unlock();
@@ -319,9 +323,10 @@ static u32 initiate_bulk_draining(struct nfs_client *clp,
 	int stat;
 
 	if (args->cbl_recall_type == RETURN_FSID)
-		stat = pnfs_destroy_layouts_byfsid(clp, &args->cbl_fsid, true);
+		stat = pnfs_layout_destroy_byfsid(clp, &args->cbl_fsid,
+						  PNFS_LAYOUT_BULK_RETURN);
 	else
-		stat = pnfs_destroy_layouts_byclid(clp, true);
+		stat = pnfs_layout_destroy_byclid(clp, PNFS_LAYOUT_BULK_RETURN);
 	if (stat != 0)
 		return NFS4ERR_DELAY;
 	return NFS4ERR_NOMATCHING_LAYOUT;

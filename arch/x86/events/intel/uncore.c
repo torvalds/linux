@@ -34,6 +34,7 @@ static struct event_constraint uncore_constraint_fixed =
 struct event_constraint uncore_constraint_empty =
 	EVENT_CONSTRAINT(0, 0, 0);
 
+MODULE_DESCRIPTION("Support for Intel uncore performance events");
 MODULE_LICENSE("GPL");
 
 int uncore_pcibus_to_dieid(struct pci_bus *bus)
@@ -262,6 +263,9 @@ static void uncore_assign_hw_event(struct intel_uncore_box *box,
 		hwc->config_base = uncore_fixed_ctl(box);
 		return;
 	}
+
+	if (intel_generic_uncore_assign_hw_event(event, box))
+		return;
 
 	hwc->config_base = uncore_event_ctl(box, hwc->idx);
 	hwc->event_base  = uncore_perf_ctr(box, hwc->idx);
@@ -843,7 +847,9 @@ static void uncore_pmu_disable(struct pmu *pmu)
 static ssize_t uncore_get_attr_cpumask(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
-	return cpumap_print_to_pagebuf(true, buf, &uncore_cpu_mask);
+	struct intel_uncore_pmu *pmu = container_of(dev_get_drvdata(dev), struct intel_uncore_pmu, pmu);
+
+	return cpumap_print_to_pagebuf(true, buf, &pmu->cpu_mask);
 }
 
 static DEVICE_ATTR(cpumask, S_IRUGO, uncore_get_attr_cpumask, NULL);
@@ -860,7 +866,10 @@ static const struct attribute_group uncore_pmu_attr_group = {
 static inline int uncore_get_box_id(struct intel_uncore_type *type,
 				    struct intel_uncore_pmu *pmu)
 {
-	return type->box_ids ? type->box_ids[pmu->pmu_idx] : pmu->pmu_idx;
+	if (type->boxes)
+		return intel_uncore_find_discovery_unit_id(type->boxes, -1, pmu->pmu_idx);
+
+	return pmu->pmu_idx;
 }
 
 void uncore_get_alias_name(char *pmu_name, struct intel_uncore_pmu *pmu)
@@ -961,6 +970,9 @@ static void uncore_type_exit(struct intel_uncore_type *type)
 	if (type->cleanup_mapping)
 		type->cleanup_mapping(type);
 
+	if (type->cleanup_extra_boxes)
+		type->cleanup_extra_boxes(type);
+
 	if (pmu) {
 		for (i = 0; i < type->num_boxes; i++, pmu++) {
 			uncore_pmu_unregister(pmu);
@@ -969,10 +981,7 @@ static void uncore_type_exit(struct intel_uncore_type *type)
 		kfree(type->pmus);
 		type->pmus = NULL;
 	}
-	if (type->box_ids) {
-		kfree(type->box_ids);
-		type->box_ids = NULL;
-	}
+
 	kfree(type->events_group);
 	type->events_group = NULL;
 }
@@ -1076,22 +1085,19 @@ static struct intel_uncore_pmu *
 uncore_pci_find_dev_pmu_from_types(struct pci_dev *pdev)
 {
 	struct intel_uncore_type **types = uncore_pci_uncores;
+	struct intel_uncore_discovery_unit *unit;
 	struct intel_uncore_type *type;
-	u64 box_ctl;
-	int i, die;
+	struct rb_node *node;
 
 	for (; *types; types++) {
 		type = *types;
-		for (die = 0; die < __uncore_max_dies; die++) {
-			for (i = 0; i < type->num_boxes; i++) {
-				if (!type->box_ctls[die])
-					continue;
-				box_ctl = type->box_ctls[die] + type->pci_offsets[i];
-				if (pdev->devfn == UNCORE_DISCOVERY_PCI_DEVFN(box_ctl) &&
-				    pdev->bus->number == UNCORE_DISCOVERY_PCI_BUS(box_ctl) &&
-				    pci_domain_nr(pdev->bus) == UNCORE_DISCOVERY_PCI_DOMAIN(box_ctl))
-					return &type->pmus[i];
-			}
+
+		for (node = rb_first(type->boxes); node; node = rb_next(node)) {
+			unit = rb_entry(node, struct intel_uncore_discovery_unit, node);
+			if (pdev->devfn == UNCORE_DISCOVERY_PCI_DEVFN(unit->addr) &&
+			    pdev->bus->number == UNCORE_DISCOVERY_PCI_BUS(unit->addr) &&
+			    pci_domain_nr(pdev->bus) == UNCORE_DISCOVERY_PCI_DOMAIN(unit->addr))
+				return &type->pmus[unit->pmu_idx];
 		}
 	}
 
@@ -1367,28 +1373,25 @@ static struct notifier_block uncore_pci_notifier = {
 static void uncore_pci_pmus_register(void)
 {
 	struct intel_uncore_type **types = uncore_pci_uncores;
+	struct intel_uncore_discovery_unit *unit;
 	struct intel_uncore_type *type;
 	struct intel_uncore_pmu *pmu;
+	struct rb_node *node;
 	struct pci_dev *pdev;
-	u64 box_ctl;
-	int i, die;
 
 	for (; *types; types++) {
 		type = *types;
-		for (die = 0; die < __uncore_max_dies; die++) {
-			for (i = 0; i < type->num_boxes; i++) {
-				if (!type->box_ctls[die])
-					continue;
-				box_ctl = type->box_ctls[die] + type->pci_offsets[i];
-				pdev = pci_get_domain_bus_and_slot(UNCORE_DISCOVERY_PCI_DOMAIN(box_ctl),
-								   UNCORE_DISCOVERY_PCI_BUS(box_ctl),
-								   UNCORE_DISCOVERY_PCI_DEVFN(box_ctl));
-				if (!pdev)
-					continue;
-				pmu = &type->pmus[i];
 
-				uncore_pci_pmu_register(pdev, type, pmu, die);
-			}
+		for (node = rb_first(type->boxes); node; node = rb_next(node)) {
+			unit = rb_entry(node, struct intel_uncore_discovery_unit, node);
+			pdev = pci_get_domain_bus_and_slot(UNCORE_DISCOVERY_PCI_DOMAIN(unit->addr),
+							   UNCORE_DISCOVERY_PCI_BUS(unit->addr),
+							   UNCORE_DISCOVERY_PCI_DEVFN(unit->addr));
+
+			if (!pdev)
+				continue;
+			pmu = &type->pmus[unit->pmu_idx];
+			uncore_pci_pmu_register(pdev, type, pmu, unit->die);
 		}
 	}
 
@@ -1453,6 +1456,18 @@ static void uncore_pci_exit(void)
 	}
 }
 
+static bool uncore_die_has_box(struct intel_uncore_type *type,
+			       int die, unsigned int pmu_idx)
+{
+	if (!type->boxes)
+		return true;
+
+	if (intel_uncore_find_discovery_unit_id(type->boxes, die, pmu_idx) < 0)
+		return false;
+
+	return true;
+}
+
 static void uncore_change_type_ctx(struct intel_uncore_type *type, int old_cpu,
 				   int new_cpu)
 {
@@ -1468,18 +1483,25 @@ static void uncore_change_type_ctx(struct intel_uncore_type *type, int old_cpu,
 
 		if (old_cpu < 0) {
 			WARN_ON_ONCE(box->cpu != -1);
-			box->cpu = new_cpu;
+			if (uncore_die_has_box(type, die, pmu->pmu_idx)) {
+				box->cpu = new_cpu;
+				cpumask_set_cpu(new_cpu, &pmu->cpu_mask);
+			}
 			continue;
 		}
 
-		WARN_ON_ONCE(box->cpu != old_cpu);
+		WARN_ON_ONCE(box->cpu != -1 && box->cpu != old_cpu);
 		box->cpu = -1;
+		cpumask_clear_cpu(old_cpu, &pmu->cpu_mask);
 		if (new_cpu < 0)
 			continue;
 
+		if (!uncore_die_has_box(type, die, pmu->pmu_idx))
+			continue;
 		uncore_pmu_cancel_hrtimer(box);
 		perf_pmu_migrate_context(&pmu->pmu, old_cpu, new_cpu);
 		box->cpu = new_cpu;
+		cpumask_set_cpu(new_cpu, &pmu->cpu_mask);
 	}
 }
 
@@ -1502,7 +1524,7 @@ static void uncore_box_unref(struct intel_uncore_type **types, int id)
 		pmu = type->pmus;
 		for (i = 0; i < type->num_boxes; i++, pmu++) {
 			box = pmu->boxes[id];
-			if (box && atomic_dec_return(&box->refcnt) == 0)
+			if (box && box->cpu >= 0 && atomic_dec_return(&box->refcnt) == 0)
 				uncore_box_exit(box);
 		}
 	}
@@ -1592,7 +1614,7 @@ static int uncore_box_ref(struct intel_uncore_type **types,
 		pmu = type->pmus;
 		for (i = 0; i < type->num_boxes; i++, pmu++) {
 			box = pmu->boxes[id];
-			if (box && atomic_inc_return(&box->refcnt) == 1)
+			if (box && box->cpu >= 0 && atomic_inc_return(&box->refcnt) == 1)
 				uncore_box_init(box);
 		}
 	}

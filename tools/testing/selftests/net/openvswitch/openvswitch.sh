@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # SPDX-License-Identifier: GPL-2.0
 #
 # OVS kernel module self tests
@@ -11,6 +11,11 @@ ksft_skip=4
 PAUSE_ON_FAIL=no
 VERBOSE=0
 TRACING=0
+WAIT_TIMEOUT=5
+
+if test "X$KSFT_MACHINE_SLOW" == "Xyes"; then
+	WAIT_TIMEOUT=10
+fi
 
 tests="
 	arp_ping				eth-arp: Basic arp ping between two NS
@@ -20,10 +25,37 @@ tests="
 	nat_related_v4				ip4-nat-related: ICMP related matches work with SNAT
 	netlink_checks				ovsnl: validate netlink attrs and settings
 	upcall_interfaces			ovs: test the upcall interfaces
-	drop_reason				drop: test drop reasons are emitted"
+	drop_reason				drop: test drop reasons are emitted
+	psample					psample: Sampling packets with psample"
 
 info() {
-    [ $VERBOSE = 0 ] || echo $*
+	[ "${ovs_dir}" != "" ] &&
+		echo "`date +"[%m-%d %H:%M:%S]"` $*" >> ${ovs_dir}/debug.log
+	[ $VERBOSE = 0 ] || echo $*
+}
+
+ovs_wait() {
+	info "waiting $WAIT_TIMEOUT s for: $@"
+
+	if "$@" ; then
+		info "wait succeeded immediately"
+		return 0
+	fi
+
+	# A quick re-check helps speed up small races in fast systems.
+	# However, fractional sleeps might not necessarily work.
+	local start=0
+	sleep 0.1 || { sleep 1; start=1; }
+
+	for (( i=start; i<WAIT_TIMEOUT; i++ )); do
+		if "$@" ; then
+			info "wait succeeded after $i seconds"
+			return 0
+		fi
+		sleep 1
+	done
+	info "wait failed after $i seconds"
+	return 1
 }
 
 ovs_base=`pwd`
@@ -65,7 +97,8 @@ ovs_setenv() {
 
 ovs_sbx() {
 	if test "X$2" != X; then
-		(ovs_setenv $1; shift; "$@" >> ${ovs_dir}/debug.log)
+		(ovs_setenv $1; shift;
+		 info "run cmd: $@"; "$@" >> ${ovs_dir}/debug.log)
 	else
 		ovs_setenv $1
 	fi
@@ -102,10 +135,19 @@ ovs_netns_spawn_daemon() {
 	shift
 	netns=$1
 	shift
-	info "spawning cmd: $*"
-	ip netns exec $netns $*  >> $ovs_dir/stdout  2>> $ovs_dir/stderr &
+	if [ "$netns" == "_default" ]; then
+		$*  >> $ovs_dir/stdout  2>> $ovs_dir/stderr &
+	else
+		ip netns exec $netns $*  >> $ovs_dir/stdout  2>> $ovs_dir/stderr &
+	fi
 	pid=$!
 	ovs_sbx "$sbx" on_exit "kill -TERM $pid 2>/dev/null"
+}
+
+ovs_spawn_daemon() {
+	sbx=$1
+	shift
+	ovs_netns_spawn_daemon $sbx "_default" $*
 }
 
 ovs_add_netns_and_veths () {
@@ -139,7 +181,7 @@ ovs_add_flow () {
 	info "Adding flow to DP: sbx:$1 br:$2 flow:$3 act:$4"
 	ovs_sbx "$1" python3 $ovs_base/ovs-dpctl.py add-flow "$2" "$3" "$4"
 	if [ $? -ne 0 ]; then
-		echo "Flow [ $3 : $4 ] failed" >> ${ovs_dir}/debug.log
+		info "Flow [ $3 : $4 ] failed"
 		return 1
 	fi
 	return 0
@@ -170,6 +212,19 @@ ovs_drop_reason_count()
 	return `echo "$perf_output" | grep "$pattern" | wc -l`
 }
 
+ovs_test_flow_fails () {
+	ERR_MSG="Flow actions may not be safe on all matching packets"
+
+	PRE_TEST=$(dmesg | grep -c "${ERR_MSG}")
+	ovs_add_flow $@ &> /dev/null $@ && return 1
+	POST_TEST=$(dmesg | grep -c "${ERR_MSG}")
+
+	if [ "$PRE_TEST" == "$POST_TEST" ]; then
+		return 1
+	fi
+	return 0
+}
+
 usage() {
 	echo
 	echo "$0 [OPTIONS] [TEST]..."
@@ -182,6 +237,91 @@ usage() {
 	echo
 	echo "Available tests${tests}"
 	exit 1
+}
+
+
+# psample test
+# - use psample to observe packets
+test_psample() {
+	sbx_add "test_psample" || return $?
+
+	# Add a datapath with per-vport dispatching.
+	ovs_add_dp "test_psample" psample -V 2:1 || return 1
+
+	info "create namespaces"
+	ovs_add_netns_and_veths "test_psample" "psample" \
+		client c0 c1 172.31.110.10/24 -u || return 1
+	ovs_add_netns_and_veths "test_psample" "psample" \
+		server s0 s1 172.31.110.20/24 -u || return 1
+
+	# Check if psample actions can be configured.
+	ovs_add_flow "test_psample" psample \
+	'in_port(1),eth(),eth_type(0x0806),arp()' 'psample(group=1)' &> /dev/null
+	if [ $? == 1 ]; then
+		info "no support for psample - skipping"
+		ovs_exit_sig
+		return $ksft_skip
+	fi
+
+	ovs_del_flows "test_psample" psample
+
+	# Test action verification.
+	OLDIFS=$IFS
+	IFS='*'
+	min_key='in_port(1),eth(),eth_type(0x0800),ipv4()'
+	for testcase in \
+		"cookie to large"*"psample(group=1,cookie=1615141312111009080706050403020100)" \
+		"no group with cookie"*"psample(cookie=abcd)" \
+		"no group"*"psample()";
+	do
+		set -- $testcase;
+		ovs_test_flow_fails "test_psample" psample $min_key $2
+		if [ $? == 1 ]; then
+			info "failed - $1"
+			return 1
+		fi
+	done
+	IFS=$OLDIFS
+
+	ovs_del_flows "test_psample" psample
+	# Allow ARP
+	ovs_add_flow "test_psample" psample \
+		'in_port(1),eth(),eth_type(0x0806),arp()' '2' || return 1
+	ovs_add_flow "test_psample" psample \
+		'in_port(2),eth(),eth_type(0x0806),arp()' '1' || return 1
+
+	# Sample first 14 bytes of all traffic.
+	ovs_add_flow "test_psample" psample \
+	    "in_port(1),eth(),eth_type(0x0800),ipv4()" \
+            "trunc(14),psample(group=1,cookie=c0ffee),2"
+
+	# Sample all traffic. In this case, use a sample() action with both
+	# psample and an upcall emulating simultaneous local sampling and
+	# sFlow / IPFIX.
+	nlpid=$(grep -E "listening on upcall packet handler" \
+            $ovs_dir/s0.out | cut -d ":" -f 2 | tr -d ' ')
+
+	ovs_add_flow "test_psample" psample \
+            "in_port(2),eth(),eth_type(0x0800),ipv4()" \
+            "sample(sample=100%,actions(psample(group=2,cookie=eeff0c),userspace(pid=${nlpid},userdata=eeff0c))),1"
+
+	# Record psample data.
+	ovs_spawn_daemon "test_psample" python3 $ovs_base/ovs-dpctl.py psample-events
+	ovs_wait grep -q "listening for psample events" ${ovs_dir}/stdout
+
+	# Send a single ping.
+	ovs_sbx "test_psample" ip netns exec client ping -I c1 172.31.110.20 -c 1 || return 1
+
+	# We should have received one userspace action upcall and 2 psample packets.
+	ovs_wait grep -q "userspace action command" $ovs_dir/s0.out || return 1
+
+	# client -> server samples should only contain the first 14 bytes of the packet.
+	ovs_wait grep -qE "rate:4294967295,group:1,cookie:c0ffee data:[0-9a-f]{28}$" \
+		$ovs_dir/stdout || return 1
+
+	ovs_wait grep -q "rate:4294967295,group:2,cookie:eeff0c" $ovs_dir/stdout || return 1
+
+	return 0
 }
 
 # drop_reason test
@@ -599,7 +739,8 @@ test_upcall_interfaces() {
 	ovs_add_netns_and_veths "test_upcall_interfaces" ui0 upc left0 l0 \
 	    172.31.110.1/24 -u || return 1
 
-	sleep 1
+	ovs_wait grep -q "listening on upcall packet handler" ${ovs_dir}/left0.out
+
 	info "sending arping"
 	ip netns exec upc arping -I l0 172.31.110.20 -c 1 \
 	    >$ovs_dir/arping.stdout 2>$ovs_dir/arping.stderr
@@ -613,16 +754,20 @@ run_test() {
 	tname="$1"
 	tdesc="$2"
 
-	if ! lsmod | grep openvswitch >/dev/null 2>&1; then
-		stdbuf -o0 printf "TEST: %-60s  [NOMOD]\n" "${tdesc}"
-		return $ksft_skip
-	fi
-
 	if python3 ovs-dpctl.py -h 2>&1 | \
 	     grep -E "Need to (install|upgrade) the python" >/dev/null 2>&1; then
 		stdbuf -o0 printf "TEST: %-60s  [PYLIB]\n" "${tdesc}"
 		return $ksft_skip
 	fi
+
+	python3 ovs-dpctl.py show >/dev/null 2>&1 || \
+		echo "[DPCTL] show exception."
+
+	if ! lsmod | grep openvswitch >/dev/null 2>&1; then
+		stdbuf -o0 printf "TEST: %-60s  [NOMOD]\n" "${tdesc}"
+		return $ksft_skip
+	fi
+
 	printf "TEST: %-60s  [START]\n" "${tname}"
 
 	unset IFS

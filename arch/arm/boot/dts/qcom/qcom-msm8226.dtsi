@@ -635,7 +635,7 @@
 			reg = <0xfc4ab000 0x4>;
 		};
 
-		qfprom: qfprom@fc4bc000 {
+		qfprom: efuse@fc4bc000 {
 			compatible = "qcom,msm8226-qfprom", "qcom,qfprom";
 			reg = <0xfc4bc000 0x1000>;
 			#address-cells = <1>;
@@ -1046,7 +1046,7 @@
 			};
 		};
 
-		gpu: adreno@fdb00000 {
+		gpu: gpu@fdb00000 {
 			compatible = "qcom,adreno-305.18", "qcom,adreno";
 			reg = <0xfdb00000 0x10000>;
 			reg-names = "kgsl_3d0_reg_memory";

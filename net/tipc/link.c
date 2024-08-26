@@ -241,13 +241,6 @@ enum {
 	LINK_SYNCHING        = 0xc  << 24
 };
 
-/* Link FSM state checking routines
- */
-static int link_is_up(struct tipc_link *l)
-{
-	return l->state & (LINK_ESTABLISHED | LINK_SYNCHING);
-}
-
 static int tipc_link_proto_rcv(struct tipc_link *l, struct sk_buff *skb,
 			       struct sk_buff_head *xmitq);
 static void tipc_link_build_proto_msg(struct tipc_link *l, int mtyp, bool probe,
@@ -274,7 +267,7 @@ static void tipc_link_update_cwin(struct tipc_link *l, int released,
  */
 bool tipc_link_is_up(struct tipc_link *l)
 {
-	return link_is_up(l);
+	return l->state & (LINK_ESTABLISHED | LINK_SYNCHING);
 }
 
 bool tipc_link_peer_is_down(struct tipc_link *l)
@@ -1790,7 +1783,7 @@ int tipc_link_rcv(struct tipc_link *l, struct sk_buff *skb,
 		rcv_nxt = l->rcv_nxt;
 		win_lim = rcv_nxt + TIPC_MAX_LINK_WIN;
 
-		if (unlikely(!link_is_up(l))) {
+		if (unlikely(!tipc_link_is_up(l))) {
 			if (l->state == LINK_ESTABLISHING)
 				rc = TIPC_LINK_UP_EVT;
 			kfree_skb(skb);
@@ -1848,7 +1841,7 @@ static void tipc_link_build_proto_msg(struct tipc_link *l, int mtyp, bool probe,
 	struct tipc_link *bcl = l->bc_rcvlink;
 	struct tipc_msg *hdr;
 	struct sk_buff *skb;
-	bool node_up = link_is_up(bcl);
+	bool node_up = tipc_link_is_up(bcl);
 	u16 glen = 0, bc_rcvgap = 0;
 	int dlen = 0;
 	void *data;
@@ -2163,7 +2156,7 @@ bool tipc_link_validate_msg(struct tipc_link *l, struct tipc_msg *hdr)
 		if (session != curr_session)
 			return false;
 		/* Extra sanity check */
-		if (!link_is_up(l) && msg_ack(hdr))
+		if (!tipc_link_is_up(l) && msg_ack(hdr))
 			return false;
 		if (!(l->peer_caps & TIPC_LINK_PROTO_SEQNO))
 			return true;
@@ -2261,7 +2254,7 @@ static int tipc_link_proto_rcv(struct tipc_link *l, struct sk_buff *skb,
 		}
 
 		/* ACTIVATE_MSG serves as PEER_RESET if link is already down */
-		if (mtyp == RESET_MSG || !link_is_up(l))
+		if (mtyp == RESET_MSG || !tipc_link_is_up(l))
 			rc = tipc_link_fsm_evt(l, LINK_PEER_RESET_EVT);
 
 		/* ACTIVATE_MSG takes up link if it was already locally reset */
@@ -2300,7 +2293,7 @@ static int tipc_link_proto_rcv(struct tipc_link *l, struct sk_buff *skb,
 		if (msg_probe(hdr))
 			l->stats.recv_probes++;
 
-		if (!link_is_up(l)) {
+		if (!tipc_link_is_up(l)) {
 			if (l->state == LINK_ESTABLISHING)
 				rc = TIPC_LINK_UP_EVT;
 			break;
@@ -2387,7 +2380,7 @@ void tipc_link_bc_init_rcv(struct tipc_link *l, struct tipc_msg *hdr)
 	int mtyp = msg_type(hdr);
 	u16 peers_snd_nxt = msg_bc_snd_nxt(hdr);
 
-	if (link_is_up(l))
+	if (tipc_link_is_up(l))
 		return;
 
 	if (msg_user(hdr) == BCAST_PROTOCOL) {
@@ -2415,7 +2408,7 @@ int tipc_link_bc_sync_rcv(struct tipc_link *l, struct tipc_msg *hdr,
 	u16 peers_snd_nxt = msg_bc_snd_nxt(hdr);
 	int rc = 0;
 
-	if (!link_is_up(l))
+	if (!tipc_link_is_up(l))
 		return rc;
 
 	if (!msg_peer_node_is_up(hdr))
@@ -2475,7 +2468,7 @@ int tipc_link_bc_ack_rcv(struct tipc_link *r, u16 acked, u16 gap,
 	bool unused = false;
 	int rc = 0;
 
-	if (!link_is_up(r) || !r->bc_peer_is_up)
+	if (!tipc_link_is_up(r) || !r->bc_peer_is_up)
 		return 0;
 
 	if (gap) {
@@ -2873,7 +2866,7 @@ void tipc_link_set_tolerance(struct tipc_link *l, u32 tol,
 	l->tolerance = tol;
 	if (l->bc_rcvlink)
 		l->bc_rcvlink->tolerance = tol;
-	if (link_is_up(l))
+	if (tipc_link_is_up(l))
 		tipc_link_build_proto_msg(l, STATE_MSG, 0, 0, 0, tol, 0, xmitq);
 }
 

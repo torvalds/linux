@@ -38,7 +38,7 @@ TRACE_EVENT(net_dev_start_xmit,
 	),
 
 	TP_fast_assign(
-		__assign_str(name, dev->name);
+		__assign_str(name);
 		__entry->queue_mapping = skb->queue_mapping;
 		__entry->skbaddr = skb;
 		__entry->vlan_tagged = skb_vlan_tag_present(skb);
@@ -89,7 +89,7 @@ TRACE_EVENT(net_dev_xmit,
 		__entry->skbaddr = skb;
 		__entry->len = skb_len;
 		__entry->rc = rc;
-		__assign_str(name, dev->name);
+		__assign_str(name);
 	),
 
 	TP_printk("dev=%s skbaddr=%p len=%u rc=%d",
@@ -110,8 +110,8 @@ TRACE_EVENT(net_dev_xmit_timeout,
 	),
 
 	TP_fast_assign(
-		__assign_str(name, dev->name);
-		__assign_str(driver, netdev_drivername(dev));
+		__assign_str(name);
+		__assign_str(driver);
 		__entry->queue_index = queue_index;
 	),
 
@@ -134,7 +134,7 @@ DECLARE_EVENT_CLASS(net_dev_template,
 	TP_fast_assign(
 		__entry->skbaddr = skb;
 		__entry->len = skb->len;
-		__assign_str(name, skb->dev->name);
+		__assign_str(name);
 	),
 
 	TP_printk("dev=%s skbaddr=%p len=%u",
@@ -191,7 +191,7 @@ DECLARE_EVENT_CLASS(net_dev_rx_verbose_template,
 	),
 
 	TP_fast_assign(
-		__assign_str(name, skb->dev->name);
+		__assign_str(name);
 #ifdef CONFIG_NET_RX_BUSY_POLL
 		__entry->napi_id = skb->napi_id;
 #else

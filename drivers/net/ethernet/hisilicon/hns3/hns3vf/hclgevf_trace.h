@@ -30,8 +30,8 @@ TRACE_EVENT(hclge_vf_mbx_get,
 	TP_fast_assign(
 		__entry->vfid = req->dest_vfid;
 		__entry->code = le16_to_cpu(req->msg.code);
-		__assign_str(pciname, pci_name(hdev->pdev));
-		__assign_str(devname, hdev->nic.kinfo.netdev->name);
+		__assign_str(pciname);
+		__assign_str(devname);
 		memcpy(__entry->mbx_data, req,
 		       sizeof(struct hclge_mbx_pf_to_vf_cmd));
 	),
@@ -63,8 +63,8 @@ TRACE_EVENT(hclge_vf_mbx_send,
 		__entry->vfid = req->mbx_src_vfid;
 		__entry->code = req->msg.code;
 		__entry->subcode = req->msg.subcode;
-		__assign_str(pciname, pci_name(hdev->pdev));
-		__assign_str(devname, hdev->nic.kinfo.netdev->name);
+		__assign_str(pciname);
+		__assign_str(devname);
 		memcpy(__entry->mbx_data, req,
 		       sizeof(struct hclge_mbx_vf_to_pf_cmd));
 	),
@@ -101,7 +101,7 @@ DECLARE_EVENT_CLASS(hclge_vf_cmd_template,
 			__entry->rsv = le16_to_cpu(desc->rsv);
 			__entry->index = index;
 			__entry->num = num;
-			__assign_str(pciname, pci_name(hw->cmq.csq.pdev));
+			__assign_str(pciname);
 			for (i = 0; i < HCLGE_DESC_DATA_LEN; i++)
 				__entry->data[i] = le32_to_cpu(desc->data[i]);),
 

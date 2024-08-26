@@ -85,15 +85,15 @@
 			     &pmx_led_wifi_ap >;
 		pinctrl-names = "default";
 
-		bluetooth {
+		led-bluetooth {
 			label = "dreamplug:blue:bluetooth";
 			gpios = <&gpio1 15 GPIO_ACTIVE_LOW>;
 		};
-		wifi {
+		led-wifi {
 			label = "dreamplug:green:wifi";
 			gpios = <&gpio1 16 GPIO_ACTIVE_LOW>;
 		};
-		wifi-ap {
+		led-wifi-ap {
 			label = "dreamplug:green:wifi_ap";
 			gpios = <&gpio1 17 GPIO_ACTIVE_LOW>;
 		};

@@ -31,7 +31,6 @@
 #include <bpf/libbpf.h>
 
 #include "hid_surface_dial.skel.h"
-#include "hid_bpf_attach.h"
 
 static bool running = true;
 
@@ -86,34 +85,6 @@ static int get_hid_id(const char *path)
 	return (int)strtol(str_id, NULL, 16);
 }
 
-static int attach_prog(struct hid_surface_dial *skel, struct bpf_program *prog, int hid_id)
-{
-	struct attach_prog_args args = {
-		.hid = hid_id,
-		.retval = -1,
-	};
-	int attach_fd, err;
-	DECLARE_LIBBPF_OPTS(bpf_test_run_opts, tattr,
-			    .ctx_in = &args,
-			    .ctx_size_in = sizeof(args),
-	);
-
-	attach_fd = bpf_program__fd(skel->progs.attach_prog);
-	if (attach_fd < 0) {
-		fprintf(stderr, "can't locate attach prog: %m\n");
-		return 1;
-	}
-
-	args.prog_fd = bpf_program__fd(prog);
-	err = bpf_prog_test_run_opts(attach_fd, &tattr);
-	if (err) {
-		fprintf(stderr, "can't attach prog to hid device %d: %m (err: %d)\n",
-			hid_id, err);
-		return 1;
-	}
-	return 0;
-}
-
 static int set_haptic(struct hid_surface_dial *skel, int hid_id)
 {
 	struct haptic_syscall_args args = {
@@ -144,10 +115,10 @@ static int set_haptic(struct hid_surface_dial *skel, int hid_id)
 int main(int argc, char **argv)
 {
 	struct hid_surface_dial *skel;
-	struct bpf_program *prog;
 	const char *optstr = "r:";
+	struct bpf_link *link;
 	const char *sysfs_path;
-	int opt, hid_id, resolution = 72;
+	int err, opt, hid_id, resolution = 72;
 
 	while ((opt = getopt(argc, argv, optstr)) != -1) {
 		switch (opt) {
@@ -189,7 +160,7 @@ int main(int argc, char **argv)
 		return 1;
 	}
 
-	skel = hid_surface_dial__open_and_load();
+	skel = hid_surface_dial__open();
 	if (!skel) {
 		fprintf(stderr, "%s  %s:%d", __func__, __FILE__, __LINE__);
 		return -1;
@@ -201,15 +172,21 @@ int main(int argc, char **argv)
 		return 1;
 	}
 
+	skel->struct_ops.surface_dial->hid_id = hid_id;
+
+	err = hid_surface_dial__load(skel);
+	if (err < 0) {
+		fprintf(stderr, "can not load HID-BPF program: %m\n");
+		return 1;
+	}
+
 	skel->data->resolution = resolution;
 	skel->data->physical = (int)(resolution / 72);
 
-	bpf_object__for_each_program(prog, *skel->skeleton->obj) {
-		/* ignore syscalls */
-		if (bpf_program__get_type(prog) != BPF_PROG_TYPE_TRACING)
-			continue;
-
-		attach_prog(skel, prog, hid_id);
+	link = bpf_map__attach_struct_ops(skel->maps.surface_dial);
+	if (!link) {
+		fprintf(stderr, "can not attach HID-BPF program: %m\n");
+		return 1;
 	}
 
 	signal(SIGINT, int_exit);

@@ -108,6 +108,13 @@
 
 };
 
+&dma_apbh {
+	interrupts = <GIC_SPI 176 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SPI 176 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SPI 176 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SPI 176 IRQ_TYPE_LEVEL_HIGH>;
+};
+
 &enet0_lpcg {
 	clocks = <&conn_enet0_root_clk>,
 		 <&conn_enet0_root_clk>,
@@ -125,6 +132,10 @@
 		     <GIC_SPI 161 IRQ_TYPE_LEVEL_HIGH>;
 	assigned-clocks = <&clk IMX_SC_R_ENET_0 IMX_SC_C_CLKDIV>;
 	assigned-clock-rates = <125000000>;
+};
+
+&gpmi {
+	interrupts = <GIC_SPI 174 IRQ_TYPE_LEVEL_HIGH>;
 };
 
 &usdhc1 {

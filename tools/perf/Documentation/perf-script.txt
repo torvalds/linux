@@ -132,9 +132,9 @@ OPTIONS
         Comma separated list of fields to print. Options are:
         comm, tid, pid, time, cpu, event, trace, ip, sym, dso, dsoff, addr, symoff,
         srcline, period, iregs, uregs, brstack, brstacksym, flags, bpf-output,
-        brstackinsn, brstackinsnlen, brstackoff, callindent, insn, disasm,
+        brstackinsn, brstackinsnlen, brstackdisasm, brstackoff, callindent, insn, disasm,
         insnlen, synth, phys_addr, metric, misc, srccode, ipc, data_page_size,
-        code_page_size, ins_lat, machine_pid, vcpu, cgroup, retire_lat.
+        code_page_size, ins_lat, machine_pid, vcpu, cgroup, retire_lat,
 
         Field list can be prepended with the type, trace, sw or hw,
         to indicate to which event type the field list applies.
@@ -256,6 +256,9 @@ OPTIONS
 	Use brstackinsnlen to print the brstackinsn lenght. For example, you
 	can’t know the next sequential instruction after an unconditional branch unless
 	you calculate that based on its length.
+
+	brstackdisasm acts like brstackinsn, but will print disassembled instructions if
+	perf is built with the capstone library.
 
 	The brstackoff field will print an offset into a specific dso/binary.
 

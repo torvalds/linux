@@ -294,7 +294,7 @@ static int ts_nbus_probe(struct platform_device *pdev)
 	state.duty_cycle = state.period;
 	state.enabled = true;
 
-	ret = pwm_apply_state(pwm, &state);
+	ret = pwm_apply_might_sleep(pwm, &state);
 	if (ret < 0)
 		return dev_err_probe(dev, ret, "failed to configure PWM\n");
 

@@ -387,9 +387,9 @@ static unsigned int asc_get_mctrl(struct uart_port *port)
 /* There are probably characters waiting to be transmitted. */
 static void asc_start_tx(struct uart_port *port)
 {
-	struct circ_buf *xmit = &port->state->xmit;
+	struct tty_port *tport = &port->state->port;
 
-	if (!uart_circ_empty(xmit))
+	if (!kfifo_is_empty(&tport->xmit_fifo))
 		asc_enable_tx_interrupts(port);
 }
 

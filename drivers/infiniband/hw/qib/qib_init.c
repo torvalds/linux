@@ -581,7 +581,7 @@ static int qib_create_workqueues(struct qib_devdata *dd)
 	for (pidx = 0; pidx < dd->num_pports; ++pidx) {
 		ppd = dd->pport + pidx;
 		if (!ppd->qib_wq) {
-			char wq_name[8]; /* 3 + 2 + 1 + 1 + 1 */
+			char wq_name[23];
 
 			snprintf(wq_name, sizeof(wq_name), "qib%d_%d",
 				dd->unit, pidx);

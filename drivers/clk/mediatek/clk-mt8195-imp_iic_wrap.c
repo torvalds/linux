@@ -66,4 +66,6 @@ static struct platform_driver clk_mt8195_imp_iic_wrap_drv = {
 	},
 };
 module_platform_driver(clk_mt8195_imp_iic_wrap_drv);
+
+MODULE_DESCRIPTION("MediaTek MT8195 I2C Wrapper clocks driver");
 MODULE_LICENSE("GPL");

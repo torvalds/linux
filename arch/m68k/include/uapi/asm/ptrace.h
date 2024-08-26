@@ -39,7 +39,7 @@ struct pt_regs {
   long     d0;
   long     orig_d0;
   long     stkadj;
-#ifdef CONFIG_COLDFIRE
+#ifdef __mcoldfire__
   unsigned format :  4; /* frame format specifier */
   unsigned vector : 12; /* vector offset */
   unsigned short sr;

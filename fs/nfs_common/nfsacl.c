@@ -29,6 +29,7 @@
 #include <linux/nfs3.h>
 #include <linux/sort.h>
 
+MODULE_DESCRIPTION("NFS ACL support");
 MODULE_LICENSE("GPL");
 
 struct nfsacl_encode_desc {

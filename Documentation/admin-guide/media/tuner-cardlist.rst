@@ -97,4 +97,6 @@ Tuner number Card name
 89           Sony BTF-PG472Z PAL/SECAM
 90           Sony BTF-PK467Z NTSC-M-JP
 91           Sony BTF-PB463Z NTSC-M
+92           Silicon Labs Si2157 tuner
+93           Tena TNF931D-DFDR1
 ============ =====================================================

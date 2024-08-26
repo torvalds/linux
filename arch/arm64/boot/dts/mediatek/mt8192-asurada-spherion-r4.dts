@@ -8,6 +8,7 @@
 
 / {
 	model = "Google Spherion (rev4)";
+	chassis-type = "laptop";
 	compatible = "google,spherion-rev4", "google,spherion",
 		     "mediatek,mt8192";
 

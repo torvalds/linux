@@ -13,8 +13,9 @@
    sudo ipcs | awk '$1 == "0x00000000" {print $2}' | xargs -n1 sudo ipcrm -m
    (warning this will remove all if someone else uses them) */
 
-#define _GNU_SOURCE 1
+#define _GNU_SOURCE
 #include <sys/mman.h>
+#include <linux/mman.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <sys/ipc.h>
@@ -28,19 +29,23 @@
 #include "vm_util.h"
 #include "../kselftest.h"
 
-#define MAP_HUGE_2MB    (21 << MAP_HUGE_SHIFT)
-#define MAP_HUGE_1GB    (30 << MAP_HUGE_SHIFT)
-#define MAP_HUGE_SHIFT  26
-#define MAP_HUGE_MASK   0x3f
 #if !defined(MAP_HUGETLB)
 #define MAP_HUGETLB	0x40000
 #endif
 
 #define SHM_HUGETLB     04000   /* segment will use huge TLB pages */
+#ifndef SHM_HUGE_SHIFT
 #define SHM_HUGE_SHIFT  26
+#endif
+#ifndef SHM_HUGE_MASK
 #define SHM_HUGE_MASK   0x3f
+#endif
+#ifndef SHM_HUGE_2MB
 #define SHM_HUGE_2MB    (21 << SHM_HUGE_SHIFT)
+#endif
+#ifndef SHM_HUGE_1GB
 #define SHM_HUGE_1GB    (30 << SHM_HUGE_SHIFT)
+#endif
 
 #define NUM_PAGESIZES   5
 #define NUM_PAGES 4

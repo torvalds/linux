@@ -675,6 +675,12 @@ intel_display_power_put_async_work(struct work_struct *work)
 	release_async_put_domains(power_domains,
 				  &power_domains->async_put_domains[0]);
 
+	/*
+	 * Cancel the work that got queued after this one got dequeued,
+	 * since here we released the corresponding async-put reference.
+	 */
+	cancel_async_put_work(power_domains, false);
+
 	/* Requeue the work if more domains were async put meanwhile. */
 	if (!bitmap_empty(power_domains->async_put_domains[1].bits, POWER_DOMAIN_NUM)) {
 		bitmap_copy(power_domains->async_put_domains[0].bits,
@@ -686,12 +692,6 @@ intel_display_power_put_async_work(struct work_struct *work)
 					     fetch_and_zero(&new_work_wakeref),
 					     power_domains->async_put_next_delay);
 		power_domains->async_put_next_delay = 0;
-	} else {
-		/*
-		 * Cancel the work that got queued after this one got dequeued,
-		 * since here we released the corresponding async-put reference.
-		 */
-		cancel_async_put_work(power_domains, false);
 	}
 
 out_verify:
@@ -1207,7 +1207,7 @@ static void assert_can_disable_lcpll(struct drm_i915_private *dev_priv)
 			intel_de_read(dev_priv, WRPLL_CTL(1)) & WRPLL_PLL_ENABLE,
 			"WRPLL2 enabled\n");
 	I915_STATE_WARN(dev_priv,
-			intel_de_read(dev_priv, PP_STATUS(0)) & PP_ON,
+			intel_de_read(dev_priv, PP_STATUS(dev_priv, 0)) & PP_ON,
 			"Panel power on\n");
 	I915_STATE_WARN(dev_priv,
 			intel_de_read(dev_priv, BLC_PWM_CPU_CTL2) & BLM_PWM_ENABLE,
@@ -1688,6 +1688,10 @@ static void icl_display_core_init(struct drm_i915_private *dev_priv,
 	if (IS_DG2(dev_priv))
 		intel_snps_phy_wait_for_calibration(dev_priv);
 
+	/* 9. XE2_HPD: Program CHICKEN_MISC_2 before any cursor or planes are enabled */
+	if (DISPLAY_VER_FULL(dev_priv) == IP_VER(14, 1))
+		intel_de_rmw(dev_priv, CHICKEN_MISC_2, BMG_DARB_HALF_BLK_END_BURST, 1);
+
 	if (resume)
 		intel_dmc_load_program(dev_priv);
 
@@ -1768,7 +1772,7 @@ static void chv_phy_control_init(struct drm_i915_private *dev_priv)
 	 * current lane status.
 	 */
 	if (intel_power_well_is_enabled(dev_priv, cmn_bc)) {
-		u32 status = intel_de_read(dev_priv, DPLL(PIPE_A));
+		u32 status = intel_de_read(dev_priv, DPLL(dev_priv, PIPE_A));
 		unsigned int mask;
 
 		mask = status & DPLL_PORTB_READY_MASK;

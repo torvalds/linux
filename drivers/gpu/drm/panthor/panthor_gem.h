@@ -62,6 +62,11 @@ struct panthor_kernel_bo {
 	struct drm_gem_object *obj;
 
 	/**
+	 * @vm: VM this private buffer is attached to.
+	 */
+	struct panthor_vm *vm;
+
+	/**
 	 * @va_node: VA space allocated to this GEM.
 	 */
 	struct drm_mm_node va_node;
@@ -136,7 +141,6 @@ panthor_kernel_bo_create(struct panthor_device *ptdev, struct panthor_vm *vm,
 			 size_t size, u32 bo_flags, u32 vm_map_flags,
 			 u64 gpu_va);
 
-void panthor_kernel_bo_destroy(struct panthor_vm *vm,
-			       struct panthor_kernel_bo *bo);
+void panthor_kernel_bo_destroy(struct panthor_kernel_bo *bo);
 
 #endif /* __PANTHOR_GEM_H__ */

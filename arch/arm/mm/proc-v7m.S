@@ -8,18 +8,19 @@
  *  This is the "shell" of the ARMv7-M processor support.
  */
 #include <linux/linkage.h>
+#include <linux/cfi_types.h>
 #include <asm/assembler.h>
 #include <asm/page.h>
 #include <asm/v7m.h>
 #include "proc-macros.S"
 
-ENTRY(cpu_v7m_proc_init)
+SYM_TYPED_FUNC_START(cpu_v7m_proc_init)
 	ret	lr
-ENDPROC(cpu_v7m_proc_init)
+SYM_FUNC_END(cpu_v7m_proc_init)
 
-ENTRY(cpu_v7m_proc_fin)
+SYM_TYPED_FUNC_START(cpu_v7m_proc_fin)
 	ret	lr
-ENDPROC(cpu_v7m_proc_fin)
+SYM_FUNC_END(cpu_v7m_proc_fin)
 
 /*
  *	cpu_v7m_reset(loc)
@@ -31,9 +32,9 @@ ENDPROC(cpu_v7m_proc_fin)
  *	- loc   - location to jump to for soft reset
  */
 	.align	5
-ENTRY(cpu_v7m_reset)
+SYM_TYPED_FUNC_START(cpu_v7m_reset)
 	ret	r0
-ENDPROC(cpu_v7m_reset)
+SYM_FUNC_END(cpu_v7m_reset)
 
 /*
  *	cpu_v7m_do_idle()
@@ -42,36 +43,36 @@ ENDPROC(cpu_v7m_reset)
  *
  *	IRQs are already disabled.
  */
-ENTRY(cpu_v7m_do_idle)
+SYM_TYPED_FUNC_START(cpu_v7m_do_idle)
 	wfi
 	ret	lr
-ENDPROC(cpu_v7m_do_idle)
+SYM_FUNC_END(cpu_v7m_do_idle)
 
-ENTRY(cpu_v7m_dcache_clean_area)
+SYM_TYPED_FUNC_START(cpu_v7m_dcache_clean_area)
 	ret	lr
-ENDPROC(cpu_v7m_dcache_clean_area)
+SYM_FUNC_END(cpu_v7m_dcache_clean_area)
 
 /*
  * There is no MMU, so here is nothing to do.
  */
-ENTRY(cpu_v7m_switch_mm)
+SYM_TYPED_FUNC_START(cpu_v7m_switch_mm)
 	ret	lr
-ENDPROC(cpu_v7m_switch_mm)
+SYM_FUNC_END(cpu_v7m_switch_mm)
 
 .globl	cpu_v7m_suspend_size
 .equ	cpu_v7m_suspend_size, 0
 
 #ifdef CONFIG_ARM_CPU_SUSPEND
-ENTRY(cpu_v7m_do_suspend)
+SYM_TYPED_FUNC_START(cpu_v7m_do_suspend)
 	ret	lr
-ENDPROC(cpu_v7m_do_suspend)
+SYM_FUNC_END(cpu_v7m_do_suspend)
 
-ENTRY(cpu_v7m_do_resume)
+SYM_TYPED_FUNC_START(cpu_v7m_do_resume)
 	ret	lr
-ENDPROC(cpu_v7m_do_resume)
+SYM_FUNC_END(cpu_v7m_do_resume)
 #endif
 
-ENTRY(cpu_cm7_dcache_clean_area)
+SYM_TYPED_FUNC_START(cpu_cm7_dcache_clean_area)
 	dcache_line_size r2, r3
 	movw	r3, #:lower16:BASEADDR_V7M_SCB + V7M_SCB_DCCMVAC
 	movt	r3, #:upper16:BASEADDR_V7M_SCB + V7M_SCB_DCCMVAC
@@ -82,16 +83,16 @@ ENTRY(cpu_cm7_dcache_clean_area)
 	bhi	1b
 	dsb
 	ret	lr
-ENDPROC(cpu_cm7_dcache_clean_area)
+SYM_FUNC_END(cpu_cm7_dcache_clean_area)
 
-ENTRY(cpu_cm7_proc_fin)
+SYM_TYPED_FUNC_START(cpu_cm7_proc_fin)
 	movw	r2, #:lower16:(BASEADDR_V7M_SCB + V7M_SCB_CCR)
 	movt	r2, #:upper16:(BASEADDR_V7M_SCB + V7M_SCB_CCR)
 	ldr	r0, [r2]
 	bic	r0, r0, #(V7M_SCB_CCR_DC | V7M_SCB_CCR_IC)
 	str	r0, [r2]
 	ret	lr
-ENDPROC(cpu_cm7_proc_fin)
+SYM_FUNC_END(cpu_cm7_proc_fin)
 
 	.section ".init.text", "ax"
 

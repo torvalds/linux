@@ -108,4 +108,5 @@ void rational_best_approximation(
 
 EXPORT_SYMBOL(rational_best_approximation);
 
+MODULE_DESCRIPTION("Rational fraction support library");
 MODULE_LICENSE("GPL v2");

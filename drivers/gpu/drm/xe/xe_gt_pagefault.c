@@ -19,8 +19,7 @@
 #include "xe_guc.h"
 #include "xe_guc_ct.h"
 #include "xe_migrate.h"
-#include "xe_pt.h"
-#include "xe_trace.h"
+#include "xe_trace_bo.h"
 #include "xe_vm.h"
 
 struct pagefault {
@@ -126,17 +125,73 @@ static int xe_pf_begin(struct drm_exec *exec, struct xe_vma *vma,
 	return 0;
 }
 
+static int handle_vma_pagefault(struct xe_tile *tile, struct pagefault *pf,
+				struct xe_vma *vma)
+{
+	struct xe_vm *vm = xe_vma_vm(vma);
+	struct drm_exec exec;
+	struct dma_fence *fence;
+	ktime_t end = 0;
+	int err;
+	bool atomic;
+
+	trace_xe_vma_pagefault(vma);
+	atomic = access_is_atomic(pf->access_type);
+
+	/* Check if VMA is valid */
+	if (vma_is_valid(tile, vma) && !atomic)
+		return 0;
+
+retry_userptr:
+	if (xe_vma_is_userptr(vma) &&
+	    xe_vma_userptr_check_repin(to_userptr_vma(vma))) {
+		struct xe_userptr_vma *uvma = to_userptr_vma(vma);
+
+		err = xe_vma_userptr_pin_pages(uvma);
+		if (err)
+			return err;
+	}
+
+	/* Lock VM and BOs dma-resv */
+	drm_exec_init(&exec, 0, 0);
+	drm_exec_until_all_locked(&exec) {
+		err = xe_pf_begin(&exec, vma, atomic, tile->id);
+		drm_exec_retry_on_contention(&exec);
+		if (xe_vm_validate_should_retry(&exec, err, &end))
+			err = -EAGAIN;
+		if (err)
+			goto unlock_dma_resv;
+
+		/* Bind VMA only to the GT that has faulted */
+		trace_xe_vma_pf_bind(vma);
+		fence = xe_vma_rebind(vm, vma, BIT(tile->id));
+		if (IS_ERR(fence)) {
+			err = PTR_ERR(fence);
+			if (xe_vm_validate_should_retry(&exec, err, &end))
+				err = -EAGAIN;
+			goto unlock_dma_resv;
+		}
+	}
+
+	dma_fence_wait(fence, false);
+	dma_fence_put(fence);
+	vma->tile_invalidated &= ~BIT(tile->id);
+
+unlock_dma_resv:
+	drm_exec_fini(&exec);
+	if (err == -EAGAIN)
+		goto retry_userptr;
+
+	return err;
+}
+
 static int handle_pagefault(struct xe_gt *gt, struct pagefault *pf)
 {
 	struct xe_device *xe = gt_to_xe(gt);
 	struct xe_tile *tile = gt_to_tile(gt);
-	struct drm_exec exec;
 	struct xe_vm *vm;
 	struct xe_vma *vma = NULL;
-	struct dma_fence *fence;
-	bool write_locked;
-	int ret = 0;
-	bool atomic;
+	int err;
 
 	/* SW isn't expected to handle TRTT faults */
 	if (pf->trva_fault)
@@ -153,100 +208,25 @@ static int handle_pagefault(struct xe_gt *gt, struct pagefault *pf)
 	if (!vm)
 		return -EINVAL;
 
-retry_userptr:
 	/*
-	 * TODO: Avoid exclusive lock if VM doesn't have userptrs, or
-	 * start out read-locked?
+	 * TODO: Change to read lock? Using write lock for simplicity.
 	 */
 	down_write(&vm->lock);
-	write_locked = true;
 	vma = lookup_vma(vm, pf->page_addr);
 	if (!vma) {
-		ret = -EINVAL;
+		err = -EINVAL;
 		goto unlock_vm;
 	}
 
-	if (!xe_vma_is_userptr(vma) ||
-	    !xe_vma_userptr_check_repin(to_userptr_vma(vma))) {
-		downgrade_write(&vm->lock);
-		write_locked = false;
-	}
+	err = handle_vma_pagefault(tile, pf, vma);
 
-	trace_xe_vma_pagefault(vma);
-
-	atomic = access_is_atomic(pf->access_type);
-
-	/* Check if VMA is valid */
-	if (vma_is_valid(tile, vma) && !atomic)
-		goto unlock_vm;
-
-	/* TODO: Validate fault */
-
-	if (xe_vma_is_userptr(vma) && write_locked) {
-		struct xe_userptr_vma *uvma = to_userptr_vma(vma);
-
-		spin_lock(&vm->userptr.invalidated_lock);
-		list_del_init(&uvma->userptr.invalidate_link);
-		spin_unlock(&vm->userptr.invalidated_lock);
-
-		ret = xe_vma_userptr_pin_pages(uvma);
-		if (ret)
-			goto unlock_vm;
-
-		downgrade_write(&vm->lock);
-		write_locked = false;
-	}
-
-	/* Lock VM and BOs dma-resv */
-	drm_exec_init(&exec, 0, 0);
-	drm_exec_until_all_locked(&exec) {
-		ret = xe_pf_begin(&exec, vma, atomic, tile->id);
-		drm_exec_retry_on_contention(&exec);
-		if (ret)
-			goto unlock_dma_resv;
-	}
-
-	/* Bind VMA only to the GT that has faulted */
-	trace_xe_vma_pf_bind(vma);
-	fence = __xe_pt_bind_vma(tile, vma, xe_tile_migrate_engine(tile), NULL, 0,
-				 vma->tile_present & BIT(tile->id));
-	if (IS_ERR(fence)) {
-		ret = PTR_ERR(fence);
-		goto unlock_dma_resv;
-	}
-
-	/*
-	 * XXX: Should we drop the lock before waiting? This only helps if doing
-	 * GPU binds which is currently only done if we have to wait for more
-	 * than 10ms on a move.
-	 */
-	dma_fence_wait(fence, false);
-	dma_fence_put(fence);
-
-	if (xe_vma_is_userptr(vma))
-		ret = xe_vma_userptr_check_repin(to_userptr_vma(vma));
-	vma->tile_invalidated &= ~BIT(tile->id);
-
-unlock_dma_resv:
-	drm_exec_fini(&exec);
 unlock_vm:
-	if (!ret)
+	if (!err)
 		vm->usm.last_fault_vma = vma;
-	if (write_locked)
-		up_write(&vm->lock);
-	else
-		up_read(&vm->lock);
-	if (ret == -EAGAIN)
-		goto retry_userptr;
-
-	if (!ret) {
-		ret = xe_gt_tlb_invalidation_vma(gt, NULL, vma);
-		if (ret >= 0)
-			ret = 0;
-	}
+	up_write(&vm->lock);
 	xe_vm_put(vm);
 
-	return ret;
+	return err;
 }
 
 static int send_pagefault_reply(struct xe_guc *guc,

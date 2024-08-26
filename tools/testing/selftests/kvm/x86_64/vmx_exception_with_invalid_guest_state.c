@@ -115,9 +115,6 @@ int main(int argc, char *argv[])
 	vm = vm_create_with_one_vcpu(&vcpu, guest_code);
 	get_set_sigalrm_vcpu(vcpu);
 
-	vm_init_descriptor_tables(vm);
-	vcpu_init_descriptor_tables(vcpu);
-
 	vm_install_exception_handler(vm, UD_VECTOR, guest_ud_handler);
 
 	/*

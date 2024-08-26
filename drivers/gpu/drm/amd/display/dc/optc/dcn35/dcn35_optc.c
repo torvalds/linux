@@ -50,17 +50,17 @@
  * @optc: Output Pipe Timing Combine instance reference.
  * @opp_id: Output Plane Processor instance ID.
  * @opp_cnt: Output Plane Processor count.
- * @timing: Timing parameters used to configure DCN blocks.
+ * @segment_width: Width of the segment.
+ * @last_segment_width: Width of the last segment.
  *
  * Return: void.
  */
 static void optc35_set_odm_combine(struct timing_generator *optc, int *opp_id, int opp_cnt,
-		struct dc_crtc_timing *timing)
+		int segment_width, int last_segment_width)
 {
 	struct optc *optc1 = DCN10TG_FROM_TG(optc);
 	uint32_t memory_mask = 0;
-	int h_active = timing->h_addressable + timing->h_border_left + timing->h_border_right;
-	int mpcc_hactive = h_active / opp_cnt;
+	int h_active = segment_width * opp_cnt;
 	/* Each memory instance is 2048x(314x2) bits to support half line of 4096 */
 	int odm_mem_count = (h_active + 2047) / 2048;
 
@@ -103,7 +103,7 @@ static void optc35_set_odm_combine(struct timing_generator *optc, int *opp_id, i
 	}
 
 	REG_UPDATE(OPTC_WIDTH_CONTROL,
-			OPTC_SEGMENT_WIDTH, mpcc_hactive);
+			OPTC_SEGMENT_WIDTH, segment_width);
 
 	REG_UPDATE(OTG_H_TIMING_CNTL, OTG_H_TIMING_DIV_MODE, opp_cnt - 1);
 	optc1->opp_count = opp_cnt;
@@ -438,6 +438,7 @@ static struct timing_generator_funcs dcn35_tg_funcs = {
 		.get_hw_timing = optc1_get_hw_timing,
 		.init_odm = optc3_init_odm,
 		.set_long_vtotal = optc35_set_long_vtotal,
+		.is_two_pixels_per_container = optc1_is_two_pixels_per_container,
 };
 
 void dcn35_timing_generator_init(struct optc *optc1)

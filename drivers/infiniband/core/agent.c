@@ -59,7 +59,16 @@ __ib_get_agent_port(const struct ib_device *device, int port_num)
 	struct ib_agent_port_private *entry;
 
 	list_for_each_entry(entry, &ib_agent_port_list, port_list) {
-		if (entry->agent[1]->device == device &&
+		/* Need to check both agent[0] and agent[1], as an agent port
+		 * may only have one of them
+		 */
+		if (entry->agent[0] &&
+		    entry->agent[0]->device == device &&
+		    entry->agent[0]->port_num == port_num)
+			return entry;
+
+		if (entry->agent[1] &&
+		    entry->agent[1]->device == device &&
 		    entry->agent[1]->port_num == port_num)
 			return entry;
 	}
@@ -172,14 +181,16 @@ int ib_agent_port_open(struct ib_device *device, int port_num)
 		}
 	}
 
-	/* Obtain send only MAD agent for GSI QP */
-	port_priv->agent[1] = ib_register_mad_agent(device, port_num,
-						    IB_QPT_GSI, NULL, 0,
-						    &agent_send_handler,
-						    NULL, NULL, 0);
-	if (IS_ERR(port_priv->agent[1])) {
-		ret = PTR_ERR(port_priv->agent[1]);
-		goto error3;
+	if (rdma_cap_ib_cm(device, port_num)) {
+		/* Obtain send only MAD agent for GSI QP */
+		port_priv->agent[1] = ib_register_mad_agent(device, port_num,
+							    IB_QPT_GSI, NULL, 0,
+							    &agent_send_handler,
+							    NULL, NULL, 0);
+		if (IS_ERR(port_priv->agent[1])) {
+			ret = PTR_ERR(port_priv->agent[1]);
+			goto error3;
+		}
 	}
 
 	spin_lock_irqsave(&ib_agent_port_list_lock, flags);
@@ -212,7 +223,8 @@ int ib_agent_port_close(struct ib_device *device, int port_num)
 	list_del(&port_priv->port_list);
 	spin_unlock_irqrestore(&ib_agent_port_list_lock, flags);
 
-	ib_unregister_mad_agent(port_priv->agent[1]);
+	if (port_priv->agent[1])
+		ib_unregister_mad_agent(port_priv->agent[1]);
 	if (port_priv->agent[0])
 		ib_unregister_mad_agent(port_priv->agent[0]);
 

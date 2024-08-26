@@ -4,7 +4,7 @@
 # All Rights Reserved.
 #
 
-ccflags-y += -I $(srctree)/$(src)		# needed for trace events
+ccflags-y += -I $(src)		# needed for trace events
 
 obj-$(CONFIG_FS_IOMAP)		+= iomap.o
 

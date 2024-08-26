@@ -430,6 +430,9 @@ int kvm_gpc_activate(struct gfn_to_pfn_cache *gpc, gpa_t gpa, unsigned long len)
 
 int kvm_gpc_activate_hva(struct gfn_to_pfn_cache *gpc, unsigned long uhva, unsigned long len)
 {
+	if (!access_ok((void __user *)uhva, len))
+		return -EINVAL;
+
 	return __kvm_gpc_activate(gpc, INVALID_GPA, uhva, len);
 }
 

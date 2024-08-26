@@ -237,7 +237,7 @@ static int as5011_probe(struct i2c_client *client)
 		return -ENODEV;
 	}
 
-	as5011 = kmalloc(sizeof(struct as5011_device), GFP_KERNEL);
+	as5011 = kmalloc(sizeof(*as5011), GFP_KERNEL);
 	input_dev = input_allocate_device();
 	if (!as5011 || !input_dev) {
 		dev_err(&client->dev,
@@ -337,7 +337,7 @@ static void as5011_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id as5011_id[] = {
-	{ MODULE_DEVICE_ALIAS, 0 },
+	{ MODULE_DEVICE_ALIAS },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, as5011_id);

@@ -8,18 +8,15 @@
 #include "a6xx_gpu_state.h"
 #include "a6xx_gmu.xml.h"
 
-/* Ignore diagnostics about register tables that we aren't using yet. We don't
- * want to modify these headers too much from their original source.
- */
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wunused-variable"
-#pragma GCC diagnostic ignored "-Wunused-const-variable"
+static const unsigned int *gen7_0_0_external_core_regs[] __always_unused;
+static const unsigned int *gen7_2_0_external_core_regs[] __always_unused;
+static const unsigned int *gen7_9_0_external_core_regs[] __always_unused;
+static struct gen7_sptp_cluster_registers gen7_9_0_sptp_clusters[] __always_unused;
+static const u32 gen7_9_0_cx_debugbus_blocks[] __always_unused;
 
 #include "adreno_gen7_0_0_snapshot.h"
 #include "adreno_gen7_2_0_snapshot.h"
 #include "adreno_gen7_9_0_snapshot.h"
-
-#pragma GCC diagnostic pop
 
 struct a6xx_gpu_state_obj {
 	const void *handle;

@@ -55,8 +55,108 @@ enum inv_icm42600_accel_scan {
 	INV_ICM42600_ACCEL_SCAN_TIMESTAMP,
 };
 
+static const char * const inv_icm42600_accel_power_mode_items[] = {
+	"low-noise",
+	"low-power",
+};
+static const int inv_icm42600_accel_power_mode_values[] = {
+	INV_ICM42600_SENSOR_MODE_LOW_NOISE,
+	INV_ICM42600_SENSOR_MODE_LOW_POWER,
+};
+static const int inv_icm42600_accel_filter_values[] = {
+	INV_ICM42600_FILTER_BW_ODR_DIV_2,
+	INV_ICM42600_FILTER_AVG_16X,
+};
+
+static int inv_icm42600_accel_power_mode_set(struct iio_dev *indio_dev,
+					     const struct iio_chan_spec *chan,
+					     unsigned int idx)
+{
+	struct inv_icm42600_state *st = iio_device_get_drvdata(indio_dev);
+	struct inv_icm42600_sensor_state *accel_st = iio_priv(indio_dev);
+	int power_mode, filter;
+
+	if (chan->type != IIO_ACCEL)
+		return -EINVAL;
+
+	if (idx >= ARRAY_SIZE(inv_icm42600_accel_power_mode_values))
+		return -EINVAL;
+
+	if (iio_buffer_enabled(indio_dev))
+		return -EBUSY;
+
+	power_mode = inv_icm42600_accel_power_mode_values[idx];
+	filter = inv_icm42600_accel_filter_values[idx];
+
+	guard(mutex)(&st->lock);
+
+	/* prevent change if power mode is not supported by the ODR */
+	switch (power_mode) {
+	case INV_ICM42600_SENSOR_MODE_LOW_NOISE:
+		if (st->conf.accel.odr >= INV_ICM42600_ODR_6_25HZ_LP &&
+		    st->conf.accel.odr <= INV_ICM42600_ODR_1_5625HZ_LP)
+			return -EPERM;
+		break;
+	case INV_ICM42600_SENSOR_MODE_LOW_POWER:
+	default:
+		if (st->conf.accel.odr <= INV_ICM42600_ODR_1KHZ_LN)
+			return -EPERM;
+		break;
+	}
+
+	accel_st->power_mode = power_mode;
+	accel_st->filter = filter;
+
+	return 0;
+}
+
+static int inv_icm42600_accel_power_mode_get(struct iio_dev *indio_dev,
+					     const struct iio_chan_spec *chan)
+{
+	struct inv_icm42600_state *st = iio_device_get_drvdata(indio_dev);
+	struct inv_icm42600_sensor_state *accel_st = iio_priv(indio_dev);
+	unsigned int idx;
+	int power_mode;
+
+	if (chan->type != IIO_ACCEL)
+		return -EINVAL;
+
+	guard(mutex)(&st->lock);
+
+	/* if sensor is on, returns actual power mode and not configured one */
+	switch (st->conf.accel.mode) {
+	case INV_ICM42600_SENSOR_MODE_LOW_POWER:
+	case INV_ICM42600_SENSOR_MODE_LOW_NOISE:
+		power_mode = st->conf.accel.mode;
+		break;
+	default:
+		power_mode = accel_st->power_mode;
+		break;
+	}
+
+	for (idx = 0; idx < ARRAY_SIZE(inv_icm42600_accel_power_mode_values); ++idx) {
+		if (power_mode == inv_icm42600_accel_power_mode_values[idx])
+			break;
+	}
+	if (idx >= ARRAY_SIZE(inv_icm42600_accel_power_mode_values))
+		return -EINVAL;
+
+	return idx;
+}
+
+static const struct iio_enum inv_icm42600_accel_power_mode_enum = {
+	.items = inv_icm42600_accel_power_mode_items,
+	.num_items = ARRAY_SIZE(inv_icm42600_accel_power_mode_items),
+	.set = inv_icm42600_accel_power_mode_set,
+	.get = inv_icm42600_accel_power_mode_get,
+};
+
 static const struct iio_chan_spec_ext_info inv_icm42600_accel_ext_infos[] = {
 	IIO_MOUNT_MATRIX(IIO_SHARED_BY_ALL, inv_icm42600_get_mount_matrix),
+	IIO_ENUM_AVAILABLE("power_mode", IIO_SHARED_BY_TYPE,
+			   &inv_icm42600_accel_power_mode_enum),
+	IIO_ENUM("power_mode", IIO_SHARED_BY_TYPE,
+		 &inv_icm42600_accel_power_mode_enum),
 	{},
 };
 
@@ -99,7 +199,8 @@ static int inv_icm42600_accel_update_scan_mode(struct iio_dev *indio_dev,
 					       const unsigned long *scan_mask)
 {
 	struct inv_icm42600_state *st = iio_device_get_drvdata(indio_dev);
-	struct inv_sensors_timestamp *ts = iio_priv(indio_dev);
+	struct inv_icm42600_sensor_state *accel_st = iio_priv(indio_dev);
+	struct inv_sensors_timestamp *ts = &accel_st->ts;
 	struct inv_icm42600_sensor_conf conf = INV_ICM42600_SENSOR_CONF_INIT;
 	unsigned int fifo_en = 0;
 	unsigned int sleep_temp = 0;
@@ -119,7 +220,8 @@ static int inv_icm42600_accel_update_scan_mode(struct iio_dev *indio_dev,
 
 	if (*scan_mask & INV_ICM42600_SCAN_MASK_ACCEL_3AXIS) {
 		/* enable accel sensor */
-		conf.mode = INV_ICM42600_SENSOR_MODE_LOW_NOISE;
+		conf.mode = accel_st->power_mode;
+		conf.filter = accel_st->filter;
 		ret = inv_icm42600_set_accel_conf(st, &conf, &sleep_accel);
 		if (ret)
 			goto out_unlock;
@@ -129,10 +231,6 @@ static int inv_icm42600_accel_update_scan_mode(struct iio_dev *indio_dev,
 	/* update data FIFO write */
 	inv_sensors_timestamp_apply_odr(ts, 0, 0, 0);
 	ret = inv_icm42600_buffer_set_fifo_en(st, fifo_en | st->fifo.en);
-	if (ret)
-		goto out_unlock;
-
-	ret = inv_icm42600_buffer_update_watermark(st);
 
 out_unlock:
 	mutex_unlock(&st->lock);
@@ -143,10 +241,12 @@ out_unlock:
 	return ret;
 }
 
-static int inv_icm42600_accel_read_sensor(struct inv_icm42600_state *st,
+static int inv_icm42600_accel_read_sensor(struct iio_dev *indio_dev,
 					  struct iio_chan_spec const *chan,
 					  int16_t *val)
 {
+	struct inv_icm42600_state *st = iio_device_get_drvdata(indio_dev);
+	struct inv_icm42600_sensor_state *accel_st = iio_priv(indio_dev);
 	struct device *dev = regmap_get_device(st->map);
 	struct inv_icm42600_sensor_conf conf = INV_ICM42600_SENSOR_CONF_INIT;
 	unsigned int reg;
@@ -174,7 +274,8 @@ static int inv_icm42600_accel_read_sensor(struct inv_icm42600_state *st,
 	mutex_lock(&st->lock);
 
 	/* enable accel sensor */
-	conf.mode = INV_ICM42600_SENSOR_MODE_LOW_NOISE;
+	conf.mode = accel_st->power_mode;
+	conf.filter = accel_st->filter;
 	ret = inv_icm42600_set_accel_conf(st, &conf, NULL);
 	if (ret)
 		goto exit;
@@ -210,33 +311,54 @@ static const int inv_icm42600_accel_scale[] = {
 	[2 * INV_ICM42600_ACCEL_FS_2G] = 0,
 	[2 * INV_ICM42600_ACCEL_FS_2G + 1] = 598550,
 };
+static const int inv_icm42686_accel_scale[] = {
+	/* +/- 32G => 0.009576807 m/s-2 */
+	[2 * INV_ICM42686_ACCEL_FS_32G] = 0,
+	[2 * INV_ICM42686_ACCEL_FS_32G + 1] = 9576807,
+	/* +/- 16G => 0.004788403 m/s-2 */
+	[2 * INV_ICM42686_ACCEL_FS_16G] = 0,
+	[2 * INV_ICM42686_ACCEL_FS_16G + 1] = 4788403,
+	/* +/- 8G => 0.002394202 m/s-2 */
+	[2 * INV_ICM42686_ACCEL_FS_8G] = 0,
+	[2 * INV_ICM42686_ACCEL_FS_8G + 1] = 2394202,
+	/* +/- 4G => 0.001197101 m/s-2 */
+	[2 * INV_ICM42686_ACCEL_FS_4G] = 0,
+	[2 * INV_ICM42686_ACCEL_FS_4G + 1] = 1197101,
+	/* +/- 2G => 0.000598550 m/s-2 */
+	[2 * INV_ICM42686_ACCEL_FS_2G] = 0,
+	[2 * INV_ICM42686_ACCEL_FS_2G + 1] = 598550,
+};
 
-static int inv_icm42600_accel_read_scale(struct inv_icm42600_state *st,
+static int inv_icm42600_accel_read_scale(struct iio_dev *indio_dev,
 					 int *val, int *val2)
 {
+	struct inv_icm42600_state *st = iio_device_get_drvdata(indio_dev);
+	struct inv_icm42600_sensor_state *accel_st = iio_priv(indio_dev);
 	unsigned int idx;
 
 	idx = st->conf.accel.fs;
 
-	*val = inv_icm42600_accel_scale[2 * idx];
-	*val2 = inv_icm42600_accel_scale[2 * idx + 1];
+	*val = accel_st->scales[2 * idx];
+	*val2 = accel_st->scales[2 * idx + 1];
 	return IIO_VAL_INT_PLUS_NANO;
 }
 
-static int inv_icm42600_accel_write_scale(struct inv_icm42600_state *st,
+static int inv_icm42600_accel_write_scale(struct iio_dev *indio_dev,
 					  int val, int val2)
 {
+	struct inv_icm42600_state *st = iio_device_get_drvdata(indio_dev);
+	struct inv_icm42600_sensor_state *accel_st = iio_priv(indio_dev);
 	struct device *dev = regmap_get_device(st->map);
 	unsigned int idx;
 	struct inv_icm42600_sensor_conf conf = INV_ICM42600_SENSOR_CONF_INIT;
 	int ret;
 
-	for (idx = 0; idx < ARRAY_SIZE(inv_icm42600_accel_scale); idx += 2) {
-		if (val == inv_icm42600_accel_scale[idx] &&
-		    val2 == inv_icm42600_accel_scale[idx + 1])
+	for (idx = 0; idx < accel_st->scales_len; idx += 2) {
+		if (val == accel_st->scales[idx] &&
+		    val2 == accel_st->scales[idx + 1])
 			break;
 	}
-	if (idx >= ARRAY_SIZE(inv_icm42600_accel_scale))
+	if (idx >= accel_st->scales_len)
 		return -EINVAL;
 
 	conf.fs = idx / 2;
@@ -255,6 +377,12 @@ static int inv_icm42600_accel_write_scale(struct inv_icm42600_state *st,
 
 /* IIO format int + micro */
 static const int inv_icm42600_accel_odr[] = {
+	/* 1.5625Hz */
+	1, 562500,
+	/* 3.125Hz */
+	3, 125000,
+	/* 6.25Hz */
+	6, 250000,
 	/* 12.5Hz */
 	12, 500000,
 	/* 25Hz */
@@ -274,6 +402,9 @@ static const int inv_icm42600_accel_odr[] = {
 };
 
 static const int inv_icm42600_accel_odr_conv[] = {
+	INV_ICM42600_ODR_1_5625HZ_LP,
+	INV_ICM42600_ODR_3_125HZ_LP,
+	INV_ICM42600_ODR_6_25HZ_LP,
 	INV_ICM42600_ODR_12_5HZ,
 	INV_ICM42600_ODR_25HZ,
 	INV_ICM42600_ODR_50HZ,
@@ -309,7 +440,8 @@ static int inv_icm42600_accel_write_odr(struct iio_dev *indio_dev,
 					int val, int val2)
 {
 	struct inv_icm42600_state *st = iio_device_get_drvdata(indio_dev);
-	struct inv_sensors_timestamp *ts = iio_priv(indio_dev);
+	struct inv_icm42600_sensor_state *accel_st = iio_priv(indio_dev);
+	struct inv_sensors_timestamp *ts = &accel_st->ts;
 	struct device *dev = regmap_get_device(st->map);
 	unsigned int idx;
 	struct inv_icm42600_sensor_conf conf = INV_ICM42600_SENSOR_CONF_INIT;
@@ -558,14 +690,14 @@ static int inv_icm42600_accel_read_raw(struct iio_dev *indio_dev,
 		ret = iio_device_claim_direct_mode(indio_dev);
 		if (ret)
 			return ret;
-		ret = inv_icm42600_accel_read_sensor(st, chan, &data);
+		ret = inv_icm42600_accel_read_sensor(indio_dev, chan, &data);
 		iio_device_release_direct_mode(indio_dev);
 		if (ret)
 			return ret;
 		*val = data;
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_SCALE:
-		return inv_icm42600_accel_read_scale(st, val, val2);
+		return inv_icm42600_accel_read_scale(indio_dev, val, val2);
 	case IIO_CHAN_INFO_SAMP_FREQ:
 		return inv_icm42600_accel_read_odr(st, val, val2);
 	case IIO_CHAN_INFO_CALIBBIAS:
@@ -580,14 +712,16 @@ static int inv_icm42600_accel_read_avail(struct iio_dev *indio_dev,
 					 const int **vals,
 					 int *type, int *length, long mask)
 {
+	struct inv_icm42600_sensor_state *accel_st = iio_priv(indio_dev);
+
 	if (chan->type != IIO_ACCEL)
 		return -EINVAL;
 
 	switch (mask) {
 	case IIO_CHAN_INFO_SCALE:
-		*vals = inv_icm42600_accel_scale;
+		*vals = accel_st->scales;
 		*type = IIO_VAL_INT_PLUS_NANO;
-		*length = ARRAY_SIZE(inv_icm42600_accel_scale);
+		*length = accel_st->scales_len;
 		return IIO_AVAIL_LIST;
 	case IIO_CHAN_INFO_SAMP_FREQ:
 		*vals = inv_icm42600_accel_odr;
@@ -618,7 +752,7 @@ static int inv_icm42600_accel_write_raw(struct iio_dev *indio_dev,
 		ret = iio_device_claim_direct_mode(indio_dev);
 		if (ret)
 			return ret;
-		ret = inv_icm42600_accel_write_scale(st, val, val2);
+		ret = inv_icm42600_accel_write_scale(indio_dev, val, val2);
 		iio_device_release_direct_mode(indio_dev);
 		return ret;
 	case IIO_CHAN_INFO_SAMP_FREQ:
@@ -705,8 +839,8 @@ struct iio_dev *inv_icm42600_accel_init(struct inv_icm42600_state *st)
 {
 	struct device *dev = regmap_get_device(st->map);
 	const char *name;
+	struct inv_icm42600_sensor_state *accel_st;
 	struct inv_sensors_timestamp_chip ts_chip;
-	struct inv_sensors_timestamp *ts;
 	struct iio_dev *indio_dev;
 	int ret;
 
@@ -714,9 +848,24 @@ struct iio_dev *inv_icm42600_accel_init(struct inv_icm42600_state *st)
 	if (!name)
 		return ERR_PTR(-ENOMEM);
 
-	indio_dev = devm_iio_device_alloc(dev, sizeof(*ts));
+	indio_dev = devm_iio_device_alloc(dev, sizeof(*accel_st));
 	if (!indio_dev)
 		return ERR_PTR(-ENOMEM);
+	accel_st = iio_priv(indio_dev);
+
+	switch (st->chip) {
+	case INV_CHIP_ICM42686:
+		accel_st->scales = inv_icm42686_accel_scale;
+		accel_st->scales_len = ARRAY_SIZE(inv_icm42686_accel_scale);
+		break;
+	default:
+		accel_st->scales = inv_icm42600_accel_scale;
+		accel_st->scales_len = ARRAY_SIZE(inv_icm42600_accel_scale);
+		break;
+	}
+	/* low-power by default at init */
+	accel_st->power_mode = INV_ICM42600_SENSOR_MODE_LOW_POWER;
+	accel_st->filter = INV_ICM42600_FILTER_AVG_16X;
 
 	/*
 	 * clock period is 32kHz (31250ns)
@@ -725,8 +874,7 @@ struct iio_dev *inv_icm42600_accel_init(struct inv_icm42600_state *st)
 	ts_chip.clock_period = 31250;
 	ts_chip.jitter = 20;
 	ts_chip.init_period = inv_icm42600_odr_to_period(st->conf.accel.odr);
-	ts = iio_priv(indio_dev);
-	inv_sensors_timestamp_init(ts, &ts_chip);
+	inv_sensors_timestamp_init(&accel_st->ts, &ts_chip);
 
 	iio_device_set_drvdata(indio_dev, st);
 	indio_dev->name = name;
@@ -751,7 +899,8 @@ struct iio_dev *inv_icm42600_accel_init(struct inv_icm42600_state *st)
 int inv_icm42600_accel_parse_fifo(struct iio_dev *indio_dev)
 {
 	struct inv_icm42600_state *st = iio_device_get_drvdata(indio_dev);
-	struct inv_sensors_timestamp *ts = iio_priv(indio_dev);
+	struct inv_icm42600_sensor_state *accel_st = iio_priv(indio_dev);
+	struct inv_sensors_timestamp *ts = &accel_st->ts;
 	ssize_t i, size;
 	unsigned int no;
 	const void *accel, *gyro, *timestamp;

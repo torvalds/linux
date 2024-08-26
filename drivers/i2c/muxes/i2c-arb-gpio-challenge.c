@@ -167,7 +167,7 @@ static int i2c_arbitrator_probe(struct platform_device *pdev)
 	}
 
 	/* Actually add the mux adapter */
-	ret = i2c_mux_add_adapter(muxc, 0, 0, 0);
+	ret = i2c_mux_add_adapter(muxc, 0, 0);
 	if (ret)
 		i2c_put_adapter(muxc->parent);
 

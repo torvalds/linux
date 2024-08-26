@@ -1,0 +1,47 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/sound/wlf,wm8782.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Wolfson Microelectromics WM8782 audio CODEC
+
+maintainers:
+  - patches@opensource.cirrus.com
+
+allOf:
+  - $ref: dai-common.yaml#
+
+properties:
+  compatible:
+    const: wlf,wm8782
+
+  Vdda-supply:
+    description: Regulator for the analog power supply (2.7V - 5.5V)
+
+  Vdd-supply:
+    description: Regulator for the digital power supply (2.7V - 3.6V)
+
+  wlf,fsampen:
+    description: FSAMPEN pin value, 0 for low, 1 for high, 2 for disconnected.
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [0, 1, 2]
+
+  "#sound-dai-cells":
+    const: 0
+
+required:
+  - compatible
+  - Vdda-supply
+  - Vdd-supply
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    wm8782: codec {
+        compatible = "wlf,wm8782";
+        Vdda-supply = <&vdda_supply>;
+        Vdd-supply = <&vdd_supply>;
+        wlf,fsampen = <2>;
+    };

@@ -39,7 +39,7 @@
 
 /************** Functions that the back-end must provide **************/
 /* Extension for 32-bit operations. */
-inline u8 zext(u8 *buf, u8 rd);
+u8 zext(u8 *buf, u8 rd);
 /***** Moves *****/
 u8 mov_r32(u8 *buf, u8 rd, u8 rs, u8 sign_ext);
 u8 mov_r32_i32(u8 *buf, u8 reg, s32 imm);

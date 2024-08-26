@@ -12,6 +12,7 @@
 #include <linux/if_ether.h>
 #include <linux/percpu.h>
 #include <asm/asm-extable.h>
+#include <asm/sclp.h>
 #include <asm/cio.h>
 
 enum diag_stat_enum {
@@ -117,6 +118,8 @@ enum diag204_sc {
 };
 
 #define DIAG204_SUBCODE_MASK 0xffff
+#define DIAG204_BIF_BIT 0x80000000
+#define DIAG204_BUSY_WAIT (HZ / 10)
 
 /* The two available diag 204 data formats */
 enum diag204_format {
@@ -325,6 +328,11 @@ union diag318_info {
 		unsigned long cpvc : 56;
 	};
 };
+
+static inline bool diag204_has_bif(void)
+{
+	return sclp.has_diag204_bif;
+}
 
 int diag204(unsigned long subcode, unsigned long size, void *addr);
 int diag224(void *ptr);

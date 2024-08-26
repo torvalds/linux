@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * dts file for Xilinx ZynqMP SM-K26 rev1/B/A
+ * dts file for Xilinx ZynqMP SM-K26 rev2/1/B/A
  *
  * (C) Copyright 2020 - 2021, Xilinx, Inc.
+ * (C) Copyright 2023 - 2024, Advanced Micro Devices, Inc.
  *
  * Michal Simek <michal.simek@amd.com>
  */
@@ -17,8 +18,9 @@
 #include <dt-bindings/pinctrl/pinctrl-zynqmp.h>
 
 / {
-	model = "ZynqMP SM-K26 Rev1/B/A";
-	compatible = "xlnx,zynqmp-sm-k26-rev1", "xlnx,zynqmp-sm-k26-revB",
+	model = "ZynqMP SM-K26 Rev2/1/B/A";
+	compatible = "xlnx,zynqmp-sm-k26-rev2",
+		     "xlnx,zynqmp-sm-k26-rev1", "xlnx,zynqmp-sm-k26-revB",
 		     "xlnx,zynqmp-sm-k26-revA", "xlnx,zynqmp-sm-k26",
 		     "xlnx,zynqmp";
 
@@ -101,10 +103,21 @@
 			<&xilinx_ams 24>, <&xilinx_ams 25>, <&xilinx_ams 26>,
 			<&xilinx_ams 27>, <&xilinx_ams 28>, <&xilinx_ams 29>;
 	};
+
+	pwm-fan {
+		compatible = "pwm-fan";
+		status = "okay";
+		pwms = <&ttc0 2 40000 0>;
+	};
 };
 
 &modepin_gpio {
 	label = "modepin";
+};
+
+&ttc0 {
+	status = "okay";
+	#pwm-cells = <3>;
 };
 
 &uart1 { /* MIO36/MIO37 */

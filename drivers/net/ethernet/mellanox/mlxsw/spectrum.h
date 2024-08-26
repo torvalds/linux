@@ -238,7 +238,7 @@ struct mlxsw_sp_ptp_ops {
 			    struct hwtstamp_config *config);
 	void (*shaper_work)(struct work_struct *work);
 	int (*get_ts_info)(struct mlxsw_sp *mlxsw_sp,
-			   struct ethtool_ts_info *info);
+			   struct kernel_ethtool_ts_info *info);
 	int (*get_stats_count)(void);
 	void (*get_stats_strings)(u8 **p);
 	void (*get_stats)(struct mlxsw_sp_port *mlxsw_sp_port,
@@ -359,7 +359,6 @@ struct mlxsw_sp_port {
 		u16 egr_types;
 		struct mlxsw_sp_ptp_port_stats stats;
 	} ptp;
-	int max_mtu;
 	u32 max_speed;
 	struct mlxsw_sp_hdroom *hdroom;
 	u64 module_overheat_initial_val;

@@ -204,6 +204,7 @@ module_param(numWriteBufs, int, 0);
 static unsigned int writeBufSize = DEFAULT_BUFF_SIZE ;	/* in bytes */
 module_param(writeBufSize, int, 0);
 
+MODULE_DESCRIPTION("Atari/Amiga/Q40 core DMA sound driver");
 MODULE_LICENSE("GPL");
 
 static int sq_unit = -1;

@@ -547,7 +547,7 @@ static int __init ghes_edac_init(void)
 		return -ENODEV;
 
 	if (list_empty(ghes_devs)) {
-		pr_info("GHES probing device list is empty");
+		pr_info("GHES probing device list is empty\n");
 		return -ENODEV;
 	}
 

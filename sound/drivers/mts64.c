@@ -882,7 +882,6 @@ static struct parport_driver mts64_parport_driver = {
 	.probe		= snd_mts64_dev_probe,
 	.match_port	= snd_mts64_attach,
 	.detach		= snd_mts64_detach,
-	.devmodel	= true,
 };
 
 /*********************************************************************

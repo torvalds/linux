@@ -77,6 +77,10 @@ struct vdso_timestamp {
  * vdso_data will be accessed by 64 bit and compat code at the same time
  * so we should be careful before modifying this structure.
  *
+ * The ordering of the struct members is optimized to have fast access to the
+ * often required struct members which are related to CLOCK_REALTIME and
+ * CLOCK_MONOTONIC. This information is stored in the first cache lines.
+ *
  * @basetime is used to store the base time for the system wide time getter
  * VVAR page.
  *

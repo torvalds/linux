@@ -246,6 +246,7 @@ static void set_cache_mkc(struct mlx5_cache_ent *ent, void *mkc)
 	MLX5_SET(mkc, mkc, access_mode_1_0, ent->rb_key.access_mode & 0x3);
 	MLX5_SET(mkc, mkc, access_mode_4_2,
 		(ent->rb_key.access_mode >> 2) & 0x7);
+	MLX5_SET(mkc, mkc, ma_translation_mode, !!ent->rb_key.ats);
 
 	MLX5_SET(mkc, mkc, translations_octword_size,
 		 get_mkc_octo_size(ent->rb_key.access_mode,
@@ -641,10 +642,8 @@ static int mlx5_cache_ent_insert(struct mlx5_mkey_cache *cache,
 			new = &((*new)->rb_left);
 		if (cmp < 0)
 			new = &((*new)->rb_right);
-		if (cmp == 0) {
-			mutex_unlock(&cache->rb_lock);
+		if (cmp == 0)
 			return -EEXIST;
-		}
 	}
 
 	/* Add new node and rebalance tree. */
@@ -719,6 +718,8 @@ static struct mlx5_ib_mr *_mlx5_mr_cache_alloc(struct mlx5_ib_dev *dev,
 	}
 	mr->mmkey.cache_ent = ent;
 	mr->mmkey.type = MLX5_MKEY_MR;
+	mr->mmkey.rb_key = ent->rb_key;
+	mr->mmkey.cacheable = true;
 	init_waitqueue_head(&mr->mmkey.wait);
 	return mr;
 }
@@ -1158,6 +1159,7 @@ static struct mlx5_ib_mr *alloc_cacheable_mr(struct ib_pd *pd,
 		if (IS_ERR(mr))
 			return mr;
 		mr->mmkey.rb_key = rb_key;
+		mr->mmkey.cacheable = true;
 		return mr;
 	}
 
@@ -1468,12 +1470,17 @@ struct ib_mr *mlx5_ib_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 {
 	struct mlx5_ib_dev *dev = to_mdev(pd->device);
 	struct ib_umem *umem;
+	int err;
 
 	if (!IS_ENABLED(CONFIG_INFINIBAND_USER_MEM))
 		return ERR_PTR(-EOPNOTSUPP);
 
 	mlx5_ib_dbg(dev, "start 0x%llx, iova 0x%llx, length 0x%llx, access_flags 0x%x\n",
 		    start, iova, length, access_flags);
+
+	err = mlx5r_umr_resource_init(dev);
+	if (err)
+		return ERR_PTR(err);
 
 	if (access_flags & IB_ACCESS_ON_DEMAND)
 		return create_user_odp_mr(pd, start, length, iova, access_flags,
@@ -1520,6 +1527,10 @@ struct ib_mr *mlx5_ib_reg_user_mr_dmabuf(struct ib_pd *pd, u64 offset,
 	mlx5_ib_dbg(dev,
 		    "offset 0x%llx, virt_addr 0x%llx, length 0x%llx, fd %d, access_flags 0x%x\n",
 		    offset, virt_addr, length, fd, access_flags);
+
+	err = mlx5r_umr_resource_init(dev);
+	if (err)
+		return ERR_PTR(err);
 
 	/* dmabuf requires xlt update via umr to work. */
 	if (!mlx5r_umr_can_load_pas(dev, length))
@@ -1570,7 +1581,8 @@ static bool can_use_umr_rereg_access(struct mlx5_ib_dev *dev,
 	unsigned int diffs = current_access_flags ^ target_access_flags;
 
 	if (diffs & ~(IB_ACCESS_LOCAL_WRITE | IB_ACCESS_REMOTE_WRITE |
-		      IB_ACCESS_REMOTE_READ | IB_ACCESS_RELAXED_ORDERING))
+		      IB_ACCESS_REMOTE_READ | IB_ACCESS_RELAXED_ORDERING |
+		      IB_ACCESS_REMOTE_ATOMIC))
 		return false;
 	return mlx5r_umr_can_reconfig(dev, current_access_flags,
 				      target_access_flags);
@@ -1835,6 +1847,23 @@ end:
 	return ret;
 }
 
+static int mlx5_revoke_mr(struct mlx5_ib_mr *mr)
+{
+	struct mlx5_ib_dev *dev = to_mdev(mr->ibmr.device);
+	struct mlx5_cache_ent *ent = mr->mmkey.cache_ent;
+
+	if (mr->mmkey.cacheable && !mlx5r_umr_revoke_mr(mr) && !cache_ent_find_and_store(dev, mr))
+		return 0;
+
+	if (ent) {
+		spin_lock_irq(&ent->mkeys_queue.lock);
+		ent->in_use--;
+		mr->mmkey.cache_ent = NULL;
+		spin_unlock_irq(&ent->mkeys_queue.lock);
+	}
+	return destroy_mkey(dev, mr);
+}
+
 int mlx5_ib_dereg_mr(struct ib_mr *ibmr, struct ib_udata *udata)
 {
 	struct mlx5_ib_mr *mr = to_mmr(ibmr);
@@ -1880,16 +1909,9 @@ int mlx5_ib_dereg_mr(struct ib_mr *ibmr, struct ib_udata *udata)
 	}
 
 	/* Stop DMA */
-	if (mr->umem && mlx5r_umr_can_load_pas(dev, mr->umem->length))
-		if (mlx5r_umr_revoke_mr(mr) ||
-		    cache_ent_find_and_store(dev, mr))
-			mr->mmkey.cache_ent = NULL;
-
-	if (!mr->mmkey.cache_ent) {
-		rc = destroy_mkey(to_mdev(mr->ibmr.device), mr);
-		if (rc)
-			return rc;
-	}
+	rc = mlx5_revoke_mr(mr);
+	if (rc)
+		return rc;
 
 	if (mr->umem) {
 		bool is_odp = is_odp_mr(mr);

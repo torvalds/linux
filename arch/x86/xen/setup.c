@@ -34,7 +34,6 @@
 #include <xen/features.h>
 #include <xen/hvc-console.h>
 #include "xen-ops.h"
-#include "mmu.h"
 
 #define GB(x) ((uint64_t)(x) * 1024 * 1024 * 1024)
 

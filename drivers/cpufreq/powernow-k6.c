@@ -219,7 +219,7 @@ have_busfreq:
 }
 
 
-static int powernow_k6_cpu_exit(struct cpufreq_policy *policy)
+static void powernow_k6_cpu_exit(struct cpufreq_policy *policy)
 {
 	unsigned int i;
 
@@ -234,10 +234,9 @@ static int powernow_k6_cpu_exit(struct cpufreq_policy *policy)
 			cpufreq_freq_transition_begin(policy, &freqs);
 			powernow_k6_target(policy, i);
 			cpufreq_freq_transition_end(policy, &freqs, 0);
-			break;
+			return;
 		}
 	}
-	return 0;
 }
 
 static unsigned int powernow_k6_get(unsigned int cpu)

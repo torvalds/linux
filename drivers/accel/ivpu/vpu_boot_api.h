@@ -27,7 +27,7 @@
  * Minor version changes when API backward compatibility is preserved.
  * Resets to 0 if Major version is incremented.
  */
-#define VPU_BOOT_API_VER_MINOR 22
+#define VPU_BOOT_API_VER_MINOR 24
 
 /*
  * API header changed (field names, documentation, formatting) but API itself has not been changed
@@ -80,6 +80,11 @@ struct vpu_firmware_header {
 	u32 preemption_buffer_2_size;
 	/* Space reserved for future preemption-related fields. */
 	u32 preemption_reserved[6];
+	/* FW image read only section start address, 4KB aligned */
+	u64 ro_section_start_address;
+	/* FW image read only section size, 4KB aligned */
+	u32 ro_section_size;
+	u32 reserved;
 };
 
 /*
@@ -333,7 +338,14 @@ struct vpu_boot_params {
 	 * The KMD is required to update this value on every VPU reset.
 	 */
 	u64 system_time_us;
-	u32 pad4[18];
+	u32 pad4[2];
+	/*
+	 * The delta between device monotonic time and the current value of the
+	 * HW timestamp register, in ticks. Written by the firmware during boot.
+	 * Can be used by the KMD to calculate device time.
+	 */
+	u64 device_time_delta_ticks;
+	u32 pad7[14];
 	/* Warm boot information: 0x400 - 0x43F */
 	u32 warm_boot_sections_count;
 	u32 warm_boot_start_address_reference;

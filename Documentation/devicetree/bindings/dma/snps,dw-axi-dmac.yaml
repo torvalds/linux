@@ -21,6 +21,7 @@ properties:
       - snps,axi-dma-1.01a
       - intel,kmb-axi-dma
       - starfive,jh7110-axi-dma
+      - starfive,jh8100-axi-dma
 
   reg:
     minItems: 1

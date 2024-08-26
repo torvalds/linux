@@ -73,7 +73,7 @@ test_span_gre_ttl()
 	RET=0
 
 	mirror_install $swp1 ingress $tundev \
-		"prot ip flower $tcflags ip_prot icmp"
+		"prot ip flower ip_prot icmp"
 	tc filter add dev $h3 ingress pref 77 prot $prot \
 		flower skip_hw ip_ttl 50 action pass
 
@@ -81,13 +81,13 @@ test_span_gre_ttl()
 
 	ip link set dev $tundev type $type ttl 50
 	sleep 2
-	mirror_test v$h1 192.0.2.1 192.0.2.2 $h3 77 10
+	mirror_test v$h1 192.0.2.1 192.0.2.2 $h3 77 ">= 10"
 
 	ip link set dev $tundev type $type ttl 100
 	tc filter del dev $h3 ingress pref 77
 	mirror_uninstall $swp1 ingress
 
-	log_test "$what: TTL change ($tcflags)"
+	log_test "$what: TTL change"
 }
 
 test_span_gre_tun_up()
@@ -98,15 +98,15 @@ test_span_gre_tun_up()
 	RET=0
 
 	ip link set dev $tundev down
-	mirror_install $swp1 ingress $tundev "matchall $tcflags"
-	fail_test_span_gre_dir $tundev ingress
+	mirror_install $swp1 ingress $tundev "matchall"
+	fail_test_span_gre_dir $tundev
 
 	ip link set dev $tundev up
 
-	quick_test_span_gre_dir $tundev ingress
+	quick_test_span_gre_dir $tundev
 	mirror_uninstall $swp1 ingress
 
-	log_test "$what: tunnel down/up ($tcflags)"
+	log_test "$what: tunnel down/up"
 }
 
 test_span_gre_egress_up()
@@ -118,8 +118,8 @@ test_span_gre_egress_up()
 	RET=0
 
 	ip link set dev $swp3 down
-	mirror_install $swp1 ingress $tundev "matchall $tcflags"
-	fail_test_span_gre_dir $tundev ingress
+	mirror_install $swp1 ingress $tundev "matchall"
+	fail_test_span_gre_dir $tundev
 
 	# After setting the device up, wait for neighbor to get resolved so that
 	# we can expect mirroring to work.
@@ -127,10 +127,10 @@ test_span_gre_egress_up()
 	setup_wait_dev $swp3
 	ping -c 1 -I $swp3 $remote_ip &>/dev/null
 
-	quick_test_span_gre_dir $tundev ingress
+	quick_test_span_gre_dir $tundev
 	mirror_uninstall $swp1 ingress
 
-	log_test "$what: egress down/up ($tcflags)"
+	log_test "$what: egress down/up"
 }
 
 test_span_gre_remote_ip()
@@ -144,14 +144,14 @@ test_span_gre_remote_ip()
 	RET=0
 
 	ip link set dev $tundev type $type remote $wrong_ip
-	mirror_install $swp1 ingress $tundev "matchall $tcflags"
-	fail_test_span_gre_dir $tundev ingress
+	mirror_install $swp1 ingress $tundev "matchall"
+	fail_test_span_gre_dir $tundev
 
 	ip link set dev $tundev type $type remote $correct_ip
-	quick_test_span_gre_dir $tundev ingress
+	quick_test_span_gre_dir $tundev
 	mirror_uninstall $swp1 ingress
 
-	log_test "$what: remote address change ($tcflags)"
+	log_test "$what: remote address change"
 }
 
 test_span_gre_tun_del()
@@ -165,10 +165,10 @@ test_span_gre_tun_del()
 
 	RET=0
 
-	mirror_install $swp1 ingress $tundev "matchall $tcflags"
-	quick_test_span_gre_dir $tundev ingress
+	mirror_install $swp1 ingress $tundev "matchall"
+	quick_test_span_gre_dir $tundev
 	ip link del dev $tundev
-	fail_test_span_gre_dir $tundev ingress
+	fail_test_span_gre_dir $tundev
 
 	tunnel_create $tundev $type $local_ip $remote_ip \
 		      ttl 100 tos inherit $flags
@@ -176,11 +176,11 @@ test_span_gre_tun_del()
 	# Recreating the tunnel doesn't reestablish mirroring, so reinstall it
 	# and verify it works for the follow-up tests.
 	mirror_uninstall $swp1 ingress
-	mirror_install $swp1 ingress $tundev "matchall $tcflags"
-	quick_test_span_gre_dir $tundev ingress
+	mirror_install $swp1 ingress $tundev "matchall"
+	quick_test_span_gre_dir $tundev
 	mirror_uninstall $swp1 ingress
 
-	log_test "$what: tunnel deleted ($tcflags)"
+	log_test "$what: tunnel deleted"
 }
 
 test_span_gre_route_del()
@@ -192,18 +192,18 @@ test_span_gre_route_del()
 
 	RET=0
 
-	mirror_install $swp1 ingress $tundev "matchall $tcflags"
-	quick_test_span_gre_dir $tundev ingress
+	mirror_install $swp1 ingress $tundev "matchall"
+	quick_test_span_gre_dir $tundev
 
 	ip route del $route dev $edev
-	fail_test_span_gre_dir $tundev ingress
+	fail_test_span_gre_dir $tundev
 
 	ip route add $route dev $edev
-	quick_test_span_gre_dir $tundev ingress
+	quick_test_span_gre_dir $tundev
 
 	mirror_uninstall $swp1 ingress
 
-	log_test "$what: underlay route removal ($tcflags)"
+	log_test "$what: underlay route removal"
 }
 
 test_ttl()
@@ -244,30 +244,11 @@ test_route_del()
 	test_span_gre_route_del gt6 $swp3 2001:db8:2::/64 "mirror to ip6gretap"
 }
 
-test_all()
-{
-	slow_path_trap_install $swp1 ingress
-	slow_path_trap_install $swp1 egress
-
-	tests_run
-
-	slow_path_trap_uninstall $swp1 egress
-	slow_path_trap_uninstall $swp1 ingress
-}
-
 trap cleanup EXIT
 
 setup_prepare
 setup_wait
 
-tcflags="skip_hw"
-test_all
-
-if ! tc_offload_check; then
-	echo "WARN: Could not test offloaded functionality"
-else
-	tcflags="skip_sw"
-	test_all
-fi
+tests_run
 
 exit $EXIT_STATUS

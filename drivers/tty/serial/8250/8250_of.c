@@ -18,6 +18,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/clk.h>
 #include <linux/reset.h>
+#include <linux/notifier.h>
 
 #include "8250.h"
 
@@ -26,6 +27,7 @@ struct of_serial_info {
 	struct reset_control *rst;
 	int type;
 	int line;
+	struct notifier_block clk_notifier;
 };
 
 /* Nuvoton NPCM timeout register */
@@ -56,6 +58,26 @@ static int npcm_setup(struct uart_port *port)
 	port->get_divisor = npcm_get_divisor;
 	port->startup = npcm_startup;
 	return 0;
+}
+
+static inline struct of_serial_info *clk_nb_to_info(struct notifier_block *nb)
+{
+	return container_of(nb, struct of_serial_info, clk_notifier);
+}
+
+static int of_platform_serial_clk_notifier_cb(struct notifier_block *nb, unsigned long event,
+					      void *data)
+{
+	struct of_serial_info *info = clk_nb_to_info(nb);
+	struct uart_8250_port *port8250 = serial8250_get_port(info->line);
+	struct clk_notifier_data *ndata = data;
+
+	if (event == POST_RATE_CHANGE) {
+		serial8250_update_uartclk(&port8250->port, ndata->new_rate);
+		return NOTIFY_OK;
+	}
+
+	return NOTIFY_DONE;
 }
 
 /*
@@ -218,7 +240,19 @@ static int of_platform_serial_probe(struct platform_device *ofdev)
 	info->type = port_type;
 	info->line = ret;
 	platform_set_drvdata(ofdev, info);
+
+	if (info->clk) {
+		info->clk_notifier.notifier_call = of_platform_serial_clk_notifier_cb;
+		ret = clk_notifier_register(info->clk, &info->clk_notifier);
+		if (ret) {
+			dev_err_probe(port8250.port.dev, ret, "Failed to set the clock notifier\n");
+			goto err_unregister;
+		}
+	}
+
 	return 0;
+err_unregister:
+	serial8250_unregister_port(info->line);
 err_dispose:
 	pm_runtime_put_sync(&ofdev->dev);
 	pm_runtime_disable(&ofdev->dev);
@@ -233,6 +267,9 @@ err_free:
 static void of_platform_serial_remove(struct platform_device *ofdev)
 {
 	struct of_serial_info *info = platform_get_drvdata(ofdev);
+
+	if (info->clk)
+		clk_notifier_unregister(info->clk, &info->clk_notifier);
 
 	serial8250_unregister_port(info->line);
 

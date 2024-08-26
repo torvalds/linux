@@ -925,4 +925,5 @@ static struct platform_driver moortec_pvt_driver = {
 };
 module_platform_driver(moortec_pvt_driver);
 
+MODULE_DESCRIPTION("Moortec Semiconductor MR75203 PVT Controller driver");
 MODULE_LICENSE("GPL v2");

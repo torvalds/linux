@@ -464,6 +464,27 @@ static int set_clk_mode(struct device *dev, struct regmap *regmap,
 				  OUT32K_MODE_CMOS);
 }
 
+static struct i2c_client *bd71828_dev;
+static void bd71828_power_off(void)
+{
+	while (true) {
+		s32 val;
+
+		/* We are not allowed to sleep, so do not use regmap involving mutexes here. */
+		val = i2c_smbus_read_byte_data(bd71828_dev, BD71828_REG_PS_CTRL_1);
+		if (val >= 0)
+			i2c_smbus_write_byte_data(bd71828_dev,
+						  BD71828_REG_PS_CTRL_1,
+						  BD71828_MASK_STATE_HBNT | (u8)val);
+		mdelay(500);
+	}
+}
+
+static void bd71828_remove_poweroff(void *data)
+{
+	pm_power_off = NULL;
+}
+
 static int bd71828_i2c_probe(struct i2c_client *i2c)
 {
 	struct regmap_irq_chip_data *irq_data;
@@ -542,7 +563,20 @@ static int bd71828_i2c_probe(struct i2c_client *i2c)
 	ret = devm_mfd_add_devices(&i2c->dev, PLATFORM_DEVID_AUTO, mfd, cells,
 				   NULL, 0, regmap_irq_get_domain(irq_data));
 	if (ret)
-		dev_err_probe(&i2c->dev, ret, "Failed to create subdevices\n");
+		return	dev_err_probe(&i2c->dev, ret, "Failed to create subdevices\n");
+
+	if (of_device_is_system_power_controller(i2c->dev.of_node) &&
+	    chip_type == ROHM_CHIP_TYPE_BD71828) {
+		if (!pm_power_off) {
+			bd71828_dev = i2c;
+			pm_power_off = bd71828_power_off;
+			ret = devm_add_action_or_reset(&i2c->dev,
+						       bd71828_remove_poweroff,
+						       NULL);
+		} else {
+			dev_warn(&i2c->dev, "Poweroff callback already assigned\n");
+		}
+	}
 
 	return ret;
 }

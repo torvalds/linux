@@ -1788,6 +1788,7 @@ struct ib_qp {
 	struct list_head	rdma_mrs;
 	struct list_head	sig_mrs;
 	struct ib_srq	       *srq;
+	struct completion	srq_completion;
 	struct ib_xrcd	       *xrcd; /* XRC TGT QPs only */
 	struct list_head	xrcd_list;
 
@@ -1797,6 +1798,7 @@ struct ib_qp {
 	struct ib_qp           *real_qp;
 	struct ib_uqp_object   *uobject;
 	void                  (*event_handler)(struct ib_event *, void *);
+	void                  (*registered_event_handler)(struct ib_event *, void *);
 	void		       *qp_context;
 	/* sgid_attrs associated with the AV's */
 	const struct ib_gid_attr *av_sgid_attr;
@@ -2463,7 +2465,7 @@ struct ib_device_ops {
 			int qp_attr_mask, struct ib_qp_init_attr *qp_init_attr);
 	int (*destroy_qp)(struct ib_qp *qp, struct ib_udata *udata);
 	int (*create_cq)(struct ib_cq *cq, const struct ib_cq_init_attr *attr,
-			 struct ib_udata *udata);
+			 struct uverbs_attr_bundle *attrs);
 	int (*modify_cq)(struct ib_cq *cq, u16 cq_count, u16 cq_period);
 	int (*destroy_cq)(struct ib_cq *cq, struct ib_udata *udata);
 	int (*resize_cq)(struct ib_cq *cq, int cqe, struct ib_udata *udata);
@@ -2661,6 +2663,18 @@ struct ib_device_ops {
 	 */
 	int (*get_numa_node)(struct ib_device *dev);
 
+	/**
+	 * add_sub_dev - Add a sub IB device
+	 */
+	struct ib_device *(*add_sub_dev)(struct ib_device *parent,
+					 enum rdma_nl_dev_type type,
+					 const char *name);
+
+	/**
+	 * del_sub_dev - Delete a sub IB device
+	 */
+	void (*del_sub_dev)(struct ib_device *sub_dev);
+
 	DECLARE_RDMA_OBJ_SIZE(ib_ah);
 	DECLARE_RDMA_OBJ_SIZE(ib_counters);
 	DECLARE_RDMA_OBJ_SIZE(ib_cq);
@@ -2771,6 +2785,17 @@ struct ib_device {
 	char iw_ifname[IFNAMSIZ];
 	u32 iw_driver_flags;
 	u32 lag_flags;
+
+	/* A parent device has a list of sub-devices */
+	struct mutex subdev_lock;
+	struct list_head subdev_list_head;
+
+	/* A sub device has a type and a parent */
+	enum rdma_nl_dev_type type;
+	struct ib_device *parent;
+	struct list_head subdev_list;
+
+	enum rdma_nl_name_assign_type name_assign_type;
 };
 
 static inline void *rdma_zalloc_obj(struct ib_device *dev, size_t size,
@@ -4639,6 +4664,8 @@ static inline enum rdma_ah_attr_type rdma_ah_find_type(struct ib_device *dev,
 			return RDMA_AH_ATTR_TYPE_OPA;
 		return RDMA_AH_ATTR_TYPE_IB;
 	}
+	if (dev->type == RDMA_DEVICE_TYPE_SMI)
+		return RDMA_AH_ATTR_TYPE_IB;
 
 	return RDMA_AH_ATTR_TYPE_UNDEFINED;
 }
@@ -4820,4 +4847,32 @@ static inline u16 rdma_get_udp_sport(u32 fl, u32 lqpn, u32 rqpn)
 
 const struct ib_port_immutable*
 ib_port_immutable_read(struct ib_device *dev, unsigned int port);
+
+/** ib_add_sub_device - Add a sub IB device on an existing one
+ *
+ * @parent: The IB device that needs to add a sub device
+ * @type: The type of the new sub device
+ * @name: The name of the new sub device
+ *
+ *
+ * Return 0 on success, an error code otherwise
+ */
+int ib_add_sub_device(struct ib_device *parent,
+		      enum rdma_nl_dev_type type,
+		      const char *name);
+
+
+/** ib_del_sub_device_and_put - Delect an IB sub device while holding a 'get'
+ *
+ * @sub: The sub device that is going to be deleted
+ *
+ * Return 0 on success, an error code otherwise
+ */
+int ib_del_sub_device_and_put(struct ib_device *sub);
+
+static inline void ib_mark_name_assigned_by_user(struct ib_device *ibdev)
+{
+	ibdev->name_assign_type = RDMA_NAME_ASSIGN_TYPE_USER;
+}
+
 #endif /* IB_VERBS_H */

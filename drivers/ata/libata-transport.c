@@ -217,7 +217,8 @@ static DEVICE_ATTR(name, S_IRUGO, show_ata_port_##name, NULL)
 
 ata_port_simple_attr(nr_pmp_links, nr_pmp_links, "%d\n", int);
 ata_port_simple_attr(stats.idle_irq, idle_irq, "%ld\n", unsigned long);
-ata_port_simple_attr(local_port_no, port_no, "%u\n", unsigned int);
+/* We want the port_no sysfs attibute to start at 1 (ap->port_no starts at 0) */
+ata_port_simple_attr(port_no + 1, port_no, "%u\n", unsigned int);
 
 static DECLARE_TRANSPORT_CLASS(ata_port_class,
 			       "ata_port", NULL, NULL, NULL);
@@ -265,6 +266,7 @@ void ata_tport_delete(struct ata_port *ap)
 	transport_destroy_device(dev);
 	put_device(dev);
 }
+EXPORT_SYMBOL_GPL(ata_tport_delete);
 
 static const struct device_type ata_port_sas_type = {
 	.name = ATA_PORT_TYPE_NAME,
@@ -329,6 +331,7 @@ int ata_tport_add(struct device *parent,
 	put_device(dev);
 	return error;
 }
+EXPORT_SYMBOL_GPL(ata_tport_add);
 
 /**
  *     ata_port_classify - determine device type based on ATA-spec signature

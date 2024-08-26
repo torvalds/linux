@@ -232,11 +232,24 @@ void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr,
 	unsigned long old;
 
 	if (unlikely(atomic_read(&current->tracing_graph_pause)))
+err_out:
 		return;
 
 	if (IS_ENABLED(CONFIG_UNWINDER_FRAME_POINTER)) {
-		/* FP points one word below parent's top of stack */
-		frame_pointer += 4;
+		/*
+		 * Usually, the stack frames are contiguous in memory but cases
+		 * have been observed where the next stack frame does not live
+		 * at 'frame_pointer + 4' as this code used to assume.
+		 *
+		 * Instead, dereference the field in the stack frame that
+		 * stores the SP of the calling frame: to avoid unbounded
+		 * recursion, this cannot involve any ftrace instrumented
+		 * functions, so use the __get_kernel_nofault() primitive
+		 * directly.
+		 */
+		__get_kernel_nofault(&frame_pointer,
+				     (unsigned long *)(frame_pointer - 8),
+				     unsigned long, err_out);
 	} else {
 		struct stackframe frame = {
 			.fp = frame_pointer,

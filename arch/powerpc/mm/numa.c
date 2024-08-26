@@ -896,7 +896,7 @@ static int __init numa_setup_drmem_lmb(struct drmem_lmb *lmb,
 
 static int __init parse_numa_properties(void)
 {
-	struct device_node *memory;
+	struct device_node *memory, *pci;
 	int default_nid = 0;
 	unsigned long i;
 	const __be32 *associativity;
@@ -1008,6 +1008,18 @@ new_range:
 
 		if (--ranges)
 			goto new_range;
+	}
+
+	for_each_node_by_name(pci, "pci") {
+		int nid = NUMA_NO_NODE;
+
+		associativity = of_get_associativity(pci);
+		if (associativity) {
+			nid = associativity_to_nid(associativity);
+			initialize_form1_numa_distance(associativity);
+		}
+		if (likely(nid >= 0) && !node_online(nid))
+			node_set_online(nid);
 	}
 
 	/*

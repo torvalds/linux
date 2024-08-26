@@ -45,11 +45,11 @@ enum {
 	P_SLEEP_CLK,
 };
 
-static struct pll_vco lucid_vco[] = {
+static const struct pll_vco lucid_vco[] = {
 	{ 249600000, 1800000000, 0 },
 };
 
-static struct pll_vco zonda_vco[] = {
+static const struct pll_vco zonda_vco[] = {
 	{ 595200000, 3600000000, 0 },
 };
 
@@ -3034,7 +3034,7 @@ static int camcc_sc8280xp_probe(struct platform_device *pdev)
 	/* Keep some clocks always-on */
 	qcom_branch_set_clk_en(regmap, 0xc1e4); /* CAMCC_GDSC_CLK */
 
-	ret = qcom_cc_really_probe(pdev, &camcc_sc8280xp_desc, regmap);
+	ret = qcom_cc_really_probe(&pdev->dev, &camcc_sc8280xp_desc, regmap);
 	if (ret)
 		goto err_disable;
 

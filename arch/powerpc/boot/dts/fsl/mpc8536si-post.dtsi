@@ -199,6 +199,10 @@
 
 /include/ "pq3-dma-0.dtsi"
 /include/ "pq3-etsec1-0.dtsi"
+	enet0: ethernet@24000 {
+		fsl,wake-on-filer;
+		fsl,pmc-handle = <&etsec1_clk>;
+	};
 /include/ "pq3-etsec1-timer-0.dtsi"
 
 	usb@22000 {
@@ -222,9 +226,10 @@
 	};
 
 /include/ "pq3-etsec1-2.dtsi"
-
-	ethernet@26000 {
+	enet2: ethernet@26000 {
 		cell-index = <1>;
+		fsl,wake-on-filer;
+		fsl,pmc-handle = <&etsec3_clk>;
 	};
 
 	usb@2b000 {
@@ -248,5 +253,10 @@
 		compatible = "fsl,mpc8536-guts";
 		reg = <0xe0000 0x1000>;
 		fsl,has-rstcr;
+	};
+
+/include/ "pq3-power.dtsi"
+	power@e0070 {
+		compatible = "fsl,mpc8536-pmc", "fsl,mpc8548-pmc";
 	};
 };

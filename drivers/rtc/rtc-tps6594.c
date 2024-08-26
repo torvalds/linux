@@ -42,6 +42,11 @@
 // Multiplier for ppb conversions
 #define PPB_MULT NANO
 
+struct tps6594_rtc {
+	struct rtc_device *rtc_dev;
+	int irq;
+};
+
 static int tps6594_rtc_alarm_irq_enable(struct device *dev,
 					unsigned int enabled)
 {
@@ -325,11 +330,11 @@ static int tps6594_rtc_set_offset(struct device *dev, long offset)
 	return tps6594_rtc_set_calibration(dev, calibration);
 }
 
-static irqreturn_t tps6594_rtc_interrupt(int irq, void *rtc)
+static irqreturn_t tps6594_rtc_interrupt(int irq, void *data)
 {
-	struct device *dev = rtc;
+	struct device *dev = data;
 	struct tps6594 *tps = dev_get_drvdata(dev->parent);
-	struct rtc_device *rtc_dev = dev_get_drvdata(dev);
+	struct tps6594_rtc *rtc = dev_get_drvdata(dev);
 	int ret;
 	u32 rtc_reg;
 
@@ -337,7 +342,7 @@ static irqreturn_t tps6594_rtc_interrupt(int irq, void *rtc)
 	if (ret)
 		return IRQ_NONE;
 
-	rtc_update_irq(rtc_dev, 1, RTC_IRQF | RTC_AF);
+	rtc_update_irq(rtc->rtc_dev, 1, RTC_IRQF | RTC_AF);
 
 	return IRQ_HANDLED;
 }
@@ -356,7 +361,7 @@ static int tps6594_rtc_probe(struct platform_device *pdev)
 {
 	struct tps6594 *tps = dev_get_drvdata(pdev->dev.parent);
 	struct device *dev = &pdev->dev;
-	struct rtc_device *rtc;
+	struct tps6594_rtc *rtc;
 	int irq;
 	int ret;
 
@@ -364,9 +369,9 @@ static int tps6594_rtc_probe(struct platform_device *pdev)
 	if (!rtc)
 		return -ENOMEM;
 
-	rtc = devm_rtc_allocate_device(dev);
-	if (IS_ERR(rtc))
-		return PTR_ERR(rtc);
+	rtc->rtc_dev = devm_rtc_allocate_device(dev);
+	if (IS_ERR(rtc->rtc_dev))
+		return PTR_ERR(rtc->rtc_dev);
 
 	// Enable crystal oscillator.
 	ret = regmap_set_bits(tps->regmap, TPS6594_REG_RTC_CTRL_2,
@@ -415,6 +420,8 @@ static int tps6594_rtc_probe(struct platform_device *pdev)
 	if (irq < 0)
 		return dev_err_probe(dev, irq, "Failed to get irq\n");
 
+	rtc->irq = irq;
+
 	ret = devm_request_threaded_irq(dev, irq, NULL, tps6594_rtc_interrupt,
 					IRQF_ONESHOT, TPS6594_IRQ_NAME_ALARM,
 					dev);
@@ -427,12 +434,55 @@ static int tps6594_rtc_probe(struct platform_device *pdev)
 		return dev_err_probe(dev, ret,
 				     "Failed to init rtc as wakeup source\n");
 
-	rtc->ops = &tps6594_rtc_ops;
-	rtc->range_min = RTC_TIMESTAMP_BEGIN_2000;
-	rtc->range_max = RTC_TIMESTAMP_END_2099;
+	rtc->rtc_dev->ops = &tps6594_rtc_ops;
+	rtc->rtc_dev->range_min = RTC_TIMESTAMP_BEGIN_2000;
+	rtc->rtc_dev->range_max = RTC_TIMESTAMP_END_2099;
 
-	return devm_rtc_register_device(rtc);
+	return devm_rtc_register_device(rtc->rtc_dev);
 }
+
+static int tps6594_rtc_resume(struct device *dev)
+{
+	struct tps6594 *tps = dev_get_drvdata(dev->parent);
+	struct tps6594_rtc *rtc = dev_get_drvdata(dev);
+	int ret;
+
+	ret = regmap_test_bits(tps->regmap, TPS6594_REG_INT_STARTUP,
+			       TPS6594_BIT_RTC_INT);
+	if (ret < 0) {
+		dev_err(dev, "failed to read REG_INT_STARTUP: %d\n", ret);
+		goto out;
+	}
+
+	if (ret > 0) {
+		/*
+		 * If the alarm bit is set, it means that the IRQ has been
+		 * fired. But, the kernel may not have woke up yet when it
+		 * happened. So, we have to clear it.
+		 */
+		ret = regmap_write(tps->regmap, TPS6594_REG_RTC_STATUS,
+				   TPS6594_BIT_ALARM);
+		if (ret < 0)
+			dev_err(dev, "error clearing alarm bit: %d", ret);
+
+		rtc_update_irq(rtc->rtc_dev, 1, RTC_IRQF | RTC_AF);
+	}
+out:
+	disable_irq_wake(rtc->irq);
+
+	return 0;
+}
+
+static int tps6594_rtc_suspend(struct device *dev)
+{
+	struct tps6594_rtc *rtc = dev_get_drvdata(dev);
+
+	enable_irq_wake(rtc->irq);
+
+	return 0;
+}
+
+static DEFINE_SIMPLE_DEV_PM_OPS(tps6594_rtc_pm_ops, tps6594_rtc_suspend, tps6594_rtc_resume);
 
 static const struct platform_device_id tps6594_rtc_id_table[] = {
 	{ "tps6594-rtc", },
@@ -444,6 +494,7 @@ static struct platform_driver tps6594_rtc_driver = {
 	.probe		= tps6594_rtc_probe,
 	.driver		= {
 		.name	= "tps6594-rtc",
+		.pm = pm_sleep_ptr(&tps6594_rtc_pm_ops),
 	},
 	.id_table = tps6594_rtc_id_table,
 };

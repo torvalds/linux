@@ -475,7 +475,7 @@ void rnbd_clt_remove_dev_symlink(struct rnbd_clt_dev *dev)
 	}
 }
 
-static struct kobj_type rnbd_dev_ktype = {
+static const struct kobj_type rnbd_dev_ktype = {
 	.sysfs_ops      = &kobj_sysfs_ops,
 	.default_groups = rnbd_dev_groups,
 };

@@ -417,7 +417,7 @@ int update_hw_load_avg(u64 now, struct rq *rq, u64 capacity)
 
 #ifdef CONFIG_HAVE_SCHED_AVG_IRQ
 /*
- * irq:
+ * IRQ:
  *
  *   util_sum = \Sum se->avg.util_sum but se->avg.util_sum is not tracked
  *   util_sum = cpu_scale * load_sum
@@ -432,7 +432,7 @@ int update_irq_load_avg(struct rq *rq, u64 running)
 	int ret = 0;
 
 	/*
-	 * We can't use clock_pelt because irq time is not accounted in
+	 * We can't use clock_pelt because IRQ time is not accounted in
 	 * clock_task. Instead we directly scale the running time to
 	 * reflect the real amount of computation
 	 */

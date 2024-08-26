@@ -193,7 +193,7 @@ static void intel_crt_set_dpms(struct intel_encoder *encoder,
 		adpa |= ADPA_PIPE_SEL(crtc->pipe);
 
 	if (!HAS_PCH_SPLIT(dev_priv))
-		intel_de_write(dev_priv, BCLRPAT(crtc->pipe), 0);
+		intel_de_write(dev_priv, BCLRPAT(dev_priv, crtc->pipe), 0);
 
 	switch (mode) {
 	case DRM_MODE_DPMS_ON:
@@ -603,18 +603,19 @@ static bool intel_crt_detect_hotplug(struct drm_connector *connector)
 					      CRT_HOTPLUG_FORCE_DETECT,
 					      CRT_HOTPLUG_FORCE_DETECT);
 		/* wait for FORCE_DETECT to go off */
-		if (intel_de_wait_for_clear(dev_priv, PORT_HOTPLUG_EN,
+		if (intel_de_wait_for_clear(dev_priv, PORT_HOTPLUG_EN(dev_priv),
 					    CRT_HOTPLUG_FORCE_DETECT, 1000))
 			drm_dbg_kms(&dev_priv->drm,
 				    "timed out waiting for FORCE_DETECT to go off");
 	}
 
-	stat = intel_de_read(dev_priv, PORT_HOTPLUG_STAT);
+	stat = intel_de_read(dev_priv, PORT_HOTPLUG_STAT(dev_priv));
 	if ((stat & CRT_HOTPLUG_MONITOR_MASK) != CRT_HOTPLUG_MONITOR_NONE)
 		ret = true;
 
 	/* clear the interrupt we just generated, if any */
-	intel_de_write(dev_priv, PORT_HOTPLUG_STAT, CRT_HOTPLUG_INT_STATUS);
+	intel_de_write(dev_priv, PORT_HOTPLUG_STAT(dev_priv),
+		       CRT_HOTPLUG_INT_STATUS);
 
 	i915_hotplug_interrupt_update(dev_priv, CRT_HOTPLUG_FORCE_DETECT, 0);
 
@@ -707,9 +708,12 @@ intel_crt_load_detect(struct intel_crt *crt, enum pipe pipe)
 
 	drm_dbg_kms(&dev_priv->drm, "starting load-detect on CRT\n");
 
-	save_bclrpat = intel_de_read(dev_priv, BCLRPAT(cpu_transcoder));
-	save_vtotal = intel_de_read(dev_priv, TRANS_VTOTAL(cpu_transcoder));
-	vblank = intel_de_read(dev_priv, TRANS_VBLANK(cpu_transcoder));
+	save_bclrpat = intel_de_read(dev_priv,
+				     BCLRPAT(dev_priv, cpu_transcoder));
+	save_vtotal = intel_de_read(dev_priv,
+				    TRANS_VTOTAL(dev_priv, cpu_transcoder));
+	vblank = intel_de_read(dev_priv,
+			       TRANS_VBLANK(dev_priv, cpu_transcoder));
 
 	vtotal = REG_FIELD_GET(VTOTAL_MASK, save_vtotal) + 1;
 	vactive = REG_FIELD_GET(VACTIVE_MASK, save_vtotal) + 1;
@@ -718,14 +722,16 @@ intel_crt_load_detect(struct intel_crt *crt, enum pipe pipe)
 	vblank_end = REG_FIELD_GET(VBLANK_END_MASK, vblank) + 1;
 
 	/* Set the border color to purple. */
-	intel_de_write(dev_priv, BCLRPAT(cpu_transcoder), 0x500050);
+	intel_de_write(dev_priv, BCLRPAT(dev_priv, cpu_transcoder), 0x500050);
 
 	if (DISPLAY_VER(dev_priv) != 2) {
-		u32 transconf = intel_de_read(dev_priv, TRANSCONF(cpu_transcoder));
+		u32 transconf = intel_de_read(dev_priv,
+					      TRANSCONF(dev_priv, cpu_transcoder));
 
-		intel_de_write(dev_priv, TRANSCONF(cpu_transcoder),
+		intel_de_write(dev_priv, TRANSCONF(dev_priv, cpu_transcoder),
 			       transconf | TRANSCONF_FORCE_BORDER);
-		intel_de_posting_read(dev_priv, TRANSCONF(cpu_transcoder));
+		intel_de_posting_read(dev_priv,
+				      TRANSCONF(dev_priv, cpu_transcoder));
 		/* Wait for next Vblank to substitue
 		 * border color for Color info */
 		intel_crtc_wait_for_next_vblank(intel_crtc_for_pipe(dev_priv, pipe));
@@ -734,7 +740,8 @@ intel_crt_load_detect(struct intel_crt *crt, enum pipe pipe)
 			connector_status_connected :
 			connector_status_disconnected;
 
-		intel_de_write(dev_priv, TRANSCONF(cpu_transcoder), transconf);
+		intel_de_write(dev_priv, TRANSCONF(dev_priv, cpu_transcoder),
+			       transconf);
 	} else {
 		bool restore_vblank = false;
 		int count, detect;
@@ -744,11 +751,13 @@ intel_crt_load_detect(struct intel_crt *crt, enum pipe pipe)
 		* Yes, this will flicker
 		*/
 		if (vblank_start <= vactive && vblank_end >= vtotal) {
-			u32 vsync = intel_de_read(dev_priv, TRANS_VSYNC(cpu_transcoder));
+			u32 vsync = intel_de_read(dev_priv,
+						  TRANS_VSYNC(dev_priv, cpu_transcoder));
 			u32 vsync_start = REG_FIELD_GET(VSYNC_START_MASK, vsync) + 1;
 
 			vblank_start = vsync_start;
-			intel_de_write(dev_priv, TRANS_VBLANK(cpu_transcoder),
+			intel_de_write(dev_priv,
+				       TRANS_VBLANK(dev_priv, cpu_transcoder),
 				       VBLANK_START(vblank_start - 1) |
 				       VBLANK_END(vblank_end - 1));
 			restore_vblank = true;
@@ -762,9 +771,9 @@ intel_crt_load_detect(struct intel_crt *crt, enum pipe pipe)
 		/*
 		 * Wait for the border to be displayed
 		 */
-		while (intel_de_read(dev_priv, PIPEDSL(pipe)) >= vactive)
+		while (intel_de_read(dev_priv, PIPEDSL(dev_priv, pipe)) >= vactive)
 			;
-		while ((dsl = intel_de_read(dev_priv, PIPEDSL(pipe))) <= vsample)
+		while ((dsl = intel_de_read(dev_priv, PIPEDSL(dev_priv, pipe))) <= vsample)
 			;
 		/*
 		 * Watch ST00 for an entire scanline
@@ -777,11 +786,13 @@ intel_crt_load_detect(struct intel_crt *crt, enum pipe pipe)
 			st00 = intel_de_read8(dev_priv, _VGA_MSR_WRITE);
 			if (st00 & (1 << 4))
 				detect++;
-		} while ((intel_de_read(dev_priv, PIPEDSL(pipe)) == dsl));
+		} while ((intel_de_read(dev_priv, PIPEDSL(dev_priv, pipe)) == dsl));
 
 		/* restore vblank if necessary */
 		if (restore_vblank)
-			intel_de_write(dev_priv, TRANS_VBLANK(cpu_transcoder), vblank);
+			intel_de_write(dev_priv,
+				       TRANS_VBLANK(dev_priv, cpu_transcoder),
+				       vblank);
 		/*
 		 * If more than 3/4 of the scanline detected a monitor,
 		 * then it is assumed to be present. This works even on i830,
@@ -794,7 +805,8 @@ intel_crt_load_detect(struct intel_crt *crt, enum pipe pipe)
 	}
 
 	/* Restore previous settings */
-	intel_de_write(dev_priv, BCLRPAT(cpu_transcoder), save_bclrpat);
+	intel_de_write(dev_priv, BCLRPAT(dev_priv, cpu_transcoder),
+		       save_bclrpat);
 
 	return status;
 }

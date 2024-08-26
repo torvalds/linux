@@ -2058,6 +2058,6 @@ module_init(mtty_dev_init)
 module_exit(mtty_dev_exit)
 
 MODULE_LICENSE("GPL v2");
-MODULE_INFO(supported, "Test driver that simulate serial port over PCI");
+MODULE_DESCRIPTION("Test driver that simulate serial port over PCI");
 MODULE_VERSION(VERSION_STRING);
 MODULE_AUTHOR(DRIVER_AUTHOR);

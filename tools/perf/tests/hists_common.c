@@ -146,7 +146,7 @@ struct machine *setup_fake_machine(struct machines *machines)
 				goto out;
 			}
 
-			symbols__insert(&dso->symbols, sym);
+			symbols__insert(dso__symbols(dso), sym);
 		}
 
 		dso__put(dso);
@@ -183,7 +183,7 @@ void print_hists_in(struct hists *hists)
 
 			pr_info("%2d: entry: %-8s [%-8s] %20s: period = %"PRIu64"\n",
 				i, thread__comm_str(he->thread),
-				dso->short_name,
+				dso__short_name(dso),
 				he->ms.sym->name, he->stat.period);
 		}
 
@@ -212,7 +212,7 @@ void print_hists_out(struct hists *hists)
 
 			pr_info("%2d: entry: %8s:%5d [%-8s] %20s: period = %"PRIu64"/%"PRIu64"\n",
 				i, thread__comm_str(he->thread), thread__tid(he->thread),
-				dso->short_name,
+				dso__short_name(dso),
 				he->ms.sym->name, he->stat.period,
 				he->stat_acc ? he->stat_acc->period : 0);
 		}

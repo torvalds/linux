@@ -1,0 +1,137 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/incomplete-devices.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Rejected, Legacy or Incomplete Devices
+
+maintainers:
+  - Rob Herring <robh@kernel.org>
+
+description:
+  Some devices will not or should not get a proper Devicetree bindings, but
+  their compatibles are present in Linux drivers for various reasons.
+
+  Examples are devices using ACPI PRP0001 with non-updatable firmware/ACPI
+  tables or old PowerPC platforms without in-tree DTS.
+
+  Following list of devices is an incomplete schema with a goal to pass DT schema
+  checks on undocumented compatibles but also reject any DTS file using such
+  un-approved compatible.
+
+  Usage of any of following compatibles is not allowed in Devicetree sources,
+  even if they come from immutable firmware.
+
+properties:
+  compatible:
+    oneOf:
+      - description:
+          Rejected compatibles in Devicetree, but used in ACPI-based devices
+          with non-updatable firmware/ACPI tables (via ACPI PRP0001)
+        enum:
+          - broadcom,bcm5241
+          - ltr,ltrf216a
+
+      - description: Legacy compatibles used on Macintosh devices
+        enum:
+          - adm1030
+          - bmac+
+          - heathrow-media-bay
+          - keylargo-media-bay
+          - lm87cimt
+          - MAC,adm1030
+          - MAC,ds1775
+          - max6690
+          - ohare-media-bay
+          - ohare-swim3
+          - smu-sat
+          - swim3
+
+      - description: Legacy compatibles used on other PowerPC devices
+        enum:
+          - 1682m-rng
+          - IBM,lhca
+          - IBM,lhea
+          - IBM,lhea-ethernet
+          - mpc5200b-fec-phy
+          - mpc5200-serial
+          - mpc5200-sram
+          - ohci-be
+          - ohci-bigendian
+          - ohci-le
+
+      - description: Legacy compatibles used on SPARC devices
+        enum:
+          - bq4802
+          - ds1287
+          - isa-m5819p
+          - isa-m5823p
+          - m5819
+          - sab82532
+          - SUNW,bbc-beep
+          - SUNW,bbc-i2c
+          - SUNW,CS4231
+          - SUNW,ebus-pic16f747-env
+          - SUNW,kt-cwq
+          - SUNW,kt-mau
+          - SUNW,n2-cwq
+          - SUNW,n2-mau
+          - SUNW,niusl
+          - SUNW,smbus-beep
+          - SUNW,sun4v-console
+          - SUNW,sun4v-pci
+          - SUNW,vf-cwq
+          - SUNW,vf-mau
+
+      - description: Incomplete and/or legacy compatibles for unknown devices
+        enum:
+          - electra-cf
+          - i2cpcf,8584
+          - virtio,uml
+
+      - description: Linux kernel unit tests and sample code
+        enum:
+          - audio-graph-card2-custom-sample
+          - compat1
+          - compat2
+          - compat3
+          - linux,spi-loopback-test
+          - mailbox-test
+          - regulator-virtual-consumer
+
+      - description:
+          Devices on MIPS platform, without any DTS users.  These are
+          unlikely to get converted to DT schema.
+        enum:
+          - mti,ranchu
+
+      - description:
+          Devices on PowerPC platform, without any DTS users.  These are
+          unlikely to get converted to DT schema.
+        enum:
+          - fujitsu,coral
+          - fujitsu,lime
+          - fujitsu,MB86276
+          - fujitsu,MB86277
+          - fujitsu,MB86293
+          - fujitsu,MB86294
+          - fujitsu,mint
+          - ibm,axon-msic
+          - ibm,pmemory
+          - ibm,pmemory-v2
+          - ibm,power-rng
+          - ibm,ppc4xx-spi
+          - ibm,sdram-4xx-ddr2
+          - ibm,secureboot
+          - ibm,secureboot-v1
+          - ibm,secureboot-v2
+          - ibm,secvar-backend
+          - sgy,gpio-halt
+          - wrs,epld-localbus
+
+required:
+  - compatible
+  - broken-usage-of-incorrect-compatible
+
+additionalProperties: false

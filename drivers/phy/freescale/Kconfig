@@ -35,6 +35,12 @@ config PHY_FSL_IMX8M_PCIE
 	  Enable this to add support for the PCIE PHY as found on
 	  i.MX8M family of SOCs.
 
+config PHY_FSL_SAMSUNG_HDMI_PHY
+	tristate "Samsung HDMI PHY support"
+	depends on OF && HAS_IOMEM && COMMON_CLK
+	help
+	  Enable this to add support for the Samsung HDMI PHY in i.MX8MP.
+
 endif
 
 config PHY_FSL_LYNX_28G

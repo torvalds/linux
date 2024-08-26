@@ -152,9 +152,6 @@ static void run_test(bool is_nmi)
 
 	vm = vm_create_with_one_vcpu(&vcpu, l1_guest_code);
 
-	vm_init_descriptor_tables(vm);
-	vcpu_init_descriptor_tables(vcpu);
-
 	vm_install_exception_handler(vm, NMI_VECTOR, guest_nmi_handler);
 	vm_install_exception_handler(vm, BP_VECTOR, guest_bp_handler);
 	vm_install_exception_handler(vm, INT_NR, guest_int_handler);
@@ -166,7 +163,7 @@ static void run_test(bool is_nmi)
 
 		idt_alt_vm = vm_vaddr_alloc_page(vm);
 		idt_alt = addr_gva2hva(vm, idt_alt_vm);
-		idt = addr_gva2hva(vm, vm->idt);
+		idt = addr_gva2hva(vm, vm->arch.idt);
 		memcpy(idt_alt, idt, getpagesize());
 	} else {
 		idt_alt_vm = 0;

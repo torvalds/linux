@@ -107,60 +107,6 @@ new_segment:
 }
 EXPORT_SYMBOL(blk_rq_map_integrity_sg);
 
-/**
- * blk_integrity_compare - Compare integrity profile of two disks
- * @gd1:	Disk to compare
- * @gd2:	Disk to compare
- *
- * Description: Meta-devices like DM and MD need to verify that all
- * sub-devices use the same integrity format before advertising to
- * upper layers that they can send/receive integrity metadata.  This
- * function can be used to check whether two gendisk devices have
- * compatible integrity formats.
- */
-int blk_integrity_compare(struct gendisk *gd1, struct gendisk *gd2)
-{
-	struct blk_integrity *b1 = &gd1->queue->integrity;
-	struct blk_integrity *b2 = &gd2->queue->integrity;
-
-	if (!b1->profile && !b2->profile)
-		return 0;
-
-	if (!b1->profile || !b2->profile)
-		return -1;
-
-	if (b1->interval_exp != b2->interval_exp) {
-		pr_err("%s: %s/%s protection interval %u != %u\n",
-		       __func__, gd1->disk_name, gd2->disk_name,
-		       1 << b1->interval_exp, 1 << b2->interval_exp);
-		return -1;
-	}
-
-	if (b1->tuple_size != b2->tuple_size) {
-		pr_err("%s: %s/%s tuple sz %u != %u\n", __func__,
-		       gd1->disk_name, gd2->disk_name,
-		       b1->tuple_size, b2->tuple_size);
-		return -1;
-	}
-
-	if (b1->tag_size && b2->tag_size && (b1->tag_size != b2->tag_size)) {
-		pr_err("%s: %s/%s tag sz %u != %u\n", __func__,
-		       gd1->disk_name, gd2->disk_name,
-		       b1->tag_size, b2->tag_size);
-		return -1;
-	}
-
-	if (b1->profile != b2->profile) {
-		pr_err("%s: %s/%s type %s != %s\n", __func__,
-		       gd1->disk_name, gd2->disk_name,
-		       b1->profile->name, b2->profile->name);
-		return -1;
-	}
-
-	return 0;
-}
-EXPORT_SYMBOL(blk_integrity_compare);
-
 bool blk_integrity_merge_rq(struct request_queue *q, struct request *req,
 			    struct request *next)
 {
@@ -214,7 +160,64 @@ bool blk_integrity_merge_bio(struct request_queue *q, struct request *req,
 
 static inline struct blk_integrity *dev_to_bi(struct device *dev)
 {
-	return &dev_to_disk(dev)->queue->integrity;
+	return &dev_to_disk(dev)->queue->limits.integrity;
+}
+
+const char *blk_integrity_profile_name(struct blk_integrity *bi)
+{
+	switch (bi->csum_type) {
+	case BLK_INTEGRITY_CSUM_IP:
+		if (bi->flags & BLK_INTEGRITY_REF_TAG)
+			return "T10-DIF-TYPE1-IP";
+		return "T10-DIF-TYPE3-IP";
+	case BLK_INTEGRITY_CSUM_CRC:
+		if (bi->flags & BLK_INTEGRITY_REF_TAG)
+			return "T10-DIF-TYPE1-CRC";
+		return "T10-DIF-TYPE3-CRC";
+	case BLK_INTEGRITY_CSUM_CRC64:
+		if (bi->flags & BLK_INTEGRITY_REF_TAG)
+			return "EXT-DIF-TYPE1-CRC64";
+		return "EXT-DIF-TYPE3-CRC64";
+	case BLK_INTEGRITY_CSUM_NONE:
+		break;
+	}
+
+	return "nop";
+}
+EXPORT_SYMBOL_GPL(blk_integrity_profile_name);
+
+static ssize_t flag_store(struct device *dev, const char *page, size_t count,
+		unsigned char flag)
+{
+	struct request_queue *q = dev_to_disk(dev)->queue;
+	struct queue_limits lim;
+	unsigned long val;
+	int err;
+
+	err = kstrtoul(page, 10, &val);
+	if (err)
+		return err;
+
+	/* note that the flags are inverted vs the values in the sysfs files */
+	lim = queue_limits_start_update(q);
+	if (val)
+		lim.integrity.flags &= ~flag;
+	else
+		lim.integrity.flags |= flag;
+
+	blk_mq_freeze_queue(q);
+	err = queue_limits_commit_update(q, &lim);
+	blk_mq_unfreeze_queue(q);
+	if (err)
+		return err;
+	return count;
+}
+
+static ssize_t flag_show(struct device *dev, char *page, unsigned char flag)
+{
+	struct blk_integrity *bi = dev_to_bi(dev);
+
+	return sysfs_emit(page, "%d\n", !(bi->flags & flag));
 }
 
 static ssize_t format_show(struct device *dev, struct device_attribute *attr,
@@ -222,9 +225,9 @@ static ssize_t format_show(struct device *dev, struct device_attribute *attr,
 {
 	struct blk_integrity *bi = dev_to_bi(dev);
 
-	if (bi->profile && bi->profile->name)
-		return sysfs_emit(page, "%s\n", bi->profile->name);
-	return sysfs_emit(page, "none\n");
+	if (!bi->tuple_size)
+		return sysfs_emit(page, "none\n");
+	return sysfs_emit(page, "%s\n", blk_integrity_profile_name(bi));
 }
 
 static ssize_t tag_size_show(struct device *dev, struct device_attribute *attr,
@@ -249,49 +252,26 @@ static ssize_t read_verify_store(struct device *dev,
 				 struct device_attribute *attr,
 				 const char *page, size_t count)
 {
-	struct blk_integrity *bi = dev_to_bi(dev);
-	char *p = (char *) page;
-	unsigned long val = simple_strtoul(p, &p, 10);
-
-	if (val)
-		bi->flags |= BLK_INTEGRITY_VERIFY;
-	else
-		bi->flags &= ~BLK_INTEGRITY_VERIFY;
-
-	return count;
+	return flag_store(dev, page, count, BLK_INTEGRITY_NOVERIFY);
 }
 
 static ssize_t read_verify_show(struct device *dev,
 				struct device_attribute *attr, char *page)
 {
-	struct blk_integrity *bi = dev_to_bi(dev);
-
-	return sysfs_emit(page, "%d\n", !!(bi->flags & BLK_INTEGRITY_VERIFY));
+	return flag_show(dev, page, BLK_INTEGRITY_NOVERIFY);
 }
 
 static ssize_t write_generate_store(struct device *dev,
 				    struct device_attribute *attr,
 				    const char *page, size_t count)
 {
-	struct blk_integrity *bi = dev_to_bi(dev);
-
-	char *p = (char *) page;
-	unsigned long val = simple_strtoul(p, &p, 10);
-
-	if (val)
-		bi->flags |= BLK_INTEGRITY_GENERATE;
-	else
-		bi->flags &= ~BLK_INTEGRITY_GENERATE;
-
-	return count;
+	return flag_store(dev, page, count, BLK_INTEGRITY_NOGENERATE);
 }
 
 static ssize_t write_generate_show(struct device *dev,
 				   struct device_attribute *attr, char *page)
 {
-	struct blk_integrity *bi = dev_to_bi(dev);
-
-	return sysfs_emit(page, "%d\n", !!(bi->flags & BLK_INTEGRITY_GENERATE));
+	return flag_show(dev, page, BLK_INTEGRITY_NOGENERATE);
 }
 
 static ssize_t device_is_integrity_capable_show(struct device *dev,
@@ -325,81 +305,3 @@ const struct attribute_group blk_integrity_attr_group = {
 	.name = "integrity",
 	.attrs = integrity_attrs,
 };
-
-static blk_status_t blk_integrity_nop_fn(struct blk_integrity_iter *iter)
-{
-	return BLK_STS_OK;
-}
-
-static void blk_integrity_nop_prepare(struct request *rq)
-{
-}
-
-static void blk_integrity_nop_complete(struct request *rq,
-		unsigned int nr_bytes)
-{
-}
-
-static const struct blk_integrity_profile nop_profile = {
-	.name = "nop",
-	.generate_fn = blk_integrity_nop_fn,
-	.verify_fn = blk_integrity_nop_fn,
-	.prepare_fn = blk_integrity_nop_prepare,
-	.complete_fn = blk_integrity_nop_complete,
-};
-
-/**
- * blk_integrity_register - Register a gendisk as being integrity-capable
- * @disk:	struct gendisk pointer to make integrity-aware
- * @template:	block integrity profile to register
- *
- * Description: When a device needs to advertise itself as being able to
- * send/receive integrity metadata it must use this function to register
- * the capability with the block layer. The template is a blk_integrity
- * struct with values appropriate for the underlying hardware. See
- * Documentation/block/data-integrity.rst.
- */
-void blk_integrity_register(struct gendisk *disk, struct blk_integrity *template)
-{
-	struct blk_integrity *bi = &disk->queue->integrity;
-
-	bi->flags = BLK_INTEGRITY_VERIFY | BLK_INTEGRITY_GENERATE |
-		template->flags;
-	bi->interval_exp = template->interval_exp ? :
-		ilog2(queue_logical_block_size(disk->queue));
-	bi->profile = template->profile ? template->profile : &nop_profile;
-	bi->tuple_size = template->tuple_size;
-	bi->tag_size = template->tag_size;
-	bi->pi_offset = template->pi_offset;
-
-	blk_queue_flag_set(QUEUE_FLAG_STABLE_WRITES, disk->queue);
-
-#ifdef CONFIG_BLK_INLINE_ENCRYPTION
-	if (disk->queue->crypto_profile) {
-		pr_warn("blk-integrity: Integrity and hardware inline encryption are not supported together. Disabling hardware inline encryption.\n");
-		disk->queue->crypto_profile = NULL;
-	}
-#endif
-}
-EXPORT_SYMBOL(blk_integrity_register);
-
-/**
- * blk_integrity_unregister - Unregister block integrity profile
- * @disk:	disk whose integrity profile to unregister
- *
- * Description: This function unregisters the integrity capability from
- * a block device.
- */
-void blk_integrity_unregister(struct gendisk *disk)
-{
-	struct blk_integrity *bi = &disk->queue->integrity;
-
-	if (!bi->profile)
-		return;
-
-	/* ensure all bios are off the integrity workqueue */
-	blk_flush_integrity();
-	blk_queue_flag_clear(QUEUE_FLAG_STABLE_WRITES, disk->queue);
-	memset(bi, 0, sizeof(*bi));
-}
-EXPORT_SYMBOL(blk_integrity_unregister);

@@ -29,6 +29,7 @@ properties:
           - enum:
               - aldec,tysom-m-mpfs250t-rev2
               - aries,m100pfsevp
+              - beagle,beaglev-fire
               - microchip,mpfs-sev-kit
               - sundance,polarberry
           - const: microchip,mpfs

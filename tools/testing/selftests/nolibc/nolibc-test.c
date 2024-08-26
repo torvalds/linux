@@ -64,6 +64,14 @@ static const char *argv0;
 /* will be used by constructor tests */
 static int constructor_test_value;
 
+static const int is_nolibc =
+#ifdef NOLIBC
+	1
+#else
+	0
+#endif
+;
+
 /* definition of a series of tests */
 struct test {
 	const char *name;              /* test name */
@@ -607,12 +615,57 @@ int expect_strne(const char *expr, int llen, const char *cmp)
 static __attribute__((unused))
 int expect_str_buf_eq(size_t expr, const char *buf, size_t val, int llen, const char *cmp)
 {
-	llen += printf(" = %lu <%s> ", expr, buf);
+	llen += printf(" = %lu <%s> ", (unsigned long)expr, buf);
 	if (strcmp(buf, cmp) != 0) {
 		result(llen, FAIL);
 		return 1;
 	}
 	if (expr != val) {
+		result(llen, FAIL);
+		return 1;
+	}
+
+	result(llen, OK);
+	return 0;
+}
+
+#define EXPECT_STRTOX(cond, func, input, base, expected, chars, expected_errno)				\
+	do { if (!(cond)) result(llen, SKIPPED); else ret += expect_strtox(llen, func, input, base, expected, chars, expected_errno); } while (0)
+
+static __attribute__((unused))
+int expect_strtox(int llen, void *func, const char *input, int base, intmax_t expected, int expected_chars, int expected_errno)
+{
+	char *endptr;
+	int actual_errno, actual_chars;
+	intmax_t r;
+
+	errno = 0;
+	if (func == strtol) {
+		r = strtol(input, &endptr, base);
+	} else if (func == strtoul) {
+		r = strtoul(input, &endptr, base);
+	} else {
+		result(llen, FAIL);
+		return 1;
+	}
+	actual_errno = errno;
+	actual_chars = endptr - input;
+
+	llen += printf(" %lld = %lld", (long long)expected, (long long)r);
+	if (r != expected) {
+		result(llen, FAIL);
+		return 1;
+	}
+	if (expected_chars == -1) {
+		if (*endptr != '\0') {
+			result(llen, FAIL);
+			return 1;
+		}
+	} else if (expected_chars != actual_chars) {
+		result(llen, FAIL);
+		return 1;
+	}
+	if (actual_errno != expected_errno) {
 		result(llen, FAIL);
 		return 1;
 	}
@@ -942,6 +995,7 @@ int run_syscall(int min, int max)
 	int ret = 0;
 	void *p1, *p2;
 	int has_gettid = 1;
+	int has_brk;
 
 	/* <proc> indicates whether or not /proc is mounted */
 	proc = stat("/proc", &stat_buf) == 0;
@@ -953,6 +1007,9 @@ int run_syscall(int min, int max)
 #if defined(__GLIBC_MINOR__) && defined(__GLIBC__)
 	has_gettid = __GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 30);
 #endif
+
+	/* on musl setting brk()/sbrk() always fails */
+	has_brk = brk(0) == 0;
 
 	for (test = min; test >= 0 && test <= max; test++) {
 		int llen = 0; /* line length */
@@ -969,9 +1026,9 @@ int run_syscall(int min, int max)
 		CASE_TEST(kill_0);            EXPECT_SYSZR(1, kill(getpid(), 0)); break;
 		CASE_TEST(kill_CONT);         EXPECT_SYSZR(1, kill(getpid(), 0)); break;
 		CASE_TEST(kill_BADPID);       EXPECT_SYSER(1, kill(INT_MAX, 0), -1, ESRCH); break;
-		CASE_TEST(sbrk_0);            EXPECT_PTRNE(1, sbrk(0), (void *)-1); break;
-		CASE_TEST(sbrk);              if ((p1 = p2 = sbrk(4096)) != (void *)-1) p2 = sbrk(-4096); EXPECT_SYSZR(1, (p2 == (void *)-1) || p2 == p1); break;
-		CASE_TEST(brk);               EXPECT_SYSZR(1, brk(sbrk(0))); break;
+		CASE_TEST(sbrk_0);            EXPECT_PTRNE(has_brk, sbrk(0), (void *)-1); break;
+		CASE_TEST(sbrk);              if ((p1 = p2 = sbrk(4096)) != (void *)-1) p2 = sbrk(-4096); EXPECT_SYSZR(has_brk, (p2 == (void *)-1) || p2 == p1); break;
+		CASE_TEST(brk);               EXPECT_SYSZR(has_brk, brk(sbrk(0))); break;
 		CASE_TEST(chdir_root);        EXPECT_SYSZR(1, chdir("/")); chdir(getenv("PWD")); break;
 		CASE_TEST(chdir_dot);         EXPECT_SYSZR(1, chdir(".")); break;
 		CASE_TEST(chdir_blah);        EXPECT_SYSER(1, chdir("/blah"), -1, ENOENT); break;
@@ -1076,19 +1133,17 @@ int run_stdlib(int min, int max)
 		CASE_TEST(strchr_foobar_z);    EXPECT_STRZR(1, strchr("foobar", 'z')); break;
 		CASE_TEST(strrchr_foobar_o);   EXPECT_STREQ(1, strrchr("foobar", 'o'), "obar"); break;
 		CASE_TEST(strrchr_foobar_z);   EXPECT_STRZR(1, strrchr("foobar", 'z')); break;
-#ifdef NOLIBC
-		CASE_TEST(strlcat_0);          EXPECT_STRBUFEQ(1, strlcat(buf, "bar", 0), buf, 3, "test"); break;
-		CASE_TEST(strlcat_1);          EXPECT_STRBUFEQ(1, strlcat(buf, "bar", 1), buf, 4, "test"); break;
-		CASE_TEST(strlcat_5);          EXPECT_STRBUFEQ(1, strlcat(buf, "bar", 5), buf, 7, "test"); break;
-		CASE_TEST(strlcat_6);          EXPECT_STRBUFEQ(1, strlcat(buf, "bar", 6), buf, 7, "testb"); break;
-		CASE_TEST(strlcat_7);          EXPECT_STRBUFEQ(1, strlcat(buf, "bar", 7), buf, 7, "testba"); break;
-		CASE_TEST(strlcat_8);          EXPECT_STRBUFEQ(1, strlcat(buf, "bar", 8), buf, 7, "testbar"); break;
-		CASE_TEST(strlcpy_0);          EXPECT_STRBUFEQ(1, strlcpy(buf, "bar", 0), buf, 3, "test"); break;
-		CASE_TEST(strlcpy_1);          EXPECT_STRBUFEQ(1, strlcpy(buf, "bar", 1), buf, 3, ""); break;
-		CASE_TEST(strlcpy_2);          EXPECT_STRBUFEQ(1, strlcpy(buf, "bar", 2), buf, 3, "b"); break;
-		CASE_TEST(strlcpy_3);          EXPECT_STRBUFEQ(1, strlcpy(buf, "bar", 3), buf, 3, "ba"); break;
-		CASE_TEST(strlcpy_4);          EXPECT_STRBUFEQ(1, strlcpy(buf, "bar", 4), buf, 3, "bar"); break;
-#endif
+		CASE_TEST(strlcat_0);          EXPECT_STRBUFEQ(is_nolibc, strlcat(buf, "bar", 0), buf, 3, "test"); break;
+		CASE_TEST(strlcat_1);          EXPECT_STRBUFEQ(is_nolibc, strlcat(buf, "bar", 1), buf, 4, "test"); break;
+		CASE_TEST(strlcat_5);          EXPECT_STRBUFEQ(is_nolibc, strlcat(buf, "bar", 5), buf, 7, "test"); break;
+		CASE_TEST(strlcat_6);          EXPECT_STRBUFEQ(is_nolibc, strlcat(buf, "bar", 6), buf, 7, "testb"); break;
+		CASE_TEST(strlcat_7);          EXPECT_STRBUFEQ(is_nolibc, strlcat(buf, "bar", 7), buf, 7, "testba"); break;
+		CASE_TEST(strlcat_8);          EXPECT_STRBUFEQ(is_nolibc, strlcat(buf, "bar", 8), buf, 7, "testbar"); break;
+		CASE_TEST(strlcpy_0);          EXPECT_STRBUFEQ(is_nolibc, strlcpy(buf, "bar", 0), buf, 3, "test"); break;
+		CASE_TEST(strlcpy_1);          EXPECT_STRBUFEQ(is_nolibc, strlcpy(buf, "bar", 1), buf, 3, ""); break;
+		CASE_TEST(strlcpy_2);          EXPECT_STRBUFEQ(is_nolibc, strlcpy(buf, "bar", 2), buf, 3, "b"); break;
+		CASE_TEST(strlcpy_3);          EXPECT_STRBUFEQ(is_nolibc, strlcpy(buf, "bar", 3), buf, 3, "ba"); break;
+		CASE_TEST(strlcpy_4);          EXPECT_STRBUFEQ(is_nolibc, strlcpy(buf, "bar", 4), buf, 3, "bar"); break;
 		CASE_TEST(memcmp_20_20);       EXPECT_EQ(1, memcmp("aaa\x20", "aaa\x20", 4), 0); break;
 		CASE_TEST(memcmp_20_60);       EXPECT_LT(1, memcmp("aaa\x20", "aaa\x60", 4), 0); break;
 		CASE_TEST(memcmp_60_20);       EXPECT_GT(1, memcmp("aaa\x60", "aaa\x20", 4), 0); break;
@@ -1139,6 +1194,26 @@ int run_stdlib(int min, int max)
 		CASE_TEST(limit_ptrdiff_min);       EXPECT_EQ(1, PTRDIFF_MIN, sizeof(long) == 8 ? (ptrdiff_t) 0x8000000000000000LL  : (ptrdiff_t) 0x80000000); break;
 		CASE_TEST(limit_ptrdiff_max);       EXPECT_EQ(1, PTRDIFF_MAX, sizeof(long) == 8 ? (ptrdiff_t) 0x7fffffffffffffffLL  : (ptrdiff_t) 0x7fffffff); break;
 		CASE_TEST(limit_size_max);          EXPECT_EQ(1, SIZE_MAX,    sizeof(long) == 8 ? (size_t)    0xffffffffffffffffULL : (size_t)    0xffffffffU); break;
+		CASE_TEST(strtol_simple);           EXPECT_STRTOX(1, strtol, "35", 10, 35, -1, 0); break;
+		CASE_TEST(strtol_positive);         EXPECT_STRTOX(1, strtol, "+35", 10, 35, -1, 0); break;
+		CASE_TEST(strtol_negative);         EXPECT_STRTOX(1, strtol, "-35", 10, -35, -1, 0); break;
+		CASE_TEST(strtol_hex_auto);         EXPECT_STRTOX(1, strtol, "0xFF", 0, 255, -1, 0); break;
+		CASE_TEST(strtol_base36);           EXPECT_STRTOX(1, strtol, "12yZ", 36, 50507, -1, 0); break;
+		CASE_TEST(strtol_cutoff);           EXPECT_STRTOX(1, strtol, "1234567890", 8, 342391, 7, 0); break;
+		CASE_TEST(strtol_octal_auto);       EXPECT_STRTOX(1, strtol, "011", 0, 9, -1, 0); break;
+		CASE_TEST(strtol_hex_00);           EXPECT_STRTOX(1, strtol, "0x00", 16, 0, -1, 0); break;
+		CASE_TEST(strtol_hex_FF);           EXPECT_STRTOX(1, strtol, "FF", 16, 255, -1, 0); break;
+		CASE_TEST(strtol_hex_ff);           EXPECT_STRTOX(1, strtol, "ff", 16, 255, -1, 0); break;
+		CASE_TEST(strtol_hex_prefix);       EXPECT_STRTOX(1, strtol, "0xFF", 16, 255, -1, 0); break;
+		CASE_TEST(strtol_trailer);          EXPECT_STRTOX(1, strtol, "35foo", 10, 35, 2, 0); break;
+		CASE_TEST(strtol_overflow);         EXPECT_STRTOX(1, strtol, "0x8000000000000000", 16, LONG_MAX, -1, ERANGE); break;
+		CASE_TEST(strtol_underflow);        EXPECT_STRTOX(1, strtol, "-0x8000000000000001", 16, LONG_MIN, -1, ERANGE); break;
+		CASE_TEST(strtoul_negative);        EXPECT_STRTOX(1, strtoul, "-0x1", 16, ULONG_MAX, 4, 0); break;
+		CASE_TEST(strtoul_overflow);        EXPECT_STRTOX(1, strtoul, "0x10000000000000000", 16, ULONG_MAX, -1, ERANGE); break;
+		CASE_TEST(strerror_success);        EXPECT_STREQ(is_nolibc, strerror(0), "errno=0"); break;
+		CASE_TEST(strerror_EINVAL);         EXPECT_STREQ(is_nolibc, strerror(EINVAL), "errno=22"); break;
+		CASE_TEST(strerror_int_max);        EXPECT_STREQ(is_nolibc, strerror(INT_MAX), "errno=2147483647"); break;
+		CASE_TEST(strerror_int_min);        EXPECT_STREQ(is_nolibc, strerror(INT_MIN), "errno=-2147483648"); break;
 
 		case __LINE__:
 			return ret; /* must be last */

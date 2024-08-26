@@ -8,7 +8,6 @@ title: Freescale Layerscape External Interrupt Controller
 
 maintainers:
   - Shawn Guo <shawnguo@kernel.org>
-  - Li Yang <leoyang.li@nxp.com>
 
 description: |
   Some Layerscape SOCs (LS1021A, LS1043A, LS1046A LS1088A, LS208xA,

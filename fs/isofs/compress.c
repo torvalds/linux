@@ -346,8 +346,6 @@ static int zisofs_read_folio(struct file *file, struct folio *folio)
 	for (i = 0; i < pcount; i++, index++) {
 		if (i != full_page)
 			pages[i] = grab_cache_page_nowait(mapping, index);
-		if (pages[i])
-			ClearPageError(pages[i]);
 	}
 
 	err = zisofs_fill_pages(inode, full_page, pcount, pages);
@@ -356,8 +354,6 @@ static int zisofs_read_folio(struct file *file, struct folio *folio)
 	for (i = 0; i < pcount; i++) {
 		if (pages[i]) {
 			flush_dcache_page(pages[i]);
-			if (i == full_page && err)
-				SetPageError(pages[i]);
 			unlock_page(pages[i]);
 			if (i != full_page)
 				put_page(pages[i]);

@@ -17,6 +17,6 @@ int bch2_blacklist_table_initialize(struct bch_fs *);
 
 extern const struct bch_sb_field_ops bch_sb_field_ops_journal_seq_blacklist;
 
-void bch2_blacklist_entries_gc(struct work_struct *);
+bool bch2_blacklist_entries_gc(struct bch_fs *);
 
 #endif /* _BCACHEFS_JOURNAL_SEQ_BLACKLIST_H */

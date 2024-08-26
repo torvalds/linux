@@ -493,7 +493,7 @@ static void cb710_mmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	if (!cb710_mmc_command(mmc, mrq->cmd) && mrq->stop)
 		cb710_mmc_command(mmc, mrq->stop);
 
-	tasklet_schedule(&reader->finish_req_tasklet);
+	queue_work(system_bh_wq, &reader->finish_req_bh_work);
 }
 
 static int cb710_mmc_powerup(struct cb710_slot *slot)
@@ -646,10 +646,10 @@ static int cb710_mmc_irq_handler(struct cb710_slot *slot)
 	return 1;
 }
 
-static void cb710_mmc_finish_request_tasklet(struct tasklet_struct *t)
+static void cb710_mmc_finish_request_bh_work(struct work_struct *t)
 {
-	struct cb710_mmc_reader *reader = from_tasklet(reader, t,
-						       finish_req_tasklet);
+	struct cb710_mmc_reader *reader = from_work(reader, t,
+						       finish_req_bh_work);
 	struct mmc_request *mrq = reader->mrq;
 
 	reader->mrq = NULL;
@@ -718,8 +718,8 @@ static int cb710_mmc_init(struct platform_device *pdev)
 
 	reader = mmc_priv(mmc);
 
-	tasklet_setup(&reader->finish_req_tasklet,
-		      cb710_mmc_finish_request_tasklet);
+	INIT_WORK(&reader->finish_req_bh_work,
+			cb710_mmc_finish_request_bh_work);
 	spin_lock_init(&reader->irq_lock);
 	cb710_dump_regs(chip, CB710_DUMP_REGS_MMC);
 
@@ -763,7 +763,7 @@ static void cb710_mmc_exit(struct platform_device *pdev)
 	cb710_write_port_32(slot, CB710_MMC_CONFIG_PORT, 0);
 	cb710_write_port_16(slot, CB710_MMC_CONFIGB_PORT, 0);
 
-	tasklet_kill(&reader->finish_req_tasklet);
+	cancel_work_sync(&reader->finish_req_bh_work);
 
 	mmc_free_host(mmc);
 }

@@ -1442,4 +1442,5 @@ static struct hid_driver lenovo_driver = {
 };
 module_hid_driver(lenovo_driver);
 
+MODULE_DESCRIPTION("HID driver for IBM/Lenovo");
 MODULE_LICENSE("GPL");

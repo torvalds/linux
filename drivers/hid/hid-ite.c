@@ -141,4 +141,5 @@ static struct hid_driver ite_driver = {
 module_hid_driver(ite_driver);
 
 MODULE_AUTHOR("Hans de Goede <hdegoede@redhat.com>");
+MODULE_DESCRIPTION("HID driver for some ITE \"special\" devices");
 MODULE_LICENSE("GPL");

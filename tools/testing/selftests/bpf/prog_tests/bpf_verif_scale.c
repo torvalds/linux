@@ -45,12 +45,6 @@ err_out:
 	return err;
 }
 
-struct scale_test_def {
-	const char *file;
-	enum bpf_prog_type attach_type;
-	bool fails;
-};
-
 static void scale_test(const char *file,
 		       enum bpf_prog_type attach_type,
 		       bool should_fail)

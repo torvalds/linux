@@ -148,7 +148,7 @@ static struct attribute *tifm_dev_attrs[] = {
 };
 ATTRIBUTE_GROUPS(tifm_dev);
 
-static struct bus_type tifm_bus_type = {
+static const struct bus_type tifm_bus_type = {
 	.name      = "tifm",
 	.dev_groups = tifm_dev_groups,
 	.match     = tifm_bus_match,

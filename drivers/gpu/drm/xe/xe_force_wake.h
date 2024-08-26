@@ -24,14 +24,25 @@ static inline int
 xe_force_wake_ref(struct xe_force_wake *fw,
 		  enum xe_force_wake_domains domain)
 {
-	xe_gt_assert(fw->gt, domain);
+	xe_gt_assert(fw->gt, domain != XE_FORCEWAKE_ALL);
 	return fw->domains[ffs(domain) - 1].ref;
 }
 
+/**
+ * xe_force_wake_assert_held - asserts domain is awake
+ * @fw : xe_force_wake structure
+ * @domain: xe_force_wake_domains apart from XE_FORCEWAKE_ALL
+ *
+ * xe_force_wake_assert_held() is designed to confirm a particular
+ * forcewake domain's wakefulness; it doesn't verify the wakefulness of
+ * multiple domains. Make sure the caller doesn't input multiple
+ * domains(XE_FORCEWAKE_ALL) as a parameter.
+ */
 static inline void
 xe_force_wake_assert_held(struct xe_force_wake *fw,
 			  enum xe_force_wake_domains domain)
 {
+	xe_gt_assert(fw->gt, domain != XE_FORCEWAKE_ALL);
 	xe_gt_assert(fw->gt, fw->awake_domains & domain);
 }
 

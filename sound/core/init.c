@@ -50,7 +50,7 @@ MODULE_PARM_DESC(slots, "Module names assigned to the slots.");
 static int module_slot_match(struct module *module, int idx)
 {
 	int match = 1;
-#ifdef MODULE
+#ifdef CONFIG_MODULES
 	const char *s1, *s2;
 
 	if (!module || !*module->name || !slots[idx])
@@ -77,7 +77,7 @@ static int module_slot_match(struct module *module, int idx)
 		if (!c1)
 			break;
 	}
-#endif /* MODULE */
+#endif /* CONFIG_MODULES */
 	return match;
 }
 
@@ -311,10 +311,8 @@ static int snd_card_init(struct snd_card *card, struct device *parent,
 	}
 	card->dev = parent;
 	card->number = idx;
-#ifdef MODULE
-	WARN_ON(!module);
+	WARN_ON(IS_MODULE(CONFIG_SND) && !module);
 	card->module = module;
-#endif
 	INIT_LIST_HEAD(&card->devices);
 	init_rwsem(&card->controls_rwsem);
 	rwlock_init(&card->ctl_files_rwlock);
@@ -539,6 +537,11 @@ void snd_card_disconnect(struct snd_card *card)
 		synchronize_irq(card->sync_irq);
 
 	snd_info_card_disconnect(card);
+#ifdef CONFIG_SND_DEBUG
+	debugfs_remove(card->debugfs_root);
+	card->debugfs_root = NULL;
+#endif
+
 	if (card->registered) {
 		device_del(&card->card_dev);
 		card->registered = false;
@@ -588,10 +591,6 @@ static int snd_card_do_free(struct snd_card *card)
 		dev_warn(card->dev, "unable to free card info\n");
 		/* Not fatal error */
 	}
-#ifdef CONFIG_SND_DEBUG
-	debugfs_remove(card->debugfs_root);
-	card->debugfs_root = NULL;
-#endif
 	if (card->release_completion)
 		complete(card->release_completion);
 	if (!card->managed)
@@ -969,7 +968,7 @@ void snd_card_info_read_oss(struct snd_info_buffer *buffer)
 
 #endif
 
-#ifdef MODULE
+#ifdef CONFIG_MODULES
 static void snd_card_module_info_read(struct snd_info_entry *entry,
 				      struct snd_info_buffer *buffer)
 {
@@ -997,7 +996,7 @@ int __init snd_card_info_init(void)
 	if (snd_info_register(entry) < 0)
 		return -ENOMEM; /* freed in error path */
 
-#ifdef MODULE
+#ifdef CONFIG_MODULES
 	entry = snd_info_create_module_entry(THIS_MODULE, "modules", NULL);
 	if (!entry)
 		return -ENOMEM;

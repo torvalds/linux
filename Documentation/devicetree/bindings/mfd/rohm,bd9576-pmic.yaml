@@ -71,7 +71,7 @@ properties:
       # (HW) minimum for max timeout is 4ms, maximum 4416 ms.
 
   regulators:
-    $ref: ../regulator/rohm,bd9576-regulator.yaml
+    $ref: /schemas/regulator/rohm,bd9576-regulator.yaml
     description:
       List of child nodes that specify the regulators.
 

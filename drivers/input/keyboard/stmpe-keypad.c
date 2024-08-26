@@ -413,7 +413,6 @@ static void stmpe_keypad_remove(struct platform_device *pdev)
 
 static struct platform_driver stmpe_keypad_driver = {
 	.driver.name	= "stmpe-keypad",
-	.driver.owner	= THIS_MODULE,
 	.probe		= stmpe_keypad_probe,
 	.remove_new	= stmpe_keypad_remove,
 };

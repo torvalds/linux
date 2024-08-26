@@ -1139,7 +1139,7 @@ static int snd_ftu_create_volume_ctls(struct usb_mixer_interface *mixer)
 	for (out = 0; out < 8; out++) {
 		control = out + 1;
 		for (in = 0; in < 8; in++) {
-			cmask = 1 << in;
+			cmask = BIT(in);
 			snprintf(name, sizeof(name),
 				"AIn%d - Out%d Capture Volume",
 				in  + 1, out + 1);
@@ -1150,7 +1150,7 @@ static int snd_ftu_create_volume_ctls(struct usb_mixer_interface *mixer)
 				return err;
 		}
 		for (in = 8; in < 16; in++) {
-			cmask = 1 << in;
+			cmask = BIT(in);
 			snprintf(name, sizeof(name),
 				"DIn%d - Out%d Playback Volume",
 				in - 7, out + 1);
@@ -1215,7 +1215,7 @@ static int snd_ftu_create_effect_return_ctls(struct usb_mixer_interface *mixer)
 	const unsigned int control = 7;
 
 	for (ch = 0; ch < 4; ++ch) {
-		cmask = 1 << ch;
+		cmask = BIT(ch);
 		snprintf(name, sizeof(name),
 			"Effect Return %d Volume", ch + 1);
 		err = snd_create_std_mono_ctl(mixer, id, control,
@@ -1239,7 +1239,7 @@ static int snd_ftu_create_effect_send_ctls(struct usb_mixer_interface *mixer)
 	const unsigned int control = 9;
 
 	for (ch = 0; ch < 8; ++ch) {
-		cmask = 1 << ch;
+		cmask = BIT(ch);
 		snprintf(name, sizeof(name),
 			"Effect Send AIn%d Volume", ch + 1);
 		err = snd_create_std_mono_ctl(mixer, id, control, cmask,
@@ -1249,7 +1249,7 @@ static int snd_ftu_create_effect_send_ctls(struct usb_mixer_interface *mixer)
 			return err;
 	}
 	for (ch = 8; ch < 16; ++ch) {
-		cmask = 1 << ch;
+		cmask = BIT(ch);
 		snprintf(name, sizeof(name),
 			"Effect Send DIn%d Volume", ch - 7);
 		err = snd_create_std_mono_ctl(mixer, id, control, cmask,
@@ -1352,7 +1352,7 @@ static int snd_c400_create_vol_ctls(struct usb_mixer_interface *mixer)
 					chan - num_outs + 1, out + 1);
 			}
 
-			cmask = (out == 0) ? 0 : 1 << (out - 1);
+			cmask = (out == 0) ? 0 : BIT(out - 1);
 			offset = chan * num_outs;
 			err = snd_create_std_mono_ctl_offset(mixer, id, control,
 						cmask, val_type, offset, name,
@@ -1438,7 +1438,7 @@ static int snd_c400_create_effect_vol_ctls(struct usb_mixer_interface *mixer)
 				chan - num_outs + 1);
 		}
 
-		cmask = (chan == 0) ? 0 : 1 << (chan - 1);
+		cmask = (chan == 0) ? 0 : BIT(chan - 1);
 		err = snd_create_std_mono_ctl(mixer, id, control,
 						cmask, val_type, name,
 						&snd_usb_mixer_vol_tlv);
@@ -1480,7 +1480,7 @@ static int snd_c400_create_effect_ret_vol_ctls(struct usb_mixer_interface *mixer
 			chan + 1);
 
 		cmask = (chan == 0) ? 0 :
-			1 << (chan + (chan % 2) * num_outs - 1);
+			BIT(chan + (chan % 2) * num_outs - 1);
 		err = snd_create_std_mono_ctl_offset(mixer, id, control,
 						cmask, val_type, offset, name,
 						&snd_usb_mixer_vol_tlv);
@@ -2568,12 +2568,12 @@ static int snd_bbfpro_ctl_update(struct usb_mixer_interface *mixer, u8 reg,
 			usb_idx = 3;
 			usb_val = value ? 3 : 0;
 		} else {
-			usb_idx = 1 << index;
+			usb_idx = BIT(index);
 			usb_val = value ? usb_idx : 0;
 		}
 	} else {
 		usb_req = SND_BBFPRO_USBREQ_CTL_REG2;
-		usb_idx = 1 << index;
+		usb_idx = BIT(index);
 		usb_val = value ? usb_idx : 0;
 	}
 

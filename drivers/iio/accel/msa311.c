@@ -1034,10 +1034,10 @@ static int msa311_chip_init(struct msa311_priv *msa311)
 				     "failed to unmap map0/map1 interrupts\n");
 
 	/* Disable all axes by default */
-	err = regmap_update_bits(msa311->regs, MSA311_ODR_REG,
-				 MSA311_GENMASK(F_X_AXIS_DIS) |
-				 MSA311_GENMASK(F_Y_AXIS_DIS) |
-				 MSA311_GENMASK(F_Z_AXIS_DIS), 0);
+	err = regmap_clear_bits(msa311->regs, MSA311_ODR_REG,
+				MSA311_GENMASK(F_X_AXIS_DIS) |
+				MSA311_GENMASK(F_Y_AXIS_DIS) |
+				MSA311_GENMASK(F_Z_AXIS_DIS));
 	if (err)
 		return dev_err_probe(dev, err, "can't enable all axes\n");
 

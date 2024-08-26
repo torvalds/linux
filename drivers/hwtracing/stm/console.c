@@ -22,6 +22,7 @@ static struct stm_console {
 	.data	= {
 		.name		= "console",
 		.nr_chans	= 1,
+		.type		= STM_USER,
 		.link		= stm_console_link,
 		.unlink		= stm_console_unlink,
 	},

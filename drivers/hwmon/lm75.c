@@ -625,20 +625,12 @@ static void lm75_remove(void *data)
 	i2c_smbus_write_byte_data(client, LM75_REG_CONF, lm75->orig_conf);
 }
 
-static const struct i2c_device_id lm75_ids[];
-
 static int lm75_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct device *hwmon_dev;
 	struct lm75_data *data;
 	int status, err;
-	enum lm75_type kind;
-
-	if (client->dev.of_node)
-		kind = (uintptr_t)of_device_get_match_data(&client->dev);
-	else
-		kind = i2c_match_id(lm75_ids, client)->driver_data;
 
 	if (!i2c_check_functionality(client->adapter,
 			I2C_FUNC_SMBUS_BYTE_DATA | I2C_FUNC_SMBUS_WORD_DATA))
@@ -649,7 +641,7 @@ static int lm75_probe(struct i2c_client *client)
 		return -ENOMEM;
 
 	data->client = client;
-	data->kind = kind;
+	data->kind = (uintptr_t)i2c_get_match_data(client);
 
 	data->vs = devm_regulator_get(dev, "vs");
 	if (IS_ERR(data->vs))

@@ -28,7 +28,6 @@
 #include <linux/device.h>
 #include <linux/ethtool.h>
 #include <linux/freezer.h>
-#include <linux/gpio.h>
 #include <linux/gpio/driver.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
@@ -482,9 +481,9 @@ static int mcp251x_gpio_get_direction(struct gpio_chip *chip,
 				      unsigned int offset)
 {
 	if (mcp251x_gpio_is_input(offset))
-		return GPIOF_DIR_IN;
+		return GPIO_LINE_DIRECTION_IN;
 
-	return GPIOF_DIR_OUT;
+	return GPIO_LINE_DIRECTION_OUT;
 }
 
 static int mcp251x_gpio_get(struct gpio_chip *chip, unsigned int offset)
@@ -1301,7 +1300,6 @@ MODULE_DEVICE_TABLE(spi, mcp251x_id_table);
 
 static int mcp251x_can_probe(struct spi_device *spi)
 {
-	const void *match = device_get_match_data(&spi->dev);
 	struct net_device *net;
 	struct mcp251x_priv *priv;
 	struct clk *clk;
@@ -1339,10 +1337,7 @@ static int mcp251x_can_probe(struct spi_device *spi)
 	priv->can.clock.freq = freq / 2;
 	priv->can.ctrlmode_supported = CAN_CTRLMODE_3_SAMPLES |
 		CAN_CTRLMODE_LOOPBACK | CAN_CTRLMODE_LISTENONLY;
-	if (match)
-		priv->model = (enum mcp251x_model)(uintptr_t)match;
-	else
-		priv->model = spi_get_device_id(spi)->driver_data;
+	priv->model = (enum mcp251x_model)(uintptr_t)spi_get_device_match_data(spi);
 	priv->net = net;
 	priv->clk = clk;
 

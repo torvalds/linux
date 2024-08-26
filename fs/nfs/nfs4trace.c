@@ -2,6 +2,8 @@
 /*
  * Copyright (c) 2013 Trond Myklebust <Trond.Myklebust@netapp.com>
  */
+#include <uapi/linux/pr.h>
+#include <linux/blkdev.h>
 #include <linux/nfs_fs.h>
 #include "nfs4_fs.h"
 #include "internal.h"
@@ -28,6 +30,11 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(pnfs_mds_fallback_write_pagelist);
 EXPORT_TRACEPOINT_SYMBOL_GPL(ff_layout_read_error);
 EXPORT_TRACEPOINT_SYMBOL_GPL(ff_layout_write_error);
 EXPORT_TRACEPOINT_SYMBOL_GPL(ff_layout_commit_error);
+
+EXPORT_TRACEPOINT_SYMBOL_GPL(bl_pr_key_reg);
+EXPORT_TRACEPOINT_SYMBOL_GPL(bl_pr_key_reg_err);
+EXPORT_TRACEPOINT_SYMBOL_GPL(bl_pr_key_unreg);
+EXPORT_TRACEPOINT_SYMBOL_GPL(bl_pr_key_unreg_err);
 
 EXPORT_TRACEPOINT_SYMBOL_GPL(fl_getdevinfo);
 #endif

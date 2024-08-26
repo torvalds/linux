@@ -1524,7 +1524,6 @@ out:
 	if (ip->i_gl) {
 		glock_clear_object(ip->i_gl, ip);
 		wait_on_bit_io(&ip->i_flags, GIF_GLOP_PENDING, TASK_UNINTERRUPTIBLE);
-		gfs2_glock_add_to_lru(ip->i_gl);
 		gfs2_glock_put_eventually(ip->i_gl);
 		rcu_assign_pointer(ip->i_gl, NULL);
 	}

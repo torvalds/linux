@@ -1290,6 +1290,22 @@ static const int sdm670_reserved_gpios[] = {
 	58, 59, 60, 61, 62, 63, 64, 69, 70, 71, 72, 73, 74, 104, -1
 };
 
+static const struct msm_gpio_wakeirq_map sdm670_pdc_map[] = {
+	{ 1, 30 }, { 3, 31 }, { 5, 32 }, { 10, 33 }, { 11, 34 },
+	{ 20, 35 }, { 22, 36 }, { 24, 37 }, { 26, 38 }, { 30, 39 },
+	{ 31, 117 }, { 32, 41 }, { 34, 42 }, { 36, 43 }, { 37, 44 },
+	{ 38, 45 }, { 39, 46 }, { 40, 47 }, { 41, 115 }, { 43, 49 },
+	{ 44, 50 }, { 46, 51 }, { 48, 52 }, { 49, 118 }, { 52, 54 },
+	{ 53, 55 }, { 54, 56 }, { 56, 57 }, { 57, 58 }, { 66, 66 },
+	{ 68, 67 }, { 77, 70 }, { 78, 71 }, { 79, 72 }, { 80, 73 },
+	{ 84, 74 }, { 85, 75 }, { 86, 76 }, { 88, 77 }, { 89, 116 },
+	{ 91, 79 }, { 92, 80 }, { 95, 81 }, { 96, 82 }, { 97, 83 },
+	{ 101, 84 }, { 103, 85 }, { 115, 90 }, { 116, 91 }, { 117, 92 },
+	{ 118, 93 }, { 119, 94 }, { 120, 95 }, { 121, 96 }, { 122, 97 },
+	{ 123, 98 }, { 124, 99 }, { 125, 100 }, { 127, 102 }, { 128, 103 },
+	{ 129, 104 }, { 130, 105 }, { 132, 106 }, { 133, 107 }, { 145, 108 },
+};
+
 static const struct msm_pinctrl_soc_data sdm670_pinctrl = {
 	.pins = sdm670_pins,
 	.npins = ARRAY_SIZE(sdm670_pins),
@@ -1299,6 +1315,9 @@ static const struct msm_pinctrl_soc_data sdm670_pinctrl = {
 	.ngroups = ARRAY_SIZE(sdm670_groups),
 	.ngpios = 151,
 	.reserved_gpios = sdm670_reserved_gpios,
+	.wakeirq_map = sdm670_pdc_map,
+	.nwakeirq_map = ARRAY_SIZE(sdm670_pdc_map),
+	.wakeirq_dual_edge_errata = true,
 };
 
 static int sdm670_pinctrl_probe(struct platform_device *pdev)

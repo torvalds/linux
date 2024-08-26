@@ -420,7 +420,7 @@ static SIMPLE_DEV_PM_OPS(tsl2550_pm_ops, tsl2550_suspend, tsl2550_resume);
 #endif /* CONFIG_PM_SLEEP */
 
 static const struct i2c_device_id tsl2550_id[] = {
-	{ "tsl2550", 0 },
+	{ "tsl2550" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, tsl2550_id);

@@ -22,6 +22,7 @@
 #include <subcmd/pager.h>
 #include <subcmd/parse-options.h>
 #include <linux/zalloc.h>
+#include <ctype.h>
 #include <stdarg.h>
 #include <stdio.h>
 
@@ -76,26 +77,38 @@ static void default_print_start(void *ps)
 
 static void default_print_end(void *print_state __maybe_unused) {}
 
+static const char *skip_spaces_or_commas(const char *str)
+{
+	while (isspace(*str) || *str == ',')
+		++str;
+	return str;
+}
+
 static void wordwrap(FILE *fp, const char *s, int start, int max, int corr)
 {
 	int column = start;
 	int n;
 	bool saw_newline = false;
+	bool comma = false;
 
 	while (*s) {
-		int wlen = strcspn(s, " \t\n");
+		int wlen = strcspn(s, " ,\t\n");
+		const char *sep = comma ? "," : " ";
 
 		if ((column + wlen >= max && column > start) || saw_newline) {
-			fprintf(fp, "\n%*s", start, "");
+			fprintf(fp, comma ? ",\n%*s" : "\n%*s", start, "");
 			column = start + corr;
 		}
-		n = fprintf(fp, "%s%.*s", column > start ? " " : "", wlen, s);
+		if (column <= start)
+			sep = "";
+		n = fprintf(fp, "%s%.*s", sep, wlen, s);
 		if (n <= 0)
 			break;
 		saw_newline = s[wlen] == '\n';
 		s += wlen;
+		comma = s[0] == ',';
 		column += n;
-		s = skip_spaces(s);
+		s = skip_spaces_or_commas(s);
 	}
 }
 
@@ -149,7 +162,11 @@ static void default_print_event(void *ps, const char *pmu_name, const char *topi
 	} else
 		fputc('\n', fp);
 
-	if (desc && print_state->desc) {
+	if (long_desc && print_state->long_desc) {
+		fprintf(fp, "%*s", 8, "[");
+		wordwrap(fp, long_desc, 8, pager_get_columns(), 0);
+		fprintf(fp, "]\n");
+	} else if (desc && print_state->desc) {
 		char *desc_with_unit = NULL;
 		int desc_len = -1;
 
@@ -164,12 +181,6 @@ static void default_print_event(void *ps, const char *pmu_name, const char *topi
 		wordwrap(fp, desc_len > 0 ? desc_with_unit : desc, 8, pager_get_columns(), 0);
 		fprintf(fp, "]\n");
 		free(desc_with_unit);
-	}
-	long_desc = long_desc ?: desc;
-	if (long_desc && print_state->long_desc) {
-		fprintf(fp, "%*s", 8, "[");
-		wordwrap(fp, long_desc, 8, pager_get_columns(), 0);
-		fprintf(fp, "]\n");
 	}
 
 	if (print_state->detailed && encoding_desc) {
@@ -243,14 +254,13 @@ static void default_print_metric(void *ps,
 	}
 	fprintf(fp, "  %s\n", name);
 
-	if (desc && print_state->desc) {
-		fprintf(fp, "%*s", 8, "[");
-		wordwrap(fp, desc, 8, pager_get_columns(), 0);
-		fprintf(fp, "]\n");
-	}
 	if (long_desc && print_state->long_desc) {
 		fprintf(fp, "%*s", 8, "[");
 		wordwrap(fp, long_desc, 8, pager_get_columns(), 0);
+		fprintf(fp, "]\n");
+	} else if (desc && print_state->desc) {
+		fprintf(fp, "%*s", 8, "[");
+		wordwrap(fp, desc, 8, pager_get_columns(), 0);
 		fprintf(fp, "]\n");
 	}
 	if (expr && print_state->detailed) {
@@ -312,6 +322,9 @@ static void fix_escape_fprintf(FILE *fp, struct strbuf *buf, const char *fmt, ..
 					switch (s[s_pos]) {
 					case '\n':
 						strbuf_addstr(buf, "\\n");
+						break;
+					case '\r':
+						strbuf_addstr(buf, "\\r");
 						break;
 					case '\\':
 						fallthrough;
@@ -491,6 +504,7 @@ int cmd_list(int argc, const char **argv)
 	int i, ret = 0;
 	struct print_state default_ps = {
 		.fp = stdout,
+		.desc = true,
 	};
 	struct print_state json_ps = {
 		.fp = stdout,
@@ -563,7 +577,6 @@ int cmd_list(int argc, const char **argv)
 		};
 		ps = &json_ps;
 	} else {
-		default_ps.desc = !default_ps.long_desc;
 		default_ps.last_topic = strdup("");
 		assert(default_ps.last_topic);
 		default_ps.visited_metrics = strlist__new(NULL, NULL);

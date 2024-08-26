@@ -418,4 +418,5 @@ static struct platform_driver bbc_i2c_driver = {
 
 module_platform_driver(bbc_i2c_driver);
 
+MODULE_DESCRIPTION("UltraSPARC-III bootbus i2c controller driver");
 MODULE_LICENSE("GPL");

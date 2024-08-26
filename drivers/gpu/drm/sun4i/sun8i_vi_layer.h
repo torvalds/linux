@@ -52,21 +52,9 @@
 #define SUN8I_MIXER_CHAN_VI_DS_M(x)			((x) << 0)
 
 struct sun8i_mixer;
+struct sun8i_layer;
 
-struct sun8i_vi_layer {
-	struct drm_plane	plane;
-	struct sun8i_mixer	*mixer;
-	int			channel;
-	int			overlay;
-};
-
-static inline struct sun8i_vi_layer *
-plane_to_sun8i_vi_layer(struct drm_plane *plane)
-{
-	return container_of(plane, struct sun8i_vi_layer, plane);
-}
-
-struct sun8i_vi_layer *sun8i_vi_layer_init_one(struct drm_device *drm,
-					       struct sun8i_mixer *mixer,
-					       int index);
+struct sun8i_layer *sun8i_vi_layer_init_one(struct drm_device *drm,
+					    struct sun8i_mixer *mixer,
+					    int index);
 #endif /* _SUN8I_VI_LAYER_H_ */

@@ -167,6 +167,15 @@ config BATTERY_LEGO_EV3
 	help
 	  Say Y here to enable support for the LEGO MINDSTORMS EV3 battery.
 
+config BATTERY_LENOVO_YOGA_C630
+	tristate "Lenovo Yoga C630 battery"
+	depends on EC_LENOVO_YOGA_C630
+	help
+	  This driver enables battery support on the Lenovo Yoga C630 laptop.
+
+	  To compile the driver as a module, choose M here: the module will be
+	  called lenovo_yoga_c630_battery.
+
 config BATTERY_PMU
 	tristate "Apple PMU battery"
 	depends on PPC32 && ADB_PMU
@@ -401,6 +410,18 @@ config BATTERY_MAX17042
 	  max17055, max77693, max77849.
 
 	  Driver can be build as a module (max17042_battery).
+
+config BATTERY_MAX1720X
+	tristate "Maxim MAX17201/MAX17205 Fuel Gauge"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  MAX1720x is a family of fuel-gauge systems for lithium-ion (Li+)
+	  batteries in handheld and portable equipment. MAX17201 are
+	  configured to operate with a single lithium cell, the MAX17205
+	  can operate with multiple cells.
+
+	  Say Y to include support for the MAX17201/MAX17205 Fuel Gauges.
 
 config BATTERY_MAX1721X
 	tristate "MAX17211/MAX17215 standalone gas-gauge"
@@ -859,6 +880,18 @@ config CHARGER_CROS_PCHG
 	  This driver gets various information about the devices connected to
 	  the peripheral charge ports from the EC and converts that into
 	  power_supply properties.
+
+config CHARGER_CROS_CONTROL
+	tristate "ChromeOS EC based charge control"
+	depends on MFD_CROS_EC_DEV
+	depends on ACPI_BATTERY
+	default MFD_CROS_EC_DEV
+	help
+	  Say Y here to enable ChromeOS EC based battery charge control.
+	  This driver can manage charge thresholds and behaviour.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called cros_charge-control.
 
 config CHARGER_SC2731
 	tristate "Spreadtrum SC2731 charger driver"

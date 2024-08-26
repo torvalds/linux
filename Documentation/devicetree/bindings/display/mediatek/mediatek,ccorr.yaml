@@ -25,6 +25,9 @@ properties:
           - mediatek,mt8183-disp-ccorr
           - mediatek,mt8192-disp-ccorr
       - items:
+          - const: mediatek,mt8365-disp-ccorr
+          - const: mediatek,mt8183-disp-ccorr
+      - items:
           - enum:
               - mediatek,mt8186-disp-ccorr
               - mediatek,mt8188-disp-ccorr

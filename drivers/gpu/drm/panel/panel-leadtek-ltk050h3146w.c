@@ -36,7 +36,6 @@ struct ltk050h3146w {
 	struct regulator *vci;
 	struct regulator *iovcc;
 	const struct ltk050h3146w_desc *panel_desc;
-	bool prepared;
 };
 
 static const struct ltk050h3146w_cmd page1_cmds[] = {
@@ -521,9 +520,6 @@ static int ltk050h3146w_unprepare(struct drm_panel *panel)
 	struct mipi_dsi_device *dsi = to_mipi_dsi_device(ctx->dev);
 	int ret;
 
-	if (!ctx->prepared)
-		return 0;
-
 	ret = mipi_dsi_dcs_set_display_off(dsi);
 	if (ret < 0) {
 		dev_err(ctx->dev, "failed to set display off: %d\n", ret);
@@ -539,8 +535,6 @@ static int ltk050h3146w_unprepare(struct drm_panel *panel)
 	regulator_disable(ctx->iovcc);
 	regulator_disable(ctx->vci);
 
-	ctx->prepared = false;
-
 	return 0;
 }
 
@@ -549,9 +543,6 @@ static int ltk050h3146w_prepare(struct drm_panel *panel)
 	struct ltk050h3146w *ctx = panel_to_ltk050h3146w(panel);
 	struct mipi_dsi_device *dsi = to_mipi_dsi_device(ctx->dev);
 	int ret;
-
-	if (ctx->prepared)
-		return 0;
 
 	dev_dbg(ctx->dev, "Resetting the panel\n");
 	ret = regulator_enable(ctx->vci);
@@ -592,8 +583,6 @@ static int ltk050h3146w_prepare(struct drm_panel *panel)
 	}
 
 	msleep(50);
-
-	ctx->prepared = true;
 
 	return 0;
 
@@ -684,26 +673,10 @@ static int ltk050h3146w_probe(struct mipi_dsi_device *dsi)
 	return 0;
 }
 
-static void ltk050h3146w_shutdown(struct mipi_dsi_device *dsi)
-{
-	struct ltk050h3146w *ctx = mipi_dsi_get_drvdata(dsi);
-	int ret;
-
-	ret = drm_panel_unprepare(&ctx->panel);
-	if (ret < 0)
-		dev_err(&dsi->dev, "Failed to unprepare panel: %d\n", ret);
-
-	ret = drm_panel_disable(&ctx->panel);
-	if (ret < 0)
-		dev_err(&dsi->dev, "Failed to disable panel: %d\n", ret);
-}
-
 static void ltk050h3146w_remove(struct mipi_dsi_device *dsi)
 {
 	struct ltk050h3146w *ctx = mipi_dsi_get_drvdata(dsi);
 	int ret;
-
-	ltk050h3146w_shutdown(dsi);
 
 	ret = mipi_dsi_detach(dsi);
 	if (ret < 0)
@@ -736,7 +709,6 @@ static struct mipi_dsi_driver ltk050h3146w_driver = {
 	},
 	.probe	= ltk050h3146w_probe,
 	.remove = ltk050h3146w_remove,
-	.shutdown = ltk050h3146w_shutdown,
 };
 module_mipi_dsi_driver(ltk050h3146w_driver);
 

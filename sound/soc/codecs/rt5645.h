@@ -2011,6 +2011,12 @@
 #define RT5645_ZCD_HP_DIS			(0x0 << 15)
 #define RT5645_ZCD_HP_EN			(0x1 << 15)
 
+/* Buttons Inline Command Function 2 (0xe0) */
+#define RT5645_EN_4BTN_IL_MASK			(0x1 << 15)
+#define RT5645_EN_4BTN_IL_EN			(0x1 << 15)
+#define RT5645_RST_4BTN_IL_MASK			(0x1 << 14)
+#define RT5645_RST_4BTN_IL_RST			(0x0 << 14)
+#define RT5645_RST_4BTN_IL_NORM			(0x1 << 14)
 
 /* Codec Private Register definition */
 /* DAC ADC Digital Volume (0x00) */

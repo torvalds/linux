@@ -148,7 +148,7 @@ nsim_get_fec_stats(struct net_device *dev, struct ethtool_fec_stats *fec_stats)
 }
 
 static int nsim_get_ts_info(struct net_device *dev,
-			    struct ethtool_ts_info *info)
+			    struct kernel_ethtool_ts_info *info)
 {
 	struct netdevsim *ns = netdev_priv(dev);
 

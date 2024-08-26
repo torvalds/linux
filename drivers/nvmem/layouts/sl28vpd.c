@@ -156,7 +156,6 @@ MODULE_DEVICE_TABLE(of, sl28vpd_of_match_table);
 
 static struct nvmem_layout_driver sl28vpd_layout = {
 	.driver = {
-		.owner = THIS_MODULE,
 		.name = "kontron-sl28vpd-layout",
 		.of_match_table = sl28vpd_of_match_table,
 	},

@@ -145,7 +145,7 @@
 
 /* parts of opcode for RVF, RVD and RVQ */
 #define RVFDQ_FL_FS_WIDTH_OFF	12
-#define RVFDQ_FL_FS_WIDTH_MASK	GENMASK(3, 0)
+#define RVFDQ_FL_FS_WIDTH_MASK	GENMASK(2, 0)
 #define RVFDQ_FL_FS_WIDTH_W	2
 #define RVFDQ_FL_FS_WIDTH_D	3
 #define RVFDQ_LS_FS_WIDTH_Q	4

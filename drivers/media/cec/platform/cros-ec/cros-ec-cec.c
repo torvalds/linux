@@ -8,6 +8,7 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
 #include <linux/dmi.h>
 #include <linux/pci.h>
@@ -573,6 +574,12 @@ static void cros_ec_cec_remove(struct platform_device *pdev)
 	}
 }
 
+static const struct platform_device_id cros_ec_cec_id[] = {
+	{ DRV_NAME, 0 },
+	{}
+};
+MODULE_DEVICE_TABLE(platform, cros_ec_cec_id);
+
 static struct platform_driver cros_ec_cec_driver = {
 	.probe = cros_ec_cec_probe,
 	.remove_new = cros_ec_cec_remove,
@@ -580,6 +587,7 @@ static struct platform_driver cros_ec_cec_driver = {
 		.name = DRV_NAME,
 		.pm = &cros_ec_cec_pm_ops,
 	},
+	.id_table = cros_ec_cec_id,
 };
 
 module_platform_driver(cros_ec_cec_driver);
@@ -587,4 +595,3 @@ module_platform_driver(cros_ec_cec_driver);
 MODULE_DESCRIPTION("CEC driver for ChromeOS ECs");
 MODULE_AUTHOR("Neil Armstrong <narmstrong@baylibre.com>");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:" DRV_NAME);

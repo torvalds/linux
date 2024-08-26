@@ -74,12 +74,11 @@
 #define _PTE_NONE_MASK	0
 
 #ifdef CONFIG_PPC_16K_PAGES
-#define _PAGE_PSIZE	_PAGE_SPS
+#define _PAGE_BASE_NC	(_PAGE_PRESENT | _PAGE_ACCESSED | _PAGE_SPS)
 #else
-#define _PAGE_PSIZE		0
+#define _PAGE_BASE_NC	(_PAGE_PRESENT | _PAGE_ACCESSED)
 #endif
 
-#define _PAGE_BASE_NC	(_PAGE_PRESENT | _PAGE_ACCESSED | _PAGE_PSIZE)
 #define _PAGE_BASE	(_PAGE_BASE_NC)
 
 #include <asm/pgtable-masks.h>
@@ -120,7 +119,7 @@ static inline pte_t pte_mkhuge(pte_t pte)
 
 #define pte_mkhuge pte_mkhuge
 
-static inline pte_basic_t pte_update(struct mm_struct *mm, unsigned long addr, pte_t *p,
+static inline pte_basic_t pte_update(struct mm_struct *mm, unsigned long addr, pte_t *ptep,
 				     unsigned long clr, unsigned long set, int huge);
 
 static inline void ptep_set_wrprotect(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
@@ -142,19 +141,12 @@ static inline void __ptep_set_access_flags(struct vm_area_struct *vma, pte_t *pt
 }
 #define __ptep_set_access_flags __ptep_set_access_flags
 
-static inline unsigned long pgd_leaf_size(pgd_t pgd)
-{
-	if (pgd_val(pgd) & _PMD_PAGE_8M)
-		return SZ_8M;
-	return SZ_4M;
-}
-
-#define pgd_leaf_size pgd_leaf_size
-
-static inline unsigned long pte_leaf_size(pte_t pte)
+static inline unsigned long __pte_leaf_size(pmd_t pmd, pte_t pte)
 {
 	pte_basic_t val = pte_val(pte);
 
+	if (pmd_val(pmd) & _PMD_PAGE_8M)
+		return SZ_8M;
 	if (val & _PAGE_HUGE)
 		return SZ_512K;
 	if (val & _PAGE_SPS)
@@ -162,31 +154,38 @@ static inline unsigned long pte_leaf_size(pte_t pte)
 	return SZ_4K;
 }
 
-#define pte_leaf_size pte_leaf_size
+#define __pte_leaf_size __pte_leaf_size
 
 /*
  * On the 8xx, the page tables are a bit special. For 16k pages, we have
  * 4 identical entries. For 512k pages, we have 128 entries as if it was
  * 4k pages, but they are flagged as 512k pages for the hardware.
- * For other page sizes, we have a single entry in the table.
+ * For 8M pages, we have 1024 entries as if it was 4M pages (PMD_SIZE)
+ * but they are flagged as 8M pages for the hardware.
+ * For 4k pages, we have a single entry in the table.
  */
 static pmd_t *pmd_off(struct mm_struct *mm, unsigned long addr);
-static int hugepd_ok(hugepd_t hpd);
+static inline pte_t *pte_offset_kernel(pmd_t *pmd, unsigned long address);
+
+static inline bool ptep_is_8m_pmdp(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
+{
+	return (pmd_t *)ptep == pmd_off(mm, ALIGN_DOWN(addr, SZ_8M));
+}
 
 static inline int number_of_cells_per_pte(pmd_t *pmd, pte_basic_t val, int huge)
 {
 	if (!huge)
 		return PAGE_SIZE / SZ_4K;
-	else if (hugepd_ok(*((hugepd_t *)pmd)))
-		return 1;
+	else if ((pmd_val(*pmd) & _PMD_PAGE_MASK) == _PMD_PAGE_8M)
+		return SZ_4M / SZ_4K;
 	else if (IS_ENABLED(CONFIG_PPC_4K_PAGES) && !(val & _PAGE_HUGE))
 		return SZ_16K / SZ_4K;
 	else
 		return SZ_512K / SZ_4K;
 }
 
-static inline pte_basic_t pte_update(struct mm_struct *mm, unsigned long addr, pte_t *p,
-				     unsigned long clr, unsigned long set, int huge)
+static inline pte_basic_t __pte_update(struct mm_struct *mm, unsigned long addr, pte_t *p,
+				       unsigned long clr, unsigned long set, int huge)
 {
 	pte_basic_t *entry = (pte_basic_t *)p;
 	pte_basic_t old = pte_val(*p);
@@ -198,7 +197,7 @@ static inline pte_basic_t pte_update(struct mm_struct *mm, unsigned long addr, p
 
 	for (i = 0; i < num; i += PAGE_SIZE / SZ_4K, new += PAGE_SIZE) {
 		*entry++ = new;
-		if (IS_ENABLED(CONFIG_PPC_16K_PAGES) && num != 1) {
+		if (IS_ENABLED(CONFIG_PPC_16K_PAGES)) {
 			*entry++ = new;
 			*entry++ = new;
 			*entry++ = new;
@@ -208,6 +207,21 @@ static inline pte_basic_t pte_update(struct mm_struct *mm, unsigned long addr, p
 	return old;
 }
 
+static inline pte_basic_t pte_update(struct mm_struct *mm, unsigned long addr, pte_t *ptep,
+				     unsigned long clr, unsigned long set, int huge)
+{
+	pte_basic_t old;
+
+	if (huge && ptep_is_8m_pmdp(mm, addr, ptep)) {
+		pmd_t *pmdp = (pmd_t *)ptep;
+
+		old = __pte_update(mm, addr, pte_offset_kernel(pmdp, 0), clr, set, huge);
+		__pte_update(mm, addr, pte_offset_kernel(pmdp + 1, 0), clr, set, huge);
+	} else {
+		old = __pte_update(mm, addr, ptep, clr, set, huge);
+	}
+	return old;
+}
 #define pte_update pte_update
 
 #ifdef CONFIG_PPC_16K_PAGES

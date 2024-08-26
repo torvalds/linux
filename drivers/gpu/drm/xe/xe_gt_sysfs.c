@@ -22,7 +22,7 @@ static const struct kobj_type xe_gt_sysfs_kobj_type = {
 	.sysfs_ops = &kobj_sysfs_ops,
 };
 
-static void gt_sysfs_fini(struct drm_device *drm, void *arg)
+static void gt_sysfs_fini(void *arg)
 {
 	struct xe_gt *gt = arg;
 
@@ -51,5 +51,5 @@ int xe_gt_sysfs_init(struct xe_gt *gt)
 
 	gt->sysfs = &kg->base;
 
-	return drmm_add_action_or_reset(&xe->drm, gt_sysfs_fini, gt);
+	return devm_add_action(xe->drm.dev, gt_sysfs_fini, gt);
 }

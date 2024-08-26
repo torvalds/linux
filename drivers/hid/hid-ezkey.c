@@ -75,4 +75,5 @@ static struct hid_driver ez_driver = {
 };
 module_hid_driver(ez_driver);
 
+MODULE_DESCRIPTION("HID driver for some ezkey \"special\" devices");
 MODULE_LICENSE("GPL");

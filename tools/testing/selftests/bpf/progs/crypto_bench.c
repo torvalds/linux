@@ -57,7 +57,7 @@ int crypto_encrypt(struct __sk_buff *skb)
 {
 	struct __crypto_ctx_value *v;
 	struct bpf_crypto_ctx *ctx;
-	struct bpf_dynptr psrc, pdst, iv;
+	struct bpf_dynptr psrc, pdst;
 
 	v = crypto_ctx_value_lookup();
 	if (!v) {
@@ -73,9 +73,8 @@ int crypto_encrypt(struct __sk_buff *skb)
 
 	bpf_dynptr_from_skb(skb, 0, &psrc);
 	bpf_dynptr_from_mem(dst, len, 0, &pdst);
-	bpf_dynptr_from_mem(dst, 0, 0, &iv);
 
-	status = bpf_crypto_encrypt(ctx, &psrc, &pdst, &iv);
+	status = bpf_crypto_encrypt(ctx, &psrc, &pdst, NULL);
 	__sync_add_and_fetch(&hits, 1);
 
 	return 0;
@@ -84,7 +83,7 @@ int crypto_encrypt(struct __sk_buff *skb)
 SEC("tc")
 int crypto_decrypt(struct __sk_buff *skb)
 {
-	struct bpf_dynptr psrc, pdst, iv;
+	struct bpf_dynptr psrc, pdst;
 	struct __crypto_ctx_value *v;
 	struct bpf_crypto_ctx *ctx;
 
@@ -98,9 +97,8 @@ int crypto_decrypt(struct __sk_buff *skb)
 
 	bpf_dynptr_from_skb(skb, 0, &psrc);
 	bpf_dynptr_from_mem(dst, len, 0, &pdst);
-	bpf_dynptr_from_mem(dst, 0, 0, &iv);
 
-	status = bpf_crypto_decrypt(ctx, &psrc, &pdst, &iv);
+	status = bpf_crypto_decrypt(ctx, &psrc, &pdst, NULL);
 	__sync_add_and_fetch(&hits, 1);
 
 	return 0;

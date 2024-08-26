@@ -521,6 +521,7 @@ int auxtrace_mmap__read_snapshot(struct mmap *map,
 				 struct perf_tool *tool, process_auxtrace_t fn,
 				 size_t snapshot_size);
 
+int auxtrace_queues__init_nr(struct auxtrace_queues *queues, int nr_queues);
 int auxtrace_queues__init(struct auxtrace_queues *queues);
 int auxtrace_queues__add_event(struct auxtrace_queues *queues,
 			       struct perf_session *session,

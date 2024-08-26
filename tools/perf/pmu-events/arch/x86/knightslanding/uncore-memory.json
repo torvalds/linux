@@ -1,6 +1,7 @@
 [
     {
         "BriefDescription": "Counts the number of read requests and streaming stores that hit in MCDRAM cache and the data in MCDRAM is clean with respect to DDR. This event is only valid in cache and hybrid memory mode.",
+        "Counter": "0,1,2,3",
         "EventCode": "0x02",
         "EventName": "UNC_E_EDC_ACCESS.HIT_CLEAN",
         "PerPkg": "1",
@@ -9,6 +10,7 @@
     },
     {
         "BriefDescription": "Counts the number of read requests and streaming stores that hit in MCDRAM cache and the data in MCDRAM is dirty with respect to DDR. This event is only valid in cache and hybrid memory mode.",
+        "Counter": "0,1,2,3",
         "EventCode": "0x02",
         "EventName": "UNC_E_EDC_ACCESS.HIT_DIRTY",
         "PerPkg": "1",
@@ -17,6 +19,7 @@
     },
     {
         "BriefDescription": "Counts the number of read requests and streaming stores that miss in MCDRAM cache and the data evicted from the MCDRAM is clean with respect to DDR. This event is only valid in cache and hybrid memory mode.",
+        "Counter": "0,1,2,3",
         "EventCode": "0x02",
         "EventName": "UNC_E_EDC_ACCESS.MISS_CLEAN",
         "PerPkg": "1",
@@ -25,6 +28,7 @@
     },
     {
         "BriefDescription": "Counts the number of read requests and streaming stores that miss in MCDRAM cache and the data evicted from the MCDRAM is dirty with respect to DDR. This event is only valid in cache and hybrid memory mode.",
+        "Counter": "0,1,2,3",
         "EventCode": "0x02",
         "EventName": "UNC_E_EDC_ACCESS.MISS_DIRTY",
         "PerPkg": "1",
@@ -33,6 +37,7 @@
     },
     {
         "BriefDescription": "Number of EDC Hits or Misses. Miss I",
+        "Counter": "0,1,2,3",
         "EventCode": "0x02",
         "EventName": "UNC_E_EDC_ACCESS.MISS_INVALID",
         "PerPkg": "1",
@@ -41,12 +46,14 @@
     },
     {
         "BriefDescription": "ECLK count",
+        "Counter": "0,1,2,3",
         "EventName": "UNC_E_E_CLOCKTICKS",
         "PerPkg": "1",
         "Unit": "EDC_ECLK"
     },
     {
         "BriefDescription": "Counts the number of read requests received by the MCDRAM controller. This event is valid in all three memory modes: flat, cache and hybrid. In cache and hybrid memory mode, this event counts all read requests as well as streaming stores that hit or miss in the MCDRAM cache.",
+        "Counter": "0,1,2,3",
         "EventCode": "0x01",
         "EventName": "UNC_E_RPQ_INSERTS",
         "PerPkg": "1",
@@ -55,12 +62,14 @@
     },
     {
         "BriefDescription": "UCLK count",
+        "Counter": "0,1,2,3",
         "EventName": "UNC_E_U_CLOCKTICKS",
         "PerPkg": "1",
         "Unit": "EDC_UCLK"
     },
     {
         "BriefDescription": "Counts the number of write requests received by the MCDRAM controller. This event is valid in all three memory modes: flat, cache and hybrid. In cache and hybrid memory mode, this event counts all streaming stores, writebacks and, read requests that miss in MCDRAM cache.",
+        "Counter": "0,1,2,3",
         "EventCode": "0x02",
         "EventName": "UNC_E_WPQ_INSERTS",
         "PerPkg": "1",
@@ -69,6 +78,7 @@
     },
     {
         "BriefDescription": "CAS All",
+        "Counter": "0,1,2,3",
         "EventCode": "0x03",
         "EventName": "UNC_M_CAS_COUNT.ALL",
         "PerPkg": "1",
@@ -77,6 +87,7 @@
     },
     {
         "BriefDescription": "CAS Reads",
+        "Counter": "0,1,2,3",
         "EventCode": "0x03",
         "EventName": "UNC_M_CAS_COUNT.RD",
         "PerPkg": "1",
@@ -85,6 +96,7 @@
     },
     {
         "BriefDescription": "CAS Writes",
+        "Counter": "0,1,2,3",
         "EventCode": "0x03",
         "EventName": "UNC_M_CAS_COUNT.WR",
         "PerPkg": "1",
@@ -93,12 +105,14 @@
     },
     {
         "BriefDescription": "DCLK count",
+        "Counter": "0,1,2,3",
         "EventName": "UNC_M_D_CLOCKTICKS",
         "PerPkg": "1",
         "Unit": "iMC_DCLK"
     },
     {
         "BriefDescription": "UCLK count",
+        "Counter": "0,1,2,3",
         "EventName": "UNC_M_U_CLOCKTICKS",
         "PerPkg": "1",
         "Unit": "iMC_UCLK"

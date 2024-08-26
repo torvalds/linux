@@ -25,7 +25,7 @@ TRACE_EVENT(mlx5e_rep_neigh_update,
 			struct in6_addr *pin6;
 			__be32 *p32;
 
-			__assign_str(devname, nhe->neigh_dev->name);
+			__assign_str(devname);
 			__entry->neigh_connected = neigh_connected;
 			memcpy(__entry->ha, ha, ETH_ALEN);
 

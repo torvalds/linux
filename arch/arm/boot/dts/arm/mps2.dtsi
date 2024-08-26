@@ -48,37 +48,37 @@
 	#address-cells = <1>;
 	#size-cells = <1>;
 
-	oscclk0: clk-osc0 {
+	oscclk0: clock-50000000 {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
 		clock-frequency = <50000000>;
 	};
 
-	oscclk1: clk-osc1 {
+	oscclk1: clock-24576000 {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
 		clock-frequency = <24576000>;
 	};
 
-	oscclk2: clk-osc2 {
+	oscclk2: clock-25000000 {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
 		clock-frequency = <25000000>;
 	};
 
-	cfgclk: clk-cfg {
+	cfgclk: clock-5000000 {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
 		clock-frequency = <5000000>;
 	};
 
-	spicfgclk: clk-spicfg {
+	spicfgclk: clock-75000000 {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
 		clock-frequency = <75000000>;
 	};
 
-	sysclk: clk-sys {
+	sysclk: spiclcd: spicon: i2cclcd: i2caud: clock-sys {
 		compatible = "fixed-factor-clock";
 		clocks = <&oscclk0>;
 		#clock-cells = <0>;
@@ -86,7 +86,7 @@
 		clock-mult = <1>;
 	};
 
-	audmclk: clk-audm {
+	audmclk: clk-12388000 {
 		compatible = "fixed-factor-clock";
 		clocks = <&oscclk1>;
 		#clock-cells = <0>;
@@ -94,43 +94,11 @@
 		clock-mult = <1>;
 	};
 
-	audsclk: clk-auds {
+	audsclk: clk-3072000 {
 		compatible = "fixed-factor-clock";
 		clocks = <&oscclk1>;
 		#clock-cells = <0>;
 		clock-div = <8>;
-		clock-mult = <1>;
-	};
-
-	spiclcd: clk-cpiclcd {
-		compatible = "fixed-factor-clock";
-		clocks = <&oscclk0>;
-		#clock-cells = <0>;
-		clock-div = <2>;
-		clock-mult = <1>;
-	};
-
-	spicon: clk-spicon {
-		compatible = "fixed-factor-clock";
-		clocks = <&oscclk0>;
-		#clock-cells = <0>;
-		clock-div = <2>;
-		clock-mult = <1>;
-	};
-
-	i2cclcd: clk-i2cclcd {
-		compatible = "fixed-factor-clock";
-		clocks = <&oscclk0>;
-		#clock-cells = <0>;
-		clock-div = <2>;
-		clock-mult = <1>;
-	};
-
-	i2caud: clk-i2caud {
-		compatible = "fixed-factor-clock";
-		clocks = <&oscclk0>;
-		#clock-cells = <0>;
-		clock-div = <2>;
 		clock-mult = <1>;
 	};
 

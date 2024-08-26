@@ -201,18 +201,6 @@ enum mipi_port_id {
 
 #define	N_RX_CHANNEL_ID		4
 
-/* Generic port enumeration with an internal port type ID */
-typedef enum {
-	CSI_PORT0_ID = 0,
-	CSI_PORT1_ID,
-	CSI_PORT2_ID,
-	TPG_PORT0_ID,
-	PRBS_PORT0_ID,
-	FIFO_PORT0_ID,
-	MEMORY_PORT0_ID,
-	N_INPUT_PORT_ID
-} input_port_ID_t;
-
 typedef enum {
 	CAPTURE_UNIT0_ID = 0,
 	CAPTURE_UNIT1_ID,

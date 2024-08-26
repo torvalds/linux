@@ -201,5 +201,6 @@ static struct platform_driver octeon_l2c_driver = {
 };
 module_platform_driver(octeon_l2c_driver);
 
+MODULE_DESCRIPTION("Cavium Octeon Secondary Caches (L2C) EDAC driver");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Ralf Baechle <ralf@linux-mips.org>");

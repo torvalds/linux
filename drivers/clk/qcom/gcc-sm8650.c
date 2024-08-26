@@ -3822,7 +3822,7 @@ static int gcc_sm8650_probe(struct platform_device *pdev)
 	/* Clear GDSC_SLEEP_ENA_VOTE to stop votes being auto-removed in sleep. */
 	regmap_write(regmap, 0x52150, 0x0);
 
-	return qcom_cc_really_probe(pdev, &gcc_sm8650_desc, regmap);
+	return qcom_cc_really_probe(&pdev->dev, &gcc_sm8650_desc, regmap);
 }
 
 static struct platform_driver gcc_sm8650_driver = {

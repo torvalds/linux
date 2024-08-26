@@ -16,7 +16,11 @@ description: |
 
 properties:
   compatible:
-    const: bosch,bmi160
+    oneOf:
+      - const: bosch,bmi160
+      - items:
+          - const: bosch,bmi120
+          - const: bosch,bmi160
 
   reg:
     maxItems: 1

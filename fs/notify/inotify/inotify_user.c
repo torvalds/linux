@@ -544,7 +544,7 @@ static int inotify_update_existing_watch(struct fsnotify_group *group,
 	int create = (arg & IN_MASK_CREATE);
 	int ret;
 
-	fsn_mark = fsnotify_find_mark(&inode->i_fsnotify_marks, group);
+	fsn_mark = fsnotify_find_inode_mark(inode, group);
 	if (!fsn_mark)
 		return -ENOENT;
 	else if (create) {

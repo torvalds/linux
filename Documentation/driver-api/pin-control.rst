@@ -1002,7 +1002,7 @@ it even more compact which assumes you want to use pinctrl-foo and position
 .. code-block:: c
 
 	static struct pinctrl_map mapping[] __initdata = {
-		PIN_MAP_MUX_GROUP("foo-i2c.o", PINCTRL_STATE_DEFAULT,
+		PIN_MAP_MUX_GROUP("foo-i2c.0", PINCTRL_STATE_DEFAULT,
 				  "pinctrl-foo", NULL, "i2c0"),
 	};
 

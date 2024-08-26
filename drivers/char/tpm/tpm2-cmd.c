@@ -281,6 +281,7 @@ struct tpm2_get_random_out {
 int tpm2_get_random(struct tpm_chip *chip, u8 *dest, size_t max)
 {
 	struct tpm2_get_random_out *out;
+	struct tpm_header *head;
 	struct tpm_buf buf;
 	u32 recd;
 	u32 num_bytes = max;
@@ -288,6 +289,7 @@ int tpm2_get_random(struct tpm_chip *chip, u8 *dest, size_t max)
 	int total = 0;
 	int retries = 5;
 	u8 *dest_ptr = dest;
+	off_t offset;
 
 	if (!num_bytes || max > TPM_MAX_RNG_DATA)
 		return -EINVAL;
@@ -320,7 +322,13 @@ int tpm2_get_random(struct tpm_chip *chip, u8 *dest, size_t max)
 			goto out;
 		}
 
-		out = (struct tpm2_get_random_out *)tpm_buf_parameters(&buf);
+		head = (struct tpm_header *)buf.data;
+		offset = TPM_HEADER_SIZE;
+		/* Skip the parameter size field: */
+		if (be16_to_cpu(head->tag) == TPM2_ST_SESSIONS)
+			offset += 4;
+
+		out = (struct tpm2_get_random_out *)&buf.data[offset];
 		recd = min_t(u32, be16_to_cpu(out->size), num_bytes);
 		if (tpm_buf_length(&buf) <
 		    TPM_HEADER_SIZE +

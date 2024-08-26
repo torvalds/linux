@@ -11,9 +11,9 @@
  *    KVM_SYSTEM_EVENT_SUSPEND UAPI.
  */
 
-#define _GNU_SOURCE
-
+#include <linux/kernel.h>
 #include <linux/psci.h>
+#include <asm/cputype.h>
 
 #include "kvm_util.h"
 #include "processor.h"

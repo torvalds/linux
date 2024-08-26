@@ -51,7 +51,7 @@ static struct clk_branch gpucc_cxo_clk = {
 	},
 };
 
-static struct pll_vco gpu_vco[] = {
+static const struct pll_vco gpu_vco[] = {
 	{ 1000000000, 2000000000, 0 },
 	{ 500000000,  1000000000, 2 },
 	{ 250000000,   500000000, 3 },
@@ -330,7 +330,7 @@ static int gpucc_sdm660_probe(struct platform_device *pdev)
 	gpu_pll_config.alpha_hi = 0x8a;
 	clk_alpha_pll_configure(&gpu_pll1_pll_out_main, regmap, &gpu_pll_config);
 
-	return qcom_cc_really_probe(pdev, &gpucc_sdm660_desc, regmap);
+	return qcom_cc_really_probe(&pdev->dev, &gpucc_sdm660_desc, regmap);
 }
 
 static struct platform_driver gpucc_sdm660_driver = {

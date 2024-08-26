@@ -77,13 +77,12 @@ struct adreno_reglist {
 	u32 value;
 };
 
-extern const struct adreno_reglist a612_hwcg[], a615_hwcg[], a630_hwcg[], a640_hwcg[], a650_hwcg[];
-extern const struct adreno_reglist a660_hwcg[], a690_hwcg[], a702_hwcg[], a730_hwcg[], a740_hwcg[];
-
 struct adreno_speedbin {
 	uint16_t fuse;
 	uint16_t speedbin;
 };
+
+struct a6xx_info;
 
 struct adreno_info {
 	const char *machine;
@@ -101,7 +100,9 @@ struct adreno_info {
 	struct msm_gpu *(*init)(struct drm_device *dev);
 	const char *zapfw;
 	u32 inactive_period;
-	const struct adreno_reglist *hwcg;
+	union {
+		const struct a6xx_info *a6xx;
+	};
 	u64 address_space_size;
 	/**
 	 * @speedbins: Optional table of fuse to speedbin mappings
@@ -113,6 +114,16 @@ struct adreno_info {
 };
 
 #define ADRENO_CHIP_IDS(tbl...) (uint32_t[]) { tbl, 0 }
+
+struct adreno_gpulist {
+	const struct adreno_info *gpus;
+	unsigned gpus_count;
+};
+
+#define DECLARE_ADRENO_GPULIST(name)                  \
+const struct adreno_gpulist name ## _gpulist = {      \
+	name ## _gpus, ARRAY_SIZE(name ## _gpus)      \
+}
 
 /*
  * Helper to build a speedbin table, ie. the table:
@@ -131,6 +142,19 @@ struct adreno_info {
  *     ),
  */
 #define ADRENO_SPEEDBINS(tbl...) (struct adreno_speedbin[]) { tbl {SHRT_MAX, 0} }
+
+struct adreno_protect {
+	const uint32_t *regs;
+	uint32_t count;
+	uint32_t count_max;
+};
+
+#define DECLARE_ADRENO_PROTECT(name, __count_max)	\
+static const struct adreno_protect name = {		\
+	.regs = name ## _regs,				\
+	.count = ARRAY_SIZE(name ## _regs),		\
+	.count_max = __count_max,			\
+};
 
 struct adreno_gpu {
 	struct msm_gpu base;
@@ -182,6 +206,8 @@ struct adreno_gpu {
 	 */
 	const unsigned int *reg_offsets;
 	bool gmu_is_wrapper;
+
+	bool has_ray_tracing;
 };
 #define to_adreno_gpu(x) container_of(x, struct adreno_gpu, base)
 
@@ -296,6 +322,11 @@ static inline int adreno_is_a420(const struct adreno_gpu *gpu)
 static inline int adreno_is_a430(const struct adreno_gpu *gpu)
 {
 	return adreno_is_revn(gpu, 430);
+}
+
+static inline int adreno_is_a505(const struct adreno_gpu *gpu)
+{
+	return adreno_is_revn(gpu, 505);
 }
 
 static inline int adreno_is_a506(const struct adreno_gpu *gpu)
@@ -446,6 +477,11 @@ static inline int adreno_is_a740(struct adreno_gpu *gpu)
 static inline int adreno_is_a750(struct adreno_gpu *gpu)
 {
 	return gpu->info->chip_ids[0] == 0x43051401;
+}
+
+static inline int adreno_is_x185(struct adreno_gpu *gpu)
+{
+	return gpu->info->chip_ids[0] == 0x43050c01;
 }
 
 static inline int adreno_is_a740_family(struct adreno_gpu *gpu)

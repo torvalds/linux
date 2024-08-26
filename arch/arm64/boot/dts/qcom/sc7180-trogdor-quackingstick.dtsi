@@ -9,9 +9,7 @@
 
 #include "sc7180-trogdor.dtsi"
 #include "sc7180-trogdor-rt5682i-sku.dtsi"
-
-/* This board only has 1 USB Type-C port. */
-/delete-node/ &usb_c1;
+#include "sc7180-trogdor-detachable.dtsi"
 
 / {
 	ppvar_lcd: ppvar-lcd-regulator {
@@ -45,12 +43,6 @@
 
 &camcc {
 	status = "okay";
-};
-
-&cros_ec {
-	keyboard-controller {
-		compatible = "google,cros-ec-keyb-switches";
-	};
 };
 
 &gpio_keys {
@@ -134,6 +126,11 @@
  */
 pp3300_disp_on: &pp3300_dx_edp {
 	gpio = <&tlmm 67 GPIO_ACTIVE_HIGH>;
+};
+
+/* This board only has 1 USB Type-C port. */
+&usb_c1 {
+	status = "disabled";
 };
 
 /* PINCTRL - modifications to sc7180-trogdor.dtsi */

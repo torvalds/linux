@@ -564,5 +564,6 @@ static void __exit agp_serverworks_cleanup(void)
 module_init(agp_serverworks_init);
 module_exit(agp_serverworks_cleanup);
 
+MODULE_DESCRIPTION("Serverworks AGPGART routines");
 MODULE_LICENSE("GPL and additional rights");
 

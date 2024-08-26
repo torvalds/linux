@@ -53,6 +53,7 @@ struct dc_dmub_srv {
 	void *dm;
 
 	int32_t idle_exit_counter;
+	union dmub_shared_state_ips_driver_signals driver_signals;
 	bool idle_allowed;
 	bool needs_idle_wake;
 };
@@ -74,7 +75,7 @@ bool dc_dmub_srv_cmd_run(struct dc_dmub_srv *dc_dmub_srv, union dmub_rb_cmd *cmd
 bool dc_dmub_srv_cmd_run_list(struct dc_dmub_srv *dc_dmub_srv, unsigned int count, union dmub_rb_cmd *cmd_list, enum dm_dmub_wait_type wait_type);
 
 bool dc_dmub_srv_notify_stream_mask(struct dc_dmub_srv *dc_dmub_srv,
-				    unsigned int stream_mask);
+				   unsigned int stream_mask);
 
 bool dc_dmub_srv_is_restore_required(struct dc_dmub_srv *dc_dmub_srv);
 
@@ -109,6 +110,16 @@ bool dc_dmub_srv_is_hw_pwr_up(struct dc_dmub_srv *dc_dmub_srv, bool wait);
 void dc_dmub_srv_apply_idle_power_optimizations(const struct dc *dc, bool allow_idle);
 
 void dc_dmub_srv_set_power_state(struct dc_dmub_srv *dc_dmub_srv, enum dc_acpi_cm_power_state powerState);
+
+/**
+ * @dc_dmub_srv_should_detect() - Checks if link detection is required.
+ *
+ * While in idle power states we may need driver to manually redetect in
+ * the case of a missing hotplug. Should be called from a polling timer.
+ *
+ * Return: true if redetection is required.
+ */
+bool dc_dmub_srv_should_detect(struct dc_dmub_srv *dc_dmub_srv);
 
 /**
  * dc_wake_and_execute_dmub_cmd() - Wrapper for DMUB command execution.
@@ -160,4 +171,20 @@ bool dc_wake_and_execute_dmub_cmd_list(const struct dc_context *ctx, unsigned in
 bool dc_wake_and_execute_gpint(const struct dc_context *ctx, enum dmub_gpint_command command_code,
 			       uint16_t param, uint32_t *response, enum dm_dmub_wait_type wait_type);
 
+void dc_dmub_srv_fams2_update_config(struct dc *dc,
+		struct dc_state *context,
+		bool enable);
+void dc_dmub_srv_fams2_drr_update(struct dc *dc,
+		uint32_t tg_inst,
+		uint32_t vtotal_min,
+		uint32_t vtotal_max,
+		uint32_t vtotal_mid,
+		uint32_t vtotal_mid_frame_num,
+		bool program_manual_trigger);
+void dc_dmub_srv_fams2_passthrough_flip(
+		struct dc *dc,
+		struct dc_state *state,
+		struct dc_stream_state *stream,
+		struct dc_surface_update *srf_updates,
+		int surface_count);
 #endif /* _DMUB_DC_SRV_H_ */

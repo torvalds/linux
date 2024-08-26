@@ -261,6 +261,7 @@ task_file_seq_get_next(struct bpf_iter_seq_task_file_info *info)
 	u32 saved_tid = info->tid;
 	struct task_struct *curr_task;
 	unsigned int curr_fd = info->fd;
+	struct file *f;
 
 	/* If this function returns a non-NULL file object,
 	 * it held a reference to the task/file.
@@ -286,12 +287,8 @@ again:
 	}
 
 	rcu_read_lock();
-	for (;; curr_fd++) {
-		struct file *f;
-		f = task_lookup_next_fdget_rcu(curr_task, &curr_fd);
-		if (!f)
-			break;
-
+	f = task_lookup_next_fdget_rcu(curr_task, &curr_fd);
+	if (f) {
 		/* set info->fd */
 		info->fd = curr_fd;
 		rcu_read_unlock();

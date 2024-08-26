@@ -1505,7 +1505,7 @@ static const struct acpi_device_id kmx61_acpi_match[] = {
 MODULE_DEVICE_TABLE(acpi, kmx61_acpi_match);
 
 static const struct i2c_device_id kmx61_id[] = {
-	{"kmx611021", 0},
+	{ "kmx611021" },
 	{}
 };
 

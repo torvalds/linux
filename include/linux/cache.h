@@ -13,6 +13,32 @@
 #define SMP_CACHE_BYTES L1_CACHE_BYTES
 #endif
 
+/**
+ * SMP_CACHE_ALIGN - align a value to the L2 cacheline size
+ * @x: value to align
+ *
+ * On some architectures, L2 ("SMP") CL size is bigger than L1, and sometimes,
+ * this needs to be accounted.
+ *
+ * Return: aligned value.
+ */
+#ifndef SMP_CACHE_ALIGN
+#define SMP_CACHE_ALIGN(x)	ALIGN(x, SMP_CACHE_BYTES)
+#endif
+
+/*
+ * ``__aligned_largest`` aligns a field to the value most optimal for the
+ * target architecture to perform memory operations. Get the actual value
+ * to be able to use it anywhere else.
+ */
+#ifndef __LARGEST_ALIGN
+#define __LARGEST_ALIGN		sizeof(struct { long x; } __aligned_largest)
+#endif
+
+#ifndef LARGEST_ALIGN
+#define LARGEST_ALIGN(x)	ALIGN(x, __LARGEST_ALIGN)
+#endif
+
 /*
  * __read_mostly is used to keep rarely changing variables out of frequently
  * updated cachelines. Its use should be reserved for data that is used
@@ -94,6 +120,39 @@
 #define __cacheline_group_end(GROUP) \
 	__u8 __cacheline_group_end__##GROUP[0]
 #endif
+
+/**
+ * __cacheline_group_begin_aligned - declare an aligned group start
+ * @GROUP: name of the group
+ * @...: optional group alignment
+ *
+ * The following block inside a struct:
+ *
+ *	__cacheline_group_begin_aligned(grp);
+ *	field a;
+ *	field b;
+ *	__cacheline_group_end_aligned(grp);
+ *
+ * will always be aligned to either the specified alignment or
+ * ``SMP_CACHE_BYTES``.
+ */
+#define __cacheline_group_begin_aligned(GROUP, ...)		\
+	__cacheline_group_begin(GROUP)				\
+	__aligned((__VA_ARGS__ + 0) ? : SMP_CACHE_BYTES)
+
+/**
+ * __cacheline_group_end_aligned - declare an aligned group end
+ * @GROUP: name of the group
+ * @...: optional alignment (same as was in __cacheline_group_begin_aligned())
+ *
+ * Note that the end marker is aligned to sizeof(long) to allow more precise
+ * size assertion. It also declares a padding at the end to avoid next field
+ * falling into this cacheline.
+ */
+#define __cacheline_group_end_aligned(GROUP, ...)		\
+	__cacheline_group_end(GROUP) __aligned(sizeof(long));	\
+	struct { } __cacheline_group_pad__##GROUP		\
+	__aligned((__VA_ARGS__ + 0) ? : SMP_CACHE_BYTES)
 
 #ifndef CACHELINE_ASSERT_GROUP_MEMBER
 #define CACHELINE_ASSERT_GROUP_MEMBER(TYPE, GROUP, MEMBER) \

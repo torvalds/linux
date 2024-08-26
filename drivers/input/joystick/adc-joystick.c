@@ -15,19 +15,25 @@
 
 struct adc_joystick_axis {
 	u32 code;
-	s32 range[2];
-	s32 fuzz;
-	s32 flat;
+	bool inverted;
 };
 
 struct adc_joystick {
 	struct input_dev *input;
 	struct iio_cb_buffer *buffer;
-	struct adc_joystick_axis *axes;
 	struct iio_channel *chans;
-	int num_chans;
-	bool polled;
+	unsigned int num_chans;
+	struct adc_joystick_axis axes[] __counted_by(num_chans);
 };
+
+static int adc_joystick_invert(struct input_dev *dev,
+			       unsigned int axis, int val)
+{
+	int min = input_abs_get_min(dev, axis);
+	int max = input_abs_get_max(dev, axis);
+
+	return (max + min) - val;
+}
 
 static void adc_joystick_poll(struct input_dev *input)
 {
@@ -38,6 +44,8 @@ static void adc_joystick_poll(struct input_dev *input)
 		ret = iio_read_channel_raw(&joy->chans[i], &val);
 		if (ret < 0)
 			return;
+		if (joy->axes[i].inverted)
+			val = adc_joystick_invert(input, i, val);
 		input_report_abs(input, joy->axes[i].code, val);
 	}
 	input_sync(input);
@@ -86,6 +94,8 @@ static int adc_joystick_handle(const void *data, void *private)
 			val = sign_extend32(val, msb);
 		else
 			val &= GENMASK(msb, 0);
+		if (joy->axes[i].inverted)
+			val = adc_joystick_invert(joy->input, i, val);
 		input_report_abs(joy->input, joy->axes[i].code, val);
 	}
 
@@ -121,9 +131,11 @@ static void adc_joystick_cleanup(void *data)
 
 static int adc_joystick_set_axes(struct device *dev, struct adc_joystick *joy)
 {
-	struct adc_joystick_axis *axes;
+	struct adc_joystick_axis *axes = joy->axes;
 	struct fwnode_handle *child;
-	int num_axes, error, i;
+	s32 range[2], fuzz, flat;
+	unsigned int num_axes;
+	int error, i;
 
 	num_axes = device_get_child_node_count(dev);
 	if (!num_axes) {
@@ -136,10 +148,6 @@ static int adc_joystick_set_axes(struct device *dev, struct adc_joystick *joy)
 			num_axes, joy->num_chans);
 		return -EINVAL;
 	}
-
-	axes = devm_kmalloc_array(dev, num_axes, sizeof(*axes), GFP_KERNEL);
-	if (!axes)
-		return -ENOMEM;
 
 	device_for_each_child_node(dev, child) {
 		error = fwnode_property_read_u32(child, "reg", &i);
@@ -162,22 +170,24 @@ static int adc_joystick_set_axes(struct device *dev, struct adc_joystick *joy)
 		}
 
 		error = fwnode_property_read_u32_array(child, "abs-range",
-						       axes[i].range, 2);
+						       range, 2);
 		if (error) {
 			dev_err(dev, "abs-range invalid or missing\n");
 			goto err_fwnode_put;
 		}
 
-		fwnode_property_read_u32(child, "abs-fuzz", &axes[i].fuzz);
-		fwnode_property_read_u32(child, "abs-flat", &axes[i].flat);
+		if (range[0] > range[1]) {
+			dev_dbg(dev, "abs-axis %d inverted\n", i);
+			axes[i].inverted = true;
+			swap(range[0], range[1]);
+		}
+
+		fwnode_property_read_u32(child, "abs-fuzz", &fuzz);
+		fwnode_property_read_u32(child, "abs-flat", &flat);
 
 		input_set_abs_params(joy->input, axes[i].code,
-				     axes[i].range[0], axes[i].range[1],
-				     axes[i].fuzz, axes[i].flat);
-		input_set_capability(joy->input, EV_ABS, axes[i].code);
+				     range[0], range[1], fuzz, flat);
 	}
-
-	joy->axes = axes;
 
 	return 0;
 
@@ -186,23 +196,50 @@ err_fwnode_put:
 	return error;
 }
 
+
+static int adc_joystick_count_channels(struct device *dev,
+				       const struct iio_channel *chans,
+				       bool polled,
+				       unsigned int *num_chans)
+{
+	int bits;
+	int i;
+
+	/*
+	 * Count how many channels we got. NULL terminated.
+	 * Do not check the storage size if using polling.
+	 */
+	for (i = 0; chans[i].indio_dev; i++) {
+		if (polled)
+			continue;
+		bits = chans[i].channel->scan_type.storagebits;
+		if (!bits || bits > 16) {
+			dev_err(dev, "Unsupported channel storage size\n");
+			return -EINVAL;
+		}
+		if (bits != chans[0].channel->scan_type.storagebits) {
+			dev_err(dev, "Channels must have equal storage size\n");
+			return -EINVAL;
+		}
+	}
+
+	*num_chans = i;
+	return 0;
+}
+
 static int adc_joystick_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
+	struct iio_channel *chans;
 	struct adc_joystick *joy;
 	struct input_dev *input;
+	unsigned int poll_interval = 0;
+	unsigned int num_chans;
 	int error;
-	int bits;
-	int i;
-	unsigned int poll_interval;
 
-	joy = devm_kzalloc(dev, sizeof(*joy), GFP_KERNEL);
-	if (!joy)
-		return -ENOMEM;
-
-	joy->chans = devm_iio_channel_get_all(dev);
-	if (IS_ERR(joy->chans)) {
-		error = PTR_ERR(joy->chans);
+	chans = devm_iio_channel_get_all(dev);
+	error = PTR_ERR_OR_ZERO(chans);
+	if (error) {
 		if (error != -EPROBE_DEFER)
 			dev_err(dev, "Unable to get IIO channels");
 		return error;
@@ -216,28 +253,19 @@ static int adc_joystick_probe(struct platform_device *pdev)
 	} else if (poll_interval == 0) {
 		dev_err(dev, "Unable to get poll-interval\n");
 		return -EINVAL;
-	} else {
-		joy->polled = true;
 	}
 
-	/*
-	 * Count how many channels we got. NULL terminated.
-	 * Do not check the storage size if using polling.
-	 */
-	for (i = 0; joy->chans[i].indio_dev; i++) {
-		if (joy->polled)
-			continue;
-		bits = joy->chans[i].channel->scan_type.storagebits;
-		if (!bits || bits > 16) {
-			dev_err(dev, "Unsupported channel storage size\n");
-			return -EINVAL;
-		}
-		if (bits != joy->chans[0].channel->scan_type.storagebits) {
-			dev_err(dev, "Channels must have equal storage size\n");
-			return -EINVAL;
-		}
-	}
-	joy->num_chans = i;
+	error = adc_joystick_count_channels(dev, chans, poll_interval != 0,
+					    &num_chans);
+	if (error)
+		return error;
+
+	joy = devm_kzalloc(dev, struct_size(joy, axes, num_chans), GFP_KERNEL);
+	if (!joy)
+		return -ENOMEM;
+
+	joy->chans = chans;
+	joy->num_chans = num_chans;
 
 	input = devm_input_allocate_device(dev);
 	if (!input) {
@@ -253,7 +281,7 @@ static int adc_joystick_probe(struct platform_device *pdev)
 	if (error)
 		return error;
 
-	if (joy->polled) {
+	if (poll_interval != 0) {
 		input_setup_polling(input, adc_joystick_poll);
 		input_set_poll_interval(input, poll_interval);
 	} else {

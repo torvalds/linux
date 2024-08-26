@@ -15,6 +15,7 @@ properties:
       - st,stm32-rtc
       - st,stm32h7-rtc
       - st,stm32mp1-rtc
+      - st,stm32mp25-rtc
 
   reg:
     maxItems: 1
@@ -90,7 +91,9 @@ allOf:
       properties:
         compatible:
           contains:
-            const: st,stm32mp1-rtc
+            enum:
+              - st,stm32mp1-rtc
+              - st,stm32mp25-rtc
 
     then:
       properties:

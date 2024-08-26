@@ -54,9 +54,9 @@ static enum netfs_how_to_modify netfs_how_to_modify(struct netfs_inode *ctx,
 {
 	struct netfs_folio *finfo = netfs_folio_info(folio);
 	struct netfs_group *group = netfs_folio_group(folio);
-	loff_t pos = folio_file_pos(folio);
+	loff_t pos = folio_pos(folio);
 
-	_enter("");
+	kenter("");
 
 	if (group != netfs_group && group != NETFS_FOLIO_COPY_TO_CACHE)
 		return NETFS_FLUSH_CONTENT;
@@ -181,7 +181,7 @@ ssize_t netfs_perform_write(struct kiocb *iocb, struct iov_iter *iter,
 	struct folio *folio, *writethrough = NULL;
 	enum netfs_how_to_modify howto;
 	enum netfs_folio_trace trace;
-	unsigned int bdp_flags = (iocb->ki_flags & IOCB_SYNC) ? 0: BDP_ASYNC;
+	unsigned int bdp_flags = (iocb->ki_flags & IOCB_NOWAIT) ? BDP_ASYNC : 0;
 	ssize_t written = 0, ret, ret2;
 	loff_t i_size, pos = iocb->ki_pos, from, to;
 	size_t max_chunk = PAGE_SIZE << MAX_PAGECACHE_ORDER;
@@ -272,12 +272,12 @@ ssize_t netfs_perform_write(struct kiocb *iocb, struct iov_iter *iter,
 		 */
 		howto = netfs_how_to_modify(ctx, file, folio, netfs_group,
 					    flen, offset, part, maybe_trouble);
-		_debug("howto %u", howto);
+		kdebug("howto %u", howto);
 		switch (howto) {
 		case NETFS_JUST_PREFETCH:
 			ret = netfs_prefetch_for_write(file, folio, offset, part);
 			if (ret < 0) {
-				_debug("prefetch = %zd", ret);
+				kdebug("prefetch = %zd", ret);
 				goto error_folio_unlock;
 			}
 			break;
@@ -418,7 +418,7 @@ out:
 	}
 
 	iocb->ki_pos += written;
-	_leave(" = %zd [%zd]", written, ret);
+	kleave(" = %zd [%zd]", written, ret);
 	return written ? written : ret;
 
 error_folio_unlock:
@@ -491,7 +491,7 @@ ssize_t netfs_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	struct netfs_inode *ictx = netfs_inode(inode);
 	ssize_t ret;
 
-	_enter("%llx,%zx,%llx", iocb->ki_pos, iov_iter_count(from), i_size_read(inode));
+	kenter("%llx,%zx,%llx", iocb->ki_pos, iov_iter_count(from), i_size_read(inode));
 
 	if (!iov_iter_count(from))
 		return 0;
@@ -523,17 +523,23 @@ vm_fault_t netfs_page_mkwrite(struct vm_fault *vmf, struct netfs_group *netfs_gr
 	struct netfs_group *group;
 	struct folio *folio = page_folio(vmf->page);
 	struct file *file = vmf->vma->vm_file;
+	struct address_space *mapping = file->f_mapping;
 	struct inode *inode = file_inode(file);
 	struct netfs_inode *ictx = netfs_inode(inode);
 	vm_fault_t ret = VM_FAULT_RETRY;
 	int err;
 
-	_enter("%lx", folio->index);
+	kenter("%lx", folio->index);
 
 	sb_start_pagefault(inode->i_sb);
 
 	if (folio_lock_killable(folio) < 0)
 		goto out;
+	if (folio->mapping != mapping) {
+		folio_unlock(folio);
+		ret = VM_FAULT_NOPAGE;
+		goto out;
+	}
 
 	if (folio_wait_writeback_killable(folio)) {
 		ret = VM_FAULT_LOCKED;
@@ -549,9 +555,9 @@ vm_fault_t netfs_page_mkwrite(struct vm_fault *vmf, struct netfs_group *netfs_gr
 	group = netfs_folio_group(folio);
 	if (group != netfs_group && group != NETFS_FOLIO_COPY_TO_CACHE) {
 		folio_unlock(folio);
-		err = filemap_fdatawait_range(inode->i_mapping,
-					      folio_pos(folio),
-					      folio_pos(folio) + folio_size(folio));
+		err = filemap_fdatawrite_range(mapping,
+					       folio_pos(folio),
+					       folio_pos(folio) + folio_size(folio));
 		switch (err) {
 		case 0:
 			ret = VM_FAULT_RETRY;

@@ -56,6 +56,7 @@ extern int early_cpu_to_node(int cpu);
 static inline void early_numa_add_cpu(int cpuid, s16 node)	{ }
 static inline void numa_add_cpu(unsigned int cpu)		{ }
 static inline void numa_remove_cpu(unsigned int cpu)		{ }
+static inline void set_cpuid_to_node(int cpuid, s16 node)	{ }
 
 static inline int early_cpu_to_node(int cpu)
 {

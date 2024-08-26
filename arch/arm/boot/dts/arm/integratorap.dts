@@ -57,22 +57,14 @@
 	};
 
 	/* 24 MHz chrystal on the Integrator/AP development board */
-	xtal24mhz: xtal24mhz@24M {
+	xtal24mhz: pclk: clock-24000000 {
 		#clock-cells = <0>;
 		compatible = "fixed-clock";
 		clock-frequency = <24000000>;
 	};
 
-	pclk: pclk@0 {
-		#clock-cells = <0>;
-		compatible = "fixed-factor-clock";
-		clock-div = <1>;
-		clock-mult = <1>;
-		clocks = <&xtal24mhz>;
-	};
-
 	/* The UART clock is 14.74 MHz divided by an ICS525 */
-	uartclk: uartclk@14.74M {
+	uartclk: clock-14745600 {
 		#clock-cells = <0>;
 		compatible = "fixed-clock";
 		clock-frequency = <14745600>;
@@ -81,7 +73,7 @@
 
 	core-module@10000000 {
 		/* 24 MHz chrystal on the core module */
-		cm24mhz: cm24mhz@24M {
+		cm24mhz: clock-24000000 {
 			#clock-cells = <0>;
 			compatible = "fixed-clock";
 			clock-frequency = <24000000>;

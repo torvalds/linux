@@ -2861,7 +2861,7 @@ static int gcc_sm4450_probe(struct platform_device *pdev)
 
 	regmap_update_bits(regmap, 0x4201c, BIT(21), BIT(21));
 
-	return qcom_cc_really_probe(pdev, &gcc_sm4450_desc, regmap);
+	return qcom_cc_really_probe(&pdev->dev, &gcc_sm4450_desc, regmap);
 }
 
 static struct platform_driver gcc_sm4450_driver = {

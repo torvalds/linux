@@ -8,6 +8,7 @@
 
 #include <linux/linkage.h>
 #include <linux/init.h>
+#include <linux/cfi_types.h>
 #include <linux/pgtable.h>
 #include <asm/assembler.h>
 #include <asm/hwcap.h>
@@ -43,7 +44,7 @@ __cache_params:
 /*
  * cpu_feroceon_proc_init()
  */
-ENTRY(cpu_feroceon_proc_init)
+SYM_TYPED_FUNC_START(cpu_feroceon_proc_init)
 	mrc	p15, 0, r0, c0, c0, 1		@ read cache type register
 	ldr	r1, __cache_params
 	mov	r2, #(16 << 5)
@@ -61,11 +62,12 @@ ENTRY(cpu_feroceon_proc_init)
 	str_l	r1, VFP_arch_feroceon, r2
 #endif
 	ret	lr
+SYM_FUNC_END(cpu_feroceon_proc_init)
 
 /*
  * cpu_feroceon_proc_fin()
  */
-ENTRY(cpu_feroceon_proc_fin)
+SYM_TYPED_FUNC_START(cpu_feroceon_proc_fin)
 #if defined(CONFIG_CACHE_FEROCEON_L2) && \
 	!defined(CONFIG_CACHE_FEROCEON_L2_WRITETHROUGH)
 	mov	r0, #0
@@ -78,6 +80,7 @@ ENTRY(cpu_feroceon_proc_fin)
 	bic	r0, r0, #0x000e			@ ............wca.
 	mcr	p15, 0, r0, c1, c0, 0		@ disable caches
 	ret	lr
+SYM_FUNC_END(cpu_feroceon_proc_fin)
 
 /*
  * cpu_feroceon_reset(loc)
@@ -90,7 +93,7 @@ ENTRY(cpu_feroceon_proc_fin)
  */
 	.align	5
 	.pushsection	.idmap.text, "ax"
-ENTRY(cpu_feroceon_reset)
+SYM_TYPED_FUNC_START(cpu_feroceon_reset)
 	mov	ip, #0
 	mcr	p15, 0, ip, c7, c7, 0		@ invalidate I,D caches
 	mcr	p15, 0, ip, c7, c10, 4		@ drain WB
@@ -102,7 +105,7 @@ ENTRY(cpu_feroceon_reset)
 	bic	ip, ip, #0x1100			@ ...i...s........
 	mcr	p15, 0, ip, c1, c0, 0		@ ctrl register
 	ret	r0
-ENDPROC(cpu_feroceon_reset)
+SYM_FUNC_END(cpu_feroceon_reset)
 	.popsection
 
 /*
@@ -111,22 +114,23 @@ ENDPROC(cpu_feroceon_reset)
  * Called with IRQs disabled
  */
 	.align	5
-ENTRY(cpu_feroceon_do_idle)
+SYM_TYPED_FUNC_START(cpu_feroceon_do_idle)
 	mov	r0, #0
 	mcr	p15, 0, r0, c7, c10, 4		@ Drain write buffer
 	mcr	p15, 0, r0, c7, c0, 4		@ Wait for interrupt
 	ret	lr
+SYM_FUNC_END(cpu_feroceon_do_idle)
 
 /*
  *	flush_icache_all()
  *
  *	Unconditionally clean and invalidate the entire icache.
  */
-ENTRY(feroceon_flush_icache_all)
+SYM_TYPED_FUNC_START(feroceon_flush_icache_all)
 	mov	r0, #0
 	mcr	p15, 0, r0, c7, c5, 0		@ invalidate I cache
 	ret	lr
-ENDPROC(feroceon_flush_icache_all)
+SYM_FUNC_END(feroceon_flush_icache_all)
 
 /*
  *	flush_user_cache_all()
@@ -135,15 +139,14 @@ ENDPROC(feroceon_flush_icache_all)
  *	address space.
  */
 	.align	5
-ENTRY(feroceon_flush_user_cache_all)
-	/* FALLTHROUGH */
+SYM_FUNC_ALIAS(feroceon_flush_user_cache_all, feroceon_flush_kern_cache_all)
 
 /*
  *	flush_kern_cache_all()
  *
  *	Clean and invalidate the entire cache.
  */
-ENTRY(feroceon_flush_kern_cache_all)
+SYM_TYPED_FUNC_START(feroceon_flush_kern_cache_all)
 	mov	r2, #VM_EXEC
 
 __flush_whole_cache:
@@ -161,6 +164,7 @@ __flush_whole_cache:
 	mcrne	p15, 0, ip, c7, c5, 0		@ invalidate I cache
 	mcrne	p15, 0, ip, c7, c10, 4		@ drain WB
 	ret	lr
+SYM_FUNC_END(feroceon_flush_kern_cache_all)
 
 /*
  *	flush_user_cache_range(start, end, flags)
@@ -173,7 +177,7 @@ __flush_whole_cache:
  *	- flags	- vm_flags describing address space
  */
 	.align	5
-ENTRY(feroceon_flush_user_cache_range)
+SYM_TYPED_FUNC_START(feroceon_flush_user_cache_range)
 	sub	r3, r1, r0			@ calculate total size
 	cmp	r3, #CACHE_DLIMIT
 	bgt	__flush_whole_cache
@@ -190,6 +194,7 @@ ENTRY(feroceon_flush_user_cache_range)
 	mov	ip, #0
 	mcrne	p15, 0, ip, c7, c10, 4		@ drain WB
 	ret	lr
+SYM_FUNC_END(feroceon_flush_user_cache_range)
 
 /*
  *	coherent_kern_range(start, end)
@@ -202,8 +207,11 @@ ENTRY(feroceon_flush_user_cache_range)
  *	- end	- virtual end address
  */
 	.align	5
-ENTRY(feroceon_coherent_kern_range)
-	/* FALLTHROUGH */
+SYM_TYPED_FUNC_START(feroceon_coherent_kern_range)
+#ifdef CONFIG_CFI_CLANG /* Fallthrough if !CFI */
+	b	feroceon_coherent_user_range
+#endif
+SYM_FUNC_END(feroceon_coherent_kern_range)
 
 /*
  *	coherent_user_range(start, end)
@@ -215,7 +223,7 @@ ENTRY(feroceon_coherent_kern_range)
  *	- start	- virtual start address
  *	- end	- virtual end address
  */
-ENTRY(feroceon_coherent_user_range)
+SYM_TYPED_FUNC_START(feroceon_coherent_user_range)
 	bic	r0, r0, #CACHE_DLINESIZE - 1
 1:	mcr	p15, 0, r0, c7, c10, 1		@ clean D entry
 	mcr	p15, 0, r0, c7, c5, 1		@ invalidate I entry
@@ -225,6 +233,7 @@ ENTRY(feroceon_coherent_user_range)
 	mcr	p15, 0, r0, c7, c10, 4		@ drain WB
 	mov	r0, #0
 	ret	lr
+SYM_FUNC_END(feroceon_coherent_user_range)
 
 /*
  *	flush_kern_dcache_area(void *addr, size_t size)
@@ -236,7 +245,7 @@ ENTRY(feroceon_coherent_user_range)
  *	- size	- region size
  */
 	.align	5
-ENTRY(feroceon_flush_kern_dcache_area)
+SYM_TYPED_FUNC_START(feroceon_flush_kern_dcache_area)
 	add	r1, r0, r1
 1:	mcr	p15, 0, r0, c7, c14, 1		@ clean+invalidate D entry
 	add	r0, r0, #CACHE_DLINESIZE
@@ -246,9 +255,10 @@ ENTRY(feroceon_flush_kern_dcache_area)
 	mcr	p15, 0, r0, c7, c5, 0		@ invalidate I cache
 	mcr	p15, 0, r0, c7, c10, 4		@ drain WB
 	ret	lr
+SYM_FUNC_END(feroceon_flush_kern_dcache_area)
 
 	.align	5
-ENTRY(feroceon_range_flush_kern_dcache_area)
+SYM_TYPED_FUNC_START(feroceon_range_flush_kern_dcache_area)
 	mrs	r2, cpsr
 	add	r1, r0, #PAGE_SZ - CACHE_DLINESIZE	@ top addr is inclusive
 	orr	r3, r2, #PSR_I_BIT
@@ -260,6 +270,7 @@ ENTRY(feroceon_range_flush_kern_dcache_area)
 	mcr	p15, 0, r0, c7, c5, 0		@ invalidate I cache
 	mcr	p15, 0, r0, c7, c10, 4		@ drain WB
 	ret	lr
+SYM_FUNC_END(feroceon_range_flush_kern_dcache_area)
 
 /*
  *	dma_inv_range(start, end)
@@ -346,7 +357,7 @@ feroceon_range_dma_clean_range:
  *	- end	- virtual end address
  */
 	.align	5
-ENTRY(feroceon_dma_flush_range)
+SYM_TYPED_FUNC_START(feroceon_dma_flush_range)
 	bic	r0, r0, #CACHE_DLINESIZE - 1
 1:	mcr	p15, 0, r0, c7, c14, 1		@ clean+invalidate D entry
 	add	r0, r0, #CACHE_DLINESIZE
@@ -354,9 +365,10 @@ ENTRY(feroceon_dma_flush_range)
 	blo	1b
 	mcr	p15, 0, r0, c7, c10, 4		@ drain WB
 	ret	lr
+SYM_FUNC_END(feroceon_dma_flush_range)
 
 	.align	5
-ENTRY(feroceon_range_dma_flush_range)
+SYM_TYPED_FUNC_START(feroceon_range_dma_flush_range)
 	mrs	r2, cpsr
 	cmp	r1, r0
 	subne	r1, r1, #1			@ top address is inclusive
@@ -367,6 +379,7 @@ ENTRY(feroceon_range_dma_flush_range)
 	msr	cpsr_c, r2			@ restore interrupts
 	mcr	p15, 0, r0, c7, c10, 4		@ drain WB
 	ret	lr
+SYM_FUNC_END(feroceon_range_dma_flush_range)
 
 /*
  *	dma_map_area(start, size, dir)
@@ -374,13 +387,13 @@ ENTRY(feroceon_range_dma_flush_range)
  *	- size	- size of region
  *	- dir	- DMA direction
  */
-ENTRY(feroceon_dma_map_area)
+SYM_TYPED_FUNC_START(feroceon_dma_map_area)
 	add	r1, r1, r0
 	cmp	r2, #DMA_TO_DEVICE
 	beq	feroceon_dma_clean_range
 	bcs	feroceon_dma_inv_range
 	b	feroceon_dma_flush_range
-ENDPROC(feroceon_dma_map_area)
+SYM_FUNC_END(feroceon_dma_map_area)
 
 /*
  *	dma_map_area(start, size, dir)
@@ -388,13 +401,13 @@ ENDPROC(feroceon_dma_map_area)
  *	- size	- size of region
  *	- dir	- DMA direction
  */
-ENTRY(feroceon_range_dma_map_area)
+SYM_TYPED_FUNC_START(feroceon_range_dma_map_area)
 	add	r1, r1, r0
 	cmp	r2, #DMA_TO_DEVICE
 	beq	feroceon_range_dma_clean_range
 	bcs	feroceon_range_dma_inv_range
 	b	feroceon_range_dma_flush_range
-ENDPROC(feroceon_range_dma_map_area)
+SYM_FUNC_END(feroceon_range_dma_map_area)
 
 /*
  *	dma_unmap_area(start, size, dir)
@@ -402,39 +415,12 @@ ENDPROC(feroceon_range_dma_map_area)
  *	- size	- size of region
  *	- dir	- DMA direction
  */
-ENTRY(feroceon_dma_unmap_area)
+SYM_TYPED_FUNC_START(feroceon_dma_unmap_area)
 	ret	lr
-ENDPROC(feroceon_dma_unmap_area)
-
-	.globl	feroceon_flush_kern_cache_louis
-	.equ	feroceon_flush_kern_cache_louis, feroceon_flush_kern_cache_all
-
-	@ define struct cpu_cache_fns (see <asm/cacheflush.h> and proc-macros.S)
-	define_cache_functions feroceon
-
-.macro range_alias basename
-	.globl feroceon_range_\basename
-	.type feroceon_range_\basename , %function
-	.equ feroceon_range_\basename , feroceon_\basename
-.endm
-
-/*
- * Most of the cache functions are unchanged for this case.
- * Export suitable alias symbols for the unchanged functions:
- */
-	range_alias flush_icache_all
-	range_alias flush_user_cache_all
-	range_alias flush_kern_cache_all
-	range_alias flush_kern_cache_louis
-	range_alias flush_user_cache_range
-	range_alias coherent_kern_range
-	range_alias coherent_user_range
-	range_alias dma_unmap_area
-
-	define_cache_functions feroceon_range
+SYM_FUNC_END(feroceon_dma_unmap_area)
 
 	.align	5
-ENTRY(cpu_feroceon_dcache_clean_area)
+SYM_TYPED_FUNC_START(cpu_feroceon_dcache_clean_area)
 #if defined(CONFIG_CACHE_FEROCEON_L2) && \
 	!defined(CONFIG_CACHE_FEROCEON_L2_WRITETHROUGH)
 	mov	r2, r0
@@ -453,6 +439,7 @@ ENTRY(cpu_feroceon_dcache_clean_area)
 #endif
 	mcr	p15, 0, r0, c7, c10, 4		@ drain WB
 	ret	lr
+SYM_FUNC_END(cpu_feroceon_dcache_clean_area)
 
 /* =============================== PageTable ============================== */
 
@@ -464,7 +451,7 @@ ENTRY(cpu_feroceon_dcache_clean_area)
  * pgd: new page tables
  */
 	.align	5
-ENTRY(cpu_feroceon_switch_mm)
+SYM_TYPED_FUNC_START(cpu_feroceon_switch_mm)
 #ifdef CONFIG_MMU
 	/*
 	 * Note: we wish to call __flush_whole_cache but we need to preserve
@@ -485,6 +472,7 @@ ENTRY(cpu_feroceon_switch_mm)
 #else
 	ret	lr
 #endif
+SYM_FUNC_END(cpu_feroceon_switch_mm)
 
 /*
  * cpu_feroceon_set_pte_ext(ptep, pte, ext)
@@ -492,7 +480,7 @@ ENTRY(cpu_feroceon_switch_mm)
  * Set a PTE and flush it out
  */
 	.align	5
-ENTRY(cpu_feroceon_set_pte_ext)
+SYM_TYPED_FUNC_START(cpu_feroceon_set_pte_ext)
 #ifdef CONFIG_MMU
 	armv3_set_pte_ext wc_disable=0
 	mov	r0, r0
@@ -504,21 +492,22 @@ ENTRY(cpu_feroceon_set_pte_ext)
 	mcr	p15, 0, r0, c7, c10, 4		@ drain WB
 #endif
 	ret	lr
+SYM_FUNC_END(cpu_feroceon_set_pte_ext)
 
 /* Suspend/resume support: taken from arch/arm/mm/proc-arm926.S */
 .globl	cpu_feroceon_suspend_size
 .equ	cpu_feroceon_suspend_size, 4 * 3
 #ifdef CONFIG_ARM_CPU_SUSPEND
-ENTRY(cpu_feroceon_do_suspend)
+SYM_TYPED_FUNC_START(cpu_feroceon_do_suspend)
 	stmfd	sp!, {r4 - r6, lr}
 	mrc	p15, 0, r4, c13, c0, 0	@ PID
 	mrc	p15, 0, r5, c3, c0, 0	@ Domain ID
 	mrc	p15, 0, r6, c1, c0, 0	@ Control register
 	stmia	r0, {r4 - r6}
 	ldmfd	sp!, {r4 - r6, pc}
-ENDPROC(cpu_feroceon_do_suspend)
+SYM_FUNC_END(cpu_feroceon_do_suspend)
 
-ENTRY(cpu_feroceon_do_resume)
+SYM_TYPED_FUNC_START(cpu_feroceon_do_resume)
 	mov	ip, #0
 	mcr	p15, 0, ip, c8, c7, 0	@ invalidate I+D TLBs
 	mcr	p15, 0, ip, c7, c7, 0	@ invalidate I+D caches
@@ -528,7 +517,7 @@ ENTRY(cpu_feroceon_do_resume)
 	mcr	p15, 0, r1, c2, c0, 0	@ TTB address
 	mov	r0, r6			@ control register
 	b	cpu_resume_mmu
-ENDPROC(cpu_feroceon_do_resume)
+SYM_FUNC_END(cpu_feroceon_do_resume)
 #endif
 
 	.type	__feroceon_setup, #function

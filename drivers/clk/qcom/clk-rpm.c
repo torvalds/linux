@@ -98,7 +98,6 @@ struct clk_rpm {
 };
 
 struct rpm_cc {
-	struct qcom_rpm *rpm;
 	struct clk_rpm **clks;
 	size_t num_clks;
 	u32 xo_buffer_value;

@@ -68,9 +68,29 @@ static const struct software_node ssam_node_bat_sb3base = {
 	.parent = &ssam_node_hub_base,
 };
 
-/* Platform profile / performance-mode device. */
-static const struct software_node ssam_node_tmp_pprof = {
+/* Platform profile / performance-mode device without a fan. */
+static const struct software_node ssam_node_tmp_perf_profile = {
 	.name = "ssam:01:03:01:00:01",
+	.parent = &ssam_node_root,
+};
+
+/* Platform profile / performance-mode device with a fan, such that
+ * the fan controller profile can also be switched.
+ */
+static const struct property_entry ssam_node_tmp_perf_profile_has_fan[] = {
+	PROPERTY_ENTRY_BOOL("has_fan"),
+	{ }
+};
+
+static const struct software_node ssam_node_tmp_perf_profile_with_fan = {
+	.name = "ssam:01:03:01:00:01",
+	.parent = &ssam_node_root,
+	.properties = ssam_node_tmp_perf_profile_has_fan,
+};
+
+/* Thermal sensors. */
+static const struct software_node ssam_node_tmp_sensors = {
+	.name = "ssam:01:03:01:00:02",
 	.parent = &ssam_node_root,
 };
 
@@ -208,7 +228,7 @@ static const struct software_node ssam_node_pos_tablet_switch = {
  */
 static const struct software_node *ssam_node_group_gen5[] = {
 	&ssam_node_root,
-	&ssam_node_tmp_pprof,
+	&ssam_node_tmp_perf_profile,
 	NULL,
 };
 
@@ -219,7 +239,7 @@ static const struct software_node *ssam_node_group_sb3[] = {
 	&ssam_node_bat_ac,
 	&ssam_node_bat_main,
 	&ssam_node_bat_sb3base,
-	&ssam_node_tmp_pprof,
+	&ssam_node_tmp_perf_profile,
 	&ssam_node_bas_dtx,
 	&ssam_node_hid_base_keyboard,
 	&ssam_node_hid_base_touchpad,
@@ -233,7 +253,7 @@ static const struct software_node *ssam_node_group_sl3[] = {
 	&ssam_node_root,
 	&ssam_node_bat_ac,
 	&ssam_node_bat_main,
-	&ssam_node_tmp_pprof,
+	&ssam_node_tmp_perf_profile,
 	&ssam_node_hid_main_keyboard,
 	&ssam_node_hid_main_touchpad,
 	&ssam_node_hid_main_iid5,
@@ -245,7 +265,7 @@ static const struct software_node *ssam_node_group_sl5[] = {
 	&ssam_node_root,
 	&ssam_node_bat_ac,
 	&ssam_node_bat_main,
-	&ssam_node_tmp_pprof,
+	&ssam_node_tmp_perf_profile,
 	&ssam_node_hid_main_keyboard,
 	&ssam_node_hid_main_touchpad,
 	&ssam_node_hid_main_iid5,
@@ -258,7 +278,7 @@ static const struct software_node *ssam_node_group_sls[] = {
 	&ssam_node_root,
 	&ssam_node_bat_ac,
 	&ssam_node_bat_main,
-	&ssam_node_tmp_pprof,
+	&ssam_node_tmp_perf_profile,
 	&ssam_node_pos_tablet_switch,
 	&ssam_node_hid_sam_keyboard,
 	&ssam_node_hid_sam_penstash,
@@ -274,7 +294,7 @@ static const struct software_node *ssam_node_group_slg1[] = {
 	&ssam_node_root,
 	&ssam_node_bat_ac,
 	&ssam_node_bat_main,
-	&ssam_node_tmp_pprof,
+	&ssam_node_tmp_perf_profile,
 	NULL,
 };
 
@@ -283,7 +303,7 @@ static const struct software_node *ssam_node_group_sp7[] = {
 	&ssam_node_root,
 	&ssam_node_bat_ac,
 	&ssam_node_bat_main,
-	&ssam_node_tmp_pprof,
+	&ssam_node_tmp_perf_profile,
 	NULL,
 };
 
@@ -293,7 +313,7 @@ static const struct software_node *ssam_node_group_sp8[] = {
 	&ssam_node_hub_kip,
 	&ssam_node_bat_ac,
 	&ssam_node_bat_main,
-	&ssam_node_tmp_pprof,
+	&ssam_node_tmp_perf_profile,
 	&ssam_node_kip_tablet_switch,
 	&ssam_node_hid_kip_keyboard,
 	&ssam_node_hid_kip_penstash,
@@ -310,7 +330,8 @@ static const struct software_node *ssam_node_group_sp9[] = {
 	&ssam_node_hub_kip,
 	&ssam_node_bat_ac,
 	&ssam_node_bat_main,
-	&ssam_node_tmp_pprof,
+	&ssam_node_tmp_perf_profile_with_fan,
+	&ssam_node_tmp_sensors,
 	&ssam_node_fan_speed,
 	&ssam_node_pos_tablet_switch,
 	&ssam_node_hid_kip_keyboard,

@@ -720,10 +720,6 @@ static inline struct n2_skcipher_alg *n2_skcipher_alg(struct crypto_skcipher *tf
 	return container_of(alg, struct n2_skcipher_alg, skcipher);
 }
 
-struct n2_skcipher_request_context {
-	struct skcipher_walk	walk;
-};
-
 static int n2_aes_setkey(struct crypto_skcipher *skcipher, const u8 *key,
 			 unsigned int keylen)
 {

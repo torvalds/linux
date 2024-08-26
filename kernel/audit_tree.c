@@ -463,7 +463,7 @@ static int tag_chunk(struct inode *inode, struct audit_tree *tree)
 	int n;
 
 	fsnotify_group_lock(audit_tree_group);
-	mark = fsnotify_find_mark(&inode->i_fsnotify_marks, audit_tree_group);
+	mark = fsnotify_find_inode_mark(inode, audit_tree_group);
 	if (!mark)
 		return create_chunk(inode, tree);
 

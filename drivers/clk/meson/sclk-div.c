@@ -251,4 +251,4 @@ EXPORT_SYMBOL_GPL(meson_sclk_div_ops);
 
 MODULE_DESCRIPTION("Amlogic Sample divider driver");
 MODULE_AUTHOR("Jerome Brunet <jbrunet@baylibre.com>");
-MODULE_LICENSE("GPL v2");
+MODULE_LICENSE("GPL");

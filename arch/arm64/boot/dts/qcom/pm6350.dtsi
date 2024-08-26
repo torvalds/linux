@@ -10,7 +10,6 @@
 	thermal-zones {
 		pm6350-thermal {
 			polling-delay-passive = <100>;
-			polling-delay = <0>;
 
 			thermal-sensors = <&pm6350_temp>;
 

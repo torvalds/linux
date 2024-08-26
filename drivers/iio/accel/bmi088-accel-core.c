@@ -114,11 +114,6 @@ enum bmi088_odr_modes {
 	BMI088_ACCEL_MODE_ODR_1600 = 0xc,
 };
 
-struct bmi088_scale_info {
-	int scale;
-	u8 reg_range;
-};
-
 struct bmi088_accel_chip_info {
 	const char *name;
 	u8 chip_id;

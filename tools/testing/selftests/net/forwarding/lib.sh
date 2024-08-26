@@ -129,14 +129,6 @@ fi
 
 source "$net_forwarding_dir/../lib.sh"
 
-# timeout in seconds
-slowwait()
-{
-	local timeout_sec=$1; shift
-
-	loopy_wait "sleep 0.1" "$((timeout_sec * 1000))" "$@"
-}
-
 ##############################################################################
 # Sanity checks
 
@@ -678,33 +670,6 @@ wait_for_trap()
 	"$@" | grep -q trap
 }
 
-until_counter_is()
-{
-	local expr=$1; shift
-	local current=$("$@")
-
-	echo $((current))
-	((current $expr))
-}
-
-busywait_for_counter()
-{
-	local timeout=$1; shift
-	local delta=$1; shift
-
-	local base=$("$@")
-	busywait "$timeout" until_counter_is ">= $((base + delta))" "$@"
-}
-
-slowwait_for_counter()
-{
-	local timeout=$1; shift
-	local delta=$1; shift
-
-	local base=$("$@")
-	slowwait "$timeout" until_counter_is ">= $((base + delta))" "$@"
-}
-
 setup_wait_dev()
 {
 	local dev=$1; shift
@@ -1023,29 +988,6 @@ link_stats_rx_errors_get()
 	link_stats_get $1 rx errors
 }
 
-tc_rule_stats_get()
-{
-	local dev=$1; shift
-	local pref=$1; shift
-	local dir=$1; shift
-	local selector=${1:-.packets}; shift
-
-	tc -j -s filter show dev $dev ${dir:-ingress} pref $pref \
-	    | jq ".[1].options.actions[].stats$selector"
-}
-
-tc_rule_handle_stats_get()
-{
-	local id=$1; shift
-	local handle=$1; shift
-	local selector=${1:-.packets}; shift
-	local netns=${1:-""}; shift
-
-	tc $netns -j -s filter show $id \
-	    | jq ".[] | select(.options.handle == $handle) | \
-		  .options.actions[0].stats$selector"
-}
-
 ethtool_stats_get()
 {
 	local dev=$1; shift
@@ -1192,12 +1134,19 @@ bridge_ageing_time_get()
 }
 
 declare -A SYSCTL_ORIG
+sysctl_save()
+{
+	local key=$1; shift
+
+	SYSCTL_ORIG[$key]=$(sysctl -n $key)
+}
+
 sysctl_set()
 {
 	local key=$1; shift
 	local value=$1; shift
 
-	SYSCTL_ORIG[$key]=$(sysctl -n $key)
+	sysctl_save "$key"
 	sysctl -qw $key="$value"
 }
 
@@ -1276,22 +1225,6 @@ trap_uninstall()
 	tc filter del dev $dev $direction pref 1 flower
 }
 
-slow_path_trap_install()
-{
-	# For slow-path testing, we need to install a trap to get to
-	# slow path the packets that would otherwise be switched in HW.
-	if [ "${tcflags/skip_hw}" != "$tcflags" ]; then
-		trap_install "$@"
-	fi
-}
-
-slow_path_trap_uninstall()
-{
-	if [ "${tcflags/skip_hw}" != "$tcflags" ]; then
-		trap_uninstall "$@"
-	fi
-}
-
 __icmp_capture_add_del()
 {
 	local add_del=$1; shift
@@ -1308,22 +1241,34 @@ __icmp_capture_add_del()
 
 icmp_capture_install()
 {
-	__icmp_capture_add_del add 100 "" "$@"
+	local tundev=$1; shift
+	local filter=$1; shift
+
+	__icmp_capture_add_del add 100 "" "$tundev" "$filter"
 }
 
 icmp_capture_uninstall()
 {
-	__icmp_capture_add_del del 100 "" "$@"
+	local tundev=$1; shift
+	local filter=$1; shift
+
+	__icmp_capture_add_del del 100 "" "$tundev" "$filter"
 }
 
 icmp6_capture_install()
 {
-	__icmp_capture_add_del add 100 v6 "$@"
+	local tundev=$1; shift
+	local filter=$1; shift
+
+	__icmp_capture_add_del add 100 v6 "$tundev" "$filter"
 }
 
 icmp6_capture_uninstall()
 {
-	__icmp_capture_add_del del 100 v6 "$@"
+	local tundev=$1; shift
+	local filter=$1; shift
+
+	__icmp_capture_add_del del 100 v6 "$tundev" "$filter"
 }
 
 __vlan_capture_add_del()
@@ -1341,12 +1286,18 @@ __vlan_capture_add_del()
 
 vlan_capture_install()
 {
-	__vlan_capture_add_del add 100 "$@"
+	local dev=$1; shift
+	local filter=$1; shift
+
+	__vlan_capture_add_del add 100 "$dev" "$filter"
 }
 
 vlan_capture_uninstall()
 {
-	__vlan_capture_add_del del 100 "$@"
+	local dev=$1; shift
+	local filter=$1; shift
+
+	__vlan_capture_add_del del 100 "$dev" "$filter"
 }
 
 __dscp_capture_add_del()
@@ -1706,34 +1657,61 @@ __start_traffic()
 	local sip=$1; shift
 	local dip=$1; shift
 	local dmac=$1; shift
+	local -a mz_args=("$@")
 
 	$MZ $h_in -p $pktsize -A $sip -B $dip -c 0 \
-		-a own -b $dmac -t "$proto" -q "$@" &
+		-a own -b $dmac -t "$proto" -q "${mz_args[@]}" &
 	sleep 1
 }
 
 start_traffic_pktsize()
 {
 	local pktsize=$1; shift
+	local h_in=$1; shift
+	local sip=$1; shift
+	local dip=$1; shift
+	local dmac=$1; shift
+	local -a mz_args=("$@")
 
-	__start_traffic $pktsize udp "$@"
+	__start_traffic $pktsize udp "$h_in" "$sip" "$dip" "$dmac" \
+			"${mz_args[@]}"
 }
 
 start_tcp_traffic_pktsize()
 {
 	local pktsize=$1; shift
+	local h_in=$1; shift
+	local sip=$1; shift
+	local dip=$1; shift
+	local dmac=$1; shift
+	local -a mz_args=("$@")
 
-	__start_traffic $pktsize tcp "$@"
+	__start_traffic $pktsize tcp "$h_in" "$sip" "$dip" "$dmac" \
+			"${mz_args[@]}"
 }
 
 start_traffic()
 {
-	start_traffic_pktsize 8000 "$@"
+	local h_in=$1; shift
+	local sip=$1; shift
+	local dip=$1; shift
+	local dmac=$1; shift
+	local -a mz_args=("$@")
+
+	start_traffic_pktsize 8000 "$h_in" "$sip" "$dip" "$dmac" \
+			      "${mz_args[@]}"
 }
 
 start_tcp_traffic()
 {
-	start_tcp_traffic_pktsize 8000 "$@"
+	local h_in=$1; shift
+	local sip=$1; shift
+	local dip=$1; shift
+	local dmac=$1; shift
+	local -a mz_args=("$@")
+
+	start_tcp_traffic_pktsize 8000 "$h_in" "$sip" "$dip" "$dmac" \
+				  "${mz_args[@]}"
 }
 
 stop_traffic()

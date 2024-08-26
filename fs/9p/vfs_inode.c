@@ -348,6 +348,7 @@ void v9fs_evict_inode(struct inode *inode)
 	__le32 __maybe_unused version;
 
 	if (!is_bad_inode(inode)) {
+		netfs_wait_for_outstanding_io(inode);
 		truncate_inode_pages_final(&inode->i_data);
 
 		version = cpu_to_le32(v9inode->qid.version);

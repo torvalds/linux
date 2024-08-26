@@ -46,7 +46,8 @@ struct symbol_conf {
 			lazy_load_kernel_maps,
 			keep_exited_threads,
 			annotate_data_member,
-			annotate_data_sample;
+			annotate_data_sample,
+			skip_empty;
 	const char	*vmlinux_name,
 			*kallsyms_name,
 			*source_prefix,

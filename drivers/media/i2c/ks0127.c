@@ -175,14 +175,6 @@ MODULE_LICENSE("GPL");
 * mga_dev : represents one ks0127 chip.
 ****************************************************************************/
 
-struct adjust {
-	int	contrast;
-	int	bright;
-	int	hue;
-	int	ugain;
-	int	vgain;
-};
-
 struct ks0127 {
 	struct v4l2_subdev sd;
 	v4l2_std_id	norm;

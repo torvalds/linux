@@ -46,6 +46,7 @@ static const struct rtw89_pci_info rtw8922a_pci_info = {
 	.rpwm_addr		= R_BE_PCIE_HRPWM,
 	.cpwm_addr		= R_BE_PCIE_CRPWM,
 	.mit_addr		= R_BE_PCIE_MIT_CH_EN,
+	.wp_sel_addr		= R_BE_WP_ADDR_H_SEL0_3_V1,
 	.tx_dma_ch_mask		= 0,
 	.bd_idx_addr_low_power	= NULL,
 	.dma_addr_set		= &rtw89_pci_ch_dma_addr_set_be,

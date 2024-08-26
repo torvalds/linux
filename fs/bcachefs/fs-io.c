@@ -192,7 +192,9 @@ int bch2_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 {
 	struct bch_inode_info *inode = file_bch_inode(file);
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
-	int ret;
+	int ret, err;
+
+	trace_bch2_fsync(file, datasync);
 
 	ret = file_write_and_wait_range(file, start, end);
 	if (ret)
@@ -202,7 +204,15 @@ int bch2_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 		goto out;
 	ret = bch2_flush_inode(c, inode);
 out:
-	return bch2_err_class(ret);
+	ret = bch2_err_class(ret);
+	if (ret == -EROFS)
+		ret = -EIO;
+
+	err = file_check_and_advance_wb_err(file);
+	if (!ret)
+		ret = err;
+
+	return ret;
 }
 
 /* truncate: */
@@ -505,7 +515,7 @@ static int inode_update_times_fn(struct btree_trans *trans,
 	return 0;
 }
 
-static long bchfs_fpunch(struct bch_inode_info *inode, loff_t offset, loff_t len)
+static noinline long bchfs_fpunch(struct bch_inode_info *inode, loff_t offset, loff_t len)
 {
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
 	u64 end		= offset + len;
@@ -544,7 +554,7 @@ err:
 	return ret;
 }
 
-static long bchfs_fcollapse_finsert(struct bch_inode_info *inode,
+static noinline long bchfs_fcollapse_finsert(struct bch_inode_info *inode,
 				   loff_t offset, loff_t len,
 				   bool insert)
 {
@@ -580,7 +590,7 @@ static long bchfs_fcollapse_finsert(struct bch_inode_info *inode,
 	return ret;
 }
 
-static int __bchfs_fallocate(struct bch_inode_info *inode, int mode,
+static noinline int __bchfs_fallocate(struct bch_inode_info *inode, int mode,
 			     u64 start_sector, u64 end_sector)
 {
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
@@ -594,7 +604,7 @@ static int __bchfs_fallocate(struct bch_inode_info *inode, int mode,
 
 	bch2_trans_iter_init(trans, &iter, BTREE_ID_extents,
 			POS(inode->v.i_ino, start_sector),
-			BTREE_ITER_SLOTS|BTREE_ITER_INTENT);
+			BTREE_ITER_slots|BTREE_ITER_intent);
 
 	while (!ret && bkey_lt(iter.pos, end_pos)) {
 		s64 i_sectors_delta = 0;
@@ -701,7 +711,7 @@ bkey_err:
 	return ret;
 }
 
-static long bchfs_fallocate(struct bch_inode_info *inode, int mode,
+static noinline long bchfs_fallocate(struct bch_inode_info *inode, int mode,
 			    loff_t offset, loff_t len)
 {
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
@@ -857,9 +867,6 @@ loff_t bch2_remap_file_range(struct file *file_src, loff_t pos_src,
 	if (remap_flags & ~(REMAP_FILE_DEDUP|REMAP_FILE_ADVISORY))
 		return -EINVAL;
 
-	if (remap_flags & REMAP_FILE_DEDUP)
-		return -EOPNOTSUPP;
-
 	if ((pos_src & (block_bytes(c) - 1)) ||
 	    (pos_dst & (block_bytes(c) - 1)))
 		return -EINVAL;
@@ -892,7 +899,8 @@ loff_t bch2_remap_file_range(struct file *file_src, loff_t pos_src,
 	if (ret)
 		goto err;
 
-	file_update_time(file_dst);
+	if (!(remap_flags & REMAP_FILE_DEDUP))
+		file_update_time(file_dst);
 
 	bch2_mark_pagecache_unallocated(src, pos_src >> 9,
 				   (pos_src + aligned_len) >> 9);
@@ -1009,7 +1017,7 @@ retry:
 
 	for_each_btree_key_norestart(trans, iter, BTREE_ID_extents,
 			   SPOS(inode->v.i_ino, offset >> 9, snapshot),
-			   BTREE_ITER_SLOTS, k, ret) {
+			   BTREE_ITER_slots, k, ret) {
 		if (k.k->p.inode != inode->v.i_ino) {
 			next_hole = bch2_seek_pagecache_hole(&inode->v,
 					offset, MAX_LFS_FILESIZE, 0, false);

@@ -362,7 +362,7 @@ ssize_t copy_splice_read(struct file *in, loff_t *ppos,
 	iov_iter_bvec(&to, ITER_DEST, bv, npages, len);
 	init_sync_kiocb(&kiocb, in);
 	kiocb.ki_pos = *ppos;
-	ret = call_read_iter(in, &kiocb, &to);
+	ret = in->f_op->read_iter(&kiocb, &to);
 
 	if (ret > 0) {
 		keep = DIV_ROUND_UP(ret, PAGE_SIZE);
@@ -740,7 +740,7 @@ iter_file_splice_write(struct pipe_inode_info *pipe, struct file *out,
 		iov_iter_bvec(&from, ITER_SOURCE, array, n, sd.total_len - left);
 		init_sync_kiocb(&kiocb, out);
 		kiocb.ki_pos = sd.pos;
-		ret = call_write_iter(out, &kiocb, &from);
+		ret = out->f_op->write_iter(&kiocb, &from);
 		sd.pos = kiocb.ki_pos;
 		if (ret <= 0)
 			break;

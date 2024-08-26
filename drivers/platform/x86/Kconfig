@@ -133,6 +133,18 @@ config YOGABOOK
 	  To compile this driver as a module, choose M here: the module will
 	  be called lenovo-yogabook.
 
+config YT2_1380
+	tristate "Lenovo Yoga Tablet 2 1380 fast charge driver"
+	depends on SERIAL_DEV_BUS
+	depends on EXTCON
+	depends on ACPI
+	help
+	  Say Y here to enable support for the custom fast charging protocol
+	  found on the Lenovo Yoga Tablet 2 1380F / 1380L models.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called lenovo-yogabook.
+
 config ACERHDF
 	tristate "Acer Aspire One temperature and fan driver"
 	depends on ACPI && THERMAL
@@ -504,6 +516,7 @@ config THINKPAD_ACPI
 	select NVRAM
 	select NEW_LEDS
 	select LEDS_CLASS
+	select INPUT_SPARSEKMAP
 	help
 	  This is a driver for the IBM and Lenovo ThinkPad laptops. It adds
 	  support for Fn-Fx key combinations, Bluetooth control, video
@@ -642,6 +655,30 @@ config THINKPAD_LMI
 
 source "drivers/platform/x86/intel/Kconfig"
 
+config ACPI_QUICKSTART
+	tristate "ACPI Quickstart button driver"
+	depends on ACPI
+	depends on INPUT
+	select INPUT_SPARSEKMAP
+	help
+	  This driver adds support for ACPI quickstart button (PNP0C32) devices.
+	  The button emits a manufacturer-specific key value when pressed, so
+	  userspace has to map this value to a standard key code.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called quickstart.
+
+config MEEGOPAD_ANX7428
+	tristate "MeeGoPad ANX7428 Type-C Switch"
+	depends on ACPI && GPIOLIB && I2C
+	help
+	  Some MeeGoPad top-set boxes have an ANX7428 Type-C Switch for
+	  USB3.1 Gen 1 and DisplayPort over Type-C alternate mode support.
+
+	  This driver takes care of powering on the ANX7428 on supported
+	  MeeGoPad top-set boxes. After this the ANX7428 takes care of Type-C
+	  connector orientation and PD alternate mode switching autonomously.
+
 config MSI_EC
 	tristate "MSI EC Extras"
 	depends on ACPI
@@ -684,6 +721,17 @@ config MSI_WMI
 
 	 To compile this driver as a module, choose M here: the module will
 	 be called msi-wmi.
+
+config MSI_WMI_PLATFORM
+	tristate "MSI WMI Platform features"
+	depends on ACPI_WMI
+	depends on HWMON
+	help
+	  Say Y here if you want to have support for WMI-based platform features
+	  like fan sensor access on MSI machines.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called msi-wmi-platform.
 
 config XO15_EBOOK
 	tristate "OLPC XO-1.5 ebook switch"
@@ -995,6 +1043,18 @@ config INSPUR_PLATFORM_PROFILE
 
 	To compile this driver as a module, choose M here: the module
 	will be called inspur-platform-profile.
+
+config LENOVO_WMI_CAMERA
+	tristate "Lenovo WMI Camera Button driver"
+	depends on ACPI_WMI
+	depends on INPUT
+	help
+	  This driver provides support for Lenovo camera button. The Camera
+	  button is a GPIO device. This driver receives ACPI notifications when
+	  the camera button is switched on/off.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called lenovo-wmi-camera.
 
 source "drivers/platform/x86/x86-android-tablets/Kconfig"
 

@@ -438,6 +438,115 @@ char *u64toa(uint64_t in)
 	return itoa_buffer;
 }
 
+static __attribute__((unused))
+uintmax_t __strtox(const char *nptr, char **endptr, int base, intmax_t lower_limit, uintmax_t upper_limit)
+{
+	const char signed_ = lower_limit != 0;
+	unsigned char neg = 0, overflow = 0;
+	uintmax_t val = 0, limit, old_val;
+	char c;
+
+	if (base < 0 || base > 36) {
+		SET_ERRNO(EINVAL);
+		goto out;
+	}
+
+	while (isspace(*nptr))
+		nptr++;
+
+	if (*nptr == '+') {
+		nptr++;
+	} else if (*nptr == '-') {
+		neg = 1;
+		nptr++;
+	}
+
+	if (signed_ && neg)
+		limit = -(uintmax_t)lower_limit;
+	else
+		limit = upper_limit;
+
+	if ((base == 0 || base == 16) &&
+	    (strncmp(nptr, "0x", 2) == 0 || strncmp(nptr, "0X", 2) == 0)) {
+		base = 16;
+		nptr += 2;
+	} else if (base == 0 && strncmp(nptr, "0", 1) == 0) {
+		base = 8;
+		nptr += 1;
+	} else if (base == 0) {
+		base = 10;
+	}
+
+	while (*nptr) {
+		c = *nptr;
+
+		if (c >= '0' && c <= '9')
+			c -= '0';
+		else if (c >= 'a' && c <= 'z')
+			c = c - 'a' + 10;
+		else if (c >= 'A' && c <= 'Z')
+			c = c - 'A' + 10;
+		else
+			goto out;
+
+		if (c >= base)
+			goto out;
+
+		nptr++;
+		old_val = val;
+		val *= base;
+		val += c;
+
+		if (val > limit || val < old_val)
+			overflow = 1;
+	}
+
+out:
+	if (overflow) {
+		SET_ERRNO(ERANGE);
+		val = limit;
+	}
+	if (endptr)
+		*endptr = (char *)nptr;
+	return neg ? -val : val;
+}
+
+static __attribute__((unused))
+long strtol(const char *nptr, char **endptr, int base)
+{
+	return __strtox(nptr, endptr, base, LONG_MIN, LONG_MAX);
+}
+
+static __attribute__((unused))
+unsigned long strtoul(const char *nptr, char **endptr, int base)
+{
+	return __strtox(nptr, endptr, base, 0, ULONG_MAX);
+}
+
+static __attribute__((unused))
+long long strtoll(const char *nptr, char **endptr, int base)
+{
+	return __strtox(nptr, endptr, base, LLONG_MIN, LLONG_MAX);
+}
+
+static __attribute__((unused))
+unsigned long long strtoull(const char *nptr, char **endptr, int base)
+{
+	return __strtox(nptr, endptr, base, 0, ULLONG_MAX);
+}
+
+static __attribute__((unused))
+intmax_t strtoimax(const char *nptr, char **endptr, int base)
+{
+	return __strtox(nptr, endptr, base, INTMAX_MIN, INTMAX_MAX);
+}
+
+static __attribute__((unused))
+uintmax_t strtoumax(const char *nptr, char **endptr, int base)
+{
+	return __strtox(nptr, endptr, base, 0, UINTMAX_MAX);
+}
+
 /* make sure to include all global symbols */
 #include "nolibc.h"
 

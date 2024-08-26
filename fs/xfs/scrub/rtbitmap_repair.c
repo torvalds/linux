@@ -108,8 +108,6 @@ xrep_rtbitmap_data_mappings(
 				0, &map, &nmaps);
 		if (error)
 			return error;
-		if (nmaps != 1)
-			return -EFSCORRUPTED;
 
 		/* Commit new extent and all deferred work. */
 		error = xrep_defer_finish(sc);

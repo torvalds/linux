@@ -331,7 +331,7 @@ struct brcms_cm_info *brcms_c_channel_mgr_attach(struct brcms_c_info *wlc)
 	const char *ccode = sprom->alpha2;
 	int ccode_len = sizeof(sprom->alpha2);
 
-	wlc_cm = kzalloc(sizeof(struct brcms_cm_info), GFP_ATOMIC);
+	wlc_cm = kzalloc(sizeof(*wlc_cm), GFP_ATOMIC);
 	if (wlc_cm == NULL)
 		return NULL;
 	wlc_cm->pub = pub;

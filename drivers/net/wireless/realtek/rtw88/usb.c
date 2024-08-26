@@ -273,6 +273,8 @@ static void rtw_usb_write_port_tx_complete(struct urb *urb)
 		info = IEEE80211_SKB_CB(skb);
 		tx_data = rtw_usb_get_tx_data(skb);
 
+		skb_pull(skb, rtwdev->chip->tx_pkt_desc_sz);
+
 		/* enqueue to wait for tx report */
 		if (info->flags & IEEE80211_TX_CTL_REQ_TX_STATUS) {
 			rtw_tx_report_enqueue(rtwdev, skb, tx_data->sn);
@@ -377,7 +379,9 @@ static bool rtw_usb_tx_agg_skb(struct rtw_usb *rtwusb, struct sk_buff_head *list
 
 		skb_iter = skb_peek(list);
 
-		if (skb_iter && skb_iter->len + skb_head->len <= RTW_USB_MAX_XMITBUF_SZ)
+		if (skb_iter &&
+		    skb_iter->len + skb_head->len <= RTW_USB_MAX_XMITBUF_SZ &&
+		    agg_num < rtwdev->chip->usb_tx_agg_desc_num)
 			__skb_unlink(skb_iter, list);
 		else
 			skb_iter = NULL;
@@ -433,23 +437,21 @@ static int rtw_usb_write_data(struct rtw_dev *rtwdev,
 {
 	const struct rtw_chip_info *chip = rtwdev->chip;
 	struct sk_buff *skb;
-	unsigned int desclen, headsize, size;
+	unsigned int size;
 	u8 qsel;
 	int ret = 0;
 
 	size = pkt_info->tx_pkt_size;
 	qsel = pkt_info->qsel;
-	desclen = chip->tx_pkt_desc_sz;
-	headsize = pkt_info->offset ? pkt_info->offset : desclen;
 
-	skb = dev_alloc_skb(headsize + size);
+	skb = dev_alloc_skb(chip->tx_pkt_desc_sz + size);
 	if (unlikely(!skb))
 		return -ENOMEM;
 
-	skb_reserve(skb, headsize);
+	skb_reserve(skb, chip->tx_pkt_desc_sz);
 	skb_put_data(skb, buf, size);
-	skb_push(skb, headsize);
-	memset(skb->data, 0, headsize);
+	skb_push(skb, chip->tx_pkt_desc_sz);
+	memset(skb->data, 0, chip->tx_pkt_desc_sz);
 	rtw_tx_fill_tx_desc(pkt_info, skb);
 	rtw_tx_fill_txdesc_checksum(rtwdev, pkt_info, skb->data);
 
@@ -740,7 +742,6 @@ static struct rtw_hci_ops rtw_usb_ops = {
 static int rtw_usb_init_rx(struct rtw_dev *rtwdev)
 {
 	struct rtw_usb *rtwusb = rtw_get_usb_priv(rtwdev);
-	int i;
 
 	rtwusb->rxwq = create_singlethread_workqueue("rtw88_usb: rx wq");
 	if (!rtwusb->rxwq) {
@@ -752,13 +753,19 @@ static int rtw_usb_init_rx(struct rtw_dev *rtwdev)
 
 	INIT_WORK(&rtwusb->rx_work, rtw_usb_rx_handler);
 
+	return 0;
+}
+
+static void rtw_usb_setup_rx(struct rtw_dev *rtwdev)
+{
+	struct rtw_usb *rtwusb = rtw_get_usb_priv(rtwdev);
+	int i;
+
 	for (i = 0; i < RTW_USB_RXCB_NUM; i++) {
 		struct rx_usb_ctrl_block *rxcb = &rtwusb->rx_cb[i];
 
 		rtw_usb_rx_resubmit(rtwusb, rxcb);
 	}
-
-	return 0;
 }
 
 static void rtw_usb_deinit_rx(struct rtw_dev *rtwdev)
@@ -894,6 +901,8 @@ int rtw_usb_probe(struct usb_interface *intf, const struct usb_device_id *id)
 		rtw_err(rtwdev, "failed to register hw\n");
 		goto err_destroy_rxwq;
 	}
+
+	rtw_usb_setup_rx(rtwdev);
 
 	return 0;
 

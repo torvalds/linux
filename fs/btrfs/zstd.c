@@ -19,6 +19,7 @@
 #include <linux/zstd.h>
 #include "misc.h"
 #include "fs.h"
+#include "btrfs_inode.h"
 #include "compression.h"
 #include "super.h"
 
@@ -399,8 +400,13 @@ int zstd_compress_folios(struct list_head *ws, struct address_space *mapping,
 	/* Initialize the stream */
 	stream = zstd_init_cstream(&params, len, workspace->mem,
 			workspace->size);
-	if (!stream) {
-		pr_warn("BTRFS: zstd_init_cstream failed\n");
+	if (unlikely(!stream)) {
+		struct btrfs_inode *inode = BTRFS_I(mapping->host);
+
+		btrfs_err(inode->root->fs_info,
+	"zstd compression init level %d failed, root %llu inode %llu offset %llu",
+			  workspace->req_level, btrfs_root_id(inode->root),
+			  btrfs_ino(inode), start);
 		ret = -EIO;
 		goto out;
 	}
@@ -429,9 +435,14 @@ int zstd_compress_folios(struct list_head *ws, struct address_space *mapping,
 
 		ret2 = zstd_compress_stream(stream, &workspace->out_buf,
 				&workspace->in_buf);
-		if (zstd_is_error(ret2)) {
-			pr_debug("BTRFS: zstd_compress_stream returned %d\n",
-					zstd_get_error_code(ret2));
+		if (unlikely(zstd_is_error(ret2))) {
+			struct btrfs_inode *inode = BTRFS_I(mapping->host);
+
+			btrfs_warn(inode->root->fs_info,
+"zstd compression level %d failed, error %d root %llu inode %llu offset %llu",
+				   workspace->req_level, zstd_get_error_code(ret2),
+				   btrfs_root_id(inode->root), btrfs_ino(inode),
+				   start);
 			ret = -EIO;
 			goto out;
 		}
@@ -497,9 +508,14 @@ int zstd_compress_folios(struct list_head *ws, struct address_space *mapping,
 		size_t ret2;
 
 		ret2 = zstd_end_stream(stream, &workspace->out_buf);
-		if (zstd_is_error(ret2)) {
-			pr_debug("BTRFS: zstd_end_stream returned %d\n",
-					zstd_get_error_code(ret2));
+		if (unlikely(zstd_is_error(ret2))) {
+			struct btrfs_inode *inode = BTRFS_I(mapping->host);
+
+			btrfs_err(inode->root->fs_info,
+"zstd compression end level %d failed, error %d root %llu inode %llu offset %llu",
+				  workspace->req_level, zstd_get_error_code(ret2),
+				  btrfs_root_id(inode->root), btrfs_ino(inode),
+				  start);
 			ret = -EIO;
 			goto out;
 		}
@@ -561,8 +577,12 @@ int zstd_decompress_bio(struct list_head *ws, struct compressed_bio *cb)
 
 	stream = zstd_init_dstream(
 			ZSTD_BTRFS_MAX_INPUT, workspace->mem, workspace->size);
-	if (!stream) {
-		pr_debug("BTRFS: zstd_init_dstream failed\n");
+	if (unlikely(!stream)) {
+		struct btrfs_inode *inode = cb->bbio.inode;
+
+		btrfs_err(inode->root->fs_info,
+		"zstd decompression init failed, root %llu inode %llu offset %llu",
+			  btrfs_root_id(inode->root), btrfs_ino(inode), cb->start);
 		ret = -EIO;
 		goto done;
 	}
@@ -580,9 +600,13 @@ int zstd_decompress_bio(struct list_head *ws, struct compressed_bio *cb)
 
 		ret2 = zstd_decompress_stream(stream, &workspace->out_buf,
 				&workspace->in_buf);
-		if (zstd_is_error(ret2)) {
-			pr_debug("BTRFS: zstd_decompress_stream returned %d\n",
-					zstd_get_error_code(ret2));
+		if (unlikely(zstd_is_error(ret2))) {
+			struct btrfs_inode *inode = cb->bbio.inode;
+
+			btrfs_err(inode->root->fs_info,
+		"zstd decompression failed, error %d root %llu inode %llu offset %llu",
+				  zstd_get_error_code(ret2), btrfs_root_id(inode->root),
+				  btrfs_ino(inode), cb->start);
 			ret = -EIO;
 			goto done;
 		}
@@ -637,8 +661,14 @@ int zstd_decompress(struct list_head *ws, const u8 *data_in,
 
 	stream = zstd_init_dstream(
 			ZSTD_BTRFS_MAX_INPUT, workspace->mem, workspace->size);
-	if (!stream) {
-		pr_warn("BTRFS: zstd_init_dstream failed\n");
+	if (unlikely(!stream)) {
+		struct btrfs_inode *inode = BTRFS_I(dest_page->mapping->host);
+
+		btrfs_err(inode->root->fs_info,
+		"zstd decompression init failed, root %llu inode %llu offset %llu",
+			  btrfs_root_id(inode->root), btrfs_ino(inode),
+			  page_offset(dest_page));
+		ret = -EIO;
 		goto finish;
 	}
 
@@ -655,9 +685,13 @@ int zstd_decompress(struct list_head *ws, const u8 *data_in,
 	 * one call should end the decompression.
 	 */
 	ret = zstd_decompress_stream(stream, &workspace->out_buf, &workspace->in_buf);
-	if (zstd_is_error(ret)) {
-		pr_warn_ratelimited("BTRFS: zstd_decompress_stream return %d\n",
-				    zstd_get_error_code(ret));
+	if (unlikely(zstd_is_error(ret))) {
+		struct btrfs_inode *inode = BTRFS_I(dest_page->mapping->host);
+
+		btrfs_err(inode->root->fs_info,
+		"zstd decompression failed, error %d root %llu inode %llu offset %llu",
+			  zstd_get_error_code(ret), btrfs_root_id(inode->root),
+			  btrfs_ino(inode), page_offset(dest_page));
 		goto finish;
 	}
 	to_copy = workspace->out_buf.pos;

@@ -28,4 +28,6 @@
 # define __ARCH_WANT_SYS_VFORK
 # define __ARCH_WANT_SYS_CLONE
 
+#define __ARCH_BROKEN_SYS_CLONE3
+
 #include <uapi/asm/unistd.h>

@@ -211,4 +211,5 @@ static struct platform_driver flash_driver = {
 
 module_platform_driver(flash_driver);
 
+MODULE_DESCRIPTION("OBP Flash Device driver");
 MODULE_LICENSE("GPL");

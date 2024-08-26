@@ -63,7 +63,7 @@ DESCRIZIONE
 ***********
 
 Converte un file d'intestazione o un file sorgente C (C_FILE) in un testo
-ReStructuredText incluso mediante il blocco ..parsed-literal
+reStructuredText incluso mediante il blocco ..parsed-literal
 con riferimenti alla documentazione che descrive l'API. Opzionalmente,
 il programma accetta anche un altro file (EXCEPTIONS_FILE) che
 descrive quali elementi debbano essere ignorati o il cui riferimento

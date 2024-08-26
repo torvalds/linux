@@ -18,16 +18,16 @@
  * @values: Array of bitmasks of GPIO settings (low/high) for each
  *	position
  * @n_values: Number of multiplexer positions (busses to instantiate)
- * @classes: Optional I2C auto-detection classes
  * @idle: Bitmask to write to MUX when idle or GPIO_I2CMUX_NO_IDLE if not used
+ * @settle_time: Delay to wait when a new bus is selected
  */
 struct i2c_mux_gpio_platform_data {
 	int parent;
 	int base_nr;
 	const unsigned *values;
 	int n_values;
-	const unsigned *classes;
 	unsigned idle;
+	u32 settle_time;
 };
 
 #endif /* _LINUX_I2C_MUX_GPIO_H */

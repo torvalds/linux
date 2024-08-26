@@ -662,6 +662,7 @@ static struct hid_driver steelseries_driver = {
 };
 
 module_hid_driver(steelseries_driver);
+MODULE_DESCRIPTION("HID driver for Steelseries devices");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Bastien Nocera <hadess@hadess.net>");
 MODULE_AUTHOR("Simon Wood <simon@mungewell.org>");

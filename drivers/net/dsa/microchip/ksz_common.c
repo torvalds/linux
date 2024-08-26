@@ -1382,6 +1382,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.tc_cbs_supported = true,
 		.ops = &ksz9477_dev_ops,
 		.phylink_mac_ops = &ksz9477_phylink_mac_ops,
+		.phy_errata_9477 = true,
 		.mib_names = ksz9477_mib_names,
 		.mib_cnt = ARRAY_SIZE(ksz9477_mib_names),
 		.reg_mib_cnt = MIB_COUNTER_NUM,
@@ -1416,6 +1417,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.num_ipms = 8,
 		.ops = &ksz9477_dev_ops,
 		.phylink_mac_ops = &ksz9477_phylink_mac_ops,
+		.phy_errata_9477 = true,
 		.mib_names = ksz9477_mib_names,
 		.mib_cnt = ARRAY_SIZE(ksz9477_mib_names),
 		.reg_mib_cnt = MIB_COUNTER_NUM,
@@ -1450,6 +1452,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.num_ipms = 8,
 		.ops = &ksz9477_dev_ops,
 		.phylink_mac_ops = &ksz9477_phylink_mac_ops,
+		.phy_errata_9477 = true,
 		.mib_names = ksz9477_mib_names,
 		.mib_cnt = ARRAY_SIZE(ksz9477_mib_names),
 		.reg_mib_cnt = MIB_COUNTER_NUM,
@@ -1540,6 +1543,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.tc_cbs_supported = true,
 		.ops = &ksz9477_dev_ops,
 		.phylink_mac_ops = &ksz9477_phylink_mac_ops,
+		.phy_errata_9477 = true,
 		.mib_names = ksz9477_mib_names,
 		.mib_cnt = ARRAY_SIZE(ksz9477_mib_names),
 		.reg_mib_cnt = MIB_COUNTER_NUM,
@@ -1820,6 +1824,7 @@ void ksz_r_mib_stats64(struct ksz_device *dev, int port)
 	struct rtnl_link_stats64 *stats;
 	struct ksz_stats_raw *raw;
 	struct ksz_port_mib *mib;
+	int ret;
 
 	mib = &dev->ports[port].mib;
 	stats = &mib->stats64;
@@ -1861,6 +1866,12 @@ void ksz_r_mib_stats64(struct ksz_device *dev, int port)
 	pstats->rx_pause_frames = raw->rx_pause;
 
 	spin_unlock(&mib->stats64_lock);
+
+	if (dev->info->phy_errata_9477) {
+		ret = ksz9477_errata_monitor(dev, port, raw->tx_late_col);
+		if (ret)
+			dev_err(dev->dev, "Failed to monitor transmission halt\n");
+	}
 }
 
 void ksz88xx_r_mib_stats64(struct ksz_device *dev, int port)
@@ -2185,7 +2196,7 @@ static void ksz_irq_bus_sync_unlock(struct irq_data *d)
 	struct ksz_device *dev = kirq->dev;
 	int ret;
 
-	ret = ksz_write32(dev, kirq->reg_mask, kirq->masked);
+	ret = ksz_write8(dev, kirq->reg_mask, kirq->masked);
 	if (ret)
 		dev_err(dev->dev, "failed to change IRQ mask\n");
 
@@ -3105,7 +3116,8 @@ static void ksz_set_xmii(struct ksz_device *dev, int port,
 		/* On KSZ9893, disable RGMII in-band status support */
 		if (dev->chip_id == KSZ9893_CHIP_ID ||
 		    dev->chip_id == KSZ8563_CHIP_ID ||
-		    dev->chip_id == KSZ9563_CHIP_ID)
+		    dev->chip_id == KSZ9563_CHIP_ID ||
+		    is_lan937x(dev))
 			data8 &= ~P_MII_MAC_MODE;
 		break;
 	default:
@@ -3142,7 +3154,7 @@ phy_interface_t ksz_get_xmii(struct ksz_device *dev, int port, bool gbit)
 		else
 			interface = PHY_INTERFACE_MODE_MII;
 	} else if (val == bitval[P_RMII_SEL]) {
-		interface = PHY_INTERFACE_MODE_RGMII;
+		interface = PHY_INTERFACE_MODE_RMII;
 	} else {
 		interface = PHY_INTERFACE_MODE_RGMII;
 		if (data8 & P_RGMII_ID_EG_ENABLE)
@@ -3903,6 +3915,13 @@ static int ksz_hsr_join(struct dsa_switch *ds, int port, struct net_device *hsr,
 	/* KSZ9477 only supports HSR v0 and v1 */
 	if (!(ver == HSR_V0 || ver == HSR_V1)) {
 		NL_SET_ERR_MSG_MOD(extack, "Only HSR v0 and v1 supported");
+		return -EOPNOTSUPP;
+	}
+
+	/* KSZ9477 can only perform HSR offloading for up to two ports */
+	if (hweight8(dev->hsr_ports) >= 2) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Cannot offload more than two ports - using software HSR");
 		return -EOPNOTSUPP;
 	}
 

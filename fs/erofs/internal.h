@@ -64,15 +64,12 @@ enum {
 };
 
 struct erofs_mount_opts {
-#ifdef CONFIG_EROFS_FS_ZIP
 	/* current strategy of how to use managed cache */
 	unsigned char cache_strategy;
 	/* strategy of sync decompression (0 - auto, 1 - force on, 2 - force off) */
 	unsigned int sync_decompress;
-
 	/* threshold for decompression synchronously */
 	unsigned int max_sync_decompress_pages;
-#endif
 	unsigned int mount_opt;
 };
 
@@ -216,7 +213,7 @@ enum erofs_kmap_type {
 };
 
 struct erofs_buf {
-	struct inode *inode;
+	struct address_space *mapping;
 	struct page *page;
 	void *base;
 	enum erofs_kmap_type kmap_type;
@@ -315,17 +312,13 @@ static inline unsigned int erofs_inode_datalayout(unsigned int ifmt)
 	return (ifmt >> EROFS_I_DATALAYOUT_BIT) & EROFS_I_DATALAYOUT_MASK;
 }
 
-/*
- * Different from grab_cache_page_nowait(), reclaiming is never triggered
- * when allocating new pages.
- */
-static inline
-struct page *erofs_grab_cache_page_nowait(struct address_space *mapping,
-					  pgoff_t index)
+/* reclaiming is never triggered when allocating new folios. */
+static inline struct folio *erofs_grab_folio_nowait(struct address_space *as,
+						    pgoff_t index)
 {
-	return pagecache_get_page(mapping, index,
+	return __filemap_get_folio(as, index,
 			FGP_LOCK|FGP_CREAT|FGP_NOFS|FGP_NOWAIT,
-			readahead_gfp_mask(mapping) & ~__GFP_RECLAIM);
+			readahead_gfp_mask(as) & ~__GFP_RECLAIM);
 }
 
 /* Has a disk mapping */
@@ -402,11 +395,11 @@ void *erofs_read_metadata(struct super_block *sb, struct erofs_buf *buf,
 			  erofs_off_t *offset, int *lengthp);
 void erofs_unmap_metabuf(struct erofs_buf *buf);
 void erofs_put_metabuf(struct erofs_buf *buf);
-void *erofs_bread(struct erofs_buf *buf, erofs_blk_t blkaddr,
+void *erofs_bread(struct erofs_buf *buf, erofs_off_t offset,
 		  enum erofs_kmap_type type);
 void erofs_init_metabuf(struct erofs_buf *buf, struct super_block *sb);
 void *erofs_read_metabuf(struct erofs_buf *buf, struct super_block *sb,
-			 erofs_blk_t blkaddr, enum erofs_kmap_type type);
+			 erofs_off_t offset, enum erofs_kmap_type type);
 int erofs_map_dev(struct super_block *sb, struct erofs_map_dev *dev);
 int erofs_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 		 u64 start, u64 len);
@@ -461,8 +454,8 @@ void erofs_shrinker_register(struct super_block *sb);
 void erofs_shrinker_unregister(struct super_block *sb);
 int __init erofs_init_shrinker(void);
 void erofs_exit_shrinker(void);
-int __init z_erofs_init_zip_subsystem(void);
-void z_erofs_exit_zip_subsystem(void);
+int __init z_erofs_init_subsystem(void);
+void z_erofs_exit_subsystem(void);
 int erofs_try_to_free_all_cached_folios(struct erofs_sb_info *sbi,
 					struct erofs_workgroup *egrp);
 int z_erofs_map_blocks_iter(struct inode *inode, struct erofs_map_blocks *map,
@@ -479,36 +472,10 @@ static inline void erofs_shrinker_register(struct super_block *sb) {}
 static inline void erofs_shrinker_unregister(struct super_block *sb) {}
 static inline int erofs_init_shrinker(void) { return 0; }
 static inline void erofs_exit_shrinker(void) {}
-static inline int z_erofs_init_zip_subsystem(void) { return 0; }
-static inline void z_erofs_exit_zip_subsystem(void) {}
-static inline int z_erofs_gbuf_init(void) { return 0; }
-static inline void z_erofs_gbuf_exit(void) {}
+static inline int z_erofs_init_subsystem(void) { return 0; }
+static inline void z_erofs_exit_subsystem(void) {}
 static inline int erofs_init_managed_cache(struct super_block *sb) { return 0; }
 #endif	/* !CONFIG_EROFS_FS_ZIP */
-
-#ifdef CONFIG_EROFS_FS_ZIP_LZMA
-int __init z_erofs_lzma_init(void);
-void z_erofs_lzma_exit(void);
-#else
-static inline int z_erofs_lzma_init(void) { return 0; }
-static inline int z_erofs_lzma_exit(void) { return 0; }
-#endif	/* !CONFIG_EROFS_FS_ZIP_LZMA */
-
-#ifdef CONFIG_EROFS_FS_ZIP_DEFLATE
-int __init z_erofs_deflate_init(void);
-void z_erofs_deflate_exit(void);
-#else
-static inline int z_erofs_deflate_init(void) { return 0; }
-static inline int z_erofs_deflate_exit(void) { return 0; }
-#endif	/* !CONFIG_EROFS_FS_ZIP_DEFLATE */
-
-#ifdef CONFIG_EROFS_FS_ZIP_ZSTD
-int __init z_erofs_zstd_init(void);
-void z_erofs_zstd_exit(void);
-#else
-static inline int z_erofs_zstd_init(void) { return 0; }
-static inline int z_erofs_zstd_exit(void) { return 0; }
-#endif	/* !CONFIG_EROFS_FS_ZIP_ZSTD */
 
 #ifdef CONFIG_EROFS_FS_ONDEMAND
 int erofs_fscache_register_fs(struct super_block *sb);

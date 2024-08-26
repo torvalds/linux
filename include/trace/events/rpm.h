@@ -33,7 +33,7 @@ DECLARE_EVENT_CLASS(rpm_internal,
 	),
 
 	TP_fast_assign(
-		__assign_str(name, dev_name(dev));
+		__assign_str(name);
 		__entry->flags = flags;
 		__entry->usage_count = atomic_read(
 			&dev->power.usage_count);
@@ -92,7 +92,7 @@ TRACE_EVENT(rpm_return_int,
 	),
 
 	TP_fast_assign(
-		__assign_str(name, dev_name(dev));
+		__assign_str(name);
 		__entry->ip = ip;
 		__entry->ret = ret;
 	),
@@ -135,7 +135,7 @@ TRACE_EVENT(rpm_status,
 	),
 
 	TP_fast_assign(
-		__assign_str(name, dev_name(dev));
+		__assign_str(name);
 		__entry->status = status;
 	),
 

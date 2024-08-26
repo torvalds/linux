@@ -127,7 +127,7 @@ static int df4_determine_df_rev(u32 reg)
 	if (reg == DF_FUNC0_ID_MI300) {
 		df_cfg.flags.heterogeneous = 1;
 
-		if (get_addr_hash_mi300())
+		if (get_umc_info_mi300())
 			return -EINVAL;
 	}
 
@@ -223,6 +223,21 @@ static int determine_df_rev(void)
 	return -EINVAL;
 }
 
+static int get_dram_hole_base(void)
+{
+	u8 func = 0;
+
+	if (df_cfg.rev >= DF4)
+		func = 7;
+
+	if (df_indirect_read_broadcast(0, func, 0x104, &df_cfg.dram_hole_base))
+		return -EINVAL;
+
+	df_cfg.dram_hole_base &= DF_DRAM_HOLE_BASE_MASK;
+
+	return 0;
+}
+
 static void get_num_maps(void)
 {
 	switch (df_cfg.rev) {
@@ -266,6 +281,7 @@ static void dump_df_cfg(void)
 
 	pr_debug("num_coh_st_maps=%u",			df_cfg.num_coh_st_maps);
 
+	pr_debug("dram_hole_base=0x%x",			df_cfg.dram_hole_base);
 	pr_debug("flags.legacy_ficaa=%u",		df_cfg.flags.legacy_ficaa);
 	pr_debug("flags.socket_id_shift_quirk=%u",	df_cfg.flags.socket_id_shift_quirk);
 }
@@ -273,7 +289,7 @@ static void dump_df_cfg(void)
 int get_df_system_info(void)
 {
 	if (determine_df_rev()) {
-		pr_warn("amd_atl: Failed to determine DF Revision");
+		pr_warn("Failed to determine DF Revision");
 		df_cfg.rev = UNKNOWN;
 		return -EINVAL;
 	}
@@ -281,6 +297,9 @@ int get_df_system_info(void)
 	apply_node_id_shift();
 
 	get_num_maps();
+
+	if (get_dram_hole_base())
+		pr_warn("Failed to read DRAM hole base");
 
 	dump_df_cfg();
 

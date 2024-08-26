@@ -768,6 +768,7 @@ static const struct of_device_id sun8i_v3s_ccu_ids[] = {
 	},
 	{ }
 };
+MODULE_DEVICE_TABLE(of, sun8i_v3s_ccu_ids);
 
 static struct platform_driver sun8i_v3s_ccu_driver = {
 	.probe	= sun8i_v3s_ccu_probe,
@@ -780,4 +781,5 @@ static struct platform_driver sun8i_v3s_ccu_driver = {
 module_platform_driver(sun8i_v3s_ccu_driver);
 
 MODULE_IMPORT_NS(SUNXI_CCU);
+MODULE_DESCRIPTION("Support for the Allwinner V3s CCU");
 MODULE_LICENSE("GPL");

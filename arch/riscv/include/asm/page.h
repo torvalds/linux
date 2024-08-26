@@ -188,6 +188,11 @@ extern phys_addr_t __phys_addr_symbol(unsigned long x);
 
 unsigned long kaslr_offset(void);
 
+static __always_inline void *pfn_to_kaddr(unsigned long pfn)
+{
+	return __va(pfn << PAGE_SHIFT);
+}
+
 #endif /* __ASSEMBLY__ */
 
 #define virt_addr_valid(vaddr)	({						\

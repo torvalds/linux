@@ -9,15 +9,16 @@
 #define _MISC_CGROUP_H_
 
 /**
- * Types of misc cgroup entries supported by the host.
+ * enum misc_res_type - Types of misc cgroup entries supported by the host.
  */
 enum misc_res_type {
 #ifdef CONFIG_KVM_AMD_SEV
-	/* AMD SEV ASIDs resource */
+	/** @MISC_CG_RES_SEV: AMD SEV ASIDs resource */
 	MISC_CG_RES_SEV,
-	/* AMD SEV-ES ASIDs resource */
+	/** @MISC_CG_RES_SEV_ES: AMD SEV-ES ASIDs resource */
 	MISC_CG_RES_SEV_ES,
 #endif
+	/** @MISC_CG_RES_TYPES: count of enum misc_res_type constants */
 	MISC_CG_RES_TYPES
 };
 
@@ -30,13 +31,16 @@ struct misc_cg;
 /**
  * struct misc_res: Per cgroup per misc type resource
  * @max: Maximum limit on the resource.
+ * @watermark: Historical maximum usage of the resource.
  * @usage: Current usage of the resource.
  * @events: Number of times, the resource limit exceeded.
  */
 struct misc_res {
 	u64 max;
+	atomic64_t watermark;
 	atomic64_t usage;
 	atomic64_t events;
+	atomic64_t events_local;
 };
 
 /**
@@ -50,6 +54,8 @@ struct misc_cg {
 
 	/* misc.events */
 	struct cgroup_file events_file;
+	/* misc.events.local */
+	struct cgroup_file events_local_file;
 
 	struct misc_res res[MISC_CG_RES_TYPES];
 };

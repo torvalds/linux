@@ -1,0 +1,88 @@
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+/*
+ * Copyright 2024 Mobileye Vision Technologies Ltd.
+ */
+
+/*
+ * MUX register structure
+ * bits    | field      | comment
+ * [0]     | MUX_SEL    | 0 - GPIO, 1 - alternative func
+ * [4]     | SW_LOOPBACK|
+ * [5]     | SW_OUT_HZ  |
+ * [7]     | DBG_IN     |
+ * [11:8]  | DS         | drive strength
+ * [13:12] | PUD        | pull-up/pull-down. 0, 3 - no, 1 - PD, 2 - PU
+ * [14]    | OD         | Open drain
+ * [15]    | ST_CFG     | Hysteretic input enable (Schmitt trigger)
+ */
+
+&pinctrl_west {
+	// TODO: use pinctrl-single,bias-pullup
+	// TODO: use pinctrl-single,bias-pulldown
+	// TODO: use pinctrl-single,drive-strength
+	// TODO: use pinctrl-single,input-schmitt
+
+	i2c0_pins: i2c0-pins {
+		pinctrl-single,pins = <
+			0x000 0x200	// I2C0_SCL pin
+			0x004 0x200	// I2C0_SDA pin
+		>;
+	};
+	i2c1_pins: i2c1-pins {
+		pinctrl-single,pins = <
+			0x008 0x200	// I2C1_SCL pin
+			0x00c 0x200	// I2C1_SDA pin
+		>;
+	};
+	eth0_pins: eth0-pins {
+		pinctrl-single,pins = <
+			0x080 1		// GPIO_C4__SMA0_MDC pin
+			0x084 1		// GPIO_C5__SMA0_MDIO pin
+		>;
+	};
+	uart0_pins: uart0-pins {
+		pinctrl-single,pins = <0x0a8 1>; // UART0 pin group
+	};
+	uart1_pins: uart1-pins {
+		pinctrl-single,pins = <0x0a0 1>; // UART1 pin group
+	};
+	spi0_pins: spi0-pins {
+		pinctrl-single,pins = <0x0ac 1>; // SPI0 pin group
+	};
+	spi1_pins: spi1-pins {
+		pinctrl-single,pins = <0x0a4 1>; // SPI1 pin group
+	};
+};
+
+&pinctrl_east {
+	i2c2_pins: i2c2-pins {
+		pinctrl-single,pins = <
+			0x000 0x200	// i2c2_SCL pin
+			0x004 0x200	// i2c2_SDA pin
+		>;
+	};
+	i2c3_pins: i2c3-pins {
+		pinctrl-single,pins = <
+			0x008 0x200	// i2c3_SCL pin
+			0x00c 0x200	// i2c3_SDA pin
+		>;
+	};
+	eth1_pins: eth1-pins {
+		pinctrl-single,pins = <
+			0x080 1	// GPIO_D4__SMA1_MDC pin
+			0x084 1	// GPIO_D5__SMA1_MDIO pin
+		>;
+	};
+	uart2_sel_pins: uart2-pins {
+		pinctrl-single,pins = <0x0a4 1>; // UART2 pin group
+	};
+	uart3_pins: uart3-pins {
+		pinctrl-single,pins = <0x09c 1>; // UART3 pin group
+	};
+	spi2_pins: spi2-pins {
+		pinctrl-single,pins = <0x0a8 1>; // SPI2 pin group
+	};
+	spi3_pins: spi3-pins {
+		pinctrl-single,pins = <0x0a0 1>; // SPI3 pin group
+	};
+};

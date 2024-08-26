@@ -2167,7 +2167,7 @@ The ``xfblob_free`` function frees a specific blob, and the ``xfblob_truncate``
 function frees them all because compaction is not needed.
 
 The details of repairing directories and extended attributes will be discussed
-in a subsequent section about atomic extent swapping.
+in a subsequent section about atomic file content exchanges.
 However, it should be noted that these repair functions only use blob storage
 to cache a small number of entries before adding them to a temporary ondisk
 file, which is why compaction is not required.
@@ -2802,7 +2802,8 @@ follows this format:
 
 Repairs for file-based metadata such as extended attributes, directories,
 symbolic links, quota files and realtime bitmaps are performed by building a
-new structure attached to a temporary file and swapping the forks.
+new structure attached to a temporary file and exchanging all mappings in the
+file forks.
 Afterward, the mappings in the old file fork are the candidate blocks for
 disposal.
 
@@ -3851,8 +3852,8 @@ Because file forks can consume as much space as the entire filesystem, repairs
 cannot be staged in memory, even when a paging scheme is available.
 Therefore, online repair of file-based metadata createas a temporary file in
 the XFS filesystem, writes a new structure at the correct offsets into the
-temporary file, and atomically swaps the fork mappings (and hence the fork
-contents) to commit the repair.
+temporary file, and atomically exchanges all file fork mappings (and hence the
+fork contents) to commit the repair.
 Once the repair is complete, the old fork can be reaped as necessary; if the
 system goes down during the reap, the iunlink code will delete the blocks
 during log recovery.
@@ -3862,10 +3863,11 @@ consistent to use a temporary file safely!
 This dependency is the reason why online repair can only use pageable kernel
 memory to stage ondisk space usage information.
 
-Swapping metadata extents with a temporary file requires the owner field of the
-block headers to match the file being repaired and not the temporary file.  The
-directory, extended attribute, and symbolic link functions were all modified to
-allow callers to specify owner numbers explicitly.
+Exchanging metadata file mappings with a temporary file requires the owner
+field of the block headers to match the file being repaired and not the
+temporary file.
+The directory, extended attribute, and symbolic link functions were all
+modified to allow callers to specify owner numbers explicitly.
 
 There is a downside to the reaping process -- if the system crashes during the
 reap phase and the fork extents are crosslinked, the iunlink processing will
@@ -3974,8 +3976,8 @@ The proposed patches are in the
 <https://git.kernel.org/pub/scm/linux/kernel/git/djwong/xfs-linux.git/log/?h=repair-tempfiles>`_
 series.
 
-Atomic Extent Swapping
-----------------------
+Logged File Content Exchanges
+-----------------------------
 
 Once repair builds a temporary file with a new data structure written into
 it, it must commit the new changes into the existing file.
@@ -4010,17 +4012,21 @@ e. Old blocks in the file may be cross-linked with another structure and must
 These problems are overcome by creating a new deferred operation and a new type
 of log intent item to track the progress of an operation to exchange two file
 ranges.
-The new deferred operation type chains together the same transactions used by
-the reverse-mapping extent swap code.
+The new exchange operation type chains together the same transactions used by
+the reverse-mapping extent swap code, but records intermedia progress in the
+log so that operations can be restarted after a crash.
+This new functionality is called the file contents exchange (xfs_exchrange)
+code.
+The underlying implementation exchanges file fork mappings (xfs_exchmaps).
 The new log item records the progress of the exchange to ensure that once an
 exchange begins, it will always run to completion, even there are
 interruptions.
-The new ``XFS_SB_FEAT_INCOMPAT_LOG_ATOMIC_SWAP`` log-incompatible feature flag
+The new ``XFS_SB_FEAT_INCOMPAT_EXCHRANGE`` incompatible feature flag
 in the superblock protects these new log item records from being replayed on
 old kernels.
 
 The proposed patchset is the
-`atomic extent swap
+`file contents exchange
 <https://git.kernel.org/pub/scm/linux/kernel/git/djwong/xfs-linux.git/log/?h=atomic-file-updates>`_
 series.
 
@@ -4047,9 +4053,6 @@ series.
 | one ``struct rw_semaphore`` for each feature.                            |
 | The log cleaning code tries to take this rwsem in exclusive mode to      |
 | clear the bit; if the lock attempt fails, the feature bit remains set.   |
-| Filesystem code signals its intention to use a log incompat feature in a |
-| transaction by calling ``xlog_use_incompat_feat``, which takes the rwsem |
-| in shared mode.                                                          |
 | The code supporting a log incompat feature should create wrapper         |
 | functions to obtain the log feature and call                             |
 | ``xfs_add_incompat_log_feature`` to set the feature bits in the primary  |
@@ -4064,72 +4067,73 @@ series.
 | The feature bit will not be cleared from the superblock until the log    |
 | becomes clean.                                                           |
 |                                                                          |
-| Log-assisted extended attribute updates and atomic extent swaps both use |
-| log incompat features and provide convenience wrappers around the        |
+| Log-assisted extended attribute updates and file content exchanges bothe |
+| use log incompat features and provide convenience wrappers around the    |
 | functionality.                                                           |
 +--------------------------------------------------------------------------+
 
-Mechanics of an Atomic Extent Swap
-``````````````````````````````````
+Mechanics of a Logged File Content Exchange
+```````````````````````````````````````````
 
-Swapping entire file forks is a complex task.
+Exchanging contents between file forks is a complex task.
 The goal is to exchange all file fork mappings between two file fork offset
 ranges.
 There are likely to be many extent mappings in each fork, and the edges of
 the mappings aren't necessarily aligned.
-Furthermore, there may be other updates that need to happen after the swap,
+Furthermore, there may be other updates that need to happen after the exchange,
 such as exchanging file sizes, inode flags, or conversion of fork data to local
 format.
-This is roughly the format of the new deferred extent swap work item:
+This is roughly the format of the new deferred exchange-mapping work item:
 
 .. code-block:: c
 
-	struct xfs_swapext_intent {
+	struct xfs_exchmaps_intent {
 	    /* Inodes participating in the operation. */
-	    struct xfs_inode    *sxi_ip1;
-	    struct xfs_inode    *sxi_ip2;
+	    struct xfs_inode    *xmi_ip1;
+	    struct xfs_inode    *xmi_ip2;
 
 	    /* File offset range information. */
-	    xfs_fileoff_t       sxi_startoff1;
-	    xfs_fileoff_t       sxi_startoff2;
-	    xfs_filblks_t       sxi_blockcount;
+	    xfs_fileoff_t       xmi_startoff1;
+	    xfs_fileoff_t       xmi_startoff2;
+	    xfs_filblks_t       xmi_blockcount;
 
 	    /* Set these file sizes after the operation, unless negative. */
-	    xfs_fsize_t         sxi_isize1;
-	    xfs_fsize_t         sxi_isize2;
+	    xfs_fsize_t         xmi_isize1;
+	    xfs_fsize_t         xmi_isize2;
 
-	    /* XFS_SWAP_EXT_* log operation flags */
-	    uint64_t            sxi_flags;
+	    /* XFS_EXCHMAPS_* log operation flags */
+	    uint64_t            xmi_flags;
 	};
 
 The new log intent item contains enough information to track two logical fork
 offset ranges: ``(inode1, startoff1, blockcount)`` and ``(inode2, startoff2,
 blockcount)``.
-Each step of a swap operation exchanges the largest file range mapping possible
-from one file to the other.
-After each step in the swap operation, the two startoff fields are incremented
-and the blockcount field is decremented to reflect the progress made.
-The flags field captures behavioral parameters such as swapping the attr fork
-instead of the data fork and other work to be done after the extent swap.
-The two isize fields are used to swap the file size at the end of the operation
-if the file data fork is the target of the swap operation.
+Each step of an exchange operation exchanges the largest file range mapping
+possible from one file to the other.
+After each step in the exchange operation, the two startoff fields are
+incremented and the blockcount field is decremented to reflect the progress
+made.
+The flags field captures behavioral parameters such as exchanging attr fork
+mappings instead of the data fork and other work to be done after the exchange.
+The two isize fields are used to exchange the file sizes at the end of the
+operation if the file data fork is the target of the operation.
 
-When the extent swap is initiated, the sequence of operations is as follows:
+When the exchange is initiated, the sequence of operations is as follows:
 
-1. Create a deferred work item for the extent swap.
-   At the start, it should contain the entirety of the file ranges to be
-   swapped.
+1. Create a deferred work item for the file mapping exchange.
+   At the start, it should contain the entirety of the file block ranges to be
+   exchanged.
 
 2. Call ``xfs_defer_finish`` to process the exchange.
-   This is encapsulated in ``xrep_tempswap_contents`` for scrub operations.
+   This is encapsulated in ``xrep_tempexch_contents`` for scrub operations.
    This will log an extent swap intent item to the transaction for the deferred
-   extent swap work item.
+   mapping exchange work item.
 
-3. Until ``sxi_blockcount`` of the deferred extent swap work item is zero,
+3. Until ``xmi_blockcount`` of the deferred mapping exchange work item is zero,
 
-   a. Read the block maps of both file ranges starting at ``sxi_startoff1`` and
-      ``sxi_startoff2``, respectively, and compute the longest extent that can
-      be swapped in a single step.
+   a. Read the block maps of both file ranges starting at ``xmi_startoff1`` and
+      ``xmi_startoff2``, respectively, and compute the longest extent that can
+      be exchanged in a single step.
       This is the minimum of the two ``br_blockcount`` s in the mappings.
       Keep advancing through the file forks until at least one of the mappings
       contains written blocks.
@@ -4151,20 +4155,20 @@ When the extent swap is initiated, the sequence of operations is as follows:
 
    g. Extend the ondisk size of either file if necessary.
 
-   h. Log an extent swap done log item for the extent swap intent log item
-      that was read at the start of step 3.
+   h. Log a mapping exchange done log item for th mapping exchange intent log
+      item that was read at the start of step 3.
 
    i. Compute the amount of file range that has just been covered.
       This quantity is ``(map1.br_startoff + map1.br_blockcount -
-      sxi_startoff1)``, because step 3a could have skipped holes.
+      xmi_startoff1)``, because step 3a could have skipped holes.
 
-   j. Increase the starting offsets of ``sxi_startoff1`` and ``sxi_startoff2``
+   j. Increase the starting offsets of ``xmi_startoff1`` and ``xmi_startoff2``
       by the number of blocks computed in the previous step, and decrease
-      ``sxi_blockcount`` by the same quantity.
+      ``xmi_blockcount`` by the same quantity.
       This advances the cursor.
 
-   k. Log a new extent swap intent log item reflecting the advanced state of
-      the work item.
+   k. Log a new mapping exchange intent log item reflecting the advanced state
+      of the work item.
 
    l. Return the proper error code (EAGAIN) to the deferred operation manager
       to inform it that there is more work to be done.
@@ -4175,22 +4179,23 @@ When the extent swap is initiated, the sequence of operations is as follows:
    This will be discussed in more detail in subsequent sections.
 
 If the filesystem goes down in the middle of an operation, log recovery will
-find the most recent unfinished extent swap log intent item and restart from
-there.
-This is how extent swapping guarantees that an outside observer will either see
-the old broken structure or the new one, and never a mismash of both.
+find the most recent unfinished maping exchange log intent item and restart
+from there.
+This is how atomic file mapping exchanges guarantees that an outside observer
+will either see the old broken structure or the new one, and never a mismash of
+both.
 
-Preparation for Extent Swapping
-```````````````````````````````
+Preparation for File Content Exchanges
+``````````````````````````````````````
 
 There are a few things that need to be taken care of before initiating an
-atomic extent swap operation.
+atomic file mapping exchange operation.
 First, regular files require the page cache to be flushed to disk before the
 operation begins, and directio writes to be quiesced.
-Like any filesystem operation, extent swapping must determine the maximum
-amount of disk space and quota that can be consumed on behalf of both files in
-the operation, and reserve that quantity of resources to avoid an unrecoverable
-out of space failure once it starts dirtying metadata.
+Like any filesystem operation, file mapping exchanges must determine the
+maximum amount of disk space and quota that can be consumed on behalf of both
+files in the operation, and reserve that quantity of resources to avoid an
+unrecoverable out of space failure once it starts dirtying metadata.
 The preparation step scans the ranges of both files to estimate:
 
 - Data device blocks needed to handle the repeated updates to the fork
@@ -4204,56 +4209,59 @@ The preparation step scans the ranges of both files to estimate:
   to different extents on the realtime volume, which could happen if the
   operation fails to run to completion.
 
-The need for precise estimation increases the run time of the swap operation,
-but it is very important to maintain correct accounting.
-The filesystem must not run completely out of free space, nor can the extent
-swap ever add more extent mappings to a fork than it can support.
+The need for precise estimation increases the run time of the exchange
+operation, but it is very important to maintain correct accounting.
+The filesystem must not run completely out of free space, nor can the mapping
+exchange ever add more extent mappings to a fork than it can support.
 Regular users are required to abide the quota limits, though metadata repairs
 may exceed quota to resolve inconsistent metadata elsewhere.
 
-Special Features for Swapping Metadata File Extents
-```````````````````````````````````````````````````
+Special Features for Exchanging Metadata File Contents
+``````````````````````````````````````````````````````
 
 Extended attributes, symbolic links, and directories can set the fork format to
 "local" and treat the fork as a literal area for data storage.
 Metadata repairs must take extra steps to support these cases:
 
 - If both forks are in local format and the fork areas are large enough, the
-  swap is performed by copying the incore fork contents, logging both forks,
-  and committing.
-  The atomic extent swap mechanism is not necessary, since this can be done
-  with a single transaction.
+  exchange is performed by copying the incore fork contents, logging both
+  forks, and committing.
+  The atomic file mapping exchange mechanism is not necessary, since this can
+  be done with a single transaction.
 
-- If both forks map blocks, then the regular atomic extent swap is used.
+- If both forks map blocks, then the regular atomic file mapping exchange is
+  used.
 
 - Otherwise, only one fork is in local format.
   The contents of the local format fork are converted to a block to perform the
-  swap.
+  exchange.
   The conversion to block format must be done in the same transaction that
-  logs the initial extent swap intent log item.
-  The regular atomic extent swap is used to exchange the mappings.
-  Special flags are set on the swap operation so that the transaction can be
-  rolled one more time to convert the second file's fork back to local format
-  so that the second file will be ready to go as soon as the ILOCK is dropped.
+  logs the initial mapping exchange intent log item.
+  The regular atomic mapping exchange is used to exchange the metadata file
+  mappings.
+  Special flags are set on the exchange operation so that the transaction can
+  be rolled one more time to convert the second file's fork back to local
+  format so that the second file will be ready to go as soon as the ILOCK is
+  dropped.
 
 Extended attributes and directories stamp the owning inode into every block,
 but the buffer verifiers do not actually check the inode number!
 Although there is no verification, it is still important to maintain
-referential integrity, so prior to performing the extent swap, online repair
-builds every block in the new data structure with the owner field of the file
-being repaired.
+referential integrity, so prior to performing the mapping exchange, online
+repair builds every block in the new data structure with the owner field of the
+file being repaired.
 
-After a successful swap operation, the repair operation must reap the old fork
-blocks by processing each fork mapping through the standard :ref:`file extent
-reaping <reaping>` mechanism that is done post-repair.
+After a successful exchange operation, the repair operation must reap the old
+fork blocks by processing each fork mapping through the standard :ref:`file
+extent reaping <reaping>` mechanism that is done post-repair.
 If the filesystem should go down during the reap part of the repair, the
 iunlink processing at the end of recovery will free both the temporary file and
 whatever blocks were not reaped.
 However, this iunlink processing omits the cross-link detection of online
 repair, and is not completely foolproof.
 
-Swapping Temporary File Extents
-```````````````````````````````
+Exchanging Temporary File Contents
+``````````````````````````````````
 
 To repair a metadata file, online repair proceeds as follows:
 
@@ -4263,14 +4271,14 @@ To repair a metadata file, online repair proceeds as follows:
    file.
    The same fork must be written to as is being repaired.
 
-3. Commit the scrub transaction, since the swap estimation step must be
-   completed before transaction reservations are made.
+3. Commit the scrub transaction, since the exchange resource estimation step
+   must be completed before transaction reservations are made.
 
-4. Call ``xrep_tempswap_trans_alloc`` to allocate a new scrub transaction with
+4. Call ``xrep_tempexch_trans_alloc`` to allocate a new scrub transaction with
    the appropriate resource reservations, locks, and fill out a ``struct
-   xfs_swapext_req`` with the details of the swap operation.
+   xfs_exchmaps_req`` with the details of the exchange operation.
 
-5. Call ``xrep_tempswap_contents`` to swap the contents.
+5. Call ``xrep_tempexch_contents`` to exchange the contents.
 
 6. Commit the transaction to complete the repair.
 
@@ -4312,7 +4320,7 @@ To check the summary file against the bitmap:
 3. Compare the contents of the xfile against the ondisk file.
 
 To repair the summary file, write the xfile contents into the temporary file
-and use atomic extent swap to commit the new contents.
+and use atomic mapping exchange to commit the new contents.
 The temporary file is then reaped.
 
 The proposed patchset is the
@@ -4355,8 +4363,8 @@ Salvaging extended attributes is done as follows:
    memory or there are no more attr fork blocks to examine, unlock the file and
    add the staged extended attributes to the temporary file.
 
-3. Use atomic extent swapping to exchange the new and old extended attribute
-   structures.
+3. Use atomic file mapping exchange to exchange the new and old extended
+   attribute structures.
    The old attribute blocks are now attached to the temporary file.
 
 4. Reap the temporary file.
@@ -4413,7 +4421,8 @@ salvaging directories is straightforward:
    directory and add the staged dirents into the temporary directory.
    Truncate the staging files.
 
-4. Use atomic extent swapping to exchange the new and old directory structures.
+4. Use atomic file mapping exchange to exchange the new and old directory
+   structures.
    The old directory blocks are now attached to the temporary file.
 
 5. Reap the temporary file.
@@ -4456,18 +4465,16 @@ reconstruction of filesystem space metadata.
 The parent pointer feature, however, makes total directory reconstruction
 possible.
 
-XFS parent pointers include the dirent name and location of the entry within
-the parent directory.
+XFS parent pointers contain the information needed to identify the
+corresponding directory entry in the parent directory.
 In other words, child files use extended attributes to store pointers to
-parents in the form ``(parent_inum, parent_gen, dirent_pos) → (dirent_name)``.
+parents in the form ``(dirent_name) → (parent_inum, parent_gen)``.
 The directory checking process can be strengthened to ensure that the target of
 each dirent also contains a parent pointer pointing back to the dirent.
 Likewise, each parent pointer can be checked by ensuring that the target of
 each parent pointer is a directory and that it contains a dirent matching
 the parent pointer.
 Both online and offline repair can use this strategy.
-
-**Note**: The ondisk format of parent pointers is not yet finalized.
 
 +--------------------------------------------------------------------------+
 | **Historical Sidebar**:                                                  |
@@ -4510,7 +4517,57 @@ Both online and offline repair can use this strategy.
 | Chandan increased the maximum extent counts of both data and attribute   |
 | forks, thereby ensuring that the extended attribute structure can grow   |
 | to handle the maximum hardlink count of any file.                        |
+|                                                                          |
+| For this second effort, the ondisk parent pointer format as originally   |
+| proposed was ``(parent_inum, parent_gen, dirent_pos) → (dirent_name)``.  |
+| The format was changed during development to eliminate the requirement   |
+| of repair tools needing to to ensure that the ``dirent_pos`` field       |
+| always matched when reconstructing a directory.                          |
+|                                                                          |
+| There were a few other ways to have solved that problem:                 |
+|                                                                          |
+| 1. The field could be designated advisory, since the other three values  |
+|    are sufficient to find the entry in the parent.                       |
+|    However, this makes indexed key lookup impossible while repairs are   |
+|    ongoing.                                                              |
+|                                                                          |
+| 2. We could allow creating directory entries at specified offsets, which |
+|    solves the referential integrity problem but runs the risk that       |
+|    dirent creation will fail due to conflicts with the free space in the |
+|    directory.                                                            |
+|                                                                          |
+|    These conflicts could be resolved by appending the directory entry    |
+|    and amending the xattr code to support updating an xattr key and      |
+|    reindexing the dabtree, though this would have to be performed with   |
+|    the parent directory still locked.                                    |
+|                                                                          |
+| 3. Same as above, but remove the old parent pointer entry and add a new  |
+|    one atomically.                                                       |
+|                                                                          |
+| 4. Change the ondisk xattr format to                                     |
+|    ``(parent_inum, name) → (parent_gen)``, which would provide the attr  |
+|    name uniqueness that we require, without forcing repair code to       |
+|    update the dirent position.                                           |
+|    Unfortunately, this requires changes to the xattr code to support     |
+|    attr names as long as 263 bytes.                                      |
+|                                                                          |
+| 5. Change the ondisk xattr format to ``(parent_inum, hash(name)) →       |
+|    (name, parent_gen)``.                                                 |
+|    If the hash is sufficiently resistant to collisions (e.g. sha256)     |
+|    then this should provide the attr name uniqueness that we require.    |
+|    Names shorter than 247 bytes could be stored directly.                |
+|                                                                          |
+| 6. Change the ondisk xattr format to ``(dirent_name) → (parent_ino,      |
+|    parent_gen)``.  This format doesn't require any of the complicated    |
+|    nested name hashing of the previous suggestions.  However, it was     |
+|    discovered that multiple hardlinks to the same inode with the same    |
+|    filename caused performance problems with hashed xattr lookups, so    |
+|    the parent inumber is now xor'd into the hash index.                  |
+|                                                                          |
+| In the end, it was decided that solution #6 was the most compact and the |
+| most performant.  A new hash function was designed for parent pointers.  |
 +--------------------------------------------------------------------------+
+
 
 Case Study: Repairing Directories with Parent Pointers
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -4519,8 +4576,9 @@ Directory rebuilding uses a :ref:`coordinated inode scan <iscan>` and
 a :ref:`directory entry live update hook <liveupdate>` as follows:
 
 1. Set up a temporary directory for generating the new directory structure,
-   an xfblob for storing entry names, and an xfarray for stashing directory
-   updates.
+   an xfblob for storing entry names, and an xfarray for stashing the fixed
+   size fields involved in a directory update: ``(child inumber, add vs.
+   remove, name cookie, ftype)``.
 
 2. Set up an inode scanner and hook into the directory entry code to receive
    updates on directory operations.
@@ -4529,72 +4587,35 @@ a :ref:`directory entry live update hook <liveupdate>` as follows:
    pointer references the directory of interest.
    If so:
 
-   a. Stash an addname entry for this dirent in the xfarray for later.
+   a. Stash the parent pointer name and an addname entry for this dirent in the
+      xfblob and xfarray, respectively.
 
-   b. When finished scanning that file, flush the stashed updates to the
-      temporary directory.
+   b. When finished scanning that file or the kernel memory consumption exceeds
+      a threshold, flush the stashed updates to the temporary directory.
 
 4. For each live directory update received via the hook, decide if the child
    has already been scanned.
    If so:
 
-   a. Stash an addname or removename entry for this dirent update in the
-      xfarray for later.
+   a. Stash the parent pointer name an addname or removename entry for this
+      dirent update in the xfblob and xfarray for later.
       We cannot write directly to the temporary directory because hook
       functions are not allowed to modify filesystem metadata.
       Instead, we stash updates in the xfarray and rely on the scanner thread
       to apply the stashed updates to the temporary directory.
 
-5. When the scan is complete, atomically swap the contents of the temporary
+5. When the scan is complete, replay any stashed entries in the xfarray.
+
+6. When the scan is complete, atomically exchange the contents of the temporary
    directory and the directory being repaired.
    The temporary directory now contains the damaged directory structure.
 
-6. Reap the temporary directory.
-
-7. Update the dirent position field of parent pointers as necessary.
-   This may require the queuing of a substantial number of xattr log intent
-   items.
+7. Reap the temporary directory.
 
 The proposed patchset is the
 `parent pointers directory repair
-<https://git.kernel.org/pub/scm/linux/kernel/git/djwong/xfs-linux.git/log/?h=pptrs-online-dir-repair>`_
+<https://git.kernel.org/pub/scm/linux/kernel/git/djwong/xfs-linux.git/log/?h=pptrs-fsck>`_
 series.
-
-**Unresolved Question**: How will repair ensure that the ``dirent_pos`` fields
-match in the reconstructed directory?
-
-*Answer*: There are a few ways to solve this problem:
-
-1. The field could be designated advisory, since the other three values are
-   sufficient to find the entry in the parent.
-   However, this makes indexed key lookup impossible while repairs are ongoing.
-
-2. We could allow creating directory entries at specified offsets, which solves
-   the referential integrity problem but runs the risk that dirent creation
-   will fail due to conflicts with the free space in the directory.
-
-   These conflicts could be resolved by appending the directory entry and
-   amending the xattr code to support updating an xattr key and reindexing the
-   dabtree, though this would have to be performed with the parent directory
-   still locked.
-
-3. Same as above, but remove the old parent pointer entry and add a new one
-   atomically.
-
-4. Change the ondisk xattr format to ``(parent_inum, name) → (parent_gen)``,
-   which would provide the attr name uniqueness that we require, without
-   forcing repair code to update the dirent position.
-   Unfortunately, this requires changes to the xattr code to support attr
-   names as long as 263 bytes.
-
-5. Change the ondisk xattr format to ``(parent_inum, hash(name)) →
-   (name, parent_gen)``.
-   If the hash is sufficiently resistant to collisions (e.g. sha256) then
-   this should provide the attr name uniqueness that we require.
-   Names shorter than 247 bytes could be stored directly.
-
-Discussion is ongoing under the `parent pointers patch deluge
-<https://www.spinics.net/lists/linux-xfs/msg69397.html>`_.
 
 Case Study: Repairing Parent Pointers
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -4603,8 +4624,9 @@ Online reconstruction of a file's parent pointer information works similarly to
 directory reconstruction:
 
 1. Set up a temporary file for generating a new extended attribute structure,
-   an `xfblob<xfblob>` for storing parent pointer names, and an xfarray for
-   stashing parent pointer updates.
+   an xfblob for storing parent pointer names, and an xfarray for stashing the
+   fixed size fields involved in a parent pointer update: ``(parent inumber,
+   parent generation, add vs. remove, name cookie)``.
 
 2. Set up an inode scanner and hook into the directory entry code to receive
    updates on directory operations.
@@ -4613,34 +4635,36 @@ directory reconstruction:
    dirent references the file of interest.
    If so:
 
-   a. Stash an addpptr entry for this parent pointer in the xfblob and xfarray
-      for later.
+   a. Stash the dirent name and an addpptr entry for this parent pointer in the
+      xfblob and xfarray, respectively.
 
-   b. When finished scanning the directory, flush the stashed updates to the
-      temporary directory.
+   b. When finished scanning the directory or the kernel memory consumption
+      exceeds a threshold, flush the stashed updates to the temporary file.
 
 4. For each live directory update received via the hook, decide if the parent
    has already been scanned.
    If so:
 
-   a. Stash an addpptr or removepptr entry for this dirent update in the
-      xfarray for later.
+   a. Stash the dirent name and an addpptr or removepptr entry for this dirent
+      update in the xfblob and xfarray for later.
       We cannot write parent pointers directly to the temporary file because
       hook functions are not allowed to modify filesystem metadata.
       Instead, we stash updates in the xfarray and rely on the scanner thread
       to apply the stashed parent pointer updates to the temporary file.
 
-5. Copy all non-parent pointer extended attributes to the temporary file.
+5. When the scan is complete, replay any stashed entries in the xfarray.
 
-6. When the scan is complete, atomically swap the attribute fork of the
-   temporary file and the file being repaired.
+6. Copy all non-parent pointer extended attributes to the temporary file.
+
+7. When the scan is complete, atomically exchange the mappings of the attribute
+   forks of the temporary file and the file being repaired.
    The temporary file now contains the damaged extended attribute structure.
 
-7. Reap the temporary file.
+8. Reap the temporary file.
 
 The proposed patchset is the
 `parent pointers repair
-<https://git.kernel.org/pub/scm/linux/kernel/git/djwong/xfs-linux.git/log/?h=pptrs-online-parent-repair>`_
+<https://git.kernel.org/pub/scm/linux/kernel/git/djwong/xfs-linux.git/log/?h=pptrs-fsck>`_
 series.
 
 Digression: Offline Checking of Parent Pointers
@@ -4651,26 +4675,56 @@ files are erased long before directory tree connectivity checks are performed.
 Parent pointer checks are therefore a second pass to be added to the existing
 connectivity checks:
 
-1. After the set of surviving files has been established (i.e. phase 6),
+1. After the set of surviving files has been established (phase 6),
    walk the surviving directories of each AG in the filesystem.
    This is already performed as part of the connectivity checks.
 
-2. For each directory entry found, record the name in an xfblob, and store
-   ``(child_ag_inum, parent_inum, parent_gen, dirent_pos)`` tuples in a
-   per-AG in-memory slab.
+2. For each directory entry found,
+
+   a. If the name has already been stored in the xfblob, then use that cookie
+      and skip the next step.
+
+   b. Otherwise, record the name in an xfblob, and remember the xfblob cookie.
+      Unique mappings are critical for
+
+      1. Deduplicating names to reduce memory usage, and
+
+      2. Creating a stable sort key for the parent pointer indexes so that the
+         parent pointer validation described below will work.
+
+   c. Store ``(child_ag_inum, parent_inum, parent_gen, name_hash, name_len,
+      name_cookie)`` tuples in a per-AG in-memory slab.  The ``name_hash``
+      referenced in this section is the regular directory entry name hash, not
+      the specialized one used for parent pointer xattrs.
 
 3. For each AG in the filesystem,
 
-   a. Sort the per-AG tuples in order of child_ag_inum, parent_inum, and
-      dirent_pos.
+   a. Sort the per-AG tuple set in order of ``child_ag_inum``, ``parent_inum``,
+      ``name_hash``, and ``name_cookie``.
+      Having a single ``name_cookie`` for each ``name`` is critical for
+      handling the uncommon case of a directory containing multiple hardlinks
+      to the same file where all the names hash to the same value.
 
    b. For each inode in the AG,
 
       1. Scan the inode for parent pointers.
-         Record the names in a per-file xfblob, and store ``(parent_inum,
-         parent_gen, dirent_pos)`` tuples in a per-file slab.
+         For each parent pointer found,
 
-      2. Sort the per-file tuples in order of parent_inum, and dirent_pos.
+         a. Validate the ondisk parent pointer.
+            If validation fails, move on to the next parent pointer in the
+            file.
+
+         b. If the name has already been stored in the xfblob, then use that
+            cookie and skip the next step.
+
+         c. Record the name in a per-file xfblob, and remember the xfblob
+            cookie.
+
+         d. Store ``(parent_inum, parent_gen, name_hash, name_len,
+            name_cookie)`` tuples in a per-file slab.
+
+      2. Sort the per-file tuples in order of ``parent_inum``, ``name_hash``,
+         and ``name_cookie``.
 
       3. Position one slab cursor at the start of the inode's records in the
          per-AG tuple slab.
@@ -4679,28 +4733,37 @@ connectivity checks:
 
       4. Position a second slab cursor at the start of the per-file tuple slab.
 
-      5. Iterate the two cursors in lockstep, comparing the parent_ino and
-         dirent_pos fields of the records under each cursor.
+      5. Iterate the two cursors in lockstep, comparing the ``parent_ino``,
+         ``name_hash``, and ``name_cookie`` fields of the records under each
+         cursor:
 
-         a. Tuples in the per-AG list but not the per-file list are missing and
-            need to be written to the inode.
+         a. If the per-AG cursor is at a lower point in the keyspace than the
+            per-file cursor, then the per-AG cursor points to a missing parent
+            pointer.
+            Add the parent pointer to the inode and advance the per-AG
+            cursor.
 
-         b. Tuples in the per-file list but not the per-AG list are dangling
-            and need to be removed from the inode.
+         b. If the per-file cursor is at a lower point in the keyspace than
+            the per-AG cursor, then the per-file cursor points to a dangling
+            parent pointer.
+            Remove the parent pointer from the inode and advance the per-file
+            cursor.
 
-         c. For tuples in both lists, update the parent_gen and name components
-            of the parent pointer if necessary.
+         c. Otherwise, both cursors point at the same parent pointer.
+            Update the parent_gen component if necessary.
+            Advance both cursors.
 
 4. Move on to examining link counts, as we do today.
 
 The proposed patchset is the
 `offline parent pointers repair
-<https://git.kernel.org/pub/scm/linux/kernel/git/djwong/xfsprogs-dev.git/log/?h=pptrs-repair>`_
+<https://git.kernel.org/pub/scm/linux/kernel/git/djwong/xfsprogs-dev.git/log/?h=pptrs-fsck>`_
 series.
 
-Rebuilding directories from parent pointers in offline repair is very
-challenging because it currently uses a single-pass scan of the filesystem
-during phase 3 to decide which files are corrupt enough to be zapped.
+Rebuilding directories from parent pointers in offline repair would be very
+challenging because xfs_repair currently uses two single-pass scans of the
+filesystem during phases 3 and 4 to decide which files are corrupt enough to be
+zapped.
 This scan would have to be converted into a multi-pass scan:
 
 1. The first pass of the scan zaps corrupt inodes, forks, and attributes
@@ -4721,6 +4784,130 @@ This scan would have to be converted into a multi-pass scan:
    the dirents and add them to the now-empty directories.
 
 This code has not yet been constructed.
+
+.. _dirtree:
+
+Case Study: Directory Tree Structure
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+As mentioned earlier, the filesystem directory tree is supposed to be a
+directed acylic graph structure.
+However, each node in this graph is a separate ``xfs_inode`` object with its
+own locks, which makes validating the tree qualities difficult.
+Fortunately, non-directories are allowed to have multiple parents and cannot
+have children, so only directories need to be scanned.
+Directories typically constitute 5-10% of the files in a filesystem, which
+reduces the amount of work dramatically.
+
+If the directory tree could be frozen, it would be easy to discover cycles and
+disconnected regions by running a depth (or breadth) first search downwards
+from the root directory and marking a bitmap for each directory found.
+At any point in the walk, trying to set an already set bit means there is a
+cycle.
+After the scan completes, XORing the marked inode bitmap with the inode
+allocation bitmap reveals disconnected inodes.
+However, one of online repair's design goals is to avoid locking the entire
+filesystem unless it's absolutely necessary.
+Directory tree updates can move subtrees across the scanner wavefront on a live
+filesystem, so the bitmap algorithm cannot be applied.
+
+Directory parent pointers enable an incremental approach to validation of the
+tree structure.
+Instead of using one thread to scan the entire filesystem, multiple threads can
+walk from individual subdirectories upwards towards the root.
+For this to work, all directory entries and parent pointers must be internally
+consistent, each directory entry must have a parent pointer, and the link
+counts of all directories must be correct.
+Each scanner thread must be able to take the IOLOCK of an alleged parent
+directory while holding the IOLOCK of the child directory to prevent either
+directory from being moved within the tree.
+This is not possible since the VFS does not take the IOLOCK of a child
+subdirectory when moving that subdirectory, so instead the scanner stabilizes
+the parent -> child relationship by taking the ILOCKs and installing a dirent
+update hook to detect changes.
+
+The scanning process uses a dirent hook to detect changes to the directories
+mentioned in the scan data.
+The scan works as follows:
+
+1. For each subdirectory in the filesystem,
+
+   a. For each parent pointer of that subdirectory,
+
+      1. Create a path object for that parent pointer, and mark the
+         subdirectory inode number in the path object's bitmap.
+
+      2. Record the parent pointer name and inode number in a path structure.
+
+      3. If the alleged parent is the subdirectory being scrubbed, the path is
+         a cycle.
+         Mark the path for deletion and repeat step 1a with the next
+         subdirectory parent pointer.
+
+      4. Try to mark the alleged parent inode number in a bitmap in the path
+         object.
+         If the bit is already set, then there is a cycle in the directory
+         tree.
+         Mark the path as a cycle and repeat step 1a with the next subdirectory
+         parent pointer.
+
+      5. Load the alleged parent.
+         If the alleged parent is not a linked directory, abort the scan
+         because the parent pointer information is inconsistent.
+
+      6. For each parent pointer of this alleged ancestor directory,
+
+         a. Record the parent pointer name and inode number in the path object
+            if no parent has been set for that level.
+
+         b. If an ancestor has more than one parent, mark the path as corrupt.
+            Repeat step 1a with the next subdirectory parent pointer.
+
+         c. Repeat steps 1a3-1a6 for the ancestor identified in step 1a6a.
+            This repeats until the directory tree root is reached or no parents
+            are found.
+
+      7. If the walk terminates at the root directory, mark the path as ok.
+
+      8. If the walk terminates without reaching the root, mark the path as
+         disconnected.
+
+2. If the directory entry update hook triggers, check all paths already found
+   by the scan.
+   If the entry matches part of a path, mark that path and the scan stale.
+   When the scanner thread sees that the scan has been marked stale, it deletes
+   all scan data and starts over.
+
+Repairing the directory tree works as follows:
+
+1. Walk each path of the target subdirectory.
+
+   a. Corrupt paths and cycle paths are counted as suspect.
+
+   b. Paths already marked for deletion are counted as bad.
+
+   c. Paths that reached the root are counted as good.
+
+2. If the subdirectory is either the root directory or has zero link count,
+   delete all incoming directory entries in the immediate parents.
+   Repairs are complete.
+
+3. If the subdirectory has exactly one path, set the dotdot entry to the
+   parent and exit.
+
+4. If the subdirectory has at least one good path, delete all the other
+   incoming directory entries in the immediate parents.
+
+5. If the subdirectory has no good paths and more than one suspect path, delete
+   all the other incoming directory entries in the immediate parents.
+
+6. If the subdirectory has zero paths, attach it to the lost and found.
+
+The proposed patches are in the
+`directory tree repair
+<https://git.kernel.org/pub/scm/linux/kernel/git/djwong/xfs-linux.git/log/?h=scrub-directory-tree>`_
+series.
+
 
 .. _orphanage:
 
@@ -4769,14 +4956,22 @@ Orphaned files are adopted by the orphanage as follows:
    The ``xrep_orphanage_iolock_two`` function follows the inode locking
    strategy discussed earlier.
 
-3. Call ``xrep_orphanage_compute_blkres`` and ``xrep_orphanage_compute_name``
-   to compute the new name in the orphanage and the block reservation required.
-
-4. Use ``xrep_orphanage_adoption_prep`` to reserve resources to the repair
+3. Use ``xrep_adoption_trans_alloc`` to reserve resources to the repair
    transaction.
 
-5. Call ``xrep_orphanage_adopt`` to reparent the orphaned file into the lost
-   and found, and update the kernel dentry cache.
+4. Call ``xrep_orphanage_compute_name`` to compute the new name in the
+   orphanage.
+
+5. If the adoption is going to happen, call ``xrep_adoption_reparent`` to
+   reparent the orphaned file into the lost and found and invalidate the dentry
+   cache.
+
+6. Call ``xrep_adoption_finish`` to commit any filesystem updates, release the
+   orphanage ILOCK, and clean the scrub transaction.  Call
+   ``xrep_adoption_commit`` to commit the updates and the scrub transaction.
+
+7. If a runtime error happens, call ``xrep_adoption_cancel`` to release all
+   resources.
 
 The proposed patches are in the
 `orphanage adoption
@@ -5108,18 +5303,18 @@ make it easier for code readers to understand what has been built, for whom it
 has been built, and why.
 Please feel free to contact the XFS mailing list with questions.
 
-FIEXCHANGE_RANGE
-----------------
+XFS_IOC_EXCHANGE_RANGE
+----------------------
 
-As discussed earlier, a second frontend to the atomic extent swap mechanism is
-a new ioctl call that userspace programs can use to commit updates to files
-atomically.
+As discussed earlier, a second frontend to the atomic file mapping exchange
+mechanism is a new ioctl call that userspace programs can use to commit updates
+to files atomically.
 This frontend has been out for review for several years now, though the
 necessary refinements to online repair and lack of customer demand mean that
 the proposal has not been pushed very hard.
 
-Extent Swapping with Regular User Files
-```````````````````````````````````````
+File Content Exchanges with Regular User Files
+``````````````````````````````````````````````
 
 As mentioned earlier, XFS has long had the ability to swap extents between
 files, which is used almost exclusively by ``xfs_fsr`` to defragment files.
@@ -5134,12 +5329,12 @@ the consistency of the fork mappings with the reverse mapping index was to
 develop an iterative mechanism that used deferred bmap and rmap operations to
 swap mappings one at a time.
 This mechanism is identical to steps 2-3 from the procedure above except for
-the new tracking items, because the atomic extent swap mechanism is an
-iteration of an existing mechanism and not something totally novel.
+the new tracking items, because the atomic file mapping exchange mechanism is
+an iteration of an existing mechanism and not something totally novel.
 For the narrow case of file defragmentation, the file contents must be
 identical, so the recovery guarantees are not much of a gain.
 
-Atomic extent swapping is much more flexible than the existing swapext
+Atomic file content exchanges are much more flexible than the existing swapext
 implementations because it can guarantee that the caller never sees a mix of
 old and new contents even after a crash, and it can operate on two arbitrary
 file fork ranges.
@@ -5150,11 +5345,11 @@ The extra flexibility enables several new use cases:
   Next, it opens a temporary file and calls the file clone operation to reflink
   the first file's contents into the temporary file.
   Writes to the original file should instead be written to the temporary file.
-  Finally, the process calls the atomic extent swap system call
-  (``FIEXCHANGE_RANGE``) to exchange the file contents, thereby committing all
-  of the updates to the original file, or none of them.
+  Finally, the process calls the atomic file mapping exchange system call
+  (``XFS_IOC_EXCHANGE_RANGE``) to exchange the file contents, thereby
+  committing all of the updates to the original file, or none of them.
 
-.. _swapext_if_unchanged:
+.. _exchrange_if_unchanged:
 
 - **Transactional file updates**: The same mechanism as above, but the caller
   only wants the commit to occur if the original file's contents have not
@@ -5163,16 +5358,17 @@ The extra flexibility enables several new use cases:
   change timestamps of the original file before reflinking its data to the
   temporary file.
   When the program is ready to commit the changes, it passes the timestamps
-  into the kernel as arguments to the atomic extent swap system call.
+  into the kernel as arguments to the atomic file mapping exchange system call.
   The kernel only commits the changes if the provided timestamps match the
   original file.
+  A new ioctl (``XFS_IOC_COMMIT_RANGE``) is provided to perform this.
 
 - **Emulation of atomic block device writes**: Export a block device with a
   logical sector size matching the filesystem block size to force all writes
   to be aligned to the filesystem block size.
   Stage all writes to a temporary file, and when that is complete, call the
-  atomic extent swap system call with a flag to indicate that holes in the
-  temporary file should be ignored.
+  atomic file mapping exchange system call with a flag to indicate that holes
+  in the temporary file should be ignored.
   This emulates an atomic device write in software, and can support arbitrary
   scattered writes.
 
@@ -5254,8 +5450,8 @@ of the file to try to share the physical space with a dummy file.
 Cloning the extent means that the original owners cannot overwrite the
 contents; any changes will be written somewhere else via copy-on-write.
 Clearspace makes its own copy of the frozen extent in an area that is not being
-cleared, and uses ``FIEDEUPRANGE`` (or the :ref:`atomic extent swap
-<swapext_if_unchanged>` feature) to change the target file's data extent
+cleared, and uses ``FIEDEUPRANGE`` (or the :ref:`atomic file content exchanges
+<exchrange_if_unchanged>` feature) to change the target file's data extent
 mapping away from the area being cleared.
 When all other mappings have been moved, clearspace reflinks the space into the
 space collector file so that it becomes unavailable.

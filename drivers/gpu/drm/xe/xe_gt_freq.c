@@ -13,7 +13,7 @@
 
 #include "xe_device_types.h"
 #include "xe_gt_sysfs.h"
-#include "xe_gt_throttle_sysfs.h"
+#include "xe_gt_throttle.h"
 #include "xe_guc_pc.h"
 #include "xe_pm.h"
 
@@ -209,7 +209,7 @@ static const struct attribute *freq_attrs[] = {
 	NULL
 };
 
-static void freq_fini(struct drm_device *drm, void *arg)
+static void freq_fini(void *arg)
 {
 	struct kobject *kobj = arg;
 
@@ -237,7 +237,7 @@ int xe_gt_freq_init(struct xe_gt *gt)
 	if (!gt->freq)
 		return -ENOMEM;
 
-	err = drmm_add_action_or_reset(&xe->drm, freq_fini, gt->freq);
+	err = devm_add_action(xe->drm.dev, freq_fini, gt->freq);
 	if (err)
 		return err;
 
@@ -245,5 +245,5 @@ int xe_gt_freq_init(struct xe_gt *gt)
 	if (err)
 		return err;
 
-	return xe_gt_throttle_sysfs_init(gt);
+	return xe_gt_throttle_init(gt);
 }

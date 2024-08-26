@@ -313,7 +313,7 @@ static void path_set_mode(struct mmp_path *path, struct mmp_mode *mode)
 	mutex_unlock(&path->access_ok);
 }
 
-static struct mmp_overlay_ops mmphw_overlay_ops = {
+static const struct mmp_overlay_ops mmphw_overlay_ops = {
 	.set_fetch = overlay_set_fetch,
 	.set_onoff = overlay_set_onoff,
 	.set_win = overlay_set_win,

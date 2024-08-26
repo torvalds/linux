@@ -438,4 +438,5 @@ static struct amba_driver pl061_gpio_driver = {
 };
 module_amba_driver(pl061_gpio_driver);
 
+MODULE_DESCRIPTION("Driver for the ARM PrimeCell(tm) General Purpose Input/Output (PL061)");
 MODULE_LICENSE("GPL v2");

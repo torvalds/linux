@@ -264,86 +264,14 @@ static unsigned long get_f32_rs(unsigned long insn, u8 fp_reg_offset,
 #define GET_F32_RS2C(insn, regs) (get_f32_rs(insn, 2, regs))
 #define GET_F32_RS2S(insn, regs) (get_f32_rs(RVC_RS2S(insn), 0, regs))
 
-#ifdef CONFIG_RISCV_M_MODE
-static inline int load_u8(struct pt_regs *regs, const u8 *addr, u8 *r_val)
-{
-	u8 val;
-
-	asm volatile("lbu %0, %1" : "=&r" (val) : "m" (*addr));
-	*r_val = val;
-
-	return 0;
-}
-
-static inline int store_u8(struct pt_regs *regs, u8 *addr, u8 val)
-{
-	asm volatile ("sb %0, %1\n" : : "r" (val), "m" (*addr));
-
-	return 0;
-}
-
-static inline int get_insn(struct pt_regs *regs, ulong mepc, ulong *r_insn)
-{
-	register ulong __mepc asm ("a2") = mepc;
-	ulong val, rvc_mask = 3, tmp;
-
-	asm ("and %[tmp], %[addr], 2\n"
-		"bnez %[tmp], 1f\n"
-#if defined(CONFIG_64BIT)
-		__stringify(LWU) " %[insn], (%[addr])\n"
-#else
-		__stringify(LW) " %[insn], (%[addr])\n"
-#endif
-		"and %[tmp], %[insn], %[rvc_mask]\n"
-		"beq %[tmp], %[rvc_mask], 2f\n"
-		"sll %[insn], %[insn], %[xlen_minus_16]\n"
-		"srl %[insn], %[insn], %[xlen_minus_16]\n"
-		"j 2f\n"
-		"1:\n"
-		"lhu %[insn], (%[addr])\n"
-		"and %[tmp], %[insn], %[rvc_mask]\n"
-		"bne %[tmp], %[rvc_mask], 2f\n"
-		"lhu %[tmp], 2(%[addr])\n"
-		"sll %[tmp], %[tmp], 16\n"
-		"add %[insn], %[insn], %[tmp]\n"
-		"2:"
-	: [insn] "=&r" (val), [tmp] "=&r" (tmp)
-	: [addr] "r" (__mepc), [rvc_mask] "r" (rvc_mask),
-	  [xlen_minus_16] "i" (XLEN_MINUS_16));
-
-	*r_insn = val;
-
-	return 0;
-}
-#else
-static inline int load_u8(struct pt_regs *regs, const u8 *addr, u8 *r_val)
-{
-	if (user_mode(regs)) {
-		return __get_user(*r_val, (u8 __user *)addr);
-	} else {
-		*r_val = *addr;
-		return 0;
-	}
-}
-
-static inline int store_u8(struct pt_regs *regs, u8 *addr, u8 val)
-{
-	if (user_mode(regs)) {
-		return __put_user(val, (u8 __user *)addr);
-	} else {
-		*addr = val;
-		return 0;
-	}
-}
-
-#define __read_insn(regs, insn, insn_addr)		\
+#define __read_insn(regs, insn, insn_addr, type)	\
 ({							\
 	int __ret;					\
 							\
 	if (user_mode(regs)) {				\
-		__ret = __get_user(insn, insn_addr);	\
+		__ret = __get_user(insn, (type __user *) insn_addr); \
 	} else {					\
-		insn = *(__force u16 *)insn_addr;	\
+		insn = *(type *)insn_addr;		\
 		__ret = 0;				\
 	}						\
 							\
@@ -356,9 +284,8 @@ static inline int get_insn(struct pt_regs *regs, ulong epc, ulong *r_insn)
 
 	if (epc & 0x2) {
 		ulong tmp = 0;
-		u16 __user *insn_addr = (u16 __user *)epc;
 
-		if (__read_insn(regs, insn, insn_addr))
+		if (__read_insn(regs, insn, epc, u16))
 			return -EFAULT;
 		/* __get_user() uses regular "lw" which sign extend the loaded
 		 * value make sure to clear higher order bits in case we "or" it
@@ -369,16 +296,14 @@ static inline int get_insn(struct pt_regs *regs, ulong epc, ulong *r_insn)
 			*r_insn = insn;
 			return 0;
 		}
-		insn_addr++;
-		if (__read_insn(regs, tmp, insn_addr))
+		epc += sizeof(u16);
+		if (__read_insn(regs, tmp, epc, u16))
 			return -EFAULT;
 		*r_insn = (tmp << 16) | insn;
 
 		return 0;
 	} else {
-		u32 __user *insn_addr = (u32 __user *)epc;
-
-		if (__read_insn(regs, insn, insn_addr))
+		if (__read_insn(regs, insn, epc, u32))
 			return -EFAULT;
 		if ((insn & __INSN_LENGTH_MASK) == __INSN_LENGTH_32) {
 			*r_insn = insn;
@@ -390,7 +315,6 @@ static inline int get_insn(struct pt_regs *regs, ulong epc, ulong *r_insn)
 		return 0;
 	}
 }
-#endif
 
 union reg_data {
 	u8 data_bytes[8];
@@ -409,7 +333,7 @@ int handle_misaligned_load(struct pt_regs *regs)
 	unsigned long epc = regs->epc;
 	unsigned long insn;
 	unsigned long addr = regs->badaddr;
-	int i, fp = 0, shift = 0, len = 0;
+	int fp = 0, shift = 0, len = 0;
 
 	perf_sw_event(PERF_COUNT_SW_ALIGNMENT_FAULTS, 1, regs, addr);
 
@@ -492,9 +416,11 @@ int handle_misaligned_load(struct pt_regs *regs)
 		return -EOPNOTSUPP;
 
 	val.data_u64 = 0;
-	for (i = 0; i < len; i++) {
-		if (load_u8(regs, (void *)(addr + i), &val.data_bytes[i]))
+	if (user_mode(regs)) {
+		if (raw_copy_from_user(&val, (u8 __user *)addr, len))
 			return -1;
+	} else {
+		memcpy(&val, (u8 *)addr, len);
 	}
 
 	if (!fp)
@@ -515,7 +441,7 @@ int handle_misaligned_store(struct pt_regs *regs)
 	unsigned long epc = regs->epc;
 	unsigned long insn;
 	unsigned long addr = regs->badaddr;
-	int i, len = 0, fp = 0;
+	int len = 0, fp = 0;
 
 	perf_sw_event(PERF_COUNT_SW_ALIGNMENT_FAULTS, 1, regs, addr);
 
@@ -588,9 +514,11 @@ int handle_misaligned_store(struct pt_regs *regs)
 	if (!IS_ENABLED(CONFIG_FPU) && fp)
 		return -EOPNOTSUPP;
 
-	for (i = 0; i < len; i++) {
-		if (store_u8(regs, (void *)(addr + i), val.data_bytes[i]))
+	if (user_mode(regs)) {
+		if (raw_copy_to_user((u8 __user *)addr, &val, len))
 			return -1;
+	} else {
+		memcpy((u8 *)addr, &val, len);
 	}
 
 	regs->epc = epc + INSN_LEN(insn);

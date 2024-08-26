@@ -99,21 +99,21 @@
 		timeout-sec = <30>;
 	};
 
-	v2m_clk24mhz: clk24mhz {
+	v2m_clk24mhz: clock-24000000 {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
 		clock-frequency = <24000000>;
 		clock-output-names = "v2m:clk24mhz";
 	};
 
-	v2m_refclk1mhz: refclk1mhz {
+	v2m_refclk1mhz: clock-1000000 {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
 		clock-frequency = <1000000>;
 		clock-output-names = "v2m:refclk1mhz";
 	};
 
-	v2m_refclk32khz: refclk32khz {
+	v2m_refclk32khz: clock-32768 {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
 		clock-frequency = <32768>;

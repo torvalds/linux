@@ -59,6 +59,12 @@ properties:
               - prt,prtt1s   # Protonic PRTT1S
           - const: st,stm32mp151
 
+      - description: DH STM32MP135 DHCOR SoM based Boards
+        items:
+          - const: dh,stm32mp135f-dhcor-dhsbc
+          - const: dh,stm32mp135f-dhcor-som
+          - const: st,stm32mp135
+
       - description: DH STM32MP151 DHCOR SoM based Boards
         items:
           - const: dh,stm32mp151a-dhcor-testbench

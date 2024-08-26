@@ -1639,7 +1639,7 @@ int of_changeset_add_prop_string(struct of_changeset *ocs,
 int of_changeset_add_prop_string_array(struct of_changeset *ocs,
 				       struct device_node *np,
 				       const char *prop_name,
-				       const char **str_array, size_t sz);
+				       const char * const *str_array, size_t sz);
 int of_changeset_add_prop_u32_array(struct of_changeset *ocs,
 				    struct device_node *np,
 				    const char *prop_name,
@@ -1651,6 +1651,9 @@ static inline int of_changeset_add_prop_u32(struct of_changeset *ocs,
 {
 	return of_changeset_add_prop_u32_array(ocs, np, prop_name, &val, 1);
 }
+
+int of_changeset_add_prop_bool(struct of_changeset *ocs, struct device_node *np,
+			       const char *prop_name);
 
 #else /* CONFIG_OF_DYNAMIC */
 static inline int of_reconfig_notifier_register(struct notifier_block *nb)

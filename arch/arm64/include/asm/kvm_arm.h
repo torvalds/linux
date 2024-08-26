@@ -102,7 +102,6 @@
 #define HCR_HOST_NVHE_PROTECTED_FLAGS (HCR_HOST_NVHE_FLAGS | HCR_TSC)
 #define HCR_HOST_VHE_FLAGS (HCR_RW | HCR_TGE | HCR_E2H)
 
-#define HCRX_GUEST_FLAGS (HCRX_EL2_SMPME | HCRX_EL2_TCR2En)
 #define HCRX_HOST_FLAGS (HCRX_EL2_MSCEn | HCRX_EL2_TCR2En | HCRX_EL2_EnFPM)
 
 /* TCR_EL2 Registers bits */
@@ -304,6 +303,12 @@
 				 GENMASK(29, 21) |	\
 				 GENMASK(19, 14) |	\
 				 BIT(11))
+
+#define CPTR_VHE_EL2_RES0	(GENMASK(63, 32) |	\
+				 GENMASK(27, 26) |	\
+				 GENMASK(23, 22) |	\
+				 GENMASK(19, 18) |	\
+				 GENMASK(15, 0))
 
 /* Hyp Debug Configuration Register bits */
 #define MDCR_EL2_E2TB_MASK	(UL(0x3))

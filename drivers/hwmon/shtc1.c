@@ -186,8 +186,6 @@ static void shtc1_select_command(struct shtc1_data *data)
 	}
 }
 
-static const struct i2c_device_id shtc1_id[];
-
 static int shtc1_probe(struct i2c_client *client)
 {
 	int ret;
@@ -195,7 +193,7 @@ static int shtc1_probe(struct i2c_client *client)
 	char id_reg_buf[2];
 	struct shtc1_data *data;
 	struct device *hwmon_dev;
-	enum shtcx_chips chip = i2c_match_id(shtc1_id, client)->driver_data;
+	enum shtcx_chips chip = (uintptr_t)i2c_get_match_data(client);
 	struct i2c_adapter *adap = client->adapter;
 	struct device *dev = &client->dev;
 	struct device_node *np = dev->of_node;
@@ -238,7 +236,7 @@ static int shtc1_probe(struct i2c_client *client)
 
 	if (np) {
 		data->setup.blocking_io = of_property_read_bool(np, "sensirion,blocking-io");
-		data->setup.high_precision = !of_property_read_bool(np, "sensicon,low-precision");
+		data->setup.high_precision = !of_property_read_bool(np, "sensirion,low-precision");
 	} else {
 		if (client->dev.platform_data)
 			data->setup = *(struct shtc1_platform_data *)dev->platform_data;

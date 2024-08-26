@@ -212,11 +212,6 @@
  * structure
  */
 
-struct regval_list {
-	unsigned char reg_num;
-	unsigned char value;
-};
-
 struct tw9910_scale_ctrl {
 	char           *name;
 	unsigned short  width;

@@ -31,7 +31,6 @@
 #define  OHCI1394_HCControl_softReset		0x00010000
 #define OHCI1394_SelfIDBuffer                 0x064
 #define OHCI1394_SelfIDCount                  0x068
-#define  OHCI1394_SelfIDCount_selfIDError	0x80000000
 #define OHCI1394_IRMultiChanMaskHiSet         0x070
 #define OHCI1394_IRMultiChanMaskHiClear       0x074
 #define OHCI1394_IRMultiChanMaskLoSet         0x078
@@ -155,5 +154,47 @@
 #define OHCI1394_evt_flushed		0xf
 
 #define OHCI1394_phy_tcode		0xe
+
+// Self-ID DMA.
+
+#define OHCI1394_SelfIDCount_selfIDError_MASK		0x80000000
+#define OHCI1394_SelfIDCount_selfIDError_SHIFT		31
+#define OHCI1394_SelfIDCount_selfIDGeneration_MASK	0x00ff0000
+#define OHCI1394_SelfIDCount_selfIDGeneration_SHIFT	16
+#define OHCI1394_SelfIDCount_selfIDSize_MASK		0x000007fc
+#define OHCI1394_SelfIDCount_selfIDSize_SHIFT		2
+
+static inline bool ohci1394_self_id_count_is_error(u32 value)
+{
+	return !!((value & OHCI1394_SelfIDCount_selfIDError_MASK) >> OHCI1394_SelfIDCount_selfIDError_SHIFT);
+}
+
+static inline u8 ohci1394_self_id_count_get_generation(u32 value)
+{
+	return (value & OHCI1394_SelfIDCount_selfIDGeneration_MASK) >> OHCI1394_SelfIDCount_selfIDGeneration_SHIFT;
+}
+
+// In 1394 OHCI specification, the maximum size of self ID stream is 504 quadlets
+// (= 63 devices * 4 self ID packets * 2 quadlets). The selfIDSize field accommodates it and its
+// additional first quadlet, since the field is 9 bits (0x1ff = 511).
+static inline u32 ohci1394_self_id_count_get_size(u32 value)
+{
+	return (value & OHCI1394_SelfIDCount_selfIDSize_MASK) >> OHCI1394_SelfIDCount_selfIDSize_SHIFT;
+}
+
+#define OHCI1394_SELF_ID_RECEIVE_Q0_GENERATION_MASK	0x00ff0000
+#define OHCI1394_SELF_ID_RECEIVE_Q0_GENERATION_SHIFT	16
+#define OHCI1394_SELF_ID_RECEIVE_Q0_TIMESTAMP_MASK	0x0000ffff
+#define OHCI1394_SELF_ID_RECEIVE_Q0_TIMESTAMP_SHIFT	0
+
+static inline u8 ohci1394_self_id_receive_q0_get_generation(u32 quadlet0)
+{
+	return (quadlet0 & OHCI1394_SELF_ID_RECEIVE_Q0_GENERATION_MASK) >> OHCI1394_SELF_ID_RECEIVE_Q0_GENERATION_SHIFT;
+}
+
+static inline u16 ohci1394_self_id_receive_q0_get_timestamp(u32 quadlet0)
+{
+	return (quadlet0 & OHCI1394_SELF_ID_RECEIVE_Q0_TIMESTAMP_MASK) >> OHCI1394_SELF_ID_RECEIVE_Q0_TIMESTAMP_SHIFT;
+}
 
 #endif /* _FIREWIRE_OHCI_H */

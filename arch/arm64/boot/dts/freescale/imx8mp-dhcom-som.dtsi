@@ -78,6 +78,11 @@
 	cpu-supply = <&buck2>;
 };
 
+&audio_blk_ctrl {
+	assigned-clocks = <&clk IMX8MP_AUDIO_PLL1>;
+	assigned-clock-rates = <393216000>;
+};
+
 &ecspi1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_ecspi1>;
@@ -105,14 +110,14 @@
 		#size-cells = <0>;
 
 		/* Up to one of these two PHYs may be populated. */
-		ethphy0f: ethernet-phy@0 { /* SMSC LAN8740Ai */
+		ethphy0f: ethernet-phy@1 { /* SMSC LAN8740Ai */
 			compatible = "ethernet-phy-id0007.c110",
 				     "ethernet-phy-ieee802.3-c22";
 			interrupt-parent = <&gpio3>;
 			interrupts = <19 IRQ_TYPE_LEVEL_LOW>;
 			pinctrl-0 = <&pinctrl_ethphy0>;
 			pinctrl-names = "default";
-			reg = <0>;
+			reg = <1>;
 			reset-assert-us = <1000>;
 			reset-deassert-us = <1000>;
 			reset-gpios = <&ioexp 4 GPIO_ACTIVE_LOW>;
@@ -151,14 +156,14 @@
 		#size-cells = <0>;
 
 		/* Up to one PHY may be populated. */
-		ethphy1f: ethernet-phy@1 { /* SMSC LAN8740Ai */
+		ethphy1f: ethernet-phy@2 { /* SMSC LAN8740Ai */
 			compatible = "ethernet-phy-id0007.c110",
 				     "ethernet-phy-ieee802.3-c22";
 			interrupt-parent = <&gpio4>;
 			interrupts = <3 IRQ_TYPE_LEVEL_LOW>;
 			pinctrl-0 = <&pinctrl_ethphy1>;
 			pinctrl-names = "default";
-			reg = <1>;
+			reg = <2>;
 			reset-assert-us = <1000>;
 			reset-deassert-us = <1000>;
 			reset-gpios = <&gpio4 2 GPIO_ACTIVE_LOW>;
@@ -254,7 +259,7 @@
 				  <&clk IMX8MP_CLK_CLKOUT2>,
 				  <&clk IMX8MP_AUDIO_PLL2_OUT>;
 		assigned-clock-parents = <&clk IMX8MP_AUDIO_PLL2_OUT>;
-		assigned-clock-rates = <13000000>, <13000000>, <156000000>;
+		assigned-clock-rates = <13000000>, <13000000>, <208000000>;
 		reset-gpios = <&gpio4 1 GPIO_ACTIVE_HIGH>;
 		status = "disabled";
 

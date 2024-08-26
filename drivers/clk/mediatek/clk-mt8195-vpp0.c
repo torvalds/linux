@@ -106,4 +106,6 @@ static struct platform_driver clk_mt8195_vpp0_drv = {
 	.id_table = clk_mt8195_vpp0_id_table,
 };
 module_platform_driver(clk_mt8195_vpp0_drv);
+
+MODULE_DESCRIPTION("MediaTek MT8195 Video Processing Pipe 0 clocks driver");
 MODULE_LICENSE("GPL");

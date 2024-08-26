@@ -13,10 +13,21 @@ NX_HUGE_PAGES_RECOVERY_RATIO=$(cat /sys/module/kvm/parameters/nx_huge_pages_reco
 NX_HUGE_PAGES_RECOVERY_PERIOD=$(cat /sys/module/kvm/parameters/nx_huge_pages_recovery_period_ms)
 HUGE_PAGES=$(cat /sys/kernel/mm/hugepages/hugepages-2048kB/nr_hugepages)
 
+# If we're already root, the host might not have sudo.
+if [ $(whoami) == "root" ]; then
+	function do_sudo () {
+		"$@"
+	}
+else
+	function do_sudo () {
+		sudo "$@"
+	}
+fi
+
 set +e
 
 function sudo_echo () {
-	echo "$1" | sudo tee -a "$2" > /dev/null
+	echo "$1" | do_sudo tee -a "$2" > /dev/null
 }
 
 NXECUTABLE="$(dirname $0)/nx_huge_pages_test"

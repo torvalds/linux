@@ -139,7 +139,7 @@ void __init samsung_clk_register_fixed_rate(struct samsung_clk_provider *ctx,
 		unsigned int nr_clk)
 {
 	struct clk_hw *clk_hw;
-	unsigned int idx, ret;
+	unsigned int idx;
 
 	for (idx = 0; idx < nr_clk; idx++, list++) {
 		clk_hw = clk_hw_register_fixed_rate(ctx->dev, list->name,
@@ -151,15 +151,6 @@ void __init samsung_clk_register_fixed_rate(struct samsung_clk_provider *ctx,
 		}
 
 		samsung_clk_add_lookup(ctx, clk_hw, list->id);
-
-		/*
-		 * Unconditionally add a clock lookup for the fixed rate clocks.
-		 * There are not many of these on any of Samsung platforms.
-		 */
-		ret = clk_hw_register_clkdev(clk_hw, list->name, NULL);
-		if (ret)
-			pr_err("%s: failed to register clock lookup for %s",
-				__func__, list->name);
 	}
 }
 

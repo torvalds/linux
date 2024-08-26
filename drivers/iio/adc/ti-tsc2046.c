@@ -804,12 +804,7 @@ static int tsc2046_adc_probe(struct spi_device *spi)
 		return -EINVAL;
 	}
 
-	dcfg = device_get_match_data(dev);
-	if (!dcfg) {
-		const struct spi_device_id *id = spi_get_device_id(spi);
-
-		dcfg = (const struct tsc2046_adc_dcfg *)id->driver_data;
-	}
+	dcfg = spi_get_device_match_data(spi);
 	if (!dcfg)
 		return -EINVAL;
 

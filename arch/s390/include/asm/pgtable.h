@@ -107,6 +107,18 @@ static inline int is_module_addr(void *addr)
 	return 1;
 }
 
+#ifdef CONFIG_KMSAN
+#define KMSAN_VMALLOC_SIZE (VMALLOC_END - VMALLOC_START)
+#define KMSAN_VMALLOC_SHADOW_START VMALLOC_END
+#define KMSAN_VMALLOC_SHADOW_END (KMSAN_VMALLOC_SHADOW_START + KMSAN_VMALLOC_SIZE)
+#define KMSAN_VMALLOC_ORIGIN_START KMSAN_VMALLOC_SHADOW_END
+#define KMSAN_VMALLOC_ORIGIN_END (KMSAN_VMALLOC_ORIGIN_START + KMSAN_VMALLOC_SIZE)
+#define KMSAN_MODULES_SHADOW_START KMSAN_VMALLOC_ORIGIN_END
+#define KMSAN_MODULES_SHADOW_END (KMSAN_MODULES_SHADOW_START + MODULES_LEN)
+#define KMSAN_MODULES_ORIGIN_START KMSAN_MODULES_SHADOW_END
+#define KMSAN_MODULES_ORIGIN_END (KMSAN_MODULES_ORIGIN_START + MODULES_LEN)
+#endif
+
 #ifdef CONFIG_RANDOMIZE_BASE
 #define KASLR_LEN	(1UL << 31)
 #else
@@ -268,12 +280,14 @@ static inline int is_module_addr(void *addr)
 #define _REGION3_ENTRY		(_REGION_ENTRY_TYPE_R3 | _REGION_ENTRY_LENGTH)
 #define _REGION3_ENTRY_EMPTY	(_REGION_ENTRY_TYPE_R3 | _REGION_ENTRY_INVALID)
 
+#define _REGION3_ENTRY_HARDWARE_BITS		0xfffffffffffff6ffUL
+#define _REGION3_ENTRY_HARDWARE_BITS_LARGE	0xffffffff8001073cUL
 #define _REGION3_ENTRY_ORIGIN_LARGE ~0x7fffffffUL /* large page address	     */
 #define _REGION3_ENTRY_DIRTY	0x2000	/* SW region dirty bit */
 #define _REGION3_ENTRY_YOUNG	0x1000	/* SW region young bit */
 #define _REGION3_ENTRY_LARGE	0x0400	/* RTTE-format control, large page  */
-#define _REGION3_ENTRY_READ	0x0002	/* SW region read bit */
-#define _REGION3_ENTRY_WRITE	0x0001	/* SW region write bit */
+#define _REGION3_ENTRY_WRITE	0x0002	/* SW region write bit */
+#define _REGION3_ENTRY_READ	0x0001	/* SW region read bit */
 
 #ifdef CONFIG_MEM_SOFT_DIRTY
 #define _REGION3_ENTRY_SOFT_DIRTY 0x4000 /* SW region soft dirty bit */
@@ -284,9 +298,9 @@ static inline int is_module_addr(void *addr)
 #define _REGION_ENTRY_BITS	 0xfffffffffffff22fUL
 
 /* Bits in the segment table entry */
-#define _SEGMENT_ENTRY_BITS			0xfffffffffffffe33UL
-#define _SEGMENT_ENTRY_HARDWARE_BITS		0xfffffffffffffe30UL
-#define _SEGMENT_ENTRY_HARDWARE_BITS_LARGE	0xfffffffffff00730UL
+#define _SEGMENT_ENTRY_BITS			0xfffffffffffffe3fUL
+#define _SEGMENT_ENTRY_HARDWARE_BITS		0xfffffffffffffe3cUL
+#define _SEGMENT_ENTRY_HARDWARE_BITS_LARGE	0xfffffffffff1073cUL
 #define _SEGMENT_ENTRY_ORIGIN_LARGE ~0xfffffUL /* large page address	    */
 #define _SEGMENT_ENTRY_ORIGIN	~0x7ffUL/* page table origin		    */
 #define _SEGMENT_ENTRY_PROTECT	0x200	/* segment protection bit	    */
@@ -607,7 +621,15 @@ static inline void csp(unsigned int *ptr, unsigned int old, unsigned int new)
 		: "cc");
 }
 
-static inline void cspg(unsigned long *ptr, unsigned long old, unsigned long new)
+/**
+ * cspg() - Compare and Swap and Purge (CSPG)
+ * @ptr: Pointer to the value to be exchanged
+ * @old: The expected old value
+ * @new: The new value
+ *
+ * Return: True if compare and swap was successful, otherwise false.
+ */
+static inline bool cspg(unsigned long *ptr, unsigned long old, unsigned long new)
 {
 	union register_pair r1 = { .even = old, .odd = new, };
 	unsigned long address = (unsigned long)ptr | 1;
@@ -617,6 +639,7 @@ static inline void cspg(unsigned long *ptr, unsigned long old, unsigned long new
 		: [r1] "+&d" (r1.pair), "+m" (*ptr)
 		: [address] "d" (address)
 		: "cc");
+	return old == r1.even;
 }
 
 #define CRDTE_DTT_PAGE		0x00UL
@@ -625,7 +648,18 @@ static inline void cspg(unsigned long *ptr, unsigned long old, unsigned long new
 #define CRDTE_DTT_REGION2	0x18UL
 #define CRDTE_DTT_REGION1	0x1cUL
 
-static inline void crdte(unsigned long old, unsigned long new,
+/**
+ * crdte() - Compare and Replace DAT Table Entry
+ * @old:     The expected old value
+ * @new:     The new value
+ * @table:   Pointer to the value to be exchanged
+ * @dtt:     Table type of the table to be exchanged
+ * @address: The address mapped by the entry to be replaced
+ * @asce:    The ASCE of this entry
+ *
+ * Return: True if compare and replace was successful, otherwise false.
+ */
+static inline bool crdte(unsigned long old, unsigned long new,
 			 unsigned long *table, unsigned long dtt,
 			 unsigned long address, unsigned long asce)
 {
@@ -636,6 +670,7 @@ static inline void crdte(unsigned long old, unsigned long new,
 		     : [r1] "+&d" (r1.pair)
 		     : [r2] "d" (r2.pair), [asce] "a" (asce)
 		     : "memory", "cc");
+	return old == r1.even;
 }
 
 /*
@@ -1165,7 +1200,7 @@ static inline pte_t ptep_get_and_clear(struct mm_struct *mm,
 	res = ptep_xchg_lazy(mm, addr, ptep, __pte(_PAGE_INVALID));
 	/* At this point the reference through the mapping is still present */
 	if (mm_is_protected(mm) && pte_present(res))
-		uv_convert_owned_from_secure(pte_val(res) & PAGE_MASK);
+		uv_convert_from_secure_pte(res);
 	return res;
 }
 
@@ -1183,7 +1218,7 @@ static inline pte_t ptep_clear_flush(struct vm_area_struct *vma,
 	res = ptep_xchg_direct(vma->vm_mm, addr, ptep, __pte(_PAGE_INVALID));
 	/* At this point the reference through the mapping is still present */
 	if (mm_is_protected(vma->vm_mm) && pte_present(res))
-		uv_convert_owned_from_secure(pte_val(res) & PAGE_MASK);
+		uv_convert_from_secure_pte(res);
 	return res;
 }
 
@@ -1215,14 +1250,14 @@ static inline pte_t ptep_get_and_clear_full(struct mm_struct *mm,
 	 * The notifier should have destroyed all protected vCPUs at this
 	 * point, so the destroy should be successful.
 	 */
-	if (full && !uv_destroy_owned_page(pte_val(res) & PAGE_MASK))
+	if (full && !uv_destroy_pte(res))
 		return res;
 	/*
 	 * If something went wrong and the page could not be destroyed, or
 	 * if this is not a mm teardown, the slower export is used as
 	 * fallback instead.
 	 */
-	uv_convert_owned_from_secure(pte_val(res) & PAGE_MASK);
+	uv_convert_from_secure_pte(res);
 	return res;
 }
 
@@ -1421,6 +1456,7 @@ static inline unsigned long pud_deref(pud_t pud)
 	return (unsigned long)__va(pud_val(pud) & origin_mask);
 }
 
+#define pud_pfn pud_pfn
 static inline unsigned long pud_pfn(pud_t pud)
 {
 	return __pa(pud_deref(pud)) >> PAGE_SHIFT;
@@ -1784,8 +1820,10 @@ static inline pmd_t pmdp_huge_clear_flush(struct vm_area_struct *vma,
 static inline pmd_t pmdp_invalidate(struct vm_area_struct *vma,
 				   unsigned long addr, pmd_t *pmdp)
 {
-	pmd_t pmd = __pmd(pmd_val(*pmdp) | _SEGMENT_ENTRY_INVALID);
+	pmd_t pmd;
 
+	VM_WARN_ON_ONCE(!pmd_present(*pmdp));
+	pmd = __pmd(pmd_val(*pmdp) | _SEGMENT_ENTRY_INVALID);
 	return pmdp_xchg_direct(vma->vm_mm, addr, pmdp, pmd);
 }
 

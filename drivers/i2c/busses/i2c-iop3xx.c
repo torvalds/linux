@@ -22,7 +22,7 @@
  * - Make it work with IXP46x chips
  * - Cleanup function names, coding style, etc
  *
- * - writing to slave address causes latchup on iop331.
+ * - writing to local target address causes latchup on iop331.
  *	fix: driver refuses to address self.
  */
 
@@ -234,7 +234,7 @@ iop3xx_i2c_send_target_addr(struct i2c_algo_iop3xx_data *iop3xx_adap,
 	int status;
 	int rc;
 
-	/* avoid writing to my slave address (hangs on 80331),
+	/* avoid writing to local target address (hangs on 80331),
 	 * forbidden in Intel developer manual
 	 */
 	if (msg->addr == MYSAR) {
@@ -349,12 +349,9 @@ iop3xx_i2c_handle_msg(struct i2c_adapter *i2c_adap, struct i2c_msg *pmsg)
 	}
 }
 
-/*
- * master_xfer() - main read/write entry
- */
 static int
-iop3xx_i2c_master_xfer(struct i2c_adapter *i2c_adap, struct i2c_msg *msgs,
-				int num)
+iop3xx_i2c_xfer(struct i2c_adapter *i2c_adap, struct i2c_msg *msgs,
+		int num)
 {
 	struct i2c_algo_iop3xx_data *iop3xx_adap = i2c_adap->algo_data;
 	int im = 0;
@@ -384,8 +381,8 @@ iop3xx_i2c_func(struct i2c_adapter *adap)
 }
 
 static const struct i2c_algorithm iop3xx_i2c_algo = {
-	.master_xfer	= iop3xx_i2c_master_xfer,
-	.functionality	= iop3xx_i2c_func,
+	.xfer = iop3xx_i2c_xfer,
+	.functionality = iop3xx_i2c_func,
 };
 
 static void

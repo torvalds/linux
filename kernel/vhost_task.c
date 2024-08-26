@@ -10,38 +10,32 @@
 
 enum vhost_task_flags {
 	VHOST_TASK_FLAGS_STOP,
+	VHOST_TASK_FLAGS_KILLED,
 };
 
 struct vhost_task {
 	bool (*fn)(void *data);
+	void (*handle_sigkill)(void *data);
 	void *data;
 	struct completion exited;
 	unsigned long flags;
 	struct task_struct *task;
+	/* serialize SIGKILL and vhost_task_stop calls */
+	struct mutex exit_mutex;
 };
 
 static int vhost_task_fn(void *data)
 {
 	struct vhost_task *vtsk = data;
-	bool dead = false;
 
 	for (;;) {
 		bool did_work;
 
-		if (!dead && signal_pending(current)) {
+		if (signal_pending(current)) {
 			struct ksignal ksig;
-			/*
-			 * Calling get_signal will block in SIGSTOP,
-			 * or clear fatal_signal_pending, but remember
-			 * what was set.
-			 *
-			 * This thread won't actually exit until all
-			 * of the file descriptors are closed, and
-			 * the release function is called.
-			 */
-			dead = get_signal(&ksig);
-			if (dead)
-				clear_thread_flag(TIF_SIGPENDING);
+
+			if (get_signal(&ksig))
+				break;
 		}
 
 		/* mb paired w/ vhost_task_stop */
@@ -57,7 +51,19 @@ static int vhost_task_fn(void *data)
 			schedule();
 	}
 
+	mutex_lock(&vtsk->exit_mutex);
+	/*
+	 * If a vhost_task_stop and SIGKILL race, we can ignore the SIGKILL.
+	 * When the vhost layer has called vhost_task_stop it's already stopped
+	 * new work and flushed.
+	 */
+	if (!test_bit(VHOST_TASK_FLAGS_STOP, &vtsk->flags)) {
+		set_bit(VHOST_TASK_FLAGS_KILLED, &vtsk->flags);
+		vtsk->handle_sigkill(vtsk->data);
+	}
+	mutex_unlock(&vtsk->exit_mutex);
 	complete(&vtsk->exited);
+
 	do_exit(0);
 }
 
@@ -78,12 +84,17 @@ EXPORT_SYMBOL_GPL(vhost_task_wake);
  * @vtsk: vhost_task to stop
  *
  * vhost_task_fn ensures the worker thread exits after
- * VHOST_TASK_FLAGS_SOP becomes true.
+ * VHOST_TASK_FLAGS_STOP becomes true.
  */
 void vhost_task_stop(struct vhost_task *vtsk)
 {
-	set_bit(VHOST_TASK_FLAGS_STOP, &vtsk->flags);
-	vhost_task_wake(vtsk);
+	mutex_lock(&vtsk->exit_mutex);
+	if (!test_bit(VHOST_TASK_FLAGS_KILLED, &vtsk->flags)) {
+		set_bit(VHOST_TASK_FLAGS_STOP, &vtsk->flags);
+		vhost_task_wake(vtsk);
+	}
+	mutex_unlock(&vtsk->exit_mutex);
+
 	/*
 	 * Make sure vhost_task_fn is no longer accessing the vhost_task before
 	 * freeing it below.
@@ -96,14 +107,16 @@ EXPORT_SYMBOL_GPL(vhost_task_stop);
 /**
  * vhost_task_create - create a copy of a task to be used by the kernel
  * @fn: vhost worker function
- * @arg: data to be passed to fn
+ * @handle_sigkill: vhost function to handle when we are killed
+ * @arg: data to be passed to fn and handled_kill
  * @name: the thread's name
  *
  * This returns a specialized task for use by the vhost layer or NULL on
  * failure. The returned task is inactive, and the caller must fire it up
  * through vhost_task_start().
  */
-struct vhost_task *vhost_task_create(bool (*fn)(void *), void *arg,
+struct vhost_task *vhost_task_create(bool (*fn)(void *),
+				     void (*handle_sigkill)(void *), void *arg,
 				     const char *name)
 {
 	struct kernel_clone_args args = {
@@ -122,8 +135,10 @@ struct vhost_task *vhost_task_create(bool (*fn)(void *), void *arg,
 	if (!vtsk)
 		return NULL;
 	init_completion(&vtsk->exited);
+	mutex_init(&vtsk->exit_mutex);
 	vtsk->data = arg;
 	vtsk->fn = fn;
+	vtsk->handle_sigkill = handle_sigkill;
 
 	args.fn_arg = vtsk;
 

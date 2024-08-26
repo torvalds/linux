@@ -673,6 +673,10 @@
 	};
 };
 
+&tsadc {
+	status = "okay";
+};
+
 &u2phy0 {
 	status = "okay";
 };

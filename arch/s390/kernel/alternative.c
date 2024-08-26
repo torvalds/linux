@@ -33,13 +33,6 @@ static void __init_or_module __apply_alternatives(struct alt_instr *start,
 
 		if (!__test_facility(a->facility, alt_stfle_fac_list))
 			continue;
-
-		if (unlikely(a->instrlen % 2)) {
-			WARN_ONCE(1, "cpu alternatives instructions length is "
-				     "odd, skipping patching\n");
-			continue;
-		}
-
 		s390_kernel_write(instr, replacement, a->instrlen);
 	}
 }

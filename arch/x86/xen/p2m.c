@@ -81,7 +81,6 @@
 #include <xen/balloon.h>
 #include <xen/grant_table.h>
 
-#include "multicalls.h"
 #include "xen-ops.h"
 
 #define P2M_MID_PER_PAGE	(PAGE_SIZE / sizeof(unsigned long *))
@@ -555,7 +554,6 @@ int xen_alloc_p2m_entry(unsigned long pfn)
 			/* Separately check the mid mfn level */
 			unsigned long missing_mfn;
 			unsigned long mid_mfn_mfn;
-			unsigned long old_mfn;
 
 			mid_mfn = alloc_p2m_page();
 			if (!mid_mfn)
@@ -565,12 +563,12 @@ int xen_alloc_p2m_entry(unsigned long pfn)
 
 			missing_mfn = virt_to_mfn(p2m_mid_missing_mfn);
 			mid_mfn_mfn = virt_to_mfn(mid_mfn);
-			old_mfn = cmpxchg(top_mfn_p, missing_mfn, mid_mfn_mfn);
-			if (old_mfn != missing_mfn) {
-				free_p2m_page(mid_mfn);
-				mid_mfn = mfn_to_virt(old_mfn);
-			} else {
+			/* try_cmpxchg() updates missing_mfn on failure. */
+			if (try_cmpxchg(top_mfn_p, &missing_mfn, mid_mfn_mfn)) {
 				p2m_top_mfn_p[topidx] = mid_mfn;
+			} else {
+				free_p2m_page(mid_mfn);
+				mid_mfn = mfn_to_virt(missing_mfn);
 			}
 		}
 	} else {
@@ -731,7 +729,7 @@ int set_foreign_p2m_mapping(struct gnttab_map_grant_ref *map_ops,
 		 * immediate unmapping.
 		 */
 		map_ops[i].status = GNTST_general_error;
-		unmap[0].host_addr = map_ops[i].host_addr,
+		unmap[0].host_addr = map_ops[i].host_addr;
 		unmap[0].handle = map_ops[i].handle;
 		map_ops[i].handle = INVALID_GRANT_HANDLE;
 		if (map_ops[i].flags & GNTMAP_device_map)
@@ -741,7 +739,7 @@ int set_foreign_p2m_mapping(struct gnttab_map_grant_ref *map_ops,
 
 		if (kmap_ops) {
 			kmap_ops[i].status = GNTST_general_error;
-			unmap[1].host_addr = kmap_ops[i].host_addr,
+			unmap[1].host_addr = kmap_ops[i].host_addr;
 			unmap[1].handle = kmap_ops[i].handle;
 			kmap_ops[i].handle = INVALID_GRANT_HANDLE;
 			if (kmap_ops[i].flags & GNTMAP_device_map)
@@ -796,7 +794,6 @@ int clear_foreign_p2m_mapping(struct gnttab_unmap_grant_ref *unmap_ops,
 
 #ifdef CONFIG_XEN_DEBUG_FS
 #include <linux/debugfs.h>
-#include "debugfs.h"
 static int p2m_dump_show(struct seq_file *m, void *v)
 {
 	static const char * const type_name[] = {

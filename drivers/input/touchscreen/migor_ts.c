@@ -211,7 +211,7 @@ static int migor_ts_resume(struct device *dev)
 static DEFINE_SIMPLE_DEV_PM_OPS(migor_ts_pm, migor_ts_suspend, migor_ts_resume);
 
 static const struct i2c_device_id migor_ts_id[] = {
-	{ "migor_ts", 0 },
+	{ "migor_ts" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, migor_ts_id);

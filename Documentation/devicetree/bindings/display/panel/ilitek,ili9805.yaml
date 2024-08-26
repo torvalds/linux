@@ -20,9 +20,11 @@ properties:
           - tianma,tm041xdhg01
       - const: ilitek,ili9805
 
+  reg:
+    maxItems: 1
+
   avdd-supply: true
   dvdd-supply: true
-  reg: true
 
 required:
   - compatible

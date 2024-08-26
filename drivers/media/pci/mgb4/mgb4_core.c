@@ -493,13 +493,13 @@ static int mgb4_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	struct mgb4_dev *mgbdev;
 	struct resource video = {
 		.start	= 0x0,
-		.end	= 0x100,
+		.end	= 0xff,
 		.flags	= IORESOURCE_MEM,
 		.name	= "mgb4-video",
 	};
 	struct resource cmt = {
 		.start	= 0x1000,
-		.end	= 0x1800,
+		.end	= 0x17ff,
 		.flags	= IORESOURCE_MEM,
 		.name	= "mgb4-cmt",
 	};
@@ -642,9 +642,6 @@ static void mgb4_remove(struct pci_dev *pdev)
 	struct mgb4_dev *mgbdev = pci_get_drvdata(pdev);
 	int i;
 
-#ifdef CONFIG_DEBUG_FS
-	debugfs_remove_recursive(mgbdev->debugfs);
-#endif
 #if IS_REACHABLE(CONFIG_HWMON)
 	hwmon_device_unregister(mgbdev->hwmon_dev);
 #endif
@@ -658,6 +655,10 @@ static void mgb4_remove(struct pci_dev *pdev)
 	for (i = 0; i < MGB4_VIN_DEVICES; i++)
 		if (mgbdev->vin[i])
 			mgb4_vin_free(mgbdev->vin[i]);
+
+#ifdef CONFIG_DEBUG_FS
+	debugfs_remove_recursive(mgbdev->debugfs);
+#endif
 
 	device_remove_groups(&mgbdev->pdev->dev, mgb4_pci_groups);
 	free_spi(mgbdev);

@@ -1484,6 +1484,7 @@ err_type_file_file_validate:
 	vfree(types_info->data);
 err_data_alloc:
 	kfree(types_info);
+	linecards->types_info = NULL;
 	return err;
 }
 

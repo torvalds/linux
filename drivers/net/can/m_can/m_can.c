@@ -379,38 +379,72 @@ m_can_txe_fifo_read(struct m_can_classdev *cdev, u32 fgi, u32 offset, u32 *val)
 	return cdev->ops->read_fifo(cdev, addr_offset, val, 1);
 }
 
-static void m_can_config_endisable(struct m_can_classdev *cdev, bool enable)
+static int m_can_cccr_update_bits(struct m_can_classdev *cdev, u32 mask, u32 val)
 {
-	u32 cccr = m_can_read(cdev, M_CAN_CCCR);
-	u32 timeout = 10;
-	u32 val = 0;
+	u32 val_before = m_can_read(cdev, M_CAN_CCCR);
+	u32 val_after = (val_before & ~mask) | val;
+	size_t tries = 10;
 
-	/* Clear the Clock stop request if it was set */
-	if (cccr & CCCR_CSR)
-		cccr &= ~CCCR_CSR;
-
-	if (enable) {
-		/* enable m_can configuration */
-		m_can_write(cdev, M_CAN_CCCR, cccr | CCCR_INIT);
-		udelay(5);
-		/* CCCR.CCE can only be set/reset while CCCR.INIT = '1' */
-		m_can_write(cdev, M_CAN_CCCR, cccr | CCCR_INIT | CCCR_CCE);
-	} else {
-		m_can_write(cdev, M_CAN_CCCR, cccr & ~(CCCR_INIT | CCCR_CCE));
+	if (!(mask & CCCR_INIT) && !(val_before & CCCR_INIT)) {
+		dev_err(cdev->dev,
+			"refusing to configure device when in normal mode\n");
+		return -EBUSY;
 	}
 
-	/* there's a delay for module initialization */
-	if (enable)
-		val = CCCR_INIT | CCCR_CCE;
+	/* The chip should be in standby mode when changing the CCCR register,
+	 * and some chips set the CSR and CSA bits when in standby. Furthermore,
+	 * the CSR and CSA bits should be written as zeros, even when they read
+	 * ones.
+	 */
+	val_after &= ~(CCCR_CSR | CCCR_CSA);
 
-	while ((m_can_read(cdev, M_CAN_CCCR) & (CCCR_INIT | CCCR_CCE)) != val) {
-		if (timeout == 0) {
-			netdev_warn(cdev->net, "Failed to init module\n");
-			return;
-		}
-		timeout--;
-		udelay(1);
+	while (tries--) {
+		u32 val_read;
+
+		/* Write the desired value in each try, as setting some bits in
+		 * the CCCR register require other bits to be set first. E.g.
+		 * setting the NISO bit requires setting the CCE bit first.
+		 */
+		m_can_write(cdev, M_CAN_CCCR, val_after);
+
+		val_read = m_can_read(cdev, M_CAN_CCCR) & ~(CCCR_CSR | CCCR_CSA);
+
+		if (val_read == val_after)
+			return 0;
+
+		usleep_range(1, 5);
 	}
+
+	return -ETIMEDOUT;
+}
+
+static int m_can_config_enable(struct m_can_classdev *cdev)
+{
+	int err;
+
+	/* CCCR_INIT must be set in order to set CCCR_CCE, but access to
+	 * configuration registers should only be enabled when in standby mode,
+	 * where CCCR_INIT is always set.
+	 */
+	err = m_can_cccr_update_bits(cdev, CCCR_CCE, CCCR_CCE);
+	if (err)
+		netdev_err(cdev->net, "failed to enable configuration mode\n");
+
+	return err;
+}
+
+static int m_can_config_disable(struct m_can_classdev *cdev)
+{
+	int err;
+
+	/* Only clear CCCR_CCE, since CCCR_INIT cannot be cleared while in
+	 * standby mode
+	 */
+	err = m_can_cccr_update_bits(cdev, CCCR_CCE, 0);
+	if (err)
+		netdev_err(cdev->net, "failed to disable configuration registers\n");
+
+	return err;
 }
 
 static void m_can_interrupt_enable(struct m_can_classdev *cdev, u32 interrupts)
@@ -1403,7 +1437,9 @@ static int m_can_chip_config(struct net_device *dev)
 	interrupts &= ~(IR_ARA | IR_ELO | IR_DRX | IR_TEFF | IR_TFE | IR_TCF |
 			IR_HPM | IR_RF1F | IR_RF1W | IR_RF1N | IR_RF0F);
 
-	m_can_config_endisable(cdev, true);
+	err = m_can_config_enable(cdev);
+	if (err)
+		return err;
 
 	/* RX Buffer/FIFO Element Size 64 bytes data field */
 	m_can_write(cdev, M_CAN_RXESC,
@@ -1521,7 +1557,9 @@ static int m_can_chip_config(struct net_device *dev)
 		    FIELD_PREP(TSCC_TCP_MASK, 0xf) |
 		    FIELD_PREP(TSCC_TSS_MASK, TSCC_TSS_INTERNAL));
 
-	m_can_config_endisable(cdev, false);
+	err = m_can_config_disable(cdev);
+	if (err)
+		return err;
 
 	if (cdev->ops->init)
 		cdev->ops->init(cdev);
@@ -1550,7 +1588,11 @@ static int m_can_start(struct net_device *dev)
 		cdev->tx_fifo_putidx = FIELD_GET(TXFQS_TFQPI_MASK,
 						 m_can_read(cdev, M_CAN_TXFQS));
 
-	return 0;
+	ret = m_can_cccr_update_bits(cdev, CCCR_INIT, 0);
+	if (ret)
+		netdev_err(dev, "failed to enter normal mode\n");
+
+	return ret;
 }
 
 static int m_can_set_mode(struct net_device *dev, enum can_mode mode)
@@ -1599,43 +1641,37 @@ static int m_can_check_core_release(struct m_can_classdev *cdev)
 }
 
 /* Selectable Non ISO support only in version 3.2.x
- * This function checks if the bit is writable.
+ * Return 1 if the bit is writable, 0 if it is not, or negative on error.
  */
-static bool m_can_niso_supported(struct m_can_classdev *cdev)
+static int m_can_niso_supported(struct m_can_classdev *cdev)
 {
-	u32 cccr_reg, cccr_poll = 0;
-	int niso_timeout = -ETIMEDOUT;
-	int i;
+	int ret, niso;
 
-	m_can_config_endisable(cdev, true);
-	cccr_reg = m_can_read(cdev, M_CAN_CCCR);
-	cccr_reg |= CCCR_NISO;
-	m_can_write(cdev, M_CAN_CCCR, cccr_reg);
+	ret = m_can_config_enable(cdev);
+	if (ret)
+		return ret;
 
-	for (i = 0; i <= 10; i++) {
-		cccr_poll = m_can_read(cdev, M_CAN_CCCR);
-		if (cccr_poll == cccr_reg) {
-			niso_timeout = 0;
-			break;
-		}
+	/* First try to set the NISO bit. */
+	niso = m_can_cccr_update_bits(cdev, CCCR_NISO, CCCR_NISO);
 
-		usleep_range(1, 5);
+	/* Then clear the it again. */
+	ret = m_can_cccr_update_bits(cdev, CCCR_NISO, 0);
+	if (ret) {
+		dev_err(cdev->dev, "failed to revert the NON-ISO bit in CCCR\n");
+		return ret;
 	}
 
-	/* Clear NISO */
-	cccr_reg &= ~(CCCR_NISO);
-	m_can_write(cdev, M_CAN_CCCR, cccr_reg);
+	ret = m_can_config_disable(cdev);
+	if (ret)
+		return ret;
 
-	m_can_config_endisable(cdev, false);
-
-	/* return false if time out (-ETIMEDOUT), else return true */
-	return !niso_timeout;
+	return niso == 0;
 }
 
 static int m_can_dev_setup(struct m_can_classdev *cdev)
 {
 	struct net_device *dev = cdev->net;
-	int m_can_version, err;
+	int m_can_version, err, niso;
 
 	m_can_version = m_can_check_core_release(cdev);
 	/* return if unsupported version */
@@ -1684,9 +1720,11 @@ static int m_can_dev_setup(struct m_can_classdev *cdev)
 		cdev->can.bittiming_const = &m_can_bittiming_const_31X;
 		cdev->can.data_bittiming_const = &m_can_data_bittiming_const_31X;
 
-		cdev->can.ctrlmode_supported |=
-			(m_can_niso_supported(cdev) ?
-			 CAN_CTRLMODE_FD_NON_ISO : 0);
+		niso = m_can_niso_supported(cdev);
+		if (niso < 0)
+			return niso;
+		if (niso)
+			cdev->can.ctrlmode_supported |= CAN_CTRLMODE_FD_NON_ISO;
 		break;
 	default:
 		dev_err(cdev->dev, "Unsupported version number: %2d",
@@ -1694,21 +1732,26 @@ static int m_can_dev_setup(struct m_can_classdev *cdev)
 		return -EINVAL;
 	}
 
-	if (cdev->ops->init)
-		cdev->ops->init(cdev);
-
-	return 0;
+	/* Forcing standby mode should be redundant, as the chip should be in
+	 * standby after a reset. Write the INIT bit anyways, should the chip
+	 * be configured by previous stage.
+	 */
+	return m_can_cccr_update_bits(cdev, CCCR_INIT, CCCR_INIT);
 }
 
 static void m_can_stop(struct net_device *dev)
 {
 	struct m_can_classdev *cdev = netdev_priv(dev);
+	int ret;
 
 	/* disable all interrupts */
 	m_can_disable_all_interrupts(cdev);
 
 	/* Set init mode to disengage from the network */
-	m_can_config_endisable(cdev, true);
+	ret = m_can_cccr_update_bits(cdev, CCCR_INIT, CCCR_INIT);
+	if (ret)
+		netdev_err(dev, "failed to enter standby mode: %pe\n",
+			   ERR_PTR(ret));
 
 	/* set the state as STOPPED */
 	cdev->can.state = CAN_STATE_STOPPED;

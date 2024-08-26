@@ -795,7 +795,7 @@ done:
 
 /* Accept a pending connection */
 static int iucv_sock_accept(struct socket *sock, struct socket *newsock,
-			    int flags, bool kern)
+			    struct proto_accept_arg *arg)
 {
 	DECLARE_WAITQUEUE(wait, current);
 	struct sock *sk = sock->sk, *nsk;
@@ -809,7 +809,7 @@ static int iucv_sock_accept(struct socket *sock, struct socket *newsock,
 		goto done;
 	}
 
-	timeo = sock_rcvtimeo(sk, flags & O_NONBLOCK);
+	timeo = sock_rcvtimeo(sk, arg->flags & O_NONBLOCK);
 
 	/* Wait for an incoming connection */
 	add_wait_queue_exclusive(sk_sleep(sk), &wait);

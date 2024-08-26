@@ -102,7 +102,7 @@ static int rdc_gpio_config(struct gpio_chip *chip,
 unlock:
 	spin_unlock(&gpch->lock);
 
-	return err;
+	return pcibios_err_to_errno(err);
 }
 
 /* configure GPIO pin as input */
@@ -170,13 +170,13 @@ static int rdc321x_gpio_probe(struct platform_device *pdev)
 					rdc321x_gpio_dev->reg1_data_base,
 					&rdc321x_gpio_dev->data_reg[0]);
 	if (err)
-		return err;
+		return pcibios_err_to_errno(err);
 
 	err = pci_read_config_dword(rdc321x_gpio_dev->sb_pdev,
 					rdc321x_gpio_dev->reg2_data_base,
 					&rdc321x_gpio_dev->data_reg[1]);
 	if (err)
-		return err;
+		return pcibios_err_to_errno(err);
 
 	dev_info(&pdev->dev, "registering %d GPIOs\n",
 					rdc321x_gpio_dev->chip.ngpio);

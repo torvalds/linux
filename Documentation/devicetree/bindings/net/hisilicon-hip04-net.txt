@@ -19,16 +19,6 @@ Optional properties:
 [1] Documentation/devicetree/bindings/net/ethernet.txt
 
 
-* Ethernet ppe node:
-Control rx & tx fifos of all ethernet controllers.
-Have 2048 recv channels shared by all ethernet controllers, only if no overlap.
-Each controller's recv channel start from channel * number (RX_DESC_NUM).
-
-Required properties:
-- compatible: "hisilicon,hip04-ppe", "syscon".
-- reg: address and length of the register set for the device.
-
-
 * MDIO bus node:
 
 Required properties:

@@ -794,8 +794,8 @@ static int tps23881_i2c_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id tps23881_id[] = {
-	{ "tps23881", 0 },
-	{ },
+	{ "tps23881" },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, tps23881_id);
 

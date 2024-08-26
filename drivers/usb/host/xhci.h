@@ -17,6 +17,7 @@
 #include <linux/kernel.h>
 #include <linux/usb/hcd.h>
 #include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-nonatomic-hi-lo.h>
 
 /* Code sharing between pci-quirks and xhci hcd */
 #include	"xhci-ext-caps.h"
@@ -805,12 +806,18 @@ struct xhci_transfer_event {
 	__le32	flags;
 };
 
-/* Transfer event TRB length bit mask */
-/* bits 0:23 */
-#define	EVENT_TRB_LEN(p)		((p) & 0xffffff)
+/* Transfer event flags bitfield, also for select command completion events */
+#define TRB_TO_SLOT_ID(p)	(((p) >> 24) & 0xff)
+#define SLOT_ID_FOR_TRB(p)	(((p) & 0xff) << 24)
 
-/** Transfer Event bit fields **/
-#define	TRB_TO_EP_ID(p)	(((p) >> 16) & 0x1f)
+#define TRB_TO_EP_ID(p)		(((p) >> 16) & 0x1f) /* Endpoint ID 1 - 31 */
+#define EP_ID_FOR_TRB(p)	(((p) & 0x1f) << 16)
+
+#define TRB_TO_EP_INDEX(p)	(TRB_TO_EP_ID(p) - 1) /* Endpoint index 0 - 30 */
+#define EP_INDEX_FOR_TRB(p)	((((p) + 1) & 0x1f) << 16)
+
+/* Transfer event TRB length bit mask */
+#define	EVENT_TRB_LEN(p)		((p) & 0xffffff)
 
 /* Completion Code - only applicable for some types of TRBs */
 #define	COMP_CODE_MASK		(0xff << 24)
@@ -950,8 +957,6 @@ struct xhci_event_cmd {
 	__le32 flags;
 };
 
-/* flags bitmasks */
-
 /* Address device - disable SetAddress */
 #define TRB_BSR		(1<<9)
 
@@ -987,13 +992,8 @@ enum xhci_setup_dev {
 
 /* bits 16:23 are the virtual function ID */
 /* bits 24:31 are the slot ID */
-#define TRB_TO_SLOT_ID(p)	(((p) & (0xff<<24)) >> 24)
-#define SLOT_ID_FOR_TRB(p)	(((p) & 0xff) << 24)
 
 /* Stop Endpoint TRB - ep_index to endpoint ID for this TRB */
-#define TRB_TO_EP_INDEX(p)		((((p) & (0x1f << 16)) >> 16) - 1)
-#define	EP_ID_FOR_TRB(p)		((((p) + 1) & 0x1f) << 16)
-
 #define SUSPEND_PORT_FOR_TRB(p)		(((p) & 1) << 23)
 #define TRB_TO_SUSPEND_PORT(p)		(((p) & (1 << 23)) >> 23)
 #define LAST_EP_INDEX			30
@@ -1276,6 +1276,7 @@ enum xhci_cancelled_td_status {
 	TD_DIRTY = 0,
 	TD_HALTED,
 	TD_CLEARING_CACHE,
+	TD_CLEARING_CACHE_DEFERRED,
 	TD_CLEARED,
 };
 
@@ -1293,7 +1294,6 @@ struct xhci_td {
 	/* actual_length of the URB has already been set */
 	bool			urb_length_set;
 	bool			error_mid_td;
-	unsigned int		num_trbs;
 };
 
 /*
@@ -1376,8 +1376,6 @@ struct xhci_erst {
 	unsigned int		num_entries;
 	/* xhci->event_ring keeps track of segment dma addresses */
 	dma_addr_t		erst_dma_addr;
-	/* Num entries the ERST can contain */
-	unsigned int		erst_size;
 };
 
 struct xhci_scratchpad {
@@ -1392,8 +1390,8 @@ struct urb_priv {
 	struct	xhci_td	td[] __counted_by(num_tds);
 };
 
-/* Reasonable limit for number of Event Ring segments (spec allows 32k) */
-#define	ERST_MAX_SEGS	2
+/* Number of Event Ring segments to allocate, when amount is not specified. (spec allows 32k) */
+#define	ERST_DEFAULT_SEGS	2
 /* Poll every 60 seconds */
 #define	POLL_TIMEOUT	60
 /* Stop endpoint command timeout (secs) for URB cancellation watchdog timer */
@@ -1451,6 +1449,7 @@ struct xhci_port_cap {
 	u8			psi_uid_count;
 	u8			maj_rev;
 	u8			min_rev;
+	u32			protocol_caps;
 };
 
 struct xhci_port {
@@ -1589,7 +1588,7 @@ struct xhci_hcd {
 #define XHCI_RESET_ON_RESUME	BIT_ULL(7)
 #define	XHCI_SW_BW_CHECKING	BIT_ULL(8)
 #define XHCI_AMD_0x96_HOST	BIT_ULL(9)
-#define XHCI_TRUST_TX_LENGTH	BIT_ULL(10)
+#define XHCI_TRUST_TX_LENGTH	BIT_ULL(10) /* Deprecated */
 #define XHCI_LPM_SUPPORT	BIT_ULL(11)
 #define XHCI_INTEL_HOST		BIT_ULL(12)
 #define XHCI_SPURIOUS_REBOOT	BIT_ULL(13)
@@ -1628,6 +1627,7 @@ struct xhci_hcd {
 #define XHCI_RESET_TO_DEFAULT	BIT_ULL(44)
 #define XHCI_ZHAOXIN_TRB_FETCH	BIT_ULL(45)
 #define XHCI_ZHAOXIN_HOST	BIT_ULL(46)
+#define XHCI_WRITE_64_HI_LO	BIT_ULL(47)
 
 	unsigned int		num_active_eps;
 	unsigned int		limit_active_eps;
@@ -1640,9 +1640,6 @@ struct xhci_hcd {
 	unsigned		broken_suspend:1;
 	/* Indicates that omitting hcd is supported if root hub has no ports */
 	unsigned		allow_single_roothub:1;
-	/* cached usb2 extened protocol capabilites */
-	u32                     *ext_caps;
-	unsigned int            num_ext_caps;
 	/* cached extended protocol port capabilities */
 	struct xhci_port_cap	*port_caps;
 	unsigned int		num_port_caps;
@@ -1729,8 +1726,6 @@ static inline bool xhci_has_one_roothub(struct xhci_hcd *xhci)
 	dev_err(xhci_to_hcd(xhci)->self.controller , fmt , ## args)
 #define xhci_warn(xhci, fmt, args...) \
 	dev_warn(xhci_to_hcd(xhci)->self.controller , fmt , ## args)
-#define xhci_warn_ratelimited(xhci, fmt, args...) \
-	dev_warn_ratelimited(xhci_to_hcd(xhci)->self.controller , fmt , ## args)
 #define xhci_info(xhci, fmt, args...) \
 	dev_info(xhci_to_hcd(xhci)->self.controller , fmt , ## args)
 
@@ -1754,9 +1749,12 @@ static inline void xhci_write_64(struct xhci_hcd *xhci,
 	lo_hi_writeq(val, regs);
 }
 
-static inline int xhci_link_trb_quirk(struct xhci_hcd *xhci)
+
+/* Link TRB chain should always be set on 0.95 hosts, and AMD 0.96 ISOC rings */
+static inline bool xhci_link_chain_quirk(struct xhci_hcd *xhci, enum xhci_ring_type type)
 {
-	return xhci->quirks & XHCI_LINK_TRB_QUIRK;
+	return (xhci->quirks & XHCI_LINK_TRB_QUIRK) ||
+	       (type == TYPE_ISOC && (xhci->quirks & XHCI_AMD_0x96_HOST));
 }
 
 /* xHCI debugging */
@@ -1833,7 +1831,7 @@ struct xhci_container_ctx *xhci_alloc_container_ctx(struct xhci_hcd *xhci,
 void xhci_free_container_ctx(struct xhci_hcd *xhci,
 		struct xhci_container_ctx *ctx);
 struct xhci_interrupter *
-xhci_create_secondary_interrupter(struct usb_hcd *hcd, int num_seg);
+xhci_create_secondary_interrupter(struct usb_hcd *hcd, unsigned int segs);
 void xhci_remove_secondary_interrupter(struct usb_hcd
 				       *hcd, struct xhci_interrupter *ir);
 
@@ -1876,9 +1874,8 @@ int xhci_alloc_tt_info(struct xhci_hcd *xhci,
 
 /* xHCI ring, segment, TRB, and TD functions */
 dma_addr_t xhci_trb_virt_to_dma(struct xhci_segment *seg, union xhci_trb *trb);
-struct xhci_segment *trb_in_td(struct xhci_hcd *xhci,
-		struct xhci_segment *start_seg, union xhci_trb *start_trb,
-		union xhci_trb *end_trb, dma_addr_t suspect_dma, bool debug);
+struct xhci_segment *trb_in_td(struct xhci_hcd *xhci, struct xhci_td *td,
+			       dma_addr_t suspect_dma, bool debug);
 int xhci_is_vendor_info_code(struct xhci_hcd *xhci, unsigned int trb_comp_code);
 void xhci_ring_cmd_db(struct xhci_hcd *xhci);
 int xhci_queue_slot_control(struct xhci_hcd *xhci, struct xhci_command *cmd,
@@ -2027,8 +2024,7 @@ static inline const char *xhci_decode_trb(char *str, size_t size,
 			field1, field0,
 			xhci_trb_comp_code_string(GET_COMP_CODE(field2)),
 			EVENT_TRB_LEN(field2), TRB_TO_SLOT_ID(field3),
-			/* Macro decrements 1, maybe it shouldn't?!? */
-			TRB_TO_EP_INDEX(field3) + 1,
+			TRB_TO_EP_ID(field3),
 			xhci_trb_type_string(type),
 			field3 & EVENT_DATA ? 'E' : 'e',
 			field3 & TRB_CYCLE ? 'C' : 'c');
@@ -2143,8 +2139,7 @@ static inline const char *xhci_decode_trb(char *str, size_t size,
 			xhci_trb_type_string(type),
 			field1, field0,
 			TRB_TO_SLOT_ID(field3),
-			/* Macro decrements 1, maybe it shouldn't?!? */
-			TRB_TO_EP_INDEX(field3) + 1,
+			TRB_TO_EP_ID(field3),
 			field3 & TRB_TSP ? 'T' : 't',
 			field3 & TRB_CYCLE ? 'C' : 'c');
 		break;
@@ -2154,8 +2149,7 @@ static inline const char *xhci_decode_trb(char *str, size_t size,
 			xhci_trb_type_string(type),
 			TRB_TO_SLOT_ID(field3),
 			TRB_TO_SUSPEND_PORT(field3),
-			/* Macro decrements 1, maybe it shouldn't?!? */
-			TRB_TO_EP_INDEX(field3) + 1,
+			TRB_TO_EP_ID(field3),
 			field3 & TRB_CYCLE ? 'C' : 'c');
 		break;
 	case TRB_SET_DEQ:
@@ -2165,8 +2159,7 @@ static inline const char *xhci_decode_trb(char *str, size_t size,
 			field1, field0,
 			TRB_TO_STREAM_ID(field2),
 			TRB_TO_SLOT_ID(field3),
-			/* Macro decrements 1, maybe it shouldn't?!? */
-			TRB_TO_EP_INDEX(field3) + 1,
+			TRB_TO_EP_ID(field3),
 			field3 & TRB_CYCLE ? 'C' : 'c');
 		break;
 	case TRB_RESET_DEV:
@@ -2340,7 +2333,12 @@ static inline const char *xhci_decode_portsc(char *str, u32 portsc)
 {
 	int ret;
 
-	ret = sprintf(str, "%s %s %s Link:%s PortSpeed:%d ",
+	ret = sprintf(str, "0x%08x ", portsc);
+
+	if (portsc == ~(u32)0)
+		return str;
+
+	ret += sprintf(str + ret, "%s %s %s Link:%s PortSpeed:%d ",
 		      portsc & PORT_POWER	? "Powered" : "Powered-off",
 		      portsc & PORT_CONNECT	? "Connected" : "Not-connected",
 		      portsc & PORT_PE		? "Enabled" : "Disabled",

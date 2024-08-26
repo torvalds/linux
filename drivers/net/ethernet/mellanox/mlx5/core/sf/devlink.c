@@ -161,6 +161,7 @@ int mlx5_devlink_sf_port_fn_state_get(struct devlink_port *dl_port,
 static int mlx5_sf_activate(struct mlx5_core_dev *dev, struct mlx5_sf *sf,
 			    struct netlink_ext_ack *extack)
 {
+	struct mlx5_vport *vport;
 	int err;
 
 	if (mlx5_sf_is_active(sf))
@@ -170,6 +171,13 @@ static int mlx5_sf_activate(struct mlx5_core_dev *dev, struct mlx5_sf *sf,
 		return -EBUSY;
 	}
 
+	vport = mlx5_devlink_port_vport_get(&sf->dl_port.dl_port);
+	if (!vport->max_eqs_set && MLX5_CAP_GEN_2(dev, max_num_eqs_24b)) {
+		err = mlx5_devlink_port_fn_max_io_eqs_set_sf_default(&sf->dl_port.dl_port,
+								     extack);
+		if (err)
+			return err;
+	}
 	err = mlx5_cmd_sf_enable_hca(dev, sf->hw_fn_id);
 	if (err)
 		return err;
@@ -318,7 +326,11 @@ int mlx5_devlink_sf_port_new(struct devlink *devlink,
 
 static void mlx5_sf_dealloc(struct mlx5_sf_table *table, struct mlx5_sf *sf)
 {
+	struct mlx5_vport *vport;
+
 	mutex_lock(&table->sf_state_lock);
+	vport = mlx5_devlink_port_vport_get(&sf->dl_port.dl_port);
+	vport->max_eqs_set = false;
 
 	mlx5_sf_function_id_erase(table, sf);
 

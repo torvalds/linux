@@ -79,7 +79,7 @@ int with_invalid_ctx_access_test5(struct bpf_nf_ctx *ctx)
 	return NF_ACCEPT;
 }
 
-extern int bpf_dynptr_from_skb(struct sk_buff *skb, __u64 flags,
+extern int bpf_dynptr_from_skb(struct __sk_buff *skb, __u64 flags,
                                struct bpf_dynptr *ptr__uninit) __ksym;
 extern void *bpf_dynptr_slice(const struct bpf_dynptr *ptr, uint32_t offset,
                                    void *buffer, uint32_t buffer__sz) __ksym;
@@ -90,8 +90,8 @@ __success __failure_unpriv
 __retval(0)
 int with_valid_ctx_access_test6(struct bpf_nf_ctx *ctx)
 {
+	struct __sk_buff *skb = (struct __sk_buff *)ctx->skb;
 	const struct nf_hook_state *state = ctx->state;
-	struct sk_buff *skb = ctx->skb;
 	const struct iphdr *iph;
 	const struct tcphdr *th;
 	u8 buffer_iph[20] = {};
@@ -99,7 +99,7 @@ int with_valid_ctx_access_test6(struct bpf_nf_ctx *ctx)
 	struct bpf_dynptr ptr;
 	uint8_t ihl;
 
-	if (skb->len <= 20 || bpf_dynptr_from_skb(skb, 0, &ptr))
+	if (ctx->skb->len <= 20 || bpf_dynptr_from_skb(skb, 0, &ptr))
 		return NF_ACCEPT;
 
 	iph = bpf_dynptr_slice(&ptr, 0, buffer_iph, sizeof(buffer_iph));

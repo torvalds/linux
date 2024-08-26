@@ -6,6 +6,7 @@
 #ifndef _XE_GUC_KLV_HELPERS_H_
 #define _XE_GUC_KLV_HELPERS_H_
 
+#include <linux/args.h>
 #include <linux/types.h>
 
 struct drm_printer;
@@ -38,6 +39,18 @@ int xe_guc_klv_count(const u32 *klvs, u32 num_dwords);
 	 FIELD_PREP_CONST(GUC_KLV_0_LEN, (len)))
 
 /**
+ * MAKE_GUC_KLV_KEY - Prepare KLV KEY name based on unique KLV definition tag.
+ * @TAG: unique tag of the KLV definition
+ */
+#define MAKE_GUC_KLV_KEY(TAG) CONCATENATE(CONCATENATE(GUC_KLV_, TAG), _KEY)
+
+/**
+ * MAKE_GUC_KLV_LEN - Prepare KLV LEN name based on unique KLV definition tag.
+ * @TAG: unique tag of the KLV definition
+ */
+#define MAKE_GUC_KLV_LEN(TAG) CONCATENATE(CONCATENATE(GUC_KLV_, TAG), _LEN)
+
+/**
  * PREP_GUC_KLV_TAG - Prepare KLV header value based on unique KLV definition tag.
  * @TAG: unique tag of the KLV definition
  *
@@ -46,6 +59,6 @@ int xe_guc_klv_count(const u32 *klvs, u32 num_dwords);
  * Return: value of the KLV header (u32).
  */
 #define PREP_GUC_KLV_TAG(TAG) \
-	PREP_GUC_KLV_CONST(GUC_KLV_##TAG##_KEY, GUC_KLV_##TAG##_LEN)
+	PREP_GUC_KLV_CONST(MAKE_GUC_KLV_KEY(TAG), MAKE_GUC_KLV_LEN(TAG))
 
 #endif

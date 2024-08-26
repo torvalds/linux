@@ -195,7 +195,7 @@ static int get_trip_temp(int trip)
 }
 
 static int update_trip_temp(struct soc_sensor_entry *aux_entry,
-				int trip, int temp)
+				int trip_index, int temp)
 {
 	u32 out;
 	u32 temp_out;
@@ -230,9 +230,9 @@ static int update_trip_temp(struct soc_sensor_entry *aux_entry,
 	 */
 	temp_out = temp + QRK_DTS_TEMP_BASE;
 	out = (store_ptps & ~(QRK_DTS_MASK_TP_THRES <<
-		(trip * QRK_DTS_SHIFT_TP)));
+		(trip_index * QRK_DTS_SHIFT_TP)));
 	out |= (temp_out & QRK_DTS_MASK_TP_THRES) <<
-		(trip * QRK_DTS_SHIFT_TP);
+		(trip_index * QRK_DTS_SHIFT_TP);
 
 	ret = iosf_mbi_write(QRK_MBI_UNIT_RMU, MBI_REG_WRITE,
 			     QRK_DTS_REG_OFFSET_PTPS, out);
@@ -242,10 +242,26 @@ failed:
 	return ret;
 }
 
-static inline int sys_set_trip_temp(struct thermal_zone_device *tzd, int trip,
-				int temp)
+static inline int sys_set_trip_temp(struct thermal_zone_device *tzd,
+				    const struct thermal_trip *trip,
+				    int temp)
 {
-	return update_trip_temp(thermal_zone_device_priv(tzd), trip, temp);
+	unsigned int trip_index;
+
+	switch (trip->type) {
+	case THERMAL_TRIP_HOT:
+		trip_index = QRK_DTS_ID_TP_HOT;
+		break;
+
+	case THERMAL_TRIP_CRITICAL:
+		trip_index = QRK_DTS_ID_TP_CRITICAL;
+		break;
+
+	default:
+		return -EINVAL;
+	}
+
+	return update_trip_temp(thermal_zone_device_priv(tzd), trip_index, temp);
 }
 
 static int sys_get_curr_temp(struct thermal_zone_device *tzd,

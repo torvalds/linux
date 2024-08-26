@@ -1183,7 +1183,7 @@
 			status = "disabled";
 		};
 
-		thermal: thermal@1100b000 {
+		thermal: thermal-sensor@1100b000 {
 			#thermal-sensor-cells = <1>;
 			compatible = "mediatek,mt8183-thermal";
 			reg = <0 0x1100b000 0 0xc00>;
@@ -2090,61 +2090,129 @@
 			};
 		};
 
-		/* The tzts1 ~ tzts6 don't need to polling */
-		/* The tzts1 ~ tzts6 don't need to thermal throttle */
-
-		tzts1: tzts1 {
-			polling-delay-passive = <0>;
-			polling-delay = <0>;
+		tzts1: soc-thermal {
+			polling-delay = <1000>;
+			polling-delay-passive = <250>;
 			thermal-sensors = <&thermal 1>;
 			sustainable-power = <5000>;
-			trips {};
-			cooling-maps {};
+			trips {
+				soc_alert: trip-alert {
+					temperature = <85000>;
+					hysteresis = <2000>;
+					type = "passive";
+				};
+
+				soc_crit: trip-crit {
+					temperature = <100000>;
+					hysteresis = <2000>;
+					type = "critical";
+				};
+			};
 		};
 
-		tzts2: tzts2 {
-			polling-delay-passive = <0>;
-			polling-delay = <0>;
+		tzts2: gpu-thermal {
+			polling-delay = <1000>;
+			polling-delay-passive = <250>;
 			thermal-sensors = <&thermal 2>;
 			sustainable-power = <5000>;
-			trips {};
-			cooling-maps {};
+
+			trips {
+				gpu_alert: trip-alert {
+					temperature = <85000>;
+					hysteresis = <2000>;
+					type = "passive";
+				};
+
+				gpu_crit: trip-crit {
+					temperature = <100000>;
+					hysteresis = <2000>;
+					type = "critical";
+				};
+			};
 		};
 
-		tzts3: tzts3 {
-			polling-delay-passive = <0>;
-			polling-delay = <0>;
+		tzts3: md1-thermal {
+			polling-delay = <1000>;
+			polling-delay-passive = <250>;
 			thermal-sensors = <&thermal 3>;
 			sustainable-power = <5000>;
-			trips {};
-			cooling-maps {};
+
+			trips {
+				md1_alert: trip-alert {
+					temperature = <85000>;
+					hysteresis = <2000>;
+					type = "passive";
+				};
+
+				md1_crit: trip-crit {
+					temperature = <100000>;
+					hysteresis = <2000>;
+					type = "critical";
+				};
+			};
 		};
 
-		tzts4: tzts4 {
-			polling-delay-passive = <0>;
-			polling-delay = <0>;
+		tzts4: cpu-little-thermal {
+			polling-delay = <1000>;
+			polling-delay-passive = <250>;
 			thermal-sensors = <&thermal 4>;
 			sustainable-power = <5000>;
-			trips {};
-			cooling-maps {};
+
+			trips {
+				cpul_alert: trip-alert {
+					temperature = <85000>;
+					hysteresis = <2000>;
+					type = "passive";
+				};
+
+				cpul_crit: trip-crit {
+					temperature = <100000>;
+					hysteresis = <2000>;
+					type = "critical";
+				};
+			};
 		};
 
-		tzts5: tzts5 {
-			polling-delay-passive = <0>;
-			polling-delay = <0>;
+		tzts5: cpu-big-thermal {
+			polling-delay = <1000>;
+			polling-delay-passive = <250>;
 			thermal-sensors = <&thermal 5>;
 			sustainable-power = <5000>;
-			trips {};
-			cooling-maps {};
+
+			trips {
+				cpub_alert: trip-alert {
+					temperature = <85000>;
+					hysteresis = <2000>;
+					type = "passive";
+				};
+
+				cpub_crit: trip-crit {
+					temperature = <100000>;
+					hysteresis = <2000>;
+					type = "critical";
+				};
+			};
 		};
 
-		tztsABB: tztsABB {
-			polling-delay-passive = <0>;
-			polling-delay = <0>;
+		tztsABB: tsabb-thermal {
+			polling-delay = <1000>;
+			polling-delay-passive = <250>;
 			thermal-sensors = <&thermal 6>;
 			sustainable-power = <5000>;
-			trips {};
-			cooling-maps {};
+
+			trips {
+				tsabb_alert: trip-alert {
+					temperature = <85000>;
+					hysteresis = <2000>;
+					type = "passive";
+				};
+
+				tsabb_crit: trip-crit {
+					temperature = <100000>;
+					hysteresis = <2000>;
+					type = "critical";
+				};
+			};
 		};
 	};
 };

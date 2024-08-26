@@ -290,4 +290,5 @@ static void __exit altera_msi_exit(void)
 subsys_initcall(altera_msi_init);
 MODULE_DEVICE_TABLE(of, altera_msi_of_match);
 module_exit(altera_msi_exit);
+MODULE_DESCRIPTION("Altera PCIe MSI support driver");
 MODULE_LICENSE("GPL v2");

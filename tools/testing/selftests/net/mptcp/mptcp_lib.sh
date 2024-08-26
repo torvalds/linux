@@ -1,6 +1,9 @@
 #! /bin/bash
 # SPDX-License-Identifier: GPL-2.0
 
+. "$(dirname "${0}")/../lib.sh"
+. "$(dirname "${0}")/../net_helper.sh"
+
 readonly KSFT_PASS=0
 readonly KSFT_FAIL=1
 readonly KSFT_SKIP=4
@@ -21,6 +24,7 @@ declare -rx MPTCP_LIB_AF_INET6=10
 
 MPTCP_LIB_SUBTESTS=()
 MPTCP_LIB_SUBTESTS_DUPLICATED=0
+MPTCP_LIB_SUBTEST_FLAKY=0
 MPTCP_LIB_TEST_COUNTER=0
 MPTCP_LIB_TEST_FORMAT="%02u %-50s"
 MPTCP_LIB_IP_MPTCP=0
@@ -40,6 +44,16 @@ else
 	readonly MPTCP_LIB_COLOR_BLUE=
 	readonly MPTCP_LIB_COLOR_RESET=
 fi
+
+# SELFTESTS_MPTCP_LIB_OVERRIDE_FLAKY env var can be set not to ignore errors
+# from subtests marked as flaky
+mptcp_lib_override_flaky() {
+	[ "${SELFTESTS_MPTCP_LIB_OVERRIDE_FLAKY:-}" = 1 ]
+}
+
+mptcp_lib_subtest_is_flaky() {
+	[ "${MPTCP_LIB_SUBTEST_FLAKY}" = 1 ] && ! mptcp_lib_override_flaky
+}
 
 # $1: color, $2: text
 mptcp_lib_print_color() {
@@ -72,7 +86,16 @@ mptcp_lib_pr_skip() {
 }
 
 mptcp_lib_pr_fail() {
-	mptcp_lib_print_err "[FAIL]${1:+ ${*}}"
+	local title cmt
+
+	if mptcp_lib_subtest_is_flaky; then
+		title="IGNO"
+		cmt=" (flaky)"
+	else
+		title="FAIL"
+	fi
+
+	mptcp_lib_print_err "[${title}]${cmt}${1:+ ${*}}"
 }
 
 mptcp_lib_pr_info() {
@@ -208,7 +231,13 @@ mptcp_lib_result_pass() {
 
 # $1: test name
 mptcp_lib_result_fail() {
-	__mptcp_lib_result_add "not ok" "${1}"
+	if mptcp_lib_subtest_is_flaky; then
+		# It might sound better to use 'not ok # TODO' or 'ok # SKIP',
+		# but some CIs don't understand 'TODO' and treat SKIP as errors.
+		__mptcp_lib_result_add "ok" "${1} # IGNORE Flaky"
+	else
+		__mptcp_lib_result_add "not ok" "${1}"
+	fi
 }
 
 # $1: test name
@@ -335,20 +364,7 @@ mptcp_lib_check_transfer() {
 
 # $1: ns, $2: port
 mptcp_lib_wait_local_port_listen() {
-	local listener_ns="${1}"
-	local port="${2}"
-
-	local port_hex
-	port_hex="$(printf "%04X" "${port}")"
-
-	local _
-	for _ in $(seq 10); do
-		ip netns exec "${listener_ns}" cat /proc/net/tcp* | \
-			awk "BEGIN {rc=1} {if (\$2 ~ /:${port_hex}\$/ && \$4 ~ /0A/) \
-			     {rc=0; exit}} END {exit rc}" &&
-			break
-		sleep 0.1
-	done
+	wait_local_port_listen "${@}" "tcp"
 }
 
 mptcp_lib_check_output() {
@@ -412,17 +428,13 @@ mptcp_lib_check_tools() {
 }
 
 mptcp_lib_ns_init() {
-	local sec rndh
-
-	sec=$(date +%s)
-	rndh=$(printf %x "${sec}")-$(mktemp -u XXXXXX)
+	if ! setup_ns "${@}"; then
+		mptcp_lib_pr_fail "Failed to setup namespaces ${*}"
+		exit ${KSFT_FAIL}
+	fi
 
 	local netns
 	for netns in "${@}"; do
-		eval "${netns}=${netns}-${rndh}"
-
-		ip netns add "${!netns}" || exit ${KSFT_SKIP}
-		ip -net "${!netns}" link set lo up
 		ip netns exec "${!netns}" sysctl -q net.mptcp.enabled=1
 		ip netns exec "${!netns}" sysctl -q net.ipv4.conf.all.rp_filter=0
 		ip netns exec "${!netns}" sysctl -q net.ipv4.conf.default.rp_filter=0
@@ -430,9 +442,10 @@ mptcp_lib_ns_init() {
 }
 
 mptcp_lib_ns_exit() {
+	cleanup_ns "${@}"
+
 	local netns
 	for netns in "${@}"; do
-		ip netns del "${netns}"
 		rm -f /tmp/"${netns}".{nstat,out}
 	done
 }

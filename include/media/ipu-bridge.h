@@ -3,6 +3,7 @@
 #ifndef __IPU_BRIDGE_H
 #define __IPU_BRIDGE_H
 
+#include <linux/mod_devicetable.h>
 #include <linux/property.h>
 #include <linux/types.h>
 #include <media/v4l2-fwnode.h>

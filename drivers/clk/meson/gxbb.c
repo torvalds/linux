@@ -3567,6 +3567,7 @@ static struct platform_driver gxbb_driver = {
 		.of_match_table = clkc_match_table,
 	},
 };
-
 module_platform_driver(gxbb_driver);
-MODULE_LICENSE("GPL v2");
+
+MODULE_DESCRIPTION("Amlogic GXBB Main Clock Controller driver");
+MODULE_LICENSE("GPL");

@@ -1537,7 +1537,8 @@ static void pnv_ioda_setup_bus_dma(struct pnv_ioda_pe *pe, struct pci_bus *bus)
 	}
 }
 
-static long pnv_ioda2_take_ownership(struct iommu_table_group *table_group)
+static long pnv_ioda2_take_ownership(struct iommu_table_group *table_group,
+				     struct device *dev __maybe_unused)
 {
 	struct pnv_ioda_pe *pe = container_of(table_group, struct pnv_ioda_pe,
 						table_group);
@@ -1562,7 +1563,8 @@ static long pnv_ioda2_take_ownership(struct iommu_table_group *table_group)
 	return 0;
 }
 
-static void pnv_ioda2_release_ownership(struct iommu_table_group *table_group)
+static void pnv_ioda2_release_ownership(struct iommu_table_group *table_group,
+					struct device *dev __maybe_unused)
 {
 	struct pnv_ioda_pe *pe = container_of(table_group, struct pnv_ioda_pe,
 						table_group);

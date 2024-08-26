@@ -155,7 +155,7 @@ static int arc_ps2_create_port(struct platform_device *pdev,
 	struct arc_ps2_port *port = &arc_ps2->port[index];
 	struct serio *io;
 
-	io = kzalloc(sizeof(struct serio), GFP_KERNEL);
+	io = kzalloc(sizeof(*io), GFP_KERNEL);
 	if (!io)
 		return -ENOMEM;
 

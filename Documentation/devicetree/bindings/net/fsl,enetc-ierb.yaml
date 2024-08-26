@@ -1,0 +1,38 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/net/fsl,enetc-ierb.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Integrated Endpoint Register Block
+
+description:
+  The fsl_enetc driver can probe on the Integrated Endpoint Register Block,
+  which preconfigures the FIFO limits for the ENETC ports.
+
+maintainers:
+  - Frank Li <Frank.Li@nxp.com>
+  - Vladimir Oltean <vladimir.oltean@nxp.com>
+  - Wei Fang <wei.fang@nxp.com>
+  - Claudiu Manoil <claudiu.manoil@nxp.com>
+
+properties:
+  compatible:
+    enum:
+      - fsl,ls1028a-enetc-ierb
+
+  reg:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    endpoint-config@f0800000 {
+        compatible = "fsl,ls1028a-enetc-ierb";
+        reg = <0xf0800000 0x10000>;
+    };

@@ -74,6 +74,7 @@ static int lance_debug = 1;
 #endif
 module_param(lance_debug, int, 0);
 MODULE_PARM_DESC(lance_debug, "SUN3 Lance debug level (0-3)");
+MODULE_DESCRIPTION("Sun3/Sun3x on-board LANCE Ethernet driver");
 MODULE_LICENSE("GPL");
 
 #define	DPRINTK(n,a) \

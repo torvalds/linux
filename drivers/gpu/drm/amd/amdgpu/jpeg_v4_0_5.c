@@ -187,11 +187,10 @@ static int jpeg_v4_0_5_hw_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	struct amdgpu_ring *ring;
-	int r, i;
+	int i, r = 0;
 
 	// TODO: Enable ring test with DPG support
 	if (adev->pg_flags & AMD_PG_SUPPORT_JPEG_DPG) {
-		DRM_DEV_INFO(adev->dev, "JPEG decode initialized successfully under DPG Mode");
 		return 0;
 	}
 
@@ -204,9 +203,6 @@ static int jpeg_v4_0_5_hw_init(void *handle)
 		if (r)
 			return r;
 	}
-
-	if (!r)
-		DRM_INFO("JPEG decode initialized successfully under SPG Mode\n");
 
 	return 0;
 }
@@ -805,7 +801,6 @@ static void jpeg_v4_0_5_set_dec_ring_funcs(struct amdgpu_device *adev)
 
 		adev->jpeg.inst[i].ring_dec->funcs = &jpeg_v4_0_5_dec_ring_vm_funcs;
 		adev->jpeg.inst[i].ring_dec->me = i;
-		DRM_DEV_INFO(adev->dev, "JPEG%d decode is enabled in VM mode\n", i);
 	}
 }
 

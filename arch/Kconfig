@@ -60,9 +60,9 @@ config GENERIC_ENTRY
 
 config KPROBES
 	bool "Kprobes"
-	depends on MODULES
 	depends on HAVE_KPROBES
 	select KALLSYMS
+	select EXECMEM
 	select NEED_TASKS_RCU
 	help
 	  Kprobes allows you to trap at almost any kernel address and
@@ -977,6 +977,14 @@ config ARCH_WANTS_MODULES_DATA_IN_VMALLOC
 	  For architectures like powerpc/32 which have constraints on module
 	  allocation and need to allocate module data outside of module area.
 
+config ARCH_WANTS_EXECMEM_LATE
+	bool
+	help
+	  For architectures that do not allocate executable memory early on
+	  boot, but rather require its initialization late when there is
+	  enough entropy for module space randomization, for instance
+	  arm64.
+
 config HAVE_IRQ_EXIT_ON_IRQ_STACK
 	bool
 	help
@@ -1585,6 +1593,12 @@ config ARCH_HAS_NONLEAF_PMD_YOUNG
 	  accessed bit in non-leaf PMD entries when using them as part of linear
 	  address translations. Page table walkers that clear the accessed bit
 	  may use this capability to reduce their search space.
+
+config ARCH_HAS_KERNEL_FPU_SUPPORT
+	bool
+	help
+	  Architectures that select this option can run floating-point code in
+	  the kernel, as described in Documentation/core-api/floating-point.rst.
 
 source "kernel/gcov/Kconfig"
 

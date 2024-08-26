@@ -42,7 +42,7 @@ void emac_update_hardware_stats(struct prueth_emac *emac)
 	}
 }
 
-void emac_stats_work_handler(struct work_struct *work)
+void icssg_stats_work_handler(struct work_struct *work)
 {
 	struct prueth_emac *emac = container_of(work, struct prueth_emac,
 						stats_work.work);
@@ -51,6 +51,7 @@ void emac_stats_work_handler(struct work_struct *work)
 	queue_delayed_work(system_long_wq, &emac->stats_work,
 			   msecs_to_jiffies((STATS_TIME_LIMIT_1G_MS * 1000) / emac->speed));
 }
+EXPORT_SYMBOL_GPL(icssg_stats_work_handler);
 
 int emac_get_stat_by_name(struct prueth_emac *emac, char *stat_name)
 {

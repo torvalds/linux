@@ -246,11 +246,11 @@ static int hda_sdw_exit(struct snd_sof_dev *sdev)
 
 	hdev = sdev->pdata->hw_pdata;
 
-	hda_sdw_int_enable(sdev, false);
-
 	if (hdev->sdw)
 		sdw_intel_exit(hdev->sdw);
 	hdev->sdw = NULL;
+
+	hda_sdw_int_enable(sdev, false);
 
 	return 0;
 }
@@ -783,8 +783,8 @@ int hda_dsp_probe_early(struct snd_sof_dev *sdev)
 				pci->class);
 			return -ENODEV;
 		}
-		dev_info(sdev->dev, "DSP detected with PCI class/subclass/prog-if 0x%06x\n",
-			 pci->class);
+		dev_info_once(sdev->dev, "DSP detected with PCI class/subclass/prog-if 0x%06x\n",
+			      pci->class);
 	}
 
 	chip = get_chip_info(sdev->pdata);
@@ -1522,6 +1522,7 @@ void hda_unregister_clients(struct snd_sof_dev *sdev)
 }
 
 MODULE_LICENSE("Dual BSD/GPL");
+MODULE_DESCRIPTION("SOF support for HDaudio platforms");
 MODULE_IMPORT_NS(SND_SOC_SOF_PCI_DEV);
 MODULE_IMPORT_NS(SND_SOC_SOF_HDA_AUDIO_CODEC);
 MODULE_IMPORT_NS(SND_SOC_SOF_HDA_AUDIO_CODEC_I915);

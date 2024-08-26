@@ -4,6 +4,7 @@
 #ifdef __KERNEL__
 
 #include <asm/asm-const.h>
+#include <asm/book3s/64/slice.h>
 
 /*
  * Common bits between 4K and 64K pages in a linux-style PTE.
@@ -161,14 +162,10 @@ extern void hpte_need_flush(struct mm_struct *mm, unsigned long addr,
 			    pte_t *ptep, unsigned long pte, int huge);
 unsigned long htab_convert_pte_flags(unsigned long pteflags, unsigned long flags);
 /* Atomic PTE updates */
-static inline unsigned long hash__pte_update(struct mm_struct *mm,
-					 unsigned long addr,
-					 pte_t *ptep, unsigned long clr,
-					 unsigned long set,
-					 int huge)
+static inline unsigned long hash__pte_update_one(pte_t *ptep, unsigned long clr,
+						 unsigned long set)
 {
 	__be64 old_be, tmp_be;
-	unsigned long old;
 
 	__asm__ __volatile__(
 	"1:	ldarx	%0,0,%3		# pte_update\n\
@@ -182,11 +179,40 @@ static inline unsigned long hash__pte_update(struct mm_struct *mm,
 	: "r" (ptep), "r" (cpu_to_be64(clr)), "m" (*ptep),
 	  "r" (cpu_to_be64(H_PAGE_BUSY)), "r" (cpu_to_be64(set))
 	: "cc" );
+
+	return be64_to_cpu(old_be);
+}
+
+static inline unsigned long hash__pte_update(struct mm_struct *mm,
+					 unsigned long addr,
+					 pte_t *ptep, unsigned long clr,
+					 unsigned long set,
+					 int huge)
+{
+	unsigned long old;
+
+	old = hash__pte_update_one(ptep, clr, set);
+
+	if (IS_ENABLED(CONFIG_PPC_4K_PAGES) && huge) {
+		unsigned int psize = get_slice_psize(mm, addr);
+		int nb, i;
+
+		if (psize == MMU_PAGE_16M)
+			nb = SZ_16M / PMD_SIZE;
+		else if (psize == MMU_PAGE_16G)
+			nb = SZ_16G / PUD_SIZE;
+		else
+			nb = 1;
+
+		WARN_ON_ONCE(nb == 1);	/* Should never happen */
+
+		for (i = 1; i < nb; i++)
+			hash__pte_update_one(ptep + i, clr, set);
+	}
 	/* huge pages use the old page table lock */
 	if (!huge)
 		assert_pte_locked(mm, addr);
 
-	old = be64_to_cpu(old_be);
 	if (old & H_PAGE_HASHPTE)
 		hpte_need_flush(mm, addr, ptep, old, huge);
 

@@ -12,6 +12,31 @@ char _license[] SEC("license") = "GPL";
 
 int pid, nr_cpus;
 
+struct kptr_nested {
+	struct bpf_cpumask __kptr * mask;
+};
+
+struct kptr_nested_pair {
+	struct bpf_cpumask __kptr * mask_1;
+	struct bpf_cpumask __kptr * mask_2;
+};
+
+struct kptr_nested_mid {
+	int dummy;
+	struct kptr_nested m;
+};
+
+struct kptr_nested_deep {
+	struct kptr_nested_mid ptrs[2];
+	struct kptr_nested_pair ptr_pairs[3];
+};
+
+private(MASK) static struct bpf_cpumask __kptr * global_mask_array[2];
+private(MASK) static struct bpf_cpumask __kptr * global_mask_array_l2[2][1];
+private(MASK) static struct bpf_cpumask __kptr * global_mask_array_one[1];
+private(MASK) static struct kptr_nested global_mask_nested[2];
+private(MASK_DEEP) static struct kptr_nested_deep global_mask_nested_deep;
+
 static bool is_test_task(void)
 {
 	int cur_pid = bpf_get_current_pid_tgid() >> 32;
@@ -457,6 +482,152 @@ int BPF_PROG(test_global_mask_rcu, struct task_struct *task, u64 clone_flags)
 	bpf_cpumask_test_cpu(0, (const struct cpumask *)local);
 	bpf_rcu_read_unlock();
 
+	return 0;
+}
+
+SEC("tp_btf/task_newtask")
+int BPF_PROG(test_global_mask_array_one_rcu, struct task_struct *task, u64 clone_flags)
+{
+	struct bpf_cpumask *local, *prev;
+
+	if (!is_test_task())
+		return 0;
+
+	/* Kptr arrays with one element are special cased, being treated
+	 * just like a single pointer.
+	 */
+
+	local = create_cpumask();
+	if (!local)
+		return 0;
+
+	prev = bpf_kptr_xchg(&global_mask_array_one[0], local);
+	if (prev) {
+		bpf_cpumask_release(prev);
+		err = 3;
+		return 0;
+	}
+
+	bpf_rcu_read_lock();
+	local = global_mask_array_one[0];
+	if (!local) {
+		err = 4;
+		bpf_rcu_read_unlock();
+		return 0;
+	}
+
+	bpf_rcu_read_unlock();
+
+	return 0;
+}
+
+static int _global_mask_array_rcu(struct bpf_cpumask **mask0,
+				  struct bpf_cpumask **mask1)
+{
+	struct bpf_cpumask *local;
+
+	if (!is_test_task())
+		return 0;
+
+	/* Check if two kptrs in the array work and independently */
+
+	local = create_cpumask();
+	if (!local)
+		return 0;
+
+	bpf_rcu_read_lock();
+
+	local = bpf_kptr_xchg(mask0, local);
+	if (local) {
+		err = 1;
+		goto err_exit;
+	}
+
+	/* [<mask 0>, NULL] */
+	if (!*mask0 || *mask1) {
+		err = 2;
+		goto err_exit;
+	}
+
+	local = create_cpumask();
+	if (!local) {
+		err = 9;
+		goto err_exit;
+	}
+
+	local = bpf_kptr_xchg(mask1, local);
+	if (local) {
+		err = 10;
+		goto err_exit;
+	}
+
+	/* [<mask 0>, <mask 1>] */
+	if (!*mask0 || !*mask1 || *mask0 == *mask1) {
+		err = 11;
+		goto err_exit;
+	}
+
+err_exit:
+	if (local)
+		bpf_cpumask_release(local);
+	bpf_rcu_read_unlock();
+	return 0;
+}
+
+SEC("tp_btf/task_newtask")
+int BPF_PROG(test_global_mask_array_rcu, struct task_struct *task, u64 clone_flags)
+{
+	return _global_mask_array_rcu(&global_mask_array[0], &global_mask_array[1]);
+}
+
+SEC("tp_btf/task_newtask")
+int BPF_PROG(test_global_mask_array_l2_rcu, struct task_struct *task, u64 clone_flags)
+{
+	return _global_mask_array_rcu(&global_mask_array_l2[0][0], &global_mask_array_l2[1][0]);
+}
+
+SEC("tp_btf/task_newtask")
+int BPF_PROG(test_global_mask_nested_rcu, struct task_struct *task, u64 clone_flags)
+{
+	return _global_mask_array_rcu(&global_mask_nested[0].mask, &global_mask_nested[1].mask);
+}
+
+/* Ensure that the field->offset has been correctly advanced from one
+ * nested struct or array sub-tree to another. In the case of
+ * kptr_nested_deep, it comprises two sub-trees: ktpr_1 and kptr_2.  By
+ * calling bpf_kptr_xchg() on every single kptr in both nested sub-trees,
+ * the verifier should reject the program if the field->offset of any kptr
+ * is incorrect.
+ *
+ * For instance, if we have 10 kptrs in a nested struct and a program that
+ * accesses each kptr individually with bpf_kptr_xchg(), the compiler
+ * should emit instructions to access 10 different offsets if it works
+ * correctly. If the field->offset values of any pair of them are
+ * incorrectly the same, the number of unique offsets in btf_record for
+ * this nested struct should be less than 10. The verifier should fail to
+ * discover some of the offsets emitted by the compiler.
+ *
+ * Even if the field->offset values of kptrs are not duplicated, the
+ * verifier should fail to find a btf_field for the instruction accessing a
+ * kptr if the corresponding field->offset is pointing to a random
+ * incorrect offset.
+ */
+SEC("tp_btf/task_newtask")
+int BPF_PROG(test_global_mask_nested_deep_rcu, struct task_struct *task, u64 clone_flags)
+{
+	int r, i;
+
+	r = _global_mask_array_rcu(&global_mask_nested_deep.ptrs[0].m.mask,
+				   &global_mask_nested_deep.ptrs[1].m.mask);
+	if (r)
+		return r;
+
+	for (i = 0; i < 3; i++) {
+		r = _global_mask_array_rcu(&global_mask_nested_deep.ptr_pairs[i].mask_1,
+					   &global_mask_nested_deep.ptr_pairs[i].mask_2);
+		if (r)
+			return r;
+	}
 	return 0;
 }
 

@@ -12,10 +12,8 @@
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/dma-mapping.h>
-#ifdef CONFIG_DEBUG_FS
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
-#endif
 
 #include <drm/drm_print.h>
 
@@ -43,7 +41,6 @@ static int komeda_register_show(struct seq_file *sf, void *x)
 
 DEFINE_SHOW_ATTRIBUTE(komeda_register);
 
-#ifdef CONFIG_DEBUG_FS
 static void komeda_debugfs_init(struct komeda_dev *mdev)
 {
 	if (!debugfs_initialized())
@@ -55,7 +52,6 @@ static void komeda_debugfs_init(struct komeda_dev *mdev)
 	debugfs_create_x16("err_verbosity", 0664, mdev->debugfs_root,
 			   &mdev->err_verbosity);
 }
-#endif
 
 static ssize_t
 core_id_show(struct device *dev, struct device_attribute *attr, char *buf)
@@ -265,9 +261,7 @@ struct komeda_dev *komeda_dev_create(struct device *dev)
 
 	mdev->err_verbosity = KOMEDA_DEV_PRINT_ERR_EVENTS;
 
-#ifdef CONFIG_DEBUG_FS
 	komeda_debugfs_init(mdev);
-#endif
 
 	return mdev;
 
@@ -286,9 +280,7 @@ void komeda_dev_destroy(struct komeda_dev *mdev)
 
 	sysfs_remove_group(&dev->kobj, &komeda_sysfs_attr_group);
 
-#ifdef CONFIG_DEBUG_FS
 	debugfs_remove_recursive(mdev->debugfs_root);
-#endif
 
 	if (mdev->aclk)
 		clk_prepare_enable(mdev->aclk);

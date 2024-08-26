@@ -40,22 +40,23 @@
 #include <asm/setup.h>
 #include <asm/runtime_instr.h>
 #include <asm/irqflags.h>
+#include <asm/alternative.h>
 
 typedef long (*sys_call_ptr_t)(struct pt_regs *regs);
 
 static __always_inline void set_cpu_flag(int flag)
 {
-	S390_lowcore.cpu_flags |= (1UL << flag);
+	get_lowcore()->cpu_flags |= (1UL << flag);
 }
 
 static __always_inline void clear_cpu_flag(int flag)
 {
-	S390_lowcore.cpu_flags &= ~(1UL << flag);
+	get_lowcore()->cpu_flags &= ~(1UL << flag);
 }
 
 static __always_inline bool test_cpu_flag(int flag)
 {
-	return S390_lowcore.cpu_flags & (1UL << flag);
+	return get_lowcore()->cpu_flags & (1UL << flag);
 }
 
 static __always_inline bool test_and_set_cpu_flag(int flag)
@@ -92,12 +93,21 @@ static inline void get_cpu_id(struct cpuid *ptr)
 	asm volatile("stidp %0" : "=Q" (*ptr));
 }
 
+static __always_inline unsigned long get_cpu_timer(void)
+{
+	unsigned long timer;
+
+	asm volatile("stpt	%[timer]" : [timer] "=Q" (timer));
+	return timer;
+}
+
 void s390_adjust_jiffies(void);
 void s390_update_cpu_mhz(void);
 void cpu_detect_mhz_feature(void);
 
 extern const struct seq_operations cpuinfo_op;
 extern void execve_tail(void);
+unsigned long vdso_text_size(void);
 unsigned long vdso_size(void);
 
 /*
@@ -259,7 +269,7 @@ static __always_inline unsigned long __current_stack_pointer(void)
 
 static __always_inline bool on_thread_stack(void)
 {
-	unsigned long ksp = S390_lowcore.kernel_stack;
+	unsigned long ksp = get_lowcore()->kernel_stack;
 
 	return !((ksp ^ current_stack_pointer) & ~(THREAD_SIZE - 1));
 }
@@ -304,8 +314,8 @@ static inline void __load_psw(psw_t psw)
  */
 static __always_inline void __load_psw_mask(unsigned long mask)
 {
+	psw_t psw __uninitialized;
 	unsigned long addr;
-	psw_t psw;
 
 	psw.mask = mask;
 
@@ -391,6 +401,11 @@ static __always_inline void __noreturn disabled_wait(void)
 static __always_inline bool regs_irqs_disabled(struct pt_regs *regs)
 {
 	return arch_irqs_disabled_flags(regs->psw.mask);
+}
+
+static __always_inline void bpon(void)
+{
+	asm volatile(ALTERNATIVE("nop", ".insn	rrf,0xb2e80000,0,0,13,0", 82));
 }
 
 #endif /* __ASSEMBLY__ */

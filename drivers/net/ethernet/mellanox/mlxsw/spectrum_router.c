@@ -11450,12 +11450,16 @@ static int mlxsw_sp_mp_hash_init(struct mlxsw_sp *mlxsw_sp)
 {
 	bool old_inc_parsing_depth, new_inc_parsing_depth;
 	struct mlxsw_sp_mp_hash_config config = {};
+	struct net *net = mlxsw_sp_net(mlxsw_sp);
 	char recr2_pl[MLXSW_REG_RECR2_LEN];
 	unsigned long bit;
 	u32 seed;
 	int err;
 
-	seed = jhash(mlxsw_sp->base_mac, sizeof(mlxsw_sp->base_mac), 0);
+	seed = READ_ONCE(net->ipv4.sysctl_fib_multipath_hash_seed).user_seed;
+	if (!seed)
+		seed = jhash(mlxsw_sp->base_mac, sizeof(mlxsw_sp->base_mac), 0);
+
 	mlxsw_reg_recr2_pack(recr2_pl, seed);
 	mlxsw_sp_mp4_hash_init(mlxsw_sp, &config);
 	mlxsw_sp_mp6_hash_init(mlxsw_sp, &config);

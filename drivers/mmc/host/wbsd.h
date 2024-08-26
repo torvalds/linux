@@ -171,11 +171,11 @@ struct wbsd_host
 	int			irq;		/* Interrupt */
 	int			dma;		/* DMA channel */
 
-	struct tasklet_struct	card_tasklet;	/* Tasklet structures */
-	struct tasklet_struct	fifo_tasklet;
-	struct tasklet_struct	crc_tasklet;
-	struct tasklet_struct	timeout_tasklet;
-	struct tasklet_struct	finish_tasklet;
+	struct work_struct	card_bh_work;	/* Work structures */
+	struct work_struct	fifo_bh_work;
+	struct work_struct	crc_bh_work;
+	struct work_struct	timeout_bh_work;
+	struct work_struct	finish_bh_work;
 
 	struct timer_list	ignore_timer;	/* Ignore detection timer */
 };

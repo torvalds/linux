@@ -60,6 +60,37 @@
 		RREG32_SOC15(JPEG, inst_idx, mmUVD_DPG_LMA_DATA);				\
 	})
 
+#define WREG32_SOC24_JPEG_DPG_MODE(inst_idx, offset, value, indirect)		\
+	do {									\
+		WREG32_SOC15(JPEG, GET_INST(JPEG, inst_idx),			\
+			     regUVD_DPG_LMA_DATA, value);			\
+		WREG32_SOC15(JPEG, GET_INST(JPEG, inst_idx),			\
+			     regUVD_DPG_LMA_MASK, 0xFFFFFFFF);			\
+		WREG32_SOC15(							\
+			JPEG, GET_INST(JPEG, inst_idx),				\
+			regUVD_DPG_LMA_CTL,					\
+			(UVD_DPG_LMA_CTL__READ_WRITE_MASK |			\
+			 offset << UVD_DPG_LMA_CTL__READ_WRITE_ADDR__SHIFT |	\
+			 indirect << UVD_DPG_LMA_CTL__SRAM_SEL__SHIFT));	\
+	} while (0)
+
+#define RREG32_SOC24_JPEG_DPG_MODE(inst_idx, offset, mask_en)			\
+	do {									\
+		WREG32_SOC15(JPEG, GET_INST(JPEG, inst_idx),			\
+			regUVD_DPG_LMA_MASK, 0xFFFFFFFF);			\
+		WREG32_SOC15(JPEG, GET_INST(JPEG, inst_idx),			\
+			regUVD_DPG_LMA_CTL,					\
+			(UVD_DPG_LMA_CTL__MASK_EN_MASK |			\
+			offset << UVD_DPG_LMA_CTL__READ_WRITE_ADDR__SHIFT));	\
+		RREG32_SOC15(JPEG, inst_idx, regUVD_DPG_LMA_DATA);		\
+	} while (0)
+
+#define ADD_SOC24_JPEG_TO_DPG_SRAM(inst_idx, offset, value, indirect)		\
+	do {									\
+		*adev->jpeg.inst[inst_idx].dpg_sram_curr_addr++ = offset;	\
+		*adev->jpeg.inst[inst_idx].dpg_sram_curr_addr++ = value;	\
+	} while (0)
+
 struct amdgpu_jpeg_reg{
 	unsigned jpeg_pitch[AMDGPU_MAX_JPEG_RINGS];
 };

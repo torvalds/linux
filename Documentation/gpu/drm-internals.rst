@@ -57,8 +57,8 @@ is larger than the driver minor, the DRM_IOCTL_SET_VERSION call will
 return an error. Otherwise the driver's set_version() method will be
 called with the requested version.
 
-Name, Description and Date
-~~~~~~~~~~~~~~~~~~~~~~~~~~
+Name and Description
+~~~~~~~~~~~~~~~~~~~~
 
 char \*name; char \*desc; char \*date;
 The driver name is printed to the kernel log at initialization time,
@@ -68,12 +68,6 @@ DRM_IOCTL_VERSION.
 The driver description is a purely informative string passed to
 userspace through the DRM_IOCTL_VERSION ioctl and otherwise unused by
 the kernel.
-
-The driver date, formatted as YYYYMMDD, is meant to identify the date of
-the latest modification to the driver. However, as most drivers fail to
-update it, its value is mostly useless. The DRM core prints it to the
-kernel log at initialization time and passes it to userspace through the
-DRM_IOCTL_VERSION ioctl.
 
 Module Initialization
 ---------------------

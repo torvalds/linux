@@ -3,6 +3,7 @@
  * Licensed under the GPL
  */
 
+#include <arch.h>
 #include <signal.h>
 #include <kern_util.h>
 #include <longjmp.h>

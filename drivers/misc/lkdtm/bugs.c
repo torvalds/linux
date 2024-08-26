@@ -286,6 +286,35 @@ static void lkdtm_HARDLOCKUP(void)
 		cpu_relax();
 }
 
+static void __lkdtm_SMP_CALL_LOCKUP(void *unused)
+{
+	for (;;)
+		cpu_relax();
+}
+
+static void lkdtm_SMP_CALL_LOCKUP(void)
+{
+	unsigned int cpu, target;
+
+	cpus_read_lock();
+
+	cpu = get_cpu();
+	target = cpumask_any_but(cpu_online_mask, cpu);
+
+	if (target >= nr_cpu_ids) {
+		pr_err("FAIL: no other online CPUs\n");
+		goto out_put_cpus;
+	}
+
+	smp_call_function_single(target, __lkdtm_SMP_CALL_LOCKUP, NULL, 1);
+
+	pr_err("FAIL: did not hang\n");
+
+out_put_cpus:
+	put_cpu();
+	cpus_read_unlock();
+}
+
 static void lkdtm_SPINLOCKUP(void)
 {
 	/* Must be called twice to trigger. */
@@ -680,6 +709,7 @@ static struct crashtype crashtypes[] = {
 	CRASHTYPE(UNALIGNED_LOAD_STORE_WRITE),
 	CRASHTYPE(SOFTLOCKUP),
 	CRASHTYPE(HARDLOCKUP),
+	CRASHTYPE(SMP_CALL_LOCKUP),
 	CRASHTYPE(SPINLOCKUP),
 	CRASHTYPE(HUNG_TASK),
 	CRASHTYPE(OVERFLOW_SIGNED),

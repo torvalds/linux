@@ -1025,6 +1025,7 @@ static void dce110_reset_hdmi_stream_attribute(
 	struct stream_encoder *enc)
 {
 	struct dce110_stream_encoder *enc110 = DCE110STRENC_FROM_STRENC(enc);
+
 	if (enc110->se_mask->HDMI_DATA_SCRAMBLE_EN)
 		REG_UPDATE_5(HDMI_CONTROL,
 			HDMI_PACKET_GEN_VERSION, 1,

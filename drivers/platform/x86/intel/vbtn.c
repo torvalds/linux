@@ -24,6 +24,7 @@
 
 #define VGBS_TABLET_MODE_FLAGS (VGBS_TABLET_MODE_FLAG | VGBS_TABLET_MODE_FLAG_ALT)
 
+MODULE_DESCRIPTION("Intel Virtual Button driver");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("AceLan Kao");
 
@@ -156,7 +157,8 @@ static void notify_handler(acpi_handle handle, u32 event, void *context)
 
 	if ((ke = sparse_keymap_entry_from_scancode(priv->buttons_dev, event))) {
 		if (!priv->has_buttons) {
-			dev_warn(&device->dev, "Warning: received a button event on a device without buttons, please report this.\n");
+			dev_warn(&device->dev, "Warning: received 0x%02x button event on a device without buttons, please report this.\n",
+				 event);
 			return;
 		}
 		input_dev = priv->buttons_dev;

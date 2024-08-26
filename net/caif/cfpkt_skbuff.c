@@ -21,13 +21,6 @@ do {					   \
 	pr_warn(errmsg);		   \
 } while (0)
 
-struct cfpktq {
-	struct sk_buff_head head;
-	atomic_t count;
-	/* Lock protects count updates */
-	spinlock_t lock;
-};
-
 /*
  * net/caif/ is generic and does not
  * understand SKB, so we do this typecast

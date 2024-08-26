@@ -652,7 +652,7 @@ static int aq_ethtool_set_wol(struct net_device *ndev,
 }
 
 static int aq_ethtool_get_ts_info(struct net_device *ndev,
-				  struct ethtool_ts_info *info)
+				  struct kernel_ethtool_ts_info *info)
 {
 	struct aq_nic_s *aq_nic = netdev_priv(ndev);
 

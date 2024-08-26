@@ -1559,7 +1559,7 @@ static int igc_ethtool_set_channels(struct net_device *netdev,
 }
 
 static int igc_ethtool_get_ts_info(struct net_device *dev,
-				   struct ethtool_ts_info *info)
+				   struct kernel_ethtool_ts_info *info)
 {
 	struct igc_adapter *adapter = netdev_priv(dev);
 
@@ -1629,11 +1629,12 @@ static int igc_ethtool_get_eee(struct net_device *netdev,
 	struct igc_hw *hw = &adapter->hw;
 	u32 eeer;
 
-	if (hw->dev_spec._base.eee_enable)
-		mii_eee_cap1_mod_linkmode_t(edata->advertised,
-					    adapter->eee_advert);
-
-	*edata = adapter->eee;
+	linkmode_set_bit(ETHTOOL_LINK_MODE_2500baseT_Full_BIT,
+			 edata->supported);
+	linkmode_set_bit(ETHTOOL_LINK_MODE_1000baseT_Full_BIT,
+			 edata->supported);
+	linkmode_set_bit(ETHTOOL_LINK_MODE_100baseT_Full_BIT,
+			 edata->supported);
 
 	eeer = rd32(IGC_EEER);
 
@@ -1694,8 +1695,6 @@ static int igc_ethtool_set_eee(struct net_device *netdev,
 			   "Setting EEE options are not supported with EEE disabled\n");
 		return -EINVAL;
 	}
-
-	adapter->eee_advert = linkmode_to_mii_eee_cap1_t(edata->advertised);
 
 	if (hw->dev_spec._base.eee_enable != edata->eee_enabled) {
 		hw->dev_spec._base.eee_enable = edata->eee_enabled;

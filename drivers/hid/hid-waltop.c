@@ -742,4 +742,5 @@ static struct hid_driver waltop_driver = {
 };
 module_hid_driver(waltop_driver);
 
+MODULE_DESCRIPTION("HID driver for Waltop devices not fully compliant with HID standard");
 MODULE_LICENSE("GPL");

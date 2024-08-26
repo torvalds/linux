@@ -48,6 +48,7 @@
  * the output mode.  This driver does not change the output mode setting.
  */
 
+#include <linux/gpio/driver.h>
 #include <linux/irq.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
@@ -56,7 +57,6 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
-#include <linux/of_gpio.h>
 #include <linux/platform_device.h>
 #include <linux/kernel.h>
 #include <linux/property.h>

@@ -1040,7 +1040,7 @@ static int fun_set_rxfh(struct net_device *netdev,
 }
 
 static int fun_get_ts_info(struct net_device *netdev,
-			   struct ethtool_ts_info *info)
+			   struct kernel_ethtool_ts_info *info)
 {
 	info->so_timestamping = SOF_TIMESTAMPING_RX_SOFTWARE |
 				SOF_TIMESTAMPING_RX_HARDWARE |

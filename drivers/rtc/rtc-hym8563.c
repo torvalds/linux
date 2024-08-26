@@ -559,8 +559,8 @@ static int hym8563_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id hym8563_id[] = {
-	{ "hym8563", 0 },
-	{},
+	{ "hym8563" },
+	{}
 };
 MODULE_DEVICE_TABLE(i2c, hym8563_id);
 

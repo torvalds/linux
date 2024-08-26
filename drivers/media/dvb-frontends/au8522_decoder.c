@@ -25,6 +25,7 @@
 #include "au8522_priv.h"
 
 MODULE_AUTHOR("Devin Heitmueller");
+MODULE_DESCRIPTION("Auvitek AU8522 QAM/8VSB demodulator driver and video decoder");
 MODULE_LICENSE("GPL");
 
 static int au8522_analog_debug;

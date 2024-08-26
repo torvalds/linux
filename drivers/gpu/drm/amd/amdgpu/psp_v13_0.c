@@ -51,10 +51,14 @@ MODULE_FIRMWARE("amdgpu/psp_13_0_11_toc.bin");
 MODULE_FIRMWARE("amdgpu/psp_13_0_11_ta.bin");
 MODULE_FIRMWARE("amdgpu/psp_13_0_6_sos.bin");
 MODULE_FIRMWARE("amdgpu/psp_13_0_6_ta.bin");
+MODULE_FIRMWARE("amdgpu/psp_13_0_14_sos.bin");
+MODULE_FIRMWARE("amdgpu/psp_13_0_14_ta.bin");
 MODULE_FIRMWARE("amdgpu/psp_14_0_0_toc.bin");
 MODULE_FIRMWARE("amdgpu/psp_14_0_0_ta.bin");
 MODULE_FIRMWARE("amdgpu/psp_14_0_1_toc.bin");
 MODULE_FIRMWARE("amdgpu/psp_14_0_1_ta.bin");
+MODULE_FIRMWARE("amdgpu/psp_14_0_4_toc.bin");
+MODULE_FIRMWARE("amdgpu/psp_14_0_4_ta.bin");
 
 /* For large FW files the time to complete can be very long */
 #define USBC_PD_POLLING_LIMIT_S 240
@@ -104,6 +108,7 @@ static int psp_v13_0_init_microcode(struct psp_context *psp)
 	case IP_VERSION(13, 0, 11):
 	case IP_VERSION(14, 0, 0):
 	case IP_VERSION(14, 0, 1):
+	case IP_VERSION(14, 0, 4):
 		err = psp_init_toc_microcode(psp, ucode_prefix);
 		if (err)
 			return err;
@@ -115,6 +120,7 @@ static int psp_v13_0_init_microcode(struct psp_context *psp)
 	case IP_VERSION(13, 0, 6):
 	case IP_VERSION(13, 0, 7):
 	case IP_VERSION(13, 0, 10):
+	case IP_VERSION(13, 0, 14):
 		err = psp_init_sos_microcode(psp, ucode_prefix);
 		if (err)
 			return err;
@@ -168,7 +174,8 @@ static int psp_v13_0_wait_for_bootloader(struct psp_context *psp)
 	int retry_loop, retry_cnt, ret;
 
 	retry_cnt =
-		(amdgpu_ip_version(adev, MP0_HWIP, 0) == IP_VERSION(13, 0, 6)) ?
+		((amdgpu_ip_version(adev, MP0_HWIP, 0) == IP_VERSION(13, 0, 6) ||
+		  amdgpu_ip_version(adev, MP0_HWIP, 0) == IP_VERSION(13, 0, 14))) ?
 			PSP_VMBX_POLLING_LIMIT :
 			10;
 	/* Wait for bootloader to signify that it is ready having bit 31 of
@@ -193,7 +200,8 @@ static int psp_v13_0_wait_for_bootloader_steady_state(struct psp_context *psp)
 	struct amdgpu_device *adev = psp->adev;
 	int ret;
 
-	if (amdgpu_ip_version(adev, MP0_HWIP, 0) == IP_VERSION(13, 0, 6)) {
+	if (amdgpu_ip_version(adev, MP0_HWIP, 0) == IP_VERSION(13, 0, 6) ||
+	    amdgpu_ip_version(adev, MP0_HWIP, 0) == IP_VERSION(13, 0, 14)) {
 		ret = psp_v13_0_wait_for_vmbx_ready(psp);
 		if (ret)
 			amdgpu_ras_query_boot_status(adev, 4);
@@ -787,7 +795,8 @@ static bool psp_v13_0_get_ras_capability(struct psp_context *psp)
 	if (!con)
 		return false;
 
-	if ((amdgpu_ip_version(adev, MP0_HWIP, 0) == IP_VERSION(13, 0, 6)) &&
+	if ((amdgpu_ip_version(adev, MP0_HWIP, 0) == IP_VERSION(13, 0, 6) ||
+	     amdgpu_ip_version(adev, MP0_HWIP, 0) == IP_VERSION(13, 0, 14)) &&
 	    (!(adev->flags & AMD_IS_APU))) {
 		reg_data = RREG32_SOC15(MP0, 0, regMP0_SMN_C2PMSG_127);
 		adev->ras_hw_enabled = (reg_data & GENMASK_ULL(23, 0));

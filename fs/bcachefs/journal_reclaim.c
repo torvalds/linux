@@ -67,7 +67,7 @@ void bch2_journal_set_watermark(struct journal *j)
 	    track_event_change(&c->times[BCH_TIME_blocked_write_buffer_full], low_on_wb))
 		trace_and_count(c, journal_full, c);
 
-	mod_bit(JOURNAL_SPACE_LOW, &j->flags, low_on_space || low_on_pin);
+	mod_bit(JOURNAL_space_low, &j->flags, low_on_space || low_on_pin);
 
 	swap(watermark, j->watermark);
 	if (watermark > j->watermark)
@@ -205,6 +205,18 @@ void bch2_journal_space_available(struct journal *j)
 	j->can_discard = can_discard;
 
 	if (nr_online < metadata_replicas_required(c)) {
+		struct printbuf buf = PRINTBUF;
+		buf.atomic++;
+		prt_printf(&buf, "insufficient writeable journal devices available: have %u, need %u\n"
+			   "rw journal devs:", nr_online, metadata_replicas_required(c));
+
+		rcu_read_lock();
+		for_each_member_device_rcu(c, ca, &c->rw_devs[BCH_DATA_journal])
+			prt_printf(&buf, " %s", ca->name);
+		rcu_read_unlock();
+
+		bch_err(c, "%s", buf.buf);
+		printbuf_exit(&buf);
 		ret = JOURNAL_ERR_insufficient_devices;
 		goto out;
 	}
@@ -225,9 +237,9 @@ void bch2_journal_space_available(struct journal *j)
 	     j->space[journal_space_clean_ondisk].total) &&
 	    (clean - clean_ondisk <= total / 8) &&
 	    (clean_ondisk * 2 > clean))
-		set_bit(JOURNAL_MAY_SKIP_FLUSH, &j->flags);
+		set_bit(JOURNAL_may_skip_flush, &j->flags);
 	else
-		clear_bit(JOURNAL_MAY_SKIP_FLUSH, &j->flags);
+		clear_bit(JOURNAL_may_skip_flush, &j->flags);
 
 	bch2_journal_set_watermark(j);
 out:
@@ -818,7 +830,7 @@ static int journal_flush_done(struct journal *j, u64 seq_to_flush,
 	 * If journal replay hasn't completed, the unreplayed journal entries
 	 * hold refs on their corresponding sequence numbers
 	 */
-	ret = !test_bit(JOURNAL_REPLAY_DONE, &j->flags) ||
+	ret = !test_bit(JOURNAL_replay_done, &j->flags) ||
 		journal_last_seq(j) > seq_to_flush ||
 		!fifo_used(&j->pin);
 
@@ -833,7 +845,7 @@ bool bch2_journal_flush_pins(struct journal *j, u64 seq_to_flush)
 	/* time_stats this */
 	bool did_work = false;
 
-	if (!test_bit(JOURNAL_STARTED, &j->flags))
+	if (!test_bit(JOURNAL_running, &j->flags))
 		return false;
 
 	closure_wait_event(&j->async_wait,

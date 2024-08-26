@@ -3,27 +3,27 @@
 Index of Further Kernel Documentation
 =====================================
 
-The need for a document like this one became apparent in the
-linux-kernel mailing list as the same questions, asking for pointers
-to information, appeared again and again.
+The need for a document like this one became apparent in the linux-kernel
+mailing list as the same questions, asking for pointers to information,
+appeared again and again.
 
-Fortunately, as more and more people get to GNU/Linux, more and more
-get interested in the Kernel. But reading the sources is not always
-enough. It is easy to understand the code, but miss the concepts, the
-philosophy and design decisions behind this code.
+Fortunately, as more and more people get to GNU/Linux, more and more get
+interested in the Kernel. But reading the sources is not always enough. It
+is easy to understand the code, but miss the concepts, the philosophy and
+design decisions behind this code.
 
-Unfortunately, not many documents are available for beginners to
-start. And, even if they exist, there was no "well-known" place which
-kept track of them. These lines try to cover this lack.
+Unfortunately, not many documents are available for beginners to start.
+And, even if they exist, there was no "well-known" place which kept track
+of them. These lines try to cover this lack.
 
 PLEASE, if you know any paper not listed here or write a new document,
 include a reference to it here, following the kernel's patch submission
 process. Any corrections, ideas or comments are also welcome.
 
 All documents are cataloged with the following fields: the document's
-"Title", the "Author"/s, the "URL" where they can be found, some
-"Keywords" helpful when searching for specific topics, and a brief
-"Description" of the Document.
+"Title", the "Author"/s, the "URL" where they can be found, some "Keywords"
+helpful when searching for specific topics, and a brief "Description" of
+the Document.
 
 .. note::
 
@@ -72,8 +72,28 @@ On-line docs
         programming. Lots of examples. Currently the new version is being
         actively maintained at https://github.com/sysprog21/lkmpg.
 
+    * Title: **Rust for Linux**
+
+      :Author: various
+      :URL: https://rust-for-linux.com/
+      :Date: rolling version
+      :Keywords: glossary, terms, linux-kernel.
+      :Description: From the website: "Rust for Linux is the project adding
+        support for the Rust language to the Linux kernel. This website is
+        intended as a hub of links, documentation and resources related to
+        the project".
+
 Published books
 ---------------
+
+    * Title: **Practical Linux System Administration: A Guide to Installation, Configuration, and Management, 1st Edition**
+
+      :Author: Kenneth Hess
+      :Publisher: O'Reilly Media
+      :Date: May, 2023
+      :Pages: 246
+      :ISBN: 978-1098109035
+      :Notes: System administration
 
     * Title: **Linux Kernel Debugging: Leverage proven tools and advanced techniques to effectively debug Linux kernels and kernel modules**
 
@@ -88,9 +108,9 @@ Published books
 
       :Author: Kaiwan N Billimoria
       :Publisher: Packt Publishing Ltd
-      :Date: March, 2021
+      :Date: March, 2021 (Second Edition published in 2024)
       :Pages: 754
-      :ISBN: 978-1789953435
+      :ISBN: 978-1789953435 (Second Edition ISBN is 978-1803232225)
 
     * Title: **Linux Kernel Programming Part 2 - Char Device Drivers and Kernel Synchronization: Create user-kernel interfaces, work with peripheral I/O, and handle hardware interrupts**
 
@@ -117,15 +137,6 @@ Published books
       :Pages: 440
       :ISBN: 978-0672329463
       :Notes: Foundational book
-
-    * Title: **Practical Linux System Administration: A Guide to Installation, Configuration, and Management, 1st Edition**
-
-      :Author: Kenneth Hess
-      :Publisher: O'Reilly Media
-      :Date: May, 2023
-      :Pages: 246
-      :ISBN: 978-1098109035
-      :Notes: System administration
 
 .. _ldd3_published:
 
@@ -194,12 +205,20 @@ Miscellaneous
 
     * Name: **linux-kernel mailing list archives and search engines**
 
-      :URL: http://vger.kernel.org/vger-lists.html
-      :URL: http://www.uwsg.indiana.edu/hypermail/linux/kernel/index.html
-      :URL: http://groups.google.com/group/mlist.linux.kernel
+      :URL: https://subspace.kernel.org
+      :URL: https://lore.kernel.org
       :Keywords: linux-kernel, archives, search.
       :Description: Some of the linux-kernel mailing list archivers. If
         you have a better/another one, please let me know.
+
+    * Name: **The Linux Foundation YouTube channel**
+
+      :URL: https://www.youtube.com/user/thelinuxfoundation
+      :Keywords: linux, videos, linux-foundation, youtube.
+      :Description: The Linux Foundation uploads video recordings of their
+        collaborative events, Linux conferences including LinuxCon, and
+        other original research and content related to Linux and software
+        development.
 
 -------
 

@@ -45,12 +45,17 @@ struct block_device {
 	struct request_queue *	bd_queue;
 	struct disk_stats __percpu *bd_stats;
 	unsigned long		bd_stamp;
-	bool			bd_read_only;	/* read-only policy */
-	u8			bd_partno;
-	bool			bd_write_holder;
-	bool			bd_has_submit_bio;
+	atomic_t		__bd_flags;	// partition number + flags
+#define BD_PARTNO		255	// lower 8 bits; assign-once
+#define BD_READ_ONLY		(1u<<8) // read-only policy
+#define BD_WRITE_HOLDER		(1u<<9)
+#define BD_HAS_SUBMIT_BIO	(1u<<10)
+#define BD_RO_WARNED		(1u<<11)
+#ifdef CONFIG_FAIL_MAKE_REQUEST
+#define BD_MAKE_IT_FAIL		(1u<<12)
+#endif
 	dev_t			bd_dev;
-	struct inode		*bd_inode;	/* will die */
+	struct address_space	*bd_mapping;	/* page cache */
 
 	atomic_t		bd_openers;
 	spinlock_t		bd_size_lock; /* for bd_inode->i_size updates */
@@ -65,10 +70,6 @@ struct block_device {
 	struct mutex		bd_fsfreeze_mutex; /* serialize freeze/thaw */
 
 	struct partition_meta_info *bd_meta_info;
-#ifdef CONFIG_FAIL_MAKE_REQUEST
-	bool			bd_make_it_fail;
-#endif
-	bool			bd_ro_warned;
 	int			bd_writers;
 	/*
 	 * keep this out-of-line as it's both big and not needed in the fast
@@ -160,6 +161,11 @@ typedef u16 blk_short_t;
  * aborted the command because it exceeded one of its Command Duration Limits.
  */
 #define BLK_STS_DURATION_LIMIT	((__force blk_status_t)17)
+
+/*
+ * Invalid size or alignment.
+ */
+#define BLK_STS_INVAL	((__force blk_status_t)19)
 
 /**
  * blk_path_error - returns true if error may be path related
@@ -348,6 +354,7 @@ enum req_op {
 	REQ_OP_LAST		= (__force blk_opf_t)36,
 };
 
+/* Keep cmd_flag_name[] in sync with the definitions below */
 enum req_flag_bits {
 	__REQ_FAILFAST_DEV =	/* no driver retries of device errors */
 		REQ_OP_BITS,
@@ -369,7 +376,7 @@ enum req_flag_bits {
 	__REQ_SWAP,		/* swap I/O */
 	__REQ_DRV,		/* for driver use */
 	__REQ_FS_PRIVATE,	/* for file system (submitter) use */
-
+	__REQ_ATOMIC,		/* for atomic write operations */
 	/*
 	 * Command specific flags, keep last:
 	 */
@@ -401,6 +408,7 @@ enum req_flag_bits {
 #define REQ_SWAP	(__force blk_opf_t)(1ULL << __REQ_SWAP)
 #define REQ_DRV		(__force blk_opf_t)(1ULL << __REQ_DRV)
 #define REQ_FS_PRIVATE	(__force blk_opf_t)(1ULL << __REQ_FS_PRIVATE)
+#define REQ_ATOMIC	(__force blk_opf_t)(1ULL << __REQ_ATOMIC)
 
 #define REQ_NOUNMAP	(__force blk_opf_t)(1ULL << __REQ_NOUNMAP)
 

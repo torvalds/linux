@@ -61,7 +61,8 @@ static struct l2tp_session *l2tp_nl_session_get(struct genl_info *info)
 		session_id = nla_get_u32(info->attrs[L2TP_ATTR_SESSION_ID]);
 		tunnel = l2tp_tunnel_get(net, tunnel_id);
 		if (tunnel) {
-			session = l2tp_tunnel_get_session(tunnel, session_id);
+			session = l2tp_session_get(net, tunnel->sock, tunnel->version,
+						   tunnel_id, session_id);
 			l2tp_tunnel_dec_refcount(tunnel);
 		}
 	}
@@ -635,7 +636,8 @@ static int l2tp_nl_cmd_session_create(struct sk_buff *skb, struct genl_info *inf
 							   &cfg);
 
 	if (ret >= 0) {
-		session = l2tp_tunnel_get_session(tunnel, session_id);
+		session = l2tp_session_get(net, tunnel->sock, tunnel->version,
+					   tunnel_id, session_id);
 		if (session) {
 			ret = l2tp_session_notify(&l2tp_nl_family, info, session,
 						  L2TP_CMD_SESSION_CREATE);

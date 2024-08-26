@@ -31,7 +31,7 @@
 #include <drm/drm_damage_helper.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_edid.h>
-#include <drm/drm_fbdev_generic.h>
+#include <drm/drm_fbdev_shmem.h>
 #include <drm/drm_file.h>
 #include <drm/drm_format_helper.h>
 #include <drm/drm_fourcc.h>
@@ -716,7 +716,7 @@ static int cirrus_pci_probe(struct pci_dev *pdev,
 	if (ret)
 		return ret;
 
-	drm_fbdev_generic_setup(dev, 16);
+	drm_fbdev_shmem_setup(dev, 16);
 	return 0;
 }
 
@@ -760,4 +760,5 @@ static struct pci_driver cirrus_pci_driver = {
 drm_module_pci_driver(cirrus_pci_driver)
 
 MODULE_DEVICE_TABLE(pci, pciidlist);
+MODULE_DESCRIPTION("Cirrus driver for QEMU emulated device");
 MODULE_LICENSE("GPL");

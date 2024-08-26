@@ -66,6 +66,14 @@ properties:
     description: phandle to the regulator that provides the VS supply typically
       in range from 2.7 V to 5.5 V.
 
+  ti,alert-polarity-active-high:
+    description: Alert pin is asserted based on the value of Alert polarity Bit
+      of Mask/Enable register. Default value is Normal (0 which maps to
+      active-low open collector). The other value is Inverted
+      (1 which maps to active-high open collector). Specify this property to set
+      the alert polarity to active-high.
+    $ref: /schemas/types.yaml#/definitions/flag
+
 required:
   - compatible
   - reg
@@ -88,5 +96,6 @@ examples:
             label = "vdd_3v0";
             shunt-resistor = <1000>;
             vs-supply = <&vdd_3v0>;
+            ti,alert-polarity-active-high;
         };
     };

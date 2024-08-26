@@ -297,6 +297,7 @@ module_cpu_feature_match(S390_CPU_FEATURE_VXRS, crc_vx_mod_init);
 module_exit(crc_vx_mod_exit);
 
 MODULE_AUTHOR("Hendrik Brueckner <brueckner@linux.vnet.ibm.com>");
+MODULE_DESCRIPTION("CRC-32 algorithms using z/Architecture Vector Extension Facility");
 MODULE_LICENSE("GPL");
 
 MODULE_ALIAS_CRYPTO("crc32");

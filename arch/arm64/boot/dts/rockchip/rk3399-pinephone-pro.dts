@@ -12,6 +12,7 @@
 /dts-v1/;
 #include <dt-bindings/input/gpio-keys.h>
 #include <dt-bindings/input/linux-event-codes.h>
+#include <dt-bindings/leds/common.h>
 #include "rk3399.dtsi"
 #include "rk3399-opp.dtsi"
 
@@ -67,6 +68,34 @@
 			linux,code = <KEY_POWER>;
 			wakeup-source;
 		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		pinctrl-names = "default";
+		pinctrl-0 = <&red_led_pin &green_led_pin &blue_led_pin>;
+
+		led_red: led-0 {
+			color = <LED_COLOR_ID_RED>;
+			gpios = <&gpio4 RK_PD2 GPIO_ACTIVE_HIGH>;
+		};
+
+		led_green: led-1 {
+			color = <LED_COLOR_ID_GREEN>;
+			gpios = <&gpio4 RK_PD5 GPIO_ACTIVE_HIGH>;
+		};
+
+		led_blue: led-2 {
+			color = <LED_COLOR_ID_BLUE>;
+			gpios = <&gpio4 RK_PD6 GPIO_ACTIVE_HIGH>;
+		};
+	};
+
+	multi-led {
+		compatible = "leds-group-multicolor";
+		color = <LED_COLOR_ID_RGB>;
+		function = LED_FUNCTION_INDICATOR;
+		leds = <&led_red>, <&led_green>, <&led_blue>;
 	};
 
 	vcc_sys: vcc-sys-regulator {
@@ -151,6 +180,12 @@
 		vin-supply = <&vcc3v3_sys>;
 		gpio = <&gpio3 RK_PA1 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
+	};
+
+	vibrator {
+		compatible = "gpio-vibrator";
+		enable-gpios = <&gpio3 RK_PB1 GPIO_ACTIVE_HIGH>;
+		vcc-supply = <&vcc3v3_sys>;
 	};
 };
 
@@ -407,6 +442,21 @@
 	};
 };
 
+&i2c4 {
+	i2c-scl-rising-time-ns = <600>;
+	i2c-scl-falling-time-ns = <20>;
+	status = "okay";
+
+	/* Accelerometer/gyroscope */
+	mpu6500@68 {
+		compatible = "invensense,mpu6500";
+		reg = <0x68>;
+		interrupt-parent = <&gpio1>;
+		interrupts = <RK_PC6 IRQ_TYPE_LEVEL_LOW>;
+		vddio-supply = <&vcc_1v8>;
+	};
+};
+
 &cluster0_opp {
 	opp04 {
 		status = "disabled";
@@ -478,6 +528,20 @@
 	buttons {
 		pwrbtn_pin: pwrbtn-pin {
 			rockchip,pins = <0 RK_PA5 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+
+	leds {
+		red_led_pin: red-led-pin {
+			rockchip,pins = <4 RK_PD2 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		green_led_pin: green-led-pin {
+			rockchip,pins = <4 RK_PD5 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		blue_led_pin: blue-led-pin {
+			rockchip,pins = <4 RK_PD6 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
@@ -563,6 +627,16 @@
 	mmc-hs200-1_8v;
 	non-removable;
 	status = "okay";
+};
+
+&spi1 {
+	status = "okay";
+
+	flash@0 {
+		compatible = "jedec,spi-nor";
+		reg = <0>;
+		spi-max-frequency = <10000000>;
+	};
 };
 
 &tsadc {

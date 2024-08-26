@@ -90,7 +90,8 @@ static int map_gicc_mpidr(struct acpi_subtable_header *entry,
 	struct acpi_madt_generic_interrupt *gicc =
 	    container_of(entry, struct acpi_madt_generic_interrupt, header);
 
-	if (!acpi_gicc_is_usable(gicc))
+	if (!(gicc->flags &
+	      (ACPI_MADT_ENABLED | ACPI_MADT_GICC_ONLINE_CAPABLE)))
 		return -ENODEV;
 
 	/* device_declaration means Device object in DSDT, in the
@@ -213,6 +214,21 @@ phys_cpuid_t __init acpi_map_madt_entry(u32 acpi_id)
 	acpi_put_table((struct acpi_table_header *)madt);
 
 	return rv;
+}
+
+int __init acpi_get_madt_revision(void)
+{
+	struct acpi_table_header *madt = NULL;
+	int revision;
+
+	if (ACPI_FAILURE(acpi_get_table(ACPI_SIG_MADT, 0, &madt)))
+		return -EINVAL;
+
+	revision = madt->revision;
+
+	acpi_put_table(madt);
+
+	return revision;
 }
 
 static phys_cpuid_t map_mat_entry(acpi_handle handle, int type, u32 acpi_id)

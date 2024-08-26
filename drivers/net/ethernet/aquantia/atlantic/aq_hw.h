@@ -104,7 +104,7 @@ struct aq_stats_s {
 };
 
 #define AQ_HW_IRQ_INVALID 0U
-#define AQ_HW_IRQ_LEGACY  1U
+#define AQ_HW_IRQ_INTX	  1U
 #define AQ_HW_IRQ_MSI     2U
 #define AQ_HW_IRQ_MSIX    3U
 

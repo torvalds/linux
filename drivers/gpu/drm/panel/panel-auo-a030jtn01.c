@@ -305,4 +305,5 @@ module_spi_driver(a030jtn01_driver);
 
 MODULE_AUTHOR("Paul Cercueil <paul@crapouillou.net>");
 MODULE_AUTHOR("Christophe Branchereau <cbranchereau@gmail.com>");
+MODULE_DESCRIPTION("AU Optronics A030JTN01.0 TFT LCD panel driver");
 MODULE_LICENSE("GPL");

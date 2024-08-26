@@ -321,6 +321,10 @@ nfp_flower_calculate_key_layers(struct nfp_app *app,
 
 		flow_rule_match_enc_control(rule, &enc_ctl);
 
+		if (flow_rule_has_enc_control_flags(enc_ctl.mask->flags,
+						    extack))
+			return -EOPNOTSUPP;
+
 		if (enc_ctl.mask->addr_type != 0xffff) {
 			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: wildcarded protocols on tunnels are not supported");
 			return -EOPNOTSUPP;

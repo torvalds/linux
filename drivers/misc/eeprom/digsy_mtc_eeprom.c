@@ -14,13 +14,12 @@
  * and delete this driver.
  */
 
-#include <linux/gpio.h>
 #include <linux/gpio/machine.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/spi_gpio.h>
-#include <linux/eeprom_93xx46.h>
 
 #define GPIO_EEPROM_CLK		216
 #define GPIO_EEPROM_CS		210
@@ -29,22 +28,13 @@
 #define GPIO_EEPROM_OE		255
 #define EE_SPI_BUS_NUM	1
 
-static void digsy_mtc_op_prepare(void *p)
-{
-	/* enable */
-	gpio_set_value(GPIO_EEPROM_OE, 0);
-}
+static const struct property_entry digsy_mtc_spi_properties[] = {
+	PROPERTY_ENTRY_U32("data-size", 8),
+	{ }
+};
 
-static void digsy_mtc_op_finish(void *p)
-{
-	/* disable */
-	gpio_set_value(GPIO_EEPROM_OE, 1);
-}
-
-struct eeprom_93xx46_platform_data digsy_mtc_eeprom_data = {
-	.flags		= EE_ADDR8,
-	.prepare	= digsy_mtc_op_prepare,
-	.finish		= digsy_mtc_op_finish,
+static const struct software_node digsy_mtc_spi_node = {
+	.properties = digsy_mtc_spi_properties,
 };
 
 static struct spi_gpio_platform_data eeprom_spi_gpio_data = {
@@ -70,18 +60,19 @@ static struct gpiod_lookup_table eeprom_spi_gpiod_table = {
 			    "miso", GPIO_ACTIVE_HIGH),
 		GPIO_LOOKUP("gpio@b00", GPIO_EEPROM_CS,
 			    "cs", GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("gpio@b00", GPIO_EEPROM_OE,
+			    "select", GPIO_ACTIVE_LOW),
 		{ },
 	},
 };
 
 static struct spi_board_info digsy_mtc_eeprom_info[] __initdata = {
 	{
-		.modalias		= "93xx46",
+		.modalias		= "eeprom-93xx46",
 		.max_speed_hz		= 1000000,
 		.bus_num		= EE_SPI_BUS_NUM,
 		.chip_select		= 0,
 		.mode			= SPI_MODE_0,
-		.platform_data		= &digsy_mtc_eeprom_data,
 	},
 };
 
@@ -89,15 +80,18 @@ static int __init digsy_mtc_eeprom_devices_init(void)
 {
 	int ret;
 
-	ret = gpio_request_one(GPIO_EEPROM_OE, GPIOF_OUT_INIT_HIGH,
-				"93xx46 EEPROMs OE");
-	if (ret) {
-		pr_err("can't request gpio %d\n", GPIO_EEPROM_OE);
-		return ret;
-	}
 	gpiod_add_lookup_table(&eeprom_spi_gpiod_table);
 	spi_register_board_info(digsy_mtc_eeprom_info,
 				ARRAY_SIZE(digsy_mtc_eeprom_info));
-	return platform_device_register(&digsy_mtc_eeprom);
+
+	ret = device_add_software_node(&digsy_mtc_eeprom.dev, &digsy_mtc_spi_node);
+	if (ret)
+		return ret;
+
+	ret = platform_device_register(&digsy_mtc_eeprom);
+	if (ret)
+		device_remove_software_node(&digsy_mtc_eeprom.dev);
+
+	return ret;
 }
 device_initcall(digsy_mtc_eeprom_devices_init);

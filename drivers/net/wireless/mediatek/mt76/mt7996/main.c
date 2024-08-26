@@ -93,7 +93,7 @@ static int mt7996_start(struct ieee80211_hw *hw)
 	return ret;
 }
 
-static void mt7996_stop(struct ieee80211_hw *hw)
+static void mt7996_stop(struct ieee80211_hw *hw, bool suspend)
 {
 	struct mt7996_dev *dev = mt7996_hw_dev(hw);
 	struct mt7996_phy *phy = mt7996_hw_phy(hw);

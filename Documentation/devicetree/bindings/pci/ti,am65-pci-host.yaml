@@ -11,7 +11,7 @@ maintainers:
   - Kishon Vijay Abraham I <kishon@ti.com>
 
 allOf:
-  - $ref: /schemas/pci/pci-bus.yaml#
+  - $ref: /schemas/pci/pci-host-bridge.yaml#
 
 properties:
   compatible:
@@ -55,6 +55,20 @@ properties:
 
   dma-coherent: true
 
+  num-viewport:
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  phys:
+    description: per-lane PHYs
+    minItems: 1
+    maxItems: 2
+
+  phy-names:
+    minItems: 1
+    maxItems: 2
+    items:
+      pattern: '^pcie-phy[0-1]$'
+
 required:
   - compatible
   - reg
@@ -74,6 +88,7 @@ then:
     - dma-coherent
     - power-domains
     - msi-map
+    - num-viewport
 
 unevaluatedProperties: false
 
@@ -81,6 +96,7 @@ examples:
   - |
     #include <dt-bindings/interrupt-controller/arm-gic.h>
     #include <dt-bindings/interrupt-controller/irq.h>
+    #include <dt-bindings/phy/phy.h>
     #include <dt-bindings/soc/ti,sci_pm_domain.h>
 
     pcie0_rc: pcie@5500000 {
@@ -98,9 +114,13 @@ examples:
         ti,syscon-pcie-id = <&scm_conf 0x0210>;
         ti,syscon-pcie-mode = <&scm_conf 0x4060>;
         bus-range = <0x0 0xff>;
+        num-viewport = <16>;
         max-link-speed = <2>;
         dma-coherent;
         interrupts = <GIC_SPI 340 IRQ_TYPE_EDGE_RISING>;
         msi-map = <0x0 &gic_its 0x0 0x10000>;
         device_type = "pci";
+        num-lanes = <1>;
+        phys = <&serdes0 PHY_TYPE_PCIE 0>;
+        phy-names = "pcie-phy0";
     };

@@ -75,6 +75,7 @@ module_param(synchronous, int, 0);
 module_param(reset_delay, int, 0);
 module_param(ext_trans, int, 0);
 
+MODULE_DESCRIPTION("Adaptec AHA152X-compatible PCMCIA SCSI card driver");
 MODULE_LICENSE("Dual MPL/GPL");
 
 /*====================================================================*/

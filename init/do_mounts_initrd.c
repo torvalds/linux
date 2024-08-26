@@ -29,7 +29,6 @@ static struct ctl_table kern_do_mounts_initrd_table[] = {
 		.mode           = 0644,
 		.proc_handler   = proc_dointvec,
 	},
-	{ }
 };
 
 static __init int kernel_do_mounts_initrd_sysctls_init(void)

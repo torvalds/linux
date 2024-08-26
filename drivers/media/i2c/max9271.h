@@ -8,6 +8,9 @@
  * Copyright (C) 2015 Cogent Embedded, Inc.
  */
 
+#ifndef __MEDIA_I2C_MAX9271_H__
+#define __MEDIA_I2C_MAX9271_H__
+
 #include <linux/i2c.h>
 
 #define MAX9271_DEFAULT_ADDR	0x40
@@ -231,3 +234,5 @@ int max9271_set_deserializer_address(struct max9271_device *dev, u8 addr);
  * Return 0 on success or a negative error code on failure
  */
 int max9271_set_translation(struct max9271_device *dev, u8 source, u8 dest);
+
+#endif /* __MEDIA_I2C_MAX9271_H__ */

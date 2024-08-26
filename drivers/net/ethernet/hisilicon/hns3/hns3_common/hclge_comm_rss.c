@@ -62,6 +62,7 @@ int hclge_comm_rss_init_cfg(struct hnae3_handle *nic,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(hclge_comm_rss_init_cfg);
 
 void hclge_comm_get_rss_tc_info(u16 rss_size, u8 hw_tc_map, u16 *tc_offset,
 				u16 *tc_valid, u16 *tc_size)
@@ -78,6 +79,7 @@ void hclge_comm_get_rss_tc_info(u16 rss_size, u8 hw_tc_map, u16 *tc_offset,
 		tc_offset[i] = (hw_tc_map & BIT(i)) ? rss_size * i : 0;
 	}
 }
+EXPORT_SYMBOL_GPL(hclge_comm_get_rss_tc_info);
 
 int hclge_comm_set_rss_tc_mode(struct hclge_comm_hw *hw, u16 *tc_offset,
 			       u16 *tc_valid, u16 *tc_size)
@@ -113,6 +115,7 @@ int hclge_comm_set_rss_tc_mode(struct hclge_comm_hw *hw, u16 *tc_offset,
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(hclge_comm_set_rss_tc_mode);
 
 int hclge_comm_set_rss_hash_key(struct hclge_comm_rss_cfg *rss_cfg,
 				struct hclge_comm_hw *hw, const u8 *key,
@@ -143,6 +146,7 @@ int hclge_comm_set_rss_hash_key(struct hclge_comm_rss_cfg *rss_cfg,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(hclge_comm_set_rss_hash_key);
 
 int hclge_comm_set_rss_tuple(struct hnae3_ae_dev *ae_dev,
 			     struct hclge_comm_hw *hw,
@@ -185,11 +189,13 @@ int hclge_comm_set_rss_tuple(struct hnae3_ae_dev *ae_dev,
 	rss_cfg->rss_tuple_sets.ipv6_fragment_en = req->ipv6_fragment_en;
 	return 0;
 }
+EXPORT_SYMBOL_GPL(hclge_comm_set_rss_tuple);
 
 u32 hclge_comm_get_rss_key_size(struct hnae3_handle *handle)
 {
 	return HCLGE_COMM_RSS_KEY_SIZE;
 }
+EXPORT_SYMBOL_GPL(hclge_comm_get_rss_key_size);
 
 int hclge_comm_parse_rss_hfunc(struct hclge_comm_rss_cfg *rss_cfg,
 			       const u8 hfunc, u8 *hash_algo)
@@ -217,6 +223,7 @@ void hclge_comm_rss_indir_init_cfg(struct hnae3_ae_dev *ae_dev,
 	for (i = 0; i < ae_dev->dev_specs.rss_ind_tbl_size; i++)
 		rss_cfg->rss_indirection_tbl[i] = i % rss_cfg->rss_size;
 }
+EXPORT_SYMBOL_GPL(hclge_comm_rss_indir_init_cfg);
 
 int hclge_comm_get_rss_tuple(struct hclge_comm_rss_cfg *rss_cfg, int flow_type,
 			     u8 *tuple_sets)
@@ -250,6 +257,7 @@ int hclge_comm_get_rss_tuple(struct hclge_comm_rss_cfg *rss_cfg, int flow_type,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(hclge_comm_get_rss_tuple);
 
 static void
 hclge_comm_append_rss_msb_info(struct hclge_comm_rss_ind_tbl_cmd *req,
@@ -304,6 +312,7 @@ int hclge_comm_set_rss_indir_table(struct hnae3_ae_dev *ae_dev,
 	}
 	return 0;
 }
+EXPORT_SYMBOL_GPL(hclge_comm_set_rss_indir_table);
 
 int hclge_comm_set_rss_input_tuple(struct hclge_comm_hw *hw,
 				   struct hclge_comm_rss_cfg *rss_cfg)
@@ -332,6 +341,7 @@ int hclge_comm_set_rss_input_tuple(struct hclge_comm_hw *hw,
 			"failed to configure rss input, ret = %d.\n", ret);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(hclge_comm_set_rss_input_tuple);
 
 void hclge_comm_get_rss_hash_info(struct hclge_comm_rss_cfg *rss_cfg, u8 *key,
 				  u8 *hfunc)
@@ -355,6 +365,7 @@ void hclge_comm_get_rss_hash_info(struct hclge_comm_rss_cfg *rss_cfg, u8 *key,
 	if (key)
 		memcpy(key, rss_cfg->rss_hash_key, HCLGE_COMM_RSS_KEY_SIZE);
 }
+EXPORT_SYMBOL_GPL(hclge_comm_get_rss_hash_info);
 
 void hclge_comm_get_rss_indir_tbl(struct hclge_comm_rss_cfg *rss_cfg,
 				  u32 *indir, u16 rss_ind_tbl_size)
@@ -367,6 +378,7 @@ void hclge_comm_get_rss_indir_tbl(struct hclge_comm_rss_cfg *rss_cfg,
 	for (i = 0; i < rss_ind_tbl_size; i++)
 		indir[i] = rss_cfg->rss_indirection_tbl[i];
 }
+EXPORT_SYMBOL_GPL(hclge_comm_get_rss_indir_tbl);
 
 int hclge_comm_set_rss_algo_key(struct hclge_comm_hw *hw, const u8 hfunc,
 				const u8 *key)
@@ -408,6 +420,7 @@ int hclge_comm_set_rss_algo_key(struct hclge_comm_hw *hw, const u8 hfunc,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(hclge_comm_set_rss_algo_key);
 
 static u8 hclge_comm_get_rss_hash_bits(struct ethtool_rxnfc *nfc)
 {
@@ -502,3 +515,4 @@ u64 hclge_comm_convert_rss_tuple(u8 tuple_sets)
 
 	return tuple_data;
 }
+EXPORT_SYMBOL_GPL(hclge_comm_convert_rss_tuple);

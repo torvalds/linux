@@ -267,6 +267,7 @@ static void __exit arm_poly1305_mod_exit(void)
 module_init(arm_poly1305_mod_init);
 module_exit(arm_poly1305_mod_exit);
 
+MODULE_DESCRIPTION("Accelerated Poly1305 transform for ARM");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS_CRYPTO("poly1305");
 MODULE_ALIAS_CRYPTO("poly1305-arm");

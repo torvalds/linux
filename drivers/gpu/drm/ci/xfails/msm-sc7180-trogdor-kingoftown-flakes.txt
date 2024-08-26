@@ -1,0 +1,8 @@
+# Board Name: sc7180-trogdor-kingoftown
+# Bug Report: https://lore.kernel.org/linux-arm-msm/661483c8-ad82-400d-bcd8-e94986d20d7d@collabora.com/T/#u
+# IGT Version: 1.28-g0df7b9b97
+# Linux Version: 6.9.0-rc7
+# Failure Rate: 50
+msm_mapping@shadow
+msm_shrink@copy-gpu-oom-32
+msm_shrink@copy-gpu-oom-8

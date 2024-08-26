@@ -572,4 +572,5 @@ static int __init qcom_spm_init(void)
 }
 arch_initcall(qcom_spm_init);
 
+MODULE_DESCRIPTION("Qualcomm Subsystem Power Manager (SPM)");
 MODULE_LICENSE("GPL v2");

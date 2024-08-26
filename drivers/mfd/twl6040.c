@@ -817,9 +817,9 @@ static void twl6040_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id twl6040_i2c_id[] = {
-	{ "twl6040", 0, },
-	{ "twl6041", 0, },
-	{ },
+	{ "twl6040" },
+	{ "twl6041" },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, twl6040_i2c_id);
 

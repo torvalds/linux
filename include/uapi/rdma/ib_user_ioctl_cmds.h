@@ -37,9 +37,6 @@
 #define UVERBS_ID_NS_MASK 0xF000
 #define UVERBS_ID_NS_SHIFT 12
 
-#define UVERBS_UDATA_DRIVER_DATA_NS	1
-#define UVERBS_UDATA_DRIVER_DATA_FLAG	(1UL << UVERBS_ID_NS_SHIFT)
-
 enum uverbs_default_objects {
 	UVERBS_OBJECT_DEVICE, /* No instances of DEVICE are allowed */
 	UVERBS_OBJECT_PD,
@@ -61,8 +58,10 @@ enum uverbs_default_objects {
 };
 
 enum {
-	UVERBS_ATTR_UHW_IN = UVERBS_UDATA_DRIVER_DATA_FLAG,
+	UVERBS_ID_DRIVER_NS = 1UL << UVERBS_ID_NS_SHIFT,
+	UVERBS_ATTR_UHW_IN = UVERBS_ID_DRIVER_NS,
 	UVERBS_ATTR_UHW_OUT,
+	UVERBS_ID_DRIVER_NS_WITH_UHW,
 };
 
 enum uverbs_methods_device {

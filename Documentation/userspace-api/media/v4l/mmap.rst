@@ -188,7 +188,7 @@ Example: Mapping buffers in the multi-planar API
 	    buffers[i].start[j] = mmap(NULL, buffer.m.planes[j].length,
 		     PROT_READ | PROT_WRITE, /* recommended */
 		     MAP_SHARED,             /* recommended */
-		     fd, buffer.m.planes[j].m.offset);
+		     fd, buffer.m.planes[j].m.mem_offset);
 
 	    if (MAP_FAILED == buffers[i].start[j]) {
 		/* If you do not exit here you should unmap() and free()

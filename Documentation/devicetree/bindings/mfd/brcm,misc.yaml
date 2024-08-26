@@ -33,7 +33,7 @@ properties:
 
 patternProperties:
   '^reset-controller@[a-f0-9]+$':
-    $ref: ../reset/brcm,bcm4908-misc-pcie-reset.yaml
+    $ref: /schemas/reset/brcm,bcm4908-misc-pcie-reset.yaml
 
 additionalProperties: false
 

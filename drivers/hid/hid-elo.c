@@ -313,4 +313,5 @@ static void __exit elo_driver_exit(void)
 module_exit(elo_driver_exit);
 
 MODULE_AUTHOR("Jiri Slaby <jslaby@suse.cz>");
+MODULE_DESCRIPTION("HID driver for ELO usb touchscreen 4000/4500");
 MODULE_LICENSE("GPL");

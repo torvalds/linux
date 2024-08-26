@@ -22,12 +22,16 @@
 		compatible = "atmel,24c64";
 		reg = <0x57>;
 		pagesize = <32>;
-		#address-cells = <1>;
-		#size-cells = <1>;
 		vcc-supply = <&reg_mba6_3p3v>;
 
-		mba_mac_address: mac-address@20 {
-			reg = <0x20 0x6>;
+		nvmem-layout {
+			compatible = "fixed-layout";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			mba_mac_address: mac-address@20 {
+				reg = <0x20 0x6>;
+			};
 		};
 	};
 

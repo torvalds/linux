@@ -327,4 +327,5 @@ static struct gbphy_driver pwm_driver = {
 };
 
 module_gbphy_driver(pwm_driver);
+MODULE_DESCRIPTION("PWM Greybus driver");
 MODULE_LICENSE("GPL v2");

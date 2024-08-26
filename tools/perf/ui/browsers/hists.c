@@ -38,6 +38,7 @@
 #include "../ui.h"
 #include "map.h"
 #include "annotate.h"
+#include "annotate-data.h"
 #include "srcline.h"
 #include "string2.h"
 #include "units.h"
@@ -2488,7 +2489,7 @@ add_annotate_opt(struct hist_browser *browser __maybe_unused,
 {
 	struct dso *dso;
 
-	if (!ms->map || (dso = map__dso(ms->map)) == NULL || dso->annotate_warned)
+	if (!ms->map || (dso = map__dso(ms->map)) == NULL || dso__annotate_warned(dso))
 		return 0;
 
 	if (!ms->sym)
@@ -2502,6 +2503,32 @@ add_annotate_opt(struct hist_browser *browser __maybe_unused,
 
 	act->ms = *ms;
 	act->fn = do_annotate;
+	return 1;
+}
+
+static int
+do_annotate_type(struct hist_browser *browser, struct popup_action *act)
+{
+	struct hist_entry *he = browser->he_selection;
+
+	hist_entry__annotate_data_tui(he, act->evsel, browser->hbt);
+	ui_browser__handle_resize(&browser->b);
+	return 0;
+}
+
+static int
+add_annotate_type_opt(struct hist_browser *browser,
+		      struct popup_action *act, char **optstr,
+		      struct hist_entry *he)
+{
+	if (he == NULL || he->mem_type == NULL || he->mem_type->histograms == NULL)
+		return 0;
+
+	if (asprintf(optstr, "Annotate type %s", he->mem_type->self.type_name) < 0)
+		return 0;
+
+	act->evsel = hists_to_evsel(browser->hists);
+	act->fn = do_annotate_type;
 	return 1;
 }
 
@@ -2581,7 +2608,7 @@ static int hists_browser__zoom_map(struct hist_browser *browser, struct map *map
 	} else {
 		struct dso *dso = map__dso(map);
 		ui_helpline__fpush("To zoom out press ESC or ENTER + \"Zoom out of %s DSO\"",
-				   __map__is_kernel(map) ? "the Kernel" : dso->short_name);
+				   __map__is_kernel(map) ? "the Kernel" : dso__short_name(dso));
 		browser->hists->dso_filter = dso;
 		perf_hpp__set_elide(HISTC_DSO, true);
 		pstack__push(browser->pstack, &browser->hists->dso_filter);
@@ -2607,7 +2634,7 @@ add_dso_opt(struct hist_browser *browser, struct popup_action *act,
 
 	if (asprintf(optstr, "Zoom %s %s DSO (use the 'k' hotkey to zoom directly into the kernel)",
 		     browser->hists->dso_filter ? "out of" : "into",
-		     __map__is_kernel(map) ? "the Kernel" : map__dso(map)->short_name) < 0)
+		     __map__is_kernel(map) ? "the Kernel" : dso__short_name(map__dso(map))) < 0)
 		return 0;
 
 	act->ms.map = map;
@@ -3083,7 +3110,7 @@ do_hotkey:		 // key came straight from options ui__popup_menu()
 			if (!browser->selection ||
 			    !browser->selection->map ||
 			    !map__dso(browser->selection->map) ||
-			    map__dso(browser->selection->map)->annotate_warned) {
+			    dso__annotate_warned(map__dso(browser->selection->map))) {
 				continue;
 			}
 
@@ -3307,6 +3334,10 @@ do_hotkey:		 // key came straight from options ui__popup_menu()
 						       browser->he_selection->ip);
 		}
 skip_annotation:
+		nr_options += add_annotate_type_opt(browser,
+						    &actions[nr_options],
+						    &options[nr_options],
+						    browser->he_selection);
 		nr_options += add_thread_opt(browser, &actions[nr_options],
 					     &options[nr_options], thread);
 		nr_options += add_dso_opt(browser, &actions[nr_options],

@@ -290,17 +290,35 @@ static int amdgpu_vmid_grab_reserved(struct amdgpu_vm *vm,
 	     !dma_fence_is_signaled((*id)->last_flush))) {
 		struct dma_fence *tmp;
 
-		/* Don't use per engine and per process VMID at the same time */
-		if (adev->vm_manager.concurrent_flush)
-			ring = NULL;
-
-		/* to prevent one context starved by another context */
-		(*id)->pd_gpu_addr = 0;
-		tmp = amdgpu_sync_peek_fence(&(*id)->active, ring);
-		if (tmp) {
+		/* Wait for the gang to be assembled before using a
+		 * reserved VMID or otherwise the gang could deadlock.
+		 */
+		tmp = amdgpu_device_get_gang(adev);
+		if (!dma_fence_is_signaled(tmp) && tmp != job->gang_submit) {
 			*id = NULL;
-			*fence = dma_fence_get(tmp);
+			*fence = tmp;
 			return 0;
+		}
+		dma_fence_put(tmp);
+
+		/* Make sure the id is owned by the gang before proceeding */
+		if (!job->gang_submit ||
+		    (*id)->owner != vm->immediate.fence_context) {
+
+			/* Don't use per engine and per process VMID at the
+			 * same time
+			 */
+			if (adev->vm_manager.concurrent_flush)
+				ring = NULL;
+
+			/* to prevent one context starved by another context */
+			(*id)->pd_gpu_addr = 0;
+			tmp = amdgpu_sync_peek_fence(&(*id)->active, ring);
+			if (tmp) {
+				*id = NULL;
+				*fence = dma_fence_get(tmp);
+				return 0;
+			}
 		}
 		needs_flush = true;
 	}
@@ -406,7 +424,7 @@ int amdgpu_vmid_grab(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 	if (r || !idle)
 		goto error;
 
-	if (vm->reserved_vmid[vmhub] || (enforce_isolation && (vmhub == AMDGPU_GFXHUB(0)))) {
+	if (amdgpu_vmid_uses_reserved(vm, vmhub)) {
 		r = amdgpu_vmid_grab_reserved(vm, ring, job, &id, fence);
 		if (r || !id)
 			goto error;
@@ -454,6 +472,19 @@ int amdgpu_vmid_grab(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 error:
 	mutex_unlock(&id_mgr->lock);
 	return r;
+}
+
+/*
+ * amdgpu_vmid_uses_reserved - check if a VM will use a reserved VMID
+ * @vm: the VM to check
+ * @vmhub: the VMHUB which will be used
+ *
+ * Returns: True if the VM will use a reserved VMID.
+ */
+bool amdgpu_vmid_uses_reserved(struct amdgpu_vm *vm, unsigned int vmhub)
+{
+	return vm->reserved_vmid[vmhub] ||
+		(enforce_isolation && (vmhub == AMDGPU_GFXHUB(0)));
 }
 
 int amdgpu_vmid_alloc_reserved(struct amdgpu_device *adev,

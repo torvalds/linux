@@ -50,6 +50,9 @@
 #ifndef R_AARCH64_ABS64
 #define R_AARCH64_ABS64			257
 #endif
+#ifndef R_AARCH64_ABS32
+#define R_AARCH64_ABS32			258
+#endif
 #ifndef R_AARCH64_PREL64
 #define R_AARCH64_PREL64		260
 #endif
@@ -382,6 +385,9 @@ static void emit_rela_section(Elf64_Shdr *sh_rela)
 		 */
 		case R_AARCH64_ABS64:
 			emit_rela_abs64(rela, sh_orig_name);
+			break;
+		/* Allow 32-bit absolute relocation, for kCFI type hashes. */
+		case R_AARCH64_ABS32:
 			break;
 		/* Allow position-relative data relocations. */
 		case R_AARCH64_PREL64:

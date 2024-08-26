@@ -8,7 +8,6 @@ title: Freescale Layerscape Supplemental Configuration Unit
 
 maintainers:
   - Shawn Guo <shawnguo@kernel.org>
-  - Li Yang <leoyang.li@nxp.com>
 
 description: |
   SCFG is the supplemental configuration unit, that provides SoC specific

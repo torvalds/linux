@@ -23,6 +23,7 @@ static struct stm_ftrace {
 	.data	= {
 		.name		= "ftrace",
 		.nr_chans	= STM_FTRACE_NR_CHANNELS,
+		.type		= STM_FTRACE,
 		.link		= stm_ftrace_link,
 		.unlink		= stm_ftrace_unlink,
 	},

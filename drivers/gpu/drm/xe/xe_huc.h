@@ -6,9 +6,10 @@
 #ifndef _XE_HUC_H_
 #define _XE_HUC_H_
 
-#include "xe_huc_types.h"
+#include <linux/types.h>
 
 struct drm_printer;
+struct xe_huc;
 
 enum xe_huc_auth_types {
 	XE_HUC_AUTH_VIA_GUC = 0,

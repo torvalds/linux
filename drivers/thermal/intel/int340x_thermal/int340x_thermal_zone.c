@@ -39,13 +39,14 @@ static int int340x_thermal_get_zone_temp(struct thermal_zone_device *zone,
 }
 
 static int int340x_thermal_set_trip_temp(struct thermal_zone_device *zone,
-					 int trip, int temp)
+					 const struct thermal_trip *trip, int temp)
 {
 	struct int34x_thermal_zone *d = thermal_zone_device_priv(zone);
-	char name[] = {'P', 'A', 'T', '0' + trip, '\0'};
+	unsigned int trip_index = THERMAL_TRIP_PRIV_TO_INT(trip->priv);
+	char name[] = {'P', 'A', 'T', '0' + trip_index, '\0'};
 	acpi_status status;
 
-	if (trip > 9)
+	if (trip_index > 9)
 		return -EINVAL;
 
 	status = acpi_execute_simple_method(d->adev->handle, name,
@@ -60,16 +61,6 @@ static void int340x_thermal_critical(struct thermal_zone_device *zone)
 {
 	dev_dbg(thermal_zone_device(zone), "%s: critical temperature reached\n",
 		thermal_zone_device_type(zone));
-}
-
-static inline void *int_to_trip_priv(int i)
-{
-	return (void *)(long)i;
-}
-
-static inline int trip_priv_to_int(const struct thermal_trip *trip)
-{
-	return (long)trip->priv;
 }
 
 static int int340x_thermal_read_trips(struct acpi_device *zone_adev,
@@ -106,7 +97,7 @@ static int int340x_thermal_read_trips(struct acpi_device *zone_adev,
 			break;
 
 		zone_trips[trip_cnt].type = THERMAL_TRIP_ACTIVE;
-		zone_trips[trip_cnt].priv = int_to_trip_priv(i);
+		zone_trips[trip_cnt].priv = THERMAL_INT_TO_TRIP_PRIV(i);
 		trip_cnt++;
 	}
 
@@ -154,6 +145,7 @@ struct int34x_thermal_zone *int340x_thermal_zone_add(struct acpi_device *adev,
 		zone_trips[i].type = THERMAL_TRIP_PASSIVE;
 		zone_trips[i].temperature = THERMAL_TEMP_INVALID;
 		zone_trips[i].flags |= THERMAL_TRIP_FLAG_RW_TEMP;
+		zone_trips[i].priv = THERMAL_INT_TO_TRIP_PRIV(i);
 	}
 
 	trip_cnt = int340x_thermal_read_trips(adev, zone_trips, trip_cnt);
@@ -224,7 +216,7 @@ static int int340x_update_one_trip(struct thermal_trip *trip, void *arg)
 		break;
 	case THERMAL_TRIP_ACTIVE:
 		err = thermal_acpi_active_trip_temp(zone_adev,
-						    trip_priv_to_int(trip),
+						    THERMAL_TRIP_PRIV_TO_INT(trip->priv),
 						    &temp);
 		break;
 	default:

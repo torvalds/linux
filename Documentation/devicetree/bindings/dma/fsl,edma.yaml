@@ -21,8 +21,8 @@ properties:
       - enum:
           - fsl,vf610-edma
           - fsl,imx7ulp-edma
-          - fsl,imx8qm-adma
           - fsl,imx8qm-edma
+          - fsl,imx8ulp-edma
           - fsl,imx93-edma3
           - fsl,imx93-edma4
           - fsl,imx95-edma5
@@ -43,21 +43,39 @@ properties:
     maxItems: 64
 
   "#dma-cells":
+    description: |
+      Specifies the number of cells needed to encode an DMA channel.
+
+      Encode for cells number 2:
+        cell 0: index of dma channel mux instance.
+        cell 1: peripheral dma request id.
+
+      Encode for cells number 3:
+        cell 0: peripheral dma request id.
+        cell 1: dma channel priority.
+        cell 2: bitmask, defined at include/dt-bindings/dma/fsl-edma.h
     enum:
       - 2
       - 3
 
   dma-channels:
-    minItems: 1
-    maxItems: 64
+    minimum: 1
+    maximum: 64
 
   clocks:
     minItems: 1
-    maxItems: 2
+    maxItems: 33
 
   clock-names:
     minItems: 1
-    maxItems: 2
+    maxItems: 33
+
+  power-domains:
+    description:
+      The number of power domains matches the number of channels, arranged
+      in ascending order according to their associated DMA channels.
+    minItems: 1
+    maxItems: 64
 
   big-endian:
     description: |
@@ -70,7 +88,6 @@ required:
   - compatible
   - reg
   - interrupts
-  - clocks
   - dma-channels
 
 allOf:
@@ -80,7 +97,6 @@ allOf:
         compatible:
           contains:
             enum:
-              - fsl,imx8qm-adma
               - fsl,imx8qm-edma
               - fsl,imx93-edma3
               - fsl,imx93-edma4
@@ -108,6 +124,7 @@ allOf:
       properties:
         clocks:
           minItems: 2
+          maxItems: 2
         clock-names:
           items:
             - const: dmamux0
@@ -136,6 +153,7 @@ allOf:
       properties:
         clock:
           minItems: 2
+          maxItems: 2
         clock-names:
           items:
             - const: dma
@@ -150,6 +168,58 @@ allOf:
           const: 2
         dma-channels:
           const: 32
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: fsl,imx8ulp-edma
+    then:
+      properties:
+        clocks:
+          minItems: 33
+        clock-names:
+          minItems: 33
+          items:
+            oneOf:
+              - const: dma
+              - pattern: "^ch(0[0-9]|[1-2][0-9]|3[01])$"
+
+        interrupt-names: false
+        interrupts:
+          minItems: 32
+        "#dma-cells":
+          const: 3
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - fsl,vf610-edma
+              - fsl,imx7ulp-edma
+              - fsl,imx93-edma3
+              - fsl,imx93-edma4
+              - fsl,imx95-edma5
+              - fsl,imx8ulp-edma
+              - fsl,ls1028a-edma
+    then:
+      required:
+        - clocks
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - fsl,imx8qm-adma
+              - fsl,imx8qm-edma
+    then:
+      required:
+        - power-domains
+    else:
+      properties:
+        power-domains: false
 
 unevaluatedProperties: false
 
@@ -206,44 +276,27 @@ examples:
 
   - |
     #include <dt-bindings/interrupt-controller/arm-gic.h>
-    #include <dt-bindings/clock/imx93-clock.h>
+    #include <dt-bindings/firmware/imx/rsrc.h>
 
-    dma-controller@44000000 {
-      compatible = "fsl,imx93-edma3";
-      reg = <0x44000000 0x200000>;
+    dma-controller@5a9f0000 {
+      compatible = "fsl,imx8qm-edma";
+      reg = <0x5a9f0000 0x90000>;
       #dma-cells = <3>;
-      dma-channels = <31>;
-      interrupts = <GIC_SPI 95 IRQ_TYPE_LEVEL_HIGH>,
-                   <GIC_SPI 96 IRQ_TYPE_LEVEL_HIGH>,
-                   <GIC_SPI 97 IRQ_TYPE_LEVEL_HIGH>,
-                   <GIC_SPI 98 IRQ_TYPE_LEVEL_HIGH>,
-                   <GIC_SPI 99 IRQ_TYPE_LEVEL_HIGH>,
-                   <GIC_SPI 100 IRQ_TYPE_LEVEL_HIGH>,
-                   <GIC_SPI 101 IRQ_TYPE_LEVEL_HIGH>,
-                   <GIC_SPI 102 IRQ_TYPE_LEVEL_HIGH>,
-                   <GIC_SPI 103 IRQ_TYPE_LEVEL_HIGH>,
-                   <GIC_SPI 104 IRQ_TYPE_LEVEL_HIGH>,
-                   <GIC_SPI 105 IRQ_TYPE_LEVEL_HIGH>,
-                   <GIC_SPI 106 IRQ_TYPE_LEVEL_HIGH>,
-                   <GIC_SPI 107 IRQ_TYPE_LEVEL_HIGH>,
-                   <GIC_SPI 108 IRQ_TYPE_LEVEL_HIGH>,
-                   <GIC_SPI 109 IRQ_TYPE_LEVEL_HIGH>,
-                   <GIC_SPI 110 IRQ_TYPE_LEVEL_HIGH>,
-                   <GIC_SPI 111 IRQ_TYPE_LEVEL_HIGH>,
-                   <GIC_SPI 112 IRQ_TYPE_LEVEL_HIGH>,
-                   <GIC_SPI 113 IRQ_TYPE_LEVEL_HIGH>,
-                   <GIC_SPI 114 IRQ_TYPE_LEVEL_HIGH>,
-                   <GIC_SPI 115 IRQ_TYPE_LEVEL_HIGH>,
-                   <GIC_SPI 116 IRQ_TYPE_LEVEL_HIGH>,
-                   <GIC_SPI 117 IRQ_TYPE_LEVEL_HIGH>,
-                   <GIC_SPI 118 IRQ_TYPE_LEVEL_HIGH>,
-                   <GIC_SPI 119 IRQ_TYPE_LEVEL_HIGH>,
-                   <GIC_SPI 120 IRQ_TYPE_LEVEL_HIGH>,
-                   <GIC_SPI 121 IRQ_TYPE_LEVEL_HIGH>,
-                   <GIC_SPI 122 IRQ_TYPE_LEVEL_HIGH>,
-                   <GIC_SPI 123 IRQ_TYPE_LEVEL_HIGH>,
-                   <GIC_SPI 124 IRQ_TYPE_LEVEL_HIGH>,
-                   <GIC_SPI 125 IRQ_TYPE_LEVEL_HIGH>;
-        clocks = <&clk IMX93_CLK_EDMA1_GATE>;
-        clock-names = "dma";
+      dma-channels = <8>;
+      interrupts = <GIC_SPI 424 IRQ_TYPE_LEVEL_HIGH>,
+                   <GIC_SPI 425 IRQ_TYPE_LEVEL_HIGH>,
+                   <GIC_SPI 426 IRQ_TYPE_LEVEL_HIGH>,
+                   <GIC_SPI 427 IRQ_TYPE_LEVEL_HIGH>,
+                   <GIC_SPI 428 IRQ_TYPE_LEVEL_HIGH>,
+                   <GIC_SPI 429 IRQ_TYPE_LEVEL_HIGH>,
+                   <GIC_SPI 430 IRQ_TYPE_LEVEL_HIGH>,
+                   <GIC_SPI 431 IRQ_TYPE_LEVEL_HIGH>;
+      power-domains = <&pd IMX_SC_R_DMA_3_CH0>,
+                      <&pd IMX_SC_R_DMA_3_CH1>,
+                      <&pd IMX_SC_R_DMA_3_CH2>,
+                      <&pd IMX_SC_R_DMA_3_CH3>,
+                      <&pd IMX_SC_R_DMA_3_CH4>,
+                      <&pd IMX_SC_R_DMA_3_CH5>,
+                      <&pd IMX_SC_R_DMA_3_CH6>,
+                      <&pd IMX_SC_R_DMA_3_CH7>;
     };

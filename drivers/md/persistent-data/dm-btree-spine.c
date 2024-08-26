@@ -16,7 +16,7 @@
 
 #define BTREE_CSUM_XOR 121107
 
-static void node_prepare_for_write(struct dm_block_validator *v,
+static void node_prepare_for_write(const struct dm_block_validator *v,
 				   struct dm_block *b,
 				   size_t block_size)
 {
@@ -29,7 +29,7 @@ static void node_prepare_for_write(struct dm_block_validator *v,
 					     BTREE_CSUM_XOR));
 }
 
-static int node_check(struct dm_block_validator *v,
+static int node_check(const struct dm_block_validator *v,
 		      struct dm_block *b,
 		      size_t block_size)
 {
@@ -81,7 +81,7 @@ static int node_check(struct dm_block_validator *v,
 	return 0;
 }
 
-struct dm_block_validator btree_node_validator = {
+const struct dm_block_validator btree_node_validator = {
 	.name = "btree_node",
 	.prepare_for_write = node_prepare_for_write,
 	.check = node_check

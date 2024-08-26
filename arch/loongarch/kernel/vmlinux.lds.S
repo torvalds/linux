@@ -6,6 +6,7 @@
 
 #define PAGE_SIZE _PAGE_SIZE
 #define RO_EXCEPTION_TABLE_ALIGN	4
+#define PHYSADDR_MASK			0xffffffffffff /* 48-bit */
 
 /*
  * Put .bss..swapper_pg_dir as the first thing in .bss. This will
@@ -112,6 +113,14 @@ SECTIONS
 		__rela_dyn_end = .;
 	}
 
+#ifdef CONFIG_RELR
+	.relr.dyn : ALIGN(8) {
+		__relr_dyn_begin = .;
+		 *(.relr.dyn)
+		__relr_dyn_end = .;
+	}
+#endif
+
 	.data.rel : { *(.data.rel*) }
 
 #ifdef CONFIG_RELOCATABLE
@@ -142,10 +151,11 @@ SECTIONS
 
 #ifdef CONFIG_EFI_STUB
 	/* header symbols */
-	_kernel_asize = _end - _text;
-	_kernel_fsize = _edata - _text;
-	_kernel_vsize = _end - __initdata_begin;
-	_kernel_rsize = _edata - __initdata_begin;
+	_kernel_entry = ABSOLUTE(kernel_entry & PHYSADDR_MASK);
+	_kernel_asize = ABSOLUTE(_end - _text);
+	_kernel_fsize = ABSOLUTE(_edata - _text);
+	_kernel_vsize = ABSOLUTE(_end - __initdata_begin);
+	_kernel_rsize = ABSOLUTE(_edata - __initdata_begin);
 #endif
 
 	.gptab.sdata : {

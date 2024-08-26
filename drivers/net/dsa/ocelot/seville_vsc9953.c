@@ -963,7 +963,6 @@ static const struct felix_info seville_info_vsc9953 = {
 	.quirks			= FELIX_MAC_QUIRKS,
 	.num_mact_rows		= 2048,
 	.num_ports		= VSC9953_NUM_PORTS,
-	.num_tx_queues		= OCELOT_NUM_TC,
 	.mdio_bus_alloc		= vsc9953_mdio_bus_alloc,
 	.mdio_bus_free		= vsc9953_mdio_bus_free,
 	.port_modes		= vsc9953_port_modes,
@@ -971,62 +970,18 @@ static const struct felix_info seville_info_vsc9953 = {
 
 static int seville_probe(struct platform_device *pdev)
 {
-	struct dsa_switch *ds;
-	struct ocelot *ocelot;
+	struct device *dev = &pdev->dev;
 	struct resource *res;
-	struct felix *felix;
-	int err;
-
-	felix = kzalloc(sizeof(struct felix), GFP_KERNEL);
-	if (!felix) {
-		err = -ENOMEM;
-		dev_err(&pdev->dev, "Failed to allocate driver memory\n");
-		goto err_alloc_felix;
-	}
-
-	platform_set_drvdata(pdev, felix);
-
-	ocelot = &felix->ocelot;
-	ocelot->dev = &pdev->dev;
-	ocelot->num_flooding_pgids = 1;
-	felix->info = &seville_info_vsc9953;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
-		err = -EINVAL;
-		dev_err(&pdev->dev, "Invalid resource\n");
-		goto err_alloc_felix;
-	}
-	felix->switch_base = res->start;
-
-	ds = kzalloc(sizeof(struct dsa_switch), GFP_KERNEL);
-	if (!ds) {
-		err = -ENOMEM;
-		dev_err(&pdev->dev, "Failed to allocate DSA switch\n");
-		goto err_alloc_ds;
+		dev_err(dev, "Invalid resource\n");
+		return -EINVAL;
 	}
 
-	ds->dev = &pdev->dev;
-	ds->num_ports = felix->info->num_ports;
-	ds->ops = &felix_switch_ops;
-	ds->priv = ocelot;
-	felix->ds = ds;
-	felix->tag_proto = DSA_TAG_PROTO_SEVILLE;
-
-	err = dsa_register_switch(ds);
-	if (err) {
-		dev_err(&pdev->dev, "Failed to register DSA switch: %d\n", err);
-		goto err_register_ds;
-	}
-
-	return 0;
-
-err_register_ds:
-	kfree(ds);
-err_alloc_ds:
-err_alloc_felix:
-	kfree(felix);
-	return err;
+	return felix_register_switch(dev, res->start, 1, false, false,
+				     DSA_TAG_PROTO_SEVILLE,
+				     &seville_info_vsc9953);
 }
 
 static void seville_remove(struct platform_device *pdev)
@@ -1037,9 +992,6 @@ static void seville_remove(struct platform_device *pdev)
 		return;
 
 	dsa_unregister_switch(felix->ds);
-
-	kfree(felix->ds);
-	kfree(felix);
 }
 
 static void seville_shutdown(struct platform_device *pdev)

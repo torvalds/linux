@@ -944,7 +944,7 @@ void r8712_cpwm_event_callback(struct _adapter *adapter, u8 *pbuf)
 
 /*	When the Netgear 3500 AP is with WPA2PSK-AES mode, it will send
  *	 the ADDBA req frame with start seq control = 0 to wifi client after
- *	 the WPA handshake and the seqence number of following data packet
+ *	 the WPA handshake and the sequence number of following data packet
  *	will be 0. In this case, the Rx reorder sequence is not longer than 0
  *	 and the WiFi client will drop the data with seq number 0.
  *	So, the 8712 firmware has to inform driver with receiving the

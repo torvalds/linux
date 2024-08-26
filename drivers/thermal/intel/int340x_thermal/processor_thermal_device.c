@@ -440,7 +440,8 @@ void proc_thermal_mmio_remove(struct pci_dev *pdev, struct proc_thermal_device *
 		proc_thermal_rapl_remove();
 
 	if (proc_priv->mmio_feature_mask & PROC_THERMAL_FEATURE_FIVR ||
-	    proc_priv->mmio_feature_mask & PROC_THERMAL_FEATURE_DVFS)
+	    proc_priv->mmio_feature_mask & PROC_THERMAL_FEATURE_DVFS ||
+	    proc_priv->mmio_feature_mask & PROC_THERMAL_FEATURE_DLVR)
 		proc_thermal_rfim_remove(pdev);
 
 	if (proc_priv->mmio_feature_mask & PROC_THERMAL_FEATURE_POWER_FLOOR)

@@ -31,6 +31,7 @@
 /*-------------------------------------------------------------------------*/
 
 MODULE_AUTHOR("Ben Williamson");
+MODULE_DESCRIPTION("USB MIDI Gadget Driver");
 MODULE_LICENSE("GPL v2");
 
 static const char longname[] = "MIDI Gadget";

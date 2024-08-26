@@ -5188,11 +5188,10 @@ out:
 static int process_verity(struct send_ctx *sctx)
 {
 	int ret = 0;
-	struct btrfs_fs_info *fs_info = sctx->send_root->fs_info;
 	struct inode *inode;
 	struct fs_path *p;
 
-	inode = btrfs_iget(fs_info->sb, sctx->cur_ino, sctx->send_root);
+	inode = btrfs_iget(sctx->cur_ino, sctx->send_root);
 	if (IS_ERR(inode))
 		return PTR_ERR(inode);
 
@@ -5307,7 +5306,7 @@ static int put_file_data(struct send_ctx *sctx, u64 offset, u32 len)
 
 		if (folio_test_readahead(folio))
 			page_cache_async_readahead(mapping, &sctx->ra, NULL, folio,
-						   index, last_index + 1 - index);
+						   last_index + 1 - index);
 
 		if (!folio_test_uptodate(folio)) {
 			btrfs_read_folio(NULL, folio);
@@ -5550,7 +5549,7 @@ static int send_encoded_inline_extent(struct send_ctx *sctx,
 	size_t inline_size;
 	int ret;
 
-	inode = btrfs_iget(fs_info->sb, sctx->cur_ino, root);
+	inode = btrfs_iget(sctx->cur_ino, root);
 	if (IS_ERR(inode))
 		return PTR_ERR(inode);
 
@@ -5617,7 +5616,7 @@ static int send_encoded_extent(struct send_ctx *sctx, struct btrfs_path *path,
 	u32 crc;
 	int ret;
 
-	inode = btrfs_iget(fs_info->sb, sctx->cur_ino, root);
+	inode = btrfs_iget(sctx->cur_ino, root);
 	if (IS_ERR(inode))
 		return PTR_ERR(inode);
 
@@ -5746,7 +5745,7 @@ static int send_extent_data(struct send_ctx *sctx, struct btrfs_path *path,
 	if (sctx->cur_inode == NULL) {
 		struct btrfs_root *root = sctx->send_root;
 
-		sctx->cur_inode = btrfs_iget(root->fs_info->sb, sctx->cur_ino, root);
+		sctx->cur_inode = btrfs_iget(sctx->cur_ino, root);
 		if (IS_ERR(sctx->cur_inode)) {
 			int err = PTR_ERR(sctx->cur_inode);
 
@@ -7998,34 +7997,18 @@ out:
  */
 static int ensure_commit_roots_uptodate(struct send_ctx *sctx)
 {
-	int i;
-	struct btrfs_trans_handle *trans = NULL;
+	struct btrfs_root *root = sctx->parent_root;
 
-again:
-	if (sctx->parent_root &&
-	    sctx->parent_root->node != sctx->parent_root->commit_root)
-		goto commit_trans;
+	if (root && root->node != root->commit_root)
+		return btrfs_commit_current_transaction(root);
 
-	for (i = 0; i < sctx->clone_roots_cnt; i++)
-		if (sctx->clone_roots[i].root->node !=
-		    sctx->clone_roots[i].root->commit_root)
-			goto commit_trans;
-
-	if (trans)
-		return btrfs_end_transaction(trans);
-
-	return 0;
-
-commit_trans:
-	/* Use any root, all fs roots will get their commit roots updated. */
-	if (!trans) {
-		trans = btrfs_join_transaction(sctx->send_root);
-		if (IS_ERR(trans))
-			return PTR_ERR(trans);
-		goto again;
+	for (int i = 0; i < sctx->clone_roots_cnt; i++) {
+		root = sctx->clone_roots[i].root;
+		if (root->node != root->commit_root)
+			return btrfs_commit_current_transaction(root);
 	}
 
-	return btrfs_commit_transaction(trans);
+	return 0;
 }
 
 /*
@@ -8046,7 +8029,7 @@ static int flush_delalloc_roots(struct send_ctx *sctx)
 		ret = btrfs_start_delalloc_snapshot(root, false);
 		if (ret)
 			return ret;
-		btrfs_wait_ordered_extents(root, U64_MAX, 0, U64_MAX);
+		btrfs_wait_ordered_extents(root, U64_MAX, NULL);
 	}
 
 	for (i = 0; i < sctx->clone_roots_cnt; i++) {
@@ -8054,7 +8037,7 @@ static int flush_delalloc_roots(struct send_ctx *sctx)
 		ret = btrfs_start_delalloc_snapshot(root, false);
 		if (ret)
 			return ret;
-		btrfs_wait_ordered_extents(root, U64_MAX, 0, U64_MAX);
+		btrfs_wait_ordered_extents(root, U64_MAX, NULL);
 	}
 
 	return 0;
@@ -8082,10 +8065,10 @@ static void dedupe_in_progress_warn(const struct btrfs_root *root)
 		      btrfs_root_id(root), root->dedupe_in_progress);
 }
 
-long btrfs_ioctl_send(struct inode *inode, struct btrfs_ioctl_send_args *arg)
+long btrfs_ioctl_send(struct btrfs_inode *inode, const struct btrfs_ioctl_send_args *arg)
 {
 	int ret = 0;
-	struct btrfs_root *send_root = BTRFS_I(inode)->root;
+	struct btrfs_root *send_root = inode->root;
 	struct btrfs_fs_info *fs_info = send_root->fs_info;
 	struct btrfs_root *clone_root;
 	struct send_ctx *sctx = NULL;

@@ -51,7 +51,7 @@
 	gpio_keys {
 		compatible = "gpio-keys";
 
-		power {
+		button-power {
 			label = "Power push button";
 			linux,code = <KEY_POWER>;
 			gpios = <&gpio1 0 GPIO_ACTIVE_HIGH>;
@@ -61,11 +61,11 @@
 	gpio-leds {
 		compatible = "gpio-leds";
 
-		red-fail {
+		led-red-fail {
 			label = "laplug_v2:red:power";
 			gpios = <&gpio0 12 GPIO_ACTIVE_HIGH>;
 		};
-		blue-power {
+		led-blue-power {
 			label = "laplug_v2:blue:power";
 			gpios = <&gpio0 29 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "default-on";

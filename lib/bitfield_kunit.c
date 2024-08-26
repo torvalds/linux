@@ -151,4 +151,5 @@ static struct kunit_suite bitfields_test_suite = {
 kunit_test_suites(&bitfields_test_suite);
 
 MODULE_AUTHOR("Johannes Berg <johannes@sipsolutions.net>");
+MODULE_DESCRIPTION("Test cases for bitfield helpers");
 MODULE_LICENSE("GPL");

@@ -1251,6 +1251,7 @@ out_cleanup:
 }
 EXPORT_SYMBOL_GPL(v4l2_async_register_subdev_sensor);
 
+MODULE_DESCRIPTION("V4L2 fwnode binding parsing library");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Sakari Ailus <sakari.ailus@linux.intel.com>");
 MODULE_AUTHOR("Sylwester Nawrocki <s.nawrocki@samsung.com>");

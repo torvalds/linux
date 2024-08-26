@@ -1625,6 +1625,7 @@ static bool __init spec_ctrl_bhi_dis(void)
 enum bhi_mitigations {
 	BHI_MITIGATION_OFF,
 	BHI_MITIGATION_ON,
+	BHI_MITIGATION_VMEXIT_ONLY,
 };
 
 static enum bhi_mitigations bhi_mitigation __ro_after_init =
@@ -1639,6 +1640,8 @@ static int __init spectre_bhi_parse_cmdline(char *str)
 		bhi_mitigation = BHI_MITIGATION_OFF;
 	else if (!strcmp(str, "on"))
 		bhi_mitigation = BHI_MITIGATION_ON;
+	else if (!strcmp(str, "vmexit"))
+		bhi_mitigation = BHI_MITIGATION_VMEXIT_ONLY;
 	else
 		pr_err("Ignoring unknown spectre_bhi option (%s)", str);
 
@@ -1659,19 +1662,22 @@ static void __init bhi_select_mitigation(void)
 			return;
 	}
 
+	/* Mitigate in hardware if supported */
 	if (spec_ctrl_bhi_dis())
 		return;
 
 	if (!IS_ENABLED(CONFIG_X86_64))
 		return;
 
-	/* Mitigate KVM by default */
-	setup_force_cpu_cap(X86_FEATURE_CLEAR_BHB_LOOP_ON_VMEXIT);
-	pr_info("Spectre BHI mitigation: SW BHB clearing on vm exit\n");
+	if (bhi_mitigation == BHI_MITIGATION_VMEXIT_ONLY) {
+		pr_info("Spectre BHI mitigation: SW BHB clearing on VM exit only\n");
+		setup_force_cpu_cap(X86_FEATURE_CLEAR_BHB_LOOP_ON_VMEXIT);
+		return;
+	}
 
-	/* Mitigate syscalls when the mitigation is forced =on */
+	pr_info("Spectre BHI mitigation: SW BHB clearing on syscall and VM exit\n");
 	setup_force_cpu_cap(X86_FEATURE_CLEAR_BHB_LOOP);
-	pr_info("Spectre BHI mitigation: SW BHB clearing on syscall\n");
+	setup_force_cpu_cap(X86_FEATURE_CLEAR_BHB_LOOP_ON_VMEXIT);
 }
 
 static void __init spectre_v2_select_mitigation(void)

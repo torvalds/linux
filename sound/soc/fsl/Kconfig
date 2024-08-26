@@ -103,6 +103,7 @@ config SND_SOC_FSL_XCVR
 	select REGMAP_MMIO
 	select SND_SOC_IMX_PCM_DMA if SND_IMX_SOC != n
 	select SND_SOC_GENERIC_DMAENGINE_PCM
+	select SND_SOC_FSL_UTILS
 	help
 	  Say Y if you want to add Audio Transceiver (XCVR) support for NXP
 	  iMX CPUs. XCVR is a digital module that supports HDMI2.1 eARC,
@@ -129,6 +130,13 @@ config SND_SOC_FSL_RPMSG
 	  Say Y if you want to add rpmsg audio support for the Freescale CPUs.
 	  This option is only useful for out-of-tree drivers since
 	  in-tree drivers select it automatically.
+
+config SND_SOC_FSL_LPC3XXX
+	tristate "SoC Audio for NXP LPC32XX CPUs"
+	depends on ARCH_LPC32XX || COMPILE_TEST
+	select SND_SOC_GENERIC_DMAENGINE_PCM
+	help
+	  Say Y or M if you want to add support for the LPC3XXX I2S interface.
 
 config SND_SOC_IMX_PCM_DMA
 	tristate
@@ -295,15 +303,6 @@ config SND_SOC_IMX_SGTL5000
 	  SND_SOC_FSL_ASOC_CARD and SND_SOC_SGTL5000 to use the newer
 	  driver.
 
-config SND_SOC_IMX_SPDIF
-	tristate "SoC Audio support for i.MX boards with S/PDIF"
-	select SND_SOC_IMX_PCM_DMA
-	select SND_SOC_FSL_SPDIF
-	help
-	  SoC Audio support for i.MX boards with S/PDIF
-	  Say Y if you want to add support for SoC audio on an i.MX board with
-	  a S/DPDIF.
-
 config SND_SOC_FSL_ASOC_CARD
 	tristate "Generic ASoC Sound Card with ASRC support"
 	depends on OF && I2C
@@ -315,6 +314,7 @@ config SND_SOC_FSL_ASOC_CARD
 	select SND_SOC_FSL_ESAI
 	select SND_SOC_FSL_SAI
 	select SND_SOC_FSL_SSI
+	select SND_SOC_FSL_SPDIF
 	select SND_SOC_TLV320AIC31XX
 	select SND_SOC_WM8994
 	select MFD_WM8994

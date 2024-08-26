@@ -38,3 +38,21 @@ Contact:	linuxppc-dev@lists.ozlabs.org
 Description:	read only
 		Provide information about the amount of memory reserved by
 		FADump to save the crash dump in bytes.
+
+What:		/sys/kernel/fadump/hotplug_ready
+Date:		Apr 2024
+Contact:	linuxppc-dev@lists.ozlabs.org
+Description:	read only
+		Kdump udev rule re-registers fadump on memory add/remove events,
+		primarily to update the elfcorehdr. This sysfs indicates the
+		kdump udev rule that fadump re-registration is not required on
+		memory add/remove events because elfcorehdr is now prepared in
+		the second/fadump kernel.
+User:		kexec-tools
+
+What:		/sys/kernel/fadump/bootargs_append
+Date:		May 2024
+Contact:	linuxppc-dev@lists.ozlabs.org
+Description:	read/write
+		This is a special sysfs file available to setup additional
+		parameters to be passed to capture kernel.

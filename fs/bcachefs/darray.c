@@ -13,7 +13,8 @@ int __bch2_darray_resize(darray_char *d, size_t element_size, size_t new_size, g
 		if (!data)
 			return -ENOMEM;
 
-		memcpy(data, d->data, d->size * element_size);
+		if (d->size)
+			memcpy(data, d->data, d->size * element_size);
 		if (d->data != d->preallocated)
 			kvfree(d->data);
 		d->data	= data;

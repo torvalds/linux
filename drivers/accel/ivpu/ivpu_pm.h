@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2020-2023 Intel Corporation
+ * Copyright (C) 2020-2024 Intel Corporation
  */
 
 #ifndef __IVPU_PM_H__
@@ -19,7 +19,7 @@ struct ivpu_pm_info {
 	atomic_t reset_counter;
 	atomic_t reset_pending;
 	bool is_warmboot;
-	u32 suspend_reschedule_counter;
+	u8 dct_active_percent;
 };
 
 void ivpu_pm_init(struct ivpu_device *vdev);
@@ -36,11 +36,15 @@ void ivpu_pm_reset_prepare_cb(struct pci_dev *pdev);
 void ivpu_pm_reset_done_cb(struct pci_dev *pdev);
 
 int __must_check ivpu_rpm_get(struct ivpu_device *vdev);
-int __must_check ivpu_rpm_get_if_active(struct ivpu_device *vdev);
 void ivpu_rpm_put(struct ivpu_device *vdev);
 
 void ivpu_pm_trigger_recovery(struct ivpu_device *vdev, const char *reason);
 void ivpu_start_job_timeout_detection(struct ivpu_device *vdev);
 void ivpu_stop_job_timeout_detection(struct ivpu_device *vdev);
+
+int ivpu_pm_dct_init(struct ivpu_device *vdev);
+int ivpu_pm_dct_enable(struct ivpu_device *vdev, u8 active_percent);
+int ivpu_pm_dct_disable(struct ivpu_device *vdev);
+void ivpu_pm_dct_irq_thread_handler(struct ivpu_device *vdev);
 
 #endif /* __IVPU_PM_H__ */

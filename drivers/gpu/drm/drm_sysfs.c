@@ -266,29 +266,9 @@ static ssize_t edid_show(struct file *filp, struct kobject *kobj,
 {
 	struct device *connector_dev = kobj_to_dev(kobj);
 	struct drm_connector *connector = to_drm_connector(connector_dev);
-	unsigned char *edid;
-	size_t size;
-	ssize_t ret = 0;
+	ssize_t ret;
 
-	mutex_lock(&connector->dev->mode_config.mutex);
-	if (!connector->edid_blob_ptr)
-		goto unlock;
-
-	edid = connector->edid_blob_ptr->data;
-	size = connector->edid_blob_ptr->length;
-	if (!edid)
-		goto unlock;
-
-	if (off >= size)
-		goto unlock;
-
-	if (off + count > size)
-		count = size - off;
-	memcpy(buf, edid + off, count);
-
-	ret = count;
-unlock:
-	mutex_unlock(&connector->dev->mode_config.mutex);
+	ret = drm_edid_connector_property_show(connector, buf, off, count);
 
 	return ret;
 }

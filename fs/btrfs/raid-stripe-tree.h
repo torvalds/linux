@@ -48,8 +48,7 @@ static inline bool btrfs_need_stripe_tree_update(struct btrfs_fs_info *fs_info,
 
 static inline int btrfs_num_raid_stripes(u32 item_size)
 {
-	return (item_size - offsetof(struct btrfs_stripe_extent, strides)) /
-		sizeof(struct btrfs_raid_stride);
+	return item_size / sizeof(struct btrfs_raid_stride);
 }
 
 #endif

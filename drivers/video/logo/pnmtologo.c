@@ -238,7 +238,7 @@ static void write_header(void)
 	fprintf(out, " *  Linux logo %s\n", logoname);
 	fputs(" */\n\n", out);
 	fputs("#include <linux/linux_logo.h>\n\n", out);
-	fprintf(out, "static unsigned char %s_data[] __initdata = {\n",
+	fprintf(out, "static const unsigned char %s_data[] __initconst = {\n",
 		logoname);
 }
 
@@ -375,7 +375,7 @@ static void write_logo_clut224(void)
 	fputs("\n};\n\n", out);
 
 	/* write logo clut */
-	fprintf(out, "static unsigned char %s_clut[] __initdata = {\n",
+	fprintf(out, "static const unsigned char %s_clut[] __initconst = {\n",
 		logoname);
 	write_hex_cnt = 0;
 	for (i = 0; i < logo_clutsize; i++) {

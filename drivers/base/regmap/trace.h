@@ -27,7 +27,7 @@ DECLARE_EVENT_CLASS(regmap_reg,
 	),
 
 	TP_fast_assign(
-		__assign_str(name, regmap_name(map));
+		__assign_str(name);
 		__entry->reg = reg;
 		__entry->val = val;
 	),
@@ -74,7 +74,7 @@ DECLARE_EVENT_CLASS(regmap_bulk,
 	),
 
 	TP_fast_assign(
-		__assign_str(name, regmap_name(map));
+		__assign_str(name);
 		__entry->reg = reg;
 		__entry->val_len = val_len;
 		memcpy(__get_dynamic_array(buf), val, val_len);
@@ -113,7 +113,7 @@ DECLARE_EVENT_CLASS(regmap_block,
 	),
 
 	TP_fast_assign(
-		__assign_str(name, regmap_name(map));
+		__assign_str(name);
 		__entry->reg = reg;
 		__entry->count = count;
 	),
@@ -163,9 +163,9 @@ TRACE_EVENT(regcache_sync,
 	),
 
 	TP_fast_assign(
-		__assign_str(name, regmap_name(map));
-		__assign_str(status, status);
-		__assign_str(type, type);
+		__assign_str(name);
+		__assign_str(status);
+		__assign_str(type);
 	),
 
 	TP_printk("%s type=%s status=%s", __get_str(name),
@@ -184,7 +184,7 @@ DECLARE_EVENT_CLASS(regmap_bool,
 	),
 
 	TP_fast_assign(
-		__assign_str(name, regmap_name(map));
+		__assign_str(name);
 		__entry->flag = flag;
 	),
 
@@ -216,7 +216,7 @@ DECLARE_EVENT_CLASS(regmap_async,
 	),
 
 	TP_fast_assign(
-		__assign_str(name, regmap_name(map));
+		__assign_str(name);
 	),
 
 	TP_printk("%s", __get_str(name))
@@ -264,7 +264,7 @@ TRACE_EVENT(regcache_drop_region,
 	),
 
 	TP_fast_assign(
-		__assign_str(name, regmap_name(map));
+		__assign_str(name);
 		__entry->from = from;
 		__entry->to = to;
 	),

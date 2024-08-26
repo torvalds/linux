@@ -30,6 +30,7 @@
 #include <linux/torture.h>
 #include <linux/reboot.h>
 
+MODULE_DESCRIPTION("torture test facility for locking");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Paul E. McKenney <paulmck@linux.ibm.com>");
 

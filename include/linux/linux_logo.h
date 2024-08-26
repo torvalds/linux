@@ -10,9 +10,6 @@
  *  Copyright (C) 2001 Greg Banks <gnb@alphalink.com.au>
  *  Copyright (C) 2001 Jan-Benedict Glaw <jbglaw@lug-owl.de>
  *  Copyright (C) 2003 Geert Uytterhoeven <geert@linux-m68k.org>
- *
- *  Serial_console ascii image can be any size,
- *  but should contain %s to display the version
  */
 
 #include <linux/init.h>

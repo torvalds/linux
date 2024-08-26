@@ -129,13 +129,8 @@ static void panthor_device_reset_work(struct work_struct *work)
 	panthor_gpu_l2_power_on(ptdev);
 	panthor_mmu_post_reset(ptdev);
 	ret = panthor_fw_post_reset(ptdev);
-	if (ret)
-		goto out_dev_exit;
-
 	atomic_set(&ptdev->reset.pending, 0);
-	panthor_sched_post_reset(ptdev);
-
-out_dev_exit:
+	panthor_sched_post_reset(ptdev, ret != 0);
 	drm_dev_exit(cookie);
 
 	if (ret) {
@@ -293,6 +288,7 @@ static const struct panthor_exception_info panthor_exception_infos[] = {
 	PANTHOR_EXCEPTION(ACTIVE),
 	PANTHOR_EXCEPTION(CS_RES_TERM),
 	PANTHOR_EXCEPTION(CS_CONFIG_FAULT),
+	PANTHOR_EXCEPTION(CS_UNRECOVERABLE),
 	PANTHOR_EXCEPTION(CS_ENDPOINT_FAULT),
 	PANTHOR_EXCEPTION(CS_BUS_FAULT),
 	PANTHOR_EXCEPTION(CS_INSTR_INVALID),

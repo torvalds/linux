@@ -114,12 +114,12 @@ void llc_sap_rtn_pdu(struct llc_sap *sap, struct sk_buff *skb)
  *	Returns the pointer to found transition on success or %NULL for
  *	failure.
  */
-static struct llc_sap_state_trans *llc_find_sap_trans(struct llc_sap *sap,
-						      struct sk_buff *skb)
+static const struct llc_sap_state_trans *llc_find_sap_trans(struct llc_sap *sap,
+							    struct sk_buff *skb)
 {
 	int i = 0;
-	struct llc_sap_state_trans *rc = NULL;
-	struct llc_sap_state_trans **next_trans;
+	const struct llc_sap_state_trans *rc = NULL;
+	const struct llc_sap_state_trans **next_trans;
 	struct llc_sap_state *curr_state = &llc_sap_state_table[sap->state - 1];
 	/*
 	 * Search thru events for this state until list exhausted or until
@@ -143,7 +143,7 @@ static struct llc_sap_state_trans *llc_find_sap_trans(struct llc_sap *sap,
  *	Returns 0 for success and 1 for failure of at least one action.
  */
 static int llc_exec_sap_trans_actions(struct llc_sap *sap,
-				      struct llc_sap_state_trans *trans,
+				      const struct llc_sap_state_trans *trans,
 				      struct sk_buff *skb)
 {
 	int rc = 0;
@@ -166,8 +166,8 @@ static int llc_exec_sap_trans_actions(struct llc_sap *sap,
  */
 static int llc_sap_next_state(struct llc_sap *sap, struct sk_buff *skb)
 {
+	const struct llc_sap_state_trans *trans;
 	int rc = 1;
-	struct llc_sap_state_trans *trans;
 
 	if (sap->state > LLC_NR_SAP_STATES)
 		goto out;

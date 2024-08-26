@@ -41,28 +41,18 @@ properties:
       - ampire,am800600p5tmqw-tb8h
         # AU Optronics Corporation 10.1" WSVGA TFT LCD panel
       - auo,b101aw03
-        # AU Optronics Corporation 10.1" WSVGA TFT LCD panel
-      - auo,b101ean01
         # AU Optronics Corporation 10.1" WXGA TFT LCD panel
       - auo,b101xtn01
-        # AUO B116XAK01 eDP TFT LCD panel
-      - auo,b116xa01
         # AU Optronics Corporation 11.6" HD (1366x768) color TFT-LCD panel
       - auo,b116xw03
-        # AU Optronics Corporation 13.3" FHD (1920x1080) color TFT-LCD panel
-      - auo,b133han05
-        # AU Optronics Corporation 13.3" FHD (1920x1080) color TFT-LCD panel
-      - auo,b133htn01
-        # AU Optronics Corporation 13.3" WXGA (1366x768) TFT LCD panel
-      - auo,b133xtn01
-        # AU Optronics Corporation 14.0" FHD (1920x1080) color TFT-LCD panel
-      - auo,b140han06
         # AU Optronics Corporation 7.0" FHD (800 x 480) TFT LCD panel
       - auo,g070vvn01
         # AU Optronics Corporation 10.1" (1280x800) color TFT LCD panel
       - auo,g101evn010
         # AU Optronics Corporation 10.4" (800x600) color TFT LCD panel
       - auo,g104sn02
+        # AU Optronics Corporation 10.4" (800x600) color TFT LCD panel
+      - auo,g104stn01
         # AU Optronics Corporation 12.1" (1280x800) TFT LCD panel
       - auo,g121ean01
         # AU Optronics Corporation 15.6" (1366x768) TFT LCD panel
@@ -81,16 +71,6 @@ properties:
       - boe,ev121wxm-n10-1850
         # BOE HV070WSA-100 7.01" WSVGA TFT LCD panel
       - boe,hv070wsa-100
-        # BOE OPTOELECTRONICS TECHNOLOGY 10.1" WXGA TFT LCD panel
-      - boe,nv101wxmn51
-        # BOE NV133FHM-N61 13.3" FHD (1920x1080) TFT LCD Panel
-      - boe,nv110wtm-n61
-        # BOE NV110WTM-N61 11.0" 2160x1440 TFT LCD Panel
-      - boe,nv133fhm-n61
-        # BOE NV133FHM-N62 13.3" FHD (1920x1080) TFT LCD Panel
-      - boe,nv133fhm-n62
-        # BOE NV140FHM-N49 14.0" FHD a-Si FT panel
-      - boe,nv140fhmn49
         # Crystal Clear Technology CMT430B19N00 4.3" 480x272 TFT-LCD panel
       - cct,cmt430b19n00
         # CDTech(H.K.) Electronics Limited 4.3" 480x272 color TFT-LCD panel
@@ -172,8 +152,6 @@ properties:
       - hannstar,hsd100pxn1
         # Hitachi Ltd. Corporation 9" WVGA (800x480) TFT LCD panel
       - hit,tx23d38vm0caa
-        # InfoVision Optoelectronics M133NWF4 R0 13.3" FHD (1920x1080) TFT LCD panel
-      - ivo,m133nwf4-r0
         # Innolux AT043TN24 4.3" WQVGA TFT LCD panel
       - innolux,at043tn24
         # Innolux AT070TN92 7.0" WQVGA TFT LCD panel
@@ -192,22 +170,12 @@ properties:
       - innolux,g121x1-l03
         # Innolux Corporation 12.1" G121XCE-L01 XGA (1024x768) TFT LCD panel
       - innolux,g121xce-l01
-        # Innolux Corporation 11.6" WXGA (1366x768) TFT LCD panel
-      - innolux,n116bca-ea1
-        # Innolux Corporation 11.6" WXGA (1366x768) TFT LCD panel
-      - innolux,n116bge
-        # InnoLux 13.3" FHD (1920x1080) eDP TFT LCD panel
-      - innolux,n125hce-gn1
         # InnoLux 15.6" FHD (1920x1080) TFT LCD panel
       - innolux,g156hce-l01
         # InnoLux 15.6" WXGA TFT LCD panel
       - innolux,n156bge-l21
-        # Innolux P120ZDG-BF1 12.02 inch eDP 2K display panel
-      - innolux,p120zdg-bf1
         # Innolux Corporation 7.0" WSVGA (1024x600) TFT LCD panel
       - innolux,zj070na-01p
-        # King & Display KD116N21-30NV-A010 eDP TFT LCD panel
-      - kingdisplay,kd116n21-30nv-a010
         # Kaohsiung Opto-Electronics Inc. 5.7" QVGA (320 x 240) TFT LCD panel
       - koe,tx14d24vm1bpa
         # Kaohsiung Opto-Electronics. TX31D200VM0BAA 12.3" HSXGA LVDS panel
@@ -220,14 +188,6 @@ properties:
       - lemaker,bl035-rgb-002
         # LG 7" (800x480 pixels) TFT LCD panel
       - lg,lb070wv8
-        # LG LP079QX1-SP0V 7.9" (1536x2048 pixels) TFT LCD panel
-      - lg,lp079qx1-sp0v
-        # LG 9.7" (2048x1536 pixels) TFT LCD panel
-      - lg,lp097qx1-spa1
-        # LG 12.0" (1920x1280 pixels) TFT LCD panel
-      - lg,lp120up1
-        # LG 12.9" (2560x1700 pixels) TFT LCD panel
-      - lg,lp129qe
         # Logic Technologies LT161010-2NHC 7" WVGA TFT Cap Touch Module
       - logictechno,lt161010-2nhc
         # Logic Technologies LT161010-2NHR 7" WVGA TFT Resistive Touch Module
@@ -254,8 +214,6 @@ properties:
       - nec,nl4827hc19-05b
         # Netron-DY E231732 7.0" WSVGA TFT LCD panel
       - netron-dy,e231732
-        # NewEast Optoelectronics CO., LTD WJFH116008A eDP TFT LCD panel
-      - neweast,wjfh116008a
         # Newhaven Display International 480 x 272 TFT LCD panel
       - newhaven,nhd-4.3-480272ef-atxl
         # New Vision Display 7.0" 800 RGB x 480 TFT LCD panel
@@ -280,6 +238,8 @@ properties:
       - powertip,ph128800t006-zhc01
         # POWERTIP PH800480T013-IDF2 7.0" WVGA TFT LCD panel
       - powertip,ph800480t013-idf02
+        # PrimeView PM070WL4 7.0" 800x480 TFT LCD panel
+      - primeview,pm070wl4
         # QiaoDian XianShi Corporation 4"3 TFT LCD panel
       - qiaodian,qd43003c0-40
         # Shenzhen QiShenglong Industrialist Co., Ltd. Gopher 2b 4.3" 480(RGB)x272 TFT LCD panel
@@ -290,16 +250,10 @@ properties:
       - rocktech,rk070er9427
         # Rocktech Display Ltd. RK043FN48H 4.3" 480x272 LCD-TFT panel
       - rocktech,rk043fn48h
-        # Samsung 13.3" FHD (1920x1080 pixels) eDP AMOLED panel
-      - samsung,atna33xc20
-        # Samsung 12.2" (2560x1600 pixels) TFT LCD panel
-      - samsung,lsn122dl01-c01
         # Samsung Electronics 10.1" WXGA (1280x800) TFT LCD panel
       - samsung,ltl101al01
         # Samsung Electronics 10.1" WSVGA TFT LCD panel
       - samsung,ltn101nt05
-        # Samsung Electronics 14" WXGA (1366x768) TFT LCD panel
-      - samsung,ltn140at29-301
         # Satoz SAT050AT40H12R2 5.0" WVGA TFT LCD panel
       - satoz,sat050at40h12r2
         # Sharp LQ035Q7DB03 3.5" QVGA TFT LCD panel
@@ -308,18 +262,12 @@ properties:
       - sharp,lq070y3dg3b
         # Sharp Display Corp. LQ101K1LY04 10.07" WXGA TFT LCD panel
       - sharp,lq101k1ly04
-        # Sharp 12.3" (2400x1600 pixels) TFT LCD panel
-      - sharp,lq123p1jx31
-        # Sharp 14" (1920x1080 pixels) TFT LCD panel
-      - sharp,lq140m1jw46
         # Sharp LS020B1DD01D 2.0" HQVGA TFT LCD panel
       - sharp,ls020b1dd01d
         # Shelly SCA07010-BFN-LNN 7.0" WVGA TFT LCD panel
       - shelly,sca07010-bfn-lnn
         # Starry KR070PE2T 7" WVGA TFT LCD panel
       - starry,kr070pe2t
-        # Starry 12.2" (1920x1200 pixels) TFT LCD panel
-      - starry,kr122ea0sra
         # Startek KD070WVFPA043-C069A 7" TFT LCD panel
       - startek,kd070wvfpa
         # Team Source Display Technology TST043015CMHX 4.3" WQVGA TFT LCD panel

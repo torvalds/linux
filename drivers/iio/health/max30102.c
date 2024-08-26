@@ -448,9 +448,8 @@ static int max30102_get_temp(struct max30102_data *data, int *val, bool en)
 	}
 
 	/* start acquisition */
-	ret = regmap_update_bits(data->regmap, MAX30102_REG_TEMP_CONFIG,
-				 MAX30102_REG_TEMP_CONFIG_TEMP_EN,
-				 MAX30102_REG_TEMP_CONFIG_TEMP_EN);
+	ret = regmap_set_bits(data->regmap, MAX30102_REG_TEMP_CONFIG,
+			      MAX30102_REG_TEMP_CONFIG_TEMP_EN);
 	if (ret)
 		goto out;
 
@@ -613,6 +612,7 @@ static void max30102_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id max30102_id[] = {
+	{ "max30101", max30105 },
 	{ "max30102", max30102 },
 	{ "max30105", max30105 },
 	{}
@@ -620,6 +620,7 @@ static const struct i2c_device_id max30102_id[] = {
 MODULE_DEVICE_TABLE(i2c, max30102_id);
 
 static const struct of_device_id max30102_dt_ids[] = {
+	{ .compatible = "maxim,max30101" },
 	{ .compatible = "maxim,max30102" },
 	{ .compatible = "maxim,max30105" },
 	{ }

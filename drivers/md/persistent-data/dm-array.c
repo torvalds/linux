@@ -38,7 +38,7 @@ struct array_block {
  */
 #define CSUM_XOR 595846735
 
-static void array_block_prepare_for_write(struct dm_block_validator *v,
+static void array_block_prepare_for_write(const struct dm_block_validator *v,
 					  struct dm_block *b,
 					  size_t size_of_block)
 {
@@ -50,7 +50,7 @@ static void array_block_prepare_for_write(struct dm_block_validator *v,
 						 CSUM_XOR));
 }
 
-static int array_block_check(struct dm_block_validator *v,
+static int array_block_check(const struct dm_block_validator *v,
 			     struct dm_block *b,
 			     size_t size_of_block)
 {
@@ -77,7 +77,7 @@ static int array_block_check(struct dm_block_validator *v,
 	return 0;
 }
 
-static struct dm_block_validator array_validator = {
+static const struct dm_block_validator array_validator = {
 	.name = "array",
 	.prepare_for_write = array_block_prepare_for_write,
 	.check = array_block_check

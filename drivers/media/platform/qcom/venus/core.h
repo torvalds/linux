@@ -169,6 +169,7 @@ struct venus_format {
  * @core1_usage_count: usage counter for core1
  * @root:	debugfs root directory
  * @venus_ver:	the venus firmware version
+ * @dump_core:	a flag indicating that a core dump is required
  */
 struct venus_core {
 	void __iomem *base;
@@ -232,6 +233,7 @@ struct venus_core {
 		u32 minor;
 		u32 rev;
 	} venus_ver;
+	unsigned long dump_core;
 };
 
 struct vdec_controls {

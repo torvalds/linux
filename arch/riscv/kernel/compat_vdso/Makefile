@@ -34,12 +34,6 @@ obj-compat_vdso := $(addprefix $(obj)/, $(obj-compat_vdso))
 obj-y += compat_vdso.o
 CPPFLAGS_compat_vdso.lds += -P -C -DCOMPAT_VDSO -U$(ARCH)
 
-# Disable profiling and instrumentation for VDSO code
-GCOV_PROFILE := n
-KCOV_INSTRUMENT := n
-KASAN_SANITIZE := n
-UBSAN_SANITIZE := n
-
 # Force dependency
 $(obj)/compat_vdso.o: $(obj)/compat_vdso.so
 
@@ -58,7 +52,7 @@ $(obj)/%.so: $(obj)/%.so.dbg FORCE
 	$(call if_changed,objcopy)
 
 # Generate VDSO offsets using helper script
-gen-compat_vdsosym := $(srctree)/$(src)/gen_compat_vdso_offsets.sh
+gen-compat_vdsosym := $(src)/gen_compat_vdso_offsets.sh
 quiet_cmd_compat_vdsosym = VDSOSYM $@
 	cmd_compat_vdsosym = $(NM) $< | $(gen-compat_vdsosym) | LC_ALL=C sort > $@
 

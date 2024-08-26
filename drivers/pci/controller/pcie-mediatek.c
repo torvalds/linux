@@ -1252,4 +1252,5 @@ static struct platform_driver mtk_pcie_driver = {
 	},
 };
 module_platform_driver(mtk_pcie_driver);
+MODULE_DESCRIPTION("MediaTek PCIe host controller driver");
 MODULE_LICENSE("GPL v2");

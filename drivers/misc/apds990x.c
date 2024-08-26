@@ -625,15 +625,15 @@ static ssize_t apds990x_lux_show(struct device *dev,
 	struct apds990x_chip *chip = dev_get_drvdata(dev);
 	ssize_t ret;
 	u32 result;
-	long timeout;
+	long time_left;
 
 	if (pm_runtime_suspended(dev))
 		return -EIO;
 
-	timeout = wait_event_interruptible_timeout(chip->wait,
-						!chip->lux_wait_fresh_res,
-						msecs_to_jiffies(APDS_TIMEOUT));
-	if (!timeout)
+	time_left = wait_event_interruptible_timeout(chip->wait,
+						     !chip->lux_wait_fresh_res,
+						     msecs_to_jiffies(APDS_TIMEOUT));
+	if (!time_left)
 		return -EIO;
 
 	mutex_lock(&chip->mutex);
@@ -1253,7 +1253,7 @@ static int apds990x_runtime_resume(struct device *dev)
 #endif
 
 static const struct i2c_device_id apds990x_id[] = {
-	{"apds990x", 0 },
+	{ "apds990x" },
 	{}
 };
 

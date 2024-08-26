@@ -601,7 +601,7 @@ static int wm_adsp_control_add(struct cs_dsp_coeff_ctl *cs_ctl)
 		return -EINVAL;
 	}
 
-	switch (cs_dsp->fw_ver) {
+	switch (cs_dsp->wmfw_ver) {
 	case 0:
 	case 1:
 		ret = scnprintf(name, SNDRV_CTL_ELEM_ID_NAME_MAXLEN,
@@ -2085,5 +2085,6 @@ static const struct cs_dsp_client_ops wm_adsp2_client_ops = {
 	.watchdog_expired = wm_adsp_fatal_error,
 };
 
+MODULE_DESCRIPTION("Cirrus Logic ASoC DSP Support");
 MODULE_LICENSE("GPL v2");
 MODULE_IMPORT_NS(FW_CS_DSP);

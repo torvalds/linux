@@ -12,14 +12,13 @@
 #include "fw/api/debug.h"
 #include "fw/api/paging.h"
 #include "fw/api/power.h"
-#include "iwl-eeprom-parse.h"
+#include "iwl-nvm-utils.h"
 #include "fw/acpi.h"
 #include "fw/regulatory.h"
 
 struct iwl_fw_runtime_ops {
 	void (*dump_start)(void *ctx);
 	void (*dump_end)(void *ctx);
-	bool (*fw_running)(void *ctx);
 	int (*send_hcmd)(void *ctx, struct iwl_host_cmd *host_cmd);
 	bool (*d3_debug_enable)(void *ctx);
 };
@@ -104,7 +103,6 @@ struct iwl_txf_iter_data {
  * @cur_fw_img: current firmware image, must be maintained by
  *	the driver by calling &iwl_fw_set_current_image()
  * @dump: debug dump data
- * @uats_enabled: VLP or AFC AP is enabled
  * @uats_table: AP type table
  * @uefi_tables_lock_status: The status of the WIFI GUID UEFI variables lock:
  *	0: Unlocked, 1 and 2: Locked.
@@ -184,7 +182,6 @@ struct iwl_fw_runtime {
 	bool sgom_enabled;
 	struct iwl_mcc_allowed_ap_type_cmd uats_table;
 	u8 uefi_tables_lock_status;
-	bool uats_enabled;
 };
 
 void iwl_fw_runtime_init(struct iwl_fw_runtime *fwrt, struct iwl_trans *trans,

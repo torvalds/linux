@@ -933,7 +933,7 @@ MODULE_DEVICE_TABLE(of, abb5zes3_dt_match);
 #endif
 
 static const struct i2c_device_id abb5zes3_id[] = {
-	{ "abb5zes3", 0 },
+	{ "abb5zes3" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, abb5zes3_id);

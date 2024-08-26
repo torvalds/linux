@@ -304,7 +304,7 @@ static int lms501kf03_set_power(struct lcd_device *ld, int power)
 	return lms501kf03_power(lcd, power);
 }
 
-static struct lcd_ops lms501kf03_lcd_ops = {
+static const struct lcd_ops lms501kf03_lcd_ops = {
 	.get_power = lms501kf03_get_power,
 	.set_power = lms501kf03_set_power,
 };

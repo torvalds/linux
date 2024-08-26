@@ -295,8 +295,8 @@ int amdgpu_ttm_copy_mem_to_mem(struct amdgpu_device *adev,
 	struct amdgpu_res_cursor src_mm, dst_mm;
 	struct dma_fence *fence = NULL;
 	int r = 0;
-
 	uint32_t copy_flags = 0;
+	struct amdgpu_bo *abo_src, *abo_dst;
 
 	if (!adev->mman.buffer_funcs_enabled) {
 		DRM_ERROR("Trying to move memory with ring turned off.\n");
@@ -308,7 +308,8 @@ int amdgpu_ttm_copy_mem_to_mem(struct amdgpu_device *adev,
 
 	mutex_lock(&adev->mman.gtt_window_lock);
 	while (src_mm.remaining) {
-		uint64_t from, to, cur_size;
+		uint64_t from, to, cur_size, tiling_flags;
+		uint32_t num_type, data_format, max_com;
 		struct dma_fence *next;
 
 		/* Never copy more than 256MiB at once to avoid a timeout */
@@ -325,8 +326,24 @@ int amdgpu_ttm_copy_mem_to_mem(struct amdgpu_device *adev,
 		if (r)
 			goto error;
 
+		abo_src = ttm_to_amdgpu_bo(src->bo);
+		abo_dst = ttm_to_amdgpu_bo(dst->bo);
 		if (tmz)
 			copy_flags |= AMDGPU_COPY_FLAGS_TMZ;
+		if ((abo_src->flags & AMDGPU_GEM_CREATE_GFX12_DCC) &&
+		    (abo_src->tbo.resource->mem_type == TTM_PL_VRAM))
+			copy_flags |= AMDGPU_COPY_FLAGS_READ_DECOMPRESSED;
+		if ((abo_dst->flags & AMDGPU_GEM_CREATE_GFX12_DCC) &&
+		    (dst->mem->mem_type == TTM_PL_VRAM)) {
+			copy_flags |= AMDGPU_COPY_FLAGS_WRITE_COMPRESSED;
+			amdgpu_bo_get_tiling_flags(abo_dst, &tiling_flags);
+			max_com = AMDGPU_TILING_GET(tiling_flags, GFX12_DCC_MAX_COMPRESSED_BLOCK);
+			num_type = AMDGPU_TILING_GET(tiling_flags, GFX12_DCC_NUMBER_TYPE);
+			data_format = AMDGPU_TILING_GET(tiling_flags, GFX12_DCC_DATA_FORMAT);
+			copy_flags |= (AMDGPU_COPY_FLAGS_SET(MAX_COMPRESSED, max_com) |
+				       AMDGPU_COPY_FLAGS_SET(NUMBER_TYPE, num_type) |
+				       AMDGPU_COPY_FLAGS_SET(DATA_FORMAT, data_format));
+		}
 
 		r = amdgpu_copy_buffer(ring, from, to, cur_size, resv,
 				       &next, false, true, copy_flags);
@@ -845,8 +862,7 @@ static void amdgpu_ttm_gart_bind_gfx9_mqd(struct amdgpu_device *adev,
 	int num_xcc = max(1U, adev->gfx.num_xcc_per_xcp);
 	uint64_t page_idx, pages_per_xcc;
 	int i;
-	uint64_t ctrl_flags = (flags & ~AMDGPU_PTE_MTYPE_VG10_MASK) |
-			AMDGPU_PTE_MTYPE_VG10(AMDGPU_MTYPE_NC);
+	uint64_t ctrl_flags = AMDGPU_PTE_MTYPE_VG10(flags, AMDGPU_MTYPE_NC);
 
 	pages_per_xcc = total_pages;
 	do_div(pages_per_xcc, num_xcc);
@@ -1401,7 +1417,8 @@ static bool amdgpu_ttm_bo_eviction_valuable(struct ttm_buffer_object *bo,
 	 */
 	dma_resv_for_each_fence(&resv_cursor, bo->base.resv,
 				DMA_RESV_USAGE_BOOKKEEP, f) {
-		if (amdkfd_fence_check_mm(f, current->mm))
+		if (amdkfd_fence_check_mm(f, current->mm) &&
+		    !(place->flags & TTM_PL_FLAG_CONTIGUOUS))
 			return false;
 	}
 
@@ -1742,7 +1759,8 @@ static int amdgpu_ttm_reserve_tmr(struct amdgpu_device *adev)
 			amdgpu_atomfirmware_get_fw_reserved_fb_size(adev);
 
 	if (!adev->bios &&
-	    amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(9, 4, 3))
+	    (amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(9, 4, 3) ||
+	     amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(9, 4, 4)))
 		reserve_size = max(reserve_size, (uint32_t)280 << 20);
 	else if (!reserve_size)
 		reserve_size = DISCOVERY_TMR_OFFSET;

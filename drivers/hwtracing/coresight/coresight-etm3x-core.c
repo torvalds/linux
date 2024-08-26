@@ -1008,7 +1008,6 @@ MODULE_DEVICE_TABLE(amba, etm_ids);
 static struct amba_driver etm_driver = {
 	.drv = {
 		.name	= "coresight-etm3x",
-		.owner	= THIS_MODULE,
 		.pm	= &etm_dev_pm_ops,
 		.suppress_bind_attrs = true,
 	},

@@ -2,7 +2,7 @@
 
 #include "trace/beauty/beauty.h"
 #include <linux/kernel.h>
-#include <uapi/linux/fcntl.h>
+#include <linux/fcntl.h>
 
 #ifndef LOCK_MAND
 #define LOCK_MAND	 32

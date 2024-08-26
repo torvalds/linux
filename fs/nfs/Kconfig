@@ -33,12 +33,12 @@ config NFS_FS
 config NFS_V2
 	tristate "NFS client support for NFS version 2"
 	depends on NFS_FS
-	default y
+	default n
 	help
 	  This option enables support for version 2 of the NFS protocol
 	  (RFC 1094) in the kernel's NFS client.
 
-	  If unsure, say Y.
+	  If unsure, say N.
 
 config NFS_V3
 	tristate "NFS client support for NFS version 3"

@@ -70,4 +70,5 @@ static struct hid_driver px_driver = {
 module_hid_driver(px_driver);
 
 MODULE_AUTHOR("Terry Lambert <tlambert@google.com>");
+MODULE_DESCRIPTION("HID driver for primax and similar keyboards with in-band modifiers");
 MODULE_LICENSE("GPL");

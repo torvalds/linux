@@ -19,6 +19,7 @@
 	compatible = "st,stm32mp135f-dk", "st,stm32mp135";
 
 	aliases {
+		ethernet0 = &ethernet1;
 		serial0 = &uart4;
 		serial1 = &usart1;
 		serial2 = &uart8;
@@ -27,6 +28,20 @@
 
 	chosen {
 		stdout-path = "serial0:115200n8";
+	};
+
+	clocks {
+		clk_ext_camera: clk-ext-camera {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <24000000>;
+		};
+
+		clk_mco1: clk-mco1 {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <24000000>;
+		};
 	};
 
 	memory@c0000000 {
@@ -141,6 +156,45 @@
 	status = "okay";
 };
 
+&dcmipp {
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&dcmipp_pins_a>;
+	pinctrl-1 = <&dcmipp_sleep_pins_a>;
+	status = "okay";
+
+	port {
+		dcmipp_0: endpoint {
+			remote-endpoint = <&mipid02_2>;
+			bus-width = <8>;
+			hsync-active = <0>;
+			vsync-active = <0>;
+			pclk-sample = <0>;
+		};
+	};
+};
+
+&ethernet1 {
+	status = "okay";
+	pinctrl-0 = <&eth1_rmii_pins_a>;
+	pinctrl-1 = <&eth1_rmii_sleep_pins_a>;
+	pinctrl-names = "default", "sleep";
+	phy-mode = "rmii";
+	phy-handle = <&phy0_eth1>;
+
+	mdio {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "snps,dwmac-mdio";
+
+		phy0_eth1: ethernet-phy@0 {
+			compatible = "ethernet-phy-id0007.c131";
+			reg = <0>;
+			reset-gpios = <&mcp23017 9 GPIO_ACTIVE_LOW>;
+			wakeup-source;
+		};
+	};
+};
+
 &i2c1 {
 	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&i2c1_pins_a>;
@@ -201,6 +255,76 @@
 	/* spare dmas for other usage */
 	/delete-property/dmas;
 	/delete-property/dma-names;
+
+	stmipi: csi2rx@14 {
+		compatible = "st,st-mipid02";
+		reg = <0x14>;
+		clocks = <&clk_mco1>;
+		clock-names = "xclk";
+		VDDE-supply = <&scmi_v1v8_periph>;
+		VDDIN-supply = <&scmi_v1v8_periph>;
+		reset-gpios = <&mcp23017 2 (GPIO_ACTIVE_LOW | GPIO_PUSH_PULL)>;
+		status = "okay";
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			port@0 {
+				reg = <0>;
+
+				mipid02_0: endpoint {
+					data-lanes = <1 2>;
+					lane-polarities = <0 0 0>;
+					remote-endpoint = <&gc2145_ep>;
+				};
+			};
+			port@2 {
+				reg = <2>;
+
+				mipid02_2: endpoint {
+					bus-width = <8>;
+					hsync-active = <0>;
+					vsync-active = <0>;
+					pclk-sample = <0>;
+					remote-endpoint = <&dcmipp_0>;
+				};
+			};
+		};
+	};
+
+	gc2145: camera@3c {
+		compatible = "galaxycore,gc2145";
+		reg = <0x3c>;
+		clocks = <&clk_ext_camera>;
+		iovdd-supply = <&scmi_v3v3_sw>;
+		avdd-supply = <&scmi_v3v3_sw>;
+		dvdd-supply = <&scmi_v3v3_sw>;
+		powerdown-gpios = <&mcp23017 3 (GPIO_ACTIVE_LOW | GPIO_PUSH_PULL)>;
+		reset-gpios = <&mcp23017 4 (GPIO_ACTIVE_LOW | GPIO_PUSH_PULL)>;
+		status = "okay";
+
+		port {
+			gc2145_ep: endpoint {
+				remote-endpoint = <&mipid02_0>;
+				data-lanes = <1 2>;
+				link-frequencies = /bits/ 64 <120000000 192000000 240000000>;
+			};
+		};
+	};
+
+	goodix: goodix-ts@5d {
+		compatible = "goodix,gt911";
+		reg = <0x5d>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&goodix_pins_a>;
+		interrupt-parent = <&gpiof>;
+		interrupts = <5 IRQ_TYPE_EDGE_FALLING>;
+		AVDD28-supply = <&scmi_v3v3_sw>;
+		VDDIO-supply = <&scmi_v3v3_sw>;
+		touchscreen-size-x = <480>;
+		touchscreen-size-y = <272>;
+		status = "okay" ;
+	};
 };
 
 &iwdg2 {
@@ -273,6 +397,7 @@
 	/delete-property/dma-names;
 	status = "disabled";
 	pwm {
+		/* PWM output on pin 7 of the expansion connector (CN8.7) using TIM3_CH4 func */
 		pinctrl-0 = <&pwm3_pins_a>;
 		pinctrl-1 = <&pwm3_sleep_pins_a>;
 		pinctrl-names = "default", "sleep";
@@ -288,6 +413,7 @@
 	/delete-property/dma-names;
 	status = "disabled";
 	pwm {
+		/* PWM output on pin 31 of the expansion connector (CN8.31) using TIM4_CH2 func */
 		pinctrl-0 = <&pwm4_pins_a>;
 		pinctrl-1 = <&pwm4_sleep_pins_a>;
 		pinctrl-names = "default", "sleep";
@@ -303,6 +429,7 @@
 	/delete-property/dma-names;
 	status = "disabled";
 	pwm {
+		/* PWM output on pin 32 of the expansion connector (CN8.32) using TIM8_CH3 func */
 		pinctrl-0 = <&pwm8_pins_a>;
 		pinctrl-1 = <&pwm8_sleep_pins_a>;
 		pinctrl-names = "default", "sleep";
@@ -316,6 +443,7 @@
 &timers14 {
 	status = "disabled";
 	pwm {
+		/* PWM output on pin 33 of the expansion connector (CN8.33) using TIM14_CH1 func */
 		pinctrl-0 = <&pwm14_pins_a>;
 		pinctrl-1 = <&pwm14_sleep_pins_a>;
 		pinctrl-names = "default", "sleep";

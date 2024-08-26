@@ -28,6 +28,10 @@ struct ivpu_fw_info {
 	u32 trace_destination_mask;
 	u64 trace_hw_component_mask;
 	u32 dvfs_mode;
+	u32 primary_preempt_buf_size;
+	u32 secondary_preempt_buf_size;
+	u64 read_only_addr;
+	u32 read_only_size;
 };
 
 int ivpu_fw_init(struct ivpu_device *vdev);

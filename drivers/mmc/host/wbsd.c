@@ -459,7 +459,7 @@ static void wbsd_empty_fifo(struct wbsd_host *host)
 	 * FIFO threshold interrupts properly.
 	 */
 	if ((data->blocks * data->blksz - data->bytes_xfered) < 16)
-		tasklet_schedule(&host->fifo_tasklet);
+		queue_work(system_bh_wq, &host->fifo_bh_work);
 }
 
 static void wbsd_fill_fifo(struct wbsd_host *host)
@@ -524,7 +524,7 @@ static void wbsd_fill_fifo(struct wbsd_host *host)
 	 * 'FIFO empty' under certain conditions. So we
 	 * need to be a bit more pro-active.
 	 */
-	tasklet_schedule(&host->fifo_tasklet);
+	queue_work(system_bh_wq, &host->fifo_bh_work);
 }
 
 static void wbsd_prepare_data(struct wbsd_host *host, struct mmc_data *data)
@@ -746,7 +746,7 @@ static void wbsd_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	struct mmc_command *cmd;
 
 	/*
-	 * Disable tasklets to avoid a deadlock.
+	 * Disable bh works to avoid a deadlock.
 	 */
 	spin_lock_bh(&host->lock);
 
@@ -821,7 +821,7 @@ static void wbsd_request(struct mmc_host *mmc, struct mmc_request *mrq)
 		 * Dirty fix for hardware bug.
 		 */
 		if (host->dma == -1)
-			tasklet_schedule(&host->fifo_tasklet);
+			queue_work(system_bh_wq, &host->fifo_bh_work);
 
 		spin_unlock_bh(&host->lock);
 
@@ -961,13 +961,13 @@ static void wbsd_reset_ignore(struct timer_list *t)
 	 * Card status might have changed during the
 	 * blackout.
 	 */
-	tasklet_schedule(&host->card_tasklet);
+	queue_work(system_bh_wq, &host->card_bh_work);
 
 	spin_unlock_bh(&host->lock);
 }
 
 /*
- * Tasklets
+ * BH Works
  */
 
 static inline struct mmc_data *wbsd_get_data(struct wbsd_host *host)
@@ -987,9 +987,9 @@ static inline struct mmc_data *wbsd_get_data(struct wbsd_host *host)
 	return host->mrq->cmd->data;
 }
 
-static void wbsd_tasklet_card(struct tasklet_struct *t)
+static void wbsd_card_bh_work(struct work_struct *t)
 {
-	struct wbsd_host *host = from_tasklet(host, t, card_tasklet);
+	struct wbsd_host *host = from_work(host, t, card_bh_work);
 	u8 csr;
 	int delay = -1;
 
@@ -1020,7 +1020,7 @@ static void wbsd_tasklet_card(struct tasklet_struct *t)
 			wbsd_reset(host);
 
 			host->mrq->cmd->error = -ENOMEDIUM;
-			tasklet_schedule(&host->finish_tasklet);
+			queue_work(system_bh_wq, &host->finish_bh_work);
 		}
 
 		delay = 0;
@@ -1036,9 +1036,9 @@ static void wbsd_tasklet_card(struct tasklet_struct *t)
 		mmc_detect_change(host->mmc, msecs_to_jiffies(delay));
 }
 
-static void wbsd_tasklet_fifo(struct tasklet_struct *t)
+static void wbsd_fifo_bh_work(struct work_struct *t)
 {
-	struct wbsd_host *host = from_tasklet(host, t, fifo_tasklet);
+	struct wbsd_host *host = from_work(host, t, fifo_bh_work);
 	struct mmc_data *data;
 
 	spin_lock(&host->lock);
@@ -1060,16 +1060,16 @@ static void wbsd_tasklet_fifo(struct tasklet_struct *t)
 	 */
 	if (host->num_sg == 0) {
 		wbsd_write_index(host, WBSD_IDX_FIFOEN, 0);
-		tasklet_schedule(&host->finish_tasklet);
+		queue_work(system_bh_wq, &host->finish_bh_work);
 	}
 
 end:
 	spin_unlock(&host->lock);
 }
 
-static void wbsd_tasklet_crc(struct tasklet_struct *t)
+static void wbsd_crc_bh_work(struct work_struct *t)
 {
-	struct wbsd_host *host = from_tasklet(host, t, crc_tasklet);
+	struct wbsd_host *host = from_work(host, t, crc_bh_work);
 	struct mmc_data *data;
 
 	spin_lock(&host->lock);
@@ -1085,15 +1085,15 @@ static void wbsd_tasklet_crc(struct tasklet_struct *t)
 
 	data->error = -EILSEQ;
 
-	tasklet_schedule(&host->finish_tasklet);
+	queue_work(system_bh_wq, &host->finish_bh_work);
 
 end:
 	spin_unlock(&host->lock);
 }
 
-static void wbsd_tasklet_timeout(struct tasklet_struct *t)
+static void wbsd_timeout_bh_work(struct work_struct *t)
 {
-	struct wbsd_host *host = from_tasklet(host, t, timeout_tasklet);
+	struct wbsd_host *host = from_work(host, t, timeout_bh_work);
 	struct mmc_data *data;
 
 	spin_lock(&host->lock);
@@ -1109,15 +1109,15 @@ static void wbsd_tasklet_timeout(struct tasklet_struct *t)
 
 	data->error = -ETIMEDOUT;
 
-	tasklet_schedule(&host->finish_tasklet);
+	queue_work(system_bh_wq, &host->finish_bh_work);
 
 end:
 	spin_unlock(&host->lock);
 }
 
-static void wbsd_tasklet_finish(struct tasklet_struct *t)
+static void wbsd_finish_bh_work(struct work_struct *t)
 {
-	struct wbsd_host *host = from_tasklet(host, t, finish_tasklet);
+	struct wbsd_host *host = from_work(host, t, finish_bh_work);
 	struct mmc_data *data;
 
 	spin_lock(&host->lock);
@@ -1156,18 +1156,18 @@ static irqreturn_t wbsd_irq(int irq, void *dev_id)
 	host->isr |= isr;
 
 	/*
-	 * Schedule tasklets as needed.
+	 * Schedule bh work as needed.
 	 */
 	if (isr & WBSD_INT_CARD)
-		tasklet_schedule(&host->card_tasklet);
+		queue_work(system_bh_wq, &host->card_bh_work);
 	if (isr & WBSD_INT_FIFO_THRE)
-		tasklet_schedule(&host->fifo_tasklet);
+		queue_work(system_bh_wq, &host->fifo_bh_work);
 	if (isr & WBSD_INT_CRC)
-		tasklet_hi_schedule(&host->crc_tasklet);
+		queue_work(system_bh_highpri_wq, &host->crc_bh_work);
 	if (isr & WBSD_INT_TIMEOUT)
-		tasklet_hi_schedule(&host->timeout_tasklet);
+		queue_work(system_bh_highpri_wq, &host->timeout_bh_work);
 	if (isr & WBSD_INT_TC)
-		tasklet_schedule(&host->finish_tasklet);
+		queue_work(system_bh_wq, &host->finish_bh_work);
 
 	return IRQ_HANDLED;
 }
@@ -1443,13 +1443,13 @@ static int wbsd_request_irq(struct wbsd_host *host, int irq)
 	int ret;
 
 	/*
-	 * Set up tasklets. Must be done before requesting interrupt.
+	 * Set up bh works. Must be done before requesting interrupt.
 	 */
-	tasklet_setup(&host->card_tasklet, wbsd_tasklet_card);
-	tasklet_setup(&host->fifo_tasklet, wbsd_tasklet_fifo);
-	tasklet_setup(&host->crc_tasklet, wbsd_tasklet_crc);
-	tasklet_setup(&host->timeout_tasklet, wbsd_tasklet_timeout);
-	tasklet_setup(&host->finish_tasklet, wbsd_tasklet_finish);
+	INIT_WORK(&host->card_bh_work, wbsd_card_bh_work);
+	INIT_WORK(&host->fifo_bh_work, wbsd_fifo_bh_work);
+	INIT_WORK(&host->crc_bh_work, wbsd_crc_bh_work);
+	INIT_WORK(&host->timeout_bh_work, wbsd_timeout_bh_work);
+	INIT_WORK(&host->finish_bh_work, wbsd_finish_bh_work);
 
 	/*
 	 * Allocate interrupt.
@@ -1472,11 +1472,11 @@ static void  wbsd_release_irq(struct wbsd_host *host)
 
 	host->irq = 0;
 
-	tasklet_kill(&host->card_tasklet);
-	tasklet_kill(&host->fifo_tasklet);
-	tasklet_kill(&host->crc_tasklet);
-	tasklet_kill(&host->timeout_tasklet);
-	tasklet_kill(&host->finish_tasklet);
+	cancel_work_sync(&host->card_bh_work);
+	cancel_work_sync(&host->fifo_bh_work);
+	cancel_work_sync(&host->crc_bh_work);
+	cancel_work_sync(&host->timeout_bh_work);
+	cancel_work_sync(&host->finish_bh_work);
 }
 
 /*

@@ -322,7 +322,6 @@ static struct ctl_table sched_energy_aware_sysctls[] = {
 		.extra1         = SYSCTL_ZERO,
 		.extra2         = SYSCTL_ONE,
 	},
-	{}
 };
 
 static int __init sched_energy_aware_sysctl_init(void)
@@ -502,7 +501,7 @@ void rq_attach_root(struct rq *rq, struct root_domain *rd)
 		cpumask_clear_cpu(rq->cpu, old_rd->span);
 
 		/*
-		 * If we dont want to free the old_rd yet then
+		 * If we don't want to free the old_rd yet then
 		 * set old_rd to NULL to skip the freeing later
 		 * in this function:
 		 */
@@ -1177,7 +1176,7 @@ fail:
  * uniquely identify each group (for a given domain):
  *
  *  - The first is the balance_cpu (see should_we_balance() and the
- *    load-balance blub in fair.c); for each group we only want 1 CPU to
+ *    load-balance blurb in fair.c); for each group we only want 1 CPU to
  *    continue balancing at a higher domain.
  *
  *  - The second is the sched_group_capacity; we want all identical groups
@@ -1389,7 +1388,7 @@ static inline void asym_cpu_capacity_update_data(int cpu)
 
 	/*
 	 * Search if capacity already exits. If not, track which the entry
-	 * where we should insert to keep the list ordered descendingly.
+	 * where we should insert to keep the list ordered descending.
 	 */
 	list_for_each_entry(entry, &asym_cap_list, link) {
 		if (capacity == entry->capacity)
@@ -1475,7 +1474,7 @@ static void set_domain_attribute(struct sched_domain *sd,
 	} else
 		request = attr->relax_domain_level;
 
-	if (sd->level > request) {
+	if (sd->level >= request) {
 		/* Turn off idle balance on this domain: */
 		sd->flags &= ~(SD_BALANCE_WAKE|SD_BALANCE_NEWIDLE);
 	}
@@ -1854,7 +1853,7 @@ void sched_init_numa(int offline_node)
 	struct cpumask ***masks;
 
 	/*
-	 * O(nr_nodes^2) deduplicating selection sort -- in order to find the
+	 * O(nr_nodes^2) de-duplicating selection sort -- in order to find the
 	 * unique distances in the node_distance() table.
 	 */
 	distance_map = bitmap_alloc(NR_DISTANCE_VALUES, GFP_KERNEL);
@@ -2354,7 +2353,7 @@ static struct sched_domain *build_sched_domain(struct sched_domain_topology_leve
 static bool topology_span_sane(struct sched_domain_topology_level *tl,
 			      const struct cpumask *cpu_map, int cpu)
 {
-	int i;
+	int i = cpu + 1;
 
 	/* NUMA levels are allowed to overlap */
 	if (tl->flags & SDTL_OVERLAP)
@@ -2366,9 +2365,7 @@ static bool topology_span_sane(struct sched_domain_topology_level *tl,
 	 * breaking the sched_group lists - i.e. a later get_group() pass
 	 * breaks the linking done for an earlier span.
 	 */
-	for_each_cpu(i, cpu_map) {
-		if (i == cpu)
-			continue;
+	for_each_cpu_from(i, cpu_map) {
 		/*
 		 * We should 'and' all those masks with 'cpu_map' to exactly
 		 * match the topology we're about to build, but that can only
@@ -2753,7 +2750,7 @@ match2:
 	}
 
 #if defined(CONFIG_ENERGY_MODEL) && defined(CONFIG_CPU_FREQ_GOV_SCHEDUTIL)
-	/* Build perf. domains: */
+	/* Build perf domains: */
 	for (i = 0; i < ndoms_new; i++) {
 		for (j = 0; j < n && !sched_energy_update; j++) {
 			if (cpumask_equal(doms_new[i], doms_cur[j]) &&
@@ -2762,7 +2759,7 @@ match2:
 				goto match3;
 			}
 		}
-		/* No match - add perf. domains for a new rd */
+		/* No match - add perf domains for a new rd */
 		has_eas |= build_perf_domains(doms_new[i]);
 match3:
 		;

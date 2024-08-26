@@ -26,18 +26,18 @@ static void panthor_gem_free_object(struct drm_gem_object *obj)
 
 /**
  * panthor_kernel_bo_destroy() - Destroy a kernel buffer object
- * @vm: The VM this BO was mapped to.
  * @bo: Kernel buffer object to destroy. If NULL or an ERR_PTR(), the destruction
  * is skipped.
  */
-void panthor_kernel_bo_destroy(struct panthor_vm *vm,
-			       struct panthor_kernel_bo *bo)
+void panthor_kernel_bo_destroy(struct panthor_kernel_bo *bo)
 {
+	struct panthor_vm *vm;
 	int ret;
 
 	if (IS_ERR_OR_NULL(bo))
 		return;
 
+	vm = bo->vm;
 	panthor_kernel_bo_vunmap(bo);
 
 	if (drm_WARN_ON(bo->obj->dev,
@@ -53,6 +53,7 @@ void panthor_kernel_bo_destroy(struct panthor_vm *vm,
 	drm_gem_object_put(bo->obj);
 
 out_free_bo:
+	panthor_vm_put(vm);
 	kfree(bo);
 }
 
@@ -106,6 +107,7 @@ panthor_kernel_bo_create(struct panthor_device *ptdev, struct panthor_vm *vm,
 	if (ret)
 		goto err_free_va;
 
+	kbo->vm = panthor_vm_get(vm);
 	bo->exclusive_vm_root_gem = panthor_vm_root_gem(vm);
 	drm_gem_object_get(bo->exclusive_vm_root_gem);
 	bo->base.base.resv = bo->exclusive_vm_root_gem->resv;

@@ -38,10 +38,10 @@ MODULE_FIRMWARE("amdgpu/gc_11_0_3_imu.bin");
 MODULE_FIRMWARE("amdgpu/gc_11_0_4_imu.bin");
 MODULE_FIRMWARE("amdgpu/gc_11_5_0_imu.bin");
 MODULE_FIRMWARE("amdgpu/gc_11_5_1_imu.bin");
+MODULE_FIRMWARE("amdgpu/gc_11_5_2_imu.bin");
 
 static int imu_v11_0_init_microcode(struct amdgpu_device *adev)
 {
-	char fw_name[45];
 	char ucode_prefix[30];
 	int err;
 	const struct imu_firmware_header_v1_0 *imu_hdr;
@@ -50,11 +50,10 @@ static int imu_v11_0_init_microcode(struct amdgpu_device *adev)
 	DRM_DEBUG("\n");
 
 	amdgpu_ucode_ip_version_decode(adev, GC_HWIP, ucode_prefix, sizeof(ucode_prefix));
-
-	snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_imu.bin", ucode_prefix);
-	err = amdgpu_ucode_request(adev, &adev->gfx.imu_fw, fw_name);
+	err = amdgpu_ucode_request(adev, &adev->gfx.imu_fw, "amdgpu/%s_imu.bin", ucode_prefix);
 	if (err)
 		goto out;
+
 	imu_hdr = (const struct imu_firmware_header_v1_0 *)adev->gfx.imu_fw->data;
 	//adev->gfx.imu_feature_version = le32_to_cpu(imu_hdr->ucode_feature_version);
 	
@@ -75,8 +74,8 @@ static int imu_v11_0_init_microcode(struct amdgpu_device *adev)
 out:
 	if (err) {
 		dev_err(adev->dev,
-			"gfx11: Failed to load firmware \"%s\"\n",
-			fw_name);
+			"gfx11: Failed to load firmware \"%s_imu.bin\"\n",
+			ucode_prefix);
 		amdgpu_ucode_release(&adev->gfx.imu_fw);
 	}
 

@@ -97,9 +97,10 @@ and have the following read/write attributes:
 		poll(2) will return whenever the interrupt was triggered. If
 		you use poll(2), set the events POLLPRI and POLLERR. If you
 		use select(2), set the file descriptor in exceptfds. After
-		poll(2) returns, either lseek(2) to the beginning of the sysfs
-		file and read the new value or close the file and re-open it
-		to read the value.
+		poll(2) returns, use pread(2) to read the value at offset
+		zero. Alternatively, either lseek(2) to the beginning of the
+		sysfs file and read the new value or close the file and
+		re-open it to read the value.
 
 	"edge" ...
 		reads as either "none", "rising", "falling", or

@@ -222,11 +222,6 @@
 		#size-cells = <2>;
 		ranges;
 
-		ocram: ocram@900000 {
-			no-map;
-			reg = <0 0x900000 0 0x70000>;
-		};
-
 		/* global autoconfigured region for contiguous allocations */
 		linux,cma {
 			compatible = "shared-dma-pool";

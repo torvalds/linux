@@ -47,7 +47,7 @@ static void fill_fullpaths(struct node *tree, const char *prefix)
 
 /* Usage related data. */
 static const char usage_synopsis[] = "dtc [options] <input file>";
-static const char usage_short_opts[] = "qI:O:o:V:d:R:S:p:a:fb:i:H:sW:E:@AThv";
+static const char usage_short_opts[] = "qI:O:o:V:d:R:S:p:a:fb:i:H:sW:E:@LAThv";
 static struct option const usage_long_opts[] = {
 	{"quiet",            no_argument, NULL, 'q'},
 	{"in-format",         a_argument, NULL, 'I'},
@@ -67,6 +67,7 @@ static struct option const usage_long_opts[] = {
 	{"warning",           a_argument, NULL, 'W'},
 	{"error",             a_argument, NULL, 'E'},
 	{"symbols",	     no_argument, NULL, '@'},
+	{"local-fixups",     no_argument, NULL, 'L'},
 	{"auto-alias",       no_argument, NULL, 'A'},
 	{"annotate",         no_argument, NULL, 'T'},
 	{"help",             no_argument, NULL, 'h'},
@@ -104,6 +105,7 @@ static const char * const usage_opts_help[] = {
 	"\n\tEnable/disable warnings (prefix with \"no-\")",
 	"\n\tEnable/disable errors (prefix with \"no-\")",
 	"\n\tEnable generation of symbols",
+	"\n\tPossibly generates a __local_fixups__ and a __fixups__ node at the root node",
 	"\n\tEnable auto-alias of labels",
 	"\n\tAnnotate output .dts with input source file and line (-T -T for more details)",
 	"\n\tPrint this help and exit",
@@ -252,6 +254,11 @@ int main(int argc, char *argv[])
 		case '@':
 			generate_symbols = 1;
 			break;
+
+		case 'L':
+			generate_fixups = 1;
+			break;
+
 		case 'A':
 			auto_label_aliases = 1;
 			break;

@@ -9,11 +9,18 @@
 #include "fifo.h"
 
 struct bucket_alloc_state {
+	enum {
+		BTREE_BITMAP_NO,
+		BTREE_BITMAP_YES,
+		BTREE_BITMAP_ANY,
+	}	btree_bitmap;
+
 	u64	buckets_seen;
 	u64	skipped_open;
 	u64	skipped_need_journal_commit;
 	u64	skipped_nocow;
 	u64	skipped_nouse;
+	u64	skipped_mi_btree_bitmap;
 };
 
 #define BCH_WATERMARKS()		\

@@ -27,7 +27,12 @@ hardware descriptions such as device tree or ACPI:
   to the lines for a more permanent solution of this type.
 
 - gpio-beeper: drivers/input/misc/gpio-beeper.c is used to provide a beep from
-  an external speaker connected to a GPIO line.
+  an external speaker connected to a GPIO line. (If the beep is controlled by
+  off/on, for an actual PWM waveform, see pwm-gpio below.)
+
+- pwm-gpio: drivers/pwm/pwm-gpio.c is used to toggle a GPIO with a high
+  resolution timer producing a PWM waveform on the GPIO line, as well as
+  Linux high resolution timers can do.
 
 - extcon-gpio: drivers/extcon/extcon-gpio.c is used when you need to read an
   external connector status, such as a headset line for an audio driver or an

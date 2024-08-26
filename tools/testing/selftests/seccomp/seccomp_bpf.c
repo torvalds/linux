@@ -3954,6 +3954,60 @@ TEST(user_notification_filter_empty)
 	EXPECT_GT((pollfd.revents & POLLHUP) ?: 0, 0);
 }
 
+TEST(user_ioctl_notification_filter_empty)
+{
+	pid_t pid;
+	long ret;
+	int status, p[2];
+	struct __clone_args args = {
+		.flags = CLONE_FILES,
+		.exit_signal = SIGCHLD,
+	};
+	struct seccomp_notif req = {};
+
+	ret = prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0);
+	ASSERT_EQ(0, ret) {
+		TH_LOG("Kernel does not support PR_SET_NO_NEW_PRIVS!");
+	}
+
+	if (__NR_clone3 < 0)
+		SKIP(return, "Test not built with clone3 support");
+
+	ASSERT_EQ(0, pipe(p));
+
+	pid = sys_clone3(&args, sizeof(args));
+	ASSERT_GE(pid, 0);
+
+	if (pid == 0) {
+		int listener;
+
+		listener = user_notif_syscall(__NR_mknodat, SECCOMP_FILTER_FLAG_NEW_LISTENER);
+		if (listener < 0)
+			_exit(EXIT_FAILURE);
+
+		if (dup2(listener, 200) != 200)
+			_exit(EXIT_FAILURE);
+		close(p[1]);
+		close(listener);
+		sleep(1);
+
+		_exit(EXIT_SUCCESS);
+	}
+	if (read(p[0], &status, 1) != 0)
+		_exit(EXIT_SUCCESS);
+	close(p[0]);
+	/*
+	 * The seccomp filter has become unused so we should be notified once
+	 * the kernel gets around to cleaning up task struct.
+	 */
+	EXPECT_EQ(ioctl(200, SECCOMP_IOCTL_NOTIF_RECV, &req), -1);
+	EXPECT_EQ(errno, ENOENT);
+
+	EXPECT_EQ(waitpid(pid, &status, 0), pid);
+	EXPECT_EQ(true, WIFEXITED(status));
+	EXPECT_EQ(0, WEXITSTATUS(status));
+}
+
 static void *do_thread(void *data)
 {
 	return NULL;
@@ -4753,6 +4807,83 @@ TEST(user_notification_wait_killable_fatal)
 	EXPECT_EQ(waitpid(pid, &status, 0), pid);
 	EXPECT_EQ(true, WIFSIGNALED(status));
 	EXPECT_EQ(SIGTERM, WTERMSIG(status));
+}
+
+struct tsync_vs_thread_leader_args {
+	pthread_t leader;
+};
+
+static void *tsync_vs_dead_thread_leader_sibling(void *_args)
+{
+	struct sock_filter allow_filter[] = {
+		BPF_STMT(BPF_RET|BPF_K, SECCOMP_RET_ALLOW),
+	};
+	struct sock_fprog allow_prog = {
+		.len = (unsigned short)ARRAY_SIZE(allow_filter),
+		.filter = allow_filter,
+	};
+	struct tsync_vs_thread_leader_args *args = _args;
+	void *retval;
+	long ret;
+
+	ret = pthread_join(args->leader, &retval);
+	if (ret)
+		exit(1);
+	if (retval != _args)
+		exit(2);
+	ret = seccomp(SECCOMP_SET_MODE_FILTER, SECCOMP_FILTER_FLAG_TSYNC, &allow_prog);
+	if (ret)
+		exit(3);
+
+	exit(0);
+}
+
+/*
+ * Ensure that a dead thread leader doesn't prevent installing new filters with
+ * SECCOMP_FILTER_FLAG_TSYNC from other threads.
+ */
+TEST(tsync_vs_dead_thread_leader)
+{
+	int status;
+	pid_t pid;
+	long ret;
+
+	ret = prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0);
+	ASSERT_EQ(0, ret) {
+		TH_LOG("Kernel does not support PR_SET_NO_NEW_PRIVS!");
+	}
+
+	pid = fork();
+	ASSERT_GE(pid, 0);
+
+	if (pid == 0) {
+		struct sock_filter allow_filter[] = {
+			BPF_STMT(BPF_RET|BPF_K, SECCOMP_RET_ALLOW),
+		};
+		struct sock_fprog allow_prog = {
+			.len = (unsigned short)ARRAY_SIZE(allow_filter),
+			.filter = allow_filter,
+		};
+		struct  tsync_vs_thread_leader_args *args;
+		pthread_t sibling;
+
+		args = malloc(sizeof(*args));
+		ASSERT_NE(NULL, args);
+		args->leader = pthread_self();
+
+		ret = pthread_create(&sibling, NULL,
+				     tsync_vs_dead_thread_leader_sibling, args);
+		ASSERT_EQ(0, ret);
+
+		/* Install a new filter just to the leader thread. */
+		ret = seccomp(SECCOMP_SET_MODE_FILTER, 0, &allow_prog);
+		ASSERT_EQ(0, ret);
+		pthread_exit(args);
+		exit(1);
+	}
+
+	EXPECT_EQ(pid, waitpid(pid, &status, 0));
+	EXPECT_EQ(0, status);
 }
 
 /*

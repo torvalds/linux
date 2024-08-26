@@ -122,7 +122,7 @@
 	};
 
 	thermal-zones {
-		ddr-controller {
+		ddr-thermal {
 			polling-delay-passive = <1000>;
 			polling-delay = <5000>;
 			thermal-sensors = <&tmu 0>;
@@ -142,7 +142,7 @@
 			};
 		};
 
-		serdes {
+		serdes-thermal {
 			polling-delay-passive = <1000>;
 			polling-delay = <5000>;
 			thermal-sensors = <&tmu 1>;
@@ -162,7 +162,7 @@
 			};
 		};
 
-		fman {
+		fman-thermal {
 			polling-delay-passive = <1000>;
 			polling-delay = <5000>;
 			thermal-sensors = <&tmu 2>;
@@ -182,7 +182,7 @@
 			};
 		};
 
-		core-cluster {
+		core-cluster-thermal {
 			polling-delay-passive = <1000>;
 			polling-delay = <5000>;
 			thermal-sensors = <&tmu 3>;
@@ -213,7 +213,7 @@
 			};
 		};
 
-		sec {
+		sec-thermal {
 			polling-delay-passive = <1000>;
 			polling-delay = <5000>;
 			thermal-sensors = <&tmu 4>;
@@ -308,7 +308,7 @@
 			status = "disabled";
 		};
 
-		esdhc: esdhc@1560000 {
+		esdhc: mmc@1560000 {
 			compatible = "fsl,ls1046a-esdhc", "fsl,esdhc";
 			reg = <0x0 0x1560000 0x0 0x10000>;
 			interrupts = <GIC_SPI 62 IRQ_TYPE_LEVEL_HIGH>;
@@ -409,11 +409,11 @@
 
 		};
 
-		qportals: qman-portals@500000000 {
+		qportals: qman-portals-bus@500000000 {
 			ranges = <0x0 0x5 0x00000000 0x8000000>;
 		};
 
-		bportals: bman-portals@508000000 {
+		bportals: bman-portals-bus@508000000 {
 			ranges = <0x0 0x5 0x08000000 0x8000000>;
 		};
 
@@ -441,7 +441,7 @@
 		tmu: tmu@1f00000 {
 			compatible = "fsl,qoriq-tmu";
 			reg = <0x0 0x1f00000 0x0 0x10000>;
-			interrupts = <0 33 0x4>;
+			interrupts = <GIC_SPI 33 IRQ_TYPE_LEVEL_HIGH>;
 			fsl,tmu-range = <0xb0000 0x9002a 0x6004c 0x70062>;
 			fsl,tmu-calibration =
 				/* Calibration data group 1 */
@@ -589,7 +589,7 @@
 		};
 
 		gpio0: gpio@2300000 {
-			compatible = "fsl,qoriq-gpio";
+			compatible = "fsl,ls1046a-gpio", "fsl,qoriq-gpio";
 			reg = <0x0 0x2300000 0x0 0x10000>;
 			interrupts = <GIC_SPI 66 IRQ_TYPE_LEVEL_HIGH>;
 			gpio-controller;
@@ -599,7 +599,7 @@
 		};
 
 		gpio1: gpio@2310000 {
-			compatible = "fsl,qoriq-gpio";
+			compatible = "fsl,ls1046a-gpio", "fsl,qoriq-gpio";
 			reg = <0x0 0x2310000 0x0 0x10000>;
 			interrupts = <GIC_SPI 67 IRQ_TYPE_LEVEL_HIGH>;
 			gpio-controller;
@@ -609,7 +609,7 @@
 		};
 
 		gpio2: gpio@2320000 {
-			compatible = "fsl,qoriq-gpio";
+			compatible = "fsl,ls1046a-gpio", "fsl,qoriq-gpio";
 			reg = <0x0 0x2320000 0x0 0x10000>;
 			interrupts = <GIC_SPI 68 IRQ_TYPE_LEVEL_HIGH>;
 			gpio-controller;
@@ -619,7 +619,7 @@
 		};
 
 		gpio3: gpio@2330000 {
-			compatible = "fsl,qoriq-gpio";
+			compatible = "fsl,ls1046a-gpio", "fsl,qoriq-gpio";
 			reg = <0x0 0x2330000 0x0 0x10000>;
 			interrupts = <GIC_SPI 134 IRQ_TYPE_LEVEL_HIGH>;
 			gpio-controller;
@@ -715,7 +715,7 @@
 					    QORIQ_CLK_PLL_DIV(2)>;
 		};
 
-		aux_bus: aux_bus {
+		aux_bus: aux-bus {
 			#address-cells = <2>;
 			#size-cells = <2>;
 			compatible = "simple-bus";
@@ -801,9 +801,9 @@
 			reg = <0x00 0x03400000 0x0 0x00100000>, /* controller registers */
 			      <0x40 0x00000000 0x0 0x00002000>; /* configuration space */
 			reg-names = "regs", "config";
-			interrupts = <GIC_SPI 118 IRQ_TYPE_LEVEL_HIGH>, /* controller interrupt */
-				     <GIC_SPI 117 IRQ_TYPE_LEVEL_HIGH>; /* PME interrupt */
-			interrupt-names = "aer", "pme";
+			interrupts = <GIC_SPI 117 IRQ_TYPE_LEVEL_HIGH>, /* PME interrupt */
+				     <GIC_SPI 118 IRQ_TYPE_LEVEL_HIGH>; /* controller interrupt */
+			interrupt-names = "pme", "aer";
 			#address-cells = <3>;
 			#size-cells = <2>;
 			device_type = "pci";
@@ -840,9 +840,9 @@
 			reg = <0x00 0x03500000 0x0 0x00100000>, /* controller registers */
 			      <0x48 0x00000000 0x0 0x00002000>; /* configuration space */
 			reg-names = "regs", "config";
-			interrupts = <GIC_SPI 128 IRQ_TYPE_LEVEL_HIGH>, /* controller interrupt */
-				     <GIC_SPI 127 IRQ_TYPE_LEVEL_HIGH>; /* PME interrupt */
-			interrupt-names = "aer", "pme";
+			interrupts = <GIC_SPI 127 IRQ_TYPE_LEVEL_HIGH>, /* PME interrupt */
+				     <GIC_SPI 128 IRQ_TYPE_LEVEL_HIGH>; /* controller interrupt */
+			interrupt-names = "pme", "aer";
 			#address-cells = <3>;
 			#size-cells = <2>;
 			device_type = "pci";
@@ -879,9 +879,9 @@
 			reg = <0x00 0x03600000 0x0 0x00100000>, /* controller registers */
 			      <0x50 0x00000000 0x0 0x00002000>; /* configuration space */
 			reg-names = "regs", "config";
-			interrupts = <GIC_SPI 162 IRQ_TYPE_LEVEL_HIGH>, /* controller interrupt */
-				     <GIC_SPI 161 IRQ_TYPE_LEVEL_HIGH>; /* PME interrupt */
-			interrupt-names = "aer", "pme";
+			interrupts = <GIC_SPI 161 IRQ_TYPE_LEVEL_HIGH>, /* PME interrupt */
+				     <GIC_SPI 162 IRQ_TYPE_LEVEL_HIGH>; /* controller interrupt */
+			interrupt-names = "pme", "aer";
 			#address-cells = <3>;
 			#size-cells = <2>;
 			device_type = "pci";
@@ -925,6 +925,7 @@
 				     <GIC_SPI 42 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "qdma-error", "qdma-queue0",
 				"qdma-queue1", "qdma-queue2", "qdma-queue3";
+			#dma-cells = <1>;
 			dma-channels = <8>;
 			block-number = <1>;
 			block-offset = <0x10000>;
@@ -940,7 +941,7 @@
 			#fsl,rcpm-wakeup-cells = <1>;
 		};
 
-		ftm_alarm0: timer@29d0000 {
+		ftm_alarm0: rtc@29d0000 {
 			compatible = "fsl,ls1046a-ftm-alarm";
 			reg = <0x0 0x29d0000 0x0 0x10000>;
 			fsl,rcpm-wakeup = <&rcpm 0x20000>;

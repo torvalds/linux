@@ -1027,10 +1027,10 @@ struct opal_i2c_request {
  * The host will pass on OPAL, a buffer of length OPAL_SYSEPOW_MAX
  * with individual elements being 16 bits wide to fetch the system
  * wide EPOW status. Each element in the buffer will contain the
- * EPOW status in it's bit representation for a particular EPOW sub
+ * EPOW status in its bit representation for a particular EPOW sub
  * class as defined here. So multiple detailed EPOW status bits
  * specific for any sub class can be represented in a single buffer
- * element as it's bit representation.
+ * element as its bit representation.
  */
 
 /* System EPOW type */

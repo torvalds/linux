@@ -2,6 +2,7 @@
 /fd-001-lookup
 /fd-002-posix-eq
 /fd-003-kthread
+/proc-2-is-kthread
 /proc-fsconfig-hidepid
 /proc-loadavg-001
 /proc-multiple-procfs
@@ -9,6 +10,7 @@
 /proc-pid-vm
 /proc-self-map-files-001
 /proc-self-map-files-002
+/proc-self-isnt-kthread
 /proc-self-syscall
 /proc-self-wchan
 /proc-subset-pid

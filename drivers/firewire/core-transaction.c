@@ -29,19 +29,12 @@
 #include <asm/byteorder.h>
 
 #include "core.h"
-#include <trace/events/firewire.h>
 #include "packet-header-definitions.h"
+#include "phy-packet-definitions.h"
+#include <trace/events/firewire.h>
 
 #define HEADER_DESTINATION_IS_BROADCAST(header) \
 	((async_header_get_destination(header) & 0x3f) == 0x3f)
-
-#define PHY_PACKET_CONFIG	0x0
-#define PHY_PACKET_LINK_ON	0x1
-#define PHY_PACKET_SELF_ID	0x2
-
-#define PHY_CONFIG_GAP_COUNT(gap_count)	(((gap_count) << 16) | (1 << 22))
-#define PHY_CONFIG_ROOT_ID(node_id)	((((node_id) & 0x3f) << 24) | (1 << 23))
-#define PHY_IDENTIFIER(id)		((id) << 30)
 
 /* returns 0 if the split timeout handler is already running */
 static int try_cancel_split_timeout(struct fw_transaction *t)
@@ -174,8 +167,8 @@ static void transmit_complete_callback(struct fw_packet *packet,
 	struct fw_transaction *t =
 	    container_of(packet, struct fw_transaction, packet);
 
-	trace_async_request_outbound_complete((uintptr_t)t, packet->generation, packet->speed,
-					      status, packet->timestamp);
+	trace_async_request_outbound_complete((uintptr_t)t, card->index, packet->generation,
+					      packet->speed, status, packet->timestamp);
 
 	switch (status) {
 	case ACK_COMPLETE:
@@ -398,7 +391,8 @@ void __fw_send_request(struct fw_card *card, struct fw_transaction *t, int tcode
 
 	spin_unlock_irqrestore(&card->lock, flags);
 
-	trace_async_request_outbound_initiate((uintptr_t)t, generation, speed, t->packet.header, payload,
+	trace_async_request_outbound_initiate((uintptr_t)t, card->index, generation, speed,
+					      t->packet.header, payload,
 					      tcode_is_read_request(tcode) ? 0 : length / 4);
 
 	card->driver->send_request(card, &t->packet);
@@ -463,7 +457,7 @@ static DECLARE_COMPLETION(phy_config_done);
 static void transmit_phy_packet_callback(struct fw_packet *packet,
 					 struct fw_card *card, int status)
 {
-	trace_async_phy_outbound_complete((uintptr_t)packet, packet->generation, status,
+	trace_async_phy_outbound_complete((uintptr_t)packet, card->index, packet->generation, status,
 					  packet->timestamp);
 	complete(&phy_config_done);
 }
@@ -480,10 +474,14 @@ void fw_send_phy_config(struct fw_card *card,
 			int node_id, int generation, int gap_count)
 {
 	long timeout = DIV_ROUND_UP(HZ, 10);
-	u32 data = PHY_IDENTIFIER(PHY_PACKET_CONFIG);
+	u32 data = 0;
 
-	if (node_id != FW_PHY_CONFIG_NO_NODE_ID)
-		data |= PHY_CONFIG_ROOT_ID(node_id);
+	phy_packet_set_packet_identifier(&data, PHY_PACKET_PACKET_IDENTIFIER_PHY_CONFIG);
+
+	if (node_id != FW_PHY_CONFIG_NO_NODE_ID) {
+		phy_packet_phy_config_set_root_id(&data, node_id);
+		phy_packet_phy_config_set_force_root_node(&data, true);
+	}
 
 	if (gap_count == FW_PHY_CONFIG_CURRENT_GAP_COUNT) {
 		gap_count = card->driver->read_phy_reg(card, 1);
@@ -494,7 +492,8 @@ void fw_send_phy_config(struct fw_card *card,
 		if (gap_count == 63)
 			return;
 	}
-	data |= PHY_CONFIG_GAP_COUNT(gap_count);
+	phy_packet_phy_config_set_gap_count(&data, gap_count);
+	phy_packet_phy_config_set_gap_count_optimization(&data, true);
 
 	mutex_lock(&phy_config_mutex);
 
@@ -503,7 +502,7 @@ void fw_send_phy_config(struct fw_card *card,
 	phy_config_packet.generation = generation;
 	reinit_completion(&phy_config_done);
 
-	trace_async_phy_outbound_initiate((uintptr_t)&phy_config_packet,
+	trace_async_phy_outbound_initiate((uintptr_t)&phy_config_packet, card->index,
 					  phy_config_packet.generation, phy_config_packet.header[1],
 					  phy_config_packet.header[2]);
 
@@ -674,7 +673,7 @@ static void free_response_callback(struct fw_packet *packet,
 {
 	struct fw_request *request = container_of(packet, struct fw_request, response);
 
-	trace_async_response_outbound_complete((uintptr_t)request, packet->generation,
+	trace_async_response_outbound_complete((uintptr_t)request, card->index, packet->generation,
 					       packet->speed, status, packet->timestamp);
 
 	// Decrease the reference count since not at in-flight.
@@ -879,9 +878,10 @@ void fw_send_response(struct fw_card *card,
 	// Increase the reference count so that the object is kept during in-flight.
 	fw_request_get(request);
 
-	trace_async_response_outbound_initiate((uintptr_t)request, request->response.generation,
-					       request->response.speed, request->response.header,
-					       data, data ? data_length / 4 : 0);
+	trace_async_response_outbound_initiate((uintptr_t)request, card->index,
+					       request->response.generation, request->response.speed,
+					       request->response.header, data,
+					       data ? data_length / 4 : 0);
 
 	card->driver->send_response(card, &request->response);
 }
@@ -995,7 +995,7 @@ void fw_core_handle_request(struct fw_card *card, struct fw_packet *p)
 
 	tcode = async_header_get_tcode(p->header);
 	if (tcode_is_link_internal(tcode)) {
-		trace_async_phy_inbound((uintptr_t)p, p->generation, p->ack, p->timestamp,
+		trace_async_phy_inbound((uintptr_t)p, card->index, p->generation, p->ack, p->timestamp,
 					 p->header[1], p->header[2]);
 		fw_cdev_handle_phy_packet(card, p);
 		return;
@@ -1007,8 +1007,8 @@ void fw_core_handle_request(struct fw_card *card, struct fw_packet *p)
 		return;
 	}
 
-	trace_async_request_inbound((uintptr_t)request, p->generation, p->speed, p->ack,
-				    p->timestamp, p->header, request->data,
+	trace_async_request_inbound((uintptr_t)request, card->index, p->generation, p->speed,
+				    p->ack, p->timestamp, p->header, request->data,
 				    tcode_is_read_request(tcode) ? 0 : request->length / 4);
 
 	offset = async_header_get_offset(p->header);
@@ -1078,8 +1078,8 @@ void fw_core_handle_response(struct fw_card *card, struct fw_packet *p)
 	}
 	spin_unlock_irqrestore(&card->lock, flags);
 
-	trace_async_response_inbound((uintptr_t)t, p->generation, p->speed, p->ack, p->timestamp,
-				     p->header, data, data_length / 4);
+	trace_async_response_inbound((uintptr_t)t, card->index, p->generation, p->speed, p->ack,
+				     p->timestamp, p->header, data, data_length / 4);
 
 	if (!t) {
  timed_out:

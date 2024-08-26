@@ -318,28 +318,61 @@ void hl_mem_mgr_init(struct device *dev, struct hl_mem_mgr *mmg)
 	idr_init(&mmg->handles);
 }
 
+static void hl_mem_mgr_fini_stats_reset(struct hl_mem_mgr_fini_stats *stats)
+{
+	if (!stats)
+		return;
+
+	memset(stats, 0, sizeof(*stats));
+}
+
+static void hl_mem_mgr_fini_stats_inc(u64 mem_id, struct hl_mem_mgr_fini_stats *stats)
+{
+	if (!stats)
+		return;
+
+	switch (mem_id) {
+	case HL_MMAP_TYPE_CB:
+		++stats->n_busy_cb;
+		break;
+	case HL_MMAP_TYPE_TS_BUFF:
+		++stats->n_busy_ts;
+		break;
+	default:
+		/* we currently store only CB/TS so this shouldn't happen */
+		++stats->n_busy_other;
+	}
+}
+
 /**
  * hl_mem_mgr_fini - release unified memory manager
  *
  * @mmg: parent unified memory manager
+ * @stats: if non-NULL, will return some counters for handles that could not be removed.
  *
  * Release the unified memory manager. Shall be called from an interrupt context.
  */
-void hl_mem_mgr_fini(struct hl_mem_mgr *mmg)
+void hl_mem_mgr_fini(struct hl_mem_mgr *mmg, struct hl_mem_mgr_fini_stats *stats)
 {
 	struct hl_mmap_mem_buf *buf;
 	struct idr *idp;
 	const char *topic;
+	u64 mem_id;
 	u32 id;
+
+	hl_mem_mgr_fini_stats_reset(stats);
 
 	idp = &mmg->handles;
 
 	idr_for_each_entry(idp, buf, id) {
 		topic = buf->behavior->topic;
-		if (hl_mmap_mem_buf_put(buf) != 1)
+		mem_id = buf->behavior->mem_id;
+		if (hl_mmap_mem_buf_put(buf) != 1) {
 			dev_err(mmg->dev,
 				"%s: Buff handle %u for CTX is still alive\n",
 				topic, id);
+			hl_mem_mgr_fini_stats_inc(mem_id, stats);
+		}
 	}
 }
 

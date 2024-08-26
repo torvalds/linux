@@ -1022,7 +1022,7 @@ static void cpumsf_pmu_enable(struct pmu *pmu)
 	}
 
 	/* Load current program parameter */
-	lpp(&S390_lowcore.lpp);
+	lpp(&get_lowcore()->lpp);
 
 	debug_sprintf_event(sfdbg, 6, "%s: es %i cs %i ed %i cd %i "
 			    "interval %#lx tear %#lx dear %#lx\n", __func__,

@@ -197,7 +197,7 @@ void drmm_release_action(struct drm_device *dev,
 	spin_lock_irqsave(&dev->managed.lock, flags);
 	list_for_each_entry_reverse(dr, &dev->managed.resources, node.entry) {
 		if (dr->node.release == action) {
-			if (!data || (data && *(void **)dr->data == data)) {
+			if (!data || *(void **)dr->data == data) {
 				dr_match = dr;
 				del_dr(dev, dr_match);
 				break;

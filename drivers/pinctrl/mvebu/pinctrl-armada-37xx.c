@@ -834,8 +834,6 @@ static int armada_37xx_gpiochip_register(struct platform_device *pdev,
 static int armada_37xx_add_function(struct armada_37xx_pmx_func *funcs,
 				    int *funcsize, const char *name)
 {
-	int i = 0;
-
 	if (*funcsize <= 0)
 		return -EOVERFLOW;
 
@@ -847,7 +845,6 @@ static int armada_37xx_add_function(struct armada_37xx_pmx_func *funcs,
 			return -EEXIST;
 		}
 		funcs++;
-		i++;
 	}
 
 	/* append new unique function */

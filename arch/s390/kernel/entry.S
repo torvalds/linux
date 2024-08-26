@@ -179,6 +179,7 @@ SYM_FUNC_END(__switch_to_asm)
  * %r2 pointer to sie control block phys
  * %r3 pointer to sie control block virt
  * %r4 guest register save area
+ * %r5 guest asce
  */
 SYM_FUNC_START(__sie64a)
 	stmg	%r6,%r14,__SF_GPRS(%r15)	# save kernel registers
@@ -186,15 +187,12 @@ SYM_FUNC_START(__sie64a)
 	stg	%r2,__SF_SIE_CONTROL_PHYS(%r15)	# save sie block physical..
 	stg	%r3,__SF_SIE_CONTROL(%r15)	# ...and virtual addresses
 	stg	%r4,__SF_SIE_SAVEAREA(%r15)	# save guest register save area
+	stg	%r5,__SF_SIE_GUEST_ASCE(%r15)	# save guest asce
 	xc	__SF_SIE_REASON(8,%r15),__SF_SIE_REASON(%r15) # reason code = 0
 	mvc	__SF_SIE_FLAGS(8,%r15),__TI_flags(%r12) # copy thread flags
 	lmg	%r0,%r13,0(%r4)			# load guest gprs 0-13
-	lg	%r14,__LC_GMAP			# get gmap pointer
-	ltgr	%r14,%r14
-	jz	.Lsie_gmap
 	oi	__LC_CPU_FLAGS+7,_CIF_SIE
-	lctlg	%c1,%c1,__GMAP_ASCE(%r14)	# load primary asce
-.Lsie_gmap:
+	lctlg	%c1,%c1,__SF_SIE_GUEST_ASCE(%r15) # load primary asce
 	lg	%r14,__SF_SIE_CONTROL(%r15)	# get control block pointer
 	oi	__SIE_PROG0C+3(%r14),1		# we are going into SIE now
 	tm	__SIE_PROG20+3(%r14),3		# last exit...
@@ -439,29 +437,6 @@ SYM_CODE_END(\name)
 
 INT_HANDLER ext_int_handler,__LC_EXT_OLD_PSW,do_ext_irq
 INT_HANDLER io_int_handler,__LC_IO_OLD_PSW,do_io_irq
-
-/*
- * Load idle PSW.
- */
-SYM_FUNC_START(psw_idle)
-	stg	%r14,(__SF_GPRS+8*8)(%r15)
-	stg	%r3,__SF_EMPTY(%r15)
-	larl	%r1,psw_idle_exit
-	stg	%r1,__SF_EMPTY+8(%r15)
-	larl	%r1,smp_cpu_mtid
-	llgf	%r1,0(%r1)
-	ltgr	%r1,%r1
-	jz	.Lpsw_idle_stcctm
-	.insn	rsy,0xeb0000000017,%r1,5,__MT_CYCLES_ENTER(%r2)
-.Lpsw_idle_stcctm:
-	oi	__LC_CPU_FLAGS+7,_CIF_ENABLED_WAIT
-	BPON
-	stckf	__CLOCK_IDLE_ENTER(%r2)
-	stpt	__TIMER_IDLE_ENTER(%r2)
-	lpswe	__SF_EMPTY(%r15)
-SYM_INNER_LABEL(psw_idle_exit, SYM_L_GLOBAL)
-	BR_EX	%r14
-SYM_FUNC_END(psw_idle)
 
 /*
  * Machine check handler routines

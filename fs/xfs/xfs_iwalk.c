@@ -268,7 +268,7 @@ xfs_iwalk_ag_start(
 
 	/* Set up a fresh cursor and empty the inobt cache. */
 	iwag->nr_recs = 0;
-	error = xfs_ialloc_read_agi(pag, tp, agi_bpp);
+	error = xfs_ialloc_read_agi(pag, tp, 0, agi_bpp);
 	if (error)
 		return error;
 	*curpp = xfs_inobt_init_cursor(pag, tp, *agi_bpp);
@@ -351,7 +351,6 @@ xfs_iwalk_run_callbacks(
 	int				*has_more)
 {
 	struct xfs_mount		*mp = iwag->mp;
-	struct xfs_inobt_rec_incore	*irec;
 	xfs_agino_t			next_agino;
 	int				error;
 
@@ -361,8 +360,8 @@ xfs_iwalk_run_callbacks(
 
 	/* Delete cursor but remember the last record we cached... */
 	xfs_iwalk_del_inobt(iwag->tp, curpp, agi_bpp, 0);
-	irec = &iwag->recs[iwag->nr_recs - 1];
-	ASSERT(next_agino >= irec->ir_startino + XFS_INODES_PER_CHUNK);
+	ASSERT(next_agino >= iwag->recs[iwag->nr_recs - 1].ir_startino +
+			XFS_INODES_PER_CHUNK);
 
 	if (iwag->drop_trans) {
 		xfs_trans_cancel(iwag->tp);
@@ -386,7 +385,7 @@ xfs_iwalk_run_callbacks(
 	}
 
 	/* ...and recreate the cursor just past where we left off. */
-	error = xfs_ialloc_read_agi(iwag->pag, iwag->tp, agi_bpp);
+	error = xfs_ialloc_read_agi(iwag->pag, iwag->tp, 0, agi_bpp);
 	if (error)
 		return error;
 	*curpp = xfs_inobt_init_cursor(iwag->pag, iwag->tp, *agi_bpp);

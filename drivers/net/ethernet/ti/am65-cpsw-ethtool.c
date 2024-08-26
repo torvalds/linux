@@ -692,7 +692,7 @@ static void am65_cpsw_get_eth_mac_stats(struct net_device *ndev,
 };
 
 static int am65_cpsw_get_ethtool_ts_info(struct net_device *ndev,
-					 struct ethtool_ts_info *info)
+					 struct kernel_ethtool_ts_info *info)
 {
 	struct am65_cpsw_common *common = am65_ndev_to_common(ndev);
 	unsigned int ptp_v2_filter;

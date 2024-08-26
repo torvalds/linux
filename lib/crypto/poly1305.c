@@ -76,3 +76,4 @@ EXPORT_SYMBOL_GPL(poly1305_final_generic);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Martin Willi <martin@strongswan.org>");
+MODULE_DESCRIPTION("Poly1305 authenticator algorithm, RFC7539");

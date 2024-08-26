@@ -101,8 +101,10 @@ static __init struct device *sysfb_parent_dev(const struct screen_info *si)
 	if (IS_ERR(pdev)) {
 		return ERR_CAST(pdev);
 	} else if (pdev) {
-		if (!sysfb_pci_dev_is_enabled(pdev))
+		if (!sysfb_pci_dev_is_enabled(pdev)) {
+			pci_dev_put(pdev);
 			return ERR_PTR(-ENODEV);
+		}
 		return &pdev->dev;
 	}
 
@@ -137,7 +139,7 @@ static __init int sysfb_init(void)
 	if (compatible) {
 		pd = sysfb_create_simplefb(si, &mode, parent);
 		if (!IS_ERR(pd))
-			goto unlock_mutex;
+			goto put_device;
 	}
 
 	/* if the FB is incompatible, create a legacy framebuffer device */
@@ -155,7 +157,7 @@ static __init int sysfb_init(void)
 	pd = platform_device_alloc(name, 0);
 	if (!pd) {
 		ret = -ENOMEM;
-		goto unlock_mutex;
+		goto put_device;
 	}
 
 	pd->dev.parent = parent;
@@ -170,9 +172,11 @@ static __init int sysfb_init(void)
 	if (ret)
 		goto err;
 
-	goto unlock_mutex;
+	goto put_device;
 err:
 	platform_device_put(pd);
+put_device:
+	put_device(parent);
 unlock_mutex:
 	mutex_unlock(&disable_lock);
 	return ret;

@@ -140,8 +140,6 @@ struct fixed31_32 dc_fixpt_mul(struct fixed31_32 arg1, struct fixed31_32 arg2)
 
 	res.value = arg1_int * arg2_int;
 
-	ASSERT(res.value <= LONG_MAX);
-
 	res.value <<= FIXED31_32_BITS_PER_FRACTIONAL_PART;
 
 	tmp = arg1_int * arg2_fra;
@@ -184,8 +182,6 @@ struct fixed31_32 dc_fixpt_sqr(struct fixed31_32 arg)
 	unsigned long long tmp;
 
 	res.value = arg_int * arg_int;
-
-	ASSERT(res.value <= LONG_MAX);
 
 	res.value <<= FIXED31_32_BITS_PER_FRACTIONAL_PART;
 

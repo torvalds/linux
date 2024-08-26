@@ -293,11 +293,6 @@ struct acpi_pci_root *acpi_pci_find_root(acpi_handle handle)
 }
 EXPORT_SYMBOL_GPL(acpi_pci_find_root);
 
-struct acpi_handle_node {
-	struct list_head node;
-	acpi_handle handle;
-};
-
 /**
  * acpi_get_pci_dev - convert ACPI CA handle to struct pci_dev
  * @handle: the handle in question
@@ -1008,7 +1003,6 @@ struct pci_bus *acpi_pci_root_create(struct acpi_pci_root *root,
 	int node = acpi_get_node(device->handle);
 	struct pci_bus *bus;
 	struct pci_host_bridge *host_bridge;
-	union acpi_object *obj;
 
 	info->root = root;
 	info->bridge = device;
@@ -1049,17 +1043,6 @@ struct pci_bus *acpi_pci_root_create(struct acpi_pci_root *root,
 
 	if (!(root->osc_ext_control_set & OSC_CXL_ERROR_REPORTING_CONTROL))
 		host_bridge->native_cxl_error = 0;
-
-	/*
-	 * Evaluate the "PCI Boot Configuration" _DSM Function.  If it
-	 * exists and returns 0, we must preserve any PCI resource
-	 * assignments made by firmware for this host bridge.
-	 */
-	obj = acpi_evaluate_dsm_typed(ACPI_HANDLE(bus->bridge), &pci_acpi_dsm_guid, 1,
-				      DSM_PCI_PRESERVE_BOOT_CONFIG, NULL, ACPI_TYPE_INTEGER);
-	if (obj && obj->integer.value == 0)
-		host_bridge->preserve_config = 1;
-	ACPI_FREE(obj);
 
 	acpi_dev_power_up_children_with_adr(device);
 

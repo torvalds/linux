@@ -209,4 +209,5 @@ static struct kunit_suite ttm_device_test_suite = {
 
 kunit_test_suites(&ttm_device_test_suite);
 
-MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("KUnit tests for ttm_device APIs");
+MODULE_LICENSE("GPL and additional rights");

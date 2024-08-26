@@ -69,4 +69,6 @@ static struct platform_driver clk_mt8195_venc_drv = {
 	},
 };
 module_platform_driver(clk_mt8195_venc_drv);
+
+MODULE_DESCRIPTION("MediaTek MT8195 Video Encoders clocks driver");
 MODULE_LICENSE("GPL");

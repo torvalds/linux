@@ -203,7 +203,8 @@ lite5200_wakeup:
 
 	/* HIDs, MSR */
 	LOAD_SPRN(HID1, 0x19)
-	LOAD_SPRN(HID2, 0x1a)
+	/* FIXME: Should this use HID2_G2_LE? */
+	LOAD_SPRN(HID2_750FX, 0x1a)
 
 
 	/* address translation is tricky (see turn_on_mmu) */
@@ -283,7 +284,8 @@ SYM_FUNC_START_LOCAL(save_regs)
 
 	SAVE_SPRN(HID0, 0x18)
 	SAVE_SPRN(HID1, 0x19)
-	SAVE_SPRN(HID2, 0x1a)
+	/* FIXME: Should this use HID2_G2_LE? */
+	SAVE_SPRN(HID2_750FX, 0x1a)
 	mfmsr	r10
 	stw	r10, (4*0x1b)(r4)
 	/*SAVE_SPRN(LR, 0x1c) have to save it before the call */

@@ -303,5 +303,6 @@ static struct platform_driver bcm63138_leds_driver = {
 module_platform_driver(bcm63138_leds_driver);
 
 MODULE_AUTHOR("Rafał Miłecki");
+MODULE_DESCRIPTION("Broadcom BCM63138 SoC LED driver");
 MODULE_LICENSE("GPL");
 MODULE_DEVICE_TABLE(of, bcm63138_leds_of_match_table);

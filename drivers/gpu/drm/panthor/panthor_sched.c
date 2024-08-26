@@ -459,6 +459,16 @@ struct panthor_queue {
 		atomic64_t seqno;
 
 		/**
+		 * @last_fence: Fence of the last submitted job.
+		 *
+		 * We return this fence when we get an empty command stream.
+		 * This way, we are guaranteed that all earlier jobs have completed
+		 * when drm_sched_job::s_fence::finished without having to feed
+		 * the CS ring buffer with a dummy job that only signals the fence.
+		 */
+		struct dma_fence *last_fence;
+
+		/**
 		 * @in_flight_jobs: List containing all in-flight jobs.
 		 *
 		 * Used to keep track and signal panthor_job::done_fence when the
@@ -826,8 +836,11 @@ static void group_free_queue(struct panthor_group *group, struct panthor_queue *
 
 	panthor_queue_put_syncwait_obj(queue);
 
-	panthor_kernel_bo_destroy(group->vm, queue->ringbuf);
-	panthor_kernel_bo_destroy(panthor_fw_vm(group->ptdev), queue->iface.mem);
+	panthor_kernel_bo_destroy(queue->ringbuf);
+	panthor_kernel_bo_destroy(queue->iface.mem);
+
+	/* Release the last_fence we were holding, if any. */
+	dma_fence_put(queue->fence_ctx.last_fence);
 
 	kfree(queue);
 }
@@ -837,15 +850,14 @@ static void group_release_work(struct work_struct *work)
 	struct panthor_group *group = container_of(work,
 						   struct panthor_group,
 						   release_work);
-	struct panthor_device *ptdev = group->ptdev;
 	u32 i;
 
 	for (i = 0; i < group->queue_count; i++)
 		group_free_queue(group, group->queues[i]);
 
-	panthor_kernel_bo_destroy(panthor_fw_vm(ptdev), group->suspend_buf);
-	panthor_kernel_bo_destroy(panthor_fw_vm(ptdev), group->protm_suspend_buf);
-	panthor_kernel_bo_destroy(group->vm, group->syncobjs);
+	panthor_kernel_bo_destroy(group->suspend_buf);
+	panthor_kernel_bo_destroy(group->protm_suspend_buf);
+	panthor_kernel_bo_destroy(group->syncobjs);
 
 	panthor_vm_put(group->vm);
 	kfree(group);
@@ -1281,7 +1293,16 @@ cs_slot_process_fatal_event_locked(struct panthor_device *ptdev,
 	if (group)
 		group->fatal_queues |= BIT(cs_id);
 
-	sched_queue_delayed_work(sched, tick, 0);
+	if (CS_EXCEPTION_TYPE(fatal) == DRM_PANTHOR_EXCEPTION_CS_UNRECOVERABLE) {
+		/* If this exception is unrecoverable, queue a reset, and make
+		 * sure we stop scheduling groups until the reset has happened.
+		 */
+		panthor_device_schedule_reset(ptdev);
+		cancel_delayed_work(&sched->tick_work);
+	} else {
+		sched_queue_delayed_work(sched, tick, 0);
+	}
+
 	drm_warn(&ptdev->base,
 		 "CSG slot %d CS slot: %d\n"
 		 "CS_FATAL.EXCEPTION_TYPE: 0x%x (%s)\n"
@@ -1385,7 +1406,12 @@ static int group_process_tiler_oom(struct panthor_group *group, u32 cs_id)
 					pending_frag_count, &new_chunk_va);
 	}
 
-	if (ret && ret != -EBUSY) {
+	/* If the heap context doesn't have memory for us, we want to let the
+	 * FW try to reclaim memory by waiting for fragment jobs to land or by
+	 * executing the tiler OOM exception handler, which is supposed to
+	 * implement incremental rendering.
+	 */
+	if (ret && ret != -ENOMEM) {
 		drm_warn(&ptdev->base, "Failed to extend the tiler heap\n");
 		group->fatal_queues |= BIT(cs_id);
 		sched_queue_delayed_work(sched, tick, 0);
@@ -2720,15 +2746,22 @@ void panthor_sched_pre_reset(struct panthor_device *ptdev)
 	mutex_unlock(&sched->reset.lock);
 }
 
-void panthor_sched_post_reset(struct panthor_device *ptdev)
+void panthor_sched_post_reset(struct panthor_device *ptdev, bool reset_failed)
 {
 	struct panthor_scheduler *sched = ptdev->scheduler;
 	struct panthor_group *group, *group_tmp;
 
 	mutex_lock(&sched->reset.lock);
 
-	list_for_each_entry_safe(group, group_tmp, &sched->reset.stopped_groups, run_node)
+	list_for_each_entry_safe(group, group_tmp, &sched->reset.stopped_groups, run_node) {
+		/* Consider all previously running group as terminated if the
+		 * reset failed.
+		 */
+		if (reset_failed)
+			group->state = PANTHOR_CS_GROUP_TERMINATED;
+
 		panthor_group_start(group);
+	}
 
 	/* We're done resetting the GPU, clear the reset.in_progress bit so we can
 	 * kick the scheduler.
@@ -2736,9 +2769,11 @@ void panthor_sched_post_reset(struct panthor_device *ptdev)
 	atomic_set(&sched->reset.in_progress, false);
 	mutex_unlock(&sched->reset.lock);
 
-	sched_queue_delayed_work(sched, tick, 0);
-
-	sched_queue_work(sched, sync_upd);
+	/* No need to queue a tick and update syncs if the reset failed. */
+	if (!reset_failed) {
+		sched_queue_delayed_work(sched, tick, 0);
+		sched_queue_work(sched, sync_upd);
+	}
 }
 
 static void group_sync_upd_work(struct work_struct *work)
@@ -2762,9 +2797,6 @@ static void group_sync_upd_work(struct work_struct *work)
 
 		spin_lock(&queue->fence_ctx.lock);
 		list_for_each_entry_safe(job, job_tmp, &queue->fence_ctx.in_flight_jobs, node) {
-			if (!job->call_info.size)
-				continue;
-
 			if (syncobj->seqno < job->done_fence->seqno)
 				break;
 
@@ -2843,11 +2875,14 @@ queue_run_job(struct drm_sched_job *sched_job)
 	static_assert(sizeof(call_instrs) % 64 == 0,
 		      "call_instrs is not aligned on a cacheline");
 
-	/* Stream size is zero, nothing to do => return a NULL fence and let
-	 * drm_sched signal the parent.
+	/* Stream size is zero, nothing to do except making sure all previously
+	 * submitted jobs are done before we signal the
+	 * drm_sched_job::s_fence::finished fence.
 	 */
-	if (!job->call_info.size)
-		return NULL;
+	if (!job->call_info.size) {
+		job->done_fence = dma_fence_get(queue->fence_ctx.last_fence);
+		return dma_fence_get(job->done_fence);
+	}
 
 	ret = pm_runtime_resume_and_get(ptdev->base.dev);
 	if (drm_WARN_ON(&ptdev->base, ret))
@@ -2904,7 +2939,12 @@ queue_run_job(struct drm_sched_job *sched_job)
 			pm_runtime_get(ptdev->base.dev);
 			sched->pm.has_ref = true;
 		}
+		panthor_devfreq_record_busy(sched->ptdev);
 	}
+
+	/* Update the last fence. */
+	dma_fence_put(queue->fence_ctx.last_fence);
+	queue->fence_ctx.last_fence = dma_fence_get(job->done_fence);
 
 	done_fence = dma_fence_get(job->done_fence);
 
@@ -3356,10 +3396,15 @@ panthor_job_create(struct panthor_file *pfile,
 		goto err_put_job;
 	}
 
-	job->done_fence = kzalloc(sizeof(*job->done_fence), GFP_KERNEL);
-	if (!job->done_fence) {
-		ret = -ENOMEM;
-		goto err_put_job;
+	/* Empty command streams don't need a fence, they'll pick the one from
+	 * the previously submitted job.
+	 */
+	if (job->call_info.size) {
+		job->done_fence = kzalloc(sizeof(*job->done_fence), GFP_KERNEL);
+		if (!job->done_fence) {
+			ret = -ENOMEM;
+			goto err_put_job;
+		}
 	}
 
 	ret = drm_sched_job_init(&job->base,

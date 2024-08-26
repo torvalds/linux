@@ -168,11 +168,17 @@ static int acpi_thermal_get_polling_frequency(struct acpi_thermal *tz)
 
 static int acpi_thermal_temp(struct acpi_thermal *tz, int temp_deci_k)
 {
+	int temp;
+
 	if (temp_deci_k == THERMAL_TEMP_INVALID)
 		return THERMAL_TEMP_INVALID;
 
-	return deci_kelvin_to_millicelsius_with_offset(temp_deci_k,
+	temp = deci_kelvin_to_millicelsius_with_offset(temp_deci_k,
 						       tz->kelvin_offset);
+	if (temp <= 0)
+		return THERMAL_TEMP_INVALID;
+
+	return temp;
 }
 
 static bool acpi_thermal_trip_valid(struct acpi_thermal_trip *acpi_trip)

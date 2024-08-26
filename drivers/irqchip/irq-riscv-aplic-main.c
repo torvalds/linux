@@ -127,6 +127,7 @@ static void aplic_init_hw_irqs(struct aplic_priv *priv)
 
 int aplic_setup_priv(struct aplic_priv *priv, struct device *dev, void __iomem *regs)
 {
+	struct device_node *np = to_of_node(dev->fwnode);
 	struct of_phandle_args parent;
 	int rc;
 
@@ -134,7 +135,7 @@ int aplic_setup_priv(struct aplic_priv *priv, struct device *dev, void __iomem *
 	 * Currently, only OF fwnode is supported so extend this
 	 * function for ACPI support.
 	 */
-	if (!is_of_node(dev->fwnode))
+	if (!np)
 		return -EINVAL;
 
 	/* Save device pointer and register base */
@@ -142,8 +143,7 @@ int aplic_setup_priv(struct aplic_priv *priv, struct device *dev, void __iomem *
 	priv->regs = regs;
 
 	/* Find out number of interrupt sources */
-	rc = of_property_read_u32(to_of_node(dev->fwnode), "riscv,num-sources",
-				  &priv->nr_irqs);
+	rc = of_property_read_u32(np, "riscv,num-sources", &priv->nr_irqs);
 	if (rc) {
 		dev_err(dev, "failed to get number of interrupt sources\n");
 		return rc;
@@ -155,8 +155,8 @@ int aplic_setup_priv(struct aplic_priv *priv, struct device *dev, void __iomem *
 	 * If "msi-parent" property is present then we ignore the
 	 * APLIC IDCs which forces the APLIC driver to use MSI mode.
 	 */
-	if (!of_property_present(to_of_node(dev->fwnode), "msi-parent")) {
-		while (!of_irq_parse_one(to_of_node(dev->fwnode), priv->nr_idcs, &parent))
+	if (!of_property_present(np, "msi-parent")) {
+		while (!of_irq_parse_one(np, priv->nr_idcs, &parent))
 			priv->nr_idcs++;
 	}
 
@@ -184,8 +184,7 @@ static int aplic_probe(struct platform_device *pdev)
 	 * If msi-parent property is present then setup APLIC MSI
 	 * mode otherwise setup APLIC direct mode.
 	 */
-	if (is_of_node(dev->fwnode))
-		msi_mode = of_property_present(to_of_node(dev->fwnode), "msi-parent");
+	msi_mode = of_property_present(to_of_node(dev->fwnode), "msi-parent");
 	if (msi_mode)
 		rc = aplic_msi_setup(dev, regs);
 	else

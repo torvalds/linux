@@ -6,7 +6,7 @@ on the board). The TAS575x devices only support I2C.
 Required properties:
 
   - compatible : One of "ti,pcm5121", "ti,pcm5122", "ti,pcm5141",
-                 "ti,pcm5142", "ti,tas5754" or "ti,tas5756"
+                 "ti,pcm5142", "ti,pcm5242", "ti,tas5754" or "ti,tas5756"
 
   - reg : the I2C address of the device for I2C, the chip select
           number for SPI.

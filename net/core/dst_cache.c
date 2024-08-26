@@ -27,6 +27,7 @@ struct dst_cache_pcpu {
 static void dst_cache_per_cpu_dst_set(struct dst_cache_pcpu *dst_cache,
 				      struct dst_entry *dst, u32 cookie)
 {
+	DEBUG_NET_WARN_ON_ONCE(!in_softirq());
 	dst_release(dst_cache->dst);
 	if (dst)
 		dst_hold(dst);
@@ -40,6 +41,7 @@ static struct dst_entry *dst_cache_per_cpu_get(struct dst_cache *dst_cache,
 {
 	struct dst_entry *dst;
 
+	DEBUG_NET_WARN_ON_ONCE(!in_softirq());
 	dst = idst->dst;
 	if (!dst)
 		goto fail;

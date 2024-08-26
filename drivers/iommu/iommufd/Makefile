@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 iommufd-y := \
 	device.o \
+	fault.o \
 	hw_pagetable.o \
 	io_pagetable.o \
 	ioas.o \

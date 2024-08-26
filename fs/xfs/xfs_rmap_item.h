@@ -71,4 +71,8 @@ struct xfs_rud_log_item {
 extern struct kmem_cache	*xfs_rui_cache;
 extern struct kmem_cache	*xfs_rud_cache;
 
+struct xfs_rmap_intent;
+
+void xfs_rmap_defer_add(struct xfs_trans *tp, struct xfs_rmap_intent *ri);
+
 #endif	/* __XFS_RMAP_ITEM_H__ */

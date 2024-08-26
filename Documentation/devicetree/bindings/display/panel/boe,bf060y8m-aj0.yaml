@@ -26,6 +26,9 @@ properties:
   compatible:
     const: boe,bf060y8m-aj0
 
+  reg:
+    maxItems: 1
+
   elvdd-supply:
     description: EL Driving positive (VDD) supply (4.40-4.80V)
   elvss-supply:
@@ -38,7 +41,6 @@ properties:
     description: I/O voltage supply (1.62-1.98V)
 
   port: true
-  reg: true
   reset-gpios: true
 
 required:

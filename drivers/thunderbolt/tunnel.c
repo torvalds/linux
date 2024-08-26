@@ -1435,10 +1435,10 @@ err_free:
  * @in: DP in adapter port
  * @out: DP out adapter port
  * @link_nr: Preferred lane adapter when the link is not bonded
- * @max_up: Maximum available upstream bandwidth for the DP tunnel (%0
- *	    if not limited)
- * @max_down: Maximum available downstream bandwidth for the DP tunnel
- *	      (%0 if not limited)
+ * @max_up: Maximum available upstream bandwidth for the DP tunnel.
+ *	    %0 if no available bandwidth.
+ * @max_down: Maximum available downstream bandwidth for the DP tunnel.
+ *	      %0 if no available bandwidth.
  *
  * Allocates a tunnel between @in and @out that is capable of tunneling
  * Display Port traffic.
@@ -2048,10 +2048,10 @@ err_free:
  * @tb: Pointer to the domain structure
  * @up: USB3 upstream adapter port
  * @down: USB3 downstream adapter port
- * @max_up: Maximum available upstream bandwidth for the USB3 tunnel (%0
- *	    if not limited).
- * @max_down: Maximum available downstream bandwidth for the USB3 tunnel
- *	      (%0 if not limited).
+ * @max_up: Maximum available upstream bandwidth for the USB3 tunnel.
+ *	    %0 if no available bandwidth.
+ * @max_down: Maximum available downstream bandwidth for the USB3 tunnel.
+ *	      %0 if no available bandwidth.
  *
  * Allocate an USB3 tunnel. The ports must be of type @TB_TYPE_USB3_UP and
  * @TB_TYPE_USB3_DOWN.
@@ -2066,24 +2066,19 @@ struct tb_tunnel *tb_tunnel_alloc_usb3(struct tb *tb, struct tb_port *up,
 	struct tb_path *path;
 	int max_rate = 0;
 
-	/*
-	 * Check that we have enough bandwidth available for the new
-	 * USB3 tunnel.
-	 */
-	if (max_up > 0 || max_down > 0) {
+	if (!tb_route(down->sw) && (max_up > 0 || max_down > 0)) {
+		/*
+		 * For USB3 isochronous transfers, we allow bandwidth which is
+		 * not higher than 90% of maximum supported bandwidth by USB3
+		 * adapters.
+		 */
 		max_rate = tb_usb3_max_link_rate(down, up);
 		if (max_rate < 0)
 			return NULL;
 
-		/* Only 90% can be allocated for USB3 isochronous transfers */
 		max_rate = max_rate * 90 / 100;
-		tb_port_dbg(up, "required bandwidth for USB3 tunnel %d Mb/s\n",
+		tb_port_dbg(up, "maximum required bandwidth for USB3 tunnel %d Mb/s\n",
 			    max_rate);
-
-		if (max_rate > max_up || max_rate > max_down) {
-			tb_port_warn(up, "not enough bandwidth for USB3 tunnel\n");
-			return NULL;
-		}
 	}
 
 	tunnel = tb_tunnel_alloc(tb, 2, TB_TUNNEL_USB3);
@@ -2115,8 +2110,8 @@ struct tb_tunnel *tb_tunnel_alloc_usb3(struct tb *tb, struct tb_port *up,
 	tunnel->paths[TB_USB3_PATH_UP] = path;
 
 	if (!tb_route(down->sw)) {
-		tunnel->allocated_up = max_rate;
-		tunnel->allocated_down = max_rate;
+		tunnel->allocated_up = min(max_rate, max_up);
+		tunnel->allocated_down = min(max_rate, max_down);
 
 		tunnel->init = tb_usb3_init;
 		tunnel->consumed_bandwidth = tb_usb3_consumed_bandwidth;

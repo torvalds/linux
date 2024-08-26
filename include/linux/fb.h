@@ -12,7 +12,7 @@
 #include <linux/types.h>
 #include <linux/workqueue.h>
 
-#include <asm/fb.h>
+#include <asm/video.h>
 
 struct backlight_device;
 struct device;
@@ -225,6 +225,7 @@ struct fb_deferred_io {
 	struct mutex lock; /* mutex that protects the pageref list */
 	struct list_head pagereflist; /* list of pagerefs for touched pages */
 	/* callback */
+	struct page *(*get_page)(struct fb_info *info, unsigned long offset);
 	void (*deferred_io)(struct fb_info *info, struct list_head *pagelist);
 };
 #endif
@@ -741,6 +742,15 @@ static inline bool fb_be_math(struct fb_info *info)
 extern struct fb_info *framebuffer_alloc(size_t size, struct device *dev);
 extern void framebuffer_release(struct fb_info *info);
 extern void fb_bl_default_curve(struct fb_info *fb_info, u8 off, u8 min, u8 max);
+
+#if IS_ENABLED(CONFIG_FB_BACKLIGHT)
+struct backlight_device *fb_bl_device(struct fb_info *info);
+#else
+static inline struct backlight_device *fb_bl_device(struct fb_info *info)
+{
+	return NULL;
+}
+#endif
 
 /* fbmon.c */
 #define FB_MAXTIMINGS		0

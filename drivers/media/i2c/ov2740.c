@@ -768,14 +768,15 @@ static int ov2740_init_controls(struct ov2740 *ov2740)
 	cur_mode = ov2740->cur_mode;
 	size = ARRAY_SIZE(link_freq_menu_items);
 
-	ov2740->link_freq = v4l2_ctrl_new_int_menu(ctrl_hdlr, &ov2740_ctrl_ops,
-						   V4L2_CID_LINK_FREQ,
-						   size - 1, 0,
-						   link_freq_menu_items);
+	ov2740->link_freq =
+		v4l2_ctrl_new_int_menu(ctrl_hdlr, &ov2740_ctrl_ops,
+				       V4L2_CID_LINK_FREQ, size - 1,
+				       ov2740->supported_modes->link_freq_index,
+				       link_freq_menu_items);
 	if (ov2740->link_freq)
 		ov2740->link_freq->flags |= V4L2_CTRL_FLAG_READ_ONLY;
 
-	pixel_rate = to_pixel_rate(OV2740_LINK_FREQ_360MHZ_INDEX);
+	pixel_rate = to_pixel_rate(ov2740->supported_modes->link_freq_index);
 	ov2740->pixel_rate = v4l2_ctrl_new_std(ctrl_hdlr, &ov2740_ctrl_ops,
 					       V4L2_CID_PIXEL_RATE, 0,
 					       pixel_rate, 1, pixel_rate);
@@ -1332,9 +1333,16 @@ static int ov2740_probe(struct i2c_client *client)
 		return dev_err_probe(dev, ret, "failed to check HW configuration\n");
 
 	ov2740->reset_gpio = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_HIGH);
-	if (IS_ERR(ov2740->reset_gpio))
+	if (IS_ERR(ov2740->reset_gpio)) {
 		return dev_err_probe(dev, PTR_ERR(ov2740->reset_gpio),
 				     "failed to get reset GPIO\n");
+	} else if (ov2740->reset_gpio) {
+		/*
+		 * Ensure reset is asserted for at least 20 ms before
+		 * ov2740_resume() deasserts it.
+		 */
+		msleep(20);
+	}
 
 	ov2740->clk = devm_clk_get_optional(dev, "clk");
 	if (IS_ERR(ov2740->clk))

@@ -7,6 +7,7 @@
  */
 #include <kunit/assert.h>
 #include <kunit/test.h>
+#include <kunit/visibility.h>
 
 #include "string-stream.h"
 
@@ -30,8 +31,9 @@ void kunit_assert_prologue(const struct kunit_loc *loc,
 }
 EXPORT_SYMBOL_GPL(kunit_assert_prologue);
 
-static void kunit_assert_print_msg(const struct va_format *message,
-				   struct string_stream *stream)
+VISIBLE_IF_KUNIT
+void kunit_assert_print_msg(const struct va_format *message,
+			    struct string_stream *stream)
 {
 	if (message->fmt)
 		string_stream_add(stream, "\n%pV", message);
@@ -89,7 +91,7 @@ void kunit_ptr_not_err_assert_format(const struct kunit_assert *assert,
 EXPORT_SYMBOL_GPL(kunit_ptr_not_err_assert_format);
 
 /* Checks if `text` is a literal representing `value`, e.g. "5" and 5 */
-static bool is_literal(const char *text, long long value)
+VISIBLE_IF_KUNIT bool is_literal(const char *text, long long value)
 {
 	char *buffer;
 	int len;
@@ -166,7 +168,7 @@ EXPORT_SYMBOL_GPL(kunit_binary_ptr_assert_format);
 /* Checks if KUNIT_EXPECT_STREQ() args were string literals.
  * Note: `text` will have ""s where as `value` will not.
  */
-static bool is_str_literal(const char *text, const char *value)
+VISIBLE_IF_KUNIT bool is_str_literal(const char *text, const char *value)
 {
 	int len;
 
@@ -208,10 +210,11 @@ EXPORT_SYMBOL_GPL(kunit_binary_str_assert_format);
 /* Adds a hexdump of a buffer to a string_stream comparing it with
  * a second buffer. The different bytes are marked with <>.
  */
-static void kunit_assert_hexdump(struct string_stream *stream,
-				 const void *buf,
-				 const void *compared_buf,
-				 const size_t len)
+VISIBLE_IF_KUNIT
+void kunit_assert_hexdump(struct string_stream *stream,
+			  const void *buf,
+			  const void *compared_buf,
+			  const size_t len)
 {
 	size_t i;
 	const u8 *buf1 = buf;

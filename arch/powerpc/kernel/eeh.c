@@ -506,9 +506,18 @@ int eeh_dev_check_failure(struct eeh_dev *edev)
 	 * We will punt with the following conditions: Failure to get
 	 * PE's state, EEH not support and Permanently unavailable
 	 * state, PE is in good state.
+	 *
+	 * On the pSeries, after reaching the threshold, get_state might
+	 * return EEH_STATE_NOT_SUPPORT. However, it's possible that the
+	 * device state remains uncleared if the device is not marked
+	 * pci_channel_io_perm_failure. Therefore, consider logging the
+	 * event to let device removal happen.
+	 *
 	 */
 	if ((ret < 0) ||
-	    (ret == EEH_STATE_NOT_SUPPORT) || eeh_state_active(ret)) {
+	    (ret == EEH_STATE_NOT_SUPPORT &&
+	     dev->error_state == pci_channel_io_perm_failure) ||
+	    eeh_state_active(ret)) {
 		eeh_stats.false_positives++;
 		pe->false_positives++;
 		rc = 0;
@@ -1263,22 +1272,6 @@ out:
 EXPORT_SYMBOL(eeh_dev_release);
 
 #ifdef CONFIG_IOMMU_API
-
-static int dev_has_iommu_table(struct device *dev, void *data)
-{
-	struct pci_dev *pdev = to_pci_dev(dev);
-	struct pci_dev **ppdev = data;
-
-	if (!dev)
-		return 0;
-
-	if (device_iommu_mapped(dev)) {
-		*ppdev = pdev;
-		return 1;
-	}
-
-	return 0;
-}
 
 /**
  * eeh_iommu_group_to_pe - Convert IOMMU group to EEH PE

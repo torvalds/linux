@@ -85,7 +85,6 @@ enum {
 #define WCD939X_MBHC_GET_X1(x)		((x) & 0x3FFF)
 
 /* Z value compared in milliOhm */
-#define WCD939X_MBHC_IS_SECOND_RAMP_REQUIRED(z) false
 #define WCD939X_ANA_MBHC_ZDET_CONST	(1018 * 1024)
 
 enum {
@@ -182,8 +181,6 @@ struct wcd939x_priv {
 	/* typec handling */
 	bool typec_analog_mux;
 #if IS_ENABLED(CONFIG_TYPEC)
-	struct typec_mux_dev *typec_mux;
-	struct typec_switch_dev *typec_sw;
 	enum typec_orientation typec_orientation;
 	unsigned long typec_mode;
 	struct typec_switch *typec_switch;
@@ -221,7 +218,7 @@ static const SNDRV_CTL_TLVD_DECLARE_DB_MINMAX(ear_pa_gain, 600, -1800);
 static const DECLARE_TLV_DB_SCALE(line_gain, 0, 7, 1);
 static const DECLARE_TLV_DB_SCALE(analog_gain, 0, 25, 1);
 
-static struct wcd_mbhc_field wcd_mbhc_fields[WCD_MBHC_REG_FUNC_MAX] = {
+static const struct wcd_mbhc_field wcd_mbhc_fields[WCD_MBHC_REG_FUNC_MAX] = {
 	WCD_MBHC_FIELD(WCD_MBHC_L_DET_EN, WCD939X_ANA_MBHC_MECH, 0x80),
 	WCD_MBHC_FIELD(WCD_MBHC_GND_DET_EN, WCD939X_ANA_MBHC_MECH, 0x40),
 	WCD_MBHC_FIELD(WCD_MBHC_MECH_DETECTION_TYPE, WCD939X_ANA_MBHC_MECH, 0x20),
@@ -292,7 +289,7 @@ static const struct regmap_irq wcd939x_irqs[WCD939X_NUM_IRQS] = {
 	REGMAP_IRQ_REG(WCD939X_IRQ_HPHR_SURGE_DET_INT, 2, 0x08),
 };
 
-static struct regmap_irq_chip wcd939x_regmap_irq_chip = {
+static const struct regmap_irq_chip wcd939x_regmap_irq_chip = {
 	.name = "wcd939x",
 	.irqs = wcd939x_irqs,
 	.num_irqs = ARRAY_SIZE(wcd939x_irqs),
@@ -415,7 +412,7 @@ static int wcd939x_io_init(struct snd_soc_component *component)
 	return 0;
 }
 
-static int wcd939x_sdw_connect_port(struct wcd939x_sdw_ch_info *ch_info,
+static int wcd939x_sdw_connect_port(const struct wcd939x_sdw_ch_info *ch_info,
 				    struct sdw_port_config *port_config,
 				    u8 enable)
 {
@@ -525,7 +522,7 @@ static int wcd939x_codec_hphl_dac_event(struct snd_soc_dapm_widget *w,
 						      WCD939X_DIGITAL_CDC_COMP_CTL_0,
 						      WCD939X_CDC_COMP_CTL_0_HPHL_COMP_EN,
 						      true);
-			 /* 5msec compander delay as per HW requirement */
+			/* 5msec compander delay as per HW requirement */
 			if (!wcd939x->comp2_enable ||
 			    snd_soc_component_read_field(component,
 							 WCD939X_DIGITAL_CDC_COMP_CTL_0,
@@ -1268,25 +1265,20 @@ static int wcd939x_micbias_control(struct snd_soc_component *component,
 {
 	struct wcd939x_priv *wcd939x = snd_soc_component_get_drvdata(component);
 	int micb_index = micb_num - 1;
-	u16 micb_field;
 	u16 micb_reg;
 
 	switch (micb_num) {
 	case MIC_BIAS_1:
 		micb_reg = WCD939X_ANA_MICB1;
-		micb_field = WCD939X_MICB1_ENABLE;
 		break;
 	case MIC_BIAS_2:
 		micb_reg = WCD939X_ANA_MICB2;
-		micb_field = WCD939X_MICB2_ENABLE;
 		break;
 	case MIC_BIAS_3:
 		micb_reg = WCD939X_ANA_MICB3;
-		micb_field = WCD939X_MICB3_ENABLE;
 		break;
 	case MIC_BIAS_4:
 		micb_reg = WCD939X_ANA_MICB4;
-		micb_field = WCD939X_MICB4_ENABLE;
 		break;
 	default:
 		dev_err(component->dev, "%s: Invalid micbias number: %d\n",
@@ -1300,7 +1292,8 @@ static int wcd939x_micbias_control(struct snd_soc_component *component,
 		if (wcd939x->pullup_ref[micb_index] == 1 &&
 		    wcd939x->micb_ref[micb_index] == 0)
 			snd_soc_component_write_field(component, micb_reg,
-						      micb_field, MICB_BIAS_PULL_UP);
+						      WCD939X_MICB_ENABLE,
+						      MICB_BIAS_PULL_UP);
 		break;
 	case MICB_PULLUP_DISABLE:
 		if (wcd939x->pullup_ref[micb_index] > 0)
@@ -1308,7 +1301,8 @@ static int wcd939x_micbias_control(struct snd_soc_component *component,
 		if (wcd939x->pullup_ref[micb_index] == 0 &&
 		    wcd939x->micb_ref[micb_index] == 0)
 			snd_soc_component_write_field(component, micb_reg,
-						      micb_field, MICB_BIAS_DISABLE);
+						      WCD939X_MICB_ENABLE,
+						      MICB_BIAS_DISABLE);
 		break;
 	case MICB_ENABLE:
 		wcd939x->micb_ref[micb_index]++;
@@ -1345,7 +1339,8 @@ static int wcd939x_micbias_control(struct snd_soc_component *component,
 			snd_soc_component_write_field(component,
 						WCD939X_MICB4_TEST_CTL_2,
 						WCD939X_TEST_CTL_2_IBIAS_LDO_DRIVER, true);
-			snd_soc_component_write_field(component, micb_reg, micb_field,
+			snd_soc_component_write_field(component, micb_reg,
+						      WCD939X_MICB_ENABLE,
 						      MICB_BIAS_ENABLE);
 			if (micb_num == MIC_BIAS_2)
 				wcd_mbhc_event_notify(wcd939x->wcd_mbhc,
@@ -1362,7 +1357,8 @@ static int wcd939x_micbias_control(struct snd_soc_component *component,
 		if (wcd939x->micb_ref[micb_index] == 0 &&
 		    wcd939x->pullup_ref[micb_index] > 0)
 			snd_soc_component_write_field(component, micb_reg,
-						      micb_field, MICB_BIAS_PULL_UP);
+						      WCD939X_MICB_ENABLE,
+						      MICB_BIAS_PULL_UP);
 		else if (wcd939x->micb_ref[micb_index] == 0 &&
 			 wcd939x->pullup_ref[micb_index] == 0) {
 			if (micb_num  == MIC_BIAS_2)
@@ -1370,7 +1366,8 @@ static int wcd939x_micbias_control(struct snd_soc_component *component,
 						      WCD_EVENT_PRE_MICBIAS_2_OFF);
 
 			snd_soc_component_write_field(component, micb_reg,
-						      micb_field, MICB_BIAS_DISABLE);
+						      WCD939X_MICB_ENABLE,
+						      MICB_BIAS_DISABLE);
 			if (micb_num  == MIC_BIAS_2)
 				wcd_mbhc_event_notify(wcd939x->wcd_mbhc,
 						      WCD_EVENT_POST_MICBIAS_2_OFF);
@@ -1869,11 +1866,10 @@ static void wcd939x_mbhc_program_btn_thr(struct snd_soc_component *component,
 
 static bool wcd939x_mbhc_micb_en_status(struct snd_soc_component *component, int micb_num)
 {
-
 	if (micb_num == MIC_BIAS_2) {
 		u8 val;
 
-		val = FIELD_GET(WCD939X_MICB2_ENABLE,
+		val = FIELD_GET(WCD939X_MICB_ENABLE,
 				snd_soc_component_read(component, WCD939X_ANA_MICB2));
 		if (val == MICB_BIAS_ENABLE)
 			return true;
@@ -1935,7 +1931,6 @@ static int wcd939x_mbhc_micb_adjust_voltage(struct snd_soc_component *component,
 					    int req_volt, int micb_num)
 {
 	struct wcd939x_priv *wcd939x = snd_soc_component_get_drvdata(component);
-	unsigned int micb_en_field, micb_vout_ctl_field;
 	unsigned int micb_reg, cur_vout_ctl, micb_en;
 	int req_vout_ctl;
 	int ret = 0;
@@ -1943,23 +1938,15 @@ static int wcd939x_mbhc_micb_adjust_voltage(struct snd_soc_component *component,
 	switch (micb_num) {
 	case MIC_BIAS_1:
 		micb_reg = WCD939X_ANA_MICB1;
-		micb_en_field = WCD939X_MICB1_ENABLE;
-		micb_vout_ctl_field = WCD939X_MICB1_VOUT_CTL;
 		break;
 	case MIC_BIAS_2:
 		micb_reg = WCD939X_ANA_MICB2;
-		micb_en_field = WCD939X_MICB2_ENABLE;
-		micb_vout_ctl_field = WCD939X_MICB2_VOUT_CTL;
 		break;
 	case MIC_BIAS_3:
 		micb_reg = WCD939X_ANA_MICB3;
-		micb_en_field = WCD939X_MICB3_ENABLE;
-		micb_vout_ctl_field = WCD939X_MICB1_VOUT_CTL;
 		break;
 	case MIC_BIAS_4:
 		micb_reg = WCD939X_ANA_MICB4;
-		micb_en_field = WCD939X_MICB4_ENABLE;
-		micb_vout_ctl_field = WCD939X_MICB2_VOUT_CTL;
 		break;
 	default:
 		return -EINVAL;
@@ -1975,9 +1962,9 @@ static int wcd939x_mbhc_micb_adjust_voltage(struct snd_soc_component *component,
 	 * micbias.
 	 */
 	micb_en = snd_soc_component_read_field(component, micb_reg,
-					       micb_en_field);
+					       WCD939X_MICB_ENABLE);
 	cur_vout_ctl = snd_soc_component_read_field(component, micb_reg,
-						    micb_vout_ctl_field);
+						    WCD939X_MICB_VOUT_CTL);
 
 	req_vout_ctl = wcd939x_get_micb_vout_ctl_val(req_volt);
 	if (req_vout_ctl < 0) {
@@ -1996,14 +1983,16 @@ static int wcd939x_mbhc_micb_adjust_voltage(struct snd_soc_component *component,
 
 	if (micb_en == MICB_BIAS_ENABLE)
 		snd_soc_component_write_field(component, micb_reg,
-					      micb_en_field, MICB_BIAS_PULL_DOWN);
+					      WCD939X_MICB_ENABLE,
+					      MICB_BIAS_PULL_DOWN);
 
 	snd_soc_component_write_field(component, micb_reg,
-				      micb_vout_ctl_field, req_vout_ctl);
+				      WCD939X_MICB_VOUT_CTL, req_vout_ctl);
 
 	if (micb_en == MICB_BIAS_ENABLE) {
 		snd_soc_component_write_field(component, micb_reg,
-					      micb_en_field, MICB_BIAS_ENABLE);
+					      WCD939X_MICB_ENABLE,
+					      MICB_BIAS_ENABLE);
 		/*
 		 * Add 2ms delay as per HW requirement after enabling
 		 * micbias
@@ -2916,13 +2905,13 @@ static int wcd939x_set_micbias_data(struct wcd939x_priv *wcd939x)
 		return -EINVAL;
 
 	regmap_update_bits(wcd939x->regmap, WCD939X_ANA_MICB1,
-			   WCD939X_MICB1_VOUT_CTL, vout_ctl_1);
+			   WCD939X_MICB_VOUT_CTL, vout_ctl_1);
 	regmap_update_bits(wcd939x->regmap, WCD939X_ANA_MICB2,
-			   WCD939X_MICB2_VOUT_CTL, vout_ctl_2);
+			   WCD939X_MICB_VOUT_CTL, vout_ctl_2);
 	regmap_update_bits(wcd939x->regmap, WCD939X_ANA_MICB3,
-			   WCD939X_MICB3_VOUT_CTL, vout_ctl_3);
+			   WCD939X_MICB_VOUT_CTL, vout_ctl_3);
 	regmap_update_bits(wcd939x->regmap, WCD939X_ANA_MICB4,
-			   WCD939X_MICB4_VOUT_CTL, vout_ctl_4);
+			   WCD939X_MICB_VOUT_CTL, vout_ctl_4);
 
 	return 0;
 }
@@ -2966,7 +2955,7 @@ static irqreturn_t wcd939x_wd_handle_irq(int irq, void *data)
  *     \- regmap_irq_thread()
  *         \- handle_nested_irq(i)
  */
-static struct irq_chip wcd_irq_chip = {
+static const struct irq_chip wcd_irq_chip = {
 	.name = "WCD939x",
 };
 
@@ -3528,6 +3517,68 @@ static const struct component_master_ops wcd939x_comp_ops = {
 	.unbind = wcd939x_unbind,
 };
 
+static void __maybe_unused wcd939x_typec_mux_unregister(void *data)
+{
+	struct typec_mux_dev *typec_mux = data;
+
+	typec_mux_unregister(typec_mux);
+}
+
+static void __maybe_unused wcd939x_typec_switch_unregister(void *data)
+{
+	struct typec_switch_dev *typec_sw = data;
+
+	typec_switch_unregister(typec_sw);
+}
+
+static int wcd939x_add_typec(struct wcd939x_priv *wcd939x, struct device *dev)
+{
+#if IS_ENABLED(CONFIG_TYPEC)
+	int ret;
+	struct typec_mux_dev *typec_mux;
+	struct typec_switch_dev *typec_sw;
+	struct typec_mux_desc mux_desc = {
+		.drvdata = wcd939x,
+		.fwnode = dev_fwnode(dev),
+		.set = wcd939x_typec_mux_set,
+	};
+	struct typec_switch_desc sw_desc = {
+		.drvdata = wcd939x,
+		.fwnode = dev_fwnode(dev),
+		.set = wcd939x_typec_switch_set,
+	};
+
+	/*
+	 * Is USBSS is used to mux analog lines,
+	 * register a typec mux/switch to get typec events
+	 */
+	if (!wcd939x->typec_analog_mux)
+		return 0;
+
+	typec_mux = typec_mux_register(dev, &mux_desc);
+	if (IS_ERR(typec_mux))
+		return dev_err_probe(dev, PTR_ERR(typec_mux),
+				     "failed to register typec mux\n");
+
+	ret = devm_add_action_or_reset(dev, wcd939x_typec_mux_unregister,
+				       typec_mux);
+	if (ret)
+		return ret;
+
+	typec_sw = typec_switch_register(dev, &sw_desc);
+	if (IS_ERR(typec_sw))
+		return dev_err_probe(dev, PTR_ERR(typec_sw),
+				     "failed to register typec switch\n");
+
+	ret = devm_add_action_or_reset(dev, wcd939x_typec_switch_unregister,
+				       typec_sw);
+	if (ret)
+		return ret;
+#endif
+
+	return 0;
+}
+
 static int wcd939x_add_slave_components(struct wcd939x_priv *wcd939x,
 					struct device *dev,
 					struct component_match **matchptr)
@@ -3576,42 +3627,13 @@ static int wcd939x_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-#if IS_ENABLED(CONFIG_TYPEC)
-	/*
-	 * Is USBSS is used to mux analog lines,
-	 * register a typec mux/switch to get typec events
-	 */
-	if (wcd939x->typec_analog_mux) {
-		struct typec_mux_desc mux_desc = {
-			.drvdata = wcd939x,
-			.fwnode = dev_fwnode(dev),
-			.set = wcd939x_typec_mux_set,
-		};
-		struct typec_switch_desc sw_desc = {
-			.drvdata = wcd939x,
-			.fwnode = dev_fwnode(dev),
-			.set = wcd939x_typec_switch_set,
-		};
-
-		wcd939x->typec_mux = typec_mux_register(dev, &mux_desc);
-		if (IS_ERR(wcd939x->typec_mux)) {
-			ret = dev_err_probe(dev, PTR_ERR(wcd939x->typec_mux),
-					    "failed to register typec mux\n");
-			goto err_disable_regulators;
-		}
-
-		wcd939x->typec_sw = typec_switch_register(dev, &sw_desc);
-		if (IS_ERR(wcd939x->typec_sw)) {
-			ret = dev_err_probe(dev, PTR_ERR(wcd939x->typec_sw),
-					    "failed to register typec switch\n");
-			goto err_unregister_typec_mux;
-		}
-	}
-#endif /* CONFIG_TYPEC */
+	ret = wcd939x_add_typec(wcd939x, dev);
+	if (ret)
+		goto err_disable_regulators;
 
 	ret = wcd939x_add_slave_components(wcd939x, dev, &match);
 	if (ret)
-		goto err_unregister_typec_switch;
+		goto err_disable_regulators;
 
 	wcd939x_reset(wcd939x);
 
@@ -3627,18 +3649,6 @@ static int wcd939x_probe(struct platform_device *pdev)
 	pm_runtime_idle(dev);
 
 	return 0;
-
-#if IS_ENABLED(CONFIG_TYPEC)
-err_unregister_typec_mux:
-	if (wcd939x->typec_analog_mux)
-		typec_mux_unregister(wcd939x->typec_mux);
-#endif /* CONFIG_TYPEC */
-
-err_unregister_typec_switch:
-#if IS_ENABLED(CONFIG_TYPEC)
-	if (wcd939x->typec_analog_mux)
-		typec_switch_unregister(wcd939x->typec_sw);
-#endif /* CONFIG_TYPEC */
 
 err_disable_regulators:
 	regulator_bulk_disable(WCD939X_MAX_SUPPLY, wcd939x->supplies);

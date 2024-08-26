@@ -1999,7 +1999,7 @@ static int keystone_set_link_ksettings(struct net_device *ndev,
 
 #if IS_ENABLED(CONFIG_TI_CPTS)
 static int keystone_get_ts_info(struct net_device *ndev,
-				struct ethtool_ts_info *info)
+				struct kernel_ethtool_ts_info *info)
 {
 	struct netcp_intf *netcp = netdev_priv(ndev);
 	struct gbe_intf *gbe_intf;
@@ -2027,7 +2027,7 @@ static int keystone_get_ts_info(struct net_device *ndev,
 }
 #else
 static int keystone_get_ts_info(struct net_device *ndev,
-				struct ethtool_ts_info *info)
+				struct kernel_ethtool_ts_info *info)
 {
 	info->so_timestamping =
 		SOF_TIMESTAMPING_TX_SOFTWARE |

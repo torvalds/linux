@@ -128,8 +128,7 @@ void arch_dma_prep_coherent(struct page *page, size_t size)
 	ALT_CMO_OP(FLUSH, flush_addr, size, riscv_cbom_block_size);
 }
 
-void arch_setup_dma_ops(struct device *dev, u64 dma_base, u64 size,
-			bool coherent)
+void arch_setup_dma_ops(struct device *dev, bool coherent)
 {
 	WARN_TAINT(!coherent && riscv_cbom_block_size > ARCH_DMA_MINALIGN,
 		   TAINT_CPU_OUT_OF_SPEC,

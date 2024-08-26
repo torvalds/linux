@@ -46,9 +46,15 @@ void setup_dio_stream_encoder(struct pipe_ctx *pipe_ctx)
 	if (dc_is_dp_signal(pipe_ctx->stream->signal))
 		pipe_ctx->stream->ctx->dc->link_srv->dp_trace_source_sequence(pipe_ctx->stream->link,
 				DPCD_SOURCE_SEQ_AFTER_CONNECT_DIG_FE_BE);
+	if (stream_enc->funcs->enable_stream)
+		stream_enc->funcs->enable_stream(stream_enc,
+				pipe_ctx->stream->signal, true);
 	if (stream_enc->funcs->map_stream_to_link)
 		stream_enc->funcs->map_stream_to_link(stream_enc,
 				stream_enc->stream_enc_inst, link_enc->transmitter - TRANSMITTER_UNIPHY_A);
+	if (stream_enc->funcs->set_input_mode)
+		stream_enc->funcs->set_input_mode(stream_enc,
+				pipe_ctx->stream_res.pix_clk_params.dio_se_pix_per_cycle);
 	if (stream_enc->funcs->enable_fifo)
 		stream_enc->funcs->enable_fifo(stream_enc);
 }
@@ -60,7 +66,11 @@ void reset_dio_stream_encoder(struct pipe_ctx *pipe_ctx)
 
 	if (stream_enc && stream_enc->funcs->disable_fifo)
 		stream_enc->funcs->disable_fifo(stream_enc);
-
+	if (stream_enc->funcs->set_input_mode)
+		stream_enc->funcs->set_input_mode(stream_enc, 0);
+	if (stream_enc->funcs->enable_stream)
+		stream_enc->funcs->enable_stream(stream_enc,
+				pipe_ctx->stream->signal, false);
 	link_enc->funcs->connect_dig_be_to_fe(
 			link_enc,
 			pipe_ctx->stream_res.stream_enc->id,

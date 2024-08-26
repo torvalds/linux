@@ -49,6 +49,7 @@
 #include <asm/uv.h>
 #include <linux/virtio_anchor.h>
 #include <linux/virtio_config.h>
+#include <linux/execmem.h>
 
 pgd_t swapper_pg_dir[PTRS_PER_PGD] __section(".bss..swapper_pg_dir");
 pgd_t invalid_pg_dir[PTRS_PER_PGD] __section(".bss..invalid_pg_dir");
@@ -61,6 +62,7 @@ EXPORT_SYMBOL(zero_page_mask);
 
 static void __init setup_zero_pages(void)
 {
+	unsigned long total_pages = PHYS_PFN(memblock_phys_mem_size() - memblock_reserved_size());
 	unsigned int order;
 	struct page *page;
 	int i;
@@ -69,7 +71,7 @@ static void __init setup_zero_pages(void)
 	order = 7;
 
 	/* Limit number of empty zero pages for small memory sizes */
-	while (order > 2 && (totalram_pages() >> 10) < (1UL << order))
+	while (order > 2 && (total_pages >> 10) < (1UL << order))
 		order--;
 
 	empty_zero_page = __get_free_pages(GFP_KERNEL | __GFP_ZERO, order);
@@ -302,3 +304,32 @@ void arch_remove_memory(u64 start, u64 size, struct vmem_altmap *altmap)
 	vmem_remove_mapping(start, size);
 }
 #endif /* CONFIG_MEMORY_HOTPLUG */
+
+#ifdef CONFIG_EXECMEM
+static struct execmem_info execmem_info __ro_after_init;
+
+struct execmem_info __init *execmem_arch_setup(void)
+{
+	unsigned long module_load_offset = 0;
+	unsigned long start;
+
+	if (kaslr_enabled())
+		module_load_offset = get_random_u32_inclusive(1, 1024) * PAGE_SIZE;
+
+	start = MODULES_VADDR + module_load_offset;
+
+	execmem_info = (struct execmem_info){
+		.ranges = {
+			[EXECMEM_DEFAULT] = {
+				.flags	= EXECMEM_KASAN_SHADOW,
+				.start	= start,
+				.end	= MODULES_END,
+				.pgprot	= PAGE_KERNEL,
+				.alignment = MODULE_ALIGN,
+			},
+		},
+	};
+
+	return &execmem_info;
+}
+#endif /* CONFIG_EXECMEM */

@@ -15,6 +15,12 @@
 		interrupts-extended = <&tlmm 12 IRQ_TYPE_EDGE_FALLING>;
 		pinctrl-0 = <&muic_int_default>;
 		pinctrl-names = "default";
+
+		usb_con: connector {
+			compatible = "usb-b-connector";
+			label = "micro-USB";
+			type = "micro";
+		};
 	};
 };
 
@@ -25,4 +31,16 @@
 
 &clk_pwm_backlight {
 	status = "disabled";
+};
+
+&s3fwrn5_nfc {
+	status = "okay";
+};
+
+&st_accel {
+	compatible = "st,lis2hh12";
+	mount-matrix = "1",  "0", "0",
+		       "0", "-1", "0",
+		       "0",  "0", "1";
+	status = "okay";
 };

@@ -108,7 +108,7 @@ transfer_to_syscall:
 	stw	r11, 0(r1)
 	mflr	r12
 	stw	r12, _LINK(r1)
-#ifdef CONFIG_BOOKE_OR_40x
+#ifdef CONFIG_BOOKE
 	rlwinm	r9,r9,0,14,12		/* clear MSR_WE (necessary?) */
 #endif
 	lis	r12,STACK_FRAME_REGS_MARKER@ha /* exception frame marker */
@@ -158,9 +158,6 @@ syscall_exit_finish:
 1:	REST_GPR(2, r1)
 	REST_GPR(1, r1)
 	rfi
-#ifdef CONFIG_40x
-	b .	/* Prevent prefetch past rfi */
-#endif
 
 3:	mtcr	r5
 	lwz	r4,_CTR(r1)
@@ -214,7 +211,7 @@ start_kernel_thread:
 
 	.globl	fast_exception_return
 fast_exception_return:
-#if !(defined(CONFIG_4xx) || defined(CONFIG_BOOKE))
+#ifndef CONFIG_BOOKE
 	andi.	r10,r9,MSR_RI		/* check for recoverable interrupt */
 	beq	3f			/* if not, we've got problems */
 #endif
@@ -237,9 +234,6 @@ fast_exception_return:
 	REST_GPR(12, r11)
 	REST_GPR(11, r11)
 	rfi
-#ifdef CONFIG_40x
-	b .	/* Prevent prefetch past rfi */
-#endif
 _ASM_NOKPROBE_SYMBOL(fast_exception_return)
 
 /* aargh, a nonrecoverable interrupt, panic */
@@ -296,9 +290,6 @@ ALT_FTR_SECTION_END_IFCLR(CPU_FTR_STCX_CHECKS_ADDRESS)
 	REST_GPR(0, r1)
 	REST_GPR(1, r1)
 	rfi
-#ifdef CONFIG_40x
-	b .	/* Prevent prefetch past rfi */
-#endif
 
 .Lrestore_nvgprs:
 	REST_NVGPRS(r1)
@@ -346,9 +337,6 @@ ALT_FTR_SECTION_END_IFCLR(CPU_FTR_STCX_CHECKS_ADDRESS)
 	REST_GPR(0, r1)
 	REST_GPR(1, r1)
 	rfi
-#ifdef CONFIG_40x
-	b .	/* Prevent prefetch past rfi */
-#endif
 
 1:	/*
 	 * Emulate stack store with update. New r1 value was already calculated
@@ -375,12 +363,9 @@ ALT_FTR_SECTION_END_IFCLR(CPU_FTR_STCX_CHECKS_ADDRESS)
 	mfspr	r9, SPRN_SPRG_SCRATCH0
 #endif
 	rfi
-#ifdef CONFIG_40x
-	b .	/* Prevent prefetch past rfi */
-#endif
 _ASM_NOKPROBE_SYMBOL(interrupt_return)
 
-#if defined(CONFIG_4xx) || defined(CONFIG_BOOKE)
+#ifdef CONFIG_BOOKE
 
 /*
  * Returning from a critical interrupt in user mode doesn't need
@@ -395,17 +380,6 @@ _ASM_NOKPROBE_SYMBOL(interrupt_return)
  * time of the critical interrupt.
  *
  */
-#ifdef CONFIG_40x
-#define PPC_40x_TURN_OFF_MSR_DR						    \
-	/* avoid any possible TLB misses here by turning off MSR.DR, we	    \
-	 * assume the instructions here are mapped by a pinned TLB entry */ \
-	li	r10,MSR_IR;						    \
-	mtmsr	r10;							    \
-	isync;								    \
-	tophys(r1, r1);
-#else
-#define PPC_40x_TURN_OFF_MSR_DR
-#endif
 
 #define RET_FROM_EXC_LEVEL(exc_lvl_srr0, exc_lvl_srr1, exc_lvl_rfi)	\
 	REST_NVGPRS(r1);						\
@@ -423,7 +397,6 @@ _ASM_NOKPROBE_SYMBOL(interrupt_return)
 	mtlr	r11;							\
 	lwz	r10,_CCR(r1);						\
 	mtcrf	0xff,r10;						\
-	PPC_40x_TURN_OFF_MSR_DR;					\
 	lwz	r9,_DEAR(r1);						\
 	lwz	r10,_ESR(r1);						\
 	mtspr	SPRN_DEAR,r9;						\
@@ -471,20 +444,6 @@ _ASM_NOKPROBE_SYMBOL(interrupt_return)
 #define RESTORE_MMU_REGS
 #endif
 
-#ifdef CONFIG_40x
-	.globl	ret_from_crit_exc
-ret_from_crit_exc:
-	lis	r9,crit_srr0@ha;
-	lwz	r9,crit_srr0@l(r9);
-	lis	r10,crit_srr1@ha;
-	lwz	r10,crit_srr1@l(r10);
-	mtspr	SPRN_SRR0,r9;
-	mtspr	SPRN_SRR1,r10;
-	RET_FROM_EXC_LEVEL(SPRN_CSRR0, SPRN_CSRR1, PPC_RFCI)
-_ASM_NOKPROBE_SYMBOL(ret_from_crit_exc)
-#endif /* CONFIG_40x */
-
-#ifdef CONFIG_BOOKE
 	.globl	ret_from_crit_exc
 ret_from_crit_exc:
 	RESTORE_xSRR(SRR0,SRR1);
@@ -509,4 +468,3 @@ ret_from_mcheck_exc:
 	RET_FROM_EXC_LEVEL(SPRN_MCSRR0, SPRN_MCSRR1, PPC_RFMCI)
 _ASM_NOKPROBE_SYMBOL(ret_from_mcheck_exc)
 #endif /* CONFIG_BOOKE */
-#endif /* !(CONFIG_4xx || CONFIG_BOOKE) */

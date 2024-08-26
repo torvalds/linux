@@ -74,7 +74,7 @@ bool btrfs_is_subpage(const struct btrfs_fs_info *fs_info, struct address_space 
 	 * mapping. And if page->mapping->host is data inode, it's subpage.
 	 * As we have ruled our sectorsize >= PAGE_SIZE case already.
 	 */
-	if (!mapping || !mapping->host || is_data_inode(mapping->host))
+	if (!mapping || !mapping->host || is_data_inode(BTRFS_I(mapping->host)))
 		return true;
 
 	/*
@@ -242,12 +242,12 @@ static void btrfs_subpage_assert(const struct btrfs_fs_info *fs_info,
 
 #define subpage_calc_start_bit(fs_info, folio, name, start, len)	\
 ({									\
-	unsigned int start_bit;						\
+	unsigned int __start_bit;						\
 									\
 	btrfs_subpage_assert(fs_info, folio, start, len);		\
-	start_bit = offset_in_page(start) >> fs_info->sectorsize_bits;	\
-	start_bit += fs_info->subpage_info->name##_offset;		\
-	start_bit;							\
+	__start_bit = offset_in_page(start) >> fs_info->sectorsize_bits; \
+	__start_bit += fs_info->subpage_info->name##_offset;		\
+	__start_bit;							\
 })
 
 void btrfs_subpage_start_reader(const struct btrfs_fs_info *fs_info,
@@ -283,7 +283,7 @@ void btrfs_subpage_end_reader(const struct btrfs_fs_info *fs_info,
 	bool last;
 
 	btrfs_subpage_assert(fs_info, folio, start, len);
-	is_data = is_data_inode(folio->mapping->host);
+	is_data = is_data_inode(BTRFS_I(folio->mapping->host));
 
 	spin_lock_irqsave(&subpage->lock, flags);
 
@@ -703,19 +703,29 @@ IMPLEMENT_BTRFS_PAGE_OPS(checked, folio_set_checked, folio_clear_checked,
  * Make sure not only the page dirty bit is cleared, but also subpage dirty bit
  * is cleared.
  */
-void btrfs_folio_assert_not_dirty(const struct btrfs_fs_info *fs_info, struct folio *folio)
+void btrfs_folio_assert_not_dirty(const struct btrfs_fs_info *fs_info,
+				  struct folio *folio, u64 start, u32 len)
 {
-	struct btrfs_subpage *subpage = folio_get_private(folio);
+	struct btrfs_subpage *subpage;
+	unsigned int start_bit;
+	unsigned int nbits;
+	unsigned long flags;
 
 	if (!IS_ENABLED(CONFIG_BTRFS_ASSERT))
 		return;
 
-	ASSERT(!folio_test_dirty(folio));
-	if (!btrfs_is_subpage(fs_info, folio->mapping))
+	if (!btrfs_is_subpage(fs_info, folio->mapping)) {
+		ASSERT(!folio_test_dirty(folio));
 		return;
+	}
 
-	ASSERT(folio_test_private(folio) && folio_get_private(folio));
-	ASSERT(subpage_test_bitmap_all_zero(fs_info, subpage, dirty));
+	start_bit = subpage_calc_start_bit(fs_info, folio, dirty, start, len);
+	nbits = len >> fs_info->sectorsize_bits;
+	subpage = folio_get_private(folio);
+	ASSERT(subpage);
+	spin_lock_irqsave(&subpage->lock, flags);
+	ASSERT(bitmap_test_range_all_zero(subpage->bitmaps, start_bit, nbits));
+	spin_unlock_irqrestore(&subpage->lock, flags);
 }
 
 /*
@@ -765,6 +775,130 @@ void btrfs_folio_unlock_writer(struct btrfs_fs_info *fs_info,
 	btrfs_folio_end_writer_lock(fs_info, folio, start, len);
 }
 
+/*
+ * This is for folio already locked by plain lock_page()/folio_lock(), which
+ * doesn't have any subpage awareness.
+ *
+ * This populates the involved subpage ranges so that subpage helpers can
+ * properly unlock them.
+ */
+void btrfs_folio_set_writer_lock(const struct btrfs_fs_info *fs_info,
+				 struct folio *folio, u64 start, u32 len)
+{
+	struct btrfs_subpage *subpage;
+	unsigned long flags;
+	unsigned int start_bit;
+	unsigned int nbits;
+	int ret;
+
+	ASSERT(folio_test_locked(folio));
+	if (unlikely(!fs_info) || !btrfs_is_subpage(fs_info, folio->mapping))
+		return;
+
+	subpage = folio_get_private(folio);
+	start_bit = subpage_calc_start_bit(fs_info, folio, locked, start, len);
+	nbits = len >> fs_info->sectorsize_bits;
+	spin_lock_irqsave(&subpage->lock, flags);
+	/* Target range should not yet be locked. */
+	ASSERT(bitmap_test_range_all_zero(subpage->bitmaps, start_bit, nbits));
+	bitmap_set(subpage->bitmaps, start_bit, nbits);
+	ret = atomic_add_return(nbits, &subpage->writers);
+	ASSERT(ret <= fs_info->subpage_info->bitmap_nr_bits);
+	spin_unlock_irqrestore(&subpage->lock, flags);
+}
+
+/*
+ * Find any subpage writer locked range inside @folio, starting at file offset
+ * @search_start. The caller should ensure the folio is locked.
+ *
+ * Return true and update @found_start_ret and @found_len_ret to the first
+ * writer locked range.
+ * Return false if there is no writer locked range.
+ */
+bool btrfs_subpage_find_writer_locked(const struct btrfs_fs_info *fs_info,
+				      struct folio *folio, u64 search_start,
+				      u64 *found_start_ret, u32 *found_len_ret)
+{
+	struct btrfs_subpage_info *subpage_info = fs_info->subpage_info;
+	struct btrfs_subpage *subpage = folio_get_private(folio);
+	const unsigned int len = PAGE_SIZE - offset_in_page(search_start);
+	const unsigned int start_bit = subpage_calc_start_bit(fs_info, folio,
+						locked, search_start, len);
+	const unsigned int locked_bitmap_start = subpage_info->locked_offset;
+	const unsigned int locked_bitmap_end = locked_bitmap_start +
+					       subpage_info->bitmap_nr_bits;
+	unsigned long flags;
+	int first_zero;
+	int first_set;
+	bool found = false;
+
+	ASSERT(folio_test_locked(folio));
+	spin_lock_irqsave(&subpage->lock, flags);
+	first_set = find_next_bit(subpage->bitmaps, locked_bitmap_end, start_bit);
+	if (first_set >= locked_bitmap_end)
+		goto out;
+
+	found = true;
+
+	*found_start_ret = folio_pos(folio) +
+		((first_set - locked_bitmap_start) << fs_info->sectorsize_bits);
+	/*
+	 * Since @first_set is ensured to be smaller than locked_bitmap_end
+	 * here, @found_start_ret should be inside the folio.
+	 */
+	ASSERT(*found_start_ret < folio_pos(folio) + PAGE_SIZE);
+
+	first_zero = find_next_zero_bit(subpage->bitmaps, locked_bitmap_end, first_set);
+	*found_len_ret = (first_zero - first_set) << fs_info->sectorsize_bits;
+out:
+	spin_unlock_irqrestore(&subpage->lock, flags);
+	return found;
+}
+
+/*
+ * Unlike btrfs_folio_end_writer_lock() which unlocks a specified subpage range,
+ * this ends all writer locked ranges of a page.
+ *
+ * This is for the locked page of __extent_writepage(), as the locked page
+ * can contain several locked subpage ranges.
+ */
+void btrfs_folio_end_all_writers(const struct btrfs_fs_info *fs_info, struct folio *folio)
+{
+	struct btrfs_subpage *subpage = folio_get_private(folio);
+	u64 folio_start = folio_pos(folio);
+	u64 cur = folio_start;
+
+	ASSERT(folio_test_locked(folio));
+	if (!btrfs_is_subpage(fs_info, folio->mapping)) {
+		folio_unlock(folio);
+		return;
+	}
+
+	/* The page has no new delalloc range locked on it. Just plain unlock. */
+	if (atomic_read(&subpage->writers) == 0) {
+		folio_unlock(folio);
+		return;
+	}
+	while (cur < folio_start + PAGE_SIZE) {
+		u64 found_start;
+		u32 found_len;
+		bool found;
+		bool last;
+
+		found = btrfs_subpage_find_writer_locked(fs_info, folio, cur,
+							 &found_start, &found_len);
+		if (!found)
+			break;
+		last = btrfs_subpage_end_and_test_writer(fs_info, folio,
+							 found_start, found_len);
+		if (last) {
+			folio_unlock(folio);
+			break;
+		}
+		cur = found_start + found_len;
+	}
+}
+
 #define GET_SUBPAGE_BITMAP(subpage, subpage_info, name, dst)		\
 	bitmap_cut(dst, subpage->bitmaps, 0,				\
 		   subpage_info->name##_offset, subpage_info->bitmap_nr_bits)
@@ -775,7 +909,6 @@ void __cold btrfs_subpage_dump_bitmap(const struct btrfs_fs_info *fs_info,
 	struct btrfs_subpage_info *subpage_info = fs_info->subpage_info;
 	struct btrfs_subpage *subpage;
 	unsigned long uptodate_bitmap;
-	unsigned long error_bitmap;
 	unsigned long dirty_bitmap;
 	unsigned long writeback_bitmap;
 	unsigned long ordered_bitmap;
@@ -797,10 +930,9 @@ void __cold btrfs_subpage_dump_bitmap(const struct btrfs_fs_info *fs_info,
 
 	dump_page(folio_page(folio, 0), "btrfs subpage dump");
 	btrfs_warn(fs_info,
-"start=%llu len=%u page=%llu, bitmaps uptodate=%*pbl error=%*pbl dirty=%*pbl writeback=%*pbl ordered=%*pbl checked=%*pbl",
+"start=%llu len=%u page=%llu, bitmaps uptodate=%*pbl dirty=%*pbl writeback=%*pbl ordered=%*pbl checked=%*pbl",
 		    start, len, folio_pos(folio),
 		    subpage_info->bitmap_nr_bits, &uptodate_bitmap,
-		    subpage_info->bitmap_nr_bits, &error_bitmap,
 		    subpage_info->bitmap_nr_bits, &dirty_bitmap,
 		    subpage_info->bitmap_nr_bits, &writeback_bitmap,
 		    subpage_info->bitmap_nr_bits, &ordered_bitmap,

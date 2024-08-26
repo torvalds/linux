@@ -28,8 +28,8 @@ static bool rcu_rdp_is_offloaded(struct rcu_data *rdp)
 		!(lockdep_is_held(&rcu_state.barrier_mutex) ||
 		  (IS_ENABLED(CONFIG_HOTPLUG_CPU) && lockdep_is_cpus_held()) ||
 		  rcu_lockdep_is_held_nocb(rdp) ||
-		  (rdp == this_cpu_ptr(&rcu_data) &&
-		   !(IS_ENABLED(CONFIG_PREEMPT_COUNT) && preemptible())) ||
+		  (!(IS_ENABLED(CONFIG_PREEMPT_COUNT) && preemptible()) &&
+		   rdp == this_cpu_ptr(&rcu_data)) ||
 		  rcu_current_is_nocb_kthread(rdp)),
 		"Unsafe read of RCU_NOCB offloaded state"
 	);
@@ -93,6 +93,16 @@ static void __init rcu_bootup_announce_oddness(void)
 		pr_info("\tRCU debug GP init slowdown %d jiffies.\n", gp_init_delay);
 	if (gp_cleanup_delay)
 		pr_info("\tRCU debug GP cleanup slowdown %d jiffies.\n", gp_cleanup_delay);
+	if (nohz_full_patience_delay < 0) {
+		pr_info("\tRCU NOCB CPU patience negative (%d), resetting to zero.\n", nohz_full_patience_delay);
+		nohz_full_patience_delay = 0;
+	} else if (nohz_full_patience_delay > 5 * MSEC_PER_SEC) {
+		pr_info("\tRCU NOCB CPU patience too large (%d), resetting to %ld.\n", nohz_full_patience_delay, 5 * MSEC_PER_SEC);
+		nohz_full_patience_delay = 5 * MSEC_PER_SEC;
+	} else if (nohz_full_patience_delay) {
+		pr_info("\tRCU NOCB CPU patience set to %d milliseconds.\n", nohz_full_patience_delay);
+	}
+	nohz_full_patience_delay_jiffies = msecs_to_jiffies(nohz_full_patience_delay);
 	if (!use_softirq)
 		pr_info("\tRCU_SOFTIRQ processing moved to rcuc kthreads.\n");
 	if (IS_ENABLED(CONFIG_RCU_EQS_DEBUG))

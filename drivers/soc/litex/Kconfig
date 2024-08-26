@@ -7,7 +7,7 @@ config LITEX
 
 config LITEX_SOC_CONTROLLER
 	tristate "Enable LiteX SoC Controller driver"
-	depends on OF || COMPILE_TEST
+	depends on OF
 	depends on HAS_IOMEM
 	select LITEX
 	help

@@ -74,4 +74,5 @@ static void __exit reloc_test_exit(void)
 module_init(reloc_test_init);
 module_exit(reloc_test_exit);
 
+MODULE_DESCRIPTION("Relocation testing module");
 MODULE_LICENSE("GPL v2");

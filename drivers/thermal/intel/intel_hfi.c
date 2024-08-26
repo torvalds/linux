@@ -401,10 +401,10 @@ static void hfi_disable(void)
  * intel_hfi_online() - Enable HFI on @cpu
  * @cpu:	CPU in which the HFI will be enabled
  *
- * Enable the HFI to be used in @cpu. The HFI is enabled at the die/package
- * level. The first CPU in the die/package to come online does the full HFI
+ * Enable the HFI to be used in @cpu. The HFI is enabled at the package
+ * level. The first CPU in the package to come online does the full HFI
  * initialization. Subsequent CPUs will just link themselves to the HFI
- * instance of their die/package.
+ * instance of their package.
  *
  * This function is called before enabling the thermal vector in the local APIC
  * in order to ensure that @cpu has an associated HFI instance when it receives
@@ -414,31 +414,31 @@ void intel_hfi_online(unsigned int cpu)
 {
 	struct hfi_instance *hfi_instance;
 	struct hfi_cpu_info *info;
-	u16 die_id;
+	u16 pkg_id;
 
 	/* Nothing to do if hfi_instances are missing. */
 	if (!hfi_instances)
 		return;
 
 	/*
-	 * Link @cpu to the HFI instance of its package/die. It does not
+	 * Link @cpu to the HFI instance of its package. It does not
 	 * matter whether the instance has been initialized.
 	 */
 	info = &per_cpu(hfi_cpu_info, cpu);
-	die_id = topology_logical_die_id(cpu);
+	pkg_id = topology_logical_package_id(cpu);
 	hfi_instance = info->hfi_instance;
 	if (!hfi_instance) {
-		if (die_id >= max_hfi_instances)
+		if (pkg_id >= max_hfi_instances)
 			return;
 
-		hfi_instance = &hfi_instances[die_id];
+		hfi_instance = &hfi_instances[pkg_id];
 		info->hfi_instance = hfi_instance;
 	}
 
 	init_hfi_cpu_index(info);
 
 	/*
-	 * Now check if the HFI instance of the package/die of @cpu has been
+	 * Now check if the HFI instance of the package of @cpu has been
 	 * initialized (by checking its header). In such case, all we have to
 	 * do is to add @cpu to this instance's cpumask and enable the instance
 	 * if needed.
@@ -504,7 +504,7 @@ free_hw_table:
  *
  * On some processors, hardware remembers previous programming settings even
  * after being reprogrammed. Thus, keep HFI enabled even if all CPUs in the
- * die/package of @cpu are offline. See note in intel_hfi_online().
+ * package of @cpu are offline. See note in intel_hfi_online().
  */
 void intel_hfi_offline(unsigned int cpu)
 {
@@ -674,9 +674,13 @@ void __init intel_hfi_init(void)
 	if (hfi_parse_features())
 		return;
 
-	/* There is one HFI instance per die/package. */
-	max_hfi_instances = topology_max_packages() *
-			    topology_max_dies_per_package();
+	/*
+	 * Note: HFI resources are managed at the physical package scope.
+	 * There could be platforms that enumerate packages as Linux dies.
+	 * Special handling would be needed if this happens on an HFI-capable
+	 * platform.
+	 */
+	max_hfi_instances = topology_max_packages();
 
 	/*
 	 * This allocation may fail. CPU hotplug callbacks must check

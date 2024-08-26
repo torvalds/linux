@@ -121,7 +121,7 @@ static inline void invalidate_dcache_range(unsigned long start,
 	mb();	/* sync */
 }
 
-#ifdef CONFIG_4xx
+#ifdef CONFIG_44x
 static inline void flush_instruction_cache(void)
 {
 	iccci((void *)KERNELBASE);

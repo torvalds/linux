@@ -30,8 +30,8 @@ enum TRI_STATE {
 };
 
 /* Number of entries for hardware indirection table must be in power of 2 */
-#define MANA_INDIRECT_TABLE_SIZE 64
-#define MANA_INDIRECT_TABLE_MASK (MANA_INDIRECT_TABLE_SIZE - 1)
+#define MANA_INDIRECT_TABLE_MAX_SIZE 512
+#define MANA_INDIRECT_TABLE_DEF_SIZE 64
 
 /* The Toeplitz hash key's length in bytes: should be multiple of 8 */
 #define MANA_HASH_KEY_SIZE 40
@@ -42,7 +42,8 @@ enum TRI_STATE {
 
 #define MAX_SEND_BUFFERS_PER_QUEUE 256
 
-#define EQ_SIZE (8 * PAGE_SIZE)
+#define EQ_SIZE (8 * MANA_PAGE_SIZE)
+
 #define LOG2_EQ_THROTTLE 3
 
 #define MAX_PORTS_IN_MANA_DEV 256
@@ -410,10 +411,11 @@ struct mana_port_context {
 	struct mana_tx_qp *tx_qp;
 
 	/* Indirection Table for RX & TX. The values are queue indexes */
-	u32 indir_table[MANA_INDIRECT_TABLE_SIZE];
+	u32 *indir_table;
+	u32 indir_table_sz;
 
 	/* Indirection table containing RxObject Handles */
-	mana_handle_t rxobj_table[MANA_INDIRECT_TABLE_SIZE];
+	mana_handle_t *rxobj_table;
 
 	/*  Hash key used by the NIC */
 	u8 hashkey[MANA_HASH_KEY_SIZE];
@@ -796,4 +798,6 @@ void mana_destroy_wq_obj(struct mana_port_context *apc, u32 wq_type,
 int mana_cfg_vport(struct mana_port_context *apc, u32 protection_dom_id,
 		   u32 doorbell_pg_id);
 void mana_uncfg_vport(struct mana_port_context *apc);
+
+struct net_device *mana_get_primary_netdev_rcu(struct mana_context *ac, u32 port_index);
 #endif /* _MANA_H */

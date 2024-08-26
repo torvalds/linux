@@ -159,7 +159,7 @@ static void jit_dump(const struct jit_context *ctx)
 /* Initialise the context so there's no garbage. */
 static int jit_ctx_init(struct jit_context *ctx, struct bpf_prog *prog)
 {
-	memset(ctx, 0, sizeof(ctx));
+	memset(ctx, 0, sizeof(*ctx));
 
 	ctx->orig_prog = prog;
 
@@ -167,7 +167,7 @@ static int jit_ctx_init(struct jit_context *ctx, struct bpf_prog *prog)
 	ctx->prog = bpf_jit_blind_constants(prog);
 	if (IS_ERR(ctx->prog))
 		return PTR_ERR(ctx->prog);
-	ctx->blinded = (ctx->prog == ctx->orig_prog ? false : true);
+	ctx->blinded = (ctx->prog != ctx->orig_prog);
 
 	/* If the verifier doesn't zero-extend, then we have to do it. */
 	ctx->do_zext = !ctx->prog->aux->verifier_zext;
@@ -1182,12 +1182,12 @@ static int jit_prepare(struct jit_context *ctx)
 }
 
 /*
- * All the "handle_*()" functions have been called before by the
- * "jit_prepare()". If there was an error, we would know by now.
- * Therefore, no extra error checking at this point, other than
- * a sanity check at the end that expects the calculated length
- * (jit.len) to be equal to the length of generated instructions
- * (jit.index).
+ * jit_compile() is the real compilation phase. jit_prepare() is
+ * invoked before jit_compile() as a dry-run to make sure everything
+ * will go OK and allocate the necessary memory.
+ *
+ * In the end, jit_compile() checks if it has produced the same number
+ * of instructions as jit_prepare() would.
  */
 static int jit_compile(struct jit_context *ctx)
 {
@@ -1407,9 +1407,9 @@ static struct bpf_prog *do_extra_pass(struct bpf_prog *prog)
 
 /*
  * This function may be invoked twice for the same stream of BPF
- * instructions. The "extra pass" happens, when there are "call"s
- * involved that their addresses are not known during the first
- * invocation.
+ * instructions. The "extra pass" happens, when there are
+ * (re)locations involved that their addresses are not known
+ * during the first run.
  */
 struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *prog)
 {

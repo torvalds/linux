@@ -59,30 +59,6 @@ void iopf_free_group(struct iopf_group *group)
 }
 EXPORT_SYMBOL_GPL(iopf_free_group);
 
-static struct iommu_domain *get_domain_for_iopf(struct device *dev,
-						struct iommu_fault *fault)
-{
-	struct iommu_domain *domain;
-
-	if (fault->prm.flags & IOMMU_FAULT_PAGE_REQUEST_PASID_VALID) {
-		domain = iommu_get_domain_for_dev_pasid(dev, fault->prm.pasid, 0);
-		if (IS_ERR(domain))
-			domain = NULL;
-	} else {
-		domain = iommu_get_domain_for_dev(dev);
-	}
-
-	if (!domain || !domain->iopf_handler) {
-		dev_warn_ratelimited(dev,
-			"iopf (pasid %d) without domain attached or handler installed\n",
-			 fault->prm.pasid);
-
-		return NULL;
-	}
-
-	return domain;
-}
-
 /* Non-last request of a group. Postpone until the last one. */
 static int report_partial_fault(struct iommu_fault_param *fault_param,
 				struct iommu_fault *fault)
@@ -133,6 +109,8 @@ static struct iopf_group *iopf_group_alloc(struct iommu_fault_param *iopf_param,
 	}
 	list_add(&group->pending_node, &iopf_param->faults);
 	mutex_unlock(&iopf_param->lock);
+
+	group->fault_count = list_count_nodes(&group->faults);
 
 	return group;
 }
@@ -206,20 +184,51 @@ void iommu_report_device_fault(struct device *dev, struct iopf_fault *evt)
 	if (group == &abort_group)
 		goto err_abort;
 
-	group->domain = get_domain_for_iopf(dev, fault);
-	if (!group->domain)
+	if (fault->prm.flags & IOMMU_FAULT_PAGE_REQUEST_PASID_VALID) {
+		group->attach_handle = iommu_attach_handle_get(dev->iommu_group,
+							       fault->prm.pasid,
+							       0);
+		if (IS_ERR(group->attach_handle)) {
+			const struct iommu_ops *ops = dev_iommu_ops(dev);
+
+			if (!ops->user_pasid_table)
+				goto err_abort;
+
+			/*
+			 * The iommu driver for this device supports user-
+			 * managed PASID table. Therefore page faults for
+			 * any PASID should go through the NESTING domain
+			 * attached to the device RID.
+			 */
+			group->attach_handle =
+				iommu_attach_handle_get(dev->iommu_group,
+							IOMMU_NO_PASID,
+							IOMMU_DOMAIN_NESTED);
+			if (IS_ERR(group->attach_handle))
+				goto err_abort;
+		}
+	} else {
+		group->attach_handle =
+			iommu_attach_handle_get(dev->iommu_group, IOMMU_NO_PASID, 0);
+		if (IS_ERR(group->attach_handle))
+			goto err_abort;
+	}
+
+	if (!group->attach_handle->domain->iopf_handler)
 		goto err_abort;
 
 	/*
 	 * On success iopf_handler must call iopf_group_response() and
 	 * iopf_free_group()
 	 */
-	if (group->domain->iopf_handler(group))
+	if (group->attach_handle->domain->iopf_handler(group))
 		goto err_abort;
 
 	return;
 
 err_abort:
+	dev_warn_ratelimited(dev, "iopf with pasid %d aborted\n",
+			     fault->prm.pasid);
 	iopf_group_response(group, IOMMU_PAGE_RESP_FAILURE);
 	if (group == &abort_group)
 		__iopf_free_group(group);

@@ -309,16 +309,11 @@ struct power_supply {
 #endif
 
 #ifdef CONFIG_LEDS_TRIGGERS
-	struct led_trigger *charging_full_trig;
-	char *charging_full_trig_name;
+	struct led_trigger *trig;
 	struct led_trigger *charging_trig;
-	char *charging_trig_name;
 	struct led_trigger *full_trig;
-	char *full_trig_name;
-	struct led_trigger *online_trig;
-	char *online_trig_name;
 	struct led_trigger *charging_blink_full_solid_trig;
-	char *charging_blink_full_solid_trig_name;
+	struct led_trigger *charging_orange_full_green_trig;
 #endif
 };
 
@@ -741,7 +736,7 @@ struct power_supply_battery_info {
 	int overvoltage_limit_uv;
 	int constant_charge_current_max_ua;
 	int constant_charge_voltage_max_uv;
-	struct power_supply_maintenance_charge_table *maintenance_charge;
+	const struct power_supply_maintenance_charge_table *maintenance_charge;
 	int maintenance_charge_size;
 	int alert_low_temp_charge_current_ua;
 	int alert_low_temp_charge_voltage_uv;
@@ -760,9 +755,9 @@ struct power_supply_battery_info {
 	int ocv_table_size[POWER_SUPPLY_OCV_TEMP_MAX];
 	struct power_supply_resistance_temp_table *resist_table;
 	int resist_table_size;
-	struct power_supply_vbat_ri_table *vbat2ri_discharging;
+	const struct power_supply_vbat_ri_table *vbat2ri_discharging;
 	int vbat2ri_discharging_size;
-	struct power_supply_vbat_ri_table *vbat2ri_charging;
+	const struct power_supply_vbat_ri_table *vbat2ri_charging;
 	int vbat2ri_charging_size;
 	int bti_resistance_ohm;
 	int bti_resistance_tolerance;
@@ -815,7 +810,7 @@ power_supply_temp2resist_simple(struct power_supply_resistance_temp_table *table
 				int table_len, int temp);
 extern int power_supply_vbat2ri(struct power_supply_battery_info *info,
 				int vbat_uv, bool charging);
-extern struct power_supply_maintenance_charge_table *
+extern const struct power_supply_maintenance_charge_table *
 power_supply_get_maintenance_charging_setting(struct power_supply_battery_info *info, int index);
 extern bool power_supply_battery_bti_in_range(struct power_supply_battery_info *info,
 					      int resistance);
@@ -829,7 +824,7 @@ extern int power_supply_set_battery_charged(struct power_supply *psy);
 static inline bool
 power_supply_supports_maintenance_charging(struct power_supply_battery_info *info)
 {
-	struct power_supply_maintenance_charge_table *mt;
+	const struct power_supply_maintenance_charge_table *mt;
 
 	mt = power_supply_get_maintenance_charging_setting(info, 0);
 

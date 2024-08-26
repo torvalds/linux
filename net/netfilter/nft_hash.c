@@ -51,7 +51,8 @@ static void nft_symhash_eval(const struct nft_expr *expr,
 	struct sk_buff *skb = pkt->skb;
 	u32 h;
 
-	h = reciprocal_scale(__skb_get_hash_symmetric(skb), priv->modulus);
+	h = reciprocal_scale(__skb_get_hash_symmetric_net(nft_net(pkt), skb),
+			     priv->modulus);
 
 	regs->data[priv->dreg] = h + priv->offset;
 }

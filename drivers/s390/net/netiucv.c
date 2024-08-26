@@ -1696,26 +1696,14 @@ static const struct attribute_group *netiucv_attr_groups[] = {
 static int netiucv_register_device(struct net_device *ndev)
 {
 	struct netiucv_priv *priv = netdev_priv(ndev);
-	struct device *dev = kzalloc(sizeof(struct device), GFP_KERNEL);
+	struct device *dev;
 	int ret;
 
 	IUCV_DBF_TEXT(trace, 3, __func__);
 
-	if (dev) {
-		dev_set_name(dev, "net%s", ndev->name);
-		dev->bus = &iucv_bus;
-		dev->parent = iucv_root;
-		dev->groups = netiucv_attr_groups;
-		/*
-		 * The release function could be called after the
-		 * module has been unloaded. It's _only_ task is to
-		 * free the struct. Therefore, we specify kfree()
-		 * directly here. (Probably a little bit obfuscating
-		 * but legitime ...).
-		 */
-		dev->release = (void (*)(struct device *))kfree;
-		dev->driver = &netiucv_driver;
-	} else
+	dev = iucv_alloc_device(netiucv_attr_groups, &netiucv_driver, NULL,
+				"net%s", ndev->name);
+	if (!dev)
 		return -ENOMEM;
 
 	ret = device_register(dev);

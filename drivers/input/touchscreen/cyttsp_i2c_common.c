@@ -81,5 +81,6 @@ int cyttsp_i2c_write_block_data(struct device *dev, u8 *xfer_buf,
 EXPORT_SYMBOL_GPL(cyttsp_i2c_write_block_data);
 
 
+MODULE_DESCRIPTION("Cypress TrueTouch(TM) Standard Product (TTSP) I2C touchscreen driver");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Cypress");

@@ -306,4 +306,5 @@ module_spi_driver(ej030na_driver);
 
 MODULE_AUTHOR("Paul Cercueil <paul@crapouillou.net>");
 MODULE_AUTHOR("Christophe Branchereau <cbranchereau@gmail.com>");
+MODULE_DESCRIPTION("Innolux/Chimei EJ030NA TFT LCD panel driver");
 MODULE_LICENSE("GPL v2");

@@ -1557,8 +1557,8 @@ static unsigned int adv76xx_read_hdmi_pixelclock(struct v4l2_subdev *sd)
 	return freq;
 }
 
-static int adv76xx_query_dv_timings(struct v4l2_subdev *sd,
-			struct v4l2_dv_timings *timings)
+static int adv76xx_query_dv_timings(struct v4l2_subdev *sd, unsigned int pad,
+				    struct v4l2_dv_timings *timings)
 {
 	struct adv76xx_state *state = to_state(sd);
 	const struct adv76xx_chip_info *info = state->info;
@@ -1687,8 +1687,8 @@ found:
 	return 0;
 }
 
-static int adv76xx_s_dv_timings(struct v4l2_subdev *sd,
-		struct v4l2_dv_timings *timings)
+static int adv76xx_s_dv_timings(struct v4l2_subdev *sd, unsigned int pad,
+				struct v4l2_dv_timings *timings)
 {
 	struct adv76xx_state *state = to_state(sd);
 	struct v4l2_bt_timings *bt;
@@ -1730,8 +1730,8 @@ static int adv76xx_s_dv_timings(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int adv76xx_g_dv_timings(struct v4l2_subdev *sd,
-		struct v4l2_dv_timings *timings)
+static int adv76xx_g_dv_timings(struct v4l2_subdev *sd, unsigned int pad,
+				struct v4l2_dv_timings *timings)
 {
 	struct adv76xx_state *state = to_state(sd);
 
@@ -2607,7 +2607,7 @@ static int adv76xx_log_status(struct v4l2_subdev *sd)
 				stdi.lcf, stdi.bl, stdi.lcvs,
 				stdi.interlaced ? "interlaced" : "progressive",
 				stdi.hs_pol, stdi.vs_pol);
-	if (adv76xx_query_dv_timings(sd, &timings))
+	if (adv76xx_query_dv_timings(sd, 0, &timings))
 		v4l2_info(sd, "No video detected\n");
 	else
 		v4l2_print_dv_timings(sd->name, "Detected format: ",
@@ -2726,9 +2726,6 @@ static const struct v4l2_subdev_core_ops adv76xx_core_ops = {
 static const struct v4l2_subdev_video_ops adv76xx_video_ops = {
 	.s_routing = adv76xx_s_routing,
 	.g_input_status = adv76xx_g_input_status,
-	.s_dv_timings = adv76xx_s_dv_timings,
-	.g_dv_timings = adv76xx_g_dv_timings,
-	.query_dv_timings = adv76xx_query_dv_timings,
 };
 
 static const struct v4l2_subdev_pad_ops adv76xx_pad_ops = {
@@ -2738,6 +2735,9 @@ static const struct v4l2_subdev_pad_ops adv76xx_pad_ops = {
 	.set_fmt = adv76xx_set_format,
 	.get_edid = adv76xx_get_edid,
 	.set_edid = adv76xx_set_edid,
+	.s_dv_timings = adv76xx_s_dv_timings,
+	.g_dv_timings = adv76xx_g_dv_timings,
+	.query_dv_timings = adv76xx_query_dv_timings,
 	.dv_timings_cap = adv76xx_dv_timings_cap,
 	.enum_dv_timings = adv76xx_enum_dv_timings,
 };

@@ -130,7 +130,6 @@ int run_test(int cpu)
 void suspend(void)
 {
 	int power_state_fd;
-	struct sigevent event = {};
 	int timerfd;
 	int err;
 	struct itimerspec spec = {};

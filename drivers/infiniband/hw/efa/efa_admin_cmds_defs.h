@@ -110,7 +110,10 @@ struct efa_admin_create_qp_cmd {
 	 *    virtual (IOVA returned by MR registration)
 	 * 1 : rq_virt - If set, RQ ring base address is
 	 *    virtual (IOVA returned by MR registration)
-	 * 7:2 : reserved - MBZ
+	 * 2 : unsolicited_write_recv - If set, work requests
+	 *    will not be consumed for incoming RDMA write with
+	 *    immediate
+	 * 7:3 : reserved - MBZ
 	 */
 	u8 flags;
 
@@ -663,7 +666,9 @@ struct efa_admin_feature_device_attr_desc {
 	 *    polling is supported
 	 * 3 : rdma_write - If set, RDMA Write is supported
 	 *    on TX queues
-	 * 31:4 : reserved - MBZ
+	 * 4 : unsolicited_write_recv - If set, unsolicited
+	 *    write with imm. receive is supported
+	 * 31:5 : reserved - MBZ
 	 */
 	u32 device_caps;
 
@@ -1009,6 +1014,7 @@ struct efa_admin_host_info {
 /* create_qp_cmd */
 #define EFA_ADMIN_CREATE_QP_CMD_SQ_VIRT_MASK                BIT(0)
 #define EFA_ADMIN_CREATE_QP_CMD_RQ_VIRT_MASK                BIT(1)
+#define EFA_ADMIN_CREATE_QP_CMD_UNSOLICITED_WRITE_RECV_MASK BIT(2)
 
 /* modify_qp_cmd */
 #define EFA_ADMIN_MODIFY_QP_CMD_QP_STATE_MASK               BIT(0)
@@ -1044,6 +1050,7 @@ struct efa_admin_host_info {
 #define EFA_ADMIN_FEATURE_DEVICE_ATTR_DESC_RNR_RETRY_MASK   BIT(1)
 #define EFA_ADMIN_FEATURE_DEVICE_ATTR_DESC_DATA_POLLING_128_MASK BIT(2)
 #define EFA_ADMIN_FEATURE_DEVICE_ATTR_DESC_RDMA_WRITE_MASK  BIT(3)
+#define EFA_ADMIN_FEATURE_DEVICE_ATTR_DESC_UNSOLICITED_WRITE_RECV_MASK BIT(4)
 
 /* create_eq_cmd */
 #define EFA_ADMIN_CREATE_EQ_CMD_ENTRY_SIZE_WORDS_MASK       GENMASK(4, 0)

@@ -12,22 +12,9 @@
 
 #include <drm/drm_drv.h>
 
-#include "gem/i915_gem_object.h"
-
-#include "soc/intel_pch.h"
-#include "xe_device.h"
-#include "xe_bo.h"
-#include "xe_pm.h"
-#include "xe_step.h"
-#include "i915_gem_stolen.h"
-#include "i915_gpu_error.h"
-#include "i915_reg_defs.h"
 #include "i915_utils.h"
-#include "intel_gt_types.h"
-#include "intel_step.h"
-#include "intel_uncore.h"
 #include "intel_runtime_pm.h"
-#include <linux/pm_runtime.h>
+#include "xe_device_types.h"
 
 static inline struct drm_i915_private *to_i915(const struct drm_device *dev)
 {
@@ -119,66 +106,14 @@ static inline struct drm_i915_private *kdev_to_i915(struct device *kdev)
 #define IS_RAPTORLAKE_U(xe) ((xe)->info.subplatform == XE_SUBPLATFORM_ALDERLAKE_P_RPLU)
 #define IS_ICL_WITH_PORT_F(xe) (xe && 0)
 #define HAS_FLAT_CCS(xe) (xe_device_has_flat_ccs(xe))
-#define to_intel_bo(x) gem_to_xe_bo((x))
 
 #define HAS_128_BYTE_Y_TILING(xe) (xe || 1)
-
-#include "intel_wakeref.h"
-
-static inline intel_wakeref_t intel_runtime_pm_get(struct xe_runtime_pm *pm)
-{
-	struct xe_device *xe = container_of(pm, struct xe_device, runtime_pm);
-
-	return xe_pm_runtime_resume_and_get(xe);
-}
-
-static inline intel_wakeref_t intel_runtime_pm_get_if_in_use(struct xe_runtime_pm *pm)
-{
-	struct xe_device *xe = container_of(pm, struct xe_device, runtime_pm);
-
-	return xe_pm_runtime_get_if_in_use(xe);
-}
-
-static inline intel_wakeref_t intel_runtime_pm_get_noresume(struct xe_runtime_pm *pm)
-{
-	struct xe_device *xe = container_of(pm, struct xe_device, runtime_pm);
-
-	xe_pm_runtime_get_noresume(xe);
-	return true;
-}
-
-static inline void intel_runtime_pm_put_unchecked(struct xe_runtime_pm *pm)
-{
-	struct xe_device *xe = container_of(pm, struct xe_device, runtime_pm);
-
-	xe_pm_runtime_put(xe);
-}
-
-static inline void intel_runtime_pm_put(struct xe_runtime_pm *pm, intel_wakeref_t wakeref)
-{
-	if (wakeref)
-		intel_runtime_pm_put_unchecked(pm);
-}
-
-#define intel_runtime_pm_get_raw intel_runtime_pm_get
-#define intel_runtime_pm_put_raw intel_runtime_pm_put
-#define assert_rpm_wakelock_held(x) do { } while (0)
-#define assert_rpm_raw_wakeref_held(x) do { } while (0)
-
-#define intel_uncore_forcewake_get(x, y) do { } while (0)
-#define intel_uncore_forcewake_put(x, y) do { } while (0)
-
-#define intel_uncore_arm_unclaimed_mmio_detection(x) do { } while (0)
 
 #define I915_PRIORITY_DISPLAY 0
 struct i915_sched_attr {
 	int priority;
 };
 #define i915_gem_fence_wait_priority(fence, attr) do { (void) attr; } while (0)
-
-#define with_intel_runtime_pm(rpm, wf) \
-	for ((wf) = intel_runtime_pm_get(rpm); (wf); \
-	     intel_runtime_pm_put((rpm), (wf)), (wf) = 0)
 
 #define pdev_to_i915 pdev_to_xe_device
 #define RUNTIME_INFO(xe)		(&(xe)->info.i915_runtime)

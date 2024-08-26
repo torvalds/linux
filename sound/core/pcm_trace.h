@@ -95,7 +95,7 @@ TRACE_EVENT(hw_ptr_error,
 		__entry->device = (substream)->pcm->device;
 		__entry->number = (substream)->number;
 		__entry->stream = (substream)->stream;
-		__assign_str(reason, why);
+		__assign_str(reason);
 	),
 	TP_printk("pcmC%dD%d%s/sub%d: ERROR: %s",
 		  __entry->card, __entry->device,

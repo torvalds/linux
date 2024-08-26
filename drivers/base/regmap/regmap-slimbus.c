@@ -68,4 +68,5 @@ struct regmap *__devm_regmap_init_slimbus(struct slim_device *slimbus,
 }
 EXPORT_SYMBOL_GPL(__devm_regmap_init_slimbus);
 
+MODULE_DESCRIPTION("Register map access API - SLIMbus support");
 MODULE_LICENSE("GPL v2");

@@ -1565,8 +1565,12 @@ u32 ieee80211_sta_get_rates(struct ieee80211_sub_if_data *sdata,
 	return supp_rates;
 }
 
-void ieee80211_stop_device(struct ieee80211_local *local)
+void ieee80211_stop_device(struct ieee80211_local *local, bool suspend)
 {
+	local_bh_disable();
+	ieee80211_handle_queued_frames(local);
+	local_bh_enable();
+
 	ieee80211_led_radio(local, false);
 	ieee80211_mod_tpt_led_trig(local, 0, IEEE80211_TPT_LEDTRIG_FL_RADIO);
 
@@ -1574,7 +1578,7 @@ void ieee80211_stop_device(struct ieee80211_local *local)
 
 	flush_workqueue(local->workqueue);
 	wiphy_work_flush(local->hw.wiphy, NULL);
-	drv_stop(local);
+	drv_stop(local, suspend);
 }
 
 static void ieee80211_flush_completed_scan(struct ieee80211_local *local,
@@ -1841,7 +1845,7 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 
 	/* add interfaces */
 	sdata = wiphy_dereference(local->hw.wiphy, local->monitor_sdata);
-	if (sdata) {
+	if (sdata && ieee80211_hw_check(&local->hw, WANT_MONITOR_VIF)) {
 		/* in HW restart it exists already */
 		WARN_ON(local->resuming);
 		res = drv_add_interface(local, sdata);
@@ -2175,8 +2179,7 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 		local->in_reconfig = false;
 		barrier();
 
-		/* Restart deferred ROCs */
-		ieee80211_start_next_roc(local);
+		ieee80211_reconfig_roc(local);
 
 		/* Requeue all works */
 		list_for_each_entry(sdata, &local->interfaces, list)
@@ -2333,7 +2336,7 @@ void ieee80211_recalc_min_chandef(struct ieee80211_sub_if_data *sdata,
 
 		chanctx = container_of(chanctx_conf, struct ieee80211_chanctx,
 				       conf);
-		ieee80211_recalc_chanctx_min_def(local, chanctx, NULL);
+		ieee80211_recalc_chanctx_min_def(local, chanctx, NULL, false);
 	}
 }
 
@@ -3456,12 +3459,8 @@ void ieee80211_dfs_cac_cancel(struct ieee80211_local *local)
 	lockdep_assert_wiphy(local->hw.wiphy);
 
 	list_for_each_entry(sdata, &local->interfaces, list) {
-		/* it might be waiting for the local->mtx, but then
-		 * by the time it gets it, sdata->wdev.cac_started
-		 * will no longer be true
-		 */
 		wiphy_delayed_work_cancel(local->hw.wiphy,
-					  &sdata->deflink.dfs_cac_timer_work);
+					  &sdata->dfs_cac_timer_work);
 
 		if (sdata->wdev.cac_started) {
 			chandef = sdata->vif.bss_conf.chanreq.oper;
@@ -3933,19 +3932,103 @@ static u8 ieee80211_chanctx_radar_detect(struct ieee80211_local *local,
 	return radar_detect;
 }
 
+static u32
+__ieee80211_get_radio_mask(struct ieee80211_sub_if_data *sdata)
+{
+	struct ieee80211_bss_conf *link_conf;
+	struct ieee80211_chanctx_conf *conf;
+	unsigned int link_id;
+	u32 mask = 0;
+
+	for_each_vif_active_link(&sdata->vif, link_conf, link_id) {
+		conf = sdata_dereference(link_conf->chanctx_conf, sdata);
+		if (!conf || conf->radio_idx < 0)
+			continue;
+
+		mask |= BIT(conf->radio_idx);
+	}
+
+	return mask;
+}
+
+u32 ieee80211_get_radio_mask(struct wiphy *wiphy, struct net_device *dev)
+{
+	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+
+	return __ieee80211_get_radio_mask(sdata);
+}
+
+static bool
+ieee80211_sdata_uses_radio(struct ieee80211_sub_if_data *sdata, int radio_idx)
+{
+	if (radio_idx < 0)
+		return true;
+
+	return __ieee80211_get_radio_mask(sdata) & BIT(radio_idx);
+}
+
+static int
+ieee80211_fill_ifcomb_params(struct ieee80211_local *local,
+			     struct iface_combination_params *params,
+			     const struct cfg80211_chan_def *chandef,
+			     struct ieee80211_sub_if_data *sdata)
+{
+	struct ieee80211_sub_if_data *sdata_iter;
+	struct ieee80211_chanctx *ctx;
+	int total = !!sdata;
+
+	list_for_each_entry(ctx, &local->chanctx_list, list) {
+		if (ctx->replace_state == IEEE80211_CHANCTX_WILL_BE_REPLACED)
+			continue;
+
+		if (params->radio_idx >= 0 &&
+		    ctx->conf.radio_idx != params->radio_idx)
+			continue;
+
+		params->radar_detect |=
+			ieee80211_chanctx_radar_detect(local, ctx);
+
+		if (chandef && ctx->mode != IEEE80211_CHANCTX_EXCLUSIVE &&
+		    cfg80211_chandef_compatible(chandef, &ctx->conf.def))
+			continue;
+
+		params->num_different_channels++;
+	}
+
+	list_for_each_entry(sdata_iter, &local->interfaces, list) {
+		struct wireless_dev *wdev_iter;
+
+		wdev_iter = &sdata_iter->wdev;
+
+		if (sdata_iter == sdata ||
+		    !ieee80211_sdata_running(sdata_iter) ||
+		    cfg80211_iftype_allowed(local->hw.wiphy,
+					    wdev_iter->iftype, 0, 1))
+			continue;
+
+		if (!ieee80211_sdata_uses_radio(sdata_iter, params->radio_idx))
+			continue;
+
+		params->iftype_num[wdev_iter->iftype]++;
+		total++;
+	}
+
+	return total;
+}
+
 int ieee80211_check_combinations(struct ieee80211_sub_if_data *sdata,
 				 const struct cfg80211_chan_def *chandef,
 				 enum ieee80211_chanctx_mode chanmode,
-				 u8 radar_detect)
+				 u8 radar_detect, int radio_idx)
 {
+	bool shared = chanmode == IEEE80211_CHANCTX_SHARED;
 	struct ieee80211_local *local = sdata->local;
-	struct ieee80211_sub_if_data *sdata_iter;
 	enum nl80211_iftype iftype = sdata->wdev.iftype;
-	struct ieee80211_chanctx *ctx;
-	int total = 1;
 	struct iface_combination_params params = {
 		.radar_detect = radar_detect,
+		.radio_idx = radio_idx,
 	};
+	int total;
 
 	lockdep_assert_wiphy(local->hw.wiphy);
 
@@ -3982,37 +4065,9 @@ int ieee80211_check_combinations(struct ieee80211_sub_if_data *sdata,
 	if (iftype != NL80211_IFTYPE_UNSPECIFIED)
 		params.iftype_num[iftype] = 1;
 
-	list_for_each_entry(ctx, &local->chanctx_list, list) {
-		if (ctx->replace_state == IEEE80211_CHANCTX_WILL_BE_REPLACED)
-			continue;
-		params.radar_detect |=
-			ieee80211_chanctx_radar_detect(local, ctx);
-		if (ctx->mode == IEEE80211_CHANCTX_EXCLUSIVE) {
-			params.num_different_channels++;
-			continue;
-		}
-		if (chandef && chanmode == IEEE80211_CHANCTX_SHARED &&
-		    cfg80211_chandef_compatible(chandef,
-						&ctx->conf.def))
-			continue;
-		params.num_different_channels++;
-	}
-
-	list_for_each_entry_rcu(sdata_iter, &local->interfaces, list) {
-		struct wireless_dev *wdev_iter;
-
-		wdev_iter = &sdata_iter->wdev;
-
-		if (sdata_iter == sdata ||
-		    !ieee80211_sdata_running(sdata_iter) ||
-		    cfg80211_iftype_allowed(local->hw.wiphy,
-					    wdev_iter->iftype, 0, 1))
-			continue;
-
-		params.iftype_num[wdev_iter->iftype]++;
-		total++;
-	}
-
+	total = ieee80211_fill_ifcomb_params(local, &params,
+					     shared ? chandef : NULL,
+					     sdata);
 	if (total == 1 && !params.radar_detect)
 		return 0;
 
@@ -4029,28 +4084,17 @@ ieee80211_iter_max_chans(const struct ieee80211_iface_combination *c,
 					  c->num_different_channels);
 }
 
-int ieee80211_max_num_channels(struct ieee80211_local *local)
+int ieee80211_max_num_channels(struct ieee80211_local *local, int radio_idx)
 {
-	struct ieee80211_sub_if_data *sdata;
-	struct ieee80211_chanctx *ctx;
 	u32 max_num_different_channels = 1;
 	int err;
-	struct iface_combination_params params = {0};
+	struct iface_combination_params params = {
+		.radio_idx = radio_idx,
+	};
 
 	lockdep_assert_wiphy(local->hw.wiphy);
 
-	list_for_each_entry(ctx, &local->chanctx_list, list) {
-		if (ctx->replace_state == IEEE80211_CHANCTX_WILL_BE_REPLACED)
-			continue;
-
-		params.num_different_channels++;
-
-		params.radar_detect |=
-			ieee80211_chanctx_radar_detect(local, ctx);
-	}
-
-	list_for_each_entry_rcu(sdata, &local->interfaces, list)
-		params.iftype_num[sdata->wdev.iftype]++;
+	ieee80211_fill_ifcomb_params(local, &params, NULL, NULL);
 
 	err = cfg80211_iter_combinations(local->hw.wiphy, &params,
 					 ieee80211_iter_max_chans,
@@ -4336,5 +4380,30 @@ ieee80211_min_bw_limit_from_chandef(struct cfg80211_chan_def *chandef)
 	default:
 		WARN(1, "unhandled chandef width %d\n", chandef->width);
 		return IEEE80211_CONN_BW_LIMIT_20;
+	}
+}
+
+void ieee80211_clear_tpe(struct ieee80211_parsed_tpe *tpe)
+{
+	for (int i = 0; i < 2; i++) {
+		tpe->max_local[i].valid = false;
+		memset(tpe->max_local[i].power,
+		       IEEE80211_TPE_MAX_TX_PWR_NO_CONSTRAINT,
+		       sizeof(tpe->max_local[i].power));
+
+		tpe->max_reg_client[i].valid = false;
+		memset(tpe->max_reg_client[i].power,
+		       IEEE80211_TPE_MAX_TX_PWR_NO_CONSTRAINT,
+		       sizeof(tpe->max_reg_client[i].power));
+
+		tpe->psd_local[i].valid = false;
+		memset(tpe->psd_local[i].power,
+		       IEEE80211_TPE_PSD_NO_LIMIT,
+		       sizeof(tpe->psd_local[i].power));
+
+		tpe->psd_reg_client[i].valid = false;
+		memset(tpe->psd_reg_client[i].power,
+		       IEEE80211_TPE_PSD_NO_LIMIT,
+		       sizeof(tpe->psd_reg_client[i].power));
 	}
 }

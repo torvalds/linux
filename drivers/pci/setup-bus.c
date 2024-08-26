@@ -14,6 +14,7 @@
  *	     tighter packing. Prefetchable range support.
  */
 
+#include <linux/bitops.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -21,6 +22,8 @@
 #include <linux/errno.h>
 #include <linux/ioport.h>
 #include <linux/cache.h>
+#include <linux/limits.h>
+#include <linux/sizes.h>
 #include <linux/slab.h>
 #include <linux/acpi.h>
 #include "pci.h"
@@ -829,11 +832,9 @@ static resource_size_t calculate_memsize(resource_size_t size,
 		size = min_size;
 	if (old_size == 1)
 		old_size = 0;
-	if (size < old_size)
-		size = old_size;
 
-	size = ALIGN(max(size, add_size) + children_add_size, align);
-	return size;
+	size = max(size, add_size) + children_add_size;
+	return ALIGN(max(size, old_size), align);
 }
 
 resource_size_t __weak pcibios_window_alignment(struct pci_bus *bus,
@@ -959,7 +960,7 @@ static inline resource_size_t calculate_mem_align(resource_size_t *aligns,
 	for (order = 0; order <= max_order; order++) {
 		resource_size_t align1 = 1;
 
-		align1 <<= (order + 20);
+		align1 <<= order + __ffs(SZ_1M);
 
 		if (!align)
 			min_align = align1;
@@ -969,6 +970,67 @@ static inline resource_size_t calculate_mem_align(resource_size_t *aligns,
 	}
 
 	return min_align;
+}
+
+/**
+ * pbus_upstream_space_available - Check no upstream resource limits allocation
+ * @bus:	The bus
+ * @mask:	Mask the resource flag, then compare it with type
+ * @type:	The type of resource from bridge
+ * @size:	The size required from the bridge window
+ * @align:	Required alignment for the resource
+ *
+ * Checks that @size can fit inside the upstream bridge resources that are
+ * already assigned.
+ *
+ * Return: %true if enough space is available on all assigned upstream
+ * resources.
+ */
+static bool pbus_upstream_space_available(struct pci_bus *bus, unsigned long mask,
+					  unsigned long type, resource_size_t size,
+					  resource_size_t align)
+{
+	struct resource_constraint constraint = {
+		.max = RESOURCE_SIZE_MAX,
+		.align = align,
+	};
+	struct pci_bus *downstream = bus;
+	struct resource *r;
+
+	while ((bus = bus->parent)) {
+		if (pci_is_root_bus(bus))
+			break;
+
+		pci_bus_for_each_resource(bus, r) {
+			if (!r || !r->parent || (r->flags & mask) != type)
+				continue;
+
+			if (resource_size(r) >= size) {
+				struct resource gap = {};
+
+				if (find_resource_space(r, &gap, size, &constraint) == 0) {
+					gap.flags = type;
+					pci_dbg(bus->self,
+						"Assigned bridge window %pR to %pR free space at %pR\n",
+						r, &bus->busn_res, &gap);
+					return true;
+				}
+			}
+
+			if (bus->self) {
+				pci_info(bus->self,
+					 "Assigned bridge window %pR to %pR cannot fit 0x%llx required for %s bridging to %pR\n",
+					 r, &bus->busn_res,
+					 (unsigned long long)size,
+					 pci_name(downstream->self),
+					 &downstream->busn_res);
+			}
+
+			return false;
+		}
+	}
+
+	return true;
 }
 
 /**
@@ -997,7 +1059,7 @@ static int pbus_size_mem(struct pci_bus *bus, unsigned long mask,
 			 struct list_head *realloc_head)
 {
 	struct pci_dev *dev;
-	resource_size_t min_align, align, size, size0, size1;
+	resource_size_t min_align, win_align, align, size, size0, size1;
 	resource_size_t aligns[24]; /* Alignments from 1MB to 8TB */
 	int order, max_order;
 	struct resource *b_res = find_bus_resource_of_type(bus,
@@ -1049,7 +1111,7 @@ static int pbus_size_mem(struct pci_bus *bus, unsigned long mask,
 			 * resources.
 			 */
 			align = pci_resource_alignment(dev, r);
-			order = __ffs(align) - 20;
+			order = __ffs(align) - __ffs(SZ_1M);
 			if (order < 0)
 				order = 0;
 			if (order >= ARRAY_SIZE(aligns)) {
@@ -1076,10 +1138,23 @@ static int pbus_size_mem(struct pci_bus *bus, unsigned long mask,
 		}
 	}
 
+	win_align = window_alignment(bus, b_res->flags);
 	min_align = calculate_mem_align(aligns, max_order);
-	min_align = max(min_align, window_alignment(bus, b_res->flags));
+	min_align = max(min_align, win_align);
 	size0 = calculate_memsize(size, min_size, 0, 0, resource_size(b_res), min_align);
 	add_align = max(min_align, add_align);
+
+	if (bus->self && size0 &&
+	    !pbus_upstream_space_available(bus, mask | IORESOURCE_PREFETCH, type,
+					   size0, add_align)) {
+		min_align = 1ULL << (max_order + __ffs(SZ_1M));
+		min_align = max(min_align, win_align);
+		size0 = calculate_memsize(size, min_size, 0, 0, resource_size(b_res), win_align);
+		add_align = win_align;
+		pci_info(bus->self, "bridge window %pR to %pR requires relaxed alignment rules\n",
+			 b_res, &bus->busn_res);
+	}
+
 	size1 = (!realloc_head || (realloc_head && !add_size && !children_add_size)) ? size0 :
 		calculate_memsize(size, min_size, add_size, children_add_size,
 				resource_size(b_res), add_align);

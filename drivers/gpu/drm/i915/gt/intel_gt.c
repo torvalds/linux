@@ -4,7 +4,7 @@
  */
 
 #include <drm/drm_managed.h>
-#include <drm/intel-gtt.h>
+#include <drm/intel/intel-gtt.h>
 
 #include "gem/i915_gem_internal.h"
 #include "gem/i915_gem_lmem.h"

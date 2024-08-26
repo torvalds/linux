@@ -178,5 +178,6 @@ const struct snd_soc_dai_ops acp_dmic_dai_ops = {
 };
 EXPORT_SYMBOL_NS_GPL(acp_dmic_dai_ops, SND_SOC_ACP_COMMON);
 
+MODULE_DESCRIPTION("AMD ACP Audio PDM controller");
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_ALIAS(DRV_NAME);

@@ -287,6 +287,7 @@ int auxiliary_device_init(struct auxiliary_device *auxdev)
 
 	dev->bus = &auxiliary_bus_type;
 	device_initialize(&auxdev->dev);
+	mutex_init(&auxdev->sysfs.lock);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(auxiliary_device_init);

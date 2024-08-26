@@ -426,4 +426,5 @@ static struct i2c_driver rt4505_driver = {
 module_i2c_driver(rt4505_driver);
 
 MODULE_AUTHOR("ChiYuan Huang <cy_huang@richtek.com>");
+MODULE_DESCRIPTION("Richtek RT4505 LED driver");
 MODULE_LICENSE("GPL v2");

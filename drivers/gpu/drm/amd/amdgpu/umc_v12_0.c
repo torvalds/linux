@@ -29,6 +29,7 @@
 #include "mp/mp_13_0_6_sh_mask.h"
 
 #define MAX_ECC_NUM_PER_RETIREMENT  32
+#define DELAYED_TIME_FOR_GPU_RESET  1000  //ms
 
 static inline uint64_t get_umc_v12_0_reg_offset(struct amdgpu_device *adev,
 					    uint32_t node_inst,
@@ -71,7 +72,7 @@ static void umc_v12_0_reset_error_count(struct amdgpu_device *adev)
 
 bool umc_v12_0_is_deferred_error(struct amdgpu_device *adev, uint64_t mc_umc_status)
 {
-	dev_info(adev->dev,
+	dev_dbg(adev->dev,
 		"MCA_UMC_STATUS(0x%llx): Val:%llu, Poison:%llu, Deferred:%llu, PCC:%llu, UC:%llu, TCC:%llu\n",
 		mc_umc_status,
 		REG_GET_FIELD(mc_umc_status, MCA_UMC_UMC0_MCUMC_STATUST0, Val),
@@ -376,77 +377,6 @@ static int umc_v12_0_err_cnt_init_per_channel(struct amdgpu_device *adev,
 	return 0;
 }
 
-#ifdef TO_BE_REMOVED
-static void umc_v12_0_ecc_info_query_ras_error_count(struct amdgpu_device *adev,
-					void *ras_error_status)
-{
-	struct ras_query_context qctx;
-
-	memset(&qctx, 0, sizeof(qctx));
-	qctx.event_id = amdgpu_ras_acquire_event_id(adev, amdgpu_ras_intr_triggered() ?
-						    RAS_EVENT_TYPE_ISR : RAS_EVENT_TYPE_INVALID);
-
-	amdgpu_mca_smu_log_ras_error(adev,
-		AMDGPU_RAS_BLOCK__UMC, AMDGPU_MCA_ERROR_TYPE_CE, ras_error_status, &qctx);
-	amdgpu_mca_smu_log_ras_error(adev,
-		AMDGPU_RAS_BLOCK__UMC, AMDGPU_MCA_ERROR_TYPE_UE, ras_error_status, &qctx);
-}
-
-static void umc_v12_0_ecc_info_query_ras_error_address(struct amdgpu_device *adev,
-					void *ras_error_status)
-{
-	struct ras_err_node *err_node;
-	uint64_t mc_umc_status;
-	struct ras_err_info *err_info;
-	struct ras_err_addr *mca_err_addr, *tmp;
-	struct ras_err_data *err_data = (struct ras_err_data *)ras_error_status;
-	struct ta_ras_query_address_input addr_in;
-
-	for_each_ras_error(err_node, err_data) {
-		err_info = &err_node->err_info;
-		if (list_empty(&err_info->err_addr_list))
-			continue;
-
-		addr_in.ma.node_inst = err_info->mcm_info.die_id;
-		addr_in.ma.socket_id = err_info->mcm_info.socket_id;
-
-		list_for_each_entry_safe(mca_err_addr, tmp, &err_info->err_addr_list, node) {
-			mc_umc_status = mca_err_addr->err_status;
-			if (mc_umc_status &&
-				(umc_v12_0_is_uncorrectable_error(adev, mc_umc_status) ||
-				 umc_v12_0_is_deferred_error(adev, mc_umc_status))) {
-				uint64_t mca_addr, err_addr, mca_ipid;
-				uint32_t InstanceIdLo;
-
-				mca_addr = mca_err_addr->err_addr;
-				mca_ipid = mca_err_addr->err_ipid;
-
-				err_addr = REG_GET_FIELD(mca_addr,
-							MCA_UMC_UMC0_MCUMC_ADDRT0, ErrorAddr);
-				InstanceIdLo = REG_GET_FIELD(mca_ipid, MCMP1_IPIDT0, InstanceIdLo);
-
-				addr_in.ma.err_addr = err_addr;
-				addr_in.ma.ch_inst = MCA_IPID_LO_2_UMC_CH(InstanceIdLo);
-				addr_in.ma.umc_inst = MCA_IPID_LO_2_UMC_INST(InstanceIdLo);
-
-				dev_info(adev->dev, "UMC:IPID:0x%llx, aid:%d, inst:%d, ch:%d, err_addr:0x%llx\n",
-					mca_ipid,
-					err_info->mcm_info.die_id,
-					MCA_IPID_LO_2_UMC_INST(InstanceIdLo),
-					MCA_IPID_LO_2_UMC_CH(InstanceIdLo),
-					err_addr);
-
-				umc_v12_0_convert_error_address(adev,
-					err_data, &addr_in);
-			}
-
-			/* Delete error address node from list and free memory */
-			amdgpu_ras_del_mca_err_addr(err_info, mca_err_addr);
-		}
-	}
-}
-#endif
-
 static bool umc_v12_0_check_ecc_err_status(struct amdgpu_device *adev,
 			enum amdgpu_mca_error_type type, void *ras_error_status)
 {
@@ -575,7 +505,7 @@ static int umc_v12_0_update_ecc_status(struct amdgpu_device *adev,
 	err_addr = REG_GET_FIELD(addr,
 				MCA_UMC_UMC0_MCUMC_ADDRT0, ErrorAddr);
 
-	dev_info(adev->dev,
+	dev_dbg(adev->dev,
 		"UMC:IPID:0x%llx, socket:%llu, aid:%llu, inst:%llu, ch:%llu, err_addr:0x%llx\n",
 		ipid,
 		MCA_IPID_2_SOCKET_ID(ipid),
@@ -628,7 +558,7 @@ static int umc_v12_0_update_ecc_status(struct amdgpu_device *adev,
 	ret = amdgpu_umc_logs_ecc_err(adev, &con->umc_ecc_log.de_page_tree, ecc_err);
 	if (ret) {
 		if (ret == -EEXIST)
-			con->umc_ecc_log.de_updated = true;
+			con->umc_ecc_log.de_queried_count++;
 		else
 			dev_err(adev->dev, "Fail to log ecc error! ret:%d\n", ret);
 
@@ -637,7 +567,24 @@ static int umc_v12_0_update_ecc_status(struct amdgpu_device *adev,
 		return ret;
 	}
 
-	con->umc_ecc_log.de_updated = true;
+	con->umc_ecc_log.de_queried_count++;
+
+	/* The problem case is as follows:
+	 * 1. GPU A triggers a gpu ras reset, and GPU A drives
+	 *    GPU B to also perform a gpu ras reset.
+	 * 2. After gpu B ras reset started, gpu B queried a DE
+	 *    data. Since the DE data was queried in the ras reset
+	 *    thread instead of the page retirement thread, bad
+	 *    page retirement work would not be triggered. Then
+	 *    even if all gpu resets are completed, the bad pages
+	 *    will be cached in RAM until GPU B's bad page retirement
+	 *    work is triggered again and then saved to eeprom.
+	 * Trigger delayed work to save the bad pages to eeprom in time
+	 * after gpu ras reset is completed.
+	 */
+	if (amdgpu_ras_in_recovery(adev))
+		schedule_delayed_work(&con->page_retirement_dwork,
+			msecs_to_jiffies(DELAYED_TIME_FOR_GPU_RESET));
 
 	return 0;
 }

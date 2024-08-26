@@ -223,16 +223,6 @@ arm_cspmu_event_attr_is_visible(struct kobject *kobj,
 	return attr->mode;
 }
 
-ssize_t arm_cspmu_sysfs_format_show(struct device *dev,
-				struct device_attribute *attr,
-				char *buf)
-{
-	struct dev_ext_attribute *eattr =
-		container_of(attr, struct dev_ext_attribute, attr);
-	return sysfs_emit(buf, "%s\n", (char *)eattr->var);
-}
-EXPORT_SYMBOL_GPL(arm_cspmu_sysfs_format_show);
-
 static struct attribute *arm_cspmu_format_attrs[] = {
 	ARM_CSPMU_FORMAT_EVENT_ATTR,
 	ARM_CSPMU_FORMAT_FILTER_ATTR,
@@ -1437,4 +1427,5 @@ EXPORT_SYMBOL_GPL(arm_cspmu_impl_unregister);
 module_init(arm_cspmu_init);
 module_exit(arm_cspmu_exit);
 
+MODULE_DESCRIPTION("ARM CoreSight Architecture Performance Monitor Driver");
 MODULE_LICENSE("GPL v2");

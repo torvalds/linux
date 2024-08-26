@@ -47,9 +47,9 @@ static const struct acpi_device_id bmc150_magn_acpi_match[] = {
 MODULE_DEVICE_TABLE(acpi, bmc150_magn_acpi_match);
 
 static const struct i2c_device_id bmc150_magn_i2c_id[] = {
-	{"bmc150_magn",	0},
-	{"bmc156_magn", 0},
-	{"bmm150_magn", 0},
+	{ "bmc150_magn" },
+	{ "bmc156_magn" },
+	{ "bmm150_magn" },
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, bmc150_magn_i2c_id);

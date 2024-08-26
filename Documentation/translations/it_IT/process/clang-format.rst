@@ -1,6 +1,6 @@
 .. include:: ../disclaimer-ita.rst
 
-:Original: :ref:`Documentation/process/clang-format.rst <clangformat>`
+:Original: :ref:`Documentation/dev-tools/clang-format.rst <clangformat>`
 :Translator: Federico Vaga <federico.vaga@vaga.pv.it>
 
 .. _it_clangformat:

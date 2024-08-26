@@ -658,7 +658,6 @@ struct joycon_ctlr {
 	(ctlr->ctlr_type == JOYCON_CTLR_TYPE_JCR || \
 	 ctlr->ctlr_type == JOYCON_CTLR_TYPE_PRO)
 
-
 /*
  * Controller device helpers
  *
@@ -669,29 +668,9 @@ struct joycon_ctlr {
  * These helpers are most useful early during the HID probe or in conjunction
  * with the capability helpers below.
  */
-static inline bool joycon_device_is_procon(struct joycon_ctlr *ctlr)
-{
-	return ctlr->hdev->product == USB_DEVICE_ID_NINTENDO_PROCON;
-}
-
 static inline bool joycon_device_is_chrggrip(struct joycon_ctlr *ctlr)
 {
 	return ctlr->hdev->product == USB_DEVICE_ID_NINTENDO_CHRGGRIP;
-}
-
-static inline bool joycon_device_is_snescon(struct joycon_ctlr *ctlr)
-{
-	return ctlr->hdev->product == USB_DEVICE_ID_NINTENDO_SNESCON;
-}
-
-static inline bool joycon_device_is_gencon(struct joycon_ctlr *ctlr)
-{
-	return ctlr->hdev->product == USB_DEVICE_ID_NINTENDO_GENCON;
-}
-
-static inline bool joycon_device_is_n64con(struct joycon_ctlr *ctlr)
-{
-	return ctlr->hdev->product == USB_DEVICE_ID_NINTENDO_N64CON;
 }
 
 /*
@@ -2725,13 +2704,13 @@ static int nintendo_hid_probe(struct hid_device *hdev,
 	ret = joycon_power_supply_create(ctlr);
 	if (ret) {
 		hid_err(hdev, "Failed to create power_supply; ret=%d\n", ret);
-		goto err_close;
+		goto err_ida;
 	}
 
 	ret = joycon_input_create(ctlr);
 	if (ret) {
 		hid_err(hdev, "Failed to create input device; ret=%d\n", ret);
-		goto err_close;
+		goto err_ida;
 	}
 
 	ctlr->ctlr_state = JOYCON_CTLR_STATE_READ;
@@ -2739,6 +2718,8 @@ static int nintendo_hid_probe(struct hid_device *hdev,
 	hid_dbg(hdev, "probe - success\n");
 	return 0;
 
+err_ida:
+	ida_free(&nintendo_player_id_allocator, ctlr->player_id);
 err_close:
 	hid_hw_close(hdev);
 err_stop:

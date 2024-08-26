@@ -17,6 +17,7 @@
 #include <linux/pci.h>
 #include <linux/dma-mapping.h>
 #include <linux/slab.h>
+#include <linux/workqueue.h>
 #include <media/rc-core.h>
 
 #include <media/demux.h>
@@ -257,7 +258,7 @@ struct smi_port {
 	u32 _dmaInterruptCH0;
 	u32 _dmaInterruptCH1;
 	u32 _int_status;
-	struct tasklet_struct tasklet;
+	struct work_struct bh_work;
 	/* dvb */
 	struct dmx_frontend hw_frontend;
 	struct dmx_frontend mem_frontend;

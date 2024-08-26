@@ -20,7 +20,7 @@ TRACE_EVENT(swiotlb_bounced,
 	),
 
 	TP_fast_assign(
-		__assign_str(dev_name, dev_name(dev));
+		__assign_str(dev_name);
 		__entry->dma_mask = (dev->dma_mask ? *dev->dma_mask : 0);
 		__entry->dev_addr = dev_addr;
 		__entry->size = size;

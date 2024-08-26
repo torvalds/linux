@@ -23,84 +23,88 @@
 	__ret;							\
 })
 
-static int __hpp__fmt(struct perf_hpp *hpp, struct hist_entry *he,
-		      hpp_field_fn get_field, const char *fmt, int len,
-		      hpp_snprint_fn print_fn, bool fmt_percent)
+static int __hpp__fmt_print(struct perf_hpp *hpp, struct hists *hists, u64 val,
+			    int nr_samples, const char *fmt, int len,
+			    hpp_snprint_fn print_fn, enum perf_hpp_fmt_type fmtype)
 {
-	int ret;
-	struct hists *hists = he->hists;
-	struct evsel *evsel = hists_to_evsel(hists);
-	char *buf = hpp->buf;
-	size_t size = hpp->size;
-
-	if (fmt_percent) {
+	if (fmtype == PERF_HPP_FMT_TYPE__PERCENT) {
 		double percent = 0.0;
 		u64 total = hists__total_period(hists);
 
 		if (total)
-			percent = 100.0 * get_field(he) / total;
+			percent = 100.0 * val / total;
 
-		ret = hpp__call_print_fn(hpp, print_fn, fmt, len, percent);
-	} else
-		ret = hpp__call_print_fn(hpp, print_fn, fmt, len, get_field(he));
+		return hpp__call_print_fn(hpp, print_fn, fmt, len, percent);
+	}
+
+	if (fmtype == PERF_HPP_FMT_TYPE__AVERAGE) {
+		double avg = nr_samples ? (1.0 * val / nr_samples) : 0;
+
+		return hpp__call_print_fn(hpp, print_fn, fmt, len, avg);
+	}
+
+	return hpp__call_print_fn(hpp, print_fn, fmt, len, val);
+}
+
+struct hpp_fmt_value {
+	struct hists *hists;
+	u64 val;
+	int samples;
+};
+
+static int __hpp__fmt(struct perf_hpp *hpp, struct hist_entry *he,
+		      hpp_field_fn get_field, const char *fmt, int len,
+		      hpp_snprint_fn print_fn, enum perf_hpp_fmt_type fmtype)
+{
+	int ret = 0;
+	struct hists *hists = he->hists;
+	struct evsel *evsel = hists_to_evsel(hists);
+	struct evsel *pos;
+	char *buf = hpp->buf;
+	size_t size = hpp->size;
+	int i, nr_members = 1;
+	struct hpp_fmt_value *values;
+
+	if (evsel__is_group_event(evsel))
+		nr_members = evsel->core.nr_members;
+
+	values = calloc(nr_members, sizeof(*values));
+	if (values == NULL)
+		return 0;
+
+	i = 0;
+	for_each_group_evsel(pos, evsel)
+		values[i++].hists = evsel__hists(pos);
+
+	values[0].val = get_field(he);
+	values[0].samples = he->stat.nr_events;
 
 	if (evsel__is_group_event(evsel)) {
-		int prev_idx, idx_delta;
 		struct hist_entry *pair;
-		int nr_members = evsel->core.nr_members;
-
-		prev_idx = evsel__group_idx(evsel);
 
 		list_for_each_entry(pair, &he->pairs.head, pairs.node) {
-			u64 period = get_field(pair);
-			u64 total = hists__total_period(pair->hists);
+			for (i = 0; i < nr_members; i++) {
+				if (values[i].hists != pair->hists)
+					continue;
 
-			if (!total)
-				continue;
-
-			evsel = hists_to_evsel(pair->hists);
-			idx_delta = evsel__group_idx(evsel) - prev_idx - 1;
-
-			while (idx_delta--) {
-				/*
-				 * zero-fill group members in the middle which
-				 * have no sample
-				 */
-				if (fmt_percent) {
-					ret += hpp__call_print_fn(hpp, print_fn,
-								  fmt, len, 0.0);
-				} else {
-					ret += hpp__call_print_fn(hpp, print_fn,
-								  fmt, len, 0ULL);
-				}
-			}
-
-			if (fmt_percent) {
-				ret += hpp__call_print_fn(hpp, print_fn, fmt, len,
-							  100.0 * period / total);
-			} else {
-				ret += hpp__call_print_fn(hpp, print_fn, fmt,
-							  len, period);
-			}
-
-			prev_idx = evsel__group_idx(evsel);
-		}
-
-		idx_delta = nr_members - prev_idx - 1;
-
-		while (idx_delta--) {
-			/*
-			 * zero-fill group members at last which have no sample
-			 */
-			if (fmt_percent) {
-				ret += hpp__call_print_fn(hpp, print_fn,
-							  fmt, len, 0.0);
-			} else {
-				ret += hpp__call_print_fn(hpp, print_fn,
-							  fmt, len, 0ULL);
+				values[i].val = get_field(pair);
+				values[i].samples = pair->stat.nr_events;
+				break;
 			}
 		}
 	}
+
+	for (i = 0; i < nr_members; i++) {
+		if (symbol_conf.skip_empty &&
+		    values[i].hists->stats.nr_samples == 0)
+			continue;
+
+		ret += __hpp__fmt_print(hpp, values[i].hists, values[i].val,
+					values[i].samples, fmt, len,
+					print_fn, fmtype);
+	}
+
+	free(values);
 
 	/*
 	 * Restore original buf and size as it's where caller expects
@@ -114,33 +118,35 @@ static int __hpp__fmt(struct perf_hpp *hpp, struct hist_entry *he,
 
 int hpp__fmt(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
 	     struct hist_entry *he, hpp_field_fn get_field,
-	     const char *fmtstr, hpp_snprint_fn print_fn, bool fmt_percent)
+	     const char *fmtstr, hpp_snprint_fn print_fn,
+	     enum perf_hpp_fmt_type fmtype)
 {
 	int len = fmt->user_len ?: fmt->len;
 
 	if (symbol_conf.field_sep) {
 		return __hpp__fmt(hpp, he, get_field, fmtstr, 1,
-				  print_fn, fmt_percent);
+				  print_fn, fmtype);
 	}
 
-	if (fmt_percent)
+	if (fmtype == PERF_HPP_FMT_TYPE__PERCENT)
 		len -= 2; /* 2 for a space and a % sign */
 	else
 		len -= 1;
 
-	return  __hpp__fmt(hpp, he, get_field, fmtstr, len, print_fn, fmt_percent);
+	return  __hpp__fmt(hpp, he, get_field, fmtstr, len, print_fn, fmtype);
 }
 
 int hpp__fmt_acc(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
 		 struct hist_entry *he, hpp_field_fn get_field,
-		 const char *fmtstr, hpp_snprint_fn print_fn, bool fmt_percent)
+		 const char *fmtstr, hpp_snprint_fn print_fn,
+		 enum perf_hpp_fmt_type fmtype)
 {
 	if (!symbol_conf.cumulate_callchain) {
 		int len = fmt->user_len ?: fmt->len;
 		return snprintf(hpp->buf, hpp->size, " %*s", len - 1, "N/A");
 	}
 
-	return hpp__fmt(fmt, hpp, he, get_field, fmtstr, print_fn, fmt_percent);
+	return hpp__fmt(fmt, hpp, he, get_field, fmtstr, print_fn, fmtype);
 }
 
 static int field_cmp(u64 field_a, u64 field_b)
@@ -294,8 +300,18 @@ static int hpp__width_fn(struct perf_hpp_fmt *fmt,
 	int len = fmt->user_len ?: fmt->len;
 	struct evsel *evsel = hists_to_evsel(hists);
 
-	if (symbol_conf.event_group)
-		len = max(len, evsel->core.nr_members * fmt->len);
+	if (symbol_conf.event_group) {
+		int nr = 0;
+		struct evsel *pos;
+
+		for_each_group_evsel(pos, evsel) {
+			if (!symbol_conf.skip_empty ||
+			    evsel__hists(pos)->stats.nr_samples)
+				nr++;
+		}
+
+		len = max(len, nr * fmt->len);
+	}
 
 	if (len < (int)strlen(fmt->name))
 		len = strlen(fmt->name);
@@ -350,7 +366,7 @@ static int hpp__color_##_type(struct perf_hpp_fmt *fmt,				\
 			      struct perf_hpp *hpp, struct hist_entry *he) 	\
 {										\
 	return hpp__fmt(fmt, hpp, he, he_get_##_field, " %*.2f%%",		\
-			hpp_color_scnprintf, true);				\
+			hpp_color_scnprintf, PERF_HPP_FMT_TYPE__PERCENT);	\
 }
 
 #define __HPP_ENTRY_PERCENT_FN(_type, _field)					\
@@ -358,7 +374,7 @@ static int hpp__entry_##_type(struct perf_hpp_fmt *fmt,				\
 			      struct perf_hpp *hpp, struct hist_entry *he) 	\
 {										\
 	return hpp__fmt(fmt, hpp, he, he_get_##_field, " %*.2f%%",		\
-			hpp_entry_scnprintf, true);				\
+			hpp_entry_scnprintf, PERF_HPP_FMT_TYPE__PERCENT);	\
 }
 
 #define __HPP_SORT_FN(_type, _field)						\
@@ -378,7 +394,7 @@ static int hpp__color_##_type(struct perf_hpp_fmt *fmt,				\
 			      struct perf_hpp *hpp, struct hist_entry *he) 	\
 {										\
 	return hpp__fmt_acc(fmt, hpp, he, he_get_acc_##_field, " %*.2f%%", 	\
-			    hpp_color_scnprintf, true);				\
+			    hpp_color_scnprintf, PERF_HPP_FMT_TYPE__PERCENT);	\
 }
 
 #define __HPP_ENTRY_ACC_PERCENT_FN(_type, _field)				\
@@ -386,7 +402,7 @@ static int hpp__entry_##_type(struct perf_hpp_fmt *fmt,				\
 			      struct perf_hpp *hpp, struct hist_entry *he) 	\
 {										\
 	return hpp__fmt_acc(fmt, hpp, he, he_get_acc_##_field, " %*.2f%%",	\
-			    hpp_entry_scnprintf, true);				\
+			    hpp_entry_scnprintf, PERF_HPP_FMT_TYPE__PERCENT);	\
 }
 
 #define __HPP_SORT_ACC_FN(_type, _field)					\
@@ -406,7 +422,7 @@ static int hpp__entry_##_type(struct perf_hpp_fmt *fmt,				\
 			      struct perf_hpp *hpp, struct hist_entry *he) 	\
 {										\
 	return hpp__fmt(fmt, hpp, he, he_get_raw_##_field, " %*"PRIu64, 	\
-			hpp_entry_scnprintf, false);				\
+			hpp_entry_scnprintf, PERF_HPP_FMT_TYPE__RAW);		\
 }
 
 #define __HPP_SORT_RAW_FN(_type, _field)					\
@@ -414,6 +430,26 @@ static int64_t hpp__sort_##_type(struct perf_hpp_fmt *fmt __maybe_unused, 	\
 				 struct hist_entry *a, struct hist_entry *b) 	\
 {										\
 	return __hpp__sort(a, b, he_get_raw_##_field);				\
+}
+
+#define __HPP_ENTRY_AVERAGE_FN(_type, _field)					\
+static u64 he_get_##_field(struct hist_entry *he)				\
+{										\
+	return he->stat._field;							\
+}										\
+										\
+static int hpp__entry_##_type(struct perf_hpp_fmt *fmt,				\
+			      struct perf_hpp *hpp, struct hist_entry *he) 	\
+{										\
+	return hpp__fmt(fmt, hpp, he, he_get_##_field, " %*.1f",		\
+			hpp_entry_scnprintf, PERF_HPP_FMT_TYPE__AVERAGE);	\
+}
+
+#define __HPP_SORT_AVERAGE_FN(_type, _field)					\
+static int64_t hpp__sort_##_type(struct perf_hpp_fmt *fmt __maybe_unused, 	\
+				 struct hist_entry *a, struct hist_entry *b) 	\
+{										\
+	return __hpp__sort(a, b, he_get_##_field);				\
 }
 
 
@@ -431,6 +467,10 @@ __HPP_SORT_ACC_FN(_type, _field)
 __HPP_ENTRY_RAW_FN(_type, _field)					\
 __HPP_SORT_RAW_FN(_type, _field)
 
+#define HPP_AVERAGE_FNS(_type, _field)					\
+__HPP_ENTRY_AVERAGE_FN(_type, _field)					\
+__HPP_SORT_AVERAGE_FN(_type, _field)
+
 HPP_PERCENT_FNS(overhead, period)
 HPP_PERCENT_FNS(overhead_sys, period_sys)
 HPP_PERCENT_FNS(overhead_us, period_us)
@@ -440,6 +480,10 @@ HPP_PERCENT_ACC_FNS(overhead_acc, period)
 
 HPP_RAW_FNS(samples, nr_events)
 HPP_RAW_FNS(period, period)
+
+HPP_AVERAGE_FNS(weight1, weight1)
+HPP_AVERAGE_FNS(weight2, weight2)
+HPP_AVERAGE_FNS(weight3, weight3)
 
 static int64_t hpp__nop_cmp(struct perf_hpp_fmt *fmt __maybe_unused,
 			    struct hist_entry *a __maybe_unused,
@@ -510,7 +554,10 @@ struct perf_hpp_fmt perf_hpp__format[] = {
 	HPP__COLOR_PRINT_FNS("guest usr", overhead_guest_us, OVERHEAD_GUEST_US),
 	HPP__COLOR_ACC_PRINT_FNS("Children", overhead_acc, OVERHEAD_ACC),
 	HPP__PRINT_FNS("Samples", samples, SAMPLES),
-	HPP__PRINT_FNS("Period", period, PERIOD)
+	HPP__PRINT_FNS("Period", period, PERIOD),
+	HPP__PRINT_FNS("Weight1", weight1, WEIGHT1),
+	HPP__PRINT_FNS("Weight2", weight2, WEIGHT2),
+	HPP__PRINT_FNS("Weight3", weight3, WEIGHT3),
 };
 
 struct perf_hpp_list perf_hpp_list = {
@@ -526,6 +573,7 @@ struct perf_hpp_list perf_hpp_list = {
 #undef HPP_PERCENT_FNS
 #undef HPP_PERCENT_ACC_FNS
 #undef HPP_RAW_FNS
+#undef HPP_AVERAGE_FNS
 
 #undef __HPP_HEADER_FN
 #undef __HPP_WIDTH_FN
@@ -534,9 +582,11 @@ struct perf_hpp_list perf_hpp_list = {
 #undef __HPP_COLOR_ACC_PERCENT_FN
 #undef __HPP_ENTRY_ACC_PERCENT_FN
 #undef __HPP_ENTRY_RAW_FN
+#undef __HPP_ENTRY_AVERAGE_FN
 #undef __HPP_SORT_FN
 #undef __HPP_SORT_ACC_FN
 #undef __HPP_SORT_RAW_FN
+#undef __HPP_SORT_AVERAGE_FN
 
 static void fmt_free(struct perf_hpp_fmt *fmt)
 {
@@ -783,6 +833,12 @@ void perf_hpp__reset_width(struct perf_hpp_fmt *fmt, struct hists *hists)
 	case PERF_HPP__SAMPLES:
 	case PERF_HPP__PERIOD:
 		fmt->len = 12;
+		break;
+
+	case PERF_HPP__WEIGHT1:
+	case PERF_HPP__WEIGHT2:
+	case PERF_HPP__WEIGHT3:
+		fmt->len = 8;
 		break;
 
 	default:

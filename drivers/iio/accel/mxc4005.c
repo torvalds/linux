@@ -65,6 +65,7 @@ struct mxc4005_data {
 	struct mutex mutex;
 	struct regmap *regmap;
 	struct iio_trigger *dready_trig;
+	struct iio_mount_matrix orientation;
 	/* Ensure timestamp is naturally aligned */
 	struct {
 		__be16 chans[3];
@@ -272,6 +273,20 @@ static int mxc4005_write_raw(struct iio_dev *indio_dev,
 	}
 }
 
+static const struct iio_mount_matrix *
+mxc4005_get_mount_matrix(const struct iio_dev *indio_dev,
+			   const struct iio_chan_spec *chan)
+{
+	struct mxc4005_data *data = iio_priv(indio_dev);
+
+	return &data->orientation;
+}
+
+static const struct iio_chan_spec_ext_info mxc4005_ext_info[] = {
+	IIO_MOUNT_MATRIX(IIO_SHARED_BY_TYPE, mxc4005_get_mount_matrix),
+	{ }
+};
+
 static const struct iio_info mxc4005_info = {
 	.read_raw	= mxc4005_read_raw,
 	.write_raw	= mxc4005_write_raw,
@@ -298,6 +313,7 @@ static const unsigned long mxc4005_scan_masks[] = {
 		.shift = 4,					\
 		.endianness = IIO_BE,				\
 	},							\
+	.ext_info = mxc4005_ext_info,				\
 }
 
 static const struct iio_chan_spec mxc4005_channels[] = {
@@ -440,6 +456,12 @@ static int mxc4005_probe(struct i2c_client *client)
 
 	mutex_init(&data->mutex);
 
+	if (!iio_read_acpi_mount_matrix(&client->dev, &data->orientation, "ROTM")) {
+		ret = iio_read_mount_matrix(&client->dev, &data->orientation);
+		if (ret)
+			return ret;
+	}
+
 	indio_dev->channels = mxc4005_channels;
 	indio_dev->num_channels = ARRAY_SIZE(mxc4005_channels);
 	indio_dev->available_scan_masks = mxc4005_scan_masks;
@@ -562,9 +584,9 @@ static const struct of_device_id mxc4005_of_match[] = {
 MODULE_DEVICE_TABLE(of, mxc4005_of_match);
 
 static const struct i2c_device_id mxc4005_id[] = {
-	{"mxc4005",	0},
-	{"mxc6655",	0},
-	{ },
+	{ "mxc4005" },
+	{ "mxc6655" },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, mxc4005_id);
 

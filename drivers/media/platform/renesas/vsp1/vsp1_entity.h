@@ -19,7 +19,6 @@ struct vsp1_dl_body;
 struct vsp1_dl_list;
 struct vsp1_pipeline;
 struct vsp1_partition;
-struct vsp1_partition_window;
 
 enum vsp1_entity_type {
 	VSP1_ENTITY_BRS,
@@ -78,19 +77,30 @@ struct vsp1_route {
  *		configuration.
  */
 struct vsp1_entity_operations {
-	void (*destroy)(struct vsp1_entity *);
-	void (*configure_stream)(struct vsp1_entity *, struct vsp1_pipeline *,
-				 struct vsp1_dl_list *, struct vsp1_dl_body *);
-	void (*configure_frame)(struct vsp1_entity *, struct vsp1_pipeline *,
-				struct vsp1_dl_list *, struct vsp1_dl_body *);
-	void (*configure_partition)(struct vsp1_entity *,
-				    struct vsp1_pipeline *,
-				    struct vsp1_dl_list *,
-				    struct vsp1_dl_body *);
-	unsigned int (*max_width)(struct vsp1_entity *, struct vsp1_pipeline *);
-	void (*partition)(struct vsp1_entity *, struct vsp1_pipeline *,
-			  struct vsp1_partition *, unsigned int,
-			  struct vsp1_partition_window *);
+	void (*destroy)(struct vsp1_entity *entity);
+	void (*configure_stream)(struct vsp1_entity *entity,
+				 struct v4l2_subdev_state *state,
+				 struct vsp1_pipeline *pipe,
+				 struct vsp1_dl_list *dl,
+				 struct vsp1_dl_body *dlb);
+	void (*configure_frame)(struct vsp1_entity *entity,
+				struct vsp1_pipeline *pipe,
+				struct vsp1_dl_list *dl,
+				struct vsp1_dl_body *dlb);
+	void (*configure_partition)(struct vsp1_entity *entity,
+				    struct vsp1_pipeline *pipe,
+				    const struct vsp1_partition *partition,
+				    struct vsp1_dl_list *dl,
+				    struct vsp1_dl_body *dlb);
+	unsigned int (*max_width)(struct vsp1_entity *entity,
+				  struct v4l2_subdev_state *state,
+				  struct vsp1_pipeline *pipe);
+	void (*partition)(struct vsp1_entity *entity,
+			  struct v4l2_subdev_state *state,
+			  struct vsp1_pipeline *pipe,
+			  struct vsp1_partition *partition,
+			  unsigned int index,
+			  struct v4l2_rect *window);
 };
 
 struct vsp1_entity {
@@ -138,20 +148,13 @@ struct v4l2_subdev_state *
 vsp1_entity_get_state(struct vsp1_entity *entity,
 		      struct v4l2_subdev_state *sd_state,
 		      enum v4l2_subdev_format_whence which);
-struct v4l2_mbus_framefmt *
-vsp1_entity_get_pad_format(struct vsp1_entity *entity,
-			   struct v4l2_subdev_state *sd_state,
-			   unsigned int pad);
-struct v4l2_rect *
-vsp1_entity_get_pad_selection(struct vsp1_entity *entity,
-			      struct v4l2_subdev_state *sd_state,
-			      unsigned int pad, unsigned int target);
 
 void vsp1_entity_route_setup(struct vsp1_entity *entity,
 			     struct vsp1_pipeline *pipe,
 			     struct vsp1_dl_body *dlb);
 
 void vsp1_entity_configure_stream(struct vsp1_entity *entity,
+				  struct v4l2_subdev_state *state,
 				  struct vsp1_pipeline *pipe,
 				  struct vsp1_dl_list *dl,
 				  struct vsp1_dl_body *dlb);
@@ -163,6 +166,7 @@ void vsp1_entity_configure_frame(struct vsp1_entity *entity,
 
 void vsp1_entity_configure_partition(struct vsp1_entity *entity,
 				     struct vsp1_pipeline *pipe,
+				     const struct vsp1_partition *partition,
 				     struct vsp1_dl_list *dl,
 				     struct vsp1_dl_body *dlb);
 

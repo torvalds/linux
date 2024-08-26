@@ -180,7 +180,7 @@ static void intel_th_device_release(struct device *dev)
 	intel_th_device_free(to_intel_th_device(dev));
 }
 
-static struct device_type intel_th_source_device_type = {
+static const struct device_type intel_th_source_device_type = {
 	.name		= "intel_th_source_device",
 	.release	= intel_th_device_release,
 };
@@ -333,19 +333,19 @@ static struct attribute *intel_th_output_attrs[] = {
 
 ATTRIBUTE_GROUPS(intel_th_output);
 
-static struct device_type intel_th_output_device_type = {
+static const struct device_type intel_th_output_device_type = {
 	.name		= "intel_th_output_device",
 	.groups		= intel_th_output_groups,
 	.release	= intel_th_device_release,
 	.devnode	= intel_th_output_devnode,
 };
 
-static struct device_type intel_th_switch_device_type = {
+static const struct device_type intel_th_switch_device_type = {
 	.name		= "intel_th_switch_device",
 	.release	= intel_th_device_release,
 };
 
-static struct device_type *intel_th_device_type[] = {
+static const struct device_type *intel_th_device_type[] = {
 	[INTEL_TH_SOURCE]	= &intel_th_source_device_type,
 	[INTEL_TH_OUTPUT]	= &intel_th_output_device_type,
 	[INTEL_TH_SWITCH]	= &intel_th_switch_device_type,
@@ -871,7 +871,7 @@ intel_th_alloc(struct device *dev, const struct intel_th_drvdata *drvdata,
 	if (!th)
 		return ERR_PTR(-ENOMEM);
 
-	th->id = ida_simple_get(&intel_th_ida, 0, 0, GFP_KERNEL);
+	th->id = ida_alloc(&intel_th_ida, GFP_KERNEL);
 	if (th->id < 0) {
 		err = th->id;
 		goto err_alloc;
@@ -931,7 +931,7 @@ err_chrdev:
 			    "intel_th/output");
 
 err_ida:
-	ida_simple_remove(&intel_th_ida, th->id);
+	ida_free(&intel_th_ida, th->id);
 
 err_alloc:
 	kfree(th);
@@ -964,7 +964,7 @@ void intel_th_free(struct intel_th *th)
 	__unregister_chrdev(th->major, 0, TH_POSSIBLE_OUTPUTS,
 			    "intel_th/output");
 
-	ida_simple_remove(&intel_th_ida, th->id);
+	ida_free(&intel_th_ida, th->id);
 
 	kfree(th);
 }

@@ -139,7 +139,7 @@ int btrfs_add_inode_defrag(struct btrfs_trans_handle *trans,
 	if (trans)
 		transid = trans->transid;
 	else
-		transid = inode->root->last_trans;
+		transid = btrfs_get_root_last_trans(root);
 
 	defrag = kmem_cache_zalloc(btrfs_inode_defrag_cachep, GFP_NOFS);
 	if (!defrag)
@@ -255,7 +255,7 @@ again:
 		goto cleanup;
 	}
 
-	inode = btrfs_iget(fs_info->sb, defrag->ino, inode_root);
+	inode = btrfs_iget(defrag->ino, inode_root);
 	btrfs_put_root(inode_root);
 	if (IS_ERR(inode)) {
 		ret = PTR_ERR(inode);
@@ -707,8 +707,10 @@ iterate:
 		 */
 		if (key.offset > start) {
 			em->start = start;
-			em->orig_start = start;
-			em->block_start = EXTENT_MAP_HOLE;
+			em->disk_bytenr = EXTENT_MAP_HOLE;
+			em->disk_num_bytes = 0;
+			em->ram_bytes = 0;
+			em->offset = 0;
 			em->len = key.offset - start;
 			break;
 		}
@@ -825,7 +827,7 @@ static bool defrag_check_next_extent(struct inode *inode, struct extent_map *em,
 	 */
 	next = defrag_lookup_extent(inode, em->start + em->len, newer_than, locked);
 	/* No more em or hole */
-	if (!next || next->block_start >= EXTENT_MAP_LAST_BYTE)
+	if (!next || next->disk_bytenr >= EXTENT_MAP_LAST_BYTE)
 		goto out;
 	if (next->flags & EXTENT_FLAG_PREALLOC)
 		goto out;
@@ -992,12 +994,12 @@ static int defrag_collect_targets(struct btrfs_inode *inode,
 		 * This is for users who want to convert inline extents to
 		 * regular ones through max_inline= mount option.
 		 */
-		if (em->block_start == EXTENT_MAP_INLINE &&
+		if (em->disk_bytenr == EXTENT_MAP_INLINE &&
 		    em->len <= inode->root->fs_info->max_inline)
 			goto next;
 
 		/* Skip holes and preallocated extents. */
-		if (em->block_start == EXTENT_MAP_HOLE ||
+		if (em->disk_bytenr == EXTENT_MAP_HOLE ||
 		    (em->flags & EXTENT_FLAG_PREALLOC))
 			goto next;
 
@@ -1062,7 +1064,7 @@ static int defrag_collect_targets(struct btrfs_inode *inode,
 		 * So if an inline extent passed all above checks, just add it
 		 * for defrag, and be converted to regular extents.
 		 */
-		if (em->block_start == EXTENT_MAP_INLINE)
+		if (em->disk_bytenr == EXTENT_MAP_INLINE)
 			goto add;
 
 		next_mergeable = defrag_check_next_extent(&inode->vfs_inode, em,

@@ -31,6 +31,7 @@
 #include "vcn/vcn_5_0_0_offset.h"
 #include "vcn/vcn_5_0_0_sh_mask.h"
 #include "ivsrcid/vcn/irqsrcs_vcn_4_0.h"
+#include "jpeg_v5_0_0.h"
 
 static void jpeg_v5_0_0_set_dec_ring_funcs(struct amdgpu_device *adev);
 static void jpeg_v5_0_0_set_irq_funcs(struct amdgpu_device *adev);
@@ -137,15 +138,13 @@ static int jpeg_v5_0_0_hw_init(void *handle)
 	adev->nbio.funcs->vcn_doorbell_range(adev, ring->use_doorbell,
 			(adev->doorbell_index.vcn.vcn_ring0_1 << 1), 0);
 
-	WREG32_SOC15(VCN, 0, regVCN_JPEG_DB_CTRL,
-			ring->doorbell_index << VCN_JPEG_DB_CTRL__OFFSET__SHIFT |
-			VCN_JPEG_DB_CTRL__EN_MASK);
+	/* Skip ring test because pause DPG is not implemented. */
+	if (adev->pg_flags & AMD_PG_SUPPORT_JPEG_DPG)
+		return 0;
 
 	r = amdgpu_ring_test_helper(ring);
 	if (r)
 		return r;
-
-	DRM_DEV_INFO(adev->dev, "JPEG decode initialized successfully.\n");
 
 	return 0;
 }
@@ -241,7 +240,7 @@ static void jpeg_v5_0_0_enable_clock_gating(struct amdgpu_device *adev)
 	WREG32_SOC15(JPEG, 0, regJPEG_CGC_GATE, data);
 }
 
-static int jpeg_v5_0_0_disable_static_power_gating(struct amdgpu_device *adev)
+static int jpeg_v5_0_0_disable_power_gating(struct amdgpu_device *adev)
 {
 	uint32_t data = 0;
 
@@ -254,14 +253,10 @@ static int jpeg_v5_0_0_disable_static_power_gating(struct amdgpu_device *adev)
 	WREG32_P(SOC15_REG_OFFSET(JPEG, 0, regUVD_JPEG_POWER_STATUS), 0,
 		~UVD_JPEG_POWER_STATUS__JPEG_POWER_STATUS_MASK);
 
-	/* keep the JPEG in static PG mode */
-	WREG32_P(SOC15_REG_OFFSET(JPEG, 0, regUVD_JPEG_POWER_STATUS), 0,
-		~UVD_JPEG_POWER_STATUS__JPEG_PG_MODE_MASK);
-
 	return 0;
 }
 
-static int jpeg_v5_0_0_enable_static_power_gating(struct amdgpu_device *adev)
+static int jpeg_v5_0_0_enable_power_gating(struct amdgpu_device *adev)
 {
 	/* enable anti hang mechanism */
 	WREG32_P(SOC15_REG_OFFSET(JPEG, 0, regUVD_JPEG_POWER_STATUS),
@@ -279,6 +274,121 @@ static int jpeg_v5_0_0_enable_static_power_gating(struct amdgpu_device *adev)
 	return 0;
 }
 
+static void jpeg_engine_5_0_0_dpg_clock_gating_mode(struct amdgpu_device *adev,
+	       int inst_idx, uint8_t indirect)
+{
+	uint32_t data = 0;
+
+	// JPEG disable CGC
+	if (adev->cg_flags & AMD_CG_SUPPORT_JPEG_MGCG)
+		data = 1 << JPEG_CGC_CTRL__DYN_CLOCK_MODE__SHIFT;
+	else
+		data = 0 << JPEG_CGC_CTRL__DYN_CLOCK_MODE__SHIFT;
+
+	data |= 1 << JPEG_CGC_CTRL__CLK_GATE_DLY_TIMER__SHIFT;
+	data |= 4 << JPEG_CGC_CTRL__CLK_OFF_DELAY__SHIFT;
+
+	if (indirect) {
+		ADD_SOC24_JPEG_TO_DPG_SRAM(inst_idx, vcnipJPEG_CGC_CTRL, data, indirect);
+
+		// Turn on All JPEG clocks
+		data = 0;
+		ADD_SOC24_JPEG_TO_DPG_SRAM(inst_idx, vcnipJPEG_CGC_GATE, data, indirect);
+	} else {
+		WREG32_SOC24_JPEG_DPG_MODE(inst_idx, vcnipJPEG_CGC_CTRL, data, indirect);
+
+		// Turn on All JPEG clocks
+		data = 0;
+		WREG32_SOC24_JPEG_DPG_MODE(inst_idx, vcnipJPEG_CGC_GATE, data, indirect);
+	}
+}
+
+/**
+ * jpeg_v5_0_0_start_dpg_mode - Jpeg start with dpg mode
+ *
+ * @adev: amdgpu_device pointer
+ * @inst_idx: instance number index
+ * @indirect: indirectly write sram
+ *
+ * Start JPEG block with dpg mode
+ */
+static int jpeg_v5_0_0_start_dpg_mode(struct amdgpu_device *adev, int inst_idx, bool indirect)
+{
+	struct amdgpu_ring *ring = adev->jpeg.inst[inst_idx].ring_dec;
+	uint32_t reg_data = 0;
+
+	jpeg_v5_0_0_enable_power_gating(adev);
+
+	// enable dynamic power gating mode
+	reg_data = RREG32_SOC15(JPEG, inst_idx, regUVD_JPEG_POWER_STATUS);
+	reg_data |= UVD_JPEG_POWER_STATUS__JPEG_PG_MODE_MASK;
+	WREG32_SOC15(JPEG, inst_idx, regUVD_JPEG_POWER_STATUS, reg_data);
+
+	if (indirect)
+		adev->jpeg.inst[inst_idx].dpg_sram_curr_addr =
+			(uint32_t *)adev->jpeg.inst[inst_idx].dpg_sram_cpu_addr;
+
+	jpeg_engine_5_0_0_dpg_clock_gating_mode(adev, inst_idx, indirect);
+
+	/* MJPEG global tiling registers */
+	if (indirect)
+		ADD_SOC24_JPEG_TO_DPG_SRAM(inst_idx, vcnipJPEG_DEC_GFX10_ADDR_CONFIG,
+			adev->gfx.config.gb_addr_config, indirect);
+	else
+		WREG32_SOC24_JPEG_DPG_MODE(inst_idx, vcnipJPEG_DEC_GFX10_ADDR_CONFIG,
+			adev->gfx.config.gb_addr_config, 1);
+
+	/* enable System Interrupt for JRBC */
+	if (indirect)
+		ADD_SOC24_JPEG_TO_DPG_SRAM(inst_idx, vcnipJPEG_SYS_INT_EN,
+			JPEG_SYS_INT_EN__DJRBC0_MASK, indirect);
+	else
+		WREG32_SOC24_JPEG_DPG_MODE(inst_idx, vcnipJPEG_SYS_INT_EN,
+			JPEG_SYS_INT_EN__DJRBC0_MASK, 1);
+
+	if (indirect) {
+		/* add nop to workaround PSP size check */
+		ADD_SOC24_JPEG_TO_DPG_SRAM(inst_idx, vcnipUVD_NO_OP, 0, indirect);
+
+		amdgpu_jpeg_psp_update_sram(adev, inst_idx, 0);
+	}
+
+	WREG32_SOC15(VCN, 0, regVCN_JPEG_DB_CTRL,
+		ring->doorbell_index << VCN_JPEG_DB_CTRL__OFFSET__SHIFT |
+		VCN_JPEG_DB_CTRL__EN_MASK);
+
+	WREG32_SOC15(JPEG, inst_idx, regUVD_LMI_JRBC_RB_VMID, 0);
+	WREG32_SOC15(JPEG, inst_idx, regUVD_JRBC_RB_CNTL, (0x00000001L | 0x00000002L));
+	WREG32_SOC15(JPEG, inst_idx, regUVD_LMI_JRBC_RB_64BIT_BAR_LOW,
+		lower_32_bits(ring->gpu_addr));
+	WREG32_SOC15(JPEG, inst_idx, regUVD_LMI_JRBC_RB_64BIT_BAR_HIGH,
+		upper_32_bits(ring->gpu_addr));
+	WREG32_SOC15(JPEG, inst_idx, regUVD_JRBC_RB_RPTR, 0);
+	WREG32_SOC15(JPEG, inst_idx, regUVD_JRBC_RB_WPTR, 0);
+	WREG32_SOC15(JPEG, inst_idx, regUVD_JRBC_RB_CNTL, 0x00000002L);
+	WREG32_SOC15(JPEG, inst_idx, regUVD_JRBC_RB_SIZE, ring->ring_size / 4);
+	ring->wptr = RREG32_SOC15(JPEG, inst_idx, regUVD_JRBC_RB_WPTR);
+
+	return 0;
+}
+
+/**
+ * jpeg_v5_0_0_stop_dpg_mode - Jpeg stop with dpg mode
+ *
+ * @adev: amdgpu_device pointer
+ * @inst_idx: instance number index
+ *
+ * Stop JPEG block with dpg mode
+ */
+static void jpeg_v5_0_0_stop_dpg_mode(struct amdgpu_device *adev, int inst_idx)
+{
+	uint32_t reg_data = 0;
+
+	reg_data = RREG32_SOC15(JPEG, inst_idx, regUVD_JPEG_POWER_STATUS);
+	reg_data &= ~UVD_JPEG_POWER_STATUS__JPEG_PG_MODE_MASK;
+	WREG32_SOC15(JPEG, inst_idx, regUVD_JPEG_POWER_STATUS, reg_data);
+}
+
 /**
  * jpeg_v5_0_0_start - start JPEG block
  *
@@ -294,8 +404,13 @@ static int jpeg_v5_0_0_start(struct amdgpu_device *adev)
 	if (adev->pm.dpm_enabled)
 		amdgpu_dpm_enable_jpeg(adev, true);
 
+	if (adev->pg_flags & AMD_PG_SUPPORT_JPEG_DPG) {
+		r = jpeg_v5_0_0_start_dpg_mode(adev, 0, adev->jpeg.indirect_sram);
+		return r;
+	}
+
 	/* disable power gating */
-	r = jpeg_v5_0_0_disable_static_power_gating(adev);
+	r = jpeg_v5_0_0_disable_power_gating(adev);
 	if (r)
 		return r;
 
@@ -306,7 +421,6 @@ static int jpeg_v5_0_0_start(struct amdgpu_device *adev)
 	WREG32_SOC15(JPEG, 0, regJPEG_DEC_GFX10_ADDR_CONFIG,
 		adev->gfx.config.gb_addr_config);
 
-
 	/* enable JMI channel */
 	WREG32_P(SOC15_REG_OFFSET(JPEG, 0, regUVD_JMI_CNTL), 0,
 		~UVD_JMI_CNTL__SOFT_RESET_MASK);
@@ -315,6 +429,10 @@ static int jpeg_v5_0_0_start(struct amdgpu_device *adev)
 	WREG32_P(SOC15_REG_OFFSET(JPEG, 0, regJPEG_SYS_INT_EN),
 		JPEG_SYS_INT_EN__DJRBC0_MASK,
 		~JPEG_SYS_INT_EN__DJRBC0_MASK);
+
+	WREG32_SOC15(VCN, 0, regVCN_JPEG_DB_CTRL,
+		ring->doorbell_index << VCN_JPEG_DB_CTRL__OFFSET__SHIFT |
+		VCN_JPEG_DB_CTRL__EN_MASK);
 
 	WREG32_SOC15(JPEG, 0, regUVD_LMI_JRBC_RB_VMID, 0);
 	WREG32_SOC15(JPEG, 0, regUVD_JRBC_RB_CNTL, (0x00000001L | 0x00000002L));
@@ -342,17 +460,22 @@ static int jpeg_v5_0_0_stop(struct amdgpu_device *adev)
 {
 	int r;
 
-	/* reset JMI */
-	WREG32_P(SOC15_REG_OFFSET(JPEG, 0, regUVD_JMI_CNTL),
-		UVD_JMI_CNTL__SOFT_RESET_MASK,
-		~UVD_JMI_CNTL__SOFT_RESET_MASK);
+	if (adev->pg_flags & AMD_PG_SUPPORT_JPEG_DPG) {
+		jpeg_v5_0_0_stop_dpg_mode(adev, 0);
+	} else {
 
-	jpeg_v5_0_0_enable_clock_gating(adev);
+		/* reset JMI */
+		WREG32_P(SOC15_REG_OFFSET(JPEG, 0, regUVD_JMI_CNTL),
+			UVD_JMI_CNTL__SOFT_RESET_MASK,
+			~UVD_JMI_CNTL__SOFT_RESET_MASK);
 
-	/* enable power gating */
-	r = jpeg_v5_0_0_enable_static_power_gating(adev);
-	if (r)
-		return r;
+		jpeg_v5_0_0_enable_clock_gating(adev);
+
+		/* enable power gating */
+		r = jpeg_v5_0_0_enable_power_gating(adev);
+		if (r)
+			return r;
+	}
 
 	if (adev->pm.dpm_enabled)
 		amdgpu_dpm_enable_jpeg(adev, false);
@@ -549,7 +672,6 @@ static const struct amdgpu_ring_funcs jpeg_v5_0_0_dec_ring_vm_funcs = {
 static void jpeg_v5_0_0_set_dec_ring_funcs(struct amdgpu_device *adev)
 {
 	adev->jpeg.inst->ring_dec->funcs = &jpeg_v5_0_0_dec_ring_vm_funcs;
-	DRM_DEV_INFO(adev->dev, "JPEG decode is enabled in VM mode\n");
 }
 
 static const struct amdgpu_irq_src_funcs jpeg_v5_0_0_irq_funcs = {

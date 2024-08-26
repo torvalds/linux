@@ -164,7 +164,7 @@ int __init efi_memattr_apply_permissions(struct mm_struct *mm,
 		bool valid;
 		char buf[64];
 
-		valid = entry_is_valid((void *)tbl->entry + i * tbl->desc_size,
+		valid = entry_is_valid(efi_memdesc_ptr(tbl->entry, tbl->desc_size, i),
 				       &md);
 		size = md.num_pages << EFI_PAGE_SHIFT;
 		if (efi_enabled(EFI_DBG) || !valid)

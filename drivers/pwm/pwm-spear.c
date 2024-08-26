@@ -255,6 +255,7 @@ static struct platform_driver spear_pwm_driver = {
 
 module_platform_driver(spear_pwm_driver);
 
+MODULE_DESCRIPTION("ST Microelectronics SPEAr Pulse Width Modulator driver");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Shiraz Hashim <shiraz.linux.kernel@gmail.com>");
 MODULE_AUTHOR("Viresh Kumar <viresh.kumar@linaro.com>");

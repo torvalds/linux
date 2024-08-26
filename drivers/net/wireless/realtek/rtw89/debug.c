@@ -818,6 +818,28 @@ static const struct dbgfs_txpwr_table *dbgfs_txpwr_tables[RTW89_CHIP_GEN_NUM] = 
 	[RTW89_CHIP_BE] = &dbgfs_txpwr_table_be,
 };
 
+static
+void rtw89_debug_priv_txpwr_table_get_regd(struct seq_file *m,
+					   struct rtw89_dev *rtwdev,
+					   const struct rtw89_chan *chan)
+{
+	const struct rtw89_regulatory_info *regulatory = &rtwdev->regulatory;
+	const struct rtw89_reg_6ghz_tpe *tpe6 = &regulatory->reg_6ghz_tpe;
+
+	seq_printf(m, "[Chanctx] band %u, ch %u, bw %u\n",
+		   chan->band_type, chan->channel, chan->band_width);
+
+	seq_puts(m, "[Regulatory] ");
+	__print_regd(m, rtwdev, chan);
+
+	if (chan->band_type == RTW89_BAND_6G) {
+		seq_printf(m, "[reg6_pwr_type] %u\n", regulatory->reg_6ghz_power);
+
+		if (tpe6->valid)
+			seq_printf(m, "[TPE] %d dBm\n", tpe6->constraint);
+	}
+}
+
 static int rtw89_debug_priv_txpwr_table_get(struct seq_file *m, void *v)
 {
 	struct rtw89_debugfs_priv *debugfs_priv = m->private;
@@ -831,8 +853,7 @@ static int rtw89_debug_priv_txpwr_table_get(struct seq_file *m, void *v)
 	rtw89_leave_ps_mode(rtwdev);
 	chan = rtw89_chan_get(rtwdev, RTW89_SUB_ENTITY_0);
 
-	seq_puts(m, "[Regulatory] ");
-	__print_regd(m, rtwdev, chan);
+	rtw89_debug_priv_txpwr_table_get_regd(m, rtwdev, chan);
 
 	seq_puts(m, "[SAR]\n");
 	rtw89_print_sar(m, rtwdev, chan->freq);
@@ -2996,7 +3017,7 @@ static bool is_dbg_port_valid(struct rtw89_dev *rtwdev, u32 sel)
 	    sel >= RTW89_DBG_PORT_SEL_PCIE_TXDMA &&
 	    sel <= RTW89_DBG_PORT_SEL_PCIE_MISC2)
 		return false;
-	if (rtwdev->chip->chip_id == RTL8852B &&
+	if (rtw89_is_rtl885xb(rtwdev) &&
 	    sel >= RTW89_DBG_PORT_SEL_PTCL_C1 &&
 	    sel <= RTW89_DBG_PORT_SEL_TXTF_INFOH_C1)
 		return false;
@@ -3531,7 +3552,7 @@ static void rtw89_sta_info_get_iter(void *data, struct ieee80211_sta *sta)
 	case RX_ENC_HE:
 		seq_printf(m, "HE %dSS MCS-%d GI:%s", status->nss, status->rate_idx,
 			   status->he_gi <= NL80211_RATE_INFO_HE_GI_3_2 ?
-			   he_gi_str[rate->he_gi] : "N/A");
+			   he_gi_str[status->he_gi] : "N/A");
 		break;
 	case RX_ENC_EHT:
 		seq_printf(m, "EHT %dSS MCS-%d GI:%s", status->nss, status->rate_idx,
@@ -3645,17 +3666,21 @@ static int rtw89_debug_priv_phy_info_get(struct seq_file *m, void *v)
 }
 
 static void rtw89_dump_addr_cam(struct seq_file *m,
+				struct rtw89_dev *rtwdev,
 				struct rtw89_addr_cam_entry *addr_cam)
 {
-	struct rtw89_sec_cam_entry *sec_entry;
+	struct rtw89_cam_info *cam_info = &rtwdev->cam_info;
+	const struct rtw89_sec_cam_entry *sec_entry;
+	u8 sec_cam_idx;
 	int i;
 
 	seq_printf(m, "\taddr_cam_idx=%u\n", addr_cam->addr_cam_idx);
 	seq_printf(m, "\t-> bssid_cam_idx=%u\n", addr_cam->bssid_cam_idx);
 	seq_printf(m, "\tsec_cam_bitmap=%*ph\n", (int)sizeof(addr_cam->sec_cam_map),
 		   addr_cam->sec_cam_map);
-	for (i = 0; i < RTW89_SEC_CAM_IN_ADDR_CAM; i++) {
-		sec_entry = addr_cam->sec_entries[i];
+	for_each_set_bit(i, addr_cam->sec_cam_map, RTW89_SEC_CAM_IN_ADDR_CAM) {
+		sec_cam_idx = addr_cam->sec_ent[i];
+		sec_entry = cam_info->sec_entries[sec_cam_idx];
 		if (!sec_entry)
 			continue;
 		seq_printf(m, "\tsec[%d]: sec_cam_idx %u", i, sec_entry->sec_cam_idx);
@@ -3694,12 +3719,13 @@ static
 void rtw89_vif_ids_get_iter(void *data, u8 *mac, struct ieee80211_vif *vif)
 {
 	struct rtw89_vif *rtwvif = (struct rtw89_vif *)vif->drv_priv;
+	struct rtw89_dev *rtwdev = rtwvif->rtwdev;
 	struct seq_file *m = (struct seq_file *)data;
 	struct rtw89_bssid_cam_entry *bssid_cam = &rtwvif->bssid_cam;
 
 	seq_printf(m, "VIF [%d] %pM\n", rtwvif->mac_id, rtwvif->mac_addr);
 	seq_printf(m, "\tbssid_cam_idx=%u\n", bssid_cam->bssid_cam_idx);
-	rtw89_dump_addr_cam(m, &rtwvif->addr_cam);
+	rtw89_dump_addr_cam(m, rtwdev, &rtwvif->addr_cam);
 	rtw89_dump_pkt_offload(m, &rtwvif->general_pkt_list, "\tpkt_ofld[GENERAL]: ");
 }
 
@@ -3726,11 +3752,12 @@ static void rtw89_dump_ba_cam(struct seq_file *m, struct rtw89_sta *rtwsta)
 static void rtw89_sta_ids_get_iter(void *data, struct ieee80211_sta *sta)
 {
 	struct rtw89_sta *rtwsta = (struct rtw89_sta *)sta->drv_priv;
+	struct rtw89_dev *rtwdev = rtwsta->rtwdev;
 	struct seq_file *m = (struct seq_file *)data;
 
 	seq_printf(m, "STA [%d] %pM %s\n", rtwsta->mac_id, sta->addr,
 		   sta->tdls ? "(TDLS)" : "");
-	rtw89_dump_addr_cam(m, &rtwsta->addr_cam);
+	rtw89_dump_addr_cam(m, rtwdev, &rtwsta->addr_cam);
 	rtw89_dump_ba_cam(m, rtwsta);
 }
 

@@ -486,7 +486,7 @@
 
 		display-timings {
 			native-mode = <&timing0>;
-			timing0: g101evn010 {
+			timing0: timing-g101evn010 {
 				clock-frequency = <68930000>;
 				hactive = <1280>;
 				vactive = <800>;

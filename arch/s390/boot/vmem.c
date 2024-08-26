@@ -261,21 +261,27 @@ static unsigned long _pa(unsigned long addr, unsigned long size, enum populate_m
 
 static bool large_allowed(enum populate_mode mode)
 {
-	return (mode == POPULATE_DIRECT) || (mode == POPULATE_IDENTITY);
+	return (mode == POPULATE_DIRECT) || (mode == POPULATE_IDENTITY) || (mode == POPULATE_KERNEL);
 }
 
 static bool can_large_pud(pud_t *pu_dir, unsigned long addr, unsigned long end,
 			  enum populate_mode mode)
 {
+	unsigned long size = end - addr;
+
 	return machine.has_edat2 && large_allowed(mode) &&
-	       IS_ALIGNED(addr, PUD_SIZE) && (end - addr) >= PUD_SIZE;
+	       IS_ALIGNED(addr, PUD_SIZE) && (size >= PUD_SIZE) &&
+	       IS_ALIGNED(_pa(addr, size, mode), PUD_SIZE);
 }
 
 static bool can_large_pmd(pmd_t *pm_dir, unsigned long addr, unsigned long end,
 			  enum populate_mode mode)
 {
+	unsigned long size = end - addr;
+
 	return machine.has_edat1 && large_allowed(mode) &&
-	       IS_ALIGNED(addr, PMD_SIZE) && (end - addr) >= PMD_SIZE;
+	       IS_ALIGNED(addr, PMD_SIZE) && (size >= PMD_SIZE) &&
+	       IS_ALIGNED(_pa(addr, size, mode), PMD_SIZE);
 }
 
 static void pgtable_pte_populate(pmd_t *pmd, unsigned long addr, unsigned long end,
@@ -470,13 +476,13 @@ void setup_vmem(unsigned long kernel_start, unsigned long kernel_end, unsigned l
 
 	kasan_populate_shadow(kernel_start, kernel_end);
 
-	S390_lowcore.kernel_asce.val = swapper_pg_dir | asce_bits;
-	S390_lowcore.user_asce = s390_invalid_asce;
+	get_lowcore()->kernel_asce.val = swapper_pg_dir | asce_bits;
+	get_lowcore()->user_asce = s390_invalid_asce;
 
-	local_ctl_load(1, &S390_lowcore.kernel_asce);
-	local_ctl_load(7, &S390_lowcore.user_asce);
-	local_ctl_load(13, &S390_lowcore.kernel_asce);
+	local_ctl_load(1, &get_lowcore()->kernel_asce);
+	local_ctl_load(7, &get_lowcore()->user_asce);
+	local_ctl_load(13, &get_lowcore()->kernel_asce);
 
-	init_mm.context.asce = S390_lowcore.kernel_asce.val;
+	init_mm.context.asce = get_lowcore()->kernel_asce.val;
 	init_mm.pgd = init_mm_pgd;
 }

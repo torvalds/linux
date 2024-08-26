@@ -56,7 +56,7 @@ int bch2_resume_logged_ops(struct bch_fs *c)
 	int ret = bch2_trans_run(c,
 		for_each_btree_key(trans, iter,
 				   BTREE_ID_logged_ops, POS_MIN,
-				   BTREE_ITER_PREFETCH, k,
+				   BTREE_ITER_prefetch, k,
 			resume_logged_op(trans, &iter, k)));
 	bch_err_fn(c, ret);
 	return ret;

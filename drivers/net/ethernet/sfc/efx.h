@@ -158,7 +158,7 @@ static inline s32 efx_filter_get_rx_ids(struct efx_nic *efx,
 }
 
 /* RSS contexts */
-static inline bool efx_rss_active(struct efx_rss_context *ctx)
+static inline bool efx_rss_active(struct efx_rss_context_priv *ctx)
 {
 	return ctx->context_id != EFX_MCDI_RSS_CONTEXT_INVALID;
 }

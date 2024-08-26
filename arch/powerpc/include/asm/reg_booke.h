@@ -1,10 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Contains register definitions common to the Book E PowerPC
- * specification.  Notice that while the IBM-40x series of CPUs
- * are not true Book E PowerPCs, they borrowed a number of features
- * before Book E was finalized, and are included here as well.  Unfortunately,
- * they sometimes used different locations than true Book E CPUs did.
+ * specification.
  *
  * Copyright 2009-2010 Freescale Semiconductor, Inc.
  */
@@ -42,9 +39,6 @@
 #define MSR_KERNEL	(MSR_ | MSR_64BIT)
 #define MSR_USER32	(MSR_ | MSR_PR | MSR_EE)
 #define MSR_USER64	(MSR_USER32 | MSR_64BIT)
-#elif defined (CONFIG_40x)
-#define MSR_KERNEL	(MSR_ME|MSR_RI|MSR_IR|MSR_DR|MSR_CE)
-#define MSR_USER	(MSR_KERNEL|MSR_PR|MSR_EE)
 #else
 #define MSR_KERNEL	(MSR_ME|MSR_RI|MSR_CE)
 #define MSR_USER	(MSR_KERNEL|MSR_PR|MSR_EE)
@@ -157,7 +151,6 @@
 #define SPRN_TLB3CFG	0x2B3	/* TLB 3 Config Register */
 #define SPRN_EPR	0x2BE	/* External Proxy Register */
 #define SPRN_CCR1	0x378	/* Core Configuration Register 1 */
-#define SPRN_ZPR	0x3B0	/* Zone Protection Register (40x) */
 #define SPRN_MAS7	0x3B0	/* MMU Assist Register 7 */
 #define SPRN_MMUCR	0x3B2	/* MMU Control Register */
 #define SPRN_CCR0	0x3B3	/* Core Configuration Register 0 */
@@ -166,7 +159,6 @@
 #define SPRN_SGR	0x3B9	/* Storage Guarded Register */
 #define SPRN_DCWR	0x3BA	/* Data Cache Write-thru Register */
 #define SPRN_SLER	0x3BB	/* Little-endian real mode */
-#define SPRN_SU0R	0x3BC	/* "User 0" real mode (40x) */
 #define SPRN_DCMP	0x3D1	/* Data TLB Compare Register */
 #define SPRN_ICDBDR	0x3D3	/* Instruction Cache Debug Data Register */
 #define SPRN_EVPR	0x3D6	/* Exception Vector Prefix Register */
@@ -183,10 +175,8 @@
 #define SPRN_SVR	0x3FF	/* System Version Register */
 
 /*
- * SPRs which have conflicting definitions on true Book E versus classic,
- * or IBM 40x.
+ * SPRs which have conflicting definitions on true Book E versus classic.
  */
-#ifdef CONFIG_BOOKE
 #define SPRN_CSRR0	0x03A	/* Critical Save and Restore Register 0 */
 #define SPRN_CSRR1	0x03B	/* Critical Save and Restore Register 1 */
 #define SPRN_DEAR	0x03D	/* Data Error Address Register */
@@ -201,22 +191,6 @@
 #define SPRN_DAC2	0x13D	/* Data Address Compare 2 */
 #define SPRN_TSR	0x150	/* Timer Status Register */
 #define SPRN_TCR	0x154	/* Timer Control Register */
-#endif /* Book E */
-#ifdef CONFIG_40x
-#define SPRN_DBCR1	0x3BD	/* Debug Control Register 1 */		
-#define SPRN_ESR	0x3D4	/* Exception Syndrome Register */
-#define SPRN_DEAR	0x3D5	/* Data Error Address Register */
-#define SPRN_TSR	0x3D8	/* Timer Status Register */
-#define SPRN_TCR	0x3DA	/* Timer Control Register */
-#define SPRN_SRR2	0x3DE	/* Save/Restore Register 2 */
-#define SPRN_SRR3	0x3DF	/* Save/Restore Register 3 */
-#define SPRN_DBSR	0x3F0	/* Debug Status Register */		
-#define SPRN_DBCR0	0x3F2	/* Debug Control Register 0 */
-#define SPRN_DAC1	0x3F6	/* Data Address Compare 1 */
-#define SPRN_DAC2	0x3F7	/* Data Address Compare 2 */
-#define SPRN_CSRR0	SPRN_SRR2 /* Critical Save and Restore Register 0 */
-#define SPRN_CSRR1	SPRN_SRR3 /* Critical Save and Restore Register 1 */
-#endif
 #define SPRN_HACOP	0x15F	/* Hypervisor Available Coprocessor Register */
 
 /* Bit definitions for CCR1. */
@@ -296,10 +270,6 @@
 #endif
 
 /* Bit definitions for the DBSR. */
-/*
- * DBSR bits which have conflicting definitions on true Book E versus IBM 40x.
- */
-#ifdef CONFIG_BOOKE
 #define DBSR_IDE	0x80000000	/* Imprecise Debug Event */
 #define DBSR_MRR	0x30000000	/* Most Recent Reset */
 #define DBSR_IC		0x08000000	/* Instruction Completion */
@@ -319,21 +289,6 @@
 #define DBSR_CRET	0x00000020	/* Critical Return Debug Event */
 #define DBSR_IAC12ATS	0x00000002	/* Instr Address Compare 1/2 Toggle */
 #define DBSR_IAC34ATS	0x00000001	/* Instr Address Compare 3/4 Toggle */
-#endif
-#ifdef CONFIG_40x
-#define DBSR_IC		0x80000000	/* Instruction Completion */
-#define DBSR_BT		0x40000000	/* Branch taken */
-#define DBSR_IRPT	0x20000000	/* Exception Debug Event */
-#define DBSR_TIE	0x10000000	/* Trap Instruction debug Event */
-#define DBSR_IAC1	0x04000000	/* Instruction Address Compare 1 Event */
-#define DBSR_IAC2	0x02000000	/* Instruction Address Compare 2 Event */
-#define DBSR_IAC3	0x00080000	/* Instruction Address Compare 3 Event */
-#define DBSR_IAC4	0x00040000	/* Instruction Address Compare 4 Event */
-#define DBSR_DAC1R	0x01000000	/* Data Address Compare 1 Read Event */
-#define DBSR_DAC1W	0x00800000	/* Data Address Compare 1 Write Event */
-#define DBSR_DAC2R	0x00400000	/* Data Address Compare 2 Read Event */
-#define DBSR_DAC2W	0x00200000	/* Data Address Compare 2 Write Event */
-#endif
 
 /* Bit definitions related to the ESR. */
 #define ESR_MCI		0x80000000	/* Machine Check - Instruction */
@@ -355,69 +310,6 @@
 #define ESR_SPV		0x00000080	/* Signal Processing operation */
 
 /* Bit definitions related to the DBCR0. */
-#if defined(CONFIG_40x)
-#define DBCR0_EDM	0x80000000	/* External Debug Mode */
-#define DBCR0_IDM	0x40000000	/* Internal Debug Mode */
-#define DBCR0_RST	0x30000000	/* all the bits in the RST field */
-#define DBCR0_RST_SYSTEM 0x30000000	/* System Reset */
-#define DBCR0_RST_CHIP	0x20000000	/* Chip Reset */
-#define DBCR0_RST_CORE	0x10000000	/* Core Reset */
-#define DBCR0_RST_NONE	0x00000000	/* No Reset */
-#define DBCR0_IC	0x08000000	/* Instruction Completion */
-#define DBCR0_ICMP	DBCR0_IC
-#define DBCR0_BT	0x04000000	/* Branch Taken */
-#define DBCR0_BRT	DBCR0_BT
-#define DBCR0_EDE	0x02000000	/* Exception Debug Event */
-#define DBCR0_IRPT	DBCR0_EDE
-#define DBCR0_TDE	0x01000000	/* TRAP Debug Event */
-#define DBCR0_IA1	0x00800000	/* Instr Addr compare 1 enable */
-#define DBCR0_IAC1	DBCR0_IA1
-#define DBCR0_IA2	0x00400000	/* Instr Addr compare 2 enable */
-#define DBCR0_IAC2	DBCR0_IA2
-#define DBCR0_IA12	0x00200000	/* Instr Addr 1-2 range enable */
-#define DBCR0_IA12X	0x00100000	/* Instr Addr 1-2 range eXclusive */
-#define DBCR0_IA3	0x00080000	/* Instr Addr compare 3 enable */
-#define DBCR0_IAC3	DBCR0_IA3
-#define DBCR0_IA4	0x00040000	/* Instr Addr compare 4 enable */
-#define DBCR0_IAC4	DBCR0_IA4
-#define DBCR0_IA34	0x00020000	/* Instr Addr 3-4 range Enable */
-#define DBCR0_IA34X	0x00010000	/* Instr Addr 3-4 range eXclusive */
-#define DBCR0_IA12T	0x00008000	/* Instr Addr 1-2 range Toggle */
-#define DBCR0_IA34T	0x00004000	/* Instr Addr 3-4 range Toggle */
-#define DBCR0_FT	0x00000001	/* Freeze Timers on debug event */
-
-#define dbcr_iac_range(task)	((task)->thread.debug.dbcr0)
-#define DBCR_IAC12I	DBCR0_IA12			/* Range Inclusive */
-#define DBCR_IAC12X	(DBCR0_IA12 | DBCR0_IA12X)	/* Range Exclusive */
-#define DBCR_IAC12MODE	(DBCR0_IA12 | DBCR0_IA12X)	/* IAC 1-2 Mode Bits */
-#define DBCR_IAC34I	DBCR0_IA34			/* Range Inclusive */
-#define DBCR_IAC34X	(DBCR0_IA34 | DBCR0_IA34X)	/* Range Exclusive */
-#define DBCR_IAC34MODE	(DBCR0_IA34 | DBCR0_IA34X)	/* IAC 3-4 Mode Bits */
-
-/* Bit definitions related to the DBCR1. */
-#define DBCR1_DAC1R	0x80000000	/* DAC1 Read Debug Event */
-#define DBCR1_DAC2R	0x40000000	/* DAC2 Read Debug Event */
-#define DBCR1_DAC1W	0x20000000	/* DAC1 Write Debug Event */
-#define DBCR1_DAC2W	0x10000000	/* DAC2 Write Debug Event */
-
-#define dbcr_dac(task)	((task)->thread.debug.dbcr1)
-#define DBCR_DAC1R	DBCR1_DAC1R
-#define DBCR_DAC1W	DBCR1_DAC1W
-#define DBCR_DAC2R	DBCR1_DAC2R
-#define DBCR_DAC2W	DBCR1_DAC2W
-
-/*
- * Are there any active Debug Events represented in the
- * Debug Control Registers?
- */
-#define DBCR0_ACTIVE_EVENTS	(DBCR0_ICMP | DBCR0_IAC1 | DBCR0_IAC2 | \
-				 DBCR0_IAC3 | DBCR0_IAC4)
-#define DBCR1_ACTIVE_EVENTS	(DBCR1_DAC1R | DBCR1_DAC2R | \
-				 DBCR1_DAC1W | DBCR1_DAC2W)
-#define DBCR_ACTIVE_EVENTS(dbcr0, dbcr1)  (((dbcr0) & DBCR0_ACTIVE_EVENTS) || \
-					   ((dbcr1) & DBCR1_ACTIVE_EVENTS))
-
-#elif defined(CONFIG_BOOKE)
 #define DBCR0_EDM	0x80000000	/* External Debug Mode */
 #define DBCR0_IDM	0x40000000	/* Internal Debug Mode */
 #define DBCR0_RST	0x30000000	/* all the bits in the RST field */
@@ -518,7 +410,6 @@
 
 #define DBCR_ACTIVE_EVENTS(dbcr0, dbcr1)  (((dbcr0) & DBCR0_ACTIVE_EVENTS) || \
 					   ((dbcr1) & DBCR1_ACTIVE_EVENTS))
-#endif /* #elif defined(CONFIG_BOOKE) */
 
 /* Bit definitions related to the TCR. */
 #define TCR_WP(x)	(((x)&0x3)<<30)	/* WDT Period */

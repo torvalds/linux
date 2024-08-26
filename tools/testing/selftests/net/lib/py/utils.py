@@ -1,10 +1,16 @@
 # SPDX-License-Identifier: GPL-2.0
 
+import errno
 import json as _json
 import random
 import re
+import socket
 import subprocess
 import time
+
+
+class CmdExitFailure(Exception):
+    pass
 
 
 class cmd:
@@ -41,8 +47,8 @@ class cmd:
         if self.proc.returncode != 0 and fail:
             if len(stderr) > 0 and stderr[-1] == "\n":
                 stderr = stderr[:-1]
-            raise Exception("Command failed: %s\nSTDOUT: %s\nSTDERR: %s" %
-                            (self.proc.args, stdout, stderr))
+            raise CmdExitFailure("Command failed: %s\nSTDOUT: %s\nSTDERR: %s" %
+                                 (self.proc.args, stdout, stderr))
 
 
 class bkg(cmd):
@@ -58,6 +64,40 @@ class bkg(cmd):
 
     def __exit__(self, ex_type, ex_value, ex_tb):
         return self.process(terminate=self.terminate, fail=self.check_fail)
+
+
+global_defer_queue = []
+
+
+class defer:
+    def __init__(self, func, *args, **kwargs):
+        global global_defer_queue
+
+        if not callable(func):
+            raise Exception("defer created with un-callable object, did you call the function instead of passing its name?")
+
+        self.func = func
+        self.args = args
+        self.kwargs = kwargs
+
+        self._queue =  global_defer_queue
+        self._queue.append(self)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, ex_type, ex_value, ex_tb):
+        return self.exec()
+
+    def exec_only(self):
+        self.func(*self.args, **self.kwargs)
+
+    def cancel(self):
+        self._queue.remove(self)
+
+    def exec(self):
+        self.cancel()
+        self.exec_only()
 
 
 def tool(name, args, json=None, ns=None, host=None):
@@ -77,11 +117,24 @@ def ip(args, json=None, ns=None, host=None):
     return tool('ip', args, json=json, host=host)
 
 
+def ethtool(args, json=None, ns=None, host=None):
+    return tool('ethtool', args, json=json, ns=ns, host=host)
+
+
 def rand_port():
     """
-    Get unprivileged port, for now just random, one day we may decide to check if used.
+    Get a random unprivileged port, try to make sure it's not already used.
     """
-    return random.randint(10000, 65535)
+    for _ in range(1000):
+        port = random.randint(10000, 65535)
+        try:
+            with socket.socket(socket.AF_INET6, socket.SOCK_STREAM) as s:
+                s.bind(("", port))
+            return port
+        except OSError as e:
+            if e.errno != errno.EADDRINUSE:
+                raise
+    raise Exception("Can't find any free unprivileged port")
 
 
 def wait_port_listen(port, proto="tcp", ns=None, host=None, sleep=0.005, deadline=5):

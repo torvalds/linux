@@ -25,11 +25,8 @@
  *
  */
 
-#include "display/intel_de.h"
+#include "display/i9xx_plane_regs.h"
 #include "display/intel_display.h"
-#include "display/intel_display_trace.h"
-#include "display/intel_fbc_regs.h"
-#include "display/skl_watermark.h"
 
 #include "gt/intel_engine_regs.h"
 #include "gt/intel_gt.h"
@@ -137,10 +134,13 @@ static void g4x_disable_trickle_feed(struct drm_i915_private *dev_priv)
 	enum pipe pipe;
 
 	for_each_pipe(dev_priv, pipe) {
-		intel_uncore_rmw(&dev_priv->uncore, DSPCNTR(pipe), 0, DISP_TRICKLE_FEED_DISABLE);
+		intel_uncore_rmw(&dev_priv->uncore, DSPCNTR(dev_priv, pipe),
+				 0, DISP_TRICKLE_FEED_DISABLE);
 
-		intel_uncore_rmw(&dev_priv->uncore, DSPSURF(pipe), 0, 0);
-		intel_uncore_posting_read(&dev_priv->uncore, DSPSURF(pipe));
+		intel_uncore_rmw(&dev_priv->uncore, DSPSURF(dev_priv, pipe),
+				 0, 0);
+		intel_uncore_posting_read(&dev_priv->uncore,
+					  DSPSURF(dev_priv, pipe));
 	}
 }
 

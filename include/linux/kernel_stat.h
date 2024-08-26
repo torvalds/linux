@@ -5,7 +5,6 @@
 #include <linux/smp.h>
 #include <linux/threads.h>
 #include <linux/percpu.h>
-#include <linux/cpumask.h>
 #include <linux/interrupt.h>
 #include <linux/sched.h>
 #include <linux/vtime.h>

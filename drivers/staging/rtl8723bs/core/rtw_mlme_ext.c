@@ -979,7 +979,7 @@ unsigned int OnAssocReq(struct adapter *padapter, union recv_frame *precv_frame)
 	left = pkt_len - (sizeof(struct ieee80211_hdr_3addr) + ie_offset);
 	pos = pframe + (sizeof(struct ieee80211_hdr_3addr) + ie_offset);
 
-	/*  check if this stat has been successfully authenticated/assocated */
+	/*  check if this stat has been successfully authenticated/associated */
 	if (!((pstat->state) & WIFI_FW_AUTH_SUCCESS)) {
 		if (!((pstat->state) & WIFI_FW_ASSOC_SUCCESS)) {
 			status = WLAN_REASON_CLASS2_FRAME_FROM_NONAUTH_STA;

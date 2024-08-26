@@ -61,7 +61,6 @@
 	NFSERR_NOSPC = 28,		/* v2 v3 v4 */
 	NFSERR_ROFS = 30,		/* v2 v3 v4 */
 	NFSERR_MLINK = 31,		/*    v3 v4 */
-	NFSERR_OPNOTSUPP = 45,		/* v2 v3 */
 	NFSERR_NAMETOOLONG = 63,	/* v2 v3 v4 */
 	NFSERR_NOTEMPTY = 66,		/* v2 v3 v4 */
 	NFSERR_DQUOT = 69,		/* v2 v3 v4 */

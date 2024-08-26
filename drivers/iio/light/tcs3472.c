@@ -599,7 +599,7 @@ static DEFINE_SIMPLE_DEV_PM_OPS(tcs3472_pm_ops, tcs3472_suspend,
 				tcs3472_resume);
 
 static const struct i2c_device_id tcs3472_id[] = {
-	{ "tcs3472", 0 },
+	{ "tcs3472" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, tcs3472_id);

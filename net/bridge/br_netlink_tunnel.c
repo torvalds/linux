@@ -315,8 +315,8 @@ int br_process_vlan_tunnel_info(const struct net_bridge *br,
 
 			if (curr_change)
 				*changed = curr_change;
-			 __vlan_tunnel_handle_range(p, &v_start, &v_end, v,
-						    curr_change);
+			__vlan_tunnel_handle_range(p, &v_start, &v_end, v,
+						   curr_change);
 		}
 		if (v_start && v_end)
 			br_vlan_notify(br, p, v_start->vid, v_end->vid,

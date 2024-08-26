@@ -357,8 +357,8 @@ static int iproc_adc_enable(struct iio_dev *indio_dev)
 	int ret;
 
 	/* Set i_amux = 3b'000, select channel 0 */
-	ret = regmap_update_bits(adc_priv->regmap, IPROC_ANALOG_CONTROL,
-				IPROC_ADC_CHANNEL_SEL_MASK, 0);
+	ret = regmap_clear_bits(adc_priv->regmap, IPROC_ANALOG_CONTROL,
+				IPROC_ADC_CHANNEL_SEL_MASK);
 	if (ret) {
 		dev_err(&indio_dev->dev,
 			"failed to write IPROC_ANALOG_CONTROL %d\n", ret);
@@ -543,8 +543,8 @@ static int iproc_adc_probe(struct platform_device *pdev)
 	if (adc_priv->irqno < 0)
 		return adc_priv->irqno;
 
-	ret = regmap_update_bits(adc_priv->regmap, IPROC_REGCTL2,
-				IPROC_ADC_AUXIN_SCAN_ENA, 0);
+	ret = regmap_clear_bits(adc_priv->regmap, IPROC_REGCTL2,
+				IPROC_ADC_AUXIN_SCAN_ENA);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to write IPROC_REGCTL2 %d\n", ret);
 		return ret;

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 /*
  * Copyright (c) 2018-2019 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 #include <linux/rtnetlink.h>
 
@@ -49,7 +49,6 @@ ath11k_reg_notifier(struct wiphy *wiphy, struct regulatory_request *request)
 {
 	struct ieee80211_hw *hw = wiphy_to_ieee80211_hw(wiphy);
 	struct wmi_init_country_params init_country_param;
-	struct wmi_set_current_country_params set_current_param = {};
 	struct ath11k *ar = hw->priv;
 	int ret;
 
@@ -83,9 +82,8 @@ ath11k_reg_notifier(struct wiphy *wiphy, struct regulatory_request *request)
 	 * reg info
 	 */
 	if (ar->ab->hw_params.current_cc_support) {
-		memcpy(&set_current_param.alpha2, request->alpha2, 2);
-		memcpy(&ar->alpha2, &set_current_param.alpha2, 2);
-		ret = ath11k_wmi_send_set_current_country_cmd(ar, &set_current_param);
+		memcpy(&ar->alpha2, request->alpha2, 2);
+		ret = ath11k_reg_set_cc(ar);
 		if (ret)
 			ath11k_warn(ar->ab,
 				    "failed set current country code: %d\n", ret);
@@ -878,7 +876,7 @@ int ath11k_reg_handle_chan_list(struct ath11k_base *ab,
 		ath11k_reg_reset_info(reg_info);
 
 		if (ab->hw_params.single_pdev_only &&
-		    pdev_idx < ab->hw_params.num_rxmda_per_pdev)
+		    pdev_idx < ab->hw_params.num_rxdma_per_pdev)
 			return 0;
 		goto fallback;
 	}
@@ -1016,4 +1014,12 @@ void ath11k_reg_free(struct ath11k_base *ab)
 		kfree(ab->default_regd[i]);
 		kfree(ab->new_regd[i]);
 	}
+}
+
+int ath11k_reg_set_cc(struct ath11k *ar)
+{
+	struct wmi_set_current_country_params set_current_param = {};
+
+	memcpy(&set_current_param.alpha2, ar->alpha2, 2);
+	return ath11k_wmi_send_set_current_country_cmd(ar, &set_current_param);
 }

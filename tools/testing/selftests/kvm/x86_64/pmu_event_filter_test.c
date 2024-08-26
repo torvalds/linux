@@ -9,9 +9,6 @@
  * Verifies the expected behavior of allow lists and deny lists for
  * virtual PMU events.
  */
-
-#define _GNU_SOURCE /* for program_invocation_short_name */
-
 #include "kvm_util.h"
 #include "pmu.h"
 #include "processor.h"
@@ -35,8 +32,8 @@ struct __kvm_pmu_event_filter {
 
 /*
  * This event list comprises Intel's known architectural events, plus AMD's
- * "retired branch instructions" for Zen1-Zen3 (and* possibly other AMD CPUs).
- * Note, AMD and Intel use the same encoding for instructions retired.
+ * Branch Instructions Retired for Zen CPUs.  Note, AMD and Intel use the
+ * same encoding for Instructions Retired.
  */
 kvm_static_assert(INTEL_ARCH_INSTRUCTIONS_RETIRED == AMD_ZEN_INSTRUCTIONS_RETIRED);
 
@@ -337,9 +334,6 @@ static void test_pmu_config_disable(void (*guest_code)(void))
 	vm_enable_cap(vm, KVM_CAP_PMU_CAPABILITY, KVM_PMU_CAP_DISABLE);
 
 	vcpu = vm_vcpu_add(vm, 0, guest_code);
-	vm_init_descriptor_tables(vm);
-	vcpu_init_descriptor_tables(vcpu);
-
 	TEST_ASSERT(!sanity_check_pmu(vcpu),
 		    "Guest should not be able to use disabled PMU.");
 
@@ -359,38 +353,13 @@ static bool use_intel_pmu(void)
 	       kvm_pmu_has(X86_PMU_FEATURE_BRANCH_INSNS_RETIRED);
 }
 
-static bool is_zen1(uint32_t family, uint32_t model)
-{
-	return family == 0x17 && model <= 0x0f;
-}
-
-static bool is_zen2(uint32_t family, uint32_t model)
-{
-	return family == 0x17 && model >= 0x30 && model <= 0x3f;
-}
-
-static bool is_zen3(uint32_t family, uint32_t model)
-{
-	return family == 0x19 && model <= 0x0f;
-}
-
 /*
- * Determining AMD support for a PMU event requires consulting the AMD
- * PPR for the CPU or reference material derived therefrom. The AMD
- * test code herein has been verified to work on Zen1, Zen2, and Zen3.
- *
- * Feel free to add more AMD CPUs that are documented to support event
- * select 0xc2 umask 0 as "retired branch instructions."
+ * On AMD, all Family 17h+ CPUs (Zen and its successors) use event encoding
+ * 0xc2,0 for Branch Instructions Retired.
  */
 static bool use_amd_pmu(void)
 {
-	uint32_t family = kvm_cpu_family();
-	uint32_t model = kvm_cpu_model();
-
-	return host_cpu_is_amd &&
-		(is_zen1(family, model) ||
-		 is_zen2(family, model) ||
-		 is_zen3(family, model));
+	return host_cpu_is_amd && kvm_cpu_family() >= 0x17;
 }
 
 /*
@@ -875,9 +844,6 @@ int main(int argc, char *argv[])
 	guest_code = use_intel_pmu() ? intel_guest_code : amd_guest_code;
 
 	vm = vm_create_with_one_vcpu(&vcpu, guest_code);
-
-	vm_init_descriptor_tables(vm);
-	vcpu_init_descriptor_tables(vcpu);
 
 	TEST_REQUIRE(sanity_check_pmu(vcpu));
 

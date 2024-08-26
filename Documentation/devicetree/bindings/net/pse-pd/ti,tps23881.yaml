@@ -29,12 +29,30 @@ properties:
       of the ports conversion matrix that establishes relationship between
       the logical ports and the physical channels.
     type: object
+    additionalProperties: false
+
+    properties:
+      "#address-cells":
+        const: 1
+
+      "#size-cells":
+        const: 0
 
     patternProperties:
       '^channel@[0-7]$':
         type: object
+        additionalProperties: false
+
+        properties:
+          reg:
+            maxItems: 1
+
         required:
           - reg
+
+    required:
+      - "#address-cells"
+      - "#size-cells"
 
 unevaluatedProperties: false
 

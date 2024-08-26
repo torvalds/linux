@@ -8,7 +8,7 @@
  * Copyright (C) 2023 Dmitry Baryshkov <dmitry.baryshkov@linaro.org>
  */
 
-#include <drm/drm_bridge.h>
+#include <drm/bridge/aux-bridge.h>
 #include <linux/bitfield.h>
 #include <linux/i2c.h>
 #include <linux/kernel.h>
@@ -67,8 +67,7 @@ struct ptn36502 {
 	struct typec_retimer *retimer;
 
 	struct typec_switch *typec_switch;
-
-	struct drm_bridge bridge;
+	struct typec_mux *typec_mux;
 
 	struct mutex lock; /* protect non-concurrent retimer & switch */
 
@@ -237,6 +236,7 @@ static int ptn36502_sw_set(struct typec_switch_dev *sw, enum typec_orientation o
 static int ptn36502_retimer_set(struct typec_retimer *retimer, struct typec_retimer_state *state)
 {
 	struct ptn36502 *ptn = typec_retimer_get_drvdata(retimer);
+	struct typec_mux_state mux_state;
 	int ret = 0;
 
 	mutex_lock(&ptn->lock);
@@ -254,7 +254,14 @@ static int ptn36502_retimer_set(struct typec_retimer *retimer, struct typec_reti
 
 	mutex_unlock(&ptn->lock);
 
-	return ret;
+	if (ret)
+		return ret;
+
+	mux_state.alt = state->alt;
+	mux_state.data = state->data;
+	mux_state.mode = state->mode;
+
+	return typec_mux_set(ptn->typec_mux, &mux_state);
 }
 
 static int ptn36502_detect(struct ptn36502 *ptn)
@@ -282,44 +289,6 @@ static int ptn36502_detect(struct ptn36502 *ptn)
 
 	return 0;
 }
-
-#if IS_ENABLED(CONFIG_OF) && IS_ENABLED(CONFIG_DRM_PANEL_BRIDGE)
-static int ptn36502_bridge_attach(struct drm_bridge *bridge,
-				  enum drm_bridge_attach_flags flags)
-{
-	struct ptn36502 *ptn = container_of(bridge, struct ptn36502, bridge);
-	struct drm_bridge *next_bridge;
-
-	if (!(flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR))
-		return -EINVAL;
-
-	next_bridge = devm_drm_of_get_bridge(&ptn->client->dev, ptn->client->dev.of_node, 0, 0);
-	if (IS_ERR(next_bridge)) {
-		dev_err(&ptn->client->dev, "failed to acquire drm_bridge: %pe\n", next_bridge);
-		return PTR_ERR(next_bridge);
-	}
-
-	return drm_bridge_attach(bridge->encoder, next_bridge, bridge,
-				 DRM_BRIDGE_ATTACH_NO_CONNECTOR);
-}
-
-static const struct drm_bridge_funcs ptn36502_bridge_funcs = {
-	.attach	= ptn36502_bridge_attach,
-};
-
-static int ptn36502_register_bridge(struct ptn36502 *ptn)
-{
-	ptn->bridge.funcs = &ptn36502_bridge_funcs;
-	ptn->bridge.of_node = ptn->client->dev.of_node;
-
-	return devm_drm_bridge_add(&ptn->client->dev, &ptn->bridge);
-}
-#else
-static int ptn36502_register_bridge(struct ptn36502 *ptn)
-{
-	return 0;
-}
-#endif
 
 static const struct regmap_config ptn36502_regmap = {
 	.max_register = 0x0d,
@@ -361,15 +330,24 @@ static int ptn36502_probe(struct i2c_client *client)
 		return dev_err_probe(dev, PTR_ERR(ptn->typec_switch),
 				     "Failed to acquire orientation-switch\n");
 
+	ptn->typec_mux = fwnode_typec_mux_get(dev->fwnode);
+	if (IS_ERR(ptn->typec_mux)) {
+		ret = dev_err_probe(dev, PTR_ERR(ptn->typec_mux),
+				    "Failed to acquire mode-switch\n");
+		goto err_switch_put;
+	}
+
 	ret = regulator_enable(ptn->vdd18_supply);
-	if (ret)
-		return dev_err_probe(dev, ret, "Failed to enable vdd18\n");
+	if (ret) {
+		ret = dev_err_probe(dev, ret, "Failed to enable vdd18\n");
+		goto err_mux_put;
+	}
 
 	ret = ptn36502_detect(ptn);
 	if (ret)
 		goto err_disable_regulator;
 
-	ret = ptn36502_register_bridge(ptn);
+	ret = drm_aux_bridge_register(dev);
 	if (ret)
 		goto err_disable_regulator;
 
@@ -403,6 +381,12 @@ err_switch_unregister:
 err_disable_regulator:
 	regulator_disable(ptn->vdd18_supply);
 
+err_mux_put:
+	typec_mux_put(ptn->typec_mux);
+
+err_switch_put:
+	typec_switch_put(ptn->typec_switch);
+
 	return ret;
 }
 
@@ -414,6 +398,9 @@ static void ptn36502_remove(struct i2c_client *client)
 	typec_switch_unregister(ptn->sw);
 
 	regulator_disable(ptn->vdd18_supply);
+
+	typec_mux_put(ptn->typec_mux);
+	typec_switch_put(ptn->typec_switch);
 }
 
 static const struct i2c_device_id ptn36502_table[] = {

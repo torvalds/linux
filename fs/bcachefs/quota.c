@@ -20,7 +20,7 @@ static const char * const bch2_quota_counters[] = {
 };
 
 static int bch2_sb_quota_validate(struct bch_sb *sb, struct bch_sb_field *f,
-				  struct printbuf *err)
+				  enum bch_validate_flags flags, struct printbuf *err)
 {
 	struct bch_sb_field_quota *q = field_to_type(f, quota);
 
@@ -60,8 +60,7 @@ const struct bch_sb_field_ops bch_sb_field_ops_quota = {
 };
 
 int bch2_quota_invalid(struct bch_fs *c, struct bkey_s_c k,
-		       enum bkey_invalid_flags flags,
-		       struct printbuf *err)
+		       enum bch_validate_flags flags, struct printbuf *err)
 {
 	int ret = 0;
 
@@ -97,45 +96,14 @@ static void qc_info_to_text(struct printbuf *out, struct qc_info *i)
 	printbuf_tabstops_reset(out);
 	printbuf_tabstop_push(out, 20);
 
-	prt_str(out, "i_fieldmask");
-	prt_tab(out);
-	prt_printf(out, "%x", i->i_fieldmask);
-	prt_newline(out);
-
-	prt_str(out, "i_flags");
-	prt_tab(out);
-	prt_printf(out, "%u", i->i_flags);
-	prt_newline(out);
-
-	prt_str(out, "i_spc_timelimit");
-	prt_tab(out);
-	prt_printf(out, "%u", i->i_spc_timelimit);
-	prt_newline(out);
-
-	prt_str(out, "i_ino_timelimit");
-	prt_tab(out);
-	prt_printf(out, "%u", i->i_ino_timelimit);
-	prt_newline(out);
-
-	prt_str(out, "i_rt_spc_timelimit");
-	prt_tab(out);
-	prt_printf(out, "%u", i->i_rt_spc_timelimit);
-	prt_newline(out);
-
-	prt_str(out, "i_spc_warnlimit");
-	prt_tab(out);
-	prt_printf(out, "%u", i->i_spc_warnlimit);
-	prt_newline(out);
-
-	prt_str(out, "i_ino_warnlimit");
-	prt_tab(out);
-	prt_printf(out, "%u", i->i_ino_warnlimit);
-	prt_newline(out);
-
-	prt_str(out, "i_rt_spc_warnlimit");
-	prt_tab(out);
-	prt_printf(out, "%u", i->i_rt_spc_warnlimit);
-	prt_newline(out);
+	prt_printf(out, "i_fieldmask\t%x\n",		i->i_fieldmask);
+	prt_printf(out, "i_flags\t%u\n",		i->i_flags);
+	prt_printf(out, "i_spc_timelimit\t%u\n",	i->i_spc_timelimit);
+	prt_printf(out, "i_ino_timelimit\t%u\n",	i->i_ino_timelimit);
+	prt_printf(out, "i_rt_spc_timelimit\t%u\n",	i->i_rt_spc_timelimit);
+	prt_printf(out, "i_spc_warnlimit\t%u\n",	i->i_spc_warnlimit);
+	prt_printf(out, "i_ino_warnlimit\t%u\n",	i->i_ino_warnlimit);
+	prt_printf(out, "i_rt_spc_warnlimit\t%u\n",	i->i_rt_spc_warnlimit);
 }
 
 static void qc_dqblk_to_text(struct printbuf *out, struct qc_dqblk *q)
@@ -143,60 +111,17 @@ static void qc_dqblk_to_text(struct printbuf *out, struct qc_dqblk *q)
 	printbuf_tabstops_reset(out);
 	printbuf_tabstop_push(out, 20);
 
-	prt_str(out, "d_fieldmask");
-	prt_tab(out);
-	prt_printf(out, "%x", q->d_fieldmask);
-	prt_newline(out);
-
-	prt_str(out, "d_spc_hardlimit");
-	prt_tab(out);
-	prt_printf(out, "%llu", q->d_spc_hardlimit);
-	prt_newline(out);
-
-	prt_str(out, "d_spc_softlimit");
-	prt_tab(out);
-	prt_printf(out, "%llu", q->d_spc_softlimit);
-	prt_newline(out);
-
-	prt_str(out, "d_ino_hardlimit");
-	prt_tab(out);
-	prt_printf(out, "%llu", q->d_ino_hardlimit);
-	prt_newline(out);
-
-	prt_str(out, "d_ino_softlimit");
-	prt_tab(out);
-	prt_printf(out, "%llu", q->d_ino_softlimit);
-	prt_newline(out);
-
-	prt_str(out, "d_space");
-	prt_tab(out);
-	prt_printf(out, "%llu", q->d_space);
-	prt_newline(out);
-
-	prt_str(out, "d_ino_count");
-	prt_tab(out);
-	prt_printf(out, "%llu", q->d_ino_count);
-	prt_newline(out);
-
-	prt_str(out, "d_ino_timer");
-	prt_tab(out);
-	prt_printf(out, "%llu", q->d_ino_timer);
-	prt_newline(out);
-
-	prt_str(out, "d_spc_timer");
-	prt_tab(out);
-	prt_printf(out, "%llu", q->d_spc_timer);
-	prt_newline(out);
-
-	prt_str(out, "d_ino_warns");
-	prt_tab(out);
-	prt_printf(out, "%i", q->d_ino_warns);
-	prt_newline(out);
-
-	prt_str(out, "d_spc_warns");
-	prt_tab(out);
-	prt_printf(out, "%i", q->d_spc_warns);
-	prt_newline(out);
+	prt_printf(out, "d_fieldmask\t%x\n",		q->d_fieldmask);
+	prt_printf(out, "d_spc_hardlimit\t%llu\n",	q->d_spc_hardlimit);
+	prt_printf(out, "d_spc_softlimit\t%llu\n",	q->d_spc_softlimit);
+	prt_printf(out, "d_ino_hardlimit\%llu\n",	q->d_ino_hardlimit);
+	prt_printf(out, "d_ino_softlimit\t%llu\n",	q->d_ino_softlimit);
+	prt_printf(out, "d_space\t%llu\n",		q->d_space);
+	prt_printf(out, "d_ino_count\t%llu\n",		q->d_ino_count);
+	prt_printf(out, "d_ino_timer\t%llu\n",		q->d_ino_timer);
+	prt_printf(out, "d_spc_timer\t%llu\n",		q->d_spc_timer);
+	prt_printf(out, "d_ino_warns\t%i\n",		q->d_ino_warns);
+	prt_printf(out, "d_spc_warns\t%i\n",		q->d_spc_warns);
 }
 
 static inline unsigned __next_qtype(unsigned i, unsigned qtypes)
@@ -610,10 +535,10 @@ int bch2_fs_quota_read(struct bch_fs *c)
 
 	int ret = bch2_trans_run(c,
 		for_each_btree_key(trans, iter, BTREE_ID_quotas, POS_MIN,
-				   BTREE_ITER_PREFETCH, k,
+				   BTREE_ITER_prefetch, k,
 			__bch2_quota_set(c, k, NULL)) ?:
 		for_each_btree_key(trans, iter, BTREE_ID_inodes, POS_MIN,
-				   BTREE_ITER_PREFETCH|BTREE_ITER_ALL_SNAPSHOTS, k,
+				   BTREE_ITER_prefetch|BTREE_ITER_all_snapshots, k,
 			bch2_fs_quota_read_inode(trans, &iter, k)));
 	bch_err_fn(c, ret);
 	return ret;
@@ -900,7 +825,7 @@ static int bch2_set_quota_trans(struct btree_trans *trans,
 	int ret;
 
 	k = bch2_bkey_get_iter(trans, &iter, BTREE_ID_quotas, new_quota->k.p,
-			       BTREE_ITER_SLOTS|BTREE_ITER_INTENT);
+			       BTREE_ITER_slots|BTREE_ITER_intent);
 	ret = bkey_err(k);
 	if (unlikely(ret))
 		return ret;

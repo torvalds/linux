@@ -37,6 +37,10 @@ struct iio_dev;
  * @append_status: Will be called to enable status append at the end of the sample, may be NULL.
  * @set_mode: Will be called to select the current mode, may be NULL.
  * @disable_all: Will be called to disable all channels, may be NULL.
+ * @disable_one: Will be called to disable a single channel after
+ *		ad_sigma_delta_single_conversion(), may be NULL.
+ *		Usage of this callback expects iio_chan_spec.address to contain
+ *		the value required for the driver to identify the channel.
  * @postprocess_sample: Is called for each sampled data word, can be used to
  *		modify or drop the sample data, it, may be NULL.
  * @has_registers: true if the device has writable and readable registers, false
@@ -48,12 +52,14 @@ struct iio_dev;
  *   be used.
  * @irq_flags: flags for the interrupt used by the triggered buffer
  * @num_slots: Number of sequencer slots
+ * @irq_line: IRQ for reading conversions. If 0, spi->irq will be used
  */
 struct ad_sigma_delta_info {
 	int (*set_channel)(struct ad_sigma_delta *, unsigned int channel);
 	int (*append_status)(struct ad_sigma_delta *, bool append);
 	int (*set_mode)(struct ad_sigma_delta *, enum ad_sigma_delta_mode mode);
 	int (*disable_all)(struct ad_sigma_delta *);
+	int (*disable_one)(struct ad_sigma_delta *, unsigned int chan);
 	int (*postprocess_sample)(struct ad_sigma_delta *, unsigned int raw_sample);
 	bool has_registers;
 	unsigned int addr_shift;
@@ -62,6 +68,7 @@ struct ad_sigma_delta_info {
 	unsigned int data_reg;
 	unsigned long irq_flags;
 	unsigned int num_slots;
+	int irq_line;
 };
 
 /**
@@ -89,6 +96,7 @@ struct ad_sigma_delta {
 	unsigned int		active_slots;
 	unsigned int		current_slot;
 	unsigned int		num_slots;
+	int		irq_line;
 	bool			status_appended;
 	/* map slots to channels in order to know what to expect from devices */
 	unsigned int		*slots;
@@ -133,6 +141,15 @@ static inline int ad_sigma_delta_disable_all(struct ad_sigma_delta *sd)
 {
 	if (sd->info->disable_all)
 		return sd->info->disable_all(sd);
+
+	return 0;
+}
+
+static inline int ad_sigma_delta_disable_one(struct ad_sigma_delta *sd,
+					     unsigned int chan)
+{
+	if (sd->info->disable_one)
+		return sd->info->disable_one(sd, chan);
 
 	return 0;
 }

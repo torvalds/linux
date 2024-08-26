@@ -106,6 +106,12 @@ static struct gmin_cfg_var lenovo_ideapad_miix_310_vars[] = {
 	{}
 };
 
+static struct gmin_cfg_var xiaomi_mipad2_vars[] = {
+	/* _DSM contains the wrong CsiPort for the front facing OV5693 sensor */
+	{ "INT33BE:00", "CsiPort", "0" },
+	{}
+};
+
 static const struct dmi_system_id gmin_cfg_dmi_overrides[] = {
 	{
 		/* Lenovo Ideapad Miix 310 */
@@ -114,6 +120,14 @@ static const struct dmi_system_id gmin_cfg_dmi_overrides[] = {
 			DMI_MATCH(DMI_PRODUCT_VERSION, "MIIX 310-10"),
 		},
 		.driver_data = lenovo_ideapad_miix_310_vars,
+	},
+	{
+		/* Xiaomi Mipad2 */
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Xiaomi Inc"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Mipad2"),
+		},
+		.driver_data = xiaomi_mipad2_vars,
 	},
 	{}
 };

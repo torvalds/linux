@@ -76,5 +76,8 @@
 
 extern unsigned short ip22_eeprom_read(unsigned int *ctrl, int reg);
 extern unsigned short ip22_nvram_read(int reg);
+extern void ip22_be_interrupt(int irq);
+extern void ip22_be_init(void) __init;
+extern void indy_8254timer_irq(void);
 
 #endif

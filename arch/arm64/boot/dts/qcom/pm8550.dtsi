@@ -10,7 +10,6 @@
 	thermal-zones {
 		pm8550-thermal {
 			polling-delay-passive = <100>;
-			polling-delay = <0>;
 
 			thermal-sensors = <&pm8550_temp_alarm>;
 

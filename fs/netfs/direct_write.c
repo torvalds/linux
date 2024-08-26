@@ -12,7 +12,7 @@
 static void netfs_cleanup_dio_write(struct netfs_io_request *wreq)
 {
 	struct inode *inode = wreq->inode;
-	unsigned long long end = wreq->start + wreq->len;
+	unsigned long long end = wreq->start + wreq->transferred;
 
 	if (!wreq->error &&
 	    i_size_read(inode) < end) {
@@ -27,7 +27,7 @@ static void netfs_cleanup_dio_write(struct netfs_io_request *wreq)
  * Perform an unbuffered write where we may have to do an RMW operation on an
  * encrypted file.  This can also be used for direct I/O writes.
  */
-static ssize_t netfs_unbuffered_write_iter_locked(struct kiocb *iocb, struct iov_iter *iter,
+ssize_t netfs_unbuffered_write_iter_locked(struct kiocb *iocb, struct iov_iter *iter,
 						  struct netfs_group *netfs_group)
 {
 	struct netfs_io_request *wreq;
@@ -37,7 +37,7 @@ static ssize_t netfs_unbuffered_write_iter_locked(struct kiocb *iocb, struct iov
 	size_t len = iov_iter_count(iter);
 	bool async = !is_sync_kiocb(iocb);
 
-	_enter("");
+	kenter("");
 
 	/* We're going to need a bounce buffer if what we transmit is going to
 	 * be different in some way to the source buffer, e.g. because it gets
@@ -45,7 +45,7 @@ static ssize_t netfs_unbuffered_write_iter_locked(struct kiocb *iocb, struct iov
 	 */
 	// TODO
 
-	_debug("uw %llx-%llx", start, end);
+	kdebug("uw %llx-%llx", start, end);
 
 	wreq = netfs_create_write_req(iocb->ki_filp->f_mapping, iocb->ki_filp, start,
 				      iocb->ki_flags & IOCB_DIRECT ?
@@ -92,10 +92,11 @@ static ssize_t netfs_unbuffered_write_iter_locked(struct kiocb *iocb, struct iov
 	__set_bit(NETFS_RREQ_UPLOAD_TO_SERVER, &wreq->flags);
 	if (async)
 		wreq->iocb = iocb;
+	wreq->len = iov_iter_count(&wreq->io_iter);
 	wreq->cleanup = netfs_cleanup_dio_write;
-	ret = netfs_unbuffered_write(wreq, is_sync_kiocb(iocb), iov_iter_count(&wreq->io_iter));
+	ret = netfs_unbuffered_write(wreq, is_sync_kiocb(iocb), wreq->len);
 	if (ret < 0) {
-		_debug("begin = %zd", ret);
+		kdebug("begin = %zd", ret);
 		goto out;
 	}
 
@@ -117,6 +118,7 @@ out:
 	netfs_put_request(wreq, false, netfs_rreq_trace_put_return);
 	return ret;
 }
+EXPORT_SYMBOL(netfs_unbuffered_write_iter_locked);
 
 /**
  * netfs_unbuffered_write_iter - Unbuffered write to a file
@@ -141,7 +143,7 @@ ssize_t netfs_unbuffered_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	loff_t pos = iocb->ki_pos;
 	unsigned long long end = pos + iov_iter_count(from) - 1;
 
-	_enter("%llx,%zx,%llx", pos, iov_iter_count(from), i_size_read(inode));
+	kenter("%llx,%zx,%llx", pos, iov_iter_count(from), i_size_read(inode));
 
 	if (!iov_iter_count(from))
 		return 0;

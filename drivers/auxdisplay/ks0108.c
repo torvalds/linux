@@ -162,7 +162,6 @@ static struct parport_driver ks0108_parport_driver = {
 	.name = "ks0108",
 	.match_port = ks0108_parport_attach,
 	.detach = ks0108_parport_detach,
-	.devmodel = true,
 };
 module_parport_driver(ks0108_parport_driver);
 

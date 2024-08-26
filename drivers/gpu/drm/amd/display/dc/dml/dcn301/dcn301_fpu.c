@@ -320,7 +320,7 @@ static void calculate_wm_set_for_vlevel(int vlevel,
 
 }
 
-void dcn301_update_bw_bounding_box(struct dc *dc, struct clk_bw_params *bw_params)
+void dcn301_fpu_update_bw_bounding_box(struct dc *dc, struct clk_bw_params *bw_params)
 {
 	struct _vcs_dpi_voltage_scaling_st *s = dc->scratch.update_bw_bounding_box.clock_limits;
 	struct dcn301_resource_pool *pool = TO_DCN301_RES_POOL(dc->res_pool);
@@ -409,7 +409,7 @@ void dcn301_fpu_init_soc_bounding_box(struct bp_soc_bb_info bb_info)
 		dcn3_01_soc.sr_exit_time_us = bb_info.dram_sr_exit_latency_100ns * 10;
 }
 
-void dcn301_calculate_wm_and_dlg_fp(struct dc *dc,
+void dcn301_fpu_calculate_wm_and_dlg(struct dc *dc,
 		struct dc_state *context,
 		display_e2e_pipe_params_st *pipes,
 		int pipe_cnt,

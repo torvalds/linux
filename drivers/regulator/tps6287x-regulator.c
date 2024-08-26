@@ -115,6 +115,7 @@ static struct regulator_desc tps6287x_reg = {
 	.vsel_mask = 0xFF,
 	.vsel_range_reg = TPS6287X_CTRL2,
 	.vsel_range_mask = TPS6287X_CTRL2_VRANGE,
+	.range_applied_by_vsel = true,
 	.ramp_reg = TPS6287X_CTRL1,
 	.ramp_mask = TPS6287X_CTRL1_VRAMP,
 	.ramp_delay_table = tps6287x_ramp_table,
@@ -164,11 +165,11 @@ static const struct of_device_id tps6287x_dt_ids[] = {
 MODULE_DEVICE_TABLE(of, tps6287x_dt_ids);
 
 static const struct i2c_device_id tps6287x_i2c_id[] = {
-	{ "tps62870", 0 },
-	{ "tps62871", 0 },
-	{ "tps62872", 0 },
-	{ "tps62873", 0 },
-	{},
+	{ "tps62870" },
+	{ "tps62871" },
+	{ "tps62872" },
+	{ "tps62873" },
+	{}
 };
 
 MODULE_DEVICE_TABLE(i2c, tps6287x_i2c_id);

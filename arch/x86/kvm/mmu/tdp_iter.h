@@ -21,11 +21,13 @@ static inline u64 kvm_tdp_mmu_read_spte(tdp_ptep_t sptep)
 
 static inline u64 kvm_tdp_mmu_write_spte_atomic(tdp_ptep_t sptep, u64 new_spte)
 {
+	KVM_MMU_WARN_ON(is_ept_ve_possible(new_spte));
 	return xchg(rcu_dereference(sptep), new_spte);
 }
 
 static inline void __kvm_tdp_mmu_write_spte(tdp_ptep_t sptep, u64 new_spte)
 {
+	KVM_MMU_WARN_ON(is_ept_ve_possible(new_spte));
 	WRITE_ONCE(*rcu_dereference(sptep), new_spte);
 }
 

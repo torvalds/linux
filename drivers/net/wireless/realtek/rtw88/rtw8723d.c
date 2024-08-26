@@ -2171,6 +2171,7 @@ const struct rtw_chip_info rtw8723d_hw_spec = {
 	.band = RTW_BAND_2G,
 	.page_size = TX_PAGE_SIZE,
 	.dig_min = 0x20,
+	.usb_tx_agg_desc_num = 1,
 	.ht_supported = true,
 	.vht_supported = false,
 	.lps_deep_mode_supported = 0,

@@ -35,6 +35,6 @@ For more details see the file COPYING in the source distribution of Linux.
 	max2175
 	npcm-video
 	omap3isp-uapi
-	st-vgxy61
 	thp7312
 	uvcvideo
+	vgxy61

@@ -620,7 +620,7 @@ enum {
  *
  * Structure used between LLDD and nvmet-fc layer to represent the exchange
  * context for a FC-NVME FCP I/O operation (e.g. a nvme sqe, the sqe-related
- * memory transfers, and its assocated cqe transfer).
+ * memory transfers, and its associated cqe transfer).
  *
  * The structure is allocated by the LLDD whenever a FCP CMD IU is received
  * from the FC link. The address of the structure is passed to the nvmet-fc
@@ -920,6 +920,9 @@ struct nvmet_fc_target_port {
  *       further references to hosthandle.
  *       Entrypoint is Mandatory if the lldd calls nvmet_fc_invalidate_host().
  *
+ * @host_traddr: called by the transport to retrieve the node name and
+ *       port name of the host port address.
+ *
  * @max_hw_queues:  indicates the maximum number of hw queues the LLDD
  *       supports for cpu affinitization.
  *       Value is Mandatory. Must be at least 1.
@@ -975,6 +978,7 @@ struct nvmet_fc_target_template {
 	void (*ls_abort)(struct nvmet_fc_target_port *targetport,
 				void *hosthandle, struct nvmefc_ls_req *lsreq);
 	void (*host_release)(void *hosthandle);
+	int (*host_traddr)(void *hosthandle, u64 *wwnn, u64 *wwpn);
 
 	u32	max_hw_queues;
 	u16	max_sgl_segments;

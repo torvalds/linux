@@ -87,6 +87,7 @@ static const struct mfd_cell cros_ec_sensorhub_cells[] = {
 };
 
 static const struct mfd_cell cros_usbpd_charger_cells[] = {
+	{ .name = "cros-charge-control", },
 	{ .name = "cros-usbpd-charger", },
 	{ .name = "cros-usbpd-logger", },
 };
@@ -97,6 +98,14 @@ static const struct mfd_cell cros_usbpd_notify_cells[] = {
 
 static const struct mfd_cell cros_ec_wdt_cells[] = {
 	{ .name = "cros-ec-wdt", }
+};
+
+static const struct mfd_cell cros_ec_led_cells[] = {
+	{ .name = "cros-ec-led", },
+};
+
+static const struct mfd_cell cros_ec_keyboard_leds_cells[] = {
+	{ .name = "cros-keyboard-leds", },
 };
 
 static const struct cros_feature_to_cells cros_subdevices[] = {
@@ -125,11 +134,22 @@ static const struct cros_feature_to_cells cros_subdevices[] = {
 		.mfd_cells	= cros_ec_wdt_cells,
 		.num_cells	= ARRAY_SIZE(cros_ec_wdt_cells),
 	},
+	{
+		.id		= EC_FEATURE_LED,
+		.mfd_cells	= cros_ec_led_cells,
+		.num_cells	= ARRAY_SIZE(cros_ec_led_cells),
+	},
+	{
+		.id		= EC_FEATURE_PWM_KEYB,
+		.mfd_cells	= cros_ec_keyboard_leds_cells,
+		.num_cells	= ARRAY_SIZE(cros_ec_keyboard_leds_cells),
+	},
 };
 
 static const struct mfd_cell cros_ec_platform_cells[] = {
 	{ .name = "cros-ec-chardev", },
 	{ .name = "cros-ec-debugfs", },
+	{ .name = "cros-ec-hwmon", },
 	{ .name = "cros-ec-sysfs", },
 };
 

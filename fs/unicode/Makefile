@@ -18,13 +18,13 @@ ifdef REGENERATE_UTF8DATA
 
 quiet_cmd_utf8data = GEN     $@
       cmd_utf8data = $< \
-		-a $(srctree)/$(src)/DerivedAge.txt \
-		-c $(srctree)/$(src)/DerivedCombiningClass.txt \
-		-p $(srctree)/$(src)/DerivedCoreProperties.txt \
-		-d $(srctree)/$(src)/UnicodeData.txt \
-		-f $(srctree)/$(src)/CaseFolding.txt \
-		-n $(srctree)/$(src)/NormalizationCorrections.txt \
-		-t $(srctree)/$(src)/NormalizationTest.txt \
+		-a $(src)/DerivedAge.txt \
+		-c $(src)/DerivedCombiningClass.txt \
+		-p $(src)/DerivedCoreProperties.txt \
+		-d $(src)/UnicodeData.txt \
+		-f $(src)/CaseFolding.txt \
+		-n $(src)/NormalizationCorrections.txt \
+		-t $(src)/NormalizationTest.txt \
 		-o $@
 
 $(obj)/utf8data.c: $(obj)/mkutf8data $(filter %.txt, $(cmd_utf8data)) FORCE

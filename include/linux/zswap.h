@@ -7,7 +7,6 @@
 
 struct lruvec;
 
-extern u64 zswap_pool_total_size;
 extern atomic_t zswap_stored_pages;
 
 #ifdef CONFIG_ZSWAP
@@ -27,6 +26,7 @@ struct zswap_lruvec_state {
 	atomic_long_t nr_zswap_protected;
 };
 
+unsigned long zswap_total_pages(void);
 bool zswap_store(struct folio *folio);
 bool zswap_load(struct folio *folio);
 void zswap_invalidate(swp_entry_t swp);
@@ -35,7 +35,8 @@ void zswap_swapoff(int type);
 void zswap_memcg_offline_cleanup(struct mem_cgroup *memcg);
 void zswap_lruvec_state_init(struct lruvec *lruvec);
 void zswap_folio_swapin(struct folio *folio);
-bool is_zswap_enabled(void);
+bool zswap_is_enabled(void);
+bool zswap_never_enabled(void);
 #else
 
 struct zswap_lruvec_state {};
@@ -60,9 +61,14 @@ static inline void zswap_memcg_offline_cleanup(struct mem_cgroup *memcg) {}
 static inline void zswap_lruvec_state_init(struct lruvec *lruvec) {}
 static inline void zswap_folio_swapin(struct folio *folio) {}
 
-static inline bool is_zswap_enabled(void)
+static inline bool zswap_is_enabled(void)
 {
 	return false;
+}
+
+static inline bool zswap_never_enabled(void)
+{
+	return true;
 }
 
 #endif

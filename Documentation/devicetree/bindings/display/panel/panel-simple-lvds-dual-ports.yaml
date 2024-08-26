@@ -41,6 +41,12 @@ properties:
       - auo,g190ean01
         # Kaohsiung Opto-Electronics Inc. 10.1" WUXGA (1920 x 1200) LVDS TFT LCD panel
       - koe,tx26d202vm0bwa
+        # Lincoln Technology Solutions, LCD185-101CT 10.1" TFT 1920x1200
+      - lincolntech,lcd185-101ct
+        # Microtips Technology MF-101HIEBCAF0 10.1" WUXGA (1920x1200) TFT LCD panel
+      - microtips,mf-101hiebcaf0
+        # Microtips Technology MF-103HIEB0GA0 10.25" 1920x720 TFT LCD panel
+      - microtips,mf-103hieb0ga0
         # NLT Technologies, Ltd. 15.6" FHD (1920x1080) LVDS TFT LCD panel
       - nlt,nl192108ac18-02d
 

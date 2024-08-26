@@ -102,24 +102,6 @@ static __always_inline void guest_cpuid_clear(struct kvm_vcpu *vcpu,
 		*reg &= ~__feature_bit(x86_feature);
 }
 
-static inline bool guest_cpuid_is_amd_or_hygon(struct kvm_vcpu *vcpu)
-{
-	struct kvm_cpuid_entry2 *best;
-
-	best = kvm_find_cpuid_entry(vcpu, 0);
-	return best &&
-	       (is_guest_vendor_amd(best->ebx, best->ecx, best->edx) ||
-		is_guest_vendor_hygon(best->ebx, best->ecx, best->edx));
-}
-
-static inline bool guest_cpuid_is_intel(struct kvm_vcpu *vcpu)
-{
-	struct kvm_cpuid_entry2 *best;
-
-	best = kvm_find_cpuid_entry(vcpu, 0);
-	return best && is_guest_vendor_intel(best->ebx, best->ecx, best->edx);
-}
-
 static inline bool guest_cpuid_is_amd_compatible(struct kvm_vcpu *vcpu)
 {
 	return vcpu->arch.is_amd_compatible;

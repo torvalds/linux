@@ -7,6 +7,7 @@
 
 / {
 	model = "Google Hayato rev1";
+	chassis-type = "convertible";
 	compatible = "google,hayato-rev1", "google,hayato", "mediatek,mt8192";
 };
 

@@ -163,4 +163,6 @@ static struct platform_driver clk_mt8365_apmixed_drv = {
 	},
 };
 builtin_platform_driver(clk_mt8365_apmixed_drv)
+
+MODULE_DESCRIPTION("MediaTek MT8365 apmixedsys clocks driver");
 MODULE_LICENSE("GPL");

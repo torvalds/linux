@@ -18,7 +18,7 @@
 static int dsp_driver;
 
 module_param(dsp_driver, int, 0444);
-MODULE_PARM_DESC(dsp_driver, "Force the DSP driver for Intel DSP (0=auto, 1=legacy, 2=SST, 3=SOF)");
+MODULE_PARM_DESC(dsp_driver, "Force the DSP driver for Intel DSP (0=auto, 1=legacy, 2=SST, 3=SOF, 4=AVS)");
 
 #define FLAG_SST			BIT(0)
 #define FLAG_SOF			BIT(1)
@@ -543,6 +543,15 @@ static const struct config_entry config_table[] = {
 		.device = PCI_DEVICE_ID_INTEL_HDA_LNL_P,
 	},
 #endif
+
+	/* Panther Lake */
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_PANTHERLAKE)
+	{
+		.flags = FLAG_SOF | FLAG_SOF_ONLY_IF_DMIC_OR_SOUNDWIRE,
+		.device = PCI_DEVICE_ID_INTEL_HDA_PTL,
+	},
+#endif
+
 };
 
 static const struct config_entry *snd_intel_dsp_find_config
@@ -668,7 +677,7 @@ int snd_intel_dsp_driver_probe(struct pci_dev *pci)
 		return SND_INTEL_DSP_DRIVER_LEGACY;
 	}
 
-	dev_info(&pci->dev, "DSP detected with PCI class/subclass/prog-if info 0x%06x\n", pci->class);
+	dev_dbg(&pci->dev, "DSP detected with PCI class/subclass/prog-if info 0x%06x\n", pci->class);
 
 	/* find the configuration for the specific device */
 	cfg = snd_intel_dsp_find_config(pci, config_table, ARRAY_SIZE(config_table));
@@ -678,12 +687,12 @@ int snd_intel_dsp_driver_probe(struct pci_dev *pci)
 	if (cfg->flags & FLAG_SOF) {
 		if (cfg->flags & FLAG_SOF_ONLY_IF_SOUNDWIRE &&
 		    snd_intel_dsp_check_soundwire(pci) > 0) {
-			dev_info(&pci->dev, "SoundWire enabled on CannonLake+ platform, using SOF driver\n");
+			dev_info_once(&pci->dev, "SoundWire enabled on CannonLake+ platform, using SOF driver\n");
 			return SND_INTEL_DSP_DRIVER_SOF;
 		}
 		if (cfg->flags & FLAG_SOF_ONLY_IF_DMIC &&
 		    snd_intel_dsp_check_dmic(pci)) {
-			dev_info(&pci->dev, "Digital mics found on Skylake+ platform, using SOF driver\n");
+			dev_info_once(&pci->dev, "Digital mics found on Skylake+ platform, using SOF driver\n");
 			return SND_INTEL_DSP_DRIVER_SOF;
 		}
 		if (!(cfg->flags & FLAG_SOF_ONLY_IF_DMIC_OR_SOUNDWIRE))
@@ -694,7 +703,7 @@ int snd_intel_dsp_driver_probe(struct pci_dev *pci)
 	if (cfg->flags & FLAG_SST) {
 		if (cfg->flags & FLAG_SST_ONLY_IF_DMIC) {
 			if (snd_intel_dsp_check_dmic(pci)) {
-				dev_info(&pci->dev, "Digital mics found on Skylake+ platform, using SST driver\n");
+				dev_info_once(&pci->dev, "Digital mics found on Skylake+ platform, using SST driver\n");
 				return SND_INTEL_DSP_DRIVER_SST;
 			}
 		} else {

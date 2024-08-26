@@ -142,8 +142,9 @@ static ssize_t cpld_ver_show(struct device *dev, struct device_attribute *attr,
 {
 	struct hl_device *hdev = dev_get_drvdata(dev);
 
-	return sprintf(buf, "0x%08x\n",
-			le32_to_cpu(hdev->asic_prop.cpucp_info.cpld_version));
+	return sprintf(buf, "0x%08x%08x\n",
+		le32_to_cpu(hdev->asic_prop.cpucp_info.cpld_timestamp),
+		le32_to_cpu(hdev->asic_prop.cpucp_info.cpld_version));
 }
 
 static ssize_t cpucp_kernel_ver_show(struct device *dev,
@@ -269,6 +270,9 @@ static ssize_t device_type_show(struct device *dev,
 		break;
 	case ASIC_GAUDI2C:
 		str = "GAUDI2C";
+		break;
+	case ASIC_GAUDI2D:
+		str = "GAUDI2D";
 		break;
 	default:
 		dev_err(hdev->dev, "Unrecognized ASIC type %d\n",

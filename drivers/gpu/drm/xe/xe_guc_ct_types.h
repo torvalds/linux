@@ -110,6 +110,8 @@ struct xe_guc_ct {
 	u32 g2h_outstanding;
 	/** @g2h_worker: worker to process G2H messages */
 	struct work_struct g2h_worker;
+	/** @safe_mode_worker: worker to check G2H messages with IRQ disabled */
+	struct delayed_work safe_mode_worker;
 	/** @state: CT state */
 	enum xe_guc_ct_state state;
 	/** @fence_seqno: G2H fence seqno - 16 bits used by CT */

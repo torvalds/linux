@@ -197,8 +197,8 @@ static void hisi_i2c_reset_xfer(struct hisi_i2c_controller *ctlr)
  * wait for the transfer done. The major transfer process is performed
  * in the IRQ handler.
  */
-static int hisi_i2c_master_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs,
-				int num)
+static int hisi_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs,
+			 int num)
 {
 	struct hisi_i2c_controller *ctlr = i2c_get_adapdata(adap);
 	DECLARE_COMPLETION_ONSTACK(done);
@@ -236,8 +236,8 @@ static u32 hisi_i2c_functionality(struct i2c_adapter *adap)
 }
 
 static const struct i2c_algorithm hisi_i2c_algo = {
-	.master_xfer	= hisi_i2c_master_xfer,
-	.functionality	= hisi_i2c_functionality,
+	.xfer = hisi_i2c_xfer,
+	.functionality = hisi_i2c_functionality,
 };
 
 static int hisi_i2c_read_rx_fifo(struct hisi_i2c_controller *ctlr)

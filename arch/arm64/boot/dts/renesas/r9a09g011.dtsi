@@ -71,7 +71,7 @@
 
 		sdhi0: mmc@85000000 {
 			compatible = "renesas,sdhi-r9a09g011",
-				     "renesas,rcar-gen3-sdhi";
+				     "renesas,rzg2l-sdhi";
 			reg = <0x0 0x85000000 0 0x2000>;
 			interrupts = <GIC_SPI 356 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 357 IRQ_TYPE_LEVEL_HIGH>;
@@ -87,7 +87,7 @@
 
 		sdhi1: mmc@85010000  {
 			compatible = "renesas,sdhi-r9a09g011",
-				     "renesas,rcar-gen3-sdhi";
+				     "renesas,rzg2l-sdhi";
 			reg = <0x0 0x85010000 0 0x2000>;
 			interrupts = <GIC_SPI 358 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 359 IRQ_TYPE_LEVEL_HIGH>;
@@ -103,7 +103,7 @@
 
 		emmc: mmc@85020000  {
 			compatible = "renesas,sdhi-r9a09g011",
-				     "renesas,rcar-gen3-sdhi";
+				     "renesas,rzg2l-sdhi";
 			reg = <0x0 0x85020000 0 0x2000>;
 			interrupts = <GIC_SPI 354 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 355 IRQ_TYPE_LEVEL_HIGH>;
@@ -372,5 +372,6 @@
 				      <&gic GIC_PPI 14 (GIC_CPU_MASK_SIMPLE(1) | IRQ_TYPE_LEVEL_LOW)>,
 				      <&gic GIC_PPI 11 (GIC_CPU_MASK_SIMPLE(1) | IRQ_TYPE_LEVEL_LOW)>,
 				      <&gic GIC_PPI 10 (GIC_CPU_MASK_SIMPLE(1) | IRQ_TYPE_LEVEL_LOW)>;
+		interrupt-names = "sec-phys", "phys", "virt", "hyp-phys";
 	};
 };

@@ -22,7 +22,7 @@
  */
 #define INDEX_CSUM_XOR 160478
 
-static void index_prepare_for_write(struct dm_block_validator *v,
+static void index_prepare_for_write(const struct dm_block_validator *v,
 				    struct dm_block *b,
 				    size_t block_size)
 {
@@ -34,7 +34,7 @@ static void index_prepare_for_write(struct dm_block_validator *v,
 						 INDEX_CSUM_XOR));
 }
 
-static int index_check(struct dm_block_validator *v,
+static int index_check(const struct dm_block_validator *v,
 		       struct dm_block *b,
 		       size_t block_size)
 {
@@ -59,7 +59,7 @@ static int index_check(struct dm_block_validator *v,
 	return 0;
 }
 
-static struct dm_block_validator index_validator = {
+static const struct dm_block_validator index_validator = {
 	.name = "index",
 	.prepare_for_write = index_prepare_for_write,
 	.check = index_check
@@ -72,7 +72,7 @@ static struct dm_block_validator index_validator = {
  */
 #define BITMAP_CSUM_XOR 240779
 
-static void dm_bitmap_prepare_for_write(struct dm_block_validator *v,
+static void dm_bitmap_prepare_for_write(const struct dm_block_validator *v,
 					struct dm_block *b,
 					size_t block_size)
 {
@@ -84,7 +84,7 @@ static void dm_bitmap_prepare_for_write(struct dm_block_validator *v,
 						       BITMAP_CSUM_XOR));
 }
 
-static int dm_bitmap_check(struct dm_block_validator *v,
+static int dm_bitmap_check(const struct dm_block_validator *v,
 			   struct dm_block *b,
 			   size_t block_size)
 {
@@ -109,7 +109,7 @@ static int dm_bitmap_check(struct dm_block_validator *v,
 	return 0;
 }
 
-static struct dm_block_validator dm_sm_bitmap_validator = {
+static const struct dm_block_validator dm_sm_bitmap_validator = {
 	.name = "sm_bitmap",
 	.prepare_for_write = dm_bitmap_prepare_for_write,
 	.check = dm_bitmap_check,

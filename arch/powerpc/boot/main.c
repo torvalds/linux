@@ -188,7 +188,7 @@ static inline void prep_esm_blob(struct addr_range vmlinux, void *chosen) { }
 
 /* A buffer that may be edited by tools operating on a zImage binary so as to
  * edit the command line passed to vmlinux (by setting /chosen/bootargs).
- * The buffer is put in it's own section so that tools may locate it easier.
+ * The buffer is put in its own section so that tools may locate it easier.
  */
 static char cmdline[BOOT_COMMAND_LINE_SIZE]
 	__attribute__((__section__("__builtin_cmdline")));

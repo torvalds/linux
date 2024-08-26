@@ -21,7 +21,7 @@ DECLARE_EVENT_CLASS(hwmon_attr_class,
 
 	TP_fast_assign(
 		__entry->index = index;
-		__assign_str(attr_name, attr_name);
+		__assign_str(attr_name);
 		__entry->val = val;
 	),
 
@@ -57,8 +57,8 @@ TRACE_EVENT(hwmon_attr_show_string,
 
 	TP_fast_assign(
 		__entry->index = index;
-		__assign_str(attr_name, attr_name);
-		__assign_str(label, s);
+		__assign_str(attr_name);
+		__assign_str(label);
 	),
 
 	TP_printk("index=%d, attr_name=%s, val=%s",

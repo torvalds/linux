@@ -3281,7 +3281,7 @@ static int qib_7220_intr_fallback(struct qib_devdata *dd)
 
 	qib_free_irq(dd);
 	dd->msi_lo = 0;
-	if (pci_alloc_irq_vectors(dd->pcidev, 1, 1, PCI_IRQ_LEGACY) < 0)
+	if (pci_alloc_irq_vectors(dd->pcidev, 1, 1, PCI_IRQ_INTX) < 0)
 		qib_dev_err(dd, "Failed to enable INTx\n");
 	qib_setup_7220_interrupt(dd);
 	return 1;

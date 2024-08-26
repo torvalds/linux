@@ -22,6 +22,7 @@ properties:
           - nxp,cbdtu02043
           - onnn,fsusb43l10x
           - pericom,pi3usb102
+          - ti,tmuxhs4212
       - const: gpio-sbu-mux
 
   enable-gpios:
@@ -44,13 +45,18 @@ properties:
 
 required:
   - compatible
-  - enable-gpios
   - select-gpios
   - orientation-switch
   - port
 
 allOf:
   - $ref: usb-switch.yaml#
+  - if:
+      required:
+        - mode-switch
+    then:
+      required:
+        - enable-gpios
 
 additionalProperties: false
 

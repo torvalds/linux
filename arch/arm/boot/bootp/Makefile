@@ -5,7 +5,6 @@
 # This file is included by the global makefile so that you can add your own
 # architecture-specific flags and dependencies.
 #
-GCOV_PROFILE	:= n
 
 ifdef PHYS_OFFSET
 add_hex = $(shell printf 0x%x $$(( $(1) + $(2) )) )

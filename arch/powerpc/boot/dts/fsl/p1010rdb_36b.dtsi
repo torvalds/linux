@@ -36,7 +36,7 @@ memory {
 	device_type = "memory";
 };
 
-board_ifc: ifc: ifc@fffe1e000 {
+board_ifc: ifc: memory-controller@fffe1e000 {
 	/* NOR, NAND Flashes and CPLD on board */
 	ranges = <0x0 0x0 0xf 0xee000000 0x02000000
 		  0x1 0x0 0xf 0xff800000 0x00010000

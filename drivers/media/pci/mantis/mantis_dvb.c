@@ -105,7 +105,7 @@ static int mantis_dvb_start_feed(struct dvb_demux_feed *dvbdmxfeed)
 	if (mantis->feeds == 1)	 {
 		dprintk(MANTIS_DEBUG, 1, "mantis start feed & dma");
 		mantis_dma_start(mantis);
-		tasklet_enable(&mantis->tasklet);
+		enable_and_queue_work(system_bh_wq, &mantis->bh_work);
 	}
 
 	return mantis->feeds;
@@ -125,7 +125,7 @@ static int mantis_dvb_stop_feed(struct dvb_demux_feed *dvbdmxfeed)
 	mantis->feeds--;
 	if (mantis->feeds == 0) {
 		dprintk(MANTIS_DEBUG, 1, "mantis stop feed and dma");
-		tasklet_disable(&mantis->tasklet);
+		disable_work_sync(&mantis->bh_work);
 		mantis_dma_stop(mantis);
 	}
 
@@ -205,8 +205,8 @@ int mantis_dvb_init(struct mantis_pci *mantis)
 	}
 
 	dvb_net_init(&mantis->dvb_adapter, &mantis->dvbnet, &mantis->demux.dmx);
-	tasklet_setup(&mantis->tasklet, mantis_dma_xfer);
-	tasklet_disable(&mantis->tasklet);
+	INIT_WORK(&mantis->bh_work, mantis_dma_xfer);
+	disable_work_sync(&mantis->bh_work);
 	if (mantis->hwconfig) {
 		result = config->frontend_init(mantis, mantis->fe);
 		if (result < 0) {
@@ -235,7 +235,7 @@ int mantis_dvb_init(struct mantis_pci *mantis)
 
 	/* Error conditions ..	*/
 err5:
-	tasklet_kill(&mantis->tasklet);
+	cancel_work_sync(&mantis->bh_work);
 	dvb_net_release(&mantis->dvbnet);
 	if (mantis->fe) {
 		dvb_unregister_frontend(mantis->fe);
@@ -273,7 +273,7 @@ int mantis_dvb_exit(struct mantis_pci *mantis)
 		dvb_frontend_detach(mantis->fe);
 	}
 
-	tasklet_kill(&mantis->tasklet);
+	cancel_work_sync(&mantis->bh_work);
 	dvb_net_release(&mantis->dvbnet);
 
 	mantis->demux.dmx.remove_frontend(&mantis->demux.dmx, &mantis->fe_mem);

@@ -98,4 +98,6 @@ static struct platform_driver clk_mt7622_hif_drv = {
 	},
 };
 module_platform_driver(clk_mt7622_hif_drv);
+
+MODULE_DESCRIPTION("MediaTek MT7622 HIF clocks driver");
 MODULE_LICENSE("GPL");

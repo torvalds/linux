@@ -11,6 +11,7 @@
 #include "ice_adapter.h"
 
 static DEFINE_XARRAY(ice_adapters);
+static DEFINE_MUTEX(ice_adapters_mutex);
 
 /* PCI bus number is 8 bits. Slot is 5 bits. Domain can have the rest. */
 #define INDEX_FIELD_DOMAIN GENMASK(BITS_PER_LONG - 1, 13)
@@ -47,8 +48,6 @@ static void ice_adapter_free(struct ice_adapter *adapter)
 	kfree(adapter);
 }
 
-DEFINE_FREE(ice_adapter_free, struct ice_adapter*, if (_T) ice_adapter_free(_T))
-
 /**
  * ice_adapter_get - Get a shared ice_adapter structure.
  * @pdev: Pointer to the pci_dev whose driver is getting the ice_adapter.
@@ -64,27 +63,26 @@ DEFINE_FREE(ice_adapter_free, struct ice_adapter*, if (_T) ice_adapter_free(_T))
  */
 struct ice_adapter *ice_adapter_get(const struct pci_dev *pdev)
 {
-	struct ice_adapter *ret, __free(ice_adapter_free) *adapter = NULL;
 	unsigned long index = ice_adapter_index(pdev);
+	struct ice_adapter *adapter;
+	int err;
 
-	adapter = ice_adapter_new();
-	if (!adapter)
-		return ERR_PTR(-ENOMEM);
+	scoped_guard(mutex, &ice_adapters_mutex) {
+		err = xa_insert(&ice_adapters, index, NULL, GFP_KERNEL);
+		if (err == -EBUSY) {
+			adapter = xa_load(&ice_adapters, index);
+			refcount_inc(&adapter->refcount);
+			return adapter;
+		}
+		if (err)
+			return ERR_PTR(err);
 
-	xa_lock(&ice_adapters);
-	ret = __xa_cmpxchg(&ice_adapters, index, NULL, adapter, GFP_KERNEL);
-	if (xa_is_err(ret)) {
-		ret = ERR_PTR(xa_err(ret));
-		goto unlock;
+		adapter = ice_adapter_new();
+		if (!adapter)
+			return ERR_PTR(-ENOMEM);
+		xa_store(&ice_adapters, index, adapter, GFP_KERNEL);
 	}
-	if (ret) {
-		refcount_inc(&ret->refcount);
-		goto unlock;
-	}
-	ret = no_free_ptr(adapter);
-unlock:
-	xa_unlock(&ice_adapters);
-	return ret;
+	return adapter;
 }
 
 /**
@@ -94,23 +92,21 @@ unlock:
  * Releases the reference to ice_adapter previously obtained with
  * ice_adapter_get.
  *
- * Context: Any.
+ * Context: Process, may sleep.
  */
 void ice_adapter_put(const struct pci_dev *pdev)
 {
 	unsigned long index = ice_adapter_index(pdev);
 	struct ice_adapter *adapter;
 
-	xa_lock(&ice_adapters);
-	adapter = xa_load(&ice_adapters, index);
-	if (WARN_ON(!adapter))
-		goto unlock;
+	scoped_guard(mutex, &ice_adapters_mutex) {
+		adapter = xa_load(&ice_adapters, index);
+		if (WARN_ON(!adapter))
+			return;
+		if (!refcount_dec_and_test(&adapter->refcount))
+			return;
 
-	if (!refcount_dec_and_test(&adapter->refcount))
-		goto unlock;
-
-	WARN_ON(__xa_erase(&ice_adapters, index) != adapter);
+		WARN_ON(xa_erase(&ice_adapters, index) != adapter);
+	}
 	ice_adapter_free(adapter);
-unlock:
-	xa_unlock(&ice_adapters);
 }

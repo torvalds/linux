@@ -304,7 +304,7 @@ MSI-X可以分配几个单独的向量。
 的PCI_IRQ_MSI和/或PCI_IRQ_MSIX标志来启用MSI功能。这将导致PCI支持将CPU向量数
 据编程到PCI设备功能寄存器中。许多架构、芯片组或BIOS不支持MSI或MSI-X，调用
 ``pci_alloc_irq_vectors`` 时只使用PCI_IRQ_MSI和PCI_IRQ_MSIX标志会失败，
-所以尽量也要指定 ``PCI_IRQ_LEGACY`` 。
+所以尽量也要指定 ``PCI_IRQ_INTX`` 。
 
 对MSI/MSI-X和传统INTx有不同中断处理程序的驱动程序应该在调用
 ``pci_alloc_irq_vectors`` 后根据 ``pci_dev``结构体中的 ``msi_enabled``

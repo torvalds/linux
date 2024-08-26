@@ -63,7 +63,7 @@ TRACE_EVENT(irq_handler_entry,
 
 	TP_fast_assign(
 		__entry->irq = irq;
-		__assign_str(name, action->name);
+		__assign_str(name);
 	),
 
 	TP_printk("irq=%d name=%s", __entry->irq, __get_str(name))

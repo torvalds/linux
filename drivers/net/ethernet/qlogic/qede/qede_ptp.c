@@ -321,7 +321,7 @@ int qede_ptp_hw_ts(struct qede_dev *edev, struct ifreq *ifr)
 			    sizeof(config)) ? -EFAULT : 0;
 }
 
-int qede_ptp_get_ts_info(struct qede_dev *edev, struct ethtool_ts_info *info)
+int qede_ptp_get_ts_info(struct qede_dev *edev, struct kernel_ethtool_ts_info *info)
 {
 	struct qede_ptp *ptp = edev->ptp;
 

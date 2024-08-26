@@ -14,6 +14,7 @@
 
 struct symbol symbol_yes = {
 	.name = "y",
+	.type = S_TRISTATE,
 	.curr = { "y", yes },
 	.menus = LIST_HEAD_INIT(symbol_yes.menus),
 	.flags = SYMBOL_CONST|SYMBOL_VALID,
@@ -21,6 +22,7 @@ struct symbol symbol_yes = {
 
 struct symbol symbol_mod = {
 	.name = "m",
+	.type = S_TRISTATE,
 	.curr = { "m", mod },
 	.menus = LIST_HEAD_INIT(symbol_mod.menus),
 	.flags = SYMBOL_CONST|SYMBOL_VALID,
@@ -28,6 +30,7 @@ struct symbol symbol_mod = {
 
 struct symbol symbol_no = {
 	.name = "n",
+	.type = S_TRISTATE,
 	.curr = { "n", no },
 	.menus = LIST_HEAD_INIT(symbol_no.menus),
 	.flags = SYMBOL_CONST|SYMBOL_VALID,
@@ -75,6 +78,41 @@ struct property *sym_get_choice_prop(struct symbol *sym)
 
 	for_all_choices(sym, prop)
 		return prop;
+	return NULL;
+}
+
+/**
+ * sym_get_choice_menu - get the parent choice menu if present
+ *
+ * @sym: a symbol pointer
+ *
+ * Return: a choice menu if this function is called against a choice member.
+ */
+struct menu *sym_get_choice_menu(struct symbol *sym)
+{
+	struct menu *menu = NULL;
+	struct menu *m;
+
+	/*
+	 * Choice members must have a prompt. Find a menu entry with a prompt,
+	 * and assume it resides inside a choice block.
+	 */
+	list_for_each_entry(m, &sym->menus, link)
+		if (m->prompt) {
+			menu = m;
+			break;
+		}
+
+	if (!menu)
+		return NULL;
+
+	do {
+		menu = menu->parent;
+	} while (menu && !menu->sym);
+
+	if (menu && menu->sym && sym_is_choice(menu->sym))
+		return menu;
+
 	return NULL;
 }
 
@@ -152,13 +190,11 @@ static void sym_validate_range(struct symbol *sym)
 
 static void sym_set_changed(struct symbol *sym)
 {
-	struct property *prop;
+	struct menu *menu;
 
 	sym->flags |= SYMBOL_CHANGED;
-	for (prop = sym->prop; prop; prop = prop->next) {
-		if (prop->menu)
-			prop->menu->flags |= MENU_CHANGED;
-	}
+	list_for_each_entry(menu, &sym->menus, link)
+		menu->flags |= MENU_CHANGED;
 }
 
 static void sym_set_all_changed(void)
@@ -466,10 +502,9 @@ void sym_calc_value(struct symbol *sym)
 			if (sym->flags & SYMBOL_CHANGED)
 				sym_set_changed(choice_sym);
 		}
-	}
 
-	if (sym->flags & SYMBOL_NO_WRITE)
 		sym->flags &= ~SYMBOL_WRITE;
+	}
 
 	if (sym->flags & SYMBOL_NEED_SET_CHOICE_VALUES)
 		set_all_choice_values(sym);
@@ -788,8 +823,7 @@ const char *sym_get_string_value(struct symbol *sym)
 		case no:
 			return "n";
 		case mod:
-			sym_calc_value(modules_sym);
-			return (modules_sym->curr.tri == no) ? "n" : "m";
+			return "m";
 		case yes:
 			return "y";
 		}
@@ -827,7 +861,7 @@ struct symbol *sym_lookup(const char *name, int flags)
 			if (symbol->name &&
 			    !strcmp(symbol->name, name) &&
 			    (flags ? symbol->flags & flags
-				   : !(symbol->flags & (SYMBOL_CONST|SYMBOL_CHOICE))))
+				   : !(symbol->flags & SYMBOL_CONST)))
 				return symbol;
 		}
 		new_name = xstrdup(name);
@@ -1172,16 +1206,18 @@ out:
 
 static struct symbol *sym_check_choice_deps(struct symbol *choice)
 {
-	struct symbol *sym, *sym2;
-	struct property *prop;
-	struct expr *e;
+	struct menu *choice_menu, *menu;
+	struct symbol *sym2;
 	struct dep_stack stack;
 
 	dep_stack_insert(&stack, choice);
 
-	prop = sym_get_choice_prop(choice);
-	expr_list_for_each_sym(prop->expr, e, sym)
-		sym->flags |= (SYMBOL_CHECK | SYMBOL_CHECKED);
+	choice_menu = list_first_entry(&choice->menus, struct menu, link);
+
+	menu_for_each_sub_entry(menu, choice_menu) {
+		if (menu->sym)
+			menu->sym->flags |= SYMBOL_CHECK | SYMBOL_CHECKED;
+	}
 
 	choice->flags |= (SYMBOL_CHECK | SYMBOL_CHECKED);
 	sym2 = sym_check_sym_deps(choice);
@@ -1189,14 +1225,17 @@ static struct symbol *sym_check_choice_deps(struct symbol *choice)
 	if (sym2)
 		goto out;
 
-	expr_list_for_each_sym(prop->expr, e, sym) {
-		sym2 = sym_check_sym_deps(sym);
+	menu_for_each_sub_entry(menu, choice_menu) {
+		if (!menu->sym)
+			continue;
+		sym2 = sym_check_sym_deps(menu->sym);
 		if (sym2)
 			break;
 	}
 out:
-	expr_list_for_each_sym(prop->expr, e, sym)
-		sym->flags &= ~SYMBOL_CHECK;
+	menu_for_each_sub_entry(menu, choice_menu)
+		if (menu->sym)
+			menu->sym->flags &= ~SYMBOL_CHECK;
 
 	if (sym2 && sym_is_choice_value(sym2) &&
 	    prop_get_symbol(sym_get_choice_prop(sym2)) == choice)

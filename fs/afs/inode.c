@@ -512,7 +512,7 @@ static int afs_iget5_set_root(struct inode *inode, void *opaque)
 	struct afs_vnode *vnode = AFS_FS_I(inode);
 
 	vnode->volume		= as->volume;
-	vnode->fid.vid		= as->volume->vid,
+	vnode->fid.vid		= as->volume->vid;
 	vnode->fid.vnode	= 1;
 	vnode->fid.unique	= 1;
 	inode->i_ino		= 1;
@@ -545,7 +545,7 @@ struct inode *afs_root_iget(struct super_block *sb, struct key *key)
 	BUG_ON(!(inode->i_state & I_NEW));
 
 	vnode = AFS_FS_I(inode);
-	vnode->cb_v_check = atomic_read(&as->volume->cb_v_break),
+	vnode->cb_v_check = atomic_read(&as->volume->cb_v_break);
 	afs_set_netfs_context(vnode);
 
 	op = afs_alloc_operation(key, as->volume);
@@ -648,6 +648,7 @@ void afs_evict_inode(struct inode *inode)
 
 	ASSERTCMP(inode->i_ino, ==, vnode->fid.vnode);
 
+	netfs_wait_for_outstanding_io(inode);
 	truncate_inode_pages_final(&inode->i_data);
 
 	afs_set_cache_aux(vnode, &aux);

@@ -408,8 +408,7 @@ int focaltech_init(struct psmouse *psmouse)
 	struct focaltech_data *priv;
 	int error;
 
-	psmouse->private = priv = kzalloc(sizeof(struct focaltech_data),
-					  GFP_KERNEL);
+	psmouse->private = priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 

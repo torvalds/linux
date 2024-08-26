@@ -409,4 +409,5 @@ static void __exit z2_exit(void)
 
 module_init(z2_init);
 module_exit(z2_exit);
+MODULE_DESCRIPTION("Amiga Zorro II ramdisk driver");
 MODULE_LICENSE("GPL");

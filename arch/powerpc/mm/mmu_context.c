@@ -21,7 +21,7 @@ static inline void switch_mm_pgdir(struct task_struct *tsk,
 #ifdef CONFIG_PPC_BOOK3S_32
 	tsk->thread.sr0 = mm->context.sr0;
 #endif
-#if defined(CONFIG_BOOKE_OR_40x) && defined(CONFIG_PPC_KUAP)
+#if defined(CONFIG_BOOKE) && defined(CONFIG_PPC_KUAP)
 	tsk->thread.pid = mm->context.id;
 #endif
 }

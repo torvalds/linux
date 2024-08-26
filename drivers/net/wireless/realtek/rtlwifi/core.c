@@ -144,7 +144,7 @@ static int rtl_op_start(struct ieee80211_hw *hw)
 	return err;
 }
 
-static void rtl_op_stop(struct ieee80211_hw *hw)
+static void rtl_op_stop(struct ieee80211_hw *hw, bool suspend)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
@@ -547,7 +547,7 @@ static int rtl_op_suspend(struct ieee80211_hw *hw,
 	rtlhal->enter_pnp_sleep = true;
 
 	rtl_lps_leave(hw, true);
-	rtl_op_stop(hw);
+	rtl_op_stop(hw, false);
 	device_set_wakeup_enable(wiphy_dev(hw->wiphy), true);
 	return 0;
 }
@@ -630,21 +630,6 @@ static int rtl_op_config(struct ieee80211_hw *hw, u32 changed)
 		} else {
 			rtl_swlps_rf_awake(hw);
 			rtlpriv->psc.sw_ps_enabled = false;
-		}
-	}
-
-	if (changed & IEEE80211_CONF_CHANGE_RETRY_LIMITS) {
-		rtl_dbg(rtlpriv, COMP_MAC80211, DBG_LOUD,
-			"IEEE80211_CONF_CHANGE_RETRY_LIMITS %x\n",
-			hw->conf.long_frame_max_tx_count);
-		/* brought up everything changes (changed == ~0) indicates first
-		 * open, so use our default value instead of that of wiphy.
-		 */
-		if (changed != ~0) {
-			mac->retry_long = hw->conf.long_frame_max_tx_count;
-			mac->retry_short = hw->conf.long_frame_max_tx_count;
-			rtlpriv->cfg->ops->set_hw_reg(hw, HW_VAR_RETRY_LIMIT,
-				(u8 *)(&hw->conf.long_frame_max_tx_count));
 		}
 	}
 

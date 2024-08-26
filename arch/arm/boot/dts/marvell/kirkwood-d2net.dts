@@ -37,7 +37,7 @@
 	gpio-leds {
 		compatible = "gpio-leds";
 
-		red-fail {
+		led-red-fail {
 			label = "d2net_v2:red:fail";
 			gpios = <&gpio0 12 GPIO_ACTIVE_HIGH>;
 		};

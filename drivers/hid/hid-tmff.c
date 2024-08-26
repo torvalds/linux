@@ -265,4 +265,5 @@ static struct hid_driver tm_driver = {
 };
 module_hid_driver(tm_driver);
 
+MODULE_DESCRIPTION("Force feedback support for various HID compliant devices by ThrustMaster");
 MODULE_LICENSE("GPL");

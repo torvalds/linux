@@ -26,9 +26,6 @@ struct khadas_ts050_panel {
 	struct gpio_desc *reset_gpio;
 	struct gpio_desc *enable_gpio;
 	struct khadas_ts050_panel_data *panel_data;
-
-	bool prepared;
-	bool enabled;
 };
 
 struct khadas_ts050_panel_cmd {
@@ -642,9 +639,6 @@ static int khadas_ts050_panel_prepare(struct drm_panel *panel)
 	unsigned int i;
 	int err;
 
-	if (khadas_ts050->prepared)
-		return 0;
-
 	gpiod_set_value_cansleep(khadas_ts050->enable_gpio, 0);
 
 	err = regulator_enable(khadas_ts050->supply);
@@ -708,8 +702,6 @@ static int khadas_ts050_panel_prepare(struct drm_panel *panel)
 
 	usleep_range(10000, 11000);
 
-	khadas_ts050->prepared = true;
-
 	return 0;
 
 poweroff:
@@ -725,11 +717,6 @@ static int khadas_ts050_panel_unprepare(struct drm_panel *panel)
 {
 	struct khadas_ts050_panel *khadas_ts050 = to_khadas_ts050_panel(panel);
 	int err;
-
-	if (!khadas_ts050->prepared)
-		return 0;
-
-	khadas_ts050->prepared = false;
 
 	err = mipi_dsi_dcs_enter_sleep_mode(khadas_ts050->link);
 	if (err < 0)
@@ -747,30 +734,16 @@ static int khadas_ts050_panel_unprepare(struct drm_panel *panel)
 	return 0;
 }
 
-static int khadas_ts050_panel_enable(struct drm_panel *panel)
-{
-	struct khadas_ts050_panel *khadas_ts050 = to_khadas_ts050_panel(panel);
-
-	khadas_ts050->enabled = true;
-
-	return 0;
-}
-
 static int khadas_ts050_panel_disable(struct drm_panel *panel)
 {
 	struct khadas_ts050_panel *khadas_ts050 = to_khadas_ts050_panel(panel);
 	int err;
-
-	if (!khadas_ts050->enabled)
-		return 0;
 
 	err = mipi_dsi_dcs_set_display_off(khadas_ts050->link);
 	if (err < 0)
 		dev_err(panel->dev, "failed to set display off: %d\n", err);
 
 	usleep_range(10000, 11000);
-
-	khadas_ts050->enabled = false;
 
 	return 0;
 }
@@ -815,7 +788,6 @@ static int khadas_ts050_panel_get_modes(struct drm_panel *panel,
 static const struct drm_panel_funcs khadas_ts050_panel_funcs = {
 	.prepare = khadas_ts050_panel_prepare,
 	.unprepare = khadas_ts050_panel_unprepare,
-	.enable = khadas_ts050_panel_enable,
 	.disable = khadas_ts050_panel_disable,
 	.get_modes = khadas_ts050_panel_get_modes,
 };
@@ -908,16 +880,6 @@ static void khadas_ts050_panel_remove(struct mipi_dsi_device *dsi)
 		dev_err(&dsi->dev, "failed to detach from DSI host: %d\n", err);
 
 	drm_panel_remove(&khadas_ts050->base);
-	drm_panel_disable(&khadas_ts050->base);
-	drm_panel_unprepare(&khadas_ts050->base);
-}
-
-static void khadas_ts050_panel_shutdown(struct mipi_dsi_device *dsi)
-{
-	struct khadas_ts050_panel *khadas_ts050 = mipi_dsi_get_drvdata(dsi);
-
-	drm_panel_disable(&khadas_ts050->base);
-	drm_panel_unprepare(&khadas_ts050->base);
 }
 
 static struct mipi_dsi_driver khadas_ts050_panel_driver = {
@@ -927,7 +889,6 @@ static struct mipi_dsi_driver khadas_ts050_panel_driver = {
 	},
 	.probe = khadas_ts050_panel_probe,
 	.remove = khadas_ts050_panel_remove,
-	.shutdown = khadas_ts050_panel_shutdown,
 };
 module_mipi_dsi_driver(khadas_ts050_panel_driver);
 

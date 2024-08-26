@@ -32,32 +32,7 @@
 #include <asm/asm-compat.h>
 #include <asm/feature-fixups.h>
 
-#if defined(CONFIG_40x)
-
-/*
- * 40x implementation needs only tlbil_va
- */
-_GLOBAL(__tlbil_va)
-	/* We run the search with interrupts disabled because we have to change
-	 * the PID and I don't want to preempt when that happens.
-	 */
-	mfmsr	r5
-	mfspr	r6,SPRN_PID
-	wrteei	0
-	mtspr	SPRN_PID,r4
-	tlbsx.	r3, 0, r3
-	mtspr	SPRN_PID,r6
-	wrtee	r5
-	bne	1f
-	sync
-	/* There are only 64 TLB entries, so r3 < 64, which means bit 25 is
-	 * clear. Since 25 is the V bit in the TLB_TAG, loading this value
-	 * will invalidate the TLB entry. */
-	tlbwe	r3, r3, TLB_TAG
-	isync
-1:	blr
-
-#elif defined(CONFIG_PPC_8xx)
+#if defined(CONFIG_PPC_8xx)
 
 /*
  * Nothing to do for 8xx, everything is inline

@@ -141,8 +141,8 @@ static int btrfs_del_inode_extref(struct btrfs_trans_handle *trans,
 	extref = btrfs_find_name_in_ext_backref(path->nodes[0], path->slots[0],
 						ref_objectid, name);
 	if (!extref) {
-		btrfs_handle_fs_error(root->fs_info, -ENOENT, NULL);
-		ret = -EROFS;
+		btrfs_abort_transaction(trans, -ENOENT);
+		ret = -ENOENT;
 		goto out;
 	}
 

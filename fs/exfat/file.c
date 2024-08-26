@@ -89,12 +89,14 @@ free_clu:
 	return -EIO;
 }
 
-static bool exfat_allow_set_time(struct exfat_sb_info *sbi, struct inode *inode)
+static bool exfat_allow_set_time(struct mnt_idmap *idmap,
+				 struct exfat_sb_info *sbi, struct inode *inode)
 {
 	mode_t allow_utime = sbi->options.allow_utime;
 
-	if (!uid_eq(current_fsuid(), inode->i_uid)) {
-		if (in_group_p(inode->i_gid))
+	if (!vfsuid_eq_kuid(i_uid_into_vfsuid(idmap, inode),
+			    current_fsuid())) {
+		if (vfsgid_in_group_p(i_gid_into_vfsgid(idmap, inode)))
 			allow_utime >>= 3;
 		if (allow_utime & MAY_WRITE)
 			return true;
@@ -283,7 +285,7 @@ int exfat_getattr(struct mnt_idmap *idmap, const struct path *path,
 	struct inode *inode = d_backing_inode(path->dentry);
 	struct exfat_inode_info *ei = EXFAT_I(inode);
 
-	generic_fillattr(&nop_mnt_idmap, request_mask, inode, stat);
+	generic_fillattr(idmap, request_mask, inode, stat);
 	exfat_truncate_atime(&stat->atime);
 	stat->result_mask |= STATX_BTIME;
 	stat->btime.tv_sec = ei->i_crtime.tv_sec;
@@ -311,20 +313,22 @@ int exfat_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 	/* Check for setting the inode time. */
 	ia_valid = attr->ia_valid;
 	if ((ia_valid & (ATTR_MTIME_SET | ATTR_ATIME_SET | ATTR_TIMES_SET)) &&
-	    exfat_allow_set_time(sbi, inode)) {
+	    exfat_allow_set_time(idmap, sbi, inode)) {
 		attr->ia_valid &= ~(ATTR_MTIME_SET | ATTR_ATIME_SET |
 				ATTR_TIMES_SET);
 	}
 
-	error = setattr_prepare(&nop_mnt_idmap, dentry, attr);
+	error = setattr_prepare(idmap, dentry, attr);
 	attr->ia_valid = ia_valid;
 	if (error)
 		goto out;
 
 	if (((attr->ia_valid & ATTR_UID) &&
-	     !uid_eq(attr->ia_uid, sbi->options.fs_uid)) ||
+	      (!uid_eq(from_vfsuid(idmap, i_user_ns(inode), attr->ia_vfsuid),
+	       sbi->options.fs_uid))) ||
 	    ((attr->ia_valid & ATTR_GID) &&
-	     !gid_eq(attr->ia_gid, sbi->options.fs_gid)) ||
+	      (!gid_eq(from_vfsgid(idmap, i_user_ns(inode), attr->ia_vfsgid),
+	       sbi->options.fs_gid))) ||
 	    ((attr->ia_valid & ATTR_MODE) &&
 	     (attr->ia_mode & ~(S_IFREG | S_IFLNK | S_IFDIR | 0777)))) {
 		error = -EPERM;
@@ -343,7 +347,7 @@ int exfat_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 	if (attr->ia_valid & ATTR_SIZE)
 		inode_set_mtime_to_ts(inode, inode_set_ctime_current(inode));
 
-	setattr_copy(&nop_mnt_idmap, inode, attr);
+	setattr_copy(idmap, inode, attr);
 	exfat_truncate_inode_atime(inode);
 
 	if (attr->ia_valid & ATTR_SIZE) {

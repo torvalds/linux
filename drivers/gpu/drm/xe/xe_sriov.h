@@ -19,18 +19,18 @@ void xe_sriov_probe_early(struct xe_device *xe);
 void xe_sriov_print_info(struct xe_device *xe, struct drm_printer *p);
 int xe_sriov_init(struct xe_device *xe);
 
-static inline enum xe_sriov_mode xe_device_sriov_mode(struct xe_device *xe)
+static inline enum xe_sriov_mode xe_device_sriov_mode(const struct xe_device *xe)
 {
 	xe_assert(xe, xe->sriov.__mode);
 	return xe->sriov.__mode;
 }
 
-static inline bool xe_device_is_sriov_pf(struct xe_device *xe)
+static inline bool xe_device_is_sriov_pf(const struct xe_device *xe)
 {
 	return xe_device_sriov_mode(xe) == XE_SRIOV_MODE_PF;
 }
 
-static inline bool xe_device_is_sriov_vf(struct xe_device *xe)
+static inline bool xe_device_is_sriov_vf(const struct xe_device *xe)
 {
 	return xe_device_sriov_mode(xe) == XE_SRIOV_MODE_VF;
 }

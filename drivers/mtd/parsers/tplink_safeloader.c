@@ -149,4 +149,5 @@ static struct mtd_part_parser mtd_parser_tplink_safeloader = {
 };
 module_mtd_part_parser(mtd_parser_tplink_safeloader);
 
+MODULE_DESCRIPTION("TP-Link Safeloader partitions parser");
 MODULE_LICENSE("GPL");

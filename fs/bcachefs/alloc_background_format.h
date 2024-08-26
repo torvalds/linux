@@ -70,6 +70,8 @@ struct bch_alloc_v4 {
 	__u32			stripe;
 	__u32			nr_external_backpointers;
 	__u64			fragmentation_lru;
+	__u32			stripe_sectors;
+	__u32			pad;
 } __packed __aligned(8);
 
 #define BCH_ALLOC_V4_U64s_V0	6

@@ -189,7 +189,7 @@ static DEFINE_SIMPLE_DEV_PM_OPS(pcf8574_kp_pm_ops,
 				pcf8574_kp_suspend, pcf8574_kp_resume);
 
 static const struct i2c_device_id pcf8574_kp_id[] = {
-	{ DRV_NAME, 0 },
+	{ DRV_NAME },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, pcf8574_kp_id);

@@ -100,7 +100,7 @@ static int altera_ps2_probe(struct platform_device *pdev)
 		return error;
 	}
 
-	serio = kzalloc(sizeof(struct serio), GFP_KERNEL);
+	serio = kzalloc(sizeof(*serio), GFP_KERNEL);
 	if (!serio)
 		return -ENOMEM;
 

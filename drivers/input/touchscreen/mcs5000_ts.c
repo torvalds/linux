@@ -266,7 +266,7 @@ static DEFINE_SIMPLE_DEV_PM_OPS(mcs5000_ts_pm,
 				mcs5000_ts_suspend, mcs5000_ts_resume);
 
 static const struct i2c_device_id mcs5000_ts_id[] = {
-	{ "mcs5000_ts", 0 },
+	{ "mcs5000_ts" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, mcs5000_ts_id);

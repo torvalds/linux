@@ -1,108 +1,188 @@
 // SPDX-License-Identifier: GPL-2.0
 #include "comm.h"
 #include <errno.h>
-#include <stdlib.h>
-#include <stdio.h>
 #include <string.h>
+#include <internal/rc_check.h>
 #include <linux/refcount.h>
-#include <linux/rbtree.h>
 #include <linux/zalloc.h>
 #include "rwsem.h"
 
-struct comm_str {
-	char *str;
-	struct rb_node rb_node;
+DECLARE_RC_STRUCT(comm_str) {
 	refcount_t refcnt;
+	char str[];
 };
 
-/* Should perhaps be moved to struct machine */
-static struct rb_root comm_str_root;
-static struct rw_semaphore comm_str_lock = {.lock = PTHREAD_RWLOCK_INITIALIZER,};
+static struct comm_strs {
+	struct rw_semaphore lock;
+	struct comm_str **strs;
+	int num_strs;
+	int capacity;
+} _comm_strs;
+
+static void comm_strs__remove_if_last(struct comm_str *cs);
+
+static void comm_strs__init(void)
+{
+	init_rwsem(&_comm_strs.lock);
+	_comm_strs.capacity = 16;
+	_comm_strs.num_strs = 0;
+	_comm_strs.strs = calloc(16, sizeof(*_comm_strs.strs));
+}
+
+static struct comm_strs *comm_strs__get(void)
+{
+	static pthread_once_t comm_strs_type_once = PTHREAD_ONCE_INIT;
+
+	pthread_once(&comm_strs_type_once, comm_strs__init);
+
+	return &_comm_strs;
+}
+
+static refcount_t *comm_str__refcnt(struct comm_str *cs)
+{
+	return &RC_CHK_ACCESS(cs)->refcnt;
+}
+
+static const char *comm_str__str(const struct comm_str *cs)
+{
+	return &RC_CHK_ACCESS(cs)->str[0];
+}
 
 static struct comm_str *comm_str__get(struct comm_str *cs)
 {
-	if (cs && refcount_inc_not_zero(&cs->refcnt))
-		return cs;
+	struct comm_str *result;
 
-	return NULL;
+	if (RC_CHK_GET(result, cs))
+		refcount_inc_not_zero(comm_str__refcnt(cs));
+
+	return result;
 }
 
 static void comm_str__put(struct comm_str *cs)
 {
-	if (cs && refcount_dec_and_test(&cs->refcnt)) {
-		down_write(&comm_str_lock);
-		rb_erase(&cs->rb_node, &comm_str_root);
-		up_write(&comm_str_lock);
-		zfree(&cs->str);
-		free(cs);
-	}
-}
-
-static struct comm_str *comm_str__alloc(const char *str)
-{
-	struct comm_str *cs;
-
-	cs = zalloc(sizeof(*cs));
 	if (!cs)
-		return NULL;
+		return;
 
-	cs->str = strdup(str);
-	if (!cs->str) {
-		free(cs);
-		return NULL;
+	if (refcount_dec_and_test(comm_str__refcnt(cs))) {
+		RC_CHK_FREE(cs);
+	} else {
+		if (refcount_read(comm_str__refcnt(cs)) == 1)
+			comm_strs__remove_if_last(cs);
+
+		RC_CHK_PUT(cs);
 	}
-
-	refcount_set(&cs->refcnt, 1);
-
-	return cs;
 }
 
-static
-struct comm_str *__comm_str__findnew(const char *str, struct rb_root *root)
+static struct comm_str *comm_str__new(const char *str)
 {
-	struct rb_node **p = &root->rb_node;
-	struct rb_node *parent = NULL;
-	struct comm_str *iter, *new;
-	int cmp;
+	struct comm_str *result = NULL;
+	RC_STRUCT(comm_str) *cs;
 
-	while (*p != NULL) {
-		parent = *p;
-		iter = rb_entry(parent, struct comm_str, rb_node);
-
-		/*
-		 * If we race with comm_str__put, iter->refcnt is 0
-		 * and it will be removed within comm_str__put call
-		 * shortly, ignore it in this search.
-		 */
-		cmp = strcmp(str, iter->str);
-		if (!cmp && comm_str__get(iter))
-			return iter;
-
-		if (cmp < 0)
-			p = &(*p)->rb_left;
-		else
-			p = &(*p)->rb_right;
+	cs = malloc(sizeof(*cs) + strlen(str) + 1);
+	if (ADD_RC_CHK(result, cs)) {
+		refcount_set(comm_str__refcnt(result), 1);
+		strcpy(&cs->str[0], str);
 	}
-
-	new = comm_str__alloc(str);
-	if (!new)
-		return NULL;
-
-	rb_link_node(&new->rb_node, parent, p);
-	rb_insert_color(&new->rb_node, root);
-
-	return new;
+	return result;
 }
 
-static struct comm_str *comm_str__findnew(const char *str, struct rb_root *root)
+static int comm_str__search(const void *_key, const void *_member)
 {
-	struct comm_str *cs;
+	const char *key = _key;
+	const struct comm_str *member = *(const struct comm_str * const *)_member;
 
-	down_write(&comm_str_lock);
-	cs = __comm_str__findnew(str, root);
-	up_write(&comm_str_lock);
+	return strcmp(key, comm_str__str(member));
+}
 
-	return cs;
+static void comm_strs__remove_if_last(struct comm_str *cs)
+{
+	struct comm_strs *comm_strs = comm_strs__get();
+
+	down_write(&comm_strs->lock);
+	/*
+	 * Are there only references from the array, if so remove the array
+	 * reference under the write lock so that we don't race with findnew.
+	 */
+	if (refcount_read(comm_str__refcnt(cs)) == 1) {
+		struct comm_str **entry;
+
+		entry = bsearch(comm_str__str(cs), comm_strs->strs, comm_strs->num_strs,
+				sizeof(struct comm_str *), comm_str__search);
+		comm_str__put(*entry);
+		for (int i = entry - comm_strs->strs; i < comm_strs->num_strs - 1; i++)
+			comm_strs->strs[i] = comm_strs->strs[i + 1];
+		comm_strs->num_strs--;
+	}
+	up_write(&comm_strs->lock);
+}
+
+static struct comm_str *__comm_strs__find(struct comm_strs *comm_strs, const char *str)
+{
+	struct comm_str **result;
+
+	result = bsearch(str, comm_strs->strs, comm_strs->num_strs, sizeof(struct comm_str *),
+			 comm_str__search);
+
+	if (!result)
+		return NULL;
+
+	return comm_str__get(*result);
+}
+
+static struct comm_str *comm_strs__findnew(const char *str)
+{
+	struct comm_strs *comm_strs = comm_strs__get();
+	struct comm_str *result;
+
+	if (!comm_strs)
+		return NULL;
+
+	down_read(&comm_strs->lock);
+	result = __comm_strs__find(comm_strs, str);
+	up_read(&comm_strs->lock);
+	if (result)
+		return result;
+
+	down_write(&comm_strs->lock);
+	result = __comm_strs__find(comm_strs, str);
+	if (!result) {
+		if (comm_strs->num_strs == comm_strs->capacity) {
+			struct comm_str **tmp;
+
+			tmp = reallocarray(comm_strs->strs,
+					   comm_strs->capacity + 16,
+					   sizeof(*comm_strs->strs));
+			if (!tmp) {
+				up_write(&comm_strs->lock);
+				return NULL;
+			}
+			comm_strs->strs = tmp;
+			comm_strs->capacity += 16;
+		}
+		result = comm_str__new(str);
+		if (result) {
+			int low = 0, high = comm_strs->num_strs - 1;
+			int insert = comm_strs->num_strs; /* Default to inserting at the end. */
+
+			while (low <= high) {
+				int mid = low + (high - low) / 2;
+				int cmp = strcmp(comm_str__str(comm_strs->strs[mid]), str);
+
+				if (cmp < 0) {
+					low = mid + 1;
+				} else {
+					high = mid - 1;
+					insert = mid;
+				}
+			}
+			memmove(&comm_strs->strs[insert + 1], &comm_strs->strs[insert],
+				(comm_strs->num_strs - insert) * sizeof(struct comm_str *));
+			comm_strs->num_strs++;
+			comm_strs->strs[insert] = result;
+		}
+	}
+	up_write(&comm_strs->lock);
+	return comm_str__get(result);
 }
 
 struct comm *comm__new(const char *str, u64 timestamp, bool exec)
@@ -115,7 +195,7 @@ struct comm *comm__new(const char *str, u64 timestamp, bool exec)
 	comm->start = timestamp;
 	comm->exec = exec;
 
-	comm->comm_str = comm_str__findnew(str, &comm_str_root);
+	comm->comm_str = comm_strs__findnew(str);
 	if (!comm->comm_str) {
 		free(comm);
 		return NULL;
@@ -128,7 +208,7 @@ int comm__override(struct comm *comm, const char *str, u64 timestamp, bool exec)
 {
 	struct comm_str *new, *old = comm->comm_str;
 
-	new = comm_str__findnew(str, &comm_str_root);
+	new = comm_strs__findnew(str);
 	if (!new)
 		return -ENOMEM;
 
@@ -149,5 +229,5 @@ void comm__free(struct comm *comm)
 
 const char *comm__str(const struct comm *comm)
 {
-	return comm->comm_str->str;
+	return comm_str__str(comm->comm_str);
 }

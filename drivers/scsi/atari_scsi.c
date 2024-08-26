@@ -894,4 +894,5 @@ static struct platform_driver atari_scsi_driver __refdata = {
 module_platform_driver_probe(atari_scsi_driver, atari_scsi_probe);
 
 MODULE_ALIAS("platform:" DRV_MODULE_NAME);
+MODULE_DESCRIPTION("Atari TT/Falcon NCR5380 SCSI driver");
 MODULE_LICENSE("GPL");

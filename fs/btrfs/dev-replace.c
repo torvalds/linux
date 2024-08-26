@@ -316,7 +316,7 @@ static int btrfs_init_dev_replace_tgtdev(struct btrfs_fs_info *fs_info,
 	set_bit(BTRFS_DEV_STATE_IN_FS_METADATA, &device->dev_state);
 	set_bit(BTRFS_DEV_STATE_REPLACE_TGT, &device->dev_state);
 	device->dev_stats_valid = 1;
-	set_blocksize(device->bdev, BTRFS_BDEV_BLOCKSIZE);
+	set_blocksize(bdev_file, BTRFS_BDEV_BLOCKSIZE);
 	device->fs_devices = fs_devices;
 
 	ret = btrfs_get_dev_zone_info(device, false);
@@ -684,7 +684,7 @@ static int btrfs_dev_replace_start(struct btrfs_fs_info *fs_info,
 	if (ret)
 		btrfs_err(fs_info, "kobj add dev failed %d", ret);
 
-	btrfs_wait_ordered_roots(fs_info, U64_MAX, 0, (u64)-1);
+	btrfs_wait_ordered_roots(fs_info, U64_MAX, NULL);
 
 	/*
 	 * Commit dev_replace state and reserve 1 item for it.
@@ -880,7 +880,7 @@ static int btrfs_dev_replace_finishing(struct btrfs_fs_info *fs_info,
 		mutex_unlock(&dev_replace->lock_finishing_cancel_unmount);
 		return ret;
 	}
-	btrfs_wait_ordered_roots(fs_info, U64_MAX, 0, (u64)-1);
+	btrfs_wait_ordered_roots(fs_info, U64_MAX, NULL);
 
 	/*
 	 * We have to use this loop approach because at this point src_device

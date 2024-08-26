@@ -49,7 +49,7 @@ example usage
     $ devlink region show [ DEV/REGION ]
     $ devlink region del DEV/REGION snapshot SNAPSHOT_ID
     $ devlink region dump DEV/REGION [ snapshot SNAPSHOT_ID ]
-    $ devlink region read DEV/REGION [ snapshot SNAPSHOT_ID ] address ADDRESS length length
+    $ devlink region read DEV/REGION [ snapshot SNAPSHOT_ID ] address ADDRESS length LENGTH
 
     # Show all of the exposed regions with region sizes:
     $ devlink region show

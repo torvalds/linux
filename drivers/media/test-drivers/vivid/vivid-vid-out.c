@@ -63,14 +63,16 @@ static int vid_out_queue_setup(struct vb2_queue *vq,
 		if (sizes[0] < size)
 			return -EINVAL;
 		for (p = 1; p < planes; p++) {
-			if (sizes[p] < dev->bytesperline_out[p] * h +
-				       vfmt->data_offset[p])
+			if (sizes[p] < dev->bytesperline_out[p] * h /
+					vfmt->vdownsampling[p] +
+					vfmt->data_offset[p])
 				return -EINVAL;
 		}
 	} else {
 		for (p = 0; p < planes; p++)
-			sizes[p] = p ? dev->bytesperline_out[p] * h +
-				       vfmt->data_offset[p] : size;
+			sizes[p] = p ? dev->bytesperline_out[p] * h /
+					vfmt->vdownsampling[p] +
+					vfmt->data_offset[p] : size;
 	}
 
 	*nplanes = planes;
@@ -124,7 +126,7 @@ static int vid_out_buf_prepare(struct vb2_buffer *vb)
 
 	for (p = 0; p < planes; p++) {
 		if (p)
-			size = dev->bytesperline_out[p] * h;
+			size = dev->bytesperline_out[p] * h / vfmt->vdownsampling[p];
 		size += vb->planes[p].data_offset;
 
 		if (vb2_get_plane_payload(vb, p) < size) {
@@ -155,9 +157,6 @@ static int vid_out_start_streaming(struct vb2_queue *vq, unsigned count)
 	struct vivid_dev *dev = vb2_get_drv_priv(vq);
 	int err;
 
-	if (vb2_is_streaming(&dev->vb_vid_cap_q))
-		dev->can_loop_video = vivid_vid_can_loop(dev);
-
 	dev->vid_out_seq_count = 0;
 	dprintk(dev, 1, "%s\n", __func__);
 	if (dev->start_streaming_error) {
@@ -185,7 +184,6 @@ static void vid_out_stop_streaming(struct vb2_queue *vq)
 
 	dprintk(dev, 1, "%s\n", __func__);
 	vivid_stop_generating_vid_out(dev, &dev->vid_out_streaming);
-	dev->can_loop_video = false;
 }
 
 static void vid_out_buf_request_complete(struct vb2_buffer *vb)
@@ -331,8 +329,8 @@ int vivid_g_fmt_vid_out(struct file *file, void *priv,
 	for (p = 0; p < mp->num_planes; p++) {
 		mp->plane_fmt[p].bytesperline = dev->bytesperline_out[p];
 		mp->plane_fmt[p].sizeimage =
-			mp->plane_fmt[p].bytesperline * mp->height +
-			fmt->data_offset[p];
+			mp->plane_fmt[p].bytesperline * mp->height /
+			fmt->vdownsampling[p] + fmt->data_offset[p];
 	}
 	for (p = fmt->buffers; p < fmt->planes; p++) {
 		unsigned stride = dev->bytesperline_out[p];
@@ -562,9 +560,11 @@ set_colorspace:
 	dev->xfer_func_out = mp->xfer_func;
 	dev->ycbcr_enc_out = mp->ycbcr_enc;
 	dev->quantization_out = mp->quantization;
-	if (dev->loop_video) {
-		vivid_send_source_change(dev, SVID);
-		vivid_send_source_change(dev, HDMI);
+	struct vivid_dev *in_dev = vivid_output_is_connected_to(dev);
+
+	if (in_dev) {
+		vivid_send_source_change(in_dev, SVID);
+		vivid_send_source_change(in_dev, HDMI);
 	}
 	return 0;
 }
@@ -964,16 +964,16 @@ int vidioc_enum_output(struct file *file, void *priv,
 	out->type = V4L2_OUTPUT_TYPE_ANALOG;
 	switch (dev->output_type[out->index]) {
 	case SVID:
-		snprintf(out->name, sizeof(out->name), "S-Video %u",
-				dev->output_name_counter[out->index]);
+		snprintf(out->name, sizeof(out->name), "S-Video %03u-%u",
+			 dev->inst, dev->output_name_counter[out->index]);
 		out->std = V4L2_STD_ALL;
 		if (dev->has_audio_outputs)
 			out->audioset = (1 << ARRAY_SIZE(vivid_audio_outputs)) - 1;
 		out->capabilities = V4L2_OUT_CAP_STD;
 		break;
 	case HDMI:
-		snprintf(out->name, sizeof(out->name), "HDMI %u",
-				dev->output_name_counter[out->index]);
+		snprintf(out->name, sizeof(out->name), "HDMI %03u-%u",
+			 dev->inst, dev->output_name_counter[out->index]);
 		out->capabilities = V4L2_OUT_CAP_DV_TIMINGS;
 		break;
 	}
@@ -1013,11 +1013,6 @@ int vidioc_s_output(struct file *file, void *priv, unsigned o)
 	dev->vbi_out_dev.tvnorms = dev->vid_out_dev.tvnorms;
 	dev->meta_out_dev.tvnorms = dev->vid_out_dev.tvnorms;
 	vivid_update_format_out(dev);
-
-	v4l2_ctrl_activate(dev->ctrl_display_present, vivid_is_hdmi_out(dev));
-	if (vivid_is_hdmi_out(dev))
-		v4l2_ctrl_s_ctrl(dev->ctrl_display_present,
-				 dev->display_present[dev->output]);
 
 	return 0;
 }

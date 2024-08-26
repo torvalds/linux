@@ -352,7 +352,7 @@ void optc3_set_timing_db_mode(struct timing_generator *optc, bool enable);
 void optc3_set_odm_bypass(struct timing_generator *optc,
 		const struct dc_crtc_timing *dc_crtc_timing);
 void optc3_set_odm_combine(struct timing_generator *optc, int *opp_id, int opp_cnt,
-		struct dc_crtc_timing *timing);
+		int segment_width, int last_segment_width);
 void optc3_wait_drr_doublebuffer_pending_clear(struct timing_generator *optc);
 void optc3_tg_init(struct timing_generator *optc);
 void optc3_set_vtotal_min_max(struct timing_generator *optc, int vtotal_min, int vtotal_max);

@@ -664,6 +664,16 @@ config RTC_DRV_RX8010
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-rx8010.
 
+config RTC_DRV_RX8111
+	tristate "Epson RX8111"
+	select REGMAP_I2C
+	depends on I2C
+	help
+	  If you say yes here you will get support for the Epson RX8111 RTC.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called rtc-rx8111.
+
 config RTC_DRV_RX8581
 	tristate "Epson RX-8571/RX-8581"
 	select REGMAP_I2C

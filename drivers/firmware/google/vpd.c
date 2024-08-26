@@ -323,4 +323,5 @@ static struct coreboot_driver vpd_driver = {
 module_coreboot_driver(vpd_driver);
 
 MODULE_AUTHOR("Google, Inc.");
+MODULE_DESCRIPTION("Driver for exporting Vital Product Data content to sysfs");
 MODULE_LICENSE("GPL");

@@ -42,15 +42,15 @@ enum {
 	P_SLEEP_CLK,
 };
 
-static struct pll_vco default_vco[] = {
+static const struct pll_vco default_vco[] = {
 	{ 500000000, 1000000000, 2 },
 };
 
-static struct pll_vco gpll9_vco[] = {
+static const struct pll_vco gpll9_vco[] = {
 	{ 500000000, 1250000000, 0 },
 };
 
-static struct pll_vco gpll10_vco[] = {
+static const struct pll_vco gpll10_vco[] = {
 	{ 750000000, 1500000000, 1 },
 };
 
@@ -3513,7 +3513,7 @@ static int gcc_sm6115_probe(struct platform_device *pdev)
 	clk_alpha_pll_configure(&gpll10, regmap, &gpll10_config);
 	clk_alpha_pll_configure(&gpll11, regmap, &gpll11_config);
 
-	return qcom_cc_really_probe(pdev, &gcc_sm6115_desc, regmap);
+	return qcom_cc_really_probe(&pdev->dev, &gcc_sm6115_desc, regmap);
 }
 
 static struct platform_driver gcc_sm6115_driver = {

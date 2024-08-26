@@ -28,6 +28,7 @@ int icssg_queue_pop(struct prueth *prueth, u8 queue)
 
 	return val;
 }
+EXPORT_SYMBOL_GPL(icssg_queue_pop);
 
 void icssg_queue_push(struct prueth *prueth, int queue, u16 addr)
 {
@@ -36,6 +37,7 @@ void icssg_queue_push(struct prueth *prueth, int queue, u16 addr)
 
 	regmap_write(prueth->miig_rt, ICSSG_QUEUE_OFFSET + 4 * queue, addr);
 }
+EXPORT_SYMBOL_GPL(icssg_queue_push);
 
 u32 icssg_queue_level(struct prueth *prueth, int queue)
 {

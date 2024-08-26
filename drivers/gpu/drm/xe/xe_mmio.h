@@ -6,22 +6,13 @@
 #ifndef _XE_MMIO_H_
 #define _XE_MMIO_H_
 
-#include <linux/delay.h>
-#include <linux/io-64-nonatomic-lo-hi.h>
-
-#include "regs/xe_reg_defs.h"
-#include "xe_device_types.h"
-#include "xe_gt_printk.h"
 #include "xe_gt_types.h"
 
-struct drm_device;
-struct drm_file;
 struct xe_device;
-
-#define LMEM_BAR		2
+struct xe_reg;
 
 int xe_mmio_init(struct xe_device *xe);
-void xe_mmio_probe_tiles(struct xe_device *xe);
+int xe_mmio_probe_tiles(struct xe_device *xe);
 
 u8 xe_mmio_read8(struct xe_gt *gt, struct xe_reg reg);
 u16 xe_mmio_read16(struct xe_gt *gt, struct xe_reg reg);
@@ -35,5 +26,14 @@ int xe_mmio_probe_vram(struct xe_device *xe);
 u64 xe_mmio_read64_2x32(struct xe_gt *gt, struct xe_reg reg);
 int xe_mmio_wait32(struct xe_gt *gt, struct xe_reg reg, u32 mask, u32 val, u32 timeout_us,
 		   u32 *out_val, bool atomic);
+int xe_mmio_wait32_not(struct xe_gt *gt, struct xe_reg reg, u32 mask, u32 val, u32 timeout_us,
+		       u32 *out_val, bool atomic);
+
+static inline u32 xe_mmio_adjusted_addr(const struct xe_gt *gt, u32 addr)
+{
+	if (addr < gt->mmio.adj_limit)
+		addr += gt->mmio.adj_offset;
+	return addr;
+}
 
 #endif

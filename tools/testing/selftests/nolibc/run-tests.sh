@@ -15,9 +15,10 @@ download_location="${cache_dir}/crosstools/"
 build_location="$(realpath "${cache_dir}"/nolibc-tests/)"
 perform_download=0
 test_mode=system
+CFLAGS_EXTRA="-Werror"
 archs="i386 x86_64 arm64 arm mips32le mips32be ppc ppc64 ppc64le riscv s390 loongarch"
 
-TEMP=$(getopt -o 'j:d:c:b:a:m:ph' -n "$0" -- "$@")
+TEMP=$(getopt -o 'j:d:c:b:a:m:peh' -n "$0" -- "$@")
 
 eval set -- "$TEMP"
 unset TEMP
@@ -40,6 +41,7 @@ Options:
  -a [ARCH]      Host architecture of toolchains to use (default: ${hostarch})
  -b [DIR]       Build location (default: ${build_location})
  -m [MODE]      Test mode user/system (default: ${test_mode})
+ -e             Disable -Werror
 EOF
 }
 
@@ -66,6 +68,9 @@ while true; do
 		'-m')
 			test_mode="$2"
 			shift 2; continue ;;
+		'-e')
+			CFLAGS_EXTRA=""
+			shift; continue ;;
 		'-h')
 			print_usage
 			exit 0
@@ -153,7 +158,7 @@ test_arch() {
 			exit 1
 	esac
 	printf '%-15s' "$arch:"
-	swallow_output "${MAKE[@]}" "$test_target" V=1
+	swallow_output "${MAKE[@]}" CFLAGS_EXTRA="$CFLAGS_EXTRA" "$test_target" V=1
 	cp run.out run.out."${arch}"
 	"${MAKE[@]}" report | grep passed
 }

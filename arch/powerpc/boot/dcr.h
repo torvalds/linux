@@ -153,17 +153,6 @@ static const unsigned long sdram_bxcr[] = { SDRAM0_B0CR, SDRAM0_B1CR,
 #define CPR0_SCPID	0x120
 #define CPR0_PLLC0	0x40
 
-/* 405GP Clocking/Power Management/Chip Control regs */
-#define DCRN_CPC0_PLLMR 0xb0
-#define DCRN_405_CPC0_CR0 0xb1
-#define DCRN_405_CPC0_CR1 0xb2
-#define DCRN_405_CPC0_PSR 0xb4
-
-/* 405EP Clocking/Power Management/Chip Control regs */
-#define DCRN_CPC0_PLLMR0  0xf0
-#define DCRN_CPC0_PLLMR1  0xf4
-#define DCRN_CPC0_UCR     0xf5
-
 /* 440GX/405EX Clock Control reg */
 #define DCRN_CPR0_CLKUPD				0x020
 #define DCRN_CPR0_PLLC					0x040

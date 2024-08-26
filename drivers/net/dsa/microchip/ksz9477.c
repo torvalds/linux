@@ -355,10 +355,8 @@ int ksz9477_reset_switch(struct ksz_device *dev)
 			   SPI_AUTO_EDGE_DETECTION, 0);
 
 	/* default configuration */
-	ksz_read8(dev, REG_SW_LUE_CTRL_1, &data8);
-	data8 = SW_AGING_ENABLE | SW_LINK_AUTO_AGING |
-	      SW_SRC_ADDR_FILTER | SW_FLUSH_STP_TABLE | SW_FLUSH_MSTP_TABLE;
-	ksz_write8(dev, REG_SW_LUE_CTRL_1, data8);
+	ksz_write8(dev, REG_SW_LUE_CTRL_1,
+		   SW_AGING_ENABLE | SW_LINK_AUTO_AGING | SW_SRC_ADDR_FILTER);
 
 	/* disable interrupts */
 	ksz_write32(dev, REG_SW_INT_MASK__4, SWITCH_INT_MASK);
@@ -427,6 +425,57 @@ void ksz9477_freeze_mib(struct ksz_device *dev, int port, bool freeze)
 	/* used by MIB counter reading code to know freeze is enabled */
 	p->freeze = freeze;
 	mutex_unlock(&p->mib.cnt_mutex);
+}
+
+int ksz9477_errata_monitor(struct ksz_device *dev, int port,
+			   u64 tx_late_col)
+{
+	u32 pmavbc;
+	u8 status;
+	u16 pqm;
+	int ret;
+
+	ret = ksz_pread8(dev, port, REG_PORT_STATUS_0, &status);
+	if (ret)
+		return ret;
+	if (!(FIELD_GET(PORT_INTF_SPEED_MASK, status) == PORT_INTF_SPEED_NONE) &&
+	    !(status & PORT_INTF_FULL_DUPLEX)) {
+		/* Errata DS80000754 recommends monitoring potential faults in
+		 * half-duplex mode. The switch might not be able to communicate anymore
+		 * in these states.
+		 * If you see this message, please read the errata-sheet for more information:
+		 * https://ww1.microchip.com/downloads/aemDocuments/documents/UNG/ProductDocuments/Errata/KSZ9477S-Errata-DS80000754.pdf
+		 * To workaround this issue, half-duplex mode should be avoided.
+		 * A software reset could be implemented to recover from this state.
+		 */
+		dev_warn_once(dev->dev,
+			      "Half-duplex detected on port %d, transmission halt may occur\n",
+			      port);
+		if (tx_late_col != 0) {
+			/* Transmission halt with late collisions */
+			dev_crit_once(dev->dev,
+				      "TX late collisions detected, transmission may be halted on port %d\n",
+				      port);
+		}
+		ret = ksz_read8(dev, REG_SW_LUE_CTRL_0, &status);
+		if (ret)
+			return ret;
+		if (status & SW_VLAN_ENABLE) {
+			ret = ksz_pread16(dev, port, REG_PORT_QM_TX_CNT_0__4, &pqm);
+			if (ret)
+				return ret;
+			ret = ksz_read32(dev, REG_PMAVBC, &pmavbc);
+			if (ret)
+				return ret;
+			if ((FIELD_GET(PMAVBC_MASK, pmavbc) <= PMAVBC_MIN) ||
+			    (FIELD_GET(PORT_QM_TX_CNT_M, pqm) >= PORT_QM_TX_CNT_MAX)) {
+				/* Transmission halt with Half-Duplex and VLAN */
+				dev_crit_once(dev->dev,
+					      "resources out of limits, transmission may be halted\n");
+			}
+		}
+	}
+	return ret;
 }
 
 void ksz9477_port_init_cnt(struct ksz_device *dev, int port)
@@ -1298,6 +1347,10 @@ int ksz9477_setup(struct dsa_switch *ds)
 
 	/* Enable REG_SW_MTU__2 reg by setting SW_JUMBO_PACKET */
 	ksz_cfg(dev, REG_SW_MAC_CTRL_1, SW_JUMBO_PACKET, true);
+
+	/* Use collision based back pressure mode. */
+	ksz_cfg(dev, REG_SW_MAC_CTRL_1, SW_BACK_PRESSURE,
+		SW_BACK_PRESSURE_COLLISION);
 
 	/* Now we can configure default MTU value */
 	ret = regmap_update_bits(ksz_regmap_16(dev), REG_SW_MTU__2, REG_SW_MTU_MASK,

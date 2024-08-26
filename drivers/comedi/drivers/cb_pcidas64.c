@@ -374,11 +374,6 @@ static inline u16 pipe_full_bits(u16 hw_status_bits)
 	return (hw_status_bits >> 10) & 0x3;
 };
 
-static inline unsigned int dma_chain_flag_bits(u16 prepost_bits)
-{
-	return (prepost_bits >> 6) & 0x3;
-}
-
 static inline unsigned int adc_upper_read_ptr_code(u16 prepost_bits)
 {
 	return (prepost_bits >> 12) & 0x3;

@@ -3390,8 +3390,8 @@ static void set_discard_limits(struct cache *cache, struct queue_limits *limits)
 
 	if (!cache->features.discard_passdown) {
 		/* No passdown is done so setting own virtual limits */
-		limits->max_discard_sectors = min_t(sector_t, cache->discard_block_size * 1024,
-						    cache->origin_sectors);
+		limits->max_hw_discard_sectors = min_t(sector_t, cache->discard_block_size * 1024,
+						       cache->origin_sectors);
 		limits->discard_granularity = cache->discard_block_size << SECTOR_SHIFT;
 		return;
 	}
@@ -3400,11 +3400,9 @@ static void set_discard_limits(struct cache *cache, struct queue_limits *limits)
 	 * cache_iterate_devices() is stacking both origin and fast device limits
 	 * but discards aren't passed to fast device, so inherit origin's limits.
 	 */
-	limits->max_discard_sectors = origin_limits->max_discard_sectors;
 	limits->max_hw_discard_sectors = origin_limits->max_hw_discard_sectors;
 	limits->discard_granularity = origin_limits->discard_granularity;
 	limits->discard_alignment = origin_limits->discard_alignment;
-	limits->discard_misaligned = origin_limits->discard_misaligned;
 }
 
 static void cache_io_hints(struct dm_target *ti, struct queue_limits *limits)
@@ -3418,8 +3416,8 @@ static void cache_io_hints(struct dm_target *ti, struct queue_limits *limits)
 	 */
 	if (io_opt_sectors < cache->sectors_per_block ||
 	    do_div(io_opt_sectors, cache->sectors_per_block)) {
-		blk_limits_io_min(limits, cache->sectors_per_block << SECTOR_SHIFT);
-		blk_limits_io_opt(limits, cache->sectors_per_block << SECTOR_SHIFT);
+		limits->io_min = cache->sectors_per_block << SECTOR_SHIFT;
+		limits->io_opt = cache->sectors_per_block << SECTOR_SHIFT;
 	}
 
 	disable_passdown_if_not_supported(cache);

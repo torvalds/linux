@@ -451,7 +451,7 @@ static void *nt_final(void *ptr)
 /*
  * Initialize ELF header (new kernel)
  */
-static void *ehdr_init(Elf64_Ehdr *ehdr, int mem_chunk_cnt)
+static void *ehdr_init(Elf64_Ehdr *ehdr, int phdr_count)
 {
 	memset(ehdr, 0, sizeof(*ehdr));
 	memcpy(ehdr->e_ident, ELFMAG, SELFMAG);
@@ -465,11 +465,8 @@ static void *ehdr_init(Elf64_Ehdr *ehdr, int mem_chunk_cnt)
 	ehdr->e_phoff = sizeof(Elf64_Ehdr);
 	ehdr->e_ehsize = sizeof(Elf64_Ehdr);
 	ehdr->e_phentsize = sizeof(Elf64_Phdr);
-	/*
-	 * Number of memory chunk PT_LOAD program headers plus one kernel
-	 * image PT_LOAD program header plus one PT_NOTE program header.
-	 */
-	ehdr->e_phnum = mem_chunk_cnt + 1 + 1;
+	/* Number of PT_LOAD program headers plus PT_NOTE program header */
+	ehdr->e_phnum = phdr_count + 1;
 	return ehdr + 1;
 }
 
@@ -503,12 +500,14 @@ static int get_mem_chunk_cnt(void)
 /*
  * Initialize ELF loads (new kernel)
  */
-static void loads_init(Elf64_Phdr *phdr)
+static void loads_init(Elf64_Phdr *phdr, bool os_info_has_vm)
 {
-	unsigned long old_identity_base = os_info_old_value(OS_INFO_IDENTITY_BASE);
+	unsigned long old_identity_base = 0;
 	phys_addr_t start, end;
 	u64 idx;
 
+	if (os_info_has_vm)
+		old_identity_base = os_info_old_value(OS_INFO_IDENTITY_BASE);
 	for_each_physmem_range(idx, &oldmem_type, &start, &end) {
 		phdr->p_type = PT_LOAD;
 		phdr->p_vaddr = old_identity_base + start;
@@ -520,6 +519,11 @@ static void loads_init(Elf64_Phdr *phdr)
 		phdr->p_align = PAGE_SIZE;
 		phdr++;
 	}
+}
+
+static bool os_info_has_vm(void)
+{
+	return os_info_old_value(OS_INFO_KASLR_OFFSET);
 }
 
 /*
@@ -566,7 +570,7 @@ static void *notes_init(Elf64_Phdr *phdr, void *ptr, u64 notes_offset)
 	return ptr;
 }
 
-static size_t get_elfcorehdr_size(int mem_chunk_cnt)
+static size_t get_elfcorehdr_size(int phdr_count)
 {
 	size_t size;
 
@@ -581,10 +585,8 @@ static size_t get_elfcorehdr_size(int mem_chunk_cnt)
 	size += nt_vmcoreinfo_size();
 	/* nt_final */
 	size += sizeof(Elf64_Nhdr);
-	/* PT_LOAD type program header for kernel text region */
-	size += sizeof(Elf64_Phdr);
 	/* PT_LOADS */
-	size += mem_chunk_cnt * sizeof(Elf64_Phdr);
+	size += phdr_count * sizeof(Elf64_Phdr);
 
 	return size;
 }
@@ -595,8 +597,8 @@ static size_t get_elfcorehdr_size(int mem_chunk_cnt)
 int elfcorehdr_alloc(unsigned long long *addr, unsigned long long *size)
 {
 	Elf64_Phdr *phdr_notes, *phdr_loads, *phdr_text;
+	int mem_chunk_cnt, phdr_text_cnt;
 	size_t alloc_size;
-	int mem_chunk_cnt;
 	void *ptr, *hdr;
 	u64 hdr_off;
 
@@ -615,12 +617,14 @@ int elfcorehdr_alloc(unsigned long long *addr, unsigned long long *size)
 	}
 
 	mem_chunk_cnt = get_mem_chunk_cnt();
+	phdr_text_cnt = os_info_has_vm() ? 1 : 0;
 
-	alloc_size = get_elfcorehdr_size(mem_chunk_cnt);
+	alloc_size = get_elfcorehdr_size(mem_chunk_cnt + phdr_text_cnt);
 
 	hdr = kzalloc(alloc_size, GFP_KERNEL);
 
-	/* Without elfcorehdr /proc/vmcore cannot be created. Thus creating
+	/*
+	 * Without elfcorehdr /proc/vmcore cannot be created. Thus creating
 	 * a dump with this crash kernel will fail. Panic now to allow other
 	 * dump mechanisms to take over.
 	 */
@@ -628,21 +632,23 @@ int elfcorehdr_alloc(unsigned long long *addr, unsigned long long *size)
 		panic("s390 kdump allocating elfcorehdr failed");
 
 	/* Init elf header */
-	ptr = ehdr_init(hdr, mem_chunk_cnt);
+	phdr_notes = ehdr_init(hdr, mem_chunk_cnt + phdr_text_cnt);
 	/* Init program headers */
-	phdr_notes = ptr;
-	ptr = PTR_ADD(ptr, sizeof(Elf64_Phdr));
-	phdr_text = ptr;
-	ptr = PTR_ADD(ptr, sizeof(Elf64_Phdr));
-	phdr_loads = ptr;
-	ptr = PTR_ADD(ptr, sizeof(Elf64_Phdr) * mem_chunk_cnt);
+	if (phdr_text_cnt) {
+		phdr_text = phdr_notes + 1;
+		phdr_loads = phdr_text + 1;
+	} else {
+		phdr_loads = phdr_notes + 1;
+	}
+	ptr = PTR_ADD(phdr_loads, sizeof(Elf64_Phdr) * mem_chunk_cnt);
 	/* Init notes */
 	hdr_off = PTR_DIFF(ptr, hdr);
 	ptr = notes_init(phdr_notes, ptr, ((unsigned long) hdr) + hdr_off);
 	/* Init kernel text program header */
-	text_init(phdr_text);
+	if (phdr_text_cnt)
+		text_init(phdr_text);
 	/* Init loads */
-	loads_init(phdr_loads);
+	loads_init(phdr_loads, phdr_text_cnt);
 	/* Finalize program headers */
 	hdr_off = PTR_DIFF(ptr, hdr);
 	*addr = (unsigned long long) hdr;

@@ -29,6 +29,7 @@ config KVM
 	select KVM_MMIO
 	select HAVE_KVM_READONLY_MEM
 	select KVM_XFER_TO_GUEST_WORK
+	select SCHED_INFO
 	help
 	  Support hosting virtualized guest machines using
 	  hardware virtualization extensions. You will need

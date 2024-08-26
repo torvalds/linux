@@ -43,6 +43,7 @@ static struct cxl_driver cxl_dax_region_driver = {
 
 module_cxl_driver(cxl_dax_region_driver);
 MODULE_ALIAS_CXL(CXL_DEVICE_DAX_REGION);
+MODULE_DESCRIPTION("CXL DAX: direct access to CXL regions");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Intel Corporation");
 MODULE_IMPORT_NS(CXL);

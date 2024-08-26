@@ -38,6 +38,7 @@ MODULE_PARM_DESC(enable_sw_tablet_mode,
 /* When NOT in tablet mode, VGBS returns with the flag 0x40 */
 #define TABLET_MODE_FLAG BIT(6)
 
+MODULE_DESCRIPTION("Intel HID Event hotkey driver");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Alex Hung");
 

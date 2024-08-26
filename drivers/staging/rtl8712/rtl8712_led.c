@@ -107,7 +107,7 @@ static void DeInitLed871x(struct LED_871x *pLed)
  */
 static void SwLedOn(struct _adapter *padapter, struct LED_871x *pLed)
 {
-	u8	LedCfg;
+	u8 LedCfg;
 
 	if (padapter->surprise_removed || padapter->driver_stopped)
 		return;

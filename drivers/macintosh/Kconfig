@@ -262,7 +262,7 @@ config SENSORS_AMS
 	  will be called ams.
 
 config SENSORS_AMS_PMU
-	bool "PMU variant"
+	bool "PMU variant" if SENSORS_AMS_I2C
 	depends on SENSORS_AMS && ADB_PMU
 	default y
 	help

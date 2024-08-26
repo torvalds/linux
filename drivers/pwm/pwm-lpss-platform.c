@@ -55,14 +55,7 @@ static int pwm_lpss_probe_platform(struct platform_device *pdev)
 						    DPM_FLAG_SMART_SUSPEND);
 
 	pm_runtime_set_active(&pdev->dev);
-	pm_runtime_enable(&pdev->dev);
-
-	return 0;
-}
-
-static void pwm_lpss_remove_platform(struct platform_device *pdev)
-{
-	pm_runtime_disable(&pdev->dev);
+	return devm_pm_runtime_enable(&pdev->dev);
 }
 
 static const struct acpi_device_id pwm_lpss_acpi_match[] = {
@@ -80,7 +73,6 @@ static struct platform_driver pwm_lpss_driver_platform = {
 		.acpi_match_table = pwm_lpss_acpi_match,
 	},
 	.probe = pwm_lpss_probe_platform,
-	.remove_new = pwm_lpss_remove_platform,
 };
 module_platform_driver(pwm_lpss_driver_platform);
 

@@ -80,7 +80,6 @@ static int btrfs_insert_one_raid_extent(struct btrfs_trans_handle *trans,
 	struct btrfs_key stripe_key;
 	struct btrfs_root *stripe_root = fs_info->stripe_root;
 	const int num_stripes = btrfs_bg_type_to_factor(bioc->map_type);
-	u8 encoding = btrfs_bg_flags_to_raid_index(bioc->map_type);
 	struct btrfs_stripe_extent *stripe_extent;
 	const size_t item_size = struct_size(stripe_extent, strides, num_stripes);
 	int ret;
@@ -94,7 +93,6 @@ static int btrfs_insert_one_raid_extent(struct btrfs_trans_handle *trans,
 
 	trace_btrfs_insert_one_raid_extent(fs_info, bioc->logical, bioc->size,
 					   num_stripes);
-	btrfs_set_stack_stripe_extent_encoding(stripe_extent, encoding);
 	for (int i = 0; i < num_stripes; i++) {
 		u64 devid = bioc->stripes[i].dev->devid;
 		u64 physical = bioc->stripes[i].physical;
@@ -159,7 +157,6 @@ int btrfs_get_raid_extent_offset(struct btrfs_fs_info *fs_info,
 	struct extent_buffer *leaf;
 	const u64 end = logical + *length;
 	int num_stripes;
-	u8 encoding;
 	u64 offset;
 	u64 found_logical;
 	u64 found_length;
@@ -222,16 +219,6 @@ int btrfs_get_raid_extent_offset(struct btrfs_fs_info *fs_info,
 
 	num_stripes = btrfs_num_raid_stripes(btrfs_item_size(leaf, slot));
 	stripe_extent = btrfs_item_ptr(leaf, slot, struct btrfs_stripe_extent);
-	encoding = btrfs_stripe_extent_encoding(leaf, stripe_extent);
-
-	if (encoding != btrfs_bg_flags_to_raid_index(map_type)) {
-		ret = -EUCLEAN;
-		btrfs_handle_fs_error(fs_info, ret,
-				      "on-disk stripe encoding %d doesn't match RAID index %d",
-				      encoding,
-				      btrfs_bg_flags_to_raid_index(map_type));
-		goto out;
-	}
 
 	for (int i = 0; i < num_stripes; i++) {
 		struct btrfs_raid_stride *stride = &stripe_extent->strides[i];

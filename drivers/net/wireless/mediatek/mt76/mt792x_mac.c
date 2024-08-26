@@ -138,6 +138,7 @@ EXPORT_SYMBOL_GPL(mt792x_mac_update_mib_stats);
 struct mt76_wcid *mt792x_rx_get_wcid(struct mt792x_dev *dev, u16 idx,
 				     bool unicast)
 {
+	struct mt792x_link_sta *link;
 	struct mt792x_sta *sta;
 	struct mt76_wcid *wcid;
 
@@ -151,11 +152,12 @@ struct mt76_wcid *mt792x_rx_get_wcid(struct mt792x_dev *dev, u16 idx,
 	if (!wcid->sta)
 		return NULL;
 
-	sta = container_of(wcid, struct mt792x_sta, wcid);
+	link = container_of(wcid, struct mt792x_link_sta, wcid);
+	sta = container_of(link, struct mt792x_sta, deflink);
 	if (!sta->vif)
 		return NULL;
 
-	return &sta->vif->sta.wcid;
+	return &sta->vif->sta.deflink.wcid;
 }
 EXPORT_SYMBOL_GPL(mt792x_rx_get_wcid);
 
@@ -173,7 +175,7 @@ mt792x_mac_rssi_iter(void *priv, u8 *mac, struct ieee80211_vif *vif)
 	if (!ether_addr_equal(vif->addr, hdr->addr1))
 		return;
 
-	ewma_rssi_add(&mvif->rssi, -status->signal);
+	ewma_rssi_add(&mvif->bss_conf.rssi, -status->signal);
 }
 
 void mt792x_mac_assoc_rssi(struct mt792x_dev *dev, struct sk_buff *skb)

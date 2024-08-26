@@ -38,4 +38,5 @@ static void __exit exit_autofs_fs(void)
 
 module_init(init_autofs_fs)
 module_exit(exit_autofs_fs)
+MODULE_DESCRIPTION("Kernel automounter support");
 MODULE_LICENSE("GPL");

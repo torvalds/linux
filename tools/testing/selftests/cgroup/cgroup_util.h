@@ -18,10 +18,10 @@
  */
 static inline int values_close(long a, long b, int err)
 {
-	return abs(a - b) <= (a + b) / 100 * err;
+	return labs(a - b) <= (a + b) / 100 * err;
 }
 
-extern int cg_find_unified_root(char *root, size_t len);
+extern int cg_find_unified_root(char *root, size_t len, bool *nsdelegate);
 extern char *cg_name(const char *root, const char *name);
 extern char *cg_name_indexed(const char *root, const char *name, int index);
 extern char *cg_control(const char *cgroup, const char *control);

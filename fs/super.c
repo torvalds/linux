@@ -274,6 +274,7 @@ static void destroy_super_work(struct work_struct *work)
 {
 	struct super_block *s = container_of(work, struct super_block,
 							destroy_work);
+	fsnotify_sb_free(s);
 	security_sb_free(s);
 	put_user_ns(s->s_user_ns);
 	kfree(s->s_subtype);
@@ -1501,8 +1502,17 @@ static int fs_bdev_thaw(struct block_device *bdev)
 
 	lockdep_assert_held(&bdev->bd_fsfreeze_mutex);
 
+	/*
+	 * The block device may have been frozen before it was claimed by a
+	 * filesystem. Concurrently another process might try to mount that
+	 * frozen block device and has temporarily claimed the block device for
+	 * that purpose causing a concurrent fs_bdev_thaw() to end up here. The
+	 * mounter is already about to abort mounting because they still saw an
+	 * elevanted bdev->bd_fsfreeze_count so get_bdev_super() will return
+	 * NULL in that case.
+	 */
 	sb = get_bdev_super(bdev);
-	if (WARN_ON_ONCE(!sb))
+	if (!sb)
 		return -EINVAL;
 
 	if (sb->s_op->thaw_super)

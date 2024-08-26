@@ -126,6 +126,13 @@ int verity_verify_root_hash(const void *root_hash, size_t root_hash_len,
 				NULL,
 #endif
 				VERIFYING_UNSPECIFIED_SIGNATURE, NULL, NULL);
+#ifdef CONFIG_DM_VERITY_VERIFY_ROOTHASH_SIG_PLATFORM_KEYRING
+	if (ret == -ENOKEY)
+		ret = verify_pkcs7_signature(root_hash, root_hash_len, sig_data,
+					sig_len,
+					VERIFY_USE_PLATFORM_KEYRING,
+					VERIFYING_UNSPECIFIED_SIGNATURE, NULL, NULL);
+#endif
 
 	return ret;
 }

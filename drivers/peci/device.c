@@ -100,8 +100,7 @@ static int peci_device_info_init(struct peci_device *device)
 	if (ret)
 		return ret;
 
-	device->info.family = peci_x86_cpu_family(cpu_id);
-	device->info.model = peci_x86_cpu_model(cpu_id);
+	device->info.x86_vfm = IFM(peci_x86_cpu_family(cpu_id), peci_x86_cpu_model(cpu_id));
 
 	ret = peci_get_revision(device, &revision);
 	if (ret)
@@ -246,7 +245,7 @@ static void peci_device_release(struct device *dev)
 	kfree(device);
 }
 
-struct device_type peci_device_type = {
+const struct device_type peci_device_type = {
 	.groups		= peci_device_groups,
 	.release	= peci_device_release,
 };

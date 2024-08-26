@@ -106,4 +106,5 @@ static void __exit ttynull_exit(void)
 module_init(ttynull_init);
 module_exit(ttynull_exit);
 
+MODULE_DESCRIPTION("NULL TTY driver");
 MODULE_LICENSE("GPL v2");

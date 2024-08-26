@@ -206,9 +206,10 @@ static void wilc_wlan_power(struct wilc *wilc, bool on)
 
 static int wilc_bus_probe(struct spi_device *spi)
 {
-	int ret;
-	struct wilc *wilc;
 	struct wilc_spi *spi_priv;
+	struct wilc_vif *vif;
+	struct wilc *wilc;
+	int ret;
 
 	spi_priv = kzalloc(sizeof(*spi_priv), GFP_KERNEL);
 	if (!spi_priv)
@@ -249,7 +250,19 @@ static int wilc_bus_probe(struct spi_device *spi)
 	if (ret)
 		goto power_down;
 
+	ret = wilc_load_mac_from_nv(wilc);
+	if (ret) {
+		pr_err("Can not retrieve MAC address from chip\n");
+		goto power_down;
+	}
+
 	wilc_wlan_power(wilc, false);
+	vif = wilc_netdev_ifc_init(wilc, "wlan%d", WILC_STATION_MODE,
+				   NL80211_IFTYPE_STATION, false);
+	if (IS_ERR(vif)) {
+		ret = PTR_ERR(vif);
+		goto power_down;
+	}
 	return 0;
 
 power_down:

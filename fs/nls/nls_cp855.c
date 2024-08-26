@@ -296,4 +296,5 @@ static void __exit exit_nls_cp855(void)
 module_init(init_nls_cp855)
 module_exit(exit_nls_cp855)
 
+MODULE_DESCRIPTION("NLS Codepage 855 (Cyrillic)");
 MODULE_LICENSE("Dual BSD/GPL");

@@ -7,8 +7,6 @@
  * Authors:
  *  Nico Boehr <nrb@linux.ibm.com>
  */
-
-#define _GNU_SOURCE /* for program_invocation_short_name */
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -18,6 +16,7 @@
 #include "test_util.h"
 #include "kvm_util.h"
 #include "kselftest.h"
+#include "ucall_common.h"
 
 #define MAIN_PAGE_COUNT 512
 

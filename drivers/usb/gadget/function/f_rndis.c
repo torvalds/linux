@@ -1013,5 +1013,6 @@ static struct usb_function *rndis_alloc(struct usb_function_instance *fi)
 }
 
 DECLARE_USB_FUNCTION_INIT(rndis, rndis_alloc_inst, rndis_alloc);
+MODULE_DESCRIPTION("RNDIS link function driver");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("David Brownell");

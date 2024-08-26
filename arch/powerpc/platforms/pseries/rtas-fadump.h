@@ -23,11 +23,23 @@
 #define RTAS_FADUMP_HPTE_REGION		0x0002
 #define RTAS_FADUMP_REAL_MODE_REGION	0x0011
 
+/* OS defined sections */
+#define RTAS_FADUMP_PARAM_AREA		0x0100
+
 /* Dump request flag */
 #define RTAS_FADUMP_REQUEST_FLAG	0x00000001
 
 /* Dump status flag */
 #define RTAS_FADUMP_ERROR_FLAG		0x2000
+
+/*
+ * The Firmware Assisted Dump Memory structure supports a maximum of 10 sections
+ * in the dump memory structure. Presently, three sections are used for
+ * CPU state data, HPTE & Parameters area, while the remaining seven sections
+ * can be used for boot memory regions.
+ */
+#define MAX_SECTIONS				10
+#define RTAS_FADUMP_MAX_BOOT_MEM_REGS		7
 
 /* Kernel Dump section info */
 struct rtas_fadump_section {
@@ -61,20 +73,15 @@ struct rtas_fadump_section_header {
  * Firmware Assisted dump memory structure. This structure is required for
  * registering future kernel dump with power firmware through rtas call.
  *
- * No disk dump option. Hence disk dump path string section is not included.
+ * In version 1, the platform permits one section header, dump-disk path
+ * and ten sections.
+ *
+ * Note: No disk dump option. Hence disk dump path string section is not
+ * included.
  */
 struct rtas_fadump_mem_struct {
 	struct rtas_fadump_section_header	header;
-
-	/* Kernel dump sections */
-	struct rtas_fadump_section		cpu_state_data;
-	struct rtas_fadump_section		hpte_region;
-
-	/*
-	 * TODO: Extend multiple boot memory regions support in the kernel
-	 *       for this platform.
-	 */
-	struct rtas_fadump_section		rmr_region;
+	struct rtas_fadump_section		rgn[MAX_SECTIONS];
 };
 
 /*

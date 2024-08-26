@@ -202,14 +202,14 @@ static int anysee_master_xfer(struct i2c_adapter *adap, struct i2c_msg *msg,
 
 	while (i < num) {
 		if (num > i + 1 && (msg[i+1].flags & I2C_M_RD)) {
-			if (msg[i].len != 2 || msg[i + 1].len > 60) {
+			if (msg[i].len < 1 || msg[i].len > 2 || msg[i + 1].len > 60) {
 				ret = -EOPNOTSUPP;
 				break;
 			}
 			buf[0] = CMD_I2C_READ;
 			buf[1] = (msg[i].addr << 1) | 0x01;
 			buf[2] = msg[i].buf[0];
-			buf[3] = msg[i].buf[1];
+			buf[3] = (msg[i].len < 2) ? 0 : msg[i].buf[1];
 			buf[4] = msg[i].len-1;
 			buf[5] = msg[i+1].len;
 			ret = anysee_ctrl_msg(d, buf, 6, msg[i+1].buf,

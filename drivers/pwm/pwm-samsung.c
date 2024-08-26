@@ -644,6 +644,7 @@ static struct platform_driver pwm_samsung_driver = {
 };
 module_platform_driver(pwm_samsung_driver);
 
+MODULE_DESCRIPTION("Samsung Pulse Width Modulator driver");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Tomasz Figa <tomasz.figa@gmail.com>");
 MODULE_ALIAS("platform:samsung-pwm");

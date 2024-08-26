@@ -35,12 +35,12 @@ void intel_cx0pll_readout_hw_state(struct intel_encoder *encoder,
 int intel_cx0pll_calc_port_clock(struct intel_encoder *encoder,
 				 const struct intel_cx0pll_state *pll_state);
 
-void intel_c10pll_dump_hw_state(struct drm_i915_private *dev_priv,
-				const struct intel_c10pll_state *hw_state);
+void intel_cx0pll_dump_hw_state(struct drm_i915_private *dev_priv,
+				const struct intel_cx0pll_state *hw_state);
 void intel_cx0pll_state_verify(struct intel_atomic_state *state,
 			       struct intel_crtc *crtc);
-void intel_c20pll_dump_hw_state(struct drm_i915_private *i915,
-				const struct intel_c20pll_state *hw_state);
+bool intel_cx0pll_compare_hw_state(const struct intel_cx0pll_state *a,
+				   const struct intel_cx0pll_state *b);
 void intel_cx0_phy_set_signal_levels(struct intel_encoder *encoder,
 				     const struct intel_crtc_state *crtc_state);
 int intel_cx0_phy_check_hdmi_link_rate(struct intel_hdmi *hdmi, int clock);

@@ -37,7 +37,7 @@
 #define HZIP_QM_IDEL_STATUS		0x3040e4
 
 #define HZIP_CORE_DFX_BASE		0x301000
-#define HZIP_CLOCK_GATED_CONTL		0X301004
+#define HZIP_CORE_DFX_DECOMP_BASE	0x304000
 #define HZIP_CORE_DFX_COMP_0		0x302000
 #define HZIP_CORE_DFX_COMP_1		0x303000
 #define HZIP_CORE_DFX_DECOMP_0		0x304000
@@ -48,6 +48,7 @@
 #define HZIP_CORE_DFX_DECOMP_5		0x309000
 #define HZIP_CORE_REGS_BASE_LEN		0xB0
 #define HZIP_CORE_REGS_DFX_LEN		0x28
+#define HZIP_CORE_ADDR_INTRVL		0x1000
 
 #define HZIP_CORE_INT_SOURCE		0x3010A0
 #define HZIP_CORE_INT_MASK_REG		0x3010A4
@@ -267,28 +268,6 @@ static const u32 zip_pre_store_caps[] = {
 	ZIP_COMP_ENABLE_BITMAP,
 	ZIP_DRV_ALG_BITMAP,
 	ZIP_DEV_ALG_BITMAP,
-};
-
-enum {
-	HZIP_COMP_CORE0,
-	HZIP_COMP_CORE1,
-	HZIP_DECOMP_CORE0,
-	HZIP_DECOMP_CORE1,
-	HZIP_DECOMP_CORE2,
-	HZIP_DECOMP_CORE3,
-	HZIP_DECOMP_CORE4,
-	HZIP_DECOMP_CORE5,
-};
-
-static const u64 core_offsets[] = {
-	[HZIP_COMP_CORE0]   = 0x302000,
-	[HZIP_COMP_CORE1]   = 0x303000,
-	[HZIP_DECOMP_CORE0] = 0x304000,
-	[HZIP_DECOMP_CORE1] = 0x305000,
-	[HZIP_DECOMP_CORE2] = 0x306000,
-	[HZIP_DECOMP_CORE3] = 0x307000,
-	[HZIP_DECOMP_CORE4] = 0x308000,
-	[HZIP_DECOMP_CORE5] = 0x309000,
 };
 
 static const struct debugfs_reg32 hzip_dfx_regs[] = {
@@ -807,6 +786,18 @@ static int hisi_zip_regs_show(struct seq_file *s, void *unused)
 
 DEFINE_SHOW_ATTRIBUTE(hisi_zip_regs);
 
+static void __iomem *get_zip_core_addr(struct hisi_qm *qm, int core_num)
+{
+	u32 zip_comp_core_num = qm->cap_tables.dev_cap_table[ZIP_CLUSTER_COMP_NUM_CAP_IDX].cap_val;
+
+	if (core_num < zip_comp_core_num)
+		return qm->io_base + HZIP_CORE_DFX_BASE +
+			(core_num + 1) * HZIP_CORE_ADDR_INTRVL;
+
+	return qm->io_base + HZIP_CORE_DFX_DECOMP_BASE +
+		(core_num - zip_comp_core_num) * HZIP_CORE_ADDR_INTRVL;
+}
+
 static int hisi_zip_core_debug_init(struct hisi_qm *qm)
 {
 	u32 zip_core_num, zip_comp_core_num;
@@ -832,7 +823,7 @@ static int hisi_zip_core_debug_init(struct hisi_qm *qm)
 
 		regset->regs = hzip_dfx_regs;
 		regset->nregs = ARRAY_SIZE(hzip_dfx_regs);
-		regset->base = qm->io_base + core_offsets[i];
+		regset->base = get_zip_core_addr(qm, i);
 		regset->dev = dev;
 
 		tmp_d = debugfs_create_dir(buf, qm->debug.debug_root);
@@ -921,13 +912,14 @@ debugfs_remove:
 /* hisi_zip_debug_regs_clear() - clear the zip debug regs */
 static void hisi_zip_debug_regs_clear(struct hisi_qm *qm)
 {
+	u32 zip_core_num = qm->cap_tables.dev_cap_table[ZIP_CORE_NUM_CAP_IDX].cap_val;
 	int i, j;
 
 	/* enable register read_clear bit */
 	writel(HZIP_RD_CNT_CLR_CE_EN, qm->io_base + HZIP_SOFT_CTRL_CNT_CLR_CE);
-	for (i = 0; i < ARRAY_SIZE(core_offsets); i++)
+	for (i = 0; i < zip_core_num; i++)
 		for (j = 0; j < ARRAY_SIZE(hzip_dfx_regs); j++)
-			readl(qm->io_base + core_offsets[i] +
+			readl(get_zip_core_addr(qm, i) +
 			      hzip_dfx_regs[j].offset);
 
 	/* disable register read_clear bit */
@@ -970,7 +962,7 @@ static int hisi_zip_show_last_regs_init(struct hisi_qm *qm)
 	}
 
 	for (i = 0; i < zip_core_num; i++) {
-		io_base = qm->io_base + core_offsets[i];
+		io_base = get_zip_core_addr(qm, i);
 		for (j = 0; j < core_dfx_regs_num; j++) {
 			idx = com_dfx_regs_num + i * core_dfx_regs_num + j;
 			debug->last_words[idx] = readl_relaxed(
@@ -1022,7 +1014,7 @@ static void hisi_zip_show_last_dfx_regs(struct hisi_qm *qm)
 		else
 			scnprintf(buf, sizeof(buf), "Decomp_core-%d",
 				  i - zip_comp_core_num);
-		base = qm->io_base + core_offsets[i];
+		base = get_zip_core_addr(qm, i);
 
 		pci_info(qm->pdev, "==>%s:\n", buf);
 		/* dump last word for dfx regs during control resetting */

@@ -26,6 +26,15 @@ void xe_exec_queue_fini(struct xe_exec_queue *q);
 void xe_exec_queue_destroy(struct kref *ref);
 void xe_exec_queue_assign_name(struct xe_exec_queue *q, u32 instance);
 
+static inline struct xe_exec_queue *
+xe_exec_queue_get_unless_zero(struct xe_exec_queue *q)
+{
+	if (kref_get_unless_zero(&q->refcount))
+		return q;
+
+	return NULL;
+}
+
 struct xe_exec_queue *xe_exec_queue_lookup(struct xe_file *xef, u32 id);
 
 static inline struct xe_exec_queue *xe_exec_queue_get(struct xe_exec_queue *q)
@@ -66,5 +75,6 @@ struct dma_fence *xe_exec_queue_last_fence_get(struct xe_exec_queue *e,
 					       struct xe_vm *vm);
 void xe_exec_queue_last_fence_set(struct xe_exec_queue *e, struct xe_vm *vm,
 				  struct dma_fence *fence);
+void xe_exec_queue_update_run_ticks(struct xe_exec_queue *q);
 
 #endif

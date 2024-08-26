@@ -20,7 +20,8 @@ properties:
   compatible:
     const: visionox,rm69299-1080p-display
 
-  reg: true
+  reg:
+    maxItems: 1
 
   vdda-supply:
     description: |

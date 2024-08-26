@@ -7,19 +7,9 @@
 void sort_memory_ranges(struct crash_mem *mrngs, bool merge);
 struct crash_mem *realloc_mem_ranges(struct crash_mem **mem_ranges);
 int add_mem_range(struct crash_mem **mem_ranges, u64 base, u64 size);
-int add_tce_mem_ranges(struct crash_mem **mem_ranges);
-int add_initrd_mem_range(struct crash_mem **mem_ranges);
-#ifdef CONFIG_PPC_64S_HASH_MMU
-int add_htab_mem_range(struct crash_mem **mem_ranges);
-#else
-static inline int add_htab_mem_range(struct crash_mem **mem_ranges)
-{
-	return 0;
-}
-#endif
-int add_kernel_mem_range(struct crash_mem **mem_ranges);
-int add_rtas_mem_range(struct crash_mem **mem_ranges);
-int add_opal_mem_range(struct crash_mem **mem_ranges);
-int add_reserved_mem_ranges(struct crash_mem **mem_ranges);
-
+int remove_mem_range(struct crash_mem **mem_ranges, u64 base, u64 size);
+int get_exclude_memory_ranges(struct crash_mem **mem_ranges);
+int get_reserved_memory_ranges(struct crash_mem **mem_ranges);
+int get_crash_memory_ranges(struct crash_mem **mem_ranges);
+int get_usable_memory_ranges(struct crash_mem **mem_ranges);
 #endif /* _ASM_POWERPC_KEXEC_RANGES_H */

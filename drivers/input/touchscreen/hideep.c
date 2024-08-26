@@ -1095,7 +1095,7 @@ static int hideep_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id hideep_i2c_id[] = {
-	{ HIDEEP_I2C_NAME, 0 },
+	{ HIDEEP_I2C_NAME },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, hideep_i2c_id);

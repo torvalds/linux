@@ -1,6 +1,7 @@
 [
     {
         "BriefDescription": "Counts the number of page walks completed due to load DTLB misses to any page size.",
+        "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0x08",
         "EventName": "DTLB_LOAD_MISSES.WALK_COMPLETED",
         "PublicDescription": "Counts the number of page walks completed due to loads (including SW prefetches) whose address translations missed in all Translation Lookaside Buffer (TLB) levels and were mapped to any page size. Includes page walks that page fault.",
@@ -10,6 +11,7 @@
     },
     {
         "BriefDescription": "Load miss in all TLB levels causes a page walk that completes. (All page sizes)",
+        "Counter": "0,1,2,3,4,5,6,7,8,9",
         "EventCode": "0x12",
         "EventName": "DTLB_LOAD_MISSES.WALK_COMPLETED",
         "PublicDescription": "Counts completed page walks  (all page sizes) caused by demand data loads. This implies it missed in the DTLB and further levels of TLB. The page walk can end with or without a fault.",
@@ -19,6 +21,7 @@
     },
     {
         "BriefDescription": "Counts the number of page walks completed due to store DTLB misses to any page size.",
+        "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0x49",
         "EventName": "DTLB_STORE_MISSES.WALK_COMPLETED",
         "PublicDescription": "Counts the number of page walks completed due to stores whose address translations missed in all Translation Lookaside Buffer (TLB) levels and were mapped to any page size.  Includes page walks that page fault.",
@@ -28,6 +31,7 @@
     },
     {
         "BriefDescription": "Store misses in all TLB levels causes a page walk that completes. (All page sizes)",
+        "Counter": "0,1,2,3,4,5,6,7,8,9",
         "EventCode": "0x13",
         "EventName": "DTLB_STORE_MISSES.WALK_COMPLETED",
         "PublicDescription": "Counts completed page walks  (all page sizes) caused by demand data stores. This implies it missed in the DTLB and further levels of TLB. The page walk can end with or without a fault.",
@@ -37,6 +41,7 @@
     },
     {
         "BriefDescription": "Counts the number of page walks completed due to instruction fetch misses to any page size.",
+        "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0x85",
         "EventName": "ITLB_MISSES.WALK_COMPLETED",
         "PublicDescription": "Counts the number of page walks completed due to instruction fetches whose address translations missed in all Translation Lookaside Buffer (TLB) levels and were mapped to any page size.  Includes page walks that page fault.",
@@ -46,6 +51,7 @@
     },
     {
         "BriefDescription": "Code miss in all TLB levels causes a page walk that completes. (All page sizes)",
+        "Counter": "0,1,2,3,4,5,6,7,8,9",
         "EventCode": "0x11",
         "EventName": "ITLB_MISSES.WALK_COMPLETED",
         "PublicDescription": "Counts completed page walks (all page sizes) caused by a code fetch. This implies it missed in the ITLB (Instruction TLB) and further levels of TLB. The page walk can end with or without a fault.",

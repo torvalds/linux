@@ -125,4 +125,5 @@ struct regmap *__devm_regmap_init_sccb(struct i2c_client *i2c,
 }
 EXPORT_SYMBOL_GPL(__devm_regmap_init_sccb);
 
+MODULE_DESCRIPTION("Register map access API - SCCB support");
 MODULE_LICENSE("GPL v2");

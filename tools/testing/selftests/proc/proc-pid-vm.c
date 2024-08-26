@@ -45,6 +45,7 @@
 #include <linux/kdev_t.h>
 #include <sys/time.h>
 #include <sys/resource.h>
+#include <linux/fs.h>
 
 #include "../kselftest.h"
 
@@ -490,6 +491,91 @@ int main(void)
 		assert(buf[11] == ' ');
 		assert(buf[12] == '0');
 		assert(buf[13] == '\n');
+	}
+
+	/* Test PROCMAP_QUERY ioctl() for /proc/$PID/maps */
+	{
+		char path_buf[256], exp_path_buf[256];
+		struct procmap_query q;
+		int fd, err;
+
+		snprintf(path_buf, sizeof(path_buf), "/proc/%u/maps", pid);
+		fd = open(path_buf, O_RDONLY);
+		if (fd == -1)
+			return 1;
+
+		/* CASE 1: exact MATCH at VADDR */
+		memset(&q, 0, sizeof(q));
+		q.size = sizeof(q);
+		q.query_addr = VADDR;
+		q.query_flags = 0;
+		q.vma_name_addr = (__u64)(unsigned long)path_buf;
+		q.vma_name_size = sizeof(path_buf);
+
+		err = ioctl(fd, PROCMAP_QUERY, &q);
+		assert(err == 0);
+
+		assert(q.query_addr == VADDR);
+		assert(q.query_flags == 0);
+
+		assert(q.vma_flags == (PROCMAP_QUERY_VMA_READABLE | PROCMAP_QUERY_VMA_EXECUTABLE));
+		assert(q.vma_start == VADDR);
+		assert(q.vma_end == VADDR + PAGE_SIZE);
+		assert(q.vma_page_size == PAGE_SIZE);
+
+		assert(q.vma_offset == 0);
+		assert(q.inode == st.st_ino);
+		assert(q.dev_major == MAJOR(st.st_dev));
+		assert(q.dev_minor == MINOR(st.st_dev));
+
+		snprintf(exp_path_buf, sizeof(exp_path_buf),
+			"/tmp/#%llu (deleted)", (unsigned long long)st.st_ino);
+		assert(q.vma_name_size == strlen(exp_path_buf) + 1);
+		assert(strcmp(path_buf, exp_path_buf) == 0);
+
+		/* CASE 2: NO MATCH at VADDR-1 */
+		memset(&q, 0, sizeof(q));
+		q.size = sizeof(q);
+		q.query_addr = VADDR - 1;
+		q.query_flags = 0; /* exact match */
+
+		err = ioctl(fd, PROCMAP_QUERY, &q);
+		err = err < 0 ? -errno : 0;
+		assert(err == -ENOENT);
+
+		/* CASE 3: MATCH COVERING_OR_NEXT_VMA at VADDR - 1 */
+		memset(&q, 0, sizeof(q));
+		q.size = sizeof(q);
+		q.query_addr = VADDR - 1;
+		q.query_flags = PROCMAP_QUERY_COVERING_OR_NEXT_VMA;
+
+		err = ioctl(fd, PROCMAP_QUERY, &q);
+		assert(err == 0);
+
+		assert(q.query_addr == VADDR - 1);
+		assert(q.query_flags == PROCMAP_QUERY_COVERING_OR_NEXT_VMA);
+		assert(q.vma_start == VADDR);
+		assert(q.vma_end == VADDR + PAGE_SIZE);
+
+		/* CASE 4: NO MATCH at VADDR + PAGE_SIZE */
+		memset(&q, 0, sizeof(q));
+		q.size = sizeof(q);
+		q.query_addr = VADDR + PAGE_SIZE; /* point right after the VMA */
+		q.query_flags = PROCMAP_QUERY_COVERING_OR_NEXT_VMA;
+
+		err = ioctl(fd, PROCMAP_QUERY, &q);
+		err = err < 0 ? -errno : 0;
+		assert(err == -ENOENT);
+
+		/* CASE 5: NO MATCH WRITABLE at VADDR */
+		memset(&q, 0, sizeof(q));
+		q.size = sizeof(q);
+		q.query_addr = VADDR;
+		q.query_flags = PROCMAP_QUERY_VMA_WRITABLE;
+
+		err = ioctl(fd, PROCMAP_QUERY, &q);
+		err = err < 0 ? -errno : 0;
+		assert(err == -ENOENT);
 	}
 
 	return 0;

@@ -28,6 +28,7 @@
 #ifdef CONFIG_PCI_IOV
 void ice_process_vflr_event(struct ice_pf *pf);
 int ice_sriov_configure(struct pci_dev *pdev, int num_vfs);
+int __ice_set_vf_mac(struct ice_pf *pf, u16 vf_id, const u8 *mac);
 int ice_set_vf_mac(struct net_device *netdev, int vf_id, u8 *mac);
 int
 ice_get_vf_cfg(struct net_device *netdev, int vf_id, struct ifla_vf_info *ivi);
@@ -76,6 +77,13 @@ static inline void ice_restore_all_vfs_msi_state(struct ice_pf *pf) { }
 static inline int
 ice_sriov_configure(struct pci_dev __always_unused *pdev,
 		    int __always_unused num_vfs)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int
+__ice_set_vf_mac(struct ice_pf __always_unused *pf,
+		 u16 __always_unused vf_id, const u8 __always_unused *mac)
 {
 	return -EOPNOTSUPP;
 }

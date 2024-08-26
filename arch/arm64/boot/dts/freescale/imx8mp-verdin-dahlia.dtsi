@@ -4,6 +4,18 @@
  */
 
 / {
+	native-hdmi-connector {
+		compatible = "hdmi-connector";
+		label = "X21";
+		type = "a";
+
+		port {
+			native_hdmi_connector_in: endpoint {
+				remote-endpoint = <&hdmi_tx_out>;
+			};
+		};
+	};
+
 	sound {
 		compatible = "simple-audio-card";
 		simple-audio-card,bitclock-master = <&codec_dai>;
@@ -94,6 +106,27 @@
 	pinctrl-0 = <&pinctrl_ctrl_sleep_moci>;
 };
 
+/* Verdin HDMI_1 */
+&hdmi_pvi {
+	status = "okay";
+};
+
+&hdmi_tx {
+	status = "okay";
+
+	ports {
+		port@1 {
+			hdmi_tx_out: endpoint {
+				remote-endpoint = <&native_hdmi_connector_in>;
+			};
+		};
+	};
+};
+
+&hdmi_tx_phy {
+	status = "okay";
+};
+
 /* Current measurement into module VCC */
 &hwmon {
 	status = "okay";
@@ -136,6 +169,10 @@
 
 /* Verdin I2C_3_HDMI */
 &i2c5 {
+	status = "okay";
+};
+
+&lcdif3 {
 	status = "okay";
 };
 

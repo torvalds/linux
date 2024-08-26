@@ -13,6 +13,8 @@
  * more details.
  */
 
+#include <linux/log2.h>
+
 #include "type_support.h"
 #include "math_support.h"
 #include "sh_css_defs.h"
@@ -137,9 +139,7 @@ ia_css_xnr3_encode(
     unsigned int size)
 {
 	int kernel_size = XNR_FILTER_SIZE;
-	/* The adjust factor is the next power of 2
-	   w.r.t. the kernel size*/
-	int adjust_factor = ceil_pow2(kernel_size);
+	int adjust_factor = roundup_pow_of_two(kernel_size);
 	s32 max_diff = (1 << (ISP_VEC_ELEMBITS - 1)) - 1;
 	s32 min_diff = -(1 << (ISP_VEC_ELEMBITS - 1));
 

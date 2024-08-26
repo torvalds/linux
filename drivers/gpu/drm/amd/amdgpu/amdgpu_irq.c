@@ -279,7 +279,7 @@ int amdgpu_irq_init(struct amdgpu_device *adev)
 	adev->irq.msi_enabled = false;
 
 	if (!amdgpu_msi_ok(adev))
-		flags = PCI_IRQ_LEGACY;
+		flags = PCI_IRQ_INTX;
 	else
 		flags = PCI_IRQ_ALL_TYPES;
 
@@ -466,7 +466,8 @@ void amdgpu_irq_dispatch(struct amdgpu_device *adev,
 	} else	if (src_id >= AMDGPU_MAX_IRQ_SRC_ID) {
 		DRM_DEBUG("Invalid src_id in IV: %d\n", src_id);
 
-	} else if ((client_id == AMDGPU_IRQ_CLIENTID_LEGACY) &&
+	} else if (((client_id == AMDGPU_IRQ_CLIENTID_LEGACY) ||
+		    (client_id == SOC15_IH_CLIENTID_ISP)) &&
 		   adev->irq.virq[src_id]) {
 		generic_handle_domain_irq(adev->irq.domain, src_id);
 

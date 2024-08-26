@@ -158,7 +158,6 @@ static int cat_test(const struct resctrl_test *test,
 		    struct resctrl_val_param *param,
 		    size_t span, unsigned long current_mask)
 {
-	char *resctrl_val = param->resctrl_val;
 	struct perf_event_read pe_read;
 	struct perf_event_attr pea;
 	cpu_set_t old_affinity;
@@ -178,8 +177,7 @@ static int cat_test(const struct resctrl_test *test,
 		return ret;
 
 	/* Write benchmark to specified con_mon grp, mon_grp in resctrl FS*/
-	ret = write_bm_pid_to_resctrl(bm_pid, param->ctrlgrp, param->mongrp,
-				      resctrl_val);
+	ret = write_bm_pid_to_resctrl(bm_pid, param->ctrlgrp, param->mongrp);
 	if (ret)
 		goto reset_affinity;
 
@@ -272,7 +270,6 @@ static int cat_run_test(const struct resctrl_test *test, const struct user_param
 	start_mask = create_bit_mask(start, n);
 
 	struct resctrl_val_param param = {
-		.resctrl_val	= CAT_STR,
 		.ctrlgrp	= "c1",
 		.filename	= RESULT_FILE_NAME,
 		.num_of_runs	= 0,
@@ -291,11 +288,30 @@ static int cat_run_test(const struct resctrl_test *test, const struct user_param
 	return ret;
 }
 
+static bool arch_supports_noncont_cat(const struct resctrl_test *test)
+{
+	unsigned int eax, ebx, ecx, edx;
+
+	/* AMD always supports non-contiguous CBM. */
+	if (get_vendor() == ARCH_AMD)
+		return true;
+
+	/* Intel support for non-contiguous CBM needs to be discovered. */
+	if (!strcmp(test->resource, "L3"))
+		__cpuid_count(0x10, 1, eax, ebx, ecx, edx);
+	else if (!strcmp(test->resource, "L2"))
+		__cpuid_count(0x10, 2, eax, ebx, ecx, edx);
+	else
+		return false;
+
+	return ((ecx >> 3) & 1);
+}
+
 static int noncont_cat_run_test(const struct resctrl_test *test,
 				const struct user_params *uparams)
 {
 	unsigned long full_cache_mask, cont_mask, noncont_mask;
-	unsigned int eax, ebx, ecx, edx, sparse_masks;
+	unsigned int sparse_masks;
 	int bit_center, ret;
 	char schemata[64];
 
@@ -304,15 +320,8 @@ static int noncont_cat_run_test(const struct resctrl_test *test,
 	if (ret)
 		return ret;
 
-	if (!strcmp(test->resource, "L3"))
-		__cpuid_count(0x10, 1, eax, ebx, ecx, edx);
-	else if (!strcmp(test->resource, "L2"))
-		__cpuid_count(0x10, 2, eax, ebx, ecx, edx);
-	else
-		return -EINVAL;
-
-	if (sparse_masks != ((ecx >> 3) & 1)) {
-		ksft_print_msg("CPUID output doesn't match 'sparse_masks' file content!\n");
+	if (arch_supports_noncont_cat(test) != sparse_masks) {
+		ksft_print_msg("Hardware and kernel differ on non-contiguous CBM support!\n");
 		return 1;
 	}
 

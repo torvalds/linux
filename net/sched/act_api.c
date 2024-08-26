@@ -62,7 +62,7 @@ static void tcf_set_action_cookie(struct tc_cookie __rcu **old_cookie,
 {
 	struct tc_cookie *old;
 
-	old = xchg((__force struct tc_cookie **)old_cookie, new_cookie);
+	old = unrcu_pointer(xchg(old_cookie, RCU_INITIALIZER(new_cookie)));
 	if (old)
 		call_rcu(&old->rcu, tcf_free_cookie_rcu);
 }
@@ -830,7 +830,6 @@ int tcf_idr_check_alloc(struct tc_action_net *tn, u32 *index,
 	u32 max;
 
 	if (*index) {
-again:
 		rcu_read_lock();
 		p = idr_find(&idrinfo->action_idr, *index);
 
@@ -839,7 +838,7 @@ again:
 			 * index but did not assign the pointer yet.
 			 */
 			rcu_read_unlock();
-			goto again;
+			return -EAGAIN;
 		}
 
 		if (!p) {

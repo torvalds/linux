@@ -210,6 +210,7 @@ static const struct regmap_access_table axp313a_volatile_table = {
 
 static const struct regmap_range axp717_writeable_ranges[] = {
 	regmap_reg_range(AXP717_IRQ0_EN, AXP717_IRQ4_EN),
+	regmap_reg_range(AXP717_IRQ0_STATE, AXP717_IRQ4_STATE),
 	regmap_reg_range(AXP717_DCDC_OUTPUT_CONTROL, AXP717_CPUSLDO_CONTROL),
 };
 
@@ -422,7 +423,7 @@ static const struct regmap_config axp717_regmap_config = {
 	.wr_table = &axp717_writeable_table,
 	.volatile_table = &axp717_volatile_table,
 	.max_register = AXP717_CPUSLDO_CONTROL,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 
 static const struct regmap_config axp806_regmap_config = {

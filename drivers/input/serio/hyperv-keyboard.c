@@ -318,8 +318,8 @@ static int hv_kbd_probe(struct hv_device *hv_dev,
 	struct serio *hv_serio;
 	int error;
 
-	kbd_dev = kzalloc(sizeof(struct hv_kbd_dev), GFP_KERNEL);
-	hv_serio = kzalloc(sizeof(struct serio), GFP_KERNEL);
+	kbd_dev = kzalloc(sizeof(*kbd_dev), GFP_KERNEL);
+	hv_serio = kzalloc(sizeof(*hv_serio), GFP_KERNEL);
 	if (!kbd_dev || !hv_serio) {
 		error = -ENOMEM;
 		goto err_free_mem;

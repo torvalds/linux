@@ -121,7 +121,7 @@ static const struct pci_device_id cdns2_pci_ids[] = {
 
 static struct pci_driver cdns2_pci_driver = {
 	.name = "cdns2-pci",
-	.id_table = &cdns2_pci_ids[0],
+	.id_table = cdns2_pci_ids,
 	.probe = cdns2_pci_probe,
 	.remove = cdns2_pci_remove,
 	.driver = {

@@ -1000,4 +1000,6 @@ static struct platform_driver clk_mt2712_drv = {
 	},
 };
 module_platform_driver(clk_mt2712_drv);
+
+MODULE_DESCRIPTION("MediaTek MT2712 main clocks driver");
 MODULE_LICENSE("GPL");

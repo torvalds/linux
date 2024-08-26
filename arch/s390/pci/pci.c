@@ -250,12 +250,6 @@ resource_size_t pcibios_align_resource(void *data, const struct resource *res,
 	return 0;
 }
 
-/* combine single writes by using store-block insn */
-void __iowrite64_copy(void __iomem *to, const void *from, size_t count)
-{
-	zpci_memcpy_toio(to, from, count * 8);
-}
-
 void __iomem *ioremap_prot(phys_addr_t phys_addr, size_t size,
 			   unsigned long prot)
 {
@@ -1070,7 +1064,7 @@ char * __init pcibios_setup(char *str)
 		return NULL;
 	}
 	if (!strcmp(str, "nomio")) {
-		S390_lowcore.machine_flags &= ~MACHINE_FLAG_PCI_MIO;
+		get_lowcore()->machine_flags &= ~MACHINE_FLAG_PCI_MIO;
 		return NULL;
 	}
 	if (!strcmp(str, "force_floating")) {

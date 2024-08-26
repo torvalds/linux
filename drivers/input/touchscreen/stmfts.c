@@ -789,8 +789,8 @@ MODULE_DEVICE_TABLE(of, stmfts_of_match);
 #endif
 
 static const struct i2c_device_id stmfts_id[] = {
-	{ "stmfts", 0 },
-	{ },
+	{ "stmfts" },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, stmfts_id);
 

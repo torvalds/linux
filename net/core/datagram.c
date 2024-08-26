@@ -416,15 +416,23 @@ static int __skb_datagram_iter(const struct sk_buff *skb, int offset,
 
 		end = start + skb_frag_size(frag);
 		if ((copy = end - offset) > 0) {
-			struct page *page = skb_frag_page(frag);
-			u8 *vaddr = kmap(page);
+			u32 p_off, p_len, copied;
+			struct page *p;
+			u8 *vaddr;
 
 			if (copy > len)
 				copy = len;
-			n = INDIRECT_CALL_1(cb, simple_copy_to_iter,
-					vaddr + skb_frag_off(frag) + offset - start,
-					copy, data, to);
-			kunmap(page);
+
+			n = 0;
+			skb_frag_foreach_page(frag,
+					      skb_frag_off(frag) + offset - start,
+					      copy, p, p_off, p_len, copied) {
+				vaddr = kmap_local_page(p);
+				n += INDIRECT_CALL_1(cb, simple_copy_to_iter,
+					vaddr + p_off, p_len, data, to);
+				kunmap_local(vaddr);
+			}
+
 			offset += n;
 			if (n != copy)
 				goto short_copy;
@@ -610,16 +618,10 @@ fault:
 }
 EXPORT_SYMBOL(skb_copy_datagram_from_iter);
 
-int __zerocopy_sg_from_iter(struct msghdr *msg, struct sock *sk,
-			    struct sk_buff *skb, struct iov_iter *from,
-			    size_t length)
+int zerocopy_fill_skb_from_iter(struct sk_buff *skb,
+				struct iov_iter *from, size_t length)
 {
-	int frag;
-
-	if (msg && msg->msg_ubuf && msg->sg_from_iter)
-		return msg->sg_from_iter(sk, skb, from, length);
-
-	frag = skb_shinfo(skb)->nr_frags;
+	int frag = skb_shinfo(skb)->nr_frags;
 
 	while (length && iov_iter_count(from)) {
 		struct page *head, *last_head = NULL;
@@ -627,7 +629,6 @@ int __zerocopy_sg_from_iter(struct msghdr *msg, struct sock *sk,
 		int refs, order, n = 0;
 		size_t start;
 		ssize_t copied;
-		unsigned long truesize;
 
 		if (frag == MAX_SKB_FRAGS)
 			return -EMSGSIZE;
@@ -639,17 +640,9 @@ int __zerocopy_sg_from_iter(struct msghdr *msg, struct sock *sk,
 
 		length -= copied;
 
-		truesize = PAGE_ALIGN(copied + start);
 		skb->data_len += copied;
 		skb->len += copied;
-		skb->truesize += truesize;
-		if (sk && sk->sk_type == SOCK_STREAM) {
-			sk_wmem_queued_add(sk, truesize);
-			if (!skb_zcopy_pure(skb))
-				sk_mem_charge(sk, truesize);
-		} else {
-			refcount_add(truesize, &skb->sk->sk_wmem_alloc);
-		}
+		skb->truesize += PAGE_ALIGN(copied + start);
 
 		head = compound_head(pages[n]);
 		order = compound_order(head);
@@ -691,6 +684,30 @@ int __zerocopy_sg_from_iter(struct msghdr *msg, struct sock *sk,
 			page_ref_sub(last_head, refs);
 	}
 	return 0;
+}
+
+int __zerocopy_sg_from_iter(struct msghdr *msg, struct sock *sk,
+			    struct sk_buff *skb, struct iov_iter *from,
+			    size_t length)
+{
+	unsigned long orig_size = skb->truesize;
+	unsigned long truesize;
+	int ret;
+
+	if (msg && msg->msg_ubuf && msg->sg_from_iter)
+		ret = msg->sg_from_iter(skb, from, length);
+	else
+		ret = zerocopy_fill_skb_from_iter(skb, from, length);
+
+	truesize = skb->truesize - orig_size;
+	if (sk && sk->sk_type == SOCK_STREAM) {
+		sk_wmem_queued_add(sk, truesize);
+		if (!skb_zcopy_pure(skb))
+			sk_mem_charge(sk, truesize);
+	} else {
+		refcount_add(truesize, &skb->sk->sk_wmem_alloc);
+	}
+	return ret;
 }
 EXPORT_SYMBOL(__zerocopy_sg_from_iter);
 

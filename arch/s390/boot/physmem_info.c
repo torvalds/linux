@@ -81,11 +81,11 @@ static int __diag260(unsigned long rx1, unsigned long rx2)
 		  [reg2] "=&a" (reg2),
 		  [rc] "+&d" (rc),
 		  [ry] "+&d" (ry),
-		  "+Q" (S390_lowcore.program_new_psw),
+		  "+Q" (get_lowcore()->program_new_psw),
 		  "=Q" (old)
 		: [rx] "d" (rx.pair),
 		  [psw_old] "a" (&old),
-		  [psw_pgm] "a" (&S390_lowcore.program_new_psw)
+		  [psw_pgm] "a" (&get_lowcore()->program_new_psw)
 		: "cc", "memory");
 	return rc == 0 ? ry : -1;
 }
@@ -129,10 +129,10 @@ static int tprot(unsigned long addr)
 		: [reg1] "=&d" (reg1),
 		  [reg2] "=&a" (reg2),
 		  [rc] "+&d" (rc),
-		  "=Q" (S390_lowcore.program_new_psw.addr),
+		  "=Q" (get_lowcore()->program_new_psw.addr),
 		  "=Q" (old)
 		: [psw_old] "a" (&old),
-		  [psw_pgm] "a" (&S390_lowcore.program_new_psw),
+		  [psw_pgm] "a" (&get_lowcore()->program_new_psw),
 		  [addr] "a" (addr)
 		: "cc", "memory");
 	return rc;

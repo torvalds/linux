@@ -105,7 +105,7 @@ void optc2_set_odm_bypass(struct timing_generator *optc,
 		const struct dc_crtc_timing *dc_crtc_timing);
 
 void optc2_set_odm_combine(struct timing_generator *optc, int *opp_id, int opp_cnt,
-		struct dc_crtc_timing *timing);
+		int segment_width, int last_segment_width);
 
 void optc2_get_optc_source(struct timing_generator *optc,
 		uint32_t *num_of_src_opp,
@@ -118,7 +118,6 @@ void optc2_lock_doublebuffer_disable(struct timing_generator *optc);
 void optc2_lock_doublebuffer_enable(struct timing_generator *optc);
 void optc2_setup_manual_trigger(struct timing_generator *optc);
 void optc2_program_manual_trigger(struct timing_generator *optc);
-bool optc2_is_two_pixels_per_containter(const struct dc_crtc_timing *timing);
 bool optc2_configure_crc(struct timing_generator *optc,
 			  const struct crc_params *params);
 #endif /* __DC_OPTC_DCN20_H__ */

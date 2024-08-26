@@ -76,7 +76,9 @@ int speakup_paste_selection(struct tty_struct *tty);
 void speakup_cancel_paste(void);
 void speakup_register_devsynth(void);
 void speakup_unregister_devsynth(void);
+s32 synth_utf8_get(const char *buf, size_t count, size_t *consumed, size_t *want);
 void synth_write(const char *buf, size_t count);
+void synth_writeu(const char *buf, size_t count);
 int synth_supports_indexing(void);
 
 extern struct vc_data *spk_sel_cons;

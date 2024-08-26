@@ -781,4 +781,5 @@ static void __exit a2065_cleanup_module(void)
 module_init(a2065_init_module);
 module_exit(a2065_cleanup_module);
 
+MODULE_DESCRIPTION("Commodore A2065 Ethernet driver");
 MODULE_LICENSE("GPL");

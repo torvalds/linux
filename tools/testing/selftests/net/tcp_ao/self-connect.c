@@ -30,8 +30,6 @@ static void setup_lo_intf(const char *lo_intf)
 static void tcp_self_connect(const char *tst, unsigned int port,
 			     bool different_keyids, bool check_restore)
 {
-	uint64_t before_challenge_ack, after_challenge_ack;
-	uint64_t before_syn_challenge, after_syn_challenge;
 	struct tcp_ao_counters before_ao, after_ao;
 	uint64_t before_aogood, after_aogood;
 	struct netstat *ns_before, *ns_after;
@@ -62,8 +60,6 @@ static void tcp_self_connect(const char *tst, unsigned int port,
 
 	ns_before = netstat_read();
 	before_aogood = netstat_get(ns_before, "TCPAOGood", NULL);
-	before_challenge_ack = netstat_get(ns_before, "TCPChallengeACK", NULL);
-	before_syn_challenge = netstat_get(ns_before, "TCPSYNChallenge", NULL);
 	if (test_get_tcp_ao_counters(sk, &before_ao))
 		test_error("test_get_tcp_ao_counters()");
 
@@ -82,8 +78,6 @@ static void tcp_self_connect(const char *tst, unsigned int port,
 
 	ns_after = netstat_read();
 	after_aogood = netstat_get(ns_after, "TCPAOGood", NULL);
-	after_challenge_ack = netstat_get(ns_after, "TCPChallengeACK", NULL);
-	after_syn_challenge = netstat_get(ns_after, "TCPSYNChallenge", NULL);
 	if (test_get_tcp_ao_counters(sk, &after_ao))
 		test_error("test_get_tcp_ao_counters()");
 	if (!check_restore) {
@@ -95,18 +89,6 @@ static void tcp_self_connect(const char *tst, unsigned int port,
 	if (after_aogood <= before_aogood) {
 		test_fail("%s: TCPAOGood counter mismatch: %zu <= %zu",
 			  tst, after_aogood, before_aogood);
-		close(sk);
-		return;
-	}
-	if (after_challenge_ack <= before_challenge_ack ||
-	    after_syn_challenge <= before_syn_challenge) {
-		/*
-		 * It's also meant to test simultaneous open, so check
-		 * these counters as well.
-		 */
-		test_fail("%s: Didn't challenge SYN or ACK: %zu <= %zu OR %zu <= %zu",
-			  tst, after_challenge_ack, before_challenge_ack,
-			  after_syn_challenge, before_syn_challenge);
 		close(sk);
 		return;
 	}

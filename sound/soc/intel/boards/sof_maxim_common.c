@@ -9,6 +9,7 @@
 #include <sound/soc-acpi.h>
 #include <sound/soc-dai.h>
 #include <sound/soc-dapm.h>
+#include <sound/sof.h>
 #include <uapi/sound/asound.h>
 #include "../common/soc-intel-quirks.h"
 #include "sof_maxim_common.h"
@@ -72,26 +73,115 @@ static struct snd_soc_dai_link_component max_98373_components[] = {
 	},
 };
 
+/*
+ * According to the definition of 'DAI Sel Mux' mixer in max98373.c, rx mask
+ * should choose two channels from TDM slots, the LSB of rx mask is left channel
+ * and the other one is right channel.
+ */
+static const struct {
+	unsigned int rx;
+} max_98373_tdm_mask[] = {
+	{.rx = 0x3},
+	{.rx = 0x3},
+};
+
+/*
+ * The tx mask indicates which channel(s) contains output IV-sense data and
+ * others should set to Hi-Z. Here we get the channel number from codec's ACPI
+ * device property "maxim,vmon-slot-no" and "maxim,imon-slot-no" to generate the
+ * mask. Refer to the max98373_slot_config() function in max98373.c codec driver.
+ */
+static unsigned int max_98373_get_tx_mask(struct device *dev)
+{
+	int vmon_slot;
+	int imon_slot;
+
+	if (device_property_read_u32(dev, "maxim,vmon-slot-no", &vmon_slot))
+		vmon_slot = 0;
+
+	if (device_property_read_u32(dev, "maxim,imon-slot-no", &imon_slot))
+		imon_slot = 1;
+
+	dev_dbg(dev, "vmon_slot %d imon_slot %d\n", vmon_slot, imon_slot);
+
+	return (0x1 << vmon_slot) | (0x1 << imon_slot);
+}
+
 static int max_98373_hw_params(struct snd_pcm_substream *substream,
 			       struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
+	struct snd_soc_dai_link *dai_link = rtd->dai_link;
 	struct snd_soc_dai *codec_dai;
+	int i;
+	int tdm_slots;
+	unsigned int tx_mask;
+	unsigned int tx_mask_used = 0x0;
 	int ret = 0;
-	int j;
 
-	for_each_rtd_codec_dais(rtd, j, codec_dai) {
-		if (!strcmp(codec_dai->component->name, MAX_98373_DEV0_NAME)) {
-			/* DEV0 tdm slot configuration */
-			ret = snd_soc_dai_set_tdm_slot(codec_dai, 0x03, 3, 8, 32);
-		} else if (!strcmp(codec_dai->component->name, MAX_98373_DEV1_NAME)) {
-			/* DEV1 tdm slot configuration */
-			ret = snd_soc_dai_set_tdm_slot(codec_dai, 0x0C, 3, 8, 32);
+	for_each_rtd_codec_dais(rtd, i, codec_dai) {
+		if (i >= ARRAY_SIZE(max_98373_tdm_mask)) {
+			dev_err(codec_dai->dev, "only 2 amps are supported\n");
+			return -EINVAL;
 		}
-		if (ret < 0) {
-			dev_err(codec_dai->dev, "fail to set tdm slot, ret %d\n",
-				ret);
-			return ret;
+
+		switch (dai_link->dai_fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
+		case SND_SOC_DAIFMT_DSP_A:
+		case SND_SOC_DAIFMT_DSP_B:
+			/* get the tplg configured tdm slot number */
+			tdm_slots = sof_dai_get_tdm_slots(rtd);
+			if (tdm_slots <= 0) {
+				dev_err(rtd->dev, "invalid tdm slots %d\n",
+					tdm_slots);
+				return -EINVAL;
+			}
+
+			/* get the tx mask from ACPI device properties */
+			tx_mask = max_98373_get_tx_mask(codec_dai->dev);
+			if (!tx_mask)
+				return -EINVAL;
+
+			if (tx_mask & tx_mask_used) {
+				dev_err(codec_dai->dev, "invalid tx mask 0x%x, used 0x%x\n",
+					tx_mask, tx_mask_used);
+				return -EINVAL;
+			}
+
+			tx_mask_used |= tx_mask;
+
+			/*
+			 * check if tdm slot number is too small for channel
+			 * allocation
+			 */
+			if (fls(tx_mask) > tdm_slots) {
+				dev_err(codec_dai->dev, "slot mismatch, tx %d slots %d\n",
+					fls(tx_mask), tdm_slots);
+				return -EINVAL;
+			}
+
+			if (fls(max_98373_tdm_mask[i].rx) > tdm_slots) {
+				dev_err(codec_dai->dev, "slot mismatch, rx %d slots %d\n",
+					fls(max_98373_tdm_mask[i].rx), tdm_slots);
+				return -EINVAL;
+			}
+
+			dev_dbg(codec_dai->dev, "set tdm slot: tx 0x%x rx 0x%x slots %d width %d\n",
+				tx_mask, max_98373_tdm_mask[i].rx,
+				tdm_slots, params_width(params));
+
+			ret = snd_soc_dai_set_tdm_slot(codec_dai, tx_mask,
+						       max_98373_tdm_mask[i].rx,
+						       tdm_slots,
+						       params_width(params));
+			if (ret < 0) {
+				dev_err(codec_dai->dev, "fail to set tdm slot, ret %d\n",
+					ret);
+				return ret;
+			}
+			break;
+		default:
+			dev_dbg(codec_dai->dev, "codec is in I2S mode\n");
+			break;
 		}
 	}
 	return 0;

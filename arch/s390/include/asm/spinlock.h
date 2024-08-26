@@ -16,7 +16,7 @@
 #include <asm/processor.h>
 #include <asm/alternative.h>
 
-#define SPINLOCK_LOCKVAL (S390_lowcore.spinlock_lockval)
+#define SPINLOCK_LOCKVAL (get_lowcore()->spinlock_lockval)
 
 extern int spin_retry;
 

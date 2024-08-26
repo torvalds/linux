@@ -17,9 +17,11 @@ properties:
   compatible:
     const: samsung,ld9040
 
+  reg:
+    maxItems: 1
+
   display-timings: true
   port: true
-  reg: true
   reset-gpios: true
 
   vdd3-supply:

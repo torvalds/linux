@@ -18,6 +18,7 @@
 #include <linux/of_fdt.h>
 #include <linux/libfdt.h>
 #include <linux/of.h>
+#include <linux/of_address.h>
 #include <linux/memblock.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
@@ -30,6 +31,7 @@
 #include <asm/iommu.h>
 #include <asm/prom.h>
 #include <asm/plpks.h>
+#include <asm/cputhreads.h>
 
 struct umem_info {
 	__be64 *buf;		/* data buffer for usable-memory property */
@@ -46,83 +48,6 @@ const struct kexec_file_ops * const kexec_file_loaders[] = {
 	&kexec_elf64_ops,
 	NULL
 };
-
-/**
- * get_exclude_memory_ranges - Get exclude memory ranges. This list includes
- *                             regions like opal/rtas, tce-table, initrd,
- *                             kernel, htab which should be avoided while
- *                             setting up kexec load segments.
- * @mem_ranges:                Range list to add the memory ranges to.
- *
- * Returns 0 on success, negative errno on error.
- */
-static int get_exclude_memory_ranges(struct crash_mem **mem_ranges)
-{
-	int ret;
-
-	ret = add_tce_mem_ranges(mem_ranges);
-	if (ret)
-		goto out;
-
-	ret = add_initrd_mem_range(mem_ranges);
-	if (ret)
-		goto out;
-
-	ret = add_htab_mem_range(mem_ranges);
-	if (ret)
-		goto out;
-
-	ret = add_kernel_mem_range(mem_ranges);
-	if (ret)
-		goto out;
-
-	ret = add_rtas_mem_range(mem_ranges);
-	if (ret)
-		goto out;
-
-	ret = add_opal_mem_range(mem_ranges);
-	if (ret)
-		goto out;
-
-	ret = add_reserved_mem_ranges(mem_ranges);
-	if (ret)
-		goto out;
-
-	/* exclude memory ranges should be sorted for easy lookup */
-	sort_memory_ranges(*mem_ranges, true);
-out:
-	if (ret)
-		pr_err("Failed to setup exclude memory ranges\n");
-	return ret;
-}
-
-/**
- * get_reserved_memory_ranges - Get reserve memory ranges. This list includes
- *                              memory regions that should be added to the
- *                              memory reserve map to ensure the region is
- *                              protected from any mischief.
- * @mem_ranges:                 Range list to add the memory ranges to.
- *
- * Returns 0 on success, negative errno on error.
- */
-static int get_reserved_memory_ranges(struct crash_mem **mem_ranges)
-{
-	int ret;
-
-	ret = add_rtas_mem_range(mem_ranges);
-	if (ret)
-		goto out;
-
-	ret = add_tce_mem_ranges(mem_ranges);
-	if (ret)
-		goto out;
-
-	ret = add_reserved_mem_ranges(mem_ranges);
-out:
-	if (ret)
-		pr_err("Failed to setup reserved memory ranges\n");
-	return ret;
-}
 
 /**
  * __locate_mem_hole_top_down - Looks top down for a large enough memory hole
@@ -323,119 +248,6 @@ static int locate_mem_hole_bottom_up_ppc64(struct kexec_buf *kbuf,
 
 #ifdef CONFIG_CRASH_DUMP
 /**
- * get_usable_memory_ranges - Get usable memory ranges. This list includes
- *                            regions like crashkernel, opal/rtas & tce-table,
- *                            that kdump kernel could use.
- * @mem_ranges:               Range list to add the memory ranges to.
- *
- * Returns 0 on success, negative errno on error.
- */
-static int get_usable_memory_ranges(struct crash_mem **mem_ranges)
-{
-	int ret;
-
-	/*
-	 * Early boot failure observed on guests when low memory (first memory
-	 * block?) is not added to usable memory. So, add [0, crashk_res.end]
-	 * instead of [crashk_res.start, crashk_res.end] to workaround it.
-	 * Also, crashed kernel's memory must be added to reserve map to
-	 * avoid kdump kernel from using it.
-	 */
-	ret = add_mem_range(mem_ranges, 0, crashk_res.end + 1);
-	if (ret)
-		goto out;
-
-	ret = add_rtas_mem_range(mem_ranges);
-	if (ret)
-		goto out;
-
-	ret = add_opal_mem_range(mem_ranges);
-	if (ret)
-		goto out;
-
-	ret = add_tce_mem_ranges(mem_ranges);
-out:
-	if (ret)
-		pr_err("Failed to setup usable memory ranges\n");
-	return ret;
-}
-
-/**
- * get_crash_memory_ranges - Get crash memory ranges. This list includes
- *                           first/crashing kernel's memory regions that
- *                           would be exported via an elfcore.
- * @mem_ranges:              Range list to add the memory ranges to.
- *
- * Returns 0 on success, negative errno on error.
- */
-static int get_crash_memory_ranges(struct crash_mem **mem_ranges)
-{
-	phys_addr_t base, end;
-	struct crash_mem *tmem;
-	u64 i;
-	int ret;
-
-	for_each_mem_range(i, &base, &end) {
-		u64 size = end - base;
-
-		/* Skip backup memory region, which needs a separate entry */
-		if (base == BACKUP_SRC_START) {
-			if (size > BACKUP_SRC_SIZE) {
-				base = BACKUP_SRC_END + 1;
-				size -= BACKUP_SRC_SIZE;
-			} else
-				continue;
-		}
-
-		ret = add_mem_range(mem_ranges, base, size);
-		if (ret)
-			goto out;
-
-		/* Try merging adjacent ranges before reallocation attempt */
-		if ((*mem_ranges)->nr_ranges == (*mem_ranges)->max_nr_ranges)
-			sort_memory_ranges(*mem_ranges, true);
-	}
-
-	/* Reallocate memory ranges if there is no space to split ranges */
-	tmem = *mem_ranges;
-	if (tmem && (tmem->nr_ranges == tmem->max_nr_ranges)) {
-		tmem = realloc_mem_ranges(mem_ranges);
-		if (!tmem)
-			goto out;
-	}
-
-	/* Exclude crashkernel region */
-	ret = crash_exclude_mem_range(tmem, crashk_res.start, crashk_res.end);
-	if (ret)
-		goto out;
-
-	/*
-	 * FIXME: For now, stay in parity with kexec-tools but if RTAS/OPAL
-	 *        regions are exported to save their context at the time of
-	 *        crash, they should actually be backed up just like the
-	 *        first 64K bytes of memory.
-	 */
-	ret = add_rtas_mem_range(mem_ranges);
-	if (ret)
-		goto out;
-
-	ret = add_opal_mem_range(mem_ranges);
-	if (ret)
-		goto out;
-
-	/* create a separate program header for the backup region */
-	ret = add_mem_range(mem_ranges, BACKUP_SRC_START, BACKUP_SRC_SIZE);
-	if (ret)
-		goto out;
-
-	sort_memory_ranges(*mem_ranges, false);
-out:
-	if (ret)
-		pr_err("Failed to setup crash memory ranges\n");
-	return ret;
-}
-
-/**
  * check_realloc_usable_mem - Reallocate buffer if it can't accommodate entries
  * @um_info:                  Usable memory buffer and ranges info.
  * @cnt:                      No. of entries to accommodate.
@@ -565,11 +377,10 @@ static int kdump_setup_usable_lmb(struct drmem_lmb *lmb, const __be32 **usm,
 static int add_usable_mem_property(void *fdt, struct device_node *dn,
 				   struct umem_info *um_info)
 {
-	int n_mem_addr_cells, n_mem_size_cells, node;
+	int node;
 	char path[NODE_PATH_LEN];
-	int i, len, ranges, ret;
-	const __be32 *prop;
-	u64 base, end;
+	int i, ret;
+	u64 base, size;
 
 	of_node_get(dn);
 
@@ -588,21 +399,9 @@ static int add_usable_mem_property(void *fdt, struct device_node *dn,
 		goto out;
 	}
 
-	/* Get the address & size cells */
-	n_mem_addr_cells = of_n_addr_cells(dn);
-	n_mem_size_cells = of_n_size_cells(dn);
-	kexec_dprintk("address cells: %d, size cells: %d\n", n_mem_addr_cells,
-		      n_mem_size_cells);
-
 	um_info->idx  = 0;
 	if (!check_realloc_usable_mem(um_info, 2)) {
 		ret = -ENOMEM;
-		goto out;
-	}
-
-	prop = of_get_property(dn, "reg", &len);
-	if (!prop || len <= 0) {
-		ret = 0;
 		goto out;
 	}
 
@@ -610,18 +409,19 @@ static int add_usable_mem_property(void *fdt, struct device_node *dn,
 	 * "reg" property represents sequence of (addr,size) tuples
 	 * each representing a memory range.
 	 */
-	ranges = (len >> 2) / (n_mem_addr_cells + n_mem_size_cells);
+	for (i = 0; ; i++) {
+		ret = of_property_read_reg(dn, i, &base, &size);
+		if (ret)
+			break;
 
-	for (i = 0; i < ranges; i++) {
-		base = of_read_number(prop, n_mem_addr_cells);
-		prop += n_mem_addr_cells;
-		end = base + of_read_number(prop, n_mem_size_cells) - 1;
-		prop += n_mem_size_cells;
-
-		ret = add_usable_mem(um_info, base, end);
+		ret = add_usable_mem(um_info, base, base + size - 1);
 		if (ret)
 			goto out;
 	}
+
+	// No reg or empty reg? Skip this node.
+	if (i == 0)
+		goto out;
 
 	/*
 	 * No kdump kernel usable memory found in this memory node.
@@ -784,6 +584,23 @@ static void update_backup_region_phdr(struct kimage *image, Elf64_Ehdr *ehdr)
 	}
 }
 
+static unsigned int kdump_extra_elfcorehdr_size(struct crash_mem *cmem)
+{
+#if defined(CONFIG_CRASH_HOTPLUG) && defined(CONFIG_MEMORY_HOTPLUG)
+	unsigned int extra_sz = 0;
+
+	if (CONFIG_CRASH_MAX_MEMORY_RANGES > (unsigned int)PN_XNUM)
+		pr_warn("Number of Phdrs %u exceeds max\n", CONFIG_CRASH_MAX_MEMORY_RANGES);
+	else if (cmem->nr_ranges >= CONFIG_CRASH_MAX_MEMORY_RANGES)
+		pr_warn("Configured crash mem ranges may not be enough\n");
+	else
+		extra_sz = (CONFIG_CRASH_MAX_MEMORY_RANGES - cmem->nr_ranges) * sizeof(Elf64_Phdr);
+
+	return extra_sz;
+#endif
+	return 0;
+}
+
 /**
  * load_elfcorehdr_segment - Setup crash memory ranges and initialize elfcorehdr
  *                           segment needed to load kdump kernel.
@@ -815,7 +632,8 @@ static int load_elfcorehdr_segment(struct kimage *image, struct kexec_buf *kbuf)
 
 	kbuf->buffer = headers;
 	kbuf->mem = KEXEC_BUF_MEM_UNKNOWN;
-	kbuf->bufsz = kbuf->memsz = headers_sz;
+	kbuf->bufsz = headers_sz;
+	kbuf->memsz = headers_sz + kdump_extra_elfcorehdr_size(cmem);
 	kbuf->top_down = false;
 
 	ret = kexec_add_buffer(kbuf);
@@ -974,11 +792,13 @@ static unsigned int cpu_node_size(void)
 	return size;
 }
 
-static unsigned int kdump_extra_fdt_size_ppc64(struct kimage *image)
+static unsigned int kdump_extra_fdt_size_ppc64(struct kimage *image, unsigned int cpu_nodes)
 {
-	unsigned int cpu_nodes, extra_size = 0;
-	struct device_node *dn;
+	unsigned int extra_size = 0;
 	u64 usm_entries;
+#ifdef CONFIG_CRASH_HOTPLUG
+	unsigned int possible_cpu_nodes;
+#endif
 
 	if (!IS_ENABLED(CONFIG_CRASH_DUMP) || image->type != KEXEC_TYPE_CRASH)
 		return 0;
@@ -994,17 +814,18 @@ static unsigned int kdump_extra_fdt_size_ppc64(struct kimage *image)
 		extra_size += (unsigned int)(usm_entries * sizeof(u64));
 	}
 
+#ifdef CONFIG_CRASH_HOTPLUG
 	/*
-	 * Get the number of CPU nodes in the current DT. This allows to
-	 * reserve places for CPU nodes added since the boot time.
+	 * Make sure enough space is reserved to accommodate possible CPU nodes
+	 * in the crash FDT. This allows packing possible CPU nodes which are
+	 * not yet present in the system without regenerating the entire FDT.
 	 */
-	cpu_nodes = 0;
-	for_each_node_by_type(dn, "cpu") {
-		cpu_nodes++;
+	if (image->type == KEXEC_TYPE_CRASH) {
+		possible_cpu_nodes = num_possible_cpus() / threads_per_core;
+		if (possible_cpu_nodes > cpu_nodes)
+			extra_size += (possible_cpu_nodes - cpu_nodes) * cpu_node_size();
 	}
-
-	if (cpu_nodes > boot_cpu_node_count)
-		extra_size += (cpu_nodes - boot_cpu_node_count) * cpu_node_size();
+#endif
 
 	return extra_size;
 }
@@ -1016,103 +837,30 @@ static unsigned int kdump_extra_fdt_size_ppc64(struct kimage *image)
  *
  * Returns the estimated extra size needed for kexec/kdump kernel FDT.
  */
-unsigned int kexec_extra_fdt_size_ppc64(struct kimage *image)
+unsigned int kexec_extra_fdt_size_ppc64(struct kimage *image, struct crash_mem *rmem)
 {
-	unsigned int extra_size = 0;
+	struct device_node *dn;
+	unsigned int cpu_nodes = 0, extra_size = 0;
 
 	// Budget some space for the password blob. There's already extra space
 	// for the key name
 	if (plpks_is_available())
 		extra_size += (unsigned int)plpks_get_passwordlen();
 
-	return extra_size + kdump_extra_fdt_size_ppc64(image);
-}
-
-/**
- * add_node_props - Reads node properties from device node structure and add
- *                  them to fdt.
- * @fdt:            Flattened device tree of the kernel
- * @node_offset:    offset of the node to add a property at
- * @dn:             device node pointer
- *
- * Returns 0 on success, negative errno on error.
- */
-static int add_node_props(void *fdt, int node_offset, const struct device_node *dn)
-{
-	int ret = 0;
-	struct property *pp;
-
-	if (!dn)
-		return -EINVAL;
-
-	for_each_property_of_node(dn, pp) {
-		ret = fdt_setprop(fdt, node_offset, pp->name, pp->value, pp->length);
-		if (ret < 0) {
-			pr_err("Unable to add %s property: %s\n", pp->name, fdt_strerror(ret));
-			return ret;
-		}
-	}
-	return ret;
-}
-
-/**
- * update_cpus_node - Update cpus node of flattened device tree using of_root
- *                    device node.
- * @fdt:              Flattened device tree of the kernel.
- *
- * Returns 0 on success, negative errno on error.
- */
-static int update_cpus_node(void *fdt)
-{
-	struct device_node *cpus_node, *dn;
-	int cpus_offset, cpus_subnode_offset, ret = 0;
-
-	cpus_offset = fdt_path_offset(fdt, "/cpus");
-	if (cpus_offset < 0 && cpus_offset != -FDT_ERR_NOTFOUND) {
-		pr_err("Malformed device tree: error reading /cpus node: %s\n",
-		       fdt_strerror(cpus_offset));
-		return cpus_offset;
-	}
-
-	if (cpus_offset > 0) {
-		ret = fdt_del_node(fdt, cpus_offset);
-		if (ret < 0) {
-			pr_err("Error deleting /cpus node: %s\n", fdt_strerror(ret));
-			return -EINVAL;
-		}
-	}
-
-	/* Add cpus node to fdt */
-	cpus_offset = fdt_add_subnode(fdt, fdt_path_offset(fdt, "/"), "cpus");
-	if (cpus_offset < 0) {
-		pr_err("Error creating /cpus node: %s\n", fdt_strerror(cpus_offset));
-		return -EINVAL;
-	}
-
-	/* Add cpus node properties */
-	cpus_node = of_find_node_by_path("/cpus");
-	ret = add_node_props(fdt, cpus_offset, cpus_node);
-	of_node_put(cpus_node);
-	if (ret < 0)
-		return ret;
-
-	/* Loop through all subnodes of cpus and add them to fdt */
+	/* Get the number of CPU nodes in the current device tree */
 	for_each_node_by_type(dn, "cpu") {
-		cpus_subnode_offset = fdt_add_subnode(fdt, cpus_offset, dn->full_name);
-		if (cpus_subnode_offset < 0) {
-			pr_err("Unable to add %s subnode: %s\n", dn->full_name,
-			       fdt_strerror(cpus_subnode_offset));
-			ret = cpus_subnode_offset;
-			goto out;
-		}
-
-		ret = add_node_props(fdt, cpus_subnode_offset, dn);
-		if (ret < 0)
-			goto out;
+		cpu_nodes++;
 	}
-out:
-	of_node_put(dn);
-	return ret;
+
+	/* Consider extra space for CPU nodes added since the boot time */
+	if (cpu_nodes > boot_cpu_node_count)
+		extra_size += (cpu_nodes - boot_cpu_node_count) * cpu_node_size();
+
+	/* Consider extra space for reserved memory ranges if any */
+	if (rmem->nr_ranges > 0)
+		extra_size += sizeof(struct fdt_reserve_entry) * rmem->nr_ranges;
+
+	return extra_size + kdump_extra_fdt_size_ppc64(image, cpu_nodes);
 }
 
 static int copy_property(void *fdt, int node_offset, const struct device_node *dn,
@@ -1166,18 +914,13 @@ static int update_pci_dma_nodes(void *fdt, const char *dmapropname)
  *                       being loaded.
  * @image:               kexec image being loaded.
  * @fdt:                 Flattened device tree for the next kernel.
- * @initrd_load_addr:    Address where the next initrd will be loaded.
- * @initrd_len:          Size of the next initrd, or 0 if there will be none.
- * @cmdline:             Command line for the next kernel, or NULL if there will
- *                       be none.
+ * @rmem:                Reserved memory ranges.
  *
  * Returns 0 on success, negative errno on error.
  */
-int setup_new_fdt_ppc64(const struct kimage *image, void *fdt,
-			unsigned long initrd_load_addr,
-			unsigned long initrd_len, const char *cmdline)
+int setup_new_fdt_ppc64(const struct kimage *image, void *fdt, struct crash_mem *rmem)
 {
-	struct crash_mem *umem = NULL, *rmem = NULL;
+	struct crash_mem *umem = NULL;
 	int i, nr_ranges, ret;
 
 #ifdef CONFIG_CRASH_DUMP
@@ -1233,10 +976,6 @@ int setup_new_fdt_ppc64(const struct kimage *image, void *fdt,
 		goto out;
 
 	/* Update memory reserve map */
-	ret = get_reserved_memory_ranges(&rmem);
-	if (ret)
-		goto out;
-
 	nr_ranges = rmem ? rmem->nr_ranges : 0;
 	for (i = 0; i < nr_ranges; i++) {
 		u64 base, size;
@@ -1256,7 +995,6 @@ int setup_new_fdt_ppc64(const struct kimage *image, void *fdt,
 		ret = plpks_populate_fdt(fdt);
 
 out:
-	kfree(rmem);
 	kfree(umem);
 	return ret;
 }
