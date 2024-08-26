@@ -102,7 +102,7 @@ static inline void *netdev_priv_rsl(struct net_device *dev)
 struct cb_desc {
 	/* Tx Desc Related flags (8-9) */
 	u8 last_ini_pkt:1;
-	u8 bCmdOrInit:1;
+	u8 cmd_or_init:1;
 	u8 tx_dis_rate_fallback:1;
 	u8 tx_use_drv_assinged_rate:1;
 	u8 hw_sec:1;

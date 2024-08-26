@@ -990,7 +990,7 @@ void  rtl92e_fill_tx_cmd_desc(struct net_device *dev, struct tx_desc_cmd *entry,
 	entry->LINIP = cb_desc->last_ini_pkt;
 	entry->FirstSeg = 1;
 	entry->LastSeg = 1;
-	if (cb_desc->bCmdOrInit == DESC_PACKET_TYPE_INIT) {
+	if (cb_desc->cmd_or_init == DESC_PACKET_TYPE_INIT) {
 		entry->CmdInit = DESC_PACKET_TYPE_INIT;
 	} else {
 		struct tx_desc *entry_tmp = (struct tx_desc *)entry;

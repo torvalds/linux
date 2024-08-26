@@ -42,7 +42,7 @@ bool rtl92e_send_cmd_pkt(struct net_device *dev, u32 type, const void *data,
 		memcpy((unsigned char *)(skb->cb), &dev, sizeof(dev));
 		tcb_desc = (struct cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
 		tcb_desc->queue_index = TXCMD_QUEUE;
-		tcb_desc->bCmdOrInit = type;
+		tcb_desc->cmd_or_init = type;
 		tcb_desc->last_ini_pkt = last_ini_pkt;
 
 		if (type == DESC_PACKET_TYPE_NORMAL) {
