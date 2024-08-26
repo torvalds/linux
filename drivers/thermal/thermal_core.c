@@ -364,9 +364,7 @@ static void thermal_zone_recheck(struct thermal_zone_device *tz, int error)
 
 static void monitor_thermal_zone(struct thermal_zone_device *tz)
 {
-	if (tz->mode != THERMAL_DEVICE_ENABLED)
-		thermal_zone_device_set_polling(tz, 0);
-	else if (tz->passive > 0)
+	if (tz->passive > 0)
 		thermal_zone_device_set_polling(tz, tz->passive_delay_jiffies);
 	else if (tz->polling_delay_jiffies)
 		thermal_zone_device_set_polling(tz, tz->polling_delay_jiffies);
