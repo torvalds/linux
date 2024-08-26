@@ -1671,7 +1671,7 @@ static void bitmap_end_sync(struct mddev *mddev, sector_t offset,
 	__bitmap_end_sync(mddev->bitmap, offset, blocks, true);
 }
 
-void md_bitmap_close_sync(struct bitmap *bitmap)
+static void bitmap_close_sync(struct mddev *mddev)
 {
 	/* Sync has finished, and any bitmap chunks that weren't synced
 	 * properly have been aborted.  It remains to us to clear the
@@ -1679,14 +1679,16 @@ void md_bitmap_close_sync(struct bitmap *bitmap)
 	 */
 	sector_t sector = 0;
 	sector_t blocks;
+	struct bitmap *bitmap = mddev->bitmap;
+
 	if (!bitmap)
 		return;
+
 	while (sector < bitmap->mddev->resync_max_sectors) {
 		__bitmap_end_sync(bitmap, sector, &blocks, false);
 		sector += blocks;
 	}
 }
-EXPORT_SYMBOL(md_bitmap_close_sync);
 
 void md_bitmap_cond_end_sync(struct bitmap *bitmap, sector_t sector, bool force)
 {
@@ -2017,7 +2019,7 @@ static int bitmap_load(struct mddev *mddev)
 		bitmap_start_sync(mddev, sector, &blocks, false);
 		sector += blocks;
 	}
-	md_bitmap_close_sync(bitmap);
+	bitmap_close_sync(mddev);
 
 	if (mddev->degraded == 0
 	    || bitmap->events_cleared == mddev->events)
@@ -2745,6 +2747,7 @@ static struct bitmap_operations bitmap_ops = {
 	.endwrite		= bitmap_endwrite,
 	.start_sync		= bitmap_start_sync,
 	.end_sync		= bitmap_end_sync,
+	.close_sync		= bitmap_close_sync,
 
 	.update_sb		= bitmap_update_sb,
 	.get_stats		= bitmap_get_stats,
