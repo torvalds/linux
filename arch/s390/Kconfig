@@ -557,17 +557,13 @@ config EXPOLINE
 	  If unsure, say N.
 
 config EXPOLINE_EXTERN
-	def_bool y if EXPOLINE
-	depends on EXPOLINE
-	depends on CC_IS_GCC && GCC_VERSION >= 110200
-	depends on $(success,$(srctree)/arch/s390/tools/gcc-thunk-extern.sh $(CC))
-	prompt "Generate expolines as extern functions."
+	def_bool EXPOLINE && CC_IS_GCC && GCC_VERSION >= 110200 && \
+		 $(success,$(srctree)/arch/s390/tools/gcc-thunk-extern.sh $(CC))
 	help
-	  This option is required for some tooling like kpatch. The kernel is
-	  compiled with -mindirect-branch=thunk-extern and requires a newer
-	  compiler.
-
-	  If unsure, say N.
+	  Generate expolines as external functions if the compiler supports it.
+	  This option is required for some tooling like kpatch, if expolines
+	  are enabled. The kernel is compiled with
+	  -mindirect-branch=thunk-extern, which requires a newer compiler.
 
 choice
 	prompt "Expoline default"
