@@ -323,11 +323,6 @@ static void thermal_zone_broken_disable(struct thermal_zone_device *tz)
 static void thermal_zone_device_set_polling(struct thermal_zone_device *tz,
 					    unsigned long delay)
 {
-	if (!delay) {
-		cancel_delayed_work(&tz->poll_queue);
-		return;
-	}
-
 	if (delay > HZ)
 		delay = round_jiffies_relative(delay);
 
@@ -364,7 +359,7 @@ static void thermal_zone_recheck(struct thermal_zone_device *tz, int error)
 
 static void monitor_thermal_zone(struct thermal_zone_device *tz)
 {
-	if (tz->passive > 0)
+	if (tz->passive > 0 && tz->passive_delay_jiffies)
 		thermal_zone_device_set_polling(tz, tz->passive_delay_jiffies);
 	else if (tz->polling_delay_jiffies)
 		thermal_zone_device_set_polling(tz, tz->polling_delay_jiffies);
@@ -1411,13 +1406,8 @@ thermal_zone_device_register_with_trips(const char *type,
 	if (num_trips > 0 && !trips)
 		return ERR_PTR(-EINVAL);
 
-	if (polling_delay) {
-		if (passive_delay > polling_delay)
-			return ERR_PTR(-EINVAL);
-
-		if (!passive_delay)
-			passive_delay = polling_delay;
-	}
+	if (polling_delay && passive_delay > polling_delay)
+		return ERR_PTR(-EINVAL);
 
 	if (!thermal_class)
 		return ERR_PTR(-ENODEV);
