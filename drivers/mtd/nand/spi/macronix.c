@@ -12,6 +12,8 @@
 #define SPINAND_MFR_MACRONIX		0xC2
 #define MACRONIX_ECCSR_MASK		0x0F
 
+#define STATUS_ECC_HAS_BITFLIPS_THRESHOLD (3 << 4)
+
 static SPINAND_OP_VARIANTS(read_cache_variants,
 		SPINAND_PAGE_READ_FROM_CACHE_X4_OP(0, 1, NULL, 0),
 		SPINAND_PAGE_READ_FROM_CACHE_X2_OP(0, 1, NULL, 0),
@@ -95,6 +97,7 @@ static int macronix_ecc_get_status(struct spinand_device *spinand,
 		return -EBADMSG;
 
 	case STATUS_ECC_HAS_BITFLIPS:
+	case STATUS_ECC_HAS_BITFLIPS_THRESHOLD:
 		return macronix_get_bf(spinand, status);
 	default:
 		break;
