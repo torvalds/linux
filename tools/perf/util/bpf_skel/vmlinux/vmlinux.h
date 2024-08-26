@@ -171,6 +171,7 @@ struct perf_sample_data {
 		u32		 cpu;
 	} cpu_entry;
 	u64			 phys_addr;
+	u64			 cgroup;
 	u64			 data_page_size;
 	u64			 code_page_size;
 } __attribute__((__aligned__(64))) __attribute__((preserve_access_index));

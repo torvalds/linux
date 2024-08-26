@@ -100,6 +100,7 @@ static const struct perf_sample_info {
 	PERF_SAMPLE_TYPE(TRANSACTION, "--transaction"),
 	PERF_SAMPLE_TYPE(CODE_PAGE_SIZE, "--code-page-size"),
 	PERF_SAMPLE_TYPE(DATA_PAGE_SIZE, "--data-page-size"),
+	PERF_SAMPLE_TYPE(CGROUP, "--all-cgroups"),
 };
 
 static int get_pinned_fd(const char *name);

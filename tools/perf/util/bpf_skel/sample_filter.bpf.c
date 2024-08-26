@@ -93,6 +93,7 @@ static inline __u64 perf_get_sample(struct bpf_perf_event_data_kern *kctx,
 	BUILD_CHECK_SAMPLE(DATA_SRC);
 	BUILD_CHECK_SAMPLE(TRANSACTION);
 	BUILD_CHECK_SAMPLE(PHYS_ADDR);
+	BUILD_CHECK_SAMPLE(CGROUP);
 	BUILD_CHECK_SAMPLE(DATA_PAGE_SIZE);
 	BUILD_CHECK_SAMPLE(CODE_PAGE_SIZE);
 	BUILD_CHECK_SAMPLE(WEIGHT_STRUCT);
@@ -135,6 +136,8 @@ static inline __u64 perf_get_sample(struct bpf_perf_event_data_kern *kctx,
 		return kctx->data->weight.full;
 	case PBF_TERM_PHYS_ADDR:
 		return kctx->data->phys_addr;
+	case PBF_TERM_CGROUP:
+		return kctx->data->cgroup;
 	case PBF_TERM_CODE_PAGE_SIZE:
 		return kctx->data->code_page_size;
 	case PBF_TERM_DATA_PAGE_SIZE:
@@ -183,7 +186,6 @@ static inline __u64 perf_get_sample(struct bpf_perf_event_data_kern *kctx,
 	case __PBF_UNUSED_TERM16:
 	case __PBF_UNUSED_TERM18:
 	case __PBF_UNUSED_TERM20:
-	case __PBF_UNUSED_TERM21:
 	default:
 		break;
 	}
