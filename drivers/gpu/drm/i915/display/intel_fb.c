@@ -10,6 +10,7 @@
 #include <linux/dma-resv.h>
 
 #include "gem/i915_gem_object.h"
+#include "gem/i915_gem_object_types.h"
 #include "i915_drv.h"
 #include "intel_atomic_plane.h"
 #include "intel_display.h"
@@ -2118,4 +2119,9 @@ intel_framebuffer_create(struct drm_i915_gem_object *obj,
 err:
 	kfree(intel_fb);
 	return ERR_PTR(ret);
+}
+
+struct drm_i915_gem_object *intel_fb_obj(const struct drm_framebuffer *fb)
+{
+	return fb ? to_intel_bo(fb->obj[0]) : NULL;
 }

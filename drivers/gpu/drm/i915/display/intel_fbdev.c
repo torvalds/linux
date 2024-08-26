@@ -45,6 +45,7 @@
 
 #include "gem/i915_gem_mman.h"
 #include "gem/i915_gem_object.h"
+#include "gem/i915_gem_object_types.h"
 
 #include "i915_drv.h"
 #include "intel_display_types.h"

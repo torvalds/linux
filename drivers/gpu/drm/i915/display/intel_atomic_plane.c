@@ -39,6 +39,7 @@
 #include <drm/drm_blend.h>
 #include <drm/drm_fourcc.h>
 
+#include "gem/i915_gem_object_types.h"
 #include "i915_config.h"
 #include "i9xx_plane_regs.h"
 #include "intel_atomic_plane.h"

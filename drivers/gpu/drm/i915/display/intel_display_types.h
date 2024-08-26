@@ -44,7 +44,6 @@
 #include <drm/drm_vblank_work.h>
 #include <drm/intel/i915_hdcp_interface.h>
 
-#include "gem/i915_gem_object_types.h" /* for to_intel_bo() */
 #include "i915_vma.h"
 #include "i915_vma_types.h"
 #include "intel_bios.h"
@@ -1490,8 +1489,6 @@ struct intel_plane {
 	container_of_const((plane_state), struct intel_plane_state, uapi)
 #define to_intel_framebuffer(fb) \
 	container_of_const((fb), struct intel_framebuffer, base)
-
-#define intel_fb_obj(x) ((x) ? to_intel_bo((x)->obj[0]) : NULL)
 
 struct intel_hdmi {
 	i915_reg_t hdmi_reg;
