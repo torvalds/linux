@@ -4,6 +4,7 @@ obj-$(CONFIG_PINCTRL_MSM)	+= pinctrl-msm.o
 obj-$(CONFIG_PINCTRL_PINEAPPLE)	+= pinctrl-pineapple.o
 obj-$(CONFIG_PINCTRL_ANORAK)	+= pinctrl-anorak.o
 obj-$(CONFIG_PINCTRL_NIOBE)	+= pinctrl-niobe.o
+obj-$(CONFIG_PINCTRL_SERAPH)    += pinctrl-seraph.o
 obj-$(CONFIG_PINCTRL_CLIFFS)    += pinctrl-cliffs.o
 obj-$(CONFIG_PINCTRL_KALAMA)	+= pinctrl-kalama.o
 obj-$(CONFIG_PINCTRL_BLAIR)	+= pinctrl-blair.o
