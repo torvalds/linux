@@ -51,6 +51,7 @@
 #include "amdgpu_reset.h"
 #include "amdgpu_sched.h"
 #include "amdgpu_xgmi.h"
+#include "amdgpu_userqueue.h"
 #include "../amdxcp/amdgpu_xcp_drv.h"
 
 /*
