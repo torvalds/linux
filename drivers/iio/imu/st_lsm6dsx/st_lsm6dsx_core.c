@@ -2646,73 +2646,6 @@ static int st_lsm6dsx_init_regulators(struct device *dev)
 	return 0;
 }
 
-#ifdef CONFIG_ACPI
-
-static int lsm6dsx_get_acpi_mount_matrix(struct device *dev,
-					 struct iio_mount_matrix *orientation)
-{
-	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
-	struct acpi_device *adev = ACPI_COMPANION(dev);
-	union acpi_object *obj, *elements;
-	acpi_status status;
-	int i, j, val[3];
-	char *str;
-
-	if (!has_acpi_companion(dev))
-		return -EINVAL;
-
-	if (!acpi_has_method(adev->handle, "ROTM"))
-		return -EINVAL;
-
-	status = acpi_evaluate_object(adev->handle, "ROTM", NULL, &buffer);
-	if (ACPI_FAILURE(status)) {
-		dev_warn(dev, "Failed to get ACPI mount matrix: %d\n", status);
-		return -EINVAL;
-	}
-
-	obj = buffer.pointer;
-	if (obj->type != ACPI_TYPE_PACKAGE || obj->package.count != 3)
-		goto unknown_format;
-
-	elements = obj->package.elements;
-	for (i = 0; i < 3; i++) {
-		if (elements[i].type != ACPI_TYPE_STRING)
-			goto unknown_format;
-
-		str = elements[i].string.pointer;
-		if (sscanf(str, "%d %d %d", &val[0], &val[1], &val[2]) != 3)
-			goto unknown_format;
-
-		for (j = 0; j < 3; j++) {
-			switch (val[j]) {
-			case -1: str = "-1"; break;
-			case 0:  str = "0";  break;
-			case 1:  str = "1";  break;
-			default: goto unknown_format;
-			}
-			orientation->rotation[i * 3 + j] = str;
-		}
-	}
-
-	kfree(buffer.pointer);
-	return 0;
-
-unknown_format:
-	dev_warn(dev, "Unknown ACPI mount matrix format, ignoring\n");
-	kfree(buffer.pointer);
-	return -EINVAL;
-}
-
-#else
-
-static int lsm6dsx_get_acpi_mount_matrix(struct device *dev,
-					  struct iio_mount_matrix *orientation)
-{
-	return -EOPNOTSUPP;
-}
-
-#endif
-
 int st_lsm6dsx_probe(struct device *dev, int irq, int hw_id,
 		     struct regmap *regmap)
 {
@@ -2787,8 +2720,7 @@ int st_lsm6dsx_probe(struct device *dev, int irq, int hw_id,
 			return err;
 	}
 
-	err = lsm6dsx_get_acpi_mount_matrix(hw->dev, &hw->orientation);
-	if (err) {
+	if (!iio_read_acpi_mount_matrix(hw->dev, &hw->orientation, "ROTM")) {
 		err = iio_read_mount_matrix(hw->dev, &hw->orientation);
 		if (err)
 			return err;
