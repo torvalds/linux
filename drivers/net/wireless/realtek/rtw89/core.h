@@ -5367,6 +5367,9 @@ struct rtw89_wow_param {
 	u8 ptk_keyidx;
 	u8 akm;
 
+	/* see RTW89_WOW_WAIT_COND series for wait condition */
+	struct rtw89_wait_info wait;
+
 	bool pno_inited;
 	struct list_head pno_pkt_list;
 	struct cfg80211_sched_scan_request *nd_config;
