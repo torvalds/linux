@@ -1087,7 +1087,7 @@ static void bitmap_unplug_async(struct bitmap *bitmap)
 	wait_for_completion(&done);
 }
 
-void md_bitmap_unplug(struct mddev *mddev, bool sync)
+static void bitmap_unplug(struct mddev *mddev, bool sync)
 {
 	struct bitmap *bitmap = mddev->bitmap;
 
@@ -1099,7 +1099,6 @@ void md_bitmap_unplug(struct mddev *mddev, bool sync)
 	else
 		bitmap_unplug_async(bitmap);
 }
-EXPORT_SYMBOL_GPL(md_bitmap_unplug);
 
 static void md_bitmap_set_memory_bits(struct bitmap *bitmap, sector_t offset, int needed);
 
@@ -2754,6 +2753,7 @@ static struct bitmap_operations bitmap_ops = {
 	.flush			= bitmap_flush,
 	.write_all		= bitmap_write_all,
 	.dirty_bits		= bitmap_dirty_bits,
+	.unplug			= bitmap_unplug,
 
 	.startwrite		= bitmap_startwrite,
 	.endwrite		= bitmap_endwrite,
