@@ -4397,6 +4397,8 @@ struct rtw89_mac_info {
 
 	/* see RTW89_FW_OFLD_WAIT_COND series for wait condition */
 	struct rtw89_wait_info fw_ofld_wait;
+	/* see RTW89_PS_WAIT_COND series for wait condition */
+	struct rtw89_wait_info ps_wait;
 };
 
 enum rtw89_fwdl_check_type {

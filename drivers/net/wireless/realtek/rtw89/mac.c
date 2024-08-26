@@ -4887,6 +4887,7 @@ rtw89_mac_c2h_done_ack(struct rtw89_dev *rtwdev, struct sk_buff *skb_c2h, u32 le
 {
 	/* N.B. This will run in interrupt context. */
 	struct rtw89_wait_info *fw_ofld_wait = &rtwdev->mac.fw_ofld_wait;
+	struct rtw89_wait_info *ps_wait = &rtwdev->mac.ps_wait;
 	const struct rtw89_c2h_done_ack *c2h =
 		(const struct rtw89_c2h_done_ack *)skb_c2h->data;
 	u8 h2c_cat = le32_get_bits(c2h->w2, RTW89_C2H_DONE_ACK_W2_CAT);
@@ -4906,6 +4907,18 @@ rtw89_mac_c2h_done_ack(struct rtw89_dev *rtwdev, struct sk_buff *skb_c2h, u32 le
 
 	switch (h2c_class) {
 	default:
+		return;
+	case H2C_CL_MAC_PS:
+		switch (h2c_func) {
+		default:
+			return;
+		case H2C_FUNC_IPS_CFG:
+			cond = RTW89_PS_WAIT_COND_IPS_CFG;
+			break;
+		}
+
+		data.err = !!h2c_return;
+		rtw89_complete_cond(ps_wait, cond, &data);
 		return;
 	case H2C_CL_MAC_FW_OFLD:
 		switch (h2c_func) {

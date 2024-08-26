@@ -4023,9 +4023,19 @@ enum rtw89_wow_h2c_func {
 
 /* CLASS 2 - PS */
 #define H2C_CL_MAC_PS			0x2
-#define H2C_FUNC_MAC_LPS_PARM		0x0
-#define H2C_FUNC_P2P_ACT		0x1
-#define H2C_FUNC_IPS_CFG		0x3
+enum rtw89_ps_h2c_func {
+	H2C_FUNC_MAC_LPS_PARM		= 0x0,
+	H2C_FUNC_P2P_ACT		= 0x1,
+	H2C_FUNC_IPS_CFG		= 0x3,
+
+	NUM_OF_RTW89_PS_H2C_FUNC,
+};
+
+#define RTW89_PS_WAIT_COND(tag, func) \
+	((tag) * NUM_OF_RTW89_PS_H2C_FUNC + (func))
+
+#define RTW89_PS_WAIT_COND_IPS_CFG \
+	RTW89_PS_WAIT_COND(0 /* don't care */, H2C_FUNC_IPS_CFG)
 
 /* CLASS 3 - FW download */
 #define H2C_CL_MAC_FWDL		0x3
