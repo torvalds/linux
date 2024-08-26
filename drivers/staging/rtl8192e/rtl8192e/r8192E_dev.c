@@ -987,7 +987,7 @@ void  rtl92e_fill_tx_cmd_desc(struct net_device *dev, struct tx_desc_cmd *entry,
 	if (dma_mapping_error(&priv->pdev->dev, mapping))
 		netdev_err(dev, "%s(): DMA Mapping error\n", __func__);
 	memset(entry, 0, 12);
-	entry->LINIP = cb_desc->bLastIniPkt;
+	entry->LINIP = cb_desc->last_ini_pkt;
 	entry->FirstSeg = 1;
 	entry->LastSeg = 1;
 	if (cb_desc->bCmdOrInit == DESC_PACKET_TYPE_INIT) {
