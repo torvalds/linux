@@ -125,7 +125,7 @@ static const struct attribute_group secvar_attr_group = {
 };
 __ATTRIBUTE_GROUPS(secvar_attr);
 
-static struct kobj_type secvar_ktype = {
+static const struct kobj_type secvar_ktype = {
 	.sysfs_ops	= &kobj_sysfs_ops,
 	.default_groups = secvar_attr_groups,
 };
