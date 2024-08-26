@@ -1773,10 +1773,7 @@ void md_bitmap_dirty_bits(struct bitmap *bitmap, unsigned long s, unsigned long 
 	}
 }
 
-/*
- * flush out any pending updates
- */
-void md_bitmap_flush(struct mddev *mddev)
+static void bitmap_flush(struct mddev *mddev)
 {
 	struct bitmap *bitmap = mddev->bitmap;
 	long sleep;
@@ -2725,6 +2722,7 @@ static struct bitmap_operations bitmap_ops = {
 	.create			= bitmap_create,
 	.load			= bitmap_load,
 	.destroy		= bitmap_destroy,
+	.flush			= bitmap_flush,
 };
 
 void mddev_set_bitmap_ops(struct mddev *mddev)
