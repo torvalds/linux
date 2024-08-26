@@ -7,6 +7,7 @@ qcom_scmi_client.ko
 cmd-db.ko
 qcom_rpmh.ko
 qcom-pdc.ko
+nvmem_qfprom.ko
 thermal_minidump.ko
 qcom_tsens.ko
 qcom_iommu_util.ko
