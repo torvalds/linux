@@ -2260,7 +2260,7 @@ static int fuse_writepages_fill(struct folio *folio,
 	struct inode *inode = data->inode;
 	struct fuse_inode *fi = get_fuse_inode(inode);
 	struct fuse_conn *fc = get_fuse_conn(inode);
-	struct page *tmp_page;
+	struct folio *tmp_folio;
 	int err;
 
 	if (wpa && fuse_writepage_need_send(fc, &folio->page, ap, data)) {
@@ -2269,8 +2269,8 @@ static int fuse_writepages_fill(struct folio *folio,
 	}
 
 	err = -ENOMEM;
-	tmp_page = alloc_page(GFP_NOFS | __GFP_HIGHMEM);
-	if (!tmp_page)
+	tmp_folio = folio_alloc(GFP_NOFS | __GFP_HIGHMEM, 0);
+	if (!tmp_folio)
 		goto out_unlock;
 
 	/*
@@ -2290,7 +2290,7 @@ static int fuse_writepages_fill(struct folio *folio,
 		err = -ENOMEM;
 		wpa = fuse_writepage_args_alloc();
 		if (!wpa) {
-			__free_page(tmp_page);
+			folio_put(tmp_folio);
 			goto out_unlock;
 		}
 		fuse_writepage_add_to_bucket(fc, wpa);
@@ -2308,14 +2308,14 @@ static int fuse_writepages_fill(struct folio *folio,
 	}
 	folio_start_writeback(folio);
 
-	copy_highpage(tmp_page, &folio->page);
-	ap->pages[ap->num_pages] = tmp_page;
+	folio_copy(tmp_folio, folio);
+	ap->pages[ap->num_pages] = &tmp_folio->page;
 	ap->descs[ap->num_pages].offset = 0;
 	ap->descs[ap->num_pages].length = PAGE_SIZE;
 	data->orig_pages[ap->num_pages] = &folio->page;
 
 	inc_wb_stat(&inode_to_bdi(inode)->wb, WB_WRITEBACK);
-	inc_node_page_state(tmp_page, NR_WRITEBACK_TEMP);
+	inc_node_page_state(&tmp_folio->page, NR_WRITEBACK_TEMP);
 
 	err = 0;
 	if (data->wpa) {
