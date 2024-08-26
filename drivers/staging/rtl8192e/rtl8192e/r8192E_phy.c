@@ -510,7 +510,7 @@ static u8 _rtl92e_phy_set_sw_chnl_cmd_array(struct net_device *dev,
 					    struct sw_chnl_cmd *CmdTable,
 					    u32 CmdTableIdx, u32 CmdTableSz,
 					    enum sw_chnl_cmd_id cmd_id,
-					    u32 Para1, u32 Para2, u32 msDelay)
+					    u32 Para1, u32 Para2, u32 ms_delay)
 {
 	struct sw_chnl_cmd *pCmd;
 
@@ -527,7 +527,7 @@ static u8 _rtl92e_phy_set_sw_chnl_cmd_array(struct net_device *dev,
 	pCmd->cmd_id = cmd_id;
 	pCmd->Para1 = Para1;
 	pCmd->Para2 = Para2;
-	pCmd->msDelay = msDelay;
+	pCmd->ms_delay = ms_delay;
 
 	return true;
 }
@@ -645,7 +645,7 @@ static u8 _rtl92e_phy_switch_channel_step(struct net_device *dev, u8 channel,
 		} while (true);
 	} /*for (Number of RF paths)*/
 
-	(*delay) = CurrentCmd->msDelay;
+	(*delay) = CurrentCmd->ms_delay;
 	(*step)++;
 	return false;
 }
