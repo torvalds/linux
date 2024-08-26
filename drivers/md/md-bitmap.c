@@ -32,6 +32,9 @@
 #include "md.h"
 #include "md-bitmap.h"
 
+static int __bitmap_resize(struct bitmap *bitmap, sector_t blocks,
+			   int chunksize, bool init);
+
 static inline char *bmname(struct bitmap *bitmap)
 {
 	return bitmap->mddev ? mdname(bitmap->mddev) : "mdX";
@@ -1975,7 +1978,8 @@ static struct bitmap *__bitmap_create(struct mddev *mddev, int slot)
 		goto error;
 
 	bitmap->daemon_lastrun = jiffies;
-	err = md_bitmap_resize(bitmap, blocks, mddev->bitmap_info.chunksize, 1);
+	err = __bitmap_resize(bitmap, blocks, mddev->bitmap_info.chunksize,
+			      true);
 	if (err)
 		goto error;
 
@@ -2163,8 +2167,8 @@ static int bitmap_get_stats(struct bitmap *bitmap, struct md_bitmap_stats *stats
 	return 0;
 }
 
-int md_bitmap_resize(struct bitmap *bitmap, sector_t blocks,
-		  int chunksize, int init)
+static int __bitmap_resize(struct bitmap *bitmap, sector_t blocks,
+			   int chunksize, bool init)
 {
 	/* If chunk_size is 0, choose an appropriate chunk size.
 	 * Then possibly allocate new storage space.
@@ -2368,6 +2372,17 @@ int md_bitmap_resize(struct bitmap *bitmap, sector_t blocks,
 	ret = 0;
 err:
 	return ret;
+}
+
+int md_bitmap_resize(struct mddev *mddev, sector_t blocks, int chunksize,
+		     bool init)
+{
+	struct bitmap *bitmap = mddev->bitmap;
+
+	if (!bitmap)
+		return 0;
+
+	return __bitmap_resize(bitmap, blocks, chunksize, init);
 }
 EXPORT_SYMBOL_GPL(md_bitmap_resize);
 

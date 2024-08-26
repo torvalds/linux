@@ -4196,6 +4196,7 @@ static int raid10_resize(struct mddev *mddev, sector_t sectors)
 	 */
 	struct r10conf *conf = mddev->private;
 	sector_t oldsize, size;
+	int ret;
 
 	if (mddev->reshape_position != MaxSector)
 		return -EBUSY;
@@ -4208,11 +4209,11 @@ static int raid10_resize(struct mddev *mddev, sector_t sectors)
 	if (mddev->external_size &&
 	    mddev->array_sectors > size)
 		return -EINVAL;
-	if (mddev->bitmap) {
-		int ret = md_bitmap_resize(mddev->bitmap, size, 0, 0);
-		if (ret)
-			return ret;
-	}
+
+	ret = md_bitmap_resize(mddev, size, 0, false);
+	if (ret)
+		return ret;
+
 	md_set_array_sectors(mddev, size);
 	if (sectors > mddev->dev_sectors &&
 	    mddev->recovery_cp > oldsize) {
@@ -4478,7 +4479,7 @@ static int raid10_start_reshape(struct mddev *mddev)
 		newsize = raid10_size(mddev, 0, conf->geo.raid_disks);
 
 		if (!mddev_is_clustered(mddev)) {
-			ret = md_bitmap_resize(mddev->bitmap, newsize, 0, 0);
+			ret = md_bitmap_resize(mddev, newsize, 0, false);
 			if (ret)
 				goto abort;
 			else
@@ -4500,13 +4501,13 @@ static int raid10_start_reshape(struct mddev *mddev)
 			    MD_FEATURE_RESHAPE_ACTIVE)) || (oldsize == newsize))
 			goto out;
 
-		ret = md_bitmap_resize(mddev->bitmap, newsize, 0, 0);
+		ret = md_bitmap_resize(mddev, newsize, 0, false);
 		if (ret)
 			goto abort;
 
 		ret = md_cluster_ops->resize_bitmaps(mddev, newsize, oldsize);
 		if (ret) {
-			md_bitmap_resize(mddev->bitmap, oldsize, 0, 0);
+			md_bitmap_resize(mddev, oldsize, 0, false);
 			goto abort;
 		}
 	}

@@ -3297,14 +3297,16 @@ static int raid1_resize(struct mddev *mddev, sector_t sectors)
 	 * worth it.
 	 */
 	sector_t newsize = raid1_size(mddev, sectors, 0);
+	int ret;
+
 	if (mddev->external_size &&
 	    mddev->array_sectors > newsize)
 		return -EINVAL;
-	if (mddev->bitmap) {
-		int ret = md_bitmap_resize(mddev->bitmap, newsize, 0, 0);
-		if (ret)
-			return ret;
-	}
+
+	ret = md_bitmap_resize(mddev, newsize, 0, false);
+	if (ret)
+		return ret;
+
 	md_set_array_sectors(mddev, newsize);
 	if (sectors > mddev->dev_sectors &&
 	    mddev->recovery_cp > mddev->dev_sectors) {

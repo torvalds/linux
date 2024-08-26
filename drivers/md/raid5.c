@@ -8313,6 +8313,7 @@ static int raid5_resize(struct mddev *mddev, sector_t sectors)
 	 */
 	sector_t newsize;
 	struct r5conf *conf = mddev->private;
+	int ret;
 
 	if (raid5_has_log(conf) || raid5_has_ppl(conf))
 		return -EINVAL;
@@ -8321,11 +8322,11 @@ static int raid5_resize(struct mddev *mddev, sector_t sectors)
 	if (mddev->external_size &&
 	    mddev->array_sectors > newsize)
 		return -EINVAL;
-	if (mddev->bitmap) {
-		int ret = md_bitmap_resize(mddev->bitmap, sectors, 0, 0);
-		if (ret)
-			return ret;
-	}
+
+	ret = md_bitmap_resize(mddev, sectors, 0, false);
+	if (ret)
+		return ret;
+
 	md_set_array_sectors(mddev, newsize);
 	if (sectors > mddev->dev_sectors &&
 	    mddev->recovery_cp > mddev->dev_sectors) {
