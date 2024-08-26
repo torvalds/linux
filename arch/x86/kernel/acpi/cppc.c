@@ -9,6 +9,16 @@
 #include <asm/processor.h>
 #include <asm/topology.h>
 
+#define CPPC_HIGHEST_PERF_PREFCORE	166
+
+enum amd_pref_core {
+	AMD_PREF_CORE_UNKNOWN = 0,
+	AMD_PREF_CORE_SUPPORTED,
+	AMD_PREF_CORE_UNSUPPORTED,
+};
+static enum amd_pref_core amd_pref_core_detected;
+static u64 boost_numerator;
+
 /* Refer to drivers/acpi/cppc_acpi.c for the description of functions */
 
 bool cpc_supported_by_cpu(void)
@@ -147,6 +157,66 @@ out:
 EXPORT_SYMBOL_GPL(amd_get_highest_perf);
 
 /**
+ * amd_detect_prefcore: Detect if CPUs in the system support preferred cores
+ * @detected: Output variable for the result of the detection.
+ *
+ * Determine whether CPUs in the system support preferred cores. On systems
+ * that support preferred cores, different highest perf values will be found
+ * on different cores. On other systems, the highest perf value will be the
+ * same on all cores.
+ *
+ * The result of the detection will be stored in the 'detected' parameter.
+ *
+ * Return: 0 for success, negative error code otherwise
+ */
+int amd_detect_prefcore(bool *detected)
+{
+	int cpu, count = 0;
+	u64 highest_perf[2] = {0};
+
+	if (WARN_ON(!detected))
+		return -EINVAL;
+
+	switch (amd_pref_core_detected) {
+	case AMD_PREF_CORE_SUPPORTED:
+		*detected = true;
+		return 0;
+	case AMD_PREF_CORE_UNSUPPORTED:
+		*detected = false;
+		return 0;
+	default:
+		break;
+	}
+
+	for_each_present_cpu(cpu) {
+		u32 tmp;
+		int ret;
+
+		ret = amd_get_highest_perf(cpu, &tmp);
+		if (ret)
+			return ret;
+
+		if (!count || (count == 1 && tmp != highest_perf[0]))
+			highest_perf[count++] = tmp;
+
+		if (count == 2)
+			break;
+	}
+
+	*detected = (count == 2);
+	boost_numerator = highest_perf[0];
+
+	amd_pref_core_detected = *detected ? AMD_PREF_CORE_SUPPORTED :
+					     AMD_PREF_CORE_UNSUPPORTED;
+
+	pr_debug("AMD CPPC preferred core is %ssupported (highest perf: 0x%llx)\n",
+		 *detected ? "" : "un", highest_perf[0]);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(amd_detect_prefcore);
+
+/**
  * amd_get_boost_ratio_numerator: Get the numerator to use for boost ratio calculation
  * @cpu: CPU to get numerator for.
  * @numerator: Output variable for numerator.
@@ -155,24 +225,27 @@ EXPORT_SYMBOL_GPL(amd_get_highest_perf);
  * a CPU. On systems that support preferred cores, this will be a hardcoded
  * value. On other systems this will the highest performance register value.
  *
+ * If booting the system with amd-pstate enabled but preferred cores disabled then
+ * the correct boost numerator will be returned to match hardware capabilities
+ * even if the preferred cores scheduling hints are not enabled.
+ *
  * Return: 0 for success, negative error code otherwise.
  */
 int amd_get_boost_ratio_numerator(unsigned int cpu, u64 *numerator)
 {
-	struct cpuinfo_x86 *c = &boot_cpu_data;
+	bool prefcore;
+	int ret;
 
-	if (c->x86 == 0x17 && ((c->x86_model >= 0x30 && c->x86_model < 0x40) ||
-			       (c->x86_model >= 0x70 && c->x86_model < 0x80))) {
-		*numerator = 166;
+	ret = amd_detect_prefcore(&prefcore);
+	if (ret)
+		return ret;
+
+	/* without preferred cores, return the highest perf register value */
+	if (!prefcore) {
+		*numerator = boost_numerator;
 		return 0;
 	}
-
-	if (c->x86 == 0x19 && ((c->x86_model >= 0x20 && c->x86_model < 0x30) ||
-			       (c->x86_model >= 0x40 && c->x86_model < 0x70))) {
-		*numerator = 166;
-		return 0;
-	}
-	*numerator = 255;
+	*numerator = CPPC_HIGHEST_PERF_PREFCORE;
 
 	return 0;
 }
