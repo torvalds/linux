@@ -1179,14 +1179,13 @@ static int wiz_clock_probe(struct wiz *wiz, struct device_node *node)
 
 		ret = wiz_mux_of_clk_register(wiz, clk_node, wiz->mux_sel_field[i],
 					      clk_mux_sel[i].table);
+		of_node_put(clk_node);
 		if (ret) {
 			dev_err_probe(dev, ret, "Failed to register %s clock\n",
 				      node_name);
-			of_node_put(clk_node);
 			goto err;
 		}
 
-		of_node_put(clk_node);
 	}
 
 	for (i = 0; i < wiz->clk_div_sel_num; i++) {
@@ -1199,14 +1198,12 @@ static int wiz_clock_probe(struct wiz *wiz, struct device_node *node)
 
 		ret = wiz_div_clk_register(wiz, clk_node, wiz->div_sel_field[i],
 					   clk_div_sel[i].table);
+		of_node_put(clk_node);
 		if (ret) {
 			dev_err_probe(dev, ret, "Failed to register %s clock\n",
 				      node_name);
-			of_node_put(clk_node);
 			goto err;
 		}
-
-		of_node_put(clk_node);
 	}
 
 	return 0;
