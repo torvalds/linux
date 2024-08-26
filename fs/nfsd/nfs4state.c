@@ -400,6 +400,7 @@ static const struct nfsd4_callback_ops nfsd4_cb_notify_lock_ops = {
 	.prepare	= nfsd4_cb_notify_lock_prepare,
 	.done		= nfsd4_cb_notify_lock_done,
 	.release	= nfsd4_cb_notify_lock_release,
+	.opcode		= OP_CB_NOTIFY_LOCK,
 };
 
 /*
@@ -3083,11 +3084,13 @@ nfsd4_cb_getattr_release(struct nfsd4_callback *cb)
 static const struct nfsd4_callback_ops nfsd4_cb_recall_any_ops = {
 	.done		= nfsd4_cb_recall_any_done,
 	.release	= nfsd4_cb_recall_any_release,
+	.opcode		= OP_CB_RECALL_ANY,
 };
 
 static const struct nfsd4_callback_ops nfsd4_cb_getattr_ops = {
 	.done		= nfsd4_cb_getattr_done,
 	.release	= nfsd4_cb_getattr_release,
+	.opcode		= OP_CB_GETATTR,
 };
 
 static void nfs4_cb_getattr(struct nfs4_cb_fattr *ncf)
@@ -5215,6 +5218,7 @@ static const struct nfsd4_callback_ops nfsd4_cb_recall_ops = {
 	.prepare	= nfsd4_cb_recall_prepare,
 	.done		= nfsd4_cb_recall_done,
 	.release	= nfsd4_cb_recall_release,
+	.opcode		= OP_CB_RECALL,
 };
 
 static void nfsd_break_one_deleg(struct nfs4_delegation *dp)

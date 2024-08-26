@@ -1622,7 +1622,8 @@ static int nfsd4_cb_offload_done(struct nfsd4_callback *cb,
 
 static const struct nfsd4_callback_ops nfsd4_cb_offload_ops = {
 	.release = nfsd4_cb_offload_release,
-	.done = nfsd4_cb_offload_done
+	.done = nfsd4_cb_offload_done,
+	.opcode = OP_CB_OFFLOAD,
 };
 
 static void nfsd4_init_copy_res(struct nfsd4_copy *copy, bool sync)

@@ -1553,6 +1553,19 @@ TRACE_EVENT(nfsd_cb_setup_err,
 		__entry->error)
 );
 
+/* Not a real opcode, but there is no 0 operation. */
+#define _CB_NULL	0
+
+#define show_nfsd_cb_opcode(val)					\
+	__print_symbolic(val,						\
+		{ _CB_NULL,			"CB_NULL" },		\
+		{ OP_CB_GETATTR,		"CB_GETATTR" },		\
+		{ OP_CB_RECALL,			"CB_RECALL" },		\
+		{ OP_CB_LAYOUTRECALL,		"CB_LAYOUTRECALL" },	\
+		{ OP_CB_RECALL_ANY,		"CB_RECALL_ANY" },	\
+		{ OP_CB_NOTIFY_LOCK,		"CB_NOTIFY_LOCK" },	\
+		{ OP_CB_OFFLOAD,		"CB_OFFLOAD" })
+
 DECLARE_EVENT_CLASS(nfsd_cb_lifetime_class,
 	TP_PROTO(
 		const struct nfs4_client *clp,
@@ -1563,6 +1576,7 @@ DECLARE_EVENT_CLASS(nfsd_cb_lifetime_class,
 		__field(u32, cl_boot)
 		__field(u32, cl_id)
 		__field(const void *, cb)
+		__field(unsigned long, opcode)
 		__field(bool, need_restart)
 		__sockaddr(addr, clp->cl_cb_conn.cb_addrlen)
 	),
@@ -1570,14 +1584,15 @@ DECLARE_EVENT_CLASS(nfsd_cb_lifetime_class,
 		__entry->cl_boot = clp->cl_clientid.cl_boot;
 		__entry->cl_id = clp->cl_clientid.cl_id;
 		__entry->cb = cb;
+		__entry->opcode = cb->cb_ops ? cb->cb_ops->opcode : _CB_NULL;
 		__entry->need_restart = cb->cb_need_restart;
 		__assign_sockaddr(addr, &clp->cl_cb_conn.cb_addr,
 				  clp->cl_cb_conn.cb_addrlen)
 	),
-	TP_printk("addr=%pISpc client %08x:%08x cb=%p%s",
-		__get_sockaddr(addr), __entry->cl_boot, __entry->cl_id,
-		__entry->cb, __entry->need_restart ?
-			" (need restart)" : " (first try)"
+	TP_printk("addr=%pISpc client %08x:%08x cb=%p%s opcode=%s",
+		__get_sockaddr(addr), __entry->cl_boot, __entry->cl_id, __entry->cb,
+		__entry->need_restart ?  " (need restart)" : " (first try)",
+		show_nfsd_cb_opcode(__entry->opcode)
 	)
 );
 
