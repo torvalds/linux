@@ -28,7 +28,6 @@
 #define TMP_REG_2 (MAX_BPF_JIT_REG + 1)
 #define TCCNT_PTR (MAX_BPF_JIT_REG + 2)
 #define TMP_REG_3 (MAX_BPF_JIT_REG + 3)
-#define FP_BOTTOM (MAX_BPF_JIT_REG + 4)
 #define ARENA_VM_START (MAX_BPF_JIT_REG + 5)
 
 #define check_imm(bits, imm) do {				\
@@ -67,7 +66,6 @@ static const int bpf2a64[] = {
 	[TCCNT_PTR] = A64_R(26),
 	/* temporary register for blinding constants */
 	[BPF_REG_AX] = A64_R(9),
-	[FP_BOTTOM] = A64_R(27),
 	/* callee saved register for kern_vm_start address */
 	[ARENA_VM_START] = A64_R(28),
 };
@@ -81,7 +79,6 @@ struct jit_ctx {
 	__le32 *image;
 	__le32 *ro_image;
 	u32 stack_size;
-	int fpb_offset;
 	u64 user_vm_start;
 };
 
@@ -330,7 +327,6 @@ static int build_prologue(struct jit_ctx *ctx, bool ebpf_from_cbpf,
 	const u8 r8 = bpf2a64[BPF_REG_8];
 	const u8 r9 = bpf2a64[BPF_REG_9];
 	const u8 fp = bpf2a64[BPF_REG_FP];
-	const u8 fpb = bpf2a64[FP_BOTTOM];
 	const u8 arena_vm_base = bpf2a64[ARENA_VM_START];
 	const int idx0 = ctx->idx;
 	int cur_offset;
@@ -381,7 +377,7 @@ static int build_prologue(struct jit_ctx *ctx, bool ebpf_from_cbpf,
 		emit(A64_PUSH(r6, r7, A64_SP), ctx);
 		emit(A64_PUSH(r8, r9, A64_SP), ctx);
 		prepare_bpf_tail_call_cnt(ctx);
-		emit(A64_PUSH(fpb, A64_R(28), A64_SP), ctx);
+		emit(A64_PUSH(A64_R(27), A64_R(28), A64_SP), ctx);
 	} else {
 		/*
 		 * Exception callback receives FP of Main Program as third
@@ -426,8 +422,6 @@ static int build_prologue(struct jit_ctx *ctx, bool ebpf_from_cbpf,
 		emit(A64_SUB_I(1, fp, fp, 16), ctx);
 		emit(A64_PUSH(A64_R(23), A64_R(24), A64_SP), ctx);
 	}
-
-	emit(A64_SUB_I(1, fpb, fp, ctx->fpb_offset), ctx);
 
 	/* Stack must be multiples of 16B */
 	ctx->stack_size = round_up(prog->aux->stack_depth, 16);
@@ -745,7 +739,6 @@ static void build_epilogue(struct jit_ctx *ctx, bool is_exception_cb)
 	const u8 r9 = bpf2a64[BPF_REG_9];
 	const u8 fp = bpf2a64[BPF_REG_FP];
 	const u8 ptr = bpf2a64[TCCNT_PTR];
-	const u8 fpb = bpf2a64[FP_BOTTOM];
 
 	/* We're done with BPF stack */
 	emit(A64_ADD_I(1, A64_SP, A64_SP, ctx->stack_size), ctx);
@@ -760,7 +753,7 @@ static void build_epilogue(struct jit_ctx *ctx, bool is_exception_cb)
 		emit(A64_POP(A64_R(23), A64_R(24), A64_SP), ctx);
 
 	/* Restore x27 and x28 */
-	emit(A64_POP(fpb, A64_R(28), A64_SP), ctx);
+	emit(A64_POP(A64_R(27), A64_R(28), A64_SP), ctx);
 	/* Restore fs (x25) and x26 */
 	emit(A64_POP(ptr, fp, A64_SP), ctx);
 	emit(A64_POP(ptr, fp, A64_SP), ctx);
@@ -887,7 +880,6 @@ static int build_insn(const struct bpf_insn *insn, struct jit_ctx *ctx,
 	const u8 tmp = bpf2a64[TMP_REG_1];
 	const u8 tmp2 = bpf2a64[TMP_REG_2];
 	const u8 fp = bpf2a64[BPF_REG_FP];
-	const u8 fpb = bpf2a64[FP_BOTTOM];
 	const u8 arena_vm_base = bpf2a64[ARENA_VM_START];
 	const s16 off = insn->off;
 	const s32 imm = insn->imm;
@@ -1339,9 +1331,9 @@ emit_cond_jmp:
 			emit(A64_ADD(1, tmp2, src, arena_vm_base), ctx);
 			src = tmp2;
 		}
-		if (ctx->fpb_offset > 0 && src == fp && BPF_MODE(insn->code) != BPF_PROBE_MEM32) {
-			src_adj = fpb;
-			off_adj = off + ctx->fpb_offset;
+		if (src == fp) {
+			src_adj = A64_SP;
+			off_adj = off + ctx->stack_size;
 		} else {
 			src_adj = src;
 			off_adj = off;
@@ -1432,9 +1424,9 @@ emit_cond_jmp:
 			emit(A64_ADD(1, tmp2, dst, arena_vm_base), ctx);
 			dst = tmp2;
 		}
-		if (ctx->fpb_offset > 0 && dst == fp && BPF_MODE(insn->code) != BPF_PROBE_MEM32) {
-			dst_adj = fpb;
-			off_adj = off + ctx->fpb_offset;
+		if (dst == fp) {
+			dst_adj = A64_SP;
+			off_adj = off + ctx->stack_size;
 		} else {
 			dst_adj = dst;
 			off_adj = off;
@@ -1494,9 +1486,9 @@ emit_cond_jmp:
 			emit(A64_ADD(1, tmp2, dst, arena_vm_base), ctx);
 			dst = tmp2;
 		}
-		if (ctx->fpb_offset > 0 && dst == fp && BPF_MODE(insn->code) != BPF_PROBE_MEM32) {
-			dst_adj = fpb;
-			off_adj = off + ctx->fpb_offset;
+		if (dst == fp) {
+			dst_adj = A64_SP;
+			off_adj = off + ctx->stack_size;
 		} else {
 			dst_adj = dst;
 			off_adj = off;
@@ -1563,79 +1555,6 @@ emit_cond_jmp:
 	}
 
 	return 0;
-}
-
-/*
- * Return 0 if FP may change at runtime, otherwise find the minimum negative
- * offset to FP, converts it to positive number, and align down to 8 bytes.
- */
-static int find_fpb_offset(struct bpf_prog *prog)
-{
-	int i;
-	int offset = 0;
-
-	for (i = 0; i < prog->len; i++) {
-		const struct bpf_insn *insn = &prog->insnsi[i];
-		const u8 class = BPF_CLASS(insn->code);
-		const u8 mode = BPF_MODE(insn->code);
-		const u8 src = insn->src_reg;
-		const u8 dst = insn->dst_reg;
-		const s32 imm = insn->imm;
-		const s16 off = insn->off;
-
-		switch (class) {
-		case BPF_STX:
-		case BPF_ST:
-			/* fp holds atomic operation result */
-			if (class == BPF_STX && mode == BPF_ATOMIC &&
-			    ((imm == BPF_XCHG ||
-			      imm == (BPF_FETCH | BPF_ADD) ||
-			      imm == (BPF_FETCH | BPF_AND) ||
-			      imm == (BPF_FETCH | BPF_XOR) ||
-			      imm == (BPF_FETCH | BPF_OR)) &&
-			     src == BPF_REG_FP))
-				return 0;
-
-			if (mode == BPF_MEM && dst == BPF_REG_FP &&
-			    off < offset)
-				offset = insn->off;
-			break;
-
-		case BPF_JMP32:
-		case BPF_JMP:
-			break;
-
-		case BPF_LDX:
-		case BPF_LD:
-			/* fp holds load result */
-			if (dst == BPF_REG_FP)
-				return 0;
-
-			if (class == BPF_LDX && mode == BPF_MEM &&
-			    src == BPF_REG_FP && off < offset)
-				offset = off;
-			break;
-
-		case BPF_ALU:
-		case BPF_ALU64:
-		default:
-			/* fp holds ALU result */
-			if (dst == BPF_REG_FP)
-				return 0;
-		}
-	}
-
-	if (offset < 0) {
-		/*
-		 * safely be converted to a positive 'int', since insn->off
-		 * is 's16'
-		 */
-		offset = -offset;
-		/* align down to 8 bytes */
-		offset = ALIGN_DOWN(offset, 8);
-	}
-
-	return offset;
 }
 
 static int build_body(struct jit_ctx *ctx, bool extra_pass)
@@ -1774,7 +1693,6 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *prog)
 		goto out_off;
 	}
 
-	ctx.fpb_offset = find_fpb_offset(prog);
 	ctx.user_vm_start = bpf_arena_get_user_vm_start(prog->aux->arena);
 
 	/*
