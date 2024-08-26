@@ -1829,7 +1829,8 @@
 		};
 
 		isp0: isp@fed00000 {
-			compatible = "renesas,r8a779h0-isp";
+			compatible = "renesas,r8a779h0-isp",
+				     "renesas,rcar-gen4-isp";
 			reg = <0 0xfed00000 0 0x10000>;
 			interrupts = <GIC_SPI 473 IRQ_TYPE_LEVEL_LOW>;
 			clocks = <&cpg CPG_MOD 612>;
@@ -1912,7 +1913,8 @@
 		};
 
 		isp1: isp@fed20000 {
-			compatible = "renesas,r8a779h0-isp";
+			compatible = "renesas,r8a779h0-isp",
+				     "renesas,rcar-gen4-isp";
 			reg = <0 0xfed20000 0 0x10000>;
 			interrupts = <GIC_SPI 474 IRQ_TYPE_LEVEL_LOW>;
 			clocks = <&cpg CPG_MOD 613>;
