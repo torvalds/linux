@@ -1163,7 +1163,6 @@ static int resize_bitmaps(struct mddev *mddev, sector_t newsize, sector_t oldsiz
 
 	for (i = 0; i < mddev->bitmap_info.nodes; i++) {
 		struct dlm_lock_resource *bm_lockres;
-		struct bitmap_counts *counts;
 		char str[64];
 
 		if (i == md_cluster_ops->slot_number(mddev))
@@ -1175,7 +1174,6 @@ static int resize_bitmaps(struct mddev *mddev, sector_t newsize, sector_t oldsiz
 			bitmap = NULL;
 			goto out;
 		}
-		counts = &bitmap->counts;
 
 		rv = md_bitmap_get_stats(bitmap, &stats);
 		if (rv)
@@ -1193,7 +1191,7 @@ static int resize_bitmaps(struct mddev *mddev, sector_t newsize, sector_t oldsiz
 		bm_lockres->flags |= DLM_LKF_NOQUEUE;
 		rv = dlm_lock_sync(bm_lockres, DLM_LOCK_PW);
 		if (!rv)
-			counts->pages = my_pages;
+			md_bitmap_set_pages(bitmap, my_pages);
 		lockres_free(bm_lockres);
 
 		if (my_pages != stats.pages)

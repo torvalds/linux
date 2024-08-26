@@ -2094,6 +2094,12 @@ int md_bitmap_copy_from_slot(struct mddev *mddev, int slot,
 }
 EXPORT_SYMBOL_GPL(md_bitmap_copy_from_slot);
 
+void md_bitmap_set_pages(struct bitmap *bitmap, unsigned long pages)
+{
+	bitmap->counts.pages = pages;
+}
+EXPORT_SYMBOL_GPL(md_bitmap_set_pages);
+
 int md_bitmap_get_stats(struct bitmap *bitmap, struct md_bitmap_stats *stats)
 {
 	struct bitmap_storage *storage;
