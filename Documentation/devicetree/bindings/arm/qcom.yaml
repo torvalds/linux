@@ -1053,6 +1053,8 @@ properties:
           - enum:
               - asus,vivobook-s15
               - lenovo,yoga-slim7x
+              - microsoft,romulus13
+              - microsoft,romulus15
               - qcom,x1e80100-crd
               - qcom,x1e80100-qcp
           - const: qcom,x1e80100
