@@ -810,17 +810,17 @@ static void amd_pstate_update_limits(unsigned int cpu)
 
 	cpudata = policy->driver_data;
 
-	mutex_lock(&amd_pstate_driver_lock);
-	if ((!amd_pstate_prefcore) || (!cpudata->hw_prefcore))
-		goto free_cpufreq_put;
+	if (!amd_pstate_prefcore)
+		return;
 
+	mutex_lock(&amd_pstate_driver_lock);
 	ret = amd_get_highest_perf(cpu, &cur_high);
 	if (ret)
 		goto free_cpufreq_put;
 
 	prev_high = READ_ONCE(cpudata->prefcore_ranking);
-	if (prev_high != cur_high) {
-		highest_perf_changed = true;
+	highest_perf_changed = (prev_high != cur_high);
+	if (highest_perf_changed) {
 		WRITE_ONCE(cpudata->prefcore_ranking, cur_high);
 
 		if (cur_high < CPPC_MAX_PERF)
