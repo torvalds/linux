@@ -259,6 +259,7 @@ struct bitmap_operations {
 			   unsigned long e);
 	void (*unplug)(struct mddev *mddev, bool sync);
 	void (*daemon_work)(struct mddev *mddev);
+	void (*wait_behind_writes)(struct mddev *mddev);
 
 	int (*startwrite)(struct mddev *mddev, sector_t offset,
 			  unsigned long sectors, bool behind);
@@ -285,9 +286,6 @@ struct bitmap_operations {
 
 /* the bitmap API */
 void mddev_set_bitmap_ops(struct mddev *mddev);
-
-/* these are exported */
-void md_bitmap_wait_behind_writes(struct mddev *mddev);
 
 static inline bool md_bitmap_enabled(struct bitmap *bitmap)
 {
