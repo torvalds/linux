@@ -1366,7 +1366,7 @@ static int cdns_sierra_phy_probe(struct platform_device *pdev)
 	unsigned int id_value;
 	int ret, node = 0;
 	void __iomem *base;
-	struct device_node *dn = dev->of_node, *child;
+	struct device_node *dn = dev->of_node;
 
 	if (of_get_child_count(dn) == 0)
 		return -ENODEV;
@@ -1438,7 +1438,7 @@ static int cdns_sierra_phy_probe(struct platform_device *pdev)
 
 	sp->autoconf = of_property_read_bool(dn, "cdns,autoconf");
 
-	for_each_available_child_of_node(dn, child) {
+	for_each_available_child_of_node_scoped(dn, child) {
 		struct phy *gphy;
 
 		if (!(of_node_name_eq(child, "phy") ||
@@ -1452,7 +1452,6 @@ static int cdns_sierra_phy_probe(struct platform_device *pdev)
 			dev_err(dev, "failed to get reset %s\n",
 				child->full_name);
 			ret = PTR_ERR(sp->phys[node].lnk_rst);
-			of_node_put(child);
 			goto put_control;
 		}
 
@@ -1461,7 +1460,6 @@ static int cdns_sierra_phy_probe(struct platform_device *pdev)
 			if (ret) {
 				dev_err(dev, "missing property in node %s\n",
 					child->name);
-				of_node_put(child);
 				reset_control_put(sp->phys[node].lnk_rst);
 				goto put_control;
 			}
@@ -1475,7 +1473,6 @@ static int cdns_sierra_phy_probe(struct platform_device *pdev)
 			gphy = devm_phy_create(dev, child, &noop_ops);
 		if (IS_ERR(gphy)) {
 			ret = PTR_ERR(gphy);
-			of_node_put(child);
 			reset_control_put(sp->phys[node].lnk_rst);
 			goto put_control;
 		}
