@@ -1089,7 +1089,10 @@ int phy_ethtool_ksettings_set(struct phy_device *phydev,
 	if (autoneg != AUTONEG_ENABLE && autoneg != AUTONEG_DISABLE)
 		return -EINVAL;
 
-	if (autoneg == AUTONEG_ENABLE && linkmode_empty(advertising))
+	if (autoneg == AUTONEG_ENABLE &&
+	    (linkmode_empty(advertising) ||
+	     !linkmode_test_bit(ETHTOOL_LINK_MODE_Autoneg_BIT,
+				phydev->supported)))
 		return -EINVAL;
 
 	if (autoneg == AUTONEG_DISABLE &&
