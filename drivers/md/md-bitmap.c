@@ -1851,6 +1851,7 @@ void md_bitmap_wait_behind_writes(struct mddev *mddev)
 			   atomic_read(&bitmap->behind_writes) == 0);
 	}
 }
+EXPORT_SYMBOL_GPL(md_bitmap_wait_behind_writes);
 
 void md_bitmap_destroy(struct mddev *mddev)
 {
