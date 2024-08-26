@@ -2249,6 +2249,8 @@ static int ubifs_fill_super(struct super_block *sb, void *data, int silent)
 	}
 
 	super_set_uuid(sb, c->uuid, sizeof(c->uuid));
+	super_set_sysfs_name_generic(sb, UBIFS_DFS_DIR_NAME,
+				     c->vi.ubi_num, c->vi.vol_id);
 
 	mutex_unlock(&c->umount_mutex);
 	return 0;
