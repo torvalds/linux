@@ -85,6 +85,10 @@ static unsigned short root_swap_dev;
 static struct work_struct save_params_work;
 static struct completion write_done;
 static unsigned char iv[IV_SIZE];
+static uint8_t *compressed_blk_array;
+static int blk_array_pos;
+static unsigned long nr_pages;
+static void *auth_slot;
 
 static void init_sg(struct scatterlist *sg, void *data, unsigned int size)
 {
@@ -301,6 +305,26 @@ static int write_page(void *buf, sector_t offset, struct hib_bio_batch *hb)
 	return hib_submit_io(REQ_OP_WRITE, REQ_SYNC, offset, src, hb);
 }
 
+/*
+ * Number of pages compressed at one time. This is inline with UNC_PAGES
+ * in kernel/power/swap.c.
+ */
+#define UNCMP_PAGES   32
+
+static uint32_t get_size_of_compression_block_array(unsigned long pages)
+{
+	/*
+	 * Get the max index based on total no. of pages. Current compression
+	 * algorithm compresses each UNC_PAGES pages to x pages. Use this logic to
+	 * get the max index.
+	 */
+	uint32_t max_index = DIV_ROUND_UP(pages, UNCMP_PAGES);
+
+	uint32_t size = ALIGN((max_index * sizeof(*compressed_blk_array)), PAGE_SIZE);
+
+	return size;
+}
+
 static void save_auth_and_params_to_disk(struct work_struct *work)
 {
 	int cur_slot;
@@ -309,7 +333,7 @@ static void save_auth_and_params_to_disk(struct work_struct *work)
 	int authslot_count = 0;
 	int authpage_count = read_authpage_count();
 	struct hib_bio_batch hb;
-	int err2;
+	int err2, i = 0;
 
 	hib_init_batch(&hb);
 
@@ -317,6 +341,27 @@ static void save_auth_and_params_to_disk(struct work_struct *work)
 	 * Allocate a page to save the encryption params
 	 */
 	params_slot = alloc_swapdev_block(root_swap_dev);
+
+	if (auth_slot) {
+		*(int *)auth_slot = params_slot + 1;
+
+		/* Currently bootloader code does the following to
+		 * calculate the authentication slot index.
+		 * authslot = NrMetaPages + NrCopyPages + NrSwapMapPages +
+		 * HDR_SWP_INFO_NUM_PAGES;
+		 *
+		 * However, with compression enabled, we cannot apply the
+		 * above logic to get the authentication slot. So this
+		 * data should be provided to the BL for decryption to work.
+		 *
+		 * In the current implementation, BL doesn't make use of
+		 * the swap_map_pages for restoring the hibernation image. So these pages
+		 * could be used for other purposes. Use this to store the
+		 * authentication slot number. This data will be stored at index as
+		 * that of the first swap_map_page.
+		 */
+		write_page(auth_slot, 1, &hb);
+	}
 
 	authpage = authslot_start;
 	while (authslot_count < authpage_count) {
@@ -327,6 +372,19 @@ static void save_auth_and_params_to_disk(struct work_struct *work)
 	}
 	params->authslot_count = authslot_count;
 	write_page(params, params_slot, &hb);
+
+	/*
+	 * Write the array holding the compressed block count to disk
+	 */
+	if (compressed_blk_array) {
+		uint32_t size = get_size_of_compression_block_array(nr_pages);
+
+		for (i = 0; i < size / PAGE_SIZE; i++) {
+			cur_slot = alloc_swapdev_block(root_swap_dev);
+			write_page(compressed_blk_array + (i * PAGE_SIZE), cur_slot, &hb);
+		}
+	}
+
 	err2 = hib_wait_io(&hb);
 	hib_finish_batch(&hb);
 	complete_all(&write_done);
@@ -457,6 +515,20 @@ void deinit_aes_encrypt(void)
 	kfree(params);
 }
 
+static void cleanup_cmp_blk_array(void)
+{
+	blk_array_pos = 0;
+	if (compressed_blk_array) {
+		kvfree((void *)compressed_blk_array);
+		compressed_blk_array = NULL;
+	}
+	if (auth_slot) {
+		free_page((unsigned long)auth_slot);
+		auth_slot = NULL;
+
+	}
+}
+
 static int hibernate_pm_notifier(struct notifier_block *nb,
 				unsigned long event, void *unused)
 {
@@ -492,6 +564,7 @@ static int hibernate_pm_notifier(struct notifier_block *nb,
 
 	case (PM_POST_HIBERNATION):
 		deinit_aes_encrypt();
+		cleanup_cmp_blk_array();
 		break;
 
 	default:
@@ -543,6 +616,47 @@ err_auth:
 	kfree(params);
 }
 
+/*
+ * Bit(part of swsusp_header_flags) to indicate if the image is uncompressed
+ * or not. This is inline with SF_NOCOMPRESS_MODE defined in
+ * kernel/power/power.h.
+ */
+#define SF_NOCOMPRESS_MODE      2
+
+static void hibernated_do_mem_alloc(void *data, unsigned long pages,
+	unsigned int swsusp_header_flags, int *ret)
+{
+	uint32_t size;
+
+	/* total no. of pages in the snapshot image */
+	nr_pages = pages;
+
+	if (!(swsusp_header_flags & SF_NOCOMPRESS_MODE)) {
+		size = get_size_of_compression_block_array(pages);
+
+		compressed_blk_array = kvzalloc(size, GFP_KERNEL);
+		if (!compressed_blk_array) {
+			*ret = -ENOMEM;
+			return;
+		}
+
+		/* Allocate memory to hold authentication slot start */
+		auth_slot = (void *)get_zeroed_page(GFP_KERNEL);
+		if (!auth_slot) {
+			pr_err("Failed to allocate page for storing authentication tag slot number\n");
+			*ret = -ENOMEM;
+		}
+	}
+}
+
+static void hibernate_save_cmp_len(void *data, size_t cmp_len)
+{
+	uint8_t pages;
+
+	pages = DIV_ROUND_UP(cmp_len, PAGE_SIZE);
+	compressed_blk_array[blk_array_pos++] = pages;
+}
+
 static int __init qcom_secure_hibernattion_init(void)
 {
 	int ret;
@@ -551,6 +665,8 @@ static int __init qcom_secure_hibernattion_init(void)
 	register_trace_android_vh_init_aes_encrypt(init_aes_encrypt, NULL);
 	register_trace_android_vh_skip_swap_map_write(skip_swap_map_write, NULL);
 	register_trace_android_vh_post_image_save(save_params_to_disk, NULL);
+	register_trace_android_vh_hibernate_save_cmp_len(hibernate_save_cmp_len, NULL);
+	register_trace_android_vh_hibernated_do_mem_alloc(hibernated_do_mem_alloc, NULL);
 
 	ret = register_pm_notifier(&pm_nb);
 	if (ret) {
