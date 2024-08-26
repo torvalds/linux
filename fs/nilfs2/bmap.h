@@ -87,9 +87,8 @@ struct nilfs_bmap_operations {
 
 
 #define NILFS_BMAP_SIZE		(NILFS_INODE_BMAP_SIZE * sizeof(__le64))
-#define NILFS_BMAP_KEY_BIT	(sizeof(unsigned long) * 8 /* CHAR_BIT */)
-#define NILFS_BMAP_NEW_PTR_INIT	\
-	(1UL << (sizeof(unsigned long) * 8 /* CHAR_BIT */ - 1))
+#define NILFS_BMAP_KEY_BIT	BITS_PER_LONG
+#define NILFS_BMAP_NEW_PTR_INIT	(1UL << (BITS_PER_LONG - 1))
 
 static inline int nilfs_bmap_is_new_ptr(unsigned long ptr)
 {
