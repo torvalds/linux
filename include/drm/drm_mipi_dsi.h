@@ -10,7 +10,6 @@
 #define __DRM_MIPI_DSI_H__
 
 #include <linux/device.h>
-+#include <linux/delay.h>
 #include <linux/delay.h>
 
 struct mipi_dsi_host;

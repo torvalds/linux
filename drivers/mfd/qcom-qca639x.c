@@ -158,13 +158,13 @@ static int qca_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int qca_remove(struct platform_device *pdev)
+static void qca_remove(struct platform_device *pdev)
 {
 	struct qca_data *data = platform_get_drvdata(pdev);
 
 	pm_genpd_remove(&data->pd);
 
-	return 0;
+	return;
 }
 
 static const struct of_device_id qca_of_match[] = {
