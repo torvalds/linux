@@ -608,7 +608,8 @@ static int atmel_qspi_probe(struct platform_device *pdev)
 	}
 
 	/* Map the AHB memory */
-	aq->mem = devm_platform_ioremap_resource_byname(pdev, "qspi_mmap");
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "qspi_mmap");
+	aq->mem = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(aq->mem)) {
 		dev_err(&pdev->dev, "missing AHB memory\n");
 		return PTR_ERR(aq->mem);
