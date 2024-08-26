@@ -2096,6 +2096,7 @@ EXPORT_SYMBOL_GPL(md_bitmap_copy_from_slot);
 
 int md_bitmap_get_stats(struct bitmap *bitmap, struct md_bitmap_stats *stats)
 {
+	struct bitmap_storage *storage;
 	struct bitmap_counts *counts;
 	bitmap_super_t *sb;
 
@@ -2110,9 +2111,11 @@ int md_bitmap_get_stats(struct bitmap *bitmap, struct md_bitmap_stats *stats)
 	stats->missing_pages = counts->missing_pages;
 	stats->pages = counts->pages;
 
-	stats->events_cleared = bitmap->events_cleared;
-	stats->file = bitmap->storage.file;
+	storage = &bitmap->storage;
+	stats->file_pages = storage->file_pages;
+	stats->file = storage->file;
 
+	stats->events_cleared = bitmap->events_cleared;
 	return 0;
 }
 EXPORT_SYMBOL_GPL(md_bitmap_get_stats);
