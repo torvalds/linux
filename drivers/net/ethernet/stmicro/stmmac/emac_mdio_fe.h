@@ -17,6 +17,10 @@ int virtio_mdio_read_c45(struct mii_bus *bus, int addr, int devnum, int regnum);
 
 int virtio_mdio_write_c45(struct mii_bus *bus, int addr, int devnum, int regnum, u16 val);
 
+int virtio_mdio_read_c45_indirect(struct mii_bus *bus, int addr, int regnum);
+
+int virtio_mdio_write_c45_indirect(struct mii_bus *bus, int addr, int regnum, u16 val);
+
 #else
 static inline int virtio_mdio_read(struct mii_bus *bus, int addr, int regnum)
 {
@@ -39,6 +43,21 @@ static inline int virtio_mdio_read_c45(struct mii_bus *bus, int addr, int devnum
 static inline int virtio_mdio_write_c45(struct mii_bus *bus,
 					int addr, int devnum,
 					int regnum, u16 val)
+
+{
+	/* Not enabled */
+	return 0;
+}
+
+static inline int virtio_mdio_read_c45_indirect(struct mii_bus *bus, int addr,
+						int regnum)
+{
+	/* Not enabled */
+	return 0;
+}
+
+static inline int virtio_mdio_write_c45_indirect(struct mii_bus *bus, int addr,
+						 int regnum, u16 val)
 {
 	/* Not enabled */
 	return 0;
