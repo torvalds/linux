@@ -11,7 +11,6 @@
 #include <linux/iomap.h>
 #include <linux/backing-dev.h>
 #include <linux/uio.h>
-#include <linux/set_memory.h>
 #include <linux/task_io_accounting_ops.h>
 #include "trace.h"
 
@@ -781,8 +780,6 @@ static int __init iomap_dio_init(void)
 	if (!zero_page)
 		return -ENOMEM;
 
-	set_memory_ro((unsigned long)page_address(zero_page),
-		      1U << IOMAP_ZERO_PAGE_ORDER);
 	return 0;
 }
 fs_initcall(iomap_dio_init);
