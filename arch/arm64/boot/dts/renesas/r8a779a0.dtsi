@@ -2501,7 +2501,8 @@
 		};
 
 		isp0: isp@fed00000 {
-			compatible = "renesas,r8a779a0-isp";
+			compatible = "renesas,r8a779a0-isp",
+				     "renesas,rcar-gen4-isp";
 			reg = <0 0xfed00000 0 0x10000>;
 			interrupts = <GIC_SPI 153 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&cpg CPG_MOD 612>;
@@ -2584,7 +2585,8 @@
 		};
 
 		isp1: isp@fed20000 {
-			compatible = "renesas,r8a779a0-isp";
+			compatible = "renesas,r8a779a0-isp",
+				     "renesas,rcar-gen4-isp";
 			reg = <0 0xfed20000 0 0x10000>;
 			interrupts = <GIC_SPI 155 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&cpg CPG_MOD 613>;
@@ -2667,7 +2669,8 @@
 		};
 
 		isp2: isp@fed30000 {
-			compatible = "renesas,r8a779a0-isp";
+			compatible = "renesas,r8a779a0-isp",
+				     "renesas,rcar-gen4-isp";
 			reg = <0 0xfed30000 0 0x10000>;
 			interrupts = <GIC_SPI 157 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&cpg CPG_MOD 614>;
@@ -2750,7 +2753,8 @@
 		};
 
 		isp3: isp@fed40000 {
-			compatible = "renesas,r8a779a0-isp";
+			compatible = "renesas,r8a779a0-isp",
+				     "renesas,rcar-gen4-isp";
 			reg = <0 0xfed40000 0 0x10000>;
 			interrupts = <GIC_SPI 159 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&cpg CPG_MOD 615>;
