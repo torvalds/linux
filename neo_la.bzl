@@ -23,6 +23,7 @@ def define_neo_la():
         "drivers/mfd/qcom-i2c-pmic.ko",
         "drivers/perf/qcom_llcc_pmu.ko",
         "drivers/pinctrl/qcom/pinctrl-msm.ko",
+        "drivers/pinctrl/qcom/pinctrl-neo.ko",
         "drivers/power/reset/qcom-dload-mode.ko",
         "drivers/power/reset/qcom-reboot-reason.ko",
         "drivers/regulator/debug-regulator.ko",
