@@ -14,6 +14,14 @@
 #include "skl_watermark.h"
 #include "vlv_sideband.h"
 
+struct intel_watermark_params {
+	u16 fifo_size;
+	u16 max_wm;
+	u8 default_wm;
+	u8 guard_size;
+	u8 cacheline_size;
+};
+
 /* used in computing the new watermarks state */
 struct intel_wm_config {
 	unsigned int num_pipes_active;

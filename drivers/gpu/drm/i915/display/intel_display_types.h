@@ -1601,14 +1601,6 @@ struct intel_plane {
 	void (*disable_flip_done)(struct intel_plane *plane);
 };
 
-struct intel_watermark_params {
-	u16 fifo_size;
-	u16 max_wm;
-	u8 default_wm;
-	u8 guard_size;
-	u8 cacheline_size;
-};
-
 #define to_intel_atomic_state(x) container_of(x, struct intel_atomic_state, base)
 #define to_intel_crtc(x) container_of(x, struct intel_crtc, base)
 #define to_intel_connector(x) container_of(x, struct intel_connector, base)
