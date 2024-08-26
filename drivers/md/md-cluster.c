@@ -1217,7 +1217,7 @@ static int cluster_check_sync_size(struct mddev *mddev)
 	struct dlm_lock_resource *bm_lockres;
 
 	sb = kmap_atomic(bitmap->storage.sb_page);
-	my_sync_size = sb->sync_size;
+	my_sync_size = le64_to_cpu(sb->sync_size);
 	kunmap_atomic(sb);
 
 	for (i = 0; i < node_num; i++) {
@@ -1249,8 +1249,8 @@ static int cluster_check_sync_size(struct mddev *mddev)
 
 		sb = kmap_atomic(bitmap->storage.sb_page);
 		if (sync_size == 0)
-			sync_size = sb->sync_size;
-		else if (sync_size != sb->sync_size) {
+			sync_size = le64_to_cpu(sb->sync_size);
+		else if (sync_size != le64_to_cpu(sb->sync_size)) {
 			kunmap_atomic(sb);
 			md_bitmap_free(bitmap);
 			return -1;
