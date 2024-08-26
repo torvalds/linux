@@ -25,6 +25,7 @@
 #include "intel_hdcp.h"
 #include "intel_hdcp_gsc.h"
 #include "intel_hdcp_regs.h"
+#include "intel_hdcp_shim.h"
 #include "intel_pcode.h"
 
 #define KEY_LOAD_TRIES	5
