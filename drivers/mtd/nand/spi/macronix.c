@@ -5,14 +5,25 @@
  * Author: Boris Brezillon <boris.brezillon@bootlin.com>
  */
 
+#include <linux/bitfield.h>
 #include <linux/device.h>
 #include <linux/kernel.h>
 #include <linux/mtd/spinand.h>
 
 #define SPINAND_MFR_MACRONIX		0xC2
-#define MACRONIX_ECCSR_MASK		0x0F
+#define MACRONIX_ECCSR_BF_LAST_PAGE(eccsr) FIELD_GET(GENMASK(3, 0), eccsr)
+#define MACRONIX_ECCSR_BF_ACCUMULATED_PAGES(eccsr) FIELD_GET(GENMASK(7, 4), eccsr)
+#define MACRONIX_CFG_CONT_READ         BIT(2)
 
 #define STATUS_ECC_HAS_BITFLIPS_THRESHOLD (3 << 4)
+
+/* Bitflip theshold configuration register */
+#define REG_CFG_BFT 0x10
+#define CFG_BFT(x) FIELD_PREP(GENMASK(7, 4), (x))
+
+struct macronix_priv {
+	bool cont_read;
+};
 
 static SPINAND_OP_VARIANTS(read_cache_variants,
 		SPINAND_PAGE_READ_FROM_CACHE_X4_OP(0, 1, NULL, 0),
@@ -53,6 +64,7 @@ static const struct mtd_ooblayout_ops mx35lfxge4ab_ooblayout = {
 
 static int macronix_get_eccsr(struct spinand_device *spinand, u8 *eccsr)
 {
+	struct macronix_priv *priv = spinand->priv;
 	struct spi_mem_op op = SPI_MEM_OP(SPI_MEM_OP_CMD(0x7c, 1),
 					  SPI_MEM_OP_NO_ADDR,
 					  SPI_MEM_OP_DUMMY(1, 1),
@@ -62,33 +74,25 @@ static int macronix_get_eccsr(struct spinand_device *spinand, u8 *eccsr)
 	if (ret)
 		return ret;
 
-	*eccsr &= MACRONIX_ECCSR_MASK;
-	return 0;
-}
-
-static int macronix_get_bf(struct spinand_device *spinand, u8 status)
-{
-	struct nand_device *nand = spinand_to_nand(spinand);
-	u8 eccsr;
-
 	/*
-	 * Let's try to retrieve the real maximum number of bitflips
-	 * in order to avoid forcing the wear-leveling layer to move
-	 * data around if it's not necessary.
+	 * ECCSR exposes the number of bitflips for the last read page in bits [3:0].
+	 * Continuous read compatible chips also expose the maximum number of
+	 * bitflips for the whole (continuous) read operation in bits [7:4].
 	 */
-	if (macronix_get_eccsr(spinand, spinand->scratchbuf))
-		return nanddev_get_ecc_conf(nand)->strength;
+	if (!priv->cont_read)
+		*eccsr = MACRONIX_ECCSR_BF_LAST_PAGE(*eccsr);
+	else
+		*eccsr = MACRONIX_ECCSR_BF_ACCUMULATED_PAGES(*eccsr);
 
-	eccsr = *spinand->scratchbuf;
-	if (WARN_ON(eccsr > nanddev_get_ecc_conf(nand)->strength || !eccsr))
-		return nanddev_get_ecc_conf(nand)->strength;
-
-	return eccsr;
+	return 0;
 }
 
 static int macronix_ecc_get_status(struct spinand_device *spinand,
 				   u8 status)
 {
+	struct nand_device *nand = spinand_to_nand(spinand);
+	u8 eccsr;
+
 	switch (status & STATUS_ECC_MASK) {
 	case STATUS_ECC_NO_BITFLIPS:
 		return 0;
@@ -97,13 +101,39 @@ static int macronix_ecc_get_status(struct spinand_device *spinand,
 		return -EBADMSG;
 
 	case STATUS_ECC_HAS_BITFLIPS:
-	case STATUS_ECC_HAS_BITFLIPS_THRESHOLD:
-		return macronix_get_bf(spinand, status);
+		/*
+		 * Let's try to retrieve the real maximum number of bitflips
+		 * in order to avoid forcing the wear-leveling layer to move
+		 * data around if it's not necessary.
+		 */
+		if (macronix_get_eccsr(spinand, spinand->scratchbuf))
+			return nanddev_get_ecc_conf(nand)->strength;
+
+		eccsr = *spinand->scratchbuf;
+		if (WARN_ON(eccsr > nanddev_get_ecc_conf(nand)->strength || !eccsr))
+			return nanddev_get_ecc_conf(nand)->strength;
+
+		return eccsr;
 	default:
 		break;
 	}
 
 	return -EINVAL;
+}
+
+static int macronix_set_cont_read(struct spinand_device *spinand, bool enable)
+{
+	struct macronix_priv *priv = spinand->priv;
+	int ret;
+
+	ret = spinand_upd_cfg(spinand, MACRONIX_CFG_CONT_READ,
+			      enable ? MACRONIX_CFG_CONT_READ : 0);
+	if (ret)
+		return ret;
+
+	priv->cont_read = enable;
+
+	return 0;
 }
 
 static const struct spinand_info macronix_spinand_table[] = {
@@ -135,7 +165,8 @@ static const struct spinand_info macronix_spinand_table[] = {
 					      &update_cache_variants),
 		     SPINAND_HAS_QE_BIT,
 		     SPINAND_ECCINFO(&mx35lfxge4ab_ooblayout,
-				     macronix_ecc_get_status)),
+				     macronix_ecc_get_status),
+		     SPINAND_CONT_READ(macronix_set_cont_read)),
 	SPINAND_INFO("MX35LF4GE4AD",
 		     SPINAND_ID(SPINAND_READID_METHOD_OPCODE_DUMMY, 0x37, 0x03),
 		     NAND_MEMORG(1, 4096, 128, 64, 2048, 40, 1, 1, 1),
@@ -145,7 +176,8 @@ static const struct spinand_info macronix_spinand_table[] = {
 					      &update_cache_variants),
 		     SPINAND_HAS_QE_BIT,
 		     SPINAND_ECCINFO(&mx35lfxge4ab_ooblayout,
-				     macronix_ecc_get_status)),
+				     macronix_ecc_get_status),
+		     SPINAND_CONT_READ(macronix_set_cont_read)),
 	SPINAND_INFO("MX35LF1G24AD",
 		     SPINAND_ID(SPINAND_READID_METHOD_OPCODE_DUMMY, 0x14, 0x03),
 		     NAND_MEMORG(1, 2048, 128, 64, 1024, 20, 1, 1, 1),
@@ -251,7 +283,8 @@ static const struct spinand_info macronix_spinand_table[] = {
 					      &update_cache_variants),
 		     SPINAND_HAS_QE_BIT,
 		     SPINAND_ECCINFO(&mx35lfxge4ab_ooblayout,
-				     macronix_ecc_get_status)),
+				     macronix_ecc_get_status),
+		     SPINAND_CONT_READ(macronix_set_cont_read)),
 	SPINAND_INFO("MX35UF2G14AC",
 		     SPINAND_ID(SPINAND_READID_METHOD_OPCODE_DUMMY, 0xa0),
 		     NAND_MEMORG(1, 2048, 64, 64, 2048, 40, 2, 1, 1),
@@ -291,7 +324,8 @@ static const struct spinand_info macronix_spinand_table[] = {
 					      &update_cache_variants),
 		     SPINAND_HAS_QE_BIT,
 		     SPINAND_ECCINFO(&mx35lfxge4ab_ooblayout,
-				     macronix_ecc_get_status)),
+				     macronix_ecc_get_status),
+		     SPINAND_CONT_READ(macronix_set_cont_read)),
 	SPINAND_INFO("MX35UF2GE4AC",
 		     SPINAND_ID(SPINAND_READID_METHOD_OPCODE_DUMMY, 0xa2, 0x01),
 		     NAND_MEMORG(1, 2048, 64, 64, 2048, 40, 1, 1, 1),
@@ -301,7 +335,8 @@ static const struct spinand_info macronix_spinand_table[] = {
 					      &update_cache_variants),
 		     SPINAND_HAS_QE_BIT,
 		     SPINAND_ECCINFO(&mx35lfxge4ab_ooblayout,
-				     macronix_ecc_get_status)),
+				     macronix_ecc_get_status),
+		     SPINAND_CONT_READ(macronix_set_cont_read)),
 	SPINAND_INFO("MX35UF1G14AC",
 		     SPINAND_ID(SPINAND_READID_METHOD_OPCODE_DUMMY, 0x90),
 		     NAND_MEMORG(1, 2048, 64, 64, 1024, 20, 1, 1, 1),
@@ -331,7 +366,8 @@ static const struct spinand_info macronix_spinand_table[] = {
 					      &update_cache_variants),
 		     SPINAND_HAS_QE_BIT,
 		     SPINAND_ECCINFO(&mx35lfxge4ab_ooblayout,
-				     macronix_ecc_get_status)),
+				     macronix_ecc_get_status),
+		     SPINAND_CONT_READ(macronix_set_cont_read)),
 	SPINAND_INFO("MX35UF1GE4AC",
 		     SPINAND_ID(SPINAND_READID_METHOD_OPCODE_DUMMY, 0x92, 0x01),
 		     NAND_MEMORG(1, 2048, 64, 64, 1024, 20, 1, 1, 1),
@@ -341,7 +377,8 @@ static const struct spinand_info macronix_spinand_table[] = {
 					      &update_cache_variants),
 		     SPINAND_HAS_QE_BIT,
 		     SPINAND_ECCINFO(&mx35lfxge4ab_ooblayout,
-				     macronix_ecc_get_status)),
+				     macronix_ecc_get_status),
+		     SPINAND_CONT_READ(macronix_set_cont_read)),
 	SPINAND_INFO("MX31LF2GE4BC",
 		     SPINAND_ID(SPINAND_READID_METHOD_OPCODE_DUMMY, 0x2e),
 		     NAND_MEMORG(1, 2048, 64, 64, 2048, 40, 1, 1, 1),
@@ -364,7 +401,27 @@ static const struct spinand_info macronix_spinand_table[] = {
 				     macronix_ecc_get_status)),
 };
 
+static int macronix_spinand_init(struct spinand_device *spinand)
+{
+	struct macronix_priv *priv;
+
+	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	if (!priv)
+		return -ENOMEM;
+
+	spinand->priv = priv;
+
+	return 0;
+}
+
+static void macronix_spinand_cleanup(struct spinand_device *spinand)
+{
+	kfree(spinand->priv);
+}
+
 static const struct spinand_manufacturer_ops macronix_spinand_manuf_ops = {
+	.init = macronix_spinand_init,
+	.cleanup = macronix_spinand_cleanup,
 };
 
 const struct spinand_manufacturer macronix_spinand_manufacturer = {
