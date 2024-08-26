@@ -345,19 +345,6 @@ struct inode *nilfs_new_inode(struct inode *dir, umode_t mode)
 	if (unlikely(err))
 		goto failed_ifile_create_inode;
 	/* reference count of i_bh inherits from nilfs_mdt_read_block() */
-
-	if (unlikely(ino < NILFS_USER_INO)) {
-		nilfs_warn(sb,
-			   "inode bitmap is inconsistent for reserved inodes");
-		do {
-			brelse(bh);
-			err = nilfs_ifile_create_inode(root->ifile, &ino, &bh);
-			if (unlikely(err))
-				goto failed_ifile_create_inode;
-		} while (ino < NILFS_USER_INO);
-
-		nilfs_info(sb, "repaired inode bitmap for reserved inodes");
-	}
 	ii->i_bh = bh;
 
 	atomic64_inc(&root->inodes_count);
