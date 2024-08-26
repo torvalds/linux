@@ -114,7 +114,7 @@
  *    ->private_lock		(try_to_unmap_one)
  *    ->i_pages lock		(try_to_unmap_one)
  *    ->lruvec->lru_lock	(follow_page_mask->mark_page_accessed)
- *    ->lruvec->lru_lock	(check_pte_range->isolate_lru_page)
+ *    ->lruvec->lru_lock	(check_pte_range->folio_isolate_lru)
  *    ->private_lock		(folio_remove_rmap_pte->set_page_dirty)
  *    ->i_pages lock		(folio_remove_rmap_pte->set_page_dirty)
  *    bdi.wb->list_lock		(folio_remove_rmap_pte->set_page_dirty)

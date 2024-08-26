@@ -80,7 +80,7 @@ on an additional LRU list for a few reasons:
  (2) We want to be able to migrate unevictable folios between nodes for memory
      defragmentation, workload management and memory hotplug.  The Linux kernel
      can only migrate folios that it can successfully isolate from the LRU
-     lists (or "Movable" pages: outside of consideration here).  If we were to
+     lists (or "Movable" folios: outside of consideration here).  If we were to
      maintain folios elsewhere than on an LRU-like list, where they can be
      detected by folio_isolate_lru(), we would prevent their migration.
 
@@ -230,7 +230,7 @@ In Nick's patch, he used one of the struct page LRU list link fields as a count
 of VM_LOCKED VMAs that map the page (Rik van Riel had the same idea three years
 earlier).  But this use of the link field for a count prevented the management
 of the pages on an LRU list, and thus mlocked pages were not migratable as
-isolate_lru_page() could not detect them, and the LRU list link field was not
+folio_isolate_lru() could not detect them, and the LRU list link field was not
 available to the migration subsystem.
 
 Nick resolved this by putting mlocked pages back on the LRU list before

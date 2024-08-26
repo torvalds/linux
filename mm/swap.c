@@ -906,8 +906,8 @@ atomic_t lru_disable_count = ATOMIC_INIT(0);
 
 /*
  * lru_cache_disable() needs to be called before we start compiling
- * a list of pages to be migrated using isolate_lru_page().
- * It drains pages on LRU cache and then disable on all cpus until
+ * a list of folios to be migrated using folio_isolate_lru().
+ * It drains folios on LRU cache and then disable on all cpus until
  * lru_cache_enable is called.
  *
  * Must be paired with a call to lru_cache_enable().

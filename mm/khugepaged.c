@@ -627,8 +627,8 @@ static int __collapse_huge_page_isolate(struct vm_area_struct *vma,
 		}
 
 		/*
-		 * We can do it before isolate_lru_page because the
-		 * page can't be freed from under us. NOTE: PG_lock
+		 * We can do it before folio_isolate_lru because the
+		 * folio can't be freed from under us. NOTE: PG_lock
 		 * is needed to serialize against split_huge_page
 		 * when invoked from the VM.
 		 */
@@ -1874,7 +1874,7 @@ static int collapse_file(struct mm_struct *mm, unsigned long addr,
 					result = SCAN_FAIL;
 					goto xa_unlocked;
 				}
-				/* drain lru cache to help isolate_lru_page() */
+				/* drain lru cache to help folio_isolate_lru() */
 				lru_add_drain();
 			} else if (folio_trylock(folio)) {
 				folio_get(folio);
@@ -1889,7 +1889,7 @@ static int collapse_file(struct mm_struct *mm, unsigned long addr,
 				page_cache_sync_readahead(mapping, &file->f_ra,
 							  file, index,
 							  end - index);
-				/* drain lru cache to help isolate_lru_page() */
+				/* drain lru cache to help folio_isolate_lru() */
 				lru_add_drain();
 				folio = filemap_lock_folio(mapping, index);
 				if (IS_ERR(folio)) {
