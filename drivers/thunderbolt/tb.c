@@ -2088,17 +2088,18 @@ static void tb_switch_exit_redrive(struct tb_switch *sw)
 	}
 }
 
-static void tb_dp_resource_unavailable(struct tb *tb, struct tb_port *port)
+static void tb_dp_resource_unavailable(struct tb *tb, struct tb_port *port,
+				       const char *reason)
 {
 	struct tb_port *in, *out;
 	struct tb_tunnel *tunnel;
 
 	if (tb_port_is_dpin(port)) {
-		tb_port_dbg(port, "DP IN resource unavailable\n");
+		tb_port_dbg(port, "DP IN resource unavailable: %s\n", reason);
 		in = port;
 		out = NULL;
 	} else {
-		tb_port_dbg(port, "DP OUT resource unavailable\n");
+		tb_port_dbg(port, "DP OUT resource unavailable: %s\n", reason);
 		in = NULL;
 		out = port;
 	}
@@ -2404,7 +2405,7 @@ static void tb_handle_hotplug(struct work_struct *work)
 			tb_xdomain_put(xd);
 			tb_port_unconfigure_xdomain(port);
 		} else if (tb_port_is_dpout(port) || tb_port_is_dpin(port)) {
-			tb_dp_resource_unavailable(tb, port);
+			tb_dp_resource_unavailable(tb, port, "adapter unplug");
 		} else if (!port->port) {
 			tb_sw_dbg(sw, "xHCI disconnect request\n");
 			tb_switch_xhci_disconnect(sw);
