@@ -837,7 +837,6 @@ static const struct regmap_config tsens_srot_config = {
 static int init_cold_interrupt(struct tsens_priv *priv,
 				struct platform_device *op, u32 ver_minor)
 {
-
 	struct device *dev = priv->dev;
 	int ret = 0;
 
@@ -850,16 +849,17 @@ static int init_cold_interrupt(struct tsens_priv *priv,
 						priv->fields[COLD_STATUS]);
 		if (IS_ERR(priv->rf[COLD_STATUS])) {
 			ret = PTR_ERR(priv->rf[COLD_STATUS]);
-			goto err_put_device;
 		}
 	}
 
-err_put_device:
-	put_device(&op->dev);
 	return ret;
 }
 
+#if IS_MODULE(CONFIG_QCOM_TSENS)
+int init_common(struct tsens_priv *priv)
+#else
 int __init init_common(struct tsens_priv *priv)
+#endif
 {
 	void __iomem *tm_base, *srot_base;
 	struct device *dev = priv->dev;
@@ -1032,7 +1032,7 @@ int __init init_common(struct tsens_priv *priv)
 		regmap_field_write(priv->rf[CC_MON_MASK], 1);
 	}
 
-	ret = init_cold_interrupt(priv, op, ver_minor);
+	init_cold_interrupt(priv, op, ver_minor);
 
 	spin_lock_init(&priv->ul_lock);
 
