@@ -11,7 +11,7 @@
 .. toctree::
    :maxdepth: 1
 
-   howto
+   process/howto
 
 
 리눅스 커널 메모리 배리어
