@@ -1879,7 +1879,7 @@ void md_bitmap_destroy(struct mddev *mddev)
  * if this returns an error, bitmap_destroy must be called to do clean up
  * once mddev->bitmap is set
  */
-struct bitmap *md_bitmap_create(struct mddev *mddev, int slot)
+static struct bitmap *__bitmap_create(struct mddev *mddev, int slot)
 {
 	struct bitmap *bitmap;
 	sector_t blocks = mddev->resync_max_sectors;
@@ -1966,6 +1966,17 @@ struct bitmap *md_bitmap_create(struct mddev *mddev, int slot)
 	return ERR_PTR(err);
 }
 
+int md_bitmap_create(struct mddev *mddev, int slot)
+{
+	struct bitmap *bitmap = __bitmap_create(mddev, slot);
+
+	if (IS_ERR(bitmap))
+		return PTR_ERR(bitmap);
+
+	mddev->bitmap = bitmap;
+	return 0;
+}
+
 int md_bitmap_load(struct mddev *mddev)
 {
 	int err = 0;
@@ -2030,7 +2041,7 @@ struct bitmap *get_bitmap_from_slot(struct mddev *mddev, int slot)
 	int rv = 0;
 	struct bitmap *bitmap;
 
-	bitmap = md_bitmap_create(mddev, slot);
+	bitmap = __bitmap_create(mddev, slot);
 	if (IS_ERR(bitmap)) {
 		rv = PTR_ERR(bitmap);
 		return ERR_PTR(rv);
@@ -2384,7 +2395,6 @@ location_store(struct mddev *mddev, const char *buf, size_t len)
 	} else {
 		/* No bitmap, OK to set a location */
 		long long offset;
-		struct bitmap *bitmap;
 
 		if (strncmp(buf, "none", 4) == 0)
 			/* nothing to be done */;
@@ -2411,13 +2421,10 @@ location_store(struct mddev *mddev, const char *buf, size_t len)
 			}
 
 			mddev->bitmap_info.offset = offset;
-			bitmap = md_bitmap_create(mddev, -1);
-			if (IS_ERR(bitmap)) {
-				rv = PTR_ERR(bitmap);
+			rv = md_bitmap_create(mddev, -1);
+			if (rv)
 				goto out;
-			}
 
-			mddev->bitmap = bitmap;
 			rv = md_bitmap_load(mddev);
 			if (rv) {
 				mddev->bitmap_info.offset = 0;
