@@ -1721,9 +1721,9 @@ static void bitmap_cond_end_sync(struct mddev *mddev, sector_t sector,
 	sysfs_notify_dirent_safe(bitmap->mddev->sysfs_completed);
 }
 
-void md_bitmap_sync_with_cluster(struct mddev *mddev,
-			      sector_t old_lo, sector_t old_hi,
-			      sector_t new_lo, sector_t new_hi)
+static void bitmap_sync_with_cluster(struct mddev *mddev,
+				     sector_t old_lo, sector_t old_hi,
+				     sector_t new_lo, sector_t new_hi)
 {
 	struct bitmap *bitmap = mddev->bitmap;
 	sector_t sector, blocks = 0;
@@ -1740,7 +1740,6 @@ void md_bitmap_sync_with_cluster(struct mddev *mddev,
 	}
 	WARN((blocks > new_hi) && old_hi, "alignment is not correct for hi\n");
 }
-EXPORT_SYMBOL(md_bitmap_sync_with_cluster);
 
 static void md_bitmap_set_memory_bits(struct bitmap *bitmap, sector_t offset, int needed)
 {
@@ -2753,6 +2752,8 @@ static struct bitmap_operations bitmap_ops = {
 
 	.update_sb		= bitmap_update_sb,
 	.get_stats		= bitmap_get_stats,
+
+	.sync_with_cluster	= bitmap_sync_with_cluster,
 };
 
 void mddev_set_bitmap_ops(struct mddev *mddev)
