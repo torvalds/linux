@@ -284,7 +284,4 @@ thermal_cooling_device_stats_update(struct thermal_cooling_device *cdev,
 				    unsigned long new_state) {}
 #endif /* CONFIG_THERMAL_STATISTICS */
 
-/* device tree support */
-int thermal_zone_device_is_enabled(struct thermal_zone_device *tz);
-
 #endif /* __THERMAL_CORE_H__ */

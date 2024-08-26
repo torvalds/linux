@@ -53,7 +53,7 @@ mode_show(struct device *dev, struct device_attribute *attr, char *buf)
 	int enabled;
 
 	mutex_lock(&tz->lock);
-	enabled = thermal_zone_device_is_enabled(tz);
+	enabled = tz->mode == THERMAL_DEVICE_ENABLED;
 	mutex_unlock(&tz->lock);
 
 	return sprintf(buf, "%s\n", enabled ? "enabled" : "disabled");
