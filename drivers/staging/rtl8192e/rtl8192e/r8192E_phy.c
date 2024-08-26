@@ -509,7 +509,7 @@ static void _rtl92e_set_tx_power_level(struct net_device *dev, u8 channel)
 static u8 _rtl92e_phy_set_sw_chnl_cmd_array(struct net_device *dev,
 					    struct sw_chnl_cmd *CmdTable,
 					    u32 CmdTableIdx, u32 CmdTableSz,
-					    enum sw_chnl_cmd_id CmdID,
+					    enum sw_chnl_cmd_id cmd_id,
 					    u32 Para1, u32 Para2, u32 msDelay)
 {
 	struct sw_chnl_cmd *pCmd;
@@ -524,7 +524,7 @@ static u8 _rtl92e_phy_set_sw_chnl_cmd_array(struct net_device *dev,
 	}
 
 	pCmd = CmdTable + CmdTableIdx;
-	pCmd->CmdID = CmdID;
+	pCmd->cmd_id = cmd_id;
 	pCmd->Para1 = Para1;
 	pCmd->Para2 = Para2;
 	pCmd->msDelay = msDelay;
@@ -601,7 +601,7 @@ static u8 _rtl92e_phy_switch_channel_step(struct net_device *dev, u8 channel,
 				break;
 			}
 
-			if (CurrentCmd && CurrentCmd->CmdID == cmd_id_end) {
+			if (CurrentCmd && CurrentCmd->cmd_id == cmd_id_end) {
 				if ((*stage) == 2)
 					return true;
 				(*stage)++;
@@ -611,7 +611,7 @@ static u8 _rtl92e_phy_switch_channel_step(struct net_device *dev, u8 channel,
 
 			if (!CurrentCmd)
 				continue;
-			switch (CurrentCmd->CmdID) {
+			switch (CurrentCmd->cmd_id) {
 			case cmd_id_set_tx_power_level:
 				if (priv->ic_cut > VERSION_8190_BD)
 					_rtl92e_set_tx_power_level(dev,

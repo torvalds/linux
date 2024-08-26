@@ -163,7 +163,7 @@ enum sw_chnl_cmd_id {
 };
 
 struct sw_chnl_cmd {
-	enum sw_chnl_cmd_id CmdID;
+	enum sw_chnl_cmd_id cmd_id;
 	u32			Para1;
 	u32			Para2;
 	u32			msDelay;
