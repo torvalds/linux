@@ -2115,6 +2115,8 @@ int md_bitmap_get_stats(struct bitmap *bitmap, struct md_bitmap_stats *stats)
 	stats->file_pages = storage->file_pages;
 	stats->file = storage->file;
 
+	stats->behind_writes = atomic_read(&bitmap->behind_writes);
+	stats->behind_wait = wq_has_sleeper(&bitmap->behind_wait);
 	stats->events_cleared = bitmap->events_cleared;
 	return 0;
 }

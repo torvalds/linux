@@ -236,6 +236,9 @@ struct bitmap {
 
 struct md_bitmap_stats {
 	u64		events_cleared;
+	int		behind_writes;
+	bool		behind_wait;
+
 	unsigned long	missing_pages;
 	unsigned long	file_pages;
 	unsigned long	sync_size;

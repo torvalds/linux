@@ -1590,16 +1590,19 @@ static void raid1_write_request(struct mddev *mddev, struct bio *bio,
 			continue;
 
 		if (first_clone) {
+			unsigned long max_write_behind =
+				mddev->bitmap_info.max_write_behind;
+			struct md_bitmap_stats stats;
+			int err;
+
 			/* do behind I/O ?
 			 * Not if there are too many, or cannot
 			 * allocate memory, or a reader on WriteMostly
 			 * is waiting for behind writes to flush */
-			if (bitmap && write_behind &&
-			    (atomic_read(&bitmap->behind_writes)
-			     < mddev->bitmap_info.max_write_behind) &&
-			    !waitqueue_active(&bitmap->behind_wait)) {
+			err = md_bitmap_get_stats(bitmap, &stats);
+			if (!err && write_behind && !stats.behind_wait &&
+			    stats.behind_writes < max_write_behind)
 				alloc_behind_master_bio(r1_bio, bio);
-			}
 
 			md_bitmap_startwrite(bitmap, r1_bio->sector, r1_bio->sectors,
 					     test_bit(R1BIO_BehindIO, &r1_bio->state));
