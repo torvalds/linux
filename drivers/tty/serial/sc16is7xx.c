@@ -208,7 +208,6 @@
 #define SC16IS7XX_MSR_CD_BIT		(1 << 7) /* CD (IO6)
 						  * - only on 75x/76x
 						  */
-#define SC16IS7XX_MSR_DELTA_MASK	0x0F     /* Any of the delta bits! */
 
 /*
  * TCR register bits
