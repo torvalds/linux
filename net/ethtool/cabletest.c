@@ -164,7 +164,8 @@ void ethnl_cable_test_finished(struct phy_device *phydev)
 }
 EXPORT_SYMBOL_GPL(ethnl_cable_test_finished);
 
-int ethnl_cable_test_result(struct phy_device *phydev, u8 pair, u8 result)
+int ethnl_cable_test_result_with_src(struct phy_device *phydev, u8 pair,
+				     u8 result, u32 src)
 {
 	struct nlattr *nest;
 	int ret = -EMSGSIZE;
@@ -177,6 +178,10 @@ int ethnl_cable_test_result(struct phy_device *phydev, u8 pair, u8 result)
 		goto err;
 	if (nla_put_u8(phydev->skb, ETHTOOL_A_CABLE_RESULT_CODE, result))
 		goto err;
+	if (src != ETHTOOL_A_CABLE_INF_SRC_UNSPEC) {
+		if (nla_put_u32(phydev->skb, ETHTOOL_A_CABLE_RESULT_SRC, src))
+			goto err;
+	}
 
 	nla_nest_end(phydev->skb, nest);
 	return 0;
@@ -185,9 +190,10 @@ err:
 	nla_nest_cancel(phydev->skb, nest);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(ethnl_cable_test_result);
+EXPORT_SYMBOL_GPL(ethnl_cable_test_result_with_src);
 
-int ethnl_cable_test_fault_length(struct phy_device *phydev, u8 pair, u32 cm)
+int ethnl_cable_test_fault_length_with_src(struct phy_device *phydev, u8 pair,
+					   u32 cm, u32 src)
 {
 	struct nlattr *nest;
 	int ret = -EMSGSIZE;
@@ -201,6 +207,11 @@ int ethnl_cable_test_fault_length(struct phy_device *phydev, u8 pair, u32 cm)
 		goto err;
 	if (nla_put_u32(phydev->skb, ETHTOOL_A_CABLE_FAULT_LENGTH_CM, cm))
 		goto err;
+	if (src != ETHTOOL_A_CABLE_INF_SRC_UNSPEC) {
+		if (nla_put_u32(phydev->skb, ETHTOOL_A_CABLE_FAULT_LENGTH_SRC,
+				src))
+			goto err;
+	}
 
 	nla_nest_end(phydev->skb, nest);
 	return 0;
@@ -209,7 +220,7 @@ err:
 	nla_nest_cancel(phydev->skb, nest);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(ethnl_cable_test_fault_length);
+EXPORT_SYMBOL_GPL(ethnl_cable_test_fault_length_with_src);
 
 static const struct nla_policy cable_test_tdr_act_cfg_policy[] = {
 	[ETHTOOL_A_CABLE_TEST_TDR_CFG_FIRST]	= { .type = NLA_U32 },

@@ -667,6 +667,9 @@ attribute-sets:
       -
         name: code
         type: u8
+      -
+        name: src
+        type: u32
   -
     name: cable-fault-length
     attributes:
@@ -675,6 +678,9 @@ attribute-sets:
         type: u8
       -
         name: cm
+        type: u32
+      -
+        name: src
         type: u32
   -
     name: cable-nest
