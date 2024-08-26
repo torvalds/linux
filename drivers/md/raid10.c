@@ -3195,12 +3195,12 @@ static sector_t raid10_sync_request(struct mddev *mddev, sector_t sector_nr,
 		if (mddev->curr_resync < max_sector) { /* aborted */
 			if (test_bit(MD_RECOVERY_SYNC, &mddev->recovery))
 				md_bitmap_end_sync(mddev->bitmap, mddev->curr_resync,
-						   &sync_blocks, 1);
+						   &sync_blocks);
 			else for (i = 0; i < conf->geo.raid_disks; i++) {
 				sector_t sect =
 					raid10_find_virt(conf, mddev->curr_resync, i);
 				md_bitmap_end_sync(mddev->bitmap, sect,
-						   &sync_blocks, 1);
+						   &sync_blocks);
 			}
 		} else {
 			/* completed sync */

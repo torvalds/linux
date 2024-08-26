@@ -2026,7 +2026,7 @@ static void abort_sync_write(struct mddev *mddev, struct r1bio *r1_bio)
 
 	/* make sure these bits don't get cleared. */
 	do {
-		md_bitmap_end_sync(mddev->bitmap, s, &sync_blocks, 1);
+		md_bitmap_end_sync(mddev->bitmap, s, &sync_blocks);
 		s += sync_blocks;
 		sectors_to_go -= sync_blocks;
 	} while (sectors_to_go > 0);
@@ -2773,7 +2773,7 @@ static sector_t raid1_sync_request(struct mddev *mddev, sector_t sector_nr,
 		 */
 		if (mddev->curr_resync < max_sector) /* aborted */
 			md_bitmap_end_sync(mddev->bitmap, mddev->curr_resync,
-					   &sync_blocks, 1);
+					   &sync_blocks);
 		else /* completed sync */
 			conf->fullsync = 0;
 
