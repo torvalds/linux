@@ -379,33 +379,33 @@ static unsigned long migrate_device_unmap(unsigned long *src_pfns,
 			continue;
 		}
 
-		/* ZONE_DEVICE pages are not on LRU */
-		if (!is_zone_device_page(page)) {
-			if (!PageLRU(page) && allow_drain) {
+		folio =	page_folio(page);
+		/* ZONE_DEVICE folios are not on LRU */
+		if (!folio_is_zone_device(folio)) {
+			if (!folio_test_lru(folio) && allow_drain) {
 				/* Drain CPU's lru cache */
 				lru_add_drain_all();
 				allow_drain = false;
 			}
 
-			if (!isolate_lru_page(page)) {
+			if (!folio_isolate_lru(folio)) {
 				src_pfns[i] &= ~MIGRATE_PFN_MIGRATE;
 				restore++;
 				continue;
 			}
 
 			/* Drop the reference we took in collect */
-			put_page(page);
+			folio_put(folio);
 		}
 
-		folio = page_folio(page);
 		if (folio_mapped(folio))
 			try_to_migrate(folio, 0);
 
-		if (page_mapped(page) ||
+		if (folio_mapped(folio) ||
 		    !migrate_vma_check_page(page, fault_page)) {
-			if (!is_zone_device_page(page)) {
-				get_page(page);
-				putback_lru_page(page);
+			if (!folio_is_zone_device(folio)) {
+				folio_get(folio);
+				folio_putback_lru(folio);
 			}
 
 			src_pfns[i] &= ~MIGRATE_PFN_MIGRATE;
