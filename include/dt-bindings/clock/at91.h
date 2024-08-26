@@ -55,4 +55,8 @@
 #define AT91_PMC_GCKRDY		24		/* Generated Clocks */
 #endif
 
+/* Slow clock. */
+#define SCKC_MD_SLCK		0
+#define SCKC_TD_SLCK		1
+
 #endif
