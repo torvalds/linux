@@ -267,9 +267,9 @@
 						  * and writing to IER[7:4],
 						  * FCR[5:4], MCR[7:5]
 						  */
-#define SC16IS7XX_EFR_SWFLOW3_BIT	(1 << 3) /* SWFLOW bit 3 */
-#define SC16IS7XX_EFR_SWFLOW2_BIT	(1 << 2) /* SWFLOW bit 2
-						  *
+#define SC16IS7XX_EFR_SWFLOW3_BIT	(1 << 3)
+#define SC16IS7XX_EFR_SWFLOW2_BIT	(1 << 2)
+						 /*
 						  * SWFLOW bits 3 & 2 table:
 						  * 00 -> no transmitter flow
 						  *       control
@@ -281,10 +281,10 @@
 						  *       XON1, XON2, XOFF1 and
 						  *       XOFF2
 						  */
-#define SC16IS7XX_EFR_SWFLOW1_BIT	(1 << 1) /* SWFLOW bit 2 */
-#define SC16IS7XX_EFR_SWFLOW0_BIT	(1 << 0) /* SWFLOW bit 3
-						  *
-						  * SWFLOW bits 3 & 2 table:
+#define SC16IS7XX_EFR_SWFLOW1_BIT	(1 << 1)
+#define SC16IS7XX_EFR_SWFLOW0_BIT	(1 << 0)
+						 /*
+						  * SWFLOW bits 1 & 0 table:
 						  * 00 -> no received flow
 						  *       control
 						  * 01 -> receiver compares
