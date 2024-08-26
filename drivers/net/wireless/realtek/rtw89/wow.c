@@ -1438,6 +1438,7 @@ static int rtw89_pno_scan_offload(struct rtw89_dev *rtwdev, bool enable)
 	struct rtw89_wow_param *rtw_wow = &rtwdev->wow;
 	struct ieee80211_vif *wow_vif = rtw_wow->wow_vif;
 	struct rtw89_vif *rtwvif = (struct rtw89_vif *)wow_vif->drv_priv;
+	int interval = rtw_wow->nd_config->scan_plans[0].interval;
 	struct rtw89_scan_option opt = {};
 	int ret;
 
@@ -1457,7 +1458,7 @@ static int rtw89_pno_scan_offload(struct rtw89_dev *rtwdev, bool enable)
 
 	opt.enable = enable;
 	opt.repeat = RTW89_SCAN_NORMAL;
-	opt.norm_pd = 10; /* in unit of 100ms */
+	opt.norm_pd = max(interval, 1) * 10; /* in unit of 100ms */
 	opt.delay = max(rtw_wow->nd_config->delay, 1);
 
 	if (rtwdev->chip->chip_gen == RTW89_CHIP_BE) {
