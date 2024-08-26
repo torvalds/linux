@@ -5394,75 +5394,25 @@ int amdgpu_device_pre_asic_reset(struct amdgpu_device *adev,
 	return r;
 }
 
-int amdgpu_do_asic_reset(struct list_head *device_list_handle,
-			 struct amdgpu_reset_context *reset_context)
+int amdgpu_device_reinit_after_reset(struct amdgpu_reset_context *reset_context)
 {
-	struct amdgpu_device *tmp_adev = NULL;
-	bool need_full_reset, skip_hw_reset, vram_lost = false;
-	int r = 0;
+	struct list_head *device_list_handle;
+	bool full_reset, vram_lost = false;
+	struct amdgpu_device *tmp_adev;
+	int r;
 
-	/* Try reset handler method first */
-	tmp_adev = list_first_entry(device_list_handle, struct amdgpu_device,
-				    reset_list);
+	device_list_handle = reset_context->reset_device_list;
 
-	reset_context->reset_device_list = device_list_handle;
-	r = amdgpu_reset_perform_reset(tmp_adev, reset_context);
-	/* If reset handler not implemented, continue; otherwise return */
-	if (r == -EOPNOTSUPP)
-		r = 0;
-	else
-		return r;
+	if (!device_list_handle)
+		return -EINVAL;
 
-	/* Reset handler not implemented, use the default method */
-	need_full_reset =
-		test_bit(AMDGPU_NEED_FULL_RESET, &reset_context->flags);
-	skip_hw_reset = test_bit(AMDGPU_SKIP_HW_RESET, &reset_context->flags);
+	full_reset = test_bit(AMDGPU_NEED_FULL_RESET, &reset_context->flags);
 
-	/*
-	 * ASIC reset has to be done on all XGMI hive nodes ASAP
-	 * to allow proper links negotiation in FW (within 1 sec)
-	 */
-	if (!skip_hw_reset && need_full_reset) {
-		list_for_each_entry(tmp_adev, device_list_handle, reset_list) {
-			/* For XGMI run all resets in parallel to speed up the process */
-			if (tmp_adev->gmc.xgmi.num_physical_nodes > 1) {
-				if (!queue_work(system_unbound_wq, &tmp_adev->xgmi_reset_work))
-					r = -EALREADY;
-			} else
-				r = amdgpu_asic_reset(tmp_adev);
-
-			if (r) {
-				dev_err(tmp_adev->dev, "ASIC reset failed with error, %d for drm dev, %s",
-					 r, adev_to_drm(tmp_adev)->unique);
-				goto out;
-			}
-		}
-
-		/* For XGMI wait for all resets to complete before proceed */
-		if (!r) {
-			list_for_each_entry(tmp_adev, device_list_handle, reset_list) {
-				if (tmp_adev->gmc.xgmi.num_physical_nodes > 1) {
-					flush_work(&tmp_adev->xgmi_reset_work);
-					r = tmp_adev->asic_reset_res;
-					if (r)
-						break;
-				}
-			}
-		}
-	}
-
-	if (!r && amdgpu_ras_intr_triggered()) {
-		list_for_each_entry(tmp_adev, device_list_handle, reset_list) {
-			amdgpu_ras_reset_error_count(tmp_adev, AMDGPU_RAS_BLOCK__MMHUB);
-		}
-
-		amdgpu_ras_intr_cleared();
-	}
-
+	r = 0;
 	list_for_each_entry(tmp_adev, device_list_handle, reset_list) {
 		/* After reset, it's default init level */
 		amdgpu_set_init_level(tmp_adev, AMDGPU_INIT_LEVEL_DEFAULT);
-		if (need_full_reset) {
+		if (full_reset) {
 			/* post card */
 			amdgpu_ras_set_fed(tmp_adev, false);
 			r = amdgpu_device_asic_init(tmp_adev);
@@ -5552,7 +5502,6 @@ out:
 			r = amdgpu_ib_ring_tests(tmp_adev);
 			if (r) {
 				dev_err(tmp_adev->dev, "ib ring test failed (%d).\n", r);
-				need_full_reset = true;
 				r = -EAGAIN;
 				goto end;
 			}
@@ -5563,10 +5512,85 @@ out:
 	}
 
 end:
-	if (need_full_reset)
+	return r;
+}
+
+int amdgpu_do_asic_reset(struct list_head *device_list_handle,
+			 struct amdgpu_reset_context *reset_context)
+{
+	struct amdgpu_device *tmp_adev = NULL;
+	bool need_full_reset, skip_hw_reset;
+	int r = 0;
+
+	/* Try reset handler method first */
+	tmp_adev = list_first_entry(device_list_handle, struct amdgpu_device,
+				    reset_list);
+
+	reset_context->reset_device_list = device_list_handle;
+	r = amdgpu_reset_perform_reset(tmp_adev, reset_context);
+	/* If reset handler not implemented, continue; otherwise return */
+	if (r == -EOPNOTSUPP)
+		r = 0;
+	else
+		return r;
+
+	/* Reset handler not implemented, use the default method */
+	need_full_reset =
+		test_bit(AMDGPU_NEED_FULL_RESET, &reset_context->flags);
+	skip_hw_reset = test_bit(AMDGPU_SKIP_HW_RESET, &reset_context->flags);
+
+	/*
+	 * ASIC reset has to be done on all XGMI hive nodes ASAP
+	 * to allow proper links negotiation in FW (within 1 sec)
+	 */
+	if (!skip_hw_reset && need_full_reset) {
+		list_for_each_entry(tmp_adev, device_list_handle, reset_list) {
+			/* For XGMI run all resets in parallel to speed up the process */
+			if (tmp_adev->gmc.xgmi.num_physical_nodes > 1) {
+				if (!queue_work(system_unbound_wq,
+						&tmp_adev->xgmi_reset_work))
+					r = -EALREADY;
+			} else
+				r = amdgpu_asic_reset(tmp_adev);
+
+			if (r) {
+				dev_err(tmp_adev->dev,
+					"ASIC reset failed with error, %d for drm dev, %s",
+					r, adev_to_drm(tmp_adev)->unique);
+				goto out;
+			}
+		}
+
+		/* For XGMI wait for all resets to complete before proceed */
+		if (!r) {
+			list_for_each_entry(tmp_adev, device_list_handle,
+					    reset_list) {
+				if (tmp_adev->gmc.xgmi.num_physical_nodes > 1) {
+					flush_work(&tmp_adev->xgmi_reset_work);
+					r = tmp_adev->asic_reset_res;
+					if (r)
+						break;
+				}
+			}
+		}
+	}
+
+	if (!r && amdgpu_ras_intr_triggered()) {
+		list_for_each_entry(tmp_adev, device_list_handle, reset_list) {
+			amdgpu_ras_reset_error_count(tmp_adev,
+						     AMDGPU_RAS_BLOCK__MMHUB);
+		}
+
+		amdgpu_ras_intr_cleared();
+	}
+
+	r = amdgpu_device_reinit_after_reset(reset_context);
+	if (r == -EAGAIN)
 		set_bit(AMDGPU_NEED_FULL_RESET, &reset_context->flags);
 	else
 		clear_bit(AMDGPU_NEED_FULL_RESET, &reset_context->flags);
+
+out:
 	return r;
 }
 
