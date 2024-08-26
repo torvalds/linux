@@ -3216,12 +3216,6 @@ int amdgpu_ras_recovery_init(struct amdgpu_device *adev, bool init_bp_info)
 	max_eeprom_records_count = amdgpu_ras_eeprom_max_record_count(&con->eeprom_control);
 	amdgpu_ras_validate_threshold(adev, max_eeprom_records_count);
 
-	/* Todo: During test the SMU might fail to read the eeprom through I2C
-	 * when the GPU is pending on XGMI reset during probe time
-	 * (Mostly after second bus reset), skip it now
-	 */
-	if (adev->init_lvl->level == AMDGPU_INIT_LEVEL_MINIMAL_XGMI)
-		return 0;
 	if (init_bp_info) {
 		ret = amdgpu_ras_init_badpage_info(adev);
 		if (ret)

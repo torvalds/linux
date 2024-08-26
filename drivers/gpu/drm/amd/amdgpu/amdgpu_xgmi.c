@@ -860,8 +860,7 @@ int amdgpu_xgmi_add_device(struct amdgpu_device *adev)
 	if (!adev->gmc.xgmi.supported)
 		return 0;
 
-	if ((adev->init_lvl->level != AMDGPU_INIT_LEVEL_MINIMAL_XGMI) &&
-	    amdgpu_device_ip_get_ip_block(adev, AMD_IP_BLOCK_TYPE_PSP)) {
+	if (amdgpu_device_ip_get_ip_block(adev, AMD_IP_BLOCK_TYPE_PSP)) {
 		ret = psp_xgmi_initialize(&adev->psp, false, true);
 		if (ret) {
 			dev_err(adev->dev,
@@ -907,8 +906,7 @@ int amdgpu_xgmi_add_device(struct amdgpu_device *adev)
 
 	task_barrier_add_task(&hive->tb);
 
-	if ((adev->init_lvl->level != AMDGPU_INIT_LEVEL_MINIMAL_XGMI) &&
-	    amdgpu_device_ip_get_ip_block(adev, AMD_IP_BLOCK_TYPE_PSP)) {
+	if (amdgpu_device_ip_get_ip_block(adev, AMD_IP_BLOCK_TYPE_PSP)) {
 		list_for_each_entry(tmp_adev, &hive->device_list, gmc.xgmi.head) {
 			/* update node list for other device in the hive */
 			if (tmp_adev != adev) {
@@ -985,7 +983,7 @@ int amdgpu_xgmi_add_device(struct amdgpu_device *adev)
 		}
 	}
 
-	if (!ret && (adev->init_lvl->level != AMDGPU_INIT_LEVEL_MINIMAL_XGMI))
+	if (!ret)
 		ret = amdgpu_xgmi_sysfs_add_dev_info(adev, hive);
 
 exit_unlock:
@@ -1497,6 +1495,71 @@ int amdgpu_xgmi_ras_sw_init(struct amdgpu_device *adev)
 	ras->ras_block.ras_comm.block = AMDGPU_RAS_BLOCK__XGMI_WAFL;
 	ras->ras_block.ras_comm.type = AMDGPU_RAS_ERROR__MULTI_UNCORRECTABLE;
 	adev->gmc.xgmi.ras_if = &ras->ras_block.ras_comm;
+
+	return 0;
+}
+
+static void amdgpu_xgmi_reset_on_init_work(struct work_struct *work)
+{
+	struct amdgpu_hive_info *hive =
+		container_of(work, struct amdgpu_hive_info, reset_on_init_work);
+	struct amdgpu_reset_context reset_context;
+	struct amdgpu_device *tmp_adev;
+	struct list_head device_list;
+	int r;
+
+	mutex_lock(&hive->hive_lock);
+
+	INIT_LIST_HEAD(&device_list);
+	list_for_each_entry(tmp_adev, &hive->device_list, gmc.xgmi.head)
+		list_add_tail(&tmp_adev->reset_list, &device_list);
+
+	tmp_adev = list_first_entry(&device_list, struct amdgpu_device,
+				    reset_list);
+	amdgpu_device_lock_reset_domain(tmp_adev->reset_domain);
+
+	reset_context.method = AMD_RESET_METHOD_ON_INIT;
+	reset_context.reset_req_dev = tmp_adev;
+	reset_context.hive = hive;
+	reset_context.reset_device_list = &device_list;
+	set_bit(AMDGPU_NEED_FULL_RESET, &reset_context.flags);
+	set_bit(AMDGPU_SKIP_COREDUMP, &reset_context.flags);
+
+	amdgpu_reset_do_xgmi_reset_on_init(&reset_context);
+	mutex_unlock(&hive->hive_lock);
+	amdgpu_device_unlock_reset_domain(tmp_adev->reset_domain);
+
+	list_for_each_entry(tmp_adev, &hive->device_list, gmc.xgmi.head) {
+		r = amdgpu_ras_init_badpage_info(tmp_adev);
+		if (r && r != -EHWPOISON)
+			dev_err(tmp_adev->dev,
+				"error during bad page data initializtion");
+	}
+}
+
+static void amdgpu_xgmi_schedule_reset_on_init(struct amdgpu_hive_info *hive)
+{
+	INIT_WORK(&hive->reset_on_init_work, amdgpu_xgmi_reset_on_init_work);
+	amdgpu_reset_domain_schedule(hive->reset_domain,
+				     &hive->reset_on_init_work);
+}
+
+int amdgpu_xgmi_reset_on_init(struct amdgpu_device *adev)
+{
+	struct amdgpu_hive_info *hive;
+	int num_devs;
+
+	hive = amdgpu_get_xgmi_hive(adev);
+	if (!hive)
+		return -EINVAL;
+
+	mutex_lock(&hive->hive_lock);
+	num_devs = atomic_read(&hive->number_devices);
+	if (num_devs == adev->gmc.xgmi.num_physical_nodes)
+		amdgpu_xgmi_schedule_reset_on_init(hive);
+
+	mutex_unlock(&hive->hive_lock);
+	amdgpu_put_xgmi_hive(hive);
 
 	return 0;
 }

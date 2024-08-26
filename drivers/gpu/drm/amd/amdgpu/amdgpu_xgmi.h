@@ -45,6 +45,7 @@ struct amdgpu_hive_info {
 	struct amdgpu_reset_domain *reset_domain;
 	atomic_t ras_recovery;
 	struct ras_event_manager event_mgr;
+	struct work_struct reset_on_init_work;
 };
 
 struct amdgpu_pcs_ras_field {
@@ -75,5 +76,6 @@ static inline bool amdgpu_xgmi_same_hive(struct amdgpu_device *adev,
 		adev->gmc.xgmi.hive_id == bo_adev->gmc.xgmi.hive_id);
 }
 int amdgpu_xgmi_ras_sw_init(struct amdgpu_device *adev);
+int amdgpu_xgmi_reset_on_init(struct amdgpu_device *adev);
 
 #endif

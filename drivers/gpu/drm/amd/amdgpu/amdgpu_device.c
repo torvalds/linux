@@ -164,7 +164,8 @@ struct amdgpu_init_level amdgpu_init_minimal_xgmi = {
 	.level = AMDGPU_INIT_LEVEL_MINIMAL_XGMI,
 	.hwini_ip_block_mask =
 		BIT(AMD_IP_BLOCK_TYPE_GMC) | BIT(AMD_IP_BLOCK_TYPE_SMC) |
-		BIT(AMD_IP_BLOCK_TYPE_COMMON) | BIT(AMD_IP_BLOCK_TYPE_IH)
+		BIT(AMD_IP_BLOCK_TYPE_COMMON) | BIT(AMD_IP_BLOCK_TYPE_IH) |
+		BIT(AMD_IP_BLOCK_TYPE_PSP)
 };
 
 static inline bool amdgpu_ip_member_of_hwini(struct amdgpu_device *adev,
@@ -2840,6 +2841,7 @@ static int amdgpu_device_init_schedulers(struct amdgpu_device *adev)
  */
 static int amdgpu_device_ip_init(struct amdgpu_device *adev)
 {
+	bool init_badpage;
 	int i, r;
 
 	r = amdgpu_ras_init(adev);
@@ -2953,7 +2955,8 @@ static int amdgpu_device_ip_init(struct amdgpu_device *adev)
 	 * Note: theoretically, this should be called before all vram allocations
 	 * to protect retired page from abusing
 	 */
-	r = amdgpu_ras_recovery_init(adev, true);
+	init_badpage = (adev->init_lvl->level != AMDGPU_INIT_LEVEL_MINIMAL_XGMI);
+	r = amdgpu_ras_recovery_init(adev, init_badpage);
 	if (r)
 		goto init_failed;
 
@@ -4511,8 +4514,7 @@ fence_driver_init:
 		vga_switcheroo_init_domain_pm_ops(adev->dev, &adev->vga_pm_domain);
 
 	if (adev->init_lvl->level == AMDGPU_INIT_LEVEL_MINIMAL_XGMI)
-		queue_delayed_work(system_wq, &mgpu_info.delayed_reset_work,
-				   msecs_to_jiffies(AMDGPU_RESUME_MS));
+		amdgpu_xgmi_reset_on_init(adev);
 
 	amdgpu_device_check_iommu_direct_map(adev);
 

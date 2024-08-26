@@ -1297,7 +1297,12 @@ static int soc15_common_hw_fini(void *handle)
 	if (amdgpu_sriov_vf(adev))
 		xgpu_ai_mailbox_put_irq(adev);
 
+	/*
+	 * For minimal init, late_init is not called, hence RAS irqs are not
+	 * enabled.
+	 */
 	if ((!amdgpu_sriov_vf(adev)) &&
+	    (adev->init_lvl->level != AMDGPU_INIT_LEVEL_MINIMAL_XGMI) &&
 	    adev->nbio.ras_if &&
 	    amdgpu_ras_is_supported(adev, adev->nbio.ras_if->block)) {
 		if (adev->nbio.ras &&
