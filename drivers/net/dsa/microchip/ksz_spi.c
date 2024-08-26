@@ -2,7 +2,7 @@
 /*
  * Microchip ksz series register access through SPI
  *
- * Copyright (C) 2017 Microchip Technology Inc.
+ * Copyright (C) 2017-2024 Microchip Technology Inc.
  *	Tristram Ha <Tristram.Ha@microchip.com>
  */
 
@@ -60,6 +60,9 @@ static int ksz_spi_probe(struct spi_device *spi)
 		 chip->chip_id == KSZ8794_CHIP_ID ||
 		 chip->chip_id == KSZ8765_CHIP_ID)
 		regmap_config = ksz8795_regmap_config;
+	else if (chip->chip_id == KSZ8895_CHIP_ID ||
+		 chip->chip_id == KSZ8864_CHIP_ID)
+		regmap_config = ksz8863_regmap_config;
 	else
 		regmap_config = ksz9477_regmap_config;
 
@@ -137,8 +140,16 @@ static const struct of_device_id ksz_dt_ids[] = {
 		.data = &ksz_switch_chips[KSZ8830]
 	},
 	{
+		.compatible = "microchip,ksz8864",
+		.data = &ksz_switch_chips[KSZ8864]
+	},
+	{
 		.compatible = "microchip,ksz8873",
 		.data = &ksz_switch_chips[KSZ8830]
+	},
+	{
+		.compatible = "microchip,ksz8895",
+		.data = &ksz_switch_chips[KSZ8895]
 	},
 	{
 		.compatible = "microchip,ksz9477",
@@ -201,7 +212,9 @@ static const struct spi_device_id ksz_spi_ids[] = {
 	{ "ksz8794" },
 	{ "ksz8795" },
 	{ "ksz8863" },
+	{ "ksz8864" },
 	{ "ksz8873" },
+	{ "ksz8895" },
 	{ "ksz9477" },
 	{ "ksz9896" },
 	{ "ksz9897" },
