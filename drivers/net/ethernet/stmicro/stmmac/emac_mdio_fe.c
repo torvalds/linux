@@ -525,5 +525,6 @@ static void __exit emac_mdio_fe_exit(void)
 module_init(emac_mdio_fe_init);
 module_exit(emac_mdio_fe_exit);
 
+MODULE_SOFTDEP("post: stmmac");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("EMAC Virt MDIO FE Driver");
