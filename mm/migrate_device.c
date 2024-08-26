@@ -898,16 +898,17 @@ int migrate_device_range(unsigned long *src_pfns, unsigned long start,
 	unsigned long i, pfn;
 
 	for (pfn = start, i = 0; i < npages; pfn++, i++) {
-		struct page *page = pfn_to_page(pfn);
+		struct folio *folio;
 
-		if (!get_page_unless_zero(page)) {
+		folio = folio_get_nontail_page(pfn_to_page(pfn));
+		if (!folio) {
 			src_pfns[i] = 0;
 			continue;
 		}
 
-		if (!trylock_page(page)) {
+		if (!folio_trylock(folio)) {
 			src_pfns[i] = 0;
-			put_page(page);
+			folio_put(folio);
 			continue;
 		}
 
