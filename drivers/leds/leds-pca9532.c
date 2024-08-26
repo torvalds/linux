@@ -215,8 +215,7 @@ static int pca9532_update_hw_blink(struct pca9532_led *led,
 		if (other->state == PCA9532_PWM1) {
 			if (other->ldev.blink_delay_on != delay_on ||
 			    other->ldev.blink_delay_off != delay_off) {
-				dev_err(&led->client->dev,
-					"HW can handle only one blink configuration at a time\n");
+				/* HW can handle only one blink configuration at a time */
 				return -EINVAL;
 			}
 		}
@@ -224,7 +223,7 @@ static int pca9532_update_hw_blink(struct pca9532_led *led,
 
 	psc = ((delay_on + delay_off) * PCA9532_PWM_PERIOD_DIV - 1) / 1000;
 	if (psc > U8_MAX) {
-		dev_err(&led->client->dev, "Blink period too long to be handled by hardware\n");
+		/* Blink period too long to be handled by hardware */
 		return -EINVAL;
 	}
 
