@@ -83,13 +83,11 @@ static void emac_get_strings(struct net_device *ndev, u32 stringset, u8 *data)
 
 	switch (stringset) {
 	case ETH_SS_STATS:
-		for (i = 0; i < ARRAY_SIZE(icssg_all_stats); i++) {
-			if (!icssg_all_stats[i].standard_stats) {
-				memcpy(p, icssg_all_stats[i].name,
-				       ETH_GSTRING_LEN);
-				p += ETH_GSTRING_LEN;
-			}
-		}
+		for (i = 0; i < ARRAY_SIZE(icssg_all_miig_stats); i++)
+			if (!icssg_all_miig_stats[i].standard_stats)
+				ethtool_puts(&p, icssg_all_miig_stats[i].name);
+		for (i = 0; i < ARRAY_SIZE(icssg_all_pa_stats); i++)
+			ethtool_puts(&p, icssg_all_pa_stats[i].name);
 		break;
 	default:
 		break;
@@ -104,9 +102,12 @@ static void emac_get_ethtool_stats(struct net_device *ndev,
 
 	emac_update_hardware_stats(emac);
 
-	for (i = 0; i < ARRAY_SIZE(icssg_all_stats); i++)
-		if (!icssg_all_stats[i].standard_stats)
+	for (i = 0; i < ARRAY_SIZE(icssg_all_miig_stats); i++)
+		if (!icssg_all_miig_stats[i].standard_stats)
 			*(data++) = emac->stats[i];
+
+	for (i = 0; i < ARRAY_SIZE(icssg_all_pa_stats); i++)
+		*(data++) = emac->pa_stats[i];
 }
 
 static int emac_get_ts_info(struct net_device *ndev,
