@@ -169,7 +169,7 @@ static const struct intel_modifier_desc intel_modifiers[] = {
 	}, {
 		.modifier = I915_FORMAT_MOD_4_TILED_BMG_CCS,
 		.display_ver = { 14, -1 },
-		.plane_caps = INTEL_PLANE_CAP_TILING_4,
+		.plane_caps = INTEL_PLANE_CAP_TILING_4 | INTEL_PLANE_CAP_NEED64K_PHYS,
 	}, {
 		.modifier = I915_FORMAT_MOD_4_TILED_MTL_MC_CCS,
 		.display_ver = { 14, 14 },
@@ -418,6 +418,24 @@ bool intel_fb_is_mc_ccs_modifier(u64 modifier)
 {
 	return plane_caps_contain_any(lookup_modifier(modifier)->plane_caps,
 				      INTEL_PLANE_CAP_CCS_MC);
+}
+
+/**
+ * intel_fb_needs_64k_phys: Check if modifier requires 64k physical placement.
+ * @modifier: Modifier to check
+ *
+ * Returns:
+ * Returns %true if @modifier requires 64k aligned physical pages.
+ */
+bool intel_fb_needs_64k_phys(u64 modifier)
+{
+	const struct intel_modifier_desc *md = lookup_modifier_or_null(modifier);
+
+	if (!md)
+		return false;
+
+	return plane_caps_contain_any(md->plane_caps,
+				      INTEL_PLANE_CAP_NEED64K_PHYS);
 }
 
 static bool check_modifier_display_ver_range(const struct intel_modifier_desc *md,
