@@ -64,12 +64,29 @@ static int macronix_get_eccsr(struct spinand_device *spinand, u8 *eccsr)
 	return 0;
 }
 
-static int macronix_ecc_get_status(struct spinand_device *spinand,
-				   u8 status)
+static int macronix_get_bf(struct spinand_device *spinand, u8 status)
 {
 	struct nand_device *nand = spinand_to_nand(spinand);
 	u8 eccsr;
 
+	/*
+	 * Let's try to retrieve the real maximum number of bitflips
+	 * in order to avoid forcing the wear-leveling layer to move
+	 * data around if it's not necessary.
+	 */
+	if (macronix_get_eccsr(spinand, spinand->scratchbuf))
+		return nanddev_get_ecc_conf(nand)->strength;
+
+	eccsr = *spinand->scratchbuf;
+	if (WARN_ON(eccsr > nanddev_get_ecc_conf(nand)->strength || !eccsr))
+		return nanddev_get_ecc_conf(nand)->strength;
+
+	return eccsr;
+}
+
+static int macronix_ecc_get_status(struct spinand_device *spinand,
+				   u8 status)
+{
 	switch (status & STATUS_ECC_MASK) {
 	case STATUS_ECC_NO_BITFLIPS:
 		return 0;
@@ -78,21 +95,7 @@ static int macronix_ecc_get_status(struct spinand_device *spinand,
 		return -EBADMSG;
 
 	case STATUS_ECC_HAS_BITFLIPS:
-		/*
-		 * Let's try to retrieve the real maximum number of bitflips
-		 * in order to avoid forcing the wear-leveling layer to move
-		 * data around if it's not necessary.
-		 */
-		if (macronix_get_eccsr(spinand, spinand->scratchbuf))
-			return nanddev_get_ecc_conf(nand)->strength;
-
-		eccsr = *spinand->scratchbuf;
-		if (WARN_ON(eccsr > nanddev_get_ecc_conf(nand)->strength ||
-			    !eccsr))
-			return nanddev_get_ecc_conf(nand)->strength;
-
-		return eccsr;
-
+		return macronix_get_bf(spinand, status);
 	default:
 		break;
 	}
