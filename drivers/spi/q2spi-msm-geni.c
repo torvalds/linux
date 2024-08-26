@@ -2200,6 +2200,7 @@ static int q2spi_transfer_check(struct q2spi_geni *q2spi, struct q2spi_request *
  */
 static ssize_t q2spi_transfer(struct file *filp, const char __user *buf, size_t len, loff_t *f_pos)
 {
+	int retries = Q2SPI_SLAVE_SLEEP_WAIT_TIME;
 	struct q2spi_geni *q2spi;
 	struct q2spi_request q2spi_req;
 	struct q2spi_packet *cur_q2spi_pkt;
@@ -2217,6 +2218,14 @@ static ssize_t q2spi_transfer(struct file *filp, const char __user *buf, size_t 
 	ret = q2spi_transfer_check(q2spi, &q2spi_req, buf, len);
 	if (ret)
 		goto err;
+
+	while (retries--) {
+		/* add 2msec delay for slave to process the sleep packet */
+		if (mutex_is_locked(&q2spi->slave_sleep_lock))
+			usleep_range(100, 150);
+		else
+			break;
+	}
 
 	if (q2spi_req.cmd == HRF_WRITE) {
 		q2spi_req.addr = Q2SPI_HRF_PUSH_ADDRESS;
@@ -4389,6 +4398,7 @@ static int q2spi_geni_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&q2spi->tx_queue_list);
 	mutex_init(&q2spi->gsi_lock);
 	mutex_init(&q2spi->port_lock);
+	mutex_init(&q2spi->slave_sleep_lock);
 	spin_lock_init(&q2spi->txn_lock);
 	mutex_init(&q2spi->queue_lock);
 	mutex_init(&q2spi->send_msgs_lock);
@@ -4648,12 +4658,14 @@ int q2spi_put_slave_to_sleep(struct q2spi_geni *q2spi)
 	}
 	Q2SPI_DEBUG(q2spi, "%s q2spi_pkt:%p tid:%d\n", __func__, q2spi_pkt, q2spi_pkt->xfer->tid);
 	q2spi_pkt->is_client_sleep_pkt = true;
+	mutex_lock(&q2spi->slave_sleep_lock);
 	ret = __q2spi_transfer(q2spi, q2spi_req, q2spi_pkt, 0);
 	if (ret) {
 		Q2SPI_DEBUG(q2spi, "%s __q2spi_transfer q2spi_pkt:%p ret%d\n",
 			    __func__, q2spi_pkt, ret);
 		if (q2spi->port_release) {
 			Q2SPI_DEBUG(q2spi, "%s Err Port in closed state, return\n", __func__);
+			mutex_unlock(&q2spi->slave_sleep_lock);
 			return -ENOENT;
 		}
 	}
@@ -4664,6 +4676,7 @@ int q2spi_put_slave_to_sleep(struct q2spi_geni *q2spi)
 	atomic_set(&q2spi->slave_in_sleep, 1);
 	/* add 2msec delay for slave to process the sleep packet */
 	usleep_range(2000, 3000);
+	mutex_unlock(&q2spi->slave_sleep_lock);
 	Q2SPI_DEBUG(q2spi, "%s: PID=%d End slave_in_sleep:%d\n", __func__, current->pid,
 		    atomic_read(&q2spi->slave_in_sleep));
 err:

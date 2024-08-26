@@ -184,6 +184,7 @@
 #define Q2SPI_MAX_DEV			2
 #define Q2SPI_DEV_NAME_MAX_LEN		64
 
+#define Q2SPI_SLAVE_SLEEP_WAIT_TIME	(20)
 #define Q2SPI_RESP_BUF_RETRIES		(100)
 
 #define Q2SPI_INFO(q2spi_ptr, x...) do { \
@@ -516,6 +517,7 @@ struct q2spi_dma_transfer {
  * @q2spi_cr_txn_err: reflects Q2SPI_CR_TRANSACTION_ERROR in CR body
  * @q2spi_sleep_cmd_enable: reflects start sending the sleep command to slave
  * @q2spi_cr_hdr_err: reflects CR Header incorrect in CR Header
+ * @slave_sleep_lock: lock to wait for 3msec after sleep packet before initiating next transfer.
  */
 struct q2spi_geni {
 	struct device *wrapper_dev;
@@ -622,6 +624,8 @@ struct q2spi_geni {
 	bool q2spi_cr_txn_err;
 	bool q2spi_sleep_cmd_enable;
 	bool q2spi_cr_hdr_err;
+	/* lock to protect sleep cmd to slave and next transfer */
+	struct mutex slave_sleep_lock;
 };
 
 /**
