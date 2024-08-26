@@ -21,6 +21,9 @@
 #define HAB_VIRTIO_DEVICE_ID_DISPLAY	93
 #define HAB_VIRTIO_DEVICE_ID_GRAPHICS	94
 #define HAB_VIRTIO_DEVICE_ID_VIDEO	95
+#define HAB_VIRTIO_DEVICE_ID_VNW	96
+#define HAB_VIRTIO_DEVICE_ID_EXT	97
+#define HAB_VIRTIO_DEVICE_ID_GPCE	98
 
 /* all probed virtio_hab stored in this list */
 static struct list_head vhab_list = LIST_HEAD_INIT(vhab_list);
@@ -39,6 +42,9 @@ static struct virtio_device_tbl {
 	{ MM_DISP_1, HAB_VIRTIO_DEVICE_ID_DISPLAY, NULL },
 	{ MM_GFX, HAB_VIRTIO_DEVICE_ID_GRAPHICS, NULL },
 	{ MM_VID, HAB_VIRTIO_DEVICE_ID_VIDEO, NULL },
+	{ MM_VNW_1, HAB_VIRTIO_DEVICE_ID_VNW, NULL },
+	{ MM_EXT_1, HAB_VIRTIO_DEVICE_ID_EXT, NULL },
+	{ MM_GPCE_1, HAB_VIRTIO_DEVICE_ID_GPCE, NULL },
 };
 
 enum pool_type_t {
@@ -743,6 +749,18 @@ static int virthab_probe(struct virtio_device *vdev)
 		mmid_start = MM_VID;
 		mmid_range = MM_VID_END - MM_VID_START - 1;
 		virthab_store_vdev(MM_VID, vdev);
+	} else if (vdev->id.device == HAB_VIRTIO_DEVICE_ID_VNW) {
+		mmid_start = MM_VNW_1;
+		mmid_range = MM_VNW_END - MM_VNW_START - 1;
+		virthab_store_vdev(MM_VNW_1, vdev);
+	} else if (vdev->id.device == HAB_VIRTIO_DEVICE_ID_EXT) {
+		mmid_start = MM_EXT_1;
+		mmid_range = MM_EXT_END - MM_EXT_START - 1;
+		virthab_store_vdev(MM_EXT_1, vdev);
+	} else if (vdev->id.device == HAB_VIRTIO_DEVICE_ID_GPCE) {
+		mmid_start = MM_GPCE_1;
+		mmid_range = MM_GPCE_END - MM_GPCE_START - 1;
+		virthab_store_vdev(MM_GPCE_1, vdev);
 	} else {
 		pr_err("unknown virtio device is detected %d\n",
 			vdev->id.device);
@@ -878,6 +896,9 @@ static struct virtio_device_id id_table[] = {
 	{ HAB_VIRTIO_DEVICE_ID_DISPLAY, VIRTIO_DEV_ANY_ID }, /* virtio display */
 	{ HAB_VIRTIO_DEVICE_ID_GRAPHICS, VIRTIO_DEV_ANY_ID }, /* virtio graphics */
 	{ HAB_VIRTIO_DEVICE_ID_VIDEO, VIRTIO_DEV_ANY_ID }, /* virtio video */
+	{ HAB_VIRTIO_DEVICE_ID_VNW, VIRTIO_DEV_ANY_ID }, /* virtio vnw */
+	{ HAB_VIRTIO_DEVICE_ID_EXT, VIRTIO_DEV_ANY_ID }, /* virtio external */
+	{ HAB_VIRTIO_DEVICE_ID_GPCE, VIRTIO_DEV_ANY_ID }, /* virtio gpce */
 	{ 0 },
 };
 
