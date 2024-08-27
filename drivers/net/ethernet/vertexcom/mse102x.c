@@ -377,8 +377,8 @@ static int mse102x_tx_pkt_spi(struct mse102x_net *mse, struct sk_buff *txb,
 	int ret;
 	bool first = true;
 
-	if (txb->len < 60)
-		pad = 60 - txb->len;
+	if (txb->len < ETH_ZLEN)
+		pad = ETH_ZLEN - txb->len;
 
 	while (1) {
 		mse102x_tx_cmd_spi(mse, CMD_RTS | (txb->len + pad));
