@@ -546,137 +546,30 @@ static int mddev_set_closing_and_sync_blockdev(struct mddev *mddev, int opener_n
 	return 0;
 }
 
-/*
- * Generic flush handling for md
- */
-
-static void md_end_flush(struct bio *bio)
-{
-	struct md_rdev *rdev = bio->bi_private;
-	struct mddev *mddev = rdev->mddev;
-
-	bio_put(bio);
-
-	rdev_dec_pending(rdev, mddev);
-
-	if (atomic_dec_and_test(&mddev->flush_pending))
-		/* The pre-request flush has finished */
-		queue_work(md_wq, &mddev->flush_work);
-}
-
-static void md_submit_flush_data(struct work_struct *ws);
-
-static void submit_flushes(struct work_struct *ws)
-{
-	struct mddev *mddev = container_of(ws, struct mddev, flush_work);
-	struct md_rdev *rdev;
-
-	mddev->start_flush = ktime_get_boottime();
-	INIT_WORK(&mddev->flush_work, md_submit_flush_data);
-	atomic_set(&mddev->flush_pending, 1);
-	rcu_read_lock();
-	rdev_for_each_rcu(rdev, mddev)
-		if (rdev->raid_disk >= 0 &&
-		    !test_bit(Faulty, &rdev->flags)) {
-			struct bio *bi;
-
-			atomic_inc(&rdev->nr_pending);
-			rcu_read_unlock();
-			bi = bio_alloc_bioset(rdev->bdev, 0,
-					      REQ_OP_WRITE | REQ_PREFLUSH,
-					      GFP_NOIO, &mddev->bio_set);
-			bi->bi_end_io = md_end_flush;
-			bi->bi_private = rdev;
-			atomic_inc(&mddev->flush_pending);
-			submit_bio(bi);
-			rcu_read_lock();
-		}
-	rcu_read_unlock();
-	if (atomic_dec_and_test(&mddev->flush_pending))
-		queue_work(md_wq, &mddev->flush_work);
-}
-
-static void md_submit_flush_data(struct work_struct *ws)
-{
-	struct mddev *mddev = container_of(ws, struct mddev, flush_work);
-	struct bio *bio = mddev->flush_bio;
-
-	/*
-	 * must reset flush_bio before calling into md_handle_request to avoid a
-	 * deadlock, because other bios passed md_handle_request suspend check
-	 * could wait for this and below md_handle_request could wait for those
-	 * bios because of suspend check
-	 */
-	spin_lock_irq(&mddev->lock);
-	mddev->prev_flush_start = mddev->start_flush;
-	mddev->flush_bio = NULL;
-	spin_unlock_irq(&mddev->lock);
-	wake_up(&mddev->sb_wait);
-
-	if (bio->bi_iter.bi_size == 0) {
-		/* an empty barrier - all done */
-		bio_endio(bio);
-	} else {
-		bio->bi_opf &= ~REQ_PREFLUSH;
-
-		/*
-		 * make_requst() will never return error here, it only
-		 * returns error in raid5_make_request() by dm-raid.
-		 * Since dm always splits data and flush operation into
-		 * two separate io, io size of flush submitted by dm
-		 * always is 0, make_request() will not be called here.
-		 */
-		if (WARN_ON_ONCE(!mddev->pers->make_request(mddev, bio)))
-			bio_io_error(bio);
-	}
-
-	/* The pair is percpu_ref_get() from md_flush_request() */
-	percpu_ref_put(&mddev->active_io);
-}
-
-/*
- * Manages consolidation of flushes and submitting any flushes needed for
- * a bio with REQ_PREFLUSH.  Returns true if the bio is finished or is
- * being finished in another context.  Returns false if the flushing is
- * complete but still needs the I/O portion of the bio to be processed.
- */
 bool md_flush_request(struct mddev *mddev, struct bio *bio)
 {
-	ktime_t req_start = ktime_get_boottime();
-	spin_lock_irq(&mddev->lock);
-	/* flush requests wait until ongoing flush completes,
-	 * hence coalescing all the pending requests.
+	struct md_rdev *rdev;
+	struct bio *new;
+
+	/*
+	 * md_flush_reqeust() should be called under md_handle_request() and
+	 * 'active_io' is already grabbed. Hence it's safe to get rdev directly
+	 * without rcu protection.
 	 */
-	wait_event_lock_irq(mddev->sb_wait,
-			    !mddev->flush_bio ||
-			    ktime_before(req_start, mddev->prev_flush_start),
-			    mddev->lock);
-	/* new request after previous flush is completed */
-	if (ktime_after(req_start, mddev->prev_flush_start)) {
-		WARN_ON(mddev->flush_bio);
-		/*
-		 * Grab a reference to make sure mddev_suspend() will wait for
-		 * this flush to be done.
-		 *
-		 * md_flush_reqeust() is called under md_handle_request() and
-		 * 'active_io' is already grabbed, hence percpu_ref_is_zero()
-		 * won't pass, percpu_ref_tryget_live() can't be used because
-		 * percpu_ref_kill() can be called by mddev_suspend()
-		 * concurrently.
-		 */
-		WARN_ON(percpu_ref_is_zero(&mddev->active_io));
-		percpu_ref_get(&mddev->active_io);
-		mddev->flush_bio = bio;
-		spin_unlock_irq(&mddev->lock);
-		INIT_WORK(&mddev->flush_work, submit_flushes);
-		queue_work(md_wq, &mddev->flush_work);
-		return true;
+	WARN_ON(percpu_ref_is_zero(&mddev->active_io));
+
+	rdev_for_each(rdev, mddev) {
+		if (rdev->raid_disk < 0 || test_bit(Faulty, &rdev->flags))
+			continue;
+
+		new = bio_alloc_bioset(rdev->bdev, 0,
+				       REQ_OP_WRITE | REQ_PREFLUSH, GFP_NOIO,
+				       &mddev->bio_set);
+		bio_chain(new, bio);
+		submit_bio(new);
 	}
 
-	/* flush was performed for some other bio while we waited. */
-	spin_unlock_irq(&mddev->lock);
-	if (bio->bi_iter.bi_size == 0) {
-		/* pure flush without data - all done */
+	if (bio_sectors(bio) == 0) {
 		bio_endio(bio);
 		return true;
 	}
@@ -763,7 +656,6 @@ int mddev_init(struct mddev *mddev)
 	atomic_set(&mddev->openers, 0);
 	atomic_set(&mddev->sync_seq, 0);
 	spin_lock_init(&mddev->lock);
-	atomic_set(&mddev->flush_pending, 0);
 	init_waitqueue_head(&mddev->sb_wait);
 	init_waitqueue_head(&mddev->recovery_wait);
 	mddev->reshape_position = MaxSector;
