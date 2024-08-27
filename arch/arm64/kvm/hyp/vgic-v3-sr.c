@@ -268,8 +268,16 @@ void __vgic_v3_activate_traps(struct vgic_v3_cpu_if *cpu_if)
 	 * starting to mess with the rest of the GIC, and VMCR_EL2 in
 	 * particular.  This logic must be called before
 	 * __vgic_v3_restore_state().
+	 *
+	 * However, if the vgic is disabled (ICH_HCR_EL2.EN==0), no GIC is
+	 * provisioned at all. In order to prevent illegal accesses to the
+	 * system registers to trap to EL1 (duh), force ICC_SRE_EL1.SRE to 1
+	 * so that the trap bits can take effect. Yes, we *loves* the GIC.
 	 */
-	if (!cpu_if->vgic_sre) {
+	if (!(cpu_if->vgic_hcr & ICH_HCR_EN)) {
+		write_gicreg(ICC_SRE_EL1_SRE, ICC_SRE_EL1);
+		isb();
+	} else if (!cpu_if->vgic_sre) {
 		write_gicreg(0, ICC_SRE_EL1);
 		isb();
 		write_gicreg(cpu_if->vgic_vmcr, ICH_VMCR_EL2);
@@ -288,8 +296,9 @@ void __vgic_v3_activate_traps(struct vgic_v3_cpu_if *cpu_if)
 	}
 
 	/*
-	 * Prevent the guest from touching the GIC system registers if
-	 * SRE isn't enabled for GICv3 emulation.
+	 * Prevent the guest from touching the ICC_SRE_EL1 system
+	 * register. Note that this may not have any effect, as
+	 * ICC_SRE_EL2.Enable being RAO/WI is a valid implementation.
 	 */
 	write_gicreg(read_gicreg(ICC_SRE_EL2) & ~ICC_SRE_EL2_ENABLE,
 		     ICC_SRE_EL2);
@@ -297,10 +306,11 @@ void __vgic_v3_activate_traps(struct vgic_v3_cpu_if *cpu_if)
 	/*
 	 * If we need to trap system registers, we must write
 	 * ICH_HCR_EL2 anyway, even if no interrupts are being
-	 * injected,
+	 * injected. Note that this also applies if we don't expect
+	 * any system register access (no vgic at all).
 	 */
 	if (static_branch_unlikely(&vgic_v3_cpuif_trap) ||
-	    cpu_if->its_vpe.its_vm)
+	    cpu_if->its_vpe.its_vm || !cpu_if->vgic_sre)
 		write_gicreg(cpu_if->vgic_hcr, ICH_HCR_EL2);
 }
 
@@ -326,7 +336,7 @@ void __vgic_v3_deactivate_traps(struct vgic_v3_cpu_if *cpu_if)
 	 * no interrupts were being injected, and we disable it again here.
 	 */
 	if (static_branch_unlikely(&vgic_v3_cpuif_trap) ||
-	    cpu_if->its_vpe.its_vm)
+	    cpu_if->its_vpe.its_vm || !cpu_if->vgic_sre)
 		write_gicreg(0, ICH_HCR_EL2);
 }
 
