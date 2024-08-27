@@ -2022,6 +2022,7 @@ static const struct of_device_id ag71xx_match[] = {
 	{ .compatible = "qca,qca9560-eth", .data = &ag71xx_dcfg_qca9550 },
 	{}
 };
+MODULE_DEVICE_TABLE(of, ag71xx_match);
 
 static struct platform_driver ag71xx_driver = {
 	.probe		= ag71xx_probe,

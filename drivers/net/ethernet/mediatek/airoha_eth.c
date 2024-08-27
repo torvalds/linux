@@ -2775,6 +2775,7 @@ static const struct of_device_id of_airoha_match[] = {
 	{ .compatible = "airoha,en7581-eth" },
 	{ /* sentinel */ }
 };
+MODULE_DEVICE_TABLE(of, of_airoha_match);
 
 static struct platform_driver airoha_driver = {
 	.probe = airoha_probe,
