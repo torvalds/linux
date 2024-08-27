@@ -502,8 +502,8 @@ static void btrfs_submit_mirrored_bio(struct btrfs_io_context *bioc, int dev_nr)
 	btrfs_submit_dev_bio(bioc->stripes[dev_nr].dev, bio);
 }
 
-static void __btrfs_submit_bio(struct bio *bio, struct btrfs_io_context *bioc,
-			       struct btrfs_io_stripe *smap, int mirror_num)
+static void btrfs_submit_bio(struct bio *bio, struct btrfs_io_context *bioc,
+			     struct btrfs_io_stripe *smap, int mirror_num)
 {
 	if (!bioc) {
 		/* Single mirror read/write fast path. */
@@ -603,7 +603,7 @@ static void run_one_async_done(struct btrfs_work *work, bool do_free)
 	 * context.  This changes nothing when cgroups aren't in use.
 	 */
 	bio->bi_opf |= REQ_BTRFS_CGROUP_PUNT;
-	__btrfs_submit_bio(bio, async->bioc, &async->smap, async->mirror_num);
+	btrfs_submit_bio(bio, async->bioc, &async->smap, async->mirror_num);
 }
 
 static bool should_async_write(struct btrfs_bio *bbio)
@@ -752,7 +752,7 @@ static bool btrfs_submit_chunk(struct btrfs_bio *bbio, int mirror_num)
 		}
 	}
 
-	__btrfs_submit_bio(bio, bioc, &smap, mirror_num);
+	btrfs_submit_bio(bio, bioc, &smap, mirror_num);
 done:
 	return map_length == length;
 
@@ -878,7 +878,7 @@ void btrfs_submit_repair_write(struct btrfs_bio *bbio, int mirror_num, bool dev_
 		ASSERT(smap.dev == fs_info->dev_replace.srcdev);
 		smap.dev = fs_info->dev_replace.tgtdev;
 	}
-	__btrfs_submit_bio(&bbio->bio, NULL, &smap, mirror_num);
+	btrfs_submit_bio(&bbio->bio, NULL, &smap, mirror_num);
 	return;
 
 fail:
