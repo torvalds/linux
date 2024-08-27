@@ -206,6 +206,24 @@ static int mes_v11_0_userq_create_ctx_space(struct amdgpu_userq_mgr *uq_mgr,
 		mqd->fw_work_area_base_lo = mqd_gfx_v11->csa_va & 0xFFFFFFFC;
 		mqd->fw_work_area_base_hi = upper_32_bits(mqd_gfx_v11->csa_va);
 		kfree(mqd_gfx_v11);
+	} else if (mqd_user->ip_type == AMDGPU_HW_IP_DMA) {
+		struct v11_sdma_mqd *mqd = queue->mqd.cpu_ptr;
+		struct drm_amdgpu_userq_mqd_sdma_gfx11 *mqd_sdma_v11;
+
+		if (mqd_user->mqd_size != sizeof(*mqd_sdma_v11) || !mqd_user->mqd) {
+			DRM_ERROR("Invalid SDMA MQD\n");
+			return -EINVAL;
+		}
+
+		mqd_sdma_v11 = memdup_user(u64_to_user_ptr(mqd_user->mqd), mqd_user->mqd_size);
+		if (IS_ERR(mqd_sdma_v11)) {
+			DRM_ERROR("Failed to read sdma user MQD\n");
+			amdgpu_userqueue_destroy_object(uq_mgr, ctx);
+			return -ENOMEM;
+		}
+
+		mqd->sdmax_rlcx_csa_addr_lo = mqd_sdma_v11->csa_va & 0xFFFFFFFC;
+		mqd->sdmax_rlcx_csa_addr_hi = upper_32_bits(mqd_sdma_v11->csa_va);
 	}
 
 	return 0;

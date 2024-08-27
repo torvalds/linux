@@ -428,6 +428,16 @@ struct drm_amdgpu_userq_mqd_gfx11 {
 	__u64   csa_va;
 };
 
+/* GFX V11 SDMA IP specific MQD parameters */
+struct drm_amdgpu_userq_mqd_sdma_gfx11 {
+	/**
+	 * @csa_va: Virtual address of the GPU memory to hold the CSA buffer.
+	 * This must be a from a separate GPU object, and use AMDGPU_INFO IOCTL
+	 * to get the size.
+	 */
+	__u64   csa_va;
+};
+
 /* vm ioctl */
 #define AMDGPU_VM_OP_RESERVE_VMID	1
 #define AMDGPU_VM_OP_UNRESERVE_VMID	2
