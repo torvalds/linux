@@ -107,7 +107,7 @@ static int __btrfs_add_inode_defrag(struct btrfs_inode *inode,
 	return 0;
 }
 
-static inline int __need_auto_defrag(struct btrfs_fs_info *fs_info)
+static inline int need_auto_defrag(struct btrfs_fs_info *fs_info)
 {
 	if (!btrfs_test_opt(fs_info, AUTO_DEFRAG))
 		return 0;
@@ -130,7 +130,7 @@ int btrfs_add_inode_defrag(struct btrfs_trans_handle *trans,
 	u64 transid;
 	int ret;
 
-	if (!__need_auto_defrag(fs_info))
+	if (!need_auto_defrag(fs_info))
 		return 0;
 
 	if (test_bit(BTRFS_INODE_IN_DEFRAG, &inode->runtime_flags))
@@ -245,7 +245,7 @@ static int __btrfs_run_defrag_inode(struct btrfs_fs_info *fs_info,
 again:
 	if (test_bit(BTRFS_FS_STATE_REMOUNTING, &fs_info->fs_state))
 		goto cleanup;
-	if (!__need_auto_defrag(fs_info))
+	if (!need_auto_defrag(fs_info))
 		goto cleanup;
 
 	/* Get the inode */
@@ -306,7 +306,7 @@ int btrfs_run_defrag_inodes(struct btrfs_fs_info *fs_info)
 		if (test_bit(BTRFS_FS_STATE_REMOUNTING, &fs_info->fs_state))
 			break;
 
-		if (!__need_auto_defrag(fs_info))
+		if (!need_auto_defrag(fs_info))
 			break;
 
 		/* find an inode to defrag */
