@@ -555,7 +555,6 @@ struct xfrm_policy {
 	u16			family;
 	struct xfrm_sec_ctx	*security;
 	struct xfrm_tmpl       	xfrm_vec[XFRM_MAX_DEPTH];
-	struct hlist_node	bydst_inexact_list;
 	struct rcu_head		rcu;
 
 	struct xfrm_dev_offload xdo;
