@@ -1106,6 +1106,11 @@ struct pqi_tmf_work {
 	u8	scsi_opcode;
 };
 
+struct pqi_raid_io_stats {
+	u64	raid_bypass_cnt;
+	u64	write_stream_cnt;
+};
+
 struct pqi_scsi_dev {
 	int	devtype;		/* as reported by INQUIRY command */
 	u8	device_type;		/* as reported by */
@@ -1168,7 +1173,7 @@ struct pqi_scsi_dev {
 
 	struct pqi_stream_data stream_data[NUM_STREAMS_PER_LUN];
 	atomic_t scsi_cmds_outstanding[PQI_MAX_LUNS_PER_DEVICE];
-	u64 __percpu *raid_bypass_cnt;
+	struct pqi_raid_io_stats __percpu *raid_io_stats;
 
 	struct pqi_tmf_work tmf_work[PQI_MAX_LUNS_PER_DEVICE];
 };

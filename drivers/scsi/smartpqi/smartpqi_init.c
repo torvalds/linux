@@ -1508,8 +1508,8 @@ static int pqi_get_raid_map(struct pqi_ctrl_info *ctrl_info,
 	if (rc)
 		goto error;
 
-	device->raid_bypass_cnt = alloc_percpu(u64);
-	if (!device->raid_bypass_cnt) {
+	device->raid_io_stats = alloc_percpu(struct pqi_raid_io_stats);
+	if (!device->raid_io_stats) {
 		rc = -ENOMEM;
 		goto error;
 	}
@@ -2105,9 +2105,9 @@ static void pqi_scsi_update_device(struct pqi_ctrl_info *ctrl_info,
 				/* To prevent this from being freed later. */
 				new_device->raid_map = NULL;
 			}
-			if (new_device->raid_bypass_enabled && existing_device->raid_bypass_cnt == NULL) {
-				existing_device->raid_bypass_cnt = new_device->raid_bypass_cnt;
-				new_device->raid_bypass_cnt = NULL;
+			if (new_device->raid_bypass_enabled && existing_device->raid_io_stats == NULL) {
+				existing_device->raid_io_stats = new_device->raid_io_stats;
+				new_device->raid_io_stats = NULL;
 			}
 			existing_device->raid_bypass_configured = new_device->raid_bypass_configured;
 			existing_device->raid_bypass_enabled = new_device->raid_bypass_enabled;
@@ -2131,7 +2131,7 @@ static void pqi_scsi_update_device(struct pqi_ctrl_info *ctrl_info,
 static inline void pqi_free_device(struct pqi_scsi_dev *device)
 {
 	if (device) {
-		free_percpu(device->raid_bypass_cnt);
+		free_percpu(device->raid_io_stats);
 		kfree(device->raid_map);
 		kfree(device);
 	}
@@ -5984,6 +5984,7 @@ static bool pqi_is_parity_write_stream(struct pqi_ctrl_info *ctrl_info,
 			pqi_stream_data->next_lba = rmd.first_block +
 				rmd.block_cnt;
 			pqi_stream_data->last_accessed = jiffies;
+			per_cpu_ptr(device->raid_io_stats, smp_processor_id())->write_stream_cnt++;
 			return true;
 		}
 
@@ -6016,7 +6017,6 @@ static int pqi_scsi_queue_command(struct Scsi_Host *shost, struct scsi_cmnd *scm
 	u16 hw_queue;
 	struct pqi_queue_group *queue_group;
 	bool raid_bypassed;
-	u64 *raid_bypass_cnt;
 	u8 lun;
 
 	scmd->host_scribble = PQI_NO_COMPLETION;
@@ -6063,8 +6063,7 @@ static int pqi_scsi_queue_command(struct Scsi_Host *shost, struct scsi_cmnd *scm
 			rc = pqi_raid_bypass_submit_scsi_cmd(ctrl_info, device, scmd, queue_group);
 			if (rc == 0 || rc == SCSI_MLQUEUE_HOST_BUSY) {
 				raid_bypassed = true;
-				raid_bypass_cnt = per_cpu_ptr(device->raid_bypass_cnt, smp_processor_id());
-				(*raid_bypass_cnt)++;
+				per_cpu_ptr(device->raid_io_stats, smp_processor_id())->raid_bypass_cnt++;
 			}
 		}
 		if (!raid_bypassed)
@@ -7363,7 +7362,6 @@ static ssize_t pqi_raid_bypass_cnt_show(struct device *dev,
 	unsigned long flags;
 	u64 raid_bypass_cnt;
 	int cpu;
-	u64 *per_cpu_bypass_cnt_ptr;
 
 	sdev = to_scsi_device(dev);
 	ctrl_info = shost_to_hba(sdev->host);
@@ -7381,10 +7379,9 @@ static ssize_t pqi_raid_bypass_cnt_show(struct device *dev,
 
 	raid_bypass_cnt = 0;
 
-	if (device->raid_bypass_cnt) {
+	if (device->raid_io_stats) {
 		for_each_online_cpu(cpu) {
-			per_cpu_bypass_cnt_ptr = per_cpu_ptr(device->raid_bypass_cnt, cpu);
-			raid_bypass_cnt += *per_cpu_bypass_cnt_ptr;
+			raid_bypass_cnt += per_cpu_ptr(device->raid_io_stats, cpu)->raid_bypass_cnt;
 		}
 	}
 
@@ -7472,6 +7469,43 @@ static ssize_t pqi_numa_node_show(struct device *dev,
 	return scnprintf(buffer, PAGE_SIZE, "%d\n", ctrl_info->numa_node);
 }
 
+static ssize_t pqi_write_stream_cnt_show(struct device *dev,
+	struct device_attribute *attr, char *buffer)
+{
+	struct pqi_ctrl_info *ctrl_info;
+	struct scsi_device *sdev;
+	struct pqi_scsi_dev *device;
+	unsigned long flags;
+	u64 write_stream_cnt;
+	int cpu;
+
+	sdev = to_scsi_device(dev);
+	ctrl_info = shost_to_hba(sdev->host);
+
+	if (pqi_ctrl_offline(ctrl_info))
+		return -ENODEV;
+
+	spin_lock_irqsave(&ctrl_info->scsi_device_list_lock, flags);
+
+	device = sdev->hostdata;
+	if (!device) {
+		spin_unlock_irqrestore(&ctrl_info->scsi_device_list_lock, flags);
+		return -ENODEV;
+	}
+
+	write_stream_cnt = 0;
+
+	if (device->raid_io_stats) {
+		for_each_online_cpu(cpu) {
+			write_stream_cnt += per_cpu_ptr(device->raid_io_stats, cpu)->write_stream_cnt;
+		}
+	}
+
+	spin_unlock_irqrestore(&ctrl_info->scsi_device_list_lock, flags);
+
+	return scnprintf(buffer, PAGE_SIZE, "0x%llx\n", write_stream_cnt);
+}
+
 static DEVICE_ATTR(lunid, 0444, pqi_lunid_show, NULL);
 static DEVICE_ATTR(unique_id, 0444, pqi_unique_id_show, NULL);
 static DEVICE_ATTR(path_info, 0444, pqi_path_info_show, NULL);
@@ -7482,6 +7516,7 @@ static DEVICE_ATTR(raid_bypass_cnt, 0444, pqi_raid_bypass_cnt_show, NULL);
 static DEVICE_ATTR(sas_ncq_prio_enable, 0644,
 		pqi_sas_ncq_prio_enable_show, pqi_sas_ncq_prio_enable_store);
 static DEVICE_ATTR(numa_node, 0444, pqi_numa_node_show, NULL);
+static DEVICE_ATTR(write_stream_cnt, 0444, pqi_write_stream_cnt_show, NULL);
 
 static struct attribute *pqi_sdev_attrs[] = {
 	&dev_attr_lunid.attr,
@@ -7493,6 +7528,7 @@ static struct attribute *pqi_sdev_attrs[] = {
 	&dev_attr_raid_bypass_cnt.attr,
 	&dev_attr_sas_ncq_prio_enable.attr,
 	&dev_attr_numa_node.attr,
+	&dev_attr_write_stream_cnt.attr,
 	NULL
 };
 
