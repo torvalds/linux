@@ -451,7 +451,7 @@ static void mse102x_tx_work(struct work_struct *work)
 
 	if (ret == -ETIMEDOUT) {
 		if (netif_msg_timer(mse))
-			netdev_err(mse->ndev, "tx work timeout\n");
+			netdev_err_once(mse->ndev, "tx work timeout\n");
 
 		mse->stats.tx_timeout++;
 	}
