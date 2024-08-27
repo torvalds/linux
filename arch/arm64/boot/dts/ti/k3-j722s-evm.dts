@@ -20,6 +20,7 @@
 	aliases {
 		serial0 = &wkup_uart0;
 		serial2 = &main_uart0;
+		serial3 = &main_uart5;
 		mmc0 = &sdhci0;
 		mmc1 = &sdhci1;
 	};
@@ -182,6 +183,13 @@
 		bootph-all;
 	};
 
+	main_uart5_pins_default: main-uart5-default-pins {
+		pinctrl-single,pins = <
+			J722S_IOPAD(0x0108, PIN_INPUT, 3)       /* (J27) UART5_RXD */
+			J722S_IOPAD(0x010c, PIN_OUTPUT, 3)      /* (H27) UART5_TXD */
+		>;
+	};
+
 	vdd_sd_dv_pins_default: vdd-sd-dv-default-pins {
 		pinctrl-single,pins = <
 			J722S_IOPAD(0x0120, PIN_INPUT, 7) /* (F27) MMC2_CMD.GPIO0_70 */
@@ -299,6 +307,13 @@
 	pinctrl-0 = <&main_uart0_pins_default>;
 	status = "okay";
 	bootph-all;
+};
+
+&main_uart5 {
+	/* MAIN UART 5 is used by System firmware */
+	pinctrl-names = "default";
+	pinctrl-0 = <&main_uart5_pins_default>;
+	status = "reserved";
 };
 
 &mcu_pmx0 {
