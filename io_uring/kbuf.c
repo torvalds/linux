@@ -70,7 +70,7 @@ bool io_kbuf_recycle_legacy(struct io_kiocb *req, unsigned issue_flags)
 	return true;
 }
 
-void __io_put_kbuf(struct io_kiocb *req, unsigned issue_flags)
+void __io_put_kbuf(struct io_kiocb *req, int len, unsigned issue_flags)
 {
 	/*
 	 * We can add this buffer back to two lists:
@@ -88,12 +88,12 @@ void __io_put_kbuf(struct io_kiocb *req, unsigned issue_flags)
 		struct io_ring_ctx *ctx = req->ctx;
 
 		spin_lock(&ctx->completion_lock);
-		__io_put_kbuf_list(req, &ctx->io_buffers_comp);
+		__io_put_kbuf_list(req, len, &ctx->io_buffers_comp);
 		spin_unlock(&ctx->completion_lock);
 	} else {
 		lockdep_assert_held(&req->ctx->uring_lock);
 
-		__io_put_kbuf_list(req, &req->ctx->io_buffers_cache);
+		__io_put_kbuf_list(req, len, &req->ctx->io_buffers_cache);
 	}
 }
 
@@ -165,7 +165,7 @@ static void __user *io_ring_buffer_select(struct io_kiocb *req, size_t *len,
 		 * the transfer completes (or if we get -EAGAIN and must poll of
 		 * retry).
 		 */
-		io_kbuf_commit(req, bl, 1);
+		io_kbuf_commit(req, bl, *len, 1);
 		req->buf_list = NULL;
 	}
 	return u64_to_user_ptr(buf->addr);
@@ -291,7 +291,7 @@ int io_buffers_select(struct io_kiocb *req, struct buf_sel_arg *arg,
 		 */
 		if (ret > 0) {
 			req->flags |= REQ_F_BUFFERS_COMMIT | REQ_F_BL_NO_RECYCLE;
-			io_kbuf_commit(req, bl, ret);
+			io_kbuf_commit(req, bl, arg->out_len, ret);
 		}
 	} else {
 		ret = io_provided_buffers_select(req, &arg->out_len, bl, arg->iovs);
