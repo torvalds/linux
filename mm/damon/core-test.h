@@ -246,16 +246,12 @@ static void damon_test_split_regions_of(struct kunit *test)
 static void damon_test_ops_registration(struct kunit *test)
 {
 	struct damon_ctx *c = damon_new_ctx();
-	struct damon_operations ops, bak;
+	struct damon_operations ops = {.id = DAMON_OPS_VADDR}, bak;
 
-	/* DAMON_OPS_{V,P}ADDR are registered on subsys_initcall */
+	/* DAMON_OPS_VADDR is registered on subsys_initcall */
 	KUNIT_EXPECT_EQ(test, damon_select_ops(c, DAMON_OPS_VADDR), 0);
-	KUNIT_EXPECT_EQ(test, damon_select_ops(c, DAMON_OPS_PADDR), 0);
 
 	/* Double-registration is prohibited */
-	ops.id = DAMON_OPS_VADDR;
-	KUNIT_EXPECT_EQ(test, damon_register_ops(&ops), -EINVAL);
-	ops.id = DAMON_OPS_PADDR;
 	KUNIT_EXPECT_EQ(test, damon_register_ops(&ops), -EINVAL);
 
 	/* Unknown ops id cannot be registered */
