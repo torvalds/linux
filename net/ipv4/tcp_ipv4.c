@@ -1073,7 +1073,7 @@ static void tcp_v4_timewait_ack(struct sock *sk, struct sk_buff *skb)
 	}
 
 	tcp_v4_send_ack(sk, skb,
-			tcptw->tw_snd_nxt, tcptw->tw_rcv_nxt,
+			tcptw->tw_snd_nxt, READ_ONCE(tcptw->tw_rcv_nxt),
 			tcptw->tw_rcv_wnd >> tw->tw_rcv_wscale,
 			tcp_tw_tsval(tcptw),
 			READ_ONCE(tcptw->tw_ts_recent),
