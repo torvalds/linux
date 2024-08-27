@@ -117,7 +117,7 @@ tcp_timewait_state_process(struct inet_timewait_sock *tw, struct sk_buff *skb,
 		}
 	}
 
-	if (tw->tw_substate == TCP_FIN_WAIT2) {
+	if (READ_ONCE(tw->tw_substate) == TCP_FIN_WAIT2) {
 		/* Just repeat all the checks of tcp_rcv_state_process() */
 
 		/* Out of window, send ACK */
@@ -150,7 +150,7 @@ tcp_timewait_state_process(struct inet_timewait_sock *tw, struct sk_buff *skb,
 			return TCP_TW_RST;
 
 		/* FIN arrived, enter true time-wait state. */
-		tw->tw_substate	  = TCP_TIME_WAIT;
+		WRITE_ONCE(tw->tw_substate, TCP_TIME_WAIT);
 		twsk_rcv_nxt_update(tcptw, TCP_SKB_CB(skb)->end_seq);
 
 		if (tmp_opt.saw_tstamp) {

@@ -2258,7 +2258,7 @@ static void get_timewait6_sock(struct seq_file *seq,
 		   src->s6_addr32[2], src->s6_addr32[3], srcp,
 		   dest->s6_addr32[0], dest->s6_addr32[1],
 		   dest->s6_addr32[2], dest->s6_addr32[3], destp,
-		   tw->tw_substate, 0, 0,
+		   READ_ONCE(tw->tw_substate), 0, 0,
 		   3, jiffies_delta_to_clock_t(delta), 0, 0, 0, 0,
 		   refcount_read(&tw->tw_refcnt), tw);
 }
