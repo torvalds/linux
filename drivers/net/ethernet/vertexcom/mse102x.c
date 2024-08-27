@@ -622,8 +622,6 @@ static const struct ethtool_ops mse102x_ethtool_ops = {
 
 /* driver bus management functions */
 
-#ifdef CONFIG_PM_SLEEP
-
 static int mse102x_suspend(struct device *dev)
 {
 	struct mse102x_net *mse = dev_get_drvdata(dev);
@@ -649,9 +647,8 @@ static int mse102x_resume(struct device *dev)
 
 	return 0;
 }
-#endif
 
-static SIMPLE_DEV_PM_OPS(mse102x_pm_ops, mse102x_suspend, mse102x_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(mse102x_pm_ops, mse102x_suspend, mse102x_resume);
 
 static int mse102x_probe_spi(struct spi_device *spi)
 {
@@ -761,7 +758,7 @@ static struct spi_driver mse102x_driver = {
 	.driver = {
 		.name = DRV_NAME,
 		.of_match_table = mse102x_match_table,
-		.pm = &mse102x_pm_ops,
+		.pm = pm_sleep_ptr(&mse102x_pm_ops),
 	},
 	.probe = mse102x_probe_spi,
 	.remove = mse102x_remove_spi,
