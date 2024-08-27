@@ -1209,9 +1209,11 @@ static void pci_enable_crs(struct pci_dev *pdev)
 
 	/* Enable CRS Software Visibility if supported */
 	pcie_capability_read_word(pdev, PCI_EXP_RTCAP, &root_cap);
-	if (root_cap & PCI_EXP_RTCAP_CRSVIS)
+	if (root_cap & PCI_EXP_RTCAP_CRSVIS) {
 		pcie_capability_set_word(pdev, PCI_EXP_RTCTL,
 					 PCI_EXP_RTCTL_CRSSVE);
+		pdev->config_crs_sv = 1;
+	}
 }
 
 static unsigned int pci_scan_child_bus_extend(struct pci_bus *bus,
@@ -2342,11 +2344,6 @@ struct pci_dev *pci_alloc_dev(struct pci_bus *bus)
 	return dev;
 }
 EXPORT_SYMBOL(pci_alloc_dev);
-
-static bool pci_bus_crs_vendor_id(u32 l)
-{
-	return (l & 0xffff) == PCI_VENDOR_ID_PCI_SIG;
-}
 
 static bool pci_bus_wait_crs(struct pci_bus *bus, int devfn, u32 *l,
 			     int timeout)

@@ -139,6 +139,11 @@ bool pci_bridge_d3_possible(struct pci_dev *dev);
 void pci_bridge_d3_update(struct pci_dev *dev);
 int pci_bridge_wait_for_secondary_bus(struct pci_dev *dev, char *reset_type);
 
+static inline bool pci_bus_crs_vendor_id(u32 l)
+{
+	return (l & 0xffff) == PCI_VENDOR_ID_PCI_SIG;
+}
+
 static inline void pci_wakeup_event(struct pci_dev *dev)
 {
 	/* Wait 100 ms before the system can be put into a sleep state. */
