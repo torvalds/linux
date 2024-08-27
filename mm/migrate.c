@@ -178,6 +178,32 @@ void putback_movable_pages(struct list_head *l)
 	}
 }
 
+/* Must be called with an elevated refcount on the non-hugetlb folio */
+bool isolate_folio_to_list(struct folio *folio, struct list_head *list)
+{
+	bool isolated, lru;
+
+	if (folio_test_hugetlb(folio))
+		return isolate_hugetlb(folio, list);
+
+	lru = !__folio_test_movable(folio);
+	if (lru)
+		isolated = folio_isolate_lru(folio);
+	else
+		isolated = isolate_movable_page(&folio->page,
+						ISOLATE_UNEVICTABLE);
+
+	if (!isolated)
+		return false;
+
+	list_add(&folio->lru, list);
+	if (lru)
+		node_stat_add_folio(folio, NR_ISOLATED_ANON +
+				    folio_is_file_lru(folio));
+
+	return true;
+}
+
 /*
  * Restore a potential migration pte to a working pte entry
  */
