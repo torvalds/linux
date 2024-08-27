@@ -39,7 +39,9 @@ TMPFILE2=$(mktemp)
 TMPFILE3=$(mktemp)
 
 TMPINPUT=$(mktemp)
-dd conv=sparse status=none if=/dev/zero bs=1M count=200 of="$TMPINPUT"
+COUNT=200
+[ "$KSFT_MACHINE_SLOW" = "yes" ] && COUNT=25
+dd conv=sparse status=none if=/dev/zero bs=1M count=$COUNT of="$TMPINPUT"
 
 if ! ip link add veth0 netns "$nsrouter" type veth peer name eth0 netns "$ns1" > /dev/null 2>&1; then
     echo "SKIP: No virtual ethernet pair device support in kernel"
