@@ -444,6 +444,10 @@ static int mclk_id_override = -1;
 module_param_named(mclk_id, mclk_id_override, int, 0444);
 MODULE_PARM_DESC(mclk_id, "SOF SSP mclk_id");
 
+static int bt_link_mask_override;
+module_param_named(bt_link_mask, bt_link_mask_override, int, 0444);
+MODULE_PARM_DESC(bt_link_mask, "SOF BT offload link mask");
+
 static int hda_init(struct snd_sof_dev *sdev)
 {
 	struct hda_bus *hbus;
@@ -529,7 +533,7 @@ static int check_dmic_num(struct snd_sof_dev *sdev)
 	return dmic_num;
 }
 
-static int check_nhlt_ssp_mask(struct snd_sof_dev *sdev)
+static int check_nhlt_ssp_mask(struct snd_sof_dev *sdev, u8 device_type)
 {
 	struct sof_intel_hda_dev *hdev = sdev->pdata->hw_pdata;
 	struct nhlt_acpi_table *nhlt;
@@ -540,9 +544,11 @@ static int check_nhlt_ssp_mask(struct snd_sof_dev *sdev)
 		return ssp_mask;
 
 	if (intel_nhlt_has_endpoint_type(nhlt, NHLT_LINK_SSP)) {
-		ssp_mask = intel_nhlt_ssp_endpoint_mask(nhlt, NHLT_DEVICE_I2S);
+		ssp_mask = intel_nhlt_ssp_endpoint_mask(nhlt, device_type);
 		if (ssp_mask)
-			dev_info(sdev->dev, "NHLT_DEVICE_I2S detected, ssp_mask %#x\n", ssp_mask);
+			dev_info(sdev->dev, "NHLT device %s(%d) detected, ssp_mask %#x\n",
+				 device_type == NHLT_DEVICE_BT ? "BT" : "I2S",
+				 device_type, ssp_mask);
 	}
 
 	return ssp_mask;
@@ -1235,8 +1241,29 @@ struct snd_soc_acpi_mach *hda_machine_select(struct snd_sof_dev *sdev)
 	 * Otherwise, set certain mach params.
 	 */
 	hda_generic_machine_select(sdev, &mach);
-	if (!mach)
+	if (!mach) {
 		dev_warn(sdev->dev, "warning: No matching ASoC machine driver found\n");
+		return NULL;
+	}
+
+	/* report BT offload link mask to machine driver */
+	mach->mach_params.bt_link_mask = check_nhlt_ssp_mask(sdev, NHLT_DEVICE_BT);
+
+	dev_info(sdev->dev, "BT link detected in NHLT tables: %#x\n",
+		 mach->mach_params.bt_link_mask);
+
+	/* allow for module parameter override */
+	if (bt_link_mask_override) {
+		dev_dbg(sdev->dev, "overriding BT link detected in NHLT tables %#x by kernel param %#x\n",
+			mach->mach_params.bt_link_mask, bt_link_mask_override);
+		mach->mach_params.bt_link_mask = bt_link_mask_override;
+	}
+
+	if (hweight_long(mach->mach_params.bt_link_mask) > 1) {
+		dev_warn(sdev->dev, "invalid BT link mask %#x found, reset the mask\n",
+			mach->mach_params.bt_link_mask);
+		mach->mach_params.bt_link_mask = 0;
+	}
 
 	/*
 	 * Fixup tplg file name by appending dmic num, ssp num, codec/amplifier
@@ -1312,7 +1339,7 @@ struct snd_soc_acpi_mach *hda_machine_select(struct snd_sof_dev *sdev)
 		}
 
 		/* report SSP link mask to machine driver */
-		mach->mach_params.i2s_link_mask = check_nhlt_ssp_mask(sdev);
+		mach->mach_params.i2s_link_mask = check_nhlt_ssp_mask(sdev, NHLT_DEVICE_I2S);
 
 		if (tplg_fixup &&
 		    mach->tplg_quirk_mask & SND_SOC_ACPI_TPLG_INTEL_SSP_NUMBER &&
