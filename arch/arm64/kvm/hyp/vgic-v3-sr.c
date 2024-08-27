@@ -1042,6 +1042,75 @@ static void __vgic_v3_write_ctlr(struct kvm_vcpu *vcpu, u32 vmcr, int rt)
 	write_gicreg(vmcr, ICH_VMCR_EL2);
 }
 
+static bool __vgic_v3_check_trap_forwarding(struct kvm_vcpu *vcpu,
+					    u32 sysreg, bool is_read)
+{
+	u64 ich_hcr;
+
+	if (!vcpu_has_nv(vcpu) || is_hyp_ctxt(vcpu))
+		return false;
+
+	ich_hcr = __vcpu_sys_reg(vcpu, ICH_HCR_EL2);
+
+	switch (sysreg) {
+	case SYS_ICC_IGRPEN0_EL1:
+		if (is_read &&
+		    (__vcpu_sys_reg(vcpu, HFGRTR_EL2) & HFGxTR_EL2_ICC_IGRPENn_EL1))
+			return true;
+
+		if (!is_read &&
+		    (__vcpu_sys_reg(vcpu, HFGWTR_EL2) & HFGxTR_EL2_ICC_IGRPENn_EL1))
+			return true;
+
+		fallthrough;
+
+	case SYS_ICC_AP0Rn_EL1(0):
+	case SYS_ICC_AP0Rn_EL1(1):
+	case SYS_ICC_AP0Rn_EL1(2):
+	case SYS_ICC_AP0Rn_EL1(3):
+	case SYS_ICC_BPR0_EL1:
+	case SYS_ICC_EOIR0_EL1:
+	case SYS_ICC_HPPIR0_EL1:
+	case SYS_ICC_IAR0_EL1:
+		return ich_hcr & ICH_HCR_TALL0;
+
+	case SYS_ICC_IGRPEN1_EL1:
+		if (is_read &&
+		    (__vcpu_sys_reg(vcpu, HFGRTR_EL2) & HFGxTR_EL2_ICC_IGRPENn_EL1))
+			return true;
+
+		if (!is_read &&
+		    (__vcpu_sys_reg(vcpu, HFGWTR_EL2) & HFGxTR_EL2_ICC_IGRPENn_EL1))
+			return true;
+
+		fallthrough;
+
+	case SYS_ICC_AP1Rn_EL1(0):
+	case SYS_ICC_AP1Rn_EL1(1):
+	case SYS_ICC_AP1Rn_EL1(2):
+	case SYS_ICC_AP1Rn_EL1(3):
+	case SYS_ICC_BPR1_EL1:
+	case SYS_ICC_EOIR1_EL1:
+	case SYS_ICC_HPPIR1_EL1:
+	case SYS_ICC_IAR1_EL1:
+		return ich_hcr & ICH_HCR_TALL1;
+
+	case SYS_ICC_DIR_EL1:
+		if (ich_hcr & ICH_HCR_TDIR)
+			return true;
+
+		fallthrough;
+
+	case SYS_ICC_RPR_EL1:
+	case SYS_ICC_CTLR_EL1:
+	case SYS_ICC_PMR_EL1:
+		return ich_hcr & ICH_HCR_TC;
+
+	default:
+		return false;
+	}
+}
+
 int __vgic_v3_perform_cpuif_access(struct kvm_vcpu *vcpu)
 {
 	int rt;
@@ -1064,6 +1133,9 @@ int __vgic_v3_perform_cpuif_access(struct kvm_vcpu *vcpu)
 	}
 
 	is_read = (esr & ESR_ELx_SYS64_ISS_DIR_MASK) == ESR_ELx_SYS64_ISS_DIR_READ;
+
+	if (__vgic_v3_check_trap_forwarding(vcpu, sysreg, is_read))
+		return 0;
 
 	switch (sysreg) {
 	case SYS_ICC_IAR0_EL1:
