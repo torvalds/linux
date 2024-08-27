@@ -129,18 +129,16 @@ static int mailbox_chan_validate(struct device *cdev, int *a2p_rx_chan,
 
 	/* Bail out if provided shmem descriptors do not refer distinct areas  */
 	if (num_sh > 1) {
-		struct device_node *np_tx, *np_rx;
+		struct device_node *np_tx __free(device_node) =
+					of_parse_phandle(np, "shmem", 0);
+		struct device_node *np_rx __free(device_node) =
+					of_parse_phandle(np, "shmem", 1);
 
-		np_tx = of_parse_phandle(np, "shmem", 0);
-		np_rx = of_parse_phandle(np, "shmem", 1);
 		if (!np_tx || !np_rx || np_tx == np_rx) {
 			dev_warn(cdev, "Invalid shmem descriptor for '%s'\n",
 				 of_node_full_name(np));
 			ret = -EINVAL;
 		}
-
-		of_node_put(np_tx);
-		of_node_put(np_rx);
 	}
 
 	/* Calculate channels IDs to use depending on mboxes/shmem layout */
