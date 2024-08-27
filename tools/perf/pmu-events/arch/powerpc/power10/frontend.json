@@ -85,6 +85,11 @@
     "BriefDescription": "Vector store instruction completed."
   },
   {
+    "EventCode": "0x4D05E",
+    "EventName": "PM_BR_CMPL",
+    "BriefDescription": "A branch completed. All branches are included."
+  },
+  {
     "EventCode": "0x4E054",
     "EventName": "PM_DTLB_HIT_1G",
     "BriefDescription": "Data TLB hit (DERAT reload) page size 1G. Implies radix translation. When MMCR1[16]=0 this event counts only for demand misses. When MMCR1[16]=1 this event includes demand misses and prefetches."
@@ -93,6 +98,11 @@
     "EventCode": "0x400FC",
     "EventName": "PM_ITLB_MISS",
     "BriefDescription": "Instruction TLB reload (after a miss), all page sizes. Includes only demand misses."
+  },
+  {
+    "EventCode": "0x00000048B4",
+    "EventName": "PM_BR_TKN_UNCOND_FIN",
+    "BriefDescription": "An unconditional branch finished. All unconditional branches are taken."
   },
   {
     "EventCode": "0x00000040B8",

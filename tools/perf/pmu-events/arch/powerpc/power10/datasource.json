@@ -1,5 +1,15 @@
 [
   {
+    "EventCode": "0x1505E",
+    "EventName": "PM_LD_HIT_L1",
+    "BriefDescription": "Load  finished without experiencing an L1 miss."
+  },
+  {
+    "EventCode": "0x100FC",
+    "EventName": "PM_LD_REF_L1",
+    "BriefDescription": "All L1 D cache load references counted at finish, gated by reject. In P9 and earlier this event counted only cacheable loads but in P10 both cacheable and non-cacheable loads are included."
+  },
+  {
     "EventCode": "0x200FE",
     "EventName": "PM_DATA_FROM_L2MISS",
     "BriefDescription": "The processor's L1 data cache was reloaded from a source beyond the local core's L2 due to a demand miss."
@@ -8,6 +18,11 @@
     "EventCode": "0x300FE",
     "EventName": "PM_DATA_FROM_L3MISS",
     "BriefDescription": "The processor's L1 data cache was reloaded from beyond the local core's L3 due to a demand miss."
+  },
+  {
+    "EventCode": "0x400F0",
+    "EventName": "PM_LD_DEMAND_MISS_L1_FIN",
+    "BriefDescription": "Load missed L1, counted at finish time."
   },
   {
     "EventCode": "0x400FE",

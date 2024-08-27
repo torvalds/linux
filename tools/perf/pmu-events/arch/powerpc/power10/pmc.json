@@ -130,6 +130,11 @@
     "BriefDescription": "The event selected for PMC6 caused the event counter to overflow."
   },
   {
+    "EventCode": "0x3405A",
+    "EventName": "PM_PRIVILEGED_INST_CMPL",
+    "BriefDescription": "PowerPC instruction completed while the thread was in Privileged state."
+  },
+  {
     "EventCode": "0x3006C",
     "EventName": "PM_RUN_CYC_SMT2_MODE",
     "BriefDescription": "Cycles when this thread's run latch is set and the core is in SMT2 mode."
