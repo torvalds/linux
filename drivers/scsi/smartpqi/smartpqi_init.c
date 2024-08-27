@@ -6200,14 +6200,12 @@ static void pqi_fail_io_queued_for_device(struct pqi_ctrl_info *ctrl_info,
 					continue;
 
 				scsi_device = scmd->device->hostdata;
-				if (scsi_device != device)
-					continue;
-
-				if ((u8)scmd->device->lun != lun)
-					continue;
 
 				list_del(&io_request->request_list_entry);
-				set_host_byte(scmd, DID_RESET);
+				if (scsi_device == device && (u8)scmd->device->lun == lun)
+					set_host_byte(scmd, DID_RESET);
+				else
+					set_host_byte(scmd, DID_REQUEUE);
 				pqi_free_io_request(io_request);
 				scsi_dma_unmap(scmd);
 				pqi_scsi_done(scmd);
