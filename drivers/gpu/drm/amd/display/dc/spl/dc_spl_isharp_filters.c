@@ -2,7 +2,6 @@
 //
 // Copyright 2024 Advanced Micro Devices, Inc.
 
-#include "dc_spl_types.h"
 #include "dc_spl_isharp_filters.h"
 
 //========================================

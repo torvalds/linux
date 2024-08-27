@@ -2,30 +2,13 @@
 //
 // Copyright 2024 Advanced Micro Devices, Inc.
 
-#include "os_types.h"
-#include "dc_hw_types.h"
+#include "os_types.h"   // swap
 #ifndef ASSERT
-#define ASSERT(_bool) (void *)0
+#define ASSERT(_bool) ((void *)0)
 #endif
 #include "include/fixed31_32.h"	// fixed31_32 and related functions
 #ifndef __DC_SPL_TYPES_H__
 #define __DC_SPL_TYPES_H__
-
-enum lb_memory_config {
-	/* Enable all 3 pieces of memory */
-	LB_MEMORY_CONFIG_0 = 0,
-
-	/* Enable only the first piece of memory */
-	LB_MEMORY_CONFIG_1 = 1,
-
-	/* Enable only the second piece of memory */
-	LB_MEMORY_CONFIG_2 = 2,
-
-	/* Only applicable in 4:2:0 mode, enable all 3 pieces of memory and the
-	 * last piece of chroma memory used for the luma storage
-	 */
-	LB_MEMORY_CONFIG_3 = 3
-};
 
 struct spl_size {
 	uint32_t width;
@@ -88,6 +71,22 @@ enum spl_pixel_format {
 	SPL_PIXEL_FORMAT_UNKNOWN
 };
 
+enum lb_memory_config {
+	/* Enable all 3 pieces of memory */
+	LB_MEMORY_CONFIG_0 = 0,
+
+	/* Enable only the first piece of memory */
+	LB_MEMORY_CONFIG_1 = 1,
+
+	/* Enable only the second piece of memory */
+	LB_MEMORY_CONFIG_2 = 2,
+
+	/* Only applicable in 4:2:0 mode, enable all 3 pieces of memory and the
+	 * last piece of chroma memory used for the luma storage
+	 */
+	LB_MEMORY_CONFIG_3 = 3
+};
+
 /* Rotation angle */
 enum spl_rotation_angle {
 	SPL_ROTATION_ANGLE_0 = 0,
@@ -118,6 +117,13 @@ enum spl_color_space {
 	SPL_COLOR_SPACE_APPCTRL,
 	SPL_COLOR_SPACE_CUSTOMPOINTS,
 	SPL_COLOR_SPACE_YCBCR709_BLACK,
+};
+
+enum chroma_cositing {
+	CHROMA_COSITING_NONE,
+	CHROMA_COSITING_LEFT,
+	CHROMA_COSITING_TOPLEFT,
+	CHROMA_COSITING_COUNT
 };
 
 // Scratch space for calculating scaler params

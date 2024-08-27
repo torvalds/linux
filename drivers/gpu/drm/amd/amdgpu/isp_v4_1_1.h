@@ -32,7 +32,18 @@
 
 #include "ivsrcid/isp/irqsrcs_isp_4_1.h"
 
+#define MAX_ISP411_MEM_RES 2
+#define MAX_ISP411_SENSOR_RES 1
 #define MAX_ISP411_INT_SRC 8
+
+#define ISP411_PHY0_OFFSET 0x66700
+#define ISP411_PHY0_SIZE   0xD30
+
+#define ISP411_I2C0_OFFSET 0x66400
+#define ISP411_I2C0_SIZE 0x100
+
+#define ISP411_GPIO_SENSOR0_OFFSET 0x6613C
+#define ISP411_GPIO_SENSOR0_SIZE 0x4
 
 void isp_v4_1_1_set_isp_funcs(struct amdgpu_isp *isp);
 

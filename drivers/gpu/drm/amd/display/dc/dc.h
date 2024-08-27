@@ -55,7 +55,7 @@ struct aux_payload;
 struct set_config_cmd_payload;
 struct dmub_notification;
 
-#define DC_VER "3.2.291"
+#define DC_VER "3.2.297"
 
 #define MAX_SURFACES 3
 #define MAX_PLANES 6
@@ -261,10 +261,7 @@ struct dc_caps {
 	bool zstate_support;
 	bool ips_support;
 	uint32_t num_of_internal_disp;
-	uint32_t max_dwb_htap;
-	uint32_t max_dwb_vtap;
 	enum dp_protocol_version max_dp_protocol_version;
-	bool spdif_aud;
 	unsigned int mall_size_per_mem_channel;
 	unsigned int mall_size_total;
 	unsigned int cursor_cache_size;
@@ -309,8 +306,6 @@ struct dc_bug_wa {
 		uint8_t dcfclk_ds: 1;
 	} clock_update_disable_mask;
 	bool skip_psr_ips_crtc_disable;
-	//Customer Specific WAs
-	uint32_t force_backlight_start_level;
 };
 struct dc_dcc_surface_param {
 	struct dc_size surface_size;
@@ -466,6 +461,7 @@ struct dc_config {
 	bool use_assr_psp_message;
 	bool support_edp0_on_dp1;
 	unsigned int enable_fpo_flicker_detection;
+	bool disable_hbr_audio_dp2;
 };
 
 enum visual_confirm {
@@ -513,6 +509,7 @@ enum in_game_fams_config {
 	INGAME_FAMS_SINGLE_DISP_ENABLE, // enable in-game fams
 	INGAME_FAMS_DISABLE, // disable in-game fams
 	INGAME_FAMS_MULTI_DISP_ENABLE, //enable in-game fams for multi-display
+	INGAME_FAMS_MULTI_DISP_CLAMPED_ONLY, //enable in-game fams for multi-display only for clamped RR strategies
 };
 
 /**
@@ -981,6 +978,7 @@ struct dc_debug_options {
 	bool disable_z10;
 	bool enable_z9_disable_interface;
 	bool psr_skip_crtc_disable;
+	uint32_t ips_skip_crtc_disable_mask;
 	union dpia_debug_options dpia_debug;
 	bool disable_fixed_vs_aux_timeout_wa;
 	uint32_t fixed_vs_aux_delay_config_wa;
@@ -1055,6 +1053,7 @@ struct dc_debug_options {
 	unsigned int force_sharpness;
 	unsigned int force_lls;
 	bool notify_dpia_hr_bw;
+	bool enable_ips_visual_confirm;
 };
 
 
@@ -1291,7 +1290,7 @@ struct dc_plane_state {
 
 	struct dc_gamma gamma_correction;
 	struct dc_transfer_func in_transfer_func;
-	struct dc_bias_and_scale *bias_and_scale;
+	struct dc_bias_and_scale bias_and_scale;
 	struct dc_csc_transform input_csc_color_matrix;
 	struct fixed31_32 coeff_reduction_factor;
 	struct fixed31_32 hdr_mult;
@@ -1368,7 +1367,6 @@ struct dc_plane_info {
 	int  global_alpha_value;
 	bool input_csc_enabled;
 	int layer_index;
-	bool front_buffer_rendering_active;
 	enum chroma_cositing cositing;
 };
 
@@ -1585,6 +1583,12 @@ bool dc_acquire_release_mpc_3dlut(
 bool dc_resource_is_dsc_encoding_supported(const struct dc *dc);
 void get_audio_check(struct audio_info *aud_modes,
 	struct audio_check *aud_chk);
+
+bool fast_nonaddr_updates_exist(struct dc_fast_update *fast_update, int surface_count);
+void populate_fast_updates(struct dc_fast_update *fast_update,
+		struct dc_surface_update *srf_updates,
+		int surface_count,
+		struct dc_stream_update *stream_update);
 /*
  * Set up streams and links associated to drive sinks
  * The streams parameter is an absolute set of all active streams.
@@ -1756,6 +1760,7 @@ struct dc_link {
 		bool dongle_mode_timing_override;
 		bool blank_stream_on_ocs_change;
 		bool read_dpcd204h_on_irq_hpd;
+		bool disable_assr_for_uhbr;
 	} wa_flags;
 	struct link_mst_stream_allocation_table mst_stream_alloc_table;
 

@@ -1070,6 +1070,20 @@ static void program_trap_handler_settings(struct amdgpu_device *adev,
 	unlock_srbm(adev);
 }
 
+uint64_t kgd_gfx_v10_hqd_get_pq_addr(struct amdgpu_device *adev,
+				     uint32_t pipe_id, uint32_t queue_id,
+				     uint32_t inst)
+{
+	return 0;
+}
+
+uint64_t kgd_gfx_v10_hqd_reset(struct amdgpu_device *adev,
+			       uint32_t pipe_id, uint32_t queue_id,
+			       uint32_t inst, unsigned int utimeout)
+{
+	return 0;
+}
+
 const struct kfd2kgd_calls gfx_v10_kfd2kgd = {
 	.program_sh_mem_settings = kgd_program_sh_mem_settings,
 	.set_pasid_vmid_mapping = kgd_set_pasid_vmid_mapping,
@@ -1097,4 +1111,6 @@ const struct kfd2kgd_calls gfx_v10_kfd2kgd = {
 	.get_iq_wait_times = kgd_gfx_v10_get_iq_wait_times,
 	.build_grace_period_packet_info = kgd_gfx_v10_build_grace_period_packet_info,
 	.program_trap_handler_settings = program_trap_handler_settings,
+	.hqd_get_pq_addr = kgd_gfx_v10_hqd_get_pq_addr,
+	.hqd_reset = kgd_gfx_v10_hqd_reset
 };

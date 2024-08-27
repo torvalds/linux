@@ -505,6 +505,9 @@ static void radeon_add_common_modes(struct drm_encoder *encoder, struct drm_conn
 			continue;
 
 		mode = drm_cvt_mode(dev, common_modes[i].w, common_modes[i].h, 60, false, false, false);
+		if (!mode)
+			continue;
+
 		drm_mode_probed_add(connector, mode);
 	}
 }
@@ -1056,7 +1059,7 @@ radeon_vga_detect(struct drm_connector *connector, bool force)
 	 */
 	if ((!rdev->is_atom_bios) &&
 	    (ret == connector_status_disconnected) &&
-	    rdev->mode_info.bios_hardcoded_edid_size) {
+	    rdev->mode_info.bios_hardcoded_edid) {
 		ret = connector_status_connected;
 	}
 
@@ -1389,7 +1392,7 @@ radeon_dvi_detect(struct drm_connector *connector, bool force)
 out:
 	if ((!rdev->is_atom_bios) &&
 	    (ret == connector_status_disconnected) &&
-	    rdev->mode_info.bios_hardcoded_edid_size) {
+	    rdev->mode_info.bios_hardcoded_edid) {
 		radeon_connector->use_digital = true;
 		ret = connector_status_connected;
 	}

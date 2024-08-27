@@ -305,16 +305,17 @@ bool edp_is_ilr_optimization_enabled(struct dc_link *link)
 	return true;
 }
 
-enum dc_link_rate get_max_link_rate_from_ilr_table(struct dc_link *link)
+enum dc_link_rate get_max_edp_link_rate(struct dc_link *link)
 {
-	enum dc_link_rate link_rate = link->reported_link_cap.link_rate;
+	enum dc_link_rate max_ilr_rate = LINK_RATE_UNKNOWN;
+	enum dc_link_rate max_non_ilr_rate = dp_get_max_link_cap(link).link_rate;
 
 	for (int i = 0; i < link->dpcd_caps.edp_supported_link_rates_count; i++) {
-		if (link_rate < link->dpcd_caps.edp_supported_link_rates[i])
-			link_rate = link->dpcd_caps.edp_supported_link_rates[i];
+		if (max_ilr_rate < link->dpcd_caps.edp_supported_link_rates[i])
+			max_ilr_rate = link->dpcd_caps.edp_supported_link_rates[i];
 	}
 
-	return link_rate;
+	return (max_ilr_rate > max_non_ilr_rate ? max_ilr_rate : max_non_ilr_rate);
 }
 
 bool edp_is_ilr_optimization_required(struct dc_link *link,
@@ -1167,6 +1168,9 @@ static void edp_set_assr_enable(const struct dc *pDC, struct dc_link *link,
 	link_enc_index = link->link_enc->transmitter - TRANSMITTER_UNIPHY_A;
 
 	if (link_res->hpo_dp_link_enc) {
+		if (link->wa_flags.disable_assr_for_uhbr)
+			return;
+
 		link_enc_index = link_res->hpo_dp_link_enc->inst;
 		use_hpo_dp_link_enc = true;
 	}

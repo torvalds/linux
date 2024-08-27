@@ -153,7 +153,7 @@ unsigned int dml2_util_get_maximum_odm_combine_for_output(bool force_odm_4to1, e
 	}
 }
 
-bool is_dp2p0_output_encoder(const struct pipe_ctx *pipe_ctx)
+bool is_dp2p0_output_encoder(const struct pipe_ctx *pipe_ctx, unsigned int dp2_mst_stream_count)
 {
 	if (pipe_ctx == NULL || pipe_ctx->stream == NULL)
 		return false;
@@ -162,7 +162,7 @@ bool is_dp2p0_output_encoder(const struct pipe_ctx *pipe_ctx)
 	ASSERT(pipe_ctx->stream_res.hpo_dp_stream_enc ? pipe_ctx->link_res.hpo_dp_link_enc != NULL : true);
 
 	/* Count MST hubs once by treating only 1st remote sink in topology as an encoder */
-	if (pipe_ctx->stream->link && pipe_ctx->stream->link->remote_sinks[0]) {
+	if (pipe_ctx->stream->link && pipe_ctx->stream->link->remote_sinks[0] && dp2_mst_stream_count > 1) {
 		return (pipe_ctx->stream_res.hpo_dp_stream_enc &&
 			pipe_ctx->link_res.hpo_dp_link_enc &&
 			dc_is_dp_signal(pipe_ctx->stream->signal) &&
@@ -181,7 +181,7 @@ bool is_dtbclk_required(const struct dc *dc, struct dc_state *context)
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		if (!context->res_ctx.pipe_ctx[i].stream)
 			continue;
-		if (is_dp2p0_output_encoder(&context->res_ctx.pipe_ctx[i]))
+		if (is_dp2p0_output_encoder(&context->res_ctx.pipe_ctx[i], context->bw_ctx.dml2->v20.scratch.dp2_mst_stream_count))
 			return true;
 	}
 	return false;
@@ -421,7 +421,7 @@ unsigned int dml2_calc_max_scaled_time(
 
 void dml2_extract_writeback_wm(struct dc_state *context, struct display_mode_lib_st *dml_core_ctx)
 {
-	int i, j = 0;;
+	int i, j = 0;
 	struct mcif_arb_params *wb_arb_params = NULL;
 	struct dcn_bw_writeback *bw_writeback = NULL;
 	enum mmhubbub_wbif_mode wbif_mode = PACKED_444_FP16; /*for now*/

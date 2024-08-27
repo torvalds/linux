@@ -2,7 +2,6 @@
 //
 // Copyright 2024 Advanced Micro Devices, Inc.
 
-
 #include "dml2_mcg_dcn4.h"
 #include "dml_top_soc_parameter_types.h"
 

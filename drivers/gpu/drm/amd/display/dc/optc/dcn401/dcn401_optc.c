@@ -396,13 +396,47 @@ void optc401_set_vtotal_min_max(struct timing_generator *optc, int vtotal_min, i
 	}
 }
 
+static void optc401_program_global_sync(
+		struct timing_generator *optc,
+		int vready_offset,
+		int vstartup_start,
+		int vupdate_offset,
+		int vupdate_width,
+		int pstate_keepout)
+{
+	struct optc *optc1 = DCN10TG_FROM_TG(optc);
+
+	optc1->vready_offset = vready_offset;
+	optc1->vstartup_start = vstartup_start;
+	optc1->vupdate_offset = vupdate_offset;
+	optc1->vupdate_width = vupdate_width;
+	optc1->pstate_keepout = pstate_keepout;
+
+	if (optc1->vstartup_start == 0) {
+		BREAK_TO_DEBUGGER();
+		return;
+	}
+
+	REG_SET(OTG_VSTARTUP_PARAM, 0,
+		VSTARTUP_START, optc1->vstartup_start);
+
+	REG_SET_2(OTG_VUPDATE_PARAM, 0,
+			VUPDATE_OFFSET, optc1->vupdate_offset,
+			VUPDATE_WIDTH, optc1->vupdate_width);
+
+	REG_SET(OTG_VREADY_PARAM, 0,
+			VREADY_OFFSET, optc1->vready_offset);
+
+	REG_UPDATE(OTG_PSTATE_REGISTER, OTG_PSTATE_KEEPOUT_START, pstate_keepout);
+}
+
 static struct timing_generator_funcs dcn401_tg_funcs = {
 		.validate_timing = optc1_validate_timing,
 		.program_timing = optc1_program_timing,
 		.setup_vertical_interrupt0 = optc1_setup_vertical_interrupt0,
 		.setup_vertical_interrupt1 = optc1_setup_vertical_interrupt1,
 		.setup_vertical_interrupt2 = optc1_setup_vertical_interrupt2,
-		.program_global_sync = optc1_program_global_sync,
+		.program_global_sync = optc401_program_global_sync,
 		.enable_crtc = optc401_enable_crtc,
 		.disable_crtc = optc401_disable_crtc,
 		.phantom_crtc_post_enable = optc401_phantom_crtc_post_enable,
