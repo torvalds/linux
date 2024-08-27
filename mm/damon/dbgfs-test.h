@@ -116,6 +116,11 @@ static void damon_dbgfs_test_set_init_regions(struct kunit *test)
 	int i, rc;
 	char buf[256];
 
+	if (!damon_is_registered_ops(DAMON_OPS_PADDR)) {
+		damon_destroy_ctx(ctx);
+		kunit_skip(test, "PADDR not registered");
+	}
+
 	damon_select_ops(ctx, DAMON_OPS_PADDR);
 
 	dbgfs_set_targets(ctx, 3, NULL);
