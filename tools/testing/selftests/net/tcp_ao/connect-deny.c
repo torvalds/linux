@@ -71,10 +71,12 @@ static void try_accept(const char *tst_name, unsigned int port, const char *pwd,
 		}
 	}
 
+	synchronize_threads(); /* before counter checks */
 	if (pwd && test_get_tcp_ao_counters(lsk, &ao_cnt2))
 		test_error("test_get_tcp_ao_counters()");
 
 	close(lsk);
+
 	if (pwd)
 		test_tcp_ao_counters_cmp(tst_name, &ao_cnt1, &ao_cnt2, cnt_expected);
 
@@ -84,10 +86,10 @@ static void try_accept(const char *tst_name, unsigned int port, const char *pwd,
 	after_cnt = netstat_get_one(cnt_name, NULL);
 
 	if (after_cnt <= before_cnt) {
-		test_fail("%s: %s counter did not increase: %zu <= %zu",
+		test_fail("%s: %s counter did not increase: %" PRIu64 " <= %" PRIu64,
 				tst_name, cnt_name, after_cnt, before_cnt);
 	} else {
-		test_ok("%s: counter %s increased %zu => %zu",
+		test_ok("%s: counter %s increased %" PRIu64  " => %" PRIu64,
 			tst_name, cnt_name, before_cnt, after_cnt);
 	}
 
@@ -180,6 +182,7 @@ static void try_connect(const char *tst_name, unsigned int port,
 	timeout = fault(TIMEOUT) ? TEST_RETRANSMIT_SEC : TEST_TIMEOUT_SEC;
 	ret = _test_connect_socket(sk, this_ip_dest, port, timeout);
 
+	synchronize_threads(); /* before counter checks */
 	if (ret < 0) {
 		if (fault(KEYREJECT) && ret == -EKEYREJECTED) {
 			test_ok("%s: connect() was prevented", tst_name);
@@ -212,30 +215,44 @@ out:
 
 static void *client_fn(void *arg)
 {
-	union tcp_addr wrong_addr, network_addr;
+	union tcp_addr wrong_addr, network_addr, addr_any = {};
 	unsigned int port = test_server_port;
 
 	if (inet_pton(TEST_FAMILY, TEST_WRONG_IP, &wrong_addr) != 1)
 		test_error("Can't convert ip address %s", TEST_WRONG_IP);
 
+	trace_ao_event_expect(TCP_AO_KEY_NOT_FOUND, this_ip_addr, this_ip_dest,
+			      -1, port, 0, 0, 1, 0, 0, 0, 100, 100, -1);
 	try_connect("Non-AO server + AO client", port++, DEFAULT_TEST_PASSWORD,
 			this_ip_dest, -1, 100, 100, 0, FAULT_TIMEOUT);
 
+	trace_hash_event_expect(TCP_HASH_AO_REQUIRED, this_ip_addr, this_ip_dest,
+				-1, port, 0, 0, 1, 0, 0, 0);
 	try_connect("AO server + Non-AO client", port++, NULL,
 			this_ip_dest, -1, 100, 100, 0, FAULT_TIMEOUT);
 
+	trace_ao_event_expect(TCP_AO_MISMATCH, this_ip_addr, this_ip_dest,
+			      -1, port, 0, 0, 1, 0, 0, 0, 100, 100, -1);
 	try_connect("Wrong password", port++, DEFAULT_TEST_PASSWORD,
 			this_ip_dest, -1, 100, 100, 0, FAULT_TIMEOUT);
 
+	trace_ao_event_expect(TCP_AO_KEY_NOT_FOUND, this_ip_addr, this_ip_dest,
+			      -1, port, 0, 0, 1, 0, 0, 0, 100, 100, -1);
 	try_connect("Wrong rcv id", port++, DEFAULT_TEST_PASSWORD,
 			this_ip_dest, -1, 100, 100, 0, FAULT_TIMEOUT);
 
+	trace_ao_event_sk_expect(TCP_AO_SYNACK_NO_KEY, this_ip_dest, addr_any,
+				 port, 0, 100, 100);
 	try_connect("Wrong snd id", port++, DEFAULT_TEST_PASSWORD,
 			this_ip_dest, -1, 100, 100, 0, FAULT_TIMEOUT);
 
+	trace_ao_event_expect(TCP_AO_WRONG_MACLEN, this_ip_addr, this_ip_dest,
+			      -1, port, 0, 0, 1, 0, 0, 0, 100, 100, -1);
 	try_connect("Different maclen", port++, DEFAULT_TEST_PASSWORD,
 			this_ip_dest, -1, 100, 100, 0, FAULT_TIMEOUT);
 
+	trace_ao_event_expect(TCP_AO_KEY_NOT_FOUND, this_ip_addr, this_ip_dest,
+			      -1, port, 0, 0, 1, 0, 0, 0, 100, 100, -1);
 	try_connect("Server: Wrong addr", port++, DEFAULT_TEST_PASSWORD,
 			this_ip_dest, -1, 100, 100, 0, FAULT_TIMEOUT);
 
@@ -259,6 +276,6 @@ static void *client_fn(void *arg)
 
 int main(int argc, char *argv[])
 {
-	test_init(21, server_fn, client_fn);
+	test_init(22, server_fn, client_fn);
 	return 0;
 }

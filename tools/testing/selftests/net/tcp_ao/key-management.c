@@ -965,7 +965,7 @@ static void end_client(const char *tst_name, int sk, unsigned int nr_keys,
 	synchronize_threads(); /* 5: counters */
 }
 
-static void try_unmatched_keys(int sk, int *rnext_index)
+static void try_unmatched_keys(int sk, int *rnext_index, unsigned int port)
 {
 	struct test_key *key;
 	unsigned int i = 0;
@@ -1013,6 +1013,9 @@ static void try_unmatched_keys(int sk, int *rnext_index)
 		test_error("all keys on server match the client");
 	if (test_set_key(sk, -1, key->server_keyid))
 		test_error("Can't change the current key");
+	trace_ao_event_expect(TCP_AO_RNEXT_REQUEST, this_ip_addr, this_ip_dest,
+			      -1, port, 0, -1, -1, -1, -1, -1,
+			      -1, key->server_keyid, -1);
 	if (test_client_verify(sk, msg_len, nr_packets, TEST_TIMEOUT_SEC))
 		test_fail("verify failed");
 	*rnext_index = i;
@@ -1054,6 +1057,10 @@ static void check_current_back(const char *tst_name, unsigned int port,
 		return;
 	if (test_set_key(sk, collection.keys[rotate_to_index].client_keyid, -1))
 		test_error("Can't change the current key");
+	trace_ao_event_expect(TCP_AO_RNEXT_REQUEST, this_ip_dest, this_ip_addr,
+			      port, -1, 0, -1, -1, -1, -1, -1,
+			      collection.keys[rotate_to_index].client_keyid,
+			      collection.keys[current_index].client_keyid, -1);
 	if (test_client_verify(sk, msg_len, nr_packets, TEST_TIMEOUT_SEC))
 		test_fail("verify failed");
 	/* There is a race here: between setting the current_key with
@@ -1085,6 +1092,11 @@ static void roll_over_keys(const char *tst_name, unsigned int port,
 	for (i = rnext_index + 1; rotations > 0; i++, rotations--) {
 		if (i >= collection.nr_keys)
 			i = 0;
+		trace_ao_event_expect(TCP_AO_RNEXT_REQUEST,
+				this_ip_addr, this_ip_dest,
+				-1, port, 0, -1, -1, -1, -1, -1,
+				i == 0 ? -1 : collection.keys[i - 1].server_keyid,
+				collection.keys[i].server_keyid, -1);
 		if (test_set_key(sk, -1, collection.keys[i].server_keyid))
 			test_error("Can't change the Rnext key");
 		if (test_client_verify(sk, msg_len, nr_packets, TEST_TIMEOUT_SEC)) {
@@ -1124,7 +1136,7 @@ static void try_client_match(const char *tst_name, unsigned int port,
 				 rnext_index, msg_len, nr_packets);
 	if (sk < 0)
 		return;
-	try_unmatched_keys(sk, &rnext_index);
+	try_unmatched_keys(sk, &rnext_index, port);
 	end_client(tst_name, sk, nr_keys, current_index, rnext_index, NULL);
 }
 
@@ -1181,6 +1193,6 @@ static void *client_fn(void *arg)
 
 int main(int argc, char *argv[])
 {
-	test_init(120, server_fn, client_fn);
+	test_init(121, server_fn, client_fn);
 	return 0;
 }
