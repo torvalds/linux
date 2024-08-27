@@ -175,7 +175,9 @@ amdgpu-y += \
 	amdgpu_mes.o \
 	mes_v11_0.o \
 	mes_v12_0.o \
-	mes_v11_0_userqueue.o
+
+# add GFX userqueue support
+amdgpu-$(CONFIG_DRM_AMDGPU_NAVI3X_USERQ) += mes_v11_0_userqueue.o
 
 # add UVD block
 amdgpu-y += \
