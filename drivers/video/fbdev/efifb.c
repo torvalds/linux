@@ -322,7 +322,7 @@ static ssize_t name##_show(struct device *dev,				\
 			   struct device_attribute *attr,		\
 			   char *buf)					\
 {									\
-	struct screen_info *si = dev_get_platdata(dev);			\
+	struct screen_info *si = dev_get_drvdata(dev);			\
 	if (!si)							\
 		return -ENODEV;						\
 	return sprintf(buf, fmt "\n", (si->lfb_##name));		\
@@ -368,6 +368,8 @@ static int efifb_probe(struct platform_device *dev)
 	si = devm_kmemdup(&dev->dev, si, sizeof(*si), GFP_KERNEL);
 	if (!si)
 		return -ENOMEM;
+
+	dev_set_drvdata(&dev->dev, si);
 
 	if (si->orig_video_isVGA != VIDEO_TYPE_EFI)
 		return -ENODEV;
