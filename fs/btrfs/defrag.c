@@ -61,16 +61,14 @@ static int compare_inode_defrag(const struct inode_defrag *defrag1,
 }
 
 /*
- * Pop a record for an inode into the defrag tree.  The lock must be held
+ * Insert a record for an inode into the defrag tree.  The lock must be held
  * already.
  *
  * If you're inserting a record for an older transid than an existing record,
  * the transid already in the tree is lowered.
- *
- * If an existing record is found the defrag item you pass in is freed.
  */
-static int __btrfs_add_inode_defrag(struct btrfs_inode *inode,
-				    struct inode_defrag *defrag)
+static int btrfs_insert_inode_defrag(struct btrfs_inode *inode,
+				     struct inode_defrag *defrag)
 {
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 	struct inode_defrag *entry;
@@ -157,7 +155,7 @@ int btrfs_add_inode_defrag(struct btrfs_trans_handle *trans,
 		 * and then re-read this inode, this new inode doesn't have
 		 * IN_DEFRAG flag. At the case, we may find the existed defrag.
 		 */
-		ret = __btrfs_add_inode_defrag(inode, defrag);
+		ret = btrfs_insert_inode_defrag(inode, defrag);
 		if (ret)
 			kmem_cache_free(btrfs_inode_defrag_cachep, defrag);
 	} else {
