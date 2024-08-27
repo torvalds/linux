@@ -1773,7 +1773,7 @@ found:
 static void do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
 {
 	unsigned long pfn;
-	struct page *page, *head;
+	struct page *page;
 	LIST_HEAD(source);
 	static DEFINE_RATELIMIT_STATE(migrate_rs, DEFAULT_RATELIMIT_INTERVAL,
 				      DEFAULT_RATELIMIT_BURST);
@@ -1786,14 +1786,20 @@ static void do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
 			continue;
 		page = pfn_to_page(pfn);
 		folio = page_folio(page);
-		head = &folio->page;
 
-		if (PageHuge(page)) {
-			pfn = page_to_pfn(head) + compound_nr(head) - 1;
-			isolate_hugetlb(folio, &source);
-			continue;
-		} else if (PageTransHuge(page))
-			pfn = page_to_pfn(head) + thp_nr_pages(page) - 1;
+		/*
+		 * No reference or lock is held on the folio, so it might
+		 * be modified concurrently (e.g. split).  As such,
+		 * folio_nr_pages() may read garbage.  This is fine as the outer
+		 * loop will revisit the split folio later.
+		 */
+		if (folio_test_large(folio)) {
+			pfn = folio_pfn(folio) + folio_nr_pages(folio) - 1;
+			if (folio_test_hugetlb(folio)) {
+				isolate_hugetlb(folio, &source);
+				continue;
+			}
+		}
 
 		/*
 		 * HWPoison pages have elevated reference counts so the migration would
