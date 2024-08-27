@@ -470,6 +470,7 @@ mapping_min_folio_nrpages(struct address_space *mapping)
 /**
  * mapping_align_index() - Align index for this mapping.
  * @mapping: The address_space.
+ * @index: The page index.
  *
  * The index of a folio must be naturally aligned.  If you are adding a
  * new folio to the page cache and need to know what index to give it,
