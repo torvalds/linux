@@ -32,7 +32,7 @@ CFLAGS += -Wno-unused-command-line-argument
 endif
 
 # Order correspond to 'make run_tests' order
-TEST_GEN_PROGS = hid_bpf
+TEST_GEN_PROGS = hid_bpf hidraw
 
 # Emit succinct information message describing current building step
 # $1 - generic step name (e.g., CC, LINK, etc);
