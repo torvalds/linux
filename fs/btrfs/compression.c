@@ -395,7 +395,7 @@ void btrfs_submit_compressed_write(struct btrfs_ordered_extent *ordered,
 	cb->bbio.ordered = ordered;
 	btrfs_add_compressed_bio_folios(cb);
 
-	btrfs_submit_bio(&cb->bbio, 0);
+	btrfs_submit_bbio(&cb->bbio, 0);
 }
 
 /*
@@ -630,7 +630,7 @@ void btrfs_submit_compressed_read(struct btrfs_bio *bbio)
 	if (memstall)
 		psi_memstall_leave(&pflags);
 
-	btrfs_submit_bio(&cb->bbio, 0);
+	btrfs_submit_bbio(&cb->bbio, 0);
 	return;
 
 out_free_compressed_pages:

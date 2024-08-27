@@ -726,7 +726,7 @@ static void btrfs_dio_submit_io(const struct iomap_iter *iter, struct bio *bio,
 		}
 	}
 
-	btrfs_submit_bio(bbio, 0);
+	btrfs_submit_bbio(bbio, 0);
 }
 
 static const struct iomap_ops btrfs_dio_iomap_ops = {

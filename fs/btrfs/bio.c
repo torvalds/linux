@@ -53,7 +53,7 @@ void btrfs_bio_init(struct btrfs_bio *bbio, struct btrfs_fs_info *fs_info,
 
 /*
  * Allocate a btrfs_bio structure.  The btrfs_bio is the main I/O container for
- * btrfs, and is used for all I/O submitted through btrfs_submit_bio.
+ * btrfs, and is used for all I/O submitted through btrfs_submit_bbio().
  *
  * Just like the underlying bio_alloc_bioset it will not fail as it is backed by
  * a mempool.
@@ -211,7 +211,7 @@ static void btrfs_end_repair_bio(struct btrfs_bio *repair_bbio,
 			goto done;
 		}
 
-		btrfs_submit_bio(repair_bbio, mirror);
+		btrfs_submit_bbio(repair_bbio, mirror);
 		return;
 	}
 
@@ -280,7 +280,7 @@ static struct btrfs_failed_bio *repair_one_sector(struct btrfs_bio *failed_bbio,
 
 	mirror = next_repair_mirror(fbio, failed_bbio->mirror_num);
 	btrfs_debug(fs_info, "submitting repair read to mirror %d", mirror);
-	btrfs_submit_bio(repair_bbio, mirror);
+	btrfs_submit_bbio(repair_bbio, mirror);
 	return fbio;
 }
 
@@ -777,7 +777,7 @@ fail:
 	return true;
 }
 
-void btrfs_submit_bio(struct btrfs_bio *bbio, int mirror_num)
+void btrfs_submit_bbio(struct btrfs_bio *bbio, int mirror_num)
 {
 	/* If bbio->inode is not populated, its file_offset must be 0. */
 	ASSERT(bbio->inode || bbio->file_offset == 0);
@@ -789,7 +789,7 @@ void btrfs_submit_bio(struct btrfs_bio *bbio, int mirror_num)
 /*
  * Submit a repair write.
  *
- * This bypasses btrfs_submit_bio deliberately, as that writes all copies in a
+ * This bypasses btrfs_submit_bbio() deliberately, as that writes all copies in a
  * RAID setup.  Here we only want to write the one bad copy, so we do the
  * mapping ourselves and submit the bio directly.
  *

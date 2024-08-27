@@ -117,7 +117,7 @@ static void submit_one_bio(struct btrfs_bio_ctrl *bio_ctrl)
 	    bio_ctrl->compress_type != BTRFS_COMPRESS_NONE)
 		btrfs_submit_compressed_read(bbio);
 	else
-		btrfs_submit_bio(bbio, 0);
+		btrfs_submit_bbio(bbio, 0);
 
 	/* The bbio is owned by the end_io handler now */
 	bio_ctrl->bbio = NULL;
@@ -1800,7 +1800,7 @@ static noinline_for_stack void write_one_eb(struct extent_buffer *eb,
 			folio_unlock(folio);
 		}
 	}
-	btrfs_submit_bio(bbio, 0);
+	btrfs_submit_bbio(bbio, 0);
 }
 
 /*
@@ -3572,7 +3572,7 @@ int read_extent_buffer_pages(struct extent_buffer *eb, int wait, int mirror_num,
 			ASSERT(ret);
 		}
 	}
-	btrfs_submit_bio(bbio, mirror_num);
+	btrfs_submit_bbio(bbio, mirror_num);
 
 done:
 	if (wait == WAIT_COMPLETE) {
