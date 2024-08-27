@@ -1320,9 +1320,9 @@ static int pci_dev_wait(struct pci_dev *dev, char *reset_type, int timeout)
 			return -ENOTTY;
 		}
 
-		if (root && root->config_crs_sv) {
+		if (root && root->config_rrs_sv) {
 			pci_read_config_dword(dev, PCI_VENDOR_ID, &id);
-			if (!pci_bus_crs_vendor_id(id))
+			if (!pci_bus_rrs_vendor_id(id))
 				break;
 		} else {
 			pci_read_config_dword(dev, PCI_COMMAND, &id);

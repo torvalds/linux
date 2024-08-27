@@ -257,8 +257,8 @@ struct pci_bridge_reg_behavior pcie_cap_regs_behavior[PCI_CAP_PCIE_SIZEOF / 4] =
 		 */
 		.rw = (PCI_EXP_RTCTL_SECEE | PCI_EXP_RTCTL_SENFEE |
 		       PCI_EXP_RTCTL_SEFEE | PCI_EXP_RTCTL_PMEIE |
-		       PCI_EXP_RTCTL_CRSSVE),
-		.ro = PCI_EXP_RTCAP_CRSVIS << 16,
+		       PCI_EXP_RTCTL_RRS_SVE),
+		.ro = PCI_EXP_RTCAP_RRS_SV << 16,
 	},
 
 	[PCI_EXP_RTSTA / 4] = {

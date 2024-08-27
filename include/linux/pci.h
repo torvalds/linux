@@ -371,7 +371,7 @@ struct pci_dev {
 					   can be generated */
 	unsigned int	pme_poll:1;	/* Poll device's PME status bit */
 	unsigned int	pinned:1;	/* Whether this dev is pinned */
-	unsigned int	config_crs_sv:1; /* Config CRS software visibility */
+	unsigned int	config_rrs_sv:1; /* Config RRS software visibility */
 	unsigned int	imm_ready:1;	/* Supports Immediate Readiness */
 	unsigned int	d1_support:1;	/* Low power state D1 is supported */
 	unsigned int	d2_support:1;	/* Low power state D2 is supported */
