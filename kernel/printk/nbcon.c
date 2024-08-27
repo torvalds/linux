@@ -998,8 +998,7 @@ static __ref unsigned int *nbcon_get_cpu_emergency_nesting(void)
 	if (!printk_percpu_data_ready())
 		return &early_nbcon_pcpu_emergency_nesting;
 
-	/* Open code this_cpu_ptr() without checking migration. */
-	return per_cpu_ptr(&nbcon_pcpu_emergency_nesting, raw_smp_processor_id());
+	return raw_cpu_ptr(&nbcon_pcpu_emergency_nesting);
 }
 
 /**
