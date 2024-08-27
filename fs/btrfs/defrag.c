@@ -219,7 +219,8 @@ void btrfs_cleanup_defrag_inodes(struct btrfs_fs_info *fs_info)
 #define BTRFS_DEFRAG_BATCH	1024
 
 static int btrfs_run_defrag_inode(struct btrfs_fs_info *fs_info,
-				  struct inode_defrag *defrag)
+				  struct inode_defrag *defrag,
+				  struct file_ra_state *ra)
 {
 	struct btrfs_root *inode_root;
 	struct inode *inode;
@@ -258,9 +259,10 @@ again:
 	range.len = (u64)-1;
 	range.start = cur;
 	range.extent_thresh = defrag->extent_thresh;
+	file_ra_state_init(ra, inode->i_mapping);
 
 	sb_start_write(fs_info->sb);
-	ret = btrfs_defrag_file(inode, NULL, &range, defrag->transid,
+	ret = btrfs_defrag_file(inode, ra, &range, defrag->transid,
 				       BTRFS_DEFRAG_BATCH);
 	sb_end_write(fs_info->sb);
 	iput(inode);
@@ -287,6 +289,8 @@ int btrfs_run_defrag_inodes(struct btrfs_fs_info *fs_info)
 
 	atomic_inc(&fs_info->defrag_running);
 	while (1) {
+		struct file_ra_state ra = { 0 };
+
 		/* Pause the auto defragger. */
 		if (test_bit(BTRFS_FS_STATE_REMOUNTING, &fs_info->fs_state))
 			break;
@@ -309,7 +313,7 @@ int btrfs_run_defrag_inodes(struct btrfs_fs_info *fs_info)
 		first_ino = defrag->ino + 1;
 		root_objectid = defrag->root;
 
-		btrfs_run_defrag_inode(fs_info, defrag);
+		btrfs_run_defrag_inode(fs_info, defrag, &ra);
 	}
 	atomic_dec(&fs_info->defrag_running);
 
@@ -1302,8 +1306,7 @@ static int defrag_one_cluster(struct btrfs_inode *inode,
 		if (entry->start + range_len <= *last_scanned_ret)
 			continue;
 
-		if (ra)
-			page_cache_sync_readahead(inode->vfs_inode.i_mapping,
+		page_cache_sync_readahead(inode->vfs_inode.i_mapping,
 				ra, NULL, entry->start >> PAGE_SHIFT,
 				((entry->start + range_len - 1) >> PAGE_SHIFT) -
 				(entry->start >> PAGE_SHIFT) + 1);
@@ -1335,7 +1338,7 @@ out:
  * Entry point to file defragmentation.
  *
  * @inode:	   inode to be defragged
- * @ra:		   readahead state (can be NUL)
+ * @ra:		   readahead state
  * @range:	   defrag options including range and flags
  * @newer_than:	   minimum transid to defrag
  * @max_to_defrag: max number of sectors to be defragged, if 0, the whole inode
@@ -1357,11 +1360,12 @@ int btrfs_defrag_file(struct inode *inode, struct file_ra_state *ra,
 	u64 cur;
 	u64 last_byte;
 	bool do_compress = (range->flags & BTRFS_DEFRAG_RANGE_COMPRESS);
-	bool ra_allocated = false;
 	int compress_type = BTRFS_COMPRESS_ZLIB;
 	int ret = 0;
 	u32 extent_thresh = range->extent_thresh;
 	pgoff_t start_index;
+
+	ASSERT(ra);
 
 	if (isize == 0)
 		return 0;
@@ -1390,18 +1394,6 @@ int btrfs_defrag_file(struct inode *inode, struct file_ra_state *ra,
 	/* Align the range */
 	cur = round_down(range->start, fs_info->sectorsize);
 	last_byte = round_up(last_byte, fs_info->sectorsize) - 1;
-
-	/*
-	 * If we were not given a ra, allocate a readahead context. As
-	 * readahead is just an optimization, defrag will work without it so
-	 * we don't error out.
-	 */
-	if (!ra) {
-		ra_allocated = true;
-		ra = kzalloc(sizeof(*ra), GFP_KERNEL);
-		if (ra)
-			file_ra_state_init(ra, inode->i_mapping);
-	}
 
 	/*
 	 * Make writeback start from the beginning of the range, so that the
@@ -1457,8 +1449,6 @@ int btrfs_defrag_file(struct inode *inode, struct file_ra_state *ra,
 		cond_resched();
 	}
 
-	if (ra_allocated)
-		kfree(ra);
 	/*
 	 * Update range.start for autodefrag, this will indicate where to start
 	 * in next run.
