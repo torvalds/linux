@@ -699,7 +699,8 @@ err:
 static int __trigger_extent(struct btree_trans *trans,
 			    enum btree_id btree_id, unsigned level,
 			    struct bkey_s_c k,
-			    enum btree_iter_update_trigger_flags flags)
+			    enum btree_iter_update_trigger_flags flags,
+			    s64 *replicas_sectors)
 {
 	bool gc = flags & BTREE_TRIGGER_gc;
 	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
@@ -708,7 +709,6 @@ static int __trigger_extent(struct btree_trans *trans,
 	enum bch_data_type data_type = bkey_is_btree_ptr(k.k)
 		? BCH_DATA_btree
 		: BCH_DATA_user;
-	s64 replicas_sectors = 0;
 	int ret = 0;
 
 	struct disk_accounting_pos acc_replicas_key = {
@@ -739,7 +739,7 @@ static int __trigger_extent(struct btree_trans *trans,
 			if (ret)
 				return ret;
 		} else if (!p.has_ec) {
-			replicas_sectors       += disk_sectors;
+			*replicas_sectors       += disk_sectors;
 			acc_replicas_key.replicas.devs[acc_replicas_key.replicas.nr_devs++] = p.ptr.dev;
 		} else {
 			ret = bch2_trigger_stripe_ptr(trans, k, p, data_type, disk_sectors, flags);
@@ -777,7 +777,7 @@ static int __trigger_extent(struct btree_trans *trans,
 	}
 
 	if (acc_replicas_key.replicas.nr_devs) {
-		ret = bch2_disk_accounting_mod(trans, &acc_replicas_key, &replicas_sectors, 1, gc);
+		ret = bch2_disk_accounting_mod(trans, &acc_replicas_key, replicas_sectors, 1, gc);
 		if (ret)
 			return ret;
 	}
@@ -787,7 +787,7 @@ static int __trigger_extent(struct btree_trans *trans,
 			.type			= BCH_DISK_ACCOUNTING_snapshot,
 			.snapshot.id		= k.k->p.snapshot,
 		};
-		ret = bch2_disk_accounting_mod(trans, &acc_snapshot_key, &replicas_sectors, 1, gc);
+		ret = bch2_disk_accounting_mod(trans, &acc_snapshot_key, replicas_sectors, 1, gc);
 		if (ret)
 			return ret;
 	}
@@ -807,16 +807,21 @@ static int __trigger_extent(struct btree_trans *trans,
 			.type		= BCH_DISK_ACCOUNTING_btree,
 			.btree.id	= btree_id,
 		};
-		ret = bch2_disk_accounting_mod(trans, &acc_btree_key, &replicas_sectors, 1, gc);
+		ret = bch2_disk_accounting_mod(trans, &acc_btree_key, replicas_sectors, 1, gc);
 		if (ret)
 			return ret;
-	}
-
-	if (bch2_bkey_rebalance_opts(k)) {
-		struct disk_accounting_pos acc = {
-			.type		= BCH_DISK_ACCOUNTING_rebalance_work,
+	} else {
+		bool insert = !(flags & BTREE_TRIGGER_overwrite);
+		struct disk_accounting_pos acc_inum_key = {
+			.type		= BCH_DISK_ACCOUNTING_inum,
+			.inum.inum	= k.k->p.inode,
 		};
-		ret = bch2_disk_accounting_mod(trans, &acc, &replicas_sectors, 1, gc);
+		s64 v[3] = {
+			insert ? 1 : -1,
+			insert ? k.k->size : -((s64) k.k->size),
+			*replicas_sectors,
+		};
+		ret = bch2_disk_accounting_mod(trans, &acc_inum_key, v, ARRAY_SIZE(v), gc);
 		if (ret)
 			return ret;
 	}
@@ -829,6 +834,7 @@ int bch2_trigger_extent(struct btree_trans *trans,
 			struct bkey_s_c old, struct bkey_s new,
 			enum btree_iter_update_trigger_flags flags)
 {
+	struct bch_fs *c = trans->c;
 	struct bkey_ptrs_c new_ptrs = bch2_bkey_ptrs_c(new.s_c);
 	struct bkey_ptrs_c old_ptrs = bch2_bkey_ptrs_c(old);
 	unsigned new_ptrs_bytes = (void *) new_ptrs.end - (void *) new_ptrs.start;
@@ -844,21 +850,53 @@ int bch2_trigger_extent(struct btree_trans *trans,
 		    new_ptrs_bytes))
 		return 0;
 
-	if (flags & BTREE_TRIGGER_transactional) {
-		struct bch_fs *c = trans->c;
-		int mod = (int) bch2_bkey_needs_rebalance(c, new.s_c) -
-			  (int) bch2_bkey_needs_rebalance(c, old);
+	if (flags & (BTREE_TRIGGER_transactional|BTREE_TRIGGER_gc)) {
+		s64 old_replicas_sectors = 0, new_replicas_sectors = 0;
 
-		if (mod) {
+		if (old.k->type) {
+			int ret = __trigger_extent(trans, btree, level, old,
+						   flags & ~BTREE_TRIGGER_insert,
+						   &old_replicas_sectors);
+			if (ret)
+				return ret;
+		}
+
+		if (new.k->type) {
+			int ret = __trigger_extent(trans, btree, level, new.s_c,
+						   flags & ~BTREE_TRIGGER_overwrite,
+						   &new_replicas_sectors);
+			if (ret)
+				return ret;
+		}
+
+		int need_rebalance_delta = 0;
+		s64 need_rebalance_sectors_delta = 0;
+
+		s64 s = bch2_bkey_sectors_need_rebalance(c, old);
+		need_rebalance_delta -= s != 0;
+		need_rebalance_sectors_delta -= s;
+
+		s = bch2_bkey_sectors_need_rebalance(c, old);
+		need_rebalance_delta += s != 0;
+		need_rebalance_sectors_delta += s;
+
+		if ((flags & BTREE_TRIGGER_transactional) && need_rebalance_delta) {
 			int ret = bch2_btree_bit_mod_buffered(trans, BTREE_ID_rebalance_work,
-							      new.k->p, mod > 0);
+							  new.k->p, need_rebalance_delta > 0);
+			if (ret)
+				return ret;
+		}
+
+		if (need_rebalance_sectors_delta) {
+			struct disk_accounting_pos acc = {
+				.type		= BCH_DISK_ACCOUNTING_rebalance_work,
+			};
+			int ret = bch2_disk_accounting_mod(trans, &acc, &need_rebalance_sectors_delta, 1,
+							   flags & BTREE_TRIGGER_gc);
 			if (ret)
 				return ret;
 		}
 	}
-
-	if (flags & (BTREE_TRIGGER_transactional|BTREE_TRIGGER_gc))
-		return trigger_run_overwrite_then_insert(__trigger_extent, trans, btree, level, old, new, flags);
 
 	return 0;
 }
@@ -901,7 +939,6 @@ static int __bch2_trans_mark_metadata_bucket(struct btree_trans *trans,
 				    enum bch_data_type type,
 				    unsigned sectors)
 {
-	struct bch_fs *c = trans->c;
 	struct btree_iter iter;
 	int ret = 0;
 
@@ -911,7 +948,7 @@ static int __bch2_trans_mark_metadata_bucket(struct btree_trans *trans,
 		return PTR_ERR(a);
 
 	if (a->v.data_type && type && a->v.data_type != type) {
-		bch2_fsck_err(c, FSCK_CAN_IGNORE|FSCK_NEED_FSCK,
+		bch2_fsck_err(trans, FSCK_CAN_IGNORE|FSCK_NEED_FSCK,
 			      bucket_metadata_type_mismatch,
 			"bucket %llu:%llu gen %u different types of data in same bucket: %s, %s\n"
 			"while marking %s",
@@ -1032,13 +1069,18 @@ static int bch2_trans_mark_metadata_sectors(struct btree_trans *trans,
 static int __bch2_trans_mark_dev_sb(struct btree_trans *trans, struct bch_dev *ca,
 			enum btree_iter_update_trigger_flags flags)
 {
-	struct bch_sb_layout *layout = &ca->disk_sb.sb->layout;
+	struct bch_fs *c = trans->c;
+
+	mutex_lock(&c->sb_lock);
+	struct bch_sb_layout layout = ca->disk_sb.sb->layout;
+	mutex_unlock(&c->sb_lock);
+
 	u64 bucket = 0;
 	unsigned i, bucket_sectors = 0;
 	int ret;
 
-	for (i = 0; i < layout->nr_superblocks; i++) {
-		u64 offset = le64_to_cpu(layout->sb_offset[i]);
+	for (i = 0; i < layout.nr_superblocks; i++) {
+		u64 offset = le64_to_cpu(layout.sb_offset[i]);
 
 		if (offset == BCH_SB_SECTOR) {
 			ret = bch2_trans_mark_metadata_sectors(trans, ca,
@@ -1049,7 +1091,7 @@ static int __bch2_trans_mark_dev_sb(struct btree_trans *trans, struct bch_dev *c
 		}
 
 		ret = bch2_trans_mark_metadata_sectors(trans, ca, offset,
-				      offset + (1 << layout->sb_max_size_bits),
+				      offset + (1 << layout.sb_max_size_bits),
 				      BCH_DATA_sb, &bucket, &bucket_sectors, flags);
 		if (ret)
 			return ret;

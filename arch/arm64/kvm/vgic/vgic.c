@@ -36,6 +36,11 @@ struct vgic_global kvm_vgic_global_state __ro_after_init = {
  * we have to disable IRQs before taking this lock and everything lower
  * than it.
  *
+ * The config_lock has additional ordering requirements:
+ * kvm->slots_lock
+ *   kvm->srcu
+ *     kvm->arch.config_lock
+ *
  * If you need to take multiple locks, always take the upper lock first,
  * then the lower ones, e.g. first take the its_lock, then the irq_lock.
  * If you are already holding a lock and need to take a higher one, you
@@ -313,7 +318,7 @@ static bool vgic_validate_injection(struct vgic_irq *irq, bool level, void *owne
  * with all locks dropped.
  */
 bool vgic_queue_irq_unlock(struct kvm *kvm, struct vgic_irq *irq,
-			   unsigned long flags)
+			   unsigned long flags) __releases(&irq->irq_lock)
 {
 	struct kvm_vcpu *vcpu;
 

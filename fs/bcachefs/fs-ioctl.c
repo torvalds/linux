@@ -328,9 +328,8 @@ static int bch2_ioc_setlabel(struct bch_fs *c,
 
 	mutex_lock(&c->sb_lock);
 	strscpy(c->disk_sb.sb->label, label, BCH_SB_LABEL_SIZE);
-	mutex_unlock(&c->sb_lock);
-
 	ret = bch2_write_super(c);
+	mutex_unlock(&c->sb_lock);
 
 	mnt_drop_write_file(file);
 	return ret;
