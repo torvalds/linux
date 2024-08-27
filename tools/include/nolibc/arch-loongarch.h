@@ -149,14 +149,14 @@
 #endif
 
 /* startup code */
-void __attribute__((weak, noreturn, optimize("Os", "omit-frame-pointer"))) __no_stack_protector _start(void)
+void __attribute__((weak, noreturn)) __nolibc_entrypoint __no_stack_protector _start(void)
 {
 	__asm__ volatile (
 		"move          $a0, $sp\n"         /* save stack pointer to $a0, as arg1 of _start_c */
 		LONG_BSTRINS " $sp, $zero, 3, 0\n" /* $sp must be 16-byte aligned                    */
 		"bl            _start_c\n"         /* transfer to c runtime                          */
 	);
-	__builtin_unreachable();
+	__nolibc_entrypoint_epilogue();
 }
 
 #endif /* _NOLIBC_ARCH_LOONGARCH_H */
