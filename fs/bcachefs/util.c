@@ -416,7 +416,6 @@ void bch2_time_stats_to_text(struct printbuf *out, struct bch2_time_stats *stats
 	printbuf_tabstop_push(out, TABSTOP_SIZE + 2);
 
 	prt_printf(out, "\tsince mount\r\trecent\r\n");
-	prt_printf(out, "recent");
 
 	printbuf_tabstops_reset(out);
 	printbuf_tabstop_push(out, out->indent + 20);

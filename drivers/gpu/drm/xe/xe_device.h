@@ -20,6 +20,11 @@ static inline struct xe_device *pdev_to_xe_device(struct pci_dev *pdev)
 	return pci_get_drvdata(pdev);
 }
 
+static inline struct xe_device *xe_device_const_cast(const struct xe_device *xe)
+{
+	return (struct xe_device *)xe;
+}
+
 static inline struct xe_device *ttm_to_xe_device(struct ttm_device *ttm)
 {
 	return container_of(ttm, struct xe_device, ttm);
@@ -162,6 +167,7 @@ u64 xe_device_canonicalize_addr(struct xe_device *xe, u64 address);
 u64 xe_device_uncanonicalize_addr(struct xe_device *xe, u64 address);
 
 void xe_device_td_flush(struct xe_device *xe);
+void xe_device_l2_flush(struct xe_device *xe);
 
 static inline bool xe_device_wedged(struct xe_device *xe)
 {
@@ -169,5 +175,8 @@ static inline bool xe_device_wedged(struct xe_device *xe)
 }
 
 void xe_device_declare_wedged(struct xe_device *xe);
+
+struct xe_file *xe_file_get(struct xe_file *xef);
+void xe_file_put(struct xe_file *xef);
 
 #endif

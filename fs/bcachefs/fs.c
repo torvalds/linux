@@ -193,7 +193,7 @@ static struct bch_inode_info *bch2_inode_insert(struct bch_fs *c, struct bch_ino
 		 * only insert fully created inodes in the inode hash table. But
 		 * discard_new_inode() expects it to be set...
 		 */
-		inode->v.i_flags |= I_NEW;
+		inode->v.i_state |= I_NEW;
 		/*
 		 * We don't want bch2_evict_inode() to delete the inode on disk,
 		 * we just raced and had another inode in cache. Normally new
@@ -1199,7 +1199,7 @@ static const struct inode_operations bch_file_inode_operations = {
 	.fiemap		= bch2_fiemap,
 	.listxattr	= bch2_xattr_list,
 #ifdef CONFIG_BCACHEFS_POSIX_ACL
-	.get_acl	= bch2_get_acl,
+	.get_inode_acl	= bch2_get_acl,
 	.set_acl	= bch2_set_acl,
 #endif
 };
@@ -1219,7 +1219,7 @@ static const struct inode_operations bch_dir_inode_operations = {
 	.tmpfile	= bch2_tmpfile,
 	.listxattr	= bch2_xattr_list,
 #ifdef CONFIG_BCACHEFS_POSIX_ACL
-	.get_acl	= bch2_get_acl,
+	.get_inode_acl	= bch2_get_acl,
 	.set_acl	= bch2_set_acl,
 #endif
 };
@@ -1241,7 +1241,7 @@ static const struct inode_operations bch_symlink_inode_operations = {
 	.setattr	= bch2_setattr,
 	.listxattr	= bch2_xattr_list,
 #ifdef CONFIG_BCACHEFS_POSIX_ACL
-	.get_acl	= bch2_get_acl,
+	.get_inode_acl	= bch2_get_acl,
 	.set_acl	= bch2_set_acl,
 #endif
 };
@@ -1251,7 +1251,7 @@ static const struct inode_operations bch_special_inode_operations = {
 	.setattr	= bch2_setattr,
 	.listxattr	= bch2_xattr_list,
 #ifdef CONFIG_BCACHEFS_POSIX_ACL
-	.get_acl	= bch2_get_acl,
+	.get_inode_acl	= bch2_get_acl,
 	.set_acl	= bch2_set_acl,
 #endif
 };

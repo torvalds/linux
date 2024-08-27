@@ -23,7 +23,7 @@
 # Makefile for the 'spl' sub-component of DAL.
 # It provides the scaling library interface.
 
-SPL = dc_spl.o dc_spl_scl_filters.o dc_spl_isharp_filters.o
+SPL = dc_spl.o dc_spl_scl_filters.o dc_spl_scl_filters_old.o dc_spl_isharp_filters.o
 
 AMD_DAL_SPL = $(addprefix $(AMDDALPATH)/dc/spl/,$(SPL))
 

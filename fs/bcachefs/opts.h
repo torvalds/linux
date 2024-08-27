@@ -391,6 +391,11 @@ enum fsck_err_opts {
 	  OPT_BOOL(),							\
 	  BCH_SB_JOURNAL_TRANSACTION_NAMES, true,			\
 	  NULL,		"Log transaction function names in journal")	\
+	x(allocator_stuck_timeout,	u16,				\
+	  OPT_FS|OPT_FORMAT|OPT_MOUNT|OPT_RUNTIME,			\
+	  OPT_UINT(0, U16_MAX),						\
+	  BCH_SB_ALLOCATOR_STUCK_TIMEOUT, 30,				\
+	  NULL,		"Default timeout in seconds for stuck allocator messages")\
 	x(noexcl,			u8,				\
 	  OPT_FS|OPT_MOUNT,						\
 	  OPT_BOOL(),							\

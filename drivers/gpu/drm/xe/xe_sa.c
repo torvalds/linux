@@ -84,6 +84,13 @@ struct xe_sa_manager *xe_sa_bo_manager_init(struct xe_tile *tile, u32 size, u32 
 struct drm_suballoc *xe_sa_bo_new(struct xe_sa_manager *sa_manager,
 				  unsigned int size)
 {
+	/*
+	 * BB to large, return -ENOBUFS indicating user should split
+	 * array of binds into smaller chunks.
+	 */
+	if (size > sa_manager->base.size)
+		return ERR_PTR(-ENOBUFS);
+
 	return drm_suballoc_new(&sa_manager->base, size, GFP_KERNEL, true, 0);
 }
 

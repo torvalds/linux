@@ -1,7 +1,8 @@
 # Skip driver specific tests
 ^amdgpu.*
-msm_.*
+^msm.*
 nouveau_.*
+^panfrost.*
 ^v3d.*
 ^vc4.*
 ^vmwgfx*
@@ -9,9 +10,7 @@ nouveau_.*
 # Skip intel specific tests
 gem_.*
 i915_.*
-
-# Panfrost is not a KMS driver, so skip the KMS tests
-kms_.*
+tools_test.*
 
 # Currently fails and causes coverage loss for other tests
 # since core_getversion also fails.

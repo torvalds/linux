@@ -21,6 +21,7 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 #include <linux/gpio/machine.h>
+#include <linux/gpio/property.h>
 #include <linux/gpio.h>
 #include <linux/err.h>
 #include <linux/clk.h>
@@ -40,6 +41,7 @@
 #include <linux/platform_data/mmc-pxamci.h>
 #include "udc.h"
 #include "gumstix.h"
+#include "devices.h"
 
 #include "generic.h"
 
@@ -99,8 +101,8 @@ static void __init gumstix_mmc_init(void)
 }
 #endif
 
-#ifdef CONFIG_USB_PXA25X
-static const struct property_entry spitz_mci_props[] __initconst = {
+#if IS_ENABLED(CONFIG_USB_PXA25X)
+static const struct property_entry gumstix_vbus_props[] __initconst = {
 	PROPERTY_ENTRY_GPIO("vbus-gpios", &pxa2xx_gpiochip_node,
 			    GPIO_GUMSTIX_USB_GPIOn, GPIO_ACTIVE_HIGH),
 	PROPERTY_ENTRY_GPIO("pullup-gpios", &pxa2xx_gpiochip_node,
@@ -109,8 +111,9 @@ static const struct property_entry spitz_mci_props[] __initconst = {
 };
 
 static const struct platform_device_info gumstix_gpio_vbus_info __initconst = {
-	.name	= "gpio-vbus",
-	.id	= PLATFORM_DEVID_NONE,
+	.name		= "gpio-vbus",
+	.id		= PLATFORM_DEVID_NONE,
+	.properties	= gumstix_vbus_props,
 };
 
 static void __init gumstix_udc_init(void)

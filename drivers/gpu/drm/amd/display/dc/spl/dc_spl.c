@@ -910,6 +910,7 @@ static const uint16_t *spl_dscl_get_filter_coeffs_64p(int taps, struct fixed31_3
 		return NULL;
 	else {
 		/* should never happen, bug */
+		BREAK_TO_DEBUGGER();
 		return NULL;
 	}
 }
@@ -925,13 +926,14 @@ static void spl_set_filters_data(struct dscl_prog_data *dscl_prog_data,
 	dscl_prog_data->filter_v_c = spl_dscl_get_filter_coeffs_64p(
 				data->taps.v_taps_c, data->ratios.vert_c);
 }
-
+#ifdef CONFIG_DRM_AMD_DC_FP
 static const uint16_t *spl_dscl_get_blur_scale_coeffs_64p(int taps)
 {
 	if ((taps == 3) || (taps == 4) || (taps == 6))
 		return spl_get_filter_isharp_bs_4tap_64p();
 	else {
 		/* should never happen, bug */
+		BREAK_TO_DEBUGGER();
 		return NULL;
 	}
 }
@@ -943,7 +945,7 @@ static void spl_set_blur_scale_data(struct dscl_prog_data *dscl_prog_data,
 	dscl_prog_data->filter_blur_scale_v = spl_dscl_get_blur_scale_coeffs_64p(
 				data->taps.v_taps);
 }
-
+#endif
 /* Populate dscl prog data structure from scaler data calculated by SPL */
 static void spl_set_dscl_prog_data(struct spl_in *spl_in, struct spl_out *spl_out)
 {
@@ -1321,7 +1323,7 @@ static void spl_set_isharp_data(struct dscl_prog_data *dscl_prog_data,
 		break;
 	case SHARPNESS_HIGH:
 		dscl_prog_data->isharp_delta = spl_get_filter_isharp_1D_lut_2p0x();
-    break;
+		break;
 	default:
 		BREAK_TO_DEBUGGER();
 	}
@@ -1344,7 +1346,9 @@ static void spl_set_isharp_data(struct dscl_prog_data *dscl_prog_data,
 	}
 
 	// Set the values as per lookup table
+#ifdef CONFIG_DRM_AMD_DC_FP
 	spl_set_blur_scale_data(dscl_prog_data, data);
+#endif
 }
 static bool spl_get_isharp_en(struct adaptive_sharpness adp_sharpness,
 		int vscale_ratio, int hscale_ratio, struct spl_taps taps,
@@ -1407,6 +1411,8 @@ bool spl_calculate_scaler_params(struct spl_in *spl_in, struct spl_out *spl_out)
 	bool enable_easf_v = false;
 	bool enable_easf_h = false;
 	bool lls_enable_easf = true;
+	int vratio = 0;
+	int hratio = 0;
 	const struct spl_scaler_data *data = &spl_out->scl_data;
 	// All SPL calls
 	/* recout calculation */
@@ -1446,8 +1452,8 @@ bool spl_calculate_scaler_params(struct spl_in *spl_in, struct spl_out *spl_out)
 	// Save all calculated parameters in dscl_prog_data structure to program hw registers
 	spl_set_dscl_prog_data(spl_in, spl_out);
 
-	int vratio = dc_fixpt_ceil(spl_out->scl_data.ratios.vert);
-	int hratio = dc_fixpt_ceil(spl_out->scl_data.ratios.horz);
+	vratio = dc_fixpt_ceil(spl_out->scl_data.ratios.vert);
+	hratio = dc_fixpt_ceil(spl_out->scl_data.ratios.horz);
 	if (!lls_enable_easf || spl_in->disable_easf) {
 		enable_easf_v = false;
 		enable_easf_h = false;

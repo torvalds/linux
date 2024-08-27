@@ -74,4 +74,52 @@ struct xe_vm_pgtable_update {
 	u32 flags;
 };
 
+/** struct xe_vm_pgtable_update_op - Page table update operation */
+struct xe_vm_pgtable_update_op {
+	/** @entries: entries to update for this operation */
+	struct xe_vm_pgtable_update entries[XE_VM_MAX_LEVEL * 2 + 1];
+	/** @vma: VMA for operation, operation not valid if NULL */
+	struct xe_vma *vma;
+	/** @num_entries: number of entries for this update operation */
+	u32 num_entries;
+	/** @bind: is a bind */
+	bool bind;
+	/** @rebind: is a rebind */
+	bool rebind;
+};
+
+/** struct xe_vm_pgtable_update_ops: page table update operations */
+struct xe_vm_pgtable_update_ops {
+	/** @ops: operations */
+	struct xe_vm_pgtable_update_op *ops;
+	/** @deferred: deferred list to destroy PT entries */
+	struct llist_head deferred;
+	/** @q: exec queue for PT operations */
+	struct xe_exec_queue *q;
+	/** @start: start address of ops */
+	u64 start;
+	/** @last: last address of ops */
+	u64 last;
+	/** @num_ops: number of operations */
+	u32 num_ops;
+	/** @current_op: current operations */
+	u32 current_op;
+	/** @needs_userptr_lock: Needs userptr lock */
+	bool needs_userptr_lock;
+	/** @needs_invalidation: Needs invalidation */
+	bool needs_invalidation;
+	/**
+	 * @wait_vm_bookkeep: PT operations need to wait until VM is idle
+	 * (bookkeep dma-resv slots are idle) and stage all future VM activity
+	 * behind these operations (install PT operations into VM kernel
+	 * dma-resv slot).
+	 */
+	bool wait_vm_bookkeep;
+	/**
+	 * @wait_vm_kernel: PT operations need to wait until VM kernel dma-resv
+	 * slots are idle.
+	 */
+	bool wait_vm_kernel;
+};
+
 #endif

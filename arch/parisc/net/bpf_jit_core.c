@@ -114,7 +114,7 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *prog)
 			jit_data->header =
 				bpf_jit_binary_alloc(prog_size + extable_size,
 						     &jit_data->image,
-						     sizeof(u32),
+						     sizeof(long),
 						     bpf_fill_ill_insns);
 			if (!jit_data->header) {
 				prog = orig_prog;

@@ -88,10 +88,10 @@ void thermal_zone_set_trips(struct thermal_zone_device *tz)
 		return;
 
 	for_each_trip_desc(tz, td) {
-		if (td->threshold < tz->temperature && td->threshold > low)
+		if (td->threshold <= tz->temperature && td->threshold > low)
 			low = td->threshold;
 
-		if (td->threshold > tz->temperature && td->threshold < high)
+		if (td->threshold >= tz->temperature && td->threshold < high)
 			high = td->threshold;
 	}
 

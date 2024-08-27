@@ -1401,6 +1401,7 @@ static int pf_provision_vf_lmem(struct xe_gt *gt, unsigned int vfid, u64 size)
 				  ALIGN(size, PAGE_SIZE),
 				  ttm_bo_type_kernel,
 				  XE_BO_FLAG_VRAM_IF_DGFX(tile) |
+				  XE_BO_FLAG_NEEDS_2M |
 				  XE_BO_FLAG_PINNED);
 	if (IS_ERR(bo))
 		return PTR_ERR(bo);
@@ -1927,6 +1928,7 @@ static int pf_validate_vf_config(struct xe_gt *gt, unsigned int vfid)
 {
 	struct xe_gt *primary_gt = gt_to_tile(gt)->primary_gt;
 	struct xe_device *xe = gt_to_xe(gt);
+	bool is_primary = !xe_gt_is_media_type(gt);
 	bool valid_ggtt, valid_ctxs, valid_dbs;
 	bool valid_any, valid_all;
 
@@ -1935,13 +1937,17 @@ static int pf_validate_vf_config(struct xe_gt *gt, unsigned int vfid)
 	valid_dbs = pf_get_vf_config_dbs(gt, vfid);
 
 	/* note that GuC doorbells are optional */
-	valid_any = valid_ggtt || valid_ctxs || valid_dbs;
-	valid_all = valid_ggtt && valid_ctxs;
+	valid_any = valid_ctxs || valid_dbs;
+	valid_all = valid_ctxs;
+
+	/* and GGTT/LMEM is configured on primary GT only */
+	valid_all = valid_all && valid_ggtt;
+	valid_any = valid_any || (valid_ggtt && is_primary);
 
 	if (IS_DGFX(xe)) {
 		bool valid_lmem = pf_get_vf_config_ggtt(primary_gt, vfid);
 
-		valid_any = valid_any || valid_lmem;
+		valid_any = valid_any || (valid_lmem && is_primary);
 		valid_all = valid_all && valid_lmem;
 	}
 

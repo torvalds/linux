@@ -6,7 +6,7 @@
 #include <kunit/test.h>
 #include <kunit/visibility.h>
 
-#include "tests/xe_bo_test.h"
+#include "tests/xe_kunit_helpers.h"
 #include "tests/xe_pci_test.h"
 #include "tests/xe_test.h"
 
@@ -154,12 +154,18 @@ out_unlock:
 
 static int ccs_test_run_device(struct xe_device *xe)
 {
-	struct kunit *test = xe_cur_kunit();
+	struct kunit *test = kunit_get_current_test();
 	struct xe_tile *tile;
 	int id;
 
 	if (!xe_device_has_flat_ccs(xe)) {
-		kunit_info(test, "Skipping non-flat-ccs device.\n");
+		kunit_skip(test, "non-flat-ccs device\n");
+		return 0;
+	}
+
+	/* For xe2+ dgfx, we don't handle ccs metadata */
+	if (GRAPHICS_VER(xe) >= 20 && IS_DGFX(xe)) {
+		kunit_skip(test, "xe2+ dgfx device\n");
 		return 0;
 	}
 
@@ -177,11 +183,12 @@ static int ccs_test_run_device(struct xe_device *xe)
 	return 0;
 }
 
-void xe_ccs_migrate_kunit(struct kunit *test)
+static void xe_ccs_migrate_kunit(struct kunit *test)
 {
-	xe_call_for_each_device(ccs_test_run_device);
+	struct xe_device *xe = test->priv;
+
+	ccs_test_run_device(xe);
 }
-EXPORT_SYMBOL_IF_KUNIT(xe_ccs_migrate_kunit);
 
 static int evict_test_run_tile(struct xe_device *xe, struct xe_tile *tile, struct kunit *test)
 {
@@ -325,13 +332,12 @@ cleanup_bo:
 
 static int evict_test_run_device(struct xe_device *xe)
 {
-	struct kunit *test = xe_cur_kunit();
+	struct kunit *test = kunit_get_current_test();
 	struct xe_tile *tile;
 	int id;
 
 	if (!IS_DGFX(xe)) {
-		kunit_info(test, "Skipping non-discrete device %s.\n",
-			   dev_name(xe->drm.dev));
+		kunit_skip(test, "non-discrete device\n");
 		return 0;
 	}
 
@@ -345,8 +351,23 @@ static int evict_test_run_device(struct xe_device *xe)
 	return 0;
 }
 
-void xe_bo_evict_kunit(struct kunit *test)
+static void xe_bo_evict_kunit(struct kunit *test)
 {
-	xe_call_for_each_device(evict_test_run_device);
+	struct xe_device *xe = test->priv;
+
+	evict_test_run_device(xe);
 }
-EXPORT_SYMBOL_IF_KUNIT(xe_bo_evict_kunit);
+
+static struct kunit_case xe_bo_tests[] = {
+	KUNIT_CASE_PARAM(xe_ccs_migrate_kunit, xe_pci_live_device_gen_param),
+	KUNIT_CASE_PARAM(xe_bo_evict_kunit, xe_pci_live_device_gen_param),
+	{}
+};
+
+VISIBLE_IF_KUNIT
+struct kunit_suite xe_bo_test_suite = {
+	.name = "xe_bo",
+	.test_cases = xe_bo_tests,
+	.init = xe_kunit_helper_xe_device_live_test_init,
+};
+EXPORT_SYMBOL_IF_KUNIT(xe_bo_test_suite);

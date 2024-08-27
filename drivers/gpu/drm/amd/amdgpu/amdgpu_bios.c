@@ -431,6 +431,11 @@ bool amdgpu_get_bios(struct amdgpu_device *adev)
 		goto success;
 	}
 
+	if (amdgpu_read_platform_bios(adev)) {
+		dev_info(adev->dev, "Fetched VBIOS from platform\n");
+		goto success;
+	}
+
 	if (amdgpu_read_bios(adev)) {
 		dev_info(adev->dev, "Fetched VBIOS from ROM BAR\n");
 		goto success;
@@ -443,11 +448,6 @@ bool amdgpu_get_bios(struct amdgpu_device *adev)
 
 	if (amdgpu_read_disabled_bios(adev)) {
 		dev_info(adev->dev, "Fetched VBIOS from disabled ROM BAR\n");
-		goto success;
-	}
-
-	if (amdgpu_read_platform_bios(adev)) {
-		dev_info(adev->dev, "Fetched VBIOS from platform\n");
 		goto success;
 	}
 

@@ -28,6 +28,14 @@ debian/x86_64_test-vk:
   rules:
     - when: never
 
+debian/arm64_test-vk:
+  rules:
+    - when: never
+
+debian/arm64_test-gl:
+  rules:
+    - when: never
+
 fedora/x86_64_build:
   rules:
     - when: never

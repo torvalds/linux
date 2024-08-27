@@ -2014,11 +2014,12 @@ void intel_guc_submission_reset_finish(struct intel_guc *guc)
 
 	/*
 	 * Technically possible for either of these values to be non-zero here,
-	 * but very unlikely + harmless. Regardless let's add a warn so we can
+	 * but very unlikely + harmless. Regardless let's add an error so we can
 	 * see in CI if this happens frequently / a precursor to taking down the
 	 * machine.
 	 */
-	GEM_WARN_ON(atomic_read(&guc->outstanding_submission_g2h));
+	if (atomic_read(&guc->outstanding_submission_g2h))
+		guc_err(guc, "Unexpected outstanding GuC to Host in reset finish\n");
 	atomic_set(&guc->outstanding_submission_g2h, 0);
 
 	intel_guc_global_policies_update(guc);

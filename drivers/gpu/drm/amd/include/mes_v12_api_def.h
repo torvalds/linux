@@ -28,6 +28,9 @@
 
 #define MES_API_VERSION 0x14
 
+/* Maximum log buffer size for MES. Needs to be updated if MES expands MES_EVT_INTR_HIST_LOG_12 */
+#define  AMDGPU_MES_LOG_BUFFER_SIZE  0xC000
+
 /* Driver submits one API(cmd) as a single Frame and this command size is same for all API
  * to ease the debugging and parsing of ring buffer.
  */
@@ -94,6 +97,7 @@ enum MES_QUEUE_TYPE {
 	MES_QUEUE_TYPE_SDMA,
 
 	MES_QUEUE_TYPE_MAX,
+	MES_QUEUE_TYPE_SCHQ = MES_QUEUE_TYPE_MAX,
 };
 
 struct MES_API_STATUS {
@@ -239,8 +243,12 @@ union MESAPI_SET_HW_RESOURCES {
 				uint32_t send_write_data : 1;
 				uint32_t os_tdr_timeout_override : 1;
 				uint32_t use_rs64mem_for_proc_gang_ctx : 1;
+				uint32_t halt_on_misaligned_access : 1;
+				uint32_t use_add_queue_unmap_flag_addr : 1;
+				uint32_t enable_mes_sch_stb_log : 1;
+				uint32_t limit_single_process : 1;
 				uint32_t unmapped_doorbell_handling: 2;
-				uint32_t reserved : 15;
+				uint32_t reserved : 11;
 			};
 			uint32_t uint32_all;
 		};

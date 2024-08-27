@@ -365,47 +365,47 @@ static int kfd_dbg_get_dev_watch_id(struct kfd_process_device *pdd, int *watch_i
 
 	*watch_id = KFD_DEBUGGER_INVALID_WATCH_POINT_ID;
 
-	spin_lock(&pdd->dev->kfd->watch_points_lock);
+	spin_lock(&pdd->dev->watch_points_lock);
 
 	for (i = 0; i < MAX_WATCH_ADDRESSES; i++) {
 		/* device watchpoint in use so skip */
-		if ((pdd->dev->kfd->alloc_watch_ids >> i) & 0x1)
+		if ((pdd->dev->alloc_watch_ids >> i) & 0x1)
 			continue;
 
 		pdd->alloc_watch_ids |= 0x1 << i;
-		pdd->dev->kfd->alloc_watch_ids |= 0x1 << i;
+		pdd->dev->alloc_watch_ids |= 0x1 << i;
 		*watch_id = i;
-		spin_unlock(&pdd->dev->kfd->watch_points_lock);
+		spin_unlock(&pdd->dev->watch_points_lock);
 		return 0;
 	}
 
-	spin_unlock(&pdd->dev->kfd->watch_points_lock);
+	spin_unlock(&pdd->dev->watch_points_lock);
 
 	return -ENOMEM;
 }
 
 static void kfd_dbg_clear_dev_watch_id(struct kfd_process_device *pdd, int watch_id)
 {
-	spin_lock(&pdd->dev->kfd->watch_points_lock);
+	spin_lock(&pdd->dev->watch_points_lock);
 
 	/* process owns device watch point so safe to clear */
 	if ((pdd->alloc_watch_ids >> watch_id) & 0x1) {
 		pdd->alloc_watch_ids &= ~(0x1 << watch_id);
-		pdd->dev->kfd->alloc_watch_ids &= ~(0x1 << watch_id);
+		pdd->dev->alloc_watch_ids &= ~(0x1 << watch_id);
 	}
 
-	spin_unlock(&pdd->dev->kfd->watch_points_lock);
+	spin_unlock(&pdd->dev->watch_points_lock);
 }
 
 static bool kfd_dbg_owns_dev_watch_id(struct kfd_process_device *pdd, int watch_id)
 {
 	bool owns_watch_id = false;
 
-	spin_lock(&pdd->dev->kfd->watch_points_lock);
+	spin_lock(&pdd->dev->watch_points_lock);
 	owns_watch_id = watch_id < MAX_WATCH_ADDRESSES &&
 			((pdd->alloc_watch_ids >> watch_id) & 0x1);
 
-	spin_unlock(&pdd->dev->kfd->watch_points_lock);
+	spin_unlock(&pdd->dev->watch_points_lock);
 
 	return owns_watch_id;
 }

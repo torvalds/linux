@@ -336,6 +336,10 @@ union dmub_psr_debug_flags {
 		 */
 		uint32_t back_to_back_flip : 1;
 
+		/**
+		 * Enable visual confirm for IPS
+		 */
+		uint32_t enable_ips_visual_confirm : 1;
 	} bitfields;
 
 	/**
@@ -3024,14 +3028,6 @@ struct dmub_cmd_update_dirty_rect_data {
 	 * Currently the support is only for 0 or 1
 	 */
 	uint8_t panel_inst;
-	/**
-	 * 16-bit value dicated by driver that indicates the coasting vtotal high byte part.
-	 */
-	uint16_t coasting_vtotal_high;
-	/**
-	 * Explicit padding to 4 byte boundary.
-	 */
-	uint8_t pad[2];
 };
 
 /**

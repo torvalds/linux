@@ -95,7 +95,7 @@ static int v3d_get_param_ioctl(struct drm_device *dev, void *data,
 		args->value = 1;
 		return 0;
 	case DRM_V3D_PARAM_MAX_PERF_COUNTERS:
-		args->value = v3d->max_counters;
+		args->value = v3d->perfmon_info.max_counters;
 		return 0;
 	default:
 		DRM_DEBUG("Unknown parameter %d\n", args->param);
@@ -184,6 +184,8 @@ static void v3d_show_fdinfo(struct drm_printer *p, struct drm_file *file)
 		drm_printf(p, "v3d-jobs-%s: \t%llu jobs\n",
 			   v3d_queue_to_string(queue), jobs_completed);
 	}
+
+	drm_show_memory_stats(p, file);
 }
 
 static const struct file_operations v3d_drm_fops = {
@@ -301,12 +303,7 @@ static int v3d_platform_drm_probe(struct platform_device *pdev)
 	ident3 = V3D_READ(V3D_HUB_IDENT3);
 	v3d->rev = V3D_GET_FIELD(ident3, V3D_HUB_IDENT3_IPREV);
 
-	if (v3d->ver >= 71)
-		v3d->max_counters = V3D_V71_NUM_PERFCOUNTERS;
-	else if (v3d->ver >= 42)
-		v3d->max_counters = V3D_V42_NUM_PERFCOUNTERS;
-	else
-		v3d->max_counters = 0;
+	v3d_perfmon_init(v3d);
 
 	v3d->reset = devm_reset_control_get_exclusive(dev, NULL);
 	if (IS_ERR(v3d->reset)) {

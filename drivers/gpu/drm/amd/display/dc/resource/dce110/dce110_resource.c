@@ -1163,6 +1163,7 @@ static struct pipe_ctx *dce110_acquire_underlay(
 				0,
 				0,
 				0,
+				0,
 				pipe_ctx->stream->signal,
 				false);
 

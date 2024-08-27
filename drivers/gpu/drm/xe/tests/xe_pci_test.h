@@ -35,4 +35,6 @@ struct xe_pci_fake_data {
 
 int xe_pci_fake_device_init(struct xe_device *xe);
 
+const void *xe_pci_live_device_gen_param(const void *prev, char *desc);
+
 #endif

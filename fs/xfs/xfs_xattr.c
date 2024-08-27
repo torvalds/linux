@@ -110,7 +110,24 @@ xfs_attr_change(
 	args->whichfork = XFS_ATTR_FORK;
 	xfs_attr_sethash(args);
 
-	return xfs_attr_set(args, op, args->attr_filter & XFS_ATTR_ROOT);
+	/*
+	 * Some xattrs must be resistant to allocation failure at ENOSPC, e.g.
+	 * creating an inode with ACLs or security attributes requires the
+	 * allocation of the xattr holding that information to succeed. Hence
+	 * we allow xattrs in the VFS TRUSTED, SYSTEM, POSIX_ACL and SECURITY
+	 * (LSM xattr) namespaces to dip into the reserve block pool to allow
+	 * manipulation of these xattrs when at ENOSPC. These VFS xattr
+	 * namespaces translate to the XFS_ATTR_ROOT and XFS_ATTR_SECURE on-disk
+	 * namespaces.
+	 *
+	 * For most of these cases, these special xattrs will fit in the inode
+	 * itself and so consume no extra space or only require temporary extra
+	 * space while an overwrite is being made. Hence the use of the reserved
+	 * pool is largely to avoid the worst case reservation from preventing
+	 * the xattr from being created at ENOSPC.
+	 */
+	return xfs_attr_set(args, op,
+			args->attr_filter & (XFS_ATTR_ROOT | XFS_ATTR_SECURE));
 }
 
 
