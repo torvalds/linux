@@ -916,6 +916,16 @@
 			};
 		};
 
+		rtc: rtc@46000000 {
+			compatible = "st,stm32mp25-rtc";
+			reg = <0x46000000 0x400>;
+			clocks = <&scmi_clk CK_SCMI_RTC>,
+				 <&scmi_clk CK_SCMI_RTCCK>;
+			clock-names = "pclk", "rtc_ck";
+			interrupts-extended = <&exti2 17 IRQ_TYPE_LEVEL_HIGH>;
+			status = "disabled";
+		};
+
 		pinctrl_z: pinctrl@46200000 {
 			#address-cells = <1>;
 			#size-cells = <1>;
