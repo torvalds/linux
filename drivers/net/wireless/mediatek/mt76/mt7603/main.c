@@ -355,13 +355,19 @@ mt7603_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 	return ret;
 }
 
-void
-mt7603_sta_assoc(struct mt76_dev *mdev, struct ieee80211_vif *vif,
-		 struct ieee80211_sta *sta)
+int
+mt7603_sta_event(struct mt76_dev *mdev, struct ieee80211_vif *vif,
+		 struct ieee80211_sta *sta, enum mt76_sta_event ev)
 {
 	struct mt7603_dev *dev = container_of(mdev, struct mt7603_dev, mt76);
 
-	mt7603_wtbl_update_cap(dev, sta);
+	if (ev == MT76_STA_EVENT_ASSOC) {
+		mutex_lock(&dev->mt76.mutex);
+		mt7603_wtbl_update_cap(dev, sta);
+		mutex_unlock(&dev->mt76.mutex);
+	}
+
+	return 0;
 }
 
 void
