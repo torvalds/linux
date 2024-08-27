@@ -5257,7 +5257,7 @@ static void handle_stripe(struct stripe_head *sh)
 	} else if (s.expanded && !sh->reconstruct_state && s.locked == 0) {
 		clear_bit(STRIPE_EXPAND_READY, &sh->state);
 		atomic_dec(&conf->reshape_stripes);
-		wake_up(&conf->wait_for_overlap);
+		wake_up(&conf->wait_for_reshape);
 		md_done_sync(conf->mddev, RAID5_STRIPE_SECTORS(conf), 1);
 	}
 
@@ -6148,7 +6148,7 @@ static bool raid5_make_request(struct mddev *mddev, struct bio * bi)
 		logical_sector = raid5_bio_lowest_chunk_sector(conf, bi);
 		on_wq = false;
 	} else {
-		add_wait_queue(&conf->wait_for_overlap, &wait);
+		add_wait_queue(&conf->wait_for_reshape, &wait);
 		on_wq = true;
 	}
 	s = (logical_sector - ctx.first_sector) >> RAID5_STRIPE_SHIFT(conf);
@@ -6189,7 +6189,7 @@ static bool raid5_make_request(struct mddev *mddev, struct bio * bi)
 			(s << RAID5_STRIPE_SHIFT(conf));
 	}
 	if (unlikely(on_wq))
-		remove_wait_queue(&conf->wait_for_overlap, &wait);
+		remove_wait_queue(&conf->wait_for_reshape, &wait);
 
 	if (ctx.batch_last)
 		raid5_release_stripe(ctx.batch_last);
@@ -6342,7 +6342,7 @@ static sector_t reshape_request(struct mddev *mddev, sector_t sector_nr, int *sk
 	     : (safepos < writepos && readpos > writepos)) ||
 	    time_after(jiffies, conf->reshape_checkpoint + 10*HZ)) {
 		/* Cannot proceed until we've updated the superblock... */
-		wait_event(conf->wait_for_overlap,
+		wait_event(conf->wait_for_reshape,
 			   atomic_read(&conf->reshape_stripes)==0
 			   || test_bit(MD_RECOVERY_INTR, &mddev->recovery));
 		if (atomic_read(&conf->reshape_stripes) != 0)
@@ -6368,7 +6368,7 @@ static sector_t reshape_request(struct mddev *mddev, sector_t sector_nr, int *sk
 		spin_lock_irq(&conf->device_lock);
 		conf->reshape_safe = mddev->reshape_position;
 		spin_unlock_irq(&conf->device_lock);
-		wake_up(&conf->wait_for_overlap);
+		wake_up(&conf->wait_for_reshape);
 		sysfs_notify_dirent_safe(mddev->sysfs_completed);
 	}
 
@@ -6451,7 +6451,7 @@ finish:
 	    (sector_nr - mddev->curr_resync_completed) * 2
 	    >= mddev->resync_max - mddev->curr_resync_completed) {
 		/* Cannot proceed until we've updated the superblock... */
-		wait_event(conf->wait_for_overlap,
+		wait_event(conf->wait_for_reshape,
 			   atomic_read(&conf->reshape_stripes) == 0
 			   || test_bit(MD_RECOVERY_INTR, &mddev->recovery));
 		if (atomic_read(&conf->reshape_stripes) != 0)
@@ -6477,7 +6477,7 @@ finish:
 		spin_lock_irq(&conf->device_lock);
 		conf->reshape_safe = mddev->reshape_position;
 		spin_unlock_irq(&conf->device_lock);
-		wake_up(&conf->wait_for_overlap);
+		wake_up(&conf->wait_for_reshape);
 		sysfs_notify_dirent_safe(mddev->sysfs_completed);
 	}
 ret:
@@ -6512,7 +6512,7 @@ static inline sector_t raid5_sync_request(struct mddev *mddev, sector_t sector_n
 	}
 
 	/* Allow raid5_quiesce to complete */
-	wait_event(conf->wait_for_overlap, conf->quiesce != 2);
+	wait_event(conf->wait_for_reshape, conf->quiesce != 2);
 
 	if (test_bit(MD_RECOVERY_RESHAPE, &mddev->recovery))
 		return reshape_request(mddev, sector_nr, skipped);
@@ -7498,7 +7498,7 @@ static struct r5conf *setup_conf(struct mddev *mddev)
 
 	init_waitqueue_head(&conf->wait_for_quiescent);
 	init_waitqueue_head(&conf->wait_for_stripe);
-	init_waitqueue_head(&conf->wait_for_overlap);
+	init_waitqueue_head(&conf->wait_for_reshape);
 	INIT_LIST_HEAD(&conf->handle_list);
 	INIT_LIST_HEAD(&conf->loprio_list);
 	INIT_LIST_HEAD(&conf->hold_list);
@@ -8557,7 +8557,7 @@ static void end_reshape(struct r5conf *conf)
 			    !test_bit(In_sync, &rdev->flags))
 				rdev->recovery_offset = MaxSector;
 		spin_unlock_irq(&conf->device_lock);
-		wake_up(&conf->wait_for_overlap);
+		wake_up(&conf->wait_for_reshape);
 
 		mddev_update_io_opt(conf->mddev,
 			conf->raid_disks - conf->max_degraded);
@@ -8621,13 +8621,13 @@ static void raid5_quiesce(struct mddev *mddev, int quiesce)
 		conf->quiesce = 1;
 		unlock_all_device_hash_locks_irq(conf);
 		/* allow reshape to continue */
-		wake_up(&conf->wait_for_overlap);
+		wake_up(&conf->wait_for_reshape);
 	} else {
 		/* re-enable writes */
 		lock_all_device_hash_locks_irq(conf);
 		conf->quiesce = 0;
 		wake_up(&conf->wait_for_quiescent);
-		wake_up(&conf->wait_for_overlap);
+		wake_up(&conf->wait_for_reshape);
 		unlock_all_device_hash_locks_irq(conf);
 	}
 	log_quiesce(conf, quiesce);
@@ -8946,7 +8946,7 @@ static void raid5_prepare_suspend(struct mddev *mddev)
 {
 	struct r5conf *conf = mddev->private;
 
-	wake_up(&conf->wait_for_overlap);
+	wake_up(&conf->wait_for_reshape);
 }
 
 static struct md_personality raid6_personality =
