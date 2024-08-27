@@ -105,6 +105,11 @@
     "BriefDescription": "Processor cycles gated by the run latch."
   },
   {
+    "EventCode": "0x200F8",
+    "EventName": "PM_EXT_INT",
+    "BriefDescription": "Cycles an external interrupt was active."
+  },
+  {
     "EventCode": "0x30010",
     "EventName": "PM_PMC2_OVERFLOW",
     "BriefDescription": "The event selected for PMC2 caused the event counter to overflow."

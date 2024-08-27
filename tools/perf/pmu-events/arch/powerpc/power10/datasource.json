@@ -15,6 +15,31 @@
     "BriefDescription": "The processor's data cache was reloaded from local, remote, or distant memory due to a demand miss."
   },
   {
+    "EventCode": "0x0000004080",
+    "EventName": "PM_INST_FROM_L1",
+    "BriefDescription": "An instruction fetch hit in the L1. Each fetch group contains 8 instructions. The same line can hit 4 times if 32 sequential instructions are fetched."
+  },
+  {
+    "EventCode": "0x000000026080",
+    "EventName": "PM_L2_LD_MISS",
+    "BriefDescription": "All successful D-Side Load dispatches for this thread that missed in the L2. Since the event happens in a 2:1 clock domain and is time-sliced across all 4 threads, the event count should be multiplied by 2."
+  },
+  {
+    "EventCode": "0x000000026880",
+    "EventName": "PM_L2_ST_MISS",
+    "BriefDescription": "All successful D-Side Store dispatches for this thread that missed in the L2. Since the event happens in a 2:1 clock domain and is time-sliced across all 4 threads, the event count should be multiplied by 2."
+  },
+  {
+    "EventCode": "0x010000046880",
+    "EventName": "PM_L2_ST_HIT",
+    "BriefDescription": "All successful D-side store dispatches for this thread that were L2 hits. Since the event happens in a 2:1 clock domain and is time-sliced across all 4 threads, the event count should be multiplied by 2."
+  },
+  {
+    "EventCode": "0x000000036880",
+    "EventName": "PM_L2_INST_MISS",
+    "BriefDescription": "All successful instruction (demand and prefetch) dispatches for this thread that missed in the L2. Since the event happens in a 2:1 clock domain and is time-sliced across all 4 threads, the event count should be multiplied by 2."
+  },
+  {
     "EventCode": "0x000300000000C040",
     "EventName": "PM_INST_FROM_L2",
     "BriefDescription": "The processor's instruction cache was reloaded from the local core's L2 due to a demand miss."
