@@ -1153,11 +1153,11 @@ static int advk_pcie_rd_conf(struct pci_bus *bus, u32 devfn,
 						 size, val);
 
 	/*
-	 * Completion Retry Status is possible to return only when reading all
-	 * 4 bytes from PCI_VENDOR_ID and PCI_DEVICE_ID registers at once and
-	 * CRSSVE flag on Root Bridge is enabled.
+	 * Completion Retry Status is possible to return only when reading
+	 * both bytes from PCI_VENDOR_ID at once and CRSSVE flag on Root
+	 * Port is enabled.
 	 */
-	allow_crs = (where == PCI_VENDOR_ID) && (size == 4) &&
+	allow_crs = (where == PCI_VENDOR_ID) && (size >= 2) &&
 		    (le16_to_cpu(pcie->bridge.pcie_conf.rootctl) &
 		     PCI_EXP_RTCTL_CRSSVE);
 
