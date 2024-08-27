@@ -45,7 +45,7 @@ struct inode_defrag {
 	u32 extent_thresh;
 };
 
-static int __compare_inode_defrag(struct inode_defrag *defrag1,
+static int compare_inode_defrag(struct inode_defrag *defrag1,
 				  struct inode_defrag *defrag2)
 {
 	if (defrag1->root > defrag2->root)
@@ -83,7 +83,7 @@ static int __btrfs_add_inode_defrag(struct btrfs_inode *inode,
 		parent = *p;
 		entry = rb_entry(parent, struct inode_defrag, rb_node);
 
-		ret = __compare_inode_defrag(defrag, entry);
+		ret = compare_inode_defrag(defrag, entry);
 		if (ret < 0)
 			p = &parent->rb_left;
 		else if (ret > 0)
@@ -189,7 +189,7 @@ static struct inode_defrag *btrfs_pick_defrag_inode(
 		parent = p;
 		entry = rb_entry(parent, struct inode_defrag, rb_node);
 
-		ret = __compare_inode_defrag(&tmp, entry);
+		ret = compare_inode_defrag(&tmp, entry);
 		if (ret < 0)
 			p = parent->rb_left;
 		else if (ret > 0)
@@ -198,7 +198,7 @@ static struct inode_defrag *btrfs_pick_defrag_inode(
 			goto out;
 	}
 
-	if (parent && __compare_inode_defrag(&tmp, entry) > 0) {
+	if (parent && compare_inode_defrag(&tmp, entry) > 0) {
 		parent = rb_next(parent);
 		if (parent)
 			entry = rb_entry(parent, struct inode_defrag, rb_node);
