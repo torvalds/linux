@@ -188,6 +188,8 @@ int ksz8_change_mtu(struct ksz_device *dev, int port, int mtu)
 	case KSZ8765_CHIP_ID:
 		return ksz8795_change_mtu(dev, frame_size);
 	case KSZ8830_CHIP_ID:
+	case KSZ8864_CHIP_ID:
+	case KSZ8895_CHIP_ID:
 		return ksz8863_change_mtu(dev, frame_size);
 	}
 
@@ -384,7 +386,7 @@ static void ksz8863_r_mib_pkt(struct ksz_device *dev, int port, u16 addr,
 void ksz8_r_mib_pkt(struct ksz_device *dev, int port, u16 addr,
 		    u64 *dropped, u64 *cnt)
 {
-	if (ksz_is_ksz88x3(dev))
+	if (is_ksz88xx(dev))
 		ksz8863_r_mib_pkt(dev, port, addr, dropped, cnt);
 	else
 		ksz8795_r_mib_pkt(dev, port, addr, dropped, cnt);
@@ -392,7 +394,7 @@ void ksz8_r_mib_pkt(struct ksz_device *dev, int port, u16 addr,
 
 void ksz8_freeze_mib(struct ksz_device *dev, int port, bool freeze)
 {
-	if (ksz_is_ksz88x3(dev))
+	if (is_ksz88xx(dev))
 		return;
 
 	/* enable the port for flush/freeze function */
@@ -410,7 +412,8 @@ void ksz8_port_init_cnt(struct ksz_device *dev, int port)
 	struct ksz_port_mib *mib = &dev->ports[port].mib;
 	u64 *dropped;
 
-	if (!ksz_is_ksz88x3(dev)) {
+	/* For KSZ8795 family. */
+	if (ksz_is_ksz87xx(dev)) {
 		/* flush all enabled port MIB counters */
 		ksz_cfg(dev, REG_SW_CTRL_6, BIT(port), true);
 		ksz_cfg(dev, REG_SW_CTRL_6, SW_MIB_COUNTER_FLUSH, true);
@@ -609,11 +612,11 @@ static int ksz8_r_sta_mac_table(struct ksz_device *dev, u16 addr,
 			shifts[STATIC_MAC_FWD_PORTS];
 	alu->is_override = (data_hi & masks[STATIC_MAC_TABLE_OVERRIDE]) ? 1 : 0;
 
-	/* KSZ8795 family switches have STATIC_MAC_TABLE_USE_FID and
+	/* KSZ8795/KSZ8895 family switches have STATIC_MAC_TABLE_USE_FID and
 	 * STATIC_MAC_TABLE_FID definitions off by 1 when doing read on the
 	 * static MAC table compared to doing write.
 	 */
-	if (ksz_is_ksz87xx(dev))
+	if (ksz_is_ksz87xx(dev) || ksz_is_8895_family(dev))
 		data_hi >>= 1;
 	alu->is_static = true;
 	alu->is_use_fid = (data_hi & masks[STATIC_MAC_TABLE_USE_FID]) ? 1 : 0;
@@ -1692,7 +1695,8 @@ void ksz8_config_cpu_port(struct dsa_switch *ds)
 	for (i = 0; i < dev->phy_port_cnt; i++) {
 		p = &dev->ports[i];
 
-		if (!ksz_is_ksz88x3(dev)) {
+		/* For KSZ8795 family. */
+		if (ksz_is_ksz87xx(dev)) {
 			ksz_pread8(dev, i, regs[P_REMOTE_STATUS], &remote);
 			if (remote & KSZ8_PORT_FIBER_MODE)
 				p->fiber = 1;

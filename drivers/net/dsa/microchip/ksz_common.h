@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /* Microchip switch driver common header
  *
- * Copyright (C) 2017-2019 Microchip Technology Inc.
+ * Copyright (C) 2017-2024 Microchip Technology Inc.
  */
 
 #ifndef __KSZ_COMMON_H
@@ -201,6 +201,8 @@ enum ksz_model {
 	KSZ8794,
 	KSZ8765,
 	KSZ8830,
+	KSZ8864,
+	KSZ8895,
 	KSZ9477,
 	KSZ9896,
 	KSZ9897,
@@ -629,9 +631,21 @@ static inline bool ksz_is_ksz88x3(struct ksz_device *dev)
 	return dev->chip_id == KSZ8830_CHIP_ID;
 }
 
+static inline bool ksz_is_8895_family(struct ksz_device *dev)
+{
+	return dev->chip_id == KSZ8895_CHIP_ID ||
+	       dev->chip_id == KSZ8864_CHIP_ID;
+}
+
 static inline bool is_ksz8(struct ksz_device *dev)
 {
-	return ksz_is_ksz87xx(dev) || ksz_is_ksz88x3(dev);
+	return ksz_is_ksz87xx(dev) || ksz_is_ksz88x3(dev) ||
+	       ksz_is_8895_family(dev);
+}
+
+static inline bool is_ksz88xx(struct ksz_device *dev)
+{
+	return ksz_is_ksz88x3(dev) || ksz_is_8895_family(dev);
 }
 
 static inline bool is_ksz9477(struct ksz_device *dev)
@@ -665,6 +679,7 @@ static inline bool is_lan937x_tx_phy(struct ksz_device *dev, int port)
 #define SW_FAMILY_ID_M			GENMASK(15, 8)
 #define KSZ87_FAMILY_ID			0x87
 #define KSZ88_FAMILY_ID			0x88
+#define KSZ8895_FAMILY_ID		0x95
 
 #define KSZ8_PORT_STATUS_0		0x08
 #define KSZ8_PORT_FIBER_MODE		BIT(7)
@@ -673,6 +688,12 @@ static inline bool is_lan937x_tx_phy(struct ksz_device *dev, int port)
 #define KSZ87_CHIP_ID_94		0x6
 #define KSZ87_CHIP_ID_95		0x9
 #define KSZ88_CHIP_ID_63		0x3
+#define KSZ8895_CHIP_ID_95		0x4
+#define KSZ8895_CHIP_ID_95R		0x6
+
+/* KSZ8895 specific register */
+#define REG_KSZ8864_CHIP_ID		0xFE
+#define SW_KSZ8864			BIT(7)
 
 #define SW_REV_ID_M			GENMASK(7, 4)
 
