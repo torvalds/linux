@@ -456,11 +456,13 @@ mt7603_init_txpower(struct mt7603_dev *dev,
 	int target_power = eeprom[MT_EE_TX_POWER_0_START_2G + 2] & ~BIT(7);
 	u8 *rate_power = &eeprom[MT_EE_TX_POWER_CCK];
 	bool ext_pa = eeprom[MT_EE_NIC_CONF_0 + 1] & BIT(1);
+	u8 ext_pa_pwr;
 	int max_offset, cur_offset;
 	int i;
 
-	if (ext_pa && is_mt7603(dev))
-		target_power = eeprom[MT_EE_TX_POWER_TSSI_OFF] & ~BIT(7);
+	ext_pa_pwr = eeprom[MT_EE_TX_POWER_TSSI_OFF];
+	if (ext_pa && is_mt7603(dev) && ext_pa_pwr != 0 && ext_pa_pwr != 0xff)
+		target_power = ext_pa_pwr & ~BIT(7);
 
 	if (target_power & BIT(6))
 		target_power = -(target_power & GENMASK(5, 0));
