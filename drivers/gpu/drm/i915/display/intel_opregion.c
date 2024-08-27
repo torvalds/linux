@@ -1117,7 +1117,7 @@ const struct drm_edid *intel_opregion_get_edid(struct intel_connector *connector
 
 	/* Validity corresponds to number of 128-byte blocks */
 	len = (opregion->asle_ext->phed & ASLE_PHED_EDID_VALID_MASK) * 128;
-	if (!len || !memchr_inv(edid, 0, len))
+	if (!len || mem_is_zero(edid, len))
 		return NULL;
 
 	drm_edid = drm_edid_alloc(edid, len);
