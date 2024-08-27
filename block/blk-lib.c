@@ -174,7 +174,7 @@ static int blkdev_issue_write_zeroes(struct block_device *bdev, sector_t sector,
 	 * on an I/O error, in which case we'll turn any error into
 	 * "not supported" here.
 	 */
-	if (ret && !limit)
+	if (ret && !bdev_write_zeroes_sectors(bdev))
 		return -EOPNOTSUPP;
 	return ret;
 }
