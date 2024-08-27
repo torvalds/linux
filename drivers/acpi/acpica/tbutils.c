@@ -18,7 +18,6 @@ ACPI_MODULE_NAME("tbutils")
 static acpi_physical_address
 acpi_tb_get_root_table_entry(u8 *table_entry, u32 table_entry_size);
 
-#if (!ACPI_REDUCED_HARDWARE)
 /*******************************************************************************
  *
  * FUNCTION:    acpi_tb_initialize_facs
@@ -56,7 +55,6 @@ acpi_status acpi_tb_initialize_facs(void)
 
 	return (AE_OK);
 }
-#endif				/* !ACPI_REDUCED_HARDWARE */
 
 /*******************************************************************************
  *
