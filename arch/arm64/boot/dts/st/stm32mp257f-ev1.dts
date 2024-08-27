@@ -93,6 +93,10 @@
 	status = "disabled";
 };
 
+&rtc {
+	status = "okay";
+};
+
 &scmi_regu {
 	scmi_vddio1: regulator@0 {
 		regulator-min-microvolt = <1800000>;
