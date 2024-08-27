@@ -558,7 +558,7 @@ static int check_nhlt_ssp_mclk_mask(struct snd_sof_dev *sdev, int ssp_num)
 	return intel_nhlt_ssp_mclk_mask(nhlt, ssp_num);
 }
 
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA_AUDIO_CODEC) || IS_ENABLED(CONFIG_SND_SOC_SOF_INTEL_SOUNDWIRE)
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_INTEL_SOUNDWIRE)
 
 static const char *fixup_tplg_name(struct snd_sof_dev *sdev,
 				   const char *sof_tplg_filename,
@@ -1045,10 +1045,7 @@ static void hda_generic_machine_select(struct snd_sof_dev *sdev,
 	struct snd_soc_acpi_mach *hda_mach;
 	struct snd_sof_pdata *pdata = sdev->pdata;
 	const char *tplg_filename;
-	const char *idisp_str;
-	int dmic_num = 0;
 	int codec_num = 0;
-	int ret;
 	int i;
 
 	/* codec detection */
@@ -1071,33 +1068,30 @@ static void hda_generic_machine_select(struct snd_sof_dev *sdev,
 		 *  - one external HDAudio codec
 		 */
 		if (!*mach && codec_num <= 2) {
-			bool tplg_fixup;
+			bool tplg_fixup = false;
 
 			hda_mach = snd_soc_acpi_intel_hda_machines;
 
 			dev_info(bus->dev, "using HDA machine driver %s now\n",
 				 hda_mach->drv_name);
 
-			if (codec_num == 1 && HDA_IDISP_CODEC(bus->codec_mask))
-				idisp_str = "-idisp";
-			else
-				idisp_str = "";
-
-			/* topology: use the info from hda_machines */
-			if (pdata->tplg_filename) {
-				tplg_fixup = false;
-				tplg_filename = pdata->tplg_filename;
-			} else {
+			/*
+			 * topology: use the info from hda_machines since tplg file name
+			 * is not overwritten
+			 */
+			if (!pdata->tplg_filename)
 				tplg_fixup = true;
-				tplg_filename = hda_mach->sof_tplg_filename;
-			}
-			ret = dmic_detect_topology_fixup(sdev, &tplg_filename, idisp_str, &dmic_num,
-							 tplg_fixup);
-			if (ret < 0)
-				return;
 
-			hda_mach->mach_params.dmic_num = dmic_num;
-			pdata->tplg_filename = tplg_filename;
+			if (tplg_fixup &&
+			    codec_num == 1 && HDA_IDISP_CODEC(bus->codec_mask)) {
+				tplg_filename = devm_kasprintf(sdev->dev, GFP_KERNEL,
+							       "%s-idisp",
+							       hda_mach->sof_tplg_filename);
+				if (!tplg_filename)
+					return;
+
+				hda_mach->sof_tplg_filename = tplg_filename;
+			}
 
 			if (codec_num == 2 ||
 			    (codec_num == 1 && !HDA_IDISP_CODEC(bus->codec_mask))) {
@@ -1311,11 +1305,35 @@ struct snd_soc_acpi_mach *hda_machine_select(struct snd_sof_dev *sdev)
 	const char *tplg_filename;
 	const char *tplg_suffix;
 	bool amp_name_valid;
+	bool i2s_mach_found = false;
 
 	/* Try I2S or DMIC if it is supported */
-	if (interface_mask & (BIT(SOF_DAI_INTEL_SSP) | BIT(SOF_DAI_INTEL_DMIC)))
+	if (interface_mask & (BIT(SOF_DAI_INTEL_SSP) | BIT(SOF_DAI_INTEL_DMIC))) {
 		mach = snd_soc_acpi_find_machine(desc->machines);
+		if (mach)
+			i2s_mach_found = true;
+	}
 
+	/*
+	 * If I2S fails and no external HDaudio codec is detected,
+	 * try SoundWire if it is supported
+	 */
+	if (!mach && !HDA_EXT_CODEC(bus->codec_mask) &&
+	    (interface_mask & BIT(SOF_DAI_INTEL_ALH)))
+		mach = hda_sdw_machine_select(sdev);
+
+	/*
+	 * Choose HDA generic machine driver if mach is NULL.
+	 * Otherwise, set certain mach params.
+	 */
+	hda_generic_machine_select(sdev, &mach);
+	if (!mach)
+		dev_warn(sdev->dev, "warning: No matching ASoC machine driver found\n");
+
+	/*
+	 * Fixup tplg file name by appending dmic num, ssp num, codec/amplifier
+	 * name string if quirk flag is set.
+	 */
 	if (mach) {
 		bool add_extension = false;
 		bool tplg_fixup = false;
@@ -1349,7 +1367,7 @@ struct snd_soc_acpi_mach *hda_machine_select(struct snd_sof_dev *sdev)
 			tplg_filename = devm_kasprintf(sdev->dev, GFP_KERNEL,
 						       "%s%s%d%s",
 						       sof_pdata->tplg_filename,
-						       "-dmic",
+						       i2s_mach_found ? "-dmic" : "-",
 						       mach->mach_params.dmic_num,
 						       "ch");
 			if (!tplg_filename)
@@ -1478,22 +1496,6 @@ struct snd_soc_acpi_mach *hda_machine_select(struct snd_sof_dev *sdev)
 			sdev->mclk_id_quirk = mclk_id_override;
 		}
 	}
-
-	/*
-	 * If I2S fails and no external HDaudio codec is detected,
-	 * try SoundWire if it is supported
-	 */
-	if (!mach && !HDA_EXT_CODEC(bus->codec_mask) &&
-	    (interface_mask & BIT(SOF_DAI_INTEL_ALH)))
-		mach = hda_sdw_machine_select(sdev);
-
-	/*
-	 * Choose HDA generic machine driver if mach is NULL.
-	 * Otherwise, set certain mach params.
-	 */
-	hda_generic_machine_select(sdev, &mach);
-	if (!mach)
-		dev_warn(sdev->dev, "warning: No matching ASoC machine driver found\n");
 
 	return mach;
 }
