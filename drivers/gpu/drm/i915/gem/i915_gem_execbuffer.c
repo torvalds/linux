@@ -1533,7 +1533,7 @@ static int eb_relocate_vma(struct i915_execbuffer *eb, struct eb_vma *ev)
 		u64_to_user_ptr(entry->relocs_ptr);
 	unsigned long remain = entry->relocation_count;
 
-	if (unlikely(remain > N_RELOC(ULONG_MAX)))
+	if (unlikely(remain > N_RELOC(INT_MAX)))
 		return -EINVAL;
 
 	/*
@@ -1641,7 +1641,7 @@ static int check_relocations(const struct drm_i915_gem_exec_object2 *entry)
 	if (size == 0)
 		return 0;
 
-	if (size > N_RELOC(ULONG_MAX))
+	if (size > N_RELOC(INT_MAX))
 		return -EINVAL;
 
 	addr = u64_to_user_ptr(entry->relocs_ptr);
