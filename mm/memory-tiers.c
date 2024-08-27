@@ -914,13 +914,14 @@ static int __init memory_tier_init(void)
 	WARN_ON(!node_demotion);
 #endif
 
-	guard(mutex)(&memory_tier_lock);
+	mutex_lock(&memory_tier_lock);
 	/*
 	 * For now we can have 4 faster memory tiers with smaller adistance
 	 * than default DRAM tier.
 	 */
 	default_dram_type = mt_find_alloc_memory_type(MEMTIER_ADISTANCE_DRAM,
 						      &default_memory_types);
+	mutex_unlock(&memory_tier_lock);
 	if (IS_ERR(default_dram_type))
 		panic("%s() failed to allocate default DRAM tier\n", __func__);
 
