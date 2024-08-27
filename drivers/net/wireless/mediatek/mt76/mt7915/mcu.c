@@ -191,11 +191,6 @@ mt7915_mcu_send_message(struct mt76_dev *mdev, struct sk_buff *skb,
 {
 	struct mt7915_dev *dev = container_of(mdev, struct mt7915_dev, mt76);
 	enum mt76_mcuq_id qid;
-	int ret;
-
-	ret = mt76_connac2_mcu_fill_message(mdev, skb, cmd, wait_seq);
-	if (ret)
-		return ret;
 
 	if (cmd == MCU_CMD(FW_SCATTER))
 		qid = MT_MCUQ_FWDL;
@@ -2382,7 +2377,9 @@ int mt7915_mcu_init_firmware(struct mt7915_dev *dev)
 int mt7915_mcu_init(struct mt7915_dev *dev)
 {
 	static const struct mt76_mcu_ops mt7915_mcu_ops = {
+		.max_retry = 3,
 		.headroom = sizeof(struct mt76_connac2_mcu_txd),
+		.mcu_skb_prepare_msg = mt76_connac2_mcu_fill_message,
 		.mcu_skb_send_msg = mt7915_mcu_send_message,
 		.mcu_parse_response = mt7915_mcu_parse_response,
 	};
