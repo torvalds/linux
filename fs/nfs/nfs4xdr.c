@@ -3447,7 +3447,7 @@ static int decode_attr_link_support(struct xdr_stream *xdr, uint32_t *bitmap, ui
 		*res = be32_to_cpup(p);
 		bitmap[0] &= ~FATTR4_WORD0_LINK_SUPPORT;
 	}
-	dprintk("%s: link support=%s\n", __func__, *res == 0 ? "false" : "true");
+	dprintk("%s: link support=%s\n", __func__, str_false_true(*res == 0));
 	return 0;
 }
 
@@ -3465,7 +3465,7 @@ static int decode_attr_symlink_support(struct xdr_stream *xdr, uint32_t *bitmap,
 		*res = be32_to_cpup(p);
 		bitmap[0] &= ~FATTR4_WORD0_SYMLINK_SUPPORT;
 	}
-	dprintk("%s: symlink support=%s\n", __func__, *res == 0 ? "false" : "true");
+	dprintk("%s: symlink support=%s\n", __func__, str_false_true(*res == 0));
 	return 0;
 }
 
@@ -3607,7 +3607,7 @@ static int decode_attr_case_insensitive(struct xdr_stream *xdr, uint32_t *bitmap
 		*res = be32_to_cpup(p);
 		bitmap[0] &= ~FATTR4_WORD0_CASE_INSENSITIVE;
 	}
-	dprintk("%s: case_insensitive=%s\n", __func__, *res == 0 ? "false" : "true");
+	dprintk("%s: case_insensitive=%s\n", __func__, str_false_true(*res == 0));
 	return 0;
 }
 
@@ -3625,7 +3625,7 @@ static int decode_attr_case_preserving(struct xdr_stream *xdr, uint32_t *bitmap,
 		*res = be32_to_cpup(p);
 		bitmap[0] &= ~FATTR4_WORD0_CASE_PRESERVING;
 	}
-	dprintk("%s: case_preserving=%s\n", __func__, *res == 0 ? "false" : "true");
+	dprintk("%s: case_preserving=%s\n", __func__, str_false_true(*res == 0));
 	return 0;
 }
 
@@ -4333,8 +4333,7 @@ static int decode_attr_xattrsupport(struct xdr_stream *xdr, uint32_t *bitmap,
 		*res = be32_to_cpup(p);
 		bitmap[2] &= ~FATTR4_WORD2_XATTR_SUPPORT;
 	}
-	dprintk("%s: XATTR support=%s\n", __func__,
-		*res == 0 ? "false" : "true");
+	dprintk("%s: XATTR support=%s\n", __func__, str_false_true(*res == 0));
 	return 0;
 }
 
