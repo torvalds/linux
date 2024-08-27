@@ -95,6 +95,7 @@ skl_hda_add_dai_link(struct snd_soc_card *card, struct snd_soc_dai_link *link)
 #define IDISP_DAI_COUNT		3
 #define HDAC_DAI_COUNT		2
 #define DMIC_DAI_COUNT		2
+#define BT_DAI_COUNT		1
 
 /* there are two routes per iDisp output */
 #define IDISP_ROUTE_COUNT	(IDISP_DAI_COUNT * 2)
@@ -102,11 +103,12 @@ skl_hda_add_dai_link(struct snd_soc_card *card, struct snd_soc_dai_link *link)
 
 #define HDA_CODEC_AUTOSUSPEND_DELAY_MS 1000
 
-static int skl_hda_fill_card_info(struct snd_soc_card *card,
+static int skl_hda_fill_card_info(struct device *dev, struct snd_soc_card *card,
 				  struct snd_soc_acpi_mach_params *mach_params)
 {
 	struct skl_hda_private *ctx = snd_soc_card_get_drvdata(card);
 	struct snd_soc_dai_link *dai_link;
+	struct snd_soc_dai_link *bt_link;
 	u32 codec_count, codec_mask;
 	int i, num_links, num_route;
 
@@ -120,7 +122,7 @@ static int skl_hda_fill_card_info(struct snd_soc_card *card,
 
 	if (codec_mask == IDISP_CODEC_MASK) {
 		/* topology with iDisp as the only HDA codec */
-		num_links = IDISP_DAI_COUNT + DMIC_DAI_COUNT;
+		num_links = IDISP_DAI_COUNT + DMIC_DAI_COUNT + BT_DAI_COUNT;
 		num_route = IDISP_ROUTE_COUNT;
 
 		/*
@@ -129,7 +131,7 @@ static int skl_hda_fill_card_info(struct snd_soc_card *card,
 		 * num_links of dai links need to be registered
 		 * to ASoC.
 		 */
-		for (i = 0; i < DMIC_DAI_COUNT; i++) {
+		for (i = 0; i < (DMIC_DAI_COUNT + BT_DAI_COUNT); i++) {
 			skl_hda_be_dai_links[IDISP_DAI_COUNT + i] =
 				skl_hda_be_dai_links[IDISP_DAI_COUNT +
 					HDAC_DAI_COUNT + i];
@@ -148,6 +150,28 @@ static int skl_hda_fill_card_info(struct snd_soc_card *card,
 				skl_hda_be_dai_links[i].num_codecs = 1;
 			}
 		}
+	}
+
+	if (!ctx->bt_offload_present) {
+		/* remove last link since bt audio offload is not supported */
+		num_links -= BT_DAI_COUNT;
+	} else {
+		if (codec_mask == IDISP_CODEC_MASK)
+			bt_link = &skl_hda_be_dai_links[IDISP_DAI_COUNT + DMIC_DAI_COUNT];
+		else
+			bt_link = &skl_hda_be_dai_links[IDISP_DAI_COUNT + HDAC_DAI_COUNT + DMIC_DAI_COUNT];
+
+		/* complete the link name and dai name with SSP port number */
+		bt_link->name = devm_kasprintf(dev, GFP_KERNEL, "SSP%d-BT",
+					       ctx->ssp_bt);
+		if (!bt_link->name)
+			return -ENOMEM;
+
+		bt_link->cpus->dai_name = devm_kasprintf(dev, GFP_KERNEL,
+							 "SSP%d Pin",
+							 ctx->ssp_bt);
+		if (!bt_link->cpus->dai_name)
+			return -ENOMEM;
 	}
 
 	card->num_links = num_links;
@@ -213,7 +237,12 @@ static int skl_hda_audio_probe(struct platform_device *pdev)
 
 	snd_soc_card_set_drvdata(card, ctx);
 
-	ret = skl_hda_fill_card_info(card, &mach->mach_params);
+	if (hweight_long(mach->mach_params.bt_link_mask) == 1) {
+		ctx->bt_offload_present = true;
+		ctx->ssp_bt = fls(mach->mach_params.bt_link_mask) - 1;
+	}
+
+	ret = skl_hda_fill_card_info(&pdev->dev, card, &mach->mach_params);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Unsupported HDAudio/iDisp configuration found\n");
 		return ret;

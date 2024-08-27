@@ -18,7 +18,7 @@
 #include "../../codecs/hdac_hda.h"
 #include "hda_dsp_common.h"
 
-#define HDA_DSP_MAX_BE_DAI_LINKS 7
+#define HDA_DSP_MAX_BE_DAI_LINKS 8
 
 struct skl_hda_hdmi_pcm {
 	struct list_head head;
@@ -35,6 +35,8 @@ struct skl_hda_private {
 	const char *platform_name;
 	bool common_hdmi_codec_drv;
 	bool idisp_codec;
+	bool bt_offload_present;
+	int ssp_bt;
 };
 
 extern struct snd_soc_dai_link skl_hda_be_dai_links[HDA_DSP_MAX_BE_DAI_LINKS];
