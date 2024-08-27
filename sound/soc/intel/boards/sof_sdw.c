@@ -1102,8 +1102,12 @@ static int sof_card_dai_links_create(struct snd_soc_card *card)
 		hdmi_num = SOF_PRE_TGL_HDMI_COUNT;
 
 	/* enable dmic01 & dmic16k */
-	if (sof_sdw_quirk & SOC_SDW_PCH_DMIC || mach_params->dmic_num)
-		dmic_num = 2;
+	if (sof_sdw_quirk & SOC_SDW_PCH_DMIC || mach_params->dmic_num) {
+		if (ctx->ignore_internal_dmic)
+			dev_warn(dev, "Ignoring PCH DMIC\n");
+		else
+			dmic_num = 2;
+	}
 
 	if (sof_sdw_quirk & SOF_SSP_BT_OFFLOAD_PRESENT)
 		bt_num = 1;
@@ -1148,14 +1152,10 @@ static int sof_card_dai_links_create(struct snd_soc_card *card)
 	}
 
 	/* dmic */
-	if (dmic_num > 0) {
-		if (ctx->ignore_internal_dmic) {
-			dev_warn(dev, "Ignoring PCH DMIC\n");
-		} else {
-			ret = create_dmic_dailinks(card, &dai_links, &be_id);
-			if (ret)
-				goto err_end;
-		}
+	if (dmic_num) {
+		ret = create_dmic_dailinks(card, &dai_links, &be_id);
+		if (ret)
+			goto err_end;
 	}
 
 	/* HDMI */
