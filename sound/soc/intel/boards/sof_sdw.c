@@ -1108,6 +1108,11 @@ static int sof_card_dai_links_create(struct snd_soc_card *card)
 		else
 			dmic_num = 2;
 	}
+	/*
+	 * mach_params->dmic_num will be used to set the cfg-mics value of card->components
+	 * string. Overwrite it to the actual number of PCH DMICs used in the device.
+	 */
+	mach_params->dmic_num = dmic_num;
 
 	if (sof_sdw_quirk & SOF_SSP_BT_OFFLOAD_PRESENT)
 		bt_num = 1;
