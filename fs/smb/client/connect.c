@@ -4194,6 +4194,9 @@ tlink_rb_insert(struct rb_root *root, struct tcon_link *new_tlink)
  *
  * If one doesn't exist then insert a new tcon_link struct into the tree and
  * try to construct a new one.
+ *
+ * REMEMBER to call cifs_put_tlink() after successful calls to cifs_sb_tlink,
+ * to avoid refcount issues
  */
 struct tcon_link *
 cifs_sb_tlink(struct cifs_sb_info *cifs_sb)

@@ -184,6 +184,33 @@ static void test_apic_id(void)
 	kvm_vm_free(vm);
 }
 
+static void test_x2apic_id(void)
+{
+	struct kvm_lapic_state lapic = {};
+	struct kvm_vcpu *vcpu;
+	struct kvm_vm *vm;
+	int i;
+
+	vm = vm_create_with_one_vcpu(&vcpu, NULL);
+	vcpu_set_msr(vcpu, MSR_IA32_APICBASE, MSR_IA32_APICBASE_ENABLE | X2APIC_ENABLE);
+
+	/*
+	 * Try stuffing a modified x2APIC ID, KVM should ignore the value and
+	 * always return the vCPU's default/readonly x2APIC ID.
+	 */
+	for (i = 0; i <= 0xff; i++) {
+		*(u32 *)(lapic.regs + APIC_ID) = i << 24;
+		*(u32 *)(lapic.regs + APIC_SPIV) = APIC_SPIV_APIC_ENABLED;
+		vcpu_ioctl(vcpu, KVM_SET_LAPIC, &lapic);
+
+		vcpu_ioctl(vcpu, KVM_GET_LAPIC, &lapic);
+		TEST_ASSERT(*((u32 *)&lapic.regs[APIC_ID]) == vcpu->id << 24,
+			    "x2APIC ID should be fully readonly");
+	}
+
+	kvm_vm_free(vm);
+}
+
 int main(int argc, char *argv[])
 {
 	struct xapic_vcpu x = {
@@ -211,4 +238,5 @@ int main(int argc, char *argv[])
 	kvm_vm_free(vm);
 
 	test_apic_id();
+	test_x2apic_id();
 }

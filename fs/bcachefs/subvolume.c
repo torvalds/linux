@@ -207,23 +207,23 @@ int bch2_check_subvol_children(struct bch_fs *c)
 
 /* Subvolumes: */
 
-int bch2_subvolume_invalid(struct bch_fs *c, struct bkey_s_c k,
-			   enum bch_validate_flags flags, struct printbuf *err)
+int bch2_subvolume_validate(struct bch_fs *c, struct bkey_s_c k,
+			   enum bch_validate_flags flags)
 {
 	struct bkey_s_c_subvolume subvol = bkey_s_c_to_subvolume(k);
 	int ret = 0;
 
 	bkey_fsck_err_on(bkey_lt(k.k->p, SUBVOL_POS_MIN) ||
-			 bkey_gt(k.k->p, SUBVOL_POS_MAX), c, err,
-			 subvol_pos_bad,
+			 bkey_gt(k.k->p, SUBVOL_POS_MAX),
+			 c, subvol_pos_bad,
 			 "invalid pos");
 
-	bkey_fsck_err_on(!subvol.v->snapshot, c, err,
-			 subvol_snapshot_bad,
+	bkey_fsck_err_on(!subvol.v->snapshot,
+			 c, subvol_snapshot_bad,
 			 "invalid snapshot");
 
-	bkey_fsck_err_on(!subvol.v->inode, c, err,
-			 subvol_inode_bad,
+	bkey_fsck_err_on(!subvol.v->inode,
+			 c, subvol_inode_bad,
 			 "invalid inode");
 fsck_err:
 	return ret;

@@ -1472,6 +1472,8 @@ static void va_macro_set_lpass_codec_version(struct va_macro *va)
 
 	if ((core_id_0 == 0x01) && (core_id_1 == 0x0F))
 		version = LPASS_CODEC_VERSION_2_0;
+	if ((core_id_0 == 0x02) && (core_id_1 == 0x0F) && core_id_2 == 0x01)
+		version = LPASS_CODEC_VERSION_2_0;
 	if ((core_id_0 == 0x02) && (core_id_1 == 0x0E))
 		version = LPASS_CODEC_VERSION_2_1;
 	if ((core_id_0 == 0x02) && (core_id_1 == 0x0F) && (core_id_2 == 0x50 || core_id_2 == 0x51))
