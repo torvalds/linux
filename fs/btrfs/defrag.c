@@ -120,13 +120,11 @@ static inline int need_auto_defrag(struct btrfs_fs_info *fs_info)
  * Insert a defrag record for this inode if auto defrag is enabled. No errors
  * returned as they're not considered fatal.
  */
-void btrfs_add_inode_defrag(struct btrfs_trans_handle *trans,
-			    struct btrfs_inode *inode, u32 extent_thresh)
+void btrfs_add_inode_defrag(struct btrfs_inode *inode, u32 extent_thresh)
 {
 	struct btrfs_root *root = inode->root;
 	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct inode_defrag *defrag;
-	u64 transid;
 	int ret;
 
 	if (!need_auto_defrag(fs_info))
@@ -135,17 +133,12 @@ void btrfs_add_inode_defrag(struct btrfs_trans_handle *trans,
 	if (test_bit(BTRFS_INODE_IN_DEFRAG, &inode->runtime_flags))
 		return;
 
-	if (trans)
-		transid = trans->transid;
-	else
-		transid = btrfs_get_root_last_trans(root);
-
 	defrag = kmem_cache_zalloc(btrfs_inode_defrag_cachep, GFP_NOFS);
 	if (!defrag)
 		return;
 
 	defrag->ino = btrfs_ino(inode);
-	defrag->transid = transid;
+	defrag->transid = btrfs_get_root_last_trans(root);
 	defrag->root = btrfs_root_id(root);
 	defrag->extent_thresh = extent_thresh;
 
