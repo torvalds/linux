@@ -2303,17 +2303,23 @@ static void pqi_update_device_list(struct pqi_ctrl_info *ctrl_info,
 	 * queue depth, device size.
 	 */
 	list_for_each_entry(device, &ctrl_info->scsi_device_list, scsi_device_list_entry) {
+		/*
+		 * Check for queue depth change.
+		 */
 		if (device->sdev && device->queue_depth != device->advertised_queue_depth) {
 			device->advertised_queue_depth = device->queue_depth;
 			scsi_change_queue_depth(device->sdev, device->advertised_queue_depth);
-			spin_lock_irqsave(&ctrl_info->scsi_device_list_lock, flags);
-			if (pqi_volume_rescan_needed(device)) {
-				device->rescan = false;
-				spin_unlock_irqrestore(&ctrl_info->scsi_device_list_lock, flags);
-				scsi_rescan_device(device->sdev);
-			} else {
-				spin_unlock_irqrestore(&ctrl_info->scsi_device_list_lock, flags);
-			}
+		}
+		spin_lock_irqsave(&ctrl_info->scsi_device_list_lock, flags);
+		/*
+		 * Check for changes in the device, such as size.
+		 */
+		if (pqi_volume_rescan_needed(device)) {
+			device->rescan = false;
+			spin_unlock_irqrestore(&ctrl_info->scsi_device_list_lock, flags);
+			scsi_rescan_device(device->sdev);
+		} else {
+			spin_unlock_irqrestore(&ctrl_info->scsi_device_list_lock, flags);
 		}
 	}
 
