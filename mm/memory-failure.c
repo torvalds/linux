@@ -1554,6 +1554,32 @@ static int get_hwpoison_page(struct page *p, unsigned long flags)
 	return ret;
 }
 
+void unmap_poisoned_folio(struct folio *folio, enum ttu_flags ttu)
+{
+	if (folio_test_hugetlb(folio) && !folio_test_anon(folio)) {
+		struct address_space *mapping;
+
+		/*
+		 * For hugetlb folios in shared mappings, try_to_unmap
+		 * could potentially call huge_pmd_unshare.  Because of
+		 * this, take semaphore in write mode here and set
+		 * TTU_RMAP_LOCKED to indicate we have taken the lock
+		 * at this higher level.
+		 */
+		mapping = hugetlb_folio_mapping_lock_write(folio);
+		if (!mapping) {
+			pr_info("%#lx: could not lock mapping for mapped hugetlb folio\n",
+				folio_pfn(folio));
+			return;
+		}
+
+		try_to_unmap(folio, ttu|TTU_RMAP_LOCKED);
+		i_mmap_unlock_write(mapping);
+	} else {
+		try_to_unmap(folio, ttu);
+	}
+}
+
 /*
  * Do all that is necessary to remove user space mappings. Unmap
  * the pages and send SIGBUS to the processes if the data was dirty.
@@ -1615,23 +1641,7 @@ static bool hwpoison_user_mappings(struct folio *folio, struct page *p,
 	 */
 	collect_procs(folio, p, &tokill, flags & MF_ACTION_REQUIRED);
 
-	if (folio_test_hugetlb(folio) && !folio_test_anon(folio)) {
-		/*
-		 * For hugetlb pages in shared mappings, try_to_unmap
-		 * could potentially call huge_pmd_unshare.  Because of
-		 * this, take semaphore in write mode here and set
-		 * TTU_RMAP_LOCKED to indicate we have taken the lock
-		 * at this higher level.
-		 */
-		mapping = hugetlb_folio_mapping_lock_write(folio);
-		if (mapping) {
-			try_to_unmap(folio, ttu|TTU_RMAP_LOCKED);
-			i_mmap_unlock_write(mapping);
-		} else
-			pr_info("%#lx: could not lock mapping for mapped huge page\n", pfn);
-	} else {
-		try_to_unmap(folio, ttu);
-	}
+	unmap_poisoned_folio(folio, ttu);
 
 	unmap_success = !folio_mapped(folio);
 	if (!unmap_success)
