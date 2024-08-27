@@ -117,10 +117,11 @@ static inline int need_auto_defrag(struct btrfs_fs_info *fs_info)
 }
 
 /*
- * Insert a defrag record for this inode if auto defrag is enabled.
+ * Insert a defrag record for this inode if auto defrag is enabled. No errors
+ * returned as they're not considered fatal.
  */
-int btrfs_add_inode_defrag(struct btrfs_trans_handle *trans,
-			   struct btrfs_inode *inode, u32 extent_thresh)
+void btrfs_add_inode_defrag(struct btrfs_trans_handle *trans,
+			    struct btrfs_inode *inode, u32 extent_thresh)
 {
 	struct btrfs_root *root = inode->root;
 	struct btrfs_fs_info *fs_info = root->fs_info;
@@ -129,10 +130,10 @@ int btrfs_add_inode_defrag(struct btrfs_trans_handle *trans,
 	int ret;
 
 	if (!need_auto_defrag(fs_info))
-		return 0;
+		return;
 
 	if (test_bit(BTRFS_INODE_IN_DEFRAG, &inode->runtime_flags))
-		return 0;
+		return;
 
 	if (trans)
 		transid = trans->transid;
@@ -141,7 +142,7 @@ int btrfs_add_inode_defrag(struct btrfs_trans_handle *trans,
 
 	defrag = kmem_cache_zalloc(btrfs_inode_defrag_cachep, GFP_NOFS);
 	if (!defrag)
-		return -ENOMEM;
+		return;
 
 	defrag->ino = btrfs_ino(inode);
 	defrag->transid = transid;
@@ -162,7 +163,6 @@ int btrfs_add_inode_defrag(struct btrfs_trans_handle *trans,
 		kmem_cache_free(btrfs_inode_defrag_cachep, defrag);
 	}
 	spin_unlock(&fs_info->defrag_inodes_lock);
-	return 0;
 }
 
 /*
