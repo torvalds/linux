@@ -505,7 +505,7 @@ struct pqi_vendor_general_request {
 			__le64	buffer_address;
 			__le32	buffer_length;
 			u8	reserved[40];
-		} ofa_memory_allocation;
+		} host_memory_allocation;
 	} data;
 };
 
@@ -517,21 +517,30 @@ struct pqi_vendor_general_response {
 	u8	reserved[2];
 };
 
-#define PQI_VENDOR_GENERAL_CONFIG_TABLE_UPDATE	0
-#define PQI_VENDOR_GENERAL_HOST_MEMORY_UPDATE	1
+#define PQI_VENDOR_GENERAL_CONFIG_TABLE_UPDATE		0
+#define PQI_VENDOR_GENERAL_OFA_MEMORY_UPDATE		1
+#define PQI_VENDOR_GENERAL_CTRL_LOG_MEMORY_UPDATE	2
 
 #define PQI_OFA_VERSION			1
 #define PQI_OFA_SIGNATURE		"OFA_QRM"
-#define PQI_OFA_MAX_SG_DESCRIPTORS	64
+#define PQI_CTRL_LOG_VERSION		1
+#define PQI_CTRL_LOG_SIGNATURE		"FW_DATA"
+#define PQI_HOST_MAX_SG_DESCRIPTORS	64
 
-struct pqi_ofa_memory {
-	__le64	signature;	/* "OFA_QRM" */
+struct pqi_host_memory {
+	__le64	signature;	/* "OFA_QRM", "FW_DATA", etc. */
 	__le16	version;	/* version of this struct (1 = 1st version) */
 	u8	reserved[62];
 	__le32	bytes_allocated;	/* total allocated memory in bytes */
 	__le16	num_memory_descriptors;
 	u8	reserved1[2];
-	struct pqi_sg_descriptor sg_descriptor[PQI_OFA_MAX_SG_DESCRIPTORS];
+	struct pqi_sg_descriptor sg_descriptor[PQI_HOST_MAX_SG_DESCRIPTORS];
+};
+
+struct pqi_host_memory_descriptor {
+	struct pqi_host_memory *host_memory;
+	dma_addr_t		host_memory_dma_handle;
+	void			**host_chunk_virt_address;
 };
 
 struct pqi_aio_error_info {
@@ -867,7 +876,8 @@ struct pqi_config_table_firmware_features {
 #define PQI_FIRMWARE_FEATURE_FW_TRIAGE				17
 #define PQI_FIRMWARE_FEATURE_RPL_EXTENDED_FORMAT_4_5		18
 #define PQI_FIRMWARE_FEATURE_MULTI_LUN_DEVICE_SUPPORT           21
-#define PQI_FIRMWARE_FEATURE_MAXIMUM                            21
+#define PQI_FIRMWARE_FEATURE_CTRL_LOGGING			22
+#define PQI_FIRMWARE_FEATURE_MAXIMUM				22
 
 struct pqi_config_table_debug {
 	struct pqi_config_table_section_header header;
@@ -1357,6 +1367,7 @@ struct pqi_ctrl_info {
 	u8		firmware_triage_supported : 1;
 	u8		rpl_extended_format_4_5_supported : 1;
 	u8		multi_lun_device_supported : 1;
+	u8		ctrl_logging_supported : 1;
 	u8		enable_r1_writes : 1;
 	u8		enable_r5_writes : 1;
 	u8		enable_r6_writes : 1;
@@ -1398,13 +1409,12 @@ struct pqi_ctrl_info {
 	wait_queue_head_t block_requests_wait;
 
 	struct mutex	ofa_mutex;
-	struct pqi_ofa_memory *pqi_ofa_mem_virt_addr;
-	dma_addr_t	pqi_ofa_mem_dma_handle;
-	void		**pqi_ofa_chunk_virt_addr;
 	struct work_struct ofa_memory_alloc_work;
 	struct work_struct ofa_quiesce_work;
 	u32		ofa_bytes_requested;
 	u16		ofa_cancel_reason;
+	struct pqi_host_memory_descriptor ofa_memory;
+	struct pqi_host_memory_descriptor ctrl_log_memory;
 	enum pqi_ctrl_removal_state ctrl_removal_state;
 };
 
