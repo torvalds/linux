@@ -5,7 +5,7 @@
 
 #include "xe_pat.h"
 
-#include <drm/xe_drm.h>
+#include <uapi/drm/xe_drm.h>
 
 #include <generated/xe_wa_oob.h>
 

@@ -5,7 +5,7 @@
 
 #include "xe_sched_job.h"
 
-#include <drm/xe_drm.h>
+#include <uapi/drm/xe_drm.h>
 #include <linux/dma-fence-chain.h>
 #include <linux/slab.h>
 

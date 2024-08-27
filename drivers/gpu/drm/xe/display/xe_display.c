@@ -10,7 +10,7 @@
 
 #include <drm/drm_drv.h>
 #include <drm/drm_managed.h>
-#include <drm/xe_drm.h>
+#include <uapi/drm/xe_drm.h>
 
 #include "soc/intel_dram.h"
 #include "i915_drv.h"		/* FIXME: HAS_DISPLAY() depends on this */

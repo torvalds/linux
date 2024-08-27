@@ -12,7 +12,7 @@
 
 #include <drm/drm_print.h>
 #include <drm/drm_syncobj.h>
-#include <drm/xe_drm.h>
+#include <uapi/drm/xe_drm.h>
 
 #include "xe_device_types.h"
 #include "xe_exec_queue.h"

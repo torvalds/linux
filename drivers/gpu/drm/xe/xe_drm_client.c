@@ -5,7 +5,7 @@
 #include "xe_drm_client.h"
 
 #include <drm/drm_print.h>
-#include <drm/xe_drm.h>
+#include <uapi/drm/xe_drm.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/types.h>

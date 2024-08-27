@@ -7,7 +7,7 @@
 
 #include <kunit/visibility.h>
 
-#include <drm/xe_drm.h>
+#include <uapi/drm/xe_drm.h>
 
 #include "xe_gt.h"
 #include "xe_gt_topology.h"

@@ -8,7 +8,7 @@
 #include <drm/drm_device.h>
 #include <drm/drm_exec.h>
 #include <drm/drm_file.h>
-#include <drm/xe_drm.h>
+#include <uapi/drm/xe_drm.h>
 #include <linux/delay.h>
 
 #include "xe_bo.h"
