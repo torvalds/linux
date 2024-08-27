@@ -160,6 +160,13 @@ static const struct snd_soc_dapm_route rt1318_map[] = {
 	{ "Speaker", NULL, "rt1318-2 SPOR" },
 };
 
+static const struct snd_soc_dapm_route rt1320_map[] = {
+	{ "Speaker", NULL, "rt1320-1 SPOL" },
+	{ "Speaker", NULL, "rt1320-1 SPOR" },
+	{ "Speaker", NULL, "rt1320-2 SPOL" },
+	{ "Speaker", NULL, "rt1320-2 SPOR" },
+};
+
 static const struct snd_soc_dapm_route *get_codec_name_and_route(struct snd_soc_dai *dai,
 								 char *codec_name)
 {
@@ -171,8 +178,10 @@ static const struct snd_soc_dapm_route *get_codec_name_and_route(struct snd_soc_
 		return rt1308_map;
 	else if (strcmp(codec_name, "rt1316") == 0)
 		return rt1316_map;
-	else
+	else if (strcmp(codec_name, "rt1318") == 0)
 		return rt1318_map;
+	else
+		return rt1320_map;
 }
 
 int asoc_sdw_rt_amp_spk_rtd_init(struct snd_soc_pcm_runtime *rtd, struct snd_soc_dai *dai)
