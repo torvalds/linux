@@ -231,8 +231,8 @@ void btrfs_cleanup_defrag_inodes(struct btrfs_fs_info *fs_info)
 
 #define BTRFS_DEFRAG_BATCH	1024
 
-static int __btrfs_run_defrag_inode(struct btrfs_fs_info *fs_info,
-				    struct inode_defrag *defrag)
+static int btrfs_run_defrag_inode(struct btrfs_fs_info *fs_info,
+				  struct inode_defrag *defrag)
 {
 	struct btrfs_root *inode_root;
 	struct inode *inode;
@@ -322,7 +322,7 @@ int btrfs_run_defrag_inodes(struct btrfs_fs_info *fs_info)
 		first_ino = defrag->ino + 1;
 		root_objectid = defrag->root;
 
-		__btrfs_run_defrag_inode(fs_info, defrag);
+		btrfs_run_defrag_inode(fs_info, defrag);
 	}
 	atomic_dec(&fs_info->defrag_running);
 
