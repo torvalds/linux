@@ -7905,15 +7905,18 @@ static int bpf_object_init_progs(struct bpf_object *obj, const struct bpf_object
 }
 
 static struct bpf_object *bpf_object_open(const char *path, const void *obj_buf, size_t obj_buf_sz,
+					  const char *obj_name,
 					  const struct bpf_object_open_opts *opts)
 {
-	const char *obj_name, *kconfig, *btf_tmp_path, *token_path;
+	const char *kconfig, *btf_tmp_path, *token_path;
 	struct bpf_object *obj;
-	char tmp_name[64];
 	int err;
 	char *log_buf;
 	size_t log_size;
 	__u32 log_level;
+
+	if (obj_buf && !obj_name)
+		return ERR_PTR(-EINVAL);
 
 	if (elf_version(EV_CURRENT) == EV_NONE) {
 		pr_warn("failed to init libelf for %s\n",
@@ -7924,16 +7927,12 @@ static struct bpf_object *bpf_object_open(const char *path, const void *obj_buf,
 	if (!OPTS_VALID(opts, bpf_object_open_opts))
 		return ERR_PTR(-EINVAL);
 
-	obj_name = OPTS_GET(opts, object_name, NULL);
+	obj_name = OPTS_GET(opts, object_name, NULL) ?: obj_name;
 	if (obj_buf) {
-		if (!obj_name) {
-			snprintf(tmp_name, sizeof(tmp_name), "%lx-%lx",
-				 (unsigned long)obj_buf,
-				 (unsigned long)obj_buf_sz);
-			obj_name = tmp_name;
-		}
 		path = obj_name;
 		pr_debug("loading object '%s' from buffer\n", obj_name);
+	} else {
+		pr_debug("loading object from %s\n", path);
 	}
 
 	log_buf = OPTS_GET(opts, kernel_log_buf, NULL);
@@ -8017,9 +8016,7 @@ bpf_object__open_file(const char *path, const struct bpf_object_open_opts *opts)
 	if (!path)
 		return libbpf_err_ptr(-EINVAL);
 
-	pr_debug("loading %s\n", path);
-
-	return libbpf_ptr(bpf_object_open(path, NULL, 0, opts));
+	return libbpf_ptr(bpf_object_open(path, NULL, 0, NULL, opts));
 }
 
 struct bpf_object *bpf_object__open(const char *path)
@@ -8031,10 +8028,15 @@ struct bpf_object *
 bpf_object__open_mem(const void *obj_buf, size_t obj_buf_sz,
 		     const struct bpf_object_open_opts *opts)
 {
+	char tmp_name[64];
+
 	if (!obj_buf || obj_buf_sz == 0)
 		return libbpf_err_ptr(-EINVAL);
 
-	return libbpf_ptr(bpf_object_open(NULL, obj_buf, obj_buf_sz, opts));
+	/* create a (quite useless) default "name" for this memory buffer object */
+	snprintf(tmp_name, sizeof(tmp_name), "%lx-%zx", (unsigned long)obj_buf, obj_buf_sz);
+
+	return libbpf_ptr(bpf_object_open(NULL, obj_buf, obj_buf_sz, tmp_name, opts));
 }
 
 static int bpf_object_unload(struct bpf_object *obj)
@@ -13761,29 +13763,13 @@ static int populate_skeleton_progs(const struct bpf_object *obj,
 int bpf_object__open_skeleton(struct bpf_object_skeleton *s,
 			      const struct bpf_object_open_opts *opts)
 {
-	DECLARE_LIBBPF_OPTS(bpf_object_open_opts, skel_opts,
-		.object_name = s->name,
-	);
 	struct bpf_object *obj;
 	int err;
 
-	/* Attempt to preserve opts->object_name, unless overriden by user
-	 * explicitly. Overwriting object name for skeletons is discouraged,
-	 * as it breaks global data maps, because they contain object name
-	 * prefix as their own map name prefix. When skeleton is generated,
-	 * bpftool is making an assumption that this name will stay the same.
-	 */
-	if (opts) {
-		memcpy(&skel_opts, opts, sizeof(*opts));
-		if (!opts->object_name)
-			skel_opts.object_name = s->name;
-	}
-
-	obj = bpf_object__open_mem(s->data, s->data_sz, &skel_opts);
-	err = libbpf_get_error(obj);
-	if (err) {
-		pr_warn("failed to initialize skeleton BPF object '%s': %d\n",
-			s->name, err);
+	obj = bpf_object_open(NULL, s->data, s->data_sz, s->name, opts);
+	if (IS_ERR(obj)) {
+		err = PTR_ERR(obj);
+		pr_warn("failed to initialize skeleton BPF object '%s': %d\n", s->name, err);
 		return libbpf_err(err);
 	}
 
