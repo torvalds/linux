@@ -987,11 +987,9 @@ xfs_file_fallocate(
 			}
 		}
 
-		if (!xfs_is_always_cow_inode(ip)) {
-			error = xfs_alloc_file_space(ip, offset, len);
-			if (error)
-				goto out_unlock;
-		}
+		error = xfs_alloc_file_space(ip, offset, len);
+		if (error)
+			goto out_unlock;
 	}
 
 	/* Change file size if needed */
