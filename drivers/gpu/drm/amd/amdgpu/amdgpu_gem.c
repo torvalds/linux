@@ -293,6 +293,7 @@ static int amdgpu_gem_object_open(struct drm_gem_object *obj,
 		bo_va = amdgpu_vm_bo_add(adev, vm, abo);
 	else
 		++bo_va->ref_count;
+
 	amdgpu_bo_unreserve(abo);
 
 	/* Validate and add eviction fence to DMABuf imports with dynamic
