@@ -813,6 +813,14 @@ static bool enable_easf(struct spl_in *spl_in, struct spl_scratch *spl_scratch)
 	return skip_easf;
 }
 
+/* Check if video is in fullscreen mode */
+static bool spl_is_video_fullscreen(struct spl_in *spl_in)
+{
+	if (spl_is_yuv420(spl_in->basic_in.format) && spl_in->is_fullscreen)
+		return true;
+	return false;
+}
+
 static bool spl_get_isharp_en(struct spl_in *spl_in,
 	struct spl_scratch *spl_scratch)
 {
@@ -820,6 +828,7 @@ static bool spl_get_isharp_en(struct spl_in *spl_in,
 	int vratio = 0;
 	int hratio = 0;
 	struct spl_taps taps = spl_scratch->scl_data.taps;
+	bool fullscreen = spl_is_video_fullscreen(spl_in);
 
 	/* Return if adaptive sharpness is disabled */
 	if (spl_in->adaptive_sharpness.enable == false)
@@ -835,9 +844,15 @@ static bool spl_get_isharp_en(struct spl_in *spl_in,
 	// Scaling is up to 1:1 (no scaling) or upscaling
 
 	/*
-	 * Apply sharpness to all RGB surfaces and to
-	 *  NV12/P010 surfaces
+	 * Apply sharpness to RGB and YUV (NV12/P010)
+	 *  surfaces based on policy setting
 	 */
+	if (!spl_is_yuv420(spl_in->basic_in.format) &&
+		(spl_in->debug.sharpen_policy == SHARPEN_YUV))
+		return enable_isharp;
+	else if ((spl_is_yuv420(spl_in->basic_in.format) && !fullscreen) &&
+		(spl_in->debug.sharpen_policy == SHARPEN_RGB_FULLSCREEN_YUV))
+		return enable_isharp;
 
 	/*
 	 * Apply sharpness if supports horizontal taps 4,6 AND
@@ -1562,13 +1577,18 @@ static void spl_set_isharp_data(struct dscl_prog_data *dscl_prog_data,
 		struct adaptive_sharpness adp_sharpness, bool enable_isharp,
 		enum linear_light_scaling lls_pref, enum spl_pixel_format format,
 		const struct spl_scaler_data *data, struct spl_fixed31_32 ratio,
-		enum system_setup setup)
+		enum system_setup setup, enum scale_to_sharpness_policy scale_to_sharpness_policy)
 {
 	/* Turn off sharpener if not required */
 	if (!enable_isharp) {
 		dscl_prog_data->isharp_en = 0;
 		return;
 	}
+
+	spl_build_isharp_1dlut_from_reference_curve(ratio, setup, adp_sharpness,
+		scale_to_sharpness_policy);
+	dscl_prog_data->isharp_delta = spl_get_pregen_filter_isharp_1D_lut(setup);
+	dscl_prog_data->sharpness_level = adp_sharpness.sharpness_level;
 
 	dscl_prog_data->isharp_en = 1;	// ISHARP_EN
 	// Set ISHARP_NOISEDET_MODE if htaps = 6-tap
@@ -1667,11 +1687,6 @@ static void spl_set_isharp_data(struct dscl_prog_data *dscl_prog_data,
 		dscl_prog_data->isharp_lba.base_seg[5] = 0;	// ISHARP LBA PWL for Seg 5. BASE value in U0.6 format
 	}
 
-
-	spl_build_isharp_1dlut_from_reference_curve(ratio, setup, adp_sharpness);
-	dscl_prog_data->isharp_delta = spl_get_pregen_filter_isharp_1D_lut(setup);
-	dscl_prog_data->sharpness_level = adp_sharpness.sharpness_level;
-
 	// Program the nldelta soft clip values
 	if (lls_pref == LLS_PREF_YES) {
 		dscl_prog_data->isharp_nldelta_sclip.enable_p = 0;	/* ISHARP_NLDELTA_SCLIP_EN_P */
@@ -1766,7 +1781,8 @@ bool spl_calculate_scaler_params(struct spl_in *spl_in, struct spl_out *spl_out)
 		isharp_scale_ratio = spl_scratch.scl_data.recip_ratios.horz;
 
 	spl_set_isharp_data(spl_out->dscl_prog_data, spl_in->adaptive_sharpness, enable_isharp,
-		spl_in->lls_pref, spl_in->basic_in.format, data, isharp_scale_ratio, setup);
+		spl_in->lls_pref, spl_in->basic_in.format, data, isharp_scale_ratio, setup,
+		spl_in->debug.scale_to_sharpness_policy);
 
 	return res;
 }

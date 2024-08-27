@@ -487,6 +487,16 @@ enum linear_light_scaling	{	// convert it in translation logic
 	LLS_PREF_YES,
 	LLS_PREF_NO
 };
+enum sharpen_policy {
+	SHARPEN_ALWAYS = 0,
+	SHARPEN_YUV = 1,
+	SHARPEN_RGB_FULLSCREEN_YUV = 2
+};
+enum scale_to_sharpness_policy {
+	NO_SCALE_TO_SHARPNESS_ADJ = 0,
+	SCALE_TO_SHARPNESS_ADJ_YUV = 1,
+	SCALE_TO_SHARPNESS_ADJ_ALL = 2
+};
 struct spl_funcs	{
 	void (*spl_calc_lb_num_partitions)
 		(bool alpha_en,
@@ -499,6 +509,8 @@ struct spl_funcs	{
 struct spl_debug {
 	int visual_confirm_base_offset;
 	int visual_confirm_dpp_offset;
+	enum sharpen_policy sharpen_policy;
+	enum scale_to_sharpness_policy scale_to_sharpness_policy;
 };
 
 struct spl_in	{

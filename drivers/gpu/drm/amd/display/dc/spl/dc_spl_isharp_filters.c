@@ -500,6 +500,15 @@ struct isharp_1D_lut_pregen filter_isharp_1D_lut_pregen[NUM_SHARPNESS_SETUPS] = 
 	},
 };
 
+struct scale_ratio_to_sharpness_level_adj sharpness_level_adj[NUM_SHARPNESS_ADJ_LEVELS] = {
+	{1125, 1000, 0},
+	{11, 10, 1},
+	{1075, 1000, 2},
+	{105, 100, 3},
+	{1025, 1000, 4},
+	{1, 1, 5},
+};
+
 const uint32_t *spl_get_filter_isharp_1D_lut_0(void)
 {
 	return filter_isharp_1D_lut_0;
@@ -541,19 +550,72 @@ uint16_t *spl_get_filter_isharp_bs_3tap_64p(void)
 	return filter_isharp_bs_3tap_64p_s1_12;
 }
 
-static unsigned int spl_calculate_sharpness_level(int discrete_sharpness_level, enum system_setup setup,
-		struct spl_sharpness_range sharpness_range)
+static unsigned int spl_calculate_sharpness_level_adj(struct spl_fixed31_32 ratio)
+{
+	int j;
+	struct spl_fixed31_32 ratio_level;
+	struct scale_ratio_to_sharpness_level_adj *lookup_ptr;
+	unsigned int sharpness_level_down_adj;
+
+	/*
+	 * Adjust sharpness level based on current scaling ratio
+	 *
+	 * We have 5 discrete scaling ratios which we will use to adjust the
+	 *  sharpness level down by 1 as we pass each ratio.  The ratios
+	 *  are
+	 *
+	 * 1.125 upscale and higher - no adj
+	 * 1.100 - under 1.125 - adj level down 1
+	 * 1.075 - under 1.100 - adj level down 2
+	 * 1.050 - under 1.075 - adj level down 3
+	 * 1.025 - under 1.050 - adj level down 4
+	 * 1.000 - under 1.025 - adj level down 5
+	 *
+	 */
+	j = 0;
+	sharpness_level_down_adj = 0;
+	lookup_ptr = sharpness_level_adj;
+	while (j < NUM_SHARPNESS_ADJ_LEVELS) {
+		ratio_level = spl_fixpt_from_fraction(lookup_ptr->ratio_numer,
+			lookup_ptr->ratio_denom);
+		if (ratio.value >= ratio_level.value) {
+			sharpness_level_down_adj = lookup_ptr->level_down_adj;
+			break;
+		}
+		lookup_ptr++;
+		j++;
+	}
+	return sharpness_level_down_adj;
+}
+
+static unsigned int spl_calculate_sharpness_level(struct spl_fixed31_32 ratio,
+		int discrete_sharpness_level, enum system_setup setup,
+		struct spl_sharpness_range sharpness_range,
+		enum scale_to_sharpness_policy scale_to_sharpness_policy)
 {
 	unsigned int sharpness_level = 0;
+	unsigned int sharpness_level_down_adj = 0;
 
 	int min_sharpness, max_sharpness, mid_sharpness;
 
+	/*
+	 * Adjust sharpness level if policy requires we adjust it based on
+	 *  scale ratio.  Based on scale ratio, we may adjust the sharpness
+	 *  level down by a certain number of steps.  We will not select
+	 *  a sharpness value of 0 so the lowest sharpness level will be
+	 *  0 or 1 depending on what the min_sharpness is
+	 *
+	 * If the policy is no required, this code maybe removed at a later
+	 *  date
+	 */
 	switch (setup) {
 
 	case HDR_L:
 		min_sharpness = sharpness_range.hdr_rgb_min;
 		max_sharpness = sharpness_range.hdr_rgb_max;
 		mid_sharpness = sharpness_range.hdr_rgb_mid;
+		if (scale_to_sharpness_policy == SCALE_TO_SHARPNESS_ADJ_ALL)
+			sharpness_level_down_adj = spl_calculate_sharpness_level_adj(ratio);
 		break;
 	case HDR_NL:
 		/* currently no use case, use Non-linear SDR values for now */
@@ -561,14 +623,25 @@ static unsigned int spl_calculate_sharpness_level(int discrete_sharpness_level, 
 		min_sharpness = sharpness_range.sdr_yuv_min;
 		max_sharpness = sharpness_range.sdr_yuv_max;
 		mid_sharpness = sharpness_range.sdr_yuv_mid;
+		if (scale_to_sharpness_policy >= SCALE_TO_SHARPNESS_ADJ_YUV)
+			sharpness_level_down_adj = spl_calculate_sharpness_level_adj(ratio);
 		break;
 	case SDR_L:
 	default:
 		min_sharpness = sharpness_range.sdr_rgb_min;
 		max_sharpness = sharpness_range.sdr_rgb_max;
 		mid_sharpness = sharpness_range.sdr_rgb_mid;
+		if (scale_to_sharpness_policy == SCALE_TO_SHARPNESS_ADJ_ALL)
+			sharpness_level_down_adj = spl_calculate_sharpness_level_adj(ratio);
 		break;
 	}
+
+	if ((min_sharpness == 0) && (sharpness_level_down_adj >= discrete_sharpness_level))
+		discrete_sharpness_level = 1;
+	else if (sharpness_level_down_adj >= discrete_sharpness_level)
+		discrete_sharpness_level = 0;
+	else
+		discrete_sharpness_level -= sharpness_level_down_adj;
 
 	int lower_half_step_size = (mid_sharpness - min_sharpness) / 5;
 	int upper_half_step_size = (max_sharpness - mid_sharpness) / 5;
@@ -584,7 +657,7 @@ static unsigned int spl_calculate_sharpness_level(int discrete_sharpness_level, 
 }
 
 void spl_build_isharp_1dlut_from_reference_curve(struct spl_fixed31_32 ratio, enum system_setup setup,
-	struct adaptive_sharpness sharpness)
+	struct adaptive_sharpness sharpness, enum scale_to_sharpness_policy scale_to_sharpness_policy)
 {
 	uint8_t *byte_ptr_1dlut_src, *byte_ptr_1dlut_dst;
 	struct spl_fixed31_32 sharp_base, sharp_calc, sharp_level;
@@ -594,8 +667,9 @@ void spl_build_isharp_1dlut_from_reference_curve(struct spl_fixed31_32 ratio, en
 	uint32_t filter_pregen_store[ISHARP_LUT_TABLE_SIZE];
 
 	/* Custom sharpnessX1000 value */
-	unsigned int sharpnessX1000 = spl_calculate_sharpness_level(sharpness.sharpness_level,
-			setup, sharpness.sharpness_range);
+	unsigned int sharpnessX1000 = spl_calculate_sharpness_level(ratio,
+			sharpness.sharpness_level, setup,
+			sharpness.sharpness_range, scale_to_sharpness_policy);
 	sharp_level = spl_fixpt_from_fraction(sharpnessX1000, 1000);
 
 	/*
@@ -605,7 +679,6 @@ void spl_build_isharp_1dlut_from_reference_curve(struct spl_fixed31_32 ratio, en
 	if ((filter_isharp_1D_lut_pregen[setup].sharpness_numer == sharpnessX1000) &&
 		(filter_isharp_1D_lut_pregen[setup].sharpness_denom == 1000))
 		return;
-
 
 	/*
 	 * Calculate LUT_128_gained with this equation:

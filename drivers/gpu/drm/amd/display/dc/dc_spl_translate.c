@@ -186,6 +186,11 @@ void translate_SPL_in_params_from_pipe_ctx(struct pipe_ctx *pipe_ctx, struct spl
 
 	spl_in->h_active = pipe_ctx->plane_res.scl_data.h_active;
 	spl_in->v_active = pipe_ctx->plane_res.scl_data.v_active;
+
+	spl_in->debug.sharpen_policy = (enum sharpen_policy)pipe_ctx->stream->ctx->dc->debug.sharpen_policy;
+	spl_in->debug.scale_to_sharpness_policy =
+		(enum scale_to_sharpness_policy)pipe_ctx->stream->ctx->dc->debug.scale_to_sharpness_policy;
+
 	/* Check if it is stream is in fullscreen and if its HDR.
 	 * Use this to determine sharpness levels
 	 */

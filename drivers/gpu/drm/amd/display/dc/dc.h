@@ -1056,6 +1056,8 @@ struct dc_debug_options {
 	unsigned int force_lls;
 	bool notify_dpia_hr_bw;
 	bool enable_ips_visual_confirm;
+	unsigned int sharpen_policy;
+	unsigned int scale_to_sharpness_policy;
 };
 
 
