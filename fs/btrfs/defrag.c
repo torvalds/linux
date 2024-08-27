@@ -45,8 +45,8 @@ struct inode_defrag {
 	u32 extent_thresh;
 };
 
-static int compare_inode_defrag(struct inode_defrag *defrag1,
-				  struct inode_defrag *defrag2)
+static int compare_inode_defrag(const struct inode_defrag *defrag1,
+				const struct inode_defrag *defrag2)
 {
 	if (defrag1->root > defrag2->root)
 		return 1;
