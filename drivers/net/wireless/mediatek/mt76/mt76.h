@@ -347,6 +347,7 @@ struct mt76_wcid {
 	u8 hw_key_idx2;
 
 	u8 sta:1;
+	u8 sta_disabled:1;
 	u8 amsdu:1;
 	u8 phy_idx:2;
 	u8 link_id:4;

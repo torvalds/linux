@@ -404,6 +404,7 @@ static void
 mt7915_tm_init(struct mt7915_phy *phy, bool en)
 {
 	struct mt7915_dev *dev = phy->dev;
+	int state;
 
 	if (!test_bit(MT76_STATE_RUNNING, &phy->mt76->state))
 		return;
@@ -415,7 +416,8 @@ mt7915_tm_init(struct mt7915_phy *phy, bool en)
 	mt7915_tm_set_trx(phy, TM_MAC_TXRX, !en);
 
 	mt7915_mcu_add_bss_info(phy, phy->monitor_vif, en);
-	mt7915_mcu_add_sta(dev, phy->monitor_vif, NULL, en);
+	state = en ? CONN_STATE_PORT_SECURE : CONN_STATE_DISCONNECT;
+	mt7915_mcu_add_sta(dev, phy->monitor_vif, NULL, state, true);
 
 	if (!en)
 		mt7915_tm_set_tam_arb(phy, en, 0);
