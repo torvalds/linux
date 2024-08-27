@@ -212,20 +212,14 @@ out:
 
 void btrfs_cleanup_defrag_inodes(struct btrfs_fs_info *fs_info)
 {
-	struct inode_defrag *defrag;
-	struct rb_node *node;
+	struct inode_defrag *defrag, *next;
 
 	spin_lock(&fs_info->defrag_inodes_lock);
-	node = rb_first(&fs_info->defrag_inodes);
-	while (node) {
-		rb_erase(node, &fs_info->defrag_inodes);
-		defrag = rb_entry(node, struct inode_defrag, rb_node);
+
+	rbtree_postorder_for_each_entry_safe(defrag, next,
+					     &fs_info->defrag_inodes, rb_node)
 		kmem_cache_free(btrfs_inode_defrag_cachep, defrag);
 
-		cond_resched_lock(&fs_info->defrag_inodes_lock);
-
-		node = rb_first(&fs_info->defrag_inodes);
-	}
 	spin_unlock(&fs_info->defrag_inodes_lock);
 }
 
