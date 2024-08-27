@@ -8,6 +8,7 @@
  */
 
 #include <linux/acpi.h>
+#include <linux/arm-smccc.h>
 #include <linux/bitfield.h>
 #include <linux/clk.h>
 #include <linux/dma-mapping.h>
@@ -200,6 +201,9 @@
 #define DWCMSHC_SDHCI_CQE_TRNS_MODE	(SDHCI_TRNS_MULTI | \
 					 SDHCI_TRNS_BLK_CNT_EN | \
 					 SDHCI_TRNS_DMA)
+
+/* SMC call for BlueField-3 eMMC RST_N */
+#define BLUEFIELD_SMC_SET_EMMC_RST_N	0x82000007
 
 enum dwcmshc_rk_type {
 	DWCMSHC_RK3568,
@@ -1111,6 +1115,29 @@ static const struct sdhci_ops sdhci_dwcmshc_ops = {
 	.irq			= dwcmshc_cqe_irq_handler,
 };
 
+#ifdef CONFIG_ACPI
+static void dwcmshc_bf3_hw_reset(struct sdhci_host *host)
+{
+	struct arm_smccc_res res = { 0 };
+
+	arm_smccc_smc(BLUEFIELD_SMC_SET_EMMC_RST_N, 0, 0, 0, 0, 0, 0, 0, &res);
+
+	if (res.a0)
+		pr_err("%s: RST_N failed.\n", mmc_hostname(host->mmc));
+}
+
+static const struct sdhci_ops sdhci_dwcmshc_bf3_ops = {
+	.set_clock		= sdhci_set_clock,
+	.set_bus_width		= sdhci_set_bus_width,
+	.set_uhs_signaling	= dwcmshc_set_uhs_signaling,
+	.get_max_clock		= dwcmshc_get_max_clock,
+	.reset			= sdhci_reset,
+	.adma_write_desc	= dwcmshc_adma_write_desc,
+	.irq			= dwcmshc_cqe_irq_handler,
+	.hw_reset		= dwcmshc_bf3_hw_reset,
+};
+#endif
+
 static const struct sdhci_ops sdhci_dwcmshc_rk35xx_ops = {
 	.set_clock		= dwcmshc_rk3568_set_clock,
 	.set_bus_width		= sdhci_set_bus_width,
@@ -1163,7 +1190,7 @@ static const struct dwcmshc_pltfm_data sdhci_dwcmshc_pdata = {
 #ifdef CONFIG_ACPI
 static const struct dwcmshc_pltfm_data sdhci_dwcmshc_bf3_pdata = {
 	.pdata = {
-		.ops = &sdhci_dwcmshc_ops,
+		.ops = &sdhci_dwcmshc_bf3_ops,
 		.quirks = SDHCI_QUIRK_CAP_CLOCK_BASE_BROKEN,
 		.quirks2 = SDHCI_QUIRK2_PRESET_VALUE_BROKEN |
 			   SDHCI_QUIRK2_ACMD23_BROKEN,
