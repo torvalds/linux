@@ -2362,6 +2362,8 @@ int mt7915_mcu_init_firmware(struct mt7915_dev *dev)
 	if (ret)
 		return ret;
 
+	mt76_connac_mcu_del_wtbl_all(&dev->mt76);
+
 	if ((mtk_wed_device_active(&dev->mt76.mmio.wed) &&
 	     is_mt7915(&dev->mt76)) ||
 	    !mtk_wed_get_rx_capa(&dev->mt76.mmio.wed))
