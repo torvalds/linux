@@ -1750,6 +1750,6 @@ static void __exit aesni_exit(void)
 late_initcall(aesni_init);
 module_exit(aesni_exit);
 
-MODULE_DESCRIPTION("Rijndael (AES) Cipher Algorithm, Intel AES-NI instructions optimized");
+MODULE_DESCRIPTION("AES cipher and modes, optimized with AES-NI or VAES instructions");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_CRYPTO("aes");
