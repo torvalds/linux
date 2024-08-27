@@ -46,5 +46,4 @@ $(OUTPUT)/vdso_test_chacha: LDLIBS += $(SODIUM_LIBS)
 $(OUTPUT)/vdso_test_chacha: CFLAGS += -idirafter $(top_srcdir)/tools/include \
                                       -idirafter $(top_srcdir)/arch/$(ARCH)/include \
                                       -idirafter $(top_srcdir)/include \
-                                      -D__ASSEMBLY__ -DBULID_VDSO -DCONFIG_FUNCTION_ALIGNMENT=0 \
-                                      -Wa,--noexecstack $(SODIUM_CFLAGS)
+                                      -D__ASSEMBLY__ -Wa,--noexecstack $(SODIUM_CFLAGS)
