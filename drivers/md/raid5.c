@@ -6070,6 +6070,7 @@ static sector_t raid5_bio_lowest_chunk_sector(struct r5conf *conf,
 static bool raid5_make_request(struct mddev *mddev, struct bio * bi)
 {
 	DEFINE_WAIT_FUNC(wait, woken_wake_function);
+	bool on_wq;
 	struct r5conf *conf = mddev->private;
 	sector_t logical_sector;
 	struct stripe_request_ctx ctx = {};
@@ -6143,11 +6144,15 @@ static bool raid5_make_request(struct mddev *mddev, struct bio * bi)
 	 * sequential IO pattern. We don't bother with the optimization when
 	 * reshaping as the performance benefit is not worth the complexity.
 	 */
-	if (likely(conf->reshape_progress == MaxSector))
+	if (likely(conf->reshape_progress == MaxSector)) {
 		logical_sector = raid5_bio_lowest_chunk_sector(conf, bi);
+		on_wq = false;
+	} else {
+		add_wait_queue(&conf->wait_for_overlap, &wait);
+		on_wq = true;
+	}
 	s = (logical_sector - ctx.first_sector) >> RAID5_STRIPE_SHIFT(conf);
 
-	add_wait_queue(&conf->wait_for_overlap, &wait);
 	while (1) {
 		res = make_stripe_request(mddev, conf, &ctx, logical_sector,
 					  bi);
@@ -6158,6 +6163,7 @@ static bool raid5_make_request(struct mddev *mddev, struct bio * bi)
 			continue;
 
 		if (res == STRIPE_SCHEDULE_AND_RETRY) {
+			WARN_ON_ONCE(!on_wq);
 			/*
 			 * Must release the reference to batch_last before
 			 * scheduling and waiting for work to be done,
@@ -6182,7 +6188,8 @@ static bool raid5_make_request(struct mddev *mddev, struct bio * bi)
 		logical_sector = ctx.first_sector +
 			(s << RAID5_STRIPE_SHIFT(conf));
 	}
-	remove_wait_queue(&conf->wait_for_overlap, &wait);
+	if (unlikely(on_wq))
+		remove_wait_queue(&conf->wait_for_overlap, &wait);
 
 	if (ctx.batch_last)
 		raid5_release_stripe(ctx.batch_last);
