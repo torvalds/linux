@@ -384,7 +384,7 @@ static int scmi_base_protocol_init(const struct scmi_protocol_handle *ph)
 	if (ret)
 		return ret;
 
-	rev->major_ver = PROTOCOL_REV_MAJOR(version),
+	rev->major_ver = PROTOCOL_REV_MAJOR(version);
 	rev->minor_ver = PROTOCOL_REV_MINOR(version);
 	ph->set_priv(ph, rev, version);
 
