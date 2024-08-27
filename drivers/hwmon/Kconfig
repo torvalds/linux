@@ -2167,11 +2167,12 @@ config SENSORS_INA2XX
 	select REGMAP_I2C
 	help
 	  If you say yes here you get support for INA219, INA220, INA226,
-	  INA230, and INA231 power monitor chips.
+	  INA230, INA231, and INA260 power monitor chips.
 
 	  The INA2xx driver is configured for the default configuration of
 	  the part as described in the datasheet.
-	  Default value for Rshunt is 10 mOhms.
+	  Default value for Rshunt is 10 mOhms except for INA260 which has an
+	  internal 2 mOhm shunt resistor.
 	  This driver can also be built as a module. If so, the module
 	  will be called ina2xx.
 
