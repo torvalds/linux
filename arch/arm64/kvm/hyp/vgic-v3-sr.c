@@ -1120,6 +1120,9 @@ int __vgic_v3_perform_cpuif_access(struct kvm_vcpu *vcpu)
 	bool is_read;
 	u32 sysreg;
 
+	if (kern_hyp_va(vcpu->kvm)->arch.vgic.vgic_model != KVM_DEV_TYPE_ARM_VGIC_V3)
+		return 0;
+
 	esr = kvm_vcpu_get_esr(vcpu);
 	if (vcpu_mode_is_32bit(vcpu)) {
 		if (!kvm_condition_valid(vcpu)) {

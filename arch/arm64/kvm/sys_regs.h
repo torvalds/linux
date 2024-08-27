@@ -250,4 +250,11 @@ int kvm_finalize_sys_regs(struct kvm_vcpu *vcpu);
 	CRn(sys_reg_CRn(reg)), CRm(sys_reg_CRm(reg)),	\
 	Op2(sys_reg_Op2(reg))
 
+#define CP15_SYS_DESC(reg)				\
+	.name = #reg,					\
+	.aarch32_map = AA32_DIRECT,			\
+	Op0(0), Op1(sys_reg_Op1(reg)),			\
+	CRn(sys_reg_CRn(reg)), CRm(sys_reg_CRm(reg)),	\
+	Op2(sys_reg_Op2(reg))
+
 #endif /* __ARM64_KVM_SYS_REGS_LOCAL_H__ */
