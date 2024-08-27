@@ -1030,7 +1030,6 @@ scmi_xfer_command_acquire(struct scmi_chan_info *cinfo, u32 msg_hdr)
 		scmi_bad_message_trace(cinfo, msg_hdr, MSG_INVALID);
 		scmi_inc_count(info->dbg->counters, ERR_MSG_INVALID);
 
-
 		/* On error the refcount incremented above has to be dropped */
 		__scmi_xfer_put(minfo, xfer);
 		xfer = ERR_PTR(-EINVAL);

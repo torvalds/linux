@@ -238,7 +238,6 @@ static int mailbox_chan_setup(struct scmi_chan_info *cinfo, struct device *dev,
 		}
 	}
 
-
 	cinfo->transport_info = smbox;
 	smbox->cinfo = cinfo;
 
