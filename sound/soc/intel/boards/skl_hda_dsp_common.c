@@ -11,7 +11,6 @@
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
-#include "../../codecs/hdac_hdmi.h"
 #include "skl_hda_dsp_common.h"
 
 #include <sound/hda_codec.h>
@@ -35,7 +34,6 @@ int skl_hda_hdmi_add_pcm(struct snd_soc_card *card, int device)
 	if (!pcm->codec_dai)
 		return -EINVAL;
 
-	pcm->device = device;
 	list_add_tail(&pcm->head, &ctx->hdmi_pcm_list);
 
 	return 0;
@@ -150,32 +148,18 @@ struct snd_soc_dai_link skl_hda_be_dai_links[HDA_DSP_MAX_BE_DAI_LINKS] = {
 int skl_hda_hdmi_jack_init(struct snd_soc_card *card)
 {
 	struct skl_hda_private *ctx = snd_soc_card_get_drvdata(card);
-	struct snd_soc_component *component = NULL;
+	struct snd_soc_component *component;
 	struct skl_hda_hdmi_pcm *pcm;
-	char jack_name[NAME_SIZE];
-	int err;
 
-	if (ctx->common_hdmi_codec_drv)
-		return skl_hda_hdmi_build_controls(card);
+	/* HDMI disabled, do not create controls */
+	if (list_empty(&ctx->hdmi_pcm_list))
+		return 0;
 
-	list_for_each_entry(pcm, &ctx->hdmi_pcm_list, head) {
-		component = pcm->codec_dai->component;
-		snprintf(jack_name, sizeof(jack_name),
-			 "HDMI/DP, pcm=%d Jack", pcm->device);
-		err = snd_soc_card_jack_new(card, jack_name,
-					    SND_JACK_AVOUT, &pcm->hdmi_jack);
-
-		if (err)
-			return err;
-
-		err = hdac_hdmi_jack_init(pcm->codec_dai, pcm->device,
-					  &pcm->hdmi_jack);
-		if (err < 0)
-			return err;
-	}
-
+	pcm = list_first_entry(&ctx->hdmi_pcm_list, struct skl_hda_hdmi_pcm,
+			       head);
+	component = pcm->codec_dai->component;
 	if (!component)
 		return -EINVAL;
 
-	return hdac_hdmi_jack_port_init(component, &card->dapm);
+	return hda_dsp_hdmi_build_controls(card, component);
 }

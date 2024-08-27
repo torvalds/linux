@@ -13,7 +13,6 @@
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
 #include <sound/soc-acpi.h>
-#include "../../codecs/hdac_hdmi.h"
 #include "skl_hda_dsp_common.h"
 
 static const struct snd_soc_dapm_widget skl_hda_widgets[] = {
@@ -208,7 +207,7 @@ static void skl_set_hda_codec_autosuspend_delay(struct snd_soc_card *card)
 
 static int skl_hda_audio_probe(struct platform_device *pdev)
 {
-	struct snd_soc_acpi_mach *mach;
+	struct snd_soc_acpi_mach *mach = pdev->dev.platform_data;
 	struct skl_hda_private *ctx;
 	struct snd_soc_card *card;
 	int ret;
@@ -220,10 +219,6 @@ static int skl_hda_audio_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	INIT_LIST_HEAD(&ctx->hdmi_pcm_list);
-
-	mach = pdev->dev.platform_data;
-	if (!mach)
-		return -EINVAL;
 
 	card = &ctx->card;
 	card->name = "hda-dsp",
@@ -251,7 +246,6 @@ static int skl_hda_audio_probe(struct platform_device *pdev)
 	ctx->pcm_count = card->num_links;
 	ctx->dai_index = 1; /* hdmi codec dai name starts from index 1 */
 	ctx->platform_name = mach->mach_params.platform;
-	ctx->common_hdmi_codec_drv = mach->mach_params.common_hdmi_codec_drv;
 
 	card->dev = &pdev->dev;
 	if (!snd_soc_acpi_sof_parent(&pdev->dev))
