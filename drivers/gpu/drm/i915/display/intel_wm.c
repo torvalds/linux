@@ -3,6 +3,8 @@
  * Copyright © 2023 Intel Corporation
  */
 
+#include <linux/debugfs.h>
+
 #include "i915_drv.h"
 #include "i9xx_wm.h"
 #include "intel_display_types.h"

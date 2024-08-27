@@ -38,6 +38,7 @@
  * forcibly disable it to allow proper screen updates.
  */
 
+#include <linux/debugfs.h>
 #include <linux/string_helpers.h>
 
 #include <drm/drm_blend.h>

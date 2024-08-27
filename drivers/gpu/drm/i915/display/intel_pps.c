@@ -3,6 +3,8 @@
  * Copyright © 2020 Intel Corporation
  */
 
+#include <linux/debugfs.h>
+
 #include "g4x_dp.h"
 #include "i915_drv.h"
 #include "i915_reg.h"

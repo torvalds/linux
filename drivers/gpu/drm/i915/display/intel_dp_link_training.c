@@ -21,6 +21,8 @@
  * IN THE SOFTWARE.
  */
 
+#include <linux/debugfs.h>
+
 #include <drm/display/drm_dp_helper.h>
 
 #include "i915_drv.h"

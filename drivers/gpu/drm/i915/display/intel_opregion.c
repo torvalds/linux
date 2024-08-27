@@ -26,6 +26,7 @@
  */
 
 #include <linux/acpi.h>
+#include <linux/debugfs.h>
 #include <linux/dmi.h>
 #include <acpi/video.h>
 

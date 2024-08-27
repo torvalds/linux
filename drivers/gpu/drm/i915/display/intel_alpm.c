@@ -3,6 +3,8 @@
  * Copyright 2024, Intel Corporation.
  */
 
+#include <linux/debugfs.h>
+
 #include "intel_alpm.h"
 #include "intel_crtc.h"
 #include "intel_de.h"

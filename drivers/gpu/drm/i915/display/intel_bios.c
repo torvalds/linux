@@ -25,6 +25,7 @@
  *
  */
 
+#include <linux/debugfs.h>
 #include <linux/firmware.h>
 
 #include <drm/display/drm_dp_helper.h>
