@@ -2365,7 +2365,6 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 		   ID_AA64PFR0_EL1_MPAM |
 		   ID_AA64PFR0_EL1_SVE |
 		   ID_AA64PFR0_EL1_RAS |
-		   ID_AA64PFR0_EL1_GIC |
 		   ID_AA64PFR0_EL1_AdvSIMD |
 		   ID_AA64PFR0_EL1_FP), },
 	ID_SANITISED(ID_AA64PFR1_EL1),
@@ -4633,6 +4632,13 @@ int kvm_finalize_sys_regs(struct kvm_vcpu *vcpu)
 	struct kvm *kvm = vcpu->kvm;
 
 	guard(mutex)(&kvm->arch.config_lock);
+
+	if (!(static_branch_unlikely(&kvm_vgic_global_state.gicv3_cpuif) &&
+	      irqchip_in_kernel(kvm) &&
+	      kvm->arch.vgic.vgic_model == KVM_DEV_TYPE_ARM_VGIC_V3)) {
+		kvm->arch.id_regs[IDREG_IDX(SYS_ID_AA64PFR0_EL1)] &= ~ID_AA64PFR0_EL1_GIC_MASK;
+		kvm->arch.id_regs[IDREG_IDX(SYS_ID_PFR1_EL1)] &= ~ID_PFR1_EL1_GIC_MASK;
+	}
 
 	if (vcpu_has_nv(vcpu)) {
 		int ret = kvm_init_nv_sysregs(kvm);
