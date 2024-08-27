@@ -361,6 +361,7 @@ struct mt76_wcid {
 
 	struct list_head tx_list;
 	struct sk_buff_head tx_pending;
+	struct sk_buff_head tx_offchannel;
 
 	struct list_head list;
 	struct idr pktid;
