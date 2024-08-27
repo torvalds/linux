@@ -7,16 +7,20 @@
 #include <sys/random.h>
 #include <string.h>
 #include <stdint.h>
+#include <stdbool.h>
 #include "../kselftest.h"
 
-extern void __arch_chacha20_blocks_nostack(uint8_t *dst_bytes, const uint8_t *key, uint32_t *counter, size_t nblocks);
+typedef uint8_t u8;
+typedef uint32_t u32;
+typedef uint64_t u64;
+#include <vdso/getrandom.h>
 
 int main(int argc, char *argv[])
 {
 	enum { TRIALS = 1000, BLOCKS = 128, BLOCK_SIZE = 64 };
 	static const uint8_t nonce[8] = { 0 };
 	uint32_t counter[2];
-	uint8_t key[32];
+	uint32_t key[8];
 	uint8_t output1[BLOCK_SIZE * BLOCKS], output2[BLOCK_SIZE * BLOCKS];
 
 	ksft_print_header();
@@ -27,7 +31,7 @@ int main(int argc, char *argv[])
 			printf("getrandom() failed!\n");
 			return KSFT_SKIP;
 		}
-		crypto_stream_chacha20(output1, sizeof(output1), nonce, key);
+		crypto_stream_chacha20(output1, sizeof(output1), nonce, (uint8_t *)key);
 		for (unsigned int split = 0; split < BLOCKS; ++split) {
 			memset(output2, 'X', sizeof(output2));
 			memset(counter, 0, sizeof(counter));
