@@ -1629,11 +1629,6 @@ unsigned long shmem_allowable_huge_orders(struct inode *inode,
 	unsigned long mask = READ_ONCE(huge_shmem_orders_always);
 	unsigned long within_size_orders = READ_ONCE(huge_shmem_orders_within_size);
 	unsigned long vm_flags = vma->vm_flags;
-	/*
-	 * Check all the (large) orders below HPAGE_PMD_ORDER + 1 that
-	 * are enabled for this vma.
-	 */
-	unsigned long orders = BIT(PMD_ORDER + 1) - 1;
 	loff_t i_size;
 	int order;
 
@@ -1678,7 +1673,7 @@ unsigned long shmem_allowable_huge_orders(struct inode *inode,
 	if (global_huge)
 		mask |= READ_ONCE(huge_shmem_orders_inherit);
 
-	return orders & mask;
+	return THP_ORDERS_ALL_FILE_DEFAULT & mask;
 }
 
 static unsigned long shmem_suitable_orders(struct inode *inode, struct vm_fault *vmf,
@@ -1686,6 +1681,7 @@ static unsigned long shmem_suitable_orders(struct inode *inode, struct vm_fault 
 					   unsigned long orders)
 {
 	struct vm_area_struct *vma = vmf->vma;
+	pgoff_t aligned_index;
 	unsigned long pages;
 	int order;
 
@@ -1697,9 +1693,9 @@ static unsigned long shmem_suitable_orders(struct inode *inode, struct vm_fault 
 	order = highest_order(orders);
 	while (orders) {
 		pages = 1UL << order;
-		index = round_down(index, pages);
-		if (!xa_find(&mapping->i_pages, &index,
-			     index + pages - 1, XA_PRESENT))
+		aligned_index = round_down(index, pages);
+		if (!xa_find(&mapping->i_pages, &aligned_index,
+			     aligned_index + pages - 1, XA_PRESENT))
 			break;
 		order = next_order(&orders, order);
 	}

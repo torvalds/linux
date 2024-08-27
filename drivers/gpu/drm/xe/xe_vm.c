@@ -1673,6 +1673,7 @@ static void vm_destroy_work_func(struct work_struct *w)
 		XE_WARN_ON(vm->pt_root[id]);
 
 	trace_xe_vm_free(vm);
+
 	ttm_lru_bulk_move_fini(&xe->ttm, &vm->lru_bulk_move);
 
 	if (vm->xef)

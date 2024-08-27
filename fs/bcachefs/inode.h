@@ -9,12 +9,12 @@
 enum bch_validate_flags;
 extern const char * const bch2_inode_opts[];
 
-int bch2_inode_invalid(struct bch_fs *, struct bkey_s_c,
-		       enum bch_validate_flags, struct printbuf *);
-int bch2_inode_v2_invalid(struct bch_fs *, struct bkey_s_c,
-			  enum bch_validate_flags, struct printbuf *);
-int bch2_inode_v3_invalid(struct bch_fs *, struct bkey_s_c,
-			  enum bch_validate_flags, struct printbuf *);
+int bch2_inode_validate(struct bch_fs *, struct bkey_s_c,
+		       enum bch_validate_flags);
+int bch2_inode_v2_validate(struct bch_fs *, struct bkey_s_c,
+			  enum bch_validate_flags);
+int bch2_inode_v3_validate(struct bch_fs *, struct bkey_s_c,
+			  enum bch_validate_flags);
 void bch2_inode_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
 
 int bch2_trigger_inode(struct btree_trans *, enum btree_id, unsigned,
@@ -22,21 +22,21 @@ int bch2_trigger_inode(struct btree_trans *, enum btree_id, unsigned,
 		       enum btree_iter_update_trigger_flags);
 
 #define bch2_bkey_ops_inode ((struct bkey_ops) {	\
-	.key_invalid	= bch2_inode_invalid,		\
+	.key_validate	= bch2_inode_validate,		\
 	.val_to_text	= bch2_inode_to_text,		\
 	.trigger	= bch2_trigger_inode,		\
 	.min_val_size	= 16,				\
 })
 
 #define bch2_bkey_ops_inode_v2 ((struct bkey_ops) {	\
-	.key_invalid	= bch2_inode_v2_invalid,	\
+	.key_validate	= bch2_inode_v2_validate,	\
 	.val_to_text	= bch2_inode_to_text,		\
 	.trigger	= bch2_trigger_inode,		\
 	.min_val_size	= 32,				\
 })
 
 #define bch2_bkey_ops_inode_v3 ((struct bkey_ops) {	\
-	.key_invalid	= bch2_inode_v3_invalid,	\
+	.key_validate	= bch2_inode_v3_validate,	\
 	.val_to_text	= bch2_inode_to_text,		\
 	.trigger	= bch2_trigger_inode,		\
 	.min_val_size	= 48,				\
@@ -49,12 +49,12 @@ static inline bool bkey_is_inode(const struct bkey *k)
 		k->type == KEY_TYPE_inode_v3;
 }
 
-int bch2_inode_generation_invalid(struct bch_fs *, struct bkey_s_c,
-				  enum bch_validate_flags, struct printbuf *);
+int bch2_inode_generation_validate(struct bch_fs *, struct bkey_s_c,
+				  enum bch_validate_flags);
 void bch2_inode_generation_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
 
 #define bch2_bkey_ops_inode_generation ((struct bkey_ops) {	\
-	.key_invalid	= bch2_inode_generation_invalid,	\
+	.key_validate	= bch2_inode_generation_validate,	\
 	.val_to_text	= bch2_inode_generation_to_text,	\
 	.min_val_size	= 8,					\
 })

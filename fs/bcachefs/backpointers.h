@@ -18,14 +18,13 @@ static inline u64 swab40(u64 x)
 		((x & 0xff00000000ULL) >> 32));
 }
 
-int bch2_backpointer_invalid(struct bch_fs *, struct bkey_s_c k,
-			     enum bch_validate_flags, struct printbuf *);
+int bch2_backpointer_validate(struct bch_fs *, struct bkey_s_c k, enum bch_validate_flags);
 void bch2_backpointer_to_text(struct printbuf *, const struct bch_backpointer *);
 void bch2_backpointer_k_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
 void bch2_backpointer_swab(struct bkey_s);
 
 #define bch2_bkey_ops_backpointer ((struct bkey_ops) {	\
-	.key_invalid	= bch2_backpointer_invalid,	\
+	.key_validate	= bch2_backpointer_validate,	\
 	.val_to_text	= bch2_backpointer_k_to_text,	\
 	.swab		= bch2_backpointer_swab,	\
 	.min_val_size	= 32,				\

@@ -70,7 +70,7 @@ def test_result(condition, description=""):
 
 
 def finished():
-    if ksft_cnt["pass"] == ksft_num_tests:
+    if ksft_cnt["pass"] + ksft_cnt["skip"] == ksft_num_tests:
         exit_code = KSFT_PASS
     else:
         exit_code = KSFT_FAIL
