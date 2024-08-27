@@ -4620,6 +4620,29 @@ out:
 	mutex_unlock(&kvm->arch.config_lock);
 }
 
+/*
+ * Perform last adjustments to the ID registers that are implied by the
+ * configuration outside of the ID regs themselves, as well as any
+ * initialisation that directly depend on these ID registers (such as
+ * RES0/RES1 behaviours). This is not the place to configure traps though.
+ *
+ * Because this can be called once per CPU, changes must be idempotent.
+ */
+int kvm_finalize_sys_regs(struct kvm_vcpu *vcpu)
+{
+	struct kvm *kvm = vcpu->kvm;
+
+	guard(mutex)(&kvm->arch.config_lock);
+
+	if (vcpu_has_nv(vcpu)) {
+		int ret = kvm_init_nv_sysregs(kvm);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
 int __init kvm_sys_reg_table_init(void)
 {
 	bool valid = true;
