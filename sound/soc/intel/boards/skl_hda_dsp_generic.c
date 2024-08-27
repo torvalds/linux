@@ -75,7 +75,7 @@ skl_hda_add_dai_link(struct snd_soc_card *card, struct snd_soc_dai_link *link)
 	link->platforms->name = ctx->platform_name;
 	link->nonatomic = 1;
 
-	if (!ctx->idisp_codec)
+	if (!ctx->hdmi.idisp_codec)
 		return 0;
 
 	if (strstr(link->name, "HDMI")) {
@@ -98,7 +98,6 @@ skl_hda_add_dai_link(struct snd_soc_card *card, struct snd_soc_dai_link *link)
 
 /* there are two routes per iDisp output */
 #define IDISP_ROUTE_COUNT	(IDISP_DAI_COUNT * 2)
-#define IDISP_CODEC_MASK	0x4
 
 #define HDA_CODEC_AUTOSUSPEND_DELAY_MS 1000
 
@@ -113,10 +112,9 @@ static int skl_hda_fill_card_info(struct device *dev, struct snd_soc_card *card,
 
 	codec_mask = mach_params->codec_mask;
 	codec_count = hweight_long(codec_mask);
-	ctx->idisp_codec = !!(codec_mask & IDISP_CODEC_MASK);
 
 	if (!codec_count || codec_count > 2 ||
-	    (codec_count == 2 && !ctx->idisp_codec))
+	    (codec_count == 2 && !ctx->hdmi.idisp_codec))
 		return -EINVAL;
 
 	if (codec_mask == IDISP_CODEC_MASK) {
@@ -141,7 +139,7 @@ static int skl_hda_fill_card_info(struct device *dev, struct snd_soc_card *card,
 		num_route = ARRAY_SIZE(skl_hda_map);
 		card->dapm_widgets = skl_hda_widgets;
 		card->num_dapm_widgets = ARRAY_SIZE(skl_hda_widgets);
-		if (!ctx->idisp_codec) {
+		if (!ctx->hdmi.idisp_codec) {
 			card->dapm_routes = &skl_hda_map[IDISP_ROUTE_COUNT];
 			num_route -= IDISP_ROUTE_COUNT;
 			for (i = 0; i < IDISP_DAI_COUNT; i++) {
@@ -218,8 +216,6 @@ static int skl_hda_audio_probe(struct platform_device *pdev)
 	if (!ctx)
 		return -ENOMEM;
 
-	INIT_LIST_HEAD(&ctx->hdmi_pcm_list);
-
 	card = &ctx->card;
 	card->name = "hda-dsp",
 	card->owner = THIS_MODULE,
@@ -231,6 +227,9 @@ static int skl_hda_audio_probe(struct platform_device *pdev)
 	card->late_probe = skl_hda_card_late_probe,
 
 	snd_soc_card_set_drvdata(card, ctx);
+
+	if (mach->mach_params.codec_mask & IDISP_CODEC_MASK)
+		ctx->hdmi.idisp_codec = true;
 
 	if (hweight_long(mach->mach_params.bt_link_mask) == 1) {
 		ctx->bt_offload_present = true;

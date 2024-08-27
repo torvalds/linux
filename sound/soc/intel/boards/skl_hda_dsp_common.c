@@ -21,20 +21,16 @@
 int skl_hda_hdmi_add_pcm(struct snd_soc_card *card, int device)
 {
 	struct skl_hda_private *ctx = snd_soc_card_get_drvdata(card);
-	struct skl_hda_hdmi_pcm *pcm;
+	struct snd_soc_dai *dai;
 	char dai_name[NAME_SIZE];
-
-	pcm = devm_kzalloc(card->dev, sizeof(*pcm), GFP_KERNEL);
-	if (!pcm)
-		return -ENOMEM;
 
 	snprintf(dai_name, sizeof(dai_name), "intel-hdmi-hifi%d",
 		 ctx->dai_index);
-	pcm->codec_dai = snd_soc_card_get_codec_dai(card, dai_name);
-	if (!pcm->codec_dai)
+	dai = snd_soc_card_get_codec_dai(card, dai_name);
+	if (!dai)
 		return -EINVAL;
 
-	list_add_tail(&pcm->head, &ctx->hdmi_pcm_list);
+	ctx->hdmi.hdmi_comp = dai->component;
 
 	return 0;
 }
@@ -148,18 +144,13 @@ struct snd_soc_dai_link skl_hda_be_dai_links[HDA_DSP_MAX_BE_DAI_LINKS] = {
 int skl_hda_hdmi_jack_init(struct snd_soc_card *card)
 {
 	struct skl_hda_private *ctx = snd_soc_card_get_drvdata(card);
-	struct snd_soc_component *component;
-	struct skl_hda_hdmi_pcm *pcm;
 
 	/* HDMI disabled, do not create controls */
-	if (list_empty(&ctx->hdmi_pcm_list))
+	if (!ctx->hdmi.idisp_codec)
 		return 0;
 
-	pcm = list_first_entry(&ctx->hdmi_pcm_list, struct skl_hda_hdmi_pcm,
-			       head);
-	component = pcm->codec_dai->component;
-	if (!component)
+	if (!ctx->hdmi.hdmi_comp)
 		return -EINVAL;
 
-	return hda_dsp_hdmi_build_controls(card, component);
+	return hda_dsp_hdmi_build_controls(card, ctx->hdmi.hdmi_comp);
 }

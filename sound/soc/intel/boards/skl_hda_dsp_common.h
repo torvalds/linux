@@ -17,21 +17,16 @@
 #include <sound/hda_codec.h>
 #include "../../codecs/hdac_hda.h"
 #include "hda_dsp_common.h"
+#include "sof_hdmi_common.h"
 
 #define HDA_DSP_MAX_BE_DAI_LINKS 8
 
-struct skl_hda_hdmi_pcm {
-	struct list_head head;
-	struct snd_soc_dai *codec_dai;
-};
-
 struct skl_hda_private {
 	struct snd_soc_card card;
-	struct list_head hdmi_pcm_list;
+	struct sof_hdmi_private hdmi;
 	int pcm_count;
 	int dai_index;
 	const char *platform_name;
-	bool idisp_codec;
 	bool bt_offload_present;
 	int ssp_bt;
 };
