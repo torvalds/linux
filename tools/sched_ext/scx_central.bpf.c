@@ -198,7 +198,7 @@ void BPF_STRUCT_OPS(central_dispatch, s32 cpu, struct task_struct *prev)
 
 			/* central's gimme is never set */
 			gimme = ARRAY_ELEM_PTR(cpu_gimme_task, cpu, nr_cpu_ids);
-			if (gimme && !*gimme)
+			if (!gimme || !*gimme)
 				continue;
 
 			if (dispatch_to_cpu(cpu))
