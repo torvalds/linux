@@ -5385,6 +5385,9 @@ static int parse_cpu_str(char *cpu_str, cpu_set_t *cpu_set, int cpu_set_size)
 		if (*next == '-')	/* no negative cpu numbers */
 			return 1;
 
+		if (*next == '\0' || *next == '\n')
+			break;
+
 		start = strtoul(next, &next, 10);
 
 		if (start >= CPU_SUBSET_MAXCPUS)
