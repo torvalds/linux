@@ -485,8 +485,8 @@ static void mse102x_init_mac(struct mse102x_net *mse, struct device_node *np)
 
 	if (ret) {
 		eth_hw_addr_random(ndev);
-		netdev_err(ndev, "Using random MAC address: %pM\n",
-			   ndev->dev_addr);
+		dev_warn(ndev->dev.parent, "Using random MAC address: %pM\n",
+			 ndev->dev_addr);
 	}
 }
 
