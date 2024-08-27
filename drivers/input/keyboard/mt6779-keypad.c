@@ -260,6 +260,7 @@ static const struct of_device_id mt6779_keypad_of_match[] = {
 	{ .compatible = "mediatek,mt6873-keypad" },
 	{ /* sentinel */ }
 };
+MODULE_DEVICE_TABLE(of, mt6779_keypad_of_match);
 
 static struct platform_driver mt6779_keypad_pdrv = {
 	.probe = mt6779_keypad_pdrv_probe,
