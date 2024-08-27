@@ -530,6 +530,8 @@ enum vcpu_sysreg {
 	VNCR(CNTP_CVAL_EL0),
 	VNCR(CNTP_CTL_EL0),
 
+	VNCR(ICH_HCR_EL2),
+
 	NR_SYS_REGS	/* Nothing after this line! */
 };
 
