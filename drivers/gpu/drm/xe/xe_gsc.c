@@ -165,10 +165,11 @@ static int query_compatibility_version(struct xe_gsc *gsc)
 		return err;
 	}
 
-	compat->major = version_query_rd(xe, &bo->vmap, rd_offset, compat_major);
-	compat->minor = version_query_rd(xe, &bo->vmap, rd_offset, compat_minor);
+	compat->major = version_query_rd(xe, &bo->vmap, rd_offset, proj_major);
+	compat->minor = version_query_rd(xe, &bo->vmap, rd_offset, compat_major);
+	compat->patch = version_query_rd(xe, &bo->vmap, rd_offset, compat_minor);
 
-	xe_gt_info(gt, "found GSC cv%u.%u\n", compat->major, compat->minor);
+	xe_gt_info(gt, "found GSC cv%u.%u.%u\n", compat->major, compat->minor, compat->patch);
 
 out_bo:
 	xe_bo_unpin_map_no_vm(bo);
