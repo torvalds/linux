@@ -359,7 +359,7 @@ void selinux_netlbl_inet_csk_clone(struct sock *sk, u16 family)
 {
 	struct sk_security_struct *sksec = sk->sk_security;
 
-	if (family == PF_INET)
+	if (family == PF_INET || family == PF_INET6)
 		sksec->nlbl_state = NLBL_LABELED;
 	else
 		sksec->nlbl_state = NLBL_UNSET;
