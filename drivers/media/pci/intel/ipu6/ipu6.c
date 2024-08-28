@@ -390,20 +390,18 @@ ipu6_isys_init(struct pci_dev *pdev, struct device *parent,
 	isys_adev = ipu6_bus_initialize_device(pdev, parent, pdata, ctrl,
 					       IPU6_ISYS_NAME);
 	if (IS_ERR(isys_adev)) {
-		dev_err_probe(dev, PTR_ERR(isys_adev),
-			      "ipu6_bus_initialize_device isys failed\n");
 		kfree(pdata);
-		return ERR_CAST(isys_adev);
+		return dev_err_cast_probe(dev, isys_adev,
+				"ipu6_bus_initialize_device isys failed\n");
 	}
 
 	isys_adev->mmu = ipu6_mmu_init(dev, base, ISYS_MMID,
 				       &ipdata->hw_variant);
 	if (IS_ERR(isys_adev->mmu)) {
-		dev_err_probe(dev, PTR_ERR(isys_adev->mmu),
-			      "ipu6_mmu_init(isys_adev->mmu) failed\n");
 		put_device(&isys_adev->auxdev.dev);
 		kfree(pdata);
-		return ERR_CAST(isys_adev->mmu);
+		return dev_err_cast_probe(dev, isys_adev->mmu,
+				"ipu6_mmu_init(isys_adev->mmu) failed\n");
 	}
 
 	isys_adev->mmu->dev = &isys_adev->auxdev.dev;
@@ -436,20 +434,18 @@ ipu6_psys_init(struct pci_dev *pdev, struct device *parent,
 	psys_adev = ipu6_bus_initialize_device(pdev, parent, pdata, ctrl,
 					       IPU6_PSYS_NAME);
 	if (IS_ERR(psys_adev)) {
-		dev_err_probe(&pdev->dev, PTR_ERR(psys_adev),
-			      "ipu6_bus_initialize_device psys failed\n");
 		kfree(pdata);
-		return ERR_CAST(psys_adev);
+		return dev_err_cast_probe(&pdev->dev, psys_adev,
+				"ipu6_bus_initialize_device psys failed\n");
 	}
 
 	psys_adev->mmu = ipu6_mmu_init(&pdev->dev, base, PSYS_MMID,
 				       &ipdata->hw_variant);
 	if (IS_ERR(psys_adev->mmu)) {
-		dev_err_probe(&pdev->dev, PTR_ERR(psys_adev->mmu),
-			      "ipu6_mmu_init(psys_adev->mmu) failed\n");
 		put_device(&psys_adev->auxdev.dev);
 		kfree(pdata);
-		return ERR_CAST(psys_adev->mmu);
+		return dev_err_cast_probe(&pdev->dev, psys_adev->mmu,
+				"ipu6_mmu_init(psys_adev->mmu) failed\n");
 	}
 
 	psys_adev->mmu->dev = &psys_adev->auxdev.dev;
