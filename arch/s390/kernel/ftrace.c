@@ -69,7 +69,7 @@ static const char *ftrace_shared_hotpatch_trampoline(const char **end)
 
 bool ftrace_need_init_nop(void)
 {
-	return true;
+	return !MACHINE_HAS_SEQ_INSN;
 }
 
 int ftrace_init_nop(struct module *mod, struct dyn_ftrace *rec)
@@ -139,8 +139,35 @@ static struct ftrace_hotpatch_trampoline *ftrace_get_trampoline(struct dyn_ftrac
 	return trampoline;
 }
 
-int ftrace_modify_call(struct dyn_ftrace *rec, unsigned long old_addr,
-		       unsigned long addr)
+static inline struct ftrace_insn
+ftrace_generate_branch_insn(unsigned long ip, unsigned long target)
+{
+	/* brasl r0,target or brcl 0,0 */
+	return (struct ftrace_insn){ .opc = target ? 0xc005 : 0xc004,
+				     .disp = target ? (target - ip) / 2 : 0 };
+}
+
+static int ftrace_patch_branch_insn(unsigned long ip, unsigned long old_target,
+				    unsigned long target)
+{
+	struct ftrace_insn orig = ftrace_generate_branch_insn(ip, old_target);
+	struct ftrace_insn new = ftrace_generate_branch_insn(ip, target);
+	struct ftrace_insn old;
+
+	if (!IS_ALIGNED(ip, 8))
+		return -EINVAL;
+	if (copy_from_kernel_nofault(&old, (void *)ip, sizeof(old)))
+		return -EFAULT;
+	/* Verify that the to be replaced code matches what we expect. */
+	if (memcmp(&orig, &old, sizeof(old)))
+		return -EINVAL;
+	s390_kernel_write((void *)ip, &new, sizeof(new));
+	return 0;
+}
+
+static int ftrace_modify_trampoline_call(struct dyn_ftrace *rec,
+					 unsigned long old_addr,
+					 unsigned long addr)
 {
 	struct ftrace_hotpatch_trampoline *trampoline;
 	u64 old;
@@ -154,6 +181,15 @@ int ftrace_modify_call(struct dyn_ftrace *rec, unsigned long old_addr,
 		return -EINVAL;
 	s390_kernel_write(&trampoline->interceptor, &addr, sizeof(addr));
 	return 0;
+}
+
+int ftrace_modify_call(struct dyn_ftrace *rec, unsigned long old_addr,
+		       unsigned long addr)
+{
+	if (MACHINE_HAS_SEQ_INSN)
+		return ftrace_patch_branch_insn(rec->ip, old_addr, addr);
+	else
+		return ftrace_modify_trampoline_call(rec, old_addr, addr);
 }
 
 static int ftrace_patch_branch_mask(void *addr, u16 expected, bool enable)
@@ -174,11 +210,14 @@ static int ftrace_patch_branch_mask(void *addr, u16 expected, bool enable)
 int ftrace_make_nop(struct module *mod, struct dyn_ftrace *rec,
 		    unsigned long addr)
 {
-	/* Expect brcl 0xf,... */
-	return ftrace_patch_branch_mask((void *)rec->ip, 0xc0f4, false);
+	/* Expect brcl 0xf,... for the !MACHINE_HAS_SEQ_INSN case */
+	if (MACHINE_HAS_SEQ_INSN)
+		return ftrace_patch_branch_insn(rec->ip, addr, 0);
+	else
+		return ftrace_patch_branch_mask((void *)rec->ip, 0xc0f4, false);
 }
 
-int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
+static int ftrace_make_trampoline_call(struct dyn_ftrace *rec, unsigned long addr)
 {
 	struct ftrace_hotpatch_trampoline *trampoline;
 
@@ -188,6 +227,14 @@ int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 	s390_kernel_write(&trampoline->interceptor, &addr, sizeof(addr));
 	/* Expect brcl 0x0,... */
 	return ftrace_patch_branch_mask((void *)rec->ip, 0xc004, true);
+}
+
+int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
+{
+	if (MACHINE_HAS_SEQ_INSN)
+		return ftrace_patch_branch_insn(rec->ip, 0, addr);
+	else
+		return ftrace_make_trampoline_call(rec, addr);
 }
 
 int ftrace_update_ftrace_func(ftrace_func_t func)
