@@ -1448,7 +1448,7 @@ EXPORT_SYMBOL_GPL(sata_async_notification);
 static int ata_eh_read_log_10h(struct ata_device *dev,
 			       int *tag, struct ata_taskfile *tf)
 {
-	u8 *buf = dev->link->ap->sector_buf;
+	u8 *buf = dev->sector_buf;
 	unsigned int err_mask;
 	u8 csum;
 	int i;

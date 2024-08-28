@@ -2125,19 +2125,16 @@ retry:
 
 static int ata_log_supported(struct ata_device *dev, u8 log)
 {
-	struct ata_port *ap = dev->link->ap;
-
 	if (dev->quirks & ATA_QUIRK_NO_LOG_DIR)
 		return 0;
 
-	if (ata_read_log_page(dev, ATA_LOG_DIRECTORY, 0, ap->sector_buf, 1))
+	if (ata_read_log_page(dev, ATA_LOG_DIRECTORY, 0, dev->sector_buf, 1))
 		return 0;
-	return get_unaligned_le16(&ap->sector_buf[log * 2]);
+	return get_unaligned_le16(&dev->sector_buf[log * 2]);
 }
 
 static bool ata_identify_page_supported(struct ata_device *dev, u8 page)
 {
-	struct ata_port *ap = dev->link->ap;
 	unsigned int err, i;
 
 	if (dev->quirks & ATA_QUIRK_NO_ID_DEV_LOG)
@@ -2160,13 +2157,13 @@ static bool ata_identify_page_supported(struct ata_device *dev, u8 page)
 	 * Read IDENTIFY DEVICE data log, page 0, to figure out if the page is
 	 * supported.
 	 */
-	err = ata_read_log_page(dev, ATA_LOG_IDENTIFY_DEVICE, 0, ap->sector_buf,
-				1);
+	err = ata_read_log_page(dev, ATA_LOG_IDENTIFY_DEVICE, 0,
+				dev->sector_buf, 1);
 	if (err)
 		return false;
 
-	for (i = 0; i < ap->sector_buf[8]; i++) {
-		if (ap->sector_buf[9 + i] == page)
+	for (i = 0; i < dev->sector_buf[8]; i++) {
+		if (dev->sector_buf[9 + i] == page)
 			return true;
 	}
 
@@ -2218,7 +2215,6 @@ static inline bool ata_dev_knobble(struct ata_device *dev)
 
 static void ata_dev_config_ncq_send_recv(struct ata_device *dev)
 {
-	struct ata_port *ap = dev->link->ap;
 	unsigned int err_mask;
 
 	if (!ata_log_supported(dev, ATA_LOG_NCQ_SEND_RECV)) {
@@ -2226,12 +2222,12 @@ static void ata_dev_config_ncq_send_recv(struct ata_device *dev)
 		return;
 	}
 	err_mask = ata_read_log_page(dev, ATA_LOG_NCQ_SEND_RECV,
-				     0, ap->sector_buf, 1);
+				     0, dev->sector_buf, 1);
 	if (!err_mask) {
 		u8 *cmds = dev->ncq_send_recv_cmds;
 
 		dev->flags |= ATA_DFLAG_NCQ_SEND_RECV;
-		memcpy(cmds, ap->sector_buf, ATA_LOG_NCQ_SEND_RECV_SIZE);
+		memcpy(cmds, dev->sector_buf, ATA_LOG_NCQ_SEND_RECV_SIZE);
 
 		if (dev->quirks & ATA_QUIRK_NO_NCQ_TRIM) {
 			ata_dev_dbg(dev, "disabling queued TRIM support\n");
@@ -2243,7 +2239,6 @@ static void ata_dev_config_ncq_send_recv(struct ata_device *dev)
 
 static void ata_dev_config_ncq_non_data(struct ata_device *dev)
 {
-	struct ata_port *ap = dev->link->ap;
 	unsigned int err_mask;
 
 	if (!ata_log_supported(dev, ATA_LOG_NCQ_NON_DATA)) {
@@ -2252,17 +2247,14 @@ static void ata_dev_config_ncq_non_data(struct ata_device *dev)
 		return;
 	}
 	err_mask = ata_read_log_page(dev, ATA_LOG_NCQ_NON_DATA,
-				     0, ap->sector_buf, 1);
-	if (!err_mask) {
-		u8 *cmds = dev->ncq_non_data_cmds;
-
-		memcpy(cmds, ap->sector_buf, ATA_LOG_NCQ_NON_DATA_SIZE);
-	}
+				     0, dev->sector_buf, 1);
+	if (!err_mask)
+		memcpy(dev->ncq_non_data_cmds, dev->sector_buf,
+		       ATA_LOG_NCQ_NON_DATA_SIZE);
 }
 
 static void ata_dev_config_ncq_prio(struct ata_device *dev)
 {
-	struct ata_port *ap = dev->link->ap;
 	unsigned int err_mask;
 
 	if (!ata_identify_page_supported(dev, ATA_LOG_SATA_SETTINGS))
@@ -2271,12 +2263,11 @@ static void ata_dev_config_ncq_prio(struct ata_device *dev)
 	err_mask = ata_read_log_page(dev,
 				     ATA_LOG_IDENTIFY_DEVICE,
 				     ATA_LOG_SATA_SETTINGS,
-				     ap->sector_buf,
-				     1);
+				     dev->sector_buf, 1);
 	if (err_mask)
 		goto not_supported;
 
-	if (!(ap->sector_buf[ATA_LOG_NCQ_PRIO_OFFSET] & BIT(3)))
+	if (!(dev->sector_buf[ATA_LOG_NCQ_PRIO_OFFSET] & BIT(3)))
 		goto not_supported;
 
 	dev->flags |= ATA_DFLAG_NCQ_PRIO;
@@ -2392,9 +2383,8 @@ static void ata_dev_config_sense_reporting(struct ata_device *dev)
 
 static void ata_dev_config_zac(struct ata_device *dev)
 {
-	struct ata_port *ap = dev->link->ap;
 	unsigned int err_mask;
-	u8 *identify_buf = ap->sector_buf;
+	u8 *identify_buf = dev->sector_buf;
 
 	dev->zac_zones_optimal_open = U32_MAX;
 	dev->zac_zones_optimal_nonseq = U32_MAX;
@@ -2446,7 +2436,6 @@ static void ata_dev_config_zac(struct ata_device *dev)
 
 static void ata_dev_config_trusted(struct ata_device *dev)
 {
-	struct ata_port *ap = dev->link->ap;
 	u64 trusted_cap;
 	unsigned int err;
 
@@ -2460,11 +2449,11 @@ static void ata_dev_config_trusted(struct ata_device *dev)
 	}
 
 	err = ata_read_log_page(dev, ATA_LOG_IDENTIFY_DEVICE, ATA_LOG_SECURITY,
-			ap->sector_buf, 1);
+				dev->sector_buf, 1);
 	if (err)
 		return;
 
-	trusted_cap = get_unaligned_le64(&ap->sector_buf[40]);
+	trusted_cap = get_unaligned_le64(&dev->sector_buf[40]);
 	if (!(trusted_cap & (1ULL << 63))) {
 		ata_dev_dbg(dev,
 			    "Trusted Computing capability qword not valid!\n");
@@ -2492,12 +2481,12 @@ static void ata_dev_config_cdl(struct ata_device *dev)
 
 	err_mask = ata_read_log_page(dev, ATA_LOG_IDENTIFY_DEVICE,
 				     ATA_LOG_SUPPORTED_CAPABILITIES,
-				     ap->sector_buf, 1);
+				     dev->sector_buf, 1);
 	if (err_mask)
 		goto not_supported;
 
 	/* Check Command Duration Limit Supported bits */
-	val = get_unaligned_le64(&ap->sector_buf[168]);
+	val = get_unaligned_le64(&dev->sector_buf[168]);
 	if (!(val & BIT_ULL(63)) || !(val & BIT_ULL(0)))
 		goto not_supported;
 
@@ -2510,7 +2499,7 @@ static void ata_dev_config_cdl(struct ata_device *dev)
 	 * We must have support for the sense data for successful NCQ commands
 	 * log indicated by the successful NCQ command sense data supported bit.
 	 */
-	val = get_unaligned_le64(&ap->sector_buf[8]);
+	val = get_unaligned_le64(&dev->sector_buf[8]);
 	if (!(val & BIT_ULL(63)) || !(val & BIT_ULL(47))) {
 		ata_dev_warn(dev,
 			"CDL supported but Successful NCQ Command Sense Data is not supported\n");
@@ -2530,11 +2519,11 @@ static void ata_dev_config_cdl(struct ata_device *dev)
 	 */
 	err_mask = ata_read_log_page(dev, ATA_LOG_IDENTIFY_DEVICE,
 				     ATA_LOG_CURRENT_SETTINGS,
-				     ap->sector_buf, 1);
+				     dev->sector_buf, 1);
 	if (err_mask)
 		goto not_supported;
 
-	val = get_unaligned_le64(&ap->sector_buf[8]);
+	val = get_unaligned_le64(&dev->sector_buf[8]);
 	cdl_enabled = val & BIT_ULL(63) && val & BIT_ULL(21);
 	if (dev->flags & ATA_DFLAG_CDL_ENABLED) {
 		if (!cdl_enabled) {
@@ -2591,13 +2580,13 @@ static void ata_dev_config_cdl(struct ata_device *dev)
 	 * Command duration limits is supported: cache the CDL log page 18h
 	 * (command duration descriptors).
 	 */
-	err_mask = ata_read_log_page(dev, ATA_LOG_CDL, 0, ap->sector_buf, 1);
+	err_mask = ata_read_log_page(dev, ATA_LOG_CDL, 0, dev->sector_buf, 1);
 	if (err_mask) {
 		ata_dev_warn(dev, "Read Command Duration Limits log failed\n");
 		goto not_supported;
 	}
 
-	memcpy(dev->cdl, ap->sector_buf, ATA_LOG_CDL_SIZE);
+	memcpy(dev->cdl, dev->sector_buf, ATA_LOG_CDL_SIZE);
 	dev->flags |= ATA_DFLAG_CDL;
 
 	return;
@@ -2689,7 +2678,7 @@ nofua:
 
 static void ata_dev_config_devslp(struct ata_device *dev)
 {
-	u8 *sata_setting = dev->link->ap->sector_buf;
+	u8 *sata_setting = dev->sector_buf;
 	unsigned int err_mask;
 	int i, j;
 
@@ -3759,7 +3748,7 @@ static int ata_dev_same_device(struct ata_device *dev, unsigned int new_class,
 int ata_dev_reread_id(struct ata_device *dev, unsigned int readid_flags)
 {
 	unsigned int class = dev->class;
-	u16 *id = (void *)dev->link->ap->sector_buf;
+	u16 *id = (void *)dev->sector_buf;
 	int rc;
 
 	/* read ID data */

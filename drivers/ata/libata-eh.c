@@ -3284,7 +3284,7 @@ static int atapi_eh_clear_ua(struct ata_device *dev)
 	int i;
 
 	for (i = 0; i < ATA_EH_UA_TRIES; i++) {
-		u8 *sense_buffer = dev->link->ap->sector_buf;
+		u8 *sense_buffer = dev->sector_buf;
 		u8 sense_key = 0;
 		unsigned int err_mask;
 
