@@ -15892,6 +15892,8 @@ F:	include/uapi/linux/ethtool_netlink.h
 F:	include/uapi/linux/if_*
 F:	include/uapi/linux/netdev*
 F:	tools/testing/selftests/drivers/net/
+X:	Documentation/devicetree/bindings/net/bluetooth/
+X:	Documentation/devicetree/bindings/net/wireless/
 X:	drivers/net/wireless/
 
 NETWORKING DRIVERS (WIRELESS)
