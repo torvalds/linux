@@ -56,8 +56,8 @@ static const __u8 *uclogic_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 	struct uclogic_drvdata *drvdata = hid_get_drvdata(hdev);
 
 	if (drvdata->desc_ptr != NULL) {
-		rdesc = drvdata->desc_ptr;
 		*rsize = drvdata->desc_size;
+		return drvdata->desc_ptr;
 	}
 	return rdesc;
 }
