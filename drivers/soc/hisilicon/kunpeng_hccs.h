@@ -10,6 +10,19 @@
  * | P0 | P1 | P2 | P3 | P0 | P1 | P2 | P3 | P0 | P1 | P2 | P3 |P0 | P1 | P2 | P3 |
  */
 
+enum hccs_port_type {
+	HCCS_V1 = 1,
+	HCCS_V2,
+};
+
+#define HCCS_IP_PREFIX	"HCCS-v"
+#define HCCS_IP_MAX		255
+#define HCCS_NAME_MAX_LEN	9
+struct hccs_type_name_map {
+	u8 type;
+	char name[HCCS_NAME_MAX_LEN + 1];
+};
+
 /*
  * This value cannot be 255, otherwise the loop of the multi-BD communication
  * case cannot end.
@@ -74,6 +87,8 @@ struct hccs_dev {
 	u64 caps;
 	u8 chip_num;
 	struct hccs_chip_info *chips;
+	u16 used_type_num;
+	struct hccs_type_name_map *type_name_maps;
 	u8 chan_id;
 	struct mutex lock;
 	struct hccs_mbox_client_info cl_info;

@@ -79,3 +79,11 @@ Description:
 			           indicates a lane.
 		crc_err_cnt:  (RO) CRC err count on this port.
 		============= ==== =============================================
+
+What:		/sys/devices/platform/HISI04Bx:00/used_types
+Date:		August 2024
+KernelVersion:	6.12
+Contact:	Huisong Li <lihuisong@huawei.com>
+Description:
+		This interface is used to show all HCCS types used on the
+		platform, like, HCCS-v1, HCCS-v2 and so on.
