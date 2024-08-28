@@ -2146,6 +2146,10 @@ DECLARE_EVENT_CLASS(nfsd_copy_class,
 		__field(u32, dst_cl_id)
 		__field(u32, dst_so_id)
 		__field(u32, dst_si_generation)
+		__field(u32, cb_cl_boot)
+		__field(u32, cb_cl_id)
+		__field(u32, cb_so_id)
+		__field(u32, cb_si_generation)
 		__field(u64, src_cp_pos)
 		__field(u64, dst_cp_pos)
 		__field(u64, cp_count)
@@ -2154,6 +2158,7 @@ DECLARE_EVENT_CLASS(nfsd_copy_class,
 	TP_fast_assign(
 		const stateid_t *src_stp = &copy->cp_src_stateid;
 		const stateid_t *dst_stp = &copy->cp_dst_stateid;
+		const stateid_t *cb_stp = &copy->cp_res.cb_stateid;
 
 		__entry->intra = test_bit(NFSD4_COPY_F_INTRA, &copy->cp_flags);
 		__entry->async = !test_bit(NFSD4_COPY_F_SYNCHRONOUS, &copy->cp_flags);
@@ -2165,6 +2170,10 @@ DECLARE_EVENT_CLASS(nfsd_copy_class,
 		__entry->dst_cl_id = dst_stp->si_opaque.so_clid.cl_id;
 		__entry->dst_so_id = dst_stp->si_opaque.so_id;
 		__entry->dst_si_generation = dst_stp->si_generation;
+		__entry->cb_cl_boot = cb_stp->si_opaque.so_clid.cl_boot;
+		__entry->cb_cl_id = cb_stp->si_opaque.so_clid.cl_id;
+		__entry->cb_so_id = cb_stp->si_opaque.so_id;
+		__entry->cb_si_generation = cb_stp->si_generation;
 		__entry->src_cp_pos = copy->cp_src_pos;
 		__entry->dst_cp_pos = copy->cp_dst_pos;
 		__entry->cp_count = copy->cp_count;
@@ -2174,12 +2183,15 @@ DECLARE_EVENT_CLASS(nfsd_copy_class,
 	TP_printk("client=%pISpc intra=%d async=%d "
 		"src_client %08x:%08x src_stateid %08x:%08x "
 		"dst_client %08x:%08x dst_stateid %08x:%08x "
+		"cb_client %08x:%08x cb_stateid %08x:%08x "
 		"cp_src_pos=%llu cp_dst_pos=%llu cp_count=%llu",
 		__get_sockaddr(addr), __entry->intra, __entry->async,
 		__entry->src_cl_boot, __entry->src_cl_id,
 		__entry->src_so_id, __entry->src_si_generation,
 		__entry->dst_cl_boot, __entry->dst_cl_id,
 		__entry->dst_so_id, __entry->dst_si_generation,
+		__entry->cb_cl_boot, __entry->cb_cl_id,
+		__entry->cb_so_id, __entry->cb_si_generation,
 		__entry->src_cp_pos, __entry->dst_cp_pos, __entry->cp_count
 	)
 );
