@@ -58,8 +58,6 @@ struct intel_mc_ctx {
 	unsigned int sdw_pin_index[SDW_INTEL_MAX_LINKS];
 };
 
-extern unsigned long sof_sdw_quirk;
-
 /* generic HDMI support */
 int sof_sdw_hdmi_init(struct snd_soc_pcm_runtime *rtd);
 

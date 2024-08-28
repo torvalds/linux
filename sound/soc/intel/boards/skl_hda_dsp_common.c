@@ -11,7 +11,6 @@
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
-#include "../../codecs/hdac_hdmi.h"
 #include "skl_hda_dsp_common.h"
 
 #include <sound/hda_codec.h>
@@ -22,21 +21,16 @@
 int skl_hda_hdmi_add_pcm(struct snd_soc_card *card, int device)
 {
 	struct skl_hda_private *ctx = snd_soc_card_get_drvdata(card);
-	struct skl_hda_hdmi_pcm *pcm;
+	struct snd_soc_dai *dai;
 	char dai_name[NAME_SIZE];
-
-	pcm = devm_kzalloc(card->dev, sizeof(*pcm), GFP_KERNEL);
-	if (!pcm)
-		return -ENOMEM;
 
 	snprintf(dai_name, sizeof(dai_name), "intel-hdmi-hifi%d",
 		 ctx->dai_index);
-	pcm->codec_dai = snd_soc_card_get_codec_dai(card, dai_name);
-	if (!pcm->codec_dai)
+	dai = snd_soc_card_get_codec_dai(card, dai_name);
+	if (!dai)
 		return -EINVAL;
 
-	pcm->device = device;
-	list_add_tail(&pcm->head, &ctx->hdmi_pcm_list);
+	ctx->hdmi.hdmi_comp = dai->component;
 
 	return 0;
 }
@@ -74,6 +68,11 @@ SND_SOC_DAILINK_DEF(dmic_codec,
 
 SND_SOC_DAILINK_DEF(dmic16k,
 	DAILINK_COMP_ARRAY(COMP_CPU("DMIC16k Pin")));
+
+SND_SOC_DAILINK_DEF(bt_offload_pin,
+	DAILINK_COMP_ARRAY(COMP_CPU(""))); /* initialized in driver probe function */
+SND_SOC_DAILINK_DEF(dummy,
+	DAILINK_COMP_ARRAY(COMP_DUMMY()));
 
 SND_SOC_DAILINK_DEF(platform,
 	DAILINK_COMP_ARRAY(COMP_PLATFORM("0000:00:1f.3")));
@@ -132,37 +131,26 @@ struct snd_soc_dai_link skl_hda_be_dai_links[HDA_DSP_MAX_BE_DAI_LINKS] = {
 		.no_pcm = 1,
 		SND_SOC_DAILINK_REG(dmic16k, dmic_codec, platform),
 	},
+	{
+		.name = NULL, /* initialized in driver probe function */
+		.id = 8,
+		.dpcm_playback = 1,
+		.dpcm_capture = 1,
+		.no_pcm = 1,
+		SND_SOC_DAILINK_REG(bt_offload_pin, dummy, platform),
+	},
 };
 
 int skl_hda_hdmi_jack_init(struct snd_soc_card *card)
 {
 	struct skl_hda_private *ctx = snd_soc_card_get_drvdata(card);
-	struct snd_soc_component *component = NULL;
-	struct skl_hda_hdmi_pcm *pcm;
-	char jack_name[NAME_SIZE];
-	int err;
 
-	if (ctx->common_hdmi_codec_drv)
-		return skl_hda_hdmi_build_controls(card);
+	/* HDMI disabled, do not create controls */
+	if (!ctx->hdmi.idisp_codec)
+		return 0;
 
-	list_for_each_entry(pcm, &ctx->hdmi_pcm_list, head) {
-		component = pcm->codec_dai->component;
-		snprintf(jack_name, sizeof(jack_name),
-			 "HDMI/DP, pcm=%d Jack", pcm->device);
-		err = snd_soc_card_jack_new(card, jack_name,
-					    SND_JACK_AVOUT, &pcm->hdmi_jack);
-
-		if (err)
-			return err;
-
-		err = hdac_hdmi_jack_init(pcm->codec_dai, pcm->device,
-					  &pcm->hdmi_jack);
-		if (err < 0)
-			return err;
-	}
-
-	if (!component)
+	if (!ctx->hdmi.hdmi_comp)
 		return -EINVAL;
 
-	return hdac_hdmi_jack_port_init(component, &card->dapm);
+	return hda_dsp_hdmi_build_controls(card, ctx->hdmi.hdmi_comp);
 }
