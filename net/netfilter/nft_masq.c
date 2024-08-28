@@ -27,8 +27,7 @@ static const struct nla_policy nft_masq_policy[NFTA_MASQ_MAX + 1] = {
 };
 
 static int nft_masq_validate(const struct nft_ctx *ctx,
-			     const struct nft_expr *expr,
-			     const struct nft_data **data)
+			     const struct nft_expr *expr)
 {
 	int err;
 

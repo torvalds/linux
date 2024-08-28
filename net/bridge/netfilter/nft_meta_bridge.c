@@ -168,8 +168,7 @@ static bool nft_meta_bridge_set_reduce(struct nft_regs_track *track,
 }
 
 static int nft_meta_bridge_set_validate(const struct nft_ctx *ctx,
-					const struct nft_expr *expr,
-					const struct nft_data **data)
+					const struct nft_expr *expr)
 {
 	struct nft_meta *priv = nft_expr_priv(expr);
 	unsigned int hooks;
@@ -179,7 +178,7 @@ static int nft_meta_bridge_set_validate(const struct nft_ctx *ctx,
 		hooks = 1 << NF_BR_PRE_ROUTING;
 		break;
 	default:
-		return nft_meta_set_validate(ctx, expr, data);
+		return nft_meta_set_validate(ctx, expr);
 	}
 
 	return nft_chain_validate_hooks(ctx->chain, hooks);
