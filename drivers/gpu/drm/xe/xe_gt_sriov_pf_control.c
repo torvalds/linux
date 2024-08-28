@@ -8,6 +8,7 @@
 #include "xe_device.h"
 #include "xe_gt.h"
 #include "xe_gt_sriov_pf_control.h"
+#include "xe_gt_sriov_pf_helpers.h"
 #include "xe_gt_sriov_printk.h"
 #include "xe_guc_ct.h"
 #include "xe_sriov.h"
@@ -212,6 +213,11 @@ static void pf_handle_vf_flr_done(struct xe_gt *gt, u32 vfid)
 
 static int pf_handle_vf_event(struct xe_gt *gt, u32 vfid, u32 eventid)
 {
+	xe_gt_sriov_dbg_verbose(gt, "received VF%u event %#x\n", vfid, eventid);
+
+	if (vfid > xe_gt_sriov_pf_get_totalvfs(gt))
+		return -EPROTO;
+
 	switch (eventid) {
 	case GUC_PF_NOTIFY_VF_FLR:
 		pf_handle_vf_flr(gt, vfid);
