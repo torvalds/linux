@@ -1249,6 +1249,22 @@ out_unlock:
 	return ret;
 }
 
+static void domain_flush_complete(struct protection_domain *domain)
+{
+	int i;
+
+	for (i = 0; i < amd_iommu_get_num_iommus(); ++i) {
+		if (domain && !domain->dev_iommu[i])
+			continue;
+
+		/*
+		 * Devices of this domain are behind this IOMMU
+		 * We need to wait for completion of all commands.
+		 */
+		iommu_completion_wait(amd_iommus[i]);
+	}
+}
+
 static int iommu_flush_dte(struct amd_iommu *iommu, u16 devid)
 {
 	struct iommu_cmd cmd;
@@ -1485,7 +1501,7 @@ void amd_iommu_domain_flush_pages(struct protection_domain *domain,
 		__domain_flush_pages(domain, address, size);
 
 		/* Wait until IOMMU TLB and all device IOTLB flushes are complete */
-		amd_iommu_domain_flush_complete(domain);
+		domain_flush_complete(domain);
 
 		return;
 	}
@@ -1525,7 +1541,7 @@ void amd_iommu_domain_flush_pages(struct protection_domain *domain,
 	}
 
 	/* Wait until IOMMU TLB and all device IOTLB flushes are complete */
-	amd_iommu_domain_flush_complete(domain);
+	domain_flush_complete(domain);
 }
 
 /* Flush the whole IO/TLB for a given protection domain - including PDE */
@@ -1556,22 +1572,6 @@ static void dev_flush_pasid_all(struct iommu_dev_data *dev_data,
 {
 	amd_iommu_dev_flush_pasid_pages(dev_data, 0,
 					CMD_INV_IOMMU_ALL_PAGES_ADDRESS, pasid);
-}
-
-void amd_iommu_domain_flush_complete(struct protection_domain *domain)
-{
-	int i;
-
-	for (i = 0; i < amd_iommu_get_num_iommus(); ++i) {
-		if (domain && !domain->dev_iommu[i])
-			continue;
-
-		/*
-		 * Devices of this domain are behind this IOMMU
-		 * We need to wait for completion of all commands.
-		 */
-		iommu_completion_wait(amd_iommus[i]);
-	}
 }
 
 /* Flush the not present cache if it exists */
@@ -1615,6 +1615,7 @@ void amd_iommu_update_and_flush_device_table(struct protection_domain *domain)
 {
 	update_device_table(domain);
 	domain_flush_devices(domain);
+	domain_flush_complete(domain);
 }
 
 void amd_iommu_domain_update(struct protection_domain *domain)

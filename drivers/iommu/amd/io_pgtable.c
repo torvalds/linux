@@ -175,7 +175,6 @@ static bool increase_address_space(struct protection_domain *domain,
 	domain->iop.root  = pte;
 	domain->iop.mode += 1;
 	amd_iommu_update_and_flush_device_table(domain);
-	amd_iommu_domain_flush_complete(domain);
 
 	/*
 	 * Device Table needs to be updated and flushed before the new root can
