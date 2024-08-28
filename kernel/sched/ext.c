@@ -5051,6 +5051,7 @@ static s32 select_cpu_stub(struct task_struct *p, s32 prev_cpu, u64 wake_flags) 
 static void enqueue_stub(struct task_struct *p, u64 enq_flags) {}
 static void dequeue_stub(struct task_struct *p, u64 enq_flags) {}
 static void dispatch_stub(s32 prev_cpu, struct task_struct *p) {}
+static void tick_stub(struct task_struct *p) {}
 static void runnable_stub(struct task_struct *p, u64 enq_flags) {}
 static void running_stub(struct task_struct *p) {}
 static void stopping_stub(struct task_struct *p, bool runnable) {}
@@ -5079,6 +5080,7 @@ static struct sched_ext_ops __bpf_ops_sched_ext_ops = {
 	.enqueue = enqueue_stub,
 	.dequeue = dequeue_stub,
 	.dispatch = dispatch_stub,
+	.tick = tick_stub,
 	.runnable = runnable_stub,
 	.running = running_stub,
 	.stopping = stopping_stub,
