@@ -1051,11 +1051,9 @@ static int slic_load_rcvseq_firmware(struct slic_device *sdev)
 	file = (sdev->model == SLIC_MODEL_OASIS) ?  SLIC_RCV_FIRMWARE_OASIS :
 						    SLIC_RCV_FIRMWARE_MOJAVE;
 	err = request_firmware(&fw, file, &sdev->pdev->dev);
-	if (err) {
-		dev_err(&sdev->pdev->dev,
+	if (err)
+		return dev_err_probe(&sdev->pdev->dev, err,
 			"failed to load receive sequencer firmware %s\n", file);
-		return err;
-	}
 	/* Do an initial sanity check concerning firmware size now. A further
 	 * check follows below.
 	 */
@@ -1126,10 +1124,9 @@ static int slic_load_firmware(struct slic_device *sdev)
 	file = (sdev->model == SLIC_MODEL_OASIS) ?  SLIC_FIRMWARE_OASIS :
 						    SLIC_FIRMWARE_MOJAVE;
 	err = request_firmware(&fw, file, &sdev->pdev->dev);
-	if (err) {
-		dev_err(&sdev->pdev->dev, "failed to load firmware %s\n", file);
-		return err;
-	}
+	if (err)
+		return dev_err_probe(&sdev->pdev->dev, err,
+				"failed to load firmware %s\n", file);
 	/* Do an initial sanity check concerning firmware size now. A further
 	 * check follows below.
 	 */
@@ -1678,17 +1675,15 @@ static int slic_init(struct slic_device *sdev)
 	slic_card_reset(sdev);
 
 	err = slic_load_firmware(sdev);
-	if (err) {
-		dev_err(&sdev->pdev->dev, "failed to load firmware\n");
-		return err;
-	}
+	if (err)
+		return dev_err_probe(&sdev->pdev->dev, err,
+			"failed to load firmware\n");
 
 	/* we need the shared memory to read EEPROM so set it up temporarily */
 	err = slic_init_shmem(sdev);
-	if (err) {
-		dev_err(&sdev->pdev->dev, "failed to init shared memory\n");
-		return err;
-	}
+	if (err)
+		return dev_err_probe(&sdev->pdev->dev, err,
+			"failed to init shared memory\n");
 
 	err = slic_read_eeprom(sdev);
 	if (err) {
@@ -1741,10 +1736,9 @@ static int slic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	int err;
 
 	err = pci_enable_device(pdev);
-	if (err) {
-		dev_err(&pdev->dev, "failed to enable PCI device\n");
-		return err;
-	}
+	if (err)
+		return dev_err_probe(&pdev->dev, err,
+			"failed to enable PCI device\n");
 
 	pci_set_master(pdev);
 	pci_try_set_mwi(pdev);
