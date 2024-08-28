@@ -290,26 +290,14 @@ NOKPROBE_SYMBOL(prepare_ftrace_return);
  */
 int ftrace_enable_ftrace_graph_caller(void)
 {
-	int rc;
-
 	/* Expect brc 0xf,... */
-	rc = ftrace_patch_branch_mask(ftrace_graph_caller, 0xa7f4, false);
-	if (rc)
-		return rc;
-	text_poke_sync_lock();
-	return 0;
+	return ftrace_patch_branch_mask(ftrace_graph_caller, 0xa7f4, false);
 }
 
 int ftrace_disable_ftrace_graph_caller(void)
 {
-	int rc;
-
 	/* Expect brc 0x0,... */
-	rc = ftrace_patch_branch_mask(ftrace_graph_caller, 0xa704, true);
-	if (rc)
-		return rc;
-	text_poke_sync_lock();
-	return 0;
+	return ftrace_patch_branch_mask(ftrace_graph_caller, 0xa704, true);
 }
 
 #endif /* CONFIG_FUNCTION_GRAPH_TRACER */
