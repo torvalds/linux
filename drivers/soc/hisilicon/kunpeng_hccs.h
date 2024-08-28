@@ -80,10 +80,13 @@ struct hccs_verspecific_data {
 	bool has_txdone_irq;
 };
 
+#define HCCS_CAPS_HCCS_V2_PM	BIT_ULL(0)
+
 struct hccs_dev {
 	struct device *dev;
 	struct acpi_device *acpi_dev;
 	const struct hccs_verspecific_data *verspec_data;
+	/* device capabilities from firmware, like HCCS_CAPS_xxx. */
 	u64 caps;
 	u8 chip_num;
 	struct hccs_chip_info *chips;
@@ -106,6 +109,9 @@ enum hccs_subcmd_type {
 	HCCS_GET_DIE_PORTS_LANE_STA,
 	HCCS_GET_DIE_PORTS_LINK_STA,
 	HCCS_GET_DIE_PORTS_CRC_ERR_CNT,
+	HCCS_GET_PORT_IDLE_STATUS,
+	HCCS_PM_DEC_LANE,
+	HCCS_PM_INC_LANE,
 	HCCS_SUB_CMD_MAX = 255,
 };
 
@@ -147,6 +153,14 @@ struct hccs_port_comm_req_param {
 	u8 chip_id;
 	u8 die_id;
 	u8 port_id;
+};
+
+#define HCCS_PREPARE_INC_LANE	1
+#define HCCS_GET_ADAPT_RES	2
+#define HCCS_START_RETRAINING	3
+struct hccs_inc_lane_req_param {
+	u8 port_type;
+	u8 opt_type;
 };
 
 #define HCCS_PORT_RESET         1
