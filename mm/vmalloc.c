@@ -2131,22 +2131,17 @@ reclaim_list_global(struct list_head *head)
 static void
 decay_va_pool_node(struct vmap_node *vn, bool full_decay)
 {
+	LIST_HEAD(decay_list);
+	struct rb_root decay_root = RB_ROOT;
 	struct vmap_area *va, *nva;
-	struct list_head decay_list;
-	struct rb_root decay_root;
 	unsigned long n_decay;
 	int i;
 
-	decay_root = RB_ROOT;
-	INIT_LIST_HEAD(&decay_list);
-
 	for (i = 0; i < MAX_VA_SIZE_PAGES; i++) {
-		struct list_head tmp_list;
+		LIST_HEAD(tmp_list);
 
 		if (list_empty(&vn->pool[i].head))
 			continue;
-
-		INIT_LIST_HEAD(&tmp_list);
 
 		/* Detach the pool, so no-one can access it. */
 		spin_lock(&vn->pool_lock);
