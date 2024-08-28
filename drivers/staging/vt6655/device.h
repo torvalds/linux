@@ -189,10 +189,10 @@ struct vnt_private {
 
 	u8		byBBType; /* 0:11A, 1:11B, 2:11G */
 	u8		packet_type; /*
-				       * 0:11a,1:11b,2:11gb (only CCK
-				       * in BasicRate), 3:11ga (OFDM in
-				       * Basic Rate)
-				       */
+				      * 0:11a,1:11b,2:11gb (only CCK
+				      * in BasicRate), 3:11ga (OFDM in
+				      * Basic Rate)
+				      */
 	unsigned short wBasicRate;
 	unsigned char byACKRate;
 	unsigned char byTopOFDMBasicRate;
