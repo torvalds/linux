@@ -9,6 +9,29 @@
 #define __RENESAS_RZV2H_CPG_H__
 
 /**
+ * struct ddiv - Structure for dynamic switching divider
+ *
+ * @offset: register offset
+ * @shift: position of the divider bit
+ * @width: width of the divider
+ * @monbit: monitor bit in CPG_CLKSTATUS0 register
+ */
+struct ddiv {
+	unsigned int offset:11;
+	unsigned int shift:4;
+	unsigned int width:4;
+	unsigned int monbit:5;
+};
+
+#define DDIV_PACK(_offset, _shift, _width, _monbit) \
+	((struct ddiv){ \
+		.offset = _offset, \
+		.shift = _shift, \
+		.width = _width, \
+		.monbit = _monbit \
+	})
+
+/**
  * Definitions of CPG Core Clocks
  *
  * These include:
@@ -23,7 +46,12 @@ struct cpg_core_clk {
 	unsigned int div;
 	unsigned int mult;
 	unsigned int type;
-	unsigned int conf;
+	union {
+		unsigned int conf;
+		struct ddiv ddiv;
+	} cfg;
+	const struct clk_div_table *dtable;
+	u32 flag;
 };
 
 enum clk_types {
@@ -31,6 +59,7 @@ enum clk_types {
 	CLK_TYPE_IN,		/* External Clock Input */
 	CLK_TYPE_FF,		/* Fixed Factor Clock */
 	CLK_TYPE_PLL,
+	CLK_TYPE_DDIV,		/* Dynamic Switching Divider */
 };
 
 /* BIT(31) indicates if CLK1/2 are accessible or not */
@@ -44,11 +73,17 @@ enum clk_types {
 #define DEF_BASE(_name, _id, _type, _parent...) \
 	DEF_TYPE(_name, _id, _type, .parent = _parent)
 #define DEF_PLL(_name, _id, _parent, _conf) \
-	DEF_TYPE(_name, _id, CLK_TYPE_PLL, .parent = _parent, .conf = _conf)
+	DEF_TYPE(_name, _id, CLK_TYPE_PLL, .parent = _parent, .cfg.conf = _conf)
 #define DEF_INPUT(_name, _id) \
 	DEF_TYPE(_name, _id, CLK_TYPE_IN)
 #define DEF_FIXED(_name, _id, _parent, _mult, _div) \
 	DEF_BASE(_name, _id, CLK_TYPE_FF, _parent, .div = _div, .mult = _mult)
+#define DEF_DDIV(_name, _id, _parent, _ddiv_packed, _dtable) \
+	DEF_TYPE(_name, _id, CLK_TYPE_DDIV, \
+		.cfg.ddiv = _ddiv_packed, \
+		.parent = _parent, \
+		.dtable = _dtable, \
+		.flag = CLK_DIVIDER_HIWORD_MASK)
 
 /**
  * struct rzv2h_mod_clk - Module Clocks definitions
