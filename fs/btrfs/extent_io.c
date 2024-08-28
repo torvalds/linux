@@ -2303,9 +2303,9 @@ int extent_invalidate_folio(struct extent_io_tree *tree,
  * to drop the page.
  */
 static bool try_release_extent_state(struct extent_io_tree *tree,
-				    struct page *page, gfp_t mask)
+				    struct folio *folio, gfp_t mask)
 {
-	u64 start = page_offset(page);
+	u64 start = folio_pos(folio);
 	u64 end = start + PAGE_SIZE - 1;
 	bool ret;
 
@@ -2414,7 +2414,7 @@ next:
 			cond_resched();
 		}
 	}
-	return try_release_extent_state(io_tree, page, mask);
+	return try_release_extent_state(io_tree, folio, mask);
 }
 
 static void __free_extent_buffer(struct extent_buffer *eb)
