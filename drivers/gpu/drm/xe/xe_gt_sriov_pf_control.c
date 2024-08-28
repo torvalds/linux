@@ -153,33 +153,35 @@ int xe_gt_sriov_pf_control_trigger_flr(struct xe_gt *gt, unsigned int vfid)
 /**
  * DOC: The VF FLR Flow with GuC
  *
- *          PF                        GUC             PCI
- * ========================================================
- *          |                          |               |
- * (1)      |                         [ ] <----- FLR --|
- *          |                         [ ]              :
- * (2)     [ ] <-------- NOTIFY FLR --[ ]
- *         [ ]                         |
- * (3)     [ ]                         |
- *         [ ]                         |
- *         [ ]-- START FLR ---------> [ ]
- *          |                         [ ]
- * (4)      |                         [ ]
- *          |                         [ ]
- *         [ ] <--------- FLR DONE -- [ ]
- *         [ ]                         |
- * (5)     [ ]                         |
- *         [ ]                         |
- *         [ ]-- FINISH FLR --------> [ ]
- *          |                          |
+ * The VF FLR flow includes several steps::
  *
- * Step 1: PCI HW generates interrupt to the GuC about VF FLR
- * Step 2: GuC FW sends G2H notification to the PF about VF FLR
- * Step 2a: on some platforms G2H is only received from root GuC
- * Step 3: PF sends H2G request to the GuC to start VF FLR sequence
- * Step 3a: on some platforms PF must send H2G to all other GuCs
- * Step 4: GuC FW performs VF FLR cleanups and notifies the PF when done
- * Step 5: PF performs VF FLR cleanups and notifies the GuC FW when finished
+ *	         PF                        GUC             PCI
+ *	========================================================
+ *	         |                          |               |
+ *	(1)      |                         [ ] <----- FLR --|
+ *	         |                         [ ]              :
+ *	(2)     [ ] <-------- NOTIFY FLR --[ ]
+ *	        [ ]                         |
+ *	(3)     [ ]                         |
+ *	        [ ]                         |
+ *	        [ ]-- START FLR ---------> [ ]
+ *	         |                         [ ]
+ *	(4)      |                         [ ]
+ *	         |                         [ ]
+ *	        [ ] <--------- FLR DONE -- [ ]
+ *	        [ ]                         |
+ *	(5)     [ ]                         |
+ *	        [ ]                         |
+ *	        [ ]-- FINISH FLR --------> [ ]
+ *	         |                          |
+ *
+ * * Step 1: PCI HW generates interrupt to the GuC about VF FLR
+ * * Step 2: GuC FW sends G2H notification to the PF about VF FLR
+ * * Step 2a: on some platforms G2H is only received from root GuC
+ * * Step 3: PF sends H2G request to the GuC to start VF FLR sequence
+ * * Step 3a: on some platforms PF must send H2G to all other GuCs
+ * * Step 4: GuC FW performs VF FLR cleanups and notifies the PF when done
+ * * Step 5: PF performs VF FLR cleanups and notifies the GuC FW when finished
  */
 
 static bool needs_dispatch_flr(struct xe_device *xe)
