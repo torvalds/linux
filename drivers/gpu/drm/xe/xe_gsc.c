@@ -8,6 +8,7 @@
 #include <linux/delay.h>
 
 #include <drm/drm_managed.h>
+#include <drm/drm_print.h>
 
 #include <generated/xe_wa_oob.h>
 
@@ -586,4 +587,36 @@ void xe_gsc_wa_14015076503(struct xe_gt *gt, bool prep)
 			      HECI_H_CSR_RST, HECI_H_CSR_IG);
 		msleep(200);
 	}
+}
+
+/**
+ * xe_gsc_print_info - print info about GSC FW status
+ * @gsc: the GSC structure
+ * @p: the printer to be used to print the info
+ */
+void xe_gsc_print_info(struct xe_gsc *gsc, struct drm_printer *p)
+{
+	struct xe_gt *gt = gsc_to_gt(gsc);
+	int err;
+
+	xe_uc_fw_print(&gsc->fw, p);
+
+	drm_printf(p, "\tfound security version %u\n", gsc->security_version);
+
+	if (!xe_uc_fw_is_enabled(&gsc->fw))
+		return;
+
+	err = xe_force_wake_get(gt_to_fw(gt), XE_FW_GSC);
+	if (err)
+		return;
+
+	drm_printf(p, "\nHECI1 FWSTS: 0x%08x 0x%08x 0x%08x 0x%08x 0x%08x 0x%08x\n",
+			xe_mmio_read32(gt, HECI_FWSTS1(MTL_GSC_HECI1_BASE)),
+			xe_mmio_read32(gt, HECI_FWSTS2(MTL_GSC_HECI1_BASE)),
+			xe_mmio_read32(gt, HECI_FWSTS3(MTL_GSC_HECI1_BASE)),
+			xe_mmio_read32(gt, HECI_FWSTS4(MTL_GSC_HECI1_BASE)),
+			xe_mmio_read32(gt, HECI_FWSTS5(MTL_GSC_HECI1_BASE)),
+			xe_mmio_read32(gt, HECI_FWSTS6(MTL_GSC_HECI1_BASE)));
+
+	xe_force_wake_put(gt_to_fw(gt), XE_FW_GSC);
 }
