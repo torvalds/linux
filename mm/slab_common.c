@@ -204,8 +204,7 @@ struct kmem_cache *find_mergeable(unsigned int size, unsigned int align,
 static struct kmem_cache *create_cache(const char *name,
 		unsigned int object_size, unsigned int align,
 		slab_flags_t flags, unsigned int useroffset,
-		unsigned int usersize, void (*ctor)(void *),
-		struct kmem_cache *root_cache)
+		unsigned int usersize, void (*ctor)(void *))
 {
 	struct kmem_cache *s;
 	int err;
@@ -334,7 +333,7 @@ kmem_cache_create_usercopy(const char *name,
 
 	s = create_cache(cache_name, size,
 			 calculate_alignment(flags, align, size),
-			 flags, useroffset, usersize, ctor, NULL);
+			 flags, useroffset, usersize, ctor);
 	if (IS_ERR(s)) {
 		err = PTR_ERR(s);
 		kfree_const(cache_name);
