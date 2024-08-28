@@ -838,7 +838,7 @@ static int rproc_config_check(struct qcom_adsp *adsp, u32 state, void *addr)
 	do {
 		usleep_range(SOCCP_SLEEP_US, SOCCP_SLEEP_US + 100);
 		val = readl(addr);
-	} while (!(val && state) && --retry_num);
+	} while (!(val & state) && --retry_num);
 
 	return (val & state) ? 0 : -ETIMEDOUT;
 }
