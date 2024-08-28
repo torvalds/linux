@@ -286,9 +286,6 @@ static void ggtt_node_remove(struct xe_ggtt_node *node)
 	bool bound;
 	int idx;
 
-	if (!node || !node->ggtt)
-		return;
-
 	bound = drm_dev_enter(&xe->drm, &idx);
 
 	mutex_lock(&ggtt->lock);
@@ -328,8 +325,14 @@ static void ggtt_node_remove_work_func(struct work_struct *work)
  */
 void xe_ggtt_node_remove(struct xe_ggtt_node *node, bool invalidate)
 {
-	struct xe_ggtt *ggtt = node->ggtt;
-	struct xe_device *xe = tile_to_xe(ggtt->tile);
+	struct xe_ggtt *ggtt;
+	struct xe_device *xe;
+
+	if (!node || !node->ggtt)
+		return;
+
+	ggtt = node->ggtt;
+	xe = tile_to_xe(ggtt->tile);
 
 	node->invalidate_on_remove = invalidate;
 
