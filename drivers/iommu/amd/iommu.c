@@ -825,10 +825,12 @@ static void iommu_poll_events(struct amd_iommu *iommu)
 
 	while (head != tail) {
 		iommu_print_event(iommu, iommu->evt_buf + head);
+
+		/* Update head pointer of hardware ring-buffer */
 		head = (head + EVENT_ENTRY_SIZE) % EVT_BUFFER_SIZE;
+		writel(head, iommu->mmio_base + MMIO_EVT_HEAD_OFFSET);
 	}
 
-	writel(head, iommu->mmio_base + MMIO_EVT_HEAD_OFFSET);
 }
 
 #ifdef CONFIG_IRQ_REMAP
