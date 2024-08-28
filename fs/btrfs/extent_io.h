@@ -237,7 +237,7 @@ static inline void extent_changeset_free(struct extent_changeset *changeset)
 }
 
 bool try_release_extent_mapping(struct page *page, gfp_t mask);
-int try_release_extent_buffer(struct page *page);
+int try_release_extent_buffer(struct folio *folio);
 
 int btrfs_read_folio(struct file *file, struct folio *folio);
 void extent_write_locked_range(struct inode *inode, const struct folio *locked_folio,
