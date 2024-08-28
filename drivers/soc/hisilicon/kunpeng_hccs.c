@@ -170,15 +170,21 @@ static int hccs_register_pcc_channel(struct hccs_dev *hdev)
 		goto err_mbx_channel_free;
 	}
 
-	if (pcc_chan->shmem_base_addr) {
-		cl_info->pcc_comm_addr = ioremap(pcc_chan->shmem_base_addr,
-						 pcc_chan->shmem_size);
-		if (!cl_info->pcc_comm_addr) {
-			dev_err(dev, "Failed to ioremap PCC communication region for channel-%u.\n",
-				hdev->chan_id);
-			rc = -ENOMEM;
-			goto err_mbx_channel_free;
-		}
+	if (!pcc_chan->shmem_base_addr ||
+	    pcc_chan->shmem_size != HCCS_PCC_SHARE_MEM_BYTES) {
+		dev_err(dev, "The base address or size (%llu) of PCC communication region is invalid.\n",
+			pcc_chan->shmem_size);
+		rc = -EINVAL;
+		goto err_mbx_channel_free;
+	}
+
+	cl_info->pcc_comm_addr = ioremap(pcc_chan->shmem_base_addr,
+					 pcc_chan->shmem_size);
+	if (!cl_info->pcc_comm_addr) {
+		dev_err(dev, "Failed to ioremap PCC communication region for channel-%u.\n",
+			hdev->chan_id);
+		rc = -ENOMEM;
+		goto err_mbx_channel_free;
 	}
 
 	return 0;
