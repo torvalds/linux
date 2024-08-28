@@ -167,19 +167,16 @@ static void __handle_ksmbd_work(struct ksmbd_work *work,
 	int rc;
 	bool is_chained = false;
 
-	if (conn->ops->allocate_rsp_buf(work))
-		return;
-
 	if (conn->ops->is_transform_hdr &&
 	    conn->ops->is_transform_hdr(work->request_buf)) {
 		rc = conn->ops->decrypt_req(work);
-		if (rc < 0) {
-			conn->ops->set_rsp_status(work, STATUS_DATA_ERROR);
-			goto send;
-		}
-
+		if (rc < 0)
+			return;
 		work->encrypted = true;
 	}
+
+	if (conn->ops->allocate_rsp_buf(work))
+		return;
 
 	rc = conn->ops->init_rsp_hdr(work);
 	if (rc) {

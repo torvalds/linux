@@ -118,6 +118,9 @@ static bool fault_in_kernel_space(unsigned long address)
 #define __init
 #define __pa(x)	((unsigned long)(x))
 
+#undef __head
+#define __head
+
 #define __BOOT_COMPRESSED
 
 /* Basic instruction decoding support needed */

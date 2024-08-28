@@ -167,11 +167,20 @@
 .Lskip_rsb_\@:
 .endm
 
+/*
+ * The CALL to srso_alias_untrain_ret() must be patched in directly at
+ * the spot where untraining must be done, ie., srso_alias_untrain_ret()
+ * must be the target of a CALL instruction instead of indirectly
+ * jumping to a wrapper which then calls it. Therefore, this macro is
+ * called outside of __UNTRAIN_RET below, for the time being, before the
+ * kernel can support nested alternatives with arbitrary nesting.
+ */
+.macro CALL_UNTRAIN_RET
 #ifdef CONFIG_CPU_UNRET_ENTRY
-#define CALL_UNTRAIN_RET	"call entry_untrain_ret"
-#else
-#define CALL_UNTRAIN_RET	""
+	ALTERNATIVE_2 "", "call entry_untrain_ret", X86_FEATURE_UNRET, \
+		          "call srso_alias_untrain_ret", X86_FEATURE_SRSO_ALIAS
 #endif
+.endm
 
 /*
  * Mitigate RETBleed for AMD/Hygon Zen uarch. Requires KERNEL CR3 because the
@@ -188,9 +197,8 @@
 #if defined(CONFIG_CPU_UNRET_ENTRY) || defined(CONFIG_CPU_IBPB_ENTRY) || \
 	defined(CONFIG_CPU_SRSO)
 	ANNOTATE_UNRET_END
-	ALTERNATIVE_2 "",						\
-		      CALL_UNTRAIN_RET, X86_FEATURE_UNRET,		\
-		      "call entry_ibpb", X86_FEATURE_ENTRY_IBPB
+	CALL_UNTRAIN_RET
+	ALTERNATIVE "", "call entry_ibpb", X86_FEATURE_ENTRY_IBPB
 #endif
 .endm
 
@@ -206,6 +214,19 @@
 	verw _ASM_RIP(mds_verw_sel)
 .Lskip_verw_\@:
 .endm
+
+#ifdef CONFIG_X86_64
+.macro CLEAR_BRANCH_HISTORY
+	ALTERNATIVE "", "call clear_bhb_loop", X86_FEATURE_CLEAR_BHB_LOOP
+.endm
+
+.macro CLEAR_BRANCH_HISTORY_VMEXIT
+	ALTERNATIVE "", "call clear_bhb_loop", X86_FEATURE_CLEAR_BHB_LOOP_ON_VMEXIT
+.endm
+#else
+#define CLEAR_BRANCH_HISTORY
+#define CLEAR_BRANCH_HISTORY_VMEXIT
+#endif
 
 #else /* __ASSEMBLY__ */
 
@@ -234,6 +255,10 @@ extern void srso_alias_untrain_ret(void);
 
 extern void entry_untrain_ret(void);
 extern void entry_ibpb(void);
+
+#ifdef CONFIG_X86_64
+extern void clear_bhb_loop(void);
+#endif
 
 extern void (*x86_return_thunk)(void);
 

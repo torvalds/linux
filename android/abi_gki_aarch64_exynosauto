@@ -440,7 +440,9 @@
   netdev_err
   netdev_info
   netdev_is_rx_handler_busy
+  netdev_master_upper_dev_get
   netdev_warn
+  nla_append
   noop_llseek
   nr_cpu_ids
   nsecs_to_jiffies

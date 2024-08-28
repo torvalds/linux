@@ -242,6 +242,8 @@ SYM_INNER_LABEL(vmx_vmexit, SYM_L_GLOBAL)
 
 	call vmx_spec_ctrl_restore_host
 
+	CLEAR_BRANCH_HISTORY_VMEXIT
+
 	/* Put return value in AX */
 	mov %_ASM_BX, %_ASM_AX
 

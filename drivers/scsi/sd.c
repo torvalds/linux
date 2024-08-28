@@ -3554,7 +3554,7 @@ static int sd_probe(struct device *dev)
 
 	error = device_add_disk(dev, gd, NULL);
 	if (error) {
-		put_device(&sdkp->disk_dev);
+		device_unregister(&sdkp->disk_dev);
 		put_disk(gd);
 		goto out;
 	}
@@ -3626,6 +3626,7 @@ static int sd_start_stop_device(struct scsi_disk *sdkp, int start)
 	const struct scsi_exec_args exec_args = {
 		.sshdr = &sshdr,
 		.req_flags = BLK_MQ_REQ_PM,
+		.scmd_flags = SCMD_RETRY_PASSTHROUGH,
 	};
 	struct scsi_device *sdp = sdkp->device;
 	int res;

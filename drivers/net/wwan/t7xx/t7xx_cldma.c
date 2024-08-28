@@ -106,7 +106,7 @@ bool t7xx_cldma_tx_addr_is_set(struct t7xx_cldma_hw *hw_info, unsigned int qno)
 {
 	u32 offset = REG_CLDMA_UL_START_ADDRL_0 + qno * ADDR_SIZE;
 
-	return ioread64(hw_info->ap_pdn_base + offset);
+	return ioread64_lo_hi(hw_info->ap_pdn_base + offset);
 }
 
 void t7xx_cldma_hw_set_start_addr(struct t7xx_cldma_hw *hw_info, unsigned int qno, u64 address,
@@ -117,7 +117,7 @@ void t7xx_cldma_hw_set_start_addr(struct t7xx_cldma_hw *hw_info, unsigned int qn
 
 	reg = tx_rx == MTK_RX ? hw_info->ap_ao_base + REG_CLDMA_DL_START_ADDRL_0 :
 				hw_info->ap_pdn_base + REG_CLDMA_UL_START_ADDRL_0;
-	iowrite64(address, reg + offset);
+	iowrite64_lo_hi(address, reg + offset);
 }
 
 void t7xx_cldma_hw_resume_queue(struct t7xx_cldma_hw *hw_info, unsigned int qno,

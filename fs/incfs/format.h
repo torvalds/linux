@@ -314,6 +314,11 @@ struct backing_file_context {
 	 * there is no need to get/put the creds
 	 */
 	const struct cred *bc_cred;
+
+	/*
+	 * The file has a bad block, i.e. one that has failed checksumming.
+	 */
+	bool bc_has_bad_block;
 };
 
 struct metadata_handler {

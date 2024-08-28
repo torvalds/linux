@@ -81,9 +81,8 @@ static int clk_mt8365_mm_probe(struct platform_device *pdev)
 
 	clk_data = mtk_alloc_clk_data(CLK_MM_NR_CLK);
 
-	ret = mtk_clk_register_gates_with_dev(node, mm_clks,
-					      ARRAY_SIZE(mm_clks), clk_data,
-					      dev);
+	ret = mtk_clk_register_gates(dev, node, mm_clks,
+				     ARRAY_SIZE(mm_clks), clk_data);
 	if (ret)
 		goto err_free_clk_data;
 

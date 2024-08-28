@@ -749,8 +749,6 @@ typedef unsigned char *sk_buff_data_t;
  *	@list: queue head
  *	@ll_node: anchor in an llist (eg socket defer_list)
  *	@sk: Socket we are owned by
- *	@ip_defrag_offset: (aka @sk) alternate use of @sk, used in
- *		fragmentation management
  *	@dev: Device we arrived on/are leaving by
  *	@dev_scratch: (aka @dev) alternate use of @dev when @dev would be %NULL
  *	@cb: Control buffer. Free for use by every layer. Put private vars here
@@ -874,10 +872,19 @@ struct sk_buff {
 		struct llist_node	ll_node;
 	};
 
+#ifdef __GENKSYMS__
+	/* ANDROID:
+	 * Put back the union removed in commit 7d0567842b78 ("inet:
+	 * inet_defrag: prevent sk release while still in use") to preserve the
+	 * crcs of stuff.  Does not affect any code functionality.
+	 */
 	union {
 		struct sock		*sk;
 		int			ip_defrag_offset;
 	};
+#else
+	struct sock		*sk;
+#endif
 
 	union {
 		ktime_t		tstamp;
@@ -2615,6 +2622,8 @@ static inline void skb_put_u8(struct sk_buff *skb, u8 val)
 void *skb_push(struct sk_buff *skb, unsigned int len);
 static inline void *__skb_push(struct sk_buff *skb, unsigned int len)
 {
+	DEBUG_NET_WARN_ON_ONCE(len > INT_MAX);
+
 	skb->data -= len;
 	skb->len  += len;
 	return skb->data;
@@ -2623,6 +2632,8 @@ static inline void *__skb_push(struct sk_buff *skb, unsigned int len)
 void *skb_pull(struct sk_buff *skb, unsigned int len);
 static inline void *__skb_pull(struct sk_buff *skb, unsigned int len)
 {
+	DEBUG_NET_WARN_ON_ONCE(len > INT_MAX);
+
 	skb->len -= len;
 	if (unlikely(skb->len < skb->data_len)) {
 #if defined(CONFIG_DEBUG_NET)
@@ -2646,6 +2657,8 @@ void *__pskb_pull_tail(struct sk_buff *skb, int delta);
 
 static inline bool pskb_may_pull(struct sk_buff *skb, unsigned int len)
 {
+	DEBUG_NET_WARN_ON_ONCE(len > INT_MAX);
+
 	if (likely(len <= skb_headlen(skb)))
 		return true;
 	if (unlikely(len > skb->len))
@@ -2806,6 +2819,11 @@ static inline void skb_set_inner_network_header(struct sk_buff *skb,
 {
 	skb_reset_inner_network_header(skb);
 	skb->inner_network_header += offset;
+}
+
+static inline bool skb_inner_network_header_was_set(const struct sk_buff *skb)
+{
+	return skb->inner_network_header > 0;
 }
 
 static inline unsigned char *skb_inner_mac_header(const struct sk_buff *skb)

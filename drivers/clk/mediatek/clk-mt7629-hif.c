@@ -75,8 +75,8 @@ static int clk_mt7629_ssusbsys_init(struct platform_device *pdev)
 
 	clk_data = mtk_alloc_clk_data(CLK_SSUSB_NR_CLK);
 
-	mtk_clk_register_gates(node, ssusb_clks, ARRAY_SIZE(ssusb_clks),
-			       clk_data);
+	mtk_clk_register_gates(&pdev->dev, node, ssusb_clks,
+			       ARRAY_SIZE(ssusb_clks), clk_data);
 
 	r = of_clk_add_hw_provider(node, of_clk_hw_onecell_get, clk_data);
 	if (r)
@@ -97,8 +97,8 @@ static int clk_mt7629_pciesys_init(struct platform_device *pdev)
 
 	clk_data = mtk_alloc_clk_data(CLK_PCIE_NR_CLK);
 
-	mtk_clk_register_gates(node, pcie_clks, ARRAY_SIZE(pcie_clks),
-			       clk_data);
+	mtk_clk_register_gates(&pdev->dev, node, pcie_clks,
+			       ARRAY_SIZE(pcie_clks), clk_data);
 
 	r = of_clk_add_hw_provider(node, of_clk_hw_onecell_get, clk_data);
 	if (r)

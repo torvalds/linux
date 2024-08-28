@@ -369,6 +369,7 @@
   dev_fetch_sw_netstats
   devfreq_add_device
   devfreq_add_governor
+  devfreq_get_devfreq_by_phandle
   devfreq_monitor_resume
   devfreq_monitor_start
   devfreq_monitor_stop
@@ -2800,6 +2801,7 @@
   vmf_insert_pfn_prot
   vm_iomap_memory
   vm_node_stat
+  vm_unmapped_area
   vm_zone_stat
   vprintk
   vprintk_emit

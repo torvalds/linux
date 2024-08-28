@@ -421,5 +421,37 @@ void split_pad_vma(struct vm_area_struct *vma, struct vm_area_struct *new,
 		vma_set_pad_pages(second, nr_vma2_pages);
 	}
 }
+
+/*
+ * Sets the correct padding bits / flags for a VMA split.
+ */
+unsigned long vma_pad_fixup_flags(struct vm_area_struct *vma,
+				  unsigned long newflags)
+{
+	if (newflags & VM_PAD_MASK)
+		return (newflags & ~VM_PAD_MASK) | (vma->vm_flags & VM_PAD_MASK);
+	else
+		return newflags;
+}
+
+/*
+ * Merging of padding VMAs is uncommon, as padding is only allowed
+ * from the linker context.
+ *
+ * To simplify the semantics, adjacent VMAs with padding are not
+ * allowed to merge.
+ */
+bool is_mergable_pad_vma(struct vm_area_struct *vma,
+			 unsigned long vm_flags)
+{
+	/* Padding VMAs cannot be merged with other padding or real VMAs */
+	return !((vma->vm_flags | vm_flags) & VM_PAD_MASK);
+}
+
+unsigned long vma_data_pages(struct vm_area_struct *vma)
+{
+	return vma_pages(vma) - vma_pad_pages(vma);
+}
+
 #endif /* PAGE_SIZE == SZ_4K */
 #endif /* CONFIG_64BIT */
