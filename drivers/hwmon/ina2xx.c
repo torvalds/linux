@@ -306,7 +306,7 @@ static int ina2xx_read_init(struct device *dev, int reg, long *val)
  * Turns alert limit values into register values.
  * Opposite of the formula in ina2xx_get_value().
  */
-static u16 ina226_alert_to_reg(struct ina2xx_data *data, int reg, unsigned long val)
+static u16 ina226_alert_to_reg(struct ina2xx_data *data, int reg, long val)
 {
 	switch (reg) {
 	case INA2XX_SHUNT_VOLTAGE:
@@ -322,6 +322,11 @@ static u16 ina226_alert_to_reg(struct ina2xx_data *data, int reg, unsigned long 
 		val = clamp_val(val, 0, UINT_MAX - data->power_lsb_uW);
 		val = DIV_ROUND_CLOSEST(val, data->power_lsb_uW);
 		return clamp_val(val, 0, USHRT_MAX);
+	case INA2XX_CURRENT:
+		val = clamp_val(val, INT_MIN / 1000, INT_MAX / 1000);
+		/* signed register, result in mA */
+		val = DIV_ROUND_CLOSEST(val * 1000, data->current_lsb_uA);
+		return clamp_val(val, SHRT_MIN, SHRT_MAX);
 	default:
 		/* programmer goofed */
 		WARN_ON_ONCE(1);
@@ -473,9 +478,31 @@ static int ina2xx_power_read(struct device *dev, u32 attr, long *val)
 
 static int ina2xx_curr_read(struct device *dev, u32 attr, long *val)
 {
+	struct ina2xx_data *data = dev_get_drvdata(dev);
+	struct regmap *regmap = data->regmap;
+
+	/*
+	 * While the chips supported by this driver do not directly support
+	 * current limits, they do support setting shunt voltage limits.
+	 * The shunt voltage divided by the shunt resistor value is the current.
+	 * On top of that, calibration values are set such that in the shunt
+	 * voltage register and the current register report the same values.
+	 * That means we can report and configure current limits based on shunt
+	 * voltage limits.
+	 */
 	switch (attr) {
 	case hwmon_curr_input:
 		return ina2xx_read_init(dev, INA2XX_CURRENT, val);
+	case hwmon_curr_lcrit:
+		return ina226_alert_limit_read(data, INA226_SHUNT_UNDER_VOLTAGE_MASK,
+					       INA2XX_CURRENT, val);
+	case hwmon_curr_crit:
+		return ina226_alert_limit_read(data, INA226_SHUNT_OVER_VOLTAGE_MASK,
+					       INA2XX_CURRENT, val);
+	case hwmon_curr_lcrit_alarm:
+		return ina226_alert_read(regmap, INA226_SHUNT_UNDER_VOLTAGE_MASK, val);
+	case hwmon_curr_crit_alarm:
+		return ina226_alert_read(regmap, INA226_SHUNT_OVER_VOLTAGE_MASK, val);
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -547,6 +574,23 @@ static int ina2xx_power_write(struct device *dev, u32 attr, long val)
 	return 0;
 }
 
+static int ina2xx_curr_write(struct device *dev, u32 attr, long val)
+{
+	struct ina2xx_data *data = dev_get_drvdata(dev);
+
+	switch (attr) {
+	case hwmon_curr_lcrit:
+		return ina226_alert_limit_write(data, INA226_SHUNT_UNDER_VOLTAGE_MASK,
+						INA2XX_CURRENT, val);
+	case hwmon_curr_crit:
+		return ina226_alert_limit_write(data, INA226_SHUNT_OVER_VOLTAGE_MASK,
+						INA2XX_CURRENT, val);
+	default:
+		return -EOPNOTSUPP;
+	}
+	return 0;
+}
+
 static int ina2xx_write(struct device *dev, enum hwmon_sensor_types type,
 			u32 attr, int channel, long val)
 {
@@ -557,6 +601,8 @@ static int ina2xx_write(struct device *dev, enum hwmon_sensor_types type,
 		return ina2xx_in_write(dev, attr, channel, val);
 	case hwmon_power:
 		return ina2xx_power_write(dev, attr, val);
+	case hwmon_curr:
+		return ina2xx_curr_write(dev, attr, val);
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -591,6 +637,16 @@ static umode_t ina2xx_is_visible(const void *_data, enum hwmon_sensor_types type
 		switch (attr) {
 		case hwmon_curr_input:
 			return 0444;
+		case hwmon_curr_lcrit:
+		case hwmon_curr_crit:
+			if (chip == ina226)
+				return 0644;
+			break;
+		case hwmon_curr_lcrit_alarm:
+		case hwmon_curr_crit_alarm:
+			if (chip == ina226)
+				return 0444;
+			break;
 		default:
 			break;
 		}
@@ -636,7 +692,8 @@ static const struct hwmon_channel_info * const ina2xx_info[] = {
 			   HWMON_I_INPUT | HWMON_I_CRIT | HWMON_I_CRIT_ALARM |
 			   HWMON_I_LCRIT | HWMON_I_LCRIT_ALARM
 			   ),
-	HWMON_CHANNEL_INFO(curr, HWMON_C_INPUT),
+	HWMON_CHANNEL_INFO(curr, HWMON_C_INPUT | HWMON_C_CRIT | HWMON_C_CRIT_ALARM |
+			   HWMON_C_LCRIT | HWMON_C_LCRIT_ALARM),
 	HWMON_CHANNEL_INFO(power,
 			   HWMON_P_INPUT | HWMON_P_CRIT | HWMON_P_CRIT_ALARM),
 	NULL
