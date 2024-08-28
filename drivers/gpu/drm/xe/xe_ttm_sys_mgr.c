@@ -117,17 +117,5 @@ int xe_ttm_sys_mgr_init(struct xe_device *xe)
 	ttm_resource_manager_init(man, &xe->ttm, gtt_size >> PAGE_SHIFT);
 	ttm_set_driver_manager(&xe->ttm, XE_PL_TT, man);
 	ttm_resource_manager_set_used(man, true);
-
-	/*
-	 * On iGFX device with flat CCS, we clear CCS metadata, let's extend that
-	 * and use GPU to clear pages as well.
-	 *
-	 * Disable this when init_on_free and/or init_on_alloc is on to avoid double
-	 * zeroing pages with CPU and GPU.
-	 */
-	if (xe_device_has_flat_ccs(xe) && !IS_DGFX(xe) &&
-	    !want_init_on_alloc(GFP_USER) && !want_init_on_free())
-		xe->mem.gpu_page_clear_sys = true;
-
 	return drmm_add_action_or_reset(&xe->drm, ttm_sys_mgr_fini, xe);
 }

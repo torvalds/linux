@@ -396,14 +396,6 @@ static struct ttm_tt *xe_ttm_tt_create(struct ttm_buffer_object *ttm_bo,
 		caching = ttm_uncached;
 	}
 
-	/*
-	 * If the device can support gpu clear system pages then set proper ttm
-	 * flag. Zeroed pages are only required for ttm_bo_type_device so
-	 * unwanted data is not leaked to userspace.
-	 */
-	if (ttm_bo->type == ttm_bo_type_device && xe->mem.gpu_page_clear_sys)
-		page_flags |= TTM_TT_FLAG_CLEARED_ON_FREE;
-
 	err = ttm_tt_init(&tt->ttm, &bo->ttm, page_flags, caching, extra_pages);
 	if (err) {
 		kfree(tt);
@@ -424,10 +416,6 @@ static int xe_ttm_tt_populate(struct ttm_device *ttm_dev, struct ttm_tt *tt,
 	 */
 	if (tt->page_flags & TTM_TT_FLAG_EXTERNAL)
 		return 0;
-
-	/* Clear TTM_TT_FLAG_ZERO_ALLOC when GPU is set to clear system pages */
-	if (tt->page_flags & TTM_TT_FLAG_CLEARED_ON_FREE)
-		tt->page_flags &= ~TTM_TT_FLAG_ZERO_ALLOC;
 
 	err = ttm_pool_alloc(&ttm_dev->pool, tt, ctx);
 	if (err)
@@ -671,15 +659,7 @@ static int xe_bo_move(struct ttm_buffer_object *ttm_bo, bool evict,
 	bool needs_clear;
 	bool handle_system_ccs = (!IS_DGFX(xe) && xe_bo_needs_ccs_pages(bo) &&
 				  ttm && ttm_tt_is_populated(ttm)) ? true : false;
-	bool clear_system_pages;
 	int ret = 0;
-
-	/*
-	 * Clear TTM_TT_FLAG_CLEARED_ON_FREE on bo creation path when
-	 * moving to system as the bo doesn't have dma_mapping.
-	 */
-	if (!old_mem && ttm && !ttm_tt_is_populated(ttm))
-		ttm->page_flags &= ~TTM_TT_FLAG_CLEARED_ON_FREE;
 
 	/* Bo creation path, moving to system or TT. */
 	if ((!old_mem && ttm) && !handle_system_ccs) {
@@ -703,10 +683,8 @@ static int xe_bo_move(struct ttm_buffer_object *ttm_bo, bool evict,
 	move_lacks_source = handle_system_ccs ? (!bo->ccs_cleared)  :
 						(!mem_type_is_vram(old_mem_type) && !tt_has_data);
 
-	clear_system_pages = ttm && (ttm->page_flags & TTM_TT_FLAG_CLEARED_ON_FREE);
 	needs_clear = (ttm && ttm->page_flags & TTM_TT_FLAG_ZERO_ALLOC) ||
-		(!ttm && ttm_bo->type == ttm_bo_type_device) ||
-		clear_system_pages;
+		(!ttm && ttm_bo->type == ttm_bo_type_device);
 
 	if (new_mem->mem_type == XE_PL_TT) {
 		ret = xe_tt_map_sg(ttm);
@@ -818,7 +796,7 @@ static int xe_bo_move(struct ttm_buffer_object *ttm_bo, bool evict,
 		if (move_lacks_source) {
 			u32 flags = 0;
 
-			if (mem_type_is_vram(new_mem->mem_type) || clear_system_pages)
+			if (mem_type_is_vram(new_mem->mem_type))
 				flags |= XE_MIGRATE_CLEAR_FLAG_FULL;
 			else if (handle_system_ccs)
 				flags |= XE_MIGRATE_CLEAR_FLAG_CCS_DATA;

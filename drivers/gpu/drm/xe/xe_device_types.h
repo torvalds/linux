@@ -339,8 +339,6 @@ struct xe_device {
 		struct xe_mem_region vram;
 		/** @mem.sys_mgr: system TTM manager */
 		struct ttm_resource_manager sys_mgr;
-		/** @mem.gpu_page_clear_sys: clear system pages offloaded to GPU */
-		bool gpu_page_clear_sys;
 	} mem;
 
 	/** @sriov: device level virtualization data */
