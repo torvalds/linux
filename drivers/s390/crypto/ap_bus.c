@@ -107,6 +107,7 @@ debug_info_t *ap_dbf_info;
 static bool ap_scan_bus(void);
 static bool ap_scan_bus_result; /* result of last ap_scan_bus() */
 static DEFINE_MUTEX(ap_scan_bus_mutex); /* mutex ap_scan_bus() invocations */
+static struct task_struct *ap_scan_bus_task; /* thread holding the scan mutex */
 static atomic64_t ap_scan_bus_count; /* counter ap_scan_bus() invocations */
 static int ap_scan_bus_time = AP_CONFIG_TIME;
 static struct timer_list ap_scan_bus_timer;
@@ -1006,11 +1007,25 @@ bool ap_bus_force_rescan(void)
 	if (scan_counter <= 0)
 		goto out;
 
+	/*
+	 * There is one unlikely but nevertheless valid scenario where the
+	 * thread holding the mutex may try to send some crypto load but
+	 * all cards are offline so a rescan is triggered which causes
+	 * a recursive call of ap_bus_force_rescan(). A simple return if
+	 * the mutex is already locked by this thread solves this.
+	 */
+	if (mutex_is_locked(&ap_scan_bus_mutex)) {
+		if (ap_scan_bus_task == current)
+			goto out;
+	}
+
 	/* Try to acquire the AP scan bus mutex */
 	if (mutex_trylock(&ap_scan_bus_mutex)) {
 		/* mutex acquired, run the AP bus scan */
+		ap_scan_bus_task = current;
 		ap_scan_bus_result = ap_scan_bus();
 		rc = ap_scan_bus_result;
+		ap_scan_bus_task = NULL;
 		mutex_unlock(&ap_scan_bus_mutex);
 		goto out;
 	}
@@ -2284,7 +2299,9 @@ static void ap_scan_bus_wq_callback(struct work_struct *unused)
 	 * system_long_wq which invokes this function here again.
 	 */
 	if (mutex_trylock(&ap_scan_bus_mutex)) {
+		ap_scan_bus_task = current;
 		ap_scan_bus_result = ap_scan_bus();
+		ap_scan_bus_task = NULL;
 		mutex_unlock(&ap_scan_bus_mutex);
 	}
 }
