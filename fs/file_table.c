@@ -511,9 +511,9 @@ EXPORT_SYMBOL(__fput_sync);
 
 void __init files_init(void)
 {
-	filp_cachep = kmem_cache_create("filp", sizeof(struct file), 0,
-				SLAB_TYPESAFE_BY_RCU | SLAB_HWCACHE_ALIGN |
-				SLAB_PANIC | SLAB_ACCOUNT, NULL);
+	filp_cachep = kmem_cache_create_rcu("filp", sizeof(struct file),
+				offsetof(struct file, f_freeptr),
+				SLAB_HWCACHE_ALIGN | SLAB_PANIC | SLAB_ACCOUNT);
 	percpu_counter_init(&nr_files, 0, GFP_KERNEL);
 }
 
