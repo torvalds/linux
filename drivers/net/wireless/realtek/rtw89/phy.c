@@ -5401,7 +5401,7 @@ static void rtw89_phy_dig_update_para(struct rtw89_dev *rtwdev)
 	memcpy(dig->igi_rssi_th, igi_rssi_th, sizeof(dig->igi_rssi_th));
 }
 
-static const u8 pd_low_th_offset = 20, dynamic_igi_min = 0x20;
+static const u8 pd_low_th_offset = 16, dynamic_igi_min = 0x20;
 static const u8 igi_max_performance_mode = 0x5a;
 static const u8 dynamic_pd_threshold_max;
 
@@ -5699,38 +5699,47 @@ void rtw89_phy_dig_reset(struct rtw89_dev *rtwdev)
 }
 
 #define IGI_RSSI_MIN 10
+#define ABS_IGI_MIN 0xc
 void rtw89_phy_dig(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_dig_info *dig = &rtwdev->dig;
 	bool is_linked = rtwdev->total_sta_assoc > 0;
+	u8 igi_min;
 
 	if (unlikely(dig->bypass_dig)) {
 		dig->bypass_dig = false;
 		return;
 	}
 
+	rtw89_phy_dig_update_rssi_info(rtwdev);
+
 	if (!dig->is_linked_pre && is_linked) {
 		rtw89_debug(rtwdev, RTW89_DBG_DIG, "First connected\n");
 		rtw89_phy_dig_update_para(rtwdev);
+		dig->igi_fa_rssi = dig->igi_rssi;
 	} else if (dig->is_linked_pre && !is_linked) {
 		rtw89_debug(rtwdev, RTW89_DBG_DIG, "First disconnected\n");
 		rtw89_phy_dig_update_para(rtwdev);
+		dig->igi_fa_rssi = dig->igi_rssi;
 	}
 	dig->is_linked_pre = is_linked;
 
 	rtw89_phy_dig_igi_offset_by_env(rtwdev);
-	rtw89_phy_dig_update_rssi_info(rtwdev);
 
-	dig->dyn_igi_min = (dig->igi_rssi > IGI_RSSI_MIN) ?
-			    dig->igi_rssi - IGI_RSSI_MIN : 0;
-	dig->dyn_igi_max = dig->dyn_igi_min + IGI_OFFSET_MAX;
-	dig->igi_fa_rssi = dig->dyn_igi_min + dig->fa_rssi_ofst;
+	igi_min = max_t(int, dig->igi_rssi - IGI_RSSI_MIN, 0);
+	dig->dyn_igi_max = min(igi_min + IGI_OFFSET_MAX, igi_max_performance_mode);
+	dig->dyn_igi_min = max(igi_min, ABS_IGI_MIN);
 
-	dig->igi_fa_rssi = clamp(dig->igi_fa_rssi, dig->dyn_igi_min,
-				 dig->dyn_igi_max);
+	if (dig->dyn_igi_max >= dig->dyn_igi_min) {
+		dig->igi_fa_rssi += dig->fa_rssi_ofst;
+		dig->igi_fa_rssi = clamp(dig->igi_fa_rssi, dig->dyn_igi_min,
+					 dig->dyn_igi_max);
+	} else {
+		dig->igi_fa_rssi = dig->dyn_igi_max;
+	}
 
 	rtw89_debug(rtwdev, RTW89_DBG_DIG,
-		    "rssi=%03d, dyn(max,min)=(%d,%d), final_rssi=%d\n",
+		    "rssi=%03d, dyn_joint(max,min)=(%d,%d), final_rssi=%d\n",
 		    dig->igi_rssi, dig->dyn_igi_max, dig->dyn_igi_min,
 		    dig->igi_fa_rssi);
 
