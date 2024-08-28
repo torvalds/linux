@@ -75,7 +75,7 @@ struct dma_map_ops {
 	unsigned long (*get_merge_boundary)(struct device *dev);
 };
 
-#ifdef CONFIG_DMA_OPS
+#ifdef CONFIG_ARCH_HAS_DMA_OPS
 #include <asm/dma-mapping.h>
 
 static inline const struct dma_map_ops *get_dma_ops(struct device *dev)
@@ -90,7 +90,7 @@ static inline void set_dma_ops(struct device *dev,
 {
 	dev->dma_ops = dma_ops;
 }
-#else /* CONFIG_DMA_OPS */
+#else /* CONFIG_ARCH_HAS_DMA_OPS */
 static inline const struct dma_map_ops *get_dma_ops(struct device *dev)
 {
 	return NULL;
@@ -99,7 +99,7 @@ static inline void set_dma_ops(struct device *dev,
 			       const struct dma_map_ops *dma_ops)
 {
 }
-#endif /* CONFIG_DMA_OPS */
+#endif /* CONFIG_ARCH_HAS_DMA_OPS */
 
 #ifdef CONFIG_DMA_CMA
 extern struct cma *dma_contiguous_default_area;

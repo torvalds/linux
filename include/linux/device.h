@@ -750,7 +750,7 @@ struct device {
 	struct dev_pin_info	*pins;
 #endif
 	struct dev_msi_info	msi;
-#ifdef CONFIG_DMA_OPS
+#ifdef CONFIG_ARCH_HAS_DMA_OPS
 	const struct dma_map_ops *dma_ops;
 #endif
 	u64		*dma_mask;	/* dma mask (if dma'able device) */
