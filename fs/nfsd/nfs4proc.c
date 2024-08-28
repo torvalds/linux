@@ -1760,7 +1760,7 @@ static int nfsd4_do_async_copy(void *data)
 {
 	struct nfsd4_copy *copy = (struct nfsd4_copy *)data;
 
-	trace_nfsd_copy_do_async(copy);
+	trace_nfsd_copy_async(copy);
 	if (nfsd4_ssc_is_inter(copy)) {
 		struct file *filp;
 
@@ -1787,6 +1787,7 @@ static int nfsd4_do_async_copy(void *data)
 
 do_callback:
 	set_bit(NFSD4_COPY_F_COMPLETED, &copy->cp_flags);
+	trace_nfsd_copy_async_done(copy);
 	nfsd4_send_cb_offload(copy);
 	cleanup_async_copy(copy);
 	return 0;
