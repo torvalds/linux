@@ -7240,7 +7240,7 @@ static bool __btrfs_release_folio(struct folio *folio, gfp_t gfp_flags)
 {
 	if (try_release_extent_mapping(&folio->page, gfp_flags)) {
 		wait_subpage_spinlock(folio);
-		clear_page_extent_mapped(&folio->page);
+		clear_folio_extent_mapped(folio);
 		return true;
 	}
 	return false;
@@ -7438,7 +7438,7 @@ next:
 	btrfs_folio_clear_checked(fs_info, folio, folio_pos(folio), folio_size(folio));
 	if (!inode_evicting)
 		__btrfs_release_folio(folio, GFP_NOFS);
-	clear_page_extent_mapped(&folio->page);
+	clear_folio_extent_mapped(folio);
 }
 
 static int btrfs_truncate(struct btrfs_inode *inode, bool skip_writeback)

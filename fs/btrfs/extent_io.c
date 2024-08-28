@@ -877,18 +877,17 @@ int set_folio_extent_mapped(struct folio *folio)
 	return 0;
 }
 
-void clear_page_extent_mapped(struct page *page)
+void clear_folio_extent_mapped(struct folio *folio)
 {
-	struct folio *folio = page_folio(page);
 	struct btrfs_fs_info *fs_info;
 
-	ASSERT(page->mapping);
+	ASSERT(folio->mapping);
 
 	if (!folio_test_private(folio))
 		return;
 
-	fs_info = page_to_fs_info(page);
-	if (btrfs_is_subpage(fs_info, page->mapping))
+	fs_info = folio_to_fs_info(folio);
+	if (btrfs_is_subpage(fs_info, folio->mapping))
 		return btrfs_detach_subpage(fs_info, folio);
 
 	folio_detach_private(folio);
