@@ -50,12 +50,3 @@
 		reg = <0x68>;
 	};
 };
-
-&iomuxc {
-	pinctrl_i2c1: i2c1grp {
-		fsl,pins = <
-			MX6QDL_PAD_CSI0_DAT8__I2C1_SDA 0x4001b899
-			MX6QDL_PAD_CSI0_DAT9__I2C1_SCL 0x4001b899
-		>;
-	};
-};
