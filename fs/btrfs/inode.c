@@ -7238,7 +7238,7 @@ static int btrfs_launder_folio(struct folio *folio)
 
 static bool __btrfs_release_folio(struct folio *folio, gfp_t gfp_flags)
 {
-	if (try_release_extent_mapping(&folio->page, gfp_flags)) {
+	if (try_release_extent_mapping(folio, gfp_flags)) {
 		wait_subpage_spinlock(folio);
 		clear_folio_extent_mapped(folio);
 		return true;
