@@ -43,8 +43,7 @@ int gpio_request_one(unsigned gpio, unsigned long flags, const char *label)
 	if (flags & GPIOF_DIR_IN)
 		err = gpiod_direction_input(desc);
 	else
-		err = gpiod_direction_output_raw(desc,
-				(flags & GPIOF_INIT_HIGH) ? 1 : 0);
+		err = gpiod_direction_output_raw(desc, !!(flags & GPIOF_OUT_INIT_HIGH));
 
 	if (err)
 		goto free_gpio;

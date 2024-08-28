@@ -76,8 +76,7 @@ static int vision_lcd_setup(struct platform_device *pdev)
 {
 	int err;
 
-	err = gpio_request_one(VISION_LCD_ENABLE, GPIOF_INIT_HIGH,
-				dev_name(&pdev->dev));
+	err = gpio_request_one(VISION_LCD_ENABLE, GPIOF_OUT_INIT_HIGH, dev_name(&pdev->dev));
 	if (err)
 		return err;
 
