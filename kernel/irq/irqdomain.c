@@ -1403,7 +1403,7 @@ static int irq_domain_trim_hierarchy(unsigned int virq)
 	tail = NULL;
 
 	/* The first entry must have a valid irqchip */
-	if (!irq_data->chip || IS_ERR(irq_data->chip))
+	if (IS_ERR_OR_NULL(irq_data->chip))
 		return -EINVAL;
 
 	/*
