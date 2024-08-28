@@ -853,6 +853,9 @@ static bool spl_get_isharp_en(struct spl_in *spl_in,
 	else if ((spl_is_yuv420(spl_in->basic_in.format) && !fullscreen) &&
 		(spl_in->debug.sharpen_policy == SHARPEN_RGB_FULLSCREEN_YUV))
 		return enable_isharp;
+	else if (!spl_in->is_fullscreen &&
+			spl_in->debug.sharpen_policy == SHARPEN_FULLSCREEN_ALL)
+		return enable_isharp;
 
 	/*
 	 * Apply sharpness if supports horizontal taps 4,6 AND

@@ -490,7 +490,8 @@ enum linear_light_scaling	{	// convert it in translation logic
 enum sharpen_policy {
 	SHARPEN_ALWAYS = 0,
 	SHARPEN_YUV = 1,
-	SHARPEN_RGB_FULLSCREEN_YUV = 2
+	SHARPEN_RGB_FULLSCREEN_YUV = 2,
+	SHARPEN_FULLSCREEN_ALL = 3
 };
 enum scale_to_sharpness_policy {
 	NO_SCALE_TO_SHARPNESS_ADJ = 0,
