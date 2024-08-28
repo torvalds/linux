@@ -36,9 +36,8 @@ static int i915_check_nomodeset(void)
 		use_kms = false;
 
 	if (!use_kms) {
-		/* Silently fail loading to not upset userspace. */
 		DRM_DEBUG_DRIVER("KMS disabled.\n");
-		return 1;
+		return -ENODEV;
 	}
 
 	return 0;
