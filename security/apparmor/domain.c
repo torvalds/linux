@@ -714,8 +714,8 @@ create_learning_profile:
 
 	if (!(perms.xindex & AA_X_UNSAFE)) {
 		if (DEBUG_ON) {
-			dbg_printk("apparmor: scrubbing environment variables"
-				   " for %s profile=", name);
+			dbg_printk("apparmor: setting AT_SECURE for %s profile=",
+				   name);
 			aa_label_printk(new, GFP_KERNEL);
 			dbg_printk("\n");
 		}
@@ -794,8 +794,8 @@ static int profile_onexec(const struct cred *subj_cred,
 
 	if (!(perms.xindex & AA_X_UNSAFE)) {
 		if (DEBUG_ON) {
-			dbg_printk("apparmor: scrubbing environment "
-				   "variables for %s label=", xname);
+			dbg_printk("apparmor: setting AT_SECURE for %s label=",
+				   xname);
 			aa_label_printk(onexec, GFP_KERNEL);
 			dbg_printk("\n");
 		}
@@ -951,8 +951,8 @@ int apparmor_bprm_creds_for_exec(struct linux_binprm *bprm)
 
 	if (unsafe) {
 		if (DEBUG_ON) {
-			dbg_printk("scrubbing environment variables for %s "
-				   "label=", bprm->filename);
+			dbg_printk("setting AT_SECURE for %s label=",
+				   bprm->filename);
 			aa_label_printk(new, GFP_KERNEL);
 			dbg_printk("\n");
 		}
@@ -962,8 +962,8 @@ int apparmor_bprm_creds_for_exec(struct linux_binprm *bprm)
 	if (label->proxy != new->proxy) {
 		/* when transitioning clear unsafe personality bits */
 		if (DEBUG_ON) {
-			dbg_printk("apparmor: clearing unsafe personality "
-				   "bits. %s label=", bprm->filename);
+			dbg_printk("apparmor: clearing unsafe personality bits. %s label=",
+				   bprm->filename);
 			aa_label_printk(new, GFP_KERNEL);
 			dbg_printk("\n");
 		}
