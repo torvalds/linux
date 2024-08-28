@@ -1402,6 +1402,43 @@ unsigned int atapi_eh_tur(struct ata_device *dev, u8 *r_sense_key)
 }
 
 /**
+ *	ata_eh_decide_disposition - Disposition a qc based on sense data
+ *	@qc: qc to examine
+ *
+ *	For a regular SCSI command, the SCSI completion callback (scsi_done())
+ *	will call scsi_complete(), which will call scsi_decide_disposition(),
+ *	which will call scsi_check_sense(). scsi_complete() finally calls
+ *	scsi_finish_command(). This is fine for SCSI, since any eventual sense
+ *	data is usually returned in the completion itself (without invoking SCSI
+ *	EH). However, for a QC, we always need to fetch the sense data
+ *	explicitly using SCSI EH.
+ *
+ *	A command that is completed via SCSI EH will instead be completed using
+ *	scsi_eh_flush_done_q(), which will call scsi_finish_command() directly
+ *	(without ever calling scsi_check_sense()).
+ *
+ *	For a command that went through SCSI EH, it is the responsibility of the
+ *	SCSI EH strategy handler to call scsi_decide_disposition(), see e.g. how
+ *	scsi_eh_get_sense() calls scsi_decide_disposition() for SCSI LLDDs that
+ *	do not get the sense data as part of the completion.
+ *
+ *	Thus, for QC commands that went via SCSI EH, we need to call
+ *	scsi_check_sense() ourselves, similar to how scsi_eh_get_sense() calls
+ *	scsi_decide_disposition(), which calls scsi_check_sense(), in order to
+ *	set the correct SCSI ML byte (if any).
+ *
+ *	LOCKING:
+ *	EH context.
+ *
+ *	RETURNS:
+ *	SUCCESS or FAILED or NEEDS_RETRY or ADD_TO_MLQUEUE
+ */
+enum scsi_disposition ata_eh_decide_disposition(struct ata_queued_cmd *qc)
+{
+	return scsi_check_sense(qc->scsicmd);
+}
+
+/**
  *	ata_eh_request_sense - perform REQUEST_SENSE_DATA_EXT
  *	@qc: qc to perform REQUEST_SENSE_SENSE_DATA_EXT to
  *
@@ -1627,7 +1664,8 @@ static unsigned int ata_eh_analyze_tf(struct ata_queued_cmd *qc)
 	}
 
 	if (qc->flags & ATA_QCFLAG_SENSE_VALID) {
-		enum scsi_disposition ret = scsi_check_sense(qc->scsicmd);
+		enum scsi_disposition ret = ata_eh_decide_disposition(qc);
+
 		/*
 		 * SUCCESS here means that the sense code could be
 		 * evaluated and should be passed to the upper layers
@@ -1942,11 +1980,10 @@ static int ata_eh_read_sense_success_non_ncq(struct ata_link *link)
 		return -EIO;
 
 	/*
-	 * If we have sense data, call scsi_check_sense() in order to set the
-	 * correct SCSI ML byte (if any). No point in checking the return value,
-	 * since the command has already completed successfully.
+	 * No point in checking the return value, since the command has already
+	 * completed successfully.
 	 */
-	scsi_check_sense(qc->scsicmd);
+	ata_eh_decide_disposition(qc);
 
 	return 0;
 }
