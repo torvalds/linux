@@ -52,6 +52,7 @@ struct venc_t {
 	u32 ready_count;
 	u32 enable;
 	u32 stopped;
+	u32 memory_resource_configured;
 
 	u32 skipped_count;
 	u32 skipped_bytes;
@@ -943,9 +944,18 @@ static int venc_start_session(struct vpu_inst *inst, u32 type)
 	ret = vpu_iface_set_encode_params(inst, &venc->params, 0);
 	if (ret)
 		goto error;
+
+	venc->memory_resource_configured = false;
 	ret = vpu_session_configure_codec(inst);
 	if (ret)
 		goto error;
+
+	if (!venc->memory_resource_configured) {
+		vb2_queue_error(v4l2_m2m_get_src_vq(inst->fh.m2m_ctx));
+		vb2_queue_error(v4l2_m2m_get_dst_vq(inst->fh.m2m_ctx));
+		ret = -ENOMEM;
+		goto error;
+	}
 
 	inst->state = VPU_CODEC_STATE_CONFIGURED;
 	/*vpu_iface_config_memory_resource*/
@@ -985,6 +995,7 @@ static void venc_cleanup_mem_resource(struct vpu_inst *inst)
 	u32 i;
 
 	venc = inst->priv;
+	venc->memory_resource_configured = false;
 
 	for (i = 0; i < ARRAY_SIZE(venc->enc); i++)
 		vpu_free_dma(&venc->enc[i]);
@@ -1048,6 +1059,7 @@ static void venc_request_mem_resource(struct vpu_inst *inst,
 		vpu_iface_config_memory_resource(inst, MEM_RES_REF, i, &venc->ref[i]);
 	for (i = 0; i < act_frame_num; i++)
 		vpu_iface_config_memory_resource(inst, MEM_RES_ACT, i, &venc->act[i]);
+	venc->memory_resource_configured = true;
 }
 
 static void venc_cleanup_frames(struct venc_t *venc)
