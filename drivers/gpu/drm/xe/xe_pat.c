@@ -100,6 +100,10 @@ static const struct xe_pat_table_entry xelpg_pat_table[] = {
  * Reserved entries should be programmed with the maximum caching, minimum
  * coherency (which matches an all-0's encoding), so we can just omit them
  * in the table.
+ *
+ * Note: There is an implicit assumption in the driver that compression and
+ * coh_1way+ are mutually exclusive. If this is ever not true then userptr
+ * and imported dma-buf from external device will have uncleared ccs state.
  */
 #define XE2_PAT(no_promote, comp_en, l3clos, l3_policy, l4_policy, __coh_mode) \
 	{ \
@@ -109,7 +113,8 @@ static const struct xe_pat_table_entry xelpg_pat_table[] = {
 			REG_FIELD_PREP(XE2_L3_POLICY, l3_policy) | \
 			REG_FIELD_PREP(XE2_L4_POLICY, l4_policy) | \
 			REG_FIELD_PREP(XE2_COH_MODE, __coh_mode), \
-		.coh_mode = __coh_mode ? XE_COH_AT_LEAST_1WAY : XE_COH_NONE \
+		.coh_mode = (BUILD_BUG_ON_ZERO(__coh_mode && comp_en) || __coh_mode) ? \
+			XE_COH_AT_LEAST_1WAY : XE_COH_NONE \
 	}
 
 static const struct xe_pat_table_entry xe2_pat_table[] = {
