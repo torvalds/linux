@@ -268,6 +268,8 @@ static __init void detect_machine_facilities(void)
 	}
 	if (test_facility(194))
 		get_lowcore()->machine_flags |= MACHINE_FLAG_RDP;
+	if (test_facility(85))
+		get_lowcore()->machine_flags |= MACHINE_FLAG_SEQ_INSN;
 }
 
 static inline void save_vector_registers(void)

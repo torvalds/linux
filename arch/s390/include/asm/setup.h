@@ -34,6 +34,7 @@
 #define MACHINE_FLAG_SCC	BIT(17)
 #define MACHINE_FLAG_PCI_MIO	BIT(18)
 #define MACHINE_FLAG_RDP	BIT(19)
+#define MACHINE_FLAG_SEQ_INSN	BIT(20)
 
 #define LPP_MAGIC		BIT(31)
 #define LPP_PID_MASK		_AC(0xffffffff, UL)
@@ -95,6 +96,7 @@ extern unsigned long mio_wb_bit_mask;
 #define MACHINE_HAS_SCC		(get_lowcore()->machine_flags & MACHINE_FLAG_SCC)
 #define MACHINE_HAS_PCI_MIO	(get_lowcore()->machine_flags & MACHINE_FLAG_PCI_MIO)
 #define MACHINE_HAS_RDP		(get_lowcore()->machine_flags & MACHINE_FLAG_RDP)
+#define MACHINE_HAS_SEQ_INSN	(get_lowcore()->machine_flags & MACHINE_FLAG_SEQ_INSN)
 
 /*
  * Console mode. Override with conmode=
