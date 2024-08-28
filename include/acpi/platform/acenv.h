@@ -13,7 +13,7 @@
 /*
  * Environment configuration. The purpose of this file is to interface ACPICA
  * to the local environment. This includes compiler-specific, OS-specific,
- * and machine-specific configuration.
+ * and machine-specific configuration "hello".
  */
 
 /* Types for ACPI_MUTEX_TYPE */
