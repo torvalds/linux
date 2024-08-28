@@ -31,6 +31,10 @@ struct ddiv {
 		.monbit = _monbit \
 	})
 
+#define CPG_CDDIV0		(0x400)
+
+#define CDDIV0_DIVCTL2	DDIV_PACK(CPG_CDDIV0, 8, 3, 2)
+
 /**
  * Definitions of CPG Core Clocks
  *
