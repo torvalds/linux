@@ -34,6 +34,13 @@
  * @domain_id_kobj_attr: Storage for kobject attribute domain_id
  * @fabric_cluster_id_kobj_attr: Storage for kobject attribute fabric_cluster_id
  * @package_id_kobj_attr: Storage for kobject attribute package_id
+ * @elc_low_threshold_percent_kobj_attr:
+		Storage for kobject attribute elc_low_threshold_percent
+ * @elc_high_threshold_percent_kobj_attr:
+		Storage for kobject attribute elc_high_threshold_percent
+ * @elc_high_threshold_enable_kobj_attr:
+		Storage for kobject attribute elc_high_threshold_enable
+ * @elc_floor_freq_khz_kobj_attr: Storage for kobject attribute elc_floor_freq_khz
  * @uncore_attrs:	Attribute storage for group creation
  *
  * This structure is used to encapsulate all data related to uncore sysfs
@@ -61,7 +68,11 @@ struct uncore_data {
 	struct kobj_attribute domain_id_kobj_attr;
 	struct kobj_attribute fabric_cluster_id_kobj_attr;
 	struct kobj_attribute package_id_kobj_attr;
-	struct attribute *uncore_attrs[9];
+	struct kobj_attribute elc_low_threshold_percent_kobj_attr;
+	struct kobj_attribute elc_high_threshold_percent_kobj_attr;
+	struct kobj_attribute elc_high_threshold_enable_kobj_attr;
+	struct kobj_attribute elc_floor_freq_khz_kobj_attr;
+	struct attribute *uncore_attrs[13];
 };
 
 #define UNCORE_DOMAIN_ID_INVALID	-1
