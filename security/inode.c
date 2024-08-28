@@ -296,7 +296,7 @@ void securityfs_remove(struct dentry *dentry)
 {
 	struct inode *dir;
 
-	if (!dentry || IS_ERR(dentry))
+	if (IS_ERR_OR_NULL(dentry))
 		return;
 
 	dir = d_inode(dentry->d_parent);
