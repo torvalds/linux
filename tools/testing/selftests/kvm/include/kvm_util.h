@@ -460,6 +460,32 @@ static inline uint32_t kvm_vm_reset_dirty_ring(struct kvm_vm *vm)
 	return __vm_ioctl(vm, KVM_RESET_DIRTY_RINGS, NULL);
 }
 
+static inline void kvm_vm_register_coalesced_io(struct kvm_vm *vm,
+						uint64_t address,
+						uint64_t size, bool pio)
+{
+	struct kvm_coalesced_mmio_zone zone = {
+		.addr = address,
+		.size = size,
+		.pio  = pio,
+	};
+
+	vm_ioctl(vm, KVM_REGISTER_COALESCED_MMIO, &zone);
+}
+
+static inline void kvm_vm_unregister_coalesced_io(struct kvm_vm *vm,
+						  uint64_t address,
+						  uint64_t size, bool pio)
+{
+	struct kvm_coalesced_mmio_zone zone = {
+		.addr = address,
+		.size = size,
+		.pio  = pio,
+	};
+
+	vm_ioctl(vm, KVM_UNREGISTER_COALESCED_MMIO, &zone);
+}
+
 static inline int vm_get_stats_fd(struct kvm_vm *vm)
 {
 	int fd = __vm_ioctl(vm, KVM_GET_STATS_FD, NULL);
