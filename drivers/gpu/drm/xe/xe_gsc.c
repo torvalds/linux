@@ -531,7 +531,10 @@ void xe_gsc_load_start(struct xe_gsc *gsc)
 
 	/* GSC FW survives GT reset and D3Hot */
 	if (gsc_fw_is_loaded(gt)) {
-		xe_uc_fw_change_status(&gsc->fw, XE_UC_FIRMWARE_TRANSFERRED);
+		if (xe_gsc_proxy_init_done(gsc))
+			xe_uc_fw_change_status(&gsc->fw, XE_UC_FIRMWARE_RUNNING);
+		else
+			xe_uc_fw_change_status(&gsc->fw, XE_UC_FIRMWARE_TRANSFERRED);
 		return;
 	}
 
