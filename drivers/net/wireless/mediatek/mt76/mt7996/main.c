@@ -291,17 +291,10 @@ static void mt7996_remove_interface(struct ieee80211_hw *hw,
 	mt76_wcid_cleanup(&dev->mt76, &msta->wcid);
 }
 
-int mt7996_set_channel(struct mt7996_phy *phy)
+int mt7996_set_channel(struct mt76_phy *mphy)
 {
-	struct mt7996_dev *dev = phy->dev;
+	struct mt7996_phy *phy = mphy->priv;
 	int ret;
-
-	cancel_delayed_work_sync(&phy->mt76->mac_work);
-
-	mutex_lock(&dev->mt76.mutex);
-	set_bit(MT76_RESET, &phy->mt76->state);
-
-	mt76_set_channel(phy->mt76);
 
 	ret = mt7996_mcu_set_chan_info(phy, UNI_CHANNEL_SWITCH);
 	if (ret)
@@ -318,13 +311,7 @@ int mt7996_set_channel(struct mt7996_phy *phy)
 	phy->noise = 0;
 
 out:
-	clear_bit(MT76_RESET, &phy->mt76->state);
-	mutex_unlock(&dev->mt76.mutex);
-
-	mt76_txq_schedule_all(phy->mt76);
-
-	ieee80211_queue_delayed_work(phy->mt76->hw,
-				     &phy->mt76->mac_work,
+	ieee80211_queue_delayed_work(mphy->hw, &mphy->mac_work,
 				     MT7996_WATCHDOG_TIME);
 
 	return ret;
@@ -415,11 +402,9 @@ static int mt7996_config(struct ieee80211_hw *hw, u32 changed)
 	int ret;
 
 	if (changed & IEEE80211_CONF_CHANGE_CHANNEL) {
-		ieee80211_stop_queues(hw);
-		ret = mt7996_set_channel(phy);
+		ret = mt76_update_channel(phy->mt76);
 		if (ret)
 			return ret;
-		ieee80211_wake_queues(hw);
 	}
 
 	if (changed & (IEEE80211_CONF_CHANGE_POWER |

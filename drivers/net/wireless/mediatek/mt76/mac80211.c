@@ -929,13 +929,19 @@ void mt76_update_survey(struct mt76_phy *phy)
 }
 EXPORT_SYMBOL_GPL(mt76_update_survey);
 
-void mt76_set_channel(struct mt76_phy *phy)
+int mt76_set_channel(struct mt76_phy *phy, struct cfg80211_chan_def *chandef,
+		     bool offchannel)
 {
 	struct mt76_dev *dev = phy->dev;
-	struct ieee80211_hw *hw = phy->hw;
-	struct cfg80211_chan_def *chandef = &hw->conf.chandef;
-	bool offchannel = hw->conf.flags & IEEE80211_CONF_OFFCHANNEL;
 	int timeout = HZ / 5;
+	int ret;
+
+	cancel_delayed_work_sync(&phy->mac_work);
+
+	mutex_lock(&dev->mutex);
+	set_bit(MT76_RESET, &phy->state);
+
+	ieee80211_stop_queues(phy->hw);
 
 	wait_event_timeout(dev->tx_wait, !mt76_has_tx_pending(phy), timeout);
 	mt76_update_survey(phy);
@@ -946,14 +952,35 @@ void mt76_set_channel(struct mt76_phy *phy)
 
 	phy->chandef = *chandef;
 	phy->chan_state = mt76_channel_state(phy, chandef->chan);
+	phy->offchannel = offchannel;
 
 	if (!offchannel)
 		phy->main_chan = chandef->chan;
 
 	if (chandef->chan != phy->main_chan)
 		memset(phy->chan_state, 0, sizeof(*phy->chan_state));
+
+	ret = dev->drv->set_channel(phy);
+
+	clear_bit(MT76_RESET, &phy->state);
+	ieee80211_wake_queues(phy->hw);
+
+	mt76_worker_schedule(&dev->tx_worker);
+
+	mutex_unlock(&dev->mutex);
+
+	return ret;
 }
-EXPORT_SYMBOL_GPL(mt76_set_channel);
+
+int mt76_update_channel(struct mt76_phy *phy)
+{
+	struct ieee80211_hw *hw = phy->hw;
+	struct cfg80211_chan_def *chandef = &hw->conf.chandef;
+	bool offchannel = hw->conf.flags & IEEE80211_CONF_OFFCHANNEL;
+
+	return mt76_set_channel(phy, chandef, offchannel);
+}
+EXPORT_SYMBOL_GPL(mt76_update_channel);
 
 int mt76_get_survey(struct ieee80211_hw *hw, int idx,
 		    struct survey_info *survey)

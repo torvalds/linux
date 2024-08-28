@@ -213,6 +213,7 @@ void mt7603_mac_sta_poll(struct mt7603_dev *dev);
 
 void mt7603_pse_client_reset(struct mt7603_dev *dev);
 
+int mt7603_set_channel(struct mt76_phy *mphy);
 int mt7603_mcu_set_channel(struct mt7603_dev *dev);
 int mt7603_mcu_set_eeprom(struct mt7603_dev *dev);
 void mt7603_mcu_exit(struct mt7603_dev *dev);

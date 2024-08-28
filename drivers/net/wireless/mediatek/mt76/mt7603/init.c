@@ -18,6 +18,7 @@ const struct mt76_driver_ops mt7603_drv_ops = {
 	.sta_assoc = mt7603_sta_assoc,
 	.sta_remove = mt7603_sta_remove,
 	.update_survey = mt7603_update_channel,
+	.set_channel = mt7603_set_channel,
 };
 
 static void

@@ -929,6 +929,7 @@ struct mt7915_dev *mt7915_mmio_probe(struct device *pdev,
 		.sta_add = mt7915_mac_sta_add,
 		.sta_remove = mt7915_mac_sta_remove,
 		.update_survey = mt7915_update_channel,
+		.set_channel = mt7915_set_channel,
 	};
 	struct mt7915_dev *dev;
 	struct mt76_dev *mdev;

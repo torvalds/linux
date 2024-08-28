@@ -317,17 +317,11 @@ static void mt7915_remove_interface(struct ieee80211_hw *hw,
 	mt76_wcid_cleanup(&dev->mt76, &msta->wcid);
 }
 
-int mt7915_set_channel(struct mt7915_phy *phy)
+int mt7915_set_channel(struct mt76_phy *mphy)
 {
+	struct mt7915_phy *phy = mphy->priv;
 	struct mt7915_dev *dev = phy->dev;
 	int ret;
-
-	cancel_delayed_work_sync(&phy->mt76->mac_work);
-
-	mutex_lock(&dev->mt76.mutex);
-	set_bit(MT76_RESET, &phy->mt76->state);
-
-	mt76_set_channel(phy->mt76);
 
 	if (dev->cal) {
 		ret = mt7915_mcu_apply_tx_dpd(phy);
@@ -347,11 +341,6 @@ int mt7915_set_channel(struct mt7915_phy *phy)
 	phy->noise = 0;
 
 out:
-	clear_bit(MT76_RESET, &phy->mt76->state);
-	mutex_unlock(&dev->mt76.mutex);
-
-	mt76_txq_schedule_all(phy->mt76);
-
 	if (!mt76_testmode_enabled(phy->mt76))
 		ieee80211_queue_delayed_work(phy->mt76->hw,
 					     &phy->mt76->mac_work,
@@ -464,11 +453,9 @@ static int mt7915_config(struct ieee80211_hw *hw, u32 changed)
 			mutex_unlock(&dev->mt76.mutex);
 		}
 #endif
-		ieee80211_stop_queues(hw);
-		ret = mt7915_set_channel(phy);
+		ret = mt76_update_channel(phy->mt76);
 		if (ret)
 			return ret;
-		ieee80211_wake_queues(hw);
 	}
 
 	if (changed & (IEEE80211_CONF_CHANGE_POWER |

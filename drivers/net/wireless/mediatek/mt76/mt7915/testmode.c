@@ -425,7 +425,7 @@ static void
 mt7915_tm_update_channel(struct mt7915_phy *phy)
 {
 	mutex_unlock(&phy->dev->mt76.mutex);
-	mt7915_set_channel(phy);
+	mt76_update_channel(phy->mt76);
 	mutex_lock(&phy->dev->mt76.mutex);
 
 	mt7915_mcu_set_chan_info(phy, MCU_EXT_CMD(SET_RX_PATH));
