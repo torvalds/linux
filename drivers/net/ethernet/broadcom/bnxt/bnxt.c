@@ -10622,6 +10622,30 @@ static void bnxt_setup_msix(struct bnxt *bp)
 
 static int bnxt_init_int_mode(struct bnxt *bp);
 
+static int bnxt_change_msix(struct bnxt *bp, int total)
+{
+	struct msi_map map;
+	int i;
+
+	/* add MSIX to the end if needed */
+	for (i = bp->total_irqs; i < total; i++) {
+		map = pci_msix_alloc_irq_at(bp->pdev, i, NULL);
+		if (map.index < 0)
+			return bp->total_irqs;
+		bp->irq_tbl[i].vector = map.virq;
+		bp->total_irqs++;
+	}
+
+	/* trim MSIX from the end if needed */
+	for (i = bp->total_irqs; i > total; i--) {
+		map.index = i - 1;
+		map.virq = bp->irq_tbl[i - 1].vector;
+		pci_msix_free_irq(bp->pdev, map);
+		bp->total_irqs--;
+	}
+	return bp->total_irqs;
+}
+
 static int bnxt_setup_int_mode(struct bnxt *bp)
 {
 	int rc;
@@ -10788,6 +10812,7 @@ static void bnxt_clear_int_mode(struct bnxt *bp)
 int bnxt_reserve_rings(struct bnxt *bp, bool irq_re_init)
 {
 	bool irq_cleared = false;
+	bool irq_change = false;
 	int tcs = bp->num_tc;
 	int irqs_required;
 	int rc;
@@ -10806,15 +10831,21 @@ int bnxt_reserve_rings(struct bnxt *bp, bool irq_re_init)
 	}
 
 	if (irq_re_init && BNXT_NEW_RM(bp) && irqs_required != bp->total_irqs) {
-		bnxt_ulp_irq_stop(bp);
-		bnxt_clear_int_mode(bp);
-		irq_cleared = true;
+		irq_change = true;
+		if (!pci_msix_can_alloc_dyn(bp->pdev)) {
+			bnxt_ulp_irq_stop(bp);
+			bnxt_clear_int_mode(bp);
+			irq_cleared = true;
+		}
 	}
 	rc = __bnxt_reserve_rings(bp);
 	if (irq_cleared) {
 		if (!rc)
 			rc = bnxt_init_int_mode(bp);
 		bnxt_ulp_irq_restart(bp, rc);
+	} else if (irq_change && !rc) {
+		if (bnxt_change_msix(bp, irqs_required) != irqs_required)
+			rc = -ENOSPC;
 	}
 	if (rc) {
 		netdev_err(bp->dev, "ring reservation/IRQ init failure rc: %d\n", rc);
