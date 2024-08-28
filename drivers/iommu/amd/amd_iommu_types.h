@@ -415,10 +415,6 @@
 #define DTE_GCR3_VAL_B(x)	(((x) >> 15) & 0x0ffffULL)
 #define DTE_GCR3_VAL_C(x)	(((x) >> 31) & 0x1fffffULL)
 
-#define DTE_GCR3_INDEX_A	0
-#define DTE_GCR3_INDEX_B	1
-#define DTE_GCR3_INDEX_C	1
-
 #define DTE_GCR3_SHIFT_A	58
 #define DTE_GCR3_SHIFT_B	16
 #define DTE_GCR3_SHIFT_C	43
