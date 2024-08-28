@@ -144,7 +144,7 @@ static int hccs_register_pcc_channel(struct hccs_dev *hdev)
 
 	pcc_chan = pcc_mbox_request_channel(cl, hdev->chan_id);
 	if (IS_ERR(pcc_chan)) {
-		dev_err(dev, "PPC channel request failed.\n");
+		dev_err(dev, "PCC channel request failed.\n");
 		rc = -ENODEV;
 		goto out;
 	}
