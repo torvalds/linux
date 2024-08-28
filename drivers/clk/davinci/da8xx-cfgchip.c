@@ -513,8 +513,7 @@ da8xx_cfgchip_register_usb0_clk48(struct device *dev,
 
 	fck_clk = devm_clk_get(dev, "fck");
 	if (IS_ERR(fck_clk)) {
-		dev_err_probe(dev, PTR_ERR(fck_clk), "Missing fck clock\n");
-		return ERR_CAST(fck_clk);
+		return dev_err_cast_probe(dev, fck_clk, "Missing fck clock\n");
 	}
 
 	usb0 = devm_kzalloc(dev, sizeof(*usb0), GFP_KERNEL);
