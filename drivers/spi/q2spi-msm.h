@@ -529,6 +529,7 @@ struct q2spi_dma_transfer {
  * @q2spi_sleep_cmd_enable: reflects start sending the sleep command to slave
  * @q2spi_cr_hdr_err: reflects CR Header incorrect in CR Header
  * @is_start_seq_fail: start sequence fail due to slave not responding
+ * @wait_comp_start_fail: completion for transfer callback during start sequence failure
  */
 struct q2spi_geni {
 	struct device *wrapper_dev;
@@ -636,6 +637,7 @@ struct q2spi_geni {
 	bool q2spi_sleep_cmd_enable;
 	bool q2spi_cr_hdr_err;
 	bool is_start_seq_fail;
+	struct completion wait_comp_start_fail;
 };
 
 /**
