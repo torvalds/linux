@@ -1955,7 +1955,7 @@ static void clear_dte_entry(struct amd_iommu *iommu, u16 devid)
 }
 
 /* Update and flush DTE for the given device */
-void amd_iommu_dev_update_dte(struct iommu_dev_data *dev_data, bool set)
+static void dev_update_dte(struct iommu_dev_data *dev_data, bool set)
 {
 	struct amd_iommu *iommu = get_amd_iommu_from_dev(dev_data->dev);
 
@@ -2055,7 +2055,7 @@ static void do_detach(struct iommu_dev_data *dev_data)
 	struct amd_iommu *iommu = get_amd_iommu_from_dev_data(dev_data);
 
 	/* Clear DTE and flush the entry */
-	amd_iommu_dev_update_dte(dev_data, false);
+	dev_update_dte(dev_data, false);
 
 	/* Flush IOTLB and wait for the flushes to finish */
 	amd_iommu_domain_flush_all(domain);
@@ -2467,7 +2467,7 @@ static int blocked_domain_attach_device(struct iommu_domain *domain,
 
 	/* Clear DTE and flush the entry */
 	spin_lock(&dev_data->lock);
-	amd_iommu_dev_update_dte(dev_data, false);
+	dev_update_dte(dev_data, false);
 	spin_unlock(&dev_data->lock);
 
 	return 0;
@@ -2535,7 +2535,7 @@ static int amd_iommu_attach_device(struct iommu_domain *dom,
 	}
 
 	/* Update device table */
-	amd_iommu_dev_update_dte(dev_data, true);
+	dev_update_dte(dev_data, true);
 
 	return ret;
 }
