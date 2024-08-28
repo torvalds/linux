@@ -19,7 +19,13 @@ struct visionox_vtdr6130 {
 	struct drm_panel panel;
 	struct mipi_dsi_device *dsi;
 	struct gpio_desc *reset_gpio;
-	struct regulator_bulk_data supplies[3];
+	struct regulator_bulk_data *supplies;
+};
+
+static const struct regulator_bulk_data visionox_vtdr6130_supplies[] = {
+	{ .supply = "vddio" },
+	{ .supply = "vci" },
+	{ .supply = "vdd" },
 };
 
 static inline struct visionox_vtdr6130 *to_visionox_vtdr6130(struct drm_panel *panel)
@@ -139,7 +145,7 @@ static int visionox_vtdr6130_prepare(struct drm_panel *panel)
 	struct visionox_vtdr6130 *ctx = to_visionox_vtdr6130(panel);
 	int ret;
 
-	ret = regulator_bulk_enable(ARRAY_SIZE(ctx->supplies),
+	ret = regulator_bulk_enable(ARRAY_SIZE(visionox_vtdr6130_supplies),
 				    ctx->supplies);
 	if (ret < 0)
 		return ret;
@@ -149,7 +155,8 @@ static int visionox_vtdr6130_prepare(struct drm_panel *panel)
 	ret = visionox_vtdr6130_on(ctx);
 	if (ret < 0) {
 		gpiod_set_value_cansleep(ctx->reset_gpio, 1);
-		regulator_bulk_disable(ARRAY_SIZE(ctx->supplies), ctx->supplies);
+		regulator_bulk_disable(ARRAY_SIZE(visionox_vtdr6130_supplies),
+				       ctx->supplies);
 		return ret;
 	}
 
@@ -164,7 +171,8 @@ static int visionox_vtdr6130_unprepare(struct drm_panel *panel)
 
 	gpiod_set_value_cansleep(ctx->reset_gpio, 1);
 
-	regulator_bulk_disable(ARRAY_SIZE(ctx->supplies), ctx->supplies);
+	regulator_bulk_disable(ARRAY_SIZE(visionox_vtdr6130_supplies),
+			       ctx->supplies);
 
 	return 0;
 }
@@ -244,12 +252,10 @@ static int visionox_vtdr6130_probe(struct mipi_dsi_device *dsi)
 	if (!ctx)
 		return -ENOMEM;
 
-	ctx->supplies[0].supply = "vddio";
-	ctx->supplies[1].supply = "vci";
-	ctx->supplies[2].supply = "vdd";
-
-	ret = devm_regulator_bulk_get(&dsi->dev, ARRAY_SIZE(ctx->supplies),
-				      ctx->supplies);
+	ret = devm_regulator_bulk_get_const(&dsi->dev,
+					    ARRAY_SIZE(visionox_vtdr6130_supplies),
+					    visionox_vtdr6130_supplies,
+					    &ctx->supplies);
 	if (ret < 0)
 		return ret;
 
