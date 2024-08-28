@@ -152,6 +152,7 @@
 #define AT_HANDLE_FID		0x200	/* File handle is needed to compare
 					   object identity and may not be
 					   usable with open_by_handle_at(2). */
+#define AT_HANDLE_MNT_ID_UNIQUE	0x001	/* Return the u64 unique mount ID. */
 
 #if defined(__KERNEL__)
 #define AT_GETATTR_NOSEC	0x80000000
