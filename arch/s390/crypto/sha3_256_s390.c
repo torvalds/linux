@@ -21,9 +21,11 @@ static int sha3_256_init(struct shash_desc *desc)
 {
 	struct s390_sha_ctx *sctx = shash_desc_ctx(desc);
 
-	memset(sctx->state, 0, sizeof(sctx->state));
+	if (!test_facility(86)) /* msa 12 */
+		memset(sctx->state, 0, sizeof(sctx->state));
 	sctx->count = 0;
 	sctx->func = CPACF_KIMD_SHA3_256;
+	sctx->first_message_part = 1;
 
 	return 0;
 }
@@ -88,9 +90,11 @@ static int sha3_224_init(struct shash_desc *desc)
 {
 	struct s390_sha_ctx *sctx = shash_desc_ctx(desc);
 
-	memset(sctx->state, 0, sizeof(sctx->state));
+	if (!test_facility(86)) /* msa 12 */
+		memset(sctx->state, 0, sizeof(sctx->state));
 	sctx->count = 0;
 	sctx->func = CPACF_KIMD_SHA3_224;
+	sctx->first_message_part = 1;
 
 	return 0;
 }

@@ -171,6 +171,14 @@
 #define CPACF_KMA_LAAD	0x200	/* Last-AAD */
 #define CPACF_KMA_HS	0x400	/* Hash-subkey Supplied */
 
+/*
+ * Flags for the KIMD/KLMD (COMPUTE INTERMEDIATE/LAST MESSAGE DIGEST)
+ * instructions
+ */
+#define CPACF_KIMD_NIP		0x8000
+#define CPACF_KLMD_DUFOP	0x4000
+#define CPACF_KLMD_NIP		0x8000
+
 typedef struct { unsigned char bytes[16]; } cpacf_mask_t;
 
 /*
@@ -397,7 +405,7 @@ static inline void cpacf_kimd(unsigned long func, void *param,
 	asm volatile(
 		"	lgr	0,%[fc]\n"
 		"	lgr	1,%[pba]\n"
-		"0:	.insn	rre,%[opc] << 16,0,%[src]\n"
+		"0:	.insn	rrf,%[opc] << 16,0,%[src],8,0\n"
 		"	brc	1,0b\n" /* handle partial completion */
 		: [src] "+&d" (s.pair)
 		: [fc] "d" (func), [pba] "d" ((unsigned long)(param)),
@@ -422,7 +430,7 @@ static inline void cpacf_klmd(unsigned long func, void *param,
 	asm volatile(
 		"	lgr	0,%[fc]\n"
 		"	lgr	1,%[pba]\n"
-		"0:	.insn	rre,%[opc] << 16,0,%[src]\n"
+		"0:	.insn	rrf,%[opc] << 16,0,%[src],8,0\n"
 		"	brc	1,0b\n" /* handle partial completion */
 		: [src] "+&d" (s.pair)
 		: [fc] "d" (func), [pba] "d" ((unsigned long)param),
