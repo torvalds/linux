@@ -324,10 +324,6 @@ int cxl_dvsec_rr_decode(struct device *dev, struct cxl_port *port,
 	if (!hdm_count || hdm_count > 2)
 		return -EINVAL;
 
-	rc = cxl_dvsec_mem_range_valid(cxlds, 0);
-	if (rc)
-		return rc;
-
 	/*
 	 * The current DVSEC values are moot if the memory capability is
 	 * disabled, and they will remain moot after the HDM Decoder
@@ -344,6 +340,10 @@ int cxl_dvsec_rr_decode(struct device *dev, struct cxl_port *port,
 	for (i = 0; i < hdm_count; i++) {
 		u64 base, size;
 		u32 temp;
+
+		rc = cxl_dvsec_mem_range_valid(cxlds, i);
+		if (rc)
+			return rc;
 
 		rc = pci_read_config_dword(
 			pdev, d + CXL_DVSEC_RANGE_SIZE_HIGH(i), &temp);
