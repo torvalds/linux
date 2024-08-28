@@ -22,6 +22,9 @@ EXPORT_SYMBOL_GPL(gpio_free);
  * @label:	a literal description string of this GPIO
  *
  * **DEPRECATED** This function is deprecated and must not be used in new code.
+ *
+ * Returns:
+ * 0 on success, or negative errno on failure.
  */
 int gpio_request_one(unsigned gpio, unsigned long flags, const char *label)
 {

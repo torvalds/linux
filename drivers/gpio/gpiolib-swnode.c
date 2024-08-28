@@ -106,7 +106,7 @@ struct gpio_desc *swnode_find_gpio(struct fwnode_handle *fwnode,
  *		system-global GPIOs
  * @con_id:	function within the GPIO consumer
  *
- * Return:
+ * Returns:
  * The number of GPIOs associated with a device / function or %-ENOENT,
  * if no GPIO has been assigned to the requested function.
  */
