@@ -478,6 +478,7 @@ static int oxp_platform_read(struct device *dev, enum hwmon_sensor_types type,
 			default:
 				break;
 			}
+			break;
 		default:
 			break;
 		}
@@ -550,9 +551,11 @@ static int oxp_platform_read(struct device *dev, enum hwmon_sensor_types type,
 			default:
 				break;
 			}
+			break;
 		default:
 			break;
 		}
+		break;
 	default:
 		break;
 	}
@@ -604,6 +607,7 @@ static int oxp_platform_write(struct device *dev, enum hwmon_sensor_types type,
 			default:
 				break;
 			}
+			break;
 		default:
 			break;
 		}
