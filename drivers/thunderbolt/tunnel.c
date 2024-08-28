@@ -1186,9 +1186,12 @@ static int tb_dp_consumed_bandwidth(struct tb_tunnel *tunnel, int *consumed_up,
 		 * return that bandwidth (it may be smaller than the
 		 * reduced one). According to VESA spec, the DPRX
 		 * negotiation shall compete in 5 seconds after tunnel
-		 * established. We give it 100ms extra just in case.
+		 * established. Since at least i915 can runtime suspend
+		 * if there is nothing connected, and that it polls any
+		 * new connections every 10 seconds, we use 12 seconds
+		 * here.
 		 */
-		ret = tb_dp_wait_dprx(tunnel, 5100);
+		ret = tb_dp_wait_dprx(tunnel, 12000);
 		if (ret)
 			return ret;
 		ret = tb_dp_read_cap(tunnel, DP_COMMON_CAP, &rate, &lanes);
