@@ -3,12 +3,54 @@
  * Copyright (C) 2022-2024 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
  */
 
-#include <sodium/crypto_stream_chacha20.h>
+#include <tools/le_byteshift.h>
 #include <sys/random.h>
 #include <string.h>
 #include <stdint.h>
 #include <stdbool.h>
 #include "../kselftest.h"
+
+static uint32_t rol32(uint32_t word, unsigned int shift)
+{
+	return (word << (shift & 31)) | (word >> ((-shift) & 31));
+}
+
+static void reference_chacha20_blocks(uint8_t *dst_bytes, const uint32_t *key, size_t nblocks)
+{
+	uint32_t s[16] = {
+		0x61707865U, 0x3320646eU, 0x79622d32U, 0x6b206574U,
+		key[0], key[1], key[2], key[3], key[4], key[5], key[6], key[7]
+	};
+
+	while (nblocks--) {
+		uint32_t x[16];
+		memcpy(x, s, sizeof(x));
+		for (unsigned int r = 0; r < 20; r += 2) {
+		#define QR(a, b, c, d) ( \
+			x[a] += x[b], \
+			x[d] = rol32(x[d] ^ x[a], 16), \
+			x[c] += x[d], \
+			x[b] = rol32(x[b] ^ x[c], 12), \
+			x[a] += x[b], \
+			x[d] = rol32(x[d] ^ x[a], 8), \
+			x[c] += x[d], \
+			x[b] = rol32(x[b] ^ x[c], 7))
+
+			QR(0, 4, 8, 12);
+			QR(1, 5, 9, 13);
+			QR(2, 6, 10, 14);
+			QR(3, 7, 11, 15);
+			QR(0, 5, 10, 15);
+			QR(1, 6, 11, 12);
+			QR(2, 7, 8, 13);
+			QR(3, 4, 9, 14);
+		}
+		for (unsigned int i = 0; i < 16; ++i, dst_bytes += sizeof(uint32_t))
+			put_unaligned_le32(x[i] + s[i], dst_bytes);
+		if (!++s[12])
+			++s[13];
+	}
+}
 
 typedef uint8_t u8;
 typedef uint32_t u32;
@@ -18,7 +60,6 @@ typedef uint64_t u64;
 int main(int argc, char *argv[])
 {
 	enum { TRIALS = 1000, BLOCKS = 128, BLOCK_SIZE = 64 };
-	static const uint8_t nonce[8] = { 0 };
 	uint32_t counter[2];
 	uint32_t key[8];
 	uint8_t output1[BLOCK_SIZE * BLOCKS], output2[BLOCK_SIZE * BLOCKS];
@@ -31,7 +72,7 @@ int main(int argc, char *argv[])
 			printf("getrandom() failed!\n");
 			return KSFT_SKIP;
 		}
-		crypto_stream_chacha20(output1, sizeof(output1), nonce, (uint8_t *)key);
+		reference_chacha20_blocks(output1, key, BLOCKS);
 		for (unsigned int split = 0; split < BLOCKS; ++split) {
 			memset(output2, 'X', sizeof(output2));
 			memset(counter, 0, sizeof(counter));

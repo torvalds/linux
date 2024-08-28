@@ -1,8 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 uname_M := $(shell uname -m 2>/dev/null || echo not)
 ARCH ?= $(shell echo $(uname_M) | sed -e s/i.86/x86/ -e s/x86_64/x86/)
-SODIUM_LIBS := $(shell pkg-config --libs libsodium 2>/dev/null)
-SODIUM_CFLAGS := $(shell pkg-config --cflags libsodium 2>/dev/null)
 
 TEST_GEN_PROGS := vdso_test_gettimeofday
 TEST_GEN_PROGS += vdso_test_getcpu
@@ -14,9 +12,7 @@ endif
 TEST_GEN_PROGS += vdso_test_correctness
 ifeq ($(uname_M),x86_64)
 TEST_GEN_PROGS += vdso_test_getrandom
-ifneq ($(SODIUM_LIBS),)
 TEST_GEN_PROGS += vdso_test_chacha
-endif
 endif
 
 CFLAGS := -std=gnu99
@@ -43,8 +39,7 @@ $(OUTPUT)/vdso_test_getrandom: CFLAGS += -isystem $(top_srcdir)/tools/include \
                                          -isystem $(top_srcdir)/include/uapi
 
 $(OUTPUT)/vdso_test_chacha: $(top_srcdir)/tools/arch/$(ARCH)/vdso/vgetrandom-chacha.S
-$(OUTPUT)/vdso_test_chacha: LDLIBS += $(SODIUM_LIBS)
 $(OUTPUT)/vdso_test_chacha: CFLAGS += -idirafter $(top_srcdir)/tools/include \
                                       -idirafter $(top_srcdir)/arch/$(ARCH)/include \
                                       -idirafter $(top_srcdir)/include \
-                                      -D__ASSEMBLY__ -Wa,--noexecstack $(SODIUM_CFLAGS)
+                                      -D__ASSEMBLY__ -Wa,--noexecstack
