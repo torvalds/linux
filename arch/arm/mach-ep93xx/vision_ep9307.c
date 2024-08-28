@@ -292,8 +292,7 @@ static void __init vision_init_machine(void)
 	 * Request the gpio expander's interrupt gpio line now to prevent
 	 * the kernel from doing a WARN in gpiolib:gpio_ensure_requested().
 	 */
-	if (gpio_request_one(EP93XX_GPIO_LINE_F(7), GPIOF_DIR_IN,
-				"pca9539:74"))
+	if (gpio_request_one(EP93XX_GPIO_LINE_F(7), GPIOF_IN, "pca9539:74"))
 		pr_warn("cannot request interrupt gpio for pca9539:74\n");
 
 	vision_i2c_info[1].irq = gpio_to_irq(EP93XX_GPIO_LINE_F(7));

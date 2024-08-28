@@ -40,7 +40,7 @@ int gpio_request_one(unsigned gpio, unsigned long flags, const char *label)
 	if (flags & GPIOF_ACTIVE_LOW)
 		set_bit(FLAG_ACTIVE_LOW, &desc->flags);
 
-	if (flags & GPIOF_DIR_IN)
+	if (flags & GPIOF_IN)
 		err = gpiod_direction_input(desc);
 	else
 		err = gpiod_direction_output_raw(desc, !!(flags & GPIOF_OUT_INIT_HIGH));
