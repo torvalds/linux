@@ -302,10 +302,6 @@ static bool bnxt_vf_pciid(enum board_idx idx)
 
 #define DB_CP_REARM_FLAGS	(DB_KEY_CP | DB_IDX_VALID)
 #define DB_CP_FLAGS		(DB_KEY_CP | DB_IDX_VALID | DB_IRQ_DIS)
-#define DB_CP_IRQ_DIS_FLAGS	(DB_KEY_CP | DB_IRQ_DIS)
-
-#define BNXT_CP_DB_IRQ_DIS(db)						\
-		writel(DB_CP_IRQ_DIS_FLAGS, db)
 
 #define BNXT_DB_CQ(db, idx)						\
 	writel(DB_CP_FLAGS | DB_RING_IDX(db, idx), (db)->doorbell)
@@ -11959,20 +11955,6 @@ static int bnxt_update_phy_setting(struct bnxt *bp)
 	return rc;
 }
 
-/* Common routine to pre-map certain register block to different GRC window.
- * A PF has 16 4K windows and a VF has 4 4K windows. However, only 15 windows
- * in PF and 3 windows in VF that can be customized to map in different
- * register blocks.
- */
-static void bnxt_preset_reg_win(struct bnxt *bp)
-{
-	if (BNXT_PF(bp)) {
-		/* CAG registers map to GRC window #4 */
-		writel(BNXT_CAG_REG_BASE,
-		       bp->bar0 + BNXT_GRCPF_REG_WINDOW_BASE_OUT + 12);
-	}
-}
-
 static int bnxt_init_dflt_ring_mode(struct bnxt *bp);
 
 static int bnxt_reinit_after_abort(struct bnxt *bp)
@@ -12077,7 +12059,6 @@ static int __bnxt_open_nic(struct bnxt *bp, bool irq_re_init, bool link_re_init)
 {
 	int rc = 0;
 
-	bnxt_preset_reg_win(bp);
 	netif_carrier_off(bp->dev);
 	if (irq_re_init) {
 		/* Reserve rings now if none were reserved at driver probe. */
