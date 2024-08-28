@@ -2789,15 +2789,18 @@ static int nfs4_show_open(struct seq_file *s, struct nfs4_stid *st)
 		deny & NFS4_SHARE_ACCESS_READ ? "r" : "-",
 		deny & NFS4_SHARE_ACCESS_WRITE ? "w" : "-");
 
-	spin_lock(&nf->fi_lock);
-	file = find_any_file_locked(nf);
-	if (file) {
-		nfs4_show_superblock(s, file);
-		seq_puts(s, ", ");
-		nfs4_show_fname(s, file);
-		seq_puts(s, ", ");
-	}
-	spin_unlock(&nf->fi_lock);
+	if (nf) {
+		spin_lock(&nf->fi_lock);
+		file = find_any_file_locked(nf);
+		if (file) {
+			nfs4_show_superblock(s, file);
+			seq_puts(s, ", ");
+			nfs4_show_fname(s, file);
+			seq_puts(s, ", ");
+		}
+		spin_unlock(&nf->fi_lock);
+	} else
+		seq_puts(s, "closed, ");
 	nfs4_show_owner(s, oo);
 	if (st->sc_status & SC_STATUS_ADMIN_REVOKED)
 		seq_puts(s, ", admin-revoked");
@@ -3075,9 +3078,9 @@ nfsd4_cb_getattr_release(struct nfsd4_callback *cb)
 	struct nfs4_delegation *dp =
 			container_of(ncf, struct nfs4_delegation, dl_cb_fattr);
 
-	nfs4_put_stid(&dp->dl_stid);
 	clear_bit(CB_GETATTR_BUSY, &ncf->ncf_cb_flags);
 	wake_up_bit(&ncf->ncf_cb_flags, CB_GETATTR_BUSY);
+	nfs4_put_stid(&dp->dl_stid);
 }
 
 static const struct nfsd4_callback_ops nfsd4_cb_recall_any_ops = {
@@ -8812,7 +8815,7 @@ nfsd4_get_writestateid(struct nfsd4_compound_state *cstate,
 /**
  * nfsd4_deleg_getattr_conflict - Recall if GETATTR causes conflict
  * @rqstp: RPC transaction context
- * @inode: file to be checked for a conflict
+ * @dentry: dentry of inode to be checked for a conflict
  * @modified: return true if file was modified
  * @size: new size of file if modified is true
  *
@@ -8827,16 +8830,16 @@ nfsd4_get_writestateid(struct nfsd4_compound_state *cstate,
  * code is returned.
  */
 __be32
-nfsd4_deleg_getattr_conflict(struct svc_rqst *rqstp, struct inode *inode,
+nfsd4_deleg_getattr_conflict(struct svc_rqst *rqstp, struct dentry *dentry,
 				bool *modified, u64 *size)
 {
 	__be32 status;
 	struct nfsd_net *nn = net_generic(SVC_NET(rqstp), nfsd_net_id);
 	struct file_lock_context *ctx;
 	struct file_lease *fl;
-	struct nfs4_delegation *dp;
 	struct iattr attrs;
 	struct nfs4_cb_fattr *ncf;
+	struct inode *inode = d_inode(dentry);
 
 	*modified = false;
 	ctx = locks_inode_context(inode);
@@ -8859,7 +8862,8 @@ nfsd4_deleg_getattr_conflict(struct svc_rqst *rqstp, struct inode *inode,
 			goto break_lease;
 		}
 		if (type == F_WRLCK) {
-			dp = fl->c.flc_owner;
+			struct nfs4_delegation *dp = fl->c.flc_owner;
+
 			if (dp->dl_recall.cb_clp == *(rqstp->rq_lease_breaker)) {
 				spin_unlock(&ctx->flc_lock);
 				return 0;
@@ -8867,6 +8871,7 @@ nfsd4_deleg_getattr_conflict(struct svc_rqst *rqstp, struct inode *inode,
 break_lease:
 			nfsd_stats_wdeleg_getattr_inc(nn);
 			dp = fl->c.flc_owner;
+			refcount_inc(&dp->dl_stid.sc_count);
 			ncf = &dp->dl_cb_fattr;
 			nfs4_cb_getattr(&dp->dl_cb_fattr);
 			spin_unlock(&ctx->flc_lock);
@@ -8876,27 +8881,37 @@ break_lease:
 				/* Recall delegation only if client didn't respond */
 				status = nfserrno(nfsd_open_break_lease(inode, NFSD_MAY_READ));
 				if (status != nfserr_jukebox ||
-						!nfsd_wait_for_delegreturn(rqstp, inode))
+						!nfsd_wait_for_delegreturn(rqstp, inode)) {
+					nfs4_put_stid(&dp->dl_stid);
 					return status;
+				}
 			}
 			if (!ncf->ncf_file_modified &&
 					(ncf->ncf_initial_cinfo != ncf->ncf_cb_change ||
 					ncf->ncf_cur_fsize != ncf->ncf_cb_fsize))
 				ncf->ncf_file_modified = true;
 			if (ncf->ncf_file_modified) {
+				int err;
+
 				/*
 				 * Per section 10.4.3 of RFC 8881, the server would
 				 * not update the file's metadata with the client's
 				 * modified size
 				 */
 				attrs.ia_mtime = attrs.ia_ctime = current_time(inode);
-				attrs.ia_valid = ATTR_MTIME | ATTR_CTIME;
-				setattr_copy(&nop_mnt_idmap, inode, &attrs);
-				mark_inode_dirty(inode);
+				attrs.ia_valid = ATTR_MTIME | ATTR_CTIME | ATTR_DELEG;
+				inode_lock(inode);
+				err = notify_change(&nop_mnt_idmap, dentry, &attrs, NULL);
+				inode_unlock(inode);
+				if (err) {
+					nfs4_put_stid(&dp->dl_stid);
+					return nfserrno(err);
+				}
 				ncf->ncf_cur_fsize = ncf->ncf_cb_fsize;
 				*size = ncf->ncf_cur_fsize;
 				*modified = true;
 			}
+			nfs4_put_stid(&dp->dl_stid);
 			return 0;
 		}
 		break;
