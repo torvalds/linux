@@ -656,11 +656,11 @@ done:
 }
 
 int zstd_decompress(struct list_head *ws, const u8 *data_in,
-		struct page *dest_page, unsigned long dest_pgoff, size_t srclen,
+		struct folio *dest_folio, unsigned long dest_pgoff, size_t srclen,
 		size_t destlen)
 {
 	struct workspace *workspace = list_entry(ws, struct workspace, list);
-	struct btrfs_fs_info *fs_info = btrfs_sb(dest_page->mapping->host->i_sb);
+	struct btrfs_fs_info *fs_info = btrfs_sb(folio_inode(dest_folio)->i_sb);
 	const u32 sectorsize = fs_info->sectorsize;
 	zstd_dstream *stream;
 	int ret = 0;
@@ -669,12 +669,12 @@ int zstd_decompress(struct list_head *ws, const u8 *data_in,
 	stream = zstd_init_dstream(
 			ZSTD_BTRFS_MAX_INPUT, workspace->mem, workspace->size);
 	if (unlikely(!stream)) {
-		struct btrfs_inode *inode = BTRFS_I(dest_page->mapping->host);
+		struct btrfs_inode *inode = folio_to_inode(dest_folio);
 
 		btrfs_err(inode->root->fs_info,
 		"zstd decompression init failed, root %llu inode %llu offset %llu",
 			  btrfs_root_id(inode->root), btrfs_ino(inode),
-			  page_offset(dest_page));
+			  folio_pos(dest_folio));
 		ret = -EIO;
 		goto finish;
 	}
@@ -693,21 +693,21 @@ int zstd_decompress(struct list_head *ws, const u8 *data_in,
 	 */
 	ret = zstd_decompress_stream(stream, &workspace->out_buf, &workspace->in_buf);
 	if (unlikely(zstd_is_error(ret))) {
-		struct btrfs_inode *inode = BTRFS_I(dest_page->mapping->host);
+		struct btrfs_inode *inode = folio_to_inode(dest_folio);
 
 		btrfs_err(inode->root->fs_info,
 		"zstd decompression failed, error %d root %llu inode %llu offset %llu",
 			  zstd_get_error_code(ret), btrfs_root_id(inode->root),
-			  btrfs_ino(inode), page_offset(dest_page));
+			  btrfs_ino(inode), folio_pos(dest_folio));
 		goto finish;
 	}
 	to_copy = workspace->out_buf.pos;
-	memcpy_to_page(dest_page, dest_pgoff, workspace->out_buf.dst, to_copy);
+	memcpy_to_folio(dest_folio, dest_pgoff, workspace->out_buf.dst, to_copy);
 finish:
 	/* Error or early end. */
 	if (unlikely(to_copy < destlen)) {
 		ret = -EIO;
-		memzero_page(dest_page, dest_pgoff + to_copy, destlen - to_copy);
+		folio_zero_range(dest_folio, dest_pgoff + to_copy, destlen - to_copy);
 	}
 	return ret;
 }
