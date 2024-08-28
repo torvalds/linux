@@ -76,12 +76,13 @@ int ftrace_init_nop(struct module *mod, struct dyn_ftrace *rec)
 {
 	static struct ftrace_hotpatch_trampoline *next_vmlinux_trampoline =
 		__ftrace_hotpatch_trampolines_start;
-	static const char orig[6] = { 0xc0, 0x04, 0x00, 0x00, 0x00, 0x00 };
+	static const struct ftrace_insn orig = { .opc = 0xc004, .disp = 0 };
 	static struct ftrace_hotpatch_trampoline *trampoline;
 	struct ftrace_hotpatch_trampoline **next_trampoline;
 	struct ftrace_hotpatch_trampoline *trampolines_end;
 	struct ftrace_hotpatch_trampoline tmp;
 	struct ftrace_insn *insn;
+	struct ftrace_insn old;
 	const char *shared;
 	s32 disp;
 
@@ -102,8 +103,10 @@ int ftrace_init_nop(struct module *mod, struct dyn_ftrace *rec)
 		return -ENOMEM;
 	trampoline = (*next_trampoline)++;
 
+	if (copy_from_kernel_nofault(&old, (void *)rec->ip, sizeof(old)))
+		return -EFAULT;
 	/* Check for the compiler-generated fentry nop (brcl 0, .). */
-	if (WARN_ON_ONCE(memcmp((const void *)rec->ip, &orig, sizeof(orig))))
+	if (WARN_ON_ONCE(memcmp(&orig, &old, sizeof(old))))
 		return -EINVAL;
 
 	/* Generate the trampoline. */
