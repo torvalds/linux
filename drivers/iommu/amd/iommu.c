@@ -1551,8 +1551,8 @@ void amd_iommu_dev_flush_pasid_pages(struct iommu_dev_data *dev_data,
 	iommu_completion_wait(iommu);
 }
 
-void amd_iommu_dev_flush_pasid_all(struct iommu_dev_data *dev_data,
-				   ioasid_t pasid)
+static void dev_flush_pasid_all(struct iommu_dev_data *dev_data,
+				ioasid_t pasid)
 {
 	amd_iommu_dev_flush_pasid_pages(dev_data, 0,
 					CMD_INV_IOMMU_ALL_PAGES_ADDRESS, pasid);
@@ -1818,7 +1818,7 @@ static int update_gcr3(struct iommu_dev_data *dev_data,
 	else
 		*pte = 0;
 
-	amd_iommu_dev_flush_pasid_all(dev_data, pasid);
+	dev_flush_pasid_all(dev_data, pasid);
 	return 0;
 }
 
