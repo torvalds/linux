@@ -2224,7 +2224,7 @@ TRACE_EVENT(nfsd_copy_done,
 		__assign_sockaddr(addr, &copy->cp_clp->cl_addr,
 				sizeof(struct sockaddr_in6));
 	),
-	TP_printk("addr=%pISpc status=%d intra=%d async=%d ",
+	TP_printk("addr=%pISpc status=%d intra=%d async=%d",
 		__get_sockaddr(addr), __entry->status, __entry->intra, __entry->async
 	)
 );
