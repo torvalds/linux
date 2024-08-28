@@ -19,7 +19,7 @@
 struct hccs_port_info {
 	u8 port_id;
 	u8 port_type;
-	u8 lane_mode;
+	u8 max_lane_num;
 	bool enable; /* if the port is enabled */
 	struct kobject kobj;
 	bool dir_created;
@@ -113,7 +113,7 @@ struct hccs_die_info_rsp_data {
 struct hccs_port_attr {
 	u8 port_id;
 	u8 port_type;
-	u8 lane_mode;
+	u8 max_lane_num;
 	u8 enable : 1; /* if the port is enabled */
 	u16 rsv[2];
 };

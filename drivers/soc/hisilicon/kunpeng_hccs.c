@@ -594,7 +594,7 @@ static int hccs_get_all_port_info_on_die(struct hccs_dev *hdev,
 		port = &die->ports[i];
 		port->port_id = attrs[i].port_id;
 		port->port_type = attrs[i].port_type;
-		port->lane_mode = attrs[i].lane_mode;
+		port->max_lane_num = attrs[i].max_lane_num;
 		port->enable = attrs[i].enable;
 		port->die = die;
 	}
@@ -839,7 +839,7 @@ static ssize_t lane_mode_show(struct kobject *kobj, struct kobj_attribute *attr,
 {
 	const struct hccs_port_info *port = kobj_to_port_info(kobj);
 
-	return sysfs_emit(buf, "x%u\n", port->lane_mode);
+	return sysfs_emit(buf, "x%u\n", port->max_lane_num);
 }
 static struct kobj_attribute lane_mode_attr = __ATTR_RO(lane_mode);
 
