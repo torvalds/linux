@@ -356,7 +356,7 @@ int gpiod_get_direction(struct gpio_desc *desc)
 	 * We cannot use VALIDATE_DESC() as we must not return 0 for a NULL
 	 * descriptor like we usually do.
 	 */
-	if (!desc || IS_ERR(desc))
+	if (IS_ERR_OR_NULL(desc))
 		return -EINVAL;
 
 	CLASS(gpio_chip_guard, guard)(desc);
@@ -3591,7 +3591,7 @@ int gpiod_to_irq(const struct gpio_desc *desc)
 	 * requires this function to not return zero on an invalid descriptor
 	 * but rather a negative error number.
 	 */
-	if (!desc || IS_ERR(desc))
+	if (IS_ERR_OR_NULL(desc))
 		return -EINVAL;
 
 	gdev = desc->gdev;
