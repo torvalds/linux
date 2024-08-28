@@ -6746,7 +6746,7 @@ static noinline int uncompress_inline(struct btrfs_path *path,
 	read_extent_buffer(leaf, tmp, ptr, inline_size);
 
 	max_size = min_t(unsigned long, PAGE_SIZE, max_size);
-	ret = btrfs_decompress(compress_type, tmp, &folio->page, 0, inline_size,
+	ret = btrfs_decompress(compress_type, tmp, folio, 0, inline_size,
 			       max_size);
 
 	/*

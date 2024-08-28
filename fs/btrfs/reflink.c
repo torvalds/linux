@@ -118,7 +118,7 @@ static int copy_inline_to_page(struct btrfs_inode *inode,
 		memcpy_to_page(page, offset_in_page(file_offset), data_start,
 			       datal);
 	} else {
-		ret = btrfs_decompress(comp_type, data_start, page,
+		ret = btrfs_decompress(comp_type, data_start, page_folio(page),
 				       offset_in_page(file_offset),
 				       inline_size, datal);
 		if (ret)
