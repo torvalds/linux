@@ -1947,6 +1947,19 @@ static void __rtw8852bx_query_ppdu(struct rtw89_dev *rtwdev,
 		rtw8852bx_fill_freq_with_ppdu(rtwdev, phy_ppdu, status);
 }
 
+static void __rtw8852bx_convert_rpl_to_rssi(struct rtw89_dev *rtwdev,
+					    struct rtw89_rx_phy_ppdu *phy_ppdu)
+{
+	u8 delta = phy_ppdu->rpl_avg - phy_ppdu->rssi_avg;
+	u8 *rssi = phy_ppdu->rssi;
+	u8 i;
+
+	for (i = 0; i < RF_PATH_NUM_8852BX; i++)
+		rssi[i] += delta;
+
+	phy_ppdu->rssi_avg = phy_ppdu->rpl_avg;
+}
+
 static int __rtw8852bx_mac_enable_bb_rf(struct rtw89_dev *rtwdev)
 {
 	enum rtw89_core_chip_id chip_id = rtwdev->chip->chip_id;
@@ -2029,6 +2042,7 @@ const struct rtw8852bx_info rtw8852bx_info = {
 	.ctrl_nbtg_bt_tx = __rtw8852bx_ctrl_nbtg_bt_tx,
 	.ctrl_btg_bt_rx = __rtw8852bx_ctrl_btg_bt_rx,
 	.query_ppdu = __rtw8852bx_query_ppdu,
+	.convert_rpl_to_rssi = __rtw8852bx_convert_rpl_to_rssi,
 	.read_efuse = __rtw8852bx_read_efuse,
 	.read_phycap = __rtw8852bx_read_phycap,
 	.power_trim = __rtw8852bx_power_trim,

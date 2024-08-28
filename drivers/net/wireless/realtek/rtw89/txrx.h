@@ -441,6 +441,7 @@ struct rtw89_phy_sts_hdr {
 } __packed;
 
 #define RTW89_PHY_STS_HDR_W0_IE_MAP GENMASK(4, 0)
+#define RTW89_PHY_STS_HDR_W0_HDR_2_EN BIT(5)
 #define RTW89_PHY_STS_HDR_W0_VALID BIT(7)
 #define RTW89_PHY_STS_HDR_W0_LEN GENMASK(15, 8)
 #define RTW89_PHY_STS_HDR_W0_RSSI_AVG GENMASK(31, 24)
@@ -448,6 +449,13 @@ struct rtw89_phy_sts_hdr {
 #define RTW89_PHY_STS_HDR_W1_RSSI_B GENMASK(15, 8)
 #define RTW89_PHY_STS_HDR_W1_RSSI_C GENMASK(23, 16)
 #define RTW89_PHY_STS_HDR_W1_RSSI_D GENMASK(31, 24)
+
+struct rtw89_phy_sts_hdr_v2 {
+	__le32 w0;
+	__le32 w1;
+} __packed;
+
+#define RTW89_PHY_STS_HDR_V2_W0_PATH_EN GENMASK(20, 16)
 
 struct rtw89_phy_sts_iehdr {
 	__le32 w0;
@@ -552,13 +560,43 @@ struct rtw89_phy_sts_iehdr {
 #define BE_RXD_HDR_OFFSET_MASK GENMASK(20, 16)
 #define BE_RXD_WL_HD_IV_LEN_MASK GENMASK(26, 21)
 
-struct rtw89_phy_sts_ie0 {
+struct rtw89_phy_sts_ie00 {
 	__le32 w0;
 	__le32 w1;
 	__le32 w2;
+	__le32 w3;
+} __packed;
+
+#define RTW89_PHY_STS_IE00_W0_RPL GENMASK(15, 7)
+
+struct rtw89_phy_sts_ie00_v2 {
+	__le32 w0;
+	__le32 w1;
+	__le32 w2;
+	__le32 w3;
+	__le32 w4;
+	__le32 w5;
+	__le32 w6;
+	__le32 w7;
+} __packed;
+
+#define RTW89_PHY_STS_IE00_V2_W4_RPL_TD_A GENMASK(8, 0)
+#define RTW89_PHY_STS_IE00_V2_W4_RPL_TD_B GENMASK(17, 9)
+#define RTW89_PHY_STS_IE00_V2_W4_RPL_TD_C GENMASK(26, 18)
+#define RTW89_PHY_STS_IE00_V2_W5_RPL_TD_D GENMASK(8, 0)
+
+struct rtw89_phy_sts_ie01 {
+	__le32 w0;
+	__le32 w1;
+	__le32 w2;
+	__le32 w3;
+	__le32 w4;
+	__le32 w5;
 } __packed;
 
 #define RTW89_PHY_STS_IE01_W0_CH_IDX GENMASK(23, 16)
+#define RTW89_PHY_STS_IE01_W0_RSSI_AVG_FD GENMASK(15, 8)
+#define RTW89_PHY_STS_IE01_W0_RX_PATH_EN GENMASK(31, 28)
 #define RTW89_PHY_STS_IE01_W1_FD_CFO GENMASK(19, 8)
 #define RTW89_PHY_STS_IE01_W1_PREMB_CFO GENMASK(31, 20)
 #define RTW89_PHY_STS_IE01_W2_AVG_SNR GENMASK(5, 0)
@@ -566,6 +604,25 @@ struct rtw89_phy_sts_ie0 {
 #define RTW89_PHY_STS_IE01_W2_EVM_MIN GENMASK(23, 16)
 #define RTW89_PHY_STS_IE01_W2_LDPC BIT(28)
 #define RTW89_PHY_STS_IE01_W2_STBC BIT(30)
+
+struct rtw89_phy_sts_ie01_v2 {
+	__le32 w0;
+	__le32 w1;
+	__le32 w2;
+	__le32 w3;
+	__le32 w4;
+	__le32 w5;
+	__le32 w6;
+	__le32 w7;
+	__le32 w8;
+	__le32 w9;
+} __packed;
+
+#define RTW89_PHY_STS_IE01_V2_W5_BW_IDX GENMASK(31, 29)
+#define RTW89_PHY_STS_IE01_V2_W8_RPL_FD_A GENMASK(11, 4)
+#define RTW89_PHY_STS_IE01_V2_W8_RPL_FD_B GENMASK(23, 16)
+#define RTW89_PHY_STS_IE01_V2_W9_RPL_FD_C GENMASK(11, 4)
+#define RTW89_PHY_STS_IE01_V2_W9_RPL_FD_D GENMASK(23, 16)
 
 enum rtw89_tx_channel {
 	RTW89_TXCH_ACH0	= 0,

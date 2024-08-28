@@ -146,6 +146,8 @@ struct rtw8852bx_info {
 	void (*query_ppdu)(struct rtw89_dev *rtwdev,
 			   struct rtw89_rx_phy_ppdu *phy_ppdu,
 			   struct ieee80211_rx_status *status);
+	void (*convert_rpl_to_rssi)(struct rtw89_dev *rtwdev,
+				    struct rtw89_rx_phy_ppdu *phy_ppdu);
 	int (*read_efuse)(struct rtw89_dev *rtwdev, u8 *log_map,
 			  enum rtw89_efuse_block block);
 	int (*read_phycap)(struct rtw89_dev *rtwdev, u8 *phycap_map);
@@ -291,6 +293,13 @@ void rtw8852bx_query_ppdu(struct rtw89_dev *rtwdev,
 			  struct ieee80211_rx_status *status)
 {
 	rtw8852bx_info.query_ppdu(rtwdev, phy_ppdu, status);
+}
+
+static inline
+void rtw8852bx_convert_rpl_to_rssi(struct rtw89_dev *rtwdev,
+				   struct rtw89_rx_phy_ppdu *phy_ppdu)
+{
+	rtw8852bx_info.convert_rpl_to_rssi(rtwdev, phy_ppdu);
 }
 
 static inline
