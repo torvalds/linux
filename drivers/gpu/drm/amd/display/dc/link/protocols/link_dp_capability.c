@@ -51,9 +51,10 @@
 #include "dc_dmub_srv.h"
 #include "gpio_service_interface.h"
 
+#define DC_TRACE_LEVEL_MESSAGE(...) /* do nothing */
+
 #define DC_LOGGER \
 	link->ctx->logger
-#define DC_TRACE_LEVEL_MESSAGE(...) /* do nothing */
 
 #ifndef MAX
 #define MAX(X, Y) ((X) > (Y) ? (X) : (Y))

@@ -55,6 +55,7 @@
 #define DC_LOGGER \
 	clk_mgr->base.base.ctx->logger
 
+
 #define regCLK1_CLK_PLL_REQ			0x0237
 #define regCLK1_CLK_PLL_REQ_BASE_IDX		0
 
