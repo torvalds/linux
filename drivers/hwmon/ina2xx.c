@@ -306,21 +306,19 @@ static int ina2xx_read_init(struct device *dev, int reg, long *val)
  * Turns alert limit values into register values.
  * Opposite of the formula in ina2xx_get_value().
  */
-static u16 ina226_alert_to_reg(struct ina2xx_data *data, u32 mask, unsigned long val)
+static u16 ina226_alert_to_reg(struct ina2xx_data *data, int reg, unsigned long val)
 {
-	switch (mask) {
-	case INA226_SHUNT_OVER_VOLTAGE_MASK:
-	case INA226_SHUNT_UNDER_VOLTAGE_MASK:
+	switch (reg) {
+	case INA2XX_SHUNT_VOLTAGE:
 		val = clamp_val(val, 0, SHRT_MAX * data->config->shunt_div);
 		val *= data->config->shunt_div;
 		return clamp_val(val, 0, SHRT_MAX);
-	case INA226_BUS_OVER_VOLTAGE_MASK:
-	case INA226_BUS_UNDER_VOLTAGE_MASK:
+	case INA2XX_BUS_VOLTAGE:
 		val = clamp_val(val, 0, 200000);
 		val = (val * 1000) << data->config->bus_voltage_shift;
 		val = DIV_ROUND_CLOSEST(val, data->config->bus_voltage_lsb);
 		return clamp_val(val, 0, USHRT_MAX);
-	case INA226_POWER_OVER_LIMIT_MASK:
+	case INA2XX_POWER:
 		val = clamp_val(val, 0, UINT_MAX - data->power_lsb_uW);
 		val = DIV_ROUND_CLOSEST(val, data->power_lsb_uW);
 		return clamp_val(val, 0, USHRT_MAX);
@@ -355,7 +353,7 @@ abort:
 	return ret;
 }
 
-static int ina226_alert_limit_write(struct ina2xx_data *data, u32 mask, long val)
+static int ina226_alert_limit_write(struct ina2xx_data *data, u32 mask, int reg, long val)
 {
 	struct regmap *regmap = data->regmap;
 	int ret;
@@ -375,7 +373,7 @@ static int ina226_alert_limit_write(struct ina2xx_data *data, u32 mask, long val
 		goto abort;
 
 	ret = regmap_write(regmap, INA226_ALERT_LIMIT,
-			   ina226_alert_to_reg(data, mask, val));
+			   ina226_alert_to_reg(data, reg, val));
 	if (ret < 0)
 		goto abort;
 
@@ -522,10 +520,12 @@ static int ina2xx_in_write(struct device *dev, u32 attr, int channel, long val)
 	case hwmon_in_lcrit:
 		return ina226_alert_limit_write(data,
 			channel ? INA226_BUS_UNDER_VOLTAGE_MASK : INA226_SHUNT_UNDER_VOLTAGE_MASK,
+			channel ? INA2XX_BUS_VOLTAGE : INA2XX_SHUNT_VOLTAGE,
 			val);
 	case hwmon_in_crit:
 		return ina226_alert_limit_write(data,
 			channel ? INA226_BUS_OVER_VOLTAGE_MASK : INA226_SHUNT_OVER_VOLTAGE_MASK,
+			channel ? INA2XX_BUS_VOLTAGE : INA2XX_SHUNT_VOLTAGE,
 			val);
 	default:
 		return -EOPNOTSUPP;
@@ -539,7 +539,8 @@ static int ina2xx_power_write(struct device *dev, u32 attr, long val)
 
 	switch (attr) {
 	case hwmon_power_crit:
-		return ina226_alert_limit_write(data, INA226_POWER_OVER_LIMIT_MASK, val);
+		return ina226_alert_limit_write(data, INA226_POWER_OVER_LIMIT_MASK,
+						INA2XX_POWER, val);
 	default:
 		return -EOPNOTSUPP;
 	}
