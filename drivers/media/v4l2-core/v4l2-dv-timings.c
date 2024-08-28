@@ -1154,3 +1154,70 @@ int v4l2_phys_addr_validate(u16 phys_addr, u16 *parent, u16 *port)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(v4l2_phys_addr_validate);
+
+#ifdef CONFIG_DEBUG_FS
+
+#define DEBUGFS_FOPS(type, flag)					\
+static ssize_t								\
+infoframe_read_##type(struct file *filp,				\
+		      char __user *ubuf, size_t count, loff_t *ppos)	\
+{									\
+	struct v4l2_debugfs_if *infoframes = filp->private_data;	\
+									\
+	return infoframes->if_read((flag), infoframes->priv, filp,	\
+				   ubuf, count, ppos);			\
+}									\
+									\
+static const struct file_operations infoframe_##type##_fops = {		\
+	.owner   = THIS_MODULE,						\
+	.open    = simple_open,						\
+	.read    = infoframe_read_##type,				\
+}
+
+DEBUGFS_FOPS(avi, V4L2_DEBUGFS_IF_AVI);
+DEBUGFS_FOPS(audio, V4L2_DEBUGFS_IF_AUDIO);
+DEBUGFS_FOPS(spd, V4L2_DEBUGFS_IF_SPD);
+DEBUGFS_FOPS(hdmi, V4L2_DEBUGFS_IF_HDMI);
+
+struct v4l2_debugfs_if *v4l2_debugfs_if_alloc(struct dentry *root, u32 if_types,
+					      void *priv,
+					      v4l2_debugfs_if_read_t if_read)
+{
+	struct v4l2_debugfs_if *infoframes;
+
+	if (IS_ERR_OR_NULL(root) || !if_types || !if_read)
+		return NULL;
+
+	infoframes = kzalloc(sizeof(*infoframes), GFP_KERNEL);
+	if (!infoframes)
+		return NULL;
+
+	infoframes->if_dir = debugfs_create_dir("infoframes", root);
+	infoframes->priv = priv;
+	infoframes->if_read = if_read;
+	if (if_types & V4L2_DEBUGFS_IF_AVI)
+		debugfs_create_file("avi", 0400, infoframes->if_dir,
+				    infoframes, &infoframe_avi_fops);
+	if (if_types & V4L2_DEBUGFS_IF_AUDIO)
+		debugfs_create_file("audio", 0400, infoframes->if_dir,
+				    infoframes, &infoframe_audio_fops);
+	if (if_types & V4L2_DEBUGFS_IF_SPD)
+		debugfs_create_file("spd", 0400, infoframes->if_dir,
+				    infoframes, &infoframe_spd_fops);
+	if (if_types & V4L2_DEBUGFS_IF_HDMI)
+		debugfs_create_file("hdmi", 0400, infoframes->if_dir,
+				    infoframes, &infoframe_hdmi_fops);
+	return infoframes;
+}
+EXPORT_SYMBOL_GPL(v4l2_debugfs_if_alloc);
+
+void v4l2_debugfs_if_free(struct v4l2_debugfs_if *infoframes)
+{
+	if (infoframes) {
+		debugfs_remove_recursive(infoframes->if_dir);
+		kfree(infoframes);
+	}
+}
+EXPORT_SYMBOL_GPL(v4l2_debugfs_if_free);
+
+#endif
