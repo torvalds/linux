@@ -2172,14 +2172,14 @@ DECLARE_EVENT_CLASS(nfsd_copy_class,
 				sizeof(struct sockaddr_in6));
 	),
 	TP_printk("client=%pISpc intra=%d async=%d "
-		"src_stateid[si_generation:0x%x cl_boot:0x%x cl_id:0x%x so_id:0x%x] "
-		"dst_stateid[si_generation:0x%x cl_boot:0x%x cl_id:0x%x so_id:0x%x] "
+		"src_client %08x:%08x src_stateid %08x:%08x "
+		"dst_client %08x:%08x dst_stateid %08x:%08x "
 		"cp_src_pos=%llu cp_dst_pos=%llu cp_count=%llu",
 		__get_sockaddr(addr), __entry->intra, __entry->async,
-		__entry->src_si_generation, __entry->src_cl_boot,
-		__entry->src_cl_id, __entry->src_so_id,
-		__entry->dst_si_generation, __entry->dst_cl_boot,
-		__entry->dst_cl_id, __entry->dst_so_id,
+		__entry->src_cl_boot, __entry->src_cl_id,
+		__entry->src_so_id, __entry->src_si_generation,
+		__entry->dst_cl_boot, __entry->dst_cl_id,
+		__entry->dst_so_id, __entry->dst_si_generation,
 		__entry->src_cp_pos, __entry->dst_cp_pos, __entry->cp_count
 	)
 );
