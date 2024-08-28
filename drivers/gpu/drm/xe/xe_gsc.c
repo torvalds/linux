@@ -335,9 +335,11 @@ static int gsc_er_complete(struct xe_gt *gt)
 	if (er_status == GSCI_TIMER_STATUS_TIMER_EXPIRED) {
 		/*
 		 * XXX: we should trigger an FLR here, but we don't have support
-		 * for that yet.
+		 * for that yet. Since we can't recover from the error, we
+		 * declare the device as wedged.
 		 */
 		xe_gt_err(gt, "GSC ER timed out!\n");
+		xe_device_declare_wedged(gt_to_xe(gt));
 		return -EIO;
 	}
 
