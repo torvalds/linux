@@ -16,7 +16,7 @@
 #define USB_VENDOR_ID_VRC2	(0x07c0)
 #define USB_DEVICE_ID_VRC2	(0x1125)
 
-static __u8 vrc2_rdesc_fixed[] = {
+static const __u8 vrc2_rdesc_fixed[] = {
 	0x05, 0x01,        // Usage Page (Generic Desktop Ctrls)
 	0x09, 0x04,        // Usage (Joystick)
 	0xA1, 0x01,        // Collection (Application)
