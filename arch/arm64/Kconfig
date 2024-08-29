@@ -231,7 +231,7 @@ config ARM64
 	select HAVE_FUNCTION_ARG_ACCESS_API
 	select MMU_GATHER_RCU_TABLE_FREE
 	select HAVE_RSEQ
-	select HAVE_RUST if CPU_LITTLE_ENDIAN
+	select HAVE_RUST if RUSTC_SUPPORTS_ARM64
 	select HAVE_STACKPROTECTOR
 	select HAVE_SYSCALL_TRACEPOINTS
 	select HAVE_KPROBES
@@ -264,6 +264,18 @@ config ARM64
 	select USER_STACKTRACE_SUPPORT
 	help
 	  ARM 64-bit (AArch64) Linux support.
+
+config RUSTC_SUPPORTS_ARM64
+	def_bool y
+	depends on CPU_LITTLE_ENDIAN
+	# Shadow call stack is only supported on certain rustc versions.
+	#
+	# When using the UNWIND_PATCH_PAC_INTO_SCS option, rustc version 1.80+ is
+	# required due to use of the -Zfixed-x18 flag.
+	#
+	# Otherwise, rustc version 1.82+ is required due to use of the
+	# -Zsanitizer=shadow-call-stack flag.
+	depends on !SHADOW_CALL_STACK || RUSTC_VERSION >= 108200 || RUSTC_VERSION >= 108000 && UNWIND_PATCH_PAC_INTO_SCS
 
 config CLANG_SUPPORTS_DYNAMIC_FTRACE_WITH_ARGS
 	def_bool CC_IS_CLANG
