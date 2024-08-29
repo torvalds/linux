@@ -19286,6 +19286,9 @@ static int adjust_jmp_off(struct bpf_prog *prog, u32 tgt_idx, u32 delta)
 	for (i = 0; i < insn_cnt; i++, insn++) {
 		u8 code = insn->code;
 
+		if (tgt_idx <= i && i < tgt_idx + delta)
+			continue;
+
 		if ((BPF_CLASS(code) != BPF_JMP && BPF_CLASS(code) != BPF_JMP32) ||
 		    BPF_OP(code) == BPF_CALL || BPF_OP(code) == BPF_EXIT)
 			continue;
@@ -19703,6 +19706,9 @@ static int convert_ctx_accesses(struct bpf_verifier_env *env)
 			delta += cnt - 1;
 		}
 	}
+
+	if (delta)
+		WARN_ON(adjust_jmp_off(env->prog, 0, delta));
 
 	if (bpf_prog_is_offloaded(env->prog->aux))
 		return 0;
