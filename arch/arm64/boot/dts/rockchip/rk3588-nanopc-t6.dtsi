@@ -366,7 +366,7 @@
 	vdd_npu_s0: regulator@42 {
 		compatible = "rockchip,rk8602";
 		reg = <0x42>;
-		rockchip,suspend-voltage-selector = <1>;
+		fcs,suspend-voltage-selector = <1>;
 		regulator-name = "vdd_npu_s0";
 		regulator-always-on;
 		regulator-boot-on;
