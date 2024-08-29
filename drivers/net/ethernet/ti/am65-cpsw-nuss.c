@@ -1924,12 +1924,13 @@ static int am65_cpsw_ndo_bpf(struct net_device *ndev, struct netdev_bpf *bpf)
 static int am65_cpsw_ndo_xdp_xmit(struct net_device *ndev, int n,
 				  struct xdp_frame **frames, u32 flags)
 {
+	struct am65_cpsw_common *common = am65_ndev_to_common(ndev);
 	struct am65_cpsw_tx_chn *tx_chn;
 	struct netdev_queue *netif_txq;
 	int cpu = smp_processor_id();
 	int i, nxmit = 0;
 
-	tx_chn = &am65_ndev_to_common(ndev)->tx_chns[cpu % AM65_CPSW_MAX_TX_QUEUES];
+	tx_chn = &common->tx_chns[cpu % common->tx_ch_num];
 	netif_txq = netdev_get_tx_queue(ndev, tx_chn->id);
 
 	__netif_tx_lock(netif_txq, cpu);
