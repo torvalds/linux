@@ -26,26 +26,72 @@ struct decomp_data {
 	struct zstd_data *zstd_decomp;
 };
 
+/**
+ * struct perf_session- A Perf session holds the main state when the program is
+ * working with live perf events or reading data from an input file.
+ *
+ * The rough organization of a perf_session is:
+ * ```
+ * +--------------+           +-----------+           +------------+
+ * |   Session    |1..* ----->|  Machine  |1..* ----->|   Thread   |
+ * +--------------+           +-----------+           +------------+
+ * ```
+ */
 struct perf_session {
+	/**
+	 * @header: The read version of a perf_file_header, or captures global
+	 * information from a live session.
+	 */
 	struct perf_header	header;
+	/** @machines: Machines within the session a host and 0 or more guests. */
 	struct machines		machines;
+	/** @evlist: List of evsels/events of the session. */
 	struct evlist	*evlist;
-	struct auxtrace		*auxtrace;
+	/** @auxtrace: callbacks to allow AUX area data decoding. */
+	const struct auxtrace	*auxtrace;
+	/** @itrace_synth_opts: AUX area tracing synthesis options. */
 	struct itrace_synth_opts *itrace_synth_opts;
+	/** @auxtrace_index: index of AUX area tracing events within a perf.data file. */
 	struct list_head	auxtrace_index;
 #ifdef HAVE_LIBTRACEEVENT
+	/** @tevent: handles for libtraceevent and plugins. */
 	struct trace_event	tevent;
 #endif
+	/** @time_conv: Holds contents of last PERF_RECORD_TIME_CONV event. */
 	struct perf_record_time_conv	time_conv;
+	/**
+	 * @repipe: When set causes certain reading (header and trace events) to
+	 * also write events. The written file descriptor must be provided for
+	 * the header but is implicitly stdout for trace events.
+	 */
 	bool			repipe;
+	/**
+	 * @one_mmap: The reader will use a single mmap by default. There may be
+	 * multiple data files in particular for aux events. If this is true
+	 * then the single big mmap for the data file can be assumed.
+	 */
 	bool			one_mmap;
+	/** @one_mmap_addr: Address of initial perf data file reader mmap. */
 	void			*one_mmap_addr;
+	/** @one_mmap_offset: File offset in perf.data file when mapped. */
 	u64			one_mmap_offset;
+	/** @ordered_events: Used to turn unordered events into ordered ones. */
 	struct ordered_events	ordered_events;
+	/** @data: Optional perf data file being read from. */
 	struct perf_data	*data;
+	/** @tool: callbacks for event handling. */
 	const struct perf_tool	*tool;
+	/**
+	 * @bytes_transferred: Used by perf record to count written bytes before
+	 * compression.
+	 */
 	u64			bytes_transferred;
+	/**
+	 * @bytes_compressed: Used by perf record to count written bytes after
+	 * compression.
+	 */
 	u64			bytes_compressed;
+	/** @zstd_data: Owner of global compression state, buffers, etc. */
 	struct zstd_data	zstd_data;
 	struct decomp_data	decomp_data;
 	struct decomp_data	*active_decomp;
