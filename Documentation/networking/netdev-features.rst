@@ -139,13 +139,6 @@ chained skbs (skb->next/prev list).
 Features contained in NETIF_F_SOFT_FEATURES are features of networking
 stack. Driver should not change behaviour based on them.
 
- * netns-local device
-
-NETIF_F_NETNS_LOCAL is set for devices that are not allowed to move between
-network namespaces (e.g. loopback).
-
-Don't use it in drivers.
-
  * VLAN challenged
 
 NETIF_F_VLAN_CHALLENGED should be set for devices which can't cope with VLAN

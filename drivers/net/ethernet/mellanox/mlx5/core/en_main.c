@@ -4414,9 +4414,9 @@ static netdev_features_t mlx5e_fix_features(struct net_device *netdev,
 
 	if (mlx5e_is_uplink_rep(priv)) {
 		features = mlx5e_fix_uplink_rep_features(netdev, features);
-		features |= NETIF_F_NETNS_LOCAL;
+		netdev->netns_local = true;
 	} else {
-		features &= ~NETIF_F_NETNS_LOCAL;
+		netdev->netns_local = false;
 	}
 
 	mutex_unlock(&priv->state_lock);

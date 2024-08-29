@@ -1968,6 +1968,7 @@ enum netdev_reg_state {
  *			regardless of source, even if those aren't
  *			HWTSTAMP_SOURCE_NETDEV
  *	@change_proto_down: device supports setting carrier via IFLA_PROTO_DOWN
+ *	@netns_local: interface can't change network namespaces
  *
  *	@net_notifier_list:	List of per-net netdev notifier block
  *				that follow this device when it is moved
@@ -2361,6 +2362,7 @@ struct net_device {
 	/* priv_flags_slow, ungrouped to save space */
 	unsigned long		see_all_hwtstamp_requests:1;
 	unsigned long		change_proto_down:1;
+	unsigned long		netns_local:1;
 
 	struct list_head	net_notifier_list;
 

@@ -2191,10 +2191,10 @@ static void team_setup(struct net_device *dev)
 	dev->priv_flags |= IFF_UNICAST_FLT | IFF_LIVE_ADDR_CHANGE;
 	dev->lltx = true;
 
-	dev->features |= NETIF_F_GRO;
-
 	/* Don't allow team devices to change network namespaces. */
-	dev->features |= NETIF_F_NETNS_LOCAL;
+	dev->netns_local = true;
+
+	dev->features |= NETIF_F_GRO;
 
 	dev->hw_features = TEAM_VLAN_FEATURES |
 			   NETIF_F_HW_VLAN_CTAG_RX |
