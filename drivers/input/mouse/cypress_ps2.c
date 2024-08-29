@@ -91,48 +91,6 @@ static int cypress_ps2_ext_cmd(struct psmouse *psmouse, u8 prefix, u8 nibble)
 	return rc;
 }
 
-static int cypress_ps2_read_cmd_status(struct psmouse *psmouse,
-				       u8 cmd, u8 *param)
-{
-	struct ps2dev *ps2dev = &psmouse->ps2dev;
-	enum psmouse_state old_state;
-	int pktsize;
-	int rc;
-
-	ps2_begin_command(ps2dev);
-
-	old_state = psmouse->state;
-	psmouse->state = PSMOUSE_CMD_MODE;
-	psmouse->pktcnt = 0;
-
-	pktsize = (cmd == CYTP_CMD_READ_TP_METRICS) ? 8 : 3;
-	memset(param, 0, pktsize);
-
-	rc = cypress_ps2_sendbyte(psmouse, PSMOUSE_CMD_GETINFO & 0xff);
-	if (rc)
-		goto out;
-
-	if (!wait_event_timeout(ps2dev->wait,
-				psmouse->pktcnt >= pktsize,
-				msecs_to_jiffies(CYTP_CMD_TIMEOUT))) {
-		rc = -ETIMEDOUT;
-		goto out;
-	}
-
-	memcpy(param, psmouse->packet, pktsize);
-
-	psmouse_dbg(psmouse, "Command 0x%02x response data (0x): %*ph\n",
-			cmd, pktsize, param);
-
-out:
-	psmouse->state = old_state;
-	psmouse->pktcnt = 0;
-
-	ps2_end_command(ps2dev);
-
-	return rc;
-}
-
 static bool cypress_verify_cmd_state(struct psmouse *psmouse, u8 cmd, u8* param)
 {
 	bool rate_match = false;
@@ -166,6 +124,8 @@ static bool cypress_verify_cmd_state(struct psmouse *psmouse, u8 cmd, u8* param)
 static int cypress_send_ext_cmd(struct psmouse *psmouse, u8 cmd, u8 *param)
 {
 	u8 cmd_prefix = PSMOUSE_CMD_SETRES & 0xff;
+	unsigned int resp_size = cmd == CYTP_CMD_READ_TP_METRICS ? 8 : 3;
+	unsigned int ps2_cmd = (PSMOUSE_CMD_GETINFO & 0xff) | (resp_size << 8);
 	int tries = CYTP_PS2_CMD_TRIES;
 	int error;
 
@@ -179,10 +139,18 @@ static int cypress_send_ext_cmd(struct psmouse *psmouse, u8 cmd, u8 *param)
 		cypress_ps2_ext_cmd(psmouse, cmd_prefix, DECODE_CMD_BB(cmd));
 		cypress_ps2_ext_cmd(psmouse, cmd_prefix, DECODE_CMD_AA(cmd));
 
-		error = cypress_ps2_read_cmd_status(psmouse, cmd, param);
-		if (!error && cypress_verify_cmd_state(psmouse, cmd, param))
-			return 0;
+		error = ps2_command(&psmouse->ps2dev, param, ps2_cmd);
+		if (error) {
+			psmouse_dbg(psmouse, "Command 0x%02x failed: %d\n",
+				    cmd, error);
+		} else {
+			psmouse_dbg(psmouse,
+				    "Command 0x%02x response data (0x): %*ph\n",
+				    cmd, resp_size, param);
 
+			if (cypress_verify_cmd_state(psmouse, cmd, param))
+				return 0;
+		}
 	} while (--tries > 0);
 
 	return -EIO;
