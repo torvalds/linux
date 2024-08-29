@@ -46,6 +46,7 @@ struct rockchip_domain_info {
 	bool active_wakeup;
 	int pwr_w_mask;
 	int req_w_mask;
+	int clk_ungate_mask;
 	int mem_status_mask;
 	int repair_status_mask;
 	u32 pwr_offset;
@@ -63,6 +64,7 @@ struct rockchip_pmu_info {
 	u32 chain_status_offset;
 	u32 mem_status_offset;
 	u32 repair_status_offset;
+	u32 clk_ungate_offset;
 
 	u32 core_pwrcnt_offset;
 	u32 gpu_pwrcnt_offset;
@@ -301,6 +303,26 @@ static unsigned int rockchip_pmu_read_ack(struct rockchip_pmu *pmu)
 
 	regmap_read(pmu->regmap, pmu->info->ack_offset, &val);
 	return val;
+}
+
+static int rockchip_pmu_ungate_clk(struct rockchip_pm_domain *pd, bool ungate)
+{
+	const struct rockchip_domain_info *pd_info = pd->info;
+	struct rockchip_pmu *pmu = pd->pmu;
+	unsigned int val;
+	int clk_ungate_w_mask = pd_info->clk_ungate_mask << 16;
+
+	if (!pd_info->clk_ungate_mask)
+		return 0;
+
+	if (!pmu->info->clk_ungate_offset)
+		return 0;
+
+	val = ungate ? (pd_info->clk_ungate_mask | clk_ungate_w_mask) :
+			clk_ungate_w_mask;
+	regmap_write(pmu->regmap, pmu->info->clk_ungate_offset, val);
+
+	return 0;
 }
 
 static int rockchip_pmu_set_idle_request(struct rockchip_pm_domain *pd,
@@ -543,6 +565,8 @@ static int rockchip_pd_power(struct rockchip_pm_domain *pd, bool power_on)
 			return ret;
 		}
 
+		rockchip_pmu_ungate_clk(pd, true);
+
 		if (!power_on) {
 			rockchip_pmu_save_qos(pd);
 
@@ -559,6 +583,7 @@ static int rockchip_pd_power(struct rockchip_pm_domain *pd, bool power_on)
 			rockchip_pmu_restore_qos(pd);
 		}
 
+		rockchip_pmu_ungate_clk(pd, false);
 		clk_bulk_disable(pd->num_clks, pd->clks);
 	}
 
