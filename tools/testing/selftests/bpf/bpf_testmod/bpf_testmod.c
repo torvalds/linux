@@ -198,6 +198,22 @@ __bpf_kfunc void bpf_kfunc_nested_release_test(struct sk_buff *ptr)
 {
 }
 
+__bpf_kfunc void bpf_kfunc_trusted_vma_test(struct vm_area_struct *ptr)
+{
+}
+
+__bpf_kfunc void bpf_kfunc_trusted_task_test(struct task_struct *ptr)
+{
+}
+
+__bpf_kfunc void bpf_kfunc_trusted_num_test(int *ptr)
+{
+}
+
+__bpf_kfunc void bpf_kfunc_rcu_task_test(struct task_struct *ptr)
+{
+}
+
 __bpf_kfunc struct bpf_testmod_ctx *
 bpf_testmod_ctx_create(int *err)
 {
@@ -559,6 +575,10 @@ BTF_ID_FLAGS(func, bpf_kfunc_dynptr_test)
 BTF_ID_FLAGS(func, bpf_kfunc_nested_acquire_nonzero_offset_test, KF_ACQUIRE)
 BTF_ID_FLAGS(func, bpf_kfunc_nested_acquire_zero_offset_test, KF_ACQUIRE)
 BTF_ID_FLAGS(func, bpf_kfunc_nested_release_test, KF_RELEASE)
+BTF_ID_FLAGS(func, bpf_kfunc_trusted_vma_test, KF_TRUSTED_ARGS)
+BTF_ID_FLAGS(func, bpf_kfunc_trusted_task_test, KF_TRUSTED_ARGS)
+BTF_ID_FLAGS(func, bpf_kfunc_trusted_num_test, KF_TRUSTED_ARGS)
+BTF_ID_FLAGS(func, bpf_kfunc_rcu_task_test, KF_RCU)
 BTF_ID_FLAGS(func, bpf_testmod_ctx_create, KF_ACQUIRE | KF_RET_NULL)
 BTF_ID_FLAGS(func, bpf_testmod_ctx_release, KF_RELEASE)
 BTF_KFUNCS_END(bpf_testmod_common_kfunc_ids)

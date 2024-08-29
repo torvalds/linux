@@ -154,4 +154,9 @@ int bpf_kfunc_st_ops_test_epilogue(struct st_ops_args *args) __ksym;
 int bpf_kfunc_st_ops_test_pro_epilogue(struct st_ops_args *args) __ksym;
 int bpf_kfunc_st_ops_inc10(struct st_ops_args *args) __ksym;
 
+void bpf_kfunc_trusted_vma_test(struct vm_area_struct *ptr) __ksym;
+void bpf_kfunc_trusted_task_test(struct task_struct *ptr) __ksym;
+void bpf_kfunc_trusted_num_test(int *ptr) __ksym;
+void bpf_kfunc_rcu_task_test(struct task_struct *ptr) __ksym;
+
 #endif /* _BPF_TESTMOD_KFUNC_H */
