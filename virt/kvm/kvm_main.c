@@ -3581,7 +3581,7 @@ int kvm_clear_guest(struct kvm *kvm, gpa_t gpa, unsigned long len)
 	int ret;
 
 	while ((seg = next_segment(len, offset)) != 0) {
-		ret = kvm_write_guest_page(kvm, gfn, zero_page, offset, len);
+		ret = kvm_write_guest_page(kvm, gfn, zero_page, offset, seg);
 		if (ret < 0)
 			return ret;
 		offset = 0;
