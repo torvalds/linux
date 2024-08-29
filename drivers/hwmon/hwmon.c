@@ -426,18 +426,22 @@ static ssize_t hwmon_attr_show(struct device *dev,
 			       struct device_attribute *devattr, char *buf)
 {
 	struct hwmon_device_attribute *hattr = to_hwmon_attr(devattr);
+	s64 val64;
 	long val;
 	int ret;
 
 	ret = hattr->ops->read(dev, hattr->type, hattr->attr, hattr->index,
-			       &val);
+			       (hattr->type == hwmon_energy64) ? (long *)&val64 : &val);
 	if (ret < 0)
 		return ret;
 
-	trace_hwmon_attr_show(hattr->index + hwmon_attr_base(hattr->type),
-			      hattr->name, val);
+	if (hattr->type != hwmon_energy64)
+		val64 = val;
 
-	return sprintf(buf, "%ld\n", val);
+	trace_hwmon_attr_show(hattr->index + hwmon_attr_base(hattr->type),
+			      hattr->name, val64);
+
+	return sprintf(buf, "%lld\n", val64);
 }
 
 static ssize_t hwmon_attr_show_string(struct device *dev,
@@ -478,7 +482,7 @@ static ssize_t hwmon_attr_store(struct device *dev,
 		return ret;
 
 	trace_hwmon_attr_store(hattr->index + hwmon_attr_base(hattr->type),
-			       hattr->name, val);
+			       hattr->name, (s64)val);
 
 	return count;
 }
@@ -734,6 +738,7 @@ static const char * const *__templates[] = {
 	[hwmon_curr] = hwmon_curr_attr_templates,
 	[hwmon_power] = hwmon_power_attr_templates,
 	[hwmon_energy] = hwmon_energy_attr_templates,
+	[hwmon_energy64] = hwmon_energy_attr_templates,
 	[hwmon_humidity] = hwmon_humidity_attr_templates,
 	[hwmon_fan] = hwmon_fan_attr_templates,
 	[hwmon_pwm] = hwmon_pwm_attr_templates,
@@ -747,6 +752,7 @@ static const int __templates_size[] = {
 	[hwmon_curr] = ARRAY_SIZE(hwmon_curr_attr_templates),
 	[hwmon_power] = ARRAY_SIZE(hwmon_power_attr_templates),
 	[hwmon_energy] = ARRAY_SIZE(hwmon_energy_attr_templates),
+	[hwmon_energy64] = ARRAY_SIZE(hwmon_energy_attr_templates),
 	[hwmon_humidity] = ARRAY_SIZE(hwmon_humidity_attr_templates),
 	[hwmon_fan] = ARRAY_SIZE(hwmon_fan_attr_templates),
 	[hwmon_pwm] = ARRAY_SIZE(hwmon_pwm_attr_templates),

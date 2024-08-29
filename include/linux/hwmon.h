@@ -24,6 +24,7 @@ enum hwmon_sensor_types {
 	hwmon_curr,
 	hwmon_power,
 	hwmon_energy,
+	hwmon_energy64,
 	hwmon_humidity,
 	hwmon_fan,
 	hwmon_pwm,

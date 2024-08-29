@@ -159,6 +159,7 @@ It contains following fields:
      hwmon_curr		Current sensor
      hwmon_power		Power sensor
      hwmon_energy	Energy sensor
+     hwmon_energy64	Energy sensor, reported as 64-bit signed value
      hwmon_humidity	Humidity sensor
      hwmon_fan		Fan speed sensor
      hwmon_pwm		PWM control
@@ -288,6 +289,8 @@ Parameters:
 		The sensor channel number.
 	val:
 		Pointer to attribute value.
+		For hwmon_energy64, `'val`' is passed as `long *` but needs
+		a typecast to `s64 *`.
 
 Return value:
 	0 on success, a negative error number otherwise.
