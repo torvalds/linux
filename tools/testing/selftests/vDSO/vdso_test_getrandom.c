@@ -104,6 +104,7 @@ static void vgetrandom_init(void)
 	const char *version = versions[VDSO_VERSION];
 	const char *name = names[VDSO_NAMES][6];
 	unsigned long sysinfo_ehdr = getauxval(AT_SYSINFO_EHDR);
+	size_t ret;
 
 	if (!sysinfo_ehdr) {
 		printf("AT_SYSINFO_EHDR is not present!\n");
@@ -115,7 +116,11 @@ static void vgetrandom_init(void)
 		printf("%s is missing!\n", name);
 		exit(KSFT_FAIL);
 	}
-	if (vgrnd.fn(NULL, 0, 0, &vgrnd.params, ~0UL) != 0) {
+	ret = vgrnd.fn(NULL, 0, 0, &vgrnd.params, ~0UL);
+	if (ret == -ENOSYS) {
+		printf("unsupported architecture\n");
+		exit(KSFT_SKIP);
+	} else if (ret) {
 		printf("failed to fetch vgetrandom params!\n");
 		exit(KSFT_FAIL);
 	}
