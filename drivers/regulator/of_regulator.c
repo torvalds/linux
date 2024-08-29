@@ -737,20 +737,21 @@ static int is_supply_name(const char *name)
 	return 0;
 }
 
-/*
+/**
  * of_regulator_bulk_get_all - get multiple regulator consumers
  *
  * @dev:	Device to supply
  * @np:		device node to search for consumers
  * @consumers:  Configuration of consumers; clients are stored here.
  *
- * @return number of regulators on success, an errno on failure.
- *
  * This helper function allows drivers to get several regulator
  * consumers in one operation.  If any of the regulators cannot be
  * acquired then any regulators that were allocated will be freed
  * before returning to the caller, and @consumers will not be
  * changed.
+ *
+ * Return: Number of regulators on success, or a negative error number
+ *	   on failure.
  */
 int of_regulator_bulk_get_all(struct device *dev, struct device_node *np,
 			      struct regulator_bulk_data **consumers)
