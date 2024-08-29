@@ -65,6 +65,18 @@ static int xfs_icwalk_ag(struct xfs_perag *pag,
 					 XFS_ICWALK_FLAG_RECLAIM_SICK | \
 					 XFS_ICWALK_FLAG_UNION)
 
+/* Marks for the perag xarray */
+#define XFS_PERAG_RECLAIM_MARK	XA_MARK_0
+#define XFS_PERAG_BLOCKGC_MARK	XA_MARK_1
+
+static inline xa_mark_t ici_tag_to_mark(unsigned int tag)
+{
+	if (tag == XFS_ICI_RECLAIM_TAG)
+		return XFS_PERAG_RECLAIM_MARK;
+	ASSERT(tag == XFS_ICI_BLOCKGC_TAG);
+	return XFS_PERAG_BLOCKGC_MARK;
+}
+
 /*
  * Allocate and initialise an xfs_inode.
  */
@@ -191,7 +203,7 @@ xfs_reclaim_work_queue(
 {
 
 	rcu_read_lock();
-	if (radix_tree_tagged(&mp->m_perag_tree, XFS_ICI_RECLAIM_TAG)) {
+	if (xa_marked(&mp->m_perags, XFS_PERAG_RECLAIM_MARK)) {
 		queue_delayed_work(mp->m_reclaim_workqueue, &mp->m_reclaim_work,
 			msecs_to_jiffies(xfs_syncd_centisecs / 6 * 10));
 	}
@@ -241,9 +253,7 @@ xfs_perag_set_inode_tag(
 		return;
 
 	/* propagate the tag up into the perag radix tree */
-	spin_lock(&mp->m_perag_lock);
-	radix_tree_tag_set(&mp->m_perag_tree, pag->pag_agno, tag);
-	spin_unlock(&mp->m_perag_lock);
+	xa_set_mark(&mp->m_perags, pag->pag_agno, ici_tag_to_mark(tag));
 
 	/* start background work */
 	switch (tag) {
@@ -285,9 +295,7 @@ xfs_perag_clear_inode_tag(
 		return;
 
 	/* clear the tag from the perag radix tree */
-	spin_lock(&mp->m_perag_lock);
-	radix_tree_tag_clear(&mp->m_perag_tree, pag->pag_agno, tag);
-	spin_unlock(&mp->m_perag_lock);
+	xa_clear_mark(&mp->m_perags, pag->pag_agno, ici_tag_to_mark(tag));
 
 	trace_xfs_perag_clear_inode_tag(pag, _RET_IP_);
 }
@@ -302,7 +310,6 @@ xfs_perag_get_next_tag(
 	unsigned int		tag)
 {
 	unsigned long		index = 0;
-	int			found;
 
 	if (pag) {
 		index = pag->pag_agno + 1;
@@ -310,14 +317,11 @@ xfs_perag_get_next_tag(
 	}
 
 	rcu_read_lock();
-	found = radix_tree_gang_lookup_tag(&mp->m_perag_tree,
-					(void **)&pag, index, 1, tag);
-	if (found <= 0) {
-		rcu_read_unlock();
-		return NULL;
+	pag = xa_find(&mp->m_perags, &index, ULONG_MAX, ici_tag_to_mark(tag));
+	if (pag) {
+		trace_xfs_perag_get_next_tag(pag, _RET_IP_);
+		atomic_inc(&pag->pag_ref);
 	}
-	trace_xfs_perag_get_next_tag(pag, _RET_IP_);
-	atomic_inc(&pag->pag_ref);
 	rcu_read_unlock();
 	return pag;
 }
@@ -332,7 +336,6 @@ xfs_perag_grab_next_tag(
 	int			tag)
 {
 	unsigned long		index = 0;
-	int			found;
 
 	if (pag) {
 		index = pag->pag_agno + 1;
@@ -340,15 +343,12 @@ xfs_perag_grab_next_tag(
 	}
 
 	rcu_read_lock();
-	found = radix_tree_gang_lookup_tag(&mp->m_perag_tree,
-					(void **)&pag, index, 1, tag);
-	if (found <= 0) {
-		rcu_read_unlock();
-		return NULL;
+	pag = xa_find(&mp->m_perags, &index, ULONG_MAX, ici_tag_to_mark(tag));
+	if (pag) {
+		trace_xfs_perag_grab_next_tag(pag, _RET_IP_);
+		if (!atomic_inc_not_zero(&pag->pag_active_ref))
+			pag = NULL;
 	}
-	trace_xfs_perag_grab_next_tag(pag, _RET_IP_);
-	if (!atomic_inc_not_zero(&pag->pag_active_ref))
-		pag = NULL;
 	rcu_read_unlock();
 	return pag;
 }
@@ -1038,7 +1038,7 @@ xfs_reclaim_inodes(
 	if (xfs_want_reclaim_sick(mp))
 		icw.icw_flags |= XFS_ICWALK_FLAG_RECLAIM_SICK;
 
-	while (radix_tree_tagged(&mp->m_perag_tree, XFS_ICI_RECLAIM_TAG)) {
+	while (xa_marked(&mp->m_perags, XFS_PERAG_RECLAIM_MARK)) {
 		xfs_ail_push_all_sync(mp->m_ail);
 		xfs_icwalk(mp, XFS_ICWALK_RECLAIM, &icw);
 	}
