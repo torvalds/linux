@@ -480,7 +480,7 @@ static int bcmbca_hsspi_probe(struct platform_device *pdev)
 		}
 	}
 
-	host = spi_alloc_host(&pdev->dev, sizeof(*bs));
+	host = devm_spi_alloc_host(&pdev->dev, sizeof(*bs));
 	if (!host) {
 		ret = -ENOMEM;
 		goto out_disable_pll_clk;
@@ -536,15 +536,17 @@ static int bcmbca_hsspi_probe(struct platform_device *pdev)
 		ret = devm_request_irq(dev, irq, bcmbca_hsspi_interrupt, IRQF_SHARED,
 			       pdev->name, bs);
 		if (ret)
-			goto out_put_host;
+			goto out_disable_pll_clk;
 	}
 
-	pm_runtime_enable(&pdev->dev);
+	ret = devm_pm_runtime_enable(&pdev->dev);
+	if (ret)
+		goto out_disable_pll_clk;
 
 	ret = sysfs_create_group(&pdev->dev.kobj, &bcmbca_hsspi_group);
 	if (ret) {
 		dev_err(&pdev->dev, "couldn't register sysfs group\n");
-		goto out_pm_disable;
+		goto out_disable_pll_clk;
 	}
 
 	/* register and we are done */
@@ -558,10 +560,6 @@ static int bcmbca_hsspi_probe(struct platform_device *pdev)
 
 out_sysgroup_disable:
 	sysfs_remove_group(&pdev->dev.kobj, &bcmbca_hsspi_group);
-out_pm_disable:
-	pm_runtime_disable(&pdev->dev);
-out_put_host:
-	spi_controller_put(host);
 out_disable_pll_clk:
 	clk_disable_unprepare(pll_clk);
 out_disable_clk:
