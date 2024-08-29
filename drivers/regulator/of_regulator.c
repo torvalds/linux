@@ -338,8 +338,10 @@ static int of_get_regulation_constraints(struct device *dev,
  * @desc: regulator description
  *
  * Populates regulator_init_data structure by extracting data from device
- * tree node, returns a pointer to the populated structure or NULL if memory
- * alloc fails.
+ * tree node.
+ *
+ * Return: Pointer to a populated &struct regulator_init_data or NULL if
+ *	   memory allocation fails.
  */
 struct regulator_init_data *of_get_regulator_init_data(struct device *dev,
 					  struct device_node *node,
@@ -391,7 +393,7 @@ static void devm_of_regulator_put_matches(struct device *dev, void *res)
  * in place and an additional of_node reference is taken for each matched
  * regulator.
  *
- * Returns the number of matches found or a negative error code on failure.
+ * Return: The number of matches found or a negative error number on failure.
  */
 int of_regulator_match(struct device *dev, struct device_node *node,
 		       struct of_regulator_match *matches,
@@ -619,7 +621,7 @@ static bool of_coupling_find_node(struct device_node *src,
  * - all coupled regulators have the same number of regulator_dev phandles
  * - all regulators are linked to each other
  *
- * Returns true if all conditions are met.
+ * Return: True if all conditions are met; false otherwise.
  */
 bool of_check_coupling_data(struct regulator_dev *rdev)
 {
@@ -690,8 +692,8 @@ clean:
  *	  "regulator-coupled-with" property
  * @index: Index in phandles array
  *
- * Returns the regulator_dev pointer parsed from DTS. If it has not been yet
- * registered, returns NULL
+ * Return: Pointer to the &struct regulator_dev parsed from DTS, or %NULL if
+ *	   it has not yet been registered.
  */
 struct regulator_dev *of_parse_coupled_regulator(struct regulator_dev *rdev,
 						 int index)
