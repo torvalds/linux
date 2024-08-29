@@ -672,7 +672,7 @@ static void enqueue_timer(struct timer_base *base, struct timer_list *timer,
 		 * Set the next expiry time and kick the CPU so it
 		 * can reevaluate the wheel:
 		 */
-		base->next_expiry = bucket_expiry;
+		WRITE_ONCE(base->next_expiry, bucket_expiry);
 		base->timers_pending = true;
 		base->next_expiry_recalc = false;
 		trigger_dyntick_cpu(base, timer);
@@ -1966,7 +1966,7 @@ static void next_expiry_recalc(struct timer_base *base)
 		clk += adj;
 	}
 
-	base->next_expiry = next;
+	WRITE_ONCE(base->next_expiry, next);
 	base->next_expiry_recalc = false;
 	base->timers_pending = !(next == base->clk + NEXT_TIMER_MAX_DELTA);
 }
@@ -2020,7 +2020,7 @@ static unsigned long next_timer_interrupt(struct timer_base *base,
 	 * easy comparable to find out which base holds the first pending timer.
 	 */
 	if (!base->timers_pending)
-		base->next_expiry = basej + NEXT_TIMER_MAX_DELTA;
+		WRITE_ONCE(base->next_expiry, basej + NEXT_TIMER_MAX_DELTA);
 
 	return base->next_expiry;
 }
@@ -2464,8 +2464,40 @@ static void run_local_timers(void)
 	hrtimer_run_queues();
 
 	for (int i = 0; i < NR_BASES; i++, base++) {
-		/* Raise the softirq only if required. */
-		if (time_after_eq(jiffies, base->next_expiry) ||
+		/*
+		 * Raise the softirq only if required.
+		 *
+		 * timer_base::next_expiry can be written by a remote CPU while
+		 * holding the lock. If this write happens at the same time than
+		 * the lockless local read, sanity checker could complain about
+		 * data corruption.
+		 *
+		 * There are two possible situations where
+		 * timer_base::next_expiry is written by a remote CPU:
+		 *
+		 * 1. Remote CPU expires global timers of this CPU and updates
+		 * timer_base::next_expiry of BASE_GLOBAL afterwards in
+		 * next_timer_interrupt() or timer_recalc_next_expiry(). The
+		 * worst outcome is a superfluous raise of the timer softirq
+		 * when the not yet updated value is read.
+		 *
+		 * 2. A new first pinned timer is enqueued by a remote CPU
+		 * and therefore timer_base::next_expiry of BASE_LOCAL is
+		 * updated. When this update is missed, this isn't a
+		 * problem, as an IPI is executed nevertheless when the CPU
+		 * was idle before. When the CPU wasn't idle but the update
+		 * is missed, then the timer would expire one jiffie late -
+		 * bad luck.
+		 *
+		 * Those unlikely corner cases where the worst outcome is only a
+		 * one jiffie delay or a superfluous raise of the softirq are
+		 * not that expensive as doing the check always while holding
+		 * the lock.
+		 *
+		 * Possible remote writers are using WRITE_ONCE(). Local reader
+		 * uses therefore READ_ONCE().
+		 */
+		if (time_after_eq(jiffies, READ_ONCE(base->next_expiry)) ||
 		    (i == BASE_DEF && tmigr_requires_handle_remote())) {
 			raise_softirq(TIMER_SOFTIRQ);
 			return;
