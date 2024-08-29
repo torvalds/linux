@@ -758,6 +758,15 @@ static int intel_config_set_debounce(struct intel_pinctrl *pctrl,
 {
 	void __iomem *padcfg0, *padcfg2;
 	u32 value0, value2;
+	unsigned long v;
+
+	if (debounce) {
+		v = order_base_2(debounce * NSEC_PER_USEC / DEBOUNCE_PERIOD_NSEC);
+		if (v < 3 || v > 15)
+			return -EINVAL;
+	} else {
+		v = 0;
+	}
 
 	padcfg2 = intel_get_padcfg(pctrl, pin, PADCFG2);
 	if (!padcfg2)
@@ -770,21 +779,15 @@ static int intel_config_set_debounce(struct intel_pinctrl *pctrl,
 	value0 = readl(padcfg0);
 	value2 = readl(padcfg2);
 
-	/* Disable glitch filter and debouncer */
-	value0 &= ~PADCFG0_PREGFRXSEL;
-	value2 &= ~(PADCFG2_DEBEN | PADCFG2_DEBOUNCE_MASK);
-
-	if (debounce) {
-		unsigned long v;
-
-		v = order_base_2(debounce * NSEC_PER_USEC / DEBOUNCE_PERIOD_NSEC);
-		if (v < 3 || v > 15)
-			return -EINVAL;
-
+	value2 = (value2 & ~PADCFG2_DEBOUNCE_MASK) | (v << PADCFG2_DEBOUNCE_SHIFT);
+	if (v) {
 		/* Enable glitch filter and debouncer */
 		value0 |= PADCFG0_PREGFRXSEL;
-		value2 |= v << PADCFG2_DEBOUNCE_SHIFT;
 		value2 |= PADCFG2_DEBEN;
+	} else {
+		/* Disable glitch filter and debouncer */
+		value0 &= ~PADCFG0_PREGFRXSEL;
+		value2 &= ~PADCFG2_DEBEN;
 	}
 
 	writel(value0, padcfg0);
