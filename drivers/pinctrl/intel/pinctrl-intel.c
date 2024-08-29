@@ -114,13 +114,29 @@ struct intel_community_context {
 #define pin_to_padno(c, p)	((p) - (c)->pin_base)
 #define padgroup_offset(g, p)	((p) - (g)->base)
 
+#define for_each_intel_pin_community(pctrl, community)					\
+	for (unsigned int __ci = 0;							\
+	     __ci < pctrl->ncommunities && (community = &pctrl->communities[__ci]);	\
+	     __ci++)									\
+
+#define for_each_intel_community_pad_group(community, grp)			\
+	for (unsigned int __gi = 0;						\
+	     __gi < community->ngpps && (grp = &community->gpps[__gi]);		\
+	     __gi++)								\
+
+#define for_each_intel_pad_group(pctrl, community, grp)			\
+	for_each_intel_pin_community(pctrl, community)			\
+		for_each_intel_community_pad_group(community, grp)
+
+#define for_each_intel_gpio_group(pctrl, community, grp)		\
+	for_each_intel_pad_group(pctrl, community, grp)			\
+		if (grp->gpio_base == INTEL_GPIO_BASE_NOMAP) {} else
+
 const struct intel_community *intel_get_community(struct intel_pinctrl *pctrl, unsigned int pin)
 {
 	const struct intel_community *community;
-	int i;
 
-	for (i = 0; i < pctrl->ncommunities; i++) {
-		community = &pctrl->communities[i];
+	for_each_intel_pin_community(pctrl, community) {
 		if (pin >= community->pin_base &&
 		    pin < community->pin_base + community->npins)
 			return community;
@@ -135,11 +151,9 @@ static const struct intel_padgroup *
 intel_community_get_padgroup(const struct intel_community *community,
 			     unsigned int pin)
 {
-	int i;
+	const struct intel_padgroup *padgrp;
 
-	for (i = 0; i < community->ngpps; i++) {
-		const struct intel_padgroup *padgrp = &community->gpps[i];
-
+	for_each_intel_community_pad_group(community, padgrp) {
 		if (pin >= padgrp->base && pin < padgrp->base + padgrp->size)
 			return padgrp;
 	}
@@ -942,30 +956,17 @@ static int intel_gpio_to_pin(struct intel_pinctrl *pctrl, unsigned int offset,
 			     const struct intel_community **community,
 			     const struct intel_padgroup **padgrp)
 {
-	int i;
+	const struct intel_community *comm;
+	const struct intel_padgroup *grp;
 
-	for (i = 0; i < pctrl->ncommunities; i++) {
-		const struct intel_community *comm = &pctrl->communities[i];
-		int j;
+	for_each_intel_gpio_group(pctrl, comm, grp) {
+		if (offset >= grp->gpio_base && offset < grp->gpio_base + grp->size) {
+			if (community)
+				*community = comm;
+			if (padgrp)
+				*padgrp = grp;
 
-		for (j = 0; j < comm->ngpps; j++) {
-			const struct intel_padgroup *pgrp = &comm->gpps[j];
-
-			if (pgrp->gpio_base == INTEL_GPIO_BASE_NOMAP)
-				continue;
-
-			if (offset >= pgrp->gpio_base &&
-			    offset < pgrp->gpio_base + pgrp->size) {
-				int pin;
-
-				pin = pgrp->base + offset - pgrp->gpio_base;
-				if (community)
-					*community = comm;
-				if (padgrp)
-					*padgrp = pgrp;
-
-				return pin;
-			}
+			return grp->base + offset - grp->gpio_base;
 		}
 	}
 
@@ -1258,12 +1259,11 @@ static const struct irq_chip intel_gpio_irq_chip = {
 static int intel_gpio_community_irq_handler(struct intel_pinctrl *pctrl,
 					    const struct intel_community *community)
 {
+	const struct intel_padgroup *padgrp;
 	struct gpio_chip *gc = &pctrl->chip;
-	unsigned int gpp;
 	int ret = 0;
 
-	for (gpp = 0; gpp < community->ngpps; gpp++) {
-		const struct intel_padgroup *padgrp = &community->gpps[gpp];
+	for_each_intel_community_pad_group(community, padgrp) {
 		unsigned long pending, enabled;
 		unsigned int gpp, gpp_offset;
 		void __iomem *reg, *is;
@@ -1294,28 +1294,22 @@ static irqreturn_t intel_gpio_irq(int irq, void *data)
 {
 	const struct intel_community *community;
 	struct intel_pinctrl *pctrl = data;
-	unsigned int i;
 	int ret = 0;
 
 	/* Need to check all communities for pending interrupts */
-	for (i = 0; i < pctrl->ncommunities; i++) {
-		community = &pctrl->communities[i];
+	for_each_intel_pin_community(pctrl, community)
 		ret += intel_gpio_community_irq_handler(pctrl, community);
-	}
 
 	return IRQ_RETVAL(ret);
 }
 
 static void intel_gpio_irq_init(struct intel_pinctrl *pctrl)
 {
-	int i;
+	const struct intel_community *community;
 
-	for (i = 0; i < pctrl->ncommunities; i++) {
-		const struct intel_community *community;
+	for_each_intel_pin_community(pctrl, community) {
 		void __iomem *reg, *is;
 		unsigned int gpp;
-
-		community = &pctrl->communities[i];
 
 		for (gpp = 0; gpp < community->ngpps; gpp++) {
 			reg = community->regs + community->ie_offset + gpp * 4;
@@ -1341,36 +1335,17 @@ static int intel_gpio_irq_init_hw(struct gpio_chip *gc)
 	return 0;
 }
 
-static int intel_gpio_add_community_ranges(struct intel_pinctrl *pctrl,
-				const struct intel_community *community)
-{
-	int ret = 0, i;
-
-	for (i = 0; i < community->ngpps; i++) {
-		const struct intel_padgroup *gpp = &community->gpps[i];
-
-		if (gpp->gpio_base == INTEL_GPIO_BASE_NOMAP)
-			continue;
-
-		ret = gpiochip_add_pin_range(&pctrl->chip, dev_name(pctrl->dev),
-					     gpp->gpio_base, gpp->base,
-					     gpp->size);
-		if (ret)
-			return ret;
-	}
-
-	return ret;
-}
-
 static int intel_gpio_add_pin_ranges(struct gpio_chip *gc)
 {
 	struct intel_pinctrl *pctrl = gpiochip_get_data(gc);
-	int ret, i;
+	const struct intel_community *community;
+	const struct intel_padgroup *grp;
+	int ret;
 
-	for (i = 0; i < pctrl->ncommunities; i++) {
-		const struct intel_community *community = &pctrl->communities[i];
-
-		ret = intel_gpio_add_community_ranges(pctrl, community);
+	for_each_intel_gpio_group(pctrl, community, grp) {
+		ret = gpiochip_add_pin_range(&pctrl->chip, dev_name(pctrl->dev),
+					     grp->gpio_base, grp->base,
+					     grp->size);
 		if (ret) {
 			dev_err(pctrl->dev, "failed to add GPIO pin range\n");
 			return ret;
@@ -1383,20 +1358,12 @@ static int intel_gpio_add_pin_ranges(struct gpio_chip *gc)
 static unsigned int intel_gpio_ngpio(const struct intel_pinctrl *pctrl)
 {
 	const struct intel_community *community;
+	const struct intel_padgroup *grp;
 	unsigned int ngpio = 0;
-	int i, j;
 
-	for (i = 0; i < pctrl->ncommunities; i++) {
-		community = &pctrl->communities[i];
-		for (j = 0; j < community->ngpps; j++) {
-			const struct intel_padgroup *gpp = &community->gpps[j];
-
-			if (gpp->gpio_base == INTEL_GPIO_BASE_NOMAP)
-				continue;
-
-			if (gpp->gpio_base + gpp->size > ngpio)
-				ngpio = gpp->gpio_base + gpp->size;
-		}
+	for_each_intel_gpio_group(pctrl, community, grp) {
+		if (grp->gpio_base + grp->size > ngpio)
+			ngpio = grp->gpio_base + grp->size;
 	}
 
 	return ngpio;
