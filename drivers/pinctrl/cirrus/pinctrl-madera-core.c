@@ -1063,12 +1063,9 @@ static int madera_pin_probe(struct platform_device *pdev)
 	if (pdata->gpio_configs) {
 		ret = pinctrl_register_mappings(pdata->gpio_configs,
 						pdata->n_gpio_configs);
-		if (ret) {
-			dev_err(priv->dev,
-				"Failed to register pdata mappings (%d)\n",
-				ret);
-			return ret;
-		}
+		if (ret)
+			return dev_err_probe(priv->dev, ret,
+						"Failed to register pdata mappings\n");
 	}
 
 	ret = pinctrl_enable(priv->pctl);
