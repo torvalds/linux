@@ -4081,7 +4081,7 @@ __cifs_construct_tcon(struct cifs_sb_info *cifs_sb, kuid_t fsuid)
 
 	ses = cifs_get_smb_ses(master_tcon->ses->server, ctx);
 	if (IS_ERR(ses)) {
-		tcon = (struct cifs_tcon *)ses;
+		tcon = ERR_CAST(ses);
 		cifs_put_tcp_session(master_tcon->ses->server, 0);
 		goto out;
 	}
