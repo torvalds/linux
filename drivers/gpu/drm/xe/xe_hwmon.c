@@ -441,14 +441,14 @@ static int xe_hwmon_pcode_read_i1(struct xe_gt *gt, u32 *uval)
 	if (gt_to_xe(gt)->info.platform == XE_DG2)
 		return -ENXIO;
 
-	return xe_pcode_read(gt, PCODE_MBOX(PCODE_POWER_SETUP,
+	return xe_pcode_read(gt_to_tile(gt), PCODE_MBOX(PCODE_POWER_SETUP,
 			     POWER_SETUP_SUBCOMMAND_READ_I1, 0),
 			     uval, NULL);
 }
 
 static int xe_hwmon_pcode_write_i1(struct xe_gt *gt, u32 uval)
 {
-	return xe_pcode_write(gt, PCODE_MBOX(PCODE_POWER_SETUP,
+	return xe_pcode_write(gt_to_tile(gt), PCODE_MBOX(PCODE_POWER_SETUP,
 			      POWER_SETUP_SUBCOMMAND_WRITE_I1, 0),
 			      (uval & POWER_SETUP_I1_DATA_MASK));
 }
