@@ -480,6 +480,8 @@ static int ina2xx_curr_read(struct device *dev, u32 attr, long *val)
 {
 	struct ina2xx_data *data = dev_get_drvdata(dev);
 	struct regmap *regmap = data->regmap;
+	unsigned int regval;
+	int ret;
 
 	/*
 	 * While the chips supported by this driver do not directly support
@@ -492,7 +494,17 @@ static int ina2xx_curr_read(struct device *dev, u32 attr, long *val)
 	 */
 	switch (attr) {
 	case hwmon_curr_input:
-		return ina2xx_read_init(dev, INA2XX_CURRENT, val);
+		/*
+		 * Since the shunt voltage and the current register report the
+		 * same values when the chip is calibrated, we can calculate
+		 * the current directly from the shunt voltage without relying
+		 * on chip calibration.
+		 */
+		ret = regmap_read(regmap, INA2XX_SHUNT_VOLTAGE, &regval);
+		if (ret)
+			return ret;
+		*val = ina2xx_get_value(data, INA2XX_CURRENT, regval);
+		return 0;
 	case hwmon_curr_lcrit:
 		return ina226_alert_limit_read(data, INA226_SHUNT_UNDER_VOLTAGE_MASK,
 					       INA2XX_CURRENT, val);
