@@ -12,7 +12,6 @@
 #include "xe_bo.h"
 #include "xe_device.h"
 #include "xe_ggtt.h"
-#include "xe_gt.h"
 #include "xe_pm.h"
 
 static void

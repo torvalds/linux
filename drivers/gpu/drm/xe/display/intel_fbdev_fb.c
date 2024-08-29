@@ -8,7 +8,6 @@
 #include "intel_display_types.h"
 #include "intel_fbdev_fb.h"
 #include "xe_bo.h"
-#include "xe_gt.h"
 #include "xe_ttm_stolen_mgr.h"
 #include "xe_wa.h"
 
