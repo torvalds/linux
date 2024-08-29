@@ -335,11 +335,12 @@ static void goodix_hid_close(struct hid_device *hid)
 }
 
 /* Return date length of response data */
-static int goodix_hid_check_ack_status(struct goodix_ts_data *ts)
+static int goodix_hid_check_ack_status(struct goodix_ts_data *ts, u32 *resp_len)
 {
 	struct goodix_hid_report_header hdr;
 	int retry = 20;
 	int error;
+	int len;
 
 	while (retry--) {
 		/*
@@ -349,8 +350,15 @@ static int goodix_hid_check_ack_status(struct goodix_ts_data *ts)
 		 */
 		error = goodix_spi_read(ts, ts->hid_report_addr,
 					&hdr, sizeof(hdr));
-		if (!error && (hdr.flag & GOODIX_HID_ACK_READY_FLAG))
-			return le16_to_cpu(hdr.size);
+		if (!error && (hdr.flag & GOODIX_HID_ACK_READY_FLAG)) {
+			len = le16_to_cpu(hdr.size);
+			if (len < GOODIX_HID_PKG_LEN_SIZE) {
+				dev_err(ts->dev, "hrd.size too short: %d", len);
+				return -EINVAL;
+			}
+			*resp_len = len;
+			return 0;
+		}
 
 		/* Wait 10ms for another try */
 		usleep_range(10000, 11000);
@@ -383,7 +391,7 @@ static int goodix_hid_get_raw_report(struct hid_device *hid,
 	u16 cmd_register = le16_to_cpu(ts->hid_desc.cmd_register);
 	u8 tmp_buf[GOODIX_HID_MAX_INBUF_SIZE];
 	int tx_len = 0, args_len = 0;
-	int response_data_len;
+	u32 response_data_len;
 	u8 args[3];
 	int error;
 
@@ -434,9 +442,9 @@ static int goodix_hid_get_raw_report(struct hid_device *hid,
 		return 0;
 
 	/* Step2: check response data status */
-	response_data_len = goodix_hid_check_ack_status(ts);
-	if (response_data_len <= GOODIX_HID_PKG_LEN_SIZE)
-		return -EINVAL;
+	error = goodix_hid_check_ack_status(ts, &response_data_len);
+	if (error)
+		return error;
 
 	len = min(len, response_data_len - GOODIX_HID_PKG_LEN_SIZE);
 	/* Step3: read response data(skip 2bytes of hid pkg length) */
