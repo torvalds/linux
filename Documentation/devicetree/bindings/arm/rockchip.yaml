@@ -271,6 +271,11 @@ properties:
           - const: friendlyarm,cm3588
           - const: rockchip,rk3588
 
+      - description: GameForce Ace
+        items:
+          - const: gameforce,ace
+          - const: rockchip,rk3588s
+
       - description: GameForce Chi
         items:
           - const: gameforce,chi
