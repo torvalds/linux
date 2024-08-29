@@ -4519,12 +4519,12 @@ static int UVERBS_HANDLER(BNXT_RE_METHOD_GET_TOGGLE_MEM)(struct uverbs_attr_bund
 	struct bnxt_re_ucontext *uctx;
 	struct ib_ucontext *ib_uctx;
 	struct bnxt_re_dev *rdev;
+	u32 length = PAGE_SIZE;
 	struct bnxt_re_cq *cq;
 	u64 mem_offset;
+	u32 offset = 0;
 	u64 addr = 0;
-	u32 length;
-	u32 offset;
-	u32 cq_id;
+	u32 res_id;
 	int err;
 
 	ib_uctx = ib_uverbs_get_ucontext(attrs);
@@ -4537,21 +4537,17 @@ static int UVERBS_HANDLER(BNXT_RE_METHOD_GET_TOGGLE_MEM)(struct uverbs_attr_bund
 
 	uctx = container_of(ib_uctx, struct bnxt_re_ucontext, ib_uctx);
 	rdev = uctx->rdev;
+	err = uverbs_copy_from(&res_id, attrs, BNXT_RE_TOGGLE_MEM_RES_ID);
+	if (err)
+		return err;
 
 	switch (res_type) {
 	case BNXT_RE_CQ_TOGGLE_MEM:
-		err = uverbs_copy_from(&cq_id, attrs, BNXT_RE_TOGGLE_MEM_RES_ID);
-		if (err)
-			return err;
-
-		cq = bnxt_re_search_for_cq(rdev, cq_id);
+		cq = bnxt_re_search_for_cq(rdev, res_id);
 		if (!cq)
 			return -EINVAL;
 
-		length = PAGE_SIZE;
 		addr = (u64)cq->uctx_cq_page;
-		mmap_flag = BNXT_RE_MMAP_TOGGLE_PAGE;
-		offset = 0;
 		break;
 	case BNXT_RE_SRQ_TOGGLE_MEM:
 		break;
