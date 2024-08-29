@@ -333,7 +333,7 @@ static void init_rdev_errors(struct regulator_irq *h)
  *			IRQ.
  * @rdev_amount:	Amount of regulators associated with this IRQ.
  *
- * Return: handle to irq_helper or an ERR_PTR() encoded error code.
+ * Return: handle to irq_helper or an ERR_PTR() encoded negative error number.
  */
 void *regulator_irq_helper(struct device *dev,
 			   const struct regulator_irq_desc *d, int irq,

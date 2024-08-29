@@ -3388,7 +3388,7 @@ EXPORT_SYMBOL_GPL(regulator_get_regmap);
  *         voltage selectors.
  *
  * On success, the output parameters @vsel_reg and @vsel_mask are filled in
- * and 0 is returned, otherwise a negative errno is returned.
+ * and 0 is returned, otherwise a negative error number is returned.
  */
 int regulator_get_hardware_vsel_register(struct regulator *regulator,
 					 unsigned *vsel_reg,

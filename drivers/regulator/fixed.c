@@ -129,7 +129,7 @@ static irqreturn_t reg_fixed_under_voltage_irq_handler(int irq, void *data)
  * If it's an optional IRQ and not found, it returns 0.
  * Otherwise, it attempts to request the threaded IRQ.
  *
- * Return: 0 on success, or error code on failure.
+ * Return: 0 on success, or a negative error number on failure.
  */
 static int reg_fixed_get_irqs(struct device *dev,
 			      struct fixed_voltage_data *priv)
