@@ -3676,31 +3676,49 @@ int perf_header__write_pipe(int fd)
 static int perf_session__do_write_header(struct perf_session *session,
 					 struct evlist *evlist,
 					 int fd, bool at_exit,
-					 struct feat_copier *fc)
+					 struct feat_copier *fc,
+					 bool write_attrs_after_data)
 {
 	struct perf_file_header f_header;
-	struct perf_file_attr   f_attr;
 	struct perf_header *header = &session->header;
 	struct evsel *evsel;
 	struct feat_fd ff = {
 		.fd = fd,
 	};
-	u64 attr_offset;
+	u64 attr_offset = sizeof(f_header), attr_size = 0;
 	int err;
 
-	lseek(fd, sizeof(f_header), SEEK_SET);
-
-	evlist__for_each_entry(session->evlist, evsel) {
-		evsel->id_offset = lseek(fd, 0, SEEK_CUR);
-		err = do_write(&ff, evsel->core.id, evsel->core.ids * sizeof(u64));
-		if (err < 0) {
-			pr_debug("failed to write perf header\n");
-			free(ff.buf);
-			return err;
+	if (write_attrs_after_data && at_exit) {
+		/*
+		 * Write features at the end of the file first so that
+		 * attributes may come after them.
+		 */
+		if (!header->data_offset && header->data_size) {
+			pr_err("File contains data but offset unknown\n");
+			err = -1;
+			goto err_out;
 		}
+		header->feat_offset = header->data_offset + header->data_size;
+		err = perf_header__adds_write(header, evlist, fd, fc);
+		if (err < 0)
+			goto err_out;
+		attr_offset = lseek(fd, 0, SEEK_CUR);
+	} else {
+		lseek(fd, attr_offset, SEEK_SET);
 	}
 
-	attr_offset = lseek(ff.fd, 0, SEEK_CUR);
+	evlist__for_each_entry(session->evlist, evsel) {
+		evsel->id_offset = attr_offset;
+		/* Avoid writing at the end of the file until the session is exiting. */
+		if (!write_attrs_after_data || at_exit) {
+			err = do_write(&ff, evsel->core.id, evsel->core.ids * sizeof(u64));
+			if (err < 0) {
+				pr_debug("failed to write perf header\n");
+				goto err_out;
+			}
+		}
+		attr_offset += evsel->core.ids * sizeof(u64);
+	}
 
 	evlist__for_each_entry(evlist, evsel) {
 		if (evsel->core.attr.size < sizeof(evsel->core.attr)) {
@@ -3711,40 +3729,46 @@ static int perf_session__do_write_header(struct perf_session *session,
 			 */
 			evsel->core.attr.size = sizeof(evsel->core.attr);
 		}
-		f_attr = (struct perf_file_attr){
-			.attr = evsel->core.attr,
-			.ids  = {
-				.offset = evsel->id_offset,
-				.size   = evsel->core.ids * sizeof(u64),
+		/* Avoid writing at the end of the file until the session is exiting. */
+		if (!write_attrs_after_data || at_exit) {
+			struct perf_file_attr f_attr = {
+				.attr = evsel->core.attr,
+				.ids  = {
+					.offset = evsel->id_offset,
+					.size   = evsel->core.ids * sizeof(u64),
+				}
+			};
+			err = do_write(&ff, &f_attr, sizeof(f_attr));
+			if (err < 0) {
+				pr_debug("failed to write perf header attribute\n");
+				goto err_out;
 			}
-		};
-		err = do_write(&ff, &f_attr, sizeof(f_attr));
-		if (err < 0) {
-			pr_debug("failed to write perf header attribute\n");
-			free(ff.buf);
-			return err;
 		}
+		attr_size += sizeof(struct perf_file_attr);
 	}
 
-	if (!header->data_offset)
-		header->data_offset = lseek(fd, 0, SEEK_CUR);
+	if (!header->data_offset) {
+		if (write_attrs_after_data)
+			header->data_offset = sizeof(f_header);
+		else
+			header->data_offset = attr_offset + attr_size;
+	}
 	header->feat_offset = header->data_offset + header->data_size;
 
-	if (at_exit) {
+	if (!write_attrs_after_data && at_exit) {
+		/* Write features now feat_offset is known. */
 		err = perf_header__adds_write(header, evlist, fd, fc);
-		if (err < 0) {
-			free(ff.buf);
-			return err;
-		}
+		if (err < 0)
+			goto err_out;
 	}
 
 	f_header = (struct perf_file_header){
 		.magic	   = PERF_MAGIC,
 		.size	   = sizeof(f_header),
-		.attr_size = sizeof(f_attr),
+		.attr_size = sizeof(struct perf_file_attr),
 		.attrs = {
 			.offset = attr_offset,
-			.size   = evlist->core.nr_entries * sizeof(f_attr),
+			.size   = attr_size,
 		},
 		.data = {
 			.offset = header->data_offset,
@@ -3757,21 +3781,24 @@ static int perf_session__do_write_header(struct perf_session *session,
 
 	lseek(fd, 0, SEEK_SET);
 	err = do_write(&ff, &f_header, sizeof(f_header));
-	free(ff.buf);
 	if (err < 0) {
 		pr_debug("failed to write perf header\n");
-		return err;
+		goto err_out;
+	} else {
+		lseek(fd, 0, SEEK_END);
+		err = 0;
 	}
-	lseek(fd, header->data_offset + header->data_size, SEEK_SET);
-
-	return 0;
+err_out:
+	free(ff.buf);
+	return err;
 }
 
 int perf_session__write_header(struct perf_session *session,
 			       struct evlist *evlist,
 			       int fd, bool at_exit)
 {
-	return perf_session__do_write_header(session, evlist, fd, at_exit, NULL);
+	return perf_session__do_write_header(session, evlist, fd, at_exit, /*fc=*/NULL,
+					     /*write_attrs_after_data=*/false);
 }
 
 size_t perf_session__data_offset(const struct evlist *evlist)
@@ -3793,7 +3820,8 @@ int perf_session__inject_header(struct perf_session *session,
 				int fd,
 				struct feat_copier *fc)
 {
-	return perf_session__do_write_header(session, evlist, fd, true, fc);
+	return perf_session__do_write_header(session, evlist, fd, true, fc,
+					     /*write_attrs_after_data=*/false);
 }
 
 static int perf_header__getbuffer64(struct perf_header *header,
