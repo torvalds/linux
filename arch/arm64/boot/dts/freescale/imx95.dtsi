@@ -1607,6 +1607,18 @@
 			status = "disabled";
 		};
 
+		netcmix_blk_ctrl: syscon@4c810000 {
+			compatible = "nxp,imx95-netcmix-blk-ctrl", "syscon";
+			reg = <0x0 0x4c810000 0x0 0x10000>;
+			#clock-cells = <1>;
+			clocks = <&scmi_clk IMX95_CLK_BUSNETCMIX>;
+			assigned-clocks = <&scmi_clk IMX95_CLK_BUSNETCMIX>;
+			assigned-clock-parents = <&scmi_clk IMX95_CLK_SYSPLL1_PFD1_DIV2>;
+			assigned-clock-rates = <133333333>;
+			power-domains = <&scmi_devpd IMX95_PD_NETC>;
+			status = "disabled";
+		};
+
 		sai2: sai@4c880000 {
 			compatible = "fsl,imx95-sai";
 			reg = <0x0 0x4c880000 0x0 0x10000>;
