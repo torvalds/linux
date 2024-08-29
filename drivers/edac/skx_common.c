@@ -363,7 +363,7 @@ int skx_get_dimm_info(u32 mtr, u32 mcmtr, u32 amap, struct dimm_info *dimm,
 	if (imc->hbm_mc) {
 		banks = 32;
 		mtype = MEM_HBM2;
-	} else if (cfg->support_ddr5 && (amap & 0x8)) {
+	} else if (cfg->support_ddr5) {
 		banks = 32;
 		mtype = MEM_DDR5;
 	} else {
