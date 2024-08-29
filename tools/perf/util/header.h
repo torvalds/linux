@@ -61,14 +61,28 @@ struct perf_file_section {
 	u64 size;
 };
 
+/**
+ * struct perf_file_header: Header representation on disk.
+ */
 struct perf_file_header {
+	/** @magic: Holds "PERFILE2". */
 	u64				magic;
+	/** @size: Size of this header - sizeof(struct perf_file_header). */
 	u64				size;
+	/**
+	 * @attr_size: Size of attrs entries - sizeof(struct perf_event_attr) +
+	 * sizeof(struct perf_file_section).
+	 */
 	u64				attr_size;
+	/** @attrs: Offset and size of file section holding attributes. */
 	struct perf_file_section	attrs;
+	/** @data: Offset and size of file section holding regular event data. */
 	struct perf_file_section	data;
-	/* event_types is ignored */
+	/** @event_types: Ignored. */
 	struct perf_file_section	event_types;
+	/**
+	 * @adds_features: Bitmap of features. The features are immediately after the data section.
+	 */
 	DECLARE_BITMAP(adds_features, HEADER_FEAT_BITS);
 };
 
