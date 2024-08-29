@@ -8,6 +8,7 @@ net_device struct fast path usage breakdown
 Type                                Name                    fastpath_tx_access  fastpath_rx_access  Comments
 ..struct                            ..net_device                                                    
 unsigned_long:32                    priv_flags              read_mostly         -                   __dev_queue_xmit(tx)
+unsigned_long:1                     lltx                    read_mostly         -                   HARD_TX_LOCK,HARD_TX_TRYLOCK,HARD_TX_UNLOCK(tx)
 char                                name[16]                -                   -                   
 struct_netdev_name_node*            name_node                                                       
 struct_dev_ifalias*                 ifalias                                                         

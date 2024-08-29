@@ -1764,8 +1764,7 @@ static const struct kobj_type netdev_queue_ktype = {
 
 static bool netdev_uses_bql(const struct net_device *dev)
 {
-	if (dev->features & NETIF_F_LLTX ||
-	    dev->priv_flags & IFF_NO_QUEUE)
+	if (dev->lltx || (dev->priv_flags & IFF_NO_QUEUE))
 		return false;
 
 	return IS_ENABLED(CONFIG_BQL);

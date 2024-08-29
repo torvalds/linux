@@ -553,7 +553,6 @@ static void bareudp_setup(struct net_device *dev)
 	SET_NETDEV_DEVTYPE(dev, &bareudp_type);
 	dev->features    |= NETIF_F_SG | NETIF_F_HW_CSUM | NETIF_F_FRAGLIST;
 	dev->features    |= NETIF_F_RXCSUM;
-	dev->features    |= NETIF_F_LLTX;
 	dev->features    |= NETIF_F_GSO_SOFTWARE;
 	dev->hw_features |= NETIF_F_SG | NETIF_F_HW_CSUM | NETIF_F_FRAGLIST;
 	dev->hw_features |= NETIF_F_RXCSUM;
@@ -566,6 +565,7 @@ static void bareudp_setup(struct net_device *dev)
 	dev->type = ARPHRD_NONE;
 	netif_keep_dst(dev);
 	dev->priv_flags |= IFF_NO_QUEUE;
+	dev->lltx = true;
 	dev->flags = IFF_POINTOPOINT | IFF_NOARP | IFF_MULTICAST;
 	dev->pcpu_stat_type = NETDEV_PCPU_STAT_TSTATS;
 }

@@ -1471,7 +1471,7 @@ static void ip6gre_tnl_init_features(struct net_device *dev)
 {
 	struct ip6_tnl *nt = netdev_priv(dev);
 
-	dev->features		|= GRE6_FEATURES | NETIF_F_LLTX;
+	dev->features		|= GRE6_FEATURES;
 	dev->hw_features	|= GRE6_FEATURES;
 
 	/* TCP offload with GRE SEQ is not supported, nor can we support 2
@@ -1485,6 +1485,8 @@ static void ip6gre_tnl_init_features(struct net_device *dev)
 
 	dev->features |= NETIF_F_GSO_SOFTWARE;
 	dev->hw_features |= NETIF_F_GSO_SOFTWARE;
+
+	dev->lltx = true;
 }
 
 static int ip6gre_tunnel_init_common(struct net_device *dev)

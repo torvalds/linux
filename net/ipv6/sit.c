@@ -1436,7 +1436,7 @@ static void ipip6_tunnel_setup(struct net_device *dev)
 	dev->flags		= IFF_NOARP;
 	netif_keep_dst(dev);
 	dev->addr_len		= 4;
-	dev->features		|= NETIF_F_LLTX;
+	dev->lltx		= true;
 	dev->features		|= SIT_FEATURES;
 	dev->hw_features	|= SIT_FEATURES;
 	dev->pcpu_stat_type	= NETDEV_PCPU_STAT_TSTATS;

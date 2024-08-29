@@ -229,7 +229,7 @@ static int dpaa_netdev_init(struct net_device *net_dev,
 	net_dev->max_mtu = dpaa_get_max_mtu();
 
 	net_dev->hw_features |= (NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
-				 NETIF_F_LLTX | NETIF_F_RXHASH);
+				 NETIF_F_RXHASH);
 
 	net_dev->hw_features |= NETIF_F_SG | NETIF_F_HIGHDMA;
 	/* The kernels enables GSO automatically, if we declare NETIF_F_SG.
@@ -239,6 +239,7 @@ static int dpaa_netdev_init(struct net_device *net_dev,
 	net_dev->features |= NETIF_F_RXCSUM;
 
 	net_dev->priv_flags |= IFF_LIVE_ADDR_CHANGE;
+	net_dev->lltx = true;
 	/* we do not want shared skbs on TX */
 	net_dev->priv_flags &= ~IFF_TX_SKB_SHARING;
 

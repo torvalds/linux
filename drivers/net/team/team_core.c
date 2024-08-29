@@ -2189,8 +2189,8 @@ static void team_setup(struct net_device *dev)
 	 * Let this up to underlay drivers.
 	 */
 	dev->priv_flags |= IFF_UNICAST_FLT | IFF_LIVE_ADDR_CHANGE;
+	dev->lltx = true;
 
-	dev->features |= NETIF_F_LLTX;
 	dev->features |= NETIF_F_GRO;
 
 	/* Don't allow team devices to change network namespaces. */

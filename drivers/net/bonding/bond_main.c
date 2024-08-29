@@ -5928,7 +5928,7 @@ void bond_setup(struct net_device *bond_dev)
 #endif /* CONFIG_XFRM_OFFLOAD */
 
 	/* don't acquire bond device's netif_tx_lock when transmitting */
-	bond_dev->features |= NETIF_F_LLTX;
+	bond_dev->lltx = true;
 
 	/* By default, we declare the bond to be fully
 	 * VLAN hardware accelerated capable. Special
