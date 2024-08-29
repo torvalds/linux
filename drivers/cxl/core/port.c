@@ -941,7 +941,7 @@ struct cxl_root *devm_cxl_add_root(struct device *host,
 
 	port = devm_cxl_add_port(host, host, CXL_RESOURCE_NONE, NULL);
 	if (IS_ERR(port))
-		return (struct cxl_root *)port;
+		return ERR_CAST(port);
 
 	cxl_root = to_cxl_root(port);
 	cxl_root->ops = ops;
