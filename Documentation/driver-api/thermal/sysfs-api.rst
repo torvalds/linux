@@ -58,10 +58,9 @@ temperature) and throttle appropriate devices.
     ops:
 	thermal zone device call-backs.
 
-	.bind:
-		bind the thermal zone device with a thermal cooling device.
-	.unbind:
-		unbind the thermal zone device with a thermal cooling device.
+	.should_bind:
+		check whether or not a given cooling device should be bound to
+		a given trip point in this thermal zone.
 	.get_temp:
 		get the current temperature of the thermal zone.
 	.set_trips:
@@ -246,56 +245,6 @@ temperature) and throttle appropriate devices.
     It deletes the corresponding entry from /sys/class/thermal folder and
     unbinds itself from all the thermal zone devices using it.
 
-1.3 interface for binding a thermal zone device with a thermal cooling device
------------------------------------------------------------------------------
-
-    ::
-
-	int thermal_zone_bind_cooling_device(struct thermal_zone_device *tz,
-		int trip, struct thermal_cooling_device *cdev,
-		unsigned long upper, unsigned long lower, unsigned int weight);
-
-    This interface function binds a thermal cooling device to a particular trip
-    point of a thermal zone device.
-
-    This function is usually called in the thermal zone device .bind callback.
-
-    tz:
-	  the thermal zone device
-    cdev:
-	  thermal cooling device
-    trip:
-	  indicates which trip point in this thermal zone the cooling device
-	  is associated with.
-    upper:
-	  the Maximum cooling state for this trip point.
-	  THERMAL_NO_LIMIT means no upper limit,
-	  and the cooling device can be in max_state.
-    lower:
-	  the Minimum cooling state can be used for this trip point.
-	  THERMAL_NO_LIMIT means no lower limit,
-	  and the cooling device can be in cooling state 0.
-    weight:
-	  the influence of this cooling device in this thermal
-	  zone.  See 1.4.1 below for more information.
-
-    ::
-
-	int thermal_zone_unbind_cooling_device(struct thermal_zone_device *tz,
-				int trip, struct thermal_cooling_device *cdev);
-
-    This interface function unbinds a thermal cooling device from a particular
-    trip point of a thermal zone device. This function is usually called in
-    the thermal zone device .unbind callback.
-
-    tz:
-	the thermal zone device
-    cdev:
-	thermal cooling device
-    trip:
-	indicates which trip point in this thermal zone the cooling device
-	is associated with.
-
 1.4 Thermal Zone Parameters
 ---------------------------
 
@@ -366,8 +315,6 @@ Thermal cooling device sys I/F, created once it's registered::
 
 Then next two dynamic attributes are created/removed in pairs. They represent
 the relationship between a thermal zone and its associated cooling device.
-They are created/removed for each successful execution of
-thermal_zone_bind_cooling_device/thermal_zone_unbind_cooling_device.
 
 ::
 
@@ -459,14 +406,7 @@ are supposed to implement the callback. If they don't, the thermal
 framework calculated the trend by comparing the previous and the current
 temperature values.
 
-4.2. get_thermal_instance
--------------------------
-
-This function returns the thermal_instance corresponding to a given
-{thermal_zone, cooling_device, trip_point} combination. Returns NULL
-if such an instance does not exist.
-
-4.3. thermal_cdev_update
+4.2. thermal_cdev_update
 ------------------------
 
 This function serves as an arbitrator to set the state of a cooling

@@ -303,33 +303,37 @@ stop_channel:
 	return 0;
 }
 
-static void tegra_tsensor_get_hw_channel_trips(struct thermal_zone_device *tzd,
-					       int *hot_trip, int *crit_trip)
-{
-	unsigned int i;
+struct trip_temps {
+	int hot_trip;
+	int crit_trip;
+};
 
+static int tegra_tsensor_get_trips_cb(struct thermal_trip *trip, void *arg)
+{
+	struct trip_temps *temps = arg;
+
+	if (trip->type == THERMAL_TRIP_HOT)
+		temps->hot_trip = trip->temperature;
+	else if (trip->type == THERMAL_TRIP_CRITICAL)
+		temps->crit_trip = trip->temperature;
+
+	return 0;
+}
+
+static void tegra_tsensor_get_hw_channel_trips(struct thermal_zone_device *tzd,
+					       struct trip_temps *temps)
+{
 	/*
 	 * 90C is the maximal critical temperature of all Tegra30 SoC variants,
 	 * use it for the default trip if unspecified in a device-tree.
 	 */
-	*hot_trip  = 85000;
-	*crit_trip = 90000;
+	temps->hot_trip  = 85000;
+	temps->crit_trip = 90000;
 
-	for (i = 0; i < thermal_zone_get_num_trips(tzd); i++) {
-
-		struct thermal_trip trip;
-
-		thermal_zone_get_trip(tzd, i, &trip);
-
-		if (trip.type == THERMAL_TRIP_HOT)
-			*hot_trip = trip.temperature;
-
-		if (trip.type == THERMAL_TRIP_CRITICAL)
-			*crit_trip = trip.temperature;
-	}
+	thermal_zone_for_each_trip(tzd, tegra_tsensor_get_trips_cb, temps);
 
 	/* clamp hardware trips to the calibration limits */
-	*hot_trip = clamp(*hot_trip, 25000, 90000);
+	temps->hot_trip = clamp(temps->hot_trip, 25000, 90000);
 
 	/*
 	 * Kernel will perform a normal system shut down if it will
@@ -338,7 +342,7 @@ static void tegra_tsensor_get_hw_channel_trips(struct thermal_zone_device *tzd,
 	 * shut down gracefully before sending signal to the Power
 	 * Management controller.
 	 */
-	*crit_trip = clamp(*crit_trip + 5000, 25000, 90000);
+	temps->crit_trip = clamp(temps->crit_trip + 5000, 25000, 90000);
 }
 
 static int tegra_tsensor_enable_hw_channel(const struct tegra_tsensor *ts,
@@ -346,7 +350,8 @@ static int tegra_tsensor_enable_hw_channel(const struct tegra_tsensor *ts,
 {
 	const struct tegra_tsensor_channel *tsc = &ts->ch[id];
 	struct thermal_zone_device *tzd = tsc->tzd;
-	int err, hot_trip = 0, crit_trip = 0;
+	struct trip_temps temps = { 0 };
+	int err;
 	u32 val;
 
 	if (!tzd) {
@@ -357,24 +362,24 @@ static int tegra_tsensor_enable_hw_channel(const struct tegra_tsensor *ts,
 		return 0;
 	}
 
-	tegra_tsensor_get_hw_channel_trips(tzd, &hot_trip, &crit_trip);
+	tegra_tsensor_get_hw_channel_trips(tzd, &temps);
 
 	dev_info_once(ts->dev, "ch%u: PMC emergency shutdown trip set to %dC\n",
-		      id, DIV_ROUND_CLOSEST(crit_trip, 1000));
+		      id, DIV_ROUND_CLOSEST(temps.crit_trip, 1000));
 
-	hot_trip  = tegra_tsensor_temp_to_counter(ts, hot_trip);
-	crit_trip = tegra_tsensor_temp_to_counter(ts, crit_trip);
+	temps.hot_trip  = tegra_tsensor_temp_to_counter(ts, temps.hot_trip);
+	temps.crit_trip = tegra_tsensor_temp_to_counter(ts, temps.crit_trip);
 
 	/* program LEVEL2 counter threshold */
 	val = readl_relaxed(tsc->regs + TSENSOR_SENSOR0_CONFIG1);
 	val &= ~TSENSOR_SENSOR0_CONFIG1_TH2;
-	val |= FIELD_PREP(TSENSOR_SENSOR0_CONFIG1_TH2, hot_trip);
+	val |= FIELD_PREP(TSENSOR_SENSOR0_CONFIG1_TH2, temps.hot_trip);
 	writel_relaxed(val, tsc->regs + TSENSOR_SENSOR0_CONFIG1);
 
 	/* program LEVEL3 counter threshold */
 	val = readl_relaxed(tsc->regs + TSENSOR_SENSOR0_CONFIG2);
 	val &= ~TSENSOR_SENSOR0_CONFIG2_TH3;
-	val |= FIELD_PREP(TSENSOR_SENSOR0_CONFIG2_TH3, crit_trip);
+	val |= FIELD_PREP(TSENSOR_SENSOR0_CONFIG2_TH3, temps.crit_trip);
 	writel_relaxed(val, tsc->regs + TSENSOR_SENSOR0_CONFIG2);
 
 	/*
