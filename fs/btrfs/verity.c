@@ -460,7 +460,7 @@ static int rollback_verity(struct btrfs_inode *inode)
 	struct btrfs_root *root = inode->root;
 	int ret;
 
-	ASSERT(inode_is_locked(&inode->vfs_inode));
+	btrfs_assert_inode_locked(inode);
 	truncate_inode_pages(inode->vfs_inode.i_mapping, inode->vfs_inode.i_size);
 	clear_bit(BTRFS_INODE_VERITY_IN_PROGRESS, &inode->runtime_flags);
 	ret = btrfs_drop_verity_items(inode);
@@ -585,7 +585,7 @@ static int btrfs_begin_enable_verity(struct file *filp)
 	struct btrfs_trans_handle *trans;
 	int ret;
 
-	ASSERT(inode_is_locked(file_inode(filp)));
+	btrfs_assert_inode_locked(inode);
 
 	if (test_bit(BTRFS_INODE_VERITY_IN_PROGRESS, &inode->runtime_flags))
 		return -EBUSY;
@@ -633,7 +633,7 @@ static int btrfs_end_enable_verity(struct file *filp, const void *desc,
 	int ret = 0;
 	int rollback_ret;
 
-	ASSERT(inode_is_locked(file_inode(filp)));
+	btrfs_assert_inode_locked(inode);
 
 	if (desc == NULL)
 		goto rollback;

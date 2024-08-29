@@ -1617,7 +1617,7 @@ int btrfs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 	if (current->journal_info == BTRFS_TRANS_DIO_WRITE_STUB) {
 		skip_ilock = true;
 		current->journal_info = NULL;
-		lockdep_assert_held(&inode->vfs_inode.i_rwsem);
+		btrfs_assert_inode_locked(inode);
 	}
 
 	trace_btrfs_sync_file(file, datasync);

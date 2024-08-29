@@ -505,6 +505,14 @@ static inline bool btrfs_inode_can_compress(const struct btrfs_inode *inode)
 	return true;
 }
 
+static inline void btrfs_assert_inode_locked(struct btrfs_inode *inode)
+{
+	/* Immediately trigger a crash if the inode is not locked. */
+	ASSERT(inode_is_locked(&inode->vfs_inode));
+	/* Trigger a splat in dmesg if this task is not holding the lock. */
+	lockdep_assert_held(&inode->vfs_inode.i_rwsem);
+}
+
 /* Array of bytes with variable length, hexadecimal format 0x1234 */
 #define CSUM_FMT				"0x%*phN"
 #define CSUM_FMT_VALUE(size, bytes)		size, bytes
