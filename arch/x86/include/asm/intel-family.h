@@ -47,6 +47,8 @@
 /* Wildcard match for FAM6 so X86_MATCH_VFM(ANY) works */
 #define INTEL_ANY			IFM(X86_FAMILY_ANY, X86_MODEL_ANY)
 
+#define INTEL_PENTIUM_PRO		IFM(6, 0x01)
+
 #define INTEL_FAM6_CORE_YONAH		0x0E
 #define INTEL_CORE_YONAH		IFM(6, 0x0E)
 
