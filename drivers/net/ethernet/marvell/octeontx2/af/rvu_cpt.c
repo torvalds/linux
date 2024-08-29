@@ -22,6 +22,9 @@
 /* Interrupt vector count of CPT RVU and RAS interrupts */
 #define CPT_10K_AF_RVU_RAS_INT_VEC_CNT  2
 
+/* Default CPT_AF_RXC_CFG1:max_rxc_icb_cnt */
+#define CPT_DFLT_MAX_RXC_ICB_CNT  0xC0ULL
+
 #define cpt_get_eng_sts(e_min, e_max, rsp, etype)                   \
 ({                                                                  \
 	u64 free_sts = 0, busy_sts = 0;                             \
@@ -737,6 +740,7 @@ static bool validate_and_update_reg_offset(struct rvu *rvu,
 		case CPT_AF_BLK_RST:
 		case CPT_AF_CONSTANTS1:
 		case CPT_AF_CTX_FLUSH_TIMER:
+		case CPT_AF_RXC_CFG1:
 			return true;
 		}
 
@@ -1285,15 +1289,29 @@ unlock:
 	return 0;
 }
 
+#define MAX_RXC_ICB_CNT  GENMASK_ULL(40, 32)
+
 int rvu_cpt_init(struct rvu *rvu)
 {
 	struct rvu_hwinfo *hw = rvu->hw;
+	u64 reg_val;
 
 	/* Retrieve CPT PF number */
 	rvu->cpt_pf_num = get_cpt_pf_num(rvu);
 	if (is_block_implemented(rvu->hw, BLKADDR_CPT0) && !is_rvu_otx2(rvu) &&
 	    !is_cn10kb(rvu))
 		hw->cap.cpt_rxc = true;
+
+	if (hw->cap.cpt_rxc && !is_cn10ka_a0(rvu) && !is_cn10ka_a1(rvu)) {
+		/* Set CPT_AF_RXC_CFG1:max_rxc_icb_cnt to 0xc0 to not effect
+		 * inline inbound peak performance
+		 */
+		reg_val = rvu_read64(rvu, BLKADDR_CPT0, CPT_AF_RXC_CFG1);
+		reg_val &= ~MAX_RXC_ICB_CNT;
+		reg_val |= FIELD_PREP(MAX_RXC_ICB_CNT,
+				      CPT_DFLT_MAX_RXC_ICB_CNT);
+		rvu_write64(rvu, BLKADDR_CPT0, CPT_AF_RXC_CFG1, reg_val);
+	}
 
 	spin_lock_init(&rvu->cpt_intr_lock);
 
