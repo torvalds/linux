@@ -28,7 +28,9 @@ The "identifier" sysfs file allows users to identify the version of the
 PMU hardware device.
 
 The "bus" sysfs file allows users to get the bus number of Root Ports
-monitored by PMU.
+monitored by PMU. Furthermore users can get the Root Ports range in
+[bdf_min, bdf_max] from "bdf_min" and "bdf_max" sysfs attributes
+respectively.
 
 Example usage of perf::
 

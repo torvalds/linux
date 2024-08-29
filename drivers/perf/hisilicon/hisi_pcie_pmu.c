@@ -141,6 +141,22 @@ static ssize_t bus_show(struct device *dev, struct device_attribute *attr, char 
 }
 static DEVICE_ATTR_RO(bus);
 
+static ssize_t bdf_min_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct hisi_pcie_pmu *pcie_pmu = to_pcie_pmu(dev_get_drvdata(dev));
+
+	return sysfs_emit(buf, "%#04x\n", pcie_pmu->bdf_min);
+}
+static DEVICE_ATTR_RO(bdf_min);
+
+static ssize_t bdf_max_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct hisi_pcie_pmu *pcie_pmu = to_pcie_pmu(dev_get_drvdata(dev));
+
+	return sysfs_emit(buf, "%#04x\n", pcie_pmu->bdf_max);
+}
+static DEVICE_ATTR_RO(bdf_max);
+
 static struct hisi_pcie_reg_pair
 hisi_pcie_parse_reg_value(struct hisi_pcie_pmu *pcie_pmu, u32 reg_off)
 {
@@ -763,6 +779,8 @@ static const struct attribute_group hisi_pcie_pmu_format_group = {
 
 static struct attribute *hisi_pcie_pmu_bus_attrs[] = {
 	&dev_attr_bus.attr,
+	&dev_attr_bdf_max.attr,
+	&dev_attr_bdf_min.attr,
 	NULL
 };
 
