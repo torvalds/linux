@@ -158,8 +158,10 @@ static int reg_fixed_get_irqs(struct device *dev,
  * @desc: regulator description
  *
  * Populates fixed_voltage_config structure by extracting data from device
- * tree node, returns a pointer to the populated structure of NULL if memory
- * alloc fails.
+ * tree node.
+ *
+ * Return: Pointer to a populated &struct fixed_voltage_config or %NULL if
+ *	   memory allocation fails.
  */
 static struct fixed_voltage_config *
 of_get_fixed_voltage_config(struct device *dev,
