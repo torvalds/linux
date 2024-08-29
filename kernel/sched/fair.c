@@ -5456,6 +5456,13 @@ static void clear_buddies(struct cfs_rq *cfs_rq, struct sched_entity *se)
 
 static __always_inline void return_cfs_rq_runtime(struct cfs_rq *cfs_rq);
 
+static inline void finish_delayed_dequeue_entity(struct sched_entity *se)
+{
+	se->sched_delayed = 0;
+	if (sched_feat(DELAY_ZERO) && se->vlag > 0)
+		se->vlag = 0;
+}
+
 static bool
 dequeue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int flags)
 {
@@ -5531,11 +5538,8 @@ dequeue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int flags)
 	if ((flags & (DEQUEUE_SAVE | DEQUEUE_MOVE)) != DEQUEUE_SAVE)
 		update_min_vruntime(cfs_rq);
 
-	if (flags & DEQUEUE_DELAYED) {
-		se->sched_delayed = 0;
-		if (sched_feat(DELAY_ZERO) && se->vlag > 0)
-			se->vlag = 0;
-	}
+	if (flags & DEQUEUE_DELAYED)
+		finish_delayed_dequeue_entity(se);
 
 	if (cfs_rq->nr_running == 0)
 		update_idle_cfs_rq_clock_pelt(cfs_rq);
@@ -13107,11 +13111,16 @@ static void switched_from_fair(struct rq *rq, struct task_struct *p)
 	 * and we cannot use DEQUEUE_DELAYED.
 	 */
 	if (p->se.sched_delayed) {
+		/* First, dequeue it from its new class' structures */
 		dequeue_task(rq, p, DEQUEUE_NOCLOCK | DEQUEUE_SLEEP);
-		p->se.sched_delayed = 0;
+		/*
+		 * Now, clean up the fair_sched_class side of things
+		 * related to sched_delayed being true and that wasn't done
+		 * due to the generic dequeue not using DEQUEUE_DELAYED.
+		 */
+		finish_delayed_dequeue_entity(&p->se);
 		p->se.rel_deadline = 0;
-		if (sched_feat(DELAY_ZERO) && p->se.vlag > 0)
-			p->se.vlag = 0;
+		__block_task(rq, p);
 	}
 }
 
