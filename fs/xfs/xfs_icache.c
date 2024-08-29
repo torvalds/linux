@@ -304,32 +304,6 @@ xfs_perag_clear_inode_tag(
  * Find the next AG after @pag, or the first AG if @pag is NULL.
  */
 static struct xfs_perag *
-xfs_perag_get_next_tag(
-	struct xfs_mount	*mp,
-	struct xfs_perag	*pag,
-	unsigned int		tag)
-{
-	unsigned long		index = 0;
-
-	if (pag) {
-		index = pag->pag_agno + 1;
-		xfs_perag_rele(pag);
-	}
-
-	rcu_read_lock();
-	pag = xa_find(&mp->m_perags, &index, ULONG_MAX, ici_tag_to_mark(tag));
-	if (pag) {
-		trace_xfs_perag_get_next_tag(pag, _RET_IP_);
-		atomic_inc(&pag->pag_ref);
-	}
-	rcu_read_unlock();
-	return pag;
-}
-
-/*
- * Find the next AG after @pag, or the first AG if @pag is NULL.
- */
-static struct xfs_perag *
 xfs_perag_grab_next_tag(
 	struct xfs_mount	*mp,
 	struct xfs_perag	*pag,
@@ -1080,11 +1054,17 @@ long
 xfs_reclaim_inodes_count(
 	struct xfs_mount	*mp)
 {
-	struct xfs_perag	*pag = NULL;
+	XA_STATE		(xas, &mp->m_perags, 0);
 	long			reclaimable = 0;
+	struct xfs_perag	*pag;
 
-	while ((pag = xfs_perag_get_next_tag(mp, pag, XFS_ICI_RECLAIM_TAG)))
+	rcu_read_lock();
+	xas_for_each_marked(&xas, pag, ULONG_MAX, XFS_PERAG_RECLAIM_MARK) {
+		trace_xfs_reclaim_inodes_count(pag, _THIS_IP_);
 		reclaimable += pag->pag_ici_reclaimable;
+	}
+	rcu_read_unlock();
+
 	return reclaimable;
 }
 
