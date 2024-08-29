@@ -4113,13 +4113,8 @@ static int perf_file_section__process(struct perf_file_section *section,
 
 static int perf_file_header__read_pipe(struct perf_pipe_file_header *header,
 				       struct perf_header *ph,
-				       struct perf_data* data,
-				       bool repipe, int repipe_fd)
+				       struct perf_data *data)
 {
-	struct feat_fd ff = {
-		.fd = repipe_fd,
-		.ph = ph,
-	};
 	ssize_t ret;
 
 	ret = perf_data__read(data, header, sizeof(*header));
@@ -4134,19 +4129,15 @@ static int perf_file_header__read_pipe(struct perf_pipe_file_header *header,
 	if (ph->needs_swap)
 		header->size = bswap_64(header->size);
 
-	if (repipe && do_write(&ff, header, sizeof(*header)) < 0)
-		return -1;
-
 	return 0;
 }
 
-static int perf_header__read_pipe(struct perf_session *session, int repipe_fd)
+static int perf_header__read_pipe(struct perf_session *session)
 {
 	struct perf_header *header = &session->header;
 	struct perf_pipe_file_header f_header;
 
-	if (perf_file_header__read_pipe(&f_header, header, session->data,
-					/*repipe=*/false, repipe_fd) < 0) {
+	if (perf_file_header__read_pipe(&f_header, header, session->data) < 0) {
 		pr_debug("incompatible file format\n");
 		return -EINVAL;
 	}
@@ -4246,7 +4237,7 @@ static int evlist__prepare_tracepoint_events(struct evlist *evlist, struct tep_h
 }
 #endif
 
-int perf_session__read_header(struct perf_session *session, int repipe_fd)
+int perf_session__read_header(struct perf_session *session)
 {
 	struct perf_data *data = session->data;
 	struct perf_header *header = &session->header;
@@ -4267,7 +4258,7 @@ int perf_session__read_header(struct perf_session *session, int repipe_fd)
 	 * We can read 'pipe' data event from regular file,
 	 * check for the pipe header regardless of source.
 	 */
-	err = perf_header__read_pipe(session, repipe_fd);
+	err = perf_header__read_pipe(session);
 	if (!err || perf_data__is_pipe(data)) {
 		data->is_pipe = true;
 		return err;
