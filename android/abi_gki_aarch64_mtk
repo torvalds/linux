@@ -554,6 +554,8 @@
   devm_request_threaded_irq
   __devm_reset_control_get
   devm_reset_controller_register
+  devm_rproc_add
+  devm_rproc_alloc
   devm_rtc_allocate_device
   devm_rtc_nvmem_register
   __devm_rtc_register_device

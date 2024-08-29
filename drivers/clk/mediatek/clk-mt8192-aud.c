@@ -87,7 +87,8 @@ static int clk_mt8192_aud_probe(struct platform_device *pdev)
 	if (!clk_data)
 		return -ENOMEM;
 
-	r = mtk_clk_register_gates(node, aud_clks, ARRAY_SIZE(aud_clks), clk_data);
+	r = mtk_clk_register_gates(&pdev->dev, node, aud_clks,
+				   ARRAY_SIZE(aud_clks), clk_data);
 	if (r)
 		return r;
 
