@@ -3986,6 +3986,24 @@ int perf_file_header__read(struct perf_file_header *header,
 			     adds_features));
 	}
 
+	if (header->size > header->attrs.offset) {
+		pr_err("Perf file header corrupt: header overlaps attrs\n");
+		return -1;
+	}
+
+	if (header->size > header->data.offset) {
+		pr_err("Perf file header corrupt: header overlaps data\n");
+		return -1;
+	}
+
+	if ((header->attrs.offset <= header->data.offset &&
+	     header->attrs.offset + header->attrs.size > header->data.offset) ||
+	    (header->attrs.offset > header->data.offset &&
+	     header->data.offset + header->data.size > header->attrs.offset)) {
+		pr_err("Perf file header corrupt: Attributes and data overlap\n");
+		return -1;
+	}
+
 	if (header->size != sizeof(*header)) {
 		/* Support the previous format */
 		if (header->size == offsetof(typeof(*header), adds_features))
