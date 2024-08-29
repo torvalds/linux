@@ -122,6 +122,8 @@ struct netns_ipv4 {
 	u8 sysctl_icmp_errors_use_inbound_ifaddr;
 	int sysctl_icmp_ratelimit;
 	int sysctl_icmp_ratemask;
+	int sysctl_icmp_msgs_per_sec;
+	int sysctl_icmp_msgs_burst;
 	atomic_t icmp_global_credit;
 	u32 icmp_global_stamp;
 	u32 ip_rt_min_pmtu;

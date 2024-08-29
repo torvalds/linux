@@ -797,9 +797,6 @@ static inline void ip_cmsg_recv(struct msghdr *msg, struct sk_buff *skb)
 bool icmp_global_allow(struct net *net);
 void icmp_global_consume(struct net *net);
 
-extern int sysctl_icmp_msgs_per_sec;
-extern int sysctl_icmp_msgs_burst;
-
 #ifdef CONFIG_PROC_FS
 int ip_misc_proc_init(void);
 #endif
