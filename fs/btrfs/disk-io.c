@@ -2785,6 +2785,7 @@ void btrfs_init_fs_info(struct btrfs_fs_info *fs_info)
 	btrfs_init_scrub(fs_info);
 	btrfs_init_balance(fs_info);
 	btrfs_init_async_reclaim_work(fs_info);
+	btrfs_init_extent_map_shrinker_work(fs_info);
 
 	rwlock_init(&fs_info->block_group_cache_lock);
 	fs_info->block_group_cache_tree = RB_ROOT_CACHED;
@@ -4292,6 +4293,7 @@ void __cold close_ctree(struct btrfs_fs_info *fs_info)
 	cancel_work_sync(&fs_info->async_reclaim_work);
 	cancel_work_sync(&fs_info->async_data_reclaim_work);
 	cancel_work_sync(&fs_info->preempt_reclaim_work);
+	cancel_work_sync(&fs_info->extent_map_shrinker_work);
 
 	/* Cancel or finish ongoing discard work */
 	btrfs_discard_cleanup(fs_info);

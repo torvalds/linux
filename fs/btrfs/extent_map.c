@@ -1124,7 +1124,8 @@ struct btrfs_em_shrink_ctx {
 
 static long btrfs_scan_inode(struct btrfs_inode *inode, struct btrfs_em_shrink_ctx *ctx)
 {
-	const u64 cur_fs_gen = btrfs_get_fs_generation(inode->root->fs_info);
+	struct btrfs_fs_info *fs_info = inode->root->fs_info;
+	const u64 cur_fs_gen = btrfs_get_fs_generation(fs_info);
 	struct extent_map_tree *tree = &inode->extent_tree;
 	long nr_dropped = 0;
 	struct rb_node *node;
@@ -1197,7 +1198,8 @@ next:
 		 * lock. This is to avoid slowing other tasks trying to take the
 		 * lock.
 		 */
-		if (need_resched() || rwlock_needbreak(&tree->lock))
+		if (need_resched() || rwlock_needbreak(&tree->lock) ||
+		    btrfs_fs_closing(fs_info))
 			break;
 		node = next;
 	}
@@ -1221,7 +1223,8 @@ static long btrfs_scan_root(struct btrfs_root *root, struct btrfs_em_shrink_ctx 
 		ctx->last_ino = btrfs_ino(inode);
 		btrfs_add_delayed_iput(inode);
 
-		if (ctx->scanned >= ctx->nr_to_scan)
+		if (ctx->scanned >= ctx->nr_to_scan ||
+		    btrfs_fs_closing(inode->root->fs_info))
 			break;
 
 		cond_resched();
@@ -1250,16 +1253,19 @@ static long btrfs_scan_root(struct btrfs_root *root, struct btrfs_em_shrink_ctx 
 	return nr_dropped;
 }
 
-long btrfs_free_extent_maps(struct btrfs_fs_info *fs_info, long nr_to_scan)
+static void btrfs_extent_map_shrinker_worker(struct work_struct *work)
 {
+	struct btrfs_fs_info *fs_info;
 	struct btrfs_em_shrink_ctx ctx;
 	u64 start_root_id;
 	u64 next_root_id;
 	bool cycled = false;
 	long nr_dropped = 0;
 
+	fs_info = container_of(work, struct btrfs_fs_info, extent_map_shrinker_work);
+
 	ctx.scanned = 0;
-	ctx.nr_to_scan = nr_to_scan;
+	ctx.nr_to_scan = atomic64_read(&fs_info->extent_map_shrinker_nr_to_scan);
 
 	/*
 	 * In case we have multiple tasks running this shrinker, make the next
@@ -1277,12 +1283,12 @@ long btrfs_free_extent_maps(struct btrfs_fs_info *fs_info, long nr_to_scan)
 	if (trace_btrfs_extent_map_shrinker_scan_enter_enabled()) {
 		s64 nr = percpu_counter_sum_positive(&fs_info->evictable_extent_maps);
 
-		trace_btrfs_extent_map_shrinker_scan_enter(fs_info, nr_to_scan,
+		trace_btrfs_extent_map_shrinker_scan_enter(fs_info, ctx.nr_to_scan,
 							   nr, ctx.last_root,
 							   ctx.last_ino);
 	}
 
-	while (ctx.scanned < ctx.nr_to_scan) {
+	while (ctx.scanned < ctx.nr_to_scan && !btrfs_fs_closing(fs_info)) {
 		struct btrfs_root *root;
 		unsigned long count;
 
@@ -1340,5 +1346,34 @@ long btrfs_free_extent_maps(struct btrfs_fs_info *fs_info, long nr_to_scan)
 							  ctx.last_ino);
 	}
 
-	return nr_dropped;
+	atomic64_set(&fs_info->extent_map_shrinker_nr_to_scan, 0);
+}
+
+void btrfs_free_extent_maps(struct btrfs_fs_info *fs_info, long nr_to_scan)
+{
+	/*
+	 * Do nothing if the shrinker is already running. In case of high memory
+	 * pressure we can have a lot of tasks calling us and all passing the
+	 * same nr_to_scan value, but in reality we may need only to free
+	 * nr_to_scan extent maps (or less). In case we need to free more than
+	 * that, we will be called again by the fs shrinker, so no worries about
+	 * not doing enough work to reclaim memory from extent maps.
+	 * We can also be repeatedly called with the same nr_to_scan value
+	 * simply because the shrinker runs asynchronously and multiple calls
+	 * to this function are made before the shrinker does enough progress.
+	 *
+	 * That's why we set the atomic counter to nr_to_scan only if its
+	 * current value is zero, instead of incrementing the counter by
+	 * nr_to_scan.
+	 */
+	if (atomic64_cmpxchg(&fs_info->extent_map_shrinker_nr_to_scan, 0, nr_to_scan) != 0)
+		return;
+
+	queue_work(system_unbound_wq, &fs_info->extent_map_shrinker_work);
+}
+
+void btrfs_init_extent_map_shrinker_work(struct btrfs_fs_info *fs_info)
+{
+	atomic64_set(&fs_info->extent_map_shrinker_nr_to_scan, 0);
+	INIT_WORK(&fs_info->extent_map_shrinker_work, btrfs_extent_map_shrinker_worker);
 }
