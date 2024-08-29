@@ -949,7 +949,18 @@ static int alc_init(struct hda_codec *codec)
 	return 0;
 }
 
-#define alc_free	snd_hda_gen_free
+/* forward declaration */
+static const struct component_master_ops comp_master_ops;
+
+static void alc_free(struct hda_codec *codec)
+{
+	struct alc_spec *spec = codec->spec;
+
+	if (spec)
+		hda_component_manager_free(&spec->comps, &comp_master_ops);
+
+	snd_hda_gen_free(codec);
+}
 
 static inline void alc_shutup(struct hda_codec *codec)
 {
@@ -6879,14 +6890,12 @@ static void comp_generic_fixup(struct hda_codec *cdc, int action, const char *bu
 		spec->gen.pcm_playback_hook = comp_generic_playback_hook;
 		break;
 	case HDA_FIXUP_ACT_FREE:
-		hda_component_manager_free(cdc, &comp_master_ops);
+		hda_component_manager_free(&spec->comps, &comp_master_ops);
 		break;
 	}
 }
 
-static void cs35lxx_autodet_fixup(struct hda_codec *cdc,
-				  const struct hda_fixup *fix,
-				  int action)
+static void find_cirrus_companion_amps(struct hda_codec *cdc)
 {
 	struct device *dev = hda_codec_dev(cdc);
 	struct acpi_device *adev;
@@ -6901,67 +6910,53 @@ static void cs35lxx_autodet_fixup(struct hda_codec *cdc,
 	char *match;
 	int i, count = 0, count_devindex = 0;
 
-	switch (action) {
-	case HDA_FIXUP_ACT_PRE_PROBE:
-		for (i = 0; i < ARRAY_SIZE(acpi_ids); ++i) {
-			adev = acpi_dev_get_first_match_dev(acpi_ids[i].hid, NULL, -1);
-			if (adev)
-				break;
-		}
-		if (!adev) {
-			dev_err(dev, "Failed to find ACPI entry for a Cirrus Amp\n");
-			return;
-		}
-
-		count = i2c_acpi_client_count(adev);
-		if (count > 0) {
-			bus = "i2c";
-		} else {
-			count = acpi_spi_count_resources(adev);
-			if (count > 0)
-				bus = "spi";
-		}
-
-		fwnode = fwnode_handle_get(acpi_fwnode_handle(adev));
-		acpi_dev_put(adev);
-
-		if (!bus) {
-			dev_err(dev, "Did not find any buses for %s\n", acpi_ids[i].hid);
-			return;
-		}
-
-		if (!fwnode) {
-			dev_err(dev, "Could not get fwnode for %s\n", acpi_ids[i].hid);
-			return;
-		}
-
-		/*
-		 * When available the cirrus,dev-index property is an accurate
-		 * count of the amps in a system and is used in preference to
-		 * the count of bus devices that can contain additional address
-		 * alias entries.
-		 */
-		count_devindex = fwnode_property_count_u32(fwnode, "cirrus,dev-index");
-		if (count_devindex > 0)
-			count = count_devindex;
-
-		match = devm_kasprintf(dev, GFP_KERNEL, "-%%s:00-%s.%%d", acpi_ids[i].name);
-		if (!match)
-			return;
-		dev_info(dev, "Found %d %s on %s (%s)\n", count, acpi_ids[i].hid, bus, match);
-		comp_generic_fixup(cdc, action, bus, acpi_ids[i].hid, match, count);
-
-		break;
-	case HDA_FIXUP_ACT_FREE:
-		/*
-		 * Pass the action on to comp_generic_fixup() so that
-		 * hda_component_manager functions can be called in just once
-		 * place. In this context the bus, hid, match_str or count
-		 * values do not need to be calculated.
-		 */
-		comp_generic_fixup(cdc, action, NULL, NULL, NULL, 0);
-		break;
+	for (i = 0; i < ARRAY_SIZE(acpi_ids); ++i) {
+		adev = acpi_dev_get_first_match_dev(acpi_ids[i].hid, NULL, -1);
+		if (adev)
+			break;
 	}
+	if (!adev) {
+		codec_dbg(cdc, "Did not find ACPI entry for a Cirrus Amp\n");
+		return;
+	}
+
+	count = i2c_acpi_client_count(adev);
+	if (count > 0) {
+		bus = "i2c";
+	} else {
+		count = acpi_spi_count_resources(adev);
+		if (count > 0)
+			bus = "spi";
+	}
+
+	fwnode = fwnode_handle_get(acpi_fwnode_handle(adev));
+	acpi_dev_put(adev);
+
+	if (!bus) {
+		codec_err(cdc, "Did not find any buses for %s\n", acpi_ids[i].hid);
+		return;
+	}
+
+	if (!fwnode) {
+		codec_err(cdc, "Could not get fwnode for %s\n", acpi_ids[i].hid);
+		return;
+	}
+
+	/*
+	 * When available the cirrus,dev-index property is an accurate
+	 * count of the amps in a system and is used in preference to
+	 * the count of bus devices that can contain additional address
+	 * alias entries.
+	 */
+	count_devindex = fwnode_property_count_u32(fwnode, "cirrus,dev-index");
+	if (count_devindex > 0)
+		count = count_devindex;
+
+	match = devm_kasprintf(dev, GFP_KERNEL, "-%%s:00-%s.%%d", acpi_ids[i].name);
+	if (!match)
+		return;
+	codec_info(cdc, "Found %d %s on %s (%s)\n", count, acpi_ids[i].hid, bus, match);
+	comp_generic_fixup(cdc, HDA_FIXUP_ACT_PRE_PROBE, bus, acpi_ids[i].hid, match, count);
 }
 
 static void cs35l41_fixup_i2c_two(struct hda_codec *cdc, const struct hda_fixup *fix, int action)
@@ -7002,9 +6997,7 @@ static void alc285_fixup_asus_ga403u(struct hda_codec *cdc, const struct hda_fix
 	 * The same SSID has been re-used in different hardware, they have
 	 * different codecs and the newer GA403U has a ALC285.
 	 */
-	if (cdc->core.vendor_id == 0x10ec0285)
-		cs35lxx_autodet_fixup(cdc, fix, action);
-	else
+	if (cdc->core.vendor_id != 0x10ec0285)
 		alc_fixup_inv_dmic(cdc, fix, action);
 }
 
@@ -7601,7 +7594,6 @@ enum {
 	ALC2XX_FIXUP_HEADSET_MIC,
 	ALC289_FIXUP_DELL_CS35L41_SPI_2,
 	ALC294_FIXUP_CS35L41_I2C_2,
-	ALC245_FIXUP_CS35L56_SPI_4_HP_GPIO_LED,
 	ALC256_FIXUP_ACER_SFG16_MICMUTE_LED,
 	ALC256_FIXUP_HEADPHONE_AMP_VOL,
 	ALC245_FIXUP_HP_SPECTRE_X360_EU0XXX,
@@ -7614,7 +7606,6 @@ enum {
 	ALC256_FIXUP_CHROME_BOOK,
 	ALC287_FIXUP_LENOVO_14ARP8_LEGION_IAH7,
 	ALC287_FIXUP_LENOVO_SSID_17AA3820,
-	ALCXXX_FIXUP_CS35LXX,
 };
 
 /* A special fixup for Lenovo C940 and Yoga Duet 7;
@@ -9868,12 +9859,6 @@ static const struct hda_fixup alc269_fixups[] = {
 		.type = HDA_FIXUP_FUNC,
 		.v.func = cs35l41_fixup_i2c_two,
 	},
-	[ALC245_FIXUP_CS35L56_SPI_4_HP_GPIO_LED] = {
-		.type = HDA_FIXUP_FUNC,
-		.v.func = cs35lxx_autodet_fixup,
-		.chained = true,
-		.chain_id = ALC285_FIXUP_HP_GPIO_LED,
-	},
 	[ALC256_FIXUP_ACER_SFG16_MICMUTE_LED] = {
 		.type = HDA_FIXUP_FUNC,
 		.v.func = alc256_fixup_acer_sfg16_micmute_led,
@@ -9913,8 +9898,6 @@ static const struct hda_fixup alc269_fixups[] = {
 			{ 0x1b, 0x03a11c30 },
 			{ }
 		},
-		.chained = true,
-		.chain_id = ALCXXX_FIXUP_CS35LXX
 	},
 	[ALC285_FIXUP_ASUS_GA403U_I2C_SPEAKER2_TO_DAC1] = {
 		.type = HDA_FIXUP_FUNC,
@@ -9937,10 +9920,6 @@ static const struct hda_fixup alc269_fixups[] = {
 	[ALC287_FIXUP_LENOVO_SSID_17AA3820] = {
 		.type = HDA_FIXUP_FUNC,
 		.v.func = alc287_fixup_lenovo_ssid_17aa3820,
-	},
-	[ALCXXX_FIXUP_CS35LXX] = {
-		.type = HDA_FIXUP_FUNC,
-		.v.func = cs35lxx_autodet_fixup,
 	},
 };
 
@@ -10323,8 +10302,8 @@ static const struct snd_pci_quirk alc269_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x103c, 0x8c4f, "HP Envy 15", ALC287_FIXUP_CS35L41_I2C_2),
 	SND_PCI_QUIRK(0x103c, 0x8c50, "HP Envy 17", ALC287_FIXUP_CS35L41_I2C_2),
 	SND_PCI_QUIRK(0x103c, 0x8c51, "HP Envy 17", ALC287_FIXUP_CS35L41_I2C_2),
-	SND_PCI_QUIRK(0x103c, 0x8c52, "HP EliteBook 1040 G11", ALC245_FIXUP_CS35L56_SPI_4_HP_GPIO_LED),
-	SND_PCI_QUIRK(0x103c, 0x8c53, "HP Elite x360 1040 2-in-1 G11", ALC245_FIXUP_CS35L56_SPI_4_HP_GPIO_LED),
+	SND_PCI_QUIRK(0x103c, 0x8c52, "HP EliteBook 1040 G11", ALC285_FIXUP_HP_GPIO_LED),
+	SND_PCI_QUIRK(0x103c, 0x8c53, "HP Elite x360 1040 2-in-1 G11", ALC285_FIXUP_HP_GPIO_LED),
 	SND_PCI_QUIRK(0x103c, 0x8c66, "HP Envy 16", ALC287_FIXUP_CS35L41_I2C_2),
 	SND_PCI_QUIRK(0x103c, 0x8c67, "HP Envy 17", ALC287_FIXUP_CS35L41_I2C_2),
 	SND_PCI_QUIRK(0x103c, 0x8c68, "HP Envy 17", ALC287_FIXUP_CS35L41_I2C_2),
@@ -10358,17 +10337,6 @@ static const struct snd_pci_quirk alc269_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x103c, 0x8cdf, "HP SnowWhite", ALC287_FIXUP_CS35L41_I2C_2_HP_GPIO_LED),
 	SND_PCI_QUIRK(0x103c, 0x8ce0, "HP SnowWhite", ALC287_FIXUP_CS35L41_I2C_2_HP_GPIO_LED),
 	SND_PCI_QUIRK(0x103c, 0x8cf5, "HP ZBook Studio 16", ALC245_FIXUP_CS35L41_SPI_4_HP_GPIO_LED),
-	SND_PCI_QUIRK(0x103c, 0x8d01, "HP ZBook Power 14 G12", ALCXXX_FIXUP_CS35LXX),
-	SND_PCI_QUIRK(0x103c, 0x8d08, "HP EliteBook 1045 14 G12", ALCXXX_FIXUP_CS35LXX),
-	SND_PCI_QUIRK(0x103c, 0x8d85, "HP EliteBook 1040 14 G12", ALCXXX_FIXUP_CS35LXX),
-	SND_PCI_QUIRK(0x103c, 0x8d86, "HP Elite x360 1040 14 G12", ALCXXX_FIXUP_CS35LXX),
-	SND_PCI_QUIRK(0x103c, 0x8d8c, "HP EliteBook 830 13 G12", ALCXXX_FIXUP_CS35LXX),
-	SND_PCI_QUIRK(0x103c, 0x8d8d, "HP Elite x360 830 13 G12", ALCXXX_FIXUP_CS35LXX),
-	SND_PCI_QUIRK(0x103c, 0x8d8e, "HP EliteBook 840 14 G12", ALCXXX_FIXUP_CS35LXX),
-	SND_PCI_QUIRK(0x103c, 0x8d8f, "HP EliteBook 840 14 G12", ALCXXX_FIXUP_CS35LXX),
-	SND_PCI_QUIRK(0x103c, 0x8d90, "HP EliteBook 860 16 G12", ALCXXX_FIXUP_CS35LXX),
-	SND_PCI_QUIRK(0x103c, 0x8d91, "HP ZBook Firefly 14 G12", ALCXXX_FIXUP_CS35LXX),
-	SND_PCI_QUIRK(0x103c, 0x8d92, "HP ZBook Firefly 16 G12", ALCXXX_FIXUP_CS35LXX),
 	SND_PCI_QUIRK(0x1043, 0x103e, "ASUS X540SA", ALC256_FIXUP_ASUS_MIC),
 	SND_PCI_QUIRK(0x1043, 0x103f, "ASUS TX300", ALC282_FIXUP_ASUS_TX300),
 	SND_PCI_QUIRK(0x1043, 0x106d, "Asus K53BE", ALC269_FIXUP_LIMIT_INT_MIC_BOOST),
@@ -10448,14 +10416,11 @@ static const struct snd_pci_quirk alc269_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x1043, 0x1d42, "ASUS Zephyrus G14 2022", ALC289_FIXUP_ASUS_GA401),
 	SND_PCI_QUIRK(0x1043, 0x1d4e, "ASUS TM420", ALC256_FIXUP_ASUS_HPE),
 	SND_PCI_QUIRK(0x1043, 0x1da2, "ASUS UP6502ZA/ZD", ALC245_FIXUP_CS35L41_SPI_2),
-	SND_PCI_QUIRK(0x1043, 0x1df3, "ASUS UM5606", ALCXXX_FIXUP_CS35LXX),
 	SND_PCI_QUIRK(0x1043, 0x1e02, "ASUS UX3402ZA", ALC245_FIXUP_CS35L41_SPI_2),
 	SND_PCI_QUIRK(0x1043, 0x1e11, "ASUS Zephyrus G15", ALC289_FIXUP_ASUS_GA502),
 	SND_PCI_QUIRK(0x1043, 0x1e12, "ASUS UM3402", ALC287_FIXUP_CS35L41_I2C_2),
 	SND_PCI_QUIRK(0x1043, 0x1e51, "ASUS Zephyrus M15", ALC294_FIXUP_ASUS_GU502_PINS),
 	SND_PCI_QUIRK(0x1043, 0x1e5e, "ASUS ROG Strix G513", ALC294_FIXUP_ASUS_G513_PINS),
-	SND_PCI_QUIRK(0x1043, 0x1e63, "ASUS H7606W", ALCXXX_FIXUP_CS35LXX),
-	SND_PCI_QUIRK(0x1043, 0x1e83, "ASUS GA605W", ALCXXX_FIXUP_CS35LXX),
 	SND_PCI_QUIRK(0x1043, 0x1e8e, "ASUS Zephyrus G15", ALC289_FIXUP_ASUS_GA401),
 	SND_PCI_QUIRK(0x1043, 0x1ed3, "ASUS HN7306W", ALC287_FIXUP_CS35L41_I2C_2),
 	SND_PCI_QUIRK(0x1043, 0x1ee2, "ASUS UM6702RA/RC", ALC287_FIXUP_CS35L41_I2C_2),
@@ -11648,6 +11613,13 @@ static int patch_alc269(struct hda_codec *codec)
 	snd_hda_pick_pin_fixup(codec, alc269_fallback_pin_fixup_tbl, alc269_fixups, false);
 	snd_hda_pick_fixup(codec, NULL,	alc269_fixup_vendor_tbl,
 			   alc269_fixups);
+
+	/*
+	 * Check whether ACPI describes companion amplifiers that require
+	 * component binding
+	 */
+	find_cirrus_companion_amps(codec);
+
 	snd_hda_apply_fixup(codec, HDA_FIXUP_ACT_PRE_PROBE);
 
 	alc_auto_parse_customize_define(codec);
