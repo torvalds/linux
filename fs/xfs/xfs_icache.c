@@ -293,62 +293,65 @@ xfs_perag_clear_inode_tag(
 }
 
 /*
- * Search from @first to find the next perag with the given tag set.
+ * Find the next AG after @pag, or the first AG if @pag is NULL.
  */
 static struct xfs_perag *
-xfs_perag_get_tag(
+xfs_perag_get_next_tag(
 	struct xfs_mount	*mp,
-	xfs_agnumber_t		first,
+	struct xfs_perag	*pag,
 	unsigned int		tag)
 {
-	struct xfs_perag	*pag;
+	unsigned long		index = 0;
 	int			found;
+
+	if (pag) {
+		index = pag->pag_agno + 1;
+		xfs_perag_rele(pag);
+	}
 
 	rcu_read_lock();
 	found = radix_tree_gang_lookup_tag(&mp->m_perag_tree,
-					(void **)&pag, first, 1, tag);
+					(void **)&pag, index, 1, tag);
 	if (found <= 0) {
 		rcu_read_unlock();
 		return NULL;
 	}
-	trace_xfs_perag_get_tag(pag, _RET_IP_);
+	trace_xfs_perag_get_next_tag(pag, _RET_IP_);
 	atomic_inc(&pag->pag_ref);
 	rcu_read_unlock();
 	return pag;
 }
 
 /*
- * Search from @first to find the next perag with the given tag set.
+ * Find the next AG after @pag, or the first AG if @pag is NULL.
  */
 static struct xfs_perag *
-xfs_perag_grab_tag(
+xfs_perag_grab_next_tag(
 	struct xfs_mount	*mp,
-	xfs_agnumber_t		first,
+	struct xfs_perag	*pag,
 	int			tag)
 {
-	struct xfs_perag	*pag;
+	unsigned long		index = 0;
 	int			found;
+
+	if (pag) {
+		index = pag->pag_agno + 1;
+		xfs_perag_rele(pag);
+	}
 
 	rcu_read_lock();
 	found = radix_tree_gang_lookup_tag(&mp->m_perag_tree,
-					(void **)&pag, first, 1, tag);
+					(void **)&pag, index, 1, tag);
 	if (found <= 0) {
 		rcu_read_unlock();
 		return NULL;
 	}
-	trace_xfs_perag_grab_tag(pag, _RET_IP_);
+	trace_xfs_perag_grab_next_tag(pag, _RET_IP_);
 	if (!atomic_inc_not_zero(&pag->pag_active_ref))
 		pag = NULL;
 	rcu_read_unlock();
 	return pag;
 }
-
-#define for_each_perag_tag(mp, agno, pag, tag) \
-	for ((agno) = 0, (pag) = xfs_perag_grab_tag((mp), 0, (tag)); \
-		(pag) != NULL; \
-		(agno) = (pag)->pag_agno + 1, \
-		xfs_perag_rele(pag), \
-		(pag) = xfs_perag_grab_tag((mp), (agno), (tag)))
 
 /*
  * When we recycle a reclaimable inode, we need to re-initialise the VFS inode
@@ -1077,15 +1080,11 @@ long
 xfs_reclaim_inodes_count(
 	struct xfs_mount	*mp)
 {
-	struct xfs_perag	*pag;
-	xfs_agnumber_t		ag = 0;
+	struct xfs_perag	*pag = NULL;
 	long			reclaimable = 0;
 
-	while ((pag = xfs_perag_get_tag(mp, ag, XFS_ICI_RECLAIM_TAG))) {
-		ag = pag->pag_agno + 1;
+	while ((pag = xfs_perag_get_next_tag(mp, pag, XFS_ICI_RECLAIM_TAG)))
 		reclaimable += pag->pag_ici_reclaimable;
-		xfs_perag_put(pag);
-	}
 	return reclaimable;
 }
 
@@ -1427,14 +1426,13 @@ void
 xfs_blockgc_start(
 	struct xfs_mount	*mp)
 {
-	struct xfs_perag	*pag;
-	xfs_agnumber_t		agno;
+	struct xfs_perag	*pag = NULL;
 
 	if (xfs_set_blockgc_enabled(mp))
 		return;
 
 	trace_xfs_blockgc_start(mp, __return_address);
-	for_each_perag_tag(mp, agno, pag, XFS_ICI_BLOCKGC_TAG)
+	while ((pag = xfs_perag_grab_next_tag(mp, pag, XFS_ICI_BLOCKGC_TAG)))
 		xfs_blockgc_queue(pag);
 }
 
@@ -1550,21 +1548,19 @@ int
 xfs_blockgc_flush_all(
 	struct xfs_mount	*mp)
 {
-	struct xfs_perag	*pag;
-	xfs_agnumber_t		agno;
+	struct xfs_perag	*pag = NULL;
 
 	trace_xfs_blockgc_flush_all(mp, __return_address);
 
 	/*
-	 * For each blockgc worker, move its queue time up to now.  If it
-	 * wasn't queued, it will not be requeued.  Then flush whatever's
-	 * left.
+	 * For each blockgc worker, move its queue time up to now.  If it wasn't
+	 * queued, it will not be requeued.  Then flush whatever is left.
 	 */
-	for_each_perag_tag(mp, agno, pag, XFS_ICI_BLOCKGC_TAG)
+	while ((pag = xfs_perag_grab_next_tag(mp, pag, XFS_ICI_BLOCKGC_TAG)))
 		mod_delayed_work(pag->pag_mount->m_blockgc_wq,
 				&pag->pag_blockgc_work, 0);
 
-	for_each_perag_tag(mp, agno, pag, XFS_ICI_BLOCKGC_TAG)
+	while ((pag = xfs_perag_grab_next_tag(mp, pag, XFS_ICI_BLOCKGC_TAG)))
 		flush_delayed_work(&pag->pag_blockgc_work);
 
 	return xfs_inodegc_flush(mp);
@@ -1810,12 +1806,11 @@ xfs_icwalk(
 	enum xfs_icwalk_goal	goal,
 	struct xfs_icwalk	*icw)
 {
-	struct xfs_perag	*pag;
+	struct xfs_perag	*pag = NULL;
 	int			error = 0;
 	int			last_error = 0;
-	xfs_agnumber_t		agno;
 
-	for_each_perag_tag(mp, agno, pag, goal) {
+	while ((pag = xfs_perag_grab_next_tag(mp, pag, goal))) {
 		error = xfs_icwalk_ag(pag, goal, icw);
 		if (error) {
 			last_error = error;
