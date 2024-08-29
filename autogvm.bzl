@@ -54,6 +54,7 @@ def define_autogvm():
         "drivers/net/mdio/mdio-mux.ko",
         "drivers/net/net_failover.ko",
         "drivers/net/pcs/pcs_xpcs.ko",
+        "drivers/net/phy/aquantia.ko",
         "drivers/net/phy/marvell.ko",
         "drivers/net/virtio_net.ko",
         "drivers/pci/controller/pci-msm-drv.ko",
