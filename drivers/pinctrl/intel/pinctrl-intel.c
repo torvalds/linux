@@ -429,19 +429,19 @@ static int intel_pinmux_set_mux(struct pinctrl_dev *pctldev,
 	return 0;
 }
 
-static void __intel_gpio_set_direction(void __iomem *padcfg0, bool input)
+static u32 __intel_gpio_set_direction(u32 value, bool input, bool output)
 {
-	u32 value;
-
-	value = readl(padcfg0);
-	if (input) {
+	if (input)
 		value &= ~PADCFG0_GPIORXDIS;
-		value |= PADCFG0_GPIOTXDIS;
-	} else {
-		value &= ~PADCFG0_GPIOTXDIS;
+	else
 		value |= PADCFG0_GPIORXDIS;
-	}
-	writel(value, padcfg0);
+
+	if (output)
+		value &= ~PADCFG0_GPIOTXDIS;
+	else
+		value |= PADCFG0_GPIOTXDIS;
+
+	return value;
 }
 
 static int __intel_gpio_get_gpio_mode(u32 value)
@@ -465,8 +465,7 @@ static void intel_gpio_set_gpio_mode(void __iomem *padcfg0)
 	value |= PADCFG0_PMODE_GPIO;
 
 	/* Disable TX buffer and enable RX (this will be input) */
-	value &= ~PADCFG0_GPIORXDIS;
-	value |= PADCFG0_GPIOTXDIS;
+	value = __intel_gpio_set_direction(value, true, false);
 
 	/* Disable SCI/SMI/NMI generation */
 	value &= ~(PADCFG0_GPIROUTIOXAPIC | PADCFG0_GPIROUTSCI);
@@ -512,12 +511,18 @@ static int intel_gpio_set_direction(struct pinctrl_dev *pctldev,
 {
 	struct intel_pinctrl *pctrl = pinctrl_dev_get_drvdata(pctldev);
 	void __iomem *padcfg0;
+	u32 value;
 
 	padcfg0 = intel_get_padcfg(pctrl, pin, PADCFG0);
 
 	guard(raw_spinlock_irqsave)(&pctrl->lock);
 
-	__intel_gpio_set_direction(padcfg0, input);
+	value = readl(padcfg0);
+	if (input)
+		value = __intel_gpio_set_direction(value, true, false);
+	else
+		value = __intel_gpio_set_direction(value, false, true);
+	writel(value, padcfg0);
 
 	return 0;
 }
