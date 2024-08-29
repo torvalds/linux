@@ -85,6 +85,10 @@ __cvdso_getrandom_data(const struct vdso_rng_data *rng_info, void *buffer, size_
 	if (unlikely(((unsigned long)opaque_state & ~PAGE_MASK) + sizeof(*state) > PAGE_SIZE))
 		return -EFAULT;
 
+	/* Handle unexpected flags by falling back to the kernel. */
+	if (unlikely(flags & ~(GRND_NONBLOCK | GRND_RANDOM | GRND_INSECURE)))
+		goto fallback_syscall;
+
 	/* If the caller passes the wrong size, which might happen due to CRIU, fallback. */
 	if (unlikely(opaque_len != sizeof(*state)))
 		goto fallback_syscall;
