@@ -560,9 +560,10 @@ static DEFINE_RAW_SPINLOCK(byt_lock);
 static void __iomem *byt_gpio_reg(struct intel_pinctrl *vg, unsigned int offset,
 				  int reg)
 {
-	struct intel_community *comm = intel_get_community(vg, offset);
+	const struct intel_community *comm;
 	u32 reg_offset;
 
+	comm = intel_get_community(vg, offset);
 	if (!comm)
 		return NULL;
 

@@ -114,9 +114,9 @@ struct intel_community_context {
 #define pin_to_padno(c, p)	((p) - (c)->pin_base)
 #define padgroup_offset(g, p)	((p) - (g)->base)
 
-struct intel_community *intel_get_community(struct intel_pinctrl *pctrl, unsigned int pin)
+const struct intel_community *intel_get_community(struct intel_pinctrl *pctrl, unsigned int pin)
 {
-	struct intel_community *community;
+	const struct intel_community *community;
 	int i;
 
 	for (i = 0; i < pctrl->ncommunities; i++) {
@@ -236,7 +236,7 @@ enum {
 
 static int intel_pad_locked(struct intel_pinctrl *pctrl, unsigned int pin)
 {
-	struct intel_community *community;
+	const struct intel_community *community;
 	const struct intel_padgroup *padgrp;
 	unsigned int offset, gpp_offset;
 	u32 value;
@@ -1368,7 +1368,7 @@ static int intel_gpio_add_pin_ranges(struct gpio_chip *gc)
 	int ret, i;
 
 	for (i = 0; i < pctrl->ncommunities; i++) {
-		struct intel_community *community = &pctrl->communities[i];
+		const struct intel_community *community = &pctrl->communities[i];
 
 		ret = intel_gpio_add_community_ranges(pctrl, community);
 		if (ret) {
