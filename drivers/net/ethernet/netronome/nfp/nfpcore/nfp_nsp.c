@@ -278,7 +278,7 @@ struct nfp_nsp *nfp_nsp_open(struct nfp_cpp *cpp)
 
 	res = nfp_resource_acquire(cpp, NFP_RESOURCE_NSP);
 	if (IS_ERR(res))
-		return (void *)res;
+		return ERR_CAST(res);
 
 	state = kzalloc(sizeof(*state), GFP_KERNEL);
 	if (!state) {
