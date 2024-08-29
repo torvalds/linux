@@ -11,6 +11,7 @@ sym="noploop"
 skip_test_missing_symbol ${sym}
 
 data=$(mktemp /tmp/perf.data.XXXXXX)
+data2=$(mktemp /tmp/perf.data2.XXXXXX)
 prog="perf test -w noploop"
 err=0
 
@@ -19,6 +20,8 @@ set -e
 cleanup() {
   rm -rf "${data}"
   rm -rf "${data}".old
+  rm -rf "${data2}"
+  rm -rf "${data2}".old
 
   trap - EXIT TERM INT
 }
@@ -45,6 +48,14 @@ test_record_report() {
   if ! perf record -g -e task-clock:u -o - ${prog} | perf report -i - --task | grep -q ${task}
   then
     echo "Record+report pipe test [Failed - cannot find the test file in the perf report #2]"
+    err=1
+    return
+  fi
+
+  perf record -g -e task-clock:u -o - ${prog} > ${data}
+  if ! perf report -i ${data} --task | grep -q ${task}
+  then
+    echo "Record+report pipe test [Failed - cannot find the test file in the perf report #3]"
     err=1
     return
   fi
@@ -82,6 +93,21 @@ test_inject_bids() {
   perf record -e task-clock:u -o ${data} ${prog}
   if ! perf inject ${inject_opt} -i ${data} | perf report -i - | grep -q ${sym}; then
     echo "Inject ${inject_opt} build-ids test [Failed - cannot find noploop function in pipe #4]"
+    err=1
+    return
+  fi
+
+  perf record -e task-clock:u -o - ${prog} > ${data}
+  if ! perf inject ${inject_opt} -i ${data} | perf report -i - | grep -q ${sym}; then
+    echo "Inject ${inject_opt} build-ids test [Failed - cannot find noploop function in pipe #5]"
+    err=1
+    return
+  fi
+
+  perf record -e task-clock:u -o - ${prog} > ${data}
+  perf inject ${inject_opt} -i ${data} -o ${data2}
+  if ! perf report -i ${data2} | grep -q ${sym}; then
+    echo "Inject ${inject_opt} build-ids test [Failed - cannot find noploop function in pipe #6]"
     err=1
     return
   fi
