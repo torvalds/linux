@@ -29,6 +29,7 @@
 #include <stdlib.h>
 #include <pthread.h>
 #include <include/vdso/time64.h>
+#include <errno.h>
 #include "../kselftest.h"
 
 #define CLOCK_REALTIME			0
@@ -142,8 +143,8 @@ int main(void)
 
 		alarmcount = 0;
 		if (timer_create(alarm_clock_id, &se, &tm1) == -1) {
-			printf("timer_create failed, %s unsupported?\n",
-					clockstring(alarm_clock_id));
+			printf("timer_create failed, %s unsupported?: %s\n",
+					clockstring(alarm_clock_id), strerror(errno));
 			break;
 		}
 
