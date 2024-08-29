@@ -568,7 +568,14 @@ struct arm_smmu_cmdq {
 	atomic_long_t			*valid_map;
 	atomic_t			owner_prod;
 	atomic_t			lock;
+	bool				(*supports_cmd)(struct arm_smmu_cmdq_ent *ent);
 };
+
+static inline bool arm_smmu_cmdq_supports_cmd(struct arm_smmu_cmdq *cmdq,
+					      struct arm_smmu_cmdq_ent *ent)
+{
+	return cmdq->supports_cmd ? cmdq->supports_cmd(ent) : true;
+}
 
 struct arm_smmu_cmdq_batch {
 	u64				cmds[CMDQ_BATCH_ENTRIES * CMDQ_ENT_DWORDS];
