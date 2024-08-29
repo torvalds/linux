@@ -998,7 +998,9 @@ static int am65_cpsw_run_xdp(struct am65_cpsw_common *common,
 			     int desc_idx, int cpu, int *len)
 {
 	struct am65_cpsw_rx_chn *rx_chn = &common->rx_chns;
+	struct am65_cpsw_ndev_priv *ndev_priv;
 	struct net_device *ndev = port->ndev;
+	struct am65_cpsw_ndev_stats *stats;
 	int ret = AM65_CPSW_XDP_CONSUMED;
 	struct am65_cpsw_tx_chn *tx_chn;
 	struct netdev_queue *netif_txq;
@@ -1015,6 +1017,9 @@ static int am65_cpsw_run_xdp(struct am65_cpsw_common *common,
 	act = bpf_prog_run_xdp(prog, xdp);
 	/* XDP prog might have changed packet data and boundaries */
 	*len = xdp->data_end - xdp->data;
+
+	ndev_priv = netdev_priv(ndev);
+	stats = this_cpu_ptr(ndev_priv->stats);
 
 	switch (act) {
 	case XDP_PASS:
@@ -1035,16 +1040,20 @@ static int am65_cpsw_run_xdp(struct am65_cpsw_common *common,
 		if (err)
 			goto drop;
 
-		ndev->stats.rx_bytes += *len;
-		ndev->stats.rx_packets++;
+		u64_stats_update_begin(&stats->syncp);
+		stats->rx_bytes += *len;
+		stats->rx_packets++;
+		u64_stats_update_end(&stats->syncp);
 		ret = AM65_CPSW_XDP_CONSUMED;
 		goto out;
 	case XDP_REDIRECT:
 		if (unlikely(xdp_do_redirect(ndev, xdp, prog)))
 			goto drop;
 
-		ndev->stats.rx_bytes += *len;
-		ndev->stats.rx_packets++;
+		u64_stats_update_begin(&stats->syncp);
+		stats->rx_bytes += *len;
+		stats->rx_packets++;
+		u64_stats_update_end(&stats->syncp);
 		ret = AM65_CPSW_XDP_REDIRECT;
 		goto out;
 	default:
