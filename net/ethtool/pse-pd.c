@@ -222,13 +222,10 @@ const struct nla_policy ethnl_pse_set_policy[ETHTOOL_A_PSE_MAX + 1] = {
 };
 
 static int
-ethnl_set_pse_validate(struct ethnl_req_info *req_info, struct genl_info *info)
+ethnl_set_pse_validate(struct phy_device *phydev, struct genl_info *info)
 {
 	struct nlattr **tb = info->attrs;
-	struct phy_device *phydev;
 
-	phydev = ethnl_req_get_phydev(req_info, tb[ETHTOOL_A_PSE_HEADER],
-				      info->extack);
 	if (IS_ERR_OR_NULL(phydev)) {
 		NL_SET_ERR_MSG(info->extack, "No PHY is attached");
 		return -EOPNOTSUPP;
@@ -254,7 +251,7 @@ ethnl_set_pse_validate(struct ethnl_req_info *req_info, struct genl_info *info)
 		return -EOPNOTSUPP;
 	}
 
-	return 1;
+	return 0;
 }
 
 static int
@@ -262,12 +259,13 @@ ethnl_set_pse(struct ethnl_req_info *req_info, struct genl_info *info)
 {
 	struct nlattr **tb = info->attrs;
 	struct phy_device *phydev;
-	int ret = 0;
+	int ret;
 
 	phydev = ethnl_req_get_phydev(req_info, tb[ETHTOOL_A_PSE_HEADER],
 				      info->extack);
-	if (IS_ERR_OR_NULL(phydev))
-		return -ENODEV;
+	ret = ethnl_set_pse_validate(phydev, info);
+	if (ret)
+		return ret;
 
 	if (tb[ETHTOOL_A_C33_PSE_AVAIL_PW_LIMIT]) {
 		unsigned int pw_limit;
@@ -314,7 +312,6 @@ const struct ethnl_request_ops ethnl_pse_request_ops = {
 	.fill_reply		= pse_fill_reply,
 	.cleanup_data		= pse_cleanup_data,
 
-	.set_validate		= ethnl_set_pse_validate,
 	.set			= ethnl_set_pse,
 	/* PSE has no notification */
 };
