@@ -119,7 +119,6 @@ struct perf_inject {
 	bool			jit_mode;
 	bool			in_place_update;
 	bool			in_place_update_dry_run;
-	bool			is_pipe;
 	bool			copy_kcore_dir;
 	const char		*input_name;
 	struct perf_data	output;
@@ -205,7 +204,8 @@ static int perf_event__repipe_attr(const struct perf_tool *tool,
 	if (ret)
 		return ret;
 
-	if (!inject->is_pipe)
+	/* If the output isn't a pipe then the attributes will be written as part of the header. */
+	if (!inject->output.is_pipe)
 		return 0;
 
 	return perf_event__repipe_synth(tool, event);
@@ -1966,7 +1966,13 @@ static int __cmd_inject(struct perf_inject *inject)
 	struct guest_session *gs = &inject->guest_session;
 	struct perf_session *session = inject->session;
 	int fd = output_fd(inject);
-	u64 output_data_offset;
+	u64 output_data_offset = perf_session__data_offset(session->evlist);
+	/*
+	 * Pipe input hasn't loaded the attributes and will handle them as
+	 * events. So that the attributes don't overlap the data, write the
+	 * attributes after the data.
+	 */
+	bool write_attrs_after_data = !inject->output.is_pipe && inject->session->data->is_pipe;
 
 	signal(SIGINT, sig_handler);
 
@@ -1979,8 +1985,6 @@ static int __cmd_inject(struct perf_inject *inject)
 		inject->tool.tracing_data = perf_event__repipe_tracing_data;
 #endif
 	}
-
-	output_data_offset = perf_session__data_offset(session->evlist);
 
 	if (inject->build_id_style == BID_RWS__INJECT_HEADER_LAZY) {
 		inject->tool.sample = perf_event__inject_buildid;
@@ -2075,7 +2079,7 @@ static int __cmd_inject(struct perf_inject *inject)
 	if (!inject->itrace_synth_opts.set)
 		auxtrace_index__free(&session->auxtrace_index);
 
-	if (!inject->is_pipe && !inject->in_place_update)
+	if (!inject->output.is_pipe && !inject->in_place_update)
 		lseek(fd, output_data_offset, SEEK_SET);
 
 	ret = perf_session__process_events(session);
@@ -2094,7 +2098,7 @@ static int __cmd_inject(struct perf_inject *inject)
 		}
 	}
 
-	if (!inject->is_pipe && !inject->in_place_update) {
+	if (!inject->output.is_pipe && !inject->in_place_update) {
 		struct inject_fc inj_fc = {
 			.fc.copy = feat_copy_cb,
 			.inject = inject,
@@ -2124,7 +2128,8 @@ static int __cmd_inject(struct perf_inject *inject)
 		}
 		session->header.data_offset = output_data_offset;
 		session->header.data_size = inject->bytes_written;
-		perf_session__inject_header(session, session->evlist, fd, &inj_fc.fc);
+		perf_session__inject_header(session, session->evlist, fd, &inj_fc.fc,
+					    write_attrs_after_data);
 
 		if (inject->copy_kcore_dir) {
 			ret = copy_kcore_dir(inject);
@@ -2161,7 +2166,6 @@ int cmd_inject(int argc, const char **argv)
 		.use_stdio = true,
 	};
 	int ret;
-	bool repipe = true;
 	const char *known_build_ids = NULL;
 	bool build_ids;
 	bool build_id_all;
@@ -2273,16 +2277,7 @@ int cmd_inject(int argc, const char **argv)
 		inject.build_id_style = BID_RWS__INJECT_HEADER_ALL;
 
 	data.path = inject.input_name;
-	if (!strcmp(inject.input_name, "-") || inject.output.is_pipe) {
-		inject.is_pipe = true;
-		/*
-		 * Do not repipe header when input is a regular file
-		 * since either it can rewrite the header at the end
-		 * or write a new pipe header.
-		 */
-		if (strcmp(inject.input_name, "-"))
-			repipe = false;
-	}
+
 	ordered_events = inject.jit_mode || inject.sched_stat ||
 		(inject.build_id_style == BID_RWS__INJECT_HEADER_LAZY);
 	perf_tool__init(&inject.tool, ordered_events);
@@ -2325,9 +2320,9 @@ int cmd_inject(int argc, const char **argv)
 	inject.tool.compressed		= perf_event__repipe_op4_synth;
 	inject.tool.auxtrace		= perf_event__repipe_auxtrace;
 	inject.tool.dont_split_sample_group = true;
-	inject.session = __perf_session__new(&data, repipe,
-					     output_fd(&inject),
-					     &inject.tool);
+	inject.session = __perf_session__new(&data, &inject.tool,
+					     /*trace_event_repipe=*/inject.output.is_pipe);
+
 	if (IS_ERR(inject.session)) {
 		ret = PTR_ERR(inject.session);
 		goto out_close_output;
@@ -2341,19 +2336,26 @@ int cmd_inject(int argc, const char **argv)
 	if (ret)
 		goto out_delete;
 
-	if (!data.is_pipe && inject.output.is_pipe) {
+	if (inject.output.is_pipe) {
 		ret = perf_header__write_pipe(perf_data__fd(&inject.output));
 		if (ret < 0) {
 			pr_err("Couldn't write a new pipe header.\n");
 			goto out_delete;
 		}
 
-		ret = perf_event__synthesize_for_pipe(&inject.tool,
-						      inject.session,
-						      &inject.output,
-						      perf_event__repipe);
-		if (ret < 0)
-			goto out_delete;
+		/*
+		 * If the input is already a pipe then the features and
+		 * attributes don't need synthesizing, they will be present in
+		 * the input.
+		 */
+		if (!data.is_pipe) {
+			ret = perf_event__synthesize_for_pipe(&inject.tool,
+							      inject.session,
+							      &inject.output,
+							      perf_event__repipe);
+			if (ret < 0)
+				goto out_delete;
+		}
 	}
 
 	if (inject.build_id_style == BID_RWS__INJECT_HEADER_LAZY) {

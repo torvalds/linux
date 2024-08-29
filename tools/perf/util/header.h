@@ -150,7 +150,8 @@ struct feat_copier {
 int perf_session__inject_header(struct perf_session *session,
 				struct evlist *evlist,
 				int fd,
-				struct feat_copier *fc);
+				struct feat_copier *fc,
+				bool write_attrs_after_data);
 
 size_t perf_session__data_offset(const struct evlist *evlist);
 

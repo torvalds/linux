@@ -3818,10 +3818,11 @@ size_t perf_session__data_offset(const struct evlist *evlist)
 int perf_session__inject_header(struct perf_session *session,
 				struct evlist *evlist,
 				int fd,
-				struct feat_copier *fc)
+				struct feat_copier *fc,
+				bool write_attrs_after_data)
 {
 	return perf_session__do_write_header(session, evlist, fd, true, fc,
-					     /*write_attrs_after_data=*/false);
+					     write_attrs_after_data);
 }
 
 static int perf_header__getbuffer64(struct perf_header *header,
@@ -4145,7 +4146,7 @@ static int perf_header__read_pipe(struct perf_session *session, int repipe_fd)
 	struct perf_pipe_file_header f_header;
 
 	if (perf_file_header__read_pipe(&f_header, header, session->data,
-					session->repipe, repipe_fd) < 0) {
+					/*repipe=*/false, repipe_fd) < 0) {
 		pr_debug("incompatible file format\n");
 		return -EINVAL;
 	}
@@ -4560,15 +4561,14 @@ int perf_event__process_tracing_data(struct perf_session *session,
 		      SEEK_SET);
 	}
 
-	size_read = trace_report(fd, &session->tevent,
-				 session->repipe);
+	size_read = trace_report(fd, &session->tevent, session->trace_event_repipe);
 	padding = PERF_ALIGN(size_read, sizeof(u64)) - size_read;
 
 	if (readn(fd, buf, padding) < 0) {
 		pr_err("%s: reading input file", __func__);
 		return -1;
 	}
-	if (session->repipe) {
+	if (session->trace_event_repipe) {
 		int retw = write(STDOUT_FILENO, buf, padding);
 		if (retw <= 0 || retw != padding) {
 			pr_err("%s: repiping tracing data padding", __func__);

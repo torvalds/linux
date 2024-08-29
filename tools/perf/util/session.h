@@ -59,12 +59,8 @@ struct perf_session {
 #endif
 	/** @time_conv: Holds contents of last PERF_RECORD_TIME_CONV event. */
 	struct perf_record_time_conv	time_conv;
-	/**
-	 * @repipe: When set causes certain reading (header and trace events) to
-	 * also write events. The written file descriptor must be provided for
-	 * the header but is implicitly stdout for trace events.
-	 */
-	bool			repipe;
+	/** @trace_event_repipe: When set causes read trace events to be written to stdout. */
+	bool			trace_event_repipe;
 	/**
 	 * @one_mmap: The reader will use a single mmap by default. There may be
 	 * multiple data files in particular for aux events. If this is true
@@ -110,13 +106,13 @@ struct decomp {
 struct perf_tool;
 
 struct perf_session *__perf_session__new(struct perf_data *data,
-					 bool repipe, int repipe_fd,
-					 struct perf_tool *tool);
+					 struct perf_tool *tool,
+					 bool trace_event_repipe);
 
 static inline struct perf_session *perf_session__new(struct perf_data *data,
 						     struct perf_tool *tool)
 {
-	return __perf_session__new(data, false, -1, tool);
+	return __perf_session__new(data, tool, /*trace_event_repipe=*/false);
 }
 
 void perf_session__delete(struct perf_session *session);
