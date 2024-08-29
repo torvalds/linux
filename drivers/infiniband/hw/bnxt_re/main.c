@@ -139,8 +139,10 @@ static void bnxt_re_set_drv_mode(struct bnxt_re_dev *rdev)
 	if (bnxt_re_hwrm_qcaps(rdev))
 		dev_err(rdev_to_dev(rdev),
 			"Failed to query hwrm qcaps\n");
-	if (bnxt_qplib_is_chip_gen_p7(rdev->chip_ctx))
+	if (bnxt_qplib_is_chip_gen_p7(rdev->chip_ctx)) {
 		cctx->modes.toggle_bits |= BNXT_QPLIB_CQ_TOGGLE_BIT;
+		cctx->modes.toggle_bits |= BNXT_QPLIB_SRQ_TOGGLE_BIT;
+	}
 }
 
 static void bnxt_re_destroy_chip_ctx(struct bnxt_re_dev *rdev)
@@ -1771,6 +1773,8 @@ static int bnxt_re_dev_init(struct bnxt_re_dev *rdev)
 		bnxt_re_vf_res_config(rdev);
 	}
 	hash_init(rdev->cq_hash);
+	if (rdev->chip_ctx->modes.toggle_bits & BNXT_QPLIB_SRQ_TOGGLE_BIT)
+		hash_init(rdev->srq_hash);
 
 	return 0;
 free_sctx:

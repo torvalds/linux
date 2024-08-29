@@ -141,6 +141,7 @@ struct bnxt_re_pacing {
 #define BNXT_RE_GRC_FIFO_REG_BASE 0x2000
 
 #define MAX_CQ_HASH_BITS		(16)
+#define MAX_SRQ_HASH_BITS		(16)
 struct bnxt_re_dev {
 	struct ib_device		ibdev;
 	struct list_head		list;
@@ -196,6 +197,7 @@ struct bnxt_re_dev {
 	struct work_struct dbq_fifo_check_work;
 	struct delayed_work dbq_pacing_work;
 	DECLARE_HASHTABLE(cq_hash, MAX_CQ_HASH_BITS);
+	DECLARE_HASHTABLE(srq_hash, MAX_SRQ_HASH_BITS);
 };
 
 #define to_bnxt_re_dev(ptr, member)	\
