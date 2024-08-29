@@ -3456,7 +3456,9 @@ EXPORT_SYMBOL_GPL(regulator_get_linear_step);
  * @min_uV: Minimum required voltage in uV.
  * @max_uV: Maximum required voltage in uV.
  *
- * Returns a boolean.
+ * Return: 1 if the voltage range is supported, 0 if not, or a negative error
+ *	   number if @regulator's voltage can't be changed and voltage readback
+ *	   failed.
  */
 int regulator_is_supported_voltage(struct regulator *regulator,
 				   int min_uV, int max_uV)
