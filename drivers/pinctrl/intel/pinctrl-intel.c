@@ -652,6 +652,23 @@ static int intel_config_get_pull(struct intel_pinctrl *pctrl, unsigned int pin,
 	return 0;
 }
 
+static int intel_config_get_high_impedance(struct intel_pinctrl *pctrl, unsigned int pin,
+					   enum pin_config_param param, u32 *arg)
+{
+	void __iomem *padcfg0;
+	u32 value;
+
+	padcfg0 = intel_get_padcfg(pctrl, pin, PADCFG0);
+
+	scoped_guard(raw_spinlock_irqsave, &pctrl->lock)
+		value = readl(padcfg0);
+
+	if (__intel_gpio_get_direction(value) != PAD_CONNECT_NONE)
+		return -EINVAL;
+
+	return 0;
+}
+
 static int intel_config_get_debounce(struct intel_pinctrl *pctrl, unsigned int pin,
 				     enum pin_config_param param, u32 *arg)
 {
@@ -691,6 +708,12 @@ static int intel_config_get(struct pinctrl_dev *pctldev, unsigned int pin,
 	case PIN_CONFIG_BIAS_PULL_UP:
 	case PIN_CONFIG_BIAS_PULL_DOWN:
 		ret = intel_config_get_pull(pctrl, pin, param, &arg);
+		if (ret)
+			return ret;
+		break;
+
+	case PIN_CONFIG_BIAS_HIGH_IMPEDANCE:
+		ret = intel_config_get_high_impedance(pctrl, pin, param, &arg);
 		if (ret)
 			return ret;
 		break;
@@ -793,6 +816,20 @@ static int intel_config_set_pull(struct intel_pinctrl *pctrl, unsigned int pin,
 	return 0;
 }
 
+static void intel_gpio_set_high_impedance(struct intel_pinctrl *pctrl, unsigned int pin)
+{
+	void __iomem *padcfg0;
+	u32 value;
+
+	padcfg0 = intel_get_padcfg(pctrl, pin, PADCFG0);
+
+	guard(raw_spinlock_irqsave)(&pctrl->lock);
+
+	value = readl(padcfg0);
+	value = __intel_gpio_set_direction(value, false, false);
+	writel(value, padcfg0);
+}
+
 static int intel_config_set_debounce(struct intel_pinctrl *pctrl,
 				     unsigned int pin, unsigned int debounce)
 {
@@ -853,6 +890,10 @@ static int intel_config_set(struct pinctrl_dev *pctldev, unsigned int pin,
 			ret = intel_config_set_pull(pctrl, pin, configs[i]);
 			if (ret)
 				return ret;
+			break;
+
+		case PIN_CONFIG_BIAS_HIGH_IMPEDANCE:
+			intel_gpio_set_high_impedance(pctrl, pin);
 			break;
 
 		case PIN_CONFIG_INPUT_DEBOUNCE:
