@@ -1385,9 +1385,9 @@ static int rzg2l_pinctrl_pinconf_set(struct pinctrl_dev *pctldev,
 
 	for (i = 0; i < num_configs; i++) {
 		param = pinconf_to_config_param(_configs[i]);
+		arg = pinconf_to_config_argument(_configs[i]);
 		switch (param) {
 		case PIN_CONFIG_INPUT_ENABLE:
-			arg = pinconf_to_config_argument(_configs[i]);
 
 			if (!(cfg & PIN_CFG_IEN))
 				return -EINVAL;
@@ -1396,7 +1396,6 @@ static int rzg2l_pinctrl_pinconf_set(struct pinctrl_dev *pctldev,
 			break;
 
 		case PIN_CONFIG_OUTPUT_ENABLE:
-			arg = pinconf_to_config_argument(_configs[i]);
 			if (!(cfg & PIN_CFG_OEN))
 				return -EINVAL;
 			if (!pctrl->data->oen_write)
@@ -1407,12 +1406,10 @@ static int rzg2l_pinctrl_pinconf_set(struct pinctrl_dev *pctldev,
 			break;
 
 		case PIN_CONFIG_POWER_SOURCE:
-			settings.power_source = pinconf_to_config_argument(_configs[i]);
+			settings.power_source = arg;
 			break;
 
 		case PIN_CONFIG_SLEW_RATE:
-			arg = pinconf_to_config_argument(_configs[i]);
-
 			if (!(cfg & PIN_CFG_SR) || arg > 1)
 				return -EINVAL;
 
@@ -1433,8 +1430,6 @@ static int rzg2l_pinctrl_pinconf_set(struct pinctrl_dev *pctldev,
 			break;
 
 		case PIN_CONFIG_DRIVE_STRENGTH:
-			arg = pinconf_to_config_argument(_configs[i]);
-
 			if (!(cfg & PIN_CFG_IOLH_A) || hwcfg->drive_strength_ua)
 				return -EINVAL;
 
@@ -1454,12 +1449,10 @@ static int rzg2l_pinctrl_pinconf_set(struct pinctrl_dev *pctldev,
 			    !hwcfg->drive_strength_ua)
 				return -EINVAL;
 
-			settings.drive_strength_ua = pinconf_to_config_argument(_configs[i]);
+			settings.drive_strength_ua = arg;
 			break;
 
 		case PIN_CONFIG_OUTPUT_IMPEDANCE_OHMS:
-			arg = pinconf_to_config_argument(_configs[i]);
-
 			if (!(cfg & PIN_CFG_IOLH_B) || !hwcfg->iolh_groupb_oi[0])
 				return -EINVAL;
 
@@ -1477,7 +1470,6 @@ static int rzg2l_pinctrl_pinconf_set(struct pinctrl_dev *pctldev,
 			if (!(cfg & PIN_CFG_IOLH_RZV2H))
 				return -EINVAL;
 
-			arg = pinconf_to_config_argument(_configs[i]);
 			if (arg > 3)
 				return -EINVAL;
 			rzg2l_rmw_pin_config(pctrl, IOLH(off), bit, IOLH_MASK, arg);
