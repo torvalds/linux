@@ -52,17 +52,15 @@
 #define PIN_CFG_IO_VMC_QSPI		BIT(7)
 #define PIN_CFG_IO_VMC_ETH0		BIT(8)
 #define PIN_CFG_IO_VMC_ETH1		BIT(9)
-#define PIN_CFG_FILONOFF		BIT(10)
-#define PIN_CFG_FILNUM			BIT(11)
-#define PIN_CFG_FILCLKSEL		BIT(12)
-#define PIN_CFG_IOLH_C			BIT(13)
-#define PIN_CFG_SOFT_PS			BIT(14)
-#define PIN_CFG_OEN			BIT(15)
-#define PIN_CFG_NOGPIO_INT		BIT(16)
-#define PIN_CFG_NOD			BIT(17)	/* N-ch Open Drain */
-#define PIN_CFG_SMT			BIT(18)	/* Schmitt-trigger input control */
-#define PIN_CFG_ELC			BIT(19)
-#define PIN_CFG_IOLH_RZV2H		BIT(20)
+#define PIN_CFG_NF			BIT(10)	/* Digital noise filter */
+#define PIN_CFG_IOLH_C			BIT(11)
+#define PIN_CFG_SOFT_PS			BIT(12)
+#define PIN_CFG_OEN			BIT(13)
+#define PIN_CFG_NOGPIO_INT		BIT(14)
+#define PIN_CFG_NOD			BIT(15)	/* N-ch Open Drain */
+#define PIN_CFG_SMT			BIT(16)	/* Schmitt-trigger input control */
+#define PIN_CFG_ELC			BIT(17)
+#define PIN_CFG_IOLH_RZV2H		BIT(18)
 
 #define RZG2L_SINGLE_PIN		BIT_ULL(63)	/* Dedicated pin */
 #define RZG2L_VARIABLE_CFG		BIT_ULL(62)	/* Variable cfg for port pins */
@@ -70,9 +68,7 @@
 #define RZG2L_MPXED_COMMON_PIN_FUNCS(group) \
 					(PIN_CFG_IOLH_##group | \
 					 PIN_CFG_PUPD | \
-					 PIN_CFG_FILONOFF | \
-					 PIN_CFG_FILNUM | \
-					 PIN_CFG_FILCLKSEL)
+					 PIN_CFG_NF)
 
 #define RZG2L_MPXED_PIN_FUNCS		(RZG2L_MPXED_COMMON_PIN_FUNCS(A) | \
 					 PIN_CFG_SR)
@@ -85,10 +81,7 @@
 					 PIN_CFG_SR | \
 					 PIN_CFG_SMT)
 
-#define RZG2L_MPXED_ETH_PIN_FUNCS(x)	((x) | \
-					 PIN_CFG_FILONOFF | \
-					 PIN_CFG_FILNUM | \
-					 PIN_CFG_FILCLKSEL)
+#define RZG2L_MPXED_ETH_PIN_FUNCS(x)	((x) | PIN_CFG_NF)
 
 #define PIN_CFG_PIN_MAP_MASK		GENMASK_ULL(61, 54)
 #define PIN_CFG_PIN_REG_MASK		GENMASK_ULL(53, 46)
@@ -395,13 +388,13 @@ static const u64 r9a09g057_variable_pin_cfg[] = {
 #ifdef CONFIG_RISCV
 static const u64 r9a07g043f_variable_pin_cfg[] = {
 	RZG2L_VARIABLE_PIN_CFG_PACK(20, 0, PIN_CFG_IOLH_B | PIN_CFG_SR | PIN_CFG_PUPD |
-					   PIN_CFG_FILONOFF | PIN_CFG_FILNUM | PIN_CFG_FILCLKSEL |
+					   PIN_CFG_NF |
 					   PIN_CFG_IEN | PIN_CFG_NOGPIO_INT),
 	RZG2L_VARIABLE_PIN_CFG_PACK(20, 1, PIN_CFG_IOLH_B | PIN_CFG_SR | PIN_CFG_PUPD |
-					   PIN_CFG_FILONOFF | PIN_CFG_FILNUM | PIN_CFG_FILCLKSEL |
+					   PIN_CFG_NF |
 					   PIN_CFG_IEN | PIN_CFG_NOGPIO_INT),
 	RZG2L_VARIABLE_PIN_CFG_PACK(20, 2, PIN_CFG_IOLH_B | PIN_CFG_SR | PIN_CFG_PUPD |
-					   PIN_CFG_FILONOFF | PIN_CFG_FILNUM | PIN_CFG_FILCLKSEL |
+					   PIN_CFG_NF |
 					   PIN_CFG_IEN  | PIN_CFG_NOGPIO_INT),
 	RZG2L_VARIABLE_PIN_CFG_PACK(20, 3, PIN_CFG_IOLH_B | PIN_CFG_SR | PIN_CFG_PUPD |
 					   PIN_CFG_IEN | PIN_CFG_NOGPIO_INT),
@@ -432,7 +425,7 @@ static const u64 r9a07g043f_variable_pin_cfg[] = {
 	RZG2L_VARIABLE_PIN_CFG_PACK(24, 4, PIN_CFG_IOLH_B | PIN_CFG_SR | PIN_CFG_PUPD |
 					   PIN_CFG_NOGPIO_INT),
 	RZG2L_VARIABLE_PIN_CFG_PACK(24, 5, PIN_CFG_IOLH_B | PIN_CFG_SR | PIN_CFG_PUPD |
-					   PIN_CFG_FILONOFF | PIN_CFG_FILNUM | PIN_CFG_FILCLKSEL |
+					   PIN_CFG_NF |
 					   PIN_CFG_NOGPIO_INT),
 };
 #endif
@@ -1887,8 +1880,7 @@ static const u64 r9a07g043_gpio_configs[] = {
 #ifdef CONFIG_RISCV
 	/* Below additional port pins (P19 - P28) are exclusively available on RZ/Five SoC only */
 	RZG2L_GPIO_PORT_SPARSE_PACK(0x2, 0x06, PIN_CFG_IOLH_B | PIN_CFG_SR | PIN_CFG_PUPD |
-				    PIN_CFG_FILONOFF | PIN_CFG_FILNUM | PIN_CFG_FILCLKSEL |
-				    PIN_CFG_IEN | PIN_CFG_NOGPIO_INT),			/* P19 */
+				    PIN_CFG_NF | PIN_CFG_IEN | PIN_CFG_NOGPIO_INT),	/* P19 */
 	RZG2L_GPIO_PORT_PACK_VARIABLE(8, 0x07),						/* P20 */
 	RZG2L_GPIO_PORT_SPARSE_PACK(0x2, 0x08, PIN_CFG_IOLH_B | PIN_CFG_SR | PIN_CFG_PUPD |
 				    PIN_CFG_IEN | PIN_CFG_NOGPIO_INT),			/* P21 */
@@ -1896,8 +1888,7 @@ static const u64 r9a07g043_gpio_configs[] = {
 			     PIN_CFG_IEN | PIN_CFG_NOGPIO_INT),				/* P22 */
 	RZG2L_GPIO_PORT_SPARSE_PACK_VARIABLE(0x3e, 0x0a),				/* P23 */
 	RZG2L_GPIO_PORT_PACK_VARIABLE(6, 0x0b),						/* P24 */
-	RZG2L_GPIO_PORT_SPARSE_PACK(0x2, 0x0c, PIN_CFG_IOLH_B | PIN_CFG_SR | PIN_CFG_FILONOFF |
-				    PIN_CFG_FILNUM | PIN_CFG_FILCLKSEL |
+	RZG2L_GPIO_PORT_SPARSE_PACK(0x2, 0x0c, PIN_CFG_IOLH_B | PIN_CFG_SR | PIN_CFG_NF |
 				    PIN_CFG_NOGPIO_INT),				/* P25 */
 	0x0,										/* P26 */
 	0x0,										/* P27 */
@@ -1975,8 +1966,7 @@ static const struct {
 	struct rzg2l_dedicated_configs rzg2l_pins[7];
 } rzg2l_dedicated_pins = {
 	.common = {
-		{ "NMI", RZG2L_SINGLE_PIN_PACK(0x1, 0,
-		 (PIN_CFG_FILONOFF | PIN_CFG_FILNUM | PIN_CFG_FILCLKSEL)) },
+		{ "NMI", RZG2L_SINGLE_PIN_PACK(0x1, 0, PIN_CFG_NF) },
 		{ "TMS/SWDIO", RZG2L_SINGLE_PIN_PACK(0x2, 0,
 		 (PIN_CFG_IOLH_A | PIN_CFG_SR | PIN_CFG_IEN)) },
 		{ "TDO", RZG2L_SINGLE_PIN_PACK(0x3, 0,
@@ -2057,8 +2047,7 @@ static const struct {
 };
 
 static const struct rzg2l_dedicated_configs rzg3s_dedicated_pins[] = {
-	{ "NMI", RZG2L_SINGLE_PIN_PACK(0x0, 0, (PIN_CFG_FILONOFF | PIN_CFG_FILNUM |
-						PIN_CFG_FILCLKSEL)) },
+	{ "NMI", RZG2L_SINGLE_PIN_PACK(0x0, 0, PIN_CFG_NF) },
 	{ "TMS/SWDIO", RZG2L_SINGLE_PIN_PACK(0x1, 0, (PIN_CFG_IOLH_A | PIN_CFG_IEN |
 						      PIN_CFG_SOFT_PS)) },
 	{ "TDO", RZG2L_SINGLE_PIN_PACK(0x1, 1, (PIN_CFG_IOLH_A | PIN_CFG_SOFT_PS)) },
@@ -2097,8 +2086,7 @@ static const struct rzg2l_dedicated_configs rzg3s_dedicated_pins[] = {
 };
 
 static struct rzg2l_dedicated_configs rzv2h_dedicated_pins[] = {
-	{ "NMI", RZG2L_SINGLE_PIN_PACK(0x1, 0, (PIN_CFG_FILONOFF | PIN_CFG_FILNUM |
-						PIN_CFG_FILCLKSEL)) },
+	{ "NMI", RZG2L_SINGLE_PIN_PACK(0x1, 0, PIN_CFG_NF) },
 	{ "TMS_SWDIO", RZG2L_SINGLE_PIN_PACK(0x3, 0, (PIN_CFG_IOLH_RZV2H | PIN_CFG_SR |
 						      PIN_CFG_IEN)) },
 	{ "TDO", RZG2L_SINGLE_PIN_PACK(0x3, 2, (PIN_CFG_IOLH_RZV2H | PIN_CFG_SR)) },
