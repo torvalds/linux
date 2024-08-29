@@ -70,6 +70,12 @@
 #define PADCFG0_PMODE_SHIFT		10
 #define PADCFG0_PMODE_MASK		GENMASK(13, 10)
 #define PADCFG0_PMODE_GPIO		0
+#define PADCFG0_GPIODIS_SHIFT		8
+#define PADCFG0_GPIODIS_MASK		GENMASK(9, 8)
+#define PADCFG0_GPIODIS_NONE		0
+#define PADCFG0_GPIODIS_OUTPUT		1
+#define PADCFG0_GPIODIS_INPUT		2
+#define PADCFG0_GPIODIS_FULL		3
 #define PADCFG0_GPIORXDIS		BIT(9)
 #define PADCFG0_GPIOTXDIS		BIT(8)
 #define PADCFG0_GPIORXSTATE		BIT(1)
@@ -212,7 +218,6 @@ static bool intel_pad_acpi_mode(struct intel_pinctrl *pctrl, unsigned int pin)
 
 /**
  * enum - Locking variants of the pad configuration
- *
  * @PAD_UNLOCKED:	pad is fully controlled by the configuration registers
  * @PAD_LOCKED:		pad configuration registers, except TX state, are locked
  * @PAD_LOCKED_TX:	pad configuration TX state is locked
@@ -427,6 +432,36 @@ static int intel_pinmux_set_mux(struct pinctrl_dev *pctldev,
 	}
 
 	return 0;
+}
+
+/**
+ * enum - Possible pad physical connections
+ * @PAD_CONNECT_NONE:	pad is fully disconnected
+ * @PAD_CONNECT_INPUT:	pad is in input only mode
+ * @PAD_CONNECT_OUTPUT:	pad is in output only mode
+ * @PAD_CONNECT_FULL:	pad is fully connected
+ */
+enum {
+	PAD_CONNECT_NONE	= 0,
+	PAD_CONNECT_INPUT	= 1,
+	PAD_CONNECT_OUTPUT	= 2,
+	PAD_CONNECT_FULL	= PAD_CONNECT_INPUT | PAD_CONNECT_OUTPUT,
+};
+
+static int __intel_gpio_get_direction(u32 value)
+{
+	switch ((value & PADCFG0_GPIODIS_MASK) >> PADCFG0_GPIODIS_SHIFT) {
+	case PADCFG0_GPIODIS_FULL:
+		return PAD_CONNECT_NONE;
+	case PADCFG0_GPIODIS_OUTPUT:
+		return PAD_CONNECT_INPUT;
+	case PADCFG0_GPIODIS_INPUT:
+		return PAD_CONNECT_OUTPUT;
+	case PADCFG0_GPIODIS_NONE:
+		return PAD_CONNECT_FULL;
+	default:
+		return -ENOTSUPP;
+	};
 }
 
 static u32 __intel_gpio_set_direction(u32 value, bool input, bool output)
@@ -937,7 +972,7 @@ static int intel_gpio_get(struct gpio_chip *chip, unsigned int offset)
 		return -EINVAL;
 
 	padcfg0 = readl(reg);
-	if (!(padcfg0 & PADCFG0_GPIOTXDIS))
+	if (__intel_gpio_get_direction(padcfg0) & PAD_CONNECT_OUTPUT)
 		return !!(padcfg0 & PADCFG0_GPIOTXSTATE);
 
 	return !!(padcfg0 & PADCFG0_GPIORXSTATE);
@@ -990,10 +1025,10 @@ static int intel_gpio_get_direction(struct gpio_chip *chip, unsigned int offset)
 	if (padcfg0 & PADCFG0_PMODE_MASK)
 		return -EINVAL;
 
-	if (padcfg0 & PADCFG0_GPIOTXDIS)
-		return GPIO_LINE_DIRECTION_IN;
+	if (__intel_gpio_get_direction(padcfg0) & PAD_CONNECT_OUTPUT)
+		return GPIO_LINE_DIRECTION_OUT;
 
-	return GPIO_LINE_DIRECTION_OUT;
+	return GPIO_LINE_DIRECTION_IN;
 }
 
 static int intel_gpio_direction_input(struct gpio_chip *chip, unsigned int offset)
@@ -1690,7 +1725,8 @@ EXPORT_SYMBOL_NS_GPL(intel_pinctrl_get_soc_data, PINCTRL_INTEL);
 
 static bool __intel_gpio_is_direct_irq(u32 value)
 {
-	return (value & PADCFG0_GPIROUTIOXAPIC) && (value & PADCFG0_GPIOTXDIS) &&
+	return (value & PADCFG0_GPIROUTIOXAPIC) &&
+	       (__intel_gpio_get_direction(value) == PAD_CONNECT_INPUT) &&
 	       (__intel_gpio_get_gpio_mode(value) == PADCFG0_PMODE_GPIO);
 }
 
