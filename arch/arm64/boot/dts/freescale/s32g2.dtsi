@@ -162,6 +162,159 @@
 					slew-rate = <166>;
 				};
 			};
+
+			pinctrl_usdhc0: usdhc0grp-pins {
+				usdhc0-grp0 {
+					pinmux = <0x2e1>,
+						 <0x381>;
+					output-enable;
+					bias-pull-down;
+					slew-rate = <150>;
+				};
+
+				usdhc0-grp1 {
+					pinmux = <0x2f1>,
+						 <0x301>,
+						 <0x311>,
+						 <0x321>,
+						 <0x331>,
+						 <0x341>,
+						 <0x351>,
+						 <0x361>,
+						 <0x371>;
+					output-enable;
+					input-enable;
+					bias-pull-up;
+					slew-rate = <150>;
+				};
+
+				usdhc0-grp2 {
+					pinmux = <0x391>;
+					output-enable;
+					slew-rate = <150>;
+				};
+
+				usdhc0-grp3 {
+					pinmux = <0x3a0>;
+					input-enable;
+					slew-rate = <150>;
+				};
+
+				usdhc0-grp4 {
+					pinmux = <0x2032>,
+						 <0x2042>,
+						 <0x2052>,
+						 <0x2062>,
+						 <0x2072>,
+						 <0x2082>,
+						 <0x2092>,
+						 <0x20a2>,
+						 <0x20b2>,
+						 <0x20c2>;
+				};
+			};
+
+			pinctrl_usdhc0_100mhz: usdhc0-100mhzgrp-pins {
+				usdhc0-100mhz-grp0 {
+					pinmux = <0x2e1>,
+						 <0x381>;
+					output-enable;
+					bias-pull-down;
+					slew-rate = <150>;
+				};
+
+				usdhc0-100mhz-grp1 {
+					pinmux = <0x2f1>,
+						 <0x301>,
+						 <0x311>,
+						 <0x321>,
+						 <0x331>,
+						 <0x341>,
+						 <0x351>,
+						 <0x361>,
+						 <0x371>;
+					output-enable;
+					input-enable;
+					bias-pull-up;
+					slew-rate = <150>;
+				};
+
+				usdhc0-100mhz-grp2 {
+					pinmux = <0x391>;
+					output-enable;
+					slew-rate = <150>;
+				};
+
+				usdhc0-100mhz-grp3 {
+					pinmux = <0x3a0>;
+					input-enable;
+					slew-rate = <150>;
+				};
+
+				usdhc0-100mhz-grp4 {
+					pinmux = <0x2032>,
+						 <0x2042>,
+						 <0x2052>,
+						 <0x2062>,
+						 <0x2072>,
+						 <0x2082>,
+						 <0x2092>,
+						 <0x20a2>,
+						 <0x20b2>,
+						 <0x20c2>;
+				};
+			};
+
+			pinctrl_usdhc0_200mhz: usdhc0-200mhzgrp-pins {
+				usdhc0-200mhz-grp0 {
+					pinmux = <0x2e1>,
+						 <0x381>;
+					output-enable;
+					bias-pull-down;
+					slew-rate = <208>;
+				};
+
+				usdhc0-200mhz-grp1 {
+					pinmux = <0x2f1>,
+						 <0x301>,
+						 <0x311>,
+						 <0x321>,
+						 <0x331>,
+						 <0x341>,
+						 <0x351>,
+						 <0x361>,
+						 <0x371>;
+					output-enable;
+					input-enable;
+					bias-pull-up;
+					slew-rate = <208>;
+				};
+
+				usdhc0-200mhz-grp2 {
+					pinmux = <0x391>;
+					output-enable;
+					slew-rate = <208>;
+				};
+
+				usdhc0-200mhz-grp3 {
+					pinmux = <0x3a0>;
+					input-enable;
+					slew-rate = <208>;
+				};
+
+				usdhc0-200mhz-grp4 {
+					pinmux = <0x2032>,
+						 <0x2042>,
+						 <0x2052>,
+						 <0x2062>,
+						 <0x2072>,
+						 <0x2082>,
+						 <0x2092>,
+						 <0x20a2>,
+						 <0x20b2>,
+						 <0x20c2>;
+				};
+			};
 		};
 
 		uart0: serial@401c8000 {
