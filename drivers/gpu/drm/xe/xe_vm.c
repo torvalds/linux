@@ -3341,9 +3341,10 @@ int xe_vm_invalidate_vma(struct xe_vma *vma)
 {
 	struct xe_device *xe = xe_vma_vm(vma)->xe;
 	struct xe_tile *tile;
-	struct xe_gt_tlb_invalidation_fence fence[XE_MAX_TILES_PER_DEVICE];
-	u32 tile_needs_invalidate = 0;
+	struct xe_gt_tlb_invalidation_fence
+		fence[XE_MAX_TILES_PER_DEVICE * XE_MAX_GT_PER_TILE];
 	u8 id;
+	u32 fence_id = 0;
 	int ret = 0;
 
 	xe_assert(xe, !xe_vma_is_null(vma));
@@ -3371,27 +3372,37 @@ int xe_vm_invalidate_vma(struct xe_vma *vma)
 		if (xe_pt_zap_ptes(tile, vma)) {
 			xe_device_wmb(xe);
 			xe_gt_tlb_invalidation_fence_init(tile->primary_gt,
-							  &fence[id], true);
+							  &fence[fence_id],
+							  true);
 
-			/*
-			 * FIXME: We potentially need to invalidate multiple
-			 * GTs within the tile
-			 */
 			ret = xe_gt_tlb_invalidation_vma(tile->primary_gt,
-							 &fence[id], vma);
+							 &fence[fence_id], vma);
 			if (ret < 0) {
-				xe_gt_tlb_invalidation_fence_fini(&fence[id]);
+				xe_gt_tlb_invalidation_fence_fini(&fence[fence_id]);
 				goto wait;
 			}
+			++fence_id;
 
-			tile_needs_invalidate |= BIT(id);
+			if (!tile->media_gt)
+				continue;
+
+			xe_gt_tlb_invalidation_fence_init(tile->media_gt,
+							  &fence[fence_id],
+							  true);
+
+			ret = xe_gt_tlb_invalidation_vma(tile->media_gt,
+							 &fence[fence_id], vma);
+			if (ret < 0) {
+				xe_gt_tlb_invalidation_fence_fini(&fence[fence_id]);
+				goto wait;
+			}
+			++fence_id;
 		}
 	}
 
 wait:
-	for_each_tile(tile, xe, id)
-		if (tile_needs_invalidate & BIT(id))
-			xe_gt_tlb_invalidation_fence_wait(&fence[id]);
+	for (id = 0; id < fence_id; ++id)
+		xe_gt_tlb_invalidation_fence_wait(&fence[id]);
 
 	vma->tile_invalidated = vma->tile_mask;
 
