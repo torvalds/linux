@@ -132,18 +132,6 @@ static void free_sub_pt(u64 *root, int mode, struct list_head *freelist)
 	}
 }
 
-void amd_iommu_domain_set_pgtable(struct protection_domain *domain,
-				  u64 *root, int mode)
-{
-	u64 pt_root;
-
-	/* lowest 3 bits encode pgtable mode */
-	pt_root = mode & 7;
-	pt_root |= (u64)root;
-
-	amd_iommu_domain_set_pt_root(domain, pt_root);
-}
-
 /*
  * This function is used to add another level to an IO page table. Adding
  * another level increases the size of the address space by 9 bits to a size up
@@ -175,12 +163,6 @@ static bool increase_address_space(struct protection_domain *domain,
 	domain->iop.root  = pte;
 	domain->iop.mode += 1;
 	amd_iommu_update_and_flush_device_table(domain);
-
-	/*
-	 * Device Table needs to be updated and flushed before the new root can
-	 * be published.
-	 */
-	amd_iommu_domain_set_pgtable(domain, pte, domain->iop.mode);
 
 	pte = NULL;
 	ret = true;
@@ -560,13 +542,10 @@ static int iommu_v1_read_and_clear_dirty(struct io_pgtable_ops *ops,
 static void v1_free_pgtable(struct io_pgtable *iop)
 {
 	struct amd_io_pgtable *pgtable = container_of(iop, struct amd_io_pgtable, iop);
-	struct protection_domain *dom;
 	LIST_HEAD(freelist);
 
 	if (pgtable->mode == PAGE_MODE_NONE)
 		return;
-
-	dom = container_of(pgtable, struct protection_domain, iop);
 
 	/* Page-table is not visible to IOMMU anymore, so free it */
 	BUG_ON(pgtable->mode < PAGE_MODE_NONE ||
@@ -574,9 +553,6 @@ static void v1_free_pgtable(struct io_pgtable *iop)
 
 	free_sub_pt(pgtable->root, pgtable->mode, &freelist);
 	iommu_put_pages_list(&freelist);
-
-	/* Update data structure */
-	amd_iommu_domain_clr_pt_root(dom);
 }
 
 static struct io_pgtable *v1_alloc_pgtable(struct io_pgtable_cfg *cfg, void *cookie)
