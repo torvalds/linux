@@ -459,7 +459,7 @@ int intel_display_driver_probe_nogem(struct drm_i915_private *i915)
 	intel_vga_disable(i915);
 	intel_setup_outputs(i915);
 
-	ret = intel_dp_tunnel_mgr_init(i915);
+	ret = intel_dp_tunnel_mgr_init(display);
 	if (ret)
 		goto err_hdcp;
 
@@ -580,6 +580,8 @@ void intel_display_driver_remove(struct drm_i915_private *i915)
 /* part #2: call after irq uninstall */
 void intel_display_driver_remove_noirq(struct drm_i915_private *i915)
 {
+	struct intel_display *display = &i915->display;
+
 	if (!HAS_DISPLAY(i915))
 		return;
 
@@ -600,7 +602,7 @@ void intel_display_driver_remove_noirq(struct drm_i915_private *i915)
 
 	intel_mode_config_cleanup(i915);
 
-	intel_dp_tunnel_mgr_cleanup(i915);
+	intel_dp_tunnel_mgr_cleanup(display);
 
 	intel_overlay_cleanup(i915);
 
