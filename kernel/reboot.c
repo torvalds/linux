@@ -34,7 +34,11 @@ EXPORT_SYMBOL(cad_pid);
 #endif
 enum reboot_mode reboot_mode DEFAULT_REBOOT_MODE;
 EXPORT_SYMBOL_GPL(reboot_mode);
+#if defined(CONFIG_ARM64)
+enum reboot_mode panic_reboot_mode = REBOOT_HARD;
+#else
 enum reboot_mode panic_reboot_mode = REBOOT_UNDEFINED;
+#endif
 
 /*
  * This variable is used privately to keep track of whether or not
@@ -43,7 +47,7 @@ enum reboot_mode panic_reboot_mode = REBOOT_UNDEFINED;
  * suppress DMI scanning for reboot quirks.  Without it, it's
  * impossible to override a faulty reboot quirk without recompiling.
  */
-int reboot_default = 1;
+bool reboot_default = true;
 int reboot_cpu;
 enum reboot_type reboot_type = BOOT_ACPI;
 int reboot_force;
@@ -1016,7 +1020,7 @@ static int __init reboot_setup(char *str)
 
 		/*
 		 * Having anything passed on the command line via
-		 * reboot= will cause us to disable DMI checking
+		 * reboot= will cause us to skip DMI checking
 		 * below.
 		 */
 		reboot_default = 0;
