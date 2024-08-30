@@ -22,6 +22,7 @@
 #include "../kselftest.h"
 #include "parse_vdso.h"
 #include "vdso_config.h"
+#include "vdso_call.h"
 
 #ifndef timespecsub
 #define	timespecsub(tsp, usp, vsp)					\
@@ -116,7 +117,7 @@ static void vgetrandom_init(void)
 		printf("%s is missing!\n", name);
 		exit(KSFT_FAIL);
 	}
-	ret = vgrnd.fn(NULL, 0, 0, &vgrnd.params, ~0UL);
+	ret = VDSO_CALL(vgrnd.fn, 5, NULL, 0, 0, &vgrnd.params, ~0UL);
 	if (ret == -ENOSYS) {
 		printf("unsupported architecture\n");
 		exit(KSFT_SKIP);
@@ -137,7 +138,7 @@ static ssize_t vgetrandom(void *buf, size_t len, unsigned long flags)
 			exit(KSFT_FAIL);
 		}
 	}
-	return vgrnd.fn(buf, len, flags, state, vgrnd.params.size_of_opaque_state);
+	return VDSO_CALL(vgrnd.fn, 5, buf, len, flags, state, vgrnd.params.size_of_opaque_state);
 }
 
 enum { TRIALS = 25000000, THREADS = 256 };
