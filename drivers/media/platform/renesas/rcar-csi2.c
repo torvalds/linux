@@ -242,12 +242,12 @@ struct phtw_value {
 	u8 code;
 };
 
-struct rcsi2_mbps_reg {
+struct rcsi2_mbps_info {
 	u16 mbps;
 	u8 reg;
 };
 
-static const struct rcsi2_mbps_reg phtw_mbps_v3u[] = {
+static const struct rcsi2_mbps_info phtw_mbps_v3u[] = {
 	{ .mbps = 1500, .reg = 0xcc },
 	{ .mbps = 1550, .reg = 0x1d },
 	{ .mbps = 1600, .reg = 0x27 },
@@ -272,7 +272,7 @@ static const struct rcsi2_mbps_reg phtw_mbps_v3u[] = {
 	{ /* sentinel */ },
 };
 
-static const struct rcsi2_mbps_reg phtw_mbps_h3_v3h_m3n[] = {
+static const struct rcsi2_mbps_info phtw_mbps_h3_v3h_m3n[] = {
 	{ .mbps =   80, .reg = 0x86 },
 	{ .mbps =   90, .reg = 0x86 },
 	{ .mbps =  100, .reg = 0x87 },
@@ -292,7 +292,7 @@ static const struct rcsi2_mbps_reg phtw_mbps_h3_v3h_m3n[] = {
 	{ /* sentinel */ },
 };
 
-static const struct rcsi2_mbps_reg phtw_mbps_v3m_e3[] = {
+static const struct rcsi2_mbps_info phtw_mbps_v3m_e3[] = {
 	{ .mbps =   80, .reg = 0x00 },
 	{ .mbps =   90, .reg = 0x20 },
 	{ .mbps =  100, .reg = 0x40 },
@@ -336,7 +336,7 @@ static const struct rcsi2_mbps_reg phtw_mbps_v3m_e3[] = {
 #define PHYPLL_REG			0x68
 #define PHYPLL_HSFREQRANGE(n)		((n) << 16)
 
-static const struct rcsi2_mbps_reg hsfreqrange_v3u[] = {
+static const struct rcsi2_mbps_info hsfreqrange_v3u[] = {
 	{ .mbps =   80, .reg = 0x00 },
 	{ .mbps =   90, .reg = 0x10 },
 	{ .mbps =  100, .reg = 0x20 },
@@ -402,7 +402,7 @@ static const struct rcsi2_mbps_reg hsfreqrange_v3u[] = {
 	{ /* sentinel */ },
 };
 
-static const struct rcsi2_mbps_reg hsfreqrange_h3_v3h_m3n[] = {
+static const struct rcsi2_mbps_info hsfreqrange_h3_v3h_m3n[] = {
 	{ .mbps =   80, .reg = 0x00 },
 	{ .mbps =   90, .reg = 0x10 },
 	{ .mbps =  100, .reg = 0x20 },
@@ -449,7 +449,7 @@ static const struct rcsi2_mbps_reg hsfreqrange_h3_v3h_m3n[] = {
 	{ /* sentinel */ },
 };
 
-static const struct rcsi2_mbps_reg hsfreqrange_m3w[] = {
+static const struct rcsi2_mbps_info hsfreqrange_m3w[] = {
 	{ .mbps =   80,	.reg = 0x00 },
 	{ .mbps =   90,	.reg = 0x10 },
 	{ .mbps =  100,	.reg = 0x20 },
@@ -596,7 +596,7 @@ struct rcar_csi2_info {
 	int (*start_receiver)(struct rcar_csi2 *priv,
 			      struct v4l2_subdev_state *state);
 	void (*enter_standby)(struct rcar_csi2 *priv);
-	const struct rcsi2_mbps_reg *hsfreqrange;
+	const struct rcsi2_mbps_info *hsfreqrange;
 	unsigned int csi0clkfreqrange;
 	unsigned int num_channels;
 	bool clear_ulps;
@@ -662,6 +662,34 @@ static void rcsi2_write16(struct rcar_csi2 *priv, unsigned int reg, u16 data)
 	iowrite16(data, priv->base + reg);
 }
 
+static const struct rcsi2_mbps_info *
+rcsi2_mbps_to_info(struct rcar_csi2 *priv,
+		   const struct rcsi2_mbps_info *infotable, unsigned int mbps)
+{
+	const struct rcsi2_mbps_info *info;
+	const struct rcsi2_mbps_info *prev = NULL;
+
+	if (mbps < infotable->mbps)
+		dev_warn(priv->dev, "%u Mbps less than min PHY speed %u Mbps",
+			 mbps, infotable->mbps);
+
+	for (info = infotable; info->mbps != 0; info++) {
+		if (info->mbps >= mbps)
+			break;
+		prev = info;
+	}
+
+	if (!info->mbps) {
+		dev_err(priv->dev, "Unsupported PHY speed (%u Mbps)", mbps);
+		return NULL;
+	}
+
+	if (prev && ((mbps - prev->mbps) <= (info->mbps - mbps)))
+		info = prev;
+
+	return info;
+}
+
 static void rcsi2_enter_standby_gen3(struct rcar_csi2 *priv)
 {
 	rcsi2_write(priv, PHYCNT_REG, 0);
@@ -714,29 +742,13 @@ static int rcsi2_wait_phy_start(struct rcar_csi2 *priv,
 
 static int rcsi2_set_phypll(struct rcar_csi2 *priv, unsigned int mbps)
 {
-	const struct rcsi2_mbps_reg *hsfreq;
-	const struct rcsi2_mbps_reg *hsfreq_prev = NULL;
+	const struct rcsi2_mbps_info *info;
 
-	if (mbps < priv->info->hsfreqrange->mbps)
-		dev_warn(priv->dev, "%u Mbps less than min PHY speed %u Mbps",
-			 mbps, priv->info->hsfreqrange->mbps);
-
-	for (hsfreq = priv->info->hsfreqrange; hsfreq->mbps != 0; hsfreq++) {
-		if (hsfreq->mbps >= mbps)
-			break;
-		hsfreq_prev = hsfreq;
-	}
-
-	if (!hsfreq->mbps) {
-		dev_err(priv->dev, "Unsupported PHY speed (%u Mbps)", mbps);
+	info = rcsi2_mbps_to_info(priv, priv->info->hsfreqrange, mbps);
+	if (!info)
 		return -ERANGE;
-	}
 
-	if (hsfreq_prev &&
-	    ((mbps - hsfreq_prev->mbps) <= (hsfreq->mbps - mbps)))
-		hsfreq = hsfreq_prev;
-
-	rcsi2_write(priv, priv->info->regs->phypll, PHYPLL_HSFREQRANGE(hsfreq->reg));
+	rcsi2_write(priv, priv->info->regs->phypll, PHYPLL_HSFREQRANGE(info->reg));
 
 	return 0;
 }
@@ -1494,27 +1506,15 @@ static int rcsi2_phtw_write_array(struct rcar_csi2 *priv,
 }
 
 static int rcsi2_phtw_write_mbps(struct rcar_csi2 *priv, unsigned int mbps,
-				 const struct rcsi2_mbps_reg *values, u8 code)
+				 const struct rcsi2_mbps_info *values, u8 code)
 {
-	const struct rcsi2_mbps_reg *value;
-	const struct rcsi2_mbps_reg *prev_value = NULL;
+	const struct rcsi2_mbps_info *info;
 
-	for (value = values; value->mbps; value++) {
-		if (value->mbps >= mbps)
-			break;
-		prev_value = value;
-	}
-
-	if (prev_value &&
-	    ((mbps - prev_value->mbps) <= (value->mbps - mbps)))
-		value = prev_value;
-
-	if (!value->mbps) {
-		dev_err(priv->dev, "Unsupported PHY speed (%u Mbps)", mbps);
+	info = rcsi2_mbps_to_info(priv, values, mbps);
+	if (!info)
 		return -ERANGE;
-	}
 
-	return rcsi2_phtw_write(priv, value->reg, code);
+	return rcsi2_phtw_write(priv, info->reg, code);
 }
 
 static int __rcsi2_init_phtw_h3_v3h_m3n(struct rcar_csi2 *priv,
