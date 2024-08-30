@@ -250,7 +250,10 @@ static int erofs_fill_inode(struct inode *inode)
 	}
 
 	mapping_set_large_folios(inode->i_mapping);
-	if (erofs_inode_is_data_compressed(vi->datalayout)) {
+	if (erofs_is_fileio_mode(EROFS_SB(inode->i_sb))) {
+		/* XXX: data I/Os will be implemented in the following patches */
+		err = -EOPNOTSUPP;
+	} else if (erofs_inode_is_data_compressed(vi->datalayout)) {
 #ifdef CONFIG_EROFS_FS_ZIP
 		DO_ONCE_LITE_IF(inode->i_blkbits != PAGE_SHIFT,
 			  erofs_info, inode->i_sb,
