@@ -4706,6 +4706,7 @@ void nfsd4_cstate_clear_replay(struct nfsd4_compound_state *cstate)
 	if (so != NULL) {
 		cstate->replay_owner = NULL;
 		atomic_set(&so->so_replay.rp_locked, RP_UNLOCKED);
+		smp_mb__after_atomic();
 		wake_up_var(&so->so_replay.rp_locked);
 		nfs4_put_stateowner(so);
 	}
@@ -5006,6 +5007,7 @@ move_to_close_lru(struct nfs4_ol_stateid *s, struct net *net)
 	 * so tell them to stop waiting.
 	 */
 	atomic_set(&oo->oo_owner.so_replay.rp_locked, RP_UNHASHED);
+	smp_mb__after_atomic();
 	wake_up_var(&oo->oo_owner.so_replay.rp_locked);
 	wait_event(close_wq, refcount_read(&s->st_stid.sc_count) == 2);
 
@@ -7475,8 +7477,9 @@ nfsd4_delegreturn(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 		goto put_stateid;
 
 	trace_nfsd_deleg_return(stateid);
-	wake_up_var(d_inode(cstate->current_fh.fh_dentry));
 	destroy_delegation(dp);
+	smp_mb__after_atomic();
+	wake_up_var(d_inode(cstate->current_fh.fh_dentry));
 put_stateid:
 	nfs4_put_stid(&dp->dl_stid);
 out:
