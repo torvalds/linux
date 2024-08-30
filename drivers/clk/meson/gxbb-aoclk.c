@@ -303,3 +303,4 @@ module_platform_driver(gxbb_aoclkc_driver);
 
 MODULE_DESCRIPTION("Amlogic GXBB Always-ON Clock Controller driver");
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS(CLK_MESON);
