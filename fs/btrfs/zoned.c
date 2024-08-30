@@ -1406,6 +1406,8 @@ static int btrfs_load_block_group_dup(struct btrfs_block_group *bg,
 		return -EINVAL;
 	}
 
+	bg->zone_capacity = min_not_zero(zone_info[0].capacity, zone_info[1].capacity);
+
 	if (zone_info[0].alloc_offset == WP_MISSING_DEV) {
 		btrfs_err(bg->fs_info,
 			  "zoned: cannot recover write pointer for zone %llu",
@@ -1432,7 +1434,6 @@ static int btrfs_load_block_group_dup(struct btrfs_block_group *bg,
 	}
 
 	bg->alloc_offset = zone_info[0].alloc_offset;
-	bg->zone_capacity = min(zone_info[0].capacity, zone_info[1].capacity);
 	return 0;
 }
 
@@ -1449,6 +1450,9 @@ static int btrfs_load_block_group_raid1(struct btrfs_block_group *bg,
 			  btrfs_bg_type_to_raid_name(map->type));
 		return -EINVAL;
 	}
+
+	/* In case a device is missing we have a cap of 0, so don't use it. */
+	bg->zone_capacity = min_not_zero(zone_info[0].capacity, zone_info[1].capacity);
 
 	for (i = 0; i < map->num_stripes; i++) {
 		if (zone_info[i].alloc_offset == WP_MISSING_DEV ||
@@ -1471,9 +1475,6 @@ static int btrfs_load_block_group_raid1(struct btrfs_block_group *bg,
 			if (test_bit(0, active))
 				set_bit(BLOCK_GROUP_FLAG_ZONE_IS_ACTIVE, &bg->runtime_flags);
 		}
-		/* In case a device is missing we have a cap of 0, so don't use it. */
-		bg->zone_capacity = min_not_zero(zone_info[0].capacity,
-						 zone_info[1].capacity);
 	}
 
 	if (zone_info[0].alloc_offset != WP_MISSING_DEV)
@@ -1563,6 +1564,7 @@ int btrfs_load_block_group_zone_info(struct btrfs_block_group *cache, bool new)
 	unsigned long *active = NULL;
 	u64 last_alloc = 0;
 	u32 num_sequential = 0, num_conventional = 0;
+	u64 profile;
 
 	if (!btrfs_is_zoned(fs_info))
 		return 0;
@@ -1623,7 +1625,8 @@ int btrfs_load_block_group_zone_info(struct btrfs_block_group *cache, bool new)
 		}
 	}
 
-	switch (map->type & BTRFS_BLOCK_GROUP_PROFILE_MASK) {
+	profile = map->type & BTRFS_BLOCK_GROUP_PROFILE_MASK;
+	switch (profile) {
 	case 0: /* single */
 		ret = btrfs_load_block_group_single(cache, &zone_info[0], active);
 		break;
@@ -1648,6 +1651,23 @@ int btrfs_load_block_group_zone_info(struct btrfs_block_group *cache, bool new)
 			  btrfs_bg_type_to_raid_name(map->type));
 		ret = -EINVAL;
 		goto out;
+	}
+
+	if (ret == -EIO && profile != 0 && profile != BTRFS_BLOCK_GROUP_RAID0 &&
+	    profile != BTRFS_BLOCK_GROUP_RAID10) {
+		/*
+		 * Detected broken write pointer.  Make this block group
+		 * unallocatable by setting the allocation pointer at the end of
+		 * allocatable region. Relocating this block group will fix the
+		 * mismatch.
+		 *
+		 * Currently, we cannot handle RAID0 or RAID10 case like this
+		 * because we don't have a proper zone_capacity value. But,
+		 * reading from this block group won't work anyway by a missing
+		 * stripe.
+		 */
+		cache->alloc_offset = cache->zone_capacity;
+		ret = 0;
 	}
 
 out:
