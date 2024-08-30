@@ -58,9 +58,7 @@
 		       <&main_udmap 0xc107>, /* egress slice 1 */
 
 		       <&main_udmap 0x4100>, /* ingress slice 0 */
-		       <&main_udmap 0x4101>, /* ingress slice 1 */
-		       <&main_udmap 0x4102>, /* mgmnt rsp slice 0 */
-		       <&main_udmap 0x4103>; /* mgmnt rsp slice 1 */
+		       <&main_udmap 0x4101>; /* ingress slice 1 */
 		dma-names = "tx0-0", "tx0-1", "tx0-2", "tx0-3",
 			    "tx1-0", "tx1-1", "tx1-2", "tx1-3",
 			    "rx0", "rx1";
@@ -126,9 +124,7 @@
 		       <&main_udmap 0xc207>, /* egress slice 1 */
 
 		       <&main_udmap 0x4200>, /* ingress slice 0 */
-		       <&main_udmap 0x4201>, /* ingress slice 1 */
-		       <&main_udmap 0x4202>, /* mgmnt rsp slice 0 */
-		       <&main_udmap 0x4203>; /* mgmnt rsp slice 1 */
+		       <&main_udmap 0x4201>; /* ingress slice 1 */
 		dma-names = "tx0-0", "tx0-1", "tx0-2", "tx0-3",
 			    "tx1-0", "tx1-1", "tx1-2", "tx1-3",
 			    "rx0", "rx1";
