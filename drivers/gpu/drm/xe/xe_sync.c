@@ -55,7 +55,7 @@ static struct xe_user_fence *user_fence_create(struct xe_device *xe, u64 addr,
 	struct xe_user_fence *ufence;
 	u64 __user *ptr = u64_to_user_ptr(addr);
 
-	if (!access_ok(ptr, sizeof(ptr)))
+	if (!access_ok(ptr, sizeof(*ptr)))
 		return ERR_PTR(-EFAULT);
 
 	ufence = kmalloc(sizeof(*ufence), GFP_KERNEL);
@@ -206,16 +206,9 @@ int xe_sync_entry_parse(struct xe_device *xe, struct xe_file *xef,
 
 int xe_sync_entry_add_deps(struct xe_sync_entry *sync, struct xe_sched_job *job)
 {
-	int err;
-
-	if (sync->fence) {
-		err = drm_sched_job_add_dependency(&job->drm,
-						   dma_fence_get(sync->fence));
-		if (err) {
-			dma_fence_put(sync->fence);
-			return err;
-		}
-	}
+	if (sync->fence)
+		return  drm_sched_job_add_dependency(&job->drm,
+						     dma_fence_get(sync->fence));
 
 	return 0;
 }
@@ -256,10 +249,8 @@ void xe_sync_entry_cleanup(struct xe_sync_entry *sync)
 {
 	if (sync->syncobj)
 		drm_syncobj_put(sync->syncobj);
-	if (sync->fence)
-		dma_fence_put(sync->fence);
-	if (sync->chain_fence)
-		dma_fence_chain_free(sync->chain_fence);
+	dma_fence_put(sync->fence);
+	dma_fence_chain_free(sync->chain_fence);
 	if (sync->ufence)
 		user_fence_put(sync->ufence);
 }

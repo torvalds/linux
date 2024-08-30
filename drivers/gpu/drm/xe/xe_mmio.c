@@ -29,9 +29,8 @@ static void tiles_fini(void *arg)
 	struct xe_tile *tile;
 	int id;
 
-	for_each_tile(tile, xe, id)
-		if (tile != xe_device_get_root_tile(xe))
-			tile->mmio.regs = NULL;
+	for_each_remote_tile(tile, xe, id)
+		tile->mmio.regs = NULL;
 }
 
 /*
