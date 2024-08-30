@@ -1001,6 +1001,7 @@ static inline int ra_has_index(struct file_ra_state *ra, pgoff_t index)
  * @f_cred: stashed credentials of creator/opener
  * @f_path: path of the file
  * @f_pos_lock: lock protecting file position
+ * @f_pipe: specific to pipes
  * @f_pos: file position
  * @f_version: file version
  * @f_security: LSM security context of this file
@@ -1026,7 +1027,12 @@ struct file {
 	const struct cred		*f_cred;
 	/* --- cacheline 1 boundary (64 bytes) --- */
 	struct path			f_path;
-	struct mutex			f_pos_lock;
+	union {
+		/* regular files (with FMODE_ATOMIC_POS) and directories */
+		struct mutex		f_pos_lock;
+		/* pipes */
+		u64			f_pipe;
+	};
 	loff_t				f_pos;
 	u64				f_version;
 	/* --- cacheline 2 boundary (128 bytes) --- */
