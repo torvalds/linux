@@ -10,14 +10,6 @@
 static inline bool is_mergeable_vma(struct vma_merge_struct *vmg, bool merge_next)
 {
 	struct vm_area_struct *vma = merge_next ? vmg->next : vmg->prev;
-	/*
-	 * If the vma has a ->close operation then the driver probably needs to
-	 * release per-vma resources, so we don't attempt to merge those if the
-	 * caller indicates the current vma may be removed as part of the merge,
-	 * which is the case if we are attempting to merge the next VMA into
-	 * this one.
-	 */
-	bool may_remove_vma = merge_next;
 
 	if (!mpol_equal(vmg->policy, vma_policy(vma)))
 		return false;
@@ -32,8 +24,6 @@ static inline bool is_mergeable_vma(struct vma_merge_struct *vmg, bool merge_nex
 	if ((vma->vm_flags ^ vmg->flags) & ~VM_SOFTDIRTY)
 		return false;
 	if (vma->vm_file != vmg->file)
-		return false;
-	if (may_remove_vma && vma->vm_ops && vma->vm_ops->close)
 		return false;
 	if (!is_mergeable_vm_userfaultfd_ctx(vma, vmg->uffd_ctx))
 		return false;
@@ -632,6 +622,12 @@ static int commit_merge(struct vma_merge_struct *vmg,
 	return 0;
 }
 
+/* We can only remove VMAs when merging if they do not have a close hook. */
+static bool can_merge_remove_vma(struct vm_area_struct *vma)
+{
+	return !vma->vm_ops || !vma->vm_ops->close;
+}
+
 /*
  * vma_merge_existing_range - Attempt to merge VMAs based on a VMA having its
  * attributes modified.
@@ -725,11 +721,29 @@ static struct vm_area_struct *vma_merge_existing_range(struct vma_merge_struct *
 	merge_both = merge_left && merge_right;
 	/* If we span the entire VMA, a merge implies it will be deleted. */
 	merge_will_delete_vma = left_side && right_side;
+
+	/*
+	 * If we need to remove vma in its entirety but are unable to do so,
+	 * we have no sensible recourse but to abort the merge.
+	 */
+	if (merge_will_delete_vma && !can_merge_remove_vma(vma))
+		return NULL;
+
 	/*
 	 * If we merge both VMAs, then next is also deleted. This implies
 	 * merge_will_delete_vma also.
 	 */
 	merge_will_delete_next = merge_both;
+
+	/*
+	 * If we cannot delete next, then we can reduce the operation to merging
+	 * prev and vma (thereby deleting vma).
+	 */
+	if (merge_will_delete_next && !can_merge_remove_vma(next)) {
+		merge_will_delete_next = false;
+		merge_right = false;
+		merge_both = false;
+	}
 
 	/* No matter what happens, we will be adjusting vma. */
 	vma_start_write(vma);
@@ -772,21 +786,12 @@ static struct vm_area_struct *vma_merge_existing_range(struct vma_merge_struct *
 		vmg->start = prev->vm_start;
 		vmg->pgoff = prev->vm_pgoff;
 
-		if (merge_will_delete_vma) {
-			/*
-			 * can_vma_merge_after() assumed we would not be
-			 * removing vma, so it skipped the check for
-			 * vm_ops->close, but we are removing vma.
-			 */
-			if (vma->vm_ops && vma->vm_ops->close)
-				err = -EINVAL;
-		} else {
+		if (!merge_will_delete_vma) {
 			adjust = vma;
 			adj_start = vmg->end - vma->vm_start;
 		}
 
-		if (!err)
-			err = dup_anon_vma(prev, vma, &anon_dup);
+		err = dup_anon_vma(prev, vma, &anon_dup);
 	} else { /* merge_right */
 		/*
 		 *     |<----->| OR
@@ -940,6 +945,14 @@ struct vm_area_struct *vma_merge_new_range(struct vma_merge_struct *vmg)
 		vmg->vma = prev;
 		vmg->pgoff = prev->vm_pgoff;
 
+		/*
+		 * If this merge would result in removal of the next VMA but we
+		 * are not permitted to do so, reduce the operation to merging
+		 * prev and vma.
+		 */
+		if (can_merge_right && !can_merge_remove_vma(next))
+			vmg->end = end;
+
 		vma_prev(vmg->vmi); /* Equivalent to going to the previous range */
 	}
 
@@ -994,6 +1007,8 @@ int vma_expand(struct vma_merge_struct *vmg)
 		int ret;
 
 		remove_next = true;
+		/* This should already have been checked by this point. */
+		VM_WARN_ON(!can_merge_remove_vma(next));
 		vma_start_write(next);
 		ret = dup_anon_vma(vma, next, &anon_dup);
 		if (ret)

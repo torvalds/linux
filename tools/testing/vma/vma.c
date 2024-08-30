@@ -387,6 +387,9 @@ static bool test_merge_new(void)
 	struct anon_vma_chain dummy_anon_vma_chain_d = {
 		.anon_vma = &dummy_anon_vma,
 	};
+	const struct vm_operations_struct vm_ops = {
+		.close = dummy_close,
+	};
 	int count;
 	struct vm_area_struct *vma, *vma_a, *vma_b, *vma_c, *vma_d;
 	bool merged;
@@ -430,6 +433,7 @@ static bool test_merge_new(void)
 	 * 0123456789abc
 	 * AA*B   DD  CC
 	 */
+	vma_a->vm_ops = &vm_ops; /* This should have no impact. */
 	vma_b->anon_vma = &dummy_anon_vma;
 	vma = try_merge_new_vma(&mm, &vmg, 0x2000, 0x3000, 2, flags, &merged);
 	ASSERT_EQ(vma, vma_a);
@@ -466,6 +470,7 @@ static bool test_merge_new(void)
 	 * AAAAA *DD  CC
 	 */
 	vma_d->anon_vma = &dummy_anon_vma;
+	vma_d->vm_ops = &vm_ops; /* This should have no impact. */
 	vma = try_merge_new_vma(&mm, &vmg, 0x6000, 0x7000, 6, flags, &merged);
 	ASSERT_EQ(vma, vma_d);
 	/* Prepend. */
@@ -483,6 +488,7 @@ static bool test_merge_new(void)
 	 * 0123456789abc
 	 * AAAAA*DDD  CC
 	 */
+	vma_d->vm_ops = NULL; /* This would otherwise degrade the merge. */
 	vma = try_merge_new_vma(&mm, &vmg, 0x5000, 0x6000, 5, flags, &merged);
 	ASSERT_EQ(vma, vma_a);
 	/* Merge with A, delete D. */
@@ -640,13 +646,11 @@ static bool test_vma_merge_with_close(void)
 	const struct vm_operations_struct vm_ops = {
 		.close = dummy_close,
 	};
-	struct vm_area_struct *vma_next =
-		alloc_and_link_vma(&mm, 0x2000, 0x3000, 2, flags);
-	struct vm_area_struct *vma;
+	struct vm_area_struct *vma_prev, *vma_next, *vma;
 
 	/*
-	 * When we merge VMAs we sometimes have to delete others as part of the
-	 * operation.
+	 * When merging VMAs we are not permitted to remove any VMA that has a
+	 * vm_ops->close() hook.
 	 *
 	 * Considering the two possible adjacent VMAs to which a VMA can be
 	 * merged:
@@ -697,28 +701,52 @@ static bool test_vma_merge_with_close(void)
 	 * would be set too, and thus scenario A would pick this up.
 	 */
 
-	ASSERT_NE(vma_next, NULL);
-
 	/*
-	 * SCENARIO A
+	 * The only case of a new VMA merge that results in a VMA being deleted
+	 * is one where both the previous and next VMAs are merged - in this
+	 * instance the next VMA is deleted, and the previous VMA is extended.
 	 *
-	 * 0123
-	 *  *N
+	 * If we are unable to do so, we reduce the operation to simply
+	 * extending the prev VMA and not merging next.
+	 *
+	 * 0123456789
+	 * PPP**NNNN
+	 *             ->
+	 * 0123456789
+	 * PPPPPPNNN
 	 */
 
-	/* Make the next VMA have a close() callback. */
+	vma_prev = alloc_and_link_vma(&mm, 0, 0x3000, 0, flags);
+	vma_next = alloc_and_link_vma(&mm, 0x5000, 0x9000, 5, flags);
 	vma_next->vm_ops = &vm_ops;
 
-	/* Our proposed VMA has characteristics that would otherwise be merged. */
-	vmg_set_range(&vmg, 0x1000, 0x2000, 1, flags);
+	vmg_set_range(&vmg, 0x3000, 0x5000, 3, flags);
+	ASSERT_EQ(merge_new(&vmg), vma_prev);
+	ASSERT_EQ(vmg.state, VMA_MERGE_SUCCESS);
+	ASSERT_EQ(vma_prev->vm_start, 0);
+	ASSERT_EQ(vma_prev->vm_end, 0x5000);
+	ASSERT_EQ(vma_prev->vm_pgoff, 0);
 
-	/* The next VMA having a close() operator should cause the merge to fail.*/
-	ASSERT_EQ(merge_new(&vmg), NULL);
-	ASSERT_EQ(vmg.state, VMA_MERGE_NOMERGE);
+	ASSERT_EQ(cleanup_mm(&mm, &vmi), 2);
 
-	/* Now create the VMA so we can merge via modified flags */
-	vmg_set_range(&vmg, 0x1000, 0x2000, 1, flags);
-	vma = alloc_and_link_vma(&mm, 0x1000, 0x2000, 1, flags);
+	/*
+	 * When modifying an existing VMA there are further cases where we
+	 * delete VMAs.
+	 *
+	 *    <>
+	 * 0123456789
+	 * PPPVV
+	 *
+	 * In this instance, if vma has a close hook, the merge simply cannot
+	 * proceed.
+	 */
+
+	vma_prev = alloc_and_link_vma(&mm, 0, 0x3000, 0, flags);
+	vma = alloc_and_link_vma(&mm, 0x3000, 0x5000, 3, flags);
+	vma->vm_ops = &vm_ops;
+
+	vmg_set_range(&vmg, 0x3000, 0x5000, 3, flags);
+	vmg.prev = vma_prev;
 	vmg.vma = vma;
 
 	/*
@@ -728,38 +756,90 @@ static bool test_vma_merge_with_close(void)
 	ASSERT_EQ(merge_existing(&vmg), NULL);
 	ASSERT_EQ(vmg.state, VMA_MERGE_NOMERGE);
 
-	/* SCENARIO B
+	ASSERT_EQ(cleanup_mm(&mm, &vmi), 2);
+
+	/*
+	 * This case is mirrored if merging with next.
 	 *
-	 * 0123
-	 * P*
+	 *    <>
+	 * 0123456789
+	 *    VVNNNN
 	 *
-	 * In order for this scenario to trigger, the VMA currently being
-	 * modified must also have a .close().
+	 * In this instance, if vma has a close hook, the merge simply cannot
+	 * proceed.
 	 */
 
-	/* Reset VMG state. */
-	vmg_set_range(&vmg, 0x1000, 0x2000, 1, flags);
-	/*
-	 * Make next unmergeable, and don't let the scenario A check pick this
-	 * up, we want to reproduce scenario B only.
-	 */
-	vma_next->vm_ops = NULL;
-	vma_next->__vm_flags &= ~VM_MAYWRITE;
-	/* Allocate prev. */
-	vmg.prev = alloc_and_link_vma(&mm, 0, 0x1000, 0, flags);
-	/* Assign a vm_ops->close() function to VMA explicitly. */
+	vma = alloc_and_link_vma(&mm, 0x3000, 0x5000, 3, flags);
+	vma_next = alloc_and_link_vma(&mm, 0x5000, 0x9000, 5, flags);
 	vma->vm_ops = &vm_ops;
+
+	vmg_set_range(&vmg, 0x3000, 0x5000, 3, flags);
 	vmg.vma = vma;
-	/* Make sure merge does not occur. */
 	ASSERT_EQ(merge_existing(&vmg), NULL);
 	/*
 	 * Initially this is misapprehended as an out of memory report, as the
 	 * close() check is handled in the same way as anon_vma duplication
 	 * failures, however a subsequent patch resolves this.
 	 */
-	ASSERT_EQ(vmg.state, VMA_MERGE_ERROR_NOMEM);
+	ASSERT_EQ(vmg.state, VMA_MERGE_NOMERGE);
 
-	cleanup_mm(&mm, &vmi);
+	ASSERT_EQ(cleanup_mm(&mm, &vmi), 2);
+
+	/*
+	 * Finally, we consider two variants of the case where we modify a VMA
+	 * to merge with both the previous and next VMAs.
+	 *
+	 * The first variant is where vma has a close hook. In this instance, no
+	 * merge can proceed.
+	 *
+	 *    <>
+	 * 0123456789
+	 * PPPVVNNNN
+	 */
+
+	vma_prev = alloc_and_link_vma(&mm, 0, 0x3000, 0, flags);
+	vma = alloc_and_link_vma(&mm, 0x3000, 0x5000, 3, flags);
+	vma_next = alloc_and_link_vma(&mm, 0x5000, 0x9000, 5, flags);
+	vma->vm_ops = &vm_ops;
+
+	vmg_set_range(&vmg, 0x3000, 0x5000, 3, flags);
+	vmg.prev = vma_prev;
+	vmg.vma = vma;
+
+	ASSERT_EQ(merge_existing(&vmg), NULL);
+	ASSERT_EQ(vmg.state, VMA_MERGE_NOMERGE);
+
+	ASSERT_EQ(cleanup_mm(&mm, &vmi), 3);
+
+	/*
+	 * The second variant is where next has a close hook. In this instance,
+	 * we reduce the operation to a merge between prev and vma.
+	 *
+	 *    <>
+	 * 0123456789
+	 * PPPVVNNNN
+	 *            ->
+	 * 0123456789
+	 * PPPPPNNNN
+	 */
+
+	vma_prev = alloc_and_link_vma(&mm, 0, 0x3000, 0, flags);
+	vma = alloc_and_link_vma(&mm, 0x3000, 0x5000, 3, flags);
+	vma_next = alloc_and_link_vma(&mm, 0x5000, 0x9000, 5, flags);
+	vma_next->vm_ops = &vm_ops;
+
+	vmg_set_range(&vmg, 0x3000, 0x5000, 3, flags);
+	vmg.prev = vma_prev;
+	vmg.vma = vma;
+
+	ASSERT_EQ(merge_existing(&vmg), vma_prev);
+	ASSERT_EQ(vmg.state, VMA_MERGE_SUCCESS);
+	ASSERT_EQ(vma_prev->vm_start, 0);
+	ASSERT_EQ(vma_prev->vm_end, 0x5000);
+	ASSERT_EQ(vma_prev->vm_pgoff, 0);
+
+	ASSERT_EQ(cleanup_mm(&mm, &vmi), 2);
+
 	return true;
 }
 
@@ -828,6 +908,9 @@ static bool test_merge_existing(void)
 		.mm = &mm,
 		.vmi = &vmi,
 	};
+	const struct vm_operations_struct vm_ops = {
+		.close = dummy_close,
+	};
 
 	/*
 	 * Merge right case - partial span.
@@ -840,7 +923,9 @@ static bool test_merge_existing(void)
 	 *   VNNNNNN
 	 */
 	vma = alloc_and_link_vma(&mm, 0x2000, 0x6000, 2, flags);
+	vma->vm_ops = &vm_ops; /* This should have no impact. */
 	vma_next = alloc_and_link_vma(&mm, 0x6000, 0x9000, 6, flags);
+	vma_next->vm_ops = &vm_ops; /* This should have no impact. */
 	vmg_set_range(&vmg, 0x3000, 0x6000, 3, flags);
 	vmg.vma = vma;
 	vmg.prev = vma;
@@ -873,6 +958,7 @@ static bool test_merge_existing(void)
 	 */
 	vma = alloc_and_link_vma(&mm, 0x2000, 0x6000, 2, flags);
 	vma_next = alloc_and_link_vma(&mm, 0x6000, 0x9000, 6, flags);
+	vma_next->vm_ops = &vm_ops; /* This should have no impact. */
 	vmg_set_range(&vmg, 0x2000, 0x6000, 2, flags);
 	vmg.vma = vma;
 	vma->anon_vma = &dummy_anon_vma;
@@ -899,7 +985,9 @@ static bool test_merge_existing(void)
 	 * PPPPPPV
 	 */
 	vma_prev = alloc_and_link_vma(&mm, 0, 0x3000, 0, flags);
+	vma_prev->vm_ops = &vm_ops; /* This should have no impact. */
 	vma = alloc_and_link_vma(&mm, 0x3000, 0x7000, 3, flags);
+	vma->vm_ops = &vm_ops; /* This should have no impact. */
 	vmg_set_range(&vmg, 0x3000, 0x6000, 3, flags);
 	vmg.prev = vma_prev;
 	vmg.vma = vma;
@@ -932,6 +1020,7 @@ static bool test_merge_existing(void)
 	 * PPPPPPP
 	 */
 	vma_prev = alloc_and_link_vma(&mm, 0, 0x3000, 0, flags);
+	vma_prev->vm_ops = &vm_ops; /* This should have no impact. */
 	vma = alloc_and_link_vma(&mm, 0x3000, 0x7000, 3, flags);
 	vmg_set_range(&vmg, 0x3000, 0x7000, 3, flags);
 	vmg.prev = vma_prev;
@@ -960,6 +1049,7 @@ static bool test_merge_existing(void)
 	 * PPPPPPPPPP
 	 */
 	vma_prev = alloc_and_link_vma(&mm, 0, 0x3000, 0, flags);
+	vma_prev->vm_ops = &vm_ops; /* This should have no impact. */
 	vma = alloc_and_link_vma(&mm, 0x3000, 0x7000, 3, flags);
 	vma_next = alloc_and_link_vma(&mm, 0x7000, 0x9000, 7, flags);
 	vmg_set_range(&vmg, 0x3000, 0x7000, 3, flags);
