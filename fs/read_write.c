@@ -181,6 +181,51 @@ generic_file_llseek_size(struct file *file, loff_t offset, int whence,
 EXPORT_SYMBOL(generic_file_llseek_size);
 
 /**
+ * generic_llseek_cookie - versioned llseek implementation
+ * @file:	file structure to seek on
+ * @offset:	file offset to seek to
+ * @whence:	type of seek
+ * @cookie:	cookie to update
+ *
+ * See generic_file_llseek for a general description and locking assumptions.
+ *
+ * In contrast to generic_file_llseek, this function also resets a
+ * specified cookie to indicate a seek took place.
+ */
+loff_t generic_llseek_cookie(struct file *file, loff_t offset, int whence,
+			     u64 *cookie)
+{
+	struct inode *inode = file->f_mapping->host;
+	loff_t maxsize = inode->i_sb->s_maxbytes;
+	loff_t eof = i_size_read(inode);
+	int ret;
+
+	if (WARN_ON_ONCE(!cookie))
+		return -EINVAL;
+
+	/*
+	 * Require that this is only used for directories that guarantee
+	 * synchronization between readdir and seek so that an update to
+	 * @cookie is correctly synchronized with concurrent readdir.
+	 */
+	if (WARN_ON_ONCE(!(file->f_mode & FMODE_ATOMIC_POS)))
+		return -EINVAL;
+
+	ret = must_set_pos(file, &offset, whence, eof);
+	if (ret < 0)
+		return ret;
+	if (ret == 0)
+		return offset;
+
+	/* No need to hold f_lock because we know that f_pos_lock is held. */
+	if (whence == SEEK_CUR)
+		return vfs_setpos_cookie(file, file->f_pos + offset, maxsize, cookie);
+
+	return vfs_setpos_cookie(file, offset, maxsize, cookie);
+}
+EXPORT_SYMBOL(generic_llseek_cookie);
+
+/**
  * generic_file_llseek - generic llseek implementation for regular files
  * @file:	file structure to seek on
  * @offset:	file offset to seek to
