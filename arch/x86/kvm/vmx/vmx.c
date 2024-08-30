@@ -755,7 +755,7 @@ fault:
 	return -EIO;
 }
 
-static void vmx_emergency_disable(void)
+static void vmx_emergency_disable_virtualization_cpu(void)
 {
 	int cpu = raw_smp_processor_id();
 	struct loaded_vmcs *v;
@@ -2844,7 +2844,7 @@ fault:
 	return -EFAULT;
 }
 
-int vmx_hardware_enable(void)
+int vmx_enable_virtualization_cpu(void)
 {
 	int cpu = raw_smp_processor_id();
 	u64 phys_addr = __pa(per_cpu(vmxarea, cpu));
@@ -2881,7 +2881,7 @@ static void vmclear_local_loaded_vmcss(void)
 		__loaded_vmcs_clear(v);
 }
 
-void vmx_hardware_disable(void)
+void vmx_disable_virtualization_cpu(void)
 {
 	vmclear_local_loaded_vmcss();
 
@@ -8584,7 +8584,7 @@ static void __vmx_exit(void)
 {
 	allow_smaller_maxphyaddr = false;
 
-	cpu_emergency_unregister_virt_callback(vmx_emergency_disable);
+	cpu_emergency_unregister_virt_callback(vmx_emergency_disable_virtualization_cpu);
 
 	vmx_cleanup_l1d_flush();
 }
@@ -8632,7 +8632,7 @@ static int __init vmx_init(void)
 		pi_init_cpu(cpu);
 	}
 
-	cpu_emergency_register_virt_callback(vmx_emergency_disable);
+	cpu_emergency_register_virt_callback(vmx_emergency_disable_virtualization_cpu);
 
 	vmx_check_vmcs12_offsets();
 
