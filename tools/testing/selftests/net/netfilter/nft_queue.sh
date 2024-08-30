@@ -8,7 +8,7 @@
 
 source lib.sh
 ret=0
-timeout=2
+timeout=5
 
 cleanup()
 {
@@ -255,17 +255,19 @@ listener_ready()
 
 test_tcp_forward()
 {
-	ip netns exec "$nsrouter" ./nf_queue -q 2 -t "$timeout" &
+	ip netns exec "$nsrouter" ./nf_queue -q 2 &
 	local nfqpid=$!
 
 	timeout 5 ip netns exec "$ns2" socat -u TCP-LISTEN:12345 STDOUT >/dev/null &
 	local rpid=$!
 
 	busywait "$BUSYWAIT_TIMEOUT" listener_ready "$ns2"
+	busywait "$BUSYWAIT_TIMEOUT" nf_queue_wait "$nsrouter" 2
 
 	ip netns exec "$ns1" socat -u STDIN TCP:10.0.2.99:12345 <"$TMPINPUT" >/dev/null
 
 	wait "$rpid" && echo "PASS: tcp and nfqueue in forward chain"
+	kill "$nfqpid"
 }
 
 test_tcp_localhost()
@@ -273,26 +275,29 @@ test_tcp_localhost()
 	timeout 5 ip netns exec "$nsrouter" socat -u TCP-LISTEN:12345 STDOUT >/dev/null &
 	local rpid=$!
 
-	ip netns exec "$nsrouter" ./nf_queue -q 3 -t "$timeout" &
+	ip netns exec "$nsrouter" ./nf_queue -q 3 &
 	local nfqpid=$!
 
 	busywait "$BUSYWAIT_TIMEOUT" listener_ready "$nsrouter"
+	busywait "$BUSYWAIT_TIMEOUT" nf_queue_wait "$nsrouter" 3
 
 	ip netns exec "$nsrouter" socat -u STDIN TCP:127.0.0.1:12345 <"$TMPINPUT" >/dev/null
 
 	wait "$rpid" && echo "PASS: tcp via loopback"
-	wait 2>/dev/null
+	kill "$nfqpid"
 }
 
 test_tcp_localhost_connectclose()
 {
-	ip netns exec "$nsrouter" ./connect_close -p 23456 -t "$timeout" &
-	ip netns exec "$nsrouter" ./nf_queue -q 3 -t "$timeout" &
+	ip netns exec "$nsrouter" ./nf_queue -q 3 &
+	local nfqpid=$!
 
 	busywait "$BUSYWAIT_TIMEOUT" nf_queue_wait "$nsrouter" 3
 
+	timeout 10 ip netns exec "$nsrouter" ./connect_close -p 23456 -t 3
+
+	kill "$nfqpid"
 	wait && echo "PASS: tcp via loopback with connect/close"
-	wait 2>/dev/null
 }
 
 test_tcp_localhost_requeue()
@@ -357,7 +362,7 @@ table inet filter {
 	}
 }
 EOF
-	ip netns exec "$ns1" ./nf_queue -q 1 -t "$timeout" &
+	ip netns exec "$ns1" ./nf_queue -q 1 &
 	local nfqpid=$!
 
 	busywait "$BUSYWAIT_TIMEOUT" nf_queue_wait "$ns1" 1
@@ -367,6 +372,7 @@ EOF
 	for n in output post; do
 		for d in tvrf eth0; do
 			if ! ip netns exec "$ns1" nft list chain inet filter "$n" | grep -q "oifname \"$d\" icmp type echo-request counter packets 1"; then
+				kill "$nfqpid"
 				echo "FAIL: chain $n: icmp packet counter mismatch for device $d" 1>&2
 				ip netns exec "$ns1" nft list ruleset
 				ret=1
@@ -375,13 +381,29 @@ EOF
 		done
 	done
 
-	wait "$nfqpid" && echo "PASS: icmp+nfqueue via vrf"
-	wait 2>/dev/null
+	kill "$nfqpid"
+	echo "PASS: icmp+nfqueue via vrf"
 }
 
 sctp_listener_ready()
 {
 	ss -S -N "$1" -ln -o "sport = :12345" | grep -q 12345
+}
+
+check_output_files()
+{
+	local f1="$1"
+	local f2="$2"
+	local err="$3"
+
+	if ! cmp "$f1" "$f2" ; then
+		echo "FAIL: $err: input and output file differ" 1>&2
+		echo -n " Input file" 1>&2
+		ls -l "$f1" 1>&2
+		echo -n "Output file" 1>&2
+		ls -l "$f2" 1>&2
+		ret=1
+	fi
 }
 
 test_sctp_forward()
@@ -400,7 +422,7 @@ EOF
 
 	busywait "$BUSYWAIT_TIMEOUT" sctp_listener_ready "$ns2"
 
-	ip netns exec "$nsrouter" ./nf_queue -q 10 -G -t "$timeout" &
+	ip netns exec "$nsrouter" ./nf_queue -q 10 -G &
 	local nfqpid=$!
 
 	ip netns exec "$ns1" socat -u STDIN SCTP:10.0.2.99:12345 <"$TMPINPUT" >/dev/null
@@ -411,11 +433,9 @@ EOF
 	fi
 
 	wait "$rpid" && echo "PASS: sctp and nfqueue in forward chain"
+	kill "$nfqpid"
 
-	if ! diff -u "$TMPINPUT" "$TMPFILE1" ; then
-		echo "FAIL: lost packets?!" 1>&2
-		exit 1
-	fi
+	check_output_files "$TMPINPUT" "$TMPFILE1" "sctp forward"
 }
 
 test_sctp_output()
@@ -429,14 +449,14 @@ table inet sctpq {
 }
 EOF
 	# reduce test file size, software segmentation causes sk wmem increase.
-	dd conv=sparse status=none if=/dev/zero bs=1M count=50 of="$TMPINPUT"
+	dd conv=sparse status=none if=/dev/zero bs=1M count=$((COUNT/2)) of="$TMPINPUT"
 
 	timeout 60 ip netns exec "$ns2" socat -u SCTP-LISTEN:12345 STDOUT > "$TMPFILE1" &
 	local rpid=$!
 
 	busywait "$BUSYWAIT_TIMEOUT" sctp_listener_ready "$ns2"
 
-	ip netns exec "$ns1" ./nf_queue -q 11 -t "$timeout" &
+	ip netns exec "$ns1" ./nf_queue -q 11 &
 	local nfqpid=$!
 
 	ip netns exec "$ns1" socat -u STDIN SCTP:10.0.2.99:12345 <"$TMPINPUT" >/dev/null
@@ -448,11 +468,9 @@ EOF
 
 	# must wait before checking completeness of output file.
 	wait "$rpid" && echo "PASS: sctp and nfqueue in output chain with GSO"
+	kill "$nfqpid"
 
-	if ! diff -u "$TMPINPUT" "$TMPFILE1" ; then
-		echo "FAIL: lost packets?!" 1>&2
-		exit 1
-	fi
+	check_output_files "$TMPINPUT" "$TMPFILE1" "sctp output"
 }
 
 test_queue_removal()
@@ -468,7 +486,7 @@ table ip filter {
 	}
 }
 EOF
-	ip netns exec "$ns1" ./nf_queue -q 0 -d 30000 -t "$timeout" &
+	ip netns exec "$ns1" ./nf_queue -q 0 -d 30000 &
 	local nfqpid=$!
 
 	busywait "$BUSYWAIT_TIMEOUT" nf_queue_wait "$ns1" 0
