@@ -9,8 +9,10 @@
 
 #include <linux/arm-smccc.h>
 #include <linux/array_size.h>
+#include <linux/io.h>
 #include <linux/mem_encrypt.h>
 #include <linux/mm.h>
+#include <linux/pgtable.h>
 
 #include <asm/hypervisor.h>
 
@@ -67,6 +69,36 @@ static const struct arm64_mem_crypt_ops pkvm_crypt_ops = {
 	.decrypt	= pkvm_set_memory_decrypted,
 };
 
+static int mmio_guard_ioremap_hook(phys_addr_t phys, size_t size,
+				   pgprot_t *prot)
+{
+	phys_addr_t end;
+	pteval_t protval = pgprot_val(*prot);
+
+	/*
+	 * We only expect MMIO emulation for regions mapped with device
+	 * attributes.
+	 */
+	if (protval != PROT_DEVICE_nGnRE && protval != PROT_DEVICE_nGnRnE)
+		return 0;
+
+	phys = PAGE_ALIGN_DOWN(phys);
+	end = phys + PAGE_ALIGN(size);
+
+	while (phys < end) {
+		const int func_id = ARM_SMCCC_VENDOR_HYP_KVM_MMIO_GUARD_FUNC_ID;
+		int err;
+
+		err = arm_smccc_do_one_page(func_id, phys);
+		if (err)
+			return err;
+
+		phys += PAGE_SIZE;
+	}
+
+	return 0;
+}
+
 void pkvm_init_hyp_services(void)
 {
 	int i;
@@ -89,4 +121,7 @@ void pkvm_init_hyp_services(void)
 
 	pkvm_granule = res.a0;
 	arm64_mem_crypt_ops_register(&pkvm_crypt_ops);
+
+	if (kvm_arm_hyp_service_available(ARM_SMCCC_KVM_FUNC_MMIO_GUARD))
+		arm64_ioremap_prot_hook_register(&mmio_guard_ioremap_hook);
 }
