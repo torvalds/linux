@@ -529,7 +529,7 @@ struct amd_irte_ops;
 		     struct protection_domain, iop)
 
 #define io_pgtable_cfg_to_data(x) \
-	container_of((x), struct amd_io_pgtable, pgtbl_cfg)
+	container_of((x), struct amd_io_pgtable, pgtbl.cfg)
 
 struct gcr3_tbl_info {
 	u64	*gcr3_tbl;	/* Guest CR3 table */
@@ -539,7 +539,6 @@ struct gcr3_tbl_info {
 };
 
 struct amd_io_pgtable {
-	struct io_pgtable_cfg	pgtbl_cfg;
 	struct io_pgtable	pgtbl;
 	int			mode;
 	u64			*root;

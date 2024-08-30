@@ -2257,7 +2257,7 @@ void protection_domain_free(struct protection_domain *domain)
 
 	WARN_ON(!list_empty(&domain->dev_list));
 
-	if (domain->iop.pgtbl_cfg.tlb)
+	if (domain->iop.pgtbl.cfg.tlb)
 		free_io_pgtable_ops(&domain->iop.pgtbl.ops);
 
 	if (domain->id)
@@ -2315,7 +2315,8 @@ struct protection_domain *protection_domain_alloc(unsigned int type)
 		goto out_err;
 	}
 
-	pgtbl_ops = alloc_io_pgtable_ops(pgtable, &domain->iop.pgtbl_cfg, domain);
+	pgtbl_ops =
+		alloc_io_pgtable_ops(pgtable, &domain->iop.pgtbl.cfg, domain);
 	if (!pgtbl_ops)
 		goto out_err;
 
