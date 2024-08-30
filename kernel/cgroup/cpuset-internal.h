@@ -241,6 +241,8 @@ static inline int is_spread_slab(const struct cpuset *cs)
 void rebuild_sched_domains_locked(void);
 void callback_lock_irq(void);
 void callback_unlock_irq(void);
+void update_tasks_cpumask(struct cpuset *cs, struct cpumask *new_cpus);
+void update_tasks_nodemask(struct cpuset *cs);
 
 /*
  * cpuset-v1.c
@@ -253,5 +255,8 @@ s64 cpuset_read_s64(struct cgroup_subsys_state *css, struct cftype *cft);
 void cpuset_update_task_spread_flags(struct cpuset *cs,
 					struct task_struct *tsk);
 void update_tasks_flags(struct cpuset *cs);
+void hotplug_update_tasks_legacy(struct cpuset *cs,
+			    struct cpumask *new_cpus, nodemask_t *new_mems,
+			    bool cpus_updated, bool mems_updated);
 
 #endif /* __CPUSET_INTERNAL_H */
