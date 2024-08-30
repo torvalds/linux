@@ -86,8 +86,18 @@ enum {
 struct mlx5_vdpa_mr_resources {
 	struct mlx5_vdpa_mr *mr[MLX5_VDPA_NUM_AS];
 	unsigned int group2asid[MLX5_VDPA_NUMVQ_GROUPS];
+
+	/* Pre-deletion mr list */
 	struct list_head mr_list_head;
+
+	/* Deferred mr list */
+	struct list_head mr_gc_list_head;
+	struct workqueue_struct *wq_gc;
+	struct delayed_work gc_dwork_ent;
+
 	struct mutex lock;
+
+	atomic_t shutdown;
 };
 
 struct mlx5_vdpa_dev {

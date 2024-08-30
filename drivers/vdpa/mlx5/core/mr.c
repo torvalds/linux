@@ -653,14 +653,50 @@ static void _mlx5_vdpa_destroy_mr(struct mlx5_vdpa_dev *mvdev, struct mlx5_vdpa_
 	kfree(mr);
 }
 
+/* There can be multiple .set_map() operations in quick succession.
+ * This large delay is a simple way to prevent the MR cleanup from blocking
+ * .set_map() MR creation in this scenario.
+ */
+#define MLX5_VDPA_MR_GC_TRIGGER_MS 2000
+
+static void mlx5_vdpa_mr_gc_handler(struct work_struct *work)
+{
+	struct mlx5_vdpa_mr_resources *mres;
+	struct mlx5_vdpa_mr *mr, *tmp;
+	struct mlx5_vdpa_dev *mvdev;
+
+	mres = container_of(work, struct mlx5_vdpa_mr_resources, gc_dwork_ent.work);
+
+	if (atomic_read(&mres->shutdown)) {
+		mutex_lock(&mres->lock);
+	} else if (!mutex_trylock(&mres->lock)) {
+		queue_delayed_work(mres->wq_gc, &mres->gc_dwork_ent,
+				   msecs_to_jiffies(MLX5_VDPA_MR_GC_TRIGGER_MS));
+		return;
+	}
+
+	mvdev = container_of(mres, struct mlx5_vdpa_dev, mres);
+
+	list_for_each_entry_safe(mr, tmp, &mres->mr_gc_list_head, mr_list) {
+		_mlx5_vdpa_destroy_mr(mvdev, mr);
+	}
+
+	mutex_unlock(&mres->lock);
+}
+
 static void _mlx5_vdpa_put_mr(struct mlx5_vdpa_dev *mvdev,
 			      struct mlx5_vdpa_mr *mr)
 {
+	struct mlx5_vdpa_mr_resources *mres = &mvdev->mres;
+
 	if (!mr)
 		return;
 
-	if (refcount_dec_and_test(&mr->refcount))
-		_mlx5_vdpa_destroy_mr(mvdev, mr);
+	if (refcount_dec_and_test(&mr->refcount)) {
+		list_move_tail(&mr->mr_list, &mres->mr_gc_list_head);
+		queue_delayed_work(mres->wq_gc, &mres->gc_dwork_ent,
+				   msecs_to_jiffies(MLX5_VDPA_MR_GC_TRIGGER_MS));
+	}
 }
 
 void mlx5_vdpa_put_mr(struct mlx5_vdpa_dev *mvdev,
@@ -851,8 +887,16 @@ int mlx5_vdpa_init_mr_resources(struct mlx5_vdpa_dev *mvdev)
 {
 	struct mlx5_vdpa_mr_resources *mres = &mvdev->mres;
 
-	INIT_LIST_HEAD(&mres->mr_list_head);
+	mres->wq_gc = create_singlethread_workqueue("mlx5_vdpa_mr_gc");
+	if (!mres->wq_gc)
+		return -ENOMEM;
+
+	INIT_DELAYED_WORK(&mres->gc_dwork_ent, mlx5_vdpa_mr_gc_handler);
+
 	mutex_init(&mres->lock);
+
+	INIT_LIST_HEAD(&mres->mr_list_head);
+	INIT_LIST_HEAD(&mres->mr_gc_list_head);
 
 	return 0;
 }
@@ -861,5 +905,10 @@ void mlx5_vdpa_destroy_mr_resources(struct mlx5_vdpa_dev *mvdev)
 {
 	struct mlx5_vdpa_mr_resources *mres = &mvdev->mres;
 
+	atomic_set(&mres->shutdown, 1);
+
+	flush_delayed_work(&mres->gc_dwork_ent);
+	destroy_workqueue(mres->wq_gc);
+	mres->wq_gc = NULL;
 	mutex_destroy(&mres->lock);
 }

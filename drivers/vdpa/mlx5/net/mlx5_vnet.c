@@ -3435,6 +3435,8 @@ static void mlx5_vdpa_free(struct vdpa_device *vdev)
 	free_fixed_resources(ndev);
 	mlx5_vdpa_clean_mrs(mvdev);
 	mlx5_vdpa_destroy_mr_resources(&ndev->mvdev);
+	mlx5_cmd_cleanup_async_ctx(&mvdev->async_ctx);
+
 	if (!is_zero_ether_addr(ndev->config.mac)) {
 		pfmdev = pci_get_drvdata(pci_physfn(mvdev->mdev->pdev));
 		mlx5_mpfs_del_mac(pfmdev, ndev->config.mac);
@@ -4042,8 +4044,6 @@ static void mlx5_vdpa_dev_del(struct vdpa_mgmt_dev *v_mdev, struct vdpa_device *
 	mvdev->wq = NULL;
 	destroy_workqueue(wq);
 	mgtdev->ndev = NULL;
-
-	mlx5_cmd_cleanup_async_ctx(&mvdev->async_ctx);
 }
 
 static int mlx5_vdpa_set_attr(struct vdpa_mgmt_dev *v_mdev, struct vdpa_device *dev,
