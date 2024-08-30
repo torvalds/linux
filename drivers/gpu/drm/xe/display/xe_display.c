@@ -331,10 +331,10 @@ void xe_display_pm_suspend(struct xe_device *xe, bool runtime)
 
 	intel_hpd_cancel_work(xe);
 
-	if (!runtime && has_display(xe))
+	if (!runtime && has_display(xe)) {
 		intel_display_driver_suspend_access(xe);
-
-	intel_encoder_suspend_all(&xe->display);
+		intel_encoder_suspend_all(&xe->display);
+	}
 
 	intel_opregion_suspend(xe, s2idle ? PCI_D1 : PCI_D3cold);
 
