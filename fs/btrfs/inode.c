@@ -3795,11 +3795,9 @@ static int btrfs_add_inode_to_root(struct btrfs_inode *inode, bool prealloc)
  *
  * On failure clean up the inode.
  */
-static int btrfs_read_locked_inode(struct inode *inode,
-				   struct btrfs_path *in_path)
+static int btrfs_read_locked_inode(struct inode *inode, struct btrfs_path *path)
 {
 	struct btrfs_fs_info *fs_info = inode_to_fs_info(inode);
-	struct btrfs_path *path = in_path;
 	struct extent_buffer *leaf;
 	struct btrfs_inode_item *inode_item;
 	struct btrfs_root *root = BTRFS_I(inode)->root;
@@ -3819,18 +3817,12 @@ static int btrfs_read_locked_inode(struct inode *inode,
 	if (!ret)
 		filled = true;
 
-	if (!path) {
-		path = btrfs_alloc_path();
-		if (!path)
-			goto out;
-	}
+	ASSERT(path);
 
 	btrfs_get_inode_key(BTRFS_I(inode), &location);
 
 	ret = btrfs_lookup_inode(NULL, root, path, &location, 0);
 	if (ret) {
-		if (path != in_path)
-			btrfs_free_path(path);
 		/*
 		 * ret > 0 can come from btrfs_search_slot called by
 		 * btrfs_lookup_inode(), this means the inode was not found.
@@ -3972,8 +3964,6 @@ cache_acl:
 				  btrfs_ino(BTRFS_I(inode)),
 				  btrfs_root_id(root), ret);
 	}
-	if (path != in_path)
-		btrfs_free_path(path);
 
 	if (!maybe_acls)
 		cache_no_acl(inode);
@@ -5579,10 +5569,8 @@ static struct inode *btrfs_iget_locked(u64 ino, struct btrfs_root *root)
 }
 
 /*
- * Get an inode object given its inode number and corresponding root.
- * Path can be preallocated to prevent recursing back to iget through
- * allocator. NULL is also valid but may require an additional allocation
- * later.
+ * Get an inode object given its inode number and corresponding root.  Path is
+ * preallocated to prevent recursing back to iget through allocator.
  */
 struct inode *btrfs_iget_path(u64 ino, struct btrfs_root *root,
 			      struct btrfs_path *path)
@@ -5605,9 +5593,33 @@ struct inode *btrfs_iget_path(u64 ino, struct btrfs_root *root,
 	return inode;
 }
 
+/*
+ * Get an inode object given its inode number and corresponding root.
+ */
 struct inode *btrfs_iget(u64 ino, struct btrfs_root *root)
 {
-	return btrfs_iget_path(ino, root, NULL);
+	struct inode *inode;
+	struct btrfs_path *path;
+	int ret;
+
+	inode = btrfs_iget_locked(ino, root);
+	if (!inode)
+		return ERR_PTR(-ENOMEM);
+
+	if (!(inode->i_state & I_NEW))
+		return inode;
+
+	path = btrfs_alloc_path();
+	if (!path)
+		return ERR_PTR(-ENOMEM);
+
+	ret = btrfs_read_locked_inode(inode, path);
+	btrfs_free_path(path);
+	if (ret)
+		return ERR_PTR(ret);
+
+	unlock_new_inode(inode);
+	return inode;
 }
 
 static struct inode *new_simple_dir(struct inode *dir,
