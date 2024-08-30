@@ -577,9 +577,6 @@ static void v1_free_pgtable(struct io_pgtable *iop)
 
 	/* Update data structure */
 	amd_iommu_domain_clr_pt_root(dom);
-
-	/* Make changes visible to IOMMUs */
-	amd_iommu_domain_update(dom);
 }
 
 static struct io_pgtable *v1_alloc_pgtable(struct io_pgtable_cfg *cfg, void *cookie)
