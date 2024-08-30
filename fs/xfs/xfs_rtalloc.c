@@ -1336,30 +1336,33 @@ out_release:
 	return error;
 }
 
-int
-xfs_bmap_rtalloc(
-	struct xfs_bmalloca	*ap)
+static int
+xfs_rtallocate_align(
+	struct xfs_bmalloca	*ap,
+	xfs_rtxlen_t		*ralen,
+	xfs_rtxlen_t		*raminlen,
+	xfs_rtxlen_t		*prod,
+	bool			*noalign)
 {
 	struct xfs_mount	*mp = ap->ip->i_mount;
 	xfs_fileoff_t		orig_offset = ap->offset;
-	xfs_rtxnum_t		start = 0;   /* allocation hint rtextent no */
-	xfs_rtxlen_t		prod = 0;  /* product factor for allocators */
-	xfs_extlen_t		mod = 0;   /* product factor for allocators */
-	xfs_rtxlen_t		ralen = 0; /* realtime allocation length */
-	xfs_extlen_t		align;     /* minimum allocation alignment */
-	xfs_extlen_t		orig_length = ap->length;
 	xfs_extlen_t		minlen = mp->m_sb.sb_rextsize;
-	xfs_rtxlen_t		raminlen;
-	bool			rtlocked = false;
+	xfs_extlen_t            align;	/* minimum allocation alignment */
+	xfs_extlen_t		mod;	/* product factor for allocators */
 	int			error;
 
-	align = xfs_get_extsz_hint(ap->ip);
-	if (!align)
-		align = 1;
-retry:
-	error = xfs_bmap_extsize_align(mp, &ap->got, &ap->prev,
-					align, 1, ap->eof, 0,
-					ap->conv, &ap->offset, &ap->length);
+	if (*noalign) {
+		align = mp->m_sb.sb_rextsize;
+	} else {
+		align = xfs_get_extsz_hint(ap->ip);
+		if (!align)
+			align = 1;
+		if (align == mp->m_sb.sb_rextsize)
+			*noalign = true;
+	}
+
+	error = xfs_bmap_extsize_align(mp, &ap->got, &ap->prev, align, 1,
+			ap->eof, 0, ap->conv, &ap->offset, &ap->length);
 	if (error)
 		return error;
 	ASSERT(ap->length);
@@ -1383,32 +1386,54 @@ retry:
 	 * XFS_BMBT_MAX_EXTLEN), we don't hear about that number, and can't
 	 * adjust the starting point to match it.
 	 */
-	ralen = xfs_extlen_to_rtxlen(mp, min(ap->length, XFS_MAX_BMBT_EXTLEN));
-	raminlen = max_t(xfs_rtxlen_t, 1, xfs_extlen_to_rtxlen(mp, minlen));
-	ASSERT(raminlen > 0);
-	ASSERT(raminlen <= ralen);
-
-	if (xfs_bmap_adjacent(ap))
-		start = xfs_rtb_to_rtx(mp, ap->blkno);
+	*ralen = xfs_extlen_to_rtxlen(mp, min(ap->length, XFS_MAX_BMBT_EXTLEN));
+	*raminlen = max_t(xfs_rtxlen_t, 1, xfs_extlen_to_rtxlen(mp, minlen));
+	ASSERT(*raminlen > 0);
+	ASSERT(*raminlen <= *ralen);
 
 	/*
 	 * Only bother calculating a real prod factor if offset & length are
 	 * perfectly aligned, otherwise it will just get us in trouble.
 	 */
 	div_u64_rem(ap->offset, align, &mod);
-	if (mod || ap->length % align) {
-		prod = 1;
-	} else {
-		prod = xfs_extlen_to_rtxlen(mp, align);
-		if (prod > 1)
-			xfs_rtalloc_align_minmax(&raminlen, &ralen, &prod);
-	}
+	if (mod || ap->length % align)
+		*prod = 1;
+	else
+		*prod = xfs_extlen_to_rtxlen(mp, align);
+
+	if (*prod > 1)
+		xfs_rtalloc_align_minmax(raminlen, ralen, prod);
+	return 0;
+}
+
+int
+xfs_bmap_rtalloc(
+	struct xfs_bmalloca	*ap)
+{
+	struct xfs_mount	*mp = ap->ip->i_mount;
+	xfs_fileoff_t		orig_offset = ap->offset;
+	xfs_rtxnum_t		start = 0; /* allocation hint rtextent no */
+	xfs_rtxlen_t		prod = 0;  /* product factor for allocators */
+	xfs_rtxlen_t		ralen = 0; /* realtime allocation length */
+	xfs_extlen_t		orig_length = ap->length;
+	xfs_rtxlen_t		raminlen;
+	bool			rtlocked = false;
+	bool			noalign = false;
+	int			error;
+
+retry:
+	error = xfs_rtallocate_align(ap, &ralen, &raminlen, &prod, &noalign);
+	if (error)
+		return error;
+
+	if (xfs_bmap_adjacent(ap))
+		start = xfs_rtb_to_rtx(mp, ap->blkno);
 
 	error = xfs_rtallocate(ap->tp, start, raminlen, ralen, prod, ap->wasdel,
 			ap->datatype & XFS_ALLOC_INITIAL_USER_DATA, &rtlocked,
 			&ap->blkno, &ap->length);
 	if (error == -ENOSPC) {
-		if (align > mp->m_sb.sb_rextsize) {
+		if (!noalign) {
 			/*
 			 * We previously enlarged the request length to try to
 			 * satisfy an extent size hint.  The allocator didn't
@@ -1418,7 +1443,7 @@ retry:
 			 */
 			ap->offset = orig_offset;
 			ap->length = orig_length;
-			minlen = align = mp->m_sb.sb_rextsize;
+			noalign = true;
 			goto retry;
 		}
 
