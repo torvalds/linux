@@ -719,8 +719,8 @@ xfs_growfs_rt_bmblock(
 	/*
 	 * Calculate new sb and mount fields for this round.
 	 */
-	nmp->m_rtxblklog = -1; /* don't use shift or masking */
 	nmp->m_sb.sb_rextsize = rextsize;
+	xfs_mount_sb_set_rextsize(nmp, &nmp->m_sb);
 	nmp->m_sb.sb_rbmblocks = bmbno + 1;
 	nmp->m_sb.sb_rblocks = min(nrblocks, nrblocks_step);
 	nmp->m_sb.sb_rextents = xfs_rtb_to_rtx(nmp, nmp->m_sb.sb_rblocks);
@@ -807,10 +807,11 @@ xfs_growfs_rt_bmblock(
 	xfs_trans_mod_sb(args.tp, XFS_TRANS_SB_FREXTENTS, freed_rtx);
 
 	/*
-	 * Update mp values into the real mp structure.
+	 * Update the calculated values in the real mount structure.
 	 */
 	mp->m_rsumlevels = nmp->m_rsumlevels;
 	mp->m_rsumsize = nmp->m_rsumsize;
+	xfs_mount_sb_set_rextsize(mp, &mp->m_sb);
 
 	/*
 	 * Recompute the growfsrt reservation from the new rsumsize.
