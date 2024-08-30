@@ -3032,12 +3032,6 @@ struct page *rmqueue(struct zone *preferred_zone,
 {
 	struct page *page;
 
-	/*
-	 * We most definitely don't want callers attempting to
-	 * allocate greater than order-1 page units with __GFP_NOFAIL.
-	 */
-	WARN_ON_ONCE((gfp_flags & __GFP_NOFAIL) && (order > 1));
-
 	if (likely(pcp_allowed_order(order))) {
 		page = rmqueue_pcplist(preferred_zone, zone, order,
 				       migratetype, alloc_flags);
@@ -4175,6 +4169,7 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
 {
 	bool can_direct_reclaim = gfp_mask & __GFP_DIRECT_RECLAIM;
 	bool can_compact = gfp_compaction_allowed(gfp_mask);
+	bool nofail = gfp_mask & __GFP_NOFAIL;
 	const bool costly_order = order > PAGE_ALLOC_COSTLY_ORDER;
 	struct page *page = NULL;
 	unsigned int alloc_flags;
@@ -4186,6 +4181,25 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
 	unsigned int cpuset_mems_cookie;
 	unsigned int zonelist_iter_cookie;
 	int reserve_flags;
+
+	if (unlikely(nofail)) {
+		/*
+		 * We most definitely don't want callers attempting to
+		 * allocate greater than order-1 page units with __GFP_NOFAIL.
+		 */
+		WARN_ON_ONCE(order > 1);
+		/*
+		 * Also we don't support __GFP_NOFAIL without __GFP_DIRECT_RECLAIM,
+		 * otherwise, we may result in lockup.
+		 */
+		WARN_ON_ONCE(!can_direct_reclaim);
+		/*
+		 * PF_MEMALLOC request from this context is rather bizarre
+		 * because we cannot reclaim anything and only can loop waiting
+		 * for somebody to do a work for us.
+		 */
+		WARN_ON_ONCE(current->flags & PF_MEMALLOC);
+	}
 
 restart:
 	compaction_retries = 0;
@@ -4404,28 +4418,14 @@ nopage:
 	 * Make sure that __GFP_NOFAIL request doesn't leak out and make sure
 	 * we always retry
 	 */
-	if (gfp_mask & __GFP_NOFAIL) {
+	if (unlikely(nofail)) {
 		/*
-		 * All existing users of the __GFP_NOFAIL are blockable, so warn
-		 * of any new users that actually require GFP_NOWAIT
+		 * Lacking direct_reclaim we can't do anything to reclaim memory,
+		 * we disregard these unreasonable nofail requests and still
+		 * return NULL
 		 */
-		if (WARN_ON_ONCE_GFP(!can_direct_reclaim, gfp_mask))
+		if (!can_direct_reclaim)
 			goto fail;
-
-		/*
-		 * PF_MEMALLOC request from this context is rather bizarre
-		 * because we cannot reclaim anything and only can loop waiting
-		 * for somebody to do a work for us
-		 */
-		WARN_ON_ONCE_GFP(current->flags & PF_MEMALLOC, gfp_mask);
-
-		/*
-		 * non failing costly orders are a hard requirement which we
-		 * are not prepared for much so let's warn about these users
-		 * so that we can identify them and convert them to something
-		 * else.
-		 */
-		WARN_ON_ONCE_GFP(costly_order, gfp_mask);
 
 		/*
 		 * Help non-failing allocations by giving some access to memory
