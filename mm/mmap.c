@@ -1623,8 +1623,7 @@ unacct_error:
 		vm_unacct_memory(charged);
 
 abort_munmap:
-	if (vms.nr_pages)
-		abort_munmap_vmas(&mas_detach, vms.closed_vm_ops);
+	vms_abort_munmap_vmas(&vms, &mas_detach);
 gather_failed:
 	validate_mm(mm);
 	return error;
