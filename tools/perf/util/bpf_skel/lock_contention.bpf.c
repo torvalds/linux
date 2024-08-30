@@ -323,8 +323,7 @@ static inline struct tstamp_data *get_tstamp_elem(__u32 flags)
 	struct tstamp_data *pelem;
 
 	/* Use per-cpu array map for spinlock and rwlock */
-	if (flags == (LCB_F_SPIN | LCB_F_READ) || flags == LCB_F_SPIN ||
-	    flags == (LCB_F_SPIN | LCB_F_WRITE)) {
+	if ((flags & (LCB_F_SPIN | LCB_F_MUTEX)) == LCB_F_SPIN) {
 		__u32 idx = 0;
 
 		pelem = bpf_map_lookup_elem(&tstamp_cpu, &idx);
