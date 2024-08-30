@@ -3639,10 +3639,10 @@ static int mlx5_set_group_asid(struct vdpa_device *vdev, u32 group,
 
 	mvdev->mres.group2asid[group] = asid;
 
-	mutex_lock(&mvdev->mres.mr_mtx);
+	mutex_lock(&mvdev->mres.lock);
 	if (group == MLX5_VDPA_CVQ_GROUP && mvdev->mres.mr[asid])
 		err = mlx5_vdpa_update_cvq_iotlb(mvdev, mvdev->mres.mr[asid]->iotlb, asid);
-	mutex_unlock(&mvdev->mres.mr_mtx);
+	mutex_unlock(&mvdev->mres.lock);
 
 	return err;
 }

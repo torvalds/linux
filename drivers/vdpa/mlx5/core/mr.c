@@ -666,9 +666,9 @@ static void _mlx5_vdpa_put_mr(struct mlx5_vdpa_dev *mvdev,
 void mlx5_vdpa_put_mr(struct mlx5_vdpa_dev *mvdev,
 		      struct mlx5_vdpa_mr *mr)
 {
-	mutex_lock(&mvdev->mres.mr_mtx);
+	mutex_lock(&mvdev->mres.lock);
 	_mlx5_vdpa_put_mr(mvdev, mr);
-	mutex_unlock(&mvdev->mres.mr_mtx);
+	mutex_unlock(&mvdev->mres.lock);
 }
 
 static void _mlx5_vdpa_get_mr(struct mlx5_vdpa_dev *mvdev,
@@ -683,9 +683,9 @@ static void _mlx5_vdpa_get_mr(struct mlx5_vdpa_dev *mvdev,
 void mlx5_vdpa_get_mr(struct mlx5_vdpa_dev *mvdev,
 		      struct mlx5_vdpa_mr *mr)
 {
-	mutex_lock(&mvdev->mres.mr_mtx);
+	mutex_lock(&mvdev->mres.lock);
 	_mlx5_vdpa_get_mr(mvdev, mr);
-	mutex_unlock(&mvdev->mres.mr_mtx);
+	mutex_unlock(&mvdev->mres.lock);
 }
 
 void mlx5_vdpa_update_mr(struct mlx5_vdpa_dev *mvdev,
@@ -694,19 +694,19 @@ void mlx5_vdpa_update_mr(struct mlx5_vdpa_dev *mvdev,
 {
 	struct mlx5_vdpa_mr *old_mr = mvdev->mres.mr[asid];
 
-	mutex_lock(&mvdev->mres.mr_mtx);
+	mutex_lock(&mvdev->mres.lock);
 
 	_mlx5_vdpa_put_mr(mvdev, old_mr);
 	mvdev->mres.mr[asid] = new_mr;
 
-	mutex_unlock(&mvdev->mres.mr_mtx);
+	mutex_unlock(&mvdev->mres.lock);
 }
 
 static void mlx5_vdpa_show_mr_leaks(struct mlx5_vdpa_dev *mvdev)
 {
 	struct mlx5_vdpa_mr *mr;
 
-	mutex_lock(&mvdev->mres.mr_mtx);
+	mutex_lock(&mvdev->mres.lock);
 
 	list_for_each_entry(mr, &mvdev->mres.mr_list_head, mr_list) {
 
@@ -715,7 +715,7 @@ static void mlx5_vdpa_show_mr_leaks(struct mlx5_vdpa_dev *mvdev)
 				       mr, mr->mkey, refcount_read(&mr->refcount));
 	}
 
-	mutex_unlock(&mvdev->mres.mr_mtx);
+	mutex_unlock(&mvdev->mres.lock);
 
 }
 
@@ -782,9 +782,9 @@ struct mlx5_vdpa_mr *mlx5_vdpa_create_mr(struct mlx5_vdpa_dev *mvdev,
 	if (!mr)
 		return ERR_PTR(-ENOMEM);
 
-	mutex_lock(&mvdev->mres.mr_mtx);
+	mutex_lock(&mvdev->mres.lock);
 	err = _mlx5_vdpa_create_mr(mvdev, mr, iotlb);
-	mutex_unlock(&mvdev->mres.mr_mtx);
+	mutex_unlock(&mvdev->mres.lock);
 
 	if (err)
 		goto out_err;

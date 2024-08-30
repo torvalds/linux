@@ -87,7 +87,7 @@ struct mlx5_vdpa_mr_resources {
 	struct mlx5_vdpa_mr *mr[MLX5_VDPA_NUM_AS];
 	unsigned int group2asid[MLX5_VDPA_NUMVQ_GROUPS];
 	struct list_head mr_list_head;
-	struct mutex mr_mtx;
+	struct mutex lock;
 };
 
 struct mlx5_vdpa_dev {
