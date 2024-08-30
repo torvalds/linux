@@ -338,23 +338,29 @@ xfs_rtallocate_extent_exact(
 	xfs_rtxlen_t		prod,	/* extent product factor */
 	xfs_rtxnum_t		*rtx)	/* out: start rtext allocated */
 {
+	struct xfs_mount	*mp = args->mp;
 	xfs_rtxnum_t		next;	/* next rtext to try (dummy) */
 	xfs_rtxlen_t		alloclen; /* candidate length */
+	xfs_rtxlen_t		scanlen; /* number of free rtx to look for */
 	int			isfree;	/* extent is free */
 	int			error;
 
 	ASSERT(minlen % prod == 0);
 	ASSERT(maxlen % prod == 0);
-	/*
-	 * Check if the range in question (for maxlen) is free.
-	 */
-	error = xfs_rtcheck_range(args, start, maxlen, 1, &next, &isfree);
+
+	/* Make sure we don't run off the end of the rt volume. */
+	scanlen = xfs_rtallocate_clamp_len(mp, start, maxlen, prod);
+	if (scanlen < minlen)
+		return -ENOSPC;
+
+	/* Check if the range in question (for scanlen) is free. */
+	error = xfs_rtcheck_range(args, start, scanlen, 1, &next, &isfree);
 	if (error)
 		return error;
 
 	if (isfree) {
-		/* start to maxlen is all free; allocate it. */
-		*len = maxlen;
+		/* start to scanlen is all free; allocate it. */
+		*len = scanlen;
 		*rtx = start;
 		return 0;
 	}
@@ -409,11 +415,6 @@ xfs_rtallocate_extent_near(
 	 */
 	if (start >= mp->m_sb.sb_rextents)
 		start = mp->m_sb.sb_rextents - 1;
-
-	/* Make sure we don't run off the end of the rt volume. */
-	maxlen = xfs_rtallocate_clamp_len(mp, start, maxlen, prod);
-	if (maxlen < minlen)
-		return -ENOSPC;
 
 	/*
 	 * Try the exact allocation first.
