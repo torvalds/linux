@@ -9,7 +9,6 @@
 #include "cxlmem.h"
 #include "core.h"
 #include "cxl.h"
-#include "core.h"
 
 struct dsmas_entry {
 	struct range dpa_range;
