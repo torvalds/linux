@@ -24,7 +24,6 @@ static int bch2_memcmp(const void *l, const void *r,  const void *priv)
 static void verify_replicas_entry(struct bch_replicas_entry_v1 *e)
 {
 #ifdef CONFIG_BCACHEFS_DEBUG
-	BUG_ON(e->data_type >= BCH_DATA_NR);
 	BUG_ON(!e->nr_devs);
 	BUG_ON(e->nr_required > 1 &&
 	       e->nr_required >= e->nr_devs);
@@ -452,7 +451,8 @@ retry:
 			.type = BCH_DISK_ACCOUNTING_replicas,
 		};
 
-		memcpy(&k.replicas, e, replicas_entry_bytes(e));
+		unsafe_memcpy(&k.replicas, e, replicas_entry_bytes(e),
+			      "embedded variable length struct");
 
 		struct bpos p = disk_accounting_pos_to_bpos(&k);
 

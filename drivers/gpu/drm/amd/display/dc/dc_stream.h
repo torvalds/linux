@@ -159,6 +159,12 @@ struct test_pattern {
 
 struct dc_stream_debug_options {
 	char force_odm_combine_segments;
+	/*
+	 * When force_odm_combine_segments is non zero, allow dc to
+	 * temporarily transition to ODM bypass when minimal transition state
+	 * is required to prevent visual glitches showing on the screen
+	 */
+	char allow_transition_for_forced_odm;
 };
 
 #define LUMINANCE_DATA_TABLE_SIZE 10
@@ -260,6 +266,8 @@ struct dc_stream_state {
 
 	struct dc_cursor_attributes cursor_attributes;
 	struct dc_cursor_position cursor_position;
+	bool hw_cursor_req;
+
 	uint32_t sdr_white_level; // for boosting (SDR) cursor in HDR mode
 
 	/* from stream struct */
@@ -344,6 +352,7 @@ struct dc_stream_update {
 
 	struct dc_cursor_attributes *cursor_attributes;
 	struct dc_cursor_position *cursor_position;
+	bool *hw_cursor_req;
 };
 
 bool dc_is_stream_unchanged(

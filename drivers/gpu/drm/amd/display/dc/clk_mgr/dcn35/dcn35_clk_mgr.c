@@ -120,25 +120,40 @@ static int dcn35_get_active_display_cnt_wa(
 
 	return display_count;
 }
-
 static void dcn35_disable_otg_wa(struct clk_mgr *clk_mgr_base, struct dc_state *context,
 		bool safe_to_lower, bool disable)
 {
 	struct dc *dc = clk_mgr_base->ctx->dc;
 	int i;
 
+	if (dc->ctx->dce_environment == DCE_ENV_DIAG)
+		return;
+
 	for (i = 0; i < dc->res_pool->pipe_count; ++i) {
+		struct pipe_ctx *old_pipe = &dc->current_state->res_ctx.pipe_ctx[i];
+		struct pipe_ctx *new_pipe = &context->res_ctx.pipe_ctx[i];
 		struct pipe_ctx *pipe = safe_to_lower
 			? &context->res_ctx.pipe_ctx[i]
 			: &dc->current_state->res_ctx.pipe_ctx[i];
-
+		bool stream_changed_otg_dig_on = false;
 		if (pipe->top_pipe || pipe->prev_odm_pipe)
 			continue;
+		stream_changed_otg_dig_on = old_pipe->stream && new_pipe->stream &&
+		old_pipe->stream != new_pipe->stream &&
+		old_pipe->stream_res.tg == new_pipe->stream_res.tg &&
+		new_pipe->stream->link_enc && !new_pipe->stream->dpms_off &&
+		new_pipe->stream->link_enc->funcs->is_dig_enabled &&
+		new_pipe->stream->link_enc->funcs->is_dig_enabled(
+		new_pipe->stream->link_enc) &&
+		new_pipe->stream_res.stream_enc &&
+		new_pipe->stream_res.stream_enc->funcs->is_fifo_enabled &&
+		new_pipe->stream_res.stream_enc->funcs->is_fifo_enabled(new_pipe->stream_res.stream_enc);
 		if (pipe->stream && (pipe->stream->dpms_off || dc_is_virtual_signal(pipe->stream->signal) ||
-				     !pipe->stream->link_enc)) {
+			!pipe->stream->link_enc) && !stream_changed_otg_dig_on) {
+			/* This w/a should not trigger when we have a dig active */
 			if (disable) {
-				if (pipe->stream_res.tg && pipe->stream_res.tg->funcs->disable_crtc)
-					pipe->stream_res.tg->funcs->disable_crtc(pipe->stream_res.tg);
+				if (pipe->stream_res.tg && pipe->stream_res.tg->funcs->immediate_disable_crtc)
+					pipe->stream_res.tg->funcs->immediate_disable_crtc(pipe->stream_res.tg);
 
 				reset_sync_context_for_pipe(dc, context, i);
 			} else {
@@ -289,6 +304,9 @@ void dcn35_update_clocks(struct clk_mgr *clk_mgr_base,
 	display_count = dcn35_get_active_display_cnt_wa(dc, context, &all_active_disps);
 	if (new_clocks->dtbclk_en && !new_clocks->ref_dtbclk_khz)
 		new_clocks->ref_dtbclk_khz = 600000;
+
+	if (dc->debug.min_disp_clk_khz > 0 && new_clocks->dispclk_khz < dc->debug.min_disp_clk_khz)
+		new_clocks->dispclk_khz = dc->debug.min_disp_clk_khz;
 
 	/*
 	 * if it is safe to lower, but we are already in the lower state, we don't have to do anything

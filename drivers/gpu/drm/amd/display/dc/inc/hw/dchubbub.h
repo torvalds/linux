@@ -227,6 +227,7 @@ struct hubbub_funcs {
 	void (*get_mall_en)(struct hubbub *hubbub, unsigned int *mall_in_use);
 	void (*program_det_segments)(struct hubbub *hubbub, int hubp_inst, unsigned det_buffer_size_seg);
 	void (*program_compbuf_segments)(struct hubbub *hubbub, unsigned compbuf_size_seg, bool safe_to_increase);
+	void (*wait_for_det_update)(struct hubbub *hubbub, int hubp_inst);
 };
 
 struct hubbub {

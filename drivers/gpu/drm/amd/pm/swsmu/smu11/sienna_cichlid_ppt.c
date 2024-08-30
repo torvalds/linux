@@ -1691,7 +1691,7 @@ static int sienna_cichlid_get_power_profile_mode(struct smu_context *smu, char *
 		size += sysfs_emit_at(buf, size, "%19s %d(%13s) %7d %7d %7d %7d %7d %7d %7d %7d %7d\n",
 			" ",
 			2,
-			"MEMLK",
+			"MEMCLK",
 			activity_monitor->Mem_FPS,
 			activity_monitor->Mem_MinFreqStep,
 			activity_monitor->Mem_MinActiveFreqType,
@@ -1756,7 +1756,7 @@ static int sienna_cichlid_set_power_profile_mode(struct smu_context *smu, long *
 			activity_monitor->Fclk_PD_Data_error_coeff = input[8];
 			activity_monitor->Fclk_PD_Data_error_rate_coeff = input[9];
 			break;
-		case 2: /* Memlk */
+		case 2: /* Memclk */
 			activity_monitor->Mem_FPS = input[1];
 			activity_monitor->Mem_MinFreqStep = input[2];
 			activity_monitor->Mem_MinActiveFreqType = input[3];

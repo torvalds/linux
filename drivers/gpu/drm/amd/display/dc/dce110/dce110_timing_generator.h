@@ -261,6 +261,7 @@ void dce110_tg_program_timing(struct timing_generator *tg,
 	int vstartup_start,
 	int vupdate_offset,
 	int vupdate_width,
+	int pstate_keepout,
 	const enum signal_type signal,
 	bool use_vbios);
 

@@ -16,6 +16,12 @@ struct intel_dp;
 int intel_dp_read_dprx_caps(struct intel_dp *intel_dp, u8 dpcd[DP_RECEIVER_CAP_SIZE]);
 int intel_dp_init_lttpr_and_dprx_caps(struct intel_dp *intel_dp);
 
+void intel_dp_link_training_set_mode(struct intel_dp *intel_dp,
+				     int link_rate, bool is_vrr);
+void intel_dp_link_training_set_bw(struct intel_dp *intel_dp,
+				   int link_bw, int rate_select, int lane_count,
+				   bool enhanced_framing);
+
 void intel_dp_get_adjust_train(struct intel_dp *intel_dp,
 			       const struct intel_crtc_state *crtc_state,
 			       enum drm_dp_phy dp_phy,

@@ -47,10 +47,9 @@ static int info(struct seq_file *m, void *data)
 
 	drm_printf(&p, "graphics_verx100 %d\n", xe->info.graphics_verx100);
 	drm_printf(&p, "media_verx100 %d\n", xe->info.media_verx100);
-	drm_printf(&p, "stepping G:%s M:%s D:%s B:%s\n",
+	drm_printf(&p, "stepping G:%s M:%s B:%s\n",
 		   xe_step_name(xe->info.step.graphics),
 		   xe_step_name(xe->info.step.media),
-		   xe_step_name(xe->info.step.display),
 		   xe_step_name(xe->info.step.basedie));
 	drm_printf(&p, "is_dgfx %s\n", str_yes_no(xe->info.is_dgfx));
 	drm_printf(&p, "platform %d\n", xe->info.platform);

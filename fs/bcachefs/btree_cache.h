@@ -12,6 +12,8 @@ struct btree_iter;
 
 void bch2_recalc_btree_reserve(struct bch_fs *);
 
+void bch2_btree_node_to_freelist(struct bch_fs *, struct btree *);
+
 void bch2_btree_node_hash_remove(struct btree_cache *, struct btree *);
 int __bch2_btree_node_hash_insert(struct btree_cache *, struct btree *);
 int bch2_btree_node_hash_insert(struct btree_cache *, struct btree *,

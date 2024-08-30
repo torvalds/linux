@@ -129,16 +129,16 @@ volsw_err:
 
 static const DECLARE_TLV_DB_SCALE(in_vol_tlv, -1270, 50, 0);
 
-static const char * const cs530x_in_hpf_text[] = {
+static const char * const cs530x_in_filter_text[] = {
 	"Min Phase Slow Roll-off",
 	"Min Phase Fast Roll-off",
 	"Linear Phase Slow Roll-off",
 	"Linear Phase Fast Roll-off",
 };
 
-static SOC_ENUM_SINGLE_DECL(cs530x_in_hpf_enum, CS530X_IN_FILTER,
+static SOC_ENUM_SINGLE_DECL(cs530x_in_filter_enum, CS530X_IN_FILTER,
 			    CS530X_IN_FILTER_SHIFT,
-			    cs530x_in_hpf_text);
+			    cs530x_in_filter_text);
 
 static const char * const cs530x_in_4ch_sum_text[] = {
 	"None",
@@ -189,7 +189,7 @@ SOC_SINGLE_EXT_TLV("IN1 Volume", CS530X_IN_VOL_CTRL1_0, 0, 255, 1,
 SOC_SINGLE_EXT_TLV("IN2 Volume", CS530X_IN_VOL_CTRL1_1, 0, 255, 1,
 		    snd_soc_get_volsw, cs530x_put_volsw_vu, in_vol_tlv),
 
-SOC_ENUM("IN HPF Select", cs530x_in_hpf_enum),
+SOC_ENUM("IN DEC Filter Select", cs530x_in_filter_enum),
 SOC_ENUM("Input Ramp Up", cs530x_ramp_inc_enum),
 SOC_ENUM("Input Ramp Down", cs530x_ramp_dec_enum),
 

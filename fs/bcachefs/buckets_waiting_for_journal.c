@@ -93,7 +93,7 @@ int bch2_set_bucket_needs_journal_commit(struct buckets_waiting_for_journal *b,
 		.dev_bucket	= (u64) dev << 56 | bucket,
 		.journal_seq	= journal_seq,
 	};
-	size_t i, size, new_bits, nr_elements = 1, nr_rehashes = 0;
+	size_t i, size, new_bits, nr_elements = 1, nr_rehashes = 0, nr_rehashes_this_size = 0;
 	int ret = 0;
 
 	mutex_lock(&b->lock);
@@ -106,8 +106,8 @@ int bch2_set_bucket_needs_journal_commit(struct buckets_waiting_for_journal *b,
 	for (i = 0; i < size; i++)
 		nr_elements += t->d[i].journal_seq > flushed_seq;
 
-	new_bits = t->bits + (nr_elements * 3 > size);
-
+	new_bits = ilog2(roundup_pow_of_two(nr_elements * 3));
+realloc:
 	n = kvmalloc(sizeof(*n) + (sizeof(n->d[0]) << new_bits), GFP_KERNEL);
 	if (!n) {
 		ret = -BCH_ERR_ENOMEM_buckets_waiting_for_journal_set;
@@ -115,7 +115,16 @@ int bch2_set_bucket_needs_journal_commit(struct buckets_waiting_for_journal *b,
 	}
 
 retry_rehash:
+	if (nr_rehashes_this_size == 3) {
+		new_bits++;
+		nr_rehashes_this_size = 0;
+		kvfree(n);
+		goto realloc;
+	}
+
 	nr_rehashes++;
+	nr_rehashes_this_size++;
+
 	bucket_table_init(n, new_bits);
 
 	tmp = new;

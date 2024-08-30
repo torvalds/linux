@@ -124,8 +124,12 @@ static int ngbe_phylink_init(struct wx *wx)
 				   MAC_SYM_PAUSE | MAC_ASYM_PAUSE;
 	config->mac_managed_pm = true;
 
-	phy_mode = PHY_INTERFACE_MODE_RGMII_ID;
-	__set_bit(PHY_INTERFACE_MODE_RGMII_ID, config->supported_interfaces);
+	/* The MAC only has add the Tx delay and it can not be modified.
+	 * So just disable TX delay in PHY, and it is does not matter to
+	 * internal phy.
+	 */
+	phy_mode = PHY_INTERFACE_MODE_RGMII_RXID;
+	__set_bit(PHY_INTERFACE_MODE_RGMII_RXID, config->supported_interfaces);
 
 	phylink = phylink_create(config, NULL, phy_mode, &ngbe_mac_ops);
 	if (IS_ERR(phylink))

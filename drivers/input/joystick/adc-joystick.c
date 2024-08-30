@@ -182,8 +182,11 @@ static int adc_joystick_set_axes(struct device *dev, struct adc_joystick *joy)
 			swap(range[0], range[1]);
 		}
 
-		fwnode_property_read_u32(child, "abs-fuzz", &fuzz);
-		fwnode_property_read_u32(child, "abs-flat", &flat);
+		if (fwnode_property_read_u32(child, "abs-fuzz", &fuzz))
+			fuzz = 0;
+
+		if (fwnode_property_read_u32(child, "abs-flat", &flat))
+			flat = 0;
 
 		input_set_abs_params(joy->input, axes[i].code,
 				     range[0], range[1], fuzz, flat);

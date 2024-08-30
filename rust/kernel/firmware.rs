@@ -2,7 +2,7 @@
 
 //! Firmware abstraction
 //!
-//! C header: [`include/linux/firmware.h`](srctree/include/linux/firmware.h")
+//! C header: [`include/linux/firmware.h`](srctree/include/linux/firmware.h)
 
 use crate::{bindings, device::Device, error::Error, error::Result, str::CStr};
 use core::ptr::NonNull;

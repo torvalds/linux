@@ -279,7 +279,6 @@ static int inno_hdmi_upload_frame(struct drm_connector *connector,
 				  const u8 *buffer, size_t len)
 {
 	struct inno_hdmi *hdmi = connector_to_inno_hdmi(connector);
-	u8 packed_frame[HDMI_MAXIMUM_INFO_FRAME_SIZE];
 	ssize_t i;
 
 	if (type != HDMI_INFOFRAME_TYPE_AVI) {
@@ -291,8 +290,7 @@ static int inno_hdmi_upload_frame(struct drm_connector *connector,
 	inno_hdmi_disable_frame(connector, type);
 
 	for (i = 0; i < len; i++)
-		hdmi_writeb(hdmi, HDMI_CONTROL_PACKET_ADDR + i,
-			    packed_frame[i]);
+		hdmi_writeb(hdmi, HDMI_CONTROL_PACKET_ADDR + i, buffer[i]);
 
 	return 0;
 }

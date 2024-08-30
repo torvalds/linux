@@ -29,7 +29,7 @@ static void tiles_fini(void *arg)
 	struct xe_tile *tile;
 	int id;
 
-	for_each_tile(tile, xe, id)
+	for_each_remote_tile(tile, xe, id)
 		tile->mmio.regs = NULL;
 }
 
@@ -146,9 +146,11 @@ int xe_mmio_probe_tiles(struct xe_device *xe)
 static void mmio_fini(void *arg)
 {
 	struct xe_device *xe = arg;
+	struct xe_tile *root_tile = xe_device_get_root_tile(xe);
 
 	pci_iounmap(to_pci_dev(xe->drm.dev), xe->mmio.regs);
 	xe->mmio.regs = NULL;
+	root_tile->mmio.regs = NULL;
 }
 
 int xe_mmio_init(struct xe_device *xe)

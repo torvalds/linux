@@ -2,7 +2,6 @@
 //
 // Copyright 2024 Advanced Micro Devices, Inc.
 
-
 #ifndef __dml2_TOP_DCHUB_REGISTERS_H__
 #define __dml2_TOP_DCHUB_REGISTERS_H__
 

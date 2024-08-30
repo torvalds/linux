@@ -26,6 +26,7 @@
 
 #include <drm/drm_edid.h>
 #include <drm/drm_eld.h>
+#include <drm/drm_fixed.h>
 #include <drm/intel/i915_component.h>
 
 #include "i915_drv.h"
@@ -452,8 +453,8 @@ static unsigned int calc_hblank_early_prog(struct intel_encoder *encoder,
 	lanes = crtc_state->lane_count;
 
 	drm_dbg_kms(&i915->drm,
-		    "h_active = %u link_clk = %u : lanes = %u vdsc_bpp = " BPP_X16_FMT " cdclk = %u\n",
-		    h_active, link_clk, lanes, BPP_X16_ARGS(vdsc_bppx16), cdclk);
+		    "h_active = %u link_clk = %u : lanes = %u vdsc_bpp = " FXP_Q4_FMT " cdclk = %u\n",
+		    h_active, link_clk, lanes, FXP_Q4_ARGS(vdsc_bppx16), cdclk);
 
 	if (WARN_ON(!link_clk || !pixel_clk || !lanes || !vdsc_bppx16 || !cdclk))
 		return 0;

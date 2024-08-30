@@ -974,7 +974,12 @@ int intel_engine_emit_ctx_wa(struct i915_request *rq)
 	if (ret)
 		return ret;
 
-	cs = intel_ring_begin(rq, (wal->count * 2 + 2));
+	if ((IS_GFX_GT_IP_RANGE(rq->engine->gt, IP_VER(12, 70), IP_VER(12, 74)) ||
+	     IS_DG2(rq->i915)) && rq->engine->class == RENDER_CLASS)
+		cs = intel_ring_begin(rq, (wal->count * 2 + 6));
+	else
+		cs = intel_ring_begin(rq, (wal->count * 2 + 2));
+
 	if (IS_ERR(cs))
 		return PTR_ERR(cs);
 
@@ -1003,6 +1008,15 @@ int intel_engine_emit_ctx_wa(struct i915_request *rq)
 		*cs++ = val;
 	}
 	*cs++ = MI_NOOP;
+
+	/* Wa_14019789679 */
+	if ((IS_GFX_GT_IP_RANGE(rq->engine->gt, IP_VER(12, 70), IP_VER(12, 74)) ||
+	     IS_DG2(rq->i915)) && rq->engine->class == RENDER_CLASS) {
+		*cs++ = CMD_3DSTATE_MESH_CONTROL;
+		*cs++ = 0;
+		*cs++ = 0;
+		*cs++ = MI_NOOP;
+	}
 
 	intel_uncore_forcewake_put__locked(uncore, fw);
 	spin_unlock(&uncore->lock);

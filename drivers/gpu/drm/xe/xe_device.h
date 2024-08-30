@@ -15,6 +15,11 @@ static inline struct xe_device *to_xe_device(const struct drm_device *dev)
 	return container_of(dev, struct xe_device, drm);
 }
 
+static inline struct xe_device *kdev_to_xe_device(struct device *kdev)
+{
+	return dev_get_drvdata(kdev);
+}
+
 static inline struct xe_device *pdev_to_xe_device(struct pci_dev *pdev)
 {
 	return pci_get_drvdata(pdev);
@@ -133,16 +138,6 @@ static inline struct xe_force_wake *gt_to_fw(struct xe_gt *gt)
 }
 
 void xe_device_assert_mem_access(struct xe_device *xe);
-
-static inline bool xe_device_in_fault_mode(struct xe_device *xe)
-{
-	return xe->usm.num_vm_in_fault_mode != 0;
-}
-
-static inline bool xe_device_in_non_fault_mode(struct xe_device *xe)
-{
-	return xe->usm.num_vm_in_non_fault_mode != 0;
-}
 
 static inline bool xe_device_has_flat_ccs(struct xe_device *xe)
 {

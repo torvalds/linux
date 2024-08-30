@@ -28,7 +28,6 @@ $(obj)/generated/%_wa_oob.c $(obj)/generated/%_wa_oob.h: $(obj)/xe_gen_wa_oob \
 xe-y += xe_bb.o \
 	xe_bo.o \
 	xe_bo_evict.o \
-	xe_debugfs.o \
 	xe_devcoredump.o \
 	xe_device.o \
 	xe_device_sysfs.o \
@@ -46,7 +45,6 @@ xe-y += xe_bb.o \
 	xe_gt.o \
 	xe_gt_ccs_mode.o \
 	xe_gt_clock.o \
-	xe_gt_debugfs.o \
 	xe_gt_freq.o \
 	xe_gt_idle.o \
 	xe_gt_mcr.o \
@@ -59,7 +57,6 @@ xe-y += xe_bb.o \
 	xe_guc_ads.o \
 	xe_guc_ct.o \
 	xe_guc_db_mgr.o \
-	xe_guc_debugfs.o \
 	xe_guc_hwconfig.o \
 	xe_guc_id_mgr.o \
 	xe_guc_klv_helpers.o \
@@ -69,9 +66,9 @@ xe-y += xe_bb.o \
 	xe_heci_gsc.o \
 	xe_hw_engine.o \
 	xe_hw_engine_class_sysfs.o \
+	xe_hw_engine_group.o \
 	xe_hw_fence.o \
 	xe_huc.o \
-	xe_huc_debugfs.o \
 	xe_irq.o \
 	xe_lrc.o \
 	xe_migrate.o \
@@ -107,7 +104,6 @@ xe-y += xe_bb.o \
 	xe_ttm_vram_mgr.o \
 	xe_tuning.o \
 	xe_uc.o \
-	xe_uc_debugfs.o \
 	xe_uc_fw.o \
 	xe_vm.o \
 	xe_vram.o \
@@ -124,7 +120,6 @@ xe-$(CONFIG_HWMON) += xe_hwmon.o
 # graphics virtualization (SR-IOV) support
 xe-y += \
 	xe_gt_sriov_vf.o \
-	xe_gt_sriov_vf_debugfs.o \
 	xe_guc_relay.o \
 	xe_memirq.o \
 	xe_sriov.o
@@ -133,7 +128,6 @@ xe-$(CONFIG_PCI_IOV) += \
 	xe_gt_sriov_pf.o \
 	xe_gt_sriov_pf_config.o \
 	xe_gt_sriov_pf_control.o \
-	xe_gt_sriov_pf_debugfs.o \
 	xe_gt_sriov_pf_monitor.o \
 	xe_gt_sriov_pf_policy.o \
 	xe_gt_sriov_pf_service.o \
@@ -281,6 +275,16 @@ ifeq ($(CONFIG_DRM_FBDEV_EMULATION),y)
 endif
 
 ifeq ($(CONFIG_DEBUG_FS),y)
+	xe-y += xe_debugfs.o \
+		xe_gt_debugfs.o \
+		xe_gt_sriov_vf_debugfs.o \
+		xe_gt_stats.o \
+		xe_guc_debugfs.o \
+		xe_huc_debugfs.o \
+		xe_uc_debugfs.o
+
+	xe-$(CONFIG_PCI_IOV) += xe_gt_sriov_pf_debugfs.o
+
 	xe-$(CONFIG_DRM_XE_DISPLAY) += \
 		i915-display/intel_display_debugfs.o \
 		i915-display/intel_display_debugfs_params.o \
