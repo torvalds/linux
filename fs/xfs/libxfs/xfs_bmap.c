@@ -3112,6 +3112,23 @@ xfs_bmap_extsize_align(
 	return 0;
 }
 
+static inline bool
+xfs_bmap_adjacent_valid(
+	struct xfs_bmalloca	*ap,
+	xfs_fsblock_t		x,
+	xfs_fsblock_t		y)
+{
+	struct xfs_mount	*mp = ap->ip->i_mount;
+
+	if (XFS_IS_REALTIME_INODE(ap->ip) &&
+	    (ap->datatype & XFS_ALLOC_USERDATA))
+		return x < mp->m_sb.sb_rblocks;
+
+	return XFS_FSB_TO_AGNO(mp, x) == XFS_FSB_TO_AGNO(mp, y) &&
+		XFS_FSB_TO_AGNO(mp, x) < mp->m_sb.sb_agcount &&
+		XFS_FSB_TO_AGBNO(mp, x) < mp->m_sb.sb_agblocks;
+}
+
 #define XFS_ALLOC_GAP_UNITS	4
 
 /* returns true if ap->blkno was modified */
@@ -3119,36 +3136,25 @@ bool
 xfs_bmap_adjacent(
 	struct xfs_bmalloca	*ap)	/* bmap alloc argument struct */
 {
-	xfs_fsblock_t	adjust;		/* adjustment to block numbers */
-	xfs_mount_t	*mp;		/* mount point structure */
-	int		rt;		/* true if inode is realtime */
+	xfs_fsblock_t		adjust;		/* adjustment to block numbers */
 
-#define	ISVALID(x,y)	\
-	(rt ? \
-		(x) < mp->m_sb.sb_rblocks : \
-		XFS_FSB_TO_AGNO(mp, x) == XFS_FSB_TO_AGNO(mp, y) && \
-		XFS_FSB_TO_AGNO(mp, x) < mp->m_sb.sb_agcount && \
-		XFS_FSB_TO_AGBNO(mp, x) < mp->m_sb.sb_agblocks)
-
-	mp = ap->ip->i_mount;
-	rt = XFS_IS_REALTIME_INODE(ap->ip) &&
-		(ap->datatype & XFS_ALLOC_USERDATA);
 	/*
 	 * If allocating at eof, and there's a previous real block,
 	 * try to use its last block as our starting point.
 	 */
 	if (ap->eof && ap->prev.br_startoff != NULLFILEOFF &&
 	    !isnullstartblock(ap->prev.br_startblock) &&
-	    ISVALID(ap->prev.br_startblock + ap->prev.br_blockcount,
-		    ap->prev.br_startblock)) {
+	    xfs_bmap_adjacent_valid(ap,
+			ap->prev.br_startblock + ap->prev.br_blockcount,
+			ap->prev.br_startblock)) {
 		ap->blkno = ap->prev.br_startblock + ap->prev.br_blockcount;
 		/*
 		 * Adjust for the gap between prevp and us.
 		 */
 		adjust = ap->offset -
 			(ap->prev.br_startoff + ap->prev.br_blockcount);
-		if (adjust &&
-		    ISVALID(ap->blkno + adjust, ap->prev.br_startblock))
+		if (adjust && xfs_bmap_adjacent_valid(ap, ap->blkno + adjust,
+				ap->prev.br_startblock))
 			ap->blkno += adjust;
 		return true;
 	}
@@ -3171,7 +3177,8 @@ xfs_bmap_adjacent(
 		    !isnullstartblock(ap->prev.br_startblock) &&
 		    (prevbno = ap->prev.br_startblock +
 			       ap->prev.br_blockcount) &&
-		    ISVALID(prevbno, ap->prev.br_startblock)) {
+		    xfs_bmap_adjacent_valid(ap, prevbno,
+				ap->prev.br_startblock)) {
 			/*
 			 * Calculate gap to end of previous block.
 			 */
@@ -3187,8 +3194,8 @@ xfs_bmap_adjacent(
 			 * number, then just use the end of the previous block.
 			 */
 			if (prevdiff <= XFS_ALLOC_GAP_UNITS * ap->length &&
-			    ISVALID(prevbno + prevdiff,
-				    ap->prev.br_startblock))
+			    xfs_bmap_adjacent_valid(ap, prevbno + prevdiff,
+					ap->prev.br_startblock))
 				prevbno += adjust;
 			else
 				prevdiff += adjust;
@@ -3220,9 +3227,11 @@ xfs_bmap_adjacent(
 			 * offset by our length.
 			 */
 			if (gotdiff <= XFS_ALLOC_GAP_UNITS * ap->length &&
-			    ISVALID(gotbno - gotdiff, gotbno))
+			    xfs_bmap_adjacent_valid(ap, gotbno - gotdiff,
+					gotbno))
 				gotbno -= adjust;
-			else if (ISVALID(gotbno - ap->length, gotbno)) {
+			else if (xfs_bmap_adjacent_valid(ap, gotbno - ap->length,
+					gotbno)) {
 				gotbno -= ap->length;
 				gotdiff += adjust - ap->length;
 			} else
@@ -3250,7 +3259,7 @@ xfs_bmap_adjacent(
 			return true;
 		}
 	}
-#undef ISVALID
+
 	return false;
 }
 
