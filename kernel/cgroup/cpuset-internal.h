@@ -248,5 +248,8 @@ int fmeter_getrate(struct fmeter *fmp);
 int cpuset_write_s64(struct cgroup_subsys_state *css, struct cftype *cft,
 			    s64 val);
 s64 cpuset_read_s64(struct cgroup_subsys_state *css, struct cftype *cft);
+void cpuset_update_task_spread_flags(struct cpuset *cs,
+					struct task_struct *tsk);
+void update_tasks_flags(struct cpuset *cs);
 
 #endif /* __CPUSET_INTERNAL_H */
