@@ -6369,7 +6369,7 @@ static int ath10k_hw_scan(struct ieee80211_hw *hw,
 	struct ath10k *ar = hw->priv;
 	struct ath10k_vif *arvif = (void *)vif->drv_priv;
 	struct cfg80211_scan_request *req = &hw_req->req;
-	struct wmi_start_scan_arg arg;
+	struct wmi_start_scan_arg *arg = NULL;
 	int ret = 0;
 	int i;
 	u32 scan_timeout;
@@ -6402,56 +6402,61 @@ static int ath10k_hw_scan(struct ieee80211_hw *hw,
 	if (ret)
 		goto exit;
 
-	memset(&arg, 0, sizeof(arg));
-	ath10k_wmi_start_scan_init(ar, &arg);
-	arg.vdev_id = arvif->vdev_id;
-	arg.scan_id = ATH10K_SCAN_ID;
+	arg = kzalloc(sizeof(*arg), GFP_KERNEL);
+	if (!arg) {
+		ret = -ENOMEM;
+		goto exit;
+	}
+
+	ath10k_wmi_start_scan_init(ar, arg);
+	arg->vdev_id = arvif->vdev_id;
+	arg->scan_id = ATH10K_SCAN_ID;
 
 	if (req->ie_len) {
-		arg.ie_len = req->ie_len;
-		memcpy(arg.ie, req->ie, arg.ie_len);
+		arg->ie_len = req->ie_len;
+		memcpy(arg->ie, req->ie, arg->ie_len);
 	}
 
 	if (req->n_ssids) {
-		arg.n_ssids = req->n_ssids;
-		for (i = 0; i < arg.n_ssids; i++) {
-			arg.ssids[i].len  = req->ssids[i].ssid_len;
-			arg.ssids[i].ssid = req->ssids[i].ssid;
+		arg->n_ssids = req->n_ssids;
+		for (i = 0; i < arg->n_ssids; i++) {
+			arg->ssids[i].len  = req->ssids[i].ssid_len;
+			arg->ssids[i].ssid = req->ssids[i].ssid;
 		}
 	} else {
-		arg.scan_ctrl_flags |= WMI_SCAN_FLAG_PASSIVE;
+		arg->scan_ctrl_flags |= WMI_SCAN_FLAG_PASSIVE;
 	}
 
 	if (req->flags & NL80211_SCAN_FLAG_RANDOM_ADDR) {
-		arg.scan_ctrl_flags |=  WMI_SCAN_ADD_SPOOFED_MAC_IN_PROBE_REQ;
-		ether_addr_copy(arg.mac_addr.addr, req->mac_addr);
-		ether_addr_copy(arg.mac_mask.addr, req->mac_addr_mask);
+		arg->scan_ctrl_flags |=  WMI_SCAN_ADD_SPOOFED_MAC_IN_PROBE_REQ;
+		ether_addr_copy(arg->mac_addr.addr, req->mac_addr);
+		ether_addr_copy(arg->mac_mask.addr, req->mac_addr_mask);
 	}
 
 	if (req->n_channels) {
-		arg.n_channels = req->n_channels;
-		for (i = 0; i < arg.n_channels; i++)
-			arg.channels[i] = req->channels[i]->center_freq;
+		arg->n_channels = req->n_channels;
+		for (i = 0; i < arg->n_channels; i++)
+			arg->channels[i] = req->channels[i]->center_freq;
 	}
 
 	/* if duration is set, default dwell times will be overwritten */
 	if (req->duration) {
-		arg.dwell_time_active = req->duration;
-		arg.dwell_time_passive = req->duration;
-		arg.burst_duration_ms = req->duration;
+		arg->dwell_time_active = req->duration;
+		arg->dwell_time_passive = req->duration;
+		arg->burst_duration_ms = req->duration;
 
-		scan_timeout = min_t(u32, arg.max_rest_time *
-				(arg.n_channels - 1) + (req->duration +
+		scan_timeout = min_t(u32, arg->max_rest_time *
+				(arg->n_channels - 1) + (req->duration +
 				ATH10K_SCAN_CHANNEL_SWITCH_WMI_EVT_OVERHEAD) *
-				arg.n_channels, arg.max_scan_time);
+				arg->n_channels, arg->max_scan_time);
 	} else {
-		scan_timeout = arg.max_scan_time;
+		scan_timeout = arg->max_scan_time;
 	}
 
 	/* Add a 200ms margin to account for event/command processing */
 	scan_timeout += 200;
 
-	ret = ath10k_start_scan(ar, &arg);
+	ret = ath10k_start_scan(ar, arg);
 	if (ret) {
 		ath10k_warn(ar, "failed to start hw scan: %d\n", ret);
 		spin_lock_bh(&ar->data_lock);
@@ -6463,6 +6468,8 @@ static int ath10k_hw_scan(struct ieee80211_hw *hw,
 				     msecs_to_jiffies(scan_timeout));
 
 exit:
+	kfree(arg);
+
 	mutex_unlock(&ar->conf_mutex);
 	return ret;
 }
