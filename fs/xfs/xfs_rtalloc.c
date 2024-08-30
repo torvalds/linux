@@ -767,21 +767,20 @@ out_trans_cancel:
 	return error;
 }
 
-static void
+static int
 xfs_alloc_rsum_cache(
-	xfs_mount_t	*mp,		/* file system mount structure */
-	xfs_extlen_t	rbmblocks)	/* number of rt bitmap blocks */
+	struct xfs_mount	*mp,
+	xfs_extlen_t		rbmblocks)
 {
 	/*
 	 * The rsum cache is initialized to the maximum value, which is
 	 * trivially an upper bound on the maximum level with any free extents.
-	 * We can continue without the cache if it couldn't be allocated.
 	 */
 	mp->m_rsum_cache = kvmalloc(rbmblocks, GFP_KERNEL);
-	if (mp->m_rsum_cache)
-		memset(mp->m_rsum_cache, -1, rbmblocks);
-	else
-		xfs_warn(mp, "could not allocate realtime summary cache");
+	if (!mp->m_rsum_cache)
+		return -ENOMEM;
+	memset(mp->m_rsum_cache, -1, rbmblocks);
+	return 0;
 }
 
 /*
@@ -939,8 +938,11 @@ xfs_growfs_rt(
 		goto out_unlock;
 
 	rsum_cache = mp->m_rsum_cache;
-	if (nrbmblocks != sbp->sb_rbmblocks)
-		xfs_alloc_rsum_cache(mp, nrbmblocks);
+	if (nrbmblocks != sbp->sb_rbmblocks) {
+		error = xfs_alloc_rsum_cache(mp, nrbmblocks);
+		if (error)
+			goto out_unlock;
+	}
 
 	/*
 	 * Allocate a new (fake) mount/sb.
@@ -1268,7 +1270,9 @@ xfs_rtmount_inodes(
 	if (error)
 		goto out_rele_summary;
 
-	xfs_alloc_rsum_cache(mp, sbp->sb_rbmblocks);
+	error = xfs_alloc_rsum_cache(mp, sbp->sb_rbmblocks);
+	if (error)
+		goto out_rele_summary;
 	return 0;
 
 out_rele_summary:
