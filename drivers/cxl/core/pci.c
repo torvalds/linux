@@ -772,19 +772,17 @@ static bool cxl_handle_endpoint_ras(struct cxl_dev_state *cxlds)
 
 static void cxl_dport_map_rch_aer(struct cxl_dport *dport)
 {
-	struct cxl_rcrb_info *ri = &dport->rcrb;
-	void __iomem *dport_aer = NULL;
 	resource_size_t aer_phys;
 	struct device *host;
+	u16 aer_cap;
 
-	if (dport->rch && ri->aer_cap) {
+	aer_cap = cxl_rcrb_to_aer(dport->dport_dev, dport->rcrb.base);
+	if (aer_cap) {
 		host = dport->reg_map.host;
-		aer_phys = ri->aer_cap + ri->base;
-		dport_aer = devm_cxl_iomap_block(host, aer_phys,
-				sizeof(struct aer_capability_regs));
+		aer_phys = aer_cap + dport->rcrb.base;
+		dport->regs.dport_aer = devm_cxl_iomap_block(host, aer_phys,
+						sizeof(struct aer_capability_regs));
 	}
-
-	dport->regs.dport_aer = dport_aer;
 }
 
 static void cxl_dport_map_ras(struct cxl_dport *dport)
@@ -797,9 +795,6 @@ static void cxl_dport_map_ras(struct cxl_dport *dport)
 	else if (cxl_map_component_regs(map, &dport->regs.component,
 					BIT(CXL_CM_CAP_CAP_ID_RAS)))
 		dev_dbg(dev, "Failed to map RAS capability.\n");
-
-	if (dport->rch)
-		cxl_dport_map_rch_aer(dport);
 }
 
 static void cxl_disable_rch_root_ints(struct cxl_dport *dport)
@@ -838,20 +833,18 @@ static void cxl_disable_rch_root_ints(struct cxl_dport *dport)
  */
 void cxl_dport_init_ras_reporting(struct cxl_dport *dport, struct device *host)
 {
-	struct device *dport_dev = dport->dport_dev;
-
-	if (dport->rch) {
-		struct pci_host_bridge *host_bridge = to_pci_host_bridge(dport_dev);
-
-		if (host_bridge->native_aer)
-			dport->rcrb.aer_cap = cxl_rcrb_to_aer(dport_dev, dport->rcrb.base);
-	}
-
 	dport->reg_map.host = host;
 	cxl_dport_map_ras(dport);
 
-	if (dport->rch)
+	if (dport->rch) {
+		struct pci_host_bridge *host_bridge = to_pci_host_bridge(dport->dport_dev);
+
+		if (!host_bridge->native_aer)
+			return;
+
+		cxl_dport_map_rch_aer(dport);
 		cxl_disable_rch_root_ints(dport);
+	}
 }
 EXPORT_SYMBOL_NS_GPL(cxl_dport_init_ras_reporting, CXL);
 
