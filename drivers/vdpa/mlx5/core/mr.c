@@ -55,6 +55,11 @@ struct mlx5_create_mkey_mem {
 	__be64 mtt[];
 };
 
+struct mlx5_destroy_mkey_mem {
+	u8 out[MLX5_ST_SZ_BYTES(destroy_mkey_out)];
+	u8 in[MLX5_ST_SZ_BYTES(destroy_mkey_in)];
+};
+
 static void fill_create_direct_mr(struct mlx5_vdpa_dev *mvdev,
 				  struct mlx5_vdpa_direct_mr *mr,
 				  struct mlx5_create_mkey_mem *mem)
@@ -89,6 +94,17 @@ static void create_direct_mr_end(struct mlx5_vdpa_dev *mvdev,
 	u32 mkey_index = MLX5_GET(create_mkey_out, mem->out, mkey_index);
 
 	mr->mr = mlx5_idx_to_mkey(mkey_index);
+}
+
+static void fill_destroy_direct_mr(struct mlx5_vdpa_dev *mvdev,
+				   struct mlx5_vdpa_direct_mr *mr,
+				   struct mlx5_destroy_mkey_mem *mem)
+{
+	void *in = &mem->in;
+
+	MLX5_SET(destroy_mkey_in, in, uid, mvdev->res.uid);
+	MLX5_SET(destroy_mkey_in, in, opcode, MLX5_CMD_OP_DESTROY_MKEY);
+	MLX5_SET(destroy_mkey_in, in, mkey_index, mlx5_mkey_to_idx(mr->mr));
 }
 
 static void destroy_direct_mr(struct mlx5_vdpa_dev *mvdev, struct mlx5_vdpa_direct_mr *mr)
@@ -254,6 +270,53 @@ done:
 	}
 
 	kvfree(cmds);
+	return err;
+}
+
+DEFINE_FREE(free_cmds, struct mlx5_vdpa_async_cmd *, kvfree(_T))
+DEFINE_FREE(free_cmd_mem, struct mlx5_destroy_mkey_mem *, kvfree(_T))
+
+static int destroy_direct_keys(struct mlx5_vdpa_dev *mvdev, struct mlx5_vdpa_mr *mr)
+{
+	struct mlx5_destroy_mkey_mem *cmd_mem __free(free_cmd_mem) = NULL;
+	struct mlx5_vdpa_async_cmd *cmds __free(free_cmds) = NULL;
+	struct mlx5_vdpa_direct_mr *dmr;
+	int err = 0;
+	int i = 0;
+
+	cmds = kvcalloc(mr->num_directs, sizeof(*cmds), GFP_KERNEL);
+	cmd_mem = kvcalloc(mr->num_directs, sizeof(*cmd_mem), GFP_KERNEL);
+	if (!cmds || !cmd_mem)
+		return -ENOMEM;
+
+	list_for_each_entry(dmr, &mr->head, list) {
+		cmds[i].out = cmd_mem[i].out;
+		cmds[i].outlen = sizeof(cmd_mem[i].out);
+		cmds[i].in = cmd_mem[i].in;
+		cmds[i].inlen = sizeof(cmd_mem[i].in);
+		fill_destroy_direct_mr(mvdev, dmr, &cmd_mem[i]);
+		i++;
+	}
+
+	err = mlx5_vdpa_exec_async_cmds(mvdev, cmds, mr->num_directs);
+	if (err) {
+
+		mlx5_vdpa_err(mvdev, "error issuing MTT mkey deletion for direct mrs: %d\n", err);
+		return err;
+	}
+
+	i = 0;
+	list_for_each_entry(dmr, &mr->head, list) {
+		struct mlx5_vdpa_async_cmd *cmd = &cmds[i++];
+
+		dmr->mr = 0;
+		if (cmd->err) {
+			err = err ? err : cmd->err;
+			mlx5_vdpa_err(mvdev, "error deleting MTT mkey [0x%llx, 0x%llx]: %d\n",
+				dmr->start, dmr->end, cmd->err);
+		}
+	}
+
 	return err;
 }
 
@@ -565,6 +628,7 @@ static void destroy_user_mr(struct mlx5_vdpa_dev *mvdev, struct mlx5_vdpa_mr *mr
 	struct mlx5_vdpa_direct_mr *n;
 
 	destroy_indirect_key(mvdev, mr);
+	destroy_direct_keys(mvdev, mr);
 	list_for_each_entry_safe_reverse(dmr, n, &mr->head, list) {
 		list_del_init(&dmr->list);
 		unmap_direct_mr(mvdev, dmr);
