@@ -828,27 +828,20 @@ static void cxl_debugfs_create_dport_dir(struct cxl_dport *dport)
 			    &cxl_einj_inject_fops);
 }
 
-static struct cxl_port *__devm_cxl_add_port(struct device *host,
-					    struct device *uport_dev,
-					    resource_size_t component_reg_phys,
-					    struct cxl_dport *parent_dport)
+static int cxl_port_add(struct cxl_port *port,
+			resource_size_t component_reg_phys,
+			struct cxl_dport *parent_dport)
 {
-	struct cxl_port *port;
-	struct device *dev;
+	struct device *dev __free(put_device) = &port->dev;
 	int rc;
 
-	port = cxl_port_alloc(uport_dev, parent_dport);
-	if (IS_ERR(port))
-		return port;
-
-	dev = &port->dev;
-	if (is_cxl_memdev(uport_dev)) {
-		struct cxl_memdev *cxlmd = to_cxl_memdev(uport_dev);
+	if (is_cxl_memdev(port->uport_dev)) {
+		struct cxl_memdev *cxlmd = to_cxl_memdev(port->uport_dev);
 		struct cxl_dev_state *cxlds = cxlmd->cxlds;
 
 		rc = dev_set_name(dev, "endpoint%d", port->id);
 		if (rc)
-			goto err;
+			return rc;
 
 		/*
 		 * The endpoint driver already enumerated the component and RAS
@@ -861,19 +854,41 @@ static struct cxl_port *__devm_cxl_add_port(struct device *host,
 	} else if (parent_dport) {
 		rc = dev_set_name(dev, "port%d", port->id);
 		if (rc)
-			goto err;
+			return rc;
 
 		rc = cxl_port_setup_regs(port, component_reg_phys);
 		if (rc)
-			goto err;
-	} else
+			return rc;
+	} else {
 		rc = dev_set_name(dev, "root%d", port->id);
-	if (rc)
-		goto err;
+		if (rc)
+			return rc;
+	}
 
 	rc = device_add(dev);
 	if (rc)
-		goto err;
+		return rc;
+
+	/* Inhibit the cleanup function invoked */
+	dev = NULL;
+	return 0;
+}
+
+static struct cxl_port *__devm_cxl_add_port(struct device *host,
+					    struct device *uport_dev,
+					    resource_size_t component_reg_phys,
+					    struct cxl_dport *parent_dport)
+{
+	struct cxl_port *port;
+	int rc;
+
+	port = cxl_port_alloc(uport_dev, parent_dport);
+	if (IS_ERR(port))
+		return port;
+
+	rc = cxl_port_add(port, component_reg_phys, parent_dport);
+	if (rc)
+		return ERR_PTR(rc);
 
 	rc = devm_add_action_or_reset(host, unregister_port, port);
 	if (rc)
@@ -891,10 +906,6 @@ static struct cxl_port *__devm_cxl_add_port(struct device *host,
 		port->pci_latency = cxl_pci_get_latency(to_pci_dev(uport_dev));
 
 	return port;
-
-err:
-	put_device(dev);
-	return ERR_PTR(rc);
 }
 
 /**
