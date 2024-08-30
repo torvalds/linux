@@ -191,15 +191,11 @@
 
 			sgtl5000_tx_endpoint: endpoint@0 {
 				reg = <0>;
-				bitclock-master;
-				frame-master;
 				remote-endpoint = <&sai2a_endpoint>;
 			};
 
 			sgtl5000_rx_endpoint: endpoint@1 {
 				reg = <1>;
-				bitclock-master;
-				frame-master;
 				remote-endpoint = <&sai2b_endpoint>;
 			};
 		};
@@ -245,10 +241,12 @@
 		sai2a_port: port {
 			sai2a_endpoint: endpoint {
 				remote-endpoint = <&sgtl5000_tx_endpoint>;
+				bitclock-master;
 				dai-format = "i2s";
 				dai-tdm-slot-num = <2>;
 				dai-tdm-slot-width = <16>;
-				mclk-fs = <512>;
+				frame-master;
+				mclk-fs = <256>;
 			};
 		};
 	};
@@ -263,10 +261,12 @@
 		sai2b_port: port {
 			sai2b_endpoint: endpoint {
 				remote-endpoint = <&sgtl5000_rx_endpoint>;
+				bitclock-master;
 				dai-format = "i2s";
 				dai-tdm-slot-num = <2>;
 				dai-tdm-slot-width = <16>;
-				mclk-fs = <512>;
+				frame-master;
+				mclk-fs = <256>;
 			};
 		};
 	};
