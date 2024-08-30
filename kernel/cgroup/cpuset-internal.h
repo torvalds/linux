@@ -238,11 +238,15 @@ static inline int is_spread_slab(const struct cpuset *cs)
 	return test_bit(CS_SPREAD_SLAB, &cs->flags);
 }
 
+void rebuild_sched_domains_locked(void);
+
 /*
  * cpuset-v1.c
  */
-
 void fmeter_init(struct fmeter *fmp);
 int fmeter_getrate(struct fmeter *fmp);
+int cpuset_write_s64(struct cgroup_subsys_state *css, struct cftype *cft,
+			    s64 val);
+s64 cpuset_read_s64(struct cgroup_subsys_state *css, struct cftype *cft);
 
 #endif /* __CPUSET_INTERNAL_H */

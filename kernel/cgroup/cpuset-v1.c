@@ -135,3 +135,62 @@ void __cpuset_memory_pressure_bump(void)
 	fmeter_markevent(&task_cs(current)->fmeter);
 	rcu_read_unlock();
 }
+
+static int update_relax_domain_level(struct cpuset *cs, s64 val)
+{
+#ifdef CONFIG_SMP
+	if (val < -1 || val > sched_domain_level_max + 1)
+		return -EINVAL;
+#endif
+
+	if (val != cs->relax_domain_level) {
+		cs->relax_domain_level = val;
+		if (!cpumask_empty(cs->cpus_allowed) &&
+		    is_sched_load_balance(cs))
+			rebuild_sched_domains_locked();
+	}
+
+	return 0;
+}
+
+int cpuset_write_s64(struct cgroup_subsys_state *css, struct cftype *cft,
+			    s64 val)
+{
+	struct cpuset *cs = css_cs(css);
+	cpuset_filetype_t type = cft->private;
+	int retval = -ENODEV;
+
+	cpus_read_lock();
+	cpuset_lock();
+	if (!is_cpuset_online(cs))
+		goto out_unlock;
+
+	switch (type) {
+	case FILE_SCHED_RELAX_DOMAIN_LEVEL:
+		retval = update_relax_domain_level(cs, val);
+		break;
+	default:
+		retval = -EINVAL;
+		break;
+	}
+out_unlock:
+	cpuset_unlock();
+	cpus_read_unlock();
+	return retval;
+}
+
+s64 cpuset_read_s64(struct cgroup_subsys_state *css, struct cftype *cft)
+{
+	struct cpuset *cs = css_cs(css);
+	cpuset_filetype_t type = cft->private;
+
+	switch (type) {
+	case FILE_SCHED_RELAX_DOMAIN_LEVEL:
+		return cs->relax_domain_level;
+	default:
+		BUG();
+	}
+
+	/* Unreachable but makes gcc happy */
+	return 0;
+}
