@@ -4429,7 +4429,7 @@ EXPORT_SYMBOL_GPL(xfrm_audit_policy_delete);
 static struct xfrm_policy *xfrm_migrate_policy_find(const struct xfrm_selector *sel,
 						    u8 dir, u8 type, struct net *net, u32 if_id)
 {
-	struct xfrm_policy *pol, *ret = NULL;
+	struct xfrm_policy *pol;
 	struct flowi fl;
 
 	memset(&fl, 0, sizeof(fl));
@@ -4465,7 +4465,7 @@ static struct xfrm_policy *xfrm_migrate_policy_find(const struct xfrm_selector *
 	if (IS_ERR_OR_NULL(pol))
 		goto out_unlock;
 
-	if (!xfrm_pol_hold_rcu(ret))
+	if (!xfrm_pol_hold_rcu(pol))
 		pol = NULL;
 out_unlock:
 	rcu_read_unlock();
