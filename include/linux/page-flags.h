@@ -186,6 +186,7 @@ enum pageflags {
 	/* At least one page in this folio has the hwpoison flag set */
 	PG_has_hwpoisoned = PG_active,
 	PG_large_rmappable = PG_workingset, /* anon or file-backed */
+	PG_partially_mapped = PG_reclaim, /* was identified to be partially mapped */
 };
 
 #define PAGEFLAGS_MASK		((1UL << NR_PAGEFLAGS) - 1)
@@ -859,8 +860,18 @@ static inline void ClearPageCompound(struct page *page)
 	ClearPageHead(page);
 }
 FOLIO_FLAG(large_rmappable, FOLIO_SECOND_PAGE)
+FOLIO_TEST_FLAG(partially_mapped, FOLIO_SECOND_PAGE)
+/*
+ * PG_partially_mapped is protected by deferred_split split_queue_lock,
+ * so its safe to use non-atomic set/clear.
+ */
+__FOLIO_SET_FLAG(partially_mapped, FOLIO_SECOND_PAGE)
+__FOLIO_CLEAR_FLAG(partially_mapped, FOLIO_SECOND_PAGE)
 #else
 FOLIO_FLAG_FALSE(large_rmappable)
+FOLIO_TEST_FLAG_FALSE(partially_mapped)
+__FOLIO_SET_FLAG_NOOP(partially_mapped)
+__FOLIO_CLEAR_FLAG_NOOP(partially_mapped)
 #endif
 
 #define PG_head_mask ((1UL << PG_head))
@@ -1171,7 +1182,7 @@ static __always_inline void __ClearPageAnonExclusive(struct page *page)
  */
 #define PAGE_FLAGS_SECOND						\
 	(0xffUL /* order */		| 1UL << PG_has_hwpoisoned |	\
-	 1UL << PG_large_rmappable)
+	 1UL << PG_large_rmappable	| 1UL << PG_partially_mapped)
 
 #define PAGE_FLAGS_PRIVATE				\
 	(1UL << PG_private | 1UL << PG_private_2)
