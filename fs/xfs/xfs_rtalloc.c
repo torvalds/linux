@@ -903,7 +903,7 @@ xfs_growfs_rt(
 	 */
 	nrextents = nrblocks;
 	do_div(nrextents, in->extsize);
-	if (!xfs_validate_rtextents(nrextents)) {
+	if (nrextents == 0) {
 		error = -EINVAL;
 		goto out_unlock;
 	}
