@@ -276,12 +276,13 @@ static inline bool xfs_is_reflink_inode(struct xfs_inode *ip)
 	return ip->i_diflags2 & XFS_DIFLAG2_REFLINK;
 }
 
-static inline bool xfs_is_metadata_inode(struct xfs_inode *ip)
+static inline bool xfs_is_metadata_inode(const struct xfs_inode *ip)
 {
 	struct xfs_mount	*mp = ip->i_mount;
 
-	return ip == mp->m_rbmip || ip == mp->m_rsumip ||
-		xfs_is_quota_inode(&mp->m_sb, ip->i_ino);
+	return ip->i_ino == mp->m_sb.sb_rbmino ||
+	       ip->i_ino == mp->m_sb.sb_rsumino ||
+	       xfs_is_quota_inode(&mp->m_sb, ip->i_ino);
 }
 
 bool xfs_is_always_cow_inode(struct xfs_inode *ip);
