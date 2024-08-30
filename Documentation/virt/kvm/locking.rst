@@ -9,7 +9,9 @@ KVM Lock Overview
 
 The acquisition orders for mutexes are as follows:
 
-- cpus_read_lock() is taken outside kvm_lock and kvm_usage_lock
+- cpus_read_lock() is taken outside kvm_lock
+
+- kvm_usage_lock is taken outside cpus_read_lock()
 
 - kvm->lock is taken outside vcpu->mutex
 
@@ -241,9 +243,8 @@ time it will be set using the Dirty tracking mechanism described above.
 :Arch:		any
 :Protects:	- kvm_usage_count
 		- hardware virtualization enable/disable
-:Comment:	Exists because using kvm_lock leads to deadlock (see earlier comment
-		on cpus_read_lock() vs kvm_lock).  Note, KVM also disables CPU hotplug via
-		cpus_read_lock() when enabling/disabling virtualization.
+:Comment:	Exists to allow taking cpus_read_lock() while kvm_usage_count is
+		protected, which simplifies the virtualization enabling logic.
 
 ``kvm->mn_invalidate_lock``
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
