@@ -1842,6 +1842,18 @@ u32 xe_gt_sriov_pf_config_get_threshold(struct xe_gt *gt, unsigned int vfid,
 	return value;
 }
 
+static void pf_reset_config_thresholds(struct xe_gt *gt, struct xe_gt_sriov_config *config)
+{
+	lockdep_assert_held(xe_gt_sriov_pf_master_mutex(gt));
+
+#define reset_threshold_config(TAG, ...) ({				\
+	config->thresholds[MAKE_XE_GUC_KLV_THRESHOLD_INDEX(TAG)] = 0;	\
+});
+
+	MAKE_XE_GUC_KLV_THRESHOLDS_SET(reset_threshold_config);
+#undef reset_threshold_config
+}
+
 static void pf_release_vf_config(struct xe_gt *gt, unsigned int vfid)
 {
 	struct xe_gt_sriov_config *config = pf_pick_vf_config(gt, vfid);
@@ -1857,6 +1869,7 @@ static void pf_release_vf_config(struct xe_gt *gt, unsigned int vfid)
 	pf_release_config_ctxs(gt, config);
 	pf_release_config_dbs(gt, config);
 	pf_reset_config_sched(gt, config);
+	pf_reset_config_thresholds(gt, config);
 }
 
 /**
