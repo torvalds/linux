@@ -739,7 +739,8 @@ xfs_growfs_rt_bmblock(
 		goto out_free;
 	nargs.tp = args.tp;
 
-	xfs_rtbitmap_lock(args.tp, mp);
+	xfs_rtbitmap_lock(mp);
+	xfs_rtbitmap_trans_join(args.tp);
 
 	/*
 	 * Update the bitmap inode's size ondisk and incore.  We need to update
@@ -1313,7 +1314,8 @@ retry:
 	 * Lock out modifications to both the RT bitmap and summary inodes
 	 */
 	if (!rtlocked) {
-		xfs_rtbitmap_lock(ap->tp, mp);
+		xfs_rtbitmap_lock(mp);
+		xfs_rtbitmap_trans_join(ap->tp);
 		rtlocked = true;
 	}
 
