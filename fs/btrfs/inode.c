@@ -3759,8 +3759,41 @@ static int btrfs_init_file_extent_tree(struct btrfs_inode *inode)
 	return 0;
 }
 
+static int btrfs_add_inode_to_root(struct btrfs_inode *inode, bool prealloc)
+{
+	struct btrfs_root *root = inode->root;
+	struct btrfs_inode *existing;
+	const u64 ino = btrfs_ino(inode);
+	int ret;
+
+	if (inode_unhashed(&inode->vfs_inode))
+		return 0;
+
+	if (prealloc) {
+		ret = xa_reserve(&root->inodes, ino, GFP_NOFS);
+		if (ret)
+			return ret;
+	}
+
+	existing = xa_store(&root->inodes, ino, inode, GFP_ATOMIC);
+
+	if (xa_is_err(existing)) {
+		ret = xa_err(existing);
+		ASSERT(ret != -EINVAL);
+		ASSERT(ret != -ENOMEM);
+		return ret;
+	} else if (existing) {
+		WARN_ON(!(existing->vfs_inode.i_state & (I_WILL_FREE | I_FREEING)));
+	}
+
+	return 0;
+}
+
 /*
- * read an inode from the btree into the in-memory inode
+ * Read a locked inode from the btree into the in-memory inode and add it to
+ * its root list/tree.
+ *
+ * On failure clean up the inode.
  */
 static int btrfs_read_locked_inode(struct inode *inode,
 				   struct btrfs_path *in_path)
@@ -3780,7 +3813,7 @@ static int btrfs_read_locked_inode(struct inode *inode,
 
 	ret = btrfs_init_file_extent_tree(BTRFS_I(inode));
 	if (ret)
-		return ret;
+		goto out;
 
 	ret = btrfs_fill_inode(inode, &rdev);
 	if (!ret)
@@ -3789,7 +3822,7 @@ static int btrfs_read_locked_inode(struct inode *inode,
 	if (!path) {
 		path = btrfs_alloc_path();
 		if (!path)
-			return -ENOMEM;
+			goto out;
 	}
 
 	btrfs_get_inode_key(BTRFS_I(inode), &location);
@@ -3798,7 +3831,13 @@ static int btrfs_read_locked_inode(struct inode *inode,
 	if (ret) {
 		if (path != in_path)
 			btrfs_free_path(path);
-		return ret;
+		/*
+		 * ret > 0 can come from btrfs_search_slot called by
+		 * btrfs_lookup_inode(), this means the inode was not found.
+		 */
+		if (ret > 0)
+			ret = -ENOENT;
+		goto out;
 	}
 
 	leaf = path->nodes[0];
@@ -3961,7 +4000,15 @@ cache_acl:
 	}
 
 	btrfs_sync_inode_flags_to_i_flags(inode);
+
+	ret = btrfs_add_inode_to_root(BTRFS_I(inode), true);
+	if (ret)
+		goto out;
+
 	return 0;
+out:
+	iget_failed(inode);
+	return ret;
 }
 
 /*
@@ -5470,35 +5517,7 @@ out:
 	return err;
 }
 
-static int btrfs_add_inode_to_root(struct btrfs_inode *inode, bool prealloc)
-{
-	struct btrfs_root *root = inode->root;
-	struct btrfs_inode *existing;
-	const u64 ino = btrfs_ino(inode);
-	int ret;
 
-	if (inode_unhashed(&inode->vfs_inode))
-		return 0;
-
-	if (prealloc) {
-		ret = xa_reserve(&root->inodes, ino, GFP_NOFS);
-		if (ret)
-			return ret;
-	}
-
-	existing = xa_store(&root->inodes, ino, inode, GFP_ATOMIC);
-
-	if (xa_is_err(existing)) {
-		ret = xa_err(existing);
-		ASSERT(ret != -EINVAL);
-		ASSERT(ret != -ENOMEM);
-		return ret;
-	} else if (existing) {
-		WARN_ON(!(existing->vfs_inode.i_state & (I_WILL_FREE | I_FREEING)));
-	}
-
-	return 0;
-}
 
 static void btrfs_del_inode_from_root(struct btrfs_inode *inode)
 {
@@ -5579,25 +5598,11 @@ struct inode *btrfs_iget_path(u64 ino, struct btrfs_root *root,
 		return inode;
 
 	ret = btrfs_read_locked_inode(inode, path);
-	/*
-	 * ret > 0 can come from btrfs_search_slot called by
-	 * btrfs_read_locked_inode(), this means the inode item was not found.
-	 */
-	if (ret > 0)
-		ret = -ENOENT;
-	if (ret < 0)
-		goto error;
-
-	ret = btrfs_add_inode_to_root(BTRFS_I(inode), true);
-	if (ret < 0)
-		goto error;
+	if (ret)
+		return ERR_PTR(ret);
 
 	unlock_new_inode(inode);
-
 	return inode;
-error:
-	iget_failed(inode);
-	return ERR_PTR(ret);
 }
 
 struct inode *btrfs_iget(u64 ino, struct btrfs_root *root)
