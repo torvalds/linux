@@ -222,7 +222,7 @@ struct ttm_lru_walk {
 	struct ttm_operation_ctx *ctx;
 	/** @ticket: The struct ww_acquire_ctx if any. */
 	struct ww_acquire_ctx *ticket;
-	/** @tryock_only: Only use trylock for locking. */
+	/** @trylock_only: Only use trylock for locking. */
 	bool trylock_only;
 };
 

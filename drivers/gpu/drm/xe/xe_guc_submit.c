@@ -1374,9 +1374,11 @@ static void __guc_exec_queue_process_msg_resume(struct xe_sched_msg *msg)
 	struct xe_exec_queue *q = msg->private_data;
 
 	if (guc_exec_queue_allowed_to_change_state(q)) {
-		q->guc->resume_time = RESUME_PENDING;
 		clear_exec_queue_suspended(q);
-		enable_scheduling(q);
+		if (!exec_queue_enabled(q)) {
+			q->guc->resume_time = RESUME_PENDING;
+			enable_scheduling(q);
+		}
 	} else {
 		clear_exec_queue_suspended(q);
 	}
@@ -1386,6 +1388,8 @@ static void __guc_exec_queue_process_msg_resume(struct xe_sched_msg *msg)
 #define SET_SCHED_PROPS	2
 #define SUSPEND		3
 #define RESUME		4
+#define OPCODE_MASK	0xf
+#define MSG_LOCKED	BIT(8)
 
 static void guc_exec_queue_process_msg(struct xe_sched_msg *msg)
 {
@@ -1430,7 +1434,7 @@ static int guc_exec_queue_init(struct xe_exec_queue *q)
 	struct xe_device *xe = guc_to_xe(guc);
 	struct xe_guc_exec_queue *ge;
 	long timeout;
-	int err;
+	int err, i;
 
 	xe_assert(xe, xe_device_uc_enabled(guc_to_xe(guc)));
 
@@ -1441,6 +1445,9 @@ static int guc_exec_queue_init(struct xe_exec_queue *q)
 	q->guc = ge;
 	ge->q = q;
 	init_waitqueue_head(&ge->suspend_wait);
+
+	for (i = 0; i < MAX_STATIC_MSG_TYPE; ++i)
+		INIT_LIST_HEAD(&ge->static_msgs[i].link);
 
 	timeout = (q->vm && xe_vm_in_lr_mode(q->vm)) ? MAX_SCHEDULE_TIMEOUT :
 		  msecs_to_jiffies(q->sched_props.job_timeout_ms);
@@ -1504,11 +1511,26 @@ static void guc_exec_queue_add_msg(struct xe_exec_queue *q, struct xe_sched_msg 
 	xe_pm_runtime_get_noresume(guc_to_xe(exec_queue_to_guc(q)));
 
 	INIT_LIST_HEAD(&msg->link);
-	msg->opcode = opcode;
+	msg->opcode = opcode & OPCODE_MASK;
 	msg->private_data = q;
 
 	trace_xe_sched_msg_add(msg);
-	xe_sched_add_msg(&q->guc->sched, msg);
+	if (opcode & MSG_LOCKED)
+		xe_sched_add_msg_locked(&q->guc->sched, msg);
+	else
+		xe_sched_add_msg(&q->guc->sched, msg);
+}
+
+static bool guc_exec_queue_try_add_msg(struct xe_exec_queue *q,
+				       struct xe_sched_msg *msg,
+				       u32 opcode)
+{
+	if (!list_empty(&msg->link))
+		return false;
+
+	guc_exec_queue_add_msg(q, msg, opcode | MSG_LOCKED);
+
+	return true;
 }
 
 #define STATIC_MSG_CLEANUP	0
@@ -1582,13 +1604,16 @@ static int guc_exec_queue_set_preempt_timeout(struct xe_exec_queue *q,
 
 static int guc_exec_queue_suspend(struct xe_exec_queue *q)
 {
+	struct xe_gpu_scheduler *sched = &q->guc->sched;
 	struct xe_sched_msg *msg = q->guc->static_msgs + STATIC_MSG_SUSPEND;
 
-	if (exec_queue_killed_or_banned_or_wedged(q) || q->guc->suspend_pending)
+	if (exec_queue_killed_or_banned_or_wedged(q))
 		return -EINVAL;
 
-	q->guc->suspend_pending = true;
-	guc_exec_queue_add_msg(q, msg, SUSPEND);
+	xe_sched_msg_lock(sched);
+	if (guc_exec_queue_try_add_msg(q, msg, SUSPEND))
+		q->guc->suspend_pending = true;
+	xe_sched_msg_unlock(sched);
 
 	return 0;
 }
@@ -1603,11 +1628,11 @@ static int guc_exec_queue_suspend_wait(struct xe_exec_queue *q)
 	 * suspend_pending upon kill but to be paranoid but races in which
 	 * suspend_pending is set after kill also check kill here.
 	 */
-	ret = wait_event_timeout(q->guc->suspend_wait,
-				 !READ_ONCE(q->guc->suspend_pending) ||
-				 exec_queue_killed(q) ||
-				 guc_read_stopped(guc),
-				 HZ * 5);
+	ret = wait_event_interruptible_timeout(q->guc->suspend_wait,
+					       !READ_ONCE(q->guc->suspend_pending) ||
+					       exec_queue_killed(q) ||
+					       guc_read_stopped(guc),
+					       HZ * 5);
 
 	if (!ret) {
 		xe_gt_warn(guc_to_gt(guc),
@@ -1617,18 +1642,21 @@ static int guc_exec_queue_suspend_wait(struct xe_exec_queue *q)
 		return -ETIME;
 	}
 
-	return 0;
+	return ret < 0 ? ret : 0;
 }
 
 static void guc_exec_queue_resume(struct xe_exec_queue *q)
 {
+	struct xe_gpu_scheduler *sched = &q->guc->sched;
 	struct xe_sched_msg *msg = q->guc->static_msgs + STATIC_MSG_RESUME;
 	struct xe_guc *guc = exec_queue_to_guc(q);
 	struct xe_device *xe = guc_to_xe(guc);
 
 	xe_assert(xe, !q->guc->suspend_pending);
 
-	guc_exec_queue_add_msg(q, msg, RESUME);
+	xe_sched_msg_lock(sched);
+	guc_exec_queue_try_add_msg(q, msg, RESUME);
+	xe_sched_msg_unlock(sched);
 }
 
 static bool guc_exec_queue_reset_status(struct xe_exec_queue *q)

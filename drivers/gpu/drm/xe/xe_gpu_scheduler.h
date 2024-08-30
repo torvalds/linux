@@ -24,6 +24,18 @@ void xe_sched_submission_stop(struct xe_gpu_scheduler *sched);
 
 void xe_sched_add_msg(struct xe_gpu_scheduler *sched,
 		      struct xe_sched_msg *msg);
+void xe_sched_add_msg_locked(struct xe_gpu_scheduler *sched,
+			     struct xe_sched_msg *msg);
+
+static inline void xe_sched_msg_lock(struct xe_gpu_scheduler *sched)
+{
+	spin_lock(&sched->base.job_list_lock);
+}
+
+static inline void xe_sched_msg_unlock(struct xe_gpu_scheduler *sched)
+{
+	spin_unlock(&sched->base.job_list_lock);
+}
 
 static inline void xe_sched_stop(struct xe_gpu_scheduler *sched)
 {

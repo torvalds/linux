@@ -1149,10 +1149,12 @@ static int xe_pt_vm_dependencies(struct xe_sched_job *job,
 			return err;
 	}
 
-	if (job)
-		err = xe_sched_job_last_fence_add_dep(job, vm);
-	else
-		err = xe_exec_queue_last_fence_test_dep(pt_update_ops->q, vm);
+	if (!(pt_update_ops->q->flags & EXEC_QUEUE_FLAG_KERNEL)) {
+		if (job)
+			err = xe_sched_job_last_fence_add_dep(job, vm);
+		else
+			err = xe_exec_queue_last_fence_test_dep(pt_update_ops->q, vm);
+	}
 
 	for (i = 0; job && !err && i < vops->num_syncs; i++)
 		err = xe_sync_entry_add_deps(&vops->syncs[i], job);

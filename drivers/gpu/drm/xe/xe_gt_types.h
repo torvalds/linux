@@ -10,6 +10,7 @@
 #include "xe_gt_idle_types.h"
 #include "xe_gt_sriov_pf_types.h"
 #include "xe_gt_sriov_vf_types.h"
+#include "xe_gt_stats.h"
 #include "xe_hw_engine_types.h"
 #include "xe_hw_fence_types.h"
 #include "xe_oa.h"
@@ -133,6 +134,14 @@ struct xe_gt {
 		u8 has_indirect_ring_state:1;
 	} info;
 
+#if IS_ENABLED(CONFIG_DEBUG_FS)
+	/** @stats: GT stats */
+	struct {
+		/** @stats.counters: counters for various GT stats */
+		atomic_t counters[__XE_GT_STATS_NUM_IDS];
+	} stats;
+#endif
+
 	/**
 	 * @mmio: mmio info for GT.  All GTs within a tile share the same
 	 * register space, but have their own copy of GSI registers at a
@@ -238,9 +247,14 @@ struct xe_gt {
 		struct pf_queue {
 			/** @usm.pf_queue.gt: back pointer to GT */
 			struct xe_gt *gt;
-#define PF_QUEUE_NUM_DW	128
 			/** @usm.pf_queue.data: data in the page fault queue */
-			u32 data[PF_QUEUE_NUM_DW];
+			u32 *data;
+			/**
+			 * @usm.pf_queue.num_dw: number of DWORDS in the page
+			 * fault queue. Dynamically calculated based on the number
+			 * of compute resources available.
+			 */
+			u32 num_dw;
 			/**
 			 * @usm.pf_queue.tail: tail pointer in DWs for page fault queue,
 			 * moved by worker which processes faults (consumer).
@@ -366,6 +380,12 @@ struct xe_gt {
 		/** @steering.instance_target: instance to steer accesses to */
 		u16 instance_target;
 	} steering[NUM_STEERING_TYPES];
+
+	/**
+	 * @steering_dss_per_grp: number of DSS per steering group (gslice,
+	 *    cslice, etc.).
+	 */
+	unsigned int steering_dss_per_grp;
 
 	/**
 	 * @mcr_lock: protects the MCR_SELECTOR register for the duration
