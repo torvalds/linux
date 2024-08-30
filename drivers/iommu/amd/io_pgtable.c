@@ -137,11 +137,13 @@ static void free_sub_pt(u64 *root, int mode, struct list_head *freelist)
  * another level increases the size of the address space by 9 bits to a size up
  * to 64 bits.
  */
-static bool increase_address_space(struct protection_domain *domain,
+static bool increase_address_space(struct amd_io_pgtable *pgtable,
 				   unsigned long address,
 				   gfp_t gfp)
 {
-	struct io_pgtable_cfg *cfg = &domain->iop.pgtbl.cfg;
+	struct io_pgtable_cfg *cfg = &pgtable->pgtbl.cfg;
+	struct protection_domain *domain =
+		container_of(pgtable, struct protection_domain, iop);
 	unsigned long flags;
 	bool ret = true;
 	u64 *pte;
@@ -152,17 +154,17 @@ static bool increase_address_space(struct protection_domain *domain,
 
 	spin_lock_irqsave(&domain->lock, flags);
 
-	if (address <= PM_LEVEL_SIZE(domain->iop.mode))
+	if (address <= PM_LEVEL_SIZE(pgtable->mode))
 		goto out;
 
 	ret = false;
-	if (WARN_ON_ONCE(domain->iop.mode == PAGE_MODE_6_LEVEL))
+	if (WARN_ON_ONCE(pgtable->mode == PAGE_MODE_6_LEVEL))
 		goto out;
 
-	*pte = PM_LEVEL_PDE(domain->iop.mode, iommu_virt_to_phys(domain->iop.root));
+	*pte = PM_LEVEL_PDE(pgtable->mode, iommu_virt_to_phys(pgtable->root));
 
-	domain->iop.root  = pte;
-	domain->iop.mode += 1;
+	pgtable->root  = pte;
+	pgtable->mode += 1;
 	amd_iommu_update_and_flush_device_table(domain);
 
 	pte = NULL;
@@ -175,31 +177,31 @@ out:
 	return ret;
 }
 
-static u64 *alloc_pte(struct protection_domain *domain,
+static u64 *alloc_pte(struct amd_io_pgtable *pgtable,
 		      unsigned long address,
 		      unsigned long page_size,
 		      u64 **pte_page,
 		      gfp_t gfp,
 		      bool *updated)
 {
-	struct io_pgtable_cfg *cfg = &domain->iop.pgtbl.cfg;
+	struct io_pgtable_cfg *cfg = &pgtable->pgtbl.cfg;
 	int level, end_lvl;
 	u64 *pte, *page;
 
 	BUG_ON(!is_power_of_2(page_size));
 
-	while (address > PM_LEVEL_SIZE(domain->iop.mode)) {
+	while (address > PM_LEVEL_SIZE(pgtable->mode)) {
 		/*
 		 * Return an error if there is no memory to update the
 		 * page-table.
 		 */
-		if (!increase_address_space(domain, address, gfp))
+		if (!increase_address_space(pgtable, address, gfp))
 			return NULL;
 	}
 
 
-	level   = domain->iop.mode - 1;
-	pte     = &domain->iop.root[PM_LEVEL_INDEX(level, address)];
+	level   = pgtable->mode - 1;
+	pte     = &pgtable->root[PM_LEVEL_INDEX(level, address)];
 	address = PAGE_SIZE_ALIGN(address, page_size);
 	end_lvl = PAGE_SIZE_LEVEL(page_size);
 
@@ -348,7 +350,7 @@ static int iommu_v1_map_pages(struct io_pgtable_ops *ops, unsigned long iova,
 			      phys_addr_t paddr, size_t pgsize, size_t pgcount,
 			      int prot, gfp_t gfp, size_t *mapped)
 {
-	struct protection_domain *dom = io_pgtable_ops_to_domain(ops);
+	struct amd_io_pgtable *pgtable = io_pgtable_ops_to_data(ops);
 	LIST_HEAD(freelist);
 	bool updated = false;
 	u64 __pte, *pte;
@@ -365,7 +367,7 @@ static int iommu_v1_map_pages(struct io_pgtable_ops *ops, unsigned long iova,
 
 	while (pgcount > 0) {
 		count = PAGE_SIZE_PTE_COUNT(pgsize);
-		pte   = alloc_pte(dom, iova, pgsize, NULL, gfp, &updated);
+		pte   = alloc_pte(pgtable, iova, pgsize, NULL, gfp, &updated);
 
 		ret = -ENOMEM;
 		if (!pte)
@@ -402,6 +404,7 @@ static int iommu_v1_map_pages(struct io_pgtable_ops *ops, unsigned long iova,
 
 out:
 	if (updated) {
+		struct protection_domain *dom = io_pgtable_ops_to_domain(ops);
 		unsigned long flags;
 
 		spin_lock_irqsave(&dom->lock, flags);
