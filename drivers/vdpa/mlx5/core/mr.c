@@ -719,7 +719,7 @@ static void mlx5_vdpa_show_mr_leaks(struct mlx5_vdpa_dev *mvdev)
 
 }
 
-void mlx5_vdpa_destroy_mr_resources(struct mlx5_vdpa_dev *mvdev)
+void mlx5_vdpa_clean_mrs(struct mlx5_vdpa_dev *mvdev)
 {
 	if (!mvdev->res.valid)
 		return;
