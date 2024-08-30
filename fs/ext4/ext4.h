@@ -2553,6 +2553,8 @@ struct dir_private_info {
 	__u32		curr_hash;
 	__u32		curr_minor_hash;
 	__u32		next_hash;
+	u64		cookie;
+	bool		initialized;
 };
 
 /* calculate the first block number of the group */
