@@ -2203,16 +2203,30 @@ static void consume_local_task(struct rq *rq, struct scx_dispatch_q *dsq,
  * - The BPF scheduler is bypassed while the rq is offline and we can always say
  *   no to the BPF scheduler initiated migrations while offline.
  */
-static bool task_can_run_on_remote_rq(struct task_struct *p, struct rq *rq)
+static bool task_can_run_on_remote_rq(struct task_struct *p, struct rq *rq,
+				      bool trigger_error)
 {
 	int cpu = cpu_of(rq);
 
-	if (!task_allowed_on_cpu(p, cpu))
+	/*
+	 * We don't require the BPF scheduler to avoid dispatching to offline
+	 * CPUs mostly for convenience but also because CPUs can go offline
+	 * between scx_bpf_dispatch() calls and here. Trigger error iff the
+	 * picked CPU is outside the allowed mask.
+	 */
+	if (!task_allowed_on_cpu(p, cpu)) {
+		if (trigger_error)
+			scx_ops_error("SCX_DSQ_LOCAL[_ON] verdict target cpu %d not allowed for %s[%d]",
+				      cpu_of(rq), p->comm, p->pid);
 		return false;
+	}
+
 	if (unlikely(is_migration_disabled(p)))
 		return false;
+
 	if (!scx_rq_online(rq))
 		return false;
+
 	return true;
 }
 
@@ -2240,9 +2254,8 @@ static bool consume_remote_task(struct rq *rq, struct scx_dispatch_q *dsq,
 	return move_task_to_local_dsq(p, 0, task_rq, rq);
 }
 #else	/* CONFIG_SMP */
-static bool task_can_run_on_remote_rq(struct task_struct *p, struct rq *rq) { return false; }
-static bool consume_remote_task(struct rq *rq, struct scx_dispatch_q *dsq,
-				struct task_struct *p, struct rq *task_rq) { return false; }
+static inline bool task_can_run_on_remote_rq(struct task_struct *p, struct rq *rq, bool trigger_error) { return false; }
+static inline bool consume_remote_task(struct rq *rq, struct scx_dispatch_q *dsq, struct task_struct *p, struct rq *task_rq) { return false; }
 #endif	/* CONFIG_SMP */
 
 static bool consume_dispatch_q(struct rq *rq, struct scx_dispatch_q *dsq)
@@ -2267,7 +2280,7 @@ retry:
 			return true;
 		}
 
-		if (task_can_run_on_remote_rq(p, rq)) {
+		if (task_can_run_on_remote_rq(p, rq, false)) {
 			if (likely(consume_remote_task(rq, dsq, p, task_rq)))
 				return true;
 			goto retry;
@@ -2330,7 +2343,7 @@ dispatch_to_local_dsq(struct rq *rq, u64 dsq_id, struct task_struct *p,
 	}
 
 #ifdef CONFIG_SMP
-	if (cpumask_test_cpu(cpu_of(dst_rq), p->cpus_ptr)) {
+	if (likely(task_can_run_on_remote_rq(p, dst_rq, true))) {
 		bool dsp;
 
 		/*
@@ -2354,17 +2367,6 @@ dispatch_to_local_dsq(struct rq *rq, u64 dsq_id, struct task_struct *p,
 			raw_spin_rq_unlock(rq);
 			raw_spin_rq_lock(src_rq);
 		}
-
-		/*
-		 * We don't require the BPF scheduler to avoid dispatching to
-		 * offline CPUs mostly for convenience but also because CPUs can
-		 * go offline between scx_bpf_dispatch() calls and here. If @p
-		 * is destined to an offline CPU, queue it on its current CPU
-		 * instead, which should always be safe. As this is an allowed
-		 * behavior, don't trigger an ops error.
-		 */
-		if (!scx_rq_online(dst_rq))
-			dst_rq = src_rq;
 
 		if (src_rq == dst_rq) {
 			/*
@@ -2399,8 +2401,6 @@ dispatch_to_local_dsq(struct rq *rq, u64 dsq_id, struct task_struct *p,
 	}
 #endif	/* CONFIG_SMP */
 
-	scx_ops_error("SCX_DSQ_LOCAL[_ON] verdict target cpu %d not allowed for %s[%d]",
-		      cpu_of(dst_rq), p->comm, p->pid);
 	return DTL_INVALID;
 }
 
