@@ -238,13 +238,13 @@ static const struct rcsi2_cphy_setting cphy_setting_table_r8a779g0[] = {
 };
 
 struct phtw_value {
-	u16 data;
-	u16 code;
+	u8 data;
+	u8 code;
 };
 
 struct rcsi2_mbps_reg {
 	u16 mbps;
-	u16 reg;
+	u8 reg;
 };
 
 static const struct rcsi2_mbps_reg phtw_mbps_v3u[] = {
@@ -1451,7 +1451,7 @@ static int rcsi2_parse_dt(struct rcar_csi2 *priv)
  * NOTE: Magic values are from the datasheet and lack documentation.
  */
 
-static int rcsi2_phtw_write(struct rcar_csi2 *priv, u16 data, u16 code)
+static int rcsi2_phtw_write(struct rcar_csi2 *priv, u8 data, u8 code)
 {
 	unsigned int timeout;
 
@@ -1488,7 +1488,7 @@ static int rcsi2_phtw_write_array(struct rcar_csi2 *priv,
 }
 
 static int rcsi2_phtw_write_mbps(struct rcar_csi2 *priv, unsigned int mbps,
-				 const struct rcsi2_mbps_reg *values, u16 code)
+				 const struct rcsi2_mbps_reg *values, u8 code)
 {
 	const struct rcsi2_mbps_reg *value;
 	const struct rcsi2_mbps_reg *prev_value = NULL;
