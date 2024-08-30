@@ -2258,7 +2258,7 @@ void protection_domain_free(struct protection_domain *domain)
 	WARN_ON(!list_empty(&domain->dev_list));
 
 	if (domain->iop.pgtbl_cfg.tlb)
-		free_io_pgtable_ops(&domain->iop.iop.ops);
+		free_io_pgtable_ops(&domain->iop.pgtbl.ops);
 
 	if (domain->id)
 		domain_id_free(domain->id);
@@ -2366,7 +2366,7 @@ static struct iommu_domain *do_iommu_domain_alloc(unsigned int type,
 	domain->domain.geometry.aperture_start = 0;
 	domain->domain.geometry.aperture_end   = dma_max_address();
 	domain->domain.geometry.force_aperture = true;
-	domain->domain.pgsize_bitmap = domain->iop.iop.cfg.pgsize_bitmap;
+	domain->domain.pgsize_bitmap = domain->iop.pgtbl.cfg.pgsize_bitmap;
 
 	if (iommu) {
 		domain->domain.type = type;
@@ -2510,7 +2510,7 @@ static int amd_iommu_iotlb_sync_map(struct iommu_domain *dom,
 				    unsigned long iova, size_t size)
 {
 	struct protection_domain *domain = to_pdomain(dom);
-	struct io_pgtable_ops *ops = &domain->iop.iop.ops;
+	struct io_pgtable_ops *ops = &domain->iop.pgtbl.ops;
 
 	if (ops->map_pages)
 		domain_flush_np_cache(domain, iova, size);
@@ -2522,7 +2522,7 @@ static int amd_iommu_map_pages(struct iommu_domain *dom, unsigned long iova,
 			       int iommu_prot, gfp_t gfp, size_t *mapped)
 {
 	struct protection_domain *domain = to_pdomain(dom);
-	struct io_pgtable_ops *ops = &domain->iop.iop.ops;
+	struct io_pgtable_ops *ops = &domain->iop.pgtbl.ops;
 	int prot = 0;
 	int ret = -EINVAL;
 
@@ -2569,7 +2569,7 @@ static size_t amd_iommu_unmap_pages(struct iommu_domain *dom, unsigned long iova
 				    struct iommu_iotlb_gather *gather)
 {
 	struct protection_domain *domain = to_pdomain(dom);
-	struct io_pgtable_ops *ops = &domain->iop.iop.ops;
+	struct io_pgtable_ops *ops = &domain->iop.pgtbl.ops;
 	size_t r;
 
 	if ((domain->pd_mode == PD_MODE_V1) &&
@@ -2588,7 +2588,7 @@ static phys_addr_t amd_iommu_iova_to_phys(struct iommu_domain *dom,
 					  dma_addr_t iova)
 {
 	struct protection_domain *domain = to_pdomain(dom);
-	struct io_pgtable_ops *ops = &domain->iop.iop.ops;
+	struct io_pgtable_ops *ops = &domain->iop.pgtbl.ops;
 
 	return ops->iova_to_phys(ops, iova);
 }
@@ -2666,7 +2666,7 @@ static int amd_iommu_read_and_clear_dirty(struct iommu_domain *domain,
 					  struct iommu_dirty_bitmap *dirty)
 {
 	struct protection_domain *pdomain = to_pdomain(domain);
-	struct io_pgtable_ops *ops = &pdomain->iop.iop.ops;
+	struct io_pgtable_ops *ops = &pdomain->iop.pgtbl.ops;
 	unsigned long lflags;
 
 	if (!ops || !ops->read_and_clear_dirty)
