@@ -800,13 +800,10 @@ static void cxl_dport_map_ras(struct cxl_dport *dport)
 static void cxl_disable_rch_root_ints(struct cxl_dport *dport)
 {
 	void __iomem *aer_base = dport->regs.dport_aer;
-	struct pci_host_bridge *bridge;
 	u32 aer_cmd_mask, aer_cmd;
 
 	if (!aer_base)
 		return;
-
-	bridge = to_pci_host_bridge(dport->dport_dev);
 
 	/*
 	 * Disable RCH root port command interrupts.
@@ -816,14 +813,12 @@ static void cxl_disable_rch_root_ints(struct cxl_dport *dport)
 	 * the root cmd register's interrupts is required. But, PCI spec
 	 * shows these are disabled by default on reset.
 	 */
-	if (bridge->native_aer) {
-		aer_cmd_mask = (PCI_ERR_ROOT_CMD_COR_EN |
-				PCI_ERR_ROOT_CMD_NONFATAL_EN |
-				PCI_ERR_ROOT_CMD_FATAL_EN);
-		aer_cmd = readl(aer_base + PCI_ERR_ROOT_COMMAND);
-		aer_cmd &= ~aer_cmd_mask;
-		writel(aer_cmd, aer_base + PCI_ERR_ROOT_COMMAND);
-	}
+	aer_cmd_mask = (PCI_ERR_ROOT_CMD_COR_EN |
+			PCI_ERR_ROOT_CMD_NONFATAL_EN |
+			PCI_ERR_ROOT_CMD_FATAL_EN);
+	aer_cmd = readl(aer_base + PCI_ERR_ROOT_COMMAND);
+	aer_cmd &= ~aer_cmd_mask;
+	writel(aer_cmd, aer_base + PCI_ERR_ROOT_COMMAND);
 }
 
 /**
