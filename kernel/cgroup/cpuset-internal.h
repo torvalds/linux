@@ -279,6 +279,7 @@ int cpuset_common_seq_show(struct seq_file *sf, void *v);
 /*
  * cpuset-v1.c
  */
+#ifdef CONFIG_CPUSETS_V1
 extern struct cftype cpuset1_files[];
 void fmeter_init(struct fmeter *fmp);
 void cpuset1_update_task_spread_flags(struct cpuset *cs,
@@ -288,5 +289,16 @@ void cpuset1_hotplug_update_tasks(struct cpuset *cs,
 			    struct cpumask *new_cpus, nodemask_t *new_mems,
 			    bool cpus_updated, bool mems_updated);
 int cpuset1_validate_change(struct cpuset *cur, struct cpuset *trial);
+#else
+static inline void fmeter_init(struct fmeter *fmp) {}
+static inline void cpuset1_update_task_spread_flags(struct cpuset *cs,
+					struct task_struct *tsk) {}
+static inline void cpuset1_update_tasks_flags(struct cpuset *cs) {}
+static inline void cpuset1_hotplug_update_tasks(struct cpuset *cs,
+			    struct cpumask *new_cpus, nodemask_t *new_mems,
+			    bool cpus_updated, bool mems_updated) {}
+static inline int cpuset1_validate_change(struct cpuset *cur,
+				struct cpuset *trial) { return 0; }
+#endif /* CONFIG_CPUSETS_V1 */
 
 #endif /* __CPUSET_INTERNAL_H */
