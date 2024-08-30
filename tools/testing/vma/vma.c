@@ -112,7 +112,7 @@ static struct vm_area_struct *merge_new(struct vma_merge_struct *vmg)
  */
 static struct vm_area_struct *merge_existing(struct vma_merge_struct *vmg)
 {
-	return vma_merge(vmg);
+	return vma_merge_existing_range(vmg);
 }
 
 /*
@@ -752,7 +752,12 @@ static bool test_vma_merge_with_close(void)
 	vmg.vma = vma;
 	/* Make sure merge does not occur. */
 	ASSERT_EQ(merge_existing(&vmg), NULL);
-	ASSERT_EQ(vmg.state, VMA_MERGE_NOMERGE);
+	/*
+	 * Initially this is misapprehended as an out of memory report, as the
+	 * close() check is handled in the same way as anon_vma duplication
+	 * failures, however a subsequent patch resolves this.
+	 */
+	ASSERT_EQ(vmg.state, VMA_MERGE_ERROR_NOMEM);
 
 	cleanup_mm(&mm, &vmi);
 	return true;
