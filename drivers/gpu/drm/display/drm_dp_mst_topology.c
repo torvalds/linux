@@ -89,7 +89,7 @@ static int drm_dp_send_enum_path_resources(struct drm_dp_mst_topology_mgr *mgr,
 					   struct drm_dp_mst_branch *mstb,
 					   struct drm_dp_mst_port *port);
 static bool drm_dp_validate_guid(struct drm_dp_mst_topology_mgr *mgr,
-				 u8 *guid);
+				 guid_t *guid);
 
 static int drm_dp_mst_register_i2c_bus(struct drm_dp_mst_port *port);
 static void drm_dp_mst_unregister_i2c_bus(struct drm_dp_mst_port *port);
@@ -801,7 +801,7 @@ static bool drm_dp_sideband_parse_link_address(const struct drm_dp_mst_topology_
 	int idx = 1;
 	int i;
 
-	memcpy(repmsg->u.link_addr.guid, &raw->msg[idx], 16);
+	import_guid(&repmsg->u.link_addr.guid, &raw->msg[idx]);
 	idx += 16;
 	repmsg->u.link_addr.nports = raw->msg[idx] & 0xf;
 	idx++;
@@ -829,7 +829,7 @@ static bool drm_dp_sideband_parse_link_address(const struct drm_dp_mst_topology_
 			idx++;
 			if (idx > raw->curlen)
 				goto fail_len;
-			memcpy(repmsg->u.link_addr.ports[i].peer_guid, &raw->msg[idx], 16);
+			import_guid(&repmsg->u.link_addr.ports[i].peer_guid, &raw->msg[idx]);
 			idx += 16;
 			if (idx > raw->curlen)
 				goto fail_len;
@@ -1029,7 +1029,7 @@ static bool drm_dp_sideband_parse_reply(const struct drm_dp_mst_topology_mgr *mg
 	msg->req_type = (raw->msg[0] & 0x7f);
 
 	if (msg->reply_type == DP_SIDEBAND_REPLY_NAK) {
-		memcpy(msg->u.nak.guid, &raw->msg[1], 16);
+		import_guid(&msg->u.nak.guid, &raw->msg[1]);
 		msg->u.nak.reason = raw->msg[17];
 		msg->u.nak.nak_data = raw->msg[18];
 		return false;
@@ -1078,7 +1078,7 @@ drm_dp_sideband_parse_connection_status_notify(const struct drm_dp_mst_topology_
 	if (idx > raw->curlen)
 		goto fail_len;
 
-	memcpy(msg->u.conn_stat.guid, &raw->msg[idx], 16);
+	import_guid(&msg->u.conn_stat.guid, &raw->msg[idx]);
 	idx += 16;
 	if (idx > raw->curlen)
 		goto fail_len;
@@ -1107,7 +1107,7 @@ static bool drm_dp_sideband_parse_resource_status_notify(const struct drm_dp_mst
 	if (idx > raw->curlen)
 		goto fail_len;
 
-	memcpy(msg->u.resource_stat.guid, &raw->msg[idx], 16);
+	import_guid(&msg->u.resource_stat.guid, &raw->msg[idx]);
 	idx += 16;
 	if (idx > raw->curlen)
 		goto fail_len;
@@ -2174,20 +2174,24 @@ ssize_t drm_dp_mst_dpcd_write(struct drm_dp_aux *aux,
 				      offset, size, buffer);
 }
 
-static int drm_dp_check_mstb_guid(struct drm_dp_mst_branch *mstb, u8 *guid)
+static int drm_dp_check_mstb_guid(struct drm_dp_mst_branch *mstb, guid_t *guid)
 {
 	int ret = 0;
 
-	memcpy(mstb->guid, guid, 16);
+	guid_copy(&mstb->guid, guid);
 
-	if (!drm_dp_validate_guid(mstb->mgr, mstb->guid)) {
+	if (!drm_dp_validate_guid(mstb->mgr, &mstb->guid)) {
+		u8 buf[UUID_SIZE];
+
+		export_guid(buf, &mstb->guid);
+
 		if (mstb->port_parent) {
 			ret = drm_dp_send_dpcd_write(mstb->mgr,
 						     mstb->port_parent,
-						     DP_GUID, 16, mstb->guid);
+						     DP_GUID, sizeof(buf), buf);
 		} else {
 			ret = drm_dp_dpcd_write(mstb->mgr->aux,
-						DP_GUID, mstb->guid, 16);
+						DP_GUID, buf, sizeof(buf));
 		}
 	}
 
@@ -2567,9 +2571,9 @@ out:
 	return mstb;
 }
 
-static struct drm_dp_mst_branch *get_mst_branch_device_by_guid_helper(
-	struct drm_dp_mst_branch *mstb,
-	const uint8_t *guid)
+static struct drm_dp_mst_branch *
+get_mst_branch_device_by_guid_helper(struct drm_dp_mst_branch *mstb,
+				     const guid_t *guid)
 {
 	struct drm_dp_mst_branch *found_mstb;
 	struct drm_dp_mst_port *port;
@@ -2577,9 +2581,8 @@ static struct drm_dp_mst_branch *get_mst_branch_device_by_guid_helper(
 	if (!mstb)
 		return NULL;
 
-	if (memcmp(mstb->guid, guid, 16) == 0)
+	if (guid_equal(&mstb->guid, guid))
 		return mstb;
-
 
 	list_for_each_entry(port, &mstb->ports, next) {
 		found_mstb = get_mst_branch_device_by_guid_helper(port->mstb, guid);
@@ -2593,7 +2596,7 @@ static struct drm_dp_mst_branch *get_mst_branch_device_by_guid_helper(
 
 static struct drm_dp_mst_branch *
 drm_dp_get_mst_branch_device_by_guid(struct drm_dp_mst_topology_mgr *mgr,
-				     const uint8_t *guid)
+				     const guid_t *guid)
 {
 	struct drm_dp_mst_branch *mstb;
 	int ret;
@@ -2695,17 +2698,12 @@ static void drm_dp_mst_queue_probe_work(struct drm_dp_mst_topology_mgr *mgr)
 }
 
 static bool drm_dp_validate_guid(struct drm_dp_mst_topology_mgr *mgr,
-				 u8 *guid)
+				 guid_t *guid)
 {
-	u64 salt;
-
-	if (memchr_inv(guid, 0, 16))
+	if (!guid_is_null(guid))
 		return true;
 
-	salt = get_jiffies_64();
-
-	memcpy(&guid[0], &salt, sizeof(u64));
-	memcpy(&guid[8], &salt, sizeof(u64));
+	guid_gen(guid);
 
 	return false;
 }
@@ -2945,7 +2943,7 @@ static int drm_dp_send_link_address(struct drm_dp_mst_topology_mgr *mgr,
 	drm_dbg_kms(mgr->dev, "link address reply: %d\n", reply->nports);
 	drm_dp_dump_link_address(mgr, reply);
 
-	ret = drm_dp_check_mstb_guid(mstb, reply->guid);
+	ret = drm_dp_check_mstb_guid(mstb, &reply->guid);
 	if (ret) {
 		char buf[64];
 
@@ -3799,8 +3797,9 @@ EXPORT_SYMBOL(drm_dp_mst_topology_mgr_suspend);
 int drm_dp_mst_topology_mgr_resume(struct drm_dp_mst_topology_mgr *mgr,
 				   bool sync)
 {
+	u8 buf[UUID_SIZE];
+	guid_t guid;
 	int ret;
-	u8 guid[16];
 
 	mutex_lock(&mgr->lock);
 	if (!mgr->mst_primary)
@@ -3821,13 +3820,15 @@ int drm_dp_mst_topology_mgr_resume(struct drm_dp_mst_topology_mgr *mgr,
 	}
 
 	/* Some hubs forget their guids after they resume */
-	ret = drm_dp_dpcd_read(mgr->aux, DP_GUID, guid, 16);
-	if (ret != 16) {
+	ret = drm_dp_dpcd_read(mgr->aux, DP_GUID, buf, sizeof(buf));
+	if (ret != sizeof(buf)) {
 		drm_dbg_kms(mgr->dev, "dpcd read failed - undocked during suspend?\n");
 		goto out_fail;
 	}
 
-	ret = drm_dp_check_mstb_guid(mgr->mst_primary, guid);
+	import_guid(&guid, buf);
+
+	ret = drm_dp_check_mstb_guid(mgr->mst_primary, &guid);
 	if (ret) {
 		drm_dbg_kms(mgr->dev, "check mstb failed - undocked during suspend?\n");
 		goto out_fail;
@@ -4005,12 +4006,12 @@ drm_dp_mst_process_up_req(struct drm_dp_mst_topology_mgr *mgr,
 	bool hotplug = false, dowork = false;
 
 	if (hdr->broadcast) {
-		const u8 *guid = NULL;
+		const guid_t *guid = NULL;
 
 		if (msg->req_type == DP_CONNECTION_STATUS_NOTIFY)
-			guid = msg->u.conn_stat.guid;
+			guid = &msg->u.conn_stat.guid;
 		else if (msg->req_type == DP_RESOURCE_STATUS_NOTIFY)
-			guid = msg->u.resource_stat.guid;
+			guid = &msg->u.resource_stat.guid;
 
 		if (guid)
 			mstb = drm_dp_get_mst_branch_device_by_guid(mgr, guid);
@@ -5598,7 +5599,6 @@ EXPORT_SYMBOL(drm_dp_mst_atomic_check_mgr);
  * drm_dp_atomic_release_time_slots()
  *
  * Returns:
- *
  * 0 if the new state is valid, negative error code otherwise.
  */
 int drm_dp_mst_atomic_check(struct drm_atomic_state *state)
@@ -5635,7 +5635,6 @@ EXPORT_SYMBOL(drm_dp_mst_topology_state_funcs);
  * topology object.
  *
  * RETURNS:
- *
  * The MST topology state or error pointer.
  */
 struct drm_dp_mst_topology_state *drm_atomic_get_mst_topology_state(struct drm_atomic_state *state,
@@ -5655,7 +5654,6 @@ EXPORT_SYMBOL(drm_atomic_get_mst_topology_state);
  * topology object.
  *
  * Returns:
- *
  * The old MST topology state, or NULL if there's no topology state for this MST mgr
  * in the global atomic state
  */
@@ -5680,7 +5678,6 @@ EXPORT_SYMBOL(drm_atomic_get_old_mst_topology_state);
  * topology object.
  *
  * Returns:
- *
  * The new MST topology state, or NULL if there's no topology state for this MST mgr
  * in the global atomic state
  */

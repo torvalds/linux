@@ -2579,9 +2579,9 @@ static int dm_late_init(void *handle)
 
 static void resume_mst_branch_status(struct drm_dp_mst_topology_mgr *mgr)
 {
+	u8 buf[UUID_SIZE];
+	guid_t guid;
 	int ret;
-	u8 guid[16];
-	u64 tmp64;
 
 	mutex_lock(&mgr->lock);
 	if (!mgr->mst_primary)
@@ -2602,26 +2602,27 @@ static void resume_mst_branch_status(struct drm_dp_mst_topology_mgr *mgr)
 	}
 
 	/* Some hubs forget their guids after they resume */
-	ret = drm_dp_dpcd_read(mgr->aux, DP_GUID, guid, 16);
-	if (ret != 16) {
+	ret = drm_dp_dpcd_read(mgr->aux, DP_GUID, buf, sizeof(buf));
+	if (ret != sizeof(buf)) {
 		drm_dbg_kms(mgr->dev, "dpcd read failed - undocked during suspend?\n");
 		goto out_fail;
 	}
 
-	if (memchr_inv(guid, 0, 16) == NULL) {
-		tmp64 = get_jiffies_64();
-		memcpy(&guid[0], &tmp64, sizeof(u64));
-		memcpy(&guid[8], &tmp64, sizeof(u64));
+	import_guid(&guid, buf);
 
-		ret = drm_dp_dpcd_write(mgr->aux, DP_GUID, guid, 16);
+	if (guid_is_null(&guid)) {
+		guid_gen(&guid);
+		export_guid(buf, &guid);
 
-		if (ret != 16) {
+		ret = drm_dp_dpcd_write(mgr->aux, DP_GUID, buf, sizeof(buf));
+
+		if (ret != sizeof(buf)) {
 			drm_dbg_kms(mgr->dev, "check mstb guid failed - undocked during suspend?\n");
 			goto out_fail;
 		}
 	}
 
-	memcpy(mgr->mst_primary->guid, guid, 16);
+	guid_copy(&mgr->mst_primary->guid, &guid);
 
 out_fail:
 	mutex_unlock(&mgr->lock);
@@ -4947,12 +4948,6 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 
 				if (psr_feature_enabled)
 					amdgpu_dm_set_psr_caps(link);
-
-				/* TODO: Fix vblank control helpers to delay PSR entry to allow this when
-				 * PSR is also supported.
-				 */
-				if (link->psr_settings.psr_feature_enabled)
-					adev_to_drm(adev)->vblank_disable_immediate = false;
 			}
 		}
 		amdgpu_set_panel_orientation(&aconnector->base);
@@ -8248,12 +8243,66 @@ static int amdgpu_dm_encoder_init(struct drm_device *dev,
 
 static void manage_dm_interrupts(struct amdgpu_device *adev,
 				 struct amdgpu_crtc *acrtc,
-				 bool enable)
+				 struct dm_crtc_state *acrtc_state)
 {
-	if (enable)
-		drm_crtc_vblank_on(&acrtc->base);
-	else
+	/*
+	 * We have no guarantee that the frontend index maps to the same
+	 * backend index - some even map to more than one.
+	 *
+	 * TODO: Use a different interrupt or check DC itself for the mapping.
+	 */
+	int irq_type =
+		amdgpu_display_crtc_idx_to_irq_type(
+			adev,
+			acrtc->crtc_id);
+	struct drm_vblank_crtc_config config = {0};
+	struct dc_crtc_timing *timing;
+	int offdelay;
+
+	if (acrtc_state) {
+		if (amdgpu_ip_version(adev, DCE_HWIP, 0) <
+		    IP_VERSION(3, 5, 0) ||
+		    acrtc_state->stream->link->psr_settings.psr_version <
+		    DC_PSR_VERSION_UNSUPPORTED) {
+			timing = &acrtc_state->stream->timing;
+
+			/* at least 2 frames */
+			offdelay = DIV64_U64_ROUND_UP((u64)20 *
+						      timing->v_total *
+						      timing->h_total,
+						      timing->pix_clk_100hz);
+
+			config.offdelay_ms = offdelay ?: 30;
+		} else {
+			config.disable_immediate = true;
+		}
+
+		drm_crtc_vblank_on_config(&acrtc->base,
+					  &config);
+
+		amdgpu_irq_get(
+			adev,
+			&adev->pageflip_irq,
+			irq_type);
+#if defined(CONFIG_DRM_AMD_SECURE_DISPLAY)
+		amdgpu_irq_get(
+			adev,
+			&adev->vline0_irq,
+			irq_type);
+#endif
+	} else {
+#if defined(CONFIG_DRM_AMD_SECURE_DISPLAY)
+		amdgpu_irq_put(
+			adev,
+			&adev->vline0_irq,
+			irq_type);
+#endif
+		amdgpu_irq_put(
+			adev,
+			&adev->pageflip_irq,
+			irq_type);
 		drm_crtc_vblank_off(&acrtc->base);
+	}
 }
 
 static void dm_update_pflip_irq_state(struct amdgpu_device *adev,
@@ -9305,7 +9354,7 @@ static void amdgpu_dm_commit_streams(struct drm_atomic_state *state,
 		if (old_crtc_state->active &&
 		    (!new_crtc_state->active ||
 		     drm_atomic_crtc_needs_modeset(new_crtc_state))) {
-			manage_dm_interrupts(adev, acrtc, false);
+			manage_dm_interrupts(adev, acrtc, NULL);
 			dc_stream_release(dm_old_crtc_state->stream);
 		}
 	}
@@ -9821,7 +9870,7 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 		     drm_atomic_crtc_needs_modeset(new_crtc_state))) {
 			dc_stream_retain(dm_new_crtc_state->stream);
 			acrtc->dm_irq_params.stream = dm_new_crtc_state->stream;
-			manage_dm_interrupts(adev, acrtc, true);
+			manage_dm_interrupts(adev, acrtc, dm_new_crtc_state);
 		}
 		/* Handle vrr on->off / off->on transitions */
 		amdgpu_dm_handle_vrr_transition(dm_old_crtc_state, dm_new_crtc_state);

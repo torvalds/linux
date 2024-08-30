@@ -686,7 +686,6 @@ EXPORT_SYMBOL(drm_calc_timestamping_constants);
  * drm_atomic_helper_calc_timestamping_constants().
  *
  * Returns:
- *
  * Returns true on success, and false on failure, i.e. when no accurate
  * timestamp could be acquired.
  */
@@ -831,7 +830,6 @@ EXPORT_SYMBOL(drm_crtc_vblank_helper_get_vblank_timestamp_internal);
  * drm_atomic_helper_calc_timestamping_constants().
  *
  * Returns:
- *
  * Returns true on success, and false on failure, i.e. when no accurate
  * timestamp could be acquired.
  */

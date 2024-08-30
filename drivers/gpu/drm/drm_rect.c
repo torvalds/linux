@@ -85,7 +85,6 @@ static u32 clip_scaled(int src, int dst, int *clip)
  * factors from @src to @dst.
  *
  * RETURNS:
- *
  * %true if rectangle @dst is still visible after being clipped,
  * %false otherwise.
  */
