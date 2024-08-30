@@ -915,14 +915,12 @@ static void cxl_handle_rdport_errors(struct cxl_dev_state *cxlds)
 	struct pci_dev *pdev = to_pci_dev(cxlds->dev);
 	struct aer_capability_regs aer_regs;
 	struct cxl_dport *dport;
-	struct cxl_port *port;
 	int severity;
 
-	port = cxl_pci_find_port(pdev, &dport);
+	struct cxl_port *port __free(put_cxl_port) =
+		cxl_pci_find_port(pdev, &dport);
 	if (!port)
 		return;
-
-	put_device(&port->dev);
 
 	if (!cxl_rch_get_aer_info(dport->regs.dport_aer, &aer_regs))
 		return;
