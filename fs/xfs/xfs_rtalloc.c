@@ -949,6 +949,23 @@ out_free:
 }
 
 /*
+ * Calculate the last rbmblock currently used.
+ *
+ * This also deals with the case where there were no rtextents before.
+ */
+static xfs_fileoff_t
+xfs_last_rt_bmblock(
+	struct xfs_mount	*mp)
+{
+	xfs_fileoff_t		bmbno = mp->m_sb.sb_rbmblocks;
+
+	/* Skip the current block if it is exactly full. */
+	if (xfs_rtx_to_rbmword(mp, mp->m_sb.sb_rextents) != 0)
+		bmbno--;
+	return bmbno;
+}
+
+/*
  * Grow the realtime area of the filesystem.
  */
 int
@@ -1059,16 +1076,8 @@ xfs_growfs_rt(
 			goto out_unlock;
 	}
 
-	/*
-	 * Loop over the bitmap blocks.
-	 * We will do everything one bitmap block at a time.
-	 * Skip the current block if it is exactly full.
-	 * This also deals with the case where there were no rtextents before.
-	 */
-	bmbno = mp->m_sb.sb_rbmblocks;
-	if (xfs_rtx_to_rbmword(mp, mp->m_sb.sb_rextents) != 0)
-		bmbno--;
-	for (; bmbno < nrbmblocks; bmbno++) {
+	/* Initialize the free space bitmap one bitmap block at a time. */
+	for (bmbno = xfs_last_rt_bmblock(mp); bmbno < nrbmblocks; bmbno++) {
 		error = xfs_growfs_rt_bmblock(mp, in->newblocks, in->extsize,
 				bmbno);
 		if (error)
