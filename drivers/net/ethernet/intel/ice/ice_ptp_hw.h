@@ -316,7 +316,7 @@ ice_cgu_pll_params_e825c e825c_cgu_params[NUM_ICE_TIME_REF_FREQ];
 extern const struct ice_phy_reg_info_eth56g eth56g_phy_res[NUM_ETH56G_PHY_RES];
 
 /* Table of constants related to possible TIME_REF sources */
-extern const struct ice_time_ref_info_e82x e822_time_ref[NUM_ICE_TIME_REF_FREQ];
+extern const struct ice_time_ref_info_e82x e82x_time_ref[NUM_ICE_TIME_REF_FREQ];
 
 /* Table of constants for Vernier calibration on E822 */
 extern const struct ice_vernier_info_e82x e822_vernier[NUM_ICE_PTP_LNK_SPD];
@@ -326,7 +326,8 @@ extern const struct ice_vernier_info_e82x e822_vernier[NUM_ICE_PTP_LNK_SPD];
  */
 #define ICE_E810_PLL_FREQ		812500000
 #define ICE_PTP_NOMINAL_INCVAL_E810	0x13b13b13bULL
-#define E810_OUT_PROP_DELAY_NS 1
+#define ICE_E810_OUT_PROP_DELAY_NS	1
+#define ICE_E825C_OUT_PROP_DELAY_NS	11
 
 /* Device agnostic functions */
 u8 ice_get_ptp_src_clock_index(struct ice_hw *hw);
@@ -358,7 +359,7 @@ void ice_ptp_reset_ts_memory_quad_e82x(struct ice_hw *hw, u8 quad);
  *
  * Returns the current TIME_REF from the capabilities structure.
  */
-static inline enum ice_time_ref_freq ice_e82x_time_ref(struct ice_hw *hw)
+static inline enum ice_time_ref_freq ice_e82x_time_ref(const struct ice_hw *hw)
 {
 	return hw->func_caps.ts_func_info.time_ref;
 }
@@ -379,17 +380,17 @@ ice_set_e82x_time_ref(struct ice_hw *hw, enum ice_time_ref_freq time_ref)
 
 static inline u64 ice_e82x_pll_freq(enum ice_time_ref_freq time_ref)
 {
-	return e822_time_ref[time_ref].pll_freq;
+	return e82x_time_ref[time_ref].pll_freq;
 }
 
 static inline u64 ice_e82x_nominal_incval(enum ice_time_ref_freq time_ref)
 {
-	return e822_time_ref[time_ref].nominal_incval;
+	return e82x_time_ref[time_ref].nominal_incval;
 }
 
 static inline u64 ice_e82x_pps_delay(enum ice_time_ref_freq time_ref)
 {
-	return e822_time_ref[time_ref].pps_delay;
+	return e82x_time_ref[time_ref].pps_delay;
 }
 
 /* E822 Vernier calibration functions */
@@ -430,6 +431,20 @@ int ice_phy_cfg_ptp_1step_eth56g(struct ice_hw *hw, u8 port);
 #define ICE_ETH56G_NOMINAL_PCS_REF_INC	0x300000000ULL
 #define ICE_ETH56G_NOMINAL_THRESH4	0x7777
 #define ICE_ETH56G_NOMINAL_TX_THRESH	0x6
+
+static inline u64 ice_prop_delay(const struct ice_hw *hw)
+{
+	switch (hw->ptp.phy_model) {
+	case ICE_PHY_ETH56G:
+		return ICE_E825C_OUT_PROP_DELAY_NS;
+	case ICE_PHY_E810:
+		return ICE_E810_OUT_PROP_DELAY_NS;
+	case ICE_PHY_E82X:
+		return ice_e82x_pps_delay(ice_e82x_time_ref(hw));
+	default:
+		return 0;
+	}
+}
 
 /**
  * ice_get_base_incval - Get base clock increment value
