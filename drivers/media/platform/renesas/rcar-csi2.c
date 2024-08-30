@@ -135,13 +135,23 @@ struct rcar_csi2;
 /* V4H BASE registers */
 #define V4H_N_LANES_REG					0x0004
 #define V4H_CSI2_RESETN_REG				0x0008
+
 #define V4H_PHY_MODE_REG				0x001c
+#define V4H_PHY_MODE_DPHY				0
+#define V4H_PHY_MODE_CPHY				1
+
 #define V4H_PHY_SHUTDOWNZ_REG				0x0040
 #define V4H_DPHY_RSTZ_REG				0x0044
 #define V4H_FLDC_REG					0x0804
 #define V4H_FLDD_REG					0x0808
 #define V4H_IDIC_REG					0x0810
+
 #define V4H_PHY_EN_REG					0x2000
+#define V4H_PHY_EN_ENABLE_3				BIT(7)
+#define V4H_PHY_EN_ENABLE_2				BIT(6)
+#define V4H_PHY_EN_ENABLE_1				BIT(5)
+#define V4H_PHY_EN_ENABLE_0				BIT(4)
+#define V4H_PHY_EN_ENABLE_CLK				BIT(0)
 
 #define V4H_ST_PHYST_REG				0x2814
 #define V4H_ST_PHYST_ST_PHY_READY			BIT(31)
@@ -1146,11 +1156,11 @@ static int rcsi2_start_receiver_v4h(struct rcar_csi2 *priv,
 	rcsi2_write(priv, V4H_PHY_SHUTDOWNZ_REG, 0);
 
 	/* PHY static setting */
-	rcsi2_write(priv, V4H_PHY_EN_REG, BIT(0));
+	rcsi2_write(priv, V4H_PHY_EN_REG, V4H_PHY_EN_ENABLE_CLK);
 	rcsi2_write(priv, V4H_FLDC_REG, 0);
 	rcsi2_write(priv, V4H_FLDD_REG, 0);
 	rcsi2_write(priv, V4H_IDIC_REG, 0);
-	rcsi2_write(priv, V4H_PHY_MODE_REG, BIT(0));
+	rcsi2_write(priv, V4H_PHY_MODE_REG, V4H_PHY_MODE_CPHY);
 	rcsi2_write(priv, V4H_N_LANES_REG, lanes - 1);
 
 	/* Reset CSI2 */
