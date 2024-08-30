@@ -62,7 +62,8 @@ static loff_t vfs_setpos_cookie(struct file *file, loff_t offset,
 
 	if (offset != file->f_pos) {
 		file->f_pos = offset;
-		*cookie = 0;
+		if (cookie)
+			*cookie = 0;
 	}
 	return offset;
 }
@@ -81,7 +82,7 @@ static loff_t vfs_setpos_cookie(struct file *file, loff_t offset,
  */
 loff_t vfs_setpos(struct file *file, loff_t offset, loff_t maxsize)
 {
-	return vfs_setpos_cookie(file, offset, maxsize, &file->f_version);
+	return vfs_setpos_cookie(file, offset, maxsize, NULL);
 }
 EXPORT_SYMBOL(vfs_setpos);
 
@@ -364,10 +365,8 @@ loff_t default_llseek(struct file *file, loff_t offset, int whence)
 	}
 	retval = -EINVAL;
 	if (offset >= 0 || unsigned_offsets(file)) {
-		if (offset != file->f_pos) {
+		if (offset != file->f_pos)
 			file->f_pos = offset;
-			file->f_version = 0;
-		}
 		retval = offset;
 	}
 out:
