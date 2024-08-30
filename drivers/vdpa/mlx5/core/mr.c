@@ -846,3 +846,20 @@ int mlx5_vdpa_reset_mr(struct mlx5_vdpa_dev *mvdev, unsigned int asid)
 
 	return 0;
 }
+
+int mlx5_vdpa_init_mr_resources(struct mlx5_vdpa_dev *mvdev)
+{
+	struct mlx5_vdpa_mr_resources *mres = &mvdev->mres;
+
+	INIT_LIST_HEAD(&mres->mr_list_head);
+	mutex_init(&mres->lock);
+
+	return 0;
+}
+
+void mlx5_vdpa_destroy_mr_resources(struct mlx5_vdpa_dev *mvdev)
+{
+	struct mlx5_vdpa_mr_resources *mres = &mvdev->mres;
+
+	mutex_destroy(&mres->lock);
+}
