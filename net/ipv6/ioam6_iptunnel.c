@@ -89,7 +89,7 @@ static bool ioam6_validate_trace_hdr(struct ioam6_trace_hdr *trace)
 	    trace->type.bit12 | trace->type.bit13 | trace->type.bit14 |
 	    trace->type.bit15 | trace->type.bit16 | trace->type.bit17 |
 	    trace->type.bit18 | trace->type.bit19 | trace->type.bit20 |
-	    trace->type.bit21)
+	    trace->type.bit21 | trace->type.bit23)
 		return false;
 
 	trace->nodelen = 0;
@@ -199,8 +199,16 @@ static int ioam6_build_state(struct net *net, struct nlattr *nla,
 		}
 	}
 
-	if (tb[IOAM6_IPTUNNEL_DST])
+	if (tb[IOAM6_IPTUNNEL_DST]) {
 		ilwt->tundst = nla_get_in6_addr(tb[IOAM6_IPTUNNEL_DST]);
+
+		if (ipv6_addr_any(&ilwt->tundst)) {
+			NL_SET_ERR_MSG_ATTR(extack, tb[IOAM6_IPTUNNEL_DST],
+					    "invalid tunnel dest address");
+			err = -EINVAL;
+			goto free_cache;
+		}
+	}
 
 	tuninfo = ioam6_lwt_info(lwt);
 	tuninfo->eh.hdrlen = ((sizeof(*tuninfo) + len_aligned) >> 3) - 1;
