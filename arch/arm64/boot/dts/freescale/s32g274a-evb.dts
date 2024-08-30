@@ -39,5 +39,6 @@
 	pinctrl-1 = <&pinctrl_usdhc0_100mhz>;
 	pinctrl-2 = <&pinctrl_usdhc0_200mhz>;
 	disable-wp;
+	no-1-8-v;
 	status = "okay";
 };
