@@ -24,27 +24,6 @@
 #include "amd_iommu.h"
 #include "../iommu-pages.h"
 
-static void v1_tlb_flush_all(void *cookie)
-{
-}
-
-static void v1_tlb_flush_walk(unsigned long iova, size_t size,
-				  size_t granule, void *cookie)
-{
-}
-
-static void v1_tlb_add_page(struct iommu_iotlb_gather *gather,
-					 unsigned long iova, size_t granule,
-					 void *cookie)
-{
-}
-
-static const struct iommu_flush_ops v1_flush_ops = {
-	.tlb_flush_all	= v1_tlb_flush_all,
-	.tlb_flush_walk = v1_tlb_flush_walk,
-	.tlb_add_page	= v1_tlb_add_page,
-};
-
 /*
  * Helper function to get the first pte of a large mapping
  */
@@ -572,7 +551,6 @@ static struct io_pgtable *v1_alloc_pgtable(struct io_pgtable_cfg *cfg, void *coo
 	cfg->pgsize_bitmap  = AMD_IOMMU_PGSIZES;
 	cfg->ias            = IOMMU_IN_ADDR_BIT_SIZE;
 	cfg->oas            = IOMMU_OUT_ADDR_BIT_SIZE;
-	cfg->tlb            = &v1_flush_ops;
 
 	pgtable->pgtbl.ops.map_pages    = iommu_v1_map_pages;
 	pgtable->pgtbl.ops.unmap_pages  = iommu_v1_unmap_pages;

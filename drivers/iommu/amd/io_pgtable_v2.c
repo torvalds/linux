@@ -326,27 +326,6 @@ static phys_addr_t iommu_v2_iova_to_phys(struct io_pgtable_ops *ops, unsigned lo
 /*
  * ----------------------------------------------------
  */
-static void v2_tlb_flush_all(void *cookie)
-{
-}
-
-static void v2_tlb_flush_walk(unsigned long iova, size_t size,
-			      size_t granule, void *cookie)
-{
-}
-
-static void v2_tlb_add_page(struct iommu_iotlb_gather *gather,
-			    unsigned long iova, size_t granule,
-			    void *cookie)
-{
-}
-
-static const struct iommu_flush_ops v2_flush_ops = {
-	.tlb_flush_all	= v2_tlb_flush_all,
-	.tlb_flush_walk = v2_tlb_flush_walk,
-	.tlb_add_page	= v2_tlb_add_page,
-};
-
 static void v2_free_pgtable(struct io_pgtable *iop)
 {
 	struct amd_io_pgtable *pgtable = container_of(iop, struct amd_io_pgtable, pgtbl);
@@ -378,7 +357,6 @@ static struct io_pgtable *v2_alloc_pgtable(struct io_pgtable_cfg *cfg, void *coo
 	cfg->pgsize_bitmap = AMD_IOMMU_PGSIZES_V2;
 	cfg->ias           = ias;
 	cfg->oas           = IOMMU_OUT_ADDR_BIT_SIZE;
-	cfg->tlb           = &v2_flush_ops;
 
 	return &pgtable->pgtbl;
 }
