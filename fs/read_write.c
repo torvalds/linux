@@ -40,6 +40,34 @@ static inline bool unsigned_offsets(struct file *file)
 }
 
 /**
+ * vfs_setpos_cookie - update the file offset for lseek and reset cookie
+ * @file:	file structure in question
+ * @offset:	file offset to seek to
+ * @maxsize:	maximum file size
+ * @cookie:	cookie to reset
+ *
+ * Update the file offset to the value specified by @offset if the given
+ * offset is valid and it is not equal to the current file offset and
+ * reset the specified cookie to indicate that a seek happened.
+ *
+ * Return the specified offset on success and -EINVAL on invalid offset.
+ */
+static loff_t vfs_setpos_cookie(struct file *file, loff_t offset,
+				loff_t maxsize, u64 *cookie)
+{
+	if (offset < 0 && !unsigned_offsets(file))
+		return -EINVAL;
+	if (offset > maxsize)
+		return -EINVAL;
+
+	if (offset != file->f_pos) {
+		file->f_pos = offset;
+		*cookie = 0;
+	}
+	return offset;
+}
+
+/**
  * vfs_setpos - update the file offset for lseek
  * @file:	file structure in question
  * @offset:	file offset to seek to
@@ -53,16 +81,7 @@ static inline bool unsigned_offsets(struct file *file)
  */
 loff_t vfs_setpos(struct file *file, loff_t offset, loff_t maxsize)
 {
-	if (offset < 0 && !unsigned_offsets(file))
-		return -EINVAL;
-	if (offset > maxsize)
-		return -EINVAL;
-
-	if (offset != file->f_pos) {
-		file->f_pos = offset;
-		file->f_version = 0;
-	}
-	return offset;
+	return vfs_setpos_cookie(file, offset, maxsize, &file->f_version);
 }
 EXPORT_SYMBOL(vfs_setpos);
 
