@@ -1263,6 +1263,51 @@ xfs_rtalloc_align_minmax(
 	*raminlen = newminlen;
 }
 
+static int
+xfs_rtallocate(
+	struct xfs_trans	*tp,
+	xfs_rtxnum_t		start,
+	xfs_rtxlen_t		minlen,
+	xfs_rtxlen_t		maxlen,
+	xfs_rtxlen_t		prod,
+	bool			wasdel,
+	xfs_rtblock_t		*bno,
+	xfs_extlen_t		*blen)
+{
+	struct xfs_rtalloc_args	args = {
+		.mp		= tp->t_mountp,
+		.tp		= tp,
+	};
+	xfs_rtxnum_t		rtx;
+	xfs_rtxlen_t		len = 0;
+	int			error;
+
+	if (start) {
+		error = xfs_rtallocate_extent_near(&args, start, minlen, maxlen,
+				&len, prod, &rtx);
+	} else {
+		error = xfs_rtallocate_extent_size(&args, minlen, maxlen, &len,
+				prod, &rtx);
+	}
+
+	if (error)
+		goto out_release;
+
+	error = xfs_rtallocate_range(&args, rtx, len);
+	if (error)
+		goto out_release;
+
+	xfs_trans_mod_sb(tp, wasdel ?
+			XFS_TRANS_SB_RES_FREXTENTS : XFS_TRANS_SB_FREXTENTS,
+			-(long)len);
+	*bno = xfs_rtx_to_rtb(args.mp, rtx);
+	*blen = xfs_rtxlen_to_extlen(args.mp, len);
+
+out_release:
+	xfs_rtbuf_cache_relse(&args);
+	return error;
+}
+
 int
 xfs_bmap_rtalloc(
 	struct xfs_bmalloca	*ap)
@@ -1270,7 +1315,6 @@ xfs_bmap_rtalloc(
 	struct xfs_mount	*mp = ap->ip->i_mount;
 	xfs_fileoff_t		orig_offset = ap->offset;
 	xfs_rtxnum_t		start;	   /* allocation hint rtextent no */
-	xfs_rtxnum_t		rtx;	   /* actually allocated rtextent no */
 	xfs_rtxlen_t		prod = 0;  /* product factor for allocators */
 	xfs_extlen_t		mod = 0;   /* product factor for allocators */
 	xfs_rtxlen_t		ralen = 0; /* realtime allocation length */
@@ -1280,10 +1324,6 @@ xfs_bmap_rtalloc(
 	xfs_rtxlen_t		raminlen;
 	bool			rtlocked = false;
 	bool			ignore_locality = false;
-	struct xfs_rtalloc_args	args = {
-		.mp		= mp,
-		.tp		= ap->tp,
-	};
 	int			error;
 
 	align = xfs_get_extsz_hint(ap->ip);
@@ -1357,19 +1397,9 @@ retry:
 			xfs_rtalloc_align_minmax(&raminlen, &ralen, &prod);
 	}
 
-	if (start) {
-		error = xfs_rtallocate_extent_near(&args, start, raminlen,
-				ralen, &ralen, prod, &rtx);
-	} else {
-		error = xfs_rtallocate_extent_size(&args, raminlen,
-				ralen, &ralen, prod, &rtx);
-	}
-
-	if (error) {
-		xfs_rtbuf_cache_relse(&args);
-		if (error != -ENOSPC)
-			return error;
-
+	error = xfs_rtallocate(ap->tp, start, raminlen, ralen, prod, ap->wasdel,
+			       &ap->blkno, &ap->length);
+	if (error == -ENOSPC) {
 		if (align > mp->m_sb.sb_rextsize) {
 			/*
 			 * We previously enlarged the request length to try to
@@ -1397,20 +1427,9 @@ retry:
 		ap->length = 0;
 		return 0;
 	}
-
-	error = xfs_rtallocate_range(&args, rtx, ralen);
 	if (error)
-		goto out_release;
+		return error;
 
-	xfs_trans_mod_sb(ap->tp, ap->wasdel ?
-			XFS_TRANS_SB_RES_FREXTENTS : XFS_TRANS_SB_FREXTENTS,
-			-(long)ralen);
-
-	ap->blkno = xfs_rtx_to_rtb(mp, rtx);
-	ap->length = xfs_rtxlen_to_extlen(mp, ralen);
 	xfs_bmap_alloc_account(ap);
-
-out_release:
-	xfs_rtbuf_cache_relse(&args);
-	return error;
+	return 0;
 }
