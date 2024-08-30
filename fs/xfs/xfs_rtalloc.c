@@ -338,10 +338,10 @@ xfs_rtallocate_extent_exact(
 	xfs_rtxlen_t		prod,	/* extent product factor */
 	xfs_rtxnum_t		*rtx)	/* out: start rtext allocated */
 {
-	int			error;
-	xfs_rtxlen_t		i;	/* extent length trimmed due to prod */
-	int			isfree;	/* extent is free */
 	xfs_rtxnum_t		next;	/* next rtext to try (dummy) */
+	xfs_rtxlen_t		alloclen; /* candidate length */
+	int			isfree;	/* extent is free */
+	int			error;
 
 	ASSERT(minlen % prod == 0);
 	ASSERT(maxlen % prod == 0);
@@ -352,25 +352,26 @@ xfs_rtallocate_extent_exact(
 	if (error)
 		return error;
 
-	if (!isfree) {
-		/*
-		 * If not, allocate what there is, if it's at least minlen.
-		 */
-		maxlen = next - start;
-		if (maxlen < minlen)
-			return -ENOSPC;
-
-		/*
-		 * Trim off tail of extent, if prod is specified.
-		 */
-		if (prod > 1 && (i = maxlen % prod)) {
-			maxlen -= i;
-			if (maxlen < minlen)
-				return -ENOSPC;
-		}
+	if (isfree) {
+		/* start to maxlen is all free; allocate it. */
+		*len = maxlen;
+		*rtx = start;
+		return 0;
 	}
 
-	*len = maxlen;
+	/*
+	 * If not, allocate what there is, if it's at least minlen.
+	 */
+	alloclen = next - start;
+	if (alloclen < minlen)
+		return -ENOSPC;
+
+	/* Ensure alloclen is a multiple of prod. */
+	alloclen = xfs_rtalloc_align_len(alloclen, prod);
+	if (alloclen < minlen)
+		return -ENOSPC;
+
+	*len = alloclen;
 	*rtx = start;
 	return 0;
 }
