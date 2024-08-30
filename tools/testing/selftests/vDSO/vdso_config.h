@@ -18,13 +18,13 @@
 #elif defined(__aarch64__)
 #define VDSO_VERSION		3
 #define VDSO_NAMES		0
+#elif defined(__powerpc64__)
+#define VDSO_VERSION		1
+#define VDSO_NAMES		0
 #elif defined(__powerpc__)
 #define VDSO_VERSION		1
 #define VDSO_NAMES		0
 #define VDSO_32BIT		1
-#elif defined(__powerpc64__)
-#define VDSO_VERSION		1
-#define VDSO_NAMES		0
 #elif defined (__s390__)
 #define VDSO_VERSION		2
 #define VDSO_NAMES		0
