@@ -290,8 +290,9 @@
  * that we support.
  *
  * 512GB Pages are not supported due to a hardware bug
+ * Page sizes >= the 52 bit max physical address of the CPU are not supported.
  */
-#define AMD_IOMMU_PGSIZES	((~0xFFFUL) & ~(2ULL << 38))
+#define AMD_IOMMU_PGSIZES	(GENMASK_ULL(51, 12) ^ SZ_512G)
 /* 4K, 2MB, 1G page sizes are supported */
 #define AMD_IOMMU_PGSIZES_V2	(PAGE_SIZE | (1ULL << 21) | (1ULL << 30))
 
