@@ -283,6 +283,7 @@
 	firmware {
 		scm {
 			compatible = "qcom,scm-sa8775p", "qcom,scm";
+			qcom,dload-mode = <&tcsr 0x13000>;
 			memory-region = <&tz_ffi_mem>;
 		};
 	};
@@ -3569,6 +3570,11 @@
 			compatible = "qcom,tcsr-mutex";
 			reg = <0x0 0x01f40000 0x0 0x20000>;
 			#hwlock-cells = <1>;
+		};
+
+		tcsr: syscon@1fc0000 {
+			compatible = "qcom,sa8775p-tcsr", "syscon";
+			reg = <0x0 0x1fc0000 0x0 0x30000>;
 		};
 
 		gpucc: clock-controller@3d90000 {
