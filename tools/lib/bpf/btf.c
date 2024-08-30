@@ -996,6 +996,7 @@ static struct btf *btf_new_empty(struct btf *base_btf)
 		btf->base_btf = base_btf;
 		btf->start_id = btf__type_cnt(base_btf);
 		btf->start_str_off = base_btf->hdr->str_len;
+		btf->swapped_endian = base_btf->swapped_endian;
 	}
 
 	/* +1 for empty string at offset 0 */
@@ -5394,6 +5395,9 @@ int btf__distill_base(const struct btf *src_btf, struct btf **new_base_btf,
 	new_base = btf__new_empty();
 	if (!new_base)
 		return libbpf_err(-ENOMEM);
+
+	btf__set_endianness(new_base, btf__endianness(src_btf));
+
 	dist.id_map = calloc(n, sizeof(*dist.id_map));
 	if (!dist.id_map) {
 		err = -ENOMEM;
