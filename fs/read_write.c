@@ -86,6 +86,60 @@ loff_t vfs_setpos(struct file *file, loff_t offset, loff_t maxsize)
 EXPORT_SYMBOL(vfs_setpos);
 
 /**
+ * must_set_pos - check whether f_pos has to be updated
+ * @file: file to seek on
+ * @offset: offset to use
+ * @whence: type of seek operation
+ * @eof: end of file
+ *
+ * Check whether f_pos needs to be updated and update @offset according
+ * to @whence.
+ *
+ * Return: 0 if f_pos doesn't need to be updated, 1 if f_pos has to be
+ * updated, and negative error code on failure.
+ */
+static __maybe_unused int must_set_pos(struct file *file, loff_t *offset,
+				       int whence, loff_t eof)
+{
+	switch (whence) {
+	case SEEK_END:
+		*offset += eof;
+		break;
+	case SEEK_CUR:
+		/*
+		 * Here we special-case the lseek(fd, 0, SEEK_CUR)
+		 * position-querying operation.  Avoid rewriting the "same"
+		 * f_pos value back to the file because a concurrent read(),
+		 * write() or lseek() might have altered it
+		 */
+		if (*offset == 0) {
+			*offset = file->f_pos;
+			return 0;
+		}
+		break;
+	case SEEK_DATA:
+		/*
+		 * In the generic case the entire file is data, so as long as
+		 * offset isn't at the end of the file then the offset is data.
+		 */
+		if ((unsigned long long)*offset >= eof)
+			return -ENXIO;
+		break;
+	case SEEK_HOLE:
+		/*
+		 * There is a virtual hole at the end of the file, so as long as
+		 * offset isn't i_size or larger, return i_size.
+		 */
+		if ((unsigned long long)*offset >= eof)
+			return -ENXIO;
+		*offset = eof;
+		break;
+	}
+
+	return 1;
+}
+
+/**
  * generic_file_llseek_size - generic llseek implementation for regular files
  * @file:	file structure to seek on
  * @offset:	file offset to seek to
