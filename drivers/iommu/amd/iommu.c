@@ -2253,17 +2253,9 @@ static void cleanup_domain(struct protection_domain *domain)
 
 void protection_domain_free(struct protection_domain *domain)
 {
-	if (!domain)
-		return;
-
 	WARN_ON(!list_empty(&domain->dev_list));
-
-	if (domain->iop.pgtbl.cfg.tlb)
-		free_io_pgtable_ops(&domain->iop.pgtbl.ops);
-
-	if (domain->id)
-		domain_id_free(domain->id);
-
+	free_io_pgtable_ops(&domain->iop.pgtbl.ops);
+	domain_id_free(domain->id);
 	kfree(domain);
 }
 
@@ -2279,7 +2271,7 @@ struct protection_domain *protection_domain_alloc(unsigned int type, int nid)
 
 	domain->id = domain_id_alloc();
 	if (!domain->id)
-		goto out_err;
+		goto err_free;
 
 	spin_lock_init(&domain->lock);
 	INIT_LIST_HEAD(&domain->dev_list);
@@ -2302,7 +2294,7 @@ struct protection_domain *protection_domain_alloc(unsigned int type, int nid)
 		pgtable = AMD_IOMMU_V1;
 		break;
 	default:
-		goto out_err;
+		goto err_id;
 	}
 
 	switch (pgtable) {
@@ -2313,17 +2305,19 @@ struct protection_domain *protection_domain_alloc(unsigned int type, int nid)
 		domain->pd_mode = PD_MODE_V2;
 		break;
 	default:
-		goto out_err;
+		goto err_id;
 	}
 
 	pgtbl_ops =
 		alloc_io_pgtable_ops(pgtable, &domain->iop.pgtbl.cfg, domain);
 	if (!pgtbl_ops)
-		goto out_err;
+		goto err_id;
 
 	return domain;
-out_err:
-	protection_domain_free(domain);
+err_id:
+	domain_id_free(domain->id);
+err_free:
+	kfree(domain);
 	return NULL;
 }
 
@@ -2411,9 +2405,6 @@ void amd_iommu_domain_free(struct iommu_domain *dom)
 {
 	struct protection_domain *domain;
 	unsigned long flags;
-
-	if (!dom)
-		return;
 
 	domain = to_pdomain(dom);
 
