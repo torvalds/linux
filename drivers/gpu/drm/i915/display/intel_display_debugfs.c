@@ -1071,7 +1071,7 @@ void intel_display_debugfs_register(struct drm_i915_private *i915)
 	intel_fbc_debugfs_register(display);
 	intel_hpd_debugfs_register(i915);
 	intel_opregion_debugfs_register(display);
-	intel_psr_debugfs_register(i915);
+	intel_psr_debugfs_register(display);
 	intel_wm_debugfs_register(i915);
 	intel_display_debugfs_params(display);
 }
