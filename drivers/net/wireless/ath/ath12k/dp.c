@@ -1162,7 +1162,7 @@ static void ath12k_dp_cc_cleanup(struct ath12k_base *ab)
 	spin_lock_bh(&dp->rx_desc_lock);
 
 	for (i = 0; i < ATH12K_NUM_RX_SPT_PAGES; i++) {
-		desc_info = dp->spt_info->rxbaddr[i];
+		desc_info = dp->rxbaddr[i];
 
 		for (j = 0; j < ATH12K_MAX_SPT_ENTRIES; j++) {
 			if (!desc_info[j].in_use) {
@@ -1181,11 +1181,11 @@ static void ath12k_dp_cc_cleanup(struct ath12k_base *ab)
 	}
 
 	for (i = 0; i < ATH12K_NUM_RX_SPT_PAGES; i++) {
-		if (!dp->spt_info->rxbaddr[i])
+		if (!dp->rxbaddr[i])
 			continue;
 
-		kfree(dp->spt_info->rxbaddr[i]);
-		dp->spt_info->rxbaddr[i] = NULL;
+		kfree(dp->rxbaddr[i]);
+		dp->rxbaddr[i] = NULL;
 	}
 
 	spin_unlock_bh(&dp->rx_desc_lock);
@@ -1220,11 +1220,11 @@ static void ath12k_dp_cc_cleanup(struct ath12k_base *ab)
 
 		for (i = 0; i < ATH12K_TX_SPT_PAGES_PER_POOL; i++) {
 			tx_spt_page = i + pool_id * ATH12K_TX_SPT_PAGES_PER_POOL;
-			if (!dp->spt_info->txbaddr[tx_spt_page])
+			if (!dp->txbaddr[tx_spt_page])
 				continue;
 
-			kfree(dp->spt_info->txbaddr[tx_spt_page]);
-			dp->spt_info->txbaddr[tx_spt_page] = NULL;
+			kfree(dp->txbaddr[tx_spt_page]);
+			dp->txbaddr[tx_spt_page] = NULL;
 		}
 
 		spin_unlock_bh(&dp->tx_desc_lock[pool_id]);
@@ -1415,7 +1415,7 @@ static int ath12k_dp_cc_desc_init(struct ath12k_base *ab)
 
 		ppt_idx = ATH12K_RX_SPT_PAGE_OFFSET + i;
 		cookie_ppt_idx = dp->rx_ppt_base + ppt_idx;
-		dp->spt_info->rxbaddr[i] = &rx_descs[0];
+		dp->rxbaddr[i] = &rx_descs[0];
 
 		for (j = 0; j < ATH12K_MAX_SPT_ENTRIES; j++) {
 			rx_descs[j].cookie = ath12k_dp_cc_cookie_gen(cookie_ppt_idx, j);
@@ -1445,7 +1445,7 @@ static int ath12k_dp_cc_desc_init(struct ath12k_base *ab)
 			tx_spt_page = i + pool_id * ATH12K_TX_SPT_PAGES_PER_POOL;
 			ppt_idx = ATH12K_TX_SPT_PAGE_OFFSET + tx_spt_page;
 
-			dp->spt_info->txbaddr[tx_spt_page] = &tx_descs[0];
+			dp->txbaddr[tx_spt_page] = &tx_descs[0];
 
 			for (j = 0; j < ATH12K_MAX_SPT_ENTRIES; j++) {
 				tx_descs[j].desc_id = ath12k_dp_cc_cookie_gen(ppt_idx, j);
