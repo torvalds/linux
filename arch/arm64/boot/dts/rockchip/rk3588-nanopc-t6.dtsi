@@ -76,7 +76,6 @@
 		simple-audio-card,mclk-fs = <256>;
 
 		simple-audio-card,hp-det-gpio = <&gpio1 RK_PC4 GPIO_ACTIVE_LOW>;
-		simple-audio-card,hp-pin-name = "Headphones";
 
 		simple-audio-card,widgets =
 			"Headphone", "Headphones",
