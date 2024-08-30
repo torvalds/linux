@@ -1271,6 +1271,8 @@ xfs_rtallocate(
 	xfs_rtxlen_t		maxlen,
 	xfs_rtxlen_t		prod,
 	bool			wasdel,
+	bool			initial_user_data,
+	bool			*rtlocked,
 	xfs_rtblock_t		*bno,
 	xfs_extlen_t		*blen)
 {
@@ -1280,12 +1282,38 @@ xfs_rtallocate(
 	};
 	xfs_rtxnum_t		rtx;
 	xfs_rtxlen_t		len = 0;
-	int			error;
+	int			error = 0;
+
+	/*
+	 * Lock out modifications to both the RT bitmap and summary inodes.
+	 */
+	if (!*rtlocked) {
+		xfs_rtbitmap_lock(args.mp);
+		xfs_rtbitmap_trans_join(tp);
+		*rtlocked = true;
+	}
+
+	/*
+	 * For an allocation to an empty file at offset 0, pick an extent that
+	 * will space things out in the rt area.
+	 */
+	if (!start && initial_user_data)
+		start = xfs_rtpick_extent(args.mp, tp, maxlen);
 
 	if (start) {
 		error = xfs_rtallocate_extent_near(&args, start, minlen, maxlen,
 				&len, prod, &rtx);
-	} else {
+		/*
+		 * If we can't allocate near a specific rt extent, try again
+		 * without locality criteria.
+		 */
+		if (error == -ENOSPC) {
+			xfs_rtbuf_cache_relse(&args);
+			error = 0;
+		}
+	}
+
+	if (!error) {
 		error = xfs_rtallocate_extent_size(&args, minlen, maxlen, &len,
 				prod, &rtx);
 	}
@@ -1314,7 +1342,7 @@ xfs_bmap_rtalloc(
 {
 	struct xfs_mount	*mp = ap->ip->i_mount;
 	xfs_fileoff_t		orig_offset = ap->offset;
-	xfs_rtxnum_t		start;	   /* allocation hint rtextent no */
+	xfs_rtxnum_t		start = 0;   /* allocation hint rtextent no */
 	xfs_rtxlen_t		prod = 0;  /* product factor for allocators */
 	xfs_extlen_t		mod = 0;   /* product factor for allocators */
 	xfs_rtxlen_t		ralen = 0; /* realtime allocation length */
@@ -1323,7 +1351,6 @@ xfs_bmap_rtalloc(
 	xfs_extlen_t		minlen = mp->m_sb.sb_rextsize;
 	xfs_rtxlen_t		raminlen;
 	bool			rtlocked = false;
-	bool			ignore_locality = false;
 	int			error;
 
 	align = xfs_get_extsz_hint(ap->ip);
@@ -1361,28 +1388,8 @@ retry:
 	ASSERT(raminlen > 0);
 	ASSERT(raminlen <= ralen);
 
-	/*
-	 * Lock out modifications to both the RT bitmap and summary inodes
-	 */
-	if (!rtlocked) {
-		xfs_rtbitmap_lock(mp);
-		xfs_rtbitmap_trans_join(ap->tp);
-		rtlocked = true;
-	}
-
-	if (ignore_locality) {
-		start = 0;
-	} else if (xfs_bmap_adjacent(ap)) {
+	if (xfs_bmap_adjacent(ap))
 		start = xfs_rtb_to_rtx(mp, ap->blkno);
-	} else if (ap->datatype & XFS_ALLOC_INITIAL_USER_DATA) {
-		/*
-		 * If it's an allocation to an empty file at offset 0, pick an
-		 * extent that will space things out in the rt area.
-		 */
-		start = xfs_rtpick_extent(mp, ap->tp, ralen);
-	} else {
-		start = 0;
-	}
 
 	/*
 	 * Only bother calculating a real prod factor if offset & length are
@@ -1398,7 +1405,8 @@ retry:
 	}
 
 	error = xfs_rtallocate(ap->tp, start, raminlen, ralen, prod, ap->wasdel,
-			       &ap->blkno, &ap->length);
+			ap->datatype & XFS_ALLOC_INITIAL_USER_DATA, &rtlocked,
+			&ap->blkno, &ap->length);
 	if (error == -ENOSPC) {
 		if (align > mp->m_sb.sb_rextsize) {
 			/*
@@ -1411,15 +1419,6 @@ retry:
 			ap->offset = orig_offset;
 			ap->length = orig_length;
 			minlen = align = mp->m_sb.sb_rextsize;
-			goto retry;
-		}
-
-		if (!ignore_locality && start != 0) {
-			/*
-			 * If we can't allocate near a specific rt extent, try
-			 * again without locality criteria.
-			 */
-			ignore_locality = true;
 			goto retry;
 		}
 
