@@ -4525,6 +4525,17 @@ static int xhci_update_device(struct usb_hcd *hcd, struct usb_device *udev)
 	struct xhci_port *port;
 	u32 capability;
 
+	/* Check if USB3 device at root port is tunneled over USB4 */
+	if (hcd->speed >= HCD_USB3 && !udev->parent->parent) {
+		port = xhci->usb3_rhub.ports[udev->portnum - 1];
+
+		if (xhci_port_is_tunneled(xhci, port))
+			dev_dbg(&udev->dev, "tunneled over USB4 link\n");
+		else
+			dev_dbg(&udev->dev, "native USB 3.x link\n");
+		return 0;
+	}
+
 	if (hcd->speed >= HCD_USB3 || !udev->lpm_capable || !xhci->hw_lpm_support)
 		return 0;
 
