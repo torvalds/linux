@@ -191,16 +191,16 @@
 
 			sgtl5000_tx_endpoint: endpoint@0 {
 				reg = <0>;
-				remote-endpoint = <&sai2a_endpoint>;
-				frame-master = <&sgtl5000_tx_endpoint>;
 				bitclock-master = <&sgtl5000_tx_endpoint>;
+				frame-master = <&sgtl5000_tx_endpoint>;
+				remote-endpoint = <&sai2a_endpoint>;
 			};
 
 			sgtl5000_rx_endpoint: endpoint@1 {
 				reg = <1>;
-				remote-endpoint = <&sai2b_endpoint>;
-				frame-master = <&sgtl5000_rx_endpoint>;
 				bitclock-master = <&sgtl5000_rx_endpoint>;
+				frame-master = <&sgtl5000_rx_endpoint>;
+				remote-endpoint = <&sai2b_endpoint>;
 			};
 		};
 
@@ -246,9 +246,9 @@
 			sai2a_endpoint: endpoint {
 				remote-endpoint = <&sgtl5000_tx_endpoint>;
 				dai-format = "i2s";
-				mclk-fs = <512>;
 				dai-tdm-slot-num = <2>;
 				dai-tdm-slot-width = <16>;
+				mclk-fs = <512>;
 			};
 		};
 	};
@@ -264,9 +264,9 @@
 			sai2b_endpoint: endpoint {
 				remote-endpoint = <&sgtl5000_rx_endpoint>;
 				dai-format = "i2s";
-				mclk-fs = <512>;
 				dai-tdm-slot-num = <2>;
 				dai-tdm-slot-width = <16>;
+				mclk-fs = <512>;
 			};
 		};
 	};
