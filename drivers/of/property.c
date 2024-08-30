@@ -773,16 +773,11 @@ EXPORT_SYMBOL(of_graph_get_port_parent);
 struct device_node *of_graph_get_remote_port_parent(
 			       const struct device_node *node)
 {
-	struct device_node *np, *pp;
-
 	/* Get remote endpoint node. */
-	np = of_graph_get_remote_endpoint(node);
+	struct device_node *np __free(device_node) =
+		of_graph_get_remote_endpoint(node);
 
-	pp = of_graph_get_port_parent(np);
-
-	of_node_put(np);
-
-	return pp;
+	return of_graph_get_port_parent(np);
 }
 EXPORT_SYMBOL(of_graph_get_remote_port_parent);
 
@@ -1064,19 +1059,15 @@ static void of_link_to_phandle(struct device_node *con_np,
 			      struct device_node *sup_np,
 			      u8 flags)
 {
-	struct device_node *tmp_np = of_node_get(sup_np);
+	struct device_node *tmp_np __free(device_node) = of_node_get(sup_np);
 
 	/* Check that sup_np and its ancestors are available. */
 	while (tmp_np) {
-		if (of_fwnode_handle(tmp_np)->dev) {
-			of_node_put(tmp_np);
+		if (of_fwnode_handle(tmp_np)->dev)
 			break;
-		}
 
-		if (!of_device_is_available(tmp_np)) {
-			of_node_put(tmp_np);
+		if (!of_device_is_available(tmp_np))
 			return;
-		}
 
 		tmp_np = of_get_next_parent(tmp_np);
 	}
@@ -1440,16 +1431,13 @@ static int of_link_property(struct device_node *con_np, const char *prop_name)
 		}
 
 		while ((phandle = s->parse_prop(con_np, prop_name, i))) {
-			struct device_node *con_dev_np;
+			struct device_node *con_dev_np __free(device_node) =
+				s->get_con_dev ? s->get_con_dev(con_np) : of_node_get(con_np);
 
-			con_dev_np = s->get_con_dev
-					? s->get_con_dev(con_np)
-					: of_node_get(con_np);
 			matched = true;
 			i++;
 			of_link_to_phandle(con_dev_np, phandle, s->fwlink_flags);
 			of_node_put(phandle);
-			of_node_put(con_dev_np);
 		}
 		s++;
 	}
