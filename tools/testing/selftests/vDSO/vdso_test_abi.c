@@ -21,10 +21,7 @@
 #include "../kselftest.h"
 #include "vdso_config.h"
 #include "vdso_call.h"
-
-extern void *vdso_sym(const char *version, const char *name);
-extern void vdso_init_from_sysinfo_ehdr(uintptr_t base);
-extern void vdso_init_from_auxv(void *auxv);
+#include "parse_vdso.h"
 
 static const char *version;
 static const char **name;
