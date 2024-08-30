@@ -150,6 +150,10 @@ struct bt541_ts_data {
 	u32 zinitix_mode;
 	u32 keycodes[MAX_SUPPORTED_BUTTON_NUM];
 	int num_keycodes;
+	bool have_versioninfo;
+	u16 chip_revision;
+	u16 firmware_version;
+	u16 regdata_version;
 };
 
 static int zinitix_read_data(struct i2c_client *client,
@@ -194,6 +198,19 @@ static int zinitix_write_cmd(struct i2c_client *client, u16 reg)
 	return 0;
 }
 
+static u16 zinitix_get_u16_reg(struct bt541_ts_data *bt541, u16 vreg)
+{
+	struct i2c_client *client = bt541->client;
+	int error;
+	__le16 val;
+
+	error = zinitix_read_data(client, vreg, (void *)&val, 2);
+	if (error)
+		return U8_MAX;
+
+	return le16_to_cpu(val);
+}
+
 static int zinitix_init_touch(struct bt541_ts_data *bt541)
 {
 	struct i2c_client *client = bt541->client;
@@ -205,6 +222,25 @@ static int zinitix_init_touch(struct bt541_ts_data *bt541)
 	if (error) {
 		dev_err(&client->dev, "Failed to write reset command\n");
 		return error;
+	}
+
+	/*
+	 * Read and cache the chip revision and firmware version the first time
+	 * we get here.
+	 */
+	if (!bt541->have_versioninfo) {
+		bt541->chip_revision = zinitix_get_u16_reg(bt541,
+						ZINITIX_CHIP_REVISION);
+		bt541->firmware_version = zinitix_get_u16_reg(bt541,
+						ZINITIX_FIRMWARE_VERSION);
+		bt541->regdata_version = zinitix_get_u16_reg(bt541,
+						ZINITIX_DATA_VERSION_REG);
+		bt541->have_versioninfo = true;
+
+		dev_dbg(&client->dev,
+			"chip revision %04x firmware version %04x regdata version %04x\n",
+			bt541->chip_revision, bt541->firmware_version,
+			bt541->regdata_version);
 	}
 
 	error = zinitix_write_u16(client, ZINITIX_INT_ENABLE_FLAG, 0x0);
