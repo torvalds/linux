@@ -662,6 +662,42 @@ static void rcsi2_write16(struct rcar_csi2 *priv, unsigned int reg, u16 data)
 	iowrite16(data, priv->base + reg);
 }
 
+static int rcsi2_phtw_write(struct rcar_csi2 *priv, u8 data, u8 code)
+{
+	unsigned int timeout;
+
+	rcsi2_write(priv, priv->info->regs->phtw,
+		    PHTW_DWEN | PHTW_TESTDIN_DATA(data) |
+		    PHTW_CWEN | PHTW_TESTDIN_CODE(code));
+
+	/* Wait for DWEN and CWEN to be cleared by hardware. */
+	for (timeout = 0; timeout <= 20; timeout++) {
+		if (!(rcsi2_read(priv, priv->info->regs->phtw) & (PHTW_DWEN | PHTW_CWEN)))
+			return 0;
+
+		usleep_range(1000, 2000);
+	}
+
+	dev_err(priv->dev, "Timeout waiting for PHTW_DWEN and/or PHTW_CWEN\n");
+
+	return -ETIMEDOUT;
+}
+
+static int rcsi2_phtw_write_array(struct rcar_csi2 *priv,
+				  const struct phtw_value *values,
+				  unsigned int size)
+{
+	int ret;
+
+	for (unsigned int i = 0; i < size; i++) {
+		ret = rcsi2_phtw_write(priv, values[i].data, values[i].code);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
 static const struct rcsi2_mbps_info *
 rcsi2_mbps_to_info(struct rcar_csi2 *priv,
 		   const struct rcsi2_mbps_info *infotable, unsigned int mbps)
@@ -1468,42 +1504,6 @@ static int rcsi2_parse_dt(struct rcar_csi2 *priv)
  *
  * NOTE: Magic values are from the datasheet and lack documentation.
  */
-
-static int rcsi2_phtw_write(struct rcar_csi2 *priv, u8 data, u8 code)
-{
-	unsigned int timeout;
-
-	rcsi2_write(priv, priv->info->regs->phtw,
-		    PHTW_DWEN | PHTW_TESTDIN_DATA(data) |
-		    PHTW_CWEN | PHTW_TESTDIN_CODE(code));
-
-	/* Wait for DWEN and CWEN to be cleared by hardware. */
-	for (timeout = 0; timeout <= 20; timeout++) {
-		if (!(rcsi2_read(priv, priv->info->regs->phtw) & (PHTW_DWEN | PHTW_CWEN)))
-			return 0;
-
-		usleep_range(1000, 2000);
-	}
-
-	dev_err(priv->dev, "Timeout waiting for PHTW_DWEN and/or PHTW_CWEN\n");
-
-	return -ETIMEDOUT;
-}
-
-static int rcsi2_phtw_write_array(struct rcar_csi2 *priv,
-				  const struct phtw_value *values,
-				  unsigned int size)
-{
-	int ret;
-
-	for (unsigned int i = 0; i < size; i++) {
-		ret = rcsi2_phtw_write(priv, values[i].data, values[i].code);
-		if (ret)
-			return ret;
-	}
-
-	return 0;
-}
 
 static int rcsi2_phtw_write_mbps(struct rcar_csi2 *priv, unsigned int mbps,
 				 const struct rcsi2_mbps_info *values, u8 code)
