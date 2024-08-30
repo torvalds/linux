@@ -967,6 +967,19 @@ check_hwcfg_error:
 	return ret;
 }
 
+/* Power/clock management functions */
+static int og01a1b_power_on(struct device *dev)
+{
+	/* Device is already turned on by i2c-core with ACPI domain PM. */
+
+	return 0;
+}
+
+static int og01a1b_power_off(struct device *dev)
+{
+	return 0;
+}
+
 static void og01a1b_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
@@ -984,6 +997,12 @@ static int og01a1b_probe(struct i2c_client *client)
 	struct og01a1b *og01a1b;
 	int ret;
 
+	og01a1b = devm_kzalloc(&client->dev, sizeof(*og01a1b), GFP_KERNEL);
+	if (!og01a1b)
+		return -ENOMEM;
+
+	v4l2_i2c_subdev_init(&og01a1b->sd, client, &og01a1b_subdev_ops);
+
 	ret = og01a1b_check_hwcfg(&client->dev);
 	if (ret) {
 		dev_err(&client->dev, "failed to check HW configuration: %d",
@@ -991,15 +1010,15 @@ static int og01a1b_probe(struct i2c_client *client)
 		return ret;
 	}
 
-	og01a1b = devm_kzalloc(&client->dev, sizeof(*og01a1b), GFP_KERNEL);
-	if (!og01a1b)
-		return -ENOMEM;
+	/* The sensor must be powered on to read the CHIP_ID register */
+	ret = og01a1b_power_on(&client->dev);
+	if (ret)
+		return ret;
 
-	v4l2_i2c_subdev_init(&og01a1b->sd, client, &og01a1b_subdev_ops);
 	ret = og01a1b_identify_module(og01a1b);
 	if (ret) {
 		dev_err(&client->dev, "failed to find sensor: %d", ret);
-		return ret;
+		goto power_off;
 	}
 
 	mutex_init(&og01a1b->mutex);
@@ -1028,10 +1047,7 @@ static int og01a1b_probe(struct i2c_client *client)
 		goto probe_error_media_entity_cleanup;
 	}
 
-	/*
-	 * Device is already turned on by i2c-core with ACPI domain PM.
-	 * Enable runtime PM and turn off the device.
-	 */
+	/* Enable runtime PM and turn off the device */
 	pm_runtime_set_active(&client->dev);
 	pm_runtime_enable(&client->dev);
 	pm_runtime_idle(&client->dev);
@@ -1045,8 +1061,15 @@ probe_error_v4l2_ctrl_handler_free:
 	v4l2_ctrl_handler_free(og01a1b->sd.ctrl_handler);
 	mutex_destroy(&og01a1b->mutex);
 
+power_off:
+	og01a1b_power_off(&client->dev);
+
 	return ret;
 }
+
+static const struct dev_pm_ops og01a1b_pm_ops = {
+	SET_RUNTIME_PM_OPS(og01a1b_power_off, og01a1b_power_on, NULL)
+};
 
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id og01a1b_acpi_ids[] = {
@@ -1066,6 +1089,7 @@ MODULE_DEVICE_TABLE(of, og01a1b_of_match);
 static struct i2c_driver og01a1b_i2c_driver = {
 	.driver = {
 		.name = "og01a1b",
+		.pm = &og01a1b_pm_ops,
 		.acpi_match_table = ACPI_PTR(og01a1b_acpi_ids),
 		.of_match_table = og01a1b_of_match,
 	},
