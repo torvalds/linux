@@ -763,9 +763,12 @@ static int xhci_exit_test_mode(struct xhci_hcd *xhci)
  *
  * A USB3 device must be connected to the port to detect the tunnel.
  *
- * Return: true if USB3 connection is tunneled over USB4
+ * Return: link tunnel mode enum, USB_LINK_UNKNOWN if host is incapable of
+ * detecting USB3 over USB4 tunnels. USB_LINK_NATIVE or USB_LINK_TUNNELED
+ * otherwise.
  */
-bool xhci_port_is_tunneled(struct xhci_hcd *xhci, struct xhci_port *port)
+enum usb_link_tunnel_mode xhci_port_is_tunneled(struct xhci_hcd *xhci,
+						struct xhci_port *port)
 {
 	void __iomem *base;
 	u32 offset;
@@ -777,10 +780,12 @@ bool xhci_port_is_tunneled(struct xhci_hcd *xhci, struct xhci_port *port)
 		offset = XHCI_INTEL_SPR_ESS_PORT_OFFSET + port->hcd_portnum * 0x20;
 
 		if (readl(base + offset) & XHCI_INTEL_SPR_TUNEN)
-			return true;
+			return USB_LINK_TUNNELED;
+		else
+			return USB_LINK_NATIVE;
 	}
 
-	return false;
+	return USB_LINK_UNKNOWN;
 }
 
 void xhci_set_link_state(struct xhci_hcd *xhci, struct xhci_port *port,
