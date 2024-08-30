@@ -584,7 +584,13 @@ enum rcar_csi2_pads {
 	NR_OF_RCAR_CSI2_PAD,
 };
 
+struct rcsi2_register_layout {
+	unsigned int phtw;
+	unsigned int phypll;
+};
+
 struct rcar_csi2_info {
+	const struct rcsi2_register_layout *regs;
 	int (*init_phtw)(struct rcar_csi2 *priv, unsigned int mbps);
 	int (*phy_post_init)(struct rcar_csi2 *priv);
 	int (*start_receiver)(struct rcar_csi2 *priv,
@@ -730,7 +736,7 @@ static int rcsi2_set_phypll(struct rcar_csi2 *priv, unsigned int mbps)
 	    ((mbps - hsfreq_prev->mbps) <= (hsfreq->mbps - mbps)))
 		hsfreq = hsfreq_prev;
 
-	rcsi2_write(priv, PHYPLL_REG, PHYPLL_HSFREQRANGE(hsfreq->reg));
+	rcsi2_write(priv, priv->info->regs->phypll, PHYPLL_HSFREQRANGE(hsfreq->reg));
 
 	return 0;
 }
@@ -1455,13 +1461,13 @@ static int rcsi2_phtw_write(struct rcar_csi2 *priv, u8 data, u8 code)
 {
 	unsigned int timeout;
 
-	rcsi2_write(priv, PHTW_REG,
+	rcsi2_write(priv, priv->info->regs->phtw,
 		    PHTW_DWEN | PHTW_TESTDIN_DATA(data) |
 		    PHTW_CWEN | PHTW_TESTDIN_CODE(code));
 
 	/* Wait for DWEN and CWEN to be cleared by hardware. */
 	for (timeout = 0; timeout <= 20; timeout++) {
-		if (!(rcsi2_read(priv, PHTW_REG) & (PHTW_DWEN | PHTW_CWEN)))
+		if (!(rcsi2_read(priv, priv->info->regs->phtw) & (PHTW_DWEN | PHTW_CWEN)))
 			return 0;
 
 		usleep_range(1000, 2000);
@@ -1707,7 +1713,13 @@ static int rcsi2_probe_resources(struct rcar_csi2 *priv,
 	return PTR_ERR_OR_ZERO(priv->rstc);
 }
 
+static const struct rcsi2_register_layout rcsi2_registers_gen3 = {
+	.phtw = PHTW_REG,
+	.phypll = PHYPLL_REG,
+};
+
 static const struct rcar_csi2_info rcar_csi2_info_r8a7795 = {
+	.regs = &rcsi2_registers_gen3,
 	.init_phtw = rcsi2_init_phtw_h3_v3h_m3n,
 	.start_receiver = rcsi2_start_receiver_gen3,
 	.enter_standby = rcsi2_enter_standby_gen3,
@@ -1719,6 +1731,7 @@ static const struct rcar_csi2_info rcar_csi2_info_r8a7795 = {
 };
 
 static const struct rcar_csi2_info rcar_csi2_info_r8a7795es2 = {
+	.regs = &rcsi2_registers_gen3,
 	.init_phtw = rcsi2_init_phtw_h3es2,
 	.start_receiver = rcsi2_start_receiver_gen3,
 	.enter_standby = rcsi2_enter_standby_gen3,
@@ -1730,6 +1743,7 @@ static const struct rcar_csi2_info rcar_csi2_info_r8a7795es2 = {
 };
 
 static const struct rcar_csi2_info rcar_csi2_info_r8a7796 = {
+	.regs = &rcsi2_registers_gen3,
 	.start_receiver = rcsi2_start_receiver_gen3,
 	.enter_standby = rcsi2_enter_standby_gen3,
 	.hsfreqrange = hsfreqrange_m3w,
@@ -1738,6 +1752,7 @@ static const struct rcar_csi2_info rcar_csi2_info_r8a7796 = {
 };
 
 static const struct rcar_csi2_info rcar_csi2_info_r8a77961 = {
+	.regs = &rcsi2_registers_gen3,
 	.start_receiver = rcsi2_start_receiver_gen3,
 	.enter_standby = rcsi2_enter_standby_gen3,
 	.hsfreqrange = hsfreqrange_m3w,
@@ -1746,6 +1761,7 @@ static const struct rcar_csi2_info rcar_csi2_info_r8a77961 = {
 };
 
 static const struct rcar_csi2_info rcar_csi2_info_r8a77965 = {
+	.regs = &rcsi2_registers_gen3,
 	.init_phtw = rcsi2_init_phtw_h3_v3h_m3n,
 	.start_receiver = rcsi2_start_receiver_gen3,
 	.enter_standby = rcsi2_enter_standby_gen3,
@@ -1757,6 +1773,7 @@ static const struct rcar_csi2_info rcar_csi2_info_r8a77965 = {
 };
 
 static const struct rcar_csi2_info rcar_csi2_info_r8a77970 = {
+	.regs = &rcsi2_registers_gen3,
 	.init_phtw = rcsi2_init_phtw_v3m_e3,
 	.phy_post_init = rcsi2_phy_post_init_v3m_e3,
 	.start_receiver = rcsi2_start_receiver_gen3,
@@ -1766,6 +1783,7 @@ static const struct rcar_csi2_info rcar_csi2_info_r8a77970 = {
 };
 
 static const struct rcar_csi2_info rcar_csi2_info_r8a77980 = {
+	.regs = &rcsi2_registers_gen3,
 	.init_phtw = rcsi2_init_phtw_h3_v3h_m3n,
 	.start_receiver = rcsi2_start_receiver_gen3,
 	.enter_standby = rcsi2_enter_standby_gen3,
@@ -1776,6 +1794,7 @@ static const struct rcar_csi2_info rcar_csi2_info_r8a77980 = {
 };
 
 static const struct rcar_csi2_info rcar_csi2_info_r8a77990 = {
+	.regs = &rcsi2_registers_gen3,
 	.init_phtw = rcsi2_init_phtw_v3m_e3,
 	.phy_post_init = rcsi2_phy_post_init_v3m_e3,
 	.start_receiver = rcsi2_start_receiver_gen3,
@@ -1785,6 +1804,7 @@ static const struct rcar_csi2_info rcar_csi2_info_r8a77990 = {
 };
 
 static const struct rcar_csi2_info rcar_csi2_info_r8a779a0 = {
+	.regs = &rcsi2_registers_gen3,
 	.init_phtw = rcsi2_init_phtw_v3u,
 	.start_receiver = rcsi2_start_receiver_gen3,
 	.enter_standby = rcsi2_enter_standby_gen3,
@@ -1796,6 +1816,7 @@ static const struct rcar_csi2_info rcar_csi2_info_r8a779a0 = {
 };
 
 static const struct rcar_csi2_info rcar_csi2_info_r8a779g0 = {
+	.regs = &rcsi2_registers_gen3,
 	.start_receiver = rcsi2_start_receiver_v4h,
 	.use_isp = true,
 	.support_cphy = true,
