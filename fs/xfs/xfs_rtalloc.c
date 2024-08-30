@@ -730,10 +730,12 @@ xfs_growfs_rt_bmblock(
 		xfs_rtsummary_blockcount(mp, nmp->m_rsumlevels,
 			nmp->m_sb.sb_rbmblocks));
 
-	/* recompute growfsrt reservation from new rsumsize */
+	/*
+	 * Recompute the growfsrt reservation from the new rsumsize, so that the
+	 * transaction below use the new, potentially larger value.
+	 * */
 	xfs_trans_resv_calc(nmp, &nmp->m_resv);
-
-	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_growrtfree, 0, 0, 0,
+	error = xfs_trans_alloc(mp, &M_RES(nmp)->tr_growrtfree, 0, 0, 0,
 			&args.tp);
 	if (error)
 		goto out_free;
