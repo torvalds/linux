@@ -1466,7 +1466,8 @@ done:
 		mapping_set_error(folio->mapping, ret);
 	}
 
-	btrfs_folio_end_all_writers(inode_to_fs_info(inode), folio);
+	btrfs_folio_end_writer_lock(inode_to_fs_info(inode), folio,
+				    page_start, PAGE_SIZE);
 	ASSERT(ret <= 0);
 	return ret;
 }
