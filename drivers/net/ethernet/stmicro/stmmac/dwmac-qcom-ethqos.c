@@ -1767,7 +1767,11 @@ static void qcom_ethqos_phy_suspend_clks(struct qcom_ethqos *ethqos)
 	if (priv->plat->phy_intr_en_extn_stm)
 		reinit_completion(&ethqos->clk_enable_done);
 
+	if (priv->plat->mdio_op_busy)
+		wait_for_completion(&priv->plat->mdio_op);
+
 	ethqos->clks_suspended = 1;
+	atomic_set(&priv->plat->phy_clks_suspended, 1);
 
 	ethqos_update_rgmii_clk(ethqos, 0);
 
@@ -1832,6 +1836,7 @@ static void qcom_ethqos_phy_resume_clks(struct qcom_ethqos *ethqos)
 	else
 		ethqos_update_rgmii_clk(ethqos, SPEED_10);
 
+	atomic_set(&priv->plat->phy_clks_suspended, 0);
 	ethqos->clks_suspended = 0;
 
 	if (priv->plat->phy_intr_en_extn_stm)
@@ -2406,6 +2411,8 @@ static int qcom_ethqos_probe(struct platform_device *pdev)
 		/*Set early eth parameters*/
 		ethqos_set_early_eth_param(priv, ethqos);
 	}
+	atomic_set(&priv->plat->phy_clks_suspended, 0);
+
 	ETHQOSINFO("M - Ethernet probe end\n");
 	return ret;
 
@@ -2458,6 +2465,16 @@ static int qcom_ethqos_remove(struct platform_device *pdev)
 	platform_set_drvdata(pdev, NULL);
 	of_platform_depopulate(&pdev->dev);
 	return ret;
+}
+
+static void qcom_ethqos_shutdown_main(struct platform_device *pdev)
+{
+	struct net_device *dev = platform_get_drvdata(pdev);
+
+	if (!dev)
+		return;
+
+	qcom_ethqos_remove(pdev);
 }
 
 static int qcom_ethqos_suspend(struct device *dev)
@@ -2775,6 +2792,7 @@ static const struct dev_pm_ops qcom_ethqos_pm_ops = {
 static struct platform_driver qcom_ethqos_driver = {
 	.probe  = qcom_ethqos_probe,
 	.remove = qcom_ethqos_remove,
+	.shutdown = qcom_ethqos_shutdown_main,
 	.driver = {
 		.name           = DRV_NAME,
 		.pm             = &qcom_ethqos_pm_ops,

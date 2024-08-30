@@ -476,6 +476,7 @@ int stmmac_mdio_register(struct net_device *ndev)
 	if (err) {
 		new_bus->read = &virtio_mdio_read;
 		new_bus->write = &virtio_mdio_write;
+		init_completion(&priv->plat->mdio_op);
 		max_addr = PHY_MAX_ADDR;
 	} else if (priv->plat->has_xgmac) {
 		new_bus->read = &stmmac_xgmac2_mdio_read;
