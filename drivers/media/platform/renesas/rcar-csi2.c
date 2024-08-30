@@ -1473,13 +1473,13 @@ static int rcsi2_phtw_write(struct rcar_csi2 *priv, u8 data, u8 code)
 }
 
 static int rcsi2_phtw_write_array(struct rcar_csi2 *priv,
-				  const struct phtw_value *values)
+				  const struct phtw_value *values,
+				  unsigned int size)
 {
-	const struct phtw_value *value;
 	int ret;
 
-	for (value = values; value->data || value->code; value++) {
-		ret = rcsi2_phtw_write(priv, value->data, value->code);
+	for (unsigned int i = 0; i < size; i++) {
+		ret = rcsi2_phtw_write(priv, values[i].data, values[i].code);
 		if (ret)
 			return ret;
 	}
@@ -1520,7 +1520,6 @@ static int __rcsi2_init_phtw_h3_v3h_m3n(struct rcar_csi2 *priv,
 		{ .data = 0x11, .code = 0xe4 },
 		{ .data = 0x01, .code = 0xe5 },
 		{ .data = 0x10, .code = 0x04 },
-		{ /* sentinel */ },
 	};
 
 	static const struct phtw_value step2[] = {
@@ -1529,12 +1528,11 @@ static int __rcsi2_init_phtw_h3_v3h_m3n(struct rcar_csi2 *priv,
 		{ .data = 0x4b, .code = 0xac },
 		{ .data = 0x03, .code = 0x00 },
 		{ .data = 0x80, .code = 0x07 },
-		{ /* sentinel */ },
 	};
 
 	int ret;
 
-	ret = rcsi2_phtw_write_array(priv, step1);
+	ret = rcsi2_phtw_write_array(priv, step1, ARRAY_SIZE(step1));
 	if (ret)
 		return ret;
 
@@ -1549,7 +1547,7 @@ static int __rcsi2_init_phtw_h3_v3h_m3n(struct rcar_csi2 *priv,
 			return ret;
 	}
 
-	return rcsi2_phtw_write_array(priv, step2);
+	return rcsi2_phtw_write_array(priv, step2, ARRAY_SIZE(step2));
 }
 
 static int rcsi2_init_phtw_h3_v3h_m3n(struct rcar_csi2 *priv, unsigned int mbps)
@@ -1575,10 +1573,9 @@ static int rcsi2_phy_post_init_v3m_e3(struct rcar_csi2 *priv)
 		{ .data = 0xee, .code = 0x54 },
 		{ .data = 0xee, .code = 0x84 },
 		{ .data = 0xee, .code = 0x94 },
-		{ /* sentinel */ },
 	};
 
-	return rcsi2_phtw_write_array(priv, step1);
+	return rcsi2_phtw_write_array(priv, step1, ARRAY_SIZE(step1));
 }
 
 static int rcsi2_init_phtw_v3u(struct rcar_csi2 *priv,
@@ -1587,20 +1584,17 @@ static int rcsi2_init_phtw_v3u(struct rcar_csi2 *priv,
 	/* In case of 1500Mbps or less */
 	static const struct phtw_value step1[] = {
 		{ .data = 0xcc, .code = 0xe2 },
-		{ /* sentinel */ },
 	};
 
 	static const struct phtw_value step2[] = {
 		{ .data = 0x01, .code = 0xe3 },
 		{ .data = 0x11, .code = 0xe4 },
 		{ .data = 0x01, .code = 0xe5 },
-		{ /* sentinel */ },
 	};
 
 	/* In case of 1500Mbps or less */
 	static const struct phtw_value step3[] = {
 		{ .data = 0x38, .code = 0x08 },
-		{ /* sentinel */ },
 	};
 
 	static const struct phtw_value step4[] = {
@@ -1608,29 +1602,28 @@ static int rcsi2_init_phtw_v3u(struct rcar_csi2 *priv,
 		{ .data = 0x4b, .code = 0xac },
 		{ .data = 0x03, .code = 0x00 },
 		{ .data = 0x80, .code = 0x07 },
-		{ /* sentinel */ },
 	};
 
 	int ret;
 
 	if (mbps != 0 && mbps <= 1500)
-		ret = rcsi2_phtw_write_array(priv, step1);
+		ret = rcsi2_phtw_write_array(priv, step1, ARRAY_SIZE(step1));
 	else
 		ret = rcsi2_phtw_write_mbps(priv, mbps, phtw_mbps_v3u, 0xe2);
 	if (ret)
 		return ret;
 
-	ret = rcsi2_phtw_write_array(priv, step2);
+	ret = rcsi2_phtw_write_array(priv, step2, ARRAY_SIZE(step2));
 	if (ret)
 		return ret;
 
 	if (mbps != 0 && mbps <= 1500) {
-		ret = rcsi2_phtw_write_array(priv, step3);
+		ret = rcsi2_phtw_write_array(priv, step3, ARRAY_SIZE(step3));
 		if (ret)
 			return ret;
 	}
 
-	ret = rcsi2_phtw_write_array(priv, step4);
+	ret = rcsi2_phtw_write_array(priv, step4, ARRAY_SIZE(step4));
 	if (ret)
 		return ret;
 
