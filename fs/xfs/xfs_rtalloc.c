@@ -1300,12 +1300,11 @@ xfs_rtunmount_inodes(
  * of rtextents and the fraction.
  * The fraction sequence is 0, 1/2, 1/4, 3/4, 1/8, ..., 7/8, 1/16, ...
  */
-static int
+static xfs_rtxnum_t
 xfs_rtpick_extent(
 	xfs_mount_t		*mp,		/* file system mount point */
 	xfs_trans_t		*tp,		/* transaction pointer */
-	xfs_rtxlen_t		len,		/* allocation length (rtextents) */
-	xfs_rtxnum_t		*pick)		/* result rt extent */
+	xfs_rtxlen_t		len)		/* allocation length (rtextents) */
 {
 	xfs_rtxnum_t		b;		/* result rtext */
 	int			log2;		/* log of sequence number */
@@ -1336,8 +1335,7 @@ xfs_rtpick_extent(
 	ts.tv_sec = seq + 1;
 	inode_set_atime_to_ts(VFS_I(mp->m_rbmip), ts);
 	xfs_trans_log_inode(tp, mp->m_rbmip, XFS_ILOG_CORE);
-	*pick = b;
-	return 0;
+	return b;
 }
 
 static void
@@ -1444,9 +1442,7 @@ retry:
 		 * If it's an allocation to an empty file at offset 0, pick an
 		 * extent that will space things out in the rt area.
 		 */
-		error = xfs_rtpick_extent(mp, ap->tp, ralen, &start);
-		if (error)
-			return error;
+		start = xfs_rtpick_extent(mp, ap->tp, ralen);
 	} else {
 		start = 0;
 	}
