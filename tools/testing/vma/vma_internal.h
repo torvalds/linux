@@ -740,6 +740,12 @@ static inline void vma_iter_free(struct vma_iterator *vmi)
 	mas_destroy(&vmi->mas);
 }
 
+static inline
+struct vm_area_struct *vma_iter_next_range(struct vma_iterator *vmi)
+{
+	return mas_next_range(&vmi->mas, ULONG_MAX);
+}
+
 static inline void vm_acct_memory(long pages)
 {
 }

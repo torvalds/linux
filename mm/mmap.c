@@ -1364,8 +1364,8 @@ unsigned long mmap_region(struct file *file, unsigned long addr,
 {
 	struct mm_struct *mm = current->mm;
 	struct vm_area_struct *vma = NULL;
-	struct vm_area_struct *next, *prev, *merge;
 	pgoff_t pglen = PHYS_PFN(len);
+	struct vm_area_struct *merge;
 	unsigned long charged = 0;
 	struct vma_munmap_struct vms;
 	struct ma_state mas_detach;
@@ -1389,14 +1389,11 @@ unsigned long mmap_region(struct file *file, unsigned long addr,
 		if (error)
 			goto gather_failed;
 
-		next = vmg.next = vms.next;
-		prev = vmg.prev = vms.prev;
+		vmg.next = vms.next;
+		vmg.prev = vms.prev;
 		vma = NULL;
 	} else {
-		next = vmg.next = vma_next(&vmi);
-		prev = vmg.prev = vma_prev(&vmi);
-		if (prev)
-			vma_iter_next_range(&vmi);
+		vmg.next = vma_iter_next_rewind(&vmi, &vmg.prev);
 	}
 
 	/* Check against address space limit. */
@@ -1417,46 +1414,9 @@ unsigned long mmap_region(struct file *file, unsigned long addr,
 		vmg.flags = vm_flags;
 	}
 
-	if (vm_flags & VM_SPECIAL)
-		goto cannot_expand;
-
-	/* Attempt to expand an old mapping */
-	/* Check next */
-	if (next && next->vm_start == end && can_vma_merge_before(&vmg)) {
-		vmg.end = next->vm_end;
-		vma = vmg.vma = next;
-		vmg.pgoff = next->vm_pgoff - pglen;
-		/*
-		 * We set this here so if we will merge with the previous VMA in
-		 * the code below, can_vma_merge_after() ensures anon_vma
-		 * compatibility between prev and next.
-		 */
-		vmg.anon_vma = vma->anon_vma;
-		vmg.uffd_ctx = vma->vm_userfaultfd_ctx;
-	}
-
-	/* Check prev */
-	if (prev && prev->vm_end == addr && can_vma_merge_after(&vmg)) {
-		vmg.start = prev->vm_start;
-		vma = vmg.vma = prev;
-		vmg.pgoff = prev->vm_pgoff;
-		vma_prev(&vmi); /* Equivalent to going to the previous range */
-	}
-
-	if (vma) {
-		/* Actually expand, if possible */
-		if (!vma_expand(&vmg)) {
-			khugepaged_enter_vma(vma, vm_flags);
-			goto expanded;
-		}
-
-		/* If the expand fails, then reposition the vma iterator */
-		if (unlikely(vma == prev))
-			vma_iter_set(&vmi, addr);
-	}
-
-cannot_expand:
-
+	vma = vma_merge_new_range(&vmg);
+	if (vma)
+		goto expanded;
 	/*
 	 * Determine the object being mapped and call the appropriate
 	 * specific mapper. the address has already been validated, but
@@ -1503,10 +1463,11 @@ cannot_expand:
 		 * If vm_flags changed after call_mmap(), we should try merge
 		 * vma again as we may succeed this time.
 		 */
-		if (unlikely(vm_flags != vma->vm_flags && prev)) {
-			merge = vma_merge_new_vma(&vmi, prev, vma,
-						  vma->vm_start, vma->vm_end,
-						  vma->vm_pgoff);
+		if (unlikely(vm_flags != vma->vm_flags && vmg.prev)) {
+			vmg.flags = vma->vm_flags;
+			/* If this fails, state is reset ready for a reattempt. */
+			merge = vma_merge_new_range(&vmg);
+
 			if (merge) {
 				/*
 				 * ->mmap() can change vma->vm_file and fput
@@ -1522,6 +1483,7 @@ cannot_expand:
 				vm_flags = vma->vm_flags;
 				goto unmap_writable;
 			}
+			vma_iter_config(&vmi, addr, end);
 		}
 
 		vm_flags = vma->vm_flags;
@@ -1554,7 +1516,7 @@ cannot_expand:
 	vma_link_file(vma);
 
 	/*
-	 * vma_merge() calls khugepaged_enter_vma() either, the below
+	 * vma_merge_new_range() calls khugepaged_enter_vma() too, the below
 	 * call covers the non-merge case.
 	 */
 	khugepaged_enter_vma(vma, vma->vm_flags);
@@ -1609,7 +1571,7 @@ unmap_and_free_vma:
 
 		vma_iter_set(&vmi, vma->vm_end);
 		/* Undo any partial mapping done by a device driver. */
-		unmap_region(&vmi.mas, vma, prev, next);
+		unmap_region(&vmi.mas, vma, vmg.prev, vmg.next);
 	}
 	if (writable_file_mapping)
 		mapping_unmap_writable(file->f_mapping);
@@ -1756,7 +1718,6 @@ static int do_brk_flags(struct vma_iterator *vmi, struct vm_area_struct *vma,
 		unsigned long addr, unsigned long len, unsigned long flags)
 {
 	struct mm_struct *mm = current->mm;
-	struct vma_prepare vp;
 
 	/*
 	 * Check against address space limits by the changed size
@@ -1780,25 +1741,12 @@ static int do_brk_flags(struct vma_iterator *vmi, struct vm_area_struct *vma,
 		VMG_STATE(vmg, mm, vmi, addr, addr + len, flags, PHYS_PFN(addr));
 
 		vmg.prev = vma;
-		if (can_vma_merge_after(&vmg)) {
-			vma_iter_config(vmi, vma->vm_start, addr + len);
-			if (vma_iter_prealloc(vmi, vma))
-				goto unacct_fail;
+		vma_iter_next_range(vmi);
 
-			vma_start_write(vma);
-
-			init_vma_prep(&vp, vma);
-			vma_prepare(&vp);
-			vma_adjust_trans_huge(vma, vma->vm_start, addr + len, 0);
-			vma->vm_end = addr + len;
-			vm_flags_set(vma, VM_SOFTDIRTY);
-			vma_iter_store(vmi, vma);
-
-			vma_complete(&vp, vmi, mm);
-			validate_mm(mm);
-			khugepaged_enter_vma(vma, flags);
+		if (vma_merge_new_range(&vmg))
 			goto out;
-		}
+		else if (vmg_nomem(&vmg))
+			goto unacct_fail;
 	}
 
 	if (vma)
