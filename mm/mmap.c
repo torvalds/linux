@@ -1373,10 +1373,11 @@ unsigned long mmap_region(struct file *file, unsigned long addr,
 	unsigned long end = addr + len;
 	unsigned long merge_start = addr, merge_end = end;
 	bool writable_file_mapping = false;
-	pgoff_t vm_pgoff;
 	int error = -ENOMEM;
 	VMA_ITERATOR(vmi, mm, addr);
+	VMG_STATE(vmg, mm, &vmi, addr, end, vm_flags, pgoff);
 
+	vmg.file = file;
 	/* Find the first overlapping VMA */
 	vma = vma_find(&vmi, end);
 	init_vma_munmap(&vms, &vmi, vma, addr, end, uf, /* unlock = */ false);
@@ -1389,12 +1390,12 @@ unsigned long mmap_region(struct file *file, unsigned long addr,
 		if (error)
 			goto gather_failed;
 
-		next = vms.next;
-		prev = vms.prev;
+		next = vmg.next = vms.next;
+		prev = vmg.prev = vms.prev;
 		vma = NULL;
 	} else {
-		next = vma_next(&vmi);
-		prev = vma_prev(&vmi);
+		next = vmg.next = vma_next(&vmi);
+		prev = vmg.prev = vma_prev(&vmi);
 		if (prev)
 			vma_iter_next_range(&vmi);
 	}
@@ -1414,6 +1415,7 @@ unsigned long mmap_region(struct file *file, unsigned long addr,
 
 		vms.nr_accounted = 0;
 		vm_flags |= VM_ACCOUNT;
+		vmg.flags = vm_flags;
 	}
 
 	if (vm_flags & VM_SPECIAL)
@@ -1422,28 +1424,31 @@ unsigned long mmap_region(struct file *file, unsigned long addr,
 	/* Attempt to expand an old mapping */
 	/* Check next */
 	if (next && next->vm_start == end && !vma_policy(next) &&
-	    can_vma_merge_before(next, vm_flags, NULL, file, pgoff+pglen,
-				 NULL_VM_UFFD_CTX, NULL)) {
+	    can_vma_merge_before(&vmg)) {
 		merge_end = next->vm_end;
 		vma = next;
-		vm_pgoff = next->vm_pgoff - pglen;
+		vmg.pgoff = next->vm_pgoff - pglen;
+		/*
+		 * We set this here so if we will merge with the previous VMA in
+		 * the code below, can_vma_merge_after() ensures anon_vma
+		 * compatibility between prev and next.
+		 */
+		vmg.anon_vma = vma->anon_vma;
+		vmg.uffd_ctx = vma->vm_userfaultfd_ctx;
 	}
 
 	/* Check prev */
 	if (prev && prev->vm_end == addr && !vma_policy(prev) &&
-	    (vma ? can_vma_merge_after(prev, vm_flags, vma->anon_vma, file,
-				       pgoff, vma->vm_userfaultfd_ctx, NULL) :
-		   can_vma_merge_after(prev, vm_flags, NULL, file, pgoff,
-				       NULL_VM_UFFD_CTX, NULL))) {
+	    can_vma_merge_after(&vmg)) {
 		merge_start = prev->vm_start;
 		vma = prev;
-		vm_pgoff = prev->vm_pgoff;
+		vmg.pgoff = prev->vm_pgoff;
 		vma_prev(&vmi); /* Equivalent to going to the previous range */
 	}
 
 	if (vma) {
 		/* Actually expand, if possible */
-		if (!vma_expand(&vmi, vma, merge_start, merge_end, vm_pgoff, next)) {
+		if (!vma_expand(&vmi, vma, merge_start, merge_end, vmg.pgoff, next)) {
 			khugepaged_enter_vma(vma, vm_flags);
 			goto expanded;
 		}
@@ -1774,26 +1779,29 @@ static int do_brk_flags(struct vma_iterator *vmi, struct vm_area_struct *vma,
 	 * Expand the existing vma if possible; Note that singular lists do not
 	 * occur after forking, so the expand will only happen on new VMAs.
 	 */
-	if (vma && vma->vm_end == addr && !vma_policy(vma) &&
-	    can_vma_merge_after(vma, flags, NULL, NULL,
-				addr >> PAGE_SHIFT, NULL_VM_UFFD_CTX, NULL)) {
-		vma_iter_config(vmi, vma->vm_start, addr + len);
-		if (vma_iter_prealloc(vmi, vma))
-			goto unacct_fail;
+	if (vma && vma->vm_end == addr && !vma_policy(vma)) {
+		VMG_STATE(vmg, mm, vmi, addr, addr + len, flags, PHYS_PFN(addr));
 
-		vma_start_write(vma);
+		vmg.prev = vma;
+		if (can_vma_merge_after(&vmg)) {
+			vma_iter_config(vmi, vma->vm_start, addr + len);
+			if (vma_iter_prealloc(vmi, vma))
+				goto unacct_fail;
 
-		init_vma_prep(&vp, vma);
-		vma_prepare(&vp);
-		vma_adjust_trans_huge(vma, vma->vm_start, addr + len, 0);
-		vma->vm_end = addr + len;
-		vm_flags_set(vma, VM_SOFTDIRTY);
-		vma_iter_store(vmi, vma);
+			vma_start_write(vma);
 
-		vma_complete(&vp, vmi, mm);
-		validate_mm(mm);
-		khugepaged_enter_vma(vma, flags);
-		goto out;
+			init_vma_prep(&vp, vma);
+			vma_prepare(&vp);
+			vma_adjust_trans_huge(vma, vma->vm_start, addr + len, 0);
+			vma->vm_end = addr + len;
+			vm_flags_set(vma, VM_SOFTDIRTY);
+			vma_iter_store(vmi, vma);
+
+			vma_complete(&vp, vmi, mm);
+			validate_mm(mm);
+			khugepaged_enter_vma(vma, flags);
+			goto out;
+		}
 	}
 
 	if (vma)

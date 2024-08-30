@@ -22,26 +22,6 @@ static bool fail_prealloc;
  */
 #include "../../../mm/vma.c"
 
-/*
- * Temporarily forward-ported from a future in which vmg's are used for merging.
- */
-struct vma_merge_struct {
-	struct mm_struct *mm;
-	struct vma_iterator *vmi;
-	pgoff_t pgoff;
-	struct vm_area_struct *prev;
-	struct vm_area_struct *next; /* Modified by vma_merge(). */
-	struct vm_area_struct *vma; /* Either a new VMA or the one being modified. */
-	unsigned long start;
-	unsigned long end;
-	unsigned long flags;
-	struct file *file;
-	struct anon_vma *anon_vma;
-	struct mempolicy *policy;
-	struct vm_userfaultfd_ctx uffd_ctx;
-	struct anon_vma_name *anon_name;
-};
-
 const struct vm_operations_struct vma_dummy_vm_ops;
 static struct anon_vma dummy_anon_vma;
 
@@ -115,14 +95,6 @@ static struct vm_area_struct *alloc_and_link_vma(struct mm_struct *mm,
 /* Helper function which provides a wrapper around a merge new VMA operation. */
 static struct vm_area_struct *merge_new(struct vma_merge_struct *vmg)
 {
-	/* vma_merge() needs a VMA to determine mm, anon_vma, and file. */
-	struct vm_area_struct dummy = {
-		.vm_mm = vmg->mm,
-		.vm_flags = vmg->flags,
-		.anon_vma = vmg->anon_vma,
-		.vm_file = vmg->file,
-	};
-
 	/*
 	 * For convenience, get prev and next VMAs. Which the new VMA operation
 	 * requires.
@@ -131,8 +103,7 @@ static struct vm_area_struct *merge_new(struct vma_merge_struct *vmg)
 	vmg->prev = vma_prev(vmg->vmi);
 
 	vma_iter_set(vmg->vmi, vmg->start);
-	return vma_merge_new_vma(vmg->vmi, vmg->prev, &dummy, vmg->start,
-				 vmg->end, vmg->pgoff);
+	return vma_merge(vmg);
 }
 
 /*
@@ -141,17 +112,7 @@ static struct vm_area_struct *merge_new(struct vma_merge_struct *vmg)
  */
 static struct vm_area_struct *merge_existing(struct vma_merge_struct *vmg)
 {
-	/* vma_merge() needs a VMA to determine mm, anon_vma, and file. */
-	struct vm_area_struct dummy = {
-		.vm_mm = vmg->mm,
-		.vm_flags = vmg->flags,
-		.anon_vma = vmg->anon_vma,
-		.vm_file = vmg->file,
-	};
-
-	return vma_merge(vmg->vmi, vmg->prev, &dummy, vmg->start, vmg->end,
-			 vmg->flags, vmg->pgoff, vmg->policy, vmg->uffd_ctx,
-			 vmg->anon_name);
+	return vma_merge(vmg);
 }
 
 /*

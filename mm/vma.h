@@ -52,6 +52,59 @@ struct vma_munmap_struct {
 	unsigned long data_vm;
 };
 
+/* Represents a VMA merge operation. */
+struct vma_merge_struct {
+	struct mm_struct *mm;
+	struct vma_iterator *vmi;
+	pgoff_t pgoff;
+	struct vm_area_struct *prev;
+	struct vm_area_struct *next; /* Modified by vma_merge(). */
+	struct vm_area_struct *vma; /* Either a new VMA or the one being modified. */
+	unsigned long start;
+	unsigned long end;
+	unsigned long flags;
+	struct file *file;
+	struct anon_vma *anon_vma;
+	struct mempolicy *policy;
+	struct vm_userfaultfd_ctx uffd_ctx;
+	struct anon_vma_name *anon_name;
+};
+
+/* Assumes addr >= vma->vm_start. */
+static inline pgoff_t vma_pgoff_offset(struct vm_area_struct *vma,
+				       unsigned long addr)
+{
+	return vma->vm_pgoff + PHYS_PFN(addr - vma->vm_start);
+}
+
+#define VMG_STATE(name, mm_, vmi_, start_, end_, flags_, pgoff_)	\
+	struct vma_merge_struct name = {				\
+		.mm = mm_,						\
+		.vmi = vmi_,						\
+		.start = start_,					\
+		.end = end_,						\
+		.flags = flags_,					\
+		.pgoff = pgoff_,					\
+	}
+
+#define VMG_VMA_STATE(name, vmi_, prev_, vma_, start_, end_)	\
+	struct vma_merge_struct name = {			\
+		.mm = vma_->vm_mm,				\
+		.vmi = vmi_,					\
+		.prev = prev_,					\
+		.next = NULL,					\
+		.vma = vma_,					\
+		.start = start_,				\
+		.end = end_,					\
+		.flags = vma_->vm_flags,			\
+		.pgoff = vma_pgoff_offset(vma_, start_),	\
+		.file = vma_->vm_file,				\
+		.anon_vma = vma_->anon_vma,			\
+		.policy = vma_policy(vma_),			\
+		.uffd_ctx = vma_->vm_userfaultfd_ctx,		\
+		.anon_name = anon_vma_name(vma_),		\
+	}
+
 #ifdef CONFIG_DEBUG_VM_MAPLE_TREE
 void validate_mm(struct mm_struct *mm);
 #else
@@ -212,80 +265,52 @@ void remove_vma(struct vm_area_struct *vma, bool unreachable, bool closed);
 void unmap_region(struct ma_state *mas, struct vm_area_struct *vma,
 		struct vm_area_struct *prev, struct vm_area_struct *next);
 
-/* Required by mmap_region(). */
-bool
-can_vma_merge_before(struct vm_area_struct *vma, unsigned long vm_flags,
-		struct anon_vma *anon_vma, struct file *file,
-		pgoff_t vm_pgoff, struct vm_userfaultfd_ctx vm_userfaultfd_ctx,
-		struct anon_vma_name *anon_name);
+/*
+ * Can we merge the VMA described by vmg into the following VMA vmg->next?
+ *
+ * Required by mmap_region().
+ */
+bool can_vma_merge_before(struct vma_merge_struct *vmg);
 
-/* Required by mmap_region() and do_brk_flags(). */
-bool
-can_vma_merge_after(struct vm_area_struct *vma, unsigned long vm_flags,
-		struct anon_vma *anon_vma, struct file *file,
-		pgoff_t vm_pgoff, struct vm_userfaultfd_ctx vm_userfaultfd_ctx,
-		struct anon_vma_name *anon_name);
-
-struct vm_area_struct *vma_modify(struct vma_iterator *vmi,
-				  struct vm_area_struct *prev,
-				  struct vm_area_struct *vma,
-				  unsigned long start, unsigned long end,
-				  unsigned long vm_flags,
-				  struct mempolicy *policy,
-				  struct vm_userfaultfd_ctx uffd_ctx,
-				  struct anon_vma_name *anon_name);
+/*
+ * Can we merge the VMA described by vmg into the preceding VMA vmg->prev?
+ *
+ * Required by mmap_region() and do_brk_flags().
+ */
+bool can_vma_merge_after(struct vma_merge_struct *vmg);
 
 /* We are about to modify the VMA's flags. */
-static inline struct vm_area_struct
-*vma_modify_flags(struct vma_iterator *vmi,
-		  struct vm_area_struct *prev,
-		  struct vm_area_struct *vma,
-		  unsigned long start, unsigned long end,
-		  unsigned long new_flags)
-{
-	return vma_modify(vmi, prev, vma, start, end, new_flags,
-			  vma_policy(vma), vma->vm_userfaultfd_ctx,
-			  anon_vma_name(vma));
-}
+struct vm_area_struct *vma_modify_flags(struct vma_iterator *vmi,
+		struct vm_area_struct *prev, struct vm_area_struct *vma,
+		unsigned long start, unsigned long end,
+		unsigned long new_flags);
 
 /* We are about to modify the VMA's flags and/or anon_name. */
-static inline struct vm_area_struct
+struct vm_area_struct
 *vma_modify_flags_name(struct vma_iterator *vmi,
 		       struct vm_area_struct *prev,
 		       struct vm_area_struct *vma,
 		       unsigned long start,
 		       unsigned long end,
 		       unsigned long new_flags,
-		       struct anon_vma_name *new_name)
-{
-	return vma_modify(vmi, prev, vma, start, end, new_flags,
-			  vma_policy(vma), vma->vm_userfaultfd_ctx, new_name);
-}
+		       struct anon_vma_name *new_name);
 
 /* We are about to modify the VMA's memory policy. */
-static inline struct vm_area_struct
+struct vm_area_struct
 *vma_modify_policy(struct vma_iterator *vmi,
 		   struct vm_area_struct *prev,
 		   struct vm_area_struct *vma,
 		   unsigned long start, unsigned long end,
-		   struct mempolicy *new_pol)
-{
-	return vma_modify(vmi, prev, vma, start, end, vma->vm_flags,
-			  new_pol, vma->vm_userfaultfd_ctx, anon_vma_name(vma));
-}
+		   struct mempolicy *new_pol);
 
 /* We are about to modify the VMA's flags and/or uffd context. */
-static inline struct vm_area_struct
+struct vm_area_struct
 *vma_modify_flags_uffd(struct vma_iterator *vmi,
 		       struct vm_area_struct *prev,
 		       struct vm_area_struct *vma,
 		       unsigned long start, unsigned long end,
 		       unsigned long new_flags,
-		       struct vm_userfaultfd_ctx new_ctx)
-{
-	return vma_modify(vmi, prev, vma, start, end, new_flags,
-			  vma_policy(vma), new_ctx, anon_vma_name(vma));
-}
+		       struct vm_userfaultfd_ctx new_ctx);
 
 struct vm_area_struct
 *vma_merge_new_vma(struct vma_iterator *vmi, struct vm_area_struct *prev,

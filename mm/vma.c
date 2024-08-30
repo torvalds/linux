@@ -7,16 +7,18 @@
 #include "vma_internal.h"
 #include "vma.h"
 
-/*
- * If the vma has a ->close operation then the driver probably needs to release
- * per-vma resources, so we don't attempt to merge those if the caller indicates
- * the current vma may be removed as part of the merge.
- */
-static inline bool is_mergeable_vma(struct vm_area_struct *vma,
-		struct file *file, unsigned long vm_flags,
-		struct vm_userfaultfd_ctx vm_userfaultfd_ctx,
-		struct anon_vma_name *anon_name, bool may_remove_vma)
+static inline bool is_mergeable_vma(struct vma_merge_struct *vmg, bool merge_next)
 {
+	struct vm_area_struct *vma = merge_next ? vmg->next : vmg->prev;
+	/*
+	 * If the vma has a ->close operation then the driver probably needs to
+	 * release per-vma resources, so we don't attempt to merge those if the
+	 * caller indicates the current vma may be removed as part of the merge,
+	 * which is the case if we are attempting to merge the next VMA into
+	 * this one.
+	 */
+	bool may_remove_vma = merge_next;
+
 	/*
 	 * VM_SOFTDIRTY should not prevent from VMA merging, if we
 	 * match the flags but dirty bit -- the caller should mark
@@ -25,15 +27,15 @@ static inline bool is_mergeable_vma(struct vm_area_struct *vma,
 	 * the kernel to generate new VMAs when old one could be
 	 * extended instead.
 	 */
-	if ((vma->vm_flags ^ vm_flags) & ~VM_SOFTDIRTY)
+	if ((vma->vm_flags ^ vmg->flags) & ~VM_SOFTDIRTY)
 		return false;
-	if (vma->vm_file != file)
+	if (vma->vm_file != vmg->file)
 		return false;
 	if (may_remove_vma && vma->vm_ops && vma->vm_ops->close)
 		return false;
-	if (!is_mergeable_vm_userfaultfd_ctx(vma, vm_userfaultfd_ctx))
+	if (!is_mergeable_vm_userfaultfd_ctx(vma, vmg->uffd_ctx))
 		return false;
-	if (!anon_vma_name_eq(anon_vma_name(vma), anon_name))
+	if (!anon_vma_name_eq(anon_vma_name(vma), vmg->anon_name))
 		return false;
 	return true;
 }
@@ -94,16 +96,16 @@ static void init_multi_vma_prep(struct vma_prepare *vp,
  * We assume the vma may be removed as part of the merge.
  */
 bool
-can_vma_merge_before(struct vm_area_struct *vma, unsigned long vm_flags,
-		struct anon_vma *anon_vma, struct file *file,
-		pgoff_t vm_pgoff, struct vm_userfaultfd_ctx vm_userfaultfd_ctx,
-		struct anon_vma_name *anon_name)
+can_vma_merge_before(struct vma_merge_struct *vmg)
 {
-	if (is_mergeable_vma(vma, file, vm_flags, vm_userfaultfd_ctx, anon_name, true) &&
-	    is_mergeable_anon_vma(anon_vma, vma->anon_vma, vma)) {
-		if (vma->vm_pgoff == vm_pgoff)
+	pgoff_t pglen = PHYS_PFN(vmg->end - vmg->start);
+
+	if (is_mergeable_vma(vmg, /* merge_next = */ true) &&
+	    is_mergeable_anon_vma(vmg->anon_vma, vmg->next->anon_vma, vmg->next)) {
+		if (vmg->next->vm_pgoff == vmg->pgoff + pglen)
 			return true;
 	}
+
 	return false;
 }
 
@@ -116,18 +118,11 @@ can_vma_merge_before(struct vm_area_struct *vma, unsigned long vm_flags,
  *
  * We assume that vma is not removed as part of the merge.
  */
-bool
-can_vma_merge_after(struct vm_area_struct *vma, unsigned long vm_flags,
-		struct anon_vma *anon_vma, struct file *file,
-		pgoff_t vm_pgoff, struct vm_userfaultfd_ctx vm_userfaultfd_ctx,
-		struct anon_vma_name *anon_name)
+bool can_vma_merge_after(struct vma_merge_struct *vmg)
 {
-	if (is_mergeable_vma(vma, file, vm_flags, vm_userfaultfd_ctx, anon_name, false) &&
-	    is_mergeable_anon_vma(anon_vma, vma->anon_vma, vma)) {
-		pgoff_t vm_pglen;
-
-		vm_pglen = vma_pages(vma);
-		if (vma->vm_pgoff + vm_pglen == vm_pgoff)
+	if (is_mergeable_vma(vmg, /* merge_next = */ false) &&
+	    is_mergeable_anon_vma(vmg->anon_vma, vmg->prev->anon_vma, vmg->prev)) {
+		if (vmg->prev->vm_pgoff + vma_pages(vmg->prev) == vmg->pgoff)
 			return true;
 	}
 	return false;
@@ -1017,16 +1012,10 @@ int do_vmi_munmap(struct vma_iterator *vmi, struct mm_struct *mm,
  * **** is not represented - it will be merged and the vma containing the
  *      area is returned, or the function will return NULL
  */
-static struct vm_area_struct
-*vma_merge(struct vma_iterator *vmi, struct vm_area_struct *prev,
-	   struct vm_area_struct *src, unsigned long addr, unsigned long end,
-	   unsigned long vm_flags, pgoff_t pgoff, struct mempolicy *policy,
-	   struct vm_userfaultfd_ctx vm_userfaultfd_ctx,
-	   struct anon_vma_name *anon_name)
+static struct vm_area_struct *vma_merge(struct vma_merge_struct *vmg)
 {
-	struct mm_struct *mm = src->vm_mm;
-	struct anon_vma *anon_vma = src->anon_vma;
-	struct file *file = src->vm_file;
+	struct mm_struct *mm = vmg->mm;
+	struct vm_area_struct *prev = vmg->prev;
 	struct vm_area_struct *curr, *next, *res;
 	struct vm_area_struct *vma, *adjust, *remove, *remove2;
 	struct vm_area_struct *anon_dup = NULL;
@@ -1036,16 +1025,18 @@ static struct vm_area_struct
 	bool merge_prev = false;
 	bool merge_next = false;
 	bool vma_expanded = false;
+	unsigned long addr = vmg->start;
+	unsigned long end = vmg->end;
 	unsigned long vma_start = addr;
 	unsigned long vma_end = end;
-	pgoff_t pglen = (end - addr) >> PAGE_SHIFT;
+	pgoff_t pglen = PHYS_PFN(end - addr);
 	long adj_start = 0;
 
 	/*
 	 * We later require that vma->vm_flags == vm_flags,
 	 * so this tests vma->vm_flags & VM_SPECIAL, too.
 	 */
-	if (vm_flags & VM_SPECIAL)
+	if (vmg->flags & VM_SPECIAL)
 		return NULL;
 
 	/* Does the input range span an existing VMA? (cases 5 - 8) */
@@ -1053,27 +1044,26 @@ static struct vm_area_struct
 
 	if (!curr ||			/* cases 1 - 4 */
 	    end == curr->vm_end)	/* cases 6 - 8, adjacent VMA */
-		next = vma_lookup(mm, end);
+		next = vmg->next = vma_lookup(mm, end);
 	else
-		next = NULL;		/* case 5 */
+		next = vmg->next = NULL;	/* case 5 */
 
 	if (prev) {
 		vma_start = prev->vm_start;
 		vma_pgoff = prev->vm_pgoff;
 
 		/* Can we merge the predecessor? */
-		if (addr == prev->vm_end && mpol_equal(vma_policy(prev), policy)
-		    && can_vma_merge_after(prev, vm_flags, anon_vma, file,
-					   pgoff, vm_userfaultfd_ctx, anon_name)) {
+		if (addr == prev->vm_end && mpol_equal(vma_policy(prev), vmg->policy)
+		    && can_vma_merge_after(vmg)) {
+
 			merge_prev = true;
-			vma_prev(vmi);
+			vma_prev(vmg->vmi);
 		}
 	}
 
 	/* Can we merge the successor? */
-	if (next && mpol_equal(policy, vma_policy(next)) &&
-	    can_vma_merge_before(next, vm_flags, anon_vma, file, pgoff+pglen,
-				 vm_userfaultfd_ctx, anon_name)) {
+	if (next && mpol_equal(vmg->policy, vma_policy(next)) &&
+	    can_vma_merge_before(vmg)) {
 		merge_next = true;
 	}
 
@@ -1164,13 +1154,13 @@ static struct vm_area_struct
 		vma_expanded = true;
 
 	if (vma_expanded) {
-		vma_iter_config(vmi, vma_start, vma_end);
+		vma_iter_config(vmg->vmi, vma_start, vma_end);
 	} else {
-		vma_iter_config(vmi, adjust->vm_start + adj_start,
+		vma_iter_config(vmg->vmi, adjust->vm_start + adj_start,
 				adjust->vm_end);
 	}
 
-	if (vma_iter_prealloc(vmi, vma))
+	if (vma_iter_prealloc(vmg->vmi, vma))
 		goto prealloc_fail;
 
 	init_multi_vma_prep(&vp, vma, adjust, remove, remove2);
@@ -1182,20 +1172,20 @@ static struct vm_area_struct
 	vma_set_range(vma, vma_start, vma_end, vma_pgoff);
 
 	if (vma_expanded)
-		vma_iter_store(vmi, vma);
+		vma_iter_store(vmg->vmi, vma);
 
 	if (adj_start) {
 		adjust->vm_start += adj_start;
 		adjust->vm_pgoff += adj_start >> PAGE_SHIFT;
 		if (adj_start < 0) {
 			WARN_ON(vma_expanded);
-			vma_iter_store(vmi, next);
+			vma_iter_store(vmg->vmi, next);
 		}
 	}
 
-	vma_complete(&vp, vmi, mm);
+	vma_complete(&vp, vmg->vmi, mm);
 	validate_mm(mm);
-	khugepaged_enter_vma(res, vm_flags);
+	khugepaged_enter_vma(res, vmg->flags);
 	return res;
 
 prealloc_fail:
@@ -1203,8 +1193,8 @@ prealloc_fail:
 		unlink_anon_vmas(anon_dup);
 
 anon_vma_fail:
-	vma_iter_set(vmi, addr);
-	vma_iter_load(vmi);
+	vma_iter_set(vmg->vmi, addr);
+	vma_iter_load(vmg->vmi);
 	return NULL;
 }
 
@@ -1221,38 +1211,92 @@ anon_vma_fail:
  * The function returns either the merged VMA, the original VMA if a split was
  * required instead, or an error if the split failed.
  */
-struct vm_area_struct *vma_modify(struct vma_iterator *vmi,
-				  struct vm_area_struct *prev,
-				  struct vm_area_struct *vma,
-				  unsigned long start, unsigned long end,
-				  unsigned long vm_flags,
-				  struct mempolicy *policy,
-				  struct vm_userfaultfd_ctx uffd_ctx,
-				  struct anon_vma_name *anon_name)
+static struct vm_area_struct *vma_modify(struct vma_merge_struct *vmg)
 {
-	pgoff_t pgoff = vma->vm_pgoff + ((start - vma->vm_start) >> PAGE_SHIFT);
+	struct vm_area_struct *vma = vmg->vma;
 	struct vm_area_struct *merged;
 
-	merged = vma_merge(vmi, prev, vma, start, end, vm_flags,
-			   pgoff, policy, uffd_ctx, anon_name);
+	/* First, try to merge. */
+	merged = vma_merge(vmg);
 	if (merged)
 		return merged;
 
-	if (vma->vm_start < start) {
-		int err = split_vma(vmi, vma, start, 1);
+	/* Split any preceding portion of the VMA. */
+	if (vma->vm_start < vmg->start) {
+		int err = split_vma(vmg->vmi, vma, vmg->start, 1);
 
 		if (err)
 			return ERR_PTR(err);
 	}
 
-	if (vma->vm_end > end) {
-		int err = split_vma(vmi, vma, end, 0);
+	/* Split any trailing portion of the VMA. */
+	if (vma->vm_end > vmg->end) {
+		int err = split_vma(vmg->vmi, vma, vmg->end, 0);
 
 		if (err)
 			return ERR_PTR(err);
 	}
 
 	return vma;
+}
+
+struct vm_area_struct *vma_modify_flags(
+	struct vma_iterator *vmi, struct vm_area_struct *prev,
+	struct vm_area_struct *vma, unsigned long start, unsigned long end,
+	unsigned long new_flags)
+{
+	VMG_VMA_STATE(vmg, vmi, prev, vma, start, end);
+
+	vmg.flags = new_flags;
+
+	return vma_modify(&vmg);
+}
+
+struct vm_area_struct
+*vma_modify_flags_name(struct vma_iterator *vmi,
+		       struct vm_area_struct *prev,
+		       struct vm_area_struct *vma,
+		       unsigned long start,
+		       unsigned long end,
+		       unsigned long new_flags,
+		       struct anon_vma_name *new_name)
+{
+	VMG_VMA_STATE(vmg, vmi, prev, vma, start, end);
+
+	vmg.flags = new_flags;
+	vmg.anon_name = new_name;
+
+	return vma_modify(&vmg);
+}
+
+struct vm_area_struct
+*vma_modify_policy(struct vma_iterator *vmi,
+		   struct vm_area_struct *prev,
+		   struct vm_area_struct *vma,
+		   unsigned long start, unsigned long end,
+		   struct mempolicy *new_pol)
+{
+	VMG_VMA_STATE(vmg, vmi, prev, vma, start, end);
+
+	vmg.policy = new_pol;
+
+	return vma_modify(&vmg);
+}
+
+struct vm_area_struct
+*vma_modify_flags_uffd(struct vma_iterator *vmi,
+		       struct vm_area_struct *prev,
+		       struct vm_area_struct *vma,
+		       unsigned long start, unsigned long end,
+		       unsigned long new_flags,
+		       struct vm_userfaultfd_ctx new_ctx)
+{
+	VMG_VMA_STATE(vmg, vmi, prev, vma, start, end);
+
+	vmg.flags = new_flags;
+	vmg.uffd_ctx = new_ctx;
+
+	return vma_modify(&vmg);
 }
 
 /*
@@ -1264,8 +1308,11 @@ struct vm_area_struct
 		   struct vm_area_struct *vma, unsigned long start,
 		   unsigned long end, pgoff_t pgoff)
 {
-	return vma_merge(vmi, prev, vma, start, end, vma->vm_flags, pgoff,
-			 vma_policy(vma), vma->vm_userfaultfd_ctx, anon_vma_name(vma));
+	VMG_VMA_STATE(vmg, vmi, prev, vma, start, end);
+
+	vmg.pgoff = pgoff;
+
+	return vma_merge(&vmg);
 }
 
 /*
@@ -1276,12 +1323,10 @@ struct vm_area_struct *vma_merge_extend(struct vma_iterator *vmi,
 					struct vm_area_struct *vma,
 					unsigned long delta)
 {
-	pgoff_t pgoff = vma->vm_pgoff + vma_pages(vma);
+	VMG_VMA_STATE(vmg, vmi, vma, vma, vma->vm_end, vma->vm_end + delta);
 
 	/* vma is specified as prev, so case 1 or 2 will apply. */
-	return vma_merge(vmi, vma, vma, vma->vm_end, vma->vm_end + delta,
-			 vma->vm_flags, pgoff, vma_policy(vma),
-			 vma->vm_userfaultfd_ctx, anon_vma_name(vma));
+	return vma_merge(&vmg);
 }
 
 void unlink_file_vma_batch_init(struct unlink_vma_file_batch *vb)
