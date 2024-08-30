@@ -8,6 +8,7 @@
 
 /*
  * SGI's XFS filesystem's major stuff (constants, structures)
+ * NOTE: This file must be compile-able with C++ compilers.
  */
 
 /*
@@ -930,13 +931,13 @@ static inline struct xfs_getparents_rec *
 xfs_getparents_next_rec(struct xfs_getparents *gp,
 			struct xfs_getparents_rec *gpr)
 {
-	void *next = ((void *)gpr + gpr->gpr_reclen);
+	void *next = ((char *)gpr + gpr->gpr_reclen);
 	void *end = (void *)(uintptr_t)(gp->gp_buffer + gp->gp_bufsize);
 
 	if (next >= end)
 		return NULL;
 
-	return next;
+	return (struct xfs_getparents_rec *)next;
 }
 
 /* Iterate through this file handle's directory parent pointers. */
