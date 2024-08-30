@@ -10883,8 +10883,10 @@ F:	Documentation/input/
 F:	drivers/input/
 F:	include/dt-bindings/input/
 F:	include/linux/gameport.h
+F:	include/linux/i8042.h
 F:	include/linux/input.h
 F:	include/linux/input/
+F:	include/linux/libps2.h
 F:	include/linux/serio.h
 F:	include/linux/uinput.h
 F:	include/uapi/linux/gameport.h
