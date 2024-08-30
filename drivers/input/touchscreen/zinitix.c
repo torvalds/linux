@@ -35,7 +35,13 @@
 #define ZINITIX_DEBUG_REG			0x0115 /* 0~7 */
 
 #define ZINITIX_TOUCH_MODE			0x0010
+
 #define ZINITIX_CHIP_REVISION			0x0011
+#define ZINITIX_CHIP_BTX0X_MASK			0xF0F0
+#define ZINITIX_CHIP_BT4X2			0x4020
+#define ZINITIX_CHIP_BT4X3			0x4030
+#define ZINITIX_CHIP_BT4X4			0x4040
+
 #define ZINITIX_FIRMWARE_VERSION		0x0012
 
 #define ZINITIX_USB_DETECT			0x116
@@ -63,7 +69,11 @@
 #define ZINITIX_Y_RESOLUTION			0x00C1
 
 #define ZINITIX_POINT_STATUS_REG		0x0080
-#define ZINITIX_ICON_STATUS_REG			0x00AA
+
+#define ZINITIX_BT4X2_ICON_STATUS_REG		0x009A
+#define ZINITIX_BT4X3_ICON_STATUS_REG		0x00A0
+#define ZINITIX_BT4X4_ICON_STATUS_REG		0x00A0
+#define ZINITIX_BT5XX_ICON_STATUS_REG		0x00AA
 
 #define ZINITIX_POINT_COORD_REG			(ZINITIX_POINT_STATUS_REG + 2)
 
@@ -154,6 +164,7 @@ struct bt541_ts_data {
 	u16 chip_revision;
 	u16 firmware_version;
 	u16 regdata_version;
+	u16 icon_status_reg;
 };
 
 static int zinitix_read_data(struct i2c_client *client,
@@ -241,6 +252,28 @@ static int zinitix_init_touch(struct bt541_ts_data *bt541)
 			"chip revision %04x firmware version %04x regdata version %04x\n",
 			bt541->chip_revision, bt541->firmware_version,
 			bt541->regdata_version);
+
+		/*
+		 * Determine the "icon" status register which varies by the
+		 * chip.
+		 */
+		switch (bt541->chip_revision & ZINITIX_CHIP_BTX0X_MASK) {
+		case ZINITIX_CHIP_BT4X2:
+			bt541->icon_status_reg = ZINITIX_BT4X2_ICON_STATUS_REG;
+			break;
+
+		case ZINITIX_CHIP_BT4X3:
+			bt541->icon_status_reg = ZINITIX_BT4X3_ICON_STATUS_REG;
+			break;
+
+		case ZINITIX_CHIP_BT4X4:
+			bt541->icon_status_reg = ZINITIX_BT4X4_ICON_STATUS_REG;
+			break;
+
+		default:
+			bt541->icon_status_reg = ZINITIX_BT5XX_ICON_STATUS_REG;
+			break;
+		}
 	}
 
 	error = zinitix_write_u16(client, ZINITIX_INT_ENABLE_FLAG, 0x0);
@@ -427,7 +460,7 @@ static irqreturn_t zinitix_ts_irq_handler(int irq, void *bt541_handler)
 	}
 
 	if (le16_to_cpu(touch_event.status) & BIT_ICON_EVENT) {
-		error = zinitix_read_data(bt541->client, ZINITIX_ICON_STATUS_REG,
+		error = zinitix_read_data(bt541->client, bt541->icon_status_reg,
 					  &icon_events, sizeof(icon_events));
 		if (error) {
 			dev_err(&client->dev, "Failed to read icon events\n");
