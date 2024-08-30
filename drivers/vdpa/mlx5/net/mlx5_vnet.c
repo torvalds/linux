@@ -941,11 +941,11 @@ static int create_virtqueue(struct mlx5_vdpa_net *ndev,
 		MLX5_SET64(virtio_q, vq_ctx, used_addr, mvq->device_addr);
 		MLX5_SET64(virtio_q, vq_ctx, available_addr, mvq->driver_addr);
 
-		vq_mr = mvdev->mr[mvdev->group2asid[MLX5_VDPA_DATAVQ_GROUP]];
+		vq_mr = mvdev->mres.mr[mvdev->mres.group2asid[MLX5_VDPA_DATAVQ_GROUP]];
 		if (vq_mr)
 			MLX5_SET(virtio_q, vq_ctx, virtio_q_mkey, vq_mr->mkey);
 
-		vq_desc_mr = mvdev->mr[mvdev->group2asid[MLX5_VDPA_DATAVQ_DESC_GROUP]];
+		vq_desc_mr = mvdev->mres.mr[mvdev->mres.group2asid[MLX5_VDPA_DATAVQ_DESC_GROUP]];
 		if (vq_desc_mr &&
 		    MLX5_CAP_DEV_VDPA_EMULATION(mvdev->mdev, desc_group_mkey_supported))
 			MLX5_SET(virtio_q, vq_ctx, desc_group_mkey, vq_desc_mr->mkey);
@@ -953,11 +953,11 @@ static int create_virtqueue(struct mlx5_vdpa_net *ndev,
 		/* If there is no mr update, make sure that the existing ones are set
 		 * modify to ready.
 		 */
-		vq_mr = mvdev->mr[mvdev->group2asid[MLX5_VDPA_DATAVQ_GROUP]];
+		vq_mr = mvdev->mres.mr[mvdev->mres.group2asid[MLX5_VDPA_DATAVQ_GROUP]];
 		if (vq_mr)
 			mvq->modified_fields |= MLX5_VIRTQ_MODIFY_MASK_VIRTIO_Q_MKEY;
 
-		vq_desc_mr = mvdev->mr[mvdev->group2asid[MLX5_VDPA_DATAVQ_DESC_GROUP]];
+		vq_desc_mr = mvdev->mres.mr[mvdev->mres.group2asid[MLX5_VDPA_DATAVQ_DESC_GROUP]];
 		if (vq_desc_mr)
 			mvq->modified_fields |= MLX5_VIRTQ_MODIFY_MASK_DESC_GROUP_MKEY;
 	}
@@ -1354,7 +1354,7 @@ static void fill_modify_virtqueue_cmd(struct mlx5_vdpa_net *ndev,
 	}
 
 	if (mvq->modified_fields & MLX5_VIRTQ_MODIFY_MASK_VIRTIO_Q_MKEY) {
-		vq_mr = mvdev->mr[mvdev->group2asid[MLX5_VDPA_DATAVQ_GROUP]];
+		vq_mr = mvdev->mres.mr[mvdev->mres.group2asid[MLX5_VDPA_DATAVQ_GROUP]];
 
 		if (vq_mr)
 			MLX5_SET(virtio_q, vq_ctx, virtio_q_mkey, vq_mr->mkey);
@@ -1363,7 +1363,7 @@ static void fill_modify_virtqueue_cmd(struct mlx5_vdpa_net *ndev,
 	}
 
 	if (mvq->modified_fields & MLX5_VIRTQ_MODIFY_MASK_DESC_GROUP_MKEY) {
-		desc_mr = mvdev->mr[mvdev->group2asid[MLX5_VDPA_DATAVQ_DESC_GROUP]];
+		desc_mr = mvdev->mres.mr[mvdev->mres.group2asid[MLX5_VDPA_DATAVQ_DESC_GROUP]];
 
 		if (desc_mr && MLX5_CAP_DEV_VDPA_EMULATION(mvdev->mdev, desc_group_mkey_supported))
 			MLX5_SET(virtio_q, vq_ctx, desc_group_mkey, desc_mr->mkey);
@@ -1381,8 +1381,8 @@ static void modify_virtqueue_end(struct mlx5_vdpa_net *ndev,
 	struct mlx5_vdpa_dev *mvdev = &ndev->mvdev;
 
 	if (mvq->modified_fields & MLX5_VIRTQ_MODIFY_MASK_VIRTIO_Q_MKEY) {
-		unsigned int asid = mvdev->group2asid[MLX5_VDPA_DATAVQ_GROUP];
-		struct mlx5_vdpa_mr *vq_mr = mvdev->mr[asid];
+		unsigned int asid = mvdev->mres.group2asid[MLX5_VDPA_DATAVQ_GROUP];
+		struct mlx5_vdpa_mr *vq_mr = mvdev->mres.mr[asid];
 
 		mlx5_vdpa_put_mr(mvdev, mvq->vq_mr);
 		mlx5_vdpa_get_mr(mvdev, vq_mr);
@@ -1390,8 +1390,8 @@ static void modify_virtqueue_end(struct mlx5_vdpa_net *ndev,
 	}
 
 	if (mvq->modified_fields & MLX5_VIRTQ_MODIFY_MASK_DESC_GROUP_MKEY) {
-		unsigned int asid = mvdev->group2asid[MLX5_VDPA_DATAVQ_DESC_GROUP];
-		struct mlx5_vdpa_mr *desc_mr = mvdev->mr[asid];
+		unsigned int asid = mvdev->mres.group2asid[MLX5_VDPA_DATAVQ_DESC_GROUP];
+		struct mlx5_vdpa_mr *desc_mr = mvdev->mres.mr[asid];
 
 		mlx5_vdpa_put_mr(mvdev, mvq->desc_mr);
 		mlx5_vdpa_get_mr(mvdev, desc_mr);
@@ -3235,7 +3235,7 @@ static void init_group_to_asid_map(struct mlx5_vdpa_dev *mvdev)
 
 	/* default mapping all groups are mapped to asid 0 */
 	for (i = 0; i < MLX5_VDPA_NUMVQ_GROUPS; i++)
-		mvdev->group2asid[i] = 0;
+		mvdev->mres.group2asid[i] = 0;
 }
 
 static bool needs_vqs_reset(const struct mlx5_vdpa_dev *mvdev)
@@ -3353,7 +3353,7 @@ static int set_map_data(struct mlx5_vdpa_dev *mvdev, struct vhost_iotlb *iotlb,
 		new_mr = NULL;
 	}
 
-	if (!mvdev->mr[asid]) {
+	if (!mvdev->mres.mr[asid]) {
 		mlx5_vdpa_update_mr(mvdev, new_mr, asid);
 	} else {
 		err = mlx5_vdpa_change_map(mvdev, new_mr, asid);
@@ -3637,12 +3637,12 @@ static int mlx5_set_group_asid(struct vdpa_device *vdev, u32 group,
 	if (group >= MLX5_VDPA_NUMVQ_GROUPS)
 		return -EINVAL;
 
-	mvdev->group2asid[group] = asid;
+	mvdev->mres.group2asid[group] = asid;
 
-	mutex_lock(&mvdev->mr_mtx);
-	if (group == MLX5_VDPA_CVQ_GROUP && mvdev->mr[asid])
-		err = mlx5_vdpa_update_cvq_iotlb(mvdev, mvdev->mr[asid]->iotlb, asid);
-	mutex_unlock(&mvdev->mr_mtx);
+	mutex_lock(&mvdev->mres.mr_mtx);
+	if (group == MLX5_VDPA_CVQ_GROUP && mvdev->mres.mr[asid])
+		err = mlx5_vdpa_update_cvq_iotlb(mvdev, mvdev->mres.mr[asid]->iotlb, asid);
+	mutex_unlock(&mvdev->mres.mr_mtx);
 
 	return err;
 }
@@ -3962,7 +3962,7 @@ static int mlx5_vdpa_dev_add(struct vdpa_mgmt_dev *v_mdev, const char *name,
 	if (err)
 		goto err_mpfs;
 
-	INIT_LIST_HEAD(&mvdev->mr_list_head);
+	INIT_LIST_HEAD(&mvdev->mres.mr_list_head);
 
 	if (MLX5_CAP_GEN(mvdev->mdev, umem_uid_0)) {
 		err = mlx5_vdpa_create_dma_mr(mvdev);

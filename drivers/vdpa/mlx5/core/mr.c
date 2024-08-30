@@ -666,9 +666,9 @@ static void _mlx5_vdpa_put_mr(struct mlx5_vdpa_dev *mvdev,
 void mlx5_vdpa_put_mr(struct mlx5_vdpa_dev *mvdev,
 		      struct mlx5_vdpa_mr *mr)
 {
-	mutex_lock(&mvdev->mr_mtx);
+	mutex_lock(&mvdev->mres.mr_mtx);
 	_mlx5_vdpa_put_mr(mvdev, mr);
-	mutex_unlock(&mvdev->mr_mtx);
+	mutex_unlock(&mvdev->mres.mr_mtx);
 }
 
 static void _mlx5_vdpa_get_mr(struct mlx5_vdpa_dev *mvdev,
@@ -683,39 +683,39 @@ static void _mlx5_vdpa_get_mr(struct mlx5_vdpa_dev *mvdev,
 void mlx5_vdpa_get_mr(struct mlx5_vdpa_dev *mvdev,
 		      struct mlx5_vdpa_mr *mr)
 {
-	mutex_lock(&mvdev->mr_mtx);
+	mutex_lock(&mvdev->mres.mr_mtx);
 	_mlx5_vdpa_get_mr(mvdev, mr);
-	mutex_unlock(&mvdev->mr_mtx);
+	mutex_unlock(&mvdev->mres.mr_mtx);
 }
 
 void mlx5_vdpa_update_mr(struct mlx5_vdpa_dev *mvdev,
 			 struct mlx5_vdpa_mr *new_mr,
 			 unsigned int asid)
 {
-	struct mlx5_vdpa_mr *old_mr = mvdev->mr[asid];
+	struct mlx5_vdpa_mr *old_mr = mvdev->mres.mr[asid];
 
-	mutex_lock(&mvdev->mr_mtx);
+	mutex_lock(&mvdev->mres.mr_mtx);
 
 	_mlx5_vdpa_put_mr(mvdev, old_mr);
-	mvdev->mr[asid] = new_mr;
+	mvdev->mres.mr[asid] = new_mr;
 
-	mutex_unlock(&mvdev->mr_mtx);
+	mutex_unlock(&mvdev->mres.mr_mtx);
 }
 
 static void mlx5_vdpa_show_mr_leaks(struct mlx5_vdpa_dev *mvdev)
 {
 	struct mlx5_vdpa_mr *mr;
 
-	mutex_lock(&mvdev->mr_mtx);
+	mutex_lock(&mvdev->mres.mr_mtx);
 
-	list_for_each_entry(mr, &mvdev->mr_list_head, mr_list) {
+	list_for_each_entry(mr, &mvdev->mres.mr_list_head, mr_list) {
 
 		mlx5_vdpa_warn(mvdev, "mkey still alive after resource delete: "
 				      "mr: %p, mkey: 0x%x, refcount: %u\n",
 				       mr, mr->mkey, refcount_read(&mr->refcount));
 	}
 
-	mutex_unlock(&mvdev->mr_mtx);
+	mutex_unlock(&mvdev->mres.mr_mtx);
 
 }
 
@@ -756,7 +756,7 @@ static int _mlx5_vdpa_create_mr(struct mlx5_vdpa_dev *mvdev,
 	if (err)
 		goto err_iotlb;
 
-	list_add_tail(&mr->mr_list, &mvdev->mr_list_head);
+	list_add_tail(&mr->mr_list, &mvdev->mres.mr_list_head);
 
 	return 0;
 
@@ -782,9 +782,9 @@ struct mlx5_vdpa_mr *mlx5_vdpa_create_mr(struct mlx5_vdpa_dev *mvdev,
 	if (!mr)
 		return ERR_PTR(-ENOMEM);
 
-	mutex_lock(&mvdev->mr_mtx);
+	mutex_lock(&mvdev->mres.mr_mtx);
 	err = _mlx5_vdpa_create_mr(mvdev, mr, iotlb);
-	mutex_unlock(&mvdev->mr_mtx);
+	mutex_unlock(&mvdev->mres.mr_mtx);
 
 	if (err)
 		goto out_err;
@@ -804,7 +804,7 @@ int mlx5_vdpa_update_cvq_iotlb(struct mlx5_vdpa_dev *mvdev,
 {
 	int err;
 
-	if (mvdev->group2asid[MLX5_VDPA_CVQ_GROUP] != asid)
+	if (mvdev->mres.group2asid[MLX5_VDPA_CVQ_GROUP] != asid)
 		return 0;
 
 	spin_lock(&mvdev->cvq.iommu_lock);

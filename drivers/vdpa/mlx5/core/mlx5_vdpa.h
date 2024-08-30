@@ -83,10 +83,18 @@ enum {
 	MLX5_VDPA_NUM_AS = 2
 };
 
+struct mlx5_vdpa_mr_resources {
+	struct mlx5_vdpa_mr *mr[MLX5_VDPA_NUM_AS];
+	unsigned int group2asid[MLX5_VDPA_NUMVQ_GROUPS];
+	struct list_head mr_list_head;
+	struct mutex mr_mtx;
+};
+
 struct mlx5_vdpa_dev {
 	struct vdpa_device vdev;
 	struct mlx5_core_dev *mdev;
 	struct mlx5_vdpa_resources res;
+	struct mlx5_vdpa_mr_resources mres;
 
 	u64 mlx_features;
 	u64 actual_features;
@@ -95,13 +103,8 @@ struct mlx5_vdpa_dev {
 	u16 max_idx;
 	u32 generation;
 
-	struct mlx5_vdpa_mr *mr[MLX5_VDPA_NUM_AS];
-	struct list_head mr_list_head;
-	/* serialize mr access */
-	struct mutex mr_mtx;
 	struct mlx5_control_vq cvq;
 	struct workqueue_struct *wq;
-	unsigned int group2asid[MLX5_VDPA_NUMVQ_GROUPS];
 	bool suspended;
 
 	struct mlx5_async_ctx async_ctx;
