@@ -141,11 +141,12 @@ static bool increase_address_space(struct protection_domain *domain,
 				   unsigned long address,
 				   gfp_t gfp)
 {
+	struct io_pgtable_cfg *cfg = &domain->iop.pgtbl.cfg;
 	unsigned long flags;
 	bool ret = true;
 	u64 *pte;
 
-	pte = iommu_alloc_page_node(domain->nid, gfp);
+	pte = iommu_alloc_page_node(cfg->amd.nid, gfp);
 	if (!pte)
 		return false;
 
@@ -181,6 +182,7 @@ static u64 *alloc_pte(struct protection_domain *domain,
 		      gfp_t gfp,
 		      bool *updated)
 {
+	struct io_pgtable_cfg *cfg = &domain->iop.pgtbl.cfg;
 	int level, end_lvl;
 	u64 *pte, *page;
 
@@ -232,7 +234,7 @@ static u64 *alloc_pte(struct protection_domain *domain,
 
 		if (!IOMMU_PTE_PRESENT(__pte) ||
 		    pte_level == PAGE_MODE_NONE) {
-			page = iommu_alloc_page_node(domain->nid, gfp);
+			page = iommu_alloc_page_node(cfg->amd.nid, gfp);
 
 			if (!page)
 				return NULL;
@@ -559,7 +561,7 @@ static struct io_pgtable *v1_alloc_pgtable(struct io_pgtable_cfg *cfg, void *coo
 {
 	struct amd_io_pgtable *pgtable = io_pgtable_cfg_to_data(cfg);
 
-	pgtable->root = iommu_alloc_page(GFP_KERNEL);
+	pgtable->root = iommu_alloc_page_node(cfg->amd.nid, GFP_KERNEL);
 	if (!pgtable->root)
 		return NULL;
 	pgtable->mode = PAGE_MODE_3_LEVEL;

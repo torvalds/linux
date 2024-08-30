@@ -251,7 +251,7 @@ static int iommu_v2_map_pages(struct io_pgtable_ops *ops, unsigned long iova,
 
 	while (mapped_size < size) {
 		map_size = get_alloc_page_size(pgsize);
-		pte = v2_alloc_pte(pdom->nid, pdom->iop.pgd,
+		pte = v2_alloc_pte(cfg->amd.nid, pdom->iop.pgd,
 				   iova, map_size, gfp, &updated);
 		if (!pte) {
 			ret = -EINVAL;
@@ -359,10 +359,9 @@ static void v2_free_pgtable(struct io_pgtable *iop)
 static struct io_pgtable *v2_alloc_pgtable(struct io_pgtable_cfg *cfg, void *cookie)
 {
 	struct amd_io_pgtable *pgtable = io_pgtable_cfg_to_data(cfg);
-	struct protection_domain *pdom = (struct protection_domain *)cookie;
 	int ias = IOMMU_IN_ADDR_BIT_SIZE;
 
-	pgtable->pgd = iommu_alloc_page_node(pdom->nid, GFP_KERNEL);
+	pgtable->pgd = iommu_alloc_page_node(cfg->amd.nid, GFP_KERNEL);
 	if (!pgtable->pgd)
 		return NULL;
 

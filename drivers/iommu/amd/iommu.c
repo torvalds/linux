@@ -2023,6 +2023,7 @@ static int do_attach(struct iommu_dev_data *dev_data,
 		     struct protection_domain *domain)
 {
 	struct amd_iommu *iommu = get_amd_iommu_from_dev_data(dev_data);
+	struct io_pgtable_cfg *cfg = &domain->iop.pgtbl.cfg;
 	int ret = 0;
 
 	/* Update data structures */
@@ -2030,8 +2031,8 @@ static int do_attach(struct iommu_dev_data *dev_data,
 	list_add(&dev_data->list, &domain->dev_list);
 
 	/* Update NUMA Node ID */
-	if (domain->nid == NUMA_NO_NODE)
-		domain->nid = dev_to_node(dev_data->dev);
+	if (cfg->amd.nid == NUMA_NO_NODE)
+		cfg->amd.nid = dev_to_node(dev_data->dev);
 
 	/* Do reference counting */
 	domain->dev_iommu[iommu->index] += 1;
@@ -2266,7 +2267,7 @@ void protection_domain_free(struct protection_domain *domain)
 	kfree(domain);
 }
 
-struct protection_domain *protection_domain_alloc(unsigned int type)
+struct protection_domain *protection_domain_alloc(unsigned int type, int nid)
 {
 	struct io_pgtable_ops *pgtbl_ops;
 	struct protection_domain *domain;
@@ -2283,7 +2284,7 @@ struct protection_domain *protection_domain_alloc(unsigned int type)
 	spin_lock_init(&domain->lock);
 	INIT_LIST_HEAD(&domain->dev_list);
 	INIT_LIST_HEAD(&domain->dev_data_list);
-	domain->nid = NUMA_NO_NODE;
+	domain->iop.pgtbl.cfg.amd.nid = nid;
 
 	switch (type) {
 	/* No need to allocate io pgtable ops in passthrough mode */
@@ -2360,7 +2361,8 @@ static struct iommu_domain *do_iommu_domain_alloc(unsigned int type,
 	if (dirty_tracking && !amd_iommu_hd_support(iommu))
 		return ERR_PTR(-EOPNOTSUPP);
 
-	domain = protection_domain_alloc(type);
+	domain = protection_domain_alloc(type,
+					 dev ? dev_to_node(dev) : NUMA_NO_NODE);
 	if (!domain)
 		return ERR_PTR(-ENOMEM);
 
