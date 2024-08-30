@@ -238,4 +238,11 @@ static inline int is_spread_slab(const struct cpuset *cs)
 	return test_bit(CS_SPREAD_SLAB, &cs->flags);
 }
 
+/*
+ * cpuset-v1.c
+ */
+
+void fmeter_init(struct fmeter *fmp);
+int fmeter_getrate(struct fmeter *fmp);
+
 #endif /* __CPUSET_INTERNAL_H */
