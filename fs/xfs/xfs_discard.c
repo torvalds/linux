@@ -707,7 +707,7 @@ xfs_ioc_trim(
 		return last_error;
 
 	range.len = min_t(unsigned long long, range.len,
-			  XFS_FSB_TO_B(mp, max_blocks));
+			  XFS_FSB_TO_B(mp, max_blocks) - range.start);
 	if (copy_to_user(urange, &range, sizeof(range)))
 		return -EFAULT;
 	return 0;
