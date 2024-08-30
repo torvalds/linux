@@ -121,8 +121,7 @@ static struct vm_area_struct *merge_existing(struct vma_merge_struct *vmg)
  */
 static int expand_existing(struct vma_merge_struct *vmg)
 {
-	return vma_expand(vmg->vmi, vmg->vma, vmg->start, vmg->end, vmg->pgoff,
-			  vmg->next);
+	return vma_expand(vmg);
 }
 
 /*
