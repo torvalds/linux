@@ -25,12 +25,13 @@
 void intel_link_bw_init_limits(struct intel_atomic_state *state,
 			       struct intel_link_bw_limits *limits)
 {
+	struct intel_display *display = to_intel_display(state);
 	struct drm_i915_private *i915 = to_i915(state->base.dev);
 	enum pipe pipe;
 
 	limits->force_fec_pipes = 0;
 	limits->bpp_limit_reached_pipes = 0;
-	for_each_pipe(i915, pipe) {
+	for_each_pipe(display, pipe) {
 		const struct intel_crtc_state *crtc_state =
 			intel_atomic_get_new_crtc_state(state,
 							intel_crtc_for_pipe(i915, pipe));
@@ -69,12 +70,12 @@ int intel_link_bw_reduce_bpp(struct intel_atomic_state *state,
 			     u8 pipe_mask,
 			     const char *reason)
 {
-	struct drm_i915_private *i915 = to_i915(state->base.dev);
+	struct intel_display *display = to_intel_display(state);
 	enum pipe max_bpp_pipe = INVALID_PIPE;
 	struct intel_crtc *crtc;
 	int max_bpp_x16 = 0;
 
-	for_each_intel_crtc_in_pipe_mask(&i915->drm, crtc, pipe_mask) {
+	for_each_intel_crtc_in_pipe_mask(display->drm, crtc, pipe_mask) {
 		struct intel_crtc_state *crtc_state;
 		int link_bpp_x16;
 
@@ -136,7 +137,7 @@ intel_link_bw_set_bpp_limit_for_pipe(struct intel_atomic_state *state,
 				     struct intel_link_bw_limits *new_limits,
 				     enum pipe pipe)
 {
-	struct drm_i915_private *i915 = to_i915(state->base.dev);
+	struct intel_display *display = to_intel_display(state);
 
 	if (pipe == INVALID_PIPE)
 		return false;
@@ -145,7 +146,7 @@ intel_link_bw_set_bpp_limit_for_pipe(struct intel_atomic_state *state,
 	    old_limits->max_bpp_x16[pipe])
 		return false;
 
-	if (drm_WARN_ON(&i915->drm,
+	if (drm_WARN_ON(display->drm,
 			new_limits->bpp_limit_reached_pipes & BIT(pipe)))
 		return false;
 
@@ -178,7 +179,7 @@ static int check_all_link_config(struct intel_atomic_state *state,
 }
 
 static bool
-assert_link_limit_change_valid(struct drm_i915_private *i915,
+assert_link_limit_change_valid(struct intel_display *display,
 			       const struct intel_link_bw_limits *old_limits,
 			       const struct intel_link_bw_limits *new_limits)
 {
@@ -186,14 +187,14 @@ assert_link_limit_change_valid(struct drm_i915_private *i915,
 	enum pipe pipe;
 
 	/* FEC can't be forced off after it was forced on. */
-	if (drm_WARN_ON(&i915->drm,
+	if (drm_WARN_ON(display->drm,
 			(old_limits->force_fec_pipes & new_limits->force_fec_pipes) !=
 			old_limits->force_fec_pipes))
 		return false;
 
-	for_each_pipe(i915, pipe) {
+	for_each_pipe(display, pipe) {
 		/* The bpp limit can only decrease. */
-		if (drm_WARN_ON(&i915->drm,
+		if (drm_WARN_ON(display->drm,
 				new_limits->max_bpp_x16[pipe] >
 				old_limits->max_bpp_x16[pipe]))
 			return false;
@@ -204,7 +205,7 @@ assert_link_limit_change_valid(struct drm_i915_private *i915,
 	}
 
 	/* At least one limit must change. */
-	if (drm_WARN_ON(&i915->drm,
+	if (drm_WARN_ON(display->drm,
 			!bpps_changed &&
 			new_limits->force_fec_pipes ==
 			old_limits->force_fec_pipes))
@@ -232,7 +233,7 @@ assert_link_limit_change_valid(struct drm_i915_private *i915,
 int intel_link_bw_atomic_check(struct intel_atomic_state *state,
 			       struct intel_link_bw_limits *new_limits)
 {
-	struct drm_i915_private *i915 = to_i915(state->base.dev);
+	struct intel_display *display = to_intel_display(state);
 	struct intel_link_bw_limits old_limits = *new_limits;
 	int ret;
 
@@ -240,7 +241,7 @@ int intel_link_bw_atomic_check(struct intel_atomic_state *state,
 	if (ret != -EAGAIN)
 		return ret;
 
-	if (!assert_link_limit_change_valid(i915, &old_limits, new_limits))
+	if (!assert_link_limit_change_valid(display, &old_limits, new_limits))
 		return -EINVAL;
 
 	return -EAGAIN;

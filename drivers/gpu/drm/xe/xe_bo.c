@@ -1997,6 +1997,13 @@ int xe_gem_create_ioctl(struct drm_device *dev, void *data,
 
 	bo_flags |= args->placement << (ffs(XE_BO_FLAG_SYSTEM) - 1);
 
+	/* CCS formats need physical placement at a 64K alignment in VRAM. */
+	if ((bo_flags & XE_BO_FLAG_VRAM_MASK) &&
+	    (bo_flags & XE_BO_FLAG_SCANOUT) &&
+	    !(xe->info.vram_flags & XE_VRAM_FLAGS_NEED64K) &&
+	    IS_ALIGNED(args->size, SZ_64K))
+		bo_flags |= XE_BO_FLAG_NEEDS_64K;
+
 	if (args->flags & DRM_XE_GEM_CREATE_FLAG_NEEDS_VISIBLE_VRAM) {
 		if (XE_IOCTL_DBG(xe, !(bo_flags & XE_BO_FLAG_VRAM_MASK)))
 			return -EINVAL;

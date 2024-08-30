@@ -66,6 +66,7 @@ static inline struct drm_i915_private *node_to_i915(struct drm_info_node *node)
 static int i915_capabilities(struct seq_file *m, void *data)
 {
 	struct drm_i915_private *i915 = node_to_i915(m->private);
+	struct intel_display *display = &i915->display;
 	struct drm_printer p = drm_seq_file_printer(m);
 
 	seq_printf(m, "pch: %d\n", INTEL_PCH_TYPE(i915));
@@ -77,7 +78,7 @@ static int i915_capabilities(struct seq_file *m, void *data)
 
 	kernel_param_lock(THIS_MODULE);
 	i915_params_dump(&i915->params, &p);
-	intel_display_params_dump(i915, &p);
+	intel_display_params_dump(display, &p);
 	kernel_param_unlock(THIS_MODULE);
 
 	return 0;

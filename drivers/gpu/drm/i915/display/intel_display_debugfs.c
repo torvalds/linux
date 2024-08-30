@@ -1073,7 +1073,7 @@ void intel_display_debugfs_register(struct drm_i915_private *i915)
 	intel_opregion_debugfs_register(display);
 	intel_psr_debugfs_register(i915);
 	intel_wm_debugfs_register(i915);
-	intel_display_debugfs_params(i915);
+	intel_display_debugfs_params(display);
 }
 
 static int i915_hdcp_sink_capability_show(struct seq_file *m, void *data)

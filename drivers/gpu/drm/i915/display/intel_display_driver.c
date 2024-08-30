@@ -453,7 +453,7 @@ int intel_display_driver_probe_nogem(struct drm_i915_private *i915)
 	if (i915->display.cdclk.max_cdclk_freq == 0)
 		intel_update_max_cdclk(i915);
 
-	intel_hti_init(i915);
+	intel_hti_init(display);
 
 	/* Just disable it once at startup */
 	intel_vga_disable(i915);
