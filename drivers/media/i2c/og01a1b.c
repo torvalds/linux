@@ -9,6 +9,7 @@
 #include <linux/i2c.h>
 #include <linux/module.h>
 #include <linux/pm_runtime.h>
+#include <linux/regulator/consumer.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-fwnode.h>
@@ -422,6 +423,9 @@ static const struct og01a1b_mode supported_modes[] = {
 struct og01a1b {
 	struct clk *xvclk;
 	struct gpio_desc *reset_gpio;
+	struct regulator *avdd;
+	struct regulator *dovdd;
+	struct regulator *dvdd;
 
 	struct v4l2_subdev sd;
 	struct media_pad pad;
@@ -985,9 +989,27 @@ static int og01a1b_power_on(struct device *dev)
 	struct og01a1b *og01a1b = to_og01a1b(sd);
 	int ret;
 
+	if (og01a1b->avdd) {
+		ret = regulator_enable(og01a1b->avdd);
+		if (ret)
+			return ret;
+	}
+
+	if (og01a1b->dovdd) {
+		ret = regulator_enable(og01a1b->dovdd);
+		if (ret)
+			goto avdd_disable;
+	}
+
+	if (og01a1b->dvdd) {
+		ret = regulator_enable(og01a1b->dvdd);
+		if (ret)
+			goto dovdd_disable;
+	}
+
 	ret = clk_prepare_enable(og01a1b->xvclk);
 	if (ret)
-		return ret;
+		goto dvdd_disable;
 
 	gpiod_set_value_cansleep(og01a1b->reset_gpio, 0);
 
@@ -997,6 +1019,18 @@ static int og01a1b_power_on(struct device *dev)
 		usleep_range(delay, 2 * delay);
 
 	return 0;
+
+dvdd_disable:
+	if (og01a1b->dvdd)
+		regulator_disable(og01a1b->dvdd);
+dovdd_disable:
+	if (og01a1b->dovdd)
+		regulator_disable(og01a1b->dovdd);
+avdd_disable:
+	if (og01a1b->avdd)
+		regulator_disable(og01a1b->avdd);
+
+	return ret;
 }
 
 static int og01a1b_power_off(struct device *dev)
@@ -1011,6 +1045,15 @@ static int og01a1b_power_off(struct device *dev)
 	clk_disable_unprepare(og01a1b->xvclk);
 
 	gpiod_set_value_cansleep(og01a1b->reset_gpio, 1);
+
+	if (og01a1b->dvdd)
+		regulator_disable(og01a1b->dvdd);
+
+	if (og01a1b->dovdd)
+		regulator_disable(og01a1b->dovdd);
+
+	if (og01a1b->avdd)
+		regulator_disable(og01a1b->avdd);
 
 	return 0;
 }
@@ -1057,6 +1100,42 @@ static int og01a1b_probe(struct i2c_client *client)
 	if (IS_ERR(og01a1b->reset_gpio)) {
 		dev_err(&client->dev, "cannot get reset GPIO\n");
 		return PTR_ERR(og01a1b->reset_gpio);
+	}
+
+	og01a1b->avdd = devm_regulator_get_optional(&client->dev, "avdd");
+	if (IS_ERR(og01a1b->avdd)) {
+		ret = PTR_ERR(og01a1b->avdd);
+		if (ret != -ENODEV) {
+			dev_err_probe(&client->dev, ret,
+				      "Failed to get 'avdd' regulator\n");
+			return ret;
+		}
+
+		og01a1b->avdd = NULL;
+	}
+
+	og01a1b->dovdd = devm_regulator_get_optional(&client->dev, "dovdd");
+	if (IS_ERR(og01a1b->dovdd)) {
+		ret = PTR_ERR(og01a1b->dovdd);
+		if (ret != -ENODEV) {
+			dev_err_probe(&client->dev, ret,
+				      "Failed to get 'dovdd' regulator\n");
+			return ret;
+		}
+
+		og01a1b->dovdd = NULL;
+	}
+
+	og01a1b->dvdd = devm_regulator_get_optional(&client->dev, "dvdd");
+	if (IS_ERR(og01a1b->dvdd)) {
+		ret = PTR_ERR(og01a1b->dvdd);
+		if (ret != -ENODEV) {
+			dev_err_probe(&client->dev, ret,
+				      "Failed to get 'dvdd' regulator\n");
+			return ret;
+		}
+
+		og01a1b->dvdd = NULL;
 	}
 
 	/* The sensor must be powered on to read the CHIP_ID register */
