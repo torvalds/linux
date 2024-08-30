@@ -2953,7 +2953,7 @@ static int amdgpu_device_ip_init(struct amdgpu_device *adev)
 	 * Note: theoretically, this should be called before all vram allocations
 	 * to protect retired page from abusing
 	 */
-	r = amdgpu_ras_recovery_init(adev);
+	r = amdgpu_ras_recovery_init(adev, true);
 	if (r)
 		goto init_failed;
 
