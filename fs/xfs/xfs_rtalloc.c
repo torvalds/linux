@@ -194,6 +194,17 @@ xfs_rtallocate_range(
 	return xfs_rtmodify_range(args, start, len, 0);
 }
 
+/* Reduce @rtxlen until it is a multiple of @prod. */
+static inline xfs_rtxlen_t
+xfs_rtalloc_align_len(
+	xfs_rtxlen_t	rtxlen,
+	xfs_rtxlen_t	prod)
+{
+	if (unlikely(prod > 1))
+		return rounddown(rtxlen, prod);
+	return rtxlen;
+}
+
 /*
  * Make sure we don't run off the end of the rt volume.  Be careful that
  * adjusting maxlen downwards doesn't cause us to fail the alignment checks.
@@ -208,7 +219,7 @@ xfs_rtallocate_clamp_len(
 	xfs_rtxlen_t		ret;
 
 	ret = min(mp->m_sb.sb_rextents, startrtx + rtxlen) - startrtx;
-	return rounddown(ret, prod);
+	return xfs_rtalloc_align_len(ret, prod);
 }
 
 /*
@@ -292,17 +303,10 @@ xfs_rtallocate_extent_block(
 		goto nospace;
 
 	/*
-	 * If size should be a multiple of prod, make that so.
+	 * Ensure bestlen is a multiple of prod, but don't return a too-short
+	 * extent.
 	 */
-	if (prod > 1) {
-		xfs_rtxlen_t	p;	/* amount to trim length by */
-
-		div_u64_rem(bestlen, prod, &p);
-		if (p)
-			bestlen -= p;
-	}
-
-	/* Don't return a too-short extent. */
+	bestlen = xfs_rtalloc_align_len(bestlen, prod);
 	if (bestlen < minlen)
 		goto nospace;
 
