@@ -271,15 +271,16 @@ void callback_lock_irq(void);
 void callback_unlock_irq(void);
 void update_tasks_cpumask(struct cpuset *cs, struct cpumask *new_cpus);
 void update_tasks_nodemask(struct cpuset *cs);
+int update_flag(cpuset_flagbits_t bit, struct cpuset *cs, int turning_on);
+ssize_t cpuset_write_resmask(struct kernfs_open_file *of,
+				    char *buf, size_t nbytes, loff_t off);
+int cpuset_common_seq_show(struct seq_file *sf, void *v);
 
 /*
  * cpuset-v1.c
  */
+extern struct cftype legacy_files[];
 void fmeter_init(struct fmeter *fmp);
-int fmeter_getrate(struct fmeter *fmp);
-int cpuset_write_s64(struct cgroup_subsys_state *css, struct cftype *cft,
-			    s64 val);
-s64 cpuset_read_s64(struct cgroup_subsys_state *css, struct cftype *cft);
 void cpuset_update_task_spread_flags(struct cpuset *cs,
 					struct task_struct *tsk);
 void update_tasks_flags(struct cpuset *cs);
