@@ -125,7 +125,7 @@ static void cv1800_pctrl_dbg_show(struct pinctrl_dev *pctldev,
 	struct cv1800_pin *pin = cv1800_get_pin(pctrl, pin_id);
 	enum cv1800_pin_io_type type = cv1800_pin_io_type(pin);
 	u32 value;
-	void *reg;
+	void __iomem *reg;
 
 	if (pin->pin >> PIN_BGA_ID_OFFSET)
 		seq_printf(seq, "pos: %c%u ",
