@@ -491,6 +491,12 @@ int contention_end(u64 *ctx)
 
 		err = bpf_map_update_elem(&lock_stat, &key, &first, BPF_NOEXIST);
 		if (err < 0) {
+			if (err == -EEXIST) {
+				/* it lost the race, try to get it again */
+				data = bpf_map_lookup_elem(&lock_stat, &key);
+				if (data != NULL)
+					goto found;
+			}
 			if (err == -E2BIG)
 				data_map_full = 1;
 			__sync_fetch_and_add(&data_fail, 1);
@@ -498,6 +504,7 @@ int contention_end(u64 *ctx)
 		goto out;
 	}
 
+found:
 	__sync_fetch_and_add(&data->total_time, duration);
 	__sync_fetch_and_add(&data->count, 1);
 
