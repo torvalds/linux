@@ -267,11 +267,11 @@ static inline int is_spread_slab(const struct cpuset *cs)
 		if (is_cpuset_online(((des_cs) = css_cs((pos_css)))))
 
 void rebuild_sched_domains_locked(void);
-void callback_lock_irq(void);
-void callback_unlock_irq(void);
-void update_tasks_cpumask(struct cpuset *cs, struct cpumask *new_cpus);
-void update_tasks_nodemask(struct cpuset *cs);
-int update_flag(cpuset_flagbits_t bit, struct cpuset *cs, int turning_on);
+void cpuset_callback_lock_irq(void);
+void cpuset_callback_unlock_irq(void);
+void cpuset_update_tasks_cpumask(struct cpuset *cs, struct cpumask *new_cpus);
+void cpuset_update_tasks_nodemask(struct cpuset *cs);
+int cpuset_update_flag(cpuset_flagbits_t bit, struct cpuset *cs, int turning_on);
 ssize_t cpuset_write_resmask(struct kernfs_open_file *of,
 				    char *buf, size_t nbytes, loff_t off);
 int cpuset_common_seq_show(struct seq_file *sf, void *v);
@@ -279,14 +279,14 @@ int cpuset_common_seq_show(struct seq_file *sf, void *v);
 /*
  * cpuset-v1.c
  */
-extern struct cftype legacy_files[];
+extern struct cftype cpuset1_files[];
 void fmeter_init(struct fmeter *fmp);
-void cpuset_update_task_spread_flags(struct cpuset *cs,
+void cpuset1_update_task_spread_flags(struct cpuset *cs,
 					struct task_struct *tsk);
-void update_tasks_flags(struct cpuset *cs);
-void hotplug_update_tasks_legacy(struct cpuset *cs,
+void cpuset1_update_tasks_flags(struct cpuset *cs);
+void cpuset1_hotplug_update_tasks(struct cpuset *cs,
 			    struct cpumask *new_cpus, nodemask_t *new_mems,
 			    bool cpus_updated, bool mems_updated);
-int validate_change_legacy(struct cpuset *cur, struct cpuset *trial);
+int cpuset1_validate_change(struct cpuset *cur, struct cpuset *trial);
 
 #endif /* __CPUSET_INTERNAL_H */

@@ -209,7 +209,7 @@ static s64 cpuset_read_s64(struct cgroup_subsys_state *css, struct cftype *cft)
  * Call with callback_lock or cpuset_mutex held. The check can be skipped
  * if on default hierarchy.
  */
-void cpuset_update_task_spread_flags(struct cpuset *cs,
+void cpuset1_update_task_spread_flags(struct cpuset *cs,
 					struct task_struct *tsk)
 {
 	if (cgroup_subsys_on_dfl(cpuset_cgrp_subsys))
@@ -227,21 +227,21 @@ void cpuset_update_task_spread_flags(struct cpuset *cs,
 }
 
 /**
- * update_tasks_flags - update the spread flags of tasks in the cpuset.
+ * cpuset1_update_tasks_flags - update the spread flags of tasks in the cpuset.
  * @cs: the cpuset in which each task's spread flags needs to be changed
  *
  * Iterate through each task of @cs updating its spread flags.  As this
  * function is called with cpuset_mutex held, cpuset membership stays
  * stable.
  */
-void update_tasks_flags(struct cpuset *cs)
+void cpuset1_update_tasks_flags(struct cpuset *cs)
 {
 	struct css_task_iter it;
 	struct task_struct *task;
 
 	css_task_iter_start(&cs->css, 0, &it);
 	while ((task = css_task_iter_next(&it)))
-		cpuset_update_task_spread_flags(cs, task);
+		cpuset1_update_task_spread_flags(cs, task);
 	css_task_iter_end(&it);
 }
 
@@ -282,27 +282,27 @@ static void cpuset_migrate_tasks_workfn(struct work_struct *work)
 	kfree(s);
 }
 
-void hotplug_update_tasks_legacy(struct cpuset *cs,
+void cpuset1_hotplug_update_tasks(struct cpuset *cs,
 			    struct cpumask *new_cpus, nodemask_t *new_mems,
 			    bool cpus_updated, bool mems_updated)
 {
 	bool is_empty;
 
-	callback_lock_irq();
+	cpuset_callback_lock_irq();
 	cpumask_copy(cs->cpus_allowed, new_cpus);
 	cpumask_copy(cs->effective_cpus, new_cpus);
 	cs->mems_allowed = *new_mems;
 	cs->effective_mems = *new_mems;
-	callback_unlock_irq();
+	cpuset_callback_unlock_irq();
 
 	/*
-	 * Don't call update_tasks_cpumask() if the cpuset becomes empty,
+	 * Don't call cpuset_update_tasks_cpumask() if the cpuset becomes empty,
 	 * as the tasks will be migrated to an ancestor.
 	 */
 	if (cpus_updated && !cpumask_empty(cs->cpus_allowed))
-		update_tasks_cpumask(cs, new_cpus);
+		cpuset_update_tasks_cpumask(cs, new_cpus);
 	if (mems_updated && !nodes_empty(cs->mems_allowed))
-		update_tasks_nodemask(cs);
+		cpuset_update_tasks_nodemask(cs);
 
 	is_empty = cpumask_empty(cs->cpus_allowed) ||
 		   nodes_empty(cs->mems_allowed);
@@ -345,10 +345,10 @@ static int is_cpuset_subset(const struct cpuset *p, const struct cpuset *q)
 }
 
 /*
- * validate_change_legacy() - Validate conditions specific to legacy (v1)
+ * cpuset1_validate_change() - Validate conditions specific to legacy (v1)
  *                            behavior.
  */
-int validate_change_legacy(struct cpuset *cur, struct cpuset *trial)
+int cpuset1_validate_change(struct cpuset *cur, struct cpuset *trial)
 {
 	struct cgroup_subsys_state *css;
 	struct cpuset *c, *par;
@@ -421,28 +421,28 @@ static int cpuset_write_u64(struct cgroup_subsys_state *css, struct cftype *cft,
 
 	switch (type) {
 	case FILE_CPU_EXCLUSIVE:
-		retval = update_flag(CS_CPU_EXCLUSIVE, cs, val);
+		retval = cpuset_update_flag(CS_CPU_EXCLUSIVE, cs, val);
 		break;
 	case FILE_MEM_EXCLUSIVE:
-		retval = update_flag(CS_MEM_EXCLUSIVE, cs, val);
+		retval = cpuset_update_flag(CS_MEM_EXCLUSIVE, cs, val);
 		break;
 	case FILE_MEM_HARDWALL:
-		retval = update_flag(CS_MEM_HARDWALL, cs, val);
+		retval = cpuset_update_flag(CS_MEM_HARDWALL, cs, val);
 		break;
 	case FILE_SCHED_LOAD_BALANCE:
-		retval = update_flag(CS_SCHED_LOAD_BALANCE, cs, val);
+		retval = cpuset_update_flag(CS_SCHED_LOAD_BALANCE, cs, val);
 		break;
 	case FILE_MEMORY_MIGRATE:
-		retval = update_flag(CS_MEMORY_MIGRATE, cs, val);
+		retval = cpuset_update_flag(CS_MEMORY_MIGRATE, cs, val);
 		break;
 	case FILE_MEMORY_PRESSURE_ENABLED:
 		cpuset_memory_pressure_enabled = !!val;
 		break;
 	case FILE_SPREAD_PAGE:
-		retval = update_flag(CS_SPREAD_PAGE, cs, val);
+		retval = cpuset_update_flag(CS_SPREAD_PAGE, cs, val);
 		break;
 	case FILE_SPREAD_SLAB:
-		retval = update_flag(CS_SPREAD_SLAB, cs, val);
+		retval = cpuset_update_flag(CS_SPREAD_SLAB, cs, val);
 		break;
 	default:
 		retval = -EINVAL;
@@ -458,7 +458,7 @@ out_unlock:
  * for the common functions, 'private' gives the type of file
  */
 
-struct cftype legacy_files[] = {
+struct cftype cpuset1_files[] = {
 	{
 		.name = "cpus",
 		.seq_show = cpuset_common_seq_show,
