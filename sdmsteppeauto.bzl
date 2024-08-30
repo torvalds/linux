@@ -25,6 +25,7 @@ def define_sdmsteppeauto():
         "drivers/cpufreq/qcom-cpufreq-hw.ko",
         "drivers/cpuidle/governors/qcom_lpm.ko",
         "drivers/dma-buf/heaps/qcom_dma_heaps.ko",
+        "drivers/dma/qcom/msm_gpi.ko",
         "drivers/extcon/extcon-usb-gpio.ko",
         "drivers/firmware/qcom-scm.ko",
         "drivers/gpu/drm/bridge/analogix/anx7625.ko",
