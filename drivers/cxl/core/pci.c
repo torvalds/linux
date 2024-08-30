@@ -787,7 +787,7 @@ static void cxl_dport_map_rch_aer(struct cxl_dport *dport)
 	dport->regs.dport_aer = dport_aer;
 }
 
-static void cxl_dport_map_regs(struct cxl_dport *dport)
+static void cxl_dport_map_ras(struct cxl_dport *dport)
 {
 	struct cxl_register_map *map = &dport->reg_map;
 	struct device *dev = dport->dport_dev;
@@ -831,7 +831,12 @@ static void cxl_disable_rch_root_ints(struct cxl_dport *dport)
 	}
 }
 
-void cxl_setup_parent_dport(struct device *host, struct cxl_dport *dport)
+/**
+ * cxl_dport_init_ras_reporting - Setup CXL RAS report on this dport
+ * @dport: the cxl_dport that needs to be initialized
+ * @host: host device for devm operations
+ */
+void cxl_dport_init_ras_reporting(struct cxl_dport *dport, struct device *host)
 {
 	struct device *dport_dev = dport->dport_dev;
 
@@ -843,12 +848,12 @@ void cxl_setup_parent_dport(struct device *host, struct cxl_dport *dport)
 	}
 
 	dport->reg_map.host = host;
-	cxl_dport_map_regs(dport);
+	cxl_dport_map_ras(dport);
 
 	if (dport->rch)
 		cxl_disable_rch_root_ints(dport);
 }
-EXPORT_SYMBOL_NS_GPL(cxl_setup_parent_dport, CXL);
+EXPORT_SYMBOL_NS_GPL(cxl_dport_init_ras_reporting, CXL);
 
 static void cxl_handle_rdport_cor_ras(struct cxl_dev_state *cxlds,
 					  struct cxl_dport *dport)

@@ -14,7 +14,7 @@ ldflags-y += --wrap=cxl_dvsec_rr_decode
 ldflags-y += --wrap=devm_cxl_add_rch_dport
 ldflags-y += --wrap=cxl_rcd_component_reg_phys
 ldflags-y += --wrap=cxl_endpoint_parse_cdat
-ldflags-y += --wrap=cxl_setup_parent_dport
+ldflags-y += --wrap=cxl_dport_init_ras_reporting
 
 DRIVERS := ../../../drivers
 CXL_SRC := $(DRIVERS)/cxl
