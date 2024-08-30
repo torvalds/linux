@@ -755,7 +755,7 @@ fault:
 	return -EIO;
 }
 
-static void vmx_emergency_disable_virtualization_cpu(void)
+void vmx_emergency_disable_virtualization_cpu(void)
 {
 	int cpu = raw_smp_processor_id();
 	struct loaded_vmcs *v;
@@ -8584,8 +8584,6 @@ static void __vmx_exit(void)
 {
 	allow_smaller_maxphyaddr = false;
 
-	cpu_emergency_unregister_virt_callback(vmx_emergency_disable_virtualization_cpu);
-
 	vmx_cleanup_l1d_flush();
 }
 
@@ -8631,8 +8629,6 @@ static int __init vmx_init(void)
 
 		pi_init_cpu(cpu);
 	}
-
-	cpu_emergency_register_virt_callback(vmx_emergency_disable_virtualization_cpu);
 
 	vmx_check_vmcs12_offsets();
 
