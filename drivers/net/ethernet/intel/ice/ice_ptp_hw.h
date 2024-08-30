@@ -400,9 +400,9 @@ int ice_phy_cfg_rx_offset_e82x(struct ice_hw *hw, u8 port);
 int ice_phy_cfg_intr_e82x(struct ice_hw *hw, u8 quad, bool ena, u8 threshold);
 
 /* E810 family functions */
-int ice_read_sma_ctrl_e810t(struct ice_hw *hw, u8 *data);
-int ice_write_sma_ctrl_e810t(struct ice_hw *hw, u8 data);
-int ice_read_pca9575_reg_e810t(struct ice_hw *hw, u8 offset, u8 *data);
+int ice_read_sma_ctrl(struct ice_hw *hw, u8 *data);
+int ice_write_sma_ctrl(struct ice_hw *hw, u8 data);
+int ice_read_pca9575_reg(struct ice_hw *hw, u8 offset, u8 *data);
 bool ice_is_pca9575_present(struct ice_hw *hw);
 enum dpll_pin_type ice_cgu_get_pin_type(struct ice_hw *hw, u8 pin, bool input);
 struct dpll_pin_frequency *
@@ -688,30 +688,27 @@ static inline u64 ice_get_base_incval(struct ice_hw *hw)
 #define LOW_TX_MEMORY_BANK_START	0x03090000
 #define HIGH_TX_MEMORY_BANK_START	0x03090004
 
-/* E810T SMA controller pin control */
-#define ICE_SMA1_DIR_EN_E810T		BIT(4)
-#define ICE_SMA1_TX_EN_E810T		BIT(5)
-#define ICE_SMA2_UFL2_RX_DIS_E810T	BIT(3)
-#define ICE_SMA2_DIR_EN_E810T		BIT(6)
-#define ICE_SMA2_TX_EN_E810T		BIT(7)
+/* SMA controller pin control */
+#define ICE_SMA1_DIR_EN		BIT(4)
+#define ICE_SMA1_TX_EN		BIT(5)
+#define ICE_SMA2_UFL2_RX_DIS	BIT(3)
+#define ICE_SMA2_DIR_EN		BIT(6)
+#define ICE_SMA2_TX_EN		BIT(7)
 
-#define ICE_SMA1_MASK_E810T	(ICE_SMA1_DIR_EN_E810T | \
-				 ICE_SMA1_TX_EN_E810T)
-#define ICE_SMA2_MASK_E810T	(ICE_SMA2_UFL2_RX_DIS_E810T | \
-				 ICE_SMA2_DIR_EN_E810T | \
-				 ICE_SMA2_TX_EN_E810T)
-#define ICE_ALL_SMA_MASK_E810T	(ICE_SMA1_MASK_E810T | \
-				 ICE_SMA2_MASK_E810T)
+#define ICE_SMA1_MASK		(ICE_SMA1_DIR_EN | ICE_SMA1_TX_EN)
+#define ICE_SMA2_MASK		(ICE_SMA2_UFL2_RX_DIS | ICE_SMA2_DIR_EN | \
+				 ICE_SMA2_TX_EN)
+#define ICE_ALL_SMA_MASK	(ICE_SMA1_MASK | ICE_SMA2_MASK)
 
-#define ICE_SMA_MIN_BIT_E810T	3
-#define ICE_SMA_MAX_BIT_E810T	7
+#define ICE_SMA_MIN_BIT		3
+#define ICE_SMA_MAX_BIT		7
 #define ICE_PCA9575_P1_OFFSET	8
 
-/* E810T PCA9575 IO controller registers */
+/* PCA9575 IO controller registers */
 #define ICE_PCA9575_P0_IN	0x0
 
-/* E810T PCA9575 IO controller pin control */
-#define ICE_E810T_P0_GNSS_PRSNT_N	BIT(4)
+/*  PCA9575 IO controller pin control */
+#define ICE_P0_GNSS_PRSNT_N	BIT(4)
 
 /* ETH56G PHY register addresses */
 /* Timestamp PHY incval registers */

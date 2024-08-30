@@ -5150,9 +5150,9 @@ ice_get_phy_tx_tstamp_ready_e810(struct ice_hw *hw, u8 port, u64 *tstamp_ready)
 	return 0;
 }
 
-/* E810T SMA functions
+/* E810 SMA functions
  *
- * The following functions operate specifically on E810T hardware and are used
+ * The following functions operate specifically on E810 hardware and are used
  * to access the extended GPIOs available.
  */
 
@@ -5219,14 +5219,14 @@ ice_get_pca9575_handle(struct ice_hw *hw, u16 *pca9575_handle)
 }
 
 /**
- * ice_read_sma_ctrl_e810t
+ * ice_read_sma_ctrl
  * @hw: pointer to the hw struct
  * @data: pointer to data to be read from the GPIO controller
  *
  * Read the SMA controller state. It is connected to pins 3-7 of Port 1 of the
  * PCA9575 expander, so only bits 3-7 in data are valid.
  */
-int ice_read_sma_ctrl_e810t(struct ice_hw *hw, u8 *data)
+int ice_read_sma_ctrl(struct ice_hw *hw, u8 *data)
 {
 	int status;
 	u16 handle;
@@ -5238,7 +5238,7 @@ int ice_read_sma_ctrl_e810t(struct ice_hw *hw, u8 *data)
 
 	*data = 0;
 
-	for (i = ICE_SMA_MIN_BIT_E810T; i <= ICE_SMA_MAX_BIT_E810T; i++) {
+	for (i = ICE_SMA_MIN_BIT; i <= ICE_SMA_MAX_BIT; i++) {
 		bool pin;
 
 		status = ice_aq_get_gpio(hw, handle, i + ICE_PCA9575_P1_OFFSET,
@@ -5252,14 +5252,14 @@ int ice_read_sma_ctrl_e810t(struct ice_hw *hw, u8 *data)
 }
 
 /**
- * ice_write_sma_ctrl_e810t
+ * ice_write_sma_ctrl
  * @hw: pointer to the hw struct
  * @data: data to be written to the GPIO controller
  *
  * Write the data to the SMA controller. It is connected to pins 3-7 of Port 1
  * of the PCA9575 expander, so only bits 3-7 in data are valid.
  */
-int ice_write_sma_ctrl_e810t(struct ice_hw *hw, u8 data)
+int ice_write_sma_ctrl(struct ice_hw *hw, u8 data)
 {
 	int status;
 	u16 handle;
@@ -5269,7 +5269,7 @@ int ice_write_sma_ctrl_e810t(struct ice_hw *hw, u8 data)
 	if (status)
 		return status;
 
-	for (i = ICE_SMA_MIN_BIT_E810T; i <= ICE_SMA_MAX_BIT_E810T; i++) {
+	for (i = ICE_SMA_MIN_BIT; i <= ICE_SMA_MAX_BIT; i++) {
 		bool pin;
 
 		pin = !(data & (1 << i));
@@ -5283,14 +5283,14 @@ int ice_write_sma_ctrl_e810t(struct ice_hw *hw, u8 data)
 }
 
 /**
- * ice_read_pca9575_reg_e810t
+ * ice_read_pca9575_reg
  * @hw: pointer to the hw struct
  * @offset: GPIO controller register offset
  * @data: pointer to data to be read from the GPIO controller
  *
  * Read the register from the GPIO controller
  */
-int ice_read_pca9575_reg_e810t(struct ice_hw *hw, u8 offset, u8 *data)
+int ice_read_pca9575_reg(struct ice_hw *hw, u8 offset, u8 *data)
 {
 	struct ice_aqc_link_topo_addr link_topo;
 	__le16 addr;

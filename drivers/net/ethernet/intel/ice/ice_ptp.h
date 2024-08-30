@@ -8,24 +8,6 @@
 #include <linux/kthread.h>
 
 #include "ice_ptp_hw.h"
-
-enum ice_ptp_pin_e810 {
-	GPIO_20 = 0,
-	GPIO_21,
-	GPIO_22,
-	GPIO_23,
-	NUM_PTP_PIN_E810
-};
-
-enum ice_ptp_pin_e810t {
-	GNSS = 0,
-	SMA1,
-	UFL1,
-	SMA2,
-	UFL2,
-	NUM_PTP_PINS_E810T
-};
-
 struct ice_perout_channel {
 	bool ena;
 	u32 gpio_pin;
@@ -230,6 +212,14 @@ enum ice_ptp_pin {
 	ONE_PPS
 };
 
+enum ice_ptp_pin_e810t {
+	GNSS = 0,
+	SMA1,
+	UFL1,
+	SMA2,
+	UFL2
+};
+
 /* Per-channel register definitions */
 #define GLTSYN_AUX_OUT(_chan, _idx)	(GLTSYN_AUX_OUT_0(_idx) + ((_chan) * 8))
 #define GLTSYN_AUX_IN(_chan, _idx)	(GLTSYN_AUX_IN_0(_idx) + ((_chan) * 8))
@@ -241,9 +231,8 @@ enum ice_ptp_pin {
 #define GLTSYN_EVNT_H_IDX_MAX		3
 
 /* Pin definitions for PTP */
-#define PPS_CLK_GEN_CHAN		3
-#define PPS_PIN_INDEX			5
 #define ICE_N_PINS_MAX			6
+#define ICE_SMA_PINS_NUM		4
 #define ICE_PIN_DESC_ARR_LEN(_arr)	(sizeof(_arr) / \
 					 sizeof(struct ice_ptp_pin_desc))
 
