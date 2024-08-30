@@ -81,8 +81,6 @@
 
 #define AS_MM_ALL_LOCKS 2
 
-#define current NULL
-
 /* We hardcode this for now. */
 #define sysctl_max_map_count 0x1000000UL
 
@@ -92,6 +90,12 @@ typedef struct pgprot { pgprotval_t pgprot; } pgprot_t;
 typedef unsigned long vm_flags_t;
 typedef __bitwise unsigned int vm_fault_t;
 
+/*
+ * The shared stubs do not implement this, it amounts to an fprintf(STDERR,...)
+ * either way :)
+ */
+#define pr_warn_once pr_err
+
 typedef struct refcount_struct {
 	atomic_t refs;
 } refcount_t;
@@ -100,9 +104,30 @@ struct kref {
 	refcount_t refcount;
 };
 
+/*
+ * Define the task command name length as enum, then it can be visible to
+ * BPF programs.
+ */
+enum {
+	TASK_COMM_LEN = 16,
+};
+
+struct task_struct {
+	char comm[TASK_COMM_LEN];
+	pid_t pid;
+	struct mm_struct *mm;
+};
+
+struct task_struct *get_current(void);
+#define current get_current()
+
 struct anon_vma {
 	struct anon_vma *root;
 	struct rb_root_cached rb_root;
+
+	/* Test fields. */
+	bool was_cloned;
+	bool was_unlinked;
 };
 
 struct anon_vma_chain {
@@ -682,13 +707,21 @@ static inline int vma_dup_policy(struct vm_area_struct *, struct vm_area_struct 
 	return 0;
 }
 
-static inline int anon_vma_clone(struct vm_area_struct *, struct vm_area_struct *)
+static inline int anon_vma_clone(struct vm_area_struct *dst, struct vm_area_struct *src)
 {
+	/* For testing purposes. We indicate that an anon_vma has been cloned. */
+	if (src->anon_vma != NULL) {
+		dst->anon_vma = src->anon_vma;
+		dst->anon_vma->was_cloned = true;
+	}
+
 	return 0;
 }
 
-static inline void vma_start_write(struct vm_area_struct *)
+static inline void vma_start_write(struct vm_area_struct *vma)
 {
+	/* Used to indicate to tests that a write operation has begun. */
+	vma->vm_lock_seq++;
 }
 
 static inline void vma_adjust_trans_huge(struct vm_area_struct *vma,
@@ -759,8 +792,10 @@ static inline void vma_assert_write_locked(struct vm_area_struct *)
 {
 }
 
-static inline void unlink_anon_vmas(struct vm_area_struct *)
+static inline void unlink_anon_vmas(struct vm_area_struct *vma)
 {
+	/* For testing purposes, indicate that the anon_vma was unlinked. */
+	vma->anon_vma->was_unlinked = true;
 }
 
 static inline void anon_vma_unlock_write(struct anon_vma *)
