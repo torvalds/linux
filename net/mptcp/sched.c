@@ -86,7 +86,7 @@ int mptcp_register_scheduler(struct mptcp_sched_ops *sched)
 	list_add_tail_rcu(&sched->list, &mptcp_sched_list);
 	spin_unlock(&mptcp_sched_list_lock);
 
-	pr_debug("%s registered", sched->name);
+	pr_debug("%s registered\n", sched->name);
 	return 0;
 }
 
@@ -118,7 +118,7 @@ int mptcp_init_sched(struct mptcp_sock *msk,
 	if (msk->sched->init)
 		msk->sched->init(msk);
 
-	pr_debug("sched=%s", msk->sched->name);
+	pr_debug("sched=%s\n", msk->sched->name);
 
 	return 0;
 }

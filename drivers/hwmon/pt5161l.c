@@ -427,7 +427,7 @@ static int pt5161l_read(struct device *dev, enum hwmon_sensor_types type,
 	struct pt5161l_data *data = dev_get_drvdata(dev);
 	int ret;
 	u8 buf[8];
-	long adc_code;
+	u32 adc_code;
 
 	switch (attr) {
 	case hwmon_temp_input:
@@ -449,7 +449,7 @@ static int pt5161l_read(struct device *dev, enum hwmon_sensor_types type,
 
 		adc_code = buf[3] << 24 | buf[2] << 16 | buf[1] << 8 | buf[0];
 		if (adc_code == 0 || adc_code >= 0x3ff) {
-			dev_dbg(dev, "Invalid adc_code %lx\n", adc_code);
+			dev_dbg(dev, "Invalid adc_code %x\n", adc_code);
 			return -EIO;
 		}
 
