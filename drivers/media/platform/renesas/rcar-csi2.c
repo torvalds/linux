@@ -247,6 +247,25 @@ static const struct rcsi2_cphy_setting cphy_setting_table_r8a779g0[] = {
 	{ /* sentinel */ },
 };
 
+/* V4M registers */
+#define V4M_OVR1_REG					0x0848
+#define V4M_OVR1_FORCERXMODE_3				BIT(12)
+#define V4M_OVR1_FORCERXMODE_2				BIT(11)
+#define V4M_OVR1_FORCERXMODE_1				BIT(10)
+#define V4M_OVR1_FORCERXMODE_0				BIT(9)
+
+#define V4M_FRXM_REG					0x2004
+#define V4M_FRXM_FORCERXMODE_3				BIT(3)
+#define V4M_FRXM_FORCERXMODE_2				BIT(2)
+#define V4M_FRXM_FORCERXMODE_1				BIT(1)
+#define V4M_FRXM_FORCERXMODE_0				BIT(0)
+
+#define V4M_PHYPLL_REG					0x02050
+#define V4M_CSI0CLKFCPR_REG				0x02054
+#define V4M_PHTW_REG					0x02060
+#define V4M_PHTR_REG					0x02064
+#define V4M_PHTC_REG					0x02068
+
 struct phtw_value {
 	u8 data;
 	u8 code;
@@ -255,6 +274,7 @@ struct phtw_value {
 struct rcsi2_mbps_info {
 	u16 mbps;
 	u8 reg;
+	u16 osc_freq; /* V4M */
 };
 
 static const struct rcsi2_mbps_info phtw_mbps_v3u[] = {
@@ -503,6 +523,73 @@ static const struct rcsi2_mbps_info hsfreqrange_m3w[] = {
 	{ .mbps = 1400,	.reg = 0x1c },
 	{ .mbps = 1450,	.reg = 0x2c },
 	{ .mbps = 1500,	.reg = 0x3c },
+	{ /* sentinel */ },
+};
+
+static const struct rcsi2_mbps_info hsfreqrange_v4m[] = {
+	{ .mbps =   80, .reg = 0x00, .osc_freq = 0x01a9 },
+	{ .mbps =   90, .reg = 0x10, .osc_freq = 0x01a9 },
+	{ .mbps =  100, .reg = 0x20, .osc_freq = 0x01a9 },
+	{ .mbps =  110, .reg = 0x30, .osc_freq = 0x01a9 },
+	{ .mbps =  120, .reg = 0x01, .osc_freq = 0x01a9 },
+	{ .mbps =  130, .reg = 0x11, .osc_freq = 0x01a9 },
+	{ .mbps =  140, .reg = 0x21, .osc_freq = 0x01a9 },
+	{ .mbps =  150, .reg = 0x31, .osc_freq = 0x01a9 },
+	{ .mbps =  160, .reg = 0x02, .osc_freq = 0x01a9 },
+	{ .mbps =  170, .reg = 0x12, .osc_freq = 0x01a9 },
+	{ .mbps =  180, .reg = 0x22, .osc_freq = 0x01a9 },
+	{ .mbps =  190, .reg = 0x32, .osc_freq = 0x01a9 },
+	{ .mbps =  205, .reg = 0x03, .osc_freq = 0x01a9 },
+	{ .mbps =  220, .reg = 0x13, .osc_freq = 0x01a9 },
+	{ .mbps =  235, .reg = 0x23, .osc_freq = 0x01a9 },
+	{ .mbps =  250, .reg = 0x33, .osc_freq = 0x01a9 },
+	{ .mbps =  275, .reg = 0x04, .osc_freq = 0x01a9 },
+	{ .mbps =  300, .reg = 0x14, .osc_freq = 0x01a9 },
+	{ .mbps =  325, .reg = 0x25, .osc_freq = 0x01a9 },
+	{ .mbps =  350, .reg = 0x35, .osc_freq = 0x01a9 },
+	{ .mbps =  400, .reg = 0x05, .osc_freq = 0x01a9 },
+	{ .mbps =  450, .reg = 0x16, .osc_freq = 0x01a9 },
+	{ .mbps =  500, .reg = 0x26, .osc_freq = 0x01a9 },
+	{ .mbps =  550, .reg = 0x37, .osc_freq = 0x01a9 },
+	{ .mbps =  600, .reg = 0x07, .osc_freq = 0x01a9 },
+	{ .mbps =  650, .reg = 0x18, .osc_freq = 0x01a9 },
+	{ .mbps =  700, .reg = 0x28, .osc_freq = 0x01a9 },
+	{ .mbps =  750, .reg = 0x39, .osc_freq = 0x01a9 },
+	{ .mbps =  800, .reg = 0x09, .osc_freq = 0x01a9 },
+	{ .mbps =  850, .reg = 0x19, .osc_freq = 0x01a9 },
+	{ .mbps =  900, .reg = 0x29, .osc_freq = 0x01a9 },
+	{ .mbps =  950, .reg = 0x3a, .osc_freq = 0x01a9 },
+	{ .mbps = 1000, .reg = 0x0a, .osc_freq = 0x01a9 },
+	{ .mbps = 1050, .reg = 0x1a, .osc_freq = 0x01a9 },
+	{ .mbps = 1100, .reg = 0x2a, .osc_freq = 0x01a9 },
+	{ .mbps = 1150, .reg = 0x3b, .osc_freq = 0x01a9 },
+	{ .mbps = 1200, .reg = 0x0b, .osc_freq = 0x01a9 },
+	{ .mbps = 1250, .reg = 0x1b, .osc_freq = 0x01a9 },
+	{ .mbps = 1300, .reg = 0x2b, .osc_freq = 0x01a9 },
+	{ .mbps = 1350, .reg = 0x3c, .osc_freq = 0x01a9 },
+	{ .mbps = 1400, .reg = 0x0c, .osc_freq = 0x01a9 },
+	{ .mbps = 1450, .reg = 0x1c, .osc_freq = 0x01a9 },
+	{ .mbps = 1500, .reg = 0x2c, .osc_freq = 0x01a9 },
+	{ .mbps = 1550, .reg = 0x3d, .osc_freq = 0x0108 },
+	{ .mbps = 1600, .reg = 0x0d, .osc_freq = 0x0110 },
+	{ .mbps = 1650, .reg = 0x1d, .osc_freq = 0x0119 },
+	{ .mbps = 1700, .reg = 0x2e, .osc_freq = 0x0121 },
+	{ .mbps = 1750, .reg = 0x3e, .osc_freq = 0x012a },
+	{ .mbps = 1800, .reg = 0x0e, .osc_freq = 0x0132 },
+	{ .mbps = 1850, .reg = 0x1e, .osc_freq = 0x013b },
+	{ .mbps = 1900, .reg = 0x2f, .osc_freq = 0x0143 },
+	{ .mbps = 1950, .reg = 0x3f, .osc_freq = 0x014c },
+	{ .mbps = 2000, .reg = 0x0f, .osc_freq = 0x0154 },
+	{ .mbps = 2050, .reg = 0x40, .osc_freq = 0x015d },
+	{ .mbps = 2100, .reg = 0x41, .osc_freq = 0x0165 },
+	{ .mbps = 2150, .reg = 0x42, .osc_freq = 0x016e },
+	{ .mbps = 2200, .reg = 0x43, .osc_freq = 0x0176 },
+	{ .mbps = 2250, .reg = 0x44, .osc_freq = 0x017f },
+	{ .mbps = 2300, .reg = 0x45, .osc_freq = 0x0187 },
+	{ .mbps = 2350, .reg = 0x46, .osc_freq = 0x0190 },
+	{ .mbps = 2400, .reg = 0x47, .osc_freq = 0x0198 },
+	{ .mbps = 2450, .reg = 0x48, .osc_freq = 0x01a1 },
+	{ .mbps = 2500, .reg = 0x49, .osc_freq = 0x01a9 },
 	{ /* sentinel */ },
 };
 
@@ -1195,6 +1282,195 @@ static int rcsi2_start_receiver_v4h(struct rcar_csi2 *priv,
 	return 0;
 }
 
+static int rcsi2_d_phy_setting_v4m(struct rcar_csi2 *priv, int data_rate)
+{
+	unsigned int timeout;
+	int ret;
+
+	static const struct phtw_value step1[] = {
+		{ .data = 0x00, .code = 0x00 },
+		{ .data = 0x00, .code = 0x1e },
+	};
+
+	/* Shutdown and reset PHY. */
+	rcsi2_write(priv, V4H_DPHY_RSTZ_REG, BIT(0));
+	rcsi2_write(priv, V4H_PHY_SHUTDOWNZ_REG, BIT(0));
+
+	/* Start internal calibration (POR). */
+	ret = rcsi2_phtw_write_array(priv, step1, ARRAY_SIZE(step1));
+	if (ret)
+		return ret;
+
+	/* Wait for POR to complete. */
+	for (timeout = 10; timeout > 0; timeout--) {
+		if ((rcsi2_read(priv, V4M_PHTR_REG) & 0xf0000) == 0x70000)
+			break;
+		usleep_range(1000, 2000);
+	}
+
+	if (!timeout) {
+		dev_err(priv->dev, "D-PHY calibration failed\n");
+		return -ETIMEDOUT;
+	}
+
+	return 0;
+}
+
+static int rcsi2_set_osc_freq(struct rcar_csi2 *priv, unsigned int mbps)
+{
+	const struct rcsi2_mbps_info *info;
+	struct phtw_value steps[] = {
+		{ .data = 0x00, .code = 0x00 },
+		{ .code = 0xe2 }, /* Data filled in below. */
+		{ .code = 0xe3 }, /* Data filled in below. */
+		{ .data = 0x01, .code = 0xe4 },
+	};
+
+	info = rcsi2_mbps_to_info(priv, priv->info->hsfreqrange, mbps);
+	if (!info)
+		return -ERANGE;
+
+	/* Fill in data for command. */
+	steps[1].data = (info->osc_freq & 0x00ff) >> 0;
+	steps[2].data = (info->osc_freq & 0x0f00) >> 8;
+
+	return rcsi2_phtw_write_array(priv, steps, ARRAY_SIZE(steps));
+}
+
+static int rcsi2_init_common_v4m(struct rcar_csi2 *priv, unsigned int mbps)
+{
+	int ret;
+
+	static const struct phtw_value step1[] = {
+		{ .data = 0x00, .code = 0x00 },
+		{ .data = 0x3c, .code = 0x08 },
+	};
+
+	static const struct phtw_value step2[] = {
+		{ .data = 0x00, .code = 0x00 },
+		{ .data = 0x80, .code = 0xe0 },
+		{ .data = 0x01, .code = 0xe1 },
+		{ .data = 0x06, .code = 0x00 },
+		{ .data = 0x0f, .code = 0x11 },
+		{ .data = 0x08, .code = 0x00 },
+		{ .data = 0x0f, .code = 0x11 },
+		{ .data = 0x0a, .code = 0x00 },
+		{ .data = 0x0f, .code = 0x11 },
+		{ .data = 0x0c, .code = 0x00 },
+		{ .data = 0x0f, .code = 0x11 },
+		{ .data = 0x01, .code = 0x00 },
+		{ .data = 0x31, .code = 0xaa },
+		{ .data = 0x05, .code = 0x00 },
+		{ .data = 0x05, .code = 0x09 },
+		{ .data = 0x07, .code = 0x00 },
+		{ .data = 0x05, .code = 0x09 },
+		{ .data = 0x09, .code = 0x00 },
+		{ .data = 0x05, .code = 0x09 },
+		{ .data = 0x0b, .code = 0x00 },
+		{ .data = 0x05, .code = 0x09 },
+	};
+
+	if (priv->info->hsfreqrange) {
+		ret = rcsi2_set_phypll(priv, mbps);
+		if (ret)
+			return ret;
+
+		ret = rcsi2_set_osc_freq(priv, mbps);
+		if (ret)
+			return ret;
+	}
+
+	if (mbps <= 1500) {
+		ret = rcsi2_phtw_write_array(priv, step1, ARRAY_SIZE(step1));
+		if (ret)
+			return ret;
+	}
+
+	if (priv->info->csi0clkfreqrange)
+		rcsi2_write(priv, V4M_CSI0CLKFCPR_REG,
+			    CSI0CLKFREQRANGE(priv->info->csi0clkfreqrange));
+
+	rcsi2_write(priv, V4H_PHY_EN_REG, V4H_PHY_EN_ENABLE_CLK |
+		    V4H_PHY_EN_ENABLE_0 | V4H_PHY_EN_ENABLE_1 |
+		    V4H_PHY_EN_ENABLE_2 | V4H_PHY_EN_ENABLE_3);
+
+	if (mbps > 1500) {
+		ret = rcsi2_phtw_write_array(priv, step2, ARRAY_SIZE(step2));
+		if (ret)
+			return ret;
+	}
+
+	return ret;
+}
+
+static int rcsi2_start_receiver_v4m(struct rcar_csi2 *priv,
+				    struct v4l2_subdev_state *state)
+{
+	const struct rcar_csi2_format *format;
+	const struct v4l2_mbus_framefmt *fmt;
+	unsigned int lanes;
+	int mbps;
+	int ret;
+
+	/* Calculate parameters */
+	fmt = v4l2_subdev_state_get_format(state, RCAR_CSI2_SINK);
+	format = rcsi2_code_to_fmt(fmt->code);
+	if (!format)
+		return -EINVAL;
+
+	ret = rcsi2_get_active_lanes(priv, &lanes);
+	if (ret)
+		return ret;
+
+	mbps = rcsi2_calc_mbps(priv, format->bpp, lanes);
+	if (mbps < 0)
+		return mbps;
+
+	/* Reset LINK and PHY */
+	rcsi2_write(priv, V4H_CSI2_RESETN_REG, 0);
+	rcsi2_write(priv, V4H_DPHY_RSTZ_REG, 0);
+	rcsi2_write(priv, V4H_PHY_SHUTDOWNZ_REG, 0);
+	rcsi2_write(priv, V4M_PHTC_REG, PHTC_TESTCLR);
+
+	/* PHY static setting */
+	rcsi2_write(priv, V4H_PHY_EN_REG, V4H_PHY_EN_ENABLE_CLK);
+	rcsi2_write(priv, V4H_FLDC_REG, 0);
+	rcsi2_write(priv, V4H_FLDD_REG, 0);
+	rcsi2_write(priv, V4H_IDIC_REG, 0);
+	rcsi2_write(priv, V4H_PHY_MODE_REG, V4H_PHY_MODE_DPHY);
+	rcsi2_write(priv, V4H_N_LANES_REG, lanes - 1);
+
+	rcsi2_write(priv, V4M_FRXM_REG,
+		    V4M_FRXM_FORCERXMODE_0 | V4M_FRXM_FORCERXMODE_1 |
+		    V4M_FRXM_FORCERXMODE_2 | V4M_FRXM_FORCERXMODE_3);
+	rcsi2_write(priv, V4M_OVR1_REG,
+		    V4M_OVR1_FORCERXMODE_0 | V4M_OVR1_FORCERXMODE_1 |
+		    V4M_OVR1_FORCERXMODE_2 | V4M_OVR1_FORCERXMODE_3);
+
+	/* Reset CSI2 */
+	rcsi2_write(priv, V4M_PHTC_REG, 0);
+	rcsi2_write(priv, V4H_CSI2_RESETN_REG, BIT(0));
+
+	/* Common settings */
+	ret = rcsi2_init_common_v4m(priv, mbps);
+	if (ret)
+		return ret;
+
+	/* D-PHY settings */
+	ret = rcsi2_d_phy_setting_v4m(priv, mbps);
+	if (ret)
+		return ret;
+
+	rcsi2_wait_phy_start_v4h(priv, V4H_ST_PHYST_ST_STOPSTATE_0 |
+				 V4H_ST_PHYST_ST_STOPSTATE_1 |
+				 V4H_ST_PHYST_ST_STOPSTATE_2 |
+				 V4H_ST_PHYST_ST_STOPSTATE_3);
+
+	rcsi2_write(priv, V4M_FRXM_REG, 0);
+
+	return 0;
+}
+
 static int rcsi2_start(struct rcar_csi2 *priv, struct v4l2_subdev_state *state)
 {
 	int ret;
@@ -1832,6 +2108,20 @@ static const struct rcar_csi2_info rcar_csi2_info_r8a779g0 = {
 	.support_cphy = true,
 };
 
+static const struct rcsi2_register_layout rcsi2_registers_v4m = {
+	.phtw = V4M_PHTW_REG,
+	.phypll = V4M_PHYPLL_REG,
+};
+
+static const struct rcar_csi2_info rcar_csi2_info_r8a779h0 = {
+	.regs = &rcsi2_registers_v4m,
+	.start_receiver = rcsi2_start_receiver_v4m,
+	.hsfreqrange = hsfreqrange_v4m,
+	.csi0clkfreqrange = 0x0c,
+	.use_isp = true,
+	.support_dphy = true,
+};
+
 static const struct of_device_id rcar_csi2_of_table[] = {
 	{
 		.compatible = "renesas,r8a774a1-csi2",
@@ -1884,6 +2174,10 @@ static const struct of_device_id rcar_csi2_of_table[] = {
 	{
 		.compatible = "renesas,r8a779g0-csi2",
 		.data = &rcar_csi2_info_r8a779g0,
+	},
+	{
+		.compatible = "renesas,r8a779h0-csi2",
+		.data = &rcar_csi2_info_r8a779h0,
 	},
 	{ /* sentinel */ },
 };
