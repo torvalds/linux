@@ -898,10 +898,8 @@ static int kvaser_usb_probe(struct usb_interface *intf,
 	ops = driver_info->ops;
 
 	err = ops->dev_setup_endpoints(dev);
-	if (err) {
-		dev_err(&intf->dev, "Cannot get usb endpoint(s)");
-		return err;
-	}
+	if (err)
+		return dev_err_probe(&intf->dev, err, "Cannot get usb endpoint(s)");
 
 	dev->udev = interface_to_usbdev(intf);
 
@@ -912,26 +910,20 @@ static int kvaser_usb_probe(struct usb_interface *intf,
 	dev->card_data.ctrlmode_supported = 0;
 	dev->card_data.capabilities = 0;
 	err = ops->dev_init_card(dev);
-	if (err) {
-		dev_err(&intf->dev,
-			"Failed to initialize card, error %d\n", err);
-		return err;
-	}
+	if (err)
+		return dev_err_probe(&intf->dev, err,
+				     "Failed to initialize card\n");
 
 	err = ops->dev_get_software_info(dev);
-	if (err) {
-		dev_err(&intf->dev,
-			"Cannot get software info, error %d\n", err);
-		return err;
-	}
+	if (err)
+		return dev_err_probe(&intf->dev, err,
+				     "Cannot get software info\n");
 
 	if (ops->dev_get_software_details) {
 		err = ops->dev_get_software_details(dev);
-		if (err) {
-			dev_err(&intf->dev,
-				"Cannot get software details, error %d\n", err);
-			return err;
-		}
+		if (err)
+			return dev_err_probe(&intf->dev, err,
+					     "Cannot get software details\n");
 	}
 
 	if (WARN_ON(!dev->cfg))
@@ -945,18 +937,16 @@ static int kvaser_usb_probe(struct usb_interface *intf,
 	dev_dbg(&intf->dev, "Max outstanding tx = %d URBs\n", dev->max_tx_urbs);
 
 	err = ops->dev_get_card_info(dev);
-	if (err) {
-		dev_err(&intf->dev, "Cannot get card info, error %d\n", err);
-		return err;
-	}
+	if (err)
+		return dev_err_probe(&intf->dev, err,
+				     "Cannot get card info\n");
 
 	if (ops->dev_get_capabilities) {
 		err = ops->dev_get_capabilities(dev);
 		if (err) {
-			dev_err(&intf->dev,
-				"Cannot get capabilities, error %d\n", err);
 			kvaser_usb_remove_interfaces(dev);
-			return err;
+			return dev_err_probe(&intf->dev, err,
+					     "Cannot get capabilities\n");
 		}
 	}
 
