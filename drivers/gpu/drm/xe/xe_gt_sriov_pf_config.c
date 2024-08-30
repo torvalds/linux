@@ -277,6 +277,14 @@ static u32 encode_config(u32 *cfg, const struct xe_gt_sriov_config *config)
 	cfg[n++] = PREP_GUC_KLV_TAG(VF_CFG_PREEMPT_TIMEOUT);
 	cfg[n++] = config->preempt_timeout;
 
+#define encode_threshold_config(TAG, ...) ({					\
+	cfg[n++] = PREP_GUC_KLV_TAG(VF_CFG_THRESHOLD_##TAG);			\
+	cfg[n++] = config->thresholds[MAKE_XE_GUC_KLV_THRESHOLD_INDEX(TAG)];	\
+});
+
+	MAKE_XE_GUC_KLV_THRESHOLDS_SET(encode_threshold_config);
+#undef encode_threshold_config
+
 	return n;
 }
 
