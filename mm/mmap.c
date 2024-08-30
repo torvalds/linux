@@ -1388,12 +1388,15 @@ unsigned long mmap_region(struct file *file, unsigned long addr,
 			return -ENOMEM;
 	}
 
-	/* Unmap any existing mapping in the area */
-	error = do_vmi_munmap(&vmi, mm, addr, len, uf, false);
-	if (error == -EPERM)
-		return error;
-	else if (error)
-		return -ENOMEM;
+	/* Find the first overlapping VMA */
+	vma = vma_find(&vmi, end);
+	if (vma) {
+		/* Unmap any existing mapping in the area */
+		error = do_vmi_align_munmap(&vmi, vma, mm, addr, end, uf, false);
+		if (error)
+			return error;
+		vma = NULL;
+	}
 
 	/*
 	 * Private writable mapping: check memory availability
