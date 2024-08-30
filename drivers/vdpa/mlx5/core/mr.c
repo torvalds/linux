@@ -49,17 +49,18 @@ static void populate_mtts(struct mlx5_vdpa_direct_mr *mr, __be64 *mtt)
 	}
 }
 
-static int create_direct_mr(struct mlx5_vdpa_dev *mvdev, struct mlx5_vdpa_direct_mr *mr)
-{
-	int inlen;
-	void *mkc;
-	void *in;
-	int err;
+struct mlx5_create_mkey_mem {
+	u8 out[MLX5_ST_SZ_BYTES(create_mkey_out)];
+	u8 in[MLX5_ST_SZ_BYTES(create_mkey_in)];
+	__be64 mtt[];
+};
 
-	inlen = MLX5_ST_SZ_BYTES(create_mkey_in) + roundup(MLX5_ST_SZ_BYTES(mtt) * mr->nsg, 16);
-	in = kvzalloc(inlen, GFP_KERNEL);
-	if (!in)
-		return -ENOMEM;
+static void fill_create_direct_mr(struct mlx5_vdpa_dev *mvdev,
+				  struct mlx5_vdpa_direct_mr *mr,
+				  struct mlx5_create_mkey_mem *mem)
+{
+	void *in = &mem->in;
+	void *mkc;
 
 	MLX5_SET(create_mkey_in, in, uid, mvdev->res.uid);
 	mkc = MLX5_ADDR_OF(create_mkey_in, in, memory_key_mkey_entry);
@@ -76,18 +77,25 @@ static int create_direct_mr(struct mlx5_vdpa_dev *mvdev, struct mlx5_vdpa_direct
 	MLX5_SET(create_mkey_in, in, translations_octword_actual_size,
 		 get_octo_len(mr->end - mr->start, mr->log_size));
 	populate_mtts(mr, MLX5_ADDR_OF(create_mkey_in, in, klm_pas_mtt));
-	err = mlx5_vdpa_create_mkey(mvdev, &mr->mr, in, inlen);
-	kvfree(in);
-	if (err) {
-		mlx5_vdpa_warn(mvdev, "Failed to create direct MR\n");
-		return err;
-	}
 
-	return 0;
+	MLX5_SET(create_mkey_in, in, opcode, MLX5_CMD_OP_CREATE_MKEY);
+	MLX5_SET(create_mkey_in, in, uid, mvdev->res.uid);
+}
+
+static void create_direct_mr_end(struct mlx5_vdpa_dev *mvdev,
+				 struct mlx5_vdpa_direct_mr *mr,
+				 struct mlx5_create_mkey_mem *mem)
+{
+	u32 mkey_index = MLX5_GET(create_mkey_out, mem->out, mkey_index);
+
+	mr->mr = mlx5_idx_to_mkey(mkey_index);
 }
 
 static void destroy_direct_mr(struct mlx5_vdpa_dev *mvdev, struct mlx5_vdpa_direct_mr *mr)
 {
+	if (!mr->mr)
+		return;
+
 	mlx5_vdpa_destroy_mkey(mvdev, mr->mr);
 }
 
@@ -177,6 +185,76 @@ again:
 static int klm_byte_size(int nklms)
 {
 	return 16 * ALIGN(nklms, 4);
+}
+
+#define MLX5_VDPA_MTT_ALIGN 16
+
+static int create_direct_keys(struct mlx5_vdpa_dev *mvdev, struct mlx5_vdpa_mr *mr)
+{
+	struct mlx5_vdpa_async_cmd *cmds;
+	struct mlx5_vdpa_direct_mr *dmr;
+	int err = 0;
+	int i = 0;
+
+	cmds = kvcalloc(mr->num_directs, sizeof(*cmds), GFP_KERNEL);
+	if (!cmds)
+		return -ENOMEM;
+
+	list_for_each_entry(dmr, &mr->head, list) {
+		struct mlx5_create_mkey_mem *cmd_mem;
+		int mttlen, mttcount;
+
+		mttlen = roundup(MLX5_ST_SZ_BYTES(mtt) * dmr->nsg, MLX5_VDPA_MTT_ALIGN);
+		mttcount = mttlen / sizeof(cmd_mem->mtt[0]);
+		cmd_mem = kvcalloc(1, struct_size(cmd_mem, mtt, mttcount), GFP_KERNEL);
+		if (!cmd_mem) {
+			err = -ENOMEM;
+			goto done;
+		}
+
+		cmds[i].out = cmd_mem->out;
+		cmds[i].outlen = sizeof(cmd_mem->out);
+		cmds[i].in = cmd_mem->in;
+		cmds[i].inlen = struct_size(cmd_mem, mtt, mttcount);
+
+		fill_create_direct_mr(mvdev, dmr, cmd_mem);
+
+		i++;
+	}
+
+	err = mlx5_vdpa_exec_async_cmds(mvdev, cmds, mr->num_directs);
+	if (err) {
+
+		mlx5_vdpa_err(mvdev, "error issuing MTT mkey creation for direct mrs: %d\n", err);
+		goto done;
+	}
+
+	i = 0;
+	list_for_each_entry(dmr, &mr->head, list) {
+		struct mlx5_vdpa_async_cmd *cmd = &cmds[i++];
+		struct mlx5_create_mkey_mem *cmd_mem;
+
+		cmd_mem = container_of(cmd->out, struct mlx5_create_mkey_mem, out);
+
+		if (!cmd->err) {
+			create_direct_mr_end(mvdev, dmr, cmd_mem);
+		} else {
+			err = err ? err : cmd->err;
+			mlx5_vdpa_err(mvdev, "error creating MTT mkey [0x%llx, 0x%llx]: %d\n",
+				dmr->start, dmr->end, cmd->err);
+		}
+	}
+
+done:
+	for (i = i-1; i >= 0; i--) {
+		struct mlx5_create_mkey_mem *cmd_mem;
+
+		cmd_mem = container_of(cmds[i].out, struct mlx5_create_mkey_mem, out);
+		kvfree(cmd_mem);
+	}
+
+	kvfree(cmds);
+	return err;
 }
 
 static int create_indirect_key(struct mlx5_vdpa_dev *mvdev, struct mlx5_vdpa_mr *mr)
@@ -279,14 +357,8 @@ done:
 		goto err_map;
 	}
 
-	err = create_direct_mr(mvdev, mr);
-	if (err)
-		goto err_direct;
-
 	return 0;
 
-err_direct:
-	dma_unmap_sg_attrs(dma, mr->sg_head.sgl, mr->nsg, DMA_BIDIRECTIONAL, 0);
 err_map:
 	sg_free_table(&mr->sg_head);
 	return err;
@@ -398,6 +470,10 @@ static int create_user_mr(struct mlx5_vdpa_dev *mvdev,
 		}
 	}
 	err = add_direct_chain(mvdev, mr, ps, pe - ps, pperm, iotlb);
+	if (err)
+		goto err_chain;
+
+	err = create_direct_keys(mvdev, mr);
 	if (err)
 		goto err_chain;
 
