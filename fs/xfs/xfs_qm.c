@@ -799,7 +799,7 @@ xfs_qm_qino_alloc(
 		};
 		xfs_ino_t	ino;
 
-		error = xfs_dialloc(&tp, 0, S_IFREG, &ino);
+		error = xfs_dialloc(&tp, &args, &ino);
 		if (!error)
 			error = xfs_icreate(tp, ino, &args, ipp);
 		if (error) {
