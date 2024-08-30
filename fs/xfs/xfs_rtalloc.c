@@ -1266,7 +1266,7 @@ xfs_rtalloc_align_minmax(
 static int
 xfs_rtallocate(
 	struct xfs_trans	*tp,
-	xfs_rtxnum_t		start,
+	xfs_rtblock_t		bno_hint,
 	xfs_rtxlen_t		minlen,
 	xfs_rtxlen_t		maxlen,
 	xfs_rtxlen_t		prod,
@@ -1280,6 +1280,7 @@ xfs_rtallocate(
 		.mp		= tp->t_mountp,
 		.tp		= tp,
 	};
+	xfs_rtxnum_t		start = 0;
 	xfs_rtxnum_t		rtx;
 	xfs_rtxlen_t		len = 0;
 	int			error = 0;
@@ -1297,7 +1298,9 @@ xfs_rtallocate(
 	 * For an allocation to an empty file at offset 0, pick an extent that
 	 * will space things out in the rt area.
 	 */
-	if (!start && initial_user_data)
+	if (bno_hint)
+		start = xfs_rtb_to_rtx(args.mp, bno_hint);
+	else if (initial_user_data)
 		start = xfs_rtpick_extent(args.mp, tp, maxlen);
 
 	if (start) {
@@ -1410,15 +1413,16 @@ int
 xfs_bmap_rtalloc(
 	struct xfs_bmalloca	*ap)
 {
-	struct xfs_mount	*mp = ap->ip->i_mount;
 	xfs_fileoff_t		orig_offset = ap->offset;
-	xfs_rtxnum_t		start = 0; /* allocation hint rtextent no */
 	xfs_rtxlen_t		prod = 0;  /* product factor for allocators */
 	xfs_rtxlen_t		ralen = 0; /* realtime allocation length */
+	xfs_rtblock_t		bno_hint = NULLRTBLOCK;
 	xfs_extlen_t		orig_length = ap->length;
 	xfs_rtxlen_t		raminlen;
 	bool			rtlocked = false;
 	bool			noalign = false;
+	bool			initial_user_data =
+		ap->datatype & XFS_ALLOC_INITIAL_USER_DATA;
 	int			error;
 
 retry:
@@ -1427,10 +1431,10 @@ retry:
 		return error;
 
 	if (xfs_bmap_adjacent(ap))
-		start = xfs_rtb_to_rtx(mp, ap->blkno);
+		bno_hint = ap->blkno;
 
-	error = xfs_rtallocate(ap->tp, start, raminlen, ralen, prod, ap->wasdel,
-			ap->datatype & XFS_ALLOC_INITIAL_USER_DATA, &rtlocked,
+	error = xfs_rtallocate(ap->tp, bno_hint, raminlen, ralen, prod,
+			ap->wasdel, initial_user_data, &rtlocked,
 			&ap->blkno, &ap->length);
 	if (error == -ENOSPC) {
 		if (!noalign) {
