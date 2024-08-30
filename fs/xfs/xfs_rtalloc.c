@@ -244,6 +244,7 @@ xfs_rtallocate_extent_block(
 	xfs_rtxnum_t		end;	/* last rtext in chunk */
 	xfs_rtxnum_t		i;	/* current rtext trying */
 	xfs_rtxnum_t		next;	/* next rtext to try */
+	xfs_rtxlen_t		scanlen; /* number of free rtx to look for */
 	xfs_rtxlen_t		bestlen = 0; /* best length found so far */
 	int			stat;	/* status from internal calls */
 	int			error;
@@ -255,20 +256,22 @@ xfs_rtallocate_extent_block(
 	end = min(mp->m_sb.sb_rextents, xfs_rbmblock_to_rtx(mp, bbno + 1)) - 1;
 	for (i = xfs_rbmblock_to_rtx(mp, bbno); i <= end; i++) {
 		/* Make sure we don't scan off the end of the rt volume. */
-		maxlen = xfs_rtallocate_clamp_len(mp, i, maxlen, prod);
+		scanlen = xfs_rtallocate_clamp_len(mp, i, maxlen, prod);
+		if (scanlen < minlen)
+			break;
 
 		/*
-		 * See if there's a free extent of maxlen starting at i.
+		 * See if there's a free extent of scanlen starting at i.
 		 * If it's not so then next will contain the first non-free.
 		 */
-		error = xfs_rtcheck_range(args, i, maxlen, 1, &next, &stat);
+		error = xfs_rtcheck_range(args, i, scanlen, 1, &next, &stat);
 		if (error)
 			return error;
 		if (stat) {
 			/*
-			 * i for maxlen is all free, allocate and return that.
+			 * i to scanlen is all free, allocate and return that.
 			 */
-			*len = maxlen;
+			*len = scanlen;
 			*rtx = i;
 			return 0;
 		}
@@ -299,7 +302,7 @@ xfs_rtallocate_extent_block(
 	}
 
 	/* Searched the whole thing & didn't find a maxlen free extent. */
-	if (minlen > maxlen || besti == -1)
+	if (besti == -1)
 		goto nospace;
 
 	/*
