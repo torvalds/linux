@@ -428,7 +428,7 @@ int intel_display_driver_probe_nogem(struct drm_i915_private *i915)
 
 	intel_panel_sanitize_ssc(i915);
 
-	intel_pps_setup(i915);
+	intel_pps_setup(display);
 
 	intel_gmbus_setup(i915);
 
