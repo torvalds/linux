@@ -94,4 +94,15 @@ struct bpf_testmod_ops2 {
 	int (*test_1)(void);
 };
 
+struct st_ops_args {
+	u64 a;
+};
+
+struct bpf_testmod_st_ops {
+	int (*test_prologue)(struct st_ops_args *args);
+	int (*test_epilogue)(struct st_ops_args *args);
+	int (*test_pro_epilogue)(struct st_ops_args *args);
+	struct module *owner;
+};
+
 #endif /* _BPF_TESTMOD_H */
