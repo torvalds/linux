@@ -163,10 +163,10 @@ static void test_hw_debug(pid_t child, int type, const char *type_name)
 static int do_child(void)
 {
 	if (ptrace(PTRACE_TRACEME, -1, NULL, NULL))
-		ksft_exit_fail_msg("PTRACE_TRACEME", strerror(errno));
+		ksft_exit_fail_perror("PTRACE_TRACEME");
 
 	if (raise(SIGSTOP))
-		ksft_exit_fail_msg("raise(SIGSTOP)", strerror(errno));
+		ksft_exit_fail_perror("raise(SIGSTOP)");
 
 	return EXIT_SUCCESS;
 }
