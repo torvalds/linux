@@ -734,9 +734,8 @@ xfs_growfs_rt_bmblock(
 	nmp->m_sb.sb_rextents = xfs_rtb_to_rtx(nmp, nmp->m_sb.sb_rblocks);
 	nmp->m_sb.sb_rextslog = xfs_compute_rextslog(nmp->m_sb.sb_rextents);
 	nmp->m_rsumlevels = nmp->m_sb.sb_rextslog + 1;
-	nmp->m_rsumsize = XFS_FSB_TO_B(mp,
-		xfs_rtsummary_blockcount(mp, nmp->m_rsumlevels,
-			nmp->m_sb.sb_rbmblocks));
+	nmp->m_rsumblocks = xfs_rtsummary_blockcount(mp, nmp->m_rsumlevels,
+			nmp->m_sb.sb_rbmblocks);
 
 	/*
 	 * Recompute the growfsrt reservation from the new rsumsize, so that the
@@ -766,7 +765,7 @@ xfs_growfs_rt_bmblock(
 	 * so that inode inactivation won't punch what it thinks are "posteof"
 	 * blocks.
 	 */
-	rsumip->i_disk_size = nmp->m_rsumsize;
+	rsumip->i_disk_size = nmp->m_rsumblocks * nmp->m_sb.sb_blocksize;
 	i_size_write(VFS_I(rsumip), rsumip->i_disk_size);
 	xfs_trans_log_inode(args.tp, rsumip, XFS_ILOG_CORE);
 
@@ -818,7 +817,7 @@ xfs_growfs_rt_bmblock(
 	 * Update the calculated values in the real mount structure.
 	 */
 	mp->m_rsumlevels = nmp->m_rsumlevels;
-	mp->m_rsumsize = nmp->m_rsumsize;
+	mp->m_rsumblocks = nmp->m_rsumblocks;
 	xfs_mount_sb_set_rextsize(mp, &mp->m_sb);
 
 	/*
@@ -1022,7 +1021,6 @@ xfs_rtmount_init(
 	struct xfs_buf		*bp;	/* buffer for last block of subvolume */
 	struct xfs_sb		*sbp;	/* filesystem superblock copy in mount */
 	xfs_daddr_t		d;	/* address of last block of subvolume */
-	unsigned int		rsumblocks;
 	int			error;
 
 	sbp = &mp->m_sb;
@@ -1034,9 +1032,8 @@ xfs_rtmount_init(
 		return -ENODEV;
 	}
 	mp->m_rsumlevels = sbp->sb_rextslog + 1;
-	rsumblocks = xfs_rtsummary_blockcount(mp, mp->m_rsumlevels,
+	mp->m_rsumblocks = xfs_rtsummary_blockcount(mp, mp->m_rsumlevels,
 			mp->m_sb.sb_rbmblocks);
-	mp->m_rsumsize = XFS_FSB_TO_B(mp, rsumblocks);
 	mp->m_rbmip = mp->m_rsumip = NULL;
 	/*
 	 * Check that the realtime section is an ok size.

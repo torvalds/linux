@@ -162,7 +162,7 @@ xfs_rtsummary_read_buf(
 {
 	struct xfs_mount		*mp = args->mp;
 
-	if (XFS_IS_CORRUPT(mp, block >= XFS_B_TO_FSB(mp, mp->m_rsumsize))) {
+	if (XFS_IS_CORRUPT(mp, block >= mp->m_rsumblocks)) {
 		xfs_rt_mark_sick(args->mp, XFS_SICK_RT_SUMMARY);
 		return -EFSCORRUPTED;
 	}
