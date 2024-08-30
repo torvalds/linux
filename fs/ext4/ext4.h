@@ -3853,7 +3853,8 @@ static inline int ext4_buffer_uptodate(struct buffer_head *bh)
 	return buffer_uptodate(bh);
 }
 
-extern int ext4_block_write_begin(struct folio *folio, loff_t pos, unsigned len,
+extern int ext4_block_write_begin(handle_t *handle, struct folio *folio,
+				  loff_t pos, unsigned len,
 				  get_block_t *get_block);
 #endif	/* __KERNEL__ */
 
