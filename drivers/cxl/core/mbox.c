@@ -1214,7 +1214,7 @@ int cxl_mem_sanitize(struct cxl_memdev *cxlmd, u16 cmd)
 	int rc;
 
 	/* synchronize with cxl_mem_probe() and decoder write operations */
-	device_lock(&cxlmd->dev);
+	guard(device)(&cxlmd->dev);
 	endpoint = cxlmd->endpoint;
 	down_read(&cxl_region_rwsem);
 	/*
@@ -1226,7 +1226,6 @@ int cxl_mem_sanitize(struct cxl_memdev *cxlmd, u16 cmd)
 	else
 		rc = -EBUSY;
 	up_read(&cxl_region_rwsem);
-	device_unlock(&cxlmd->dev);
 
 	return rc;
 }
