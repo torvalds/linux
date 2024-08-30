@@ -276,7 +276,7 @@ ia_css_eed1_8_encode(
 	for (i = 0; i < (IA_CSS_NUMBER_OF_DEW_ENHANCE_SEGMENTS - 1); i++) {
 		min_exp = max(min_exp, from->dew_enhance_seg_exp[i]);
 	}
-	to->e_dew_enh_asr = 13 - min(max(min_exp, 0), 13);
+	to->e_dew_enh_asr = 13 - clamp(min_exp, 0, 13);
 
 	to->dedgew_max = from->dedgew_max;
 }
