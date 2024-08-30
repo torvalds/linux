@@ -2535,8 +2535,7 @@ L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Supported
 W:	http://www.linux4sam.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/at91/linux.git
-F:	arch/arm/boot/dts/microchip/at91*
-F:	arch/arm/boot/dts/microchip/sama*
+F:	arch/arm/boot/dts/microchip/
 F:	arch/arm/include/debug/at91.S
 F:	arch/arm/mach-at91/
 F:	drivers/memory/atmel*
