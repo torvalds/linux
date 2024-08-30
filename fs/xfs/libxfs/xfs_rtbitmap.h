@@ -343,6 +343,9 @@ xfs_filblks_t xfs_rtsummary_blockcount(struct xfs_mount *mp,
 unsigned long long xfs_rtsummary_wordcount(struct xfs_mount *mp,
 		unsigned int rsumlevels, xfs_extlen_t rbmblocks);
 
+int xfs_rtfile_initialize_blocks(struct xfs_inode *ip,
+		xfs_fileoff_t offset_fsb, xfs_fileoff_t end_fsb, void *data);
+
 void xfs_rtbitmap_lock(struct xfs_trans *tp, struct xfs_mount *mp);
 void xfs_rtbitmap_unlock(struct xfs_mount *mp);
 
