@@ -6,6 +6,7 @@
  */
 
 #include <crypto/sha2.h>
+#include <linux/align.h>
 #include <linux/armada-37xx-rwtm-mailbox.h>
 #include <linux/completion.h>
 #include <linux/container_of.h>
@@ -268,7 +269,7 @@ static int mox_hwrng_read(struct hwrng *rng, void *data, size_t max, bool wait)
 	msg.command = MBOX_CMD_GET_RANDOM;
 	msg.args[0] = 1;
 	msg.args[1] = rwtm->buf_phys;
-	msg.args[2] = (max + 3) & ~3;
+	msg.args[2] = ALIGN(max, 4);
 
 	if (!wait) {
 		if (!mutex_trylock(&rwtm->busy))
