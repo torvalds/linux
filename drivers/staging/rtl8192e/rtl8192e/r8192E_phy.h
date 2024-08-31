@@ -20,8 +20,6 @@ enum hw90_block {
 enum rf90_radio_path {
 	RF90_PATH_A = 0,
 	RF90_PATH_B = 1,
-	RF90_PATH_C = 2,
-	RF90_PATH_D = 3,
 	RF90_PATH_MAX
 };
 
