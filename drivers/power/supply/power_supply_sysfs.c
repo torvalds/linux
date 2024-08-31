@@ -268,40 +268,6 @@ static ssize_t power_supply_show_enum_with_available(
 	return count;
 }
 
-static ssize_t power_supply_show_usb_type(struct device *dev,
-					  const struct power_supply_desc *desc,
-					  union power_supply_propval *value,
-					  char *buf)
-{
-	enum power_supply_usb_type usb_type;
-	ssize_t count = 0;
-	bool match = false;
-	int i;
-
-	for (i = 0; i < desc->num_usb_types; ++i) {
-		usb_type = desc->usb_types[i];
-
-		if (value->intval == usb_type) {
-			count += sysfs_emit_at(buf, count, "[%s] ",
-					 POWER_SUPPLY_USB_TYPE_TEXT[usb_type]);
-			match = true;
-		} else {
-			count += sysfs_emit_at(buf, count, "%s ",
-					 POWER_SUPPLY_USB_TYPE_TEXT[usb_type]);
-		}
-	}
-
-	if (!match) {
-		dev_warn(dev, "driver reporting unsupported connected type\n");
-		return -EINVAL;
-	}
-
-	if (count)
-		buf[count - 1] = '\n';
-
-	return count;
-}
-
 static ssize_t power_supply_show_property(struct device *dev,
 					  struct device_attribute *attr,
 					  char *buf) {
@@ -331,8 +297,10 @@ static ssize_t power_supply_show_property(struct device *dev,
 
 	switch (psp) {
 	case POWER_SUPPLY_PROP_USB_TYPE:
-		ret = power_supply_show_usb_type(dev, psy->desc,
-						&value, buf);
+		ret = power_supply_show_enum_with_available(
+				dev, POWER_SUPPLY_USB_TYPE_TEXT,
+				ARRAY_SIZE(POWER_SUPPLY_USB_TYPE_TEXT),
+				psy->desc->usb_types, value.intval, buf);
 		break;
 	case POWER_SUPPLY_PROP_CHARGE_BEHAVIOUR:
 		ret = power_supply_charge_behaviour_show(dev, psy->desc->charge_behaviours,

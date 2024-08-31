@@ -333,14 +333,6 @@ static enum power_supply_property rt9471_charger_properties[] = {
 	POWER_SUPPLY_PROP_MANUFACTURER,
 };
 
-static enum power_supply_usb_type rt9471_charger_usb_types[] = {
-	POWER_SUPPLY_USB_TYPE_UNKNOWN,
-	POWER_SUPPLY_USB_TYPE_SDP,
-	POWER_SUPPLY_USB_TYPE_DCP,
-	POWER_SUPPLY_USB_TYPE_CDP,
-	POWER_SUPPLY_USB_TYPE_APPLE_BRICK_ID,
-};
-
 static int rt9471_charger_property_is_writeable(struct power_supply *psy,
 						enum power_supply_property psp)
 {
@@ -726,8 +718,11 @@ static int rt9471_register_psy(struct rt9471_chip *chip)
 
 	desc->name = psy_name;
 	desc->type = POWER_SUPPLY_TYPE_USB;
-	desc->usb_types = rt9471_charger_usb_types;
-	desc->num_usb_types = ARRAY_SIZE(rt9471_charger_usb_types);
+	desc->usb_types = BIT(POWER_SUPPLY_USB_TYPE_SDP) |
+			  BIT(POWER_SUPPLY_USB_TYPE_CDP) |
+			  BIT(POWER_SUPPLY_USB_TYPE_DCP) |
+			  BIT(POWER_SUPPLY_USB_TYPE_APPLE_BRICK_ID) |
+			  BIT(POWER_SUPPLY_USB_TYPE_UNKNOWN);
 	desc->properties = rt9471_charger_properties;
 	desc->num_properties = ARRAY_SIZE(rt9471_charger_properties);
 	desc->get_property = rt9471_charger_get_property;
