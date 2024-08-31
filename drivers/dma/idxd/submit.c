@@ -134,7 +134,7 @@ static void llist_abort_desc(struct idxd_wq *wq, struct idxd_irq_entry *ie,
 	 * completing the descriptor will return desc to allocator and
 	 * the desc can be acquired by a different process and the
 	 * desc->list can be modified.  Delete desc from list so the
-	 * list trasversing does not get corrupted by the other process.
+	 * list traversing does not get corrupted by the other process.
 	 */
 	list_for_each_entry_safe(d, t, &flist, list) {
 		list_del_init(&d->list);

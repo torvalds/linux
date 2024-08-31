@@ -841,7 +841,7 @@ static dma_cookie_t ep93xx_dma_tx_submit(struct dma_async_tx_descriptor *tx)
 	desc = container_of(tx, struct ep93xx_dma_desc, txd);
 
 	/*
-	 * If nothing is currently prosessed, we push this descriptor
+	 * If nothing is currently processed, we push this descriptor
 	 * directly to the hardware. Otherwise we put the descriptor
 	 * to the pending queue.
 	 */
@@ -1025,7 +1025,7 @@ fail:
  * @chan: channel
  * @sgl: list of buffers to transfer
  * @sg_len: number of entries in @sgl
- * @dir: direction of tha DMA transfer
+ * @dir: direction of the DMA transfer
  * @flags: flags for the descriptor
  * @context: operation context (ignored)
  *

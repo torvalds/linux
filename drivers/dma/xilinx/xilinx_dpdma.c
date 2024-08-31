@@ -149,7 +149,7 @@ struct xilinx_dpdma_chan;
  * @addr_ext: upper 16 bit of 48 bit address (next_desc and src_addr)
  * @next_desc: next descriptor 32 bit address
  * @src_addr: payload source address (1st page, 32 LSB)
- * @addr_ext_23: payload source address (3nd and 3rd pages, 16 LSBs)
+ * @addr_ext_23: payload source address (2nd and 3rd pages, 16 LSBs)
  * @addr_ext_45: payload source address (4th and 5th pages, 16 LSBs)
  * @src_addr2: payload source address (2nd page, 32 LSB)
  * @src_addr3: payload source address (3rd page, 32 LSB)
@@ -210,7 +210,7 @@ struct xilinx_dpdma_tx_desc {
  * @vchan: virtual DMA channel
  * @reg: register base address
  * @id: channel ID
- * @wait_to_stop: queue to wait for outstanding transacitons before stopping
+ * @wait_to_stop: queue to wait for outstanding transactions before stopping
  * @running: true if the channel is running
  * @first_frame: flag for the first frame of stream
  * @video_group: flag if multi-channel operation is needed for video channels

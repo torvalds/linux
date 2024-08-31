@@ -650,7 +650,7 @@ static enum dma_status adm_tx_status(struct dma_chan *chan, dma_cookie_t cookie,
 	/*
 	 * residue is either the full length if it is in the issued list, or 0
 	 * if it is in progress.  We have no reliable way of determining
-	 * anything inbetween
+	 * anything in between
 	 */
 	dma_set_residue(txstate, residue);
 
