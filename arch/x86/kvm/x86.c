@@ -8886,7 +8886,7 @@ static bool reexecute_instruction(struct kvm_vcpu *vcpu, gpa_t cr2_or_gpa,
 	 * guest to let the CPU re-execute the instruction in the hope that the
 	 * CPU can cleanly execute the instruction that KVM failed to emulate.
 	 */
-	kvm_mmu_unprotect_gfn_and_retry(vcpu, cr2_or_gpa);
+	__kvm_mmu_unprotect_gfn_and_retry(vcpu, cr2_or_gpa, true);
 
 	/*
 	 * Retry even if _this_ vCPU didn't unprotect the gfn, as it's possible

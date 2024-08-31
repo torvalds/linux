@@ -2713,10 +2713,11 @@ int kvm_mmu_unprotect_page(struct kvm *kvm, gfn_t gfn)
 	return r;
 }
 
-bool kvm_mmu_unprotect_gfn_and_retry(struct kvm_vcpu *vcpu, gpa_t cr2_or_gpa)
+bool __kvm_mmu_unprotect_gfn_and_retry(struct kvm_vcpu *vcpu, gpa_t cr2_or_gpa,
+				       bool always_retry)
 {
 	gpa_t gpa = cr2_or_gpa;
-	bool r;
+	bool r = false;
 
 	/*
 	 * Bail early if there aren't any write-protected shadow pages to avoid
@@ -2727,16 +2728,17 @@ bool kvm_mmu_unprotect_gfn_and_retry(struct kvm_vcpu *vcpu, gpa_t cr2_or_gpa)
 	 * skipping the unprotect+retry path, which is also an optimization.
 	 */
 	if (!READ_ONCE(vcpu->kvm->arch.indirect_shadow_pages))
-		return false;
+		goto out;
 
 	if (!vcpu->arch.mmu->root_role.direct) {
 		gpa = kvm_mmu_gva_to_gpa_write(vcpu, cr2_or_gpa, NULL);
 		if (gpa == INVALID_GPA)
-			return false;
+			goto out;
 	}
 
 	r = kvm_mmu_unprotect_page(vcpu->kvm, gpa_to_gfn(gpa));
-	if (r) {
+out:
+	if (r || always_retry) {
 		vcpu->arch.last_retry_eip = kvm_rip_read(vcpu);
 		vcpu->arch.last_retry_addr = cr2_or_gpa;
 	}
