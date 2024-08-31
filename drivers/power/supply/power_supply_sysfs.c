@@ -518,31 +518,28 @@ out:
 	return ret;
 }
 
-ssize_t power_supply_charge_behaviour_show(struct device *dev,
-					   unsigned int available_behaviours,
-					   enum power_supply_charge_behaviour current_behaviour,
-					   char *buf)
+static ssize_t power_supply_show_enum_with_available(
+			struct device *dev, const char * const labels[], int label_count,
+			unsigned int available_values, int value, char *buf)
 {
 	bool match = false, available, active;
 	ssize_t count = 0;
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(POWER_SUPPLY_CHARGE_BEHAVIOUR_TEXT); i++) {
-		available = available_behaviours & BIT(i);
-		active = i == current_behaviour;
+	for (i = 0; i < label_count; i++) {
+		available = available_values & BIT(i);
+		active = i == value;
 
 		if (available && active) {
-			count += sysfs_emit_at(buf, count, "[%s] ",
-					       POWER_SUPPLY_CHARGE_BEHAVIOUR_TEXT[i]);
+			count += sysfs_emit_at(buf, count, "[%s] ", labels[i]);
 			match = true;
 		} else if (available) {
-			count += sysfs_emit_at(buf, count, "%s ",
-					       POWER_SUPPLY_CHARGE_BEHAVIOUR_TEXT[i]);
+			count += sysfs_emit_at(buf, count, "%s ", labels[i]);
 		}
 	}
 
 	if (!match) {
-		dev_warn(dev, "driver reporting unsupported charge behaviour\n");
+		dev_warn(dev, "driver reporting unavailable enum value %d\n", value);
 		return -EINVAL;
 	}
 
@@ -550,6 +547,17 @@ ssize_t power_supply_charge_behaviour_show(struct device *dev,
 		buf[count - 1] = '\n';
 
 	return count;
+}
+
+ssize_t power_supply_charge_behaviour_show(struct device *dev,
+					   unsigned int available_behaviours,
+					   enum power_supply_charge_behaviour current_behaviour,
+					   char *buf)
+{
+	return power_supply_show_enum_with_available(
+				dev, POWER_SUPPLY_CHARGE_BEHAVIOUR_TEXT,
+				ARRAY_SIZE(POWER_SUPPLY_CHARGE_BEHAVIOUR_TEXT),
+				available_behaviours, current_behaviour, buf);
 }
 EXPORT_SYMBOL_GPL(power_supply_charge_behaviour_show);
 
