@@ -8971,7 +8971,7 @@ static bool retry_instruction(struct x86_emulate_ctxt *ctxt,
 	if (!kvm_mmu_unprotect_page(vcpu->kvm, gpa_to_gfn(gpa)))
 		return false;
 
-	vcpu->arch.last_retry_eip = ctxt->eip;
+	vcpu->arch.last_retry_eip = kvm_rip_read(vcpu);
 	vcpu->arch.last_retry_addr = cr2_or_gpa;
 	return true;
 }
