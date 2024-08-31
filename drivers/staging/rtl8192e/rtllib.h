@@ -480,7 +480,7 @@ struct rtllib_rx_stats {
 	bool  bFirstMPDU;
 	bool  contain_htc;
 	u32   RxPWDBAll;
-	u8    RxMIMOSignalStrength[4];
+	u8    RxMIMOSignalStrength[2];
 	s8    RxMIMOSignalQuality[2];
 	bool  bPacketMatchBSSID;
 	bool  bIsCCK;
