@@ -264,8 +264,8 @@ static int axi_i2s_probe(struct platform_device *pdev)
 		goto err_clk_disable;
 
 	dev_info(&pdev->dev, "probed, capture %s, playback %s\n",
-		 i2s->has_capture ? "enabled" : "disabled",
-		 i2s->has_playback ? "enabled" : "disabled");
+		 str_enabled_disabled(i2s->has_capture),
+		 str_enabled_disabled(i2s->has_playback));
 
 	return 0;
 
