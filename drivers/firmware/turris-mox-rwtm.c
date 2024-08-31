@@ -10,6 +10,7 @@
 #include <linux/debugfs.h>
 #include <linux/dma-mapping.h>
 #include <linux/hw_random.h>
+#include <linux/if_ether.h>
 #include <linux/mailbox_client.h>
 #include <linux/minmax.h>
 #include <linux/module.h>
@@ -69,7 +70,7 @@ struct mox_rwtm {
 	int has_board_info;
 	u64 serial_number;
 	int board_version, ram_size;
-	u8 mac_address1[6], mac_address2[6];
+	u8 mac_address1[ETH_ALEN], mac_address2[ETH_ALEN];
 
 	/* public key burned in eFuse */
 	int has_pubkey;
