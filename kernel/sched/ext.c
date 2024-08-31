@@ -1240,11 +1240,10 @@ static struct task_struct *scx_task_iter_next(struct scx_task_iter *iter)
  * whether they would like to filter out dead tasks. See scx_task_iter_init()
  * for details.
  */
-static struct task_struct *
-scx_task_iter_next_locked(struct scx_task_iter *iter, bool include_dead)
+static struct task_struct *scx_task_iter_next_locked(struct scx_task_iter *iter)
 {
 	struct task_struct *p;
-retry:
+
 	scx_task_iter_rq_unlock(iter);
 
 	while ((p = scx_task_iter_next(iter))) {
@@ -1281,16 +1280,6 @@ retry:
 
 	iter->rq = task_rq_lock(p, &iter->rf);
 	iter->locked = p;
-
-	/*
-	 * If we see %TASK_DEAD, @p already disabled preemption, is about to do
-	 * the final __schedule(), won't ever need to be scheduled again and can
-	 * thus be safely ignored. If we don't see %TASK_DEAD, @p can't enter
-	 * the final __schedle() while we're locking its rq and thus will stay
-	 * alive until the rq is unlocked.
-	 */
-	if (!include_dead && READ_ONCE(p->__state) == TASK_DEAD)
-		goto retry;
 
 	return p;
 }
@@ -4001,7 +3990,7 @@ static void scx_ops_disable_workfn(struct kthread_work *work)
 	 * The BPF scheduler is going away. All tasks including %TASK_DEAD ones
 	 * must be switched out and exited synchronously.
 	 */
-	while ((p = scx_task_iter_next_locked(&sti, true))) {
+	while ((p = scx_task_iter_next_locked(&sti))) {
 		const struct sched_class *old_class = p->sched_class;
 		struct sched_enq_and_set_ctx ctx;
 
@@ -4632,8 +4621,15 @@ static int scx_ops_enable(struct sched_ext_ops *ops, struct bpf_link *link)
 	spin_lock_irq(&scx_tasks_lock);
 
 	scx_task_iter_init(&sti);
-	while ((p = scx_task_iter_next_locked(&sti, false))) {
-		get_task_struct(p);
+	while ((p = scx_task_iter_next_locked(&sti))) {
+		/*
+		 * @p may already be dead, have lost all its usages counts and
+		 * be waiting for RCU grace period before being freed. @p can't
+		 * be initialized for SCX in such cases and should be ignored.
+		 */
+		if (!tryget_task_struct(p))
+			continue;
+
 		scx_task_iter_rq_unlock(&sti);
 		spin_unlock_irq(&scx_tasks_lock);
 
@@ -4686,7 +4682,7 @@ static int scx_ops_enable(struct sched_ext_ops *ops, struct bpf_link *link)
 	WRITE_ONCE(scx_switching_all, !(ops->flags & SCX_OPS_SWITCH_PARTIAL));
 
 	scx_task_iter_init(&sti);
-	while ((p = scx_task_iter_next_locked(&sti, false))) {
+	while ((p = scx_task_iter_next_locked(&sti))) {
 		const struct sched_class *old_class = p->sched_class;
 		struct sched_enq_and_set_ctx ctx;
 

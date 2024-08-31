@@ -120,6 +120,11 @@ static inline struct task_struct *get_task_struct(struct task_struct *t)
 	return t;
 }
 
+static inline struct task_struct *tryget_task_struct(struct task_struct *t)
+{
+	return refcount_inc_not_zero(&t->usage) ? t : NULL;
+}
+
 extern void __put_task_struct(struct task_struct *t);
 extern void __put_task_struct_rcu_cb(struct rcu_head *rhp);
 
