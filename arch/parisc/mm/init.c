@@ -459,7 +459,6 @@ void free_initmem(void)
 	unsigned long kernel_end  = (unsigned long)&_end;
 
 	/* Remap kernel text and data, but do not touch init section yet. */
-	kernel_set_to_readonly = true;
 	map_pages(init_end, __pa(init_end), kernel_end - init_end,
 		  PAGE_KERNEL, 0);
 
@@ -493,11 +492,18 @@ void free_initmem(void)
 #ifdef CONFIG_STRICT_KERNEL_RWX
 void mark_rodata_ro(void)
 {
-	/* rodata memory was already mapped with KERNEL_RO access rights by
-           pagetable_init() and map_pages(). No need to do additional stuff here */
-	unsigned long roai_size = __end_ro_after_init - __start_ro_after_init;
+	unsigned long start = (unsigned long) &__start_rodata;
+	unsigned long end = (unsigned long) &__end_rodata;
 
-	pr_info("Write protected read-only-after-init data: %luk\n", roai_size >> 10);
+	pr_info("Write protecting the kernel read-only data: %luk\n",
+	       (end - start) >> 10);
+
+	kernel_set_to_readonly = true;
+	map_pages(start, __pa(start), end - start, PAGE_KERNEL, 0);
+
+	/* force the kernel to see the new page table entries */
+	flush_cache_all();
+	flush_tlb_all();
 }
 #endif
 
