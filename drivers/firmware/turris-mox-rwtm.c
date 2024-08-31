@@ -91,7 +91,6 @@ struct mox_rwtm {
 	 * It should be rewritten via crypto API once akcipher API is available
 	 * from userspace.
 	 */
-	struct dentry *debugfs_root;
 	u32 last_sig[MOX_ECC_SIGNATURE_WORDS];
 	bool last_sig_done;
 #endif
@@ -404,39 +403,23 @@ static const struct file_operations do_sign_fops = {
 	.llseek	= no_llseek,
 };
 
-static int rwtm_register_debugfs(struct mox_rwtm *rwtm)
+static void rwtm_debugfs_release(void *root)
 {
-	struct dentry *root, *entry;
+	debugfs_remove_recursive(root);
+}
+
+static void rwtm_register_debugfs(struct mox_rwtm *rwtm)
+{
+	struct dentry *root;
 
 	root = debugfs_create_dir("turris-mox-rwtm", NULL);
 
-	if (IS_ERR(root))
-		return PTR_ERR(root);
+	debugfs_create_file_unsafe("do_sign", 0600, root, rwtm, &do_sign_fops);
 
-	entry = debugfs_create_file_unsafe("do_sign", 0600, root, rwtm,
-					   &do_sign_fops);
-	if (IS_ERR(entry))
-		goto err_remove;
-
-	rwtm->debugfs_root = root;
-
-	return 0;
-err_remove:
-	debugfs_remove_recursive(root);
-	return PTR_ERR(entry);
-}
-
-static void rwtm_unregister_debugfs(struct mox_rwtm *rwtm)
-{
-	debugfs_remove_recursive(rwtm->debugfs_root);
+	devm_add_action_or_reset(rwtm->dev, rwtm_debugfs_release, root);
 }
 #else
-static inline int rwtm_register_debugfs(struct mox_rwtm *rwtm)
-{
-	return 0;
-}
-
-static inline void rwtm_unregister_debugfs(struct mox_rwtm *rwtm)
+static inline void rwtm_register_debugfs(struct mox_rwtm *rwtm)
 {
 }
 #endif
@@ -500,11 +483,7 @@ static int turris_mox_rwtm_probe(struct platform_device *pdev)
 		goto free_channel;
 	}
 
-	ret = rwtm_register_debugfs(rwtm);
-	if (ret < 0) {
-		dev_err(dev, "Failed creating debugfs entries: %i\n", ret);
-		goto free_channel;
-	}
+	rwtm_register_debugfs(rwtm);
 
 	dev_info(dev, "HWRNG successfully registered\n");
 
@@ -528,7 +507,6 @@ static void turris_mox_rwtm_remove(struct platform_device *pdev)
 {
 	struct mox_rwtm *rwtm = platform_get_drvdata(pdev);
 
-	rwtm_unregister_debugfs(rwtm);
 	mbox_free_channel(rwtm->mbox);
 }
 
