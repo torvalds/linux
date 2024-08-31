@@ -151,7 +151,7 @@ name##_show(struct kobject *kobj, struct kobj_attribute *a,	\
 	struct mox_rwtm *rwtm = to_rwtm(kobj);	\
 	if (!rwtm->has_##cat)					\
 		return -ENODATA;				\
-	return sprintf(buf, format, rwtm->name);		\
+	return sysfs_emit(buf, format, rwtm->name);		\
 }								\
 static struct kobj_attribute mox_attr_##name = __ATTR_RO(name)
 
