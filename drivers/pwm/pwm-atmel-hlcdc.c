@@ -290,6 +290,7 @@ static const struct of_device_id atmel_hlcdc_pwm_dt_ids[] = {
 	{ .compatible = "atmel,hlcdc-pwm" },
 	{ /* sentinel */ },
 };
+MODULE_DEVICE_TABLE(of, atmel_hlcdc_pwm_dt_ids);
 
 static struct platform_driver atmel_hlcdc_pwm_driver = {
 	.driver = {
