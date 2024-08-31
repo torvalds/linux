@@ -459,13 +459,9 @@ static int turris_mox_rwtm_probe(struct platform_device *pdev)
 	rwtm->mbox_client.rx_callback = mox_rwtm_rx_callback;
 
 	rwtm->mbox = mbox_request_channel(&rwtm->mbox_client, 0);
-	if (IS_ERR(rwtm->mbox)) {
-		ret = PTR_ERR(rwtm->mbox);
-		if (ret != -EPROBE_DEFER)
-			dev_err(dev, "Cannot request mailbox channel: %i\n",
-				ret);
-		return ret;
-	}
+	if (IS_ERR(rwtm->mbox))
+		return dev_err_probe(dev, PTR_ERR(rwtm->mbox),
+				     "Cannot request mailbox channel!\n");
 
 	ret = devm_add_action_or_reset(dev, rwtm_devm_mbox_release, rwtm->mbox);
 	if (ret)
@@ -487,10 +483,8 @@ static int turris_mox_rwtm_probe(struct platform_device *pdev)
 	rwtm->hwrng.priv = (unsigned long) rwtm;
 
 	ret = devm_hwrng_register(dev, &rwtm->hwrng);
-	if (ret < 0) {
-		dev_err(dev, "Cannot register HWRNG: %i\n", ret);
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(dev, ret, "Cannot register HWRNG!\n");
 
 	rwtm_register_debugfs(rwtm);
 
