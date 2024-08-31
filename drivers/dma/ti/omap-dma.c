@@ -1186,10 +1186,10 @@ static struct dma_async_tx_descriptor *omap_dma_prep_dma_cyclic(
 	d->dev_addr = dev_addr;
 	d->fi = burst;
 	d->es = es;
+	d->sglen = 1;
 	d->sg[0].addr = buf_addr;
 	d->sg[0].en = period_len / es_bytes[es];
 	d->sg[0].fn = buf_len / period_len;
-	d->sglen = 1;
 
 	d->ccr = c->ccr;
 	if (dir == DMA_DEV_TO_MEM)
@@ -1258,10 +1258,10 @@ static struct dma_async_tx_descriptor *omap_dma_prep_dma_memcpy(
 	d->dev_addr = src;
 	d->fi = 0;
 	d->es = data_type;
+	d->sglen = 1;
 	d->sg[0].en = len / BIT(data_type);
 	d->sg[0].fn = 1;
 	d->sg[0].addr = dest;
-	d->sglen = 1;
 	d->ccr = c->ccr;
 	d->ccr |= CCR_DST_AMODE_POSTINC | CCR_SRC_AMODE_POSTINC;
 
@@ -1309,6 +1309,7 @@ static struct dma_async_tx_descriptor *omap_dma_prep_dma_interleaved(
 	if (data_type > CSDP_DATA_TYPE_32)
 		data_type = CSDP_DATA_TYPE_32;
 
+	d->sglen = 1;
 	sg = &d->sg[0];
 	d->dir = DMA_MEM_TO_MEM;
 	d->dev_addr = xt->src_start;
@@ -1316,7 +1317,6 @@ static struct dma_async_tx_descriptor *omap_dma_prep_dma_interleaved(
 	sg->en = xt->sgl[0].size / BIT(data_type);
 	sg->fn = xt->numf;
 	sg->addr = xt->dst_start;
-	d->sglen = 1;
 	d->ccr = c->ccr;
 
 	src_icg = dmaengine_get_src_icg(xt, &xt->sgl[0]);
