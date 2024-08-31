@@ -28,7 +28,7 @@ static int npcm_udc_notify_event(struct ci_hdrc *ci, unsigned event)
 		hw_write(ci, OP_USBMODE, 0xffffffff, 0x0);
 		break;
 	default:
-		dev_dbg(dev, "unknown ci_hdrc event (%d)\n",event);
+		dev_dbg(dev, "unknown ci_hdrc event (%d)\n", event);
 		break;
 	}
 
