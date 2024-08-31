@@ -308,10 +308,13 @@ static int ucs1002_set_usb_type(struct ucs1002_info *info, int val)
 {
 	unsigned int mode;
 
-	if (val < 0 || val >= ARRAY_SIZE(ucs1002_usb_types))
-		return -EINVAL;
-
-	switch (ucs1002_usb_types[val]) {
+	switch (val) {
+	/*
+	 * POWER_SUPPLY_USB_TYPE_UNKNOWN == 0, map this to dedicated for
+	 * userspace API compatibility with older versions of this driver
+	 * which mapped 0 to dedicated.
+	 */
+	case POWER_SUPPLY_USB_TYPE_UNKNOWN:
 	case POWER_SUPPLY_USB_TYPE_PD:
 		mode = V_SET_ACTIVE_MODE_DEDICATED;
 		break;
