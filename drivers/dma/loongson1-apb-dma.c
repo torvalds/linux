@@ -526,9 +526,9 @@ static int ls1x_dma_chan_probe(struct platform_device *pdev,
 
 	for (id = 0; id < dma->nr_chans; id++) {
 		struct ls1x_dma_chan *chan = &dma->chan[id];
-		char pdev_irqname[4];
+		char pdev_irqname[16];
 
-		sprintf(pdev_irqname, "ch%d", id);
+		snprintf(pdev_irqname, sizeof(pdev_irqname), "ch%d", id);
 		chan->irq = platform_get_irq_byname(pdev, pdev_irqname);
 		if (chan->irq < 0)
 			return dev_err_probe(&pdev->dev, chan->irq,
