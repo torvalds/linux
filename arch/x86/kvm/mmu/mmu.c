@@ -2718,6 +2718,17 @@ bool kvm_mmu_unprotect_gfn_and_retry(struct kvm_vcpu *vcpu, gpa_t cr2_or_gpa)
 	gpa_t gpa = cr2_or_gpa;
 	bool r;
 
+	/*
+	 * Bail early if there aren't any write-protected shadow pages to avoid
+	 * unnecessarily taking mmu_lock lock, e.g. if the gfn is write-tracked
+	 * by a third party.  Reading indirect_shadow_pages without holding
+	 * mmu_lock is safe, as this is purely an optimization, i.e. a false
+	 * positive is benign, and a false negative will simply result in KVM
+	 * skipping the unprotect+retry path, which is also an optimization.
+	 */
+	if (!READ_ONCE(vcpu->kvm->arch.indirect_shadow_pages))
+		return false;
+
 	if (!vcpu->arch.mmu->root_role.direct)
 		gpa = kvm_mmu_gva_to_gpa_write(vcpu, cr2_or_gpa, NULL);
 
