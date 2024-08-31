@@ -140,7 +140,7 @@ again:
 	if (!page)
 		page = alloc_pages_node(node, gfp, get_order(size));
 	if (page && !dma_coherent_ok(dev, page_to_phys(page), size)) {
-		dma_free_contiguous(dev, page, size);
+		__free_pages(page, get_order(size));
 		page = NULL;
 
 		if (IS_ENABLED(CONFIG_ZONE_DMA32) &&
