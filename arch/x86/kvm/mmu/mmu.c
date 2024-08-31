@@ -2751,7 +2751,7 @@ static int kvm_mmu_unprotect_page_virt(struct kvm_vcpu *vcpu, gva_t gva)
 	if (vcpu->arch.mmu->root_role.direct)
 		return 0;
 
-	gpa = kvm_mmu_gva_to_gpa_read(vcpu, gva, NULL);
+	gpa = kvm_mmu_gva_to_gpa_write(vcpu, gva, NULL);
 	if (gpa == INVALID_GPA)
 		return 0;
 
