@@ -24,7 +24,6 @@
 #include "cgroup-internal.h"
 #include "cpuset-internal.h"
 
-#include <linux/cpu.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
