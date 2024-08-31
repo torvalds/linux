@@ -11,13 +11,17 @@
 #include <linux/dma-mapping.h>
 #include <linux/hw_random.h>
 #include <linux/mailbox_client.h>
+#include <linux/minmax.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
+#include <linux/sizes.h>
 #include <linux/slab.h>
 
 #define DRIVER_NAME		"turris-mox-rwtm"
+
+#define RWTM_DMA_BUFFER_SIZE	SZ_4K
 
 /*
  * The macros and constants below come from Turris Mox's rWTM firmware code.
@@ -287,8 +291,7 @@ static int mox_hwrng_read(struct hwrng *rng, void *data, size_t max, bool wait)
 	struct armada_37xx_rwtm_tx_msg msg;
 	int ret;
 
-	if (max > 4096)
-		max = 4096;
+	max = min(max, RWTM_DMA_BUFFER_SIZE);
 
 	msg.command = MBOX_CMD_GET_RANDOM;
 	msg.args[0] = 1;
@@ -479,8 +482,8 @@ static int turris_mox_rwtm_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	rwtm->dev = dev;
-	rwtm->buf = dmam_alloc_coherent(dev, PAGE_SIZE, &rwtm->buf_phys,
-					GFP_KERNEL);
+	rwtm->buf = dmam_alloc_coherent(dev, RWTM_DMA_BUFFER_SIZE,
+					&rwtm->buf_phys, GFP_KERNEL);
 	if (!rwtm->buf)
 		return -ENOMEM;
 
