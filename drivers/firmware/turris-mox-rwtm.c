@@ -456,7 +456,10 @@ static int turris_mox_rwtm_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, rwtm);
 
-	mutex_init(&rwtm->busy);
+	ret = devm_mutex_init(dev, &rwtm->busy);
+	if (ret)
+		return ret;
+
 	init_completion(&rwtm->cmd_done);
 
 	rwtm->mbox_client.dev = dev;
