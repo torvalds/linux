@@ -1859,7 +1859,6 @@ int inv_mpu_core_probe(struct regmap *regmap, int irq, const char *name,
 	struct inv_mpu6050_platform_data *pdata;
 	struct device *dev = regmap_get_device(regmap);
 	int result;
-	struct irq_data *desc;
 	int irq_type;
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*st));
@@ -1893,13 +1892,7 @@ int inv_mpu_core_probe(struct regmap *regmap, int irq, const char *name,
 	}
 
 	if (irq > 0) {
-		desc = irq_get_irq_data(irq);
-		if (!desc) {
-			dev_err(dev, "Could not find IRQ %d\n", irq);
-			return -EINVAL;
-		}
-
-		irq_type = irqd_get_trigger_type(desc);
+		irq_type = irq_get_trigger_type(irq);
 		if (!irq_type)
 			irq_type = IRQF_TRIGGER_RISING;
 	} else {
