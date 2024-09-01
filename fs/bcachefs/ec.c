@@ -352,6 +352,18 @@ static int mark_stripe_buckets(struct btree_trans *trans,
 	return 0;
 }
 
+static inline void stripe_to_mem(struct stripe *m, const struct bch_stripe *s)
+{
+	m->sectors	= le16_to_cpu(s->sectors);
+	m->algorithm	= s->algorithm;
+	m->nr_blocks	= s->nr_blocks;
+	m->nr_redundant	= s->nr_redundant;
+	m->blocks_nonempty = 0;
+
+	for (unsigned i = 0; i < s->nr_blocks; i++)
+		m->blocks_nonempty += !!stripe_blockcount_get(s, i);
+}
+
 int bch2_trigger_stripe(struct btree_trans *trans,
 			enum btree_id btree, unsigned level,
 			struct bkey_s_c old, struct bkey_s _new,
@@ -468,14 +480,7 @@ int bch2_trigger_stripe(struct btree_trans *trans,
 
 			memset(m, 0, sizeof(*m));
 		} else {
-			m->sectors	= le16_to_cpu(new_s->sectors);
-			m->algorithm	= new_s->algorithm;
-			m->nr_blocks	= new_s->nr_blocks;
-			m->nr_redundant	= new_s->nr_redundant;
-			m->blocks_nonempty = 0;
-
-			for (unsigned i = 0; i < new_s->nr_blocks; i++)
-				m->blocks_nonempty += !!stripe_blockcount_get(new_s, i);
+			stripe_to_mem(m, new_s);
 
 			if (!old_s)
 				bch2_stripes_heap_insert(c, m, idx);
@@ -2198,17 +2203,9 @@ int bch2_stripes_read(struct bch_fs *c)
 			if (ret)
 				break;
 
-			const struct bch_stripe *s = bkey_s_c_to_stripe(k).v;
-
 			struct stripe *m = genradix_ptr(&c->stripes, k.k->p.offset);
-			m->sectors	= le16_to_cpu(s->sectors);
-			m->algorithm	= s->algorithm;
-			m->nr_blocks	= s->nr_blocks;
-			m->nr_redundant	= s->nr_redundant;
-			m->blocks_nonempty = 0;
 
-			for (unsigned i = 0; i < s->nr_blocks; i++)
-				m->blocks_nonempty += !!stripe_blockcount_get(s, i);
+			stripe_to_mem(m, bkey_s_c_to_stripe(k).v);
 
 			bch2_stripes_heap_insert(c, m, k.k->p.offset);
 			0;
