@@ -1703,6 +1703,7 @@ static int ec_new_stripe_alloc(struct bch_fs *c, struct ec_stripe_head *h)
 			   h->blocksize, h->disk_label);
 
 	h->s = s;
+	h->nr_created++;
 	return 0;
 }
 
@@ -2278,9 +2279,10 @@ void bch2_new_stripes_to_text(struct printbuf *out, struct bch_fs *c)
 
 	mutex_lock(&c->ec_stripe_head_lock);
 	list_for_each_entry(h, &c->ec_stripe_head_list, list) {
-		prt_printf(out, "disk label %u algo %u redundancy %u %s:\n",
+		prt_printf(out, "disk label %u algo %u redundancy %u %s nr created %llu:\n",
 		       h->disk_label, h->algo, h->redundancy,
-		       bch2_watermarks[h->watermark]);
+		       bch2_watermarks[h->watermark],
+		       h->nr_created);
 
 		if (h->s)
 			bch2_new_stripe_to_text(out, c, h->s);
