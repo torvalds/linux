@@ -628,7 +628,7 @@ unsigned int OnBeacon(struct adapter *padapter, union recv_frame *precv_frame)
 				ret = rtw_check_bcn_info(padapter, pframe, len);
 				if (!ret) {
 					netdev_dbg(padapter->pnetdev,
-						   "ap has changed, disconnect now\n ");
+						   "ap has changed, disconnect now\n");
 					receive_disconnect(padapter,
 							   pmlmeinfo->network.mac_address, 0);
 					return _SUCCESS;
