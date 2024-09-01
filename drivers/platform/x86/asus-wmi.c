@@ -4201,28 +4201,15 @@ static void asus_wmi_fnlock_update(struct asus_wmi *asus)
 
 /* WMI events *****************************************************************/
 
-static int asus_wmi_get_event_code(u32 value)
+static int asus_wmi_get_event_code(union acpi_object *obj)
 {
-	struct acpi_buffer response = { ACPI_ALLOCATE_BUFFER, NULL };
-	union acpi_object *obj;
-	acpi_status status;
 	int code;
-
-	status = wmi_get_event_data(value, &response);
-	if (ACPI_FAILURE(status)) {
-		pr_warn("Failed to get WMI notify code: %s\n",
-				acpi_format_exception(status));
-		return -EIO;
-	}
-
-	obj = (union acpi_object *)response.pointer;
 
 	if (obj && obj->type == ACPI_TYPE_INTEGER)
 		code = (int)(obj->integer.value & WMI_EVENT_MASK);
 	else
 		code = -EIO;
 
-	kfree(obj);
 	return code;
 }
 
@@ -4288,10 +4275,10 @@ static void asus_wmi_handle_event_code(int code, struct asus_wmi *asus)
 		pr_info("Unknown key code 0x%x\n", code);
 }
 
-static void asus_wmi_notify(u32 value, void *context)
+static void asus_wmi_notify(union acpi_object *obj, void *context)
 {
 	struct asus_wmi *asus = context;
-	int code = asus_wmi_get_event_code(value);
+	int code = asus_wmi_get_event_code(obj);
 
 	if (code < 0) {
 		pr_warn("Failed to get notify code: %d\n", code);

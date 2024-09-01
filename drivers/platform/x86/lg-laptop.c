@@ -205,21 +205,11 @@ static union acpi_object *lg_wmbb(struct device *dev, u32 method_id, u32 arg1, u
 	return (union acpi_object *)buffer.pointer;
 }
 
-static void wmi_notify(u32 value, void *context)
+static void wmi_notify(union acpi_object *obj, void *context)
 {
-	struct acpi_buffer response = { ACPI_ALLOCATE_BUFFER, NULL };
-	union acpi_object *obj;
-	acpi_status status;
 	long data = (long)context;
 
 	pr_debug("event guid %li\n", data);
-	status = wmi_get_event_data(value, &response);
-	if (ACPI_FAILURE(status)) {
-		pr_err("Bad event status 0x%x\n", status);
-		return;
-	}
-
-	obj = (union acpi_object *)response.pointer;
 	if (!obj)
 		return;
 
@@ -241,7 +231,6 @@ static void wmi_notify(u32 value, void *context)
 
 	pr_debug("Type: %i    Eventcode: 0x%llx\n", obj->type,
 		 obj->integer.value);
-	kfree(response.pointer);
 }
 
 static void wmi_input_setup(void)
