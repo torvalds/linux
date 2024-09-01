@@ -910,7 +910,7 @@ static int ak8974_probe(struct i2c_client *i2c)
 
 	/* If we have a valid DRDY IRQ, make use of it */
 	if (irq > 0) {
-		irq_trig = irqd_get_trigger_type(irq_get_irq_data(irq));
+		irq_trig = irq_get_trigger_type(irq);
 		if (irq_trig == IRQF_TRIGGER_RISING) {
 			dev_info(&i2c->dev, "enable rising edge DRDY IRQ\n");
 		} else if (irq_trig == IRQF_TRIGGER_FALLING) {
