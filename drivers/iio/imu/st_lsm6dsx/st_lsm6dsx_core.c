@@ -2531,8 +2531,7 @@ static int st_lsm6dsx_irq_setup(struct st_lsm6dsx_hw *hw)
 	bool irq_active_low;
 	int err;
 
-	irq_type = irqd_get_trigger_type(irq_get_irq_data(hw->irq));
-
+	irq_type = irq_get_trigger_type(hw->irq);
 	switch (irq_type) {
 	case IRQF_TRIGGER_HIGH:
 	case IRQF_TRIGGER_RISING:
