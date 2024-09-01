@@ -1330,12 +1330,6 @@ static void its_send_vmovp(struct its_vpe *vpe)
 	}
 
 	/*
-	 * Protect against concurrent updates of the mapping state on
-	 * individual VMs.
-	 */
-	guard(raw_spinlock_irqsave)(&vpe->its_vm->vmapp_lock);
-
-	/*
 	 * Yet another marvel of the architecture. If using the
 	 * its_list "feature", we need to make sure that all ITSs
 	 * receive all VMOVP commands in the same order. The only way
@@ -3824,7 +3818,14 @@ static int its_vpe_set_affinity(struct irq_data *d,
 	 * protect us, and that we must ensure nobody samples vpe->col_idx
 	 * during the update, hence the lock below which must also be
 	 * taken on any vLPI handling path that evaluates vpe->col_idx.
+	 *
+	 * Finally, we must protect ourselves against concurrent updates of
+	 * the mapping state on this VM should the ITS list be in use (see
+	 * the shortcut in its_send_vmovp() otherewise).
 	 */
+	if (its_list_map)
+		raw_spin_lock(&vpe->its_vm->vmapp_lock);
+
 	from = vpe_to_cpuid_lock(vpe, &flags);
 	table_mask = gic_data_rdist_cpu(from)->vpe_table_mask;
 
@@ -3853,6 +3854,9 @@ static int its_vpe_set_affinity(struct irq_data *d,
 out:
 	irq_data_update_effective_affinity(d, cpumask_of(cpu));
 	vpe_to_cpuid_unlock(vpe, flags);
+
+	if (its_list_map)
+		raw_spin_unlock(&vpe->its_vm->vmapp_lock);
 
 	return IRQ_SET_MASK_OK_DONE;
 }
