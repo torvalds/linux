@@ -1708,9 +1708,9 @@ static inline struct agg_tx_status *
 iwl_mvm_get_agg_status(struct iwl_mvm *mvm, void *tx_resp)
 {
 	if (iwl_mvm_has_new_tx_api(mvm))
-		return &((struct iwl_mvm_tx_resp *)tx_resp)->status;
+		return &((struct iwl_tx_resp *)tx_resp)->status;
 	else
-		return ((struct iwl_mvm_tx_resp_v3 *)tx_resp)->status;
+		return ((struct iwl_tx_resp_v3 *)tx_resp)->status;
 }
 
 static inline bool iwl_mvm_is_tt_in_fw(struct iwl_mvm *mvm)

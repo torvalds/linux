@@ -368,7 +368,7 @@ struct iwl_rx_handlers {
  */
 static const struct iwl_rx_handlers iwl_mvm_rx_handlers[] = {
 	RX_HANDLER(TX_CMD, iwl_mvm_rx_tx_cmd, RX_HANDLER_SYNC,
-		   struct iwl_mvm_tx_resp),
+		   struct iwl_tx_resp),
 	RX_HANDLER(BA_NOTIF, iwl_mvm_rx_ba_notif, RX_HANDLER_SYNC,
 		   struct iwl_mvm_ba_notif),
 

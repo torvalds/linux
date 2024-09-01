@@ -147,8 +147,8 @@ enum iwl_legacy_cmds {
 	/**
 	 * @TX_CMD: uses &struct iwl_tx_cmd or &struct iwl_tx_cmd_gen2 or
 	 *	&struct iwl_tx_cmd_gen3,
-	 *	response in &struct iwl_mvm_tx_resp or
-	 *	&struct iwl_mvm_tx_resp_v3
+	 *	response in &struct iwl_tx_resp or
+	 *	&struct iwl_tx_resp_v3
 	 */
 	TX_CMD = 0x1c,
 
