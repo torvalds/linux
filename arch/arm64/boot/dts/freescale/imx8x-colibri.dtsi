@@ -424,6 +424,15 @@
 	pinctrl-names = "default";
 };
 
+/* VPU Mailboxes */
+&mu_m0 {
+	status="okay";
+};
+
+&mu1_m0 {
+	status="okay";
+};
+
 /* TODO MIPI CSI */
 
 /* TODO MIPI DSI with DSI-to-HDMI bridge lt8912 */
@@ -511,7 +520,24 @@
 	no-1-8-v;
 };
 
-/* TODO VPU Encoder/Decoder */
+&vpu {
+	compatible = "nxp,imx8qxp-vpu";
+	status = "okay";
+};
+
+/* VPU Decoder */
+&vpu_core0 {
+	reg = <0x2d040000 0x10000>;
+	memory-region = <&decoder_boot>, <&decoder_rpc>;
+	status = "okay";
+};
+
+/* VPU Encoder */
+&vpu_core1 {
+	reg = <0x2d050000 0x10000>;
+	memory-region = <&encoder_boot>, <&encoder_rpc>;
+	status = "okay";
+};
 
 &iomuxc {
 	/* On-module touch pen-down interrupt */
