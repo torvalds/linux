@@ -221,8 +221,10 @@ struct xe_exec_queue *xe_exec_queue_create_bind(struct xe_device *xe,
 							   gt->usm.reserved_bcs_instance,
 							   false);
 
-		if (!hwe)
+		if (!hwe) {
+			xe_vm_put(migrate_vm);
 			return ERR_PTR(-EINVAL);
+		}
 
 		q = xe_exec_queue_create(xe, migrate_vm,
 					 BIT(hwe->logical_instance), 1, hwe,
