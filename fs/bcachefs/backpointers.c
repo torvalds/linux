@@ -55,7 +55,7 @@ int bch2_backpointer_validate(struct bch_fs *c, struct bkey_s_c k,
 	struct bkey_s_c_backpointer bp = bkey_s_c_to_backpointer(k);
 
 	rcu_read_lock();
-	struct bch_dev *ca = bch2_dev_rcu(c, bp.k->p.inode);
+	struct bch_dev *ca = bch2_dev_rcu_noerror(c, bp.k->p.inode);
 	if (!ca) {
 		/* these will be caught by fsck */
 		rcu_read_unlock();
@@ -89,7 +89,7 @@ void bch2_backpointer_to_text(struct printbuf *out, const struct bch_backpointer
 void bch2_backpointer_k_to_text(struct printbuf *out, struct bch_fs *c, struct bkey_s_c k)
 {
 	rcu_read_lock();
-	struct bch_dev *ca = bch2_dev_rcu(c, k.k->p.inode);
+	struct bch_dev *ca = bch2_dev_rcu_noerror(c, k.k->p.inode);
 	if (ca) {
 		struct bpos bucket = bp_pos_to_bucket(ca, k.k->p);
 		rcu_read_unlock();
@@ -673,7 +673,7 @@ static int check_extent_to_backpointers(struct btree_trans *trans,
 			continue;
 
 		rcu_read_lock();
-		struct bch_dev *ca = bch2_dev_rcu(c, p.ptr.dev);
+		struct bch_dev *ca = bch2_dev_rcu_noerror(c, p.ptr.dev);
 		if (ca)
 			bch2_extent_ptr_to_bp(c, ca, btree, level, k, p, entry, &bucket_pos, &bp);
 		rcu_read_unlock();

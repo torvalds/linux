@@ -795,7 +795,7 @@ bool bch2_have_enough_devs(struct bch_fs *c, struct bch_devs_mask devs,
 		for (unsigned i = 0; i < e->nr_devs; i++) {
 			nr_online += test_bit(e->devs[i], devs.d);
 
-			struct bch_dev *ca = bch2_dev_rcu(c, e->devs[i]);
+			struct bch_dev *ca = bch2_dev_rcu_noerror(c, e->devs[i]);
 			nr_failed += !ca || ca->mi.state == BCH_MEMBER_STATE_failed;
 		}
 		rcu_read_unlock();

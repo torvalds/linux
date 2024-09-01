@@ -16,7 +16,7 @@ enum bch_validate_flags;
 static inline bool bch2_dev_bucket_exists(struct bch_fs *c, struct bpos pos)
 {
 	rcu_read_lock();
-	struct bch_dev *ca = bch2_dev_rcu(c, pos.inode);
+	struct bch_dev *ca = bch2_dev_rcu_noerror(c, pos.inode);
 	bool ret = ca && bucket_valid(ca, pos.offset);
 	rcu_read_unlock();
 	return ret;

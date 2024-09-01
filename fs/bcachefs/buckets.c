@@ -281,7 +281,7 @@ int bch2_check_fix_ptrs(struct btree_trans *trans,
 			goto err;
 
 		rcu_read_lock();
-		bch2_bkey_drop_ptrs(bkey_i_to_s(new), ptr, !bch2_dev_rcu(c, ptr->dev));
+		bch2_bkey_drop_ptrs(bkey_i_to_s(new), ptr, !bch2_dev_exists(c, ptr->dev));
 		rcu_read_unlock();
 
 		if (level) {

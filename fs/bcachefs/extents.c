@@ -1021,7 +1021,7 @@ void bch2_extent_ptr_to_text(struct printbuf *out, struct bch_fs *c, const struc
 {
 	out->atomic++;
 	rcu_read_lock();
-	struct bch_dev *ca = bch2_dev_rcu(c, ptr->dev);
+	struct bch_dev *ca = bch2_dev_rcu_noerror(c, ptr->dev);
 	if (!ca) {
 		prt_printf(out, "ptr: %u:%llu gen %u%s", ptr->dev,
 			   (u64) ptr->offset, ptr->gen,
@@ -1125,8 +1125,9 @@ static int extent_ptr_validate(struct bch_fs *c,
 {
 	int ret = 0;
 
+	/* bad pointers are repaired by check_fix_ptrs(): */
 	rcu_read_lock();
-	struct bch_dev *ca = bch2_dev_rcu(c, ptr->dev);
+	struct bch_dev *ca = bch2_dev_rcu_noerror(c, ptr->dev);
 	if (!ca) {
 		rcu_read_unlock();
 		return 0;
