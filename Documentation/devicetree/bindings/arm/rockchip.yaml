@@ -605,6 +605,11 @@ properties:
           - const: hardkernel,odroid-m1s
           - const: rockchip,rk3566
 
+      - description: Hardkernel Odroid M2
+        items:
+          - const: hardkernel,odroid-m2
+          - const: rockchip,rk3588s
+
       - description: Hugsun X99 TV Box
         items:
           - const: hugsun,x99
