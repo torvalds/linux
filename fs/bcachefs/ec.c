@@ -1728,10 +1728,12 @@ ec_new_stripe_head_alloc(struct bch_fs *c, unsigned disk_label,
 
 	rcu_read_lock();
 	h->devs = target_rw_devs(c, BCH_DATA_user, disk_label ? group_to_target(disk_label - 1) : 0);
+	unsigned nr_devs = dev_mask_nr(&h->devs);
 
 	for_each_member_device_rcu(c, ca, &h->devs)
 		if (!ca->mi.durability)
 			__clear_bit(ca->dev_idx, h->devs.d);
+	unsigned nr_devs_with_durability = dev_mask_nr(&h->devs);
 
 	h->blocksize = pick_blocksize(c, &h->devs);
 
@@ -1745,9 +1747,20 @@ ec_new_stripe_head_alloc(struct bch_fs *c, unsigned disk_label,
 	 * If we only have redundancy + 1 devices, we're better off with just
 	 * replication:
 	 */
-	if (h->nr_active_devs < h->redundancy + 2)
-		bch_err(c, "insufficient devices available to create stripe (have %u, need %u) - mismatched bucket sizes?",
-			h->nr_active_devs, h->redundancy + 2);
+	if (h->nr_active_devs < h->redundancy + 2) {
+		const char *err;
+
+		if (nr_devs < h->redundancy + 2)
+			err = NULL;
+		else if (nr_devs_with_durability < h->redundancy + 2)
+			err = "cannot use durability=0 devices";
+		else
+			err = "mismatched bucket sizes";
+
+		if (err)
+			bch_err(c, "insufficient devices available to create stripe (have %u, need %u): %s",
+				h->nr_active_devs, h->redundancy + 2, err);
+	}
 
 	list_add(&h->list, &c->ec_stripe_head_list);
 	return h;
