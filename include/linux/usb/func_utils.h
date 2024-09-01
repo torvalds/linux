@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * u_f.h
+ * func_utils.h
  *
  * Utility definitions for USB functions
  *
@@ -10,8 +10,8 @@
  * Author: Andrzej Pietrasiewicz <andrzejtp2010@gmail.com>
  */
 
-#ifndef __U_F_H__
-#define __U_F_H__
+#ifndef _FUNC_UTILS_H_
+#define _FUNC_UTILS_H_
 
 #include <linux/usb/gadget.h>
 #include <linux/overflow.h>
@@ -83,4 +83,4 @@ static inline void free_ep_req(struct usb_ep *ep, struct usb_request *req)
 	usb_ep_free_request(ep, req);
 }
 
-#endif /* __U_F_H__ */
+#endif /* _FUNC_UTILS_H_ */

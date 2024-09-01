@@ -6,10 +6,10 @@
 #include <linux/kstrtox.h>
 #include <linux/nls.h>
 #include <linux/usb/composite.h>
+#include <linux/usb/func_utils.h>
 #include <linux/usb/gadget_configfs.h>
 #include <linux/usb/webusb.h>
 #include "configfs.h"
-#include "u_f.h"
 #include "u_os_desc.h"
 
 static int check_user_usb_string(const char *name,

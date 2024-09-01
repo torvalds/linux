@@ -16,10 +16,10 @@
 #include <linux/wait.h>
 #include <linux/sched.h>
 #include <linux/workqueue.h>
+#include <linux/usb/func_utils.h>
 #include <linux/usb/g_hid.h>
 #include <uapi/linux/usb/g_hid.h>
 
-#include "u_f.h"
 #include "u_hid.h"
 
 #define HIDG_MINORS	4
