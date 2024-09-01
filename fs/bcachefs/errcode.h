@@ -253,6 +253,7 @@
 	x(EIO,				key_type_error)				\
 	x(EIO,				no_device_to_read_from)			\
 	x(EIO,				missing_indirect_extent)		\
+	x(EIO,				invalidate_stripe_to_dev)		\
 	x(BCH_ERR_btree_node_read_err,	btree_node_read_err_fixable)		\
 	x(BCH_ERR_btree_node_read_err,	btree_node_read_err_want_retry)		\
 	x(BCH_ERR_btree_node_read_err,	btree_node_read_err_must_retry)		\

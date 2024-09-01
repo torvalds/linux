@@ -2169,6 +2169,73 @@ err:
 	return ERR_PTR(ret);
 }
 
+/* device removal */
+
+static int bch2_invalidate_stripe_to_dev(struct btree_trans *trans, struct bkey_s_c k_a)
+{
+	struct bch_alloc_v4 a_convert;
+	const struct bch_alloc_v4 *a = bch2_alloc_to_v4(k_a, &a_convert);
+
+	if (!a->stripe)
+		return 0;
+
+	if (a->stripe_sectors) {
+		bch_err(trans->c, "trying to invalidate device in stripe when bucket has stripe data");
+		return -BCH_ERR_invalidate_stripe_to_dev;
+	}
+
+	struct btree_iter iter;
+	struct bkey_i_stripe *s =
+		bch2_bkey_get_mut_typed(trans, &iter, BTREE_ID_stripes, POS(0, a->stripe),
+					BTREE_ITER_slots, stripe);
+	int ret = PTR_ERR_OR_ZERO(s);
+	if (ret)
+		return ret;
+
+	struct disk_accounting_pos acc = {
+		.type = BCH_DISK_ACCOUNTING_replicas,
+	};
+
+	s64 sectors = 0;
+	for (unsigned i = 0; i < s->v.nr_blocks; i++)
+		sectors -= stripe_blockcount_get(&s->v, i);
+
+	bch2_bkey_to_replicas(&acc.replicas, bkey_i_to_s_c(&s->k_i));
+	acc.replicas.data_type = BCH_DATA_user;
+	ret = bch2_disk_accounting_mod(trans, &acc, &sectors, 1, false);
+	if (ret)
+		goto err;
+
+	struct bkey_ptrs ptrs = bch2_bkey_ptrs(bkey_i_to_s(&s->k_i));
+	bkey_for_each_ptr(ptrs, ptr)
+		if (ptr->dev == k_a.k->p.inode)
+			ptr->dev = BCH_SB_MEMBER_INVALID;
+
+	sectors = -sectors;
+
+	bch2_bkey_to_replicas(&acc.replicas, bkey_i_to_s_c(&s->k_i));
+	acc.replicas.data_type = BCH_DATA_user;
+	ret = bch2_disk_accounting_mod(trans, &acc, &sectors, 1, false);
+	if (ret)
+		goto err;
+err:
+	bch2_trans_iter_exit(trans, &iter);
+	return ret;
+}
+
+int bch2_dev_remove_stripes(struct bch_fs *c, unsigned dev_idx)
+{
+	return bch2_trans_run(c,
+		for_each_btree_key_upto_commit(trans, iter,
+				  BTREE_ID_alloc, POS(dev_idx, 0), POS(dev_idx, U64_MAX),
+				  BTREE_ITER_intent, k,
+				  NULL, NULL, 0, ({
+			bch2_invalidate_stripe_to_dev(trans, k);
+	})));
+}
+
+/* startup/shutdown */
+
 static void __bch2_ec_stop(struct bch_fs *c, struct bch_dev *ca)
 {
 	struct ec_stripe_head *h;
