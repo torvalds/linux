@@ -119,8 +119,8 @@
 	x(EEXIST,			EEXIST_str_hash_set)			\
 	x(EEXIST,			EEXIST_discard_in_flight_add)		\
 	x(EEXIST,			EEXIST_subvolume_create)		\
-	x(0,				open_buckets_empty)			\
-	x(0,				freelist_empty)				\
+	x(ENOSPC,			open_buckets_empty)			\
+	x(ENOSPC,			freelist_empty)				\
 	x(BCH_ERR_freelist_empty,	no_buckets_found)			\
 	x(0,				transaction_restart)			\
 	x(BCH_ERR_transaction_restart,	transaction_restart_fault_inject)	\

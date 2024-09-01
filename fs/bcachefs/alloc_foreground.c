@@ -600,6 +600,7 @@ static struct open_bucket *bch2_bucket_alloc_trans(struct btree_trans *trans,
 				      enum bch_watermark watermark,
 				      enum bch_data_type data_type,
 				      struct closure *cl,
+				      bool nowait,
 				      struct bch_dev_usage *usage)
 {
 	struct bch_fs *c = trans->c;
@@ -609,7 +610,7 @@ static struct open_bucket *bch2_bucket_alloc_trans(struct btree_trans *trans,
 	struct bucket_alloc_state s = {
 		.btree_bitmap = data_type == BCH_DATA_btree,
 	};
-	bool waiting = false;
+	bool waiting = nowait;
 again:
 	bch2_dev_usage_read_fast(ca, usage);
 	avail = dev_buckets_free(ca, *usage, watermark);
@@ -685,7 +686,7 @@ struct open_bucket *bch2_bucket_alloc(struct bch_fs *c, struct bch_dev *ca,
 
 	bch2_trans_do(c, NULL, NULL, 0,
 		      PTR_ERR_OR_ZERO(ob = bch2_bucket_alloc_trans(trans, ca, watermark,
-							data_type, cl, &usage)));
+							data_type, cl, false, &usage)));
 	return ob;
 }
 
@@ -800,7 +801,8 @@ int bch2_bucket_alloc_set_trans(struct btree_trans *trans,
 			continue;
 		}
 
-		ob = bch2_bucket_alloc_trans(trans, ca, watermark, data_type, cl, &usage);
+		ob = bch2_bucket_alloc_trans(trans, ca, watermark, data_type,
+					     cl, flags & BCH_WRITE_ALLOC_NOWAIT, &usage);
 		if (!IS_ERR(ob))
 			bch2_dev_stripe_increment_inlined(ca, stripe, &usage);
 		bch2_dev_put(ca);
@@ -1493,11 +1495,12 @@ err:
 	    try_decrease_writepoints(trans, write_points_nr))
 		goto retry;
 
-	if (bch2_err_matches(ret, BCH_ERR_open_buckets_empty) ||
+	if (cl && bch2_err_matches(ret, BCH_ERR_open_buckets_empty))
+		ret = -BCH_ERR_bucket_alloc_blocked;
+
+	if (cl && !(flags & BCH_WRITE_ALLOC_NOWAIT) &&
 	    bch2_err_matches(ret, BCH_ERR_freelist_empty))
-		return cl
-			? -BCH_ERR_bucket_alloc_blocked
-			: -BCH_ERR_ENOSPC_bucket_alloc;
+		ret = -BCH_ERR_bucket_alloc_blocked;
 
 	return ret;
 }
