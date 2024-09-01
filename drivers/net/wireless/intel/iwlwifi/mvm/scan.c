@@ -1594,7 +1594,7 @@ iwl_mvm_umac_scan_cfg_channels(struct iwl_mvm *mvm,
 
 	for (i = 0; i < n_channels; i++) {
 		channel_cfg[i].flags = cpu_to_le32(flags);
-		channel_cfg[i].v1.channel_num = channels[i]->hw_value;
+		channel_cfg[i].channel_num = channels[i]->hw_value;
 		if (iwl_mvm_is_scan_ext_chan_supported(mvm)) {
 			enum nl80211_band band = channels[i]->band;
 
@@ -1626,13 +1626,13 @@ iwl_mvm_umac_scan_cfg_channels_v4(struct iwl_mvm *mvm,
 			&cp->channel_config[i];
 
 		cfg->flags = cpu_to_le32(flags);
-		cfg->v2.channel_num = channels[i]->hw_value;
+		cfg->channel_num = channels[i]->hw_value;
 		cfg->v2.band = iwl_mvm_phy_band_from_nl80211(band);
 		cfg->v2.iter_count = 1;
 		cfg->v2.iter_interval = 0;
 
 		iwl_mvm_scan_ch_add_n_aps_override(vif_type,
-						   cfg->v2.channel_num,
+						   cfg->channel_num,
 						   cfg->v2.band, bitmap,
 						   bitmap_n_entries);
 	}
@@ -1656,7 +1656,7 @@ iwl_mvm_umac_scan_cfg_channels_v7(struct iwl_mvm *mvm,
 		u8 iwl_band = iwl_mvm_phy_band_from_nl80211(band);
 
 		cfg->flags = cpu_to_le32(flags | n_aps_flag);
-		cfg->v2.channel_num = channels[i]->hw_value;
+		cfg->channel_num = channels[i]->hw_value;
 		if (cfg80211_channel_is_psc(channels[i]))
 			cfg->flags = 0;
 		cfg->v2.iter_count = 1;
@@ -1778,7 +1778,7 @@ iwl_mvm_umac_scan_cfg_channels_v7_6g(struct iwl_mvm *mvm,
 		    !params->n_6ghz_params && params->n_ssids)
 			continue;
 
-		cfg->v1.channel_num = params->channels[i]->hw_value;
+		cfg->channel_num = params->channels[i]->hw_value;
 		if (version < 17)
 			cfg->v2.band = PHY_BAND_6;
 		else
@@ -2466,7 +2466,7 @@ iwl_mvm_scan_umac_fill_ch_p_v7(struct iwl_mvm *mvm,
 			if (!cfg80211_channel_is_psc(channel))
 				continue;
 
-			cfg->v5.channel_num = channel->hw_value;
+			cfg->channel_num = channel->hw_value;
 			cfg->v5.iter_count = 1;
 			cfg->v5.iter_interval = 0;
 
