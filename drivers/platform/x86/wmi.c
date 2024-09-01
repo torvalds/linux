@@ -1175,15 +1175,13 @@ static int wmi_notify_device(struct device *dev, void *data)
 	}
 
 	down_read(&wblock->notify_lock);
-	/* The WMI driver notify handler conflicts with the legacy WMI handler.
-	 * Because of this the WMI driver notify handler takes precedence.
-	 */
-	if (wblock->dev.dev.driver && wblock->driver_ready) {
+
+	if (wblock->dev.dev.driver && wblock->driver_ready)
 		wmi_notify_driver(wblock, obj);
-	} else {
-		if (wblock->handler)
-			wblock->handler(obj, wblock->handler_data);
-	}
+
+	if (wblock->handler)
+		wblock->handler(obj, wblock->handler_data);
+
 	up_read(&wblock->notify_lock);
 
 	kfree(obj);
