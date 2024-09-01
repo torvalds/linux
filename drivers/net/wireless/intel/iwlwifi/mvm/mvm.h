@@ -774,7 +774,6 @@ struct iwl_mvm_tcm {
  * @num_stored: number of mpdus stored in the buffer
  * @queue: queue of this reorder buffer
  * @last_amsdu: track last ASMDU SN for duplication detection
- * @last_sub_index: track ASMDU sub frame index for duplication detection
  * @valid: reordering is valid for this queue
  * @lock: protect reorder buffer internal state
  */
@@ -783,7 +782,6 @@ struct iwl_mvm_reorder_buffer {
 	u16 num_stored;
 	int queue;
 	u16 last_amsdu;
-	u8 last_sub_index;
 	bool valid;
 	spinlock_t lock;
 } ____cacheline_aligned_in_smp;

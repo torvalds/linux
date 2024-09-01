@@ -729,8 +729,6 @@ static bool iwl_mvm_reorder(struct iwl_mvm *mvm,
 	bool last_subframe =
 		desc->amsdu_info & IWL_RX_MPDU_AMSDU_LAST_SUBFRAME;
 	u8 tid = ieee80211_get_tid(hdr);
-	u8 sub_frame_idx = desc->amsdu_info &
-			   IWL_RX_MPDU_AMSDU_SUBFRAME_IDX_MASK;
 	struct iwl_mvm_reorder_buf_entry *entries;
 	u32 sta_mask;
 	int index;
@@ -843,10 +841,8 @@ static bool iwl_mvm_reorder(struct iwl_mvm *mvm,
 	__skb_queue_tail(&entries[index].frames, skb);
 	buffer->num_stored++;
 
-	if (amsdu) {
+	if (amsdu)
 		buffer->last_amsdu = sn;
-		buffer->last_sub_index = sub_frame_idx;
-	}
 
 	/*
 	 * We cannot trust NSSN for AMSDU sub-frames that are not the last.
