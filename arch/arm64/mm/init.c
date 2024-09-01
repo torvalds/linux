@@ -116,8 +116,14 @@ static void __init arch_reserve_crashkernel(void)
 
 static phys_addr_t __init max_zone_phys(phys_addr_t zone_limit)
 {
-	if (zone_limit == PHYS_ADDR_MAX)
-		zone_limit = U32_MAX;
+	/**
+	 * Information we get from firmware (e.g. DT dma-ranges) describe DMA
+	 * bus constraints. Devices using DMA might have their own limitations.
+	 * Some of them rely on DMA zone in low 32-bit memory. Keep low RAM
+	 * DMA zone on platforms that have RAM there.
+	 */
+	if (memblock_start_of_DRAM() < U32_MAX)
+		zone_limit = min(zone_limit, U32_MAX);
 
 	return min(zone_limit, memblock_end_of_DRAM() - 1) + 1;
 }
