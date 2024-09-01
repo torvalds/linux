@@ -18,6 +18,7 @@
 #include "ec.h"
 #include "error.h"
 #include "io_read.h"
+#include "io_write.h"
 #include "keylist.h"
 #include "recovery.h"
 #include "replicas.h"

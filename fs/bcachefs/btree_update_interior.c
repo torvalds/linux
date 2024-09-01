@@ -16,6 +16,7 @@
 #include "clock.h"
 #include "error.h"
 #include "extents.h"
+#include "io_write.h"
 #include "journal.h"
 #include "journal_reclaim.h"
 #include "keylist.h"

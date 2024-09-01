@@ -748,7 +748,6 @@ static int add_new_bucket(struct bch_fs *c,
 			   unsigned nr_replicas,
 			   unsigned *nr_effective,
 			   bool *have_cache,
-			   unsigned flags,
 			   struct open_bucket *ob)
 {
 	unsigned durability = ob_dev(c, ob)->mi.durability;
@@ -775,7 +774,7 @@ int bch2_bucket_alloc_set_trans(struct btree_trans *trans,
 		      unsigned nr_replicas,
 		      unsigned *nr_effective,
 		      bool *have_cache,
-		      unsigned flags,
+		      enum bch_write_flags flags,
 		      enum bch_data_type data_type,
 		      enum bch_watermark watermark,
 		      struct closure *cl)
@@ -815,7 +814,7 @@ int bch2_bucket_alloc_set_trans(struct btree_trans *trans,
 
 		if (add_new_bucket(c, ptrs, devs_may_alloc,
 				   nr_replicas, nr_effective,
-				   have_cache, flags, ob)) {
+				   have_cache, ob)) {
 			ret = 0;
 			break;
 		}
@@ -841,7 +840,7 @@ static int bucket_alloc_from_stripe(struct btree_trans *trans,
 			 unsigned *nr_effective,
 			 bool *have_cache,
 			 enum bch_watermark watermark,
-			 unsigned flags,
+			 enum bch_write_flags flags,
 			 struct closure *cl)
 {
 	struct bch_fs *c = trans->c;
@@ -883,7 +882,7 @@ got_bucket:
 
 	ret = add_new_bucket(c, ptrs, devs_may_alloc,
 			     nr_replicas, nr_effective,
-			     have_cache, flags, ob);
+			     have_cache, ob);
 out_put_head:
 	bch2_ec_stripe_head_put(c, h);
 	return ret;
@@ -922,7 +921,7 @@ static int bucket_alloc_set_writepoint(struct bch_fs *c,
 				       unsigned nr_replicas,
 				       unsigned *nr_effective,
 				       bool *have_cache,
-				       bool ec, unsigned flags)
+				       bool ec)
 {
 	struct open_buckets ptrs_skip = { .nr = 0 };
 	struct open_bucket *ob;
@@ -934,7 +933,7 @@ static int bucket_alloc_set_writepoint(struct bch_fs *c,
 					have_cache, ec, ob))
 			ret = add_new_bucket(c, ptrs, devs_may_alloc,
 				       nr_replicas, nr_effective,
-				       have_cache, flags, ob);
+				       have_cache, ob);
 		else
 			ob_push(c, &ptrs_skip, ob);
 	}
@@ -950,8 +949,7 @@ static int bucket_alloc_set_partial(struct bch_fs *c,
 				    unsigned nr_replicas,
 				    unsigned *nr_effective,
 				    bool *have_cache, bool ec,
-				    enum bch_watermark watermark,
-				    unsigned flags)
+				    enum bch_watermark watermark)
 {
 	int i, ret = 0;
 
@@ -983,7 +981,7 @@ static int bucket_alloc_set_partial(struct bch_fs *c,
 
 			ret = add_new_bucket(c, ptrs, devs_may_alloc,
 					     nr_replicas, nr_effective,
-					     have_cache, flags, ob);
+					     have_cache, ob);
 			if (ret)
 				break;
 		}
@@ -1003,7 +1001,7 @@ static int __open_bucket_add_buckets(struct btree_trans *trans,
 			unsigned *nr_effective,
 			bool *have_cache,
 			enum bch_watermark watermark,
-			unsigned flags,
+			enum bch_write_flags flags,
 			struct closure *_cl)
 {
 	struct bch_fs *c = trans->c;
@@ -1024,13 +1022,13 @@ static int __open_bucket_add_buckets(struct btree_trans *trans,
 
 	ret = bucket_alloc_set_writepoint(c, ptrs, wp, &devs,
 				 nr_replicas, nr_effective,
-				 have_cache, erasure_code, flags);
+				 have_cache, erasure_code);
 	if (ret)
 		return ret;
 
 	ret = bucket_alloc_set_partial(c, ptrs, wp, &devs,
 				 nr_replicas, nr_effective,
-				 have_cache, erasure_code, watermark, flags);
+				 have_cache, erasure_code, watermark);
 	if (ret)
 		return ret;
 
@@ -1071,7 +1069,7 @@ static int open_bucket_add_buckets(struct btree_trans *trans,
 			unsigned *nr_effective,
 			bool *have_cache,
 			enum bch_watermark watermark,
-			unsigned flags,
+			enum bch_write_flags flags,
 			struct closure *cl)
 {
 	int ret;
@@ -1373,7 +1371,7 @@ int bch2_alloc_sectors_start_trans(struct btree_trans *trans,
 			     unsigned nr_replicas,
 			     unsigned nr_replicas_required,
 			     enum bch_watermark watermark,
-			     unsigned flags,
+			     enum bch_write_flags flags,
 			     struct closure *cl,
 			     struct write_point **wp_ret)
 {
