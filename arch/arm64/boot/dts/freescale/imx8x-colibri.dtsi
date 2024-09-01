@@ -88,8 +88,6 @@
 	vref-supply = <&reg_module_vref_1v8>;
 };
 
-/* TODO Cooling maps for DX */
-
 &cpu_alert0 {
 	hysteresis = <2000>;
 	temperature = <90000>;
@@ -418,6 +416,38 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_sai0>;
 	status = "okay";
+};
+
+&thermal_zones {
+	pmic-thermal {
+		polling-delay-passive = <250>;
+		polling-delay = <2000>;
+		thermal-sensors = <&tsens IMX_SC_R_PMIC_0>;
+
+		trips {
+			pmic_alert0: trip0 {
+				temperature = <110000>;
+				hysteresis = <2000>;
+				type = "passive";
+			};
+
+			pmic_crit0: trip1 {
+				temperature = <125000>;
+				hysteresis = <2000>;
+				type = "critical";
+			};
+		};
+
+		cooling-maps {
+			pmic_cooling_map0: map0 {
+				trip = <&pmic_alert0>;
+				cooling-device = <&A35_0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+						 <&A35_1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+						 <&A35_2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+						 <&A35_3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+			};
+		};
+	};
 };
 
 &usbotg1 {
