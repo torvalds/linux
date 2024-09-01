@@ -166,22 +166,6 @@ static inline acpi_object_type get_param_acpi_type(const struct wmi_block *wbloc
 		return ACPI_TYPE_BUFFER;
 }
 
-static acpi_status get_event_data(const struct wmi_block *wblock, struct acpi_buffer *out)
-{
-	union acpi_object param = {
-		.integer = {
-			.type = ACPI_TYPE_INTEGER,
-			.value = wblock->gblock.notify_id,
-		}
-	};
-	struct acpi_object_list input = {
-		.count = 1,
-		.pointer = &param,
-	};
-
-	return acpi_evaluate_object(wblock->acpi_device->handle, "_WED", &input, out);
-}
-
 static int wmidev_match_guid(struct device *dev, const void *data)
 {
 	struct wmi_block *wblock = dev_to_wblock(dev);
@@ -1129,14 +1113,19 @@ static int parse_wdg(struct device *wmi_bus_dev, struct platform_device *pdev)
 static int wmi_get_notify_data(struct wmi_block *wblock, union acpi_object **obj)
 {
 	struct acpi_buffer data = { ACPI_ALLOCATE_BUFFER, NULL };
+	union acpi_object param = {
+		.integer = {
+			.type = ACPI_TYPE_INTEGER,
+			.value = wblock->gblock.notify_id,
+		}
+	};
+	struct acpi_object_list input = {
+		.count = 1,
+		.pointer = &param,
+	};
 	acpi_status status;
 
-	if (test_bit(WMI_NO_EVENT_DATA, &wblock->flags)) {
-		*obj = NULL;
-		return 0;
-	}
-
-	status = get_event_data(wblock, &data);
+	status = acpi_evaluate_object(wblock->acpi_device->handle, "_WED", &input, &data);
 	if (ACPI_FAILURE(status)) {
 		dev_warn(&wblock->dev.dev, "Failed to get event data\n");
 		return -EIO;
@@ -1163,7 +1152,7 @@ static void wmi_notify_driver(struct wmi_block *wblock, union acpi_object *obj)
 static int wmi_notify_device(struct device *dev, void *data)
 {
 	struct wmi_block *wblock = dev_to_wblock(dev);
-	union acpi_object *obj;
+	union acpi_object *obj = NULL;
 	u32 *event = data;
 	int ret;
 
@@ -1179,9 +1168,11 @@ static int wmi_notify_device(struct device *dev, void *data)
 	 * WMI driver core stops evaluating _WED due to missing
 	 * WMI event consumers.
 	 */
-	ret = wmi_get_notify_data(wblock, &obj);
-	if (ret < 0)
-		return -EIO;
+	if (!test_bit(WMI_NO_EVENT_DATA, &wblock->flags)) {
+		ret = wmi_get_notify_data(wblock, &obj);
+		if (ret < 0)
+			return -EIO;
+	}
 
 	down_read(&wblock->notify_lock);
 	/* The WMI driver notify handler conflicts with the legacy WMI handler.
