@@ -193,7 +193,7 @@ static ssize_t fade_##__dir##_store(struct device *dev,			\
 									\
 	ret = kstrtou8(buf, 0, &fade);					\
 	if (ret < 0) {							\
-		dev_err(dev, "could not parse fade value %d\n", ret);	\
+		dev_err(dev, "Could not parse fade value %d\n", ret);	\
 		goto unlock;						\
 	}								\
 	if (channel->fade_##__dir == fade)				\
@@ -238,7 +238,7 @@ static ssize_t color_store(struct device *dev, struct device_attribute *attr,
 	}
 	ret = kstrtou32(buf, 0, &color);
 	if (ret < 0) {
-		dev_err(dev, "could not parse color value %d\n", ret);
+		dev_err(dev, "Could not parse color value %d\n", ret);
 		goto unlock;
 	}
 
@@ -376,12 +376,12 @@ static int __gb_lights_led_brightness_set(struct gb_channel *channel)
 	else
 		channel->active = false;
 
-	/* we need to keep module alive when turning to active state */
+	/* We need to keep module alive when turning to active state */
 	if (!old_active && channel->active)
 		goto out_unlock;
 
 	/*
-	 * on the other hand if going to inactive we still hold a reference and
+	 * On the other hand if going to inactive we still hold a reference and
 	 * need to put it, so we could go to suspend.
 	 */
 	if (old_active && !channel->active)
@@ -466,12 +466,12 @@ static int gb_blink_set(struct led_classdev *cdev, unsigned long *delay_on,
 	else
 		channel->active = false;
 
-	/* we need to keep module alive when turning to active state */
+	/* We need to keep module alive when turning to active state. */
 	if (!old_active && channel->active)
 		goto out_unlock;
 
 	/*
-	 * on the other hand if going to inactive we still hold a reference and
+	 * On the other hand if going to inactive we still hold a reference and
 	 * need to put it, so we could go to suspend.
 	 */
 	if (old_active && !channel->active)
@@ -532,7 +532,7 @@ static int gb_lights_light_v4l2_register(struct gb_light *light)
 
 	channel_flash = get_channel_from_mode(light, GB_CHANNEL_MODE_FLASH);
 	if (!channel_flash) {
-		dev_err(dev, "failed to get flash channel from mode\n");
+		dev_err(dev, "Failed to get flash channel from mode\n");
 		return -EINVAL;
 	}
 
@@ -576,7 +576,7 @@ static int gb_lights_light_v4l2_register(struct gb_light *light)
 {
 	struct gb_connection *connection = get_conn_from_light(light);
 
-	dev_err(&connection->bundle->dev, "no support for v4l2 subdevices\n");
+	dev_err(&connection->bundle->dev, "No support for v4l2 subdevices\n");
 	return 0;
 }
 
@@ -728,14 +728,14 @@ static int __gb_lights_channel_torch_attach(struct gb_channel *channel,
 {
 	char *name;
 
-	/* we can only attach torch to a flash channel */
+	/* We can only attach torch to a flash channel */
 	if (!(channel->mode & GB_CHANNEL_MODE_FLASH))
 		return 0;
 
 	/* Move torch brightness to the destination */
 	channel->led->max_brightness = channel_torch->led->max_brightness;
 
-	/* append mode name to flash name */
+	/* Append mode name to flash name */
 	name = kasprintf(GFP_KERNEL, "%s_%s", channel->led->name,
 			 channel_torch->mode_name);
 	if (!name)
@@ -777,7 +777,7 @@ static int __gb_lights_flash_led_register(struct gb_channel *channel)
 
 	/*
 	 * If light have torch mode channel, this channel will be the led
-	 * classdev of the registered above flash classdev
+	 * classdev of the registered above flash classdev.
 	 */
 	channel_torch = get_channel_from_mode(channel->light,
 					      GB_CHANNEL_MODE_TORCH);
@@ -838,7 +838,7 @@ static int gb_lights_channel_flash_config(struct gb_channel *channel)
 	 */
 	channel->led->max_brightness = (fset->max - fset->min) / fset->step;
 
-	/* Only the flash mode have the timeout constraints settings */
+	/* Only the flash mode have the timeout constraints settings. */
 	if (channel->mode & GB_CHANNEL_MODE_FLASH) {
 		fset = &channel->timeout_us;
 		fset->min = le32_to_cpu(conf.timeout_min_us);
@@ -853,7 +853,7 @@ static int gb_lights_channel_flash_config(struct gb_channel *channel)
 {
 	struct gb_connection *connection = get_conn_from_channel(channel);
 
-	dev_err(&connection->bundle->dev, "no support for flash devices\n");
+	dev_err(&connection->bundle->dev, "No support for flash devices\n");
 	return 0;
 }
 

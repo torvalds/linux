@@ -179,7 +179,7 @@ static int find_firmware(struct gb_bootrom *bootrom, u8 stage)
 			      &connection->bundle->dev);
 	if (rc) {
 		dev_err(&connection->bundle->dev,
-			"failed to find %s firmware (%d)\n", firmware_name, rc);
+			"Failed to find %s firmware (%d)\n", firmware_name, rc);
 	}
 
 	return rc;
@@ -274,7 +274,7 @@ static int gb_bootrom_get_firmware(struct gb_operation *op)
 	size = le32_to_cpu(firmware_request->size);
 
 	if (offset >= fw->size || size > fw->size - offset) {
-		dev_warn(dev, "bad firmware request (offs = %u, size = %u)\n",
+		dev_warn(dev, "Bad firmware request (offs = %u, size = %u)\n",
 			 offset, size);
 		ret = -EINVAL;
 		goto unlock;
@@ -290,7 +290,7 @@ static int gb_bootrom_get_firmware(struct gb_operation *op)
 	firmware_response = op->response->payload;
 	memcpy(firmware_response, fw->data + offset, size);
 
-	dev_dbg(dev, "responding with firmware (offs = %u, size = %u)\n",
+	dev_dbg(dev, "Responding with firmware (offs = %u, size = %u)\n",
 		offset, size);
 
 unlock:
@@ -340,7 +340,7 @@ static int gb_bootrom_ready_to_boot(struct gb_operation *op)
 	/*
 	 * XXX Should we return error for insecure firmware?
 	 */
-	dev_dbg(dev, "ready to boot: 0x%x, 0\n", status);
+	dev_dbg(dev, "Ready to boot: 0x%x, 0\n", status);
 
 queue_work:
 	/*
@@ -367,7 +367,7 @@ static int gb_bootrom_request_handler(struct gb_operation *op)
 		return gb_bootrom_ready_to_boot(op);
 	default:
 		dev_err(&op->connection->bundle->dev,
-			"unsupported request: %u\n", type);
+			"Unsupported request: %u\n", type);
 		return -EINVAL;
 	}
 }
@@ -388,14 +388,14 @@ static int gb_bootrom_get_version(struct gb_bootrom *bootrom)
 				sizeof(response));
 	if (ret) {
 		dev_err(&bundle->dev,
-			"failed to get protocol version: %d\n",
+			"Failed to get protocol version: %d\n",
 			ret);
 		return ret;
 	}
 
 	if (response.major > request.major) {
 		dev_err(&bundle->dev,
-			"unsupported major protocol version (%u > %u)\n",
+			"Unsupported major protocol version (%u > %u)\n",
 			response.major, request.major);
 		return -ENOTSUPP;
 	}
@@ -467,7 +467,7 @@ static int gb_bootrom_probe(struct gb_bundle *bundle,
 				NULL, 0);
 	if (ret) {
 		dev_err(&connection->bundle->dev,
-			"failed to send AP READY: %d\n", ret);
+			"Failed to send AP READY: %d\n", ret);
 		goto err_cancel_timeout;
 	}
 

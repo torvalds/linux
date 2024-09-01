@@ -95,7 +95,7 @@ static int apb_cold_boot(struct device *dev, void *data)
 
 	ret = apb_ctrl_coldboot(dev);
 	if (ret)
-		dev_warn(dev, "failed to coldboot\n");
+		dev_warn(dev, "Failed to coldboot\n");
 
 	/*Child nodes are independent, so do not exit coldboot operation */
 	return 0;
@@ -107,7 +107,7 @@ static int apb_poweroff(struct device *dev, void *data)
 
 	/* Enable HUB3613 into HUB mode. */
 	if (usb3613_hub_mode_ctrl(false))
-		dev_warn(dev, "failed to control hub device\n");
+		dev_warn(dev, "Failed to control hub device\n");
 
 	return 0;
 }
@@ -142,7 +142,7 @@ static irqreturn_t arche_platform_wd_irq_thread(int irq, void *devid)
 
 	/* Enable HUB3613 into HUB mode. */
 	if (usb3613_hub_mode_ctrl(true))
-		dev_warn(arche_pdata->dev, "failed to control hub device\n");
+		dev_warn(arche_pdata->dev, "Failed to control hub device\n");
 
 	spin_lock_irqsave(&arche_pdata->wake_lock, flags);
 	arche_platform_set_wake_detect_state(arche_pdata, WD_STATE_IDLE);
@@ -228,12 +228,12 @@ arche_platform_coldboot_seq(struct arche_platform_drvdata *arche_pdata)
 
 	ret = clk_prepare_enable(arche_pdata->svc_ref_clk);
 	if (ret) {
-		dev_err(arche_pdata->dev, "failed to enable svc_ref_clk: %d\n",
+		dev_err(arche_pdata->dev, "Failed to enable svc_ref_clk: %d\n",
 			ret);
 		return ret;
 	}
 
-	/* bring SVC out of reset */
+	/* Bring SVC out of reset */
 	svc_reset_onoff(arche_pdata->svc_reset, !arche_pdata->is_reset_act_hi);
 
 	arche_platform_set_state(arche_pdata, ARCHE_PLATFORM_STATE_ACTIVE);
@@ -262,7 +262,7 @@ arche_platform_fw_flashing_seq(struct arche_platform_drvdata *arche_pdata)
 
 	ret = clk_prepare_enable(arche_pdata->svc_ref_clk);
 	if (ret) {
-		dev_err(arche_pdata->dev, "failed to enable svc_ref_clk: %d\n",
+		dev_err(arche_pdata->dev, "Failed to enable svc_ref_clk: %d\n",
 			ret);
 		return ret;
 	}
@@ -340,7 +340,7 @@ static ssize_t state_store(struct device *dev,
 		if (arche_pdata->state == ARCHE_PLATFORM_STATE_STANDBY)
 			goto exit;
 
-		dev_warn(arche_pdata->dev, "standby state not supported\n");
+		dev_warn(arche_pdata->dev, "Standby state not supported\n");
 	} else if (sysfs_streq(buf, "fw_flashing")) {
 		if (arche_pdata->state == ARCHE_PLATFORM_STATE_FW_FLASHING)
 			goto exit;
@@ -358,7 +358,7 @@ static ssize_t state_store(struct device *dev,
 		if (ret)
 			goto exit;
 	} else {
-		dev_err(arche_pdata->dev, "unknown state\n");
+		dev_err(arche_pdata->dev, "Unknown state\n");
 		ret = -EINVAL;
 	}
 
@@ -434,7 +434,7 @@ static int arche_platform_probe(struct platform_device *pdev)
 	if (!arche_pdata)
 		return -ENOMEM;
 
-	/* setup svc reset gpio */
+	/* Setup svc reset gpio */
 	arche_pdata->is_reset_act_hi = of_property_read_bool(np,
 							     "svc,reset-active-high");
 	if (arche_pdata->is_reset_act_hi)
@@ -445,7 +445,7 @@ static int arche_platform_probe(struct platform_device *pdev)
 	arche_pdata->svc_reset = devm_gpiod_get(dev, "svc,reset", flags);
 	if (IS_ERR(arche_pdata->svc_reset)) {
 		ret = PTR_ERR(arche_pdata->svc_reset);
-		dev_err(dev, "failed to request svc-reset GPIO: %d\n", ret);
+		dev_err(dev, "Failed to request svc-reset GPIO: %d\n", ret);
 		return ret;
 	}
 	arche_platform_set_state(arche_pdata, ARCHE_PLATFORM_STATE_OFF);
@@ -454,16 +454,16 @@ static int arche_platform_probe(struct platform_device *pdev)
 						  GPIOD_OUT_LOW);
 	if (IS_ERR(arche_pdata->svc_sysboot)) {
 		ret = PTR_ERR(arche_pdata->svc_sysboot);
-		dev_err(dev, "failed to request sysboot0 GPIO: %d\n", ret);
+		dev_err(dev, "Failed to request sysboot0 GPIO: %d\n", ret);
 		return ret;
 	}
 
-	/* setup the clock request gpio first */
+	/* Setup the clock request gpio first */
 	arche_pdata->svc_refclk_req = devm_gpiod_get(dev, "svc,refclk-req",
 						     GPIOD_IN);
 	if (IS_ERR(arche_pdata->svc_refclk_req)) {
 		ret = PTR_ERR(arche_pdata->svc_refclk_req);
-		dev_err(dev, "failed to request svc-clk-req GPIO: %d\n", ret);
+		dev_err(dev, "Failed to request svc-clk-req GPIO: %d\n", ret);
 		return ret;
 	}
 
@@ -471,7 +471,7 @@ static int arche_platform_probe(struct platform_device *pdev)
 	arche_pdata->svc_ref_clk = devm_clk_get(dev, "svc_ref_clk");
 	if (IS_ERR(arche_pdata->svc_ref_clk)) {
 		ret = PTR_ERR(arche_pdata->svc_ref_clk);
-		dev_err(dev, "failed to get svc_ref_clk: %d\n", ret);
+		dev_err(dev, "Failed to get svc_ref_clk: %d\n", ret);
 		return ret;
 	}
 
@@ -504,20 +504,20 @@ static int arche_platform_probe(struct platform_device *pdev)
 					IRQF_TRIGGER_RISING | IRQF_ONESHOT,
 					dev_name(dev), arche_pdata);
 	if (ret) {
-		dev_err(dev, "failed to request wake detect IRQ %d\n", ret);
+		dev_err(dev, "Failed to request wake detect IRQ %d\n", ret);
 		return ret;
 	}
 	disable_irq(arche_pdata->wake_detect_irq);
 
 	ret = device_create_file(dev, &dev_attr_state);
 	if (ret) {
-		dev_err(dev, "failed to create state file in sysfs\n");
+		dev_err(dev, "Failed to create state file in sysfs\n");
 		return ret;
 	}
 
 	ret = of_platform_populate(np, NULL, NULL, dev);
 	if (ret) {
-		dev_err(dev, "failed to populate child nodes %d\n", ret);
+		dev_err(dev, "Failed to populate child nodes %d\n", ret);
 		goto err_device_remove;
 	}
 
@@ -525,7 +525,7 @@ static int arche_platform_probe(struct platform_device *pdev)
 	ret = register_pm_notifier(&arche_pdata->pm_notifier);
 
 	if (ret) {
-		dev_err(dev, "failed to register pm notifier %d\n", ret);
+		dev_err(dev, "Failed to register pm notifier %d\n", ret);
 		goto err_device_remove;
 	}
 
@@ -570,7 +570,7 @@ static void arche_platform_remove(struct platform_device *pdev)
 	arche_platform_poweroff_seq(arche_pdata);
 
 	if (usb3613_hub_mode_ctrl(false))
-		dev_warn(arche_pdata->dev, "failed to control hub device\n");
+		dev_warn(arche_pdata->dev, "Failed to control hub device\n");
 }
 
 static __maybe_unused int arche_platform_suspend(struct device *dev)

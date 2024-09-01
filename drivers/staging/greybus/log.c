@@ -23,30 +23,30 @@ static int gb_log_request_handler(struct gb_operation *op)
 	u16 len;
 
 	if (op->type != GB_LOG_TYPE_SEND_LOG) {
-		dev_err(dev, "unknown request type 0x%02x\n", op->type);
+		dev_err(dev, "Unknown request type 0x%02x\n", op->type);
 		return -EINVAL;
 	}
 
 	/* Verify size of payload */
 	if (op->request->payload_size < sizeof(*receive)) {
-		dev_err(dev, "log request too small (%zu < %zu)\n",
+		dev_err(dev, "Log request too small (%zu < %zu)\n",
 			op->request->payload_size, sizeof(*receive));
 		return -EINVAL;
 	}
 	receive = op->request->payload;
 	len = le16_to_cpu(receive->len);
 	if (len != (op->request->payload_size - sizeof(*receive))) {
-		dev_err(dev, "log request wrong size %d vs %zu\n", len,
+		dev_err(dev, "Log request wrong size %d vs %zu\n", len,
 			(op->request->payload_size - sizeof(*receive)));
 		return -EINVAL;
 	}
 	if (len == 0) {
-		dev_err(dev, "log request of 0 bytes?\n");
+		dev_err(dev, "Log request of 0 bytes?\n");
 		return -EINVAL;
 	}
 
 	if (len > GB_LOG_MAX_LEN) {
-		dev_err(dev, "log request too big: %d\n", len);
+		dev_err(dev, "Log request too big: %d\n", len);
 		return -EINVAL;
 	}
 

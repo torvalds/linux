@@ -93,7 +93,7 @@ static int cap_get_endpoint_uid(struct gb_cap *cap, u8 *euid)
 	ret = gb_operation_sync(connection, GB_CAP_TYPE_GET_ENDPOINT_UID, NULL,
 				0, &response, sizeof(response));
 	if (ret) {
-		dev_err(cap->parent, "failed to get endpoint uid (%d)\n", ret);
+		dev_err(cap->parent, "Failed to get endpoint uid (%d)\n", ret);
 		return ret;
 	}
 
@@ -126,7 +126,7 @@ static int cap_get_ims_certificate(struct gb_cap *cap, u32 class, u32 id,
 
 	ret = gb_operation_request_send_sync(op);
 	if (ret) {
-		dev_err(cap->parent, "failed to get certificate (%d)\n", ret);
+		dev_err(cap->parent, "Failed to get certificate (%d)\n", ret);
 		goto done;
 	}
 
@@ -165,7 +165,7 @@ static int cap_authenticate(struct gb_cap *cap, u32 auth_type, u8 *uid,
 
 	ret = gb_operation_request_send_sync(op);
 	if (ret) {
-		dev_err(cap->parent, "failed to authenticate (%d)\n", ret);
+		dev_err(cap->parent, "Failed to authenticate (%d)\n", ret);
 		goto done;
 	}
 
