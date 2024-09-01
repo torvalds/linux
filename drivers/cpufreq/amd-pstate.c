@@ -58,18 +58,6 @@
 #define AMD_CPPC_EPP_BALANCE_POWERSAVE		0xBF
 #define AMD_CPPC_EPP_POWERSAVE			0xFF
 
-/*
- * enum amd_pstate_mode - driver working mode of amd pstate
- */
-enum amd_pstate_mode {
-	AMD_PSTATE_UNDEFINED = 0,
-	AMD_PSTATE_DISABLE,
-	AMD_PSTATE_PASSIVE,
-	AMD_PSTATE_ACTIVE,
-	AMD_PSTATE_GUIDED,
-	AMD_PSTATE_MAX,
-};
-
 static const char * const amd_pstate_mode_string[] = {
 	[AMD_PSTATE_UNDEFINED]   = "undefined",
 	[AMD_PSTATE_DISABLE]     = "disable",
@@ -78,6 +66,14 @@ static const char * const amd_pstate_mode_string[] = {
 	[AMD_PSTATE_GUIDED]      = "guided",
 	NULL,
 };
+
+const char *amd_pstate_get_mode_string(enum amd_pstate_mode mode)
+{
+	if (mode < 0 || mode >= AMD_PSTATE_MAX)
+		return NULL;
+	return amd_pstate_mode_string[mode];
+}
+EXPORT_SYMBOL_GPL(amd_pstate_get_mode_string);
 
 struct quirk_entry {
 	u32 nominal_freq;
@@ -1286,7 +1282,7 @@ static ssize_t amd_pstate_show_status(char *buf)
 	return sysfs_emit(buf, "%s\n", amd_pstate_mode_string[cppc_state]);
 }
 
-static int amd_pstate_update_status(const char *buf, size_t size)
+int amd_pstate_update_status(const char *buf, size_t size)
 {
 	int mode_idx;
 
@@ -1303,6 +1299,7 @@ static int amd_pstate_update_status(const char *buf, size_t size)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(amd_pstate_update_status);
 
 static ssize_t status_show(struct device *dev,
 			   struct device_attribute *attr, char *buf)
