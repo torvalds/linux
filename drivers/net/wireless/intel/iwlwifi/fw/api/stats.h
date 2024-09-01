@@ -327,14 +327,14 @@ struct mvm_statistics_load {
 	__le32 air_time[MAC_INDEX_AUX];
 	__le32 byte_count[MAC_INDEX_AUX];
 	__le32 pkt_count[MAC_INDEX_AUX];
-	u8 avg_energy[IWL_MVM_STATION_COUNT_MAX];
+	u8 avg_energy[IWL_STATION_COUNT_MAX];
 } __packed; /* STATISTICS_RX_MAC_STATION_S_VER_3 */
 
 struct mvm_statistics_load_v1 {
 	__le32 air_time[NUM_MAC_INDEX];
 	__le32 byte_count[NUM_MAC_INDEX];
 	__le32 pkt_count[NUM_MAC_INDEX];
-	u8 avg_energy[IWL_MVM_STATION_COUNT_MAX];
+	u8 avg_energy[IWL_STATION_COUNT_MAX];
 } __packed; /* STATISTICS_RX_MAC_STATION_S_VER_1 */
 
 struct mvm_statistics_rx {
@@ -608,7 +608,7 @@ struct iwl_system_statistics_notif_oper {
 	__le32 time_stamp;
 	struct iwl_stats_ntfy_per_link per_link[IWL_STATS_MAX_FW_LINKS];
 	struct iwl_stats_ntfy_per_phy per_phy[IWL_STATS_MAX_PHY_OPERATIONAL];
-	struct iwl_stats_ntfy_per_sta per_sta[IWL_MVM_STATION_COUNT_MAX];
+	struct iwl_stats_ntfy_per_sta per_sta[IWL_STATION_COUNT_MAX];
 } __packed; /* STATISTICS_FW_NTFY_OPERATIONAL_API_S_VER_3 */
 
 /**
@@ -651,7 +651,7 @@ struct iwl_statistics_operational_ntfy {
 	__le32 flags;
 	struct iwl_stats_ntfy_per_mac per_mac[MAC_INDEX_AUX];
 	struct iwl_stats_ntfy_per_phy per_phy[IWL_STATS_MAX_PHY_OPERATIONAL];
-	struct iwl_stats_ntfy_per_sta per_sta[IWL_MVM_STATION_COUNT_MAX];
+	struct iwl_stats_ntfy_per_sta per_sta[IWL_STATION_COUNT_MAX];
 	__le64 rx_time;
 	__le64 tx_time;
 	__le64 on_time_rf;
@@ -699,7 +699,7 @@ struct iwl_statistics_operational_ntfy_ver_14 {
 	__le64 tx_time;
 	__le64 on_time_rf;
 	__le64 on_time_scan;
-	__le32 average_energy[IWL_MVM_STATION_COUNT_MAX];
+	__le32 average_energy[IWL_STATION_COUNT_MAX];
 	__le32 reserved;
 } __packed; /* STATISTICS_OPERATIONAL_NTFY_API_S_VER_14 */
 
