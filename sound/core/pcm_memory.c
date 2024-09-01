@@ -183,7 +183,7 @@ static void snd_pcm_lib_preallocate_proc_write(struct snd_info_entry *entry,
 	struct snd_pcm_substream *substream = entry->private_data;
 	struct snd_card *card = substream->pcm->card;
 	char line[64], str[64];
-	size_t size;
+	unsigned long size;
 	struct snd_dma_buffer new_dmab;
 
 	guard(mutex)(&substream->pcm->open_mutex);
