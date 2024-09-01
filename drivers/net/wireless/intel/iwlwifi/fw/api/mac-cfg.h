@@ -454,6 +454,9 @@ enum iwl_link_ctx_flags {
  * @listen_lmac: indicates whether the link should be allocated on the Listen
  *	Lmac or on the Main Lmac. Cannot be changed on an active Link.
  *	Relevant only for eSR.
+ * @block_tx: tell the firmware that this link can't Tx. This should be used
+ *	only when a link is de-activated because of CSA with mode = 1.
+ *	Available since version 5.
  * @reserved1: in version 2, listen_lmac became reserved
  * @cck_rates: basic rates available for CCK
  * @ofdm_rates: basic rates available for OFDM
@@ -498,7 +501,10 @@ struct iwl_link_config_cmd {
 	__le32 active;
 	union {
 		__le32 listen_lmac;
-		__le32 reserved1;
+		struct {
+			u8 block_tx;
+			u8 reserved1[3];
+		};
 	};
 	__le32 cck_rates;
 	__le32 ofdm_rates;
@@ -529,7 +535,7 @@ struct iwl_link_config_cmd {
 	u8 ibss_bssid_addr[6];
 	__le16 reserved_for_ibss_bssid_addr;
 	__le32 reserved3[8];
-} __packed; /* LINK_CONTEXT_CONFIG_CMD_API_S_VER_1, _VER_2, _VER_3, _VER_4 */
+} __packed; /* LINK_CONTEXT_CONFIG_CMD_API_S_VER_1, _VER_2, _VER_3, _VER_4, _VER_5 */
 
 /* Currently FW supports link ids in the range 0-3 and can have
  * at most two active links for each vif.
