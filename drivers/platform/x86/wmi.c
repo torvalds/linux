@@ -199,23 +199,6 @@ static int wmidev_match_guid(struct device *dev, const void *data)
 	return 0;
 }
 
-static int wmidev_match_notify_id(struct device *dev, const void *data)
-{
-	struct wmi_block *wblock = dev_to_wblock(dev);
-	const u32 *notify_id = data;
-
-	/* Legacy GUID-based functions are restricted to only see
-	 * a single WMI device for each GUID.
-	 */
-	if (test_bit(WMI_GUID_DUPLICATED, &wblock->flags))
-		return 0;
-
-	if (wblock->gblock.flags & ACPI_WMI_EVENT && wblock->gblock.notify_id == *notify_id)
-		return 1;
-
-	return 0;
-}
-
 static const struct bus_type wmi_bus_type;
 
 static struct wmi_device *wmi_find_device_by_guid(const char *guid_string)
@@ -233,17 +216,6 @@ static struct wmi_device *wmi_find_device_by_guid(const char *guid_string)
 		return ERR_PTR(-ENODEV);
 
 	return dev_to_wdev(dev);
-}
-
-static struct wmi_device *wmi_find_event_by_notify_id(const u32 notify_id)
-{
-	struct device *dev;
-
-	dev = bus_find_device(&wmi_bus_type, NULL, &notify_id, wmidev_match_notify_id);
-	if (!dev)
-		return ERR_PTR(-ENODEV);
-
-	return to_wmi_device(dev);
 }
 
 static void wmi_device_put(struct wmi_device *wdev)
@@ -648,35 +620,6 @@ acpi_status wmi_remove_notify_handler(const char *guid)
 	return status;
 }
 EXPORT_SYMBOL_GPL(wmi_remove_notify_handler);
-
-/**
- * wmi_get_event_data - Get WMI data associated with an event (deprecated)
- *
- * @event: Event to find
- * @out: Buffer to hold event data
- *
- * Get extra data associated with an WMI event, the caller needs to free @out.
- *
- * Return: acpi_status signaling success or error.
- */
-acpi_status wmi_get_event_data(u32 event, struct acpi_buffer *out)
-{
-	struct wmi_block *wblock;
-	struct wmi_device *wdev;
-	acpi_status status;
-
-	wdev = wmi_find_event_by_notify_id(event);
-	if (IS_ERR(wdev))
-		return AE_NOT_FOUND;
-
-	wblock = container_of(wdev, struct wmi_block, dev);
-	status = get_event_data(wblock, out);
-
-	wmi_device_put(wdev);
-
-	return status;
-}
-EXPORT_SYMBOL_GPL(wmi_get_event_data);
 
 /**
  * wmi_has_guid - Check if a GUID is available
