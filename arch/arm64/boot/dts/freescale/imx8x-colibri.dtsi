@@ -121,10 +121,6 @@
 			     "enet0_lpcg_ipg_s_clk";
 };
 
-/* TODO flexcan1 - 3 */
-
-/* TODO GPU */
-
 /* On-module I2C */
 &i2c0 {
 	#address-cells = <1>;
