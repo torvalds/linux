@@ -100,13 +100,12 @@ static inline int do_encrypt_sg(struct crypto_sync_skcipher *tfm,
 				struct scatterlist *sg, size_t len)
 {
 	SYNC_SKCIPHER_REQUEST_ON_STACK(req, tfm);
-	int ret;
 
 	skcipher_request_set_sync_tfm(req, tfm);
 	skcipher_request_set_callback(req, 0, NULL, NULL);
 	skcipher_request_set_crypt(req, sg, sg, len, nonce.d);
 
-	ret = crypto_skcipher_encrypt(req);
+	int ret = crypto_skcipher_encrypt(req);
 	if (ret)
 		pr_err("got error %i from crypto_skcipher_encrypt()", ret);
 
@@ -128,28 +127,41 @@ static inline int do_encrypt(struct crypto_sync_skcipher *tfm,
 			    len, offset_in_page(buf));
 		return do_encrypt_sg(tfm, nonce, &sg, len);
 	} else {
-		unsigned pages = buf_pages(buf, len);
-		struct scatterlist *sg;
-		size_t orig_len = len;
-		int ret, i;
+		DARRAY_PREALLOCATED(struct scatterlist, 4) sgl;
+		size_t sgl_len = 0;
+		int ret;
 
-		sg = kmalloc_array(pages, sizeof(*sg), GFP_KERNEL);
-		if (!sg)
-			return -BCH_ERR_ENOMEM_do_encrypt;
+		darray_init(&sgl);
 
-		sg_init_table(sg, pages);
-
-		for (i = 0; i < pages; i++) {
+		while (len) {
 			unsigned offset = offset_in_page(buf);
-			unsigned pg_len = min_t(size_t, len, PAGE_SIZE - offset);
+			struct scatterlist sg = {
+				.page_link	= (unsigned long) vmalloc_to_page(buf),
+				.offset		= offset,
+				.length		= min(len, PAGE_SIZE - offset),
+			};
 
-			sg_set_page(sg + i, vmalloc_to_page(buf), pg_len, offset);
-			buf += pg_len;
-			len -= pg_len;
+			if (darray_push(&sgl, sg)) {
+				sg_mark_end(&darray_last(sgl));
+				ret = do_encrypt_sg(tfm, nonce, sgl.data, sgl_len);
+				if (ret)
+					goto err;
+
+				nonce = nonce_add(nonce, sgl_len);
+				sgl_len = 0;
+				sgl.nr = 0;
+				BUG_ON(darray_push(&sgl, sg));
+			}
+
+			buf += sg.length;
+			len -= sg.length;
+			sgl_len += sg.length;
 		}
 
-		ret = do_encrypt_sg(tfm, nonce, sg, orig_len);
-		kfree(sg);
+		sg_mark_end(&darray_last(sgl));
+		ret = do_encrypt_sg(tfm, nonce, sgl.data, sgl_len);
+err:
+		darray_exit(&sgl);
 		return ret;
 	}
 }
