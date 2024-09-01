@@ -42,7 +42,7 @@ enum iwl_mac_conf_subcmd_ids {
 	 */
 	LINK_CONFIG_CMD = 0x9,
 	/**
-	 * @STA_CONFIG_CMD: &struct iwl_mvm_sta_cfg_cmd
+	 * @STA_CONFIG_CMD: &struct iwl_sta_cfg_cmd
 	 */
 	STA_CONFIG_CMD = 0xA,
 	/**
@@ -563,7 +563,7 @@ enum iwl_fw_sta_type {
 }; /* STATION_TYPE_E_VER_1 */
 
 /**
- * struct iwl_mvm_sta_cfg_cmd - cmd structure to add a peer sta to the uCode's
+ * struct iwl_sta_cfg_cmd - cmd structure to add a peer sta to the uCode's
  *	station table
  * ( STA_CONFIG_CMD = 0xA )
  *
@@ -595,7 +595,7 @@ enum iwl_fw_sta_type {
  *	capa
  * @htc_flags: which features are supported in HTC
  */
-struct iwl_mvm_sta_cfg_cmd {
+struct iwl_sta_cfg_cmd {
 	__le32 sta_id;
 	__le32 link_id;
 	u8 peer_mld_address[ETH_ALEN];
