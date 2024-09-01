@@ -138,6 +138,25 @@ struct btree {
 	struct list_head	list;
 };
 
+#define BCH_BTREE_CACHE_NOT_FREED_REASONS()	\
+	x(lock_intent)				\
+	x(lock_write)				\
+	x(dirty)				\
+	x(read_in_flight)			\
+	x(write_in_flight)			\
+	x(noevict)				\
+	x(write_blocked)			\
+	x(will_make_reachable)			\
+	x(access_bit)				\
+	x(pinned)				\
+
+enum bch_btree_cache_not_freed_reasons {
+#define x(n) BCH_BTREE_CACHE_NOT_FREED_##n,
+	BCH_BTREE_CACHE_NOT_FREED_REASONS()
+#undef x
+	BCH_BTREE_CACHE_NOT_FREED_REASONS_NR,
+};
+
 struct btree_cache {
 	struct rhashtable	table;
 	bool			table_init_done;
@@ -164,16 +183,8 @@ struct btree_cache {
 	unsigned		used;
 	unsigned		reserve;
 	unsigned		freed;
-	unsigned		not_freed_lock_intent;
-	unsigned		not_freed_lock_write;
-	unsigned		not_freed_dirty;
-	unsigned		not_freed_read_in_flight;
-	unsigned		not_freed_write_in_flight;
-	unsigned		not_freed_noevict;
-	unsigned		not_freed_write_blocked;
-	unsigned		not_freed_will_make_reachable;
-	unsigned		not_freed_access_bit;
 	atomic_t		dirty;
+	u64			not_freed[BCH_BTREE_CACHE_NOT_FREED_REASONS_NR];
 	struct shrinker		*shrink;
 
 	unsigned		used_by_btree[BTREE_ID_NR];

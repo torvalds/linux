@@ -19,7 +19,7 @@
 #define BTREE_CACHE_NOT_FREED_INCREMENT(counter) \
 do {						 \
 	if (shrinker_counter)			 \
-		bc->not_freed_##counter++;	 \
+		bc->not_freed[BCH_BTREE_CACHE_NOT_FREED_##counter]++;	 \
 } while (0)
 
 const char * const bch2_btree_node_flags[] = {
@@ -270,8 +270,10 @@ static int __btree_node_reclaim(struct bch_fs *c, struct btree *b, bool flush, b
 
 	if ((mask & BIT_ULL(b->c.btree_id)) &&
 	    bbpos_cmp(bc->pinned_nodes_start, pos) < 0 &&
-	    bbpos_cmp(bc->pinned_nodes_end, pos) >= 0)
+	    bbpos_cmp(bc->pinned_nodes_end, pos) >= 0) {
+		BTREE_CACHE_NOT_FREED_INCREMENT(pinned);
 		return -BCH_ERR_ENOMEM_btree_node_reclaim;
+	}
 
 wait_on_io:
 	if (b->flags & ((1U << BTREE_NODE_dirty)|
@@ -433,7 +435,7 @@ restart:
 
 		if (btree_node_accessed(b)) {
 			clear_btree_node_accessed(b);
-			bc->not_freed_access_bit++;
+			bc->not_freed[BCH_BTREE_CACHE_NOT_FREED_access_bit]++;
 		} else if (!btree_node_reclaim(c, b, true)) {
 			freed++;
 			btree_node_data_free(c, b);
@@ -1344,6 +1346,13 @@ static void prt_btree_cache_line(struct printbuf *out, const struct bch_fs *c,
 	prt_printf(out, " (%u)\n", nr);
 }
 
+static const char * const bch2_btree_cache_not_freed_reasons_strs[] = {
+#define x(n) #n,
+	BCH_BTREE_CACHE_NOT_FREED_REASONS()
+#undef x
+	NULL
+};
+
 void bch2_btree_cache_to_text(struct printbuf *out, const struct btree_cache *bc)
 {
 	struct bch_fs *c = container_of(bc, struct bch_fs, btree_cache);
@@ -1362,13 +1371,8 @@ void bch2_btree_cache_to_text(struct printbuf *out, const struct btree_cache *bc
 	prt_newline(out);
 	prt_printf(out, "freed:\t%u\n", bc->freed);
 	prt_printf(out, "not freed:\n");
-	prt_printf(out, "  dirty\t%u\n", bc->not_freed_dirty);
-	prt_printf(out, "  write in flight\t%u\n", bc->not_freed_write_in_flight);
-	prt_printf(out, "  read in flight\t%u\n", bc->not_freed_read_in_flight);
-	prt_printf(out, "  lock intent failed\t%u\n", bc->not_freed_lock_intent);
-	prt_printf(out, "  lock write failed\t%u\n", bc->not_freed_lock_write);
-	prt_printf(out, "  access bit\t%u\n", bc->not_freed_access_bit);
-	prt_printf(out, "  no evict failed\t%u\n", bc->not_freed_noevict);
-	prt_printf(out, "  write blocked\t%u\n", bc->not_freed_write_blocked);
-	prt_printf(out, "  will make reachable\t%u\n", bc->not_freed_will_make_reachable);
+
+	for (unsigned i = 0; i < ARRAY_SIZE(bc->not_freed); i++)
+		prt_printf(out, "  %s\t%llu\n",
+			   bch2_btree_cache_not_freed_reasons_strs[i], bc->not_freed[i]);
 }
