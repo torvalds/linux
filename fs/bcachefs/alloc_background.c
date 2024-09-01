@@ -2298,6 +2298,35 @@ int bch2_fs_freespace_init(struct bch_fs *c)
 	return 0;
 }
 
+/* device removal */
+
+int bch2_dev_remove_alloc(struct bch_fs *c, struct bch_dev *ca)
+{
+	struct bpos start	= POS(ca->dev_idx, 0);
+	struct bpos end		= POS(ca->dev_idx, U64_MAX);
+	int ret;
+
+	/*
+	 * We clear the LRU and need_discard btrees first so that we don't race
+	 * with bch2_do_invalidates() and bch2_do_discards()
+	 */
+	ret =   bch2_btree_delete_range(c, BTREE_ID_lru, start, end,
+					BTREE_TRIGGER_norun, NULL) ?:
+		bch2_btree_delete_range(c, BTREE_ID_need_discard, start, end,
+					BTREE_TRIGGER_norun, NULL) ?:
+		bch2_btree_delete_range(c, BTREE_ID_freespace, start, end,
+					BTREE_TRIGGER_norun, NULL) ?:
+		bch2_btree_delete_range(c, BTREE_ID_backpointers, start, end,
+					BTREE_TRIGGER_norun, NULL) ?:
+		bch2_btree_delete_range(c, BTREE_ID_alloc, start, end,
+					BTREE_TRIGGER_norun, NULL) ?:
+		bch2_btree_delete_range(c, BTREE_ID_bucket_gens, start, end,
+					BTREE_TRIGGER_norun, NULL) ?:
+		bch2_dev_usage_remove(c, ca->dev_idx);
+	bch_err_msg(ca, ret, "removing dev alloc info");
+	return ret;
+}
+
 /* Bucket IO clocks: */
 
 int bch2_bucket_io_time_reset(struct btree_trans *trans, unsigned dev,
