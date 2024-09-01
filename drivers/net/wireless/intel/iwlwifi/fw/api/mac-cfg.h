@@ -50,7 +50,7 @@ enum iwl_mac_conf_subcmd_ids {
 	 */
 	AUX_STA_CMD = 0xB,
 	/**
-	 * @STA_REMOVE_CMD: &struct iwl_mvm_remove_sta_cmd
+	 * @STA_REMOVE_CMD: &struct iwl_remove_sta_cmd
 	 */
 	STA_REMOVE_CMD = 0xC,
 	/**
@@ -636,13 +636,13 @@ struct iwl_mvm_aux_sta_cmd {
 } __packed; /* AUX_STA_CMD_API_S_VER_1 */
 
 /**
- * struct iwl_mvm_remove_sta_cmd - a cmd structure to remove a sta added by
+ * struct iwl_remove_sta_cmd - a cmd structure to remove a sta added by
  *	STA_CONFIG_CMD or AUX_STA_CONFIG_CMD
  * ( STA_REMOVE_CMD = 0xC )
  *
  * @sta_id: index of station to remove
  */
-struct iwl_mvm_remove_sta_cmd {
+struct iwl_remove_sta_cmd {
 	__le32 sta_id;
 } __packed; /* REMOVE_STA_API_S_VER_1 */
 
