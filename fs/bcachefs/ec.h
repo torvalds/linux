@@ -188,7 +188,7 @@ struct ec_stripe_head {
 	struct list_head	list;
 	struct mutex		lock;
 
-	unsigned		target;
+	unsigned		disk_label;
 	unsigned		algo;
 	unsigned		redundancy;
 	enum bch_watermark	watermark;
