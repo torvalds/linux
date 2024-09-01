@@ -8,6 +8,11 @@
 	status = "okay";
 };
 
+/* Colibri PWM_A */
+&adma_pwm {
+	status = "okay";
+};
+
 &colibri_gpio_keys {
 	status = "okay";
 };

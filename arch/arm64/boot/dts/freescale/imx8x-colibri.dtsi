@@ -88,6 +88,12 @@
 	vref-supply = <&reg_module_vref_1v8>;
 };
 
+/* Colibri PWM_A */
+&adma_pwm {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_pwm_a>;
+};
+
 &cpu_alert0 {
 	hysteresis = <2000>;
 	temperature = <90000>;
