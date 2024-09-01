@@ -1755,26 +1755,9 @@ static void check_modname_len(struct module *mod)
 static void add_header(struct buffer *b, struct module *mod)
 {
 	buf_printf(b, "#include <linux/module.h>\n");
-	/*
-	 * Include build-salt.h after module.h in order to
-	 * inherit the definitions.
-	 */
-	buf_printf(b, "#define INCLUDE_VERMAGIC\n");
-	buf_printf(b, "#include <linux/build-salt.h>\n");
-	buf_printf(b, "#include <linux/elfnote-lto.h>\n");
 	buf_printf(b, "#include <linux/export-internal.h>\n");
-	buf_printf(b, "#include <linux/vermagic.h>\n");
 	buf_printf(b, "#include <linux/compiler.h>\n");
 	buf_printf(b, "\n");
-	buf_printf(b, "#ifdef CONFIG_UNWINDER_ORC\n");
-	buf_printf(b, "#include <asm/orc_header.h>\n");
-	buf_printf(b, "ORC_HEADER;\n");
-	buf_printf(b, "#endif\n");
-	buf_printf(b, "\n");
-	buf_printf(b, "BUILD_SALT;\n");
-	buf_printf(b, "BUILD_LTO_INFO;\n");
-	buf_printf(b, "\n");
-	buf_printf(b, "MODULE_INFO(vermagic, VERMAGIC_STRING);\n");
 	buf_printf(b, "MODULE_INFO(name, KBUILD_MODNAME);\n");
 	buf_printf(b, "\n");
 	buf_printf(b, "__visible struct module __this_module\n");
@@ -1791,12 +1774,6 @@ static void add_header(struct buffer *b, struct module *mod)
 
 	if (!external_module)
 		buf_printf(b, "\nMODULE_INFO(intree, \"Y\");\n");
-
-	buf_printf(b,
-		   "\n"
-		   "#ifdef CONFIG_MITIGATION_RETPOLINE\n"
-		   "MODULE_INFO(retpoline, \"Y\");\n"
-		   "#endif\n");
 
 	if (strstarts(mod->name, "drivers/staging"))
 		buf_printf(b, "\nMODULE_INFO(staging, \"Y\");\n");
