@@ -17,6 +17,11 @@
 	};
 };
 
+/* Colibri Analogue Inputs */
+&adc0 {
+	status = "okay";
+};
+
 &colibri_gpio_keys {
 	status = "okay";
 };

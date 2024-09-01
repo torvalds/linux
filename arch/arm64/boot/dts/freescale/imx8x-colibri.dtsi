@@ -38,6 +38,13 @@
 		regulator-max-microvolt = <3300000>;
 	};
 
+	reg_module_vref_1v8: regulator-module-vref-1v8 {
+		compatible = "regulator-fixed";
+		regulator-max-microvolt = <1800000>;
+		regulator-min-microvolt = <1800000>;
+		regulator-name = "vref-1v8";
+	};
+
 	reg_usbh_vbus: regulator-usbh-vbus {
 		compatible = "regulator-fixed";
 		pinctrl-names = "default";
@@ -50,7 +57,12 @@
 	};
 };
 
-/* TODO Analogue Inputs */
+/* Colibri Analogue Inputs */
+&adc0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_adc0>;
+	vref-supply = <&reg_module_vref_1v8>;
+};
 
 /* TODO Cooling maps for DX */
 
