@@ -15,11 +15,12 @@ static uint32_t rol32(uint32_t word, unsigned int shift)
 	return (word << (shift & 31)) | (word >> ((-shift) & 31));
 }
 
-static void reference_chacha20_blocks(uint8_t *dst_bytes, const uint32_t *key, size_t nblocks)
+static void reference_chacha20_blocks(uint8_t *dst_bytes, const uint32_t *key, uint32_t *counter, size_t nblocks)
 {
 	uint32_t s[16] = {
 		0x61707865U, 0x3320646eU, 0x79622d32U, 0x6b206574U,
-		key[0], key[1], key[2], key[3], key[4], key[5], key[6], key[7]
+		key[0], key[1], key[2], key[3], key[4], key[5], key[6], key[7],
+		counter[0], counter[1], 0, 0
 	};
 
 	while (nblocks--) {
@@ -50,6 +51,8 @@ static void reference_chacha20_blocks(uint8_t *dst_bytes, const uint32_t *key, s
 		if (!++s[12])
 			++s[13];
 	}
+	counter[0] = s[12];
+	counter[1] = s[13];
 }
 
 typedef uint8_t u8;
@@ -60,8 +63,7 @@ typedef uint64_t u64;
 int main(int argc, char *argv[])
 {
 	enum { TRIALS = 1000, BLOCKS = 128, BLOCK_SIZE = 64 };
-	uint32_t counter[2];
-	uint32_t key[8];
+	uint32_t key[8], counter1[2], counter2[2];
 	uint8_t output1[BLOCK_SIZE * BLOCKS], output2[BLOCK_SIZE * BLOCKS];
 
 	ksft_print_header();
@@ -72,17 +74,33 @@ int main(int argc, char *argv[])
 			printf("getrandom() failed!\n");
 			return KSFT_SKIP;
 		}
-		reference_chacha20_blocks(output1, key, BLOCKS);
+		memset(counter1, 0, sizeof(counter1));
+		reference_chacha20_blocks(output1, key, counter1, BLOCKS);
 		for (unsigned int split = 0; split < BLOCKS; ++split) {
 			memset(output2, 'X', sizeof(output2));
-			memset(counter, 0, sizeof(counter));
+			memset(counter2, 0, sizeof(counter2));
 			if (split)
-				__arch_chacha20_blocks_nostack(output2, key, counter, split);
-			__arch_chacha20_blocks_nostack(output2 + split * BLOCK_SIZE, key, counter, BLOCKS - split);
-			if (memcmp(output1, output2, sizeof(output1)))
+				__arch_chacha20_blocks_nostack(output2, key, counter2, split);
+			__arch_chacha20_blocks_nostack(output2 + split * BLOCK_SIZE, key, counter2, BLOCKS - split);
+			if (memcmp(output1, output2, sizeof(output1)) || memcmp(counter1, counter2, sizeof(counter1)))
 				return KSFT_FAIL;
 		}
 	}
+	memset(counter1, 0, sizeof(counter1));
+	counter1[0] = (uint32_t)-BLOCKS + 2;
+	memset(counter2, 0, sizeof(counter2));
+	counter2[0] = (uint32_t)-BLOCKS + 2;
+
+	reference_chacha20_blocks(output1, key, counter1, BLOCKS);
+	__arch_chacha20_blocks_nostack(output2, key, counter2, BLOCKS);
+	if (memcmp(output1, output2, sizeof(output1)) || memcmp(counter1, counter2, sizeof(counter1)))
+		return KSFT_FAIL;
+
+	reference_chacha20_blocks(output1, key, counter1, BLOCKS);
+	__arch_chacha20_blocks_nostack(output2, key, counter2, BLOCKS);
+	if (memcmp(output1, output2, sizeof(output1)) || memcmp(counter1, counter2, sizeof(counter1)))
+		return KSFT_FAIL;
+
 	ksft_test_result_pass("chacha: PASS\n");
 	return KSFT_PASS;
 }
