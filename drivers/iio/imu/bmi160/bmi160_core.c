@@ -690,17 +690,8 @@ static int bmi160_config_device_irq(struct iio_dev *indio_dev, int irq_type,
 static int bmi160_setup_irq(struct iio_dev *indio_dev, int irq,
 			    enum bmi160_int_pin pin)
 {
-	struct irq_data *desc;
-	u32 irq_type;
+	u32 irq_type = irq_get_trigger_type(irq);
 	int ret;
-
-	desc = irq_get_irq_data(irq);
-	if (!desc) {
-		dev_err(&indio_dev->dev, "Could not find IRQ %d\n", irq);
-		return -EINVAL;
-	}
-
-	irq_type = irqd_get_trigger_type(desc);
 
 	ret = bmi160_config_device_irq(indio_dev, irq_type, pin);
 	if (ret)
