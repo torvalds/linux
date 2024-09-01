@@ -106,6 +106,21 @@
 	type = "critical";
 };
 
+&enet0_lpcg {
+	clocks = <&clk IMX_SC_R_ENET_0 IMX_SC_PM_CLK_PER>,
+		 <&clk IMX_SC_R_ENET_0 IMX_SC_PM_CLK_PER>,
+		 <&conn_axi_clk>,
+		 <&clk IMX_SC_R_ENET_0 IMX_SC_C_DISABLE_50>,
+		 <&conn_ipg_clk>,
+		 <&conn_ipg_clk>;
+	clock-output-names = "enet0_lpcg_timer_clk",
+			     "enet0_lpcg_txc_sampling_clk",
+			     "enet0_lpcg_ahb_clk",
+			     "enet0_lpcg_ref_50mhz_clk",
+			     "enet0_lpcg_ipg_clk",
+			     "enet0_lpcg_ipg_s_clk";
+};
+
 /* TODO flexcan1 - 3 */
 
 /* TODO GPU */
