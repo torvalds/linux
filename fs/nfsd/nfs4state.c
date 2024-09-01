@@ -8859,7 +8859,15 @@ nfsd4_deleg_getattr_conflict(struct svc_rqst *rqstp, struct dentry *dentry,
 			 */
 			if (type == F_RDLCK)
 				break;
-			goto break_lease;
+
+			nfsd_stats_wdeleg_getattr_inc(nn);
+			spin_unlock(&ctx->flc_lock);
+
+			status = nfserrno(nfsd_open_break_lease(inode, NFSD_MAY_READ));
+			if (status != nfserr_jukebox ||
+			    !nfsd_wait_for_delegreturn(rqstp, inode))
+				return status;
+			return 0;
 		}
 		if (type == F_WRLCK) {
 			struct nfs4_delegation *dp = fl->c.flc_owner;
@@ -8868,7 +8876,6 @@ nfsd4_deleg_getattr_conflict(struct svc_rqst *rqstp, struct dentry *dentry,
 				spin_unlock(&ctx->flc_lock);
 				return 0;
 			}
-break_lease:
 			nfsd_stats_wdeleg_getattr_inc(nn);
 			dp = fl->c.flc_owner;
 			refcount_inc(&dp->dl_stid.sc_count);

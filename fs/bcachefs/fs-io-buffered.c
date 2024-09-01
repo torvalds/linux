@@ -802,8 +802,7 @@ static noinline void folios_trunc(folios *fs, struct folio **fi)
 static int __bch2_buffered_write(struct bch_inode_info *inode,
 				 struct address_space *mapping,
 				 struct iov_iter *iter,
-				 loff_t pos, unsigned len,
-				 bool inode_locked)
+				 loff_t pos, unsigned len)
 {
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
 	struct bch2_folio_reservation res;
@@ -826,15 +825,6 @@ static int __bch2_buffered_write(struct bch_inode_info *inode,
 		goto out;
 
 	BUG_ON(!fs.nr);
-
-	/*
-	 * If we're not using the inode lock, we need to lock all the folios for
-	 * atomiticity of writes vs. other writes:
-	 */
-	if (!inode_locked && folio_end_pos(darray_last(fs)) < end) {
-		ret = -BCH_ERR_need_inode_lock;
-		goto out;
-	}
 
 	f = darray_first(fs);
 	if (pos != folio_pos(f) && !folio_test_uptodate(f)) {
@@ -932,10 +922,8 @@ static int __bch2_buffered_write(struct bch_inode_info *inode,
 	end = pos + copied;
 
 	spin_lock(&inode->v.i_lock);
-	if (end > inode->v.i_size) {
-		BUG_ON(!inode_locked);
+	if (end > inode->v.i_size)
 		i_size_write(&inode->v, end);
-	}
 	spin_unlock(&inode->v.i_lock);
 
 	f_pos = pos;
@@ -979,67 +967,11 @@ static ssize_t bch2_buffered_write(struct kiocb *iocb, struct iov_iter *iter)
 	struct file *file = iocb->ki_filp;
 	struct address_space *mapping = file->f_mapping;
 	struct bch_inode_info *inode = file_bch_inode(file);
-	loff_t pos;
-	bool inode_locked = false;
-	ssize_t written = 0, written2 = 0, ret = 0;
-
-	/*
-	 * We don't take the inode lock unless i_size will be changing. Folio
-	 * locks provide exclusion with other writes, and the pagecache add lock
-	 * provides exclusion with truncate and hole punching.
-	 *
-	 * There is one nasty corner case where atomicity would be broken
-	 * without great care: when copying data from userspace to the page
-	 * cache, we do that with faults disable - a page fault would recurse
-	 * back into the filesystem, taking filesystem locks again, and
-	 * deadlock; so it's done with faults disabled, and we fault in the user
-	 * buffer when we aren't holding locks.
-	 *
-	 * If we do part of the write, but we then race and in the userspace
-	 * buffer have been evicted and are no longer resident, then we have to
-	 * drop our folio locks to re-fault them in, breaking write atomicity.
-	 *
-	 * To fix this, we restart the write from the start, if we weren't
-	 * holding the inode lock.
-	 *
-	 * There is another wrinkle after that; if we restart the write from the
-	 * start, and then get an unrecoverable error, we _cannot_ claim to
-	 * userspace that we did not write data we actually did - so we must
-	 * track (written2) the most we ever wrote.
-	 */
-
-	if ((iocb->ki_flags & IOCB_APPEND) ||
-	    (iocb->ki_pos + iov_iter_count(iter) > i_size_read(&inode->v))) {
-		inode_lock(&inode->v);
-		inode_locked = true;
-	}
-
-	ret = generic_write_checks(iocb, iter);
-	if (ret <= 0)
-		goto unlock;
-
-	ret = file_remove_privs_flags(file, !inode_locked ? IOCB_NOWAIT : 0);
-	if (ret) {
-		if (!inode_locked) {
-			inode_lock(&inode->v);
-			inode_locked = true;
-			ret = file_remove_privs_flags(file, 0);
-		}
-		if (ret)
-			goto unlock;
-	}
-
-	ret = file_update_time(file);
-	if (ret)
-		goto unlock;
-
-	pos = iocb->ki_pos;
+	loff_t pos = iocb->ki_pos;
+	ssize_t written = 0;
+	int ret = 0;
 
 	bch2_pagecache_add_get(inode);
-
-	if (!inode_locked &&
-	    (iocb->ki_pos + iov_iter_count(iter) > i_size_read(&inode->v)))
-		goto get_inode_lock;
 
 	do {
 		unsigned offset = pos & (PAGE_SIZE - 1);
@@ -1065,17 +997,12 @@ again:
 			}
 		}
 
-		if (unlikely(bytes != iov_iter_count(iter) && !inode_locked))
-			goto get_inode_lock;
-
 		if (unlikely(fatal_signal_pending(current))) {
 			ret = -EINTR;
 			break;
 		}
 
-		ret = __bch2_buffered_write(inode, mapping, iter, pos, bytes, inode_locked);
-		if (ret == -BCH_ERR_need_inode_lock)
-			goto get_inode_lock;
+		ret = __bch2_buffered_write(inode, mapping, iter, pos, bytes);
 		if (unlikely(ret < 0))
 			break;
 
@@ -1096,46 +1023,50 @@ again:
 		}
 		pos += ret;
 		written += ret;
-		written2 = max(written, written2);
-
-		if (ret != bytes && !inode_locked)
-			goto get_inode_lock;
 		ret = 0;
 
 		balance_dirty_pages_ratelimited(mapping);
-
-		if (0) {
-get_inode_lock:
-			bch2_pagecache_add_put(inode);
-			inode_lock(&inode->v);
-			inode_locked = true;
-			bch2_pagecache_add_get(inode);
-
-			iov_iter_revert(iter, written);
-			pos -= written;
-			written = 0;
-			ret = 0;
-		}
 	} while (iov_iter_count(iter));
+
 	bch2_pagecache_add_put(inode);
-unlock:
-	if (inode_locked)
-		inode_unlock(&inode->v);
 
-	iocb->ki_pos += written;
-
-	ret = max(written, written2) ?: ret;
-	if (ret > 0)
-		ret = generic_write_sync(iocb, ret);
-	return ret;
+	return written ? written : ret;
 }
 
-ssize_t bch2_write_iter(struct kiocb *iocb, struct iov_iter *iter)
+ssize_t bch2_write_iter(struct kiocb *iocb, struct iov_iter *from)
 {
-	ssize_t ret = iocb->ki_flags & IOCB_DIRECT
-		? bch2_direct_write(iocb, iter)
-		: bch2_buffered_write(iocb, iter);
+	struct file *file = iocb->ki_filp;
+	struct bch_inode_info *inode = file_bch_inode(file);
+	ssize_t ret;
 
+	if (iocb->ki_flags & IOCB_DIRECT) {
+		ret = bch2_direct_write(iocb, from);
+		goto out;
+	}
+
+	inode_lock(&inode->v);
+
+	ret = generic_write_checks(iocb, from);
+	if (ret <= 0)
+		goto unlock;
+
+	ret = file_remove_privs(file);
+	if (ret)
+		goto unlock;
+
+	ret = file_update_time(file);
+	if (ret)
+		goto unlock;
+
+	ret = bch2_buffered_write(iocb, from);
+	if (likely(ret > 0))
+		iocb->ki_pos += ret;
+unlock:
+	inode_unlock(&inode->v);
+
+	if (ret > 0)
+		ret = generic_write_sync(iocb, ret);
+out:
 	return bch2_err_class(ret);
 }
 
