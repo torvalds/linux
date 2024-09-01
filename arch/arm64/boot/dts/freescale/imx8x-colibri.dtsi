@@ -113,6 +113,26 @@
 	pinctrl-0 = <&pinctrl_i2c0>, <&pinctrl_sgtl5000_usb_clk>;
 	status = "okay";
 
+	/* USB HUB USB3803 */
+	usb-hub@8 {
+		compatible = "smsc,usb3803";
+		reg = <0x8>;
+		assigned-clocks = <&clk IMX_SC_R_AUDIO_PLL_0 IMX_SC_PM_CLK_PLL>,
+				  <&clk IMX_SC_R_AUDIO_PLL_0 IMX_SC_PM_CLK_SLV_BUS>,
+				  <&clk IMX_SC_R_AUDIO_PLL_0 IMX_SC_PM_CLK_MST_BUS>,
+				  <&mclkout0_lpcg IMX_LPCG_CLK_0>;
+		assigned-clock-rates = <786432000>, <49152000>, <12000000>, <12000000>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_usb3503a>;
+		bypass-gpios = <&gpio_expander_43 5 GPIO_ACTIVE_LOW>;
+		clocks = <&mclkout0_lpcg IMX_LPCG_CLK_0>;
+		clock-names = "refclk";
+		disabled-ports = <2>;
+		initial-mode = <1>;
+		intn-gpios = <&lsio_gpio3 4 GPIO_ACTIVE_LOW>;
+		reset-gpios = <&gpio_expander_43 4 GPIO_ACTIVE_LOW>;
+	};
+
 	sgtl5000_a: audio-codec@a {
 		compatible = "fsl,sgtl5000";
 		reg = <0xa>;
