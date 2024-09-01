@@ -474,3 +474,47 @@ unsigned bch2_sb_nr_devices(const struct bch_sb *sb)
 		nr += bch2_member_exists((struct bch_sb *) sb, i);
 	return nr;
 }
+
+int bch2_sb_member_alloc(struct bch_fs *c)
+{
+	unsigned dev_idx = c->sb.nr_devices;
+	if (dev_idx < BCH_SB_MEMBERS_MAX)
+		goto have_slot;
+
+	int best = -1;
+	u64 best_last_mount = 0;
+	for (dev_idx = 0; dev_idx < BCH_SB_MEMBERS_MAX; dev_idx++) {
+		/* eventually BCH_SB_MEMBERS_MAX will be raised */
+		if (dev_idx == BCH_SB_MEMBER_INVALID)
+			continue;
+
+		struct bch_member m = bch2_sb_member_get(c->disk_sb.sb, dev_idx);
+		if (bch2_member_alive(&m))
+			continue;
+
+		u64 last_mount = le64_to_cpu(m.last_mount);
+		if (best < 0 || last_mount < best_last_mount) {
+			best = dev_idx;
+			best_last_mount = last_mount;
+		}
+	}
+	if (best >= 0) {
+		dev_idx = best;
+		goto have_slot;
+	}
+
+	return -BCH_ERR_ENOSPC_sb_members;
+have_slot:
+	unsigned nr_devices = max_t(unsigned, dev_idx + 1, c->sb.nr_devices);
+
+	struct bch_sb_field_members_v2 *mi = bch2_sb_field_get(c->disk_sb.sb, members_v2);
+	unsigned u64s = DIV_ROUND_UP(sizeof(struct bch_sb_field_members_v2) +
+				     le16_to_cpu(mi->member_bytes) * nr_devices, sizeof(u64));
+
+	mi = bch2_sb_field_resize(&c->disk_sb, members_v2, u64s);
+	if (!mi)
+		return -BCH_ERR_ENOSPC_sb_members;
+
+	c->disk_sb.sb->nr_devices = nr_devices;
+	return dev_idx;
+}

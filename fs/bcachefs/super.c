@@ -1703,9 +1703,6 @@ int bch2_dev_add(struct bch_fs *c, const char *path)
 	struct bch_opts opts = bch2_opts_empty();
 	struct bch_sb_handle sb;
 	struct bch_dev *ca = NULL;
-	struct bch_sb_field_members_v2 *mi;
-	struct bch_member dev_mi;
-	unsigned dev_idx, nr_devices, u64s;
 	struct printbuf errbuf = PRINTBUF;
 	struct printbuf label = PRINTBUF;
 	int ret;
@@ -1715,7 +1712,7 @@ int bch2_dev_add(struct bch_fs *c, const char *path)
 	if (ret)
 		goto err;
 
-	dev_mi = bch2_sb_member_get(sb.sb, sb.sb->dev_idx);
+	struct bch_member dev_mi = bch2_sb_member_get(sb.sb, sb.sb->dev_idx);
 
 	if (BCH_MEMBER_GROUP(&dev_mi)) {
 		bch2_disk_path_to_text_sb(&label, sb.sb, BCH_MEMBER_GROUP(&dev_mi) - 1);
@@ -1753,55 +1750,19 @@ int bch2_dev_add(struct bch_fs *c, const char *path)
 		goto err_unlock;
 
 	if (dynamic_fault("bcachefs:add:no_slot"))
-		goto no_slot;
+		goto err_unlock;
 
-	if (c->sb.nr_devices < BCH_SB_MEMBERS_MAX) {
-		dev_idx = c->sb.nr_devices;
-		goto have_slot;
-	}
-
-	int best = -1;
-	u64 best_last_mount = 0;
-	for (dev_idx = 0; dev_idx < BCH_SB_MEMBERS_MAX; dev_idx++) {
-		struct bch_member m = bch2_sb_member_get(c->disk_sb.sb, dev_idx);
-		if (bch2_member_alive(&m))
-			continue;
-
-		u64 last_mount = le64_to_cpu(m.last_mount);
-		if (best < 0 || last_mount < best_last_mount) {
-			best = dev_idx;
-			best_last_mount = last_mount;
-		}
-	}
-	if (best >= 0) {
-		dev_idx = best;
-		goto have_slot;
-	}
-no_slot:
-	ret = -BCH_ERR_ENOSPC_sb_members;
-	bch_err_msg(c, ret, "setting up new superblock");
-	goto err_unlock;
-
-have_slot:
-	nr_devices = max_t(unsigned, dev_idx + 1, c->sb.nr_devices);
-
-	mi = bch2_sb_field_get(c->disk_sb.sb, members_v2);
-	u64s = DIV_ROUND_UP(sizeof(struct bch_sb_field_members_v2) +
-			    le16_to_cpu(mi->member_bytes) * nr_devices, sizeof(u64));
-
-	mi = bch2_sb_field_resize(&c->disk_sb, members_v2, u64s);
-	if (!mi) {
-		ret = -BCH_ERR_ENOSPC_sb_members;
+	ret = bch2_sb_member_alloc(c);
+	if (ret < 0) {
 		bch_err_msg(c, ret, "setting up new superblock");
 		goto err_unlock;
 	}
-	struct bch_member *m = bch2_members_v2_get_mut(c->disk_sb.sb, dev_idx);
+	unsigned dev_idx = ret;
 
 	/* success: */
 
-	*m = dev_mi;
-	m->last_mount = cpu_to_le64(ktime_get_real_seconds());
-	c->disk_sb.sb->nr_devices	= nr_devices;
+	dev_mi.last_mount = cpu_to_le64(ktime_get_real_seconds());
+	*bch2_members_v2_get_mut(c->disk_sb.sb, dev_idx) = dev_mi;
 
 	ca->disk_sb.sb->dev_idx	= dev_idx;
 	bch2_dev_attach(c, ca, dev_idx);

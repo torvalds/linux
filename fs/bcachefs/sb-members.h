@@ -354,4 +354,6 @@ static inline bool bch2_dev_btree_bitmap_marked_sectors(struct bch_dev *ca, u64 
 bool bch2_dev_btree_bitmap_marked(struct bch_fs *, struct bkey_s_c);
 void bch2_dev_btree_bitmap_mark(struct bch_fs *, struct bkey_s_c);
 
+int bch2_sb_member_alloc(struct bch_fs *);
+
 #endif /* _BCACHEFS_SB_MEMBERS_H */
