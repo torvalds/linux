@@ -2270,6 +2270,8 @@ static void bch2_new_stripe_to_text(struct printbuf *out, struct bch_fs *c,
 	for_each_set_bit(i, s->blocks_gotten, v->nr_blocks)
 		prt_printf(out, " %u", s->blocks[i]);
 	prt_newline(out);
+	bch2_bkey_val_to_text(out, c, bkey_i_to_s_c(&s->new_stripe.key));
+	prt_newline(out);
 }
 
 void bch2_new_stripes_to_text(struct printbuf *out, struct bch_fs *c)
