@@ -117,14 +117,10 @@ static inline int do_encrypt(struct crypto_sync_skcipher *tfm,
 			      void *buf, size_t len)
 {
 	if (!is_vmalloc_addr(buf)) {
-		struct scatterlist sg;
+		struct scatterlist sg = {};
 
-		sg_init_table(&sg, 1);
-		sg_set_page(&sg,
-			    is_vmalloc_addr(buf)
-			    ? vmalloc_to_page(buf)
-			    : virt_to_page(buf),
-			    len, offset_in_page(buf));
+		sg_mark_end(&sg);
+		sg_set_page(&sg, virt_to_page(buf), len, offset_in_page(buf));
 		return do_encrypt_sg(tfm, nonce, &sg, len);
 	} else {
 		DARRAY_PREALLOCATED(struct scatterlist, 4) sgl;
