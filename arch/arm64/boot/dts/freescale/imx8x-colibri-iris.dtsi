@@ -21,6 +21,10 @@
 	status = "okay";
 };
 
+&extcon_usbc_det {
+	status = "okay";
+};
+
 /* Colibri FastEthernet */
 &fec1 {
 	status = "okay";
@@ -105,6 +109,28 @@
 
 /* Colibri PWM_D */
 &lsio_pwm2 {
+	status = "okay";
+};
+
+/* USB PHY for usbotg3 */
+&usb3_phy {
+	status = "okay";
+};
+
+&usbotg1 {
+	status = "okay";
+};
+
+&usbotg3 {
+	status = "okay";
+};
+
+&usbotg3_cdns3 {
+	status = "okay";
+};
+
+/* USB PHY for usbotg1 */
+&usbphy1 {
 	status = "okay";
 };
 

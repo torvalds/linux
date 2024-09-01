@@ -23,11 +23,30 @@
 		};
 	};
 
+	extcon_usbc_det: usbc-det {
+		compatible = "linux,extcon-usb-gpio";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_usbc_det>;
+		id-gpios = <&lsio_gpio5 9 GPIO_ACTIVE_HIGH>;
+		status = "disabled";
+	};
+
 	reg_module_3v3: regulator-module-3v3 {
 		compatible = "regulator-fixed";
 		regulator-name = "+V3.3";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
+	};
+
+	reg_usbh_vbus: regulator-usbh-vbus {
+		compatible = "regulator-fixed";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_usbh1_reg>;
+		gpio = <&lsio_gpio4 3 GPIO_ACTIVE_LOW>;
+		regulator-always-on;
+		regulator-max-microvolt = <5000000>;
+		regulator-min-microvolt = <5000000>;
+		regulator-name = "usbh_vbus";
 	};
 };
 
@@ -329,6 +348,20 @@
 
 /* TODO On-module i2s / Audio */
 
+&usbotg1 {
+	adp-disable;
+	disable-over-current;
+	extcon = <&extcon_usbc_det &extcon_usbc_det>;
+	hnp-disable;
+	power-active-high;
+	srp-disable;
+	vbus-supply = <&reg_usbh_vbus>;
+};
+
+&usbotg3_cdns3 {
+	dr_mode = "host";
+};
+
 /* On-module eMMC */
 &usdhc1 {
 	bus-width = <8>;
@@ -355,10 +388,6 @@
 	disable-wp;
 	no-1-8-v;
 };
-
-/* TODO USB Client/Host */
-
-/* TODO USB Host */
 
 /* TODO VPU Encoder/Decoder */
 
