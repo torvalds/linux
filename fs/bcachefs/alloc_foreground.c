@@ -1389,8 +1389,6 @@ int bch2_alloc_sectors_start_trans(struct btree_trans *trans,
 	if (!IS_ENABLED(CONFIG_BCACHEFS_ERASURE_CODING))
 		erasure_code = false;
 
-	BUG_ON(flags & BCH_WRITE_ONLY_SPECIFIED_DEVS);
-
 	BUG_ON(!nr_replicas || !nr_replicas_required);
 retry:
 	ptrs.nr		= 0;
