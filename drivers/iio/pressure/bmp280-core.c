@@ -2596,7 +2596,7 @@ static int bmp085_fetch_eoc_irq(struct device *dev,
 	unsigned long irq_trig;
 	int ret;
 
-	irq_trig = irqd_get_trigger_type(irq_get_irq_data(irq));
+	irq_trig = irq_get_trigger_type(irq);
 	if (irq_trig != IRQF_TRIGGER_RISING) {
 		dev_err(dev, "non-rising trigger given for EOC interrupt, trying to enforce it\n");
 		irq_trig = IRQF_TRIGGER_RISING;
