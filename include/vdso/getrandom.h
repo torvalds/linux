@@ -56,4 +56,19 @@ struct vgetrandom_state {
  */
 extern void __arch_chacha20_blocks_nostack(u8 *dst_bytes, const u32 *key, u32 *counter, size_t nblocks);
 
+/**
+ * __vdso_getrandom - Architecture-specific vDSO implementation of getrandom() syscall.
+ * @buffer:		Passed to __cvdso_getrandom().
+ * @len:		Passed to __cvdso_getrandom().
+ * @flags:		Passed to __cvdso_getrandom().
+ * @opaque_state:	Passed to __cvdso_getrandom().
+ * @opaque_len:		Passed to __cvdso_getrandom();
+ *
+ * This function is implemented by making a single call to to __cvdso_getrandom(), whose
+ * documentation may be consulted for more information.
+ *
+ * Returns:	The return value of __cvdso_getrandom().
+ */
+extern ssize_t __vdso_getrandom(void *buffer, size_t len, unsigned int flags, void *opaque_state, size_t opaque_len);
+
 #endif /* _VDSO_GETRANDOM_H */
