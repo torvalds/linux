@@ -38,6 +38,13 @@
 		regulator-max-microvolt = <3300000>;
 	};
 
+	reg_module_3v3_avdd: regulator-module-3v3-avdd {
+		compatible = "regulator-fixed";
+		regulator-max-microvolt = <3300000>;
+		regulator-min-microvolt = <3300000>;
+		regulator-name = "+V3.3_AVDD_AUDIO";
+	};
+
 	reg_module_vref_1v8: regulator-module-vref-1v8 {
 		compatible = "regulator-fixed";
 		regulator-max-microvolt = <1800000>;
@@ -54,6 +61,23 @@
 		regulator-max-microvolt = <5000000>;
 		regulator-min-microvolt = <5000000>;
 		regulator-name = "usbh_vbus";
+	};
+
+	sound-card {
+		compatible = "simple-audio-card";
+		simple-audio-card,bitclock-master = <&dailink_master>;
+		simple-audio-card,format = "i2s";
+		simple-audio-card,frame-master = <&dailink_master>;
+		simple-audio-card,name = "colibri-imx8x";
+
+		dailink_master: simple-audio-card,codec {
+			clocks = <&mclkout0_lpcg IMX_LPCG_CLK_0>;
+			sound-dai = <&sgtl5000_a>;
+		};
+
+		simple-audio-card,cpu {
+			sound-dai = <&sai0>;
+		};
 	};
 };
 
@@ -90,6 +114,21 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_i2c0>, <&pinctrl_sgtl5000_usb_clk>;
 	status = "okay";
+
+	sgtl5000_a: audio-codec@a {
+		compatible = "fsl,sgtl5000";
+		reg = <0xa>;
+		#sound-dai-cells = <0>;
+		assigned-clocks = <&clk IMX_SC_R_AUDIO_PLL_0 IMX_SC_PM_CLK_PLL>,
+				  <&clk IMX_SC_R_AUDIO_PLL_0 IMX_SC_PM_CLK_SLV_BUS>,
+				  <&clk IMX_SC_R_AUDIO_PLL_0 IMX_SC_PM_CLK_MST_BUS>,
+				  <&mclkout0_lpcg IMX_LPCG_CLK_0>;
+		assigned-clock-rates = <786432000>, <49152000>, <12000000>, <12000000>;
+		clocks = <&mclkout0_lpcg IMX_LPCG_CLK_0>;
+		VDDA-supply = <&reg_module_3v3_avdd>;
+		VDDD-supply = <&reg_module_vref_1v8>;
+		VDDIO-supply = <&reg_module_3v3>;
+	};
 
 	/* Touch controller */
 	touchscreen@2c {
@@ -373,7 +412,13 @@
 
 /* TODO on-module PCIe for Wi-Fi */
 
-/* TODO On-module i2s / Audio */
+/* On-module I2S */
+&sai0 {
+	#sound-dai-cells = <0>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_sai0>;
+	status = "okay";
+};
 
 &usbotg1 {
 	adp-disable;
