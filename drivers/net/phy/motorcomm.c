@@ -46,12 +46,10 @@
 
 /* Specific Status Register */
 #define YTPHY_SPECIFIC_STATUS_REG		0x11
-#define YTPHY_SSR_SPEED_MODE_OFFSET		14
-
-#define YTPHY_SSR_SPEED_MODE_MASK		(BIT(15) | BIT(14))
-#define YTPHY_SSR_SPEED_10M			0x0
-#define YTPHY_SSR_SPEED_100M			0x1
-#define YTPHY_SSR_SPEED_1000M			0x2
+#define YTPHY_SSR_SPEED_MASK			((0x3 << 14) | BIT(9))
+#define YTPHY_SSR_SPEED_10M			((0x0 << 14))
+#define YTPHY_SSR_SPEED_100M			((0x1 << 14))
+#define YTPHY_SSR_SPEED_1000M			((0x2 << 14))
 #define YTPHY_SSR_DUPLEX_OFFSET			13
 #define YTPHY_SSR_DUPLEX			BIT(13)
 #define YTPHY_SSR_PAGE_RECEIVED			BIT(12)
@@ -1187,8 +1185,7 @@ static int yt8521_adjust_status(struct phy_device *phydev, int status,
 	else
 		duplex = DUPLEX_FULL;	/* for fiber, it always DUPLEX_FULL */
 
-	speed_mode = (status & YTPHY_SSR_SPEED_MODE_MASK) >>
-		     YTPHY_SSR_SPEED_MODE_OFFSET;
+	speed_mode = status & YTPHY_SSR_SPEED_MASK;
 
 	switch (speed_mode) {
 	case YTPHY_SSR_SPEED_10M:
