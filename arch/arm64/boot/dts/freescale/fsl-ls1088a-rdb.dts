@@ -170,6 +170,13 @@
 				/* IRQ_RTC_B -> IRQ0_B(CPLD) -> IRQ00(CPU), active low */
 				interrupts-extended = <&extirq 0 IRQ_TYPE_LEVEL_LOW>;
 			};
+
+			rtc@53 {
+				compatible = "nxp,pcf2131";
+				reg = <0x53>;
+				/* IRQ_RTC_B -> IRQ0_B(CPLD) -> IRQ00(CPU), active low */
+				interrupts-extended = <&extirq 0 IRQ_TYPE_LEVEL_LOW>;
+			};
 		};
 	};
 };
