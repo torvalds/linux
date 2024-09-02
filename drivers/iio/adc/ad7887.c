@@ -234,7 +234,7 @@ static void ad7887_reg_disable(void *data)
 
 static int ad7887_probe(struct spi_device *spi)
 {
-	struct ad7887_platform_data *pdata = spi->dev.platform_data;
+	const struct ad7887_platform_data *pdata = dev_get_platdata(&spi->dev);
 	struct ad7887_state *st;
 	struct iio_dev *indio_dev;
 	uint8_t mode;
