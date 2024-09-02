@@ -212,14 +212,14 @@ static int bochs_hw_init(struct drm_device *dev)
 	u16 id;
 
 	if (pdev->resource[2].flags & IORESOURCE_MEM) {
+		ioaddr = pci_resource_start(pdev, 2);
+		iosize = pci_resource_len(pdev, 2);
 		/* mmio bar with vga and bochs registers present */
-		if (pci_request_region(pdev, 2, "bochs-drm") != 0) {
+		if (!devm_request_mem_region(&pdev->dev, ioaddr, iosize, "bochs-drm")) {
 			DRM_ERROR("Cannot request mmio region\n");
 			return -EBUSY;
 		}
-		ioaddr = pci_resource_start(pdev, 2);
-		iosize = pci_resource_len(pdev, 2);
-		bochs->mmio = ioremap(ioaddr, iosize);
+		bochs->mmio = devm_ioremap(&pdev->dev, ioaddr, iosize);
 		if (bochs->mmio == NULL) {
 			DRM_ERROR("Cannot map mmio region\n");
 			return -ENOMEM;
@@ -227,7 +227,7 @@ static int bochs_hw_init(struct drm_device *dev)
 	} else {
 		ioaddr = VBE_DISPI_IOPORT_INDEX;
 		iosize = 2;
-		if (!request_region(ioaddr, iosize, "bochs-drm")) {
+		if (!devm_request_region(&pdev->dev, ioaddr, iosize, "bochs-drm")) {
 			DRM_ERROR("Cannot request ioports\n");
 			return -EBUSY;
 		}
@@ -254,10 +254,10 @@ static int bochs_hw_init(struct drm_device *dev)
 		size = min(size, mem);
 	}
 
-	if (pci_request_region(pdev, 0, "bochs-drm") != 0)
+	if (!devm_request_mem_region(&pdev->dev, addr, size, "bochs-drm"))
 		DRM_WARN("Cannot request framebuffer, boot fb still active?\n");
 
-	bochs->fb_map = ioremap(addr, size);
+	bochs->fb_map = devm_ioremap(&pdev->dev, addr, size);
 	if (bochs->fb_map == NULL) {
 		DRM_ERROR("Cannot map framebuffer\n");
 		return -ENOMEM;
@@ -284,21 +284,6 @@ static int bochs_hw_init(struct drm_device *dev)
 
 noext:
 	return 0;
-}
-
-static void bochs_hw_fini(struct drm_device *dev)
-{
-	struct bochs_device *bochs = dev->dev_private;
-
-	/* TODO: shot down existing vram mappings */
-
-	if (bochs->mmio)
-		iounmap(bochs->mmio);
-	if (bochs->ioports)
-		release_region(VBE_DISPI_IOPORT_INDEX, 2);
-	if (bochs->fb_map)
-		iounmap(bochs->fb_map);
-	pci_release_regions(to_pci_dev(dev->dev));
 }
 
 static void bochs_hw_blank(struct bochs_device *bochs, bool blank)
@@ -565,17 +550,13 @@ static int bochs_load(struct drm_device *dev)
 
 	ret = drmm_vram_helper_init(dev, bochs->fb_base, bochs->fb_size);
 	if (ret)
-		goto err_hw_fini;
+		return ret;
 
 	ret = bochs_kms_init(bochs);
 	if (ret)
-		goto err_hw_fini;
+		return ret;
 
 	return 0;
-
-err_hw_fini:
-	bochs_hw_fini(dev);
-	return ret;
 }
 
 DEFINE_DRM_GEM_FOPS(bochs_fops);
@@ -650,13 +631,11 @@ static int bochs_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent
 
 	ret = drm_dev_register(dev, 0);
 	if (ret)
-		goto err_hw_fini;
+		goto err_free_dev;
 
 	drm_fbdev_ttm_setup(dev, 32);
 	return ret;
 
-err_hw_fini:
-	bochs_hw_fini(dev);
 err_free_dev:
 	drm_dev_put(dev);
 	return ret;
@@ -668,7 +647,6 @@ static void bochs_pci_remove(struct pci_dev *pdev)
 
 	drm_dev_unplug(dev);
 	drm_atomic_helper_shutdown(dev);
-	bochs_hw_fini(dev);
 	drm_dev_put(dev);
 }
 
