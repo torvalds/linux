@@ -21,52 +21,8 @@
 #define FDMA_XTR_CHANNEL		6
 #define FDMA_INJ_CHANNEL		0
 
-#define FDMA_DCB_INFO_DATAL(x)		((x) & GENMASK(15, 0))
-#define FDMA_DCB_INFO_TOKEN		BIT(17)
-#define FDMA_DCB_INFO_INTR		BIT(18)
-#define FDMA_DCB_INFO_SW(x)		(((x) << 24) & GENMASK(31, 24))
-
-#define FDMA_DCB_STATUS_BLOCKL(x)	((x) & GENMASK(15, 0))
-#define FDMA_DCB_STATUS_SOF		BIT(16)
-#define FDMA_DCB_STATUS_EOF		BIT(17)
-#define FDMA_DCB_STATUS_INTR		BIT(18)
-#define FDMA_DCB_STATUS_DONE		BIT(19)
-#define FDMA_DCB_STATUS_BLOCKO(x)	(((x) << 20) & GENMASK(31, 20))
-#define FDMA_DCB_INVALID_DATA		0x1
-
 #define FDMA_XTR_BUFFER_SIZE		2048
 #define FDMA_WEIGHT			4
-
-/* Frame DMA DCB format
- *
- * +---------------------------+
- * |         Next Ptr          |
- * +---------------------------+
- * |   Reserved  |    Info     |
- * +---------------------------+
- * |         Data0 Ptr         |
- * +---------------------------+
- * |   Reserved  |    Status0  |
- * +---------------------------+
- * |         Data1 Ptr         |
- * +---------------------------+
- * |   Reserved  |    Status1  |
- * +---------------------------+
- * |         Data2 Ptr         |
- * +---------------------------+
- * |   Reserved  |    Status2  |
- * |-------------|-------------|
- * |                           |
- * |                           |
- * |                           |
- * |                           |
- * |                           |
- * |---------------------------|
- * |         Data14 Ptr        |
- * +-------------|-------------+
- * |   Reserved  |    Status14 |
- * +-------------|-------------+
- */
 
 /* For each hardware DB there is an entry in this list and when the HW DB
  * entry is used, this SW DB entry is moved to the back of the list

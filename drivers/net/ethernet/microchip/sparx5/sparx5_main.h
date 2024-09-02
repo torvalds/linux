@@ -20,6 +20,8 @@
 #include <linux/debugfs.h>
 #include <net/flow_offload.h>
 
+#include <fdma_api.h>
+
 #include "sparx5_main_regs.h"
 
 /* Target chip type */
