@@ -692,7 +692,7 @@ static void gpstate_timer_handler(struct timer_list *t)
 	}
 
 	/*
-	 * If PMCR was last updated was using fast_swtich then
+	 * If PMCR was last updated was using fast_switch then
 	 * We may have wrong in gpstate->last_lpstate_idx
 	 * value. Hence, read from PMCR to get correct data.
 	 */
