@@ -341,7 +341,7 @@ static const struct iio_info ad5791_info = {
 
 static int ad5791_probe(struct spi_device *spi)
 {
-	struct ad5791_platform_data *pdata = spi->dev.platform_data;
+	const struct ad5791_platform_data *pdata = dev_get_platdata(&spi->dev);
 	struct iio_dev *indio_dev;
 	struct ad5791_state *st;
 	int ret, pos_voltage_uv = 0, neg_voltage_uv = 0;
