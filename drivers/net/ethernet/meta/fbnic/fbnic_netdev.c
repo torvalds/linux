@@ -521,6 +521,8 @@ struct net_device *fbnic_netdev_alloc(struct fbnic_dev *fbd)
 	netdev->netdev_ops = &fbnic_netdev_ops;
 	netdev->stat_ops = &fbnic_stat_ops;
 
+	fbnic_set_ethtool_ops(netdev);
+
 	fbn = netdev_priv(netdev);
 
 	fbn->netdev = netdev;

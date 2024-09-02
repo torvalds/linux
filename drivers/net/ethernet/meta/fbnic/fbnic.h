@@ -132,6 +132,9 @@ void fbnic_free_irq(struct fbnic_dev *dev, int nr, void *data);
 void fbnic_free_irqs(struct fbnic_dev *fbd);
 int fbnic_alloc_irqs(struct fbnic_dev *fbd);
 
+void fbnic_get_fw_ver_commit_str(struct fbnic_dev *fbd, char *fw_version,
+				 const size_t str_sz);
+
 enum fbnic_boards {
 	fbnic_board_asic
 };
