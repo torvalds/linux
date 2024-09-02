@@ -388,9 +388,9 @@ static int mtk_spi_slave_probe(struct platform_device *pdev)
 	int irq, ret;
 	const struct of_device_id *of_id;
 
-	ctlr = spi_alloc_slave(&pdev->dev, sizeof(*mdata));
+	ctlr = spi_alloc_target(&pdev->dev, sizeof(*mdata));
 	if (!ctlr) {
-		dev_err(&pdev->dev, "failed to alloc spi slave\n");
+		dev_err(&pdev->dev, "failed to alloc spi target\n");
 		return -ENOMEM;
 	}
 
