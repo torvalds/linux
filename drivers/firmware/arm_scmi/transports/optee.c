@@ -9,12 +9,13 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
+#include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/tee_drv.h>
 #include <linux/uuid.h>
 #include <uapi/linux/tee.h>
 
-#include "common.h"
+#include "../common.h"
 
 #define SCMI_OPTEE_MAX_MSG_SIZE		128
 
@@ -148,11 +149,10 @@ struct scmi_optee_agent {
 	struct list_head channel_list;
 };
 
+static struct scmi_transport_core_operations *core;
+
 /* There can be only 1 SCMI service in OP-TEE we connect to */
 static struct scmi_optee_agent *scmi_optee_private;
-
-/* Forward reference to scmi_optee transport initialization */
-static int scmi_optee_init(void);
 
 /* Open a session toward SCMI OP-TEE service with REE_KERNEL identity */
 static int open_session(struct scmi_optee_agent *agent, u32 *tee_session)
@@ -312,24 +312,6 @@ static int invoke_process_msg_channel(struct scmi_optee_channel *channel, size_t
 	return 0;
 }
 
-static int scmi_optee_link_supplier(struct device *dev)
-{
-	if (!scmi_optee_private) {
-		if (scmi_optee_init())
-			dev_dbg(dev, "Optee bus not yet ready\n");
-
-		/* Wait for optee bus */
-		return -EPROBE_DEFER;
-	}
-
-	if (!device_link_add(dev, scmi_optee_private->dev, DL_FLAG_AUTOREMOVE_CONSUMER)) {
-		dev_err(dev, "Adding link to supplier optee device failed\n");
-		return -ECANCELED;
-	}
-
-	return 0;
-}
-
 static bool scmi_optee_chan_available(struct device_node *of_node, int idx)
 {
 	u32 channel_id;
@@ -343,7 +325,7 @@ static void scmi_optee_clear_channel(struct scmi_chan_info *cinfo)
 	struct scmi_optee_channel *channel = cinfo->transport_info;
 
 	if (!channel->tee_shm)
-		shmem_clear_channel(channel->req.shmem);
+		core->shmem->clear_channel(channel->req.shmem);
 }
 
 static int setup_dynamic_shmem(struct device *dev, struct scmi_optee_channel *channel)
@@ -368,38 +350,11 @@ static int setup_dynamic_shmem(struct device *dev, struct scmi_optee_channel *ch
 static int setup_static_shmem(struct device *dev, struct scmi_chan_info *cinfo,
 			      struct scmi_optee_channel *channel)
 {
-	struct device_node *np;
-	resource_size_t size;
-	struct resource res;
-	int ret;
+	channel->req.shmem = core->shmem->setup_iomap(cinfo, dev, true, NULL);
+	if (IS_ERR(channel->req.shmem))
+		return PTR_ERR(channel->req.shmem);
 
-	np = of_parse_phandle(cinfo->dev->of_node, "shmem", 0);
-	if (!of_device_is_compatible(np, "arm,scmi-shmem")) {
-		ret = -ENXIO;
-		goto out;
-	}
-
-	ret = of_address_to_resource(np, 0, &res);
-	if (ret) {
-		dev_err(dev, "Failed to get SCMI Tx shared memory\n");
-		goto out;
-	}
-
-	size = resource_size(&res);
-
-	channel->req.shmem = devm_ioremap(dev, res.start, size);
-	if (!channel->req.shmem) {
-		dev_err(dev, "Failed to ioremap SCMI Tx shared memory\n");
-		ret = -EADDRNOTAVAIL;
-		goto out;
-	}
-
-	ret = 0;
-
-out:
-	of_node_put(np);
-
-	return ret;
+	return 0;
 }
 
 static int setup_shmem(struct device *dev, struct scmi_chan_info *cinfo,
@@ -473,6 +428,13 @@ static int scmi_optee_chan_free(int id, void *p, void *data)
 	struct scmi_chan_info *cinfo = p;
 	struct scmi_optee_channel *channel = cinfo->transport_info;
 
+	/*
+	 * Different protocols might share the same chan info, so a previous
+	 * call might have already freed the structure.
+	 */
+	if (!channel)
+		return 0;
+
 	mutex_lock(&scmi_optee_private->mu);
 	list_del(&channel->link);
 	mutex_unlock(&scmi_optee_private->mu);
@@ -499,10 +461,11 @@ static int scmi_optee_send_message(struct scmi_chan_info *cinfo,
 	mutex_lock(&channel->mu);
 
 	if (channel->tee_shm) {
-		msg_tx_prepare(channel->req.msg, xfer);
-		ret = invoke_process_msg_channel(channel, msg_command_size(xfer));
+		core->msg->tx_prepare(channel->req.msg, xfer);
+		ret = invoke_process_msg_channel(channel,
+						 core->msg->command_size(xfer));
 	} else {
-		shmem_tx_prepare(channel->req.shmem, xfer, cinfo);
+		core->shmem->tx_prepare(channel->req.shmem, xfer, cinfo);
 		ret = invoke_process_smt_channel(channel);
 	}
 
@@ -518,9 +481,10 @@ static void scmi_optee_fetch_response(struct scmi_chan_info *cinfo,
 	struct scmi_optee_channel *channel = cinfo->transport_info;
 
 	if (channel->tee_shm)
-		msg_fetch_response(channel->req.msg, channel->rx_len, xfer);
+		core->msg->fetch_response(channel->req.msg,
+					  channel->rx_len, xfer);
 	else
-		shmem_fetch_response(channel->req.shmem, xfer);
+		core->shmem->fetch_response(channel->req.shmem, xfer);
 }
 
 static void scmi_optee_mark_txdone(struct scmi_chan_info *cinfo, int ret,
@@ -532,7 +496,6 @@ static void scmi_optee_mark_txdone(struct scmi_chan_info *cinfo, int ret,
 }
 
 static struct scmi_transport_ops scmi_optee_ops = {
-	.link_supplier = scmi_optee_link_supplier,
 	.chan_available = scmi_optee_chan_available,
 	.chan_setup = scmi_optee_chan_setup,
 	.chan_free = scmi_optee_chan_free,
@@ -546,6 +509,22 @@ static int scmi_optee_ctx_match(struct tee_ioctl_version_data *ver, const void *
 {
 	return ver->impl_id == TEE_IMPL_ID_OPTEE;
 }
+
+static struct scmi_desc scmi_optee_desc = {
+	.ops = &scmi_optee_ops,
+	.max_rx_timeout_ms = 30,
+	.max_msg = 20,
+	.max_msg_size = SCMI_OPTEE_MAX_MSG_SIZE,
+	.sync_cmds_completed_on_ret = true,
+};
+
+static const struct of_device_id scmi_of_match[] = {
+	{ .compatible = "linaro,scmi-optee" },
+	{ /* Sentinel */ },
+};
+
+DEFINE_SCMI_TRANSPORT_DRIVER(scmi_optee, scmi_optee_driver, scmi_optee_desc,
+			     scmi_of_match, core);
 
 static int scmi_optee_service_probe(struct device *dev)
 {
@@ -582,6 +561,12 @@ static int scmi_optee_service_probe(struct device *dev)
 	smp_mb();
 	scmi_optee_private = agent;
 
+	ret = platform_driver_register(&scmi_optee_driver);
+	if (ret) {
+		scmi_optee_private = NULL;
+		goto err;
+	}
+
 	return 0;
 
 err:
@@ -596,6 +581,8 @@ static int scmi_optee_service_remove(struct device *dev)
 
 	if (!scmi_optee_private)
 		return -EINVAL;
+
+	platform_driver_unregister(&scmi_optee_driver);
 
 	if (!list_empty(&scmi_optee_private->channel_list))
 		return -EBUSY;
@@ -618,7 +605,7 @@ static const struct tee_client_device_id scmi_optee_service_id[] = {
 
 MODULE_DEVICE_TABLE(tee, scmi_optee_service_id);
 
-static struct tee_client_driver scmi_optee_driver = {
+static struct tee_client_driver scmi_optee_service_driver = {
 	.id_table	= scmi_optee_service_id,
 	.driver		= {
 		.name = "scmi-optee",
@@ -628,22 +615,18 @@ static struct tee_client_driver scmi_optee_driver = {
 	},
 };
 
-static int scmi_optee_init(void)
+static int __init scmi_transport_optee_init(void)
 {
-	return driver_register(&scmi_optee_driver.driver);
+	return driver_register(&scmi_optee_service_driver.driver);
 }
+module_init(scmi_transport_optee_init);
 
-static void scmi_optee_exit(void)
+static void __exit scmi_transport_optee_exit(void)
 {
-	if (scmi_optee_private)
-		driver_unregister(&scmi_optee_driver.driver);
+	driver_unregister(&scmi_optee_service_driver.driver);
 }
+module_exit(scmi_transport_optee_exit);
 
-const struct scmi_desc scmi_optee_desc = {
-	.transport_exit = scmi_optee_exit,
-	.ops = &scmi_optee_ops,
-	.max_rx_timeout_ms = 30,
-	.max_msg = 20,
-	.max_msg_size = SCMI_OPTEE_MAX_MSG_SIZE,
-	.sync_cmds_completed_on_ret = true,
-};
+MODULE_AUTHOR("Etienne Carriere <etienne.carriere@foss.st.com>");
+MODULE_DESCRIPTION("SCMI OPTEE Transport driver");
+MODULE_LICENSE("GPL");

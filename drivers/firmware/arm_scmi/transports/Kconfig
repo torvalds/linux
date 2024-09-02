@@ -1,0 +1,123 @@
+# SPDX-License-Identifier: GPL-2.0-only
+menu "SCMI Transport Drivers"
+
+config ARM_SCMI_HAVE_TRANSPORT
+	bool
+	help
+	  This declares whether at least one SCMI transport has been configured.
+	  Used to trigger a build bug when trying to build SCMI without any
+	  configured transport.
+
+config ARM_SCMI_HAVE_SHMEM
+	bool
+	help
+	  This declares whether a shared memory based transport for SCMI is
+	  available.
+
+config ARM_SCMI_HAVE_MSG
+	bool
+	help
+	  This declares whether a message passing based transport for SCMI is
+	  available.
+
+config ARM_SCMI_TRANSPORT_MAILBOX
+	tristate "SCMI transport based on Mailbox"
+	depends on MAILBOX
+	select ARM_SCMI_HAVE_TRANSPORT
+	select ARM_SCMI_HAVE_SHMEM
+	default y
+	help
+	  Enable mailbox based transport for SCMI.
+
+	  If you want the ARM SCMI PROTOCOL stack to include support for a
+	  transport based on mailboxes, answer Y.
+	  This driver can also be built as a module. If so, the module
+	  will be called scmi_transport_mailbox.
+
+config ARM_SCMI_TRANSPORT_SMC
+	tristate "SCMI transport based on SMC"
+	depends on HAVE_ARM_SMCCC_DISCOVERY
+	select ARM_SCMI_HAVE_TRANSPORT
+	select ARM_SCMI_HAVE_SHMEM
+	default y
+	help
+	  Enable SMC based transport for SCMI.
+
+	  If you want the ARM SCMI PROTOCOL stack to include support for a
+	  transport based on SMC, answer Y.
+	  This driver can also be built as a module. If so, the module
+	  will be called scmi_transport_smc.
+
+config ARM_SCMI_TRANSPORT_SMC_ATOMIC_ENABLE
+	bool "Enable atomic mode support for SCMI SMC transport"
+	depends on ARM_SCMI_TRANSPORT_SMC
+	help
+	  Enable support of atomic operation for SCMI SMC based transport.
+
+	  If you want the SCMI SMC based transport to operate in atomic
+	  mode, avoiding any kind of sleeping behaviour for selected
+	  transactions on the TX path, answer Y.
+	  Enabling atomic mode operations allows any SCMI driver using this
+	  transport to optionally ask for atomic SCMI transactions and operate
+	  in atomic context too, at the price of using a number of busy-waiting
+	  primitives all over instead. If unsure say N.
+
+config ARM_SCMI_TRANSPORT_OPTEE
+	tristate "SCMI transport based on OP-TEE service"
+	depends on OPTEE
+	select ARM_SCMI_HAVE_TRANSPORT
+	select ARM_SCMI_HAVE_SHMEM
+	select ARM_SCMI_HAVE_MSG
+	default y
+	help
+	  This enables the OP-TEE service based transport for SCMI.
+
+	  If you want the ARM SCMI PROTOCOL stack to include support for a
+	  transport based on OP-TEE SCMI service, answer Y.
+	  This driver can also be built as a module. If so, the module
+	  will be called scmi_transport_optee.
+
+config ARM_SCMI_TRANSPORT_VIRTIO
+	tristate "SCMI transport based on VirtIO"
+	depends on VIRTIO
+	select ARM_SCMI_HAVE_TRANSPORT
+	select ARM_SCMI_HAVE_MSG
+	help
+	  This enables the virtio based transport for SCMI.
+
+	  If you want the ARM SCMI PROTOCOL stack to include support for a
+	  transport based on VirtIO, answer Y.
+	  This driver can also be built as a module. If so, the module
+	  will be called scmi_transport_virtio.
+
+config ARM_SCMI_TRANSPORT_VIRTIO_VERSION1_COMPLIANCE
+	bool "SCMI VirtIO transport Version 1 compliance"
+	depends on ARM_SCMI_TRANSPORT_VIRTIO
+	default y
+	help
+	  This enforces strict compliance with VirtIO Version 1 specification.
+
+	  If you want the ARM SCMI VirtIO transport layer to refuse to work
+	  with Legacy VirtIO backends and instead support only VirtIO Version 1
+	  devices (or above), answer Y.
+
+	  If you want instead to support also old Legacy VirtIO backends (like
+	  the ones implemented by kvmtool) and let the core Kernel VirtIO layer
+	  take care of the needed conversions, say N.
+
+config ARM_SCMI_TRANSPORT_VIRTIO_ATOMIC_ENABLE
+	bool "Enable atomic mode for SCMI VirtIO transport"
+	depends on ARM_SCMI_TRANSPORT_VIRTIO
+	help
+	  Enable support of atomic operation for SCMI VirtIO based transport.
+
+	  If you want the SCMI VirtIO based transport to operate in atomic
+	  mode, avoiding any kind of sleeping behaviour for selected
+	  transactions on the TX path, answer Y.
+
+	  Enabling atomic mode operations allows any SCMI driver using this
+	  transport to optionally ask for atomic SCMI transactions and operate
+	  in atomic context too, at the price of using a number of busy-waiting
+	  primitives all over instead. If unsure say N.
+
+endmenu

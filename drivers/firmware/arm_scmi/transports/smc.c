@@ -16,10 +16,11 @@
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/limits.h>
+#include <linux/platform_device.h>
 #include <linux/processor.h>
 #include <linux/slab.h>
 
-#include "common.h"
+#include "../common.h"
 
 /*
  * The shmem address is split into 4K page and offset.
@@ -69,23 +70,25 @@ struct scmi_smc {
 	unsigned long cap_id;
 };
 
+static struct scmi_transport_core_operations *core;
+
 static irqreturn_t smc_msg_done_isr(int irq, void *data)
 {
 	struct scmi_smc *scmi_info = data;
 
-	scmi_rx_callback(scmi_info->cinfo,
-			 shmem_read_header(scmi_info->shmem), NULL);
+	core->rx_callback(scmi_info->cinfo,
+			  core->shmem->read_header(scmi_info->shmem), NULL);
 
 	return IRQ_HANDLED;
 }
 
 static bool smc_chan_available(struct device_node *of_node, int idx)
 {
-	struct device_node *np = of_parse_phandle(of_node, "shmem", 0);
+	struct device_node *np __free(device_node) =
+					of_parse_phandle(of_node, "shmem", 0);
 	if (!np)
 		return false;
 
-	of_node_put(np);
 	return true;
 }
 
@@ -130,9 +133,7 @@ static int smc_chan_setup(struct scmi_chan_info *cinfo, struct device *dev,
 	struct device *cdev = cinfo->dev;
 	unsigned long cap_id = ULONG_MAX;
 	struct scmi_smc *scmi_info;
-	resource_size_t size;
-	struct resource res;
-	struct device_node *np;
+	struct resource res = {};
 	u32 func_id;
 	int ret;
 
@@ -143,31 +144,16 @@ static int smc_chan_setup(struct scmi_chan_info *cinfo, struct device *dev,
 	if (!scmi_info)
 		return -ENOMEM;
 
-	np = of_parse_phandle(cdev->of_node, "shmem", 0);
-	if (!of_device_is_compatible(np, "arm,scmi-shmem")) {
-		of_node_put(np);
-		return -ENXIO;
-	}
-
-	ret = of_address_to_resource(np, 0, &res);
-	of_node_put(np);
-	if (ret) {
-		dev_err(cdev, "failed to get SCMI Tx shared memory\n");
-		return ret;
-	}
-
-	size = resource_size(&res);
-	scmi_info->shmem = devm_ioremap(dev, res.start, size);
-	if (!scmi_info->shmem) {
-		dev_err(dev, "failed to ioremap SCMI Tx shared memory\n");
-		return -EADDRNOTAVAIL;
-	}
+	scmi_info->shmem = core->shmem->setup_iomap(cinfo, dev, tx, &res);
+	if (IS_ERR(scmi_info->shmem))
+		return PTR_ERR(scmi_info->shmem);
 
 	ret = of_property_read_u32(dev->of_node, "arm,smc-id", &func_id);
 	if (ret < 0)
 		return ret;
 
 	if (of_device_is_compatible(dev->of_node, "qcom,scmi-smc")) {
+		resource_size_t size = resource_size(&res);
 		void __iomem *ptr = (void __iomem *)scmi_info->shmem + size - 8;
 		/* The capability-id is kept in last 8 bytes of shmem.
 		 *     +-------+ <-- 0
@@ -243,7 +229,7 @@ static int smc_send_message(struct scmi_chan_info *cinfo,
 	 */
 	smc_channel_lock_acquire(scmi_info, xfer);
 
-	shmem_tx_prepare(scmi_info->shmem, xfer, cinfo);
+	core->shmem->tx_prepare(scmi_info->shmem, xfer, cinfo);
 
 	if (scmi_info->cap_id != ULONG_MAX)
 		arm_smccc_1_1_invoke(scmi_info->func_id, scmi_info->cap_id, 0,
@@ -267,7 +253,7 @@ static void smc_fetch_response(struct scmi_chan_info *cinfo,
 {
 	struct scmi_smc *scmi_info = cinfo->transport_info;
 
-	shmem_fetch_response(scmi_info->shmem, xfer);
+	core->shmem->fetch_response(scmi_info->shmem, xfer);
 }
 
 static void smc_mark_txdone(struct scmi_chan_info *cinfo, int ret,
@@ -287,7 +273,7 @@ static const struct scmi_transport_ops scmi_smc_ops = {
 	.fetch_response = smc_fetch_response,
 };
 
-const struct scmi_desc scmi_smc_desc = {
+static struct scmi_desc scmi_smc_desc = {
 	.ops = &scmi_smc_ops,
 	.max_rx_timeout_ms = 30,
 	.max_msg = 20,
@@ -303,3 +289,19 @@ const struct scmi_desc scmi_smc_desc = {
 	.sync_cmds_completed_on_ret = true,
 	.atomic_enabled = IS_ENABLED(CONFIG_ARM_SCMI_TRANSPORT_SMC_ATOMIC_ENABLE),
 };
+
+static const struct of_device_id scmi_of_match[] = {
+	{ .compatible = "arm,scmi-smc" },
+	{ .compatible = "arm,scmi-smc-param" },
+	{ .compatible = "qcom,scmi-smc" },
+	{ /* Sentinel */ },
+};
+
+DEFINE_SCMI_TRANSPORT_DRIVER(scmi_smc, scmi_smc_driver, scmi_smc_desc,
+			     scmi_of_match, core);
+module_platform_driver(scmi_smc_driver);
+
+MODULE_AUTHOR("Peng Fan <peng.fan@nxp.com>");
+MODULE_AUTHOR("Nikunj Kela <quic_nkela@quicinc.com>");
+MODULE_DESCRIPTION("SCMI SMC Transport driver");
+MODULE_LICENSE("GPL");

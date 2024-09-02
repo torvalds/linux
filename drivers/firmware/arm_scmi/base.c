@@ -14,7 +14,7 @@
 #include "notify.h"
 
 /* Updated only after ALL the mandatory features for that version are merged */
-#define SCMI_PROTOCOL_SUPPORTED_VERSION		0x20000
+#define SCMI_PROTOCOL_SUPPORTED_VERSION		0x20001
 
 #define SCMI_BASE_NUM_SOURCES		1
 #define SCMI_BASE_MAX_CMD_ERR_COUNT	1024
@@ -41,7 +41,6 @@ struct scmi_msg_resp_base_discover_agent {
 	__le32 agent_id;
 	u8 name[SCMI_SHORT_NAME_MAX_SIZE];
 };
-
 
 struct scmi_msg_base_error_notify {
 	__le32 event_control;
@@ -104,7 +103,6 @@ scmi_base_vendor_id_get(const struct scmi_protocol_handle *ph, bool sub_vendor)
 	char *vendor_id;
 	struct scmi_xfer *t;
 	struct scmi_revision_info *rev = ph->get_priv(ph);
-
 
 	if (sub_vendor) {
 		cmd = BASE_DISCOVER_SUB_VENDOR;
@@ -386,7 +384,7 @@ static int scmi_base_protocol_init(const struct scmi_protocol_handle *ph)
 	if (ret)
 		return ret;
 
-	rev->major_ver = PROTOCOL_REV_MAJOR(version),
+	rev->major_ver = PROTOCOL_REV_MAJOR(version);
 	rev->minor_ver = PROTOCOL_REV_MINOR(version);
 	ph->set_priv(ph, rev, version);
 
