@@ -50,26 +50,6 @@ static int sparx5_fdma_rx_dataptr_cb(struct fdma *fdma, int dcb, int db,
 	return 0;
 }
 
-static void sparx5_fdma_rx_add_dcb(struct sparx5_rx *rx,
-				   struct fdma_dcb *dcb,
-				   u64 nextptr)
-{
-	struct fdma *fdma = &rx->fdma;
-	int idx = 0;
-
-	/* Reset the status of the DB */
-	for (idx = 0; idx < fdma->n_dbs; ++idx) {
-		struct fdma_db *db = &dcb->db[idx];
-
-		db->status = FDMA_DCB_STATUS_INTR;
-	}
-	dcb->nextptr = FDMA_DCB_INVALID_DATA;
-	dcb->info = FDMA_DCB_INFO_DATAL(FDMA_XTR_BUFFER_SIZE);
-
-	fdma->last_dcb->nextptr = nextptr;
-	fdma->last_dcb = dcb;
-}
-
 static void sparx5_fdma_tx_add_dcb(struct sparx5_tx *tx,
 				   struct sparx5_tx_dcb_hw *dcb,
 				   u64 nextptr)
@@ -179,36 +159,20 @@ static void sparx5_fdma_tx_reload(struct sparx5 *sparx5, struct sparx5_tx *tx)
 	spx5_wr(BIT(tx->fdma.channel_id), sparx5, FDMA_CH_RELOAD);
 }
 
-static struct sk_buff *sparx5_fdma_rx_alloc_skb(struct sparx5_rx *rx)
-{
-	return __netdev_alloc_skb(rx->ndev, FDMA_XTR_BUFFER_SIZE,
-				  GFP_ATOMIC);
-}
-
 static bool sparx5_fdma_rx_get_frame(struct sparx5 *sparx5, struct sparx5_rx *rx)
 {
 	struct fdma *fdma = &rx->fdma;
 	unsigned int packet_size;
 	struct sparx5_port *port;
-	struct sk_buff *new_skb;
 	struct fdma_db *db_hw;
 	struct frame_info fi;
 	struct sk_buff *skb;
-	dma_addr_t dma_addr;
 
 	/* Check if the DCB is done */
 	db_hw = &fdma->dcbs[fdma->dcb_index].db[fdma->db_index];
 	if (unlikely(!(db_hw->status & FDMA_DCB_STATUS_DONE)))
 		return false;
 	skb = rx->skb[fdma->dcb_index][fdma->db_index];
-	/* Replace the DB entry with a new SKB */
-	new_skb = sparx5_fdma_rx_alloc_skb(rx);
-	if (unlikely(!new_skb))
-		return false;
-	/* Map the new skb data and set the new skb */
-	dma_addr = virt_to_phys(new_skb->data);
-	rx->skb[fdma->dcb_index][fdma->db_index] = new_skb;
-	db_hw->dataptr = dma_addr;
 	packet_size = FDMA_DCB_STATUS_BLOCKL(db_hw->status);
 	skb_put(skb, packet_size);
 	/* Now do the normal processing of the skb */
@@ -247,24 +211,17 @@ static int sparx5_fdma_napi_callback(struct napi_struct *napi, int weight)
 	int counter = 0;
 
 	while (counter < weight && sparx5_fdma_rx_get_frame(sparx5, rx)) {
-		struct fdma_dcb *old_dcb;
-
 		fdma->db_index++;
 		counter++;
 		/* Check if the DCB can be reused */
 		if (fdma->db_index != fdma->n_dbs)
 			continue;
-		/* As the DCB  can be reused, just advance the dcb_index
-		 * pointer and set the nextptr in the DCB
-		 */
+		fdma_dcb_add(fdma, fdma->dcb_index,
+			     FDMA_DCB_INFO_DATAL(fdma->db_size),
+			     FDMA_DCB_STATUS_INTR);
 		fdma->db_index = 0;
-		old_dcb = &fdma->dcbs[fdma->dcb_index];
 		fdma->dcb_index++;
 		fdma->dcb_index &= fdma->n_dcbs - 1;
-		sparx5_fdma_rx_add_dcb(rx, old_dcb,
-				       fdma->dma +
-				       ((unsigned long)old_dcb -
-					(unsigned long)fdma->dcbs));
 	}
 	if (counter < weight) {
 		napi_complete_done(&rx->napi, counter);
