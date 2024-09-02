@@ -512,10 +512,13 @@ registered compression algorithms, increases our chances of finding the
 algorithm that successfully compresses a particular page. Sometimes, however,
 it is convenient (and sometimes even necessary) to limit recompression to
 only one particular algorithm so that it will not try any other algorithms.
-This can be achieved by providing a algo=NAME parameter:::
+This can be achieved by providing a `algo` or `priority` parameter:::
 
 	#use zstd algorithm only (if registered)
 	echo "type=huge algo=zstd" > /sys/block/zramX/recompress
+
+	#use zstd algorithm only (if zstd was registered under priority 1)
+	echo "type=huge priority=1" > /sys/block/zramX/recompress
 
 memory tracking
 ===============

@@ -1855,6 +1855,18 @@ static ssize_t recompress_store(struct device *dev,
 			algo = val;
 			continue;
 		}
+
+		if (!strcmp(param, "priority")) {
+			ret = kstrtouint(val, 10, &prio);
+			if (ret)
+				return ret;
+
+			if (prio == ZRAM_PRIMARY_COMP)
+				prio = ZRAM_SECONDARY_COMP;
+
+			prio_max = min(prio + 1, ZRAM_MAX_COMPS);
+			continue;
+		}
 	}
 
 	if (threshold >= huge_class_size)
