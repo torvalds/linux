@@ -179,7 +179,6 @@ static int erofs_fill_symlink(struct inode *inode, void *kaddr,
 {
 	struct erofs_inode *vi = EROFS_I(inode);
 	loff_t off;
-	char *lnk;
 
 	m_pofs += vi->xattr_isize;
 	/* check if it cannot be handled with fast symlink scheme */
@@ -190,14 +189,9 @@ static int erofs_fill_symlink(struct inode *inode, void *kaddr,
 		return 0;
 	}
 
-	lnk = kmalloc(inode->i_size + 1, GFP_KERNEL);
-	if (!lnk)
+	inode->i_link = kmemdup_nul(kaddr + m_pofs, inode->i_size, GFP_KERNEL);
+	if (!inode->i_link)
 		return -ENOMEM;
-
-	memcpy(lnk, kaddr + m_pofs, inode->i_size);
-	lnk[inode->i_size] = '\0';
-
-	inode->i_link = lnk;
 	inode->i_op = &erofs_fast_symlink_iops;
 	return 0;
 }
