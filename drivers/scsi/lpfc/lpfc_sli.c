@@ -8818,7 +8818,7 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 	rc = lpfc_sli4_queue_setup(phba);
 	if (unlikely(rc)) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
-				"0381 Error %d during queue setup.\n ", rc);
+				"0381 Error %d during queue setup.\n", rc);
 		goto out_stop_timers;
 	}
 	/* Initialize the driver internal SLI layer lists. */
@@ -21149,7 +21149,7 @@ lpfc_drain_txq(struct lpfc_hba *phba)
 		if (!piocbq) {
 			spin_unlock_irqrestore(&pring->ring_lock, iflags);
 			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
-				"2823 txq empty and txq_cnt is %d\n ",
+				"2823 txq empty and txq_cnt is %d\n",
 				txq_cnt);
 			break;
 		}
