@@ -83,6 +83,7 @@ static void intel_nested_domain_free(struct iommu_domain *domain)
 	spin_lock(&s2_domain->s1_lock);
 	list_del(&dmar_domain->s2_link);
 	spin_unlock(&s2_domain->s1_lock);
+	kfree(dmar_domain->qi_batch);
 	kfree(dmar_domain);
 }
 

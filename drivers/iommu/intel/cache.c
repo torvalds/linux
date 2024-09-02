@@ -190,6 +190,13 @@ int cache_tag_assign_domain(struct dmar_domain *domain,
 	u16 did = domain_get_id_for_dev(domain, dev);
 	int ret;
 
+	/* domain->qi_bach will be freed in iommu_free_domain() path. */
+	if (!domain->qi_batch) {
+		domain->qi_batch = kzalloc(sizeof(*domain->qi_batch), GFP_KERNEL);
+		if (!domain->qi_batch)
+			return -ENOMEM;
+	}
+
 	ret = __cache_tag_assign_domain(domain, did, dev, pasid);
 	if (ret || domain->domain.type != IOMMU_DOMAIN_NESTED)
 		return ret;

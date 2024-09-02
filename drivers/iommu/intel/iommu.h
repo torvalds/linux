@@ -584,6 +584,19 @@ struct iommu_domain_info {
 					 * to VT-d spec, section 9.3 */
 };
 
+/*
+ * We start simply by using a fixed size for the batched descriptors. This
+ * size is currently sufficient for our needs. Future improvements could
+ * involve dynamically allocating the batch buffer based on actual demand,
+ * allowing us to adjust the batch size for optimal performance in different
+ * scenarios.
+ */
+#define QI_MAX_BATCHED_DESC_COUNT 16
+struct qi_batch {
+	struct qi_desc descs[QI_MAX_BATCHED_DESC_COUNT];
+	unsigned int index;
+};
+
 struct dmar_domain {
 	int	nid;			/* node id */
 	struct xarray iommu_array;	/* Attached IOMMU array */
@@ -608,6 +621,7 @@ struct dmar_domain {
 
 	spinlock_t cache_lock;		/* Protect the cache tag list */
 	struct list_head cache_tags;	/* Cache tag list */
+	struct qi_batch *qi_batch;	/* Batched QI descriptors */
 
 	int		iommu_superpage;/* Level of superpages supported:
 					   0 == 4KiB (no superpages), 1 == 2MiB,
