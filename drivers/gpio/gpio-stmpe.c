@@ -31,7 +31,6 @@ enum { LSB, CSB, MSB };
 struct stmpe_gpio {
 	struct gpio_chip chip;
 	struct stmpe *stmpe;
-	struct device *dev;
 	struct mutex irq_lock;
 	u32 norequest_mask;
 	/* Caches of interrupt control registers for bus_lock */
@@ -481,7 +480,6 @@ static int stmpe_gpio_probe(struct platform_device *pdev)
 
 	mutex_init(&stmpe_gpio->irq_lock);
 
-	stmpe_gpio->dev = &pdev->dev;
 	stmpe_gpio->stmpe = stmpe;
 	stmpe_gpio->chip = template_chip;
 	stmpe_gpio->chip.ngpio = stmpe->num_gpios;
