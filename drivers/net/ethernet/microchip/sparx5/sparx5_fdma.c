@@ -162,19 +162,17 @@ static void sparx5_fdma_tx_reload(struct sparx5 *sparx5, struct sparx5_tx *tx)
 static bool sparx5_fdma_rx_get_frame(struct sparx5 *sparx5, struct sparx5_rx *rx)
 {
 	struct fdma *fdma = &rx->fdma;
-	unsigned int packet_size;
 	struct sparx5_port *port;
 	struct fdma_db *db_hw;
 	struct frame_info fi;
 	struct sk_buff *skb;
 
 	/* Check if the DCB is done */
-	db_hw = &fdma->dcbs[fdma->dcb_index].db[fdma->db_index];
-	if (unlikely(!(db_hw->status & FDMA_DCB_STATUS_DONE)))
+	db_hw = fdma_db_next_get(fdma);
+	if (unlikely(!fdma_db_is_done(db_hw)))
 		return false;
 	skb = rx->skb[fdma->dcb_index][fdma->db_index];
-	packet_size = FDMA_DCB_STATUS_BLOCKL(db_hw->status);
-	skb_put(skb, packet_size);
+	skb_put(skb, fdma_db_len_get(db_hw));
 	/* Now do the normal processing of the skb */
 	sparx5_ifh_parse((u32 *)skb->data, &fi);
 	/* Map to port netdev */
@@ -211,17 +209,16 @@ static int sparx5_fdma_napi_callback(struct napi_struct *napi, int weight)
 	int counter = 0;
 
 	while (counter < weight && sparx5_fdma_rx_get_frame(sparx5, rx)) {
-		fdma->db_index++;
+		fdma_db_advance(fdma);
 		counter++;
 		/* Check if the DCB can be reused */
-		if (fdma->db_index != fdma->n_dbs)
+		if (fdma_dcb_is_reusable(fdma))
 			continue;
 		fdma_dcb_add(fdma, fdma->dcb_index,
 			     FDMA_DCB_INFO_DATAL(fdma->db_size),
 			     FDMA_DCB_STATUS_INTR);
-		fdma->db_index = 0;
-		fdma->dcb_index++;
-		fdma->dcb_index &= fdma->n_dcbs - 1;
+		fdma_db_reset(fdma);
+		fdma_dcb_advance(fdma);
 	}
 	if (counter < weight) {
 		napi_complete_done(&rx->napi, counter);
