@@ -1547,7 +1547,7 @@ static void binder_thread_dec_tmpref(struct binder_thread *thread)
  * by threads that are being released. When done with the binder_proc,
  * this function is called to decrement the counter and free the
  * proc if appropriate (proc has been released, all threads have
- * been released and not currenly in-use to process a transaction).
+ * been released and not currently in-use to process a transaction).
  */
 static void binder_proc_dec_tmpref(struct binder_proc *proc)
 {
