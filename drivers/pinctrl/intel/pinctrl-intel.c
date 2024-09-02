@@ -1256,14 +1256,16 @@ static const struct irq_chip intel_gpio_irq_chip = {
 	GPIOCHIP_IRQ_RESOURCE_HELPERS,
 };
 
-static int intel_gpio_community_irq_handler(struct intel_pinctrl *pctrl,
-					    const struct intel_community *community)
+static irqreturn_t intel_gpio_irq(int irq, void *data)
 {
+	const struct intel_community *community;
 	const struct intel_padgroup *padgrp;
-	struct gpio_chip *gc = &pctrl->chip;
+	struct intel_pinctrl *pctrl = data;
 	int ret = 0;
 
-	for_each_intel_community_pad_group(community, padgrp) {
+	/* Need to check all communities for pending interrupts */
+	for_each_intel_pad_group(pctrl, community, padgrp) {
+		struct gpio_chip *gc = &pctrl->chip;
 		unsigned long pending, enabled;
 		unsigned int gpp, gpp_offset;
 		void __iomem *reg, *is;
@@ -1286,19 +1288,6 @@ static int intel_gpio_community_irq_handler(struct intel_pinctrl *pctrl,
 
 		ret += pending ? 1 : 0;
 	}
-
-	return ret;
-}
-
-static irqreturn_t intel_gpio_irq(int irq, void *data)
-{
-	const struct intel_community *community;
-	struct intel_pinctrl *pctrl = data;
-	int ret = 0;
-
-	/* Need to check all communities for pending interrupts */
-	for_each_intel_pin_community(pctrl, community)
-		ret += intel_gpio_community_irq_handler(pctrl, community);
 
 	return IRQ_RETVAL(ret);
 }
