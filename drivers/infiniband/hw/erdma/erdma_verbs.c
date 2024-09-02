@@ -1701,6 +1701,10 @@ err_out_xa:
 	return ret;
 }
 
+void erdma_disassociate_ucontext(struct ib_ucontext *ibcontext)
+{
+}
+
 void erdma_set_mtu(struct erdma_dev *dev, u32 mtu)
 {
 	struct erdma_cmdq_config_mtu_req req;
