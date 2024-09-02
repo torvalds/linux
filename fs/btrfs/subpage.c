@@ -424,6 +424,39 @@ void btrfs_folio_end_writer_lock(const struct btrfs_fs_info *fs_info,
 		folio_unlock(folio);
 }
 
+void btrfs_folio_end_writer_lock_bitmap(const struct btrfs_fs_info *fs_info,
+					struct folio *folio, unsigned long bitmap)
+{
+	struct btrfs_subpage *subpage = folio_get_private(folio);
+	const int start_bit = fs_info->sectors_per_page * btrfs_bitmap_nr_locked;
+	unsigned long flags;
+	bool last = false;
+	int cleared = 0;
+	int bit;
+
+	if (unlikely(!fs_info) || !btrfs_is_subpage(fs_info, folio->mapping)) {
+		folio_unlock(folio);
+		return;
+	}
+
+	if (atomic_read(&subpage->writers) == 0) {
+		/* No writers, locked by plain lock_page(). */
+		folio_unlock(folio);
+		return;
+	}
+
+	spin_lock_irqsave(&subpage->lock, flags);
+	for_each_set_bit(bit, &bitmap, fs_info->sectors_per_page) {
+		if (test_and_clear_bit(bit + start_bit, subpage->bitmaps))
+			cleared++;
+	}
+	ASSERT(atomic_read(&subpage->writers) >= cleared);
+	last = atomic_sub_and_test(cleared, &subpage->writers);
+	spin_unlock_irqrestore(&subpage->lock, flags);
+	if (last)
+		folio_unlock(folio);
+}
+
 #define subpage_test_bitmap_all_set(fs_info, subpage, name)		\
 	bitmap_test_range_all_set(subpage->bitmaps,			\
 			fs_info->sectors_per_page * btrfs_bitmap_nr_##name, \
