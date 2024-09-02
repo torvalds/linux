@@ -1609,7 +1609,7 @@ mptctl_eventreport (MPT_ADAPTER *ioc, unsigned long arg)
 	maxEvents = numBytes/sizeof(MPT_IOCTL_EVENTS);
 
 
-	max = MPTCTL_EVENT_LOG_SIZE < maxEvents ? MPTCTL_EVENT_LOG_SIZE : maxEvents;
+	max = min(maxEvents, MPTCTL_EVENT_LOG_SIZE);
 
 	/* If fewer than 1 event is requested, there must have
 	 * been some type of error.
