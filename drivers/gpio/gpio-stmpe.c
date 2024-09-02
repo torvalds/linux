@@ -11,8 +11,8 @@
 #include <linux/slab.h>
 #include <linux/gpio/driver.h>
 #include <linux/interrupt.h>
-#include <linux/of.h>
 #include <linux/mfd/stmpe.h>
+#include <linux/property.h>
 #include <linux/seq_file.h>
 #include <linux/bitops.h>
 
@@ -465,7 +465,6 @@ static int stmpe_gpio_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct stmpe *stmpe = dev_get_drvdata(dev->parent);
-	struct device_node *np = dev->of_node;
 	struct stmpe_gpio *stmpe_gpio;
 	int ret, irq;
 
@@ -489,8 +488,7 @@ static int stmpe_gpio_probe(struct platform_device *pdev)
 	if (IS_ENABLED(CONFIG_DEBUG_FS))
                 stmpe_gpio->chip.dbg_show = stmpe_dbg_show;
 
-	of_property_read_u32(np, "st,norequest-mask",
-			&stmpe_gpio->norequest_mask);
+	device_property_read_u32(dev, "st,norequest-mask", &stmpe_gpio->norequest_mask);
 
 	ret = stmpe_enable(stmpe, STMPE_BLOCK_GPIO);
 	if (ret)
