@@ -73,14 +73,12 @@ static void off_cpu_start(void *arg)
 	struct evlist *evlist = arg;
 
 	/* update task filter for the given workload */
-	if (!skel->bss->has_cpu && !skel->bss->has_task &&
+	if (skel->rodata->has_task && skel->rodata->uses_tgid &&
 	    perf_thread_map__pid(evlist->core.threads, 0) != -1) {
 		int fd;
 		u32 pid;
 		u8 val = 1;
 
-		skel->bss->has_task = 1;
-		skel->bss->uses_tgid = 1;
 		fd = bpf_map__fd(skel->maps.task_filter);
 		pid = perf_thread_map__pid(evlist->core.threads, 0);
 		bpf_map_update_elem(fd, &pid, &val, BPF_ANY);
@@ -148,6 +146,7 @@ int off_cpu_prepare(struct evlist *evlist, struct target *target,
 	if (target->cpu_list) {
 		ncpus = perf_cpu_map__nr(evlist->core.user_requested_cpus);
 		bpf_map__set_max_entries(skel->maps.cpu_filter, ncpus);
+		skel->rodata->has_cpu = 1;
 	}
 
 	if (target->pid) {
@@ -173,11 +172,16 @@ int off_cpu_prepare(struct evlist *evlist, struct target *target,
 			ntasks = MAX_PROC;
 
 		bpf_map__set_max_entries(skel->maps.task_filter, ntasks);
+		skel->rodata->has_task = 1;
+		skel->rodata->uses_tgid = 1;
 	} else if (target__has_task(target)) {
 		ntasks = perf_thread_map__nr(evlist->core.threads);
 		bpf_map__set_max_entries(skel->maps.task_filter, ntasks);
+		skel->rodata->has_task = 1;
 	} else if (target__none(target)) {
 		bpf_map__set_max_entries(skel->maps.task_filter, MAX_PROC);
+		skel->rodata->has_task = 1;
+		skel->rodata->uses_tgid = 1;
 	}
 
 	if (evlist__first(evlist)->cgrp) {
@@ -186,6 +190,7 @@ int off_cpu_prepare(struct evlist *evlist, struct target *target,
 
 		if (!cgroup_is_v2("perf_event"))
 			skel->rodata->uses_cgroup_v1 = true;
+		skel->rodata->has_cgroup = 1;
 	}
 
 	if (opts->record_cgroup) {
@@ -208,7 +213,6 @@ int off_cpu_prepare(struct evlist *evlist, struct target *target,
 		u32 cpu;
 		u8 val = 1;
 
-		skel->bss->has_cpu = 1;
 		fd = bpf_map__fd(skel->maps.cpu_filter);
 
 		for (i = 0; i < ncpus; i++) {
@@ -220,8 +224,6 @@ int off_cpu_prepare(struct evlist *evlist, struct target *target,
 	if (target->pid) {
 		u8 val = 1;
 
-		skel->bss->has_task = 1;
-		skel->bss->uses_tgid = 1;
 		fd = bpf_map__fd(skel->maps.task_filter);
 
 		strlist__for_each_entry(pos, pid_slist) {
@@ -240,7 +242,6 @@ int off_cpu_prepare(struct evlist *evlist, struct target *target,
 		u32 pid;
 		u8 val = 1;
 
-		skel->bss->has_task = 1;
 		fd = bpf_map__fd(skel->maps.task_filter);
 
 		for (i = 0; i < ntasks; i++) {
@@ -253,7 +254,6 @@ int off_cpu_prepare(struct evlist *evlist, struct target *target,
 		struct evsel *evsel;
 		u8 val = 1;
 
-		skel->bss->has_cgroup = 1;
 		fd = bpf_map__fd(skel->maps.cgroup_filter);
 
 		evlist__for_each_entry(evlist, evsel) {
