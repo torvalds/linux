@@ -155,8 +155,6 @@ bool btrfs_subpage_clear_and_test_dirty(const struct btrfs_fs_info *fs_info,
 
 void btrfs_folio_assert_not_dirty(const struct btrfs_fs_info *fs_info,
 				  struct folio *folio, u64 start, u32 len);
-void btrfs_folio_unlock_writer(struct btrfs_fs_info *fs_info,
-			       struct folio *folio, u64 start, u32 len);
 void btrfs_get_subpage_dirty_bitmap(struct btrfs_fs_info *fs_info,
 				    struct folio *folio,
 				    unsigned long *ret_bitmap);

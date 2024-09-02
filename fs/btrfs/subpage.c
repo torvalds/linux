@@ -378,13 +378,47 @@ int btrfs_folio_start_writer_lock(const struct btrfs_fs_info *fs_info,
 	return 0;
 }
 
+/*
+ * Handle different locked folios:
+ *
+ * - Non-subpage folio
+ *   Just unlock it.
+ *
+ * - folio locked but without any subpage locked
+ *   This happens either before writepage_delalloc() or the delalloc range is
+ *   already handled by previous folio.
+ *   We can simple unlock it.
+ *
+ * - folio locked with subpage range locked.
+ *   We go through the locked sectors inside the range and clear their locked
+ *   bitmap, reduce the writer lock number, and unlock the page if that's
+ *   the last locked range.
+ */
 void btrfs_folio_end_writer_lock(const struct btrfs_fs_info *fs_info,
 				 struct folio *folio, u64 start, u32 len)
 {
+	struct btrfs_subpage *subpage = folio_get_private(folio);
+
+	ASSERT(folio_test_locked(folio));
+
 	if (unlikely(!fs_info) || !btrfs_is_subpage(fs_info, folio->mapping)) {
 		folio_unlock(folio);
 		return;
 	}
+
+	/*
+	 * For subpage case, there are two types of locked page.  With or
+	 * without writers number.
+	 *
+	 * Since we own the page lock, no one else could touch subpage::writers
+	 * and we are safe to do several atomic operations without spinlock.
+	 */
+	if (atomic_read(&subpage->writers) == 0) {
+		/* No writers, locked by plain lock_page(). */
+		folio_unlock(folio);
+		return;
+	}
+
 	btrfs_subpage_clamp_range(folio, &start, &len);
 	if (btrfs_subpage_end_and_test_writer(fs_info, folio, start, len))
 		folio_unlock(folio);
@@ -700,53 +734,6 @@ void btrfs_folio_assert_not_dirty(const struct btrfs_fs_info *fs_info,
 	spin_lock_irqsave(&subpage->lock, flags);
 	ASSERT(bitmap_test_range_all_zero(subpage->bitmaps, start_bit, nbits));
 	spin_unlock_irqrestore(&subpage->lock, flags);
-}
-
-/*
- * Handle different locked pages with different page sizes:
- *
- * - Page locked by plain lock_page()
- *   It should not have any subpage::writers count.
- *   Can be unlocked by unlock_page().
- *   This is the most common locked page for extent_writepage() called
- *   inside extent_write_cache_pages().
- *   Rarer cases include the @locked_page from extent_write_locked_range().
- *
- * - Page locked by lock_delalloc_pages()
- *   There is only one caller, all pages except @locked_page for
- *   extent_write_locked_range().
- *   In this case, we have to call subpage helper to handle the case.
- */
-void btrfs_folio_unlock_writer(struct btrfs_fs_info *fs_info,
-			       struct folio *folio, u64 start, u32 len)
-{
-	struct btrfs_subpage *subpage;
-
-	ASSERT(folio_test_locked(folio));
-	/* For non-subpage case, we just unlock the page */
-	if (!btrfs_is_subpage(fs_info, folio->mapping)) {
-		folio_unlock(folio);
-		return;
-	}
-
-	ASSERT(folio_test_private(folio) && folio_get_private(folio));
-	subpage = folio_get_private(folio);
-
-	/*
-	 * For subpage case, there are two types of locked page.  With or
-	 * without writers number.
-	 *
-	 * Since we own the page lock, no one else could touch subpage::writers
-	 * and we are safe to do several atomic operations without spinlock.
-	 */
-	if (atomic_read(&subpage->writers) == 0) {
-		/* No writers, locked by plain lock_page() */
-		folio_unlock(folio);
-		return;
-	}
-
-	/* Have writers, use proper subpage helper to end it */
-	btrfs_folio_end_writer_lock(fs_info, folio, start, len);
 }
 
 /*
