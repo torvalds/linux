@@ -220,11 +220,11 @@ enum {
 
 enum pcie_soc_base {
 	GENERIC,
-	BCM7425,
-	BCM7435,
+	BCM2711,
 	BCM4908,
 	BCM7278,
-	BCM2711,
+	BCM7425,
+	BCM7435,
 	BCM7712,
 };
 
@@ -1665,26 +1665,34 @@ static void brcm_pcie_remove(struct platform_device *pdev)
 }
 
 static const int pcie_offsets[] = {
-	[RGR1_SW_INIT_1] = 0x9210,
-	[EXT_CFG_INDEX]  = 0x9000,
-	[EXT_CFG_DATA]   = 0x9004,
-	[PCIE_HARD_DEBUG] = 0x4204,
-	[PCIE_INTR2_CPU_BASE] = 0x4300,
+	[RGR1_SW_INIT_1]	= 0x9210,
+	[EXT_CFG_INDEX]		= 0x9000,
+	[EXT_CFG_DATA]		= 0x9004,
+	[PCIE_HARD_DEBUG]	= 0x4204,
+	[PCIE_INTR2_CPU_BASE]	= 0x4300,
 };
 
-static const int pcie_offsets_bmips_7425[] = {
-	[RGR1_SW_INIT_1] = 0x8010,
-	[EXT_CFG_INDEX]  = 0x8300,
-	[EXT_CFG_DATA]   = 0x8304,
-	[PCIE_HARD_DEBUG] = 0x4204,
-	[PCIE_INTR2_CPU_BASE] = 0x4300,
+static const int pcie_offsets_bcm7278[] = {
+	[RGR1_SW_INIT_1]	= 0xc010,
+	[EXT_CFG_INDEX]		= 0x9000,
+	[EXT_CFG_DATA]		= 0x9004,
+	[PCIE_HARD_DEBUG]	= 0x4204,
+	[PCIE_INTR2_CPU_BASE]	= 0x4300,
 };
 
-static const int pcie_offset_bcm7712[] = {
-	[EXT_CFG_INDEX]  = 0x9000,
-	[EXT_CFG_DATA]   = 0x9004,
-	[PCIE_HARD_DEBUG] = 0x4304,
-	[PCIE_INTR2_CPU_BASE] = 0x4400,
+static const int pcie_offsets_bcm7425[] = {
+	[RGR1_SW_INIT_1]	= 0x8010,
+	[EXT_CFG_INDEX]		= 0x8300,
+	[EXT_CFG_DATA]		= 0x8304,
+	[PCIE_HARD_DEBUG]	= 0x4204,
+	[PCIE_INTR2_CPU_BASE]	= 0x4300,
+};
+
+static const int pcie_offsets_bcm7712[] = {
+	[EXT_CFG_INDEX]		= 0x9000,
+	[EXT_CFG_DATA]		= 0x9004,
+	[PCIE_HARD_DEBUG]	= 0x4304,
+	[PCIE_INTR2_CPU_BASE]	= 0x4400,
 };
 
 static const struct pcie_cfg_data generic_cfg = {
@@ -1695,8 +1703,32 @@ static const struct pcie_cfg_data generic_cfg = {
 	.num_inbound_wins = 3,
 };
 
+static const struct pcie_cfg_data bcm2711_cfg = {
+	.offsets	= pcie_offsets,
+	.soc_base	= BCM2711,
+	.perst_set	= brcm_pcie_perst_set_generic,
+	.bridge_sw_init_set = brcm_pcie_bridge_sw_init_set_generic,
+	.num_inbound_wins = 3,
+};
+
+static const struct pcie_cfg_data bcm4908_cfg = {
+	.offsets	= pcie_offsets,
+	.soc_base	= BCM4908,
+	.perst_set	= brcm_pcie_perst_set_4908,
+	.bridge_sw_init_set = brcm_pcie_bridge_sw_init_set_generic,
+	.num_inbound_wins = 3,
+};
+
+static const struct pcie_cfg_data bcm7278_cfg = {
+	.offsets	= pcie_offsets_bcm7278,
+	.soc_base	= BCM7278,
+	.perst_set	= brcm_pcie_perst_set_7278,
+	.bridge_sw_init_set = brcm_pcie_bridge_sw_init_set_7278,
+	.num_inbound_wins = 3,
+};
+
 static const struct pcie_cfg_data bcm7425_cfg = {
-	.offsets	= pcie_offsets_bmips_7425,
+	.offsets	= pcie_offsets_bcm7425,
 	.soc_base	= BCM7425,
 	.perst_set	= brcm_pcie_perst_set_generic,
 	.bridge_sw_init_set = brcm_pcie_bridge_sw_init_set_generic,
@@ -1711,40 +1743,8 @@ static const struct pcie_cfg_data bcm7435_cfg = {
 	.num_inbound_wins = 3,
 };
 
-static const struct pcie_cfg_data bcm4908_cfg = {
-	.offsets	= pcie_offsets,
-	.soc_base	= BCM4908,
-	.perst_set	= brcm_pcie_perst_set_4908,
-	.bridge_sw_init_set = brcm_pcie_bridge_sw_init_set_generic,
-	.num_inbound_wins = 3,
-};
-
-static const int pcie_offset_bcm7278[] = {
-	[RGR1_SW_INIT_1] = 0xc010,
-	[EXT_CFG_INDEX] = 0x9000,
-	[EXT_CFG_DATA] = 0x9004,
-	[PCIE_HARD_DEBUG] = 0x4204,
-	[PCIE_INTR2_CPU_BASE] = 0x4300,
-};
-
-static const struct pcie_cfg_data bcm7278_cfg = {
-	.offsets	= pcie_offset_bcm7278,
-	.soc_base	= BCM7278,
-	.perst_set	= brcm_pcie_perst_set_7278,
-	.bridge_sw_init_set = brcm_pcie_bridge_sw_init_set_7278,
-	.num_inbound_wins = 3,
-};
-
-static const struct pcie_cfg_data bcm2711_cfg = {
-	.offsets	= pcie_offsets,
-	.soc_base	= BCM2711,
-	.perst_set	= brcm_pcie_perst_set_generic,
-	.bridge_sw_init_set = brcm_pcie_bridge_sw_init_set_generic,
-	.num_inbound_wins = 3,
-};
-
 static const struct pcie_cfg_data bcm7216_cfg = {
-	.offsets	= pcie_offset_bcm7278,
+	.offsets	= pcie_offsets_bcm7278,
 	.soc_base	= BCM7278,
 	.perst_set	= brcm_pcie_perst_set_7278,
 	.bridge_sw_init_set = brcm_pcie_bridge_sw_init_set_7278,
@@ -1753,7 +1753,7 @@ static const struct pcie_cfg_data bcm7216_cfg = {
 };
 
 static const struct pcie_cfg_data bcm7712_cfg = {
-	.offsets	= pcie_offset_bcm7712,
+	.offsets	= pcie_offsets_bcm7712,
 	.perst_set	= brcm_pcie_perst_set_7278,
 	.bridge_sw_init_set = brcm_pcie_bridge_sw_init_set_generic,
 	.soc_base	= BCM7712,
@@ -1764,11 +1764,11 @@ static const struct of_device_id brcm_pcie_match[] = {
 	{ .compatible = "brcm,bcm2711-pcie", .data = &bcm2711_cfg },
 	{ .compatible = "brcm,bcm4908-pcie", .data = &bcm4908_cfg },
 	{ .compatible = "brcm,bcm7211-pcie", .data = &generic_cfg },
-	{ .compatible = "brcm,bcm7278-pcie", .data = &bcm7278_cfg },
 	{ .compatible = "brcm,bcm7216-pcie", .data = &bcm7216_cfg },
-	{ .compatible = "brcm,bcm7445-pcie", .data = &generic_cfg },
-	{ .compatible = "brcm,bcm7435-pcie", .data = &bcm7435_cfg },
+	{ .compatible = "brcm,bcm7278-pcie", .data = &bcm7278_cfg },
 	{ .compatible = "brcm,bcm7425-pcie", .data = &bcm7425_cfg },
+	{ .compatible = "brcm,bcm7435-pcie", .data = &bcm7435_cfg },
+	{ .compatible = "brcm,bcm7445-pcie", .data = &generic_cfg },
 	{ .compatible = "brcm,bcm7712-pcie", .data = &bcm7712_cfg },
 	{},
 };
