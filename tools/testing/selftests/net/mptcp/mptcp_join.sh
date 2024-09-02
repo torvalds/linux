@@ -61,6 +61,12 @@ unset sflags
 unset fastclose
 unset fullmesh
 unset speed
+unset join_csum_ns1
+unset join_csum_ns2
+unset join_fail_nr
+unset join_rst_nr
+unset join_infi_nr
+unset join_corrupted_pkts
 
 # generated using "nfbpf_compile '(ip && (ip[54] & 0xf0) == 0x30) ||
 #				  (ip6 && (ip6[74] & 0xf0) == 0x30)'"
@@ -1319,12 +1325,12 @@ chk_join_nr()
 	local syn_nr=$1
 	local syn_ack_nr=$2
 	local ack_nr=$3
-	local csum_ns1=${4:-0}
-	local csum_ns2=${5:-0}
-	local fail_nr=${6:-0}
-	local rst_nr=${7:-0}
-	local infi_nr=${8:-0}
-	local corrupted_pkts=${9:-0}
+	local csum_ns1=${join_csum_ns1:-0}
+	local csum_ns2=${join_csum_ns2:-0}
+	local fail_nr=${join_fail_nr:-0}
+	local rst_nr=${join_rst_nr:-0}
+	local infi_nr=${join_infi_nr:-0}
+	local corrupted_pkts=${join_corrupted_pkts:-0}
 	local count
 	local with_cookie
 
@@ -3164,7 +3170,8 @@ fastclose_tests()
 		MPTCP_LIB_SUBTEST_FLAKY=1
 		test_linkfail=1024 fastclose=server \
 			run_tests $ns1 $ns2 10.0.1.1
-		chk_join_nr 0 0 0 0 0 0 1
+		join_rst_nr=1 \
+			chk_join_nr 0 0 0
 		chk_fclose_nr 1 1 invert
 		chk_rst_nr 1 1
 	fi
@@ -3183,7 +3190,10 @@ fail_tests()
 		MPTCP_LIB_SUBTEST_FLAKY=1
 		test_linkfail=128 \
 			run_tests $ns1 $ns2 10.0.1.1
-		chk_join_nr 0 0 0 +1 +0 1 0 1 "$(pedit_action_pkts)"
+		join_csum_ns1=+1 join_csum_ns2=+0 \
+			join_fail_nr=1 join_rst_nr=0 join_infi_nr=1 \
+			join_corrupted_pkts="$(pedit_action_pkts)" \
+			chk_join_nr 0 0 0
 		chk_fail_nr 1 -1 invert
 	fi
 
@@ -3196,7 +3206,10 @@ fail_tests()
 		pm_nl_add_endpoint $ns2 10.0.2.2 dev ns2eth2 flags subflow
 		test_linkfail=1024 \
 			run_tests $ns1 $ns2 10.0.1.1
-		chk_join_nr 1 1 1 1 0 1 1 0 "$(pedit_action_pkts)"
+		join_csum_ns1=1 join_csum_ns2=0 \
+			join_fail_nr=1 join_rst_nr=1 join_infi_nr=0 \
+			join_corrupted_pkts="$(pedit_action_pkts)" \
+			chk_join_nr 1 1 1
 	fi
 }
 
