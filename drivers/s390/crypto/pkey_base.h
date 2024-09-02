@@ -33,11 +33,22 @@ extern debug_info_t *pkey_dbf_info;
 #define MAXAPQNSINLIST 64	/* max 64 apqns within a apqn list */
 #define AES_WK_VP_SIZE 32	/* Size of WK VP block appended to a prot key */
 
-/* inside view of a protected key token (only type 0x00 version 0x01) */
+/* inside view of a generic protected key token */
+struct protkeytoken {
+	u8  type;     /* 0x00 for PAES specific key tokens */
+	u8  res0[3];
+	u8  version;  /* should be 0x01 for protected key token */
+	u8  res1[3];
+	u32 keytype;  /* key type, one of the PKEY_KEYTYPE values */
+	u32 len;      /* bytes actually stored in protkey[] */
+	u8  protkey[]; /* the protected key blob */
+} __packed;
+
+/* inside view of a protected AES key token */
 struct protaeskeytoken {
 	u8  type;     /* 0x00 for PAES specific key tokens */
 	u8  res0[3];
-	u8  version;  /* should be 0x01 for protected AES key token */
+	u8  version;  /* should be 0x01 for protected key token */
 	u8  res1[3];
 	u32 keytype;  /* key type, one of the PKEY_KEYTYPE values */
 	u32 len;      /* bytes actually stored in protkey[] */

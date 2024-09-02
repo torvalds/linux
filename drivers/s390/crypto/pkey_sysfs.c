@@ -99,6 +99,90 @@ static ssize_t pkey_protkey_aes_attr_read(u32 keytype, bool is_xts, char *buf,
 	return sizeof(protkeytoken);
 }
 
+/*
+ * Sysfs attribute read function for the AES XTS prot key binary attributes.
+ * The implementation can not deal with partial reads, because a new random
+ * protected key blob is generated with each read. In case of partial reads
+ * (i.e. off != 0 or count < key blob size) -EINVAL is returned.
+ */
+static ssize_t pkey_protkey_aes_xts_attr_read(u32 keytype, char *buf,
+					      loff_t off, size_t count)
+{
+	struct protkeytoken *t = (struct protkeytoken *)buf;
+	u32 protlen, prottype;
+	int rc;
+
+	switch (keytype) {
+	case PKEY_KEYTYPE_AES_XTS_128:
+		protlen = 64;
+		break;
+	case PKEY_KEYTYPE_AES_XTS_256:
+		protlen = 96;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	if (off != 0 || count < sizeof(*t) + protlen)
+		return -EINVAL;
+
+	memset(t, 0, sizeof(*t) + protlen);
+	t->type = TOKTYPE_NON_CCA;
+	t->version = TOKVER_PROTECTED_KEY;
+	t->keytype = keytype;
+
+	rc = sys_pkey_handler_gen_key(keytype, PKEY_TYPE_PROTKEY, 0, 0,
+				      t->protkey, &protlen, &prottype);
+	if (rc)
+		return rc;
+
+	t->len = protlen;
+
+	return sizeof(*t) + protlen;
+}
+
+/*
+ * Sysfs attribute read function for the HMAC prot key binary attributes.
+ * The implementation can not deal with partial reads, because a new random
+ * protected key blob is generated with each read. In case of partial reads
+ * (i.e. off != 0 or count < key blob size) -EINVAL is returned.
+ */
+static ssize_t pkey_protkey_hmac_attr_read(u32 keytype, char *buf,
+					   loff_t off, size_t count)
+{
+	struct protkeytoken *t = (struct protkeytoken *)buf;
+	u32 protlen, prottype;
+	int rc;
+
+	switch (keytype) {
+	case PKEY_KEYTYPE_HMAC_512:
+		protlen = 96;
+		break;
+	case PKEY_KEYTYPE_HMAC_1024:
+		protlen = 160;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	if (off != 0 || count < sizeof(*t) + protlen)
+		return -EINVAL;
+
+	memset(t, 0, sizeof(*t) + protlen);
+	t->type = TOKTYPE_NON_CCA;
+	t->version = TOKVER_PROTECTED_KEY;
+	t->keytype = keytype;
+
+	rc = sys_pkey_handler_gen_key(keytype, PKEY_TYPE_PROTKEY, 0, 0,
+				      t->protkey, &protlen, &prottype);
+	if (rc)
+		return rc;
+
+	t->len = protlen;
+
+	return sizeof(*t) + protlen;
+}
+
 static ssize_t protkey_aes_128_read(struct file *filp,
 				    struct kobject *kobj,
 				    struct bin_attribute *attr,
@@ -149,11 +233,55 @@ static ssize_t protkey_aes_256_xts_read(struct file *filp,
 					  off, count);
 }
 
+static ssize_t protkey_aes_xts_128_read(struct file *filp,
+					struct kobject *kobj,
+					struct bin_attribute *attr,
+					char *buf, loff_t off,
+					size_t count)
+{
+	return pkey_protkey_aes_xts_attr_read(PKEY_KEYTYPE_AES_XTS_128,
+					      buf, off, count);
+}
+
+static ssize_t protkey_aes_xts_256_read(struct file *filp,
+					struct kobject *kobj,
+					struct bin_attribute *attr,
+					char *buf, loff_t off,
+					size_t count)
+{
+	return pkey_protkey_aes_xts_attr_read(PKEY_KEYTYPE_AES_XTS_256,
+					      buf, off, count);
+}
+
+static ssize_t protkey_hmac_512_read(struct file *filp,
+				     struct kobject *kobj,
+				     struct bin_attribute *attr,
+				     char *buf, loff_t off,
+				     size_t count)
+{
+	return pkey_protkey_hmac_attr_read(PKEY_KEYTYPE_HMAC_512,
+					   buf, off, count);
+}
+
+static ssize_t protkey_hmac_1024_read(struct file *filp,
+				      struct kobject *kobj,
+				      struct bin_attribute *attr,
+				      char *buf, loff_t off,
+				      size_t count)
+{
+	return pkey_protkey_hmac_attr_read(PKEY_KEYTYPE_HMAC_1024,
+					   buf, off, count);
+}
+
 static BIN_ATTR_RO(protkey_aes_128, sizeof(struct protaeskeytoken));
 static BIN_ATTR_RO(protkey_aes_192, sizeof(struct protaeskeytoken));
 static BIN_ATTR_RO(protkey_aes_256, sizeof(struct protaeskeytoken));
 static BIN_ATTR_RO(protkey_aes_128_xts, 2 * sizeof(struct protaeskeytoken));
 static BIN_ATTR_RO(protkey_aes_256_xts, 2 * sizeof(struct protaeskeytoken));
+static BIN_ATTR_RO(protkey_aes_xts_128, sizeof(struct protkeytoken) + 64);
+static BIN_ATTR_RO(protkey_aes_xts_256, sizeof(struct protkeytoken) + 96);
+static BIN_ATTR_RO(protkey_hmac_512, sizeof(struct protkeytoken) + 96);
+static BIN_ATTR_RO(protkey_hmac_1024, sizeof(struct protkeytoken) + 160);
 
 static struct bin_attribute *protkey_attrs[] = {
 	&bin_attr_protkey_aes_128,
@@ -161,6 +289,10 @@ static struct bin_attribute *protkey_attrs[] = {
 	&bin_attr_protkey_aes_256,
 	&bin_attr_protkey_aes_128_xts,
 	&bin_attr_protkey_aes_256_xts,
+	&bin_attr_protkey_aes_xts_128,
+	&bin_attr_protkey_aes_xts_256,
+	&bin_attr_protkey_hmac_512,
+	&bin_attr_protkey_hmac_1024,
 	NULL
 };
 

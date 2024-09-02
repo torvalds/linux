@@ -47,6 +47,10 @@ static bool is_pckmo_key(const u8 *key, u32 keylen)
 			case PKEY_KEYTYPE_ECC_P521:
 			case PKEY_KEYTYPE_ECC_ED25519:
 			case PKEY_KEYTYPE_ECC_ED448:
+			case PKEY_KEYTYPE_AES_XTS_128:
+			case PKEY_KEYTYPE_AES_XTS_256:
+			case PKEY_KEYTYPE_HMAC_512:
+			case PKEY_KEYTYPE_HMAC_1024:
 				return true;
 			default:
 				return false;
@@ -81,7 +85,7 @@ static int pckmo_clr2protkey(u32 keytype, const u8 *clrkey, u32 clrkeylen,
 	static cpacf_mask_t pckmo_functions;
 
 	int keysize, rc = -EINVAL;
-	u8 paramblock[112];
+	u8 paramblock[160];
 	u32 pkeytype;
 	long fc;
 
@@ -133,6 +137,30 @@ static int pckmo_clr2protkey(u32 keytype, const u8 *clrkey, u32 clrkeylen,
 		keysize = 64;
 		pkeytype = PKEY_KEYTYPE_ECC;
 		fc = CPACF_PCKMO_ENC_ECC_ED448_KEY;
+		break;
+	case PKEY_KEYTYPE_AES_XTS_128:
+		/* 2x16 byte keys, 32 byte aes wkvp, total 64 bytes */
+		keysize = 32;
+		pkeytype = PKEY_KEYTYPE_AES_XTS_128;
+		fc = CPACF_PCKMO_ENC_AES_XTS_128_DOUBLE_KEY;
+		break;
+	case PKEY_KEYTYPE_AES_XTS_256:
+		/* 2x32 byte keys, 32 byte aes wkvp, total 96 bytes */
+		keysize = 64;
+		pkeytype = PKEY_KEYTYPE_AES_XTS_256;
+		fc = CPACF_PCKMO_ENC_AES_XTS_256_DOUBLE_KEY;
+		break;
+	case PKEY_KEYTYPE_HMAC_512:
+		/* 64 byte key, 32 byte aes wkvp, total 96 bytes */
+		keysize = 64;
+		pkeytype = PKEY_KEYTYPE_HMAC_512;
+		fc = CPACF_PCKMO_ENC_HMAC_512_KEY;
+		break;
+	case PKEY_KEYTYPE_HMAC_1024:
+		/* 128 byte key, 32 byte aes wkvp, total 160 bytes */
+		keysize = 128;
+		pkeytype = PKEY_KEYTYPE_HMAC_1024;
+		fc = CPACF_PCKMO_ENC_HMAC_1024_KEY;
 		break;
 	default:
 		PKEY_DBF_ERR("%s unknown/unsupported keytype %u\n",
@@ -260,14 +288,39 @@ static int pckmo_key2protkey(const u8 *key, u32 keylen,
 
 	switch (hdr->version) {
 	case TOKVER_PROTECTED_KEY: {
-		struct protaeskeytoken *t;
+		struct protkeytoken *t = (struct protkeytoken *)key;
 
-		if (keylen != sizeof(struct protaeskeytoken))
+		if (keylen < sizeof(*t))
 			goto out;
-		t = (struct protaeskeytoken *)key;
-		rc = pckmo_verify_protkey(t->protkey, t->len, t->keytype);
-		if (rc)
+		switch (t->keytype) {
+		case PKEY_KEYTYPE_AES_128:
+		case PKEY_KEYTYPE_AES_192:
+		case PKEY_KEYTYPE_AES_256:
+			if (keylen != sizeof(struct protaeskeytoken))
+				goto out;
+			rc = pckmo_verify_protkey(t->protkey, t->len,
+						  t->keytype);
+			if (rc)
+				goto out;
+			break;
+		case PKEY_KEYTYPE_AES_XTS_128:
+			if (t->len != 64 || keylen != sizeof(*t) + t->len)
+				goto out;
+			break;
+		case PKEY_KEYTYPE_AES_XTS_256:
+		case PKEY_KEYTYPE_HMAC_512:
+			if (t->len != 96 || keylen != sizeof(*t) + t->len)
+				goto out;
+			break;
+		case PKEY_KEYTYPE_HMAC_1024:
+			if (t->len != 160 || keylen != sizeof(*t) + t->len)
+				goto out;
+			break;
+		default:
+			PKEY_DBF_ERR("%s protected key token: unknown keytype %u\n",
+				     __func__, t->keytype);
 			goto out;
+		}
 		memcpy(protkey, t->protkey, t->len);
 		*protkeylen = t->len;
 		*protkeytype = t->keytype;
@@ -300,6 +353,18 @@ static int pckmo_key2protkey(const u8 *key, u32 keylen,
 			break;
 		case PKEY_KEYTYPE_ECC_ED448:
 			keysize = 64;
+			break;
+		case PKEY_KEYTYPE_AES_XTS_128:
+			keysize = 32;
+			break;
+		case PKEY_KEYTYPE_AES_XTS_256:
+			keysize = 64;
+			break;
+		case PKEY_KEYTYPE_HMAC_512:
+			keysize = 64;
+			break;
+		case PKEY_KEYTYPE_HMAC_1024:
+			keysize = 128;
 			break;
 		default:
 			break;
@@ -337,14 +402,29 @@ out:
 static int pckmo_gen_protkey(u32 keytype, u32 subtype,
 			     u8 *protkey, u32 *protkeylen, u32 *protkeytype)
 {
-	u8 clrkey[32];
+	u8 clrkey[128];
 	int keysize;
 	int rc;
 
-	keysize = pkey_keytype_aes_to_size(keytype);
-	if (!keysize) {
-		PKEY_DBF_ERR("%s unknown/unsupported keytype %d\n", __func__,
-			     keytype);
+	switch (keytype) {
+	case PKEY_KEYTYPE_AES_128:
+	case PKEY_KEYTYPE_AES_192:
+	case PKEY_KEYTYPE_AES_256:
+		keysize = pkey_keytype_aes_to_size(keytype);
+		break;
+	case PKEY_KEYTYPE_AES_XTS_128:
+		keysize = 32;
+		break;
+	case PKEY_KEYTYPE_AES_XTS_256:
+	case PKEY_KEYTYPE_HMAC_512:
+		keysize = 64;
+		break;
+	case PKEY_KEYTYPE_HMAC_1024:
+		keysize = 128;
+		break;
+	default:
+		PKEY_DBF_ERR("%s unknown/unsupported keytype %d\n",
+			     __func__, keytype);
 		return -EINVAL;
 	}
 	if (subtype != PKEY_TYPE_PROTKEY) {
