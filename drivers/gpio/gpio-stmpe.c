@@ -464,6 +464,7 @@ static void stmpe_gpio_disable(void *stmpe)
 
 static int stmpe_gpio_probe(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
 	struct stmpe *stmpe = dev_get_drvdata(pdev->dev.parent);
 	struct device_node *np = pdev->dev.of_node;
 	struct stmpe_gpio *stmpe_gpio;
@@ -493,12 +494,6 @@ static int stmpe_gpio_probe(struct platform_device *pdev)
 	of_property_read_u32(np, "st,norequest-mask",
 			&stmpe_gpio->norequest_mask);
 
-	irq = platform_get_irq(pdev, 0);
-	if (irq < 0)
-		dev_info(&pdev->dev,
-			"device configured in no-irq mode: "
-			"irqs are not available\n");
-
 	ret = stmpe_enable(stmpe, STMPE_BLOCK_GPIO);
 	if (ret)
 		return ret;
@@ -507,6 +502,7 @@ static int stmpe_gpio_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
+	irq = platform_get_irq(pdev, 0);
 	if (irq > 0) {
 		struct gpio_irq_chip *girq;
 
@@ -514,8 +510,7 @@ static int stmpe_gpio_probe(struct platform_device *pdev)
 				stmpe_gpio_irq, IRQF_ONESHOT,
 				"stmpe-gpio", stmpe_gpio);
 		if (ret)
-			return dev_err_probe(&pdev->dev, ret,
-					     "unable to get irq");
+			return dev_err_probe(dev, ret, "unable to register IRQ handler\n");
 
 		girq = &stmpe_gpio->chip.irq;
 		gpio_irq_chip_set_chip(girq, &stmpe_gpio_irq_chip);
