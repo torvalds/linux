@@ -126,6 +126,7 @@ int io_eventfd_register(struct io_ring_ctx *ctx, void __user *arg,
 	ev_fd->cq_ev_fd = eventfd_ctx_fdget(fd);
 	if (IS_ERR(ev_fd->cq_ev_fd)) {
 		int ret = PTR_ERR(ev_fd->cq_ev_fd);
+
 		kfree(ev_fd);
 		return ret;
 	}
