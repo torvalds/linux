@@ -85,7 +85,6 @@ struct bochs_device {
 	u16 yres_virtual;
 	u32 stride;
 	u32 bpp;
-	const struct drm_edid *drm_edid;
 
 	/* drm */
 	struct drm_device *dev;
@@ -172,11 +171,13 @@ static void bochs_hw_set_little_endian(struct bochs_device *bochs)
 #define bochs_hw_set_native_endian(_b) bochs_hw_set_little_endian(_b)
 #endif
 
-static int bochs_get_edid_block(void *data, u8 *buf,
-				unsigned int block, size_t len)
+static int bochs_get_edid_block(void *data, u8 *buf, unsigned int block, size_t len)
 {
 	struct bochs_device *bochs = data;
 	size_t i, start = block * EDID_LENGTH;
+
+	if (!bochs->mmio)
+		return -1;
 
 	if (start + len > 0x400 /* vga register offset */)
 		return -1;
@@ -187,25 +188,20 @@ static int bochs_get_edid_block(void *data, u8 *buf,
 	return 0;
 }
 
-static int bochs_hw_load_edid(struct bochs_device *bochs)
+static const struct drm_edid *bochs_hw_read_edid(struct drm_connector *connector)
 {
+	struct drm_device *dev = connector->dev;
+	struct bochs_device *bochs = dev->dev_private;
 	u8 header[8];
-
-	if (!bochs->mmio)
-		return -1;
 
 	/* check header to detect whenever edid support is enabled in qemu */
 	bochs_get_edid_block(bochs, header, 0, ARRAY_SIZE(header));
 	if (drm_edid_header_is_valid(header) != 8)
-		return -1;
+		return NULL;
 
-	drm_edid_free(bochs->drm_edid);
-	bochs->drm_edid = drm_edid_read_custom(&bochs->connector,
-					       bochs_get_edid_block, bochs);
-	if (!bochs->drm_edid)
-		return -1;
+	drm_dbg(dev, "Found EDID data blob.\n");
 
-	return 0;
+	return drm_edid_read_custom(connector, bochs_get_edid_block, bochs);
 }
 
 static int bochs_hw_init(struct drm_device *dev)
@@ -303,7 +299,6 @@ static void bochs_hw_fini(struct drm_device *dev)
 	if (bochs->fb_map)
 		iounmap(bochs->fb_map);
 	pci_release_regions(to_pci_dev(dev->dev));
-	drm_edid_free(bochs->drm_edid);
 }
 
 static void bochs_hw_blank(struct bochs_device *bochs, bool blank)
@@ -469,21 +464,28 @@ static const struct drm_simple_display_pipe_funcs bochs_pipe_funcs = {
 	.cleanup_fb = drm_gem_vram_simple_display_pipe_cleanup_fb,
 };
 
-static int bochs_connector_get_modes(struct drm_connector *connector)
+static int bochs_connector_helper_get_modes(struct drm_connector *connector)
 {
+	const struct drm_edid *edid;
 	int count;
 
-	count = drm_edid_connector_add_modes(connector);
+	edid = bochs_hw_read_edid(connector);
 
-	if (!count) {
+	if (edid) {
+		drm_edid_connector_update(connector, edid);
+		count = drm_edid_connector_add_modes(connector);
+		drm_edid_free(edid);
+	} else {
+		drm_edid_connector_update(connector, NULL);
 		count = drm_add_modes_noedid(connector, 8192, 8192);
 		drm_set_preferred_mode(connector, defx, defy);
 	}
+
 	return count;
 }
 
 static const struct drm_connector_helper_funcs bochs_connector_connector_helper_funcs = {
-	.get_modes = bochs_connector_get_modes,
+	.get_modes = bochs_connector_helper_get_modes,
 };
 
 static const struct drm_connector_funcs bochs_connector_connector_funcs = {
@@ -501,14 +503,8 @@ static void bochs_connector_init(struct drm_device *dev)
 
 	drm_connector_init(dev, connector, &bochs_connector_connector_funcs,
 			   DRM_MODE_CONNECTOR_VIRTUAL);
+	drm_connector_attach_edid_property(connector);
 	drm_connector_helper_add(connector, &bochs_connector_connector_helper_funcs);
-
-	bochs_hw_load_edid(bochs);
-	if (bochs->drm_edid) {
-		DRM_INFO("Found EDID data blob.\n");
-		drm_connector_attach_edid_property(connector);
-		drm_edid_connector_update(&bochs->connector, bochs->drm_edid);
-	}
 }
 
 static const struct drm_mode_config_funcs bochs_mode_funcs = {
