@@ -126,14 +126,12 @@ struct sparx5_tx_dcb_hw {
  * When the db_index reached FDMA_RX_DCB_MAX_DBS the DB is reused.
  */
 struct sparx5_rx {
+	struct fdma fdma;
 	struct sparx5_rx_dcb_hw *dcb_entries;
 	struct sparx5_rx_dcb_hw *last_entry;
 	struct sk_buff *skb[FDMA_DCB_MAX][FDMA_RX_DCB_MAX_DBS];
-	int db_index;
-	int dcb_index;
 	dma_addr_t dma;
 	struct napi_struct napi;
-	u32 channel_id;
 	struct net_device *ndev;
 	u64 packets;
 };
@@ -142,11 +140,11 @@ struct sparx5_rx {
  * DCBs are chained using the DCBs nextptr field.
  */
 struct sparx5_tx {
+	struct fdma fdma;
 	struct sparx5_tx_dcb_hw *curr_entry;
 	struct sparx5_tx_dcb_hw *first_entry;
 	struct list_head db_list;
 	dma_addr_t dma;
-	u32 channel_id;
 	u64 packets;
 	u64 dropped;
 };
