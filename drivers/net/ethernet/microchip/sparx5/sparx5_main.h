@@ -107,12 +107,6 @@ struct sparx5_db_hw {
 	u64 status;
 };
 
-struct sparx5_rx_dcb_hw {
-	u64 nextptr;
-	u64 info;
-	struct sparx5_db_hw db[FDMA_RX_DCB_MAX_DBS];
-};
-
 struct sparx5_tx_dcb_hw {
 	u64 nextptr;
 	u64 info;
@@ -127,8 +121,6 @@ struct sparx5_tx_dcb_hw {
  */
 struct sparx5_rx {
 	struct fdma fdma;
-	struct sparx5_rx_dcb_hw *dcb_entries;
-	struct sparx5_rx_dcb_hw *last_entry;
 	struct sk_buff *skb[FDMA_DCB_MAX][FDMA_RX_DCB_MAX_DBS];
 	dma_addr_t dma;
 	struct napi_struct napi;
