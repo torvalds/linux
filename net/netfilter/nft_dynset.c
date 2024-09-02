@@ -94,9 +94,9 @@ void nft_dynset_eval(const struct nft_expr *expr,
 	if (set->ops->update(set, &regs->data[priv->sreg_key], nft_dynset_new,
 			     expr, regs, &ext)) {
 		if (priv->op == NFT_DYNSET_OP_UPDATE &&
-		    nft_set_ext_exists(ext, NFT_SET_EXT_EXPIRATION)) {
+		    nft_set_ext_exists(ext, NFT_SET_EXT_TIMEOUT)) {
 			timeout = priv->timeout ? : READ_ONCE(set->timeout);
-			WRITE_ONCE(*nft_set_ext_expiration(ext), get_jiffies_64() + timeout);
+			WRITE_ONCE(nft_set_ext_timeout(ext)->expiration, get_jiffies_64() + timeout);
 		}
 
 		nft_set_elem_update_expr(ext, regs, pkt);
@@ -312,12 +312,9 @@ static int nft_dynset_init(const struct nft_ctx *ctx,
 	if (priv->num_exprs)
 		nft_dynset_ext_add_expr(priv);
 
-	if (set->flags & NFT_SET_TIMEOUT) {
-		if (timeout || READ_ONCE(set->timeout)) {
-			nft_set_ext_add(&priv->tmpl, NFT_SET_EXT_TIMEOUT);
-			nft_set_ext_add(&priv->tmpl, NFT_SET_EXT_EXPIRATION);
-		}
-	}
+	if (set->flags & NFT_SET_TIMEOUT &&
+	    (timeout || READ_ONCE(set->timeout)))
+		nft_set_ext_add(&priv->tmpl, NFT_SET_EXT_TIMEOUT);
 
 	priv->timeout = timeout;
 
