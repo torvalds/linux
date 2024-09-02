@@ -117,21 +117,22 @@ struct mm_struct___new {
 } __attribute__((preserve_access_index));
 
 /* control flags */
-int enabled;
-int has_cpu;
-int has_task;
-int has_type;
-int has_addr;
-int has_cgroup;
-int needs_callstack;
-int stack_skip;
-int lock_owner;
-
-int use_cgroup_v2;
-int perf_subsys_id = -1;
+const volatile int has_cpu;
+const volatile int has_task;
+const volatile int has_type;
+const volatile int has_addr;
+const volatile int has_cgroup;
+const volatile int needs_callstack;
+const volatile int stack_skip;
+const volatile int lock_owner;
+const volatile int use_cgroup_v2;
 
 /* determine the key of lock stat */
-int aggr_mode;
+const volatile int aggr_mode;
+
+int enabled;
+
+int perf_subsys_id = -1;
 
 __u64 end_ts;
 
