@@ -572,7 +572,17 @@
 
 	status = "okay";
 
-	/* Something @4f */
+	ptn3222: redriver@4f {
+		compatible = "nxp,ptn3222";
+		reg = <0x4f>;
+
+		reset-gpios = <&tlmm 7 GPIO_ACTIVE_LOW>;
+
+		vdd3v3-supply = <&vreg_l13b>;
+		vdd1v8-supply = <&vreg_l4b>;
+
+		#phy-cells = <0>;
+	};
 };
 
 &i2c7 {
@@ -582,7 +592,6 @@
 
 	/* PS8830 USB retimer @8 */
 };
-
 
 &mdss {
 	status = "okay";
@@ -715,6 +724,15 @@
 &smb2360_1_eusb2_repeater {
 	vdd18-supply = <&vreg_l3d>;
 	vdd3-supply = <&vreg_l14b>;
+};
+
+&smb2360_2 {
+	status = "okay";
+};
+
+&smb2360_2_eusb2_repeater {
+	vdd18-supply = <&vreg_l3d>;
+	vdd3-supply = <&vreg_l8b>;
 };
 
 &tlmm {
@@ -855,4 +873,41 @@
 
 &usb_1_ss1_qmpphy_out {
 	remote-endpoint = <&pmic_glink_ss1_ss_in>;
+};
+
+/* MP0 goes to the Surface Connector, MP1 goes to the USB-A port */
+&usb_mp {
+	status = "okay";
+};
+
+&usb_mp_hsphy0 {
+	vdd-supply = <&vreg_l2e>;
+	vdda12-supply = <&vreg_l2j>;
+
+	phys = <&smb2360_2_eusb2_repeater>;
+
+	status = "okay";
+};
+
+&usb_mp_hsphy1 {
+	vdd-supply = <&vreg_l2e>;
+	vdda12-supply = <&vreg_l2j>;
+
+	phys = <&ptn3222>;
+
+	status = "okay";
+};
+
+&usb_mp_qmpphy0 {
+	vdda-phy-supply = <&vreg_l3e>;
+	vdda-pll-supply = <&vreg_l3c>;
+
+	status = "okay";
+};
+
+&usb_mp_qmpphy1 {
+	vdda-phy-supply = <&vreg_l3e>;
+	vdda-pll-supply = <&vreg_l3c>;
+
+	status = "okay";
 };
