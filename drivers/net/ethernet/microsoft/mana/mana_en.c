@@ -608,7 +608,7 @@ static void mana_get_rxbuf_cfg(int mtu, u32 *datasize, u32 *alloc_size,
 	*datasize = mtu + ETH_HLEN;
 }
 
-int mana_pre_alloc_rxbufs(struct mana_port_context *mpc, int new_mtu)
+int mana_pre_alloc_rxbufs(struct mana_port_context *mpc, int new_mtu, int num_queues)
 {
 	struct device *dev;
 	struct page *page;
@@ -622,7 +622,7 @@ int mana_pre_alloc_rxbufs(struct mana_port_context *mpc, int new_mtu)
 
 	dev = mpc->ac->gdma_dev->gdma_context->dev;
 
-	num_rxb = mpc->num_queues * mpc->rx_queue_size;
+	num_rxb = num_queues * mpc->rx_queue_size;
 
 	WARN(mpc->rxbufs_pre, "mana rxbufs_pre exists\n");
 	mpc->rxbufs_pre = kmalloc_array(num_rxb, sizeof(void *), GFP_KERNEL);
@@ -682,7 +682,7 @@ static int mana_change_mtu(struct net_device *ndev, int new_mtu)
 	int err;
 
 	/* Pre-allocate buffers to prevent failure in mana_attach later */
-	err = mana_pre_alloc_rxbufs(mpc, new_mtu);
+	err = mana_pre_alloc_rxbufs(mpc, new_mtu, mpc->num_queues);
 	if (err) {
 		netdev_err(ndev, "Insufficient memory for new MTU\n");
 		return err;
