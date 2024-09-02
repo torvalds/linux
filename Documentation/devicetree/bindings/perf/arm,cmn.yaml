@@ -16,6 +16,7 @@ properties:
       - arm,cmn-600
       - arm,cmn-650
       - arm,cmn-700
+      - arm,cmn-s3
       - arm,ci-700
 
   reg:
