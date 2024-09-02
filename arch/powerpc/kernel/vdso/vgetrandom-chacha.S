@@ -124,6 +124,26 @@
  */
 SYM_FUNC_START(__arch_chacha20_blocks_nostack)
 #ifdef __powerpc64__
+	std	counter, -216(r1)
+
+	std	r14, -144(r1)
+	std	r15, -136(r1)
+	std	r16, -128(r1)
+	std	r17, -120(r1)
+	std	r18, -112(r1)
+	std	r19, -104(r1)
+	std	r20, -96(r1)
+	std	r21, -88(r1)
+	std	r22, -80(r1)
+	std	r23, -72(r1)
+	std	r24, -64(r1)
+	std	r25, -56(r1)
+	std	r26, -48(r1)
+	std	r27, -40(r1)
+	std	r28, -32(r1)
+	std	r29, -24(r1)
+	std	r30, -16(r1)
+	std	r31, -8(r1)
 #else
 	stwu	r1, -96(r1)
 	stw	counter, 20(r1)
@@ -149,9 +169,13 @@ SYM_FUNC_START(__arch_chacha20_blocks_nostack)
 	stw	r30, 88(r1)
 	stw	r31, 92(r1)
 #endif
+#endif	/* __powerpc64__ */
 
 	lwz	counter0, 0(counter)
 	lwz	counter1, 4(counter)
+#ifdef __powerpc64__
+	rldimi	counter0, counter1, 32, 0
+#endif
 	mr	idx_r0, nblocks
 	subi	dst_bytes, dst_bytes, 4
 
@@ -267,12 +291,21 @@ SYM_FUNC_START(__arch_chacha20_blocks_nostack)
 
 	subic.	idx_r0, idx_r0, 1	/* subi. can't use r0 as source */
 
+#ifdef __powerpc64__
+	addi	counter0, counter0, 1
+	srdi	counter1, counter0, 32
+#else
 	addic	counter0, counter0, 1
 	addze	counter1, counter1
+#endif
 
 	bne	.Lblock
 
+#ifdef __powerpc64__
+	ld	counter, -216(r1)
+#else
 	lwz	counter, 20(r1)
+#endif
 	stw	counter0, 0(counter)
 	stw	counter1, 4(counter)
 
@@ -284,6 +317,26 @@ SYM_FUNC_START(__arch_chacha20_blocks_nostack)
 	li	r11, 0
 	li	r12, 0
 
+#ifdef __powerpc64__
+	ld	r14, -144(r1)
+	ld	r15, -136(r1)
+	ld	r16, -128(r1)
+	ld	r17, -120(r1)
+	ld	r18, -112(r1)
+	ld	r19, -104(r1)
+	ld	r20, -96(r1)
+	ld	r21, -88(r1)
+	ld	r22, -80(r1)
+	ld	r23, -72(r1)
+	ld	r24, -64(r1)
+	ld	r25, -56(r1)
+	ld	r26, -48(r1)
+	ld	r27, -40(r1)
+	ld	r28, -32(r1)
+	ld	r29, -24(r1)
+	ld	r30, -16(r1)
+	ld	r31, -8(r1)
+#else
 #ifdef __BIG_ENDIAN__
 	lmw	r14, 24(r1)
 #else
