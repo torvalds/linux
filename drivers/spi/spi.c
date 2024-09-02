@@ -3238,9 +3238,9 @@ static int spi_controller_id_alloc(struct spi_controller *ctlr, int start, int e
 }
 
 /**
- * spi_register_controller - register SPI master or slave controller
- * @ctlr: initialized master, originally from spi_alloc_master() or
- *	spi_alloc_slave()
+ * spi_register_controller - register SPI host or target controller
+ * @ctlr: initialized controller, originally from spi_alloc_host() or
+ *	spi_alloc_target()
  * Context: can sleep
  *
  * SPI controllers connect to their drivers using some non-SPI bus,
@@ -3390,11 +3390,11 @@ static void devm_spi_unregister(struct device *dev, void *res)
 }
 
 /**
- * devm_spi_register_controller - register managed SPI master or slave
+ * devm_spi_register_controller - register managed SPI host or target
  *	controller
  * @dev:    device managing SPI controller
- * @ctlr: initialized controller, originally from spi_alloc_master() or
- *	spi_alloc_slave()
+ * @ctlr: initialized controller, originally from spi_alloc_host() or
+ *	spi_alloc_target()
  * Context: can sleep
  *
  * Register a SPI device as with spi_register_controller() which will
@@ -3478,7 +3478,7 @@ void spi_unregister_controller(struct spi_controller *ctlr)
 
 	/*
 	 * Release the last reference on the controller if its driver
-	 * has not yet been converted to devm_spi_alloc_master/slave().
+	 * has not yet been converted to devm_spi_alloc_host/target().
 	 */
 	if (!ctlr->devm_allocated)
 		put_device(&ctlr->dev);
