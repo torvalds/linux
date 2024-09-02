@@ -2644,6 +2644,14 @@ int vb2_core_queue_init(struct vb2_queue *q)
 	if (WARN_ON(q->min_reqbufs_allocation > q->max_num_buffers))
 		return -EINVAL;
 
+	/* Either both or none are set */
+	if (WARN_ON(!q->ops->wait_prepare ^ !q->ops->wait_finish))
+		return -EINVAL;
+
+	/* Warn if q->lock is NULL and no custom wait_prepare is provided */
+	if (WARN_ON(!q->lock && !q->ops->wait_prepare))
+		return -EINVAL;
+
 	INIT_LIST_HEAD(&q->queued_list);
 	INIT_LIST_HEAD(&q->done_list);
 	spin_lock_init(&q->done_lock);
