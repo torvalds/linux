@@ -1180,6 +1180,8 @@ chk_fail_nr()
 	local count
 	local ns_tx=$ns1
 	local ns_rx=$ns2
+	local tx="server"
+	local rx="client"
 	local extra_msg=""
 	local allow_tx_lost=0
 	local allow_rx_lost=0
@@ -1187,7 +1189,8 @@ chk_fail_nr()
 	if [[ $ns_invert = "invert" ]]; then
 		ns_tx=$ns2
 		ns_rx=$ns1
-		extra_msg="invert"
+		tx="client"
+		rx="server"
 	fi
 
 	if [[ "${fail_tx}" = "-"* ]]; then
@@ -1199,10 +1202,10 @@ chk_fail_nr()
 		fail_rx=${fail_rx:1}
 	fi
 
-	print_check "fail tx"
+	print_check "fail tx ${tx}"
 	count=$(mptcp_lib_get_counter ${ns_tx} "MPTcpExtMPFailTx")
 	if [ -n "$count" ] && [ "$count" != "$fail_tx" ]; then
-		extra_msg+=",tx=$count"
+		extra_msg+=" tx=$count"
 	fi
 	if [ -z "$count" ]; then
 		print_skip
@@ -1213,10 +1216,10 @@ chk_fail_nr()
 		print_ok
 	fi
 
-	print_check "fail rx"
+	print_check "fail rx ${rx}"
 	count=$(mptcp_lib_get_counter ${ns_rx} "MPTcpExtMPFailRx")
 	if [ -n "$count" ] && [ "$count" != "$fail_rx" ]; then
-		extra_msg+=",rx=$count"
+		extra_msg+=" rx=$count"
 	fi
 	if [ -z "$count" ]; then
 		print_skip
@@ -1238,37 +1241,35 @@ chk_fclose_nr()
 	local count
 	local ns_tx=$ns2
 	local ns_rx=$ns1
-	local extra_msg=""
+	local tx="client"
+	local rx="server"
 
 	if [[ $ns_invert = "invert" ]]; then
 		ns_tx=$ns1
 		ns_rx=$ns2
-		extra_msg="invert"
+		tx="server"
+		rx="client"
 	fi
 
-	print_check "fast close tx"
+	print_check "fast close tx ${tx}"
 	count=$(mptcp_lib_get_counter ${ns_tx} "MPTcpExtMPFastcloseTx")
 	if [ -z "$count" ]; then
 		print_skip
 	elif [ "$count" != "$fclose_tx" ]; then
-		extra_msg+=",tx=$count"
 		fail_test "got $count MP_FASTCLOSE[s] TX expected $fclose_tx"
 	else
 		print_ok
 	fi
 
-	print_check "fast close rx"
+	print_check "fast close rx ${rx}"
 	count=$(mptcp_lib_get_counter ${ns_rx} "MPTcpExtMPFastcloseRx")
 	if [ -z "$count" ]; then
 		print_skip
 	elif [ "$count" != "$fclose_rx" ]; then
-		extra_msg+=",rx=$count"
 		fail_test "got $count MP_FASTCLOSE[s] RX expected $fclose_rx"
 	else
 		print_ok
 	fi
-
-	print_info "$extra_msg"
 }
 
 chk_rst_nr()
@@ -1279,15 +1280,17 @@ chk_rst_nr()
 	local count
 	local ns_tx=$ns1
 	local ns_rx=$ns2
-	local extra_msg=""
+	local tx="server"
+	local rx="client"
 
 	if [[ $ns_invert = "invert" ]]; then
 		ns_tx=$ns2
 		ns_rx=$ns1
-		extra_msg="invert"
+		tx="client"
+		rx="server"
 	fi
 
-	print_check "reset tx"
+	print_check "reset tx ${tx}"
 	count=$(mptcp_lib_get_counter ${ns_tx} "MPTcpExtMPRstTx")
 	if [ -z "$count" ]; then
 		print_skip
@@ -1299,7 +1302,7 @@ chk_rst_nr()
 		print_ok
 	fi
 
-	print_check "reset rx"
+	print_check "reset rx ${rx}"
 	count=$(mptcp_lib_get_counter ${ns_rx} "MPTcpExtMPRstRx")
 	if [ -z "$count" ]; then
 		print_skip
@@ -1310,8 +1313,6 @@ chk_rst_nr()
 	else
 		print_ok
 	fi
-
-	print_info "$extra_msg"
 }
 
 chk_infi_nr()
@@ -1320,7 +1321,7 @@ chk_infi_nr()
 	local infi_rx=$2
 	local count
 
-	print_check "infi tx"
+	print_check "infi tx client"
 	count=$(mptcp_lib_get_counter ${ns2} "MPTcpExtInfiniteMapTx")
 	if [ -z "$count" ]; then
 		print_skip
@@ -1330,7 +1331,7 @@ chk_infi_nr()
 		print_ok
 	fi
 
-	print_check "infi rx"
+	print_check "infi rx server"
 	count=$(mptcp_lib_get_counter ${ns1} "MPTcpExtInfiniteMapRx")
 	if [ -z "$count" ]; then
 		print_skip
@@ -1506,19 +1507,21 @@ chk_add_nr()
 	local mis_ack_nr=0
 	local ns_tx=$ns1
 	local ns_rx=$ns2
-	local extra_msg=""
+	local tx=""
+	local rx=""
 	local count
 	local timeout
 
 	if [[ $ns_invert = "invert" ]]; then
 		ns_tx=$ns2
 		ns_rx=$ns1
-		extra_msg="invert"
+		tx=" client"
+		rx=" server"
 	fi
 
 	timeout=$(ip netns exec ${ns_tx} sysctl -n net.mptcp.add_addr_timeout)
 
-	print_check "add addr rx"
+	print_check "add addr rx${rx}"
 	count=$(mptcp_lib_get_counter ${ns_rx} "MPTcpExtAddAddr")
 	if [ -z "$count" ]; then
 		print_skip
@@ -1530,7 +1533,7 @@ chk_add_nr()
 		print_ok
 	fi
 
-	print_check "add addr echo rx"
+	print_check "add addr echo rx${tx}"
 	count=$(mptcp_lib_get_counter ${ns_tx} "MPTcpExtEchoAdd")
 	if [ -z "$count" ]; then
 		print_skip
@@ -1541,7 +1544,7 @@ chk_add_nr()
 	fi
 
 	if [ $port_nr -gt 0 ]; then
-		print_check "add addr rx with port"
+		print_check "add addr rx with port${rx}"
 		count=$(mptcp_lib_get_counter ${ns_rx} "MPTcpExtPortAdd")
 		if [ -z "$count" ]; then
 			print_skip
@@ -1551,7 +1554,7 @@ chk_add_nr()
 			print_ok
 		fi
 
-		print_check "syn rx port"
+		print_check "syn rx port${tx}"
 		count=$(mptcp_lib_get_counter ${ns_tx} "MPTcpExtMPJoinPortSynRx")
 		if [ -z "$count" ]; then
 			print_skip
@@ -1562,7 +1565,7 @@ chk_add_nr()
 			print_ok
 		fi
 
-		print_check "synack rx port"
+		print_check "synack rx port${rx}"
 		count=$(mptcp_lib_get_counter ${ns_rx} "MPTcpExtMPJoinPortSynAckRx")
 		if [ -z "$count" ]; then
 			print_skip
@@ -1573,7 +1576,7 @@ chk_add_nr()
 			print_ok
 		fi
 
-		print_check "ack rx port"
+		print_check "ack rx port${tx}"
 		count=$(mptcp_lib_get_counter ${ns_tx} "MPTcpExtMPJoinPortAckRx")
 		if [ -z "$count" ]; then
 			print_skip
@@ -1584,7 +1587,7 @@ chk_add_nr()
 			print_ok
 		fi
 
-		print_check "syn rx port mismatch"
+		print_check "syn rx port mismatch${tx}"
 		count=$(mptcp_lib_get_counter ${ns_tx} "MPTcpExtMismatchPortSynRx")
 		if [ -z "$count" ]; then
 			print_skip
@@ -1595,7 +1598,7 @@ chk_add_nr()
 			print_ok
 		fi
 
-		print_check "ack rx port mismatch"
+		print_check "ack rx port mismatch${tx}"
 		count=$(mptcp_lib_get_counter ${ns_tx} "MPTcpExtMismatchPortAckRx")
 		if [ -z "$count" ]; then
 			print_skip
@@ -1606,8 +1609,6 @@ chk_add_nr()
 			print_ok
 		fi
 	fi
-
-	print_info "$extra_msg"
 }
 
 chk_add_tx_nr()
@@ -1651,6 +1652,8 @@ chk_rm_nr()
 	local count
 	local addr_ns=$ns1
 	local subflow_ns=$ns2
+	local addr="server"
+	local subflow="client"
 	local extra_msg=""
 
 	shift 2
@@ -1660,16 +1663,14 @@ chk_rm_nr()
 		shift
 	done
 
-	if [ -z $invert ]; then
-		addr_ns=$ns1
-		subflow_ns=$ns2
-	elif [ $invert = "true" ]; then
+	if [ "$invert" = "true" ]; then
 		addr_ns=$ns2
 		subflow_ns=$ns1
-		extra_msg="invert"
+		addr="client"
+		subflow="server"
 	fi
 
-	print_check "rm addr rx"
+	print_check "rm addr rx ${addr}"
 	count=$(mptcp_lib_get_counter ${addr_ns} "MPTcpExtRmAddr")
 	if [ -z "$count" ]; then
 		print_skip
@@ -1679,7 +1680,7 @@ chk_rm_nr()
 		print_ok
 	fi
 
-	print_check "rm subflow"
+	print_check "rm subflow ${subflow}"
 	count=$(mptcp_lib_get_counter ${subflow_ns} "MPTcpExtRmSubflow")
 	if [ -z "$count" ]; then
 		print_skip
@@ -1693,7 +1694,7 @@ chk_rm_nr()
 		count=$((count + cnt))
 		if [ "$count" != "$rm_subflow_nr" ]; then
 			suffix="$count in [$rm_subflow_nr:$((rm_subflow_nr*2))]"
-			extra_msg+=" simult"
+			extra_msg="simult"
 		fi
 		if [ $count -ge "$rm_subflow_nr" ] && \
 		   [ "$count" -le "$((rm_subflow_nr *2 ))" ]; then
@@ -1714,7 +1715,7 @@ chk_rm_tx_nr()
 {
 	local rm_addr_tx_nr=$1
 
-	print_check "rm addr tx"
+	print_check "rm addr tx client"
 	count=$(mptcp_lib_get_counter ${ns2} "MPTcpExtRmAddrTx")
 	if [ -z "$count" ]; then
 		print_skip
@@ -1733,7 +1734,7 @@ chk_prio_nr()
 	local mpj_syn_ack=$4
 	local count
 
-	print_check "mp_prio tx"
+	print_check "mp_prio tx server"
 	count=$(mptcp_lib_get_counter ${ns1} "MPTcpExtMPPrioTx")
 	if [ -z "$count" ]; then
 		print_skip
@@ -1743,7 +1744,7 @@ chk_prio_nr()
 		print_ok
 	fi
 
-	print_check "mp_prio rx"
+	print_check "mp_prio rx client"
 	count=$(mptcp_lib_get_counter ${ns1} "MPTcpExtMPPrioRx")
 	if [ -z "$count" ]; then
 		print_skip
