@@ -260,7 +260,7 @@ Some users depend on strict execution ordering where only one work item
 is in flight at any given time and the work items are processed in
 queueing order. While the combination of ``@max_active`` of 1 and
 ``WQ_UNBOUND`` used to achieve this behavior, this is no longer the
-case. Use ``alloc_ordered_queue()`` instead.
+case. Use alloc_ordered_workqueue() instead.
 
 
 Example Execution Scenarios

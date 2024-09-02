@@ -367,7 +367,7 @@ SHOW(bch2_fs)
 		bch2_stripes_heap_to_text(out, c);
 
 	if (attr == &sysfs_open_buckets)
-		bch2_open_buckets_to_text(out, c);
+		bch2_open_buckets_to_text(out, c, NULL);
 
 	if (attr == &sysfs_open_buckets_partial)
 		bch2_open_buckets_partial_to_text(out, c);
@@ -811,6 +811,9 @@ SHOW(bch2_dev)
 	if (attr == &sysfs_alloc_debug)
 		bch2_dev_alloc_debug_to_text(out, ca);
 
+	if (attr == &sysfs_open_buckets)
+		bch2_open_buckets_to_text(out, c, ca);
+
 	return 0;
 }
 
@@ -892,6 +895,7 @@ struct attribute *bch2_dev_files[] = {
 
 	/* debug: */
 	&sysfs_alloc_debug,
+	&sysfs_open_buckets,
 	NULL
 };
 

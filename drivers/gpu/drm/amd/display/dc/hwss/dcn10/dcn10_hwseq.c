@@ -1402,6 +1402,8 @@ void dcn10_init_pipes(struct dc *dc, struct dc_state *context)
 		if (hubbub && hubp) {
 			if (hubbub->funcs->program_det_size)
 				hubbub->funcs->program_det_size(hubbub, hubp->inst, 0);
+			if (hubbub->funcs->program_det_segments)
+				hubbub->funcs->program_det_segments(hubbub, hubp->inst, 0);
 		}
 	}
 
@@ -3587,7 +3589,7 @@ void dcn10_set_cursor_position(struct pipe_ctx *pipe_ctx)
 						(int)hubp->curs_attr.width || pos_cpy.x
 						<= (int)hubp->curs_attr.width +
 						pipe_ctx->plane_state->src_rect.x) {
-						pos_cpy.x = temp_x + viewport_width;
+						pos_cpy.x = 2 * viewport_width - temp_x;
 					}
 				}
 			} else {
@@ -3680,7 +3682,7 @@ void dcn10_set_cursor_position(struct pipe_ctx *pipe_ctx)
 						(int)hubp->curs_attr.width || pos_cpy.x
 						<= (int)hubp->curs_attr.width +
 						pipe_ctx->plane_state->src_rect.x) {
-						pos_cpy.x = 2 * viewport_width - temp_x;
+						pos_cpy.x = temp_x + viewport_width;
 					}
 				}
 			} else {

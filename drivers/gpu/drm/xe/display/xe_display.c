@@ -132,6 +132,7 @@ static void xe_display_fini_noirq(void *arg)
 		return;
 
 	intel_display_driver_remove_noirq(xe);
+	intel_opregion_cleanup(xe);
 }
 
 int xe_display_init_noirq(struct xe_device *xe)
@@ -157,8 +158,10 @@ int xe_display_init_noirq(struct xe_device *xe)
 	intel_display_device_info_runtime_init(xe);
 
 	err = intel_display_driver_probe_noirq(xe);
-	if (err)
+	if (err) {
+		intel_opregion_cleanup(xe);
 		return err;
+	}
 
 	return devm_add_action_or_reset(xe->drm.dev, xe_display_fini_noirq, xe);
 }
@@ -280,6 +283,27 @@ static bool suspend_to_idle(void)
 	return false;
 }
 
+static void xe_display_flush_cleanup_work(struct xe_device *xe)
+{
+	struct intel_crtc *crtc;
+
+	for_each_intel_crtc(&xe->drm, crtc) {
+		struct drm_crtc_commit *commit;
+
+		spin_lock(&crtc->base.commit_lock);
+		commit = list_first_entry_or_null(&crtc->base.commit_list,
+						  struct drm_crtc_commit, commit_entry);
+		if (commit)
+			drm_crtc_commit_get(commit);
+		spin_unlock(&crtc->base.commit_lock);
+
+		if (commit) {
+			wait_for_completion(&commit->cleanup_done);
+			drm_crtc_commit_put(commit);
+		}
+	}
+}
+
 void xe_display_pm_suspend(struct xe_device *xe, bool runtime)
 {
 	bool s2idle = suspend_to_idle();
@@ -296,6 +320,8 @@ void xe_display_pm_suspend(struct xe_device *xe, bool runtime)
 
 	if (!runtime)
 		intel_display_driver_suspend(xe);
+
+	xe_display_flush_cleanup_work(xe);
 
 	intel_dp_mst_suspend(xe);
 

@@ -126,7 +126,7 @@ static int romfs_read_folio(struct file *file, struct folio *folio)
 		}
 	}
 
-	buf = folio_zero_tail(folio, fillsize, buf);
+	buf = folio_zero_tail(folio, fillsize, buf + fillsize);
 	kunmap_local(buf);
 	folio_end_read(folio, ret == 0);
 	return ret;

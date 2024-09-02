@@ -753,6 +753,7 @@ int uvcg_video_enable(struct uvc_video *video)
 	video->req_int_count = 0;
 
 	uvc_video_ep_queue_initial_requests(video);
+	queue_work(video->async_wq, &video->pump);
 
 	return ret;
 }

@@ -212,6 +212,37 @@ int intel_gsc_fw_get_binary_info(struct intel_uc_fw *gsc_fw, const void *data, s
 		}
 	}
 
+	if (IS_ARROWLAKE(gt->i915)) {
+		bool too_old = false;
+
+		/*
+		 * ARL requires a newer firmware than MTL did (102.0.10.1878) but the
+		 * firmware is actually common. So, need to do an explicit version check
+		 * here rather than using a separate table entry. And if the older
+		 * MTL-only version is found, then just don't use GSC rather than aborting
+		 * the driver load.
+		 */
+		if (gsc->release.major < 102) {
+			too_old = true;
+		} else if (gsc->release.major == 102) {
+			if (gsc->release.minor == 0) {
+				if (gsc->release.patch < 10) {
+					too_old = true;
+				} else if (gsc->release.patch == 10) {
+					if (gsc->release.build < 1878)
+						too_old = true;
+				}
+			}
+		}
+
+		if (too_old) {
+			gt_info(gt, "GSC firmware too old for ARL, got %d.%d.%d.%d but need at least 102.0.10.1878",
+				gsc->release.major, gsc->release.minor,
+				gsc->release.patch, gsc->release.build);
+			return -EINVAL;
+		}
+	}
+
 	return 0;
 }
 

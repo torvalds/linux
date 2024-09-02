@@ -66,6 +66,12 @@ void __init efi_runtime_init(void)
 	set_bit(EFI_RUNTIME_SERVICES, &efi.flags);
 }
 
+bool efi_poweroff_required(void)
+{
+	return efi_enabled(EFI_RUNTIME_SERVICES) &&
+		(acpi_gbl_reduced_hardware || acpi_no_s5);
+}
+
 unsigned long __initdata screen_info_table = EFI_INVALID_TABLE_ADDR;
 
 #if defined(CONFIG_SYSFB) || defined(CONFIG_EFI_EARLYCON)
