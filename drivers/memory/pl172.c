@@ -216,29 +216,20 @@ static int pl172_probe(struct amba_device *adev, const struct amba_id *id)
 	if (!pl172)
 		return -ENOMEM;
 
-	pl172->clk = devm_clk_get(dev, "mpmcclk");
-	if (IS_ERR(pl172->clk)) {
-		dev_err(dev, "no mpmcclk provided clock\n");
-		return PTR_ERR(pl172->clk);
-	}
-
-	ret = clk_prepare_enable(pl172->clk);
-	if (ret) {
-		dev_err(dev, "unable to mpmcclk enable clock\n");
-		return ret;
-	}
+	pl172->clk = devm_clk_get_enabled(dev, "mpmcclk");
+	if (IS_ERR(pl172->clk))
+		return dev_err_probe(dev, PTR_ERR(pl172->clk),
+				     "no mpmcclk provided clock\n");
 
 	pl172->rate = clk_get_rate(pl172->clk) / MSEC_PER_SEC;
-	if (!pl172->rate) {
-		dev_err(dev, "unable to get mpmcclk clock rate\n");
-		ret = -EINVAL;
-		goto err_clk_enable;
-	}
+	if (!pl172->rate)
+		return dev_err_probe(dev, -EINVAL,
+				     "unable to get mpmcclk clock rate\n");
 
 	ret = amba_request_regions(adev, NULL);
 	if (ret) {
 		dev_err(dev, "unable to request AMBA regions\n");
-		goto err_clk_enable;
+		return ret;
 	}
 
 	pl172->base = devm_ioremap(dev, adev->res.start,
@@ -268,16 +259,11 @@ static int pl172_probe(struct amba_device *adev, const struct amba_id *id)
 
 err_no_ioremap:
 	amba_release_regions(adev);
-err_clk_enable:
-	clk_disable_unprepare(pl172->clk);
 	return ret;
 }
 
 static void pl172_remove(struct amba_device *adev)
 {
-	struct pl172_data *pl172 = amba_get_drvdata(adev);
-
-	clk_disable_unprepare(pl172->clk);
 	amba_release_regions(adev);
 }
 
