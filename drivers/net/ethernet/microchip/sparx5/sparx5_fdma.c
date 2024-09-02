@@ -24,25 +24,11 @@
 #define FDMA_XTR_BUFFER_SIZE		2048
 #define FDMA_WEIGHT			4
 
-/* For each hardware DB there is an entry in this list and when the HW DB
- * entry is used, this SW DB entry is moved to the back of the list
- */
-struct sparx5_db {
-	struct list_head list;
-	void *cpu_addr;
-};
-
 static int sparx5_fdma_tx_dataptr_cb(struct fdma *fdma, int dcb, int db,
 				     u64 *dataptr)
 {
-	struct sparx5 *sparx5 = fdma->priv;
-	struct sparx5_tx *tx = &sparx5->tx;
-	struct sparx5_db *db_buf;
-
-	db_buf = list_first_entry(&tx->db_list, struct sparx5_db, list);
-	list_move_tail(&db_buf->list, &tx->db_list);
-
-	*dataptr = virt_to_phys(db_buf->cpu_addr);
+	*dataptr = fdma->dma + (sizeof(struct fdma_dcb) * fdma->n_dcbs) +
+		   ((dcb * fdma->n_dbs + db) * fdma->db_size);
 
 	return 0;
 }
@@ -236,15 +222,19 @@ int sparx5_fdma_xmit(struct sparx5 *sparx5, u32 *ifh, struct sk_buff *skb)
 	struct sparx5_tx *tx = &sparx5->tx;
 	struct fdma *fdma = &tx->fdma;
 	static bool first_time = true;
-	struct sparx5_db *db;
+	void *virt_addr;
 
 	fdma_dcb_advance(fdma);
 	if (!fdma_db_is_done(fdma_db_get(fdma, fdma->dcb_index, 0)))
 		return -EINVAL;
-	db = list_first_entry(&tx->db_list, struct sparx5_db, list);
-	memset(db->cpu_addr, 0, FDMA_XTR_BUFFER_SIZE);
-	memcpy(db->cpu_addr, ifh, IFH_LEN * 4);
-	memcpy(db->cpu_addr + IFH_LEN * 4, skb->data, skb->len);
+
+	/* Get the virtual address of the dataptr for the next DB */
+	virt_addr = ((u8 *)fdma->dcbs +
+		     (sizeof(struct fdma_dcb) * fdma->n_dcbs) +
+		     ((fdma->dcb_index * fdma->n_dbs) * fdma->db_size));
+
+	memcpy(virt_addr, ifh, IFH_LEN * 4);
+	memcpy(virt_addr + IFH_LEN * 4, skb->data, skb->len);
 
 	fdma_dcb_add(fdma, fdma->dcb_index, 0,
 		     FDMA_DCB_STATUS_SOF |
@@ -285,28 +275,7 @@ static int sparx5_fdma_tx_alloc(struct sparx5 *sparx5)
 {
 	struct sparx5_tx *tx = &sparx5->tx;
 	struct fdma *fdma = &tx->fdma;
-	int idx, jdx, err;
-
-	INIT_LIST_HEAD(&tx->db_list);
-	/* Now for each dcb allocate the db */
-	for (idx = 0; idx < fdma->n_dcbs; ++idx) {
-		/* TX databuffers must be 16byte aligned */
-		for (jdx = 0; jdx < fdma->n_dbs; ++jdx) {
-			struct sparx5_db *db;
-			void *cpu_addr;
-
-			cpu_addr = devm_kzalloc(sparx5->dev,
-						FDMA_XTR_BUFFER_SIZE,
-						GFP_KERNEL);
-			if (!cpu_addr)
-				return -ENOMEM;
-			db = devm_kzalloc(sparx5->dev, sizeof(*db), GFP_KERNEL);
-			if (!db)
-				return -ENOMEM;
-			db->cpu_addr = cpu_addr;
-			list_add_tail(&db->list, &tx->db_list);
-		}
-	}
+	int err;
 
 	err = fdma_alloc_phys(fdma);
 	if (err)
@@ -353,7 +322,7 @@ static void sparx5_fdma_tx_init(struct sparx5 *sparx5,
 	fdma->n_dbs = FDMA_TX_DCB_MAX_DBS;
 	fdma->priv = sparx5;
 	fdma->db_size = ALIGN(FDMA_XTR_BUFFER_SIZE, PAGE_SIZE);
-	fdma->size = fdma_get_size(&sparx5->tx.fdma);
+	fdma->size = fdma_get_size_contiguous(&sparx5->tx.fdma);
 	fdma->ops.dataptr_cb = &sparx5_fdma_tx_dataptr_cb;
 	fdma->ops.nextptr_cb = &fdma_nextptr_cb;
 }

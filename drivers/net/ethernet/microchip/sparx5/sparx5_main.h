@@ -122,7 +122,6 @@ struct sparx5_rx {
  */
 struct sparx5_tx {
 	struct fdma fdma;
-	struct list_head db_list;
 	u64 packets;
 	u64 dropped;
 };
