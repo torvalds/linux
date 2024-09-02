@@ -208,8 +208,6 @@
 		spi-max-frequency = <83000000>;
 		spi-tx-bus-width = <4>;
 		spi-rx-bus-width = <4>;
-		#address-cells = <1>;
-		#size-cells = <1>;
 		status = "disabled";
 
 		partitions {
