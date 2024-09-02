@@ -523,5 +523,6 @@ int sparx5_fdma_stop(struct sparx5 *sparx5)
 	read_poll_timeout(sparx5_fdma_port_ctrl, val,
 			  FDMA_PORT_CTRL_XTR_BUF_IS_EMPTY_GET(val) == 0,
 			  500, 10000, 0, sparx5);
+	fdma_free_phys(&sparx5->rx.fdma);
 	return 0;
 }
