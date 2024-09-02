@@ -505,7 +505,7 @@
 		>;
 	};
 
-	pinctrl_uart6dte: uart6dte {
+	pinctrl_uart6dte: uart6dtegrp {
 		fsl,pins = <
 			MX6UL_PAD_CSI_PIXCLK__UART6_DTE_TX	0x1b0b1
 			MX6UL_PAD_CSI_MCLK__UART6_DTE_RX	0x1b0b1
@@ -537,7 +537,7 @@
 		>;
 	};
 
-	pinctrl_usdhc1_100mhz: usdhc1grp100mhz {
+	pinctrl_usdhc1_100mhz: usdhc1-100mhz-grp {
 		fsl,pins = <
 			MX6UL_PAD_SD1_CLK__USDHC1_CLK		0x00017069
 			MX6UL_PAD_SD1_CMD__USDHC1_CMD		0x000170b9
@@ -552,7 +552,7 @@
 		>;
 	};
 
-	pinctrl_usdhc1_200mhz: usdhc1grp200mhz {
+	pinctrl_usdhc1_200mhz: usdhc1-200mhz-grp {
 		fsl,pins = <
 			MX6UL_PAD_SD1_CLK__USDHC1_CLK		0x00017069
 			MX6UL_PAD_SD1_CMD__USDHC1_CMD		0x000170f9

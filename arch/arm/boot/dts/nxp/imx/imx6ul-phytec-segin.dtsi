@@ -219,7 +219,7 @@
 		>;
 	};
 
-	pinctrl_flexcan1: flexcan1 {
+	pinctrl_flexcan1: flexcan1grp {
 		fsl,pins = <
 			MX6UL_PAD_UART3_CTS_B__FLEXCAN1_TX	0x0b0b0
 			MX6UL_PAD_UART3_RTS_B__FLEXCAN1_RX	0x0b0b0
@@ -275,7 +275,7 @@
 		>;
 	};
 
-	pinctrl_usdhc1_100mhz: usdhc1grp100mhz {
+	pinctrl_usdhc1_100mhz: usdhc1-100mhz-grp {
 		fsl,pins = <
 			MX6UL_PAD_SD1_CMD__USDHC1_CMD		0x170b9
 			MX6UL_PAD_SD1_CLK__USDHC1_CLK		0x100b9
@@ -286,7 +286,7 @@
 		>;
 	};
 
-	pinctrl_usdhc1_200mhz: usdhc1grp200mhz {
+	pinctrl_usdhc1_200mhz: usdhc1-200mhz-grp {
 		fsl,pins = <
 			MX6UL_PAD_SD1_CMD__USDHC1_CMD		0x170f9
 			MX6UL_PAD_SD1_CLK__USDHC1_CLK		0x100f9
