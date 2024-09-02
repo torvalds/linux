@@ -133,16 +133,10 @@ static void sparx5_fdma_tx_deactivate(struct sparx5 *sparx5, struct sparx5_tx *t
 		 sparx5, FDMA_CH_ACTIVATE);
 }
 
-static void sparx5_fdma_rx_reload(struct sparx5 *sparx5, struct sparx5_rx *rx)
+static void sparx5_fdma_reload(struct sparx5 *sparx5, struct fdma *fdma)
 {
 	/* Reload the RX channel */
-	spx5_wr(BIT(rx->fdma.channel_id), sparx5, FDMA_CH_RELOAD);
-}
-
-static void sparx5_fdma_tx_reload(struct sparx5 *sparx5, struct sparx5_tx *tx)
-{
-	/* Reload the TX channel */
-	spx5_wr(BIT(tx->fdma.channel_id), sparx5, FDMA_CH_RELOAD);
+	spx5_wr(BIT(fdma->channel_id), sparx5, FDMA_CH_RELOAD);
 }
 
 static bool sparx5_fdma_rx_get_frame(struct sparx5 *sparx5, struct sparx5_rx *rx)
@@ -213,7 +207,7 @@ static int sparx5_fdma_napi_callback(struct napi_struct *napi, int weight)
 			 sparx5, FDMA_INTR_DB_ENA);
 	}
 	if (counter)
-		sparx5_fdma_rx_reload(sparx5, rx);
+		sparx5_fdma_reload(sparx5, fdma);
 	return counter;
 }
 
@@ -246,7 +240,7 @@ int sparx5_fdma_xmit(struct sparx5 *sparx5, u32 *ifh, struct sk_buff *skb)
 		sparx5_fdma_tx_activate(sparx5, tx);
 		first_time = false;
 	} else {
-		sparx5_fdma_tx_reload(sparx5, tx);
+		sparx5_fdma_reload(sparx5, fdma);
 	}
 	return NETDEV_TX_OK;
 }
