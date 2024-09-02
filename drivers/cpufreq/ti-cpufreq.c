@@ -16,6 +16,7 @@
 #include <linux/pm_opp.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
+#include <linux/sys_soc.h>
 
 #define REVISION_MASK				0xF
 #define REVISION_SHIFT				28
@@ -303,6 +304,13 @@ static struct ti_cpufreq_soc_data am3517_soc_data = {
 	.quirks = TI_QUIRK_SYSCON_MAY_BE_MISSING,
 };
 
+static const struct soc_device_attribute k3_cpufreq_soc[] = {
+	{ .family = "AM62X", .revision = "SR1.0" },
+	{ .family = "AM62AX", .revision = "SR1.0" },
+	{ .family = "AM62PX", .revision = "SR1.0" },
+	{ /* sentinel */ }
+};
+
 static struct ti_cpufreq_soc_data am625_soc_data = {
 	.efuse_xlate = am625_efuse_xlate,
 	.efuse_offset = 0x0018,
@@ -384,6 +392,16 @@ static int ti_cpufreq_get_rev(struct ti_cpufreq_data *opp_data,
 	struct device *dev = opp_data->cpu_dev;
 	u32 revision;
 	int ret;
+	if (soc_device_match(k3_cpufreq_soc)) {
+		/*
+		 * Since the SR is 1.0, hard code the revision_value as
+		 * 0x1 here. This way we avoid re using the same register
+		 * that is giving us required information inside socinfo
+		 * anyway.
+		 */
+		*revision_value = 0x1;
+		goto done;
+	}
 
 	ret = regmap_read(opp_data->syscon, opp_data->soc_data->rev_offset,
 			  &revision);
@@ -406,6 +424,7 @@ static int ti_cpufreq_get_rev(struct ti_cpufreq_data *opp_data,
 
 	*revision_value = BIT((revision >> REVISION_SHIFT) & REVISION_MASK);
 
+done:
 	return 0;
 }
 
