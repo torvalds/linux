@@ -4,6 +4,7 @@
 #include <linux/pci.h>
 
 #include <drm/drm_aperture.h>
+#include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_edid.h>
@@ -14,8 +15,8 @@
 #include <drm/drm_gem_vram_helper.h>
 #include <drm/drm_managed.h>
 #include <drm/drm_module.h>
+#include <drm/drm_plane_helper.h>
 #include <drm/drm_probe_helper.h>
-#include <drm/drm_simple_kms_helper.h>
 
 #include <video/vga.h>
 
@@ -89,7 +90,9 @@ struct bochs_device {
 	u32 bpp;
 
 	/* drm */
-	struct drm_simple_display_pipe pipe;
+	struct drm_plane primary_plane;
+	struct drm_crtc crtc;
+	struct drm_encoder encoder;
 	struct drm_connector connector;
 };
 
@@ -396,10 +399,33 @@ static void bochs_hw_setbase(struct bochs_device *bochs, int x, int y, int strid
 
 /* ---------------------------------------------------------------------- */
 
-static const uint32_t bochs_formats[] = {
+static const uint32_t bochs_primary_plane_formats[] = {
 	DRM_FORMAT_XRGB8888,
 	DRM_FORMAT_BGRX8888,
 };
+
+static int bochs_primary_plane_helper_atomic_check(struct drm_plane *plane,
+						   struct drm_atomic_state *state)
+{
+	struct drm_plane_state *new_plane_state = drm_atomic_get_new_plane_state(state, plane);
+	struct drm_crtc *new_crtc = new_plane_state->crtc;
+	struct drm_crtc_state *new_crtc_state = NULL;
+	int ret;
+
+	if (new_crtc)
+		new_crtc_state = drm_atomic_get_new_crtc_state(state, new_crtc);
+
+	ret = drm_atomic_helper_check_plane_state(new_plane_state, new_crtc_state,
+						  DRM_PLANE_NO_SCALING,
+						  DRM_PLANE_NO_SCALING,
+						  false, false);
+	if (ret)
+		return ret;
+	else if (!new_plane_state->visible)
+		return 0;
+
+	return 0;
+}
 
 static void bochs_plane_update(struct bochs_device *bochs, struct drm_plane_state *state)
 {
@@ -422,37 +448,80 @@ static void bochs_plane_update(struct bochs_device *bochs, struct drm_plane_stat
 	bochs_hw_setformat(bochs, state->fb->format);
 }
 
-static void bochs_pipe_enable(struct drm_simple_display_pipe *pipe,
-			      struct drm_crtc_state *crtc_state,
-			      struct drm_plane_state *plane_state)
+static void bochs_primary_plane_helper_atomic_update(struct drm_plane *plane,
+						     struct drm_atomic_state *state)
 {
-	struct bochs_device *bochs = to_bochs_device(pipe->crtc.dev);
+	struct bochs_device *bochs = to_bochs_device(plane->dev);
+	struct drm_plane_state *plane_state = drm_atomic_get_new_plane_state(state, plane);
 
-	bochs_hw_setmode(bochs, &crtc_state->mode);
 	bochs_plane_update(bochs, plane_state);
 }
 
-static void bochs_pipe_disable(struct drm_simple_display_pipe *pipe)
+static const struct drm_plane_helper_funcs bochs_primary_plane_helper_funcs = {
+	DRM_GEM_VRAM_PLANE_HELPER_FUNCS,
+	.atomic_check = bochs_primary_plane_helper_atomic_check,
+	.atomic_update = bochs_primary_plane_helper_atomic_update,
+};
+
+static const struct drm_plane_funcs bochs_primary_plane_funcs = {
+	.update_plane		= drm_atomic_helper_update_plane,
+	.disable_plane		= drm_atomic_helper_disable_plane,
+	.destroy		= drm_plane_cleanup,
+	.reset			= drm_atomic_helper_plane_reset,
+	.atomic_duplicate_state	= drm_atomic_helper_plane_duplicate_state,
+	.atomic_destroy_state	= drm_atomic_helper_plane_destroy_state,
+};
+
+static void bochs_crtc_helper_mode_set_nofb(struct drm_crtc *crtc)
 {
-	struct bochs_device *bochs = to_bochs_device(pipe->crtc.dev);
+	struct bochs_device *bochs = to_bochs_device(crtc->dev);
+	struct drm_crtc_state *crtc_state = crtc->state;
+
+	bochs_hw_setmode(bochs, &crtc_state->mode);
+}
+
+static int bochs_crtc_helper_atomic_check(struct drm_crtc *crtc,
+					  struct drm_atomic_state *state)
+{
+	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state, crtc);
+
+	if (!crtc_state->enable)
+		return 0;
+
+	return drm_atomic_helper_check_crtc_primary_plane(crtc_state);
+}
+
+static void bochs_crtc_helper_atomic_enable(struct drm_crtc *crtc,
+					    struct drm_atomic_state *state)
+{
+}
+
+static void bochs_crtc_helper_atomic_disable(struct drm_crtc *crtc,
+					     struct drm_atomic_state *crtc_state)
+{
+	struct bochs_device *bochs = to_bochs_device(crtc->dev);
 
 	bochs_hw_blank(bochs, true);
 }
 
-static void bochs_pipe_update(struct drm_simple_display_pipe *pipe,
-			      struct drm_plane_state *old_state)
-{
-	struct bochs_device *bochs = to_bochs_device(pipe->crtc.dev);
+static const struct drm_crtc_helper_funcs bochs_crtc_helper_funcs = {
+	.mode_set_nofb = bochs_crtc_helper_mode_set_nofb,
+	.atomic_check = bochs_crtc_helper_atomic_check,
+	.atomic_enable = bochs_crtc_helper_atomic_enable,
+	.atomic_disable = bochs_crtc_helper_atomic_disable,
+};
 
-	bochs_plane_update(bochs, pipe->plane.state);
-}
+static const struct drm_crtc_funcs bochs_crtc_funcs = {
+	.reset = drm_atomic_helper_crtc_reset,
+	.destroy = drm_crtc_cleanup,
+	.set_config = drm_atomic_helper_set_config,
+	.page_flip = drm_atomic_helper_page_flip,
+	.atomic_duplicate_state = drm_atomic_helper_crtc_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_crtc_destroy_state,
+};
 
-static const struct drm_simple_display_pipe_funcs bochs_pipe_funcs = {
-	.enable	    = bochs_pipe_enable,
-	.disable    = bochs_pipe_disable,
-	.update	    = bochs_pipe_update,
-	.prepare_fb = drm_gem_vram_simple_display_pipe_prepare_fb,
-	.cleanup_fb = drm_gem_vram_simple_display_pipe_cleanup_fb,
+static const struct drm_encoder_funcs bochs_encoder_funcs = {
+	.destroy = drm_encoder_cleanup,
 };
 
 static int bochs_connector_helper_get_modes(struct drm_connector *connector)
@@ -475,11 +544,11 @@ static int bochs_connector_helper_get_modes(struct drm_connector *connector)
 	return count;
 }
 
-static const struct drm_connector_helper_funcs bochs_connector_connector_helper_funcs = {
+static const struct drm_connector_helper_funcs bochs_connector_helper_funcs = {
 	.get_modes = bochs_connector_helper_get_modes,
 };
 
-static const struct drm_connector_funcs bochs_connector_connector_funcs = {
+static const struct drm_connector_funcs bochs_connector_funcs = {
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.destroy = drm_connector_cleanup,
 	.reset = drm_atomic_helper_connector_reset,
@@ -487,18 +556,7 @@ static const struct drm_connector_funcs bochs_connector_connector_funcs = {
 	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
 };
 
-static void bochs_connector_init(struct bochs_device *bochs)
-{
-	struct drm_device *dev = &bochs->dev;
-	struct drm_connector *connector = &bochs->connector;
-
-	drm_connector_init(dev, connector, &bochs_connector_connector_funcs,
-			   DRM_MODE_CONNECTOR_VIRTUAL);
-	drm_connector_attach_edid_property(connector);
-	drm_connector_helper_add(connector, &bochs_connector_connector_helper_funcs);
-}
-
-static const struct drm_mode_config_funcs bochs_mode_funcs = {
+static const struct drm_mode_config_funcs bochs_mode_config_funcs = {
 	.fb_create = drm_gem_fb_create,
 	.mode_valid = drm_vram_helper_mode_valid,
 	.atomic_check = drm_atomic_helper_check,
@@ -508,6 +566,10 @@ static const struct drm_mode_config_funcs bochs_mode_funcs = {
 static int bochs_kms_init(struct bochs_device *bochs)
 {
 	struct drm_device *dev = &bochs->dev;
+	struct drm_plane *primary_plane;
+	struct drm_crtc *crtc;
+	struct drm_connector *connector;
+	struct drm_encoder *encoder;
 	int ret;
 
 	ret = drmm_mode_config_init(dev);
@@ -518,19 +580,44 @@ static int bochs_kms_init(struct bochs_device *bochs)
 	dev->mode_config.max_height = 8192;
 
 	dev->mode_config.preferred_depth = 24;
-	dev->mode_config.prefer_shadow = 0;
 	dev->mode_config.quirk_addfb_prefer_host_byte_order = true;
 
-	dev->mode_config.funcs = &bochs_mode_funcs;
+	dev->mode_config.funcs = &bochs_mode_config_funcs;
 
-	bochs_connector_init(bochs);
-	drm_simple_display_pipe_init(dev,
-				     &bochs->pipe,
-				     &bochs_pipe_funcs,
-				     bochs_formats,
-				     ARRAY_SIZE(bochs_formats),
-				     NULL,
-				     &bochs->connector);
+	primary_plane = &bochs->primary_plane;
+	ret = drm_universal_plane_init(dev, primary_plane, 0,
+				       &bochs_primary_plane_funcs,
+				       bochs_primary_plane_formats,
+				       ARRAY_SIZE(bochs_primary_plane_formats),
+				       NULL,
+				       DRM_PLANE_TYPE_PRIMARY, NULL);
+	if (ret)
+		return ret;
+	drm_plane_helper_add(primary_plane, &bochs_primary_plane_helper_funcs);
+	drm_plane_enable_fb_damage_clips(primary_plane);
+
+	crtc = &bochs->crtc;
+	ret = drm_crtc_init_with_planes(dev, crtc, primary_plane, NULL,
+					&bochs_crtc_funcs, NULL);
+	if (ret)
+		return ret;
+	drm_crtc_helper_add(crtc, &bochs_crtc_helper_funcs);
+
+	encoder = &bochs->encoder;
+	ret = drm_encoder_init(dev, encoder, &bochs_encoder_funcs,
+			       DRM_MODE_ENCODER_VIRTUAL, NULL);
+	if (ret)
+		return ret;
+	encoder->possible_crtcs = drm_crtc_mask(crtc);
+
+	connector = &bochs->connector;
+	ret = drm_connector_init(dev, connector, &bochs_connector_funcs,
+				 DRM_MODE_CONNECTOR_VIRTUAL);
+	if (ret)
+		return ret;
+	drm_connector_helper_add(connector, &bochs_connector_helper_funcs);
+	drm_connector_attach_edid_property(connector);
+	drm_connector_attach_encoder(connector, encoder);
 
 	drm_mode_config_reset(dev);
 
