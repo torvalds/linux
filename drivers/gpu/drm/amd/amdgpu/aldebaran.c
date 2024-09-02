@@ -417,6 +417,7 @@ static struct amdgpu_reset_handler aldebaran_mode2_handler = {
 static struct amdgpu_reset_handler
 	*aldebaran_rst_handlers[AMDGPU_RESET_MAX_HANDLERS] = {
 		&aldebaran_mode2_handler,
+		&xgmi_reset_on_init_handler,
 	};
 
 int aldebaran_reset_init(struct amdgpu_device *adev)
