@@ -22,8 +22,6 @@ struct io_rsrc_put {
 	};
 };
 
-typedef void (rsrc_put_fn)(struct io_ring_ctx *ctx, struct io_rsrc_put *prsrc);
-
 struct io_rsrc_data {
 	struct io_ring_ctx		*ctx;
 
