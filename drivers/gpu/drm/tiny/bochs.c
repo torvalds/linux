@@ -6,13 +6,15 @@
 #include <drm/drm_aperture.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_damage_helper.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_edid.h>
-#include <drm/drm_fbdev_ttm.h>
+#include <drm/drm_fbdev_shmem.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_framebuffer.h>
+#include <drm/drm_gem_atomic_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
-#include <drm/drm_gem_vram_helper.h>
+#include <drm/drm_gem_shmem_helper.h>
 #include <drm/drm_managed.h>
 #include <drm/drm_module.h>
 #include <drm/drm_plane_helper.h>
@@ -427,49 +429,49 @@ static int bochs_primary_plane_helper_atomic_check(struct drm_plane *plane,
 	return 0;
 }
 
-static void bochs_plane_update(struct bochs_device *bochs, struct drm_plane_state *state)
-{
-	struct drm_gem_vram_object *gbo;
-	s64 gpu_addr;
-
-	if (!state->fb || !bochs->stride)
-		return;
-
-	gbo = drm_gem_vram_of_gem(state->fb->obj[0]);
-	gpu_addr = drm_gem_vram_offset(gbo);
-	if (WARN_ON_ONCE(gpu_addr < 0))
-		return; /* Bug: we didn't pin the BO to VRAM in prepare_fb. */
-
-	bochs_hw_setbase(bochs,
-			 state->crtc_x,
-			 state->crtc_y,
-			 state->fb->pitches[0],
-			 state->fb->offsets[0] + gpu_addr);
-	bochs_hw_setformat(bochs, state->fb->format);
-}
-
 static void bochs_primary_plane_helper_atomic_update(struct drm_plane *plane,
 						     struct drm_atomic_state *state)
 {
-	struct bochs_device *bochs = to_bochs_device(plane->dev);
-	struct drm_plane_state *plane_state = drm_atomic_get_new_plane_state(state, plane);
+	struct drm_device *dev = plane->dev;
+	struct bochs_device *bochs = to_bochs_device(dev);
+	struct drm_plane_state *plane_state = plane->state;
+	struct drm_plane_state *old_plane_state = drm_atomic_get_old_plane_state(state, plane);
+	struct drm_shadow_plane_state *shadow_plane_state = to_drm_shadow_plane_state(plane_state);
+	struct drm_framebuffer *fb = plane_state->fb;
+	struct drm_atomic_helper_damage_iter iter;
+	struct drm_rect damage;
 
-	bochs_plane_update(bochs, plane_state);
+	if (!fb || !bochs->stride)
+		return;
+
+	drm_atomic_helper_damage_iter_init(&iter, old_plane_state, plane_state);
+	drm_atomic_for_each_plane_damage(&iter, &damage) {
+		struct iosys_map dst = IOSYS_MAP_INIT_VADDR_IOMEM(bochs->fb_map);
+
+		iosys_map_incr(&dst, drm_fb_clip_offset(fb->pitches[0], fb->format, &damage));
+		drm_fb_memcpy(&dst, fb->pitches, shadow_plane_state->data, fb, &damage);
+	}
+
+	/* Always scanout image at VRAM offset 0 */
+	bochs_hw_setbase(bochs,
+			 plane_state->crtc_x,
+			 plane_state->crtc_y,
+			 fb->pitches[0],
+			 0);
+	bochs_hw_setformat(bochs, fb->format);
 }
 
 static const struct drm_plane_helper_funcs bochs_primary_plane_helper_funcs = {
-	DRM_GEM_VRAM_PLANE_HELPER_FUNCS,
+	DRM_GEM_SHADOW_PLANE_HELPER_FUNCS,
 	.atomic_check = bochs_primary_plane_helper_atomic_check,
 	.atomic_update = bochs_primary_plane_helper_atomic_update,
 };
 
 static const struct drm_plane_funcs bochs_primary_plane_funcs = {
-	.update_plane		= drm_atomic_helper_update_plane,
-	.disable_plane		= drm_atomic_helper_disable_plane,
-	.destroy		= drm_plane_cleanup,
-	.reset			= drm_atomic_helper_plane_reset,
-	.atomic_duplicate_state	= drm_atomic_helper_plane_duplicate_state,
-	.atomic_destroy_state	= drm_atomic_helper_plane_destroy_state,
+	.update_plane = drm_atomic_helper_update_plane,
+	.disable_plane = drm_atomic_helper_disable_plane,
+	.destroy = drm_plane_cleanup,
+	DRM_GEM_SHADOW_PLANE_FUNCS
 };
 
 static void bochs_crtc_helper_mode_set_nofb(struct drm_crtc *crtc)
@@ -557,8 +559,7 @@ static const struct drm_connector_funcs bochs_connector_funcs = {
 };
 
 static const struct drm_mode_config_funcs bochs_mode_config_funcs = {
-	.fb_create = drm_gem_fb_create,
-	.mode_valid = drm_vram_helper_mode_valid,
+	.fb_create = drm_gem_fb_create_with_dirty,
 	.atomic_check = drm_atomic_helper_check,
 	.atomic_commit = drm_atomic_helper_commit,
 };
@@ -629,14 +630,9 @@ static int bochs_kms_init(struct bochs_device *bochs)
 
 static int bochs_load(struct bochs_device *bochs)
 {
-	struct drm_device *dev = &bochs->dev;
 	int ret;
 
 	ret = bochs_hw_init(bochs);
-	if (ret)
-		return ret;
-
-	ret = drmm_vram_helper_init(dev, bochs->fb_base, bochs->fb_size);
 	if (ret)
 		return ret;
 
@@ -657,7 +653,7 @@ static const struct drm_driver bochs_driver = {
 	.date			= "20130925",
 	.major			= 1,
 	.minor			= 0,
-	DRM_GEM_VRAM_DRIVER,
+	DRM_GEM_SHMEM_DRIVER_OPS,
 };
 
 /* ---------------------------------------------------------------------- */
@@ -723,7 +719,7 @@ static int bochs_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent
 	if (ret)
 		goto err_free_dev;
 
-	drm_fbdev_ttm_setup(dev, 32);
+	drm_fbdev_shmem_setup(dev, 32);
 	return ret;
 
 err_free_dev:
