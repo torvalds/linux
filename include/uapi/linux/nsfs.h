@@ -3,6 +3,7 @@
 #define __LINUX_NSFS_H
 
 #include <linux/ioctl.h>
+#include <linux/types.h>
 
 #define NSIO	0xb7
 
@@ -16,7 +17,7 @@
 /* Get owner UID (in the caller's user namespace) for a user namespace */
 #define NS_GET_OWNER_UID	_IO(NSIO, 0x4)
 /* Get the id for a mount namespace */
-#define NS_GET_MNTNS_ID		_IO(NSIO, 0x5)
+#define NS_GET_MNTNS_ID		_IOR(NSIO, 0x5, __u64)
 /* Translate pid from target pid namespace into the caller's pid namespace. */
 #define NS_GET_PID_FROM_PIDNS	_IOR(NSIO, 0x6, int)
 /* Return thread-group leader id of pid in the callers pid namespace. */

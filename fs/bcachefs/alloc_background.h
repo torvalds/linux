@@ -150,7 +150,9 @@ static inline void alloc_data_type_set(struct bch_alloc_v4 *a, enum bch_data_typ
 
 static inline u64 alloc_lru_idx_read(struct bch_alloc_v4 a)
 {
-	return a.data_type == BCH_DATA_cached ? a.io_time[READ] : 0;
+	return a.data_type == BCH_DATA_cached
+		? a.io_time[READ] & LRU_TIME_MAX
+		: 0;
 }
 
 #define DATA_TYPES_MOVABLE		\
@@ -240,52 +242,48 @@ struct bkey_i_alloc_v4 *bch2_alloc_to_v4_mut(struct btree_trans *, struct bkey_s
 
 int bch2_bucket_io_time_reset(struct btree_trans *, unsigned, size_t, int);
 
-int bch2_alloc_v1_invalid(struct bch_fs *, struct bkey_s_c,
-			  enum bch_validate_flags, struct printbuf *);
-int bch2_alloc_v2_invalid(struct bch_fs *, struct bkey_s_c,
-			  enum bch_validate_flags, struct printbuf *);
-int bch2_alloc_v3_invalid(struct bch_fs *, struct bkey_s_c,
-			  enum bch_validate_flags, struct printbuf *);
-int bch2_alloc_v4_invalid(struct bch_fs *, struct bkey_s_c,
-			  enum bch_validate_flags, struct printbuf *);
+int bch2_alloc_v1_validate(struct bch_fs *, struct bkey_s_c, enum bch_validate_flags);
+int bch2_alloc_v2_validate(struct bch_fs *, struct bkey_s_c, enum bch_validate_flags);
+int bch2_alloc_v3_validate(struct bch_fs *, struct bkey_s_c, enum bch_validate_flags);
+int bch2_alloc_v4_validate(struct bch_fs *, struct bkey_s_c, enum bch_validate_flags);
 void bch2_alloc_v4_swab(struct bkey_s);
 void bch2_alloc_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
 
 #define bch2_bkey_ops_alloc ((struct bkey_ops) {	\
-	.key_invalid	= bch2_alloc_v1_invalid,	\
+	.key_validate	= bch2_alloc_v1_validate,	\
 	.val_to_text	= bch2_alloc_to_text,		\
 	.trigger	= bch2_trigger_alloc,		\
 	.min_val_size	= 8,				\
 })
 
 #define bch2_bkey_ops_alloc_v2 ((struct bkey_ops) {	\
-	.key_invalid	= bch2_alloc_v2_invalid,	\
+	.key_validate	= bch2_alloc_v2_validate,	\
 	.val_to_text	= bch2_alloc_to_text,		\
 	.trigger	= bch2_trigger_alloc,		\
 	.min_val_size	= 8,				\
 })
 
 #define bch2_bkey_ops_alloc_v3 ((struct bkey_ops) {	\
-	.key_invalid	= bch2_alloc_v3_invalid,	\
+	.key_validate	= bch2_alloc_v3_validate,	\
 	.val_to_text	= bch2_alloc_to_text,		\
 	.trigger	= bch2_trigger_alloc,		\
 	.min_val_size	= 16,				\
 })
 
 #define bch2_bkey_ops_alloc_v4 ((struct bkey_ops) {	\
-	.key_invalid	= bch2_alloc_v4_invalid,	\
+	.key_validate	= bch2_alloc_v4_validate,	\
 	.val_to_text	= bch2_alloc_to_text,		\
 	.swab		= bch2_alloc_v4_swab,		\
 	.trigger	= bch2_trigger_alloc,		\
 	.min_val_size	= 48,				\
 })
 
-int bch2_bucket_gens_invalid(struct bch_fs *, struct bkey_s_c,
-			     enum bch_validate_flags, struct printbuf *);
+int bch2_bucket_gens_validate(struct bch_fs *, struct bkey_s_c,
+			     enum bch_validate_flags);
 void bch2_bucket_gens_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
 
 #define bch2_bkey_ops_bucket_gens ((struct bkey_ops) {	\
-	.key_invalid	= bch2_bucket_gens_invalid,	\
+	.key_validate	= bch2_bucket_gens_validate,	\
 	.val_to_text	= bch2_bucket_gens_to_text,	\
 })
 

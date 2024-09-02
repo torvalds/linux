@@ -401,9 +401,14 @@ devm_pse_pi_regulator_register(struct pse_controller_dev *pcdev,
 	rdesc->ops = &pse_pi_ops;
 	rdesc->owner = pcdev->owner;
 
-	rinit_data->constraints.valid_ops_mask = REGULATOR_CHANGE_STATUS |
-						 REGULATOR_CHANGE_CURRENT;
-	rinit_data->constraints.max_uA = MAX_PI_CURRENT;
+	rinit_data->constraints.valid_ops_mask = REGULATOR_CHANGE_STATUS;
+
+	if (pcdev->ops->pi_set_current_limit) {
+		rinit_data->constraints.valid_ops_mask |=
+			REGULATOR_CHANGE_CURRENT;
+		rinit_data->constraints.max_uA = MAX_PI_CURRENT;
+	}
+
 	rinit_data->supply_regulator = "vpwr";
 
 	rconfig.dev = pcdev->dev;

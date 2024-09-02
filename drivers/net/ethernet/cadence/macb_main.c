@@ -5250,8 +5250,8 @@ static int __maybe_unused macb_suspend(struct device *dev)
 	if (bp->wol & MACB_WOL_ENABLED) {
 		/* Check for IP address in WOL ARP mode */
 		idev = __in_dev_get_rcu(bp->dev);
-		if (idev && idev->ifa_list)
-			ifa = rcu_access_pointer(idev->ifa_list);
+		if (idev)
+			ifa = rcu_dereference(idev->ifa_list);
 		if ((bp->wolopts & WAKE_ARP) && !ifa) {
 			netdev_err(netdev, "IP address not assigned as required by WoL walk ARP\n");
 			return -EOPNOTSUPP;

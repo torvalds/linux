@@ -2546,11 +2546,6 @@ release_lock:
 }
 EXPORT_SYMBOL(qman_delete_cgr);
 
-struct cgr_comp {
-	struct qman_cgr *cgr;
-	struct completion completion;
-};
-
 static void qman_delete_cgr_smp_call(void *p)
 {
 	qman_delete_cgr((struct qman_cgr *)p);

@@ -5167,18 +5167,6 @@ const struct net_device_ops mlx5e_netdev_ops = {
 #endif
 };
 
-static u32 mlx5e_choose_lro_timeout(struct mlx5_core_dev *mdev, u32 wanted_timeout)
-{
-	int i;
-
-	/* The supported periods are organized in ascending order */
-	for (i = 0; i < MLX5E_LRO_TIMEOUT_ARR_SIZE - 1; i++)
-		if (MLX5_CAP_ETH(mdev, lro_timer_supported_periods[i]) >= wanted_timeout)
-			break;
-
-	return MLX5_CAP_ETH(mdev, lro_timer_supported_periods[i]);
-}
-
 void mlx5e_build_nic_params(struct mlx5e_priv *priv, struct mlx5e_xsk *xsk, u16 mtu)
 {
 	struct mlx5e_params *params = &priv->channels.params;
@@ -5308,7 +5296,7 @@ static void mlx5e_get_queue_stats_rx(struct net_device *dev, int i,
 	struct mlx5e_rq_stats *rq_stats;
 
 	ASSERT_RTNL();
-	if (mlx5e_is_uplink_rep(priv))
+	if (mlx5e_is_uplink_rep(priv) || !priv->stats_nch)
 		return;
 
 	channel_stats = priv->channel_stats[i];
@@ -5328,6 +5316,9 @@ static void mlx5e_get_queue_stats_tx(struct net_device *dev, int i,
 	struct mlx5e_sq_stats *sq_stats;
 
 	ASSERT_RTNL();
+	if (!priv->stats_nch)
+		return;
+
 	/* no special case needed for ptp htb etc since txq2sq_stats is kept up
 	 * to date for active sq_stats, otherwise get_base_stats takes care of
 	 * inactive sqs.

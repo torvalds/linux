@@ -676,7 +676,8 @@ struct bch_sb_field_ext {
 	x(mi_btree_bitmap,		BCH_VERSION(1,  7))		\
 	x(bucket_stripe_sectors,	BCH_VERSION(1,  8))		\
 	x(disk_accounting_v2,		BCH_VERSION(1,  9))		\
-	x(disk_accounting_v3,		BCH_VERSION(1, 10))
+	x(disk_accounting_v3,		BCH_VERSION(1, 10))		\
+	x(disk_accounting_inum,		BCH_VERSION(1, 11))
 
 enum bcachefs_metadata_version {
 	bcachefs_metadata_version_min = 9,
