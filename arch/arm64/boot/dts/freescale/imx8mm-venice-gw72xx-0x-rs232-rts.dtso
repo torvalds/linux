@@ -16,7 +16,7 @@
 /plugin/;
 
 &gpio4 {
-	rs485_en {
+	rs485-en-hog {
 		gpio-hog;
 		gpios = <0 GPIO_ACTIVE_HIGH>;
 		output-low;

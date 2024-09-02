@@ -18,7 +18,7 @@
 	pinctrl-names = "default";
 	pinctrcl-0 = <&pinctrl_gpio3_hog>;
 
-	uart4_rs485_en {
+	uart4-rs485-en-hog {
 		gpio-hog;
 		gpios = <20 GPIO_ACTIVE_HIGH>;
 		output-low;

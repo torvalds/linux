@@ -220,7 +220,7 @@
 		#gpio-cells = <2>;
 		gpio-controller;
 
-		admin_led_lower {
+		admin-led-lower-hog {
 			gpio-hog;
 			gpios = <13 GPIO_ACTIVE_HIGH>;
 			output-low;
