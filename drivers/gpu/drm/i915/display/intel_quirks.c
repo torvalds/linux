@@ -70,6 +70,14 @@ static void quirk_no_pps_backlight_power_hook(struct intel_display *display)
 	drm_info(display->drm, "Applying no pps backlight power quirk\n");
 }
 
+static void quirk_fw_sync_len(struct intel_dp *intel_dp)
+{
+	struct intel_display *display = to_intel_display(intel_dp);
+
+	intel_set_dpcd_quirk(intel_dp, QUIRK_FW_SYNC_LEN);
+	drm_info(display->drm, "Applying Fast Wake sync pulse count quirk\n");
+}
+
 struct intel_quirk {
 	int device;
 	int subsystem_vendor;
@@ -224,6 +232,15 @@ static struct intel_quirk intel_quirks[] = {
 };
 
 static struct intel_dpcd_quirk intel_dpcd_quirks[] = {
+	/* Dell Precision 5490 */
+	{
+		.device = 0x7d55,
+		.subsystem_vendor = 0x1028,
+		.subsystem_device = 0x0cc7,
+		.sink_oui = SINK_OUI(0x38, 0xec, 0x11),
+		.hook = quirk_fw_sync_len,
+	},
+
 };
 
 void intel_init_quirks(struct intel_display *display)
@@ -265,7 +282,7 @@ void intel_init_dpcd_quirks(struct intel_dp *intel_dp,
 		    !memcmp(q->sink_oui, ident->oui, sizeof(ident->oui)) &&
 		    (!memcmp(q->sink_device_id, ident->device_id,
 			    sizeof(ident->device_id)) ||
-		     mem_is_zero(q->sink_device_id, sizeof(q->sink_device_id))))
+		     !memchr_inv(q->sink_device_id, 0, sizeof(q->sink_device_id))))
 			q->hook(intel_dp);
 	}
 }
