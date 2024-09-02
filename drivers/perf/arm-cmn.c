@@ -581,6 +581,7 @@ struct arm_cmn_hw_event {
 	bool wide_sel;
 	enum cmn_filter_select filter_sel;
 };
+static_assert(sizeof(struct arm_cmn_hw_event) <= offsetof(struct hw_perf_event, target));
 
 #define for_each_hw_dn(hw, dn, i) \
 	for (i = 0, dn = hw->dn; i < hw->num_dns; i++, dn++)
@@ -591,7 +592,6 @@ struct arm_cmn_hw_event {
 
 static struct arm_cmn_hw_event *to_cmn_hw(struct perf_event *event)
 {
-	BUILD_BUG_ON(sizeof(struct arm_cmn_hw_event) > offsetof(struct hw_perf_event, target));
 	return (struct arm_cmn_hw_event *)&event->hw;
 }
 
