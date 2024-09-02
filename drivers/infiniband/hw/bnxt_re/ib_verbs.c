@@ -517,7 +517,7 @@ static int bnxt_re_create_fence_mr(struct bnxt_re_pd *pd)
 	mr->rdev = rdev;
 	mr->qplib_mr.pd = &pd->qplib_pd;
 	mr->qplib_mr.type = CMDQ_ALLOCATE_MRW_MRW_FLAGS_PMR;
-	mr->qplib_mr.flags = __from_ib_access_flags(mr_access_flags);
+	mr->qplib_mr.access_flags = __from_ib_access_flags(mr_access_flags);
 	rc = bnxt_qplib_alloc_mrw(&rdev->qplib_res, &mr->qplib_mr);
 	if (rc) {
 		ibdev_err(&rdev->ibdev, "Failed to alloc fence-HW-MR\n");
@@ -3881,7 +3881,7 @@ struct ib_mr *bnxt_re_get_dma_mr(struct ib_pd *ib_pd, int mr_access_flags)
 
 	mr->rdev = rdev;
 	mr->qplib_mr.pd = &pd->qplib_pd;
-	mr->qplib_mr.flags = __from_ib_access_flags(mr_access_flags);
+	mr->qplib_mr.access_flags = __from_ib_access_flags(mr_access_flags);
 	mr->qplib_mr.type = CMDQ_ALLOCATE_MRW_MRW_FLAGS_PMR;
 
 	/* Allocate and register 0 as the address */
@@ -3981,7 +3981,7 @@ struct ib_mr *bnxt_re_alloc_mr(struct ib_pd *ib_pd, enum ib_mr_type type,
 
 	mr->rdev = rdev;
 	mr->qplib_mr.pd = &pd->qplib_pd;
-	mr->qplib_mr.flags = BNXT_QPLIB_FR_PMR;
+	mr->qplib_mr.access_flags = BNXT_QPLIB_FR_PMR;
 	mr->qplib_mr.type = CMDQ_ALLOCATE_MRW_MRW_FLAGS_PMR;
 
 	rc = bnxt_qplib_alloc_mrw(&rdev->qplib_res, &mr->qplib_mr);
@@ -4098,7 +4098,7 @@ static struct ib_mr *__bnxt_re_user_reg_mr(struct ib_pd *ib_pd, u64 length, u64 
 
 	mr->rdev = rdev;
 	mr->qplib_mr.pd = &pd->qplib_pd;
-	mr->qplib_mr.flags = __from_ib_access_flags(mr_access_flags);
+	mr->qplib_mr.access_flags = __from_ib_access_flags(mr_access_flags);
 	mr->qplib_mr.type = CMDQ_ALLOCATE_MRW_MRW_FLAGS_MR;
 
 	rc = bnxt_qplib_alloc_mrw(&rdev->qplib_res, &mr->qplib_mr);
