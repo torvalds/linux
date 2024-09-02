@@ -2453,6 +2453,9 @@ static u8 skl_get_plane_caps(struct drm_i915_private *i915,
 	if (gen12_plane_has_mc_ccs(i915, plane_id))
 		caps |= INTEL_PLANE_CAP_CCS_MC;
 
+	if (DISPLAY_VER(i915) >= 14 && IS_DGFX(i915))
+		caps |= INTEL_PLANE_CAP_NEED64K_PHYS;
+
 	return caps;
 }
 
