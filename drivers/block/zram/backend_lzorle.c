@@ -6,26 +6,29 @@
 
 #include "backend_lzorle.h"
 
-static void *lzorle_create(struct zcomp_params *params)
+static int lzorle_create(struct zcomp_params *params, struct zcomp_ctx *ctx)
 {
-	return kzalloc(LZO1X_MEM_COMPRESS, GFP_KERNEL);
+	ctx->context = kzalloc(LZO1X_MEM_COMPRESS, GFP_KERNEL);
+	if (!ctx->context)
+		return -ENOMEM;
+	return 0;
 }
 
-static void lzorle_destroy(void *ctx)
+static void lzorle_destroy(struct zcomp_ctx *ctx)
 {
-	kfree(ctx);
+	kfree(ctx->context);
 }
 
-static int lzorle_compress(void *ctx, struct zcomp_req *req)
+static int lzorle_compress(struct zcomp_ctx *ctx, struct zcomp_req *req)
 {
 	int ret;
 
 	ret = lzorle1x_1_compress(req->src, req->src_len, req->dst,
-				  &req->dst_len, ctx);
+				  &req->dst_len, ctx->context);
 	return ret == LZO_E_OK ? 0 : ret;
 }
 
-static int lzorle_decompress(void *ctx, struct zcomp_req *req)
+static int lzorle_decompress(struct zcomp_ctx *ctx, struct zcomp_req *req)
 {
 	int ret;
 

@@ -10,40 +10,44 @@ struct lz4hc_ctx {
 	s32 level;
 };
 
-static void lz4hc_destroy(void *ctx)
+static void lz4hc_destroy(struct zcomp_ctx *ctx)
 {
-	struct lz4hc_ctx *zctx = ctx;
+	struct lz4hc_ctx *zctx = ctx->context;
+
+	if (!zctx)
+		return;
 
 	vfree(zctx->mem);
 	kfree(zctx);
 }
 
-static void *lz4hc_create(struct zcomp_params *params)
+static int lz4hc_create(struct zcomp_params *params, struct zcomp_ctx *ctx)
 {
-	struct lz4hc_ctx *ctx;
+	struct lz4hc_ctx *zctx;
 
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
-	if (!ctx)
-		return NULL;
+	zctx = kzalloc(sizeof(*zctx), GFP_KERNEL);
+	if (!zctx)
+		return -ENOMEM;
 
+	ctx->context = zctx;
 	if (params->level != ZCOMP_PARAM_NO_LEVEL)
-		ctx->level = params->level;
+		zctx->level = params->level;
 	else
-		ctx->level = LZ4HC_DEFAULT_CLEVEL;
+		zctx->level = LZ4HC_DEFAULT_CLEVEL;
 
-	ctx->mem = vmalloc(LZ4HC_MEM_COMPRESS);
-	if (!ctx->mem)
+	zctx->mem = vmalloc(LZ4HC_MEM_COMPRESS);
+	if (!zctx->mem)
 		goto error;
 
-	return ctx;
+	return 0;
 error:
 	lz4hc_destroy(ctx);
-	return NULL;
+	return -EINVAL;
 }
 
-static int lz4hc_compress(void *ctx, struct zcomp_req *req)
+static int lz4hc_compress(struct zcomp_ctx *ctx, struct zcomp_req *req)
 {
-	struct lz4hc_ctx *zctx = ctx;
+	struct lz4hc_ctx *zctx = ctx->context;
 	int ret;
 
 	ret = LZ4_compress_HC(req->src, req->dst, req->src_len, req->dst_len,
@@ -54,7 +58,7 @@ static int lz4hc_compress(void *ctx, struct zcomp_req *req)
 	return 0;
 }
 
-static int lz4hc_decompress(void *ctx, struct zcomp_req *req)
+static int lz4hc_decompress(struct zcomp_ctx *ctx, struct zcomp_req *req)
 {
 	int ret;
 

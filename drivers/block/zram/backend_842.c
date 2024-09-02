@@ -7,51 +7,32 @@
 
 #include "backend_842.h"
 
-struct sw842_ctx {
-	void *mem;
-};
-
-static void destroy_842(void *ctx)
+static void destroy_842(struct zcomp_ctx *ctx)
 {
-	struct sw842_ctx *zctx = ctx;
-
-	kfree(zctx->mem);
-	kfree(zctx);
+	kfree(ctx->context);
 }
 
-static void *create_842(struct zcomp_params *params)
+static int create_842(struct zcomp_params *params, struct zcomp_ctx *ctx)
 {
-	struct sw842_ctx *ctx;
-
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
-	if (!ctx)
-		return NULL;
-
-	ctx->mem = kmalloc(SW842_MEM_COMPRESS, GFP_KERNEL);
-	if (!ctx->mem)
-		goto error;
-
-	return ctx;
-
-error:
-	destroy_842(ctx);
-	return NULL;
+	ctx->context = kmalloc(SW842_MEM_COMPRESS, GFP_KERNEL);
+	if (!ctx->context)
+		return -ENOMEM;
+	return 0;
 }
 
-static int compress_842(void *ctx, struct zcomp_req *req)
+static int compress_842(struct zcomp_ctx *ctx, struct zcomp_req *req)
 {
-	struct sw842_ctx *zctx = ctx;
 	unsigned int dlen = req->dst_len;
 	int ret;
 
 	ret = sw842_compress(req->src, req->src_len, req->dst, &dlen,
-			     zctx->mem);
+			     ctx->context);
 	if (ret == 0)
 		req->dst_len = dlen;
 	return ret;
 }
 
-static int decompress_842(void *ctx, struct zcomp_req *req)
+static int decompress_842(struct zcomp_ctx *ctx, struct zcomp_req *req)
 {
 	unsigned int dlen = req->dst_len;
 

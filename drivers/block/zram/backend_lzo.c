@@ -6,26 +6,29 @@
 
 #include "backend_lzo.h"
 
-static void *lzo_create(struct zcomp_params *params)
+static int lzo_create(struct zcomp_params *params, struct zcomp_ctx *ctx)
 {
-	return kzalloc(LZO1X_MEM_COMPRESS, GFP_KERNEL);
+	ctx->context = kzalloc(LZO1X_MEM_COMPRESS, GFP_KERNEL);
+	if (!ctx->context)
+		return -ENOMEM;
+	return 0;
 }
 
-static void lzo_destroy(void *ctx)
+static void lzo_destroy(struct zcomp_ctx *ctx)
 {
-	kfree(ctx);
+	kfree(ctx->context);
 }
 
-static int lzo_compress(void *ctx, struct zcomp_req *req)
+static int lzo_compress(struct zcomp_ctx *ctx, struct zcomp_req *req)
 {
 	int ret;
 
 	ret = lzo1x_1_compress(req->src, req->src_len, req->dst,
-			       &req->dst_len, ctx);
+			       &req->dst_len, ctx->context);
 	return ret == LZO_E_OK ? 0 : ret;
 }
 
-static int lzo_decompress(void *ctx, struct zcomp_req *req)
+static int lzo_decompress(struct zcomp_ctx *ctx, struct zcomp_req *req)
 {
 	int ret;
 

@@ -16,60 +16,64 @@ struct zstd_ctx {
 	s32 level;
 };
 
-static void zstd_destroy(void *ctx)
+static void zstd_destroy(struct zcomp_ctx *ctx)
 {
-	struct zstd_ctx *zctx = ctx;
+	struct zstd_ctx *zctx = ctx->context;
+
+	if (!zctx)
+		return;
 
 	vfree(zctx->cctx_mem);
 	vfree(zctx->dctx_mem);
 	kfree(zctx);
 }
 
-static void *zstd_create(struct zcomp_params *params)
+static int zstd_create(struct zcomp_params *params, struct zcomp_ctx *ctx)
 {
+	struct zstd_ctx *zctx;
 	zstd_parameters prm;
-	struct zstd_ctx *ctx;
 	size_t sz;
 
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
-	if (!ctx)
-		return NULL;
+	zctx = kzalloc(sizeof(*zctx), GFP_KERNEL);
+	if (!zctx)
+		return -ENOMEM;
 
+	ctx->context = zctx;
 	if (params->level != ZCOMP_PARAM_NO_LEVEL)
-		ctx->level = params->level;
+		zctx->level = params->level;
 	else
-		ctx->level = zstd_default_clevel();
+		zctx->level = zstd_default_clevel();
 
-	prm = zstd_get_params(ctx->level, PAGE_SIZE);
-	ctx->cprm = zstd_get_params(ctx->level, PAGE_SIZE);
+	prm = zstd_get_params(zctx->level, PAGE_SIZE);
+	zctx->cprm = zstd_get_params(zctx->level, PAGE_SIZE);
 	sz = zstd_cctx_workspace_bound(&prm.cParams);
-	ctx->cctx_mem = vzalloc(sz);
-	if (!ctx->cctx_mem)
+	zctx->cctx_mem = vzalloc(sz);
+	if (!zctx->cctx_mem)
 		goto error;
 
-	ctx->cctx = zstd_init_cctx(ctx->cctx_mem, sz);
-	if (!ctx->cctx)
+	zctx->cctx = zstd_init_cctx(zctx->cctx_mem, sz);
+	if (!zctx->cctx)
 		goto error;
 
 	sz = zstd_dctx_workspace_bound();
-	ctx->dctx_mem = vzalloc(sz);
-	if (!ctx->dctx_mem)
+	zctx->dctx_mem = vzalloc(sz);
+	if (!zctx->dctx_mem)
 		goto error;
 
-	ctx->dctx = zstd_init_dctx(ctx->dctx_mem, sz);
-	if (!ctx->dctx)
+	zctx->dctx = zstd_init_dctx(zctx->dctx_mem, sz);
+	if (!zctx->dctx)
 		goto error;
 
-	return ctx;
+	return 0;
 
 error:
 	zstd_destroy(ctx);
-	return NULL;
+	return -EINVAL;
 }
 
-static int zstd_compress(void *ctx, struct zcomp_req *req)
+static int zstd_compress(struct zcomp_ctx *ctx, struct zcomp_req *req)
 {
-	struct zstd_ctx *zctx = ctx;
+	struct zstd_ctx *zctx = ctx->context;
 	size_t ret;
 
 	ret = zstd_compress_cctx(zctx->cctx, req->dst, req->dst_len,
@@ -80,9 +84,9 @@ static int zstd_compress(void *ctx, struct zcomp_req *req)
 	return 0;
 }
 
-static int zstd_decompress(void *ctx, struct zcomp_req *req)
+static int zstd_decompress(struct zcomp_ctx *ctx, struct zcomp_req *req)
 {
-	struct zstd_ctx *zctx = ctx;
+	struct zstd_ctx *zctx = ctx->context;
 	size_t ret;
 
 	ret = zstd_decompress_dctx(zctx->dctx, req->dst, req->dst_len,
