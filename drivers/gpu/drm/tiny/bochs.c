@@ -71,6 +71,8 @@ enum bochs_types {
 };
 
 struct bochs_device {
+	struct drm_device dev;
+
 	/* hw */
 	void __iomem   *mmio;
 	int            ioports;
@@ -87,14 +89,13 @@ struct bochs_device {
 	u32 bpp;
 
 	/* drm */
-	struct drm_device *dev;
 	struct drm_simple_display_pipe pipe;
 	struct drm_connector connector;
 };
 
 static struct bochs_device *to_bochs_device(const struct drm_device *dev)
 {
-	return (struct bochs_device *)dev->dev_private;
+	return container_of(dev, struct bochs_device, dev);
 }
 
 /* ---------------------------------------------------------------------- */
@@ -211,7 +212,7 @@ static const struct drm_edid *bochs_hw_read_edid(struct drm_connector *connector
 
 static int bochs_hw_init(struct bochs_device *bochs)
 {
-	struct drm_device *dev = bochs->dev;
+	struct drm_device *dev = &bochs->dev;
 	struct pci_dev *pdev = to_pci_dev(dev->dev);
 	unsigned long addr, size, mem, ioaddr, iosize;
 	u16 id;
@@ -306,7 +307,7 @@ static void bochs_hw_setmode(struct bochs_device *bochs, struct drm_display_mode
 {
 	int idx;
 
-	if (!drm_dev_enter(bochs->dev, &idx))
+	if (!drm_dev_enter(&bochs->dev, &idx))
 		return;
 
 	bochs->xres = mode->hdisplay;
@@ -342,7 +343,7 @@ static void bochs_hw_setformat(struct bochs_device *bochs, const struct drm_form
 {
 	int idx;
 
-	if (!drm_dev_enter(bochs->dev, &idx))
+	if (!drm_dev_enter(&bochs->dev, &idx))
 		return;
 
 	DRM_DEBUG_DRIVER("format %c%c%c%c\n",
@@ -373,7 +374,7 @@ static void bochs_hw_setbase(struct bochs_device *bochs, int x, int y, int strid
 	unsigned long offset;
 	unsigned int vx, vy, vwidth, idx;
 
-	if (!drm_dev_enter(bochs->dev, &idx))
+	if (!drm_dev_enter(&bochs->dev, &idx))
 		return;
 
 	bochs->stride = stride;
@@ -488,7 +489,7 @@ static const struct drm_connector_funcs bochs_connector_connector_funcs = {
 
 static void bochs_connector_init(struct bochs_device *bochs)
 {
-	struct drm_device *dev = bochs->dev;
+	struct drm_device *dev = &bochs->dev;
 	struct drm_connector *connector = &bochs->connector;
 
 	drm_connector_init(dev, connector, &bochs_connector_connector_funcs,
@@ -506,23 +507,24 @@ static const struct drm_mode_config_funcs bochs_mode_funcs = {
 
 static int bochs_kms_init(struct bochs_device *bochs)
 {
+	struct drm_device *dev = &bochs->dev;
 	int ret;
 
-	ret = drmm_mode_config_init(bochs->dev);
+	ret = drmm_mode_config_init(dev);
 	if (ret)
 		return ret;
 
-	bochs->dev->mode_config.max_width = 8192;
-	bochs->dev->mode_config.max_height = 8192;
+	dev->mode_config.max_width = 8192;
+	dev->mode_config.max_height = 8192;
 
-	bochs->dev->mode_config.preferred_depth = 24;
-	bochs->dev->mode_config.prefer_shadow = 0;
-	bochs->dev->mode_config.quirk_addfb_prefer_host_byte_order = true;
+	dev->mode_config.preferred_depth = 24;
+	dev->mode_config.prefer_shadow = 0;
+	dev->mode_config.quirk_addfb_prefer_host_byte_order = true;
 
-	bochs->dev->mode_config.funcs = &bochs_mode_funcs;
+	dev->mode_config.funcs = &bochs_mode_funcs;
 
 	bochs_connector_init(bochs);
-	drm_simple_display_pipe_init(bochs->dev,
+	drm_simple_display_pipe_init(dev,
 				     &bochs->pipe,
 				     &bochs_pipe_funcs,
 				     bochs_formats,
@@ -530,7 +532,7 @@ static int bochs_kms_init(struct bochs_device *bochs)
 				     NULL,
 				     &bochs->connector);
 
-	drm_mode_config_reset(bochs->dev);
+	drm_mode_config_reset(dev);
 
 	return 0;
 }
@@ -538,16 +540,10 @@ static int bochs_kms_init(struct bochs_device *bochs)
 /* ---------------------------------------------------------------------- */
 /* drm interface                                                          */
 
-static int bochs_load(struct drm_device *dev)
+static int bochs_load(struct bochs_device *bochs)
 {
-	struct bochs_device *bochs;
+	struct drm_device *dev = &bochs->dev;
 	int ret;
-
-	bochs = drmm_kzalloc(dev, sizeof(*bochs), GFP_KERNEL);
-	if (bochs == NULL)
-		return -ENOMEM;
-	dev->dev_private = bochs;
-	bochs->dev = dev;
 
 	ret = bochs_hw_init(bochs);
 	if (ret)
@@ -606,6 +602,7 @@ static const struct dev_pm_ops bochs_pm_ops = {
 
 static int bochs_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
+	struct bochs_device *bochs;
 	struct drm_device *dev;
 	unsigned long fbsize;
 	int ret;
@@ -620,9 +617,10 @@ static int bochs_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent
 	if (ret)
 		return ret;
 
-	dev = drm_dev_alloc(&bochs_driver, &pdev->dev);
-	if (IS_ERR(dev))
+	bochs = devm_drm_dev_alloc(&pdev->dev, &bochs_driver, struct bochs_device, dev);
+	if (IS_ERR(bochs))
 		return PTR_ERR(dev);
+	dev = &bochs->dev;
 
 	ret = pcim_enable_device(pdev);
 	if (ret)
@@ -630,7 +628,7 @@ static int bochs_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent
 
 	pci_set_drvdata(pdev, dev);
 
-	ret = bochs_load(dev);
+	ret = bochs_load(bochs);
 	if (ret)
 		goto err_free_dev;
 
