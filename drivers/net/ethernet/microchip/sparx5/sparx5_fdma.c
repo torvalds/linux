@@ -494,5 +494,6 @@ int sparx5_fdma_stop(struct sparx5 *sparx5)
 			  FDMA_PORT_CTRL_XTR_BUF_IS_EMPTY_GET(val) == 0,
 			  500, 10000, 0, sparx5);
 	fdma_free_phys(&sparx5->rx.fdma);
+	fdma_free_phys(&sparx5->tx.fdma);
 	return 0;
 }
