@@ -1245,7 +1245,7 @@ sub __read_config {
 	    # Config variables are only active while reading the
 	    # config and can be defined anywhere. They also ignore
 	    # TEST_START and DEFAULTS, but are skipped if they are in
-	    # on of these sections that have SKIP defined.
+	    # one of these sections that have SKIP defined.
 	    # The save variable can be
 	    # defined multiple times and the new one simply overrides
 	    # the previous one.
