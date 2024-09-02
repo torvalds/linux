@@ -214,7 +214,7 @@ u64 bch2_read_flag_list(const char *opt, const char * const list[])
 
 	s = strim(d);
 
-	while ((p = strsep(&s, ","))) {
+	while ((p = strsep(&s, ",;"))) {
 		int flag = match_string(list, -1, p);
 
 		if (flag < 0) {

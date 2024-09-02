@@ -432,6 +432,9 @@ void bch2_opt_to_text(struct printbuf *out,
 		else
 			prt_str(out, opt->choices[v]);
 		break;
+	case BCH_OPT_BITFIELD:
+		prt_bitflags(out, opt->choices, v);
+		break;
 	case BCH_OPT_FN:
 		opt->fn.to_text(out, c, sb, v);
 		break;

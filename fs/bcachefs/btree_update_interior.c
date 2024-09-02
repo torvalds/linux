@@ -146,7 +146,7 @@ fsck_err:
 	printbuf_exit(&buf);
 	return ret;
 topology_repair:
-	if ((c->recovery_passes_explicit & BIT_ULL(BCH_RECOVERY_PASS_check_topology)) &&
+	if ((c->opts.recovery_passes & BIT_ULL(BCH_RECOVERY_PASS_check_topology)) &&
 	    c->curr_recovery_pass > BCH_RECOVERY_PASS_check_topology) {
 		bch2_inconsistent_error(c);
 		ret = -BCH_ERR_btree_need_topology_repair;

@@ -373,6 +373,16 @@ enum fsck_err_opts {
 	  OPT_BOOL(),							\
 	  BCH2_NO_SB_OPT,		false,				\
 	  NULL,		"Exit recovery immediately prior to journal replay")\
+	x(recovery_passes,		u64,				\
+	  OPT_FS|OPT_MOUNT,						\
+	  OPT_BITFIELD(bch2_recovery_passes),				\
+	  BCH2_NO_SB_OPT,		0,				\
+	  NULL,		"Recovery passes to run explicitly")		\
+	x(recovery_passes_exclude,	u64,				\
+	  OPT_FS|OPT_MOUNT,						\
+	  OPT_BITFIELD(bch2_recovery_passes),				\
+	  BCH2_NO_SB_OPT,		0,				\
+	  NULL,		"Recovery passes to exclude")			\
 	x(recovery_pass_last,		u8,				\
 	  OPT_FS|OPT_MOUNT,						\
 	  OPT_STR_NOLIMIT(bch2_recovery_passes),			\
