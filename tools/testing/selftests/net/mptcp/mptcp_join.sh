@@ -202,6 +202,22 @@ print_skip()
 	mptcp_lib_pr_skip "${@}"
 }
 
+# $1: check name; $2: rc
+print_results()
+{
+	local check="${1}"
+	local rc=${2}
+
+	print_check "${check}"
+	if [ ${rc} = ${KSFT_PASS} ]; then
+		print_ok
+	elif [ ${rc} = ${KSFT_SKIP} ]; then
+		print_skip
+	else
+		fail_test "see above"
+	fi
+}
+
 # [ $1: fail msg ]
 mark_as_skipped()
 {
@@ -1331,6 +1347,7 @@ chk_join_nr()
 	local rst_nr=${join_rst_nr:-0}
 	local infi_nr=${join_infi_nr:-0}
 	local corrupted_pkts=${join_corrupted_pkts:-0}
+	local rc=${KSFT_PASS}
 	local count
 	local with_cookie
 
@@ -1338,43 +1355,41 @@ chk_join_nr()
 		print_info "${corrupted_pkts} corrupted pkts"
 	fi
 
-	print_check "syn"
 	count=$(mptcp_lib_get_counter ${ns1} "MPTcpExtMPJoinSynRx")
 	if [ -z "$count" ]; then
-		print_skip
+		rc=${KSFT_SKIP}
 	elif [ "$count" != "$syn_nr" ]; then
+		rc=${KSFT_FAIL}
+		print_check "syn"
 		fail_test "got $count JOIN[s] syn expected $syn_nr"
-	else
-		print_ok
 	fi
 
-	print_check "synack"
 	with_cookie=$(ip netns exec $ns2 sysctl -n net.ipv4.tcp_syncookies)
 	count=$(mptcp_lib_get_counter ${ns2} "MPTcpExtMPJoinSynAckRx")
 	if [ -z "$count" ]; then
-		print_skip
+		rc=${KSFT_SKIP}
 	elif [ "$count" != "$syn_ack_nr" ]; then
 		# simult connections exceeding the limit with cookie enabled could go up to
 		# synack validation as the conn limit can be enforced reliably only after
 		# the subflow creation
-		if [ "$with_cookie" = 2 ] && [ "$count" -gt "$syn_ack_nr" ] && [ "$count" -le "$syn_nr" ]; then
-			print_ok
-		else
+		if [ "$with_cookie" != 2 ] || [ "$count" -le "$syn_ack_nr" ] || [ "$count" -gt "$syn_nr" ]; then
+			rc=${KSFT_FAIL}
+			print_check "synack"
 			fail_test "got $count JOIN[s] synack expected $syn_ack_nr"
 		fi
-	else
-		print_ok
 	fi
 
-	print_check "ack"
 	count=$(mptcp_lib_get_counter ${ns1} "MPTcpExtMPJoinAckRx")
 	if [ -z "$count" ]; then
-		print_skip
+		rc=${KSFT_SKIP}
 	elif [ "$count" != "$ack_nr" ]; then
+		rc=${KSFT_FAIL}
+		print_check "ack"
 		fail_test "got $count JOIN[s] ack expected $ack_nr"
-	else
-		print_ok
 	fi
+
+	print_results "join Rx" ${rc}
+
 	if $validate_checksum; then
 		chk_csum_nr $csum_ns1 $csum_ns2
 		chk_fail_nr $fail_nr $fail_nr
