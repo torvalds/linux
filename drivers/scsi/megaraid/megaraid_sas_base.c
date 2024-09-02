@@ -6380,7 +6380,7 @@ static int megasas_init_fw(struct megasas_instance *instance)
 				GFP_KERNEL);
 			if (!fusion->stream_detect_by_ld[i]) {
 				dev_err(&instance->pdev->dev,
-					"unable to allocate stream detect by LD\n ");
+					"unable to allocate stream detect by LD\n");
 				for (j = 0; j < i; ++j)
 					kfree(fusion->stream_detect_by_ld[j]);
 				kfree(fusion->stream_detect_by_ld);
