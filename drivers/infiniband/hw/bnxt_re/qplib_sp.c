@@ -659,6 +659,9 @@ int bnxt_qplib_reg_mr(struct bnxt_qplib_res *res, struct bnxt_qplib_mrw *mr,
 	req.access = (mr->access_flags & 0xFFFF);
 	req.va = cpu_to_le64(mr->va);
 	req.key = cpu_to_le32(mr->lkey);
+	if (_is_alloc_mr_unified(res->dattr->dev_cap_flags))
+		req.key = cpu_to_le32(mr->pd->id);
+	req.flags = cpu_to_le16(mr->flags);
 	req.mr_size = cpu_to_le64(mr->total_size);
 
 	bnxt_qplib_fill_cmdqmsg(&msg, &req, &resp, NULL, sizeof(req),
@@ -666,6 +669,11 @@ int bnxt_qplib_reg_mr(struct bnxt_qplib_res *res, struct bnxt_qplib_mrw *mr,
 	rc = bnxt_qplib_rcfw_send_message(rcfw, &msg);
 	if (rc)
 		goto fail;
+
+	if (_is_alloc_mr_unified(res->dattr->dev_cap_flags)) {
+		mr->lkey = le32_to_cpu(resp.xid);
+		mr->rkey = mr->lkey;
+	}
 
 	return 0;
 

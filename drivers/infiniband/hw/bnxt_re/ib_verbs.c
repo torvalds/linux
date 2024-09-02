@@ -518,14 +518,18 @@ static int bnxt_re_create_fence_mr(struct bnxt_re_pd *pd)
 	mr->qplib_mr.pd = &pd->qplib_pd;
 	mr->qplib_mr.type = CMDQ_ALLOCATE_MRW_MRW_FLAGS_PMR;
 	mr->qplib_mr.access_flags = __from_ib_access_flags(mr_access_flags);
-	rc = bnxt_qplib_alloc_mrw(&rdev->qplib_res, &mr->qplib_mr);
-	if (rc) {
-		ibdev_err(&rdev->ibdev, "Failed to alloc fence-HW-MR\n");
-		goto fail;
-	}
+	if (!_is_alloc_mr_unified(rdev->dev_attr.dev_cap_flags)) {
+		rc = bnxt_qplib_alloc_mrw(&rdev->qplib_res, &mr->qplib_mr);
+		if (rc) {
+			ibdev_err(&rdev->ibdev, "Failed to alloc fence-HW-MR\n");
+			goto fail;
+		}
 
-	/* Register MR */
-	mr->ib_mr.lkey = mr->qplib_mr.lkey;
+		/* Register MR */
+		mr->ib_mr.lkey = mr->qplib_mr.lkey;
+	} else {
+		mr->qplib_mr.flags = CMDQ_REGISTER_MR_FLAGS_ALLOC_MR;
+	}
 	mr->qplib_mr.va = (u64)(unsigned long)fence->va;
 	mr->qplib_mr.total_size = BNXT_RE_FENCE_BYTES;
 	rc = bnxt_qplib_reg_mr(&rdev->qplib_res, &mr->qplib_mr, NULL,
@@ -4101,14 +4105,18 @@ static struct ib_mr *__bnxt_re_user_reg_mr(struct ib_pd *ib_pd, u64 length, u64 
 	mr->qplib_mr.access_flags = __from_ib_access_flags(mr_access_flags);
 	mr->qplib_mr.type = CMDQ_ALLOCATE_MRW_MRW_FLAGS_MR;
 
-	rc = bnxt_qplib_alloc_mrw(&rdev->qplib_res, &mr->qplib_mr);
-	if (rc) {
-		ibdev_err(&rdev->ibdev, "Failed to allocate MR rc = %d", rc);
-		rc = -EIO;
-		goto free_mr;
+	if (!_is_alloc_mr_unified(rdev->dev_attr.dev_cap_flags)) {
+		rc = bnxt_qplib_alloc_mrw(&rdev->qplib_res, &mr->qplib_mr);
+		if (rc) {
+			ibdev_err(&rdev->ibdev, "Failed to allocate MR rc = %d", rc);
+			rc = -EIO;
+			goto free_mr;
+		}
+		/* The fixed portion of the rkey is the same as the lkey */
+		mr->ib_mr.rkey = mr->qplib_mr.rkey;
+	} else {
+		mr->qplib_mr.flags = CMDQ_REGISTER_MR_FLAGS_ALLOC_MR;
 	}
-	/* The fixed portion of the rkey is the same as the lkey */
-	mr->ib_mr.rkey = mr->qplib_mr.rkey;
 	mr->ib_umem = umem;
 	mr->qplib_mr.va = virt_addr;
 	mr->qplib_mr.total_size = length;

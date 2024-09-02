@@ -565,4 +565,9 @@ static inline u8 bnxt_qplib_dbr_pacing_en(struct bnxt_qplib_chip_ctx *cctx)
 	return cctx->modes.dbr_pacing;
 }
 
+static inline bool _is_alloc_mr_unified(u16 dev_cap_flags)
+{
+	return dev_cap_flags & CREQ_QUERY_FUNC_RESP_SB_MR_REGISTER_ALLOC;
+}
+
 #endif /* __BNXT_QPLIB_RES_H__ */

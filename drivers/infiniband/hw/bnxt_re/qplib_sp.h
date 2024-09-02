@@ -117,6 +117,7 @@ struct bnxt_qplib_mrw {
 	u64				va;
 	u64				total_size;
 	u32				npages;
+	u16				flags;
 	u64				mr_handle;
 	struct bnxt_qplib_hwq		hwq;
 };
