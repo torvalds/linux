@@ -464,17 +464,17 @@ static void stmpe_gpio_disable(void *stmpe)
 static int stmpe_gpio_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct stmpe *stmpe = dev_get_drvdata(pdev->dev.parent);
-	struct device_node *np = pdev->dev.of_node;
+	struct stmpe *stmpe = dev_get_drvdata(dev->parent);
+	struct device_node *np = dev->of_node;
 	struct stmpe_gpio *stmpe_gpio;
 	int ret, irq;
 
 	if (stmpe->num_gpios > MAX_GPIOS) {
-		dev_err(&pdev->dev, "Need to increase maximum GPIO number\n");
+		dev_err(dev, "Need to increase maximum GPIO number\n");
 		return -EINVAL;
 	}
 
-	stmpe_gpio = devm_kzalloc(&pdev->dev, sizeof(*stmpe_gpio), GFP_KERNEL);
+	stmpe_gpio = devm_kzalloc(dev, sizeof(*stmpe_gpio), GFP_KERNEL);
 	if (!stmpe_gpio)
 		return -ENOMEM;
 
@@ -483,7 +483,7 @@ static int stmpe_gpio_probe(struct platform_device *pdev)
 	stmpe_gpio->stmpe = stmpe;
 	stmpe_gpio->chip = template_chip;
 	stmpe_gpio->chip.ngpio = stmpe->num_gpios;
-	stmpe_gpio->chip.parent = &pdev->dev;
+	stmpe_gpio->chip.parent = dev;
 	stmpe_gpio->chip.base = -1;
 
 	if (IS_ENABLED(CONFIG_DEBUG_FS))
@@ -496,7 +496,7 @@ static int stmpe_gpio_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	ret = devm_add_action_or_reset(&pdev->dev, stmpe_gpio_disable, stmpe);
+	ret = devm_add_action_or_reset(dev, stmpe_gpio_disable, stmpe);
 	if (ret)
 		return ret;
 
@@ -504,9 +504,8 @@ static int stmpe_gpio_probe(struct platform_device *pdev)
 	if (irq > 0) {
 		struct gpio_irq_chip *girq;
 
-		ret = devm_request_threaded_irq(&pdev->dev, irq, NULL,
-				stmpe_gpio_irq, IRQF_ONESHOT,
-				"stmpe-gpio", stmpe_gpio);
+		ret = devm_request_threaded_irq(dev, irq, NULL, stmpe_gpio_irq,
+						IRQF_ONESHOT, "stmpe-gpio", stmpe_gpio);
 		if (ret)
 			return dev_err_probe(dev, ret, "unable to register IRQ handler\n");
 
@@ -522,7 +521,7 @@ static int stmpe_gpio_probe(struct platform_device *pdev)
 		girq->init_valid_mask = stmpe_init_irq_valid_mask;
 	}
 
-	return devm_gpiochip_add_data(&pdev->dev, &stmpe_gpio->chip, stmpe_gpio);
+	return devm_gpiochip_add_data(dev, &stmpe_gpio->chip, stmpe_gpio);
 }
 
 static struct platform_driver stmpe_gpio_driver = {
