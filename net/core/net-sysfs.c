@@ -1524,7 +1524,7 @@ static const struct attribute_group dql_group = {
 };
 #else
 /* Fake declaration, all the code using it should be dead */
-extern const struct attribute_group dql_group;
+static const struct attribute_group dql_group = {};
 #endif /* CONFIG_BQL */
 
 #ifdef CONFIG_XPS
