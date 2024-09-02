@@ -20,7 +20,6 @@ Video4Linux (V4L) driver-specific documentation
 	ivtv
 	mgb4
 	omap3isp
-	omap4_camera
 	philips
 	qcom_camss
 	raspberrypi-pisp-be

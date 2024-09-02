@@ -16932,14 +16932,6 @@ S:	Maintained
 F:	Documentation/devicetree/bindings/i2c/ti,omap4-i2c.yaml
 F:	drivers/i2c/busses/i2c-omap.c
 
-OMAP IMAGING SUBSYSTEM (OMAP3 ISP and OMAP4 ISS)
-M:	Laurent Pinchart <laurent.pinchart@ideasonboard.com>
-L:	linux-media@vger.kernel.org
-S:	Maintained
-F:	Documentation/devicetree/bindings/media/ti,omap3isp.txt
-F:	drivers/media/platform/ti/omap3isp/
-F:	drivers/staging/media/omap4iss/
-
 OMAP MMC SUPPORT
 M:	Aaro Koskinen <aaro.koskinen@iki.fi>
 L:	linux-omap@vger.kernel.org
