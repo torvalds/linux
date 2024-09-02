@@ -341,8 +341,6 @@ void xe_display_pm_suspend(struct xe_device *xe, bool runtime)
 
 	xe_display_flush_cleanup_work(xe);
 
-	xe_display_flush_cleanup_work(xe);
-
 	intel_dp_mst_suspend(xe);
 
 	intel_hpd_cancel_work(xe);
