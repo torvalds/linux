@@ -231,48 +231,27 @@ static int sparx5_fdma_napi_callback(struct napi_struct *napi, int weight)
 	return counter;
 }
 
-static struct fdma_dcb *sparx5_fdma_next_dcb(struct sparx5_tx *tx,
-					     struct fdma_dcb *dcb)
-{
-	struct fdma_dcb *next_dcb;
-	struct fdma *fdma = &tx->fdma;
-
-	next_dcb = dcb;
-	next_dcb++;
-	/* Handle wrap-around */
-	if ((unsigned long)next_dcb >=
-	    ((unsigned long)fdma->dcbs + fdma->n_dcbs * sizeof(*dcb)))
-		next_dcb = fdma->dcbs;
-	return next_dcb;
-}
-
 int sparx5_fdma_xmit(struct sparx5 *sparx5, u32 *ifh, struct sk_buff *skb)
 {
 	struct sparx5_tx *tx = &sparx5->tx;
 	struct fdma *fdma = &tx->fdma;
 	static bool first_time = true;
-	struct fdma_dcb *next_dcb_hw;
-	struct fdma_db *db_hw;
 	struct sparx5_db *db;
 
-	next_dcb_hw = sparx5_fdma_next_dcb(tx, fdma->last_dcb);
-	db_hw = &next_dcb_hw->db[0];
-	if (!(db_hw->status & FDMA_DCB_STATUS_DONE))
+	fdma_dcb_advance(fdma);
+	if (!fdma_db_is_done(fdma_db_get(fdma, fdma->dcb_index, 0)))
 		return -EINVAL;
 	db = list_first_entry(&tx->db_list, struct sparx5_db, list);
-	list_move_tail(&db->list, &tx->db_list);
-	next_dcb_hw->nextptr = FDMA_DCB_INVALID_DATA;
-	fdma->last_dcb->nextptr = fdma->dma +
-		((unsigned long)next_dcb_hw -
-		(unsigned long)fdma->dcbs);
-	fdma->last_dcb = next_dcb_hw;
 	memset(db->cpu_addr, 0, FDMA_XTR_BUFFER_SIZE);
 	memcpy(db->cpu_addr, ifh, IFH_LEN * 4);
 	memcpy(db->cpu_addr + IFH_LEN * 4, skb->data, skb->len);
-	db_hw->status = FDMA_DCB_STATUS_SOF |
-			FDMA_DCB_STATUS_EOF |
-			FDMA_DCB_STATUS_BLOCKO(0) |
-			FDMA_DCB_STATUS_BLOCKL(skb->len + IFH_LEN * 4 + 4);
+
+	fdma_dcb_add(fdma, fdma->dcb_index, 0,
+		     FDMA_DCB_STATUS_SOF |
+		     FDMA_DCB_STATUS_EOF |
+		     FDMA_DCB_STATUS_BLOCKO(0) |
+		     FDMA_DCB_STATUS_BLOCKL(skb->len + IFH_LEN * 4 + 4));
+
 	if (first_time) {
 		sparx5_fdma_tx_activate(sparx5, tx);
 		first_time = false;
