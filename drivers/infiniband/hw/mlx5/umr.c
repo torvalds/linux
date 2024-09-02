@@ -224,6 +224,9 @@ int mlx5r_umr_init(struct mlx5_ib_dev *dev)
 
 void mlx5r_umr_cleanup(struct mlx5_ib_dev *dev)
 {
+	if (!dev->umrc.pd)
+		return;
+
 	mutex_destroy(&dev->umrc.init_lock);
 	ib_dealloc_pd(dev->umrc.pd);
 }
