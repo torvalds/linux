@@ -92,6 +92,11 @@ struct bochs_device {
 	struct drm_connector connector;
 };
 
+static struct bochs_device *to_bochs_device(const struct drm_device *dev)
+{
+	return (struct bochs_device *)dev->dev_private;
+}
+
 /* ---------------------------------------------------------------------- */
 
 static void bochs_vga_writeb(struct bochs_device *bochs, u16 ioport, u8 val)
@@ -191,7 +196,7 @@ static int bochs_get_edid_block(void *data, u8 *buf, unsigned int block, size_t 
 static const struct drm_edid *bochs_hw_read_edid(struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
-	struct bochs_device *bochs = dev->dev_private;
+	struct bochs_device *bochs = to_bochs_device(dev);
 	u8 header[8];
 
 	/* check header to detect whenever edid support is enabled in qemu */
@@ -420,7 +425,7 @@ static void bochs_pipe_enable(struct drm_simple_display_pipe *pipe,
 			      struct drm_crtc_state *crtc_state,
 			      struct drm_plane_state *plane_state)
 {
-	struct bochs_device *bochs = pipe->crtc.dev->dev_private;
+	struct bochs_device *bochs = to_bochs_device(pipe->crtc.dev);
 
 	bochs_hw_setmode(bochs, &crtc_state->mode);
 	bochs_plane_update(bochs, plane_state);
@@ -428,7 +433,7 @@ static void bochs_pipe_enable(struct drm_simple_display_pipe *pipe,
 
 static void bochs_pipe_disable(struct drm_simple_display_pipe *pipe)
 {
-	struct bochs_device *bochs = pipe->crtc.dev->dev_private;
+	struct bochs_device *bochs = to_bochs_device(pipe->crtc.dev);
 
 	bochs_hw_blank(bochs, true);
 }
@@ -436,7 +441,7 @@ static void bochs_pipe_disable(struct drm_simple_display_pipe *pipe)
 static void bochs_pipe_update(struct drm_simple_display_pipe *pipe,
 			      struct drm_plane_state *old_state)
 {
-	struct bochs_device *bochs = pipe->crtc.dev->dev_private;
+	struct bochs_device *bochs = to_bochs_device(pipe->crtc.dev);
 
 	bochs_plane_update(bochs, pipe->plane.state);
 }
