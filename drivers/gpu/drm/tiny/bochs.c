@@ -204,9 +204,9 @@ static const struct drm_edid *bochs_hw_read_edid(struct drm_connector *connector
 	return drm_edid_read_custom(connector, bochs_get_edid_block, bochs);
 }
 
-static int bochs_hw_init(struct drm_device *dev)
+static int bochs_hw_init(struct bochs_device *bochs)
 {
-	struct bochs_device *bochs = dev->dev_private;
+	struct drm_device *dev = bochs->dev;
 	struct pci_dev *pdev = to_pci_dev(dev->dev);
 	unsigned long addr, size, mem, ioaddr, iosize;
 	u16 id;
@@ -481,9 +481,9 @@ static const struct drm_connector_funcs bochs_connector_connector_funcs = {
 	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
 };
 
-static void bochs_connector_init(struct drm_device *dev)
+static void bochs_connector_init(struct bochs_device *bochs)
 {
-	struct bochs_device *bochs = dev->dev_private;
+	struct drm_device *dev = bochs->dev;
 	struct drm_connector *connector = &bochs->connector;
 
 	drm_connector_init(dev, connector, &bochs_connector_connector_funcs,
@@ -516,7 +516,7 @@ static int bochs_kms_init(struct bochs_device *bochs)
 
 	bochs->dev->mode_config.funcs = &bochs_mode_funcs;
 
-	bochs_connector_init(bochs->dev);
+	bochs_connector_init(bochs);
 	drm_simple_display_pipe_init(bochs->dev,
 				     &bochs->pipe,
 				     &bochs_pipe_funcs,
@@ -544,7 +544,7 @@ static int bochs_load(struct drm_device *dev)
 	dev->dev_private = bochs;
 	bochs->dev = dev;
 
-	ret = bochs_hw_init(dev);
+	ret = bochs_hw_init(bochs);
 	if (ret)
 		return ret;
 
