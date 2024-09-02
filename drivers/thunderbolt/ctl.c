@@ -70,6 +70,9 @@ struct tb_ctl {
 #define tb_ctl_dbg(ctl, format, arg...) \
 	dev_dbg(&(ctl)->nhi->pdev->dev, format, ## arg)
 
+#define tb_ctl_dbg_once(ctl, format, arg...) \
+	dev_dbg_once(&(ctl)->nhi->pdev->dev, format, ## arg)
+
 static DECLARE_WAIT_QUEUE_HEAD(tb_cfg_request_cancel_queue);
 /* Serializes access to request kref_get/put */
 static DEFINE_MUTEX(tb_cfg_request_lock);
@@ -279,8 +282,8 @@ static void tb_cfg_print_error(struct tb_ctl *ctl, enum tb_cfg_space space,
 		 * Invalid cfg_space/offset/length combination in
 		 * cfg_read/cfg_write.
 		 */
-		tb_ctl_dbg(ctl, "%llx:%x: invalid config space (%u) or offset\n",
-			   res->response_route, res->response_port, space);
+		tb_ctl_dbg_once(ctl, "%llx:%x: invalid config space (%u) or offset\n",
+				res->response_route, res->response_port, space);
 		return;
 	case TB_CFG_ERROR_NO_SUCH_PORT:
 		/*
