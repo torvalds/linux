@@ -1249,7 +1249,7 @@ static int snd_ctl_elem_read_user(struct snd_card *card,
 
 	control = memdup_user(_control, sizeof(*control));
 	if (IS_ERR(control))
-		return PTR_ERR(no_free_ptr(control));
+		return PTR_ERR(control);
 
 	result = snd_power_ref_and_wait(card);
 	if (result)
@@ -1326,7 +1326,7 @@ static int snd_ctl_elem_write_user(struct snd_ctl_file *file,
 
 	control = memdup_user(_control, sizeof(*control));
 	if (IS_ERR(control))
-		return PTR_ERR(no_free_ptr(control));
+		return PTR_ERR(control);
 
 	card = file->card;
 	result = snd_power_ref_and_wait(card);

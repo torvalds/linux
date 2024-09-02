@@ -582,7 +582,7 @@ static int snd_pcm_hw_refine_user(struct snd_pcm_substream *substream,
 
 	params = memdup_user(_params, sizeof(*params));
 	if (IS_ERR(params))
-		return PTR_ERR(no_free_ptr(params));
+		return PTR_ERR(params);
 
 	err = snd_pcm_hw_refine(substream, params);
 	if (err < 0)
@@ -872,7 +872,7 @@ static int snd_pcm_hw_params_user(struct snd_pcm_substream *substream,
 
 	params = memdup_user(_params, sizeof(*params));
 	if (IS_ERR(params))
-		return PTR_ERR(no_free_ptr(params));
+		return PTR_ERR(params);
 
 	err = snd_pcm_hw_params(substream, params);
 	if (err < 0)
@@ -3243,7 +3243,7 @@ static int snd_pcm_xfern_frames_ioctl(struct snd_pcm_substream *substream,
 
 	bufs = memdup_user(xfern.bufs, sizeof(void *) * runtime->channels);
 	if (IS_ERR(bufs))
-		return PTR_ERR(no_free_ptr(bufs));
+		return PTR_ERR(bufs);
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		result = snd_pcm_lib_writev(substream, bufs, xfern.frames);
 	else
@@ -4032,7 +4032,7 @@ static int snd_pcm_hw_refine_old_user(struct snd_pcm_substream *substream,
 
 	oparams = memdup_user(_oparams, sizeof(*oparams));
 	if (IS_ERR(oparams))
-		return PTR_ERR(no_free_ptr(oparams));
+		return PTR_ERR(oparams);
 	snd_pcm_hw_convert_from_old_params(params, oparams);
 	err = snd_pcm_hw_refine(substream, params);
 	if (err < 0)
@@ -4061,7 +4061,7 @@ static int snd_pcm_hw_params_old_user(struct snd_pcm_substream *substream,
 
 	oparams = memdup_user(_oparams, sizeof(*oparams));
 	if (IS_ERR(oparams))
-		return PTR_ERR(no_free_ptr(oparams));
+		return PTR_ERR(oparams);
 
 	snd_pcm_hw_convert_from_old_params(params, oparams);
 	err = snd_pcm_hw_params(substream, params);
