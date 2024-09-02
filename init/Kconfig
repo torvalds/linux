@@ -60,6 +60,13 @@ config LLD_VERSION
 	default $(ld-version) if LD_IS_LLD
 	default 0
 
+config RUSTC_VERSION
+	int
+	default $(shell,$(srctree)/scripts/rustc-version.sh $(RUSTC))
+	help
+	  It does not depend on `RUST` since that one may need to use the version
+	  in a `depends on`.
+
 config RUST_IS_AVAILABLE
 	def_bool $(success,$(srctree)/scripts/rust_is_available.sh)
 	help
