@@ -233,7 +233,7 @@ static inline int vintf_write_config(struct tegra241_vintf *vintf, u32 regval)
 static inline char *lvcmdq_error_header(struct tegra241_vcmdq *vcmdq,
 					char *header, int hlen)
 {
-	WARN_ON(hlen < 32);
+	WARN_ON(hlen < 64);
 	if (WARN_ON(!vcmdq->vintf))
 		return "";
 	snprintf(header, hlen, "VINTF%u: VCMDQ%u/LVCMDQ%u: ",
@@ -243,7 +243,7 @@ static inline char *lvcmdq_error_header(struct tegra241_vcmdq *vcmdq,
 
 static inline int vcmdq_write_config(struct tegra241_vcmdq *vcmdq, u32 regval)
 {
-	char header[32], *h = lvcmdq_error_header(vcmdq, header, 32);
+	char header[64], *h = lvcmdq_error_header(vcmdq, header, 64);
 
 	return tegra241_cmdqv_write_config(vcmdq->cmdqv,
 					   REG_VCMDQ_PAGE0(vcmdq, CONFIG),
@@ -354,7 +354,7 @@ tegra241_cmdqv_get_cmdq(struct arm_smmu_device *smmu,
 
 static void tegra241_vcmdq_hw_deinit(struct tegra241_vcmdq *vcmdq)
 {
-	char header[32], *h = lvcmdq_error_header(vcmdq, header, 32);
+	char header[64], *h = lvcmdq_error_header(vcmdq, header, 64);
 	u32 gerrorn, gerror;
 
 	if (vcmdq_write_config(vcmdq, 0)) {
@@ -382,7 +382,7 @@ static void tegra241_vcmdq_hw_deinit(struct tegra241_vcmdq *vcmdq)
 
 static int tegra241_vcmdq_hw_init(struct tegra241_vcmdq *vcmdq)
 {
-	char header[32], *h = lvcmdq_error_header(vcmdq, header, 32);
+	char header[64], *h = lvcmdq_error_header(vcmdq, header, 64);
 	int ret;
 
 	/* Reset VCMDQ */
@@ -555,13 +555,13 @@ static int tegra241_vintf_init_lvcmdq(struct tegra241_vintf *vintf, u16 lidx,
 static void tegra241_vintf_free_lvcmdq(struct tegra241_vintf *vintf, u16 lidx)
 {
 	struct tegra241_vcmdq *vcmdq = vintf->lvcmdqs[lidx];
-	char header[32];
+	char header[64];
 
 	tegra241_vcmdq_free_smmu_cmdq(vcmdq);
 	tegra241_vintf_deinit_lvcmdq(vintf, lidx);
 
 	dev_dbg(vintf->cmdqv->dev,
-		"%sdeallocated\n", lvcmdq_error_header(vcmdq, header, 32));
+		"%sdeallocated\n", lvcmdq_error_header(vcmdq, header, 64));
 	kfree(vcmdq);
 }
 
@@ -570,7 +570,7 @@ tegra241_vintf_alloc_lvcmdq(struct tegra241_vintf *vintf, u16 lidx)
 {
 	struct tegra241_cmdqv *cmdqv = vintf->cmdqv;
 	struct tegra241_vcmdq *vcmdq;
-	char header[32];
+	char header[64];
 	int ret;
 
 	vcmdq = kzalloc(sizeof(*vcmdq), GFP_KERNEL);
@@ -587,7 +587,7 @@ tegra241_vintf_alloc_lvcmdq(struct tegra241_vintf *vintf, u16 lidx)
 		goto deinit_lvcmdq;
 
 	dev_dbg(cmdqv->dev,
-		"%sallocated\n", lvcmdq_error_header(vcmdq, header, 32));
+		"%sallocated\n", lvcmdq_error_header(vcmdq, header, 64));
 	return vcmdq;
 
 deinit_lvcmdq:
