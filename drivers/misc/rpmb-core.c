@@ -187,17 +187,15 @@ struct rpmb_dev *rpmb_dev_register(struct device *dev,
 	rdev->dev.parent = dev;
 
 	ret = device_register(&rdev->dev);
-	if (ret)
-		goto err_id_remove;
+	if (ret) {
+		put_device(&rdev->dev);
+		return ERR_PTR(ret);
+	}
 
 	dev_dbg(&rdev->dev, "registered device\n");
 
 	return rdev;
 
-err_id_remove:
-	mutex_lock(&rpmb_mutex);
-	ida_simple_remove(&rpmb_ida, rdev->id);
-	mutex_unlock(&rpmb_mutex);
 err_free_dev_id:
 	kfree(rdev->descr.dev_id);
 err_free_rdev:
