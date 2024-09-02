@@ -341,7 +341,6 @@ out_unlock:
  * for copying to userspace
  * @name: A string which is used in /proc/slabinfo to identify this cache.
  * @size: The size of objects to be created in this cache.
- * @freeptr_offset: Custom offset for the free pointer in RCU caches
  * @align: The required alignment for the objects.
  * @flags: SLAB flags
  * @useroffset: Usercopy region offset
