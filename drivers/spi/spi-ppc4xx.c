@@ -415,9 +415,6 @@ static int spi_ppc4xx_of_probe(struct platform_device *op)
 		goto free_host;
 	hw->irqnum = ret;
 
-	if (hw->irqnum <= 0)
-		goto free_host;
-
 	ret = request_irq(hw->irqnum, spi_ppc4xx_int,
 			  0, "spi_ppc4xx_of", (void *)hw);
 	if (ret) {
