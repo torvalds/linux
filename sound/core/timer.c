@@ -1174,7 +1174,7 @@ static int snd_timer_s_close(struct snd_timer *timer)
 static const struct snd_timer_hardware snd_timer_system =
 {
 	.flags =	SNDRV_TIMER_HW_FIRST | SNDRV_TIMER_HW_WORK,
-	.resolution =	1000000000L / HZ,
+	.resolution =	NSEC_PER_SEC / HZ,
 	.ticks =	10000000L,
 	.close =	snd_timer_s_close,
 	.start =	snd_timer_s_start,
