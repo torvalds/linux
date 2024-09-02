@@ -2266,6 +2266,19 @@ bool amdgpu_psp_get_ras_capability(struct psp_context *psp)
 	}
 }
 
+bool amdgpu_psp_tos_reload_needed(struct amdgpu_device *adev)
+{
+	struct psp_context *psp = &adev->psp;
+
+	if (amdgpu_sriov_vf(adev))
+		return false;
+
+	if (psp->funcs && psp->funcs->is_reload_needed)
+		return psp->funcs->is_reload_needed(psp);
+
+	return false;
+}
+
 static int psp_hw_start(struct psp_context *psp)
 {
 	struct amdgpu_device *adev = psp->adev;

@@ -139,6 +139,7 @@ struct psp_funcs {
 	int (*fatal_error_recovery_quirk)(struct psp_context *psp);
 	bool (*get_ras_capability)(struct psp_context *psp);
 	bool (*is_aux_sos_load_required)(struct psp_context *psp);
+	bool (*is_reload_needed)(struct psp_context *psp);
 };
 
 struct ta_funcs {
@@ -560,5 +561,6 @@ bool amdgpu_psp_get_ras_capability(struct psp_context *psp);
 
 int psp_config_sq_perfmon(struct psp_context *psp, uint32_t xcp_id,
 	bool core_override_enable, bool reg_override_enable, bool perfmon_override_enable);
+bool amdgpu_psp_tos_reload_needed(struct amdgpu_device *adev);
 
 #endif
