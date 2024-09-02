@@ -265,7 +265,7 @@ static struct tb_cfg_result parse_header(const struct ctl_pkg *pkg, u32 len,
 	return res;
 }
 
-static void tb_cfg_print_error(struct tb_ctl *ctl,
+static void tb_cfg_print_error(struct tb_ctl *ctl, enum tb_cfg_space space,
 			       const struct tb_cfg_result *res)
 {
 	WARN_ON(res->err != 1);
@@ -279,8 +279,8 @@ static void tb_cfg_print_error(struct tb_ctl *ctl,
 		 * Invalid cfg_space/offset/length combination in
 		 * cfg_read/cfg_write.
 		 */
-		tb_ctl_dbg(ctl, "%llx:%x: invalid config space or offset\n",
-			   res->response_route, res->response_port);
+		tb_ctl_dbg(ctl, "%llx:%x: invalid config space (%u) or offset\n",
+			   res->response_route, res->response_port, space);
 		return;
 	case TB_CFG_ERROR_NO_SUCH_PORT:
 		/*
@@ -1072,7 +1072,7 @@ static int tb_cfg_get_error(struct tb_ctl *ctl, enum tb_cfg_space space,
 	    res->tb_error == TB_CFG_ERROR_INVALID_CONFIG_SPACE)
 		return -ENODEV;
 
-	tb_cfg_print_error(ctl, res);
+	tb_cfg_print_error(ctl, space, res);
 
 	if (res->tb_error == TB_CFG_ERROR_LOCK)
 		return -EACCES;
