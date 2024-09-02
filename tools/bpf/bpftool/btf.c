@@ -561,9 +561,10 @@ static const char *btf_type_sort_name(const struct btf *btf, __u32 index, bool f
 	case BTF_KIND_ENUM64: {
 		int name_off = t->name_off;
 
-		/* Use name of the first element for anonymous enums if allowed */
-		if (!from_ref && !t->name_off && btf_vlen(t))
-			name_off = btf_enum(t)->name_off;
+		if (!from_ref && !name_off && btf_vlen(t))
+			name_off = btf_kind(t) == BTF_KIND_ENUM64 ?
+				btf_enum64(t)->name_off :
+				btf_enum(t)->name_off;
 
 		return btf__name_by_offset(btf, name_off);
 	}
