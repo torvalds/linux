@@ -102,17 +102,6 @@ enum sparx5_vlan_port_type {
 
 struct sparx5;
 
-struct sparx5_db_hw {
-	u64 dataptr;
-	u64 status;
-};
-
-struct sparx5_tx_dcb_hw {
-	u64 nextptr;
-	u64 info;
-	struct sparx5_db_hw db[FDMA_TX_DCB_MAX_DBS];
-};
-
 /* Frame DMA receive state:
  * For each DB, there is a SKB, and the skb data pointer is mapped in
  * the DB. Once a frame is received the skb is given to the upper layers
@@ -133,10 +122,7 @@ struct sparx5_rx {
  */
 struct sparx5_tx {
 	struct fdma fdma;
-	struct sparx5_tx_dcb_hw *curr_entry;
-	struct sparx5_tx_dcb_hw *first_entry;
 	struct list_head db_list;
-	dma_addr_t dma;
 	u64 packets;
 	u64 dropped;
 };

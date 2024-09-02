@@ -32,6 +32,21 @@ struct sparx5_db {
 	void *cpu_addr;
 };
 
+static int sparx5_fdma_tx_dataptr_cb(struct fdma *fdma, int dcb, int db,
+				     u64 *dataptr)
+{
+	struct sparx5 *sparx5 = fdma->priv;
+	struct sparx5_tx *tx = &sparx5->tx;
+	struct sparx5_db *db_buf;
+
+	db_buf = list_first_entry(&tx->db_list, struct sparx5_db, list);
+	list_move_tail(&db_buf->list, &tx->db_list);
+
+	*dataptr = virt_to_phys(db_buf->cpu_addr);
+
+	return 0;
+}
+
 static int sparx5_fdma_rx_dataptr_cb(struct fdma *fdma, int dcb, int db,
 				     u64 *dataptr)
 {
@@ -48,22 +63,6 @@ static int sparx5_fdma_rx_dataptr_cb(struct fdma *fdma, int dcb, int db,
 	rx->skb[dcb][db] = skb;
 
 	return 0;
-}
-
-static void sparx5_fdma_tx_add_dcb(struct sparx5_tx *tx,
-				   struct sparx5_tx_dcb_hw *dcb,
-				   u64 nextptr)
-{
-	int idx = 0;
-
-	/* Reset the status of the DB */
-	for (idx = 0; idx < tx->fdma.n_dbs; ++idx) {
-		struct sparx5_db_hw *db = &dcb->db[idx];
-
-		db->status = FDMA_DCB_STATUS_DONE;
-	}
-	dcb->nextptr = FDMA_DCB_INVALID_DATA;
-	dcb->info = FDMA_DCB_INFO_DATAL(FDMA_XTR_BUFFER_SIZE);
 }
 
 static void sparx5_fdma_rx_activate(struct sparx5 *sparx5, struct sparx5_rx *rx)
@@ -122,9 +121,10 @@ static void sparx5_fdma_tx_activate(struct sparx5 *sparx5, struct sparx5_tx *tx)
 	struct fdma *fdma = &tx->fdma;
 
 	/* Write the buffer address in the LLP and LLP1 regs */
-	spx5_wr(((u64)tx->dma) & GENMASK(31, 0), sparx5,
+	spx5_wr(((u64)fdma->dma) & GENMASK(31, 0), sparx5,
 		FDMA_DCB_LLP(fdma->channel_id));
-	spx5_wr(((u64)tx->dma) >> 32, sparx5, FDMA_DCB_LLP1(fdma->channel_id));
+	spx5_wr(((u64)fdma->dma) >> 32, sparx5,
+		FDMA_DCB_LLP1(fdma->channel_id));
 
 	/* Set the number of TX DBs to be used, and DB end-of-frame interrupt */
 	spx5_wr(FDMA_CH_CFG_CH_DCB_DB_CNT_SET(fdma->n_dbs) |
@@ -231,40 +231,41 @@ static int sparx5_fdma_napi_callback(struct napi_struct *napi, int weight)
 	return counter;
 }
 
-static struct sparx5_tx_dcb_hw *sparx5_fdma_next_dcb(struct sparx5_tx *tx,
-						     struct sparx5_tx_dcb_hw *dcb)
+static struct fdma_dcb *sparx5_fdma_next_dcb(struct sparx5_tx *tx,
+					     struct fdma_dcb *dcb)
 {
-	struct sparx5_tx_dcb_hw *next_dcb;
+	struct fdma_dcb *next_dcb;
 	struct fdma *fdma = &tx->fdma;
 
 	next_dcb = dcb;
 	next_dcb++;
 	/* Handle wrap-around */
 	if ((unsigned long)next_dcb >=
-	    ((unsigned long)tx->first_entry + fdma->n_dcbs * sizeof(*dcb)))
-		next_dcb = tx->first_entry;
+	    ((unsigned long)fdma->dcbs + fdma->n_dcbs * sizeof(*dcb)))
+		next_dcb = fdma->dcbs;
 	return next_dcb;
 }
 
 int sparx5_fdma_xmit(struct sparx5 *sparx5, u32 *ifh, struct sk_buff *skb)
 {
-	struct sparx5_tx_dcb_hw *next_dcb_hw;
 	struct sparx5_tx *tx = &sparx5->tx;
+	struct fdma *fdma = &tx->fdma;
 	static bool first_time = true;
-	struct sparx5_db_hw *db_hw;
+	struct fdma_dcb *next_dcb_hw;
+	struct fdma_db *db_hw;
 	struct sparx5_db *db;
 
-	next_dcb_hw = sparx5_fdma_next_dcb(tx, tx->curr_entry);
+	next_dcb_hw = sparx5_fdma_next_dcb(tx, fdma->last_dcb);
 	db_hw = &next_dcb_hw->db[0];
 	if (!(db_hw->status & FDMA_DCB_STATUS_DONE))
 		return -EINVAL;
 	db = list_first_entry(&tx->db_list, struct sparx5_db, list);
 	list_move_tail(&db->list, &tx->db_list);
 	next_dcb_hw->nextptr = FDMA_DCB_INVALID_DATA;
-	tx->curr_entry->nextptr = tx->dma +
+	fdma->last_dcb->nextptr = fdma->dma +
 		((unsigned long)next_dcb_hw -
-		 (unsigned long)tx->first_entry);
-	tx->curr_entry = next_dcb_hw;
+		(unsigned long)fdma->dcbs);
+	fdma->last_dcb = next_dcb_hw;
 	memset(db->cpu_addr, 0, FDMA_XTR_BUFFER_SIZE);
 	memcpy(db->cpu_addr, ifh, IFH_LEN * 4);
 	memcpy(db->cpu_addr + IFH_LEN * 4, skb->data, skb->len);
@@ -304,28 +305,15 @@ static int sparx5_fdma_rx_alloc(struct sparx5 *sparx5)
 static int sparx5_fdma_tx_alloc(struct sparx5 *sparx5)
 {
 	struct sparx5_tx *tx = &sparx5->tx;
-	struct sparx5_tx_dcb_hw *dcb;
 	struct fdma *fdma = &tx->fdma;
-	int idx, jdx;
-	int size;
+	int idx, jdx, err;
 
-	size = sizeof(struct sparx5_tx_dcb_hw) * fdma->n_dcbs;
-	size = ALIGN(size, PAGE_SIZE);
-	tx->curr_entry = devm_kzalloc(sparx5->dev, size, GFP_KERNEL);
-	if (!tx->curr_entry)
-		return -ENOMEM;
-	tx->dma = virt_to_phys(tx->curr_entry);
-	tx->first_entry = tx->curr_entry;
 	INIT_LIST_HEAD(&tx->db_list);
 	/* Now for each dcb allocate the db */
 	for (idx = 0; idx < fdma->n_dcbs; ++idx) {
-		dcb = &tx->curr_entry[idx];
-		dcb->info = 0;
 		/* TX databuffers must be 16byte aligned */
 		for (jdx = 0; jdx < fdma->n_dbs; ++jdx) {
-			struct sparx5_db_hw *db_hw = &dcb->db[jdx];
 			struct sparx5_db *db;
-			dma_addr_t phys;
 			void *cpu_addr;
 
 			cpu_addr = devm_kzalloc(sparx5->dev,
@@ -333,20 +321,21 @@ static int sparx5_fdma_tx_alloc(struct sparx5 *sparx5)
 						GFP_KERNEL);
 			if (!cpu_addr)
 				return -ENOMEM;
-			phys = virt_to_phys(cpu_addr);
-			db_hw->dataptr = phys;
-			db_hw->status = 0;
 			db = devm_kzalloc(sparx5->dev, sizeof(*db), GFP_KERNEL);
 			if (!db)
 				return -ENOMEM;
 			db->cpu_addr = cpu_addr;
 			list_add_tail(&db->list, &tx->db_list);
 		}
-		sparx5_fdma_tx_add_dcb(tx, dcb, tx->dma + sizeof(*dcb) * idx);
-		/* Let the curr_entry to point to the last allocated entry */
-		if (idx == fdma->n_dcbs - 1)
-			tx->curr_entry = dcb;
 	}
+
+	err = fdma_alloc_phys(fdma);
+	if (err)
+		return err;
+
+	fdma_dcbs_init(fdma, FDMA_DCB_INFO_DATAL(fdma->db_size),
+		       FDMA_DCB_STATUS_DONE);
+
 	return 0;
 }
 
@@ -383,6 +372,11 @@ static void sparx5_fdma_tx_init(struct sparx5 *sparx5,
 	fdma->channel_id = channel;
 	fdma->n_dcbs = FDMA_DCB_MAX;
 	fdma->n_dbs = FDMA_TX_DCB_MAX_DBS;
+	fdma->priv = sparx5;
+	fdma->db_size = ALIGN(FDMA_XTR_BUFFER_SIZE, PAGE_SIZE);
+	fdma->size = fdma_get_size(&sparx5->tx.fdma);
+	fdma->ops.dataptr_cb = &sparx5_fdma_tx_dataptr_cb;
+	fdma->ops.nextptr_cb = &fdma_nextptr_cb;
 }
 
 irqreturn_t sparx5_fdma_handler(int irq, void *args)
