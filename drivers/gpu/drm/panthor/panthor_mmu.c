@@ -2693,9 +2693,9 @@ int panthor_mmu_init(struct panthor_device *ptdev)
 	 * which passes iova as an unsigned long. Patch the mmu_features to reflect this
 	 * limitation.
 	 */
-	if (sizeof(unsigned long) * 8 < va_bits) {
+	if (va_bits > BITS_PER_LONG) {
 		ptdev->gpu_info.mmu_features &= ~GENMASK(7, 0);
-		ptdev->gpu_info.mmu_features |= sizeof(unsigned long) * 8;
+		ptdev->gpu_info.mmu_features |= BITS_PER_LONG;
 	}
 
 	return drmm_add_action_or_reset(&ptdev->base, panthor_mmu_release_wq, mmu->vm.wq);
