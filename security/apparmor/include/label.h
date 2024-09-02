@@ -160,7 +160,7 @@ int aa_label_next_confined(struct aa_label *l, int i);
 #define label_for_each_cont(I, L, P)					\
 	for (++((I).i); ((P) = (L)->vec[(I).i]); ++((I).i))
 
-#define next_comb(I, L1, L2)						\
+#define next_comb(I, L2)						\
 do {									\
 	(I).j++;							\
 	if ((I).j >= (L2)->size) {					\
@@ -174,7 +174,7 @@ do {									\
 #define label_for_each_comb(I, L1, L2, P1, P2)				\
 for ((I).i = (I).j = 0;							\
 	((P1) = (L1)->vec[(I).i]) && ((P2) = (L2)->vec[(I).j]);		\
-	(I) = next_comb(I, L1, L2))
+	(I) = next_comb(I, L2))
 
 #define fn_for_each_comb(L1, L2, P1, P2, FN)				\
 ({									\
