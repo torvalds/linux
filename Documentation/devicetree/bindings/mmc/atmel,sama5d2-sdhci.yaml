@@ -1,0 +1,92 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/mmc/atmel,sama5d2-sdhci.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Atmel SDHCI controller
+
+maintainers:
+  - Aubin Constans <aubin.constans@microchip.com>
+  - Nicolas Ferre <nicolas.ferre@microchip.com>
+
+description:
+  Bindings for the SDHCI controller found in Atmel/Microchip SoCs.
+
+properties:
+  compatible:
+    oneOf:
+      - enum:
+          - atmel,sama5d2-sdhci
+          - microchip,sam9x60-sdhci
+      - items:
+          - enum:
+              - microchip,sam9x7-sdhci
+              - microchip,sama7g5-sdhci
+          - const: microchip,sam9x60-sdhci
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    items:
+      - description: hclock
+      - description: multclk
+      - description: baseclk
+    minItems: 2
+
+  clock-names:
+    items:
+      - const: hclock
+      - const: multclk
+      - const: baseclk
+    minItems: 2
+
+  microchip,sdcal-inverted:
+    type: boolean
+    description:
+      When present, polarity on the SDCAL SoC pin is inverted. The default
+      polarity for this signal is described in the datasheet. For instance on
+      SAMA5D2, the pin is usually tied to the GND with a resistor and a
+      capacitor (see "SDMMC I/O Calibration" chapter).
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+  - clock-names
+
+allOf:
+  - $ref: sdhci-common.yaml#
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - atmel,sama5d2-sdhci
+    then:
+      properties:
+        clocks:
+          minItems: 3
+        clock-names:
+          minItems: 3
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+    #include <dt-bindings/clock/at91.h>
+    mmc@a0000000 {
+        compatible = "atmel,sama5d2-sdhci";
+        reg = <0xa0000000 0x300>;
+        interrupts = <31 IRQ_TYPE_LEVEL_HIGH 0>;
+        clocks = <&sdmmc0_hclk>, <&sdmmc0_gclk>, <&main>;
+        clock-names = "hclock", "multclk", "baseclk";
+        assigned-clocks = <&sdmmc0_gclk>;
+        assigned-clock-rates = <480000000>;
+    };
