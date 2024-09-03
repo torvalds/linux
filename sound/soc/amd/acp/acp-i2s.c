@@ -135,6 +135,7 @@ static int acp_i2s_set_tdm_slot(struct snd_soc_dai *dai, u32 tx_mask, u32 rx_mas
 		}
 		break;
 	case ACP63_DEV:
+	case ACP70_DEV:
 		switch (slots) {
 		case 1 ... 31:
 			no_of_slots = slots;
@@ -167,6 +168,7 @@ static int acp_i2s_set_tdm_slot(struct snd_soc_dai *dai, u32 tx_mask, u32 rx_mas
 					FRM_LEN | (slots << 15) | (slot_len << 18);
 			break;
 		case ACP63_DEV:
+		case ACP70_DEV:
 			if (tx_mask && stream->dir == SNDRV_PCM_STREAM_PLAYBACK)
 				adata->tdm_tx_fmt[stream->dai_id - 1] =
 						FRM_LEN | (slots << 13) | (slot_len << 18);
