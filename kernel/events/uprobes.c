@@ -1482,6 +1482,22 @@ void * __weak arch_uprobe_trampoline(unsigned long *psize)
 	return &insn;
 }
 
+/*
+ * uprobe_clear_state - Free the area allocated for slots.
+ */
+static void uprobe_clear_state(const struct vm_special_mapping *sm, struct vm_area_struct *vma)
+{
+	struct xol_area *area = container_of(vma->vm_private_data, struct xol_area, xol_mapping);
+
+	mutex_lock(&delayed_uprobe_lock);
+	delayed_uprobe_remove(NULL, vma->vm_mm);
+	mutex_unlock(&delayed_uprobe_lock);
+
+	put_page(area->pages[0]);
+	kfree(area->bitmap);
+	kfree(area);
+}
+
 static struct xol_area *__create_xol_area(unsigned long vaddr)
 {
 	struct mm_struct *mm = current->mm;
@@ -1500,6 +1516,7 @@ static struct xol_area *__create_xol_area(unsigned long vaddr)
 
 	area->xol_mapping.name = "[uprobes]";
 	area->xol_mapping.fault = NULL;
+	area->xol_mapping.close = uprobe_clear_state;
 	area->xol_mapping.pages = area->pages;
 	area->pages[0] = alloc_page(GFP_HIGHUSER);
 	if (!area->pages[0])
@@ -1543,25 +1560,6 @@ static struct xol_area *get_xol_area(void)
 	/* Pairs with xol_add_vma() smp_store_release() */
 	area = READ_ONCE(mm->uprobes_state.xol_area); /* ^^^ */
 	return area;
-}
-
-/*
- * uprobe_clear_state - Free the area allocated for slots.
- */
-void uprobe_clear_state(struct mm_struct *mm)
-{
-	struct xol_area *area = mm->uprobes_state.xol_area;
-
-	mutex_lock(&delayed_uprobe_lock);
-	delayed_uprobe_remove(NULL, mm);
-	mutex_unlock(&delayed_uprobe_lock);
-
-	if (!area)
-		return;
-
-	put_page(area->pages[0]);
-	kfree(area->bitmap);
-	kfree(area);
 }
 
 void uprobe_start_dup_mmap(void)
