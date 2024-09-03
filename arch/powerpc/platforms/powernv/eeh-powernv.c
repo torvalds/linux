@@ -99,7 +99,6 @@ static ssize_t pnv_eeh_ei_write(struct file *filp,
 
 static const struct file_operations pnv_eeh_ei_fops = {
 	.open	= simple_open,
-	.llseek	= no_llseek,
 	.write	= pnv_eeh_ei_write,
 };
 

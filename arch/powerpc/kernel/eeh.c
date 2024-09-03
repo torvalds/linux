@@ -1682,7 +1682,6 @@ static ssize_t eeh_force_recover_write(struct file *filp,
 
 static const struct file_operations eeh_force_recover_fops = {
 	.open	= simple_open,
-	.llseek	= no_llseek,
 	.write	= eeh_force_recover_write,
 };
 
@@ -1726,7 +1725,6 @@ static ssize_t eeh_dev_check_write(struct file *filp,
 
 static const struct file_operations eeh_dev_check_fops = {
 	.open	= simple_open,
-	.llseek	= no_llseek,
 	.write	= eeh_dev_check_write,
 	.read   = eeh_debugfs_dev_usage,
 };
@@ -1846,7 +1844,6 @@ static ssize_t eeh_dev_break_write(struct file *filp,
 
 static const struct file_operations eeh_dev_break_fops = {
 	.open	= simple_open,
-	.llseek	= no_llseek,
 	.write	= eeh_dev_break_write,
 	.read   = eeh_debugfs_dev_usage,
 };
@@ -1893,7 +1890,6 @@ static ssize_t eeh_dev_can_recover(struct file *filp,
 
 static const struct file_operations eeh_dev_can_recover_fops = {
 	.open	= simple_open,
-	.llseek	= no_llseek,
 	.write	= eeh_dev_can_recover,
 	.read   = eeh_debugfs_dev_usage,
 };
