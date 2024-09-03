@@ -1773,9 +1773,38 @@ int gpi_terminate_channel(struct gpii_chan *gpii_chan)
 }
 
 /*
+ * geni_gsi_connect_doorbell() - function to connect gsi doorbell
+ * @chan: gsi channel handle
+ *
+ * This function uses asynchronous channel command 48 to connect
+ * io_6 input from GSI interrupt input.
+ *
+ * Return: Returns success or failure
+ */
+int geni_gsi_connect_doorbell(struct dma_chan *chan)
+{
+	struct gpii_chan *gpii_chan = to_gpii_chan(chan);
+	struct gpii *gpii = gpii_chan->gpii;
+	int ret = 0;
+
+	GPII_VERB(gpii, gpii_chan->chid, "Enter\n");
+	ret = gpi_send_cmd(gpii, gpii_chan, GPI_CH_CMD_ENABLE_HID);
+	if (ret) {
+		GPII_ERR(gpii, gpii_chan->chid, "Error enable Chan:%d HID interrupt\n", ret);
+		gpi_dump_debug_reg(gpii);
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(geni_gsi_connect_doorbell);
+
+/*
  * geni_gsi_disconnect_doorbell_stop_ch() - function to disconnect gsi doorbell and stop channel
  * @chan: gsi channel handle
  * @stop_ch: stop channel if set to true
+ *
+ * This function uses asynchronous channel command 49 to dis-connect
+ * io_6 input from GSI interrupt input.
  *
  * Return: Returns success or failure
  */
@@ -1786,10 +1815,6 @@ int geni_gsi_disconnect_doorbell_stop_ch(struct dma_chan *chan, bool stop_ch)
 	int ret = 0;
 	bool error = false;
 
-	/*
-	 * Use asynchronous channel command 49 (see section 3.10.7) to dis-connect
-	 * io_6 input from GSI interrupt input.
-	 */
 	GPII_VERB(gpii, gpii_chan->chid, "Enter\n");
 	ret = gpi_send_cmd(gpii, gpii_chan, GPI_CH_CMD_DISABLE_HID);
 	if (ret) {

@@ -471,6 +471,14 @@ int gsi_common_tx_tre_optimization(struct gsi_common *gsi, u32 num_xfers, u32 nu
 int geni_gsi_ch_start(struct dma_chan *chan);
 
 /**
+ * geni_gsi_connect_doorbell() - function to connect gsi doorbell
+ * @chan: dma channel handle
+ *
+ * Return: Returns success or failure
+ */
+int geni_gsi_connect_doorbell(struct dma_chan *chan);
+
+/**
  * geni_gsi_disconnect_doorbell_stop_ch() - function to disconnect gsi doorbell and stop channel
  * @chan: dma channel handle
  *

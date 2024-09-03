@@ -106,6 +106,40 @@ static void q2spi_parse_cr_header(struct q2spi_geni *q2spi, struct msm_gpi_cb co
 	q2spi_doorbell(q2spi, &cb->q2spi_cr_header_event);
 }
 
+/*
+ * q2spi_check_m_irq_err_status() - this function checks m_irq error status and
+ * also if start sequence error seen it will set is_start_seq_fail flag as true.
+ *
+ * @q2spi: q2spi master device handle
+ * @cb_status: irq status fields
+ *
+ * Return: None
+ */
+static void q2spi_check_m_irq_err_status(struct q2spi_geni *q2spi, u32 cb_status)
+{
+	/* bit 5 to 12 represents gp irq status */
+	u32 status = (cb_status & M_GP_IRQ_MASK) >> M_GP_IRQ_ERR_START_BIT;
+
+	if (status & Q2SPI_PWR_ON_NACK)
+		Q2SPI_DEBUG(q2spi, "%s Q2SPI_PWR_ON_NACK\n", __func__);
+	if (status & Q2SPI_HDR_FAIL)
+		Q2SPI_DEBUG(q2spi, "%s Q2SPI_HDR_FAIL\n", __func__);
+	if (status & Q2SPI_HCR_FAIL)
+		Q2SPI_DEBUG(q2spi, "%s Q2SPI_HCR_FAIL\n", __func__);
+	if (status & Q2SPI_CHECKSUM_FAIL)
+		Q2SPI_DEBUG(q2spi, "%s Q2SPI_CHEKSUM_FAIL\n", __func__);
+	if (status & Q2SPI_START_SEQ_TIMEOUT) {
+		q2spi->is_start_seq_fail = true;
+		Q2SPI_DEBUG(q2spi, "%s Q2SPI_START_SEQ_TIMEOUT\n", __func__);
+	}
+	if (status & Q2SPI_STOP_SEQ_TIMEOUT)
+		Q2SPI_DEBUG(q2spi, "%s Q2SPI_STOP_SEQ_TIMEOUT\n", __func__);
+	if (status & Q2SPI_WAIT_PHASE_TIMEOUT)
+		Q2SPI_DEBUG(q2spi, "%s Q2SPI_WAIT_PHASE_TIMEOUT\n", __func__);
+	if (status & Q2SPI_CLIENT_EN_NOT_DETECTED)
+		Q2SPI_DEBUG(q2spi, "%s Q2SPI_CLIENT_EN_NOT_DETECTED\n", __func__);
+}
+
 static void q2spi_gsi_tx_callback(void *cb)
 {
 	struct msm_gpi_dma_async_tx_cb_param *cb_param = NULL;
@@ -131,6 +165,9 @@ static void q2spi_gsi_tx_callback(void *cb)
 	if (cb_param->completion_code == MSM_GPI_TCE_UNEXP_ERR) {
 		Q2SPI_DEBUG(q2spi, "%s Unexpected GSI CB completion code CB status:0x%x\n",
 			    __func__, cb_param->status);
+		q2spi->gsi->qup_gsi_err = true;
+		q2spi_check_m_irq_err_status(q2spi, cb_param->status);
+		complete_all(&q2spi->tx_cb);
 		return;
 	} else if (cb_param->completion_code == MSM_GPI_TCE_EOT) {
 		Q2SPI_DEBUG(q2spi, "%s MSM_GPI_TCE_EOT\n", __func__);
@@ -470,7 +507,7 @@ int check_gsi_transfer_completion(struct q2spi_geni *q2spi)
 			Q2SPI_DEBUG(q2spi, "%s PID:%d Tx[%d] timeout\n", __func__, current->pid, i);
 			ret = -ETIMEDOUT;
 			goto err_gsi_geni_transfer;
-		} else {
+		} else if (!q2spi->gsi->qup_gsi_err) {
 			Q2SPI_DEBUG(q2spi, "%s tx completed\n", __func__);
 		}
 	}
@@ -482,7 +519,7 @@ int check_gsi_transfer_completion(struct q2spi_geni *q2spi)
 			Q2SPI_DEBUG(q2spi, "%s PID:%d Rx[%d] timeout\n", __func__, current->pid, i);
 			ret = -ETIMEDOUT;
 			goto err_gsi_geni_transfer;
-		} else {
+		} else if (!q2spi->gsi->qup_gsi_err) {
 			Q2SPI_DEBUG(q2spi, "%s rx completed\n", __func__);
 		}
 	}
@@ -492,7 +529,8 @@ err_gsi_geni_transfer:
 		Q2SPI_DEBUG(q2spi, "%s Err QUP Gsi Error\n", __func__);
 		q2spi->gsi->qup_gsi_err = false;
 		q2spi->setup_config0 = false;
-		gpi_q2spi_terminate_all(q2spi->gsi->tx_c);
+		if (!q2spi->is_start_seq_fail)
+			gpi_q2spi_terminate_all(q2spi->gsi->tx_c);
 	}
 	return ret;
 }
@@ -708,6 +746,7 @@ void q2spi_gsi_ch_ev_cb(struct dma_chan *ch, struct msm_gpi_cb const *cb, void *
 	case MSM_GPI_QUP_CR_HEADER:
 		/* Update last access time of a device for autosuspend */
 		pm_runtime_mark_last_busy(q2spi->dev);
+		q2spi->gsi->qup_gsi_err = false;
 		q2spi_cr_hdr_event = &cb->q2spi_cr_header_event;
 		num_crs = q2spi_cr_hdr_event->byte0_len;
 		if (q2spi_cr_hdr_event->code == Q2SPI_CR_HEADER_LEN_ZERO ||
@@ -743,6 +782,11 @@ void q2spi_gsi_ch_ev_cb(struct dma_chan *ch, struct msm_gpi_cb const *cb, void *
 
 	if (cb->cb_event == MSM_GPI_QUP_ERROR)
 		q2spi->gsi->qup_gsi_global_err = true;
+
+	if (cb->cb_event == MSM_GPI_QUP_FW_ERROR) {
+		q2spi_geni_se_dump_regs(q2spi);
+		gpi_dump_for_geni(q2spi->gsi->tx_c);
+	}
 
 	if (q2spi->gsi->qup_gsi_err)
 		Q2SPI_DEBUG(q2spi, "%s set qup_gsi_err\n", __func__);
