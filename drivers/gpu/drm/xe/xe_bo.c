@@ -758,7 +758,16 @@ static int xe_bo_move(struct ttm_buffer_object *ttm_bo, bool evict,
 
 	xe_assert(xe, migrate);
 	trace_xe_bo_move(bo, new_mem->mem_type, old_mem_type, move_lacks_source);
-	xe_pm_runtime_get_noresume(xe);
+	if (xe_rpm_reclaim_safe(xe)) {
+		/*
+		 * We might be called through swapout in the validation path of
+		 * another TTM device, so unconditionally acquire rpm here.
+		 */
+		xe_pm_runtime_get(xe);
+	} else {
+		drm_WARN_ON(&xe->drm, handle_system_ccs);
+		xe_pm_runtime_get_noresume(xe);
+	}
 
 	if (xe_bo_is_pinned(bo) && !xe_bo_is_user(bo)) {
 		/*
