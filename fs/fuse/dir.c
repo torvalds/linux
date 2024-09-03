@@ -1026,7 +1026,7 @@ static int fuse_rmdir(struct inode *dir, struct dentry *entry)
 	return err;
 }
 
-static int fuse_rename_common(struct inode *olddir, struct dentry *oldent,
+static int fuse_rename_common(struct mnt_idmap *idmap, struct inode *olddir, struct dentry *oldent,
 			      struct inode *newdir, struct dentry *newent,
 			      unsigned int flags, int opcode, size_t argsize)
 {
@@ -1047,7 +1047,7 @@ static int fuse_rename_common(struct inode *olddir, struct dentry *oldent,
 	args.in_args[1].value = oldent->d_name.name;
 	args.in_args[2].size = newent->d_name.len + 1;
 	args.in_args[2].value = newent->d_name.name;
-	err = fuse_simple_request(NULL, fm, &args);
+	err = fuse_simple_request(idmap, fm, &args);
 	if (!err) {
 		/* ctime changes */
 		fuse_update_ctime(d_inode(oldent));
@@ -1093,7 +1093,8 @@ static int fuse_rename2(struct mnt_idmap *idmap, struct inode *olddir,
 		if (fc->no_rename2 || fc->minor < 23)
 			return -EINVAL;
 
-		err = fuse_rename_common(olddir, oldent, newdir, newent, flags,
+		err = fuse_rename_common((flags & RENAME_WHITEOUT) ? idmap : NULL,
+					 olddir, oldent, newdir, newent, flags,
 					 FUSE_RENAME2,
 					 sizeof(struct fuse_rename2_in));
 		if (err == -ENOSYS) {
@@ -1101,7 +1102,7 @@ static int fuse_rename2(struct mnt_idmap *idmap, struct inode *olddir,
 			err = -EINVAL;
 		}
 	} else {
-		err = fuse_rename_common(olddir, oldent, newdir, newent, 0,
+		err = fuse_rename_common(NULL, olddir, oldent, newdir, newent, 0,
 					 FUSE_RENAME,
 					 sizeof(struct fuse_rename_in));
 	}
