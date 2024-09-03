@@ -1249,11 +1249,21 @@ static int imx290_subdev_init(struct imx290 *imx290)
 
 	imx290->current_mode = &imx290_modes_ptr(imx290)[0];
 
+	/*
+	 * After linking the subdev with the imx290 instance, we are allowed to
+	 * use the pm_runtime functions. Decrease the PM usage count. The device
+	 * will get suspended after the autosuspend delay, turning the power
+	 * off. However, the communication happening in imx290_ctrl_update()
+	 * will already be prevented even before the delay.
+	 */
 	v4l2_i2c_subdev_init(&imx290->sd, client, &imx290_subdev_ops);
+	imx290->sd.dev = imx290->dev;
+	pm_runtime_mark_last_busy(imx290->dev);
+	pm_runtime_put_autosuspend(imx290->dev);
+
 	imx290->sd.internal_ops = &imx290_internal_ops;
 	imx290->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE |
 			    V4L2_SUBDEV_FL_HAS_EVENTS;
-	imx290->sd.dev = imx290->dev;
 	imx290->sd.entity.ops = &imx290_subdev_entity_ops;
 	imx290->sd.entity.function = MEDIA_ENT_F_CAM_SENSOR;
 
@@ -1597,13 +1607,6 @@ static int imx290_probe(struct i2c_client *client)
 		dev_err(dev, "Could not register v4l2 device\n");
 		goto err_subdev;
 	}
-
-	/*
-	 * Decrease the PM usage count. The device will get suspended after the
-	 * autosuspend delay, turning the power off.
-	 */
-	pm_runtime_mark_last_busy(dev);
-	pm_runtime_put_autosuspend(dev);
 
 	return 0;
 
