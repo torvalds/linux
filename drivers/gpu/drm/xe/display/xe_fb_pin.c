@@ -10,6 +10,7 @@
 #include "intel_fb.h"
 #include "intel_fb_pin.h"
 #include "xe_bo.h"
+#include "xe_device.h"
 #include "xe_ggtt.h"
 #include "xe_gt.h"
 #include "xe_pm.h"
@@ -304,6 +305,8 @@ static struct i915_vma *__xe_pin_fb_vma(const struct intel_framebuffer *fb,
 	if (ret)
 		goto err_unpin;
 
+	/* Ensure DPT writes are flushed */
+	xe_device_l2_flush(xe);
 	return vma;
 
 err_unpin:
