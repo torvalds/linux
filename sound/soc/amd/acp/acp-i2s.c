@@ -61,6 +61,7 @@ static inline void acp_set_i2s_clk(struct acp_dev_data *adata, int dai_id)
 	switch (chip->acp_rev) {
 	case ACP63_DEV:
 	case ACP70_DEV:
+	case ACP71_DEV:
 		val |= FIELD_PREP(ACP63_LRCLK_DIV_FIELD, adata->lrclk_div);
 		val |= FIELD_PREP(ACP63_BCLK_DIV_FIELD, adata->bclk_div);
 		break;
@@ -136,6 +137,7 @@ static int acp_i2s_set_tdm_slot(struct snd_soc_dai *dai, u32 tx_mask, u32 rx_mas
 		break;
 	case ACP63_DEV:
 	case ACP70_DEV:
+	case ACP71_DEV:
 		switch (slots) {
 		case 1 ... 31:
 			no_of_slots = slots;
@@ -169,6 +171,7 @@ static int acp_i2s_set_tdm_slot(struct snd_soc_dai *dai, u32 tx_mask, u32 rx_mas
 			break;
 		case ACP63_DEV:
 		case ACP70_DEV:
+		case ACP71_DEV:
 			if (tx_mask && stream->dir == SNDRV_PCM_STREAM_PLAYBACK)
 				adata->tdm_tx_fmt[stream->dai_id - 1] =
 						FRM_LEN | (slots << 13) | (slot_len << 18);

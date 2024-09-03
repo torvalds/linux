@@ -206,6 +206,7 @@ void config_acp_dma(struct acp_dev_data *adata, struct acp_stream *stream, int s
 
 	switch (adata->platform) {
 	case ACP70:
+	case ACP71:
 		switch (stream->dai_id) {
 		case I2S_SP_INSTANCE:
 			if (stream->dir == SNDRV_PCM_STREAM_PLAYBACK)
@@ -271,6 +272,7 @@ static int acp_dma_open(struct snd_soc_component *component, struct snd_pcm_subs
 	switch (chip->acp_rev) {
 	case ACP63_DEV:
 	case ACP70_DEV:
+	case ACP71_DEV:
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 			runtime->hw = acp6x_pcm_hardware_playback;
 		else
