@@ -39,7 +39,7 @@ struct hinge_state {
 	const char *labels[CHANNEL_SCAN_INDEX_MAX];
 	struct {
 		u32 hinge_val[3];
-		u64 timestamp __aligned(8);
+		aligned_s64 timestamp;
 	} scan;
 
 	int scale_pre_decml;

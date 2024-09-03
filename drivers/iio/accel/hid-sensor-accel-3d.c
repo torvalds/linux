@@ -28,7 +28,7 @@ struct accel_3d_state {
 	/* Ensure timestamp is naturally aligned */
 	struct {
 		u32 accel_val[3];
-		s64 timestamp __aligned(8);
+		aligned_s64 timestamp;
 	} scan;
 	int scale_pre_decml;
 	int scale_post_decml;

@@ -27,7 +27,7 @@ struct gyro_3d_state {
 	struct hid_sensor_hub_attribute_info gyro[GYRO_3D_CHANNEL_MAX];
 	struct {
 		u32 gyro_val[GYRO_3D_CHANNEL_MAX];
-		u64 timestamp __aligned(8);
+		aligned_s64 timestamp;
 	} scan;
 	int scale_pre_decml;
 	int scale_post_decml;

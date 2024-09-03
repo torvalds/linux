@@ -31,7 +31,7 @@ struct als_state {
 	struct iio_chan_spec channels[CHANNEL_SCAN_INDEX_MAX + 1];
 	struct {
 		u32 illum[CHANNEL_SCAN_INDEX_MAX];
-		u64 timestamp __aligned(8);
+		aligned_s64 timestamp;
 	} scan;
 	int scale_pre_decml;
 	int scale_post_decml;

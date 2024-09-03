@@ -29,7 +29,7 @@ struct incl_3d_state {
 	struct hid_sensor_hub_attribute_info incl[INCLI_3D_CHANNEL_MAX];
 	struct {
 		u32 incl_val[INCLI_3D_CHANNEL_MAX];
-		u64 timestamp __aligned(8);
+		aligned_s64 timestamp;
 	} scan;
 	int scale_pre_decml;
 	int scale_post_decml;
