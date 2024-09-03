@@ -230,9 +230,8 @@
 
 &lpi2c2 {
 	clock-frequency = <400000>;
-	pinctrl-names = "default", "sleep";
+	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_lpi2c2>;
-	pinctrl-1 = <&pinctrl_lpi2c2>;
 	status = "okay";
 
 	pcal6524: gpio@22 {
