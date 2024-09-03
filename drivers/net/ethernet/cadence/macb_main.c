@@ -4184,6 +4184,8 @@ static int macb_init(struct platform_device *pdev)
 		dev->ethtool_ops = &macb_ethtool_ops;
 	}
 
+	netdev_sw_irq_coalesce_default_on(dev);
+
 	dev->priv_flags |= IFF_LIVE_ADDR_CHANGE;
 
 	/* Set features */
