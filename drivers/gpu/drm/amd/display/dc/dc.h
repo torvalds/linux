@@ -1513,7 +1513,7 @@ struct dc_surface_update {
 	 * change cm2_params.component_settings: Full update
 	 * change cm2_params.cm2_luts: Fast update
 	 */
-	struct dc_cm2_parameters *cm2_params;
+	const struct dc_cm2_parameters *cm2_params;
 	const struct dc_csc_transform *cursor_csc_color_matrix;
 	unsigned int sdr_white_level_nits;
 };
