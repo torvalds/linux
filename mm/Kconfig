@@ -188,7 +188,7 @@ config Z3FOLD
 
 config ZSMALLOC
 	tristate
-	prompt "N:1 compression allocator (zsmalloc)" if ZSWAP
+	prompt "N:1 compression allocator (zsmalloc)" if (ZSWAP || ZRAM)
 	depends on MMU
 	help
 	  zsmalloc is a slab-based memory allocator designed to store
