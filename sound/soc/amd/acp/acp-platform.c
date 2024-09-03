@@ -235,6 +235,7 @@ static int acp_dma_open(struct snd_soc_component *component, struct snd_pcm_subs
 	chip = dev_get_platdata(dev);
 	switch (chip->acp_rev) {
 	case ACP63_DEV:
+	case ACP70_DEV:
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 			runtime->hw = acp6x_pcm_hardware_playback;
 		else
