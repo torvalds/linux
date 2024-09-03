@@ -6,6 +6,7 @@
 #ifndef BTRFS_CTREE_H
 #define BTRFS_CTREE_H
 
+#include "linux/cleanup.h"
 #include <linux/pagemap.h>
 #include <linux/spinlock.h>
 #include <linux/rbtree.h>
@@ -83,6 +84,9 @@ struct btrfs_path {
 	/* Stop search if any locks need to be taken (for read) */
 	unsigned int nowait:1;
 };
+
+#define BTRFS_PATH_AUTO_FREE(path_name)					\
+	struct btrfs_path *path_name __free(btrfs_free_path) = NULL
 
 /*
  * The state of btrfs root
@@ -598,6 +602,7 @@ int btrfs_search_slot_for_read(struct btrfs_root *root,
 void btrfs_release_path(struct btrfs_path *p);
 struct btrfs_path *btrfs_alloc_path(void);
 void btrfs_free_path(struct btrfs_path *p);
+DEFINE_FREE(btrfs_free_path, struct btrfs_path *, btrfs_free_path(_T))
 
 int btrfs_del_items(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 		   struct btrfs_path *path, int slot, int nr);
