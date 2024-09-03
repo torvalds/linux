@@ -254,6 +254,30 @@
 		};
 	};
 
+	vpu: video-codec@10106000 {
+		compatible = "rockchip,rk3128-vpu", "rockchip,rk3066-vpu";
+		reg = <0x10106000 0x800>;
+		interrupts = <GIC_SPI 6 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "vepu", "vdpu";
+		clocks = <&cru ACLK_VDPU>, <&cru HCLK_VDPU>,
+			 <&cru ACLK_VEPU>, <&cru HCLK_VEPU>;
+		clock-names = "aclk_vdpu", "hclk_vdpu",
+			      "aclk_vepu", "hclk_vepu";
+		iommus = <&vpu_mmu>;
+		power-domains = <&power RK3128_PD_VIDEO>;
+	};
+
+	vpu_mmu: iommu@10106800 {
+		compatible = "rockchip,iommu";
+		reg = <0x10106800 0x100>;
+		interrupts = <GIC_SPI 67 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru ACLK_VEPU>, <&cru HCLK_VDPU>;
+		clock-names = "aclk", "iface";
+		power-domains = <&power RK3128_PD_VIDEO>;
+		#iommu-cells = <0>;
+	};
+
 	vop: vop@1010e000 {
 		compatible = "rockchip,rk3126-vop";
 		reg = <0x1010e000 0x300>;
@@ -429,7 +453,7 @@
 		compatible = "rockchip,sfc";
 		reg = <0x1020c000 0x8000>;
 		interrupts = <GIC_SPI 50 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&cru SCLK_SFC>, <&cru 479>;
+		clocks = <&cru SCLK_SFC>, <&cru HCLK_SFC>;
 		clock-names = "clk_sfc", "hclk_sfc";
 		status = "disabled";
 	};
