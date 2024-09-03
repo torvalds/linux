@@ -1319,6 +1319,56 @@
 		status = "okay";
 		clock-frequency = <100000>;
 
+		power-sensor@42 {
+			compatible = "ti,ina3221";
+			reg = <0x42>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			input@0 {
+				reg = <0x0>;
+				label = "VDD_MUX";
+				shunt-resistor-micro-ohms = <20000>;
+			};
+
+			input@1 {
+				reg = <0x1>;
+				label = "VDD_5V_IO_SYS";
+				shunt-resistor-micro-ohms = <5000>;
+			};
+
+			input@2 {
+				reg = <0x2>;
+				label = "VDD_3V3_SYS";
+				shunt-resistor-micro-ohms = <10000>;
+			};
+		};
+
+		power-sensor@43 {
+			compatible = "ti,ina3221";
+			reg = <0x43>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			input@0 {
+				reg = <0x0>;
+				label = "VDD_3V3_IO";
+				shunt-resistor-micro-ohms = <10000>;
+			};
+
+			input@1 {
+				reg = <0x1>;
+				label = "VDD_1V8_IO";
+				shunt-resistor-micro-ohms = <10000>;
+			};
+
+			input@2 {
+				reg = <0x2>;
+				label = "VDD_M2_IN";
+				shunt-resistor-micro-ohms = <10000>;
+			};
+		};
+
 		exp1: gpio@74 {
 			compatible = "ti,tca9539";
 			reg = <0x74>;
@@ -1517,6 +1567,7 @@
 		bus-width = <4>;
 
 		cd-gpios = <&gpio TEGRA_GPIO(Z, 1) GPIO_ACTIVE_LOW>;
+		wp-gpios = <&gpio TEGRA_GPIO(Z, 4) GPIO_ACTIVE_HIGH>;
 
 		vqmmc-supply = <&vddio_sdmmc>;
 		vmmc-supply = <&vdd_3v3_sd>;
@@ -1603,7 +1654,7 @@
 		regulator-name = "VDD_3V3_SD";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
-		gpio = <&gpio TEGRA_GPIO(Z, 4) GPIO_ACTIVE_HIGH>;
+		gpio = <&gpio TEGRA_GPIO(Z, 3) GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 		vin-supply = <&vdd_3v3_sys>;
 
