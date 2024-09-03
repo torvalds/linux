@@ -1339,12 +1339,6 @@ static void anx7411_get_gpio_irq(struct anx7411_data *ctx)
 		dev_err(dev, "failed to get GPIO IRQ\n");
 }
 
-static enum power_supply_usb_type anx7411_psy_usb_types[] = {
-	POWER_SUPPLY_USB_TYPE_C,
-	POWER_SUPPLY_USB_TYPE_PD,
-	POWER_SUPPLY_USB_TYPE_PD_PPS,
-};
-
 static enum power_supply_property anx7411_psy_props[] = {
 	POWER_SUPPLY_PROP_USB_TYPE,
 	POWER_SUPPLY_PROP_ONLINE,
@@ -1422,8 +1416,9 @@ static int anx7411_psy_register(struct anx7411_data *ctx)
 
 	psy_desc->name = psy_name;
 	psy_desc->type = POWER_SUPPLY_TYPE_USB;
-	psy_desc->usb_types = anx7411_psy_usb_types;
-	psy_desc->num_usb_types = ARRAY_SIZE(anx7411_psy_usb_types);
+	psy_desc->usb_types = BIT(POWER_SUPPLY_USB_TYPE_C)  |
+			      BIT(POWER_SUPPLY_USB_TYPE_PD) |
+			      BIT(POWER_SUPPLY_USB_TYPE_PD_PPS);
 	psy_desc->properties = anx7411_psy_props;
 	psy_desc->num_properties = ARRAY_SIZE(anx7411_psy_props);
 
