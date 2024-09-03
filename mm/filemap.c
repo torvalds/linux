@@ -2181,6 +2181,10 @@ unsigned filemap_get_folios_contig(struct address_space *mapping,
 		if (xa_is_value(folio))
 			goto update_start;
 
+		/* If we landed in the middle of a THP, continue at its end. */
+		if (xa_is_sibling(folio))
+			goto update_start;
+
 		if (!folio_try_get(folio))
 			goto retry;
 
