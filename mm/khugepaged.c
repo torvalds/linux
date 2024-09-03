@@ -1870,7 +1870,7 @@ static int collapse_file(struct mm_struct *mm, unsigned long addr,
 			if (xa_is_value(folio) || !folio_test_uptodate(folio)) {
 				xas_unlock_irq(&xas);
 				/* swap in or instantiate fallocated page */
-				if (shmem_get_folio(mapping->host, index,
+				if (shmem_get_folio(mapping->host, index, 0,
 						&folio, SGP_NOALLOC)) {
 					result = SCAN_FAIL;
 					goto xa_unlocked;

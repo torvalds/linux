@@ -164,7 +164,7 @@ unsigned long __thp_vma_allowable_orders(struct vm_area_struct *vma,
 	 */
 	if (!in_pf && shmem_file(vma->vm_file))
 		return shmem_allowable_huge_orders(file_inode(vma->vm_file),
-						   vma, vma->vm_pgoff,
+						   vma, vma->vm_pgoff, 0,
 						   !enforce_sysfs);
 
 	if (!vma_is_anonymous(vma)) {
