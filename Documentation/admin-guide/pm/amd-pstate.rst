@@ -252,7 +252,8 @@ In some ASICs, the highest CPPC performance is not the one in the ``_CPC``
 table, so we need to expose it to sysfs. If boost is not active, but
 still supported, this maximum frequency will be larger than the one in
 ``cpuinfo``. On systems that support preferred core, the driver will have
-different values for some cores than others.
+different values for some cores than others and this will reflect the values
+advertised by the platform at bootup.
 This attribute is read-only.
 
 ``amd_pstate_lowest_nonlinear_freq``
@@ -267,6 +268,12 @@ This attribute is read-only.
 
 Whether the platform supports the preferred core feature and it has been
 enabled. This attribute is read-only.
+
+``amd_pstate_prefcore_ranking``
+
+The performance ranking of the core. This number doesn't have any unit, but
+larger numbers are preferred at the time of reading. This can change at
+runtime based on platform conditions. This attribute is read-only.
 
 ``energy_performance_available_preferences``
 
