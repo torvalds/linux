@@ -7,6 +7,7 @@
 #include "test_unpriv_bpf_disabled.skel.h"
 
 #include "cap_helpers.h"
+#include "bpf_util.h"
 
 /* Using CAP_LAST_CAP is risky here, since it can get pulled in from
  * an old /usr/include/linux/capability.h and be < CAP_BPF; as a result
@@ -146,7 +147,7 @@ static void test_unpriv_bpf_disabled_negative(struct test_unpriv_bpf_disabled *s
 		BPF_MOV64_IMM(BPF_REG_0, 0),
 		BPF_EXIT_INSN(),
 	};
-	const size_t prog_insn_cnt = sizeof(prog_insns) / sizeof(struct bpf_insn);
+	const size_t prog_insn_cnt = ARRAY_SIZE(prog_insns);
 	LIBBPF_OPTS(bpf_prog_load_opts, load_opts);
 	struct bpf_map_info map_info = {};
 	__u32 map_info_len = sizeof(map_info);

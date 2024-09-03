@@ -5,6 +5,7 @@
 #include <bpf/btf.h>
 
 #include "test_log_buf.skel.h"
+#include "bpf_util.h"
 
 static size_t libbpf_log_pos;
 static char libbpf_log_buf[1024 * 1024];
@@ -143,11 +144,11 @@ static void bpf_prog_load_log_buf(void)
 		BPF_MOV64_IMM(BPF_REG_0, 0),
 		BPF_EXIT_INSN(),
 	};
-	const size_t good_prog_insn_cnt = sizeof(good_prog_insns) / sizeof(struct bpf_insn);
+	const size_t good_prog_insn_cnt = ARRAY_SIZE(good_prog_insns);
 	const struct bpf_insn bad_prog_insns[] = {
 		BPF_EXIT_INSN(),
 	};
-	size_t bad_prog_insn_cnt = sizeof(bad_prog_insns) / sizeof(struct bpf_insn);
+	size_t bad_prog_insn_cnt = ARRAY_SIZE(bad_prog_insns);
 	LIBBPF_OPTS(bpf_prog_load_opts, opts);
 	const size_t log_buf_sz = 1024 * 1024;
 	char *log_buf;

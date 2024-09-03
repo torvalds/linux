@@ -87,7 +87,7 @@ int bits_memalloc(void)
 	int *bit;
 
 	__builtin_memset(&data, 0xf0, sizeof(data)); /* 4 * 16 */
-	bpf_for_each(bits, bit, &data[0], sizeof(data) / sizeof(u64))
+	bpf_for_each(bits, bit, &data[0], ARRAY_SIZE(data))
 		nr++;
 	return nr;
 }

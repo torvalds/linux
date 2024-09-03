@@ -2,6 +2,7 @@
 
 #include <test_progs.h>
 #include <linux/nbd.h>
+#include "bpf_util.h"
 
 /* NOTE: conflict with other tests. */
 void serial_test_raw_tp_writable_test_run(void)
@@ -24,7 +25,7 @@ void serial_test_raw_tp_writable_test_run(void)
 	);
 
 	int bpf_fd = bpf_prog_load(BPF_PROG_TYPE_RAW_TRACEPOINT_WRITABLE, NULL, "GPL v2",
-				   trace_program, sizeof(trace_program) / sizeof(struct bpf_insn),
+				   trace_program, ARRAY_SIZE(trace_program),
 				   &trace_opts);
 	if (CHECK(bpf_fd < 0, "bpf_raw_tracepoint_writable loaded",
 		  "failed: %d errno %d\n", bpf_fd, errno))
@@ -41,7 +42,7 @@ void serial_test_raw_tp_writable_test_run(void)
 	);
 
 	int filter_fd = bpf_prog_load(BPF_PROG_TYPE_SOCKET_FILTER, NULL, "GPL v2",
-				      skb_program, sizeof(skb_program) / sizeof(struct bpf_insn),
+				      skb_program, ARRAY_SIZE(skb_program),
 				      &skb_opts);
 	if (CHECK(filter_fd < 0, "test_program_loaded", "failed: %d errno %d\n",
 		  filter_fd, errno))
