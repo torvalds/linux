@@ -1611,17 +1611,13 @@ bool __blk_throtl_bio(struct bio *bio)
 	sq = &tg->service_queue;
 
 	while (true) {
-		if (tg->last_low_overflow_time[rw] == 0)
-			tg->last_low_overflow_time[rw] = jiffies;
 		/* throtl is FIFO - if bios are already queued, should queue */
 		if (sq->nr_queued[rw])
 			break;
 
 		/* if above limits, break to queue */
-		if (!tg_may_dispatch(tg, bio, NULL)) {
-			tg->last_low_overflow_time[rw] = jiffies;
+		if (!tg_may_dispatch(tg, bio, NULL))
 			break;
-		}
 
 		/* within limits, let's charge and dispatch directly */
 		throtl_charge_bio(tg, bio);
@@ -1660,8 +1656,6 @@ bool __blk_throtl_bio(struct bio *bio)
 		   tg_bps_limit(tg, rw),
 		   tg->io_disp[rw], tg_iops_limit(tg, rw),
 		   sq->nr_queued[READ], sq->nr_queued[WRITE]);
-
-	tg->last_low_overflow_time[rw] = jiffies;
 
 	td->nr_queued[rw]++;
 	throtl_add_bio_tg(bio, qn, tg);
