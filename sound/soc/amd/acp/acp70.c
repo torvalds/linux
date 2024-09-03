@@ -140,8 +140,17 @@ static struct snd_soc_dai_driver acp70_dai[] = {
 static int acp70_i2s_master_clock_generate(struct acp_dev_data *adata)
 {
 	struct pci_dev *smn_dev;
+	u32 device_id;
 
-	smn_dev = pci_get_device(PCI_VENDOR_ID_AMD, 0x1507, NULL);
+	if (adata->platform == ACP70)
+		device_id = 0x1507;
+	else if (adata->platform == ACP71)
+		device_id = 0x1122;
+	else
+		return -ENODEV;
+
+	smn_dev = pci_get_device(PCI_VENDOR_ID_AMD, device_id, NULL);
+
 	if (!smn_dev)
 		return -ENODEV;
 
