@@ -79,10 +79,13 @@ struct folio *memfd_alloc_folio(struct file *memfd, pgoff_t idx)
 		 * alloc from. Also, the folio will be pinned for an indefinite
 		 * amount of time, so it is not expected to be migrated away.
 		 */
-		gfp_mask = htlb_alloc_mask(hstate_file(memfd));
-		gfp_mask &= ~(__GFP_HIGHMEM | __GFP_MOVABLE);
+		struct hstate *h = hstate_file(memfd);
 
-		folio = alloc_hugetlb_folio_reserve(hstate_file(memfd),
+		gfp_mask = htlb_alloc_mask(h);
+		gfp_mask &= ~(__GFP_HIGHMEM | __GFP_MOVABLE);
+		idx >>= huge_page_order(h);
+
+		folio = alloc_hugetlb_folio_reserve(h,
 						    numa_node_id(),
 						    NULL,
 						    gfp_mask);
@@ -95,6 +98,7 @@ struct folio *memfd_alloc_folio(struct file *memfd, pgoff_t idx)
 				free_huge_folio(folio);
 				return ERR_PTR(err);
 			}
+			folio_unlock(folio);
 			return folio;
 		}
 		return ERR_PTR(-ENOMEM);
