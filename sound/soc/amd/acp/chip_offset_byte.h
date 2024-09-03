@@ -12,8 +12,15 @@
 #define _ACP_IP_OFFSET_HEADER
 
 #define ACPAXI2AXI_ATU_CTRL                           0xC40
+#define ACPAXI2AXI_ATU_PAGE_SIZE_GRP_1                0xC00
+#define ACPAXI2AXI_ATU_BASE_ADDR_GRP_1                0xC04
+#define ACPAXI2AXI_ATU_PAGE_SIZE_GRP_2                0xC08
+#define ACPAXI2AXI_ATU_BASE_ADDR_GRP_2                0xC0C
 #define ACPAXI2AXI_ATU_PAGE_SIZE_GRP_5                0xC20
 #define ACPAXI2AXI_ATU_BASE_ADDR_GRP_5                0xC24
+
+#define GRP1_OFFSET	0x0
+#define GRP2_OFFSET	0x4000
 
 #define ACP_PGFSM_CONTROL			0x141C
 #define ACP_PGFSM_STATUS                        0x1420

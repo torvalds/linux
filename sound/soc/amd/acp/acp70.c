@@ -34,8 +34,8 @@ static struct acp_resource rsrc = {
 	.irqp_used = 1,
 	.soc_mclk = true,
 	.irq_reg_offset = 0x1a00,
-	.scratch_reg_offset = 0x12800,
-	.sram_pte_offset = 0x03802800,
+	.scratch_reg_offset = 0x10000,
+	.sram_pte_offset = 0x03800000,
 };
 
 static struct snd_soc_acpi_mach snd_soc_acpi_amd_acp70_acp_machines[] = {

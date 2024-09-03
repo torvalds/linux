@@ -177,17 +177,20 @@ static irqreturn_t i2s_irq_handler(int irq, void *data)
 void config_pte_for_stream(struct acp_dev_data *adata, struct acp_stream *stream)
 {
 	struct acp_resource *rsrc = adata->rsrc;
-	u32 pte_reg, pte_size, reg_val;
+	u32 reg_val;
 
-	/* Use ATU base Group5 */
-	pte_reg = ACPAXI2AXI_ATU_BASE_ADDR_GRP_5;
-	pte_size =  ACPAXI2AXI_ATU_PAGE_SIZE_GRP_5;
+	reg_val = rsrc->sram_pte_offset;
 	stream->reg_offset = 0x02000000;
 
-	/* Group Enable */
-	reg_val = rsrc->sram_pte_offset;
-	writel(reg_val | BIT(31), adata->acp_base + pte_reg);
-	writel(PAGE_SIZE_4K_ENABLE,  adata->acp_base + pte_size);
+	writel((reg_val + GRP1_OFFSET) | BIT(31), adata->acp_base + ACPAXI2AXI_ATU_BASE_ADDR_GRP_1);
+	writel(PAGE_SIZE_4K_ENABLE,  adata->acp_base + ACPAXI2AXI_ATU_PAGE_SIZE_GRP_1);
+
+	writel((reg_val + GRP2_OFFSET) | BIT(31), adata->acp_base + ACPAXI2AXI_ATU_BASE_ADDR_GRP_2);
+	writel(PAGE_SIZE_4K_ENABLE,  adata->acp_base + ACPAXI2AXI_ATU_PAGE_SIZE_GRP_2);
+
+	writel(reg_val | BIT(31), adata->acp_base + ACPAXI2AXI_ATU_BASE_ADDR_GRP_5);
+	writel(PAGE_SIZE_4K_ENABLE,  adata->acp_base + ACPAXI2AXI_ATU_PAGE_SIZE_GRP_5);
+
 	writel(0x01, adata->acp_base + ACPAXI2AXI_ATU_CTRL);
 }
 EXPORT_SYMBOL_NS_GPL(config_pte_for_stream, SND_SOC_ACP_COMMON);
@@ -201,7 +204,39 @@ void config_acp_dma(struct acp_dev_data *adata, struct acp_stream *stream, int s
 	u32 low, high, val;
 	u16 page_idx;
 
-	val = stream->pte_offset;
+	switch (adata->platform) {
+	case ACP70:
+		switch (stream->dai_id) {
+		case I2S_SP_INSTANCE:
+			if (stream->dir == SNDRV_PCM_STREAM_PLAYBACK)
+				val = 0x0;
+			else
+				val = 0x1000;
+			break;
+		case I2S_BT_INSTANCE:
+			if (stream->dir == SNDRV_PCM_STREAM_PLAYBACK)
+				val = 0x2000;
+			else
+				val = 0x3000;
+			break;
+		case I2S_HS_INSTANCE:
+			if (stream->dir == SNDRV_PCM_STREAM_PLAYBACK)
+				val = 0x4000;
+			else
+				val = 0x5000;
+			break;
+		case DMIC_INSTANCE:
+			val = 0x6000;
+			break;
+		default:
+			dev_err(adata->dev, "Invalid dai id %x\n", stream->dai_id);
+			break;
+		}
+		break;
+	default:
+		val = stream->pte_offset;
+		break;
+	}
 
 	for (page_idx = 0; page_idx < num_pages; page_idx++) {
 		/* Load the low address of page int ACP SRAM through SRBM */
