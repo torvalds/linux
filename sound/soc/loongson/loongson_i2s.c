@@ -255,13 +255,10 @@ static int i2s_suspend(struct device *dev)
 static int i2s_resume(struct device *dev)
 {
 	struct loongson_i2s *i2s = dev_get_drvdata(dev);
-	int ret;
 
 	regcache_cache_only(i2s->regmap, false);
 	regcache_mark_dirty(i2s->regmap);
-	ret = regcache_sync(i2s->regmap);
-
-	return ret;
+	return regcache_sync(i2s->regmap);
 }
 
 const struct dev_pm_ops loongson_i2s_pm = {
