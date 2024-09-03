@@ -1458,7 +1458,7 @@ static irqreturn_t bno055_trigger_handler(int irq, void *p)
 	 * then we split the transfer, skipping the gap.
 	 */
 	for_each_set_bitrange(start, end, iio_dev->active_scan_mask,
-			      iio_dev->masklength) {
+			      iio_get_masklength(iio_dev)) {
 		/*
 		 * First transfer will start from the beginning of the first
 		 * ones-field in the bitmap

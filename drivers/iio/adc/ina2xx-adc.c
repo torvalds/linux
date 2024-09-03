@@ -755,8 +755,7 @@ static int ina2xx_work_buffer(struct iio_dev *indio_dev)
 	 * Single register reads: bulk_read will not work with ina226/219
 	 * as there is no auto-increment of the register pointer.
 	 */
-	for_each_set_bit(bit, indio_dev->active_scan_mask,
-			 indio_dev->masklength) {
+	iio_for_each_active_channel(indio_dev, bit) {
 		unsigned int val;
 
 		ret = regmap_read(chip->regmap,

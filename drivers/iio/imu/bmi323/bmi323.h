@@ -205,5 +205,6 @@
 struct device;
 int bmi323_core_probe(struct device *dev);
 extern const struct regmap_config bmi323_regmap_config;
+extern const struct dev_pm_ops bmi323_core_pm_ops;
 
 #endif

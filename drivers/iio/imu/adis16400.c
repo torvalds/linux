@@ -202,8 +202,6 @@ enum {
 	ADIS16400_SCAN_TIMESTAMP,
 };
 
-#ifdef CONFIG_DEBUG_FS
-
 static ssize_t adis16400_show_serial_number(struct file *file,
 		char __user *userbuf, size_t count, loff_t *ppos)
 {
@@ -273,10 +271,13 @@ static int adis16400_show_flash_count(void *arg, u64 *val)
 DEFINE_DEBUGFS_ATTRIBUTE(adis16400_flash_count_fops,
 	adis16400_show_flash_count, NULL, "%lld\n");
 
-static int adis16400_debugfs_init(struct iio_dev *indio_dev)
+static void adis16400_debugfs_init(struct iio_dev *indio_dev)
 {
 	struct adis16400_state *st = iio_priv(indio_dev);
 	struct dentry *d = iio_get_debugfs_dentry(indio_dev);
+
+	if (!IS_ENABLED(CONFIG_DEBUG_FS))
+		return;
 
 	if (st->variant->flags & ADIS16400_HAS_SERIAL_NUMBER)
 		debugfs_create_file_unsafe("serial_number", 0400,
@@ -286,18 +287,7 @@ static int adis16400_debugfs_init(struct iio_dev *indio_dev)
 				d, st, &adis16400_product_id_fops);
 	debugfs_create_file_unsafe("flash_count", 0400,
 			d, st, &adis16400_flash_count_fops);
-
-	return 0;
 }
-
-#else
-
-static int adis16400_debugfs_init(struct iio_dev *indio_dev)
-{
-	return 0;
-}
-
-#endif
 
 enum adis16400_chip_variant {
 	ADIS16300,

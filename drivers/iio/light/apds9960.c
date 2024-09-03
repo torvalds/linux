@@ -146,6 +146,25 @@ struct apds9960_data {
 
 	/* gesture buffer */
 	u8 buffer[4]; /* 4 8-bit channels */
+
+	/* calibration value buffer */
+	int calibbias[5];
+};
+
+enum {
+	APDS9960_CHAN_PROXIMITY,
+	APDS9960_CHAN_GESTURE_UP,
+	APDS9960_CHAN_GESTURE_DOWN,
+	APDS9960_CHAN_GESTURE_LEFT,
+	APDS9960_CHAN_GESTURE_RIGHT,
+};
+
+static const unsigned int apds9960_offset_regs[][2] = {
+	[APDS9960_CHAN_PROXIMITY] = {APDS9960_REG_POFFSET_UR, APDS9960_REG_POFFSET_DL},
+	[APDS9960_CHAN_GESTURE_UP] = {APDS9960_REG_GOFFSET_U, 0},
+	[APDS9960_CHAN_GESTURE_DOWN] = {APDS9960_REG_GOFFSET_D, 0},
+	[APDS9960_CHAN_GESTURE_LEFT] = {APDS9960_REG_GOFFSET_L, 0},
+	[APDS9960_CHAN_GESTURE_RIGHT] = {APDS9960_REG_GOFFSET_R, 0},
 };
 
 static const struct reg_default apds9960_reg_defaults[] = {
@@ -255,6 +274,7 @@ static const struct iio_event_spec apds9960_als_event_spec[] = {
 
 #define APDS9960_GESTURE_CHANNEL(_dir, _si) { \
 	.type = IIO_PROXIMITY, \
+	.info_mask_separate = BIT(IIO_CHAN_INFO_CALIBBIAS), \
 	.channel = _si + 1, \
 	.scan_index = _si, \
 	.indexed = 1, \
@@ -282,7 +302,8 @@ static const struct iio_chan_spec apds9960_channels[] = {
 	{
 		.type = IIO_PROXIMITY,
 		.address = APDS9960_REG_PDATA,
-		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),
+		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
+			BIT(IIO_CHAN_INFO_CALIBBIAS),
 		.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE),
 		.channel = 0,
 		.indexed = 0,
@@ -315,6 +336,28 @@ static const struct iio_chan_spec apds9960_channels[] = {
 	APDS9960_INTENSITY_CHANNEL(GREEN),
 	APDS9960_INTENSITY_CHANNEL(BLUE),
 };
+
+static int apds9960_set_calibbias(struct apds9960_data *data,
+		struct iio_chan_spec const *chan, int calibbias)
+{
+	int ret, i;
+
+	if (calibbias < S8_MIN || calibbias > S8_MAX)
+		return -EINVAL;
+
+	guard(mutex)(&data->lock);
+	for (i = 0; i < 2; i++) {
+		if (apds9960_offset_regs[chan->channel][i] == 0)
+			break;
+
+		ret = regmap_write(data->regmap, apds9960_offset_regs[chan->channel][i], calibbias);
+		if (ret < 0)
+			return ret;
+	}
+	data->calibbias[chan->channel] = calibbias;
+
+	return 0;
+}
 
 /* integration time in us */
 static const int apds9960_int_time[][2] = {
@@ -531,6 +574,12 @@ static int apds9960_read_raw(struct iio_dev *indio_dev,
 		}
 		mutex_unlock(&data->lock);
 		break;
+	case IIO_CHAN_INFO_CALIBBIAS:
+		mutex_lock(&data->lock);
+		*val = data->calibbias[chan->channel];
+		ret = IIO_VAL_INT;
+		mutex_unlock(&data->lock);
+		break;
 	}
 
 	return ret;
@@ -564,6 +613,10 @@ static int apds9960_write_raw(struct iio_dev *indio_dev,
 		default:
 			return -EINVAL;
 		}
+	case IIO_CHAN_INFO_CALIBBIAS:
+		if (val2 != 0)
+			return -EINVAL;
+		return apds9960_set_calibbias(data, chan, val);
 	default:
 		return -EINVAL;
 	}

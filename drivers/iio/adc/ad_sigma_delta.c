@@ -351,7 +351,7 @@ static int ad_sd_buffer_postenable(struct iio_dev *indio_dev)
 
 	if (sigma_delta->num_slots == 1) {
 		channel = find_first_bit(indio_dev->active_scan_mask,
-					 indio_dev->masklength);
+					 iio_get_masklength(indio_dev));
 		ret = ad_sigma_delta_set_channel(sigma_delta,
 						 indio_dev->channels[channel].address);
 		if (ret)
@@ -364,7 +364,7 @@ static int ad_sd_buffer_postenable(struct iio_dev *indio_dev)
 		 * implementation is mandatory.
 		 */
 		slot = 0;
-		for_each_set_bit(i, indio_dev->active_scan_mask, indio_dev->masklength) {
+		iio_for_each_active_channel(indio_dev, i) {
 			sigma_delta->slots[slot] = indio_dev->channels[i].address;
 			slot++;
 		}
@@ -526,7 +526,7 @@ static bool ad_sd_validate_scan_mask(struct iio_dev *indio_dev, const unsigned l
 {
 	struct ad_sigma_delta *sigma_delta = iio_device_get_drvdata(indio_dev);
 
-	return bitmap_weight(mask, indio_dev->masklength) <= sigma_delta->num_slots;
+	return bitmap_weight(mask, iio_get_masklength(indio_dev)) <= sigma_delta->num_slots;
 }
 
 static const struct iio_buffer_setup_ops ad_sd_buffer_setup_ops = {

@@ -237,7 +237,8 @@ static int ad799x_update_scan_mode(struct iio_dev *indio_dev,
 	if (!st->rx_buf)
 		return -ENOMEM;
 
-	st->transfer_size = bitmap_weight(scan_mask, indio_dev->masklength) * 2;
+	st->transfer_size = bitmap_weight(scan_mask,
+					  iio_get_masklength(indio_dev)) * 2;
 
 	switch (st->id) {
 	case ad7992:

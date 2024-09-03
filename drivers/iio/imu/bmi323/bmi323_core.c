@@ -2121,6 +2121,29 @@ int bmi323_core_probe(struct device *dev)
 }
 EXPORT_SYMBOL_NS_GPL(bmi323_core_probe, IIO_BMI323);
 
+#if defined(CONFIG_PM)
+static int bmi323_core_runtime_suspend(struct device *dev)
+{
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+
+	return iio_device_suspend_triggering(indio_dev);
+}
+
+static int bmi323_core_runtime_resume(struct device *dev)
+{
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+
+	return iio_device_resume_triggering(indio_dev);
+}
+
+#endif
+
+const struct dev_pm_ops bmi323_core_pm_ops = {
+	SET_RUNTIME_PM_OPS(bmi323_core_runtime_suspend,
+			   bmi323_core_runtime_resume, NULL)
+};
+EXPORT_SYMBOL_NS_GPL(bmi323_core_pm_ops, IIO_BMI323);
+
 MODULE_DESCRIPTION("Bosch BMI323 IMU driver");
 MODULE_AUTHOR("Jagath Jog J <jagathjog1996@gmail.com>");
 MODULE_LICENSE("GPL");

@@ -31,6 +31,8 @@ config BMP280
 	select REGMAP
 	select BMP280_I2C if (I2C)
 	select BMP280_SPI if (SPI_MASTER)
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
 	help
 	  Say yes here to build support for Bosch Sensortec BMP180, BMP280, BMP380
 	  and BMP580 pressure and temperature sensors. Also supports the BME280 with
@@ -247,6 +249,15 @@ config MS5637
 
 	  This driver can also be built as a module. If so, the module will
 	  be called ms5637.
+
+config SDP500
+	tristate "Sensirion SDP500 differential pressure sensor I2C driver"
+	depends on I2C
+	help
+	  Say Y here to build support for Sensirion SDP500 differential pressure
+	  sensor I2C driver.
+	  To compile this driver as a module, choose M here: the core module
+	  will be called sdp500.
 
 config IIO_ST_PRESS
 	tristate "STMicroelectronics pressure sensor Driver"

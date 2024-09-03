@@ -211,8 +211,7 @@ static irqreturn_t adc0832_trigger_handler(int irq, void *p)
 
 	mutex_lock(&adc->lock);
 
-	for_each_set_bit(scan_index, indio_dev->active_scan_mask,
-			 indio_dev->masklength) {
+	iio_for_each_active_channel(indio_dev, scan_index) {
 		const struct iio_chan_spec *scan_chan =
 				&indio_dev->channels[scan_index];
 		int ret = adc0832_adc_conversion(adc, scan_chan->channel,

@@ -166,8 +166,7 @@ static int adc084s021_buffer_preenable(struct iio_dev *indio_dev)
 	int scan_index;
 	int i = 0;
 
-	for_each_set_bit(scan_index, indio_dev->active_scan_mask,
-			 indio_dev->masklength) {
+	iio_for_each_active_channel(indio_dev, scan_index) {
 		const struct iio_chan_spec *channel =
 			&indio_dev->channels[scan_index];
 		adc->tx_buf[i++] = channel->channel << 3;
