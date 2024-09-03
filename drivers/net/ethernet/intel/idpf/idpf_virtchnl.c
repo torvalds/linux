@@ -666,7 +666,7 @@ idpf_vc_xn_forward_reply(struct idpf_adapter *adapter,
 
 	if (ctlq_msg->data_len) {
 		payload = ctlq_msg->ctx.indirect.payload->va;
-		payload_size = ctlq_msg->ctx.indirect.payload->size;
+		payload_size = ctlq_msg->data_len;
 	}
 
 	xn->reply_sz = payload_size;
@@ -1293,10 +1293,6 @@ int idpf_send_create_vport_msg(struct idpf_adapter *adapter,
 	reply_sz = idpf_vc_xn_exec(adapter, &xn_params);
 	if (reply_sz < 0) {
 		err = reply_sz;
-		goto free_vport_params;
-	}
-	if (reply_sz < IDPF_CTLQ_MAX_BUF_LEN) {
-		err = -EIO;
 		goto free_vport_params;
 	}
 
@@ -2601,9 +2597,6 @@ int idpf_send_get_rx_ptype_msg(struct idpf_vport *vport)
 		reply_sz = idpf_vc_xn_exec(adapter, &xn_params);
 		if (reply_sz < 0)
 			return reply_sz;
-
-		if (reply_sz < IDPF_CTLQ_MAX_BUF_LEN)
-			return -EIO;
 
 		ptypes_recvd += le16_to_cpu(ptype_info->num_ptypes);
 		if (ptypes_recvd > max_ptype)
