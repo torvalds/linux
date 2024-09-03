@@ -10,7 +10,6 @@
 
 #define pr_fmt(fmt) "ACPI: battery: " fmt
 
-#include <linux/async.h>
 #include <linux/delay.h>
 #include <linux/dmi.h>
 #include <linux/jiffies.h>
@@ -50,8 +49,6 @@ MODULE_AUTHOR("Alexey Starikovskiy <astarikovskiy@suse.de>");
 MODULE_DESCRIPTION("ACPI Battery Driver");
 MODULE_LICENSE("GPL");
 
-static async_cookie_t async_cookie;
-static bool battery_driver_registered;
 static int battery_bix_broken_package;
 static int battery_notification_delay_ms;
 static int battery_ac_is_broken;
@@ -1311,37 +1308,23 @@ static struct acpi_driver acpi_battery_driver = {
 		.remove = acpi_battery_remove,
 		},
 	.drv.pm = &acpi_battery_pm,
+	.drv.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 };
-
-static void __init acpi_battery_init_async(void *unused, async_cookie_t cookie)
-{
-	int result;
-
-	if (acpi_quirk_skip_acpi_ac_and_battery())
-		return;
-
-	dmi_check_system(bat_dmi_table);
-
-	result = acpi_bus_register_driver(&acpi_battery_driver);
-	battery_driver_registered = (result == 0);
-}
 
 static int __init acpi_battery_init(void)
 {
-	if (acpi_disabled)
+	if (acpi_disabled || acpi_quirk_skip_acpi_ac_and_battery())
 		return -ENODEV;
 
-	async_cookie = async_schedule(acpi_battery_init_async, NULL);
-	return 0;
+	dmi_check_system(bat_dmi_table);
+
+	return acpi_bus_register_driver(&acpi_battery_driver);
 }
 
 static void __exit acpi_battery_exit(void)
 {
-	async_synchronize_cookie(async_cookie + 1);
-	if (battery_driver_registered) {
-		acpi_bus_unregister_driver(&acpi_battery_driver);
-		battery_hook_exit();
-	}
+	acpi_bus_unregister_driver(&acpi_battery_driver);
+	battery_hook_exit();
 }
 
 module_init(acpi_battery_init);
