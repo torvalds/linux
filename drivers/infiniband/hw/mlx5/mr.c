@@ -528,6 +528,21 @@ static void queue_adjust_cache_locked(struct mlx5_cache_ent *ent)
 	}
 }
 
+static void clean_keys(struct mlx5_ib_dev *dev, struct mlx5_cache_ent *ent)
+{
+	u32 mkey;
+
+	spin_lock_irq(&ent->mkeys_queue.lock);
+	while (ent->mkeys_queue.ci) {
+		mkey = pop_mkey_locked(ent);
+		spin_unlock_irq(&ent->mkeys_queue.lock);
+		mlx5_core_destroy_mkey(dev->mdev, mkey);
+		spin_lock_irq(&ent->mkeys_queue.lock);
+	}
+	ent->tmp_cleanup_scheduled = false;
+	spin_unlock_irq(&ent->mkeys_queue.lock);
+}
+
 static void __cache_work_func(struct mlx5_cache_ent *ent)
 {
 	struct mlx5_ib_dev *dev = ent->dev;
@@ -599,7 +614,11 @@ static void delayed_cache_work_func(struct work_struct *work)
 	struct mlx5_cache_ent *ent;
 
 	ent = container_of(work, struct mlx5_cache_ent, dwork.work);
-	__cache_work_func(ent);
+	/* temp entries are never filled, only cleaned */
+	if (ent->is_tmp)
+		clean_keys(ent->dev, ent);
+	else
+		__cache_work_func(ent);
 }
 
 static int cache_ent_key_cmp(struct mlx5r_cache_rb_key key1,
@@ -775,20 +794,6 @@ struct mlx5_ib_mr *mlx5_mr_cache_alloc(struct mlx5_ib_dev *dev,
 	return _mlx5_mr_cache_alloc(dev, ent, access_flags);
 }
 
-static void clean_keys(struct mlx5_ib_dev *dev, struct mlx5_cache_ent *ent)
-{
-	u32 mkey;
-
-	spin_lock_irq(&ent->mkeys_queue.lock);
-	while (ent->mkeys_queue.ci) {
-		mkey = pop_mkey_locked(ent);
-		spin_unlock_irq(&ent->mkeys_queue.lock);
-		mlx5_core_destroy_mkey(dev->mdev, mkey);
-		spin_lock_irq(&ent->mkeys_queue.lock);
-	}
-	spin_unlock_irq(&ent->mkeys_queue.lock);
-}
-
 static void mlx5_mkey_cache_debugfs_cleanup(struct mlx5_ib_dev *dev)
 {
 	if (!mlx5_debugfs_root || dev->is_rep)
@@ -901,10 +906,6 @@ mlx5r_cache_create_ent_locked(struct mlx5_ib_dev *dev,
 			ent->limit = 0;
 
 		mlx5_mkey_cache_debugfs_add_ent(dev, ent);
-	} else {
-		mod_delayed_work(ent->dev->cache.wq,
-				 &ent->dev->cache.remove_ent_dwork,
-				 msecs_to_jiffies(30 * 1000));
 	}
 
 	return ent;
@@ -913,35 +914,6 @@ ent_insert_err:
 mkeys_err:
 	kfree(ent);
 	return ERR_PTR(ret);
-}
-
-static void remove_ent_work_func(struct work_struct *work)
-{
-	struct mlx5_mkey_cache *cache;
-	struct mlx5_cache_ent *ent;
-	struct rb_node *cur;
-
-	cache = container_of(work, struct mlx5_mkey_cache,
-			     remove_ent_dwork.work);
-	mutex_lock(&cache->rb_lock);
-	cur = rb_last(&cache->rb_root);
-	while (cur) {
-		ent = rb_entry(cur, struct mlx5_cache_ent, node);
-		cur = rb_prev(cur);
-		mutex_unlock(&cache->rb_lock);
-
-		spin_lock_irq(&ent->mkeys_queue.lock);
-		if (!ent->is_tmp) {
-			spin_unlock_irq(&ent->mkeys_queue.lock);
-			mutex_lock(&cache->rb_lock);
-			continue;
-		}
-		spin_unlock_irq(&ent->mkeys_queue.lock);
-
-		clean_keys(ent->dev, ent);
-		mutex_lock(&cache->rb_lock);
-	}
-	mutex_unlock(&cache->rb_lock);
 }
 
 int mlx5_mkey_cache_init(struct mlx5_ib_dev *dev)
@@ -959,7 +931,6 @@ int mlx5_mkey_cache_init(struct mlx5_ib_dev *dev)
 	mutex_init(&dev->slow_path_mutex);
 	mutex_init(&dev->cache.rb_lock);
 	dev->cache.rb_root = RB_ROOT;
-	INIT_DELAYED_WORK(&dev->cache.remove_ent_dwork, remove_ent_work_func);
 	cache->wq = alloc_ordered_workqueue("mkey_cache", WQ_MEM_RECLAIM);
 	if (!cache->wq) {
 		mlx5_ib_warn(dev, "failed to create work queue\n");
@@ -1010,7 +981,6 @@ void mlx5_mkey_cache_cleanup(struct mlx5_ib_dev *dev)
 		return;
 
 	mutex_lock(&dev->cache.rb_lock);
-	cancel_delayed_work(&dev->cache.remove_ent_dwork);
 	for (node = rb_first(root); node; node = rb_next(node)) {
 		ent = rb_entry(node, struct mlx5_cache_ent, node);
 		spin_lock_irq(&ent->mkeys_queue.lock);
@@ -1861,8 +1831,18 @@ static int mlx5_revoke_mr(struct mlx5_ib_mr *mr)
 	struct mlx5_ib_dev *dev = to_mdev(mr->ibmr.device);
 	struct mlx5_cache_ent *ent = mr->mmkey.cache_ent;
 
-	if (mr->mmkey.cacheable && !mlx5r_umr_revoke_mr(mr) && !cache_ent_find_and_store(dev, mr))
+	if (mr->mmkey.cacheable && !mlx5r_umr_revoke_mr(mr) && !cache_ent_find_and_store(dev, mr)) {
+		ent = mr->mmkey.cache_ent;
+		/* upon storing to a clean temp entry - schedule its cleanup */
+		spin_lock_irq(&ent->mkeys_queue.lock);
+		if (ent->is_tmp && !ent->tmp_cleanup_scheduled) {
+			mod_delayed_work(ent->dev->cache.wq, &ent->dwork,
+					 msecs_to_jiffies(30 * 1000));
+			ent->tmp_cleanup_scheduled = true;
+		}
+		spin_unlock_irq(&ent->mkeys_queue.lock);
 		return 0;
+	}
 
 	if (ent) {
 		spin_lock_irq(&ent->mkeys_queue.lock);
