@@ -983,7 +983,7 @@ static int mxser_get_serial_info(struct tty_struct *tty,
 	ss->baud_base = MXSER_BAUD_BASE;
 	ss->close_delay = close_delay;
 	ss->closing_wait = closing_wait;
-	ss->custom_divisor = MXSER_CUSTOM_DIVISOR,
+	ss->custom_divisor = MXSER_CUSTOM_DIVISOR;
 	mutex_unlock(&port->mutex);
 	return 0;
 }
