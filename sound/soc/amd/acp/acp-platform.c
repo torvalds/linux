@@ -68,6 +68,46 @@ static const struct snd_pcm_hardware acp_pcm_hardware_capture = {
 	.periods_max = CAPTURE_MAX_NUM_PERIODS,
 };
 
+static const struct snd_pcm_hardware acp6x_pcm_hardware_playback = {
+	.info = SNDRV_PCM_INFO_INTERLEAVED |
+		SNDRV_PCM_INFO_BLOCK_TRANSFER |
+		SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_MMAP_VALID |
+		SNDRV_PCM_INFO_PAUSE | SNDRV_PCM_INFO_RESUME,
+	.formats = SNDRV_PCM_FMTBIT_S16_LE |  SNDRV_PCM_FMTBIT_S8 |
+		   SNDRV_PCM_FMTBIT_U8 | SNDRV_PCM_FMTBIT_S24_LE |
+		   SNDRV_PCM_FMTBIT_S32_LE,
+	.channels_min = 2,
+	.channels_max = 32,
+	.rates = SNDRV_PCM_RATE_8000_192000,
+	.rate_min = 8000,
+	.rate_max = 192000,
+	.buffer_bytes_max = PLAYBACK_MAX_NUM_PERIODS * PLAYBACK_MAX_PERIOD_SIZE,
+	.period_bytes_min = PLAYBACK_MIN_PERIOD_SIZE,
+	.period_bytes_max = PLAYBACK_MAX_PERIOD_SIZE,
+	.periods_min = PLAYBACK_MIN_NUM_PERIODS,
+	.periods_max = PLAYBACK_MAX_NUM_PERIODS,
+};
+
+static const struct snd_pcm_hardware acp6x_pcm_hardware_capture = {
+	.info = SNDRV_PCM_INFO_INTERLEAVED |
+		SNDRV_PCM_INFO_BLOCK_TRANSFER |
+		SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_MMAP_VALID |
+		SNDRV_PCM_INFO_PAUSE | SNDRV_PCM_INFO_RESUME,
+	.formats = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S8 |
+		   SNDRV_PCM_FMTBIT_U8 | SNDRV_PCM_FMTBIT_S24_LE |
+		   SNDRV_PCM_FMTBIT_S32_LE,
+	.channels_min = 2,
+	.channels_max = 32,
+	.rates = SNDRV_PCM_RATE_8000_192000,
+	.rate_min = 8000,
+	.rate_max = 192000,
+	.buffer_bytes_max = CAPTURE_MAX_NUM_PERIODS * CAPTURE_MAX_PERIOD_SIZE,
+	.period_bytes_min = CAPTURE_MIN_PERIOD_SIZE,
+	.period_bytes_max = CAPTURE_MAX_PERIOD_SIZE,
+	.periods_min = CAPTURE_MIN_NUM_PERIODS,
+	.periods_max = CAPTURE_MAX_NUM_PERIODS,
+};
+
 int acp_machine_select(struct acp_dev_data *adata)
 {
 	struct snd_soc_acpi_mach *mach;
@@ -183,6 +223,7 @@ static int acp_dma_open(struct snd_soc_component *component, struct snd_pcm_subs
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct device *dev = component->dev;
 	struct acp_dev_data *adata = dev_get_drvdata(dev);
+	struct acp_chip_info *chip;
 	struct acp_stream *stream;
 	int ret;
 
@@ -191,11 +232,21 @@ static int acp_dma_open(struct snd_soc_component *component, struct snd_pcm_subs
 		return -ENOMEM;
 
 	stream->substream = substream;
-
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-		runtime->hw = acp_pcm_hardware_playback;
-	else
-		runtime->hw = acp_pcm_hardware_capture;
+	chip = dev_get_platdata(dev);
+	switch (chip->acp_rev) {
+	case ACP63_DEV:
+		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+			runtime->hw = acp6x_pcm_hardware_playback;
+		else
+			runtime->hw = acp6x_pcm_hardware_capture;
+		break;
+	default:
+		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+			runtime->hw = acp_pcm_hardware_playback;
+		else
+			runtime->hw = acp_pcm_hardware_capture;
+		break;
+	}
 
 	ret = snd_pcm_hw_constraint_step(runtime, 0, SNDRV_PCM_HW_PARAM_PERIOD_BYTES, DMA_SIZE);
 	if (ret) {
