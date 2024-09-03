@@ -3618,7 +3618,7 @@ long memfd_pin_folios(struct file *memfd, loff_t start, loff_t end,
 	pgoff_t start_idx, end_idx, next_idx;
 	struct folio *folio = NULL;
 	struct folio_batch fbatch;
-	struct hstate *h;
+	struct hstate *h = NULL;
 	long ret = -EINVAL;
 
 	if (start < 0 || start > end || !max_folios)
@@ -3662,6 +3662,8 @@ long memfd_pin_folios(struct file *memfd, loff_t start, loff_t end,
 							     &fbatch);
 			if (folio) {
 				folio_put(folio);
+				if (h)
+					folio_put(folio);
 				folio = NULL;
 			}
 
