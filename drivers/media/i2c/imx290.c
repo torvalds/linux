@@ -1589,6 +1589,16 @@ static int imx290_probe(struct i2c_client *client)
 	pm_runtime_set_autosuspend_delay(dev, 1000);
 	pm_runtime_use_autosuspend(dev);
 
+	/*
+	 * Make sure the sensor is available, in STANDBY and not streaming
+	 * before the V4L2 subdev is initialized.
+	 */
+	ret = imx290_stop_streaming(imx290);
+	if (ret) {
+		ret = dev_err_probe(dev, ret, "Could not initialize device\n");
+		goto err_pm;
+	}
+
 	/* Initialize the V4L2 subdev. */
 	ret = imx290_subdev_init(imx290);
 	if (ret)
