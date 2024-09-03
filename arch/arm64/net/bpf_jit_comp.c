@@ -84,6 +84,7 @@ struct jit_ctx {
 	u64 user_vm_start;
 	u64 arena_vm_start;
 	bool fp_used;
+	bool write;
 };
 
 struct bpf_plt {
@@ -97,7 +98,7 @@ struct bpf_plt {
 
 static inline void emit(const u32 insn, struct jit_ctx *ctx)
 {
-	if (ctx->image != NULL)
+	if (ctx->image != NULL && ctx->write)
 		ctx->image[ctx->idx] = cpu_to_le32(insn);
 
 	ctx->idx++;
@@ -182,12 +183,45 @@ static inline void emit_addr_mov_i64(const int reg, const u64 val,
 	}
 }
 
-static inline void emit_call(u64 target, struct jit_ctx *ctx)
+static bool should_emit_indirect_call(long target, const struct jit_ctx *ctx)
 {
-	u8 tmp = bpf2a64[TMP_REG_1];
+	long offset;
 
+	/* when ctx->ro_image is not allocated or the target is unknown,
+	 * emit indirect call
+	 */
+	if (!ctx->ro_image || !target)
+		return true;
+
+	offset = target - (long)&ctx->ro_image[ctx->idx];
+	return offset < -SZ_128M || offset >= SZ_128M;
+}
+
+static void emit_direct_call(u64 target, struct jit_ctx *ctx)
+{
+	u32 insn;
+	unsigned long pc;
+
+	pc = (unsigned long)&ctx->ro_image[ctx->idx];
+	insn = aarch64_insn_gen_branch_imm(pc, target, AARCH64_INSN_BRANCH_LINK);
+	emit(insn, ctx);
+}
+
+static void emit_indirect_call(u64 target, struct jit_ctx *ctx)
+{
+	u8 tmp;
+
+	tmp = bpf2a64[TMP_REG_1];
 	emit_addr_mov_i64(tmp, target, ctx);
 	emit(A64_BLR(tmp), ctx);
+}
+
+static void emit_call(u64 target, struct jit_ctx *ctx)
+{
+	if (should_emit_indirect_call((long)target, ctx))
+		emit_indirect_call(target, ctx);
+	else
+		emit_direct_call(target, ctx);
 }
 
 static inline int bpf2a64_offset(int bpf_insn, int off,
@@ -1649,13 +1683,11 @@ static int build_body(struct jit_ctx *ctx, bool extra_pass)
 		const struct bpf_insn *insn = &prog->insnsi[i];
 		int ret;
 
-		if (ctx->image == NULL)
-			ctx->offset[i] = ctx->idx;
+		ctx->offset[i] = ctx->idx;
 		ret = build_insn(insn, ctx, extra_pass);
 		if (ret > 0) {
 			i++;
-			if (ctx->image == NULL)
-				ctx->offset[i] = ctx->idx;
+			ctx->offset[i] = ctx->idx;
 			continue;
 		}
 		if (ret)
@@ -1666,8 +1698,7 @@ static int build_body(struct jit_ctx *ctx, bool extra_pass)
 	 * the last element with the offset after the last
 	 * instruction (end of program)
 	 */
-	if (ctx->image == NULL)
-		ctx->offset[i] = ctx->idx;
+	ctx->offset[i] = ctx->idx;
 
 	return 0;
 }
@@ -1721,6 +1752,8 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *prog)
 	struct jit_ctx ctx;
 	u8 *image_ptr;
 	u8 *ro_image_ptr;
+	int body_idx;
+	int exentry_idx;
 
 	if (!prog->jit_requested)
 		return orig_prog;
@@ -1768,8 +1801,7 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *prog)
 	ctx.user_vm_start = bpf_arena_get_user_vm_start(prog->aux->arena);
 	ctx.arena_vm_start = bpf_arena_get_kern_vm_start(prog->aux->arena);
 
-	/*
-	 * 1. Initial fake pass to compute ctx->idx and ctx->offset.
+	/* Pass 1: Estimate the maximum image size.
 	 *
 	 * BPF line info needs ctx->offset[i] to be the offset of
 	 * instruction[i] in jited image, so build prologue first.
@@ -1792,7 +1824,7 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *prog)
 	extable_size = prog->aux->num_exentries *
 		sizeof(struct exception_table_entry);
 
-	/* Now we know the actual image size. */
+	/* Now we know the maximum image size. */
 	prog_size = sizeof(u32) * ctx.idx;
 	/* also allocate space for plt target */
 	extable_offset = round_up(prog_size + PLT_TARGET_SIZE, extable_align);
@@ -1805,7 +1837,7 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *prog)
 		goto out_off;
 	}
 
-	/* 2. Now, the actual pass. */
+	/* Pass 2: Determine jited position and result for each instruction */
 
 	/*
 	 * Use the image(RW) for writing the JITed instructions. But also save
@@ -1821,10 +1853,29 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *prog)
 skip_init_ctx:
 	ctx.idx = 0;
 	ctx.exentry_idx = 0;
+	ctx.write = true;
 
 	build_prologue(&ctx, was_classic);
 
+	/* Record exentry_idx and body_idx before first build_body */
+	exentry_idx = ctx.exentry_idx;
+	body_idx = ctx.idx;
+	/* Dont write body instructions to memory for now */
+	ctx.write = false;
+
 	if (build_body(&ctx, extra_pass)) {
+		prog = orig_prog;
+		goto out_free_hdr;
+	}
+
+	ctx.epilogue_offset = ctx.idx;
+	ctx.exentry_idx = exentry_idx;
+	ctx.idx = body_idx;
+	ctx.write = true;
+
+	/* Pass 3: Adjust jump offset and write final image */
+	if (build_body(&ctx, extra_pass) ||
+		WARN_ON_ONCE(ctx.idx != ctx.epilogue_offset)) {
 		prog = orig_prog;
 		goto out_free_hdr;
 	}
@@ -1832,19 +1883,26 @@ skip_init_ctx:
 	build_epilogue(&ctx);
 	build_plt(&ctx);
 
-	/* 3. Extra pass to validate JITed code. */
+	/* Extra pass to validate JITed code. */
 	if (validate_ctx(&ctx)) {
 		prog = orig_prog;
 		goto out_free_hdr;
 	}
+
+	/* update the real prog size */
+	prog_size = sizeof(u32) * ctx.idx;
 
 	/* And we're done. */
 	if (bpf_jit_enable > 1)
 		bpf_jit_dump(prog->len, prog_size, 2, ctx.image);
 
 	if (!prog->is_func || extra_pass) {
-		if (extra_pass && ctx.idx != jit_data->ctx.idx) {
-			pr_err_once("multi-func JIT bug %d != %d\n",
+		/* The jited image may shrink since the jited result for
+		 * BPF_CALL to subprog may be changed from indirect call
+		 * to direct call.
+		 */
+		if (extra_pass && ctx.idx > jit_data->ctx.idx) {
+			pr_err_once("multi-func JIT bug %d > %d\n",
 				    ctx.idx, jit_data->ctx.idx);
 			prog->bpf_func = NULL;
 			prog->jited = 0;
@@ -2315,6 +2373,7 @@ int arch_prepare_bpf_trampoline(struct bpf_tramp_image *im, void *ro_image,
 		.image = image,
 		.ro_image = ro_image,
 		.idx = 0,
+		.write = true,
 	};
 
 	nregs = btf_func_model_nregs(m);
