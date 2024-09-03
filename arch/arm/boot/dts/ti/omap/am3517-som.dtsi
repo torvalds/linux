@@ -44,7 +44,6 @@
 
 	nand@0,0 {
 		compatible = "ti,omap2-nand";
-		linux,mtd-name = "micron,mt29f4g16abchch";
 		reg = <0 0 4>; /* CS0, offset 0, IO size 4 */
 		nand-bus-width = <16>;
 		ti,nand-ecc-opt = "bch8";
