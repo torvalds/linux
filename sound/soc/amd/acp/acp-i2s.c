@@ -133,6 +133,19 @@ static int acp_i2s_set_tdm_slot(struct snd_soc_dai *dai, u32 tx_mask, u32 rx_mas
 			return -EINVAL;
 		}
 		break;
+	case ACP63_DEV:
+		switch (slots) {
+		case 1 ... 31:
+			no_of_slots = slots;
+			break;
+		case 32:
+			no_of_slots = 0;
+			break;
+		default:
+			dev_err(dev, "Unsupported slots %d\n", slots);
+			return -EINVAL;
+		}
+		break;
 	default:
 		dev_err(dev, "Unknown chip revision %d\n", chip->acp_rev);
 		return -EINVAL;
@@ -151,6 +164,14 @@ static int acp_i2s_set_tdm_slot(struct snd_soc_dai *dai, u32 tx_mask, u32 rx_mas
 			else if (rx_mask && stream->dir == SNDRV_PCM_STREAM_CAPTURE)
 				adata->tdm_rx_fmt[stream->dai_id - 1] =
 					FRM_LEN | (slots << 15) | (slot_len << 18);
+			break;
+		case ACP63_DEV:
+			if (tx_mask && stream->dir == SNDRV_PCM_STREAM_PLAYBACK)
+				adata->tdm_tx_fmt[stream->dai_id - 1] =
+						FRM_LEN | (slots << 13) | (slot_len << 18);
+			else if (rx_mask && stream->dir == SNDRV_PCM_STREAM_CAPTURE)
+				adata->tdm_rx_fmt[stream->dai_id - 1] =
+						FRM_LEN | (slots << 13) | (slot_len << 18);
 			break;
 		default:
 			dev_err(dev, "Unknown chip revision %d\n", chip->acp_rev);
@@ -313,6 +334,41 @@ static int acp_i2s_hwparams(struct snd_pcm_substream *substream, struct snd_pcm_
 			break;
 		default:
 			return -EINVAL;
+		}
+
+		switch (params_rate(params)) {
+		case 8000:
+		case 16000:
+		case 24000:
+		case 48000:
+		case 96000:
+		case 192000:
+			switch (params_channels(params)) {
+			case 2:
+				break;
+			case 4:
+				bclk_div_val = bclk_div_val >> 1;
+				lrclk_div_val = lrclk_div_val << 1;
+				break;
+			case 8:
+				bclk_div_val = bclk_div_val >> 2;
+				lrclk_div_val = lrclk_div_val << 2;
+				break;
+			case 16:
+				bclk_div_val = bclk_div_val >> 3;
+				lrclk_div_val = lrclk_div_val << 3;
+				break;
+			case 32:
+				bclk_div_val = bclk_div_val >> 4;
+				lrclk_div_val = lrclk_div_val << 4;
+				break;
+			default:
+				dev_err(dev, "Unsupported channels %#x\n",
+					params_channels(params));
+			}
+			break;
+		default:
+			break;
 		}
 		adata->lrclk_div = lrclk_div_val;
 		adata->bclk_div = bclk_div_val;
