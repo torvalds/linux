@@ -95,9 +95,11 @@ static int acp_i2s_set_tdm_slot(struct snd_soc_dai *dai, u32 tx_mask, u32 rx_mas
 {
 	struct device *dev = dai->component->dev;
 	struct acp_dev_data *adata = snd_soc_dai_get_drvdata(dai);
+	struct acp_chip_info *chip;
 	struct acp_stream *stream;
 	int slot_len, no_of_slots;
 
+	chip = dev_get_platdata(dev);
 	switch (slot_width) {
 	case SLOT_WIDTH_8:
 		slot_len = 8;
@@ -116,15 +118,23 @@ static int acp_i2s_set_tdm_slot(struct snd_soc_dai *dai, u32 tx_mask, u32 rx_mas
 		return -EINVAL;
 	}
 
-	switch (slots) {
-	case 1 ... 7:
-		no_of_slots = slots;
-		break;
-	case 8:
-		no_of_slots = 0;
+	switch (chip->acp_rev) {
+	case ACP3X_DEV:
+	case ACP6X_DEV:
+		switch (slots) {
+		case 1 ... 7:
+			no_of_slots = slots;
+			break;
+		case 8:
+			no_of_slots = 0;
+			break;
+		default:
+			dev_err(dev, "Unsupported slots %d\n", slots);
+			return -EINVAL;
+		}
 		break;
 	default:
-		dev_err(dev, "Unsupported slots %d\n", slots);
+		dev_err(dev, "Unknown chip revision %d\n", chip->acp_rev);
 		return -EINVAL;
 	}
 
@@ -132,12 +142,20 @@ static int acp_i2s_set_tdm_slot(struct snd_soc_dai *dai, u32 tx_mask, u32 rx_mas
 
 	spin_lock_irq(&adata->acp_lock);
 	list_for_each_entry(stream, &adata->stream_list, list) {
-		if (tx_mask && stream->dir == SNDRV_PCM_STREAM_PLAYBACK)
-			adata->tdm_tx_fmt[stream->dai_id - 1] =
+		switch (chip->acp_rev) {
+		case ACP3X_DEV:
+		case ACP6X_DEV:
+			if (tx_mask && stream->dir == SNDRV_PCM_STREAM_PLAYBACK)
+				adata->tdm_tx_fmt[stream->dai_id - 1] =
 					FRM_LEN | (slots << 15) | (slot_len << 18);
-		else if (rx_mask && stream->dir == SNDRV_PCM_STREAM_CAPTURE)
-			adata->tdm_rx_fmt[stream->dai_id - 1] =
+			else if (rx_mask && stream->dir == SNDRV_PCM_STREAM_CAPTURE)
+				adata->tdm_rx_fmt[stream->dai_id - 1] =
 					FRM_LEN | (slots << 15) | (slot_len << 18);
+			break;
+		default:
+			dev_err(dev, "Unknown chip revision %d\n", chip->acp_rev);
+			return -EINVAL;
+		}
 	}
 	spin_unlock_irq(&adata->acp_lock);
 	return 0;
