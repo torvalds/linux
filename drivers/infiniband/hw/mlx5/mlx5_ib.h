@@ -521,6 +521,7 @@ struct mlx5_ib_qp {
 	struct mlx5_bf	        bf;
 	u8			has_rq:1;
 	u8			is_rss:1;
+	u8			is_ooo_rq:1;
 
 	/* only for user space QPs. For kernel
 	 * we have it from the bf object
