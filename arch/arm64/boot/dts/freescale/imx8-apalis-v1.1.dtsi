@@ -807,7 +807,18 @@
 
 /* TODO: Apalis USBH2, Apalis USBH3 and on-module Wi-Fi via on-module HSIC Hub */
 
-/* TODO: Apalis USBH4 */
+/* Apalis USBH4 */
+&usb3_phy {
+	status = "okay";
+};
+
+&usbotg3 {
+	status = "okay";
+};
+
+&usbotg3_cdns3 {
+	dr_mode = "host";
+};
 
 /* Apalis USBO1 */
 &usbphy1 {
