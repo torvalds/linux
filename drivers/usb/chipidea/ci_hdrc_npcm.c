@@ -18,7 +18,7 @@ struct npcm_udc_data {
 	struct ci_hdrc_platform_data pdata;
 };
 
-static int npcm_udc_notify_event(struct ci_hdrc *ci, unsigned event)
+static int npcm_udc_notify_event(struct ci_hdrc *ci, unsigned int event)
 {
 	struct device *dev = ci->dev->parent;
 
