@@ -39,6 +39,7 @@ minidump.ko
 deferred-free-helper.ko
 mem-offline.ko
 mem-hooks.ko
+dcc_v2.ko
 memory_dump_v2.ko
 msm_dma_iommu_mapping.ko
 qcom_wdt_core.ko
