@@ -1309,10 +1309,8 @@ cifs_readv_callback(struct mid_q_entry *mid)
 	if (rdata->result == 0 || rdata->result == -EAGAIN)
 		iov_iter_advance(&rdata->subreq.io_iter, rdata->got_bytes);
 	rdata->credits.value = 0;
-	netfs_subreq_terminated(&rdata->subreq,
-				(rdata->result == 0 || rdata->result == -EAGAIN) ?
-				rdata->got_bytes : rdata->result,
-				false);
+	rdata->subreq.transferred += rdata->got_bytes;
+	netfs_read_subreq_terminated(&rdata->subreq, rdata->result, false);
 	release_mid(mid);
 	add_credits(server, &credits, 0);
 }
