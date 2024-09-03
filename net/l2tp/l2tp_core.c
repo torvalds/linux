@@ -345,7 +345,7 @@ again:
 			goto again;
 		}
 
-		if (tunnel && tunnel->tunnel_id == tid &&
+		if (tunnel->tunnel_id == tid &&
 		    refcount_inc_not_zero(&session->ref_count)) {
 			rcu_read_unlock_bh();
 			return session;
