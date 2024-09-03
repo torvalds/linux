@@ -494,7 +494,7 @@ int __ip_queue_xmit(struct sock *sk, struct sk_buff *skb, struct flowi *fl,
 					   inet->inet_dport,
 					   inet->inet_sport,
 					   sk->sk_protocol,
-					   RT_TOS(tos),
+					   tos & INET_DSCP_MASK,
 					   sk->sk_bound_dev_if);
 		if (IS_ERR(rt))
 			goto no_route;
