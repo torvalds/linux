@@ -126,6 +126,13 @@
 		regulator-name = "usb-phy-dummy";
 	};
 
+	reg_vref_1v8: regulator-vref-1v8 {
+		compatible = "regulator-fixed";
+		regulator-name = "+V1.8";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+	};
+
 	reserved-memory {
 		#address-cells = <2>;
 		#size-cells = <2>;
@@ -198,11 +205,32 @@
 		};
 	};
 
-	/* TODO: Apalis Analogue Audio */
+	sound {
+		compatible = "simple-audio-card";
+		simple-audio-card,bitclock-master = <&dailink_master>;
+		simple-audio-card,format = "i2s";
+		simple-audio-card,frame-master = <&dailink_master>;
+		simple-audio-card,name = "apalis-imx8qm";
+
+		simple-audio-card,cpu {
+			sound-dai = <&sai1>;
+		};
+
+		dailink_master: simple-audio-card,codec {
+			sound-dai = <&sgtl5000>;
+		};
+	};
 
 	/* TODO: HDMI Audio */
 
-	/* TODO: Apalis SPDIF1 */
+	/* Apalis SPDIF1 */
+	sound-spdif {
+		compatible = "fsl,imx-audio-spdif";
+		model = "imx-spdif";
+		spdif-controller = <&spdif0>;
+		spdif-in;
+		spdif-out;
+	};
 
 	touchscreen: touchscreen {
 		compatible = "toradex,vf50-touchscreen";
@@ -225,6 +253,10 @@
 		status = "disabled";
 	};
 
+};
+
+&asrc0 {
+	fsl,asrc-rate  = <48000>;
 };
 
 &adc0 {
@@ -334,8 +366,6 @@
 	clock-frequency = <100000>;
 	status = "okay";
 
-	/* TODO: Audio Codec */
-
 	/* USB3503A */
 	usb-hub@8 {
 		compatible = "smsc,usb3503a";
@@ -347,6 +377,24 @@
 		intn-gpios = <&lsio_gpio1 1 GPIO_ACTIVE_HIGH>;
 		refclk-frequency = <25000000>;
 		reset-gpios = <&lsio_gpio1 2 GPIO_ACTIVE_LOW>;
+	};
+	
+	/* On Module Audio Codec */
+	sgtl5000: audio-codec@a {
+		compatible = "fsl,sgtl5000";
+		reg = <0x0a>;
+		assigned-clocks = <&clk IMX_SC_R_AUDIO_PLL_0 IMX_SC_PM_CLK_PLL>,
+				  <&clk IMX_SC_R_AUDIO_PLL_0 IMX_SC_PM_CLK_SLV_BUS>,
+				  <&clk IMX_SC_R_AUDIO_PLL_0 IMX_SC_PM_CLK_MST_BUS>,
+				  <&mclkout0_lpcg IMX_LPCG_CLK_0>;
+		assigned-clock-rates = <786432000>, <49152000>, <12288000>, <12288000>;
+		clocks = <&mclkout0_lpcg IMX_LPCG_CLK_0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_sgtl5000>;
+		#sound-dai-cells = <0>;
+		VDDA-supply = <&reg_module_3v3_avdd>;
+		VDDD-supply = <&reg_vref_1v8>;
+		VDDIO-supply = <&reg_module_3v3>;
 	};
 };
 
@@ -729,13 +777,31 @@
 
 /* TODO: Apalis BKL1_PWM */
 
-/* TODO: Apalis DAP1 */
-
-/* TODO: Analogue Audio */
+/* Apalis DAP1 */
+&sai1 {
+	assigned-clocks = <&clk IMX_SC_R_AUDIO_PLL_0 IMX_SC_PM_CLK_PLL>,
+			  <&clk IMX_SC_R_AUDIO_PLL_0 IMX_SC_PM_CLK_SLV_BUS>,
+			  <&clk IMX_SC_R_AUDIO_PLL_0 IMX_SC_PM_CLK_MST_BUS>,
+			  <&sai1_lpcg IMX_LPCG_CLK_0>;
+	assigned-clock-rates = <786432000>, <49152000>, <12288000>, <49152000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_sai1>;
+	#sound-dai-cells = <0>;
+	status = "okay";
+};
 
 /* TODO: Apalis SATA1 */
 
-/* TODO: Apalis SPDIF1 */
+/* Apalis SPDIF1 */
+&spdif0 {
+	assigned-clocks = <&clk IMX_SC_R_AUDIO_PLL_0 IMX_SC_PM_CLK_PLL>,
+			  <&clk IMX_SC_R_AUDIO_PLL_0 IMX_SC_PM_CLK_SLV_BUS>,
+			  <&clk IMX_SC_R_AUDIO_PLL_0 IMX_SC_PM_CLK_MST_BUS>;
+	assigned-clock-rates = <786432000>, <49152000>, <12288000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_spdif0>;
+	status = "okay";
+};
 
 /* TODO: Thermal Zones */
 
