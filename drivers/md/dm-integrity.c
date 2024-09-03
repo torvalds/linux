@@ -4717,13 +4717,18 @@ static int dm_integrity_ctr(struct dm_target *ti, unsigned int argc, char **argv
 		ti->error = "Block size doesn't match the information in superblock";
 		goto bad;
 	}
-	if (!le32_to_cpu(ic->sb->journal_sections) != (ic->mode == 'I')) {
-		r = -EINVAL;
-		if (ic->mode != 'I')
+	if (ic->mode != 'I') {
+		if (!le32_to_cpu(ic->sb->journal_sections)) {
+			r = -EINVAL;
 			ti->error = "Corrupted superblock, journal_sections is 0";
-		else
+			goto bad;
+		}
+	} else {
+		if (le32_to_cpu(ic->sb->journal_sections)) {
+			r = -EINVAL;
 			ti->error = "Corrupted superblock, journal_sections is not 0";
-		goto bad;
+			goto bad;
+		}
 	}
 	/* make sure that ti->max_io_len doesn't overflow */
 	if (!ic->meta_dev) {
