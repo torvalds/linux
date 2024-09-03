@@ -102,6 +102,8 @@ static int btree_node_data_alloc(struct bch_fs *c, struct btree *b, gfp_t gfp)
 {
 	BUG_ON(b->data || b->aux_data);
 
+	gfp |= __GFP_ACCOUNT|__GFP_RECLAIMABLE;
+
 	b->data = kvmalloc(btree_buf_bytes(b), gfp);
 	if (!b->data)
 		return -BCH_ERR_ENOMEM_btree_node_mem_alloc;
