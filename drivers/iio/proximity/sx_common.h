@@ -8,7 +8,6 @@
 #ifndef IIO_SX_COMMON_H
 #define IIO_SX_COMMON_H
 
-#include <linux/acpi.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/types.h>
 #include <linux/regulator/consumer.h>
