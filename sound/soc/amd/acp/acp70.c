@@ -25,6 +25,9 @@
 
 #define DRV_NAME "acp_asoc_acp70"
 
+#define CLK7_CLK0_DFS_CNTL_N1		0X0006C1A4
+#define CLK0_DIVIDER			0X19
+
 static struct acp_resource rsrc = {
 	.offset = 0,
 	.no_of_ctrls = 2,
@@ -134,12 +137,27 @@ static struct snd_soc_dai_driver acp70_dai[] = {
 },
 };
 
+static int acp70_i2s_master_clock_generate(struct acp_dev_data *adata)
+{
+	struct pci_dev *smn_dev;
+
+	smn_dev = pci_get_device(PCI_VENDOR_ID_AMD, 0x1507, NULL);
+	if (!smn_dev)
+		return -ENODEV;
+
+	/* Set clk7 DFS clock divider register value to get mclk as 196.608MHz*/
+	smn_write(smn_dev, CLK7_CLK0_DFS_CNTL_N1, CLK0_DIVIDER);
+
+	return 0;
+}
+
 static int acp_acp70_audio_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct acp_chip_info *chip;
 	struct acp_dev_data *adata;
 	struct resource *res;
+	int ret;
 
 	chip = dev_get_platdata(&pdev->dev);
 	if (!chip || !chip->base) {
@@ -191,6 +209,12 @@ static int acp_acp70_audio_probe(struct platform_device *pdev)
 	acp_machine_select(adata);
 
 	dev_set_drvdata(dev, adata);
+
+	ret = acp70_i2s_master_clock_generate(adata);
+	if (ret) {
+		dev_err(&pdev->dev, "Failed to set I2S master clock as 196.608MHz\n");
+		return ret;
+	}
 	acp_enable_interrupts(adata);
 	acp_platform_register(dev);
 	pm_runtime_set_autosuspend_delay(&pdev->dev, ACP_SUSPEND_DELAY_MS);
