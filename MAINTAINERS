@@ -10888,7 +10888,6 @@ F:	include/linux/input.h
 F:	include/linux/input/
 F:	include/linux/libps2.h
 F:	include/linux/serio.h
-F:	include/linux/uinput.h
 F:	include/uapi/linux/gameport.h
 F:	include/uapi/linux/input-event-codes.h
 F:	include/uapi/linux/input.h
