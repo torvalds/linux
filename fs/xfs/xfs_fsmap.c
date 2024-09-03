@@ -520,11 +520,11 @@ xfs_getfsmap_rtdev_rtbitmap(
 	struct xfs_getfsmap_info	*info)
 {
 
-	struct xfs_rtalloc_rec		alow = { 0 };
 	struct xfs_rtalloc_rec		ahigh = { 0 };
 	struct xfs_mount		*mp = tp->t_mountp;
 	xfs_rtblock_t			start_rtb;
 	xfs_rtblock_t			end_rtb;
+	xfs_rtxnum_t			high;
 	uint64_t			eofs;
 	int				error;
 
@@ -553,10 +553,9 @@ xfs_getfsmap_rtdev_rtbitmap(
 	 * Set up query parameters to return free rtextents covering the range
 	 * we want.
 	 */
-	alow.ar_startext = xfs_rtb_to_rtx(mp, start_rtb);
-	ahigh.ar_startext = xfs_rtb_to_rtxup(mp, end_rtb);
-	error = xfs_rtalloc_query_range(mp, tp, &alow, &ahigh,
-			xfs_getfsmap_rtdev_rtbitmap_helper, info);
+	high = xfs_rtb_to_rtxup(mp, end_rtb);
+	error = xfs_rtalloc_query_range(mp, tp, xfs_rtb_to_rtx(mp, start_rtb),
+			high, xfs_getfsmap_rtdev_rtbitmap_helper, info);
 	if (error)
 		goto err;
 
@@ -565,7 +564,7 @@ xfs_getfsmap_rtdev_rtbitmap(
 	 * rmap starting at the block after the end of the query range.
 	 */
 	info->last = true;
-	ahigh.ar_startext = min(mp->m_sb.sb_rextents, ahigh.ar_startext);
+	ahigh.ar_startext = min(mp->m_sb.sb_rextents, high);
 
 	error = xfs_getfsmap_rtdev_rtbitmap_helper(mp, tp, &ahigh, info);
 	if (error)

@@ -194,6 +194,17 @@ xfs_rtallocate_range(
 	return xfs_rtmodify_range(args, start, len, 0);
 }
 
+/* Reduce @rtxlen until it is a multiple of @prod. */
+static inline xfs_rtxlen_t
+xfs_rtalloc_align_len(
+	xfs_rtxlen_t	rtxlen,
+	xfs_rtxlen_t	prod)
+{
+	if (unlikely(prod > 1))
+		return rounddown(rtxlen, prod);
+	return rtxlen;
+}
+
 /*
  * Make sure we don't run off the end of the rt volume.  Be careful that
  * adjusting maxlen downwards doesn't cause us to fail the alignment checks.
@@ -208,7 +219,7 @@ xfs_rtallocate_clamp_len(
 	xfs_rtxlen_t		ret;
 
 	ret = min(mp->m_sb.sb_rextents, startrtx + rtxlen) - startrtx;
-	return rounddown(ret, prod);
+	return xfs_rtalloc_align_len(ret, prod);
 }
 
 /*
@@ -229,37 +240,38 @@ xfs_rtallocate_extent_block(
 	xfs_rtxnum_t		*rtx)	/* out: start rtext allocated */
 {
 	struct xfs_mount	*mp = args->mp;
-	xfs_rtxnum_t		besti;	/* best rtext found so far */
-	xfs_rtxnum_t		bestlen;/* best length found so far */
+	xfs_rtxnum_t		besti = -1; /* best rtext found so far */
 	xfs_rtxnum_t		end;	/* last rtext in chunk */
-	int			error;
 	xfs_rtxnum_t		i;	/* current rtext trying */
 	xfs_rtxnum_t		next;	/* next rtext to try */
+	xfs_rtxlen_t		scanlen; /* number of free rtx to look for */
+	xfs_rtxlen_t		bestlen = 0; /* best length found so far */
 	int			stat;	/* status from internal calls */
+	int			error;
 
 	/*
-	 * Loop over all the extents starting in this bitmap block,
-	 * looking for one that's long enough.
+	 * Loop over all the extents starting in this bitmap block up to the
+	 * end of the rt volume, looking for one that's long enough.
 	 */
-	for (i = xfs_rbmblock_to_rtx(mp, bbno), besti = -1, bestlen = 0,
-		end = xfs_rbmblock_to_rtx(mp, bbno + 1) - 1;
-	     i <= end;
-	     i++) {
+	end = min(mp->m_sb.sb_rextents, xfs_rbmblock_to_rtx(mp, bbno + 1)) - 1;
+	for (i = xfs_rbmblock_to_rtx(mp, bbno); i <= end; i++) {
 		/* Make sure we don't scan off the end of the rt volume. */
-		maxlen = xfs_rtallocate_clamp_len(mp, i, maxlen, prod);
+		scanlen = xfs_rtallocate_clamp_len(mp, i, maxlen, prod);
+		if (scanlen < minlen)
+			break;
 
 		/*
-		 * See if there's a free extent of maxlen starting at i.
+		 * See if there's a free extent of scanlen starting at i.
 		 * If it's not so then next will contain the first non-free.
 		 */
-		error = xfs_rtcheck_range(args, i, maxlen, 1, &next, &stat);
+		error = xfs_rtcheck_range(args, i, scanlen, 1, &next, &stat);
 		if (error)
 			return error;
 		if (stat) {
 			/*
-			 * i for maxlen is all free, allocate and return that.
+			 * i to scanlen is all free, allocate and return that.
 			 */
-			*len = maxlen;
+			*len = scanlen;
 			*rtx = i;
 			return 0;
 		}
@@ -289,27 +301,17 @@ xfs_rtallocate_extent_block(
 			return error;
 	}
 
-	/*
-	 * Searched the whole thing & didn't find a maxlen free extent.
-	 */
-	if (minlen > maxlen || besti == -1) {
-		/*
-		 * Allocation failed.  Set *nextp to the next block to try.
-		 */
-		*nextp = next;
-		return -ENOSPC;
-	}
+	/* Searched the whole thing & didn't find a maxlen free extent. */
+	if (besti == -1)
+		goto nospace;
 
 	/*
-	 * If size should be a multiple of prod, make that so.
+	 * Ensure bestlen is a multiple of prod, but don't return a too-short
+	 * extent.
 	 */
-	if (prod > 1) {
-		xfs_rtxlen_t	p;	/* amount to trim length by */
-
-		div_u64_rem(bestlen, prod, &p);
-		if (p)
-			bestlen -= p;
-	}
+	bestlen = xfs_rtalloc_align_len(bestlen, prod);
+	if (bestlen < minlen)
+		goto nospace;
 
 	/*
 	 * Pick besti for bestlen & return that.
@@ -317,6 +319,10 @@ xfs_rtallocate_extent_block(
 	*len = bestlen;
 	*rtx = besti;
 	return 0;
+nospace:
+	/* Allocation failed.  Set *nextp to the next block to try. */
+	*nextp = next;
+	return -ENOSPC;
 }
 
 /*
@@ -335,39 +341,46 @@ xfs_rtallocate_extent_exact(
 	xfs_rtxlen_t		prod,	/* extent product factor */
 	xfs_rtxnum_t		*rtx)	/* out: start rtext allocated */
 {
-	int			error;
-	xfs_rtxlen_t		i;	/* extent length trimmed due to prod */
-	int			isfree;	/* extent is free */
+	struct xfs_mount	*mp = args->mp;
 	xfs_rtxnum_t		next;	/* next rtext to try (dummy) */
+	xfs_rtxlen_t		alloclen; /* candidate length */
+	xfs_rtxlen_t		scanlen; /* number of free rtx to look for */
+	int			isfree;	/* extent is free */
+	int			error;
 
 	ASSERT(minlen % prod == 0);
 	ASSERT(maxlen % prod == 0);
-	/*
-	 * Check if the range in question (for maxlen) is free.
-	 */
-	error = xfs_rtcheck_range(args, start, maxlen, 1, &next, &isfree);
+
+	/* Make sure we don't run off the end of the rt volume. */
+	scanlen = xfs_rtallocate_clamp_len(mp, start, maxlen, prod);
+	if (scanlen < minlen)
+		return -ENOSPC;
+
+	/* Check if the range in question (for scanlen) is free. */
+	error = xfs_rtcheck_range(args, start, scanlen, 1, &next, &isfree);
 	if (error)
 		return error;
 
-	if (!isfree) {
-		/*
-		 * If not, allocate what there is, if it's at least minlen.
-		 */
-		maxlen = next - start;
-		if (maxlen < minlen)
-			return -ENOSPC;
-
-		/*
-		 * Trim off tail of extent, if prod is specified.
-		 */
-		if (prod > 1 && (i = maxlen % prod)) {
-			maxlen -= i;
-			if (maxlen < minlen)
-				return -ENOSPC;
-		}
+	if (isfree) {
+		/* start to scanlen is all free; allocate it. */
+		*len = scanlen;
+		*rtx = start;
+		return 0;
 	}
 
-	*len = maxlen;
+	/*
+	 * If not, allocate what there is, if it's at least minlen.
+	 */
+	alloclen = next - start;
+	if (alloclen < minlen)
+		return -ENOSPC;
+
+	/* Ensure alloclen is a multiple of prod. */
+	alloclen = xfs_rtalloc_align_len(alloclen, prod);
+	if (alloclen < minlen)
+		return -ENOSPC;
+
+	*len = alloclen;
 	*rtx = start;
 	return 0;
 }
@@ -405,11 +418,6 @@ xfs_rtallocate_extent_near(
 	 */
 	if (start >= mp->m_sb.sb_rextents)
 		start = mp->m_sb.sb_rextents - 1;
-
-	/* Make sure we don't run off the end of the rt volume. */
-	maxlen = xfs_rtallocate_clamp_len(mp, start, maxlen, prod);
-	if (maxlen < minlen)
-		return -ENOSPC;
 
 	/*
 	 * Try the exact allocation first.
@@ -719,8 +727,8 @@ xfs_growfs_rt_bmblock(
 	/*
 	 * Calculate new sb and mount fields for this round.
 	 */
-	nmp->m_rtxblklog = -1; /* don't use shift or masking */
 	nmp->m_sb.sb_rextsize = rextsize;
+	xfs_mount_sb_set_rextsize(nmp, &nmp->m_sb);
 	nmp->m_sb.sb_rbmblocks = bmbno + 1;
 	nmp->m_sb.sb_rblocks = min(nrblocks, nrblocks_step);
 	nmp->m_sb.sb_rextents = xfs_rtb_to_rtx(nmp, nmp->m_sb.sb_rblocks);
@@ -730,10 +738,12 @@ xfs_growfs_rt_bmblock(
 		xfs_rtsummary_blockcount(mp, nmp->m_rsumlevels,
 			nmp->m_sb.sb_rbmblocks));
 
-	/* recompute growfsrt reservation from new rsumsize */
+	/*
+	 * Recompute the growfsrt reservation from the new rsumsize, so that the
+	 * transaction below use the new, potentially larger value.
+	 * */
 	xfs_trans_resv_calc(nmp, &nmp->m_resv);
-
-	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_growrtfree, 0, 0, 0,
+	error = xfs_trans_alloc(mp, &M_RES(nmp)->tr_growrtfree, 0, 0, 0,
 			&args.tp);
 	if (error)
 		goto out_free;
@@ -805,10 +815,11 @@ xfs_growfs_rt_bmblock(
 	xfs_trans_mod_sb(args.tp, XFS_TRANS_SB_FREXTENTS, freed_rtx);
 
 	/*
-	 * Update mp values into the real mp structure.
+	 * Update the calculated values in the real mount structure.
 	 */
 	mp->m_rsumlevels = nmp->m_rsumlevels;
 	mp->m_rsumsize = nmp->m_rsumsize;
+	xfs_mount_sb_set_rextsize(mp, &mp->m_sb);
 
 	/*
 	 * Recompute the growfsrt reservation from the new rsumsize.
