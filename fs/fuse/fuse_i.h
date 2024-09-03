@@ -1147,7 +1147,8 @@ void __exit fuse_ctl_cleanup(void);
 /**
  * Simple request sending that does request allocation and freeing
  */
-ssize_t fuse_simple_request(struct fuse_mount *fm, struct fuse_args *args);
+ssize_t fuse_simple_request(struct mnt_idmap *idmap, struct fuse_mount *fm,
+			    struct fuse_args *args);
 int fuse_simple_background(struct fuse_mount *fm, struct fuse_args *args,
 			   gfp_t gfp_flags);
 

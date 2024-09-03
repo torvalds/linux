@@ -18,7 +18,7 @@ static ssize_t fuse_send_ioctl(struct fuse_mount *fm, struct fuse_args *args,
 	args->out_args[0].size = sizeof(*outarg);
 	args->out_args[0].value = outarg;
 
-	ret = fuse_simple_request(fm, args);
+	ret = fuse_simple_request(NULL, fm, args);
 
 	/* Translate ENOSYS, which shouldn't be returned from fs */
 	if (ret == -ENOSYS)

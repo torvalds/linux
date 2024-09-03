@@ -279,7 +279,7 @@ static void fuse_force_forget(struct file *file, u64 nodeid)
 	args.force = true;
 	args.noreply = true;
 
-	fuse_simple_request(fm, &args);
+	fuse_simple_request(NULL, fm, &args);
 	/* ignore errors */
 }
 
@@ -358,7 +358,7 @@ static int fuse_readdir_uncached(struct file *file, struct dir_context *ctx)
 				    FUSE_READDIR);
 	}
 	locked = fuse_lock_inode(inode);
-	res = fuse_simple_request(fm, &ap->args);
+	res = fuse_simple_request(NULL, fm, &ap->args);
 	fuse_unlock_inode(inode, locked);
 	if (res >= 0) {
 		if (!res) {

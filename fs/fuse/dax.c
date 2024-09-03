@@ -207,7 +207,7 @@ static int fuse_setup_one_mapping(struct inode *inode, unsigned long start_idx,
 	args.in_numargs = 1;
 	args.in_args[0].size = sizeof(inarg);
 	args.in_args[0].value = &inarg;
-	err = fuse_simple_request(fm, &args);
+	err = fuse_simple_request(NULL, fm, &args);
 	if (err < 0)
 		return err;
 	dmap->writable = writable;
@@ -245,7 +245,7 @@ static int fuse_send_removemapping(struct inode *inode,
 	args.in_args[0].value = inargp;
 	args.in_args[1].size = inargp->count * sizeof(*remove_one);
 	args.in_args[1].value = remove_one;
-	return fuse_simple_request(fm, &args);
+	return fuse_simple_request(NULL, fm, &args);
 }
 
 static int dmap_removemapping_list(struct inode *inode, unsigned int num,

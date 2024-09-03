@@ -539,7 +539,9 @@ static void fuse_args_to_req(struct fuse_req *req, struct fuse_args *args)
 		__set_bit(FR_ASYNC, &req->flags);
 }
 
-ssize_t fuse_simple_request(struct fuse_mount *fm, struct fuse_args *args)
+ssize_t fuse_simple_request(struct mnt_idmap *idmap,
+			    struct fuse_mount *fm,
+			    struct fuse_args *args)
 {
 	struct fuse_conn *fc = fm->fc;
 	struct fuse_req *req;
@@ -556,7 +558,7 @@ ssize_t fuse_simple_request(struct fuse_mount *fm, struct fuse_args *args)
 		__set_bit(FR_FORCE, &req->flags);
 	} else {
 		WARN_ON(args->nocreds);
-		req = fuse_get_req(NULL, fm, false);
+		req = fuse_get_req(idmap, fm, false);
 		if (IS_ERR(req))
 			return PTR_ERR(req);
 	}

@@ -37,7 +37,7 @@ int fuse_setxattr(struct inode *inode, const char *name, const void *value,
 	args.in_args[1].value = name;
 	args.in_args[2].size = size;
 	args.in_args[2].value = value;
-	err = fuse_simple_request(fm, &args);
+	err = fuse_simple_request(NULL, fm, &args);
 	if (err == -ENOSYS) {
 		fm->fc->no_setxattr = 1;
 		err = -EOPNOTSUPP;
@@ -79,7 +79,7 @@ ssize_t fuse_getxattr(struct inode *inode, const char *name, void *value,
 		args.out_args[0].size = sizeof(outarg);
 		args.out_args[0].value = &outarg;
 	}
-	ret = fuse_simple_request(fm, &args);
+	ret = fuse_simple_request(NULL, fm, &args);
 	if (!ret && !size)
 		ret = min_t(size_t, outarg.size, XATTR_SIZE_MAX);
 	if (ret == -ENOSYS) {
@@ -141,7 +141,7 @@ ssize_t fuse_listxattr(struct dentry *entry, char *list, size_t size)
 		args.out_args[0].size = sizeof(outarg);
 		args.out_args[0].value = &outarg;
 	}
-	ret = fuse_simple_request(fm, &args);
+	ret = fuse_simple_request(NULL, fm, &args);
 	if (!ret && !size)
 		ret = min_t(size_t, outarg.size, XATTR_LIST_MAX);
 	if (ret > 0 && size)
@@ -167,7 +167,7 @@ int fuse_removexattr(struct inode *inode, const char *name)
 	args.in_numargs = 1;
 	args.in_args[0].size = strlen(name) + 1;
 	args.in_args[0].value = name;
-	err = fuse_simple_request(fm, &args);
+	err = fuse_simple_request(NULL, fm, &args);
 	if (err == -ENOSYS) {
 		fm->fc->no_removexattr = 1;
 		err = -EOPNOTSUPP;
