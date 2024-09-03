@@ -1665,12 +1665,10 @@ void dl_server_stop(struct sched_dl_entity *dl_se)
 
 void dl_server_init(struct sched_dl_entity *dl_se, struct rq *rq,
 		    dl_server_has_tasks_f has_tasks,
-		    dl_server_pick_f pick_next,
 		    dl_server_pick_f pick_task)
 {
 	dl_se->rq = rq;
 	dl_se->server_has_tasks = has_tasks;
-	dl_se->server_pick_next = pick_next;
 	dl_se->server_pick_task = pick_task;
 }
 
@@ -1896,46 +1894,40 @@ static inline bool __dl_less(struct rb_node *a, const struct rb_node *b)
 	return dl_time_before(__node_2_dle(a)->deadline, __node_2_dle(b)->deadline);
 }
 
-static inline struct sched_statistics *
+static __always_inline struct sched_statistics *
 __schedstats_from_dl_se(struct sched_dl_entity *dl_se)
 {
+	if (!schedstat_enabled())
+		return NULL;
+
+	if (dl_server(dl_se))
+		return NULL;
+
 	return &dl_task_of(dl_se)->stats;
 }
 
 static inline void
 update_stats_wait_start_dl(struct dl_rq *dl_rq, struct sched_dl_entity *dl_se)
 {
-	struct sched_statistics *stats;
-
-	if (!schedstat_enabled())
-		return;
-
-	stats = __schedstats_from_dl_se(dl_se);
-	__update_stats_wait_start(rq_of_dl_rq(dl_rq), dl_task_of(dl_se), stats);
+	struct sched_statistics *stats = __schedstats_from_dl_se(dl_se);
+	if (stats)
+		__update_stats_wait_start(rq_of_dl_rq(dl_rq), dl_task_of(dl_se), stats);
 }
 
 static inline void
 update_stats_wait_end_dl(struct dl_rq *dl_rq, struct sched_dl_entity *dl_se)
 {
-	struct sched_statistics *stats;
-
-	if (!schedstat_enabled())
-		return;
-
-	stats = __schedstats_from_dl_se(dl_se);
-	__update_stats_wait_end(rq_of_dl_rq(dl_rq), dl_task_of(dl_se), stats);
+	struct sched_statistics *stats = __schedstats_from_dl_se(dl_se);
+	if (stats)
+		__update_stats_wait_end(rq_of_dl_rq(dl_rq), dl_task_of(dl_se), stats);
 }
 
 static inline void
 update_stats_enqueue_sleeper_dl(struct dl_rq *dl_rq, struct sched_dl_entity *dl_se)
 {
-	struct sched_statistics *stats;
-
-	if (!schedstat_enabled())
-		return;
-
-	stats = __schedstats_from_dl_se(dl_se);
-	__update_stats_enqueue_sleeper(rq_of_dl_rq(dl_rq), dl_task_of(dl_se), stats);
+	struct sched_statistics *stats = __schedstats_from_dl_se(dl_se);
+	if (stats)
+		__update_stats_enqueue_sleeper(rq_of_dl_rq(dl_rq), dl_task_of(dl_se), stats);
 }
 
 static inline void
@@ -2392,6 +2384,9 @@ static void set_next_task_dl(struct rq *rq, struct task_struct *p, bool first)
 		update_dl_rq_load_avg(rq_clock_pelt(rq), rq, 0);
 
 	deadline_queue_push_tasks(rq);
+
+	if (hrtick_enabled(rq))
+		start_hrtick_dl(rq, &p->dl);
 }
 
 static struct sched_dl_entity *pick_next_dl_entity(struct dl_rq *dl_rq)
@@ -2407,9 +2402,8 @@ static struct sched_dl_entity *pick_next_dl_entity(struct dl_rq *dl_rq)
 /*
  * __pick_next_task_dl - Helper to pick the next -deadline task to run.
  * @rq: The runqueue to pick the next task from.
- * @peek: If true, just peek at the next task. Only relevant for dlserver.
  */
-static struct task_struct *__pick_next_task_dl(struct rq *rq, bool peek)
+static struct task_struct *__pick_task_dl(struct rq *rq)
 {
 	struct sched_dl_entity *dl_se;
 	struct dl_rq *dl_rq = &rq->dl;
@@ -2423,16 +2417,13 @@ again:
 	WARN_ON_ONCE(!dl_se);
 
 	if (dl_server(dl_se)) {
-		if (IS_ENABLED(CONFIG_SMP) && peek)
-			p = dl_se->server_pick_task(dl_se);
-		else
-			p = dl_se->server_pick_next(dl_se);
+		p = dl_se->server_pick_task(dl_se);
 		if (!p) {
 			dl_se->dl_yielded = 1;
 			update_curr_dl_se(rq, dl_se, 0);
 			goto again;
 		}
-		p->dl_server = dl_se;
+		rq->dl_server = dl_se;
 	} else {
 		p = dl_task_of(dl_se);
 	}
@@ -2440,31 +2431,12 @@ again:
 	return p;
 }
 
-#ifdef CONFIG_SMP
 static struct task_struct *pick_task_dl(struct rq *rq)
 {
-	return __pick_next_task_dl(rq, true);
-}
-#endif
-
-static struct task_struct *pick_next_task_dl(struct rq *rq)
-{
-	struct task_struct *p;
-
-	p = __pick_next_task_dl(rq, false);
-	if (!p)
-		return p;
-
-	if (!p->dl_server)
-		set_next_task_dl(rq, p, true);
-
-	if (hrtick_enabled(rq))
-		start_hrtick_dl(rq, &p->dl);
-
-	return p;
+	return __pick_task_dl(rq);
 }
 
-static void put_prev_task_dl(struct rq *rq, struct task_struct *p)
+static void put_prev_task_dl(struct rq *rq, struct task_struct *p, struct task_struct *next)
 {
 	struct sched_dl_entity *dl_se = &p->dl;
 	struct dl_rq *dl_rq = &rq->dl;
@@ -3156,13 +3128,12 @@ DEFINE_SCHED_CLASS(dl) = {
 
 	.wakeup_preempt		= wakeup_preempt_dl,
 
-	.pick_next_task		= pick_next_task_dl,
+	.pick_task		= pick_task_dl,
 	.put_prev_task		= put_prev_task_dl,
 	.set_next_task		= set_next_task_dl,
 
 #ifdef CONFIG_SMP
 	.balance		= balance_dl,
-	.pick_task		= pick_task_dl,
 	.select_task_rq		= select_task_rq_dl,
 	.migrate_task_rq	= migrate_task_rq_dl,
 	.set_cpus_allowed       = set_cpus_allowed_dl,

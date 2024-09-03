@@ -1748,17 +1748,7 @@ static struct task_struct *pick_task_rt(struct rq *rq)
 	return p;
 }
 
-static struct task_struct *pick_next_task_rt(struct rq *rq)
-{
-	struct task_struct *p = pick_task_rt(rq);
-
-	if (p)
-		set_next_task_rt(rq, p, true);
-
-	return p;
-}
-
-static void put_prev_task_rt(struct rq *rq, struct task_struct *p)
+static void put_prev_task_rt(struct rq *rq, struct task_struct *p, struct task_struct *next)
 {
 	struct sched_rt_entity *rt_se = &p->rt;
 	struct rt_rq *rt_rq = &rq->rt;
@@ -2645,13 +2635,12 @@ DEFINE_SCHED_CLASS(rt) = {
 
 	.wakeup_preempt		= wakeup_preempt_rt,
 
-	.pick_next_task		= pick_next_task_rt,
+	.pick_task		= pick_task_rt,
 	.put_prev_task		= put_prev_task_rt,
 	.set_next_task          = set_next_task_rt,
 
 #ifdef CONFIG_SMP
 	.balance		= balance_rt,
-	.pick_task		= pick_task_rt,
 	.select_task_rq		= select_task_rq_rt,
 	.set_cpus_allowed       = set_cpus_allowed_common,
 	.rq_online              = rq_online_rt,

@@ -5457,6 +5457,13 @@ static void clear_buddies(struct cfs_rq *cfs_rq, struct sched_entity *se)
 
 static __always_inline void return_cfs_rq_runtime(struct cfs_rq *cfs_rq);
 
+static inline void finish_delayed_dequeue_entity(struct sched_entity *se)
+{
+	se->sched_delayed = 0;
+	if (sched_feat(DELAY_ZERO) && se->vlag > 0)
+		se->vlag = 0;
+}
+
 static bool
 dequeue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int flags)
 {
@@ -5532,11 +5539,8 @@ dequeue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int flags)
 	if ((flags & (DEQUEUE_SAVE | DEQUEUE_MOVE)) != DEQUEUE_SAVE)
 		update_min_vruntime(cfs_rq);
 
-	if (flags & DEQUEUE_DELAYED) {
-		se->sched_delayed = 0;
-		if (sched_feat(DELAY_ZERO) && se->vlag > 0)
-			se->vlag = 0;
-	}
+	if (flags & DEQUEUE_DELAYED)
+		finish_delayed_dequeue_entity(se);
 
 	if (cfs_rq->nr_running == 0)
 		update_idle_cfs_rq_clock_pelt(cfs_rq);
@@ -8746,16 +8750,11 @@ again:
 		cfs_rq = group_cfs_rq(se);
 	} while (cfs_rq);
 
-	/*
-	 * This can be called from directly from CFS's ->pick_task() or indirectly
-	 * from DL's ->pick_task when fair server is enabled. In the indirect case,
-	 * DL will set ->dl_server just after this function is called, so its Ok to
-	 * clear. In the direct case, we are picking directly so we must clear it.
-	 */
-	task_of(se)->dl_server = NULL;
-
 	return task_of(se);
 }
+
+static void __set_next_task_fair(struct rq *rq, struct task_struct *p, bool first);
+static void set_next_task_fair(struct rq *rq, struct task_struct *p, bool first);
 
 struct task_struct *
 pick_next_task_fair(struct rq *rq, struct task_struct *prev, struct rq_flags *rf)
@@ -8771,8 +8770,10 @@ again:
 	se = &p->se;
 
 #ifdef CONFIG_FAIR_GROUP_SCHED
-	if (!prev || prev->sched_class != &fair_sched_class)
+	if (prev->sched_class != &fair_sched_class)
 		goto simple;
+
+	__put_prev_set_next_dl_server(rq, prev, p);
 
 	/*
 	 * Because of the set_next_buddy() in dequeue_task_fair() it is rather
@@ -8805,33 +8806,15 @@ again:
 
 		put_prev_entity(cfs_rq, pse);
 		set_next_entity(cfs_rq, se);
+
+		__set_next_task_fair(rq, p, true);
 	}
 
-	goto done;
+	return p;
+
 simple:
 #endif
-	if (prev)
-		put_prev_task(rq, prev);
-
-	for_each_sched_entity(se)
-		set_next_entity(cfs_rq_of(se), se);
-
-done: __maybe_unused;
-#ifdef CONFIG_SMP
-	/*
-	 * Move the next running task to the front of
-	 * the list, so our cfs_tasks list becomes MRU
-	 * one.
-	 */
-	list_move(&p->se.group_node, &rq->cfs_tasks);
-#endif
-
-	if (hrtick_enabled_fair(rq))
-		hrtick_start_fair(rq, p);
-
-	update_misfit_status(p, rq);
-	sched_fair_update_stop_tick(rq, p);
-
+	put_prev_set_next_task(rq, prev, p);
 	return p;
 
 idle:
@@ -8860,9 +8843,9 @@ idle:
 	return NULL;
 }
 
-static struct task_struct *__pick_next_task_fair(struct rq *rq)
+static struct task_struct *__pick_next_task_fair(struct rq *rq, struct task_struct *prev)
 {
-	return pick_next_task_fair(rq, NULL, NULL);
+	return pick_next_task_fair(rq, prev, NULL);
 }
 
 static bool fair_server_has_tasks(struct sched_dl_entity *dl_se)
@@ -8872,16 +8855,7 @@ static bool fair_server_has_tasks(struct sched_dl_entity *dl_se)
 
 static struct task_struct *fair_server_pick_task(struct sched_dl_entity *dl_se)
 {
-#ifdef CONFIG_SMP
 	return pick_task_fair(dl_se->rq);
-#else
-	return NULL;
-#endif
-}
-
-static struct task_struct *fair_server_pick_next(struct sched_dl_entity *dl_se)
-{
-	return pick_next_task_fair(dl_se->rq, NULL, NULL);
 }
 
 void fair_server_init(struct rq *rq)
@@ -8890,15 +8864,13 @@ void fair_server_init(struct rq *rq)
 
 	init_dl_entity(dl_se);
 
-	dl_server_init(dl_se, rq, fair_server_has_tasks, fair_server_pick_next,
-		       fair_server_pick_task);
-
+	dl_server_init(dl_se, rq, fair_server_has_tasks, fair_server_pick_task);
 }
 
 /*
  * Account for a descheduled task:
  */
-static void put_prev_task_fair(struct rq *rq, struct task_struct *prev)
+static void put_prev_task_fair(struct rq *rq, struct task_struct *prev, struct task_struct *next)
 {
 	struct sched_entity *se = &prev->se;
 	struct cfs_rq *cfs_rq;
@@ -13098,11 +13070,16 @@ static void switched_from_fair(struct rq *rq, struct task_struct *p)
 	 * and we cannot use DEQUEUE_DELAYED.
 	 */
 	if (p->se.sched_delayed) {
+		/* First, dequeue it from its new class' structures */
 		dequeue_task(rq, p, DEQUEUE_NOCLOCK | DEQUEUE_SLEEP);
-		p->se.sched_delayed = 0;
+		/*
+		 * Now, clean up the fair_sched_class side of things
+		 * related to sched_delayed being true and that wasn't done
+		 * due to the generic dequeue not using DEQUEUE_DELAYED.
+		 */
+		finish_delayed_dequeue_entity(&p->se);
 		p->se.rel_deadline = 0;
-		if (sched_feat(DELAY_ZERO) && p->se.vlag > 0)
-			p->se.vlag = 0;
+		__block_task(rq, p);
 	}
 }
 
@@ -13127,12 +13104,7 @@ static void switched_to_fair(struct rq *rq, struct task_struct *p)
 	}
 }
 
-/* Account for a task changing its policy or group.
- *
- * This routine is mostly called to set cfs_rq->curr field when a task
- * migrates between groups/classes.
- */
-static void set_next_task_fair(struct rq *rq, struct task_struct *p, bool first)
+static void __set_next_task_fair(struct rq *rq, struct task_struct *p, bool first)
 {
 	struct sched_entity *se = &p->se;
 
@@ -13145,6 +13117,27 @@ static void set_next_task_fair(struct rq *rq, struct task_struct *p, bool first)
 		list_move(&se->group_node, &rq->cfs_tasks);
 	}
 #endif
+	if (!first)
+		return;
+
+	SCHED_WARN_ON(se->sched_delayed);
+
+	if (hrtick_enabled_fair(rq))
+		hrtick_start_fair(rq, p);
+
+	update_misfit_status(p, rq);
+	sched_fair_update_stop_tick(rq, p);
+}
+
+/*
+ * Account for a task changing its policy or group.
+ *
+ * This routine is mostly called to set cfs_rq->curr field when a task
+ * migrates between groups/classes.
+ */
+static void set_next_task_fair(struct rq *rq, struct task_struct *p, bool first)
+{
+	struct sched_entity *se = &p->se;
 
 	for_each_sched_entity(se) {
 		struct cfs_rq *cfs_rq = cfs_rq_of(se);
@@ -13154,10 +13147,7 @@ static void set_next_task_fair(struct rq *rq, struct task_struct *p, bool first)
 		account_cfs_rq_runtime(cfs_rq, 0);
 	}
 
-	if (!first)
-		return;
-
-	SCHED_WARN_ON(se->sched_delayed);
+	__set_next_task_fair(rq, p, first);
 }
 
 void init_cfs_rq(struct cfs_rq *cfs_rq)
@@ -13483,13 +13473,13 @@ DEFINE_SCHED_CLASS(fair) = {
 
 	.wakeup_preempt		= check_preempt_wakeup_fair,
 
+	.pick_task		= pick_task_fair,
 	.pick_next_task		= __pick_next_task_fair,
 	.put_prev_task		= put_prev_task_fair,
 	.set_next_task          = set_next_task_fair,
 
 #ifdef CONFIG_SMP
 	.balance		= balance_fair,
-	.pick_task		= pick_task_fair,
 	.select_task_rq		= select_task_rq_fair,
 	.migrate_task_rq	= migrate_task_rq_fair,
 
