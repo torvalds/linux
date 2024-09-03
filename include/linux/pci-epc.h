@@ -149,6 +149,7 @@ struct pci_epc {
 };
 
 /**
+ * enum pci_epc_bar_type - configurability of endpoint BAR
  * @BAR_PROGRAMMABLE: The BAR mask can be configured by the EPC.
  * @BAR_FIXED: The BAR mask is fixed by the hardware.
  * @BAR_RESERVED: The BAR should not be touched by an EPF driver.
