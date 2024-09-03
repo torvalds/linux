@@ -396,7 +396,7 @@ MODULE_PARM_DESC(quirks, "Chip quirks (default = 0"
 
 static int param_debug;
 module_param_named(debug, param_debug, int, 0644);
-MODULE_PARM_DESC(debug, "Verbose logging (default = 0"
+MODULE_PARM_DESC(debug, "Verbose logging, deprecated in v6.11 kernel or later. (default = 0"
 	", AT/AR events = "	__stringify(OHCI_PARAM_DEBUG_AT_AR)
 	", self-IDs = "		__stringify(OHCI_PARAM_DEBUG_SELFIDS)
 	", IRQs = "		__stringify(OHCI_PARAM_DEBUG_IRQS)
@@ -2196,6 +2196,11 @@ static irqreturn_t irq_handler(int irq, void *data)
 
 	if (!event || !~event)
 		return IRQ_NONE;
+
+	if (unlikely(param_debug > 0)) {
+		dev_notice_ratelimited(ohci->card.device,
+				       "The debug parameter is superceded by tracepoints events, and deprecated.");
+	}
 
 	/*
 	 * busReset and postedWriteErr events must not be cleared yet
