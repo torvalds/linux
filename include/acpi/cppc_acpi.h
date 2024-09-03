@@ -162,31 +162,31 @@ extern int cppc_set_auto_sel(int cpu, bool enable);
 #else /* !CONFIG_ACPI_CPPC_LIB */
 static inline int cppc_get_desired_perf(int cpunum, u64 *desired_perf)
 {
-	return -ENOTSUPP;
+	return -EOPNOTSUPP;
 }
 static inline int cppc_get_nominal_perf(int cpunum, u64 *nominal_perf)
 {
-	return -ENOTSUPP;
+	return -EOPNOTSUPP;
 }
 static inline int cppc_get_highest_perf(int cpunum, u64 *highest_perf)
 {
-	return -ENOTSUPP;
+	return -EOPNOTSUPP;
 }
 static inline int cppc_get_perf_ctrs(int cpu, struct cppc_perf_fb_ctrs *perf_fb_ctrs)
 {
-	return -ENOTSUPP;
+	return -EOPNOTSUPP;
 }
 static inline int cppc_set_perf(int cpu, struct cppc_perf_ctrls *perf_ctrls)
 {
-	return -ENOTSUPP;
+	return -EOPNOTSUPP;
 }
 static inline int cppc_set_enable(int cpu, bool enable)
 {
-	return -ENOTSUPP;
+	return -EOPNOTSUPP;
 }
 static inline int cppc_get_perf_caps(int cpu, struct cppc_perf_caps *caps)
 {
-	return -ENOTSUPP;
+	return -EOPNOTSUPP;
 }
 static inline bool cppc_perf_ctrs_in_pcc(void)
 {
@@ -210,27 +210,27 @@ static inline bool cpc_ffh_supported(void)
 }
 static inline int cpc_read_ffh(int cpunum, struct cpc_reg *reg, u64 *val)
 {
-	return -ENOTSUPP;
+	return -EOPNOTSUPP;
 }
 static inline int cpc_write_ffh(int cpunum, struct cpc_reg *reg, u64 val)
 {
-	return -ENOTSUPP;
+	return -EOPNOTSUPP;
 }
 static inline int cppc_set_epp_perf(int cpu, struct cppc_perf_ctrls *perf_ctrls, bool enable)
 {
-	return -ENOTSUPP;
+	return -EOPNOTSUPP;
 }
 static inline int cppc_get_epp_perf(int cpunum, u64 *epp_perf)
 {
-	return -ENOTSUPP;
+	return -EOPNOTSUPP;
 }
 static inline int cppc_set_auto_sel(int cpu, bool enable)
 {
-	return -ENOTSUPP;
+	return -EOPNOTSUPP;
 }
 static inline int cppc_get_auto_sel_caps(int cpunum, struct cppc_perf_caps *perf_caps)
 {
-	return -ENOTSUPP;
+	return -EOPNOTSUPP;
 }
 #endif /* !CONFIG_ACPI_CPPC_LIB */
 
