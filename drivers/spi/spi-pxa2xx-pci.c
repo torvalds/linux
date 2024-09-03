@@ -145,10 +145,8 @@ static int lpss_spi_setup(struct pci_dev *dev, struct pxa2xx_spi_controller *c)
 	c->num_chipselect = 1;
 
 	ret = pxa2xx_spi_pci_clk_register(dev, ssp, 50000000);
-	if (ret) {
-		pci_dev_put(dma_dev);
+	if (ret)
 		return ret;
-	}
 
 	dma_dev = pci_get_slot(dev->bus, PCI_DEVFN(PCI_SLOT(dev->devfn), 0));
 	ret = devm_add_action_or_reset(&dev->dev, lpss_dma_put_device, dma_dev);
@@ -223,10 +221,8 @@ static int mrfld_spi_setup(struct pci_dev *dev, struct pxa2xx_spi_controller *c)
 	}
 
 	ret = pxa2xx_spi_pci_clk_register(dev, ssp, 25000000);
-	if (ret) {
-		pci_dev_put(dma_dev);
+	if (ret)
 		return ret;
-	}
 
 	dma_dev = pci_get_slot(dev->bus, PCI_DEVFN(21, 0));
 	ret = devm_add_action_or_reset(&dev->dev, lpss_dma_put_device, dma_dev);
