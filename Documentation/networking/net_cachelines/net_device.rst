@@ -7,6 +7,8 @@ net_device struct fast path usage breakdown
 
 Type                                Name                    fastpath_tx_access  fastpath_rx_access  Comments
 ..struct                            ..net_device                                                    
+unsigned_long:32                    priv_flags              read_mostly         -                   __dev_queue_xmit(tx)
+unsigned_long:1                     lltx                    read_mostly         -                   HARD_TX_LOCK,HARD_TX_TRYLOCK,HARD_TX_UNLOCK(tx)
 char                                name[16]                -                   -                   
 struct_netdev_name_node*            name_node                                                       
 struct_dev_ifalias*                 ifalias                                                         
@@ -23,7 +25,6 @@ struct_list_head                    ptype_specific                              
 struct                              adj_list                                                        
 unsigned_int                        flags                   read_mostly         read_mostly         __dev_queue_xmit,__dev_xmit_skb,ip6_output,__ip6_finish_output(tx);ip6_rcv_core(rx)
 xdp_features_t                      xdp_features                                                    
-unsigned_long_long                  priv_flags              read_mostly         -                   __dev_queue_xmit(tx)
 struct_net_device_ops*              netdev_ops              read_mostly         -                   netdev_core_pick_tx,netdev_start_xmit(tx)
 struct_xdp_metadata_ops*            xdp_metadata_ops                                                
 int                                 ifindex                 -                   read_mostly         ip6_rcv_core
@@ -163,6 +164,10 @@ struct_lock_class_key*              qdisc_tx_busylock
 bool                                proto_down                                                      
 unsigned:1                          wol_enabled                                                     
 unsigned:1                          threaded                -                   -                   napi_poll(napi_enable,dev_set_threaded)
+unsigned_long:1                     see_all_hwtstamp_requests                                       
+unsigned_long:1                     change_proto_down                                               
+unsigned_long:1                     netns_local                                                     
+unsigned_long:1                     fcoe_mtu                                                        
 struct_list_head                    net_notifier_list                                               
 struct_macsec_ops*                  macsec_ops                                                      
 struct_udp_tunnel_nic_info*         udp_tunnel_nic_info                                             

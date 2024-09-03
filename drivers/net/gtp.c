@@ -1356,7 +1356,7 @@ static void gtp_link_setup(struct net_device *dev)
 
 	dev->pcpu_stat_type = NETDEV_PCPU_STAT_TSTATS;
 	dev->priv_flags	|= IFF_NO_QUEUE;
-	dev->features	|= NETIF_F_LLTX;
+	dev->lltx = true;
 	netif_keep_dst(dev);
 
 	dev->needed_headroom	= LL_MAX_HEADER + GTP_IPV4_MAXLEN;
