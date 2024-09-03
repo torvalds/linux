@@ -5,8 +5,8 @@
  */
 
 /dts-v1/;
+#include "rk3399-t.dtsi"
 #include "rk3399-rock-pi-4.dtsi"
-#include "rk3399-t-opp.dtsi"
 
 / {
 	model = "Radxa ROCK 4SE";

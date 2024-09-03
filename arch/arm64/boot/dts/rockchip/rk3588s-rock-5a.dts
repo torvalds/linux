@@ -65,6 +65,18 @@
 		regulator-max-microvolt = <12000000>;
 	};
 
+	vcc3v3_wf: vcc3v3-wf-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc3v3_wf";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		enable-active-high;
+		gpio = <&gpio0 RK_PC5 GPIO_ACTIVE_HIGH>;
+		pinctrl-0 = <&pow_en>;
+		pinctrl-names = "default";
+		vin-supply = <&vcc5v0_sys>;
+	};
+
 	vcc5v0_host: vcc5v0-host-regulator {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc5v0_host";
@@ -112,6 +124,10 @@
 		regulator-max-microvolt = <1100000>;
 		vin-supply = <&vcc5v0_sys>;
 	};
+};
+
+&combphy0_ps {
+	status = "okay";
 };
 
 &combphy2_psu {
@@ -293,10 +309,24 @@
 	};
 };
 
+&pcie2x1l2 {
+	pinctrl-0 = <&pcie20x1m0_pins>;
+	pinctrl-names = "default";
+	reset-gpios = <&gpio3 RK_PD1 GPIO_ACTIVE_HIGH>;
+	vpcie3v3-supply = <&vcc3v3_wf>;
+	status = "okay";
+};
+
 &pinctrl {
 	leds {
 		io_led: io-led {
 			rockchip,pins = <3 RK_PD5 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	pcie {
+		pow_en: pow-en {
+			rockchip,pins = <0 RK_PC5 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
@@ -315,28 +345,6 @@
 	usb {
 		vcc5v0_host_en: vcc5v0-host-en {
 			rockchip,pins = <4 RK_PB5 RK_FUNC_GPIO &pcfg_pull_none>;
-		};
-	};
-
-	wifibt {
-		wl_reset: wl-reset {
-			rockchip,pins = <0 RK_PD0 RK_FUNC_GPIO &pcfg_pull_up>;
-		};
-
-		wl_dis: wl-dis {
-			rockchip,pins = <0 RK_PD5 RK_FUNC_GPIO &pcfg_output_high>;
-		};
-
-		wl_wake_host: wl-wake-host {
-			rockchip,pins = <0 RK_PC7 RK_FUNC_GPIO &pcfg_pull_up>;
-		};
-
-		bt_dis: bt-dis {
-			rockchip,pins = <0 RK_PD4 RK_FUNC_GPIO &pcfg_output_high>;
-		};
-
-		bt_wake_host: bt-wake-host {
-			rockchip,pins = <0 RK_PC5 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 };
@@ -754,8 +762,6 @@
 
 &usb_host0_ehci {
 	status = "okay";
-	pinctrl-names = "default";
-	pinctrl-0 = <&wl_reset &wl_dis &wl_wake_host &bt_dis &bt_wake_host>;
 };
 
 &usb_host0_ohci {

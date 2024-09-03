@@ -4,6 +4,8 @@
  * Copyright (c) 2022 Radxa Limited
  */
 
+#include "rk3399-base.dtsi"
+
 / {
 	cluster0_opp: opp-table-0 {
 		compatible = "operating-points-v2";

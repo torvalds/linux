@@ -5,9 +5,8 @@
  * Copyright (c) 2018 Linaro Ltd.
  */
 
-#include "rk3399.dtsi"
-#include "rk3399-opp.dtsi"
 #include <dt-bindings/interrupt-controller/irq.h>
+#include "rk3399.dtsi"
 
 / {
 	aliases {

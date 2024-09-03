@@ -4,11 +4,9 @@
  * Copyright (c) 2019 Pragnesh Patel <Pragnesh_Patel@mentor.com>
  */
 
-/dts-v1/;
 #include <dt-bindings/input/linux-event-codes.h>
 #include <dt-bindings/leds/common.h>
 #include <dt-bindings/pwm/pwm.h>
-#include "rk3399.dtsi"
 
 / {
 	aliases {
