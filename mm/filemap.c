@@ -2567,7 +2567,7 @@ retry:
 			goto err;
 	}
 
-	trace_mm_filemap_get_pages(mapping, index, last_index);
+	trace_mm_filemap_get_pages(mapping, index, last_index - 1);
 	return 0;
 err:
 	if (err < 0)
