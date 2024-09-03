@@ -129,9 +129,8 @@ static int rmi_f12_read_sensor_tuning(struct f12_data *f12)
 	 * Use the Query DPM feature when the resolution query register
 	 * exists.
 	 */
-	item = rmi_get_register_desc_item(&f12->query_reg_desc,
-					  RMI_F12_QUERY_RESOLUTION);
-	if (item) {
+	if (rmi_get_register_desc_item(&f12->query_reg_desc,
+				       RMI_F12_QUERY_RESOLUTION)) {
 		offset = rmi_register_desc_calc_reg_offset(&f12->query_reg_desc,
 						RMI_F12_QUERY_RESOLUTION);
 		query_dpm_addr = fn->fd.query_base_addr	+ offset;
