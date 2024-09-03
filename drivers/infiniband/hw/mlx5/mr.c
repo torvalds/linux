@@ -779,7 +779,6 @@ static void clean_keys(struct mlx5_ib_dev *dev, struct mlx5_cache_ent *ent)
 {
 	u32 mkey;
 
-	cancel_delayed_work(&ent->dwork);
 	spin_lock_irq(&ent->mkeys_queue.lock);
 	while (ent->mkeys_queue.ci) {
 		mkey = pop_mkey_locked(ent);
