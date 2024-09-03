@@ -140,7 +140,7 @@ enum ieee802154_hw_flags {
  *
  * xmit_sync:
  *	  Handler that 802.15.4 module calls for each transmitted frame.
- *	  skb cntains the buffer starting from the IEEE 802.15.4 header.
+ *	  skb contains the buffer starting from the IEEE 802.15.4 header.
  *	  The low-level driver should send the frame based on available
  *	  configuration. This is called by a workqueue and useful for
  *	  synchronous 802.15.4 drivers.
@@ -152,7 +152,7 @@ enum ieee802154_hw_flags {
  *
  * xmit_async:
  *	  Handler that 802.15.4 module calls for each transmitted frame.
- *	  skb cntains the buffer starting from the IEEE 802.15.4 header.
+ *	  skb contains the buffer starting from the IEEE 802.15.4 header.
  *	  The low-level driver should send the frame based on available
  *	  configuration.
  *	  This function should return zero or negative errno.
