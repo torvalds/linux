@@ -314,7 +314,6 @@ struct cdns_pcie {
 /**
  * struct cdns_pcie_rc - private data for this PCIe Root Complex driver
  * @pcie: Cadence PCIe controller
- * @dev: pointer to PCIe device
  * @cfg_res: start/end offsets in the physical system memory to map PCI
  *           configuration space accesses
  * @cfg_base: IO mapped window to access the PCI configuration space of a
