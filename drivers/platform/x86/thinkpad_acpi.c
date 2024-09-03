@@ -8318,7 +8318,7 @@ static int fan_set_level_safe(int level)
 
 static int fan_set_enable(void)
 {
-	u8 s;
+	u8 s = 0;
 	int rc;
 
 	if (!fan_control_allowed)
