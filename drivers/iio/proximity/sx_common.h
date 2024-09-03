@@ -150,9 +150,6 @@ int sx_common_probe(struct i2c_client *client,
 		    const struct sx_common_chip_info *chip_info,
 		    const struct regmap_config *regmap_config);
 
-void sx_common_get_raw_register_config(struct device *dev,
-				       struct sx_common_reg_default *reg_def);
-
 /* 3 is the number of events defined by a single phase. */
 extern const struct iio_event_spec sx_common_events[3];
 
