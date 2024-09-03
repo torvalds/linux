@@ -53,6 +53,7 @@
 #include <net/net_namespace.h>
 #include <net/netns/generic.h>
 #include <net/dst_metadata.h>
+#include <net/inet_dscp.h>
 
 MODULE_AUTHOR("Ville Nuorvala");
 MODULE_DESCRIPTION("IPv6 tunneling device");
@@ -608,7 +609,8 @@ ip4ip6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 
 	/* Try to guess incoming interface */
 	rt = ip_route_output_ports(dev_net(skb->dev), &fl4, NULL, eiph->saddr,
-				   0, 0, 0, IPPROTO_IPIP, RT_TOS(eiph->tos), 0);
+				   0, 0, 0, IPPROTO_IPIP,
+				   eiph->tos & INET_DSCP_MASK, 0);
 	if (IS_ERR(rt))
 		goto out;
 
@@ -619,7 +621,8 @@ ip4ip6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	if (rt->rt_flags & RTCF_LOCAL) {
 		rt = ip_route_output_ports(dev_net(skb->dev), &fl4, NULL,
 					   eiph->daddr, eiph->saddr, 0, 0,
-					   IPPROTO_IPIP, RT_TOS(eiph->tos), 0);
+					   IPPROTO_IPIP,
+					   eiph->tos & INET_DSCP_MASK, 0);
 		if (IS_ERR(rt) || rt->dst.dev->type != ARPHRD_TUNNEL6) {
 			if (!IS_ERR(rt))
 				ip_rt_put(rt);
