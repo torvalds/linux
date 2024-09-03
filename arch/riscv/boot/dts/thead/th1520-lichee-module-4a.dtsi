@@ -25,18 +25,6 @@
 	clock-frequency = <32768>;
 };
 
-&apb_clk {
-	clock-frequency = <62500000>;
-};
-
-&sdhci_clk {
-	clock-frequency = <198000000>;
-};
-
-&uart_sclk {
-	clock-frequency = <100000000>;
-};
-
 &dmac0 {
 	status = "okay";
 };
