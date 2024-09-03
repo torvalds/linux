@@ -2460,6 +2460,16 @@ static int qcom_ethqos_remove(struct platform_device *pdev)
 	return ret;
 }
 
+static void qcom_ethqos_shutdown_main(struct platform_device *pdev)
+{
+	struct net_device *dev = platform_get_drvdata(pdev);
+
+	if (!dev)
+		return;
+
+	qcom_ethqos_remove(pdev);
+}
+
 static int qcom_ethqos_suspend(struct device *dev)
 {
 	struct qcom_ethqos *ethqos;
@@ -2775,6 +2785,7 @@ static const struct dev_pm_ops qcom_ethqos_pm_ops = {
 static struct platform_driver qcom_ethqos_driver = {
 	.probe  = qcom_ethqos_probe,
 	.remove = qcom_ethqos_remove,
+	.shutdown = qcom_ethqos_shutdown_main,
 	.driver = {
 		.name           = DRV_NAME,
 		.pm             = &qcom_ethqos_pm_ops,
