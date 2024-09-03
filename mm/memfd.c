@@ -82,11 +82,10 @@ struct folio *memfd_alloc_folio(struct file *memfd, pgoff_t idx)
 		gfp_mask = htlb_alloc_mask(hstate_file(memfd));
 		gfp_mask &= ~(__GFP_HIGHMEM | __GFP_MOVABLE);
 
-		folio = alloc_hugetlb_folio_nodemask(hstate_file(memfd),
-						     numa_node_id(),
-						     NULL,
-						     gfp_mask,
-						     false);
+		folio = alloc_hugetlb_folio_reserve(hstate_file(memfd),
+						    numa_node_id(),
+						    NULL,
+						    gfp_mask);
 		if (folio && folio_try_get(folio)) {
 			err = hugetlb_add_to_page_cache(folio,
 							memfd->f_mapping,
