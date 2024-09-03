@@ -57,7 +57,6 @@ static int __do_binderfs_test(struct __test_metadata *_metadata)
 {
 	int fd, ret, saved_errno, result = 1;
 	size_t len;
-	ssize_t wret;
 	struct binderfs_device device = { 0 };
 	struct binder_version version = { 0 };
 	char binderfs_mntpt[] = P_tmpdir "/binderfs_XXXXXX",
