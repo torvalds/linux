@@ -339,16 +339,16 @@ static int acp_i2s_trigger(struct snd_pcm_substream *substream, int cmd, struct 
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 			switch (dai->driver->id) {
 			case I2S_BT_INSTANCE:
-				water_val = ACP_BT_TX_INTR_WATERMARK_SIZE;
+				water_val = ACP_BT_TX_INTR_WATERMARK_SIZE(adata);
 				reg_val = ACP_BTTDM_ITER;
 				ier_val = ACP_BTTDM_IER;
-				buf_reg = ACP_BT_TX_RINGBUFSIZE;
+				buf_reg = ACP_BT_TX_RINGBUFSIZE(adata);
 				break;
 			case I2S_SP_INSTANCE:
-				water_val = ACP_I2S_TX_INTR_WATERMARK_SIZE;
+				water_val = ACP_I2S_TX_INTR_WATERMARK_SIZE(adata);
 				reg_val = ACP_I2STDM_ITER;
 				ier_val = ACP_I2STDM_IER;
-				buf_reg = ACP_I2S_TX_RINGBUFSIZE;
+				buf_reg = ACP_I2S_TX_RINGBUFSIZE(adata);
 				break;
 			case I2S_HS_INSTANCE:
 				water_val = ACP_HS_TX_INTR_WATERMARK_SIZE;
@@ -363,16 +363,16 @@ static int acp_i2s_trigger(struct snd_pcm_substream *substream, int cmd, struct 
 		} else {
 			switch (dai->driver->id) {
 			case I2S_BT_INSTANCE:
-				water_val = ACP_BT_RX_INTR_WATERMARK_SIZE;
+				water_val = ACP_BT_RX_INTR_WATERMARK_SIZE(adata);
 				reg_val = ACP_BTTDM_IRER;
 				ier_val = ACP_BTTDM_IER;
-				buf_reg = ACP_BT_RX_RINGBUFSIZE;
+				buf_reg = ACP_BT_RX_RINGBUFSIZE(adata);
 				break;
 			case I2S_SP_INSTANCE:
-				water_val = ACP_I2S_RX_INTR_WATERMARK_SIZE;
+				water_val = ACP_I2S_RX_INTR_WATERMARK_SIZE(adata);
 				reg_val = ACP_I2STDM_IRER;
 				ier_val = ACP_I2STDM_IER;
-				buf_reg = ACP_I2S_RX_RINGBUFSIZE;
+				buf_reg = ACP_I2S_RX_RINGBUFSIZE(adata);
 				break;
 			case I2S_HS_INSTANCE:
 				water_val = ACP_HS_RX_INTR_WATERMARK_SIZE;
@@ -385,6 +385,7 @@ static int acp_i2s_trigger(struct snd_pcm_substream *substream, int cmd, struct 
 				return -EINVAL;
 			}
 		}
+
 		writel(period_bytes, adata->acp_base + water_val);
 		writel(buf_size, adata->acp_base + buf_reg);
 		if (rsrc->soc_mclk)
@@ -463,43 +464,43 @@ static int acp_i2s_prepare(struct snd_pcm_substream *substream, struct snd_soc_d
 	switch (dai->driver->id) {
 	case I2S_SP_INSTANCE:
 		if (dir == SNDRV_PCM_STREAM_PLAYBACK) {
-			reg_dma_size = ACP_I2S_TX_DMA_SIZE;
+			reg_dma_size = ACP_I2S_TX_DMA_SIZE(adata);
 			acp_fifo_addr = rsrc->sram_pte_offset +
 						SP_PB_FIFO_ADDR_OFFSET;
-			reg_fifo_addr =	ACP_I2S_TX_FIFOADDR;
-			reg_fifo_size = ACP_I2S_TX_FIFOSIZE;
+			reg_fifo_addr =	ACP_I2S_TX_FIFOADDR(adata);
+			reg_fifo_size = ACP_I2S_TX_FIFOSIZE(adata);
 
 			phy_addr = I2S_SP_TX_MEM_WINDOW_START + stream->reg_offset;
-			writel(phy_addr, adata->acp_base + ACP_I2S_TX_RINGBUFADDR);
+			writel(phy_addr, adata->acp_base + ACP_I2S_TX_RINGBUFADDR(adata));
 		} else {
-			reg_dma_size = ACP_I2S_RX_DMA_SIZE;
+			reg_dma_size = ACP_I2S_RX_DMA_SIZE(adata);
 			acp_fifo_addr = rsrc->sram_pte_offset +
 						SP_CAPT_FIFO_ADDR_OFFSET;
-			reg_fifo_addr = ACP_I2S_RX_FIFOADDR;
-			reg_fifo_size = ACP_I2S_RX_FIFOSIZE;
+			reg_fifo_addr = ACP_I2S_RX_FIFOADDR(adata);
+			reg_fifo_size = ACP_I2S_RX_FIFOSIZE(adata);
 			phy_addr = I2S_SP_RX_MEM_WINDOW_START + stream->reg_offset;
-			writel(phy_addr, adata->acp_base + ACP_I2S_RX_RINGBUFADDR);
+			writel(phy_addr, adata->acp_base + ACP_I2S_RX_RINGBUFADDR(adata));
 		}
 		break;
 	case I2S_BT_INSTANCE:
 		if (dir == SNDRV_PCM_STREAM_PLAYBACK) {
-			reg_dma_size = ACP_BT_TX_DMA_SIZE;
+			reg_dma_size = ACP_BT_TX_DMA_SIZE(adata);
 			acp_fifo_addr = rsrc->sram_pte_offset +
 						BT_PB_FIFO_ADDR_OFFSET;
-			reg_fifo_addr = ACP_BT_TX_FIFOADDR;
-			reg_fifo_size = ACP_BT_TX_FIFOSIZE;
+			reg_fifo_addr = ACP_BT_TX_FIFOADDR(adata);
+			reg_fifo_size = ACP_BT_TX_FIFOSIZE(adata);
 
 			phy_addr = I2S_BT_TX_MEM_WINDOW_START + stream->reg_offset;
-			writel(phy_addr, adata->acp_base + ACP_BT_TX_RINGBUFADDR);
+			writel(phy_addr, adata->acp_base + ACP_BT_TX_RINGBUFADDR(adata));
 		} else {
-			reg_dma_size = ACP_BT_RX_DMA_SIZE;
+			reg_dma_size = ACP_BT_RX_DMA_SIZE(adata);
 			acp_fifo_addr = rsrc->sram_pte_offset +
 						BT_CAPT_FIFO_ADDR_OFFSET;
-			reg_fifo_addr = ACP_BT_RX_FIFOADDR;
-			reg_fifo_size = ACP_BT_RX_FIFOSIZE;
+			reg_fifo_addr = ACP_BT_RX_FIFOADDR(adata);
+			reg_fifo_size = ACP_BT_RX_FIFOSIZE(adata);
 
 			phy_addr = I2S_BT_TX_MEM_WINDOW_START + stream->reg_offset;
-			writel(phy_addr, adata->acp_base + ACP_BT_RX_RINGBUFADDR);
+			writel(phy_addr, adata->acp_base + ACP_BT_RX_RINGBUFADDR(adata));
 		}
 		break;
 	case I2S_HS_INSTANCE:

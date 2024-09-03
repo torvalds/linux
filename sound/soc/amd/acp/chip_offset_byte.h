@@ -32,42 +32,47 @@
 
 /* Registers from ACP_AUDIO_BUFFERS block */
 
-#define ACP_I2S_RX_RINGBUFADDR                        0x2000
-#define ACP_I2S_RX_RINGBUFSIZE                        0x2004
-#define ACP_I2S_RX_LINKPOSITIONCNTR                   0x2008
-#define ACP_I2S_RX_FIFOADDR                           0x200C
-#define ACP_I2S_RX_FIFOSIZE                           0x2010
-#define ACP_I2S_RX_DMA_SIZE                           0x2014
-#define ACP_I2S_RX_LINEARPOSITIONCNTR_HIGH            0x2018
-#define ACP_I2S_RX_LINEARPOSITIONCNTR_LOW             0x201C
-#define ACP_I2S_RX_INTR_WATERMARK_SIZE                0x2020
-#define ACP_I2S_TX_RINGBUFADDR                        0x2024
-#define ACP_I2S_TX_RINGBUFSIZE                        0x2028
-#define ACP_I2S_TX_LINKPOSITIONCNTR                   0x202C
-#define ACP_I2S_TX_FIFOADDR                           0x2030
-#define ACP_I2S_TX_FIFOSIZE                           0x2034
-#define ACP_I2S_TX_DMA_SIZE                           0x2038
-#define ACP_I2S_TX_LINEARPOSITIONCNTR_HIGH            0x203C
-#define ACP_I2S_TX_LINEARPOSITIONCNTR_LOW             0x2040
-#define ACP_I2S_TX_INTR_WATERMARK_SIZE                0x2044
-#define ACP_BT_RX_RINGBUFADDR                         0x2048
-#define ACP_BT_RX_RINGBUFSIZE                         0x204C
-#define ACP_BT_RX_LINKPOSITIONCNTR                    0x2050
-#define ACP_BT_RX_FIFOADDR                            0x2054
-#define ACP_BT_RX_FIFOSIZE                            0x2058
-#define ACP_BT_RX_DMA_SIZE                            0x205C
-#define ACP_BT_RX_LINEARPOSITIONCNTR_HIGH             0x2060
-#define ACP_BT_RX_LINEARPOSITIONCNTR_LOW              0x2064
-#define ACP_BT_RX_INTR_WATERMARK_SIZE                 0x2068
-#define ACP_BT_TX_RINGBUFADDR                         0x206C
-#define ACP_BT_TX_RINGBUFSIZE                         0x2070
-#define ACP_BT_TX_LINKPOSITIONCNTR                    0x2074
-#define ACP_BT_TX_FIFOADDR                            0x2078
-#define ACP_BT_TX_FIFOSIZE                            0x207C
-#define ACP_BT_TX_DMA_SIZE                            0x2080
-#define ACP_BT_TX_LINEARPOSITIONCNTR_HIGH             0x2084
-#define ACP_BT_TX_LINEARPOSITIONCNTR_LOW              0x2088
-#define ACP_BT_TX_INTR_WATERMARK_SIZE                 0x208C
+#define ACP_I2S_REG_ADDR(acp_adata, addr) \
+			 ((addr) + (acp_adata->rsrc->irqp_used * \
+			 acp_adata->rsrc->irq_reg_offset))
+
+#define ACP_I2S_RX_RINGBUFADDR(adata)               ACP_I2S_REG_ADDR(adata, 0x2000)
+#define ACP_I2S_RX_RINGBUFSIZE(adata)               ACP_I2S_REG_ADDR(adata, 0x2004)
+#define ACP_I2S_RX_LINKPOSITIONCNTR(adata)          ACP_I2S_REG_ADDR(adata, 0x2008)
+#define ACP_I2S_RX_FIFOADDR(adata)                  ACP_I2S_REG_ADDR(adata, 0x200C)
+#define ACP_I2S_RX_FIFOSIZE(adata)                  ACP_I2S_REG_ADDR(adata, 0x2010)
+#define ACP_I2S_RX_DMA_SIZE(adata)                  ACP_I2S_REG_ADDR(adata, 0x2014)
+#define ACP_I2S_RX_LINEARPOSITIONCNTR_HIGH(adata)   ACP_I2S_REG_ADDR(adata, 0x2018)
+#define ACP_I2S_RX_LINEARPOSITIONCNTR_LOW(adata)    ACP_I2S_REG_ADDR(adata, 0x201C)
+#define ACP_I2S_RX_INTR_WATERMARK_SIZE(adata)       ACP_I2S_REG_ADDR(adata, 0x2020)
+#define ACP_I2S_TX_RINGBUFADDR(adata)               ACP_I2S_REG_ADDR(adata, 0x2024)
+#define ACP_I2S_TX_RINGBUFSIZE(adata)               ACP_I2S_REG_ADDR(adata, 0x2028)
+#define ACP_I2S_TX_LINKPOSITIONCNTR(adata)          ACP_I2S_REG_ADDR(adata, 0x202C)
+#define ACP_I2S_TX_FIFOADDR(adata)                  ACP_I2S_REG_ADDR(adata, 0x2030)
+#define ACP_I2S_TX_FIFOSIZE(adata)                  ACP_I2S_REG_ADDR(adata, 0x2034)
+#define ACP_I2S_TX_DMA_SIZE(adata)                  ACP_I2S_REG_ADDR(adata, 0x2038)
+#define ACP_I2S_TX_LINEARPOSITIONCNTR_HIGH(adata)   ACP_I2S_REG_ADDR(adata, 0x203C)
+#define ACP_I2S_TX_LINEARPOSITIONCNTR_LOW(adata)    ACP_I2S_REG_ADDR(adata, 0x2040)
+#define ACP_I2S_TX_INTR_WATERMARK_SIZE(adata)       ACP_I2S_REG_ADDR(adata, 0x2044)
+#define ACP_BT_RX_RINGBUFADDR(adata)                ACP_I2S_REG_ADDR(adata, 0x2048)
+#define ACP_BT_RX_RINGBUFSIZE(adata)                ACP_I2S_REG_ADDR(adata, 0x204C)
+#define ACP_BT_RX_LINKPOSITIONCNTR(adata)           ACP_I2S_REG_ADDR(adata, 0x2050)
+#define ACP_BT_RX_FIFOADDR(adata)                   ACP_I2S_REG_ADDR(adata, 0x2054)
+#define ACP_BT_RX_FIFOSIZE(adata)                   ACP_I2S_REG_ADDR(adata, 0x2058)
+#define ACP_BT_RX_DMA_SIZE(adata)                   ACP_I2S_REG_ADDR(adata, 0x205C)
+#define ACP_BT_RX_LINEARPOSITIONCNTR_HIGH(adata)    ACP_I2S_REG_ADDR(adata, 0x2060)
+#define ACP_BT_RX_LINEARPOSITIONCNTR_LOW(adata)     ACP_I2S_REG_ADDR(adata, 0x2064)
+#define ACP_BT_RX_INTR_WATERMARK_SIZE(adata)        ACP_I2S_REG_ADDR(adata, 0x2068)
+#define ACP_BT_TX_RINGBUFADDR(adata)                ACP_I2S_REG_ADDR(adata, 0x206C)
+#define ACP_BT_TX_RINGBUFSIZE(adata)                ACP_I2S_REG_ADDR(adata, 0x2070)
+#define ACP_BT_TX_LINKPOSITIONCNTR(adata)           ACP_I2S_REG_ADDR(adata, 0x2074)
+#define ACP_BT_TX_FIFOADDR(adata)                   ACP_I2S_REG_ADDR(adata, 0x2078)
+#define ACP_BT_TX_FIFOSIZE(adata)                   ACP_I2S_REG_ADDR(adata, 0x207C)
+#define ACP_BT_TX_DMA_SIZE(adata)                   ACP_I2S_REG_ADDR(adata, 0x2080)
+#define ACP_BT_TX_LINEARPOSITIONCNTR_HIGH(adata)    ACP_I2S_REG_ADDR(adata, 0x2084)
+#define ACP_BT_TX_LINEARPOSITIONCNTR_LOW(adata)     ACP_I2S_REG_ADDR(adata, 0x2088)
+#define ACP_BT_TX_INTR_WATERMARK_SIZE(adata)        ACP_I2S_REG_ADDR(adata, 0x208C)
+
 #define ACP_HS_RX_RINGBUFADDR			      0x3A90
 #define ACP_HS_RX_RINGBUFSIZE			      0x3A94
 #define ACP_HS_RX_LINKPOSITIONCNTR		      0x3A98
