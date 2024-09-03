@@ -91,11 +91,6 @@ enum ast_tx_chip {
 	AST_TX_ASTDP,
 };
 
-#define AST_TX_NONE_BIT		BIT(AST_TX_NONE)
-#define AST_TX_SIL164_BIT	BIT(AST_TX_SIL164)
-#define AST_TX_DP501_BIT	BIT(AST_TX_DP501)
-#define AST_TX_ASTDP_BIT	BIT(AST_TX_ASTDP)
-
 enum ast_config_mode {
 	ast_use_p2a,
 	ast_use_dt,
@@ -187,10 +182,12 @@ struct ast_device {
 
 	struct mutex modeset_lock; /* Protects access to modeset I/O registers in ioregs */
 
+	enum ast_tx_chip tx_chip;
+
 	struct ast_plane primary_plane;
 	struct ast_plane cursor_plane;
 	struct drm_crtc crtc;
-	struct {
+	union {
 		struct {
 			struct drm_encoder encoder;
 			struct ast_connector connector;
@@ -211,7 +208,6 @@ struct ast_device {
 
 	bool support_wide_screen;
 
-	unsigned long tx_chip_types;		/* bitfield of enum ast_chip_type */
 	u8 *dp501_fw_addr;
 	const struct firmware *dp501_fw;	/* dp501 fw */
 };

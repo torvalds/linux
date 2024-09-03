@@ -350,7 +350,7 @@ void ast_post_gpu(struct drm_device *dev)
 	ast_set_def_ext_reg(dev);
 
 	if (IS_AST_GEN7(ast)) {
-		if (ast->tx_chip_types & AST_TX_ASTDP_BIT)
+		if (ast->tx_chip == AST_TX_ASTDP)
 			ast_dp_launch(ast);
 	} else if (ast->config_mode == ast_use_p2a) {
 		if (IS_AST_GEN6(ast))
@@ -362,7 +362,7 @@ void ast_post_gpu(struct drm_device *dev)
 
 		ast_init_3rdtx(dev);
 	} else {
-		if (ast->tx_chip_types & AST_TX_SIL164_BIT)
+		if (ast->tx_chip == AST_TX_SIL164)
 			ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xa3, 0xcf, 0x80);	/* Enable DVO */
 	}
 }

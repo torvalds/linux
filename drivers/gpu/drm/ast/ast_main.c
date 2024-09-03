@@ -68,11 +68,18 @@ static void ast_detect_widescreen(struct ast_device *ast)
 
 static void ast_detect_tx_chip(struct ast_device *ast, bool need_post)
 {
+	static const char * const info_str[] = {
+		"analog VGA",
+		"Sil164 TMDS transmitter",
+		"DP501 DisplayPort transmitter",
+		"ASPEED DisplayPort transmitter",
+	};
+
 	struct drm_device *dev = &ast->base;
 	u8 jreg;
 
 	/* Check 3rd Tx option (digital output afaik) */
-	ast->tx_chip_types |= AST_TX_NONE_BIT;
+	ast->tx_chip = AST_TX_NONE;
 
 	/*
 	 * VGACRA3 Enhanced Color Mode Register, check if DVO is already
@@ -85,7 +92,7 @@ static void ast_detect_tx_chip(struct ast_device *ast, bool need_post)
 	if (!need_post) {
 		jreg = ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xa3, 0xff);
 		if (jreg & 0x80)
-			ast->tx_chip_types = AST_TX_SIL164_BIT;
+			ast->tx_chip = AST_TX_SIL164;
 	}
 
 	if (IS_AST_GEN4(ast) || IS_AST_GEN5(ast) || IS_AST_GEN6(ast)) {
@@ -97,7 +104,7 @@ static void ast_detect_tx_chip(struct ast_device *ast, bool need_post)
 		jreg = ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xd1, 0xff);
 		switch (jreg) {
 		case 0x04:
-			ast->tx_chip_types = AST_TX_SIL164_BIT;
+			ast->tx_chip = AST_TX_SIL164;
 			break;
 		case 0x08:
 			ast->dp501_fw_addr = drmm_kzalloc(dev, 32*1024, GFP_KERNEL);
@@ -110,7 +117,7 @@ static void ast_detect_tx_chip(struct ast_device *ast, bool need_post)
 			}
 			fallthrough;
 		case 0x0c:
-			ast->tx_chip_types = AST_TX_DP501_BIT;
+			ast->tx_chip = AST_TX_DP501;
 		}
 	} else if (IS_AST_GEN7(ast)) {
 		if (ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xD1, TX_TYPE_MASK) ==
@@ -118,19 +125,11 @@ static void ast_detect_tx_chip(struct ast_device *ast, bool need_post)
 			int ret = ast_dp_launch(ast);
 
 			if (!ret)
-				ast->tx_chip_types = AST_TX_ASTDP_BIT;
+				ast->tx_chip = AST_TX_ASTDP;
 		}
 	}
 
-	/* Print stuff for diagnostic purposes */
-	if (ast->tx_chip_types & AST_TX_NONE_BIT)
-		drm_info(dev, "Using analog VGA\n");
-	if (ast->tx_chip_types & AST_TX_SIL164_BIT)
-		drm_info(dev, "Using Sil164 TMDS transmitter\n");
-	if (ast->tx_chip_types & AST_TX_DP501_BIT)
-		drm_info(dev, "Using DP501 DisplayPort transmitter\n");
-	if (ast->tx_chip_types & AST_TX_ASTDP_BIT)
-		drm_info(dev, "Using ASPEED DisplayPort transmitter\n");
+	drm_info(dev, "Using %s\n", info_str[ast->tx_chip]);
 }
 
 static int ast_get_dram_info(struct drm_device *dev)

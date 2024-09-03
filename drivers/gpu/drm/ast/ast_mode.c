@@ -1398,26 +1398,22 @@ int ast_mode_config_init(struct ast_device *ast)
 
 	ast_crtc_init(dev);
 
-	if (ast->tx_chip_types & AST_TX_NONE_BIT) {
+	switch (ast->tx_chip) {
+	case AST_TX_NONE:
 		ret = ast_vga_output_init(ast);
-		if (ret)
-			return ret;
-	}
-	if (ast->tx_chip_types & AST_TX_SIL164_BIT) {
+		break;
+	case AST_TX_SIL164:
 		ret = ast_sil164_output_init(ast);
-		if (ret)
-			return ret;
-	}
-	if (ast->tx_chip_types & AST_TX_DP501_BIT) {
+		break;
+	case AST_TX_DP501:
 		ret = ast_dp501_output_init(ast);
-		if (ret)
-			return ret;
-	}
-	if (ast->tx_chip_types & AST_TX_ASTDP_BIT) {
+		break;
+	case AST_TX_ASTDP:
 		ret = ast_astdp_output_init(ast);
-		if (ret)
-			return ret;
+		break;
 	}
+	if (ret)
+		return ret;
 
 	drm_mode_config_reset(dev);
 

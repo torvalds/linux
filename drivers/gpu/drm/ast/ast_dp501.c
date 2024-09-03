@@ -466,7 +466,7 @@ void ast_init_3rdtx(struct drm_device *dev)
 			ast_init_dvo(dev);
 			break;
 		default:
-			if (ast->tx_chip_types & BIT(AST_TX_SIL164))
+			if (ast->tx_chip == AST_TX_SIL164)
 				ast_init_dvo(dev);
 			else
 				ast_init_analog(dev);
