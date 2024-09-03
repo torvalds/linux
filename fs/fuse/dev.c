@@ -108,7 +108,9 @@ static void fuse_drop_waiting(struct fuse_conn *fc)
 
 static void fuse_put_request(struct fuse_req *req);
 
-static struct fuse_req *fuse_get_req(struct fuse_mount *fm, bool for_background)
+static struct fuse_req *fuse_get_req(struct mnt_idmap *idmap,
+				     struct fuse_mount *fm,
+				     bool for_background)
 {
 	struct fuse_conn *fc = fm->fc;
 	struct fuse_req *req;
@@ -140,19 +142,37 @@ static struct fuse_req *fuse_get_req(struct fuse_mount *fm, bool for_background)
 		goto out;
 	}
 
-	req->in.h.uid = from_kuid(fc->user_ns, current_fsuid());
-	req->in.h.gid = from_kgid(fc->user_ns, current_fsgid());
 	req->in.h.pid = pid_nr_ns(task_pid(current), fc->pid_ns);
 
 	__set_bit(FR_WAITING, &req->flags);
 	if (for_background)
 		__set_bit(FR_BACKGROUND, &req->flags);
 
-	if (unlikely(req->in.h.uid == ((uid_t)-1) ||
-		     req->in.h.gid == ((gid_t)-1))) {
-		fuse_put_request(req);
-		return ERR_PTR(-EOVERFLOW);
+	if ((fm->sb->s_iflags & SB_I_NOIDMAP) || idmap) {
+		kuid_t idmapped_fsuid;
+		kgid_t idmapped_fsgid;
+
+		/*
+		 * Note, that when
+		 * (fm->sb->s_iflags & SB_I_NOIDMAP) is true, then
+		 * (idmap == &nop_mnt_idmap) is always true and therefore,
+		 * mapped_fsuid(idmap, fc->user_ns) == current_fsuid().
+		 */
+		idmapped_fsuid = idmap ? mapped_fsuid(idmap, fc->user_ns) : current_fsuid();
+		idmapped_fsgid = idmap ? mapped_fsgid(idmap, fc->user_ns) : current_fsgid();
+		req->in.h.uid = from_kuid(fc->user_ns, idmapped_fsuid);
+		req->in.h.gid = from_kgid(fc->user_ns, idmapped_fsgid);
+
+		if (unlikely(req->in.h.uid == ((uid_t)-1) ||
+			     req->in.h.gid == ((gid_t)-1))) {
+			fuse_put_request(req);
+			return ERR_PTR(-EOVERFLOW);
+		}
+	} else {
+		req->in.h.uid = FUSE_INVALID_UIDGID;
+		req->in.h.gid = FUSE_INVALID_UIDGID;
 	}
+
 	return req;
 
  out:
@@ -497,8 +517,14 @@ static void fuse_force_creds(struct fuse_req *req)
 {
 	struct fuse_conn *fc = req->fm->fc;
 
-	req->in.h.uid = from_kuid_munged(fc->user_ns, current_fsuid());
-	req->in.h.gid = from_kgid_munged(fc->user_ns, current_fsgid());
+	if (req->fm->sb->s_iflags & SB_I_NOIDMAP) {
+		req->in.h.uid = from_kuid_munged(fc->user_ns, current_fsuid());
+		req->in.h.gid = from_kgid_munged(fc->user_ns, current_fsgid());
+	} else {
+		req->in.h.uid = FUSE_INVALID_UIDGID;
+		req->in.h.gid = FUSE_INVALID_UIDGID;
+	}
+
 	req->in.h.pid = pid_nr_ns(task_pid(current), fc->pid_ns);
 }
 
@@ -530,7 +556,7 @@ ssize_t fuse_simple_request(struct fuse_mount *fm, struct fuse_args *args)
 		__set_bit(FR_FORCE, &req->flags);
 	} else {
 		WARN_ON(args->nocreds);
-		req = fuse_get_req(fm, false);
+		req = fuse_get_req(NULL, fm, false);
 		if (IS_ERR(req))
 			return PTR_ERR(req);
 	}
@@ -591,7 +617,7 @@ int fuse_simple_background(struct fuse_mount *fm, struct fuse_args *args,
 		__set_bit(FR_BACKGROUND, &req->flags);
 	} else {
 		WARN_ON(args->nocreds);
-		req = fuse_get_req(fm, true);
+		req = fuse_get_req(NULL, fm, true);
 		if (IS_ERR(req))
 			return PTR_ERR(req);
 	}
@@ -613,7 +639,7 @@ static int fuse_simple_notify_reply(struct fuse_mount *fm,
 	struct fuse_req *req;
 	struct fuse_iqueue *fiq = &fm->fc->iq;
 
-	req = fuse_get_req(fm, false);
+	req = fuse_get_req(NULL, fm, false);
 	if (IS_ERR(req))
 		return PTR_ERR(req);
 
