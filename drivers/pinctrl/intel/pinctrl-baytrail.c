@@ -1542,10 +1542,8 @@ static int byt_gpio_probe(struct intel_pinctrl *vg)
 	}
 
 	ret = devm_gpiochip_add_data(vg->dev, gc, vg);
-	if (ret) {
+	if (ret)
 		dev_err(vg->dev, "failed adding byt-gpio chip\n");
-		return ret;
-	}
 
 	return ret;
 }
