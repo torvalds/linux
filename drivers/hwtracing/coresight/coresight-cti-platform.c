@@ -416,20 +416,16 @@ static int cti_plat_create_impdef_connections(struct device *dev,
 					      struct cti_drvdata *drvdata)
 {
 	int rc = 0;
-	struct fwnode_handle *fwnode = dev_fwnode(dev);
-	struct fwnode_handle *child = NULL;
 
-	if (IS_ERR_OR_NULL(fwnode))
+	if (IS_ERR_OR_NULL(dev_fwnode(dev)))
 		return -EINVAL;
 
-	fwnode_for_each_child_node(fwnode, child) {
+	device_for_each_child_node_scoped(dev, child) {
 		if (cti_plat_node_name_eq(child, CTI_DT_CONNS))
-			rc = cti_plat_create_connection(dev, drvdata,
-							child);
+			rc = cti_plat_create_connection(dev, drvdata, child);
 		if (rc != 0)
 			break;
 	}
-	fwnode_handle_put(child);
 
 	return rc;
 }
