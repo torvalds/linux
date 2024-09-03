@@ -248,12 +248,20 @@ static irqreturn_t inv_mpu6050_interrupt_handle(int irq, void *p)
 	int result;
 
 	switch (st->chip_type) {
+	case INV_MPU6000:
 	case INV_MPU6050:
+	case INV_MPU9150:
+		/*
+		 * WoM is not supported and interrupt status read seems to be broken for
+		 * some chips. Since data ready is the only interrupt, bypass interrupt
+		 * status read and always assert data ready bit.
+		 */
+		wom_bits = 0;
+		int_status = INV_MPU6050_BIT_RAW_DATA_RDY_INT;
+		goto data_ready_interrupt;
 	case INV_MPU6500:
 	case INV_MPU6515:
 	case INV_MPU6880:
-	case INV_MPU6000:
-	case INV_MPU9150:
 	case INV_MPU9250:
 	case INV_MPU9255:
 		wom_bits = INV_MPU6500_BIT_WOM_INT;
@@ -279,6 +287,7 @@ static irqreturn_t inv_mpu6050_interrupt_handle(int irq, void *p)
 		}
 	}
 
+data_ready_interrupt:
 	/* handle raw data interrupt */
 	if (int_status & INV_MPU6050_BIT_RAW_DATA_RDY_INT) {
 		indio_dev->pollfunc->timestamp = st->it_timestamp;
