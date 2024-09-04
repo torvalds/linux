@@ -1238,7 +1238,9 @@ static int acpi_battery_add(struct acpi_device *device)
 		device->status.battery_present ? "present" : "absent");
 
 	battery->pm_nb.notifier_call = battery_notify;
-	register_pm_notifier(&battery->pm_nb);
+	result = register_pm_notifier(&battery->pm_nb);
+	if (result)
+		goto fail;
 
 	device_init_wakeup(&device->dev, 1);
 
