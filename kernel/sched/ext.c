@@ -2500,7 +2500,7 @@ static void flush_dispatch_buf(struct rq *rq)
 	dspc->cursor = 0;
 }
 
-static int balance_one(struct rq *rq, struct task_struct *prev, bool local)
+static int balance_one(struct rq *rq, struct task_struct *prev)
 {
 	struct scx_dsp_ctx *dspc = this_cpu_ptr(scx_dsp_ctx);
 	bool prev_on_scx = prev->sched_class == &ext_sched_class;
@@ -2529,22 +2529,16 @@ static int balance_one(struct rq *rq, struct task_struct *prev, bool local)
 		/*
 		 * If @prev is runnable & has slice left, it has priority and
 		 * fetching more just increases latency for the fetched tasks.
-		 * Tell pick_next_task_scx() to keep running @prev. If the BPF
+		 * Tell pick_task_scx() to keep running @prev. If the BPF
 		 * scheduler wants to handle this explicitly, it should
 		 * implement ->cpu_release().
 		 *
 		 * See scx_ops_disable_workfn() for the explanation on the
 		 * bypassing test.
-		 *
-		 * When balancing a remote CPU for core-sched, there won't be a
-		 * following put_prev_task_scx() call and we don't own
-		 * %SCX_RQ_BAL_KEEP. Instead, pick_task_scx() will test the same
-		 * conditions later and pick @rq->curr accordingly.
 		 */
 		if ((prev->scx.flags & SCX_TASK_QUEUED) &&
 		    prev->scx.slice && !scx_ops_bypassing()) {
-			if (local)
-				rq->scx.flags |= SCX_RQ_BAL_KEEP;
+			rq->scx.flags |= SCX_RQ_BAL_KEEP;
 			goto has_tasks;
 		}
 	}
@@ -2603,8 +2597,7 @@ no_tasks:
 	 */
 	if ((prev->scx.flags & SCX_TASK_QUEUED) &&
 	    (!static_branch_unlikely(&scx_ops_enq_last) || scx_ops_bypassing())) {
-		if (local)
-			rq->scx.flags |= SCX_RQ_BAL_KEEP;
+		rq->scx.flags |= SCX_RQ_BAL_KEEP;
 		goto has_tasks;
 	}
 	rq->scx.flags &= ~SCX_RQ_IN_BALANCE;
@@ -2622,13 +2615,13 @@ static int balance_scx(struct rq *rq, struct task_struct *prev,
 
 	rq_unpin_lock(rq, rf);
 
-	ret = balance_one(rq, prev, true);
+	ret = balance_one(rq, prev);
 
 #ifdef CONFIG_SCHED_SMT
 	/*
 	 * When core-sched is enabled, this ops.balance() call will be followed
-	 * by put_prev_scx() and pick_task_scx() on this CPU and pick_task_scx()
-	 * on the SMT siblings. Balance the siblings too.
+	 * by pick_task_scx() on this CPU and the SMT siblings. Balance the
+	 * siblings too.
 	 */
 	if (sched_core_enabled(rq)) {
 		const struct cpumask *smt_mask = cpu_smt_mask(cpu_of(rq));
@@ -2640,7 +2633,7 @@ static int balance_scx(struct rq *rq, struct task_struct *prev,
 
 			WARN_ON_ONCE(__rq_lockp(rq) != __rq_lockp(srq));
 			update_rq_clock(srq);
-			balance_one(srq, sprev, false);
+			balance_one(srq, sprev);
 		}
 	}
 #endif
@@ -2760,9 +2753,9 @@ static struct task_struct *first_local_task(struct rq *rq)
 					struct task_struct, scx.dsq_list.node);
 }
 
-static struct task_struct *pick_next_task_scx(struct rq *rq,
-					      struct task_struct *prev)
+static struct task_struct *pick_task_scx(struct rq *rq)
 {
+	struct task_struct *prev = rq->curr;
 	struct task_struct *p;
 
 	/*
@@ -2789,8 +2782,6 @@ static struct task_struct *pick_next_task_scx(struct rq *rq,
 			p->scx.slice = SCX_SLICE_DFL;
 		}
 	}
-
-	put_prev_set_next_task(rq, prev, p);
 
 	return p;
 }
@@ -2827,49 +2818,6 @@ bool scx_prio_less(const struct task_struct *a, const struct task_struct *b,
 					      (struct task_struct *)b);
 	else
 		return time_after64(a->scx.core_sched_at, b->scx.core_sched_at);
-}
-
-/**
- * pick_task_scx - Pick a candidate task for core-sched
- * @rq: rq to pick the candidate task from
- *
- * Core-sched calls this function on each SMT sibling to determine the next
- * tasks to run on the SMT siblings. balance_one() has been called on all
- * siblings and put_prev_task_scx() has been called only for the current CPU.
- *
- * As put_prev_task_scx() hasn't been called on remote CPUs, we can't just look
- * at the first task in the local dsq. @rq->curr has to be considered explicitly
- * to mimic %SCX_RQ_BAL_KEEP.
- */
-static struct task_struct *pick_task_scx(struct rq *rq)
-{
-	struct task_struct *curr = rq->curr;
-	struct task_struct *first = first_local_task(rq);
-
-	if (curr->scx.flags & SCX_TASK_QUEUED) {
-		/* is curr the only runnable task? */
-		if (!first)
-			return curr;
-
-		/*
-		 * Does curr trump first? We can always go by core_sched_at for
-		 * this comparison as it represents global FIFO ordering when
-		 * the default core-sched ordering is used and local-DSQ FIFO
-		 * ordering otherwise.
-		 *
-		 * We can have a task with an earlier timestamp on the DSQ. For
-		 * example, when a current task is preempted by a sibling
-		 * picking a different cookie, the task would be requeued at the
-		 * head of the local DSQ with an earlier timestamp than the
-		 * core-sched picked next task. Besides, the BPF scheduler may
-		 * dispatch any tasks to the local DSQ anytime.
-		 */
-		if (curr->scx.slice && time_before64(curr->scx.core_sched_at,
-						     first->scx.core_sched_at))
-			return curr;
-	}
-
-	return first;	/* this may be %NULL */
 }
 #endif	/* CONFIG_SCHED_CORE */
 
@@ -3638,7 +3586,7 @@ DEFINE_SCHED_CLASS(ext) = {
 	.wakeup_preempt		= wakeup_preempt_scx,
 
 	.balance		= balance_scx,
-	.pick_next_task		= pick_next_task_scx,
+	.pick_task		= pick_task_scx,
 
 	.put_prev_task		= put_prev_task_scx,
 	.set_next_task		= set_next_task_scx,
@@ -3652,10 +3600,6 @@ DEFINE_SCHED_CLASS(ext) = {
 
 	.rq_online		= rq_online_scx,
 	.rq_offline		= rq_offline_scx,
-#endif
-
-#ifdef CONFIG_SCHED_CORE
-	.pick_task		= pick_task_scx,
 #endif
 
 	.task_tick		= task_tick_scx,
