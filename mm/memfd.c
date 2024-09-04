@@ -89,13 +89,12 @@ struct folio *memfd_alloc_folio(struct file *memfd, pgoff_t idx)
 						    numa_node_id(),
 						    NULL,
 						    gfp_mask);
-		if (folio && folio_try_get(folio)) {
+		if (folio) {
 			err = hugetlb_add_to_page_cache(folio,
 							memfd->f_mapping,
 							idx);
 			if (err) {
 				folio_put(folio);
-				free_huge_folio(folio);
 				return ERR_PTR(err);
 			}
 			folio_unlock(folio);
