@@ -200,7 +200,7 @@ enum ksz_model {
 	KSZ8795,
 	KSZ8794,
 	KSZ8765,
-	KSZ8830,
+	KSZ88X3,
 	KSZ8864,
 	KSZ8895,
 	KSZ9477,
@@ -628,7 +628,7 @@ static inline bool ksz_is_ksz87xx(struct ksz_device *dev)
 
 static inline bool ksz_is_ksz88x3(struct ksz_device *dev)
 {
-	return dev->chip_id == KSZ8830_CHIP_ID;
+	return dev->chip_id == KSZ88X3_CHIP_ID;
 }
 
 static inline bool ksz_is_8895_family(struct ksz_device *dev)
