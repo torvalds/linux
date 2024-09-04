@@ -73,8 +73,7 @@
 /// Naive factorial implementation:
 ///
 /// ```rust
-/// # #[expect(clippy::disallowed_macros)]
-/// # {
+/// # #![expect(clippy::disallowed_macros)]
 /// fn factorial(n: u32) -> u32 {
 ///     if dbg!(n <= 1) {
 ///         dbg!(1)
@@ -84,7 +83,6 @@
 /// }
 ///
 /// dbg!(factorial(4));
-/// # }
 /// ```
 ///
 /// This prints to the kernel log:
@@ -129,11 +127,9 @@
 /// invocations. You can use a 1-tuple directly if you need one:
 ///
 /// ```
-/// # #[expect(clippy::disallowed_macros)]
-/// # {
+/// # #![expect(clippy::disallowed_macros)]
 /// assert_eq!(1, dbg!(1u32,)); // trailing comma ignored
 /// assert_eq!((1,), dbg!((1u32,))); // 1-tuple
-/// # }
 /// ```
 ///
 /// [`std::dbg`]: https://doc.rust-lang.org/std/macro.dbg.html
