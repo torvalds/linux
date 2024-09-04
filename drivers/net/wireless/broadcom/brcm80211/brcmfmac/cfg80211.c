@@ -1135,7 +1135,7 @@ static void brcmf_escan_prep(struct brcmf_cfg80211_info *cfg,
 		offset = offsetof(struct brcmf_scan_params_v2_le, channel_list) +
 				n_channels * sizeof(u16);
 		offset = roundup(offset, sizeof(u32));
-		length += sizeof(ssid_le) * n_ssids,
+		length += sizeof(ssid_le) * n_ssids;
 		ptr = (char *)params_le + offset;
 		for (i = 0; i < n_ssids; i++) {
 			memset(&ssid_le, 0, sizeof(ssid_le));
