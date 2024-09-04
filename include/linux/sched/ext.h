@@ -188,6 +188,9 @@ struct sched_ext_entity {
 	bool			disallow;	/* reject switching into SCX */
 
 	/* cold fields */
+#ifdef CONFIG_EXT_GROUP_SCHED
+	struct cgroup		*cgrp_moving_from;
+#endif
 	/* must be the last field, see init_scx_entity() */
 	struct list_head	tasks_node;
 };
