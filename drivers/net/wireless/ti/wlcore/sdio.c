@@ -324,15 +324,13 @@ static int wl1271_probe(struct sdio_func *func,
 	memset(res, 0x00, sizeof(res));
 
 	res[0].start = irq;
-	res[0].flags = IORESOURCE_IRQ |
-		       irqd_get_trigger_type(irq_get_irq_data(irq));
+	res[0].flags = IORESOURCE_IRQ | irq_get_trigger_type(irq);
 	res[0].name = "irq";
 
 
 	if (wakeirq > 0) {
 		res[1].start = wakeirq;
-		res[1].flags = IORESOURCE_IRQ |
-			       irqd_get_trigger_type(irq_get_irq_data(wakeirq));
+		res[1].flags = IORESOURCE_IRQ | irq_get_trigger_type(wakeirq);
 		res[1].name = "wakeirq";
 		num_irqs = 2;
 	} else {
