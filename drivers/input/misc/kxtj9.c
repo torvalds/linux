@@ -314,9 +314,8 @@ static ssize_t kxtj9_set_poll(struct device *dev, struct device_attribute *attr,
 		return error;
 
 	/* Lock the device to prevent races with open/close (and itself) */
-	mutex_lock(&input_dev->mutex);
-
-	disable_irq(client->irq);
+	guard(mutex)(&input_dev->mutex);
+	guard(disable_irq)(&client->irq);
 
 	/*
 	 * Set current interval to the greater of the minimum interval or
@@ -325,9 +324,6 @@ static ssize_t kxtj9_set_poll(struct device *dev, struct device_attribute *attr,
 	tj9->last_poll_interval = max(interval, tj9->pdata.min_interval);
 
 	kxtj9_update_odr(tj9, tj9->last_poll_interval);
-
-	enable_irq(client->irq);
-	mutex_unlock(&input_dev->mutex);
 
 	return count;
 }
@@ -504,12 +500,11 @@ static int kxtj9_suspend(struct device *dev)
 	struct kxtj9_data *tj9 = i2c_get_clientdata(client);
 	struct input_dev *input_dev = tj9->input_dev;
 
-	mutex_lock(&input_dev->mutex);
+	guard(mutex)(&input_dev->mutex);
 
 	if (input_device_enabled(input_dev))
 		kxtj9_disable(tj9);
 
-	mutex_unlock(&input_dev->mutex);
 	return 0;
 }
 
@@ -519,12 +514,11 @@ static int kxtj9_resume(struct device *dev)
 	struct kxtj9_data *tj9 = i2c_get_clientdata(client);
 	struct input_dev *input_dev = tj9->input_dev;
 
-	mutex_lock(&input_dev->mutex);
+	guard(mutex)(&input_dev->mutex);
 
 	if (input_device_enabled(input_dev))
 		kxtj9_enable(tj9);
 
-	mutex_unlock(&input_dev->mutex);
 	return 0;
 }
 
