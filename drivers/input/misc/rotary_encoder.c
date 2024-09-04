@@ -106,7 +106,7 @@ static irqreturn_t rotary_encoder_irq(int irq, void *dev_id)
 	struct rotary_encoder *encoder = dev_id;
 	unsigned int state;
 
-	mutex_lock(&encoder->access_mutex);
+	guard(mutex)(&encoder->access_mutex);
 
 	state = rotary_encoder_get_state(encoder);
 
@@ -129,8 +129,6 @@ static irqreturn_t rotary_encoder_irq(int irq, void *dev_id)
 		break;
 	}
 
-	mutex_unlock(&encoder->access_mutex);
-
 	return IRQ_HANDLED;
 }
 
@@ -139,7 +137,7 @@ static irqreturn_t rotary_encoder_half_period_irq(int irq, void *dev_id)
 	struct rotary_encoder *encoder = dev_id;
 	unsigned int state;
 
-	mutex_lock(&encoder->access_mutex);
+	guard(mutex)(&encoder->access_mutex);
 
 	state = rotary_encoder_get_state(encoder);
 
@@ -152,8 +150,6 @@ static irqreturn_t rotary_encoder_half_period_irq(int irq, void *dev_id)
 		}
 	}
 
-	mutex_unlock(&encoder->access_mutex);
-
 	return IRQ_HANDLED;
 }
 
@@ -162,22 +158,19 @@ static irqreturn_t rotary_encoder_quarter_period_irq(int irq, void *dev_id)
 	struct rotary_encoder *encoder = dev_id;
 	unsigned int state;
 
-	mutex_lock(&encoder->access_mutex);
+	guard(mutex)(&encoder->access_mutex);
 
 	state = rotary_encoder_get_state(encoder);
 
-	if ((encoder->last_stable + 1) % 4 == state)
+	if ((encoder->last_stable + 1) % 4 == state) {
 		encoder->dir = 1;
-	else if (encoder->last_stable == (state + 1) % 4)
+		rotary_encoder_report_event(encoder);
+	} else if (encoder->last_stable == (state + 1) % 4) {
 		encoder->dir = -1;
-	else
-		goto out;
+		rotary_encoder_report_event(encoder);
+	}
 
-	rotary_encoder_report_event(encoder);
-
-out:
 	encoder->last_stable = state;
-	mutex_unlock(&encoder->access_mutex);
 
 	return IRQ_HANDLED;
 }
