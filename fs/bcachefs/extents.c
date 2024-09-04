@@ -781,12 +781,10 @@ static union bch_extent_entry *extent_entry_prev(struct bkey_ptrs ptrs,
 /*
  * Returns pointer to the next entry after the one being dropped:
  */
-union bch_extent_entry *bch2_bkey_drop_ptr_noerror(struct bkey_s k,
-						   struct bch_extent_ptr *ptr)
+void bch2_bkey_drop_ptr_noerror(struct bkey_s k, struct bch_extent_ptr *ptr)
 {
 	struct bkey_ptrs ptrs = bch2_bkey_ptrs(k);
 	union bch_extent_entry *entry = to_entry(ptr), *next;
-	union bch_extent_entry *ret = entry;
 	bool drop_crc = true;
 
 	EBUG_ON(ptr < &ptrs.start->ptr ||
@@ -811,21 +809,16 @@ union bch_extent_entry *bch2_bkey_drop_ptr_noerror(struct bkey_s k,
 			break;
 
 		if ((extent_entry_is_crc(entry) && drop_crc) ||
-		    extent_entry_is_stripe_ptr(entry)) {
-			ret = (void *) ret - extent_entry_bytes(entry);
+		    extent_entry_is_stripe_ptr(entry))
 			extent_entry_drop(k, entry);
-		}
 	}
-
-	return ret;
 }
 
-union bch_extent_entry *bch2_bkey_drop_ptr(struct bkey_s k,
-					   struct bch_extent_ptr *ptr)
+void bch2_bkey_drop_ptr(struct bkey_s k, struct bch_extent_ptr *ptr)
 {
 	bool have_dirty = bch2_bkey_dirty_devs(k.s_c).nr;
-	union bch_extent_entry *ret =
-		bch2_bkey_drop_ptr_noerror(k, ptr);
+
+	bch2_bkey_drop_ptr_noerror(k, ptr);
 
 	/*
 	 * If we deleted all the dirty pointers and there's still cached
@@ -837,14 +830,10 @@ union bch_extent_entry *bch2_bkey_drop_ptr(struct bkey_s k,
 	    !bch2_bkey_dirty_devs(k.s_c).nr) {
 		k.k->type = KEY_TYPE_error;
 		set_bkey_val_u64s(k.k, 0);
-		ret = NULL;
 	} else if (!bch2_bkey_nr_ptrs(k.s_c)) {
 		k.k->type = KEY_TYPE_deleted;
 		set_bkey_val_u64s(k.k, 0);
-		ret = NULL;
 	}
-
-	return ret;
 }
 
 void bch2_bkey_drop_device(struct bkey_s k, unsigned dev)
