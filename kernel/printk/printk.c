@@ -2903,6 +2903,17 @@ void console_prepend_dropped(struct printk_message *pmsg, unsigned long dropped)
 }
 
 /*
+ * Prepend the message in @pmsg->pbufs->outbuf with a "replay message".
+ * @pmsg->outbuf_len is updated appropriately.
+ *
+ * @pmsg is the printk message to prepend.
+ */
+void console_prepend_replay(struct printk_message *pmsg)
+{
+	console_prepend_message(pmsg, "** replaying previous printk message **\n");
+}
+
+/*
  * Read and format the specified record (or a later record if the specified
  * record is not available).
  *
