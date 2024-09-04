@@ -410,6 +410,7 @@ impl<T: AlwaysRefCounted> ARef<T> {
     ///
     /// struct Empty {}
     ///
+    /// # // SAFETY: TODO.
     /// unsafe impl AlwaysRefCounted for Empty {
     ///     fn inc_ref(&self) {}
     ///     unsafe fn dec_ref(_obj: NonNull<Self>) {}
@@ -417,6 +418,7 @@ impl<T: AlwaysRefCounted> ARef<T> {
     ///
     /// let mut data = Empty {};
     /// let ptr = NonNull::<Empty>::new(&mut data as *mut _).unwrap();
+    /// # // SAFETY: TODO.
     /// let data_ref: ARef<Empty> = unsafe { ARef::from_raw(ptr) };
     /// let raw_ptr: NonNull<Empty> = ARef::into_raw(data_ref);
     ///
@@ -492,6 +494,7 @@ pub unsafe trait FromBytes {}
 
 macro_rules! impl_frombytes {
     ($($({$($generics:tt)*})? $t:ty, )*) => {
+        // SAFETY: Safety comments written in the macro invocation.
         $(unsafe impl$($($generics)*)? FromBytes for $t {})*
     };
 }
@@ -526,6 +529,7 @@ pub unsafe trait AsBytes {}
 
 macro_rules! impl_asbytes {
     ($($({$($generics:tt)*})? $t:ty, )*) => {
+        // SAFETY: Safety comments written in the macro invocation.
         $(unsafe impl$($($generics)*)? AsBytes for $t {})*
     };
 }

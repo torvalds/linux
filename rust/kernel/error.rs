@@ -171,9 +171,11 @@ impl fmt::Debug for Error {
         match self.name() {
             // Print out number if no name can be found.
             None => f.debug_tuple("Error").field(&-self.0).finish(),
-            // SAFETY: These strings are ASCII-only.
             Some(name) => f
-                .debug_tuple(unsafe { core::str::from_utf8_unchecked(name) })
+                .debug_tuple(
+                    // SAFETY: These strings are ASCII-only.
+                    unsafe { core::str::from_utf8_unchecked(name) },
+                )
                 .finish(),
         }
     }
@@ -277,6 +279,8 @@ pub(crate) fn from_err_ptr<T>(ptr: *mut T) -> Result<*mut T> {
     if unsafe { bindings::IS_ERR(const_ptr) } {
         // SAFETY: The FFI function does not deref the pointer.
         let err = unsafe { bindings::PTR_ERR(const_ptr) };
+
+        #[allow(clippy::unnecessary_cast)]
         // CAST: If `IS_ERR()` returns `true`,
         // then `PTR_ERR()` is guaranteed to return a
         // negative value greater-or-equal to `-bindings::MAX_ERRNO`,
@@ -286,7 +290,6 @@ pub(crate) fn from_err_ptr<T>(ptr: *mut T) -> Result<*mut T> {
         //
         // SAFETY: `IS_ERR()` ensures `err` is a
         // negative value greater-or-equal to `-bindings::MAX_ERRNO`.
-        #[allow(clippy::unnecessary_cast)]
         return Err(unsafe { Error::from_errno_unchecked(err as core::ffi::c_int) });
     }
     Ok(ptr)

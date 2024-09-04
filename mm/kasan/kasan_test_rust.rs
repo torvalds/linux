@@ -17,5 +17,6 @@ pub extern "C" fn kasan_test_rust_uaf() -> u8 {
     }
     let ptr: *mut u8 = addr_of_mut!(v[2048]);
     drop(v);
+    // SAFETY: Incorrect, on purpose.
     unsafe { *ptr }
 }

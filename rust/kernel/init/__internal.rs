@@ -112,10 +112,12 @@ impl<T: ?Sized> Clone for AllData<T> {
 
 impl<T: ?Sized> Copy for AllData<T> {}
 
+// SAFETY: TODO.
 unsafe impl<T: ?Sized> InitData for AllData<T> {
     type Datee = T;
 }
 
+// SAFETY: TODO.
 unsafe impl<T: ?Sized> HasInitData for T {
     type InitData = AllData<T>;
 

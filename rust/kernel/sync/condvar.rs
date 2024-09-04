@@ -92,8 +92,8 @@ pub struct CondVar {
     _pin: PhantomPinned,
 }
 
-// SAFETY: `CondVar` only uses a `struct wait_queue_head`, which is safe to use on any thread.
 #[allow(clippy::non_send_fields_in_send_ty)]
+// SAFETY: `CondVar` only uses a `struct wait_queue_head`, which is safe to use on any thread.
 unsafe impl Send for CondVar {}
 
 // SAFETY: `CondVar` only uses a `struct wait_queue_head`, which is safe to use on multiple threads

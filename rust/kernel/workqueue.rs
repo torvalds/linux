@@ -519,6 +519,7 @@ impl_has_work! {
     impl{T} HasWork<Self> for ClosureWork<T> { self.work }
 }
 
+// SAFETY: TODO.
 unsafe impl<T, const ID: u64> WorkItemPointer<ID> for Arc<T>
 where
     T: WorkItem<ID, Pointer = Self>,
@@ -536,6 +537,7 @@ where
     }
 }
 
+// SAFETY: TODO.
 unsafe impl<T, const ID: u64> RawWorkItem<ID> for Arc<T>
 where
     T: WorkItem<ID, Pointer = Self>,
@@ -564,6 +566,7 @@ where
     }
 }
 
+// SAFETY: TODO.
 unsafe impl<T, const ID: u64> WorkItemPointer<ID> for Pin<Box<T>>
 where
     T: WorkItem<ID, Pointer = Self>,
@@ -583,6 +586,7 @@ where
     }
 }
 
+// SAFETY: TODO.
 unsafe impl<T, const ID: u64> RawWorkItem<ID> for Pin<Box<T>>
 where
     T: WorkItem<ID, Pointer = Self>,
