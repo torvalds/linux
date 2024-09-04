@@ -1900,7 +1900,7 @@ static int next_pending_bucket(struct timer_base *base, unsigned offset,
  *
  * Store next expiry time in base->next_expiry.
  */
-static void next_expiry_recalc(struct timer_base *base)
+static void timer_recalc_next_expiry(struct timer_base *base)
 {
 	unsigned long clk, next, adj;
 	unsigned lvl, offset = 0;
@@ -2009,7 +2009,7 @@ static unsigned long next_timer_interrupt(struct timer_base *base,
 					  unsigned long basej)
 {
 	if (base->next_expiry_recalc)
-		next_expiry_recalc(base);
+		timer_recalc_next_expiry(base);
 
 	/*
 	 * Move next_expiry for the empty base into the future to prevent an
@@ -2413,7 +2413,7 @@ static inline void __run_timers(struct timer_base *base)
 		 * jiffies to avoid endless requeuing to current jiffies.
 		 */
 		base->clk++;
-		next_expiry_recalc(base);
+		timer_recalc_next_expiry(base);
 
 		while (levels--)
 			expire_timers(base, heads + levels);
