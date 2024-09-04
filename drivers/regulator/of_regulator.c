@@ -572,14 +572,12 @@ static struct device_node *of_get_child_regulator(struct device_node *parent,
 
 	for_each_child_of_node(parent, child) {
 		regnode = of_parse_phandle(child, prop_name, 0);
-
-		if (!regnode) {
-			regnode = of_get_child_regulator(child, prop_name);
-			if (regnode)
-				goto err_node_put;
-		} else {
+		if (regnode)
 			goto err_node_put;
-		}
+
+		regnode = of_get_child_regulator(child, prop_name);
+		if (regnode)
+			goto err_node_put;
 	}
 	return NULL;
 
@@ -607,17 +605,15 @@ static struct device_node *of_get_regulator(struct device *dev, const char *supp
 
 	snprintf(prop_name, 64, "%s-supply", supply);
 	regnode = of_parse_phandle(dev->of_node, prop_name, 0);
+	if (regnode)
+		return regnode;
 
-	if (!regnode) {
-		regnode = of_get_child_regulator(dev->of_node, prop_name);
-		if (regnode)
-			return regnode;
+	regnode = of_get_child_regulator(dev->of_node, prop_name);
+	if (regnode)
+		return regnode;
 
-		dev_dbg(dev, "Looking up %s property in node %pOF failed\n",
-			prop_name, dev->of_node);
-		return NULL;
-	}
-	return regnode;
+	dev_dbg(dev, "Looking up %s property in node %pOF failed\n", prop_name, dev->of_node);
+	return NULL;
 }
 
 static struct regulator_dev *of_find_regulator_by_node(struct device_node *np)
