@@ -1803,12 +1803,12 @@ static umode_t vmbus_chan_attr_is_visible(struct kobject *kobj,
 	return attr->mode;
 }
 
-static struct attribute_group vmbus_chan_group = {
+static const struct attribute_group vmbus_chan_group = {
 	.attrs = vmbus_chan_attrs,
 	.is_visible = vmbus_chan_attr_is_visible
 };
 
-static struct kobj_type vmbus_chan_ktype = {
+static const struct kobj_type vmbus_chan_ktype = {
 	.sysfs_ops = &vmbus_chan_sysfs_ops,
 	.release = vmbus_chan_release,
 };
