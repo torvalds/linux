@@ -39,8 +39,7 @@ static int amdgpu_vm_cpu_map_table(struct amdgpu_bo_vm *table)
  * amdgpu_vm_cpu_prepare - prepare page table update with the CPU
  *
  * @p: see amdgpu_vm_update_params definition
- * @resv: reservation object with embedded fence
- * @sync_mode: synchronization mode
+ * @sync: sync obj with fences to wait on
  *
  * Returns:
  * Negativ errno, 0 for success.
