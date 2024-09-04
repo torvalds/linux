@@ -449,6 +449,7 @@ restart:
 		if (btree_node_accessed(b)) {
 			clear_btree_node_accessed(b);
 			bc->not_freed[BCH_BTREE_CACHE_NOT_FREED_access_bit]++;
+			--touched;;
 		} else if (!btree_node_reclaim(c, b, true)) {
 			freed++;
 			btree_node_data_free(c, b);
