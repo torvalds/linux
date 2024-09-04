@@ -563,3 +563,12 @@ Description:
 		indication is usually presented as one or two LEDs blinking at
 		4 Hz frequency:
 		https://en.wikipedia.org/wiki/International_Blinking_Pattern_Interpretation
+
+		PCI Firmware Specification r3.3 sec 4.7 defines a DSM interface
+		to facilitate shared access by operating system and platform
+		firmware to a device's NPEM registers. The kernel will use
+		this DSM interface where available, instead of accessing NPEM
+		registers directly. The DSM interface does not support the
+		enclosure-specific indications "specific0" to "specific7",
+		hence the corresponding led class devices are unavailable if
+		the DSM interface is used.
