@@ -286,4 +286,6 @@ static inline bool is_sdt_event(char *str __maybe_unused)
 }
 #endif /* HAVE_LIBELF_SUPPORT */
 
+size_t default_breakpoint_len(void);
+
 #endif /* __PERF_PARSE_EVENTS_H */
