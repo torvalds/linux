@@ -1,6 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Microchip KSZ8795 switch driver
+ * Microchip KSZ8XXX series switch driver
+ *
+ * It supports the following switches:
+ * - KSZ8863, KSZ8873 aka KSZ88X3
+ * - KSZ8895, KSZ8864 aka KSZ8895 family
+ * - KSZ8794, KSZ8795, KSZ8765 aka KSZ87XX
+ * Note that it does NOT support:
+ * - KSZ8563, KSZ8567 - see KSZ9477 driver
  *
  * Copyright (C) 2017 Microchip Technology Inc.
  *	Tristram Ha <Tristram.Ha@microchip.com>
@@ -23,7 +30,7 @@
 #include <linux/phylink.h>
 
 #include "ksz_common.h"
-#include "ksz8795_reg.h"
+#include "ksz8_reg.h"
 #include "ksz8.h"
 
 static void ksz_cfg(struct ksz_device *dev, u32 addr, u8 bits, bool set)
