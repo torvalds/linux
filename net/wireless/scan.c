@@ -2149,11 +2149,7 @@ struct cfg80211_inform_single_bss_data {
 	const u8 *ie;
 	size_t ielen;
 
-	enum {
-		BSS_SOURCE_DIRECT = 0,
-		BSS_SOURCE_MBSSID,
-		BSS_SOURCE_STA_PROFILE,
-	} bss_source;
+	enum bss_source_type bss_source;
 	/* Set if reporting bss_source != BSS_SOURCE_DIRECT */
 	struct cfg80211_bss *source_bss;
 	u8 max_bssid_indicator;
