@@ -11,6 +11,7 @@
 
 #include "fbnic_csr.h"
 #include "fbnic_fw.h"
+#include "fbnic_hw_stats.h"
 #include "fbnic_mac.h"
 #include "fbnic_rpc.h"
 
@@ -47,6 +48,9 @@ struct fbnic_dev {
 
 	/* Number of TCQs/RCQs available on hardware */
 	u16 max_num_queues;
+
+	/* Local copy of hardware statistics */
+	struct fbnic_hw_stats hw_stats;
 };
 
 /* Reserve entry 0 in the MSI-X "others" array until we have filled all
@@ -131,6 +135,9 @@ int fbnic_request_irq(struct fbnic_dev *dev, int nr, irq_handler_t handler,
 void fbnic_free_irq(struct fbnic_dev *dev, int nr, void *data);
 void fbnic_free_irqs(struct fbnic_dev *fbd);
 int fbnic_alloc_irqs(struct fbnic_dev *fbd);
+
+void fbnic_get_fw_ver_commit_str(struct fbnic_dev *fbd, char *fw_version,
+				 const size_t str_sz);
 
 enum fbnic_boards {
 	fbnic_board_asic
