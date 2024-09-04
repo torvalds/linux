@@ -550,7 +550,6 @@ static int iqs269_parse_chan(struct iqs269_private *iqs269,
 			     const struct fwnode_handle *ch_node)
 {
 	struct i2c_client *client = iqs269->client;
-	struct fwnode_handle *ev_node;
 	struct iqs269_ch_reg *ch_reg;
 	u16 engine_a, engine_b;
 	unsigned int reg, val;
@@ -727,8 +726,9 @@ static int iqs269_parse_chan(struct iqs269_private *iqs269,
 	}
 
 	for (i = 0; i < ARRAY_SIZE(iqs269_events); i++) {
-		ev_node = fwnode_get_named_child_node(ch_node,
-						      iqs269_events[i].name);
+		struct fwnode_handle *ev_node __free(fwnode_handle) =
+			fwnode_get_named_child_node(ch_node,
+						    iqs269_events[i].name);
 		if (!ev_node)
 			continue;
 
@@ -737,7 +737,6 @@ static int iqs269_parse_chan(struct iqs269_private *iqs269,
 				dev_err(&client->dev,
 					"Invalid channel %u threshold: %u\n",
 					reg, val);
-				fwnode_handle_put(ev_node);
 				return -EINVAL;
 			}
 
@@ -751,7 +750,6 @@ static int iqs269_parse_chan(struct iqs269_private *iqs269,
 				dev_err(&client->dev,
 					"Invalid channel %u hysteresis: %u\n",
 					reg, val);
-				fwnode_handle_put(ev_node);
 				return -EINVAL;
 			}
 
@@ -767,7 +765,6 @@ static int iqs269_parse_chan(struct iqs269_private *iqs269,
 		}
 
 		error = fwnode_property_read_u32(ev_node, "linux,code", &val);
-		fwnode_handle_put(ev_node);
 		if (error == -EINVAL) {
 			continue;
 		} else if (error) {
