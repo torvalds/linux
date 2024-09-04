@@ -884,7 +884,8 @@ impl<'a, K, V> Cursor<'a, K, V> {
         NonNull::new(neighbor)
     }
 
-    /// SAFETY:
+    /// # Safety
+    ///
     /// - `node` must be a valid pointer to a node in an [`RBTree`].
     /// - The caller has immutable access to `node` for the duration of 'b.
     unsafe fn to_key_value<'b>(node: NonNull<bindings::rb_node>) -> (&'b K, &'b V) {
@@ -894,7 +895,8 @@ impl<'a, K, V> Cursor<'a, K, V> {
         (k, unsafe { &*v })
     }
 
-    /// SAFETY:
+    /// # Safety
+    ///
     /// - `node` must be a valid pointer to a node in an [`RBTree`].
     /// - The caller has mutable access to `node` for the duration of 'b.
     unsafe fn to_key_value_mut<'b>(node: NonNull<bindings::rb_node>) -> (&'b K, &'b mut V) {
@@ -904,7 +906,8 @@ impl<'a, K, V> Cursor<'a, K, V> {
         (k, unsafe { &mut *v })
     }
 
-    /// SAFETY:
+    /// # Safety
+    ///
     /// - `node` must be a valid pointer to a node in an [`RBTree`].
     /// - The caller has immutable access to the key for the duration of 'b.
     unsafe fn to_key_value_raw<'b>(node: NonNull<bindings::rb_node>) -> (&'b K, *mut V) {
