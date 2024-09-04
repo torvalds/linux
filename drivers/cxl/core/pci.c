@@ -1031,3 +1031,26 @@ bool cxl_endpoint_decoder_reset_detected(struct cxl_port *port)
 				     __cxl_endpoint_decoder_reset_detected);
 }
 EXPORT_SYMBOL_NS_GPL(cxl_endpoint_decoder_reset_detected, CXL);
+
+int cxl_pci_get_bandwidth(struct pci_dev *pdev, struct access_coordinate *c)
+{
+	int speed, bw;
+	u16 lnksta;
+	u32 width;
+
+	speed = pcie_link_speed_mbps(pdev);
+	if (speed < 0)
+		return speed;
+	speed /= BITS_PER_BYTE;
+
+	pcie_capability_read_word(pdev, PCI_EXP_LNKSTA, &lnksta);
+	width = FIELD_GET(PCI_EXP_LNKSTA_NLW, lnksta);
+	bw = speed * width;
+
+	for (int i = 0; i < ACCESS_COORDINATE_MAX; i++) {
+		c[i].read_bandwidth = bw;
+		c[i].write_bandwidth = bw;
+	}
+
+	return 0;
+}
