@@ -12,14 +12,18 @@ maintainers:
 
 properties:
   compatible:
-    enum:
-      - rockchip,rk3568-dwcmshc
-      - rockchip,rk3588-dwcmshc
-      - snps,dwcmshc-sdhci
-      - sophgo,cv1800b-dwcmshc
-      - sophgo,sg2002-dwcmshc
-      - sophgo,sg2042-dwcmshc
-      - thead,th1520-dwcmshc
+    oneOf:
+      - items:
+          - const: rockchip,rk3576-dwcmshc
+          - const: rockchip,rk3588-dwcmshc
+      - enum:
+          - rockchip,rk3568-dwcmshc
+          - rockchip,rk3588-dwcmshc
+          - snps,dwcmshc-sdhci
+          - sophgo,cv1800b-dwcmshc
+          - sophgo,sg2002-dwcmshc
+          - sophgo,sg2042-dwcmshc
+          - thead,th1520-dwcmshc
 
   reg:
     maxItems: 1
@@ -34,6 +38,9 @@ properties:
   clock-names:
     minItems: 1
     maxItems: 5
+
+  power-domains:
+    maxItems: 1
 
   resets:
     maxItems: 5
@@ -96,6 +103,20 @@ allOf:
             - const: axi
             - const: block
             - const: timer
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: rockchip,rk3576-dwcmshc
+
+    then:
+      required:
+        - power-domains
+
+    else:
+      properties:
+        power-domains: false
 
 unevaluatedProperties: false
 
