@@ -1059,15 +1059,14 @@ impl<K, V> RBTreeNodeReservation<K, V> {
     /// Initialises a node reservation.
     ///
     /// It then becomes an [`RBTreeNode`] that can be inserted into a tree.
-    pub fn into_node(self, key: K, value: V) -> RBTreeNode<K, V> {
-        let node = Box::write(
-            self.node,
-            Node {
-                key,
-                value,
-                links: bindings::rb_node::default(),
-            },
-        );
+    pub fn into_node(mut self, key: K, value: V) -> RBTreeNode<K, V> {
+        self.node.write(Node {
+            key,
+            value,
+            links: bindings::rb_node::default(),
+        });
+        // SAFETY: We just wrote to it.
+        let node = unsafe { self.node.assume_init() };
         RBTreeNode { node }
     }
 }

@@ -26,9 +26,11 @@ pub trait BoxExt<T>: Sized {
     /// use kernel::alloc::{flags, box_ext::BoxExt};
     /// let value = Box::new([0; 32], flags::GFP_KERNEL)?;
     /// assert_eq!(*value, [0; 32]);
-    /// let value = Box::drop_contents(value);
+    /// let mut value = Box::drop_contents(value);
     /// // Now we can re-use `value`:
-    /// let value = Box::write(value, [1; 32]);
+    /// value.write([1; 32]);
+    /// // SAFETY: We just wrote to it.
+    /// let value = unsafe { value.assume_init() };
     /// assert_eq!(*value, [1; 32]);
     /// # Ok::<(), Error>(())
     /// ```
