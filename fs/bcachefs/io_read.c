@@ -777,7 +777,7 @@ int __bch2_read_indirect_extent(struct btree_trans *trans,
 			orig_k->k->k.size,
 			reflink_offset);
 		bch2_inconsistent_error(trans->c);
-		ret = -EIO;
+		ret = -BCH_ERR_missing_indirect_extent;
 		goto err;
 	}
 

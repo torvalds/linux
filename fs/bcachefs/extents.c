@@ -115,7 +115,7 @@ int bch2_bkey_pick_read_device(struct bch_fs *c, struct bkey_s_c k,
 	int ret = 0;
 
 	if (k.k->type == KEY_TYPE_error)
-		return -EIO;
+		return -BCH_ERR_key_type_error;
 
 	rcu_read_lock();
 	bkey_for_each_ptr_decode(k.k, ptrs, p, entry) {
@@ -133,7 +133,7 @@ int bch2_bkey_pick_read_device(struct bch_fs *c, struct bkey_s_c k,
 		 * read:
 		 */
 		if (!ret && !p.ptr.cached)
-			ret = -EIO;
+			ret = -BCH_ERR_no_device_to_read_from;
 
 		struct bch_dev *ca = bch2_dev_rcu(c, p.ptr.dev);
 
@@ -146,16 +146,13 @@ int bch2_bkey_pick_read_device(struct bch_fs *c, struct bkey_s_c k,
 				? f->idx
 				: f->idx + 1;
 
-		if (!p.idx && !ca)
+		if (!p.idx && (!ca || !bch2_dev_is_readable(ca)))
 			p.idx++;
 
 		if (!p.idx && p.has_ec && bch2_force_reconstruct_read)
 			p.idx++;
 
-		if (!p.idx && !bch2_dev_is_readable(ca))
-			p.idx++;
-
-		if (p.idx >= (unsigned) p.has_ec + 1)
+		if (p.idx > (unsigned) p.has_ec)
 			continue;
 
 		if (ret > 0 && !ptr_better(c, p, *pick))

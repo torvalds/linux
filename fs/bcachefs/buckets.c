@@ -486,7 +486,7 @@ out:
 	return ret;
 err:
 	bch2_dump_trans_updates(trans);
-	ret = -EIO;
+	ret = -BCH_ERR_bucket_ref_update;
 	goto out;
 }
 
@@ -573,7 +573,7 @@ static int bch2_trigger_pointer(struct btree_trans *trans,
 	struct bch_dev *ca = bch2_dev_tryget(c, p.ptr.dev);
 	if (unlikely(!ca)) {
 		if (insert && p.ptr.dev != BCH_SB_MEMBER_INVALID)
-			ret = -EIO;
+			ret = -BCH_ERR_trigger_pointer;
 		goto err;
 	}
 
@@ -602,7 +602,7 @@ static int bch2_trigger_pointer(struct btree_trans *trans,
 		if (bch2_fs_inconsistent_on(!g, c, "reference to invalid bucket on device %u\n  %s",
 					    p.ptr.dev,
 					    (bch2_bkey_val_to_text(&buf, c, k), buf.buf))) {
-			ret = -EIO;
+			ret = -BCH_ERR_trigger_pointer;
 			goto err_unlock;
 		}
 
@@ -647,7 +647,7 @@ static int bch2_trigger_stripe_ptr(struct btree_trans *trans,
 			bch2_trans_inconsistent(trans,
 				"stripe pointer doesn't match stripe %llu",
 				(u64) p.ec.idx);
-			ret = -EIO;
+			ret = -BCH_ERR_trigger_stripe_pointer;
 			goto err;
 		}
 
@@ -686,7 +686,7 @@ err:
 					    (u64) p.ec.idx, buf.buf);
 			printbuf_exit(&buf);
 			bch2_inconsistent_error(c);
-			return -EIO;
+			return -BCH_ERR_trigger_stripe_pointer;
 		}
 
 		m->block_sectors[p.ec.block] += sectors;
@@ -966,7 +966,7 @@ static int __bch2_trans_mark_metadata_bucket(struct btree_trans *trans,
 			bch2_data_type_str(a->v.data_type),
 			bch2_data_type_str(type),
 			bch2_data_type_str(type));
-		ret = -EIO;
+		ret = -BCH_ERR_metadata_bucket_inconsistency;
 		goto err;
 	}
 
@@ -1022,7 +1022,7 @@ err:
 	bucket_unlock(g);
 err_unlock:
 	percpu_up_read(&c->mark_lock);
-	return -EIO;
+	return -BCH_ERR_metadata_bucket_inconsistency;
 }
 
 int bch2_trans_mark_metadata_bucket(struct btree_trans *trans,

@@ -193,7 +193,7 @@ static int __mark_stripe_bucket(struct btree_trans *trans,
 				a->dirty_sectors,
 				a->stripe, s.k->p.offset,
 				(bch2_bkey_val_to_text(&buf, c, s.s_c), buf.buf))) {
-			ret = -EIO;
+			ret = -BCH_ERR_mark_stripe;
 			goto err;
 		}
 
@@ -204,7 +204,7 @@ static int __mark_stripe_bucket(struct btree_trans *trans,
 				a->dirty_sectors,
 				a->cached_sectors,
 				(bch2_bkey_val_to_text(&buf, c, s.s_c), buf.buf))) {
-			ret = -EIO;
+			ret = -BCH_ERR_mark_stripe;
 			goto err;
 		}
 	} else {
@@ -214,7 +214,7 @@ static int __mark_stripe_bucket(struct btree_trans *trans,
 				bucket.inode, bucket.offset, a->gen,
 				a->stripe,
 				(bch2_bkey_val_to_text(&buf, c, s.s_c), buf.buf))) {
-			ret = -EIO;
+			ret = -BCH_ERR_mark_stripe;
 			goto err;
 		}
 
@@ -224,7 +224,7 @@ static int __mark_stripe_bucket(struct btree_trans *trans,
 				bch2_data_type_str(a->data_type),
 				bch2_data_type_str(data_type),
 				(bch2_bkey_val_to_text(&buf, c, s.s_c), buf.buf))) {
-			ret = -EIO;
+			ret = -BCH_ERR_mark_stripe;
 			goto err;
 		}
 
@@ -236,7 +236,7 @@ static int __mark_stripe_bucket(struct btree_trans *trans,
 				a->dirty_sectors,
 				a->cached_sectors,
 				(bch2_bkey_val_to_text(&buf, c, s.s_c), buf.buf))) {
-			ret = -EIO;
+			ret = -BCH_ERR_mark_stripe;
 			goto err;
 		}
 	}
@@ -274,8 +274,8 @@ static int mark_stripe_bucket(struct btree_trans *trans,
 
 	struct bch_dev *ca = bch2_dev_tryget(c, ptr->dev);
 	if (unlikely(!ca)) {
-		if (!(flags & BTREE_TRIGGER_overwrite))
-			ret = -EIO;
+		if (ptr->dev != BCH_SB_MEMBER_INVALID && !(flags & BTREE_TRIGGER_overwrite))
+			ret = -BCH_ERR_mark_stripe;
 		goto err;
 	}
 
@@ -294,7 +294,7 @@ static int mark_stripe_bucket(struct btree_trans *trans,
 		if (bch2_fs_inconsistent_on(!g, c, "reference to invalid bucket on device %u\n  %s",
 					    ptr->dev,
 					    (bch2_bkey_val_to_text(&buf, c, s.s_c), buf.buf))) {
-			ret = -EIO;
+			ret = -BCH_ERR_mark_stripe;
 			goto err_unlock;
 		}
 
@@ -839,7 +839,7 @@ int bch2_ec_read_extent(struct btree_trans *trans, struct bch_read_bio *rbio)
 		bch_err_ratelimited(c,
 			"error doing reconstruct read: error %i looking up stripe", ret);
 		kfree(buf);
-		return -EIO;
+		return -BCH_ERR_stripe_reconstruct;
 	}
 
 	v = &bkey_i_to_stripe(&buf->key)->v;
@@ -847,7 +847,7 @@ int bch2_ec_read_extent(struct btree_trans *trans, struct bch_read_bio *rbio)
 	if (!bch2_ptr_matches_stripe(v, rbio->pick)) {
 		bch_err_ratelimited(c,
 			"error doing reconstruct read: pointer doesn't match stripe");
-		ret = -EIO;
+		ret = -BCH_ERR_stripe_reconstruct;
 		goto err;
 	}
 
@@ -855,7 +855,7 @@ int bch2_ec_read_extent(struct btree_trans *trans, struct bch_read_bio *rbio)
 	if (offset + bio_sectors(&rbio->bio) > le16_to_cpu(v->sectors)) {
 		bch_err_ratelimited(c,
 			"error doing reconstruct read: read is bigger than stripe");
-		ret = -EIO;
+		ret = -BCH_ERR_stripe_reconstruct;
 		goto err;
 	}
 
@@ -871,7 +871,7 @@ int bch2_ec_read_extent(struct btree_trans *trans, struct bch_read_bio *rbio)
 	if (ec_nr_failed(buf) > v->nr_redundant) {
 		bch_err_ratelimited(c,
 			"error doing reconstruct read: unable to read enough blocks");
-		ret = -EIO;
+		ret = -BCH_ERR_stripe_reconstruct;
 		goto err;
 	}
 
