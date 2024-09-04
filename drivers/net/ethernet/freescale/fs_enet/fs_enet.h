@@ -119,8 +119,6 @@ struct fs_platform_info {
 	int napi_weight;	/* NAPI weight			*/
 
 	int use_rmii;		/* use RMII mode		*/
-
-	struct clk *clk_per;	/* 'per' clock for register access */
 };
 
 struct fs_enet_private {
