@@ -24,7 +24,7 @@
  */
 #define TMP_STR_BUF_LEN 320
 /* Patch buffer size */
-#define INSN_BUF_SIZE 16
+#define INSN_BUF_SIZE 32
 
 /* Liveness marks, used for registers and spilled-regs (in stack slots).
  * Read marks propagate upwards until they find a write mark; they record that
