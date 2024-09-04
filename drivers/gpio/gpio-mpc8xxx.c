@@ -17,6 +17,8 @@
 #include <linux/mod_devicetable.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
+#include <linux/pm.h>
+#include <linux/pm_runtime.h>
 #include <linux/property.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
@@ -431,30 +433,28 @@ static void mpc8xxx_remove(struct platform_device *pdev)
 	}
 }
 
-#ifdef CONFIG_PM
-static int mpc8xxx_suspend(struct platform_device *pdev, pm_message_t state)
+static int mpc8xxx_suspend(struct device *dev)
 {
-	struct mpc8xxx_gpio_chip *mpc8xxx_gc = platform_get_drvdata(pdev);
+	struct mpc8xxx_gpio_chip *mpc8xxx_gc = dev_get_drvdata(dev);
 
-	if (mpc8xxx_gc->irqn && device_may_wakeup(&pdev->dev))
+	if (mpc8xxx_gc->irqn && device_may_wakeup(dev))
 		enable_irq_wake(mpc8xxx_gc->irqn);
 
 	return 0;
 }
 
-static int mpc8xxx_resume(struct platform_device *pdev)
+static int mpc8xxx_resume(struct device *dev)
 {
-	struct mpc8xxx_gpio_chip *mpc8xxx_gc = platform_get_drvdata(pdev);
+	struct mpc8xxx_gpio_chip *mpc8xxx_gc = dev_get_drvdata(dev);
 
-	if (mpc8xxx_gc->irqn && device_may_wakeup(&pdev->dev))
+	if (mpc8xxx_gc->irqn && device_may_wakeup(dev))
 		disable_irq_wake(mpc8xxx_gc->irqn);
 
 	return 0;
 }
-#else
-#define mpc8xxx_suspend NULL
-#define mpc8xxx_resume NULL
-#endif
+
+static DEFINE_RUNTIME_DEV_PM_OPS(mpc8xx_pm_ops,
+				 mpc8xxx_suspend, mpc8xxx_resume, NULL);
 
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id gpio_acpi_ids[] = {
@@ -467,12 +467,11 @@ MODULE_DEVICE_TABLE(acpi, gpio_acpi_ids);
 static struct platform_driver mpc8xxx_plat_driver = {
 	.probe		= mpc8xxx_probe,
 	.remove_new	= mpc8xxx_remove,
-	.suspend	= mpc8xxx_suspend,
-	.resume		= mpc8xxx_resume,
 	.driver		= {
 		.name = "gpio-mpc8xxx",
 		.of_match_table	= mpc8xxx_gpio_ids,
 		.acpi_match_table = ACPI_PTR(gpio_acpi_ids),
+		.pm = pm_ptr(&mpc8xx_pm_ops),
 	},
 };
 
