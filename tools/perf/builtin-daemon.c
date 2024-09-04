@@ -691,7 +691,7 @@ static int cmd_session_list(struct daemon *daemon, union cmd *cmd, FILE *out)
 
 		fprintf(out, "%c%" PRIu64,
 			/* session up time */
-			csv_sep, (curr - daemon->start) / 60);
+			csv_sep, (uint64_t)((curr - daemon->start) / 60));
 
 		fprintf(out, "\n");
 	} else {
@@ -702,7 +702,7 @@ static int cmd_session_list(struct daemon *daemon, union cmd *cmd, FILE *out)
 			fprintf(out, "  lock:    %s/lock\n",
 				daemon->base);
 			fprintf(out, "  up:      %" PRIu64 " minutes\n",
-				(curr - daemon->start) / 60);
+				(uint64_t)((curr - daemon->start) / 60));
 		}
 	}
 
@@ -730,7 +730,7 @@ static int cmd_session_list(struct daemon *daemon, union cmd *cmd, FILE *out)
 
 			fprintf(out, "%c%" PRIu64,
 				/* session up time */
-				csv_sep, (curr - session->start) / 60);
+				csv_sep, (uint64_t)((curr - session->start) / 60));
 
 			fprintf(out, "\n");
 		} else {
@@ -747,7 +747,7 @@ static int cmd_session_list(struct daemon *daemon, union cmd *cmd, FILE *out)
 			fprintf(out, "  ack:     %s/%s\n",
 				session->base, SESSION_ACK);
 			fprintf(out, "  up:      %" PRIu64 " minutes\n",
-				(curr - session->start) / 60);
+				(uint64_t)((curr - session->start) / 60));
 		}
 	}
 
