@@ -6948,18 +6948,19 @@ enqueue_task_fair(struct rq *rq, struct task_struct *p, int flags)
 	int rq_h_nr_running = rq->cfs.h_nr_running;
 	u64 slice = 0;
 
-	if (flags & ENQUEUE_DELAYED) {
-		requeue_delayed_entity(se);
-		return;
-	}
-
 	/*
 	 * The code below (indirectly) updates schedutil which looks at
 	 * the cfs_rq utilization to select a frequency.
 	 * Let's add the task's estimated utilization to the cfs_rq's
 	 * estimated utilization, before we update schedutil.
 	 */
-	util_est_enqueue(&rq->cfs, p);
+	if (!(p->se.sched_delayed && (task_on_rq_migrating(p) || (flags & ENQUEUE_RESTORE))))
+		util_est_enqueue(&rq->cfs, p);
+
+	if (flags & ENQUEUE_DELAYED) {
+		requeue_delayed_entity(se);
+		return;
+	}
 
 	/*
 	 * If in_iowait is set, the code below may not trigger any cpufreq
@@ -7177,7 +7178,8 @@ static int dequeue_entities(struct rq *rq, struct sched_entity *se, int flags)
  */
 static bool dequeue_task_fair(struct rq *rq, struct task_struct *p, int flags)
 {
-	util_est_dequeue(&rq->cfs, p);
+	if (!(p->se.sched_delayed && (task_on_rq_migrating(p) || (flags & DEQUEUE_SAVE))))
+		util_est_dequeue(&rq->cfs, p);
 
 	if (dequeue_entities(rq, &p->se, flags) < 0) {
 		util_est_update(&rq->cfs, p, DEQUEUE_SLEEP);
