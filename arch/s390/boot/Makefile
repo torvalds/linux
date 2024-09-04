@@ -18,11 +18,7 @@ KBUILD_CFLAGS := $(KBUILD_CFLAGS_DECOMPRESSOR)
 # Use minimum architecture for als.c to be able to print an error
 # message if the kernel is started on a machine which is too old
 #
-ifndef CONFIG_CC_IS_CLANG
-CC_FLAGS_MARCH_MINIMUM := -march=z900
-else
 CC_FLAGS_MARCH_MINIMUM := -march=z10
-endif
 
 ifneq ($(CC_FLAGS_MARCH),$(CC_FLAGS_MARCH_MINIMUM))
 AFLAGS_REMOVE_head.o		+= $(CC_FLAGS_MARCH)
