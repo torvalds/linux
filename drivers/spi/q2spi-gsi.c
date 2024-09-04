@@ -130,6 +130,7 @@ static void q2spi_check_m_irq_err_status(struct q2spi_geni *q2spi, u32 cb_status
 		Q2SPI_DEBUG(q2spi, "%s Q2SPI_CHEKSUM_FAIL\n", __func__);
 	if (status & Q2SPI_START_SEQ_TIMEOUT) {
 		q2spi->is_start_seq_fail = true;
+		complete_all(&q2spi->wait_comp_start_fail);
 		Q2SPI_DEBUG(q2spi, "%s Q2SPI_START_SEQ_TIMEOUT\n", __func__);
 	}
 	if (status & Q2SPI_STOP_SEQ_TIMEOUT)
@@ -495,15 +496,15 @@ int check_gsi_transfer_completion_db_rx(struct q2spi_geni *q2spi)
 int check_gsi_transfer_completion(struct q2spi_geni *q2spi)
 {
 	int i = 0, ret = 0;
-	unsigned long timeout = 0, xfer_timeout = 0;
+	unsigned long timeleft = 0, xfer_timeout = 0;
 
 	xfer_timeout = XFER_TIMEOUT_OFFSET;
 	Q2SPI_DEBUG(q2spi, "%s tx_eot:%d rx_eot:%d\n", __func__,
 		    q2spi->gsi->num_tx_eot, q2spi->gsi->num_rx_eot);
 	for (i = 0 ; i < q2spi->gsi->num_tx_eot; i++) {
-		timeout =
+		timeleft =
 			wait_for_completion_timeout(&q2spi->tx_cb, msecs_to_jiffies(xfer_timeout));
-		if (!timeout) {
+		if (!timeleft) {
 			Q2SPI_DEBUG(q2spi, "%s PID:%d Tx[%d] timeout\n", __func__, current->pid, i);
 			ret = -ETIMEDOUT;
 			goto err_gsi_geni_transfer;
@@ -513,9 +514,9 @@ int check_gsi_transfer_completion(struct q2spi_geni *q2spi)
 	}
 
 	for (i = 0 ; i < q2spi->gsi->num_rx_eot; i++) {
-		timeout =
+		timeleft =
 			wait_for_completion_timeout(&q2spi->rx_cb, msecs_to_jiffies(xfer_timeout));
-		if (!timeout) {
+		if (!timeleft) {
 			Q2SPI_DEBUG(q2spi, "%s PID:%d Rx[%d] timeout\n", __func__, current->pid, i);
 			ret = -ETIMEDOUT;
 			goto err_gsi_geni_transfer;
@@ -524,11 +525,15 @@ int check_gsi_transfer_completion(struct q2spi_geni *q2spi)
 		}
 	}
 err_gsi_geni_transfer:
-	if (q2spi->gsi->qup_gsi_err || !timeout) {
+	if (q2spi->gsi->qup_gsi_err || !timeleft) {
 		ret = -ETIMEDOUT;
 		Q2SPI_DEBUG(q2spi, "%s Err QUP Gsi Error\n", __func__);
 		q2spi->gsi->qup_gsi_err = false;
 		q2spi->setup_config0 = false;
+		/* Block on TX completion callback for start sequence failure */
+		wait_for_completion_interruptible_timeout
+				(&q2spi->wait_comp_start_fail,
+				msecs_to_jiffies(TIMEOUT_MSECONDS));
 		if (!q2spi->is_start_seq_fail)
 			gpi_q2spi_terminate_all(q2spi->gsi->tx_c);
 	}

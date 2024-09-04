@@ -2267,7 +2267,9 @@ static ssize_t q2spi_transfer(struct file *filp, const char __user *buf, size_t 
 		pm_runtime_set_suspended(q2spi->dev);
 		goto err;
 	}
+
 	q2spi->is_start_seq_fail = false;
+	reinit_completion(&q2spi->wait_comp_start_fail);
 	Q2SPI_DEBUG(q2spi, "%s PM after get_sync count:%d\n", __func__,
 		    atomic_read(&q2spi->dev->power.usage_count));
 	q2spi_wait_for_doorbell_setup_ready(q2spi);
@@ -2286,6 +2288,7 @@ static ssize_t q2spi_transfer(struct file *filp, const char __user *buf, size_t 
 		ret = -ENOMEM;
 		goto err;
 	}
+
 	Q2SPI_DEBUG(q2spi, "%s flow_id:%d\n", __func__, flow_id);
 	ret = q2spi_transfer_with_retries(q2spi, q2spi_req, cur_q2spi_pkt, len, flow_id, user_buf);
 	Q2SPI_DEBUG(q2spi, "%s transfer_with_retries ret:%d\n", __func__, ret);
@@ -4421,6 +4424,7 @@ static int q2spi_geni_probe(struct platform_device *pdev)
 	atomic_set(&q2spi->sma_rd_pending, 0);
 	init_completion(&q2spi->sma_wr_comp);
 	init_completion(&q2spi->sma_rd_comp);
+	init_completion(&q2spi->wait_comp_start_fail);
 
 	/* Pre allocate buffers for transfers */
 	ret = q2spi_pre_alloc_buffers(q2spi);
