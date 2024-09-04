@@ -37,7 +37,7 @@ static inline bool irq_needs_fixup(struct irq_data *d)
 	 * has been removed from the online mask already.
 	 */
 	if (cpumask_any_but(m, cpu) < nr_cpu_ids &&
-	    cpumask_any_and(m, cpu_online_mask) >= nr_cpu_ids) {
+	    !cpumask_intersects(m, cpu_online_mask)) {
 		/*
 		 * If this happens then there was a missed IRQ fixup at some
 		 * point. Warn about it and enforce fixup.
@@ -110,7 +110,7 @@ static bool migrate_one_irq(struct irq_desc *desc)
 	if (maskchip && chip->irq_mask)
 		chip->irq_mask(d);
 
-	if (cpumask_any_and(affinity, cpu_online_mask) >= nr_cpu_ids) {
+	if (!cpumask_intersects(affinity, cpu_online_mask)) {
 		/*
 		 * If the interrupt is managed, then shut it down and leave
 		 * the affinity untouched.
