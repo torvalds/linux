@@ -239,15 +239,16 @@ static void idpf_tx_singleq_map(struct idpf_tx_queue *tx_q,
 								  offsets,
 								  max_data,
 								  td_tag);
-			tx_desc++;
-			i++;
-
-			if (i == tx_q->desc_count) {
+			if (unlikely(++i == tx_q->desc_count)) {
+				tx_buf = &tx_q->tx_buf[0];
 				tx_desc = &tx_q->base_tx[0];
 				i = 0;
+			} else {
+				tx_buf++;
+				tx_desc++;
 			}
 
-			tx_q->tx_buf[i].type = LIBETH_SQE_EMPTY;
+			tx_buf->type = LIBETH_SQE_EMPTY;
 
 			dma += max_data;
 			size -= max_data;
@@ -261,12 +262,14 @@ static void idpf_tx_singleq_map(struct idpf_tx_queue *tx_q,
 
 		tx_desc->qw1 = idpf_tx_singleq_build_ctob(td_cmd, offsets,
 							  size, td_tag);
-		tx_desc++;
-		i++;
 
-		if (i == tx_q->desc_count) {
+		if (unlikely(++i == tx_q->desc_count)) {
+			tx_buf = &tx_q->tx_buf[0];
 			tx_desc = &tx_q->base_tx[0];
 			i = 0;
+		} else {
+			tx_buf++;
+			tx_desc++;
 		}
 
 		size = skb_frag_size(frag);
@@ -274,8 +277,6 @@ static void idpf_tx_singleq_map(struct idpf_tx_queue *tx_q,
 
 		dma = skb_frag_dma_map(tx_q->dev, frag, 0, size,
 				       DMA_TO_DEVICE);
-
-		tx_buf = &tx_q->tx_buf[i];
 	}
 
 	skb_tx_timestamp(first->skb);
@@ -453,6 +454,9 @@ static bool idpf_tx_singleq_clean(struct idpf_tx_queue *tx_q, int napi_budget,
 			tx_buf->type = LIBETH_SQE_EMPTY;
 			goto fetch_next_txq_desc;
 		}
+
+		if (unlikely(tx_buf->type != LIBETH_SQE_SKB))
+			break;
 
 		/* prevent any other reads prior to type */
 		smp_rmb();
