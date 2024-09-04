@@ -2085,17 +2085,6 @@ static bool bad_redir_trap(struct kvm_vcpu *vcpu,
 #define EL2_REG_REDIR(name, rst, v)	EL2_REG(name, bad_redir_trap, rst, v)
 
 /*
- * EL{0,1}2 registers are the EL2 view on an EL0 or EL1 register when
- * HCR_EL2.E2H==1, and only in the sysreg table for convenience of
- * handling traps. Given that, they are always hidden from userspace.
- */
-static unsigned int hidden_user_visibility(const struct kvm_vcpu *vcpu,
-					   const struct sys_reg_desc *rd)
-{
-	return REG_HIDDEN_USER;
-}
-
-/*
  * Since reset() callback and field val are not used for idregs, they will be
  * used for specific purposes for idregs.
  * The reset() would return KVM sanitised register value. The value would be the
@@ -4273,7 +4262,7 @@ int kvm_sys_reg_get_user(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg,
 	int ret;
 
 	r = id_to_sys_reg_desc(vcpu, reg->id, table, num);
-	if (!r || sysreg_hidden_user(vcpu, r))
+	if (!r || sysreg_hidden(vcpu, r))
 		return -ENOENT;
 
 	if (r->get_user) {
@@ -4317,7 +4306,7 @@ int kvm_sys_reg_set_user(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg,
 		return -EFAULT;
 
 	r = id_to_sys_reg_desc(vcpu, reg->id, table, num);
-	if (!r || sysreg_hidden_user(vcpu, r))
+	if (!r || sysreg_hidden(vcpu, r))
 		return -ENOENT;
 
 	if (sysreg_user_write_ignore(vcpu, r))
@@ -4403,7 +4392,7 @@ static int walk_one_sys_reg(const struct kvm_vcpu *vcpu,
 	if (!(rd->reg || rd->get_user))
 		return 0;
 
-	if (sysreg_hidden_user(vcpu, rd))
+	if (sysreg_hidden(vcpu, rd))
 		return 0;
 
 	if (!copy_reg_to_user(rd, uind))
