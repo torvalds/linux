@@ -137,7 +137,7 @@ static const struct intel_device_info mock_info = {
 
 struct drm_i915_private *mock_gem_device(void)
 {
-#if IS_ENABLED(CONFIG_IOMMU_API) && defined(CONFIG_INTEL_IOMMU)
+#if IS_ENABLED(CONFIG_IOMMU_API) && IS_ENABLED(CONFIG_INTEL_IOMMU)
 	static struct dev_iommu fake_iommu = { .priv = (void *)-1 };
 #endif
 	struct drm_i915_private *i915;
@@ -153,7 +153,7 @@ struct drm_i915_private *mock_gem_device(void)
 	dev_set_name(&pdev->dev, "mock");
 	dma_coerce_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
 
-#if IS_ENABLED(CONFIG_IOMMU_API) && defined(CONFIG_INTEL_IOMMU)
+#if IS_ENABLED(CONFIG_IOMMU_API) && IS_ENABLED(CONFIG_INTEL_IOMMU)
 	/* HACK to disable iommu for the fake device; force identity mapping */
 	pdev->dev.iommu = &fake_iommu;
 #endif
