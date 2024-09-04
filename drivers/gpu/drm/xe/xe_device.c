@@ -588,15 +588,17 @@ int xe_device_probe_early(struct xe_device *xe)
 	return 0;
 }
 
-static int xe_device_set_has_flat_ccs(struct  xe_device *xe)
+static int probe_has_flat_ccs(struct xe_device *xe)
 {
+	struct xe_gt *gt;
 	u32 reg;
 	int err;
 
+	/* Always enabled/disabled, no runtime check to do */
 	if (GRAPHICS_VER(xe) < 20 || !xe->info.has_flat_ccs)
 		return 0;
 
-	struct xe_gt *gt = xe_root_mmio_gt(xe);
+	gt = xe_root_mmio_gt(xe);
 
 	err = xe_force_wake_get(gt_to_fw(gt), XE_FW_GT);
 	if (err)
@@ -688,7 +690,7 @@ int xe_device_probe(struct xe_device *xe)
 	if (err)
 		goto err;
 
-	err = xe_device_set_has_flat_ccs(xe);
+	err = probe_has_flat_ccs(xe);
 	if (err)
 		goto err;
 
