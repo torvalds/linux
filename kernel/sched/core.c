@@ -9193,7 +9193,7 @@ static int cpu_uclamp_max_show(struct seq_file *sf, void *v)
 }
 #endif /* CONFIG_UCLAMP_TASK_GROUP */
 
-#ifdef CONFIG_FAIR_GROUP_SCHED
+#ifdef CONFIG_GROUP_SCHED_WEIGHT
 static unsigned long tg_weight(struct task_group *tg)
 {
 	return scale_load_down(tg->shares);
@@ -9212,6 +9212,7 @@ static u64 cpu_shares_read_u64(struct cgroup_subsys_state *css,
 {
 	return tg_weight(css_tg(css));
 }
+#endif /* CONFIG_GROUP_SCHED_WEIGHT */
 
 #ifdef CONFIG_CFS_BANDWIDTH
 static DEFINE_MUTEX(cfs_constraints_mutex);
@@ -9557,7 +9558,6 @@ static int cpu_cfs_local_stat_show(struct seq_file *sf, void *v)
 	return 0;
 }
 #endif /* CONFIG_CFS_BANDWIDTH */
-#endif /* CONFIG_FAIR_GROUP_SCHED */
 
 #ifdef CONFIG_RT_GROUP_SCHED
 static int cpu_rt_runtime_write(struct cgroup_subsys_state *css,
@@ -9585,7 +9585,7 @@ static u64 cpu_rt_period_read_uint(struct cgroup_subsys_state *css,
 }
 #endif /* CONFIG_RT_GROUP_SCHED */
 
-#ifdef CONFIG_FAIR_GROUP_SCHED
+#ifdef CONFIG_GROUP_SCHED_WEIGHT
 static s64 cpu_idle_read_s64(struct cgroup_subsys_state *css,
 			       struct cftype *cft)
 {
@@ -9600,7 +9600,7 @@ static int cpu_idle_write_s64(struct cgroup_subsys_state *css,
 #endif
 
 static struct cftype cpu_legacy_files[] = {
-#ifdef CONFIG_FAIR_GROUP_SCHED
+#ifdef CONFIG_GROUP_SCHED_WEIGHT
 	{
 		.name = "shares",
 		.read_u64 = cpu_shares_read_u64,
@@ -9710,7 +9710,7 @@ static int cpu_local_stat_show(struct seq_file *sf,
 	return 0;
 }
 
-#ifdef CONFIG_FAIR_GROUP_SCHED
+#ifdef CONFIG_GROUP_SCHED_WEIGHT
 
 static u64 cpu_weight_read_u64(struct cgroup_subsys_state *css,
 			       struct cftype *cft)
@@ -9764,7 +9764,7 @@ static int cpu_weight_nice_write_s64(struct cgroup_subsys_state *css,
 
 	return sched_group_set_shares(css_tg(css), scale_load(weight));
 }
-#endif
+#endif /* CONFIG_GROUP_SCHED_WEIGHT */
 
 static void __maybe_unused cpu_period_quota_print(struct seq_file *sf,
 						  long period, long quota)
@@ -9824,7 +9824,7 @@ static ssize_t cpu_max_write(struct kernfs_open_file *of,
 #endif
 
 static struct cftype cpu_files[] = {
-#ifdef CONFIG_FAIR_GROUP_SCHED
+#ifdef CONFIG_GROUP_SCHED_WEIGHT
 	{
 		.name = "weight",
 		.flags = CFTYPE_NOT_ON_ROOT,
