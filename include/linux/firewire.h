@@ -134,6 +134,8 @@ struct fw_card {
 	__be32 topology_map[(CSR_TOPOLOGY_MAP_END - CSR_TOPOLOGY_MAP) / 4];
 
 	__be32 maint_utility_register;
+
+	struct workqueue_struct *isoc_wq;
 };
 
 static inline struct fw_card *fw_card_get(struct fw_card *card)

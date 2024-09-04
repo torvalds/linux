@@ -3827,7 +3827,7 @@ static int pci_probe(struct pci_dev *dev,
 		goto fail_msi;
 	}
 
-	err = fw_card_add(&ohci->card, max_receive, link_speed, guid);
+	err = fw_card_add(&ohci->card, max_receive, link_speed, guid, ohci->n_it + ohci->n_ir);
 	if (err)
 		goto fail_irq;
 

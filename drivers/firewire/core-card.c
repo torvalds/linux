@@ -571,10 +571,29 @@ void fw_card_initialize(struct fw_card *card,
 }
 EXPORT_SYMBOL(fw_card_initialize);
 
-int fw_card_add(struct fw_card *card,
-		u32 max_receive, u32 link_speed, u64 guid)
+int fw_card_add(struct fw_card *card, u32 max_receive, u32 link_speed, u64 guid,
+		unsigned int supported_isoc_contexts)
 {
+	struct workqueue_struct *isoc_wq;
 	int ret;
+
+	// This workqueue should be:
+	//  * != WQ_BH			Sleepable.
+	//  * == WQ_UNBOUND		Any core can process data for isoc context. The
+	//				implementation of unit protocol could consumes the core
+	//				longer somehow.
+	//  * != WQ_MEM_RECLAIM		Not used for any backend of block device.
+	//  * == WQ_FREEZABLE		Isochronous communication is at regular interval in real
+	//				time, thus should be drained if possible at freeze phase.
+	//  * == WQ_HIGHPRI		High priority to process semi-realtime timestamped data.
+	//  * == WQ_SYSFS		Parameters are available via sysfs.
+	//  * max_active == n_it + n_ir	A hardIRQ could notify events for multiple isochronous
+	//				contexts if they are scheduled to the same cycle.
+	isoc_wq = alloc_workqueue("firewire-isoc-card%u",
+				  WQ_UNBOUND | WQ_FREEZABLE | WQ_HIGHPRI | WQ_SYSFS,
+				  supported_isoc_contexts, card->index);
+	if (!isoc_wq)
+		return -ENOMEM;
 
 	card->max_receive = max_receive;
 	card->link_speed = link_speed;
@@ -584,9 +603,12 @@ int fw_card_add(struct fw_card *card,
 
 	generate_config_rom(card, tmp_config_rom);
 	ret = card->driver->enable(card, tmp_config_rom, config_rom_length);
-	if (ret < 0)
+	if (ret < 0) {
+		destroy_workqueue(isoc_wq);
 		return ret;
+	}
 
+	card->isoc_wq = isoc_wq;
 	list_add_tail(&card->link, &card_list);
 
 	return 0;
@@ -708,6 +730,8 @@ void fw_core_remove_card(struct fw_card *card)
 {
 	struct fw_card_driver dummy_driver = dummy_driver_template;
 
+	might_sleep();
+
 	card->driver->update_phy_reg(card, 4,
 				     PHY_LINK_ACTIVE | PHY_CONTENDER, 0);
 	fw_schedule_bus_reset(card, false, true);
@@ -719,6 +743,7 @@ void fw_core_remove_card(struct fw_card *card)
 	dummy_driver.free_iso_context	= card->driver->free_iso_context;
 	dummy_driver.stop_iso		= card->driver->stop_iso;
 	card->driver = &dummy_driver;
+	drain_workqueue(card->isoc_wq);
 
 	scoped_guard(spinlock_irqsave, &card->lock)
 		fw_destroy_nodes(card);
@@ -726,6 +751,8 @@ void fw_core_remove_card(struct fw_card *card)
 	/* Wait for all users, especially device workqueue jobs, to finish. */
 	fw_card_put(card);
 	wait_for_completion(&card->done);
+
+	destroy_workqueue(card->isoc_wq);
 
 	WARN_ON(!list_empty(&card->transaction_list));
 }
