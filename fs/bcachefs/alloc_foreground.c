@@ -1729,13 +1729,6 @@ void bch2_dev_alloc_debug_to_text(struct printbuf *out, struct bch_dev *ca)
 	for (unsigned i = 0; i < ARRAY_SIZE(c->open_buckets); i++)
 		nr[c->open_buckets[i].data_type]++;
 
-	printbuf_tabstops_reset(out);
-	printbuf_tabstop_push(out, 12);
-	printbuf_tabstop_push(out, 16);
-	printbuf_tabstop_push(out, 16);
-	printbuf_tabstop_push(out, 16);
-	printbuf_tabstop_push(out, 16);
-
 	bch2_dev_usage_to_text(out, ca, &stats);
 
 	prt_newline(out);

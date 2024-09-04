@@ -75,6 +75,15 @@ void bch2_dev_usage_to_text(struct printbuf *out,
 			    struct bch_dev *ca,
 			    struct bch_dev_usage *usage)
 {
+	if (out->nr_tabstops < 5) {
+		printbuf_tabstops_reset(out);
+		printbuf_tabstop_push(out, 12);
+		printbuf_tabstop_push(out, 16);
+		printbuf_tabstop_push(out, 16);
+		printbuf_tabstop_push(out, 16);
+		printbuf_tabstop_push(out, 16);
+	}
+
 	prt_printf(out, "\tbuckets\rsectors\rfragmented\r\n");
 
 	for (unsigned i = 0; i < BCH_DATA_NR; i++) {
