@@ -70,10 +70,10 @@ static HLIST_HEAD(obj_to_free);
  * made at debug_stats_show(). Both obj_pool_min_free and obj_pool_max_used
  * can be off.
  */
-static int			obj_pool_min_free = ODEBUG_POOL_SIZE;
-static int			obj_pool_free = ODEBUG_POOL_SIZE;
+static int __data_racy		obj_pool_min_free = ODEBUG_POOL_SIZE;
+static int __data_racy		obj_pool_free = ODEBUG_POOL_SIZE;
 static int			obj_pool_used;
-static int			obj_pool_max_used;
+static int __data_racy		obj_pool_max_used;
 static bool			obj_freeing;
 /* The number of objs on the global free list */
 static int			obj_nr_tofree;
@@ -84,9 +84,9 @@ static int __data_racy			debug_objects_fixups __read_mostly;
 static int __data_racy			debug_objects_warnings __read_mostly;
 static int __data_racy			debug_objects_enabled __read_mostly
 					= CONFIG_DEBUG_OBJECTS_ENABLE_DEFAULT;
-static int __data_racy			debug_objects_pool_size __read_mostly
+static int				debug_objects_pool_size __ro_after_init
 					= ODEBUG_POOL_SIZE;
-static int __data_racy			debug_objects_pool_min_level __read_mostly
+static int				debug_objects_pool_min_level __ro_after_init
 					= ODEBUG_POOL_MIN_LEVEL;
 
 static const struct debug_obj_descr *descr_test  __read_mostly;
@@ -95,8 +95,8 @@ static struct kmem_cache	*obj_cache __ro_after_init;
 /*
  * Track numbers of kmem_cache_alloc()/free() calls done.
  */
-static int			debug_objects_allocated;
-static int			debug_objects_freed;
+static int __data_racy		debug_objects_allocated;
+static int __data_racy		debug_objects_freed;
 
 static void free_obj_work(struct work_struct *work);
 static DECLARE_DELAYED_WORK(debug_obj_work, free_obj_work);
