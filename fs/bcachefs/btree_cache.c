@@ -15,6 +15,7 @@
 
 #include <linux/prefetch.h>
 #include <linux/sched/mm.h>
+#include <linux/swap.h>
 
 #define BTREE_CACHE_NOT_FREED_INCREMENT(counter) \
 do {						 \
@@ -62,6 +63,16 @@ static void btree_node_to_freedlist(struct btree_cache *bc, struct btree *b)
 static void btree_node_data_free(struct bch_fs *c, struct btree *b)
 {
 	struct btree_cache *bc = &c->btree_cache;
+
+	/*
+	 * This should really be done in slub/vmalloc, but we're using the
+	 * kmalloc_large() path, so we're working around a slub bug by doing
+	 * this here:
+	 */
+	if (b->data)
+		mm_account_reclaimed_pages(btree_buf_bytes(b) / PAGE_SIZE);
+	if (b->aux_data)
+		mm_account_reclaimed_pages(btree_aux_data_bytes(b) / PAGE_SIZE);
 
 	EBUG_ON(btree_node_write_in_flight(b));
 
