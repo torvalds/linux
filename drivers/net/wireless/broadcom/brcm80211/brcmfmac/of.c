@@ -138,7 +138,7 @@ void brcmf_of_probe(struct device *dev, enum brcmf_bus_type bus_type,
 		brcmf_err("interrupt could not be mapped\n");
 		return;
 	}
-	irqf = irqd_get_trigger_type(irq_get_irq_data(irq));
+	irqf = irq_get_trigger_type(irq);
 
 	sdio->oob_irq_supported = true;
 	sdio->oob_irq_nr = irq;
