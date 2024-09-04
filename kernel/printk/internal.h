@@ -113,6 +113,13 @@ static inline bool console_is_usable(struct console *con, short flags, bool use_
 		/* The write_atomic() callback is optional. */
 		if (use_atomic && !con->write_atomic)
 			return false;
+
+		/*
+		 * For the !use_atomic case, @printk_kthreads_running is not
+		 * checked because the write_thread() callback is also used
+		 * via the legacy loop when the printer threads are not
+		 * available.
+		 */
 	} else {
 		if (!con->write)
 			return false;
@@ -176,6 +183,7 @@ static inline void nbcon_atomic_flush_pending(void) { }
 static inline bool nbcon_legacy_emit_next_record(struct console *con, bool *handover,
 						 int cookie, bool use_atomic) { return false; }
 static inline void nbcon_kthread_wake(struct console *con) { }
+static inline void nbcon_kthreads_wake(void) { }
 
 static inline bool console_is_usable(struct console *con, short flags,
 				     bool use_atomic) { return false; }
@@ -190,6 +198,7 @@ extern bool legacy_allow_panic_sync;
 /**
  * struct console_flush_type - Define available console flush methods
  * @nbcon_atomic:	Flush directly using nbcon_atomic() callback
+ * @nbcon_offload:	Offload flush to printer thread
  * @legacy_direct:	Call the legacy loop in this context
  * @legacy_offload:	Offload the legacy loop into IRQ
  *
@@ -197,6 +206,7 @@ extern bool legacy_allow_panic_sync;
  */
 struct console_flush_type {
 	bool	nbcon_atomic;
+	bool	nbcon_offload;
 	bool	legacy_direct;
 	bool	legacy_offload;
 };
@@ -211,6 +221,22 @@ static inline void printk_get_console_flush_type(struct console_flush_type *ft)
 
 	switch (nbcon_get_default_prio()) {
 	case NBCON_PRIO_NORMAL:
+		if (have_nbcon_console && !have_boot_console) {
+			if (printk_kthreads_running)
+				ft->nbcon_offload = true;
+			else
+				ft->nbcon_atomic = true;
+		}
+
+		/* Legacy consoles are flushed directly when possible. */
+		if (have_legacy_console || have_boot_console) {
+			if (!is_printk_legacy_deferred())
+				ft->legacy_direct = true;
+			else
+				ft->legacy_offload = true;
+		}
+		break;
+
 	case NBCON_PRIO_EMERGENCY:
 		if (have_nbcon_console && !have_boot_console)
 			ft->nbcon_atomic = true;
