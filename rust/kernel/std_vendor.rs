@@ -16,7 +16,7 @@
 ///
 /// ```rust
 /// let a = 2;
-/// # #[allow(clippy::disallowed_macros)]
+/// # #[expect(clippy::disallowed_macros)]
 /// let b = dbg!(a * 2) + 1;
 /// //      ^-- prints: [src/main.rs:2] a * 2 = 4
 /// assert_eq!(b, 5);
@@ -54,7 +54,7 @@
 /// With a method call:
 ///
 /// ```rust
-/// # #[allow(clippy::disallowed_macros)]
+/// # #[expect(clippy::disallowed_macros)]
 /// fn foo(n: usize) {
 ///     if dbg!(n.checked_sub(4)).is_some() {
 ///         // ...
@@ -73,7 +73,7 @@
 /// Naive factorial implementation:
 ///
 /// ```rust
-/// # #[allow(clippy::disallowed_macros)]
+/// # #[expect(clippy::disallowed_macros)]
 /// # {
 /// fn factorial(n: u32) -> u32 {
 ///     if dbg!(n <= 1) {
@@ -120,7 +120,7 @@
 /// a tuple (and return it, too):
 ///
 /// ```
-/// # #![allow(clippy::disallowed_macros)]
+/// # #![expect(clippy::disallowed_macros)]
 /// assert_eq!(dbg!(1usize, 2u32), (1, 2));
 /// ```
 ///
@@ -129,7 +129,7 @@
 /// invocations. You can use a 1-tuple directly if you need one:
 ///
 /// ```
-/// # #[allow(clippy::disallowed_macros)]
+/// # #[expect(clippy::disallowed_macros)]
 /// # {
 /// assert_eq!(1, dbg!(1u32,)); // trailing comma ignored
 /// assert_eq!((1,), dbg!((1u32,))); // 1-tuple

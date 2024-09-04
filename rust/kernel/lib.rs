@@ -14,6 +14,7 @@
 #![no_std]
 #![feature(coerce_unsized)]
 #![feature(dispatch_from_dyn)]
+#![feature(lint_reasons)]
 #![feature(new_uninit)]
 #![feature(receiver_trait)]
 #![feature(unsize)]

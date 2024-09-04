@@ -133,7 +133,7 @@ impl Error {
     }
 
     /// Returns the error encoded as a pointer.
-    #[allow(dead_code)]
+    #[expect(dead_code)]
     pub(crate) fn to_ptr<T>(self) -> *mut T {
         #[cfg_attr(target_pointer_width = "32", allow(clippy::useless_conversion))]
         // SAFETY: `self.0` is a valid error due to its invariant.
