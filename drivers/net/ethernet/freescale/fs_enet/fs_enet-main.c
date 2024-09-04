@@ -607,10 +607,11 @@ static void fs_timeout(struct net_device *dev, unsigned int txqueue)
 }
 
 /* generic link-change handler - should be sufficient for most cases */
-static void generic_adjust_link(struct  net_device *dev)
+static void fs_adjust_link(struct  net_device *dev)
 {
 	struct fs_enet_private *fep = netdev_priv(dev);
 	struct phy_device *phydev = dev->phydev;
+	unsigned long flags;
 	int new_state = 0;
 
 	if (phydev->link) {
@@ -630,8 +631,11 @@ static void generic_adjust_link(struct  net_device *dev)
 			fep->oldlink = 1;
 		}
 
-		if (new_state)
+		if (new_state) {
+			spin_lock_irqsave(&fep->lock, flags);
 			fep->ops->restart(dev);
+			spin_unlock_irqrestore(&fep->lock, flags);
+		}
 	} else if (fep->oldlink) {
 		new_state = 1;
 		fep->oldlink = 0;
@@ -641,16 +645,6 @@ static void generic_adjust_link(struct  net_device *dev)
 
 	if (new_state && netif_msg_link(fep))
 		phy_print_status(phydev);
-}
-
-static void fs_adjust_link(struct net_device *dev)
-{
-	struct fs_enet_private *fep = netdev_priv(dev);
-	unsigned long flags;
-
-	spin_lock_irqsave(&fep->lock, flags);
-	generic_adjust_link(dev);
-	spin_unlock_irqrestore(&fep->lock, flags);
 }
 
 static int fs_init_phy(struct net_device *dev)
