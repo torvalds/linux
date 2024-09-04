@@ -145,6 +145,7 @@ static void chv_set_memory_pm5(struct drm_i915_private *dev_priv, bool enable)
 
 static bool _intel_set_memory_cxsr(struct drm_i915_private *dev_priv, bool enable)
 {
+	struct intel_display *display = &dev_priv->display;
 	bool was_enabled;
 	u32 val;
 
@@ -186,7 +187,7 @@ static bool _intel_set_memory_cxsr(struct drm_i915_private *dev_priv, bool enabl
 		return false;
 	}
 
-	trace_intel_memory_cxsr(dev_priv, was_enabled, enable);
+	trace_intel_memory_cxsr(display, was_enabled, enable);
 
 	drm_dbg_kms(&dev_priv->drm, "memory self-refresh is %s (was %s)\n",
 		    str_enabled_disabled(enable),

@@ -94,7 +94,7 @@ static void frontbuffer_flush(struct drm_i915_private *i915,
 	if (!frontbuffer_bits)
 		return;
 
-	trace_intel_frontbuffer_flush(i915, frontbuffer_bits, origin);
+	trace_intel_frontbuffer_flush(display, frontbuffer_bits, origin);
 
 	might_sleep();
 	intel_td_flush(i915);
@@ -184,7 +184,7 @@ void __intel_fb_invalidate(struct intel_frontbuffer *front,
 		spin_unlock(&i915->display.fb_tracking.lock);
 	}
 
-	trace_intel_frontbuffer_invalidate(i915, frontbuffer_bits, origin);
+	trace_intel_frontbuffer_invalidate(display, frontbuffer_bits, origin);
 
 	might_sleep();
 	intel_psr_invalidate(display, frontbuffer_bits, origin);
