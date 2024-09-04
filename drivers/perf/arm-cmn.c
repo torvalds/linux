@@ -1280,15 +1280,11 @@ static ssize_t arm_cmn_format_show(struct device *dev,
 				   struct device_attribute *attr, char *buf)
 {
 	struct arm_cmn_format_attr *fmt = container_of(attr, typeof(*fmt), attr);
-	int lo = __ffs(fmt->field), hi = __fls(fmt->field);
-
-	if (lo == hi)
-		return sysfs_emit(buf, "config:%d\n", lo);
 
 	if (!fmt->config)
-		return sysfs_emit(buf, "config:%d-%d\n", lo, hi);
+		return sysfs_emit(buf, "config:%*pbl\n", 64, &fmt->field);
 
-	return sysfs_emit(buf, "config%d:%d-%d\n", fmt->config, lo, hi);
+	return sysfs_emit(buf, "config%d:%*pbl\n", fmt->config, 64, &fmt->field);
 }
 
 #define _CMN_FORMAT_ATTR(_name, _cfg, _fld)				\
