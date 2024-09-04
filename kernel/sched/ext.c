@@ -2723,12 +2723,10 @@ preempt_reason_from_class(const struct sched_class *class)
 	return SCX_CPU_PREEMPT_UNKNOWN;
 }
 
-static void switch_class_scx(struct rq *rq, struct task_struct *next)
+static void switch_class(struct rq *rq, struct task_struct *next)
 {
 	const struct sched_class *next_class = next->sched_class;
 
-	if (!scx_enabled())
-		return;
 #ifdef CONFIG_SMP
 	/*
 	 * Pairs with the smp_load_acquire() issued by a CPU in
@@ -2808,6 +2806,9 @@ static void put_prev_task_scx(struct rq *rq, struct task_struct *p,
 			do_enqueue_task(rq, p, 0, -1);
 		}
 	}
+
+	if (next && next->sched_class != &ext_sched_class)
+		switch_class(rq, next);
 }
 
 static struct task_struct *first_local_task(struct rq *rq)
@@ -3590,8 +3591,6 @@ DEFINE_SCHED_CLASS(ext) = {
 
 	.put_prev_task		= put_prev_task_scx,
 	.set_next_task		= set_next_task_scx,
-
-	.switch_class		= switch_class_scx,
 
 #ifdef CONFIG_SMP
 	.select_task_rq		= select_task_rq_scx,
