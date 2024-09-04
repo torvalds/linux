@@ -353,15 +353,10 @@ static enum power_supply_property yoga_c630_psy_adpt_properties[] = {
 	POWER_SUPPLY_PROP_USB_TYPE,
 };
 
-static const enum power_supply_usb_type yoga_c630_psy_adpt_usb_type[] = {
-	POWER_SUPPLY_USB_TYPE_C,
-};
-
 static const struct power_supply_desc yoga_c630_psy_adpt_psy_desc = {
 	.name = "yoga-c630-adapter",
 	.type = POWER_SUPPLY_TYPE_USB,
-	.usb_types = yoga_c630_psy_adpt_usb_type,
-	.num_usb_types = ARRAY_SIZE(yoga_c630_psy_adpt_usb_type),
+	.usb_types = BIT(POWER_SUPPLY_USB_TYPE_C),
 	.properties = yoga_c630_psy_adpt_properties,
 	.num_properties = ARRAY_SIZE(yoga_c630_psy_adpt_properties),
 	.get_property = yoga_c630_psy_adpt_get_property,

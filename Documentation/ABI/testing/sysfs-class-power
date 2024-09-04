@@ -592,7 +592,12 @@ Description:
 		the supply, for example it can show if USB-PD capable source
 		is attached.
 
-		Access: Read-Only
+		Access: For power-supplies which consume USB power such
+		as battery charger chips, this indicates the type of
+		the connected USB power source and is Read-Only.
+
+		For power-supplies which act as a USB power-source such as
+		e.g. the UCS1002 USB Port Power Controller this is writable.
 
 		Valid values:
 			      "Unknown", "SDP", "DCP", "CDP", "ACA", "C", "PD",
