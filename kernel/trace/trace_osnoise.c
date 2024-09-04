@@ -1612,6 +1612,7 @@ out:
 
 static struct cpumask osnoise_cpumask;
 static struct cpumask save_cpumask;
+static struct cpumask kthread_cpumask;
 
 /*
  * osnoise_sleep - sleep until the next period
@@ -1675,6 +1676,7 @@ static inline int osnoise_migration_pending(void)
 	 */
 	mutex_lock(&interface_lock);
 	this_cpu_osn_var()->kthread = NULL;
+	cpumask_clear_cpu(smp_processor_id(), &kthread_cpumask);
 	mutex_unlock(&interface_lock);
 
 	return 1;
@@ -1947,9 +1949,10 @@ static void stop_kthread(unsigned int cpu)
 
 	kthread = per_cpu(per_cpu_osnoise_var, cpu).kthread;
 	if (kthread) {
-		if (test_bit(OSN_WORKLOAD, &osnoise_options)) {
+		if (cpumask_test_and_clear_cpu(cpu, &kthread_cpumask) &&
+		    !WARN_ON(!test_bit(OSN_WORKLOAD, &osnoise_options))) {
 			kthread_stop(kthread);
-		} else {
+		} else if (!WARN_ON(test_bit(OSN_WORKLOAD, &osnoise_options))) {
 			/*
 			 * This is a user thread waiting on the timerlat_fd. We need
 			 * to close all users, and the best way to guarantee this is
@@ -2021,6 +2024,7 @@ static int start_kthread(unsigned int cpu)
 	}
 
 	per_cpu(per_cpu_osnoise_var, cpu).kthread = kthread;
+	cpumask_set_cpu(cpu, &kthread_cpumask);
 
 	return 0;
 }
@@ -2048,8 +2052,16 @@ static int start_per_cpu_kthreads(void)
 	 */
 	cpumask_and(current_mask, cpu_online_mask, &osnoise_cpumask);
 
-	for_each_possible_cpu(cpu)
+	for_each_possible_cpu(cpu) {
+		if (cpumask_test_and_clear_cpu(cpu, &kthread_cpumask)) {
+			struct task_struct *kthread;
+
+			kthread = per_cpu(per_cpu_osnoise_var, cpu).kthread;
+			if (!WARN_ON(!kthread))
+				kthread_stop(kthread);
+		}
 		per_cpu(per_cpu_osnoise_var, cpu).kthread = NULL;
+	}
 
 	for_each_cpu(cpu, current_mask) {
 		retval = start_kthread(cpu);
