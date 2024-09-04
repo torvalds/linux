@@ -86,6 +86,7 @@
 
 #define CLOCK_TOO_SLOW_HZ	50000000
 #define SDHCI_AM654_AUTOSUSPEND_DELAY	-1
+#define RETRY_TUNING_MAX	10
 
 /* Command Queue Host Controller Interface Base address */
 #define SDHCI_AM654_CQE_BASE_ADDR 0x200
@@ -151,6 +152,7 @@ struct sdhci_am654_data {
 	u32 flags;
 	u32 quirks;
 	bool dll_enable;
+	u32 tuning_loop;
 
 #define SDHCI_AM654_QUIRK_FORCE_CDTEST BIT(0)
 };
@@ -443,22 +445,23 @@ static u32 sdhci_am654_cqhci_irq(struct sdhci_host *host, u32 intmask)
 #define ITAPDLY_LENGTH 32
 #define ITAPDLY_LAST_INDEX (ITAPDLY_LENGTH - 1)
 
-static u32 sdhci_am654_calculate_itap(struct sdhci_host *host, struct window
+static int sdhci_am654_calculate_itap(struct sdhci_host *host, struct window
 			  *fail_window, u8 num_fails, bool circular_buffer)
 {
 	u8 itap = 0, start_fail = 0, end_fail = 0, pass_length = 0;
 	u8 first_fail_start = 0, last_fail_end = 0;
-	struct device *dev = mmc_dev(host->mmc);
 	struct window pass_window = {0, 0, 0};
 	int prev_fail_end = -1;
 	u8 i;
 
-	if (!num_fails)
-		return ITAPDLY_LAST_INDEX >> 1;
+	if (!num_fails) {
+		/* Retry tuning */
+		return -1;
+	}
 
 	if (fail_window->length == ITAPDLY_LENGTH) {
-		dev_err(dev, "No passing ITAPDLY, return 0\n");
-		return 0;
+		/* Retry tuning */
+		return -1;
 	}
 
 	first_fail_start = fail_window->start;
@@ -494,8 +497,8 @@ static u32 sdhci_am654_calculate_itap(struct sdhci_host *host, struct window
 	return (itap > ITAPDLY_LAST_INDEX) ? ITAPDLY_LAST_INDEX >> 1 : itap;
 }
 
-static int sdhci_am654_platform_execute_tuning(struct sdhci_host *host,
-					       u32 opcode)
+static int sdhci_am654_do_tuning(struct sdhci_host *host,
+				 u32 opcode)
 {
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
 	struct sdhci_am654_data *sdhci_am654 = sdhci_pltfm_priv(pltfm_host);
@@ -532,13 +535,30 @@ static int sdhci_am654_platform_execute_tuning(struct sdhci_host *host,
 	if (fail_window[fail_index].length != 0)
 		fail_index++;
 
-	itap = sdhci_am654_calculate_itap(host, fail_window, fail_index,
-					  sdhci_am654->dll_enable);
+	return sdhci_am654_calculate_itap(host, fail_window, fail_index,
+					 sdhci_am654->dll_enable);
+}
 
-	sdhci_am654_write_itapdly(sdhci_am654, itap, sdhci_am654->itap_del_ena[timing]);
+static int sdhci_am654_platform_execute_tuning(struct sdhci_host *host,
+					       u32 opcode)
+{
+	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+	struct sdhci_am654_data *sdhci_am654 = sdhci_pltfm_priv(pltfm_host);
+	unsigned char timing = host->mmc->ios.timing;
+	int itapdly;
 
+	do {
+		itapdly = sdhci_am654_do_tuning(host, opcode);
+		if (itapdly >= 0)
+			break;
+	} while (++sdhci_am654->tuning_loop < RETRY_TUNING_MAX);
+
+	if (itapdly < 0)
+		return -1;
+
+	sdhci_am654_write_itapdly(sdhci_am654, itapdly, sdhci_am654->itap_del_ena[timing]);
 	/* Save ITAPDLY */
-	sdhci_am654->itap_del_sel[timing] = itap;
+	sdhci_am654->itap_del_sel[timing] = itapdly;
 
 	return 0;
 }
@@ -741,6 +761,9 @@ static int sdhci_am654_init(struct sdhci_host *host)
 	/* Enable tuning for SDR50 */
 	regmap_update_bits(sdhci_am654->base, CTL_CFG_3, TUNINGFORSDR50_MASK,
 			   TUNINGFORSDR50_MASK);
+
+	/* Use to re-execute tuning */
+	sdhci_am654->tuning_loop = 0;
 
 	ret = sdhci_setup_host(host);
 	if (ret)
