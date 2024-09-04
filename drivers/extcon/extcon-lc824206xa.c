@@ -393,14 +393,6 @@ static int lc824206xa_psy_get_prop(struct power_supply *psy,
 	return 0;
 }
 
-static const enum power_supply_usb_type lc824206xa_psy_usb_types[] = {
-	POWER_SUPPLY_USB_TYPE_SDP,
-	POWER_SUPPLY_USB_TYPE_CDP,
-	POWER_SUPPLY_USB_TYPE_DCP,
-	POWER_SUPPLY_USB_TYPE_ACA,
-	POWER_SUPPLY_USB_TYPE_UNKNOWN,
-};
-
 static const enum power_supply_property lc824206xa_psy_props[] = {
 	POWER_SUPPLY_PROP_ONLINE,
 	POWER_SUPPLY_PROP_USB_TYPE,
@@ -410,8 +402,11 @@ static const enum power_supply_property lc824206xa_psy_props[] = {
 static const struct power_supply_desc lc824206xa_psy_desc = {
 	.name = "lc824206xa-charger-detect",
 	.type = POWER_SUPPLY_TYPE_USB,
-	.usb_types = lc824206xa_psy_usb_types,
-	.num_usb_types = ARRAY_SIZE(lc824206xa_psy_usb_types),
+	.usb_types = BIT(POWER_SUPPLY_USB_TYPE_SDP) |
+		     BIT(POWER_SUPPLY_USB_TYPE_CDP) |
+		     BIT(POWER_SUPPLY_USB_TYPE_DCP) |
+		     BIT(POWER_SUPPLY_USB_TYPE_ACA) |
+		     BIT(POWER_SUPPLY_USB_TYPE_UNKNOWN),
 	.properties = lc824206xa_psy_props,
 	.num_properties = ARRAY_SIZE(lc824206xa_psy_props),
 	.get_property = lc824206xa_psy_get_prop,
