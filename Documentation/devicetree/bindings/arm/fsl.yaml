@@ -1112,6 +1112,19 @@ properties:
           - const: engicam,icore-mx8mp             # i.MX8MP Engicam i.Core MX8M Plus SoM
           - const: fsl,imx8mp
 
+      - description: Kontron i.MX8MP OSM-S SoM based Boards
+        items:
+          - const: kontron,imx8mp-bl-osm-s  # Kontron BL i.MX8MP OSM-S Board
+          - const: kontron,imx8mp-osm-s     # Kontron i.MX8MP OSM-S SoM
+          - const: fsl,imx8mp
+
+      - description: Kontron i.MX8MP SMARC based Boards
+        items:
+          - const: kontron,imx8mp-smarc-eval-carrier  # Kontron i.MX8MP SMARC Eval Carrier
+          - const: kontron,imx8mp-smarc               # Kontron i.MX8MP SMARC Module
+          - const: kontron,imx8mp-osm-s               # Kontron i.MX8MP OSM-S SoM
+          - const: fsl,imx8mp
+
       - description: PHYTEC phyCORE-i.MX8MP SoM based boards
         items:
           - const: phytec,imx8mp-phyboard-pollux-rdk # phyBOARD-Pollux RDK
