@@ -48,8 +48,7 @@ config CPM_TSA
 config CPM_QMC
 	tristate "CPM/QE QMC support"
 	depends on OF && HAS_IOMEM
-	depends on CPM1 || QUICC_ENGINE || \
-		   (FSL_SOC && (CPM || QUICC_ENGINE) && COMPILE_TEST)
+	depends on FSL_SOC
 	depends on CPM_TSA
 	help
 	  Freescale CPM/QE QUICC Multichannel Controller
