@@ -2095,15 +2095,6 @@ static unsigned int hidden_user_visibility(const struct kvm_vcpu *vcpu,
 	return REG_HIDDEN_USER;
 }
 
-#define EL12_REG(name, acc, rst, v) {		\
-	SYS_DESC(SYS_##name##_EL12),		\
-	.access = acc,				\
-	.reset = rst,				\
-	.reg = name##_EL1,			\
-	.val = v,				\
-	.visibility = hidden_user_visibility,	\
-}
-
 /*
  * Since reset() callback and field val are not used for idregs, they will be
  * used for specific purposes for idregs.
@@ -2207,6 +2198,18 @@ static bool access_spsr(struct kvm_vcpu *vcpu,
 		__vcpu_sys_reg(vcpu, SPSR_EL1) = p->regval;
 	else
 		p->regval = __vcpu_sys_reg(vcpu, SPSR_EL1);
+
+	return true;
+}
+
+static bool access_cntkctl_el12(struct kvm_vcpu *vcpu,
+				struct sys_reg_params *p,
+				const struct sys_reg_desc *r)
+{
+	if (p->is_write)
+		__vcpu_sys_reg(vcpu, CNTKCTL_EL1) = p->regval;
+	else
+		p->regval = __vcpu_sys_reg(vcpu, CNTKCTL_EL1);
 
 	return true;
 }
@@ -2798,7 +2801,7 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 	EL2_REG_VNCR(CNTVOFF_EL2, reset_val, 0),
 	EL2_REG(CNTHCTL_EL2, access_rw, reset_val, 0),
 
-	EL12_REG(CNTKCTL, access_rw, reset_val, 0),
+	{ SYS_DESC(SYS_CNTKCTL_EL12), access_cntkctl_el12 },
 
 	EL2_REG(SP_EL2, NULL, reset_unknown, 0),
 };
