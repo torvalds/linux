@@ -42,6 +42,7 @@ static void intel_plane_set_ckey(struct intel_plane_state *plane_state,
 int intel_sprite_set_colorkey_ioctl(struct drm_device *dev, void *data,
 				    struct drm_file *file_priv)
 {
+	struct intel_display *display = to_intel_display(dev);
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_intel_sprite_colorkey *set = data;
 	struct drm_plane *plane;
@@ -100,7 +101,7 @@ int intel_sprite_set_colorkey_ioctl(struct drm_device *dev, void *data,
 		 */
 		if (!ret && has_dst_key_in_primary_plane(dev_priv)) {
 			struct intel_crtc *crtc =
-				intel_crtc_for_pipe(dev_priv,
+				intel_crtc_for_pipe(display,
 						    to_intel_plane(plane)->pipe);
 
 			plane_state = drm_atomic_get_plane_state(state,

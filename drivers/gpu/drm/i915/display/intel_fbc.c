@@ -1793,7 +1793,6 @@ static void intel_fbc_underrun_work_fn(struct work_struct *work)
 {
 	struct intel_fbc *fbc = container_of(work, typeof(*fbc), underrun_work);
 	struct intel_display *display = fbc->display;
-	struct drm_i915_private *i915 = to_i915(display->drm);
 
 	mutex_lock(&fbc->lock);
 
@@ -1806,7 +1805,7 @@ static void intel_fbc_underrun_work_fn(struct work_struct *work)
 
 	intel_fbc_deactivate(fbc, "FIFO underrun");
 	if (!fbc->flip_pending)
-		intel_crtc_wait_for_next_vblank(intel_crtc_for_pipe(i915, fbc->state.plane->pipe));
+		intel_crtc_wait_for_next_vblank(intel_crtc_for_pipe(display, fbc->state.plane->pipe));
 	__intel_fbc_disable(fbc);
 out:
 	mutex_unlock(&fbc->lock);

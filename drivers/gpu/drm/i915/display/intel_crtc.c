@@ -49,12 +49,12 @@ struct intel_crtc *intel_first_crtc(struct drm_i915_private *i915)
 	return to_intel_crtc(drm_crtc_from_index(&i915->drm, 0));
 }
 
-struct intel_crtc *intel_crtc_for_pipe(struct drm_i915_private *i915,
+struct intel_crtc *intel_crtc_for_pipe(struct intel_display *display,
 				       enum pipe pipe)
 {
 	struct intel_crtc *crtc;
 
-	for_each_intel_crtc(&i915->drm, crtc) {
+	for_each_intel_crtc(display->drm, crtc) {
 		if (crtc->pipe == pipe)
 			return crtc;
 	}
@@ -70,7 +70,8 @@ void intel_crtc_wait_for_next_vblank(struct intel_crtc *crtc)
 void intel_wait_for_vblank_if_active(struct drm_i915_private *i915,
 				     enum pipe pipe)
 {
-	struct intel_crtc *crtc = intel_crtc_for_pipe(i915, pipe);
+	struct intel_display *display = &i915->display;
+	struct intel_crtc *crtc = intel_crtc_for_pipe(display, pipe);
 
 	if (crtc->active)
 		intel_crtc_wait_for_next_vblank(crtc);

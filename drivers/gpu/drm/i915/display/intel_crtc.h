@@ -15,6 +15,7 @@ struct drm_i915_private;
 struct intel_atomic_state;
 struct intel_crtc;
 struct intel_crtc_state;
+struct intel_display;
 
 /*
  * FIXME: We should instead only take spinlocks once for the entire update
@@ -43,7 +44,7 @@ void intel_pipe_update_end(struct intel_atomic_state *state,
 			   struct intel_crtc *crtc);
 void intel_wait_for_vblank_workers(struct intel_atomic_state *state);
 struct intel_crtc *intel_first_crtc(struct drm_i915_private *i915);
-struct intel_crtc *intel_crtc_for_pipe(struct drm_i915_private *i915,
+struct intel_crtc *intel_crtc_for_pipe(struct intel_display *display,
 				       enum pipe pipe);
 void intel_wait_for_vblank_if_active(struct drm_i915_private *i915,
 				     enum pipe pipe);

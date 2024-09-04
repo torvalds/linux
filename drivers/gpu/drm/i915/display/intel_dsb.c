@@ -763,7 +763,7 @@ void intel_dsb_cleanup(struct intel_dsb *dsb)
 void intel_dsb_irq_handler(struct intel_display *display,
 			   enum pipe pipe, enum intel_dsb_id dsb_id)
 {
-	struct intel_crtc *crtc = intel_crtc_for_pipe(to_i915(display->drm), pipe);
+	struct intel_crtc *crtc = intel_crtc_for_pipe(display, pipe);
 	u32 tmp, errors;
 
 	tmp = intel_de_read_fw(display, DSB_INTERRUPT(pipe, dsb_id));

@@ -168,10 +168,11 @@ static void intel_mode_config_cleanup(struct drm_i915_private *i915)
 
 static void intel_plane_possible_crtcs_init(struct drm_i915_private *dev_priv)
 {
+	struct intel_display *display = &dev_priv->display;
 	struct intel_plane *plane;
 
 	for_each_intel_plane(&dev_priv->drm, plane) {
-		struct intel_crtc *crtc = intel_crtc_for_pipe(dev_priv,
+		struct intel_crtc *crtc = intel_crtc_for_pipe(display,
 							      plane->pipe);
 
 		plane->base.possible_crtcs = drm_crtc_mask(&crtc->base);

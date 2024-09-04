@@ -222,6 +222,7 @@ static u8 get_transcoder_pipes(struct drm_i915_private *i915,
 static void get_portsync_pipes(struct intel_crtc *crtc,
 			       u8 *master_pipe_mask, u8 *slave_pipes_mask)
 {
+	struct intel_display *display = to_intel_display(crtc);
 	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
 	struct intel_crtc_state *crtc_state =
 		to_intel_crtc_state(crtc->base.state);
@@ -244,7 +245,7 @@ static void get_portsync_pipes(struct intel_crtc *crtc,
 	*master_pipe_mask = get_transcoder_pipes(i915, BIT(master_transcoder));
 	drm_WARN_ON(&i915->drm, !is_power_of_2(*master_pipe_mask));
 
-	master_crtc = intel_crtc_for_pipe(i915, ffs(*master_pipe_mask) - 1);
+	master_crtc = intel_crtc_for_pipe(display, ffs(*master_pipe_mask) - 1);
 	master_crtc_state = to_intel_crtc_state(master_crtc->base.state);
 	*slave_pipes_mask = get_transcoder_pipes(i915, master_crtc_state->sync_mode_slaves_mask);
 }
@@ -376,6 +377,7 @@ static void intel_crtc_copy_hw_to_uapi_state(struct intel_crtc_state *crtc_state
 static void
 intel_sanitize_plane_mapping(struct drm_i915_private *i915)
 {
+	struct intel_display *display = &i915->display;
 	struct intel_crtc *crtc;
 
 	if (DISPLAY_VER(i915) >= 4)
@@ -397,7 +399,7 @@ intel_sanitize_plane_mapping(struct drm_i915_private *i915)
 			    "[PLANE:%d:%s] attached to the wrong pipe, disabling plane\n",
 			    plane->base.base.id, plane->base.name);
 
-		plane_crtc = intel_crtc_for_pipe(i915, pipe);
+		plane_crtc = intel_crtc_for_pipe(display, pipe);
 		intel_plane_disable_noatomic(plane_crtc, plane);
 	}
 }
@@ -663,6 +665,7 @@ static void intel_sanitize_encoder(struct intel_encoder *encoder)
 /* FIXME read out full plane state for all planes */
 static void readout_plane_state(struct drm_i915_private *i915)
 {
+	struct intel_display *display = &i915->display;
 	struct intel_plane *plane;
 	struct intel_crtc *crtc;
 
@@ -675,7 +678,7 @@ static void readout_plane_state(struct drm_i915_private *i915)
 
 		visible = plane->get_hw_state(plane, &pipe);
 
-		crtc = intel_crtc_for_pipe(i915, pipe);
+		crtc = intel_crtc_for_pipe(display, pipe);
 		crtc_state = to_intel_crtc_state(crtc->base.state);
 
 		intel_set_plane_visible(crtc_state, plane_state, visible);
@@ -696,6 +699,7 @@ static void readout_plane_state(struct drm_i915_private *i915)
 
 static void intel_modeset_readout_hw_state(struct drm_i915_private *i915)
 {
+	struct intel_display *display = &i915->display;
 	struct intel_cdclk_state *cdclk_state =
 		to_intel_cdclk_state(i915->display.cdclk.obj.state);
 	struct intel_dbuf_state *dbuf_state =
@@ -744,7 +748,7 @@ static void intel_modeset_readout_hw_state(struct drm_i915_private *i915)
 		pipe = 0;
 
 		if (encoder->get_hw_state(encoder, &pipe)) {
-			crtc = intel_crtc_for_pipe(i915, pipe);
+			crtc = intel_crtc_for_pipe(display, pipe);
 			crtc_state = to_intel_crtc_state(crtc->base.state);
 
 			encoder->base.crtc = &crtc->base;

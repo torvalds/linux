@@ -3600,6 +3600,7 @@ static void intel_dbuf_mdclk_min_tracker_update(struct intel_atomic_state *state
 static enum pipe intel_mbus_joined_pipe(struct intel_atomic_state *state,
 					const struct intel_dbuf_state *dbuf_state)
 {
+	struct intel_display *display = to_intel_display(state);
 	struct drm_i915_private *i915 = to_i915(state->base.dev);
 	enum pipe pipe = ffs(dbuf_state->active_pipes) - 1;
 	const struct intel_crtc_state *new_crtc_state;
@@ -3608,7 +3609,7 @@ static enum pipe intel_mbus_joined_pipe(struct intel_atomic_state *state,
 	drm_WARN_ON(&i915->drm, !dbuf_state->joined_mbus);
 	drm_WARN_ON(&i915->drm, !is_power_of_2(dbuf_state->active_pipes));
 
-	crtc = intel_crtc_for_pipe(i915, pipe);
+	crtc = intel_crtc_for_pipe(display, pipe);
 	new_crtc_state = intel_atomic_get_new_crtc_state(state, crtc);
 
 	if (new_crtc_state && !intel_crtc_needs_modeset(new_crtc_state))
@@ -3670,7 +3671,7 @@ void intel_dbuf_mbus_pre_ddb_update(struct intel_atomic_state *state)
 
 void intel_dbuf_mbus_post_ddb_update(struct intel_atomic_state *state)
 {
-	struct drm_i915_private *i915 = to_i915(state->base.dev);
+	struct intel_display *display = to_intel_display(state);
 	const struct intel_dbuf_state *new_dbuf_state =
 		intel_atomic_get_new_dbuf_state(state);
 	const struct intel_dbuf_state *old_dbuf_state =
@@ -3689,7 +3690,7 @@ void intel_dbuf_mbus_post_ddb_update(struct intel_atomic_state *state)
 		intel_dbuf_mbus_join_update(state, pipe);
 
 		if (pipe != INVALID_PIPE) {
-			struct intel_crtc *crtc = intel_crtc_for_pipe(i915, pipe);
+			struct intel_crtc *crtc = intel_crtc_for_pipe(display, pipe);
 
 			intel_crtc_wait_for_next_vblank(crtc);
 		}
