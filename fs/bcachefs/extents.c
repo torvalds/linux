@@ -787,6 +787,11 @@ void bch2_bkey_drop_ptr_noerror(struct bkey_s k, struct bch_extent_ptr *ptr)
 	union bch_extent_entry *entry = to_entry(ptr), *next;
 	bool drop_crc = true;
 
+	if (k.k->type == KEY_TYPE_stripe) {
+		ptr->dev = BCH_SB_MEMBER_INVALID;
+		return;
+	}
+
 	EBUG_ON(ptr < &ptrs.start->ptr ||
 		ptr >= &ptrs.end->ptr);
 	EBUG_ON(ptr->type != 1 << BCH_EXTENT_ENTRY_ptr);
