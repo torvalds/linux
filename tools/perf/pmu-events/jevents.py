@@ -635,14 +635,17 @@ def preprocess_one_file(parents: Sequence[str], item: os.DirEntry) -> None:
 
 def process_one_file(parents: Sequence[str], item: os.DirEntry) -> None:
   """Process a JSON file during the main walk."""
-  def is_leaf_dir(path: str) -> bool:
+  def is_leaf_dir_ignoring_sys(path: str) -> bool:
     for item in os.scandir(path):
-      if item.is_dir():
+      if item.is_dir() and item.name != 'sys':
         return False
     return True
 
-  # model directory, reset topic
-  if item.is_dir() and is_leaf_dir(item.path):
+  # Model directories are leaves (ignoring possible sys
+  # directories). The FTW will walk into the directory next. Flush
+  # pending events and metrics and update the table names for the new
+  # model directory.
+  if item.is_dir() and is_leaf_dir_ignoring_sys(item.path):
     print_pending_events()
     print_pending_metrics()
 
