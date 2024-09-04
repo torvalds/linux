@@ -951,6 +951,7 @@ static void dpp401_dscl_set_isharp_filter(
  *
  * @dpp_base: High level DPP struct
  * @scl_data: scalaer_data info
+ * @program_isharp_1dlut: flag to program isharp 1D LUT
  * @bs_coeffs_updated: Blur and Scale Coefficients update flag
  *
  * This is the primary function to program isharp
