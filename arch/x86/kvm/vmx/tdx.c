@@ -562,6 +562,29 @@ static int tdx_mem_page_aug(struct kvm *kvm, gfn_t gfn,
 	return 0;
 }
 
+/*
+ * KVM_TDX_INIT_MEM_REGION calls kvm_gmem_populate() to map guest pages; the
+ * callback tdx_gmem_post_populate() then maps pages into private memory.
+ * through the a seamcall TDH.MEM.PAGE.ADD().  The SEAMCALL also requires the
+ * private EPT structures for the page to have been built before, which is
+ * done via kvm_tdp_map_page(). nr_premapped counts the number of pages that
+ * were added to the EPT structures but not added with TDH.MEM.PAGE.ADD().
+ * The counter has to be zero on KVM_TDX_FINALIZE_VM, to ensure that there
+ * are no half-initialized shared EPT pages.
+ */
+static int tdx_mem_page_record_premap_cnt(struct kvm *kvm, gfn_t gfn,
+					  enum pg_level level, kvm_pfn_t pfn)
+{
+	struct kvm_tdx *kvm_tdx = to_kvm_tdx(kvm);
+
+	if (KVM_BUG_ON(kvm->arch.pre_fault_allowed, kvm))
+		return -EINVAL;
+
+	/* nr_premapped will be decreased when tdh_mem_page_add() is called. */
+	atomic64_inc(&kvm_tdx->nr_premapped);
+	return 0;
+}
+
 int tdx_sept_set_private_spte(struct kvm *kvm, gfn_t gfn,
 			      enum pg_level level, kvm_pfn_t pfn)
 {
@@ -582,14 +605,15 @@ int tdx_sept_set_private_spte(struct kvm *kvm, gfn_t gfn,
 	 */
 	get_page(page);
 
+	/*
+	 * Read 'pre_fault_allowed' before 'kvm_tdx->state'; see matching
+	 * barrier in tdx_td_finalize().
+	 */
+	smp_rmb();
 	if (likely(kvm_tdx->state == TD_STATE_RUNNABLE))
 		return tdx_mem_page_aug(kvm, gfn, level, page);
 
-	/*
-	 * TODO: KVM_TDX_INIT_MEM_REGION support to populate before finalize
-	 * comes here for the initial memory.
-	 */
-	return -EOPNOTSUPP;
+	return tdx_mem_page_record_premap_cnt(kvm, gfn, level, pfn);
 }
 
 static int tdx_sept_drop_private_spte(struct kvm *kvm, gfn_t gfn,
@@ -620,10 +644,12 @@ static int tdx_sept_drop_private_spte(struct kvm *kvm, gfn_t gfn,
 	if (unlikely(kvm_tdx->state != TD_STATE_RUNNABLE &&
 		     err == (TDX_EPT_WALK_FAILED | TDX_OPERAND_ID_RCX))) {
 		/*
-		 * This page was mapped with KVM_MAP_MEMORY, but
-		 * KVM_TDX_INIT_MEM_REGION is not issued yet.
+		 * Page is mapped by KVM_TDX_INIT_MEM_REGION, but hasn't called
+		 * tdh_mem_page_add().
 		 */
-		if (!is_last_spte(entry, level) || !(entry & VMX_EPT_RWX_MASK)) {
+		if ((!is_last_spte(entry, level) || !(entry & VMX_EPT_RWX_MASK)) &&
+		    !KVM_BUG_ON(!atomic64_read(&kvm_tdx->nr_premapped), kvm)) {
+			atomic64_dec(&kvm_tdx->nr_premapped);
 			tdx_unpin(kvm, page);
 			return 0;
 		}
@@ -1371,6 +1397,36 @@ void tdx_flush_tlb_all(struct kvm_vcpu *vcpu)
 	ept_sync_global();
 }
 
+static int tdx_td_finalize(struct kvm *kvm, struct kvm_tdx_cmd *cmd)
+{
+	struct kvm_tdx *kvm_tdx = to_kvm_tdx(kvm);
+
+	guard(mutex)(&kvm->slots_lock);
+
+	if (!is_hkid_assigned(kvm_tdx) || kvm_tdx->state == TD_STATE_RUNNABLE)
+		return -EINVAL;
+	/*
+	 * Pages are pending for KVM_TDX_INIT_MEM_REGION to issue
+	 * TDH.MEM.PAGE.ADD().
+	 */
+	if (atomic64_read(&kvm_tdx->nr_premapped))
+		return -EINVAL;
+
+	cmd->hw_error = tdh_mr_finalize(&kvm_tdx->td);
+	if (tdx_operand_busy(cmd->hw_error))
+		return -EBUSY;
+	if (KVM_BUG_ON(cmd->hw_error, kvm)) {
+		pr_tdx_error(TDH_MR_FINALIZE, cmd->hw_error);
+		return -EIO;
+	}
+
+	kvm_tdx->state = TD_STATE_RUNNABLE;
+	/* TD_STATE_RUNNABLE must be set before 'pre_fault_allowed' */
+	smp_wmb();
+	kvm->arch.pre_fault_allowed = true;
+	return 0;
+}
+
 int tdx_vm_ioctl(struct kvm *kvm, void __user *argp)
 {
 	struct kvm_tdx_cmd tdx_cmd;
@@ -1394,6 +1450,9 @@ int tdx_vm_ioctl(struct kvm *kvm, void __user *argp)
 		break;
 	case KVM_TDX_INIT_VM:
 		r = tdx_td_init(kvm, &tdx_cmd);
+		break;
+	case KVM_TDX_FINALIZE_VM:
+		r = tdx_td_finalize(kvm, &tdx_cmd);
 		break;
 	default:
 		r = -EINVAL;
@@ -1661,6 +1720,9 @@ static int tdx_gmem_post_populate(struct kvm *kvm, gfn_t gfn, kvm_pfn_t pfn,
 		ret = unlikely(tdx_operand_busy(err)) ? -EBUSY : -EIO;
 		goto out;
 	}
+
+	if (!KVM_BUG_ON(!atomic64_read(&kvm_tdx->nr_premapped), kvm))
+		atomic64_dec(&kvm_tdx->nr_premapped);
 
 	if (arg->flags & KVM_TDX_MEASURE_MEMORY_REGION) {
 		for (i = 0; i < PAGE_SIZE; i += TDX_EXTENDMR_CHUNKSIZE) {
