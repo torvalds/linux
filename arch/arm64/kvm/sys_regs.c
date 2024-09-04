@@ -2770,14 +2770,10 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 	{ SYS_DESC(SYS_SP_EL1), access_sp_el1},
 
 	/* AArch32 SPSR_* are RES0 if trapped from a NV guest */
-	{ SYS_DESC(SYS_SPSR_irq), .access = trap_raz_wi,
-	  .visibility = hidden_user_visibility },
-	{ SYS_DESC(SYS_SPSR_abt), .access = trap_raz_wi,
-	  .visibility = hidden_user_visibility },
-	{ SYS_DESC(SYS_SPSR_und), .access = trap_raz_wi,
-	  .visibility = hidden_user_visibility },
-	{ SYS_DESC(SYS_SPSR_fiq), .access = trap_raz_wi,
-	  .visibility = hidden_user_visibility },
+	{ SYS_DESC(SYS_SPSR_irq), .access = trap_raz_wi },
+	{ SYS_DESC(SYS_SPSR_abt), .access = trap_raz_wi },
+	{ SYS_DESC(SYS_SPSR_und), .access = trap_raz_wi },
+	{ SYS_DESC(SYS_SPSR_fiq), .access = trap_raz_wi },
 
 	{ SYS_DESC(SYS_IFSR32_EL2), trap_undef, reset_unknown, IFSR32_EL2 },
 	EL2_REG(AFSR0_EL2, access_rw, reset_val, 0),
