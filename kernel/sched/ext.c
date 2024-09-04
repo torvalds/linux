@@ -2642,6 +2642,31 @@ static int balance_scx(struct rq *rq, struct task_struct *prev,
 	return ret;
 }
 
+static void process_ddsp_deferred_locals(struct rq *rq)
+{
+	struct task_struct *p;
+
+	lockdep_assert_rq_held(rq);
+
+	/*
+	 * Now that @rq can be unlocked, execute the deferred enqueueing of
+	 * tasks directly dispatched to the local DSQs of other CPUs. See
+	 * direct_dispatch(). Keep popping from the head instead of using
+	 * list_for_each_entry_safe() as dispatch_local_dsq() may unlock @rq
+	 * temporarily.
+	 */
+	while ((p = list_first_entry_or_null(&rq->scx.ddsp_deferred_locals,
+				struct task_struct, scx.dsq_list.node))) {
+		s32 ret;
+
+		list_del_init(&p->scx.dsq_list.node);
+
+		ret = dispatch_to_local_dsq(rq, p->scx.ddsp_dsq_id, p,
+					    p->scx.ddsp_enq_flags);
+		WARN_ON_ONCE(ret == DTL_NOT_LOCAL);
+	}
+}
+
 static void set_next_task_scx(struct rq *rq, struct task_struct *p, bool first)
 {
 	if (p->scx.flags & SCX_TASK_QUEUED) {
@@ -2684,28 +2709,66 @@ static void set_next_task_scx(struct rq *rq, struct task_struct *p, bool first)
 	}
 }
 
-static void process_ddsp_deferred_locals(struct rq *rq)
+static enum scx_cpu_preempt_reason
+preempt_reason_from_class(const struct sched_class *class)
 {
-	struct task_struct *p;
+#ifdef CONFIG_SMP
+	if (class == &stop_sched_class)
+		return SCX_CPU_PREEMPT_STOP;
+#endif
+	if (class == &dl_sched_class)
+		return SCX_CPU_PREEMPT_DL;
+	if (class == &rt_sched_class)
+		return SCX_CPU_PREEMPT_RT;
+	return SCX_CPU_PREEMPT_UNKNOWN;
+}
 
-	lockdep_assert_rq_held(rq);
+static void switch_class_scx(struct rq *rq, struct task_struct *next)
+{
+	const struct sched_class *next_class = next->sched_class;
+
+	if (!scx_enabled())
+		return;
+#ifdef CONFIG_SMP
+	/*
+	 * Pairs with the smp_load_acquire() issued by a CPU in
+	 * kick_cpus_irq_workfn() who is waiting for this CPU to perform a
+	 * resched.
+	 */
+	smp_store_release(&rq->scx.pnt_seq, rq->scx.pnt_seq + 1);
+#endif
+	if (!static_branch_unlikely(&scx_ops_cpu_preempt))
+		return;
 
 	/*
-	 * Now that @rq can be unlocked, execute the deferred enqueueing of
-	 * tasks directly dispatched to the local DSQs of other CPUs. See
-	 * direct_dispatch(). Keep popping from the head instead of using
-	 * list_for_each_entry_safe() as dispatch_local_dsq() may unlock @rq
-	 * temporarily.
+	 * The callback is conceptually meant to convey that the CPU is no
+	 * longer under the control of SCX. Therefore, don't invoke the callback
+	 * if the next class is below SCX (in which case the BPF scheduler has
+	 * actively decided not to schedule any tasks on the CPU).
 	 */
-	while ((p = list_first_entry_or_null(&rq->scx.ddsp_deferred_locals,
-				struct task_struct, scx.dsq_list.node))) {
-		s32 ret;
+	if (sched_class_above(&ext_sched_class, next_class))
+		return;
 
-		list_del_init(&p->scx.dsq_list.node);
+	/*
+	 * At this point we know that SCX was preempted by a higher priority
+	 * sched_class, so invoke the ->cpu_release() callback if we have not
+	 * done so already. We only send the callback once between SCX being
+	 * preempted, and it regaining control of the CPU.
+	 *
+	 * ->cpu_release() complements ->cpu_acquire(), which is emitted the
+	 *  next time that balance_scx() is invoked.
+	 */
+	if (!rq->scx.cpu_released) {
+		if (SCX_HAS_OP(cpu_release)) {
+			struct scx_cpu_release_args args = {
+				.reason = preempt_reason_from_class(next_class),
+				.task = next,
+			};
 
-		ret = dispatch_to_local_dsq(rq, p->scx.ddsp_dsq_id, p,
-					    p->scx.ddsp_enq_flags);
-		WARN_ON_ONCE(ret == DTL_NOT_LOCAL);
+			SCX_CALL_OP(SCX_KF_CPU_RELEASE,
+				    cpu_release, cpu_of(rq), &args);
+		}
+		rq->scx.cpu_released = true;
 	}
 }
 
@@ -2820,69 +2883,6 @@ bool scx_prio_less(const struct task_struct *a, const struct task_struct *b,
 		return time_after64(a->scx.core_sched_at, b->scx.core_sched_at);
 }
 #endif	/* CONFIG_SCHED_CORE */
-
-static enum scx_cpu_preempt_reason
-preempt_reason_from_class(const struct sched_class *class)
-{
-#ifdef CONFIG_SMP
-	if (class == &stop_sched_class)
-		return SCX_CPU_PREEMPT_STOP;
-#endif
-	if (class == &dl_sched_class)
-		return SCX_CPU_PREEMPT_DL;
-	if (class == &rt_sched_class)
-		return SCX_CPU_PREEMPT_RT;
-	return SCX_CPU_PREEMPT_UNKNOWN;
-}
-
-static void switch_class_scx(struct rq *rq, struct task_struct *next)
-{
-	const struct sched_class *next_class = next->sched_class;
-
-	if (!scx_enabled())
-		return;
-#ifdef CONFIG_SMP
-	/*
-	 * Pairs with the smp_load_acquire() issued by a CPU in
-	 * kick_cpus_irq_workfn() who is waiting for this CPU to perform a
-	 * resched.
-	 */
-	smp_store_release(&rq->scx.pnt_seq, rq->scx.pnt_seq + 1);
-#endif
-	if (!static_branch_unlikely(&scx_ops_cpu_preempt))
-		return;
-
-	/*
-	 * The callback is conceptually meant to convey that the CPU is no
-	 * longer under the control of SCX. Therefore, don't invoke the callback
-	 * if the next class is below SCX (in which case the BPF scheduler has
-	 * actively decided not to schedule any tasks on the CPU).
-	 */
-	if (sched_class_above(&ext_sched_class, next_class))
-		return;
-
-	/*
-	 * At this point we know that SCX was preempted by a higher priority
-	 * sched_class, so invoke the ->cpu_release() callback if we have not
-	 * done so already. We only send the callback once between SCX being
-	 * preempted, and it regaining control of the CPU.
-	 *
-	 * ->cpu_release() complements ->cpu_acquire(), which is emitted the
-	 *  next time that balance_scx() is invoked.
-	 */
-	if (!rq->scx.cpu_released) {
-		if (SCX_HAS_OP(cpu_release)) {
-			struct scx_cpu_release_args args = {
-				.reason = preempt_reason_from_class(next_class),
-				.task = next,
-			};
-
-			SCX_CALL_OP(SCX_KF_CPU_RELEASE,
-				    cpu_release, cpu_of(rq), &args);
-		}
-		rq->scx.cpu_released = true;
-	}
-}
 
 #ifdef CONFIG_SMP
 
