@@ -6304,7 +6304,7 @@ static int ext4_sync_fs(struct super_block *sb, int wait)
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
 
 	if (unlikely(ext4_forced_shutdown(sb)))
-		return 0;
+		return -EIO;
 
 	trace_ext4_sync_fs(sb, wait);
 	flush_workqueue(sbi->rsv_conversion_wq);
