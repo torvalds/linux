@@ -3182,7 +3182,7 @@ static void rtpm_status_str(struct seq_file *s, struct device *dev)
 	else
 		WARN_ON(1);
 
-	seq_printf(s, "%-25s  ", p);
+	seq_printf(s, "%-26s  ", p);
 }
 
 static void mode_status_str(struct seq_file *s, struct device *dev)
@@ -3191,7 +3191,7 @@ static void mode_status_str(struct seq_file *s, struct device *dev)
 
 	gpd_data = to_gpd_data(dev->power.subsys_data->domain_data);
 
-	seq_printf(s, "%9s", gpd_data->hw_mode ? "HW" : "SW");
+	seq_printf(s, "%2s", gpd_data->hw_mode ? "HW" : "SW");
 }
 
 static void perf_status_str(struct seq_file *s, struct device *dev)
@@ -3226,7 +3226,7 @@ static int genpd_summary_one(struct seq_file *s,
 	else
 		snprintf(state, sizeof(state), "%s",
 			 status_lookup[genpd->status]);
-	seq_printf(s, "%-30s  %-49s  %u", genpd->name, state, genpd->performance_state);
+	seq_printf(s, "%-30s  %-30s  %u", genpd->name, state, genpd->performance_state);
 
 	/*
 	 * Modifications on the list require holding locks on both
@@ -3242,7 +3242,7 @@ static int genpd_summary_one(struct seq_file *s,
 	}
 
 	list_for_each_entry(pm_data, &genpd->dev_list, list_node) {
-		seq_printf(s, "\n    %-50s  ", dev_name(pm_data->dev));
+		seq_printf(s, "\n    %-30s  ", dev_name(pm_data->dev));
 		rtpm_status_str(s, pm_data->dev);
 		perf_status_str(s, pm_data->dev);
 		mode_status_str(s, pm_data->dev);
@@ -3260,9 +3260,9 @@ static int summary_show(struct seq_file *s, void *data)
 	struct generic_pm_domain *genpd;
 	int ret = 0;
 
-	seq_puts(s, "domain                          status          children                           performance\n");
-	seq_puts(s, "    /device                                             runtime status                           managed by\n");
-	seq_puts(s, "------------------------------------------------------------------------------------------------------------\n");
+	seq_puts(s, "domain                          status          children        performance\n");
+	seq_puts(s, "    /device                         runtime status                  managed by\n");
+	seq_puts(s, "------------------------------------------------------------------------------\n");
 
 	ret = mutex_lock_interruptible(&gpd_list_lock);
 	if (ret)
