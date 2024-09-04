@@ -635,7 +635,6 @@ struct btrfs_fs_info {
 	s32 delalloc_batch;
 
 	struct percpu_counter evictable_extent_maps;
-	spinlock_t extent_map_shrinker_lock;
 	u64 extent_map_shrinker_last_root;
 	u64 extent_map_shrinker_last_ino;
 	atomic64_t extent_map_shrinker_nr_to_scan;
