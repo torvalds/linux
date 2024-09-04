@@ -6,6 +6,18 @@ original_group=`stat -c "%g" .`
 original_owner=`stat -c "%u" .`
 
 mount_point=`stat -c '%m' .`
+
+# If stat -c '%m' does not work (e.g. busybox) or failed, try to use the
+# current working directory (which should be a tracefs) as the mount point.
+if [ ! -d "$mount_point" ]; then
+	if mount | grep -qw $PWD ; then
+		mount_point=$PWD
+	else
+		# If PWD doesn't work, that is an environmental problem.
+		exit_unresolved
+	fi
+fi
+
 mount_options=`mount | grep "$mount_point" | sed -e 's/.*(\(.*\)).*/\1/'`
 
 # find another owner and group that is not the original
