@@ -1388,7 +1388,7 @@ DECLARE_EVENT_CLASS(smb3_ioctl_class,
 		__entry->command = command;
 	),
 	TP_printk("xid=%u fid=0x%llx ioctl cmd=0x%x",
-		__entry->xid, __entry->fid, __entry->command)
+		  __entry->xid, __entry->fid, __entry->command)
 )
 
 #define DEFINE_SMB3_IOCTL_EVENT(name)        \
@@ -1400,9 +1400,58 @@ DEFINE_EVENT(smb3_ioctl_class, smb3_##name,  \
 
 DEFINE_SMB3_IOCTL_EVENT(ioctl);
 
+DECLARE_EVENT_CLASS(smb3_shutdown_class,
+	TP_PROTO(__u32 flags,
+		__u32 tid),
+	TP_ARGS(flags, tid),
+	TP_STRUCT__entry(
+		__field(__u32, flags)
+		__field(__u32, tid)
+	),
+	TP_fast_assign(
+		__entry->flags = flags;
+		__entry->tid = tid;
+	),
+	TP_printk("flags=0x%x tid=0x%x",
+		  __entry->flags, __entry->tid)
+)
 
+#define DEFINE_SMB3_SHUTDOWN_EVENT(name)        \
+DEFINE_EVENT(smb3_shutdown_class, smb3_##name,  \
+	TP_PROTO(__u32 flags,		     \
+		__u32 tid),		     \
+	TP_ARGS(flags, tid))
 
+DEFINE_SMB3_SHUTDOWN_EVENT(shutdown_enter);
+DEFINE_SMB3_SHUTDOWN_EVENT(shutdown_done);
 
+DECLARE_EVENT_CLASS(smb3_shutdown_err_class,
+	TP_PROTO(int rc,
+		__u32 flags,
+		__u32 tid),
+	TP_ARGS(rc, flags, tid),
+	TP_STRUCT__entry(
+		__field(int, rc)
+		__field(__u32, flags)
+		__field(__u32, tid)
+	),
+	TP_fast_assign(
+		__entry->rc = rc;
+		__entry->flags = flags;
+		__entry->tid = tid;
+	),
+	TP_printk("rc=%d flags=0x%x tid=0x%x",
+		__entry->rc, __entry->flags, __entry->tid)
+)
+
+#define DEFINE_SMB3_SHUTDOWN_ERR_EVENT(name)        \
+DEFINE_EVENT(smb3_shutdown_err_class, smb3_##name,  \
+	TP_PROTO(int rc,		     \
+		__u32 flags,		     \
+		__u32 tid),		     \
+	TP_ARGS(rc, flags, tid))
+
+DEFINE_SMB3_SHUTDOWN_ERR_EVENT(shutdown_err);
 
 DECLARE_EVENT_CLASS(smb3_credit_class,
 	TP_PROTO(__u64	currmid,

@@ -456,7 +456,7 @@ void ice_free_rx_ring(struct ice_rx_ring *rx_ring)
 	if (rx_ring->vsi->type == ICE_VSI_PF)
 		if (xdp_rxq_info_is_reg(&rx_ring->xdp_rxq))
 			xdp_rxq_info_unreg(&rx_ring->xdp_rxq);
-	rx_ring->xdp_prog = NULL;
+	WRITE_ONCE(rx_ring->xdp_prog, NULL);
 	if (rx_ring->xsk_pool) {
 		kfree(rx_ring->xdp_buf);
 		rx_ring->xdp_buf = NULL;
@@ -1521,10 +1521,11 @@ int ice_napi_poll(struct napi_struct *napi, int budget)
 	 * budget and be more aggressive about cleaning up the Tx descriptors.
 	 */
 	ice_for_each_tx_ring(tx_ring, q_vector->tx) {
+		struct xsk_buff_pool *xsk_pool = READ_ONCE(tx_ring->xsk_pool);
 		bool wd;
 
-		if (tx_ring->xsk_pool)
-			wd = ice_xmit_zc(tx_ring);
+		if (xsk_pool)
+			wd = ice_xmit_zc(tx_ring, xsk_pool);
 		else if (ice_ring_is_xdp(tx_ring))
 			wd = true;
 		else
@@ -1550,6 +1551,7 @@ int ice_napi_poll(struct napi_struct *napi, int budget)
 		budget_per_ring = budget;
 
 	ice_for_each_rx_ring(rx_ring, q_vector->rx) {
+		struct xsk_buff_pool *xsk_pool = READ_ONCE(rx_ring->xsk_pool);
 		int cleaned;
 
 		/* A dedicated path for zero-copy allows making a single
@@ -1557,7 +1559,7 @@ int ice_napi_poll(struct napi_struct *napi, int budget)
 		 * ice_clean_rx_irq function and makes the codebase cleaner.
 		 */
 		cleaned = rx_ring->xsk_pool ?
-			  ice_clean_rx_irq_zc(rx_ring, budget_per_ring) :
+			  ice_clean_rx_irq_zc(rx_ring, xsk_pool, budget_per_ring) :
 			  ice_clean_rx_irq(rx_ring, budget_per_ring);
 		work_done += cleaned;
 		/* if we clean as many as budgeted, we must not be done */

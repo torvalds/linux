@@ -75,7 +75,8 @@ static void v9fs_issue_read(struct netfs_io_subrequest *subreq)
 
 	/* if we just extended the file size, any portion not in
 	 * cache won't be on server and is zeroes */
-	__set_bit(NETFS_SREQ_CLEAR_TAIL, &subreq->flags);
+	if (subreq->rreq->origin != NETFS_DIO_READ)
+		__set_bit(NETFS_SREQ_CLEAR_TAIL, &subreq->flags);
 
 	netfs_subreq_terminated(subreq, err ?: total, false);
 }

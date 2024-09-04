@@ -550,7 +550,8 @@ void btf_record_free(struct btf_record *rec)
 		case BPF_KPTR_PERCPU:
 			if (rec->fields[i].kptr.module)
 				module_put(rec->fields[i].kptr.module);
-			btf_put(rec->fields[i].kptr.btf);
+			if (btf_is_kernel(rec->fields[i].kptr.btf))
+				btf_put(rec->fields[i].kptr.btf);
 			break;
 		case BPF_LIST_HEAD:
 		case BPF_LIST_NODE:
@@ -596,7 +597,8 @@ struct btf_record *btf_record_dup(const struct btf_record *rec)
 		case BPF_KPTR_UNREF:
 		case BPF_KPTR_REF:
 		case BPF_KPTR_PERCPU:
-			btf_get(fields[i].kptr.btf);
+			if (btf_is_kernel(fields[i].kptr.btf))
+				btf_get(fields[i].kptr.btf);
 			if (fields[i].kptr.module && !try_module_get(fields[i].kptr.module)) {
 				ret = -ENXIO;
 				goto free;

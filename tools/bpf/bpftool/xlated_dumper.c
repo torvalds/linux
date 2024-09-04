@@ -349,7 +349,7 @@ void dump_xlated_plain(struct dump_data *dd, void *buf, unsigned int len,
 
 		double_insn = insn[i].code == (BPF_LD | BPF_IMM | BPF_DW);
 
-		printf("% 4d: ", i);
+		printf("%4u: ", i);
 		print_bpf_insn(&cbs, insn + i, true);
 
 		if (opcodes) {
@@ -415,7 +415,7 @@ void dump_xlated_for_graph(struct dump_data *dd, void *buf_start, void *buf_end,
 			}
 		}
 
-		printf("%d: ", insn_off);
+		printf("%u: ", insn_off);
 		print_bpf_insn(&cbs, cur, true);
 
 		if (opcodes) {

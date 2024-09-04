@@ -2160,7 +2160,7 @@ static void qca_power_shutdown(struct hci_uart *hu)
 	qcadev = serdev_device_get_drvdata(hu->serdev);
 	power = qcadev->bt_power;
 
-	if (power->pwrseq) {
+	if (power && power->pwrseq) {
 		pwrseq_power_off(power->pwrseq);
 		set_bit(QCA_BT_OFF, &qca->flags);
 		return;
@@ -2185,10 +2185,6 @@ static void qca_power_shutdown(struct hci_uart *hu)
 			sw_ctrl_state = gpiod_get_value_cansleep(qcadev->sw_ctrl);
 			bt_dev_dbg(hu->hdev, "SW_CTRL is %d", sw_ctrl_state);
 		}
-		break;
-
-	case QCA_QCA6390:
-		pwrseq_power_off(qcadev->bt_power->pwrseq);
 		break;
 
 	default:
@@ -2416,11 +2412,14 @@ static int qca_serdev_probe(struct serdev_device *serdev)
 		break;
 
 	case QCA_QCA6390:
-		qcadev->bt_power->pwrseq = devm_pwrseq_get(&serdev->dev,
-							   "bluetooth");
-		if (IS_ERR(qcadev->bt_power->pwrseq))
-			return PTR_ERR(qcadev->bt_power->pwrseq);
-		break;
+		if (dev_of_node(&serdev->dev)) {
+			qcadev->bt_power->pwrseq = devm_pwrseq_get(&serdev->dev,
+								   "bluetooth");
+			if (IS_ERR(qcadev->bt_power->pwrseq))
+				return PTR_ERR(qcadev->bt_power->pwrseq);
+			break;
+		}
+		fallthrough;
 
 	default:
 		qcadev->bt_en = devm_gpiod_get_optional(&serdev->dev, "enable",

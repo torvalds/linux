@@ -1264,7 +1264,7 @@ bch2_btree_update_start(struct btree_trans *trans, struct btree_path *path,
 			ret = bch2_btree_reserve_get(trans, as, nr_nodes, flags, &cl);
 
 			bch2_trans_unlock(trans);
-			closure_sync(&cl);
+			bch2_wait_on_allocator(c, &cl);
 		} while (bch2_err_matches(ret, BCH_ERR_operation_blocked));
 	}
 
@@ -1364,18 +1364,10 @@ static void bch2_insert_fixup_btree_ptr(struct btree_update *as,
 	if (unlikely(!test_bit(JOURNAL_replay_done, &c->journal.flags)))
 		bch2_journal_key_overwritten(c, b->c.btree_id, b->c.level, insert->k.p);
 
-	if (bch2_bkey_invalid(c, bkey_i_to_s_c(insert),
-			      btree_node_type(b), WRITE, &buf) ?:
-	    bch2_bkey_in_btree_node(c, b, bkey_i_to_s_c(insert), &buf)) {
-		printbuf_reset(&buf);
-		prt_printf(&buf, "inserting invalid bkey\n  ");
-		bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(insert));
-		prt_printf(&buf, "\n  ");
-		bch2_bkey_invalid(c, bkey_i_to_s_c(insert),
-				  btree_node_type(b), WRITE, &buf);
-		bch2_bkey_in_btree_node(c, b, bkey_i_to_s_c(insert), &buf);
-
-		bch2_fs_inconsistent(c, "%s", buf.buf);
+	if (bch2_bkey_validate(c, bkey_i_to_s_c(insert),
+			      btree_node_type(b), BCH_VALIDATE_write) ?:
+	    bch2_bkey_in_btree_node(c, b, bkey_i_to_s_c(insert), BCH_VALIDATE_write)) {
+		bch2_fs_inconsistent(c, "%s: inserting invalid bkey", __func__);
 		dump_stack();
 	}
 

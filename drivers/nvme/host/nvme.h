@@ -462,20 +462,19 @@ struct nvme_ns_head {
 	struct srcu_struct      srcu;
 	struct nvme_subsystem	*subsys;
 	struct nvme_ns_ids	ids;
+	u8			lba_shift;
+	u16			ms;
+	u16			pi_size;
+	u8			pi_type;
+	u8			guard_type;
 	struct list_head	entry;
 	struct kref		ref;
 	bool			shared;
 	bool			passthru_err_log_enabled;
-	int			instance;
 	struct nvme_effects_log *effects;
 	u64			nuse;
 	unsigned		ns_id;
-	int			lba_shift;
-	u16			ms;
-	u16			pi_size;
-	u8			pi_type;
-	u8			pi_offset;
-	u8			guard_type;
+	int			instance;
 #ifdef CONFIG_BLK_DEV_ZONED
 	u64			zsze;
 #endif

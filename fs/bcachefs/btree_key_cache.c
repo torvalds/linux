@@ -497,11 +497,6 @@ int bch2_btree_path_traverse_cached(struct btree_trans *trans, struct btree_path
 
 	path->l[1].b = NULL;
 
-	if (bch2_btree_node_relock_notrace(trans, path, 0)) {
-		path->uptodate = BTREE_ITER_UPTODATE;
-		return 0;
-	}
-
 	int ret;
 	do {
 		ret = btree_path_traverse_cached_fast(trans, path);
