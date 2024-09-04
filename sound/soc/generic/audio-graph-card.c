@@ -361,7 +361,6 @@ static int __graph_for_each_link(struct simple_util_priv *priv,
 	struct device *dev = simple_priv_to_dev(priv);
 	struct device_node *node = dev->of_node;
 	struct device_node *cpu_port;
-	struct device_node *cpu_ep;
 	struct device_node *codec_ep;
 	struct device_node *codec_port;
 	struct device_node *codec_port_old = NULL;
@@ -371,14 +370,9 @@ static int __graph_for_each_link(struct simple_util_priv *priv,
 	/* loop for all listed CPU port */
 	of_for_each_phandle(&it, rc, node, "dais", NULL, 0) {
 		cpu_port = it.node;
-		cpu_ep	 = NULL;
 
 		/* loop for all CPU endpoint */
-		while (1) {
-			cpu_ep = of_get_next_child(cpu_port, cpu_ep);
-			if (!cpu_ep)
-				break;
-
+		for_each_child_of_node_scoped(cpu_port, cpu_ep) {
 			/* get codec */
 			codec_ep = of_graph_get_remote_endpoint(cpu_ep);
 			codec_port = ep_to_port(codec_ep);
@@ -408,10 +402,8 @@ static int __graph_for_each_link(struct simple_util_priv *priv,
 			of_node_put(codec_ep);
 			of_node_put(codec_port);
 
-			if (ret < 0) {
-				of_node_put(cpu_ep);
+			if (ret < 0)
 				return ret;
-			}
 
 			codec_port_old = codec_port;
 		}
