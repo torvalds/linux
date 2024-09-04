@@ -73,9 +73,9 @@ intel_atomic_get_dbuf_state(struct intel_atomic_state *state);
 	container_of_const((global_state), struct intel_dbuf_state, base)
 
 #define intel_atomic_get_old_dbuf_state(state) \
-	to_intel_dbuf_state(intel_atomic_get_old_global_obj_state(state, &to_i915(state->base.dev)->display.dbuf.obj))
+	to_intel_dbuf_state(intel_atomic_get_old_global_obj_state(state, &to_intel_display(state)->dbuf.obj))
 #define intel_atomic_get_new_dbuf_state(state) \
-	to_intel_dbuf_state(intel_atomic_get_new_global_obj_state(state, &to_i915(state->base.dev)->display.dbuf.obj))
+	to_intel_dbuf_state(intel_atomic_get_new_global_obj_state(state, &to_intel_display(state)->dbuf.obj))
 
 int intel_dbuf_init(struct drm_i915_private *i915);
 int intel_dbuf_state_set_mdclk_cdclk_ratio(struct intel_atomic_state *state,
