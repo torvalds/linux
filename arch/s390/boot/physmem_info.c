@@ -210,7 +210,7 @@ static void die_oom(unsigned long size, unsigned long align, unsigned long min, 
 		    total_mem, total_reserved_mem,
 		    total_mem > total_reserved_mem ? total_mem - total_reserved_mem : 0);
 	print_stacktrace(current_frame_address());
-	sclp_early_printk("\n\n -- System halted\n");
+	boot_printk("\n\n -- System halted\n");
 	disabled_wait();
 }
 

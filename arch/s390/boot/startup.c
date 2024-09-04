@@ -39,10 +39,7 @@ struct machine_info machine;
 
 void error(char *x)
 {
-	sclp_early_printk("\n\n");
-	sclp_early_printk(x);
-	sclp_early_printk("\n\n -- System halted");
-
+	boot_printk("\n\n%s\n\n -- System halted", x);
 	disabled_wait();
 }
 
