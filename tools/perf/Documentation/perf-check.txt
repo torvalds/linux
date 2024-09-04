@@ -49,8 +49,8 @@ feature::
                 debuginfod              /  HAVE_DEBUGINFOD_SUPPORT
                 dwarf                   /  HAVE_DWARF_SUPPORT
                 dwarf_getlocations      /  HAVE_DWARF_GETLOCATIONS_SUPPORT
-                dwarf-unwind-support    /  HAVE_DWARF_UNWIND_SUPPORT
-                get_cpuid               /  HAVE_AUXTRACE_SUPPORT
+                dwarf-unwind            /  HAVE_DWARF_UNWIND_SUPPORT
+                auxtrace                /  HAVE_AUXTRACE_SUPPORT
                 libaudit                /  HAVE_LIBAUDIT_SUPPORT
                 libbfd                  /  HAVE_LIBBFD_SUPPORT
                 libcapstone             /  HAVE_LIBCAPSTONE_SUPPORT
