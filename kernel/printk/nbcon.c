@@ -1397,7 +1397,13 @@ bool nbcon_alloc(struct console *con)
 	struct nbcon_state state = { };
 
 	nbcon_state_set(con, &state);
-	atomic_long_set(&ACCESS_PRIVATE(con, nbcon_seq), 0);
+
+	/*
+	 * Initialize @nbcon_seq to the highest possible sequence number so
+	 * that practically speaking it will have nothing to print until a
+	 * desired initial sequence number has been set via nbcon_seq_force().
+	 */
+	atomic_long_set(&ACCESS_PRIVATE(con, nbcon_seq), ULSEQ_MAX(prb));
 
 	if (con->flags & CON_BOOT) {
 		/*
