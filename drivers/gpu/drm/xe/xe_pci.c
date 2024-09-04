@@ -103,7 +103,6 @@ static const struct xe_graphics_desc graphics_xelpp = {
 
 #define XE_HP_FEATURES \
 	.has_range_tlb_invalidation = true, \
-	.has_flat_ccs = true, \
 	.dma_mask_size = 46, \
 	.va_bits = 48, \
 	.vm_max_level = 3
@@ -120,6 +119,8 @@ static const struct xe_graphics_desc graphics_xehpg = {
 
 	XE_HP_FEATURES,
 	.vram_flags = XE_VRAM_FLAGS_NEED64K,
+
+	.has_flat_ccs = 1,
 };
 
 static const struct xe_graphics_desc graphics_xehpc = {
@@ -145,7 +146,6 @@ static const struct xe_graphics_desc graphics_xehpc = {
 
 	.has_asid = 1,
 	.has_atomic_enable_pte_bit = 1,
-	.has_flat_ccs = 0,
 	.has_usm = 1,
 };
 
@@ -156,7 +156,6 @@ static const struct xe_graphics_desc graphics_xelpg = {
 		BIT(XE_HW_ENGINE_CCS0),
 
 	XE_HP_FEATURES,
-	.has_flat_ccs = 0,
 };
 
 #define XE2_GFX_FEATURES \
