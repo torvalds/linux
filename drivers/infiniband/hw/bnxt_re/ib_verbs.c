@@ -4272,7 +4272,8 @@ int bnxt_re_alloc_ucontext(struct ib_ucontext *ctx, struct ib_udata *udata)
 		if (ureq.comp_mask & BNXT_RE_COMP_MASK_REQ_UCNTX_VAR_WQE_SUPPORT) {
 			resp.comp_mask |= BNXT_RE_UCNTX_CMASK_HAVE_MODE;
 			resp.mode = rdev->chip_ctx->modes.wqe_mode;
-			uctx->cmask |= BNXT_RE_UCNTX_CAP_VAR_WQE_ENABLED;
+			if (resp.mode == BNXT_QPLIB_WQE_MODE_VARIABLE)
+				uctx->cmask |= BNXT_RE_UCNTX_CAP_VAR_WQE_ENABLED;
 		}
 	}
 
