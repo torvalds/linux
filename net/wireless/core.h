@@ -197,6 +197,8 @@ struct cfg80211_internal_bss {
 	 */
 	u8 parent_bssid[ETH_ALEN] __aligned(2);
 
+	enum bss_source_type bss_source;
+
 	/* must be last because of priv member */
 	struct cfg80211_bss pub;
 };
