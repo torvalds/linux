@@ -364,8 +364,6 @@
 #define REG_IND_DATA_1			0x77
 #define REG_IND_DATA_0			0x78
 
-#define REG_IND_DATA_PME_EEE_ACL	0xA0
-
 #define REG_INT_STATUS			0x7C
 #define REG_INT_ENABLE			0x7D
 
@@ -708,8 +706,6 @@
 #define KSZ8795_ID_HI			0x0022
 #define KSZ8795_ID_LO			0x1550
 #define KSZ8863_ID_LO			0x1430
-
-#define KSZ8795_SW_ID			0x8795
 
 #define PHY_REG_LINK_MD			0x1D
 
