@@ -1209,7 +1209,7 @@ static bool pmc_core_is_pson_residency_enabled(struct pmc_dev *pmcdev)
 	return val == 1;
 }
 
-/**
+/*
  * Enable or disable ACPI PM Timer
  *
  * This function is intended to be a callback for ACPI PM suspend/resume event.
