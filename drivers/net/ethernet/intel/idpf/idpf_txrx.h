@@ -131,7 +131,6 @@ do {								\
 	(txq)->num_completions_pending - (txq)->complq->num_completions)
 
 #define IDPF_TX_SPLITQ_COMPL_TAG_WIDTH	16
-#define IDPF_SPLITQ_TX_INVAL_COMPL_TAG	-1
 /* Adjust the generation for the completion tag and wrap if necessary */
 #define IDPF_TX_ADJ_COMPL_TAG_GEN(txq) \
 	((++(txq)->compl_tag_cur_gen) >= (txq)->compl_tag_gen_max ? \
@@ -149,47 +148,7 @@ union idpf_tx_flex_desc {
 	struct idpf_flex_tx_sched_desc flow; /* flow based scheduling */
 };
 
-/**
- * struct idpf_tx_buf
- * @next_to_watch: Next descriptor to clean
- * @skb: Pointer to the skb
- * @dma: DMA address
- * @len: DMA length
- * @bytecount: Number of bytes
- * @gso_segs: Number of GSO segments
- * @compl_tag: Splitq only, unique identifier for a buffer. Used to compare
- *	       with completion tag returned in buffer completion event.
- *	       Because the completion tag is expected to be the same in all
- *	       data descriptors for a given packet, and a single packet can
- *	       span multiple buffers, we need this field to track all
- *	       buffers associated with this completion tag independently of
- *	       the buf_id. The tag consists of a N bit buf_id and M upper
- *	       order "generation bits". See compl_tag_bufid_m and
- *	       compl_tag_gen_s in struct idpf_queue. We'll use a value of -1
- *	       to indicate the tag is not valid.
- * @ctx_entry: Singleq only. Used to indicate the corresponding entry
- *	       in the descriptor ring was used for a context descriptor and
- *	       this buffer entry should be skipped.
- */
-struct idpf_tx_buf {
-	void *next_to_watch;
-	struct sk_buff *skb;
-	DEFINE_DMA_UNMAP_ADDR(dma);
-	DEFINE_DMA_UNMAP_LEN(len);
-	unsigned int bytecount;
-	unsigned short gso_segs;
-
-	union {
-		int compl_tag;
-
-		bool ctx_entry;
-	};
-};
-
-struct idpf_tx_stash {
-	struct hlist_node hlist;
-	struct idpf_tx_buf buf;
-};
+#define idpf_tx_buf libeth_sqe
 
 /**
  * struct idpf_buf_lifo - LIFO for managing OOO completions
@@ -496,11 +455,6 @@ struct idpf_tx_queue_stats {
 	u64_stats_t dma_map_errs;
 };
 
-struct idpf_cleaned_stats {
-	u32 packets;
-	u32 bytes;
-};
-
 #define IDPF_ITR_DYNAMIC	1
 #define IDPF_ITR_MAX		0x1FE0
 #define IDPF_ITR_20K		0x0032
@@ -688,7 +642,7 @@ struct idpf_tx_queue {
 
 		void *desc_ring;
 	};
-	struct idpf_tx_buf *tx_buf;
+	struct libeth_sqe *tx_buf;
 	struct idpf_txq_group *txq_grp;
 	struct device *dev;
 	void __iomem *tail;
