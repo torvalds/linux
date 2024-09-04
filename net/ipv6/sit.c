@@ -1112,7 +1112,7 @@ static void ipip6_tunnel_bind_dev(struct net_device *dev)
 							  iph->daddr, iph->saddr,
 							  0, 0,
 							  IPPROTO_IPV6,
-							  RT_TOS(iph->tos),
+							  iph->tos & INET_DSCP_MASK,
 							  tunnel->parms.link);
 
 		if (!IS_ERR(rt)) {
