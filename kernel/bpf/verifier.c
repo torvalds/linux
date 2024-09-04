@@ -19800,7 +19800,7 @@ static int convert_ctx_accesses(struct bpf_verifier_env *env)
 				 * least one ctx ptr saving insn before the
 				 * epilogue.
 				 */
-				 epilogue_idx = i + delta;
+				epilogue_idx = i + delta;
 			}
 			goto patch_insn_buf;
 		} else {
