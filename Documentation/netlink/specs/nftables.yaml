@@ -1028,6 +1028,19 @@ attribute-sets:
         name: icmp-code
         type: u8
   -
+    name: expr-target-attrs
+    attributes:
+      -
+        name: name
+        type: string
+      -
+        name: rev
+        type: u32
+        byte-order: big-endian
+      -
+        name: info
+        type: binary
+  -
     name: expr-tproxy-attrs
     attributes:
       -
@@ -1113,6 +1126,9 @@ sub-messages:
       -
         value: reject
         attribute-set: expr-reject-attrs
+      -
+        value: target
+        attribute-set: expr-target-attrs
       -
         value: tproxy
         attribute-set: expr-tproxy-attrs
