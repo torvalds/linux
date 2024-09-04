@@ -9,14 +9,6 @@
 #include <asm/sclp.h>
 #include "boot.h"
 
-/*
- * The code within this file will be called very early. It may _not_
- * access anything within the bss section, since that is not cleared
- * yet and may contain data (e.g. initrd) that must be saved by other
- * code.
- * For temporary objects the stack (16k) should be used.
- */
-
 static unsigned long als[] = { FACILITIES_ALS };
 
 static void u16_to_hex(char *str, u16 val)
