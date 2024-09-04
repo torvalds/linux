@@ -192,6 +192,18 @@ where this could be particularly useful is running VMs, where running with
 infinite slices and no timer ticks allows the VM to avoid unnecessary expensive
 vmexits.
 
+## scx_flatcg
+
+A flattened cgroup hierarchy scheduler. This scheduler implements hierarchical
+weight-based cgroup CPU control by flattening the cgroup hierarchy into a single
+layer, by compounding the active weight share at each level. The effect of this
+is a much more performant CPU controller, which does not need to descend down
+cgroup trees in order to properly compute a cgroup's share.
+
+Similar to scx_simple, in limited scenarios, this scheduler can perform
+reasonably well on single socket-socket systems with a unified L3 cache and show
+significantly lowered hierarchical scheduling overhead.
+
 
 # Troubleshooting
 
