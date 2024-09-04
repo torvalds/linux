@@ -772,9 +772,9 @@ __tegra241_cmdqv_probe(struct arm_smmu_device *smmu, struct resource *res,
 	static_assert(offsetof(struct tegra241_cmdqv, smmu) == 0);
 
 	base = ioremap(res->start, resource_size(res));
-	if (IS_ERR(base)) {
-		dev_err(smmu->dev, "failed to ioremap: %ld\n", PTR_ERR(base));
-		goto iounmap;
+	if (!base) {
+		dev_err(smmu->dev, "failed to ioremap\n");
+		return NULL;
 	}
 
 	regval = readl(base + TEGRA241_CMDQV_CONFIG);
