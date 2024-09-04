@@ -205,8 +205,7 @@ void BPF_STRUCT_OPS(qmap_enqueue, struct task_struct *p, u64 enq_flags)
 
 	/*
 	 * All enqueued tasks must have their core_sched_seq updated for correct
-	 * core-sched ordering, which is why %SCX_OPS_ENQ_LAST is specified in
-	 * qmap_ops.flags.
+	 * core-sched ordering. Also, take a look at the end of qmap_dispatch().
 	 */
 	tctx->core_sched_seq = core_sched_tail_seqs[idx]++;
 
@@ -214,7 +213,7 @@ void BPF_STRUCT_OPS(qmap_enqueue, struct task_struct *p, u64 enq_flags)
 	 * If qmap_select_cpu() is telling us to or this is the last runnable
 	 * task on the CPU, enqueue locally.
 	 */
-	if (tctx->force_local || (enq_flags & SCX_ENQ_LAST)) {
+	if (tctx->force_local) {
 		tctx->force_local = false;
 		scx_bpf_dispatch(p, SCX_DSQ_LOCAL, slice_ns, enq_flags);
 		return;
@@ -285,6 +284,7 @@ void BPF_STRUCT_OPS(qmap_dispatch, s32 cpu, struct task_struct *prev)
 {
 	struct task_struct *p;
 	struct cpu_ctx *cpuc;
+	struct task_ctx *tctx;
 	u32 zero = 0, batch = dsp_batch ?: 1;
 	void *fifo;
 	s32 i, pid;
@@ -348,6 +348,21 @@ void BPF_STRUCT_OPS(qmap_dispatch, s32 cpu, struct task_struct *prev)
 		}
 
 		cpuc->dsp_cnt = 0;
+	}
+
+	/*
+	 * No other tasks. @prev will keep running. Update its core_sched_seq as
+	 * if the task were enqueued and dispatched immediately.
+	 */
+	if (prev) {
+		tctx = bpf_task_storage_get(&task_ctx_stor, prev, 0, 0);
+		if (!tctx) {
+			scx_bpf_error("task_ctx lookup failed");
+			return;
+		}
+
+		tctx->core_sched_seq =
+			core_sched_tail_seqs[weight_to_idx(prev->scx.weight)]++;
 	}
 }
 
@@ -701,6 +716,5 @@ SCX_OPS_DEFINE(qmap_ops,
 	       .cpu_offline		= (void *)qmap_cpu_offline,
 	       .init			= (void *)qmap_init,
 	       .exit			= (void *)qmap_exit,
-	       .flags			= SCX_OPS_ENQ_LAST,
 	       .timeout_ms		= 5000U,
 	       .name			= "qmap");

@@ -630,11 +630,8 @@ enum scx_enq_flags {
 	 * %SCX_OPS_ENQ_LAST is specified, they're ops.enqueue()'d with the
 	 * %SCX_ENQ_LAST flag set.
 	 *
-	 * If the BPF scheduler wants to continue executing the task,
-	 * ops.enqueue() should dispatch the task to %SCX_DSQ_LOCAL immediately.
-	 * If the task gets queued on a different dsq or the BPF side, the BPF
-	 * scheduler is responsible for triggering a follow-up scheduling event.
-	 * Otherwise, Execution may stall.
+	 * The BPF scheduler is responsible for triggering a follow-up
+	 * scheduling event. Otherwise, Execution may stall.
 	 */
 	SCX_ENQ_LAST		= 1LLU << 41,
 
@@ -1852,12 +1849,8 @@ static void do_enqueue_task(struct rq *rq, struct task_struct *p, u64 enq_flags,
 	if (!scx_rq_online(rq))
 		goto local;
 
-	if (scx_ops_bypassing()) {
-		if (enq_flags & SCX_ENQ_LAST)
-			goto local;
-		else
-			goto global;
-	}
+	if (scx_ops_bypassing())
+		goto global;
 
 	if (p->scx.ddsp_dsq_id != SCX_DSQ_INVALID)
 		goto direct;
@@ -1865,11 +1858,6 @@ static void do_enqueue_task(struct rq *rq, struct task_struct *p, u64 enq_flags,
 	/* see %SCX_OPS_ENQ_EXITING */
 	if (!static_branch_unlikely(&scx_ops_enq_exiting) &&
 	    unlikely(p->flags & PF_EXITING))
-		goto local;
-
-	/* see %SCX_OPS_ENQ_LAST */
-	if (!static_branch_unlikely(&scx_ops_enq_last) &&
-	    (enq_flags & SCX_ENQ_LAST))
 		goto local;
 
 	if (!SCX_HAS_OP(enqueue))
@@ -2517,7 +2505,6 @@ static int balance_one(struct rq *rq, struct task_struct *prev, bool local)
 	struct scx_dsp_ctx *dspc = this_cpu_ptr(scx_dsp_ctx);
 	bool prev_on_scx = prev->sched_class == &ext_sched_class;
 	int nr_loops = SCX_DSP_MAX_LOOPS;
-	bool has_tasks = false;
 
 	lockdep_assert_rq_held(rq);
 	rq->scx.flags |= SCX_RQ_IN_BALANCE;
@@ -2542,9 +2529,9 @@ static int balance_one(struct rq *rq, struct task_struct *prev, bool local)
 		/*
 		 * If @prev is runnable & has slice left, it has priority and
 		 * fetching more just increases latency for the fetched tasks.
-		 * Tell put_prev_task_scx() to put @prev on local_dsq. If the
-		 * BPF scheduler wants to handle this explicitly, it should
-		 * implement ->cpu_released().
+		 * Tell pick_next_task_scx() to keep running @prev. If the BPF
+		 * scheduler wants to handle this explicitly, it should
+		 * implement ->cpu_release().
 		 *
 		 * See scx_ops_disable_workfn() for the explanation on the
 		 * bypassing test.
@@ -2570,7 +2557,7 @@ static int balance_one(struct rq *rq, struct task_struct *prev, bool local)
 		goto has_tasks;
 
 	if (!SCX_HAS_OP(dispatch) || scx_ops_bypassing() || !scx_rq_online(rq))
-		goto out;
+		goto no_tasks;
 
 	dspc->rq = rq;
 
@@ -2609,13 +2596,23 @@ static int balance_one(struct rq *rq, struct task_struct *prev, bool local)
 		}
 	} while (dspc->nr_tasks);
 
-	goto out;
+no_tasks:
+	/*
+	 * Didn't find another task to run. Keep running @prev unless
+	 * %SCX_OPS_ENQ_LAST is in effect.
+	 */
+	if ((prev->scx.flags & SCX_TASK_QUEUED) &&
+	    (!static_branch_unlikely(&scx_ops_enq_last) || scx_ops_bypassing())) {
+		if (local)
+			prev->scx.flags |= SCX_TASK_BAL_KEEP;
+		goto has_tasks;
+	}
+	rq->scx.flags &= ~SCX_RQ_IN_BALANCE;
+	return false;
 
 has_tasks:
-	has_tasks = true;
-out:
 	rq->scx.flags &= ~SCX_RQ_IN_BALANCE;
-	return has_tasks;
+	return true;
 }
 
 static int balance_scx(struct rq *rq, struct task_struct *prev,
@@ -2728,25 +2725,16 @@ static void put_prev_task_scx(struct rq *rq, struct task_struct *p,
 	if (SCX_HAS_OP(stopping) && (p->scx.flags & SCX_TASK_QUEUED))
 		SCX_CALL_OP_TASK(SCX_KF_REST, stopping, p, true);
 
-	/*
-	 * If we're being called from put_prev_task_balance(), balance_scx() may
-	 * have decided that @p should keep running.
-	 */
-	if (p->scx.flags & SCX_TASK_BAL_KEEP) {
-		p->scx.flags &= ~SCX_TASK_BAL_KEEP;
-		set_task_runnable(rq, p);
-		dispatch_enqueue(&rq->scx.local_dsq, p, SCX_ENQ_HEAD);
-		return;
-	}
-
 	if (p->scx.flags & SCX_TASK_QUEUED) {
+		p->scx.flags &= ~SCX_TASK_BAL_KEEP;
+
 		set_task_runnable(rq, p);
 
 		/*
-		 * If @p has slice left and balance_scx() didn't tag it for
-		 * keeping, @p is getting preempted by a higher priority
-		 * scheduler class or core-sched forcing a different task. Leave
-		 * it at the head of the local DSQ.
+		 * If @p has slice left and is being put, @p is getting
+		 * preempted by a higher priority scheduler class or core-sched
+		 * forcing a different task. Leave it at the head of the local
+		 * DSQ.
 		 */
 		if (p->scx.slice && !scx_ops_bypassing()) {
 			dispatch_enqueue(&rq->scx.local_dsq, p, SCX_ENQ_HEAD);
@@ -2754,18 +2742,17 @@ static void put_prev_task_scx(struct rq *rq, struct task_struct *p,
 		}
 
 		/*
-		 * If we're in the pick_next_task path, balance_scx() should
-		 * have already populated the local DSQ if there are any other
-		 * available tasks. If empty, tell ops.enqueue() that @p is the
-		 * only one available for this cpu. ops.enqueue() should put it
-		 * on the local DSQ so that the subsequent pick_next_task_scx()
-		 * can find the task unless it wants to trigger a separate
-		 * follow-up scheduling event.
+		 * If @p is runnable but we're about to enter a lower
+		 * sched_class, %SCX_OPS_ENQ_LAST must be set. Tell
+		 * ops.enqueue() that @p is the only one available for this cpu,
+		 * which should trigger an explicit follow-up scheduling event.
 		 */
-		if (list_empty(&rq->scx.local_dsq.list))
+		if (sched_class_above(&ext_sched_class, next->sched_class)) {
+			WARN_ON_ONCE(!static_branch_unlikely(&scx_ops_enq_last));
 			do_enqueue_task(rq, p, SCX_ENQ_LAST, -1);
-		else
+		} else {
 			do_enqueue_task(rq, p, 0, -1);
+		}
 	}
 }
 
@@ -2780,26 +2767,32 @@ static struct task_struct *pick_next_task_scx(struct rq *rq,
 {
 	struct task_struct *p;
 
-	if (prev->sched_class == &ext_sched_class)
-		put_prev_task_scx(rq, prev, NULL);
+	/*
+	 * If balance_scx() is telling us to keep running @prev, replenish slice
+	 * if necessary and keep running @prev. Otherwise, pop the first one
+	 * from the local DSQ.
+	 */
+	if (prev->scx.flags & SCX_TASK_BAL_KEEP) {
+		prev->scx.flags &= ~SCX_TASK_BAL_KEEP;
+		p = prev;
+		if (!p->scx.slice)
+			p->scx.slice = SCX_SLICE_DFL;
+	} else {
+		p = first_local_task(rq);
+		if (!p)
+			return NULL;
 
-	p = first_local_task(rq);
-	if (!p)
-		return NULL;
-
-	if (prev->sched_class != &ext_sched_class)
-		prev->sched_class->put_prev_task(rq, prev, p);
-
-	set_next_task_scx(rq, p, true);
-
-	if (unlikely(!p->scx.slice)) {
-		if (!scx_ops_bypassing() && !scx_warned_zero_slice) {
-			printk_deferred(KERN_WARNING "sched_ext: %s[%d] has zero slice in pick_next_task_scx()\n",
-					p->comm, p->pid);
-			scx_warned_zero_slice = true;
+		if (unlikely(!p->scx.slice)) {
+			if (!scx_ops_bypassing() && !scx_warned_zero_slice) {
+				printk_deferred(KERN_WARNING "sched_ext: %s[%d] has zero slice in pick_next_task_scx()\n",
+						p->comm, p->pid);
+				scx_warned_zero_slice = true;
+			}
+			p->scx.slice = SCX_SLICE_DFL;
 		}
-		p->scx.slice = SCX_SLICE_DFL;
 	}
+
+	put_prev_set_next_task(rq, prev, p);
 
 	return p;
 }
@@ -3875,12 +3868,13 @@ bool task_should_scx(struct task_struct *p)
  * to force global FIFO scheduling.
  *
  * a. ops.enqueue() is ignored and tasks are queued in simple global FIFO order.
+ *    %SCX_OPS_ENQ_LAST is also ignored.
  *
  * b. ops.dispatch() is ignored.
  *
- * c. balance_scx() never sets %SCX_TASK_BAL_KEEP as the slice value can't be
- *    trusted. Whenever a tick triggers, the running task is rotated to the tail
- *    of the queue with core_sched_at touched.
+ * c. balance_scx() does not set %SCX_TASK_BAL_KEEP on non-zero slice as slice
+ *    can't be trusted. Whenever a tick triggers, the running task is rotated to
+ *    the tail of the queue with core_sched_at touched.
  *
  * d. pick_next_task() suppresses zero slice warning.
  *
