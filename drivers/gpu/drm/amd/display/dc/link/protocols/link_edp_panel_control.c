@@ -521,13 +521,13 @@ bool edp_set_backlight_level(const struct dc_link *link,
 		uint32_t frame_ramp)
 {
 	struct dc  *dc = link->ctx->dc;
-
 	DC_LOGGER_INIT(link->ctx->logger);
 	DC_LOG_BACKLIGHT("New Backlight level: %d (0x%X)\n",
 			backlight_pwm_u16_16, backlight_pwm_u16_16);
 
 	if (dc_is_embedded_signal(link->connector_signal)) {
 		struct pipe_ctx *pipe_ctx = get_pipe_from_link(link);
+		struct set_backlight_level_params backlight_level_param = { 0 };
 
 		if (link->panel_cntl)
 			link->panel_cntl->stored_backlight_registers.USER_LEVEL = backlight_pwm_u16_16;
@@ -542,10 +542,12 @@ bool edp_set_backlight_level(const struct dc_link *link,
 			return false;
 		}
 
+		backlight_level_param.backlight_pwm_u16_16 = backlight_pwm_u16_16;
+		backlight_level_param.frame_ramp = frame_ramp;
+
 		dc->hwss.set_backlight_level(
 				pipe_ctx,
-				backlight_pwm_u16_16,
-				frame_ramp);
+				&backlight_level_param);
 	}
 	return true;
 }

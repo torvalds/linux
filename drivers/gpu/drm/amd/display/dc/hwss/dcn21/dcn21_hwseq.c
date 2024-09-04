@@ -242,14 +242,15 @@ void dcn21_set_pipe(struct pipe_ctx *pipe_ctx)
 }
 
 bool dcn21_set_backlight_level(struct pipe_ctx *pipe_ctx,
-		uint32_t backlight_pwm_u16_16,
-		uint32_t frame_ramp)
+	struct set_backlight_level_params *params)
 {
 	struct dc_context *dc = pipe_ctx->stream->ctx;
 	struct abm *abm = pipe_ctx->stream_res.abm;
 	struct timing_generator *tg = pipe_ctx->stream_res.tg;
 	struct panel_cntl *panel_cntl = pipe_ctx->stream->link->panel_cntl;
 	uint32_t otg_inst;
+	uint32_t backlight_pwm_u16_16 = params->backlight_pwm_u16_16;
+	uint32_t frame_ramp = params->frame_ramp;
 
 	if (!abm || !tg || !panel_cntl)
 		return false;
@@ -257,7 +258,7 @@ bool dcn21_set_backlight_level(struct pipe_ctx *pipe_ctx,
 	otg_inst = tg->inst;
 
 	if (dc->dc->res_pool->dmcu) {
-		dce110_set_backlight_level(pipe_ctx, backlight_pwm_u16_16, frame_ramp);
+		dce110_set_backlight_level(pipe_ctx, params);
 		return true;
 	}
 
