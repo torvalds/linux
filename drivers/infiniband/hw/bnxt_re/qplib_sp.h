@@ -358,4 +358,6 @@ int bnxt_qplib_modify_cc(struct bnxt_qplib_res *res,
 #define BNXT_VAR_MAX_SGE        13
 #define BNXT_RE_MAX_RQ_WQES     65536
 
+#define BNXT_STATIC_MAX_SGE	6
+
 #endif /* __BNXT_QPLIB_SP_H__*/
