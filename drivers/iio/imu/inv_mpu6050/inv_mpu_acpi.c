@@ -10,6 +10,8 @@
 #include <linux/i2c.h>
 #include <linux/dmi.h>
 #include <linux/acpi.h>
+#include <linux/wordpart.h>
+
 #include "inv_mpu_iio.h"
 
 enum inv_mpu_product_name {
@@ -118,8 +120,8 @@ static int inv_mpu_process_acpi_config(struct i2c_client *client,
 		return ret;
 
 	acpi_dev_free_resource_list(&resources);
-	*primary_addr = i2c_addr & 0x0000ffff;
-	*secondary_addr = (i2c_addr & 0xffff0000) >> 16;
+	*primary_addr = lower_16_bits(i2c_addr);
+	*secondary_addr = upper_16_bits(i2c_addr);
 
 	return 0;
 }
