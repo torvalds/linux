@@ -365,7 +365,7 @@ static int iqs269_ati_mode_set(struct iqs269_private *iqs269,
 	if (mode > IQS269_CHx_ENG_A_ATI_MODE_MAX)
 		return -EINVAL;
 
-	mutex_lock(&iqs269->lock);
+	guard(mutex)(&iqs269->lock);
 
 	engine_a = be16_to_cpu(ch_reg[ch_num].engine_a);
 
@@ -374,8 +374,6 @@ static int iqs269_ati_mode_set(struct iqs269_private *iqs269,
 
 	ch_reg[ch_num].engine_a = cpu_to_be16(engine_a);
 	iqs269->ati_current = false;
-
-	mutex_unlock(&iqs269->lock);
 
 	return 0;
 }
@@ -389,9 +387,9 @@ static int iqs269_ati_mode_get(struct iqs269_private *iqs269,
 	if (ch_num >= IQS269_NUM_CH)
 		return -EINVAL;
 
-	mutex_lock(&iqs269->lock);
+	guard(mutex)(&iqs269->lock);
+
 	engine_a = be16_to_cpu(ch_reg[ch_num].engine_a);
-	mutex_unlock(&iqs269->lock);
 
 	engine_a &= IQS269_CHx_ENG_A_ATI_MODE_MASK;
 	*mode = (engine_a >> IQS269_CHx_ENG_A_ATI_MODE_SHIFT);
@@ -429,7 +427,7 @@ static int iqs269_ati_base_set(struct iqs269_private *iqs269,
 		return -EINVAL;
 	}
 
-	mutex_lock(&iqs269->lock);
+	guard(mutex)(&iqs269->lock);
 
 	engine_b = be16_to_cpu(ch_reg[ch_num].engine_b);
 
@@ -438,8 +436,6 @@ static int iqs269_ati_base_set(struct iqs269_private *iqs269,
 
 	ch_reg[ch_num].engine_b = cpu_to_be16(engine_b);
 	iqs269->ati_current = false;
-
-	mutex_unlock(&iqs269->lock);
 
 	return 0;
 }
@@ -453,9 +449,9 @@ static int iqs269_ati_base_get(struct iqs269_private *iqs269,
 	if (ch_num >= IQS269_NUM_CH)
 		return -EINVAL;
 
-	mutex_lock(&iqs269->lock);
+	guard(mutex)(&iqs269->lock);
+
 	engine_b = be16_to_cpu(ch_reg[ch_num].engine_b);
-	mutex_unlock(&iqs269->lock);
 
 	switch (engine_b & IQS269_CHx_ENG_B_ATI_BASE_MASK) {
 	case IQS269_CHx_ENG_B_ATI_BASE_75:
@@ -491,7 +487,7 @@ static int iqs269_ati_target_set(struct iqs269_private *iqs269,
 	if (target > IQS269_CHx_ENG_B_ATI_TARGET_MAX)
 		return -EINVAL;
 
-	mutex_lock(&iqs269->lock);
+	guard(mutex)(&iqs269->lock);
 
 	engine_b = be16_to_cpu(ch_reg[ch_num].engine_b);
 
@@ -500,8 +496,6 @@ static int iqs269_ati_target_set(struct iqs269_private *iqs269,
 
 	ch_reg[ch_num].engine_b = cpu_to_be16(engine_b);
 	iqs269->ati_current = false;
-
-	mutex_unlock(&iqs269->lock);
 
 	return 0;
 }
@@ -515,10 +509,9 @@ static int iqs269_ati_target_get(struct iqs269_private *iqs269,
 	if (ch_num >= IQS269_NUM_CH)
 		return -EINVAL;
 
-	mutex_lock(&iqs269->lock);
-	engine_b = be16_to_cpu(ch_reg[ch_num].engine_b);
-	mutex_unlock(&iqs269->lock);
+	guard(mutex)(&iqs269->lock);
 
+	engine_b = be16_to_cpu(ch_reg[ch_num].engine_b);
 	*target = (engine_b & IQS269_CHx_ENG_B_ATI_TARGET_MASK) * 32;
 
 	return 0;
@@ -1199,7 +1192,7 @@ static int iqs269_dev_init(struct iqs269_private *iqs269)
 {
 	int error;
 
-	mutex_lock(&iqs269->lock);
+	guard(mutex)(&iqs269->lock);
 
 	/*
 	 * Early revisions of silicon require the following workaround in order
@@ -1210,19 +1203,19 @@ static int iqs269_dev_init(struct iqs269_private *iqs269)
 		error = regmap_multi_reg_write(iqs269->regmap, iqs269_tws_init,
 					       ARRAY_SIZE(iqs269_tws_init));
 		if (error)
-			goto err_mutex;
+			return error;
 	}
 
 	error = regmap_update_bits(iqs269->regmap, IQS269_HALL_UI,
 				   IQS269_HALL_UI_ENABLE,
 				   iqs269->hall_enable ? ~0 : 0);
 	if (error)
-		goto err_mutex;
+		return error;
 
 	error = regmap_raw_write(iqs269->regmap, IQS269_SYS_SETTINGS,
 				 &iqs269->sys_reg, sizeof(iqs269->sys_reg));
 	if (error)
-		goto err_mutex;
+		return error;
 
 	/*
 	 * The following delay gives the device time to deassert its RDY output
@@ -1232,10 +1225,7 @@ static int iqs269_dev_init(struct iqs269_private *iqs269)
 
 	iqs269->ati_current = true;
 
-err_mutex:
-	mutex_unlock(&iqs269->lock);
-
-	return error;
+	return 0;
 }
 
 static int iqs269_input_init(struct iqs269_private *iqs269)
@@ -1580,12 +1570,10 @@ static ssize_t hall_enable_store(struct device *dev,
 	if (error)
 		return error;
 
-	mutex_lock(&iqs269->lock);
+	guard(mutex)(&iqs269->lock);
 
 	iqs269->hall_enable = val;
 	iqs269->ati_current = false;
-
-	mutex_unlock(&iqs269->lock);
 
 	return count;
 }
@@ -1643,12 +1631,10 @@ static ssize_t rx_enable_store(struct device *dev,
 	if (val > 0xFF)
 		return -EINVAL;
 
-	mutex_lock(&iqs269->lock);
+	guard(mutex)(&iqs269->lock);
 
 	ch_reg[iqs269->ch_num].rx_enable = val;
 	iqs269->ati_current = false;
-
-	mutex_unlock(&iqs269->lock);
 
 	return count;
 }
