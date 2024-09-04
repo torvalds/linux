@@ -39,6 +39,7 @@ static int sha3_512_export(struct shash_desc *desc, void *out)
 
 	memcpy(octx->st, sctx->state, sizeof(octx->st));
 	memcpy(octx->buf, sctx->buf, sizeof(octx->buf));
+	octx->partial = sctx->first_message_part;
 
 	return 0;
 }
@@ -54,6 +55,7 @@ static int sha3_512_import(struct shash_desc *desc, const void *in)
 
 	memcpy(sctx->state, ictx->st, sizeof(ictx->st));
 	memcpy(sctx->buf, ictx->buf, sizeof(ictx->buf));
+	sctx->first_message_part = ictx->partial;
 	sctx->func = CPACF_KIMD_SHA3_512;
 
 	return 0;
@@ -70,6 +72,7 @@ static int sha3_384_import(struct shash_desc *desc, const void *in)
 
 	memcpy(sctx->state, ictx->st, sizeof(ictx->st));
 	memcpy(sctx->buf, ictx->buf, sizeof(ictx->buf));
+	sctx->first_message_part = ictx->partial;
 	sctx->func = CPACF_KIMD_SHA3_384;
 
 	return 0;

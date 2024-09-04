@@ -36,6 +36,7 @@ int s390_sha_update(struct shash_desc *desc, const u8 *data, unsigned int len)
 		memcpy(ctx->buf + index, data, bsize - index);
 		cpacf_kimd(fc, ctx->state, ctx->buf, bsize);
 		ctx->first_message_part = 0;
+		fc &= ~CPACF_KIMD_NIP;
 		data += bsize - index;
 		len -= bsize - index;
 		index = 0;
