@@ -296,7 +296,7 @@ static unsigned long setup_kernel_memory_layout(unsigned long kernel_size)
 		kernel_start = round_down(kernel_end - kernel_size, THREAD_SIZE);
 	} else if (vmax < __NO_KASLR_END_KERNEL || vsize > __NO_KASLR_END_KERNEL) {
 		kernel_start = round_down(vmax - kernel_size, THREAD_SIZE);
-		decompressor_printk("The kernel base address is forced to %lx\n", kernel_start);
+		boot_printk("The kernel base address is forced to %lx\n", kernel_start);
 	} else {
 		kernel_start = __NO_KASLR_START_KERNEL;
 	}
