@@ -1060,6 +1060,7 @@ struct dc_debug_options {
 	bool enable_ips_visual_confirm;
 	unsigned int sharpen_policy;
 	unsigned int scale_to_sharpness_policy;
+	bool skip_full_updated_if_possible;
 };
 
 
