@@ -2023,7 +2023,7 @@ static int arm_cmn_pmu_online_cpu(unsigned int cpu, struct hlist_node *cpuhp_nod
 
 	cmn = hlist_entry_safe(cpuhp_node, struct arm_cmn, cpuhp_node);
 	node = dev_to_node(cmn->dev);
-	if (node != NUMA_NO_NODE && cpu_to_node(cmn->cpu) != node && cpu_to_node(cpu) == node)
+	if (cpu_to_node(cmn->cpu) != node && cpu_to_node(cpu) == node)
 		arm_cmn_migrate(cmn, cpu);
 	return 0;
 }
