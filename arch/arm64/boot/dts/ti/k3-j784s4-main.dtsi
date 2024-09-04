@@ -2755,7 +2755,7 @@
 		interrupts = <GIC_SPI 550 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 551 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "tx", "rx";
-		dmas = <&main_udmap 0xc500>, <&main_udmap 0x4500>;
+		dmas = <&main_udmap 0xc403>, <&main_udmap 0x4403>;
 		dma-names = "tx", "rx";
 		clocks = <&k3_clks 268 0>;
 		clock-names = "fck";
@@ -2773,7 +2773,7 @@
 		interrupts = <GIC_SPI 552 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 553 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "tx", "rx";
-		dmas = <&main_udmap 0xc501>, <&main_udmap 0x4501>;
+		dmas = <&main_udmap 0xc404>, <&main_udmap 0x4404>;
 		dma-names = "tx", "rx";
 		clocks = <&k3_clks 269 0>;
 		clock-names = "fck";

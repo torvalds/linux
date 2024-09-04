@@ -3,7 +3,7 @@ menu "HID-BPF support"
 
 config HID_BPF
 	bool "HID-BPF support"
-	depends on BPF
+	depends on BPF_JIT
 	depends on BPF_SYSCALL
 	depends on DYNAMIC_FTRACE_WITH_DIRECT_CALLS
 	help

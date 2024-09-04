@@ -3439,6 +3439,16 @@ static int __iwl_mvm_resume(struct iwl_mvm *mvm, bool test)
 
 	mutex_lock(&mvm->mutex);
 
+	/* Apparently, the device went away and device_powered_off() was called,
+	 * don't even try to read the rt_status, the device is currently
+	 * inaccessible.
+	 */
+	if (!test_bit(IWL_MVM_STATUS_IN_D3, &mvm->status)) {
+		IWL_INFO(mvm,
+			 "Can't resume, device_powered_off() was called during wowlan\n");
+		goto err;
+	}
+
 	mvm->last_reset_or_resume_time_jiffies = jiffies;
 
 	/* get the BSS vif pointer again */

@@ -35,7 +35,7 @@ struct virtio_pci_vq_info {
 	/* the actual virtqueue */
 	struct virtqueue *vq;
 
-	/* the list node for the virtqueues list */
+	/* the list node for the virtqueues or slow_virtqueues list */
 	struct list_head node;
 
 	/* MSI-X vector (or none) */
@@ -44,9 +44,9 @@ struct virtio_pci_vq_info {
 
 struct virtio_pci_admin_vq {
 	/* Virtqueue info associated with this admin queue. */
-	struct virtio_pci_vq_info info;
-	/* serializing admin commands execution and virtqueue deletion */
-	struct mutex cmd_lock;
+	struct virtio_pci_vq_info *info;
+	/* Protects virtqueue access. */
+	spinlock_t lock;
 	u64 supported_cmds;
 	/* Name of the admin queue: avq.$vq_index. */
 	char name[10];
@@ -66,9 +66,12 @@ struct virtio_pci_device {
 	/* Where to read and clear interrupt */
 	u8 __iomem *isr;
 
-	/* a list of queues so we can dispatch IRQs */
+	/* Lists of queues and potentially slow path queues
+	 * so we can dispatch IRQs.
+	 */
 	spinlock_t lock;
 	struct list_head virtqueues;
+	struct list_head slow_virtqueues;
 
 	/* Array of all virtqueues reported in the
 	 * PCI common config num_queues field
@@ -102,7 +105,7 @@ struct virtio_pci_device {
 	void (*del_vq)(struct virtio_pci_vq_info *info);
 
 	u16 (*config_vector)(struct virtio_pci_device *vp_dev, u16 vector);
-	bool (*is_avq)(struct virtio_device *vdev, unsigned int index);
+	int (*avq_index)(struct virtio_device *vdev, u16 *index, u16 *num);
 };
 
 /* Constants for MSI-X */
@@ -175,6 +178,7 @@ struct virtio_device *virtio_pci_vf_get_pf_dev(struct pci_dev *pdev);
 #define VIRTIO_ADMIN_CMD_BITMAP 0
 #endif
 
+void vp_modern_avq_done(struct virtqueue *vq);
 int vp_modern_admin_cmd_exec(struct virtio_device *vdev,
 			     struct virtio_admin_cmd *cmd);
 

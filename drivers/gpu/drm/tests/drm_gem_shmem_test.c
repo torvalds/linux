@@ -102,6 +102,17 @@ static void drm_gem_shmem_test_obj_create_private(struct kunit *test)
 
 	sg_init_one(sgt->sgl, buf, TEST_SIZE);
 
+	/*
+	 * Set the DMA mask to 64-bits and map the sgtables
+	 * otherwise drm_gem_shmem_free will cause a warning
+	 * on debug kernels.
+	 */
+	ret = dma_set_mask(drm_dev->dev, DMA_BIT_MASK(64));
+	KUNIT_ASSERT_EQ(test, ret, 0);
+
+	ret = dma_map_sgtable(drm_dev->dev, sgt, DMA_BIDIRECTIONAL, 0);
+	KUNIT_ASSERT_EQ(test, ret, 0);
+
 	/* Init a mock DMA-BUF */
 	buf_mock.size = TEST_SIZE;
 	attach_mock.dmabuf = &buf_mock;

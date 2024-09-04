@@ -29,7 +29,7 @@ int alpine_cpu_wakeup(unsigned int phys_cpu, uint32_t phys_resume_addr)
 	/*
 	 * Set CPU resume address -
 	 * secure firmware running on boot will jump to this address
-	 * after setting proper CPU mode, and initialiing e.g. secure
+	 * after setting proper CPU mode, and initializing e.g. secure
 	 * regs (the same mode all CPUs are booted to - usually HYP)
 	 */
 	writel(phys_resume_addr,

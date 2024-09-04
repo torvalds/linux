@@ -1452,6 +1452,7 @@ static const struct prueth_pdata am654_icssg_pdata = {
 
 static const struct prueth_pdata am64x_icssg_pdata = {
 	.fdqring_mode = K3_RINGACC_RING_MODE_RING,
+	.quirk_10m_link_issue = 1,
 	.switch_mode = 1,
 };
 

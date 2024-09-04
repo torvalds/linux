@@ -741,12 +741,9 @@ fsck_err:
 
 static int bch2_mark_superblocks(struct bch_fs *c)
 {
-	mutex_lock(&c->sb_lock);
 	gc_pos_set(c, gc_phase(GC_PHASE_sb));
 
-	int ret = bch2_trans_mark_dev_sbs_flags(c, BTREE_TRIGGER_gc);
-	mutex_unlock(&c->sb_lock);
-	return ret;
+	return bch2_trans_mark_dev_sbs_flags(c, BTREE_TRIGGER_gc);
 }
 
 static void bch2_gc_free(struct bch_fs *c)

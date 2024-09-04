@@ -1,6 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0 OR MIT */
 /**********************************************************
- * Copyright 2021 VMware, Inc.
- * SPDX-License-Identifier: GPL-2.0 OR MIT
+ *
+ * Copyright (c) 2021-2024 Broadcom. All Rights Reserved. The term
+ * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
@@ -30,6 +32,10 @@
 #include "device_include/svga3d_surfacedefs.h"
 
 #include <drm/vmwgfx_drm.h>
+
+#define SVGA3D_FLAGS_UPPER_32(svga3d_flags) ((svga3d_flags) >> 32)
+#define SVGA3D_FLAGS_LOWER_32(svga3d_flags) \
+	((svga3d_flags) & ((uint64_t)U32_MAX))
 
 static inline u32 clamped_umul32(u32 a, u32 b)
 {
