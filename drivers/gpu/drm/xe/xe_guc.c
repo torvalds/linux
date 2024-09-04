@@ -583,7 +583,7 @@ static s32 guc_pc_get_cur_freq(struct xe_guc_pc *guc_pc)
  * extreme thermal throttling. And a system that is that hot during boot is probably
  * dead anyway!
  */
-#if defined(CONFIG_DRM_XE_DEBUG)
+#if IS_ENABLED(CONFIG_DRM_XE_DEBUG)
 #define GUC_LOAD_RETRY_LIMIT	20
 #else
 #define GUC_LOAD_RETRY_LIMIT	3

@@ -468,7 +468,7 @@ static int xe_ttm_io_mem_reserve(struct ttm_device *bdev,
 		mem->bus.offset += vram->io_start;
 		mem->bus.is_iomem = true;
 
-#if  !defined(CONFIG_X86)
+#if  !IS_ENABLED(CONFIG_X86)
 		mem->bus.caching = ttm_write_combined;
 #endif
 		return 0;
