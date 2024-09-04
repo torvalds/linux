@@ -576,6 +576,7 @@
   dma_direct_free
   dmaengine_unmap_put
   dma_fence_add_callback
+  dma_fence_allocate_private_stub
   dma_fence_array_create
   dma_fence_array_ops
   dma_fence_context_alloc
