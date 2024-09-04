@@ -109,7 +109,7 @@ para que se ejecute, y la tarea en ejecución es interrumpida.
 ==================================
 
 CFS usa una granularidad de nanosegundos y no depende de ningún
-jiffie o detalles como HZ. De este modo, el gestor de tareas CFS no tiene
+jiffy o detalles como HZ. De este modo, el gestor de tareas CFS no tiene
 noción de "ventanas de tiempo" de la forma en que tenía el gestor de
 tareas previo, y tampoco tiene heurísticos. Únicamente hay un parámetro
 central ajustable (se ha de cambiar en CONFIG_SCHED_DEBUG):

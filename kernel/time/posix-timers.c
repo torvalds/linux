@@ -339,14 +339,14 @@ static enum hrtimer_restart posix_timer_fn(struct hrtimer *timer)
 			 * change to the signal handling code.
 			 *
 			 * For now let timers with an interval less than a
-			 * jiffie expire every jiffie and recheck for a
+			 * jiffy expire every jiffy and recheck for a
 			 * valid signal handler.
 			 *
 			 * This avoids interrupt starvation in case of a
 			 * very small interval, which would expire the
 			 * timer immediately again.
 			 *
-			 * Moving now ahead of time by one jiffie tricks
+			 * Moving now ahead of time by one jiffy tricks
 			 * hrtimer_forward() to expire the timer later,
 			 * while it still maintains the overrun accuracy
 			 * for the price of a slight inconsistency in the

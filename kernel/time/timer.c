@@ -365,7 +365,7 @@ static unsigned long round_jiffies_common(unsigned long j, int cpu,
 	rem = j % HZ;
 
 	/*
-	 * If the target jiffie is just after a whole second (which can happen
+	 * If the target jiffy is just after a whole second (which can happen
 	 * due to delays of the timer irq, long irq off times etc etc) then
 	 * we should round down to the whole second, not up. Use 1/4th second
 	 * as cutoff for this rounding as an extreme upper bound for this.
@@ -1930,7 +1930,7 @@ static void timer_recalc_next_expiry(struct timer_base *base)
 		 * bits are zero, we look at the next level as is. If not we
 		 * need to advance it by one because that's going to be the
 		 * next expiring bucket in that level. base->clk is the next
-		 * expiring jiffie. So in case of:
+		 * expiring jiffy. So in case of:
 		 *
 		 * LVL5 LVL4 LVL3 LVL2 LVL1 LVL0
 		 *  0    0    0    0    0    0
@@ -1995,7 +1995,7 @@ static u64 cmp_next_hrtimer_event(u64 basem, u64 expires)
 		return basem;
 
 	/*
-	 * Round up to the next jiffie. High resolution timers are
+	 * Round up to the next jiffy. High resolution timers are
 	 * off, so the hrtimers are expired in the tick and we need to
 	 * make sure that this tick really expires the timer to avoid
 	 * a ping pong of the nohz stop code.
@@ -2254,7 +2254,7 @@ static inline u64 __get_next_timer_interrupt(unsigned long basej, u64 basem,
 					     base_global, &tevt);
 
 	/*
-	 * If the next event is only one jiffie ahead there is no need to call
+	 * If the next event is only one jiffy ahead there is no need to call
 	 * timer migration hierarchy related functions. The value for the next
 	 * global timer in @tevt struct equals then KTIME_MAX. This is also
 	 * true, when the timer base is idle.
@@ -2486,11 +2486,11 @@ static void run_local_timers(void)
 		 * updated. When this update is missed, this isn't a
 		 * problem, as an IPI is executed nevertheless when the CPU
 		 * was idle before. When the CPU wasn't idle but the update
-		 * is missed, then the timer would expire one jiffie late -
+		 * is missed, then the timer would expire one jiffy late -
 		 * bad luck.
 		 *
 		 * Those unlikely corner cases where the worst outcome is only a
-		 * one jiffie delay or a superfluous raise of the softirq are
+		 * one jiffy delay or a superfluous raise of the softirq are
 		 * not that expensive as doing the check always while holding
 		 * the lock.
 		 *
