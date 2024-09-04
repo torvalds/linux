@@ -4,6 +4,7 @@
 #define _ASM_S390_ARCH_HWEIGHT_H
 
 #include <linux/types.h>
+#include <asm/march.h>
 
 static __always_inline unsigned long popcnt_z196(unsigned long w)
 {
@@ -29,9 +30,9 @@ static __always_inline unsigned long popcnt_z15(unsigned long w)
 
 static __always_inline unsigned long __arch_hweight64(__u64 w)
 {
-	if (IS_ENABLED(CONFIG_HAVE_MARCH_Z15_FEATURES))
+	if (__is_defined(MARCH_HAS_Z15_FEATURES))
 		return popcnt_z15(w);
-	if (IS_ENABLED(CONFIG_HAVE_MARCH_Z196_FEATURES)) {
+	if (__is_defined(MARCH_HAS_Z196_FEATURES)) {
 		w = popcnt_z196(w);
 		w += w >> 32;
 		w += w >> 16;
@@ -43,9 +44,9 @@ static __always_inline unsigned long __arch_hweight64(__u64 w)
 
 static __always_inline unsigned int __arch_hweight32(unsigned int w)
 {
-	if (IS_ENABLED(CONFIG_HAVE_MARCH_Z15_FEATURES))
+	if (__is_defined(MARCH_HAS_Z15_FEATURES))
 		return popcnt_z15(w);
-	if (IS_ENABLED(CONFIG_HAVE_MARCH_Z196_FEATURES)) {
+	if (__is_defined(MARCH_HAS_Z196_FEATURES)) {
 		w = popcnt_z196(w);
 		w += w >> 16;
 		w += w >> 8;
@@ -56,9 +57,9 @@ static __always_inline unsigned int __arch_hweight32(unsigned int w)
 
 static __always_inline unsigned int __arch_hweight16(unsigned int w)
 {
-	if (IS_ENABLED(CONFIG_HAVE_MARCH_Z15_FEATURES))
+	if (__is_defined(MARCH_HAS_Z15_FEATURES))
 		return popcnt_z15((unsigned short)w);
-	if (IS_ENABLED(CONFIG_HAVE_MARCH_Z196_FEATURES)) {
+	if (__is_defined(MARCH_HAS_Z196_FEATURES)) {
 		w = popcnt_z196(w);
 		w += w >> 8;
 		return w & 0xff;
@@ -68,7 +69,7 @@ static __always_inline unsigned int __arch_hweight16(unsigned int w)
 
 static __always_inline unsigned int __arch_hweight8(unsigned int w)
 {
-	if (IS_ENABLED(CONFIG_HAVE_MARCH_Z196_FEATURES))
+	if (__is_defined(MARCH_HAS_Z196_FEATURES))
 		return popcnt_z196((unsigned char)w);
 	return __sw_hweight8(w);
 }
