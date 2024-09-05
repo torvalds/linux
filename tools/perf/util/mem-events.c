@@ -29,6 +29,8 @@ struct perf_mem_event perf_mem_events[PERF_MEM_EVENTS__MAX] = {
 };
 #undef E
 
+bool perf_mem_record[PERF_MEM_EVENTS__MAX] = { 0 };
+
 static char mem_loads_name[100];
 static char mem_stores_name[100];
 
@@ -163,7 +165,7 @@ int perf_pmu__mem_events_parse(struct perf_pmu *pmu, const char *str)
 				continue;
 
 			if (strstr(e->tag, tok))
-				e->record = found = true;
+				perf_mem_record[j] = found = true;
 		}
 
 		tok = strtok_r(NULL, ",", &saveptr);
@@ -261,7 +263,7 @@ int perf_mem_events__record_args(const char **rec_argv, int *argv_nr)
 		for (int j = 0; j < PERF_MEM_EVENTS__MAX; j++) {
 			e = perf_pmu__mem_events_ptr(pmu, j);
 
-			if (!e->record)
+			if (!perf_mem_record[j])
 				continue;
 
 			if (!e->supported) {
