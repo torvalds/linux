@@ -104,7 +104,7 @@ bpftool gen skeleton *FILE*
 
     - **example__load**.
       This function creates maps, loads and verifies BPF programs, initializes
-      global data maps. It corresponds to libppf's **bpf_object__load**\ ()
+      global data maps. It corresponds to libbpf's **bpf_object__load**\ ()
       API.
 
     - **example__open_and_load** combines **example__open** and
