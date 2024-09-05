@@ -178,7 +178,7 @@ static unsigned char i8042_suppress_kbd_ack;
 static struct platform_device *i8042_platform_device;
 static struct notifier_block i8042_kbd_bind_notifier_block;
 
-static irqreturn_t i8042_interrupt(int irq, void *dev_id);
+static bool i8042_handle_data(int irq);
 static bool (*i8042_platform_filter)(unsigned char data, unsigned char str,
 				     struct serio *serio);
 
@@ -434,7 +434,7 @@ static void i8042_port_close(struct serio *serio)
 	 * See if there is any data appeared while we were messing with
 	 * port state.
 	 */
-	i8042_interrupt(0, NULL);
+	i8042_handle_data(0);
 }
 
 /*
@@ -518,44 +518,10 @@ static bool i8042_filter(unsigned char data, unsigned char str,
 }
 
 /*
- * i8042_interrupt() is the most important function in this driver -
- * it handles the interrupts from the i8042, and sends incoming bytes
- * to the upper layers.
- */
-
-static irqreturn_t i8042_interrupt(int irq, void *dev_id)
-{
-	struct i8042_port *port;
-	struct serio *serio;
-	unsigned long flags;
-	unsigned char str, data;
-	unsigned int dfl;
-	unsigned int port_no;
-	bool filtered;
-	int ret = 1;
-
-	spin_lock_irqsave(&i8042_lock, flags);
-
-	str = i8042_read_status();
-	if (unlikely(~str & I8042_STR_OBF)) {
-		spin_unlock_irqrestore(&i8042_lock, flags);
-		if (irq)
-			dbg("Interrupt %d, without any data\n", irq);
-		ret = 0;
-		goto out;
-	}
-
-	data = i8042_read_data();
-
-	if (i8042_mux_present && (str & I8042_STR_AUXDATA)) {
-		static unsigned long last_transmit;
-		static unsigned char last_str;
-
-		dfl = 0;
-		if (str & I8042_STR_MUXERR) {
-			dbg("MUX error, status is %02x, data is %02x\n",
-			    str, data);
-/*
+ * i8042_handle_mux() handles case when data is coming from one of
+ * the multiplexed ports. It would be simple if not for quirks with
+ * handling errors:
+ *
  * When MUXERR condition is signalled the data register can only contain
  * 0xfd, 0xfe or 0xff if implementation follows the spec. Unfortunately
  * it is not always the case. Some KBCs also report 0xfc when there is
@@ -567,28 +533,79 @@ static irqreturn_t i8042_interrupt(int irq, void *dev_id)
  * rest assume that the data came from the same serio last byte
  * was transmitted (if transmission happened not too long ago).
  */
+static int i8042_handle_mux(u8 str, u8 *data, unsigned int *dfl)
+{
+	static unsigned long last_transmit;
+	static unsigned long last_port;
+	unsigned int mux_port;
 
-			switch (data) {
-				default:
-					if (time_before(jiffies, last_transmit + HZ/10)) {
-						str = last_str;
-						break;
-					}
-					fallthrough;	/* report timeout */
-				case 0xfc:
-				case 0xfd:
-				case 0xfe: dfl = SERIO_TIMEOUT; data = 0xfe; break;
-				case 0xff: dfl = SERIO_PARITY;  data = 0xfe; break;
+	mux_port = (str >> 6) & 3;
+	*dfl = 0;
+
+	if (str & I8042_STR_MUXERR) {
+		dbg("MUX error, status is %02x, data is %02x\n",
+		    str, *data);
+
+		switch (*data) {
+		default:
+			if (time_before(jiffies, last_transmit + HZ/10)) {
+				mux_port = last_port;
+				break;
 			}
+			fallthrough;	/* report timeout */
+		case 0xfc:
+		case 0xfd:
+		case 0xfe:
+			*dfl = SERIO_TIMEOUT;
+			*data = 0xfe;
+			break;
+		case 0xff:
+			*dfl = SERIO_PARITY;
+			*data = 0xfe;
+			break;
 		}
+	}
 
-		port_no = I8042_MUX_PORT_NO + ((str >> 6) & 3);
-		last_str = str;
-		last_transmit = jiffies;
+	last_port = mux_port;
+	last_transmit = jiffies;
+
+	return I8042_MUX_PORT_NO + mux_port;
+}
+
+/*
+ * i8042_handle_data() is the most important function in this driver -
+ * it reads the data from the i8042, determines its destination serio
+ * port, and sends received byte to the upper layers.
+ *
+ * Returns true if there was data waiting, false otherwise.
+ */
+static bool i8042_handle_data(int irq)
+{
+	struct i8042_port *port;
+	struct serio *serio;
+	unsigned long flags;
+	unsigned char str, data;
+	unsigned int dfl;
+	unsigned int port_no;
+	bool filtered;
+
+	spin_lock_irqsave(&i8042_lock, flags);
+
+	str = i8042_read_status();
+	if (unlikely(~str & I8042_STR_OBF)) {
+		spin_unlock_irqrestore(&i8042_lock, flags);
+		return false;
+	}
+
+	data = i8042_read_data();
+
+	if (i8042_mux_present && (str & I8042_STR_AUXDATA)) {
+		port_no = i8042_handle_mux(str, &data, &dfl);
 	} else {
 
-		dfl = ((str & I8042_STR_PARITY) ? SERIO_PARITY : 0) |
-		      ((str & I8042_STR_TIMEOUT && !i8042_notimeout) ? SERIO_TIMEOUT : 0);
+		dfl = (str & I8042_STR_PARITY) ? SERIO_PARITY : 0;
+		if ((str & I8042_STR_TIMEOUT) && !i8042_notimeout)
+			dfl |= SERIO_TIMEOUT;
 
 		port_no = (str & I8042_STR_AUXDATA) ?
 				I8042_AUX_PORT_NO : I8042_KBD_PORT_NO;
@@ -609,8 +626,17 @@ static irqreturn_t i8042_interrupt(int irq, void *dev_id)
 	if (likely(serio && !filtered))
 		serio_interrupt(serio, data, dfl);
 
- out:
-	return IRQ_RETVAL(ret);
+	return true;
+}
+
+static irqreturn_t i8042_interrupt(int irq, void *dev_id)
+{
+	if (unlikely(!i8042_handle_data(irq))) {
+		dbg("Interrupt %d, without any data\n", irq);
+		return IRQ_NONE;
+	}
+
+	return IRQ_HANDLED;
 }
 
 /*
@@ -1216,13 +1242,14 @@ static int i8042_controller_resume(bool s2r_wants_reset)
 	if (i8042_mux_present) {
 		if (i8042_set_mux_mode(true, NULL) || i8042_enable_mux_ports())
 			pr_warn("failed to resume active multiplexor, mouse won't work\n");
-	} else if (i8042_ports[I8042_AUX_PORT_NO].serio)
+	} else if (i8042_ports[I8042_AUX_PORT_NO].serio) {
 		i8042_enable_aux_port();
+	}
 
 	if (i8042_ports[I8042_KBD_PORT_NO].serio)
 		i8042_enable_kbd_port();
 
-	i8042_interrupt(0, NULL);
+	i8042_handle_data(0);
 
 	return 0;
 }
@@ -1253,7 +1280,7 @@ static int i8042_pm_suspend(struct device *dev)
 static int i8042_pm_resume_noirq(struct device *dev)
 {
 	if (i8042_forcenorestore || !pm_resume_via_firmware())
-		i8042_interrupt(0, NULL);
+		i8042_handle_data(0);
 
 	return 0;
 }
@@ -1290,7 +1317,7 @@ static int i8042_pm_resume(struct device *dev)
 
 static int i8042_pm_thaw(struct device *dev)
 {
-	i8042_interrupt(0, NULL);
+	i8042_handle_data(0);
 
 	return 0;
 }
