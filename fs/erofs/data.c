@@ -79,38 +79,28 @@ void *erofs_read_metabuf(struct erofs_buf *buf, struct super_block *sb,
 static int erofs_map_blocks_flatmode(struct inode *inode,
 				     struct erofs_map_blocks *map)
 {
-	erofs_blk_t nblocks, lastblk;
-	u64 offset = map->m_la;
 	struct erofs_inode *vi = EROFS_I(inode);
 	struct super_block *sb = inode->i_sb;
 	bool tailendpacking = (vi->datalayout == EROFS_INODE_FLAT_INLINE);
+	erofs_blk_t lastblk = erofs_iblks(inode) - tailendpacking;
 
-	nblocks = erofs_iblks(inode);
-	lastblk = nblocks - tailendpacking;
-
-	/* there is no hole in flatmode */
-	map->m_flags = EROFS_MAP_MAPPED;
-	if (offset < erofs_pos(sb, lastblk)) {
+	map->m_flags = EROFS_MAP_MAPPED;	/* no hole in flat inodes */
+	if (map->m_la < erofs_pos(sb, lastblk)) {
 		map->m_pa = erofs_pos(sb, vi->raw_blkaddr) + map->m_la;
-		map->m_plen = erofs_pos(sb, lastblk) - offset;
-	} else if (tailendpacking) {
+		map->m_plen = erofs_pos(sb, lastblk) - map->m_la;
+	} else {
+		DBG_BUGON(!tailendpacking);
 		map->m_pa = erofs_iloc(inode) + vi->inode_isize +
-			vi->xattr_isize + erofs_blkoff(sb, offset);
-		map->m_plen = inode->i_size - offset;
+			vi->xattr_isize + erofs_blkoff(sb, map->m_la);
+		map->m_plen = inode->i_size - map->m_la;
 
 		/* inline data should be located in the same meta block */
 		if (erofs_blkoff(sb, map->m_pa) + map->m_plen > sb->s_blocksize) {
-			erofs_err(sb, "inline data cross block boundary @ nid %llu",
-				  vi->nid);
+			erofs_err(sb, "inline data across blocks @ nid %llu", vi->nid);
 			DBG_BUGON(1);
 			return -EFSCORRUPTED;
 		}
 		map->m_flags |= EROFS_MAP_META;
-	} else {
-		erofs_err(sb, "internal error @ nid: %llu (size %llu), m_la 0x%llx",
-			  vi->nid, inode->i_size, map->m_la);
-		DBG_BUGON(1);
-		return -EIO;
 	}
 	return 0;
 }
