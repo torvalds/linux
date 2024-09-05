@@ -271,9 +271,6 @@ struct kmem_cache *kmem_cache_create_usercopy(const char *name,
 			slab_flags_t flags,
 			unsigned int useroffset, unsigned int usersize,
 			void (*ctor)(void *));
-struct kmem_cache *kmem_cache_create_rcu(const char *name, unsigned int size,
-					 unsigned int freeptr_offset,
-					 slab_flags_t flags);
 
 /* If NULL is passed for @args, use this variant with default arguments. */
 static inline struct kmem_cache *

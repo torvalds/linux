@@ -420,49 +420,6 @@ struct kmem_cache *__kmem_cache_create(const char *name, unsigned int size,
 }
 EXPORT_SYMBOL(__kmem_cache_create);
 
-/**
- * kmem_cache_create_rcu - Create a SLAB_TYPESAFE_BY_RCU cache.
- * @name: A string which is used in /proc/slabinfo to identify this cache.
- * @size: The size of objects to be created in this cache.
- * @freeptr_offset: The offset into the memory to the free pointer
- * @flags: SLAB flags
- *
- * Cannot be called within an interrupt, but can be interrupted.
- *
- * See kmem_cache_create() for an explanation of possible @flags.
- *
- * By default SLAB_TYPESAFE_BY_RCU caches place the free pointer outside
- * of the object. This might cause the object to grow in size. Callers
- * that have a reason to avoid this can specify a custom free pointer
- * offset in their struct where the free pointer will be placed.
- *
- * Note that placing the free pointer inside the object requires the
- * caller to ensure that no fields are invalidated that are required to
- * guard against object recycling (See SLAB_TYPESAFE_BY_RCU for
- * details.).
- *
- * Using zero as a value for @freeptr_offset is valid. To request no
- * offset UINT_MAX must be specified.
- *
- * Note that @ctor isn't supported with custom free pointers as a @ctor
- * requires an external free pointer.
- *
- * Return: a pointer to the cache on success, NULL on failure.
- */
-struct kmem_cache *kmem_cache_create_rcu(const char *name, unsigned int size,
-					 unsigned int freeptr_offset,
-					 slab_flags_t flags)
-{
-	struct kmem_cache_args kmem_args = {
-		.freeptr_offset		= freeptr_offset,
-		.use_freeptr_offset	= true,
-	};
-
-	return __kmem_cache_create_args(name, size, &kmem_args,
-					flags | SLAB_TYPESAFE_BY_RCU);
-}
-EXPORT_SYMBOL(kmem_cache_create_rcu);
-
 static struct kmem_cache *kmem_buckets_cache __ro_after_init;
 
 /**
