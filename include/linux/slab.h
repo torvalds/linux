@@ -294,12 +294,13 @@ int kmem_cache_shrink(struct kmem_cache *s);
  * To whitelist a single field for copying to/from usercopy, use this
  * macro instead for KMEM_CACHE() above.
  */
-#define KMEM_CACHE_USERCOPY(__struct, __flags, __field)			\
-		kmem_cache_create_usercopy(#__struct,			\
-			sizeof(struct __struct),			\
-			__alignof__(struct __struct), (__flags),	\
-			offsetof(struct __struct, __field),		\
-			sizeof_field(struct __struct, __field), NULL)
+#define KMEM_CACHE_USERCOPY(__struct, __flags, __field)						\
+	__kmem_cache_create_args(#__struct, sizeof(struct __struct),				\
+			&(struct kmem_cache_args) {						\
+				.align		= __alignof__(struct __struct),			\
+				.useroffset	= offsetof(struct __struct, __field),		\
+				.usersize	= sizeof_field(struct __struct, __field),	\
+			}, (__flags))
 
 /*
  * Common kmalloc functions provided by all allocators
