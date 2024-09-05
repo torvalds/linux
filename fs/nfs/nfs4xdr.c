@@ -52,6 +52,7 @@
 #include <linux/nfs.h>
 #include <linux/nfs4.h>
 #include <linux/nfs_fs.h>
+#include <linux/nfs_common.h>
 
 #include "nfs4_fs.h"
 #include "nfs4trace.h"
@@ -62,9 +63,6 @@
 #include "netns.h"
 
 #define NFSDBG_FACILITY		NFSDBG_XDR
-
-/* Mapping from NFS error code to "errno" error code. */
-#define errno_NFSERR_IO		EIO
 
 struct compound_hdr;
 static int nfs4_stat_to_errno(int);
