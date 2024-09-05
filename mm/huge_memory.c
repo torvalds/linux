@@ -3819,16 +3819,11 @@ static int split_huge_pages_pid(int pid, unsigned long vaddr_start,
 	vaddr_start &= PAGE_MASK;
 	vaddr_end &= PAGE_MASK;
 
-	/* Find the task_struct from pid */
-	rcu_read_lock();
-	task = find_task_by_vpid(pid);
+	task = find_get_task_by_vpid(pid);
 	if (!task) {
-		rcu_read_unlock();
 		ret = -ESRCH;
 		goto out;
 	}
-	get_task_struct(task);
-	rcu_read_unlock();
 
 	/* Find the mm_struct */
 	mm = get_task_mm(task);
