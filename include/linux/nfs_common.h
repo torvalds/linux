@@ -12,5 +12,6 @@
 #define errno_NFSERR_IO EIO
 
 int nfs_stat_to_errno(enum nfs_stat status);
+int nfs4_stat_to_errno(int stat);
 
 #endif /* _LINUX_NFS_COMMON_H */
