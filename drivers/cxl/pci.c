@@ -655,6 +655,7 @@ static int cxl_event_req_irq(struct cxl_dev_state *cxlds, u8 setting)
 static int cxl_event_get_int_policy(struct cxl_memdev_state *mds,
 				    struct cxl_event_interrupt_policy *policy)
 {
+	struct cxl_mailbox *cxl_mbox = &mds->cxlds.cxl_mbox;
 	struct cxl_mbox_cmd mbox_cmd = {
 		.opcode = CXL_MBOX_OP_GET_EVT_INT_POLICY,
 		.payload_out = policy,
@@ -662,7 +663,7 @@ static int cxl_event_get_int_policy(struct cxl_memdev_state *mds,
 	};
 	int rc;
 
-	rc = cxl_internal_send_cmd(mds, &mbox_cmd);
+	rc = cxl_internal_send_cmd(cxl_mbox, &mbox_cmd);
 	if (rc < 0)
 		dev_err(mds->cxlds.dev,
 			"Failed to get event interrupt policy : %d", rc);
@@ -673,6 +674,7 @@ static int cxl_event_get_int_policy(struct cxl_memdev_state *mds,
 static int cxl_event_config_msgnums(struct cxl_memdev_state *mds,
 				    struct cxl_event_interrupt_policy *policy)
 {
+	struct cxl_mailbox *cxl_mbox = &mds->cxlds.cxl_mbox;
 	struct cxl_mbox_cmd mbox_cmd;
 	int rc;
 
@@ -689,7 +691,7 @@ static int cxl_event_config_msgnums(struct cxl_memdev_state *mds,
 		.size_in = sizeof(*policy),
 	};
 
-	rc = cxl_internal_send_cmd(mds, &mbox_cmd);
+	rc = cxl_internal_send_cmd(cxl_mbox, &mbox_cmd);
 	if (rc < 0) {
 		dev_err(mds->cxlds.dev, "Failed to set event interrupt policy : %d",
 			rc);
