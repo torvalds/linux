@@ -248,14 +248,24 @@ out:
 	return ERR_PTR(err);
 }
 
-static struct kmem_cache *
-do_kmem_cache_create_usercopy(const char *name,
-		  unsigned int size, unsigned int freeptr_offset,
-		  unsigned int align, slab_flags_t flags,
-		  unsigned int useroffset, unsigned int usersize,
-		  void (*ctor)(void *))
+/**
+ * __kmem_cache_create_args - Create a kmem cache
+ * @name: A string which is used in /proc/slabinfo to identify this cache.
+ * @object_size: The size of objects to be created in this cache.
+ * @args: Arguments for the cache creation (see struct kmem_cache_args).
+ * @flags: See %SLAB_* flags for an explanation of individual @flags.
+ *
+ * Cannot be called within a interrupt, but can be interrupted.
+ *
+ * Return: a pointer to the cache on success, NULL on failure.
+ */
+struct kmem_cache *__kmem_cache_create_args(const char *name,
+					    unsigned int object_size,
+					    struct kmem_cache_args *args,
+					    slab_flags_t flags)
 {
 	struct kmem_cache *s = NULL;
+	unsigned int freeptr_offset = UINT_MAX;
 	const char *cache_name;
 	int err;
 
@@ -275,7 +285,7 @@ do_kmem_cache_create_usercopy(const char *name,
 
 	mutex_lock(&slab_mutex);
 
-	err = kmem_cache_sanity_check(name, size);
+	err = kmem_cache_sanity_check(name, object_size);
 	if (err) {
 		goto out_unlock;
 	}
@@ -296,12 +306,14 @@ do_kmem_cache_create_usercopy(const char *name,
 
 	/* Fail closed on bad usersize of useroffset values. */
 	if (!IS_ENABLED(CONFIG_HARDENED_USERCOPY) ||
-	    WARN_ON(!usersize && useroffset) ||
-	    WARN_ON(size < usersize || size - usersize < useroffset))
-		usersize = useroffset = 0;
+	    WARN_ON(!args->usersize && args->useroffset) ||
+	    WARN_ON(object_size < args->usersize ||
+		    object_size - args->usersize < args->useroffset))
+		args->usersize = args->useroffset = 0;
 
-	if (!usersize)
-		s = __kmem_cache_alias(name, size, align, flags, ctor);
+	if (!args->usersize)
+		s = __kmem_cache_alias(name, object_size, args->align, flags,
+				       args->ctor);
 	if (s)
 		goto out_unlock;
 
@@ -311,9 +323,11 @@ do_kmem_cache_create_usercopy(const char *name,
 		goto out_unlock;
 	}
 
-	s = create_cache(cache_name, size, freeptr_offset,
-			 calculate_alignment(flags, align, size),
-			 flags, useroffset, usersize, ctor);
+	if (args->use_freeptr_offset)
+		freeptr_offset = args->freeptr_offset;
+	s = create_cache(cache_name, object_size, freeptr_offset,
+			 calculate_alignment(flags, args->align, object_size),
+			 flags, args->useroffset, args->usersize, args->ctor);
 	if (IS_ERR(s)) {
 		err = PTR_ERR(s);
 		kfree_const(cache_name);
@@ -335,6 +349,27 @@ out_unlock:
 	}
 	return s;
 }
+EXPORT_SYMBOL(__kmem_cache_create_args);
+
+static struct kmem_cache *
+do_kmem_cache_create_usercopy(const char *name,
+                 unsigned int size, unsigned int freeptr_offset,
+                 unsigned int align, slab_flags_t flags,
+                 unsigned int useroffset, unsigned int usersize,
+                 void (*ctor)(void *))
+{
+	struct kmem_cache_args kmem_args = {
+		.align			= align,
+		.use_freeptr_offset	= freeptr_offset != UINT_MAX,
+		.freeptr_offset		= freeptr_offset,
+		.useroffset		= useroffset,
+		.usersize		= usersize,
+		.ctor			= ctor,
+	};
+
+	return __kmem_cache_create_args(name, size, &kmem_args, flags);
+}
+
 
 /**
  * kmem_cache_create_usercopy - Create a cache with a region suitable

@@ -240,6 +240,28 @@ struct mem_cgroup;
  */
 bool slab_is_available(void);
 
+/**
+ * struct kmem_cache_args - Less common arguments for kmem_cache_create()
+ * @align: The required alignment for the objects.
+ * @useroffset: Usercopy region offset
+ * @usersize: Usercopy region size
+ * @freeptr_offset: Custom offset for the free pointer in RCU caches
+ * @use_freeptr_offset: Whether a @freeptr_offset is used
+ * @ctor: A constructor for the objects.
+ */
+struct kmem_cache_args {
+	unsigned int align;
+	unsigned int useroffset;
+	unsigned int usersize;
+	unsigned int freeptr_offset;
+	bool use_freeptr_offset;
+	void (*ctor)(void *);
+};
+
+struct kmem_cache *__kmem_cache_create_args(const char *name,
+					    unsigned int object_size,
+					    struct kmem_cache_args *args,
+					    slab_flags_t flags);
 struct kmem_cache *kmem_cache_create(const char *name, unsigned int size,
 			unsigned int align, slab_flags_t flags,
 			void (*ctor)(void *));
