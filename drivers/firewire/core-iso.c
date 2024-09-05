@@ -220,7 +220,7 @@ int fw_iso_context_flush_completions(struct fw_iso_context *ctx)
 	might_sleep();
 
 	// Avoid dead lock due to programming mistake.
-	if (WARN_ON(current_work() == &ctx->work))
+	if (WARN_ON_ONCE(current_work() == &ctx->work))
 		return 0;
 
 	disable_work_sync(&ctx->work);
@@ -244,7 +244,7 @@ int fw_iso_context_stop(struct fw_iso_context *ctx)
 	might_sleep();
 
 	// Avoid dead lock due to programming mistake.
-	if (WARN_ON(current_work() == &ctx->work))
+	if (WARN_ON_ONCE(current_work() == &ctx->work))
 		return 0;
 
 	err = ctx->card->driver->stop_iso(ctx);
