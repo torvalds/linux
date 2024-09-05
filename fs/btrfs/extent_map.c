@@ -1212,14 +1212,14 @@ static long btrfs_scan_root(struct btrfs_root *root, struct btrfs_em_shrink_ctx 
 	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct btrfs_inode *inode;
 	long nr_dropped = 0;
-	u64 min_ino = fs_info->extent_map_shrinker_last_ino + 1;
+	u64 min_ino = fs_info->em_shrinker_last_ino + 1;
 
 	inode = btrfs_find_first_inode(root, min_ino);
 	while (inode) {
 		nr_dropped += btrfs_scan_inode(inode, ctx);
 
 		min_ino = btrfs_ino(inode) + 1;
-		fs_info->extent_map_shrinker_last_ino = btrfs_ino(inode);
+		fs_info->em_shrinker_last_ino = btrfs_ino(inode);
 		btrfs_add_delayed_iput(inode);
 
 		if (ctx->scanned >= ctx->nr_to_scan ||
@@ -1239,14 +1239,14 @@ static long btrfs_scan_root(struct btrfs_root *root, struct btrfs_em_shrink_ctx 
 		 * inode if there is one or we will find out this was the last
 		 * one and move to the next root.
 		 */
-		fs_info->extent_map_shrinker_last_root = btrfs_root_id(root);
+		fs_info->em_shrinker_last_root = btrfs_root_id(root);
 	} else {
 		/*
 		 * No more inodes in this root, set extent_map_shrinker_last_ino to 0 so
 		 * that when processing the next root we start from its first inode.
 		 */
-		fs_info->extent_map_shrinker_last_ino = 0;
-		fs_info->extent_map_shrinker_last_root = btrfs_root_id(root) + 1;
+		fs_info->em_shrinker_last_ino = 0;
+		fs_info->em_shrinker_last_root = btrfs_root_id(root) + 1;
 	}
 
 	return nr_dropped;
@@ -1261,13 +1261,13 @@ static void btrfs_extent_map_shrinker_worker(struct work_struct *work)
 	bool cycled = false;
 	long nr_dropped = 0;
 
-	fs_info = container_of(work, struct btrfs_fs_info, extent_map_shrinker_work);
+	fs_info = container_of(work, struct btrfs_fs_info, em_shrinker_work);
 
 	ctx.scanned = 0;
-	ctx.nr_to_scan = atomic64_read(&fs_info->extent_map_shrinker_nr_to_scan);
+	ctx.nr_to_scan = atomic64_read(&fs_info->em_shrinker_nr_to_scan);
 
-	start_root_id = fs_info->extent_map_shrinker_last_root;
-	next_root_id = fs_info->extent_map_shrinker_last_root;
+	start_root_id = fs_info->em_shrinker_last_root;
+	next_root_id = fs_info->em_shrinker_last_root;
 
 	if (trace_btrfs_extent_map_shrinker_scan_enter_enabled()) {
 		s64 nr = percpu_counter_sum_positive(&fs_info->evictable_extent_maps);
@@ -1289,8 +1289,8 @@ static void btrfs_extent_map_shrinker_worker(struct work_struct *work)
 			spin_unlock(&fs_info->fs_roots_radix_lock);
 			if (start_root_id > 0 && !cycled) {
 				next_root_id = 0;
-				fs_info->extent_map_shrinker_last_root = 0;
-				fs_info->extent_map_shrinker_last_ino = 0;
+				fs_info->em_shrinker_last_root = 0;
+				fs_info->em_shrinker_last_ino = 0;
 				cycled = true;
 				continue;
 			}
@@ -1315,7 +1315,7 @@ static void btrfs_extent_map_shrinker_worker(struct work_struct *work)
 		trace_btrfs_extent_map_shrinker_scan_exit(fs_info, nr_dropped, nr);
 	}
 
-	atomic64_set(&fs_info->extent_map_shrinker_nr_to_scan, 0);
+	atomic64_set(&fs_info->em_shrinker_nr_to_scan, 0);
 }
 
 void btrfs_free_extent_maps(struct btrfs_fs_info *fs_info, long nr_to_scan)
@@ -1335,14 +1335,14 @@ void btrfs_free_extent_maps(struct btrfs_fs_info *fs_info, long nr_to_scan)
 	 * current value is zero, instead of incrementing the counter by
 	 * nr_to_scan.
 	 */
-	if (atomic64_cmpxchg(&fs_info->extent_map_shrinker_nr_to_scan, 0, nr_to_scan) != 0)
+	if (atomic64_cmpxchg(&fs_info->em_shrinker_nr_to_scan, 0, nr_to_scan) != 0)
 		return;
 
-	queue_work(system_unbound_wq, &fs_info->extent_map_shrinker_work);
+	queue_work(system_unbound_wq, &fs_info->em_shrinker_work);
 }
 
 void btrfs_init_extent_map_shrinker_work(struct btrfs_fs_info *fs_info)
 {
-	atomic64_set(&fs_info->extent_map_shrinker_nr_to_scan, 0);
-	INIT_WORK(&fs_info->extent_map_shrinker_work, btrfs_extent_map_shrinker_worker);
+	atomic64_set(&fs_info->em_shrinker_nr_to_scan, 0);
+	INIT_WORK(&fs_info->em_shrinker_work, btrfs_extent_map_shrinker_worker);
 }

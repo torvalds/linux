@@ -2568,10 +2568,10 @@ TRACE_EVENT(btrfs_extent_map_shrinker_scan_enter,
 
 	TP_fast_assign_btrfs(fs_info,
 		__entry->nr_to_scan	= \
-		     atomic64_read(&fs_info->extent_map_shrinker_nr_to_scan);
+		     atomic64_read(&fs_info->em_shrinker_nr_to_scan);
 		__entry->nr		= nr;
-		__entry->last_root_id	= fs_info->extent_map_shrinker_last_root;
-		__entry->last_ino	= fs_info->extent_map_shrinker_last_ino;
+		__entry->last_root_id	= fs_info->em_shrinker_last_root;
+		__entry->last_ino	= fs_info->em_shrinker_last_ino;
 	),
 
 	TP_printk_btrfs("nr_to_scan=%ld nr=%ld last_root=%llu(%s) last_ino=%llu",
@@ -2595,8 +2595,8 @@ TRACE_EVENT(btrfs_extent_map_shrinker_scan_exit,
 	TP_fast_assign_btrfs(fs_info,
 		__entry->nr_dropped	= nr_dropped;
 		__entry->nr		= nr;
-		__entry->last_root_id	= fs_info->extent_map_shrinker_last_root;
-		__entry->last_ino	= fs_info->extent_map_shrinker_last_ino;
+		__entry->last_root_id	= fs_info->em_shrinker_last_root;
+		__entry->last_ino	= fs_info->em_shrinker_last_ino;
 	),
 
 	TP_printk_btrfs("nr_dropped=%ld nr=%ld last_root=%llu(%s) last_ino=%llu",

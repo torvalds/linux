@@ -635,10 +635,10 @@ struct btrfs_fs_info {
 	s32 delalloc_batch;
 
 	struct percpu_counter evictable_extent_maps;
-	u64 extent_map_shrinker_last_root;
-	u64 extent_map_shrinker_last_ino;
-	atomic64_t extent_map_shrinker_nr_to_scan;
-	struct work_struct extent_map_shrinker_work;
+	u64 em_shrinker_last_root;
+	u64 em_shrinker_last_ino;
+	atomic64_t em_shrinker_nr_to_scan;
+	struct work_struct em_shrinker_work;
 
 	/* Protected by 'trans_lock'. */
 	struct list_head dirty_cowonly_roots;
