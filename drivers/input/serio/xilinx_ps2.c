@@ -155,22 +155,17 @@ static irqreturn_t xps2_interrupt(int irq, void *dev_id)
 static int sxps2_write(struct serio *pserio, unsigned char c)
 {
 	struct xps2data *drvdata = pserio->port_data;
-	unsigned long flags;
 	u32 sr;
-	int status = -1;
 
-	spin_lock_irqsave(&drvdata->lock, flags);
+	guard(spinlock_irqsave)(&drvdata->lock);
 
 	/* If the PS/2 transmitter is empty send a byte of data */
 	sr = in_be32(drvdata->base_address + XPS2_STATUS_OFFSET);
-	if (!(sr & XPS2_STATUS_TX_FULL)) {
-		out_be32(drvdata->base_address + XPS2_TX_DATA_OFFSET, c);
-		status = 0;
-	}
+	if (sr & XPS2_STATUS_TX_FULL)
+		return -EAGAIN;
 
-	spin_unlock_irqrestore(&drvdata->lock, flags);
-
-	return status;
+	out_be32(drvdata->base_address + XPS2_TX_DATA_OFFSET, c);
+	return 0;
 }
 
 /**
