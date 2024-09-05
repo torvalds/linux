@@ -179,8 +179,8 @@ struct btree_cache {
 	struct list_head	freed_pcpu;
 	struct list_head	freed_nonpcpu;
 
-	/* Number of elements in live + freeable lists */
-	size_t			nr_used;
+	size_t			nr_live;
+	size_t			nr_freeable;
 	size_t			nr_reserve;
 	size_t			nr_by_btree[BTREE_ID_NR];
 	atomic_long_t		nr_dirty;

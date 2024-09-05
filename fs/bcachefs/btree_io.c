@@ -1749,10 +1749,8 @@ static int __bch2_btree_root_read(struct btree_trans *trans, enum btree_id id,
 	bch2_btree_node_read(trans, b, true);
 
 	if (btree_node_read_error(b)) {
-		bch2_btree_node_hash_remove(&c->btree_cache, b);
-
 		mutex_lock(&c->btree_cache.lock);
-		list_move(&b->list, &c->btree_cache.freeable);
+		bch2_btree_node_hash_remove(&c->btree_cache, b);
 		mutex_unlock(&c->btree_cache.lock);
 
 		ret = -BCH_ERR_btree_node_read_error;

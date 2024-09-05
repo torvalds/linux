@@ -549,9 +549,8 @@ reconstruct_root:
 		six_unlock_read(&b->c.lock);
 
 		if (ret == DROP_THIS_NODE) {
-			bch2_btree_node_hash_remove(&c->btree_cache, b);
 			mutex_lock(&c->btree_cache.lock);
-			list_move(&b->list, &c->btree_cache.freeable);
+			bch2_btree_node_hash_remove(&c->btree_cache, b);
 			mutex_unlock(&c->btree_cache.lock);
 
 			r->b = NULL;

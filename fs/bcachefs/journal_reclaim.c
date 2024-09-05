@@ -681,7 +681,7 @@ static int __bch2_journal_reclaim(struct journal *j, bool direct, bool kicked)
 		if (j->watermark != BCH_WATERMARK_stripe)
 			min_nr = 1;
 
-		if (atomic_long_read(&c->btree_cache.nr_dirty) * 2 > c->btree_cache.nr_used)
+		if (atomic_long_read(&c->btree_cache.nr_dirty) * 2 > c->btree_cache.nr_live)
 			min_nr = 1;
 
 		min_key_cache = min(bch2_nr_btree_keys_need_flush(c), (size_t) 128);
@@ -690,7 +690,7 @@ static int __bch2_journal_reclaim(struct journal *j, bool direct, bool kicked)
 				direct, kicked,
 				min_nr, min_key_cache,
 				atomic_long_read(&c->btree_cache.nr_dirty),
-				c->btree_cache.nr_used,
+				c->btree_cache.nr_live,
 				atomic_long_read(&c->btree_key_cache.nr_dirty),
 				atomic_long_read(&c->btree_key_cache.nr_keys));
 

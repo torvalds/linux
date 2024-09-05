@@ -49,7 +49,7 @@ void bch2_recalc_btree_reserve(struct bch_fs *c)
 
 static inline size_t btree_cache_can_free(struct btree_cache *bc)
 {
-	return max_t(int, 0, bc->nr_used - bc->nr_reserve);
+	return max_t(int, 0, bc->nr_live + bc->nr_freeable - bc->nr_reserve);
 }
 
 static void btree_node_to_freedlist(struct btree_cache *bc, struct btree *b)
@@ -63,6 +63,8 @@ static void btree_node_to_freedlist(struct btree_cache *bc, struct btree *b)
 static void btree_node_data_free(struct bch_fs *c, struct btree *b)
 {
 	struct btree_cache *bc = &c->btree_cache;
+
+	BUG_ON(btree_node_hashed(b));
 
 	/*
 	 * This should really be done in slub/vmalloc, but we're using the
@@ -87,7 +89,7 @@ static void btree_node_data_free(struct bch_fs *c, struct btree *b)
 #endif
 	b->aux_data = NULL;
 
-	bc->nr_used--;
+	bc->nr_freeable--;
 
 	btree_node_to_freedlist(bc, b);
 }
@@ -167,7 +169,7 @@ struct btree *__bch2_btree_node_mem_alloc(struct bch_fs *c)
 
 	bch2_btree_lock_init(&b->c, 0);
 
-	bc->nr_used++;
+	bc->nr_freeable++;
 	list_add(&b->list, &bc->freeable);
 	return b;
 }
@@ -186,6 +188,7 @@ void bch2_btree_node_to_freelist(struct bch_fs *c, struct btree *b)
 
 void bch2_btree_node_hash_remove(struct btree_cache *bc, struct btree *b)
 {
+	lockdep_assert_held(&bc->lock);
 	int ret = rhashtable_remove_fast(&bc->table, &b->hash, bch_btree_cache_params);
 
 	BUG_ON(ret);
@@ -195,6 +198,10 @@ void bch2_btree_node_hash_remove(struct btree_cache *bc, struct btree *b)
 
 	if (b->c.btree_id < BTREE_ID_NR)
 		--bc->nr_by_btree[b->c.btree_id];
+
+	bc->nr_live--;
+	bc->nr_freeable++;
+	list_move(&b->list, &bc->freeable);
 }
 
 int __bch2_btree_node_hash_insert(struct btree_cache *bc, struct btree *b)
@@ -204,23 +211,25 @@ int __bch2_btree_node_hash_insert(struct btree_cache *bc, struct btree *b)
 
 	int ret = rhashtable_lookup_insert_fast(&bc->table, &b->hash,
 						bch_btree_cache_params);
-	if (!ret && b->c.btree_id < BTREE_ID_NR)
+	if (ret)
+		return ret;
+
+	if (b->c.btree_id < BTREE_ID_NR)
 		bc->nr_by_btree[b->c.btree_id]++;
-	return ret;
+	bc->nr_live++;
+	bc->nr_freeable--;
+	list_move_tail(&b->list, &bc->live);
+	return 0;
 }
 
 int bch2_btree_node_hash_insert(struct btree_cache *bc, struct btree *b,
 				unsigned level, enum btree_id id)
 {
-	int ret;
-
 	b->c.level	= level;
 	b->c.btree_id	= id;
 
 	mutex_lock(&bc->lock);
-	ret = __bch2_btree_node_hash_insert(bc, b);
-	if (!ret)
-		list_add_tail(&b->list, &bc->live);
+	int ret = __bch2_btree_node_hash_insert(bc, b);
 	mutex_unlock(&bc->lock);
 
 	return ret;
@@ -402,7 +411,7 @@ static unsigned long bch2_btree_cache_scan(struct shrinker *shrink,
 	unsigned i, flags;
 	unsigned long ret = SHRINK_STOP;
 	bool trigger_writes = atomic_long_read(&bc->nr_dirty) + nr >=
-		bc->nr_used * 3 / 4;
+		(bc->nr_live + bc->nr_freeable) * 3 / 4;
 
 	if (bch2_btree_shrinker_disabled)
 		return SHRINK_STOP;
@@ -451,11 +460,12 @@ restart:
 			bc->not_freed[BCH_BTREE_CACHE_NOT_FREED_access_bit]++;
 			--touched;;
 		} else if (!btree_node_reclaim(c, b, true)) {
+			bch2_btree_node_hash_remove(bc, b);
+
 			freed++;
 			btree_node_data_free(c, b);
 			bc->nr_freed++;
 
-			bch2_btree_node_hash_remove(bc, b);
 			six_unlock_write(&b->c.lock);
 			six_unlock_intent(&b->c.lock);
 
@@ -506,7 +516,7 @@ static unsigned long bch2_btree_cache_count(struct shrinker *shrink,
 void bch2_fs_btree_cache_exit(struct bch_fs *c)
 {
 	struct btree_cache *bc = &c->btree_cache;
-	struct btree *b;
+	struct btree *b, *t;
 	unsigned i, flags;
 
 	shrinker_free(bc->shrink);
@@ -527,11 +537,10 @@ void bch2_fs_btree_cache_exit(struct bch_fs *c)
 			list_add(&r->b->list, &bc->live);
 	}
 
-	list_splice(&bc->freeable, &bc->live);
+	list_for_each_entry_safe(b, t, &bc->live, list)
+		bch2_btree_node_hash_remove(bc, b);
 
-	while (!list_empty(&bc->live)) {
-		b = list_first_entry(&bc->live, struct btree, list);
-
+	list_for_each_entry_safe(b, t, &bc->freeable, list) {
 		BUG_ON(btree_node_read_in_flight(b) ||
 		       btree_node_write_in_flight(b));
 
@@ -543,8 +552,7 @@ void bch2_fs_btree_cache_exit(struct bch_fs *c)
 
 	list_splice(&bc->freed_pcpu, &bc->freed_nonpcpu);
 
-	while (!list_empty(&bc->freed_nonpcpu)) {
-		b = list_first_entry(&bc->freed_nonpcpu, struct btree, list);
+	list_for_each_entry_safe(b, t, &bc->freed_nonpcpu, list) {
 		list_del(&b->list);
 		six_lock_exit(&b->c.lock);
 		kfree(b);
@@ -552,6 +560,11 @@ void bch2_fs_btree_cache_exit(struct bch_fs *c)
 
 	mutex_unlock(&bc->lock);
 	memalloc_nofs_restore(flags);
+
+	for (unsigned i = 0; i < ARRAY_SIZE(bc->nr_by_btree); i++)
+		BUG_ON(bc->nr_by_btree[i]);
+	BUG_ON(bc->nr_live);
+	BUG_ON(bc->nr_freeable);
 
 	if (bc->table_init_done)
 		rhashtable_destroy(&bc->table);
@@ -739,7 +752,7 @@ got_node:
 	}
 
 	mutex_lock(&bc->lock);
-	bc->nr_used++;
+	bc->nr_freeable++;
 got_mem:
 	mutex_unlock(&bc->lock);
 
@@ -1280,8 +1293,8 @@ wait_on_io:
 	BUG_ON(btree_node_dirty(b));
 
 	mutex_lock(&bc->lock);
-	btree_node_data_free(c, b);
 	bch2_btree_node_hash_remove(bc, b);
+	btree_node_data_free(c, b);
 	mutex_unlock(&bc->lock);
 out:
 	six_unlock_write(&b->c.lock);
@@ -1374,7 +1387,8 @@ void bch2_btree_cache_to_text(struct printbuf *out, const struct btree_cache *bc
 	if (!out->nr_tabstops)
 		printbuf_tabstop_push(out, 32);
 
-	prt_btree_cache_line(out, c, "total:",		bc->nr_used);
+	prt_btree_cache_line(out, c, "nr_live:",	bc->nr_live);
+	prt_btree_cache_line(out, c, "nr_freeable:",	bc->nr_freeable);
 	prt_btree_cache_line(out, c, "nr dirty:",	atomic_long_read(&bc->nr_dirty));
 	prt_printf(out, "cannibalize lock:\t%p\n",	bc->alloc_lock);
 	prt_newline(out);
