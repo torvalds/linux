@@ -262,10 +262,17 @@ struct kmem_cache *__kmem_cache_create_args(const char *name,
 					    unsigned int object_size,
 					    struct kmem_cache_args *args,
 					    slab_flags_t flags);
+static inline struct kmem_cache *
+__kmem_cache_create(const char *name, unsigned int size, unsigned int align,
+		    slab_flags_t flags, void (*ctor)(void *))
+{
+	struct kmem_cache_args kmem_args = {
+		.align	= align,
+		.ctor	= ctor,
+	};
 
-struct kmem_cache *__kmem_cache_create(const char *name, unsigned int size,
-				       unsigned int align, slab_flags_t flags,
-				       void (*ctor)(void *));
+	return __kmem_cache_create_args(name, size, &kmem_args, flags);
+}
 
 /**
  * kmem_cache_create_usercopy - Create a cache with a region suitable
