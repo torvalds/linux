@@ -1362,6 +1362,10 @@ static int mpi3mr_bring_ioc_ready(struct mpi3mr_ioc *mrioc)
 	int retval = 0;
 	enum mpi3mr_iocstate ioc_state;
 	u64 base_info;
+	u8 retry = 0;
+	u64 start_time, elapsed_time_sec;
+
+retry_bring_ioc_ready:
 
 	ioc_status = readl(&mrioc->sysif_regs->ioc_status);
 	ioc_config = readl(&mrioc->sysif_regs->ioc_configuration);
@@ -1460,6 +1464,9 @@ static int mpi3mr_bring_ioc_ready(struct mpi3mr_ioc *mrioc)
 	ioc_config |= MPI3_SYSIF_IOC_CONFIG_ENABLE_IOC;
 	writel(ioc_config, &mrioc->sysif_regs->ioc_configuration);
 
+	if (retry == 0)
+		start_time = jiffies;
+
 	timeout = mrioc->ready_timeout * 10;
 	do {
 		ioc_state = mpi3mr_get_iocstate(mrioc);
@@ -1469,6 +1476,12 @@ static int mpi3mr_bring_ioc_ready(struct mpi3mr_ioc *mrioc)
 			    mpi3mr_iocstate_name(ioc_state));
 			return 0;
 		}
+		ioc_status = readl(&mrioc->sysif_regs->ioc_status);
+		if ((ioc_status & MPI3_SYSIF_IOC_STATUS_RESET_HISTORY) ||
+		    (ioc_status & MPI3_SYSIF_IOC_STATUS_FAULT)) {
+			mpi3mr_print_fault_info(mrioc);
+			goto out_failed;
+		}
 		if (!pci_device_is_present(mrioc->pdev)) {
 			mrioc->unrecoverable = 1;
 			ioc_err(mrioc,
@@ -1477,9 +1490,19 @@ static int mpi3mr_bring_ioc_ready(struct mpi3mr_ioc *mrioc)
 			goto out_device_not_present;
 		}
 		msleep(100);
-	} while (--timeout);
+		elapsed_time_sec = jiffies_to_msecs(jiffies - start_time)/1000;
+	} while (elapsed_time_sec < mrioc->ready_timeout);
 
 out_failed:
+	elapsed_time_sec = jiffies_to_msecs(jiffies - start_time)/1000;
+	if ((retry < 2) && (elapsed_time_sec < (mrioc->ready_timeout - 60))) {
+		retry++;
+
+		ioc_warn(mrioc, "retrying to bring IOC ready, retry_count:%d\n"
+				" elapsed time =%llu\n", retry, elapsed_time_sec);
+
+		goto retry_bring_ioc_ready;
+	}
 	ioc_state = mpi3mr_get_iocstate(mrioc);
 	ioc_err(mrioc,
 	    "failed to bring to ready state,  current state: %s\n",
