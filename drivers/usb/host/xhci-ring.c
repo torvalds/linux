@@ -2761,35 +2761,25 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 		return 0;
 	}
 
-	do {
-		/* This TRB should be in the TD at the head of this ring's
-		 * TD list.
+	if (list_empty(&ep_ring->td_list)) {
+		/*
+		 * Don't print wanings if ring is empty due to a stopped endpoint generating an
+		 * extra completion event if the device was suspended. Or, a event for the last TRB
+		 * of a short TD we already got a short event for. The short TD is already removed
+		 * from the TD list.
 		 */
-		if (list_empty(&ep_ring->td_list)) {
-			/*
-			 * Don't print wanings if it's due to a stopped endpoint
-			 * generating an extra completion event if the device
-			 * was suspended. Or, a event for the last TRB of a
-			 * short TD we already got a short event for.
-			 * The short TD is already removed from the TD list.
-			 */
-
-			if (!(trb_comp_code == COMP_STOPPED ||
-			      trb_comp_code == COMP_STOPPED_LENGTH_INVALID ||
-			      ep_ring->last_td_was_short)) {
-				xhci_warn(xhci, "WARN Event TRB for slot %u ep %d with no TDs queued?\n",
-					  slot_id, ep_index);
-			}
-			if (ep->skip) {
-				ep->skip = false;
-				xhci_dbg(xhci, "td_list is empty while skip flag set. Clear skip flag for slot %u ep %u.\n",
-					 slot_id, ep_index);
-			}
-
-			td = NULL;
-			goto check_endpoint_halted;
+		if (trb_comp_code != COMP_STOPPED &&
+		    trb_comp_code != COMP_STOPPED_LENGTH_INVALID &&
+		    !ep_ring->last_td_was_short) {
+			xhci_warn(xhci, "Event TRB for slot %u ep %u with no TDs queued\n",
+				  slot_id, ep_index);
 		}
 
+		ep->skip = false;
+		goto check_endpoint_halted;
+	}
+
+	do {
 		td = list_first_entry(&ep_ring->td_list, struct xhci_td,
 				      td_list);
 
@@ -2800,7 +2790,14 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 
 			if (ep->skip && usb_endpoint_xfer_isoc(&td->urb->ep->desc)) {
 				skip_isoc_td(xhci, td, ep, status);
-				continue;
+				if (!list_empty(&ep_ring->td_list))
+					continue;
+
+				xhci_dbg(xhci, "All TDs skipped for slot %u ep %u. Clear skip flag.\n",
+					 slot_id, ep_index);
+				ep->skip = false;
+				td = NULL;
+				goto check_endpoint_halted;
 			}
 
 			/*
