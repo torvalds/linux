@@ -114,18 +114,6 @@ void *dmam_alloc_attrs(struct device *dev, size_t size, dma_addr_t *dma_handle,
 }
 EXPORT_SYMBOL(dmam_alloc_attrs);
 
-#ifdef CONFIG_IOMMU_DMA
-static bool use_dma_iommu(struct device *dev)
-{
-	return dev->dma_iommu;
-}
-#else
-static bool use_dma_iommu(struct device *dev)
-{
-	return false;
-}
-#endif
-
 static bool dma_go_direct(struct device *dev, dma_addr_t mask,
 		const struct dma_map_ops *ops)
 {

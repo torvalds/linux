@@ -10,6 +10,10 @@
 #include <linux/dma-direction.h>
 
 #ifdef CONFIG_IOMMU_DMA
+static inline bool use_dma_iommu(struct device *dev)
+{
+	return dev->dma_iommu;
+}
 dma_addr_t iommu_dma_map_page(struct device *dev, struct page *page,
 		unsigned long offset, size_t size, enum dma_data_direction dir,
 		unsigned long attrs);
@@ -49,6 +53,10 @@ void iommu_dma_sync_sg_for_cpu(struct device *dev, struct scatterlist *sgl,
 void iommu_dma_sync_sg_for_device(struct device *dev, struct scatterlist *sgl,
 		int nelems, enum dma_data_direction dir);
 #else
+static inline bool use_dma_iommu(struct device *dev)
+{
+	return false;
+}
 static inline dma_addr_t iommu_dma_map_page(struct device *dev,
 		struct page *page, unsigned long offset, size_t size,
 		enum dma_data_direction dir, unsigned long attrs)
