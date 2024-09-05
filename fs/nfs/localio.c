@@ -238,15 +238,34 @@ nfs_local_read_done(struct nfs_local_kiocb *iocb, long status)
 			status > 0 ? status : 0, hdr->res.eof);
 }
 
+static void nfs_local_call_read(struct work_struct *work)
+{
+	struct nfs_local_kiocb *iocb =
+		container_of(work, struct nfs_local_kiocb, work);
+	struct file *filp = iocb->kiocb.ki_filp;
+	const struct cred *save_cred;
+	struct iov_iter iter;
+	ssize_t status;
+
+	save_cred = override_creds(filp->f_cred);
+
+	nfs_local_iter_init(&iter, iocb, READ);
+
+	status = filp->f_op->read_iter(&iocb->kiocb, &iter);
+	WARN_ON_ONCE(status == -EIOCBQUEUED);
+
+	nfs_local_read_done(iocb, status);
+	nfs_local_pgio_release(iocb);
+
+	revert_creds(save_cred);
+}
+
 static int
 nfs_do_local_read(struct nfs_pgio_header *hdr,
 		  struct nfsd_file *localio,
 		  const struct rpc_call_ops *call_ops)
 {
-	struct file *filp = nfs_to->nfsd_file_file(localio);
 	struct nfs_local_kiocb *iocb;
-	struct iov_iter iter;
-	ssize_t status;
 
 	dprintk("%s: vfs_read count=%u pos=%llu\n",
 		__func__, hdr->args.count, hdr->args.offset);
@@ -254,16 +273,12 @@ nfs_do_local_read(struct nfs_pgio_header *hdr,
 	iocb = nfs_local_iocb_alloc(hdr, localio, GFP_KERNEL);
 	if (iocb == NULL)
 		return -ENOMEM;
-	nfs_local_iter_init(&iter, iocb, READ);
 
 	nfs_local_pgio_init(hdr, call_ops);
 	hdr->res.eof = false;
 
-	status = filp->f_op->read_iter(&iocb->kiocb, &iter);
-	WARN_ON_ONCE(status == -EIOCBQUEUED);
-
-	nfs_local_read_done(iocb, status);
-	nfs_local_pgio_release(iocb);
+	INIT_WORK(&iocb->work, nfs_local_call_read);
+	queue_work(nfslocaliod_workqueue, &iocb->work);
 
 	return 0;
 }
@@ -391,15 +406,40 @@ nfs_local_write_done(struct nfs_local_kiocb *iocb, long status)
 	nfs_local_pgio_done(hdr, status);
 }
 
+static void nfs_local_call_write(struct work_struct *work)
+{
+	struct nfs_local_kiocb *iocb =
+		container_of(work, struct nfs_local_kiocb, work);
+	struct file *filp = iocb->kiocb.ki_filp;
+	unsigned long old_flags = current->flags;
+	const struct cred *save_cred;
+	struct iov_iter iter;
+	ssize_t status;
+
+	current->flags |= PF_LOCAL_THROTTLE | PF_MEMALLOC_NOIO;
+	save_cred = override_creds(filp->f_cred);
+
+	nfs_local_iter_init(&iter, iocb, WRITE);
+
+	file_start_write(filp);
+	status = filp->f_op->write_iter(&iocb->kiocb, &iter);
+	file_end_write(filp);
+	WARN_ON_ONCE(status == -EIOCBQUEUED);
+
+	nfs_local_write_done(iocb, status);
+	nfs_local_vfs_getattr(iocb);
+	nfs_local_pgio_release(iocb);
+
+	revert_creds(save_cred);
+	current->flags = old_flags;
+}
+
 static int
 nfs_do_local_write(struct nfs_pgio_header *hdr,
 		   struct nfsd_file *localio,
 		   const struct rpc_call_ops *call_ops)
 {
-	struct file *filp = nfs_to->nfsd_file_file(localio);
 	struct nfs_local_kiocb *iocb;
-	struct iov_iter iter;
-	ssize_t status;
 
 	dprintk("%s: vfs_write count=%u pos=%llu %s\n",
 		__func__, hdr->args.count, hdr->args.offset,
@@ -408,7 +448,6 @@ nfs_do_local_write(struct nfs_pgio_header *hdr,
 	iocb = nfs_local_iocb_alloc(hdr, localio, GFP_NOIO);
 	if (iocb == NULL)
 		return -ENOMEM;
-	nfs_local_iter_init(&iter, iocb, WRITE);
 
 	switch (hdr->args.stable) {
 	default:
@@ -423,14 +462,8 @@ nfs_do_local_write(struct nfs_pgio_header *hdr,
 
 	nfs_set_local_verifier(hdr->inode, hdr->res.verf, hdr->args.stable);
 
-	file_start_write(filp);
-	status = filp->f_op->write_iter(&iocb->kiocb, &iter);
-	file_end_write(filp);
-	WARN_ON_ONCE(status == -EIOCBQUEUED);
-
-	nfs_local_write_done(iocb, status);
-	nfs_local_vfs_getattr(iocb);
-	nfs_local_pgio_release(iocb);
+	INIT_WORK(&iocb->work, nfs_local_call_write);
+	queue_work(nfslocaliod_workqueue, &iocb->work);
 
 	return 0;
 }
