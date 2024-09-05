@@ -21,6 +21,8 @@
 
 #include "../kselftest_harness.h"
 
+#define TMP_DIR "tmp"
+
 #ifndef __maybe_unused
 #define __maybe_unused __attribute__((__unused__))
 #endif
