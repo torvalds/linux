@@ -545,6 +545,7 @@ static void hubbub35_init(struct hubbub *hubbub)
 			DCHUBBUB_ARB_MAX_REQ_OUTSTAND, 256,
 			DCHUBBUB_ARB_MIN_REQ_OUTSTAND, 256);
 
+	memset(&hubbub2->watermarks.a.cstate_pstate, 0, sizeof(hubbub2->watermarks.a.cstate_pstate));
 }
 
 /*static void hubbub35_set_request_limit(struct hubbub *hubbub,
