@@ -390,6 +390,34 @@ nfsd_file_put(struct nfsd_file *nf)
 		nfsd_file_free(nf);
 }
 
+/**
+ * nfsd_file_put_local - put the reference to nfsd_file and local nfsd_serv
+ * @nf: nfsd_file of which to put the references
+ *
+ * First put the reference of the nfsd_file and then put the
+ * reference to the associated nn->nfsd_serv.
+ */
+void
+nfsd_file_put_local(struct nfsd_file *nf)
+{
+	struct net *net = nf->nf_net;
+
+	nfsd_file_put(nf);
+	nfsd_serv_put(net);
+}
+
+/**
+ * nfsd_file_file - get the backing file of an nfsd_file
+ * @nf: nfsd_file of which to access the backing file.
+ *
+ * Return backing file for @nf.
+ */
+struct file *
+nfsd_file_file(struct nfsd_file *nf)
+{
+	return nf->nf_file;
+}
+
 static void
 nfsd_file_dispose_list(struct list_head *dispose)
 {

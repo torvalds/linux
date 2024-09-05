@@ -72,7 +72,7 @@ void nfs_uuid_is_local(const uuid_t *uuid, struct list_head *list,
 		 * invalidated.
 		 */
 		list_move(&nfs_uuid->list, list);
-		nfs_uuid->net = net;
+		rcu_assign_pointer(nfs_uuid->net, net);
 
 		__module_get(mod);
 		nfsd_mod = mod;
@@ -114,3 +114,26 @@ void nfs_uuid_invalidate_one_client(nfs_uuid_t *nfs_uuid)
 	}
 }
 EXPORT_SYMBOL_GPL(nfs_uuid_invalidate_one_client);
+
+/*
+ * The NFS LOCALIO code needs to call into NFSD using various symbols,
+ * but cannot be statically linked, because that will make the NFS
+ * module always depend on the NFSD module.
+ *
+ * 'nfs_to' provides NFS access to NFSD functions needed for LOCALIO,
+ * its lifetime is tightly coupled to the NFSD module and will always
+ * be available to NFS LOCALIO because any successful client<->server
+ * LOCALIO handshake results in a reference on the NFSD module (above),
+ * so NFS implicitly holds a reference to the NFSD module and its
+ * functions in the 'nfs_to' nfsd_localio_operations cannot disappear.
+ *
+ * If the last NFS client using LOCALIO disconnects (and its reference
+ * on NFSD dropped) then NFSD could be unloaded, resulting in 'nfs_to'
+ * functions being invalid pointers. But if NFSD isn't loaded then NFS
+ * will not be able to handshake with NFSD and will have no cause to
+ * try to call 'nfs_to' function pointers. If/when NFSD is reloaded it
+ * will reinitialize the 'nfs_to' function pointers and make LOCALIO
+ * possible.
+ */
+const struct nfsd_localio_operations *nfs_to;
+EXPORT_SYMBOL_GPL(nfs_to);
