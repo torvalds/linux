@@ -32,24 +32,24 @@ const char * const bch2_btree_node_flags[] = {
 
 void bch2_recalc_btree_reserve(struct bch_fs *c)
 {
-	unsigned i, reserve = 16;
+	unsigned reserve = 16;
 
 	if (!c->btree_roots_known[0].b)
 		reserve += 8;
 
-	for (i = 0; i < btree_id_nr_alive(c); i++) {
+	for (unsigned i = 0; i < btree_id_nr_alive(c); i++) {
 		struct btree_root *r = bch2_btree_id_root(c, i);
 
 		if (r->b)
 			reserve += min_t(unsigned, 1, r->b->c.level) * 8;
 	}
 
-	c->btree_cache.reserve = reserve;
+	c->btree_cache.nr_reserve = reserve;
 }
 
-static inline unsigned btree_cache_can_free(struct btree_cache *bc)
+static inline size_t btree_cache_can_free(struct btree_cache *bc)
 {
-	return max_t(int, 0, bc->used - bc->reserve);
+	return max_t(int, 0, bc->nr_used - bc->nr_reserve);
 }
 
 static void btree_node_to_freedlist(struct btree_cache *bc, struct btree *b)
@@ -87,7 +87,7 @@ static void btree_node_data_free(struct bch_fs *c, struct btree *b)
 #endif
 	b->aux_data = NULL;
 
-	bc->used--;
+	bc->nr_used--;
 
 	btree_node_to_freedlist(bc, b);
 }
@@ -167,7 +167,7 @@ struct btree *__bch2_btree_node_mem_alloc(struct bch_fs *c)
 
 	bch2_btree_lock_init(&b->c, 0);
 
-	bc->used++;
+	bc->nr_used++;
 	list_add(&b->list, &bc->freeable);
 	return b;
 }
@@ -194,7 +194,7 @@ void bch2_btree_node_hash_remove(struct btree_cache *bc, struct btree *b)
 	b->hash_val = 0;
 
 	if (b->c.btree_id < BTREE_ID_NR)
-		--bc->used_by_btree[b->c.btree_id];
+		--bc->nr_by_btree[b->c.btree_id];
 }
 
 int __bch2_btree_node_hash_insert(struct btree_cache *bc, struct btree *b)
@@ -205,7 +205,7 @@ int __bch2_btree_node_hash_insert(struct btree_cache *bc, struct btree *b)
 	int ret = rhashtable_lookup_insert_fast(&bc->table, &b->hash,
 						bch_btree_cache_params);
 	if (!ret && b->c.btree_id < BTREE_ID_NR)
-		bc->used_by_btree[b->c.btree_id]++;
+		bc->nr_by_btree[b->c.btree_id]++;
 	return ret;
 }
 
@@ -401,8 +401,8 @@ static unsigned long bch2_btree_cache_scan(struct shrinker *shrink,
 	unsigned long touched = 0;
 	unsigned i, flags;
 	unsigned long ret = SHRINK_STOP;
-	bool trigger_writes = atomic_read(&bc->dirty) + nr >=
-		bc->used * 3 / 4;
+	bool trigger_writes = atomic_long_read(&bc->nr_dirty) + nr >=
+		bc->nr_used * 3 / 4;
 
 	if (bch2_btree_shrinker_disabled)
 		return SHRINK_STOP;
@@ -439,7 +439,7 @@ static unsigned long bch2_btree_cache_scan(struct shrinker *shrink,
 			six_unlock_write(&b->c.lock);
 			six_unlock_intent(&b->c.lock);
 			freed++;
-			bc->freed++;
+			bc->nr_freed++;
 		}
 	}
 restart:
@@ -453,7 +453,7 @@ restart:
 		} else if (!btree_node_reclaim(c, b, true)) {
 			freed++;
 			btree_node_data_free(c, b);
-			bc->freed++;
+			bc->nr_freed++;
 
 			bch2_btree_node_hash_remove(bc, b);
 			six_unlock_write(&b->c.lock);
@@ -539,7 +539,7 @@ void bch2_fs_btree_cache_exit(struct bch_fs *c)
 	}
 
 	BUG_ON(!bch2_journal_error(&c->journal) &&
-	       atomic_read(&c->btree_cache.dirty));
+	       atomic_long_read(&c->btree_cache.nr_dirty));
 
 	list_splice(&bc->freed_pcpu, &bc->freed_nonpcpu);
 
@@ -572,7 +572,7 @@ int bch2_fs_btree_cache_init(struct bch_fs *c)
 
 	bch2_recalc_btree_reserve(c);
 
-	for (i = 0; i < bc->reserve; i++)
+	for (i = 0; i < bc->nr_reserve; i++)
 		if (!__bch2_btree_node_mem_alloc(c))
 			goto err;
 
@@ -739,7 +739,7 @@ got_node:
 	}
 
 	mutex_lock(&bc->lock);
-	bc->used++;
+	bc->nr_used++;
 got_mem:
 	mutex_unlock(&bc->lock);
 
@@ -1353,11 +1353,11 @@ void bch2_btree_node_to_text(struct printbuf *out, struct bch_fs *c, const struc
 }
 
 static void prt_btree_cache_line(struct printbuf *out, const struct bch_fs *c,
-				 const char *label, unsigned nr)
+				 const char *label, size_t nr)
 {
 	prt_printf(out, "%s\t", label);
 	prt_human_readable_u64(out, nr * c->opts.btree_node_size);
-	prt_printf(out, " (%u)\n", nr);
+	prt_printf(out, " (%zu)\n", nr);
 }
 
 static const char * const bch2_btree_cache_not_freed_reasons_strs[] = {
@@ -1374,16 +1374,16 @@ void bch2_btree_cache_to_text(struct printbuf *out, const struct btree_cache *bc
 	if (!out->nr_tabstops)
 		printbuf_tabstop_push(out, 32);
 
-	prt_btree_cache_line(out, c, "total:",		bc->used);
-	prt_btree_cache_line(out, c, "nr dirty:",	atomic_read(&bc->dirty));
+	prt_btree_cache_line(out, c, "total:",		bc->nr_used);
+	prt_btree_cache_line(out, c, "nr dirty:",	atomic_long_read(&bc->nr_dirty));
 	prt_printf(out, "cannibalize lock:\t%p\n",	bc->alloc_lock);
 	prt_newline(out);
 
-	for (unsigned i = 0; i < ARRAY_SIZE(bc->used_by_btree); i++)
-		prt_btree_cache_line(out, c, bch2_btree_id_str(i), bc->used_by_btree[i]);
+	for (unsigned i = 0; i < ARRAY_SIZE(bc->nr_by_btree); i++)
+		prt_btree_cache_line(out, c, bch2_btree_id_str(i), bc->nr_by_btree[i]);
 
 	prt_newline(out);
-	prt_printf(out, "freed:\t%u\n", bc->freed);
+	prt_printf(out, "freed:\t%zu\n", bc->nr_freed);
 	prt_printf(out, "not freed:\n");
 
 	for (unsigned i = 0; i < ARRAY_SIZE(bc->not_freed); i++)

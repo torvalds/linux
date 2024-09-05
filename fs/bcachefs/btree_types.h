@@ -180,14 +180,15 @@ struct btree_cache {
 	struct list_head	freed_nonpcpu;
 
 	/* Number of elements in live + freeable lists */
-	unsigned		used;
-	unsigned		reserve;
-	unsigned		freed;
-	atomic_t		dirty;
+	size_t			nr_used;
+	size_t			nr_reserve;
+	size_t			nr_by_btree[BTREE_ID_NR];
+	atomic_long_t		nr_dirty;
+
+	/* shrinker stats */
+	size_t			nr_freed;
 	u64			not_freed[BCH_BTREE_CACHE_NOT_FREED_REASONS_NR];
 	struct shrinker		*shrink;
-
-	unsigned		used_by_btree[BTREE_ID_NR];
 
 	/*
 	 * If we need to allocate memory for a new btree node and that

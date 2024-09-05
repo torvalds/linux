@@ -370,7 +370,7 @@ void bch2_fs_read_only(struct bch_fs *c)
 	    test_bit(BCH_FS_clean_shutdown, &c->flags) &&
 	    c->recovery_pass_done >= BCH_RECOVERY_PASS_journal_replay) {
 		BUG_ON(c->journal.last_empty_seq != journal_cur_seq(&c->journal));
-		BUG_ON(atomic_read(&c->btree_cache.dirty));
+		BUG_ON(atomic_long_read(&c->btree_cache.nr_dirty));
 		BUG_ON(atomic_long_read(&c->btree_key_cache.nr_dirty));
 		BUG_ON(c->btree_write_buffer.inc.keys.nr);
 		BUG_ON(c->btree_write_buffer.flushing.keys.nr);

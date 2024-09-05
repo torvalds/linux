@@ -2031,7 +2031,7 @@ void __bch2_btree_node_write(struct bch_fs *c, struct btree *b, unsigned flags)
 do_write:
 	BUG_ON((type == BTREE_WRITE_initial) != (b->written == 0));
 
-	atomic_dec(&c->btree_cache.dirty);
+	atomic_long_dec(&c->btree_cache.nr_dirty);
 
 	BUG_ON(btree_node_fake(b));
 	BUG_ON((b->will_make_reachable != 0) != !b->written);
