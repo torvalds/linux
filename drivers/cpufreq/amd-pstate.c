@@ -1774,7 +1774,7 @@ static int __init amd_pstate_set_driver(int mode_idx)
 	return -EINVAL;
 }
 
-/**
+/*
  * CPPC function is not supported for family ID 17H with model_ID ranging from 0x10 to 0x2F.
  * show the debug message that helps to check if the CPU has CPPC support for loading issue.
  */
