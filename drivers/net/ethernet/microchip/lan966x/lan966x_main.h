@@ -16,6 +16,7 @@
 #include <net/switchdev.h>
 #include <net/xdp.h>
 
+#include <fdma_api.h>
 #include <vcap_api.h>
 #include <vcap_api_client.h>
 
@@ -76,15 +77,6 @@
 
 #define FDMA_RX_DCB_MAX_DBS		1
 #define FDMA_TX_DCB_MAX_DBS		1
-#define FDMA_DCB_INFO_DATAL(x)		((x) & GENMASK(15, 0))
-
-#define FDMA_DCB_STATUS_BLOCKL(x)	((x) & GENMASK(15, 0))
-#define FDMA_DCB_STATUS_SOF		BIT(16)
-#define FDMA_DCB_STATUS_EOF		BIT(17)
-#define FDMA_DCB_STATUS_INTR		BIT(18)
-#define FDMA_DCB_STATUS_DONE		BIT(19)
-#define FDMA_DCB_STATUS_BLOCKO(x)	(((x) << 20) & GENMASK(31, 20))
-#define FDMA_DCB_INVALID_DATA		0x1
 
 #define FDMA_XTR_CHANNEL		6
 #define FDMA_INJ_CHANNEL		0
