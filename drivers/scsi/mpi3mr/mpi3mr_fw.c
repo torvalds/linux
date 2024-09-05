@@ -2694,7 +2694,7 @@ static void mpi3mr_watchdog_work(struct work_struct *work)
 		return;
 	}
 
-	if (mrioc->ts_update_counter++ >= MPI3MR_TSUPDATE_INTERVAL) {
+	if (mrioc->ts_update_counter++ >= mrioc->ts_update_interval) {
 		mrioc->ts_update_counter = 0;
 		mpi3mr_sync_timestamp(mrioc);
 	}
@@ -3868,6 +3868,29 @@ static int mpi3mr_repost_diag_bufs(struct mpi3mr_ioc *mrioc)
 }
 
 /**
+ * mpi3mr_read_tsu_interval - Update time stamp interval
+ * @mrioc: Adapter instance reference
+ *
+ * Update time stamp interval if its defined in driver page 1,
+ * otherwise use default value.
+ *
+ * Return: Nothing
+ */
+static void
+mpi3mr_read_tsu_interval(struct mpi3mr_ioc *mrioc)
+{
+	struct mpi3_driver_page1 driver_pg1;
+	u16 pg_sz = sizeof(driver_pg1);
+	int retval = 0;
+
+	mrioc->ts_update_interval = MPI3MR_TSUPDATE_INTERVAL;
+
+	retval = mpi3mr_cfg_get_driver_pg1(mrioc, &driver_pg1, pg_sz);
+	if (!retval && driver_pg1.time_stamp_update)
+		mrioc->ts_update_interval = (driver_pg1.time_stamp_update * 60);
+}
+
+/**
  * mpi3mr_print_ioc_info - Display controller information
  * @mrioc: Adapter instance reference
  *
@@ -4163,6 +4186,7 @@ retry_init:
 		goto out_failed_noretry;
 	}
 
+	mpi3mr_read_tsu_interval(mrioc);
 	mpi3mr_print_ioc_info(mrioc);
 
 	if (!mrioc->cfg_page) {
@@ -4344,6 +4368,7 @@ retry_init:
 		goto out_failed_noretry;
 	}
 
+	mpi3mr_read_tsu_interval(mrioc);
 	mpi3mr_print_ioc_info(mrioc);
 
 	if (is_resume) {

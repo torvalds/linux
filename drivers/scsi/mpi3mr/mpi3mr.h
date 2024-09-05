@@ -1090,6 +1090,7 @@ struct scmd_priv {
  * @evtack_cmds_bitmap: Event Ack bitmap
  * @delayed_evtack_cmds_list: Delayed event acknowledgment list
  * @ts_update_counter: Timestamp update counter
+ * @ts_update_interval: Timestamp update interval
  * @reset_in_progress: Reset in progress flag
  * @unrecoverable: Controller unrecoverable flag
  * @prev_reset_result: Result of previous reset
@@ -1277,7 +1278,8 @@ struct mpi3mr_ioc {
 	unsigned long *evtack_cmds_bitmap;
 	struct list_head delayed_evtack_cmds_list;
 
-	u32 ts_update_counter;
+	u16 ts_update_counter;
+	u16 ts_update_interval;
 	u8 reset_in_progress;
 	u8 unrecoverable;
 	int prev_reset_result;

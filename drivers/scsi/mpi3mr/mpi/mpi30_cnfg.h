@@ -1327,6 +1327,7 @@ struct mpi3_driver_page0 {
 struct mpi3_driver_page1 {
 	struct mpi3_config_page_header         header;
 	__le32                             flags;
+	u8                                 time_stamp_update;
 	__le32                             reserved0c;
 	__le16                             host_diag_trace_max_size;
 	__le16                             host_diag_trace_min_size;
