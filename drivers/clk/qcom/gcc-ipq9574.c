@@ -4384,7 +4384,7 @@ static const struct qcom_reset_map gcc_ipq9574_resets[] = {
 
 #define IPQ_APPS_ID			9574	/* some unique value */
 
-static struct qcom_icc_hws_data icc_ipq9574_hws[] = {
+static const struct qcom_icc_hws_data icc_ipq9574_hws[] = {
 	{ MASTER_ANOC_PCIE0, SLAVE_ANOC_PCIE0, GCC_ANOC_PCIE0_1LANE_M_CLK },
 	{ MASTER_SNOC_PCIE0, SLAVE_SNOC_PCIE0, GCC_SNOC_PCIE0_1LANE_S_CLK },
 	{ MASTER_ANOC_PCIE1, SLAVE_ANOC_PCIE1, GCC_ANOC_PCIE1_1LANE_M_CLK },

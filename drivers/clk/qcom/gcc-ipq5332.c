@@ -3622,7 +3622,7 @@ static const struct qcom_reset_map gcc_ipq5332_resets[] = {
 
 #define IPQ_APPS_ID			5332	/* some unique value */
 
-static struct qcom_icc_hws_data icc_ipq5332_hws[] = {
+static const struct qcom_icc_hws_data icc_ipq5332_hws[] = {
 	{ MASTER_SNOC_PCIE3_1_M, SLAVE_SNOC_PCIE3_1_M, GCC_SNOC_PCIE3_1LANE_M_CLK },
 	{ MASTER_ANOC_PCIE3_1_S, SLAVE_ANOC_PCIE3_1_S, GCC_SNOC_PCIE3_1LANE_S_CLK },
 	{ MASTER_SNOC_PCIE3_2_M, SLAVE_SNOC_PCIE3_2_M, GCC_SNOC_PCIE3_2LANE_M_CLK },
