@@ -3207,7 +3207,7 @@ static int uprobe_prog_run(struct bpf_uprobe *uprobe,
 	struct bpf_run_ctx *old_run_ctx;
 	int err = 0;
 
-	if (link->task && current->mm != link->task->mm)
+	if (link->task && !same_thread_group(current, link->task))
 		return 0;
 
 	if (sleepable)
