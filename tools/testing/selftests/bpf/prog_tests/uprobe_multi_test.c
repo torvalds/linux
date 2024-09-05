@@ -7,6 +7,7 @@
 #include "uprobe_multi_bench.skel.h"
 #include "uprobe_multi_usdt.skel.h"
 #include "uprobe_multi_consumers.skel.h"
+#include "uprobe_multi_pid_filter.skel.h"
 #include "bpf/libbpf_internal.h"
 #include "testing_helpers.h"
 #include "../sdt.h"
@@ -39,6 +40,7 @@ struct child {
 	int pid;
 	int tid;
 	pthread_t thread;
+	char stack[65536];
 };
 
 static void release_child(struct child *child)
@@ -68,41 +70,54 @@ static void kick_child(struct child *child)
 	fflush(NULL);
 }
 
-static struct child *spawn_child(void)
+static int child_func(void *arg)
 {
-	static struct child child;
-	int err;
-	int c;
+	struct child *child = arg;
+	int err, c;
 
+	close(child->go[1]);
+
+	/* wait for parent's kick */
+	err = read(child->go[0], &c, 1);
+	if (err != 1)
+		exit(err);
+
+	uprobe_multi_func_1();
+	uprobe_multi_func_2();
+	uprobe_multi_func_3();
+	usdt_trigger();
+
+	exit(errno);
+}
+
+static int spawn_child_flag(struct child *child, bool clone_vm)
+{
 	/* pipe to notify child to execute the trigger functions */
-	if (pipe(child.go))
-		return NULL;
+	if (pipe(child->go))
+		return -1;
 
-	child.pid = child.tid = fork();
-	if (child.pid < 0) {
-		release_child(&child);
+	if (clone_vm) {
+		child->pid = child->tid = clone(child_func, child->stack + sizeof(child->stack)/2,
+						CLONE_VM|SIGCHLD, child);
+	} else {
+		child->pid = child->tid = fork();
+	}
+	if (child->pid < 0) {
+		release_child(child);
 		errno = EINVAL;
-		return NULL;
+		return -1;
 	}
 
-	/* child */
-	if (child.pid == 0) {
-		close(child.go[1]);
+	/* fork-ed child */
+	if (!clone_vm && child->pid == 0)
+		child_func(child);
 
-		/* wait for parent's kick */
-		err = read(child.go[0], &c, 1);
-		if (err != 1)
-			exit(err);
+	return 0;
+}
 
-		uprobe_multi_func_1();
-		uprobe_multi_func_2();
-		uprobe_multi_func_3();
-		usdt_trigger();
-
-		exit(errno);
-	}
-
-	return &child;
+static int spawn_child(struct child *child)
+{
+	return spawn_child_flag(child, false);
 }
 
 static void *child_thread(void *ctx)
@@ -131,39 +146,38 @@ static void *child_thread(void *ctx)
 	pthread_exit(&err);
 }
 
-static struct child *spawn_thread(void)
+static int spawn_thread(struct child *child)
 {
-	static struct child child;
 	int c, err;
 
 	/* pipe to notify child to execute the trigger functions */
-	if (pipe(child.go))
-		return NULL;
+	if (pipe(child->go))
+		return -1;
 	/* pipe to notify parent that child thread is ready */
-	if (pipe(child.c2p)) {
-		close(child.go[0]);
-		close(child.go[1]);
-		return NULL;
+	if (pipe(child->c2p)) {
+		close(child->go[0]);
+		close(child->go[1]);
+		return -1;
 	}
 
-	child.pid = getpid();
+	child->pid = getpid();
 
-	err = pthread_create(&child.thread, NULL, child_thread, &child);
+	err = pthread_create(&child->thread, NULL, child_thread, child);
 	if (err) {
 		err = -errno;
-		close(child.go[0]);
-		close(child.go[1]);
-		close(child.c2p[0]);
-		close(child.c2p[1]);
+		close(child->go[0]);
+		close(child->go[1]);
+		close(child->c2p[0]);
+		close(child->c2p[1]);
 		errno = -err;
-		return NULL;
+		return -1;
 	}
 
-	err = read(child.c2p[0], &c, 1);
+	err = read(child->c2p[0], &c, 1);
 	if (!ASSERT_EQ(err, 1, "child_thread_ready"))
-		return NULL;
+		return -1;
 
-	return &child;
+	return 0;
 }
 
 static void uprobe_multi_test_run(struct uprobe_multi *skel, struct child *child)
@@ -304,24 +318,22 @@ cleanup:
 static void
 test_attach_api(const char *binary, const char *pattern, struct bpf_uprobe_multi_opts *opts)
 {
-	struct child *child;
+	static struct child child;
 
 	/* no pid filter */
 	__test_attach_api(binary, pattern, opts, NULL);
 
 	/* pid filter */
-	child = spawn_child();
-	if (!ASSERT_OK_PTR(child, "spawn_child"))
+	if (!ASSERT_OK(spawn_child(&child), "spawn_child"))
 		return;
 
-	__test_attach_api(binary, pattern, opts, child);
+	__test_attach_api(binary, pattern, opts, &child);
 
 	/* pid filter (thread) */
-	child = spawn_thread();
-	if (!ASSERT_OK_PTR(child, "spawn_thread"))
+	if (!ASSERT_OK(spawn_thread(&child), "spawn_thread"))
 		return;
 
-	__test_attach_api(binary, pattern, opts, child);
+	__test_attach_api(binary, pattern, opts, &child);
 }
 
 static void test_attach_api_pattern(void)
@@ -712,24 +724,22 @@ cleanup:
 
 static void test_link_api(void)
 {
-	struct child *child;
+	static struct child child;
 
 	/* no pid filter */
 	__test_link_api(NULL);
 
 	/* pid filter */
-	child = spawn_child();
-	if (!ASSERT_OK_PTR(child, "spawn_child"))
+	if (!ASSERT_OK(spawn_child(&child), "spawn_child"))
 		return;
 
-	__test_link_api(child);
+	__test_link_api(&child);
 
 	/* pid filter (thread) */
-	child = spawn_thread();
-	if (!ASSERT_OK_PTR(child, "spawn_thread"))
+	if (!ASSERT_OK(spawn_thread(&child), "spawn_thread"))
 		return;
 
-	__test_link_api(child);
+	__test_link_api(&child);
 }
 
 static struct bpf_program *
@@ -942,6 +952,70 @@ static void test_consumers(void)
 	uprobe_multi_consumers__destroy(skel);
 }
 
+static struct bpf_program *uprobe_multi_program(struct uprobe_multi_pid_filter *skel, int idx)
+{
+	switch (idx) {
+	case 0: return skel->progs.uprobe_multi_0;
+	case 1: return skel->progs.uprobe_multi_1;
+	case 2: return skel->progs.uprobe_multi_2;
+	}
+	return NULL;
+}
+
+#define TASKS 3
+
+static void run_pid_filter(struct uprobe_multi_pid_filter *skel, bool clone_vm, bool retprobe)
+{
+	LIBBPF_OPTS(bpf_uprobe_multi_opts, opts, .retprobe = retprobe);
+	struct bpf_link *link[TASKS] = {};
+	struct child child[TASKS] = {};
+	int i;
+
+	memset(skel->bss->test, 0, sizeof(skel->bss->test));
+
+	for (i = 0; i < TASKS; i++) {
+		if (!ASSERT_OK(spawn_child_flag(&child[i], clone_vm), "spawn_child"))
+			goto cleanup;
+		skel->bss->pids[i] = child[i].pid;
+	}
+
+	for (i = 0; i < TASKS; i++) {
+		link[i] = bpf_program__attach_uprobe_multi(uprobe_multi_program(skel, i),
+							   child[i].pid, "/proc/self/exe",
+							   "uprobe_multi_func_1", &opts);
+		if (!ASSERT_OK_PTR(link[i], "bpf_program__attach_uprobe_multi"))
+			goto cleanup;
+	}
+
+	for (i = 0; i < TASKS; i++)
+		kick_child(&child[i]);
+
+	for (i = 0; i < TASKS; i++) {
+		ASSERT_EQ(skel->bss->test[i][0], 1, "pid");
+		ASSERT_EQ(skel->bss->test[i][1], 0, "unknown");
+	}
+
+cleanup:
+	for (i = 0; i < TASKS; i++)
+		bpf_link__destroy(link[i]);
+	for (i = 0; i < TASKS; i++)
+		release_child(&child[i]);
+}
+
+static void test_pid_filter_process(bool clone_vm)
+{
+	struct uprobe_multi_pid_filter *skel;
+
+	skel = uprobe_multi_pid_filter__open_and_load();
+	if (!ASSERT_OK_PTR(skel, "uprobe_multi_pid_filter__open_and_load"))
+		return;
+
+	run_pid_filter(skel, clone_vm, false);
+	run_pid_filter(skel, clone_vm, true);
+
+	uprobe_multi_pid_filter__destroy(skel);
+}
+
 static void test_bench_attach_uprobe(void)
 {
 	long attach_start_ns = 0, attach_end_ns = 0;
@@ -1034,4 +1108,8 @@ void test_uprobe_multi_test(void)
 		test_attach_uprobe_fails();
 	if (test__start_subtest("consumers"))
 		test_consumers();
+	if (test__start_subtest("filter_fork"))
+		test_pid_filter_process(false);
+	if (test__start_subtest("filter_clone_vm"))
+		test_pid_filter_process(true);
 }
