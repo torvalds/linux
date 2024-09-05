@@ -10571,7 +10571,7 @@ static bool should_reset_plane(struct drm_atomic_state *state,
 	 * TODO: We can likely skip bandwidth validation if the only thing that
 	 * changed about the plane was it'z z-ordering.
 	 */
-	if (new_crtc_state->zpos_changed)
+	if (old_plane_state->normalized_zpos != new_plane_state->normalized_zpos)
 		return true;
 
 	if (drm_atomic_crtc_needs_modeset(new_crtc_state))
