@@ -211,6 +211,8 @@ struct lan966x_tx_dcb {
 struct lan966x_rx {
 	struct lan966x *lan966x;
 
+	struct fdma fdma;
+
 	/* Pointer to the array of hardware dcbs. */
 	struct lan966x_rx_dcb *dcbs;
 
@@ -219,17 +221,6 @@ struct lan966x_rx {
 
 	/* For each DB, there is a page */
 	struct page *page[FDMA_DCB_MAX][FDMA_RX_DCB_MAX_DBS];
-
-	/* Represents the db_index, it can have a value between 0 and
-	 * FDMA_RX_DCB_MAX_DBS, once it reaches the value of FDMA_RX_DCB_MAX_DBS
-	 * it means that the DCB can be reused.
-	 */
-	int db_index;
-
-	/* Represents the index in the dcbs. It has a value between 0 and
-	 * FDMA_DCB_MAX
-	 */
-	int dcb_index;
 
 	/* Represents the dma address to the dcbs array */
 	dma_addr_t dma;
@@ -243,8 +234,6 @@ struct lan966x_rx {
 	 * includes the IFH + VLAN tags + frame + skb_shared_info
 	 */
 	u32 max_mtu;
-
-	u8 channel_id;
 
 	struct page_pool *page_pool;
 };
@@ -267,6 +256,8 @@ struct lan966x_tx_dcb_buf {
 struct lan966x_tx {
 	struct lan966x *lan966x;
 
+	struct fdma fdma;
+
 	/* Pointer to the dcb list */
 	struct lan966x_tx_dcb *dcbs;
 	u16 last_in_use;
@@ -276,8 +267,6 @@ struct lan966x_tx {
 
 	/* Array of dcbs that are given to the HW */
 	struct lan966x_tx_dcb_buf *dcbs_buf;
-
-	u8 channel_id;
 
 	bool activated;
 };
