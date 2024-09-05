@@ -1498,7 +1498,6 @@ struct xhci_hcd {
 	spinlock_t	lock;
 
 	/* packed release number */
-	u8		sbrn;
 	u16		hci_version;
 	u16		max_interrupters;
 	/* imod_interval in ns (I * 250ns) */
