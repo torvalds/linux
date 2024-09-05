@@ -3744,7 +3744,14 @@ static int arm_smmu_init_structures(struct arm_smmu_device *smmu)
 	if (ret)
 		return ret;
 
-	return arm_smmu_init_strtab(smmu);
+	ret = arm_smmu_init_strtab(smmu);
+	if (ret)
+		return ret;
+
+	if (smmu->impl_ops && smmu->impl_ops->init_structures)
+		return smmu->impl_ops->init_structures(smmu);
+
+	return 0;
 }
 
 static int arm_smmu_write_reg_sync(struct arm_smmu_device *smmu, u32 val,
