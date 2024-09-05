@@ -217,14 +217,14 @@ static int skl_hda_audio_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	card = &ctx->card;
-	card->name = "hda-dsp",
-	card->owner = THIS_MODULE,
-	card->dai_link = skl_hda_be_dai_links,
-	card->dapm_widgets = skl_hda_widgets,
-	card->dapm_routes = skl_hda_map,
-	card->add_dai_link = skl_hda_add_dai_link,
-	card->fully_routed = true,
-	card->late_probe = skl_hda_card_late_probe,
+	card->name = "hda-dsp";
+	card->owner = THIS_MODULE;
+	card->dai_link = skl_hda_be_dai_links;
+	card->dapm_widgets = skl_hda_widgets;
+	card->dapm_routes = skl_hda_map;
+	card->add_dai_link = skl_hda_add_dai_link;
+	card->fully_routed = true;
+	card->late_probe = skl_hda_card_late_probe;
 
 	snd_soc_card_set_drvdata(card, ctx);
 
