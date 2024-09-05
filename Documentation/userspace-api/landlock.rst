@@ -8,7 +8,7 @@ Landlock: unprivileged access control
 =====================================
 
 :Author: Mickaël Salaün
-:Date: July 2024
+:Date: September 2024
 
 The goal of Landlock is to enable to restrict ambient rights (e.g. global
 filesystem or network access) for a set of processes.  Because Landlock
@@ -81,6 +81,8 @@ to be explicit about the denied-by-default access rights.
         .handled_access_net =
             LANDLOCK_ACCESS_NET_BIND_TCP |
             LANDLOCK_ACCESS_NET_CONNECT_TCP,
+        .scoped =
+            LANDLOCK_SCOPE_ABSTRACT_UNIX_SOCKET,
     };
 
 Because we may not know on which kernel version an application will be
@@ -119,6 +121,10 @@ version, and only use the available subset of access rights:
     case 4:
         /* Removes LANDLOCK_ACCESS_FS_IOCTL_DEV for ABI < 5 */
         ruleset_attr.handled_access_fs &= ~LANDLOCK_ACCESS_FS_IOCTL_DEV;
+        __attribute__((fallthrough));
+    case 5:
+        /* Removes LANDLOCK_SCOPE_ABSTRACT_UNIX_SOCKET for ABI < 6 */
+        ruleset_attr.scoped &= ~LANDLOCK_SCOPE_ABSTRACT_UNIX_SOCKET;
     }
 
 This enables to create an inclusive ruleset that will contain our rules.
@@ -306,6 +312,33 @@ To be allowed to use :manpage:`ptrace(2)` and related syscalls on a target
 process, a sandboxed process should have a subset of the target process rules,
 which means the tracee must be in a sub-domain of the tracer.
 
+IPC scoping
+-----------
+
+Similar to the implicit `Ptrace restrictions`_, we may want to further restrict
+interactions between sandboxes. Each Landlock domain can be explicitly scoped
+for a set of actions by specifying it on a ruleset.  For example, if a
+sandboxed process should not be able to :manpage:`connect(2)` to a
+non-sandboxed process through abstract :manpage:`unix(7)` sockets, we can
+specify such restriction with ``LANDLOCK_SCOPE_ABSTRACT_UNIX_SOCKET``.
+
+A sandboxed process can connect to a non-sandboxed process when its domain is
+not scoped. If a process's domain is scoped, it can only connect to sockets
+created by processes in the same scope.
+
+A connected datagram socket behaves like a stream socket when its domain is
+scoped, meaning if the domain is scoped after the socket is connected , it can
+still :manpage:`send(2)` data just like a stream socket.  However, in the same
+scenario, a non-connected datagram socket cannot send data (with
+:manpage:`sendto(2)`) outside its scope.
+
+A process with a scoped domain can inherit a socket created by a non-scoped
+process. The process cannot connect to this socket since it has a scoped
+domain.
+
+IPC scoping does not support exceptions, so if a domain is scoped, no rules can
+be added to allow access to resources or processes outside of the scope.
+
 Truncating files
 ----------------
 
@@ -404,7 +437,7 @@ Access rights
 -------------
 
 .. kernel-doc:: include/uapi/linux/landlock.h
-    :identifiers: fs_access net_access
+    :identifiers: fs_access net_access scope
 
 Creating a new ruleset
 ----------------------
@@ -540,6 +573,13 @@ earlier ABI.
 
 Starting with the Landlock ABI version 5, it is possible to restrict the use of
 :manpage:`ioctl(2)` using the new ``LANDLOCK_ACCESS_FS_IOCTL_DEV`` right.
+
+Abstract UNIX socket scoping (ABI < 6)
+--------------------------------------
+
+Starting with the Landlock ABI version 6, it is possible to restrict
+connections to an abstract :manpage:`unix(7)` socket by setting
+``LANDLOCK_SCOPE_ABSTRACT_UNIX_SOCKET`` to the ``scoped`` ruleset attribute.
 
 .. _kernel_support:
 
