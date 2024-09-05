@@ -3387,7 +3387,7 @@
 			reg = <0x0 0x03d6a000 0x0 0x35000>,
 			      <0x0 0x03d50000 0x0 0x10000>,
 			      <0x0 0x0b280000 0x0 0x10000>;
-			reg-names =  "gmu", "rscc", "gmu_pdc";
+			reg-names = "gmu", "rscc", "gmu_pdc";
 
 			interrupts = <GIC_SPI 304 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 305 IRQ_TYPE_LEVEL_HIGH>;
