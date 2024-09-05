@@ -393,6 +393,29 @@ out:
 }
 
 /**
+ * fh_verify_local - filehandle lookup and access checking
+ * @net: net namespace in which to perform the export lookup
+ * @cred: RPC user credential
+ * @client: RPC auth domain
+ * @fhp: filehandle to be verified
+ * @type: expected type of object pointed to by filehandle
+ * @access: type of access needed to object
+ *
+ * This API can be used by callers who do not have an RPC
+ * transaction context (ie are not running in an nfsd thread).
+ *
+ * See fh_verify() for further descriptions of @fhp, @type, and @access.
+ */
+__be32
+fh_verify_local(struct net *net, struct svc_cred *cred,
+		struct auth_domain *client, struct svc_fh *fhp,
+		umode_t type, int access)
+{
+	return __fh_verify(NULL, net, cred, client, NULL,
+			   fhp, type, access);
+}
+
+/**
  * fh_verify - filehandle lookup and access checking
  * @rqstp: pointer to current rpc request
  * @fhp: filehandle to be verified
