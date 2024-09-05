@@ -900,6 +900,102 @@ out:
 	return ret;
 }
 
+/*
+ * Test a regression for compressed extent map adjustment when we attempt to
+ * add an extent map that is partially overlapped by another existing extent
+ * map. The resulting extent map offset was left unchanged despite having
+ * incremented its start offset.
+ */
+static int test_case_8(struct btrfs_fs_info *fs_info, struct btrfs_inode *inode)
+{
+	struct extent_map_tree *em_tree = &inode->extent_tree;
+	struct extent_map *em;
+	int ret;
+	int ret2;
+
+	em = alloc_extent_map();
+	if (!em) {
+		test_std_err(TEST_ALLOC_EXTENT_MAP);
+		return -ENOMEM;
+	}
+
+	/* Compressed extent for the file range [120K, 128K). */
+	em->start = SZ_1K * 120;
+	em->len = SZ_8K;
+	em->disk_num_bytes = SZ_4K;
+	em->ram_bytes = SZ_8K;
+	em->flags |= EXTENT_FLAG_COMPRESS_ZLIB;
+	write_lock(&em_tree->lock);
+	ret = btrfs_add_extent_mapping(inode, &em, em->start, em->len);
+	write_unlock(&em_tree->lock);
+	free_extent_map(em);
+	if (ret < 0) {
+		test_err("couldn't add extent map for range [120K, 128K)");
+		goto out;
+	}
+
+	em = alloc_extent_map();
+	if (!em) {
+		test_std_err(TEST_ALLOC_EXTENT_MAP);
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	/*
+	 * Compressed extent for the file range [108K, 144K), which overlaps
+	 * with the [120K, 128K) we previously inserted.
+	 */
+	em->start = SZ_1K * 108;
+	em->len = SZ_1K * 36;
+	em->disk_num_bytes = SZ_4K;
+	em->ram_bytes = SZ_1K * 36;
+	em->flags |= EXTENT_FLAG_COMPRESS_ZLIB;
+
+	/*
+	 * Try to add the extent map but with a search range of [140K, 144K),
+	 * this should succeed and adjust the extent map to the range
+	 * [128K, 144K), with a length of 16K and an offset of 20K.
+	 *
+	 * This simulates a scenario where in the subvolume tree of an inode we
+	 * have a compressed file extent item for the range [108K, 144K) and we
+	 * have an overlapping compressed extent map for the range [120K, 128K),
+	 * which was created by an encoded write, but its ordered extent was not
+	 * yet completed, so the subvolume tree doesn't have yet the file extent
+	 * item for that range - we only have the extent map in the inode's
+	 * extent map tree.
+	 */
+	write_lock(&em_tree->lock);
+	ret = btrfs_add_extent_mapping(inode, &em, SZ_1K * 140, SZ_4K);
+	write_unlock(&em_tree->lock);
+	free_extent_map(em);
+	if (ret < 0) {
+		test_err("couldn't add extent map for range [108K, 144K)");
+		goto out;
+	}
+
+	if (em->start != SZ_128K) {
+		test_err("unexpected extent map start %llu (should be 128K)", em->start);
+		ret = -EINVAL;
+		goto out;
+	}
+	if (em->len != SZ_16K) {
+		test_err("unexpected extent map length %llu (should be 16K)", em->len);
+		ret = -EINVAL;
+		goto out;
+	}
+	if (em->offset != SZ_1K * 20) {
+		test_err("unexpected extent map offset %llu (should be 20K)", em->offset);
+		ret = -EINVAL;
+		goto out;
+	}
+out:
+	ret2 = free_extent_map_tree(inode);
+	if (ret == 0)
+		ret = ret2;
+
+	return ret;
+}
+
 struct rmap_test_vector {
 	u64 raid_type;
 	u64 physical_start;
@@ -1076,6 +1172,9 @@ int btrfs_test_extent_map(void)
 	if (ret)
 		goto out;
 	ret = test_case_7(fs_info, BTRFS_I(inode));
+	if (ret)
+		goto out;
+	ret = test_case_8(fs_info, BTRFS_I(inode));
 	if (ret)
 		goto out;
 

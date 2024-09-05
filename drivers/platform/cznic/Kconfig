@@ -16,35 +16,65 @@ config TURRIS_OMNIA_MCU
 	tristate "Turris Omnia MCU driver"
 	depends on MACH_ARMADA_38X || COMPILE_TEST
 	depends on I2C
-	depends on OF
-	depends on WATCHDOG
-	depends on GPIOLIB
-	depends on HW_RANDOM
-	depends on RTC_CLASS
-	depends on WATCHDOG_CORE
-	select GPIOLIB_IRQCHIP
 	help
 	  Say Y here to add support for the features implemented by the
 	  microcontroller on the CZ.NIC's Turris Omnia SOHO router.
-	  The features include:
-	  - board poweroff into true low power mode (with voltage regulators
-	    disabled) and the ability to configure wake up from this mode (via
-	    rtcwake)
-	  - true random number generator (if available on the MCU)
-	  - MCU watchdog
-	  - GPIO pins
-	    - to get front button press events (the front button can be
-	      configured either to generate press events to the CPU or to change
-	      front LEDs panel brightness)
-	    - to enable / disable USB port voltage regulators and to detect
-	      USB overcurrent
-	    - to detect MiniPCIe / mSATA card presence in MiniPCIe port 0
-	    - to configure resets of various peripherals on board revisions 32+
-	    - to enable / disable the VHV voltage regulator to the SOC in order
-	      to be able to program SOC's OTP on board revisions 32+
-	    - to get input from the LED output pins of the WAN ethernet PHY, LAN
-	      switch and MiniPCIe ports
+	  This option only enables the core part of the driver. Specific
+	  features can be enabled by subsequent config options.
 	  To compile this driver as a module, choose M here; the module will be
 	  called turris-omnia-mcu.
+
+if TURRIS_OMNIA_MCU
+
+config TURRIS_OMNIA_MCU_GPIO
+	bool "Turris Omnia MCU GPIOs"
+	default y
+	depends on GPIOLIB
+	depends on OF
+	select GPIOLIB_IRQCHIP
+	help
+	  Say Y here to add support for controlling MCU GPIO pins and receiving
+	  MCU interrupts on CZ.NIC's Turris Omnia.
+	  This enables you to
+	  - get front button press events (the front button can be configured
+	    either to generate press events to the CPU or to change front LEDs
+	    panel brightness),
+	  - enable / disable USB port voltage regulators and to detect USB
+	    overcurrent,
+	  - detect MiniPCIe / mSATA card presence in MiniPCIe port 0,
+	  - configure resets of various peripherals on board revisions 32+,
+	  - enable / disable the VHV voltage regulator to the SOC in order to be
+	    able to program SOC's OTP on board revisions 32+,
+	  - get input from the LED output pins of the WAN ethernet PHY, LAN
+	    switch and MiniPCIe ports.
+
+config TURRIS_OMNIA_MCU_SYSOFF_WAKEUP
+	bool "Turris Omnia MCU system off and RTC wakeup"
+	default y
+	depends on RTC_CLASS
+	help
+	  Say Y here to add support for CZ.NIC's Turris Omnia board poweroff
+	  into true low power mode (with voltage regulators disabled) and the
+	  ability to configure wake up from this mode (via rtcwake).
+
+config TURRIS_OMNIA_MCU_WATCHDOG
+	bool "Turris Omnia MCU watchdog"
+	default y
+	depends on WATCHDOG
+	select WATCHDOG_CORE
+	help
+	  Say Y here to add support for watchdog provided by CZ.NIC's Turris
+	  Omnia MCU.
+
+config TURRIS_OMNIA_MCU_TRNG
+	bool "Turris Omnia MCU true random number generator"
+	default y
+	depends on TURRIS_OMNIA_MCU_GPIO
+	depends on HW_RANDOM
+	help
+	  Say Y here to add support for the true random number generator
+	  provided by CZ.NIC's Turris Omnia MCU.
+
+endif # TURRIS_OMNIA_MCU
 
 endif # CZNIC_PLATFORMS

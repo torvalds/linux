@@ -735,6 +735,7 @@ static int mlx5e_alloc_rx_hd_mpwqe(struct mlx5e_rq *rq)
 	ksm_entries = bitmap_find_window(shampo->bitmap,
 					 shampo->hd_per_wqe,
 					 shampo->hd_per_wq, shampo->pi);
+	ksm_entries = ALIGN_DOWN(ksm_entries, MLX5E_SHAMPO_WQ_HEADER_PER_PAGE);
 	if (!ksm_entries)
 		return 0;
 
@@ -962,26 +963,31 @@ void mlx5e_free_icosq_descs(struct mlx5e_icosq *sq)
 	sq->cc = sqcc;
 }
 
-static void mlx5e_handle_shampo_hd_umr(struct mlx5e_shampo_umr umr,
-				       struct mlx5e_icosq *sq)
+void mlx5e_shampo_fill_umr(struct mlx5e_rq *rq, int len)
 {
-	struct mlx5e_channel *c = container_of(sq, struct mlx5e_channel, icosq);
-	struct mlx5e_shampo_hd *shampo;
-	/* assume 1:1 relationship between RQ and icosq */
-	struct mlx5e_rq *rq = &c->rq;
-	int end, from, len = umr.len;
+	struct mlx5e_shampo_hd *shampo = rq->mpwqe.shampo;
+	int end, from, full_len = len;
 
-	shampo = rq->mpwqe.shampo;
 	end = shampo->hd_per_wq;
 	from = shampo->ci;
-	if (from + len > shampo->hd_per_wq) {
+	if (from + len > end) {
 		len -= end - from;
 		bitmap_set(shampo->bitmap, from, end - from);
 		from = 0;
 	}
 
 	bitmap_set(shampo->bitmap, from, len);
-	shampo->ci = (shampo->ci + umr.len) & (shampo->hd_per_wq - 1);
+	shampo->ci = (shampo->ci + full_len) & (shampo->hd_per_wq - 1);
+}
+
+static void mlx5e_handle_shampo_hd_umr(struct mlx5e_shampo_umr umr,
+				       struct mlx5e_icosq *sq)
+{
+	struct mlx5e_channel *c = container_of(sq, struct mlx5e_channel, icosq);
+	/* assume 1:1 relationship between RQ and icosq */
+	struct mlx5e_rq *rq = &c->rq;
+
+	mlx5e_shampo_fill_umr(rq, umr.len);
 }
 
 int mlx5e_poll_ico_cq(struct mlx5e_cq *cq)

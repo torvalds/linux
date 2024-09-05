@@ -362,6 +362,12 @@ struct xe_gt {
 	 */
 	spinlock_t mcr_lock;
 
+	/**
+	 * @global_invl_lock: protects the register for the duration
+	 *    of a global invalidation of l2 cache
+	 */
+	spinlock_t global_invl_lock;
+
 	/** @wa_active: keep track of active workarounds */
 	struct {
 		/** @wa_active.gt: bitmap with active GT workarounds */

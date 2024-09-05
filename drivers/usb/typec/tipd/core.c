@@ -1191,14 +1191,14 @@ static int tps6598x_apply_patch(struct tps6598x *tps)
 	dev_info(tps->dev, "Firmware update succeeded\n");
 
 release_fw:
-	release_firmware(fw);
 	if (ret) {
 		dev_err(tps->dev, "Failed to write patch %s of %zu bytes\n",
 			firmware_name, fw->size);
 	}
+	release_firmware(fw);
 
 	return ret;
-};
+}
 
 static int cd321x_init(struct tps6598x *tps)
 {

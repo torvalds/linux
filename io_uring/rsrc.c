@@ -394,10 +394,11 @@ static int __io_sqe_buffers_update(struct io_ring_ctx *ctx,
 				   struct io_uring_rsrc_update2 *up,
 				   unsigned int nr_args)
 {
-	struct iovec __user *uvec = u64_to_user_ptr(up->data);
 	u64 __user *tags = u64_to_user_ptr(up->tags);
 	struct iovec fast_iov, *iov;
 	struct page *last_hpage = NULL;
+	struct iovec __user *uvec;
+	u64 user_data = up->data;
 	__u32 done;
 	int i, err;
 
@@ -410,7 +411,8 @@ static int __io_sqe_buffers_update(struct io_ring_ctx *ctx,
 		struct io_mapped_ubuf *imu;
 		u64 tag = 0;
 
-		iov = iovec_from_user(&uvec[done], 1, 1, &fast_iov, ctx->compat);
+		uvec = u64_to_user_ptr(user_data);
+		iov = iovec_from_user(uvec, 1, 1, &fast_iov, ctx->compat);
 		if (IS_ERR(iov)) {
 			err = PTR_ERR(iov);
 			break;
@@ -443,6 +445,10 @@ static int __io_sqe_buffers_update(struct io_ring_ctx *ctx,
 
 		ctx->user_bufs[i] = imu;
 		*io_get_tag_slot(ctx->buf_data, i) = tag;
+		if (ctx->compat)
+			user_data += sizeof(struct compat_iovec);
+		else
+			user_data += sizeof(struct iovec);
 	}
 	return done ? done : err;
 }
@@ -949,7 +955,7 @@ int io_sqe_buffers_register(struct io_ring_ctx *ctx, void __user *arg,
 	struct page *last_hpage = NULL;
 	struct io_rsrc_data *data;
 	struct iovec fast_iov, *iov = &fast_iov;
-	const struct iovec __user *uvec = (struct iovec * __user) arg;
+	const struct iovec __user *uvec;
 	int i, ret;
 
 	BUILD_BUG_ON(IORING_MAX_REG_BUFFERS >= (1u << 16));
@@ -972,7 +978,8 @@ int io_sqe_buffers_register(struct io_ring_ctx *ctx, void __user *arg,
 
 	for (i = 0; i < nr_args; i++, ctx->nr_user_bufs++) {
 		if (arg) {
-			iov = iovec_from_user(&uvec[i], 1, 1, &fast_iov, ctx->compat);
+			uvec = (struct iovec __user *) arg;
+			iov = iovec_from_user(uvec, 1, 1, &fast_iov, ctx->compat);
 			if (IS_ERR(iov)) {
 				ret = PTR_ERR(iov);
 				break;
@@ -980,6 +987,10 @@ int io_sqe_buffers_register(struct io_ring_ctx *ctx, void __user *arg,
 			ret = io_buffer_validate(iov);
 			if (ret)
 				break;
+			if (ctx->compat)
+				arg += sizeof(struct compat_iovec);
+			else
+				arg += sizeof(struct iovec);
 		}
 
 		if (!iov->iov_base && *io_get_tag_slot(data, i)) {

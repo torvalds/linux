@@ -1,7 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 OR MIT */
 /**************************************************************************
  *
- * Copyright 2023 VMware, Inc., Palo Alto, CA., USA
+ * Copyright (c) 2023-2024 Broadcom. All Rights Reserved. The term
+ * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
@@ -35,11 +36,13 @@
 
 #include <linux/rbtree_types.h>
 #include <linux/types.h>
+#include <linux/xarray.h>
 
 struct vmw_bo_dirty;
 struct vmw_fence_obj;
 struct vmw_private;
 struct vmw_resource;
+struct vmw_surface;
 
 enum vmw_bo_domain {
 	VMW_BO_DOMAIN_SYS           = BIT(0),
@@ -68,6 +71,8 @@ struct vmw_bo_params {
  * @map: Kmap object for semi-persistent mappings
  * @res_tree: RB tree of resources using this buffer object as a backing MOB
  * @res_prios: Eviction priority counts for attached resources
+ * @map_count: The number of currently active maps. Will differ from the
+ * cpu_writers because it includes kernel maps.
  * @cpu_writers: Number of synccpu write grabs. Protected by reservation when
  * increased. May be decreased without reservation.
  * @dx_query_ctx: DX context if this buffer object is used as a DX query MOB
@@ -85,11 +90,16 @@ struct vmw_bo {
 
 	struct rb_root res_tree;
 	u32 res_prios[TTM_MAX_BO_PRIORITY];
+	struct xarray detached_resources;
 
+	atomic_t map_count;
 	atomic_t cpu_writers;
 	/* Not ref-counted.  Protected by binding_mutex */
 	struct vmw_resource *dx_query_ctx;
 	struct vmw_bo_dirty *dirty;
+
+	bool is_dumb;
+	struct vmw_surface *dumb_surface;
 };
 
 void vmw_bo_placement_set(struct vmw_bo *bo, u32 domain, u32 busy_domain);
@@ -124,15 +134,21 @@ void vmw_bo_fence_single(struct ttm_buffer_object *bo,
 			 struct vmw_fence_obj *fence);
 
 void *vmw_bo_map_and_cache(struct vmw_bo *vbo);
+void *vmw_bo_map_and_cache_size(struct vmw_bo *vbo, size_t size);
 void vmw_bo_unmap(struct vmw_bo *vbo);
 
 void vmw_bo_move_notify(struct ttm_buffer_object *bo,
 			struct ttm_resource *mem);
 void vmw_bo_swap_notify(struct ttm_buffer_object *bo);
 
+void vmw_bo_add_detached_resource(struct vmw_bo *vbo, struct vmw_resource *res);
+void vmw_bo_del_detached_resource(struct vmw_bo *vbo, struct vmw_resource *res);
+struct vmw_surface *vmw_bo_surface(struct vmw_bo *vbo);
+
 int vmw_user_bo_lookup(struct drm_file *filp,
 		       u32 handle,
 		       struct vmw_bo **out);
+
 /**
  * vmw_bo_adjust_prio - Adjust the buffer object eviction priority
  * according to attached resources

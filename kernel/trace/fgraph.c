@@ -902,7 +902,7 @@ unsigned long ftrace_graph_ret_addr(struct task_struct *task, int *idx,
 
 	i = *idx ? : task->curr_ret_stack;
 	while (i > 0) {
-		ret_stack = get_ret_stack(current, i, &i);
+		ret_stack = get_ret_stack(task, i, &i);
 		if (!ret_stack)
 			break;
 		/*

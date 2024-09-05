@@ -455,7 +455,7 @@ struct {
 	__type(value, struct elem);
 } hmap SEC(".maps");
 
-static int wq_cb_sleepable(void *map, int *key, struct bpf_wq *work)
+static int wq_cb_sleepable(void *map, int *key, void *work)
 {
 	__u8 buf[9] = {2, 3, 4, 5, 6, 7, 8, 9, 10};
 	struct hid_bpf_ctx *hid_ctx;

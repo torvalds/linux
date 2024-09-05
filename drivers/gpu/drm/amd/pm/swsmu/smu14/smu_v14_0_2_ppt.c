@@ -66,6 +66,7 @@
 
 #define MP0_MP1_DATA_REGION_SIZE_COMBOPPTABLE	0x4000
 #define DEBUGSMC_MSG_Mode1Reset        2
+#define LINK_SPEED_MAX					3
 
 static struct cmn2asic_msg_mapping smu_v14_0_2_message_map[SMU_MSG_MAX_COUNT] = {
 	MSG_MAP(TestMessage,			PPSMC_MSG_TestMessage,                 1),
@@ -114,7 +115,6 @@ static struct cmn2asic_msg_mapping smu_v14_0_2_message_map[SMU_MSG_MAX_COUNT] = 
 	MSG_MAP(SetMGpuFanBoostLimitRpm,	PPSMC_MSG_SetMGpuFanBoostLimitRpm,     0),
 	MSG_MAP(GetPptLimit,			PPSMC_MSG_GetPptLimit,                 0),
 	MSG_MAP(NotifyPowerSource,		PPSMC_MSG_NotifyPowerSource,           0),
-	MSG_MAP(Mode1Reset,			PPSMC_MSG_Mode1Reset,                  0),
 	MSG_MAP(PrepareMp1ForUnload,		PPSMC_MSG_PrepareMp1ForUnload,         0),
 	MSG_MAP(DFCstateControl,		PPSMC_MSG_SetExternalClientDfCstateAllow, 0),
 	MSG_MAP(ArmD3,				PPSMC_MSG_ArmD3,                       0),
@@ -221,7 +221,6 @@ static struct cmn2asic_mapping smu_v14_0_2_workload_map[PP_SMC_POWER_PROFILE_COU
 	WORKLOAD_MAP(PP_SMC_POWER_PROFILE_WINDOW3D,		WORKLOAD_PPLIB_WINDOW_3D_BIT),
 };
 
-#if 0
 static const uint8_t smu_v14_0_2_throttler_map[] = {
 	[THROTTLER_PPT0_BIT]		= (SMU_THROTTLER_PPT0_BIT),
 	[THROTTLER_PPT1_BIT]		= (SMU_THROTTLER_PPT1_BIT),
@@ -241,7 +240,6 @@ static const uint8_t smu_v14_0_2_throttler_map[] = {
 	[THROTTLER_GFX_APCC_PLUS_BIT]	= (SMU_THROTTLER_APCC_BIT),
 	[THROTTLER_FIT_BIT]		= (SMU_THROTTLER_FIT_BIT),
 };
-#endif
 
 static int
 smu_v14_0_2_get_allowed_feature_mask(struct smu_context *smu,
@@ -1825,48 +1823,86 @@ static void smu_v14_0_2_set_smu_mailbox_registers(struct smu_context *smu)
 	smu->debug_resp_reg = SOC15_REG_OFFSET(MP1, 0, regMP1_SMN_C2PMSG_54);
 }
 
-static int smu_v14_0_2_smu_send_bad_mem_page_num(struct smu_context *smu,
-		uint32_t size)
+static ssize_t smu_v14_0_2_get_gpu_metrics(struct smu_context *smu,
+					   void **table)
 {
+	struct smu_table_context *smu_table = &smu->smu_table;
+	struct gpu_metrics_v1_3 *gpu_metrics =
+		(struct gpu_metrics_v1_3 *)smu_table->gpu_metrics_table;
+	SmuMetricsExternal_t metrics_ext;
+	SmuMetrics_t *metrics = &metrics_ext.SmuMetrics;
 	int ret = 0;
 
-	/* message SMU to update the bad page number on SMUBUS */
-	ret = smu_cmn_send_smc_msg_with_param(smu,
-					  SMU_MSG_SetNumBadMemoryPagesRetired,
-					  size, NULL);
+	ret = smu_cmn_get_metrics_table(smu,
+					&metrics_ext,
+					true);
 	if (ret)
-		dev_err(smu->adev->dev,
-			  "[%s] failed to message SMU to update bad memory pages number\n",
-			  __func__);
+		return ret;
 
-	return ret;
-}
+	smu_cmn_init_soft_gpu_metrics(gpu_metrics, 1, 3);
 
-static int smu_v14_0_2_send_bad_mem_channel_flag(struct smu_context *smu,
-		uint32_t size)
-{
-	int ret = 0;
+	gpu_metrics->temperature_edge = metrics->AvgTemperature[TEMP_EDGE];
+	gpu_metrics->temperature_hotspot = metrics->AvgTemperature[TEMP_HOTSPOT];
+	gpu_metrics->temperature_mem = metrics->AvgTemperature[TEMP_MEM];
+	gpu_metrics->temperature_vrgfx = metrics->AvgTemperature[TEMP_VR_GFX];
+	gpu_metrics->temperature_vrsoc = metrics->AvgTemperature[TEMP_VR_SOC];
+	gpu_metrics->temperature_vrmem = max(metrics->AvgTemperature[TEMP_VR_MEM0],
+					     metrics->AvgTemperature[TEMP_VR_MEM1]);
 
-	/* message SMU to update the bad channel info on SMUBUS */
-	ret = smu_cmn_send_smc_msg_with_param(smu,
-				  SMU_MSG_SetBadMemoryPagesRetiredFlagsPerChannel,
-				  size, NULL);
-	if (ret)
-		dev_err(smu->adev->dev,
-			  "[%s] failed to message SMU to update bad memory pages channel info\n",
-			  __func__);
+	gpu_metrics->average_gfx_activity = metrics->AverageGfxActivity;
+	gpu_metrics->average_umc_activity = metrics->AverageUclkActivity;
+	gpu_metrics->average_mm_activity = max(metrics->Vcn0ActivityPercentage,
+					       metrics->Vcn1ActivityPercentage);
 
-	return ret;
-}
+	gpu_metrics->average_socket_power = metrics->AverageSocketPower;
+	gpu_metrics->energy_accumulator = metrics->EnergyAccumulator;
 
-static ssize_t smu_v14_0_2_get_ecc_info(struct smu_context *smu,
-					void *table)
-{
-	int ret = 0;
+	if (metrics->AverageGfxActivity <= SMU_14_0_2_BUSY_THRESHOLD)
+		gpu_metrics->average_gfxclk_frequency = metrics->AverageGfxclkFrequencyPostDs;
+	else
+		gpu_metrics->average_gfxclk_frequency = metrics->AverageGfxclkFrequencyPreDs;
 
-	// TODO
+	if (metrics->AverageUclkActivity <= SMU_14_0_2_BUSY_THRESHOLD)
+		gpu_metrics->average_uclk_frequency = metrics->AverageMemclkFrequencyPostDs;
+	else
+		gpu_metrics->average_uclk_frequency = metrics->AverageMemclkFrequencyPreDs;
 
-	return ret;
+	gpu_metrics->average_vclk0_frequency = metrics->AverageVclk0Frequency;
+	gpu_metrics->average_dclk0_frequency = metrics->AverageDclk0Frequency;
+	gpu_metrics->average_vclk1_frequency = metrics->AverageVclk1Frequency;
+	gpu_metrics->average_dclk1_frequency = metrics->AverageDclk1Frequency;
+
+	gpu_metrics->current_gfxclk = gpu_metrics->average_gfxclk_frequency;
+	gpu_metrics->current_socclk = metrics->CurrClock[PPCLK_SOCCLK];
+	gpu_metrics->current_uclk = metrics->CurrClock[PPCLK_UCLK];
+	gpu_metrics->current_vclk0 = metrics->CurrClock[PPCLK_VCLK_0];
+	gpu_metrics->current_dclk0 = metrics->CurrClock[PPCLK_DCLK_0];
+	gpu_metrics->current_vclk1 = metrics->CurrClock[PPCLK_VCLK_0];
+	gpu_metrics->current_dclk1 = metrics->CurrClock[PPCLK_DCLK_0];
+
+	gpu_metrics->throttle_status =
+			smu_v14_0_2_get_throttler_status(metrics);
+	gpu_metrics->indep_throttle_status =
+			smu_cmn_get_indep_throttler_status(gpu_metrics->throttle_status,
+							   smu_v14_0_2_throttler_map);
+
+	gpu_metrics->current_fan_speed = metrics->AvgFanRpm;
+
+	gpu_metrics->pcie_link_width = metrics->PcieWidth;
+	if ((metrics->PcieRate - 1) > LINK_SPEED_MAX)
+		gpu_metrics->pcie_link_speed = pcie_gen_to_speed(1);
+	else
+		gpu_metrics->pcie_link_speed = pcie_gen_to_speed(metrics->PcieRate);
+
+	gpu_metrics->system_clock_counter = ktime_get_boottime_ns();
+
+	gpu_metrics->voltage_gfx = metrics->AvgVoltage[SVI_PLANE_VDD_GFX];
+	gpu_metrics->voltage_soc = metrics->AvgVoltage[SVI_PLANE_VDD_SOC];
+	gpu_metrics->voltage_mem = metrics->AvgVoltage[SVI_PLANE_VDDIO_MEM];
+
+	*table = (void *)gpu_metrics;
+
+	return sizeof(struct gpu_metrics_v1_3);
 }
 
 static const struct pptable_funcs smu_v14_0_2_ppt_funcs = {
@@ -1905,6 +1941,7 @@ static const struct pptable_funcs smu_v14_0_2_ppt_funcs = {
 	.enable_thermal_alert = smu_v14_0_enable_thermal_alert,
 	.disable_thermal_alert = smu_v14_0_disable_thermal_alert,
 	.notify_memory_pool_location = smu_v14_0_notify_memory_pool_location,
+	.get_gpu_metrics = smu_v14_0_2_get_gpu_metrics,
 	.set_soft_freq_limited_range = smu_v14_0_set_soft_freq_limited_range,
 	.init_pptable_microcode = smu_v14_0_init_pptable_microcode,
 	.populate_umd_state_clk = smu_v14_0_2_populate_umd_state_clk,
@@ -1933,12 +1970,9 @@ static const struct pptable_funcs smu_v14_0_2_ppt_funcs = {
 	.enable_gfx_features = smu_v14_0_2_enable_gfx_features,
 	.set_mp1_state = smu_v14_0_2_set_mp1_state,
 	.set_df_cstate = smu_v14_0_2_set_df_cstate,
-	.send_hbm_bad_pages_num = smu_v14_0_2_smu_send_bad_mem_page_num,
-	.send_hbm_bad_channel_flag = smu_v14_0_2_send_bad_mem_channel_flag,
 #if 0
 	.gpo_control = smu_v14_0_gpo_control,
 #endif
-	.get_ecc_info = smu_v14_0_2_get_ecc_info,
 };
 
 void smu_v14_0_2_set_ppt_funcs(struct smu_context *smu)

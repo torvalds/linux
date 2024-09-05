@@ -96,6 +96,8 @@
 #define ATH12K_M3_FILE			"m3.bin"
 #define ATH12K_REGDB_FILE_NAME		"regdb.bin"
 
+#define ATH12K_PCIE_MAX_PAYLOAD_SIZE	128
+
 enum ath12k_hw_rate_cck {
 	ATH12K_HW_RATE_CCK_LP_11M = 0,
 	ATH12K_HW_RATE_CCK_LP_5_5M,
@@ -215,6 +217,8 @@ struct ath12k_hw_params {
 
 	const guid_t *acpi_guid;
 	bool supports_dynamic_smps_6ghz;
+
+	u32 iova_mask;
 };
 
 struct ath12k_hw_ops {
