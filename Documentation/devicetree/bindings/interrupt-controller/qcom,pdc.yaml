@@ -27,6 +27,7 @@ properties:
     items:
       - enum:
           - qcom,qdu1000-pdc
+          - qcom,sa8255p-pdc
           - qcom,sa8775p-pdc
           - qcom,sc7180-pdc
           - qcom,sc7280-pdc
