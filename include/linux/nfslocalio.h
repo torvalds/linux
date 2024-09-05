@@ -6,6 +6,9 @@
 #ifndef __LINUX_NFSLOCALIO_H
 #define __LINUX_NFSLOCALIO_H
 
+/* nfsd_file structure is purposely kept opaque to NFS client */
+struct nfsd_file;
+
 #if IS_ENABLED(CONFIG_NFS_LOCALIO)
 
 #include <linux/module.h>
@@ -35,8 +38,6 @@ void nfs_uuid_is_local(const uuid_t *, struct list_head *,
 		       struct net *, struct auth_domain *, struct module *);
 void nfs_uuid_invalidate_clients(struct list_head *list);
 void nfs_uuid_invalidate_one_client(nfs_uuid_t *nfs_uuid);
-
-struct nfsd_file;
 
 /* localio needs to map filehandle -> struct nfsd_file */
 extern struct nfsd_file *
