@@ -229,14 +229,9 @@ out:
 static void lan966x_fdma_tx_free(struct lan966x_tx *tx)
 {
 	struct lan966x *lan966x = tx->lan966x;
-	struct fdma *fdma = &tx->fdma;
-	int size;
 
 	kfree(tx->dcbs_buf);
-
-	size = sizeof(struct fdma_dcb) * fdma->n_dcbs;
-	size = ALIGN(size, PAGE_SIZE);
-	dma_free_coherent(lan966x->dev, size, fdma->dcbs, fdma->dma);
+	fdma_free_coherent(lan966x->dev, &tx->fdma);
 }
 
 static void lan966x_fdma_tx_activate(struct lan966x_tx *tx)
