@@ -427,7 +427,6 @@ static int max1720x_probe_nvmem(struct i2c_client *client,
 
 	ret = devm_add_action_or_reset(dev, max1720x_unregister_ancillary, info);
 	if (ret) {
-		i2c_unregister_device(info->ancillary);
 		dev_err(dev, "Failed to add unregister callback\n");
 		return ret;
 	}
