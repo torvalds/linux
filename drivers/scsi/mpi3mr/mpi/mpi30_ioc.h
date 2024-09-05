@@ -39,6 +39,12 @@ struct mpi3_ioc_init_request {
 #define MPI3_WHOINIT_HOST_DRIVER                         (0x03)
 #define MPI3_WHOINIT_MANUFACTURER                        (0x04)
 
+#define MPI3_IOCINIT_DRIVERCAP_OSEXPOSURE_MASK              (0x00000003)
+#define MPI3_IOCINIT_DRIVERCAP_OSEXPOSURE_NO_GUIDANCE       (0x00000000)
+#define MPI3_IOCINIT_DRIVERCAP_OSEXPOSURE_NO_SPECIAL        (0x00000001)
+#define MPI3_IOCINIT_DRIVERCAP_OSEXPOSURE_REPORT_AS_HDD     (0x00000002)
+#define MPI3_IOCINIT_DRIVERCAP_OSEXPOSURE_REPORT_AS_SSD     (0x00000003)
+
 struct mpi3_ioc_facts_request {
 	__le16                 host_tag;
 	u8                     ioc_use_only02;
@@ -140,6 +146,8 @@ struct mpi3_ioc_facts_data {
 #define MPI3_IOCFACTS_EXCEPT_MANUFACT_CHECKSUM_FAIL           (0x0020)
 #define MPI3_IOCFACTS_EXCEPT_FW_CHECKSUM_FAIL                 (0x0010)
 #define MPI3_IOCFACTS_EXCEPT_CONFIG_CHECKSUM_FAIL             (0x0008)
+#define MPI3_IOCFACTS_EXCEPT_BLOCKING_BOOT_EVENT              (0x0004)
+#define MPI3_IOCFACTS_EXCEPT_SECURITY_SELFTEST_FAILURE        (0x0002)
 #define MPI3_IOCFACTS_EXCEPT_BOOTSTAT_MASK                    (0x0001)
 #define MPI3_IOCFACTS_EXCEPT_BOOTSTAT_PRIMARY                 (0x0000)
 #define MPI3_IOCFACTS_EXCEPT_BOOTSTAT_SECONDARY               (0x0001)
