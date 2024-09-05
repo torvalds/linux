@@ -383,7 +383,7 @@ kmem_cache_create_usercopy(const char *name, unsigned int size,
 EXPORT_SYMBOL(kmem_cache_create_usercopy);
 
 /**
- * kmem_cache_create - Create a cache.
+ * __kmem_cache_create - Create a cache.
  * @name: A string which is used in /proc/slabinfo to identify this cache.
  * @size: The size of objects to be created in this cache.
  * @align: The required alignment for the objects.
@@ -407,9 +407,9 @@ EXPORT_SYMBOL(kmem_cache_create_usercopy);
  *
  * Return: a pointer to the cache on success, NULL on failure.
  */
-struct kmem_cache *
-kmem_cache_create(const char *name, unsigned int size, unsigned int align,
-		slab_flags_t flags, void (*ctor)(void *))
+struct kmem_cache *__kmem_cache_create(const char *name, unsigned int size,
+				       unsigned int align, slab_flags_t flags,
+				       void (*ctor)(void *))
 {
 	struct kmem_cache_args kmem_args = {
 		.align	= align,
@@ -418,7 +418,7 @@ kmem_cache_create(const char *name, unsigned int size, unsigned int align,
 
 	return __kmem_cache_create_args(name, size, &kmem_args, flags);
 }
-EXPORT_SYMBOL(kmem_cache_create);
+EXPORT_SYMBOL(__kmem_cache_create);
 
 /**
  * kmem_cache_create_rcu - Create a SLAB_TYPESAFE_BY_RCU cache.
