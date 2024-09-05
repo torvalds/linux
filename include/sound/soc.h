@@ -1207,8 +1207,7 @@ struct snd_soc_pcm_runtime {
 	/* bit field */
 	unsigned int pop_wait:1;
 	unsigned int fe_compr:1; /* for Dynamic PCM */
-
-	bool initialized;
+	unsigned int initialized:1;
 
 	/* CPU/Codec/Platform */
 	int num_components;
