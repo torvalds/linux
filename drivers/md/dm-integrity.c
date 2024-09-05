@@ -1500,15 +1500,15 @@ static void dm_integrity_flush_buffers(struct dm_integrity_c *ic, bool flush_dat
 	if (!ic->meta_dev)
 		flush_data = false;
 	if (flush_data) {
-		fr.io_req.bi_opf = REQ_OP_WRITE | REQ_PREFLUSH | REQ_SYNC,
-		fr.io_req.mem.type = DM_IO_KMEM,
-		fr.io_req.mem.ptr.addr = NULL,
-		fr.io_req.notify.fn = flush_notify,
+		fr.io_req.bi_opf = REQ_OP_WRITE | REQ_PREFLUSH | REQ_SYNC;
+		fr.io_req.mem.type = DM_IO_KMEM;
+		fr.io_req.mem.ptr.addr = NULL;
+		fr.io_req.notify.fn = flush_notify;
 		fr.io_req.notify.context = &fr;
-		fr.io_req.client = dm_bufio_get_dm_io_client(ic->bufio),
-		fr.io_reg.bdev = ic->dev->bdev,
-		fr.io_reg.sector = 0,
-		fr.io_reg.count = 0,
+		fr.io_req.client = dm_bufio_get_dm_io_client(ic->bufio);
+		fr.io_reg.bdev = ic->dev->bdev;
+		fr.io_reg.sector = 0;
+		fr.io_reg.count = 0;
 		fr.ic = ic;
 		init_completion(&fr.comp);
 		r = dm_io(&fr.io_req, 1, &fr.io_reg, NULL, IOPRIO_DEFAULT);
