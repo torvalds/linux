@@ -68,29 +68,27 @@ static void kick_child(struct child *child)
 	fflush(NULL);
 }
 
-static struct child *spawn_child(void)
+static int spawn_child(struct child *child)
 {
-	static struct child child;
-	int err;
-	int c;
+	int err, c;
 
 	/* pipe to notify child to execute the trigger functions */
-	if (pipe(child.go))
-		return NULL;
+	if (pipe(child->go))
+		return -1;
 
-	child.pid = child.tid = fork();
-	if (child.pid < 0) {
-		release_child(&child);
+	child->pid = child->tid = fork();
+	if (child->pid < 0) {
+		release_child(child);
 		errno = EINVAL;
-		return NULL;
+		return -1;
 	}
 
 	/* child */
-	if (child.pid == 0) {
-		close(child.go[1]);
+	if (child->pid == 0) {
+		close(child->go[1]);
 
 		/* wait for parent's kick */
-		err = read(child.go[0], &c, 1);
+		err = read(child->go[0], &c, 1);
 		if (err != 1)
 			exit(err);
 
@@ -102,7 +100,7 @@ static struct child *spawn_child(void)
 		exit(errno);
 	}
 
-	return &child;
+	return 0;
 }
 
 static void *child_thread(void *ctx)
@@ -131,39 +129,38 @@ static void *child_thread(void *ctx)
 	pthread_exit(&err);
 }
 
-static struct child *spawn_thread(void)
+static int spawn_thread(struct child *child)
 {
-	static struct child child;
 	int c, err;
 
 	/* pipe to notify child to execute the trigger functions */
-	if (pipe(child.go))
-		return NULL;
+	if (pipe(child->go))
+		return -1;
 	/* pipe to notify parent that child thread is ready */
-	if (pipe(child.c2p)) {
-		close(child.go[0]);
-		close(child.go[1]);
-		return NULL;
+	if (pipe(child->c2p)) {
+		close(child->go[0]);
+		close(child->go[1]);
+		return -1;
 	}
 
-	child.pid = getpid();
+	child->pid = getpid();
 
-	err = pthread_create(&child.thread, NULL, child_thread, &child);
+	err = pthread_create(&child->thread, NULL, child_thread, child);
 	if (err) {
 		err = -errno;
-		close(child.go[0]);
-		close(child.go[1]);
-		close(child.c2p[0]);
-		close(child.c2p[1]);
+		close(child->go[0]);
+		close(child->go[1]);
+		close(child->c2p[0]);
+		close(child->c2p[1]);
 		errno = -err;
-		return NULL;
+		return -1;
 	}
 
-	err = read(child.c2p[0], &c, 1);
+	err = read(child->c2p[0], &c, 1);
 	if (!ASSERT_EQ(err, 1, "child_thread_ready"))
-		return NULL;
+		return -1;
 
-	return &child;
+	return 0;
 }
 
 static void uprobe_multi_test_run(struct uprobe_multi *skel, struct child *child)
@@ -304,24 +301,22 @@ cleanup:
 static void
 test_attach_api(const char *binary, const char *pattern, struct bpf_uprobe_multi_opts *opts)
 {
-	struct child *child;
+	static struct child child;
 
 	/* no pid filter */
 	__test_attach_api(binary, pattern, opts, NULL);
 
 	/* pid filter */
-	child = spawn_child();
-	if (!ASSERT_OK_PTR(child, "spawn_child"))
+	if (!ASSERT_OK(spawn_child(&child), "spawn_child"))
 		return;
 
-	__test_attach_api(binary, pattern, opts, child);
+	__test_attach_api(binary, pattern, opts, &child);
 
 	/* pid filter (thread) */
-	child = spawn_thread();
-	if (!ASSERT_OK_PTR(child, "spawn_thread"))
+	if (!ASSERT_OK(spawn_thread(&child), "spawn_thread"))
 		return;
 
-	__test_attach_api(binary, pattern, opts, child);
+	__test_attach_api(binary, pattern, opts, &child);
 }
 
 static void test_attach_api_pattern(void)
@@ -712,24 +707,22 @@ cleanup:
 
 static void test_link_api(void)
 {
-	struct child *child;
+	static struct child child;
 
 	/* no pid filter */
 	__test_link_api(NULL);
 
 	/* pid filter */
-	child = spawn_child();
-	if (!ASSERT_OK_PTR(child, "spawn_child"))
+	if (!ASSERT_OK(spawn_child(&child), "spawn_child"))
 		return;
 
-	__test_link_api(child);
+	__test_link_api(&child);
 
 	/* pid filter (thread) */
-	child = spawn_thread();
-	if (!ASSERT_OK_PTR(child, "spawn_thread"))
+	if (!ASSERT_OK(spawn_thread(&child), "spawn_thread"))
 		return;
 
-	__test_link_api(child);
+	__test_link_api(&child);
 }
 
 static struct bpf_program *
