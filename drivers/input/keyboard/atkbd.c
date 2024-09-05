@@ -713,9 +713,9 @@ static int atkbd_event(struct input_dev *dev,
 
 static inline void atkbd_enable(struct atkbd *atkbd)
 {
-	serio_pause_rx(atkbd->ps2dev.serio);
+	guard(serio_pause_rx)(atkbd->ps2dev.serio);
+
 	atkbd->enabled = true;
-	serio_continue_rx(atkbd->ps2dev.serio);
 }
 
 /*
@@ -725,9 +725,9 @@ static inline void atkbd_enable(struct atkbd *atkbd)
 
 static inline void atkbd_disable(struct atkbd *atkbd)
 {
-	serio_pause_rx(atkbd->ps2dev.serio);
+	guard(serio_pause_rx)(atkbd->ps2dev.serio);
+
 	atkbd->enabled = false;
-	serio_continue_rx(atkbd->ps2dev.serio);
 }
 
 static int atkbd_activate(struct atkbd *atkbd)
