@@ -111,13 +111,20 @@ static sector_t bio_write_zeroes_limit(struct block_device *bdev)
 		(UINT_MAX >> SECTOR_SHIFT) & ~bs_mask);
 }
 
+/*
+ * There is no reliable way for the SCSI subsystem to determine whether a
+ * device supports a WRITE SAME operation without actually performing a write
+ * to media. As a result, write_zeroes is enabled by default and will be
+ * disabled if a zeroing operation subsequently fails. This means that this
+ * queue limit is likely to change at runtime.
+ */
 static void __blkdev_issue_write_zeroes(struct block_device *bdev,
 		sector_t sector, sector_t nr_sects, gfp_t gfp_mask,
-		struct bio **biop, unsigned flags)
+		struct bio **biop, unsigned flags, sector_t limit)
 {
+
 	while (nr_sects) {
-		unsigned int len = min_t(sector_t, nr_sects,
-				bio_write_zeroes_limit(bdev));
+		unsigned int len = min(nr_sects, limit);
 		struct bio *bio;
 
 		if ((flags & BLKDEV_ZERO_KILLABLE) &&
@@ -141,12 +148,14 @@ static void __blkdev_issue_write_zeroes(struct block_device *bdev,
 static int blkdev_issue_write_zeroes(struct block_device *bdev, sector_t sector,
 		sector_t nr_sects, gfp_t gfp, unsigned flags)
 {
+	sector_t limit = bio_write_zeroes_limit(bdev);
 	struct bio *bio = NULL;
 	struct blk_plug plug;
 	int ret = 0;
 
 	blk_start_plug(&plug);
-	__blkdev_issue_write_zeroes(bdev, sector, nr_sects, gfp, &bio, flags);
+	__blkdev_issue_write_zeroes(bdev, sector, nr_sects, gfp, &bio,
+			flags, limit);
 	if (bio) {
 		if ((flags & BLKDEV_ZERO_KILLABLE) &&
 		    fatal_signal_pending(current)) {
@@ -165,7 +174,7 @@ static int blkdev_issue_write_zeroes(struct block_device *bdev, sector_t sector,
 	 * on an I/O error, in which case we'll turn any error into
 	 * "not supported" here.
 	 */
-	if (ret && !bdev_write_zeroes_sectors(bdev))
+	if (ret && !limit)
 		return -EOPNOTSUPP;
 	return ret;
 }
@@ -265,12 +274,14 @@ int __blkdev_issue_zeroout(struct block_device *bdev, sector_t sector,
 		sector_t nr_sects, gfp_t gfp_mask, struct bio **biop,
 		unsigned flags)
 {
+	sector_t limit = bio_write_zeroes_limit(bdev);
+
 	if (bdev_read_only(bdev))
 		return -EPERM;
 
-	if (bdev_write_zeroes_sectors(bdev)) {
+	if (limit) {
 		__blkdev_issue_write_zeroes(bdev, sector, nr_sects,
-				gfp_mask, biop, flags);
+				gfp_mask, biop, flags, limit);
 	} else {
 		if (flags & BLKDEV_ZERO_NOFALLBACK)
 			return -EOPNOTSUPP;

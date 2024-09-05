@@ -550,4 +550,5 @@ void ccwgroup_remove_ccwdev(struct ccw_device *cdev)
 	put_device(&gdev->dev);
 }
 EXPORT_SYMBOL(ccwgroup_remove_ccwdev);
+MODULE_DESCRIPTION("ccwgroup bus driver");
 MODULE_LICENSE("GPL");

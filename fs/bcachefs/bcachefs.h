@@ -447,6 +447,7 @@ BCH_DEBUG_PARAMS_DEBUG()
 	x(blocked_journal_low_on_space)		\
 	x(blocked_journal_low_on_pin)		\
 	x(blocked_journal_max_in_flight)	\
+	x(blocked_key_cache_flush)		\
 	x(blocked_allocate)			\
 	x(blocked_allocate_open_bucket)		\
 	x(blocked_write_buffer_full)		\
@@ -892,6 +893,8 @@ struct bch_fs {
 	seqcount_t			usage_lock;
 	struct bch_fs_usage_base __percpu *usage;
 	u64 __percpu		*online_reserved;
+
+	unsigned long		allocator_last_stuck;
 
 	struct io_clock		io_clock[2];
 

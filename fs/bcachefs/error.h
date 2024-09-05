@@ -4,6 +4,7 @@
 
 #include <linux/list.h>
 #include <linux/printk.h>
+#include "bkey_types.h"
 #include "sb-errors.h"
 
 struct bch_dev;
@@ -166,24 +167,30 @@ void bch2_flush_fsck_errs(struct bch_fs *);
 #define fsck_err_on(cond, c, _err_type, ...)				\
 	__fsck_err_on(cond, c, FSCK_CAN_FIX|FSCK_CAN_IGNORE, _err_type, __VA_ARGS__)
 
-__printf(4, 0)
-static inline void bch2_bkey_fsck_err(struct bch_fs *c,
-				     struct printbuf *err_msg,
-				     enum bch_sb_error_id err_type,
-				     const char *fmt, ...)
-{
-	va_list args;
+__printf(5, 6)
+int __bch2_bkey_fsck_err(struct bch_fs *,
+			 struct bkey_s_c,
+			 enum bch_fsck_flags,
+			 enum bch_sb_error_id,
+			 const char *, ...);
 
-	va_start(args, fmt);
-	prt_vprintf(err_msg, fmt, args);
-	va_end(args);
-}
-
-#define bkey_fsck_err(c, _err_msg, _err_type, ...)			\
+/*
+ * for now, bkey fsck errors are always handled by deleting the entire key -
+ * this will change at some point
+ */
+#define bkey_fsck_err(c, _err_type, _err_msg, ...)			\
 do {									\
-	prt_printf(_err_msg, __VA_ARGS__);				\
-	bch2_sb_error_count(c, BCH_FSCK_ERR_##_err_type);		\
-	ret = -BCH_ERR_invalid_bkey;					\
+	if ((flags & BCH_VALIDATE_silent)) {				\
+		ret = -BCH_ERR_fsck_delete_bkey;			\
+		goto fsck_err;						\
+	}								\
+	int _ret = __bch2_bkey_fsck_err(c, k, FSCK_CAN_FIX,		\
+				BCH_FSCK_ERR_##_err_type,		\
+				_err_msg, ##__VA_ARGS__);		\
+	if (_ret != -BCH_ERR_fsck_fix &&				\
+	    _ret != -BCH_ERR_fsck_ignore)				\
+		ret = _ret;						\
+	ret = -BCH_ERR_fsck_delete_bkey;				\
 	goto fsck_err;							\
 } while (0)
 

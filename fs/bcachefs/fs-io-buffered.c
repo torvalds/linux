@@ -534,7 +534,7 @@ do_io:
 
 	if (f_sectors > w->tmp_sectors) {
 		kfree(w->tmp);
-		w->tmp = kcalloc(f_sectors, sizeof(struct bch_folio_sector), __GFP_NOFAIL);
+		w->tmp = kcalloc(f_sectors, sizeof(struct bch_folio_sector), GFP_NOFS|__GFP_NOFAIL);
 		w->tmp_sectors = f_sectors;
 	}
 

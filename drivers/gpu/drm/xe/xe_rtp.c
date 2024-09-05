@@ -231,7 +231,7 @@ static void rtp_mark_active(struct xe_device *xe,
 	if (first == last)
 		bitmap_set(ctx->active_entries, first, 1);
 	else
-		bitmap_set(ctx->active_entries, first, last - first + 2);
+		bitmap_set(ctx->active_entries, first, last - first + 1);
 }
 
 /**
