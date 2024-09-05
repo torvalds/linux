@@ -351,26 +351,6 @@ out_unlock:
 }
 EXPORT_SYMBOL(__kmem_cache_create_args);
 
-static struct kmem_cache *
-do_kmem_cache_create_usercopy(const char *name,
-                 unsigned int size, unsigned int freeptr_offset,
-                 unsigned int align, slab_flags_t flags,
-                 unsigned int useroffset, unsigned int usersize,
-                 void (*ctor)(void *))
-{
-	struct kmem_cache_args kmem_args = {
-		.align			= align,
-		.use_freeptr_offset	= freeptr_offset != UINT_MAX,
-		.freeptr_offset		= freeptr_offset,
-		.useroffset		= useroffset,
-		.usersize		= usersize,
-		.ctor			= ctor,
-	};
-
-	return __kmem_cache_create_args(name, size, &kmem_args, flags);
-}
-
-
 /**
  * kmem_cache_create_usercopy - Create a cache with a region suitable
  * for copying to userspace
@@ -405,8 +385,14 @@ kmem_cache_create_usercopy(const char *name, unsigned int size,
 			   unsigned int useroffset, unsigned int usersize,
 			   void (*ctor)(void *))
 {
-	return do_kmem_cache_create_usercopy(name, size, UINT_MAX, align, flags,
-					     useroffset, usersize, ctor);
+	struct kmem_cache_args kmem_args = {
+		.align		= align,
+		.ctor		= ctor,
+		.useroffset	= useroffset,
+		.usersize	= usersize,
+	};
+
+	return __kmem_cache_create_args(name, size, &kmem_args, flags);
 }
 EXPORT_SYMBOL(kmem_cache_create_usercopy);
 
