@@ -26,6 +26,7 @@ properties:
     items:
       - enum:
           - qcom,qdu1000-aoss-qmp
+          - qcom,sa8255p-aoss-qmp
           - qcom,sa8775p-aoss-qmp
           - qcom,sar2130p-aoss-qmp
           - qcom,sc7180-aoss-qmp
