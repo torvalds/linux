@@ -47,12 +47,34 @@
 	constant-charge-voltage-max-microvolt = <4400000>;
 };
 
+&blsp_i2c5 {
+	status = "okay";
+
+	touchscreen@50 {
+		compatible = "imagis,ist3038";
+		reg = <0x50>;
+
+		interrupts-extended = <&tlmm 13 IRQ_TYPE_EDGE_FALLING>;
+
+		touchscreen-size-x = <720>;
+		touchscreen-size-y = <1280>;
+
+		vdd-supply = <&reg_vdd_tsp_a>;
+		vddio-supply = <&pm8916_l6>;
+
+		pinctrl-0 = <&ts_int_default>;
+		pinctrl-names = "default";
+
+		linux,keycodes = <KEY_APPSELECT KEY_BACK>;
+	};
+};
+
 &reg_motor_vdd {
 	gpio = <&tlmm 72 GPIO_ACTIVE_HIGH>;
 };
 
 &reg_touch_key {
-	status = "disabled";
+	status = "disabled"; /* Using Imagis touch key */
 };
 
 &sound {
