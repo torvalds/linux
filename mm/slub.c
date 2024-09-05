@@ -3916,8 +3916,7 @@ static void *__slab_alloc_node(struct kmem_cache *s,
  * If the object has been wiped upon free, make sure it's fully initialized by
  * zeroing out freelist pointer.
  *
- * Note that we also wipe custom freelist pointers specified via
- * s->rcu_freeptr_offset.
+ * Note that we also wipe custom freelist pointers.
  */
 static __always_inline void maybe_wipe_obj_freeptr(struct kmem_cache *s,
 						   void *obj)
@@ -5141,17 +5140,11 @@ static void set_cpu_partial(struct kmem_cache *s)
 #endif
 }
 
-/* Was a valid freeptr offset requested? */
-static inline bool has_freeptr_offset(const struct kmem_cache *s)
-{
-	return s->rcu_freeptr_offset != UINT_MAX;
-}
-
 /*
  * calculate_sizes() determines the order and the distribution of data within
  * a slab object.
  */
-static int calculate_sizes(struct kmem_cache *s)
+static int calculate_sizes(struct kmem_cache_args *args, struct kmem_cache *s)
 {
 	slab_flags_t flags = s->flags;
 	unsigned int size = s->object_size;
@@ -5192,7 +5185,7 @@ static int calculate_sizes(struct kmem_cache *s)
 	 */
 	s->inuse = size;
 
-	if (((flags & SLAB_TYPESAFE_BY_RCU) && !has_freeptr_offset(s)) ||
+	if (((flags & SLAB_TYPESAFE_BY_RCU) && !args->use_freeptr_offset) ||
 	    (flags & SLAB_POISON) || s->ctor ||
 	    ((flags & SLAB_RED_ZONE) &&
 	     (s->object_size < sizeof(void *) || slub_debug_orig_size(s)))) {
@@ -5214,8 +5207,8 @@ static int calculate_sizes(struct kmem_cache *s)
 		 */
 		s->offset = size;
 		size += sizeof(void *);
-	} else if ((flags & SLAB_TYPESAFE_BY_RCU) && has_freeptr_offset(s)) {
-		s->offset = s->rcu_freeptr_offset;
+	} else if ((flags & SLAB_TYPESAFE_BY_RCU) && args->use_freeptr_offset) {
+		s->offset = args->freeptr_offset;
 	} else {
 		/*
 		 * Store freelist pointer near middle of object to keep
@@ -5856,10 +5849,6 @@ int do_kmem_cache_create(struct kmem_cache *s, const char *name,
 #ifdef CONFIG_SLAB_FREELIST_HARDENED
 	s->random = get_random_long();
 #endif
-	if (args->use_freeptr_offset)
-		s->rcu_freeptr_offset = args->freeptr_offset;
-	else
-		s->rcu_freeptr_offset = UINT_MAX;
 	s->align = args->align;
 	s->ctor = args->ctor;
 #ifdef CONFIG_HARDENED_USERCOPY
@@ -5867,7 +5856,7 @@ int do_kmem_cache_create(struct kmem_cache *s, const char *name,
 	s->usersize = args->usersize;
 #endif
 
-	if (!calculate_sizes(s))
+	if (!calculate_sizes(args, s))
 		goto out;
 	if (disable_higher_order_debug) {
 		/*
@@ -5877,7 +5866,7 @@ int do_kmem_cache_create(struct kmem_cache *s, const char *name,
 		if (get_order(s->size) > get_order(s->object_size)) {
 			s->flags &= ~DEBUG_METADATA_FLAGS;
 			s->offset = 0;
-			if (!calculate_sizes(s))
+			if (!calculate_sizes(args, s))
 				goto out;
 		}
 	}
