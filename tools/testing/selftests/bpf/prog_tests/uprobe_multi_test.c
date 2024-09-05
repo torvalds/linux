@@ -7,6 +7,7 @@
 #include "uprobe_multi_bench.skel.h"
 #include "uprobe_multi_usdt.skel.h"
 #include "uprobe_multi_consumers.skel.h"
+#include "uprobe_multi_pid_filter.skel.h"
 #include "bpf/libbpf_internal.h"
 #include "testing_helpers.h"
 #include "../sdt.h"
@@ -935,6 +936,70 @@ static void test_consumers(void)
 	uprobe_multi_consumers__destroy(skel);
 }
 
+static struct bpf_program *uprobe_multi_program(struct uprobe_multi_pid_filter *skel, int idx)
+{
+	switch (idx) {
+	case 0: return skel->progs.uprobe_multi_0;
+	case 1: return skel->progs.uprobe_multi_1;
+	case 2: return skel->progs.uprobe_multi_2;
+	}
+	return NULL;
+}
+
+#define TASKS 3
+
+static void run_pid_filter(struct uprobe_multi_pid_filter *skel, bool retprobe)
+{
+	LIBBPF_OPTS(bpf_uprobe_multi_opts, opts, .retprobe = retprobe);
+	struct bpf_link *link[TASKS] = {};
+	struct child child[TASKS] = {};
+	int i;
+
+	memset(skel->bss->test, 0, sizeof(skel->bss->test));
+
+	for (i = 0; i < TASKS; i++) {
+		if (!ASSERT_OK(spawn_child(&child[i]), "spawn_child"))
+			goto cleanup;
+		skel->bss->pids[i] = child[i].pid;
+	}
+
+	for (i = 0; i < TASKS; i++) {
+		link[i] = bpf_program__attach_uprobe_multi(uprobe_multi_program(skel, i),
+							   child[i].pid, "/proc/self/exe",
+							   "uprobe_multi_func_1", &opts);
+		if (!ASSERT_OK_PTR(link[i], "bpf_program__attach_uprobe_multi"))
+			goto cleanup;
+	}
+
+	for (i = 0; i < TASKS; i++)
+		kick_child(&child[i]);
+
+	for (i = 0; i < TASKS; i++) {
+		ASSERT_EQ(skel->bss->test[i][0], 1, "pid");
+		ASSERT_EQ(skel->bss->test[i][1], 0, "unknown");
+	}
+
+cleanup:
+	for (i = 0; i < TASKS; i++)
+		bpf_link__destroy(link[i]);
+	for (i = 0; i < TASKS; i++)
+		release_child(&child[i]);
+}
+
+static void test_pid_filter_process(void)
+{
+	struct uprobe_multi_pid_filter *skel;
+
+	skel = uprobe_multi_pid_filter__open_and_load();
+	if (!ASSERT_OK_PTR(skel, "uprobe_multi_pid_filter__open_and_load"))
+		return;
+
+	run_pid_filter(skel, false);
+	run_pid_filter(skel, true);
+
+	uprobe_multi_pid_filter__destroy(skel);
+}
+
 static void test_bench_attach_uprobe(void)
 {
 	long attach_start_ns = 0, attach_end_ns = 0;
@@ -1027,4 +1092,6 @@ void test_uprobe_multi_test(void)
 		test_attach_uprobe_fails();
 	if (test__start_subtest("consumers"))
 		test_consumers();
+	if (test__start_subtest("filter_fork"))
+		test_pid_filter_process();
 }
