@@ -974,4 +974,68 @@ TEST(datagram_sockets)
 		_metadata->exit_code = KSFT_FAIL;
 }
 
+TEST(self_connect)
+{
+	struct service_fixture connected_addr, non_connected_addr;
+	int connected_socket, non_connected_socket, status;
+	pid_t child;
+
+	drop_caps(_metadata);
+	memset(&connected_addr, 0, sizeof(connected_addr));
+	set_unix_address(&connected_addr, 0);
+	memset(&non_connected_addr, 0, sizeof(non_connected_addr));
+	set_unix_address(&non_connected_addr, 1);
+
+	connected_socket = socket(AF_UNIX, SOCK_DGRAM, 0);
+	non_connected_socket = socket(AF_UNIX, SOCK_DGRAM, 0);
+	ASSERT_LE(0, connected_socket);
+	ASSERT_LE(0, non_connected_socket);
+
+	ASSERT_EQ(0, bind(connected_socket, &connected_addr.unix_addr,
+			  connected_addr.unix_addr_len));
+	ASSERT_EQ(0, bind(non_connected_socket, &non_connected_addr.unix_addr,
+			  non_connected_addr.unix_addr_len));
+
+	child = fork();
+	ASSERT_LE(0, child);
+	if (child == 0) {
+		/* Child's domain is scoped. */
+		create_scoped_domain(_metadata,
+				     LANDLOCK_SCOPE_ABSTRACT_UNIX_SOCKET);
+
+		/*
+		 * The child inherits the sockets, and cannot connect or
+		 * send data to them.
+		 */
+		ASSERT_EQ(-1,
+			  connect(connected_socket, &connected_addr.unix_addr,
+				  connected_addr.unix_addr_len));
+		ASSERT_EQ(EPERM, errno);
+
+		ASSERT_EQ(-1, sendto(connected_socket, ".", 1, 0,
+				     &connected_addr.unix_addr,
+				     connected_addr.unix_addr_len));
+		ASSERT_EQ(EPERM, errno);
+
+		ASSERT_EQ(-1, sendto(non_connected_socket, ".", 1, 0,
+				     &non_connected_addr.unix_addr,
+				     non_connected_addr.unix_addr_len));
+		ASSERT_EQ(EPERM, errno);
+
+		EXPECT_EQ(0, close(connected_socket));
+		EXPECT_EQ(0, close(non_connected_socket));
+		_exit(_metadata->exit_code);
+		return;
+	}
+
+	/* Waits for all tests to finish. */
+	ASSERT_EQ(child, waitpid(child, &status, 0));
+	EXPECT_EQ(0, close(connected_socket));
+	EXPECT_EQ(0, close(non_connected_socket));
+
+	if (WIFSIGNALED(status) || !WIFEXITED(status) ||
+	    WEXITSTATUS(status) != EXIT_SUCCESS)
+		_metadata->exit_code = KSFT_FAIL;
+}
+
 TEST_HARNESS_MAIN
