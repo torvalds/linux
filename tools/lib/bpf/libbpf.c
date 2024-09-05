@@ -1848,7 +1848,7 @@ static char *internal_map_name(struct bpf_object *obj, const char *real_name)
 	snprintf(map_name, sizeof(map_name), "%.*s%.*s", pfx_len, obj->name,
 		 sfx_len, real_name);
 
-	/* sanitise map name to characters allowed by kernel */
+	/* sanities map name to characters allowed by kernel */
 	for (p = map_name; *p && p < map_name + sizeof(map_name); p++)
 		if (!isalnum(*p) && *p != '_' && *p != '.')
 			*p = '_';
