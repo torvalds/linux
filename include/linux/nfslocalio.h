@@ -61,6 +61,10 @@ struct nfsd_localio_operations {
 extern void nfsd_localio_ops_init(void);
 extern const struct nfsd_localio_operations *nfs_to;
 
+struct nfsd_file *nfs_open_local_fh(nfs_uuid_t *,
+		   struct rpc_clnt *, const struct cred *,
+		   const struct nfs_fh *, const fmode_t);
+
 #else   /* CONFIG_NFS_LOCALIO */
 static inline void nfsd_localio_ops_init(void)
 {
