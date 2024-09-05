@@ -126,14 +126,6 @@ static int lan966x_fdma_rx_alloc(struct lan966x_rx *rx)
 	return 0;
 }
 
-static void lan966x_fdma_rx_advance_dcb(struct lan966x_rx *rx)
-{
-	struct fdma *fdma = &rx->fdma;
-
-	fdma->dcb_index++;
-	fdma->dcb_index &= fdma->n_dcbs - 1;
-}
-
 static void lan966x_fdma_rx_start(struct lan966x_rx *rx)
 {
 	struct lan966x *lan966x = rx->lan966x;
@@ -355,8 +347,8 @@ static void lan966x_fdma_tx_clear_buf(struct lan966x *lan966x, int weight)
 		if (!dcb_buf->used)
 			continue;
 
-		db = &fdma->dcbs[i].db[0];
-		if (!(db->status & FDMA_DCB_STATUS_DONE))
+		db = fdma_db_get(fdma, i, 0);
+		if (!fdma_db_is_done(db))
 			continue;
 
 		dcb_buf->dev->stats.tx_packets++;
@@ -396,19 +388,6 @@ static void lan966x_fdma_tx_clear_buf(struct lan966x *lan966x, int weight)
 	spin_unlock_irqrestore(&lan966x->tx_lock, flags);
 }
 
-static bool lan966x_fdma_rx_more_frames(struct lan966x_rx *rx)
-{
-	struct fdma *fdma = &rx->fdma;
-	struct fdma_db *db;
-
-	/* Check if there is any data */
-	db = &fdma->dcbs[fdma->dcb_index].db[fdma->db_index];
-	if (unlikely(!(db->status & FDMA_DCB_STATUS_DONE)))
-		return false;
-
-	return true;
-}
-
 static int lan966x_fdma_rx_check_frame(struct lan966x_rx *rx, u64 *src_port)
 {
 	struct lan966x *lan966x = rx->lan966x;
@@ -417,7 +396,7 @@ static int lan966x_fdma_rx_check_frame(struct lan966x_rx *rx, u64 *src_port)
 	struct fdma_db *db;
 	struct page *page;
 
-	db = &fdma->dcbs[fdma->dcb_index].db[fdma->db_index];
+	db = fdma_db_next_get(fdma);
 	page = rx->page[fdma->dcb_index][fdma->db_index];
 	if (unlikely(!page))
 		return FDMA_ERROR;
@@ -450,7 +429,7 @@ static struct sk_buff *lan966x_fdma_rx_get_frame(struct lan966x_rx *rx,
 	u64 timestamp;
 
 	/* Get the received frame and unmap it */
-	db = &fdma->dcbs[fdma->dcb_index].db[fdma->db_index];
+	db = fdma_db_next_get(fdma);
 	page = rx->page[fdma->dcb_index][fdma->db_index];
 
 	skb = build_skb(page_address(page), fdma->db_size);
@@ -508,7 +487,7 @@ static int lan966x_fdma_napi_poll(struct napi_struct *napi, int weight)
 
 	/* Get all received skb */
 	while (counter < weight) {
-		if (!lan966x_fdma_rx_more_frames(rx))
+		if (!fdma_has_frames(fdma))
 			break;
 
 		counter++;
@@ -518,22 +497,22 @@ static int lan966x_fdma_napi_poll(struct napi_struct *napi, int weight)
 			break;
 		case FDMA_ERROR:
 			lan966x_fdma_rx_free_page(rx);
-			lan966x_fdma_rx_advance_dcb(rx);
+			fdma_dcb_advance(fdma);
 			goto allocate_new;
 		case FDMA_REDIRECT:
 			redirect = true;
 			fallthrough;
 		case FDMA_TX:
-			lan966x_fdma_rx_advance_dcb(rx);
+			fdma_dcb_advance(fdma);
 			continue;
 		case FDMA_DROP:
 			lan966x_fdma_rx_free_page(rx);
-			lan966x_fdma_rx_advance_dcb(rx);
+			fdma_dcb_advance(fdma);
 			continue;
 		}
 
 		skb = lan966x_fdma_rx_get_frame(rx, src_port);
-		lan966x_fdma_rx_advance_dcb(rx);
+		fdma_dcb_advance(fdma);
 		if (!skb)
 			goto allocate_new;
 
@@ -597,7 +576,8 @@ static int lan966x_fdma_get_next_dcb(struct lan966x_tx *tx)
 
 	for (i = 0; i < fdma->n_dcbs; ++i) {
 		dcb_buf = &tx->dcbs_buf[i];
-		if (!dcb_buf->used && &fdma->dcbs[i] != fdma->last_dcb)
+		if (!dcb_buf->used &&
+		    !fdma_is_last(&tx->fdma, &tx->fdma.dcbs[i]))
 			return i;
 	}
 
