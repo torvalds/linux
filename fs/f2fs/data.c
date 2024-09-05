@@ -1712,6 +1712,14 @@ skip:
 		dn.ofs_in_node = end_offset;
 	}
 
+	if (flag == F2FS_GET_BLOCK_DIO && f2fs_lfs_mode(sbi) &&
+	    map->m_may_create) {
+		/* the next block to be allocated may not be contiguous. */
+		if (GET_SEGOFF_FROM_SEG0(sbi, blkaddr) % BLKS_PER_SEC(sbi) ==
+		    CAP_BLKS_PER_SEC(sbi) - 1)
+			goto sync_out;
+	}
+
 	if (pgofs >= end)
 		goto sync_out;
 	else if (dn.ofs_in_node < end_offset)
