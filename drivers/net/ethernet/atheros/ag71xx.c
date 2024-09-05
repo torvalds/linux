@@ -2033,4 +2033,5 @@ static struct platform_driver ag71xx_driver = {
 };
 
 module_platform_driver(ag71xx_driver);
+MODULE_DESCRIPTION("Atheros AR71xx built-in ethernet mac driver");
 MODULE_LICENSE("GPL v2");
