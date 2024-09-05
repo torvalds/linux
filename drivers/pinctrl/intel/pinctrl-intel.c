@@ -132,7 +132,8 @@ struct intel_community_context {
 	for_each_intel_pad_group(pctrl, community, grp)			\
 		if (grp->gpio_base == INTEL_GPIO_BASE_NOMAP) {} else
 
-const struct intel_community *intel_get_community(struct intel_pinctrl *pctrl, unsigned int pin)
+const struct intel_community *intel_get_community(const struct intel_pinctrl *pctrl,
+						  unsigned int pin)
 {
 	const struct intel_community *community;
 
@@ -181,7 +182,7 @@ static void __iomem *intel_get_padcfg(struct intel_pinctrl *pctrl,
 	return community->pad_regs + reg + padno * nregs * 4;
 }
 
-static bool intel_pad_owned_by_host(struct intel_pinctrl *pctrl, unsigned int pin)
+static bool intel_pad_owned_by_host(const struct intel_pinctrl *pctrl, unsigned int pin)
 {
 	const struct intel_community *community;
 	const struct intel_padgroup *padgrp;
@@ -206,7 +207,7 @@ static bool intel_pad_owned_by_host(struct intel_pinctrl *pctrl, unsigned int pi
 	return !(readl(padown) & PADOWN_MASK(gpp_offset));
 }
 
-static bool intel_pad_acpi_mode(struct intel_pinctrl *pctrl, unsigned int pin)
+static bool intel_pad_acpi_mode(const struct intel_pinctrl *pctrl, unsigned int pin)
 {
 	const struct intel_community *community;
 	const struct intel_padgroup *padgrp;
@@ -248,7 +249,7 @@ enum {
 	PAD_LOCKED_FULL	= PAD_LOCKED | PAD_LOCKED_TX,
 };
 
-static int intel_pad_locked(struct intel_pinctrl *pctrl, unsigned int pin)
+static int intel_pad_locked(const struct intel_pinctrl *pctrl, unsigned int pin)
 {
 	const struct intel_community *community;
 	const struct intel_padgroup *padgrp;
@@ -286,19 +287,19 @@ static int intel_pad_locked(struct intel_pinctrl *pctrl, unsigned int pin)
 	return ret;
 }
 
-static bool intel_pad_is_unlocked(struct intel_pinctrl *pctrl, unsigned int pin)
+static bool intel_pad_is_unlocked(const struct intel_pinctrl *pctrl, unsigned int pin)
 {
 	return (intel_pad_locked(pctrl, pin) & PAD_LOCKED) == PAD_UNLOCKED;
 }
 
-static bool intel_pad_usable(struct intel_pinctrl *pctrl, unsigned int pin)
+static bool intel_pad_usable(const struct intel_pinctrl *pctrl, unsigned int pin)
 {
 	return intel_pad_owned_by_host(pctrl, pin) && intel_pad_is_unlocked(pctrl, pin);
 }
 
 int intel_get_groups_count(struct pinctrl_dev *pctldev)
 {
-	struct intel_pinctrl *pctrl = pinctrl_dev_get_drvdata(pctldev);
+	const struct intel_pinctrl *pctrl = pinctrl_dev_get_drvdata(pctldev);
 
 	return pctrl->soc->ngroups;
 }
@@ -306,7 +307,7 @@ EXPORT_SYMBOL_NS_GPL(intel_get_groups_count, PINCTRL_INTEL);
 
 const char *intel_get_group_name(struct pinctrl_dev *pctldev, unsigned int group)
 {
-	struct intel_pinctrl *pctrl = pinctrl_dev_get_drvdata(pctldev);
+	const struct intel_pinctrl *pctrl = pinctrl_dev_get_drvdata(pctldev);
 
 	return pctrl->soc->groups[group].grp.name;
 }
@@ -315,7 +316,7 @@ EXPORT_SYMBOL_NS_GPL(intel_get_group_name, PINCTRL_INTEL);
 int intel_get_group_pins(struct pinctrl_dev *pctldev, unsigned int group,
 			 const unsigned int **pins, unsigned int *npins)
 {
-	struct intel_pinctrl *pctrl = pinctrl_dev_get_drvdata(pctldev);
+	const struct intel_pinctrl *pctrl = pinctrl_dev_get_drvdata(pctldev);
 
 	*pins = pctrl->soc->groups[group].grp.pins;
 	*npins = pctrl->soc->groups[group].grp.npins;
@@ -383,7 +384,7 @@ static const struct pinctrl_ops intel_pinctrl_ops = {
 
 int intel_get_functions_count(struct pinctrl_dev *pctldev)
 {
-	struct intel_pinctrl *pctrl = pinctrl_dev_get_drvdata(pctldev);
+	const struct intel_pinctrl *pctrl = pinctrl_dev_get_drvdata(pctldev);
 
 	return pctrl->soc->nfunctions;
 }
@@ -391,7 +392,7 @@ EXPORT_SYMBOL_NS_GPL(intel_get_functions_count, PINCTRL_INTEL);
 
 const char *intel_get_function_name(struct pinctrl_dev *pctldev, unsigned int function)
 {
-	struct intel_pinctrl *pctrl = pinctrl_dev_get_drvdata(pctldev);
+	const struct intel_pinctrl *pctrl = pinctrl_dev_get_drvdata(pctldev);
 
 	return pctrl->soc->functions[function].func.name;
 }
@@ -400,7 +401,7 @@ EXPORT_SYMBOL_NS_GPL(intel_get_function_name, PINCTRL_INTEL);
 int intel_get_function_groups(struct pinctrl_dev *pctldev, unsigned int function,
 			      const char * const **groups, unsigned int * const ngroups)
 {
-	struct intel_pinctrl *pctrl = pinctrl_dev_get_drvdata(pctldev);
+	const struct intel_pinctrl *pctrl = pinctrl_dev_get_drvdata(pctldev);
 
 	*groups = pctrl->soc->functions[function].func.groups;
 	*ngroups = pctrl->soc->functions[function].func.ngroups;
@@ -952,7 +953,7 @@ static const struct pinctrl_desc intel_pinctrl_desc = {
  * Return: a pin number and pointers to the community and pad group, which
  * the pin belongs to, or negative error code if translation can't be done.
  */
-static int intel_gpio_to_pin(struct intel_pinctrl *pctrl, unsigned int offset,
+static int intel_gpio_to_pin(const struct intel_pinctrl *pctrl, unsigned int offset,
 			     const struct intel_community **community,
 			     const struct intel_padgroup **padgrp)
 {
@@ -982,7 +983,7 @@ static int intel_gpio_to_pin(struct intel_pinctrl *pctrl, unsigned int offset,
  *
  * Return: a GPIO offset, or negative error code if translation can't be done.
  */
-static int intel_pin_to_gpio(struct intel_pinctrl *pctrl, int pin)
+static int intel_pin_to_gpio(const struct intel_pinctrl *pctrl, int pin)
 {
 	const struct intel_community *community;
 	const struct intel_padgroup *padgrp;
