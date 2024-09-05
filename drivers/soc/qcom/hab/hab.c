@@ -80,7 +80,7 @@ struct uhab_context *hab_ctx_alloc(int kernel)
 	ctx->closing = 0;
 	INIT_LIST_HEAD(&ctx->vchannels);
 	INIT_LIST_HEAD(&ctx->exp_whse);
-	INIT_LIST_HEAD(&ctx->imp_whse);
+	hab_rb_init(&ctx->imp_whse);
 
 	INIT_LIST_HEAD(&ctx->exp_rxq);
 	init_waitqueue_head(&ctx->exp_wq);
@@ -167,8 +167,11 @@ void hab_ctx_free_fn(struct uhab_context *ctx)
 	write_unlock(&ctx->exp_lock);
 
 	spin_lock_bh(&ctx->imp_lock);
-	list_for_each_entry_safe(exp, exp_tmp, &ctx->imp_whse, node) {
-		list_del(&exp->node);
+	for (exp_super = hab_rb_min(&ctx->imp_whse, struct export_desc_super, node);
+	     exp_super != NULL;
+	     exp_super = hab_rb_min(&ctx->imp_whse, struct export_desc_super, node)) {
+		exp = &exp_super->exp;
+		hab_rb_remove(&ctx->imp_whse, exp_super);
 		ctx->import_total--;
 		pr_debug("leaked imp %d vcid %X for ctx is collected total %d\n",
 			exp->export_id, exp->vcid_local,
