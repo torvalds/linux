@@ -481,9 +481,13 @@ struct kmem_cache *kmem_cache_create_rcu(const char *name, unsigned int size,
 					 unsigned int freeptr_offset,
 					 slab_flags_t flags)
 {
-	return do_kmem_cache_create_usercopy(name, size, freeptr_offset, 0,
-					     flags | SLAB_TYPESAFE_BY_RCU, 0, 0,
-					     NULL);
+	struct kmem_cache_args kmem_args = {
+		.freeptr_offset		= freeptr_offset,
+		.use_freeptr_offset	= true,
+	};
+
+	return __kmem_cache_create_args(name, size, &kmem_args,
+					flags | SLAB_TYPESAFE_BY_RCU);
 }
 EXPORT_SYMBOL(kmem_cache_create_rcu);
 
