@@ -191,17 +191,6 @@ enum vcap_is1_port_sel_rt {
 
 struct lan966x_port;
 
-struct lan966x_db {
-	u64 dataptr;
-	u64 status;
-};
-
-struct lan966x_tx_dcb {
-	u64 nextptr;
-	u64 info;
-	struct lan966x_db db[FDMA_TX_DCB_MAX_DBS];
-};
-
 struct lan966x_rx {
 	struct lan966x *lan966x;
 
@@ -243,12 +232,7 @@ struct lan966x_tx {
 
 	struct fdma fdma;
 
-	/* Pointer to the dcb list */
-	struct lan966x_tx_dcb *dcbs;
 	u16 last_in_use;
-
-	/* Represents the DMA address to the first entry of the dcb entries. */
-	dma_addr_t dma;
 
 	/* Array of dcbs that are given to the HW */
 	struct lan966x_tx_dcb_buf *dcbs_buf;
