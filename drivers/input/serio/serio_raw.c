@@ -29,7 +29,7 @@ struct serio_raw {
 	unsigned char queue[SERIO_RAW_QUEUE_LEN];
 	unsigned int tail, head;
 
-	char name[16];
+	char name[20];
 	struct kref kref;
 	struct serio *serio;
 	struct miscdevice dev;
@@ -277,7 +277,7 @@ static int serio_raw_connect(struct serio *serio, struct serio_driver *drv)
 	}
 
 	snprintf(serio_raw->name, sizeof(serio_raw->name),
-		 "serio_raw%ld", (long)atomic_inc_return(&serio_raw_no));
+		 "serio_raw%u", atomic_inc_return(&serio_raw_no));
 	kref_init(&serio_raw->kref);
 	INIT_LIST_HEAD(&serio_raw->client_list);
 	init_waitqueue_head(&serio_raw->wait);
