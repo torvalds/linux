@@ -707,10 +707,13 @@ irqreturn_t tcpci_irq(struct tcpci *tcpci)
 {
 	u16 status;
 	int ret;
+	int irq_ret;
 	unsigned int raw;
 
 	tcpci_read16(tcpci, TCPC_ALERT, &status);
+	irq_ret = status & tcpci->alert_mask;
 
+process_status:
 	/*
 	 * Clear alert status for everything except RX_STATUS, which shouldn't
 	 * be cleared until we have successfully retrieved message.
@@ -783,7 +786,12 @@ irqreturn_t tcpci_irq(struct tcpci *tcpci)
 	else if (status & TCPC_ALERT_TX_FAILED)
 		tcpm_pd_transmit_complete(tcpci->port, TCPC_TX_FAILED);
 
-	return IRQ_RETVAL(status & tcpci->alert_mask);
+	tcpci_read16(tcpci, TCPC_ALERT, &status);
+
+	if (status & tcpci->alert_mask)
+		goto process_status;
+
+	return IRQ_RETVAL(irq_ret);
 }
 EXPORT_SYMBOL_GPL(tcpci_irq);
 
@@ -915,20 +923,22 @@ static int tcpci_probe(struct i2c_client *client)
 
 	chip->data.set_orientation = err;
 
-	chip->tcpci = tcpci_register_port(&client->dev, &chip->data);
-	if (IS_ERR(chip->tcpci))
-		return PTR_ERR(chip->tcpci);
-
 	err = devm_request_threaded_irq(&client->dev, client->irq, NULL,
 					_tcpci_irq,
-					IRQF_SHARED | IRQF_ONESHOT | IRQF_TRIGGER_LOW,
+					IRQF_SHARED | IRQF_ONESHOT,
 					dev_name(&client->dev), chip);
-	if (err < 0) {
-		tcpci_unregister_port(chip->tcpci);
+	if (err < 0)
 		return err;
-	}
 
-	return 0;
+	/*
+	 * Disable irq while registering port. If irq is configured as an edge
+	 * irq this allow to keep track and process the irq as soon as it is enabled.
+	 */
+	disable_irq(client->irq);
+	chip->tcpci = tcpci_register_port(&client->dev, &chip->data);
+	enable_irq(client->irq);
+
+	return PTR_ERR_OR_ZERO(chip->tcpci);
 }
 
 static void tcpci_remove(struct i2c_client *client)
