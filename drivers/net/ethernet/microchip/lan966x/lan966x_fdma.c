@@ -33,6 +33,16 @@ static int lan966x_fdma_tx_dataptr_cb(struct fdma *fdma, int dcb, int db,
 	return 0;
 }
 
+static int lan966x_fdma_xdp_tx_dataptr_cb(struct fdma *fdma, int dcb, int db,
+					  u64 *dataptr)
+{
+	struct lan966x *lan966x = (struct lan966x *)fdma->priv;
+
+	*dataptr = lan966x->tx.dcbs_buf[dcb].dma_addr + XDP_PACKET_HEADROOM;
+
+	return 0;
+}
+
 static int lan966x_fdma_channel_active(struct lan966x *lan966x)
 {
 	return lan_rd(lan966x, FDMA_CH_ACTIVE);
@@ -600,25 +610,6 @@ static int lan966x_fdma_get_next_dcb(struct lan966x_tx *tx)
 	return -1;
 }
 
-static void lan966x_fdma_tx_setup_dcb(struct lan966x_tx *tx,
-				      int next_to_use, int len,
-				      dma_addr_t dma_addr)
-{
-	struct fdma_dcb *next_dcb;
-	struct fdma_db *next_db;
-
-	next_dcb = &tx->fdma.dcbs[next_to_use];
-	next_dcb->nextptr = FDMA_DCB_INVALID_DATA;
-
-	next_db = &next_dcb->db[0];
-	next_db->dataptr = dma_addr;
-	next_db->status = FDMA_DCB_STATUS_SOF |
-			  FDMA_DCB_STATUS_EOF |
-			  FDMA_DCB_STATUS_INTR |
-			  FDMA_DCB_STATUS_BLOCKO(0) |
-			  FDMA_DCB_STATUS_BLOCKL(len);
-}
-
 static void lan966x_fdma_tx_start(struct lan966x_tx *tx, int next_to_use)
 {
 	struct lan966x *lan966x = tx->lan966x;
@@ -692,11 +683,6 @@ int lan966x_fdma_xmit_xdpf(struct lan966x_port *port, void *ptr, u32 len)
 
 		next_dcb_buf->data.xdpf = xdpf;
 		next_dcb_buf->len = xdpf->len + IFH_LEN_BYTES;
-
-		/* Setup next dcb */
-		lan966x_fdma_tx_setup_dcb(tx, next_to_use,
-					  xdpf->len + IFH_LEN_BYTES,
-					  dma_addr);
 	} else {
 		page = ptr;
 
@@ -713,11 +699,6 @@ int lan966x_fdma_xmit_xdpf(struct lan966x_port *port, void *ptr, u32 len)
 
 		next_dcb_buf->data.page = page;
 		next_dcb_buf->len = len + IFH_LEN_BYTES;
-
-		/* Setup next dcb */
-		lan966x_fdma_tx_setup_dcb(tx, next_to_use,
-					  len + IFH_LEN_BYTES,
-					  dma_addr + XDP_PACKET_HEADROOM);
 	}
 
 	/* Fill up the buffer */
@@ -727,6 +708,17 @@ int lan966x_fdma_xmit_xdpf(struct lan966x_port *port, void *ptr, u32 len)
 	next_dcb_buf->used = true;
 	next_dcb_buf->ptp = false;
 	next_dcb_buf->dev = port->dev;
+
+	__fdma_dcb_add(&tx->fdma,
+		       next_to_use,
+		       0,
+		       FDMA_DCB_STATUS_INTR |
+		       FDMA_DCB_STATUS_SOF |
+		       FDMA_DCB_STATUS_EOF |
+		       FDMA_DCB_STATUS_BLOCKO(0) |
+		       FDMA_DCB_STATUS_BLOCKL(next_dcb_buf->len),
+		       &fdma_nextptr_cb,
+		       &lan966x_fdma_xdp_tx_dataptr_cb);
 
 	/* Start the transmission */
 	lan966x_fdma_tx_start(tx, next_to_use);
@@ -787,9 +779,6 @@ int lan966x_fdma_xmit(struct sk_buff *skb, __be32 *ifh, struct net_device *dev)
 		goto release;
 	}
 
-	/* Setup next dcb */
-	lan966x_fdma_tx_setup_dcb(tx, next_to_use, skb->len, dma_addr);
-
 	/* Fill up the buffer */
 	next_dcb_buf = &tx->dcbs_buf[next_to_use];
 	next_dcb_buf->use_skb = true;
@@ -800,6 +789,15 @@ int lan966x_fdma_xmit(struct sk_buff *skb, __be32 *ifh, struct net_device *dev)
 	next_dcb_buf->used = true;
 	next_dcb_buf->ptp = false;
 	next_dcb_buf->dev = dev;
+
+	fdma_dcb_add(&tx->fdma,
+		     next_to_use,
+		     0,
+		     FDMA_DCB_STATUS_INTR |
+		     FDMA_DCB_STATUS_SOF |
+		     FDMA_DCB_STATUS_EOF |
+		     FDMA_DCB_STATUS_BLOCKO(0) |
+		     FDMA_DCB_STATUS_BLOCKL(skb->len));
 
 	if (skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP &&
 	    LAN966X_SKB_CB(skb)->rew_op == IFH_REW_OP_TWO_STEP_PTP)
