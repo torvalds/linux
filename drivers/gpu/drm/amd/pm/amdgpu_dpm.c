@@ -618,7 +618,8 @@ int amdgpu_pm_load_smu_firmware(struct amdgpu_device *adev, uint32_t *smu_versio
 	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
 	int r = 0;
 
-	if (!pp_funcs || !pp_funcs->load_firmware || adev->flags & AMD_IS_APU)
+	if (!pp_funcs || !pp_funcs->load_firmware ||
+	    (is_support_sw_smu(adev) && (adev->flags & AMD_IS_APU)))
 		return 0;
 
 	mutex_lock(&adev->pm.mutex);

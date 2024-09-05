@@ -2006,7 +2006,6 @@ static int check_dirent_to_subvol(struct btree_trans *trans, struct btree_iter *
 	if (ret) {
 		bch_err(c, "subvol %u points to missing inode root %llu", target_subvol, target_inum);
 		ret = -BCH_ERR_fsck_repair_unimplemented;
-		ret = 0;
 		goto err;
 	}
 
@@ -2216,6 +2215,8 @@ int bch2_check_xattrs(struct bch_fs *c)
 			NULL, NULL,
 			BCH_TRANS_COMMIT_no_enospc,
 		check_xattr(trans, &iter, k, &hash_info, &inode)));
+
+	inode_walker_exit(&inode);
 	bch_err_fn(c, ret);
 	return ret;
 }
@@ -2469,8 +2470,7 @@ static int check_path(struct btree_trans *trans, pathbuf *p, struct bkey_s_c ino
 			: bch2_inode_unpack(inode_k, &inode);
 		if (ret) {
 			/* Should have been caught in dirents pass */
-			if (!bch2_err_matches(ret, BCH_ERR_transaction_restart))
-				bch_err(c, "error looking up parent directory: %i", ret);
+			bch_err_msg(c, ret, "error looking up parent directory");
 			break;
 		}
 

@@ -215,7 +215,7 @@ static int es58x_devlink_info_get(struct devlink *devlink,
 	struct es58x_sw_version *fw_ver = &es58x_dev->firmware_version;
 	struct es58x_sw_version *bl_ver = &es58x_dev->bootloader_version;
 	struct es58x_hw_revision *hw_rev = &es58x_dev->hardware_revision;
-	char buf[max(sizeof("xx.xx.xx"), sizeof("axxx/xxx"))];
+	char buf[MAX(sizeof("xx.xx.xx"), sizeof("axxx/xxx"))];
 	int ret = 0;
 
 	if (es58x_sw_version_is_valid(fw_ver)) {
