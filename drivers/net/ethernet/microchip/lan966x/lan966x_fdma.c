@@ -114,18 +114,6 @@ static void lan966x_fdma_rx_advance_dcb(struct lan966x_rx *rx)
 	fdma->dcb_index &= fdma->n_dcbs - 1;
 }
 
-static void lan966x_fdma_rx_free(struct lan966x_rx *rx)
-{
-	struct lan966x *lan966x = rx->lan966x;
-	struct fdma *fdma = &rx->fdma;
-	u32 size;
-
-	/* Now it is possible to do the cleanup of dcb */
-	size = sizeof(struct lan966x_tx_dcb) * fdma->n_dcbs;
-	size = ALIGN(size, PAGE_SIZE);
-	dma_free_coherent(lan966x->dev, size, fdma->dcbs, fdma->dma);
-}
-
 static void lan966x_fdma_rx_start(struct lan966x_rx *rx)
 {
 	struct lan966x *lan966x = rx->lan966x;
@@ -1019,7 +1007,7 @@ int lan966x_fdma_init(struct lan966x *lan966x)
 
 	err = lan966x_fdma_tx_alloc(&lan966x->tx);
 	if (err) {
-		lan966x_fdma_rx_free(&lan966x->rx);
+		fdma_free_coherent(lan966x->dev, &lan966x->rx.fdma);
 		return err;
 	}
 
@@ -1040,7 +1028,7 @@ void lan966x_fdma_deinit(struct lan966x *lan966x)
 	napi_disable(&lan966x->napi);
 
 	lan966x_fdma_rx_free_pages(&lan966x->rx);
-	lan966x_fdma_rx_free(&lan966x->rx);
+	fdma_free_coherent(lan966x->dev, &lan966x->rx.fdma);
 	page_pool_destroy(lan966x->rx.page_pool);
 	lan966x_fdma_tx_free(&lan966x->tx);
 }
