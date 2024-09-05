@@ -154,7 +154,7 @@
 			no-map;
 		};
 
-		mpss_dsm_mem: mpss_dsm_region@d4d00000 {
+		mpss_dsm_mem: mpss-dsm-region@d4d00000 {
 			reg = <0x0 0xd4d00000 0x0 0x3300000>;
 			no-map;
 		};
