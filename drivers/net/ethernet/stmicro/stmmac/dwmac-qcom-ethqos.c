@@ -2599,32 +2599,38 @@ static int qcom_ethqos_enable_clks(struct qcom_ethqos *ethqos, struct device *de
 			goto error_rgmii_get;
 		}
 	}
-	ethqos->sgmiref_clk = devm_clk_get(dev, "sgmi_ref");
-	if (IS_ERR(ethqos->sgmiref_clk)) {
-		dev_warn(dev, "Failed sgmi_ref\n");
-		ret = PTR_ERR(ethqos->sgmiref_clk);
-		goto error_sgmi_ref;
-	} else {
-		ret = clk_prepare_enable(ethqos->sgmiref_clk);
-		if (ret)
+	if (priv->plat->interface == PHY_INTERFACE_MODE_SGMII ||
+	    priv->plat->interface == PHY_INTERFACE_MODE_USXGMII) {
+		ethqos->sgmiref_clk = devm_clk_get(dev, "sgmi_ref");
+		if (IS_ERR(ethqos->sgmiref_clk)) {
+			dev_warn(dev, "Failed sgmi_ref\n");
+			ret = PTR_ERR(ethqos->sgmiref_clk);
 			goto error_sgmi_ref;
-	}
-	ethqos->phyaux_clk = devm_clk_get(dev, "phyaux");
-	if (IS_ERR(ethqos->phyaux_clk)) {
-		dev_warn(dev,  "Failed phyaux\n");
-		ret = PTR_ERR(ethqos->phyaux_clk);
-		goto error_phyaux_ref;
-	} else {
-		ret = clk_prepare_enable(ethqos->phyaux_clk);
-		if (ret)
+		} else {
+			ret = clk_prepare_enable(ethqos->sgmiref_clk);
+			if (ret)
+				goto error_sgmi_ref;
+		}
+		ethqos->phyaux_clk = devm_clk_get(dev, "phyaux");
+		if (IS_ERR(ethqos->phyaux_clk)) {
+			dev_warn(dev,  "Failed phyaux\n");
+			ret = PTR_ERR(ethqos->phyaux_clk);
 			goto error_phyaux_ref;
+		} else {
+			ret = clk_prepare_enable(ethqos->phyaux_clk);
+			if (ret)
+				goto error_phyaux_ref;
+		}
 	}
 	return 0;
 
+	if (priv->plat->interface == PHY_INTERFACE_MODE_SGMII ||
+	    priv->plat->interface == PHY_INTERFACE_MODE_USXGMII) {
 error_phyaux_ref:
-	clk_disable_unprepare(ethqos->sgmiref_clk);
+		clk_disable_unprepare(ethqos->sgmiref_clk);
 error_sgmi_ref:
-	clk_disable_unprepare(ethqos->rgmii_clk);
+		clk_disable_unprepare(ethqos->rgmii_clk);
+	}
 error_rgmii_get:
 	clk_disable_unprepare(priv->plat->pclk);
 error_pclk_get:
