@@ -16,6 +16,7 @@ def define_seraph():
         "drivers/irqchip/qcom-pdc.ko",
         "drivers/pinctrl/qcom/pinctrl-msm.ko",
         "drivers/pinctrl/qcom/pinctrl-seraph.ko",
+        "drivers/regulator/stub-regulator.ko",
         "drivers/soc/qcom/cmd-db.ko",
         "drivers/soc/qcom/qcom_rpmh.ko",
         "drivers/soc/qcom/smem.ko",
