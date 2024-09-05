@@ -384,20 +384,24 @@ int rtw89_cam_sec_key_add(struct rtw89_dev *rtwdev,
 		break;
 	case WLAN_CIPHER_SUITE_CCMP:
 		hw_key_type = RTW89_SEC_KEY_TYPE_CCMP128;
-		key->flags |= IEEE80211_KEY_FLAG_SW_MGMT_TX;
+		if (!chip->hw_mgmt_tx_encrypt)
+			key->flags |= IEEE80211_KEY_FLAG_SW_MGMT_TX;
 		break;
 	case WLAN_CIPHER_SUITE_CCMP_256:
 		hw_key_type = RTW89_SEC_KEY_TYPE_CCMP256;
-		key->flags |= IEEE80211_KEY_FLAG_SW_MGMT_TX;
+		if (!chip->hw_mgmt_tx_encrypt)
+			key->flags |= IEEE80211_KEY_FLAG_SW_MGMT_TX;
 		ext_key = true;
 		break;
 	case WLAN_CIPHER_SUITE_GCMP:
 		hw_key_type = RTW89_SEC_KEY_TYPE_GCMP128;
-		key->flags |= IEEE80211_KEY_FLAG_SW_MGMT_TX;
+		if (!chip->hw_mgmt_tx_encrypt)
+			key->flags |= IEEE80211_KEY_FLAG_SW_MGMT_TX;
 		break;
 	case WLAN_CIPHER_SUITE_GCMP_256:
 		hw_key_type = RTW89_SEC_KEY_TYPE_GCMP256;
-		key->flags |= IEEE80211_KEY_FLAG_SW_MGMT_TX;
+		if (!chip->hw_mgmt_tx_encrypt)
+			key->flags |= IEEE80211_KEY_FLAG_SW_MGMT_TX;
 		ext_key = true;
 		break;
 	case WLAN_CIPHER_SUITE_AES_CMAC:

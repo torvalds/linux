@@ -1371,6 +1371,12 @@ int mwifiex_update_bss_desc_with_ie(struct mwifiex_adapter *adapter,
 			bss_entry->rsn_offset = (u16) (current_ptr -
 							bss_entry->beacon_buf);
 			break;
+		case WLAN_EID_RSNX:
+			bss_entry->bcn_rsnx_ie =
+				(struct ieee_types_generic *)current_ptr;
+			bss_entry->rsnx_offset =
+				(u16)(current_ptr - bss_entry->beacon_buf);
+			break;
 		case WLAN_EID_BSS_AC_ACCESS_DELAY:
 			bss_entry->bcn_wapi_ie =
 				(struct ieee_types_generic *) current_ptr;
@@ -2045,8 +2051,6 @@ void mwifiex_cancel_scan(struct mwifiex_adapter *adapter)
 		spin_unlock_bh(&adapter->mwifiex_cmd_lock);
 		for (i = 0; i < adapter->priv_num; i++) {
 			priv = adapter->priv[i];
-			if (!priv)
-				continue;
 			if (priv->scan_request) {
 				struct cfg80211_scan_info info = {
 					.aborted = true,

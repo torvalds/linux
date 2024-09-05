@@ -71,7 +71,7 @@ MODULE_PARM_DESC(mlo, "Support MLO");
 
 static bool multi_radio;
 module_param(multi_radio, bool, 0444);
-MODULE_PARM_DESC(mlo, "Support Multiple Radios per wiphy");
+MODULE_PARM_DESC(multi_radio, "Support Multiple Radios per wiphy");
 
 /**
  * enum hwsim_regtest - the type of regulatory tests we offer

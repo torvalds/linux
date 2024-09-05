@@ -159,7 +159,11 @@ int iwl_mvm_phy_send_rlc(struct iwl_mvm *mvm, struct iwl_mvm_phy_ctxt *ctxt,
 		.phy_id = cpu_to_le32(ctxt->id),
 	};
 
-	if (ctxt->rlc_disabled)
+	/* From version 3, RLC is offloaded to firmware, so the driver no
+	 * longer needs to send cmd.rlc, note that we are not using any
+	 * other fields in the command - don't send it.
+	 */
+	if (iwl_mvm_has_rlc_offload(mvm) || ctxt->rlc_disabled)
 		return 0;
 
 	if (iwl_fw_lookup_cmd_ver(mvm->fw, WIDE_ID(DATA_PATH_GROUP,

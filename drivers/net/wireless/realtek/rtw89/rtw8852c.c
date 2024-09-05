@@ -14,10 +14,10 @@
 #include "rtw8852c_table.h"
 #include "util.h"
 
-#define RTW8852C_FW_FORMAT_MAX 0
+#define RTW8852C_FW_FORMAT_MAX 1
 #define RTW8852C_FW_BASENAME "rtw89/rtw8852c_fw"
 #define RTW8852C_MODULE_FIRMWARE \
-	RTW8852C_FW_BASENAME ".bin"
+	RTW8852C_FW_BASENAME "-" __stringify(RTW8852C_FW_FORMAT_MAX) ".bin"
 
 static const struct rtw89_hfc_ch_cfg rtw8852c_hfc_chcfg_pcie[] = {
 	{13, 1614, grp_0}, /* ACH 0 */
@@ -145,6 +145,15 @@ static const struct rtw89_imr_info rtw8852c_imr_info = {
 static const struct rtw89_rrsr_cfgs rtw8852c_rrsr_cfgs = {
 	.ref_rate = {R_AX_TRXPTCL_RRSR_CTL_0, B_AX_WMAC_RESP_REF_RATE_SEL, 0},
 	.rsc = {R_AX_PTCL_RRSR1, B_AX_RSC_MASK, 2},
+};
+
+static const struct rtw89_rfkill_regs rtw8852c_rfkill_regs = {
+	.pinmux = {R_AX_GPIO8_15_FUNC_SEL,
+		   B_AX_PINMUX_GPIO9_FUNC_SEL_MASK,
+		   0xf},
+	.mode = {R_AX_GPIO_EXT_CTRL + 2,
+		 (B_AX_GPIO_MOD_9 | B_AX_GPIO_IO_SEL_9) >> 16,
+		 0x0},
 };
 
 static const struct rtw89_dig_regs rtw8852c_dig_regs = {
@@ -1837,9 +1846,9 @@ static void rtw8852c_rfk_init(struct rtw89_dev *rtwdev)
 	rtw8852c_rx_dck(rtwdev, RTW89_PHY_0, false);
 }
 
-static void rtw8852c_rfk_channel(struct rtw89_dev *rtwdev)
+static void rtw8852c_rfk_channel(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif)
 {
-	enum rtw89_phy_idx phy_idx = RTW89_PHY_0;
+	enum rtw89_phy_idx phy_idx = rtwvif->phy_idx;
 
 	rtw8852c_mcc_get_ch_info(rtwdev, phy_idx);
 	rtw8852c_rx_dck(rtwdev, phy_idx, false);
@@ -1855,9 +1864,10 @@ static void rtw8852c_rfk_band_changed(struct rtw89_dev *rtwdev,
 	rtw8852c_tssi_scan(rtwdev, phy_idx);
 }
 
-static void rtw8852c_rfk_scan(struct rtw89_dev *rtwdev, bool start)
+static void rtw8852c_rfk_scan(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
+			      bool start)
 {
-	rtw8852c_wifi_scan_notify(rtwdev, start, RTW89_PHY_0);
+	rtw8852c_wifi_scan_notify(rtwdev, start, rtwvif->phy_idx);
 }
 
 static void rtw8852c_rfk_track(struct rtw89_dev *rtwdev)
@@ -2108,7 +2118,7 @@ rtw8852c_init_txpwr_unit(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy_idx)
 
 static void rtw8852c_bb_cfg_rx_path(struct rtw89_dev *rtwdev, u8 rx_path)
 {
-	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, RTW89_SUB_ENTITY_0);
+	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, RTW89_CHANCTX_0);
 	u8 band = chan->band_type;
 	u32 rst_mask0 = B_P0_TXPW_RSTB_MANON | B_P0_TXPW_RSTB_TSSI;
 	u32 rst_mask1 = B_P1_TXPW_RSTB_MANON | B_P1_TXPW_RSTB_TSSI;
@@ -2840,10 +2850,12 @@ static const struct rtw89_chanctx_listener rtw8852c_chanctx_listener = {
 
 #ifdef CONFIG_PM
 static const struct wiphy_wowlan_support rtw_wowlan_stub_8852c = {
-	.flags = WIPHY_WOWLAN_MAGIC_PKT | WIPHY_WOWLAN_DISCONNECT,
+	.flags = WIPHY_WOWLAN_MAGIC_PKT | WIPHY_WOWLAN_DISCONNECT |
+		 WIPHY_WOWLAN_NET_DETECT,
 	.n_patterns = RTW89_MAX_PATTERN_NUM,
 	.pattern_max_len = RTW89_MAX_PATTERN_SIZE,
 	.pattern_min_len = 1,
+	.max_nd_match_sets = RTW89_SCANOFLD_MAX_SSID,
 };
 #endif
 
@@ -2959,6 +2971,7 @@ const struct rtw89_chip_info rtw8852c_chip_info = {
 	.ul_tb_waveform_ctrl	= false,
 	.ul_tb_pwr_diff		= true,
 	.hw_sec_hdr		= true,
+	.hw_mgmt_tx_encrypt	= true,
 	.rf_path_num		= 2,
 	.tx_nss			= 2,
 	.rx_nss			= 2,
@@ -3022,6 +3035,8 @@ const struct rtw89_chip_info rtw8852c_chip_info = {
 	.rrsr_cfgs		= &rtw8852c_rrsr_cfgs,
 	.bss_clr_vld		= {R_BSS_CLR_MAP, B_BSS_CLR_MAP_VLD0},
 	.bss_clr_map_reg	= R_BSS_CLR_MAP,
+	.rfkill_init		= &rtw8852c_rfkill_regs,
+	.rfkill_get		= {R_AX_GPIO_EXT_CTRL, B_AX_GPIO_IN_9},
 	.dma_ch_mask		= 0,
 	.edcca_regs		= &rtw8852c_edcca_regs,
 #ifdef CONFIG_PM

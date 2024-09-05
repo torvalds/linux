@@ -189,6 +189,7 @@ struct ath12k_hw_params {
 	bool tcl_ring_retry:1;
 	bool reoq_lut_support:1;
 	bool supports_shadow_regs:1;
+	bool supports_aspm:1;
 
 	u32 num_tcl_banks;
 	u32 max_tx_ring;

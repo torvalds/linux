@@ -851,7 +851,7 @@ static int rtw89_debug_priv_txpwr_table_get(struct seq_file *m, void *v)
 
 	mutex_lock(&rtwdev->mutex);
 	rtw89_leave_ps_mode(rtwdev);
-	chan = rtw89_chan_get(rtwdev, RTW89_SUB_ENTITY_0);
+	chan = rtw89_chan_get(rtwdev, RTW89_CHANCTX_0);
 
 	rtw89_debug_priv_txpwr_table_get_regd(m, rtwdev, chan);
 
@@ -3505,7 +3505,7 @@ static void rtw89_sta_info_get_iter(void *data, struct ieee80211_sta *sta)
 	struct rtw89_hal *hal = &rtwdev->hal;
 	u8 ant_num = hal->ant_diversity ? 2 : rtwdev->chip->rf_path_num;
 	bool ant_asterisk = hal->tx_path_diversity || hal->ant_diversity;
-	u8 evm_min, evm_max;
+	u8 evm_min, evm_max, evm_1ss;
 	u8 rssi;
 	u8 snr;
 	int i;
@@ -3574,7 +3574,8 @@ static void rtw89_sta_info_get_iter(void *data, struct ieee80211_sta *sta)
 	}
 	seq_puts(m, "]\n");
 
-	seq_puts(m, "EVM: [");
+	evm_1ss = ewma_evm_read(&rtwsta->evm_1ss);
+	seq_printf(m, "EVM: [%2u.%02u, ", evm_1ss >> 2, (evm_1ss & 0x3) * 25);
 	for (i = 0; i < (hal->ant_diversity ? 2 : 1); i++) {
 		evm_min = ewma_evm_read(&rtwsta->evm_min[i]);
 		evm_max = ewma_evm_read(&rtwsta->evm_max[i]);

@@ -212,6 +212,7 @@ static void rtw_watch_dog_work(struct work_struct *work)
 	struct rtw_traffic_stats *stats = &rtwdev->stats;
 	struct rtw_watch_dog_iter_data data = {};
 	bool busy_traffic = test_bit(RTW_FLAG_BUSY_TRAFFIC, rtwdev->flags);
+	u32 tx_unicast_mbps, rx_unicast_mbps;
 	bool ps_active;
 
 	mutex_lock(&rtwdev->mutex);
@@ -236,10 +237,11 @@ static void rtw_watch_dog_work(struct work_struct *work)
 	else
 		ps_active = false;
 
-	ewma_tp_add(&stats->tx_ewma_tp,
-		    (u32)(stats->tx_unicast >> RTW_TP_SHIFT));
-	ewma_tp_add(&stats->rx_ewma_tp,
-		    (u32)(stats->rx_unicast >> RTW_TP_SHIFT));
+	tx_unicast_mbps = stats->tx_unicast >> RTW_TP_SHIFT;
+	rx_unicast_mbps = stats->rx_unicast >> RTW_TP_SHIFT;
+
+	ewma_tp_add(&stats->tx_ewma_tp, tx_unicast_mbps);
+	ewma_tp_add(&stats->rx_ewma_tp, rx_unicast_mbps);
 	stats->tx_throughput = ewma_tp_read(&stats->tx_ewma_tp);
 	stats->rx_throughput = ewma_tp_read(&stats->rx_ewma_tp);
 
@@ -258,6 +260,9 @@ static void rtw_watch_dog_work(struct work_struct *work)
 	rtw_coex_query_bt_hid_list(rtwdev);
 
 	rtw_phy_dynamic_mechanism(rtwdev);
+
+	rtw_hci_dynamic_rx_agg(rtwdev,
+			       tx_unicast_mbps >= 1 || rx_unicast_mbps >= 1);
 
 	data.rtwdev = rtwdev;
 	/* rtw_iterate_vifs internally uses an atomic iterator which is needed
@@ -1313,20 +1318,21 @@ static int rtw_wait_firmware_completion(struct rtw_dev *rtwdev)
 {
 	const struct rtw_chip_info *chip = rtwdev->chip;
 	struct rtw_fw_state *fw;
+	int ret = 0;
 
 	fw = &rtwdev->fw;
 	wait_for_completion(&fw->completion);
 	if (!fw->firmware)
-		return -EINVAL;
+		ret = -EINVAL;
 
 	if (chip->wow_fw_name) {
 		fw = &rtwdev->wow_fw;
 		wait_for_completion(&fw->completion);
 		if (!fw->firmware)
-			return -EINVAL;
+			ret = -EINVAL;
 	}
 
-	return 0;
+	return ret;
 }
 
 static enum rtw_lps_deep_mode rtw_update_lps_deep_mode(struct rtw_dev *rtwdev,
@@ -2005,7 +2011,7 @@ static int rtw_chip_efuse_info_setup(struct rtw_dev *rtwdev)
 	efuse->ext_pa_2g = efuse->pa_type_2g & BIT(4) ? 1 : 0;
 	efuse->ext_lna_2g = efuse->lna_type_2g & BIT(3) ? 1 : 0;
 	efuse->ext_pa_5g = efuse->pa_type_5g & BIT(0) ? 1 : 0;
-	efuse->ext_lna_2g = efuse->lna_type_5g & BIT(3) ? 1 : 0;
+	efuse->ext_lna_5g = efuse->lna_type_5g & BIT(3) ? 1 : 0;
 
 	if (!is_valid_ether_addr(efuse->addr)) {
 		eth_random_addr(efuse->addr);
@@ -2299,6 +2305,7 @@ void rtw_unregister_hw(struct rtw_dev *rtwdev, struct ieee80211_hw *hw)
 
 	ieee80211_unregister_hw(hw);
 	rtw_unset_supported_band(hw, chip);
+	rtw_debugfs_deinit(rtwdev);
 }
 EXPORT_SYMBOL(rtw_unregister_hw);
 

@@ -2072,8 +2072,6 @@ void __ieee80211_subif_start_xmit(struct sk_buff *skb,
 				  u32 info_flags,
 				  u32 ctrl_flags,
 				  u64 *cookie);
-void ieee80211_purge_tx_queue(struct ieee80211_hw *hw,
-			      struct sk_buff_head *skbs);
 struct sk_buff *
 ieee80211_build_data_template(struct ieee80211_sub_if_data *sdata,
 			      struct sk_buff *skb, u32 info_flags);
@@ -2135,6 +2133,29 @@ void ieee80211_process_addba_request(struct ieee80211_local *local,
 				     struct sta_info *sta,
 				     struct ieee80211_mgmt *mgmt,
 				     size_t len);
+
+static inline struct ieee80211_mgmt *
+ieee80211_mgmt_ba(struct sk_buff *skb, const u8 *da,
+		  struct ieee80211_sub_if_data *sdata)
+{
+	struct ieee80211_mgmt *mgmt = skb_put_zero(skb, 24);
+
+	ether_addr_copy(mgmt->da, da);
+	ether_addr_copy(mgmt->sa, sdata->vif.addr);
+
+	if (sdata->vif.type == NL80211_IFTYPE_AP ||
+	    sdata->vif.type == NL80211_IFTYPE_AP_VLAN ||
+	    sdata->vif.type == NL80211_IFTYPE_MESH_POINT)
+		ether_addr_copy(mgmt->bssid, sdata->vif.addr);
+	else if (sdata->vif.type == NL80211_IFTYPE_STATION)
+		ether_addr_copy(mgmt->bssid, sdata->vif.cfg.ap_addr);
+	else if (sdata->vif.type == NL80211_IFTYPE_ADHOC)
+		ether_addr_copy(mgmt->bssid, sdata->u.ibss.bssid);
+
+	mgmt->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
+					  IEEE80211_STYPE_ACTION);
+	return mgmt;
+}
 
 int __ieee80211_stop_tx_ba_session(struct sta_info *sta, u16 tid,
 				   enum ieee80211_agg_stop_reason reason);

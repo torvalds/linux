@@ -7169,7 +7169,7 @@ void rtw89_btc_ntfy_role_info(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif
 			      struct rtw89_sta *rtwsta, enum btc_role_state state)
 {
 	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev,
-						       rtwvif->sub_entity_idx);
+						       rtwvif->chanctx_idx);
 	struct ieee80211_vif *vif = rtwvif_to_vif(rtwvif);
 	struct ieee80211_sta *sta = rtwsta_to_sta(rtwsta);
 	struct rtw89_btc *btc = &rtwdev->btc;

@@ -587,6 +587,7 @@ static int mwl8k_request_firmware(struct mwl8k_priv *priv, char *fw_image,
 }
 
 struct mwl8k_cmd_pkt {
+	/* New members MUST be added within the __struct_group() macro below. */
 	__struct_group(mwl8k_cmd_pkt_hdr, hdr, __packed,
 		__le16	code;
 		__le16	length;
@@ -596,6 +597,8 @@ struct mwl8k_cmd_pkt {
 	);
 	char payload[];
 } __packed;
+static_assert(offsetof(struct mwl8k_cmd_pkt, payload) == sizeof(struct mwl8k_cmd_pkt_hdr),
+	      "struct member likely outside of __struct_group()");
 
 /*
  * Firmware loading.

@@ -751,7 +751,9 @@ static void __iterate_interfaces(struct ieee80211_local *local,
 	struct ieee80211_sub_if_data *sdata;
 	bool active_only = iter_flags & IEEE80211_IFACE_ITER_ACTIVE;
 
-	list_for_each_entry_rcu(sdata, &local->interfaces, list) {
+	list_for_each_entry_rcu(sdata, &local->interfaces, list,
+				lockdep_is_held(&local->iflist_mtx) ||
+				lockdep_is_held(&local->hw.wiphy->mtx)) {
 		switch (sdata->vif.type) {
 		case NL80211_IFTYPE_MONITOR:
 			if (!(sdata->u.mntr.flags & MONITOR_FLAG_ACTIVE))
@@ -833,7 +835,8 @@ static void __iterate_stations(struct ieee80211_local *local,
 {
 	struct sta_info *sta;
 
-	list_for_each_entry_rcu(sta, &local->sta_list, list) {
+	list_for_each_entry_rcu(sta, &local->sta_list, list,
+				lockdep_is_held(&local->hw.wiphy->mtx)) {
 		if (!sta->uploaded)
 			continue;
 
@@ -853,6 +856,19 @@ void ieee80211_iterate_stations_atomic(struct ieee80211_hw *hw,
 	rcu_read_unlock();
 }
 EXPORT_SYMBOL_GPL(ieee80211_iterate_stations_atomic);
+
+void ieee80211_iterate_stations_mtx(struct ieee80211_hw *hw,
+				    void (*iterator)(void *data,
+						     struct ieee80211_sta *sta),
+				    void *data)
+{
+	struct ieee80211_local *local = hw_to_local(hw);
+
+	lockdep_assert_wiphy(local->hw.wiphy);
+
+	__iterate_stations(local, iterator, data);
+}
+EXPORT_SYMBOL_GPL(ieee80211_iterate_stations_mtx);
 
 struct ieee80211_vif *wdev_to_ieee80211_vif(struct wireless_dev *wdev)
 {
