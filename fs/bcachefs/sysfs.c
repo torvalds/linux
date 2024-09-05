@@ -288,7 +288,7 @@ static int bch2_compression_stats_to_text(struct printbuf *out, struct bch_fs *c
 		prt_tab_rjust(out);
 
 		prt_human_readable_u64(out, nr_extents
-				       ? div_u64(sectors_uncompressed << 9, nr_extents)
+				       ? div64_u64(sectors_uncompressed << 9, nr_extents)
 				       : 0);
 		prt_tab_rjust(out);
 		prt_newline(out);
