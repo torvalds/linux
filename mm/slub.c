@@ -2185,6 +2185,45 @@ void memcg_slab_free_hook(struct kmem_cache *s, struct slab *slab, void **p,
 
 	__memcg_slab_free_hook(s, slab, p, objects, obj_exts);
 }
+
+static __fastpath_inline
+bool memcg_slab_post_charge(void *p, gfp_t flags)
+{
+	struct slabobj_ext *slab_exts;
+	struct kmem_cache *s;
+	struct folio *folio;
+	struct slab *slab;
+	unsigned long off;
+
+	folio = virt_to_folio(p);
+	if (!folio_test_slab(folio)) {
+		return folio_memcg_kmem(folio) ||
+			(__memcg_kmem_charge_page(folio_page(folio, 0), flags,
+						  folio_order(folio)) == 0);
+	}
+
+	slab = folio_slab(folio);
+	s = slab->slab_cache;
+
+	/*
+	 * Ignore KMALLOC_NORMAL cache to avoid possible circular dependency
+	 * of slab_obj_exts being allocated from the same slab and thus the slab
+	 * becoming effectively unfreeable.
+	 */
+	if (is_kmalloc_normal(s))
+		return true;
+
+	/* Ignore already charged objects. */
+	slab_exts = slab_obj_exts(slab);
+	if (slab_exts) {
+		off = obj_to_index(s, slab, p);
+		if (unlikely(slab_exts[off].objcg))
+			return true;
+	}
+
+	return __memcg_slab_post_alloc_hook(s, NULL, flags, 1, &p);
+}
+
 #else /* CONFIG_MEMCG */
 static inline bool memcg_slab_post_alloc_hook(struct kmem_cache *s,
 					      struct list_lru *lru,
@@ -2197,6 +2236,11 @@ static inline bool memcg_slab_post_alloc_hook(struct kmem_cache *s,
 static inline void memcg_slab_free_hook(struct kmem_cache *s, struct slab *slab,
 					void **p, int objects)
 {
+}
+
+static inline bool memcg_slab_post_charge(void *p, gfp_t flags)
+{
+	return true;
 }
 #endif /* CONFIG_MEMCG */
 
@@ -4104,6 +4148,15 @@ void *kmem_cache_alloc_lru_noprof(struct kmem_cache *s, struct list_lru *lru,
 	return ret;
 }
 EXPORT_SYMBOL(kmem_cache_alloc_lru_noprof);
+
+bool kmem_cache_charge(void *objp, gfp_t gfpflags)
+{
+	if (!memcg_kmem_online())
+		return true;
+
+	return memcg_slab_post_charge(objp, gfpflags);
+}
+EXPORT_SYMBOL(kmem_cache_charge);
 
 /**
  * kmem_cache_alloc_node - Allocate an object on the specified node

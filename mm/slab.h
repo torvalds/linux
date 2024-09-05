@@ -443,6 +443,13 @@ static inline bool is_kmalloc_cache(struct kmem_cache *s)
 	return (s->flags & SLAB_KMALLOC);
 }
 
+static inline bool is_kmalloc_normal(struct kmem_cache *s)
+{
+	if (!is_kmalloc_cache(s))
+		return false;
+	return !(s->flags & (SLAB_CACHE_DMA|SLAB_ACCOUNT|SLAB_RECLAIM_ACCOUNT));
+}
+
 /* Legal flag mask for kmem_cache_create(), for various configurations */
 #define SLAB_CORE_FLAGS (SLAB_HWCACHE_ALIGN | SLAB_CACHE_DMA | \
 			 SLAB_CACHE_DMA32 | SLAB_PANIC | \

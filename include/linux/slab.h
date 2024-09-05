@@ -547,6 +547,35 @@ void *kmem_cache_alloc_lru_noprof(struct kmem_cache *s, struct list_lru *lru,
 			    gfp_t gfpflags) __assume_slab_alignment __malloc;
 #define kmem_cache_alloc_lru(...)	alloc_hooks(kmem_cache_alloc_lru_noprof(__VA_ARGS__))
 
+/**
+ * kmem_cache_charge - memcg charge an already allocated slab memory
+ * @objp: address of the slab object to memcg charge
+ * @gfpflags: describe the allocation context
+ *
+ * kmem_cache_charge allows charging a slab object to the current memcg,
+ * primarily in cases where charging at allocation time might not be possible
+ * because the target memcg is not known (i.e. softirq context)
+ *
+ * The objp should be pointer returned by the slab allocator functions like
+ * kmalloc (with __GFP_ACCOUNT in flags) or kmem_cache_alloc. The memcg charge
+ * behavior can be controlled through gfpflags parameter, which affects how the
+ * necessary internal metadata can be allocated. Including __GFP_NOFAIL denotes
+ * that overcharging is requested instead of failure, but is not applied for the
+ * internal metadata allocation.
+ *
+ * There are several cases where it will return true even if the charging was
+ * not done:
+ * More specifically:
+ *
+ * 1. For !CONFIG_MEMCG or cgroup_disable=memory systems.
+ * 2. Already charged slab objects.
+ * 3. For slab objects from KMALLOC_NORMAL caches - allocated by kmalloc()
+ *    without __GFP_ACCOUNT
+ * 4. Allocating internal metadata has failed
+ *
+ * Return: true if charge was successful otherwise false.
+ */
+bool kmem_cache_charge(void *objp, gfp_t gfpflags);
 void kmem_cache_free(struct kmem_cache *s, void *objp);
 
 kmem_buckets *kmem_buckets_create(const char *name, slab_flags_t flags,
