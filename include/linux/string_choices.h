@@ -2,6 +2,19 @@
 #ifndef _LINUX_STRING_CHOICES_H_
 #define _LINUX_STRING_CHOICES_H_
 
+/*
+ * Here provide a series of helpers in the str_$TRUE_$FALSE format (you can
+ * also expand some helpers as needed), where $TRUE and $FALSE are their
+ * corresponding literal strings. These helpers can be used in the printing
+ * and also in other places where constant strings are required. Using these
+ * helpers offers the following benefits:
+ *  1) Reducing the hardcoding of strings, which makes the code more elegant
+ *     through these simple literal-meaning helpers.
+ *  2) Unifying the output, which prevents the same string from being printed
+ *     in various forms, such as enable/disable, enabled/disabled, en/dis.
+ *  3) Deduping by the linker, which results in a smaller binary file.
+ */
+
 #include <linux/types.h>
 
 static inline const char *str_enable_disable(bool v)
