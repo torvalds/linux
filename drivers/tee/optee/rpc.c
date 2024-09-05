@@ -332,7 +332,7 @@ static void handle_rpc_func_rpmb_probe_next(struct tee_context *ctx,
 	}
 	buf = tee_shm_get_va(params[1].u.memref.shm,
 			     params[1].u.memref.shm_offs);
-	if (!buf) {
+	if (IS_ERR(buf)) {
 		arg->ret = TEEC_ERROR_BAD_PARAMETERS;
 		return;
 	}
