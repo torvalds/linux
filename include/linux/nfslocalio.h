@@ -6,6 +6,8 @@
 #ifndef __LINUX_NFSLOCALIO_H
 #define __LINUX_NFSLOCALIO_H
 
+#if IS_ENABLED(CONFIG_NFS_LOCALIO)
+
 #include <linux/module.h>
 #include <linux/list.h>
 #include <linux/uuid.h>
@@ -57,5 +59,11 @@ struct nfsd_localio_operations {
 
 extern void nfsd_localio_ops_init(void);
 extern const struct nfsd_localio_operations *nfs_to;
+
+#else   /* CONFIG_NFS_LOCALIO */
+static inline void nfsd_localio_ops_init(void)
+{
+}
+#endif  /* CONFIG_NFS_LOCALIO */
 
 #endif  /* __LINUX_NFSLOCALIO_H */
