@@ -618,7 +618,7 @@ static int rk808_power_off(struct sys_off_data *data)
 		bit = DEV_OFF;
 		break;
 	case RK808_ID:
-		reg = RK808_DEVCTRL_REG,
+		reg = RK808_DEVCTRL_REG;
 		bit = DEV_OFF_RST;
 		break;
 	case RK809_ID:
