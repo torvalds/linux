@@ -237,7 +237,7 @@
 	#address-cells = <1>;
 	#size-cells = <1>;
 
-	mdio-mux-emi1 {
+	mdio-mux@54 {
 		compatible = "mdio-mux-mmioreg", "mdio-mux";
 		mdio-parent-bus = <&mdio0>;
 		#address-cells = <1>;
