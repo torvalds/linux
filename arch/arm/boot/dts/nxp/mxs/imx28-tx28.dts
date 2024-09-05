@@ -615,13 +615,13 @@
 &saif0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&saif0_pins_b>;
-	fsl,saif-master;
 	status = "okay";
 };
 
 &saif1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&saif1_pins_a>;
+	fsl,saif-master = <&saif0>;
 	status = "okay";
 };
 
