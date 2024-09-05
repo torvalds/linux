@@ -947,6 +947,7 @@ static inline unsigned imajor(const struct inode *inode)
 }
 
 struct fown_struct {
+	struct file *file;	/* backpointer for security modules */
 	rwlock_t lock;          /* protects pid, uid, euid fields */
 	struct pid *pid;	/* pid or -pgrp where SIGIO should be sent */
 	enum pid_type pid_type;	/* Kind of process group SIGIO should be sent to */
@@ -986,52 +987,65 @@ static inline int ra_has_index(struct file_ra_state *ra, pgoff_t index)
 		index <  ra->start + ra->size);
 }
 
-/*
- * f_{lock,count,pos_lock} members can be highly contended and share
- * the same cacheline. f_{lock,mode} are very frequently used together
- * and so share the same cacheline as well. The read-mostly
- * f_{path,inode,op} are kept on a separate cacheline.
+/**
+ * struct file - Represents a file
+ * @f_count: reference count
+ * @f_lock: Protects f_ep, f_flags. Must not be taken from IRQ context.
+ * @f_mode: FMODE_* flags often used in hotpaths
+ * @f_op: file operations
+ * @f_mapping: Contents of a cacheable, mappable object.
+ * @private_data: filesystem or driver specific data
+ * @f_inode: cached inode
+ * @f_flags: file flags
+ * @f_iocb_flags: iocb flags
+ * @f_cred: stashed credentials of creator/opener
+ * @f_path: path of the file
+ * @f_pos_lock: lock protecting file position
+ * @f_pos: file position
+ * @f_version: file version
+ * @f_security: LSM security context of this file
+ * @f_owner: file owner
+ * @f_wb_err: writeback error
+ * @f_sb_err: per sb writeback errors
+ * @f_ep: link of all epoll hooks for this file
+ * @f_task_work: task work entry point
+ * @f_llist: work queue entrypoint
+ * @f_ra: file's readahead state
+ * @f_freeptr: Pointer used by SLAB_TYPESAFE_BY_RCU file cache (don't touch.)
  */
 struct file {
-	union {
-		/* fput() uses task work when closing and freeing file (default). */
-		struct callback_head 	f_task_work;
-		/* fput() must use workqueue (most kernel threads). */
-		struct llist_node	f_llist;
-		unsigned int 		f_iocb_flags;
-	};
-
-	/*
-	 * Protects f_ep, f_flags.
-	 * Must not be taken from IRQ context.
-	 */
-	spinlock_t		f_lock;
-	fmode_t			f_mode;
-	atomic_long_t		f_count;
-	struct mutex		f_pos_lock;
-	loff_t			f_pos;
-	unsigned int		f_flags;
-	struct fown_struct	f_owner;
-	const struct cred	*f_cred;
-	struct file_ra_state	f_ra;
-	struct path		f_path;
-	struct inode		*f_inode;	/* cached value */
+	atomic_long_t			f_count;
+	spinlock_t			f_lock;
+	fmode_t				f_mode;
 	const struct file_operations	*f_op;
-
-	u64			f_version;
+	struct address_space		*f_mapping;
+	void				*private_data;
+	struct inode			*f_inode;
+	unsigned int			f_flags;
+	unsigned int			f_iocb_flags;
+	const struct cred		*f_cred;
+	/* --- cacheline 1 boundary (64 bytes) --- */
+	struct path			f_path;
+	struct mutex			f_pos_lock;
+	loff_t				f_pos;
+	u64				f_version;
+	/* --- cacheline 2 boundary (128 bytes) --- */
 #ifdef CONFIG_SECURITY
-	void			*f_security;
+	void				*f_security;
 #endif
-	/* needed for tty driver, and maybe others */
-	void			*private_data;
-
+	struct fown_struct		*f_owner;
+	errseq_t			f_wb_err;
+	errseq_t			f_sb_err;
 #ifdef CONFIG_EPOLL
-	/* Used by fs/eventpoll.c to link all the hooks to this file */
-	struct hlist_head	*f_ep;
-#endif /* #ifdef CONFIG_EPOLL */
-	struct address_space	*f_mapping;
-	errseq_t		f_wb_err;
-	errseq_t		f_sb_err; /* for syncfs */
+	struct hlist_head		*f_ep;
+#endif
+	union {
+		struct callback_head	f_task_work;
+		struct llist_node	f_llist;
+		struct file_ra_state	f_ra;
+		freeptr_t		f_freeptr;
+	};
+	/* --- cacheline 3 boundary (192 bytes) --- */
 } __randomize_layout
   __attribute__((aligned(4)));	/* lest something weird decides that 2 is OK */
 
@@ -1075,6 +1089,12 @@ struct file_lease;
 #define OFFSET_MAX	type_max(loff_t)
 #define OFFT_OFFSET_MAX	type_max(off_t)
 #endif
+
+int file_f_owner_allocate(struct file *file);
+static inline struct fown_struct *file_f_owner(const struct file *file)
+{
+	return READ_ONCE(file->f_owner);
+}
 
 extern void send_sigio(struct fown_struct *fown, int fd, int band);
 
@@ -1124,7 +1144,7 @@ extern void __f_setown(struct file *filp, struct pid *, enum pid_type, int force
 extern int f_setown(struct file *filp, int who, int force);
 extern void f_delown(struct file *filp);
 extern pid_t f_getown(struct file *filp);
-extern int send_sigurg(struct fown_struct *fown);
+extern int send_sigurg(struct file *file);
 
 /*
  * sb->s_flags.  Note that these mirror the equivalent MS_* flags where
