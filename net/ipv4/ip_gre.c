@@ -44,6 +44,7 @@
 #include <net/gre.h>
 #include <net/dst_metadata.h>
 #include <net/erspan.h>
+#include <net/inet_dscp.h>
 
 /*
    Problems & solutions
@@ -930,7 +931,7 @@ static int ipgre_open(struct net_device *dev)
 					 t->parms.iph.daddr,
 					 t->parms.iph.saddr,
 					 t->parms.o_key,
-					 RT_TOS(t->parms.iph.tos),
+					 t->parms.iph.tos & INET_DSCP_MASK,
 					 t->parms.link);
 		if (IS_ERR(rt))
 			return -EADDRNOTAVAIL;
