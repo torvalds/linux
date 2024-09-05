@@ -47,6 +47,9 @@
 #error "Cannot set as both PMOD_MTU3 and SW_RSPI_CAN are mutually exclusive"
 #endif
 
+/* Please set SW_I2S0_I2S1. Default value is 0 */
+#define SW_I2S0_I2S1   0
+
 #include "r9a07g044c2.dtsi"
 #include "rzg2lc-smarc-som.dtsi"
 #include "rzg2lc-smarc.dtsi"

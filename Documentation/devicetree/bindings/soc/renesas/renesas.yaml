@@ -528,6 +528,8 @@ properties:
       - description: RZ/V2H(P) (R9A09G057)
         items:
           - enum:
+              - renesas,rzv2h-evk # RZ/V2H EVK
+          - enum:
               - renesas,r9a09g057h41 # RZ/V2H
               - renesas,r9a09g057h42 # RZ/V2H with Mali-G31 support
               - renesas,r9a09g057h44 # RZ/V2HP with Mali-G31 + Mali-C55 support
