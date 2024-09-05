@@ -675,7 +675,7 @@
 			tsens_calib: calib@404 {
 				reg = <0x404 0x10>;
 			};
-			tsens_backup: backup_calib@414 {
+			tsens_backup: backup-calib@414 {
 				reg = <0x414 0x10>;
 			};
 		};

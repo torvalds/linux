@@ -383,7 +383,7 @@
 			tsens_calib: calib@400 {
 				reg = <0x400 0xb>;
 			};
-			tsens_calib_backup: calib_backup@410 {
+			tsens_calib_backup: calib-backup@410 {
 				reg = <0x410 0xb>;
 			};
 		};
