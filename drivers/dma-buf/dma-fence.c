@@ -412,7 +412,7 @@ int dma_fence_signal_timestamp(struct dma_fence *fence, ktime_t timestamp)
 	unsigned long flags;
 	int ret;
 
-	if (!fence)
+	if (WARN_ON(!fence))
 		return -EINVAL;
 
 	spin_lock_irqsave(fence->lock, flags);
@@ -464,7 +464,7 @@ int dma_fence_signal(struct dma_fence *fence)
 	int ret;
 	bool tmp;
 
-	if (!fence)
+	if (WARN_ON(!fence))
 		return -EINVAL;
 
 	tmp = dma_fence_begin_signalling();
