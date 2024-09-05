@@ -16,8 +16,12 @@
 #include <sys/mman.h>
 #include <sys/random.h>
 #include <sys/syscall.h>
+#include <sys/ptrace.h>
+#include <sys/wait.h>
 #include <sys/types.h>
 #include <linux/random.h>
+#include <linux/compiler.h>
+#include <linux/ptrace.h>
 
 #include "../kselftest.h"
 #include "parse_vdso.h"
@@ -239,9 +243,10 @@ static void fill(void)
 static void kselftest(void)
 {
 	uint8_t weird_size[1263];
+	pid_t child;
 
 	ksft_print_header();
-	ksft_set_plan(1);
+	ksft_set_plan(2);
 
 	for (size_t i = 0; i < 1000; ++i) {
 		ssize_t ret = vgetrandom(weird_size, sizeof(weird_size), 0);
@@ -250,6 +255,42 @@ static void kselftest(void)
 	}
 
 	ksft_test_result_pass("getrandom: PASS\n");
+
+	unshare(CLONE_NEWUSER);
+	assert(unshare(CLONE_NEWTIME) == 0);
+	child = fork();
+	assert(child >= 0);
+	if (!child) {
+		vgetrandom_init();
+		child = getpid();
+		assert(ptrace(PTRACE_TRACEME, 0, NULL, NULL) == 0);
+		assert(kill(child, SIGSTOP) == 0);
+		assert(vgetrandom(weird_size, sizeof(weird_size), 0) == sizeof(weird_size));
+		_exit(0);
+	}
+	for (;;) {
+		struct ptrace_syscall_info info = { 0 };
+		int status, ret;
+		assert(waitpid(child, &status, 0) >= 0);
+		if (WIFEXITED(status)) {
+			if (WEXITSTATUS(status) != 0)
+				exit(KSFT_FAIL);
+			break;
+		}
+		assert(WIFSTOPPED(status));
+		if (WSTOPSIG(status) == SIGSTOP)
+			assert(ptrace(PTRACE_SETOPTIONS, child, 0, PTRACE_O_TRACESYSGOOD) == 0);
+		else if (WSTOPSIG(status) == (SIGTRAP | 0x80)) {
+			assert(ptrace(PTRACE_GET_SYSCALL_INFO, child, sizeof(info), &info) > 0);
+			if (info.op == PTRACE_SYSCALL_INFO_ENTRY && info.entry.nr == __NR_getrandom &&
+			    info.entry.args[0] == (uintptr_t)weird_size && info.entry.args[1] == sizeof(weird_size))
+				exit(KSFT_FAIL);
+		}
+		assert(ptrace(PTRACE_SYSCALL, child, 0, 0) == 0);
+	}
+
+	ksft_test_result_pass("getrandom timens: PASS\n");
+
 	exit(KSFT_PASS);
 }
 
