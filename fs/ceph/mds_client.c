@@ -4910,7 +4910,7 @@ static void send_mds_reconnect(struct ceph_mds_client *mdsc,
 	} else {
 		recon_state.msg_version = 2;
 	}
-	/* trsaverse this session's caps */
+	/* traverse this session's caps */
 	err = ceph_iterate_session_caps(session, reconnect_caps_cb, &recon_state);
 
 	spin_lock(&session->s_cap_lock);
