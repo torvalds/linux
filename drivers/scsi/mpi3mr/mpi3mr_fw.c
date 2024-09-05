@@ -1384,26 +1384,23 @@ retry_bring_ioc_ready:
 	ioc_info(mrioc, "controller is in %s state during detection\n",
 	    mpi3mr_iocstate_name(ioc_state));
 
-	if (ioc_state == MRIOC_STATE_BECOMING_READY ||
-	    ioc_state == MRIOC_STATE_RESET_REQUESTED) {
-		timeout = mrioc->ready_timeout * 10;
-		do {
-			msleep(100);
-		} while (--timeout);
+	timeout = mrioc->ready_timeout * 10;
+
+	do {
+		ioc_state = mpi3mr_get_iocstate(mrioc);
+
+		if (ioc_state != MRIOC_STATE_BECOMING_READY &&
+		    ioc_state != MRIOC_STATE_RESET_REQUESTED)
+			break;
 
 		if (!pci_device_is_present(mrioc->pdev)) {
 			mrioc->unrecoverable = 1;
-			ioc_err(mrioc,
-			    "controller is not present while waiting to reset\n");
-			retval = -1;
+			ioc_err(mrioc, "controller is not present while waiting to reset\n");
 			goto out_device_not_present;
 		}
 
-		ioc_state = mpi3mr_get_iocstate(mrioc);
-		ioc_info(mrioc,
-		    "controller is in %s state after waiting to reset\n",
-		    mpi3mr_iocstate_name(ioc_state));
-	}
+		msleep(100);
+	} while (--timeout);
 
 	if (ioc_state == MRIOC_STATE_READY) {
 		ioc_info(mrioc, "issuing message unit reset (MUR) to bring to reset state\n");
