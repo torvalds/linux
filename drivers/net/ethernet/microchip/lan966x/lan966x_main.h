@@ -232,8 +232,6 @@ struct lan966x_tx {
 
 	struct fdma fdma;
 
-	u16 last_in_use;
-
 	/* Array of dcbs that are given to the HW */
 	struct lan966x_tx_dcb_buf *dcbs_buf;
 

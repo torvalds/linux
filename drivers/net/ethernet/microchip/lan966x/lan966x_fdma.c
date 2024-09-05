@@ -293,7 +293,6 @@ static void lan966x_fdma_tx_disable(struct lan966x_tx *tx)
 		lan966x, FDMA_CH_DB_DISCARD);
 
 	tx->activated = false;
-	tx->last_in_use = -1;
 }
 
 static void lan966x_fdma_tx_reload(struct lan966x_tx *tx)
@@ -598,34 +597,24 @@ static int lan966x_fdma_get_next_dcb(struct lan966x_tx *tx)
 
 	for (i = 0; i < fdma->n_dcbs; ++i) {
 		dcb_buf = &tx->dcbs_buf[i];
-		if (!dcb_buf->used && i != tx->last_in_use)
+		if (!dcb_buf->used && &fdma->dcbs[i] != fdma->last_dcb)
 			return i;
 	}
 
 	return -1;
 }
 
-static void lan966x_fdma_tx_start(struct lan966x_tx *tx, int next_to_use)
+static void lan966x_fdma_tx_start(struct lan966x_tx *tx)
 {
 	struct lan966x *lan966x = tx->lan966x;
-	struct fdma *fdma = &tx->fdma;
-	struct fdma_dcb *dcb;
 
 	if (likely(lan966x->tx.activated)) {
-		/* Connect current dcb to the next db */
-		dcb = &fdma->dcbs[tx->last_in_use];
-		dcb->nextptr = fdma->dma + (next_to_use *
-					  sizeof(struct fdma_dcb));
-
 		lan966x_fdma_tx_reload(tx);
 	} else {
 		/* Because it is first time, then just activate */
 		lan966x->tx.activated = true;
 		lan966x_fdma_tx_activate(tx);
 	}
-
-	/* Move to next dcb because this last in use */
-	tx->last_in_use = next_to_use;
 }
 
 int lan966x_fdma_xmit_xdpf(struct lan966x_port *port, void *ptr, u32 len)
@@ -716,7 +705,7 @@ int lan966x_fdma_xmit_xdpf(struct lan966x_port *port, void *ptr, u32 len)
 		       &lan966x_fdma_xdp_tx_dataptr_cb);
 
 	/* Start the transmission */
-	lan966x_fdma_tx_start(tx, next_to_use);
+	lan966x_fdma_tx_start(tx);
 
 out:
 	spin_unlock(&lan966x->tx_lock);
@@ -799,7 +788,7 @@ int lan966x_fdma_xmit(struct sk_buff *skb, __be32 *ifh, struct net_device *dev)
 		next_dcb_buf->ptp = true;
 
 	/* Start the transmission */
-	lan966x_fdma_tx_start(tx, next_to_use);
+	lan966x_fdma_tx_start(tx);
 
 	return NETDEV_TX_OK;
 
@@ -985,7 +974,6 @@ int lan966x_fdma_init(struct lan966x *lan966x)
 	lan966x->tx.fdma.db_size = PAGE_SIZE << lan966x->rx.page_order;
 	lan966x->tx.fdma.ops.nextptr_cb = &fdma_nextptr_cb;
 	lan966x->tx.fdma.ops.dataptr_cb = &lan966x_fdma_tx_dataptr_cb;
-	lan966x->tx.last_in_use = -1;
 
 	err = lan966x_fdma_rx_alloc(&lan966x->rx);
 	if (err)
