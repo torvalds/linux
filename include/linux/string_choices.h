@@ -8,11 +8,13 @@ static inline const char *str_enable_disable(bool v)
 {
 	return v ? "enable" : "disable";
 }
+#define str_disable_enable(v)		str_enable_disable(!(v))
 
 static inline const char *str_enabled_disabled(bool v)
 {
 	return v ? "enabled" : "disabled";
 }
+#define str_disabled_enabled(v)		str_enabled_disabled(!(v))
 
 static inline const char *str_hi_lo(bool v)
 {
@@ -36,11 +38,13 @@ static inline const char *str_on_off(bool v)
 {
 	return v ? "on" : "off";
 }
+#define str_off_on(v)		str_on_off(!(v))
 
 static inline const char *str_yes_no(bool v)
 {
 	return v ? "yes" : "no";
 }
+#define str_no_yes(v)		str_yes_no(!(v))
 
 static inline const char *str_up_down(bool v)
 {
