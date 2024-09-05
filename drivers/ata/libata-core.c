@@ -5977,6 +5977,21 @@ int ata_host_activate(struct ata_host *host, int irq,
 EXPORT_SYMBOL_GPL(ata_host_activate);
 
 /**
+ *	ata_dev_free_resources - Free a device resources
+ *	@dev: Target ATA device
+ *
+ *	Free resources allocated to support a device features.
+ *
+ *	LOCKING:
+ *	Kernel thread context (may sleep).
+ */
+void ata_dev_free_resources(struct ata_device *dev)
+{
+	if (zpodd_dev_enabled(dev))
+		zpodd_exit(dev);
+}
+
+/**
  *	ata_port_detach - Detach ATA port in preparation of device removal
  *	@ap: ATA port to be detached
  *
@@ -6030,19 +6045,15 @@ static void ata_port_detach(struct ata_port *ap)
 	cancel_delayed_work_sync(&ap->hotplug_task);
 	cancel_delayed_work_sync(&ap->scsi_rescan_task);
 
-	/* clean up zpodd on port removal */
-	ata_for_each_link(link, ap, HOST_FIRST) {
-		ata_for_each_dev(dev, link, ALL) {
-			if (zpodd_dev_enabled(dev))
-				zpodd_exit(dev);
-		}
-	}
+	/* Delete port multiplier link transport devices */
 	if (ap->pmp_link) {
 		int i;
+
 		for (i = 0; i < SATA_PMP_MAX_PORTS; i++)
 			ata_tlink_delete(&ap->pmp_link[i]);
 	}
-	/* remove the associated SCSI host */
+
+	/* Remove the associated SCSI host */
 	scsi_remove_host(ap->scsi_host);
 	ata_tport_delete(ap);
 }

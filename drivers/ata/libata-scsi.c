@@ -4614,9 +4614,6 @@ static void ata_scsi_handle_link_detach(struct ata_link *link)
 		dev->flags &= ~ATA_DFLAG_DETACHED;
 		spin_unlock_irqrestore(ap->lock, flags);
 
-		if (zpodd_dev_enabled(dev))
-			zpodd_exit(dev);
-
 		ata_scsi_remove_dev(dev);
 	}
 }
