@@ -761,8 +761,8 @@ static struct arm_smmu_device *
 __tegra241_cmdqv_probe(struct arm_smmu_device *smmu, struct resource *res,
 		       int irq)
 {
-	static struct arm_smmu_device *new_smmu;
 	struct tegra241_cmdqv *cmdqv = NULL;
+	struct arm_smmu_device *new_smmu;
 	struct tegra241_vintf *vintf;
 	void __iomem *base;
 	u32 regval;
