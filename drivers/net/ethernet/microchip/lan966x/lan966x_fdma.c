@@ -810,14 +810,11 @@ static int lan966x_qsys_sw_status(struct lan966x *lan966x)
 static int lan966x_fdma_reload(struct lan966x *lan966x, int new_mtu)
 {
 	struct page_pool *page_pool;
-	dma_addr_t rx_dma;
-	void *rx_dcbs;
-	u32 size;
+	struct fdma fdma_rx_old;
 	int err;
 
 	/* Store these for later to free them */
-	rx_dma = lan966x->rx.fdma.dma;
-	rx_dcbs = lan966x->rx.fdma.dcbs;
+	memcpy(&fdma_rx_old, &lan966x->rx.fdma, sizeof(struct fdma));
 	page_pool = lan966x->rx.page_pool;
 
 	napi_synchronize(&lan966x->napi);
@@ -833,9 +830,7 @@ static int lan966x_fdma_reload(struct lan966x *lan966x, int new_mtu)
 		goto restore;
 	lan966x_fdma_rx_start(&lan966x->rx);
 
-	size = sizeof(struct fdma_dcb) * lan966x->rx.fdma.n_dcbs;
-	size = ALIGN(size, PAGE_SIZE);
-	dma_free_coherent(lan966x->dev, size, rx_dcbs, rx_dma);
+	fdma_free_coherent(lan966x->dev, &fdma_rx_old);
 
 	page_pool_destroy(page_pool);
 
@@ -845,8 +840,7 @@ static int lan966x_fdma_reload(struct lan966x *lan966x, int new_mtu)
 	return err;
 restore:
 	lan966x->rx.page_pool = page_pool;
-	lan966x->rx.fdma.dma = rx_dma;
-	lan966x->rx.fdma.dcbs = rx_dcbs;
+	memcpy(&lan966x->rx.fdma, &fdma_rx_old, sizeof(struct fdma));
 	lan966x_fdma_rx_start(&lan966x->rx);
 
 	return err;
