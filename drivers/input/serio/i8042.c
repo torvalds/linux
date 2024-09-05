@@ -197,42 +197,26 @@ EXPORT_SYMBOL(i8042_unlock_chip);
 int i8042_install_filter(bool (*filter)(unsigned char data, unsigned char str,
 					struct serio *serio))
 {
-	unsigned long flags;
-	int ret = 0;
+	guard(spinlock_irqsave)(&i8042_lock);
 
-	spin_lock_irqsave(&i8042_lock, flags);
-
-	if (i8042_platform_filter) {
-		ret = -EBUSY;
-		goto out;
-	}
+	if (i8042_platform_filter)
+		return -EBUSY;
 
 	i8042_platform_filter = filter;
-
-out:
-	spin_unlock_irqrestore(&i8042_lock, flags);
-	return ret;
+	return 0;
 }
 EXPORT_SYMBOL(i8042_install_filter);
 
 int i8042_remove_filter(bool (*filter)(unsigned char data, unsigned char str,
 				       struct serio *port))
 {
-	unsigned long flags;
-	int ret = 0;
+	guard(spinlock_irqsave)(&i8042_lock);
 
-	spin_lock_irqsave(&i8042_lock, flags);
-
-	if (i8042_platform_filter != filter) {
-		ret = -EINVAL;
-		goto out;
-	}
+	if (i8042_platform_filter != filter)
+		return -EINVAL;
 
 	i8042_platform_filter = NULL;
-
-out:
-	spin_unlock_irqrestore(&i8042_lock, flags);
-	return ret;
+	return 0;
 }
 EXPORT_SYMBOL(i8042_remove_filter);
 
@@ -271,28 +255,22 @@ static int i8042_wait_write(void)
 
 static int i8042_flush(void)
 {
-	unsigned long flags;
 	unsigned char data, str;
 	int count = 0;
-	int retval = 0;
 
-	spin_lock_irqsave(&i8042_lock, flags);
+	guard(spinlock_irqsave)(&i8042_lock);
 
 	while ((str = i8042_read_status()) & I8042_STR_OBF) {
-		if (count++ < I8042_BUFFER_SIZE) {
-			udelay(50);
-			data = i8042_read_data();
-			dbg("%02x <- i8042 (flush, %s)\n",
-			    data, str & I8042_STR_AUXDATA ? "aux" : "kbd");
-		} else {
-			retval = -EIO;
-			break;
-		}
+		if (count++ >= I8042_BUFFER_SIZE)
+			return -EIO;
+
+		udelay(50);
+		data = i8042_read_data();
+		dbg("%02x <- i8042 (flush, %s)\n",
+		    data, str & I8042_STR_AUXDATA ? "aux" : "kbd");
 	}
 
-	spin_unlock_irqrestore(&i8042_lock, flags);
-
-	return retval;
+	return 0;
 }
 
 /*
@@ -349,17 +327,12 @@ static int __i8042_command(unsigned char *param, int command)
 
 int i8042_command(unsigned char *param, int command)
 {
-	unsigned long flags;
-	int retval;
-
 	if (!i8042_present)
 		return -1;
 
-	spin_lock_irqsave(&i8042_lock, flags);
-	retval = __i8042_command(param, command);
-	spin_unlock_irqrestore(&i8042_lock, flags);
+	guard(spinlock_irqsave)(&i8042_lock);
 
-	return retval;
+	return __i8042_command(param, command);
 }
 EXPORT_SYMBOL(i8042_command);
 
@@ -369,19 +342,18 @@ EXPORT_SYMBOL(i8042_command);
 
 static int i8042_kbd_write(struct serio *port, unsigned char c)
 {
-	unsigned long flags;
-	int retval = 0;
+	int error;
 
-	spin_lock_irqsave(&i8042_lock, flags);
+	guard(spinlock_irqsave)(&i8042_lock);
 
-	if (!(retval = i8042_wait_write())) {
-		dbg("%02x -> i8042 (kbd-data)\n", c);
-		i8042_write_data(c);
-	}
+	error = i8042_wait_write();
+	if (error)
+		return error;
 
-	spin_unlock_irqrestore(&i8042_lock, flags);
+	dbg("%02x -> i8042 (kbd-data)\n", c);
+	i8042_write_data(c);
 
-	return retval;
+	return 0;
 }
 
 /*
@@ -460,9 +432,8 @@ static int i8042_start(struct serio *serio)
 		device_set_wakeup_enable(&serio->dev, true);
 	}
 
-	spin_lock_irq(&i8042_lock);
+	guard(spinlock_irq)(&i8042_lock);
 	port->exists = true;
-	spin_unlock_irq(&i8042_lock);
 
 	return 0;
 }
@@ -476,10 +447,10 @@ static void i8042_stop(struct serio *serio)
 {
 	struct i8042_port *port = serio->port_data;
 
-	spin_lock_irq(&i8042_lock);
-	port->exists = false;
-	port->serio = NULL;
-	spin_unlock_irq(&i8042_lock);
+	scoped_guard(spinlock_irq, &i8042_lock) {
+		port->exists = false;
+		port->serio = NULL;
+	}
 
 	/*
 	 * We need to make sure that interrupt handler finishes using
@@ -583,45 +554,41 @@ static bool i8042_handle_data(int irq)
 {
 	struct i8042_port *port;
 	struct serio *serio;
-	unsigned long flags;
 	unsigned char str, data;
 	unsigned int dfl;
 	unsigned int port_no;
 	bool filtered;
 
-	spin_lock_irqsave(&i8042_lock, flags);
+	scoped_guard(spinlock_irqsave, &i8042_lock) {
+		str = i8042_read_status();
+		if (unlikely(~str & I8042_STR_OBF))
+			return false;
 
-	str = i8042_read_status();
-	if (unlikely(~str & I8042_STR_OBF)) {
-		spin_unlock_irqrestore(&i8042_lock, flags);
-		return false;
+		data = i8042_read_data();
+
+		if (i8042_mux_present && (str & I8042_STR_AUXDATA)) {
+			port_no = i8042_handle_mux(str, &data, &dfl);
+		} else {
+
+			dfl = (str & I8042_STR_PARITY) ? SERIO_PARITY : 0;
+			if ((str & I8042_STR_TIMEOUT) && !i8042_notimeout)
+				dfl |= SERIO_TIMEOUT;
+
+			port_no = (str & I8042_STR_AUXDATA) ?
+					I8042_AUX_PORT_NO : I8042_KBD_PORT_NO;
+		}
+
+		port = &i8042_ports[port_no];
+		serio = port->exists ? port->serio : NULL;
+
+		filter_dbg(port->driver_bound,
+			   data, "<- i8042 (interrupt, %d, %d%s%s)\n",
+			   port_no, irq,
+			   dfl & SERIO_PARITY ? ", bad parity" : "",
+			   dfl & SERIO_TIMEOUT ? ", timeout" : "");
+
+		filtered = i8042_filter(data, str, serio);
 	}
-
-	data = i8042_read_data();
-
-	if (i8042_mux_present && (str & I8042_STR_AUXDATA)) {
-		port_no = i8042_handle_mux(str, &data, &dfl);
-	} else {
-
-		dfl = (str & I8042_STR_PARITY) ? SERIO_PARITY : 0;
-		if ((str & I8042_STR_TIMEOUT) && !i8042_notimeout)
-			dfl |= SERIO_TIMEOUT;
-
-		port_no = (str & I8042_STR_AUXDATA) ?
-				I8042_AUX_PORT_NO : I8042_KBD_PORT_NO;
-	}
-
-	port = &i8042_ports[port_no];
-	serio = port->exists ? port->serio : NULL;
-
-	filter_dbg(port->driver_bound, data, "<- i8042 (interrupt, %d, %d%s%s)\n",
-		   port_no, irq,
-		   dfl & SERIO_PARITY ? ", bad parity" : "",
-		   dfl & SERIO_TIMEOUT ? ", timeout" : "");
-
-	filtered = i8042_filter(data, str, serio);
-
-	spin_unlock_irqrestore(&i8042_lock, flags);
 
 	if (likely(serio && !filtered))
 		serio_interrupt(serio, data, dfl);
@@ -779,24 +746,22 @@ static bool i8042_irq_being_tested;
 
 static irqreturn_t i8042_aux_test_irq(int irq, void *dev_id)
 {
-	unsigned long flags;
 	unsigned char str, data;
-	int ret = 0;
 
-	spin_lock_irqsave(&i8042_lock, flags);
+	guard(spinlock_irqsave)(&i8042_lock);
+
 	str = i8042_read_status();
-	if (str & I8042_STR_OBF) {
-		data = i8042_read_data();
-		dbg("%02x <- i8042 (aux_test_irq, %s)\n",
-		    data, str & I8042_STR_AUXDATA ? "aux" : "kbd");
-		if (i8042_irq_being_tested &&
-		    data == 0xa5 && (str & I8042_STR_AUXDATA))
-			complete(&i8042_aux_irq_delivered);
-		ret = 1;
-	}
-	spin_unlock_irqrestore(&i8042_lock, flags);
+	if (!(str & I8042_STR_OBF))
+		return IRQ_NONE;
 
-	return IRQ_RETVAL(ret);
+	data = i8042_read_data();
+	dbg("%02x <- i8042 (aux_test_irq, %s)\n",
+	    data, str & I8042_STR_AUXDATA ? "aux" : "kbd");
+
+	if (i8042_irq_being_tested && data == 0xa5 && (str & I8042_STR_AUXDATA))
+		complete(&i8042_aux_irq_delivered);
+
+	return IRQ_HANDLED;
 }
 
 /*
@@ -837,7 +802,6 @@ static int i8042_check_aux(void)
 	int retval = -1;
 	bool irq_registered = false;
 	bool aux_loop_broken = false;
-	unsigned long flags;
 	unsigned char param;
 
 /*
@@ -921,18 +885,15 @@ static int i8042_check_aux(void)
 	if (i8042_enable_aux_port())
 		goto out;
 
-	spin_lock_irqsave(&i8042_lock, flags);
+	scoped_guard(spinlock_irqsave, &i8042_lock) {
+		init_completion(&i8042_aux_irq_delivered);
+		i8042_irq_being_tested = true;
 
-	init_completion(&i8042_aux_irq_delivered);
-	i8042_irq_being_tested = true;
-
-	param = 0xa5;
-	retval = __i8042_command(&param, I8042_CMD_AUX_LOOP & 0xf0ff);
-
-	spin_unlock_irqrestore(&i8042_lock, flags);
-
-	if (retval)
-		goto out;
+		param = 0xa5;
+		retval = __i8042_command(&param, I8042_CMD_AUX_LOOP & 0xf0ff);
+		if (retval)
+			goto out;
+	}
 
 	if (wait_for_completion_timeout(&i8042_aux_irq_delivered,
 					msecs_to_jiffies(250)) == 0) {
@@ -1020,7 +981,6 @@ static int i8042_controller_selftest(void)
 
 static int i8042_controller_init(void)
 {
-	unsigned long flags;
 	int n = 0;
 	unsigned char ctr[2];
 
@@ -1057,14 +1017,14 @@ static int i8042_controller_init(void)
  * Handle keylock.
  */
 
-	spin_lock_irqsave(&i8042_lock, flags);
-	if (~i8042_read_status() & I8042_STR_KEYLOCK) {
-		if (i8042_unlock)
-			i8042_ctr |= I8042_CTR_IGNKEYLOCK;
-		else
-			pr_warn("Warning: Keylock active\n");
+	scoped_guard(spinlock_irqsave, &i8042_lock) {
+		if (~i8042_read_status() & I8042_STR_KEYLOCK) {
+			if (i8042_unlock)
+				i8042_ctr |= I8042_CTR_IGNKEYLOCK;
+			else
+				pr_warn("Warning: Keylock active\n");
+		}
 	}
-	spin_unlock_irqrestore(&i8042_lock, flags);
 
 /*
  * If the chip is configured into nontranslated mode by the BIOS, don't
