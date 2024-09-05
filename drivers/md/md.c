@@ -8327,14 +8327,19 @@ static int md_seq_show(struct seq_file *seq, void *v)
 	spin_unlock(&all_mddevs_lock);
 	spin_lock(&mddev->lock);
 	if (mddev->pers || mddev->raid_disks || !list_empty(&mddev->disks)) {
-		seq_printf(seq, "%s : %sactive", mdname(mddev),
-						mddev->pers ? "" : "in");
+		seq_printf(seq, "%s : ", mdname(mddev));
 		if (mddev->pers) {
+			if (test_bit(MD_BROKEN, &mddev->flags))
+				seq_printf(seq, "broken");
+			else
+				seq_printf(seq, "active");
 			if (mddev->ro == MD_RDONLY)
 				seq_printf(seq, " (read-only)");
 			if (mddev->ro == MD_AUTO_READ)
 				seq_printf(seq, " (auto-read-only)");
 			seq_printf(seq, " %s", mddev->pers->name);
+		} else {
+			seq_printf(seq, "inactive");
 		}
 
 		sectors = 0;
