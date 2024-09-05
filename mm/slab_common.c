@@ -202,22 +202,22 @@ struct kmem_cache *find_mergeable(unsigned int size, unsigned int align,
 }
 
 static struct kmem_cache *create_cache(const char *name,
-		unsigned int object_size, unsigned int freeptr_offset,
-		unsigned int align, slab_flags_t flags,
-		unsigned int useroffset, unsigned int usersize,
-		void (*ctor)(void *))
+				       unsigned int object_size,
+				       struct kmem_cache_args *args,
+				       slab_flags_t flags)
 {
 	struct kmem_cache *s;
 	int err;
 
-	if (WARN_ON(useroffset + usersize > object_size))
-		useroffset = usersize = 0;
+	if (WARN_ON(args->useroffset + args->usersize > object_size))
+		args->useroffset = args->usersize = 0;
 
 	/* If a custom freelist pointer is requested make sure it's sane. */
 	err = -EINVAL;
-	if (freeptr_offset != UINT_MAX &&
-	    (freeptr_offset >= object_size || !(flags & SLAB_TYPESAFE_BY_RCU) ||
-	     !IS_ALIGNED(freeptr_offset, sizeof(freeptr_t))))
+	if (args->use_freeptr_offset &&
+	    (args->freeptr_offset >= object_size ||
+	     !(flags & SLAB_TYPESAFE_BY_RCU) ||
+	     !IS_ALIGNED(args->freeptr_offset, sizeof(freeptr_t))))
 		goto out;
 
 	err = -ENOMEM;
@@ -227,12 +227,15 @@ static struct kmem_cache *create_cache(const char *name,
 
 	s->name = name;
 	s->size = s->object_size = object_size;
-	s->rcu_freeptr_offset = freeptr_offset;
-	s->align = align;
-	s->ctor = ctor;
+	if (args->use_freeptr_offset)
+		s->rcu_freeptr_offset = args->freeptr_offset;
+	else
+		s->rcu_freeptr_offset = UINT_MAX;
+	s->align = args->align;
+	s->ctor = args->ctor;
 #ifdef CONFIG_HARDENED_USERCOPY
-	s->useroffset = useroffset;
-	s->usersize = usersize;
+	s->useroffset = args->useroffset;
+	s->usersize = args->usersize;
 #endif
 	err = do_kmem_cache_create(s, flags);
 	if (err)
@@ -265,7 +268,6 @@ struct kmem_cache *__kmem_cache_create_args(const char *name,
 					    slab_flags_t flags)
 {
 	struct kmem_cache *s = NULL;
-	unsigned int freeptr_offset = UINT_MAX;
 	const char *cache_name;
 	int err;
 
@@ -323,11 +325,8 @@ struct kmem_cache *__kmem_cache_create_args(const char *name,
 		goto out_unlock;
 	}
 
-	if (args->use_freeptr_offset)
-		freeptr_offset = args->freeptr_offset;
-	s = create_cache(cache_name, object_size, freeptr_offset,
-			 calculate_alignment(flags, args->align, object_size),
-			 flags, args->useroffset, args->usersize, args->ctor);
+	args->align = calculate_alignment(flags, args->align, object_size);
+	s = create_cache(cache_name, object_size, args, flags);
 	if (IS_ERR(s)) {
 		err = PTR_ERR(s);
 		kfree_const(cache_name);
