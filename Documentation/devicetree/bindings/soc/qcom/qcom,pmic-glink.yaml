@@ -32,6 +32,11 @@ properties:
           - const: qcom,pmic-glink
       - items:
           - enum:
+              - qcom,sm7325-pmic-glink
+          - const: qcom,qcm6490-pmic-glink
+          - const: qcom,pmic-glink
+      - items:
+          - enum:
               - qcom,sm8650-pmic-glink
               - qcom,x1e80100-pmic-glink
           - const: qcom,sm8550-pmic-glink
