@@ -2087,12 +2087,6 @@ static int ff_layout_encode_ioerr(struct xdr_stream *xdr,
 }
 
 static void
-encode_opaque_fixed(struct xdr_stream *xdr, const void *buf, size_t len)
-{
-	WARN_ON_ONCE(xdr_stream_encode_opaque_fixed(xdr, buf, len) < 0);
-}
-
-static void
 ff_layout_encode_ff_iostat_head(struct xdr_stream *xdr,
 			    const nfs4_stateid *stateid,
 			    const struct nfs42_layoutstat_devinfo *devinfo)
