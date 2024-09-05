@@ -5,7 +5,6 @@ qrtr.ko
 crc8.ko
 lzo.ko
 lzo-rle.ko
-zsmalloc.ko
 qcom_edac.ko
 icc-test.ko
 icc-debug.ko
@@ -45,7 +44,6 @@ icc-bcm-voter.ko
 icc-rpmh.ko
 clk-qcom.ko
 clk-dummy.ko
-zram.ko
 msm_geni_serial.ko
 msm_rtb.ko
 mem_buf.ko
