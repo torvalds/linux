@@ -40,6 +40,7 @@ struct child {
 	int pid;
 	int tid;
 	pthread_t thread;
+	char stack[65536];
 };
 
 static void release_child(struct child *child)
@@ -69,39 +70,54 @@ static void kick_child(struct child *child)
 	fflush(NULL);
 }
 
-static int spawn_child(struct child *child)
+static int child_func(void *arg)
 {
+	struct child *child = arg;
 	int err, c;
 
+	close(child->go[1]);
+
+	/* wait for parent's kick */
+	err = read(child->go[0], &c, 1);
+	if (err != 1)
+		exit(err);
+
+	uprobe_multi_func_1();
+	uprobe_multi_func_2();
+	uprobe_multi_func_3();
+	usdt_trigger();
+
+	exit(errno);
+}
+
+static int spawn_child_flag(struct child *child, bool clone_vm)
+{
 	/* pipe to notify child to execute the trigger functions */
 	if (pipe(child->go))
 		return -1;
 
-	child->pid = child->tid = fork();
+	if (clone_vm) {
+		child->pid = child->tid = clone(child_func, child->stack + sizeof(child->stack)/2,
+						CLONE_VM|SIGCHLD, child);
+	} else {
+		child->pid = child->tid = fork();
+	}
 	if (child->pid < 0) {
 		release_child(child);
 		errno = EINVAL;
 		return -1;
 	}
 
-	/* child */
-	if (child->pid == 0) {
-		close(child->go[1]);
-
-		/* wait for parent's kick */
-		err = read(child->go[0], &c, 1);
-		if (err != 1)
-			exit(err);
-
-		uprobe_multi_func_1();
-		uprobe_multi_func_2();
-		uprobe_multi_func_3();
-		usdt_trigger();
-
-		exit(errno);
-	}
+	/* fork-ed child */
+	if (!clone_vm && child->pid == 0)
+		child_func(child);
 
 	return 0;
+}
+
+static int spawn_child(struct child *child)
+{
+	return spawn_child_flag(child, false);
 }
 
 static void *child_thread(void *ctx)
@@ -948,7 +964,7 @@ static struct bpf_program *uprobe_multi_program(struct uprobe_multi_pid_filter *
 
 #define TASKS 3
 
-static void run_pid_filter(struct uprobe_multi_pid_filter *skel, bool retprobe)
+static void run_pid_filter(struct uprobe_multi_pid_filter *skel, bool clone_vm, bool retprobe)
 {
 	LIBBPF_OPTS(bpf_uprobe_multi_opts, opts, .retprobe = retprobe);
 	struct bpf_link *link[TASKS] = {};
@@ -958,7 +974,7 @@ static void run_pid_filter(struct uprobe_multi_pid_filter *skel, bool retprobe)
 	memset(skel->bss->test, 0, sizeof(skel->bss->test));
 
 	for (i = 0; i < TASKS; i++) {
-		if (!ASSERT_OK(spawn_child(&child[i]), "spawn_child"))
+		if (!ASSERT_OK(spawn_child_flag(&child[i], clone_vm), "spawn_child"))
 			goto cleanup;
 		skel->bss->pids[i] = child[i].pid;
 	}
@@ -986,7 +1002,7 @@ cleanup:
 		release_child(&child[i]);
 }
 
-static void test_pid_filter_process(void)
+static void test_pid_filter_process(bool clone_vm)
 {
 	struct uprobe_multi_pid_filter *skel;
 
@@ -994,8 +1010,8 @@ static void test_pid_filter_process(void)
 	if (!ASSERT_OK_PTR(skel, "uprobe_multi_pid_filter__open_and_load"))
 		return;
 
-	run_pid_filter(skel, false);
-	run_pid_filter(skel, true);
+	run_pid_filter(skel, clone_vm, false);
+	run_pid_filter(skel, clone_vm, true);
 
 	uprobe_multi_pid_filter__destroy(skel);
 }
@@ -1093,5 +1109,7 @@ void test_uprobe_multi_test(void)
 	if (test__start_subtest("consumers"))
 		test_consumers();
 	if (test__start_subtest("filter_fork"))
-		test_pid_filter_process();
+		test_pid_filter_process(false);
+	if (test__start_subtest("filter_clone_vm"))
+		test_pid_filter_process(true);
 }
