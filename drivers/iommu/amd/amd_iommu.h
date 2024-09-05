@@ -43,6 +43,7 @@ int amd_iommu_enable_faulting(unsigned int cpu);
 extern int amd_iommu_guest_ir;
 extern enum io_pgtable_fmt amd_iommu_pgtable;
 extern int amd_iommu_gpt_level;
+extern unsigned long amd_iommu_pgsize_bitmap;
 
 /* Protection domain ops */
 struct protection_domain *protection_domain_alloc(unsigned int type, int nid);

@@ -293,6 +293,10 @@
  * Page sizes >= the 52 bit max physical address of the CPU are not supported.
  */
 #define AMD_IOMMU_PGSIZES	(GENMASK_ULL(51, 12) ^ SZ_512G)
+
+/* Special mode where page-sizes are limited to 4 KiB */
+#define AMD_IOMMU_PGSIZES_4K	(PAGE_SIZE)
+
 /* 4K, 2MB, 1G page sizes are supported */
 #define AMD_IOMMU_PGSIZES_V2	(PAGE_SIZE | (1ULL << 21) | (1ULL << 30))
 

@@ -548,7 +548,7 @@ static struct io_pgtable *v1_alloc_pgtable(struct io_pgtable_cfg *cfg, void *coo
 		return NULL;
 	pgtable->mode = PAGE_MODE_3_LEVEL;
 
-	cfg->pgsize_bitmap  = AMD_IOMMU_PGSIZES;
+	cfg->pgsize_bitmap  = amd_iommu_pgsize_bitmap;
 	cfg->ias            = IOMMU_IN_ADDR_BIT_SIZE;
 	cfg->oas            = IOMMU_OUT_ADDR_BIT_SIZE;
 
