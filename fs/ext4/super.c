@@ -2096,16 +2096,16 @@ static int ext4_parse_test_dummy_encryption(const struct fs_parameter *param,
 }
 
 #define EXT4_SET_CTX(name)						\
-static inline void ctx_set_##name(struct ext4_fs_context *ctx,		\
-				  unsigned long flag)			\
+static inline __maybe_unused						\
+void ctx_set_##name(struct ext4_fs_context *ctx, unsigned long flag)	\
 {									\
 	ctx->mask_s_##name |= flag;					\
 	ctx->vals_s_##name |= flag;					\
 }
 
 #define EXT4_CLEAR_CTX(name)						\
-static inline void ctx_clear_##name(struct ext4_fs_context *ctx,	\
-				    unsigned long flag)			\
+static inline __maybe_unused						\
+void ctx_clear_##name(struct ext4_fs_context *ctx, unsigned long flag)	\
 {									\
 	ctx->mask_s_##name |= flag;					\
 	ctx->vals_s_##name &= ~flag;					\
