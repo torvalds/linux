@@ -28,20 +28,6 @@ static int lan966x_fdma_channel_active(struct lan966x *lan966x)
 	return lan_rd(lan966x, FDMA_CH_ACTIVE);
 }
 
-static struct page *lan966x_fdma_rx_alloc_page(struct lan966x_rx *rx,
-					       struct fdma_db *db)
-{
-	struct page *page;
-
-	page = page_pool_dev_alloc_pages(rx->page_pool);
-	if (unlikely(!page))
-		return NULL;
-
-	db->dataptr = page_pool_get_dma_addr(page) + XDP_PACKET_HEADROOM;
-
-	return page;
-}
-
 static void lan966x_fdma_rx_free_pages(struct lan966x_rx *rx)
 {
 	struct fdma *fdma = &rx->fdma;
@@ -64,26 +50,6 @@ static void lan966x_fdma_rx_free_page(struct lan966x_rx *rx)
 		return;
 
 	page_pool_recycle_direct(rx->page_pool, page);
-}
-
-static void lan966x_fdma_rx_add_dcb(struct lan966x_rx *rx,
-				    struct fdma_dcb *dcb,
-				    u64 nextptr)
-{
-	struct fdma *fdma = &rx->fdma;
-	struct fdma_db *db;
-	int i;
-
-	for (i = 0; i < fdma->n_dbs; ++i) {
-		db = &dcb->db[i];
-		db->status = FDMA_DCB_STATUS_INTR;
-	}
-
-	dcb->nextptr = FDMA_DCB_INVALID_DATA;
-	dcb->info = FDMA_DCB_INFO_DATAL(PAGE_SIZE << rx->page_order);
-
-	fdma->last_dcb->nextptr = nextptr;
-	fdma->last_dcb = dcb;
 }
 
 static int lan966x_fdma_rx_alloc_page_pool(struct lan966x_rx *rx)
@@ -551,15 +517,11 @@ static int lan966x_fdma_napi_poll(struct napi_struct *napi, int weight)
 {
 	struct lan966x *lan966x = container_of(napi, struct lan966x, napi);
 	struct lan966x_rx *rx = &lan966x->rx;
+	int old_dcb, dcb_reload, counter = 0;
 	struct fdma *fdma = &rx->fdma;
-	int dcb_reload, counter = 0;
-	struct fdma_dcb *old_dcb;
 	bool redirect = false;
 	struct sk_buff *skb;
-	struct fdma_db *db;
-	struct page *page;
 	u64 src_port;
-	u64 nextptr;
 
 	dcb_reload = fdma->dcb_index;
 
@@ -602,19 +564,13 @@ static int lan966x_fdma_napi_poll(struct napi_struct *napi, int weight)
 allocate_new:
 	/* Allocate new pages and map them */
 	while (dcb_reload != fdma->dcb_index) {
-		db = &fdma->dcbs[dcb_reload].db[fdma->db_index];
-		page = lan966x_fdma_rx_alloc_page(rx, db);
-		if (unlikely(!page))
-			break;
-		rx->page[dcb_reload][fdma->db_index] = page;
-
-		old_dcb = &fdma->dcbs[dcb_reload];
+		old_dcb = dcb_reload;
 		dcb_reload++;
 		dcb_reload &= fdma->n_dcbs - 1;
 
-		nextptr = fdma->dma + ((unsigned long)old_dcb -
-				     (unsigned long)fdma->dcbs);
-		lan966x_fdma_rx_add_dcb(rx, old_dcb, nextptr);
+		fdma_dcb_add(fdma, old_dcb, FDMA_DCB_INFO_DATAL(fdma->db_size),
+			     FDMA_DCB_STATUS_INTR);
+
 		lan966x_fdma_rx_reload(rx);
 	}
 
