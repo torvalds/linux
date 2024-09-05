@@ -244,14 +244,18 @@ static struct attribute sysfs_state_rw = {
 
 static size_t bch2_btree_cache_size(struct bch_fs *c)
 {
+	struct btree_cache *bc = &c->btree_cache;
 	size_t ret = 0;
 	struct btree *b;
 
-	mutex_lock(&c->btree_cache.lock);
-	list_for_each_entry(b, &c->btree_cache.live, list)
+	mutex_lock(&bc->lock);
+	list_for_each_entry(b, &bc->live[0].list, list)
 		ret += btree_buf_bytes(b);
-
-	mutex_unlock(&c->btree_cache.lock);
+	list_for_each_entry(b, &bc->live[1].list, list)
+		ret += btree_buf_bytes(b);
+	list_for_each_entry(b, &bc->freeable, list)
+		ret += btree_buf_bytes(b);
+	mutex_unlock(&bc->lock);
 	return ret;
 }
 
@@ -444,11 +448,12 @@ STORE(bch2_fs)
 		return -EROFS;
 
 	if (attr == &sysfs_trigger_btree_cache_shrink) {
+		struct btree_cache *bc = &c->btree_cache;
 		struct shrink_control sc;
 
 		sc.gfp_mask = GFP_KERNEL;
 		sc.nr_to_scan = strtoul_or_return(buf);
-		c->btree_cache.shrink->scan_objects(c->btree_cache.shrink, &sc);
+		bc->live[0].shrink->scan_objects(bc->live[0].shrink, &sc);
 	}
 
 	if (attr == &sysfs_trigger_btree_key_cache_shrink) {

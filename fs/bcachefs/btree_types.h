@@ -147,14 +147,20 @@ struct btree {
 	x(noevict)				\
 	x(write_blocked)			\
 	x(will_make_reachable)			\
-	x(access_bit)				\
-	x(pinned)				\
+	x(access_bit)
 
 enum bch_btree_cache_not_freed_reasons {
 #define x(n) BCH_BTREE_CACHE_NOT_FREED_##n,
 	BCH_BTREE_CACHE_NOT_FREED_REASONS()
 #undef x
 	BCH_BTREE_CACHE_NOT_FREED_REASONS_NR,
+};
+
+struct btree_cache_list {
+	unsigned		idx;
+	struct shrinker		*shrink;
+	struct list_head	list;
+	size_t			nr;
 };
 
 struct btree_cache {
@@ -174,12 +180,11 @@ struct btree_cache {
 	 * should never grow past ~2-3 nodes in practice.
 	 */
 	struct mutex		lock;
-	struct list_head	live;
 	struct list_head	freeable;
 	struct list_head	freed_pcpu;
 	struct list_head	freed_nonpcpu;
+	struct btree_cache_list	live[2];
 
-	size_t			nr_live;
 	size_t			nr_freeable;
 	size_t			nr_reserve;
 	size_t			nr_by_btree[BTREE_ID_NR];
@@ -188,7 +193,6 @@ struct btree_cache {
 	/* shrinker stats */
 	size_t			nr_freed;
 	u64			not_freed[BCH_BTREE_CACHE_NOT_FREED_REASONS_NR];
-	struct shrinker		*shrink;
 
 	/*
 	 * If we need to allocate memory for a new btree node and that
@@ -201,8 +205,8 @@ struct btree_cache {
 
 	struct bbpos		pinned_nodes_start;
 	struct bbpos		pinned_nodes_end;
-	u64			pinned_nodes_leaf_mask;
-	u64			pinned_nodes_interior_mask;
+	/* btree id mask: 0 for leaves, 1 for interior */
+	u64			pinned_nodes_mask[2];
 };
 
 struct btree_node_iter {
@@ -594,7 +598,8 @@ enum btree_write_type {
 	x(dying)							\
 	x(fake)								\
 	x(need_rewrite)							\
-	x(never_write)
+	x(never_write)							\
+	x(pinned)
 
 enum btree_flags {
 	/* First bits for btree node write type */

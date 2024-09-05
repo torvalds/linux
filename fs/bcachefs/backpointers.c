@@ -752,10 +752,12 @@ static int bch2_get_btree_in_memory_pos(struct btree_trans *trans,
 	s64 mem_may_pin = mem_may_pin_bytes(c);
 	int ret = 0;
 
+	bch2_btree_cache_unpin(c);
+
 	btree_interior_mask |= btree_leaf_mask;
 
-	c->btree_cache.pinned_nodes_leaf_mask		= btree_leaf_mask;
-	c->btree_cache.pinned_nodes_interior_mask	= btree_interior_mask;
+	c->btree_cache.pinned_nodes_mask[0]		= btree_leaf_mask;
+	c->btree_cache.pinned_nodes_mask[1]		= btree_interior_mask;
 	c->btree_cache.pinned_nodes_start		= start;
 	c->btree_cache.pinned_nodes_end			= *end = BBPOS_MAX;
 
@@ -777,6 +779,7 @@ static int bch2_get_btree_in_memory_pos(struct btree_trans *trans,
 					BBPOS(btree, b->key.k.p);
 				break;
 			}
+			bch2_node_pin(c, b);
 			0;
 		}));
 	}
@@ -936,8 +939,7 @@ int bch2_check_extents_to_backpointers(struct bch_fs *c)
 	bch2_trans_put(trans);
 	bch2_bkey_buf_exit(&s.last_flushed, c);
 
-	c->btree_cache.pinned_nodes_leaf_mask = 0;
-	c->btree_cache.pinned_nodes_interior_mask = 0;
+	bch2_btree_cache_unpin(c);
 
 	bch_err_fn(c, ret);
 	return ret;
@@ -1053,8 +1055,7 @@ int bch2_check_backpointers_to_extents(struct bch_fs *c)
 	}
 	bch2_trans_put(trans);
 
-	c->btree_cache.pinned_nodes_leaf_mask = 0;
-	c->btree_cache.pinned_nodes_interior_mask = 0;
+	bch2_btree_cache_unpin(c);
 
 	bch_err_fn(c, ret);
 	return ret;
