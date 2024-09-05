@@ -196,12 +196,6 @@ struct lan966x_db {
 	u64 status;
 };
 
-struct lan966x_rx_dcb {
-	u64 nextptr;
-	u64 info;
-	struct lan966x_db db[FDMA_RX_DCB_MAX_DBS];
-};
-
 struct lan966x_tx_dcb {
 	u64 nextptr;
 	u64 info;
@@ -213,17 +207,8 @@ struct lan966x_rx {
 
 	struct fdma fdma;
 
-	/* Pointer to the array of hardware dcbs. */
-	struct lan966x_rx_dcb *dcbs;
-
-	/* Pointer to the last address in the dcbs. */
-	struct lan966x_rx_dcb *last_entry;
-
 	/* For each DB, there is a page */
 	struct page *page[FDMA_DCB_MAX][FDMA_RX_DCB_MAX_DBS];
-
-	/* Represents the dma address to the dcbs array */
-	dma_addr_t dma;
 
 	/* Represents the page order that is used to allocate the pages for the
 	 * RX buffers. This value is calculated based on max MTU of the devices.
