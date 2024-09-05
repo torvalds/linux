@@ -929,13 +929,13 @@ int tegra_vde_v4l2_init(struct tegra_vde *vde)
 	media_device_init(&vde->mdev);
 	video_set_drvdata(&vde->vdev, vde);
 
-	vde->vdev.lock = &vde->v4l2_lock,
-	vde->vdev.fops = &tegra_v4l2_fops,
-	vde->vdev.vfl_dir = VFL_DIR_M2M,
-	vde->vdev.release = video_device_release_empty,
+	vde->vdev.lock = &vde->v4l2_lock;
+	vde->vdev.fops = &tegra_v4l2_fops;
+	vde->vdev.vfl_dir = VFL_DIR_M2M;
+	vde->vdev.release = video_device_release_empty;
 	vde->vdev.v4l2_dev = &vde->v4l2_dev;
-	vde->vdev.ioctl_ops = &tegra_v4l2_ioctl_ops,
-	vde->vdev.device_caps = V4L2_CAP_VIDEO_M2M_MPLANE | V4L2_CAP_STREAMING,
+	vde->vdev.ioctl_ops = &tegra_v4l2_ioctl_ops;
+	vde->vdev.device_caps = V4L2_CAP_VIDEO_M2M_MPLANE | V4L2_CAP_STREAMING;
 
 	vde->v4l2_dev.mdev = &vde->mdev;
 	vde->mdev.ops = &tegra_media_device_ops;
