@@ -8864,6 +8864,7 @@ F:	drivers/dma/fsldma.*
 FREESCALE DSPI DRIVER
 M:	Vladimir Oltean <olteanv@gmail.com>
 L:	linux-spi@vger.kernel.org
+L:	imx@lists.linux.dev
 S:	Maintained
 F:	Documentation/devicetree/bindings/spi/fsl,dspi*.yaml
 F:	drivers/spi/spi-fsl-dspi.c
@@ -8948,6 +8949,14 @@ S:	Maintained
 F:	Documentation/devicetree/bindings/i2c/i2c-imx-lpi2c.yaml
 F:	drivers/i2c/busses/i2c-imx-lpi2c.c
 
+FREESCALE IMX LPSPI DRIVER
+M:	Frank Li <Frank.Li@nxp.com>
+L:	linux-spi@vger.kernel.org
+L:	imx@lists.linux.dev
+S:	Maintained
+F:	Documentation/devicetree/bindings/spi/spi-fsl-lpspi.yaml
+F:	drivers/spi/spi-fsl-lpspi.c
+
 FREESCALE MPC I2C DRIVER
 M:	Chris Packham <chris.packham@alliedtelesis.co.nz>
 L:	linux-i2c@vger.kernel.org
@@ -8984,6 +8993,7 @@ F:	include/linux/fsl/ptp_qoriq.h
 FREESCALE QUAD SPI DRIVER
 M:	Han Xu <han.xu@nxp.com>
 L:	linux-spi@vger.kernel.org
+L:	imx@lists.linux.dev
 S:	Maintained
 F:	Documentation/devicetree/bindings/spi/fsl,spi-fsl-qspi.yaml
 F:	drivers/spi/spi-fsl-qspi.c
@@ -16408,6 +16418,7 @@ M:	Han Xu <han.xu@nxp.com>
 M:	Haibo Chen <haibo.chen@nxp.com>
 R:	Yogesh Gaur <yogeshgaur.83@gmail.com>
 L:	linux-spi@vger.kernel.org
+L:	imx@lists.linux.dev
 S:	Maintained
 F:	Documentation/devicetree/bindings/spi/spi-nxp-fspi.yaml
 F:	drivers/spi/spi-nxp-fspi.c
