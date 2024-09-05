@@ -1013,20 +1013,7 @@ struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
 		else if (reclaim->generation != iter->generation)
 			goto out_unlock;
 
-		while (1) {
-			pos = READ_ONCE(iter->position);
-			if (!pos || css_tryget(&pos->css))
-				break;
-			/*
-			 * css reference reached zero, so iter->position will
-			 * be cleared by ->css_released. However, we should not
-			 * rely on this happening soon, because ->css_released
-			 * is called from a work queue, and by busy-waiting we
-			 * might block it. So we clear iter->position right
-			 * away.
-			 */
-			(void)cmpxchg(&iter->position, pos, NULL);
-		}
+		pos = READ_ONCE(iter->position);
 	} else if (prev) {
 		pos = prev;
 	}
@@ -1066,9 +1053,6 @@ struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
 		 * it to avoid reclaiming from the same cgroup twice.
 		 */
 		(void)cmpxchg(&iter->position, pos, memcg);
-
-		if (pos)
-			css_put(&pos->css);
 
 		if (!memcg)
 			iter->generation++;
