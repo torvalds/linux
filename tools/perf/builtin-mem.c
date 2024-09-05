@@ -47,7 +47,7 @@ struct perf_mem {
 static int parse_record_events(const struct option *opt,
 			       const char *str, int unset __maybe_unused)
 {
-	struct perf_mem *mem = *(struct perf_mem **)opt->value;
+	struct perf_mem *mem = (struct perf_mem *)opt->value;
 	struct perf_pmu *pmu;
 
 	pmu = perf_mem_events_find_pmu();
