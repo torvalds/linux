@@ -503,7 +503,7 @@ static const char *op_str(enum op op)
 
 /* Can register with range [x.a, x.b] *EVER* satisfy
  * OP (<, <=, >, >=, ==, !=) relation to
- * a regsiter with range [y.a, y.b]
+ * a register with range [y.a, y.b]
  * _in *num_t* domain_
  */
 static bool range_canbe_op(enum num_t t, struct range x, struct range y, enum op op)
@@ -532,7 +532,7 @@ static bool range_canbe_op(enum num_t t, struct range x, struct range y, enum op
 
 /* Does register with range [x.a, x.b] *ALWAYS* satisfy
  * OP (<, <=, >, >=, ==, !=) relation to
- * a regsiter with range [y.a, y.b]
+ * a register with range [y.a, y.b]
  * _in *num_t* domain_
  */
 static bool range_always_op(enum num_t t, struct range x, struct range y, enum op op)
@@ -543,7 +543,7 @@ static bool range_always_op(enum num_t t, struct range x, struct range y, enum o
 
 /* Does register with range [x.a, x.b] *NEVER* satisfy
  * OP (<, <=, >, >=, ==, !=) relation to
- * a regsiter with range [y.a, y.b]
+ * a register with range [y.a, y.b]
  * _in *num_t* domain_
  */
 static bool range_never_op(enum num_t t, struct range x, struct range y, enum op op)
@@ -1018,11 +1018,11 @@ static int parse_reg_state(const char *s, struct reg_state *reg)
 	 *     - umin=%llu, if missing, assumed 0;
 	 *     - umax=%llu, if missing, assumed U64_MAX;
 	 *     - smin=%lld, if missing, assumed S64_MIN;
-	 *     - smax=%lld, if missing, assummed S64_MAX;
+	 *     - smax=%lld, if missing, assumed S64_MAX;
 	 *     - umin32=%d, if missing, assumed 0;
 	 *     - umax32=%d, if missing, assumed U32_MAX;
 	 *     - smin32=%d, if missing, assumed S32_MIN;
-	 *     - smax32=%d, if missing, assummed S32_MAX;
+	 *     - smax32=%d, if missing, assumed S32_MAX;
 	 *     - var_off=(%#llx; %#llx), tnum part, we don't care about it.
 	 *
 	 * If some of the values are equal, they will be grouped (but min/max
@@ -1884,7 +1884,7 @@ cleanup:
  * envvar is not set, this test is skipped during test_progs testing.
  *
  * We split this up into smaller subsets based on initialization and
- * conditiona numeric domains to get an easy parallelization with test_progs'
+ * conditional numeric domains to get an easy parallelization with test_progs'
  * -j argument.
  */
 
@@ -1938,7 +1938,7 @@ static u64 rand_u64()
 {
 	/* RAND_MAX is guaranteed to be at least 1<<15, but in practice it
 	 * seems to be 1<<31, so we need to call it thrice to get full u64;
-	 * we'll use rougly equal split: 22 + 21 + 21 bits
+	 * we'll use roughly equal split: 22 + 21 + 21 bits
 	 */
 	return ((u64)random() << 42) |
 	       (((u64)random() & RAND_21BIT_MASK) << 21) |

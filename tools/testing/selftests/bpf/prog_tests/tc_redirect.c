@@ -872,7 +872,7 @@ static void test_tcp_dtime(struct test_tc_dtime *skel, int family, bool bpf_fwd)
 	test_inet_dtime(family, SOCK_STREAM, addr, 50000 + t);
 
 	/* fwdns_prio100 prog does not read delivery_time_type, so
-	 * kernel puts the (rcv) timetamp in __sk_buff->tstamp
+	 * kernel puts the (rcv) timestamp in __sk_buff->tstamp
 	 */
 	ASSERT_EQ(dtimes[INGRESS_FWDNS_P100], 0,
 		  dtime_cnt_str(t, INGRESS_FWDNS_P100));

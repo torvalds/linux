@@ -16,7 +16,7 @@ const volatile size_t data_array_len;
 int sum = 0;
 int array[1];
 
-/* custom data secton */
+/* custom data section */
 int my_array[1] SEC(".data.custom");
 
 /* custom data section which should NOT be resizable,

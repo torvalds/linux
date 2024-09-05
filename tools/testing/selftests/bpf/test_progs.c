@@ -1500,7 +1500,7 @@ static void calculate_summary_and_print_errors(struct test_env *env)
 
 	/*
 	 * We only print error logs summary when there are failed tests and
-	 * verbose mode is not enabled. Otherwise, results may be incosistent.
+	 * verbose mode is not enabled. Otherwise, results may be inconsistent.
 	 *
 	 */
 	if (!verbose() && fail_cnt) {

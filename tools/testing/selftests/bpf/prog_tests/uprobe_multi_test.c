@@ -213,7 +213,7 @@ static void uprobe_multi_test_run(struct uprobe_multi *skel, struct child *child
 
 	/*
 	 * There are 2 entry and 2 exit probe called for each uprobe_multi_func_[123]
-	 * function and each slepable probe (6) increments uprobe_multi_sleep_result.
+	 * function and each sleepable probe (6) increments uprobe_multi_sleep_result.
 	 */
 	ASSERT_EQ(skel->bss->uprobe_multi_func_1_result, 2, "uprobe_multi_func_1_result");
 	ASSERT_EQ(skel->bss->uprobe_multi_func_2_result, 2, "uprobe_multi_func_2_result");

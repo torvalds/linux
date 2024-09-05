@@ -276,7 +276,7 @@ static void trigger_rawtp_setup(void)
  * instructions. So use two different targets, one of which starts with nop
  * and another doesn't.
  *
- * GCC doesn't generate stack setup preample for these functions due to them
+ * GCC doesn't generate stack setup preamble for these functions due to them
  * having no input arguments and doing nothing in the body.
  */
 __nocf_check __weak void uprobe_target_nop(void)

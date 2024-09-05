@@ -160,7 +160,7 @@ static void bpf_prog_load_log_buf(void)
 	opts.log_buf = log_buf;
 	opts.log_size = log_buf_sz;
 
-	/* with log_level == 0 log_buf shoud stay empty for good prog */
+	/* with log_level == 0 log_buf should stay empty for good prog */
 	log_buf[0] = '\0';
 	opts.log_level = 0;
 	fd = bpf_prog_load(BPF_PROG_TYPE_SOCKET_FILTER, "good_prog", "GPL",
@@ -222,7 +222,7 @@ static void bpf_btf_load_log_buf(void)
 	opts.log_buf = log_buf;
 	opts.log_size = log_buf_sz;
 
-	/* with log_level == 0 log_buf shoud stay empty for good BTF */
+	/* with log_level == 0 log_buf should stay empty for good BTF */
 	log_buf[0] = '\0';
 	opts.log_level = 0;
 	fd = bpf_btf_load(raw_btf_data, raw_btf_size, &opts);
