@@ -21,11 +21,6 @@ static inline struct drm_i915_private *to_i915(const struct drm_device *dev)
 	return container_of(dev, struct drm_i915_private, drm);
 }
 
-static inline struct drm_i915_private *kdev_to_i915(struct device *kdev)
-{
-	return dev_get_drvdata(kdev);
-}
-
 #define IS_PLATFORM(xe, x) ((xe)->info.platform == x)
 #define INTEL_INFO(dev_priv)	(&((dev_priv)->info))
 #define IS_I830(dev_priv)	(dev_priv && 0)
@@ -80,9 +75,9 @@ static inline struct drm_i915_private *kdev_to_i915(struct device *kdev)
 
 #define IS_MOBILE(xe) (xe && 0)
 
-#define IS_LP(xe) (0)
-#define IS_GEN9_LP(xe) (0)
-#define IS_GEN9_BC(xe) (0)
+#define IS_LP(xe) ((xe) && 0)
+#define IS_GEN9_LP(xe) ((xe) && 0)
+#define IS_GEN9_BC(xe) ((xe) && 0)
 
 #define IS_TIGERLAKE_UY(xe) (xe && 0)
 #define IS_COMETLAKE_ULX(xe) (xe && 0)
@@ -109,8 +104,6 @@ struct i915_sched_attr {
 	int priority;
 };
 #define i915_gem_fence_wait_priority(fence, attr) do { (void) attr; } while (0)
-
-#define pdev_to_i915 pdev_to_xe_device
 
 #define FORCEWAKE_ALL XE_FORCEWAKE_ALL
 

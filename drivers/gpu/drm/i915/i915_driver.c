@@ -723,7 +723,7 @@ i915_driver_create(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (IS_ERR(i915))
 		return i915;
 
-	pci_set_drvdata(pdev, i915);
+	pci_set_drvdata(pdev, &i915->drm);
 
 	/* Device parameters start as a copy of module parameters. */
 	i915_params_copy(&i915->params, &i915_modparams);
@@ -1167,7 +1167,7 @@ static int i915_drm_resume(struct drm_device *dev)
 	intel_dmc_resume(dev_priv);
 
 	i915_restore_display(dev_priv);
-	intel_pps_unlock_regs_wa(dev_priv);
+	intel_pps_unlock_regs_wa(display);
 
 	intel_init_pch_refclk(dev_priv);
 

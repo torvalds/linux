@@ -7793,7 +7793,7 @@ void intel_setup_outputs(struct drm_i915_private *dev_priv)
 	struct intel_encoder *encoder;
 	bool dpd_is_edp = false;
 
-	intel_pps_unlock_regs_wa(dev_priv);
+	intel_pps_unlock_regs_wa(display);
 
 	if (!HAS_DISPLAY(dev_priv))
 		return;

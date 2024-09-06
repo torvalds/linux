@@ -365,12 +365,16 @@ static inline struct drm_i915_private *to_i915(const struct drm_device *dev)
 
 static inline struct drm_i915_private *kdev_to_i915(struct device *kdev)
 {
-	return dev_get_drvdata(kdev);
+	struct drm_device *drm = dev_get_drvdata(kdev);
+
+	return drm ? to_i915(drm) : NULL;
 }
 
 static inline struct drm_i915_private *pdev_to_i915(struct pci_dev *pdev)
 {
-	return pci_get_drvdata(pdev);
+	struct drm_device *drm = pci_get_drvdata(pdev);
+
+	return drm ? to_i915(drm) : NULL;
 }
 
 static inline struct intel_gt *to_gt(const struct drm_i915_private *i915)
