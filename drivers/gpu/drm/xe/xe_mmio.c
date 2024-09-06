@@ -157,15 +157,14 @@ int xe_mmio_init(struct xe_device *xe)
 {
 	struct xe_tile *root_tile = xe_device_get_root_tile(xe);
 	struct pci_dev *pdev = to_pci_dev(xe->drm.dev);
-	const int mmio_bar = 0;
 
 	/*
 	 * Map the entire BAR.
 	 * The first 16MB of the BAR, belong to the root tile, and include:
 	 * registers (0-4MB), reserved space (4MB-8MB) and GGTT (8MB-16MB).
 	 */
-	xe->mmio.size = pci_resource_len(pdev, mmio_bar);
-	xe->mmio.regs = pci_iomap(pdev, mmio_bar, GTTMMADR_BAR);
+	xe->mmio.size = pci_resource_len(pdev, GTTMMADR_BAR);
+	xe->mmio.regs = pci_iomap(pdev, GTTMMADR_BAR, 0);
 	if (xe->mmio.regs == NULL) {
 		drm_err(&xe->drm, "failed to map registers\n");
 		return -EIO;
