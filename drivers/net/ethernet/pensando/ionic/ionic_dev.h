@@ -181,10 +181,7 @@ struct ionic_queue;
 struct ionic_qcq;
 
 #define IONIC_MAX_BUF_LEN			((u16)-1)
-#define IONIC_PAGE_SIZE				PAGE_SIZE
-#define IONIC_PAGE_SPLIT_SZ			(PAGE_SIZE / 2)
-#define IONIC_PAGE_GFP_MASK			(GFP_ATOMIC | __GFP_NOWARN |\
-						 __GFP_COMP | __GFP_MEMALLOC)
+#define IONIC_PAGE_SIZE				MIN(PAGE_SIZE, IONIC_MAX_BUF_LEN)
 
 #define IONIC_XDP_MAX_LINEAR_MTU	(IONIC_PAGE_SIZE -	\
 					 (VLAN_ETH_HLEN +	\
@@ -249,11 +246,6 @@ struct ionic_queue {
 		struct ionic_admin_cmd *adminq;
 	};
 	union {
-		void __iomem *cmb_base;
-		struct ionic_txq_desc __iomem *cmb_txq;
-		struct ionic_rxq_desc __iomem *cmb_rxq;
-	};
-	union {
 		void *sg_base;
 		struct ionic_txq_sg_desc *txq_sgl;
 		struct ionic_txq_sg_desc_v1 *txq_sgl_v1;
@@ -261,8 +253,14 @@ struct ionic_queue {
 	};
 	struct xdp_rxq_info *xdp_rxq_info;
 	struct bpf_prog *xdp_prog;
+	struct page_pool *page_pool;
 	struct ionic_queue *partner;
 
+	union {
+		void __iomem *cmb_base;
+		struct ionic_txq_desc __iomem *cmb_txq;
+		struct ionic_rxq_desc __iomem *cmb_rxq;
+	};
 	unsigned int type;
 	unsigned int hw_index;
 	dma_addr_t base_pa;
