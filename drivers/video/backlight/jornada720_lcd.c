@@ -7,6 +7,7 @@
 
 #include <linux/device.h>
 #include <linux/fb.h>
+#include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/lcd.h>
 #include <linux/module.h>
