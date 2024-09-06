@@ -1940,7 +1940,7 @@ static inline void setup_vmalloc_vm(struct vm_struct *vm,
 {
 	vm->flags = flags;
 	vm->addr = (void *)va->va_start;
-	vm->size = va->va_end - va->va_start;
+	vm->size = va_size(va);
 	vm->caller = caller;
 	va->vm = vm;
 }
@@ -2018,7 +2018,7 @@ retry:
 
 	if (vm) {
 		vm->addr = (void *)va->va_start;
-		vm->size = va->va_end - va->va_start;
+		vm->size = va_size(va);
 		va->vm = vm;
 	}
 
@@ -2192,7 +2192,7 @@ static void purge_vmap_node(struct work_struct *work)
 	vn->nr_purged = 0;
 
 	list_for_each_entry_safe(va, n_va, &vn->purge_list, list) {
-		unsigned long nr = (va->va_end - va->va_start) >> PAGE_SHIFT;
+		unsigned long nr = va_size(va) >> PAGE_SHIFT;
 		unsigned long orig_start = va->va_start;
 		unsigned long orig_end = va->va_end;
 		unsigned int vn_id = decode_vn_id(va->flags);
@@ -2336,8 +2336,8 @@ static void free_vmap_area_noflush(struct vmap_area *va)
 	if (WARN_ON_ONCE(!list_empty(&va->list)))
 		return;
 
-	nr_lazy = atomic_long_add_return((va->va_end - va->va_start) >>
-				PAGE_SHIFT, &vmap_lazy_nr);
+	nr_lazy = atomic_long_add_return(va_size(va) >> PAGE_SHIFT,
+					 &vmap_lazy_nr);
 
 	/*
 	 * If it was request by a certain node we would like to
@@ -2933,8 +2933,7 @@ void vm_unmap_ram(const void *mem, unsigned int count)
 	if (WARN_ON_ONCE(!va))
 		return;
 
-	debug_check_no_locks_freed((void *)va->va_start,
-				    (va->va_end - va->va_start));
+	debug_check_no_locks_freed((void *)va->va_start, va_size(va));
 	free_unmap_vmap_area(va);
 }
 EXPORT_SYMBOL(vm_unmap_ram);
@@ -4932,7 +4931,7 @@ static void show_purge_info(struct seq_file *m)
 		list_for_each_entry(va, &vn->lazy.head, list) {
 			seq_printf(m, "0x%pK-0x%pK %7ld unpurged vm_area\n",
 				(void *)va->va_start, (void *)va->va_end,
-				va->va_end - va->va_start);
+				va_size(va));
 		}
 		spin_unlock(&vn->lazy.lock);
 	}
@@ -4954,7 +4953,7 @@ static int vmalloc_info_show(struct seq_file *m, void *p)
 				if (va->flags & VMAP_RAM)
 					seq_printf(m, "0x%pK-0x%pK %7ld vm_map_ram\n",
 						(void *)va->va_start, (void *)va->va_end,
-						va->va_end - va->va_start);
+						va_size(va));
 
 				continue;
 			}
