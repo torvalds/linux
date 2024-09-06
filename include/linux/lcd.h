@@ -12,7 +12,6 @@
 #include <linux/device.h>
 #include <linux/mutex.h>
 #include <linux/notifier.h>
-#include <linux/fb.h>
 
 #define LCD_POWER_ON			(0)
 #define LCD_POWER_REDUCED		(1) // deprecated; don't use in new code
