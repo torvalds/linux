@@ -1206,10 +1206,6 @@ static inline void ceph_init_inode_acls(struct inode *inode,
 					struct ceph_acl_sec_ctx *as_ctx)
 {
 }
-static inline int ceph_acl_chmod(struct dentry *dentry, struct inode *inode)
-{
-	return 0;
-}
 
 static inline void ceph_forget_all_cached_acls(struct inode *inode)
 {
