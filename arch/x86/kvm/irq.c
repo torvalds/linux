@@ -108,7 +108,7 @@ EXPORT_SYMBOL_GPL(kvm_cpu_has_interrupt);
  * Read pending interrupt(from non-APIC source)
  * vector and intack.
  */
-static int kvm_cpu_get_extint(struct kvm_vcpu *v)
+int kvm_cpu_get_extint(struct kvm_vcpu *v)
 {
 	if (!kvm_cpu_has_extint(v)) {
 		WARN_ON(!lapic_in_kernel(v));
@@ -131,6 +131,7 @@ static int kvm_cpu_get_extint(struct kvm_vcpu *v)
 	} else
 		return kvm_pic_read_irq(v->kvm); /* PIC */
 }
+EXPORT_SYMBOL_GPL(kvm_cpu_get_extint);
 
 /*
  * Read pending interrupt vector and intack.
