@@ -7,14 +7,75 @@
  * Implementation of the LZ77 "plain" compression algorithm, as per MS-XCA spec.
  */
 #include <linux/slab.h>
+#include <linux/sizes.h>
+#include <linux/count_zeros.h>
+#include <asm/unaligned.h>
+
 #include "lz77.h"
 
-static __always_inline u32 hash3(const u8 *ptr)
+/*
+ * Compression parameters.
+ */
+#define LZ77_MATCH_MIN_LEN	4
+#define LZ77_MATCH_MIN_DIST	1
+#define LZ77_MATCH_MAX_DIST	SZ_1K
+#define LZ77_HASH_LOG		15
+#define LZ77_HASH_SIZE		(1 << LZ77_HASH_LOG)
+#define LZ77_STEP_SIZE		sizeof(u64)
+
+static __always_inline u8 lz77_read8(const u8 *ptr)
 {
-	return lz77_hash32(lz77_read32(ptr) & 0xffffff, LZ77_HASH_LOG);
+	return get_unaligned(ptr);
 }
 
-static u8 *write_match(u8 *dst, u8 **nib, u32 dist, u32 len)
+static __always_inline u64 lz77_read64(const u64 *ptr)
+{
+	return get_unaligned(ptr);
+}
+
+static __always_inline void lz77_write8(u8 *ptr, u8 v)
+{
+	put_unaligned(v, ptr);
+}
+
+static __always_inline void lz77_write16(u16 *ptr, u16 v)
+{
+	put_unaligned_le16(v, ptr);
+}
+
+static __always_inline void lz77_write32(u32 *ptr, u32 v)
+{
+	put_unaligned_le32(v, ptr);
+}
+
+static __always_inline u32 lz77_match_len(const void *wnd, const void *cur, const void *end)
+{
+	const void *start = cur;
+	u64 diff;
+
+	/* Safe for a do/while because otherwise we wouldn't reach here from the main loop. */
+	do {
+		diff = lz77_read64(cur) ^ lz77_read64(wnd);
+		if (!diff) {
+			cur += LZ77_STEP_SIZE;
+			wnd += LZ77_STEP_SIZE;
+
+			continue;
+		}
+
+		/* This computes the number of common bytes in @diff. */
+		cur += count_trailing_zeros(diff) >> 3;
+
+		return (cur - start);
+	} while (likely(cur + LZ77_STEP_SIZE < end));
+
+	while (cur < end && lz77_read8(cur++) == lz77_read8(wnd++))
+		;
+
+	return (cur - start);
+}
+
+static __always_inline void *lz77_write_match(void *dst, void **nib, u32 dist, u32 len)
 {
 	len -= 3;
 	dist--;
@@ -22,6 +83,7 @@ static u8 *write_match(u8 *dst, u8 **nib, u32 dist, u32 len)
 
 	if (len < 7) {
 		lz77_write16(dst, dist + len);
+
 		return dst + 2;
 	}
 
@@ -31,11 +93,13 @@ static u8 *write_match(u8 *dst, u8 **nib, u32 dist, u32 len)
 	len -= 7;
 
 	if (!*nib) {
+		lz77_write8(dst, umin(len, 15));
 		*nib = dst;
-		lz77_write8(dst, min_t(unsigned int, len, 15));
 		dst++;
 	} else {
-		**nib |= min_t(unsigned int, len, 15) << 4;
+		u8 *b = *nib;
+
+		lz77_write8(b, *b | umin(len, 15) << 4);
 		*nib = NULL;
 	}
 
@@ -45,15 +109,16 @@ static u8 *write_match(u8 *dst, u8 **nib, u32 dist, u32 len)
 	len -= 15;
 	if (len < 255) {
 		lz77_write8(dst, len);
+
 		return dst + 1;
 	}
 
 	lz77_write8(dst, 0xff);
 	dst++;
-
 	len += 7 + 15;
 	if (len <= 0xffff) {
 		lz77_write16(dst, len);
+
 		return dst + 2;
 	}
 
@@ -64,148 +129,107 @@ static u8 *write_match(u8 *dst, u8 **nib, u32 dist, u32 len)
 	return dst + 4;
 }
 
-static u8 *write_literals(u8 *dst, const u8 *dst_end, const u8 *src, size_t count,
-			  struct lz77_flags *flags)
+noinline int lz77_compress(const void *src, u32 slen, void *dst, u32 *dlen)
 {
-	const u8 *end = src + count;
-
-	while (src < end) {
-		size_t c = lz77_min(count, 32 - flags->count);
-
-		if (dst + c >= dst_end)
-			return ERR_PTR(-EFAULT);
-
-		if (lz77_copy(dst, src, c))
-			return ERR_PTR(-EFAULT);
-
-		dst += c;
-		src += c;
-		count -= c;
-
-		flags->val <<= c;
-		flags->count += c;
-		if (flags->count == 32) {
-			lz77_write32(flags->pos, flags->val);
-			flags->count = 0;
-			flags->pos = dst;
-			dst += 4;
-		}
-	}
-
-	return dst;
-}
-
-static __always_inline bool is_valid_match(const u32 dist, const u32 len)
-{
-	return (dist >= LZ77_MATCH_MIN_DIST && dist < LZ77_MATCH_MAX_DIST) &&
-	       (len >= LZ77_MATCH_MIN_LEN && len < LZ77_MATCH_MAX_LEN);
-}
-
-static __always_inline const u8 *find_match(u32 *htable, const u8 *base, const u8 *cur,
-					    const u8 *end, u32 *best_len)
-{
-	const u8 *match;
-	u32 hash;
-	size_t offset;
-
-	hash = hash3(cur);
-	offset = cur - base;
-
-	if (htable[hash] >= offset)
-		return cur;
-
-	match = base + htable[hash];
-	*best_len = lz77_match(match, cur, end);
-	if (is_valid_match(cur - match, *best_len))
-		return match;
-
-	return cur;
-}
-
-int lz77_compress(const u8 *src, size_t src_len, u8 *dst, size_t *dst_len)
-{
-	const u8 *srcp, *src_end, *anchor;
-	struct lz77_flags flags = { 0 };
-	u8 *dstp, *dst_end, *nib;
-	u32 *htable;
-	int ret;
+	const void *srcp, *end;
+	void *dstp, *nib, *flag_pos;
+	u32 flag_count = 0;
+	long flag = 0;
+	u64 *htable;
 
 	srcp = src;
-	anchor = srcp;
-	src_end = src + src_len;
-
+	end = src + slen;
 	dstp = dst;
-	dst_end = dst + *dst_len;
-	flags.pos = dstp;
 	nib = NULL;
-
-	memset(dstp, 0, *dst_len);
+	flag_pos = dstp;
 	dstp += 4;
 
-	htable = kvcalloc(LZ77_HASH_SIZE, sizeof(u32), GFP_KERNEL);
+	htable = kvcalloc(LZ77_HASH_SIZE, sizeof(*htable), GFP_KERNEL);
 	if (!htable)
 		return -ENOMEM;
 
-	/* fill hashtable with invalid offsets */
-	memset(htable, 0xff, LZ77_HASH_SIZE * sizeof(u32));
+	/* Main loop. */
+	do {
+		u32 dist, len = 0;
+		const void *wnd;
+		u64 hash;
 
-	/* from here on, any error is because @dst_len reached >= @src_len */
-	ret = -EMSGSIZE;
+		hash = ((lz77_read64(srcp) << 24) * 889523592379ULL) >> (64 - LZ77_HASH_LOG);
+		wnd = src + htable[hash];
+		htable[hash] = srcp - src;
+		dist = srcp - wnd;
 
-	/* main loop */
-	while (srcp < src_end) {
-		u32 hash, dist, len;
-		const u8 *match;
+		if (dist && dist < LZ77_MATCH_MAX_DIST)
+			len = lz77_match_len(wnd, srcp, end);
 
-		while (srcp + 3 < src_end) {
-			len = LZ77_MATCH_MIN_LEN - 1;
-			match = find_match(htable, src, srcp, src_end, &len);
-			hash = hash3(srcp);
-			htable[hash] = srcp - src;
+		if (len < LZ77_MATCH_MIN_LEN) {
+			lz77_write8(dstp, lz77_read8(srcp));
 
-			if (likely(match < srcp)) {
-				dist = srcp - match;
-				break;
+			dstp++;
+			srcp++;
+
+			flag <<= 1;
+			flag_count++;
+			if (flag_count == 32) {
+				lz77_write32(flag_pos, flag);
+				flag_count = 0;
+				flag_pos = dstp;
+				dstp += 4;
 			}
 
-			srcp++;
+			continue;
 		}
 
-		dstp = write_literals(dstp, dst_end, anchor, srcp - anchor, &flags);
-		if (IS_ERR(dstp))
-			goto err_free;
+		/*
+		 * Bail out if @dstp reached >= 7/8 of @slen -- already compressed badly, not worth
+		 * going further.
+		 */
+		if (unlikely(dstp - dst >= slen - (slen >> 3))) {
+			*dlen = slen;
+			goto out;
+		}
 
-		if (srcp + 3 >= src_end)
-			goto leftovers;
-
-		dstp = write_match(dstp, &nib, dist, len);
+		dstp = lz77_write_match(dstp, &nib, dist, len);
 		srcp += len;
-		anchor = srcp;
 
-		flags.val = (flags.val << 1) | 1;
-		flags.count++;
-		if (flags.count == 32) {
-			lz77_write32(flags.pos, flags.val);
-			flags.count = 0;
-			flags.pos = dstp;
+		flag = (flag << 1) | 1;
+		flag_count++;
+		if (flag_count == 32) {
+			lz77_write32(flag_pos, flag);
+			flag_count = 0;
+			flag_pos = dstp;
+			dstp += 4;
+		}
+	} while (likely(srcp + LZ77_STEP_SIZE < end));
+
+	while (srcp < end) {
+		u32 c = umin(end - srcp, 32 - flag_count);
+
+		memcpy(dstp, srcp, c);
+
+		dstp += c;
+		srcp += c;
+
+		flag <<= c;
+		flag_count += c;
+		if (flag_count == 32) {
+			lz77_write32(flag_pos, flag);
+			flag_count = 0;
+			flag_pos = dstp;
 			dstp += 4;
 		}
 	}
-leftovers:
-	if (srcp < src_end) {
-		dstp = write_literals(dstp, dst_end, srcp, src_end - srcp, &flags);
-		if (IS_ERR(dstp))
-			goto err_free;
-	}
 
-	flags.val <<= (32 - flags.count);
-	flags.val |= (1 << (32 - flags.count)) - 1;
-	lz77_write32(flags.pos, flags.val);
+	flag <<= (32 - flag_count);
+	flag |= (1 << (32 - flag_count)) - 1;
+	lz77_write32(flag_pos, flag);
 
-	*dst_len = dstp - dst;
-	ret = 0;
-err_free:
+	*dlen = dstp - dst;
+out:
 	kvfree(htable);
 
-	return ret;
+	if (*dlen < slen)
+		return 0;
+
+	return -EMSGSIZE;
 }

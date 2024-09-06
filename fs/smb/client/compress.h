@@ -26,18 +26,27 @@
 #define SMB_COMPRESS_PAYLOAD_HDR_LEN	8
 #define SMB_COMPRESS_MIN_LEN		PAGE_SIZE
 
-struct smb_compress_ctx {
-	struct TCP_Server_Info *server;
-	struct work_struct work;
-	struct mid_q_entry *mid;
-
-	void *buf; /* compressed data */
-	void *data; /* uncompressed data */
-	size_t len;
-};
-
 #ifdef CONFIG_CIFS_COMPRESSION
-int smb_compress(void *buf, const void *data, size_t *len);
+typedef int (*compress_send_fn)(struct TCP_Server_Info *, int, struct smb_rqst *);
+
+int smb_compress(struct TCP_Server_Info *server, struct smb_rqst *rq, compress_send_fn send_fn);
+
+/**
+ * should_compress() - Determines if a request (write) or the response to a
+ *		       request (read) should be compressed.
+ * @tcon: tcon of the request is being sent to
+ * @rqst: request to evaluate
+ *
+ * Return: true iff:
+ * - compression was successfully negotiated with server
+ * - server has enabled compression for the share
+ * - it's a read or write request
+ * - (write only) request length is >= SMB_COMPRESS_MIN_LEN
+ * - (write only) is_compressible() returns 1
+ *
+ * Return false otherwise.
+ */
+bool should_compress(const struct cifs_tcon *tcon, const struct smb_rqst *rq);
 
 /**
  * smb_compress_alg_valid() - Validate a compression algorithm.
@@ -62,48 +71,20 @@ static __always_inline int smb_compress_alg_valid(__le16 alg, bool valid_none)
 
 	return false;
 }
-
-/**
- * should_compress() - Determines if a request (write) or the response to a
- *		       request (read) should be compressed.
- * @tcon: tcon of the request is being sent to
- * @buf: buffer with an SMB2 READ/WRITE request
- *
- * Return: true iff:
- * - compression was successfully negotiated with server
- * - server has enabled compression for the share
- * - it's a read or write request
- * - if write, request length is >= SMB_COMPRESS_MIN_LEN
- *
- * Return false otherwise.
- */
-static __always_inline bool should_compress(const struct cifs_tcon *tcon, const void *buf)
+#else /* !CONFIG_CIFS_COMPRESSION */
+static inline int smb_compress(void *unused1, void *unused2, void *unused3)
 {
-	const struct smb2_hdr *shdr = buf;
-
-	if (!tcon || !tcon->ses || !tcon->ses->server)
-		return false;
-
-	if (!tcon->ses->server->compression.enabled)
-		return false;
-
-	if (!(tcon->share_flags & SMB2_SHAREFLAG_COMPRESS_DATA))
-		return false;
-
-	if (shdr->Command == SMB2_WRITE) {
-		const struct smb2_write_req *req = buf;
-
-		return (req->Length >= SMB_COMPRESS_MIN_LEN);
-	}
-
-	return (shdr->Command == SMB2_READ);
+	return -EOPNOTSUPP;
 }
-/*
- * #else !CONFIG_CIFS_COMPRESSION ...
- * These routines should not be called when CONFIG_CIFS_COMPRESSION disabled
- * #define smb_compress(arg1, arg2, arg3)		(-EOPNOTSUPP)
- * #define smb_compress_alg_valid(arg1, arg2)	(-EOPNOTSUPP)
- * #define should_compress(arg1, arg2)		(false)
- */
+
+static inline bool should_compress(void *unused1, void *unused2)
+{
+	return false;
+}
+
+static inline int smb_compress_alg_valid(__le16 unused1, bool unused2)
+{
+	return -EOPNOTSUPP;
+}
 #endif /* !CONFIG_CIFS_COMPRESSION */
 #endif /* _SMB_COMPRESS_H */
