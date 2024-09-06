@@ -77,6 +77,16 @@ void ieee80211_link_stop(struct ieee80211_link_data *link)
 			  &link->color_change_finalize_work);
 	wiphy_work_cancel(link->sdata->local->hw.wiphy,
 			  &link->csa.finalize_work);
+
+	if (link->sdata->wdev.links[link->link_id].cac_started) {
+		wiphy_delayed_work_cancel(link->sdata->local->hw.wiphy,
+					  &link->dfs_cac_timer_work);
+		cfg80211_cac_event(link->sdata->dev,
+				   &link->conf->chanreq.oper,
+				   NL80211_RADAR_CAC_ABORTED,
+				   GFP_KERNEL, link->link_id);
+	}
+
 	ieee80211_link_release_channel(link);
 }
 
