@@ -495,7 +495,7 @@ int zstd_compress_folios(struct list_head *ws, struct address_space *mapping,
 
 		/* Check if we need more input */
 		if (workspace->in_buf.pos == workspace->in_buf.size) {
-			tot_in += PAGE_SIZE;
+			tot_in += workspace->in_buf.size;
 			kunmap_local(workspace->in_buf.src);
 			workspace->in_buf.src = NULL;
 			folio_put(in_folio);
