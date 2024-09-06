@@ -77,9 +77,12 @@ static u64 range_end(u64 start, u64 len)
 	return start + len;
 }
 
-static void dec_evictable_extent_maps(struct btrfs_inode *inode)
+static void remove_em(struct btrfs_inode *inode, struct extent_map *em)
 {
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
+
+	rb_erase(&em->rb_node, &inode->extent_tree.root);
+	RB_CLEAR_NODE(&em->rb_node);
 
 	if (!btrfs_is_testing(fs_info) && is_fstree(btrfs_root_id(inode->root)))
 		percpu_counter_dec(&fs_info->evictable_extent_maps);
@@ -339,7 +342,6 @@ static void validate_extent_map(struct btrfs_fs_info *fs_info, struct extent_map
 static void try_merge_map(struct btrfs_inode *inode, struct extent_map *em)
 {
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
-	struct extent_map_tree *tree = &inode->extent_tree;
 	struct extent_map *merge = NULL;
 	struct rb_node *rb;
 
@@ -371,10 +373,8 @@ static void try_merge_map(struct btrfs_inode *inode, struct extent_map *em)
 			em->flags |= EXTENT_FLAG_MERGED;
 
 			validate_extent_map(fs_info, em);
-			rb_erase(&merge->rb_node, &tree->root);
-			RB_CLEAR_NODE(&merge->rb_node);
+			remove_em(inode, merge);
 			free_extent_map(merge);
-			dec_evictable_extent_maps(inode);
 		}
 	}
 
@@ -386,12 +386,10 @@ static void try_merge_map(struct btrfs_inode *inode, struct extent_map *em)
 		if (em->disk_bytenr < EXTENT_MAP_LAST_BYTE)
 			merge_ondisk_extents(em, merge, em);
 		validate_extent_map(fs_info, em);
-		rb_erase(&merge->rb_node, &tree->root);
-		RB_CLEAR_NODE(&merge->rb_node);
 		em->generation = max(em->generation, merge->generation);
 		em->flags |= EXTENT_FLAG_MERGED;
+		remove_em(inode, merge);
 		free_extent_map(merge);
-		dec_evictable_extent_maps(inode);
 	}
 }
 
@@ -588,12 +586,10 @@ void remove_extent_mapping(struct btrfs_inode *inode, struct extent_map *em)
 	lockdep_assert_held_write(&tree->lock);
 
 	WARN_ON(em->flags & EXTENT_FLAG_PINNED);
-	rb_erase(&em->rb_node, &tree->root);
 	if (!(em->flags & EXTENT_FLAG_LOGGING))
 		list_del_init(&em->list);
-	RB_CLEAR_NODE(&em->rb_node);
 
-	dec_evictable_extent_maps(inode);
+	remove_em(inode, em);
 }
 
 static void replace_extent_mapping(struct btrfs_inode *inode,
