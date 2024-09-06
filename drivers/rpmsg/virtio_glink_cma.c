@@ -141,7 +141,7 @@ static int virtio_glink_bridge_send_msg(struct virtio_glink_bridge *vgbridge,
 	memset(msg, 0, sizeof(*msg));
 	msg->type = cpu_to_virtio32(vdev, msg_type);
 	msg->label = cpu_to_virtio32(vdev, label);
-	sg_init_one(&sg, msg, sizeof(*msg));
+	sg_init_one(&sg, msg, sizeof(struct virtio_glink_bridge_msg));
 
 	rc = virtqueue_add_inbuf(vgbridge->vq, &sg, 1, msg, GFP_KERNEL);
 	if (rc) {
@@ -167,7 +167,7 @@ static int virtio_glink_bridge_send_msg_ack(struct virtio_glink_bridge *vgbridge
 	ack->type = cpu_to_virtio32(vdev, msg_type);
 	ack->label = cpu_to_virtio32(vdev, label);
 	ack->status = cpu_to_virtio32(vdev, status);
-	sg_init_one(&sg, ack, sizeof(*ack));
+	sg_init_one(&sg, ack, sizeof(struct virtio_glink_bridge_msg));
 
 	rc = virtqueue_add_inbuf(vgbridge->vq, &sg, 1, ack, GFP_KERNEL);
 	if (rc) {
