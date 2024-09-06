@@ -1185,7 +1185,7 @@ static int prueth_probe(struct platform_device *pdev)
 	prueth->pa_stats = syscon_regmap_lookup_by_phandle(np, "ti,pa-stats");
 	if (IS_ERR(prueth->pa_stats)) {
 		dev_err(dev, "couldn't get ti,pa-stats syscon regmap\n");
-		return -ENODEV;
+		prueth->pa_stats = NULL;
 	}
 
 	if (eth0_node) {

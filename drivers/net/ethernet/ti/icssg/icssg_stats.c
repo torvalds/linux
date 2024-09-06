@@ -42,11 +42,14 @@ void emac_update_hardware_stats(struct prueth_emac *emac)
 			emac->stats[i] -= tx_pkt_cnt * 8;
 	}
 
-	for (i = 0; i < ARRAY_SIZE(icssg_all_pa_stats); i++) {
-		reg = ICSSG_FW_STATS_BASE + icssg_all_pa_stats[i].offset *
-		      PRUETH_NUM_MACS + slice * sizeof(u32);
-		regmap_read(prueth->pa_stats, reg, &val);
-		emac->pa_stats[i] += val;
+	if (prueth->pa_stats) {
+		for (i = 0; i < ARRAY_SIZE(icssg_all_pa_stats); i++) {
+			reg = ICSSG_FW_STATS_BASE +
+			      icssg_all_pa_stats[i].offset *
+			      PRUETH_NUM_MACS + slice * sizeof(u32);
+			regmap_read(prueth->pa_stats, reg, &val);
+			emac->pa_stats[i] += val;
+		}
 	}
 }
 
@@ -70,9 +73,11 @@ int emac_get_stat_by_name(struct prueth_emac *emac, char *stat_name)
 			return emac->stats[icssg_all_miig_stats[i].offset / sizeof(u32)];
 	}
 
-	for (i = 0; i < ARRAY_SIZE(icssg_all_pa_stats); i++) {
-		if (!strcmp(icssg_all_pa_stats[i].name, stat_name))
-			return emac->pa_stats[icssg_all_pa_stats[i].offset / sizeof(u32)];
+	if (emac->prueth->pa_stats) {
+		for (i = 0; i < ARRAY_SIZE(icssg_all_pa_stats); i++) {
+			if (!strcmp(icssg_all_pa_stats[i].name, stat_name))
+				return emac->pa_stats[icssg_all_pa_stats[i].offset / sizeof(u32)];
+		}
 	}
 
 	netdev_err(emac->ndev, "Invalid stats %s\n", stat_name);
