@@ -865,7 +865,7 @@ static DEFINE_STATIC_KEY_FALSE(scx_ops_enq_exiting);
 static DEFINE_STATIC_KEY_FALSE(scx_ops_cpu_preempt);
 static DEFINE_STATIC_KEY_FALSE(scx_builtin_idle_enabled);
 
-struct static_key_false scx_has_op[SCX_OPI_END] =
+static struct static_key_false scx_has_op[SCX_OPI_END] =
 	{ [0 ... SCX_OPI_END-1] = STATIC_KEY_FALSE_INIT };
 
 static atomic_t scx_exit_kind = ATOMIC_INIT(SCX_EXIT_DONE);
