@@ -497,6 +497,10 @@ int picolcd_init_framebuffer(struct picolcd_data *data)
 #endif
 #endif
 
+#ifdef CONFIG_HID_PICOLCD_LCD
+	info->lcd_dev = data->lcd;
+#endif
+
 	fbdata = info->par;
 	spin_lock_init(&fbdata->lock);
 	fbdata->picolcd = data;
