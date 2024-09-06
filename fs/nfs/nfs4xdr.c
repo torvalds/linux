@@ -1424,12 +1424,12 @@ static inline void encode_openhdr(struct xdr_stream *xdr, const struct nfs_opena
  */
 	encode_nfs4_seqid(xdr, arg->seqid);
 	encode_share_access(xdr, arg->share_access);
-	p = reserve_space(xdr, 36);
+	p = reserve_space(xdr, 40);
 	p = xdr_encode_hyper(p, arg->clientid);
-	*p++ = cpu_to_be32(24);
+	*p++ = cpu_to_be32(28);
 	p = xdr_encode_opaque_fixed(p, "open id:", 8);
 	*p++ = cpu_to_be32(arg->server->s_dev);
-	*p++ = cpu_to_be32(arg->id.uniquifier);
+	p = xdr_encode_hyper(p, arg->id.uniquifier);
 	xdr_encode_hyper(p, arg->id.create_time);
 }
 

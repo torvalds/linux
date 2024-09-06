@@ -446,7 +446,7 @@ struct nfs42_clone_res {
 
 struct stateowner_id {
 	__u64	create_time;
-	__u32	uniquifier;
+	__u64	uniquifier;
 };
 
 struct nfs4_open_delegation {

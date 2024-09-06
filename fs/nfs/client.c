@@ -997,8 +997,8 @@ struct nfs_server *nfs_alloc_server(void)
 	init_waitqueue_head(&server->write_congestion_wait);
 	atomic_long_set(&server->writeback, 0);
 
-	ida_init(&server->openowner_id);
-	ida_init(&server->lockowner_id);
+	atomic64_set(&server->owner_ctr, 0);
+
 	pnfs_init_server(server);
 	rpc_init_wait_queue(&server->uoc_rpcwaitq, "NFS UOC");
 
@@ -1037,8 +1037,6 @@ void nfs_free_server(struct nfs_server *server)
 	}
 	ida_free(&s_sysfs_ids, server->s_sysfs_id);
 
-	ida_destroy(&server->lockowner_id);
-	ida_destroy(&server->openowner_id);
 	put_cred(server->cred);
 	nfs_release_automount_timer();
 	call_rcu(&server->rcu, delayed_free);
