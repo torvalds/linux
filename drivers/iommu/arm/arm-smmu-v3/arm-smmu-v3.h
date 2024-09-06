@@ -619,7 +619,6 @@ struct arm_smmu_ctx_desc {
 
 struct arm_smmu_l1_ctx_desc {
 	struct arm_smmu_cd		*l2ptr;
-	dma_addr_t			l2ptr_dma;
 };
 
 struct arm_smmu_ctx_desc_cfg {
