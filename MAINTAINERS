@@ -5956,6 +5956,7 @@ F:	Documentation/process/cve.rst
 CW1200 WLAN driver
 S:	Orphan
 F:	drivers/net/wireless/st/cw1200/
+F:	include/linux/platform_data/net-cw1200.h
 
 CX18 VIDEO4LINUX DRIVER
 M:	Andy Walls <awalls@md.metrocast.net>
@@ -15905,6 +15906,8 @@ F:	include/uapi/linux/ethtool_netlink.h
 F:	include/uapi/linux/if_*
 F:	include/uapi/linux/netdev*
 F:	tools/testing/selftests/drivers/net/
+X:	Documentation/devicetree/bindings/net/bluetooth/
+X:	Documentation/devicetree/bindings/net/wireless/
 X:	drivers/net/wireless/
 
 NETWORKING DRIVERS (WIRELESS)
@@ -17130,7 +17133,7 @@ F:	include/dt-bindings/
 
 OPENCOMPUTE PTP CLOCK DRIVER
 M:	Jonathan Lemon <jonathan.lemon@gmail.com>
-M:	Vadim Fedorenko <vadfed@linux.dev>
+M:	Vadim Fedorenko <vadim.fedorenko@linux.dev>
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/ptp/ptp_ocp.c
