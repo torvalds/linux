@@ -832,32 +832,16 @@ static inline int inode_need_compress(struct btrfs_inode *inode, u64 start,
 		return 0;
 	}
 	/*
-	 * Special check for subpage.
+	 * Only enable sector perfect compression for experimental builds.
 	 *
-	 * We lock the full page then run each delalloc range in the page, thus
-	 * for the following case, we will hit some subpage specific corner case:
+	 * This is a big feature change for subpage cases, and can hit
+	 * different corner cases, so only limit this feature for
+	 * experimental build for now.
 	 *
-	 * 0		32K		64K
-	 * |	|///////|	|///////|
-	 *		\- A		\- B
-	 *
-	 * In above case, both range A and range B will try to unlock the full
-	 * page [0, 64K), causing the one finished later will have page
-	 * unlocked already, triggering various page lock requirement BUG_ON()s.
-	 *
-	 * So here we add an artificial limit that subpage compression can only
-	 * if the range is fully page aligned.
-	 *
-	 * In theory we only need to ensure the first page is fully covered, but
-	 * the tailing partial page will be locked until the full compression
-	 * finishes, delaying the write of other range.
-	 *
-	 * TODO: Make btrfs_run_delalloc_range() to lock all delalloc range
-	 * first to prevent any submitted async extent to unlock the full page.
-	 * By this, we can ensure for subpage case that only the last async_cow
-	 * will unlock the full page.
+	 * ETA for moving this out of experimental builds is 6.15.
 	 */
-	if (fs_info->sectorsize < PAGE_SIZE) {
+	if (fs_info->sectorsize < PAGE_SIZE &&
+	    !IS_ENABLED(CONFIG_BTRFS_EXPERIMENTAL)) {
 		if (!PAGE_ALIGNED(start) ||
 		    !PAGE_ALIGNED(end + 1))
 			return 0;
@@ -1001,17 +985,6 @@ again:
 	if (total_compressed <= blocksize &&
 	   (start > 0 || end + 1 < inode->disk_i_size))
 		goto cleanup_and_bail_uncompressed;
-
-	/*
-	 * For subpage case, we require full page alignment for the sector
-	 * aligned range.
-	 * Thus we must also check against @actual_end, not just @end.
-	 */
-	if (blocksize < PAGE_SIZE) {
-		if (!PAGE_ALIGNED(start) ||
-		    !PAGE_ALIGNED(round_up(actual_end, blocksize)))
-			goto cleanup_and_bail_uncompressed;
-	}
 
 	total_compressed = min_t(unsigned long, total_compressed,
 			BTRFS_MAX_UNCOMPRESSED);
