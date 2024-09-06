@@ -1317,13 +1317,7 @@ xfs_prep_free_cowblocks(
 	 */
 	if (!sync && inode_is_open_for_write(VFS_I(ip)))
 		return false;
-	if ((VFS_I(ip)->i_state & I_DIRTY_PAGES) ||
-	    mapping_tagged(VFS_I(ip)->i_mapping, PAGECACHE_TAG_DIRTY) ||
-	    mapping_tagged(VFS_I(ip)->i_mapping, PAGECACHE_TAG_WRITEBACK) ||
-	    atomic_read(&VFS_I(ip)->i_dio_count))
-		return false;
-
-	return true;
+	return xfs_can_free_cowblocks(ip);
 }
 
 /*
