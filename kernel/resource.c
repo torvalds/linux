@@ -1830,7 +1830,7 @@ static resource_size_t gfr_start(struct resource *base, resource_size_t size,
 		return end - size + 1;
 	}
 
-	return ALIGN(base->start, align);
+	return ALIGN(max(base->start, align), align);
 }
 
 static bool gfr_continue(struct resource *base, resource_size_t addr,
