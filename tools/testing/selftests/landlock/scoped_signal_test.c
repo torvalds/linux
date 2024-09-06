@@ -9,6 +9,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <linux/landlock.h>
+#include <pthread.h>
 #include <signal.h>
 #include <sys/prctl.h>
 #include <sys/types.h>
@@ -246,6 +247,54 @@ TEST_F(scoped_domains, check_access_signal)
 	if (WIFSIGNALED(status) || !WIFEXITED(status) ||
 	    WEXITSTATUS(status) != EXIT_SUCCESS)
 		_metadata->exit_code = KSFT_FAIL;
+}
+
+static int thread_pipe[2];
+
+enum thread_return {
+	THREAD_INVALID = 0,
+	THREAD_SUCCESS = 1,
+	THREAD_ERROR = 2,
+};
+
+void *thread_func(void *arg)
+{
+	char buf;
+
+	if (read(thread_pipe[0], &buf, 1) != 1)
+		return (void *)THREAD_ERROR;
+
+	return (void *)THREAD_SUCCESS;
+}
+
+TEST(signal_scoping_threads)
+{
+	pthread_t no_sandbox_thread, scoped_thread;
+	enum thread_return ret = THREAD_INVALID;
+
+	drop_caps(_metadata);
+	ASSERT_EQ(0, pipe2(thread_pipe, O_CLOEXEC));
+
+	ASSERT_EQ(0,
+		  pthread_create(&no_sandbox_thread, NULL, thread_func, NULL));
+
+	/* Restricts the domain after creating the first thread. */
+	create_scoped_domain(_metadata, LANDLOCK_SCOPE_SIGNAL);
+
+	ASSERT_EQ(EPERM, pthread_kill(no_sandbox_thread, 0));
+	ASSERT_EQ(1, write(thread_pipe[1], ".", 1));
+
+	ASSERT_EQ(0, pthread_create(&scoped_thread, NULL, thread_func, NULL));
+	ASSERT_EQ(0, pthread_kill(scoped_thread, 0));
+	ASSERT_EQ(1, write(thread_pipe[1], ".", 1));
+
+	EXPECT_EQ(0, pthread_join(no_sandbox_thread, (void **)&ret));
+	EXPECT_EQ(THREAD_SUCCESS, ret);
+	EXPECT_EQ(0, pthread_join(scoped_thread, (void **)&ret));
+	EXPECT_EQ(THREAD_SUCCESS, ret);
+
+	EXPECT_EQ(0, close(thread_pipe[0]));
+	EXPECT_EQ(0, close(thread_pipe[1]));
 }
 
 TEST_HARNESS_MAIN
