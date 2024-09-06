@@ -82,7 +82,8 @@ to be explicit about the denied-by-default access rights.
             LANDLOCK_ACCESS_NET_BIND_TCP |
             LANDLOCK_ACCESS_NET_CONNECT_TCP,
         .scoped =
-            LANDLOCK_SCOPE_ABSTRACT_UNIX_SOCKET,
+            LANDLOCK_SCOPE_ABSTRACT_UNIX_SOCKET |
+            LANDLOCK_SCOPE_SIGNAL,
     };
 
 Because we may not know on which kernel version an application will be
@@ -123,8 +124,9 @@ version, and only use the available subset of access rights:
         ruleset_attr.handled_access_fs &= ~LANDLOCK_ACCESS_FS_IOCTL_DEV;
         __attribute__((fallthrough));
     case 5:
-        /* Removes LANDLOCK_SCOPE_ABSTRACT_UNIX_SOCKET for ABI < 6 */
-        ruleset_attr.scoped &= ~LANDLOCK_SCOPE_ABSTRACT_UNIX_SOCKET;
+        /* Removes LANDLOCK_SCOPE_* for ABI < 6 */
+        ruleset_attr.scoped &= ~(LANDLOCK_SCOPE_ABSTRACT_UNIX_SOCKET |
+                                 LANDLOCK_SCOPE_SIGNAL);
     }
 
 This enables to create an inclusive ruleset that will contain our rules.
@@ -321,10 +323,15 @@ for a set of actions by specifying it on a ruleset.  For example, if a
 sandboxed process should not be able to :manpage:`connect(2)` to a
 non-sandboxed process through abstract :manpage:`unix(7)` sockets, we can
 specify such restriction with ``LANDLOCK_SCOPE_ABSTRACT_UNIX_SOCKET``.
+Moreover, if a sandboxed process should not be able to send a signal to a
+non-sandboxed process, we can specify this restriction with
+``LANDLOCK_SCOPE_SIGNAL``.
 
 A sandboxed process can connect to a non-sandboxed process when its domain is
 not scoped. If a process's domain is scoped, it can only connect to sockets
 created by processes in the same scope.
+Moreover, If a process is scoped to send signal to a non-scoped process, it can
+only send signals to processes in the same scope.
 
 A connected datagram socket behaves like a stream socket when its domain is
 scoped, meaning if the domain is scoped after the socket is connected , it can
@@ -580,6 +587,13 @@ Abstract UNIX socket scoping (ABI < 6)
 Starting with the Landlock ABI version 6, it is possible to restrict
 connections to an abstract :manpage:`unix(7)` socket by setting
 ``LANDLOCK_SCOPE_ABSTRACT_UNIX_SOCKET`` to the ``scoped`` ruleset attribute.
+
+Signal scoping (ABI < 6)
+------------------------
+
+Starting with the Landlock ABI version 6, it is possible to restrict
+:manpage:`signal(7)` sending by setting ``LANDLOCK_SCOPE_SIGNAL`` to the
+``scoped`` ruleset attribute.
 
 .. _kernel_support:
 
