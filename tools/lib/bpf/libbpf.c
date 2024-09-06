@@ -986,7 +986,7 @@ find_struct_ops_kern_types(struct bpf_object *obj, const char *tname_raw,
 {
 	const struct btf_type *kern_type, *kern_vtype;
 	const struct btf_member *kern_data_member;
-	struct btf *btf;
+	struct btf *btf = NULL;
 	__s32 kern_vtype_id, kern_type_id;
 	char tname[256];
 	__u32 i;
@@ -1116,7 +1116,7 @@ static int bpf_map__init_kern_struct_ops(struct bpf_map *map)
 	const struct btf *btf = obj->btf;
 	struct bpf_struct_ops *st_ops;
 	const struct btf *kern_btf;
-	struct module_btf *mod_btf;
+	struct module_btf *mod_btf = NULL;
 	void *data, *kern_data;
 	const char *tname;
 	int err;
