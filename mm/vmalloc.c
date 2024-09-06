@@ -3570,7 +3570,7 @@ vm_area_alloc_pages(gfp_t gfp, int nid,
 			break;
 
 		/*
-		 * Higher order allocations must be able to be treated as
+		 * High-order allocations must be able to be treated as
 		 * independent small pages by callers (as they can with
 		 * small-page vmallocs). Some drivers do their own refcounting
 		 * on vmalloc_to_page() pages, some use page->mapping,
@@ -3633,7 +3633,7 @@ static void *__vmalloc_area_node(struct vm_struct *area, gfp_t gfp_mask,
 	page_order = vm_area_page_order(area);
 
 	/*
-	 * Higher order nofail allocations are really expensive and
+	 * High-order nofail allocations are really expensive and
 	 * potentially dangerous (pre-mature OOM, disruptive reclaim
 	 * and compaction etc.
 	 *
