@@ -477,6 +477,7 @@ static void qcom_geni_serial_console_write(struct console *co, const char *s,
 {
 	struct uart_port *uport;
 	struct qcom_geni_serial_port *port;
+	u32 m_irq_en, s_irq_en;
 	bool locked = true;
 	unsigned long flags;
 
@@ -492,6 +493,11 @@ static void qcom_geni_serial_console_write(struct console *co, const char *s,
 	else
 		uart_port_lock_irqsave(uport, &flags);
 
+	m_irq_en = readl(uport->membase + SE_GENI_M_IRQ_EN);
+	s_irq_en = readl(uport->membase + SE_GENI_S_IRQ_EN);
+	writel(0, uport->membase + SE_GENI_M_IRQ_EN);
+	writel(0, uport->membase + SE_GENI_S_IRQ_EN);
+
 	if (qcom_geni_serial_main_active(uport)) {
 		/* Wait for completion or drain FIFO */
 		if (!locked || port->tx_remaining == 0)
@@ -503,6 +509,9 @@ static void qcom_geni_serial_console_write(struct console *co, const char *s,
 	}
 
 	__qcom_geni_serial_console_write(uport, s, count);
+
+	writel(m_irq_en, uport->membase + SE_GENI_M_IRQ_EN);
+	writel(s_irq_en, uport->membase + SE_GENI_S_IRQ_EN);
 
 	if (locked)
 		uart_port_unlock_irqrestore(uport, flags);
