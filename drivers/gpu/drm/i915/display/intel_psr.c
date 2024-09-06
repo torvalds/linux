@@ -2784,13 +2784,6 @@ static int _psr1_ready_for_pipe_update_locked(struct intel_dp *intel_dp)
 				       EDP_PSR_STATUS_STATE_MASK, 50);
 }
 
-static int _panel_replay_ready_for_pipe_update_locked(struct intel_dp *intel_dp)
-{
-	return intel_dp_is_edp(intel_dp) ?
-		_psr2_ready_for_pipe_update_locked(intel_dp) :
-		_psr1_ready_for_pipe_update_locked(intel_dp);
-}
-
 /**
  * intel_psr_wait_for_idle_locked - wait for PSR be ready for a pipe update
  * @new_crtc_state: new CRTC state
@@ -2813,12 +2806,10 @@ void intel_psr_wait_for_idle_locked(const struct intel_crtc_state *new_crtc_stat
 
 		lockdep_assert_held(&intel_dp->psr.lock);
 
-		if (!intel_dp->psr.enabled)
+		if (!intel_dp->psr.enabled || intel_dp->psr.panel_replay_enabled)
 			continue;
 
-		if (intel_dp->psr.panel_replay_enabled)
-			ret = _panel_replay_ready_for_pipe_update_locked(intel_dp);
-		else if (intel_dp->psr.sel_update_enabled)
+		if (intel_dp->psr.sel_update_enabled)
 			ret = _psr2_ready_for_pipe_update_locked(intel_dp);
 		else
 			ret = _psr1_ready_for_pipe_update_locked(intel_dp);
