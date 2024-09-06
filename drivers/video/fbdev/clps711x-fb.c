@@ -162,13 +162,6 @@ static const struct fb_ops clps711x_fb_ops = {
 	.fb_blank	= clps711x_fb_blank,
 };
 
-static int clps711x_lcd_check_fb(struct lcd_device *lcddev, struct fb_info *fi)
-{
-	struct clps711x_fb_info *cfb = dev_get_drvdata(&lcddev->dev);
-
-	return (!fi || fi->par == cfb) ? 1 : 0;
-}
-
 static int clps711x_lcd_get_power(struct lcd_device *lcddev)
 {
 	struct clps711x_fb_info *cfb = dev_get_drvdata(&lcddev->dev);
@@ -198,7 +191,6 @@ static int clps711x_lcd_set_power(struct lcd_device *lcddev, int blank)
 }
 
 static const struct lcd_ops clps711x_lcd_ops = {
-	.check_fb	= clps711x_lcd_check_fb,
 	.get_power	= clps711x_lcd_get_power,
 	.set_power	= clps711x_lcd_set_power,
 };
@@ -325,16 +317,21 @@ static int clps711x_fb_probe(struct platform_device *pdev)
 	if (ret)
 		goto out_fb_dealloc_cmap;
 
+	lcd = devm_lcd_device_register(dev, "clps711x-lcd", dev, cfb,
+				       &clps711x_lcd_ops);
+	if (IS_ERR(lcd)) {
+		ret = PTR_ERR(lcd);
+		goto out_fb_dealloc_cmap;
+	}
+
+	info->lcd_dev = lcd;
+
 	ret = register_framebuffer(info);
 	if (ret)
 		goto out_fb_dealloc_cmap;
 
-	lcd = devm_lcd_device_register(dev, "clps711x-lcd", dev, cfb,
-				       &clps711x_lcd_ops);
-	if (!IS_ERR(lcd))
-		return 0;
+	return 0;
 
-	ret = PTR_ERR(lcd);
 	unregister_framebuffer(info);
 
 out_fb_dealloc_cmap:
