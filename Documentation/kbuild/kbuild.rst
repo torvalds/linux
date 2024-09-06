@@ -22,6 +22,11 @@ modules.builtin.modinfo
 This file contains modinfo from all modules that are built into the kernel.
 Unlike modinfo of a separate module, all fields are prefixed with module name.
 
+modules.builtin.ranges
+----------------------
+This file contains address offset ranges (per ELF section) for all modules
+that are built into the kernel. Together with System.map, it can be used
+to associate module names with symbols.
 
 Environment variables
 =====================
