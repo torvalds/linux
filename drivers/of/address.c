@@ -198,6 +198,23 @@ static u64 of_bus_pci_map(__be32 *addr, const __be32 *range, int na, int ns,
 
 #endif /* CONFIG_PCI */
 
+static int __of_address_resource_bounds(struct resource *r, u64 start, u64 size)
+{
+	u64 end = start;
+
+	if (overflows_type(start, r->start))
+		return -EOVERFLOW;
+	if (size && check_add_overflow(end, size - 1, &end))
+		return -EOVERFLOW;
+	if (overflows_type(end, r->end))
+		return -EOVERFLOW;
+
+	r->start = start;
+	r->end = end;
+
+	return 0;
+}
+
 /*
  * of_pci_range_to_resource - Create a resource from an of_pci_range
  * @range:	the PCI range that describes the resource
@@ -216,6 +233,7 @@ static u64 of_bus_pci_map(__be32 *addr, const __be32 *range, int na, int ns,
 int of_pci_range_to_resource(struct of_pci_range *range,
 			     struct device_node *np, struct resource *res)
 {
+	u64 start;
 	int err;
 	res->flags = range->flags;
 	res->parent = res->child = res->sibling = NULL;
@@ -232,18 +250,11 @@ int of_pci_range_to_resource(struct of_pci_range *range,
 			err = -EINVAL;
 			goto invalid_range;
 		}
-		res->start = port;
+		start = port;
 	} else {
-		if ((sizeof(resource_size_t) < 8) &&
-		    upper_32_bits(range->cpu_addr)) {
-			err = -EINVAL;
-			goto invalid_range;
-		}
-
-		res->start = range->cpu_addr;
+		start = range->cpu_addr;
 	}
-	res->end = res->start + range->size - 1;
-	return 0;
+	return __of_address_resource_bounds(res, start, range->size);
 
 invalid_range:
 	res->start = (resource_size_t)OF_BAD_ADDR;
@@ -259,8 +270,8 @@ EXPORT_SYMBOL(of_pci_range_to_resource);
  * @res:	pointer to a valid resource that will be updated to
  *              reflect the values contained in the range.
  *
- * Returns ENOENT if the entry is not found or EINVAL if the range cannot be
- * converted to resource.
+ * Returns -ENOENT if the entry is not found or -EOVERFLOW if the range
+ * cannot be converted to resource.
  */
 int of_range_to_resource(struct device_node *np, int index, struct resource *res)
 {
@@ -1062,16 +1073,10 @@ static int __of_address_to_resource(struct device_node *dev, int index, int bar_
 	if (of_mmio_is_nonposted(dev))
 		flags |= IORESOURCE_MEM_NONPOSTED;
 
-	if (overflows_type(taddr, r->start))
-		return -EOVERFLOW;
-	r->start = taddr;
-	if (overflows_type(taddr + size - 1, r->end))
-		return -EOVERFLOW;
-	r->end = taddr + size - 1;
 	r->flags = flags;
 	r->name = name ? name : dev->full_name;
 
-	return 0;
+	return __of_address_resource_bounds(r, taddr, size);
 }
 
 /**
