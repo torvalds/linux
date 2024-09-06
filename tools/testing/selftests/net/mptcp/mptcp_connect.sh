@@ -847,6 +847,8 @@ stop_if_error()
 make_file "$cin" "client"
 make_file "$sin" "server"
 
+mptcp_lib_subtests_last_ts_reset
+
 check_mptcp_disabled
 
 stop_if_error "The kernel configuration is not valid for MPTCP"
