@@ -20,6 +20,24 @@
 
 #if defined(CONFIG_FB) || (defined(CONFIG_FB_MODULE) && \
 			   defined(CONFIG_LCD_CLASS_DEVICE_MODULE))
+static int to_lcd_power(int fb_blank)
+{
+	switch (fb_blank) {
+	case FB_BLANK_UNBLANK:
+		return LCD_POWER_ON;
+	/* deprecated; TODO: should become 'off' */
+	case FB_BLANK_NORMAL:
+		return LCD_POWER_REDUCED;
+	case FB_BLANK_VSYNC_SUSPEND:
+		return LCD_POWER_REDUCED_VSYNC_SUSPEND;
+	/* 'off' */
+	case FB_BLANK_HSYNC_SUSPEND:
+	case FB_BLANK_POWERDOWN:
+	default:
+		return LCD_POWER_OFF;
+	}
+}
+
 /* This callback gets called when something important happens inside a
  * framebuffer driver. We're looking if that important event is blanking,
  * and if it is, we're switching lcd power as well ...
@@ -42,8 +60,10 @@ static int fb_notifier_callback(struct notifier_block *self,
 		return 0;
 
 	if (event == FB_EVENT_BLANK) {
+		int power = to_lcd_power(*(int *)evdata->data);
+
 		if (ld->ops->set_power)
-			ld->ops->set_power(ld, *(int *)evdata->data);
+			ld->ops->set_power(ld, power);
 	} else {
 		if (ld->ops->set_mode)
 			ld->ops->set_mode(ld, evdata->data);

@@ -14,6 +14,11 @@
 #include <linux/notifier.h>
 #include <linux/fb.h>
 
+#define LCD_POWER_ON			(0)
+#define LCD_POWER_REDUCED		(1) // deprecated; don't use in new code
+#define LCD_POWER_REDUCED_VSYNC_SUSPEND	(2) // deprecated; don't use in new code
+#define LCD_POWER_OFF			(4)
+
 /* Notes on locking:
  *
  * lcd_device->ops_lock is an internal backlight lock protecting the ops
