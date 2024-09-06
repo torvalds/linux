@@ -602,7 +602,8 @@ static bool ionic_run_xdp(struct ionic_rx_stats *stats,
 
 static void ionic_rx_clean(struct ionic_queue *q,
 			   struct ionic_rx_desc_info *desc_info,
-			   struct ionic_rxq_comp *comp)
+			   struct ionic_rxq_comp *comp,
+			   struct bpf_prog *xdp_prog)
 {
 	struct net_device *netdev = q->lif->netdev;
 	struct ionic_qcq *qcq = q_to_qcq(q);
@@ -631,8 +632,8 @@ static void ionic_rx_clean(struct ionic_queue *q,
 	stats->pkts++;
 	stats->bytes += len;
 
-	if (q->xdp_prog) {
-		if (ionic_run_xdp(stats, netdev, q->xdp_prog, q, desc_info->bufs, len))
+	if (xdp_prog) {
+		if (ionic_run_xdp(stats, netdev, xdp_prog, q, desc_info->bufs, len))
 			return;
 		synced = true;
 		headroom = XDP_PACKET_HEADROOM;
@@ -718,7 +719,7 @@ static void ionic_rx_clean(struct ionic_queue *q,
 		napi_gro_frags(&qcq->napi);
 }
 
-bool ionic_rx_service(struct ionic_cq *cq)
+static bool __ionic_rx_service(struct ionic_cq *cq, struct bpf_prog *xdp_prog)
 {
 	struct ionic_rx_desc_info *desc_info;
 	struct ionic_queue *q = cq->bound_q;
@@ -740,9 +741,14 @@ bool ionic_rx_service(struct ionic_cq *cq)
 	q->tail_idx = (q->tail_idx + 1) & (q->num_descs - 1);
 
 	/* clean the related q entry, only one per qc completion */
-	ionic_rx_clean(q, desc_info, comp);
+	ionic_rx_clean(q, desc_info, comp, xdp_prog);
 
 	return true;
+}
+
+bool ionic_rx_service(struct ionic_cq *cq)
+{
+	return __ionic_rx_service(cq, NULL);
 }
 
 static inline void ionic_write_cmb_desc(struct ionic_queue *q,
@@ -755,7 +761,7 @@ static inline void ionic_write_cmb_desc(struct ionic_queue *q,
 		memcpy_toio(&q->cmb_txq[q->head_idx], desc, sizeof(q->cmb_txq[0]));
 }
 
-void ionic_rx_fill(struct ionic_queue *q)
+void ionic_rx_fill(struct ionic_queue *q, struct bpf_prog *xdp_prog)
 {
 	struct net_device *netdev = q->lif->netdev;
 	struct ionic_rx_desc_info *desc_info;
@@ -783,7 +789,7 @@ void ionic_rx_fill(struct ionic_queue *q)
 
 	len = netdev->mtu + VLAN_ETH_HLEN;
 
-	if (q->xdp_prog) {
+	if (xdp_prog) {
 		/* Always alloc the full size buffer, but only need
 		 * the actual frag_len in the descriptor
 		 * XDP uses space in the first buffer, so account for
@@ -964,6 +970,32 @@ static void ionic_xdp_do_flush(struct ionic_cq *cq)
 	}
 }
 
+static unsigned int ionic_rx_cq_service(struct ionic_cq *cq,
+					unsigned int work_to_do)
+{
+	struct ionic_queue *q = cq->bound_q;
+	unsigned int work_done = 0;
+	struct bpf_prog *xdp_prog;
+
+	if (work_to_do == 0)
+		return 0;
+
+	xdp_prog = READ_ONCE(q->xdp_prog);
+	while (__ionic_rx_service(cq, xdp_prog)) {
+		if (cq->tail_idx == cq->num_descs - 1)
+			cq->done_color = !cq->done_color;
+
+		cq->tail_idx = (cq->tail_idx + 1) & (cq->num_descs - 1);
+
+		if (++work_done >= work_to_do)
+			break;
+	}
+	ionic_rx_fill(q, xdp_prog);
+	ionic_xdp_do_flush(cq);
+
+	return work_done;
+}
+
 int ionic_rx_napi(struct napi_struct *napi, int budget)
 {
 	struct ionic_qcq *qcq = napi_to_qcq(napi);
@@ -974,12 +1006,8 @@ int ionic_rx_napi(struct napi_struct *napi, int budget)
 	if (unlikely(!budget))
 		return budget;
 
-	work_done = ionic_cq_service(cq, budget,
-				     ionic_rx_service, NULL, NULL);
+	work_done = ionic_rx_cq_service(cq, budget);
 
-	ionic_rx_fill(cq->bound_q);
-
-	ionic_xdp_do_flush(cq);
 	if (work_done < budget && napi_complete_done(napi, work_done)) {
 		ionic_dim_update(qcq, IONIC_LIF_F_RX_DIM_INTR);
 		flags |= IONIC_INTR_CRED_UNMASK;
@@ -1020,12 +1048,8 @@ int ionic_txrx_napi(struct napi_struct *napi, int budget)
 	if (unlikely(!budget))
 		return budget;
 
-	rx_work_done = ionic_cq_service(rxcq, budget,
-					ionic_rx_service, NULL, NULL);
+	rx_work_done = ionic_rx_cq_service(rxcq, budget);
 
-	ionic_rx_fill(rxcq->bound_q);
-
-	ionic_xdp_do_flush(rxcq);
 	if (rx_work_done < budget && napi_complete_done(napi, rx_work_done)) {
 		ionic_dim_update(rxqcq, 0);
 		flags |= IONIC_INTR_CRED_UNMASK;

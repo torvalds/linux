@@ -1074,7 +1074,7 @@ int ionic_lif_create_hwstamp_rxq(struct ionic_lif *lif)
 			goto err_qcq_init;
 
 		if (test_bit(IONIC_LIF_F_UP, lif->state)) {
-			ionic_rx_fill(&rxq->q);
+			ionic_rx_fill(&rxq->q, NULL);
 			err = ionic_qcq_enable(rxq);
 			if (err)
 				goto err_qcq_enable;
@@ -2190,7 +2190,8 @@ static int ionic_txrx_enable(struct ionic_lif *lif)
 			goto err_out;
 		}
 
-		ionic_rx_fill(&lif->rxqcqs[i]->q);
+		ionic_rx_fill(&lif->rxqcqs[i]->q,
+			      READ_ONCE(lif->rxqcqs[i]->q.xdp_prog));
 		err = ionic_qcq_enable(lif->rxqcqs[i]);
 		if (err)
 			goto err_out;
@@ -2203,7 +2204,7 @@ static int ionic_txrx_enable(struct ionic_lif *lif)
 	}
 
 	if (lif->hwstamp_rxq) {
-		ionic_rx_fill(&lif->hwstamp_rxq->q);
+		ionic_rx_fill(&lif->hwstamp_rxq->q, NULL);
 		err = ionic_qcq_enable(lif->hwstamp_rxq);
 		if (err)
 			goto err_out_hwstamp_rx;
@@ -2746,7 +2747,7 @@ static void ionic_xdp_rxqs_prog_update(struct ionic_lif *lif)
 	for (i = 0; i < lif->ionic->nrxqs_per_lif && lif->rxqcqs[i]; i++) {
 		struct ionic_queue *q = &lif->rxqcqs[i]->q;
 
-		q->xdp_prog = xdp_prog;
+		WRITE_ONCE(q->xdp_prog, xdp_prog);
 	}
 }
 
@@ -2777,6 +2778,9 @@ static int ionic_xdp_config(struct net_device *netdev, struct netdev_bpf *bpf)
 
 	if (!netif_running(netdev)) {
 		old_prog = xchg(&lif->xdp_prog, bpf->prog);
+	} else if (lif->xdp_prog && bpf->prog) {
+		old_prog = xchg(&lif->xdp_prog, bpf->prog);
+		ionic_xdp_rxqs_prog_update(lif);
 	} else {
 		struct ionic_queue_params qparams;
 
