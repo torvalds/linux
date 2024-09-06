@@ -418,8 +418,8 @@ do_retry:
 
 static void emac_hash_mc(struct emac_instance *dev)
 {
+	u32 __iomem *gaht_base = emac_gaht_base(dev);
 	const int regs = EMAC_XAHT_REGS(dev);
-	u32 *gaht_base = emac_gaht_base(dev);
 	u32 gaht_temp[EMAC_XAHT_MAX_REGS];
 	struct netdev_hw_addr *ha;
 	int i;
