@@ -18,7 +18,6 @@
 
 #include <linux/dma-mapping.h>
 #include <linux/slab.h>
-#include <linux/ath9k_platform.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_net.h>
@@ -583,8 +582,8 @@ static int ath9k_nvmem_request_eeprom(struct ath_softc *sc)
 
 		/* nvmem cell might not be defined, or the nvmem
 		 * subsystem isn't included. In this case, follow
-		 * the established "just return 0;" convention of
-		 * ath9k_init_platform to say:
+		 * the established "just return 0;" convention
+		 * to say:
 		 * "All good. Nothing to see here. Please go on."
 		 */
 		if (err == -ENOENT || err == -EOPNOTSUPP)
@@ -616,49 +615,6 @@ static int ath9k_nvmem_request_eeprom(struct ath_softc *sc)
 	ah->nvmem_blob_len = len;
 	ah->ah_flags &= ~AH_USE_EEPROM;
 	ah->ah_flags |= AH_NO_EEP_SWAP;
-
-	return 0;
-}
-
-static int ath9k_init_platform(struct ath_softc *sc)
-{
-	struct ath9k_platform_data *pdata = sc->dev->platform_data;
-	struct ath_hw *ah = sc->sc_ah;
-	struct ath_common *common = ath9k_hw_common(ah);
-	int ret;
-
-	if (!pdata)
-		return 0;
-
-	if (!pdata->use_eeprom) {
-		ah->ah_flags &= ~AH_USE_EEPROM;
-		ah->gpio_mask = pdata->gpio_mask;
-		ah->gpio_val = pdata->gpio_val;
-		ah->led_pin = pdata->led_pin;
-		ah->is_clk_25mhz = pdata->is_clk_25mhz;
-		ah->get_mac_revision = pdata->get_mac_revision;
-		ah->external_reset = pdata->external_reset;
-		ah->disable_2ghz = pdata->disable_2ghz;
-		ah->disable_5ghz = pdata->disable_5ghz;
-
-		if (!pdata->endian_check)
-			ah->ah_flags |= AH_NO_EEP_SWAP;
-	}
-
-	if (pdata->eeprom_name) {
-		ret = ath9k_eeprom_request(sc, pdata->eeprom_name);
-		if (ret)
-			return ret;
-	}
-
-	if (pdata->led_active_high)
-		ah->config.led_active_high = true;
-
-	if (pdata->tx_gain_buffalo)
-		ah->config.tx_gain_buffalo = true;
-
-	if (pdata->macaddr)
-		ether_addr_copy(common->macaddr, pdata->macaddr);
 
 	return 0;
 }
@@ -747,10 +703,6 @@ static int ath9k_init_softc(u16 devid, struct ath_softc *sc,
 	 * Platform quirks.
 	 */
 	ath9k_init_pcoem_platform(sc);
-
-	ret = ath9k_init_platform(sc);
-	if (ret)
-		return ret;
 
 	ret = ath9k_of_init(sc);
 	if (ret)
