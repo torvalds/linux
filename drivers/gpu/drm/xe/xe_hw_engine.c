@@ -903,6 +903,7 @@ xe_hw_engine_snapshot_capture(struct xe_hw_engine *hwe)
 	snapshot->forcewake.ref = xe_force_wake_ref(gt_to_fw(hwe->gt),
 						    hwe->domain);
 	snapshot->mmio_base = hwe->mmio_base;
+	snapshot->kernel_reserved = xe_hw_engine_is_reserved(hwe);
 
 	/* no more VF accessible data below this point */
 	if (IS_SRIOV_VF(gt_to_xe(hwe->gt)))
@@ -1025,6 +1026,8 @@ void xe_hw_engine_snapshot_print(struct xe_hw_engine_snapshot *snapshot,
 		   snapshot->logical_instance);
 	drm_printf(p, "\tForcewake: domain 0x%x, ref %d\n",
 		   snapshot->forcewake.domain, snapshot->forcewake.ref);
+	drm_printf(p, "\tReserved: %s\n",
+		   str_yes_no(snapshot->kernel_reserved));
 	drm_printf(p, "\tHWSTAM: 0x%08x\n", snapshot->reg.ring_hwstam);
 	drm_printf(p, "\tRING_HWS_PGA: 0x%08x\n", snapshot->reg.ring_hws_pga);
 	drm_printf(p, "\tRING_EXECLIST_STATUS: 0x%016llx\n",

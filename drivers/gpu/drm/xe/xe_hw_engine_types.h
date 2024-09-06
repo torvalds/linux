@@ -173,6 +173,8 @@ struct xe_hw_engine_snapshot {
 	} forcewake;
 	/** @mmio_base: MMIO base address of this hw engine*/
 	u32 mmio_base;
+	/** @kernel_reserved: Engine reserved, can't be used by userspace */
+	bool kernel_reserved;
 	/** @reg: Useful MMIO register snapshot */
 	struct {
 		/** @reg.ring_execlist_status: RING_EXECLIST_STATUS */
