@@ -221,7 +221,7 @@ int intel_display_driver_probe_noirq(struct drm_i915_private *i915)
 
 	intel_bios_init(display);
 
-	ret = intel_vga_register(i915);
+	ret = intel_vga_register(display);
 	if (ret)
 		goto cleanup_bios;
 
@@ -275,7 +275,7 @@ cleanup_vga_client_pw_domain_dmc:
 	intel_dmc_fini(i915);
 	intel_power_domains_driver_remove(i915);
 cleanup_vga:
-	intel_vga_unregister(i915);
+	intel_vga_unregister(display);
 cleanup_bios:
 	intel_bios_driver_remove(display);
 
@@ -458,7 +458,7 @@ int intel_display_driver_probe_nogem(struct drm_i915_private *i915)
 	intel_hti_init(display);
 
 	/* Just disable it once at startup */
-	intel_vga_disable(i915);
+	intel_vga_disable(display);
 	intel_setup_outputs(i915);
 
 	ret = intel_dp_tunnel_mgr_init(display);
@@ -625,7 +625,7 @@ void intel_display_driver_remove_nogem(struct drm_i915_private *i915)
 
 	intel_power_domains_driver_remove(i915);
 
-	intel_vga_unregister(i915);
+	intel_vga_unregister(display);
 
 	intel_bios_driver_remove(display);
 }
@@ -683,12 +683,13 @@ __intel_display_driver_resume(struct drm_i915_private *i915,
 			      struct drm_atomic_state *state,
 			      struct drm_modeset_acquire_ctx *ctx)
 {
+	struct intel_display *display = &i915->display;
 	struct drm_crtc_state *crtc_state;
 	struct drm_crtc *crtc;
 	int ret, i;
 
 	intel_modeset_setup_hw_state(i915, ctx);
-	intel_vga_redisable(i915);
+	intel_vga_redisable(display);
 
 	if (!state)
 		return 0;

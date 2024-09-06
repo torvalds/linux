@@ -187,8 +187,10 @@ int intel_power_well_refcount(struct i915_power_well *power_well)
 static void hsw_power_well_post_enable(struct drm_i915_private *dev_priv,
 				       u8 irq_pipe_mask, bool has_vga)
 {
+	struct intel_display *display = &dev_priv->display;
+
 	if (has_vga)
-		intel_vga_reset_io_mem(dev_priv);
+		intel_vga_reset_io_mem(display);
 
 	if (irq_pipe_mask)
 		gen8_irq_power_well_post_enable(dev_priv, irq_pipe_mask);
@@ -1248,7 +1250,7 @@ static void vlv_display_power_well_init(struct drm_i915_private *dev_priv)
 			intel_crt_reset(&encoder->base);
 	}
 
-	intel_vga_redisable_power_on(dev_priv);
+	intel_vga_redisable_power_on(display);
 
 	intel_pps_unlock_regs_wa(display);
 }
