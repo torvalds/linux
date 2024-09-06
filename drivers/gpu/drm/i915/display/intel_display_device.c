@@ -1532,6 +1532,7 @@ void intel_display_device_remove(struct drm_i915_private *i915)
 
 static void __intel_display_device_info_runtime_init(struct drm_i915_private *i915)
 {
+	struct intel_display *display = &i915->display;
 	struct intel_display_runtime_info *display_runtime = DISPLAY_RUNTIME_INFO(i915);
 	enum pipe pipe;
 
@@ -1678,7 +1679,7 @@ static void __intel_display_device_info_runtime_init(struct drm_i915_private *i9
 		}
 	}
 
-	display_runtime->rawclk_freq = intel_read_rawclk(i915);
+	display_runtime->rawclk_freq = intel_read_rawclk(display);
 	drm_dbg_kms(&i915->drm, "rawclk rate: %d kHz\n", display_runtime->rawclk_freq);
 
 	return;

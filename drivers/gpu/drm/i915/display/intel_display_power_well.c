@@ -967,7 +967,8 @@ static void gen9_assert_dbuf_enabled(struct drm_i915_private *dev_priv)
 
 void gen9_disable_dc_states(struct drm_i915_private *dev_priv)
 {
-	struct i915_power_domains *power_domains = &dev_priv->display.power.domains;
+	struct intel_display *display = &dev_priv->display;
+	struct i915_power_domains *power_domains = &display->power.domains;
 	struct intel_cdclk_config cdclk_config = {};
 
 	if (power_domains->target_dc_state == DC_STATE_EN_DC3CO) {
@@ -982,10 +983,10 @@ void gen9_disable_dc_states(struct drm_i915_private *dev_priv)
 
 	intel_dmc_wl_disable(&dev_priv->display);
 
-	intel_cdclk_get_cdclk(dev_priv, &cdclk_config);
+	intel_cdclk_get_cdclk(display, &cdclk_config);
 	/* Can't read out voltage_level so can't use intel_cdclk_changed() */
-	drm_WARN_ON(&dev_priv->drm,
-		    intel_cdclk_clock_changed(&dev_priv->display.cdclk.hw,
+	drm_WARN_ON(display->drm,
+		    intel_cdclk_clock_changed(&display->cdclk.hw,
 					      &cdclk_config));
 
 	gen9_assert_dbuf_enabled(dev_priv);

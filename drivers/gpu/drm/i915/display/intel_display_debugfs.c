@@ -1068,7 +1068,7 @@ void intel_display_debugfs_register(struct drm_i915_private *i915)
 				 minor->debugfs_root, minor);
 
 	intel_bios_debugfs_register(display);
-	intel_cdclk_debugfs_register(i915);
+	intel_cdclk_debugfs_register(display);
 	intel_dmc_debugfs_register(i915);
 	intel_fbc_debugfs_register(display);
 	intel_hpd_debugfs_register(i915);

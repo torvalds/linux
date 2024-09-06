@@ -82,16 +82,17 @@ bool intel_display_driver_probe_defer(struct pci_dev *pdev)
 
 void intel_display_driver_init_hw(struct drm_i915_private *i915)
 {
+	struct intel_display *display = &i915->display;
 	struct intel_cdclk_state *cdclk_state;
 
 	if (!HAS_DISPLAY(i915))
 		return;
 
-	cdclk_state = to_intel_cdclk_state(i915->display.cdclk.obj.state);
+	cdclk_state = to_intel_cdclk_state(display->cdclk.obj.state);
 
-	intel_update_cdclk(i915);
-	intel_cdclk_dump_config(i915, &i915->display.cdclk.hw, "Current CDCLK");
-	cdclk_state->logical = cdclk_state->actual = i915->display.cdclk.hw;
+	intel_update_cdclk(display);
+	intel_cdclk_dump_config(display, &display->cdclk.hw, "Current CDCLK");
+	cdclk_state->logical = cdclk_state->actual = display->cdclk.hw;
 
 	intel_display_wa_apply(i915);
 }
@@ -194,7 +195,7 @@ void intel_display_driver_early_probe(struct drm_i915_private *i915)
 	intel_display_irq_init(i915);
 	intel_dkl_phy_init(i915);
 	intel_color_init_hooks(i915);
-	intel_init_cdclk_hooks(i915);
+	intel_init_cdclk_hooks(&i915->display);
 	intel_audio_hooks_init(i915);
 	intel_dpll_init_clock_hook(i915);
 	intel_init_display_hooks(i915);
@@ -244,7 +245,7 @@ int intel_display_driver_probe_noirq(struct drm_i915_private *i915)
 
 	intel_mode_config_init(i915);
 
-	ret = intel_cdclk_init(i915);
+	ret = intel_cdclk_init(display);
 	if (ret)
 		goto cleanup_vga_client_pw_domain_dmc;
 
@@ -451,8 +452,8 @@ int intel_display_driver_probe_nogem(struct drm_i915_private *i915)
 	intel_display_driver_init_hw(i915);
 	intel_dpll_update_ref_clks(i915);
 
-	if (i915->display.cdclk.max_cdclk_freq == 0)
-		intel_update_max_cdclk(i915);
+	if (display->cdclk.max_cdclk_freq == 0)
+		intel_update_max_cdclk(display);
 
 	intel_hti_init(display);
 

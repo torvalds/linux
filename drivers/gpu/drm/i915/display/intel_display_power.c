@@ -1300,6 +1300,7 @@ static void hsw_disable_lcpll(struct drm_i915_private *dev_priv,
  */
 static void hsw_restore_lcpll(struct drm_i915_private *dev_priv)
 {
+	struct intel_display *display = &dev_priv->display;
 	u32 val;
 
 	val = intel_de_read(dev_priv, LCPLL_CTL);
@@ -1343,8 +1344,8 @@ static void hsw_restore_lcpll(struct drm_i915_private *dev_priv)
 
 	intel_uncore_forcewake_put(&dev_priv->uncore, FORCEWAKE_ALL);
 
-	intel_update_cdclk(dev_priv);
-	intel_cdclk_dump_config(dev_priv, &dev_priv->display.cdclk.hw, "Current CDCLK");
+	intel_update_cdclk(display);
+	intel_cdclk_dump_config(display, &display->cdclk.hw, "Current CDCLK");
 }
 
 /*
@@ -1416,7 +1417,8 @@ static void intel_pch_reset_handshake(struct drm_i915_private *dev_priv,
 static void skl_display_core_init(struct drm_i915_private *dev_priv,
 				  bool resume)
 {
-	struct i915_power_domains *power_domains = &dev_priv->display.power.domains;
+	struct intel_display *display = &dev_priv->display;
+	struct i915_power_domains *power_domains = &display->power.domains;
 	struct i915_power_well *well;
 
 	gen9_set_dc_state(dev_priv, DC_STATE_DISABLE);
@@ -1438,7 +1440,7 @@ static void skl_display_core_init(struct drm_i915_private *dev_priv,
 
 	mutex_unlock(&power_domains->lock);
 
-	intel_cdclk_init_hw(dev_priv);
+	intel_cdclk_init_hw(display);
 
 	gen9_dbuf_enable(dev_priv);
 
@@ -1448,7 +1450,8 @@ static void skl_display_core_init(struct drm_i915_private *dev_priv,
 
 static void skl_display_core_uninit(struct drm_i915_private *dev_priv)
 {
-	struct i915_power_domains *power_domains = &dev_priv->display.power.domains;
+	struct intel_display *display = &dev_priv->display;
+	struct i915_power_domains *power_domains = &display->power.domains;
 	struct i915_power_well *well;
 
 	if (!HAS_DISPLAY(dev_priv))
@@ -1459,7 +1462,7 @@ static void skl_display_core_uninit(struct drm_i915_private *dev_priv)
 
 	gen9_dbuf_disable(dev_priv);
 
-	intel_cdclk_uninit_hw(dev_priv);
+	intel_cdclk_uninit_hw(display);
 
 	/* The spec doesn't call for removing the reset handshake flag */
 	/* disable PG1 and Misc I/O */
@@ -1482,7 +1485,8 @@ static void skl_display_core_uninit(struct drm_i915_private *dev_priv)
 
 static void bxt_display_core_init(struct drm_i915_private *dev_priv, bool resume)
 {
-	struct i915_power_domains *power_domains = &dev_priv->display.power.domains;
+	struct intel_display *display = &dev_priv->display;
+	struct i915_power_domains *power_domains = &display->power.domains;
 	struct i915_power_well *well;
 
 	gen9_set_dc_state(dev_priv, DC_STATE_DISABLE);
@@ -1506,7 +1510,7 @@ static void bxt_display_core_init(struct drm_i915_private *dev_priv, bool resume
 
 	mutex_unlock(&power_domains->lock);
 
-	intel_cdclk_init_hw(dev_priv);
+	intel_cdclk_init_hw(display);
 
 	gen9_dbuf_enable(dev_priv);
 
@@ -1516,7 +1520,8 @@ static void bxt_display_core_init(struct drm_i915_private *dev_priv, bool resume
 
 static void bxt_display_core_uninit(struct drm_i915_private *dev_priv)
 {
-	struct i915_power_domains *power_domains = &dev_priv->display.power.domains;
+	struct intel_display *display = &dev_priv->display;
+	struct i915_power_domains *power_domains = &display->power.domains;
 	struct i915_power_well *well;
 
 	if (!HAS_DISPLAY(dev_priv))
@@ -1527,7 +1532,7 @@ static void bxt_display_core_uninit(struct drm_i915_private *dev_priv)
 
 	gen9_dbuf_disable(dev_priv);
 
-	intel_cdclk_uninit_hw(dev_priv);
+	intel_cdclk_uninit_hw(display);
 
 	/* The spec doesn't call for removing the reset handshake flag */
 
@@ -1623,7 +1628,8 @@ static void tgl_bw_buddy_init(struct drm_i915_private *dev_priv)
 static void icl_display_core_init(struct drm_i915_private *dev_priv,
 				  bool resume)
 {
-	struct i915_power_domains *power_domains = &dev_priv->display.power.domains;
+	struct intel_display *display = &dev_priv->display;
+	struct i915_power_domains *power_domains = &display->power.domains;
 	struct i915_power_well *well;
 
 	gen9_set_dc_state(dev_priv, DC_STATE_DISABLE);
@@ -1657,7 +1663,7 @@ static void icl_display_core_init(struct drm_i915_private *dev_priv,
 			     HOLD_PHY_PG1_LATCH | HOLD_PHY_CLKREQ_PG1_LATCH, 0);
 
 	/* 4. Enable CDCLK. */
-	intel_cdclk_init_hw(dev_priv);
+	intel_cdclk_init_hw(display);
 
 	if (DISPLAY_VER(dev_priv) >= 12)
 		gen12_dbuf_slices_config(dev_priv);
@@ -1704,7 +1710,8 @@ static void icl_display_core_init(struct drm_i915_private *dev_priv,
 
 static void icl_display_core_uninit(struct drm_i915_private *dev_priv)
 {
-	struct i915_power_domains *power_domains = &dev_priv->display.power.domains;
+	struct intel_display *display = &dev_priv->display;
+	struct i915_power_domains *power_domains = &display->power.domains;
 	struct i915_power_well *well;
 
 	if (!HAS_DISPLAY(dev_priv))
@@ -1719,7 +1726,7 @@ static void icl_display_core_uninit(struct drm_i915_private *dev_priv)
 	gen9_dbuf_disable(dev_priv);
 
 	/* 3. Disable CD clock */
-	intel_cdclk_uninit_hw(dev_priv);
+	intel_cdclk_uninit_hw(display);
 
 	if (DISPLAY_VER(dev_priv) == 14)
 		intel_de_rmw(dev_priv, DC_STATE_EN, 0,
