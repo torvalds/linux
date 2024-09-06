@@ -453,8 +453,7 @@ static inline loff_t exfat_make_i_pos(struct exfat_dir_entry *info)
 }
 
 static int exfat_add_entry(struct inode *inode, const char *path,
-		struct exfat_chain *p_dir, unsigned int type,
-		struct exfat_dir_entry *info)
+		unsigned int type, struct exfat_dir_entry *info)
 {
 	int ret, dentry, num_entries;
 	struct super_block *sb = inode->i_sb;
@@ -477,7 +476,7 @@ static int exfat_add_entry(struct inode *inode, const char *path,
 	}
 
 	/* exfat_find_empty_entry must be called before alloc_cluster() */
-	dentry = exfat_find_empty_entry(inode, p_dir, num_entries, &es);
+	dentry = exfat_find_empty_entry(inode, &info->dir, num_entries, &es);
 	if (dentry < 0) {
 		ret = dentry; /* -EIO or -ENOSPC */
 		goto out;
@@ -504,7 +503,6 @@ static int exfat_add_entry(struct inode *inode, const char *path,
 	if (ret)
 		goto out;
 
-	info->dir = *p_dir;
 	info->entry = dentry;
 	info->flags = ALLOC_NO_FAT_CHAIN;
 	info->type = type;
@@ -537,7 +535,6 @@ static int exfat_create(struct mnt_idmap *idmap, struct inode *dir,
 {
 	struct super_block *sb = dir->i_sb;
 	struct inode *inode;
-	struct exfat_chain cdir;
 	struct exfat_dir_entry info;
 	loff_t i_pos;
 	int err;
@@ -548,8 +545,7 @@ static int exfat_create(struct mnt_idmap *idmap, struct inode *dir,
 
 	mutex_lock(&EXFAT_SB(sb)->s_lock);
 	exfat_set_volume_dirty(sb);
-	err = exfat_add_entry(dir, dentry->d_name.name, &cdir, TYPE_FILE,
-		&info);
+	err = exfat_add_entry(dir, dentry->d_name.name, TYPE_FILE, &info);
 	if (err)
 		goto unlock;
 
@@ -832,7 +828,6 @@ static int exfat_mkdir(struct mnt_idmap *idmap, struct inode *dir,
 	struct super_block *sb = dir->i_sb;
 	struct inode *inode;
 	struct exfat_dir_entry info;
-	struct exfat_chain cdir;
 	loff_t i_pos;
 	int err;
 	loff_t size = i_size_read(dir);
@@ -842,8 +837,7 @@ static int exfat_mkdir(struct mnt_idmap *idmap, struct inode *dir,
 
 	mutex_lock(&EXFAT_SB(sb)->s_lock);
 	exfat_set_volume_dirty(sb);
-	err = exfat_add_entry(dir, dentry->d_name.name, &cdir, TYPE_DIR,
-		&info);
+	err = exfat_add_entry(dir, dentry->d_name.name, TYPE_DIR, &info);
 	if (err)
 		goto unlock;
 
