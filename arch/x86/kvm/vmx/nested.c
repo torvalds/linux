@@ -2996,6 +2996,17 @@ static int nested_vmx_check_address_space_size(struct kvm_vcpu *vcpu,
 	return 0;
 }
 
+static bool is_l1_noncanonical_address_on_vmexit(u64 la, struct vmcs12 *vmcs12)
+{
+	/*
+	 * Check that the given linear address is canonical after a VM exit
+	 * from L2, based on HOST_CR4.LA57 value that will be loaded for L1.
+	 */
+	u8 l1_address_bits_on_exit = (vmcs12->host_cr4 & X86_CR4_LA57) ? 57 : 48;
+
+	return !__is_canonical_address(la, l1_address_bits_on_exit);
+}
+
 static int nested_vmx_check_host_state(struct kvm_vcpu *vcpu,
 				       struct vmcs12 *vmcs12)
 {
@@ -3046,7 +3057,7 @@ static int nested_vmx_check_host_state(struct kvm_vcpu *vcpu,
 	    CC(is_noncanonical_base_address(vmcs12->host_gdtr_base, vcpu)) ||
 	    CC(is_noncanonical_base_address(vmcs12->host_idtr_base, vcpu)) ||
 	    CC(is_noncanonical_base_address(vmcs12->host_tr_base, vcpu)) ||
-	    CC(is_noncanonical_address(vmcs12->host_rip, vcpu, 0)))
+	    CC(is_l1_noncanonical_address_on_vmexit(vmcs12->host_rip, vmcs12)))
 		return -EINVAL;
 
 	/*
