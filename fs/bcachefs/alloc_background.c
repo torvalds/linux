@@ -2463,12 +2463,14 @@ static bool bch2_dev_has_open_write_point(struct bch_fs *c, struct bch_dev *ca)
 /* device goes ro: */
 void bch2_dev_allocator_remove(struct bch_fs *c, struct bch_dev *ca)
 {
-	unsigned i;
+	lockdep_assert_held(&c->state_lock);
 
 	/* First, remove device from allocation groups: */
 
-	for (i = 0; i < ARRAY_SIZE(c->rw_devs); i++)
+	for (unsigned i = 0; i < ARRAY_SIZE(c->rw_devs); i++)
 		clear_bit(ca->dev_idx, c->rw_devs[i].d);
+
+	c->rw_devs_change_count++;
 
 	/*
 	 * Capacity is calculated based off of devices in allocation groups:
@@ -2498,11 +2500,13 @@ void bch2_dev_allocator_remove(struct bch_fs *c, struct bch_dev *ca)
 /* device goes rw: */
 void bch2_dev_allocator_add(struct bch_fs *c, struct bch_dev *ca)
 {
-	unsigned i;
+	lockdep_assert_held(&c->state_lock);
 
-	for (i = 0; i < ARRAY_SIZE(c->rw_devs); i++)
+	for (unsigned i = 0; i < ARRAY_SIZE(c->rw_devs); i++)
 		if (ca->mi.data_allowed & (1 << i))
 			set_bit(ca->dev_idx, c->rw_devs[i].d);
+
+	c->rw_devs_change_count++;
 }
 
 void bch2_dev_allocator_background_exit(struct bch_dev *ca)

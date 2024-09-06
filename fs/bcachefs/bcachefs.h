@@ -871,6 +871,7 @@ struct bch_fs {
 
 	/* ALLOCATION */
 	struct bch_devs_mask	rw_devs[BCH_DATA_NR];
+	unsigned long		rw_devs_change_count;
 
 	u64			capacity; /* sectors */
 	u64			reserved; /* sectors */
