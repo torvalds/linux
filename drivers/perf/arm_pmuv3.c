@@ -1086,13 +1086,13 @@ static int __armv8_pmuv3_map_event_id(struct arm_pmu *armpmu,
 	if (event->attr.type == PERF_TYPE_HARDWARE &&
 	    event->attr.config == PERF_COUNT_HW_BRANCH_INSTRUCTIONS) {
 
-		if (test_bit(ARMV8_PMUV3_PERFCTR_PC_WRITE_RETIRED,
-			     armpmu->pmceid_bitmap))
-			return ARMV8_PMUV3_PERFCTR_PC_WRITE_RETIRED;
-
 		if (test_bit(ARMV8_PMUV3_PERFCTR_BR_RETIRED,
 			     armpmu->pmceid_bitmap))
 			return ARMV8_PMUV3_PERFCTR_BR_RETIRED;
+
+		if (test_bit(ARMV8_PMUV3_PERFCTR_PC_WRITE_RETIRED,
+			     armpmu->pmceid_bitmap))
+			return ARMV8_PMUV3_PERFCTR_PC_WRITE_RETIRED;
 
 		return HW_OP_UNSUPPORTED;
 	}
