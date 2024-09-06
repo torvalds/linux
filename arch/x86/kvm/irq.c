@@ -142,9 +142,12 @@ int kvm_cpu_get_interrupt(struct kvm_vcpu *v)
 	if (vector != -1)
 		return vector;			/* PIC */
 
-	return kvm_get_apic_interrupt(v);	/* APIC */
+	vector = kvm_apic_has_interrupt(v);	/* APIC */
+	if (vector != -1)
+		kvm_apic_ack_interrupt(v, vector);
+
+	return vector;
 }
-EXPORT_SYMBOL_GPL(kvm_cpu_get_interrupt);
 
 void kvm_inject_pending_timer_irqs(struct kvm_vcpu *vcpu)
 {

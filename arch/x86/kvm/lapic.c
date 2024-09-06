@@ -2959,16 +2959,6 @@ void kvm_apic_ack_interrupt(struct kvm_vcpu *vcpu, int vector)
 }
 EXPORT_SYMBOL_GPL(kvm_apic_ack_interrupt);
 
-int kvm_get_apic_interrupt(struct kvm_vcpu *vcpu)
-{
-	int vector = kvm_apic_has_interrupt(vcpu);
-
-	if (vector != -1)
-		kvm_apic_ack_interrupt(vcpu, vector);
-
-	return vector;
-}
-
 static int kvm_apic_state_fixup(struct kvm_vcpu *vcpu,
 		struct kvm_lapic_state *s, bool set)
 {
