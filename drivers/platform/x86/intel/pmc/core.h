@@ -372,6 +372,7 @@ struct pmc_info {
  * @map:		pointer to pmc_reg_map struct that contains platform
  *			specific attributes
  * @lpm_req_regs:	List of substate requirements
+ * @ltr_ign:		Holds LTR ignore data while suspended
  *
  * pmc contains info about one power management controller device.
  */
@@ -380,6 +381,7 @@ struct pmc {
 	void __iomem *regbase;
 	const struct pmc_reg_map *map;
 	u32 *lpm_req_regs;
+	u32 ltr_ign;
 };
 
 /**

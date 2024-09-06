@@ -714,6 +714,49 @@ static int pmc_core_s0ix_blocker_show(struct seq_file *s, void *unused)
 }
 DEFINE_SHOW_ATTRIBUTE(pmc_core_s0ix_blocker);
 
+static void pmc_core_ltr_ignore_all(struct pmc_dev *pmcdev)
+{
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(pmcdev->pmcs); i++) {
+		struct pmc *pmc;
+		u32 ltr_ign;
+
+		pmc = pmcdev->pmcs[i];
+		if (!pmc)
+			continue;
+
+		guard(mutex)(&pmcdev->lock);
+		pmc->ltr_ign = pmc_core_reg_read(pmc, pmc->map->ltr_ignore_offset);
+
+		/* ltr_ignore_max is the max index value for LTR ignore register */
+		ltr_ign = pmc->ltr_ign | GENMASK(pmc->map->ltr_ignore_max, 0);
+		pmc_core_reg_write(pmc, pmc->map->ltr_ignore_offset, ltr_ign);
+	}
+
+	/*
+	 * Ignoring ME during suspend is blocking platforms with ADL PCH to get to
+	 * deeper S0ix substate.
+	 */
+	pmc_core_send_ltr_ignore(pmcdev, 6, 0);
+}
+
+static void pmc_core_ltr_restore_all(struct pmc_dev *pmcdev)
+{
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(pmcdev->pmcs); i++) {
+		struct pmc *pmc;
+
+		pmc = pmcdev->pmcs[i];
+		if (!pmc)
+			continue;
+
+		guard(mutex)(&pmcdev->lock);
+		pmc_core_reg_write(pmc, pmc->map->ltr_ignore_offset, pmc->ltr_ign);
+	}
+}
+
 static inline u64 adjust_lpm_residency(struct pmc *pmc, u32 offset,
 				       const int lpm_adj_x2)
 {
@@ -1485,6 +1528,10 @@ static bool warn_on_s0ix_failures;
 module_param(warn_on_s0ix_failures, bool, 0644);
 MODULE_PARM_DESC(warn_on_s0ix_failures, "Check and warn for S0ix failures");
 
+static bool ltr_ignore_all_suspend = true;
+module_param(ltr_ignore_all_suspend, bool, 0644);
+MODULE_PARM_DESC(ltr_ignore_all_suspend, "Ignore all LTRs during suspend");
+
 static __maybe_unused int pmc_core_suspend(struct device *dev)
 {
 	struct pmc_dev *pmcdev = dev_get_drvdata(dev);
@@ -1493,6 +1540,9 @@ static __maybe_unused int pmc_core_suspend(struct device *dev)
 
 	if (pmcdev->suspend)
 		pmcdev->suspend(pmcdev);
+
+	if (ltr_ignore_all_suspend)
+		pmc_core_ltr_ignore_all(pmcdev);
 
 	/* Check if the syspend will actually use S0ix */
 	if (pm_suspend_via_firmware())
@@ -1599,6 +1649,9 @@ int pmc_core_resume_common(struct pmc_dev *pmcdev)
 static __maybe_unused int pmc_core_resume(struct device *dev)
 {
 	struct pmc_dev *pmcdev = dev_get_drvdata(dev);
+
+	if (ltr_ignore_all_suspend)
+		pmc_core_ltr_restore_all(pmcdev);
 
 	if (pmcdev->resume)
 		return pmcdev->resume(pmcdev);
