@@ -6189,7 +6189,7 @@ bool amdgpu_device_is_peer_accessible(struct amdgpu_device *adev,
 		p2p_addressable = !(adev->gmc.aper_base & address_mask ||
 				     aper_limit & address_mask);
 	}
-	return is_large_bar && p2p_access && p2p_addressable;
+	return pcie_p2p && is_large_bar && p2p_access && p2p_addressable;
 #else
 	return false;
 #endif
