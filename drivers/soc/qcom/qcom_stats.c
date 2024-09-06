@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2011-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2024, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/cdev.h>
@@ -93,6 +93,21 @@
 #define DDR_STATS_IOCTL		_IOR(SUBSYSTEM_STATS_MAGIC_NUM, 13, \
 				     struct sleep_stats *)
 
+enum subsystem_smem_id {
+	AOSD = 0,
+	CXSD = 1,
+	DDR = 2,
+	DDR_STATS = 3,
+	MPSS = 605,
+	ADSP,
+	CDSP,
+	SLPI,
+	GPU,
+	DISPLAY,
+	SLPI_ISLAND = 613,
+	APSS = 631,
+};
+
 struct subsystem_data {
 	const char *name;
 	u32 smem_item;
@@ -179,10 +194,32 @@ static bool subsystem_stats_debug_on;
 /* Subsystem stats before and after suspend */
 static struct sleep_stats *b_subsystem_stats;
 static struct sleep_stats *a_subsystem_stats;
+static struct sleep_stats *c_subsystem_stats;
 /* System sleep stats before and after suspend */
 static struct sleep_stats *b_system_stats;
 static struct sleep_stats *a_system_stats;
 static DEFINE_MUTEX(sleep_stats_mutex);
+
+static int subsystem_sleep_stats(struct sleep_stats *stats,
+					unsigned int pid, unsigned int idx, unsigned int index)
+{
+	struct sleep_stats *subsystems_data;
+
+	if (pid == SUBSYSTEM_STATS_OTHERS_NUM)
+		memcpy_fromio(stats, drv->d[index].base, sizeof(*stats));
+	else {
+		subsystems_data = qcom_smem_get(pid, idx, NULL);
+		if (IS_ERR(subsystems_data))
+			return -ENODEV;
+
+		stats->count = subsystems_data->count;
+		stats->last_entered_at = subsystems_data->last_entered_at;
+		stats->last_exited_at = subsystems_data->last_exited_at;
+		stats->accumulated = subsystems_data->accumulated;
+	}
+
+	return 0;
+}
 
 static inline void get_sleep_stat_name(u32 type, char *stat_type)
 {
@@ -211,7 +248,7 @@ bool has_system_slept(void)
 
 	return sleep_flag;
 }
-EXPORT_SYMBOL(has_system_slept);
+EXPORT_SYMBOL_GPL(has_system_slept);
 
 bool has_subsystem_slept(void)
 {
@@ -232,13 +269,34 @@ bool has_subsystem_slept(void)
 
 	return sleep_flag;
 }
-EXPORT_SYMBOL(has_subsystem_slept);
+EXPORT_SYMBOL_GPL(has_subsystem_slept);
+
+bool current_subsystem_sleep(void)
+{
+	int i, ret;
+	bool sleep_flag = true;
+
+	for (i = 0; i < ARRAY_SIZE(subsystems); i++) {
+		ret = subsystem_sleep_stats(c_subsystem_stats + i,
+					subsystems[i].pid, subsystems[i].smem_item, i);
+		if (ret != -ENODEV && subsystems[i].smem_item != APSS) {
+			if (c_subsystem_stats[i].last_exited_at >
+					c_subsystem_stats[i].last_entered_at) {
+				pr_warn("Subsystem %s not in sleep\n", subsystems[i].name);
+				sleep_flag = false;
+				break;
+			}
+		}
+	}
+	return sleep_flag;
+}
+EXPORT_SYMBOL_GPL(current_subsystem_sleep);
 
 void subsystem_sleep_debug_enable(bool enable)
 {
 	subsystem_stats_debug_on = enable;
 }
-EXPORT_SYMBOL(subsystem_sleep_debug_enable);
+EXPORT_SYMBOL_GPL(subsystem_sleep_debug_enable);
 
 static inline int qcom_stats_copy_to_user(unsigned long arg, struct sleep_stats *stats,
 					  unsigned long size)
@@ -1071,6 +1129,13 @@ static int qcom_stats_probe(struct platform_device *pdev)
 	a_subsystem_stats = devm_kcalloc(&pdev->dev, ARRAY_SIZE(subsystems),
 					sizeof(struct sleep_stats), GFP_KERNEL);
 	if (!a_subsystem_stats) {
+		ret = -ENOMEM;
+		goto fail;
+	}
+
+	c_subsystem_stats = devm_kcalloc(&pdev->dev, ARRAY_SIZE(subsystems),
+					 sizeof(struct sleep_stats), GFP_KERNEL);
+	if (!c_subsystem_stats) {
 		ret = -ENOMEM;
 		goto fail;
 	}
