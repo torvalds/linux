@@ -648,7 +648,14 @@ static void ionic_rx_clean(struct ionic_queue *q,
 
 	stats = q_to_rx_stats(q);
 
-	if (comp->status) {
+	if (unlikely(comp->status)) {
+		/* Most likely status==2 and the pkt received was bigger
+		 * than the buffer available: comp->len will show the
+		 * pkt size received that didn't fit the advertised desc.len
+		 */
+		dev_dbg(q->dev, "q%d drop comp->status %d comp->len %d desc->len %d\n",
+			q->index, comp->status, comp->len, q->rxq[q->head_idx].len);
+
 		stats->dropped++;
 		return;
 	}
