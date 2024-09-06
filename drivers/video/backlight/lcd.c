@@ -54,7 +54,7 @@ static int fb_notifier_callback(struct notifier_block *self,
 
 	if (!ld->ops)
 		return 0;
-	if (ld->ops->check_fb && !ld->ops->check_fb(ld, info))
+	if (ld->ops->controls_device && !ld->ops->controls_device(ld, info->device))
 		return 0;
 	if (fb_lcd && fb_lcd != ld)
 		return 0;
