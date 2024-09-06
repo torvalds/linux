@@ -548,6 +548,7 @@ dcssblk_add_store(struct device *dev, struct device_attribute *attr, const char 
 {
 	struct queue_limits lim = {
 		.logical_block_size	= 4096,
+		.features		= BLK_FEAT_DAX,
 	};
 	int rc, i, j, num_of_segments;
 	struct dcssblk_dev_info *dev_info;
@@ -643,7 +644,6 @@ dcssblk_add_store(struct device *dev, struct device_attribute *attr, const char 
 	dev_info->gd->fops = &dcssblk_devops;
 	dev_info->gd->private_data = dev_info;
 	dev_info->gd->flags |= GENHD_FL_NO_PART;
-	blk_queue_flag_set(QUEUE_FLAG_DAX, dev_info->gd->queue);
 
 	seg_byte_size = (dev_info->end - dev_info->start + 1);
 	set_capacity(dev_info->gd, seg_byte_size >> 9); // size in sectors
@@ -1032,4 +1032,5 @@ MODULE_PARM_DESC(segments, "Name of DCSS segment(s) to be loaded, "
 		 "the contiguous segments - \n"
 		 "e.g. segments=\"mydcss1,mydcss2:mydcss3,mydcss4(local)\"");
 
+MODULE_DESCRIPTION("S/390 block driver for DCSS memory");
 MODULE_LICENSE("GPL");

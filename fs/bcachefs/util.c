@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * random utiility code, for bcache but in theory not specific to bcache
+ * random utility code, for bcache but in theory not specific to bcache
  *
  * Copyright 2010, 2011 Kent Overstreet <kent.overstreet@gmail.com>
  * Copyright 2012 Google, Inc.
@@ -416,7 +416,6 @@ void bch2_time_stats_to_text(struct printbuf *out, struct bch2_time_stats *stats
 	printbuf_tabstop_push(out, TABSTOP_SIZE + 2);
 
 	prt_printf(out, "\tsince mount\r\trecent\r\n");
-	prt_printf(out, "recent");
 
 	printbuf_tabstops_reset(out);
 	printbuf_tabstop_push(out, out->indent + 20);

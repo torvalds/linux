@@ -17,8 +17,8 @@
 		pinctrl-0 = <&pinctrl_ipu_disp1>;
 
 		display-timings {
-			800x480p60 {
-				native-mode;
+			native-mode = <&timing0>;
+			timing0: timing-800x480p60 {
 				clock-frequency = <31500000>;
 				hactive = <800>;
 				vactive = <480>;

@@ -27,34 +27,32 @@ char *heap_end = _end;		/* Default end of heap = no heap */
  * screws up the old-style command line protocol, adjust by
  * filling in the new-style command line pointer instead.
  */
-
 static void copy_boot_params(void)
 {
 	struct old_cmdline {
 		u16 cl_magic;
 		u16 cl_offset;
 	};
-	const struct old_cmdline * const oldcmd =
-		absolute_pointer(OLD_CL_ADDRESS);
+	const struct old_cmdline * const oldcmd = absolute_pointer(OLD_CL_ADDRESS);
 
 	BUILD_BUG_ON(sizeof(boot_params) != 4096);
 	memcpy(&boot_params.hdr, &hdr, sizeof(hdr));
 
-	if (!boot_params.hdr.cmd_line_ptr &&
-	    oldcmd->cl_magic == OLD_CL_MAGIC) {
-		/* Old-style command line protocol. */
+	if (!boot_params.hdr.cmd_line_ptr && oldcmd->cl_magic == OLD_CL_MAGIC) {
+		/* Old-style command line protocol */
 		u16 cmdline_seg;
 
-		/* Figure out if the command line falls in the region
-		   of memory that an old kernel would have copied up
-		   to 0x90000... */
+		/*
+		 * Figure out if the command line falls in the region
+		 * of memory that an old kernel would have copied up
+		 * to 0x90000...
+		 */
 		if (oldcmd->cl_offset < boot_params.hdr.setup_move_size)
 			cmdline_seg = ds();
 		else
 			cmdline_seg = 0x9000;
 
-		boot_params.hdr.cmd_line_ptr =
-			(cmdline_seg << 4) + oldcmd->cl_offset;
+		boot_params.hdr.cmd_line_ptr = (cmdline_seg << 4) + oldcmd->cl_offset;
 	}
 }
 
@@ -66,6 +64,7 @@ static void copy_boot_params(void)
 static void keyboard_init(void)
 {
 	struct biosregs ireg, oreg;
+
 	initregs(&ireg);
 
 	ireg.ah = 0x02;		/* Get keyboard status */
@@ -83,8 +82,10 @@ static void query_ist(void)
 {
 	struct biosregs ireg, oreg;
 
-	/* Some older BIOSes apparently crash on this call, so filter
-	   it from machines too old to have SpeedStep at all. */
+	/*
+	 * Some older BIOSes apparently crash on this call, so filter
+	 * it from machines too old to have SpeedStep at all.
+	 */
 	if (cpu.level < 6)
 		return;
 
@@ -119,17 +120,13 @@ static void init_heap(void)
 	char *stack_end;
 
 	if (boot_params.hdr.loadflags & CAN_USE_HEAP) {
-		asm("leal %n1(%%esp),%0"
-		    : "=r" (stack_end) : "i" (STACK_SIZE));
-
-		heap_end = (char *)
-			((size_t)boot_params.hdr.heap_end_ptr + 0x200);
+		stack_end = (char *) (current_stack_pointer - STACK_SIZE);
+		heap_end = (char *) ((size_t)boot_params.hdr.heap_end_ptr + 0x200);
 		if (heap_end > stack_end)
 			heap_end = stack_end;
 	} else {
 		/* Boot protocol 2.00 only, no heap available */
-		puts("WARNING: Ancient bootloader, some functionality "
-		     "may be limited!\n");
+		puts("WARNING: Ancient bootloader, some functionality may be limited!\n");
 	}
 }
 
@@ -150,12 +147,11 @@ void main(void)
 
 	/* Make sure we have all the proper CPU support */
 	if (validate_cpu()) {
-		puts("Unable to boot - please use a kernel appropriate "
-		     "for your CPU.\n");
+		puts("Unable to boot - please use a kernel appropriate for your CPU.\n");
 		die();
 	}
 
-	/* Tell the BIOS what CPU mode we intend to run in. */
+	/* Tell the BIOS what CPU mode we intend to run in */
 	set_bios_mode();
 
 	/* Detect memory layout */

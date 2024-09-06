@@ -241,7 +241,7 @@ enum iwl_cfg_trans_ltr_delay {
 };
 
 /**
- * struct iwl_cfg_trans - information needed to start the trans
+ * struct iwl_cfg_trans_params - information needed to start the trans
  *
  * These values are specific to the device ID and do not change when
  * multiple configs are used for a single device ID.  They values are
@@ -258,6 +258,7 @@ enum iwl_cfg_trans_ltr_delay {
  * @mq_rx_supported: multi-queue rx support
  * @integrated: discrete or integrated
  * @low_latency_xtal: use the low latency xtal if supported
+ * @bisr_workaround: BISR hardware workaround (for 22260 series devices)
  * @ltr_delay: LTR delay parameter, &enum iwl_cfg_trans_ltr_delay.
  * @imr_enabled: use the IMR if supported.
  */

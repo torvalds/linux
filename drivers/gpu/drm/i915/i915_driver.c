@@ -53,6 +53,7 @@
 #include "display/intel_dmc.h"
 #include "display/intel_dp.h"
 #include "display/intel_dpt.h"
+#include "display/intel_encoder.h"
 #include "display/intel_fbdev.h"
 #include "display/intel_hotplug.h"
 #include "display/intel_overlay.h"
@@ -933,50 +934,6 @@ static void i915_driver_postclose(struct drm_device *dev, struct drm_file *file)
 	i915_gem_flush_free_objects(to_i915(dev));
 }
 
-static void intel_suspend_encoders(struct drm_i915_private *dev_priv)
-{
-	struct intel_encoder *encoder;
-
-	if (!HAS_DISPLAY(dev_priv))
-		return;
-
-	/*
-	 * TODO: check and remove holding the modeset locks if none of
-	 * the encoders depends on this.
-	 */
-	drm_modeset_lock_all(&dev_priv->drm);
-	for_each_intel_encoder(&dev_priv->drm, encoder)
-		if (encoder->suspend)
-			encoder->suspend(encoder);
-	drm_modeset_unlock_all(&dev_priv->drm);
-
-	for_each_intel_encoder(&dev_priv->drm, encoder)
-		if (encoder->suspend_complete)
-			encoder->suspend_complete(encoder);
-}
-
-static void intel_shutdown_encoders(struct drm_i915_private *dev_priv)
-{
-	struct intel_encoder *encoder;
-
-	if (!HAS_DISPLAY(dev_priv))
-		return;
-
-	/*
-	 * TODO: check and remove holding the modeset locks if none of
-	 * the encoders depends on this.
-	 */
-	drm_modeset_lock_all(&dev_priv->drm);
-	for_each_intel_encoder(&dev_priv->drm, encoder)
-		if (encoder->shutdown)
-			encoder->shutdown(encoder);
-	drm_modeset_unlock_all(&dev_priv->drm);
-
-	for_each_intel_encoder(&dev_priv->drm, encoder)
-		if (encoder->shutdown_complete)
-			encoder->shutdown_complete(encoder);
-}
-
 void i915_driver_shutdown(struct drm_i915_private *i915)
 {
 	disable_rpm_wakeref_asserts(&i915->runtime_pm);
@@ -999,8 +956,8 @@ void i915_driver_shutdown(struct drm_i915_private *i915)
 	if (HAS_DISPLAY(i915))
 		intel_display_driver_suspend_access(i915);
 
-	intel_suspend_encoders(i915);
-	intel_shutdown_encoders(i915);
+	intel_encoder_suspend_all(&i915->display);
+	intel_encoder_shutdown_all(&i915->display);
 
 	intel_dmc_suspend(i915);
 
@@ -1083,7 +1040,7 @@ static int i915_drm_suspend(struct drm_device *dev)
 	if (HAS_DISPLAY(dev_priv))
 		intel_display_driver_suspend_access(dev_priv);
 
-	intel_suspend_encoders(dev_priv);
+	intel_encoder_suspend_all(&dev_priv->display);
 
 	/* Must be called before GGTT is suspended. */
 	intel_dpt_suspend(dev_priv);

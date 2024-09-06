@@ -272,16 +272,19 @@ bch2_acl_to_xattr(struct btree_trans *trans,
 	return xattr;
 }
 
-struct posix_acl *bch2_get_acl(struct mnt_idmap *idmap,
-			       struct dentry *dentry, int type)
+struct posix_acl *bch2_get_acl(struct inode *vinode, int type, bool rcu)
 {
-	struct bch_inode_info *inode = to_bch_ei(dentry->d_inode);
+	struct bch_inode_info *inode = to_bch_ei(vinode);
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
 	struct bch_hash_info hash = bch2_hash_info_init(c, &inode->ei_inode);
 	struct xattr_search_key search = X_SEARCH(acl_to_xattr_type(type), "", 0);
-	struct btree_trans *trans = bch2_trans_get(c);
 	struct btree_iter iter = { NULL };
 	struct posix_acl *acl = NULL;
+
+	if (rcu)
+		return ERR_PTR(-ECHILD);
+
+	struct btree_trans *trans = bch2_trans_get(c);
 retry:
 	bch2_trans_begin(trans);
 
@@ -346,7 +349,6 @@ int bch2_set_acl(struct mnt_idmap *idmap,
 {
 	struct bch_inode_info *inode = to_bch_ei(dentry->d_inode);
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
-	struct btree_trans *trans = bch2_trans_get(c);
 	struct btree_iter inode_iter = { NULL };
 	struct bch_inode_unpacked inode_u;
 	struct posix_acl *acl;
@@ -354,6 +356,7 @@ int bch2_set_acl(struct mnt_idmap *idmap,
 	int ret;
 
 	mutex_lock(&inode->ei_update_lock);
+	struct btree_trans *trans = bch2_trans_get(c);
 retry:
 	bch2_trans_begin(trans);
 	acl = _acl;
@@ -394,8 +397,8 @@ btree_err:
 
 	set_cached_acl(&inode->v, type, acl);
 err:
-	mutex_unlock(&inode->ei_update_lock);
 	bch2_trans_put(trans);
+	mutex_unlock(&inode->ei_update_lock);
 
 	return ret;
 }

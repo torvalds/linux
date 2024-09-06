@@ -281,8 +281,8 @@ static u32 dc_i2c_func(struct i2c_adapter *adap)
 }
 
 static const struct i2c_algorithm dc_i2c_algorithm = {
-	.master_xfer	= dc_i2c_xfer,
-	.functionality	= dc_i2c_func,
+	.xfer = dc_i2c_xfer,
+	.functionality = dc_i2c_func,
 };
 
 static int dc_i2c_probe(struct platform_device *pdev)
@@ -372,5 +372,5 @@ static struct platform_driver dc_i2c_driver = {
 module_platform_driver(dc_i2c_driver);
 
 MODULE_AUTHOR("Baruch Siach <baruch@tkos.co.il>");
-MODULE_DESCRIPTION("Conexant Digicolor I2C master driver");
+MODULE_DESCRIPTION("Conexant Digicolor I2C controller driver");
 MODULE_LICENSE("GPL v2");

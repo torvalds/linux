@@ -11,8 +11,10 @@
 
 #include <asm/syscall.h>
 
-#undef __SYSCALL
 #define __SYSCALL(nr, call) [nr] = (call),
+#define __SYSCALL_WITH_COMPAT(nr, native, compat)        __SYSCALL(nr, native)
+
+#define sys_mmap2 sys_mmap_pgoff
 
 SYSCALL_DEFINE6(hexagon_fadvise64_64, int, fd, int, advice,
 		SC_ARG64(offset), SC_ARG64(len))
@@ -21,6 +23,8 @@ SYSCALL_DEFINE6(hexagon_fadvise64_64, int, fd, int, advice,
 }
 #define sys_fadvise64_64 sys_hexagon_fadvise64_64
 
+#define sys_sync_file_range sys_sync_file_range2
+
 void *sys_call_table[__NR_syscalls] = {
-#include <asm/unistd.h>
+#include <asm/syscall_table_32.h>
 };

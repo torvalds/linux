@@ -3353,9 +3353,9 @@ static int mlx5_fs_mode_get(struct devlink *devlink, u32 id,
 	struct mlx5_core_dev *dev = devlink_priv(devlink);
 
 	if (dev->priv.steering->mode == MLX5_FLOW_STEERING_MODE_SMFS)
-		strcpy(ctx->val.vstr, "smfs");
+		strscpy(ctx->val.vstr, "smfs", sizeof(ctx->val.vstr));
 	else
-		strcpy(ctx->val.vstr, "dmfs");
+		strscpy(ctx->val.vstr, "dmfs", sizeof(ctx->val.vstr));
 	return 0;
 }
 

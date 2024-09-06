@@ -64,6 +64,15 @@ static const struct codec_map amps[] = {
 	CODEC_MAP_ENTRY("RT1015P", "rt1015", RT1015P_ACPI_HID, CODEC_RT1015P),
 	CODEC_MAP_ENTRY("RT1019P", "rt1019", RT1019P_ACPI_HID, CODEC_RT1019P),
 	CODEC_MAP_ENTRY("RT1308", "rt1308", RT1308_ACPI_HID, CODEC_RT1308),
+
+	/*
+	 * Monolithic components
+	 *
+	 * Only put components that can serve as both the amp and the codec below this line.
+	 * This will ensure that if the part is used just as a codec and there is an amp as well
+	 * then the amp will be selected properly.
+	 */
+	CODEC_MAP_ENTRY("RT5650", "rt5650", RT5650_ACPI_HID, CODEC_RT5650),
 };
 
 enum snd_soc_acpi_intel_codec

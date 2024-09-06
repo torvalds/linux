@@ -163,7 +163,7 @@ struct dm_clone_metadata {
 /*
  * Superblock validation.
  */
-static void sb_prepare_for_write(struct dm_block_validator *v,
+static void sb_prepare_for_write(const struct dm_block_validator *v,
 				 struct dm_block *b, size_t sb_block_size)
 {
 	struct superblock_disk *sb;
@@ -177,7 +177,7 @@ static void sb_prepare_for_write(struct dm_block_validator *v,
 	sb->csum = cpu_to_le32(csum);
 }
 
-static int sb_check(struct dm_block_validator *v, struct dm_block *b,
+static int sb_check(const struct dm_block_validator *v, struct dm_block *b,
 		    size_t sb_block_size)
 {
 	struct superblock_disk *sb;
@@ -220,7 +220,7 @@ static int sb_check(struct dm_block_validator *v, struct dm_block *b,
 	return 0;
 }
 
-static struct dm_block_validator sb_validator = {
+static const struct dm_block_validator sb_validator = {
 	.name = "superblock",
 	.prepare_for_write = sb_prepare_for_write,
 	.check = sb_check

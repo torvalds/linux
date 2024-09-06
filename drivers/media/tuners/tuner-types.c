@@ -1434,6 +1434,22 @@ static struct tuner_params tuner_sony_btf_pg463z_params[] = {
 	},
 };
 
+/* ------------- TUNER_TENA_TNF_931D_DFDR1 - NXP TDA6509A ------------- */
+
+static struct tuner_range tuner_tena_tnf_931d_dfdr1_ranges[] = {
+	{ 16 * 161.15 /*MHz*/, 0x8e, 0x01, },
+	{ 16 * 463.15 /*MHz*/, 0x8e, 0x02, },
+	{ 16 * 999.99        , 0x8e, 0x08, },
+};
+
+static struct tuner_params tuner_tena_tnf_931d_dfdr1_params[] = {
+	{
+		.type   = TUNER_PARAM_TYPE_PAL,
+		.ranges = tuner_tena_tnf_931d_dfdr1_ranges,
+		.count  = ARRAY_SIZE(tuner_tena_tnf_931d_dfdr1_ranges),
+	},
+};
+
 /* --------------------------------------------------------------------- */
 
 struct tunertype tuners[] = {
@@ -1946,6 +1962,11 @@ struct tunertype tuners[] = {
 		.name   = "Silicon Labs Si2157 tuner",
 		/* see si2157.c for details */
 	},
+	[TUNER_TENA_TNF_931D_DFDR1] = {
+		.name = "Tena TNF931D-DFDR1",
+		.params = tuner_tena_tnf_931d_dfdr1_params,
+		.count = ARRAY_SIZE(tuner_tena_tnf_931d_dfdr1_params),
+	}
 };
 EXPORT_SYMBOL(tuners);
 

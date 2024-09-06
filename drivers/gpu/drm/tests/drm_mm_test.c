@@ -356,4 +356,5 @@ static struct kunit_suite drm_mm_test_suite = {
 kunit_test_suite(drm_mm_test_suite);
 
 MODULE_AUTHOR("Intel Corporation");
+MODULE_DESCRIPTION("Test cases for the drm_mm range manager");
 MODULE_LICENSE("GPL");

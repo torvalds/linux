@@ -126,7 +126,7 @@ err_noprint:
 
 	if (closure_nr_remaining(&cl) != 1) {
 		bch2_trans_unlock_long(trans);
-		closure_sync(&cl);
+		bch2_wait_on_allocator(c, &cl);
 	}
 
 	return ret;

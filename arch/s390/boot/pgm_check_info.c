@@ -145,22 +145,22 @@ void print_stacktrace(unsigned long sp)
 
 void print_pgm_check_info(void)
 {
-	unsigned long *gpregs = (unsigned long *)S390_lowcore.gpregs_save_area;
-	struct psw_bits *psw = &psw_bits(S390_lowcore.psw_save_area);
+	unsigned long *gpregs = (unsigned long *)get_lowcore()->gpregs_save_area;
+	struct psw_bits *psw = &psw_bits(get_lowcore()->psw_save_area);
 
 	decompressor_printk("Linux version %s\n", kernel_version);
 	if (!is_prot_virt_guest() && early_command_line[0])
 		decompressor_printk("Kernel command line: %s\n", early_command_line);
 	decompressor_printk("Kernel fault: interruption code %04x ilc:%x\n",
-			    S390_lowcore.pgm_code, S390_lowcore.pgm_ilc >> 1);
+			    get_lowcore()->pgm_code, get_lowcore()->pgm_ilc >> 1);
 	if (kaslr_enabled()) {
 		decompressor_printk("Kernel random base: %lx\n", __kaslr_offset);
 		decompressor_printk("Kernel random base phys: %lx\n", __kaslr_offset_phys);
 	}
 	decompressor_printk("PSW : %016lx %016lx (%pS)\n",
-			    S390_lowcore.psw_save_area.mask,
-			    S390_lowcore.psw_save_area.addr,
-			    (void *)S390_lowcore.psw_save_area.addr);
+			    get_lowcore()->psw_save_area.mask,
+			    get_lowcore()->psw_save_area.addr,
+			    (void *)get_lowcore()->psw_save_area.addr);
 	decompressor_printk(
 		"      R:%x T:%x IO:%x EX:%x Key:%x M:%x W:%x P:%x AS:%x CC:%x PM:%x RI:%x EA:%x\n",
 		psw->per, psw->dat, psw->io, psw->ext, psw->key, psw->mcheck,
@@ -174,8 +174,8 @@ void print_pgm_check_info(void)
 			    gpregs[8], gpregs[9], gpregs[10], gpregs[11]);
 	decompressor_printk("      %016lx %016lx %016lx %016lx\n",
 			    gpregs[12], gpregs[13], gpregs[14], gpregs[15]);
-	print_stacktrace(S390_lowcore.gpregs_save_area[15]);
+	print_stacktrace(get_lowcore()->gpregs_save_area[15]);
 	decompressor_printk("Last Breaking-Event-Address:\n");
-	decompressor_printk(" [<%016lx>] %pS\n", (unsigned long)S390_lowcore.pgm_last_break,
-			    (void *)S390_lowcore.pgm_last_break);
+	decompressor_printk(" [<%016lx>] %pS\n", (unsigned long)get_lowcore()->pgm_last_break,
+			    (void *)get_lowcore()->pgm_last_break);
 }

@@ -155,12 +155,9 @@ static void *__alloc(struct bpf_mem_cache *c, int node, gfp_t flags)
 
 static struct mem_cgroup *get_memcg(const struct bpf_mem_cache *c)
 {
-#ifdef CONFIG_MEMCG_KMEM
+#ifdef CONFIG_MEMCG
 	if (c->objcg)
 		return get_mem_cgroup_from_objcg(c->objcg);
-#endif
-
-#ifdef CONFIG_MEMCG
 	return root_mem_cgroup;
 #else
 	return NULL;
@@ -534,7 +531,7 @@ int bpf_mem_alloc_init(struct bpf_mem_alloc *ma, int size, bool percpu)
 			size += LLIST_NODE_SZ; /* room for llist_node */
 		unit_size = size;
 
-#ifdef CONFIG_MEMCG_KMEM
+#ifdef CONFIG_MEMCG
 		if (memcg_bpf_enabled())
 			objcg = get_obj_cgroup_from_current();
 #endif
@@ -556,7 +553,7 @@ int bpf_mem_alloc_init(struct bpf_mem_alloc *ma, int size, bool percpu)
 	pcc = __alloc_percpu_gfp(sizeof(*cc), 8, GFP_KERNEL);
 	if (!pcc)
 		return -ENOMEM;
-#ifdef CONFIG_MEMCG_KMEM
+#ifdef CONFIG_MEMCG
 	objcg = get_obj_cgroup_from_current();
 #endif
 	ma->objcg = objcg;

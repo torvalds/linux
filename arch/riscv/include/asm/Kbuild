@@ -1,4 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
+syscall-y += syscall_table_32.h
+syscall-y += syscall_table_64.h
+
 generic-y += early_ioremap.h
 generic-y += flat.h
 generic-y += kvm_para.h

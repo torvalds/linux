@@ -31,7 +31,7 @@ struct intel_pmic_opregion {
 
 static struct intel_pmic_opregion *intel_pmic_opregion;
 
-static int pmic_get_reg_bit(int address, struct pmic_table *table,
+static int pmic_get_reg_bit(int address, const struct pmic_table *table,
 			    int count, int *reg, int *bit)
 {
 	int i;

@@ -143,6 +143,10 @@
 	status = "okay";
 };
 
+&pmi632_vib {
+	status = "okay";
+};
+
 &sdhc_1 {
 	status = "okay";
 	vmmc-supply = <&pm8953_l8>;

@@ -36,7 +36,7 @@
 #include "link.h"
 #include "dc_state_priv.h"
 #include "atomfirmware.h"
-#include "smu13_driver_if.h"
+#include "dcn32_smu13_driver_if.h"
 
 #include "dcn/dcn_3_2_0_offset.h"
 #include "dcn/dcn_3_2_0_sh_mask.h"
@@ -163,8 +163,13 @@ void dcn32_init_clocks(struct clk_mgr *clk_mgr_base)
 {
 	struct clk_mgr_internal *clk_mgr = TO_CLK_MGR_INTERNAL(clk_mgr_base);
 	unsigned int num_levels;
-	struct clk_limit_num_entries *num_entries_per_clk = &clk_mgr_base->bw_params->clk_table.num_entries_per_clk;
+	struct clk_limit_num_entries *num_entries_per_clk;
 	unsigned int i;
+
+	if (!clk_mgr_base->bw_params)
+		return;
+
+	num_entries_per_clk = &clk_mgr_base->bw_params->clk_table.num_entries_per_clk;
 
 	memset(&(clk_mgr_base->clks), 0, sizeof(struct dc_clocks));
 	clk_mgr_base->clks.p_state_change_support = true;
@@ -172,9 +177,6 @@ void dcn32_init_clocks(struct clk_mgr *clk_mgr_base)
 	clk_mgr_base->clks.fclk_prev_p_state_change_support = true;
 	clk_mgr->smu_present = false;
 	clk_mgr->dpm_present = false;
-
-	if (!clk_mgr_base->bw_params)
-		return;
 
 	if (!clk_mgr_base->force_smu_not_present && dcn30_smu_get_smu_version(clk_mgr, &clk_mgr->smu_ver))
 		clk_mgr->smu_present = true;
@@ -553,7 +555,7 @@ static void dcn32_auto_dpm_test_log(
 	//
 	//				AutoDPMTest: clk1:%d - clk2:%d - clk3:%d - clk4:%d\n"
 	////////////////////////////////////////////////////////////////////////////
-	if (new_clocks && active_pipe_count > 0 &&
+	if (active_pipe_count > 0 &&
 		new_clocks->dramclk_khz > 0 &&
 		new_clocks->fclk_khz > 0 &&
 		new_clocks->dcfclk_khz > 0 &&
@@ -574,7 +576,7 @@ static void dcn32_auto_dpm_test_log(
 			p_state_list[i] = curr_pipe_ctx->p_state_type;
 
 			refresh_rate = (curr_pipe_ctx->stream->timing.pix_clk_100hz * (uint64_t)100 +
-				curr_pipe_ctx->stream->timing.v_total * curr_pipe_ctx->stream->timing.h_total - (uint64_t)1);
+				curr_pipe_ctx->stream->timing.v_total * (uint64_t)curr_pipe_ctx->stream->timing.h_total - (uint64_t)1);
 			refresh_rate = div_u64(refresh_rate, curr_pipe_ctx->stream->timing.v_total);
 			refresh_rate = div_u64(refresh_rate, curr_pipe_ctx->stream->timing.h_total);
 			disp_src_refresh_list[i] = refresh_rate;

@@ -407,4 +407,5 @@ union acpi_object * __wrap_acpi_evaluate_dsm(acpi_handle handle, const guid_t *g
 }
 EXPORT_SYMBOL(__wrap_acpi_evaluate_dsm);
 
+MODULE_DESCRIPTION("NVDIMM unit test");
 MODULE_LICENSE("GPL v2");

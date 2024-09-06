@@ -35,6 +35,17 @@ enum rtw89_wake_reason {
 	RTW89_WOW_RSN_RX_NLO = 0x55,
 };
 
+enum rtw89_fw_alg {
+	RTW89_WOW_FW_ALG_WEP40 = 0x1,
+	RTW89_WOW_FW_ALG_WEP104 = 0x2,
+	RTW89_WOW_FW_ALG_TKIP = 0x3,
+	RTW89_WOW_FW_ALG_CCMP = 0x6,
+	RTW89_WOW_FW_ALG_CCMP_256 = 0x7,
+	RTW89_WOW_FW_ALG_GCMP = 0x8,
+	RTW89_WOW_FW_ALG_GCMP_256 = 0x9,
+	RTW89_WOW_FW_ALG_AES_CMAC = 0xa,
+};
+
 struct rtw89_cipher_suite {
 	u8 oui[3];
 	u8 type;
@@ -63,6 +74,25 @@ struct rtw89_set_key_info_iter_data {
 	bool rx_ready;
 	bool error;
 };
+
+static inline int rtw89_wow_get_sec_hdr_len(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_wow_param *rtw_wow = &rtwdev->wow;
+
+	if (!(rtwdev->chip->chip_id == RTL8852A || rtw89_is_rtl885xb(rtwdev)))
+		return 0;
+
+	switch (rtw_wow->ptk_alg) {
+	case RTW89_WOW_FW_ALG_WEP40:
+		return 4;
+	case RTW89_WOW_FW_ALG_TKIP:
+	case RTW89_WOW_FW_ALG_CCMP:
+	case RTW89_WOW_FW_ALG_GCMP_256:
+		return 8;
+	default:
+		return 0;
+	}
+}
 
 #ifdef CONFIG_PM
 int rtw89_wow_suspend(struct rtw89_dev *rtwdev, struct cfg80211_wowlan *wowlan);

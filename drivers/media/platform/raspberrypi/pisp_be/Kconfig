@@ -1,0 +1,12 @@
+config VIDEO_RASPBERRYPI_PISP_BE
+	tristate "Raspberry Pi PiSP Backend (BE) ISP driver"
+	depends on V4L_PLATFORM_DRIVERS
+	depends on VIDEO_DEV
+	select VIDEO_V4L2_SUBDEV_API
+	select MEDIA_CONTROLLER
+	select VIDEOBUF2_DMA_CONTIG
+	help
+	  Say Y here to enable support for the PiSP Backend (BE) ISP driver.
+
+	  To compile this driver as a module, choose M here. The module will be
+	  called pisp-be.

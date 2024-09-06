@@ -23,7 +23,7 @@ enum bch_fsck_flags {
 	x(jset_past_bucket_end,					  9,	0)		\
 	x(jset_seq_blacklisted,					 10,	0)		\
 	x(journal_entries_missing,				 11,	0)		\
-	x(journal_entry_replicas_not_marked,			 12,	0)		\
+	x(journal_entry_replicas_not_marked,			 12,	FSCK_AUTOFIX)	\
 	x(journal_entry_past_jset_end,				 13,	0)		\
 	x(journal_entry_replicas_data_mismatch,			 14,	0)		\
 	x(journal_entry_bkey_u64s_0,				 15,	0)		\
@@ -227,8 +227,8 @@ enum bch_fsck_flags {
 	x(deleted_inode_is_dir,					213,	0)		\
 	x(deleted_inode_not_unlinked,				214,	0)		\
 	x(extent_overlapping,					215,	0)		\
-	x(extent_in_missing_inode,				216,	0)		\
-	x(extent_in_non_reg_inode,				217,	0)		\
+	x(key_in_missing_inode,					216,	0)		\
+	x(key_in_wrong_inode_type,				217,	0)		\
 	x(extent_past_end_of_inode,				218,	0)		\
 	x(dirent_empty_name,					219,	0)		\
 	x(dirent_val_too_big,					220,	0)		\
@@ -287,7 +287,11 @@ enum bch_fsck_flags {
 	x(accounting_replicas_not_marked,			273,	0)		\
 	x(invalid_btree_id,					274,	0)		\
 	x(alloc_key_io_time_bad,				275,	0)		\
-	x(alloc_key_fragmentation_lru_wrong,			276,	FSCK_AUTOFIX)
+	x(alloc_key_fragmentation_lru_wrong,			276,	FSCK_AUTOFIX)	\
+	x(accounting_key_junk_at_end,				277,	FSCK_AUTOFIX)	\
+	x(accounting_key_replicas_nr_devs_0,			278,	FSCK_AUTOFIX)	\
+	x(accounting_key_replicas_nr_required_bad,		279,	FSCK_AUTOFIX)	\
+	x(accounting_key_replicas_devs_unsorted,		280,	FSCK_AUTOFIX)	\
 
 enum bch_sb_error_id {
 #define x(t, n, ...) BCH_FSCK_ERR_##t = n,

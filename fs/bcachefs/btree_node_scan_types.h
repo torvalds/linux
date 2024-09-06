@@ -11,6 +11,7 @@ struct found_btree_node {
 	u8			level;
 	unsigned		sectors_written;
 	u32			seq;
+	u64			journal_seq;
 	u64			cookie;
 
 	struct bpos		min_key;

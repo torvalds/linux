@@ -19,6 +19,7 @@
 #include <linux/mmc/core.h>
 #include <linux/mmc/host.h>
 
+MODULE_DESCRIPTION("OpenFirmware bindings for the MMC-over-SPI driver");
 MODULE_LICENSE("GPL");
 
 struct of_mmc_spi {

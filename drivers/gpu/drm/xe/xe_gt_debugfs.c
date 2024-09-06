@@ -15,14 +15,18 @@
 #include "xe_ggtt.h"
 #include "xe_gt.h"
 #include "xe_gt_mcr.h"
+#include "xe_gt_sriov_pf_debugfs.h"
+#include "xe_gt_sriov_vf_debugfs.h"
 #include "xe_gt_topology.h"
 #include "xe_hw_engine.h"
 #include "xe_lrc.h"
 #include "xe_macros.h"
+#include "xe_mocs.h"
 #include "xe_pat.h"
 #include "xe_pm.h"
 #include "xe_reg_sr.h"
 #include "xe_reg_whitelist.h"
+#include "xe_sriov.h"
 #include "xe_uc_debugfs.h"
 #include "xe_wa.h"
 
@@ -108,6 +112,17 @@ static int force_reset(struct xe_gt *gt, struct drm_printer *p)
 	xe_pm_runtime_get(gt_to_xe(gt));
 	xe_gt_reset_async(gt);
 	xe_pm_runtime_put(gt_to_xe(gt));
+
+	return 0;
+}
+
+static int force_reset_sync(struct xe_gt *gt, struct drm_printer *p)
+{
+	xe_pm_runtime_get(gt_to_xe(gt));
+	xe_gt_reset_async(gt);
+	xe_pm_runtime_put(gt_to_xe(gt));
+
+	flush_work(&gt->reset.worker);
 
 	return 0;
 }
@@ -200,6 +215,15 @@ static int pat(struct xe_gt *gt, struct drm_printer *p)
 	return 0;
 }
 
+static int mocs(struct xe_gt *gt, struct drm_printer *p)
+{
+	xe_pm_runtime_get(gt_to_xe(gt));
+	xe_mocs_dump(gt, p);
+	xe_pm_runtime_put(gt_to_xe(gt));
+
+	return 0;
+}
+
 static int rcs_default_lrc(struct xe_gt *gt, struct drm_printer *p)
 {
 	xe_pm_runtime_get(gt_to_xe(gt));
@@ -248,6 +272,7 @@ static int vecs_default_lrc(struct xe_gt *gt, struct drm_printer *p)
 static const struct drm_info_list debugfs_list[] = {
 	{"hw_engines", .show = xe_gt_debugfs_simple_show, .data = hw_engines},
 	{"force_reset", .show = xe_gt_debugfs_simple_show, .data = force_reset},
+	{"force_reset_sync", .show = xe_gt_debugfs_simple_show, .data = force_reset_sync},
 	{"sa_info", .show = xe_gt_debugfs_simple_show, .data = sa_info},
 	{"topology", .show = xe_gt_debugfs_simple_show, .data = topology},
 	{"steering", .show = xe_gt_debugfs_simple_show, .data = steering},
@@ -255,6 +280,7 @@ static const struct drm_info_list debugfs_list[] = {
 	{"register-save-restore", .show = xe_gt_debugfs_simple_show, .data = register_save_restore},
 	{"workarounds", .show = xe_gt_debugfs_simple_show, .data = workarounds},
 	{"pat", .show = xe_gt_debugfs_simple_show, .data = pat},
+	{"mocs", .show = xe_gt_debugfs_simple_show, .data = mocs},
 	{"default_lrc_rcs", .show = xe_gt_debugfs_simple_show, .data = rcs_default_lrc},
 	{"default_lrc_ccs", .show = xe_gt_debugfs_simple_show, .data = ccs_default_lrc},
 	{"default_lrc_bcs", .show = xe_gt_debugfs_simple_show, .data = bcs_default_lrc},
@@ -290,4 +316,9 @@ void xe_gt_debugfs_register(struct xe_gt *gt)
 				 root, minor);
 
 	xe_uc_debugfs_register(&gt->uc, root);
+
+	if (IS_SRIOV_PF(xe))
+		xe_gt_sriov_pf_debugfs_register(gt, root);
+	else if (IS_SRIOV_VF(xe))
+		xe_gt_sriov_vf_debugfs_register(gt, root);
 }

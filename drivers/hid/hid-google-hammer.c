@@ -641,4 +641,5 @@ static void __exit hammer_exit(void)
 }
 module_exit(hammer_exit);
 
+MODULE_DESCRIPTION("HID driver for Google Hammer device.");
 MODULE_LICENSE("GPL");

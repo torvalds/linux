@@ -54,4 +54,6 @@ static struct platform_driver clk_mt8186_ipe_drv = {
 	},
 };
 module_platform_driver(clk_mt8186_ipe_drv);
+
+MODULE_DESCRIPTION("MediaTek MT8186 Image Processing Engine clocks driver");
 MODULE_LICENSE("GPL");

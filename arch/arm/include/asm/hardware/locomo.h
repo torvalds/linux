@@ -189,7 +189,7 @@ struct locomo_driver {
 	void (*remove)(struct locomo_dev *);
 };
 
-#define LOCOMO_DRV(_d)	container_of((_d), struct locomo_driver, drv)
+#define LOCOMO_DRV(_d)	container_of_const((_d), struct locomo_driver, drv)
 
 #define LOCOMO_DRIVER_NAME(_ldev) ((_ldev)->dev.driver->name)
 

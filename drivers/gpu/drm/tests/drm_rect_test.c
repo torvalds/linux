@@ -526,4 +526,5 @@ static struct kunit_suite drm_rect_test_suite = {
 
 kunit_test_suite(drm_rect_test_suite);
 
+MODULE_DESCRIPTION("Test cases for the drm_rect functions");
 MODULE_LICENSE("GPL");

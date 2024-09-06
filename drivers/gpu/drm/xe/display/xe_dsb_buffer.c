@@ -3,11 +3,12 @@
  * Copyright 2023, Intel Corporation.
  */
 
-#include "i915_drv.h"
 #include "i915_vma.h"
 #include "intel_display_types.h"
 #include "intel_dsb_buffer.h"
 #include "xe_bo.h"
+#include "xe_device.h"
+#include "xe_device_types.h"
 #include "xe_gt.h"
 
 u32 intel_dsb_buffer_ggtt_offset(struct intel_dsb_buffer *dsb_buf)
@@ -17,7 +18,10 @@ u32 intel_dsb_buffer_ggtt_offset(struct intel_dsb_buffer *dsb_buf)
 
 void intel_dsb_buffer_write(struct intel_dsb_buffer *dsb_buf, u32 idx, u32 val)
 {
+	struct xe_device *xe = dsb_buf->vma->bo->tile->xe;
+
 	iosys_map_wr(&dsb_buf->vma->bo->vmap, idx * 4, u32, val);
+	xe_device_l2_flush(xe);
 }
 
 u32 intel_dsb_buffer_read(struct intel_dsb_buffer *dsb_buf, u32 idx)
@@ -27,25 +31,28 @@ u32 intel_dsb_buffer_read(struct intel_dsb_buffer *dsb_buf, u32 idx)
 
 void intel_dsb_buffer_memset(struct intel_dsb_buffer *dsb_buf, u32 idx, u32 val, size_t size)
 {
+	struct xe_device *xe = dsb_buf->vma->bo->tile->xe;
+
 	WARN_ON(idx > (dsb_buf->buf_size - size) / sizeof(*dsb_buf->cmd_buf));
 
 	iosys_map_memset(&dsb_buf->vma->bo->vmap, idx * 4, val, size);
+	xe_device_l2_flush(xe);
 }
 
 bool intel_dsb_buffer_create(struct intel_crtc *crtc, struct intel_dsb_buffer *dsb_buf, size_t size)
 {
-	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
-	struct drm_i915_gem_object *obj;
+	struct xe_device *xe = to_xe_device(crtc->base.dev);
+	struct xe_bo *obj;
 	struct i915_vma *vma;
 
 	vma = kzalloc(sizeof(*vma), GFP_KERNEL);
 	if (!vma)
 		return false;
 
-	obj = xe_bo_create_pin_map(i915, xe_device_get_root_tile(i915),
+	obj = xe_bo_create_pin_map(xe, xe_device_get_root_tile(xe),
 				   NULL, PAGE_ALIGN(size),
 				   ttm_bo_type_kernel,
-				   XE_BO_FLAG_VRAM_IF_DGFX(xe_device_get_root_tile(i915)) |
+				   XE_BO_FLAG_VRAM_IF_DGFX(xe_device_get_root_tile(xe)) |
 				   XE_BO_FLAG_GGTT);
 	if (IS_ERR(obj)) {
 		kfree(vma);

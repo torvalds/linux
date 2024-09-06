@@ -2578,7 +2578,11 @@ static u32 ksz_get_phy_flags(struct dsa_switch *ds, int port)
 		if (!port)
 			return MICREL_KSZ8_P1_ERRATA;
 		break;
+	case KSZ8567_CHIP_ID:
 	case KSZ9477_CHIP_ID:
+	case KSZ9567_CHIP_ID:
+	case KSZ9896_CHIP_ID:
+	case KSZ9897_CHIP_ID:
 		/* KSZ9477 Errata DS80000754C
 		 *
 		 * Module 4: Energy Efficient Ethernet (EEE) feature select must
@@ -2588,6 +2592,13 @@ static u32 ksz_get_phy_flags(struct dsa_switch *ds, int port)
 		 *   controls. If not disabled, the PHY ports can auto-negotiate
 		 *   to enable EEE, and this feature can cause link drops when
 		 *   linked to another device supporting EEE.
+		 *
+		 * The same item appears in the errata for the KSZ9567, KSZ9896,
+		 * and KSZ9897.
+		 *
+		 * A similar item appears in the errata for the KSZ8567, but
+		 * provides an alternative workaround. For now, use the simple
+		 * workaround of disabling the EEE feature for this device too.
 		 */
 		return MICREL_NO_EEE;
 	}
@@ -3116,7 +3127,8 @@ static void ksz_set_xmii(struct ksz_device *dev, int port,
 		/* On KSZ9893, disable RGMII in-band status support */
 		if (dev->chip_id == KSZ9893_CHIP_ID ||
 		    dev->chip_id == KSZ8563_CHIP_ID ||
-		    dev->chip_id == KSZ9563_CHIP_ID)
+		    dev->chip_id == KSZ9563_CHIP_ID ||
+		    is_lan937x(dev))
 			data8 &= ~P_MII_MAC_MODE;
 		break;
 	default:
@@ -3763,6 +3775,11 @@ static int ksz_port_set_mac_address(struct dsa_switch *ds, int port,
 		return -EBUSY;
 	}
 
+	/* Need to initialize variable as the code to fill in settings may
+	 * not be executed.
+	 */
+	wol.wolopts = 0;
+
 	ksz_get_wol(ds, dp->index, &wol);
 	if (wol.wolopts & WAKE_MAGIC) {
 		dev_err(ds->dev,
@@ -3914,6 +3931,13 @@ static int ksz_hsr_join(struct dsa_switch *ds, int port, struct net_device *hsr,
 	/* KSZ9477 only supports HSR v0 and v1 */
 	if (!(ver == HSR_V0 || ver == HSR_V1)) {
 		NL_SET_ERR_MSG_MOD(extack, "Only HSR v0 and v1 supported");
+		return -EOPNOTSUPP;
+	}
+
+	/* KSZ9477 can only perform HSR offloading for up to two ports */
+	if (hweight8(dev->hsr_ports) >= 2) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Cannot offload more than two ports - using software HSR");
 		return -EOPNOTSUPP;
 	}
 

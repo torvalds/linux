@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0 OR MIT
 /**************************************************************************
  *
- * Copyright 2009-2023 VMware, Inc., Palo Alto, CA., USA
+ * Copyright (c) 2009-2024 Broadcom. All Rights Reserved. The term
+ * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
@@ -147,8 +148,9 @@ static int vmw_ldu_fb_pin(struct vmw_framebuffer *vfb)
 	struct vmw_bo *buf;
 	int ret;
 
-	buf = vfb->bo ?  vmw_framebuffer_to_vfbd(&vfb->base)->buffer :
-		vmw_framebuffer_to_vfbs(&vfb->base)->surface->res.guest_memory_bo;
+	buf = vfb->bo ?
+		vmw_framebuffer_to_vfbd(&vfb->base)->buffer :
+		vmw_user_object_buffer(&vmw_framebuffer_to_vfbs(&vfb->base)->uo);
 
 	if (!buf)
 		return 0;
@@ -169,8 +171,10 @@ static int vmw_ldu_fb_unpin(struct vmw_framebuffer *vfb)
 	struct vmw_private *dev_priv = vmw_priv(vfb->base.dev);
 	struct vmw_bo *buf;
 
-	buf = vfb->bo ?  vmw_framebuffer_to_vfbd(&vfb->base)->buffer :
-		vmw_framebuffer_to_vfbs(&vfb->base)->surface->res.guest_memory_bo;
+	buf = vfb->bo ?
+		vmw_framebuffer_to_vfbd(&vfb->base)->buffer :
+		vmw_user_object_buffer(&vmw_framebuffer_to_vfbs(&vfb->base)->uo);
+
 
 	if (WARN_ON(!buf))
 		return 0;

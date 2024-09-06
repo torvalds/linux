@@ -78,6 +78,7 @@ static inline bool kfd_dbg_is_per_vmid_supported(struct kfd_node *dev)
 {
 	return (KFD_GC_VERSION(dev) == IP_VERSION(9, 4, 2) ||
 		KFD_GC_VERSION(dev) == IP_VERSION(9, 4, 3) ||
+		KFD_GC_VERSION(dev) == IP_VERSION(9, 4, 4) ||
 		KFD_GC_VERSION(dev) >= IP_VERSION(11, 0, 0));
 }
 
@@ -134,6 +135,7 @@ static inline bool kfd_dbg_has_ttmps_always_setup(struct kfd_node *dev)
 			KFD_GC_VERSION(dev) != IP_VERSION(9, 4, 2)) ||
 	       (KFD_GC_VERSION(dev) >= IP_VERSION(11, 0, 0) &&
 			KFD_GC_VERSION(dev) < IP_VERSION(12, 0, 0) &&
-			(dev->adev->mes.sched_version & AMDGPU_MES_VERSION_MASK) >= 70);
+			(dev->adev->mes.sched_version & AMDGPU_MES_VERSION_MASK) >= 70) ||
+	       (KFD_GC_VERSION(dev) >= IP_VERSION(12, 0, 0));
 }
 #endif

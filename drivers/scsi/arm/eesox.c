@@ -381,7 +381,7 @@ eesoxscsi_dma_stop(struct Scsi_Host *host, struct scsi_pointer *SCp)
  * Params   : host - driver host structure to return info for.
  * Returns  : pointer to a static buffer containing null terminated string.
  */
-const char *eesoxscsi_info(struct Scsi_Host *host)
+static const char *eesoxscsi_info(struct Scsi_Host *host)
 {
 	struct eesoxscsi_info *info = (struct eesoxscsi_info *)host->hostdata;
 	static char string[150];

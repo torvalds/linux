@@ -865,7 +865,7 @@ static const struct regmap_access_table da9121_volatile_table = {
 };
 
 /* DA9121 regmap config for 1 channel variants */
-static struct regmap_config da9121_1ch_regmap_config = {
+static const struct regmap_config da9121_1ch_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 	.max_register = DA9121_REG_OTP_CONFIG_ID,
@@ -876,7 +876,7 @@ static struct regmap_config da9121_1ch_regmap_config = {
 };
 
 /* DA9121 regmap config for 2 channel variants */
-static struct regmap_config da9121_2ch_regmap_config = {
+static const struct regmap_config da9121_2ch_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 	.max_register = DA9121_REG_OTP_CONFIG_ID,
@@ -993,7 +993,7 @@ error:
 static int da9121_assign_chip_model(struct i2c_client *i2c,
 			struct da9121 *chip)
 {
-	struct regmap_config *regmap;
+	const struct regmap_config *regmap;
 	int ret = 0;
 
 	chip->dev = &i2c->dev;
@@ -1192,4 +1192,5 @@ static struct i2c_driver da9121_regulator_driver = {
 
 module_i2c_driver(da9121_regulator_driver);
 
+MODULE_DESCRIPTION("Dialog Semiconductor DA9121/DA9122/DA9220/DA9217/DA9130/DA9131/DA9132 regulator driver");
 MODULE_LICENSE("GPL v2");

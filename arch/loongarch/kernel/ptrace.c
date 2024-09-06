@@ -589,6 +589,7 @@ static int ptrace_hbp_set_ctrl(unsigned int note_type,
 	struct perf_event *bp;
 	struct perf_event_attr attr;
 	struct arch_hw_breakpoint_ctrl ctrl;
+	struct thread_info *ti = task_thread_info(tsk);
 
 	bp = ptrace_hbp_get_initialised_bp(note_type, tsk, idx);
 	if (IS_ERR(bp))
@@ -613,8 +614,10 @@ static int ptrace_hbp_set_ctrl(unsigned int note_type,
 		if (err)
 			return err;
 		attr.disabled = 0;
+		set_ti_thread_flag(ti, TIF_LOAD_WATCH);
 	} else {
 		attr.disabled = 1;
+		clear_ti_thread_flag(ti, TIF_LOAD_WATCH);
 	}
 
 	return modify_user_hw_breakpoint(bp, &attr);

@@ -173,4 +173,5 @@ static void __exit nfcon_exit(void)
 module_init(nfcon_init);
 module_exit(nfcon_exit);
 
+MODULE_DESCRIPTION("Atari NatFeat console driver");
 MODULE_LICENSE("GPL");

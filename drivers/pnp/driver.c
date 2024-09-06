@@ -41,7 +41,7 @@ int compare_pnp_id(struct pnp_id *pos, const char *id)
 	return 0;
 }
 
-static const struct pnp_device_id *match_device(struct pnp_driver *drv,
+static const struct pnp_device_id *match_device(const struct pnp_driver *drv,
 						struct pnp_dev *dev)
 {
 	const struct pnp_device_id *drv_id = drv->id_table;
@@ -150,10 +150,10 @@ static void pnp_device_shutdown(struct device *dev)
 		drv->shutdown(pnp_dev);
 }
 
-static int pnp_bus_match(struct device *dev, struct device_driver *drv)
+static int pnp_bus_match(struct device *dev, const struct device_driver *drv)
 {
 	struct pnp_dev *pnp_dev = to_pnp_dev(dev);
-	struct pnp_driver *pnp_drv = to_pnp_driver(drv);
+	const struct pnp_driver *pnp_drv = to_pnp_driver(drv);
 
 	if (match_device(pnp_drv, pnp_dev) == NULL)
 		return 0;

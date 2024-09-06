@@ -231,28 +231,33 @@ struct iwl_synced_time_rsp {
 #define PTP_CTX_MAX_DATA_SIZE   128
 
 /**
- * struct iwl_time_msmt_ptp_ctx - Vendor specific information element
+ * struct iwl_time_msmt_ptp_ctx - Vendor specific element
  * to allow a space for flexibility for the userspace App
  *
- * @element_id: element id of vendor specific ie
- * @length: length of vendor specific ie
- * @reserved: for alignment
- * @data: vendor specific data blob
+ * @ftm: FTM specific vendor element
+ * @ftm.element_id: element id of vendor specific ie
+ * @ftm.length: length of vendor specific ie
+ * @ftm.reserved: for alignment
+ * @ftm.data: vendor specific data blob
+ * @tm: TM specific vendor element
+ * @tm.element_id: element id of vendor specific ie
+ * @tm.length: length of vendor specific ie
+ * @tm.data: vendor specific data blob
  */
 struct iwl_time_msmt_ptp_ctx {
-	/* Differentiate between FTM and TM specific Vendor IEs */
+	/* Differentiate between FTM and TM specific Vendor elements */
 	union {
 		struct {
 			u8 element_id;
 			u8 length;
 			__le16 reserved;
 			u8 data[PTP_CTX_MAX_DATA_SIZE];
-		} ftm; /* FTM specific vendor IE */
+		} ftm;
 		struct {
 			u8 element_id;
 			u8 length;
 			u8 data[PTP_CTX_MAX_DATA_SIZE];
-		} tm; /* TM specific vendor IE */
+		} tm;
 	};
 } __packed /* PTP_CTX_VER_1 */;
 
@@ -531,6 +536,10 @@ struct iwl_rx_baid_cfg_cmd_remove {
 /**
  * struct iwl_rx_baid_cfg_cmd - BAID allocation/config command
  * @action: the action, from &enum iwl_rx_baid_action
+ * @alloc: allocation data
+ * @modify: modify data
+ * @remove_v1: remove data (version 1)
+ * @remove: remove data
  */
 struct iwl_rx_baid_cfg_cmd {
 	__le32 action;
@@ -565,6 +574,7 @@ enum iwl_scd_queue_cfg_operation {
 /**
  * struct iwl_scd_queue_cfg_cmd - scheduler queue allocation command
  * @operation: the operation, see &enum iwl_scd_queue_cfg_operation
+ * @u: union depending on command usage
  * @u.add.sta_mask: station mask
  * @u.add.tid: TID
  * @u.add.reserved: reserved
@@ -634,6 +644,7 @@ enum iwl_sec_key_flags {
 /**
  * struct iwl_sec_key_cmd - security key command
  * @action: action from &enum iwl_ctxt_action
+ * @u: union depending on command type
  * @u.add.sta_mask: station mask for the new key
  * @u.add.key_id: key ID (0-7) for the new key
  * @u.add.key_flags: key flags per &enum iwl_sec_key_flags

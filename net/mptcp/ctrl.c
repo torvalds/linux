@@ -113,7 +113,7 @@ static int mptcp_set_scheduler(const struct net *net, const char *name)
 	return ret;
 }
 
-static int proc_scheduler(struct ctl_table *ctl, int write,
+static int proc_scheduler(const struct ctl_table *ctl, int write,
 			  void *buffer, size_t *lenp, loff_t *ppos)
 {
 	const struct net *net = current->nsproxy->net_ns;
@@ -133,7 +133,7 @@ static int proc_scheduler(struct ctl_table *ctl, int write,
 	return ret;
 }
 
-static int proc_available_schedulers(struct ctl_table *ctl,
+static int proc_available_schedulers(const struct ctl_table *ctl,
 				     int write, void *buffer,
 				     size_t *lenp, loff_t *ppos)
 {

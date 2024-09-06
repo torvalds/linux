@@ -10,15 +10,14 @@ enum bch_validate_flags;
 int bch2_check_subvols(struct bch_fs *);
 int bch2_check_subvol_children(struct bch_fs *);
 
-int bch2_subvolume_invalid(struct bch_fs *, struct bkey_s_c,
-			   enum bch_validate_flags, struct printbuf *);
+int bch2_subvolume_validate(struct bch_fs *, struct bkey_s_c, enum bch_validate_flags);
 void bch2_subvolume_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
 int bch2_subvolume_trigger(struct btree_trans *, enum btree_id, unsigned,
 			   struct bkey_s_c, struct bkey_s,
 			   enum btree_iter_update_trigger_flags);
 
 #define bch2_bkey_ops_subvolume ((struct bkey_ops) {		\
-	.key_invalid	= bch2_subvolume_invalid,		\
+	.key_validate	= bch2_subvolume_validate,		\
 	.val_to_text	= bch2_subvolume_to_text,		\
 	.trigger	= bch2_subvolume_trigger,		\
 	.min_val_size	= 16,					\

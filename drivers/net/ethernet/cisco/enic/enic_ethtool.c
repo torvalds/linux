@@ -599,13 +599,35 @@ static int enic_set_rxfh(struct net_device *netdev,
 }
 
 static int enic_get_ts_info(struct net_device *netdev,
-			    struct ethtool_ts_info *info)
+			    struct kernel_ethtool_ts_info *info)
 {
 	info->so_timestamping = SOF_TIMESTAMPING_TX_SOFTWARE |
 				SOF_TIMESTAMPING_RX_SOFTWARE |
 				SOF_TIMESTAMPING_SOFTWARE;
 
 	return 0;
+}
+
+static void enic_get_channels(struct net_device *netdev,
+			      struct ethtool_channels *channels)
+{
+	struct enic *enic = netdev_priv(netdev);
+
+	switch (vnic_dev_get_intr_mode(enic->vdev)) {
+	case VNIC_DEV_INTR_MODE_MSIX:
+		channels->max_rx = ENIC_RQ_MAX;
+		channels->max_tx = ENIC_WQ_MAX;
+		channels->rx_count = enic->rq_count;
+		channels->tx_count = enic->wq_count;
+		break;
+	case VNIC_DEV_INTR_MODE_MSI:
+	case VNIC_DEV_INTR_MODE_INTX:
+		channels->max_combined = 1;
+		channels->combined_count = 1;
+		break;
+	default:
+		break;
+	}
 }
 
 static const struct ethtool_ops enic_ethtool_ops = {
@@ -632,6 +654,7 @@ static const struct ethtool_ops enic_ethtool_ops = {
 	.set_rxfh = enic_set_rxfh,
 	.get_link_ksettings = enic_get_ksettings,
 	.get_ts_info = enic_get_ts_info,
+	.get_channels = enic_get_channels,
 };
 
 void enic_set_ethtool_ops(struct net_device *netdev)

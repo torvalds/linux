@@ -33,7 +33,7 @@ struct pcpu_block_md {
 };
 
 struct pcpuobj_ext {
-#ifdef CONFIG_MEMCG_KMEM
+#ifdef CONFIG_MEMCG
 	struct obj_cgroup	*cgroup;
 #endif
 #ifdef CONFIG_MEM_ALLOC_PROFILING
@@ -41,7 +41,7 @@ struct pcpuobj_ext {
 #endif
 };
 
-#if defined(CONFIG_MEMCG_KMEM) || defined(CONFIG_MEM_ALLOC_PROFILING)
+#if defined(CONFIG_MEMCG) || defined(CONFIG_MEM_ALLOC_PROFILING)
 #define NEED_PCPUOBJ_EXT
 #endif
 
@@ -154,7 +154,7 @@ static inline size_t pcpu_obj_full_size(size_t size)
 {
 	size_t extra_size = 0;
 
-#ifdef CONFIG_MEMCG_KMEM
+#ifdef CONFIG_MEMCG
 	if (!mem_cgroup_kmem_disabled())
 		extra_size += size / PCPU_MIN_ALLOC_SIZE * sizeof(struct obj_cgroup *);
 #endif

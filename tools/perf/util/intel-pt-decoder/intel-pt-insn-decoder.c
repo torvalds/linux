@@ -92,6 +92,15 @@ static void intel_pt_insn_decoder(struct insn *insn,
 		op = INTEL_PT_OP_JCC;
 		branch = INTEL_PT_BR_CONDITIONAL;
 		break;
+	case 0xa1:
+		if (insn_is_rex2(insn)) { /* jmpabs */
+			intel_pt_insn->op = INTEL_PT_OP_JMP;
+			/* jmpabs causes a TIP packet like an indirect branch */
+			intel_pt_insn->branch = INTEL_PT_BR_INDIRECT;
+			intel_pt_insn->length = insn->length;
+			return;
+		}
+		break;
 	case 0xc2: /* near ret */
 	case 0xc3: /* near ret */
 	case 0xca: /* far ret */

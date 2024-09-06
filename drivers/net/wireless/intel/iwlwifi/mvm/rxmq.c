@@ -566,7 +566,7 @@ static void iwl_mvm_release_frames(struct iwl_mvm *mvm,
 	lockdep_assert_held(&reorder_buf->lock);
 
 	while (ieee80211_sn_less(ssn, nssn)) {
-		int index = ssn % reorder_buf->buf_size;
+		int index = ssn % baid_data->buf_size;
 		struct sk_buff_head *skb_list = &entries[index].frames;
 		struct sk_buff *skb;
 
@@ -617,7 +617,7 @@ static void iwl_mvm_del_ba(struct iwl_mvm *mvm, int queue,
 	spin_lock_bh(&reorder_buf->lock);
 	iwl_mvm_release_frames(mvm, sta, NULL, ba_data, reorder_buf,
 			       ieee80211_sn_add(reorder_buf->head_sn,
-						reorder_buf->buf_size));
+						ba_data->buf_size));
 	spin_unlock_bh(&reorder_buf->lock);
 
 out:
@@ -839,7 +839,7 @@ static bool iwl_mvm_reorder(struct iwl_mvm *mvm,
 	}
 
 	/* put in reorder buffer */
-	index = sn % buffer->buf_size;
+	index = sn % baid_data->buf_size;
 	__skb_queue_tail(&entries[index].frames, skb);
 	buffer->num_stored++;
 
@@ -1954,6 +1954,16 @@ static void iwl_mvm_rx_fill_status(struct iwl_mvm *mvm,
 	iwl_mvm_decode_lsig(skb, phy_data);
 
 	rx_status->device_timestamp = phy_data->gp2_on_air_rise;
+
+	if (mvm->rx_ts_ptp && mvm->monitor_on) {
+		u64 adj_time =
+			iwl_mvm_ptp_get_adj_time(mvm, phy_data->gp2_on_air_rise * NSEC_PER_USEC);
+
+		rx_status->mactime = div64_u64(adj_time, NSEC_PER_USEC);
+		rx_status->flag |= RX_FLAG_MACTIME_IS_RTAP_TS64;
+		rx_status->flag &= ~RX_FLAG_MACTIME;
+	}
+
 	rx_status->freq = ieee80211_channel_to_frequency(phy_data->channel,
 							 rx_status->band);
 	iwl_mvm_get_signal_strength(mvm, rx_status, rate_n_flags,
@@ -2032,7 +2042,6 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 	u32 len;
 	u32 pkt_len = iwl_rx_packet_payload_len(pkt);
 	struct ieee80211_sta *sta = NULL;
-	struct ieee80211_link_sta *link_sta = NULL;
 	struct sk_buff *skb;
 	u8 crypt_len = 0;
 	u8 sta_id = le32_get_bits(desc->status, IWL_RX_MPDU_STATUS_STA_ID);
@@ -2185,6 +2194,8 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 
 	if (desc->status & cpu_to_le32(IWL_RX_MPDU_STATUS_SRC_STA_FOUND)) {
 		if (!WARN_ON_ONCE(sta_id >= mvm->fw->ucode_capa.num_stations)) {
+			struct ieee80211_link_sta *link_sta;
+
 			sta = rcu_dereference(mvm->fw_id_to_mac_id[sta_id]);
 			if (IS_ERR(sta))
 				sta = NULL;
@@ -2360,7 +2371,6 @@ void iwl_mvm_rx_monitor_no_data(struct iwl_mvm *mvm, struct napi_struct *napi,
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_rx_no_data_ver_3 *desc = (void *)pkt->data;
 	u32 rssi;
-	u32 info_type;
 	struct ieee80211_sta *sta = NULL;
 	struct sk_buff *skb;
 	struct iwl_mvm_rx_phy_data phy_data;
@@ -2373,7 +2383,6 @@ void iwl_mvm_rx_monitor_no_data(struct iwl_mvm *mvm, struct napi_struct *napi,
 		return;
 
 	rssi = le32_to_cpu(desc->rssi);
-	info_type = le32_to_cpu(desc->info) & RX_NO_DATA_INFO_TYPE_MSK;
 	phy_data.d0 = desc->phy_info[0];
 	phy_data.d1 = desc->phy_info[1];
 	phy_data.phy_info = IWL_RX_MPDU_PHY_TSF_OVERLOAD;
@@ -2425,7 +2434,12 @@ void iwl_mvm_rx_monitor_no_data(struct iwl_mvm *mvm, struct napi_struct *napi,
 	/* 0-length PSDU */
 	rx_status->flag |= RX_FLAG_NO_PSDU;
 
-	switch (info_type) {
+	/* mark as failed PLCP on any errors to skip checks in mac80211 */
+	if (le32_get_bits(desc->info, RX_NO_DATA_INFO_ERR_MSK) !=
+	    RX_NO_DATA_INFO_ERR_NONE)
+		rx_status->flag |= RX_FLAG_FAILED_PLCP_CRC;
+
+	switch (le32_get_bits(desc->info, RX_NO_DATA_INFO_TYPE_MSK)) {
 	case RX_NO_DATA_INFO_TYPE_NDP:
 		rx_status->zero_length_psdu_type =
 			IEEE80211_RADIOTAP_ZERO_LEN_PSDU_SOUNDING;

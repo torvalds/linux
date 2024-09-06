@@ -152,7 +152,6 @@ struct device_queue_manager_ops {
 	int	(*initialize)(struct device_queue_manager *dqm);
 	int	(*start)(struct device_queue_manager *dqm);
 	int	(*stop)(struct device_queue_manager *dqm);
-	void	(*pre_reset)(struct device_queue_manager *dqm);
 	void	(*uninitialize)(struct device_queue_manager *dqm);
 	int	(*create_kernel_queue)(struct device_queue_manager *dqm,
 					struct kernel_queue *kq,
@@ -276,6 +275,8 @@ void device_queue_manager_init_v9(
 void device_queue_manager_init_v10(
 		struct device_queue_manager_asic_ops *asic_ops);
 void device_queue_manager_init_v11(
+		struct device_queue_manager_asic_ops *asic_ops);
+void device_queue_manager_init_v12(
 		struct device_queue_manager_asic_ops *asic_ops);
 void program_sh_mem_settings(struct device_queue_manager *dqm,
 					struct qcm_process_device *qpd);

@@ -1492,7 +1492,7 @@ static void mpc3_read_mpcc_state(
 			MPC_RMU_3DLUT_SIZE, &s->lut3d_size);
 	}
 
-        REG_GET_2(MPCC_OGAM_CONTROL[mpcc_inst],
+	REG_GET_2(MPCC_OGAM_CONTROL[mpcc_inst],
 		  MPCC_OGAM_MODE_CURRENT, &s->rgam_mode,
 		  MPCC_OGAM_SELECT_CURRENT, &s->rgam_lut);
 }

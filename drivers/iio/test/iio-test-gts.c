@@ -70,6 +70,7 @@
  */
 static struct iio_gts gts;
 
+/* Keep the gain and time tables unsorted to test the sorting */
 static const struct iio_gain_sel_pair gts_test_gains[] = {
 	GAIN_SCALE_GAIN(1, TEST_GSEL_1),
 	GAIN_SCALE_GAIN(4, TEST_GSEL_4),
@@ -79,16 +80,17 @@ static const struct iio_gain_sel_pair gts_test_gains[] = {
 	GAIN_SCALE_GAIN(256, TEST_GSEL_256),
 	GAIN_SCALE_GAIN(512, TEST_GSEL_512),
 	GAIN_SCALE_GAIN(1024, TEST_GSEL_1024),
-	GAIN_SCALE_GAIN(2048, TEST_GSEL_2048),
 	GAIN_SCALE_GAIN(4096, TEST_GSEL_4096),
+	GAIN_SCALE_GAIN(2048, TEST_GSEL_2048),
 #define HWGAIN_MAX 4096
 };
 
 static const struct iio_itime_sel_mul gts_test_itimes[] = {
-	GAIN_SCALE_ITIME_US(400 * 1000, TEST_TSEL_400, 8),
-	GAIN_SCALE_ITIME_US(200 * 1000, TEST_TSEL_200, 4),
 	GAIN_SCALE_ITIME_US(100 * 1000, TEST_TSEL_100, 2),
+	GAIN_SCALE_ITIME_US(400 * 1000, TEST_TSEL_400, 8),
+	GAIN_SCALE_ITIME_US(400 * 1000, TEST_TSEL_400, 8),
 	GAIN_SCALE_ITIME_US(50 * 1000, TEST_TSEL_50, 1),
+	GAIN_SCALE_ITIME_US(200 * 1000, TEST_TSEL_200, 4),
 #define TIMEGAIN_MAX 8
 };
 #define TOTAL_GAIN_MAX	(HWGAIN_MAX * TIMEGAIN_MAX)

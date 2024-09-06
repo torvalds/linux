@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (C) 2018 - 2021, 2023 Intel Corporation
+ * Copyright (C) 2018 - 2021, 2023 - 2024 Intel Corporation
  */
 #include <net/cfg80211.h>
 #include "core.h"
@@ -146,6 +146,14 @@ static int pmsr_parse_ftm(struct cfg80211_registered_device *rdev,
 		NL_SET_ERR_MSG(info->extack,
 			       "FTM: can't set both trigger based and non trigger based");
 		return -EINVAL;
+	}
+
+	if (out->ftm.ftms_per_burst > 31 && !out->ftm.non_trigger_based &&
+	    !out->ftm.trigger_based) {
+		NL_SET_ERR_MSG_ATTR(info->extack,
+				    tb[NL80211_PMSR_FTM_REQ_ATTR_FTMS_PER_BURST],
+				    "FTM: FTMs per burst must be set lower than 31");
+		return -ERANGE;
 	}
 
 	if ((out->ftm.trigger_based || out->ftm.non_trigger_based) &&

@@ -93,4 +93,6 @@ static struct platform_driver clk_mt8192_vdec_drv = {
 	},
 };
 module_platform_driver(clk_mt8192_vdec_drv);
+
+MODULE_DESCRIPTION("MediaTek MT8192 Video Decoders clocks driver");
 MODULE_LICENSE("GPL");

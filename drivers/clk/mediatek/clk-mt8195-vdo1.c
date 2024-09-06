@@ -140,4 +140,6 @@ static struct platform_driver clk_mt8195_vdo1_drv = {
 	.id_table = clk_mt8195_vdo1_id_table,
 };
 module_platform_driver(clk_mt8195_vdo1_drv);
+
+MODULE_DESCRIPTION("MediaTek MT8195 Video Output 1 clocks driver");
 MODULE_LICENSE("GPL");

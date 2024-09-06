@@ -35,6 +35,7 @@
 #include <drm/display/drm_dp_helper.h>
 #include <drm/display/drm_dp_mst_helper.h>
 #include <drm/drm_edid.h>
+#include <drm/drm_fixed.h>
 #include <drm/drm_print.h>
 #include <drm/drm_vblank.h>
 #include <drm/drm_panel.h>
@@ -4151,9 +4152,9 @@ int drm_dp_bw_overhead(int lane_count, int hactive,
 	int symbol_cycles;
 
 	if (lane_count == 0 || hactive == 0 || bpp_x16 == 0) {
-		DRM_DEBUG_KMS("Invalid BW overhead params: lane_count %d, hactive %d, bpp_x16 %d.%04d\n",
+		DRM_DEBUG_KMS("Invalid BW overhead params: lane_count %d, hactive %d, bpp_x16 " FXP_Q4_FMT "\n",
 			      lane_count, hactive,
-			      bpp_x16 >> 4, (bpp_x16 & 0xf) * 625);
+			      FXP_Q4_ARGS(bpp_x16));
 		return 0;
 	}
 

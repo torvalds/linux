@@ -196,8 +196,6 @@ static int jpeg_v2_5_hw_init(void *handle)
 			return r;
 	}
 
-	DRM_INFO("JPEG decode initialized successfully.\n");
-
 	return 0;
 }
 
@@ -728,7 +726,6 @@ static void jpeg_v2_5_set_dec_ring_funcs(struct amdgpu_device *adev)
 		else  /* CHIP_ALDEBARAN */
 			adev->jpeg.inst[i].ring_dec->funcs = &jpeg_v2_6_dec_ring_vm_funcs;
 		adev->jpeg.inst[i].ring_dec->me = i;
-		DRM_INFO("JPEG(%d) JPEG decode is enabled in VM mode\n", i);
 	}
 }
 

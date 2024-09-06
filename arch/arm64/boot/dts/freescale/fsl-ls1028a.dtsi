@@ -155,7 +155,7 @@
 	};
 
 	thermal-zones {
-		ddr-controller {
+		ddr-thermal {
 			polling-delay-passive = <1000>;
 			polling-delay = <5000>;
 			thermal-sensors = <&tmu 0>;
@@ -175,7 +175,7 @@
 			};
 		};
 
-		core-cluster {
+		cluster-thermal {
 			polling-delay-passive = <1000>;
 			polling-delay = <5000>;
 			thermal-sensors = <&tmu 1>;
@@ -674,7 +674,7 @@
 		};
 
 		pcie_ep1: pcie-ep@3400000 {
-			compatible = "fsl,ls1028a-pcie-ep","fsl,ls-pcie-ep";
+			compatible = "fsl,ls1028a-pcie-ep";
 			reg = <0x00 0x03400000 0x0 0x00100000
 			       0x80 0x00000000 0x8 0x00000000>;
 			reg-names = "regs", "addr_space";
@@ -713,7 +713,7 @@
 		};
 
 		pcie_ep2: pcie-ep@3500000 {
-			compatible = "fsl,ls1028a-pcie-ep","fsl,ls-pcie-ep";
+			compatible = "fsl,ls1028a-pcie-ep";
 			reg = <0x00 0x03500000 0x0 0x00100000
 			       0x88 0x00000000 0x8 0x00000000>;
 			reg-names = "regs", "addr_space";
@@ -828,6 +828,7 @@
 				     <GIC_SPI 254 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "qdma-error", "qdma-queue0",
 				"qdma-queue1", "qdma-queue2", "qdma-queue3";
+			#dma-cells = <1>;
 			dma-channels = <8>;
 			block-number = <1>;
 			block-offset = <0x10000>;
@@ -859,8 +860,8 @@
 		malidp0: display@f080000 {
 			compatible = "arm,mali-dp500";
 			reg = <0x0 0xf080000 0x0 0x10000>;
-			interrupts = <0 222 IRQ_TYPE_LEVEL_HIGH>,
-				     <0 223 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 222 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 223 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "DE", "SE";
 			clocks = <&dpclk>,
 				 <&clockgen QORIQ_CLK_HWACCEL 2>,
@@ -902,9 +903,9 @@
 				 <&clockgen QORIQ_CLK_PLATFORM_PLL
 					    QORIQ_CLK_PLL_DIV(2)>;
 			clock-names = "bus", "mclk1", "mclk2", "mclk3";
-			dma-names = "tx", "rx";
-			dmas = <&edma0 1 4>,
-			       <&edma0 1 3>;
+			dma-names = "rx", "tx";
+			dmas = <&edma0 1 3>,
+			       <&edma0 1 4>;
 			fsl,sai-asynchronous;
 			status = "disabled";
 		};
@@ -923,9 +924,9 @@
 				 <&clockgen QORIQ_CLK_PLATFORM_PLL
 					    QORIQ_CLK_PLL_DIV(2)>;
 			clock-names = "bus", "mclk1", "mclk2", "mclk3";
-			dma-names = "tx", "rx";
-			dmas = <&edma0 1 6>,
-			       <&edma0 1 5>;
+			dma-names = "rx", "tx";
+			dmas = <&edma0 1 5>,
+			       <&edma0 1 6>;
 			fsl,sai-asynchronous;
 			status = "disabled";
 		};
@@ -944,9 +945,9 @@
 				 <&clockgen QORIQ_CLK_PLATFORM_PLL
 					    QORIQ_CLK_PLL_DIV(2)>;
 			clock-names = "bus", "mclk1", "mclk2", "mclk3";
-			dma-names = "tx", "rx";
-			dmas = <&edma0 1 8>,
-			       <&edma0 1 7>;
+			dma-names = "rx", "tx";
+			dmas = <&edma0 1 7>,
+			       <&edma0 1 8>;
 			fsl,sai-asynchronous;
 			status = "disabled";
 		};
@@ -965,9 +966,9 @@
 				 <&clockgen QORIQ_CLK_PLATFORM_PLL
 					    QORIQ_CLK_PLL_DIV(2)>;
 			clock-names = "bus", "mclk1", "mclk2", "mclk3";
-			dma-names = "tx", "rx";
-			dmas = <&edma0 1 10>,
-			       <&edma0 1 9>;
+			dma-names = "rx", "tx";
+			dmas = <&edma0 1 9>,
+			       <&edma0 1 10>;
 			fsl,sai-asynchronous;
 			status = "disabled";
 		};
@@ -986,9 +987,9 @@
 				 <&clockgen QORIQ_CLK_PLATFORM_PLL
 					    QORIQ_CLK_PLL_DIV(2)>;
 			clock-names = "bus", "mclk1", "mclk2", "mclk3";
-			dma-names = "tx", "rx";
-			dmas = <&edma0 1 12>,
-			       <&edma0 1 11>;
+			dma-names = "rx", "tx";
+			dmas = <&edma0 1 11>,
+			       <&edma0 1 12>;
 			fsl,sai-asynchronous;
 			status = "disabled";
 		};
@@ -1007,9 +1008,9 @@
 				 <&clockgen QORIQ_CLK_PLATFORM_PLL
 					    QORIQ_CLK_PLL_DIV(2)>;
 			clock-names = "bus", "mclk1", "mclk2", "mclk3";
-			dma-names = "tx", "rx";
-			dmas = <&edma0 1 14>,
-			       <&edma0 1 13>;
+			dma-names = "rx", "tx";
+			dmas = <&edma0 1 13>,
+			       <&edma0 1 14>;
 			fsl,sai-asynchronous;
 			status = "disabled";
 		};
@@ -1024,7 +1025,7 @@
 		tmu: tmu@1f80000 {
 			compatible = "fsl,qoriq-tmu";
 			reg = <0x0 0x1f80000 0x0 0x10000>;
-			interrupts = <0 23 0x4>;
+			interrupts = <GIC_SPI 23 IRQ_TYPE_LEVEL_HIGH>;
 			fsl,tmu-range = <0xb0000 0xa0026 0x80048 0x70061>;
 			fsl,tmu-calibration =
 					<0x00000000 0x00000024>,
@@ -1325,7 +1326,7 @@
 			little-endian;
 		};
 
-		ftm_alarm0: timer@2800000 {
+		ftm_alarm0: rtc@2800000 {
 			compatible = "fsl,ls1028a-ftm-alarm";
 			reg = <0x0 0x2800000 0x0 0x10000>;
 			fsl,rcpm-wakeup = <&rcpm 0x0 0x0 0x0 0x0 0x4000 0x0 0x0>;
@@ -1333,7 +1334,7 @@
 			status = "disabled";
 		};
 
-		ftm_alarm1: timer@2810000 {
+		ftm_alarm1: rtc@2810000 {
 			compatible = "fsl,ls1028a-ftm-alarm";
 			reg = <0x0 0x2810000 0x0 0x10000>;
 			fsl,rcpm-wakeup = <&rcpm 0x0 0x0 0x0 0x0 0x4000 0x0 0x0>;

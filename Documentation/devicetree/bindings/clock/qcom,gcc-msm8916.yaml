@@ -48,6 +48,7 @@ properties:
 
 required:
   - compatible
+  - '#power-domain-cells'
 
 allOf:
   - $ref: qcom,gcc.yaml#

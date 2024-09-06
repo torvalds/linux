@@ -21,6 +21,7 @@ enum intel_tpmi_id {
 	TPMI_ID_PEM = 1,	/* Power and Perf excursion Monitor */
 	TPMI_ID_UNCORE = 2,	/* Uncore Frequency Scaling */
 	TPMI_ID_SST = 5,	/* Speed Select Technology */
+	TPMI_ID_PLR = 0xc,	/* Performance Limit Reasons */
 	TPMI_CONTROL_ID = 0x80,	/* Special ID for getting feature status */
 	TPMI_INFO_ID = 0x81,	/* Special ID for PCI BDF and Package ID information */
 };
@@ -53,4 +54,5 @@ struct resource *tpmi_get_resource_at_index(struct auxiliary_device *auxdev, int
 int tpmi_get_resource_count(struct auxiliary_device *auxdev);
 int tpmi_get_feature_status(struct auxiliary_device *auxdev, int feature_id, bool *read_blocked,
 			    bool *write_blocked);
+struct dentry *tpmi_get_debugfs_dir(struct auxiliary_device *auxdev);
 #endif

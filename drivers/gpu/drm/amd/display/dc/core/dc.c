@@ -80,7 +80,9 @@
 
 #include "hw_sequencer_private.h"
 
+#if defined(CONFIG_DRM_AMD_DC_FP)
 #include "dml2/dml2_internal_types.h"
+#endif
 
 #include "dce/dmub_outbox.h"
 
@@ -1012,12 +1014,17 @@ static bool dc_construct(struct dc *dc,
 
 	dc->dcn_ip = dcn_ip;
 
+	if (init_params->bb_from_dmub)
+		dc->dml2_options.bb_from_dmub = init_params->bb_from_dmub;
+	else
+		dc->dml2_options.bb_from_dmub = NULL;
+
 	if (!dc_construct_ctx(dc, init_params)) {
 		dm_error("%s: failed to create ctx\n", __func__);
 		goto fail;
 	}
 
-        dc_ctx = dc->ctx;
+	dc_ctx = dc->ctx;
 
 	/* Resource should construct all asic specific resources.
 	 * This should be the only place where we need to parse the asic id
@@ -1162,6 +1169,8 @@ static void dc_update_visual_confirm_color(struct dc *dc, struct dc_state *conte
 				get_subvp_visual_confirm_color(pipe_ctx, &(pipe_ctx->visual_confirm_color));
 			else if (dc->debug.visual_confirm == VISUAL_CONFIRM_MCLK_SWITCH)
 				get_mclk_switch_visual_confirm_color(pipe_ctx, &(pipe_ctx->visual_confirm_color));
+			else if (dc->debug.visual_confirm == VISUAL_CONFIRM_FAMS2)
+				get_fams2_visual_confirm_color(dc, context, pipe_ctx, &(pipe_ctx->visual_confirm_color));
 		}
 	}
 }
@@ -1224,11 +1233,14 @@ static void disable_dangling_plane(struct dc *dc, struct dc_state *context)
 			 */
 			if (is_phantom) {
 				if (tg->funcs->enable_crtc) {
-					int main_pipe_width, main_pipe_height;
+					int main_pipe_width = 0, main_pipe_height = 0;
 					struct dc_stream_state *old_paired_stream = dc_state_get_paired_subvp_stream(dc->current_state, old_stream);
 
-					main_pipe_width = old_paired_stream->dst.width;
-					main_pipe_height = old_paired_stream->dst.height;
+					if (old_paired_stream) {
+						main_pipe_width = old_paired_stream->dst.width;
+						main_pipe_height = old_paired_stream->dst.height;
+					}
+
 					if (dc->hwss.blank_phantom)
 						dc->hwss.blank_phantom(dc, tg, main_pipe_width, main_pipe_height);
 					tg->funcs->enable_crtc(tg);
@@ -1252,6 +1264,9 @@ static void disable_dangling_plane(struct dc *dc, struct dc_state *context)
 				apply_ctx_interdependent_lock(dc, dc->current_state, old_stream, false);
 				dc->hwss.post_unlock_program_front_end(dc, dangling_context);
 			}
+
+			if (dc->res_pool->funcs->prepare_mcache_programming)
+				dc->res_pool->funcs->prepare_mcache_programming(dc, dangling_context);
 			if (dc->hwss.program_front_end_for_ctx) {
 				dc->hwss.interdependent_update_lock(dc, dc->current_state, true);
 				dc->hwss.program_front_end_for_ctx(dc, dangling_context);
@@ -1421,6 +1436,7 @@ struct dc *dc_create(const struct dc_init_data *init_params)
 		return NULL;
 
 	if (init_params->dce_environment == DCE_ENV_VIRTUAL_HW) {
+		dc->caps.linear_pitch_alignment = 64;
 		if (!dc_construct_ctx(dc, init_params))
 			goto destruct_dc;
 	} else {
@@ -1456,8 +1472,6 @@ struct dc *dc_create(const struct dc_init_data *init_params)
 	dc->build_id = DC_BUILD_ID;
 
 	DC_LOG_DC("Display Core initialized\n");
-
-
 
 	return dc;
 
@@ -1619,6 +1633,9 @@ static void program_timing_sync(
 
 		for (k = 0; k < group_size; k++) {
 			struct dc_stream_status *status = dc_state_get_stream_status(ctx, pipe_set[k]->stream);
+
+			if (!status)
+				continue;
 
 			status->timing_sync_info.group_id = num_group;
 			status->timing_sync_info.group_size = group_size;
@@ -1974,6 +1991,8 @@ static enum dc_status dc_commit_state_no_check(struct dc *dc, struct dc_state *c
 	 */
 	if (dc->hwss.subvp_pipe_control_lock)
 		dc->hwss.subvp_pipe_control_lock(dc, context, true, true, NULL, subvp_prev_use);
+	if (dc->hwss.fams2_global_control_lock)
+		dc->hwss.fams2_global_control_lock(dc, context, true);
 
 	if (dc->hwss.update_dsc_pg)
 		dc->hwss.update_dsc_pg(dc, context, false);
@@ -2021,6 +2040,8 @@ static enum dc_status dc_commit_state_no_check(struct dc *dc, struct dc_state *c
 	}
 
 	/* Program all planes within new context*/
+	if (dc->res_pool->funcs->prepare_mcache_programming)
+		dc->res_pool->funcs->prepare_mcache_programming(dc, context);
 	if (dc->hwss.program_front_end_for_ctx) {
 		dc->hwss.interdependent_update_lock(dc, context, true);
 		dc->hwss.program_front_end_for_ctx(dc, context);
@@ -2032,6 +2053,8 @@ static enum dc_status dc_commit_state_no_check(struct dc *dc, struct dc_state *c
 		dc->hwss.commit_subvp_config(dc, context);
 	if (dc->hwss.subvp_pipe_control_lock)
 		dc->hwss.subvp_pipe_control_lock(dc, context, false, true, NULL, subvp_prev_use);
+	if (dc->hwss.fams2_global_control_lock)
+		dc->hwss.fams2_global_control_lock(dc, context, false);
 
 	for (i = 0; i < context->stream_count; i++) {
 		const struct dc_link *link = context->streams[i]->link;
@@ -2212,6 +2235,9 @@ enum dc_status dc_commit_streams(struct dc *dc, struct dc_commit_streams_params 
 
 			if (dc_is_embedded_signal(params->streams[i]->signal)) {
 				struct dc_stream_status *status = dc_state_get_stream_status(context, params->streams[i]);
+
+				if (!status)
+					continue;
 
 				if (dc->hwss.is_abm_supported)
 					status->is_abm_supported = dc->hwss.is_abm_supported(dc, context, params->streams[i]);
@@ -2619,7 +2645,7 @@ static enum surface_update_type det_surface_update(const struct dc *dc,
 
 		if (u->plane_info)
 			format = u->plane_info->format;
-		else if (u->surface)
+		else
 			format = u->surface->format;
 
 		if (dce_use_lut(format))
@@ -2635,12 +2661,26 @@ static enum surface_update_type det_surface_update(const struct dc *dc,
 			elevate_update_type(&overall_type, UPDATE_TYPE_MED);
 		}
 
+	if (u->cm2_params) {
+		if ((u->cm2_params->component_settings.shaper_3dlut_setting
+					!= u->surface->mcm_shaper_3dlut_setting)
+				|| (u->cm2_params->component_settings.lut1d_enable
+					!= u->surface->mcm_lut1d_enable))
+			update_flags->bits.mcm_transfer_function_enable_change = 1;
+		if (u->cm2_params->cm2_luts.lut3d_data.lut3d_src
+				!= u->surface->mcm_luts.lut3d_data.lut3d_src)
+			update_flags->bits.mcm_transfer_function_enable_change = 1;
+	}
 	if (update_flags->bits.in_transfer_func_change) {
 		type = UPDATE_TYPE_MED;
 		elevate_update_type(&overall_type, type);
 	}
 
 	if (update_flags->bits.lut_3d) {
+		type = UPDATE_TYPE_FULL;
+		elevate_update_type(&overall_type, type);
+	}
+	if (update_flags->bits.mcm_transfer_function_enable_change) {
 		type = UPDATE_TYPE_FULL;
 		elevate_update_type(&overall_type, type);
 	}
@@ -2706,7 +2746,7 @@ static enum surface_update_type check_update_surfaces_for_stream(
 		if (stream_update->mst_bw_update)
 			su_flags->bits.mst_bw = 1;
 
-		if (stream_update->stream && stream_update->stream->freesync_on_desktop &&
+		if (stream_update->stream->freesync_on_desktop &&
 			(stream_update->vrr_infopacket || stream_update->allow_freesync ||
 				stream_update->vrr_active_variable || stream_update->vrr_active_fixed))
 			su_flags->bits.fams_changed = 1;
@@ -2909,6 +2949,14 @@ static void copy_surface_update_to_plane(
 	if (srf_update->gamut_remap_matrix)
 		surface->gamut_remap_matrix =
 			*srf_update->gamut_remap_matrix;
+	if (srf_update->cm2_params) {
+		surface->mcm_shaper_3dlut_setting = srf_update->cm2_params->component_settings.shaper_3dlut_setting;
+		surface->mcm_lut1d_enable = srf_update->cm2_params->component_settings.lut1d_enable;
+		surface->mcm_luts = srf_update->cm2_params->cm2_luts;
+	}
+	if (srf_update->cursor_csc_color_matrix)
+		surface->cursor_csc_color_matrix =
+			*srf_update->cursor_csc_color_matrix;
 }
 
 static void copy_stream_update_to_stream(struct dc *dc,
@@ -3315,6 +3363,11 @@ static void commit_planes_do_stream_update(struct dc *dc,
 				}
 			}
 
+			if (stream_update->cursor_attributes)
+				program_cursor_attributes(dc, stream);
+
+			if (stream_update->cursor_position)
+				program_cursor_position(dc, stream);
 
 			/* Full fe update*/
 			if (update_type == UPDATE_TYPE_FAST)
@@ -3327,10 +3380,10 @@ static void commit_planes_do_stream_update(struct dc *dc,
 				if (stream_update->mst_bw_update->is_increase)
 					dc->link_srv->increase_mst_payload(pipe_ctx,
 							stream_update->mst_bw_update->mst_stream_bw);
- 				else
+				else
 					dc->link_srv->reduce_mst_payload(pipe_ctx,
 							stream_update->mst_bw_update->mst_stream_bw);
- 			}
+			}
 
 			if (stream_update->pending_test_pattern) {
 				/*
@@ -3524,6 +3577,15 @@ static void build_dmub_update_dirty_rect(
 	}
 }
 
+static bool check_address_only_update(union surface_update_flags update_flags)
+{
+	union surface_update_flags addr_only_update_flags;
+	addr_only_update_flags.raw = 0;
+	addr_only_update_flags.bits.addr_update = 1;
+
+	return update_flags.bits.addr_update &&
+			!(update_flags.raw & ~addr_only_update_flags.raw);
+}
 
 /**
  * build_dmub_cmd_list() - Build an array of DMCUB commands to be sent to DMCUB
@@ -3555,6 +3617,45 @@ static void build_dmub_cmd_list(struct dc *dc,
 	build_dmub_update_dirty_rect(dc, surface_count, stream, srf_updates, context, dc_dmub_cmd, dmub_cmd_count);
 }
 
+static void commit_plane_for_stream_offload_fams2_flip(struct dc *dc,
+		struct dc_surface_update *srf_updates,
+		int surface_count,
+		struct dc_stream_state *stream,
+		struct dc_state *context)
+{
+	int i, j;
+
+	/* update dirty rect for PSR */
+	dc_dmub_update_dirty_rect(dc, surface_count, stream,
+			srf_updates, context);
+
+	/* Perform requested Updates */
+	for (i = 0; i < surface_count; i++) {
+		struct dc_plane_state *plane_state = srf_updates[i].surface;
+
+		for (j = 0; j < dc->res_pool->pipe_count; j++) {
+			struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[j];
+
+			if (!should_update_pipe_for_stream(context, pipe_ctx, stream))
+				continue;
+
+			if (!should_update_pipe_for_plane(context, pipe_ctx, plane_state))
+				continue;
+
+			/* update pipe context for plane */
+			if (pipe_ctx->plane_state->update_flags.bits.addr_update)
+				dc->hwss.update_plane_addr(dc, pipe_ctx);
+		}
+	}
+
+	/* Send commands to DMCUB */
+	dc_dmub_srv_fams2_passthrough_flip(dc,
+				context,
+				stream,
+				srf_updates,
+				surface_count);
+}
+
 static void commit_planes_for_stream_fast(struct dc *dc,
 		struct dc_surface_update *srf_updates,
 		int surface_count,
@@ -3566,6 +3667,27 @@ static void commit_planes_for_stream_fast(struct dc *dc,
 	int i, j;
 	struct pipe_ctx *top_pipe_to_program = NULL;
 	struct dc_stream_status *stream_status = NULL;
+	bool should_offload_fams2_flip = false;
+
+	if (dc->debug.fams2_config.bits.enable &&
+			dc->debug.fams2_config.bits.enable_offload_flip &&
+			dc_state_is_fams2_in_use(dc, context)) {
+		/* if not offloading to HWFQ, offload to FAMS2 if needed */
+		should_offload_fams2_flip = true;
+		for (i = 0; i < surface_count; i++) {
+			if (srf_updates[i].surface &&
+					srf_updates[i].surface->update_flags.raw &&
+					!check_address_only_update(srf_updates[i].surface->update_flags)) {
+				/* more than address update, need to acquire FAMS2 lock */
+				should_offload_fams2_flip = false;
+				break;
+			}
+		}
+		if (stream_update) {
+			/* more than address update, need to acquire FAMS2 lock */
+			should_offload_fams2_flip = false;
+		}
+	}
 
 	dc_exit_ips_for_hw_access(dc);
 
@@ -3601,7 +3723,7 @@ static void commit_planes_for_stream_fast(struct dc *dc,
 				continue;
 			pipe_ctx->plane_state->triplebuffer_flips = false;
 			if (update_type == UPDATE_TYPE_FAST &&
-			    dc->hwss.program_triplebuffer &&
+			    dc->hwss.program_triplebuffer != NULL &&
 			    !pipe_ctx->plane_state->flip_immediate && dc->debug.enable_tri_buf) {
 				/*triple buffer for VUpdate  only*/
 				pipe_ctx->plane_state->triplebuffer_flips = true;
@@ -3611,24 +3733,33 @@ static void commit_planes_for_stream_fast(struct dc *dc,
 
 	stream_status = dc_state_get_stream_status(context, stream);
 
-	build_dmub_cmd_list(dc,
-			srf_updates,
-			surface_count,
-			stream,
-			context,
-			context->dc_dmub_cmd,
-			&(context->dmub_cmd_count));
-	hwss_build_fast_sequence(dc,
-			context->dc_dmub_cmd,
-			context->dmub_cmd_count,
-			context->block_sequence,
-			&(context->block_sequence_steps),
-			top_pipe_to_program,
-			stream_status,
-			context);
-	hwss_execute_sequence(dc,
-			context->block_sequence,
-			context->block_sequence_steps);
+	if (should_offload_fams2_flip) {
+		commit_plane_for_stream_offload_fams2_flip(dc,
+				srf_updates,
+				surface_count,
+				stream,
+				context);
+	} else {
+		build_dmub_cmd_list(dc,
+				srf_updates,
+				surface_count,
+				stream,
+				context,
+				context->dc_dmub_cmd,
+				&(context->dmub_cmd_count));
+		hwss_build_fast_sequence(dc,
+				context->dc_dmub_cmd,
+				context->dmub_cmd_count,
+				context->block_sequence,
+				&(context->block_sequence_steps),
+				top_pipe_to_program,
+				stream_status,
+				context);
+		hwss_execute_sequence(dc,
+				context->block_sequence,
+				context->block_sequence_steps);
+	}
+
 	/* Clear update flags so next flip doesn't have redundant programming
 	 * (if there's no stream update, the update flags are not cleared).
 	 * Surface updates are cleared unconditionally at the beginning of each flip,
@@ -3758,6 +3889,9 @@ static void commit_planes_for_stream(struct dc *dc,
 				odm_pipe->ttu_regs.min_ttu_vblank = MAX_TTU;
 	}
 
+	if (update_type != UPDATE_TYPE_FAST && dc->res_pool->funcs->prepare_mcache_programming)
+		dc->res_pool->funcs->prepare_mcache_programming(dc, context);
+
 	if ((update_type != UPDATE_TYPE_FAST) && stream->update_flags.bits.dsc_changed)
 		if (top_pipe_to_program &&
 			top_pipe_to_program->stream_res.tg->funcs->lock_doublebuffer_enable) {
@@ -3777,14 +3911,25 @@ static void commit_planes_for_stream(struct dc *dc,
 						top_pipe_to_program->stream_res.tg);
 		}
 
+	if (dc->hwss.wait_for_dcc_meta_propagation) {
+		dc->hwss.wait_for_dcc_meta_propagation(dc, top_pipe_to_program);
+	}
+
 	if (should_lock_all_pipes && dc->hwss.interdependent_update_lock) {
 		if (dc->hwss.subvp_pipe_control_lock)
-				dc->hwss.subvp_pipe_control_lock(dc, context, true, should_lock_all_pipes, NULL, subvp_prev_use);
-		dc->hwss.interdependent_update_lock(dc, context, true);
+			dc->hwss.subvp_pipe_control_lock(dc, context, true, should_lock_all_pipes, NULL, subvp_prev_use);
 
+		if (dc->hwss.fams2_global_control_lock)
+			dc->hwss.fams2_global_control_lock(dc, context, true);
+
+		dc->hwss.interdependent_update_lock(dc, context, true);
 	} else {
 		if (dc->hwss.subvp_pipe_control_lock)
 			dc->hwss.subvp_pipe_control_lock(dc, context, true, should_lock_all_pipes, top_pipe_to_program, subvp_prev_use);
+
+		if (dc->hwss.fams2_global_control_lock)
+			dc->hwss.fams2_global_control_lock(dc, context, true);
+
 		/* Lock the top pipe while updating plane addrs, since freesync requires
 		 *  plane addr update event triggers to be synchronized.
 		 *  top_pipe_to_program is expected to never be NULL
@@ -3825,6 +3970,10 @@ static void commit_planes_for_stream(struct dc *dc,
 		if (dc->hwss.subvp_pipe_control_lock)
 			dc->hwss.subvp_pipe_control_lock(dc, context, false, should_lock_all_pipes,
 							 NULL, subvp_prev_use);
+
+		if (dc->hwss.fams2_global_control_lock)
+			dc->hwss.fams2_global_control_lock(dc, context, false);
+
 		return;
 	}
 
@@ -3847,6 +3996,7 @@ static void commit_planes_for_stream(struct dc *dc,
 
 	for (i = 0; i < surface_count; i++) {
 		struct dc_plane_state *plane_state = srf_updates[i].surface;
+
 		/*set logical flag for lock/unlock use*/
 		for (j = 0; j < dc->res_pool->pipe_count; j++) {
 			struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[j];
@@ -3894,7 +4044,7 @@ static void commit_planes_for_stream(struct dc *dc,
 			stream_status =
 				stream_get_status(context, pipe_ctx->stream);
 
-			if (dc->hwss.apply_ctx_for_surface)
+			if (dc->hwss.apply_ctx_for_surface && stream_status)
 				dc->hwss.apply_ctx_for_surface(
 					dc, pipe_ctx->stream, stream_status->plane_count, context);
 		}
@@ -3949,6 +4099,14 @@ static void commit_planes_for_stream(struct dc *dc,
 
 				if (!should_update_pipe_for_plane(context, pipe_ctx, plane_state))
 					continue;
+
+				if (srf_updates[i].cm2_params &&
+						srf_updates[i].cm2_params->cm2_luts.lut3d_data.lut3d_src ==
+								DC_CM2_TRANSFER_FUNC_SOURCE_VIDMEM &&
+						srf_updates[i].cm2_params->component_settings.shaper_3dlut_setting ==
+								DC_CM2_SHAPER_3DLUT_SETTING_ENABLE_SHAPER_3DLUT &&
+						dc->hwss.trigger_3dlut_dma_load)
+					dc->hwss.trigger_3dlut_dma_load(dc, pipe_ctx);
 
 				/*program triple buffer after lock based on flip type*/
 				if (dc->hwss.program_triplebuffer != NULL && dc->debug.enable_tri_buf) {
@@ -4028,9 +4186,13 @@ static void commit_planes_for_stream(struct dc *dc,
 	if (should_lock_all_pipes && dc->hwss.interdependent_update_lock) {
 		if (dc->hwss.subvp_pipe_control_lock)
 			dc->hwss.subvp_pipe_control_lock(dc, context, false, should_lock_all_pipes, NULL, subvp_prev_use);
+		if (dc->hwss.fams2_global_control_lock)
+			dc->hwss.fams2_global_control_lock(dc, context, false);
 	} else {
 		if (dc->hwss.subvp_pipe_control_lock)
 			dc->hwss.subvp_pipe_control_lock(dc, context, false, should_lock_all_pipes, top_pipe_to_program, subvp_prev_use);
+		if (dc->hwss.fams2_global_control_lock)
+			dc->hwss.fams2_global_control_lock(dc, context, false);
 	}
 
 	// Fire manual trigger only when bottom plane is flipped
@@ -4542,6 +4704,7 @@ static void populate_fast_updates(struct dc_fast_update *fast_update,
 		fast_update[i].gamut_remap_matrix = srf_updates[i].gamut_remap_matrix;
 		fast_update[i].input_csc_color_matrix = srf_updates[i].input_csc_color_matrix;
 		fast_update[i].coeff_reduction_factor = srf_updates[i].coeff_reduction_factor;
+		fast_update[i].cursor_csc_color_matrix = srf_updates[i].cursor_csc_color_matrix;
 	}
 }
 
@@ -4558,6 +4721,7 @@ static bool fast_updates_exist(struct dc_fast_update *fast_update, int surface_c
 				fast_update[i].gamma ||
 				fast_update[i].gamut_remap_matrix ||
 				fast_update[i].input_csc_color_matrix ||
+				fast_update[i].cursor_csc_color_matrix ||
 				fast_update[i].coeff_reduction_factor)
 			return true;
 	}
@@ -4588,6 +4752,9 @@ static bool full_update_required(struct dc *dc,
 				srf_updates[i].surface->force_full_update ||
 				(srf_updates[i].flip_addr &&
 				srf_updates[i].flip_addr->address.tmz_surface != srf_updates[i].surface->address.tmz_surface) ||
+				(srf_updates[i].cm2_params &&
+				 (srf_updates[i].cm2_params->component_settings.shaper_3dlut_setting != srf_updates[i].surface->mcm_shaper_3dlut_setting ||
+				  srf_updates[i].cm2_params->component_settings.lut1d_enable != srf_updates[i].surface->mcm_lut1d_enable)) ||
 				!is_surface_in_context(context, srf_updates[i].surface)))
 			return true;
 	}
@@ -4972,7 +5139,7 @@ bool dc_update_planes_and_stream(struct dc *dc,
 	 * specially handle compatibility problems with transitions among those
 	 * features as they are now transparent to the new sequence.
 	 */
-	if (dc->ctx->dce_version > DCN_VERSION_3_51)
+	if (dc->ctx->dce_version >= DCN_VERSION_4_01)
 		return update_planes_and_stream_v3(dc, srf_updates,
 				surface_count, stream, stream_update);
 	return update_planes_and_stream_v2(dc, srf_updates,
@@ -4992,7 +5159,7 @@ void dc_commit_updates_for_stream(struct dc *dc,
 	 * we get more confident about this change we'll need to enable
 	 * the new sequence for all ASICs.
 	 */
-	if (dc->ctx->dce_version > DCN_VERSION_3_51) {
+	if (dc->ctx->dce_version >= DCN_VERSION_4_01) {
 		update_planes_and_stream_v3(dc, srf_updates, surface_count,
 				stream, stream_update);
 		return;
@@ -5046,18 +5213,14 @@ void dc_interrupt_ack(struct dc *dc, enum dc_irq_source src)
 void dc_power_down_on_boot(struct dc *dc)
 {
 	if (dc->ctx->dce_environment != DCE_ENV_VIRTUAL_HW &&
-			dc->hwss.power_down_on_boot) {
-
-			if (dc->caps.ips_support)
-				dc_exit_ips_for_hw_access(dc);
-
+	    dc->hwss.power_down_on_boot) {
+		if (dc->caps.ips_support)
+			dc_exit_ips_for_hw_access(dc);
 		dc->hwss.power_down_on_boot(dc);
 	}
 }
 
-void dc_set_power_state(
-	struct dc *dc,
-	enum dc_acpi_cm_power_state power_state)
+void dc_set_power_state(struct dc *dc, enum dc_acpi_cm_power_state power_state)
 {
 	if (!dc->current_state)
 		return;
@@ -5186,6 +5349,16 @@ bool dc_set_replay_allow_active(struct dc *dc, bool active)
 			}
 		}
 	}
+
+	return true;
+}
+
+/* set IPS disable state */
+bool dc_set_ips_disable(struct dc *dc, unsigned int disable_ips)
+{
+	dc_exit_ips_for_hw_access(dc);
+
+	dc->config.disable_ips = disable_ips;
 
 	return true;
 }
@@ -5831,4 +6004,3 @@ struct dc_power_profile dc_get_power_profile_for_dc_state(const struct dc_state 
 
 	return profile;
 }
-

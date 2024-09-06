@@ -223,4 +223,5 @@ static struct hid_driver winwing_driver = {
 };
 module_hid_driver(winwing_driver);
 
+MODULE_DESCRIPTION("HID driver for WinWing Orion 2 throttle");
 MODULE_LICENSE("GPL");

@@ -531,7 +531,8 @@ static int fill_analog_mode(struct drm_device *dev,
  * @interlace: whether to compute an interlaced mode
  *
  * This function creates a struct drm_display_mode instance suited for
- * an analog TV output, for one of the usual analog TV mode.
+ * an analog TV output, for one of the usual analog TV modes. Where
+ * this is DRM_MODE_TV_MODE_MONOCHROME, a 625-line mode will be created.
  *
  * Note that @hdisplay is larger than the usual constraints for the PAL
  * and NTSC timings, and we'll choose to ignore most timings constraints
@@ -569,6 +570,8 @@ struct drm_display_mode *drm_analog_tv_mode(struct drm_device *dev,
 	case DRM_MODE_TV_MODE_PAL_N:
 		fallthrough;
 	case DRM_MODE_TV_MODE_SECAM:
+		fallthrough;
+	case DRM_MODE_TV_MODE_MONOCHROME:
 		analog = DRM_MODE_ANALOG_PAL;
 		break;
 

@@ -96,6 +96,21 @@ setup_hsr_interfaces()
 	ip -n "${ns4}" link set ns4eth1 up
 	ip -n "${ns5}" link set ns5eth1 up
 
+	ip -net "$ns1" link set address 00:11:22:00:01:01 dev ns1eth1
+	ip -net "$ns1" link set address 00:11:22:00:01:02 dev ns1eth2
+
+	ip -net "$ns2" link set address 00:11:22:00:02:01 dev ns2eth1
+	ip -net "$ns2" link set address 00:11:22:00:02:02 dev ns2eth2
+	ip -net "$ns2" link set address 00:11:22:00:02:03 dev ns2eth3
+
+	ip -net "$ns3" link set address 00:11:22:00:03:11 dev ns3eth1
+	ip -net "$ns3" link set address 00:11:22:00:03:11 dev ns3eth2
+	ip -net "$ns3" link set address 00:11:22:00:03:11 dev ns3eth3
+	ip -net "$ns3" link set address 00:11:22:00:03:11 dev ns3br1
+
+	ip -net "$ns4" link set address 00:11:22:00:04:01 dev ns4eth1
+	ip -net "$ns5" link set address 00:11:22:00:05:01 dev ns5eth1
+
 	ip -net "${ns1}" link add name hsr1 type hsr slave1 ns1eth1 slave2 ns1eth2 supervision 45 version ${HSRv} proto 0
 	ip -net "${ns2}" link add name hsr2 type hsr slave1 ns2eth1 slave2 ns2eth2 interlink ns2eth3 supervision 45 version ${HSRv} proto 0
 

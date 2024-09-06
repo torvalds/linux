@@ -20,6 +20,10 @@ MODULE_LICENSE("GPL");
 
 EXPORT_TRACEPOINT_SYMBOL(netfs_sreq);
 
+unsigned netfs_debug;
+module_param_named(debug, netfs_debug, uint, S_IWUSR | S_IRUGO);
+MODULE_PARM_DESC(netfs_debug, "Netfs support debugging mask");
+
 static struct kmem_cache *netfs_request_slab;
 static struct kmem_cache *netfs_subrequest_slab;
 mempool_t netfs_request_pool;

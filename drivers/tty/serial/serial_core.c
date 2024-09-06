@@ -881,6 +881,14 @@ static int uart_set_info(struct tty_struct *tty, struct tty_port *port,
 	new_flags = (__force upf_t)new_info->flags;
 	old_custom_divisor = uport->custom_divisor;
 
+	if (!(uport->flags & UPF_FIXED_PORT)) {
+		unsigned int uartclk = new_info->baud_base * 16;
+		/* check needs to be done here before other settings made */
+		if (uartclk == 0) {
+			retval = -EINVAL;
+			goto exit;
+		}
+	}
 	if (!capable(CAP_SYS_ADMIN)) {
 		retval = -EPERM;
 		if (change_irq || change_port ||
@@ -3421,6 +3429,10 @@ int serial_core_register_port(struct uart_driver *drv, struct uart_port *port)
 	ret = serial_core_port_device_add(ctrl_dev, port);
 	if (ret)
 		goto err_unregister_ctrl_dev;
+
+	ret = serial_base_match_and_update_preferred_console(drv, port);
+	if (ret)
+		goto err_unregister_port_dev;
 
 	ret = serial_core_add_one_port(drv, port);
 	if (ret)

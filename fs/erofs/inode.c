@@ -257,25 +257,23 @@ static int erofs_fill_inode(struct inode *inode)
 		goto out_unlock;
 	}
 
+	mapping_set_large_folios(inode->i_mapping);
 	if (erofs_inode_is_data_compressed(vi->datalayout)) {
 #ifdef CONFIG_EROFS_FS_ZIP
 		DO_ONCE_LITE_IF(inode->i_blkbits != PAGE_SHIFT,
 			  erofs_info, inode->i_sb,
 			  "EXPERIMENTAL EROFS subpage compressed block support in use. Use at your own risk!");
 		inode->i_mapping->a_ops = &z_erofs_aops;
-		err = 0;
-		goto out_unlock;
-#endif
+#else
 		err = -EOPNOTSUPP;
-		goto out_unlock;
-	}
-	inode->i_mapping->a_ops = &erofs_raw_access_aops;
-	mapping_set_large_folios(inode->i_mapping);
-#ifdef CONFIG_EROFS_FS_ONDEMAND
-	if (erofs_is_fscache_mode(inode->i_sb))
-		inode->i_mapping->a_ops = &erofs_fscache_access_aops;
 #endif
-
+	} else {
+		inode->i_mapping->a_ops = &erofs_raw_access_aops;
+#ifdef CONFIG_EROFS_FS_ONDEMAND
+		if (erofs_is_fscache_mode(inode->i_sb))
+			inode->i_mapping->a_ops = &erofs_fscache_access_aops;
+#endif
+	}
 out_unlock:
 	erofs_put_metabuf(&buf);
 	return err;
@@ -334,14 +332,29 @@ int erofs_getattr(struct mnt_idmap *idmap, const struct path *path,
 		  unsigned int query_flags)
 {
 	struct inode *const inode = d_inode(path->dentry);
+	bool compressed =
+		erofs_inode_is_data_compressed(EROFS_I(inode)->datalayout);
 
-	if (erofs_inode_is_data_compressed(EROFS_I(inode)->datalayout))
+	if (compressed)
 		stat->attributes |= STATX_ATTR_COMPRESSED;
-
 	stat->attributes |= STATX_ATTR_IMMUTABLE;
 	stat->attributes_mask |= (STATX_ATTR_COMPRESSED |
 				  STATX_ATTR_IMMUTABLE);
 
+	/*
+	 * Return the DIO alignment restrictions if requested.
+	 *
+	 * In EROFS, STATX_DIOALIGN is not supported in ondemand mode and
+	 * compressed files, so in these cases we report no DIO support.
+	 */
+	if ((request_mask & STATX_DIOALIGN) && S_ISREG(inode->i_mode)) {
+		stat->result_mask |= STATX_DIOALIGN;
+		if (!erofs_is_fscache_mode(inode->i_sb) && !compressed) {
+			stat->dio_mem_align =
+				bdev_logical_block_size(inode->i_sb->s_bdev);
+			stat->dio_offset_align = stat->dio_mem_align;
+		}
+	}
 	generic_fillattr(idmap, request_mask, inode, stat);
 	return 0;
 }

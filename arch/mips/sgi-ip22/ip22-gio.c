@@ -111,7 +111,7 @@ void gio_device_unregister(struct gio_device *giodev)
 }
 EXPORT_SYMBOL_GPL(gio_device_unregister);
 
-static int gio_bus_match(struct device *dev, struct device_driver *drv)
+static int gio_bus_match(struct device *dev, const struct device_driver *drv)
 {
 	struct gio_device *gio_dev = to_gio_device(dev);
 	struct gio_driver *gio_drv = to_gio_driver(drv);
@@ -246,7 +246,7 @@ void gio_set_master(struct gio_device *dev)
 }
 EXPORT_SYMBOL_GPL(gio_set_master);
 
-void ip22_gio_set_64bit(int slotno)
+static void ip22_gio_set_64bit(int slotno)
 {
 	u32 tmp = sgimc->giopar;
 
@@ -395,7 +395,7 @@ static struct resource gio_bus_resource = {
 	.flags = IORESOURCE_MEM,
 };
 
-int __init ip22_gio_init(void)
+static int __init ip22_gio_init(void)
 {
 	unsigned int pbdma __maybe_unused;
 	int ret;

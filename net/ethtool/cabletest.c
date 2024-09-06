@@ -207,10 +207,6 @@ err:
 }
 EXPORT_SYMBOL_GPL(ethnl_cable_test_fault_length);
 
-struct cable_test_tdr_req_info {
-	struct ethnl_req_info		base;
-};
-
 static const struct nla_policy cable_test_tdr_act_cfg_policy[] = {
 	[ETHTOOL_A_CABLE_TEST_TDR_CFG_FIRST]	= { .type = NLA_U32 },
 	[ETHTOOL_A_CABLE_TEST_TDR_CFG_LAST]	= { .type = NLA_U32 },

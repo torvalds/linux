@@ -158,10 +158,6 @@ enum pdc_hw {
 	PDC_HW		/* PDC/MDE hardware (i.e. Northstar 2, Pegasus) */
 };
 
-struct pdc_dma_map {
-	void *ctx;          /* opaque context associated with frame */
-};
-
 /* dma descriptor */
 struct dma64dd {
 	u32 ctrl1;      /* misc control bits */

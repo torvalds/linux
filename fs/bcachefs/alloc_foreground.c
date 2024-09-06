@@ -496,12 +496,6 @@ again:
 		for (alloc_cursor = max(alloc_cursor, bkey_start_offset(k.k));
 		     alloc_cursor < k.k->p.offset;
 		     alloc_cursor++) {
-			ret = btree_trans_too_many_iters(trans);
-			if (ret) {
-				ob = ERR_PTR(ret);
-				break;
-			}
-
 			s->buckets_seen++;
 
 			u64 bucket = alloc_cursor & ~(~0ULL << 56);
@@ -1589,7 +1583,7 @@ void bch2_fs_allocator_foreground_init(struct bch_fs *c)
 	}
 }
 
-static void bch2_open_bucket_to_text(struct printbuf *out, struct bch_fs *c, struct open_bucket *ob)
+void bch2_open_bucket_to_text(struct printbuf *out, struct bch_fs *c, struct open_bucket *ob)
 {
 	struct bch_dev *ca = ob_dev(c, ob);
 	unsigned data_type = ob->data_type;
@@ -1609,7 +1603,8 @@ static void bch2_open_bucket_to_text(struct printbuf *out, struct bch_fs *c, str
 	prt_newline(out);
 }
 
-void bch2_open_buckets_to_text(struct printbuf *out, struct bch_fs *c)
+void bch2_open_buckets_to_text(struct printbuf *out, struct bch_fs *c,
+			       struct bch_dev *ca)
 {
 	struct open_bucket *ob;
 
@@ -1619,7 +1614,8 @@ void bch2_open_buckets_to_text(struct printbuf *out, struct bch_fs *c)
 	     ob < c->open_buckets + ARRAY_SIZE(c->open_buckets);
 	     ob++) {
 		spin_lock(&ob->lock);
-		if (ob->valid && !ob->on_partial_list)
+		if (ob->valid && !ob->on_partial_list &&
+		    (!ca || ob->dev == ca->dev_idx))
 			bch2_open_bucket_to_text(out, c, ob);
 		spin_unlock(&ob->lock);
 	}
@@ -1706,15 +1702,15 @@ void bch2_fs_alloc_debug_to_text(struct printbuf *out, struct bch_fs *c)
 	printbuf_tabstops_reset(out);
 	printbuf_tabstop_push(out, 24);
 
-	percpu_down_read(&c->mark_lock);
-	prt_printf(out, "hidden\t%llu\n",			bch2_fs_usage_read_one(c, &c->usage_base->b.hidden));
-	prt_printf(out, "btree\t%llu\n",			bch2_fs_usage_read_one(c, &c->usage_base->b.btree));
-	prt_printf(out, "data\t%llu\n",				bch2_fs_usage_read_one(c, &c->usage_base->b.data));
-	prt_printf(out, "cached\t%llu\n",			bch2_fs_usage_read_one(c, &c->usage_base->b.cached));
-	prt_printf(out, "reserved\t%llu\n",			bch2_fs_usage_read_one(c, &c->usage_base->b.reserved));
-	prt_printf(out, "online_reserved\t%llu\n",		percpu_u64_get(c->online_reserved));
-	prt_printf(out, "nr_inodes\t%llu\n",			bch2_fs_usage_read_one(c, &c->usage_base->b.nr_inodes));
-	percpu_up_read(&c->mark_lock);
+	prt_printf(out, "capacity\t%llu\n",		c->capacity);
+	prt_printf(out, "reserved\t%llu\n",		c->reserved);
+	prt_printf(out, "hidden\t%llu\n",		percpu_u64_get(&c->usage->hidden));
+	prt_printf(out, "btree\t%llu\n",		percpu_u64_get(&c->usage->btree));
+	prt_printf(out, "data\t%llu\n",			percpu_u64_get(&c->usage->data));
+	prt_printf(out, "cached\t%llu\n",		percpu_u64_get(&c->usage->cached));
+	prt_printf(out, "reserved\t%llu\n",		percpu_u64_get(&c->usage->reserved));
+	prt_printf(out, "online_reserved\t%llu\n",	percpu_u64_get(c->online_reserved));
+	prt_printf(out, "nr_inodes\t%llu\n",		percpu_u64_get(&c->usage->nr_inodes));
 
 	prt_newline(out);
 	prt_printf(out, "freelist_wait\t%s\n",			c->freelist_wait.list.first ? "waiting" : "empty");
@@ -1744,7 +1740,7 @@ void bch2_dev_alloc_debug_to_text(struct printbuf *out, struct bch_dev *ca)
 	printbuf_tabstop_push(out, 16);
 	printbuf_tabstop_push(out, 16);
 
-	bch2_dev_usage_to_text(out, &stats);
+	bch2_dev_usage_to_text(out, ca, &stats);
 
 	prt_newline(out);
 
@@ -1762,11 +1758,12 @@ void bch2_dev_alloc_debug_to_text(struct printbuf *out, struct bch_dev *ca)
 	prt_printf(out, "buckets to invalidate\t%llu\r\n",	should_invalidate_buckets(ca, stats));
 }
 
-void bch2_print_allocator_stuck(struct bch_fs *c)
+static noinline void bch2_print_allocator_stuck(struct bch_fs *c)
 {
 	struct printbuf buf = PRINTBUF;
 
-	prt_printf(&buf, "Allocator stuck? Waited for 10 seconds\n");
+	prt_printf(&buf, "Allocator stuck? Waited for %u seconds\n",
+		   c->opts.allocator_stuck_timeout);
 
 	prt_printf(&buf, "Allocator debug:\n");
 	printbuf_indent_add(&buf, 2);
@@ -1795,4 +1792,25 @@ void bch2_print_allocator_stuck(struct bch_fs *c)
 
 	bch2_print_string_as_lines(KERN_ERR, buf.buf);
 	printbuf_exit(&buf);
+}
+
+static inline unsigned allocator_wait_timeout(struct bch_fs *c)
+{
+	if (c->allocator_last_stuck &&
+	    time_after(c->allocator_last_stuck + HZ * 60 * 2, jiffies))
+		return 0;
+
+	return c->opts.allocator_stuck_timeout * HZ;
+}
+
+void __bch2_wait_on_allocator(struct bch_fs *c, struct closure *cl)
+{
+	unsigned t = allocator_wait_timeout(c);
+
+	if (t && closure_sync_timeout(cl, t)) {
+		c->allocator_last_stuck = jiffies;
+		bch2_print_allocator_stuck(c);
+	}
+
+	closure_sync(cl);
 }

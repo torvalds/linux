@@ -141,6 +141,28 @@ bool rtw89_assign_entity_chan(struct rtw89_dev *rtwdev,
 	return band_changed;
 }
 
+int rtw89_iterate_entity_chan(struct rtw89_dev *rtwdev,
+			      int (*iterator)(const struct rtw89_chan *chan,
+					      void *data),
+			      void *data)
+{
+	struct rtw89_hal *hal = &rtwdev->hal;
+	const struct rtw89_chan *chan;
+	int ret;
+	u8 idx;
+
+	lockdep_assert_held(&rtwdev->mutex);
+
+	for_each_set_bit(idx,  hal->entity_map, NUM_OF_RTW89_SUB_ENTITY) {
+		chan = rtw89_chan_get(rtwdev, idx);
+		ret = iterator(chan, data);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
 static void __rtw89_config_entity_chandef(struct rtw89_dev *rtwdev,
 					  enum rtw89_sub_entity_idx idx,
 					  const struct cfg80211_chan_def *chandef,
@@ -2322,7 +2344,6 @@ static void rtw89_swap_sub_entity(struct rtw89_dev *rtwdev,
 				  enum rtw89_sub_entity_idx idx2)
 {
 	struct rtw89_hal *hal = &rtwdev->hal;
-	struct rtw89_sub_entity tmp;
 	struct rtw89_vif *rtwvif;
 	u8 cur;
 
@@ -2332,9 +2353,7 @@ static void rtw89_swap_sub_entity(struct rtw89_dev *rtwdev,
 	hal->sub[idx1].cfg->idx = idx2;
 	hal->sub[idx2].cfg->idx = idx1;
 
-	tmp = hal->sub[idx1];
-	hal->sub[idx1] = hal->sub[idx2];
-	hal->sub[idx2] = tmp;
+	swap(hal->sub[idx1], hal->sub[idx2]);
 
 	rtw89_for_each_rtwvif(rtwdev, rtwvif) {
 		if (!rtwvif->chanctx_assigned)

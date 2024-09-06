@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: (GPL-2.0 OR MIT)
  * Google virtual Ethernet (gve) driver
  *
- * Copyright (C) 2015-2021 Google, Inc.
+ * Copyright (C) 2015-2024 Google LLC
  */
 
 #ifndef _GVE_H_
@@ -59,6 +59,11 @@
 #define GVE_MAX_RX_BUFFER_SIZE 4096
 
 #define GVE_DEFAULT_RX_BUFFER_OFFSET 2048
+
+#define GVE_FLOW_RULES_CACHE_SIZE \
+	(GVE_ADMINQ_BUFFER_SIZE / sizeof(struct gve_adminq_queried_flow_rule))
+#define GVE_FLOW_RULE_IDS_CACHE_SIZE \
+	(GVE_ADMINQ_BUFFER_SIZE / sizeof(((struct gve_adminq_queried_flow_rule *)0)->location))
 
 #define GVE_XDP_ACTIONS 5
 
@@ -678,6 +683,39 @@ enum gve_queue_format {
 	GVE_DQO_QPL_FORMAT		= 0x4,
 };
 
+struct gve_flow_spec {
+	__be32 src_ip[4];
+	__be32 dst_ip[4];
+	union {
+		struct {
+			__be16 src_port;
+			__be16 dst_port;
+		};
+		__be32 spi;
+	};
+	union {
+		u8 tos;
+		u8 tclass;
+	};
+};
+
+struct gve_flow_rule {
+	u32 location;
+	u16 flow_type;
+	u16 action;
+	struct gve_flow_spec key;
+	struct gve_flow_spec mask;
+};
+
+struct gve_flow_rules_cache {
+	bool rules_cache_synced; /* False if the driver's rules_cache is outdated */
+	struct gve_adminq_queried_flow_rule *rules_cache;
+	__be32 *rule_ids_cache;
+	/* The total number of queried rules that stored in the caches */
+	u32 rules_cache_num;
+	u32 rule_ids_cache_num;
+};
+
 struct gve_priv {
 	struct net_device *dev;
 	struct gve_tx_ring *tx; /* array of tx_cfg.num_queues */
@@ -724,6 +762,7 @@ struct gve_priv {
 	union gve_adminq_command *adminq;
 	dma_addr_t adminq_bus_addr;
 	struct dma_pool *adminq_pool;
+	struct mutex adminq_lock; /* Protects adminq command execution */
 	u32 adminq_mask; /* masks prod_cnt to adminq size */
 	u32 adminq_prod_cnt; /* free-running count of AQ cmds executed */
 	u32 adminq_cmd_fail; /* free-running count of AQ cmds failed */
@@ -743,6 +782,8 @@ struct gve_priv {
 	u32 adminq_report_link_speed_cnt;
 	u32 adminq_get_ptype_map_cnt;
 	u32 adminq_verify_driver_compatibility_cnt;
+	u32 adminq_query_flow_rules_cnt;
+	u32 adminq_cfg_flow_rule_cnt;
 
 	/* Global stats */
 	u32 interface_up_cnt; /* count of times interface turned up since last reset */
@@ -785,6 +826,11 @@ struct gve_priv {
 
 	u16 header_buf_size; /* device configured, header-split supported if non-zero */
 	bool header_split_enabled; /* True if the header split is enabled by the user */
+
+	u32 max_flow_rules;
+	u32 num_flow_rules;
+
+	struct gve_flow_rules_cache flow_rules_cache;
 };
 
 enum gve_service_task_flags_bit {
@@ -1124,6 +1170,12 @@ int gve_adjust_config(struct gve_priv *priv,
 int gve_adjust_queues(struct gve_priv *priv,
 		      struct gve_queue_config new_rx_config,
 		      struct gve_queue_config new_tx_config);
+/* flow steering rule */
+int gve_get_flow_rule_entry(struct gve_priv *priv, struct ethtool_rxnfc *cmd);
+int gve_get_flow_rule_ids(struct gve_priv *priv, struct ethtool_rxnfc *cmd, u32 *rule_locs);
+int gve_add_flow_rule(struct gve_priv *priv, struct ethtool_rxnfc *cmd);
+int gve_del_flow_rule(struct gve_priv *priv, struct ethtool_rxnfc *cmd);
+int gve_flow_rules_reset(struct gve_priv *priv);
 /* report stats handling */
 void gve_handle_report_stats(struct gve_priv *priv);
 /* exported by ethtool.c */

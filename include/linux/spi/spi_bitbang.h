@@ -4,6 +4,8 @@
 
 #include <linux/workqueue.h>
 
+typedef u32 (*spi_bb_txrx_word_fn)(struct spi_device *, unsigned int, u32, u8, unsigned int);
+
 struct spi_bitbang {
 	struct mutex		lock;
 	u8			busy;
@@ -28,9 +30,8 @@ struct spi_bitbang {
 	int	(*txrx_bufs)(struct spi_device *spi, struct spi_transfer *t);
 
 	/* txrx_word[SPI_MODE_*]() just looks like a shift register */
-	u32	(*txrx_word[4])(struct spi_device *spi,
-			unsigned nsecs,
-			u32 word, u8 bits, unsigned flags);
+	spi_bb_txrx_word_fn txrx_word[SPI_MODE_X_MASK + 1];
+
 	int	(*set_line_direction)(struct spi_device *spi, bool output);
 };
 

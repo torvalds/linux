@@ -262,10 +262,10 @@ EXPORT_SYMBOL_GPL(cdx_clear_master);
  *
  * Return: true on success, false otherwise.
  */
-static int cdx_bus_match(struct device *dev, struct device_driver *drv)
+static int cdx_bus_match(struct device *dev, const struct device_driver *drv)
 {
 	struct cdx_device *cdx_dev = to_cdx_device(dev);
-	struct cdx_driver *cdx_drv = to_cdx_driver(drv);
+	const struct cdx_driver *cdx_drv = to_cdx_driver(drv);
 	const struct cdx_device_id *found_id = NULL;
 	const struct cdx_device_id *ids;
 

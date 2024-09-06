@@ -83,6 +83,17 @@ bugs as well, if the report is of reasonable quality or indicates a
 problem that might be severe -- especially if they have *Supported*
 status of the codebase in the MAINTAINERS file.
 
+Open development
+----------------
+
+Discussions about user reported issues, and development of new code
+should be conducted in a manner typical for the larger subsystem.
+It is common for development within a single company to be conducted
+behind closed doors. However, development and discussions initiated
+by community members must not be redirected from public to closed forums
+or to private email conversations. Reasonable exceptions to this guidance
+include discussions about security related issues.
+
 Selecting the maintainer
 ========================
 

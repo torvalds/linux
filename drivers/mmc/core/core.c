@@ -2362,4 +2362,5 @@ static void __exit mmc_exit(void)
 subsys_initcall(mmc_init);
 module_exit(mmc_exit);
 
+MODULE_DESCRIPTION("MMC core driver");
 MODULE_LICENSE("GPL");

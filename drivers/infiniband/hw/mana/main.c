@@ -547,14 +547,27 @@ int mana_ib_query_device(struct ib_device *ibdev, struct ib_device_attr *props,
 	struct mana_ib_dev *dev = container_of(ibdev,
 			struct mana_ib_dev, ib_dev);
 
+	memset(props, 0, sizeof(*props));
+	props->max_mr_size = MANA_IB_MAX_MR_SIZE;
+	props->page_size_cap = PAGE_SZ_BM;
 	props->max_qp = dev->adapter_caps.max_qp_count;
 	props->max_qp_wr = dev->adapter_caps.max_qp_wr;
+	props->device_cap_flags = IB_DEVICE_RC_RNR_NAK_GEN;
+	props->max_send_sge = dev->adapter_caps.max_send_sge_count;
+	props->max_recv_sge = dev->adapter_caps.max_recv_sge_count;
+	props->max_sge_rd = dev->adapter_caps.max_recv_sge_count;
 	props->max_cq = dev->adapter_caps.max_cq_count;
 	props->max_cqe = dev->adapter_caps.max_qp_wr;
 	props->max_mr = dev->adapter_caps.max_mr_count;
-	props->max_mr_size = MANA_IB_MAX_MR_SIZE;
-	props->max_send_sge = dev->adapter_caps.max_send_sge_count;
-	props->max_recv_sge = dev->adapter_caps.max_recv_sge_count;
+	props->max_pd = dev->adapter_caps.max_pd_count;
+	props->max_qp_rd_atom = dev->adapter_caps.max_inbound_read_limit;
+	props->max_res_rd_atom = props->max_qp_rd_atom * props->max_qp;
+	props->max_qp_init_rd_atom = dev->adapter_caps.max_outbound_read_limit;
+	props->atomic_cap = IB_ATOMIC_NONE;
+	props->masked_atomic_cap = IB_ATOMIC_NONE;
+	props->max_ah = INT_MAX;
+	props->max_pkeys = 1;
+	props->local_ca_ack_delay = MANA_CA_ACK_DELAY;
 
 	return 0;
 }
@@ -654,6 +667,33 @@ int mana_ib_gd_query_adapter_caps(struct mana_ib_dev *dev)
 	return 0;
 }
 
+static void
+mana_ib_event_handler(void *ctx, struct gdma_queue *q, struct gdma_event *event)
+{
+	struct mana_ib_dev *mdev = (struct mana_ib_dev *)ctx;
+	struct mana_ib_qp *qp;
+	struct ib_event ev;
+	u32 qpn;
+
+	switch (event->type) {
+	case GDMA_EQE_RNIC_QP_FATAL:
+		qpn = event->details[0];
+		qp = mana_get_qp_ref(mdev, qpn);
+		if (!qp)
+			break;
+		if (qp->ibqp.event_handler) {
+			ev.device = qp->ibqp.device;
+			ev.element.qp = &qp->ibqp;
+			ev.event = IB_EVENT_QP_FATAL;
+			qp->ibqp.event_handler(&ev, qp->ibqp.qp_context);
+		}
+		mana_put_qp_ref(qp);
+		break;
+	default:
+		break;
+	}
+}
+
 int mana_ib_create_eqs(struct mana_ib_dev *mdev)
 {
 	struct gdma_context *gc = mdev_to_gc(mdev);
@@ -663,7 +703,7 @@ int mana_ib_create_eqs(struct mana_ib_dev *mdev)
 	spec.type = GDMA_EQ;
 	spec.monitor_avl_buf = false;
 	spec.queue_size = EQ_SIZE;
-	spec.eq.callback = NULL;
+	spec.eq.callback = mana_ib_event_handler;
 	spec.eq.context = mdev;
 	spec.eq.log2_throttle_limit = LOG2_EQ_THROTTLE;
 	spec.eq.msix_index = 0;
@@ -678,7 +718,7 @@ int mana_ib_create_eqs(struct mana_ib_dev *mdev)
 		err = -ENOMEM;
 		goto destroy_fatal_eq;
 	}
-
+	spec.eq.callback = NULL;
 	for (i = 0; i < mdev->ib_dev.num_comp_vectors; i++) {
 		spec.eq.msix_index = (i + 1) % gc->num_msix_usable;
 		err = mana_gd_create_mana_eq(mdev->gdma_dev, &spec, &mdev->eqs[i]);
@@ -886,5 +926,64 @@ int mana_ib_gd_destroy_cq(struct mana_ib_dev *mdev, struct mana_ib_cq *cq)
 		return err;
 	}
 
+	return 0;
+}
+
+int mana_ib_gd_create_rc_qp(struct mana_ib_dev *mdev, struct mana_ib_qp *qp,
+			    struct ib_qp_init_attr *attr, u32 doorbell, u64 flags)
+{
+	struct mana_ib_cq *send_cq = container_of(qp->ibqp.send_cq, struct mana_ib_cq, ibcq);
+	struct mana_ib_cq *recv_cq = container_of(qp->ibqp.recv_cq, struct mana_ib_cq, ibcq);
+	struct mana_ib_pd *pd = container_of(qp->ibqp.pd, struct mana_ib_pd, ibpd);
+	struct gdma_context *gc = mdev_to_gc(mdev);
+	struct mana_rnic_create_qp_resp resp = {};
+	struct mana_rnic_create_qp_req req = {};
+	int err, i;
+
+	mana_gd_init_req_hdr(&req.hdr, MANA_IB_CREATE_RC_QP, sizeof(req), sizeof(resp));
+	req.hdr.dev_id = gc->mana_ib.dev_id;
+	req.adapter = mdev->adapter_handle;
+	req.pd_handle = pd->pd_handle;
+	req.send_cq_handle = send_cq->cq_handle;
+	req.recv_cq_handle = recv_cq->cq_handle;
+	for (i = 0; i < MANA_RC_QUEUE_TYPE_MAX; i++)
+		req.dma_region[i] = qp->rc_qp.queues[i].gdma_region;
+	req.doorbell_page = doorbell;
+	req.max_send_wr = attr->cap.max_send_wr;
+	req.max_recv_wr = attr->cap.max_recv_wr;
+	req.max_send_sge = attr->cap.max_send_sge;
+	req.max_recv_sge = attr->cap.max_recv_sge;
+	req.flags = flags;
+
+	err = mana_gd_send_request(gc, sizeof(req), &req, sizeof(resp), &resp);
+	if (err) {
+		ibdev_err(&mdev->ib_dev, "Failed to create rc qp err %d", err);
+		return err;
+	}
+	qp->qp_handle = resp.rc_qp_handle;
+	for (i = 0; i < MANA_RC_QUEUE_TYPE_MAX; i++) {
+		qp->rc_qp.queues[i].id = resp.queue_ids[i];
+		/* The GDMA regions are now owned by the RNIC QP handle */
+		qp->rc_qp.queues[i].gdma_region = GDMA_INVALID_DMA_REGION;
+	}
+	return 0;
+}
+
+int mana_ib_gd_destroy_rc_qp(struct mana_ib_dev *mdev, struct mana_ib_qp *qp)
+{
+	struct mana_rnic_destroy_rc_qp_resp resp = {0};
+	struct mana_rnic_destroy_rc_qp_req req = {0};
+	struct gdma_context *gc = mdev_to_gc(mdev);
+	int err;
+
+	mana_gd_init_req_hdr(&req.hdr, MANA_IB_DESTROY_RC_QP, sizeof(req), sizeof(resp));
+	req.hdr.dev_id = gc->mana_ib.dev_id;
+	req.adapter = mdev->adapter_handle;
+	req.rc_qp_handle = qp->qp_handle;
+	err = mana_gd_send_request(gc, sizeof(req), &req, sizeof(resp), &resp);
+	if (err) {
+		ibdev_err(&mdev->ib_dev, "Failed to destroy rc qp err %d", err);
+		return err;
+	}
 	return 0;
 }

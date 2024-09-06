@@ -27,7 +27,7 @@
 #define GCC_MMSS_MISC	0x0902C
 #define GCC_GPU_MISC	0x71028
 
-static struct pll_vco fabia_vco[] = {
+static const struct pll_vco fabia_vco[] = {
 	{ 250000000, 2000000000, 0 },
 	{ 125000000, 1000000000, 1 },
 };
@@ -3292,7 +3292,7 @@ static int gcc_msm8998_probe(struct platform_device *pdev)
 	regmap_write(regmap, GCC_MMSS_MISC, 0x10003);
 	regmap_write(regmap, GCC_GPU_MISC, 0x10003);
 
-	return qcom_cc_really_probe(pdev, &gcc_msm8998_desc, regmap);
+	return qcom_cc_really_probe(&pdev->dev, &gcc_msm8998_desc, regmap);
 }
 
 static const struct of_device_id gcc_msm8998_match_table[] = {

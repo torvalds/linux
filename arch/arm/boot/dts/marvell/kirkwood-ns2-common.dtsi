@@ -55,10 +55,8 @@
 
 	gpio_keys {
 		compatible = "gpio-keys";
-		#address-cells = <1>;
-		#size-cells = <0>;
 
-		power {
+		button-power {
 			label = "Power push button";
 			linux,code = <KEY_POWER>;
 			gpios = <&gpio1 0 GPIO_ACTIVE_HIGH>;
@@ -68,7 +66,7 @@
 	gpio-leds {
 		compatible = "gpio-leds";
 
-		red-fail {
+		led-red-fail {
 			label = "ns2:red:fail";
 			gpios = <&gpio0 12 GPIO_ACTIVE_HIGH>;
 		};

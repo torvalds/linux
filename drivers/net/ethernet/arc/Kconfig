@@ -23,16 +23,6 @@ config ARC_EMAC_CORE
 	select PHYLIB
 	select CRC32
 
-config ARC_EMAC
-	tristate "ARC EMAC support"
-	select ARC_EMAC_CORE
-	depends on OF_IRQ
-	depends on ARC || COMPILE_TEST
-	help
-	  On some legacy ARC (Synopsys) FPGA boards such as ARCAngel4/ML50x
-	  non-standard on-chip ethernet device ARC EMAC 10/100 is used.
-	  Say Y here if you have such a board.  If unsure, say N.
-
 config EMAC_ROCKCHIP
 	tristate "Rockchip EMAC support"
 	select ARC_EMAC_CORE

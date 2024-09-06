@@ -298,5 +298,9 @@ int smu_v13_0_enable_uclk_shadow(struct smu_context *smu, bool enable);
 
 int smu_v13_0_set_wbrf_exclusion_ranges(struct smu_context *smu,
 						 struct freq_band_range *exclusion_ranges);
+
+int smu_v13_0_get_boot_freq_by_index(struct smu_context *smu,
+				     enum smu_clk_type clk_type,
+				     uint32_t *value);
 #endif
 #endif

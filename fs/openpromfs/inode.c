@@ -471,4 +471,5 @@ static void __exit exit_openprom_fs(void)
 
 module_init(init_openprom_fs)
 module_exit(exit_openprom_fs)
+MODULE_DESCRIPTION("OpenPROM filesystem support");
 MODULE_LICENSE("GPL");

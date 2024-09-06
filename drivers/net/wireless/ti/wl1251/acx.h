@@ -229,7 +229,7 @@ struct acx_rx_msdu_lifetime {
  * ===		==========
  * 31:12		Reserved - Always equal to 0.
  * 11		Association - When set, the WiLink receives all association
- * 	 	related frames (association request/response, reassocation
+ *		related frames (association request/response, reassociation
  *		request/response, and disassociation). When clear, these frames
  *		are discarded.
  * 10		Auth/De auth - When set, the WiLink receives all authentication

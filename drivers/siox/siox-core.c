@@ -503,7 +503,7 @@ static const struct device_type siox_device_type = {
 	.release = siox_device_release,
 };
 
-static int siox_match(struct device *dev, struct device_driver *drv)
+static int siox_match(struct device *dev, const struct device_driver *drv)
 {
 	if (dev->type != &siox_device_type)
 		return 0;

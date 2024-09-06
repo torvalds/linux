@@ -1134,7 +1134,7 @@ static int vsc85xx_hwtstamp(struct mii_timestamper *mii_ts,
 }
 
 static int vsc85xx_ts_info(struct mii_timestamper *mii_ts,
-			   struct ethtool_ts_info *info)
+			   struct kernel_ethtool_ts_info *info)
 {
 	struct vsc8531_private *vsc8531 =
 		container_of(mii_ts, struct vsc8531_private, mii_ts);
@@ -1569,6 +1569,9 @@ int vsc8584_ptp_probe(struct phy_device *phydev)
 			   PTR_ERR(vsc8531->load_save));
 		return PTR_ERR(vsc8531->load_save);
 	}
+
+	/* Timestamp selected by default to keep legacy API */
+	phydev->default_timestamp = true;
 
 	vsc8531->ptp->phydev = phydev;
 

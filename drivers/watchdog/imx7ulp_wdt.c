@@ -290,6 +290,11 @@ static int imx7ulp_wdt_init(struct imx7ulp_wdt_device *wdt, unsigned int timeout
 	if (wdt->ext_reset)
 		val |= WDOG_CS_INT_EN;
 
+	if (readl(wdt->base + WDOG_CS) & WDOG_CS_EN) {
+		set_bit(WDOG_HW_RUNNING, &wdt->wdd.status);
+		val |= WDOG_CS_EN;
+	}
+
 	do {
 		ret = _imx7ulp_wdt_init(wdt, timeout, val);
 		toval = readl(wdt->base + WDOG_TOVAL);

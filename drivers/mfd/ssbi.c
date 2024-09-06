@@ -319,6 +319,7 @@ static struct platform_driver ssbi_driver = {
 };
 module_platform_driver(ssbi_driver);
 
+MODULE_DESCRIPTION("Qualcomm Single-wire Serial Bus Interface (SSBI) driver");
 MODULE_LICENSE("GPL v2");
 MODULE_VERSION("1.0");
 MODULE_ALIAS("platform:ssbi");

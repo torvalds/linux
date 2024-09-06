@@ -85,44 +85,44 @@
 			    >;
 		pinctrl-names = "default";
 
-		health {
+		led-health {
 			label = "status:green:health";
 			gpios = <&gpio1 14 GPIO_ACTIVE_LOW>;
 			default-state = "keep";
 		};
-		fault {
+		led-fault {
 			label = "status:orange:fault";
 			gpios = <&gpio1 15 GPIO_ACTIVE_LOW>;
 		};
-		left0 {
+		led-left0 {
 			label = "status:white:left0";
 			gpios = <&gpio1 10 GPIO_ACTIVE_HIGH>;
 		};
-		left1 {
+		led-left1 {
 			label = "status:white:left1";
 			gpios = <&gpio1 11 GPIO_ACTIVE_HIGH>;
 		};
-		left2 {
+		led-left2 {
 			label = "status:white:left2";
 			gpios = <&gpio1 12 GPIO_ACTIVE_HIGH>;
 		};
-		left3 {
+		led-left3 {
 			label = "status:white:left3";
 			gpios = <&gpio1 13 GPIO_ACTIVE_HIGH>;
 		};
-		right0 {
+		led-right0 {
 			label = "status:white:right0";
 			gpios = <&gpio1 6 GPIO_ACTIVE_HIGH>;
 		};
-		right1 {
+		led-right1 {
 			label = "status:white:right1";
 			gpios = <&gpio1 7 GPIO_ACTIVE_HIGH>;
 		};
-		right2 {
+		led-right2 {
 			label = "status:white:right2";
 			gpios = <&gpio1 8 GPIO_ACTIVE_HIGH>;
 		};
-		right3 {
+		led-right3 {
 			label = "status:white:right3";
 			gpios = <&gpio1 9 GPIO_ACTIVE_HIGH>;
 		};

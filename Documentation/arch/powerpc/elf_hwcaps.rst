@@ -91,6 +91,7 @@ PPC_FEATURE_HAS_MMU
 
 PPC_FEATURE_HAS_4xxMAC
     The processor is 40x or 44x family.
+    Unused in the kernel since 732b32daef80 ("powerpc: Remove core support for 40x")
 
 PPC_FEATURE_UNIFIED_CACHE
     The processor has a unified L1 cache for instructions and data, as

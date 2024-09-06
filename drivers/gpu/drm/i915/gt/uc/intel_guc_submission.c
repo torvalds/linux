@@ -4267,20 +4267,25 @@ static void guc_bump_inflight_request_prio(struct i915_request *rq,
 	u8 new_guc_prio = map_i915_prio_to_guc_prio(prio);
 
 	/* Short circuit function */
-	if (prio < I915_PRIORITY_NORMAL ||
-	    rq->guc_prio == GUC_PRIO_FINI ||
-	    (rq->guc_prio != GUC_PRIO_INIT &&
-	     !new_guc_prio_higher(rq->guc_prio, new_guc_prio)))
+	if (prio < I915_PRIORITY_NORMAL)
 		return;
 
 	spin_lock(&ce->guc_state.lock);
-	if (rq->guc_prio != GUC_PRIO_FINI) {
-		if (rq->guc_prio != GUC_PRIO_INIT)
-			sub_context_inflight_prio(ce, rq->guc_prio);
-		rq->guc_prio = new_guc_prio;
-		add_context_inflight_prio(ce, rq->guc_prio);
-		update_context_prio(ce);
-	}
+
+	if (rq->guc_prio == GUC_PRIO_FINI)
+		goto exit;
+
+	if (!new_guc_prio_higher(rq->guc_prio, new_guc_prio))
+		goto exit;
+
+	if (rq->guc_prio != GUC_PRIO_INIT)
+		sub_context_inflight_prio(ce, rq->guc_prio);
+
+	rq->guc_prio = new_guc_prio;
+	add_context_inflight_prio(ce, rq->guc_prio);
+	update_context_prio(ce);
+
+exit:
 	spin_unlock(&ce->guc_state.lock);
 }
 

@@ -5,14 +5,17 @@
 
 #include <drm/drm_managed.h>
 
+#include "xe_force_wake.h"
 #include "xe_device.h"
 #include "xe_gt.h"
 #include "xe_gt_idle.h"
 #include "xe_gt_sysfs.h"
 #include "xe_guc_pc.h"
 #include "regs/xe_gt_regs.h"
+#include "xe_macros.h"
 #include "xe_mmio.h"
 #include "xe_pm.h"
+#include "xe_sriov.h"
 
 /**
  * DOC: Xe GT Idle
@@ -92,6 +95,56 @@ static u64 get_residency_ms(struct xe_gt_idle *gtidle, u64 cur_residency)
 	return cur_residency;
 }
 
+void xe_gt_idle_enable_pg(struct xe_gt *gt)
+{
+	struct xe_device *xe = gt_to_xe(gt);
+	u32 pg_enable;
+	int i, j;
+
+	if (IS_SRIOV_VF(xe))
+		return;
+
+	/* Disable CPG for PVC */
+	if (xe->info.platform == XE_PVC)
+		return;
+
+	xe_device_assert_mem_access(gt_to_xe(gt));
+
+	pg_enable = RENDER_POWERGATE_ENABLE | MEDIA_POWERGATE_ENABLE;
+
+	for (i = XE_HW_ENGINE_VCS0, j = 0; i <= XE_HW_ENGINE_VCS7; ++i, ++j) {
+		if ((gt->info.engine_mask & BIT(i)))
+			pg_enable |= (VDN_HCP_POWERGATE_ENABLE(j) |
+				      VDN_MFXVDENC_POWERGATE_ENABLE(j));
+	}
+
+	XE_WARN_ON(xe_force_wake_get(gt_to_fw(gt), XE_FW_GT));
+	if (xe->info.skip_guc_pc) {
+		/*
+		 * GuC sets the hysteresis value when GuC PC is enabled
+		 * else set it to 25 (25 * 1.28us)
+		 */
+		xe_mmio_write32(gt, MEDIA_POWERGATE_IDLE_HYSTERESIS, 25);
+		xe_mmio_write32(gt, RENDER_POWERGATE_IDLE_HYSTERESIS, 25);
+	}
+
+	xe_mmio_write32(gt, POWERGATE_ENABLE, pg_enable);
+	XE_WARN_ON(xe_force_wake_put(gt_to_fw(gt), XE_FW_GT));
+}
+
+void xe_gt_idle_disable_pg(struct xe_gt *gt)
+{
+	if (IS_SRIOV_VF(gt_to_xe(gt)))
+		return;
+
+	xe_device_assert_mem_access(gt_to_xe(gt));
+	XE_WARN_ON(xe_force_wake_get(gt_to_fw(gt), XE_FW_GT));
+
+	xe_mmio_write32(gt, POWERGATE_ENABLE, 0);
+
+	XE_WARN_ON(xe_force_wake_put(gt_to_fw(gt), XE_FW_GT));
+}
+
 static ssize_t name_show(struct device *dev,
 			 struct device_attribute *attr, char *buff)
 {
@@ -144,10 +197,12 @@ static const struct attribute *gt_idle_attrs[] = {
 	NULL,
 };
 
-static void gt_idle_sysfs_fini(struct drm_device *drm, void *arg)
+static void gt_idle_fini(void *arg)
 {
 	struct kobject *kobj = arg;
 	struct xe_gt *gt = kobj_to_gt(kobj->parent);
+
+	xe_gt_idle_disable_pg(gt);
 
 	if (gt_to_xe(gt)->info.skip_guc_pc) {
 		XE_WARN_ON(xe_force_wake_get(gt_to_fw(gt), XE_FW_GT));
@@ -159,12 +214,15 @@ static void gt_idle_sysfs_fini(struct drm_device *drm, void *arg)
 	kobject_put(kobj);
 }
 
-int xe_gt_idle_sysfs_init(struct xe_gt_idle *gtidle)
+int xe_gt_idle_init(struct xe_gt_idle *gtidle)
 {
 	struct xe_gt *gt = gtidle_to_gt(gtidle);
 	struct xe_device *xe = gt_to_xe(gt);
 	struct kobject *kobj;
 	int err;
+
+	if (IS_SRIOV_VF(xe))
+		return 0;
 
 	kobj = kobject_create_and_add("gtidle", gt->sysfs);
 	if (!kobj)
@@ -188,13 +246,18 @@ int xe_gt_idle_sysfs_init(struct xe_gt_idle *gtidle)
 		return err;
 	}
 
-	return drmm_add_action_or_reset(&xe->drm, gt_idle_sysfs_fini, kobj);
+	xe_gt_idle_enable_pg(gt);
+
+	return devm_add_action_or_reset(xe->drm.dev, gt_idle_fini, kobj);
 }
 
 void xe_gt_idle_enable_c6(struct xe_gt *gt)
 {
 	xe_device_assert_mem_access(gt_to_xe(gt));
 	xe_force_wake_assert_held(gt_to_fw(gt), XE_FW_GT);
+
+	if (IS_SRIOV_VF(gt_to_xe(gt)))
+		return;
 
 	/* Units of 1280 ns for a total of 5s */
 	xe_mmio_write32(gt, RC_IDLE_HYSTERSIS, 0x3B9ACA);
@@ -208,7 +271,9 @@ void xe_gt_idle_disable_c6(struct xe_gt *gt)
 	xe_device_assert_mem_access(gt_to_xe(gt));
 	xe_force_wake_assert_held(gt_to_fw(gt), XE_FW_GT);
 
-	xe_mmio_write32(gt, PG_ENABLE, 0);
+	if (IS_SRIOV_VF(gt_to_xe(gt)))
+		return;
+
 	xe_mmio_write32(gt, RC_CONTROL, 0);
 	xe_mmio_write32(gt, RC_STATE, 0);
 }

@@ -2,6 +2,7 @@
 /*
  * Copyright (C) 2019 HUAWEI, Inc.
  *             https://www.huawei.com/
+ * Copyright (C) 2024 Alibaba Cloud
  */
 #include "compress.h"
 #include <linux/lz4.h>
@@ -109,7 +110,6 @@ static int z_erofs_lz4_prepare_dstpages(struct z_erofs_lz4_decompress_ctx *ctx,
 
 		if (top) {
 			victim = availables[--top];
-			get_page(victim);
 		} else {
 			victim = __erofs_allocpage(pagepool, rq->gfp, true);
 			if (!victim)
@@ -371,40 +371,113 @@ static int z_erofs_transform_plain(struct z_erofs_decompress_req *rq,
 	return 0;
 }
 
-const struct z_erofs_decompressor erofs_decompressors[] = {
-	[Z_EROFS_COMPRESSION_SHIFTED] = {
+int z_erofs_stream_switch_bufs(struct z_erofs_stream_dctx *dctx, void **dst,
+			       void **src, struct page **pgpl)
+{
+	struct z_erofs_decompress_req *rq = dctx->rq;
+	struct super_block *sb = rq->sb;
+	struct page **pgo, *tmppage;
+	unsigned int j;
+
+	if (!dctx->avail_out) {
+		if (++dctx->no >= dctx->outpages || !rq->outputsize) {
+			erofs_err(sb, "insufficient space for decompressed data");
+			return -EFSCORRUPTED;
+		}
+
+		if (dctx->kout)
+			kunmap_local(dctx->kout);
+		dctx->avail_out = min(rq->outputsize, PAGE_SIZE - rq->pageofs_out);
+		rq->outputsize -= dctx->avail_out;
+		pgo = &rq->out[dctx->no];
+		if (!*pgo && rq->fillgaps) {		/* deduped */
+			*pgo = erofs_allocpage(pgpl, rq->gfp);
+			if (!*pgo) {
+				dctx->kout = NULL;
+				return -ENOMEM;
+			}
+			set_page_private(*pgo, Z_EROFS_SHORTLIVED_PAGE);
+		}
+		if (*pgo) {
+			dctx->kout = kmap_local_page(*pgo);
+			*dst = dctx->kout + rq->pageofs_out;
+		} else {
+			*dst = dctx->kout = NULL;
+		}
+		rq->pageofs_out = 0;
+	}
+
+	if (dctx->inbuf_pos == dctx->inbuf_sz && rq->inputsize) {
+		if (++dctx->ni >= dctx->inpages) {
+			erofs_err(sb, "invalid compressed data");
+			return -EFSCORRUPTED;
+		}
+		if (dctx->kout) /* unlike kmap(), take care of the orders */
+			kunmap_local(dctx->kout);
+		kunmap_local(dctx->kin);
+
+		dctx->inbuf_sz = min_t(u32, rq->inputsize, PAGE_SIZE);
+		rq->inputsize -= dctx->inbuf_sz;
+		dctx->kin = kmap_local_page(rq->in[dctx->ni]);
+		*src = dctx->kin;
+		dctx->bounced = false;
+		if (dctx->kout) {
+			j = (u8 *)*dst - dctx->kout;
+			dctx->kout = kmap_local_page(rq->out[dctx->no]);
+			*dst = dctx->kout + j;
+		}
+		dctx->inbuf_pos = 0;
+	}
+
+	/*
+	 * Handle overlapping: Use the given bounce buffer if the input data is
+	 * under processing; Or utilize short-lived pages from the on-stack page
+	 * pool, where pages are shared among the same request.  Note that only
+	 * a few inplace I/O pages need to be doubled.
+	 */
+	if (!dctx->bounced && rq->out[dctx->no] == rq->in[dctx->ni]) {
+		memcpy(dctx->bounce, *src, dctx->inbuf_sz);
+		*src = dctx->bounce;
+		dctx->bounced = true;
+	}
+
+	for (j = dctx->ni + 1; j < dctx->inpages; ++j) {
+		if (rq->out[dctx->no] != rq->in[j])
+			continue;
+		tmppage = erofs_allocpage(pgpl, rq->gfp);
+		if (!tmppage)
+			return -ENOMEM;
+		set_page_private(tmppage, Z_EROFS_SHORTLIVED_PAGE);
+		copy_highpage(tmppage, rq->in[j]);
+		rq->in[j] = tmppage;
+	}
+	return 0;
+}
+
+const struct z_erofs_decompressor *z_erofs_decomp[] = {
+	[Z_EROFS_COMPRESSION_SHIFTED] = &(const struct z_erofs_decompressor) {
 		.decompress = z_erofs_transform_plain,
 		.name = "shifted"
 	},
-	[Z_EROFS_COMPRESSION_INTERLACED] = {
+	[Z_EROFS_COMPRESSION_INTERLACED] = &(const struct z_erofs_decompressor) {
 		.decompress = z_erofs_transform_plain,
 		.name = "interlaced"
 	},
-	[Z_EROFS_COMPRESSION_LZ4] = {
+	[Z_EROFS_COMPRESSION_LZ4] = &(const struct z_erofs_decompressor) {
 		.config = z_erofs_load_lz4_config,
 		.decompress = z_erofs_lz4_decompress,
+		.init = z_erofs_gbuf_init,
+		.exit = z_erofs_gbuf_exit,
 		.name = "lz4"
 	},
 #ifdef CONFIG_EROFS_FS_ZIP_LZMA
-	[Z_EROFS_COMPRESSION_LZMA] = {
-		.config = z_erofs_load_lzma_config,
-		.decompress = z_erofs_lzma_decompress,
-		.name = "lzma"
-	},
+	[Z_EROFS_COMPRESSION_LZMA] = &z_erofs_lzma_decomp,
 #endif
 #ifdef CONFIG_EROFS_FS_ZIP_DEFLATE
-	[Z_EROFS_COMPRESSION_DEFLATE] = {
-		.config = z_erofs_load_deflate_config,
-		.decompress = z_erofs_deflate_decompress,
-		.name = "deflate"
-	},
+	[Z_EROFS_COMPRESSION_DEFLATE] = &z_erofs_deflate_decomp,
 #endif
 #ifdef CONFIG_EROFS_FS_ZIP_ZSTD
-	[Z_EROFS_COMPRESSION_ZSTD] = {
-		.config = z_erofs_load_zstd_config,
-		.decompress = z_erofs_zstd_decompress,
-		.name = "zstd"
-	},
+	[Z_EROFS_COMPRESSION_ZSTD] = &z_erofs_zstd_decomp,
 #endif
 };
 
@@ -432,6 +505,7 @@ int z_erofs_parse_cfgs(struct super_block *sb, struct erofs_super_block *dsb)
 	offset = EROFS_SUPER_OFFSET + sbi->sb_size;
 	alg = 0;
 	for (algs = sbi->available_compr_algs; algs; algs >>= 1, ++alg) {
+		const struct z_erofs_decompressor *dec = z_erofs_decomp[alg];
 		void *data;
 
 		if (!(algs & 1))
@@ -443,20 +517,42 @@ int z_erofs_parse_cfgs(struct super_block *sb, struct erofs_super_block *dsb)
 			break;
 		}
 
-		if (alg >= ARRAY_SIZE(erofs_decompressors) ||
-		    !erofs_decompressors[alg].config) {
+		if (alg < Z_EROFS_COMPRESSION_MAX && dec && dec->config) {
+			ret = dec->config(sb, dsb, data, size);
+		} else {
 			erofs_err(sb, "algorithm %d isn't enabled on this kernel",
 				  alg);
 			ret = -EOPNOTSUPP;
-		} else {
-			ret = erofs_decompressors[alg].config(sb,
-					dsb, data, size);
 		}
-
 		kfree(data);
 		if (ret)
 			break;
 	}
 	erofs_put_metabuf(&buf);
 	return ret;
+}
+
+int __init z_erofs_init_decompressor(void)
+{
+	int i, err;
+
+	for (i = 0; i < Z_EROFS_COMPRESSION_MAX; ++i) {
+		err = z_erofs_decomp[i] ? z_erofs_decomp[i]->init() : 0;
+		if (err) {
+			while (--i)
+				if (z_erofs_decomp[i])
+					z_erofs_decomp[i]->exit();
+			return err;
+		}
+	}
+	return 0;
+}
+
+void z_erofs_exit_decompressor(void)
+{
+	int i;
+
+	for (i = 0; i < Z_EROFS_COMPRESSION_MAX; ++i)
+		if (z_erofs_decomp[i])
+			z_erofs_decomp[i]->exit();
 }

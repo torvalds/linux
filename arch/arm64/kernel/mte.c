@@ -582,12 +582,9 @@ subsys_initcall(register_mte_tcf_preferred_sysctl);
 size_t mte_probe_user_range(const char __user *uaddr, size_t size)
 {
 	const char __user *end = uaddr + size;
-	int err = 0;
 	char val;
 
-	__raw_get_user(val, uaddr, err);
-	if (err)
-		return size;
+	__raw_get_user(val, uaddr, efault);
 
 	uaddr = PTR_ALIGN(uaddr, MTE_GRANULE_SIZE);
 	while (uaddr < end) {
@@ -595,12 +592,13 @@ size_t mte_probe_user_range(const char __user *uaddr, size_t size)
 		 * A read is sufficient for mte, the caller should have probed
 		 * for the pte write permission if required.
 		 */
-		__raw_get_user(val, uaddr, err);
-		if (err)
-			return end - uaddr;
+		__raw_get_user(val, uaddr, efault);
 		uaddr += MTE_GRANULE_SIZE;
 	}
 	(void)val;
 
 	return 0;
+
+efault:
+	return end - uaddr;
 }

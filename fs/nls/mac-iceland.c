@@ -598,4 +598,5 @@ static void __exit exit_nls_maciceland(void)
 module_init(init_nls_maciceland)
 module_exit(exit_nls_maciceland)
 
+MODULE_DESCRIPTION("NLS Codepage maciceland");
 MODULE_LICENSE("Dual BSD/GPL");

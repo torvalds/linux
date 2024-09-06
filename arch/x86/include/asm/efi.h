@@ -229,7 +229,8 @@ static inline bool efi_is_native(void)
 
 static inline void *efi64_zero_upper(void *p)
 {
-	((u32 *)p)[1] = 0;
+	if (p)
+		((u32 *)p)[1] = 0;
 	return p;
 }
 
@@ -315,6 +316,10 @@ static inline u32 efi64_convert_status(efi_status_t status)
 #define __efi64_argmap_clear_memory_attributes(protocol, phys, size, flags) \
 	((protocol), __efi64_split(phys), __efi64_split(size), __efi64_split(flags))
 
+/* EFI SMBIOS protocol */
+#define __efi64_argmap_get_next(protocol, smbioshandle, type, record, phandle) \
+	((protocol), (smbioshandle), (type), efi64_zero_upper(record), \
+	 efi64_zero_upper(phandle))
 /*
  * The macros below handle the plumbing for the argument mapping. To add a
  * mapping for a specific EFI method, simply define a macro
@@ -384,23 +389,8 @@ static inline void efi_reserve_boot_services(void)
 }
 #endif /* CONFIG_EFI */
 
-#ifdef CONFIG_EFI_FAKE_MEMMAP
-extern void __init efi_fake_memmap_early(void);
-extern void __init efi_fake_memmap(void);
-#else
-static inline void efi_fake_memmap_early(void)
-{
-}
-
-static inline void efi_fake_memmap(void)
-{
-}
-#endif
-
 extern int __init efi_memmap_alloc(unsigned int num_entries,
 				   struct efi_memory_map_data *data);
-extern void __efi_memmap_free(u64 phys, unsigned long size,
-			      unsigned long flags);
 
 extern int __init efi_memmap_install(struct efi_memory_map_data *data);
 extern int __init efi_memmap_split_count(efi_memory_desc_t *md,

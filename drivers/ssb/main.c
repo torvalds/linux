@@ -323,10 +323,10 @@ static int ssb_match_devid(const struct ssb_device_id *tabid,
 	return 1;
 }
 
-static int ssb_bus_match(struct device *dev, struct device_driver *drv)
+static int ssb_bus_match(struct device *dev, const struct device_driver *drv)
 {
 	struct ssb_device *ssb_dev = dev_to_ssb_dev(dev);
-	struct ssb_driver *ssb_drv = drv_to_ssb_drv(drv);
+	const struct ssb_driver *ssb_drv = drv_to_ssb_drv(drv);
 	const struct ssb_device_id *id;
 
 	for (id = ssb_drv->id_table;

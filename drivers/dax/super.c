@@ -606,6 +606,7 @@ static void __exit dax_core_exit(void)
 }
 
 MODULE_AUTHOR("Intel Corporation");
+MODULE_DESCRIPTION("DAX: direct access to differentiated memory");
 MODULE_LICENSE("GPL v2");
 subsys_initcall(dax_core_init);
 module_exit(dax_core_exit);

@@ -142,4 +142,5 @@ static struct platform_driver am335x_phy_driver = {
 };
 
 module_platform_driver(am335x_phy_driver);
+MODULE_DESCRIPTION("AM335x USB PHY Driver");
 MODULE_LICENSE("GPL v2");

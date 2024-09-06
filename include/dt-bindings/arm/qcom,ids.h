@@ -175,6 +175,7 @@
 #define QCOM_ID_SDA630			327
 #define QCOM_ID_MSM8905			331
 #define QCOM_ID_SDX202			333
+#define QCOM_ID_SDM670			336
 #define QCOM_ID_SDM450			338
 #define QCOM_ID_SM8150			339
 #define QCOM_ID_SDA845			341
@@ -272,6 +273,7 @@
 #define QCOM_ID_QCS8550			603
 #define QCOM_ID_QCM8550			604
 #define QCOM_ID_IPQ5300			624
+#define QCOM_ID_IPQ5321			650
 
 /*
  * The board type and revision information, used by Qualcomm bootloaders and

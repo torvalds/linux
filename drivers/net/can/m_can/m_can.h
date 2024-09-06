@@ -91,7 +91,7 @@ struct m_can_classdev {
 
 	ktime_t irq_timer_wait;
 
-	struct m_can_ops *ops;
+	const struct m_can_ops *ops;
 
 	int version;
 	u32 irqstatus;

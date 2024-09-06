@@ -164,6 +164,9 @@ static struct dso *__dsos__find_by_longname_id(struct dsos *dsos,
 	};
 	struct dso **res;
 
+	if (dsos->dsos == NULL)
+		return NULL;
+
 	if (!dsos->sorted) {
 		if (!write_locked) {
 			struct dso *dso;
@@ -291,7 +294,7 @@ static void dso__set_basename(struct dso *dso)
 	char *base, *lname;
 	int tid;
 
-	if (sscanf(dso__long_name(dso), "/tmp/perf-%d.map", &tid) == 1) {
+	if (perf_pid_map_tid(dso__long_name(dso), &tid)) {
 		if (asprintf(&base, "[JIT] tid %d", tid) < 0)
 			return;
 	} else {

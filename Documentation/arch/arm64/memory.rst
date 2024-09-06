@@ -18,12 +18,10 @@ ARMv8.2 adds optional support for Large Virtual Address space. This is
 only available when running with a 64KB page size and expands the
 number of descriptors in the first level of translation.
 
-User addresses have bits 63:48 set to 0 while the kernel addresses have
-the same bits set to 1. TTBRx selection is given by bit 63 of the
-virtual address. The swapper_pg_dir contains only kernel (global)
-mappings while the user pgd contains only user (non-global) mappings.
-The swapper_pg_dir address is written to TTBR1 and never written to
-TTBR0.
+TTBRx selection is given by bit 55 of the virtual address. The
+swapper_pg_dir contains only kernel (global) mappings while the user pgd
+contains only user (non-global) mappings.  The swapper_pg_dir address is
+written to TTBR1 and never written to TTBR0.
 
 
 AArch64 Linux memory layout with 4KB pages + 4 levels (48-bit)::
@@ -65,14 +63,14 @@ Translation table lookup with 4KB pages::
   +--------+--------+--------+--------+--------+--------+--------+--------+
   |63    56|55    48|47    40|39    32|31    24|23    16|15     8|7      0|
   +--------+--------+--------+--------+--------+--------+--------+--------+
-   |                 |         |         |         |         |
-   |                 |         |         |         |         v
-   |                 |         |         |         |   [11:0]  in-page offset
-   |                 |         |         |         +-> [20:12] L3 index
-   |                 |         |         +-----------> [29:21] L2 index
-   |                 |         +---------------------> [38:30] L1 index
-   |                 +-------------------------------> [47:39] L0 index
-   +-------------------------------------------------> [63] TTBR0/1
+            |        |         |         |         |         |
+            |        |         |         |         |         v
+            |        |         |         |         |   [11:0]  in-page offset
+            |        |         |         |         +-> [20:12] L3 index
+            |        |         |         +-----------> [29:21] L2 index
+            |        |         +---------------------> [38:30] L1 index
+            |        +-------------------------------> [47:39] L0 index
+            +----------------------------------------> [55] TTBR0/1
 
 
 Translation table lookup with 64KB pages::
@@ -80,14 +78,14 @@ Translation table lookup with 64KB pages::
   +--------+--------+--------+--------+--------+--------+--------+--------+
   |63    56|55    48|47    40|39    32|31    24|23    16|15     8|7      0|
   +--------+--------+--------+--------+--------+--------+--------+--------+
-   |                 |    |               |              |
-   |                 |    |               |              v
-   |                 |    |               |            [15:0]  in-page offset
-   |                 |    |               +----------> [28:16] L3 index
-   |                 |    +--------------------------> [41:29] L2 index
-   |                 +-------------------------------> [47:42] L1 index (48-bit)
-   |                                                   [51:42] L1 index (52-bit)
-   +-------------------------------------------------> [63] TTBR0/1
+            |        |    |               |              |
+            |        |    |               |              v
+            |        |    |               |            [15:0]  in-page offset
+            |        |    |               +----------> [28:16] L3 index
+            |        |    +--------------------------> [41:29] L2 index
+            |        +-------------------------------> [47:42] L1 index (48-bit)
+            |                                          [51:42] L1 index (52-bit)
+            +----------------------------------------> [55] TTBR0/1
 
 
 When using KVM without the Virtualization Host Extensions, the

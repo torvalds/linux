@@ -166,4 +166,5 @@ static struct hid_driver mf_driver = {
 };
 module_hid_driver(mf_driver);
 
+MODULE_DESCRIPTION("Force feedback support for Mayflash game controller adapters.");
 MODULE_LICENSE("GPL");

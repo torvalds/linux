@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#ifndef __LINUX_GUARDS_H
-#define __LINUX_GUARDS_H
+#ifndef _LINUX_CLEANUP_H
+#define _LINUX_CLEANUP_H
 
 #include <linux/compiler.h>
 
@@ -63,17 +63,20 @@
 
 #define __free(_name)	__cleanup(__free_##_name)
 
-#define __get_and_null_ptr(p) \
-	({ __auto_type __ptr = &(p); \
-	   __auto_type __val = *__ptr; \
-	   *__ptr = NULL;  __val; })
+#define __get_and_null(p, nullvalue)   \
+	({                                  \
+		__auto_type __ptr = &(p);   \
+		__auto_type __val = *__ptr; \
+		*__ptr = nullvalue;         \
+		__val;                      \
+	})
 
 static inline __must_check
 const volatile void * __must_check_fn(const volatile void *val)
 { return val; }
 
 #define no_free_ptr(p) \
-	((typeof(p)) __must_check_fn(__get_and_null_ptr(p)))
+	((typeof(p)) __must_check_fn(__get_and_null(p, NULL)))
 
 #define return_ptr(p)	return no_free_ptr(p)
 
@@ -247,4 +250,4 @@ __DEFINE_LOCK_GUARD_0(_name, _lock)
 	{ return class_##_name##_lock_ptr(_T); }
 
 
-#endif /* __LINUX_GUARDS_H */
+#endif /* _LINUX_CLEANUP_H */

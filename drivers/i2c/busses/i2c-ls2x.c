@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Loongson-2K/Loongson LS7A I2C master mode driver
+ * Loongson-2K/Loongson LS7A I2C controller mode driver
  *
  * Copyright (C) 2013 Loongson Technology Corporation Limited.
  * Copyright (C) 2014-2017 Lemote, Inc.
@@ -51,7 +51,7 @@
 /* Control Register Bit */
 #define LS2X_CTR_EN		BIT(7) /* 0: I2c frequency setting 1: Normal */
 #define LS2X_CTR_IEN		BIT(6) /* Enable i2c interrupt */
-#define LS2X_CTR_MST		BIT(5) /* 0: Slave mode 1: Master mode */
+#define LS2X_CTR_MST		BIT(5) /* 0: Target mode 1: Controller mode */
 #define CTR_FREQ_MASK		GENMASK(7, 6)
 #define CTR_READY_MASK		GENMASK(7, 5)
 
@@ -251,8 +251,7 @@ static int ls2x_i2c_xfer_one(struct ls2x_i2c_priv *priv,
 	return ret;
 }
 
-static int ls2x_i2c_master_xfer(struct i2c_adapter *adap,
-				struct i2c_msg *msgs, int num)
+static int ls2x_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 {
 	int ret;
 	struct i2c_msg *msg, *emsg = msgs + num;
@@ -273,8 +272,8 @@ static unsigned int ls2x_i2c_func(struct i2c_adapter *adap)
 }
 
 static const struct i2c_algorithm ls2x_i2c_algo = {
-	.master_xfer	= ls2x_i2c_master_xfer,
-	.functionality	= ls2x_i2c_func,
+	.xfer = ls2x_i2c_xfer,
+	.functionality = ls2x_i2c_func,
 };
 
 static int ls2x_i2c_probe(struct platform_device *pdev)

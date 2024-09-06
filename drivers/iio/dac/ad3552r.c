@@ -117,7 +117,7 @@
 #define AD3552R_REG_ADDR_CH_INPUT_24B(ch)		(0x4B - (1 - ch) * 3)
 
 /* Useful defines */
-#define AD3552R_NUM_CH					2
+#define AD3552R_MAX_CH					2
 #define AD3552R_MASK_CH(ch)				BIT(ch)
 #define AD3552R_MASK_ALL_CH				GENMASK(1, 0)
 #define AD3552R_MAX_REG_SIZE				3
@@ -139,8 +139,10 @@ enum ad3552r_ch_vref_select {
 	AD3552R_EXTERNAL_VREF_PIN_INPUT
 };
 
-enum ad3542r_id {
+enum ad3552r_id {
+	AD3541R_ID = 0x400b,
 	AD3542R_ID = 0x4009,
+	AD3551R_ID = 0x400a,
 	AD3552R_ID = 0x4008,
 };
 
@@ -261,17 +263,26 @@ struct ad3552r_ch_data {
 	bool	range_override;
 };
 
+struct ad3552r_model_data {
+	const char *model_name;
+	enum ad3552r_id chip_id;
+	unsigned int num_hw_channels;
+	const s32 (*ranges_table)[2];
+	int num_ranges;
+	bool requires_output_range;
+};
+
 struct ad3552r_desc {
+	const struct ad3552r_model_data *model_data;
 	/* Used to look the spi bus for atomic operations where needed */
 	struct mutex		lock;
 	struct gpio_desc	*gpio_reset;
 	struct gpio_desc	*gpio_ldac;
 	struct spi_device	*spi;
-	struct ad3552r_ch_data	ch_data[AD3552R_NUM_CH];
-	struct iio_chan_spec	channels[AD3552R_NUM_CH + 1];
+	struct ad3552r_ch_data	ch_data[AD3552R_MAX_CH];
+	struct iio_chan_spec	channels[AD3552R_MAX_CH + 1];
 	unsigned long		enabled_ch;
 	unsigned int		num_ch;
-	enum ad3542r_id		chip_id;
 };
 
 static const u16 addr_mask_map[][2] = {
@@ -528,7 +539,7 @@ static int32_t ad3552r_trigger_hw_ldac(struct gpio_desc *ldac)
 static int ad3552r_write_all_channels(struct ad3552r_desc *dac, u8 *data)
 {
 	int err, len;
-	u8 addr, buff[AD3552R_NUM_CH * AD3552R_MAX_REG_SIZE + 1];
+	u8 addr, buff[AD3552R_MAX_CH * AD3552R_MAX_REG_SIZE + 1];
 
 	addr = AD3552R_REG_ADDR_CH_INPUT_24B(1);
 	/* CH1 */
@@ -586,7 +597,7 @@ static irqreturn_t ad3552r_trigger_handler(int irq, void *p)
 	struct iio_buffer *buf = indio_dev->buffer;
 	struct ad3552r_desc *dac = iio_priv(indio_dev);
 	/* Maximum size of a scan */
-	u8 buff[AD3552R_NUM_CH * AD3552R_MAX_REG_SIZE];
+	u8 buff[AD3552R_MAX_CH * AD3552R_MAX_REG_SIZE];
 	int err;
 
 	memset(buff, 0, sizeof(buff));
@@ -745,13 +756,8 @@ static void ad3552r_calc_gain_and_offset(struct ad3552r_desc *dac, s32 ch)
 	} else {
 		/* Normal range */
 		idx = dac->ch_data[ch].range;
-		if (dac->chip_id == AD3542R_ID) {
-			v_min = ad3542r_ch_ranges[idx][0];
-			v_max = ad3542r_ch_ranges[idx][1];
-		} else {
-			v_min = ad3552r_ch_ranges[idx][0];
-			v_max = ad3552r_ch_ranges[idx][1];
-		}
+		v_min = dac->model_data->ranges_table[idx][0];
+		v_max = dac->model_data->ranges_table[idx][1];
 	}
 
 	/*
@@ -775,22 +781,14 @@ static void ad3552r_calc_gain_and_offset(struct ad3552r_desc *dac, s32 ch)
 	dac->ch_data[ch].offset_dec = div_s64(tmp, span);
 }
 
-static int ad3552r_find_range(u16 id, s32 *vals)
+static int ad3552r_find_range(const struct ad3552r_model_data *model_data,
+			      s32 *vals)
 {
-	int i, len;
-	const s32 (*ranges)[2];
+	int i;
 
-	if (id == AD3542R_ID) {
-		len = ARRAY_SIZE(ad3542r_ch_ranges);
-		ranges = ad3542r_ch_ranges;
-	} else {
-		len = ARRAY_SIZE(ad3552r_ch_ranges);
-		ranges = ad3552r_ch_ranges;
-	}
-
-	for (i = 0; i < len; i++)
-		if (vals[0] == ranges[i][0] * 1000 &&
-		    vals[1] == ranges[i][1] * 1000)
+	for (i = 0; i < model_data->num_ranges; i++)
+		if (vals[0] == model_data->ranges_table[i][0] * 1000 &&
+		    vals[1] == model_data->ranges_table[i][1] * 1000)
 			return i;
 
 	return -EINVAL;
@@ -859,15 +857,9 @@ static int ad3552r_configure_custom_gain(struct ad3552r_desc *dac,
 	return 0;
 }
 
-static void ad3552r_reg_disable(void *reg)
-{
-	regulator_disable(reg);
-}
-
 static int ad3552r_configure_device(struct ad3552r_desc *dac)
 {
 	struct device *dev = &dac->spi->dev;
-	struct regulator *vref;
 	int err, cnt = 0, voltage, delta = 100000;
 	u32 vals[2], val, ch;
 
@@ -876,30 +868,16 @@ static int ad3552r_configure_device(struct ad3552r_desc *dac)
 		return dev_err_probe(dev, PTR_ERR(dac->gpio_ldac),
 				     "Error getting gpio ldac");
 
-	vref = devm_regulator_get_optional(dev, "vref");
-	if (IS_ERR(vref)) {
-		if (PTR_ERR(vref) != -ENODEV)
-			return dev_err_probe(dev, PTR_ERR(vref),
-					     "Error getting vref");
+	voltage = devm_regulator_get_enable_read_voltage(dev, "vref");
+	if (voltage < 0 && voltage != -ENODEV)
+		return dev_err_probe(dev, voltage, "Error getting vref voltage\n");
 
+	if (voltage == -ENODEV) {
 		if (device_property_read_bool(dev, "adi,vref-out-en"))
 			val = AD3552R_INTERNAL_VREF_PIN_2P5V;
 		else
 			val = AD3552R_INTERNAL_VREF_PIN_FLOATING;
 	} else {
-		err = regulator_enable(vref);
-		if (err) {
-			dev_err(dev, "Failed to enable external vref supply\n");
-			return err;
-		}
-
-		err = devm_add_action_or_reset(dev, ad3552r_reg_disable, vref);
-		if (err) {
-			regulator_disable(vref);
-			return err;
-		}
-
-		voltage = regulator_get_voltage(vref);
 		if (voltage > 2500000 + delta || voltage < 2500000 - delta) {
 			dev_warn(dev, "vref-supply must be 2.5V");
 			return -EINVAL;
@@ -940,10 +918,10 @@ static int ad3552r_configure_device(struct ad3552r_desc *dac)
 		if (err)
 			return dev_err_probe(dev, err,
 					     "mandatory reg property missing\n");
-		if (ch >= AD3552R_NUM_CH)
+		if (ch >= dac->model_data->num_hw_channels)
 			return dev_err_probe(dev, -EINVAL,
 					     "reg must be less than %d\n",
-					     AD3552R_NUM_CH);
+					     dac->model_data->num_hw_channels);
 
 		if (fwnode_property_present(child, "adi,output-range-microvolt")) {
 			err = fwnode_property_read_u32_array(child,
@@ -954,7 +932,7 @@ static int ad3552r_configure_device(struct ad3552r_desc *dac)
 				return dev_err_probe(dev, err,
 					"adi,output-range-microvolt property could not be parsed\n");
 
-			err = ad3552r_find_range(dac->chip_id, vals);
+			err = ad3552r_find_range(dac->model_data, vals);
 			if (err < 0)
 				return dev_err_probe(dev, err,
 						     "Invalid adi,output-range-microvolt value\n");
@@ -967,9 +945,10 @@ static int ad3552r_configure_device(struct ad3552r_desc *dac)
 				return err;
 
 			dac->ch_data[ch].range = val;
-		} else if (dac->chip_id == AD3542R_ID) {
+		} else if (dac->model_data->requires_output_range) {
 			return dev_err_probe(dev, -EINVAL,
-					     "adi,output-range-microvolt is required for ad3542r\n");
+					     "adi,output-range-microvolt is required for %s\n",
+					     dac->model_data->model_name);
 		} else {
 			err = ad3552r_configure_custom_gain(dac, child, ch);
 			if (err)
@@ -989,7 +968,8 @@ static int ad3552r_configure_device(struct ad3552r_desc *dac)
 	}
 
 	/* Disable unused channels */
-	for_each_clear_bit(ch, &dac->enabled_ch, AD3552R_NUM_CH) {
+	for_each_clear_bit(ch, &dac->enabled_ch,
+			   dac->model_data->num_hw_channels) {
 		err = ad3552r_set_ch_value(dac, AD3552R_CH_AMPLIFIER_POWERDOWN,
 					   ch, 1);
 		if (err)
@@ -1032,7 +1012,7 @@ static int ad3552r_init(struct ad3552r_desc *dac)
 	}
 
 	id |= val << 8;
-	if (id != dac->chip_id) {
+	if (id != dac->model_data->chip_id) {
 		dev_err(&dac->spi->dev, "Product id not matching\n");
 		return -ENODEV;
 	}
@@ -1042,7 +1022,6 @@ static int ad3552r_init(struct ad3552r_desc *dac)
 
 static int ad3552r_probe(struct spi_device *spi)
 {
-	const struct spi_device_id *id = spi_get_device_id(spi);
 	struct ad3552r_desc *dac;
 	struct iio_dev *indio_dev;
 	int err;
@@ -1053,7 +1032,9 @@ static int ad3552r_probe(struct spi_device *spi)
 
 	dac = iio_priv(indio_dev);
 	dac->spi = spi;
-	dac->chip_id = id->driver_data;
+	dac->model_data = spi_get_device_match_data(spi);
+	if (!dac->model_data)
+		return -EINVAL;
 
 	mutex_init(&dac->lock);
 
@@ -1062,10 +1043,7 @@ static int ad3552r_probe(struct spi_device *spi)
 		return err;
 
 	/* Config triggered buffer device */
-	if (dac->chip_id == AD3552R_ID)
-		indio_dev->name = "ad3552r";
-	else
-		indio_dev->name = "ad3542r";
+	indio_dev->name = dac->model_data->model_name;
 	indio_dev->dev.parent = &spi->dev;
 	indio_dev->info = &ad3552r_iio_info;
 	indio_dev->num_channels = dac->num_ch;
@@ -1083,16 +1061,68 @@ static int ad3552r_probe(struct spi_device *spi)
 	return devm_iio_device_register(&spi->dev, indio_dev);
 }
 
+static const struct ad3552r_model_data ad3541r_model_data = {
+	.model_name = "ad3541r",
+	.chip_id = AD3541R_ID,
+	.num_hw_channels = 1,
+	.ranges_table = ad3542r_ch_ranges,
+	.num_ranges = ARRAY_SIZE(ad3542r_ch_ranges),
+	.requires_output_range = true,
+};
+
+static const struct ad3552r_model_data ad3542r_model_data = {
+	.model_name = "ad3542r",
+	.chip_id = AD3542R_ID,
+	.num_hw_channels = 2,
+	.ranges_table = ad3542r_ch_ranges,
+	.num_ranges = ARRAY_SIZE(ad3542r_ch_ranges),
+	.requires_output_range = true,
+};
+
+static const struct ad3552r_model_data ad3551r_model_data = {
+	.model_name = "ad3551r",
+	.chip_id = AD3551R_ID,
+	.num_hw_channels = 1,
+	.ranges_table = ad3552r_ch_ranges,
+	.num_ranges = ARRAY_SIZE(ad3552r_ch_ranges),
+	.requires_output_range = false,
+};
+
+static const struct ad3552r_model_data ad3552r_model_data = {
+	.model_name = "ad3552r",
+	.chip_id = AD3552R_ID,
+	.num_hw_channels = 2,
+	.ranges_table = ad3552r_ch_ranges,
+	.num_ranges = ARRAY_SIZE(ad3552r_ch_ranges),
+	.requires_output_range = false,
+};
+
 static const struct spi_device_id ad3552r_id[] = {
-	{ "ad3542r", AD3542R_ID },
-	{ "ad3552r", AD3552R_ID },
+	{
+		.name = "ad3541r",
+		.driver_data = (kernel_ulong_t)&ad3541r_model_data
+	},
+	{
+		.name = "ad3542r",
+		.driver_data = (kernel_ulong_t)&ad3542r_model_data
+	},
+	{
+		.name = "ad3551r",
+		.driver_data = (kernel_ulong_t)&ad3551r_model_data
+	},
+	{
+		.name = "ad3552r",
+		.driver_data = (kernel_ulong_t)&ad3552r_model_data
+	},
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, ad3552r_id);
 
 static const struct of_device_id ad3552r_of_match[] = {
-	{ .compatible = "adi,ad3542r"},
-	{ .compatible = "adi,ad3552r"},
+	{ .compatible = "adi,ad3541r", .data = &ad3541r_model_data },
+	{ .compatible = "adi,ad3542r", .data = &ad3542r_model_data },
+	{ .compatible = "adi,ad3551r", .data = &ad3551r_model_data },
+	{ .compatible = "adi,ad3552r", .data = &ad3552r_model_data },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, ad3552r_of_match);

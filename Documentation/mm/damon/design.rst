@@ -16,53 +16,24 @@ called DAMON ``context``.  DAMON executes each context with a kernel thread
 called ``kdamond``.  Multiple kdamonds could run in parallel, for different
 types of monitoring.
 
+To know how user-space can do the configurations and start/stop DAMON, refer to
+:ref:`DAMON sysfs interface <sysfs_interface>` documentation.
+
 
 Overall Architecture
 ====================
 
 DAMON subsystem is configured with three layers including
 
-- Operations Set: Implements fundamental operations for DAMON that depends on
-  the given monitoring target address-space and available set of
-  software/hardware primitives,
-- Core: Implements core logics including monitoring overhead/accurach control
-  and access-aware system operations on top of the operations set layer, and
-- Modules: Implements kernel modules for various purposes that provides
-  interfaces for the user space, on top of the core layer.
-
-
-.. _damon_design_configurable_operations_set:
-
-Configurable Operations Set
----------------------------
-
-For data access monitoring and additional low level work, DAMON needs a set of
-implementations for specific operations that are dependent on and optimized for
-the given target address space.  On the other hand, the accuracy and overhead
-tradeoff mechanism, which is the core logic of DAMON, is in the pure logic
-space.  DAMON separates the two parts in different layers, namely DAMON
-Operations Set and DAMON Core Logics Layers, respectively.  It further defines
-the interface between the layers to allow various operations sets to be
-configured with the core logic.
-
-Due to this design, users can extend DAMON for any address space by configuring
-the core logic to use the appropriate operations set.  If any appropriate set
-is unavailable, users can implement one on their own.
-
-For example, physical memory, virtual memory, swap space, those for specific
-processes, NUMA nodes, files, and backing memory devices would be supportable.
-Also, if some architectures or devices supporting special optimized access
-check primitives, those will be easily configurable.
-
-
-Programmable Modules
---------------------
-
-Core layer of DAMON is implemented as a framework, and exposes its application
-programming interface to all kernel space components such as subsystems and
-modules.  For common use cases of DAMON, DAMON subsystem provides kernel
-modules that built on top of the core layer using the API, which can be easily
-used by the user space end users.
+- :ref:`Operations Set <damon_operations_set>`: Implements fundamental
+  operations for DAMON that depends on the given monitoring target
+  address-space and available set of software/hardware primitives,
+- :ref:`Core <damon_core_logic>`: Implements core logics including monitoring
+  overhead/accuracy control and access-aware system operations on top of the
+  operations set layer, and
+- :ref:`Modules <damon_modules>`: Implements kernel modules for various
+  purposes that provides interfaces for the user space, on top of the core
+  layer.
 
 
 .. _damon_operations_set:
@@ -70,10 +41,31 @@ used by the user space end users.
 Operations Set Layer
 ====================
 
-The monitoring operations are defined in two parts:
+.. _damon_design_configurable_operations_set:
+
+For data access monitoring and additional low level work, DAMON needs a set of
+implementations for specific operations that are dependent on and optimized for
+the given target address space.  For example, below two operations for access
+monitoring are address-space dependent.
 
 1. Identification of the monitoring target address range for the address space.
 2. Access check of specific address range in the target space.
+
+DAMON consolidates these implementations in a layer called DAMON Operations
+Set, and defines the interface between it and the upper layer.  The upper layer
+is dedicated for DAMON's core logics including the mechanism for control of the
+monitoring accruracy and the overhead.
+
+Hence, DAMON can easily be extended for any address space and/or available
+hardware features by configuring the core logic to use the appropriate
+operations set.  If there is no available operations set for a given purpose, a
+new operations set can be implemented following the interface between the
+layers.
+
+For example, physical memory, virtual memory, swap space, those for specific
+processes, NUMA nodes, files, and backing memory devices would be supportable.
+Also, if some architectures or devices support special optimized access check
+features, those will be easily configurable.
 
 DAMON currently provides below three operation sets.  Below two subsections
 describe how those work.
@@ -81,6 +73,10 @@ describe how those work.
  - vaddr: Monitor virtual address spaces of specific processes
  - fvaddr: Monitor fixed virtual address ranges
  - paddr: Monitor the physical address space of the system
+
+To know how user-space can do the configuration via :ref:`DAMON sysfs interface
+<sysfs_interface>`, refer to :ref:`operations <sysfs_context>` file part of the
+documentation.
 
 
  .. _damon_design_vaddr_target_regions_construction:
@@ -140,9 +136,12 @@ conflict with the reclaim logic using ``PG_idle`` and ``PG_young`` page flags,
 as Idle page tracking does.
 
 
+.. _damon_core_logic:
+
 Core Logics
 ===========
 
+.. _damon_design_monitoring:
 
 Monitoring
 ----------
@@ -151,6 +150,10 @@ Below four sections describe each of the DAMON core mechanisms and the five
 monitoring attributes, ``sampling interval``, ``aggregation interval``,
 ``update interval``, ``minimum number of regions``, and ``maximum number of
 regions``.
+
+To know how user-space can set the attributes via :ref:`DAMON sysfs interface
+<sysfs_interface>`, refer to :ref:`monitoring_attrs <sysfs_monitoring_attrs>`
+part of the documentation.
 
 
 Access Frequency Monitoring
@@ -192,7 +195,7 @@ one page in the region is required to be checked.  Thus, for each ``sampling
 interval``, DAMON randomly picks one page in each region, waits for one
 ``sampling interval``, checks whether the page is accessed meanwhile, and
 increases the access frequency counter of the region if so.  The counter is
-called ``nr_regions`` of the region.  Therefore, the monitoring overhead is
+called ``nr_accesses`` of the region.  Therefore, the monitoring overhead is
 controllable by setting the number of regions.  DAMON allows users to set the
 minimum and the maximum number of regions for the trade-off.
 
@@ -209,11 +212,18 @@ the data access pattern can be dynamically changed.  This will result in low
 monitoring quality.  To keep the assumption as much as possible, DAMON
 adaptively merges and splits each region based on their access frequency.
 
-For each ``aggregation interval``, it compares the access frequencies of
-adjacent regions and merges those if the frequency difference is small.  Then,
-after it reports and clears the aggregated access frequency of each region, it
-splits each region into two or three regions if the total number of regions
-will not exceed the user-specified maximum number of regions after the split.
+For each ``aggregation interval``, it compares the access frequencies
+(``nr_accesses``) of adjacent regions.  If the difference is small, and if the
+sum of the two regions' sizes is smaller than the size of total regions divided
+by the ``minimum number of regions``, DAMON merges the two regions.  If the
+resulting number of total regions is still higher than ``maximum number of
+regions``, it repeats the merging with increasing access frequenceis difference
+threshold until the upper-limit of the number of regions is met, or the
+threshold becomes higher than possible maximum value (``aggregation interval``
+divided by ``sampling interval``).   Then, after it reports and clears the
+aggregated access frequency of each region, it splits each region into two or
+three regions if the total number of regions will not exceed the user-specified
+maximum number of regions after the split.
 
 In this way, DAMON provides its best-effort quality and minimal overhead while
 keeping the bounds users set for their trade-off.
@@ -247,6 +257,11 @@ monitoring operations to check dynamic changes including memory mapping changes
 and applies it to monitoring operations-related data structures such as the
 abstracted monitoring target memory area only for each of a user-specified time
 interval (``update interval``).
+
+User-space can get the monitoring results via DAMON sysfs interface and/or
+tracepoints.  For more details, please refer to the documentations for
+:ref:`DAMOS tried regions <sysfs_schemes_tried_regions>` and :ref:`tracepoint`,
+respectively.
 
 
 .. _damon_design_damos:
@@ -288,6 +303,10 @@ the access pattern of interest, and applies the user-desired operation actions
 to the regions, for every user-specified time interval called
 ``apply_interval``.
 
+To know how user-space can set ``apply_interval`` via :ref:`DAMON sysfs
+interface <sysfs_interface>`, refer to :ref:`apply_interval_us <sysfs_scheme>`
+part of the documentation.
+
 
 .. _damon_design_damos_action:
 
@@ -325,12 +344,20 @@ that supports each action are as below.
    Supported by ``paddr`` operations set.
  - ``lru_deprio``: Deprioritize the region on its LRU lists.
    Supported by ``paddr`` operations set.
+ - ``migrate_hot``: Migrate the regions prioritizing warmer regions.
+   Supported by ``paddr`` operations set.
+ - ``migrate_cold``: Migrate the regions prioritizing colder regions.
+   Supported by ``paddr`` operations set.
  - ``stat``: Do nothing but count the statistics.
    Supported by all operations sets.
 
 Applying the actions except ``stat`` to a region is considered as changing the
 region's characteristics.  Hence, DAMOS resets the age of regions when any such
 actions are applied to those.
+
+To know how user-space can set the action via :ref:`DAMON sysfs interface
+<sysfs_interface>`, refer to :ref:`action <sysfs_scheme>` part of the
+documentation.
 
 
 .. _damon_design_damos_access_pattern:
@@ -344,6 +371,10 @@ the access frequency, and the age.  Users can describe their access pattern of
 interest by setting minimum and maximum values of the three properties.  If a
 region's three properties are in the ranges, DAMOS classifies it as one of the
 regions that the scheme is having an interest in.
+
+To know how user-space can set the access pattern via :ref:`DAMON sysfs
+interface <sysfs_interface>`, refer to :ref:`access_pattern
+<sysfs_access_pattern>` part of the documentation.
 
 
 .. _damon_design_damos_quotas:
@@ -363,6 +394,10 @@ To mitigate that situation, DAMOS provides an upper-bound overhead control
 feature called quotas.  It lets users specify an upper limit of time that DAMOS
 can use for applying the action, and/or a maximum bytes of memory regions that
 the action can be applied within a user-specified time duration.
+
+To know how user-space can set the basic quotas via :ref:`DAMON sysfs interface
+<sysfs_interface>`, refer to :ref:`quotas <sysfs_quotas>` part of the
+documentation.
 
 
 .. _damon_design_damos_quotas_prioritization:
@@ -390,6 +425,10 @@ to specify the weight of each access pattern property and passes the
 information to the underlying mechanism.  Nevertheless, how and even whether
 the weight will be respected are up to the underlying prioritization mechanism
 implementation.
+
+To know how user-space can set the prioritization weights via :ref:`DAMON sysfs
+interface <sysfs_interface>`, refer to :ref:`weights <sysfs_quotas>` part of
+the documentation.
 
 
 .. _damon_design_damos_quotas_auto_tuning:
@@ -420,6 +459,10 @@ Currently, two ``target_metric`` are provided.
   DAMOS does the measurement on its own, so only ``target_value`` need to be
   set by users at the initial time.  In other words, DAMOS does self-feedback.
 
+To know how user-space can set the tuning goal metric, the target value, and/or
+the current value via :ref:`DAMON sysfs interface <sysfs_interface>`, refer to
+:ref:`quota goals <sysfs_schemes_quota_goals>` part of the documentation.
+
 
 .. _damon_design_damos_watermarks:
 
@@ -441,6 +484,10 @@ metric becomes below the mid watermark but above the low watermark, the scheme
 is activated.  If all schemes are deactivated by the watermarks, the monitoring
 is also deactivated.  In this case, the DAMON worker thread only periodically
 checks the watermarks and therefore incurs nearly zero overhead.
+
+To know how user-space can set the watermarks via :ref:`DAMON sysfs interface
+<sysfs_interface>`, refer to :ref:`watermarks <sysfs_watermarks>` part of the
+documentation.
 
 
 .. _damon_design_damos_filters:
@@ -488,6 +535,10 @@ Below types of filters are currently supported.
     - Applied to pages that belonging to a given DAMON monitoring target.
     - Handled by the core logic.
 
+To know how user-space can set the watermarks via :ref:`DAMON sysfs interface
+<sysfs_interface>`, refer to :ref:`filters <sysfs_filters>` part of the
+documentation.
+
 
 Application Programming Interface
 ---------------------------------
@@ -500,6 +551,8 @@ its all features to other kernel components via its application programming
 interface, namely ``include/linux/damon.h``.  Please refer to the API
 :doc:`document </mm/damon/api>` for details of the interface.
 
+
+.. _damon_modules:
 
 Modules
 =======

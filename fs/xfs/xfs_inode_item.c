@@ -37,6 +37,36 @@ xfs_inode_item_sort(
 	return INODE_ITEM(lip)->ili_inode->i_ino;
 }
 
+#ifdef DEBUG_EXPENSIVE
+static void
+xfs_inode_item_precommit_check(
+	struct xfs_inode	*ip)
+{
+	struct xfs_mount	*mp = ip->i_mount;
+	struct xfs_dinode	*dip;
+	xfs_failaddr_t		fa;
+
+	dip = kzalloc(mp->m_sb.sb_inodesize, GFP_KERNEL | GFP_NOFS);
+	if (!dip) {
+		ASSERT(dip != NULL);
+		return;
+	}
+
+	xfs_inode_to_disk(ip, dip, 0);
+	xfs_dinode_calc_crc(mp, dip);
+	fa = xfs_dinode_verify(mp, ip->i_ino, dip);
+	if (fa) {
+		xfs_inode_verifier_error(ip, -EFSCORRUPTED, __func__, dip,
+				sizeof(*dip), fa);
+		xfs_force_shutdown(mp, SHUTDOWN_CORRUPT_INCORE);
+		ASSERT(fa == NULL);
+	}
+	kfree(dip);
+}
+#else
+# define xfs_inode_item_precommit_check(ip)	((void)0)
+#endif
+
 /*
  * Prior to finally logging the inode, we have to ensure that all the
  * per-modification inode state changes are applied. This includes VFS inode
@@ -168,6 +198,8 @@ xfs_inode_item_precommit(
 	 */
 	iip->ili_fields |= (flags | iip->ili_last_fields);
 	spin_unlock(&iip->ili_lock);
+
+	xfs_inode_item_precommit_check(ip);
 
 	/*
 	 * We are done with the log item transaction dirty state, so clear it so
@@ -933,6 +965,7 @@ xfs_iflush_finish(
 		}
 		iip->ili_last_fields = 0;
 		iip->ili_flush_lsn = 0;
+		clear_bit(XFS_LI_FLUSHING, &lip->li_flags);
 		spin_unlock(&iip->ili_lock);
 		xfs_iflags_clear(iip->ili_inode, XFS_IFLUSHING);
 		if (drop_buffer)
@@ -991,8 +1024,10 @@ xfs_buf_inode_io_fail(
 {
 	struct xfs_log_item	*lip;
 
-	list_for_each_entry(lip, &bp->b_li_list, li_bio_list)
+	list_for_each_entry(lip, &bp->b_li_list, li_bio_list) {
 		set_bit(XFS_LI_FAILED, &lip->li_flags);
+		clear_bit(XFS_LI_FLUSHING, &lip->li_flags);
+	}
 }
 
 /*
@@ -1011,6 +1046,7 @@ xfs_iflush_abort_clean(
 	iip->ili_flush_lsn = 0;
 	iip->ili_item.li_buf = NULL;
 	list_del_init(&iip->ili_item.li_bio_list);
+	clear_bit(XFS_LI_FLUSHING, &iip->ili_item.li_flags);
 }
 
 /*

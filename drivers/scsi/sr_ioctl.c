@@ -431,7 +431,7 @@ int sr_select_speed(struct cdrom_device_info *cdi, unsigned long speed)
 	struct packet_command cgc;
 
 	/* avoid exceeding the max speed or overflowing integer bounds */
-	speed = clamp(0, speed, 0xffff / 177);
+	speed = clamp(speed, 0, 0xffff / 177);
 
 	if (speed == 0)
 		speed = 0xffff;	/* set to max */

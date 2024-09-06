@@ -10,7 +10,7 @@
 # specified in KDEB_HOOKDIR) that will be called on package install and
 # removal.
 
-set -e
+set -eu
 
 is_enabled() {
 	grep -q "^$1=y" include/config/auto.conf

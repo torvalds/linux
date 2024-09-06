@@ -142,7 +142,7 @@ static void scale_line(const u8 *src, u8 *dst, unsigned srcw, unsigned dstw, uns
  * (loop_vid_overlay). Finally calculate the part of the capture buffer that
  * will receive that overlaid video.
  */
-static void vivid_precalc_copy_rects(struct vivid_dev *dev)
+static void vivid_precalc_copy_rects(struct vivid_dev *dev, struct vivid_dev *out_dev)
 {
 	/* Framebuffer rectangle */
 	struct v4l2_rect r_fb = {
@@ -150,16 +150,16 @@ static void vivid_precalc_copy_rects(struct vivid_dev *dev)
 	};
 	/* Overlay window rectangle in framebuffer coordinates */
 	struct v4l2_rect r_overlay = {
-		dev->overlay_out_left, dev->overlay_out_top,
-		dev->compose_out.width, dev->compose_out.height
+		out_dev->overlay_out_left, out_dev->overlay_out_top,
+		out_dev->compose_out.width, out_dev->compose_out.height
 	};
 
-	v4l2_rect_intersect(&dev->loop_vid_copy, &dev->crop_cap, &dev->compose_out);
+	v4l2_rect_intersect(&dev->loop_vid_copy, &dev->crop_cap, &out_dev->compose_out);
 
 	dev->loop_vid_out = dev->loop_vid_copy;
-	v4l2_rect_scale(&dev->loop_vid_out, &dev->compose_out, &dev->crop_out);
-	dev->loop_vid_out.left += dev->crop_out.left;
-	dev->loop_vid_out.top += dev->crop_out.top;
+	v4l2_rect_scale(&dev->loop_vid_out, &out_dev->compose_out, &out_dev->crop_out);
+	dev->loop_vid_out.left += out_dev->crop_out.left;
+	dev->loop_vid_out.top += out_dev->crop_out.top;
 
 	dev->loop_vid_cap = dev->loop_vid_copy;
 	v4l2_rect_scale(&dev->loop_vid_cap, &dev->crop_cap, &dev->compose_cap);
@@ -176,15 +176,15 @@ static void vivid_precalc_copy_rects(struct vivid_dev *dev)
 	v4l2_rect_intersect(&r_overlay, &r_fb, &r_overlay);
 
 	/* shift r_overlay to the same origin as compose_out */
-	r_overlay.left += dev->compose_out.left - dev->overlay_out_left;
-	r_overlay.top += dev->compose_out.top - dev->overlay_out_top;
+	r_overlay.left += out_dev->compose_out.left - out_dev->overlay_out_left;
+	r_overlay.top += out_dev->compose_out.top - out_dev->overlay_out_top;
 
 	v4l2_rect_intersect(&dev->loop_vid_overlay, &r_overlay, &dev->loop_vid_copy);
 	dev->loop_fb_copy = dev->loop_vid_overlay;
 
 	/* shift dev->loop_fb_copy back again to the fb origin */
-	dev->loop_fb_copy.left -= dev->compose_out.left - dev->overlay_out_left;
-	dev->loop_fb_copy.top -= dev->compose_out.top - dev->overlay_out_top;
+	dev->loop_fb_copy.left -= out_dev->compose_out.left - out_dev->overlay_out_left;
+	dev->loop_fb_copy.top -= out_dev->compose_out.top - out_dev->overlay_out_top;
 
 	dev->loop_vid_overlay_cap = dev->loop_vid_overlay;
 	v4l2_rect_scale(&dev->loop_vid_overlay_cap, &dev->crop_cap, &dev->compose_cap);
@@ -213,24 +213,25 @@ static void *plane_vaddr(struct tpg_data *tpg, struct vivid_buffer *buf,
 	return vbuf;
 }
 
-static noinline_for_stack int vivid_copy_buffer(struct vivid_dev *dev, unsigned p,
-		u8 *vcapbuf, struct vivid_buffer *vid_cap_buf)
+static noinline_for_stack int vivid_copy_buffer(struct vivid_dev *dev,
+						struct vivid_dev *out_dev, unsigned p,
+						u8 *vcapbuf, struct vivid_buffer *vid_cap_buf)
 {
 	bool blank = dev->must_blank[vid_cap_buf->vb.vb2_buf.index];
 	struct tpg_data *tpg = &dev->tpg;
 	struct vivid_buffer *vid_out_buf = NULL;
-	unsigned vdiv = dev->fmt_out->vdownsampling[p];
+	unsigned vdiv = out_dev->fmt_out->vdownsampling[p];
 	unsigned twopixsize = tpg_g_twopixelsize(tpg, p);
 	unsigned img_width = tpg_hdiv(tpg, p, dev->compose_cap.width);
 	unsigned img_height = dev->compose_cap.height;
 	unsigned stride_cap = tpg->bytesperline[p];
-	unsigned stride_out = dev->bytesperline_out[p];
+	unsigned stride_out = out_dev->bytesperline_out[p];
 	unsigned stride_osd = dev->display_byte_stride;
 	unsigned hmax = (img_height * tpg->perc_fill) / 100;
 	u8 *voutbuf;
 	u8 *vosdbuf = NULL;
 	unsigned y;
-	bool blend = dev->fbuf_out_flags;
+	bool blend = out_dev->fbuf_out_flags;
 	/* Coarse scaling with Bresenham */
 	unsigned vid_out_int_part;
 	unsigned vid_out_fract_part;
@@ -247,8 +248,8 @@ static noinline_for_stack int vivid_copy_buffer(struct vivid_dev *dev, unsigned 
 	vid_out_int_part = dev->loop_vid_out.height / dev->loop_vid_cap.height;
 	vid_out_fract_part = dev->loop_vid_out.height % dev->loop_vid_cap.height;
 
-	if (!list_empty(&dev->vid_out_active))
-		vid_out_buf = list_entry(dev->vid_out_active.next,
+	if (!list_empty(&out_dev->vid_out_active))
+		vid_out_buf = list_entry(out_dev->vid_out_active.next,
 					 struct vivid_buffer, list);
 	if (vid_out_buf == NULL)
 		return -ENODATA;
@@ -256,8 +257,8 @@ static noinline_for_stack int vivid_copy_buffer(struct vivid_dev *dev, unsigned 
 	vid_cap_buf->vb.field = vid_out_buf->vb.field;
 
 	voutbuf = plane_vaddr(tpg, vid_out_buf, p,
-			      dev->bytesperline_out, dev->fmt_out_rect.height);
-	if (p < dev->fmt_out->buffers)
+			      out_dev->bytesperline_out, out_dev->fmt_out_rect.height);
+	if (p < out_dev->fmt_out->buffers)
 		voutbuf += vid_out_buf->vb.vb2_buf.planes[p].data_offset;
 	voutbuf += tpg_hdiv(tpg, p, dev->loop_vid_out.left) +
 		(dev->loop_vid_out.top / vdiv) * stride_out;
@@ -274,7 +275,7 @@ static noinline_for_stack int vivid_copy_buffer(struct vivid_dev *dev, unsigned 
 		return 0;
 	}
 
-	if (dev->overlay_out_enabled &&
+	if (out_dev->overlay_out_enabled &&
 	    dev->loop_vid_overlay.width && dev->loop_vid_overlay.height) {
 		vosdbuf = dev->video_vbase;
 		vosdbuf += (dev->loop_fb_copy.left * twopixsize) / 2 +
@@ -385,6 +386,7 @@ update_vid_out_y:
 
 static void vivid_fillbuff(struct vivid_dev *dev, struct vivid_buffer *buf)
 {
+	struct vivid_dev *out_dev = NULL;
 	struct tpg_data *tpg = &dev->tpg;
 	unsigned factor = V4L2_FIELD_HAS_T_OR_B(dev->field_cap) ? 2 : 1;
 	unsigned line_height = 16 / factor;
@@ -396,14 +398,6 @@ static void vivid_fillbuff(struct vivid_dev *dev, struct vivid_buffer *buf)
 	unsigned ms;
 	char str[100];
 	s32 gain;
-	bool is_loop = false;
-
-	if (dev->loop_video && dev->can_loop_video &&
-		((vivid_is_svid_cap(dev) &&
-		!VIVID_INVALID_SIGNAL(dev->std_signal_mode[dev->input])) ||
-		(vivid_is_hdmi_cap(dev) &&
-		!VIVID_INVALID_SIGNAL(dev->dv_timings_signal_mode[dev->input]))))
-		is_loop = true;
 
 	buf->vb.sequence = dev->vid_cap_seq_count;
 	v4l2_ctrl_s_ctrl(dev->ro_int32, buf->vb.sequence & 0xff);
@@ -428,7 +422,34 @@ static void vivid_fillbuff(struct vivid_dev *dev, struct vivid_buffer *buf)
 		    dev->field_cap == V4L2_FIELD_ALTERNATE);
 	tpg_s_perc_fill_blank(tpg, dev->must_blank[buf->vb.vb2_buf.index]);
 
-	vivid_precalc_copy_rects(dev);
+	if (vivid_vid_can_loop(dev) &&
+	    ((vivid_is_svid_cap(dev) &&
+	    !VIVID_INVALID_SIGNAL(dev->std_signal_mode[dev->input])) ||
+	    (vivid_is_hdmi_cap(dev) &&
+	    !VIVID_INVALID_SIGNAL(dev->dv_timings_signal_mode[dev->input])))) {
+		out_dev = vivid_input_is_connected_to(dev);
+		/*
+		 * If the vivid instance of the output device is different
+		 * from the vivid instance of this input device, then we
+		 * must take care to properly serialize the output device to
+		 * prevent that the buffer we are copying from is being freed.
+		 *
+		 * If the output device is part of the same instance, then the
+		 * lock is already taken and there is no need to take the mutex.
+		 *
+		 * The problem with taking the mutex is that you can get
+		 * deadlocked if instance A locks instance B and vice versa.
+		 * It is not really worth trying to be very smart about this,
+		 * so just try to take the lock, and if you can't, then just
+		 * set out_dev to NULL and you will end up with a single frame
+		 * of Noise (the default test pattern in this case).
+		 */
+		if (out_dev && dev != out_dev && !mutex_trylock(&out_dev->mutex))
+			out_dev = NULL;
+	}
+
+	if (out_dev)
+		vivid_precalc_copy_rects(dev, out_dev);
 
 	for (p = 0; p < tpg_g_planes(tpg); p++) {
 		void *vbuf = plane_vaddr(tpg, buf, p,
@@ -445,10 +466,13 @@ static void vivid_fillbuff(struct vivid_dev *dev, struct vivid_buffer *buf)
 			vbuf += dev->fmt_cap->data_offset[p];
 		}
 		tpg_calc_text_basep(tpg, basep, p, vbuf);
-		if (!is_loop || vivid_copy_buffer(dev, p, vbuf, buf))
+		if (!out_dev || vivid_copy_buffer(dev, out_dev, p, vbuf, buf))
 			tpg_fill_plane_buffer(tpg, vivid_get_std_cap(dev),
 					p, vbuf);
 	}
+	if (out_dev && dev != out_dev)
+		mutex_unlock(&out_dev->mutex);
+
 	dev->must_blank[buf->vb.vb2_buf.index] = false;
 
 	/* Updates stream time, only update at the start of a new frame. */

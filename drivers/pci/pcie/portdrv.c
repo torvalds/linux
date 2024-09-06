@@ -786,7 +786,7 @@ static const struct pci_error_handlers pcie_portdrv_err_handler = {
 
 static struct pci_driver pcie_portdriver = {
 	.name		= "pcieport",
-	.id_table	= &port_pci_ids[0],
+	.id_table	= port_pci_ids,
 
 	.probe		= pcie_portdrv_probe,
 	.remove		= pcie_portdrv_remove,

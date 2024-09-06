@@ -1040,4 +1040,5 @@ static void __exit cleanup_encrypted(void)
 late_initcall(init_encrypted);
 module_exit(cleanup_encrypted);
 
+MODULE_DESCRIPTION("Encrypted key type");
 MODULE_LICENSE("GPL");

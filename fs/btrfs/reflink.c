@@ -733,7 +733,7 @@ static noinline int btrfs_clone_files(struct file *file, struct file *file_src,
 		 * we found the previous extent covering eof and before we
 		 * attempted to increment its reference count).
 		 */
-		ret = btrfs_wait_ordered_range(inode, wb_start,
+		ret = btrfs_wait_ordered_range(BTRFS_I(inode), wb_start,
 					       destoff - wb_start);
 		if (ret)
 			return ret;
@@ -755,7 +755,7 @@ static noinline int btrfs_clone_files(struct file *file, struct file *file_src,
 	 * range, so wait for writeback to complete before truncating pages
 	 * from the page cache. This is a rare case.
 	 */
-	wb_ret = btrfs_wait_ordered_range(inode, destoff, len);
+	wb_ret = btrfs_wait_ordered_range(BTRFS_I(inode), destoff, len);
 	ret = ret ? ret : wb_ret;
 	/*
 	 * Truncate page cache pages so that future reads will see the cloned
@@ -835,11 +835,11 @@ static int btrfs_remap_file_range_prep(struct file *file_in, loff_t pos_in,
 	if (ret < 0)
 		return ret;
 
-	ret = btrfs_wait_ordered_range(inode_in, ALIGN_DOWN(pos_in, bs),
+	ret = btrfs_wait_ordered_range(BTRFS_I(inode_in), ALIGN_DOWN(pos_in, bs),
 				       wb_len);
 	if (ret < 0)
 		return ret;
-	ret = btrfs_wait_ordered_range(inode_out, ALIGN_DOWN(pos_out, bs),
+	ret = btrfs_wait_ordered_range(BTRFS_I(inode_out), ALIGN_DOWN(pos_out, bs),
 				       wb_len);
 	if (ret < 0)
 		return ret;

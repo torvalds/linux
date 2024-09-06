@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: MIT */
 /*
- * Copyright (c) 2020-2023, Intel Corporation.
+ * Copyright (c) 2020-2024, Intel Corporation.
  */
 
 /**
@@ -22,12 +22,12 @@
 /*
  * Minor version changes when API backward compatibility is preserved.
  */
-#define VPU_JSM_API_VER_MINOR 15
+#define VPU_JSM_API_VER_MINOR 16
 
 /*
  * API header changed (field names, documentation, formatting) but API itself has not been changed
  */
-#define VPU_JSM_API_VER_PATCH 6
+#define VPU_JSM_API_VER_PATCH 0
 
 /*
  * Index in the API version table
@@ -868,6 +868,14 @@ struct vpu_ipc_msg_payload_hws_set_scheduling_log {
 	 * is generated when an event log is written to this index.
 	 */
 	u64 notify_index;
+	/*
+	 * Enable extra events to be output to log for debug of scheduling algorithm.
+	 * Interpreted by VPU as a boolean to enable or disable, expected values are
+	 * 0 and 1.
+	 */
+	u32 enable_extra_events;
+	/* Zero Padding */
+	u32 reserved_0;
 };
 
 /*

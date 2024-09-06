@@ -57,12 +57,6 @@ static __always_inline u64 rsvd_bits(int s, int e)
 	return ((2ULL << (e - s)) - 1) << s;
 }
 
-/*
- * The number of non-reserved physical address bits irrespective of features
- * that repurpose legal bits, e.g. MKTME.
- */
-extern u8 __read_mostly shadow_phys_bits;
-
 static inline gfn_t kvm_mmu_max_gfn(void)
 {
 	/*
@@ -76,28 +70,9 @@ static inline gfn_t kvm_mmu_max_gfn(void)
 	 * than hardware's real MAXPHYADDR.  Using the host MAXPHYADDR
 	 * disallows such SPTEs entirely and simplifies the TDP MMU.
 	 */
-	int max_gpa_bits = likely(tdp_enabled) ? shadow_phys_bits : 52;
+	int max_gpa_bits = likely(tdp_enabled) ? kvm_host.maxphyaddr : 52;
 
 	return (1ULL << (max_gpa_bits - PAGE_SHIFT)) - 1;
-}
-
-static inline u8 kvm_get_shadow_phys_bits(void)
-{
-	/*
-	 * boot_cpu_data.x86_phys_bits is reduced when MKTME or SME are detected
-	 * in CPU detection code, but the processor treats those reduced bits as
-	 * 'keyID' thus they are not reserved bits. Therefore KVM needs to look at
-	 * the physical address bits reported by CPUID.
-	 */
-	if (likely(boot_cpu_data.extended_cpuid_level >= 0x80000008))
-		return cpuid_eax(0x80000008) & 0xff;
-
-	/*
-	 * Quite weird to have VMX or SVM but not MAXPHYADDR; probably a VM with
-	 * custom CPUID.  Proceed with whatever the kernel found since these features
-	 * aren't virtualizable (SME/SEV also require CPUIDs higher than 0x80000008).
-	 */
-	return boot_cpu_data.x86_phys_bits;
 }
 
 u8 kvm_mmu_get_max_tdp_level(void);
@@ -163,8 +138,8 @@ static inline void kvm_mmu_load_pgd(struct kvm_vcpu *vcpu)
 	if (!VALID_PAGE(root_hpa))
 		return;
 
-	static_call(kvm_x86_load_mmu_pgd)(vcpu, root_hpa,
-					  vcpu->arch.mmu->root_role.level);
+	kvm_x86_call(load_mmu_pgd)(vcpu, root_hpa,
+				   vcpu->arch.mmu->root_role.level);
 }
 
 static inline void kvm_mmu_refresh_passthrough_bits(struct kvm_vcpu *vcpu,
@@ -199,7 +174,7 @@ static inline u8 permission_fault(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu,
 {
 	/* strip nested paging fault error codes */
 	unsigned int pfec = access;
-	unsigned long rflags = static_call(kvm_x86_get_rflags)(vcpu);
+	unsigned long rflags = kvm_x86_call(get_rflags)(vcpu);
 
 	/*
 	 * For explicit supervisor accesses, SMAP is disabled if EFLAGS.AC = 1.
@@ -246,14 +221,7 @@ static inline u8 permission_fault(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu,
 	return -(u32)fault & errcode;
 }
 
-bool __kvm_mmu_honors_guest_mtrrs(bool vm_has_noncoherent_dma);
-
-static inline bool kvm_mmu_honors_guest_mtrrs(struct kvm *kvm)
-{
-	return __kvm_mmu_honors_guest_mtrrs(kvm_arch_has_noncoherent_dma(kvm));
-}
-
-void kvm_zap_gfn_range(struct kvm *kvm, gfn_t gfn_start, gfn_t gfn_end);
+bool kvm_mmu_may_ignore_guest_pat(void);
 
 int kvm_arch_write_log_dirty(struct kvm_vcpu *vcpu);
 

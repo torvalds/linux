@@ -101,26 +101,22 @@ int fdt_overlay_target_offset(const void *fdt, const void *fdto,
 static int overlay_phandle_add_offset(void *fdt, int node,
 				      const char *name, uint32_t delta)
 {
-	const fdt32_t *val;
-	uint32_t adj_val;
+	fdt32_t *valp, val;
 	int len;
 
-	val = fdt_getprop(fdt, node, name, &len);
-	if (!val)
+	valp = fdt_getprop_w(fdt, node, name, &len);
+	if (!valp)
 		return len;
 
-	if (len != sizeof(*val))
+	if (len != sizeof(val))
 		return -FDT_ERR_BADPHANDLE;
 
-	adj_val = fdt32_to_cpu(*val);
-	if ((adj_val + delta) < adj_val)
+	val = fdt32_ld(valp);
+	if (val + delta < val || val + delta == (uint32_t)-1)
 		return -FDT_ERR_NOPHANDLES;
 
-	adj_val += delta;
-	if (adj_val == (uint32_t)-1)
-		return -FDT_ERR_NOPHANDLES;
-
-	return fdt_setprop_inplace_u32(fdt, node, name, adj_val);
+	fdt32_st(valp, val + delta);
+	return 0;
 }
 
 /**
@@ -213,8 +209,8 @@ static int overlay_update_local_node_references(void *fdto,
 
 	fdt_for_each_property_offset(fixup_prop, fdto, fixup_node) {
 		const fdt32_t *fixup_val;
-		const char *tree_val;
 		const char *name;
+		char *tree_val;
 		int fixup_len;
 		int tree_len;
 		int i;
@@ -228,7 +224,7 @@ static int overlay_update_local_node_references(void *fdto,
 			return -FDT_ERR_BADOVERLAY;
 		fixup_len /= sizeof(uint32_t);
 
-		tree_val = fdt_getprop(fdto, tree_node, name, &tree_len);
+		tree_val = fdt_getprop_w(fdto, tree_node, name, &tree_len);
 		if (!tree_val) {
 			if (tree_len == -FDT_ERR_NOTFOUND)
 				return -FDT_ERR_BADOVERLAY;
@@ -237,33 +233,15 @@ static int overlay_update_local_node_references(void *fdto,
 		}
 
 		for (i = 0; i < fixup_len; i++) {
-			fdt32_t adj_val;
-			uint32_t poffset;
+			fdt32_t *refp;
 
-			poffset = fdt32_to_cpu(fixup_val[i]);
+			refp = (fdt32_t *)(tree_val + fdt32_ld_(fixup_val + i));
 
 			/*
-			 * phandles to fixup can be unaligned.
-			 *
-			 * Use a memcpy for the architectures that do
-			 * not support unaligned accesses.
+			 * phandles to fixup can be unaligned, so use
+			 * fdt32_{ld,st}() to read/write them.
 			 */
-			memcpy(&adj_val, tree_val + poffset, sizeof(adj_val));
-
-			adj_val = cpu_to_fdt32(fdt32_to_cpu(adj_val) + delta);
-
-			ret = fdt_setprop_inplace_namelen_partial(fdto,
-								  tree_node,
-								  name,
-								  strlen(name),
-								  poffset,
-								  &adj_val,
-								  sizeof(adj_val));
-			if (ret == -FDT_ERR_NOSPACE)
-				return -FDT_ERR_BADOVERLAY;
-
-			if (ret)
-				return ret;
+			fdt32_st(refp, fdt32_ld(refp) + delta);
 		}
 	}
 
@@ -337,7 +315,7 @@ static int overlay_update_local_references(void *fdto, uint32_t delta)
  * @name: Name of the property holding the phandle reference in the overlay
  * @name_len: number of name characters to consider
  * @poffset: Offset within the overlay property where the phandle is stored
- * @label: Label of the node referenced by the phandle
+ * @phandle: Phandle referencing the node
  *
  * overlay_fixup_one_phandle() resolves an overlay phandle pointing to
  * a node in the base device tree.
@@ -354,29 +332,13 @@ static int overlay_fixup_one_phandle(void *fdt, void *fdto,
 				     int symbols_off,
 				     const char *path, uint32_t path_len,
 				     const char *name, uint32_t name_len,
-				     int poffset, const char *label)
+				     int poffset, uint32_t phandle)
 {
-	const char *symbol_path;
-	uint32_t phandle;
 	fdt32_t phandle_prop;
-	int symbol_off, fixup_off;
-	int prop_len;
+	int fixup_off;
 
 	if (symbols_off < 0)
 		return symbols_off;
-
-	symbol_path = fdt_getprop(fdt, symbols_off, label,
-				  &prop_len);
-	if (!symbol_path)
-		return prop_len;
-
-	symbol_off = fdt_path_offset(fdt, symbol_path);
-	if (symbol_off < 0)
-		return symbol_off;
-
-	phandle = fdt_get_phandle(fdt, symbol_off);
-	if (!phandle)
-		return -FDT_ERR_NOTFOUND;
 
 	fixup_off = fdt_path_offset_namelen(fdto, path, path_len);
 	if (fixup_off == -FDT_ERR_NOTFOUND)
@@ -416,6 +378,10 @@ static int overlay_fixup_phandle(void *fdt, void *fdto, int symbols_off,
 	const char *value;
 	const char *label;
 	int len;
+	const char *symbol_path;
+	int prop_len;
+	int symbol_off;
+	uint32_t phandle;
 
 	value = fdt_getprop_by_offset(fdto, property,
 				      &label, &len);
@@ -425,6 +391,18 @@ static int overlay_fixup_phandle(void *fdt, void *fdto, int symbols_off,
 
 		return len;
 	}
+
+	symbol_path = fdt_getprop(fdt, symbols_off, label, &prop_len);
+	if (!symbol_path)
+		return prop_len;
+	
+	symbol_off = fdt_path_offset(fdt, symbol_path);
+	if (symbol_off < 0)
+		return symbol_off;
+	
+	phandle = fdt_get_phandle(fdt, symbol_off);
+	if (!phandle)
+		return -FDT_ERR_NOTFOUND;
 
 	do {
 		const char *path, *name, *fixup_end;
@@ -467,7 +445,7 @@ static int overlay_fixup_phandle(void *fdt, void *fdto, int symbols_off,
 
 		ret = overlay_fixup_one_phandle(fdt, fdto, symbols_off,
 						path, path_len, name, name_len,
-						poffset, label);
+						poffset, phandle);
 		if (ret)
 			return ret;
 	} while (len > 0);
@@ -513,6 +491,255 @@ static int overlay_fixup_phandles(void *fdt, void *fdto)
 		int ret;
 
 		ret = overlay_fixup_phandle(fdt, fdto, symbols_off, property);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
+/**
+ * overlay_adjust_local_conflicting_phandle: Changes a phandle value
+ * @fdto: Device tree overlay
+ * @node: The node the phandle is set for
+ * @fdt_phandle: The new value for the phandle
+ *
+ * returns:
+ *      0 on success
+ *      Negative error code on failure
+ */
+static int overlay_adjust_local_conflicting_phandle(void *fdto, int node,
+						    uint32_t fdt_phandle)
+{
+	const fdt32_t *php;
+	int len, ret;
+
+	php = fdt_getprop(fdto, node, "phandle", &len);
+	if (php && len == sizeof(*php)) {
+		ret = fdt_setprop_inplace_u32(fdto, node, "phandle", fdt_phandle);
+		if (ret)
+			return ret;
+	}
+
+	php = fdt_getprop(fdto, node, "linux,phandle", &len);
+	if (php && len == sizeof(*php)) {
+		ret = fdt_setprop_inplace_u32(fdto, node, "linux,phandle", fdt_phandle);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
+/**
+ * overlay_update_node_conflicting_references - Recursively replace phandle values
+ * @fdto: Device tree overlay blob
+ * @tree_node: Node to recurse into
+ * @fixup_node: Node offset of the matching local fixups node
+ * @fdt_phandle: Value to replace phandles with
+ * @fdto_phandle: Value to be replaced
+ *
+ * Replaces all phandles with value @fdto_phandle by @fdt_phandle.
+ *
+ * returns:
+ *      0 on success
+ *      Negative error code on failure
+ */
+static int overlay_update_node_conflicting_references(void *fdto, int tree_node,
+						      int fixup_node,
+						      uint32_t fdt_phandle,
+						      uint32_t fdto_phandle)
+{
+	int fixup_prop;
+	int fixup_child;
+	int ret;
+
+	fdt_for_each_property_offset(fixup_prop, fdto, fixup_node) {
+		const fdt32_t *fixup_val;
+		const char *name;
+		char *tree_val;
+		int fixup_len;
+		int tree_len;
+		int i;
+
+		fixup_val = fdt_getprop_by_offset(fdto, fixup_prop,
+						  &name, &fixup_len);
+		if (!fixup_val)
+			return fixup_len;
+
+		if (fixup_len % sizeof(uint32_t))
+			return -FDT_ERR_BADOVERLAY;
+		fixup_len /= sizeof(uint32_t);
+
+		tree_val = fdt_getprop_w(fdto, tree_node, name, &tree_len);
+		if (!tree_val) {
+			if (tree_len == -FDT_ERR_NOTFOUND)
+				return -FDT_ERR_BADOVERLAY;
+
+			return tree_len;
+		}
+
+		for (i = 0; i < fixup_len; i++) {
+			fdt32_t *refp;
+			uint32_t valp;
+
+			refp = (fdt32_t *)(tree_val + fdt32_ld_(fixup_val + i));
+			valp = fdt32_ld(refp);
+
+			if (valp == fdto_phandle)
+				fdt32_st(refp, fdt_phandle);
+		}
+	}
+
+	fdt_for_each_subnode(fixup_child, fdto, fixup_node) {
+		const char *fixup_child_name = fdt_get_name(fdto, fixup_child, NULL);
+		int tree_child;
+
+		tree_child = fdt_subnode_offset(fdto, tree_node, fixup_child_name);
+
+		if (tree_child == -FDT_ERR_NOTFOUND)
+			return -FDT_ERR_BADOVERLAY;
+		if (tree_child < 0)
+			return tree_child;
+
+		ret = overlay_update_node_conflicting_references(fdto, tree_child,
+								 fixup_child,
+								 fdt_phandle,
+								 fdto_phandle);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
+/**
+ * overlay_update_local_conflicting_references - Recursively replace phandle values
+ * @fdto: Device tree overlay blob
+ * @fdt_phandle: Value to replace phandles with
+ * @fdto_phandle: Value to be replaced
+ *
+ * Replaces all phandles with value @fdto_phandle by @fdt_phandle.
+ *
+ * returns:
+ *      0 on success
+ *      Negative error code on failure
+ */
+static int overlay_update_local_conflicting_references(void *fdto,
+						       uint32_t fdt_phandle,
+						       uint32_t fdto_phandle)
+{
+	int fixups;
+
+	fixups = fdt_path_offset(fdto, "/__local_fixups__");
+	if (fixups == -FDT_ERR_NOTFOUND)
+		return 0;
+	if (fixups < 0)
+		return fixups;
+
+	return overlay_update_node_conflicting_references(fdto, 0, fixups,
+							  fdt_phandle,
+							  fdto_phandle);
+}
+
+/**
+ * overlay_prevent_phandle_overwrite_node - Helper function for overlay_prevent_phandle_overwrite
+ * @fdt: Base Device tree blob
+ * @fdtnode: Node in fdt that is checked for an overwrite
+ * @fdto: Device tree overlay blob
+ * @fdtonode: Node in fdto matching @fdtnode
+ *
+ * returns:
+ *      0 on success
+ *      Negative error code on failure
+ */
+static int overlay_prevent_phandle_overwrite_node(void *fdt, int fdtnode,
+						  void *fdto, int fdtonode)
+{
+	uint32_t fdt_phandle, fdto_phandle;
+	int fdtochild;
+
+	fdt_phandle = fdt_get_phandle(fdt, fdtnode);
+	fdto_phandle = fdt_get_phandle(fdto, fdtonode);
+
+	if (fdt_phandle && fdto_phandle) {
+		int ret;
+
+		ret = overlay_adjust_local_conflicting_phandle(fdto, fdtonode,
+							       fdt_phandle);
+		if (ret)
+			return ret;
+
+		ret = overlay_update_local_conflicting_references(fdto,
+								  fdt_phandle,
+								  fdto_phandle);
+		if (ret)
+			return ret;
+	}
+
+	fdt_for_each_subnode(fdtochild, fdto, fdtonode) {
+		const char *name = fdt_get_name(fdto, fdtochild, NULL);
+		int fdtchild;
+		int ret;
+
+		fdtchild = fdt_subnode_offset(fdt, fdtnode, name);
+		if (fdtchild == -FDT_ERR_NOTFOUND)
+			/*
+			 * no further overwrites possible here as this node is
+			 * new
+			 */
+			continue;
+
+		ret = overlay_prevent_phandle_overwrite_node(fdt, fdtchild,
+							     fdto, fdtochild);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
+/**
+ * overlay_prevent_phandle_overwrite - Fixes overlay phandles to not overwrite base phandles
+ * @fdt: Base Device Tree blob
+ * @fdto: Device tree overlay blob
+ *
+ * Checks recursively if applying fdto overwrites phandle values in the base
+ * dtb. When such a phandle is found, the fdto is changed to use the fdt's
+ * phandle value to not break references in the base.
+ *
+ * returns:
+ *      0 on success
+ *      Negative error code on failure
+ */
+static int overlay_prevent_phandle_overwrite(void *fdt, void *fdto)
+{
+	int fragment;
+
+	fdt_for_each_subnode(fragment, fdto, 0) {
+		int overlay;
+		int target;
+		int ret;
+
+		overlay = fdt_subnode_offset(fdto, fragment, "__overlay__");
+		if (overlay == -FDT_ERR_NOTFOUND)
+			continue;
+
+		if (overlay < 0)
+			return overlay;
+
+		target = fdt_overlay_target_offset(fdt, fdto, fragment, NULL);
+		if (target == -FDT_ERR_NOTFOUND)
+			/*
+			 * The subtree doesn't exist in the base, so nothing
+			 * will be overwritten.
+			 */
+			continue;
+		else if (target < 0)
+			return target;
+
+		ret = overlay_prevent_phandle_overwrite_node(fdt, target,
+							     fdto, overlay);
 		if (ret)
 			return ret;
 	}
@@ -824,15 +1051,23 @@ int fdt_overlay_apply(void *fdt, void *fdto)
 	if (ret)
 		goto err;
 
+	/* Increase all phandles in the fdto by delta */
 	ret = overlay_adjust_local_phandles(fdto, delta);
 	if (ret)
 		goto err;
 
+	/* Adapt the phandle values in fdto to the above increase */
 	ret = overlay_update_local_references(fdto, delta);
 	if (ret)
 		goto err;
 
+	/* Update fdto's phandles using symbols from fdt */
 	ret = overlay_fixup_phandles(fdt, fdto);
+	if (ret)
+		goto err;
+
+	/* Don't overwrite phandles in fdt */
+	ret = overlay_prevent_phandle_overwrite(fdt, fdto);
 	if (ret)
 		goto err;
 

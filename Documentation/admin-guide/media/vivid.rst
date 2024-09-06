@@ -302,6 +302,15 @@ all configurable using the following module options:
 		- 0: forbid hints
 		- 1: allow hints
 
+- supports_requests:
+
+	specifies if the device should support the Request API. There are
+	three possible values, default is 1:
+
+		- 0: no request
+		- 1: supports requests
+		- 2: requires requests
+
 Taken together, all these module options allow you to precisely customize
 the driver behavior and test your application with all sorts of permutations.
 It is also very suitable to emulate hardware that is not yet available, e.g.
@@ -313,10 +322,10 @@ Video Capture
 
 This is probably the most frequently used feature. The video capture device
 can be configured by using the module options num_inputs, input_types and
-ccs_cap_mode (see section 1 for more detailed information), but by default
-four inputs are configured: a webcam, a TV tuner, an S-Video and an HDMI
-input, one input for each input type. Those are described in more detail
-below.
+ccs_cap_mode (see "Configuring the driver" for more detailed information),
+but by default four inputs are configured: a webcam, a TV tuner, an S-Video
+and an HDMI input, one input for each input type. Those are described in more
+detail below.
 
 Special attention has been given to the rate at which new frames become
 available. The jitter will be around 1 jiffie (that depends on the HZ
@@ -434,10 +443,10 @@ Video Output
 ------------
 
 The video output device can be configured by using the module options
-num_outputs, output_types and ccs_out_mode (see section 1 for more detailed
-information), but by default two outputs are configured: an S-Video and an
-HDMI input, one output for each output type. Those are described in more detail
-below.
+num_outputs, output_types and ccs_out_mode (see "Configuring the driver"
+for more detailed information), but by default two outputs are configured:
+an S-Video and an HDMI input, one output for each output type. Those are
+described in more detail below.
 
 Like with video capture the framerate is also exact in the long term.
 
@@ -1011,11 +1020,6 @@ Digital Video Controls
 	affects the reported colorspace since DVI_D outputs will always use
 	sRGB.
 
-- Display Present:
-
-	sets the presence of a "display" on the HDMI output. This affects
-	the tx_edid_present, tx_hotplug and tx_rxsense controls.
-
 
 FM Radio Receiver Controls
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1130,35 +1134,34 @@ Metadata Capture Controls
 
         if set, then the generated metadata stream contains Source Clock information.
 
-Video, VBI and RDS Looping
---------------------------
 
-The vivid driver supports looping of video output to video input, VBI output
-to VBI input and RDS output to RDS input. For video/VBI looping this emulates
-as if a cable was hooked up between the output and input connector. So video
-and VBI looping is only supported between S-Video and HDMI inputs and outputs.
-VBI is only valid for S-Video as it makes no sense for HDMI.
+Video, Sliced VBI and HDMI CEC Looping
+--------------------------------------
 
-Since radio is wireless this looping always happens if the radio receiver
-frequency is close to the radio transmitter frequency. In that case the radio
-transmitter will 'override' the emulated radio stations.
+Video Looping functionality is supported for devices created by the same
+vivid driver instance, as well as across multiple instances of the vivid driver.
+The vivid driver supports looping of video and Sliced VBI data between an S-Video output
+and an S-Video input. It also supports looping of video and HDMI CEC data between an
+HDMI output and an HDMI input.
 
-Looping is currently supported only between devices created by the same
-vivid driver instance.
+To enable looping, set the 'HDMI/S-Video XXX-N Is Connected To' control(s) to select
+whether an input uses the Test Pattern Generator, or is disconnected, or is connected
+to an output. An input can be connected to an output from any vivid instance.
+The inputs and outputs are numbered XXX-N where XXX is the vivid instance number
+(see module option n_devs). If there is only one vivid instance (the default), then
+XXX will be 000. And N is the Nth S-Video/HDMI input or output of that instance.
+If vivid is loaded without module options, then you can connect the S-Video 000-0 input
+to the S-Video 000-0 output, or the HDMI 000-0 input to the HDMI 000-0 output.
+This is the equivalent of connecting or disconnecting a cable between an input and an
+output in a physical device.
 
+If an 'HDMI/S-Video XXX-N Is Connected To' control selected an output, then the video
+output will be looped to the video input provided that:
 
-Video and Sliced VBI looping
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+- the currently selected input matches the input indicated by the control name.
 
-The way to enable video/VBI looping is currently fairly crude. A 'Loop Video'
-control is available in the "Vivid" control class of the video
-capture and VBI capture devices. When checked the video looping will be enabled.
-Once enabled any video S-Video or HDMI input will show a static test pattern
-until the video output has started. At that time the video output will be
-looped to the video input provided that:
-
-- the input type matches the output type. So the HDMI input cannot receive
-  video from the S-Video output.
+- in the vivid instance of the output connector, the currently selected output matches
+  the output indicated by the control's value.
 
 - the video resolution of the video input must match that of the video output.
   So it is not possible to loop a 50 Hz (720x576) S-Video output to a 60 Hz
@@ -1185,6 +1188,8 @@ looped to the video input provided that:
   "DV Timings Signal Mode" for the HDMI input should be configured so that a
   valid signal is passed to the video input.
 
+If any condition is not valid, then the 'Noise' test pattern is shown.
+
 The framerates do not have to match, although this might change in the future.
 
 By default you will see the OSD text superimposed on top of the looped video.
@@ -1198,17 +1203,26 @@ and WSS (50 Hz formats) VBI data is looped. Teletext VBI data is not looped.
 
 
 Radio & RDS Looping
-~~~~~~~~~~~~~~~~~~~
+-------------------
 
-As mentioned in section 6 the radio receiver emulates stations are regular
-frequency intervals. Depending on the frequency of the radio receiver a
-signal strength value is calculated (this is returned by VIDIOC_G_TUNER).
-However, it will also look at the frequency set by the radio transmitter and
-if that results in a higher signal strength than the settings of the radio
-transmitter will be used as if it was a valid station. This also includes
-the RDS data (if any) that the transmitter 'transmits'. This is received
-faithfully on the receiver side. Note that when the driver is loaded the
-frequencies of the radio receiver and transmitter are not identical, so
+The vivid driver supports looping of RDS output to RDS input.
+
+Since radio is wireless this looping always happens if the radio receiver
+frequency is close to the radio transmitter frequency. In that case the radio
+transmitter will 'override' the emulated radio stations.
+
+RDS looping is currently supported only between devices created by the same
+vivid driver instance.
+
+As mentioned in the "Radio Receiver" section, the radio receiver emulates
+stations at regular frequency intervals. Depending on the frequency of the
+radio receiver a signal strength value is calculated (this is returned by
+VIDIOC_G_TUNER). However, it will also look at the frequency set by the radio
+transmitter and if that results in a higher signal strength than the settings
+of the radio transmitter will be used as if it was a valid station. This also
+includes the RDS data (if any) that the transmitter 'transmits'. This is
+received faithfully on the receiver side. Note that when the driver is loaded
+the frequencies of the radio receiver and transmitter are not identical, so
 initially no looping takes place.
 
 
@@ -1218,8 +1232,8 @@ Cropping, Composing, Scaling
 This driver supports cropping, composing and scaling in any combination. Normally
 which features are supported can be selected through the Vivid controls,
 but it is also possible to hardcode it when the module is loaded through the
-ccs_cap_mode and ccs_out_mode module options. See section 1 on the details of
-these module options.
+ccs_cap_mode and ccs_out_mode module options. See "Configuring the driver" on
+the details of these module options.
 
 This allows you to test your application for all these variations.
 
@@ -1260,7 +1274,8 @@ is set, then the alpha component is only used for the color red and set to
 
 The driver has to be configured to support the multiplanar formats. By default
 the driver instances are single-planar. This can be changed by setting the
-multiplanar module option, see section 1 for more details on that option.
+multiplanar module option, see "Configuring the driver" for more details on that
+option.
 
 If the driver instance is using the multiplanar formats/API, then the first
 single planar format (YUYV) and the multiplanar NV16M and NV61M formats the
@@ -1268,74 +1283,6 @@ will have a plane that has a non-zero data_offset of 128 bytes. It is rare for
 data_offset to be non-zero, so this is a useful feature for testing applications.
 
 Video output will also honor any data_offset that the application set.
-
-
-Capture Overlay
----------------
-
-Note: capture overlay support is implemented primarily to test the existing
-V4L2 capture overlay API. In practice few if any GPUs support such overlays
-anymore, and neither are they generally needed anymore since modern hardware
-is so much more capable. By setting flag 0x10000 in the node_types module
-option the vivid driver will create a simple framebuffer device that can be
-used for testing this API. Whether this API should be used for new drivers is
-questionable.
-
-This driver has support for a destructive capture overlay with bitmap clipping
-and list clipping (up to 16 rectangles) capabilities. Overlays are not
-supported for multiplanar formats. It also honors the struct v4l2_window field
-setting: if it is set to FIELD_TOP or FIELD_BOTTOM and the capture setting is
-FIELD_ALTERNATE, then only the top or bottom fields will be copied to the overlay.
-
-The overlay only works if you are also capturing at that same time. This is a
-vivid limitation since it copies from a buffer to the overlay instead of
-filling the overlay directly. And if you are not capturing, then no buffers
-are available to fill.
-
-In addition, the pixelformat of the capture format and that of the framebuffer
-must be the same for the overlay to work. Otherwise VIDIOC_OVERLAY will return
-an error.
-
-In order to really see what it going on you will need to create two vivid
-instances: the first with a framebuffer enabled. You configure the capture
-overlay of the second instance to use the framebuffer of the first, then
-you start capturing in the second instance. For the first instance you setup
-the output overlay for the video output, turn on video looping and capture
-to see the blended framebuffer overlay that's being written to by the second
-instance. This setup would require the following commands:
-
-.. code-block:: none
-
-	$ sudo modprobe vivid n_devs=2 node_types=0x10101,0x1
-	$ v4l2-ctl -d1 --find-fb
-	/dev/fb1 is the framebuffer associated with base address 0x12800000
-	$ sudo v4l2-ctl -d2 --set-fbuf fb=1
-	$ v4l2-ctl -d1 --set-fbuf fb=1
-	$ v4l2-ctl -d0 --set-fmt-video=pixelformat='AR15'
-	$ v4l2-ctl -d1 --set-fmt-video-out=pixelformat='AR15'
-	$ v4l2-ctl -d2 --set-fmt-video=pixelformat='AR15'
-	$ v4l2-ctl -d0 -i2
-	$ v4l2-ctl -d2 -i2
-	$ v4l2-ctl -d2 -c horizontal_movement=4
-	$ v4l2-ctl -d1 --overlay=1
-	$ v4l2-ctl -d0 -c loop_video=1
-	$ v4l2-ctl -d2 --stream-mmap --overlay=1
-
-And from another console:
-
-.. code-block:: none
-
-	$ v4l2-ctl -d1 --stream-out-mmap
-
-And yet another console:
-
-.. code-block:: none
-
-	$ qv4l2
-
-and start streaming.
-
-As you can see, this is not for the faint of heart...
 
 
 Output Overlay
@@ -1405,8 +1352,6 @@ Just as a reminder and in no particular order:
 - Add ARGB888 overlay support: better testing of the alpha channel
 - Improve pixel aspect support in the tpg code by passing a real v4l2_fract
 - Use per-queue locks and/or per-device locks to improve throughput
-- Add support to loop from a specific output to a specific input across
-  vivid instances
 - The SDR radio should use the same 'frequencies' for stations as the normal
   radio receiver, and give back noise if the frequency doesn't match up with
   a station frequency

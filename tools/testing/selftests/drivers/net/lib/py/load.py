@@ -5,28 +5,45 @@ import time
 from lib.py import ksft_pr, cmd, ip, rand_port, wait_port_listen
 
 class GenerateTraffic:
-    def __init__(self, env):
+    def __init__(self, env, port=None):
         env.require_cmd("iperf3", remote=True)
 
         self.env = env
 
-        port = rand_port()
-        self._iperf_server = cmd(f"iperf3 -s -p {port}", background=True)
+        if port is None:
+            port = rand_port()
+        self._iperf_server = cmd(f"iperf3 -s -1 -p {port}", background=True)
         wait_port_listen(port)
         time.sleep(0.1)
         self._iperf_client = cmd(f"iperf3 -c {env.addr} -P 16 -p {port} -t 86400",
                                  background=True, host=env.remote)
 
         # Wait for traffic to ramp up
-        pkt = ip("-s link show dev " + env.ifname, json=True)[0]["stats64"]["rx"]["packets"]
+        if not self._wait_pkts(pps=1000):
+            self.stop(verbose=True)
+            raise Exception("iperf3 traffic did not ramp up")
+
+    def _wait_pkts(self, pkt_cnt=None, pps=None):
+        """
+        Wait until we've seen pkt_cnt or until traffic ramps up to pps.
+        Only one of pkt_cnt or pss can be specified.
+        """
+        pkt_start = ip("-s link show dev " + self.env.ifname, json=True)[0]["stats64"]["rx"]["packets"]
         for _ in range(50):
             time.sleep(0.1)
-            now = ip("-s link show dev " + env.ifname, json=True)[0]["stats64"]["rx"]["packets"]
-            if now - pkt > 1000:
-                return
-            pkt = now
-        self.stop(verbose=True)
-        raise Exception("iperf3 traffic did not ramp up")
+            pkt_now = ip("-s link show dev " + self.env.ifname, json=True)[0]["stats64"]["rx"]["packets"]
+            if pps:
+                if pkt_now - pkt_start > pps / 10:
+                    return True
+                pkt_start = pkt_now
+            elif pkt_cnt:
+                if pkt_now - pkt_start > pkt_cnt:
+                    return True
+        return False
+
+    def wait_pkts_and_stop(self, pkt_cnt):
+        failed = not self._wait_pkts(pkt_cnt=pkt_cnt)
+        self.stop(verbose=failed)
 
     def stop(self, verbose=None):
         self._iperf_client.process(terminate=True)

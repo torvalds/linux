@@ -385,4 +385,5 @@ void mctrl_gpio_disable_irq_wake(struct mctrl_gpios *gpios)
 }
 EXPORT_SYMBOL_GPL(mctrl_gpio_disable_irq_wake);
 
+MODULE_DESCRIPTION("Helpers for controlling modem lines via GPIO");
 MODULE_LICENSE("GPL");

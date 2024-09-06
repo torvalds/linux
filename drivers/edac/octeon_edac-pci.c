@@ -104,5 +104,6 @@ static struct platform_driver octeon_pci_driver = {
 };
 module_platform_driver(octeon_pci_driver);
 
+MODULE_DESCRIPTION("Cavium Octeon PCI Controller EDAC driver");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Ralf Baechle <ralf@linux-mips.org>");

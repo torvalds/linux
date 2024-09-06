@@ -304,7 +304,7 @@ static void wf_ad7417_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id wf_ad7417_id[] = {
-	{ "MAC,ad7417", 0 },
+	{ "MAC,ad7417" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, wf_ad7417_id);

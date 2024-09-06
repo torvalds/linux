@@ -212,6 +212,8 @@ static inline bool crc_is_encoded(struct bch_extent_crc_unpacked crc)
 	return crc.csum_type != BCH_CSUM_none || crc_is_compressed(crc);
 }
 
+void bch2_extent_crc_unpacked_to_text(struct printbuf *, struct bch_extent_crc_unpacked *);
+
 /* bkey_ptrs: generically over any key type that has ptrs */
 
 struct bkey_ptrs_c {
@@ -397,6 +399,8 @@ out:									\
 
 /* utility code common to all keys with pointers: */
 
+struct bch_dev_io_failures *bch2_dev_io_failures(struct bch_io_failures *,
+						 unsigned);
 void bch2_mark_io_failure(struct bch_io_failures *,
 			  struct extent_ptr_decoded *);
 int bch2_bkey_pick_read_device(struct bch_fs *, struct bkey_s_c,
@@ -405,26 +409,26 @@ int bch2_bkey_pick_read_device(struct bch_fs *, struct bkey_s_c,
 
 /* KEY_TYPE_btree_ptr: */
 
-int bch2_btree_ptr_invalid(struct bch_fs *, struct bkey_s_c,
-			   enum bch_validate_flags, struct printbuf *);
+int bch2_btree_ptr_validate(struct bch_fs *, struct bkey_s_c,
+			    enum bch_validate_flags);
 void bch2_btree_ptr_to_text(struct printbuf *, struct bch_fs *,
 			    struct bkey_s_c);
 
-int bch2_btree_ptr_v2_invalid(struct bch_fs *, struct bkey_s_c,
-			      enum bch_validate_flags, struct printbuf *);
+int bch2_btree_ptr_v2_validate(struct bch_fs *, struct bkey_s_c,
+			       enum bch_validate_flags);
 void bch2_btree_ptr_v2_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
 void bch2_btree_ptr_v2_compat(enum btree_id, unsigned, unsigned,
 			      int, struct bkey_s);
 
 #define bch2_bkey_ops_btree_ptr ((struct bkey_ops) {		\
-	.key_invalid	= bch2_btree_ptr_invalid,		\
+	.key_validate	= bch2_btree_ptr_validate,		\
 	.val_to_text	= bch2_btree_ptr_to_text,		\
 	.swab		= bch2_ptr_swab,			\
 	.trigger	= bch2_trigger_extent,			\
 })
 
 #define bch2_bkey_ops_btree_ptr_v2 ((struct bkey_ops) {		\
-	.key_invalid	= bch2_btree_ptr_v2_invalid,		\
+	.key_validate	= bch2_btree_ptr_v2_validate,		\
 	.val_to_text	= bch2_btree_ptr_v2_to_text,		\
 	.swab		= bch2_ptr_swab,			\
 	.compat		= bch2_btree_ptr_v2_compat,		\
@@ -437,7 +441,7 @@ void bch2_btree_ptr_v2_compat(enum btree_id, unsigned, unsigned,
 bool bch2_extent_merge(struct bch_fs *, struct bkey_s, struct bkey_s_c);
 
 #define bch2_bkey_ops_extent ((struct bkey_ops) {		\
-	.key_invalid	= bch2_bkey_ptrs_invalid,		\
+	.key_validate	= bch2_bkey_ptrs_validate,		\
 	.val_to_text	= bch2_bkey_ptrs_to_text,		\
 	.swab		= bch2_ptr_swab,			\
 	.key_normalize	= bch2_extent_normalize,		\
@@ -447,13 +451,13 @@ bool bch2_extent_merge(struct bch_fs *, struct bkey_s, struct bkey_s_c);
 
 /* KEY_TYPE_reservation: */
 
-int bch2_reservation_invalid(struct bch_fs *, struct bkey_s_c,
-			     enum bch_validate_flags, struct printbuf *);
+int bch2_reservation_validate(struct bch_fs *, struct bkey_s_c,
+			      enum bch_validate_flags);
 void bch2_reservation_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
 bool bch2_reservation_merge(struct bch_fs *, struct bkey_s, struct bkey_s_c);
 
 #define bch2_bkey_ops_reservation ((struct bkey_ops) {		\
-	.key_invalid	= bch2_reservation_invalid,		\
+	.key_validate	= bch2_reservation_validate,		\
 	.val_to_text	= bch2_reservation_to_text,		\
 	.key_merge	= bch2_reservation_merge,		\
 	.trigger	= bch2_trigger_reservation,		\
@@ -679,8 +683,8 @@ bool bch2_extent_normalize(struct bch_fs *, struct bkey_s);
 void bch2_extent_ptr_to_text(struct printbuf *out, struct bch_fs *, const struct bch_extent_ptr *);
 void bch2_bkey_ptrs_to_text(struct printbuf *, struct bch_fs *,
 			    struct bkey_s_c);
-int bch2_bkey_ptrs_invalid(struct bch_fs *, struct bkey_s_c,
-			   enum bch_validate_flags, struct printbuf *);
+int bch2_bkey_ptrs_validate(struct bch_fs *, struct bkey_s_c,
+			    enum bch_validate_flags);
 
 void bch2_ptr_swab(struct bkey_s);
 
@@ -688,6 +692,7 @@ const struct bch_extent_rebalance *bch2_bkey_rebalance_opts(struct bkey_s_c);
 unsigned bch2_bkey_ptrs_need_rebalance(struct bch_fs *, struct bkey_s_c,
 				       unsigned, unsigned);
 bool bch2_bkey_needs_rebalance(struct bch_fs *, struct bkey_s_c);
+u64 bch2_bkey_sectors_need_rebalance(struct bch_fs *, struct bkey_s_c);
 
 int bch2_bkey_set_needs_rebalance(struct bch_fs *, struct bkey_i *,
 				  struct bch_io_opts *);

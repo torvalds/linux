@@ -1501,7 +1501,7 @@ void dso__delete(struct dso *dso)
 	auxtrace_cache__free(RC_CHK_ACCESS(dso)->auxtrace_cache);
 	dso_cache__free(dso);
 	dso__free_a2l(dso);
-	zfree(&RC_CHK_ACCESS(dso)->symsrc_filename);
+	dso__free_symsrc_filename(dso);
 	nsinfo__zput(RC_CHK_ACCESS(dso)->nsinfo);
 	mutex_destroy(dso__lock(dso));
 	RC_CHK_FREE(dso);
@@ -1651,4 +1651,16 @@ int dso__strerror_load(struct dso *dso, char *buf, size_t buflen)
 	idx = errnum - __DSO_LOAD_ERRNO__START;
 	scnprintf(buf, buflen, "%s", dso_load__error_str[idx]);
 	return 0;
+}
+
+bool perf_pid_map_tid(const char *dso_name, int *tid)
+{
+	return sscanf(dso_name, "/tmp/perf-%d.map", tid) == 1;
+}
+
+bool is_perf_pid_map_name(const char *dso_name)
+{
+	int tid;
+
+	return perf_pid_map_tid(dso_name, &tid);
 }

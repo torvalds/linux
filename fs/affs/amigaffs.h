@@ -80,7 +80,7 @@ struct affs_head {
 	__be32 spare1;
 	__be32 first_data;
 	__be32 checksum;
-	__be32 table[1];
+	__be32 table[];
 };
 
 struct affs_tail {
@@ -108,7 +108,7 @@ struct slink_front
 	__be32 key;
 	__be32 spare1[3];
 	__be32 checksum;
-	u8 symname[1];	/* depends on block size */
+	u8 symname[];	/* depends on block size */
 };
 
 struct affs_data_head
@@ -119,7 +119,7 @@ struct affs_data_head
 	__be32 size;
 	__be32 next;
 	__be32 checksum;
-	u8 data[1];	/* depends on block size */
+	u8 data[];	/* depends on block size */
 };
 
 /* Permission bits */

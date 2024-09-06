@@ -447,7 +447,6 @@ audio_subsys: bus@59000000 {
 			<&lsio_mu13 2 1>,
 			<&lsio_mu13 3 0>,
 			<&lsio_mu13 3 1>;
-		memory-region = <&dsp_reserved>;
 		status = "disabled";
 	};
 

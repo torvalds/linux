@@ -1,6 +1,7 @@
 [
     {
         "BriefDescription": "Divide operations executed",
+        "Counter": "0,1,2,3",
         "CounterMask": "1",
         "EdgeDetect": "1",
         "EventCode": "0x14",
@@ -11,6 +12,7 @@
     },
     {
         "BriefDescription": "Cycles when divider is busy executing divide operations",
+        "Counter": "0,1,2,3",
         "EventCode": "0x14",
         "EventName": "ARITH.FPU_DIV_ACTIVE",
         "PublicDescription": "Cycles that the divider is active, includes INT and FP. Set 'edge =1, cmask=1' to count the number of divides.",
@@ -19,6 +21,7 @@
     },
     {
         "BriefDescription": "Speculative and retired  branches",
+        "Counter": "0,1,2,3",
         "EventCode": "0x88",
         "EventName": "BR_INST_EXEC.ALL_BRANCHES",
         "PublicDescription": "Counts all near executed branches (not necessarily retired).",
@@ -27,6 +30,7 @@
     },
     {
         "BriefDescription": "Speculative and retired macro-conditional branches",
+        "Counter": "0,1,2,3",
         "EventCode": "0x88",
         "EventName": "BR_INST_EXEC.ALL_CONDITIONAL",
         "PublicDescription": "Speculative and retired macro-conditional branches.",
@@ -35,6 +39,7 @@
     },
     {
         "BriefDescription": "Speculative and retired macro-unconditional branches excluding calls and indirects",
+        "Counter": "0,1,2,3",
         "EventCode": "0x88",
         "EventName": "BR_INST_EXEC.ALL_DIRECT_JMP",
         "PublicDescription": "Speculative and retired macro-unconditional branches excluding calls and indirects.",
@@ -43,6 +48,7 @@
     },
     {
         "BriefDescription": "Speculative and retired direct near calls",
+        "Counter": "0,1,2,3",
         "EventCode": "0x88",
         "EventName": "BR_INST_EXEC.ALL_DIRECT_NEAR_CALL",
         "PublicDescription": "Speculative and retired direct near calls.",
@@ -51,6 +57,7 @@
     },
     {
         "BriefDescription": "Speculative and retired indirect branches excluding calls and returns",
+        "Counter": "0,1,2,3",
         "EventCode": "0x88",
         "EventName": "BR_INST_EXEC.ALL_INDIRECT_JUMP_NON_CALL_RET",
         "PublicDescription": "Speculative and retired indirect branches excluding calls and returns.",
@@ -59,6 +66,7 @@
     },
     {
         "BriefDescription": "Speculative and retired indirect return branches.",
+        "Counter": "0,1,2,3",
         "EventCode": "0x88",
         "EventName": "BR_INST_EXEC.ALL_INDIRECT_NEAR_RETURN",
         "SampleAfterValue": "200003",
@@ -66,6 +74,7 @@
     },
     {
         "BriefDescription": "Not taken macro-conditional branches",
+        "Counter": "0,1,2,3",
         "EventCode": "0x88",
         "EventName": "BR_INST_EXEC.NONTAKEN_CONDITIONAL",
         "PublicDescription": "Not taken macro-conditional branches.",
@@ -74,6 +83,7 @@
     },
     {
         "BriefDescription": "Taken speculative and retired macro-conditional branches",
+        "Counter": "0,1,2,3",
         "EventCode": "0x88",
         "EventName": "BR_INST_EXEC.TAKEN_CONDITIONAL",
         "PublicDescription": "Taken speculative and retired macro-conditional branches.",
@@ -82,6 +92,7 @@
     },
     {
         "BriefDescription": "Taken speculative and retired macro-conditional branch instructions excluding calls and indirects",
+        "Counter": "0,1,2,3",
         "EventCode": "0x88",
         "EventName": "BR_INST_EXEC.TAKEN_DIRECT_JUMP",
         "PublicDescription": "Taken speculative and retired macro-conditional branch instructions excluding calls and indirects.",
@@ -90,6 +101,7 @@
     },
     {
         "BriefDescription": "Taken speculative and retired direct near calls",
+        "Counter": "0,1,2,3",
         "EventCode": "0x88",
         "EventName": "BR_INST_EXEC.TAKEN_DIRECT_NEAR_CALL",
         "PublicDescription": "Taken speculative and retired direct near calls.",
@@ -98,6 +110,7 @@
     },
     {
         "BriefDescription": "Taken speculative and retired indirect branches excluding calls and returns",
+        "Counter": "0,1,2,3",
         "EventCode": "0x88",
         "EventName": "BR_INST_EXEC.TAKEN_INDIRECT_JUMP_NON_CALL_RET",
         "PublicDescription": "Taken speculative and retired indirect branches excluding calls and returns.",
@@ -106,6 +119,7 @@
     },
     {
         "BriefDescription": "Taken speculative and retired indirect calls",
+        "Counter": "0,1,2,3",
         "EventCode": "0x88",
         "EventName": "BR_INST_EXEC.TAKEN_INDIRECT_NEAR_CALL",
         "PublicDescription": "Taken speculative and retired indirect calls.",
@@ -114,6 +128,7 @@
     },
     {
         "BriefDescription": "Taken speculative and retired indirect branches with return mnemonic",
+        "Counter": "0,1,2,3",
         "EventCode": "0x88",
         "EventName": "BR_INST_EXEC.TAKEN_INDIRECT_NEAR_RETURN",
         "PublicDescription": "Taken speculative and retired indirect branches with return mnemonic.",
@@ -122,6 +137,7 @@
     },
     {
         "BriefDescription": "All (macro) branch instructions retired.",
+        "Counter": "0,1,2,3",
         "EventCode": "0xC4",
         "EventName": "BR_INST_RETIRED.ALL_BRANCHES",
         "PublicDescription": "Branch instructions at retirement.",
@@ -129,6 +145,7 @@
     },
     {
         "BriefDescription": "All (macro) branch instructions retired.",
+        "Counter": "0,1,2,3",
         "EventCode": "0xC4",
         "EventName": "BR_INST_RETIRED.ALL_BRANCHES_PEBS",
         "PEBS": "2",
@@ -137,6 +154,7 @@
     },
     {
         "BriefDescription": "Conditional branch instructions retired.",
+        "Counter": "0,1,2,3",
         "EventCode": "0xC4",
         "EventName": "BR_INST_RETIRED.CONDITIONAL",
         "PEBS": "1",
@@ -145,6 +163,7 @@
     },
     {
         "BriefDescription": "Far branch instructions retired.",
+        "Counter": "0,1,2,3",
         "EventCode": "0xC4",
         "EventName": "BR_INST_RETIRED.FAR_BRANCH",
         "PublicDescription": "Number of far branches retired.",
@@ -153,6 +172,7 @@
     },
     {
         "BriefDescription": "Direct and indirect near call instructions retired.",
+        "Counter": "0,1,2,3",
         "EventCode": "0xC4",
         "EventName": "BR_INST_RETIRED.NEAR_CALL",
         "PEBS": "1",
@@ -161,6 +181,7 @@
     },
     {
         "BriefDescription": "Direct and indirect macro near call instructions retired (captured in ring 3).",
+        "Counter": "0,1,2,3",
         "EventCode": "0xC4",
         "EventName": "BR_INST_RETIRED.NEAR_CALL_R3",
         "PEBS": "1",
@@ -169,6 +190,7 @@
     },
     {
         "BriefDescription": "Return instructions retired.",
+        "Counter": "0,1,2,3",
         "EventCode": "0xC4",
         "EventName": "BR_INST_RETIRED.NEAR_RETURN",
         "PEBS": "1",
@@ -177,6 +199,7 @@
     },
     {
         "BriefDescription": "Taken branch instructions retired.",
+        "Counter": "0,1,2,3",
         "EventCode": "0xC4",
         "EventName": "BR_INST_RETIRED.NEAR_TAKEN",
         "PEBS": "1",
@@ -185,6 +208,7 @@
     },
     {
         "BriefDescription": "Not taken branch instructions retired.",
+        "Counter": "0,1,2,3",
         "EventCode": "0xC4",
         "EventName": "BR_INST_RETIRED.NOT_TAKEN",
         "PublicDescription": "Counts the number of not taken branch instructions retired.",
@@ -193,6 +217,7 @@
     },
     {
         "BriefDescription": "Speculative and retired mispredicted macro conditional branches",
+        "Counter": "0,1,2,3",
         "EventCode": "0x89",
         "EventName": "BR_MISP_EXEC.ALL_BRANCHES",
         "PublicDescription": "Counts all near executed branches (not necessarily retired).",
@@ -201,6 +226,7 @@
     },
     {
         "BriefDescription": "Speculative and retired mispredicted macro conditional branches",
+        "Counter": "0,1,2,3",
         "EventCode": "0x89",
         "EventName": "BR_MISP_EXEC.ALL_CONDITIONAL",
         "PublicDescription": "Speculative and retired mispredicted macro conditional branches.",
@@ -209,6 +235,7 @@
     },
     {
         "BriefDescription": "Mispredicted indirect branches excluding calls and returns",
+        "Counter": "0,1,2,3",
         "EventCode": "0x89",
         "EventName": "BR_MISP_EXEC.ALL_INDIRECT_JUMP_NON_CALL_RET",
         "PublicDescription": "Mispredicted indirect branches excluding calls and returns.",
@@ -217,6 +244,7 @@
     },
     {
         "BriefDescription": "Speculative mispredicted indirect branches",
+        "Counter": "0,1,2,3",
         "EventCode": "0x89",
         "EventName": "BR_MISP_EXEC.INDIRECT",
         "PublicDescription": "Counts speculatively miss-predicted indirect branches at execution time. Counts for indirect near CALL or JMP instructions (RET excluded).",
@@ -225,6 +253,7 @@
     },
     {
         "BriefDescription": "Not taken speculative and retired mispredicted macro conditional branches",
+        "Counter": "0,1,2,3",
         "EventCode": "0x89",
         "EventName": "BR_MISP_EXEC.NONTAKEN_CONDITIONAL",
         "PublicDescription": "Not taken speculative and retired mispredicted macro conditional branches.",
@@ -233,6 +262,7 @@
     },
     {
         "BriefDescription": "Taken speculative and retired mispredicted macro conditional branches",
+        "Counter": "0,1,2,3",
         "EventCode": "0x89",
         "EventName": "BR_MISP_EXEC.TAKEN_CONDITIONAL",
         "PublicDescription": "Taken speculative and retired mispredicted macro conditional branches.",
@@ -241,6 +271,7 @@
     },
     {
         "BriefDescription": "Taken speculative and retired mispredicted indirect branches excluding calls and returns",
+        "Counter": "0,1,2,3",
         "EventCode": "0x89",
         "EventName": "BR_MISP_EXEC.TAKEN_INDIRECT_JUMP_NON_CALL_RET",
         "PublicDescription": "Taken speculative and retired mispredicted indirect branches excluding calls and returns.",
@@ -249,6 +280,7 @@
     },
     {
         "BriefDescription": "Taken speculative and retired mispredicted indirect calls",
+        "Counter": "0,1,2,3",
         "EventCode": "0x89",
         "EventName": "BR_MISP_EXEC.TAKEN_INDIRECT_NEAR_CALL",
         "PublicDescription": "Taken speculative and retired mispredicted indirect calls.",
@@ -257,6 +289,7 @@
     },
     {
         "BriefDescription": "Taken speculative and retired mispredicted indirect branches with return mnemonic",
+        "Counter": "0,1,2,3",
         "EventCode": "0x89",
         "EventName": "BR_MISP_EXEC.TAKEN_RETURN_NEAR",
         "PublicDescription": "Taken speculative and retired mispredicted indirect branches with return mnemonic.",
@@ -265,6 +298,7 @@
     },
     {
         "BriefDescription": "All mispredicted macro branch instructions retired.",
+        "Counter": "0,1,2,3",
         "EventCode": "0xC5",
         "EventName": "BR_MISP_RETIRED.ALL_BRANCHES",
         "PublicDescription": "Mispredicted branch instructions at retirement.",
@@ -272,6 +306,7 @@
     },
     {
         "BriefDescription": "Mispredicted macro branch instructions retired.",
+        "Counter": "0,1,2,3",
         "EventCode": "0xC5",
         "EventName": "BR_MISP_RETIRED.ALL_BRANCHES_PEBS",
         "PEBS": "2",
@@ -280,6 +315,7 @@
     },
     {
         "BriefDescription": "Mispredicted conditional branch instructions retired.",
+        "Counter": "0,1,2,3",
         "EventCode": "0xC5",
         "EventName": "BR_MISP_RETIRED.CONDITIONAL",
         "PEBS": "1",
@@ -288,6 +324,7 @@
     },
     {
         "BriefDescription": "number of near branch instructions retired that were mispredicted and taken.",
+        "Counter": "0,1,2,3",
         "EventCode": "0xC5",
         "EventName": "BR_MISP_RETIRED.NEAR_TAKEN",
         "PEBS": "1",
@@ -296,6 +333,7 @@
     },
     {
         "BriefDescription": "Count XClk pulses when this thread is unhalted and the other is halted.",
+        "Counter": "0,1,2,3",
         "EventCode": "0x3C",
         "EventName": "CPU_CLK_THREAD_UNHALTED.ONE_THREAD_ACTIVE",
         "SampleAfterValue": "2000003",
@@ -303,6 +341,7 @@
     },
     {
         "BriefDescription": "Reference cycles when the thread is unhalted (counts at 100 MHz rate)",
+        "Counter": "0,1,2,3",
         "EventCode": "0x3C",
         "EventName": "CPU_CLK_THREAD_UNHALTED.REF_XCLK",
         "PublicDescription": "Increments at the frequency of XCLK (100 MHz) when not halted.",
@@ -312,6 +351,7 @@
     {
         "AnyThread": "1",
         "BriefDescription": "Reference cycles when the at least one thread on the physical core is unhalted. (counts at 100 MHz rate)",
+        "Counter": "0,1,2,3",
         "EventCode": "0x3C",
         "EventName": "CPU_CLK_THREAD_UNHALTED.REF_XCLK_ANY",
         "SampleAfterValue": "2000003",
@@ -319,6 +359,7 @@
     },
     {
         "BriefDescription": "Count XClk pulses when this thread is unhalted and the other thread is halted.",
+        "Counter": "0,1,2,3",
         "EventCode": "0x3C",
         "EventName": "CPU_CLK_UNHALTED.ONE_THREAD_ACTIVE",
         "SampleAfterValue": "2000003",
@@ -326,12 +367,14 @@
     },
     {
         "BriefDescription": "Reference cycles when the core is not in halt state.",
+        "Counter": "Fixed counter 2",
         "EventName": "CPU_CLK_UNHALTED.REF_TSC",
         "SampleAfterValue": "2000003",
         "UMask": "0x3"
     },
     {
         "BriefDescription": "Reference cycles when the thread is unhalted (counts at 100 MHz rate)",
+        "Counter": "0,1,2,3",
         "EventCode": "0x3C",
         "EventName": "CPU_CLK_UNHALTED.REF_XCLK",
         "PublicDescription": "Reference cycles when the thread is unhalted. (counts at 100 MHz rate)",
@@ -341,6 +384,7 @@
     {
         "AnyThread": "1",
         "BriefDescription": "Reference cycles when the at least one thread on the physical core is unhalted. (counts at 100 MHz rate)",
+        "Counter": "0,1,2,3",
         "EventCode": "0x3C",
         "EventName": "CPU_CLK_UNHALTED.REF_XCLK_ANY",
         "SampleAfterValue": "2000003",
@@ -348,6 +392,7 @@
     },
     {
         "BriefDescription": "Core cycles when the thread is not in halt state.",
+        "Counter": "Fixed counter 1",
         "EventName": "CPU_CLK_UNHALTED.THREAD",
         "SampleAfterValue": "2000003",
         "UMask": "0x2"
@@ -355,6 +400,7 @@
     {
         "AnyThread": "1",
         "BriefDescription": "Core cycles when at least one thread on the physical core is not in halt state",
+        "Counter": "Fixed counter 1",
         "EventName": "CPU_CLK_UNHALTED.THREAD_ANY",
         "PublicDescription": "Core cycles when at least one thread on the physical core is not in halt state.",
         "SampleAfterValue": "2000003",
@@ -362,6 +408,7 @@
     },
     {
         "BriefDescription": "Thread cycles when thread is not in halt state",
+        "Counter": "0,1,2,3",
         "EventCode": "0x3C",
         "EventName": "CPU_CLK_UNHALTED.THREAD_P",
         "PublicDescription": "Counts the number of thread cycles while the thread is not in a halt state. The thread enters the halt state when it is running the HLT instruction. The core frequency may change from time to time due to power or thermal throttling.",
@@ -370,6 +417,7 @@
     {
         "AnyThread": "1",
         "BriefDescription": "Core cycles when at least one thread on the physical core is not in halt state",
+        "Counter": "0,1,2,3",
         "EventCode": "0x3C",
         "EventName": "CPU_CLK_UNHALTED.THREAD_P_ANY",
         "PublicDescription": "Core cycles when at least one thread on the physical core is not in halt state.",
@@ -377,6 +425,7 @@
     },
     {
         "BriefDescription": "Cycles while L1 cache miss demand load is outstanding.",
+        "Counter": "2",
         "CounterMask": "8",
         "EventCode": "0xA3",
         "EventName": "CYCLE_ACTIVITY.CYCLES_L1D_MISS",
@@ -385,6 +434,7 @@
     },
     {
         "BriefDescription": "Cycles with pending L1 cache miss loads.",
+        "Counter": "2",
         "CounterMask": "8",
         "EventCode": "0xA3",
         "EventName": "CYCLE_ACTIVITY.CYCLES_L1D_PENDING",
@@ -394,6 +444,7 @@
     },
     {
         "BriefDescription": "Cycles while L2 cache miss load* is outstanding.",
+        "Counter": "0,1,2,3",
         "CounterMask": "1",
         "EventCode": "0xA3",
         "EventName": "CYCLE_ACTIVITY.CYCLES_L2_MISS",
@@ -402,6 +453,7 @@
     },
     {
         "BriefDescription": "Cycles with pending L2 cache miss loads.",
+        "Counter": "0,1,2,3",
         "CounterMask": "1",
         "EventCode": "0xA3",
         "EventName": "CYCLE_ACTIVITY.CYCLES_L2_PENDING",
@@ -411,6 +463,7 @@
     },
     {
         "BriefDescription": "Cycles with pending memory loads.",
+        "Counter": "0,1,2,3",
         "CounterMask": "2",
         "EventCode": "0xA3",
         "EventName": "CYCLE_ACTIVITY.CYCLES_LDM_PENDING",
@@ -420,6 +473,7 @@
     },
     {
         "BriefDescription": "Cycles while memory subsystem has an outstanding load.",
+        "Counter": "0,1,2,3",
         "CounterMask": "2",
         "EventCode": "0xA3",
         "EventName": "CYCLE_ACTIVITY.CYCLES_MEM_ANY",
@@ -428,6 +482,7 @@
     },
     {
         "BriefDescription": "This event increments by 1 for every cycle where there was no execute for this thread.",
+        "Counter": "0,1,2,3",
         "CounterMask": "4",
         "EventCode": "0xA3",
         "EventName": "CYCLE_ACTIVITY.CYCLES_NO_EXECUTE",
@@ -437,6 +492,7 @@
     },
     {
         "BriefDescription": "Execution stalls while L1 cache miss demand load is outstanding.",
+        "Counter": "2",
         "CounterMask": "12",
         "EventCode": "0xA3",
         "EventName": "CYCLE_ACTIVITY.STALLS_L1D_MISS",
@@ -445,6 +501,7 @@
     },
     {
         "BriefDescription": "Execution stalls due to L1 data cache misses",
+        "Counter": "2",
         "CounterMask": "12",
         "EventCode": "0xA3",
         "EventName": "CYCLE_ACTIVITY.STALLS_L1D_PENDING",
@@ -454,6 +511,7 @@
     },
     {
         "BriefDescription": "Execution stalls while L2 cache miss load* is outstanding.",
+        "Counter": "0,1,2,3",
         "CounterMask": "5",
         "EventCode": "0xA3",
         "EventName": "CYCLE_ACTIVITY.STALLS_L2_MISS",
@@ -462,6 +520,7 @@
     },
     {
         "BriefDescription": "Execution stalls due to L2 cache misses.",
+        "Counter": "0,1,2,3",
         "CounterMask": "5",
         "EventCode": "0xA3",
         "EventName": "CYCLE_ACTIVITY.STALLS_L2_PENDING",
@@ -471,6 +530,7 @@
     },
     {
         "BriefDescription": "Execution stalls due to memory subsystem.",
+        "Counter": "0,1,2,3",
         "CounterMask": "6",
         "EventCode": "0xA3",
         "EventName": "CYCLE_ACTIVITY.STALLS_LDM_PENDING",
@@ -479,6 +539,7 @@
     },
     {
         "BriefDescription": "Execution stalls while memory subsystem has an outstanding load.",
+        "Counter": "0,1,2,3",
         "CounterMask": "6",
         "EventCode": "0xA3",
         "EventName": "CYCLE_ACTIVITY.STALLS_MEM_ANY",
@@ -487,6 +548,7 @@
     },
     {
         "BriefDescription": "Total execution stalls.",
+        "Counter": "0,1,2,3",
         "CounterMask": "4",
         "EventCode": "0xA3",
         "EventName": "CYCLE_ACTIVITY.STALLS_TOTAL",
@@ -495,6 +557,7 @@
     },
     {
         "BriefDescription": "Stall cycles because IQ is full",
+        "Counter": "0,1,2,3",
         "EventCode": "0x87",
         "EventName": "ILD_STALL.IQ_FULL",
         "PublicDescription": "Stall cycles due to IQ is full.",
@@ -503,6 +566,7 @@
     },
     {
         "BriefDescription": "Stalls caused by changing prefix length of the instruction.",
+        "Counter": "0,1,2,3",
         "EventCode": "0x87",
         "EventName": "ILD_STALL.LCP",
         "SampleAfterValue": "2000003",
@@ -510,12 +574,14 @@
     },
     {
         "BriefDescription": "Instructions retired from execution.",
+        "Counter": "Fixed counter 0",
         "EventName": "INST_RETIRED.ANY",
         "SampleAfterValue": "2000003",
         "UMask": "0x1"
     },
     {
         "BriefDescription": "Number of instructions retired. General Counter   - architectural event",
+        "Counter": "0,1,2,3",
         "EventCode": "0xC0",
         "EventName": "INST_RETIRED.ANY_P",
         "PublicDescription": "Number of instructions at retirement.",
@@ -523,6 +589,7 @@
     },
     {
         "BriefDescription": "Precise instruction retired event with HW to reduce effect of PEBS shadow in IP distribution",
+        "Counter": "1",
         "EventCode": "0xC0",
         "EventName": "INST_RETIRED.PREC_DIST",
         "PEBS": "2",
@@ -532,6 +599,7 @@
     },
     {
         "BriefDescription": "Number of cycles waiting for the checkpoints in Resource Allocation Table (RAT) to be recovered after Nuke due to all other cases except JEClear (e.g. whenever a ucode assist is needed like SSE exception, memory disambiguation, etc.)",
+        "Counter": "0,1,2,3",
         "CounterMask": "1",
         "EventCode": "0x0D",
         "EventName": "INT_MISC.RECOVERY_CYCLES",
@@ -541,6 +609,7 @@
     {
         "AnyThread": "1",
         "BriefDescription": "Core cycles the allocator was stalled due to recovery from earlier clear event for any thread running on the physical core (e.g. misprediction or memory nuke).",
+        "Counter": "0,1,2,3",
         "CounterMask": "1",
         "EventCode": "0x0D",
         "EventName": "INT_MISC.RECOVERY_CYCLES_ANY",
@@ -549,6 +618,7 @@
     },
     {
         "BriefDescription": "Number of occurrences waiting for the checkpoints in Resource Allocation Table (RAT) to be recovered after Nuke due to all other cases except JEClear (e.g. whenever a ucode assist is needed like SSE exception, memory disambiguation, etc.)",
+        "Counter": "0,1,2,3",
         "CounterMask": "1",
         "EdgeDetect": "1",
         "EventCode": "0x0D",
@@ -558,6 +628,7 @@
     },
     {
         "BriefDescription": "This event counts the number of times that split load operations are temporarily blocked because all resources for handling the split accesses are in use.",
+        "Counter": "0,1,2,3",
         "EventCode": "0x03",
         "EventName": "LD_BLOCKS.NO_SR",
         "PublicDescription": "The number of times that split load operations are temporarily blocked because all resources for handling the split accesses are in use.",
@@ -566,6 +637,7 @@
     },
     {
         "BriefDescription": "Cases when loads get true Block-on-Store blocking code preventing store forwarding",
+        "Counter": "0,1,2,3",
         "EventCode": "0x03",
         "EventName": "LD_BLOCKS.STORE_FORWARD",
         "PublicDescription": "Loads blocked by overlapping with store buffer that cannot be forwarded.",
@@ -574,6 +646,7 @@
     },
     {
         "BriefDescription": "False dependencies in MOB due to partial compare on address",
+        "Counter": "0,1,2,3",
         "EventCode": "0x07",
         "EventName": "LD_BLOCKS_PARTIAL.ADDRESS_ALIAS",
         "PublicDescription": "False dependencies in MOB due to partial compare on address.",
@@ -582,6 +655,7 @@
     },
     {
         "BriefDescription": "Not software-prefetch load dispatches that hit FB allocated for hardware prefetch",
+        "Counter": "0,1,2,3",
         "EventCode": "0x4C",
         "EventName": "LOAD_HIT_PRE.HW_PF",
         "PublicDescription": "Non-SW-prefetch load dispatches that hit fill buffer allocated for H/W prefetch.",
@@ -590,6 +664,7 @@
     },
     {
         "BriefDescription": "Not software-prefetch load dispatches that hit FB allocated for software prefetch",
+        "Counter": "0,1,2,3",
         "EventCode": "0x4C",
         "EventName": "LOAD_HIT_PRE.SW_PF",
         "PublicDescription": "Non-SW-prefetch load dispatches that hit fill buffer allocated for S/W prefetch.",
@@ -598,6 +673,7 @@
     },
     {
         "BriefDescription": "Cycles 4 Uops delivered by the LSD, but didn't come from the decoder",
+        "Counter": "0,1,2,3",
         "CounterMask": "4",
         "EventCode": "0xA8",
         "EventName": "LSD.CYCLES_4_UOPS",
@@ -607,6 +683,7 @@
     },
     {
         "BriefDescription": "Cycles Uops delivered by the LSD, but didn't come from the decoder",
+        "Counter": "0,1,2,3",
         "CounterMask": "1",
         "EventCode": "0xA8",
         "EventName": "LSD.CYCLES_ACTIVE",
@@ -616,6 +693,7 @@
     },
     {
         "BriefDescription": "Number of Uops delivered by the LSD.",
+        "Counter": "0,1,2,3",
         "EventCode": "0xA8",
         "EventName": "LSD.UOPS",
         "SampleAfterValue": "2000003",
@@ -623,6 +701,7 @@
     },
     {
         "BriefDescription": "Number of machine clears (nukes) of any type.",
+        "Counter": "0,1,2,3",
         "CounterMask": "1",
         "EdgeDetect": "1",
         "EventCode": "0xC3",
@@ -632,6 +711,7 @@
     },
     {
         "BriefDescription": "This event counts the number of executed Intel AVX masked load operations that refer to an illegal address range with the mask bits set to 0.",
+        "Counter": "0,1,2,3",
         "EventCode": "0xC3",
         "EventName": "MACHINE_CLEARS.MASKMOV",
         "PublicDescription": "Counts the number of executed AVX masked load operations that refer to an illegal address range with the mask bits set to 0.",
@@ -640,6 +720,7 @@
     },
     {
         "BriefDescription": "Self-modifying code (SMC) detected.",
+        "Counter": "0,1,2,3",
         "EventCode": "0xC3",
         "EventName": "MACHINE_CLEARS.SMC",
         "PublicDescription": "Number of self-modifying-code machine clears detected.",
@@ -648,6 +729,7 @@
     },
     {
         "BriefDescription": "Number of integer Move Elimination candidate uops that were eliminated.",
+        "Counter": "0,1,2,3",
         "EventCode": "0x58",
         "EventName": "MOVE_ELIMINATION.INT_ELIMINATED",
         "SampleAfterValue": "1000003",
@@ -655,6 +737,7 @@
     },
     {
         "BriefDescription": "Number of integer Move Elimination candidate uops that were not eliminated.",
+        "Counter": "0,1,2,3",
         "EventCode": "0x58",
         "EventName": "MOVE_ELIMINATION.INT_NOT_ELIMINATED",
         "SampleAfterValue": "1000003",
@@ -662,6 +745,7 @@
     },
     {
         "BriefDescription": "Number of times any microcode assist is invoked by HW upon uop writeback.",
+        "Counter": "0,1,2,3",
         "EventCode": "0xC1",
         "EventName": "OTHER_ASSISTS.ANY_WB_ASSIST",
         "SampleAfterValue": "100003",
@@ -669,6 +753,7 @@
     },
     {
         "BriefDescription": "Resource-related stall cycles",
+        "Counter": "0,1,2,3",
         "EventCode": "0xA2",
         "EventName": "RESOURCE_STALLS.ANY",
         "PublicDescription": "Cycles Allocation is stalled due to Resource Related reason.",
@@ -677,6 +762,7 @@
     },
     {
         "BriefDescription": "Cycles stalled due to re-order buffer full.",
+        "Counter": "0,1,2,3",
         "EventCode": "0xA2",
         "EventName": "RESOURCE_STALLS.ROB",
         "SampleAfterValue": "2000003",
@@ -684,6 +770,7 @@
     },
     {
         "BriefDescription": "Cycles stalled due to no eligible RS entry available.",
+        "Counter": "0,1,2,3",
         "EventCode": "0xA2",
         "EventName": "RESOURCE_STALLS.RS",
         "SampleAfterValue": "2000003",
@@ -691,6 +778,7 @@
     },
     {
         "BriefDescription": "Cycles stalled due to no store buffers available. (not including draining form sync).",
+        "Counter": "0,1,2,3",
         "EventCode": "0xA2",
         "EventName": "RESOURCE_STALLS.SB",
         "PublicDescription": "Cycles stalled due to no store buffers available (not including draining form sync).",
@@ -699,6 +787,7 @@
     },
     {
         "BriefDescription": "Count cases of saving new LBR",
+        "Counter": "0,1,2,3",
         "EventCode": "0xCC",
         "EventName": "ROB_MISC_EVENTS.LBR_INSERTS",
         "PublicDescription": "Count cases of saving new LBR records by hardware.",
@@ -707,6 +796,7 @@
     },
     {
         "BriefDescription": "Cycles when Reservation Station (RS) is empty for the thread",
+        "Counter": "0,1,2,3",
         "EventCode": "0x5E",
         "EventName": "RS_EVENTS.EMPTY_CYCLES",
         "PublicDescription": "Cycles the RS is empty for the thread.",
@@ -715,6 +805,7 @@
     },
     {
         "BriefDescription": "Counts end of periods where the Reservation Station (RS) was empty. Could be useful to precisely locate Frontend Latency Bound issues.",
+        "Counter": "0,1,2,3",
         "CounterMask": "1",
         "EdgeDetect": "1",
         "EventCode": "0x5E",
@@ -725,6 +816,7 @@
     },
     {
         "BriefDescription": "Cycles per thread when uops are dispatched to port 0",
+        "Counter": "0,1,2,3",
         "EventCode": "0xA1",
         "EventName": "UOPS_DISPATCHED_PORT.PORT_0",
         "PublicDescription": "Cycles which a Uop is dispatched on port 0.",
@@ -734,6 +826,7 @@
     {
         "AnyThread": "1",
         "BriefDescription": "Cycles per core when uops are dispatched to port 0",
+        "Counter": "0,1,2,3",
         "EventCode": "0xA1",
         "EventName": "UOPS_DISPATCHED_PORT.PORT_0_CORE",
         "PublicDescription": "Cycles per core when uops are dispatched to port 0.",
@@ -742,6 +835,7 @@
     },
     {
         "BriefDescription": "Cycles per thread when uops are dispatched to port 1",
+        "Counter": "0,1,2,3",
         "EventCode": "0xA1",
         "EventName": "UOPS_DISPATCHED_PORT.PORT_1",
         "PublicDescription": "Cycles which a Uop is dispatched on port 1.",
@@ -751,6 +845,7 @@
     {
         "AnyThread": "1",
         "BriefDescription": "Cycles per core when uops are dispatched to port 1",
+        "Counter": "0,1,2,3",
         "EventCode": "0xA1",
         "EventName": "UOPS_DISPATCHED_PORT.PORT_1_CORE",
         "PublicDescription": "Cycles per core when uops are dispatched to port 1.",
@@ -759,6 +854,7 @@
     },
     {
         "BriefDescription": "Cycles per thread when load or STA uops are dispatched to port 2",
+        "Counter": "0,1,2,3",
         "EventCode": "0xA1",
         "EventName": "UOPS_DISPATCHED_PORT.PORT_2",
         "PublicDescription": "Cycles which a Uop is dispatched on port 2.",
@@ -768,6 +864,7 @@
     {
         "AnyThread": "1",
         "BriefDescription": "Uops dispatched to port 2, loads and stores per core (speculative and retired).",
+        "Counter": "0,1,2,3",
         "EventCode": "0xA1",
         "EventName": "UOPS_DISPATCHED_PORT.PORT_2_CORE",
         "SampleAfterValue": "2000003",
@@ -775,6 +872,7 @@
     },
     {
         "BriefDescription": "Cycles per thread when load or STA uops are dispatched to port 3",
+        "Counter": "0,1,2,3",
         "EventCode": "0xA1",
         "EventName": "UOPS_DISPATCHED_PORT.PORT_3",
         "PublicDescription": "Cycles which a Uop is dispatched on port 3.",
@@ -784,6 +882,7 @@
     {
         "AnyThread": "1",
         "BriefDescription": "Cycles per core when load or STA uops are dispatched to port 3",
+        "Counter": "0,1,2,3",
         "EventCode": "0xA1",
         "EventName": "UOPS_DISPATCHED_PORT.PORT_3_CORE",
         "PublicDescription": "Cycles per core when load or STA uops are dispatched to port 3.",
@@ -792,6 +891,7 @@
     },
     {
         "BriefDescription": "Cycles per thread when uops are dispatched to port 4",
+        "Counter": "0,1,2,3",
         "EventCode": "0xA1",
         "EventName": "UOPS_DISPATCHED_PORT.PORT_4",
         "PublicDescription": "Cycles which a Uop is dispatched on port 4.",
@@ -801,6 +901,7 @@
     {
         "AnyThread": "1",
         "BriefDescription": "Cycles per core when uops are dispatched to port 4",
+        "Counter": "0,1,2,3",
         "EventCode": "0xA1",
         "EventName": "UOPS_DISPATCHED_PORT.PORT_4_CORE",
         "PublicDescription": "Cycles per core when uops are dispatched to port 4.",
@@ -809,6 +910,7 @@
     },
     {
         "BriefDescription": "Cycles per thread when uops are dispatched to port 5",
+        "Counter": "0,1,2,3",
         "EventCode": "0xA1",
         "EventName": "UOPS_DISPATCHED_PORT.PORT_5",
         "PublicDescription": "Cycles which a Uop is dispatched on port 5.",
@@ -818,6 +920,7 @@
     {
         "AnyThread": "1",
         "BriefDescription": "Cycles per core when uops are dispatched to port 5",
+        "Counter": "0,1,2,3",
         "EventCode": "0xA1",
         "EventName": "UOPS_DISPATCHED_PORT.PORT_5_CORE",
         "PublicDescription": "Cycles per core when uops are dispatched to port 5.",
@@ -826,6 +929,7 @@
     },
     {
         "BriefDescription": "Number of uops executed on the core.",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB1",
         "EventName": "UOPS_EXECUTED.CORE",
         "PublicDescription": "Counts total number of uops to be executed per-core each cycle.",
@@ -834,6 +938,7 @@
     },
     {
         "BriefDescription": "Cycles at least 1 micro-op is executed from any thread on physical core",
+        "Counter": "0,1,2,3",
         "CounterMask": "1",
         "EventCode": "0xB1",
         "EventName": "UOPS_EXECUTED.CORE_CYCLES_GE_1",
@@ -843,6 +948,7 @@
     },
     {
         "BriefDescription": "Cycles at least 2 micro-op is executed from any thread on physical core",
+        "Counter": "0,1,2,3",
         "CounterMask": "2",
         "EventCode": "0xB1",
         "EventName": "UOPS_EXECUTED.CORE_CYCLES_GE_2",
@@ -852,6 +958,7 @@
     },
     {
         "BriefDescription": "Cycles at least 3 micro-op is executed from any thread on physical core",
+        "Counter": "0,1,2,3",
         "CounterMask": "3",
         "EventCode": "0xB1",
         "EventName": "UOPS_EXECUTED.CORE_CYCLES_GE_3",
@@ -861,6 +968,7 @@
     },
     {
         "BriefDescription": "Cycles at least 4 micro-op is executed from any thread on physical core",
+        "Counter": "0,1,2,3",
         "CounterMask": "4",
         "EventCode": "0xB1",
         "EventName": "UOPS_EXECUTED.CORE_CYCLES_GE_4",
@@ -870,6 +978,7 @@
     },
     {
         "BriefDescription": "Cycles with no micro-ops executed from any thread on physical core",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB1",
         "EventName": "UOPS_EXECUTED.CORE_CYCLES_NONE",
         "Invert": "1",
@@ -879,6 +988,7 @@
     },
     {
         "BriefDescription": "Cycles where at least 1 uop was executed per-thread",
+        "Counter": "0,1,2,3",
         "CounterMask": "1",
         "EventCode": "0xB1",
         "EventName": "UOPS_EXECUTED.CYCLES_GE_1_UOP_EXEC",
@@ -888,6 +998,7 @@
     },
     {
         "BriefDescription": "Cycles where at least 2 uops were executed per-thread",
+        "Counter": "0,1,2,3",
         "CounterMask": "2",
         "EventCode": "0xB1",
         "EventName": "UOPS_EXECUTED.CYCLES_GE_2_UOPS_EXEC",
@@ -897,6 +1008,7 @@
     },
     {
         "BriefDescription": "Cycles where at least 3 uops were executed per-thread",
+        "Counter": "0,1,2,3",
         "CounterMask": "3",
         "EventCode": "0xB1",
         "EventName": "UOPS_EXECUTED.CYCLES_GE_3_UOPS_EXEC",
@@ -906,6 +1018,7 @@
     },
     {
         "BriefDescription": "Cycles where at least 4 uops were executed per-thread",
+        "Counter": "0,1,2,3",
         "CounterMask": "4",
         "EventCode": "0xB1",
         "EventName": "UOPS_EXECUTED.CYCLES_GE_4_UOPS_EXEC",
@@ -915,6 +1028,7 @@
     },
     {
         "BriefDescription": "Counts number of cycles no uops were dispatched to be executed on this thread.",
+        "Counter": "0,1,2,3",
         "CounterMask": "1",
         "EventCode": "0xB1",
         "EventName": "UOPS_EXECUTED.STALL_CYCLES",
@@ -924,6 +1038,7 @@
     },
     {
         "BriefDescription": "Counts the number of uops to be executed per-thread each cycle.",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB1",
         "EventName": "UOPS_EXECUTED.THREAD",
         "PublicDescription": "Counts total number of uops to be executed per-thread each cycle. Set Cmask = 1, INV =1 to count stall cycles.",
@@ -932,6 +1047,7 @@
     },
     {
         "BriefDescription": "Uops that Resource Allocation Table (RAT) issues to Reservation Station (RS)",
+        "Counter": "0,1,2,3",
         "EventCode": "0x0E",
         "EventName": "UOPS_ISSUED.ANY",
         "PublicDescription": "Increments each cycle the # of Uops issued by the RAT to RS. Set Cmask = 1, Inv = 1, Any= 1to count stalled cycles of this core.",
@@ -941,6 +1057,7 @@
     {
         "AnyThread": "1",
         "BriefDescription": "Cycles when Resource Allocation Table (RAT) does not issue Uops to Reservation Station (RS) for all threads",
+        "Counter": "0,1,2,3",
         "CounterMask": "1",
         "EventCode": "0x0E",
         "EventName": "UOPS_ISSUED.CORE_STALL_CYCLES",
@@ -951,6 +1068,7 @@
     },
     {
         "BriefDescription": "Number of flags-merge uops being allocated.",
+        "Counter": "0,1,2,3",
         "EventCode": "0x0E",
         "EventName": "UOPS_ISSUED.FLAGS_MERGE",
         "PublicDescription": "Number of flags-merge uops allocated. Such uops adds delay.",
@@ -959,6 +1077,7 @@
     },
     {
         "BriefDescription": "Number of Multiply packed/scalar single precision uops allocated",
+        "Counter": "0,1,2,3",
         "EventCode": "0x0E",
         "EventName": "UOPS_ISSUED.SINGLE_MUL",
         "PublicDescription": "Number of multiply packed/scalar single precision uops allocated.",
@@ -967,6 +1086,7 @@
     },
     {
         "BriefDescription": "Number of slow LEA uops being allocated. A uop is generally considered SlowLea if it has 3 sources (e.g. 2 sources + immediate) regardless if as a result of LEA instruction or not.",
+        "Counter": "0,1,2,3",
         "EventCode": "0x0E",
         "EventName": "UOPS_ISSUED.SLOW_LEA",
         "PublicDescription": "Number of slow LEA or similar uops allocated. Such uop has 3 sources (e.g. 2 sources + immediate) regardless if as a result of LEA instruction or not.",
@@ -975,6 +1095,7 @@
     },
     {
         "BriefDescription": "Cycles when Resource Allocation Table (RAT) does not issue Uops to Reservation Station (RS) for the thread",
+        "Counter": "0,1,2,3",
         "CounterMask": "1",
         "EventCode": "0x0E",
         "EventName": "UOPS_ISSUED.STALL_CYCLES",
@@ -985,6 +1106,7 @@
     },
     {
         "BriefDescription": "Retired uops.",
+        "Counter": "0,1,2,3",
         "EventCode": "0xC2",
         "EventName": "UOPS_RETIRED.ALL",
         "PEBS": "1",
@@ -994,6 +1116,7 @@
     {
         "AnyThread": "1",
         "BriefDescription": "Cycles without actually retired uops.",
+        "Counter": "0,1,2,3",
         "CounterMask": "1",
         "EventCode": "0xC2",
         "EventName": "UOPS_RETIRED.CORE_STALL_CYCLES",
@@ -1003,6 +1126,7 @@
     },
     {
         "BriefDescription": "Retirement slots used.",
+        "Counter": "0,1,2,3",
         "EventCode": "0xC2",
         "EventName": "UOPS_RETIRED.RETIRE_SLOTS",
         "PEBS": "1",
@@ -1011,6 +1135,7 @@
     },
     {
         "BriefDescription": "Cycles without actually retired uops.",
+        "Counter": "0,1,2,3",
         "CounterMask": "1",
         "EventCode": "0xC2",
         "EventName": "UOPS_RETIRED.STALL_CYCLES",
@@ -1020,6 +1145,7 @@
     },
     {
         "BriefDescription": "Cycles with less than 10 actually retired uops.",
+        "Counter": "0,1,2,3",
         "CounterMask": "10",
         "EventCode": "0xC2",
         "EventName": "UOPS_RETIRED.TOTAL_CYCLES",

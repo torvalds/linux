@@ -290,18 +290,23 @@ unsigned long bch2_copygc_wait_amount(struct bch_fs *c)
 
 void bch2_copygc_wait_to_text(struct printbuf *out, struct bch_fs *c)
 {
-	prt_printf(out, "Currently waiting for:     ");
+	printbuf_tabstop_push(out, 32);
+	prt_printf(out, "running:\t%u\n",		c->copygc_running);
+	prt_printf(out, "copygc_wait:\t%llu\n",		c->copygc_wait);
+	prt_printf(out, "copygc_wait_at:\t%llu\n",	c->copygc_wait_at);
+
+	prt_printf(out, "Currently waiting for:\t");
 	prt_human_readable_u64(out, max(0LL, c->copygc_wait -
 					atomic64_read(&c->io_clock[WRITE].now)) << 9);
 	prt_newline(out);
 
-	prt_printf(out, "Currently waiting since:   ");
+	prt_printf(out, "Currently waiting since:\t");
 	prt_human_readable_u64(out, max(0LL,
 					atomic64_read(&c->io_clock[WRITE].now) -
 					c->copygc_wait_at) << 9);
 	prt_newline(out);
 
-	prt_printf(out, "Currently calculated wait: ");
+	prt_printf(out, "Currently calculated wait:\t");
 	prt_human_readable_u64(out, bch2_copygc_wait_amount(c));
 	prt_newline(out);
 }
@@ -378,7 +383,7 @@ static int bch2_copygc_thread(void *arg)
 			if (min_member_capacity == U64_MAX)
 				min_member_capacity = 128 * 2048;
 
-			bch2_trans_unlock_long(ctxt.trans);
+			move_buckets_wait(&ctxt, buckets, true);
 			bch2_kthread_io_clock_wait(clock, last + (min_member_capacity >> 6),
 					MAX_SCHEDULE_TIMEOUT);
 		}

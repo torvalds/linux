@@ -62,7 +62,6 @@ struct intel_uncore_type {
 	unsigned fixed_ctr;
 	unsigned fixed_ctl;
 	unsigned box_ctl;
-	u64 *box_ctls;	/* Unit ctrl addr of the first box of each die */
 	union {
 		unsigned msr_offset;
 		unsigned mmio_offset;
@@ -76,7 +75,6 @@ struct intel_uncore_type {
 		u64 *pci_offsets;
 		u64 *mmio_offsets;
 	};
-	unsigned *box_ids;
 	struct event_constraint unconstrainted;
 	struct event_constraint *constraints;
 	struct intel_uncore_pmu *pmus;
@@ -86,6 +84,7 @@ struct intel_uncore_type {
 	const struct attribute_group *attr_groups[4];
 	const struct attribute_group **attr_update;
 	struct pmu *pmu; /* for custom pmu ops */
+	struct rb_root *boxes;
 	/*
 	 * Uncore PMU would store relevant platform topology configuration here
 	 * to identify which platform component each PMON block of that type is
@@ -98,6 +97,10 @@ struct intel_uncore_type {
 	int (*get_topology)(struct intel_uncore_type *type);
 	void (*set_mapping)(struct intel_uncore_type *type);
 	void (*cleanup_mapping)(struct intel_uncore_type *type);
+	/*
+	 * Optional callbacks for extra uncore units cleanup
+	 */
+	void (*cleanup_extra_boxes)(struct intel_uncore_type *type);
 };
 
 #define pmu_group attr_groups[0]
@@ -125,6 +128,7 @@ struct intel_uncore_pmu {
 	int				func_id;
 	bool				registered;
 	atomic_t			activeboxes;
+	cpumask_t			cpu_mask;
 	struct intel_uncore_type	*type;
 	struct intel_uncore_box		**boxes;
 };

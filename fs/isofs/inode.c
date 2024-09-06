@@ -326,8 +326,8 @@ static const struct fs_parameter_spec isofs_param_spec[] = {
 	fsparam_u32	("session",		Opt_session),
 	fsparam_u32	("sbsector",		Opt_sb),
 	fsparam_enum	("check",		Opt_check, isofs_param_check),
-	fsparam_u32	("uid",			Opt_uid),
-	fsparam_u32	("gid",			Opt_gid),
+	fsparam_uid	("uid",			Opt_uid),
+	fsparam_gid	("gid",			Opt_gid),
 	/* Note: mode/dmode historically accepted %u not strictly %o */
 	fsparam_u32	("mode",		Opt_mode),
 	fsparam_u32	("dmode",		Opt_dmode),
@@ -344,8 +344,6 @@ static int isofs_parse_param(struct fs_context *fc,
 	struct isofs_options *popt = fc->fs_private;
 	struct fs_parse_result result;
 	int opt;
-	kuid_t uid;
-	kgid_t gid;
 	unsigned int n;
 
 	/* There are no remountable options */
@@ -409,17 +407,11 @@ static int isofs_parse_param(struct fs_context *fc,
 	case Opt_ignore:
 		break;
 	case Opt_uid:
-		uid = make_kuid(current_user_ns(), result.uint_32);
-		if (!uid_valid(uid))
-			return -EINVAL;
-		popt->uid = uid;
+		popt->uid = result.uid;
 		popt->uid_set = 1;
 		break;
 	case Opt_gid:
-		gid = make_kgid(current_user_ns(), result.uint_32);
-		if (!gid_valid(gid))
-			return -EINVAL;
-		popt->gid = gid;
+		popt->gid = result.gid;
 		popt->gid_set = 1;
 		break;
 	case Opt_mode:
@@ -1625,4 +1617,5 @@ static void __exit exit_iso9660_fs(void)
 
 module_init(init_iso9660_fs)
 module_exit(exit_iso9660_fs)
+MODULE_DESCRIPTION("ISO 9660 CDROM file system support");
 MODULE_LICENSE("GPL");

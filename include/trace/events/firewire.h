@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (c) 2024 Takashi Sakamoto
 
+#undef TRACE_SYSTEM
 #define TRACE_SYSTEM	firewire
 
 #if !defined(_FIREWIRE_TRACE_EVENT_H) || defined(TRACE_HEADER_MULTI_READ)
@@ -11,7 +12,7 @@
 
 #include <linux/firewire-constants.h>
 
-#include "../../../drivers/firewire/packet-header-definitions.h"
+// Some macros are defined in 'drivers/firewire/packet-header-definitions.h'.
 
 // The content of TP_printk field is preprocessed, then put to the module binary.
 #define ASYNC_HEADER_GET_DESTINATION(header)	\
@@ -363,6 +364,544 @@ TRACE_EVENT(bus_reset_handle,
 		__entry->bm_abdicate ? "true" : "false",
 		__print_array(__get_dynamic_array(self_ids),
 			      __get_dynamic_array_len(self_ids) / QUADLET_SIZE, QUADLET_SIZE)
+	)
+);
+
+// Some macros are defined in 'drivers/firewire/phy-packet-definitions.h'.
+
+// The content of TP_printk field is preprocessed, then put to the module binary.
+
+#define PHY_PACKET_SELF_ID_GET_PHY_ID(quads)		\
+	((((const u32 *)quads)[0] & SELF_ID_PHY_ID_MASK) >> SELF_ID_PHY_ID_SHIFT)
+
+#define PHY_PACKET_SELF_ID_GET_LINK_ACTIVE(quads)	\
+	((((const u32 *)quads)[0] & SELF_ID_ZERO_LINK_ACTIVE_MASK) >> SELF_ID_ZERO_LINK_ACTIVE_SHIFT)
+
+#define PHY_PACKET_SELF_ID_GET_GAP_COUNT(quads)		\
+	((((const u32 *)quads)[0] & SELF_ID_ZERO_GAP_COUNT_MASK) >> SELF_ID_ZERO_GAP_COUNT_SHIFT)
+
+#define PHY_PACKET_SELF_ID_GET_SCODE(quads)		\
+	((((const u32 *)quads)[0] & SELF_ID_ZERO_SCODE_MASK) >> SELF_ID_ZERO_SCODE_SHIFT)
+
+#define PHY_PACKET_SELF_ID_GET_CONTENDER(quads)		\
+	((((const u32 *)quads)[0] & SELF_ID_ZERO_CONTENDER_MASK) >> SELF_ID_ZERO_CONTENDER_SHIFT)
+
+#define PHY_PACKET_SELF_ID_GET_POWER_CLASS(quads)	\
+	((((const u32 *)quads)[0] & SELF_ID_ZERO_POWER_CLASS_MASK) >> SELF_ID_ZERO_POWER_CLASS_SHIFT)
+
+#define PHY_PACKET_SELF_ID_GET_INITIATED_RESET(quads)	\
+	((((const u32 *)quads)[0] & SELF_ID_ZERO_INITIATED_RESET_MASK) >> SELF_ID_ZERO_INITIATED_RESET_SHIFT)
+
+TRACE_EVENT(self_id_sequence,
+	TP_PROTO(unsigned int card_index, const u32 *self_id_sequence, unsigned int quadlet_count, unsigned int generation),
+	TP_ARGS(card_index, self_id_sequence, quadlet_count, generation),
+	TP_STRUCT__entry(
+		__field(u8, card_index)
+		__field(u8, generation)
+		__dynamic_array(u8, port_status, self_id_sequence_get_port_capacity(quadlet_count))
+		__dynamic_array(u32, self_id_sequence, quadlet_count)
+	),
+	TP_fast_assign(
+		__entry->card_index = card_index;
+		__entry->generation = generation;
+		{
+			u8 *port_status = __get_dynamic_array(port_status);
+			unsigned int port_index;
+
+			for (port_index = 0; port_index < __get_dynamic_array_len(port_status); ++port_index) {
+				port_status[port_index] =
+					self_id_sequence_get_port_status(self_id_sequence,
+									 quadlet_count, port_index);
+			}
+		}
+		memcpy(__get_dynamic_array(self_id_sequence), self_id_sequence,
+					   __get_dynamic_array_len(self_id_sequence));
+	),
+	TP_printk(
+		"card_index=%u generation=%u phy_id=0x%02x link_active=%s gap_count=%u scode=%u contender=%s power_class=%u initiated_reset=%s port_status=%s self_id_sequence=%s",
+		__entry->card_index,
+		__entry->generation,
+		PHY_PACKET_SELF_ID_GET_PHY_ID(__get_dynamic_array(self_id_sequence)),
+		PHY_PACKET_SELF_ID_GET_LINK_ACTIVE(__get_dynamic_array(self_id_sequence)) ? "true" : "false",
+		PHY_PACKET_SELF_ID_GET_GAP_COUNT(__get_dynamic_array(self_id_sequence)),
+		PHY_PACKET_SELF_ID_GET_SCODE(__get_dynamic_array(self_id_sequence)),
+		PHY_PACKET_SELF_ID_GET_CONTENDER(__get_dynamic_array(self_id_sequence)) ? "true" : "false",
+		PHY_PACKET_SELF_ID_GET_POWER_CLASS(__get_dynamic_array(self_id_sequence)),
+		PHY_PACKET_SELF_ID_GET_INITIATED_RESET(__get_dynamic_array(self_id_sequence)) ? "true" : "false",
+		__print_array(__get_dynamic_array(port_status), __get_dynamic_array_len(port_status), 1),
+		__print_array(__get_dynamic_array(self_id_sequence),
+			      __get_dynamic_array_len(self_id_sequence) / QUADLET_SIZE, QUADLET_SIZE)
+	)
+);
+
+#undef PHY_PACKET_SELF_ID_GET_PHY_ID
+#undef PHY_PACKET_SELF_ID_GET_LINK_ACTIVE
+#undef PHY_PACKET_SELF_ID_GET_GAP_COUNT
+#undef PHY_PACKET_SELF_ID_GET_SCODE
+#undef PHY_PACKET_SELF_ID_GET_CONTENDER
+#undef PHY_PACKET_SELF_ID_GET_POWER_CLASS
+#undef PHY_PACKET_SELF_ID_GET_INITIATED_RESET
+
+TRACE_EVENT_CONDITION(isoc_outbound_allocate,
+	TP_PROTO(const struct fw_iso_context *ctx, unsigned int channel, unsigned int scode),
+	TP_ARGS(ctx, channel, scode),
+	TP_CONDITION(ctx->type == FW_ISO_CONTEXT_TRANSMIT),
+	TP_STRUCT__entry(
+		__field(u64, context)
+		__field(u8, card_index)
+		__field(u8, channel)
+		__field(u8, scode)
+	),
+	TP_fast_assign(
+		__entry->context = (uintptr_t)ctx;
+		__entry->card_index = ctx->card->index;
+		__entry->channel = channel;
+		__entry->scode = scode;
+	),
+	TP_printk(
+		"context=0x%llx card_index=%u channel=%u scode=%u",
+		__entry->context,
+		__entry->card_index,
+		__entry->channel,
+		__entry->scode
+	)
+);
+
+TRACE_EVENT_CONDITION(isoc_inbound_single_allocate,
+	TP_PROTO(const struct fw_iso_context *ctx, unsigned int channel, unsigned int header_size),
+	TP_ARGS(ctx, channel, header_size),
+	TP_CONDITION(ctx->type == FW_ISO_CONTEXT_RECEIVE),
+	TP_STRUCT__entry(
+		__field(u64, context)
+		__field(u8, card_index)
+		__field(u8, channel)
+		__field(u8, header_size)
+	),
+	TP_fast_assign(
+		__entry->context = (uintptr_t)ctx;
+		__entry->card_index = ctx->card->index;
+		__entry->channel = channel;
+		__entry->header_size = header_size;
+	),
+	TP_printk(
+		"context=0x%llx card_index=%u channel=%u header_size=%u",
+		__entry->context,
+		__entry->card_index,
+		__entry->channel,
+		__entry->header_size
+	)
+);
+
+TRACE_EVENT_CONDITION(isoc_inbound_multiple_allocate,
+	TP_PROTO(const struct fw_iso_context *ctx),
+	TP_ARGS(ctx),
+	TP_CONDITION(ctx->type == FW_ISO_CONTEXT_RECEIVE_MULTICHANNEL),
+	TP_STRUCT__entry(
+		__field(u64, context)
+		__field(u8, card_index)
+	),
+	TP_fast_assign(
+		__entry->context = (uintptr_t)ctx;
+		__entry->card_index = ctx->card->index;
+	),
+	TP_printk(
+		"context=0x%llx card_index=%u",
+		__entry->context,
+		__entry->card_index
+	)
+);
+
+DECLARE_EVENT_CLASS(isoc_destroy_template,
+	TP_PROTO(const struct fw_iso_context *ctx),
+	TP_ARGS(ctx),
+	TP_STRUCT__entry(
+		__field(u64, context)
+		__field(u8, card_index)
+	),
+	TP_fast_assign(
+		__entry->context = (uintptr_t)ctx;
+		__entry->card_index = ctx->card->index;
+	),
+	TP_printk(
+		"context=0x%llx card_index=%u",
+		__entry->context,
+		__entry->card_index
+	)
+)
+
+DEFINE_EVENT_CONDITION(isoc_destroy_template, isoc_outbound_destroy,
+	TP_PROTO(const struct fw_iso_context *ctx),
+	TP_ARGS(ctx),
+	TP_CONDITION(ctx->type == FW_ISO_CONTEXT_TRANSMIT)
+);
+
+DEFINE_EVENT_CONDITION(isoc_destroy_template, isoc_inbound_single_destroy,
+	TP_PROTO(const struct fw_iso_context *ctx),
+	TP_ARGS(ctx),
+	TP_CONDITION(ctx->type == FW_ISO_CONTEXT_RECEIVE)
+);
+
+DEFINE_EVENT_CONDITION(isoc_destroy_template, isoc_inbound_multiple_destroy,
+	TP_PROTO(const struct fw_iso_context *ctx),
+	TP_ARGS(ctx),
+	TP_CONDITION(ctx->type == FW_ISO_CONTEXT_RECEIVE_MULTICHANNEL)
+);
+
+TRACE_EVENT(isoc_inbound_multiple_channels,
+	TP_PROTO(const struct fw_iso_context *ctx, u64 channels),
+	TP_ARGS(ctx, channels),
+	TP_STRUCT__entry(
+		__field(u64, context)
+		__field(u8, card_index)
+		__field(u64, channels)
+	),
+	TP_fast_assign(
+		__entry->context = (uintptr_t)ctx;
+		__entry->card_index = ctx->card->index;
+		__entry->channels = channels;
+	),
+	TP_printk(
+		"context=0x%llx card_index=%u channels=0x%016llx",
+		__entry->context,
+		__entry->card_index,
+		__entry->channels
+	)
+);
+
+TRACE_EVENT_CONDITION(isoc_outbound_start,
+	TP_PROTO(const struct fw_iso_context *ctx, int cycle_match),
+	TP_ARGS(ctx, cycle_match),
+	TP_CONDITION(ctx->type == FW_ISO_CONTEXT_TRANSMIT),
+	TP_STRUCT__entry(
+		__field(u64, context)
+		__field(u8, card_index)
+		__field(bool, cycle_match)
+		__field(u16, cycle)
+	),
+	TP_fast_assign(
+		__entry->context = (uintptr_t)ctx;
+		__entry->card_index = ctx->card->index;
+		__entry->cycle_match = cycle_match < 0 ? false : true;
+		__entry->cycle = __entry->cycle_match ? (u16)cycle_match : 0;
+	),
+	TP_printk(
+		"context=0x%llx card_index=%u cycle_match=%s cycle=0x%04x",
+		__entry->context,
+		__entry->card_index,
+		__entry->cycle_match ? "true" : "false",
+		__entry->cycle
+	)
+);
+
+DECLARE_EVENT_CLASS(isoc_inbound_start_template,
+	TP_PROTO(const struct fw_iso_context *ctx, int cycle_match, unsigned int sync, unsigned int tags),
+	TP_ARGS(ctx, cycle_match, sync, tags),
+	TP_STRUCT__entry(
+		__field(u64, context)
+		__field(u8, card_index)
+		__field(bool, cycle_match)
+		__field(u16, cycle)
+		__field(u8, sync)
+		__field(u8, tags)
+	),
+	TP_fast_assign(
+		__entry->context = (uintptr_t)ctx;
+		__entry->card_index = ctx->card->index;
+		__entry->cycle_match = cycle_match < 0 ? false : true;
+		__entry->cycle = __entry->cycle_match ? (u16)cycle_match : 0;
+		__entry->sync = sync;
+		__entry->tags = tags;
+	),
+	TP_printk(
+		"context=0x%llx card_index=%u cycle_match=%s cycle=0x%04x sync=%u tags=%s",
+		__entry->context,
+		__entry->card_index,
+		__entry->cycle_match ? "true" : "false",
+		__entry->cycle,
+		__entry->sync,
+		__print_flags(__entry->tags, "|",
+			{ FW_ISO_CONTEXT_MATCH_TAG0, "0" },
+			{ FW_ISO_CONTEXT_MATCH_TAG1, "1" },
+			{ FW_ISO_CONTEXT_MATCH_TAG2, "2" },
+			{ FW_ISO_CONTEXT_MATCH_TAG3, "3" }
+		)
+	)
+);
+
+DEFINE_EVENT_CONDITION(isoc_inbound_start_template, isoc_inbound_single_start,
+	TP_PROTO(const struct fw_iso_context *ctx, int cycle_match, unsigned int sync, unsigned int tags),
+	TP_ARGS(ctx, cycle_match, sync, tags),
+	TP_CONDITION(ctx->type == FW_ISO_CONTEXT_RECEIVE)
+);
+
+DEFINE_EVENT_CONDITION(isoc_inbound_start_template, isoc_inbound_multiple_start,
+	TP_PROTO(const struct fw_iso_context *ctx, int cycle_match, unsigned int sync, unsigned int tags),
+	TP_ARGS(ctx, cycle_match, sync, tags),
+	TP_CONDITION(ctx->type == FW_ISO_CONTEXT_RECEIVE_MULTICHANNEL)
+);
+
+DECLARE_EVENT_CLASS(isoc_stop_template,
+	TP_PROTO(const struct fw_iso_context *ctx),
+	TP_ARGS(ctx),
+	TP_STRUCT__entry(
+		__field(u64, context)
+		__field(u8, card_index)
+	),
+	TP_fast_assign(
+		__entry->context = (uintptr_t)ctx;
+		__entry->card_index = ctx->card->index;
+	),
+	TP_printk(
+		"context=0x%llx card_index=%u",
+		__entry->context,
+		__entry->card_index
+	)
+)
+
+DEFINE_EVENT_CONDITION(isoc_stop_template, isoc_outbound_stop,
+	TP_PROTO(const struct fw_iso_context *ctx),
+	TP_ARGS(ctx),
+	TP_CONDITION(ctx->type == FW_ISO_CONTEXT_TRANSMIT)
+);
+
+DEFINE_EVENT_CONDITION(isoc_stop_template, isoc_inbound_single_stop,
+	TP_PROTO(const struct fw_iso_context *ctx),
+	TP_ARGS(ctx),
+	TP_CONDITION(ctx->type == FW_ISO_CONTEXT_RECEIVE)
+);
+
+DEFINE_EVENT_CONDITION(isoc_stop_template, isoc_inbound_multiple_stop,
+	TP_PROTO(const struct fw_iso_context *ctx),
+	TP_ARGS(ctx),
+	TP_CONDITION(ctx->type == FW_ISO_CONTEXT_RECEIVE_MULTICHANNEL)
+);
+
+DECLARE_EVENT_CLASS(isoc_flush_template,
+	TP_PROTO(const struct fw_iso_context *ctx),
+	TP_ARGS(ctx),
+	TP_STRUCT__entry(
+		__field(u64, context)
+		__field(u8, card_index)
+	),
+	TP_fast_assign(
+		__entry->context = (uintptr_t)ctx;
+		__entry->card_index = ctx->card->index;
+	),
+	TP_printk(
+		"context=0x%llx card_index=%u",
+		__entry->context,
+		__entry->card_index
+	)
+);
+
+DEFINE_EVENT_CONDITION(isoc_flush_template, isoc_outbound_flush,
+	TP_PROTO(const struct fw_iso_context *ctx),
+	TP_ARGS(ctx),
+	TP_CONDITION(ctx->type == FW_ISO_CONTEXT_TRANSMIT)
+);
+
+DEFINE_EVENT_CONDITION(isoc_flush_template, isoc_inbound_single_flush,
+	TP_PROTO(const struct fw_iso_context *ctx),
+	TP_ARGS(ctx),
+	TP_CONDITION(ctx->type == FW_ISO_CONTEXT_RECEIVE)
+);
+
+DEFINE_EVENT_CONDITION(isoc_flush_template, isoc_inbound_multiple_flush,
+	TP_PROTO(const struct fw_iso_context *ctx),
+	TP_ARGS(ctx),
+	TP_CONDITION(ctx->type == FW_ISO_CONTEXT_RECEIVE_MULTICHANNEL)
+);
+
+DECLARE_EVENT_CLASS(isoc_flush_completions_template,
+	TP_PROTO(const struct fw_iso_context *ctx),
+	TP_ARGS(ctx),
+	TP_STRUCT__entry(
+		__field(u64, context)
+		__field(u8, card_index)
+	),
+	TP_fast_assign(
+		__entry->context = (uintptr_t)ctx;
+		__entry->card_index = ctx->card->index;
+	),
+	TP_printk(
+		"context=0x%llx card_index=%u",
+		__entry->context,
+		__entry->card_index
+	)
+);
+
+DEFINE_EVENT_CONDITION(isoc_flush_completions_template, isoc_outbound_flush_completions,
+	TP_PROTO(const struct fw_iso_context *ctx),
+	TP_ARGS(ctx),
+	TP_CONDITION(ctx->type == FW_ISO_CONTEXT_TRANSMIT)
+);
+
+DEFINE_EVENT_CONDITION(isoc_flush_completions_template, isoc_inbound_single_flush_completions,
+	TP_PROTO(const struct fw_iso_context *ctx),
+	TP_ARGS(ctx),
+	TP_CONDITION(ctx->type == FW_ISO_CONTEXT_RECEIVE)
+);
+
+DEFINE_EVENT_CONDITION(isoc_flush_completions_template, isoc_inbound_multiple_flush_completions,
+	TP_PROTO(const struct fw_iso_context *ctx),
+	TP_ARGS(ctx),
+	TP_CONDITION(ctx->type == FW_ISO_CONTEXT_RECEIVE_MULTICHANNEL)
+);
+
+#define TP_STRUCT__entry_iso_packet(ctx, buffer_offset, packet)				\
+	TP_STRUCT__entry(								\
+		__field(u64, context)							\
+		__field(u8, card_index)							\
+		__field(u32, buffer_offset)						\
+		__field(bool, interrupt)						\
+		__field(bool, skip)							\
+		__field(u8, sy)								\
+		__field(u8, tag)							\
+		__dynamic_array(u32, header, packet->header_length / QUADLET_SIZE)	\
+	)
+
+#define TP_fast_assign_iso_packet(ctx, buffer_offset, packet)		\
+	TP_fast_assign(							\
+		__entry->context = (uintptr_t)ctx;			\
+		__entry->card_index = ctx->card->index;			\
+		__entry->buffer_offset = buffer_offset;			\
+		__entry->interrupt = packet->interrupt;			\
+		__entry->skip = packet->skip;				\
+		__entry->sy = packet->sy;				\
+		__entry->tag = packet->tag;				\
+		memcpy(__get_dynamic_array(header), packet->header,	\
+		       __get_dynamic_array_len(header));		\
+	)
+
+TRACE_EVENT_CONDITION(isoc_outbound_queue,
+	TP_PROTO(const struct fw_iso_context *ctx, unsigned long buffer_offset, const struct fw_iso_packet *packet),
+	TP_ARGS(ctx, buffer_offset, packet),
+	TP_CONDITION(ctx->type == FW_ISO_CONTEXT_TRANSMIT),
+	TP_STRUCT__entry_iso_packet(ctx, buffer_offset, packet),
+	TP_fast_assign_iso_packet(ctx, buffer_offset, packet),
+	TP_printk(
+		"context=0x%llx card_index=%u buffer_offset=0x%x interrupt=%s skip=%s sy=%d tag=%u header=%s",
+		__entry->context,
+		__entry->card_index,
+		__entry->buffer_offset,
+		__entry->interrupt ? "true" : "false",
+		__entry->skip ? "true" : "false",
+		__entry->sy,
+		__entry->tag,
+		__print_array(__get_dynamic_array(header),
+			      __get_dynamic_array_len(header) / QUADLET_SIZE, QUADLET_SIZE)
+	)
+);
+
+TRACE_EVENT_CONDITION(isoc_inbound_single_queue,
+	TP_PROTO(const struct fw_iso_context *ctx, unsigned long buffer_offset, const struct fw_iso_packet *packet),
+	TP_ARGS(ctx, buffer_offset, packet),
+	TP_CONDITION(ctx->type == FW_ISO_CONTEXT_RECEIVE),
+	TP_STRUCT__entry_iso_packet(ctx, buffer_offset, packet),
+	TP_fast_assign_iso_packet(ctx, buffer_offset, packet),
+	TP_printk(
+		"context=0x%llx card_index=%u buffer_offset=0x%x interrupt=%s skip=%s",
+		__entry->context,
+		__entry->card_index,
+		__entry->buffer_offset,
+		__entry->interrupt ? "true" : "false",
+		__entry->skip ? "true" : "false"
+	)
+);
+
+TRACE_EVENT_CONDITION(isoc_inbound_multiple_queue,
+	TP_PROTO(const struct fw_iso_context *ctx, unsigned long buffer_offset, const struct fw_iso_packet *packet),
+	TP_ARGS(ctx, buffer_offset, packet),
+	TP_CONDITION(ctx->type == FW_ISO_CONTEXT_RECEIVE_MULTICHANNEL),
+	TP_STRUCT__entry_iso_packet(ctx, buffer_offset, packet),
+	TP_fast_assign_iso_packet(ctx, buffer_offset, packet),
+	TP_printk(
+		"context=0x%llx card_index=%u buffer_offset=0x%x interrupt=%s",
+		__entry->context,
+		__entry->card_index,
+		__entry->buffer_offset,
+		__entry->interrupt ? "true" : "false"
+	)
+);
+
+#undef TP_STRUCT__entry_iso_packet
+#undef TP_fast_assign_iso_packet
+
+#ifndef show_cause
+enum fw_iso_context_completions_cause {
+	FW_ISO_CONTEXT_COMPLETIONS_CAUSE_FLUSH = 0,
+	FW_ISO_CONTEXT_COMPLETIONS_CAUSE_IRQ,
+	FW_ISO_CONTEXT_COMPLETIONS_CAUSE_HEADER_OVERFLOW,
+};
+#define show_cause(cause) 								\
+	__print_symbolic(cause,								\
+		{ FW_ISO_CONTEXT_COMPLETIONS_CAUSE_FLUSH, "FLUSH" },			\
+		{ FW_ISO_CONTEXT_COMPLETIONS_CAUSE_IRQ, "IRQ" },			\
+		{ FW_ISO_CONTEXT_COMPLETIONS_CAUSE_HEADER_OVERFLOW, "HEADER_OVERFLOW" }	\
+	)
+#endif
+
+DECLARE_EVENT_CLASS(isoc_single_completions_template,
+	TP_PROTO(const struct fw_iso_context *ctx, u16 timestamp, enum fw_iso_context_completions_cause cause, const u32 *header, unsigned int header_length),
+	TP_ARGS(ctx, timestamp, cause, header, header_length),
+	TP_STRUCT__entry(
+		__field(u64, context)
+		__field(u8, card_index)
+		__field(u16, timestamp)
+		__field(u8, cause)
+		__dynamic_array(u32, header, header_length / QUADLET_SIZE)
+	),
+	TP_fast_assign(
+		__entry->context = (uintptr_t)ctx;
+		__entry->card_index = ctx->card->index;
+		__entry->timestamp = timestamp;
+		__entry->cause = cause;
+		memcpy(__get_dynamic_array(header), header, __get_dynamic_array_len(header));
+	),
+	TP_printk(
+		"context=0x%llx card_index=%u timestamp=0x%04x cause=%s header=%s",
+		__entry->context,
+		__entry->card_index,
+		__entry->timestamp,
+		show_cause(__entry->cause),
+		__print_array(__get_dynamic_array(header),
+			      __get_dynamic_array_len(header) / QUADLET_SIZE, QUADLET_SIZE)
+	)
+)
+
+DEFINE_EVENT_CONDITION(isoc_single_completions_template, isoc_outbound_completions,
+	TP_PROTO(const struct fw_iso_context *ctx, u16 timestamp, enum fw_iso_context_completions_cause cause, const u32 *header, unsigned int header_length),
+	TP_ARGS(ctx, timestamp, cause, header, header_length),
+	TP_CONDITION(ctx->type == FW_ISO_CONTEXT_TRANSMIT)
+);
+
+DEFINE_EVENT_CONDITION(isoc_single_completions_template, isoc_inbound_single_completions,
+	TP_PROTO(const struct fw_iso_context *ctx, u16 timestamp, enum fw_iso_context_completions_cause cause, const u32 *header, unsigned int header_length),
+	TP_ARGS(ctx, timestamp, cause, header, header_length),
+	TP_CONDITION(ctx->type == FW_ISO_CONTEXT_RECEIVE)
+);
+
+TRACE_EVENT(isoc_inbound_multiple_completions,
+	TP_PROTO(const struct fw_iso_context *ctx, unsigned int completed, enum fw_iso_context_completions_cause cause),
+	TP_ARGS(ctx, completed, cause),
+	TP_STRUCT__entry(
+		__field(u64, context)
+		__field(u8, card_index)
+		__field(u16, completed)
+		__field(u8, cause)
+	),
+	TP_fast_assign(
+		__entry->context = (uintptr_t)ctx;
+		__entry->card_index = ctx->card->index;
+		__entry->completed = completed;
+		__entry->cause = cause;
+	),
+	TP_printk(
+		"context=0x%llx card_index=%u completed=%u cause=%s",
+		__entry->context,
+		__entry->card_index,
+		__entry->completed,
+		show_cause(__entry->cause)
 	)
 );
 

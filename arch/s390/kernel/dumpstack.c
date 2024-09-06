@@ -61,28 +61,28 @@ static bool in_task_stack(unsigned long sp, struct task_struct *task,
 
 static bool in_irq_stack(unsigned long sp, struct stack_info *info)
 {
-	unsigned long stack = S390_lowcore.async_stack - STACK_INIT_OFFSET;
+	unsigned long stack = get_lowcore()->async_stack - STACK_INIT_OFFSET;
 
 	return in_stack(sp, info, STACK_TYPE_IRQ, stack);
 }
 
 static bool in_nodat_stack(unsigned long sp, struct stack_info *info)
 {
-	unsigned long stack = S390_lowcore.nodat_stack - STACK_INIT_OFFSET;
+	unsigned long stack = get_lowcore()->nodat_stack - STACK_INIT_OFFSET;
 
 	return in_stack(sp, info, STACK_TYPE_NODAT, stack);
 }
 
 static bool in_mcck_stack(unsigned long sp, struct stack_info *info)
 {
-	unsigned long stack = S390_lowcore.mcck_stack - STACK_INIT_OFFSET;
+	unsigned long stack = get_lowcore()->mcck_stack - STACK_INIT_OFFSET;
 
 	return in_stack(sp, info, STACK_TYPE_MCCK, stack);
 }
 
 static bool in_restart_stack(unsigned long sp, struct stack_info *info)
 {
-	unsigned long stack = S390_lowcore.restart_stack - STACK_INIT_OFFSET;
+	unsigned long stack = get_lowcore()->restart_stack - STACK_INIT_OFFSET;
 
 	return in_stack(sp, info, STACK_TYPE_RESTART, stack);
 }

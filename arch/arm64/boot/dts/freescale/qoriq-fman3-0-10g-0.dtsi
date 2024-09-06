@@ -32,7 +32,7 @@ fman@1a00000 {
 	mdio@f1000 {
 		#address-cells = <1>;
 		#size-cells = <0>;
-		compatible = "fsl,fman-memac-mdio", "fsl,fman-xmdio";
+		compatible = "fsl,fman-memac-mdio";
 		reg = <0xf1000 0x1000>;
 
 		pcsphy6: ethernet-phy@0 {

@@ -17,11 +17,11 @@
 
 #define FD(e, x, y) (*(int *)xyarray__entry(e->core.fd, x, y))
 
-#define __PERF_SAMPLE_TYPE(st, opt)	{ st, #st, opt }
-#define PERF_SAMPLE_TYPE(_st, opt)	__PERF_SAMPLE_TYPE(PERF_SAMPLE_##_st, opt)
+#define __PERF_SAMPLE_TYPE(tt, st, opt)	{ tt, #st, opt }
+#define PERF_SAMPLE_TYPE(_st, opt)	__PERF_SAMPLE_TYPE(PBF_TERM_##_st, PERF_SAMPLE_##_st, opt)
 
 static const struct perf_sample_info {
-	u64 type;
+	enum perf_bpf_filter_term type;
 	const char *name;
 	const char *option;
 } sample_table[] = {
@@ -44,12 +44,12 @@ static const struct perf_sample_info {
 	PERF_SAMPLE_TYPE(DATA_PAGE_SIZE, "--data-page-size"),
 };
 
-static const struct perf_sample_info *get_sample_info(u64 flags)
+static const struct perf_sample_info *get_sample_info(enum perf_bpf_filter_term type)
 {
 	size_t i;
 
 	for (i = 0; i < ARRAY_SIZE(sample_table); i++) {
-		if (sample_table[i].type == flags)
+		if (sample_table[i].type == type)
 			return &sample_table[i];
 	}
 	return NULL;
@@ -59,8 +59,14 @@ static int check_sample_flags(struct evsel *evsel, struct perf_bpf_filter_expr *
 {
 	const struct perf_sample_info *info;
 
-	if (evsel->core.attr.sample_type & expr->sample_flags)
+	if (expr->term >= PBF_TERM_SAMPLE_START && expr->term <= PBF_TERM_SAMPLE_END &&
+	    (evsel->core.attr.sample_type & (1 << (expr->term - PBF_TERM_SAMPLE_START))))
 		return 0;
+
+	if (expr->term == PBF_TERM_UID || expr->term == PBF_TERM_GID) {
+		/* Not dependent on the sample_type as computed from a BPF helper. */
+		return 0;
+	}
 
 	if (expr->op == PBF_OP_GROUP_BEGIN) {
 		struct perf_bpf_filter_expr *group;
@@ -72,10 +78,10 @@ static int check_sample_flags(struct evsel *evsel, struct perf_bpf_filter_expr *
 		return 0;
 	}
 
-	info = get_sample_info(expr->sample_flags);
+	info = get_sample_info(expr->term);
 	if (info == NULL) {
-		pr_err("Error: %s event does not have sample flags %lx\n",
-		       evsel__name(evsel), expr->sample_flags);
+		pr_err("Error: %s event does not have sample flags %d\n",
+		       evsel__name(evsel), expr->term);
 		return -1;
 	}
 
@@ -105,7 +111,7 @@ int perf_bpf_filter__prepare(struct evsel *evsel)
 		struct perf_bpf_filter_entry entry = {
 			.op = expr->op,
 			.part = expr->part,
-			.flags = expr->sample_flags,
+			.term = expr->term,
 			.value = expr->val,
 		};
 
@@ -122,7 +128,7 @@ int perf_bpf_filter__prepare(struct evsel *evsel)
 				struct perf_bpf_filter_entry group_entry = {
 					.op = group->op,
 					.part = group->part,
-					.flags = group->sample_flags,
+					.term = group->term,
 					.value = group->val,
 				};
 				bpf_map_update_elem(fd, &i, &group_entry, BPF_ANY);
@@ -173,7 +179,8 @@ u64 perf_bpf_filter__lost_count(struct evsel *evsel)
 	return skel ? skel->bss->dropped : 0;
 }
 
-struct perf_bpf_filter_expr *perf_bpf_filter_expr__new(unsigned long sample_flags, int part,
+struct perf_bpf_filter_expr *perf_bpf_filter_expr__new(enum perf_bpf_filter_term term,
+						       int part,
 						       enum perf_bpf_filter_op op,
 						       unsigned long val)
 {
@@ -181,7 +188,7 @@ struct perf_bpf_filter_expr *perf_bpf_filter_expr__new(unsigned long sample_flag
 
 	expr = malloc(sizeof(*expr));
 	if (expr != NULL) {
-		expr->sample_flags = sample_flags;
+		expr->term = term;
 		expr->part = part;
 		expr->op = op;
 		expr->val = val;

@@ -1,9 +1,7 @@
 # SPDX-License-Identifier: MIT
-#
-# Makefile for DCN21.
+# Copyright © 2019-2024 Advanced Micro Devices, Inc. All rights reserved.
 
-DCN21 = dcn21_hubp.o dcn21_hubbub.o \
-	 dcn21_link_encoder.o dcn21_dccg.o
+DCN21 = dcn21_link_encoder.o
 
 AMD_DAL_DCN21 = $(addprefix $(AMDDALPATH)/dc/dcn21/,$(DCN21))
 

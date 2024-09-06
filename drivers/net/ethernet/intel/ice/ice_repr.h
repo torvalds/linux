@@ -35,9 +35,8 @@ void ice_repr_stop_tx_queues(struct ice_repr *repr);
 struct ice_repr *ice_netdev_to_repr(const struct net_device *netdev);
 bool ice_is_port_repr_netdev(const struct net_device *netdev);
 
-struct ice_repr *ice_repr_get_by_vsi(struct ice_vsi *vsi);
-
 void ice_repr_inc_tx_stats(struct ice_repr *repr, unsigned int len,
 			   int xmit_status);
 void ice_repr_inc_rx_stats(struct net_device *netdev, unsigned int len);
+struct ice_repr *ice_repr_get(struct ice_pf *pf, u32 id);
 #endif

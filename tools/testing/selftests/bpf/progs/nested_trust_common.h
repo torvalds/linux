@@ -7,6 +7,6 @@
 #include <stdbool.h>
 
 bool bpf_cpumask_test_cpu(unsigned int cpu, const struct cpumask *cpumask) __ksym;
-bool bpf_cpumask_first_zero(const struct cpumask *cpumask) __ksym;
+__u32 bpf_cpumask_first_zero(const struct cpumask *cpumask) __ksym;
 
 #endif /* _NESTED_TRUST_COMMON_H */

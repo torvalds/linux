@@ -413,7 +413,7 @@ int amdgpu_vm_pt_clear(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 	if (adev->asic_type >= CHIP_VEGA10) {
 		if (level != AMDGPU_VM_PTB) {
 			/* Handle leaf PDEs as PTEs */
-			flags |= AMDGPU_PDE_PTE;
+			flags |= AMDGPU_PDE_PTE_FLAG(adev);
 			amdgpu_gmc_get_vm_pde(adev, level,
 					      &value, &flags);
 		} else {
@@ -761,12 +761,12 @@ static void amdgpu_vm_pte_update_flags(struct amdgpu_vm_update_params *params,
 	struct amdgpu_device *adev = params->adev;
 
 	if (level != AMDGPU_VM_PTB) {
-		flags |= AMDGPU_PDE_PTE;
+		flags |= AMDGPU_PDE_PTE_FLAG(params->adev);
 		amdgpu_gmc_get_vm_pde(adev, level, &addr, &flags);
 
 	} else if (adev->asic_type >= CHIP_VEGA10 &&
 		   !(flags & AMDGPU_PTE_VALID) &&
-		   !(flags & AMDGPU_PTE_PRT)) {
+		   !(flags & AMDGPU_PTE_PRT_FLAG(params->adev))) {
 
 		/* Workaround for fault priority problem on GMC9 */
 		flags |= AMDGPU_PTE_EXECUTABLE;

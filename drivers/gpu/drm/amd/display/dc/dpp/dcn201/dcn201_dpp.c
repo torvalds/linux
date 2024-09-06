@@ -61,6 +61,13 @@ static void dpp201_cnv_setup(
 		CNVC_BYPASS, 0,
 		FORMAT_EXPANSION_MODE, mode);
 
+	/*
+	 * hardcode default
+	 * FORMAT_CONTROL. FORMAT_CNV16				default 0: U0.16/S.1.15;	1: U1.15/ S.1.14
+	 * FORMAT_CONTROL. CNVC_BYPASS_MSB_ALIGN		default 0: disabled			1: enabled
+	 * FORMAT_CONTROL. CLAMP_POSITIVE			default 0: disabled			1: enabled
+	 * FORMAT_CONTROL. CLAMP_POSITIVE_C			default 0: disabled			1: enabled
+	 */
 	REG_UPDATE(FORMAT_CONTROL, FORMAT_CNV16, 0);
 	REG_UPDATE(FORMAT_CONTROL, CNVC_BYPASS_MSB_ALIGN, 0);
 	REG_UPDATE(FORMAT_CONTROL, CLAMP_POSITIVE, 0);
@@ -185,6 +192,7 @@ static bool dpp201_get_optimal_number_of_taps(
 		struct scaler_data *scl_data,
 		const struct scaling_taps *in_taps)
 {
+	/* Some ASICs does not support  FP16 scaling, so we reject modes require this*/
 	if (scl_data->viewport.width  != scl_data->h_active &&
 		scl_data->viewport.height != scl_data->v_active &&
 		dpp->caps->dscl_data_proc_format == DSCL_DATA_PRCESSING_FIXED_FORMAT &&
@@ -196,6 +204,7 @@ static bool dpp201_get_optimal_number_of_taps(
 		scl_data->viewport.width > dpp->ctx->dc->debug.max_downscale_src_width)
 		return false;
 
+	/* No support for programming ratio of 8, drop to 7.99999.. */
 	if (scl_data->ratios.horz.value == (8ll << 32))
 		scl_data->ratios.horz.value--;
 	if (scl_data->ratios.vert.value == (8ll << 32))
@@ -205,6 +214,7 @@ static bool dpp201_get_optimal_number_of_taps(
 	if (scl_data->ratios.vert_c.value == (8ll << 32))
 		scl_data->ratios.vert_c.value--;
 
+	/* Set default taps if none are provided */
 	if (in_taps->h_taps == 0) {
 		if (dc_fixpt_ceil(scl_data->ratios.horz) > 4)
 			scl_data->taps.h_taps = 8;
@@ -233,6 +243,7 @@ static bool dpp201_get_optimal_number_of_taps(
 		else
 			scl_data->taps.h_taps_c = 2;
 	} else if ((in_taps->h_taps_c % 2) != 0 && in_taps->h_taps_c != 1)
+		/* Only 1 and even h_taps_c are supported by hw */
 		scl_data->taps.h_taps_c = in_taps->h_taps_c - 1;
 	else
 		scl_data->taps.h_taps_c = in_taps->h_taps_c;
@@ -307,7 +318,7 @@ bool dpp201_construct(
 		LB_PIXEL_DEPTH_30BPP;
 
 	dpp->lb_bits_per_entry = LB_BITS_PER_ENTRY;
-	dpp->lb_memory_size = LB_TOTAL_NUMBER_OF_ENTRIES;
+	dpp->lb_memory_size = LB_TOTAL_NUMBER_OF_ENTRIES; /*0x1404*/
 
 	return true;
 }

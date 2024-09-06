@@ -54,8 +54,6 @@ static int usb_xfer(struct i2c_adapter *adapter, struct i2c_msg *msgs, int num)
 	struct i2c_msg *pmsg;
 	int i, ret;
 
-	dev_dbg(&adapter->dev, "master xfer %d messages:\n", num);
-
 	pstatus = kmalloc(sizeof(*pstatus), GFP_KERNEL);
 	if (!pstatus)
 		return -ENOMEM;
@@ -142,8 +140,8 @@ out:
 
 /* This is the actual algorithm we define */
 static const struct i2c_algorithm usb_algorithm = {
-	.master_xfer	= usb_xfer,
-	.functionality	= usb_func,
+	.xfer = usb_xfer,
+	.functionality = usb_func,
 };
 
 /* ----- end of i2c layer ------------------------------------------------ */

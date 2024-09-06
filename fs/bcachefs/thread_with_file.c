@@ -67,9 +67,14 @@ err:
 
 /* stdio_redirect */
 
+static bool stdio_redirect_has_more_input(struct stdio_redirect *stdio, size_t seen)
+{
+	return stdio->input.buf.nr > seen || stdio->done;
+}
+
 static bool stdio_redirect_has_input(struct stdio_redirect *stdio)
 {
-	return stdio->input.buf.nr || stdio->done;
+	return stdio_redirect_has_more_input(stdio, 0);
 }
 
 static bool stdio_redirect_has_output(struct stdio_redirect *stdio)
@@ -181,9 +186,13 @@ static ssize_t thread_with_stdio_write(struct file *file, const char __user *ubu
 		}
 
 		spin_lock(&buf->lock);
-		if (buf->buf.nr < STDIO_REDIRECT_BUFSIZE)
-			darray_make_room_gfp(&buf->buf,
-				min(b, STDIO_REDIRECT_BUFSIZE - buf->buf.nr), GFP_NOWAIT);
+		size_t makeroom = b;
+		if (!buf->waiting_for_line || memchr(buf->buf.data, '\n', buf->buf.nr))
+			makeroom = min_t(ssize_t, makeroom,
+				   max_t(ssize_t, STDIO_REDIRECT_BUFSIZE - buf->buf.nr,
+						  0));
+		darray_make_room_gfp(&buf->buf, makeroom, GFP_NOWAIT);
+
 		b = min(len, darray_room(buf->buf));
 
 		if (b && !copy_from_user_nofault(&darray_top(buf->buf), ubuf, b)) {
@@ -355,43 +364,67 @@ int bch2_stdio_redirect_read(struct stdio_redirect *stdio, char *ubuf, size_t le
 	return ret;
 }
 
-int bch2_stdio_redirect_readline(struct stdio_redirect *stdio, char *ubuf, size_t len)
+int bch2_stdio_redirect_readline_timeout(struct stdio_redirect *stdio,
+					 darray_char *line,
+					 unsigned long timeout)
 {
+	unsigned long until = jiffies + timeout, t;
 	struct stdio_buf *buf = &stdio->input;
-	size_t copied = 0;
-	ssize_t ret = 0;
+	size_t seen = 0;
 again:
-	do {
-		wait_event_timeout(buf->wait, stdio_redirect_has_input(stdio),
-				   sysctl_hung_task_timeout_secs * HZ / 2);
-	} while (!stdio_redirect_has_input(stdio));
+	t = timeout != MAX_SCHEDULE_TIMEOUT
+		? max_t(long, until - jiffies, 0)
+		: timeout;
 
-	if (stdio->done) {
-		ret = -1;
-		goto out;
-	}
+	t = min(t, sysctl_hung_task_timeout_secs * HZ / 2);
+
+	wait_event_timeout(buf->wait, stdio_redirect_has_more_input(stdio, seen), t);
+
+	if (stdio->done)
+		return -1;
 
 	spin_lock(&buf->lock);
-	size_t b = min(len, buf->buf.nr);
-	char *n = memchr(buf->buf.data, '\n', b);
-	if (n)
-		b = min_t(size_t, b, n + 1 - buf->buf.data);
+	seen = buf->buf.nr;
+	char *n = memchr(buf->buf.data, '\n', seen);
+
+	if (!n && timeout != MAX_SCHEDULE_TIMEOUT && jiffies >= until) {
+		spin_unlock(&buf->lock);
+		return -ETIME;
+	}
+
+	if (!n) {
+		buf->waiting_for_line = true;
+		spin_unlock(&buf->lock);
+		goto again;
+	}
+
+	size_t b = n + 1 - buf->buf.data;
+	if (b > line->size) {
+		spin_unlock(&buf->lock);
+		int ret = darray_resize(line, b);
+		if (ret)
+			return ret;
+		seen = 0;
+		goto again;
+	}
+
 	buf->buf.nr -= b;
-	memcpy(ubuf, buf->buf.data, b);
+	memcpy(line->data, buf->buf.data, b);
 	memmove(buf->buf.data,
 		buf->buf.data + b,
 		buf->buf.nr);
-	ubuf += b;
-	len -= b;
-	copied += b;
+	line->nr = b;
+
+	buf->waiting_for_line = false;
 	spin_unlock(&buf->lock);
 
 	wake_up(&buf->wait);
+	return 0;
+}
 
-	if (!n && len)
-		goto again;
-out:
-	return copied ?: ret;
+int bch2_stdio_redirect_readline(struct stdio_redirect *stdio, darray_char *line)
+{
+	return bch2_stdio_redirect_readline_timeout(stdio, line, MAX_SCHEDULE_TIMEOUT);
 }
 
 __printf(3, 0)

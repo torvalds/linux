@@ -200,6 +200,56 @@ DECLARE_EVENT_CLASS(bio,
 		  (unsigned long long)__entry->sector, __entry->nr_sector)
 );
 
+/* fs.c: */
+TRACE_EVENT(bch2_sync_fs,
+	TP_PROTO(struct super_block *sb, int wait),
+
+	TP_ARGS(sb, wait),
+
+	TP_STRUCT__entry(
+		__field(	dev_t,	dev			)
+		__field(	int,	wait			)
+
+	),
+
+	TP_fast_assign(
+		__entry->dev	= sb->s_dev;
+		__entry->wait	= wait;
+	),
+
+	TP_printk("dev %d,%d wait %d",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->wait)
+);
+
+/* fs-io.c: */
+TRACE_EVENT(bch2_fsync,
+	TP_PROTO(struct file *file, int datasync),
+
+	TP_ARGS(file, datasync),
+
+	TP_STRUCT__entry(
+		__field(	dev_t,	dev			)
+		__field(	ino_t,	ino			)
+		__field(	ino_t,	parent			)
+		__field(	int,	datasync		)
+	),
+
+	TP_fast_assign(
+		struct dentry *dentry = file->f_path.dentry;
+
+		__entry->dev		= dentry->d_sb->s_dev;
+		__entry->ino		= d_inode(dentry)->i_ino;
+		__entry->parent		= d_inode(dentry->d_parent)->i_ino;
+		__entry->datasync	= datasync;
+	),
+
+	TP_printk("dev %d,%d ino %lu parent %lu datasync %d ",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  (unsigned long) __entry->ino,
+		  (unsigned long) __entry->parent, __entry->datasync)
+);
+
 /* super-io.c: */
 TRACE_EVENT(write_super,
 	TP_PROTO(struct bch_fs *c, unsigned long ip),
@@ -938,10 +988,33 @@ TRACE_EVENT(trans_restart_split_race,
 		  __entry->u64s_remaining)
 );
 
-DEFINE_EVENT(transaction_event,	trans_blocked_journal_reclaim,
+TRACE_EVENT(trans_blocked_journal_reclaim,
 	TP_PROTO(struct btree_trans *trans,
 		 unsigned long caller_ip),
-	TP_ARGS(trans, caller_ip)
+	TP_ARGS(trans, caller_ip),
+
+	TP_STRUCT__entry(
+		__array(char,			trans_fn, 32	)
+		__field(unsigned long,		caller_ip	)
+
+		__field(unsigned long,		key_cache_nr_keys	)
+		__field(unsigned long,		key_cache_nr_dirty	)
+		__field(long,			must_wait		)
+	),
+
+	TP_fast_assign(
+		strscpy(__entry->trans_fn, trans->fn, sizeof(__entry->trans_fn));
+		__entry->caller_ip		= caller_ip;
+		__entry->key_cache_nr_keys	= atomic_long_read(&trans->c->btree_key_cache.nr_keys);
+		__entry->key_cache_nr_dirty	= atomic_long_read(&trans->c->btree_key_cache.nr_dirty);
+		__entry->must_wait		= __bch2_btree_key_cache_must_wait(trans->c);
+	),
+
+	TP_printk("%s %pS key cache keys %lu dirty %lu must_wait %li",
+		  __entry->trans_fn, (void *) __entry->caller_ip,
+		  __entry->key_cache_nr_keys,
+		  __entry->key_cache_nr_dirty,
+		  __entry->must_wait)
 );
 
 TRACE_EVENT(trans_restart_journal_preres_get,

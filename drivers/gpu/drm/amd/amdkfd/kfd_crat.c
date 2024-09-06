@@ -1614,6 +1614,7 @@ int kfd_get_gpu_cache_info(struct kfd_node *kdev, struct kfd_gpu_cache_info **pc
 			num_of_cache_types = ARRAY_SIZE(aldebaran_cache_info);
 			break;
 		case IP_VERSION(9, 4, 3):
+		case IP_VERSION(9, 4, 4):
 			num_of_cache_types =
 				kfd_fill_gpu_cache_info_from_gfx_config_v2(kdev->kfd,
 									*pcache_info);
@@ -1677,6 +1678,9 @@ int kfd_get_gpu_cache_info(struct kfd_node *kdev, struct kfd_gpu_cache_info **pc
 		case IP_VERSION(11, 0, 4):
 		case IP_VERSION(11, 5, 0):
 		case IP_VERSION(11, 5, 1):
+		case IP_VERSION(11, 5, 2):
+		case IP_VERSION(12, 0, 0):
+		case IP_VERSION(12, 0, 1):
 			num_of_cache_types =
 				kfd_fill_gpu_cache_info_from_gfx_config(kdev->kfd, *pcache_info);
 			break;
@@ -2210,9 +2214,6 @@ static int kfd_create_vcrat_image_gpu(void *pcrat_image,
 	 * Modify length and total_entries as subunits are added.
 	 */
 	avail_size -= sizeof(struct crat_header);
-	if (avail_size < 0)
-		return -ENOMEM;
-
 	memset(crat_table, 0, sizeof(struct crat_header));
 
 	memcpy(&crat_table->signature, CRAT_SIGNATURE,
@@ -2226,9 +2227,6 @@ static int kfd_create_vcrat_image_gpu(void *pcrat_image,
 	 * First fill in the sub type header and then sub type data
 	 */
 	avail_size -= sizeof(struct crat_subtype_computeunit);
-	if (avail_size < 0)
-		return -ENOMEM;
-
 	sub_type_hdr = (struct crat_subtype_generic *)(crat_table + 1);
 	memset(sub_type_hdr, 0, sizeof(struct crat_subtype_computeunit));
 

@@ -25,6 +25,7 @@ properties:
       - items:
           - enum:
               - realtek,rtl8380-intc
+              - realtek,rtl9300-intc
           - const: realtek,rtl-intc
       - const: realtek,rtl-intc
         deprecated: true
@@ -35,7 +36,10 @@ properties:
     const: 1
 
   reg:
-    maxItems: 1
+    minItems: 1
+    items:
+      - description: vpe0 registers
+      - description: vpe1 registers
 
   interrupts:
     minItems: 1
@@ -71,6 +75,20 @@ allOf:
     else:
       required:
         - interrupts
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: realtek,rtl9300-intc
+    then:
+      properties:
+        reg:
+          minItems: 2
+          maxItems: 2
+    else:
+      properties:
+        reg:
+          maxItems: 1
 
 additionalProperties: false
 

@@ -50,4 +50,6 @@ static struct platform_driver clk_mt2712_jpgdec_drv = {
 	},
 };
 module_platform_driver(clk_mt2712_jpgdec_drv);
+
+MODULE_DESCRIPTION("MediaTek MT2712 JPEG Decoder clocks driver");
 MODULE_LICENSE("GPL");

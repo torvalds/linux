@@ -17,7 +17,8 @@
 #include <linux/mm_types.h>
 #include <linux/delay.h>
 #include <linux/cpu.h>
-
+#include <linux/smp.h>
+#include <asm/text-patching.h>
 #include <asm/diag.h>
 #include <asm/facility.h>
 #include <asm/elf.h>
@@ -77,6 +78,23 @@ void notrace stop_machine_yield(const struct cpumask *cpumask)
 		if (arch_vcpu_is_preempted(cpu))
 			smp_yield_cpu(cpu);
 	}
+}
+
+static void do_sync_core(void *info)
+{
+	sync_core();
+}
+
+void text_poke_sync(void)
+{
+	on_each_cpu(do_sync_core, NULL, 1);
+}
+
+void text_poke_sync_lock(void)
+{
+	cpus_read_lock();
+	text_poke_sync();
+	cpus_read_unlock();
 }
 
 /*

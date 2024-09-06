@@ -145,7 +145,7 @@ int null_init_zoned_dev(struct nullb_device *dev,
 		zone = &dev->zones[i];
 
 		null_init_zone_lock(dev, zone);
-		zone->start = zone->wp = sector;
+		zone->start = sector;
 		if (zone->start + dev->zone_size_sects > dev_capacity_sects)
 			zone->len = dev_capacity_sects - zone->start;
 		else
@@ -153,12 +153,18 @@ int null_init_zoned_dev(struct nullb_device *dev,
 		zone->capacity =
 			min_t(sector_t, zone->len, zone_capacity_sects);
 		zone->type = BLK_ZONE_TYPE_SEQWRITE_REQ;
-		zone->cond = BLK_ZONE_COND_EMPTY;
+		if (dev->zone_full) {
+			zone->cond = BLK_ZONE_COND_FULL;
+			zone->wp = zone->start + zone->capacity;
+		} else{
+			zone->cond = BLK_ZONE_COND_EMPTY;
+			zone->wp = zone->start;
+		}
 
 		sector += dev->zone_size_sects;
 	}
 
-	lim->zoned = true;
+	lim->features |= BLK_FEAT_ZONED;
 	lim->chunk_sectors = dev->zone_size_sects;
 	lim->max_zone_append_sectors = dev->zone_append_max_sectors;
 	lim->max_open_zones = dev->zone_max_open;
@@ -170,9 +176,6 @@ int null_register_zoned_dev(struct nullb *nullb)
 {
 	struct request_queue *q = nullb->q;
 	struct gendisk *disk = nullb->disk;
-
-	blk_queue_flag_set(QUEUE_FLAG_ZONE_RESETALL, q);
-	disk->nr_zones = bdev_nr_zones(disk->part0);
 
 	pr_info("%s: using %s zone append\n",
 		disk->disk_name,

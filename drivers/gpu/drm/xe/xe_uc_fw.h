@@ -158,7 +158,7 @@ static inline bool xe_uc_fw_is_overridden(const struct xe_uc_fw *uc_fw)
 
 static inline void xe_uc_fw_sanitize(struct xe_uc_fw *uc_fw)
 {
-	if (xe_uc_fw_is_loaded(uc_fw))
+	if (xe_uc_fw_is_loadable(uc_fw))
 		xe_uc_fw_change_status(uc_fw, XE_UC_FIRMWARE_LOADABLE);
 }
 

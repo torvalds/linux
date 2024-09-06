@@ -49,4 +49,6 @@ bool dmub_abm_set_backlight_level(struct abm *abm,
 		unsigned int backlight_pwm_u16_16,
 		unsigned int frame_ramp,
 		unsigned int panel_inst);
+bool dmub_abm_set_event(struct abm *abm, unsigned int scaling_enable, unsigned int scaling_strength_map,
+		unsigned int panel_inst);
 #endif

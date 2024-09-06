@@ -732,4 +732,5 @@ static int __init test_kstrtox_init(void)
 	return -EINVAL;
 }
 module_init(test_kstrtox_init);
+MODULE_DESCRIPTION("Module test for kstrto*() APIs");
 MODULE_LICENSE("Dual BSD/GPL");

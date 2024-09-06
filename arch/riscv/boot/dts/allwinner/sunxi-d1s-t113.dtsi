@@ -396,6 +396,17 @@
 			ranges;
 			#address-cells = <1>;
 			#size-cells = <1>;
+
+			regulators@3000150 {
+				compatible = "allwinner,sun20i-d1-system-ldos";
+				reg = <0x3000150 0x4>;
+
+				reg_ldoa: ldoa {
+				};
+
+				reg_ldob: ldob {
+				};
+			};
 		};
 
 		dma: dma-controller@3002000 {

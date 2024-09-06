@@ -61,4 +61,6 @@ static struct platform_driver clk_mt8365_mfg_drv = {
 	},
 };
 module_platform_driver(clk_mt8365_mfg_drv);
+
+MODULE_DESCRIPTION("MediaTek MT8365 GPU mfg clocks driver");
 MODULE_LICENSE("GPL");

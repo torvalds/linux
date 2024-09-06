@@ -315,3 +315,4 @@ static struct platform_driver lpass_gfm_clk_driver = {
 };
 module_platform_driver(lpass_gfm_clk_driver);
 MODULE_LICENSE("GPL v2");
+MODULE_DESCRIPTION("QTI SM8250 LPASS Glitch Free Mux clock driver");

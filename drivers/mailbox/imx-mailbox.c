@@ -225,6 +225,8 @@ static int imx_mu_generic_tx(struct imx_mu_priv *priv,
 			     void *data)
 {
 	u32 *arg = data;
+	u32 val;
+	int ret;
 
 	switch (cp->type) {
 	case IMX_MU_TYPE_TX:
@@ -236,7 +238,13 @@ static int imx_mu_generic_tx(struct imx_mu_priv *priv,
 		queue_work(system_bh_wq, &cp->txdb_work);
 		break;
 	case IMX_MU_TYPE_TXDB_V2:
-		imx_mu_xcr_rmw(priv, IMX_MU_GCR, IMX_MU_xCR_GIRn(priv->dcfg->type, cp->idx), 0);
+		imx_mu_write(priv, IMX_MU_xCR_GIRn(priv->dcfg->type, cp->idx),
+			     priv->dcfg->xCR[IMX_MU_GCR]);
+		ret = readl_poll_timeout(priv->base + priv->dcfg->xCR[IMX_MU_GCR], val,
+					 !(val & IMX_MU_xCR_GIRn(priv->dcfg->type, cp->idx)),
+					 0, 1000);
+		if (ret)
+			dev_warn_ratelimited(priv->dev, "channel type: %d failure\n", cp->type);
 		break;
 	default:
 		dev_warn_ratelimited(priv->dev, "Send data on wrong channel type: %d\n", cp->type);

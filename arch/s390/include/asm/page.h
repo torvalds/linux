@@ -162,6 +162,7 @@ static inline int page_reset_referenced(unsigned long addr)
 #define _PAGE_ACC_BITS		0xf0	/* HW access control bits	*/
 
 struct page;
+struct folio;
 void arch_free_page(struct page *page, int order);
 void arch_alloc_page(struct page *page, int order);
 
@@ -173,10 +174,10 @@ static inline int devmem_is_allowed(unsigned long pfn)
 #define HAVE_ARCH_FREE_PAGE
 #define HAVE_ARCH_ALLOC_PAGE
 
-#if IS_ENABLED(CONFIG_PGSTE)
+int arch_make_folio_accessible(struct folio *folio);
+#define HAVE_ARCH_MAKE_FOLIO_ACCESSIBLE
 int arch_make_page_accessible(struct page *page);
 #define HAVE_ARCH_MAKE_PAGE_ACCESSIBLE
-#endif
 
 struct vm_layout {
 	unsigned long kaslr_offset;
@@ -247,7 +248,9 @@ static inline unsigned long __phys_addr(unsigned long x, bool is_31bit)
 #define pfn_to_phys(pfn)	((pfn) << PAGE_SHIFT)
 
 #define phys_to_page(phys)	pfn_to_page(phys_to_pfn(phys))
+#define phys_to_folio(phys)	page_folio(phys_to_page(phys))
 #define page_to_phys(page)	pfn_to_phys(page_to_pfn(page))
+#define folio_to_phys(page)	pfn_to_phys(folio_pfn(folio))
 
 static inline void *pfn_to_virt(unsigned long pfn)
 {
@@ -276,8 +279,9 @@ static inline unsigned long virt_to_pfn(const void *kaddr)
 #define AMODE31_SIZE		(3 * PAGE_SIZE)
 
 #define KERNEL_IMAGE_SIZE	(512 * 1024 * 1024)
-#define __START_KERNEL		0x100000
 #define __NO_KASLR_START_KERNEL	CONFIG_KERNEL_IMAGE_BASE
 #define __NO_KASLR_END_KERNEL	(__NO_KASLR_START_KERNEL + KERNEL_IMAGE_SIZE)
+
+#define TEXT_OFFSET		0x100000
 
 #endif /* _S390_PAGE_H */

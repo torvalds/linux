@@ -18,10 +18,10 @@ properties:
     oneOf:
       - const: atmel,at91rm9200-spi
       - items:
-          - const: microchip,sam9x60-spi
-          - const: atmel,at91rm9200-spi
-      - items:
-          - const: microchip,sam9x7-spi
+          - enum:
+              - microchip,sam9x60-spi
+              - microchip,sam9x7-spi
+              - microchip,sama7d65-spi
           - const: atmel,at91rm9200-spi
 
   reg:

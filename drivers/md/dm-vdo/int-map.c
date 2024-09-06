@@ -96,7 +96,7 @@ struct int_map {
 	size_t size;
 	/** @capacity: The number of neighborhoods in the map. */
 	size_t capacity;
-	/* @bucket_count: The number of buckets in the bucket array. */
+	/** @bucket_count: The number of buckets in the bucket array. */
 	size_t bucket_count;
 	/** @buckets: The array of hash buckets. */
 	struct bucket *buckets;

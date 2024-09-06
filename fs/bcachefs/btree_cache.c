@@ -159,6 +159,16 @@ struct btree *__bch2_btree_node_mem_alloc(struct bch_fs *c)
 	return b;
 }
 
+void bch2_btree_node_to_freelist(struct bch_fs *c, struct btree *b)
+{
+	mutex_lock(&c->btree_cache.lock);
+	list_move(&b->list, &c->btree_cache.freeable);
+	mutex_unlock(&c->btree_cache.lock);
+
+	six_unlock_write(&b->c.lock);
+	six_unlock_intent(&b->c.lock);
+}
+
 /* Btree in memory cache - hash table */
 
 void bch2_btree_node_hash_remove(struct btree_cache *bc, struct btree *b)
@@ -602,8 +612,8 @@ int bch2_btree_cache_cannibalize_lock(struct btree_trans *trans, struct closure 
 	struct btree_cache *bc = &c->btree_cache;
 	struct task_struct *old;
 
-	old = cmpxchg(&bc->alloc_lock, NULL, current);
-	if (old == NULL || old == current)
+	old = NULL;
+	if (try_cmpxchg(&bc->alloc_lock, &old, current) || old == current)
 		goto success;
 
 	if (!cl) {
@@ -614,8 +624,8 @@ int bch2_btree_cache_cannibalize_lock(struct btree_trans *trans, struct closure 
 	closure_wait(&bc->alloc_wait, cl);
 
 	/* Try again, after adding ourselves to waitlist */
-	old = cmpxchg(&bc->alloc_lock, NULL, current);
-	if (old == NULL || old == current) {
+	old = NULL;
+	if (try_cmpxchg(&bc->alloc_lock, &old, current) || old == current) {
 		/* We raced */
 		closure_wake_up(&bc->alloc_wait);
 		goto success;
@@ -736,6 +746,13 @@ out:
 			       start_time);
 
 	memalloc_nofs_restore(flags);
+
+	int ret = bch2_trans_relock(trans);
+	if (unlikely(ret)) {
+		bch2_btree_node_to_freelist(c, b);
+		return ERR_PTR(ret);
+	}
+
 	return b;
 err:
 	mutex_lock(&bc->lock);
@@ -856,6 +873,10 @@ static noinline struct btree *bch2_btree_node_fill(struct btree_trans *trans,
 
 		bch2_btree_node_read(trans, b, sync);
 
+		int ret = bch2_trans_relock(trans);
+		if (ret)
+			return ERR_PTR(ret);
+
 		if (!sync)
 			return NULL;
 
@@ -973,6 +994,10 @@ retry:
 		need_relock = true;
 
 		bch2_btree_node_wait_on_read(b);
+
+		ret = bch2_trans_relock(trans);
+		if (ret)
+			return ERR_PTR(ret);
 
 		/*
 		 * should_be_locked is not set on this path yet, so we need to
@@ -1255,6 +1280,14 @@ out:
 const char *bch2_btree_id_str(enum btree_id btree)
 {
 	return btree < BTREE_ID_NR ? __bch2_btree_ids[btree] : "(unknown)";
+}
+
+void bch2_btree_id_to_text(struct printbuf *out, enum btree_id btree)
+{
+	if (btree < BTREE_ID_NR)
+		prt_str(out, __bch2_btree_ids[btree]);
+	else
+		prt_printf(out, "(unknown btree %u)", btree);
 }
 
 void bch2_btree_pos_to_text(struct printbuf *out, struct bch_fs *c, const struct btree *b)

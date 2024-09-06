@@ -136,10 +136,10 @@ const void *i2c_get_match_data(const struct i2c_client *client)
 }
 EXPORT_SYMBOL(i2c_get_match_data);
 
-static int i2c_device_match(struct device *dev, struct device_driver *drv)
+static int i2c_device_match(struct device *dev, const struct device_driver *drv)
 {
 	struct i2c_client	*client = i2c_verify_client(dev);
-	struct i2c_driver	*driver;
+	const struct i2c_driver	*driver;
 
 
 	/* Attempt an OF style match */
@@ -1066,8 +1066,8 @@ EXPORT_SYMBOL(i2c_find_device_by_fwnode);
 
 
 static const struct i2c_device_id dummy_id[] = {
-	{ "dummy", 0 },
-	{ "smbus_host_notify", 0 },
+	{ "dummy", },
+	{ "smbus_host_notify", },
 	{ },
 };
 
@@ -1468,6 +1468,8 @@ int i2c_handle_smbus_host_notify(struct i2c_adapter *adap, unsigned short addr)
 
 	if (!adap)
 		return -EINVAL;
+
+	dev_dbg(&adap->dev, "Detected HostNotify from address 0x%02x", addr);
 
 	irq = irq_find_mapping(adap->host_notify_domain, addr);
 	if (irq <= 0)

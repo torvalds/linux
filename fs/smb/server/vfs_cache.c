@@ -8,6 +8,8 @@
 #include <linux/filelock.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
+#include <linux/kthread.h>
+#include <linux/freezer.h>
 
 #include "glob.h"
 #include "vfs_cache.h"
@@ -17,6 +19,7 @@
 #include "mgmt/tree_connect.h"
 #include "mgmt/user_session.h"
 #include "smb_common.h"
+#include "server.h"
 
 #define S_DEL_PENDING			1
 #define S_DEL_ON_CLS			2
@@ -30,6 +33,10 @@ static DEFINE_RWLOCK(inode_hash_lock);
 static struct ksmbd_file_table global_ft;
 static atomic_long_t fd_limit;
 static struct kmem_cache *filp_cache;
+
+static bool durable_scavenger_running;
+static DEFINE_MUTEX(durable_scavenger_lock);
+static wait_queue_head_t dh_wq;
 
 void ksmbd_set_fd_limit(unsigned long limit)
 {
@@ -280,9 +287,16 @@ static void __ksmbd_remove_durable_fd(struct ksmbd_file *fp)
 	if (!has_file_id(fp->persistent_id))
 		return;
 
-	write_lock(&global_ft.lock);
 	idr_remove(global_ft.idr, fp->persistent_id);
+}
+
+static void ksmbd_remove_durable_fd(struct ksmbd_file *fp)
+{
+	write_lock(&global_ft.lock);
+	__ksmbd_remove_durable_fd(fp);
 	write_unlock(&global_ft.lock);
+	if (waitqueue_active(&dh_wq))
+		wake_up(&dh_wq);
 }
 
 static void __ksmbd_remove_fd(struct ksmbd_file_table *ft, struct ksmbd_file *fp)
@@ -305,7 +319,7 @@ static void __ksmbd_close_fd(struct ksmbd_file_table *ft, struct ksmbd_file *fp)
 	struct ksmbd_lock *smb_lock, *tmp_lock;
 
 	fd_limit_close();
-	__ksmbd_remove_durable_fd(fp);
+	ksmbd_remove_durable_fd(fp);
 	if (ft)
 		__ksmbd_remove_fd(ft, fp);
 
@@ -477,7 +491,10 @@ struct ksmbd_file *ksmbd_lookup_durable_fd(unsigned long long id)
 	struct ksmbd_file *fp;
 
 	fp = __ksmbd_lookup_fd(&global_ft, id);
-	if (fp && fp->conn) {
+	if (fp && (fp->conn ||
+		   (fp->durable_scavenger_timeout &&
+		    (fp->durable_scavenger_timeout <
+		     jiffies_to_msecs(jiffies))))) {
 		ksmbd_put_durable_fd(fp);
 		fp = NULL;
 	}
@@ -694,6 +711,142 @@ static bool tree_conn_fd_check(struct ksmbd_tree_connect *tcon,
 	return fp->tcon != tcon;
 }
 
+static bool ksmbd_durable_scavenger_alive(void)
+{
+	mutex_lock(&durable_scavenger_lock);
+	if (!durable_scavenger_running) {
+		mutex_unlock(&durable_scavenger_lock);
+		return false;
+	}
+	mutex_unlock(&durable_scavenger_lock);
+
+	if (kthread_should_stop())
+		return false;
+
+	if (idr_is_empty(global_ft.idr))
+		return false;
+
+	return true;
+}
+
+static void ksmbd_scavenger_dispose_dh(struct list_head *head)
+{
+	while (!list_empty(head)) {
+		struct ksmbd_file *fp;
+
+		fp = list_first_entry(head, struct ksmbd_file, node);
+		list_del_init(&fp->node);
+		__ksmbd_close_fd(NULL, fp);
+	}
+}
+
+static int ksmbd_durable_scavenger(void *dummy)
+{
+	struct ksmbd_file *fp = NULL;
+	unsigned int id;
+	unsigned int min_timeout = 1;
+	bool found_fp_timeout;
+	LIST_HEAD(scavenger_list);
+	unsigned long remaining_jiffies;
+
+	__module_get(THIS_MODULE);
+
+	set_freezable();
+	while (ksmbd_durable_scavenger_alive()) {
+		if (try_to_freeze())
+			continue;
+
+		found_fp_timeout = false;
+
+		remaining_jiffies = wait_event_timeout(dh_wq,
+				   ksmbd_durable_scavenger_alive() == false,
+				   __msecs_to_jiffies(min_timeout));
+		if (remaining_jiffies)
+			min_timeout = jiffies_to_msecs(remaining_jiffies);
+		else
+			min_timeout = DURABLE_HANDLE_MAX_TIMEOUT;
+
+		write_lock(&global_ft.lock);
+		idr_for_each_entry(global_ft.idr, fp, id) {
+			if (!fp->durable_timeout)
+				continue;
+
+			if (atomic_read(&fp->refcount) > 1 ||
+			    fp->conn)
+				continue;
+
+			found_fp_timeout = true;
+			if (fp->durable_scavenger_timeout <=
+			    jiffies_to_msecs(jiffies)) {
+				__ksmbd_remove_durable_fd(fp);
+				list_add(&fp->node, &scavenger_list);
+			} else {
+				unsigned long durable_timeout;
+
+				durable_timeout =
+					fp->durable_scavenger_timeout -
+						jiffies_to_msecs(jiffies);
+
+				if (min_timeout > durable_timeout)
+					min_timeout = durable_timeout;
+			}
+		}
+		write_unlock(&global_ft.lock);
+
+		ksmbd_scavenger_dispose_dh(&scavenger_list);
+
+		if (found_fp_timeout == false)
+			break;
+	}
+
+	mutex_lock(&durable_scavenger_lock);
+	durable_scavenger_running = false;
+	mutex_unlock(&durable_scavenger_lock);
+
+	module_put(THIS_MODULE);
+
+	return 0;
+}
+
+void ksmbd_launch_ksmbd_durable_scavenger(void)
+{
+	if (!(server_conf.flags & KSMBD_GLOBAL_FLAG_DURABLE_HANDLE))
+		return;
+
+	mutex_lock(&durable_scavenger_lock);
+	if (durable_scavenger_running == true) {
+		mutex_unlock(&durable_scavenger_lock);
+		return;
+	}
+
+	durable_scavenger_running = true;
+
+	server_conf.dh_task = kthread_run(ksmbd_durable_scavenger,
+				     (void *)NULL, "ksmbd-durable-scavenger");
+	if (IS_ERR(server_conf.dh_task))
+		pr_err("cannot start conn thread, err : %ld\n",
+		       PTR_ERR(server_conf.dh_task));
+	mutex_unlock(&durable_scavenger_lock);
+}
+
+void ksmbd_stop_durable_scavenger(void)
+{
+	if (!(server_conf.flags & KSMBD_GLOBAL_FLAG_DURABLE_HANDLE))
+		return;
+
+	mutex_lock(&durable_scavenger_lock);
+	if (!durable_scavenger_running) {
+		mutex_unlock(&durable_scavenger_lock);
+		return;
+	}
+
+	durable_scavenger_running = false;
+	if (waitqueue_active(&dh_wq))
+		wake_up(&dh_wq);
+	mutex_unlock(&durable_scavenger_lock);
+	kthread_stop(server_conf.dh_task);
+}
+
 static bool session_fd_check(struct ksmbd_tree_connect *tcon,
 			     struct ksmbd_file *fp)
 {
@@ -717,6 +870,10 @@ static bool session_fd_check(struct ksmbd_tree_connect *tcon,
 	fp->conn = NULL;
 	fp->tcon = NULL;
 	fp->volatile_id = KSMBD_NO_FID;
+
+	if (fp->durable_timeout)
+		fp->durable_scavenger_timeout =
+			jiffies_to_msecs(jiffies) + fp->durable_timeout;
 
 	return true;
 }
@@ -750,11 +907,12 @@ void ksmbd_free_global_file_table(void)
 	unsigned int		id;
 
 	idr_for_each_entry(global_ft.idr, fp, id) {
-		__ksmbd_remove_durable_fd(fp);
-		kmem_cache_free(filp_cache, fp);
+		ksmbd_remove_durable_fd(fp);
+		__ksmbd_close_fd(NULL, fp);
 	}
 
-	ksmbd_destroy_file_table(&global_ft);
+	idr_destroy(global_ft.idr);
+	kfree(global_ft.idr);
 }
 
 int ksmbd_validate_name_reconnect(struct ksmbd_share_config *share,
@@ -810,6 +968,7 @@ int ksmbd_reopen_durable_fd(struct ksmbd_work *work, struct ksmbd_file *fp)
 	}
 	up_write(&ci->m_lock);
 
+	fp->f_state = FP_NEW;
 	__open_id(&work->sess->file_table, fp, OPEN_ID_TYPE_VOLATILE_ID);
 	if (!has_file_id(fp->volatile_id)) {
 		fp->conn = NULL;
@@ -848,6 +1007,8 @@ int ksmbd_init_file_cache(void)
 				       SLAB_HWCACHE_ALIGN, NULL);
 	if (!filp_cache)
 		goto out;
+
+	init_waitqueue_head(&dh_wq);
 
 	return 0;
 

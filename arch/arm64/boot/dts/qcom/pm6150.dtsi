@@ -13,7 +13,7 @@
 	thermal-zones {
 		pm6150_thermal: pm6150-thermal {
 			polling-delay-passive = <100>;
-			polling-delay = <0>;
+
 			thermal-sensors = <&pm6150_temp>;
 
 			trips {
@@ -166,5 +166,11 @@
 		reg = <0x1 SPMI_USID>;
 		#address-cells = <1>;
 		#size-cells = <0>;
+
+		pm6150_vib: vibrator@5300 {
+			compatible = "qcom,pm6150-vib", "qcom,pmi632-vib";
+			reg = <0x5300>;
+			status = "disabled";
+		};
 	};
 };

@@ -16,7 +16,7 @@
 #include "hellcreek_ptp.h"
 
 int hellcreek_get_ts_info(struct dsa_switch *ds, int port,
-			  struct ethtool_ts_info *info)
+			  struct kernel_ethtool_ts_info *info)
 {
 	struct hellcreek *hellcreek = ds->priv;
 

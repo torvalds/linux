@@ -636,4 +636,5 @@ static struct kunit_suite drm_damage_helper_test_suite = {
 
 kunit_test_suite(drm_damage_helper_test_suite);
 
+MODULE_DESCRIPTION("Test case for drm_damage_helper functions");
 MODULE_LICENSE("GPL");

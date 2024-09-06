@@ -3409,6 +3409,34 @@ int regulator_list_hardware_vsel(struct regulator *regulator,
 EXPORT_SYMBOL_GPL(regulator_list_hardware_vsel);
 
 /**
+ * regulator_hardware_enable - access the HW for enable/disable regulator
+ * @regulator: regulator source
+ * @enable: true for enable, false for disable
+ *
+ * Request that the regulator be enabled/disabled with the regulator output at
+ * the predefined voltage or current value.
+ *
+ * On success 0 is returned, otherwise a negative errno is returned.
+ */
+int regulator_hardware_enable(struct regulator *regulator, bool enable)
+{
+	struct regulator_dev *rdev = regulator->rdev;
+	const struct regulator_ops *ops = rdev->desc->ops;
+	int ret = -EOPNOTSUPP;
+
+	if (!rdev->exclusive || !ops || !ops->enable || !ops->disable)
+		return ret;
+
+	if (enable)
+		ret = ops->enable(rdev);
+	else
+		ret = ops->disable(rdev);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(regulator_hardware_enable);
+
+/**
  * regulator_get_linear_step - return the voltage step size between VSEL values
  * @regulator: regulator source
  *

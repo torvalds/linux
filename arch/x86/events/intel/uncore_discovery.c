@@ -89,9 +89,7 @@ add_uncore_discovery_type(struct uncore_unit_discovery *unit)
 	if (!type)
 		return NULL;
 
-	type->box_ctrl_die = kcalloc(__uncore_max_dies, sizeof(u64), GFP_KERNEL);
-	if (!type->box_ctrl_die)
-		goto free_type;
+	type->units = RB_ROOT;
 
 	type->access_type = unit->access_type;
 	num_discovered_types[type->access_type]++;
@@ -100,12 +98,6 @@ add_uncore_discovery_type(struct uncore_unit_discovery *unit)
 	rb_add(&type->node, &discovery_tables, __type_less);
 
 	return type;
-
-free_type:
-	kfree(type);
-
-	return NULL;
-
 }
 
 static struct intel_uncore_discovery_type *
@@ -120,14 +112,118 @@ get_uncore_discovery_type(struct uncore_unit_discovery *unit)
 	return add_uncore_discovery_type(unit);
 }
 
+static inline int pmu_idx_cmp(const void *key, const struct rb_node *b)
+{
+	struct intel_uncore_discovery_unit *unit;
+	const unsigned int *id = key;
+
+	unit = rb_entry(b, struct intel_uncore_discovery_unit, node);
+
+	if (unit->pmu_idx > *id)
+		return -1;
+	else if (unit->pmu_idx < *id)
+		return 1;
+
+	return 0;
+}
+
+static struct intel_uncore_discovery_unit *
+intel_uncore_find_discovery_unit(struct rb_root *units, int die,
+				 unsigned int pmu_idx)
+{
+	struct intel_uncore_discovery_unit *unit;
+	struct rb_node *pos;
+
+	if (!units)
+		return NULL;
+
+	pos = rb_find_first(&pmu_idx, units, pmu_idx_cmp);
+	if (!pos)
+		return NULL;
+	unit = rb_entry(pos, struct intel_uncore_discovery_unit, node);
+
+	if (die < 0)
+		return unit;
+
+	for (; pos; pos = rb_next(pos)) {
+		unit = rb_entry(pos, struct intel_uncore_discovery_unit, node);
+
+		if (unit->pmu_idx != pmu_idx)
+			break;
+
+		if (unit->die == die)
+			return unit;
+	}
+
+	return NULL;
+}
+
+int intel_uncore_find_discovery_unit_id(struct rb_root *units, int die,
+					unsigned int pmu_idx)
+{
+	struct intel_uncore_discovery_unit *unit;
+
+	unit = intel_uncore_find_discovery_unit(units, die, pmu_idx);
+	if (unit)
+		return unit->id;
+
+	return -1;
+}
+
+static inline bool unit_less(struct rb_node *a, const struct rb_node *b)
+{
+	struct intel_uncore_discovery_unit *a_node, *b_node;
+
+	a_node = rb_entry(a, struct intel_uncore_discovery_unit, node);
+	b_node = rb_entry(b, struct intel_uncore_discovery_unit, node);
+
+	if (a_node->pmu_idx < b_node->pmu_idx)
+		return true;
+	if (a_node->pmu_idx > b_node->pmu_idx)
+		return false;
+
+	if (a_node->die < b_node->die)
+		return true;
+	if (a_node->die > b_node->die)
+		return false;
+
+	return 0;
+}
+
+static inline struct intel_uncore_discovery_unit *
+uncore_find_unit(struct rb_root *root, unsigned int id)
+{
+	struct intel_uncore_discovery_unit *unit;
+	struct rb_node *node;
+
+	for (node = rb_first(root); node; node = rb_next(node)) {
+		unit = rb_entry(node, struct intel_uncore_discovery_unit, node);
+		if (unit->id == id)
+			return unit;
+	}
+
+	return NULL;
+}
+
+void uncore_find_add_unit(struct intel_uncore_discovery_unit *node,
+			  struct rb_root *root, u16 *num_units)
+{
+	struct intel_uncore_discovery_unit *unit = uncore_find_unit(root, node->id);
+
+	if (unit)
+		node->pmu_idx = unit->pmu_idx;
+	else if (num_units)
+		node->pmu_idx = (*num_units)++;
+
+	rb_add(&node->node, root, unit_less);
+}
+
 static void
 uncore_insert_box_info(struct uncore_unit_discovery *unit,
-		       int die, bool parsed)
+		       int die)
 {
+	struct intel_uncore_discovery_unit *node;
 	struct intel_uncore_discovery_type *type;
-	unsigned int *ids;
-	u64 *box_offset;
-	int i;
 
 	if (!unit->ctl || !unit->ctl_offset || !unit->ctr_offset) {
 		pr_info("Invalid address is detected for uncore type %d box %d, "
@@ -136,71 +232,29 @@ uncore_insert_box_info(struct uncore_unit_discovery *unit,
 		return;
 	}
 
-	if (parsed) {
-		type = search_uncore_discovery_type(unit->box_type);
-		if (!type) {
-			pr_info("A spurious uncore type %d is detected, "
-				"Disable the uncore type.\n",
-				unit->box_type);
-			return;
-		}
-		/* Store the first box of each die */
-		if (!type->box_ctrl_die[die])
-			type->box_ctrl_die[die] = unit->ctl;
+	node = kzalloc(sizeof(*node), GFP_KERNEL);
+	if (!node)
+		return;
+
+	node->die = die;
+	node->id = unit->box_id;
+	node->addr = unit->ctl;
+
+	type = get_uncore_discovery_type(unit);
+	if (!type) {
+		kfree(node);
 		return;
 	}
 
-	type = get_uncore_discovery_type(unit);
-	if (!type)
-		return;
-
-	box_offset = kcalloc(type->num_boxes + 1, sizeof(u64), GFP_KERNEL);
-	if (!box_offset)
-		return;
-
-	ids = kcalloc(type->num_boxes + 1, sizeof(unsigned int), GFP_KERNEL);
-	if (!ids)
-		goto free_box_offset;
+	uncore_find_add_unit(node, &type->units, &type->num_units);
 
 	/* Store generic information for the first box */
-	if (!type->num_boxes) {
-		type->box_ctrl = unit->ctl;
-		type->box_ctrl_die[die] = unit->ctl;
+	if (type->num_units == 1) {
 		type->num_counters = unit->num_regs;
 		type->counter_width = unit->bit_width;
 		type->ctl_offset = unit->ctl_offset;
 		type->ctr_offset = unit->ctr_offset;
-		*ids = unit->box_id;
-		goto end;
 	}
-
-	for (i = 0; i < type->num_boxes; i++) {
-		ids[i] = type->ids[i];
-		box_offset[i] = type->box_offset[i];
-
-		if (unit->box_id == ids[i]) {
-			pr_info("Duplicate uncore type %d box ID %d is detected, "
-				"Drop the duplicate uncore unit.\n",
-				unit->box_type, unit->box_id);
-			goto free_ids;
-		}
-	}
-	ids[i] = unit->box_id;
-	box_offset[i] = unit->ctl - type->box_ctrl;
-	kfree(type->ids);
-	kfree(type->box_offset);
-end:
-	type->ids = ids;
-	type->box_offset = box_offset;
-	type->num_boxes++;
-	return;
-
-free_ids:
-	kfree(ids);
-
-free_box_offset:
-	kfree(box_offset);
-
 }
 
 static bool
@@ -279,7 +333,7 @@ static int parse_discovery_table(struct pci_dev *dev, int die,
 		if (uncore_ignore_unit(&unit, ignore))
 			continue;
 
-		uncore_insert_box_info(&unit, die, *parsed);
+		uncore_insert_box_info(&unit, die);
 	}
 
 	*parsed = true;
@@ -339,9 +393,16 @@ err:
 void intel_uncore_clear_discovery_tables(void)
 {
 	struct intel_uncore_discovery_type *type, *next;
+	struct intel_uncore_discovery_unit *pos;
+	struct rb_node *node;
 
 	rbtree_postorder_for_each_entry_safe(type, next, &discovery_tables, node) {
-		kfree(type->box_ctrl_die);
+		while (!RB_EMPTY_ROOT(&type->units)) {
+			node = rb_first(&type->units);
+			pos = rb_entry(node, struct intel_uncore_discovery_unit, node);
+			rb_erase(node, &type->units);
+			kfree(pos);
+		}
 		kfree(type);
 	}
 }
@@ -366,19 +427,31 @@ static const struct attribute_group generic_uncore_format_group = {
 	.attrs = generic_uncore_formats_attr,
 };
 
+static u64 intel_generic_uncore_box_ctl(struct intel_uncore_box *box)
+{
+	struct intel_uncore_discovery_unit *unit;
+
+	unit = intel_uncore_find_discovery_unit(box->pmu->type->boxes,
+						-1, box->pmu->pmu_idx);
+	if (WARN_ON_ONCE(!unit))
+		return 0;
+
+	return unit->addr;
+}
+
 void intel_generic_uncore_msr_init_box(struct intel_uncore_box *box)
 {
-	wrmsrl(uncore_msr_box_ctl(box), GENERIC_PMON_BOX_CTL_INT);
+	wrmsrl(intel_generic_uncore_box_ctl(box), GENERIC_PMON_BOX_CTL_INT);
 }
 
 void intel_generic_uncore_msr_disable_box(struct intel_uncore_box *box)
 {
-	wrmsrl(uncore_msr_box_ctl(box), GENERIC_PMON_BOX_CTL_FRZ);
+	wrmsrl(intel_generic_uncore_box_ctl(box), GENERIC_PMON_BOX_CTL_FRZ);
 }
 
 void intel_generic_uncore_msr_enable_box(struct intel_uncore_box *box)
 {
-	wrmsrl(uncore_msr_box_ctl(box), 0);
+	wrmsrl(intel_generic_uncore_box_ctl(box), 0);
 }
 
 static void intel_generic_uncore_msr_enable_event(struct intel_uncore_box *box,
@@ -406,10 +479,47 @@ static struct intel_uncore_ops generic_uncore_msr_ops = {
 	.read_counter		= uncore_msr_read_counter,
 };
 
+bool intel_generic_uncore_assign_hw_event(struct perf_event *event,
+					  struct intel_uncore_box *box)
+{
+	struct hw_perf_event *hwc = &event->hw;
+	u64 box_ctl;
+
+	if (!box->pmu->type->boxes)
+		return false;
+
+	if (box->io_addr) {
+		hwc->config_base = uncore_pci_event_ctl(box, hwc->idx);
+		hwc->event_base  = uncore_pci_perf_ctr(box, hwc->idx);
+		return true;
+	}
+
+	box_ctl = intel_generic_uncore_box_ctl(box);
+	if (!box_ctl)
+		return false;
+
+	if (box->pci_dev) {
+		box_ctl = UNCORE_DISCOVERY_PCI_BOX_CTRL(box_ctl);
+		hwc->config_base = box_ctl + uncore_pci_event_ctl(box, hwc->idx);
+		hwc->event_base  = box_ctl + uncore_pci_perf_ctr(box, hwc->idx);
+		return true;
+	}
+
+	hwc->config_base = box_ctl + box->pmu->type->event_ctl + hwc->idx;
+	hwc->event_base  = box_ctl + box->pmu->type->perf_ctr + hwc->idx;
+
+	return true;
+}
+
+static inline int intel_pci_uncore_box_ctl(struct intel_uncore_box *box)
+{
+	return UNCORE_DISCOVERY_PCI_BOX_CTRL(intel_generic_uncore_box_ctl(box));
+}
+
 void intel_generic_uncore_pci_init_box(struct intel_uncore_box *box)
 {
 	struct pci_dev *pdev = box->pci_dev;
-	int box_ctl = uncore_pci_box_ctl(box);
+	int box_ctl = intel_pci_uncore_box_ctl(box);
 
 	__set_bit(UNCORE_BOX_FLAG_CTL_OFFS8, &box->flags);
 	pci_write_config_dword(pdev, box_ctl, GENERIC_PMON_BOX_CTL_INT);
@@ -418,7 +528,7 @@ void intel_generic_uncore_pci_init_box(struct intel_uncore_box *box)
 void intel_generic_uncore_pci_disable_box(struct intel_uncore_box *box)
 {
 	struct pci_dev *pdev = box->pci_dev;
-	int box_ctl = uncore_pci_box_ctl(box);
+	int box_ctl = intel_pci_uncore_box_ctl(box);
 
 	pci_write_config_dword(pdev, box_ctl, GENERIC_PMON_BOX_CTL_FRZ);
 }
@@ -426,7 +536,7 @@ void intel_generic_uncore_pci_disable_box(struct intel_uncore_box *box)
 void intel_generic_uncore_pci_enable_box(struct intel_uncore_box *box)
 {
 	struct pci_dev *pdev = box->pci_dev;
-	int box_ctl = uncore_pci_box_ctl(box);
+	int box_ctl = intel_pci_uncore_box_ctl(box);
 
 	pci_write_config_dword(pdev, box_ctl, 0);
 }
@@ -473,34 +583,30 @@ static struct intel_uncore_ops generic_uncore_pci_ops = {
 
 #define UNCORE_GENERIC_MMIO_SIZE		0x4000
 
-static u64 generic_uncore_mmio_box_ctl(struct intel_uncore_box *box)
-{
-	struct intel_uncore_type *type = box->pmu->type;
-
-	if (!type->box_ctls || !type->box_ctls[box->dieid] || !type->mmio_offsets)
-		return 0;
-
-	return type->box_ctls[box->dieid] + type->mmio_offsets[box->pmu->pmu_idx];
-}
-
 void intel_generic_uncore_mmio_init_box(struct intel_uncore_box *box)
 {
-	u64 box_ctl = generic_uncore_mmio_box_ctl(box);
+	static struct intel_uncore_discovery_unit *unit;
 	struct intel_uncore_type *type = box->pmu->type;
 	resource_size_t addr;
 
-	if (!box_ctl) {
-		pr_warn("Uncore type %d box %d: Invalid box control address.\n",
-			type->type_id, type->box_ids[box->pmu->pmu_idx]);
+	unit = intel_uncore_find_discovery_unit(type->boxes, box->dieid, box->pmu->pmu_idx);
+	if (!unit) {
+		pr_warn("Uncore type %d id %d: Cannot find box control address.\n",
+			type->type_id, box->pmu->pmu_idx);
 		return;
 	}
 
-	addr = box_ctl;
+	if (!unit->addr) {
+		pr_warn("Uncore type %d box %d: Invalid box control address.\n",
+			type->type_id, unit->id);
+		return;
+	}
+
+	addr = unit->addr;
 	box->io_addr = ioremap(addr, UNCORE_GENERIC_MMIO_SIZE);
 	if (!box->io_addr) {
 		pr_warn("Uncore type %d box %d: ioremap error for 0x%llx.\n",
-			type->type_id, type->box_ids[box->pmu->pmu_idx],
-			(unsigned long long)addr);
+			type->type_id, unit->id, (unsigned long long)addr);
 		return;
 	}
 
@@ -560,34 +666,22 @@ static bool uncore_update_uncore_type(enum uncore_access_type type_id,
 				      struct intel_uncore_discovery_type *type)
 {
 	uncore->type_id = type->type;
-	uncore->num_boxes = type->num_boxes;
 	uncore->num_counters = type->num_counters;
 	uncore->perf_ctr_bits = type->counter_width;
-	uncore->box_ids = type->ids;
+	uncore->perf_ctr = (unsigned int)type->ctr_offset;
+	uncore->event_ctl = (unsigned int)type->ctl_offset;
+	uncore->boxes = &type->units;
+	uncore->num_boxes = type->num_units;
 
 	switch (type_id) {
 	case UNCORE_ACCESS_MSR:
 		uncore->ops = &generic_uncore_msr_ops;
-		uncore->perf_ctr = (unsigned int)type->box_ctrl + type->ctr_offset;
-		uncore->event_ctl = (unsigned int)type->box_ctrl + type->ctl_offset;
-		uncore->box_ctl = (unsigned int)type->box_ctrl;
-		uncore->msr_offsets = type->box_offset;
 		break;
 	case UNCORE_ACCESS_PCI:
 		uncore->ops = &generic_uncore_pci_ops;
-		uncore->perf_ctr = (unsigned int)UNCORE_DISCOVERY_PCI_BOX_CTRL(type->box_ctrl) + type->ctr_offset;
-		uncore->event_ctl = (unsigned int)UNCORE_DISCOVERY_PCI_BOX_CTRL(type->box_ctrl) + type->ctl_offset;
-		uncore->box_ctl = (unsigned int)UNCORE_DISCOVERY_PCI_BOX_CTRL(type->box_ctrl);
-		uncore->box_ctls = type->box_ctrl_die;
-		uncore->pci_offsets = type->box_offset;
 		break;
 	case UNCORE_ACCESS_MMIO:
 		uncore->ops = &generic_uncore_mmio_ops;
-		uncore->perf_ctr = (unsigned int)type->ctr_offset;
-		uncore->event_ctl = (unsigned int)type->ctl_offset;
-		uncore->box_ctl = (unsigned int)type->box_ctrl;
-		uncore->box_ctls = type->box_ctrl_die;
-		uncore->mmio_offsets = type->box_offset;
 		uncore->mmio_map_size = UNCORE_GENERIC_MMIO_SIZE;
 		break;
 	default:

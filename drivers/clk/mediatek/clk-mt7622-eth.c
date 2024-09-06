@@ -86,4 +86,6 @@ static struct platform_driver clk_mt7622_eth_drv = {
 	},
 };
 module_platform_driver(clk_mt7622_eth_drv);
+
+MODULE_DESCRIPTION("MediaTek MT7622 Ethernet clocks driver");
 MODULE_LICENSE("GPL");

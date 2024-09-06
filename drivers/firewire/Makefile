@@ -18,3 +18,5 @@ obj-$(CONFIG_PROVIDE_OHCI1394_DMA_INIT) += init_ohci1394_dma.o
 
 obj-$(CONFIG_FIREWIRE_KUNIT_UAPI_TEST) += uapi-test.o
 obj-$(CONFIG_FIREWIRE_KUNIT_PACKET_SERDES_TEST) += packet-serdes-test.o
+obj-$(CONFIG_FIREWIRE_KUNIT_SELF_ID_SEQUENCE_HELPER_TEST) += self-id-sequence-helper-test.o
+obj-$(CONFIG_FIREWIRE_KUNIT_OHCI_SERDES_TEST) += ohci-serdes-test.o

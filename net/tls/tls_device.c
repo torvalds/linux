@@ -231,14 +231,10 @@ static void tls_device_resync_tx(struct sock *sk, struct tls_context *tls_ctx,
 				 u32 seq)
 {
 	struct net_device *netdev;
-	struct sk_buff *skb;
 	int err = 0;
 	u8 *rcd_sn;
 
-	skb = tcp_write_queue_tail(sk);
-	if (skb)
-		TCP_SKB_CB(skb)->eor = 1;
-
+	tcp_write_collapse_fence(sk);
 	rcd_sn = tls_ctx->tx.rec_seq;
 
 	trace_tls_device_tx_resync_send(sk, seq, rcd_sn);
@@ -1067,7 +1063,6 @@ int tls_set_device_offload(struct sock *sk)
 	struct tls_prot_info *prot;
 	struct net_device *netdev;
 	struct tls_context *ctx;
-	struct sk_buff *skb;
 	char *iv, *rec_seq;
 	int rc;
 
@@ -1138,9 +1133,7 @@ int tls_set_device_offload(struct sock *sk)
 	 * SKBs where only part of the payload needs to be encrypted.
 	 * So mark the last skb in the write queue as end of record.
 	 */
-	skb = tcp_write_queue_tail(sk);
-	if (skb)
-		TCP_SKB_CB(skb)->eor = 1;
+	tcp_write_collapse_fence(sk);
 
 	/* Avoid offloading if the device is down
 	 * We don't want to offload new flows after

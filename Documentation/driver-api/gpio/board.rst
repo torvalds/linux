@@ -4,12 +4,6 @@ GPIO Mappings
 
 This document explains how GPIOs can be assigned to given devices and functions.
 
-Note that it only applies to the new descriptor-based interface. For a
-description of the deprecated integer-based GPIO interface please refer to
-legacy.rst (actually, there is no real mapping possible with the old
-interface; you just fetch an integer from somewhere and request the
-corresponding GPIO).
-
 All platforms can enable the GPIO library, but if the platform strictly
 requires GPIO functionality to be present, it needs to select GPIOLIB from its
 Kconfig. Then, how GPIOs are mapped depends on what the platform uses to

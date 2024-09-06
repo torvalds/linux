@@ -549,4 +549,5 @@ static struct platform_driver mt7621_pcie_driver = {
 };
 builtin_platform_driver(mt7621_pcie_driver);
 
+MODULE_DESCRIPTION("MediaTek MT7621 PCIe host controller driver");
 MODULE_LICENSE("GPL v2");

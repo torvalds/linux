@@ -113,8 +113,6 @@ static void dcn201_update_clocks(struct clk_mgr *clk_mgr_base,
 		dcn2_read_clocks_from_hw_dentist(clk_mgr_base);
 	}
 
-	clk_mgr_helper_get_active_display_cnt(dc, context);
-
 	if (should_set_clock(safe_to_lower, new_clocks->phyclk_khz, clk_mgr_base->clks.phyclk_khz))
 		clk_mgr_base->clks.phyclk_khz = new_clocks->phyclk_khz;
 

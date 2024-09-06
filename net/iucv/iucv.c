@@ -62,7 +62,7 @@
 #define IUCV_IPNORPY	0x10
 #define IUCV_IPALL	0x80
 
-static int iucv_bus_match(struct device *dev, struct device_driver *drv)
+static int iucv_bus_match(struct device *dev, const struct device_driver *drv)
 {
 	return 0;
 }
@@ -86,13 +86,15 @@ struct device *iucv_alloc_device(const struct attribute_group **attrs,
 {
 	struct device *dev;
 	va_list vargs;
+	char buf[20];
 	int rc;
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev)
 		goto out_error;
 	va_start(vargs, fmt);
-	rc = dev_set_name(dev, fmt, vargs);
+	vsnprintf(buf, sizeof(buf), fmt, vargs);
+	rc = dev_set_name(dev, "%s", buf);
 	va_end(vargs);
 	if (rc)
 		goto out_error;

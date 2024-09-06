@@ -230,7 +230,7 @@ static int hd44780_probe(struct platform_device *pdev)
 	if (!lcd)
 		goto fail1;
 
-	hd = kzalloc(sizeof(struct hd44780), GFP_KERNEL);
+	hd = kzalloc(sizeof(*hd), GFP_KERNEL);
 	if (!hd)
 		goto fail2;
 

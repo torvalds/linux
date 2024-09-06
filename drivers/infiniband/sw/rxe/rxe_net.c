@@ -537,6 +537,7 @@ int rxe_net_add(const char *ibdev_name, struct net_device *ndev)
 		return -ENOMEM;
 
 	rxe->ndev = ndev;
+	ib_mark_name_assigned_by_user(&rxe->ib_dev);
 
 	err = rxe_add(rxe, ndev->mtu, ibdev_name);
 	if (err) {

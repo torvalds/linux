@@ -918,7 +918,7 @@ static ssize_t amdgpu_debugfs_gca_config_read(struct file *f, char __user *buf,
 
 	/* rev==1 */
 	config[no_regs++] = adev->rev_id;
-	config[no_regs++] = lower_32_bits(adev->pg_flags);
+	config[no_regs++] = adev->pg_flags;
 	config[no_regs++] = lower_32_bits(adev->cg_flags);
 
 	/* rev==2 */
@@ -935,7 +935,7 @@ static ssize_t amdgpu_debugfs_gca_config_read(struct file *f, char __user *buf,
 	config[no_regs++] = adev->flags & AMD_IS_APU ? 1 : 0;
 
 	/* rev==5 PG/CG flag upper 32bit */
-	config[no_regs++] = upper_32_bits(adev->pg_flags);
+	config[no_regs++] = 0;
 	config[no_regs++] = upper_32_bits(adev->cg_flags);
 
 	while (size && (*pos < no_regs * 4)) {
@@ -2185,6 +2185,9 @@ int amdgpu_debugfs_init(struct amdgpu_device *adev)
 
 		amdgpu_debugfs_vcn_fwlog_init(adev, i, &adev->vcn.inst[i]);
 	}
+
+	if (amdgpu_umsch_mm & amdgpu_umsch_mm_fwlog)
+		amdgpu_debugfs_umsch_fwlog_init(adev, &adev->umsch_mm);
 
 	amdgpu_ras_debugfs_create_all(adev);
 	amdgpu_rap_debugfs_init(adev);

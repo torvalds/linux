@@ -797,7 +797,6 @@ static int btintel_pcie_setup_txq_bufs(struct btintel_pcie_data *data,
 		kfree(txq->bufs);
 		return -ENOMEM;
 	}
-	memset(txq->buf_v_addr, 0, txq->count * BTINTEL_PCIE_BUFFER_SIZE);
 
 	/* Setup the allocated DMA buffer to bufs. Each data_buf should
 	 * have virtual address and physical address
@@ -842,7 +841,6 @@ static int btintel_pcie_setup_rxq_bufs(struct btintel_pcie_data *data,
 		kfree(rxq->bufs);
 		return -ENOMEM;
 	}
-	memset(rxq->buf_v_addr, 0, rxq->count * BTINTEL_PCIE_BUFFER_SIZE);
 
 	/* Setup the allocated DMA buffer to bufs. Each data_buf should
 	 * have virtual address and physical address
@@ -1182,9 +1180,6 @@ static int btintel_pcie_setup(struct hci_dev *hdev)
 		 */
 		set_bit(HCI_QUIRK_WIDEBAND_SPEECH_SUPPORTED, &hdev->quirks);
 
-		/* Apply LE States quirk from solar onwards */
-		set_bit(HCI_QUIRK_VALID_LE_STATES, &hdev->quirks);
-
 		/* Setup MSFT Extension support */
 		btintel_set_msft_opcode(hdev,
 					INTEL_HW_VARIANT(ver_tlv.cnvi_bt));
@@ -1197,9 +1192,11 @@ static int btintel_pcie_setup(struct hci_dev *hdev)
 		bt_dev_err(hdev, "Unsupported Intel hw variant (%u)",
 			   INTEL_HW_VARIANT(ver_tlv.cnvi_bt));
 		err = -EINVAL;
+		goto exit_error;
 		break;
 	}
 
+	btintel_print_fseq_info(hdev);
 exit_error:
 	kfree_skb(skb);
 
@@ -1327,6 +1324,12 @@ static void btintel_pcie_remove(struct pci_dev *pdev)
 	data = pci_get_drvdata(pdev);
 
 	btintel_pcie_reset_bt(data);
+	for (int i = 0; i < data->alloc_vecs; i++) {
+		struct msix_entry *msix_entry;
+
+		msix_entry = &data->msix_entries[i];
+		free_irq(msix_entry->vector, msix_entry);
+	}
 
 	pci_free_irq_vectors(pdev);
 

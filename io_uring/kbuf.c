@@ -129,7 +129,7 @@ static int io_provided_buffers_select(struct io_kiocb *req, size_t *len,
 
 	iov[0].iov_base = buf;
 	iov[0].iov_len = *len;
-	return 0;
+	return 1;
 }
 
 static struct io_uring_buf *io_ring_head_to_buf(struct io_uring_buf_ring *br,
@@ -218,10 +218,13 @@ static int io_ring_buffers_peek(struct io_kiocb *req, struct buf_sel_arg *arg,
 
 	buf = io_ring_head_to_buf(br, head, bl->mask);
 	if (arg->max_len) {
-		int needed;
+		u32 len = READ_ONCE(buf->len);
+		size_t needed;
 
-		needed = (arg->max_len + buf->len - 1) / buf->len;
-		needed = min(needed, PEEK_MAX_IMPORT);
+		if (unlikely(!len))
+			return -ENOBUFS;
+		needed = (arg->max_len + len - 1) / len;
+		needed = min_not_zero(needed, (size_t) PEEK_MAX_IMPORT);
 		if (nr_avail > needed)
 			nr_avail = needed;
 	}
@@ -657,8 +660,10 @@ static int io_alloc_pbuf_ring(struct io_ring_ctx *ctx,
 	ring_size = reg->ring_entries * sizeof(struct io_uring_buf_ring);
 
 	bl->buf_ring = io_pages_map(&bl->buf_pages, &bl->buf_nr_pages, ring_size);
-	if (!bl->buf_ring)
+	if (IS_ERR(bl->buf_ring)) {
+		bl->buf_ring = NULL;
 		return -ENOMEM;
+	}
 
 	bl->is_buf_ring = 1;
 	bl->is_mmap = 1;

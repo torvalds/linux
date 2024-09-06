@@ -94,7 +94,7 @@ static bool cpt_can_enable_serr_int(struct drm_device *dev)
 static void i9xx_check_fifo_underruns(struct intel_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-	i915_reg_t reg = PIPESTAT(crtc->pipe);
+	i915_reg_t reg = PIPESTAT(dev_priv, crtc->pipe);
 	u32 enable_mask;
 
 	lockdep_assert_held(&dev_priv->irq_lock);
@@ -115,7 +115,7 @@ static void i9xx_set_fifo_underrun_reporting(struct drm_device *dev,
 					     bool enable, bool old)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	i915_reg_t reg = PIPESTAT(pipe);
+	i915_reg_t reg = PIPESTAT(dev_priv, pipe);
 
 	lockdep_assert_held(&dev_priv->irq_lock);
 
@@ -209,7 +209,8 @@ static void bdw_set_fifo_underrun_reporting(struct drm_device *dev,
 
 	if (enable) {
 		if (DISPLAY_VER(dev_priv) >= 11)
-			intel_de_write(dev_priv, ICL_PIPESTATUS(pipe),
+			intel_de_write(dev_priv,
+				       ICL_PIPESTATUS(dev_priv, pipe),
 				       icl_pipe_status_underrun_mask(dev_priv));
 
 		bdw_enable_pipe_irq(dev_priv, pipe, mask);
@@ -418,9 +419,11 @@ void intel_cpu_fifo_underrun_irq_handler(struct drm_i915_private *dev_priv,
 	 * the underrun was caused by the downstream port.
 	 */
 	if (DISPLAY_VER(dev_priv) >= 11) {
-		underruns = intel_de_read(dev_priv, ICL_PIPESTATUS(pipe)) &
+		underruns = intel_de_read(dev_priv,
+					  ICL_PIPESTATUS(dev_priv, pipe)) &
 			icl_pipe_status_underrun_mask(dev_priv);
-		intel_de_write(dev_priv, ICL_PIPESTATUS(pipe), underruns);
+		intel_de_write(dev_priv, ICL_PIPESTATUS(dev_priv, pipe),
+			       underruns);
 	}
 
 	if (intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, false)) {

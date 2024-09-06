@@ -79,4 +79,6 @@ static struct platform_driver clk_mt8186_mdp_drv = {
 	},
 };
 module_platform_driver(clk_mt8186_mdp_drv);
+
+MODULE_DESCRIPTION("MediaTek MT8186 Multimedia Data Path clocks driver");
 MODULE_LICENSE("GPL");

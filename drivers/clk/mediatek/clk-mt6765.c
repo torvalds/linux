@@ -873,4 +873,6 @@ static int __init clk_mt6765_init(void)
 }
 
 arch_initcall(clk_mt6765_init);
+
+MODULE_DESCRIPTION("MediaTek MT6765 main clocks driver");
 MODULE_LICENSE("GPL");

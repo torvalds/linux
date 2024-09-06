@@ -56,6 +56,18 @@ config ARM_PMU
 	  Say y if you want to use CPU performance monitors on ARM-based
 	  systems.
 
+config ARM_V6_PMU
+	depends on ARM_PMU && (CPU_V6 || CPU_V6K)
+	def_bool y
+
+config ARM_V7_PMU
+	depends on ARM_PMU && CPU_V7
+	def_bool y
+
+config ARM_XSCALE_PMU
+	depends on ARM_PMU && CPU_XSCALE
+	def_bool y
+
 config RISCV_PMU
 	depends on RISCV
 	bool "RISC-V PMU framework"

@@ -2,7 +2,7 @@
 #ifndef INTERNAL_H
 #define INTERNAL_H
 
-#include "hashtable.h"
+#include <hashtable.h>
 
 #define SYMBOL_HASHSIZE		(1U << 14)
 

@@ -63,7 +63,8 @@ int mtk_vcodec_mem_alloc(void *priv, struct mtk_vcodec_mem *mem)
 		id = dec_ctx->id;
 	}
 
-	mem->va = dma_alloc_coherent(&plat_dev->dev, mem->size, &mem->dma_addr, GFP_KERNEL);
+        mem->va = dma_alloc_attrs(&plat_dev->dev, mem->size, &mem->dma_addr,
+                                  GFP_KERNEL, DMA_ATTR_ALLOC_SINGLE_PAGES);
 	if (!mem->va) {
 		mtk_v4l2_err(plat_dev, "%s dma_alloc size=0x%zx failed!",
 			     __func__, mem->size);

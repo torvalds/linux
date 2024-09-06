@@ -16,7 +16,9 @@
 #ifndef __SH_CSS_FRAC_H
 #define __SH_CSS_FRAC_H
 
-#include <math_support.h>
+#include <linux/minmax.h>
+
+#include "mamoiada_params.h"
 
 #define sISP_REG_BIT		      ISP_VEC_ELEMBITS
 #define uISP_REG_BIT		      ((unsigned int)(sISP_REG_BIT - 1))

@@ -43,7 +43,7 @@ static struct node *read_fstree(const char *dirname)
 					"WARNING: Cannot open %s: %s\n",
 					tmpname, strerror(errno));
 			} else {
-				prop = build_property(xstrdup(de->d_name),
+				prop = build_property(de->d_name,
 						      data_copy_file(pfile,
 								     st.st_size),
 						      NULL);

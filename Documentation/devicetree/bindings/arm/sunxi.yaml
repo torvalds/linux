@@ -708,12 +708,12 @@ properties:
           - const: olimex,a64-teres-i
           - const: allwinner,sun50i-a64
 
-      - description: Pine64
+      - description: Pine64 PINE A64
         items:
           - const: pine64,pine64
           - const: allwinner,sun50i-a64
 
-      - description: Pine64+
+      - description: Pine64 PINE A64+
         items:
           - const: pine64,pine64-plus
           - const: allwinner,sun50i-a64
@@ -724,17 +724,17 @@ properties:
           - const: sochip,s3
           - const: allwinner,sun8i-v3
 
-      - description: Pine64 PineH64 model A
+      - description: Pine64 PINE H64 Model A
         items:
           - const: pine64,pine-h64
           - const: allwinner,sun50i-h6
 
-      - description: Pine64 PineH64 model B
+      - description: Pine64 PINE H64 Model B
         items:
           - const: pine64,pine-h64-model-b
           - const: allwinner,sun50i-h6
 
-      - description: Pine64 LTS
+      - description: Pine64 PINE A64 LTS
         items:
           - const: pine64,pine64-lts
           - const: allwinner,sun50i-r18
@@ -763,17 +763,17 @@ properties:
           - const: pine64,pinephone
           - const: allwinner,sun50i-a64
 
-      - description: Pine64 PineTab, Development Sample
+      - description: Pine64 PineTab Developer Sample
         items:
           - const: pine64,pinetab
           - const: allwinner,sun50i-a64
 
-      - description: Pine64 PineTab, Early Adopter's batch (and maybe later ones)
+      - description: Pine64 PineTab Early Adopter
         items:
           - const: pine64,pinetab-early-adopter
           - const: allwinner,sun50i-a64
 
-      - description: Pine64 SoPine Baseboard
+      - description: Pine64 SOPINE
         items:
           - const: pine64,sopine-baseboard
           - const: pine64,sopine

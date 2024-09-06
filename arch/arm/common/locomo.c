@@ -816,10 +816,10 @@ EXPORT_SYMBOL(locomo_frontlight_set);
  *	We model this as a regular bus type, and hang devices directly
  *	off this.
  */
-static int locomo_match(struct device *_dev, struct device_driver *_drv)
+static int locomo_match(struct device *_dev, const struct device_driver *_drv)
 {
 	struct locomo_dev *dev = LOCOMO_DEV(_dev);
-	struct locomo_driver *drv = LOCOMO_DRV(_drv);
+	const struct locomo_driver *drv = LOCOMO_DRV(_drv);
 
 	return dev->devid == drv->devid;
 }

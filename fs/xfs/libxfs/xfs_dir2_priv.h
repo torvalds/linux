@@ -190,6 +190,13 @@ extern int xfs_readdir(struct xfs_trans *tp, struct xfs_inode *dp,
 		       struct dir_context *ctx, size_t bufsize);
 
 static inline unsigned int
+xfs_dir2_data_unusedsize(
+	unsigned int	len)
+{
+	return round_up(len, XFS_DIR2_DATA_ALIGN);
+}
+
+static inline unsigned int
 xfs_dir2_data_entsize(
 	struct xfs_mount	*mp,
 	unsigned int		namelen)

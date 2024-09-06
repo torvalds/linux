@@ -1,4 +1,4 @@
-perf-y += perf_regs.o
+perf-util-y += perf_regs.o
 
-perf-$(CONFIG_DWARF) += dwarf-regs.o
-perf-$(CONFIG_LIBDW_DWARF_UNWIND) += unwind-libdw.o
+perf-util-$(CONFIG_DWARF) += dwarf-regs.o
+perf-util-$(CONFIG_LIBDW_DWARF_UNWIND) += unwind-libdw.o

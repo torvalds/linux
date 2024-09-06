@@ -1193,7 +1193,6 @@ static int baycom_epp_par_probe(struct pardevice *par_dev)
 static struct parport_driver baycom_epp_par_driver = {
 	.name = "bce",
 	.probe = baycom_epp_par_probe,
-	.devmodel = true,
 };
 
 static void __init baycom_epp_dev_setup(struct net_device *dev)

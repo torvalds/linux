@@ -111,8 +111,7 @@
 			};
 
 			gpio_intc: interrupt-controller@4080 {
-				compatible = "amlogic,meson-gpio-intc",
-					     "amlogic,c3-gpio-intc";
+				compatible = "amlogic,c3-gpio-intc", "amlogic,meson-gpio-intc";
 				reg = <0x0 0x4080 0x0 0x0020>;
 				interrupt-controller;
 				#interrupt-cells = <2>;

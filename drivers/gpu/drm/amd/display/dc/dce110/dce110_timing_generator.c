@@ -2015,6 +2015,23 @@ bool dce110_tg_validate_timing(struct timing_generator *tg,
 	return dce110_timing_generator_validate_timing(tg, timing, SIGNAL_TYPE_NONE);
 }
 
+/* "Container" vs. "pixel" is a concept within HW blocks, mostly those closer to the back-end. It works like this:
+ *
+ * - In most of the formats (RGB or YCbCr 4:4:4, 4:2:2 uncompressed and DSC 4:2:2 Simple) pixel rate is the same as
+ *   container rate.
+ *
+ * - In 4:2:0 (DSC or uncompressed) there are two pixels per container, hence the target container rate has to be
+ *   halved to maintain the correct pixel rate.
+ *
+ * - Unlike 4:2:2 uncompressed, DSC 4:2:2 Native also has two pixels per container (this happens when DSC is applied
+ *   to it) and has to be treated the same as 4:2:0, i.e. target containter rate has to be halved in this case as well.
+ *
+ */
+bool dce110_is_two_pixels_per_container(const struct dc_crtc_timing *timing)
+{
+	return timing->pixel_encoding == PIXEL_ENCODING_YCBCR420;
+}
+
 void dce110_tg_wait_for_state(struct timing_generator *tg,
 	enum crtc_state state)
 {
@@ -2239,6 +2256,7 @@ static const struct timing_generator_funcs dce110_tg_funcs = {
 		.is_tg_enabled = dce110_is_tg_enabled,
 		.configure_crc = dce110_configure_crc,
 		.get_crc = dce110_get_crc,
+		.is_two_pixels_per_container = dce110_is_two_pixels_per_container,
 };
 
 void dce110_timing_generator_construct(

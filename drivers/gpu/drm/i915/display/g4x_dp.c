@@ -20,6 +20,7 @@
 #include "intel_dp_aux.h"
 #include "intel_dp_link_training.h"
 #include "intel_dpio_phy.h"
+#include "intel_encoder.h"
 #include "intel_fifo_underrun.h"
 #include "intel_hdmi.h"
 #include "intel_hotplug.h"
@@ -706,7 +707,7 @@ static void intel_enable_dp(struct intel_atomic_state *state,
 	intel_dp_configure_protocol_converter(intel_dp, pipe_config);
 	intel_dp_check_frl_training(intel_dp);
 	intel_dp_pcon_dsc_configure(intel_dp, pipe_config);
-	intel_dp_start_link_train(intel_dp, pipe_config);
+	intel_dp_start_link_train(state, intel_dp, pipe_config);
 	intel_dp_stop_link_train(intel_dp, pipe_config);
 }
 
@@ -1159,9 +1160,7 @@ intel_dp_hotplug(struct intel_encoder *encoder,
 		 struct intel_connector *connector)
 {
 	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
-	struct drm_modeset_acquire_ctx ctx;
 	enum intel_hotplug_state state;
-	int ret;
 
 	if (intel_dp->compliance.test_active &&
 	    intel_dp->compliance.test_type == DP_TEST_LINK_PHY_TEST_PATTERN) {
@@ -1172,23 +1171,7 @@ intel_dp_hotplug(struct intel_encoder *encoder,
 
 	state = intel_encoder_hotplug(encoder, connector);
 
-	drm_modeset_acquire_init(&ctx, 0);
-
-	for (;;) {
-		ret = intel_dp_retrain_link(encoder, &ctx);
-
-		if (ret == -EDEADLK) {
-			drm_modeset_backoff(&ctx);
-			continue;
-		}
-
-		break;
-	}
-
-	drm_modeset_drop_locks(&ctx);
-	drm_modeset_acquire_fini(&ctx);
-	drm_WARN(encoder->base.dev, ret,
-		 "Acquiring modeset locks failed with %i\n", ret);
+	intel_dp_check_link_state(intel_dp);
 
 	/*
 	 * Keeping it consistent with intel_ddi_hotplug() and
@@ -1228,7 +1211,7 @@ static bool g4x_digital_port_connected(struct intel_encoder *encoder)
 		return false;
 	}
 
-	return intel_de_read(dev_priv, PORT_HOTPLUG_STAT) & bit;
+	return intel_de_read(dev_priv, PORT_HOTPLUG_STAT(dev_priv)) & bit;
 }
 
 static bool ilk_digital_port_connected(struct intel_encoder *encoder)
@@ -1237,6 +1220,15 @@ static bool ilk_digital_port_connected(struct intel_encoder *encoder)
 	u32 bit = dev_priv->display.hotplug.hpd[encoder->hpd_pin];
 
 	return intel_de_read(dev_priv, DEISR) & bit;
+}
+
+static void g4x_dp_suspend_complete(struct intel_encoder *encoder)
+{
+	/*
+	 * TODO: Move this to intel_dp_encoder_suspend(),
+	 * once modeset locking around that is removed.
+	 */
+	intel_encoder_link_check_flush_work(encoder);
 }
 
 static void intel_dp_encoder_destroy(struct drm_encoder *encoder)
@@ -1325,6 +1317,8 @@ bool g4x_dp_init(struct drm_i915_private *dev_priv,
 			     "DP %c", port_name(port)))
 		goto err_encoder_init;
 
+	intel_encoder_link_check_init(intel_encoder, intel_dp_link_check);
+
 	intel_encoder->hotplug = intel_dp_hotplug;
 	intel_encoder->compute_config = intel_dp_compute_config;
 	intel_encoder->get_hw_state = intel_dp_get_hw_state;
@@ -1333,6 +1327,7 @@ bool g4x_dp_init(struct drm_i915_private *dev_priv,
 	intel_encoder->initial_fastset_check = intel_dp_initial_fastset_check;
 	intel_encoder->update_pipe = intel_backlight_update;
 	intel_encoder->suspend = intel_dp_encoder_suspend;
+	intel_encoder->suspend_complete = g4x_dp_suspend_complete;
 	intel_encoder->shutdown = intel_dp_encoder_shutdown;
 	if (IS_CHERRYVIEW(dev_priv)) {
 		intel_encoder->pre_pll_enable = chv_dp_pre_pll_enable;

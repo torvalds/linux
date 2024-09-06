@@ -48,6 +48,7 @@ decompressor_handled_param(dfltcc);
 decompressor_handled_param(facilities);
 decompressor_handled_param(nokaslr);
 decompressor_handled_param(cmma);
+decompressor_handled_param(relocate_lowcore);
 #if IS_ENABLED(CONFIG_KVM)
 decompressor_handled_param(prot_virt);
 #endif
@@ -72,7 +73,7 @@ static void __init reset_tod_clock(void)
 
 	memset(&tod_clock_base, 0, sizeof(tod_clock_base));
 	tod_clock_base.tod = TOD_UNIX_EPOCH;
-	S390_lowcore.last_update_clock = TOD_UNIX_EPOCH;
+	get_lowcore()->last_update_clock = TOD_UNIX_EPOCH;
 }
 
 /*
@@ -99,7 +100,7 @@ static noinline __init void detect_machine_type(void)
 
 	/* Check current-configuration-level */
 	if (stsi(NULL, 0, 0, 0) <= 2) {
-		S390_lowcore.machine_flags |= MACHINE_FLAG_LPAR;
+		get_lowcore()->machine_flags |= MACHINE_FLAG_LPAR;
 		return;
 	}
 	/* Get virtual-machine cpu information. */
@@ -108,9 +109,9 @@ static noinline __init void detect_machine_type(void)
 
 	/* Detect known hypervisors */
 	if (!memcmp(vmms->vm[0].cpi, "\xd2\xe5\xd4", 3))
-		S390_lowcore.machine_flags |= MACHINE_FLAG_KVM;
+		get_lowcore()->machine_flags |= MACHINE_FLAG_KVM;
 	else if (!memcmp(vmms->vm[0].cpi, "\xa9\x61\xe5\xd4", 4))
-		S390_lowcore.machine_flags |= MACHINE_FLAG_VM;
+		get_lowcore()->machine_flags |= MACHINE_FLAG_VM;
 }
 
 /* Remove leading, trailing and double whitespace. */
@@ -166,7 +167,7 @@ static __init void setup_topology(void)
 
 	if (!test_facility(11))
 		return;
-	S390_lowcore.machine_flags |= MACHINE_FLAG_TOPOLOGY;
+	get_lowcore()->machine_flags |= MACHINE_FLAG_TOPOLOGY;
 	for (max_mnest = 6; max_mnest > 1; max_mnest--) {
 		if (stsi(&sysinfo_page, 15, 1, max_mnest) == 0)
 			break;
@@ -186,15 +187,8 @@ static noinline __init void setup_lowcore_early(void)
 
 	psw.addr = (unsigned long)early_pgm_check_handler;
 	psw.mask = PSW_KERNEL_BITS;
-	S390_lowcore.program_new_psw = psw;
-	S390_lowcore.preempt_count = INIT_PREEMPT_COUNT;
-}
-
-static noinline __init void setup_facility_list(void)
-{
-	memcpy(alt_stfle_fac_list, stfle_fac_list, sizeof(alt_stfle_fac_list));
-	if (!IS_ENABLED(CONFIG_KERNEL_NOBP))
-		__clear_facility(82, alt_stfle_fac_list);
+	get_lowcore()->program_new_psw = psw;
+	get_lowcore()->preempt_count = INIT_PREEMPT_COUNT;
 }
 
 static __init void detect_diag9c(void)
@@ -211,43 +205,43 @@ static __init void detect_diag9c(void)
 		EX_TABLE(0b,1b)
 		: "=d" (rc) : "0" (-EOPNOTSUPP), "d" (cpu_address) : "cc");
 	if (!rc)
-		S390_lowcore.machine_flags |= MACHINE_FLAG_DIAG9C;
+		get_lowcore()->machine_flags |= MACHINE_FLAG_DIAG9C;
 }
 
 static __init void detect_machine_facilities(void)
 {
 	if (test_facility(8)) {
-		S390_lowcore.machine_flags |= MACHINE_FLAG_EDAT1;
+		get_lowcore()->machine_flags |= MACHINE_FLAG_EDAT1;
 		system_ctl_set_bit(0, CR0_EDAT_BIT);
 	}
 	if (test_facility(78))
-		S390_lowcore.machine_flags |= MACHINE_FLAG_EDAT2;
+		get_lowcore()->machine_flags |= MACHINE_FLAG_EDAT2;
 	if (test_facility(3))
-		S390_lowcore.machine_flags |= MACHINE_FLAG_IDTE;
+		get_lowcore()->machine_flags |= MACHINE_FLAG_IDTE;
 	if (test_facility(50) && test_facility(73)) {
-		S390_lowcore.machine_flags |= MACHINE_FLAG_TE;
+		get_lowcore()->machine_flags |= MACHINE_FLAG_TE;
 		system_ctl_set_bit(0, CR0_TRANSACTIONAL_EXECUTION_BIT);
 	}
 	if (test_facility(51))
-		S390_lowcore.machine_flags |= MACHINE_FLAG_TLB_LC;
+		get_lowcore()->machine_flags |= MACHINE_FLAG_TLB_LC;
 	if (test_facility(129))
 		system_ctl_set_bit(0, CR0_VECTOR_BIT);
 	if (test_facility(130))
-		S390_lowcore.machine_flags |= MACHINE_FLAG_NX;
+		get_lowcore()->machine_flags |= MACHINE_FLAG_NX;
 	if (test_facility(133))
-		S390_lowcore.machine_flags |= MACHINE_FLAG_GS;
+		get_lowcore()->machine_flags |= MACHINE_FLAG_GS;
 	if (test_facility(139) && (tod_clock_base.tod >> 63)) {
 		/* Enabled signed clock comparator comparisons */
-		S390_lowcore.machine_flags |= MACHINE_FLAG_SCC;
+		get_lowcore()->machine_flags |= MACHINE_FLAG_SCC;
 		clock_comparator_max = -1ULL >> 1;
 		system_ctl_set_bit(0, CR0_CLOCK_COMPARATOR_SIGN_BIT);
 	}
 	if (IS_ENABLED(CONFIG_PCI) && test_facility(153)) {
-		S390_lowcore.machine_flags |= MACHINE_FLAG_PCI_MIO;
+		get_lowcore()->machine_flags |= MACHINE_FLAG_PCI_MIO;
 		/* the control bit is set during PCI initialization */
 	}
 	if (test_facility(194))
-		S390_lowcore.machine_flags |= MACHINE_FLAG_RDP;
+		get_lowcore()->machine_flags |= MACHINE_FLAG_RDP;
 }
 
 static inline void save_vector_registers(void)
@@ -291,7 +285,6 @@ void __init startup_init(void)
 	lockdep_off();
 	sort_amode31_extable();
 	setup_lowcore_early();
-	setup_facility_list();
 	detect_machine_type();
 	setup_arch_string();
 	setup_boot_command_line();

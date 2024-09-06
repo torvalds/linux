@@ -1,0 +1,13 @@
+#SPDX-License-Identifier: GPL-2.0
+
+config CLK_THEAD_TH1520_AP
+	bool "T-HEAD TH1520 AP clock support"
+	depends on ARCH_THEAD || COMPILE_TEST
+	depends on 64BIT
+	default ARCH_THEAD
+	select REGMAP_MMIO
+	help
+	  Say yes here to support the AP sub system clock controller
+	  on the T-HEAD TH1520 SoC. This includes configuration of
+	  both CPU PLLs, both DPU PLLs as well as the GMAC, VIDEO,
+	  and TEE PLLs.

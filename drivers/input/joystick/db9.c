@@ -673,7 +673,6 @@ static struct parport_driver db9_parport_driver = {
 	.name = "db9",
 	.match_port = db9_attach,
 	.detach = db9_detach,
-	.devmodel = true,
 };
 
 static int __init db9_init(void)

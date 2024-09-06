@@ -30,7 +30,7 @@ struct am65_cpts;
 struct am65_cpsw_slave_data {
 	bool				mac_only;
 	struct cpsw_sl			*mac_sl;
-	struct device_node		*phy_node;
+	struct device_node		*port_np;
 	phy_interface_t			phy_if;
 	struct phy			*ifphy;
 	struct phy			*serdes_phy;

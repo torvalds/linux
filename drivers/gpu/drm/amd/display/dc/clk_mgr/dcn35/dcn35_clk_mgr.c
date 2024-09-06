@@ -137,8 +137,8 @@ static void dcn35_disable_otg_wa(struct clk_mgr *clk_mgr_base, struct dc_state *
 		if (pipe->stream && (pipe->stream->dpms_off || dc_is_virtual_signal(pipe->stream->signal) ||
 				     !pipe->stream->link_enc)) {
 			if (disable) {
-				if (pipe->stream_res.tg && pipe->stream_res.tg->funcs->immediate_disable_crtc)
-					pipe->stream_res.tg->funcs->immediate_disable_crtc(pipe->stream_res.tg);
+				if (pipe->stream_res.tg && pipe->stream_res.tg->funcs->disable_crtc)
+					pipe->stream_res.tg->funcs->disable_crtc(pipe->stream_res.tg);
 
 				reset_sync_context_for_pipe(dc, context, i);
 			} else {
@@ -216,6 +216,57 @@ static void dcn35_update_clocks_update_dpp_dto(struct clk_mgr_internal *clk_mgr,
 			if (old_dpp && !dppclk_active[old_dpp->inst])
 				clk_mgr->dccg->funcs->update_dpp_dto(clk_mgr->dccg, old_dpp->inst, 0);
 		}
+}
+
+static uint8_t get_lowest_dpia_index(const struct dc_link *link)
+{
+	const struct dc *dc_struct = link->dc;
+	uint8_t idx = 0xFF;
+	int i;
+
+	for (i = 0; i < MAX_PIPES * 2; ++i) {
+		if (!dc_struct->links[i] || dc_struct->links[i]->ep_type != DISPLAY_ENDPOINT_USB4_DPIA)
+			continue;
+
+		if (idx > dc_struct->links[i]->link_index)
+			idx = dc_struct->links[i]->link_index;
+	}
+
+	return idx;
+}
+
+static void dcn35_notify_host_router_bw(struct clk_mgr *clk_mgr_base, struct dc_state *context,
+					bool safe_to_lower)
+{
+	struct dc_clocks *new_clocks = &context->bw_ctx.bw.dcn.clk;
+	struct clk_mgr_internal *clk_mgr = TO_CLK_MGR_INTERNAL(clk_mgr_base);
+	uint32_t host_router_bw_kbps[MAX_HOST_ROUTERS_NUM] = { 0 };
+	int i;
+
+	for (i = 0; i < context->stream_count; ++i) {
+		const struct dc_stream_state *stream = context->streams[i];
+		const struct dc_link *link = stream->link;
+		uint8_t lowest_dpia_index = 0, hr_index = 0;
+
+		if (!link)
+			continue;
+
+		lowest_dpia_index = get_lowest_dpia_index(link);
+		if (link->link_index < lowest_dpia_index)
+			continue;
+
+		hr_index = (link->link_index - lowest_dpia_index) / 2;
+		host_router_bw_kbps[hr_index] += dc_bandwidth_in_kbps_from_timing(
+			&stream->timing, dc_link_get_highest_encoding_format(link));
+	}
+
+	for (i = 0; i < MAX_HOST_ROUTERS_NUM; ++i) {
+		new_clocks->host_router_bw_kbps[i] = host_router_bw_kbps[i];
+		if (should_set_clock(safe_to_lower, new_clocks->host_router_bw_kbps[i], clk_mgr_base->clks.host_router_bw_kbps[i])) {
+			clk_mgr_base->clks.host_router_bw_kbps[i] = new_clocks->host_router_bw_kbps[i];
+			dcn35_smu_notify_host_router_bw(clk_mgr, i, new_clocks->host_router_bw_kbps[i]);
+		}
+	}
 }
 
 void dcn35_update_clocks(struct clk_mgr *clk_mgr_base,
@@ -341,6 +392,10 @@ void dcn35_update_clocks(struct clk_mgr *clk_mgr_base,
 			dcn35_smu_set_dppclk(clk_mgr, clk_mgr_base->clks.dppclk_khz);
 		dcn35_update_clocks_update_dpp_dto(clk_mgr, context, safe_to_lower);
 	}
+
+	// notify PMFW of bandwidth per DPIA tunnel
+	if (dc->debug.notify_dpia_hr_bw)
+		dcn35_notify_host_router_bw(clk_mgr_base, context, safe_to_lower);
 
 	// notify DMCUB of latest clocks
 	memset(&cmd, 0, sizeof(cmd));
@@ -1127,7 +1182,7 @@ void dcn35_clk_mgr_construct(
 					   i, smu_dpm_clks.dpm_clks->MemPstateTable[i].Voltage);
 		}
 
-		if (ctx->dc_bios && ctx->dc_bios->integrated_info && ctx->dc->config.use_default_clock_table == false) {
+		if (ctx->dc_bios->integrated_info && ctx->dc->config.use_default_clock_table == false) {
 			dcn35_clk_mgr_helper_populate_bw_params(
 					&clk_mgr->base,
 					ctx->dc_bios->integrated_info,

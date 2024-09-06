@@ -31,7 +31,7 @@ Here are the most common kernel configurations:
 
  3. BCM2837 target SoC (ARM 64 bit)
 
-    Use the defconfig as a base and then enable all VCHIQ options.
+    Use the defconfig which has most of the VCHIQ options enabled.
 
 * Scenarios
 
@@ -80,3 +80,46 @@ Here are the most common kernel configurations:
    vchi ping (size 0, 100 async, 100 oneway) -> infus
    vchi ping (size 0, 200 async, 0 oneway) -> infus
    ...
+
+ * Debugfs test
+
+   Command: cat /sys/kernel/debug/vchiq/state
+
+   Example output:
+   State 0: CONNECTED
+     tx_pos=0x1e8(@43b0acda), rx_pos=0x170(@05493af8)
+     Version: 8 (min 3)
+     Stats: ctrl_tx_count=7, ctrl_rx_count=7, error_count=0
+     Slots: 30 available (29 data), 0 recyclable, 0 stalls (0 data)
+     Platform: 2835 (VC master)
+     Local: slots 34-64 tx_pos=0x1e8 recycle=0x1f
+       Slots claimed:
+       DEBUG: SLOT_HANDLER_COUNT = 20(0x14)
+       DEBUG: SLOT_HANDLER_LINE = 1937(0x791)
+       DEBUG: PARSE_LINE = 1864(0x748)
+       DEBUG: PARSE_HEADER = -249155224(0xf1263168)
+       DEBUG: PARSE_MSGID = 67362817(0x403e001)
+       DEBUG: AWAIT_COMPLETION_LINE = 0(0x0)
+       DEBUG: DEQUEUE_MESSAGE_LINE = 0(0x0)
+       DEBUG: SERVICE_CALLBACK_LINE = 0(0x0)
+       DEBUG: MSG_QUEUE_FULL_COUNT = 0(0x0)
+       DEBUG: COMPLETION_QUEUE_FULL_COUNT = 0(0x0)
+     Remote: slots 2-32 tx_pos=0x170 recycle=0x1f
+       Slots claimed:
+         2: 10/9
+       DEBUG: SLOT_HANDLER_COUNT = 20(0x14)
+       DEBUG: SLOT_HANDLER_LINE = 1851(0x73b)
+       DEBUG: PARSE_LINE = 1827(0x723)
+       DEBUG: PARSE_HEADER = -150330912(0xf70a21e0)
+       DEBUG: PARSE_MSGID = 67113022(0x400103e)
+       DEBUG: AWAIT_COMPLETION_LINE = 0(0x0)
+       DEBUG: DEQUEUE_MESSAGE_LINE = 0(0x0)
+       DEBUG: SERVICE_CALLBACK_LINE = 0(0x0)
+       DEBUG: MSG_QUEUE_FULL_COUNT = 0(0x0)
+       DEBUG: COMPLETION_QUEUE_FULL_COUNT = 0(0x0)
+   Service 0: LISTENING (ref 1) 'PEEK little-endian (0x4b454550)' remote n/a (msg use 0/3840, slot use 0/15)
+     Bulk: tx_pending=0 (size 0), rx_pending=0 (size 0)
+     Ctrl: tx_count=0, tx_bytes=0, rx_count=0, rx_bytes=0
+     Bulk: tx_count=0, tx_bytes=0, rx_count=0, rx_bytes=0
+     0 quota stalls, 0 slot stalls, 0 bulk stalls, 0 aborted, 0 errors
+     instance b511f60b

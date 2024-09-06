@@ -30,7 +30,7 @@ HID_BPF_CONFIG(
  * pointer.
  */
 
-SEC("fmod_ret/hid_bpf_rdesc_fixup")
+SEC(HID_BPF_RDESC_FIXUP)
 int BPF_PROG(hid_fix_rdesc, struct hid_bpf_ctx *hctx)
 {
 	__u8 *data = hid_bpf_get_data(hctx, 0 /* offset */, 4096 /* size */);
@@ -44,6 +44,10 @@ int BPF_PROG(hid_fix_rdesc, struct hid_bpf_ctx *hctx)
 
 	return 0;
 }
+
+HID_BPF_OPS(hp_elite_presenter) = {
+	.hid_rdesc_fixup = (void *)hid_fix_rdesc,
+};
 
 SEC("syscall")
 int probe(struct hid_bpf_probe_args *ctx)

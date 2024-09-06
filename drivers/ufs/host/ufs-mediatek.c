@@ -693,7 +693,7 @@ static void ufs_mtk_mcq_disable_irq(struct ufs_hba *hba)
 	struct ufs_mtk_host *host = ufshcd_get_variant(hba);
 	u32 irq, i;
 
-	if (!is_mcq_enabled(hba))
+	if (!hba->mcq_enabled)
 		return;
 
 	if (host->mcq_nr_intr == 0)
@@ -711,7 +711,7 @@ static void ufs_mtk_mcq_enable_irq(struct ufs_hba *hba)
 	struct ufs_mtk_host *host = ufshcd_get_variant(hba);
 	u32 irq, i;
 
-	if (!is_mcq_enabled(hba))
+	if (!hba->mcq_enabled)
 		return;
 
 	if (host->mcq_nr_intr == 0)
@@ -1308,7 +1308,7 @@ static int ufs_mtk_link_set_hpm(struct ufs_hba *hba)
 	if (err)
 		return err;
 
-	if (is_mcq_enabled(hba)) {
+	if (hba->mcq_enabled) {
 		ufs_mtk_config_mcq(hba, false);
 		ufshcd_mcq_make_queues_operational(hba);
 		ufshcd_mcq_config_mac(hba, hba->nutrs);
@@ -1785,6 +1785,7 @@ static int ufs_mtk_config_esi(struct ufs_hba *hba)
  */
 static const struct ufs_hba_variant_ops ufs_hba_mtk_vops = {
 	.name                = "mediatek.ufshci",
+	.max_num_rtt         = MTK_MAX_NUM_RTT,
 	.init                = ufs_mtk_init,
 	.get_ufs_hci_version = ufs_mtk_get_ufs_hci_version,
 	.setup_clocks        = ufs_mtk_setup_clocks,

@@ -12,7 +12,6 @@
 	thermal-zones {
 		pms405-thermal {
 			polling-delay-passive = <250>;
-			polling-delay = <1000>;
 
 			thermal-sensors = <&pms405_temp>;
 

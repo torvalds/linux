@@ -6,6 +6,7 @@ import sys
 import time
 import traceback
 from .consts import KSFT_MAIN_NAME
+from .utils import global_defer_queue
 
 KSFT_RESULT = None
 KSFT_RESULT_ALL = True
@@ -57,6 +58,11 @@ def ksft_ge(a, b, comment=""):
         _fail("Check failed", a, "<", b, comment)
 
 
+def ksft_lt(a, b, comment=""):
+    if a >= b:
+        _fail("Check failed", a, ">=", b, comment)
+
+
 class ksft_raises:
     def __init__(self, expected_type):
         self.exception = None
@@ -103,6 +109,24 @@ def ktap_result(ok, cnt=1, case="", comment=""):
     print(res)
 
 
+def ksft_flush_defer():
+    global KSFT_RESULT
+
+    i = 0
+    qlen_start = len(global_defer_queue)
+    while global_defer_queue:
+        i += 1
+        entry = global_defer_queue.pop()
+        try:
+            entry.exec_only()
+        except:
+            ksft_pr(f"Exception while handling defer / cleanup (callback {i} of {qlen_start})!")
+            tb = traceback.format_exc()
+            for line in tb.strip().split('\n'):
+                ksft_pr("Defer Exception|", line)
+            KSFT_RESULT = False
+
+
 def ksft_run(cases=None, globs=None, case_pfx=None, args=()):
     cases = cases or []
 
@@ -122,32 +146,41 @@ def ksft_run(cases=None, globs=None, case_pfx=None, args=()):
 
     global KSFT_RESULT
     cnt = 0
+    stop = False
     for case in cases:
         KSFT_RESULT = True
         cnt += 1
+        comment = ""
+        cnt_key = ""
+
         try:
             case(*args)
         except KsftSkipEx as e:
-            ktap_result(True, cnt, case, comment="SKIP " + str(e))
-            totals['skip'] += 1
-            continue
+            comment = "SKIP " + str(e)
+            cnt_key = 'skip'
         except KsftXfailEx as e:
-            ktap_result(True, cnt, case, comment="XFAIL " + str(e))
-            totals['xfail'] += 1
-            continue
-        except Exception as e:
+            comment = "XFAIL " + str(e)
+            cnt_key = 'xfail'
+        except BaseException as e:
+            stop |= isinstance(e, KeyboardInterrupt)
             tb = traceback.format_exc()
             for line in tb.strip().split('\n'):
                 ksft_pr("Exception|", line)
-            ktap_result(False, cnt, case)
-            totals['fail'] += 1
-            continue
+            if stop:
+                ksft_pr("Stopping tests due to KeyboardInterrupt.")
+            KSFT_RESULT = False
+            cnt_key = 'fail'
 
-        ktap_result(KSFT_RESULT, cnt, case)
-        if KSFT_RESULT:
-            totals['pass'] += 1
-        else:
-            totals['fail'] += 1
+        ksft_flush_defer()
+
+        if not cnt_key:
+            cnt_key = 'pass' if KSFT_RESULT else 'fail'
+
+        ktap_result(KSFT_RESULT, cnt, case, comment=comment)
+        totals[cnt_key] += 1
+
+        if stop:
+            break
 
     print(
         f"# Totals: pass:{totals['pass']} fail:{totals['fail']} xfail:{totals['xfail']} xpass:0 skip:{totals['skip']} error:0"

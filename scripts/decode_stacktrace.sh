@@ -30,6 +30,7 @@ fi
 
 READELF=${UTIL_PREFIX}readelf${UTIL_SUFFIX}
 ADDR2LINE=${UTIL_PREFIX}addr2line${UTIL_SUFFIX}
+NM=${UTIL_PREFIX}nm${UTIL_SUFFIX}
 
 if [[ $1 == "-r" ]] ; then
 	vmlinux=""
@@ -158,7 +159,7 @@ parse_symbol() {
 	if [[ $aarray_support == true && "${cache[$module,$name]+isset}" == "isset" ]]; then
 		local base_addr=${cache[$module,$name]}
 	else
-		local base_addr=$(nm "$objfile" 2>/dev/null | awk '$3 == "'$name'" && ($2 == "t" || $2 == "T") {print $1; exit}')
+		local base_addr=$(${NM} "$objfile" 2>/dev/null | awk '$3 == "'$name'" && ($2 == "t" || $2 == "T") {print $1; exit}')
 		if [[ $base_addr == "" ]] ; then
 			# address not found
 			return
@@ -282,6 +283,9 @@ handle_line() {
 
 	if [[ ${words[$last]} =~ \[([^]]+)\] ]]; then
 		module=${words[$last]}
+		# some traces format is "(%pS)", which like "(foo+0x0/0x1 [bar])"
+		# so $module may like "[bar])". Strip the right parenthesis firstly
+		module=${module%\)}
 		module=${module#\[}
 		module=${module%\]}
 		modbuildid=${module#* }

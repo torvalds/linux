@@ -1477,20 +1477,16 @@ static void dump_map(void)
 		fprintf(lock_output, " %#llx: %s\n", (unsigned long long)st->addr, st->name);
 }
 
-static int dump_info(void)
+static void dump_info(void)
 {
-	int rc = 0;
-
 	if (info_threads)
 		dump_threads();
-	else if (info_map)
-		dump_map();
-	else {
-		rc = -1;
-		pr_err("Unknown type of information\n");
-	}
 
-	return rc;
+	if (info_map) {
+		if (info_threads)
+			fputc('\n', lock_output);
+		dump_map();
+	}
 }
 
 static const struct evsel_str_handler lock_tracepoints[] = {
@@ -1992,7 +1988,7 @@ static int __cmd_report(bool display_info)
 
 	setup_pager();
 	if (display_info) /* used for info subcommand */
-		err = dump_info();
+		dump_info();
 	else {
 		combine_result();
 		sort_result();
@@ -2568,9 +2564,9 @@ int cmd_lock(int argc, const char **argv)
 
 	const struct option info_options[] = {
 	OPT_BOOLEAN('t', "threads", &info_threads,
-		    "dump thread list in perf.data"),
+		    "dump the thread list in perf.data"),
 	OPT_BOOLEAN('m', "map", &info_map,
-		    "map of lock instances (address:name table)"),
+		    "dump the map of lock instances (address:name table)"),
 	OPT_PARENT(lock_options)
 	};
 
@@ -2684,6 +2680,13 @@ int cmd_lock(int argc, const char **argv)
 			if (argc)
 				usage_with_options(info_usage, info_options);
 		}
+
+		/* If neither threads nor map requested, display both */
+		if (!info_threads && !info_map) {
+			info_threads = true;
+			info_map = true;
+		}
+
 		/* recycling report_lock_ops */
 		trace_handler = &report_lock_ops;
 		rc = __cmd_report(true);

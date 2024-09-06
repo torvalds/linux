@@ -726,12 +726,8 @@ static int snd_at73c213_mixer(struct snd_at73c213 *chip)
 	return 0;
 
 cleanup:
-	for (idx = 1; idx < ARRAY_SIZE(snd_at73c213_controls) + 1; idx++) {
-		struct snd_kcontrol *kctl;
-		kctl = snd_ctl_find_numid(card, idx);
-		if (kctl)
-			snd_ctl_remove(card, kctl);
-	}
+	for (idx = 1; idx < ARRAY_SIZE(snd_at73c213_controls) + 1; idx++)
+		snd_ctl_remove(card, snd_ctl_find_numid(card, idx));
 	return errval;
 }
 

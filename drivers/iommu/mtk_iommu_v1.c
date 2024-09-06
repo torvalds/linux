@@ -401,7 +401,6 @@ static const struct iommu_ops mtk_iommu_v1_ops;
 static int mtk_iommu_v1_create_mapping(struct device *dev,
 				       const struct of_phandle_args *args)
 {
-	struct iommu_fwspec *fwspec = dev_iommu_fwspec_get(dev);
 	struct mtk_iommu_v1_data *data;
 	struct platform_device *m4updev;
 	struct dma_iommu_mapping *mtk_mapping;
@@ -413,14 +412,9 @@ static int mtk_iommu_v1_create_mapping(struct device *dev,
 		return -EINVAL;
 	}
 
-	if (!fwspec) {
-		ret = iommu_fwspec_init(dev, &args->np->fwnode, &mtk_iommu_v1_ops);
-		if (ret)
-			return ret;
-		fwspec = dev_iommu_fwspec_get(dev);
-	} else if (dev_iommu_fwspec_get(dev)->ops != &mtk_iommu_v1_ops) {
-		return -EINVAL;
-	}
+	ret = iommu_fwspec_init(dev, of_fwnode_handle(args->np));
+	if (ret)
+		return ret;
 
 	if (!dev_iommu_priv_get(dev)) {
 		/* Get the m4u device */

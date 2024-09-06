@@ -767,4 +767,5 @@ int meson_pinctrl_probe(struct platform_device *pdev)
 }
 EXPORT_SYMBOL_GPL(meson_pinctrl_probe);
 
+MODULE_DESCRIPTION("Amlogic Meson SoCs core pinctrl driver");
 MODULE_LICENSE("GPL v2");

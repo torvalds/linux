@@ -240,6 +240,12 @@ struct amdgpu_gfx_config {
 	uint32_t gc_tcp_size_per_cu;
 	uint32_t gc_num_cu_per_sqc;
 	uint32_t gc_tcc_size;
+	uint32_t gc_tcp_cache_line_size;
+	uint32_t gc_instruction_cache_size_per_sqc;
+	uint32_t gc_instruction_cache_line_size;
+	uint32_t gc_scalar_data_cache_size_per_sqc;
+	uint32_t gc_scalar_data_cache_line_size;
+	uint32_t gc_tcc_cache_line_size;
 };
 
 struct amdgpu_cu_info {
@@ -297,6 +303,7 @@ struct amdgpu_gfx_funcs {
 	int (*switch_partition_mode)(struct amdgpu_device *adev,
 				     int num_xccs_per_xcp);
 	int (*ih_node_to_logical_xcc)(struct amdgpu_device *adev, int ih_node);
+	int (*get_xccs_per_xcp)(struct amdgpu_device *adev);
 };
 
 struct sq_work {
@@ -435,8 +442,9 @@ struct amdgpu_gfx {
 	bool				mcbp; /* mid command buffer preemption */
 
 	/* IP reg dump */
-	uint32_t			*ip_dump;
-	uint32_t			reg_count;
+	uint32_t			*ip_dump_core;
+	uint32_t			*ip_dump_compute_queues;
+	uint32_t			*ip_dump_gfx_queues;
 };
 
 struct amdgpu_gfx_ras_reg_entry {
@@ -555,8 +563,6 @@ static inline const char *amdgpu_gfx_compute_mode_desc(int mode)
 	default:
 		return "UNKNOWN";
 	}
-
-	return "UNKNOWN";
 }
 
 #endif

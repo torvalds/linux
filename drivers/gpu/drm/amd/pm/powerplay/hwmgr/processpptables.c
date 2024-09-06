@@ -702,8 +702,6 @@ static int init_non_clock_fields(struct pp_hwmgr *hwmgr,
 				ATOM_PPLIB_PCIE_LINK_WIDTH_MASK) >>
 				ATOM_PPLIB_PCIE_LINK_WIDTH_SHIFT) + 1;
 
-	ps->pcie.lanes = 0;
-
 	ps->display.disableFrameModulation = false;
 
 	rrr_index = (le32_to_cpu(pnon_clock_info->ulCapsAndSettings) &

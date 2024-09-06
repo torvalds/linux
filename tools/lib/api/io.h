@@ -43,48 +43,55 @@ static inline void io__init(struct io *io, int fd,
 	io->eof = false;
 }
 
-/* Reads one character from the "io" file with similar semantics to fgetc. */
-static inline int io__get_char(struct io *io)
+/* Read from fd filling the buffer. Called when io->data == io->end. */
+static inline int io__fill_buffer(struct io *io)
 {
-	char *ptr = io->data;
+	ssize_t n;
 
 	if (io->eof)
 		return -1;
 
-	if (ptr == io->end) {
-		ssize_t n;
+	if (io->timeout_ms != 0) {
+		struct pollfd pfds[] = {
+			{
+				.fd = io->fd,
+				.events = POLLIN,
+			},
+		};
 
-		if (io->timeout_ms != 0) {
-			struct pollfd pfds[] = {
-				{
-					.fd = io->fd,
-					.events = POLLIN,
-				},
-			};
-
-			n = poll(pfds, 1, io->timeout_ms);
-			if (n == 0)
-				errno = ETIMEDOUT;
-			if (n > 0 && !(pfds[0].revents & POLLIN)) {
-				errno = EIO;
-				n = -1;
-			}
-			if (n <= 0) {
-				io->eof = true;
-				return -1;
-			}
+		n = poll(pfds, 1, io->timeout_ms);
+		if (n == 0)
+			errno = ETIMEDOUT;
+		if (n > 0 && !(pfds[0].revents & POLLIN)) {
+			errno = EIO;
+			n = -1;
 		}
-		n = read(io->fd, io->buf, io->buf_len);
-
 		if (n <= 0) {
 			io->eof = true;
 			return -1;
 		}
-		ptr = &io->buf[0];
-		io->end = &io->buf[n];
 	}
-	io->data = ptr + 1;
-	return *ptr;
+	n = read(io->fd, io->buf, io->buf_len);
+
+	if (n <= 0) {
+		io->eof = true;
+		return -1;
+	}
+	io->data = &io->buf[0];
+	io->end = &io->buf[n];
+	return 0;
+}
+
+/* Reads one character from the "io" file with similar semantics to fgetc. */
+static inline int io__get_char(struct io *io)
+{
+	if (io->data == io->end) {
+		int ret = io__fill_buffer(io);
+
+		if (ret)
+			return ret;
+	}
+	return *io->data++;
 }
 
 /* Read a hexadecimal value with no 0x prefix into the out argument hex. If the

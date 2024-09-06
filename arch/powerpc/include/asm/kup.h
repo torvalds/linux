@@ -20,7 +20,7 @@ static __always_inline bool kuap_is_disabled(void);
 #include <asm/nohash/32/kup-8xx.h>
 #endif
 
-#ifdef CONFIG_BOOKE_OR_40x
+#ifdef CONFIG_BOOKE
 #include <asm/nohash/kup-booke.h>
 #endif
 

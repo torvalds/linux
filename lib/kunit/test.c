@@ -938,4 +938,5 @@ static void __exit kunit_exit(void)
 }
 module_exit(kunit_exit);
 
+MODULE_DESCRIPTION("Base unit test (KUnit) API");
 MODULE_LICENSE("GPL v2");

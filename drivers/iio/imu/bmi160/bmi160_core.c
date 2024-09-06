@@ -26,6 +26,7 @@
 #include "bmi160.h"
 
 #define BMI160_REG_CHIP_ID	0x00
+#define BMI120_CHIP_ID_VAL	0xD3
 #define BMI160_CHIP_ID_VAL	0xD1
 
 #define BMI160_REG_PMU_STATUS	0x03
@@ -111,6 +112,11 @@
 	},							\
 	.ext_info = bmi160_ext_info,				\
 }
+
+static const u8 bmi_chip_ids[] = {
+	BMI120_CHIP_ID_VAL,
+	BMI160_CHIP_ID_VAL,
+};
 
 /* scan indexes follow DATA register order */
 enum bmi160_scan_axis {
@@ -704,6 +710,16 @@ static int bmi160_setup_irq(struct iio_dev *indio_dev, int irq,
 	return bmi160_probe_trigger(indio_dev, irq, irq_type);
 }
 
+static int bmi160_check_chip_id(const u8 chip_id)
+{
+	for (int i = 0; i < ARRAY_SIZE(bmi_chip_ids); i++) {
+		if (chip_id == bmi_chip_ids[i])
+			return 0;
+	}
+
+	return -ENODEV;
+}
+
 static int bmi160_chip_init(struct bmi160_data *data, bool use_spi)
 {
 	int ret;
@@ -737,12 +753,10 @@ static int bmi160_chip_init(struct bmi160_data *data, bool use_spi)
 		dev_err(dev, "Error reading chip id\n");
 		goto disable_regulator;
 	}
-	if (val != BMI160_CHIP_ID_VAL) {
-		dev_err(dev, "Wrong chip id, got %x expected %x\n",
-			val, BMI160_CHIP_ID_VAL);
-		ret = -ENODEV;
-		goto disable_regulator;
-	}
+
+	ret = bmi160_check_chip_id(val);
+	if (ret)
+		dev_warn(dev, "Chip id not found: %x\n", val);
 
 	ret = bmi160_set_mode(data, BMI160_ACCEL, true);
 	if (ret)

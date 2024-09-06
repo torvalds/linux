@@ -145,9 +145,9 @@ static struct regmap *gen_regmap(struct kunit *test,
 	const struct regmap_test_param *param = test->param_value;
 	struct regmap_test_priv *priv = test->priv;
 	unsigned int *buf;
-	struct regmap *ret;
+	struct regmap *ret = ERR_PTR(-ENOMEM);
 	size_t size;
-	int i;
+	int i, error;
 	struct reg_default *defaults;
 
 	config->cache_type = param->cache;
@@ -163,7 +163,7 @@ static struct regmap *gen_regmap(struct kunit *test,
 			config->max_register += (BLOCK_TEST_SIZE * config->reg_stride);
 	}
 
-	size = (config->max_register + 1) * sizeof(unsigned int);
+	size = array_size(config->max_register + 1, sizeof(*buf));
 	buf = kmalloc(size, GFP_KERNEL);
 	if (!buf)
 		return ERR_PTR(-ENOMEM);
@@ -172,15 +172,17 @@ static struct regmap *gen_regmap(struct kunit *test,
 
 	*data = kzalloc(sizeof(**data), GFP_KERNEL);
 	if (!(*data))
-		return ERR_PTR(-ENOMEM);
+		goto out_free;
 	(*data)->vals = buf;
 
 	if (config->num_reg_defaults) {
-		defaults = kcalloc(config->num_reg_defaults,
-				   sizeof(struct reg_default),
-				   GFP_KERNEL);
+		defaults = kunit_kcalloc(test,
+					 config->num_reg_defaults,
+					 sizeof(struct reg_default),
+					 GFP_KERNEL);
 		if (!defaults)
-			return ERR_PTR(-ENOMEM);
+			goto out_free;
+
 		config->reg_defaults = defaults;
 
 		for (i = 0; i < config->num_reg_defaults; i++) {
@@ -190,12 +192,19 @@ static struct regmap *gen_regmap(struct kunit *test,
 	}
 
 	ret = regmap_init_ram(priv->dev, config, *data);
-	if (IS_ERR(ret)) {
-		kfree(buf);
-		kfree(*data);
-	} else {
-		kunit_add_action(test, regmap_exit_action, ret);
-	}
+	if (IS_ERR(ret))
+		goto out_free;
+
+	/* This calls regmap_exit() on failure, which frees buf and *data */
+	error = kunit_add_action_or_reset(test, regmap_exit_action, ret);
+	if (error)
+		ret = ERR_PTR(error);
+
+	return ret;
+
+out_free:
+	kfree(buf);
+	kfree(*data);
 
 	return ret;
 }
@@ -288,6 +297,77 @@ static void bulk_read(struct kunit *test)
 		KUNIT_EXPECT_EQ(test, 0, regmap_write(map, i, val[i]));
 	KUNIT_EXPECT_EQ(test, 0, regmap_bulk_read(map, 0, rval,
 						  BLOCK_TEST_SIZE));
+	KUNIT_EXPECT_MEMEQ(test, val, rval, sizeof(val));
+
+	/* If using a cache the cache satisfied the read */
+	for (i = 0; i < BLOCK_TEST_SIZE; i++)
+		KUNIT_EXPECT_EQ(test, config.cache_type == REGCACHE_NONE, data->read[i]);
+}
+
+static void multi_write(struct kunit *test)
+{
+	struct regmap *map;
+	struct regmap_config config;
+	struct regmap_ram_data *data;
+	struct reg_sequence sequence[BLOCK_TEST_SIZE];
+	unsigned int val[BLOCK_TEST_SIZE], rval[BLOCK_TEST_SIZE];
+	int i;
+
+	config = test_regmap_config;
+
+	map = gen_regmap(test, &config, &data);
+	KUNIT_ASSERT_FALSE(test, IS_ERR(map));
+	if (IS_ERR(map))
+		return;
+
+	get_random_bytes(&val, sizeof(val));
+
+	/*
+	 * Data written via the multi API can be read back with single
+	 * reads.
+	 */
+	for (i = 0; i < BLOCK_TEST_SIZE; i++) {
+		sequence[i].reg = i;
+		sequence[i].def = val[i];
+		sequence[i].delay_us = 0;
+	}
+	KUNIT_EXPECT_EQ(test, 0,
+			regmap_multi_reg_write(map, sequence, BLOCK_TEST_SIZE));
+	for (i = 0; i < BLOCK_TEST_SIZE; i++)
+		KUNIT_EXPECT_EQ(test, 0, regmap_read(map, i, &rval[i]));
+
+	KUNIT_EXPECT_MEMEQ(test, val, rval, sizeof(val));
+
+	/* If using a cache the cache satisfied the read */
+	for (i = 0; i < BLOCK_TEST_SIZE; i++)
+		KUNIT_EXPECT_EQ(test, config.cache_type == REGCACHE_NONE, data->read[i]);
+}
+
+static void multi_read(struct kunit *test)
+{
+	struct regmap *map;
+	struct regmap_config config;
+	struct regmap_ram_data *data;
+	unsigned int regs[BLOCK_TEST_SIZE];
+	unsigned int val[BLOCK_TEST_SIZE], rval[BLOCK_TEST_SIZE];
+	int i;
+
+	config = test_regmap_config;
+
+	map = gen_regmap(test, &config, &data);
+	KUNIT_ASSERT_FALSE(test, IS_ERR(map));
+	if (IS_ERR(map))
+		return;
+
+	get_random_bytes(&val, sizeof(val));
+
+	/* Data written as single writes can be read via the multi API */
+	for (i = 0; i < BLOCK_TEST_SIZE; i++) {
+		regs[i] = i;
+		KUNIT_EXPECT_EQ(test, 0, regmap_write(map, i, val[i]));
+	}
+	KUNIT_EXPECT_EQ(test, 0,
+			regmap_multi_reg_read(map, regs, rval, BLOCK_TEST_SIZE));
 	KUNIT_EXPECT_MEMEQ(test, val, rval, sizeof(val));
 
 	/* If using a cache the cache satisfied the read */
@@ -759,10 +839,9 @@ static void stress_insert(struct kunit *test)
 	if (IS_ERR(map))
 		return;
 
-	vals = kunit_kcalloc(test, sizeof(unsigned long), config.max_register,
-			     GFP_KERNEL);
+	buf_sz = array_size(sizeof(*vals), config.max_register);
+	vals = kunit_kmalloc(test, buf_sz, GFP_KERNEL);
 	KUNIT_ASSERT_FALSE(test, vals == NULL);
-	buf_sz = sizeof(unsigned long) * config.max_register;
 
 	get_random_bytes(vals, buf_sz);
 
@@ -1497,16 +1576,17 @@ static struct regmap *gen_raw_regmap(struct kunit *test,
 	struct regmap_test_priv *priv = test->priv;
 	const struct regmap_test_param *param = test->param_value;
 	u16 *buf;
-	struct regmap *ret;
-	size_t size = (config->max_register + 1) * config->reg_bits / 8;
-	int i;
+	struct regmap *ret = ERR_PTR(-ENOMEM);
+	int i, error;
 	struct reg_default *defaults;
+	size_t size;
 
 	config->cache_type = param->cache;
 	config->val_format_endian = param->val_endian;
 	config->disable_locking = config->cache_type == REGCACHE_RBTREE ||
 					config->cache_type == REGCACHE_MAPLE;
 
+	size = array_size(config->max_register + 1, BITS_TO_BYTES(config->reg_bits));
 	buf = kmalloc(size, GFP_KERNEL);
 	if (!buf)
 		return ERR_PTR(-ENOMEM);
@@ -1515,15 +1595,16 @@ static struct regmap *gen_raw_regmap(struct kunit *test,
 
 	*data = kzalloc(sizeof(**data), GFP_KERNEL);
 	if (!(*data))
-		return ERR_PTR(-ENOMEM);
+		goto out_free;
 	(*data)->vals = (void *)buf;
 
 	config->num_reg_defaults = config->max_register + 1;
-	defaults = kcalloc(config->num_reg_defaults,
-			   sizeof(struct reg_default),
-			   GFP_KERNEL);
+	defaults = kunit_kcalloc(test,
+				 config->num_reg_defaults,
+				 sizeof(struct reg_default),
+				 GFP_KERNEL);
 	if (!defaults)
-		return ERR_PTR(-ENOMEM);
+		goto out_free;
 	config->reg_defaults = defaults;
 
 	for (i = 0; i < config->num_reg_defaults; i++) {
@@ -1536,7 +1617,8 @@ static struct regmap *gen_raw_regmap(struct kunit *test,
 			defaults[i].def = be16_to_cpu(buf[i]);
 			break;
 		default:
-			return ERR_PTR(-EINVAL);
+			ret = ERR_PTR(-EINVAL);
+			goto out_free;
 		}
 	}
 
@@ -1548,12 +1630,19 @@ static struct regmap *gen_raw_regmap(struct kunit *test,
 		config->num_reg_defaults = 0;
 
 	ret = regmap_init_raw_ram(priv->dev, config, *data);
-	if (IS_ERR(ret)) {
-		kfree(buf);
-		kfree(*data);
-	} else {
-		kunit_add_action(test, regmap_exit_action, ret);
-	}
+	if (IS_ERR(ret))
+		goto out_free;
+
+	/* This calls regmap_exit() on failure, which frees buf and *data */
+	error = kunit_add_action_or_reset(test, regmap_exit_action, ret);
+	if (error)
+		ret = ERR_PTR(error);
+
+	return ret;
+
+out_free:
+	kfree(buf);
+	kfree(*data);
 
 	return ret;
 }
@@ -1597,7 +1686,7 @@ static void raw_read_defaults(struct kunit *test)
 	if (IS_ERR(map))
 		return;
 
-	val_len = sizeof(*rval) * (config.max_register + 1);
+	val_len = array_size(sizeof(*rval), config.max_register + 1);
 	rval = kunit_kmalloc(test, val_len, GFP_KERNEL);
 	KUNIT_ASSERT_TRUE(test, rval != NULL);
 	if (!rval)
@@ -1887,6 +1976,8 @@ static struct kunit_case regmap_test_cases[] = {
 	KUNIT_CASE_PARAM(read_bypassed_volatile, real_cache_types_gen_params),
 	KUNIT_CASE_PARAM(bulk_write, regcache_types_gen_params),
 	KUNIT_CASE_PARAM(bulk_read, regcache_types_gen_params),
+	KUNIT_CASE_PARAM(multi_write, regcache_types_gen_params),
+	KUNIT_CASE_PARAM(multi_read, regcache_types_gen_params),
 	KUNIT_CASE_PARAM(write_readonly, regcache_types_gen_params),
 	KUNIT_CASE_PARAM(read_writeonly, regcache_types_gen_params),
 	KUNIT_CASE_PARAM(reg_defaults, regcache_types_gen_params),
@@ -1958,4 +2049,5 @@ static struct kunit_suite regmap_test_suite = {
 };
 kunit_test_suite(regmap_test_suite);
 
+MODULE_DESCRIPTION("Regmap KUnit tests");
 MODULE_LICENSE("GPL v2");

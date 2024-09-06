@@ -20,14 +20,17 @@
 
 static void snd_seq_timer_set_tick_resolution(struct snd_seq_timer *tmr)
 {
-	if (tmr->tempo < 1000000)
-		tmr->tick.resolution = (tmr->tempo * 1000) / tmr->ppq;
+	unsigned int threshold =
+		tmr->tempo_base == 1000 ? 1000000 : 10000;
+
+	if (tmr->tempo < threshold)
+		tmr->tick.resolution = (tmr->tempo * tmr->tempo_base) / tmr->ppq;
 	else {
 		/* might overflow.. */
 		unsigned int s;
 		s = tmr->tempo % tmr->ppq;
-		s = (s * 1000) / tmr->ppq;
-		tmr->tick.resolution = (tmr->tempo / tmr->ppq) * 1000;
+		s = (s * tmr->tempo_base) / tmr->ppq;
+		tmr->tick.resolution = (tmr->tempo / tmr->ppq) * tmr->tempo_base;
 		tmr->tick.resolution += s;
 	}
 	if (tmr->tick.resolution <= 0)
@@ -79,6 +82,7 @@ void snd_seq_timer_defaults(struct snd_seq_timer * tmr)
 	/* setup defaults */
 	tmr->ppq = 96;		/* 96 PPQ */
 	tmr->tempo = 500000;	/* 120 BPM */
+	tmr->tempo_base = 1000;	/* 1us */
 	snd_seq_timer_set_tick_resolution(tmr);
 	tmr->running = 0;
 
@@ -164,14 +168,18 @@ int snd_seq_timer_set_tempo(struct snd_seq_timer * tmr, int tempo)
 	return 0;
 }
 
-/* set current tempo and ppq in a shot */
-int snd_seq_timer_set_tempo_ppq(struct snd_seq_timer *tmr, int tempo, int ppq)
+/* set current tempo, ppq and base in a shot */
+int snd_seq_timer_set_tempo_ppq(struct snd_seq_timer *tmr, int tempo, int ppq,
+				unsigned int tempo_base)
 {
 	int changed;
 
 	if (snd_BUG_ON(!tmr))
 		return -EINVAL;
 	if (tempo <= 0 || ppq <= 0)
+		return -EINVAL;
+	/* allow only 10ns or 1us tempo base for now */
+	if (tempo_base && tempo_base != 10 && tempo_base != 1000)
 		return -EINVAL;
 	guard(spinlock_irqsave)(&tmr->lock);
 	if (tmr->running && (ppq != tmr->ppq)) {
@@ -183,6 +191,7 @@ int snd_seq_timer_set_tempo_ppq(struct snd_seq_timer *tmr, int tempo, int ppq)
 	changed = (tempo != tmr->tempo) || (ppq != tmr->ppq);
 	tmr->tempo = tempo;
 	tmr->ppq = ppq;
+	tmr->tempo_base = tempo_base ? tempo_base : 1000;
 	if (changed)
 		snd_seq_timer_set_tick_resolution(tmr);
 	return 0;

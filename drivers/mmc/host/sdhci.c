@@ -2513,8 +2513,9 @@ out:
 }
 EXPORT_SYMBOL_GPL(sdhci_get_cd_nogpio);
 
-static int sdhci_check_ro(struct sdhci_host *host)
+int sdhci_get_ro(struct mmc_host *mmc)
 {
+	struct sdhci_host *host = mmc_priv(mmc);
 	bool allow_invert = false;
 	int is_readonly;
 
@@ -2522,10 +2523,10 @@ static int sdhci_check_ro(struct sdhci_host *host)
 		is_readonly = 0;
 	} else if (host->ops->get_ro) {
 		is_readonly = host->ops->get_ro(host);
-	} else if (mmc_can_gpio_ro(host->mmc)) {
-		is_readonly = mmc_gpio_get_ro(host->mmc);
+	} else if (mmc_can_gpio_ro(mmc)) {
+		is_readonly = mmc_gpio_get_ro(mmc);
 		/* Do not invert twice */
-		allow_invert = !(host->mmc->caps2 & MMC_CAP2_RO_ACTIVE_HIGH);
+		allow_invert = !(mmc->caps2 & MMC_CAP2_RO_ACTIVE_HIGH);
 	} else {
 		is_readonly = !(sdhci_readl(host, SDHCI_PRESENT_STATE)
 				& SDHCI_WRITE_PROTECT);
@@ -2539,27 +2540,7 @@ static int sdhci_check_ro(struct sdhci_host *host)
 
 	return is_readonly;
 }
-
-#define SAMPLE_COUNT	5
-
-static int sdhci_get_ro(struct mmc_host *mmc)
-{
-	struct sdhci_host *host = mmc_priv(mmc);
-	int i, ro_count;
-
-	if (!(host->quirks & SDHCI_QUIRK_UNSTABLE_RO_DETECT))
-		return sdhci_check_ro(host);
-
-	ro_count = 0;
-	for (i = 0; i < SAMPLE_COUNT; i++) {
-		if (sdhci_check_ro(host)) {
-			if (++ro_count > SAMPLE_COUNT / 2)
-				return 1;
-		}
-		msleep(30);
-	}
-	return 0;
-}
+EXPORT_SYMBOL_GPL(sdhci_get_ro);
 
 static void sdhci_hw_reset(struct mmc_host *mmc)
 {

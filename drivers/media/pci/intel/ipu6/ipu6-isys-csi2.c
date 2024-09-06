@@ -345,42 +345,61 @@ static int ipu6_isys_csi2_set_stream(struct v4l2_subdev *sd,
 	return ret;
 }
 
-static int set_stream(struct v4l2_subdev *sd, int enable)
+static int ipu6_isys_csi2_enable_streams(struct v4l2_subdev *sd,
+					 struct v4l2_subdev_state *state,
+					 u32 pad, u64 streams_mask)
 {
 	struct ipu6_isys_subdev *asd = to_ipu6_isys_subdev(sd);
 	struct ipu6_isys_csi2 *csi2 = to_ipu6_isys_csi2(asd);
-	struct device *dev = &csi2->isys->adev->auxdev.dev;
 	struct ipu6_isys_csi2_timing timing = { };
-	unsigned int nlanes;
+	struct v4l2_subdev *remote_sd;
+	struct media_pad *remote_pad;
+	u64 sink_streams;
 	int ret;
 
-	dev_dbg(dev, "csi2 stream %s callback\n", enable ? "on" : "off");
+	remote_pad = media_pad_remote_pad_first(&sd->entity.pads[CSI2_PAD_SINK]);
+	remote_sd = media_entity_to_v4l2_subdev(remote_pad->entity);
 
-	if (!enable) {
-		csi2->stream_count--;
-		if (csi2->stream_count)
-			return 0;
-
-		ipu6_isys_csi2_set_stream(sd, &timing, 0, enable);
-		return 0;
-	}
-
-	if (csi2->stream_count) {
-		csi2->stream_count++;
-		return 0;
-	}
-
-	nlanes = csi2->nlanes;
+	sink_streams = v4l2_subdev_state_xlate_streams(state, CSI2_PAD_SRC,
+						       CSI2_PAD_SINK,
+						       &streams_mask);
 
 	ret = ipu6_isys_csi2_calc_timing(csi2, &timing, CSI2_ACCINV);
 	if (ret)
 		return ret;
 
-	ret = ipu6_isys_csi2_set_stream(sd, &timing, nlanes, enable);
+	ret = ipu6_isys_csi2_set_stream(sd, &timing, csi2->nlanes, true);
 	if (ret)
 		return ret;
 
-	csi2->stream_count++;
+	ret = v4l2_subdev_enable_streams(remote_sd, remote_pad->index,
+					 sink_streams);
+	if (ret) {
+		ipu6_isys_csi2_set_stream(sd, NULL, 0, false);
+		return ret;
+	}
+
+	return 0;
+}
+
+static int ipu6_isys_csi2_disable_streams(struct v4l2_subdev *sd,
+					  struct v4l2_subdev_state *state,
+					  u32 pad, u64 streams_mask)
+{
+	struct v4l2_subdev *remote_sd;
+	struct media_pad *remote_pad;
+	u64 sink_streams;
+
+	sink_streams = v4l2_subdev_state_xlate_streams(state, CSI2_PAD_SRC,
+						       CSI2_PAD_SINK,
+						       &streams_mask);
+
+	remote_pad = media_pad_remote_pad_first(&sd->entity.pads[CSI2_PAD_SINK]);
+	remote_sd = media_entity_to_v4l2_subdev(remote_pad->entity);
+
+	ipu6_isys_csi2_set_stream(sd, NULL, 0, false);
+
+	v4l2_subdev_disable_streams(remote_sd, remote_pad->index, sink_streams);
 
 	return 0;
 }
@@ -475,10 +494,6 @@ static int ipu6_isys_csi2_get_sel(struct v4l2_subdev *sd,
 	return ret;
 }
 
-static const struct v4l2_subdev_video_ops csi2_sd_video_ops = {
-	.s_stream = set_stream,
-};
-
 static const struct v4l2_subdev_pad_ops csi2_sd_pad_ops = {
 	.get_fmt = v4l2_subdev_get_fmt,
 	.set_fmt = ipu6_isys_subdev_set_fmt,
@@ -486,11 +501,12 @@ static const struct v4l2_subdev_pad_ops csi2_sd_pad_ops = {
 	.set_selection = ipu6_isys_csi2_set_sel,
 	.enum_mbus_code = ipu6_isys_subdev_enum_mbus_code,
 	.set_routing = ipu6_isys_subdev_set_routing,
+	.enable_streams = ipu6_isys_csi2_enable_streams,
+	.disable_streams = ipu6_isys_csi2_disable_streams,
 };
 
 static const struct v4l2_subdev_ops csi2_sd_ops = {
 	.core = &csi2_sd_core_ops,
-	.video = &csi2_sd_video_ops,
 	.pad = &csi2_sd_pad_ops,
 };
 
@@ -630,34 +646,4 @@ int ipu6_isys_csi2_get_remote_desc(u32 source_stream,
 	*entry = *desc_entry;
 
 	return 0;
-}
-
-void ipu6_isys_set_csi2_streams_status(struct ipu6_isys_video *av, bool status)
-{
-	struct ipu6_isys_stream *stream = av->stream;
-	struct v4l2_subdev *sd = &stream->asd->sd;
-	struct v4l2_subdev_state *state;
-	struct media_pad *r_pad;
-	unsigned int i;
-	u32 r_stream;
-
-	r_pad = media_pad_remote_pad_first(&av->pad);
-	r_stream = ipu6_isys_get_src_stream_by_src_pad(sd, r_pad->index);
-
-	state = v4l2_subdev_lock_and_get_active_state(sd);
-
-	for (i = 0; i < state->stream_configs.num_configs; i++) {
-		struct v4l2_subdev_stream_config *cfg =
-			&state->stream_configs.configs[i];
-
-		if (cfg->pad == r_pad->index && r_stream == cfg->stream) {
-			dev_dbg(&av->isys->adev->auxdev.dev,
-				"%s: pad:%u, stream:%u, status:%u\n",
-				sd->entity.name, r_pad->index, r_stream,
-				status);
-			cfg->enabled = status;
-		}
-	}
-
-	v4l2_subdev_unlock_state(state);
 }

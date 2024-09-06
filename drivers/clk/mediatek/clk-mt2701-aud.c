@@ -165,4 +165,6 @@ static struct platform_driver clk_mt2701_aud_drv = {
 	},
 };
 module_platform_driver(clk_mt2701_aud_drv);
+
+MODULE_DESCRIPTION("MediaTek MT2701 audio clocks driver");
 MODULE_LICENSE("GPL");

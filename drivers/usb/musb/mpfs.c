@@ -190,6 +190,8 @@ static int mpfs_probe(struct platform_device *pdev)
 	pdata->config = &mpfs_musb_hdrc_config;
 	pdata->platform_ops = &mpfs_ops;
 
+	pdata->extvbus = device_property_read_bool(dev, "microchip,ext-vbus-drv");
+
 	pdata->mode = usb_get_dr_mode(dev);
 	if (pdata->mode == USB_DR_MODE_UNKNOWN) {
 		dev_info(dev, "No dr_mode property found, defaulting to otg\n");

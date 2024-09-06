@@ -38,7 +38,7 @@
 #define ZXI2C_GOLD_FSTP_400K	0x38
 #define ZXI2C_GOLD_FSTP_1M	0x13
 #define ZXI2C_GOLD_FSTP_3400K	0x37
-#define ZXI2C_HS_MASTER_CODE	(0x08 << 8)
+#define ZXI2C_HS_CTRL_CODE	(0x08 << 8)
 
 #define ZXI2C_FIFO_SIZE		32
 
@@ -136,7 +136,7 @@ static int viai2c_fifo_irq_xfer(struct viai2c *i2c)
 	return 0;
 }
 
-static int zxi2c_master_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
+static int zxi2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 {
 	u8 tmp;
 	int ret;
@@ -194,8 +194,8 @@ static u32 zxi2c_func(struct i2c_adapter *adap)
 }
 
 static const struct i2c_algorithm zxi2c_algorithm = {
-	.master_xfer	= zxi2c_master_xfer,
-	.functionality	= zxi2c_func,
+	.xfer = zxi2c_xfer,
+	.functionality = zxi2c_func,
 };
 
 static const struct i2c_adapter_quirks zxi2c_quirks = {
@@ -250,9 +250,9 @@ static void zxi2c_get_bus_speed(struct viai2c *i2c)
 
 	i2c->tcr = params[1];
 	priv->mcr = ioread16(i2c->base + VIAI2C_REG_MCR);
-	/* for Hs-mode, use 0x80 as master code */
+	/* for Hs-mode, use 0x80 as controller code */
 	if (params[0] == I2C_MAX_HIGH_SPEED_MODE_FREQ)
-		priv->mcr |= ZXI2C_HS_MASTER_CODE;
+		priv->mcr |= ZXI2C_HS_CTRL_CODE;
 
 	dev_info(i2c->dev, "speed mode is %s\n", i2c_freq_mode_string(params[0]));
 }

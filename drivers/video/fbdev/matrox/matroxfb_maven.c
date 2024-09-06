@@ -1282,7 +1282,7 @@ static void maven_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id maven_id[] = {
-	{ "maven", 0 },
+	{ "maven" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, maven_id);

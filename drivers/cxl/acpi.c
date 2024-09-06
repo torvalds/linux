@@ -22,56 +22,42 @@ static const guid_t acpi_cxl_qtg_id_guid =
 	GUID_INIT(0xF365F9A6, 0xA7DE, 0x4071,
 		  0xA6, 0x6A, 0xB4, 0x0C, 0x0B, 0x4F, 0x8E, 0x52);
 
-/*
- * Find a targets entry (n) in the host bridge interleave list.
- * CXL Specification 3.0 Table 9-22
- */
-static int cxl_xor_calc_n(u64 hpa, struct cxl_cxims_data *cximsd, int iw,
-			  int ig)
-{
-	int i = 0, n = 0;
-	u8 eiw;
 
-	/* IW: 2,4,6,8,12,16 begin building 'n' using xormaps */
-	if (iw != 3) {
-		for (i = 0; i < cximsd->nr_maps; i++)
-			n |= (hweight64(hpa & cximsd->xormaps[i]) & 1) << i;
-	}
-	/* IW: 3,6,12 add a modulo calculation to 'n' */
-	if (!is_power_of_2(iw)) {
-		if (ways_to_eiw(iw, &eiw))
-			return -1;
-		hpa &= GENMASK_ULL(51, eiw + ig);
-		n |= do_div(hpa, 3) << i;
-	}
-	return n;
-}
-
-static struct cxl_dport *cxl_hb_xor(struct cxl_root_decoder *cxlrd, int pos)
+static u64 cxl_xor_hpa_to_spa(struct cxl_root_decoder *cxlrd, u64 hpa)
 {
 	struct cxl_cxims_data *cximsd = cxlrd->platform_data;
-	struct cxl_switch_decoder *cxlsd = &cxlrd->cxlsd;
-	struct cxl_decoder *cxld = &cxlsd->cxld;
-	int ig = cxld->interleave_granularity;
-	int iw = cxld->interleave_ways;
-	int n = 0;
-	u64 hpa;
+	int hbiw = cxlrd->cxlsd.nr_targets;
+	u64 val;
+	int pos;
 
-	if (dev_WARN_ONCE(&cxld->dev,
-			  cxld->interleave_ways != cxlsd->nr_targets,
-			  "misconfigured root decoder\n"))
-		return NULL;
+	/* No xormaps for host bridge interleave ways of 1 or 3 */
+	if (hbiw == 1 || hbiw == 3)
+		return hpa;
 
-	hpa = cxlrd->res->start + pos * ig;
+	/*
+	 * For root decoders using xormaps (hbiw: 2,4,6,8,12,16) restore
+	 * the position bit to its value before the xormap was applied at
+	 * HPA->DPA translation.
+	 *
+	 * pos is the lowest set bit in an XORMAP
+	 * val is the XORALLBITS(HPA & XORMAP)
+	 *
+	 * XORALLBITS: The CXL spec (3.1 Table 9-22) defines XORALLBITS
+	 * as an operation that outputs a single bit by XORing all the
+	 * bits in the input (hpa & xormap). Implement XORALLBITS using
+	 * hweight64(). If the hamming weight is even the XOR of those
+	 * bits results in val==0, if odd the XOR result is val==1.
+	 */
 
-	/* Entry (n) is 0 for no interleave (iw == 1) */
-	if (iw != 1)
-		n = cxl_xor_calc_n(hpa, cximsd, iw, ig);
+	for (int i = 0; i < cximsd->nr_maps; i++) {
+		if (!cximsd->xormaps[i])
+			continue;
+		pos = __ffs(cximsd->xormaps[i]);
+		val = (hweight64(hpa & cximsd->xormaps[i]) & 1);
+		hpa = (hpa & ~(1ULL << pos)) | (val << pos);
+	}
 
-	if (n < 0)
-		return NULL;
-
-	return cxlrd->cxlsd.target[n];
+	return hpa;
 }
 
 struct cxl_cxims_context {
@@ -361,7 +347,6 @@ static int __cxl_parse_cfmws(struct acpi_cedt_cfmws *cfmws,
 	struct cxl_port *root_port = ctx->root_port;
 	struct cxl_cxims_context cxims_ctx;
 	struct device *dev = ctx->dev;
-	cxl_calc_hb_fn cxl_calc_hb;
 	struct cxl_decoder *cxld;
 	unsigned int ways, i, ig;
 	int rc;
@@ -389,13 +374,9 @@ static int __cxl_parse_cfmws(struct acpi_cedt_cfmws *cfmws,
 	if (rc)
 		return rc;
 
-	if (cfmws->interleave_arithmetic == ACPI_CEDT_CFMWS_ARITHMETIC_MODULO)
-		cxl_calc_hb = cxl_hb_modulo;
-	else
-		cxl_calc_hb = cxl_hb_xor;
-
 	struct cxl_root_decoder *cxlrd __free(put_cxlrd) =
-		cxl_root_decoder_alloc(root_port, ways, cxl_calc_hb);
+		cxl_root_decoder_alloc(root_port, ways);
+
 	if (IS_ERR(cxlrd))
 		return PTR_ERR(cxlrd);
 
@@ -433,6 +414,9 @@ static int __cxl_parse_cfmws(struct acpi_cedt_cfmws *cfmws,
 	}
 
 	cxlrd->qos_class = cfmws->qtg_id;
+
+	if (cfmws->interleave_arithmetic == ACPI_CEDT_CFMWS_ARITHMETIC_XOR)
+		cxlrd->hpa_to_spa = cxl_xor_hpa_to_spa;
 
 	rc = cxl_decoder_add(cxld, target_map);
 	if (rc)
@@ -482,6 +466,8 @@ struct cxl_chbs_context {
 	unsigned long long uid;
 	resource_size_t base;
 	u32 cxl_version;
+	int nr_versions;
+	u32 saved_version;
 };
 
 static int cxl_get_chbs_iter(union acpi_subtable_headers *header, void *arg,
@@ -490,22 +476,31 @@ static int cxl_get_chbs_iter(union acpi_subtable_headers *header, void *arg,
 	struct cxl_chbs_context *ctx = arg;
 	struct acpi_cedt_chbs *chbs;
 
-	if (ctx->base != CXL_RESOURCE_NONE)
-		return 0;
-
 	chbs = (struct acpi_cedt_chbs *) header;
-
-	if (ctx->uid != chbs->uid)
-		return 0;
-
-	ctx->cxl_version = chbs->cxl_version;
-	if (!chbs->base)
-		return 0;
 
 	if (chbs->cxl_version == ACPI_CEDT_CHBS_VERSION_CXL11 &&
 	    chbs->length != CXL_RCRB_SIZE)
 		return 0;
 
+	if (!chbs->base)
+		return 0;
+
+	if (ctx->saved_version != chbs->cxl_version) {
+		/*
+		 * cxl_version cannot be overwritten before the next two
+		 * checks, then use saved_version
+		 */
+		ctx->saved_version = chbs->cxl_version;
+		ctx->nr_versions++;
+	}
+
+	if (ctx->base != CXL_RESOURCE_NONE)
+		return 0;
+
+	if (ctx->uid != chbs->uid)
+		return 0;
+
+	ctx->cxl_version = chbs->cxl_version;
 	ctx->base = chbs->base;
 
 	return 0;
@@ -529,9 +524,18 @@ static int cxl_get_chbs(struct device *dev, struct acpi_device *hb,
 		.uid = uid,
 		.base = CXL_RESOURCE_NONE,
 		.cxl_version = UINT_MAX,
+		.saved_version = UINT_MAX,
 	};
 
 	acpi_table_parse_cedt(ACPI_CEDT_TYPE_CHBS, cxl_get_chbs_iter, ctx);
+
+	if (ctx->nr_versions > 1) {
+		/*
+		 * Disclaim eRCD support given some component register may
+		 * only be found via CHBCR
+		 */
+		dev_info(dev, "Unsupported platform config, mixed Virtual Host and Restricted CXL Host hierarchy.");
+	}
 
 	return 0;
 }
@@ -921,6 +925,7 @@ static void __exit cxl_acpi_exit(void)
 /* load before dax_hmem sees 'Soft Reserved' CXL ranges */
 subsys_initcall(cxl_acpi_init);
 module_exit(cxl_acpi_exit);
+MODULE_DESCRIPTION("CXL ACPI: Platform Support");
 MODULE_LICENSE("GPL v2");
 MODULE_IMPORT_NS(CXL);
 MODULE_IMPORT_NS(ACPI);

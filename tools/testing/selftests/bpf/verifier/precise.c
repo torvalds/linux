@@ -39,12 +39,12 @@
 	.result = VERBOSE_ACCEPT,
 	.errstr =
 	"mark_precise: frame0: last_idx 26 first_idx 20\
-	mark_precise: frame0: regs=r2 stack= before 25\
-	mark_precise: frame0: regs=r2 stack= before 24\
-	mark_precise: frame0: regs=r2 stack= before 23\
-	mark_precise: frame0: regs=r2 stack= before 22\
-	mark_precise: frame0: regs=r2 stack= before 20\
-	mark_precise: frame0: parent state regs=r2 stack=:\
+	mark_precise: frame0: regs=r2,r9 stack= before 25\
+	mark_precise: frame0: regs=r2,r9 stack= before 24\
+	mark_precise: frame0: regs=r2,r9 stack= before 23\
+	mark_precise: frame0: regs=r2,r9 stack= before 22\
+	mark_precise: frame0: regs=r2,r9 stack= before 20\
+	mark_precise: frame0: parent state regs=r2,r9 stack=:\
 	mark_precise: frame0: last_idx 19 first_idx 10\
 	mark_precise: frame0: regs=r2,r9 stack= before 19\
 	mark_precise: frame0: regs=r9 stack= before 18\
@@ -100,11 +100,11 @@
 	.errstr =
 	"26: (85) call bpf_probe_read_kernel#113\
 	mark_precise: frame0: last_idx 26 first_idx 22\
-	mark_precise: frame0: regs=r2 stack= before 25\
-	mark_precise: frame0: regs=r2 stack= before 24\
-	mark_precise: frame0: regs=r2 stack= before 23\
-	mark_precise: frame0: regs=r2 stack= before 22\
-	mark_precise: frame0: parent state regs=r2 stack=:\
+	mark_precise: frame0: regs=r2,r9 stack= before 25\
+	mark_precise: frame0: regs=r2,r9 stack= before 24\
+	mark_precise: frame0: regs=r2,r9 stack= before 23\
+	mark_precise: frame0: regs=r2,r9 stack= before 22\
+	mark_precise: frame0: parent state regs=r2,r9 stack=:\
 	mark_precise: frame0: last_idx 20 first_idx 20\
 	mark_precise: frame0: regs=r2,r9 stack= before 20\
 	mark_precise: frame0: parent state regs=r2,r9 stack=:\

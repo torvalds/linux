@@ -161,7 +161,7 @@ ia_css_eed1_8_vmem_encode(
 		assert(fcinv_x[j] > fcinv_x[j - 1]);
 	}
 
-	/* The implementation of the calulating 1/x is based on the availability
+	/* The implementation of the calculating 1/x is based on the availability
 	 * of the OP_vec_shuffle16 operation.
 	 * A 64 element vector is split up in 4 blocks of 16 element. Each array is copied to
 	 * a vector 4 times, (starting at 0, 16, 32 and 48). All array elements are copied or

@@ -59,4 +59,5 @@ static void __exit test_fpu_exit(void)
 module_init(test_fpu_init);
 module_exit(test_fpu_exit);
 
+MODULE_DESCRIPTION("Test cases for floating point operations");
 MODULE_LICENSE("GPL");

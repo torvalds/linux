@@ -558,7 +558,7 @@ struct dma_pub *dma_attach(char *name, struct brcms_c_info *wlc,
 	struct si_info *sii = container_of(sih, struct si_info, pub);
 
 	/* allocate private info structure */
-	di = kzalloc(sizeof(struct dma_info), GFP_ATOMIC);
+	di = kzalloc(sizeof(*di), GFP_ATOMIC);
 	if (di == NULL)
 		return NULL;
 

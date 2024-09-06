@@ -74,4 +74,10 @@ AMD_DISPLAY_FILES += $(AMD_DAL_DPP_DCN35)
 
 ###############################################################################
 
+DPP_DCN401 = dcn401_dpp.o dcn401_dpp_cm.o dcn401_dpp_dscl.o
+
+AMD_DAL_DPP_DCN401 = $(addprefix $(AMDDALPATH)/dc/dpp/dcn401/,$(DPP_DCN401))
+
+AMD_DISPLAY_FILES += $(AMD_DAL_DPP_DCN401)
+
 endif

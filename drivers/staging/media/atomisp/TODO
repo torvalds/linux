@@ -1,29 +1,3 @@
-Required firmware
-=================
-
-The atomisp driver requires the following firmware:
-
-- for BYT: /lib/firmware/shisp_2400b0_v21.bin
-
-  With a version of "irci_stable_candrpv_0415_20150423_1753" to check
-  the version run: "strings shisp_2400b0_v21.bin | head -n1", sha256sum:
-
-  3847b95fb9f1f8352c595ba7394d55b33176751372baae17f89aa483ec02a21b  shisp_2400b0_v21.bin
-
-  The shisp_2400b0_v21.bin file with this version can be found on
-  the Android factory images of various X86 Android tablets such as
-  e.g. the Chuwi Hi8 Pro.
-
-- for CHT: /lib/firmware/shisp_2401a0_v21.bin
-
-  With a version of "irci_stable_candrpv_0415_20150521_0458", sha256sum:
-
-  e89359f4e4934c410c83d525e283f34c5fcce9cb5caa75ad8a32d66d3842d95c  shisp_2401a0_v21.bin
-
-  This can be found here:
-  https://github.com/intel-aero/meta-intel-aero-base/blob/master/recipes-kernel/linux/linux-yocto/shisp_2401a0_v21.bin
-
-
 TODO
 ====
 
@@ -34,6 +8,8 @@ TODO
 * Remove/disable custom v4l2-ctrls
 
 * Remove custom sysfs files created by atomisp_drvfs.c
+
+* Remove unnecessary/unwanted module parameters
 
 * Remove abuse of priv field in various v4l2 userspace API structs
 
@@ -60,9 +36,6 @@ TODO
 * Ensure that the driver will pass v4l2-compliance tests
 
 * Fix not all v4l2 apps working, e.g. cheese does not work
-
-* Get manufacturer's authorization to redistribute the binaries for
-  the firmware files
 
 * The atomisp code still has a lot of cruft which needs cleaning up
 
