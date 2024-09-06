@@ -2922,14 +2922,13 @@ void kvm_inject_apic_timer_irqs(struct kvm_vcpu *vcpu)
 	}
 }
 
-int kvm_get_apic_interrupt(struct kvm_vcpu *vcpu)
+void kvm_apic_ack_interrupt(struct kvm_vcpu *vcpu, int vector)
 {
-	int vector = kvm_apic_has_interrupt(vcpu);
 	struct kvm_lapic *apic = vcpu->arch.apic;
 	u32 ppr;
 
-	if (vector == -1)
-		return -1;
+	if (WARN_ON_ONCE(vector < 0 || !apic))
+		return;
 
 	/*
 	 * We get here even with APIC virtualization enabled, if doing
@@ -2956,6 +2955,16 @@ int kvm_get_apic_interrupt(struct kvm_vcpu *vcpu)
 		apic_set_isr(vector, apic);
 		__apic_update_ppr(apic, &ppr);
 	}
+
+}
+EXPORT_SYMBOL_GPL(kvm_apic_ack_interrupt);
+
+int kvm_get_apic_interrupt(struct kvm_vcpu *vcpu)
+{
+	int vector = kvm_apic_has_interrupt(vcpu);
+
+	if (vector != -1)
+		kvm_apic_ack_interrupt(vcpu, vector);
 
 	return vector;
 }
