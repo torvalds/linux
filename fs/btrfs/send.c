@@ -347,7 +347,7 @@ struct name_cache_entry {
 	int ret;
 	int need_later_update;
 	int name_len;
-	char name[];
+	char name[] __counted_by(name_len);
 };
 
 /* See the comment at lru_cache.h about struct btrfs_lru_cache_entry. */

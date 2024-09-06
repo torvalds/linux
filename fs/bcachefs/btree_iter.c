@@ -1900,6 +1900,7 @@ err:
 	goto out;
 }
 
+/* Only kept for -tools */
 struct btree *bch2_btree_iter_peek_node_and_restart(struct btree_iter *iter)
 {
 	struct btree *b;

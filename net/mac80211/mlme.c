@@ -6664,7 +6664,7 @@ static bool ieee80211_mgd_ssid_mismatch(struct ieee80211_sub_if_data *sdata,
 		return true;
 
 	/* hidden SSID: zeroed out */
-	if (memcmp(elems->ssid, zero_ssid, elems->ssid_len))
+	if (!memcmp(elems->ssid, zero_ssid, elems->ssid_len))
 		return false;
 
 	return memcmp(elems->ssid, cfg->ssid, cfg->ssid_len);

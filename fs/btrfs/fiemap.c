@@ -637,7 +637,7 @@ static int extent_fiemap(struct btrfs_inode *inode,
 	struct btrfs_path *path;
 	struct fiemap_cache cache = { 0 };
 	struct btrfs_backref_share_check_ctx *backref_ctx;
-	u64 last_extent_end;
+	u64 last_extent_end = 0;
 	u64 prev_extent_end;
 	u64 range_start;
 	u64 range_end;

@@ -968,9 +968,6 @@ static int bnxt_set_channels(struct net_device *dev,
 		return -EINVAL;
 	}
 
-	bnxt_clear_usr_fltrs(bp, true);
-	if (BNXT_SUPPORTS_MULTI_RSS_CTX(bp))
-		bnxt_clear_rss_ctxs(bp);
 	if (netif_running(dev)) {
 		if (BNXT_PF(bp)) {
 			/* TODO CHIMP_FW: Send message to all VF's
@@ -2000,7 +1997,6 @@ static int bnxt_set_rxfh(struct net_device *dev,
 
 	bnxt_modify_rss(bp, NULL, NULL, rxfh);
 
-	bnxt_clear_usr_fltrs(bp, false);
 	if (netif_running(bp->dev)) {
 		bnxt_close_nic(bp, false, false);
 		rc = bnxt_open_nic(bp, false, false);

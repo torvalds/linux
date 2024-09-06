@@ -8,6 +8,11 @@
  */
 #define BCH_SB_MEMBERS_MAX		64
 
+/*
+ * Sentinal value - indicates a device that does not exist
+ */
+#define BCH_SB_MEMBER_INVALID		255
+
 #define BCH_MIN_NR_NBUCKETS	(1 << 6)
 
 #define BCH_IOPS_MEASUREMENTS()			\

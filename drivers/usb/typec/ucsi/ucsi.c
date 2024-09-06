@@ -137,7 +137,7 @@ static int ucsi_run_command(struct ucsi *ucsi, u64 command, u32 *cci,
 	if (ret)
 		return ret;
 
-	return err;
+	return err ?: UCSI_CCI_LENGTH(*cci);
 }
 
 static int ucsi_read_error(struct ucsi *ucsi, u8 connector_num)

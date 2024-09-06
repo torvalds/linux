@@ -555,7 +555,7 @@ static int rtl8211f_led_hw_control_set(struct phy_device *phydev, u8 index,
 				       unsigned long rules)
 {
 	const u16 mask = RTL8211F_LEDCR_MASK << (RTL8211F_LEDCR_SHIFT * index);
-	u16 reg = RTL8211F_LEDCR_MODE;	/* Mode B */
+	u16 reg = 0;
 
 	if (index >= RTL8211F_LED_COUNT)
 		return -EINVAL;
@@ -575,6 +575,7 @@ static int rtl8211f_led_hw_control_set(struct phy_device *phydev, u8 index,
 	}
 
 	reg <<= RTL8211F_LEDCR_SHIFT * index;
+	reg |= RTL8211F_LEDCR_MODE;	 /* Mode B */
 
 	return phy_modify_paged(phydev, 0xd04, RTL8211F_LEDCR, mask, reg);
 }
