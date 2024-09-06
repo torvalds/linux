@@ -2745,10 +2745,13 @@ static int ionic_xdp_config(struct net_device *netdev, struct netdev_bpf *bpf)
 	if (!netif_running(netdev)) {
 		old_prog = xchg(&lif->xdp_prog, bpf->prog);
 	} else {
+		struct ionic_queue_params qparams;
+
+		ionic_init_queue_params(lif, &qparams);
+		qparams.xdp_prog = bpf->prog;
 		mutex_lock(&lif->queue_lock);
-		ionic_stop_queues_reconfig(lif);
+		ionic_reconfigure_queues(lif, &qparams);
 		old_prog = xchg(&lif->xdp_prog, bpf->prog);
-		ionic_start_queues_reconfig(lif);
 		mutex_unlock(&lif->queue_lock);
 	}
 
@@ -2908,7 +2911,8 @@ int ionic_reconfigure_queues(struct ionic_lif *lif,
 	}
 	if (qparam->nxqs != lif->nxqs ||
 	    qparam->nrxq_descs != lif->nrxq_descs ||
-	    qparam->rxq_features != lif->rxq_features) {
+	    qparam->rxq_features != lif->rxq_features ||
+	    qparam->xdp_prog != lif->xdp_prog) {
 		rx_qcqs = devm_kcalloc(lif->ionic->dev, lif->ionic->nrxqs_per_lif,
 				       sizeof(struct ionic_qcq *), GFP_KERNEL);
 		if (!rx_qcqs) {
@@ -2984,6 +2988,7 @@ int ionic_reconfigure_queues(struct ionic_lif *lif,
 				goto err_out;
 
 			rx_qcqs[i]->q.features = qparam->rxq_features;
+			rx_qcqs[i]->q.xdp_prog = qparam->xdp_prog;
 		}
 	}
 
