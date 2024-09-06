@@ -1153,7 +1153,7 @@ ssize_t __fuse_simple_request(struct mnt_idmap *idmap,
 
 static inline ssize_t fuse_simple_request(struct fuse_mount *fm, struct fuse_args *args)
 {
-	return __fuse_simple_request(NULL, fm, args);
+	return __fuse_simple_request(&invalid_mnt_idmap, fm, args);
 }
 
 static inline ssize_t fuse_simple_idmap_request(struct mnt_idmap *idmap,

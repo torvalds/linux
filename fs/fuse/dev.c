@@ -114,7 +114,11 @@ static struct fuse_req *fuse_get_req(struct mnt_idmap *idmap,
 {
 	struct fuse_conn *fc = fm->fc;
 	struct fuse_req *req;
+	bool no_idmap = !fm->sb || (fm->sb->s_iflags & SB_I_NOIDMAP);
+	kuid_t fsuid;
+	kgid_t fsgid;
 	int err;
+
 	atomic_inc(&fc->num_waiting);
 
 	if (fuse_block_alloc(fc, for_background)) {
@@ -148,29 +152,24 @@ static struct fuse_req *fuse_get_req(struct mnt_idmap *idmap,
 	if (for_background)
 		__set_bit(FR_BACKGROUND, &req->flags);
 
-	if (!fm->sb || (fm->sb->s_iflags & SB_I_NOIDMAP) || idmap) {
-		kuid_t idmapped_fsuid;
-		kgid_t idmapped_fsgid;
+	/*
+	 * Keep the old behavior when idmappings support was not
+	 * declared by a FUSE server.
+	 *
+	 * For those FUSE servers who support idmapped mounts,
+	 * we send UID/GID only along with "inode creation"
+	 * fuse requests, otherwise idmap == &invalid_mnt_idmap and
+	 * req->in.h.{u,g}id will be equal to FUSE_INVALID_UIDGID.
+	 */
+	fsuid = no_idmap ? current_fsuid() : mapped_fsuid(idmap, fc->user_ns);
+	fsgid = no_idmap ? current_fsgid() : mapped_fsgid(idmap, fc->user_ns);
+	req->in.h.uid = from_kuid(fc->user_ns, fsuid);
+	req->in.h.gid = from_kgid(fc->user_ns, fsgid);
 
-		/*
-		 * Note, that when
-		 * (fm->sb->s_iflags & SB_I_NOIDMAP) is true, then
-		 * (idmap == &nop_mnt_idmap) is always true and therefore,
-		 * mapped_fsuid(idmap, fc->user_ns) == current_fsuid().
-		 */
-		idmapped_fsuid = idmap ? mapped_fsuid(idmap, fc->user_ns) : current_fsuid();
-		idmapped_fsgid = idmap ? mapped_fsgid(idmap, fc->user_ns) : current_fsgid();
-		req->in.h.uid = from_kuid(fc->user_ns, idmapped_fsuid);
-		req->in.h.gid = from_kgid(fc->user_ns, idmapped_fsgid);
-
-		if (unlikely(req->in.h.uid == ((uid_t)-1) ||
-			     req->in.h.gid == ((gid_t)-1))) {
-			fuse_put_request(req);
-			return ERR_PTR(-EOVERFLOW);
-		}
-	} else {
-		req->in.h.uid = FUSE_INVALID_UIDGID;
-		req->in.h.gid = FUSE_INVALID_UIDGID;
+	if (no_idmap && unlikely(req->in.h.uid == ((uid_t)-1) ||
+				 req->in.h.gid == ((gid_t)-1))) {
+		fuse_put_request(req);
+		return ERR_PTR(-EOVERFLOW);
 	}
 
 	return req;
@@ -619,7 +618,7 @@ int fuse_simple_background(struct fuse_mount *fm, struct fuse_args *args,
 		__set_bit(FR_BACKGROUND, &req->flags);
 	} else {
 		WARN_ON(args->nocreds);
-		req = fuse_get_req(NULL, fm, true);
+		req = fuse_get_req(&invalid_mnt_idmap, fm, true);
 		if (IS_ERR(req))
 			return PTR_ERR(req);
 	}
@@ -641,7 +640,7 @@ static int fuse_simple_notify_reply(struct fuse_mount *fm,
 	struct fuse_req *req;
 	struct fuse_iqueue *fiq = &fm->fc->iq;
 
-	req = fuse_get_req(NULL, fm, false);
+	req = fuse_get_req(&invalid_mnt_idmap, fm, false);
 	if (IS_ERR(req))
 		return PTR_ERR(req);
 
