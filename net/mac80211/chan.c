@@ -683,6 +683,7 @@ ieee80211_alloc_chanctx(struct ieee80211_local *local,
 	ctx->mode = mode;
 	ctx->conf.radar_enabled = false;
 	ctx->conf.radio_idx = radio_idx;
+	ctx->radar_detected = false;
 	_ieee80211_recalc_chanctx_min_def(local, ctx, NULL, false);
 
 	return ctx;
