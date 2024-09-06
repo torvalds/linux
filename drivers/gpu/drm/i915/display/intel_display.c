@@ -2226,9 +2226,10 @@ static void i9xx_pfit_disable(const struct intel_crtc_state *old_crtc_state)
 static void i9xx_crtc_disable(struct intel_atomic_state *state,
 			      struct intel_crtc *crtc)
 {
+	struct intel_display *display = to_intel_display(state);
+	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	struct intel_crtc_state *old_crtc_state =
 		intel_atomic_get_old_crtc_state(state, crtc);
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum pipe pipe = crtc->pipe;
 
 	/*
@@ -2267,7 +2268,7 @@ static void i9xx_crtc_disable(struct intel_atomic_state *state,
 
 	/* clock the pipe down to 640x480@60 to potentially save power */
 	if (IS_I830(dev_priv))
-		i830_enable_pipe(dev_priv, pipe);
+		i830_enable_pipe(display, pipe);
 }
 
 void intel_encoder_destroy(struct drm_encoder *encoder)
@@ -8257,9 +8258,8 @@ out:
 	return ret;
 }
 
-void i830_enable_pipe(struct drm_i915_private *dev_priv, enum pipe pipe)
+void i830_enable_pipe(struct intel_display *display, enum pipe pipe)
 {
-	struct intel_display *display = &dev_priv->display;
 	struct intel_crtc *crtc = intel_crtc_for_pipe(display, pipe);
 	enum transcoder cpu_transcoder = (enum transcoder)pipe;
 	/* 640x480@60Hz, ~25175 kHz */
@@ -8273,10 +8273,10 @@ void i830_enable_pipe(struct drm_i915_private *dev_priv, enum pipe pipe)
 	u32 dpll, fp;
 	int i;
 
-	drm_WARN_ON(&dev_priv->drm,
+	drm_WARN_ON(display->drm,
 		    i9xx_calc_dpll_params(48000, &clock) != 25154);
 
-	drm_dbg_kms(&dev_priv->drm,
+	drm_dbg_kms(display->drm,
 		    "enabling pipe %c due to force quirk (vco=%d dot=%d)\n",
 		    pipe_name(pipe), clock.vco, clock.dot);
 
@@ -8288,35 +8288,35 @@ void i830_enable_pipe(struct drm_i915_private *dev_priv, enum pipe pipe)
 		PLL_REF_INPUT_DREFCLK |
 		DPLL_VCO_ENABLE;
 
-	intel_de_write(dev_priv, TRANS_HTOTAL(dev_priv, cpu_transcoder),
+	intel_de_write(display, TRANS_HTOTAL(display, cpu_transcoder),
 		       HACTIVE(640 - 1) | HTOTAL(800 - 1));
-	intel_de_write(dev_priv, TRANS_HBLANK(dev_priv, cpu_transcoder),
+	intel_de_write(display, TRANS_HBLANK(display, cpu_transcoder),
 		       HBLANK_START(640 - 1) | HBLANK_END(800 - 1));
-	intel_de_write(dev_priv, TRANS_HSYNC(dev_priv, cpu_transcoder),
+	intel_de_write(display, TRANS_HSYNC(display, cpu_transcoder),
 		       HSYNC_START(656 - 1) | HSYNC_END(752 - 1));
-	intel_de_write(dev_priv, TRANS_VTOTAL(dev_priv, cpu_transcoder),
+	intel_de_write(display, TRANS_VTOTAL(display, cpu_transcoder),
 		       VACTIVE(480 - 1) | VTOTAL(525 - 1));
-	intel_de_write(dev_priv, TRANS_VBLANK(dev_priv, cpu_transcoder),
+	intel_de_write(display, TRANS_VBLANK(display, cpu_transcoder),
 		       VBLANK_START(480 - 1) | VBLANK_END(525 - 1));
-	intel_de_write(dev_priv, TRANS_VSYNC(dev_priv, cpu_transcoder),
+	intel_de_write(display, TRANS_VSYNC(display, cpu_transcoder),
 		       VSYNC_START(490 - 1) | VSYNC_END(492 - 1));
-	intel_de_write(dev_priv, PIPESRC(dev_priv, pipe),
+	intel_de_write(display, PIPESRC(display, pipe),
 		       PIPESRC_WIDTH(640 - 1) | PIPESRC_HEIGHT(480 - 1));
 
-	intel_de_write(dev_priv, FP0(pipe), fp);
-	intel_de_write(dev_priv, FP1(pipe), fp);
+	intel_de_write(display, FP0(pipe), fp);
+	intel_de_write(display, FP1(pipe), fp);
 
 	/*
 	 * Apparently we need to have VGA mode enabled prior to changing
 	 * the P1/P2 dividers. Otherwise the DPLL will keep using the old
 	 * dividers, even though the register value does change.
 	 */
-	intel_de_write(dev_priv, DPLL(dev_priv, pipe),
+	intel_de_write(display, DPLL(display, pipe),
 		       dpll & ~DPLL_VGA_MODE_DIS);
-	intel_de_write(dev_priv, DPLL(dev_priv, pipe), dpll);
+	intel_de_write(display, DPLL(display, pipe), dpll);
 
 	/* Wait for the clocks to stabilize. */
-	intel_de_posting_read(dev_priv, DPLL(dev_priv, pipe));
+	intel_de_posting_read(display, DPLL(display, pipe));
 	udelay(150);
 
 	/* The pixel multiplier can only be updated once the
@@ -8324,47 +8324,46 @@ void i830_enable_pipe(struct drm_i915_private *dev_priv, enum pipe pipe)
 	 *
 	 * So write it again.
 	 */
-	intel_de_write(dev_priv, DPLL(dev_priv, pipe), dpll);
+	intel_de_write(display, DPLL(display, pipe), dpll);
 
 	/* We do this three times for luck */
 	for (i = 0; i < 3 ; i++) {
-		intel_de_write(dev_priv, DPLL(dev_priv, pipe), dpll);
-		intel_de_posting_read(dev_priv, DPLL(dev_priv, pipe));
+		intel_de_write(display, DPLL(display, pipe), dpll);
+		intel_de_posting_read(display, DPLL(display, pipe));
 		udelay(150); /* wait for warmup */
 	}
 
-	intel_de_write(dev_priv, TRANSCONF(dev_priv, pipe), TRANSCONF_ENABLE);
-	intel_de_posting_read(dev_priv, TRANSCONF(dev_priv, pipe));
+	intel_de_write(display, TRANSCONF(display, pipe), TRANSCONF_ENABLE);
+	intel_de_posting_read(display, TRANSCONF(display, pipe));
 
 	intel_wait_for_pipe_scanline_moving(crtc);
 }
 
-void i830_disable_pipe(struct drm_i915_private *dev_priv, enum pipe pipe)
+void i830_disable_pipe(struct intel_display *display, enum pipe pipe)
 {
-	struct intel_display *display = &dev_priv->display;
 	struct intel_crtc *crtc = intel_crtc_for_pipe(display, pipe);
 
-	drm_dbg_kms(&dev_priv->drm, "disabling pipe %c due to force quirk\n",
+	drm_dbg_kms(display->drm, "disabling pipe %c due to force quirk\n",
 		    pipe_name(pipe));
 
-	drm_WARN_ON(&dev_priv->drm,
-		    intel_de_read(dev_priv, DSPCNTR(dev_priv, PLANE_A)) & DISP_ENABLE);
-	drm_WARN_ON(&dev_priv->drm,
-		    intel_de_read(dev_priv, DSPCNTR(dev_priv, PLANE_B)) & DISP_ENABLE);
-	drm_WARN_ON(&dev_priv->drm,
-		    intel_de_read(dev_priv, DSPCNTR(dev_priv, PLANE_C)) & DISP_ENABLE);
-	drm_WARN_ON(&dev_priv->drm,
-		    intel_de_read(dev_priv, CURCNTR(dev_priv, PIPE_A)) & MCURSOR_MODE_MASK);
-	drm_WARN_ON(&dev_priv->drm,
-		    intel_de_read(dev_priv, CURCNTR(dev_priv, PIPE_B)) & MCURSOR_MODE_MASK);
+	drm_WARN_ON(display->drm,
+		    intel_de_read(display, DSPCNTR(display, PLANE_A)) & DISP_ENABLE);
+	drm_WARN_ON(display->drm,
+		    intel_de_read(display, DSPCNTR(display, PLANE_B)) & DISP_ENABLE);
+	drm_WARN_ON(display->drm,
+		    intel_de_read(display, DSPCNTR(display, PLANE_C)) & DISP_ENABLE);
+	drm_WARN_ON(display->drm,
+		    intel_de_read(display, CURCNTR(display, PIPE_A)) & MCURSOR_MODE_MASK);
+	drm_WARN_ON(display->drm,
+		    intel_de_read(display, CURCNTR(display, PIPE_B)) & MCURSOR_MODE_MASK);
 
-	intel_de_write(dev_priv, TRANSCONF(dev_priv, pipe), 0);
-	intel_de_posting_read(dev_priv, TRANSCONF(dev_priv, pipe));
+	intel_de_write(display, TRANSCONF(display, pipe), 0);
+	intel_de_posting_read(display, TRANSCONF(display, pipe));
 
 	intel_wait_for_pipe_scanline_stopped(crtc);
 
-	intel_de_write(dev_priv, DPLL(dev_priv, pipe), DPLL_VGA_MODE_DIS);
-	intel_de_posting_read(dev_priv, DPLL(dev_priv, pipe));
+	intel_de_write(display, DPLL(display, pipe), DPLL_VGA_MODE_DIS);
+	intel_de_posting_read(display, DPLL(display, pipe));
 }
 
 void intel_hpd_poll_fini(struct drm_i915_private *i915)

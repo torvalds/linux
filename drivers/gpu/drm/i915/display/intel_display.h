@@ -52,6 +52,7 @@ struct intel_atomic_state;
 struct intel_crtc;
 struct intel_crtc_state;
 struct intel_digital_port;
+struct intel_display;
 struct intel_dp;
 struct intel_encoder;
 struct intel_initial_plane_config;
@@ -437,8 +438,8 @@ void i9xx_set_pipeconf(const struct intel_crtc_state *crtc_state);
 void ilk_set_pipeconf(const struct intel_crtc_state *crtc_state);
 void intel_enable_transcoder(const struct intel_crtc_state *new_crtc_state);
 void intel_disable_transcoder(const struct intel_crtc_state *old_crtc_state);
-void i830_enable_pipe(struct drm_i915_private *dev_priv, enum pipe pipe);
-void i830_disable_pipe(struct drm_i915_private *dev_priv, enum pipe pipe);
+void i830_enable_pipe(struct intel_display *display, enum pipe pipe);
+void i830_disable_pipe(struct intel_display *display, enum pipe pipe);
 int vlv_get_hpll_vco(struct drm_i915_private *dev_priv);
 int vlv_get_cck_clock(struct drm_i915_private *dev_priv,
 		      const char *name, u32 reg, int ref_freq);

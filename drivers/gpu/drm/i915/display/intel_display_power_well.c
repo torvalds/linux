@@ -1066,24 +1066,30 @@ static bool i9xx_always_on_power_well_enabled(struct drm_i915_private *dev_priv,
 static void i830_pipes_power_well_enable(struct drm_i915_private *dev_priv,
 					 struct i915_power_well *power_well)
 {
-	if ((intel_de_read(dev_priv, TRANSCONF(dev_priv, PIPE_A)) & TRANSCONF_ENABLE) == 0)
-		i830_enable_pipe(dev_priv, PIPE_A);
-	if ((intel_de_read(dev_priv, TRANSCONF(dev_priv, PIPE_B)) & TRANSCONF_ENABLE) == 0)
-		i830_enable_pipe(dev_priv, PIPE_B);
+	struct intel_display *display = &dev_priv->display;
+
+	if ((intel_de_read(display, TRANSCONF(dev_priv, PIPE_A)) & TRANSCONF_ENABLE) == 0)
+		i830_enable_pipe(display, PIPE_A);
+	if ((intel_de_read(display, TRANSCONF(dev_priv, PIPE_B)) & TRANSCONF_ENABLE) == 0)
+		i830_enable_pipe(display, PIPE_B);
 }
 
 static void i830_pipes_power_well_disable(struct drm_i915_private *dev_priv,
 					  struct i915_power_well *power_well)
 {
-	i830_disable_pipe(dev_priv, PIPE_B);
-	i830_disable_pipe(dev_priv, PIPE_A);
+	struct intel_display *display = &dev_priv->display;
+
+	i830_disable_pipe(display, PIPE_B);
+	i830_disable_pipe(display, PIPE_A);
 }
 
 static bool i830_pipes_power_well_enabled(struct drm_i915_private *dev_priv,
 					  struct i915_power_well *power_well)
 {
-	return intel_de_read(dev_priv, TRANSCONF(dev_priv, PIPE_A)) & TRANSCONF_ENABLE &&
-		intel_de_read(dev_priv, TRANSCONF(dev_priv, PIPE_B)) & TRANSCONF_ENABLE;
+	struct intel_display *display = &dev_priv->display;
+
+	return intel_de_read(display, TRANSCONF(dev_priv, PIPE_A)) & TRANSCONF_ENABLE &&
+		intel_de_read(display, TRANSCONF(dev_priv, PIPE_B)) & TRANSCONF_ENABLE;
 }
 
 static void i830_pipes_power_well_sync_hw(struct drm_i915_private *dev_priv,
