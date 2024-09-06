@@ -161,6 +161,9 @@ static int ap72200_probe(struct i2c_client *client,
 		return PTR_ERR(vreg->ena_gpiod);
 	}
 
+	/* Keep the EN pin of this regulator low initially */
+	gpiod_set_value_cansleep(vreg->ena_gpiod, 0);
+
 	vreg->rdev = devm_regulator_register(vreg->dev, &vreg->rdesc, &reg_config);
 	if (IS_ERR(vreg->rdev)) {
 		ret = PTR_ERR(vreg->rdev);
