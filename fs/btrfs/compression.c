@@ -1030,6 +1030,7 @@ int btrfs_compress_folios(unsigned int type_level, struct address_space *mapping
 {
 	int type = btrfs_compress_type(type_level);
 	int level = btrfs_compress_level(type_level);
+	const unsigned long orig_len = *total_out;
 	struct list_head *workspace;
 	int ret;
 
@@ -1037,6 +1038,8 @@ int btrfs_compress_folios(unsigned int type_level, struct address_space *mapping
 	workspace = get_workspace(type, level);
 	ret = compression_compress_pages(type, workspace, mapping, start, folios,
 					 out_folios, total_in, total_out);
+	/* The total read-in bytes should be no larger than the input. */
+	ASSERT(*total_in <= orig_len);
 	put_workspace(type, workspace);
 	return ret;
 }
