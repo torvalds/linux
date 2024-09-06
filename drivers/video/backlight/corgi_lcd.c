@@ -17,7 +17,6 @@
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/gpio/consumer.h>
-#include <linux/fb.h>
 #include <linux/lcd.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/corgi_lcd.h>
@@ -332,12 +331,12 @@ static void corgi_lcd_power_off(struct corgi_lcd *lcd)
 			POWER1_VW_OFF | POWER1_GVSS_OFF | POWER1_VDD_OFF);
 }
 
-static int corgi_lcd_set_mode(struct lcd_device *ld, struct fb_videomode *m)
+static int corgi_lcd_set_mode(struct lcd_device *ld, u32 xres, u32 yres)
 {
 	struct corgi_lcd *lcd = lcd_get_data(ld);
 	int mode = CORGI_LCD_MODE_QVGA;
 
-	if (m->xres == 640 || m->xres == 480)
+	if (xres == 640 || xres == 480)
 		mode = CORGI_LCD_MODE_VGA;
 
 	if (lcd->mode == mode)
