@@ -2317,10 +2317,12 @@ static void prepare_vmcs02_early(struct vcpu_vmx *vmx, struct loaded_vmcs *vmcs0
 
 	/* Posted interrupts setting is only taken from vmcs12.  */
 	vmx->nested.pi_pending = false;
-	if (nested_cpu_has_posted_intr(vmcs12))
+	if (nested_cpu_has_posted_intr(vmcs12)) {
 		vmx->nested.posted_intr_nv = vmcs12->posted_intr_nv;
-	else
+	} else {
+		vmx->nested.posted_intr_nv = -1;
 		exec_control &= ~PIN_BASED_POSTED_INTR;
+	}
 	pin_controls_set(vmx, exec_control);
 
 	/*

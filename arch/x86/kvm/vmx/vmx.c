@@ -4215,6 +4215,13 @@ static int vmx_deliver_nested_posted_interrupt(struct kvm_vcpu *vcpu,
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 
+	/*
+	 * DO NOT query the vCPU's vmcs12, as vmcs12 is dynamically allocated
+	 * and freed, and must not be accessed outside of vcpu->mutex.  The
+	 * vCPU's cached PI NV is valid if and only if posted interrupts
+	 * enabled in its vmcs12, i.e. checking the vector also checks that
+	 * L1 has enabled posted interrupts for L2.
+	 */
 	if (is_guest_mode(vcpu) &&
 	    vector == vmx->nested.posted_intr_nv) {
 		/*
