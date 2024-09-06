@@ -1834,20 +1834,34 @@ static bool amd_cppc_supported(void)
 	}
 
 	/*
-	 * If the CPPC feature is disabled in the BIOS for processors that support MSR-based CPPC,
-	 * the AMD Pstate driver may not function correctly.
-	 * Check the CPPC flag and display a warning message if the platform supports CPPC.
-	 * Note: below checking code will not abort the driver registeration process because of
-	 * the code is added for debugging purposes.
+	 * If the CPPC feature is disabled in the BIOS for processors
+	 * that support MSR-based CPPC, the AMD Pstate driver may not
+	 * function correctly.
+	 *
+	 * For such processors, check the CPPC flag and display a
+	 * warning message if the platform supports CPPC.
+	 *
+	 * Note: The code check below will not abort the driver
+	 * registration process because of the code is added for
+	 * debugging purposes. Besides, it may still be possible for
+	 * the driver to work using the shared-memory mechanism.
 	 */
 	if (!cpu_feature_enabled(X86_FEATURE_CPPC)) {
-		if (cpu_feature_enabled(X86_FEATURE_ZEN1) || cpu_feature_enabled(X86_FEATURE_ZEN2)) {
-			if (c->x86_model > 0x60 && c->x86_model < 0xaf)
+		if (cpu_feature_enabled(X86_FEATURE_ZEN2)) {
+			switch (c->x86_model) {
+			case 0x60 ... 0x6F:
+			case 0x80 ... 0xAF:
 				warn = true;
-		} else if (cpu_feature_enabled(X86_FEATURE_ZEN3) || cpu_feature_enabled(X86_FEATURE_ZEN4)) {
-			if ((c->x86_model > 0x10 && c->x86_model < 0x1F) ||
-					(c->x86_model > 0x40 && c->x86_model < 0xaf))
+				break;
+			}
+		} else if (cpu_feature_enabled(X86_FEATURE_ZEN3) ||
+			   cpu_feature_enabled(X86_FEATURE_ZEN4)) {
+			switch (c->x86_model) {
+			case 0x10 ... 0x1F:
+			case 0x40 ... 0xAF:
 				warn = true;
+				break;
+			}
 		} else if (cpu_feature_enabled(X86_FEATURE_ZEN5)) {
 			warn = true;
 		}
