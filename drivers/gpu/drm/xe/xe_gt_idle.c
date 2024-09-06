@@ -53,6 +53,11 @@ pc_to_xe(struct xe_guc_pc *pc)
 	return gt_to_xe(gt);
 }
 
+static inline const char *str_up_down(bool v)
+{
+	return v ? "up" : "down";
+}
+
 static const char *gt_idle_state_to_string(enum xe_gt_idle_state state)
 {
 	switch (state) {
@@ -153,6 +158,92 @@ void xe_gt_idle_disable_pg(struct xe_gt *gt)
 	XE_WARN_ON(xe_force_wake_get(gt_to_fw(gt), XE_FW_GT));
 	xe_mmio_write32(gt, POWERGATE_ENABLE, gtidle->powergate_enable);
 	XE_WARN_ON(xe_force_wake_put(gt_to_fw(gt), XE_FW_GT));
+}
+
+/**
+ * xe_gt_idle_pg_print - Xe powergating info
+ * @gt: GT object
+ * @p: drm_printer.
+ *
+ * This function prints the powergating information
+ *
+ * Return: 0 on success, negative error code otherwise
+ */
+int xe_gt_idle_pg_print(struct xe_gt *gt, struct drm_printer *p)
+{
+	struct xe_gt_idle *gtidle = &gt->gtidle;
+	struct xe_device *xe = gt_to_xe(gt);
+	enum xe_gt_idle_state state;
+	u32 pg_enabled, pg_status = 0;
+	u32 vcs_mask, vecs_mask;
+	int err, n;
+	/*
+	 * Media Slices
+	 *
+	 * Slice 0: VCS0, VCS1, VECS0
+	 * Slice 1: VCS2, VCS3, VECS1
+	 * Slice 2: VCS4, VCS5, VECS2
+	 * Slice 3: VCS6, VCS7, VECS3
+	 */
+	static const struct {
+		u64 engines;
+		u32 status_bit;
+	} media_slices[] = {
+		{(BIT(XE_HW_ENGINE_VCS0) | BIT(XE_HW_ENGINE_VCS1) |
+		  BIT(XE_HW_ENGINE_VECS0)), MEDIA_SLICE0_AWAKE_STATUS},
+
+		{(BIT(XE_HW_ENGINE_VCS2) | BIT(XE_HW_ENGINE_VCS3) |
+		   BIT(XE_HW_ENGINE_VECS1)), MEDIA_SLICE1_AWAKE_STATUS},
+
+		{(BIT(XE_HW_ENGINE_VCS4) | BIT(XE_HW_ENGINE_VCS5) |
+		   BIT(XE_HW_ENGINE_VECS2)), MEDIA_SLICE2_AWAKE_STATUS},
+
+		{(BIT(XE_HW_ENGINE_VCS6) | BIT(XE_HW_ENGINE_VCS7) |
+		   BIT(XE_HW_ENGINE_VECS3)), MEDIA_SLICE3_AWAKE_STATUS},
+	};
+
+	if (xe->info.platform == XE_PVC) {
+		drm_printf(p, "Power Gating not supported\n");
+		return 0;
+	}
+
+	state = gtidle->idle_status(gtidle_to_pc(gtidle));
+	pg_enabled = gtidle->powergate_enable;
+
+	/* Do not wake the GT to read powergating status */
+	if (state != GT_IDLE_C6) {
+		err = xe_force_wake_get(gt_to_fw(gt), XE_FW_GT);
+		if (err)
+			return err;
+
+		pg_enabled = xe_mmio_read32(gt, POWERGATE_ENABLE);
+		pg_status = xe_mmio_read32(gt, POWERGATE_DOMAIN_STATUS);
+
+		XE_WARN_ON(xe_force_wake_put(gt_to_fw(gt), XE_FW_GT));
+	}
+
+	if (gt->info.engine_mask & XE_HW_ENGINE_RCS_MASK) {
+		drm_printf(p, "Render Power Gating Enabled: %s\n",
+			   str_yes_no(pg_enabled & RENDER_POWERGATE_ENABLE));
+
+		drm_printf(p, "Render Power Gate Status: %s\n",
+			   str_up_down(pg_status & RENDER_AWAKE_STATUS));
+	}
+
+	vcs_mask = xe_hw_engine_mask_per_class(gt, XE_ENGINE_CLASS_VIDEO_DECODE);
+	vecs_mask = xe_hw_engine_mask_per_class(gt, XE_ENGINE_CLASS_VIDEO_ENHANCE);
+
+	/* Print media CPG status only if media is present */
+	if (vcs_mask || vecs_mask) {
+		drm_printf(p, "Media Power Gating Enabled: %s\n",
+			   str_yes_no(pg_enabled & MEDIA_POWERGATE_ENABLE));
+
+		for (n = 0; n < ARRAY_SIZE(media_slices); n++)
+			if (gt->info.engine_mask & media_slices[n].engines)
+				drm_printf(p, "Media Slice%d Power Gate Status: %s\n", n,
+					   str_up_down(pg_status & media_slices[n].status_bit));
+	}
+	return 0;
 }
 
 static ssize_t name_show(struct device *dev,
