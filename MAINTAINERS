@@ -3781,8 +3781,9 @@ F:	Documentation/filesystems/befs.rst
 F:	fs/befs/
 
 BFQ I/O SCHEDULER
+M:	Yu Kuai <yukuai3@huawei.com>
 L:	linux-block@vger.kernel.org
-S:	Orphan
+S:	Odd Fixes
 F:	Documentation/block/bfq-iosched.rst
 F:	block/bfq-*
 
