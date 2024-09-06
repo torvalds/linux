@@ -230,11 +230,6 @@ static int efx_ethtool_get_ts_info(struct net_device *net_dev,
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
 
-	/* Software capabilities */
-	ts_info->so_timestamping = (SOF_TIMESTAMPING_RX_SOFTWARE |
-				    SOF_TIMESTAMPING_SOFTWARE);
-	ts_info->phc_index = -1;
-
 	efx_siena_ptp_get_ts_info(efx, ts_info);
 	return 0;
 }
