@@ -11,14 +11,6 @@ struct mlxsw_sp;
 struct mlxsw_sp_port;
 struct mlxsw_sp_ptp_clock;
 
-static inline int mlxsw_sp_ptp_get_ts_info_noptp(struct kernel_ethtool_ts_info *info)
-{
-	info->so_timestamping = SOF_TIMESTAMPING_RX_SOFTWARE |
-				SOF_TIMESTAMPING_SOFTWARE;
-	info->phc_index = -1;
-	return 0;
-}
-
 #if IS_REACHABLE(CONFIG_PTP_1588_CLOCK)
 
 struct mlxsw_sp_ptp_clock *
@@ -151,12 +143,6 @@ static inline void mlxsw_sp1_ptp_shaper_work(struct work_struct *work)
 {
 }
 
-static inline int mlxsw_sp1_ptp_get_ts_info(struct mlxsw_sp *mlxsw_sp,
-					    struct kernel_ethtool_ts_info *info)
-{
-	return mlxsw_sp_ptp_get_ts_info_noptp(info);
-}
-
 static inline int mlxsw_sp1_get_stats_count(void)
 {
 	return 0;
@@ -224,12 +210,6 @@ mlxsw_sp2_ptp_hwtstamp_set(struct mlxsw_sp_port *mlxsw_sp_port,
 			   struct hwtstamp_config *config)
 {
 	return -EOPNOTSUPP;
-}
-
-static inline int mlxsw_sp2_ptp_get_ts_info(struct mlxsw_sp *mlxsw_sp,
-					    struct kernel_ethtool_ts_info *info)
-{
-	return mlxsw_sp_ptp_get_ts_info_noptp(info);
 }
 
 static inline int
