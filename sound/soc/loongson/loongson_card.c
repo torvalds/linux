@@ -192,9 +192,7 @@ static int loongson_asoc_card_probe(struct platform_device *pdev)
 	if (ret < 0)
 		return ret;
 
-	ret = devm_snd_soc_register_card(&pdev->dev, card);
-
-	return ret;
+	return devm_snd_soc_register_card(&pdev->dev, card);
 }
 
 static const struct of_device_id loongson_asoc_dt_ids[] = {
