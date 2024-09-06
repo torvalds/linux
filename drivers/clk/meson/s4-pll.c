@@ -329,7 +329,6 @@ static struct clk_regmap s4_gp0_pll = {
  * Internal hifi pll emulation configuration parameters
  */
 static const struct reg_sequence s4_hifi_init_regs[] = {
-	{ .reg = ANACTRL_HIFIPLL_CTRL1,	.def = 0x00010e56 },
 	{ .reg = ANACTRL_HIFIPLL_CTRL2,	.def = 0x00000000 },
 	{ .reg = ANACTRL_HIFIPLL_CTRL3,	.def = 0x6a285c00 },
 	{ .reg = ANACTRL_HIFIPLL_CTRL4,	.def = 0x65771290 },
@@ -353,6 +352,11 @@ static struct clk_regmap s4_hifi_pll_dco = {
 			.reg_off = ANACTRL_HIFIPLL_CTRL0,
 			.shift   = 10,
 			.width   = 5,
+		},
+		.frac = {
+			.reg_off = ANACTRL_HIFIPLL_CTRL1,
+			.shift   = 0,
+			.width   = 17,
 		},
 		.l = {
 			.reg_off = ANACTRL_HIFIPLL_CTRL0,
