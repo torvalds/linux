@@ -619,16 +619,19 @@ static int __xe_ggtt_insert_bo_at(struct xe_ggtt *ggtt, struct xe_bo *bo,
 	bo->ggtt_node = xe_ggtt_node_init(ggtt);
 	if (IS_ERR(bo->ggtt_node)) {
 		err = PTR_ERR(bo->ggtt_node);
+		bo->ggtt_node = NULL;
 		goto out;
 	}
 
 	mutex_lock(&ggtt->lock);
 	err = drm_mm_insert_node_in_range(&ggtt->mm, &bo->ggtt_node->base, bo->size,
 					  alignment, 0, start, end, 0);
-	if (err)
+	if (err) {
 		xe_ggtt_node_fini(bo->ggtt_node);
-	else
+		bo->ggtt_node = NULL;
+	} else {
 		xe_ggtt_map_bo(ggtt, bo);
+	}
 	mutex_unlock(&ggtt->lock);
 
 	if (!err && bo->flags & XE_BO_FLAG_GGTT_INVALIDATE)
