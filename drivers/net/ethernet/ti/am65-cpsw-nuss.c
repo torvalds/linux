@@ -156,12 +156,13 @@
 #define AM65_CPSW_CPPI_TX_PKT_TYPE 0x7
 
 /* XDP */
-#define AM65_CPSW_XDP_CONSUMED 2
-#define AM65_CPSW_XDP_REDIRECT 1
+#define AM65_CPSW_XDP_CONSUMED BIT(1)
+#define AM65_CPSW_XDP_REDIRECT BIT(0)
 #define AM65_CPSW_XDP_PASS     0
 
 /* Include headroom compatible with both skb and xdpf */
-#define AM65_CPSW_HEADROOM (max(NET_SKB_PAD, XDP_PACKET_HEADROOM) + NET_IP_ALIGN)
+#define AM65_CPSW_HEADROOM_NA (max(NET_SKB_PAD, XDP_PACKET_HEADROOM) + NET_IP_ALIGN)
+#define AM65_CPSW_HEADROOM ALIGN(AM65_CPSW_HEADROOM_NA, sizeof(long))
 
 static void am65_cpsw_port_set_sl_mac(struct am65_cpsw_port *slave,
 				      const u8 *dev_addr)
@@ -933,7 +934,7 @@ static int am65_cpsw_xdp_tx_frame(struct net_device *ndev,
 	host_desc = k3_cppi_desc_pool_alloc(tx_chn->desc_pool);
 	if (unlikely(!host_desc)) {
 		ndev->stats.tx_dropped++;
-		return -ENOMEM;
+		return AM65_CPSW_XDP_CONSUMED;	/* drop */
 	}
 
 	am65_cpsw_nuss_set_buf_type(tx_chn, host_desc, buf_type);
@@ -942,7 +943,7 @@ static int am65_cpsw_xdp_tx_frame(struct net_device *ndev,
 				 pkt_len, DMA_TO_DEVICE);
 	if (unlikely(dma_mapping_error(tx_chn->dma_dev, dma_buf))) {
 		ndev->stats.tx_dropped++;
-		ret = -ENOMEM;
+		ret = AM65_CPSW_XDP_CONSUMED;	/* drop */
 		goto pool_free;
 	}
 
@@ -977,6 +978,7 @@ static int am65_cpsw_xdp_tx_frame(struct net_device *ndev,
 		/* Inform BQL */
 		netdev_tx_completed_queue(netif_txq, 1, pkt_len);
 		ndev->stats.tx_errors++;
+		ret = AM65_CPSW_XDP_CONSUMED; /* drop */
 		goto dma_unmap;
 	}
 
@@ -996,7 +998,9 @@ static int am65_cpsw_run_xdp(struct am65_cpsw_common *common,
 			     int desc_idx, int cpu, int *len)
 {
 	struct am65_cpsw_rx_chn *rx_chn = &common->rx_chns;
+	struct am65_cpsw_ndev_priv *ndev_priv;
 	struct net_device *ndev = port->ndev;
+	struct am65_cpsw_ndev_stats *stats;
 	int ret = AM65_CPSW_XDP_CONSUMED;
 	struct am65_cpsw_tx_chn *tx_chn;
 	struct netdev_queue *netif_txq;
@@ -1004,6 +1008,7 @@ static int am65_cpsw_run_xdp(struct am65_cpsw_common *common,
 	struct bpf_prog *prog;
 	struct page *page;
 	u32 act;
+	int err;
 
 	prog = READ_ONCE(port->xdp_prog);
 	if (!prog)
@@ -1012,6 +1017,9 @@ static int am65_cpsw_run_xdp(struct am65_cpsw_common *common,
 	act = bpf_prog_run_xdp(prog, xdp);
 	/* XDP prog might have changed packet data and boundaries */
 	*len = xdp->data_end - xdp->data;
+
+	ndev_priv = netdev_priv(ndev);
+	stats = this_cpu_ptr(ndev_priv->stats);
 
 	switch (act) {
 	case XDP_PASS:
@@ -1023,31 +1031,36 @@ static int am65_cpsw_run_xdp(struct am65_cpsw_common *common,
 
 		xdpf = xdp_convert_buff_to_frame(xdp);
 		if (unlikely(!xdpf))
-			break;
+			goto drop;
 
 		__netif_tx_lock(netif_txq, cpu);
-		ret = am65_cpsw_xdp_tx_frame(ndev, tx_chn, xdpf,
+		err = am65_cpsw_xdp_tx_frame(ndev, tx_chn, xdpf,
 					     AM65_CPSW_TX_BUF_TYPE_XDP_TX);
 		__netif_tx_unlock(netif_txq);
-		if (ret)
-			break;
+		if (err)
+			goto drop;
 
-		ndev->stats.rx_bytes += *len;
-		ndev->stats.rx_packets++;
+		u64_stats_update_begin(&stats->syncp);
+		stats->rx_bytes += *len;
+		stats->rx_packets++;
+		u64_stats_update_end(&stats->syncp);
 		ret = AM65_CPSW_XDP_CONSUMED;
 		goto out;
 	case XDP_REDIRECT:
 		if (unlikely(xdp_do_redirect(ndev, xdp, prog)))
-			break;
+			goto drop;
 
-		ndev->stats.rx_bytes += *len;
-		ndev->stats.rx_packets++;
+		u64_stats_update_begin(&stats->syncp);
+		stats->rx_bytes += *len;
+		stats->rx_packets++;
+		u64_stats_update_end(&stats->syncp);
 		ret = AM65_CPSW_XDP_REDIRECT;
 		goto out;
 	default:
 		bpf_warn_invalid_xdp_action(ndev, prog, act);
 		fallthrough;
 	case XDP_ABORTED:
+drop:
 		trace_xdp_exception(ndev, prog, act);
 		fallthrough;
 	case XDP_DROP:
@@ -1056,7 +1069,6 @@ static int am65_cpsw_run_xdp(struct am65_cpsw_common *common,
 
 	page = virt_to_head_page(xdp->data);
 	am65_cpsw_put_page(rx_chn, page, true, desc_idx);
-
 out:
 	return ret;
 }
@@ -1095,7 +1107,7 @@ static void am65_cpsw_nuss_rx_csum(struct sk_buff *skb, u32 csum_info)
 }
 
 static int am65_cpsw_nuss_rx_packets(struct am65_cpsw_common *common,
-				     u32 flow_idx, int cpu)
+				     u32 flow_idx, int cpu, int *xdp_state)
 {
 	struct am65_cpsw_rx_chn *rx_chn = &common->rx_chns;
 	u32 buf_dma_len, pkt_len, port_id = 0, csum_info;
@@ -1114,6 +1126,7 @@ static int am65_cpsw_nuss_rx_packets(struct am65_cpsw_common *common,
 	void **swdata;
 	u32 *psdata;
 
+	*xdp_state = AM65_CPSW_XDP_PASS;
 	ret = k3_udma_glue_pop_rx_chn(rx_chn->rx_chn, flow_idx, &desc_dma);
 	if (ret) {
 		if (ret != -ENODATA)
@@ -1161,15 +1174,13 @@ static int am65_cpsw_nuss_rx_packets(struct am65_cpsw_common *common,
 	}
 
 	if (port->xdp_prog) {
-		xdp_init_buff(&xdp, AM65_CPSW_MAX_PACKET_SIZE, &port->xdp_rxq);
-
-		xdp_prepare_buff(&xdp, page_addr, skb_headroom(skb),
+		xdp_init_buff(&xdp, PAGE_SIZE, &port->xdp_rxq);
+		xdp_prepare_buff(&xdp, page_addr, AM65_CPSW_HEADROOM,
 				 pkt_len, false);
-
-		ret = am65_cpsw_run_xdp(common, port, &xdp, desc_idx,
-					cpu, &pkt_len);
-		if (ret != AM65_CPSW_XDP_PASS)
-			return ret;
+		*xdp_state = am65_cpsw_run_xdp(common, port, &xdp, desc_idx,
+					       cpu, &pkt_len);
+		if (*xdp_state != AM65_CPSW_XDP_PASS)
+			goto allocate;
 
 		/* Compute additional headroom to be reserved */
 		headroom = (xdp.data - xdp.data_hard_start) - skb_headroom(skb);
@@ -1193,9 +1204,13 @@ static int am65_cpsw_nuss_rx_packets(struct am65_cpsw_common *common,
 	stats->rx_bytes += pkt_len;
 	u64_stats_update_end(&stats->syncp);
 
+allocate:
 	new_page = page_pool_dev_alloc_pages(rx_chn->page_pool);
-	if (unlikely(!new_page))
+	if (unlikely(!new_page)) {
+		dev_err(dev, "page alloc failed\n");
 		return -ENOMEM;
+	}
+
 	rx_chn->pages[desc_idx] = new_page;
 
 	if (netif_dormant(ndev)) {
@@ -1229,8 +1244,9 @@ static int am65_cpsw_nuss_rx_poll(struct napi_struct *napi_rx, int budget)
 	struct am65_cpsw_common *common = am65_cpsw_napi_to_common(napi_rx);
 	int flow = AM65_CPSW_MAX_RX_FLOWS;
 	int cpu = smp_processor_id();
-	bool xdp_redirect = false;
+	int xdp_state_or = 0;
 	int cur_budget, ret;
+	int xdp_state;
 	int num_rx = 0;
 
 	/* process every flow */
@@ -1238,12 +1254,11 @@ static int am65_cpsw_nuss_rx_poll(struct napi_struct *napi_rx, int budget)
 		cur_budget = budget - num_rx;
 
 		while (cur_budget--) {
-			ret = am65_cpsw_nuss_rx_packets(common, flow, cpu);
-			if (ret) {
-				if (ret == AM65_CPSW_XDP_REDIRECT)
-					xdp_redirect = true;
+			ret = am65_cpsw_nuss_rx_packets(common, flow, cpu,
+							&xdp_state);
+			xdp_state_or |= xdp_state;
+			if (ret)
 				break;
-			}
 			num_rx++;
 		}
 
@@ -1251,7 +1266,7 @@ static int am65_cpsw_nuss_rx_poll(struct napi_struct *napi_rx, int budget)
 			break;
 	}
 
-	if (xdp_redirect)
+	if (xdp_state_or & AM65_CPSW_XDP_REDIRECT)
 		xdp_do_flush();
 
 	dev_dbg(common->dev, "%s num_rx:%d %d\n", __func__, num_rx, budget);
@@ -1918,12 +1933,13 @@ static int am65_cpsw_ndo_bpf(struct net_device *ndev, struct netdev_bpf *bpf)
 static int am65_cpsw_ndo_xdp_xmit(struct net_device *ndev, int n,
 				  struct xdp_frame **frames, u32 flags)
 {
+	struct am65_cpsw_common *common = am65_ndev_to_common(ndev);
 	struct am65_cpsw_tx_chn *tx_chn;
 	struct netdev_queue *netif_txq;
 	int cpu = smp_processor_id();
 	int i, nxmit = 0;
 
-	tx_chn = &am65_ndev_to_common(ndev)->tx_chns[cpu % AM65_CPSW_MAX_TX_QUEUES];
+	tx_chn = &common->tx_chns[cpu % common->tx_ch_num];
 	netif_txq = netdev_get_tx_queue(ndev, tx_chn->id);
 
 	__netif_tx_lock(netif_txq, cpu);

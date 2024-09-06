@@ -18,7 +18,7 @@ struct ath11k_hif_ops {
 	int (*start)(struct ath11k_base *ab);
 	void (*stop)(struct ath11k_base *ab);
 	int (*power_up)(struct ath11k_base *ab);
-	void (*power_down)(struct ath11k_base *ab, bool is_suspend);
+	void (*power_down)(struct ath11k_base *ab);
 	int (*suspend)(struct ath11k_base *ab);
 	int (*resume)(struct ath11k_base *ab);
 	int (*map_service_to_pipe)(struct ath11k_base *ab, u16 service_id,
@@ -67,18 +67,12 @@ static inline void ath11k_hif_irq_disable(struct ath11k_base *ab)
 
 static inline int ath11k_hif_power_up(struct ath11k_base *ab)
 {
-	if (!ab->hif.ops->power_up)
-		return -EOPNOTSUPP;
-
 	return ab->hif.ops->power_up(ab);
 }
 
-static inline void ath11k_hif_power_down(struct ath11k_base *ab, bool is_suspend)
+static inline void ath11k_hif_power_down(struct ath11k_base *ab)
 {
-	if (!ab->hif.ops->power_down)
-		return;
-
-	ab->hif.ops->power_down(ab, is_suspend);
+	ab->hif.ops->power_down(ab);
 }
 
 static inline int ath11k_hif_suspend(struct ath11k_base *ab)
