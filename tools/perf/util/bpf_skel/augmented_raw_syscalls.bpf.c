@@ -10,6 +10,9 @@
 #include <bpf/bpf_helpers.h>
 #include <linux/limits.h>
 
+#define PERF_ALIGN(x, a)        __PERF_ALIGN_MASK(x, (typeof(x))(a)-1)
+#define __PERF_ALIGN_MASK(x, mask)      (((x)+(mask))&~(mask))
+
 /**
  * is_power_of_2() - check if a value is a power of two
  * @n: the value to check
@@ -66,19 +69,6 @@ struct syscall_exit_args {
 	long		   ret;
 };
 
-struct augmented_arg {
-	unsigned int	size;
-	int		err;
-	char		value[PATH_MAX];
-};
-
-struct pids_filtered {
-	__uint(type, BPF_MAP_TYPE_HASH);
-	__type(key, pid_t);
-	__type(value, bool);
-	__uint(max_entries, 64);
-} pids_filtered SEC(".maps");
-
 /*
  * Desired design of maximum size and alignment (see RFC2553)
  */
@@ -105,15 +95,25 @@ struct sockaddr_storage {
 	};
 };
 
-struct augmented_args_payload {
-       struct syscall_enter_args args;
-       union {
-		struct {
-			struct augmented_arg arg, arg2;
-		};
+struct augmented_arg {
+	unsigned int	size;
+	int		err;
+	union {
+		char   value[PATH_MAX];
 		struct sockaddr_storage saddr;
-		char   __data[sizeof(struct augmented_arg)];
 	};
+};
+
+struct pids_filtered {
+	__uint(type, BPF_MAP_TYPE_HASH);
+	__type(key, pid_t);
+	__type(value, bool);
+	__uint(max_entries, 64);
+} pids_filtered SEC(".maps");
+
+struct augmented_args_payload {
+	struct syscall_enter_args args;
+	struct augmented_arg arg, arg2; // We have to reserve space for two arguments (rename, etc)
 };
 
 // We need more tmp space than the BPF stack can give us
@@ -182,15 +182,17 @@ int sys_enter_connect(struct syscall_enter_args *args)
 	struct augmented_args_payload *augmented_args = augmented_args_payload();
 	const void *sockaddr_arg = (const void *)args->args[1];
 	unsigned int socklen = args->args[2];
-	unsigned int len = sizeof(augmented_args->args);
+	unsigned int len = sizeof(u64) + sizeof(augmented_args->args); // the size + err in all 'augmented_arg' structs
 
         if (augmented_args == NULL)
                 return 1; /* Failure: don't filter */
 
-	_Static_assert(is_power_of_2(sizeof(augmented_args->saddr)), "sizeof(augmented_args->saddr) needs to be a power of two");
-	socklen &= sizeof(augmented_args->saddr) - 1;
+	_Static_assert(is_power_of_2(sizeof(augmented_args->arg.saddr)), "sizeof(augmented_args->arg.saddr) needs to be a power of two");
+	socklen &= sizeof(augmented_args->arg.saddr) - 1;
 
-	bpf_probe_read_user(&augmented_args->saddr, socklen, sockaddr_arg);
+	bpf_probe_read_user(&augmented_args->arg.saddr, socklen, sockaddr_arg);
+	augmented_args->arg.size = socklen;
+	augmented_args->arg.err = 0;
 
 	return augmented__output(args, augmented_args, len + socklen);
 }
@@ -201,14 +203,14 @@ int sys_enter_sendto(struct syscall_enter_args *args)
 	struct augmented_args_payload *augmented_args = augmented_args_payload();
 	const void *sockaddr_arg = (const void *)args->args[4];
 	unsigned int socklen = args->args[5];
-	unsigned int len = sizeof(augmented_args->args);
+	unsigned int len = sizeof(u64) + sizeof(augmented_args->args); // the size + err in all 'augmented_arg' structs
 
         if (augmented_args == NULL)
                 return 1; /* Failure: don't filter */
 
-	socklen &= sizeof(augmented_args->saddr) - 1;
+	socklen &= sizeof(augmented_args->arg.saddr) - 1;
 
-	bpf_probe_read_user(&augmented_args->saddr, socklen, sockaddr_arg);
+	bpf_probe_read_user(&augmented_args->arg.saddr, socklen, sockaddr_arg);
 
 	return augmented__output(args, augmented_args, len + socklen);
 }
@@ -249,13 +251,23 @@ int sys_enter_rename(struct syscall_enter_args *args)
 	struct augmented_args_payload *augmented_args = augmented_args_payload();
 	const void *oldpath_arg = (const void *)args->args[0],
 		   *newpath_arg = (const void *)args->args[1];
-	unsigned int len = sizeof(augmented_args->args), oldpath_len;
+	unsigned int len = sizeof(augmented_args->args), oldpath_len, newpath_len;
 
         if (augmented_args == NULL)
                 return 1; /* Failure: don't filter */
 
+	len += 2 * sizeof(u64); // The overhead of size and err, just before the payload...
+
 	oldpath_len = augmented_arg__read_str(&augmented_args->arg, oldpath_arg, sizeof(augmented_args->arg.value));
-	len += oldpath_len + augmented_arg__read_str((void *)(&augmented_args->arg) + oldpath_len, newpath_arg, sizeof(augmented_args->arg.value));
+	augmented_args->arg.size = PERF_ALIGN(oldpath_len + 1, sizeof(u64));
+	len += augmented_args->arg.size;
+
+	struct augmented_arg *arg2 = (void *)&augmented_args->arg.value + augmented_args->arg.size;
+
+	newpath_len = augmented_arg__read_str(arg2, newpath_arg, sizeof(augmented_args->arg.value));
+	arg2->size = newpath_len;
+
+	len += newpath_len;
 
 	return augmented__output(args, augmented_args, len);
 }
@@ -266,13 +278,23 @@ int sys_enter_renameat2(struct syscall_enter_args *args)
 	struct augmented_args_payload *augmented_args = augmented_args_payload();
 	const void *oldpath_arg = (const void *)args->args[1],
 		   *newpath_arg = (const void *)args->args[3];
-	unsigned int len = sizeof(augmented_args->args), oldpath_len;
+	unsigned int len = sizeof(augmented_args->args), oldpath_len, newpath_len;
 
         if (augmented_args == NULL)
                 return 1; /* Failure: don't filter */
 
+	len += 2 * sizeof(u64); // The overhead of size and err, just before the payload...
+
 	oldpath_len = augmented_arg__read_str(&augmented_args->arg, oldpath_arg, sizeof(augmented_args->arg.value));
-	len += oldpath_len + augmented_arg__read_str((void *)(&augmented_args->arg) + oldpath_len, newpath_arg, sizeof(augmented_args->arg.value));
+	augmented_args->arg.size = PERF_ALIGN(oldpath_len + 1, sizeof(u64));
+	len += augmented_args->arg.size;
+
+	struct augmented_arg *arg2 = (void *)&augmented_args->arg.value + augmented_args->arg.size;
+
+	newpath_len = augmented_arg__read_str(arg2, newpath_arg, sizeof(augmented_args->arg.value));
+	arg2->size = newpath_len;
+
+	len += newpath_len;
 
 	return augmented__output(args, augmented_args, len);
 }
@@ -293,26 +315,26 @@ int sys_enter_perf_event_open(struct syscall_enter_args *args)
 {
 	struct augmented_args_payload *augmented_args = augmented_args_payload();
 	const struct perf_event_attr_size *attr = (const struct perf_event_attr_size *)args->args[0], *attr_read;
-	unsigned int len = sizeof(augmented_args->args);
+	unsigned int len = sizeof(u64) + sizeof(augmented_args->args); // the size + err in all 'augmented_arg' structs
 
         if (augmented_args == NULL)
 		goto failure;
 
-	if (bpf_probe_read_user(&augmented_args->__data, sizeof(*attr), attr) < 0)
+	if (bpf_probe_read_user(&augmented_args->arg.value, sizeof(*attr), attr) < 0)
 		goto failure;
 
-	attr_read = (const struct perf_event_attr_size *)augmented_args->__data;
+	attr_read = (const struct perf_event_attr_size *)augmented_args->arg.value;
 
 	__u32 size = attr_read->size;
 
 	if (!size)
 		size = PERF_ATTR_SIZE_VER0;
 
-	if (size > sizeof(augmented_args->__data))
+	if (size > sizeof(augmented_args->arg.value))
                 goto failure;
 
 	// Now that we read attr->size and tested it against the size limits, read it completely
-	if (bpf_probe_read_user(&augmented_args->__data, size, attr) < 0)
+	if (bpf_probe_read_user(&augmented_args->arg.value, size, attr) < 0)
 		goto failure;
 
 	return augmented__output(args, augmented_args, len + size);
@@ -325,16 +347,16 @@ int sys_enter_clock_nanosleep(struct syscall_enter_args *args)
 {
 	struct augmented_args_payload *augmented_args = augmented_args_payload();
 	const void *rqtp_arg = (const void *)args->args[2];
-	unsigned int len = sizeof(augmented_args->args);
+	unsigned int len = sizeof(u64) + sizeof(augmented_args->args); // the size + err in all 'augmented_arg' structs
 	__u32 size = sizeof(struct timespec64);
 
         if (augmented_args == NULL)
 		goto failure;
 
-	if (size > sizeof(augmented_args->__data))
+	if (size > sizeof(augmented_args->arg.value))
                 goto failure;
 
-	bpf_probe_read_user(&augmented_args->__data, size, rqtp_arg);
+	bpf_probe_read_user(&augmented_args->arg.value, size, rqtp_arg);
 
 	return augmented__output(args, augmented_args, len + size);
 failure:
@@ -352,10 +374,10 @@ int sys_enter_nanosleep(struct syscall_enter_args *args)
         if (augmented_args == NULL)
 		goto failure;
 
-	if (size > sizeof(augmented_args->__data))
+	if (size > sizeof(augmented_args->arg.value))
                 goto failure;
 
-	bpf_probe_read_user(&augmented_args->__data, size, req_arg);
+	bpf_probe_read_user(&augmented_args->arg.value, size, req_arg);
 
 	return augmented__output(args, augmented_args, len + size);
 failure:
