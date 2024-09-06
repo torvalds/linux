@@ -6,7 +6,6 @@
  * Author: Jingoo Han  <jg1.han@samsung.com>
  */
 
-#include <linux/backlight.h>
 #include <linux/delay.h>
 #include <linux/fb.h>
 #include <linux/lcd.h>
