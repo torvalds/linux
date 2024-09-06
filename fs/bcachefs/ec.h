@@ -192,6 +192,9 @@ struct ec_stripe_head {
 	unsigned		algo;
 	unsigned		redundancy;
 	enum bch_watermark	watermark;
+	bool			insufficient_devs;
+
+	unsigned long		rw_devs_change_count;
 
 	u64			nr_created;
 
