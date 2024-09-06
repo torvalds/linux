@@ -24,7 +24,7 @@
 #include <linux/slab.h>
 #include <asm/mach/sharpsl_param.h>
 
-#define POWER_IS_ON(pwr)	((pwr) <= FB_BLANK_NORMAL)
+#define POWER_IS_ON(pwr)	((pwr) <= LCD_POWER_REDUCED)
 
 /* Register Addresses */
 #define RESCTL_ADRS     0x00
@@ -455,7 +455,7 @@ static int corgi_lcd_suspend(struct device *dev)
 
 	corgibl_flags |= CORGIBL_SUSPENDED;
 	corgi_bl_set_intensity(lcd, 0);
-	corgi_lcd_set_power(lcd->lcd_dev, FB_BLANK_POWERDOWN);
+	corgi_lcd_set_power(lcd->lcd_dev, LCD_POWER_OFF);
 	return 0;
 }
 
@@ -464,7 +464,7 @@ static int corgi_lcd_resume(struct device *dev)
 	struct corgi_lcd *lcd = dev_get_drvdata(dev);
 
 	corgibl_flags &= ~CORGIBL_SUSPENDED;
-	corgi_lcd_set_power(lcd->lcd_dev, FB_BLANK_UNBLANK);
+	corgi_lcd_set_power(lcd->lcd_dev, LCD_POWER_ON);
 	backlight_update_status(lcd->bl_dev);
 	return 0;
 }
@@ -513,7 +513,7 @@ static int corgi_lcd_probe(struct spi_device *spi)
 	if (IS_ERR(lcd->lcd_dev))
 		return PTR_ERR(lcd->lcd_dev);
 
-	lcd->power = FB_BLANK_POWERDOWN;
+	lcd->power = LCD_POWER_OFF;
 	lcd->mode = (pdata) ? pdata->init_mode : CORGI_LCD_MODE_VGA;
 
 	memset(&props, 0, sizeof(struct backlight_properties));
@@ -535,7 +535,7 @@ static int corgi_lcd_probe(struct spi_device *spi)
 	lcd->kick_battery = pdata->kick_battery;
 
 	spi_set_drvdata(spi, lcd);
-	corgi_lcd_set_power(lcd->lcd_dev, FB_BLANK_UNBLANK);
+	corgi_lcd_set_power(lcd->lcd_dev, LCD_POWER_ON);
 	backlight_update_status(lcd->bl_dev);
 
 	lcd->limit_mask = pdata->limit_mask;
@@ -550,7 +550,7 @@ static void corgi_lcd_remove(struct spi_device *spi)
 	lcd->bl_dev->props.power = BACKLIGHT_POWER_ON;
 	lcd->bl_dev->props.brightness = 0;
 	backlight_update_status(lcd->bl_dev);
-	corgi_lcd_set_power(lcd->lcd_dev, FB_BLANK_POWERDOWN);
+	corgi_lcd_set_power(lcd->lcd_dev, LCD_POWER_OFF);
 }
 
 static struct spi_driver corgi_lcd_driver = {
