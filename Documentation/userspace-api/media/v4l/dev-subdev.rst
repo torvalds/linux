@@ -509,7 +509,7 @@ source pads.
 .. _subdev-routing:
 
 Streams, multiplexed media pads and internal routing
-----------------------------------------------------
+====================================================
 
 Simple V4L2 sub-devices do not support multiple, unrelated video streams,
 and only a single stream can pass through a media link and a media pad.
@@ -534,7 +534,7 @@ does not support streams, then only stream 0 of source end may be captured.
 There may be additional limitations specific to the sink device.
 
 Understanding streams
-^^^^^^^^^^^^^^^^^^^^^
+---------------------
 
 A stream is a stream of content (e.g. pixel data or metadata) flowing through
 the media pipeline from a source (e.g. a sensor) towards the final sink (e.g. a
@@ -554,7 +554,7 @@ sub-device and a (pad, stream) pair. For sub-devices that do not support
 multiplexed streams the 'stream' field is always 0.
 
 Interaction between routes, streams, formats and selections
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+-----------------------------------------------------------
 
 The addition of streams to the V4L2 sub-device interface moves the sub-device
 formats and selections from pads to (pad, stream) pairs. Besides the
@@ -573,7 +573,7 @@ are independent of similar configurations on other streams. This is
 subject to change in the future.
 
 Device types and routing setup
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+------------------------------
 
 Different kinds of sub-devices have differing behaviour for route activation,
 depending on the hardware. In all cases, however, only routes that have the
@@ -596,7 +596,7 @@ called on the sub-device. Such newly created routes have the device's default
 configuration for format and selection rectangles.
 
 Configuring streams
-^^^^^^^^^^^^^^^^^^^
+-------------------
 
 The configuration of the streams is done individually for each sub-device and
 the validity of the streams between sub-devices is validated when the pipeline
@@ -619,7 +619,7 @@ There are three steps in configuring the streams:
    :ref:`VIDIOC_SUBDEV_S_ROUTING <VIDIOC_SUBDEV_G_ROUTING>` ioctl.
 
 Multiplexed streams setup example
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+---------------------------------
 
 A simple example of a multiplexed stream setup might be as follows:
 
