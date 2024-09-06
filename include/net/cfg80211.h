@@ -4837,9 +4837,9 @@ struct cfg80211_ops {
 	int	(*start_radar_detection)(struct wiphy *wiphy,
 					 struct net_device *dev,
 					 struct cfg80211_chan_def *chandef,
-					 u32 cac_time_ms);
+					 u32 cac_time_ms, int link_id);
 	void	(*end_cac)(struct wiphy *wiphy,
-				struct net_device *dev);
+			   struct net_device *dev, unsigned int link_id);
 	int	(*update_ft_ies)(struct wiphy *wiphy, struct net_device *dev,
 				 struct cfg80211_update_ft_ies_params *ftie);
 	int	(*crit_proto_start)(struct wiphy *wiphy,
@@ -8741,6 +8741,7 @@ void cfg80211_sta_opmode_change_notify(struct net_device *dev, const u8 *mac,
  * @chandef: chandef for the current channel
  * @event: type of event
  * @gfp: context flags
+ * @link_id: valid link_id for MLO operation or 0 otherwise.
  *
  * This function is called when a Channel availability check (CAC) is finished
  * or aborted. This must be called to notify the completion of a CAC process,
@@ -8748,7 +8749,8 @@ void cfg80211_sta_opmode_change_notify(struct net_device *dev, const u8 *mac,
  */
 void cfg80211_cac_event(struct net_device *netdev,
 			const struct cfg80211_chan_def *chandef,
-			enum nl80211_radar_event event, gfp_t gfp);
+			enum nl80211_radar_event event, gfp_t gfp,
+			unsigned int link_id);
 
 /**
  * cfg80211_background_cac_abort - Channel Availability Check offchan abort event

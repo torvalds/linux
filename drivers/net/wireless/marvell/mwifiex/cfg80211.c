@@ -4205,7 +4205,7 @@ static int
 mwifiex_cfg80211_start_radar_detection(struct wiphy *wiphy,
 				       struct net_device *dev,
 				       struct cfg80211_chan_def *chandef,
-				       u32 cac_time_ms)
+				       u32 cac_time_ms, int link_id)
 {
 	struct mwifiex_private *priv = mwifiex_netdev_get_priv(dev);
 	struct mwifiex_radar_params radar_params;

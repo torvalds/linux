@@ -1110,18 +1110,19 @@ EXPORT_SYMBOL(__cfg80211_radar_event);
 
 void cfg80211_cac_event(struct net_device *netdev,
 			const struct cfg80211_chan_def *chandef,
-			enum nl80211_radar_event event, gfp_t gfp)
+			enum nl80211_radar_event event, gfp_t gfp,
+			unsigned int link_id)
 {
 	struct wireless_dev *wdev = netdev->ieee80211_ptr;
 	struct wiphy *wiphy = wdev->wiphy;
 	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wiphy);
 	unsigned long timeout;
 
-	/* not yet supported */
-	if (wdev->valid_links)
+	if (WARN_ON(wdev->valid_links &&
+		    !(wdev->valid_links & BIT(link_id))))
 		return;
 
-	trace_cfg80211_cac_event(netdev, event);
+	trace_cfg80211_cac_event(netdev, event, link_id);
 
 	if (WARN_ON(!wdev->links[0].cac_started &&
 		    event != NL80211_RADAR_CAC_STARTED))
