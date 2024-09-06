@@ -53,10 +53,6 @@ static int platform_lcd_set_power(struct lcd_device *lcd, int power)
 static int platform_lcd_match(struct lcd_device *lcd, struct fb_info *info)
 {
 	struct platform_lcd *plcd = to_our_lcd(lcd);
-	struct plat_lcd_data *pdata = plcd->pdata;
-
-	if (pdata->match_fb)
-		return pdata->match_fb(pdata, info);
 
 	return plcd->us->parent == info->device;
 }
