@@ -260,8 +260,8 @@ int sys_enter_rename(struct syscall_enter_args *args)
 	return augmented__output(args, augmented_args, len);
 }
 
-SEC("tp/syscalls/sys_enter_renameat")
-int sys_enter_renameat(struct syscall_enter_args *args)
+SEC("tp/syscalls/sys_enter_renameat2")
+int sys_enter_renameat2(struct syscall_enter_args *args)
 {
 	struct augmented_args_payload *augmented_args = augmented_args_payload();
 	const void *oldpath_arg = (const void *)args->args[1],
