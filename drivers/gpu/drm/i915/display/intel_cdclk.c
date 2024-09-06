@@ -2053,8 +2053,9 @@ static void _bxt_set_cdclk(struct drm_i915_private *dev_priv,
 			dg2_cdclk_squash_program(dev_priv, 0);
 
 		icl_cdclk_pll_update(dev_priv, vco);
-	} else
+	} else {
 		bxt_cdclk_pll_update(dev_priv, vco);
+	}
 
 	if (HAS_CDCLK_SQUASH(dev_priv)) {
 		u16 waveform = cdclk_squash_waveform(dev_priv, cdclk);
