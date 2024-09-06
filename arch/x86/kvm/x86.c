@@ -8620,7 +8620,7 @@ static gva_t emulator_get_untagged_addr(struct x86_emulate_ctxt *ctxt,
 }
 
 static bool emulator_is_canonical_addr(struct x86_emulate_ctxt *ctxt,
-				       gva_t addr)
+				       gva_t addr, unsigned int flags)
 {
 	return !is_noncanonical_address(addr, emul_to_vcpu(ctxt));
 }
