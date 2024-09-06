@@ -190,7 +190,7 @@ static bool ionic_rx_buf_recycle(struct ionic_queue *q,
 	if (page_to_nid(buf_info->page) != numa_mem_id())
 		return false;
 
-	size = ALIGN(len, q->xdp_rxq_info ? IONIC_PAGE_SIZE : IONIC_PAGE_SPLIT_SZ);
+	size = ALIGN(len, q->xdp_prog ? IONIC_PAGE_SIZE : IONIC_PAGE_SPLIT_SZ);
 	buf_info->page_offset += size;
 	if (buf_info->page_offset >= IONIC_PAGE_SIZE)
 		return false;
@@ -639,8 +639,7 @@ static void ionic_rx_clean(struct ionic_queue *q,
 	struct net_device *netdev = q->lif->netdev;
 	struct ionic_qcq *qcq = q_to_qcq(q);
 	struct ionic_rx_stats *stats;
-	struct bpf_prog *xdp_prog;
-	unsigned int headroom;
+	unsigned int headroom = 0;
 	struct sk_buff *skb;
 	bool synced = false;
 	bool use_copybreak;
@@ -664,14 +663,13 @@ static void ionic_rx_clean(struct ionic_queue *q,
 	stats->pkts++;
 	stats->bytes += len;
 
-	xdp_prog = READ_ONCE(q->lif->xdp_prog);
-	if (xdp_prog) {
-		if (ionic_run_xdp(stats, netdev, xdp_prog, q, desc_info->bufs, len))
+	if (q->xdp_prog) {
+		if (ionic_run_xdp(stats, netdev, q->xdp_prog, q, desc_info->bufs, len))
 			return;
 		synced = true;
+		headroom = XDP_PACKET_HEADROOM;
 	}
 
-	headroom = q->xdp_rxq_info ? XDP_PACKET_HEADROOM : 0;
 	use_copybreak = len <= q->lif->rx_copybreak;
 	if (use_copybreak)
 		skb = ionic_rx_copybreak(netdev, q, desc_info,
@@ -814,7 +812,7 @@ void ionic_rx_fill(struct ionic_queue *q)
 	len = netdev->mtu + VLAN_ETH_HLEN;
 
 	for (i = n_fill; i; i--) {
-		unsigned int headroom;
+		unsigned int headroom = 0;
 		unsigned int buf_len;
 
 		nfrags = 0;
@@ -835,11 +833,12 @@ void ionic_rx_fill(struct ionic_queue *q)
 		 * XDP uses space in the first buffer, so account for
 		 * head room, tail room, and ip header in the first frag size.
 		 */
-		headroom = q->xdp_rxq_info ? XDP_PACKET_HEADROOM : 0;
-		if (q->xdp_rxq_info)
+		if (q->xdp_prog) {
 			buf_len = IONIC_XDP_MAX_LINEAR_MTU + VLAN_ETH_HLEN;
-		else
+			headroom = XDP_PACKET_HEADROOM;
+		} else {
 			buf_len = ionic_rx_buf_size(buf_info);
+		}
 		frag_len = min_t(u16, len, buf_len);
 
 		desc->addr = cpu_to_le64(ionic_rx_buf_pa(buf_info) + headroom);

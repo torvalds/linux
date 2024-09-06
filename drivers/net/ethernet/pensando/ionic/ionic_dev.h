@@ -238,9 +238,8 @@ struct ionic_queue {
 	unsigned int index;
 	unsigned int num_descs;
 	unsigned int max_sg_elems;
+
 	u64 features;
-	unsigned int type;
-	unsigned int hw_index;
 	unsigned int hw_type;
 	bool xdp_flush;
 	union {
@@ -261,7 +260,11 @@ struct ionic_queue {
 		struct ionic_rxq_sg_desc *rxq_sgl;
 	};
 	struct xdp_rxq_info *xdp_rxq_info;
+	struct bpf_prog *xdp_prog;
 	struct ionic_queue *partner;
+
+	unsigned int type;
+	unsigned int hw_index;
 	dma_addr_t base_pa;
 	dma_addr_t cmb_base_pa;
 	dma_addr_t sg_base_pa;

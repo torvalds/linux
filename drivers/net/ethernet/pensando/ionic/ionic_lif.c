@@ -46,7 +46,7 @@ static int ionic_start_queues(struct ionic_lif *lif);
 static void ionic_stop_queues(struct ionic_lif *lif);
 static void ionic_lif_queue_identify(struct ionic_lif *lif);
 
-static int ionic_xdp_queues_config(struct ionic_lif *lif);
+static int ionic_xdp_rxqs_update(struct ionic_lif *lif);
 static void ionic_xdp_unregister_rxq_info(struct ionic_queue *q);
 
 static void ionic_dim_work(struct work_struct *work)
@@ -2143,7 +2143,7 @@ static int ionic_txrx_enable(struct ionic_lif *lif)
 	int derr = 0;
 	int i, err;
 
-	err = ionic_xdp_queues_config(lif);
+	err = ionic_xdp_rxqs_update(lif);
 	if (err)
 		return err;
 
@@ -2192,7 +2192,7 @@ err_out:
 		derr = ionic_qcq_disable(lif, lif->rxqcqs[i], derr);
 	}
 
-	ionic_xdp_queues_config(lif);
+	ionic_xdp_rxqs_update(lif);
 
 	return err;
 }
@@ -2698,35 +2698,35 @@ err_out:
 	return err;
 }
 
-static int ionic_xdp_queues_config(struct ionic_lif *lif)
+static int ionic_xdp_rxqs_update(struct ionic_lif *lif)
 {
+	struct bpf_prog *xdp_prog;
 	unsigned int i;
 	int err;
 
 	if (!lif->rxqcqs)
 		return 0;
 
-	/* There's no need to rework memory if not going to/from NULL program.
-	 * If there is no lif->xdp_prog, there should also be no q.xdp_rxq_info
-	 * This way we don't need to keep an *xdp_prog in every queue struct.
-	 */
-	if (!lif->xdp_prog == !lif->rxqcqs[0]->q.xdp_rxq_info)
-		return 0;
-
+	xdp_prog = READ_ONCE(lif->xdp_prog);
 	for (i = 0; i < lif->ionic->nrxqs_per_lif && lif->rxqcqs[i]; i++) {
 		struct ionic_queue *q = &lif->rxqcqs[i]->q;
 
-		if (q->xdp_rxq_info) {
+		if (q->xdp_prog) {
 			ionic_xdp_unregister_rxq_info(q);
-			continue;
+			q->xdp_prog = NULL;
 		}
 
-		err = ionic_xdp_register_rxq_info(q, lif->rxqcqs[i]->napi.napi_id);
-		if (err) {
-			dev_err(lif->ionic->dev, "failed to register RX queue %d info for XDP, err %d\n",
-				i, err);
-			goto err_out;
+		if (xdp_prog) {
+			unsigned int napi_id = lif->rxqcqs[i]->napi.napi_id;
+
+			err = ionic_xdp_register_rxq_info(q, napi_id);
+			if (err) {
+				dev_err(lif->ionic->dev, "failed to register RX queue %d info for XDP, err %d\n",
+					i, err);
+				goto err_out;
+			}
 		}
+		q->xdp_prog = xdp_prog;
 	}
 
 	return 0;
@@ -2878,6 +2878,7 @@ static void ionic_swap_queues(struct ionic_qcq *a, struct ionic_qcq *b)
 	swap(a->q.base,       b->q.base);
 	swap(a->q.base_pa,    b->q.base_pa);
 	swap(a->q.info,       b->q.info);
+	swap(a->q.xdp_prog,   b->q.xdp_prog);
 	swap(a->q.xdp_rxq_info, b->q.xdp_rxq_info);
 	swap(a->q.partner,    b->q.partner);
 	swap(a->q_base,       b->q_base);
