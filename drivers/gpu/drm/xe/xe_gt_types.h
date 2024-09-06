@@ -310,12 +310,6 @@ struct xe_gt {
 	/** @eclass: per hardware engine class interface on the GT */
 	struct xe_hw_engine_class_intf  eclass[XE_ENGINE_CLASS_MAX];
 
-	/** @pcode: GT's PCODE */
-	struct {
-		/** @pcode.lock: protecting GT's PCODE mailbox data */
-		struct mutex lock;
-	} pcode;
-
 	/** @sysfs: sysfs' kobj used by xe_gt_sysfs */
 	struct kobject *sysfs;
 
