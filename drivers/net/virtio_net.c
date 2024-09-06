@@ -977,22 +977,6 @@ static void *virtnet_rq_alloc(struct receive_queue *rq, u32 size, gfp_t gfp)
 	return buf;
 }
 
-static void virtnet_rq_set_premapped(struct virtnet_info *vi)
-{
-	int i;
-
-	/* disable for big mode */
-	if (!vi->mergeable_rx_bufs && vi->big_packets)
-		return;
-
-	for (i = 0; i < vi->max_queue_pairs; i++) {
-		if (virtqueue_set_dma_premapped(vi->rq[i].vq))
-			continue;
-
-		vi->rq[i].do_dma = true;
-	}
-}
-
 static void virtnet_rq_unmap_free_buf(struct virtqueue *vq, void *buf)
 {
 	struct virtnet_info *vi = vq->vdev->priv;
@@ -6104,8 +6088,6 @@ static int init_vqs(struct virtnet_info *vi)
 	ret = virtnet_find_vqs(vi);
 	if (ret)
 		goto err_free;
-
-	virtnet_rq_set_premapped(vi);
 
 	cpus_read_lock();
 	virtnet_set_affinity(vi);
