@@ -481,9 +481,9 @@ int ionic_xdp_xmit(struct net_device *netdev, int n,
 	return nxmit;
 }
 
-static void ionic_xdp_rx_put_bufs(struct ionic_queue *q,
-				  struct ionic_buf_info *buf_info,
-				  int nbufs)
+static void ionic_xdp_rx_unlink_bufs(struct ionic_queue *q,
+				     struct ionic_buf_info *buf_info,
+				     int nbufs)
 {
 	int i;
 
@@ -600,7 +600,7 @@ static bool ionic_run_xdp(struct ionic_rx_stats *stats,
 			netdev_dbg(netdev, "tx ionic_xdp_post_frame err %d\n", err);
 			goto out_xdp_abort;
 		}
-		ionic_xdp_rx_put_bufs(rxq, buf_info, nbufs);
+		ionic_xdp_rx_unlink_bufs(rxq, buf_info, nbufs);
 		stats->xdp_tx++;
 
 		/* the Tx completion will free the buffers */
@@ -612,7 +612,7 @@ static bool ionic_run_xdp(struct ionic_rx_stats *stats,
 			netdev_dbg(netdev, "xdp_do_redirect err %d\n", err);
 			goto out_xdp_abort;
 		}
-		ionic_xdp_rx_put_bufs(rxq, buf_info, nbufs);
+		ionic_xdp_rx_unlink_bufs(rxq, buf_info, nbufs);
 		rxq->xdp_flush = true;
 		stats->xdp_redirect++;
 		break;
