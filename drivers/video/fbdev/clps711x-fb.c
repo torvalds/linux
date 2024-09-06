@@ -168,9 +168,9 @@ static int clps711x_lcd_get_power(struct lcd_device *lcddev)
 
 	if (!IS_ERR_OR_NULL(cfb->lcd_pwr))
 		if (!regulator_is_enabled(cfb->lcd_pwr))
-			return FB_BLANK_NORMAL;
+			return LCD_POWER_REDUCED;
 
-	return FB_BLANK_UNBLANK;
+	return LCD_POWER_ON;
 }
 
 static int clps711x_lcd_set_power(struct lcd_device *lcddev, int blank)
@@ -178,7 +178,7 @@ static int clps711x_lcd_set_power(struct lcd_device *lcddev, int blank)
 	struct clps711x_fb_info *cfb = dev_get_drvdata(&lcddev->dev);
 
 	if (!IS_ERR_OR_NULL(cfb->lcd_pwr)) {
-		if (blank == FB_BLANK_UNBLANK) {
+		if (blank == LCD_POWER_ON) {
 			if (!regulator_is_enabled(cfb->lcd_pwr))
 				return regulator_enable(cfb->lcd_pwr);
 		} else {
