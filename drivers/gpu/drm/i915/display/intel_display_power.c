@@ -1421,7 +1421,7 @@ static void skl_display_core_init(struct drm_i915_private *dev_priv,
 	struct i915_power_domains *power_domains = &display->power.domains;
 	struct i915_power_well *well;
 
-	gen9_set_dc_state(dev_priv, DC_STATE_DISABLE);
+	gen9_set_dc_state(display, DC_STATE_DISABLE);
 
 	/* enable PCH reset handshake */
 	intel_pch_reset_handshake(dev_priv, !HAS_PCH_NOP(dev_priv));
@@ -1457,7 +1457,7 @@ static void skl_display_core_uninit(struct drm_i915_private *dev_priv)
 	if (!HAS_DISPLAY(dev_priv))
 		return;
 
-	gen9_disable_dc_states(dev_priv);
+	gen9_disable_dc_states(display);
 	/* TODO: disable DMC program */
 
 	gen9_dbuf_disable(dev_priv);
@@ -1489,7 +1489,7 @@ static void bxt_display_core_init(struct drm_i915_private *dev_priv, bool resume
 	struct i915_power_domains *power_domains = &display->power.domains;
 	struct i915_power_well *well;
 
-	gen9_set_dc_state(dev_priv, DC_STATE_DISABLE);
+	gen9_set_dc_state(display, DC_STATE_DISABLE);
 
 	/*
 	 * NDE_RSTWRN_OPT RST PCH Handshake En must always be 0b on BXT
@@ -1527,7 +1527,7 @@ static void bxt_display_core_uninit(struct drm_i915_private *dev_priv)
 	if (!HAS_DISPLAY(dev_priv))
 		return;
 
-	gen9_disable_dc_states(dev_priv);
+	gen9_disable_dc_states(display);
 	/* TODO: disable DMC program */
 
 	gen9_dbuf_disable(dev_priv);
@@ -1632,7 +1632,7 @@ static void icl_display_core_init(struct drm_i915_private *dev_priv,
 	struct i915_power_domains *power_domains = &display->power.domains;
 	struct i915_power_well *well;
 
-	gen9_set_dc_state(dev_priv, DC_STATE_DISABLE);
+	gen9_set_dc_state(display, DC_STATE_DISABLE);
 
 	/* Wa_14011294188:ehl,jsl,tgl,rkl,adl-s */
 	if (INTEL_PCH_TYPE(dev_priv) >= PCH_TGP &&
@@ -1717,7 +1717,7 @@ static void icl_display_core_uninit(struct drm_i915_private *dev_priv)
 	if (!HAS_DISPLAY(dev_priv))
 		return;
 
-	gen9_disable_dc_states(dev_priv);
+	gen9_disable_dc_states(display);
 	intel_dmc_disable_program(dev_priv);
 
 	/* 1. Disable all display engine functions -> aready done */
@@ -2232,9 +2232,11 @@ static void intel_power_domains_verify_state(struct drm_i915_private *i915)
 
 void intel_display_power_suspend_late(struct drm_i915_private *i915)
 {
+	struct intel_display *display = &i915->display;
+
 	if (DISPLAY_VER(i915) >= 11 || IS_GEMINILAKE(i915) ||
 	    IS_BROXTON(i915)) {
-		bxt_enable_dc9(i915);
+		bxt_enable_dc9(display);
 	} else if (IS_HASWELL(i915) || IS_BROADWELL(i915)) {
 		hsw_enable_pc8(i915);
 	}
@@ -2246,10 +2248,12 @@ void intel_display_power_suspend_late(struct drm_i915_private *i915)
 
 void intel_display_power_resume_early(struct drm_i915_private *i915)
 {
+	struct intel_display *display = &i915->display;
+
 	if (DISPLAY_VER(i915) >= 11 || IS_GEMINILAKE(i915) ||
 	    IS_BROXTON(i915)) {
-		gen9_sanitize_dc_state(i915);
-		bxt_disable_dc9(i915);
+		gen9_sanitize_dc_state(display);
+		bxt_disable_dc9(display);
 	} else if (IS_HASWELL(i915) || IS_BROADWELL(i915)) {
 		hsw_disable_pc8(i915);
 	}
@@ -2261,12 +2265,14 @@ void intel_display_power_resume_early(struct drm_i915_private *i915)
 
 void intel_display_power_suspend(struct drm_i915_private *i915)
 {
+	struct intel_display *display = &i915->display;
+
 	if (DISPLAY_VER(i915) >= 11) {
 		icl_display_core_uninit(i915);
-		bxt_enable_dc9(i915);
+		bxt_enable_dc9(display);
 	} else if (IS_GEMINILAKE(i915) || IS_BROXTON(i915)) {
 		bxt_display_core_uninit(i915);
-		bxt_enable_dc9(i915);
+		bxt_enable_dc9(display);
 	} else if (IS_HASWELL(i915) || IS_BROADWELL(i915)) {
 		hsw_enable_pc8(i915);
 	}
@@ -2274,23 +2280,24 @@ void intel_display_power_suspend(struct drm_i915_private *i915)
 
 void intel_display_power_resume(struct drm_i915_private *i915)
 {
-	struct i915_power_domains *power_domains = &i915->display.power.domains;
+	struct intel_display *display = &i915->display;
+	struct i915_power_domains *power_domains = &display->power.domains;
 
 	if (DISPLAY_VER(i915) >= 11) {
-		bxt_disable_dc9(i915);
+		bxt_disable_dc9(display);
 		icl_display_core_init(i915, true);
 		if (intel_dmc_has_payload(i915)) {
 			if (power_domains->allowed_dc_mask & DC_STATE_EN_UPTO_DC6)
-				skl_enable_dc6(i915);
+				skl_enable_dc6(display);
 			else if (power_domains->allowed_dc_mask & DC_STATE_EN_UPTO_DC5)
-				gen9_enable_dc5(i915);
+				gen9_enable_dc5(display);
 		}
 	} else if (IS_GEMINILAKE(i915) || IS_BROXTON(i915)) {
-		bxt_disable_dc9(i915);
+		bxt_disable_dc9(display);
 		bxt_display_core_init(i915, true);
 		if (intel_dmc_has_payload(i915) &&
 		    (power_domains->allowed_dc_mask & DC_STATE_EN_UPTO_DC5))
-			gen9_enable_dc5(i915);
+			gen9_enable_dc5(display);
 	} else if (IS_HASWELL(i915) || IS_BROADWELL(i915)) {
 		hsw_disable_pc8(i915);
 	}
