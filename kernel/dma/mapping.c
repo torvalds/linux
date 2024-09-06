@@ -18,6 +18,9 @@
 #include "debug.h"
 #include "direct.h"
 
+#define CREATE_TRACE_POINTS
+#include <trace/events/dma.h>
+
 #if defined(CONFIG_ARCH_HAS_SYNC_DMA_FOR_DEVICE) || \
 	defined(CONFIG_ARCH_HAS_SYNC_DMA_FOR_CPU) || \
 	defined(CONFIG_ARCH_HAS_SYNC_DMA_FOR_CPU_ALL)
@@ -169,6 +172,8 @@ dma_addr_t dma_map_page_attrs(struct device *dev, struct page *page,
 	else
 		addr = ops->map_page(dev, page, offset, size, dir, attrs);
 	kmsan_handle_dma(page, offset, size, dir);
+	trace_dma_map_page(dev, page_to_phys(page) + offset, addr, size, dir,
+			   attrs);
 	debug_dma_map_page(dev, page, offset, size, dir, addr, attrs);
 
 	return addr;
@@ -188,6 +193,7 @@ void dma_unmap_page_attrs(struct device *dev, dma_addr_t addr, size_t size,
 		iommu_dma_unmap_page(dev, addr, size, dir, attrs);
 	else
 		ops->unmap_page(dev, addr, size, dir, attrs);
+	trace_dma_unmap_page(dev, addr, size, dir, attrs);
 	debug_dma_unmap_page(dev, addr, size, dir);
 }
 EXPORT_SYMBOL(dma_unmap_page_attrs);
@@ -213,6 +219,7 @@ static int __dma_map_sg_attrs(struct device *dev, struct scatterlist *sg,
 
 	if (ents > 0) {
 		kmsan_handle_dma_sg(sg, nents, dir);
+		trace_dma_map_sg(dev, sg, nents, ents, dir, attrs);
 		debug_dma_map_sg(dev, sg, nents, ents, dir, attrs);
 	} else if (WARN_ON_ONCE(ents != -EINVAL && ents != -ENOMEM &&
 				ents != -EIO && ents != -EREMOTEIO)) {
@@ -298,6 +305,7 @@ void dma_unmap_sg_attrs(struct device *dev, struct scatterlist *sg,
 	const struct dma_map_ops *ops = get_dma_ops(dev);
 
 	BUG_ON(!valid_dma_direction(dir));
+	trace_dma_unmap_sg(dev, sg, nents, dir, attrs);
 	debug_dma_unmap_sg(dev, sg, nents, dir);
 	if (dma_map_direct(dev, ops) ||
 	    arch_dma_unmap_sg_direct(dev, sg, nents))
@@ -327,6 +335,7 @@ dma_addr_t dma_map_resource(struct device *dev, phys_addr_t phys_addr,
 	else if (ops->map_resource)
 		addr = ops->map_resource(dev, phys_addr, size, dir, attrs);
 
+	trace_dma_map_resource(dev, phys_addr, addr, size, dir, attrs);
 	debug_dma_map_resource(dev, phys_addr, size, dir, addr, attrs);
 	return addr;
 }
@@ -344,6 +353,7 @@ void dma_unmap_resource(struct device *dev, dma_addr_t addr, size_t size,
 		iommu_dma_unmap_resource(dev, addr, size, dir, attrs);
 	else if (ops->unmap_resource)
 		ops->unmap_resource(dev, addr, size, dir, attrs);
+	trace_dma_unmap_resource(dev, addr, size, dir, attrs);
 	debug_dma_unmap_resource(dev, addr, size, dir);
 }
 EXPORT_SYMBOL(dma_unmap_resource);
@@ -361,6 +371,7 @@ void __dma_sync_single_for_cpu(struct device *dev, dma_addr_t addr, size_t size,
 		iommu_dma_sync_single_for_cpu(dev, addr, size, dir);
 	else if (ops->sync_single_for_cpu)
 		ops->sync_single_for_cpu(dev, addr, size, dir);
+	trace_dma_sync_single_for_cpu(dev, addr, size, dir);
 	debug_dma_sync_single_for_cpu(dev, addr, size, dir);
 }
 EXPORT_SYMBOL(__dma_sync_single_for_cpu);
@@ -377,6 +388,7 @@ void __dma_sync_single_for_device(struct device *dev, dma_addr_t addr,
 		iommu_dma_sync_single_for_device(dev, addr, size, dir);
 	else if (ops->sync_single_for_device)
 		ops->sync_single_for_device(dev, addr, size, dir);
+	trace_dma_sync_single_for_device(dev, addr, size, dir);
 	debug_dma_sync_single_for_device(dev, addr, size, dir);
 }
 EXPORT_SYMBOL(__dma_sync_single_for_device);
@@ -393,6 +405,7 @@ void __dma_sync_sg_for_cpu(struct device *dev, struct scatterlist *sg,
 		iommu_dma_sync_sg_for_cpu(dev, sg, nelems, dir);
 	else if (ops->sync_sg_for_cpu)
 		ops->sync_sg_for_cpu(dev, sg, nelems, dir);
+	trace_dma_sync_sg_for_cpu(dev, sg, nelems, dir);
 	debug_dma_sync_sg_for_cpu(dev, sg, nelems, dir);
 }
 EXPORT_SYMBOL(__dma_sync_sg_for_cpu);
@@ -409,6 +422,7 @@ void __dma_sync_sg_for_device(struct device *dev, struct scatterlist *sg,
 		iommu_dma_sync_sg_for_device(dev, sg, nelems, dir);
 	else if (ops->sync_sg_for_device)
 		ops->sync_sg_for_device(dev, sg, nelems, dir);
+	trace_dma_sync_sg_for_device(dev, sg, nelems, dir);
 	debug_dma_sync_sg_for_device(dev, sg, nelems, dir);
 }
 EXPORT_SYMBOL(__dma_sync_sg_for_device);
@@ -601,6 +615,7 @@ void *dma_alloc_attrs(struct device *dev, size_t size, dma_addr_t *dma_handle,
 	else
 		return NULL;
 
+	trace_dma_alloc(dev, cpu_addr, *dma_handle, size, flag, attrs);
 	debug_dma_alloc_coherent(dev, size, *dma_handle, cpu_addr, attrs);
 	return cpu_addr;
 }
@@ -625,6 +640,7 @@ void dma_free_attrs(struct device *dev, size_t size, void *cpu_addr,
 	if (!cpu_addr)
 		return;
 
+	trace_dma_free(dev, cpu_addr, dma_handle, size, attrs);
 	debug_dma_free_coherent(dev, size, cpu_addr, dma_handle);
 	if (dma_alloc_direct(dev, ops))
 		dma_direct_free(dev, size, cpu_addr, dma_handle, attrs);
@@ -662,8 +678,11 @@ struct page *dma_alloc_pages(struct device *dev, size_t size,
 {
 	struct page *page = __dma_alloc_pages(dev, size, dma_handle, dir, gfp);
 
-	if (page)
+	if (page) {
+		trace_dma_map_page(dev, page_to_phys(page), *dma_handle, size,
+				   dir, 0);
 		debug_dma_map_page(dev, page, 0, size, dir, *dma_handle, 0);
+	}
 	return page;
 }
 EXPORT_SYMBOL_GPL(dma_alloc_pages);
@@ -685,6 +704,7 @@ static void __dma_free_pages(struct device *dev, size_t size, struct page *page,
 void dma_free_pages(struct device *dev, size_t size, struct page *page,
 		dma_addr_t dma_handle, enum dma_data_direction dir)
 {
+	trace_dma_unmap_page(dev, dma_handle, size, dir, 0);
 	debug_dma_unmap_page(dev, dma_handle, size, dir);
 	__dma_free_pages(dev, size, page, dma_handle, dir);
 }
@@ -747,6 +767,7 @@ struct sg_table *dma_alloc_noncontiguous(struct device *dev, size_t size,
 
 	if (sgt) {
 		sgt->nents = 1;
+		trace_dma_map_sg(dev, sgt->sgl, sgt->orig_nents, 1, dir, attrs);
 		debug_dma_map_sg(dev, sgt->sgl, sgt->orig_nents, 1, dir, attrs);
 	}
 	return sgt;
@@ -767,6 +788,7 @@ void dma_free_noncontiguous(struct device *dev, size_t size,
 {
 	const struct dma_map_ops *ops = get_dma_ops(dev);
 
+	trace_dma_unmap_sg(dev, sgt->sgl, sgt->orig_nents, dir, 0);
 	debug_dma_unmap_sg(dev, sgt->sgl, sgt->orig_nents, dir);
 	if (ops && ops->free_noncontiguous)
 		ops->free_noncontiguous(dev, size, sgt, dir);
