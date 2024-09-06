@@ -1123,13 +1123,14 @@ void cfg80211_cac_event(struct net_device *netdev,
 
 	trace_cfg80211_cac_event(netdev, event);
 
-	if (WARN_ON(!wdev->cac_started && event != NL80211_RADAR_CAC_STARTED))
+	if (WARN_ON(!wdev->links[0].cac_started &&
+		    event != NL80211_RADAR_CAC_STARTED))
 		return;
 
 	switch (event) {
 	case NL80211_RADAR_CAC_FINISHED:
-		timeout = wdev->cac_start_time +
-			  msecs_to_jiffies(wdev->cac_time_ms);
+		timeout = wdev->links[0].cac_start_time +
+			  msecs_to_jiffies(wdev->links[0].cac_time_ms);
 		WARN_ON(!time_after_eq(jiffies, timeout));
 		cfg80211_set_dfs_state(wiphy, chandef, NL80211_DFS_AVAILABLE);
 		memcpy(&rdev->cac_done_chandef, chandef,
@@ -1138,10 +1139,10 @@ void cfg80211_cac_event(struct net_device *netdev,
 		cfg80211_sched_dfs_chan_update(rdev);
 		fallthrough;
 	case NL80211_RADAR_CAC_ABORTED:
-		wdev->cac_started = false;
+		wdev->links[0].cac_started = false;
 		break;
 	case NL80211_RADAR_CAC_STARTED:
-		wdev->cac_started = true;
+		wdev->links[0].cac_started = true;
 		break;
 	default:
 		WARN_ON(1);

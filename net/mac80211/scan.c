@@ -585,7 +585,7 @@ static bool __ieee80211_can_leave_ch(struct ieee80211_sub_if_data *sdata)
 		return false;
 
 	list_for_each_entry(sdata_iter, &local->interfaces, list) {
-		if (sdata_iter->wdev.cac_started)
+		if (sdata_iter->wdev.links[0].cac_started)
 			return false;
 	}
 

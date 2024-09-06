@@ -4241,7 +4241,7 @@ static void cfg80211_check_and_end_cac(struct cfg80211_registered_device *rdev)
 	list_for_each_entry(wdev, &rdev->wiphy.wdev_list, list) {
 		struct cfg80211_chan_def *chandef;
 
-		if (!wdev->cac_started)
+		if (!wdev->links[0].cac_started)
 			continue;
 
 		/* FIXME: radar detection is tied to link 0 for now */
