@@ -334,10 +334,10 @@ static struct sk_buff *gue_gro_receive(struct sock *sk,
 	struct gro_remcsum grc;
 	u8 proto;
 
+	skb_gro_remcsum_init(&grc);
+
 	if (!fou)
 		goto out;
-
-	skb_gro_remcsum_init(&grc);
 
 	off = skb_gro_offset(skb);
 	len = off + sizeof(*guehdr);
