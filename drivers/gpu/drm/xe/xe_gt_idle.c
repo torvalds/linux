@@ -98,7 +98,8 @@ static u64 get_residency_ms(struct xe_gt_idle *gtidle, u64 cur_residency)
 void xe_gt_idle_enable_pg(struct xe_gt *gt)
 {
 	struct xe_device *xe = gt_to_xe(gt);
-	u32 pg_enable;
+	struct xe_gt_idle *gtidle = &gt->gtidle;
+	u32 vcs_mask, vecs_mask;
 	int i, j;
 
 	if (IS_SRIOV_VF(xe))
@@ -110,12 +111,19 @@ void xe_gt_idle_enable_pg(struct xe_gt *gt)
 
 	xe_device_assert_mem_access(gt_to_xe(gt));
 
-	pg_enable = RENDER_POWERGATE_ENABLE | MEDIA_POWERGATE_ENABLE;
+	vcs_mask = xe_hw_engine_mask_per_class(gt, XE_ENGINE_CLASS_VIDEO_DECODE);
+	vecs_mask = xe_hw_engine_mask_per_class(gt, XE_ENGINE_CLASS_VIDEO_ENHANCE);
+
+	if (vcs_mask || vecs_mask)
+		gtidle->powergate_enable = MEDIA_POWERGATE_ENABLE;
+
+	if (!xe_gt_is_media_type(gt))
+		gtidle->powergate_enable |= RENDER_POWERGATE_ENABLE;
 
 	for (i = XE_HW_ENGINE_VCS0, j = 0; i <= XE_HW_ENGINE_VCS7; ++i, ++j) {
 		if ((gt->info.engine_mask & BIT(i)))
-			pg_enable |= (VDN_HCP_POWERGATE_ENABLE(j) |
-				      VDN_MFXVDENC_POWERGATE_ENABLE(j));
+			gtidle->powergate_enable |= (VDN_HCP_POWERGATE_ENABLE(j) |
+						     VDN_MFXVDENC_POWERGATE_ENABLE(j));
 	}
 
 	XE_WARN_ON(xe_force_wake_get(gt_to_fw(gt), XE_FW_GT));
@@ -128,20 +136,22 @@ void xe_gt_idle_enable_pg(struct xe_gt *gt)
 		xe_mmio_write32(gt, RENDER_POWERGATE_IDLE_HYSTERESIS, 25);
 	}
 
-	xe_mmio_write32(gt, POWERGATE_ENABLE, pg_enable);
+	xe_mmio_write32(gt, POWERGATE_ENABLE, gtidle->powergate_enable);
 	XE_WARN_ON(xe_force_wake_put(gt_to_fw(gt), XE_FW_GT));
 }
 
 void xe_gt_idle_disable_pg(struct xe_gt *gt)
 {
+	struct xe_gt_idle *gtidle = &gt->gtidle;
+
 	if (IS_SRIOV_VF(gt_to_xe(gt)))
 		return;
 
 	xe_device_assert_mem_access(gt_to_xe(gt));
+	gtidle->powergate_enable = 0;
+
 	XE_WARN_ON(xe_force_wake_get(gt_to_fw(gt), XE_FW_GT));
-
-	xe_mmio_write32(gt, POWERGATE_ENABLE, 0);
-
+	xe_mmio_write32(gt, POWERGATE_ENABLE, gtidle->powergate_enable);
 	XE_WARN_ON(xe_force_wake_put(gt_to_fw(gt), XE_FW_GT));
 }
 
