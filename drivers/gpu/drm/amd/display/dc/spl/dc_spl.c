@@ -885,6 +885,18 @@ static bool spl_get_optimal_number_of_taps(
 		spl_scratch->scl_data.viewport.width > max_downscale_src_width)
 		return false;
 
+	/* Disable adaptive scaler and sharpener when integer scaling is enabled */
+	if (spl_in->scaling_quality.integer_scaling) {
+		spl_scratch->scl_data.taps.h_taps = 1;
+		spl_scratch->scl_data.taps.v_taps = 1;
+		spl_scratch->scl_data.taps.v_taps_c = 1;
+		spl_scratch->scl_data.taps.h_taps_c = 1;
+		*enable_easf_v = false;
+		*enable_easf_h = false;
+		*enable_isharp = false;
+		return true;
+	}
+
 	/* Check if we are using EASF or not */
 	skip_easf = enable_easf(spl_in, spl_scratch);
 

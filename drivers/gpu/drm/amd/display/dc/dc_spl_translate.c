@@ -38,6 +38,7 @@ static void populate_spltaps_from_taps(struct spl_taps *spl_scaling_quality,
 	spl_scaling_quality->h_taps = scaling_quality->h_taps;
 	spl_scaling_quality->v_taps_c = scaling_quality->v_taps_c;
 	spl_scaling_quality->v_taps = scaling_quality->v_taps;
+	spl_scaling_quality->integer_scaling = scaling_quality->integer_scaling;
 }
 static void populate_taps_from_spltaps(struct scaling_taps *scaling_quality,
 		const struct spl_taps *spl_scaling_quality)
