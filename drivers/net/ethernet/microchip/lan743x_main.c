@@ -2966,6 +2966,18 @@ static int lan743x_phylink_2500basex_config(struct lan743x_adapter *adapter)
 	return lan743x_pcs_power_reset(adapter);
 }
 
+void lan743x_mac_eee_enable(struct lan743x_adapter *adapter, bool enable)
+{
+	u32 mac_cr;
+
+	mac_cr = lan743x_csr_read(adapter, MAC_CR);
+	if (enable)
+		mac_cr |= MAC_CR_EEE_EN_;
+	else
+		mac_cr &= ~MAC_CR_EEE_EN_;
+	lan743x_csr_write(adapter, MAC_CR, mac_cr);
+}
+
 static void lan743x_phylink_mac_config(struct phylink_config *config,
 				       unsigned int link_an_mode,
 				       const struct phylink_link_state *state)
@@ -3014,7 +3026,11 @@ static void lan743x_phylink_mac_link_down(struct phylink_config *config,
 					  unsigned int link_an_mode,
 					  phy_interface_t interface)
 {
+	struct net_device *netdev = to_net_dev(config->dev);
+	struct lan743x_adapter *adapter = netdev_priv(netdev);
+
 	netif_tx_stop_all_queues(to_net_dev(config->dev));
+	lan743x_mac_eee_enable(adapter, false);
 }
 
 static void lan743x_phylink_mac_link_up(struct phylink_config *config,
@@ -3055,6 +3071,9 @@ static void lan743x_phylink_mac_link_up(struct phylink_config *config,
 	lan743x_mac_flow_ctrl_set_enables(adapter,
 					  cap & FLOW_CTRL_TX,
 					  cap & FLOW_CTRL_RX);
+
+	if (phydev)
+		lan743x_mac_eee_enable(adapter, phydev->enable_tx_lpi);
 
 	netif_tx_wake_all_queues(netdev);
 }
@@ -3238,6 +3257,9 @@ static int lan743x_netdev_open(struct net_device *netdev)
 		if (ret)
 			goto close_tx;
 	}
+
+	if (netdev->phydev)
+		phy_support_eee(netdev->phydev);
 
 #ifdef CONFIG_PM
 	if (adapter->netdev->phydev) {
