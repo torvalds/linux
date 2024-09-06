@@ -231,7 +231,7 @@ void config_acp_dma(struct acp_dev_data *adata, struct acp_stream *stream, int s
 			break;
 		default:
 			dev_err(adata->dev, "Invalid dai id %x\n", stream->dai_id);
-			break;
+			return;
 		}
 		break;
 	default:
