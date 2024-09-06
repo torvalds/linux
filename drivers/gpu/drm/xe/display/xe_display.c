@@ -353,7 +353,7 @@ void xe_display_pm_suspend(struct xe_device *xe, bool runtime)
 
 	intel_opregion_suspend(display, s2idle ? PCI_D1 : PCI_D3cold);
 
-	intel_dmc_suspend(xe);
+	intel_dmc_suspend(display);
 }
 
 void xe_display_pm_suspend_late(struct xe_device *xe)
@@ -395,7 +395,7 @@ void xe_display_pm_resume(struct xe_device *xe, bool runtime)
 	if (!xe->info.probe_display)
 		return;
 
-	intel_dmc_resume(xe);
+	intel_dmc_resume(display);
 
 	if (has_display(xe))
 		drm_mode_config_reset(&xe->drm);

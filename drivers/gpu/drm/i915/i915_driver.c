@@ -959,7 +959,7 @@ void i915_driver_shutdown(struct drm_i915_private *i915)
 	intel_encoder_suspend_all(&i915->display);
 	intel_encoder_shutdown_all(&i915->display);
 
-	intel_dmc_suspend(i915);
+	intel_dmc_suspend(&i915->display);
 
 	i915_gem_suspend(i915);
 
@@ -1054,7 +1054,7 @@ static int i915_drm_suspend(struct drm_device *dev)
 
 	dev_priv->suspend_count++;
 
-	intel_dmc_suspend(dev_priv);
+	intel_dmc_suspend(display);
 
 	enable_rpm_wakeref_asserts(&dev_priv->runtime_pm);
 
@@ -1164,7 +1164,7 @@ static int i915_drm_resume(struct drm_device *dev)
 	/* Must be called after GGTT is resumed. */
 	intel_dpt_resume(dev_priv);
 
-	intel_dmc_resume(dev_priv);
+	intel_dmc_resume(display);
 
 	i915_restore_display(dev_priv);
 	intel_pps_unlock_regs_wa(display);

@@ -960,6 +960,7 @@ static void intel_early_display_was(struct drm_i915_private *i915)
 void intel_modeset_setup_hw_state(struct drm_i915_private *i915,
 				  struct drm_modeset_acquire_ctx *ctx)
 {
+	struct intel_display *display = &i915->display;
 	struct intel_encoder *encoder;
 	struct intel_crtc *crtc;
 	intel_wakeref_t wakeref;
@@ -987,7 +988,7 @@ void intel_modeset_setup_hw_state(struct drm_i915_private *i915,
 		drm_crtc_vblank_reset(&crtc->base);
 
 		if (crtc_state->hw.active) {
-			intel_dmc_enable_pipe(i915, crtc->pipe);
+			intel_dmc_enable_pipe(display, crtc->pipe);
 			intel_crtc_vblank_on(crtc_state);
 		}
 	}

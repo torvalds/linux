@@ -1690,7 +1690,7 @@ static void hsw_crtc_enable(struct intel_atomic_state *state,
 
 	for_each_intel_crtc_in_pipe_mask_reverse(&dev_priv->drm, pipe_crtc,
 						 intel_crtc_joined_pipe_mask(new_crtc_state))
-		intel_dmc_enable_pipe(dev_priv, pipe_crtc->pipe);
+		intel_dmc_enable_pipe(display, pipe_crtc->pipe);
 
 	intel_encoders_pre_pll_enable(state, crtc);
 
@@ -1843,9 +1843,10 @@ static void ilk_crtc_disable(struct intel_atomic_state *state,
 static void hsw_crtc_disable(struct intel_atomic_state *state,
 			     struct intel_crtc *crtc)
 {
+	struct intel_display *display = to_intel_display(state);
+	struct drm_i915_private *i915 = to_i915(display->drm);
 	const struct intel_crtc_state *old_crtc_state =
 		intel_atomic_get_old_crtc_state(state, crtc);
-	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
 	struct intel_crtc *pipe_crtc;
 
 	/*
@@ -1867,7 +1868,7 @@ static void hsw_crtc_disable(struct intel_atomic_state *state,
 
 	for_each_intel_crtc_in_pipe_mask(&i915->drm, pipe_crtc,
 					 intel_crtc_joined_pipe_mask(old_crtc_state))
-		intel_dmc_disable_pipe(i915, pipe_crtc->pipe);
+		intel_dmc_disable_pipe(display, pipe_crtc->pipe);
 }
 
 static void i9xx_pfit_enable(const struct intel_crtc_state *crtc_state)

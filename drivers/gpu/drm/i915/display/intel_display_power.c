@@ -1445,7 +1445,7 @@ static void skl_display_core_init(struct drm_i915_private *dev_priv,
 	gen9_dbuf_enable(dev_priv);
 
 	if (resume)
-		intel_dmc_load_program(dev_priv);
+		intel_dmc_load_program(display);
 }
 
 static void skl_display_core_uninit(struct drm_i915_private *dev_priv)
@@ -1515,7 +1515,7 @@ static void bxt_display_core_init(struct drm_i915_private *dev_priv, bool resume
 	gen9_dbuf_enable(dev_priv);
 
 	if (resume)
-		intel_dmc_load_program(dev_priv);
+		intel_dmc_load_program(display);
 }
 
 static void bxt_display_core_uninit(struct drm_i915_private *dev_priv)
@@ -1687,7 +1687,7 @@ static void icl_display_core_init(struct drm_i915_private *dev_priv,
 		intel_de_rmw(dev_priv, CHICKEN_MISC_2, BMG_DARB_HALF_BLK_END_BURST, 1);
 
 	if (resume)
-		intel_dmc_load_program(dev_priv);
+		intel_dmc_load_program(display);
 
 	/* Wa_14011508470:tgl,dg1,rkl,adl-s,adl-p,dg2 */
 	if (IS_DISPLAY_VER_FULL(dev_priv, IP_VER(12, 0), IP_VER(13, 0)))
@@ -1718,7 +1718,7 @@ static void icl_display_core_uninit(struct drm_i915_private *dev_priv)
 		return;
 
 	gen9_disable_dc_states(display);
-	intel_dmc_disable_program(dev_priv);
+	intel_dmc_disable_program(display);
 
 	/* 1. Disable all display engine functions -> aready done */
 
@@ -2073,7 +2073,8 @@ void intel_power_domains_disable(struct drm_i915_private *i915)
  */
 void intel_power_domains_suspend(struct drm_i915_private *i915, bool s2idle)
 {
-	struct i915_power_domains *power_domains = &i915->display.power.domains;
+	struct intel_display *display = &i915->display;
+	struct i915_power_domains *power_domains = &display->power.domains;
 	intel_wakeref_t wakeref __maybe_unused =
 		fetch_and_zero(&power_domains->init_wakeref);
 
@@ -2087,7 +2088,7 @@ void intel_power_domains_suspend(struct drm_i915_private *i915, bool s2idle)
 	 * that would be blocked if the firmware was inactive.
 	 */
 	if (!(power_domains->allowed_dc_mask & DC_STATE_EN_DC9) && s2idle &&
-	    intel_dmc_has_payload(i915)) {
+	    intel_dmc_has_payload(display)) {
 		intel_display_power_flush_work(i915);
 		intel_power_domains_verify_state(i915);
 		return;
@@ -2286,7 +2287,7 @@ void intel_display_power_resume(struct drm_i915_private *i915)
 	if (DISPLAY_VER(i915) >= 11) {
 		bxt_disable_dc9(display);
 		icl_display_core_init(i915, true);
-		if (intel_dmc_has_payload(i915)) {
+		if (intel_dmc_has_payload(display)) {
 			if (power_domains->allowed_dc_mask & DC_STATE_EN_UPTO_DC6)
 				skl_enable_dc6(display);
 			else if (power_domains->allowed_dc_mask & DC_STATE_EN_UPTO_DC5)
@@ -2295,7 +2296,7 @@ void intel_display_power_resume(struct drm_i915_private *i915)
 	} else if (IS_GEMINILAKE(i915) || IS_BROXTON(i915)) {
 		bxt_disable_dc9(display);
 		bxt_display_core_init(i915, true);
-		if (intel_dmc_has_payload(i915) &&
+		if (intel_dmc_has_payload(display) &&
 		    (power_domains->allowed_dc_mask & DC_STATE_EN_UPTO_DC5))
 			gen9_enable_dc5(display);
 	} else if (IS_HASWELL(i915) || IS_BROADWELL(i915)) {

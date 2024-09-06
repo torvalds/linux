@@ -817,7 +817,7 @@ static void assert_can_enable_dc5(struct intel_display *display)
 		      "DC5 already programmed to be enabled.\n");
 	assert_rpm_wakelock_held(&dev_priv->runtime_pm);
 
-	assert_dmc_loaded(dev_priv);
+	assert_dmc_loaded(display);
 }
 
 void gen9_enable_dc5(struct intel_display *display)
@@ -840,8 +840,6 @@ void gen9_enable_dc5(struct intel_display *display)
 
 static void assert_can_enable_dc6(struct intel_display *display)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
-
 	drm_WARN_ONCE(display->drm,
 		      (intel_de_read(display, UTIL_PIN_CTL) &
 		       (UTIL_PIN_ENABLE | UTIL_PIN_MODE_MASK)) ==
@@ -852,7 +850,7 @@ static void assert_can_enable_dc6(struct intel_display *display)
 		       DC_STATE_EN_UPTO_DC6),
 		      "DC6 already programmed to be enabled.\n");
 
-	assert_dmc_loaded(dev_priv);
+	assert_dmc_loaded(display);
 }
 
 void skl_enable_dc6(struct intel_display *display)
@@ -1031,7 +1029,7 @@ static void gen9_dc_off_power_well_disable(struct drm_i915_private *dev_priv,
 	struct intel_display *display = &dev_priv->display;
 	struct i915_power_domains *power_domains = &display->power.domains;
 
-	if (!intel_dmc_has_payload(dev_priv))
+	if (!intel_dmc_has_payload(display))
 		return;
 
 	switch (power_domains->target_dc_state) {

@@ -237,7 +237,7 @@ int intel_display_driver_probe_noirq(struct drm_i915_private *i915)
 	if (!HAS_DISPLAY(i915))
 		return 0;
 
-	intel_dmc_init(i915);
+	intel_dmc_init(display);
 
 	i915->display.wq.modeset = alloc_ordered_workqueue("i915_modeset", 0);
 	i915->display.wq.flip = alloc_workqueue("i915_flip", WQ_HIGHPRI |
@@ -272,7 +272,7 @@ int intel_display_driver_probe_noirq(struct drm_i915_private *i915)
 	return 0;
 
 cleanup_vga_client_pw_domain_dmc:
-	intel_dmc_fini(i915);
+	intel_dmc_fini(display);
 	intel_power_domains_driver_remove(i915);
 cleanup_vga:
 	intel_vga_unregister(display);
@@ -621,7 +621,7 @@ void intel_display_driver_remove_nogem(struct drm_i915_private *i915)
 {
 	struct intel_display *display = &i915->display;
 
-	intel_dmc_fini(i915);
+	intel_dmc_fini(display);
 
 	intel_power_domains_driver_remove(i915);
 
