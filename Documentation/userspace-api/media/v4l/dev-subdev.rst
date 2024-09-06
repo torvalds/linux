@@ -460,7 +460,7 @@ selection will refer to the sink pad format dimensions instead.
     :alt:   subdev-image-processing-crop.svg
     :align: center
 
-    **Figure 4.5. Image processing in subdevs: simple crop example**
+    Image processing in subdevs: simple crop example
 
 In the above example, the subdev supports cropping on its sink pad. To
 configure it, the user sets the media bus format on the subdev's sink
@@ -477,7 +477,7 @@ pad.
     :alt:   subdev-image-processing-scaling-multi-source.svg
     :align: center
 
-    **Figure 4.6. Image processing in subdevs: scaling with multiple sources**
+    Image processing in subdevs: scaling with multiple sources
 
 In this example, the subdev is capable of first cropping, then scaling
 and finally cropping for two source pads individually from the resulting
@@ -493,7 +493,7 @@ an area at location specified by the source crop rectangle from it.
     :alt:    subdev-image-processing-full.svg
     :align:  center
 
-    **Figure 4.7. Image processing in subdevs: scaling and composition with multiple sinks and sources**
+    Image processing in subdevs: scaling and composition with multiple sinks and sources
 
 The subdev driver supports two sink pads and two source pads. The images
 from both of the sink pads are individually cropped, then scaled and

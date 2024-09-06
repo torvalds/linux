@@ -2800,7 +2800,7 @@ be named ``MEDIA_BUS_FMT_SRGGB10_2X8_PADHI_LE``.
     :alt:    bayer.svg
     :align:  center
 
-    **Figure 4.8 Bayer Patterns**
+    Bayer Patterns
 
 The following table lists existing packed Bayer formats. The data
 organization is given as an example for the first pixel only.
