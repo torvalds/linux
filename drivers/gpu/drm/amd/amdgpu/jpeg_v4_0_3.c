@@ -674,11 +674,12 @@ void jpeg_v4_0_3_dec_ring_insert_start(struct amdgpu_ring *ring)
 		amdgpu_ring_write(ring, PACKETJ(regUVD_JRBC_EXTERNAL_REG_INTERNAL_OFFSET,
 			0, 0, PACKETJ_TYPE0));
 		amdgpu_ring_write(ring, 0x62a04); /* PCTL0_MMHUB_DEEPSLEEP_IB */
-	}
 
-	amdgpu_ring_write(ring, PACKETJ(JRBC_DEC_EXTERNAL_REG_WRITE_ADDR,
-		0, 0, PACKETJ_TYPE0));
-	amdgpu_ring_write(ring, 0x80004000);
+		amdgpu_ring_write(ring,
+				  PACKETJ(JRBC_DEC_EXTERNAL_REG_WRITE_ADDR, 0,
+					  0, PACKETJ_TYPE0));
+		amdgpu_ring_write(ring, 0x80004000);
+	}
 }
 
 /**
@@ -694,11 +695,12 @@ void jpeg_v4_0_3_dec_ring_insert_end(struct amdgpu_ring *ring)
 		amdgpu_ring_write(ring, PACKETJ(regUVD_JRBC_EXTERNAL_REG_INTERNAL_OFFSET,
 			0, 0, PACKETJ_TYPE0));
 		amdgpu_ring_write(ring, 0x62a04);
-	}
 
-	amdgpu_ring_write(ring, PACKETJ(JRBC_DEC_EXTERNAL_REG_WRITE_ADDR,
-		0, 0, PACKETJ_TYPE0));
-	amdgpu_ring_write(ring, 0x00004000);
+		amdgpu_ring_write(ring,
+				  PACKETJ(JRBC_DEC_EXTERNAL_REG_WRITE_ADDR, 0,
+					  0, PACKETJ_TYPE0));
+		amdgpu_ring_write(ring, 0x00004000);
+	}
 }
 
 /**
