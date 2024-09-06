@@ -246,16 +246,16 @@ static const struct ksz_drive_strength ksz9477_drive_strengths[] = {
 	{ SW_DRIVE_STRENGTH_28MA, 28000 },
 };
 
-/* ksz8830_drive_strengths - Drive strength mapping for KSZ8830, KSZ8873, ..
+/* ksz88x3_drive_strengths - Drive strength mapping for KSZ8863, KSZ8873, ..
  *			     variants.
  * This values are documented in KSZ8873 and KSZ8863 datasheets.
  */
-static const struct ksz_drive_strength ksz8830_drive_strengths[] = {
+static const struct ksz_drive_strength ksz88x3_drive_strengths[] = {
 	{ 0,  8000 },
 	{ KSZ8873_DRIVE_STRENGTH_16MA, 16000 },
 };
 
-static void ksz8830_phylink_mac_config(struct phylink_config *config,
+static void ksz88x3_phylink_mac_config(struct phylink_config *config,
 				       unsigned int mode,
 				       const struct phylink_link_state *state);
 static void ksz_phylink_mac_config(struct phylink_config *config,
@@ -265,8 +265,8 @@ static void ksz_phylink_mac_link_down(struct phylink_config *config,
 				      unsigned int mode,
 				      phy_interface_t interface);
 
-static const struct phylink_mac_ops ksz8830_phylink_mac_ops = {
-	.mac_config	= ksz8830_phylink_mac_config,
+static const struct phylink_mac_ops ksz88x3_phylink_mac_ops = {
+	.mac_config	= ksz88x3_phylink_mac_config,
 	.mac_link_down	= ksz_phylink_mac_link_down,
 	.mac_link_up	= ksz8_phylink_mac_link_up,
 };
@@ -1442,8 +1442,8 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.internal_phy = {true, true, true, true, false},
 	},
 
-	[KSZ8830] = {
-		.chip_id = KSZ8830_CHIP_ID,
+	[KSZ88X3] = {
+		.chip_id = KSZ88X3_CHIP_ID,
 		.dev_name = "KSZ8863/KSZ8873",
 		.num_vlans = 16,
 		.num_alus = 0,
@@ -1453,7 +1453,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.num_tx_queues = 4,
 		.num_ipms = 4,
 		.ops = &ksz88xx_dev_ops,
-		.phylink_mac_ops = &ksz8830_phylink_mac_ops,
+		.phylink_mac_ops = &ksz88x3_phylink_mac_ops,
 		.mib_names = ksz88xx_mib_names,
 		.mib_cnt = ARRAY_SIZE(ksz88xx_mib_names),
 		.reg_mib_cnt = MIB_COUNTER_NUM,
@@ -1487,7 +1487,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.num_tx_queues = 4,
 		.num_ipms = 4,
 		.ops = &ksz88xx_dev_ops,
-		.phylink_mac_ops = &ksz8830_phylink_mac_ops,
+		.phylink_mac_ops = &ksz88x3_phylink_mac_ops,
 		.mib_names = ksz88xx_mib_names,
 		.mib_cnt = ARRAY_SIZE(ksz88xx_mib_names),
 		.reg_mib_cnt = MIB_COUNTER_NUM,
@@ -1510,7 +1510,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.num_tx_queues = 4,
 		.num_ipms = 4,
 		.ops = &ksz88xx_dev_ops,
-		.phylink_mac_ops = &ksz8830_phylink_mac_ops,
+		.phylink_mac_ops = &ksz88x3_phylink_mac_ops,
 		.mib_names = ksz88xx_mib_names,
 		.mib_cnt = ARRAY_SIZE(ksz88xx_mib_names),
 		.reg_mib_cnt = MIB_COUNTER_NUM,
@@ -2724,7 +2724,7 @@ static u32 ksz_get_phy_flags(struct dsa_switch *ds, int port)
 	struct ksz_device *dev = ds->priv;
 
 	switch (dev->chip_id) {
-	case KSZ8830_CHIP_ID:
+	case KSZ88X3_CHIP_ID:
 		/* Silicon Errata Sheet (DS80000830A):
 		 * Port 1 does not work with LinkMD Cable-Testing.
 		 * Port 1 does not respond to received PAUSE control frames.
@@ -3050,7 +3050,7 @@ static enum dsa_tag_protocol ksz_get_tag_protocol(struct dsa_switch *ds,
 	if (ksz_is_ksz87xx(dev) || ksz_is_8895_family(dev))
 		proto = DSA_TAG_PROTO_KSZ8795;
 
-	if (dev->chip_id == KSZ8830_CHIP_ID ||
+	if (dev->chip_id == KSZ88X3_CHIP_ID ||
 	    dev->chip_id == KSZ8563_CHIP_ID ||
 	    dev->chip_id == KSZ9893_CHIP_ID ||
 	    dev->chip_id == KSZ9563_CHIP_ID)
@@ -3162,7 +3162,7 @@ static int ksz_max_mtu(struct dsa_switch *ds, int port)
 	case KSZ8794_CHIP_ID:
 	case KSZ8765_CHIP_ID:
 		return KSZ8795_HUGE_PACKET_SIZE - VLAN_ETH_HLEN - ETH_FCS_LEN;
-	case KSZ8830_CHIP_ID:
+	case KSZ88X3_CHIP_ID:
 	case KSZ8864_CHIP_ID:
 	case KSZ8895_CHIP_ID:
 		return KSZ8863_HUGE_PACKET_SIZE - VLAN_ETH_HLEN - ETH_FCS_LEN;
@@ -3334,7 +3334,7 @@ phy_interface_t ksz_get_xmii(struct ksz_device *dev, int port, bool gbit)
 	return interface;
 }
 
-static void ksz8830_phylink_mac_config(struct phylink_config *config,
+static void ksz88x3_phylink_mac_config(struct phylink_config *config,
 				       unsigned int mode,
 				       const struct phylink_link_state *state)
 {
@@ -3518,7 +3518,7 @@ static int ksz_switch_detect(struct ksz_device *dev)
 		break;
 	case KSZ88_FAMILY_ID:
 		if (id2 == KSZ88_CHIP_ID_63)
-			dev->chip_id = KSZ8830_CHIP_ID;
+			dev->chip_id = KSZ88X3_CHIP_ID;
 		else
 			return -ENODEV;
 		break;
@@ -4592,24 +4592,24 @@ static int ksz9477_drive_strength_write(struct ksz_device *dev,
 }
 
 /**
- * ksz8830_drive_strength_write() - Set the drive strength configuration for
- *				    KSZ8830 compatible chip variants.
+ * ksz88x3_drive_strength_write() - Set the drive strength configuration for
+ *				    KSZ8863 compatible chip variants.
  * @dev:       ksz device
  * @props:     Array of drive strength properties to be set
  * @num_props: Number of properties in the array
  *
- * This function applies the specified drive strength settings to KSZ8830 chip
+ * This function applies the specified drive strength settings to KSZ88X3 chip
  * variants (KSZ8873, KSZ8863).
  * It ensures the configurations align with what the chip variant supports and
  * warns or errors out on unsupported settings.
  *
  * Return: 0 on success, error code otherwise
  */
-static int ksz8830_drive_strength_write(struct ksz_device *dev,
+static int ksz88x3_drive_strength_write(struct ksz_device *dev,
 					struct ksz_driver_strength_prop *props,
 					int num_props)
 {
-	size_t array_size = ARRAY_SIZE(ksz8830_drive_strengths);
+	size_t array_size = ARRAY_SIZE(ksz88x3_drive_strengths);
 	int microamp;
 	int i, ret;
 
@@ -4622,10 +4622,10 @@ static int ksz8830_drive_strength_write(struct ksz_device *dev,
 	}
 
 	microamp = props[KSZ_DRIVER_STRENGTH_IO].value;
-	ret = ksz_drive_strength_to_reg(ksz8830_drive_strengths, array_size,
+	ret = ksz_drive_strength_to_reg(ksz88x3_drive_strengths, array_size,
 					microamp);
 	if (ret < 0) {
-		ksz_drive_strength_error(dev, ksz8830_drive_strengths,
+		ksz_drive_strength_error(dev, ksz88x3_drive_strengths,
 					 array_size, microamp);
 		return ret;
 	}
@@ -4685,8 +4685,8 @@ static int ksz_parse_drive_strength(struct ksz_device *dev)
 		return 0;
 
 	switch (dev->chip_id) {
-	case KSZ8830_CHIP_ID:
-		return ksz8830_drive_strength_write(dev, of_props,
+	case KSZ88X3_CHIP_ID:
+		return ksz88x3_drive_strength_write(dev, of_props,
 						    ARRAY_SIZE(of_props));
 	case KSZ8795_CHIP_ID:
 	case KSZ8794_CHIP_ID:
