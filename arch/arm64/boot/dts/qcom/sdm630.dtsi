@@ -665,8 +665,6 @@
 				<GIC_SPI 472 IRQ_TYPE_LEVEL_HIGH>,
 				<GIC_SPI 473 IRQ_TYPE_LEVEL_HIGH>,
 				<GIC_SPI 474 IRQ_TYPE_LEVEL_HIGH>;
-
-			status = "disabled";
 		};
 
 		a2noc: interconnect@1704000 {
@@ -1234,8 +1232,6 @@
 				<GIC_SPI 225 IRQ_TYPE_LEVEL_HIGH>,
 				<GIC_SPI 310 IRQ_TYPE_LEVEL_HIGH>,
 				<GIC_SPI 404 IRQ_TYPE_LEVEL_HIGH>;
-
-			status = "disabled";
 		};
 
 		sram@290000 {
