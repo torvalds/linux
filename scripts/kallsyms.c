@@ -455,17 +455,17 @@ static void write_src(void)
 		 */
 
 		long long offset;
-		int overflow;
+		bool overflow;
 
 		if (!absolute_percpu) {
 			offset = table[i]->addr - relative_base;
-			overflow = (offset < 0 || offset > UINT_MAX);
+			overflow = offset < 0 || offset > UINT_MAX;
 		} else if (symbol_absolute(table[i])) {
 			offset = table[i]->addr;
-			overflow = (offset < 0 || offset > INT_MAX);
+			overflow = offset < 0 || offset > INT_MAX;
 		} else {
 			offset = relative_base - table[i]->addr - 1;
-			overflow = (offset < INT_MIN || offset >= 0);
+			overflow = offset < INT_MIN || offset >= 0;
 		}
 		if (overflow) {
 			fprintf(stderr, "kallsyms failure: "
