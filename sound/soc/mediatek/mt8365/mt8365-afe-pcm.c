@@ -170,7 +170,7 @@ bool mt8365_afe_channel_supported(unsigned int channel, unsigned int id)
 	return false;
 }
 
-bool mt8365_afe_clk_group_44k(int sample_rate)
+static bool mt8365_afe_clk_group_44k(int sample_rate)
 {
 	if (sample_rate == 11025 ||
 	    sample_rate == 22050 ||
@@ -182,7 +182,7 @@ bool mt8365_afe_clk_group_44k(int sample_rate)
 		return false;
 }
 
-bool mt8365_afe_clk_group_48k(int sample_rate)
+static bool mt8365_afe_clk_group_48k(int sample_rate)
 {
 	return (!mt8365_afe_clk_group_44k(sample_rate));
 }
@@ -496,8 +496,8 @@ static int mt8365_afe_configure_cm(struct mtk_base_afe *afe,
 	return 0;
 }
 
-int mt8365_afe_fe_startup(struct snd_pcm_substream *substream,
-			  struct snd_soc_dai *dai)
+static int mt8365_afe_fe_startup(struct snd_pcm_substream *substream,
+				 struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
 	struct mtk_base_afe *afe = snd_soc_dai_get_drvdata(dai);
@@ -714,8 +714,8 @@ static int mt8365_afe_fe_prepare(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-int mt8365_afe_fe_trigger(struct snd_pcm_substream *substream, int cmd,
-			  struct snd_soc_dai *dai)
+static int mt8365_afe_fe_trigger(struct snd_pcm_substream *substream, int cmd,
+				 struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
 	struct mtk_base_afe *afe = snd_soc_dai_get_drvdata(dai);
