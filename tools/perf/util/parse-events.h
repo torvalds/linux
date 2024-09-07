@@ -31,14 +31,14 @@ int parse_events_option(const struct option *opt, const char *str, int unset);
 int parse_events_option_new_evlist(const struct option *opt, const char *str, int unset);
 __attribute__((nonnull(1, 2, 4)))
 int __parse_events(struct evlist *evlist, const char *str, const char *pmu_filter,
-		   struct parse_events_error *error, struct perf_pmu *fake_pmu,
+		   struct parse_events_error *error, bool fake_pmu,
 		   bool warn_if_reordered, bool fake_tp);
 
 __attribute__((nonnull(1, 2, 3)))
 static inline int parse_events(struct evlist *evlist, const char *str,
 			       struct parse_events_error *err)
 {
-	return __parse_events(evlist, str, /*pmu_filter=*/NULL, err, /*fake_pmu=*/NULL,
+	return __parse_events(evlist, str, /*pmu_filter=*/NULL, err, /*fake_pmu=*/false,
 			      /*warn_if_reordered=*/true, /*fake_tp=*/false);
 }
 
@@ -150,8 +150,8 @@ struct parse_events_state {
 	struct parse_events_terms *terms;
 	/* Start token. */
 	int			   stoken;
-	/* Special fake PMU marker for testing. */
-	struct perf_pmu		  *fake_pmu;
+	/* Use the fake PMU marker for testing. */
+	bool			   fake_pmu;
 	/* Skip actual tracepoint processing for testing. */
 	bool			   fake_tp;
 	/* If non-null, when wildcard matching only match the given PMU. */

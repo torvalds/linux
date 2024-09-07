@@ -36,6 +36,10 @@ struct perf_pmu_caps {
 	struct list_head list;
 };
 
+enum {
+	PERF_PMU_TYPE_FAKE = 0xFFFFFFFF,
+};
+
 /**
  * struct perf_pmu
  */
@@ -172,9 +176,6 @@ struct perf_pmu {
 	 */
 	struct perf_mem_event *mem_events;
 };
-
-/** @perf_pmu__fake: A special global PMU used for testing. */
-extern struct perf_pmu perf_pmu__fake;
 
 struct perf_pmu_info {
 	const char *unit;

@@ -720,3 +720,14 @@ struct perf_pmu *perf_pmus__add_test_pmu(int test_sysfs_dirfd, const char *name)
 	 */
 	return perf_pmu__lookup(&other_pmus, test_sysfs_dirfd, name, /*eager_load=*/true);
 }
+
+struct perf_pmu *perf_pmus__fake_pmu(void)
+{
+	static struct perf_pmu fake = {
+		.name = "fake",
+		.type = PERF_PMU_TYPE_FAKE,
+		.format = LIST_HEAD_INIT(fake.format),
+	};
+
+	return &fake;
+}

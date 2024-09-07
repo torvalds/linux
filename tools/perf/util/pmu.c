@@ -30,10 +30,6 @@
 #include "util/evsel_config.h"
 #include <regex.h>
 
-struct perf_pmu perf_pmu__fake = {
-	.name = "fake",
-};
-
 #define UNIT_MAX_LEN	31 /* max length for event unit name */
 
 enum event_source {
@@ -1172,6 +1168,11 @@ struct perf_pmu *perf_pmu__create_placeholder_core_pmu(struct list_head *core_pm
 	return pmu;
 }
 
+static bool perf_pmu__is_fake(const struct perf_pmu *pmu)
+{
+	return pmu->type == PERF_PMU_TYPE_FAKE;
+}
+
 void perf_pmu__warn_invalid_formats(struct perf_pmu *pmu)
 {
 	struct perf_pmu_format *format;
@@ -1182,7 +1183,7 @@ void perf_pmu__warn_invalid_formats(struct perf_pmu *pmu)
 	pmu->formats_checked = true;
 
 	/* fake pmu doesn't have format list */
-	if (pmu == &perf_pmu__fake)
+	if (perf_pmu__is_fake(pmu))
 		return;
 
 	list_for_each_entry(format, &pmu->format, list) {
@@ -1510,6 +1511,10 @@ int perf_pmu__config(struct perf_pmu *pmu, struct perf_event_attr *attr,
 {
 	bool zero = !!pmu->perf_event_attr_init_default;
 
+	/* Fake PMU doesn't have proper terms so nothing to configure in attr. */
+	if (perf_pmu__is_fake(pmu))
+		return 0;
+
 	return perf_pmu__config_terms(pmu, attr, head_terms, zero, err);
 }
 
@@ -1618,6 +1623,10 @@ int perf_pmu__check_alias(struct perf_pmu *pmu, struct parse_events_terms *head_
 	info->scale    = 0.0;
 	info->snapshot = false;
 
+	/* Fake PMU doesn't rewrite terms. */
+	if (perf_pmu__is_fake(pmu))
+		goto out;
+
 	list_for_each_entry_safe(term, h, &head_terms->terms, list) {
 		alias = pmu_find_alias(pmu, term);
 		if (!alias)
@@ -1640,7 +1649,7 @@ int perf_pmu__check_alias(struct perf_pmu *pmu, struct parse_events_terms *head_
 		list_del_init(&term->list);
 		parse_events_term__delete(term);
 	}
-
+out:
 	/*
 	 * if no unit or scale found in aliases, then
 	 * set defaults as for evsel
