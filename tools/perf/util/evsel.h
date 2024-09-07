@@ -330,6 +330,11 @@ static inline bool evsel__is_retire_lat(const struct evsel *evsel)
 	return evsel->retire_lat;
 }
 
+static inline enum perf_tool_event evsel__tool_event(const struct evsel *evsel)
+{
+	return evsel->tool_event;
+}
+
 const char *evsel__group_name(struct evsel *evsel);
 int evsel__group_desc(struct evsel *evsel, char *buf, size_t size);
 

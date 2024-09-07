@@ -773,7 +773,7 @@ const char *evsel__name(struct evsel *evsel)
 
 	case PERF_TYPE_SOFTWARE:
 		if (evsel__is_tool(evsel))
-			evsel__tool_name(evsel->tool_event, bf, sizeof(bf));
+			evsel__tool_name(evsel__tool_event(evsel), bf, sizeof(bf));
 		else
 			evsel__sw_name(evsel, bf, sizeof(bf));
 		break;
@@ -811,7 +811,7 @@ const char *evsel__metric_id(const struct evsel *evsel)
 		return evsel->metric_id;
 
 	if (evsel__is_tool(evsel))
-		return perf_tool_event__to_str(evsel->tool_event);
+		return perf_tool_event__to_str(evsel__tool_event(evsel));
 
 	return "unknown";
 }
@@ -1503,8 +1503,8 @@ void evsel__exit(struct evsel *evsel)
 	evsel->per_pkg_mask = NULL;
 	zfree(&evsel->metric_events);
 	perf_evsel__object.fini(evsel);
-	if (evsel->tool_event == PERF_TOOL_SYSTEM_TIME ||
-	    evsel->tool_event == PERF_TOOL_USER_TIME)
+	if (evsel__tool_event(evsel) == PERF_TOOL_SYSTEM_TIME ||
+	    evsel__tool_event(evsel) == PERF_TOOL_USER_TIME)
 		xyarray__delete(evsel->start_times);
 }
 
@@ -1785,7 +1785,7 @@ static int evsel__read_tool(struct evsel *evsel, int cpu_map_idx, int thread)
 
 	count = perf_counts(evsel->counts, cpu_map_idx, thread);
 
-	switch (evsel->tool_event) {
+	switch (evsel__tool_event(evsel)) {
 	case PERF_TOOL_DURATION_TIME:
 		/*
 		 * Pretend duration_time is only on the first CPU and thread, or
@@ -1800,7 +1800,7 @@ static int evsel__read_tool(struct evsel *evsel, int cpu_map_idx, int thread)
 		break;
 	case PERF_TOOL_USER_TIME:
 	case PERF_TOOL_SYSTEM_TIME: {
-		bool system = evsel->tool_event == PERF_TOOL_SYSTEM_TIME;
+		bool system = evsel__tool_event(evsel) == PERF_TOOL_SYSTEM_TIME;
 
 		start_time = xyarray__entry(evsel->start_times, cpu_map_idx, thread);
 		fd = FD(evsel, cpu_map_idx, thread);
@@ -2072,8 +2072,8 @@ static int __evsel__prepare_open(struct evsel *evsel, struct perf_cpu_map *cpus,
 	    perf_evsel__alloc_fd(&evsel->core, perf_cpu_map__nr(cpus), nthreads) < 0)
 		return -ENOMEM;
 
-	if ((evsel->tool_event == PERF_TOOL_SYSTEM_TIME ||
-	     evsel->tool_event == PERF_TOOL_USER_TIME) &&
+	if ((evsel__tool_event(evsel) == PERF_TOOL_SYSTEM_TIME ||
+	     evsel__tool_event(evsel) == PERF_TOOL_USER_TIME) &&
 	    !evsel->start_times) {
 		evsel->start_times = xyarray__new(perf_cpu_map__nr(cpus), nthreads, sizeof(__u64));
 		if (!evsel->start_times)
@@ -2262,7 +2262,7 @@ static int evsel__open_cpu(struct evsel *evsel, struct perf_cpu_map *cpus,
 	int pid = -1, err, old_errno;
 	enum rlimit_action set_rlimit = NO_CHANGE;
 
-	if (evsel->tool_event == PERF_TOOL_DURATION_TIME) {
+	if (evsel__tool_event(evsel) == PERF_TOOL_DURATION_TIME) {
 		if (evsel->core.attr.sample_period) /* no sampling */
 			return -EINVAL;
 		evsel->start_time = rdclock();
@@ -2304,9 +2304,9 @@ retry_open:
 			if (!evsel->cgrp && !evsel->core.system_wide)
 				pid = perf_thread_map__pid(threads, thread);
 
-			if (evsel->tool_event == PERF_TOOL_USER_TIME ||
-			    evsel->tool_event == PERF_TOOL_SYSTEM_TIME) {
-				bool system = evsel->tool_event == PERF_TOOL_SYSTEM_TIME;
+			if (evsel__tool_event(evsel) == PERF_TOOL_USER_TIME ||
+			    evsel__tool_event(evsel) == PERF_TOOL_SYSTEM_TIME) {
+				bool system = evsel__tool_event(evsel) == PERF_TOOL_SYSTEM_TIME;
 				__u64 *start_time = NULL;
 
 				if (evsel->core.attr.sample_period) {
