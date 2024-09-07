@@ -52,7 +52,7 @@ static struct iio_chan_spec mp2629_channels[] = {
 	MP2629_ADC_CHAN(INPUT_CURRENT, IIO_CURRENT)
 };
 
-static struct iio_map mp2629_adc_maps[] = {
+static const struct iio_map mp2629_adc_maps[] = {
 	MP2629_MAP(BATT_VOLT, "batt-volt"),
 	MP2629_MAP(SYSTEM_VOLT, "system-volt"),
 	MP2629_MAP(INPUT_VOLT, "input-volt"),

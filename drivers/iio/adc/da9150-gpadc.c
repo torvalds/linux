@@ -291,7 +291,7 @@ static const struct iio_chan_spec da9150_gpadc_channels[] = {
 };
 
 /* Default maps used by da9150-charger */
-static struct iio_map da9150_gpadc_default_maps[] = {
+static const struct iio_map da9150_gpadc_default_maps[] = {
 	{
 		.consumer_dev_name = "da9150-charger",
 		.consumer_channel = "CHAN_IBUS",

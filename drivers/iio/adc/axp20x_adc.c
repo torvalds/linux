@@ -155,7 +155,7 @@ enum axp813_adc_channel_v {
 	AXP813_BATT_V,
 };
 
-static struct iio_map axp20x_maps[] = {
+static const struct iio_map axp20x_maps[] = {
 	{
 		.consumer_dev_name = "axp20x-usb-power-supply",
 		.consumer_channel = "vbus_v",
@@ -187,7 +187,7 @@ static struct iio_map axp20x_maps[] = {
 	}, { /* sentinel */ }
 };
 
-static struct iio_map axp22x_maps[] = {
+static const struct iio_map axp22x_maps[] = {
 	{
 		.consumer_dev_name = "axp20x-battery-power-supply",
 		.consumer_channel = "batt_v",
@@ -1044,7 +1044,7 @@ struct axp_data {
 	unsigned long			adc_en2_mask;
 	int				(*adc_rate)(struct axp20x_adc_iio *info,
 						    int rate);
-	struct iio_map			*maps;
+	const struct iio_map		*maps;
 };
 
 static const struct axp_data axp192_data = {

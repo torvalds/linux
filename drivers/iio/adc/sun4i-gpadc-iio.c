@@ -114,7 +114,7 @@ struct sun4i_gpadc_iio {
 	.datasheet_name = _name,				\
 }
 
-static struct iio_map sun4i_gpadc_hwmon_maps[] = {
+static const struct iio_map sun4i_gpadc_hwmon_maps[] = {
 	{
 		.adc_channel_label = "temp_adc",
 		.consumer_dev_name = "iio_hwmon.0",
