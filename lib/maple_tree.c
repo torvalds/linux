@@ -348,17 +348,17 @@ static inline void *mte_safe_root(const struct maple_enode *node)
 	return (void *)((unsigned long)node & ~MAPLE_ROOT_NODE);
 }
 
-static inline void *mte_set_full(const struct maple_enode *node)
+static inline void __maybe_unused *mte_set_full(const struct maple_enode *node)
 {
 	return (void *)((unsigned long)node & ~MAPLE_ENODE_NULL);
 }
 
-static inline void *mte_clear_full(const struct maple_enode *node)
+static inline void __maybe_unused *mte_clear_full(const struct maple_enode *node)
 {
 	return (void *)((unsigned long)node | MAPLE_ENODE_NULL);
 }
 
-static inline bool mte_has_null(const struct maple_enode *node)
+static inline bool __maybe_unused mte_has_null(const struct maple_enode *node)
 {
 	return (unsigned long)node & MAPLE_ENODE_NULL;
 }
