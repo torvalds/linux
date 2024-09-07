@@ -1195,12 +1195,15 @@ static inline bool btree_id_cached(const struct bch_fs *c, enum btree_id btree)
 static inline struct timespec64 bch2_time_to_timespec(const struct bch_fs *c, s64 time)
 {
 	struct timespec64 t;
+	s64 sec;
 	s32 rem;
 
 	time += c->sb.time_base_lo;
 
-	t.tv_sec = div_s64_rem(time, c->sb.time_units_per_sec, &rem);
-	t.tv_nsec = rem * c->sb.nsec_per_time_unit;
+	sec = div_s64_rem(time, c->sb.time_units_per_sec, &rem);
+
+	set_normalized_timespec64(&t, sec, rem * (s64)c->sb.nsec_per_time_unit);
+
 	return t;
 }
 
