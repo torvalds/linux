@@ -414,6 +414,9 @@ static void hsr_proxy_announce(struct timer_list *t)
 	 * of SAN nodes stored in ProxyNodeTable.
 	 */
 	interlink = hsr_port_get_hsr(hsr, HSR_PT_INTERLINK);
+	if (!interlink)
+		goto done;
+
 	list_for_each_entry_rcu(node, &hsr->proxy_node_db, mac_list) {
 		if (hsr_addr_is_redbox(hsr, node->macaddress_A))
 			continue;
@@ -428,6 +431,7 @@ static void hsr_proxy_announce(struct timer_list *t)
 		mod_timer(&hsr->announce_proxy_timer, jiffies + interval);
 	}
 
+done:
 	rcu_read_unlock();
 }
 
