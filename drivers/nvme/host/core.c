@@ -4437,7 +4437,8 @@ static bool nvme_handle_aen_notice(struct nvme_ctrl *ctrl, u32 result)
 
 static void nvme_handle_aer_persistent_error(struct nvme_ctrl *ctrl)
 {
-	dev_warn(ctrl->device, "resetting controller due to AER\n");
+	dev_warn(ctrl->device,
+		"resetting controller due to persistent internal error\n");
 	nvme_reset_ctrl(ctrl);
 }
 
