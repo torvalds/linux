@@ -502,7 +502,7 @@ static void tasdevice_fw_ready(const struct firmware *fmw,
 	 */
 	tas_priv->fw_state = TASDEVICE_RCA_FW_OK;
 	if (tas_priv->name_prefix)
-		scnprintf(tas_priv->rca_binaryname, 64, "%s-%s_coef.bin",
+		scnprintf(tas_priv->coef_binaryname, 64, "%s-%s_coef.bin",
 			tas_priv->name_prefix, tas_priv->dev_name);
 	else
 		scnprintf(tas_priv->coef_binaryname, 64, "%s_coef.bin",
