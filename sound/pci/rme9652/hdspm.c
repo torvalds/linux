@@ -3083,7 +3083,7 @@ static int snd_hdspm_get_autosync_ref(struct snd_kcontrol *kcontrol,
 
 
 
-#define HDSPM_TCO_VIDEO_INPUT_FORMAT(xname, xindex) \
+#define HDSPM_TCO_VIDEO_INPUT_FORMAT(xname) \
 {	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, \
 	.name = xname, \
 	.access = SNDRV_CTL_ELEM_ACCESS_READ |\
@@ -3129,7 +3129,7 @@ static int snd_hdspm_get_tco_video_input_format(struct snd_kcontrol *kcontrol,
 
 
 
-#define HDSPM_TCO_LTC_FRAMES(xname, xindex) \
+#define HDSPM_TCO_LTC_FRAMES(xname) \
 {	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, \
 	.name = xname, \
 	.access = SNDRV_CTL_ELEM_ACCESS_READ |\
@@ -4630,8 +4630,8 @@ static const struct snd_kcontrol_new snd_hdspm_controls_tco[] = {
 	HDSPM_TCO_WORD_TERM("TCO Word Term", 0),
 	HDSPM_TCO_LOCK_CHECK("TCO Input Check", 11),
 	HDSPM_TCO_LOCK_CHECK("TCO LTC Valid", 12),
-	HDSPM_TCO_LTC_FRAMES("TCO Detected Frame Rate", 0),
-	HDSPM_TCO_VIDEO_INPUT_FORMAT("Video Input Format", 0)
+	HDSPM_TCO_LTC_FRAMES("TCO Detected Frame Rate"),
+	HDSPM_TCO_VIDEO_INPUT_FORMAT("Video Input Format")
 };
 
 
