@@ -679,7 +679,7 @@ void ata_tlink_delete(struct ata_link *link)
 
 /**
  * ata_tlink_add  --  initialize an ATA link transport device
- * @ata_link:	struct ata_link owning the link transport device to initialize
+ * @link:	struct ata_link owning the link transport device to initialize
  *
  * Initialize an ATA link transport device for sysfs. It will be added in the
  * device tree below the ATA port it belongs to.
