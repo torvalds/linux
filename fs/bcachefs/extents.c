@@ -818,6 +818,18 @@ void bch2_bkey_drop_ptr_noerror(struct bkey_s k, struct bch_extent_ptr *ptr)
 
 void bch2_bkey_drop_ptr(struct bkey_s k, struct bch_extent_ptr *ptr)
 {
+	if (k.k->type != KEY_TYPE_stripe) {
+		struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k.s_c);
+		const union bch_extent_entry *entry;
+		struct extent_ptr_decoded p;
+
+		bkey_for_each_ptr_decode(k.k, ptrs, p, entry)
+			if (p.ptr.dev == ptr->dev && p.has_ec) {
+				ptr->dev = BCH_SB_MEMBER_INVALID;
+				return;
+			}
+	}
+
 	bool have_dirty = bch2_bkey_dirty_devs(k.s_c).nr;
 
 	bch2_bkey_drop_ptr_noerror(k, ptr);
@@ -845,10 +857,7 @@ void bch2_bkey_drop_device(struct bkey_s k, unsigned dev)
 
 void bch2_bkey_drop_device_noerror(struct bkey_s k, unsigned dev)
 {
-	struct bch_extent_ptr *ptr = bch2_bkey_has_device(k, dev);
-
-	if (ptr)
-		bch2_bkey_drop_ptr_noerror(k, ptr);
+	bch2_bkey_drop_ptrs_noerror(k, ptr, ptr->dev == dev);
 }
 
 const struct bch_extent_ptr *bch2_bkey_has_device_c(struct bkey_s_c k, unsigned dev)
