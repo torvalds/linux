@@ -169,7 +169,7 @@ static u32 dvbsky_i2c_func(struct i2c_adapter *adapter)
 	return I2C_FUNC_I2C;
 }
 
-static struct i2c_algorithm dvbsky_i2c_algo = {
+static const struct i2c_algorithm dvbsky_i2c_algo = {
 	.master_xfer   = dvbsky_i2c_xfer,
 	.functionality = dvbsky_i2c_func,
 };

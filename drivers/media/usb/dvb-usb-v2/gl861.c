@@ -162,7 +162,7 @@ static u32 gl861_i2c_functionality(struct i2c_adapter *adapter)
 	return I2C_FUNC_I2C;
 }
 
-static struct i2c_algorithm gl861_i2c_algo = {
+static const struct i2c_algorithm gl861_i2c_algo = {
 	.master_xfer   = gl861_i2c_master_xfer,
 	.functionality = gl861_i2c_functionality,
 };
