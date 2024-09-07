@@ -110,6 +110,14 @@
 	};
 };
 
+&adreno_gpu {
+	status = "okay";
+};
+
+&adreno_gpu_zap {
+	firmware-name = "qcom/sda660/a512_zap.mbn";
+};
+
 &adsp_pil {
 	firmware-name = "qcom/sda660/adsp.mbn";
 };
