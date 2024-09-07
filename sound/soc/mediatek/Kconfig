@@ -301,7 +301,7 @@ config SND_SOC_MT8195_MT6359
 
 config SND_SOC_MT8365
 	tristate "ASoC support for MediaTek MT8365 chip"
-	depends on ARCH_MEDIATEK
+	depends on ARCH_MEDIATEK || COMPILE_TEST
 	select SND_SOC_MEDIATEK
 	help
 	  This adds ASoC platform driver support for MediaTek MT8365 chip
