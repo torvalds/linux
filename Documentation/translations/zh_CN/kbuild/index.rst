@@ -13,6 +13,7 @@
     :maxdepth: 1
 
     headers_install
+    gcc-plugins
 
 TODO:
 
@@ -24,7 +25,6 @@ TODO:
 - modules
 - issues
 - reproducible-builds
-- gcc-plugins
 - llvm
 
 .. only::  subproject and html
