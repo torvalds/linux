@@ -56,6 +56,10 @@
 	domain-idle-states = <&CLUSTER_SLEEP_0>;
 };
 
+&gpu {
+	status = "okay";
+};
+
 &lpass_aon {
 	status = "okay";
 };

@@ -499,6 +499,14 @@
 	};
 };
 
+&gpu {
+	status = "okay";
+};
+
+&gpu_zap_shader {
+	firmware-name = "qcom/qcm6490/a660_zap.mbn";
+};
+
 &mdss {
 	status = "okay";
 };
