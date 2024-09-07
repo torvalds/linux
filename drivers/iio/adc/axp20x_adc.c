@@ -156,51 +156,21 @@ enum axp813_adc_channel_v {
 };
 
 static const struct iio_map axp20x_maps[] = {
-	{
-		.consumer_dev_name = "axp20x-usb-power-supply",
-		.consumer_channel = "vbus_v",
-		.adc_channel_label = "vbus_v",
-	}, {
-		.consumer_dev_name = "axp20x-usb-power-supply",
-		.consumer_channel = "vbus_i",
-		.adc_channel_label = "vbus_i",
-	}, {
-		.consumer_dev_name = "axp20x-ac-power-supply",
-		.consumer_channel = "acin_v",
-		.adc_channel_label = "acin_v",
-	}, {
-		.consumer_dev_name = "axp20x-ac-power-supply",
-		.consumer_channel = "acin_i",
-		.adc_channel_label = "acin_i",
-	}, {
-		.consumer_dev_name = "axp20x-battery-power-supply",
-		.consumer_channel = "batt_v",
-		.adc_channel_label = "batt_v",
-	}, {
-		.consumer_dev_name = "axp20x-battery-power-supply",
-		.consumer_channel = "batt_chrg_i",
-		.adc_channel_label = "batt_chrg_i",
-	}, {
-		.consumer_dev_name = "axp20x-battery-power-supply",
-		.consumer_channel = "batt_dischrg_i",
-		.adc_channel_label = "batt_dischrg_i",
-	}, { /* sentinel */ }
+	IIO_MAP("vbus_v", "axp20x-usb-power-supply", "vbus_v"),
+	IIO_MAP("vbus_i", "axp20x-usb-power-supply", "vbus_i"),
+	IIO_MAP("acin_v", "axp20x-ac-power-supply", "acin_v"),
+	IIO_MAP("acin_i", "axp20x-ac-power-supply", "acin_i"),
+	IIO_MAP("batt_v", "axp20x-battery-power-supply", "batt_v"),
+	IIO_MAP("batt_chrg_i", "axp20x-battery-power-supply", "batt_chrg_i"),
+	IIO_MAP("batt_dischrg_i", "axp20x-battery-power-supply", "batt_dischrg_i"),
+	{ /* sentinel */ }
 };
 
 static const struct iio_map axp22x_maps[] = {
-	{
-		.consumer_dev_name = "axp20x-battery-power-supply",
-		.consumer_channel = "batt_v",
-		.adc_channel_label = "batt_v",
-	}, {
-		.consumer_dev_name = "axp20x-battery-power-supply",
-		.consumer_channel = "batt_chrg_i",
-		.adc_channel_label = "batt_chrg_i",
-	}, {
-		.consumer_dev_name = "axp20x-battery-power-supply",
-		.consumer_channel = "batt_dischrg_i",
-		.adc_channel_label = "batt_dischrg_i",
-	}, { /* sentinel */ }
+	IIO_MAP("batt_v", "axp20x-battery-power-supply", "batt_v"),
+	IIO_MAP("batt_chrg_i", "axp20x-battery-power-supply", "batt_chrg_i"),
+	IIO_MAP("batt_dischrg_i", "axp20x-battery-power-supply", "batt_dischrg_i"),
+	{ /* sentinel */ }
 };
 
 static struct iio_map axp717_maps[] = {

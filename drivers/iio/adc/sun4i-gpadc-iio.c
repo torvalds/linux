@@ -115,10 +115,7 @@ struct sun4i_gpadc_iio {
 }
 
 static const struct iio_map sun4i_gpadc_hwmon_maps[] = {
-	{
-		.adc_channel_label = "temp_adc",
-		.consumer_dev_name = "iio_hwmon.0",
-	},
+	IIO_MAP("temp_adc", "iio_hwmon.0", NULL),
 	{ /* sentinel */ },
 };
 
