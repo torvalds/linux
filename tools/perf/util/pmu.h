@@ -194,6 +194,7 @@ struct pmu_event_info {
 	const char *encoding_desc;
 	const char *topic;
 	const char *pmu_name;
+	const char *event_type_desc;
 	const char *str;
 	bool deprecated;
 };

@@ -371,6 +371,7 @@ struct sevent {
 	const char *encoding_desc;
 	const char *topic;
 	const char *pmu_name;
+	const char *event_type_desc;
 	bool deprecated;
 };
 
@@ -444,6 +445,7 @@ static int perf_pmus__print_pmu_events__callback(void *vstate,
 	COPY_STR(encoding_desc);
 	COPY_STR(topic);
 	COPY_STR(pmu_name);
+	COPY_STR(event_type_desc);
 #undef COPY_STR
 	s->deprecated = info->deprecated;
 	state->index++;
@@ -498,7 +500,7 @@ void perf_pmus__print_pmu_events(const struct print_callbacks *print_cb, void *p
 				aliases[j].alias,
 				aliases[j].scale_unit,
 				aliases[j].deprecated,
-				"Kernel PMU event",
+				aliases[j].event_type_desc,
 				aliases[j].desc,
 				aliases[j].long_desc,
 				aliases[j].encoding_desc);
@@ -511,6 +513,7 @@ free:
 		zfree(&aliases[j].encoding_desc);
 		zfree(&aliases[j].topic);
 		zfree(&aliases[j].pmu_name);
+		zfree(&aliases[j].event_type_desc);
 	}
 	if (printed && pager_in_use())
 		printf("\n");
