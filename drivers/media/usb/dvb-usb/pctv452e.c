@@ -906,7 +906,7 @@ static struct stb6100_config stb6100_config = {
 };
 
 
-static struct i2c_algorithm pctv452e_i2c_algo = {
+static const struct i2c_algorithm pctv452e_i2c_algo = {
 	.master_xfer   = pctv452e_i2c_xfer,
 	.functionality = pctv452e_i2c_func
 };

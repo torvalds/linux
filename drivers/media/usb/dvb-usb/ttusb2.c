@@ -434,7 +434,7 @@ static u32 ttusb2_i2c_func(struct i2c_adapter *adapter)
 	return I2C_FUNC_I2C;
 }
 
-static struct i2c_algorithm ttusb2_i2c_algo = {
+static const struct i2c_algorithm ttusb2_i2c_algo = {
 	.master_xfer   = ttusb2_i2c_xfer,
 	.functionality = ttusb2_i2c_func,
 };

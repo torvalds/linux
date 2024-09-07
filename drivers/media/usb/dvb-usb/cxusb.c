@@ -287,7 +287,7 @@ static u32 cxusb_i2c_func(struct i2c_adapter *adapter)
 	return I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL;
 }
 
-static struct i2c_algorithm cxusb_i2c_algo = {
+static const struct i2c_algorithm cxusb_i2c_algo = {
 	.master_xfer   = cxusb_i2c_xfer,
 	.functionality = cxusb_i2c_func,
 };

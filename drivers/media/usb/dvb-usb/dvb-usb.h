@@ -309,7 +309,7 @@ struct dvb_usb_device_properties {
 		struct dvb_rc core;
 	} rc;
 
-	struct i2c_algorithm *i2c_algo;
+	const struct i2c_algorithm *i2c_algo;
 
 	int generic_bulk_ctrl_endpoint;
 	int generic_bulk_ctrl_endpoint_response;
