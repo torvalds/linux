@@ -206,7 +206,7 @@ struct ec_stripe_head {
 	struct ec_stripe_new	*s;
 };
 
-int bch2_ec_read_extent(struct btree_trans *, struct bch_read_bio *);
+int bch2_ec_read_extent(struct btree_trans *, struct bch_read_bio *, struct bkey_s_c);
 
 void *bch2_writepoint_ec_buf(struct bch_fs *, struct write_point *);
 

@@ -829,13 +829,16 @@ err:
 }
 
 /* recovery read path: */
-int bch2_ec_read_extent(struct btree_trans *trans, struct bch_read_bio *rbio)
+int bch2_ec_read_extent(struct btree_trans *trans, struct bch_read_bio *rbio,
+			struct bkey_s_c orig_k)
 {
 	struct bch_fs *c = trans->c;
-	struct ec_stripe_buf *buf;
+	struct ec_stripe_buf *buf = NULL;
 	struct closure cl;
 	struct bch_stripe *v;
 	unsigned i, offset;
+	const char *msg = NULL;
+	struct printbuf msgbuf = PRINTBUF;
 	int ret = 0;
 
 	closure_init_stack(&cl);
@@ -848,32 +851,28 @@ int bch2_ec_read_extent(struct btree_trans *trans, struct bch_read_bio *rbio)
 
 	ret = lockrestart_do(trans, get_stripe_key_trans(trans, rbio->pick.ec.idx, buf));
 	if (ret) {
-		bch_err_ratelimited(c,
-			"error doing reconstruct read: error %i looking up stripe", ret);
-		kfree(buf);
-		return -BCH_ERR_stripe_reconstruct;
+		msg = "stripe not found";
+		goto err;
 	}
 
 	v = &bkey_i_to_stripe(&buf->key)->v;
 
 	if (!bch2_ptr_matches_stripe(v, rbio->pick)) {
-		bch_err_ratelimited(c,
-			"error doing reconstruct read: pointer doesn't match stripe");
-		ret = -BCH_ERR_stripe_reconstruct;
+		msg = "pointer doesn't match stripe";
 		goto err;
 	}
 
 	offset = rbio->bio.bi_iter.bi_sector - v->ptrs[rbio->pick.ec.block].offset;
 	if (offset + bio_sectors(&rbio->bio) > le16_to_cpu(v->sectors)) {
-		bch_err_ratelimited(c,
-			"error doing reconstruct read: read is bigger than stripe");
-		ret = -BCH_ERR_stripe_reconstruct;
+		msg = "read is bigger than stripe";
 		goto err;
 	}
 
 	ret = ec_stripe_buf_init(buf, offset, bio_sectors(&rbio->bio));
-	if (ret)
+	if (ret) {
+		msg = "-ENOMEM";
 		goto err;
+	}
 
 	for (i = 0; i < v->nr_blocks; i++)
 		ec_block_io(c, buf, REQ_OP_READ, i, &cl);
@@ -881,9 +880,7 @@ int bch2_ec_read_extent(struct btree_trans *trans, struct bch_read_bio *rbio)
 	closure_sync(&cl);
 
 	if (ec_nr_failed(buf) > v->nr_redundant) {
-		bch_err_ratelimited(c,
-			"error doing reconstruct read: unable to read enough blocks");
-		ret = -BCH_ERR_stripe_reconstruct;
+		msg = "unable to read enough blocks";
 		goto err;
 	}
 
@@ -895,10 +892,17 @@ int bch2_ec_read_extent(struct btree_trans *trans, struct bch_read_bio *rbio)
 
 	memcpy_to_bio(&rbio->bio, rbio->bio.bi_iter,
 		      buf->data[rbio->pick.ec.block] + ((offset - buf->offset) << 9));
-err:
+out:
 	ec_stripe_buf_exit(buf);
 	kfree(buf);
 	return ret;
+err:
+	bch2_bkey_val_to_text(&msgbuf, c, orig_k);
+	bch_err_ratelimited(c,
+			    "error doing reconstruct read: %s\n  %s", msg, msgbuf.buf);
+	printbuf_exit(&msgbuf);;
+	ret = -BCH_ERR_stripe_reconstruct;
+	goto out;
 }
 
 /* stripe bucket accounting: */
