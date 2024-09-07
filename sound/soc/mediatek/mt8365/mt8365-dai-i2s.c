@@ -777,13 +777,6 @@ static struct snd_soc_dai_driver mtk_dai_i2s_driver[] = {
 	}
 };
 
-/* low jitter control */
-static const char * const mt8365_i2s_hd_str[] = {
-	"Normal", "Low_Jitter"
-};
-
-static SOC_ENUM_SINGLE_EXT_DECL(mt8365_i2s_enum, mt8365_i2s_hd_str);
-
 static const char * const fmi2sin_text[] = {
 	"OPEN", "FM_2ND_I2S_IN"
 };
