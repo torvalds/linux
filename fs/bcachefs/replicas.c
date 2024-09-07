@@ -800,7 +800,7 @@ bool bch2_have_enough_devs(struct bch_fs *c, struct bch_devs_mask devs,
 		}
 		rcu_read_unlock();
 
-		if (nr_failed == e->nr_devs)
+		if (nr_online + nr_failed == e->nr_devs)
 			continue;
 
 		if (nr_online < e->nr_required)
