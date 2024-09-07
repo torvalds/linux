@@ -651,7 +651,6 @@ static int mt8365_afe_fe_hw_free(struct snd_pcm_substream *substream,
 	struct mtk_base_afe *afe = snd_soc_dai_get_drvdata(dai);
 	struct mt8365_afe_private *afe_priv = afe->platform_priv;
 	int dai_id = snd_soc_rtd_to_cpu(rtd, 0)->id;
-	struct mtk_base_afe_memif *memif = &afe->memif[dai_id];
 	struct mt8365_fe_dai_data *fe_data = &afe_priv->fe_data[dai_id];
 	int ret = 0;
 
