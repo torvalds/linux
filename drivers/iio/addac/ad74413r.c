@@ -45,8 +45,8 @@ struct ad74413r_channel_config {
 };
 
 struct ad74413r_channels {
-	struct iio_chan_spec	*channels;
-	unsigned int		num_channels;
+	const struct iio_chan_spec	*channels;
+	unsigned int			num_channels;
 };
 
 struct ad74413r_state {
@@ -1138,34 +1138,34 @@ static const struct iio_info ad74413r_info = {
 	AD74413R_ADC_CHANNEL(IIO_CURRENT,  BIT(IIO_CHAN_INFO_SCALE)	\
 			     | BIT(IIO_CHAN_INFO_OFFSET))
 
-static struct iio_chan_spec ad74413r_voltage_output_channels[] = {
+static const struct iio_chan_spec ad74413r_voltage_output_channels[] = {
 	AD74413R_DAC_CHANNEL(IIO_VOLTAGE, BIT(IIO_CHAN_INFO_SCALE)),
 	AD74413R_ADC_CURRENT_CHANNEL,
 };
 
-static struct iio_chan_spec ad74413r_current_output_channels[] = {
+static const struct iio_chan_spec ad74413r_current_output_channels[] = {
 	AD74413R_DAC_CHANNEL(IIO_CURRENT, BIT(IIO_CHAN_INFO_SCALE)),
 	AD74413R_ADC_VOLTAGE_CHANNEL,
 };
 
-static struct iio_chan_spec ad74413r_voltage_input_channels[] = {
+static const struct iio_chan_spec ad74413r_voltage_input_channels[] = {
 	AD74413R_ADC_VOLTAGE_CHANNEL,
 };
 
-static struct iio_chan_spec ad74413r_current_input_channels[] = {
+static const struct iio_chan_spec ad74413r_current_input_channels[] = {
 	AD74413R_ADC_CURRENT_CHANNEL,
 };
 
-static struct iio_chan_spec ad74413r_current_input_loop_channels[] = {
+static const struct iio_chan_spec ad74413r_current_input_loop_channels[] = {
 	AD74413R_DAC_CHANNEL(IIO_CURRENT, BIT(IIO_CHAN_INFO_SCALE)),
 	AD74413R_ADC_CURRENT_CHANNEL,
 };
 
-static struct iio_chan_spec ad74413r_resistance_input_channels[] = {
+static const struct iio_chan_spec ad74413r_resistance_input_channels[] = {
 	AD74413R_ADC_CHANNEL(IIO_RESISTANCE, BIT(IIO_CHAN_INFO_PROCESSED)),
 };
 
-static struct iio_chan_spec ad74413r_digital_input_channels[] = {
+static const struct iio_chan_spec ad74413r_digital_input_channels[] = {
 	AD74413R_ADC_VOLTAGE_CHANNEL,
 };
 
@@ -1270,7 +1270,8 @@ static int ad74413r_setup_channels(struct iio_dev *indio_dev)
 {
 	struct ad74413r_state *st = iio_priv(indio_dev);
 	struct ad74413r_channel_config *config;
-	struct iio_chan_spec *channels, *chans;
+	const struct iio_chan_spec *chans;
+	struct iio_chan_spec *channels;
 	unsigned int i, num_chans, chan_i;
 	int ret;
 
