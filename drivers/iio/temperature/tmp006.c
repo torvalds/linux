@@ -7,8 +7,6 @@
  * Driver for the Texas Instruments I2C 16-bit IR thermopile sensor
  *
  * (7-bit I2C slave address 0x40, changeable via ADR pins)
- *
- * TODO: data ready irq
  */
 
 #include <linux/err.h>
@@ -21,6 +19,9 @@
 
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
+#include <linux/iio/trigger.h>
+#include <linux/iio/triggered_buffer.h>
+#include <linux/iio/trigger_consumer.h>
 
 #define TMP006_VOBJECT 0x00
 #define TMP006_TAMBIENT 0x01
@@ -45,6 +46,7 @@
 struct tmp006_data {
 	struct i2c_client *client;
 	u16 config;
+	struct iio_trigger *drdy_trig;
 };
 
 static int tmp006_read_measurement(struct tmp006_data *data, u8 reg)
@@ -83,15 +85,19 @@ static int tmp006_read_raw(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_RAW:
 		if (channel->type == IIO_VOLTAGE) {
 			/* LSB is 156.25 nV */
-			ret = tmp006_read_measurement(data, TMP006_VOBJECT);
-			if (ret < 0)
-				return ret;
+			iio_device_claim_direct_scoped(return -EBUSY, indio_dev) {
+				ret = tmp006_read_measurement(data, TMP006_VOBJECT);
+				if (ret < 0)
+					return ret;
+			}
 			*val = sign_extend32(ret, 15);
 		} else if (channel->type == IIO_TEMP) {
 			/* LSB is 0.03125 degrees Celsius */
-			ret = tmp006_read_measurement(data, TMP006_TAMBIENT);
-			if (ret < 0)
-				return ret;
+			iio_device_claim_direct_scoped(return -EBUSY, indio_dev) {
+				ret = tmp006_read_measurement(data, TMP006_TAMBIENT);
+				if (ret < 0)
+					return ret;
+			}
 			*val = sign_extend32(ret, 15) >> TMP006_TAMBIENT_SHIFT;
 		} else {
 			break;
@@ -128,7 +134,7 @@ static int tmp006_write_raw(struct iio_dev *indio_dev,
 			    long mask)
 {
 	struct tmp006_data *data = iio_priv(indio_dev);
-	int i;
+	int ret, i;
 
 	if (mask != IIO_CHAN_INFO_SAMP_FREQ)
 		return -EINVAL;
@@ -136,13 +142,19 @@ static int tmp006_write_raw(struct iio_dev *indio_dev,
 	for (i = 0; i < ARRAY_SIZE(tmp006_freqs); i++)
 		if ((val == tmp006_freqs[i][0]) &&
 		    (val2 == tmp006_freqs[i][1])) {
+			ret = iio_device_claim_direct_mode(indio_dev);
+			if (ret)
+				return ret;
+
 			data->config &= ~TMP006_CONFIG_CR_MASK;
 			data->config |= i << TMP006_CONFIG_CR_SHIFT;
 
-			return i2c_smbus_write_word_swapped(data->client,
-							    TMP006_CONFIG,
-							    data->config);
+			ret = i2c_smbus_write_word_swapped(data->client,
+							   TMP006_CONFIG,
+							   data->config);
 
+			iio_device_release_direct_mode(indio_dev);
+			return ret;
 		}
 	return -EINVAL;
 }
@@ -164,13 +176,29 @@ static const struct iio_chan_spec tmp006_channels[] = {
 		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
 			BIT(IIO_CHAN_INFO_SCALE),
 		.info_mask_shared_by_all = BIT(IIO_CHAN_INFO_SAMP_FREQ),
+		.scan_index = 0,
+		.scan_type = {
+			.sign = 's',
+			.realbits = 16,
+			.storagebits = 16,
+			.endianness = IIO_BE,
+		}
 	},
 	{
 		.type = IIO_TEMP,
 		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
 			BIT(IIO_CHAN_INFO_SCALE),
 		.info_mask_shared_by_all = BIT(IIO_CHAN_INFO_SAMP_FREQ),
-	}
+		.scan_index = 1,
+		.scan_type = {
+			.sign = 's',
+			.realbits = 14,
+			.storagebits = 16,
+			.shift = TMP006_TAMBIENT_SHIFT,
+			.endianness = IIO_BE,
+		}
+	},
+	IIO_CHAN_SOFT_TIMESTAMP(2),
 };
 
 static const struct iio_info tmp006_info = {
@@ -213,6 +241,54 @@ static void tmp006_powerdown_cleanup(void *dev)
 	tmp006_power(dev, false);
 }
 
+static irqreturn_t tmp006_trigger_handler(int irq, void *p)
+{
+	struct iio_poll_func *pf = p;
+	struct iio_dev *indio_dev = pf->indio_dev;
+	struct tmp006_data *data = iio_priv(indio_dev);
+	struct {
+		s16 channels[2];
+		s64 ts __aligned(8);
+	} scan;
+	s32 ret;
+
+	ret = i2c_smbus_read_word_data(data->client, TMP006_VOBJECT);
+	if (ret < 0)
+		goto err;
+	scan.channels[0] = ret;
+
+	ret = i2c_smbus_read_word_data(data->client, TMP006_TAMBIENT);
+	if (ret < 0)
+		goto err;
+	scan.channels[1] = ret;
+
+	iio_push_to_buffers_with_timestamp(indio_dev, &scan,
+					   iio_get_time_ns(indio_dev));
+err:
+	iio_trigger_notify_done(indio_dev->trig);
+	return IRQ_HANDLED;
+}
+
+static int tmp006_set_trigger_state(struct iio_trigger *trig, bool state)
+{
+	struct iio_dev *indio_dev = iio_trigger_get_drvdata(trig);
+	struct tmp006_data *data = iio_priv(indio_dev);
+
+	if (state)
+		data->config |= TMP006_CONFIG_DRDY_EN;
+	else
+		data->config &= ~TMP006_CONFIG_DRDY_EN;
+
+	return i2c_smbus_write_word_swapped(data->client, TMP006_CONFIG,
+					    data->config);
+}
+
+static const struct iio_trigger_ops tmp006_trigger_ops = {
+	.set_trigger_state = tmp006_set_trigger_state,
+};
+
+static const unsigned long tmp006_scan_masks[] = { 0x3, 0 };
+
 static int tmp006_probe(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev;
@@ -241,6 +317,7 @@ static int tmp006_probe(struct i2c_client *client)
 
 	indio_dev->channels = tmp006_channels;
 	indio_dev->num_channels = ARRAY_SIZE(tmp006_channels);
+	indio_dev->available_scan_masks = tmp006_scan_masks;
 
 	ret = i2c_smbus_read_word_swapped(data->client, TMP006_CONFIG);
 	if (ret < 0)
@@ -255,6 +332,37 @@ static int tmp006_probe(struct i2c_client *client)
 
 	ret = devm_add_action_or_reset(&client->dev, tmp006_powerdown_cleanup,
 				       &client->dev);
+	if (ret < 0)
+		return ret;
+
+	if (client->irq > 0) {
+		data->drdy_trig = devm_iio_trigger_alloc(&client->dev,
+							 "%s-dev%d",
+							 indio_dev->name,
+							 iio_device_id(indio_dev));
+		if (!data->drdy_trig)
+			return -ENOMEM;
+
+		data->drdy_trig->ops = &tmp006_trigger_ops;
+		iio_trigger_set_drvdata(data->drdy_trig, indio_dev);
+		ret = iio_trigger_register(data->drdy_trig);
+		if (ret)
+			return ret;
+
+		indio_dev->trig = iio_trigger_get(data->drdy_trig);
+
+		ret = devm_request_threaded_irq(&client->dev, client->irq,
+						iio_trigger_generic_data_rdy_poll,
+						NULL,
+						IRQF_ONESHOT,
+						"tmp006_irq",
+						data->drdy_trig);
+		if (ret < 0)
+			return ret;
+	}
+
+	ret = devm_iio_triggered_buffer_setup(&client->dev, indio_dev, NULL,
+					      tmp006_trigger_handler, NULL);
 	if (ret < 0)
 		return ret;
 
