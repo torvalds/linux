@@ -209,6 +209,17 @@ void fw_iso_context_queue_flush(struct fw_iso_context *ctx)
 }
 EXPORT_SYMBOL(fw_iso_context_queue_flush);
 
+/**
+ * fw_iso_context_flush_completions() - process isochronous context in current process context.
+ * @ctx: the isochronous context
+ *
+ * Process the isochronous context in the current process context. The registered callback function
+ * is called if some packets have been already transferred since the last time. If it is required
+ * to process the context asynchronously, fw_iso_context_schedule_flush_completions() is available
+ * instead.
+ *
+ * Context: Process context. May sleep due to disable_work_sync().
+ */
 int fw_iso_context_flush_completions(struct fw_iso_context *ctx)
 {
 	int err;
