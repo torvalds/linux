@@ -335,7 +335,6 @@ static u32 cpg_quirks __initdata;
 
 #define RCKCR_CKSEL	BIT(1)		/* Manual RCLK parent selection */
 
-
 static const struct soc_device_attribute cpg_quirks_match[] __initconst = {
 	{
 		.soc_id = "r8a7796", .revision = "ES1.0",
