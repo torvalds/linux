@@ -161,7 +161,6 @@ static int __fault_domain_replace_dev(struct iommufd_device *idev,
 		if (!handle)
 			return -ENOMEM;
 
-		handle->handle.domain = hwpt->domain;
 		handle->idev = idev;
 		ret = iommu_replace_group_handle(idev->igroup->group,
 						 hwpt->domain, &handle->handle);
