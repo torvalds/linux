@@ -142,9 +142,9 @@ Definitions
  * **pure overwrite**: A write operation that does not require any
    metadata or zeroing operations to perform during either submission
    or completion.
-   This implies that the fileystem must have already allocated space
+   This implies that the filesystem must have already allocated space
    on disk as ``IOMAP_MAPPED`` and the filesystem must not place any
-   constaints on IO alignment or size.
+   constraints on IO alignment or size.
    The only constraints on I/O alignment are device level (minimum I/O
    size and alignment, typically sector size).
 
@@ -426,7 +426,7 @@ iomap is concerned:
 
 The exact locking requirements are specific to the filesystem; for
 certain operations, some of these locks can be elided.
-All further mention of locking are *recommendations*, not mandates.
+All further mentions of locking are *recommendations*, not mandates.
 Each filesystem author must figure out the locking for themself.
 
 Bugs and Limitations
