@@ -1015,7 +1015,7 @@ struct bandwidth_autoswitch {
 #define REORDER_ENTRY_NUM	128
 struct rx_reorder_entry {
 	struct list_head	list;
-	u16			SeqNum;
+	u16			seq_num;
 	struct rtllib_rxb *prxb;
 };
 

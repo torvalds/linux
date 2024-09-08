@@ -27,22 +27,22 @@ static void RxPktPendingTimeout(struct timer_list *t)
 					list_entry(ts->rx_pending_pkt_list.prev,
 					struct rx_reorder_entry, list);
 			if (index == 0)
-				ts->rx_indicate_seq = reorder_entry->SeqNum;
+				ts->rx_indicate_seq = reorder_entry->seq_num;
 
-			if (SN_LESS(reorder_entry->SeqNum,
+			if (SN_LESS(reorder_entry->seq_num,
 				    ts->rx_indicate_seq) ||
-			    SN_EQUAL(reorder_entry->SeqNum,
+			    SN_EQUAL(reorder_entry->seq_num,
 				     ts->rx_indicate_seq)) {
 				list_del_init(&reorder_entry->list);
 
-				if (SN_EQUAL(reorder_entry->SeqNum,
+				if (SN_EQUAL(reorder_entry->seq_num,
 				    ts->rx_indicate_seq))
 					ts->rx_indicate_seq =
 					      (ts->rx_indicate_seq + 1) % 4096;
 
 				netdev_dbg(ieee->dev,
-					   "%s(): Indicate SeqNum: %d\n",
-					   __func__, reorder_entry->SeqNum);
+					   "%s(): Indicate seq_num: %d\n",
+					   __func__, reorder_entry->seq_num);
 				ieee->stats_IndicateArray[index] =
 							 reorder_entry->prxb;
 				index++;
@@ -336,8 +336,8 @@ static void RemoveTsEntry(struct rtllib_device *ieee,
 			pRxReorderEntry = (struct rx_reorder_entry *)
 					list_entry(ts->rx_pending_pkt_list.prev,
 					struct rx_reorder_entry, list);
-			netdev_dbg(ieee->dev,  "%s(): Delete SeqNum %d!\n",
-				   __func__, pRxReorderEntry->SeqNum);
+			netdev_dbg(ieee->dev,  "%s(): Delete seq_num %d!\n",
+				   __func__, pRxReorderEntry->seq_num);
 			list_del_init(&pRxReorderEntry->list);
 			{
 				int i = 0;

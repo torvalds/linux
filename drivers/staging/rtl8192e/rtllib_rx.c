@@ -408,13 +408,13 @@ static bool add_reorder_entry(struct rx_ts_record *ts,
 	struct list_head *list = &ts->rx_pending_pkt_list;
 
 	while (list->next != &ts->rx_pending_pkt_list) {
-		if (SN_LESS(reorder_entry->SeqNum, ((struct rx_reorder_entry *)
+		if (SN_LESS(reorder_entry->seq_num, ((struct rx_reorder_entry *)
 		    list_entry(list->next, struct rx_reorder_entry,
-		    list))->SeqNum))
+		    list))->seq_num))
 			list = list->next;
-		else if (SN_EQUAL(reorder_entry->SeqNum,
+		else if (SN_EQUAL(reorder_entry->seq_num,
 			((struct rx_reorder_entry *)list_entry(list->next,
-			struct rx_reorder_entry, list))->SeqNum))
+			struct rx_reorder_entry, list))->seq_num))
 			return false;
 		else
 			break;
@@ -504,8 +504,8 @@ void rtllib_flush_rx_ts_pending_pkts(struct rtllib_device *ieee,
 		pRxReorderEntry = (struct rx_reorder_entry *)
 				  list_entry(ts->rx_pending_pkt_list.prev,
 					     struct rx_reorder_entry, list);
-		netdev_dbg(ieee->dev, "%s(): Indicate SeqNum %d!\n", __func__,
-			   pRxReorderEntry->SeqNum);
+		netdev_dbg(ieee->dev, "%s(): Indicate seq_num %d!\n", __func__,
+			   pRxReorderEntry->seq_num);
 		list_del_init(&pRxReorderEntry->list);
 
 		ieee->rfd_array[rfd_cnt] = pRxReorderEntry->prxb;
@@ -521,7 +521,7 @@ void rtllib_flush_rx_ts_pending_pkts(struct rtllib_device *ieee,
 
 static void rx_reorder_indicate_packet(struct rtllib_device *ieee,
 				       struct rtllib_rxb *prxb,
-				       struct rx_ts_record *ts, u16 SeqNum)
+				       struct rx_ts_record *ts, u16 seq_num)
 {
 	struct rt_hi_throughput *ht_info = ieee->ht_info;
 	struct rx_reorder_entry *reorder_entry = NULL;
@@ -533,20 +533,20 @@ static void rx_reorder_indicate_packet(struct rtllib_device *ieee,
 
 	netdev_dbg(ieee->dev,
 		   "%s(): Seq is %d, ts->rx_indicate_seq is %d, win_size is %d\n",
-		   __func__, SeqNum, ts->rx_indicate_seq, win_size);
+		   __func__, seq_num, ts->rx_indicate_seq, win_size);
 
 	spin_lock_irqsave(&(ieee->reorder_spinlock), flags);
 
 	win_end = (ts->rx_indicate_seq + win_size - 1) % 4096;
 	/* Rx Reorder initialize condition.*/
 	if (ts->rx_indicate_seq == 0xffff)
-		ts->rx_indicate_seq = SeqNum;
+		ts->rx_indicate_seq = seq_num;
 
-	/* Drop out the packet which SeqNum is smaller than WinStart */
-	if (SN_LESS(SeqNum, ts->rx_indicate_seq)) {
+	/* Drop out the packet which seq_num is smaller than WinStart */
+	if (SN_LESS(seq_num, ts->rx_indicate_seq)) {
 		netdev_dbg(ieee->dev,
 			   "Packet Drop! IndicateSeq: %d, NewSeq: %d\n",
-			   ts->rx_indicate_seq, SeqNum);
+			   ts->rx_indicate_seq, seq_num);
 		ht_info->rx_reorder_drop_counter++;
 		{
 			int i;
@@ -561,38 +561,38 @@ static void rx_reorder_indicate_packet(struct rtllib_device *ieee,
 	}
 
 	/* Sliding window manipulation. Conditions includes:
-	 * 1. Incoming SeqNum is equal to WinStart =>Window shift 1
-	 * 2. Incoming SeqNum is larger than the win_end => Window shift N
+	 * 1. Incoming seq_num is equal to WinStart =>Window shift 1
+	 * 2. Incoming seq_num is larger than the win_end => Window shift N
 	 */
-	if (SN_EQUAL(SeqNum, ts->rx_indicate_seq)) {
+	if (SN_EQUAL(seq_num, ts->rx_indicate_seq)) {
 		ts->rx_indicate_seq = (ts->rx_indicate_seq + 1) % 4096;
 		match_win_start = true;
-	} else if (SN_LESS(win_end, SeqNum)) {
-		if (SeqNum >= (win_size - 1))
-			ts->rx_indicate_seq = SeqNum + 1 - win_size;
+	} else if (SN_LESS(win_end, seq_num)) {
+		if (seq_num >= (win_size - 1))
+			ts->rx_indicate_seq = seq_num + 1 - win_size;
 		else
 			ts->rx_indicate_seq = 4095 -
-					     (win_size - (SeqNum + 1)) + 1;
+					     (win_size - (seq_num + 1)) + 1;
 		netdev_dbg(ieee->dev,
 			   "Window Shift! IndicateSeq: %d, NewSeq: %d\n",
-			   ts->rx_indicate_seq, SeqNum);
+			   ts->rx_indicate_seq, seq_num);
 	}
 
 	/* Indication process.
 	 * After Packet dropping and Sliding Window shifting as above, we can
-	 * now just indicate the packets with the SeqNum smaller than latest
+	 * now just indicate the packets with the seq_num smaller than latest
 	 * WinStart and struct buffer other packets.
 	 *
 	 * For Rx Reorder condition:
-	 * 1. All packets with SeqNum smaller than WinStart => Indicate
-	 * 2. All packets with SeqNum larger than or equal to
+	 * 1. All packets with seq_num smaller than WinStart => Indicate
+	 * 2. All packets with seq_num larger than or equal to
 	 *	 WinStart => Buffer it.
 	 */
 	if (match_win_start) {
 		/* Current packet is going to be indicated.*/
 		netdev_dbg(ieee->dev,
 			   "Packets indication! IndicateSeq: %d, NewSeq: %d\n",
-			   ts->rx_indicate_seq, SeqNum);
+			   ts->rx_indicate_seq, seq_num);
 		ieee->prxb_indicate_array[0] = prxb;
 		index = 1;
 	} else {
@@ -606,7 +606,7 @@ static void rx_reorder_indicate_packet(struct rtllib_device *ieee,
 			/* Make a reorder entry and insert
 			 * into a the packet list.
 			 */
-			reorder_entry->SeqNum = SeqNum;
+			reorder_entry->seq_num = seq_num;
 			reorder_entry->prxb = prxb;
 
 			if (!add_reorder_entry(ts, reorder_entry)) {
@@ -615,7 +615,7 @@ static void rx_reorder_indicate_packet(struct rtllib_device *ieee,
 				netdev_dbg(ieee->dev,
 					   "%s(): Duplicate packet is dropped. IndicateSeq: %d, NewSeq: %d\n",
 					   __func__, ts->rx_indicate_seq,
-					   SeqNum);
+					   seq_num);
 				list_add_tail(&reorder_entry->list,
 					      &ieee->RxReorder_Unused_List);
 
@@ -626,7 +626,7 @@ static void rx_reorder_indicate_packet(struct rtllib_device *ieee,
 			} else {
 				netdev_dbg(ieee->dev,
 					   "Pkt insert into struct buffer. IndicateSeq: %d, NewSeq: %d\n",
-					   ts->rx_indicate_seq, SeqNum);
+					   ts->rx_indicate_seq, seq_num);
 			}
 		} else {
 			/* Packets are dropped if there are not enough reorder
@@ -657,8 +657,8 @@ static void rx_reorder_indicate_packet(struct rtllib_device *ieee,
 					list_entry(ts->rx_pending_pkt_list.prev,
 						   struct rx_reorder_entry,
 						   list);
-		if (SN_LESS(reorder_entry->SeqNum, ts->rx_indicate_seq) ||
-		    SN_EQUAL(reorder_entry->SeqNum, ts->rx_indicate_seq)) {
+		if (SN_LESS(reorder_entry->seq_num, ts->rx_indicate_seq) ||
+		    SN_EQUAL(reorder_entry->seq_num, ts->rx_indicate_seq)) {
 			/* This protect struct buffer from overflow. */
 			if (index >= REORDER_WIN_SIZE) {
 				netdev_err(ieee->dev,
@@ -670,13 +670,13 @@ static void rx_reorder_indicate_packet(struct rtllib_device *ieee,
 
 			list_del_init(&reorder_entry->list);
 
-			if (SN_EQUAL(reorder_entry->SeqNum, ts->rx_indicate_seq))
+			if (SN_EQUAL(reorder_entry->seq_num, ts->rx_indicate_seq))
 				ts->rx_indicate_seq = (ts->rx_indicate_seq + 1) %
 						     4096;
 
 			ieee->prxb_indicate_array[index] = reorder_entry->prxb;
-			netdev_dbg(ieee->dev, "%s(): Indicate SeqNum %d!\n",
-				   __func__, reorder_entry->SeqNum);
+			netdev_dbg(ieee->dev, "%s(): Indicate seq_num %d!\n",
+				   __func__, reorder_entry->seq_num);
 			index++;
 
 			list_add_tail(&reorder_entry->list,
@@ -731,10 +731,10 @@ static u8 parse_subframe(struct rtllib_device *ieee, struct sk_buff *skb,
 	bool		is_aggregate_frame = false;
 	u16		subframe_len;
 	u8		pad_len = 0;
-	u16		SeqNum = 0;
+	u16		seq_num = 0;
 	struct sk_buff *sub_skb;
 	/* just for debug purpose */
-	SeqNum = WLAN_GET_SEQ_SEQ(le16_to_cpu(hdr->seq_ctrl));
+	seq_num = WLAN_GET_SEQ_SEQ(le16_to_cpu(hdr->seq_ctrl));
 	if ((RTLLIB_QOS_HAS_SEQ(fc)) &&
 	   (((union frameqos *)(skb->data + RTLLIB_3ADDR_LEN))->field.reserved))
 		is_aggregate_frame = true;
@@ -796,8 +796,8 @@ static u8 parse_subframe(struct rtllib_device *ieee, struct sk_buff *skb,
 				    "nRemain_Length is %d and subframe_len is : %d\n",
 				    skb->len, subframe_len);
 			netdev_info(ieee->dev,
-				    "The Packet SeqNum is %d\n",
-				    SeqNum);
+				    "The Packet seq_num is %d\n",
+				    seq_num);
 			return 0;
 		}
 
@@ -1227,7 +1227,7 @@ static int rtllib_rx_infra_adhoc(struct rtllib_device *ieee, struct sk_buff *skb
 	struct lib80211_crypt_data *crypt = NULL;
 	struct rtllib_rxb *rxb = NULL;
 	struct rx_ts_record *ts = NULL;
-	u16 fc, sc, SeqNum = 0;
+	u16 fc, sc, seq_num = 0;
 	u8 type, stype, multicast = 0, unicast = 0, nr_subframes = 0, TID = 0;
 	u8 dst[ETH_ALEN];
 	u8 src[ETH_ALEN];
@@ -1321,7 +1321,7 @@ static int rtllib_rx_infra_adhoc(struct rtllib_device *ieee, struct sk_buff *skb
 	if (ieee->current_network.qos_data.active && is_qos_data_frame(skb->data)
 		&& !is_multicast_ether_addr(hdr->addr1)) {
 		TID = frame_qos_tid(skb->data);
-		SeqNum = WLAN_GET_SEQ_SEQ(sc);
+		seq_num = WLAN_GET_SEQ_SEQ(sc);
 		rtllib_get_ts(ieee, (struct ts_common_info **)&ts, hdr->addr2, TID,
 		      RX_DIR, true);
 		if (TID != 0 && TID != 3)
@@ -1362,7 +1362,7 @@ static int rtllib_rx_infra_adhoc(struct rtllib_device *ieee, struct sk_buff *skb
 	if (!ieee->ht_info->cur_rx_reorder_enable || !ts)
 		rtllib_rx_indicate_pkt_legacy(ieee, rx_stats, rxb, dst, src);
 	else
-		rx_reorder_indicate_packet(ieee, rxb, ts, SeqNum);
+		rx_reorder_indicate_packet(ieee, rxb, ts, seq_num);
 
 	dev_kfree_skb(skb);
 
