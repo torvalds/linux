@@ -195,6 +195,9 @@
 		reset-gpios = <&pio 1 1 GPIO_ACTIVE_LOW>;
 		avdd-supply = <&reg_dldo1>;
 		dvdd-supply = <&reg_dldo1>;
+		mount-matrix = "0", "-1", "0",
+				"-1", "0", "0",
+				"0", "0", "-1";
 
 		/* status will be fixed up in firmware */
 		status = "disabled";
@@ -206,6 +209,9 @@
 		reg = <0x1e>;
 		vdd-supply = <&reg_dldo1>;
 		vddio-supply = <&reg_dldo1>;
+		mount-matrix = "0", "1", "0",
+				"-1", "0", "0",
+				"0", "0", "1";
 	};
 
 	/* Light/proximity sensor */
