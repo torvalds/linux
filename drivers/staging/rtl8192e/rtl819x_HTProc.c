@@ -622,10 +622,10 @@ void HT_update_self_and_peer_setting(struct rtllib_device *ieee,
 }
 EXPORT_SYMBOL(HT_update_self_and_peer_setting);
 
-u8 ht_c_check(struct rtllib_device *ieee, u8 *pFrame)
+u8 ht_c_check(struct rtllib_device *ieee, u8 *frame)
 {
 	if (ieee->ht_info->current_ht_support) {
-		if ((is_qos_data_frame(pFrame) && frame_order(pFrame)) == 1) {
+		if ((is_qos_data_frame(frame) && frame_order(frame)) == 1) {
 			netdev_dbg(ieee->dev, "HT CONTROL FILED EXIST!!\n");
 			return true;
 		}
