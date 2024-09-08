@@ -12,4 +12,17 @@ static inline unsigned int hash_str(const char *s)
 	return hash;
 }
 
+/* simplified version of functions from include/linux/hash.h */
+#define GOLDEN_RATIO_32 0x61C88647
+
+static inline unsigned int hash_32(unsigned int val)
+{
+	return 0x61C88647 * val;
+}
+
+static inline unsigned int hash_ptr(const void *ptr)
+{
+	return hash_32((unsigned int)(unsigned long)ptr);
+}
+
 #endif /* HASH_H */

@@ -29,11 +29,21 @@ enum expr_type {
 };
 
 union expr_data {
-	struct expr *expr;
-	struct symbol *sym;
+	struct expr * const expr;
+	struct symbol * const sym;
+	void *_initdata;
 };
 
+/**
+ * struct expr - expression
+ *
+ * @node:  link node for the hash table
+ * @type:  expressoin type
+ * @left:  left node
+ * @right: right node
+ */
 struct expr {
+	struct hlist_node node;
 	enum expr_type type;
 	union expr_data left, right;
 };
@@ -275,8 +285,6 @@ struct expr *expr_alloc_two(enum expr_type type, struct expr *e1, struct expr *e
 struct expr *expr_alloc_comp(enum expr_type type, struct symbol *s1, struct symbol *s2);
 struct expr *expr_alloc_and(struct expr *e1, struct expr *e2);
 struct expr *expr_alloc_or(struct expr *e1, struct expr *e2);
-struct expr *expr_copy(const struct expr *org);
-void expr_free(struct expr *e);
 void expr_eliminate_eq(struct expr **ep1, struct expr **ep2);
 bool expr_eq(struct expr *e1, struct expr *e2);
 tristate expr_calc_value(struct expr *e);
