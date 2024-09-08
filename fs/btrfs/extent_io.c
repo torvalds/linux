@@ -2116,7 +2116,27 @@ retry:
 				continue;
 			}
 
-			if (wbc->sync_mode != WB_SYNC_NONE) {
+			/*
+			 * For subpage case, compression can lead to mixed
+			 * writeback and dirty flags, e.g:
+			 * 0     32K    64K    96K    128K
+			 * |     |//////||/////|   |//|
+			 *
+			 * In above case, [32K, 96K) is asynchronously submitted
+			 * for compression, and [124K, 128K) needs to be written back.
+			 *
+			 * If we didn't wait wrtiteback for page 64K, [128K, 128K)
+			 * won't be submitted as the page still has writeback flag
+			 * and will be skipped in the next check.
+			 *
+			 * This mixed writeback and dirty case is only possible for
+			 * subpage case.
+			 *
+			 * TODO: Remove this check after migrating compression to
+			 * regular submission.
+			 */
+			if (wbc->sync_mode != WB_SYNC_NONE ||
+			    btrfs_is_subpage(inode_to_fs_info(inode), mapping)) {
 				if (folio_test_writeback(folio))
 					submit_write_bio(bio_ctrl, 0);
 				folio_wait_writeback(folio);
