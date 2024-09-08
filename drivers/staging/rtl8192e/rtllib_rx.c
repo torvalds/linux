@@ -2177,8 +2177,8 @@ static inline int rtllib_network_init(
 	network->marvell_cap_exist = false;
 	network->airgo_cap_exist = false;
 	network->turbo_enable = 0;
-	network->SignalStrength = stats->SignalStrength;
-	network->RSSI = stats->SignalStrength;
+	network->signal_strength = stats->signal_strength;
+	network->RSSI = stats->signal_strength;
 	network->country_ie_len = 0;
 	memset(network->country_ie_buf, 0, MAX_IE_LEN);
 	ht_initialize_bss_desc(&network->bssht);
@@ -2215,7 +2215,7 @@ static inline int rtllib_network_init(
 	}
 	if (rtllib_is_empty_essid(network->ssid, network->ssid_len))
 		network->flags |= NETWORK_EMPTY_ESSID;
-	stats->signal = 30 + (stats->SignalStrength * 70) / 100;
+	stats->signal = 30 + (stats->signal_strength * 70) / 100;
 	stats->noise = rtllib_translate_todbm((u8)(100 - stats->signal)) - 25;
 
 	memcpy(&network->stats, stats, sizeof(network->stats));
@@ -2334,7 +2334,7 @@ static inline void update_network(struct rtllib_device *ieee,
 	   src->wmm_param[3].ac_aci_acm_aifsn)
 		memcpy(dst->wmm_param, src->wmm_param, WME_AC_PRAM_LEN);
 
-	dst->SignalStrength = src->SignalStrength;
+	dst->signal_strength = src->signal_strength;
 	dst->RSSI = src->RSSI;
 	dst->turbo_enable = src->turbo_enable;
 

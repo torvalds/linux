@@ -1319,12 +1319,12 @@ static void _rtl92e_query_rxphystatus(struct r8192_priv *priv,
 	}
 
 	if (is_cck_rate) {
-		pstats->SignalStrength = precord_stats->SignalStrength =
+		pstats->signal_strength = precord_stats->signal_strength =
 					 _rtl92e_signal_scale_mapping(priv, (long)pwdb_all);
 
 	} else {
 		if (rf_rx_num != 0)
-			pstats->SignalStrength = precord_stats->SignalStrength =
+			pstats->signal_strength = precord_stats->signal_strength =
 					 _rtl92e_signal_scale_mapping(priv,
 					 (long)(total_rssi /= rf_rx_num));
 	}
@@ -1352,10 +1352,10 @@ static void _rtl92e_process_phyinfo(struct r8192_priv *priv, u8 *buffer,
 		last_rssi = priv->stats.slide_signal_strength[slide_rssi_index];
 		priv->stats.slide_rssi_total -= last_rssi;
 	}
-	priv->stats.slide_rssi_total += prev_st->SignalStrength;
+	priv->stats.slide_rssi_total += prev_st->signal_strength;
 
 	priv->stats.slide_signal_strength[slide_rssi_index++] =
-					 prev_st->SignalStrength;
+					 prev_st->signal_strength;
 	if (slide_rssi_index >= PHY_RSSI_SLID_WIN_MAX)
 		slide_rssi_index = 0;
 

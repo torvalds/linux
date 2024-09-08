@@ -466,7 +466,7 @@ struct rtllib_rx_stats {
 	u16 Length;
 	u8  SignalQuality;
 	s32 RecvSignalPower;
-	u8  SignalStrength;
+	u8  signal_strength;
 	u16 hw_error:1;
 	u16 bCRC:1;
 	u16 bICV:1;
@@ -951,7 +951,7 @@ struct rtllib_network {
 	bool unknown_cap_exist;
 	bool	berp_info_valid;
 	bool buseprotection;
-	u8 SignalStrength;
+	u8 signal_strength;
 	u8 RSSI;
 	struct list_head list;
 };
