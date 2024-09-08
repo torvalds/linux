@@ -250,12 +250,12 @@ static int dibx000_i2c_master_xfer_gpio34(struct i2c_adapter *i2c_adap, struct i
 	return num;
 }
 
-static struct i2c_algorithm dibx000_i2c_master_gpio12_xfer_algo = {
+static const struct i2c_algorithm dibx000_i2c_master_gpio12_xfer_algo = {
 	.master_xfer = dibx000_i2c_master_xfer_gpio12,
 	.functionality = dibx000_i2c_func,
 };
 
-static struct i2c_algorithm dibx000_i2c_master_gpio34_xfer_algo = {
+static const struct i2c_algorithm dibx000_i2c_master_gpio34_xfer_algo = {
 	.master_xfer = dibx000_i2c_master_xfer_gpio34,
 	.functionality = dibx000_i2c_func,
 };
@@ -324,7 +324,7 @@ static int dibx000_i2c_gated_gpio67_xfer(struct i2c_adapter *i2c_adap,
 	return ret;
 }
 
-static struct i2c_algorithm dibx000_i2c_gated_gpio67_algo = {
+static const struct i2c_algorithm dibx000_i2c_gated_gpio67_algo = {
 	.master_xfer = dibx000_i2c_gated_gpio67_xfer,
 	.functionality = dibx000_i2c_func,
 };
@@ -369,7 +369,7 @@ static int dibx000_i2c_gated_tuner_xfer(struct i2c_adapter *i2c_adap,
 	return ret;
 }
 
-static struct i2c_algorithm dibx000_i2c_gated_tuner_algo = {
+static const struct i2c_algorithm dibx000_i2c_gated_tuner_algo = {
 	.master_xfer = dibx000_i2c_gated_tuner_xfer,
 	.functionality = dibx000_i2c_func,
 };
@@ -422,7 +422,7 @@ void dibx000_reset_i2c_master(struct dibx000_i2c_master *mst)
 EXPORT_SYMBOL(dibx000_reset_i2c_master);
 
 static int i2c_adapter_init(struct i2c_adapter *i2c_adap,
-				struct i2c_algorithm *algo, const char *name,
+				const struct i2c_algorithm *algo, const char *name,
 				struct dibx000_i2c_master *mst)
 {
 	strscpy(i2c_adap->name, name, sizeof(i2c_adap->name));
