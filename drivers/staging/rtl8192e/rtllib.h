@@ -1757,7 +1757,7 @@ void rtllib_tx_ba_inact_timeout(struct timer_list *t);
 void rtllib_rx_ba_inact_timeout(struct timer_list *t);
 void rtllib_reset_ba_entry(struct ba_record *ba);
 bool rtllib_get_ts(struct rtllib_device *ieee, struct ts_common_info **ppTS, u8 *addr,
-	   u8 TID, enum tr_select tx_rx_select, bool bAddNewTs);
+	   u8 TID, enum tr_select tx_rx_select, bool add_new_ts);
 void rtllib_ts_init(struct rtllib_device *ieee);
 void rtllib_ts_start_add_ba_process(struct rtllib_device *ieee,
 			 struct tx_ts_record *pTxTS);

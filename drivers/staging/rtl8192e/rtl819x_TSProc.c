@@ -225,7 +225,7 @@ static void MakeTSEntry(struct ts_common_info *ts_common_info, u8 *addr,
 }
 
 bool rtllib_get_ts(struct rtllib_device *ieee, struct ts_common_info **ppTS,
-	   u8 *addr, u8 TID, enum tr_select tx_rx_select, bool bAddNewTs)
+	   u8 *addr, u8 TID, enum tr_select tx_rx_select, bool add_new_ts)
 {
 	u8	UP = 0;
 	struct qos_tsinfo tspec;
@@ -269,7 +269,7 @@ bool rtllib_get_ts(struct rtllib_device *ieee, struct ts_common_info **ppTS,
 	if (*ppTS)
 		return true;
 
-	if (!bAddNewTs) {
+	if (!add_new_ts) {
 		netdev_dbg(ieee->dev, "add new TS failed(tid:%d)\n", UP);
 		return false;
 	}
