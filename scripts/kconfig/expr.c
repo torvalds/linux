@@ -578,16 +578,6 @@ static void expr_eliminate_dups1(enum expr_type type, struct expr **ep1, struct 
 
 	/* *ep1 and *ep2 are leaves. Compare and process them. */
 
-	if (*ep1 == *ep2)
-		return;
-
-	switch ((*ep1)->type) {
-	case E_OR: case E_AND:
-		expr_eliminate_dups1((*ep1)->type, ep1, ep1);
-	default:
-		;
-	}
-
 	switch (type) {
 	case E_OR:
 		tmp = expr_join_or(*ep1, *ep2);
@@ -634,7 +624,9 @@ struct expr *expr_eliminate_dups(struct expr *e)
 		trans_count = 0;
 		switch (e->type) {
 		case E_OR: case E_AND:
-			expr_eliminate_dups1(e->type, &e, &e);
+			e->left.expr = expr_eliminate_dups(e->left.expr);
+			e->right.expr = expr_eliminate_dups(e->right.expr);
+			expr_eliminate_dups1(e->type, &e->left.expr, &e->right.expr);
 		default:
 			;
 		}
