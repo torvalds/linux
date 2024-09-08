@@ -2155,11 +2155,11 @@ static int mt8365_afe_pcm_dev_probe(struct platform_device *pdev)
 	for (i = 0; i < afe->irqs_size; i++)
 		afe->irqs[i].irq_data = &irq_data[i];
 
-	irq_id = platform_get_irq(pdev, 0);
-	if (!irq_id) {
-		dev_err_probe(afe->dev, irq_id, "np %s no irq\n", afe->dev->of_node->name);
-		return -ENXIO;
-	}
+	ret = platform_get_irq(pdev, 0);
+	if (ret < 0)
+		return ret;
+
+	irq_id = ret;
 	ret = devm_request_irq(afe->dev, irq_id, mt8365_afe_irq_handler,
 			       0, "Afe_ISR_Handle", (void *)afe);
 	if (ret)
