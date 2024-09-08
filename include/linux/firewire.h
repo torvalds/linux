@@ -531,6 +531,23 @@ int fw_iso_context_queue(struct fw_iso_context *ctx,
 			 unsigned long payload);
 void fw_iso_context_queue_flush(struct fw_iso_context *ctx);
 int fw_iso_context_flush_completions(struct fw_iso_context *ctx);
+
+/**
+ * fw_iso_context_schedule_flush_completions() - schedule work item to process isochronous context.
+ * @ctx: the isochronous context
+ *
+ * Schedule a work item on workqueue to process the isochronous context. The registered callback
+ * function is called in the worker if some packets have been already transferred since the last
+ * time. If it is required to process the context in the current context,
+ * fw_iso_context_flush_completions() is available instead.
+ *
+ * Context: Any context.
+ */
+static inline void fw_iso_context_schedule_flush_completions(struct fw_iso_context *ctx)
+{
+	queue_work(ctx->card->isoc_wq, &ctx->work);
+}
+
 int fw_iso_context_start(struct fw_iso_context *ctx,
 			 int cycle, int sync, int tags);
 int fw_iso_context_stop(struct fw_iso_context *ctx);

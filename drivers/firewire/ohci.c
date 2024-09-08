@@ -2283,7 +2283,7 @@ static irqreturn_t irq_handler(int irq, void *data)
 
 		while (iso_event) {
 			i = ffs(iso_event) - 1;
-			fw_iso_context_queue_work(&ohci->ir_context_list[i].base);
+			fw_iso_context_schedule_flush_completions(&ohci->ir_context_list[i].base);
 			iso_event &= ~(1 << i);
 		}
 	}
@@ -2294,7 +2294,7 @@ static irqreturn_t irq_handler(int irq, void *data)
 
 		while (iso_event) {
 			i = ffs(iso_event) - 1;
-			fw_iso_context_queue_work(&ohci->it_context_list[i].base);
+			fw_iso_context_schedule_flush_completions(&ohci->it_context_list[i].base);
 			iso_event &= ~(1 << i);
 		}
 	}
