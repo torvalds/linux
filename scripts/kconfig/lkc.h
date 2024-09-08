@@ -51,7 +51,6 @@ static inline void xfwrite(const void *str, size_t len, size_t count, FILE *out)
 }
 
 /* util.c */
-unsigned int strhash(const char *s);
 const char *file_lookup(const char *name);
 
 /* lexer.l */
