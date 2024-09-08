@@ -4937,6 +4937,10 @@
 			Set maximum number of finished RCU callbacks to
 			process in one batch.
 
+	rcutree.csd_lock_suppress_rcu_stall=	[KNL]
+			Do only a one-line RCU CPU stall warning when
+			there is an ongoing too-long CSD-lock wait.
+
 	rcutree.do_rcu_barrier=	[KNL]
 			Request a call to rcu_barrier().  This is
 			throttled so that userspace tests can safely
@@ -5384,7 +5388,13 @@
 			Time to wait (s) after boot before inducing stall.
 
 	rcutorture.stall_cpu_irqsoff= [KNL]
-			Disable interrupts while stalling if set.
+			Disable interrupts while stalling if set, but only
+			on the first stall in the set.
+
+	rcutorture.stall_cpu_repeat= [KNL]
+			Number of times to repeat the stall sequence,
+			so that rcutorture.stall_cpu_repeat=3 will result
+			in four stall sequences.
 
 	rcutorture.stall_gp_kthread= [KNL]
 			Duration (s) of forced sleep within RCU
@@ -5571,14 +5581,6 @@
 			A negative value will take the default.  A value
 			of zero will disable batching.	Batching is
 			always disabled for synchronize_rcu_tasks().
-
-	rcupdate.rcu_tasks_rude_lazy_ms= [KNL]
-			Set timeout in milliseconds RCU Tasks
-			Rude asynchronous callback batching for
-			call_rcu_tasks_rude().	A negative value
-			will take the default.	A value of zero will
-			disable batching.  Batching is always disabled
-			for synchronize_rcu_tasks_rude().
 
 	rcupdate.rcu_tasks_trace_lazy_ms= [KNL]
 			Set timeout in milliseconds RCU Tasks

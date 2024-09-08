@@ -9,6 +9,7 @@
 
 #include <linux/kvm_para.h>
 #include <linux/rcu_notifier.h>
+#include <linux/smp.h>
 
 //////////////////////////////////////////////////////////////////////////////
 //
@@ -370,6 +371,7 @@ static void rcu_dump_cpu_stacks(void)
 	struct rcu_node *rnp;
 
 	rcu_for_each_leaf_node(rnp) {
+		printk_deferred_enter();
 		raw_spin_lock_irqsave_rcu_node(rnp, flags);
 		for_each_leaf_node_possible_cpu(rnp, cpu)
 			if (rnp->qsmask & leaf_node_cpu_bit(rnp, cpu)) {
@@ -379,6 +381,7 @@ static void rcu_dump_cpu_stacks(void)
 					dump_cpu_task(cpu);
 			}
 		raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
+		printk_deferred_exit();
 	}
 }
 
@@ -719,6 +722,9 @@ static void print_cpu_stall(unsigned long gps)
 	set_preempt_need_resched();
 }
 
+static bool csd_lock_suppress_rcu_stall;
+module_param(csd_lock_suppress_rcu_stall, bool, 0644);
+
 static void check_cpu_stall(struct rcu_data *rdp)
 {
 	bool self_detected;
@@ -791,7 +797,9 @@ static void check_cpu_stall(struct rcu_data *rdp)
 			return;
 
 		rcu_stall_notifier_call_chain(RCU_STALL_NOTIFY_NORM, (void *)j - gps);
-		if (self_detected) {
+		if (READ_ONCE(csd_lock_suppress_rcu_stall) && csd_lock_is_stuck()) {
+			pr_err("INFO: %s detected stall, but suppressed full report due to a stuck CSD-lock.\n", rcu_state.name);
+		} else if (self_detected) {
 			/* We haven't checked in, so go dump stack. */
 			print_cpu_stall(gps);
 		} else {

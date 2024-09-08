@@ -54,9 +54,6 @@
  *					grace-period sequence number.
  */
 
-#define RCU_SEQ_CTR_SHIFT	2
-#define RCU_SEQ_STATE_MASK	((1 << RCU_SEQ_CTR_SHIFT) - 1)
-
 /* Low-order bit definition for polled grace-period APIs. */
 #define RCU_GET_STATE_COMPLETED	0x1
 
@@ -253,6 +250,11 @@ static inline void debug_rcu_head_callback(struct rcu_head *rhp)
 {
 	if (unlikely(!rhp->func))
 		kmem_dump_obj(rhp);
+}
+
+static inline bool rcu_barrier_cb_is_done(struct rcu_head *rhp)
+{
+	return rhp->next == rhp;
 }
 
 extern int rcu_cpu_stall_suppress_at_boot;

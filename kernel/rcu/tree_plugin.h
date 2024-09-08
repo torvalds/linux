@@ -24,10 +24,11 @@ static bool rcu_rdp_is_offloaded(struct rcu_data *rdp)
 	 * timers have their own means of synchronization against the
 	 * offloaded state updaters.
 	 */
-	RCU_LOCKDEP_WARN(
+	RCU_NOCB_LOCKDEP_WARN(
 		!(lockdep_is_held(&rcu_state.barrier_mutex) ||
 		  (IS_ENABLED(CONFIG_HOTPLUG_CPU) && lockdep_is_cpus_held()) ||
-		  rcu_lockdep_is_held_nocb(rdp) ||
+		  lockdep_is_held(&rdp->nocb_lock) ||
+		  lockdep_is_held(&rcu_state.nocb_mutex) ||
 		  (!(IS_ENABLED(CONFIG_PREEMPT_COUNT) && preemptible()) &&
 		   rdp == this_cpu_ptr(&rcu_data)) ||
 		  rcu_current_is_nocb_kthread(rdp)),
