@@ -1001,8 +1001,8 @@ static inline int ra_has_index(struct file_ra_state *ra, pgoff_t index)
  * @f_cred: stashed credentials of creator/opener
  * @f_path: path of the file
  * @f_pos_lock: lock protecting file position
+ * @f_pipe: specific to pipes
  * @f_pos: file position
- * @f_version: file version
  * @f_security: LSM security context of this file
  * @f_owner: file owner
  * @f_wb_err: writeback error
@@ -1026,13 +1026,17 @@ struct file {
 	const struct cred		*f_cred;
 	/* --- cacheline 1 boundary (64 bytes) --- */
 	struct path			f_path;
-	struct mutex			f_pos_lock;
+	union {
+		/* regular files (with FMODE_ATOMIC_POS) and directories */
+		struct mutex		f_pos_lock;
+		/* pipes */
+		u64			f_pipe;
+	};
 	loff_t				f_pos;
-	u64				f_version;
-	/* --- cacheline 2 boundary (128 bytes) --- */
 #ifdef CONFIG_SECURITY
 	void				*f_security;
 #endif
+	/* --- cacheline 2 boundary (128 bytes) --- */
 	struct fown_struct		*f_owner;
 	errseq_t			f_wb_err;
 	errseq_t			f_sb_err;
@@ -3202,6 +3206,8 @@ extern loff_t vfs_setpos(struct file *file, loff_t offset, loff_t maxsize);
 extern loff_t generic_file_llseek(struct file *file, loff_t offset, int whence);
 extern loff_t generic_file_llseek_size(struct file *file, loff_t offset,
 		int whence, loff_t maxsize, loff_t eof);
+loff_t generic_llseek_cookie(struct file *file, loff_t offset, int whence,
+			     u64 *cookie);
 extern loff_t fixed_size_llseek(struct file *file, loff_t offset,
 		int whence, loff_t size);
 extern loff_t no_seek_end_llseek_size(struct file *, loff_t, int, loff_t);

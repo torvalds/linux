@@ -435,7 +435,7 @@ ufs_readdir(struct file *file, struct dir_context *ctx)
 	unsigned long n = pos >> PAGE_SHIFT;
 	unsigned long npages = dir_pages(inode);
 	unsigned chunk_mask = ~(UFS_SB(sb)->s_uspi->s_dirblksize - 1);
-	bool need_revalidate = !inode_eq_iversion(inode, file->f_version);
+	bool need_revalidate = !inode_eq_iversion(inode, *(u64 *)file->private_data);
 	unsigned flags = UFS_SB(sb)->s_flags;
 
 	UFSD("BEGIN\n");
@@ -462,7 +462,7 @@ ufs_readdir(struct file *file, struct dir_context *ctx)
 				offset = ufs_validate_entry(sb, kaddr, offset, chunk_mask);
 				ctx->pos = (n<<PAGE_SHIFT) + offset;
 			}
-			file->f_version = inode_query_iversion(inode);
+			*(u64 *)file->private_data = inode_query_iversion(inode);
 			need_revalidate = false;
 		}
 		de = (struct ufs_dir_entry *)(kaddr+offset);
@@ -646,9 +646,31 @@ not_empty:
 	return 0;
 }
 
+static int ufs_dir_open(struct inode *inode, struct file *file)
+{
+	file->private_data = kzalloc(sizeof(u64), GFP_KERNEL);
+	if (!file->private_data)
+		return -ENOMEM;
+	return 0;
+}
+
+static int ufs_dir_release(struct inode *inode, struct file *file)
+{
+	kfree(file->private_data);
+	return 0;
+}
+
+static loff_t ufs_dir_llseek(struct file *file, loff_t offset, int whence)
+{
+	return generic_llseek_cookie(file, offset, whence,
+				     (u64 *)file->private_data);
+}
+
 const struct file_operations ufs_dir_operations = {
+	.open		= ufs_dir_open,
+	.release	= ufs_dir_release,
 	.read		= generic_read_dir,
 	.iterate_shared	= ufs_readdir,
 	.fsync		= generic_file_fsync,
-	.llseek		= generic_file_llseek,
+	.llseek		= ufs_dir_llseek,
 };

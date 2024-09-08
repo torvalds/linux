@@ -2750,6 +2750,13 @@ out_unlock:
 	return remapped > 0 ? remapped : ret;
 }
 
+static loff_t ocfs2_dir_llseek(struct file *file, loff_t offset, int whence)
+{
+	struct ocfs2_file_private *fp = file->private_data;
+
+	return generic_llseek_cookie(file, offset, whence, &fp->cookie);
+}
+
 const struct inode_operations ocfs2_file_iops = {
 	.setattr	= ocfs2_setattr,
 	.getattr	= ocfs2_getattr,
@@ -2797,7 +2804,7 @@ const struct file_operations ocfs2_fops = {
 
 WRAP_DIR_ITER(ocfs2_readdir) // FIXME!
 const struct file_operations ocfs2_dops = {
-	.llseek		= generic_file_llseek,
+	.llseek		= ocfs2_dir_llseek,
 	.read		= generic_read_dir,
 	.iterate_shared	= shared_ocfs2_readdir,
 	.fsync		= ocfs2_sync_file,
@@ -2843,7 +2850,7 @@ const struct file_operations ocfs2_fops_no_plocks = {
 };
 
 const struct file_operations ocfs2_dops_no_plocks = {
-	.llseek		= generic_file_llseek,
+	.llseek		= ocfs2_dir_llseek,
 	.read		= generic_read_dir,
 	.iterate_shared	= shared_ocfs2_readdir,
 	.fsync		= ocfs2_sync_file,
