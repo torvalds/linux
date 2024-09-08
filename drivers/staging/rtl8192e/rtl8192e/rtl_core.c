@@ -1522,7 +1522,7 @@ static void _rtl92e_rx_normal(struct net_device *dev)
 				 priv->rxbuffersize, DMA_FROM_DEVICE);
 
 		skb_put(skb, pdesc->Length);
-		skb_reserve(skb, stats.RxDrvInfoSize +
+		skb_reserve(skb, stats.rx_drv_info_size +
 			stats.rx_buf_shift);
 		skb_trim(skb, skb->len - S_CRC_LEN);
 		rtllib_hdr = (struct ieee80211_hdr *)skb->data;
