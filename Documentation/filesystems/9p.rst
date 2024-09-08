@@ -86,11 +86,11 @@ When using the usbg transport, for now there is no native usb host
 service capable to handle the requests from the gadget driver. For
 this we have to use the extra python tool p9_fwd.py from tools/usb.
 
-Just start the 9pfs capable network server like diod/nfs-ganesha e.g.:
+Just start the 9pfs capable network server like diod/nfs-ganesha e.g.::
 
         $ diod -f -n -d 0 -S -l 0.0.0.0:9999 -e $PWD
 
-Optionaly scan your bus if there are more then one usbg gadgets to find their path:
+Optionaly scan your bus if there are more then one usbg gadgets to find their path::
 
         $ python $kernel_dir/tools/usb/p9_fwd.py list
 
@@ -99,7 +99,7 @@ Optionaly scan your bus if there are more then one usbg gadgets to find their pa
           2 |   67 | unknown          | unknown          | 1d6b:0109 | 2-1.1.2
           2 |   68 | unknown          | unknown          | 1d6b:0109 | 2-1.1.3
 
-Then start the python transport:
+Then start the python transport::
 
         $ python $kernel_dir/tools/usb/p9_fwd.py --path 2-1.1.2 connect -p 9999
 
