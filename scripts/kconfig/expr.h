@@ -39,12 +39,16 @@ union expr_data {
  *
  * @node:  link node for the hash table
  * @type:  expressoin type
+ * @val: calculated tristate value
+ * @val_is_valid: indicate whether the value is valid
  * @left:  left node
  * @right: right node
  */
 struct expr {
 	struct hlist_node node;
 	enum expr_type type;
+	tristate val;
+	bool val_is_valid;
 	union expr_data left, right;
 };
 

@@ -396,6 +396,8 @@ load:
 		}
 	}
 
+	expr_invalidate_all();
+
 	while (getline_stripped(&line, &line_asize, in) != -1) {
 		struct menu *choice;
 

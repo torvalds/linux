@@ -15,6 +15,8 @@ extern HASHTABLE_DECLARE(sym_hashtable, SYMBOL_HASHSIZE);
 
 extern HASHTABLE_DECLARE(expr_hashtable, EXPR_HASHSIZE);
 
+void expr_invalidate_all(void);
+
 struct menu;
 
 extern struct menu *current_menu, *current_entry;

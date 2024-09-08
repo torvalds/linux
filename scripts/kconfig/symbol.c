@@ -519,6 +519,7 @@ void sym_clear_all_valid(void)
 
 	for_all_symbols(sym)
 		sym->flags &= ~SYMBOL_VALID;
+	expr_invalidate_all();
 	conf_set_changed(true);
 	sym_calc_value(modules_sym);
 }
