@@ -1264,8 +1264,8 @@ static void _rtl92e_query_rxphystatus(struct r8192_priv *priv,
 				else
 					sq = ((64 - sq) * 100) / 44;
 			}
-			pstats->SignalQuality = sq;
-			precord_stats->SignalQuality = sq;
+			pstats->signal_quality = sq;
+			precord_stats->signal_quality = sq;
 			pstats->RxMIMOSignalQuality[0] = sq;
 			precord_stats->RxMIMOSignalQuality[0] = sq;
 			pstats->RxMIMOSignalQuality[1] = -1;
@@ -1309,8 +1309,8 @@ static void _rtl92e_query_rxphystatus(struct r8192_priv *priv,
 			evm = rtl92e_evm_db_to_percent(rx_evmX);
 			if (bpacket_match_bssid) {
 				if (i == 0) {
-					pstats->SignalQuality = evm & 0xff;
-					precord_stats->SignalQuality = evm & 0xff;
+					pstats->signal_quality = evm & 0xff;
+					precord_stats->signal_quality = evm & 0xff;
 				}
 				pstats->RxMIMOSignalQuality[i] = evm & 0xff;
 				precord_stats->RxMIMOSignalQuality[i] = evm & 0xff;
@@ -1436,7 +1436,7 @@ static void _rtl92e_process_phyinfo(struct r8192_priv *priv, u8 *buffer,
 		rtl92e_update_rx_statistics(priv, prev_st);
 	}
 
-	if (prev_st->SignalQuality != 0) {
+	if (prev_st->signal_quality != 0) {
 		if (prev_st->packet_to_self || prev_st->bPacketBeacon ||
 		    prev_st->bToSelfBA) {
 			if (slide_evm_statistics++ >= PHY_RSSI_SLID_WIN_MAX) {
@@ -1446,10 +1446,10 @@ static void _rtl92e_process_phyinfo(struct r8192_priv *priv, u8 *buffer,
 				priv->stats.slide_evm_total -= last_evm;
 			}
 
-			priv->stats.slide_evm_total += prev_st->SignalQuality;
+			priv->stats.slide_evm_total += prev_st->signal_quality;
 
 			priv->stats.slide_evm[slide_evm_index++] =
-						 prev_st->SignalQuality;
+						 prev_st->signal_quality;
 			if (slide_evm_index >= PHY_RSSI_SLID_WIN_MAX)
 				slide_evm_index = 0;
 
