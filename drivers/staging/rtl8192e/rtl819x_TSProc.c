@@ -14,7 +14,7 @@ static void RxPktPendingTimeout(struct timer_list *t)
 	struct rtllib_device *ieee = container_of(ts, struct rtllib_device,
 						  rx_ts_records[ts->num]);
 
-	struct rx_reorder_entry *pReorderEntry = NULL;
+	struct rx_reorder_entry *reorder_entry = NULL;
 
 	unsigned long flags = 0;
 	u8 index = 0;
@@ -23,31 +23,31 @@ static void RxPktPendingTimeout(struct timer_list *t)
 	spin_lock_irqsave(&(ieee->reorder_spinlock), flags);
 	if (ts->rx_timeout_indicate_seq != 0xffff) {
 		while (!list_empty(&ts->rx_pending_pkt_list)) {
-			pReorderEntry = (struct rx_reorder_entry *)
+			reorder_entry = (struct rx_reorder_entry *)
 					list_entry(ts->rx_pending_pkt_list.prev,
 					struct rx_reorder_entry, list);
 			if (index == 0)
-				ts->rx_indicate_seq = pReorderEntry->SeqNum;
+				ts->rx_indicate_seq = reorder_entry->SeqNum;
 
-			if (SN_LESS(pReorderEntry->SeqNum,
+			if (SN_LESS(reorder_entry->SeqNum,
 				    ts->rx_indicate_seq) ||
-			    SN_EQUAL(pReorderEntry->SeqNum,
+			    SN_EQUAL(reorder_entry->SeqNum,
 				     ts->rx_indicate_seq)) {
-				list_del_init(&pReorderEntry->list);
+				list_del_init(&reorder_entry->list);
 
-				if (SN_EQUAL(pReorderEntry->SeqNum,
+				if (SN_EQUAL(reorder_entry->SeqNum,
 				    ts->rx_indicate_seq))
 					ts->rx_indicate_seq =
 					      (ts->rx_indicate_seq + 1) % 4096;
 
 				netdev_dbg(ieee->dev,
 					   "%s(): Indicate SeqNum: %d\n",
-					   __func__, pReorderEntry->SeqNum);
+					   __func__, reorder_entry->SeqNum);
 				ieee->stats_IndicateArray[index] =
-							 pReorderEntry->prxb;
+							 reorder_entry->prxb;
 				index++;
 
-				list_add_tail(&pReorderEntry->list,
+				list_add_tail(&reorder_entry->list,
 					      &ieee->RxReorder_Unused_List);
 			} else {
 				pkt_in_buf = true;

@@ -403,26 +403,26 @@ drop:
 }
 
 static bool add_reorder_entry(struct rx_ts_record *ts,
-			      struct rx_reorder_entry *pReorderEntry)
+			      struct rx_reorder_entry *reorder_entry)
 {
 	struct list_head *list = &ts->rx_pending_pkt_list;
 
 	while (list->next != &ts->rx_pending_pkt_list) {
-		if (SN_LESS(pReorderEntry->SeqNum, ((struct rx_reorder_entry *)
+		if (SN_LESS(reorder_entry->SeqNum, ((struct rx_reorder_entry *)
 		    list_entry(list->next, struct rx_reorder_entry,
 		    list))->SeqNum))
 			list = list->next;
-		else if (SN_EQUAL(pReorderEntry->SeqNum,
+		else if (SN_EQUAL(reorder_entry->SeqNum,
 			((struct rx_reorder_entry *)list_entry(list->next,
 			struct rx_reorder_entry, list))->SeqNum))
 			return false;
 		else
 			break;
 	}
-	pReorderEntry->list.next = list->next;
-	pReorderEntry->list.next->prev = &pReorderEntry->list;
-	pReorderEntry->list.prev = list;
-	list->next = &pReorderEntry->list;
+	reorder_entry->list.next = list->next;
+	reorder_entry->list.next->prev = &reorder_entry->list;
+	reorder_entry->list.prev = list;
+	list->next = &reorder_entry->list;
 
 	return true;
 }
@@ -524,7 +524,7 @@ static void rx_reorder_indicate_packet(struct rtllib_device *ieee,
 				       struct rx_ts_record *ts, u16 SeqNum)
 {
 	struct rt_hi_throughput *ht_info = ieee->ht_info;
-	struct rx_reorder_entry *pReorderEntry = NULL;
+	struct rx_reorder_entry *reorder_entry = NULL;
 	u8 win_size = ht_info->rx_reorder_win_size;
 	u16 win_end = 0;
 	u8 index = 0;
@@ -598,25 +598,25 @@ static void rx_reorder_indicate_packet(struct rtllib_device *ieee,
 	} else {
 		/* Current packet is going to be inserted into pending list.*/
 		if (!list_empty(&ieee->RxReorder_Unused_List)) {
-			pReorderEntry = (struct rx_reorder_entry *)
+			reorder_entry = (struct rx_reorder_entry *)
 					list_entry(ieee->RxReorder_Unused_List.next,
 					struct rx_reorder_entry, list);
-			list_del_init(&pReorderEntry->list);
+			list_del_init(&reorder_entry->list);
 
 			/* Make a reorder entry and insert
 			 * into a the packet list.
 			 */
-			pReorderEntry->SeqNum = SeqNum;
-			pReorderEntry->prxb = prxb;
+			reorder_entry->SeqNum = SeqNum;
+			reorder_entry->prxb = prxb;
 
-			if (!add_reorder_entry(ts, pReorderEntry)) {
+			if (!add_reorder_entry(ts, reorder_entry)) {
 				int i;
 
 				netdev_dbg(ieee->dev,
 					   "%s(): Duplicate packet is dropped. IndicateSeq: %d, NewSeq: %d\n",
 					   __func__, ts->rx_indicate_seq,
 					   SeqNum);
-				list_add_tail(&pReorderEntry->list,
+				list_add_tail(&reorder_entry->list,
 					      &ieee->RxReorder_Unused_List);
 
 				for (i = 0; i < prxb->nr_subframes; i++)
@@ -653,12 +653,12 @@ static void rx_reorder_indicate_packet(struct rtllib_device *ieee,
 		netdev_dbg(ieee->dev, "%s(): start RREORDER indicate\n",
 			   __func__);
 
-		pReorderEntry = (struct rx_reorder_entry *)
+		reorder_entry = (struct rx_reorder_entry *)
 					list_entry(ts->rx_pending_pkt_list.prev,
 						   struct rx_reorder_entry,
 						   list);
-		if (SN_LESS(pReorderEntry->SeqNum, ts->rx_indicate_seq) ||
-		    SN_EQUAL(pReorderEntry->SeqNum, ts->rx_indicate_seq)) {
+		if (SN_LESS(reorder_entry->SeqNum, ts->rx_indicate_seq) ||
+		    SN_EQUAL(reorder_entry->SeqNum, ts->rx_indicate_seq)) {
 			/* This protect struct buffer from overflow. */
 			if (index >= REORDER_WIN_SIZE) {
 				netdev_err(ieee->dev,
@@ -668,18 +668,18 @@ static void rx_reorder_indicate_packet(struct rtllib_device *ieee,
 				break;
 			}
 
-			list_del_init(&pReorderEntry->list);
+			list_del_init(&reorder_entry->list);
 
-			if (SN_EQUAL(pReorderEntry->SeqNum, ts->rx_indicate_seq))
+			if (SN_EQUAL(reorder_entry->SeqNum, ts->rx_indicate_seq))
 				ts->rx_indicate_seq = (ts->rx_indicate_seq + 1) %
 						     4096;
 
-			ieee->prxb_indicate_array[index] = pReorderEntry->prxb;
+			ieee->prxb_indicate_array[index] = reorder_entry->prxb;
 			netdev_dbg(ieee->dev, "%s(): Indicate SeqNum %d!\n",
-				   __func__, pReorderEntry->SeqNum);
+				   __func__, reorder_entry->SeqNum);
 			index++;
 
-			list_add_tail(&pReorderEntry->list,
+			list_add_tail(&reorder_entry->list,
 				      &ieee->RxReorder_Unused_List);
 		} else {
 			pkt_in_buf = true;
