@@ -475,7 +475,7 @@ struct rtllib_rx_stats {
 	u32 time_stamp_high;
 
 	u8    RxDrvInfoSize;
-	u8    RxBufShift;
+	u8    rx_buf_shift;
 	bool  bIsAMPDU;
 	bool  bFirstMPDU;
 	bool  contain_htc;

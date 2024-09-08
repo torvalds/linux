@@ -1493,7 +1493,7 @@ static void _rtl92e_translate_rx_signal_stats(struct net_device *dev,
 	u8 *tmp_buf;
 	u8 *praddr;
 
-	tmp_buf = skb->data + pstats->RxDrvInfoSize + pstats->RxBufShift;
+	tmp_buf = skb->data + pstats->RxDrvInfoSize + pstats->rx_buf_shift;
 
 	hdr = (struct ieee80211_hdr_3addr *)tmp_buf;
 	fc = le16_to_cpu(hdr->frame_control);
@@ -1640,10 +1640,10 @@ bool rtl92e_get_rx_stats(struct net_device *dev, struct rtllib_rx_stats *stats,
 		return false;
 
 	stats->RxDrvInfoSize = pdesc->RxDrvInfoSize;
-	stats->RxBufShift = (pdesc->Shift) & 0x03;
+	stats->rx_buf_shift = (pdesc->Shift) & 0x03;
 	stats->decrypted = !pdesc->SWDec;
 
-	pDrvInfo = (struct rx_fwinfo *)(skb->data + stats->RxBufShift);
+	pDrvInfo = (struct rx_fwinfo *)(skb->data + stats->rx_buf_shift);
 
 	stats->rate = _rtl92e_rate_hw_to_mgn((bool)pDrvInfo->RxHT,
 					     pDrvInfo->RxRate);
