@@ -1930,30 +1930,14 @@ static int bch2_show_devname(struct seq_file *seq, struct dentry *root)
 static int bch2_show_options(struct seq_file *seq, struct dentry *root)
 {
 	struct bch_fs *c = root->d_sb->s_fs_info;
-	enum bch_opt_id i;
 	struct printbuf buf = PRINTBUF;
-	int ret = 0;
 
-	for (i = 0; i < bch2_opts_nr; i++) {
-		const struct bch_option *opt = &bch2_opt_table[i];
-		u64 v = bch2_opt_get_by_id(&c->opts, i);
+	bch2_opts_to_text(&buf, c->opts, c, c->disk_sb.sb,
+			  OPT_MOUNT, OPT_HIDDEN, OPT_SHOW_MOUNT_STYLE);
+	printbuf_nul_terminate(&buf);
+	seq_puts(seq, buf.buf);
 
-		if ((opt->flags & OPT_HIDDEN) ||
-		    !(opt->flags & OPT_MOUNT))
-			continue;
-
-		if (v == bch2_opt_get_by_id(&bch2_opts_default, i))
-			continue;
-
-		printbuf_reset(&buf);
-		bch2_opt_to_text(&buf, c, c->disk_sb.sb, opt, v,
-				 OPT_SHOW_MOUNT_STYLE);
-		seq_putc(seq, ',');
-		seq_puts(seq, buf.buf);
-	}
-
-	if (buf.allocation_failure)
-		ret = -ENOMEM;
+	int ret = buf.allocation_failure ? -ENOMEM : 0;
 	printbuf_exit(&buf);
 	return ret;
 }
