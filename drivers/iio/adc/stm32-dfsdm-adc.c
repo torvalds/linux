@@ -1466,7 +1466,7 @@ static const struct iio_chan_spec_ext_info dfsdm_adc_audio_ext_info[] = {
 		.read = dfsdm_adc_audio_get_spiclk,
 		.write = dfsdm_adc_audio_set_spiclk,
 	},
-	{},
+	{ }
 };
 
 static void stm32_dfsdm_dma_release(struct iio_dev *indio_dev)

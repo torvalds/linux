@@ -655,7 +655,7 @@ MODULE_DEVICE_TABLE(spi, ad7768_id_table);
 
 static const struct of_device_id ad7768_of_match[] = {
 	{ .compatible = "adi,ad7768-1" },
-	{ },
+	{ }
 };
 MODULE_DEVICE_TABLE(of, ad7768_of_match);
 

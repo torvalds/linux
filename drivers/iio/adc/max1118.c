@@ -260,7 +260,7 @@ static const struct spi_device_id max1118_id[] = {
 	{ "max1117", max1117 },
 	{ "max1118", max1118 },
 	{ "max1119", max1119 },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(spi, max1118_id);
 
@@ -268,7 +268,7 @@ static const struct of_device_id max1118_dt_ids[] = {
 	{ .compatible = "maxim,max1117" },
 	{ .compatible = "maxim,max1118" },
 	{ .compatible = "maxim,max1119" },
-	{},
+	{ }
 };
 MODULE_DEVICE_TABLE(of, max1118_dt_ids);
 

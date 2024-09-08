@@ -286,7 +286,7 @@ static const struct iio_chan_spec_ext_info ad7192_calibsys_ext_info[] = {
 		 &ad7192_syscalib_mode_enum),
 	IIO_ENUM_AVAILABLE("sys_calibration_mode", IIO_SHARED_BY_TYPE,
 			   &ad7192_syscalib_mode_enum),
-	{}
+	{ }
 };
 
 static struct ad7192_state *ad_sigma_delta_to_ad7192(struct ad_sigma_delta *sd)
@@ -1431,7 +1431,7 @@ static const struct of_device_id ad7192_of_match[] = {
 	{ .compatible = "adi,ad7193", .data = &ad7192_chip_info_tbl[ID_AD7193] },
 	{ .compatible = "adi,ad7194", .data = &ad7192_chip_info_tbl[ID_AD7194] },
 	{ .compatible = "adi,ad7195", .data = &ad7192_chip_info_tbl[ID_AD7195] },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(of, ad7192_of_match);
 
@@ -1441,7 +1441,7 @@ static const struct spi_device_id ad7192_ids[] = {
 	{ "ad7193", (kernel_ulong_t)&ad7192_chip_info_tbl[ID_AD7193] },
 	{ "ad7194", (kernel_ulong_t)&ad7192_chip_info_tbl[ID_AD7194] },
 	{ "ad7195", (kernel_ulong_t)&ad7192_chip_info_tbl[ID_AD7195] },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(spi, ad7192_ids);
 

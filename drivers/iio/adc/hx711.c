@@ -552,7 +552,7 @@ static int hx711_probe(struct platform_device *pdev)
 
 static const struct of_device_id of_hx711_match[] = {
 	{ .compatible = "avia,hx711", },
-	{},
+	{ }
 };
 
 MODULE_DEVICE_TABLE(of, of_hx711_match);

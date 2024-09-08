@@ -23,6 +23,7 @@
 #include <linux/iio/iio.h>
 #include <linux/iio/triggered_buffer.h>
 #include <linux/iio/trigger_consumer.h>
+#include <linux/minmax.h>
 #include <linux/property.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
@@ -34,6 +35,7 @@
 /* AD4695 registers */
 #define AD4695_REG_SPI_CONFIG_A				0x0000
 #define   AD4695_REG_SPI_CONFIG_A_SW_RST		  (BIT(7) | BIT(0))
+#define   AD4695_REG_SPI_CONFIG_A_ADDR_DIR		  BIT(5)
 #define AD4695_REG_SPI_CONFIG_B				0x0001
 #define   AD4695_REG_SPI_CONFIG_B_INST_MODE		  BIT(7)
 #define AD4695_REG_DEVICE_TYPE				0x0003
@@ -77,7 +79,6 @@
 #define AD4695_REG_GAIN_IN(n)				(0x00C0 | (2 * (n)))
 #define AD4695_REG_AS_SLOT(n)				(0x0100 | (n))
 #define   AD4695_REG_AS_SLOT_INX			  GENMASK(3, 0)
-#define AD4695_MAX_REG					0x017F
 
 /* Conversion mode commands */
 #define AD4695_CMD_EXIT_CNV_MODE	0x0A
@@ -121,6 +122,7 @@ struct ad4695_channel_config {
 struct ad4695_state {
 	struct spi_device *spi;
 	struct regmap *regmap;
+	struct regmap *regmap16;
 	struct gpio_desc *reset_gpio;
 	/* voltages channels plus temperature and timestamp */
 	struct iio_chan_spec iio_chan[AD4695_MAX_CHANNELS + 2];
@@ -150,8 +152,10 @@ static const struct regmap_range ad4695_regmap_rd_ranges[] = {
 	regmap_reg_range(AD4695_REG_SPI_CONFIG_C, AD4695_REG_SPI_STATUS),
 	regmap_reg_range(AD4695_REG_STATUS, AD4695_REG_ALERT_STATUS2),
 	regmap_reg_range(AD4695_REG_CLAMP_STATUS, AD4695_REG_CLAMP_STATUS),
-	regmap_reg_range(AD4695_REG_SETUP, AD4695_REG_TEMP_CTRL),
-	regmap_reg_range(AD4695_REG_CONFIG_IN(0), AD4695_MAX_REG),
+	regmap_reg_range(AD4695_REG_SETUP, AD4695_REG_AC_CTRL),
+	regmap_reg_range(AD4695_REG_GPIO_CTRL, AD4695_REG_TEMP_CTRL),
+	regmap_reg_range(AD4695_REG_CONFIG_IN(0), AD4695_REG_CONFIG_IN(15)),
+	regmap_reg_range(AD4695_REG_AS_SLOT(0), AD4695_REG_AS_SLOT(127)),
 };
 
 static const struct regmap_access_table ad4695_regmap_rd_table = {
@@ -164,8 +168,10 @@ static const struct regmap_range ad4695_regmap_wr_ranges[] = {
 	regmap_reg_range(AD4695_REG_SCRATCH_PAD, AD4695_REG_SCRATCH_PAD),
 	regmap_reg_range(AD4695_REG_LOOP_MODE, AD4695_REG_LOOP_MODE),
 	regmap_reg_range(AD4695_REG_SPI_CONFIG_C, AD4695_REG_SPI_STATUS),
-	regmap_reg_range(AD4695_REG_SETUP, AD4695_REG_TEMP_CTRL),
-	regmap_reg_range(AD4695_REG_CONFIG_IN(0), AD4695_MAX_REG),
+	regmap_reg_range(AD4695_REG_SETUP, AD4695_REG_AC_CTRL),
+	regmap_reg_range(AD4695_REG_GPIO_CTRL, AD4695_REG_TEMP_CTRL),
+	regmap_reg_range(AD4695_REG_CONFIG_IN(0), AD4695_REG_CONFIG_IN(15)),
+	regmap_reg_range(AD4695_REG_AS_SLOT(0), AD4695_REG_AS_SLOT(127)),
 };
 
 static const struct regmap_access_table ad4695_regmap_wr_table = {
@@ -174,12 +180,44 @@ static const struct regmap_access_table ad4695_regmap_wr_table = {
 };
 
 static const struct regmap_config ad4695_regmap_config = {
-	.name = "ad4695",
+	.name = "ad4695-8",
 	.reg_bits = 16,
 	.val_bits = 8,
-	.max_register = AD4695_MAX_REG,
+	.max_register = AD4695_REG_AS_SLOT(127),
 	.rd_table = &ad4695_regmap_rd_table,
 	.wr_table = &ad4695_regmap_wr_table,
+	.can_multi_write = true,
+};
+
+static const struct regmap_range ad4695_regmap16_rd_ranges[] = {
+	regmap_reg_range(AD4695_REG_STD_SEQ_CONFIG, AD4695_REG_STD_SEQ_CONFIG),
+	regmap_reg_range(AD4695_REG_UPPER_IN(0), AD4695_REG_GAIN_IN(15)),
+};
+
+static const struct regmap_access_table ad4695_regmap16_rd_table = {
+	.yes_ranges = ad4695_regmap16_rd_ranges,
+	.n_yes_ranges = ARRAY_SIZE(ad4695_regmap16_rd_ranges),
+};
+
+static const struct regmap_range ad4695_regmap16_wr_ranges[] = {
+	regmap_reg_range(AD4695_REG_STD_SEQ_CONFIG, AD4695_REG_STD_SEQ_CONFIG),
+	regmap_reg_range(AD4695_REG_UPPER_IN(0), AD4695_REG_GAIN_IN(15)),
+};
+
+static const struct regmap_access_table ad4695_regmap16_wr_table = {
+	.yes_ranges = ad4695_regmap16_wr_ranges,
+	.n_yes_ranges = ARRAY_SIZE(ad4695_regmap16_wr_ranges),
+};
+
+static const struct regmap_config ad4695_regmap16_config = {
+	.name = "ad4695-16",
+	.reg_bits = 16,
+	.reg_stride = 2,
+	.val_bits = 16,
+	.val_format_endian = REGMAP_ENDIAN_LITTLE,
+	.max_register = AD4695_REG_GAIN_IN(15),
+	.rd_table = &ad4695_regmap16_rd_table,
+	.wr_table = &ad4695_regmap16_wr_table,
 	.can_multi_write = true,
 };
 
@@ -188,7 +226,11 @@ static const struct iio_chan_spec ad4695_channel_template = {
 	.indexed = 1,
 	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
 			      BIT(IIO_CHAN_INFO_SCALE) |
-			      BIT(IIO_CHAN_INFO_OFFSET),
+			      BIT(IIO_CHAN_INFO_OFFSET) |
+			      BIT(IIO_CHAN_INFO_CALIBSCALE) |
+			      BIT(IIO_CHAN_INFO_CALIBBIAS),
+	.info_mask_separate_available = BIT(IIO_CHAN_INFO_CALIBSCALE) |
+					BIT(IIO_CHAN_INFO_CALIBBIAS),
 	.scan_type = {
 		.sign = 'u',
 		.realbits = 16,
@@ -582,7 +624,8 @@ static int ad4695_read_raw(struct iio_dev *indio_dev,
 	struct ad4695_state *st = iio_priv(indio_dev);
 	struct ad4695_channel_config *cfg = &st->channels_cfg[chan->scan_index];
 	u8 realbits = chan->scan_type.realbits;
-	int ret;
+	unsigned int reg_val;
+	int ret, tmp;
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
@@ -633,6 +676,152 @@ static int ad4695_read_raw(struct iio_dev *indio_dev,
 		default:
 			return -EINVAL;
 		}
+	case IIO_CHAN_INFO_CALIBSCALE:
+		switch (chan->type) {
+		case IIO_VOLTAGE:
+			iio_device_claim_direct_scoped(return -EBUSY, indio_dev) {
+				ret = regmap_read(st->regmap16,
+					AD4695_REG_GAIN_IN(chan->scan_index),
+					&reg_val);
+				if (ret)
+					return ret;
+
+				*val = reg_val;
+				*val2 = 15;
+
+				return IIO_VAL_FRACTIONAL_LOG2;
+			}
+			unreachable();
+		default:
+			return -EINVAL;
+		}
+	case IIO_CHAN_INFO_CALIBBIAS:
+		switch (chan->type) {
+		case IIO_VOLTAGE:
+			iio_device_claim_direct_scoped(return -EBUSY, indio_dev) {
+				ret = regmap_read(st->regmap16,
+					AD4695_REG_OFFSET_IN(chan->scan_index),
+					&reg_val);
+				if (ret)
+					return ret;
+
+				tmp = sign_extend32(reg_val, 15);
+
+				*val = tmp / 4;
+				*val2 = abs(tmp) % 4 * MICRO / 4;
+
+				if (tmp < 0 && *val2) {
+					*val *= -1;
+					*val2 *= -1;
+				}
+
+				return IIO_VAL_INT_PLUS_MICRO;
+			}
+			unreachable();
+		default:
+			return -EINVAL;
+		}
+	default:
+		return -EINVAL;
+	}
+}
+
+static int ad4695_write_raw(struct iio_dev *indio_dev,
+			    struct iio_chan_spec const *chan,
+			    int val, int val2, long mask)
+{
+	struct ad4695_state *st = iio_priv(indio_dev);
+	unsigned int reg_val;
+
+	iio_device_claim_direct_scoped(return -EBUSY, indio_dev) {
+		switch (mask) {
+		case IIO_CHAN_INFO_CALIBSCALE:
+			switch (chan->type) {
+			case IIO_VOLTAGE:
+				if (val < 0 || val2 < 0)
+					reg_val = 0;
+				else if (val > 1)
+					reg_val = U16_MAX;
+				else
+					reg_val = (val * (1 << 16) +
+						   mul_u64_u32_div(val2, 1 << 16,
+								   MICRO)) / 2;
+
+				return regmap_write(st->regmap16,
+					AD4695_REG_GAIN_IN(chan->scan_index),
+					reg_val);
+			default:
+				return -EINVAL;
+			}
+		case IIO_CHAN_INFO_CALIBBIAS:
+			switch (chan->type) {
+			case IIO_VOLTAGE:
+				if (val2 >= 0 && val > S16_MAX / 4)
+					reg_val = S16_MAX;
+				else if ((val2 < 0 ? -val : val) < S16_MIN / 4)
+					reg_val = S16_MIN;
+				else if (val2 < 0)
+					reg_val = clamp_t(int,
+						-(val * 4 + -val2 * 4 / MICRO),
+						S16_MIN, S16_MAX);
+				else if (val < 0)
+					reg_val = clamp_t(int,
+						val * 4 - val2 * 4 / MICRO,
+						S16_MIN, S16_MAX);
+				else
+					reg_val = clamp_t(int,
+						val * 4 + val2 * 4 / MICRO,
+						S16_MIN, S16_MAX);
+
+				return regmap_write(st->regmap16,
+					AD4695_REG_OFFSET_IN(chan->scan_index),
+					reg_val);
+			default:
+				return -EINVAL;
+			}
+		default:
+			return -EINVAL;
+		}
+	}
+	unreachable();
+}
+
+static int ad4695_read_avail(struct iio_dev *indio_dev,
+			     struct iio_chan_spec const *chan,
+			     const int **vals, int *type, int *length,
+			     long mask)
+{
+	static const int ad4695_calibscale_available[6] = {
+		/* Range of 0 (inclusive) to 2 (exclusive) */
+		0, 15, 1, 15, U16_MAX, 15
+	};
+	static const int ad4695_calibbias_available[6] = {
+		/*
+		 * Datasheet says FSR/8 which translates to signed/4. The step
+		 * depends on oversampling ratio which is always 1 for now.
+		 */
+		S16_MIN / 4, 0, 0, MICRO / 4, S16_MAX / 4, S16_MAX % 4 * MICRO / 4
+	};
+
+	switch (mask) {
+	case IIO_CHAN_INFO_CALIBSCALE:
+		switch (chan->type) {
+		case IIO_VOLTAGE:
+			*vals = ad4695_calibscale_available;
+			*type = IIO_VAL_FRACTIONAL_LOG2;
+			return IIO_AVAIL_RANGE;
+		default:
+			return -EINVAL;
+		}
+	case IIO_CHAN_INFO_CALIBBIAS:
+		switch (chan->type) {
+		case IIO_VOLTAGE:
+			*vals = ad4695_calibbias_available;
+			*type = IIO_VAL_INT_PLUS_MICRO;
+			return IIO_AVAIL_RANGE;
+		default:
+			return -EINVAL;
+		}
 	default:
 		return -EINVAL;
 	}
@@ -646,17 +835,30 @@ static int ad4695_debugfs_reg_access(struct iio_dev *indio_dev,
 	struct ad4695_state *st = iio_priv(indio_dev);
 
 	iio_device_claim_direct_scoped(return -EBUSY, indio_dev) {
-		if (readval)
-			return regmap_read(st->regmap, reg, readval);
-
-		return regmap_write(st->regmap, reg, writeval);
+		if (readval) {
+			if (regmap_check_range_table(st->regmap, reg,
+						     &ad4695_regmap_rd_table))
+				return regmap_read(st->regmap, reg, readval);
+			if (regmap_check_range_table(st->regmap16, reg,
+						     &ad4695_regmap16_rd_table))
+				return regmap_read(st->regmap16, reg, readval);
+		} else {
+			if (regmap_check_range_table(st->regmap, reg,
+						     &ad4695_regmap_wr_table))
+				return regmap_write(st->regmap, reg, writeval);
+			if (regmap_check_range_table(st->regmap16, reg,
+						     &ad4695_regmap16_wr_table))
+				return regmap_write(st->regmap16, reg, writeval);
+		}
 	}
 
-	unreachable();
+	return -EINVAL;
 }
 
 static const struct iio_info ad4695_info = {
 	.read_raw = &ad4695_read_raw,
+	.write_raw = &ad4695_write_raw,
+	.read_avail = &ad4695_read_avail,
 	.debugfs_reg_access = &ad4695_debugfs_reg_access,
 };
 
@@ -807,6 +1009,11 @@ static int ad4695_probe(struct spi_device *spi)
 		return dev_err_probe(dev, PTR_ERR(st->regmap),
 				     "Failed to initialize regmap\n");
 
+	st->regmap16 = devm_regmap_init_spi(spi, &ad4695_regmap16_config);
+	if (IS_ERR(st->regmap16))
+		return dev_err_probe(dev, PTR_ERR(st->regmap16),
+				     "Failed to initialize regmap16\n");
+
 	ret = devm_regulator_bulk_get_enable(dev,
 					     ARRAY_SIZE(ad4695_power_supplies),
 					     ad4695_power_supplies);
@@ -876,9 +1083,9 @@ static int ad4695_probe(struct spi_device *spi)
 		msleep(AD4695_T_WAKEUP_SW_MS);
 	}
 
-	/* Needed for debugfs since it only access registers 1 byte at a time. */
-	ret = regmap_set_bits(st->regmap, AD4695_REG_SPI_CONFIG_C,
-			      AD4695_REG_SPI_CONFIG_C_MB_STRICT);
+	/* Needed for regmap16 to be able to work correctly. */
+	ret = regmap_set_bits(st->regmap, AD4695_REG_SPI_CONFIG_A,
+			      AD4695_REG_SPI_CONFIG_A_ADDR_DIR);
 	if (ret)
 		return ret;
 

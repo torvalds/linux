@@ -865,7 +865,7 @@ static const struct richtek_dev_data rtq6059_devdata = {
 static const struct of_device_id rtq6056_device_match[] = {
 	{ .compatible = "richtek,rtq6056", .data = &rtq6056_devdata },
 	{ .compatible = "richtek,rtq6059", .data = &rtq6059_devdata },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(of, rtq6056_device_match);
 

@@ -331,7 +331,7 @@ static const struct of_device_id rockchip_saradc_match[] = {
 		.compatible = "rockchip,rk3588-saradc",
 		.data = &rk3588_saradc_data,
 	},
-	{},
+	{ }
 };
 MODULE_DEVICE_TABLE(of, rockchip_saradc_match);
 
