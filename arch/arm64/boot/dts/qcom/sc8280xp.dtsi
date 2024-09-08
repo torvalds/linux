@@ -1007,6 +1007,24 @@
 				status = "disabled";
 			};
 
+			uart18: serial@888000 {
+				compatible = "qcom,geni-uart";
+				reg = <0 0x00888000 0 0x4000>;
+				clocks = <&gcc GCC_QUPV3_WRAP2_S2_CLK>;
+				clock-names = "se";
+				interrupts = <GIC_SPI 584 IRQ_TYPE_LEVEL_HIGH>;
+				operating-points-v2 = <&qup_opp_table_100mhz>;
+				power-domains = <&rpmhpd SC8280XP_CX>;
+				interconnects = <&clk_virt MASTER_QUP_CORE_2 0 &clk_virt SLAVE_QUP_CORE_2 0>,
+						<&gem_noc MASTER_APPSS_PROC 0 &config_noc SLAVE_QUP_2 0>;
+				interconnect-names = "qup-core", "qup-config";
+
+				pinctrl-0 = <&qup_uart18_default>;
+				pinctrl-names = "default";
+
+				status = "disabled";
+			};
+
 			i2c19: i2c@88c000 {
 				compatible = "qcom,geni-i2c";
 				reg = <0 0x0088c000 0 0x4000>;
@@ -4869,6 +4887,36 @@
 					function = "cci_i2c";
 					drive-strength = <2>;
 					bias-pull-down;
+				};
+			};
+
+			qup_uart18_default: qup-uart18-default-state {
+				cts-pins {
+					pins = "gpio66";
+					function = "qup18";
+					drive-strength = <2>;
+					bias-disable;
+				};
+
+				rts-pins {
+					pins = "gpio67";
+					function = "qup18";
+					drive-strength = <2>;
+					bias-disable;
+				};
+
+				tx-pins {
+					pins = "gpio68";
+					function = "qup18";
+					drive-strength = <2>;
+					bias-disable;
+				};
+
+				rx-pins {
+					pins = "gpio69";
+					function = "qup18";
+					drive-strength = <2>;
+					bias-disable;
 				};
 			};
 		};
