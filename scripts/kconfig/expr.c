@@ -442,6 +442,7 @@ static struct expr *expr_join_or(struct expr *e1, struct expr *e2)
 		}
 	}
 	if (sym1->type == S_BOOLEAN) {
+		// a || !a -> y
 		if ((e1->type == E_NOT && e1->left.expr->type == E_SYMBOL && e2->type == E_SYMBOL) ||
 		    (e2->type == E_NOT && e2->left.expr->type == E_SYMBOL && e1->type == E_SYMBOL))
 			return expr_alloc_symbol(&symbol_yes);
@@ -647,6 +648,30 @@ struct expr *expr_eliminate_dups(struct expr *e)
  * Performs various simplifications involving logical operators and
  * comparisons.
  *
+ *   For bool type:
+ *     A=n        ->  !A
+ *     A=m        ->  n
+ *     A=y        ->  A
+ *     A!=n       ->  A
+ *     A!=m       ->  y
+ *     A!=y       ->  !A
+ *
+ *   For any type:
+ *     !!A        ->  A
+ *     !(A=B)     ->  A!=B
+ *     !(A!=B)    ->  A=B
+ *     !(A<=B)    ->  A>B
+ *     !(A>=B)    ->  A<B
+ *     !(A<B)     ->  A>=B
+ *     !(A>B)     ->  A<=B
+ *     !(A || B)  ->  !A && !B
+ *     !(A && B)  ->  !A || !B
+ *
+ *   For constant:
+ *     !y         ->  n
+ *     !m         ->  m
+ *     !n         ->  y
+ *
  * Allocates and returns a new expression.
  */
 struct expr *expr_transform(struct expr *e)
@@ -674,12 +699,14 @@ struct expr *expr_transform(struct expr *e)
 		if (e->left.sym->type != S_BOOLEAN)
 			break;
 		if (e->right.sym == &symbol_no) {
+			// A=n -> !A
 			e->type = E_NOT;
 			e->left.expr = expr_alloc_symbol(e->left.sym);
 			e->right.sym = NULL;
 			break;
 		}
 		if (e->right.sym == &symbol_mod) {
+			// A=m -> n
 			printf("boolean symbol %s tested for 'm'? test forced to 'n'\n", e->left.sym->name);
 			e->type = E_SYMBOL;
 			e->left.sym = &symbol_no;
@@ -687,6 +714,7 @@ struct expr *expr_transform(struct expr *e)
 			break;
 		}
 		if (e->right.sym == &symbol_yes) {
+			// A=y -> A
 			e->type = E_SYMBOL;
 			e->right.sym = NULL;
 			break;
@@ -696,11 +724,13 @@ struct expr *expr_transform(struct expr *e)
 		if (e->left.sym->type != S_BOOLEAN)
 			break;
 		if (e->right.sym == &symbol_no) {
+			// A!=n -> A
 			e->type = E_SYMBOL;
 			e->right.sym = NULL;
 			break;
 		}
 		if (e->right.sym == &symbol_mod) {
+			// A!=m -> y
 			printf("boolean symbol %s tested for 'm'? test forced to 'y'\n", e->left.sym->name);
 			e->type = E_SYMBOL;
 			e->left.sym = &symbol_yes;
@@ -708,6 +738,7 @@ struct expr *expr_transform(struct expr *e)
 			break;
 		}
 		if (e->right.sym == &symbol_yes) {
+			// A!=y -> !A
 			e->type = E_NOT;
 			e->left.expr = expr_alloc_symbol(e->left.sym);
 			e->right.sym = NULL;
@@ -717,7 +748,7 @@ struct expr *expr_transform(struct expr *e)
 	case E_NOT:
 		switch (e->left.expr->type) {
 		case E_NOT:
-			// !!a -> a
+			// !!A -> A
 			tmp = e->left.expr->left.expr;
 			free(e->left.expr);
 			free(e);
@@ -726,7 +757,7 @@ struct expr *expr_transform(struct expr *e)
 			break;
 		case E_EQUAL:
 		case E_UNEQUAL:
-			// !a='x' -> a!='x'
+			// !(A=B) -> A!=B
 			tmp = e->left.expr;
 			free(e);
 			e = tmp;
@@ -734,7 +765,7 @@ struct expr *expr_transform(struct expr *e)
 			break;
 		case E_LEQ:
 		case E_GEQ:
-			// !a<='x' -> a>'x'
+			// !(A<=B) -> A>B
 			tmp = e->left.expr;
 			free(e);
 			e = tmp;
@@ -742,14 +773,14 @@ struct expr *expr_transform(struct expr *e)
 			break;
 		case E_LTH:
 		case E_GTH:
-			// !a<'x' -> a>='x'
+			// !(A<B) -> A>=B
 			tmp = e->left.expr;
 			free(e);
 			e = tmp;
 			e->type = e->type == E_LTH ? E_GEQ : E_LEQ;
 			break;
 		case E_OR:
-			// !(a || b) -> !a && !b
+			// !(A || B) -> !A && !B
 			tmp = e->left.expr;
 			e->type = E_AND;
 			e->right.expr = expr_alloc_one(E_NOT, tmp->right.expr);
@@ -758,7 +789,7 @@ struct expr *expr_transform(struct expr *e)
 			e = expr_transform(e);
 			break;
 		case E_AND:
-			// !(a && b) -> !a || !b
+			// !(A && B) -> !A || !B
 			tmp = e->left.expr;
 			e->type = E_OR;
 			e->right.expr = expr_alloc_one(E_NOT, tmp->right.expr);
