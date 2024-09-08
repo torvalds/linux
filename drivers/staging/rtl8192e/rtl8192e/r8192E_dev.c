@@ -1172,7 +1172,7 @@ static void _rtl92e_query_rxphystatus(struct r8192_priv *priv,
 	memset(precord_stats, 0, sizeof(struct rtllib_rx_stats));
 	pstats->bPacketMatchBSSID = precord_stats->bPacketMatchBSSID =
 				    bpacket_match_bssid;
-	pstats->bPacketToSelf = precord_stats->bPacketToSelf = bpacket_toself;
+	pstats->packet_to_self = precord_stats->packet_to_self = bpacket_toself;
 	pstats->bIsCCK = precord_stats->bIsCCK = is_cck_rate;
 	pstats->bPacketBeacon = precord_stats->bPacketBeacon = bPacketBeacon;
 	pstats->bToSelfBA = precord_stats->bToSelfBA = bToSelfBA;
@@ -1370,7 +1370,7 @@ static void _rtl92e_process_phyinfo(struct r8192_priv *priv, u8 *buffer,
 	if (!bcheck)
 		return;
 
-	if (!prev_st->bIsCCK && prev_st->bPacketToSelf) {
+	if (!prev_st->bIsCCK && prev_st->packet_to_self) {
 		for (rfpath = RF90_PATH_A; rfpath < priv->num_total_rf_path; rfpath++) {
 			if (priv->stats.rx_rssi_percentage[rfpath] == 0) {
 				priv->stats.rx_rssi_percentage[rfpath] =
@@ -1416,7 +1416,7 @@ static void _rtl92e_process_phyinfo(struct r8192_priv *priv, u8 *buffer,
 		if (prev_st->RxPWDBAll >= 3)
 			prev_st->RxPWDBAll -= 3;
 	}
-	if (prev_st->bPacketToSelf || prev_st->bPacketBeacon ||
+	if (prev_st->packet_to_self || prev_st->bPacketBeacon ||
 	    prev_st->bToSelfBA) {
 		if (priv->undecorated_smoothed_pwdb < 0)
 			priv->undecorated_smoothed_pwdb = prev_st->RxPWDBAll;
@@ -1437,7 +1437,7 @@ static void _rtl92e_process_phyinfo(struct r8192_priv *priv, u8 *buffer,
 	}
 
 	if (prev_st->SignalQuality != 0) {
-		if (prev_st->bPacketToSelf || prev_st->bPacketBeacon ||
+		if (prev_st->packet_to_self || prev_st->bPacketBeacon ||
 		    prev_st->bToSelfBA) {
 			if (slide_evm_statistics++ >= PHY_RSSI_SLID_WIN_MAX) {
 				slide_evm_statistics = PHY_RSSI_SLID_WIN_MAX;
@@ -1458,7 +1458,7 @@ static void _rtl92e_process_phyinfo(struct r8192_priv *priv, u8 *buffer,
 			priv->stats.last_signal_strength_inpercent = tmp_val;
 		}
 
-		if (prev_st->bPacketToSelf ||
+		if (prev_st->packet_to_self ||
 		    prev_st->bPacketBeacon ||
 		    prev_st->bToSelfBA) {
 			for (ij = 0; ij < 2; ij++) {
