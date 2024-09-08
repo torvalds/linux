@@ -821,6 +821,7 @@ properties:
       - items:
           - enum:
               - lenovo,thinkpad-x13s
+              - microsoft,arcata
               - qcom,sc8280xp-crd
               - qcom,sc8280xp-qrd
           - const: qcom,sc8280xp
