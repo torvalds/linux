@@ -134,26 +134,35 @@ static inline enum bch_data_type bch2_bkey_ptr_data_type(struct bkey_s_c k,
 	}
 }
 
+static inline void __bch2_extent_ptr_to_bp(struct bch_fs *c, struct bch_dev *ca,
+			   enum btree_id btree_id, unsigned level,
+			   struct bkey_s_c k, struct extent_ptr_decoded p,
+			   const union bch_extent_entry *entry,
+			   struct bpos *bucket_pos, struct bch_backpointer *bp,
+			   u64 sectors)
+{
+	u32 bucket_offset;
+	*bucket_pos = PTR_BUCKET_POS_OFFSET(ca, &p.ptr, &bucket_offset);
+	*bp = (struct bch_backpointer) {
+		.btree_id	= btree_id,
+		.level		= level,
+		.data_type	= bch2_bkey_ptr_data_type(k, p, entry),
+		.bucket_offset	= ((u64) bucket_offset << MAX_EXTENT_COMPRESS_RATIO_SHIFT) +
+			p.crc.offset,
+		.bucket_len	= sectors,
+		.pos		= k.k->p,
+	};
+}
+
 static inline void bch2_extent_ptr_to_bp(struct bch_fs *c, struct bch_dev *ca,
 			   enum btree_id btree_id, unsigned level,
 			   struct bkey_s_c k, struct extent_ptr_decoded p,
 			   const union bch_extent_entry *entry,
 			   struct bpos *bucket_pos, struct bch_backpointer *bp)
 {
-	enum bch_data_type data_type = bch2_bkey_ptr_data_type(k, p, entry);
-	s64 sectors = level ? btree_sectors(c) : k.k->size;
-	u32 bucket_offset;
+	u64 sectors = ptr_disk_sectors(level ? btree_sectors(c) : k.k->size, p);
 
-	*bucket_pos = PTR_BUCKET_POS_OFFSET(ca, &p.ptr, &bucket_offset);
-	*bp = (struct bch_backpointer) {
-		.btree_id	= btree_id,
-		.level		= level,
-		.data_type	= data_type,
-		.bucket_offset	= ((u64) bucket_offset << MAX_EXTENT_COMPRESS_RATIO_SHIFT) +
-			p.crc.offset,
-		.bucket_len	= ptr_disk_sectors(sectors, p),
-		.pos		= k.k->p,
-	};
+	__bch2_extent_ptr_to_bp(c, ca, btree_id, level, k, p, entry, bucket_pos, bp, sectors);
 }
 
 int bch2_get_next_backpointer(struct btree_trans *, struct bch_dev *ca, struct bpos, int,

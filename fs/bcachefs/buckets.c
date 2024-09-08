@@ -565,11 +565,14 @@ static int bch2_trigger_pointer(struct btree_trans *trans,
 			s64 *sectors,
 			enum btree_iter_update_trigger_flags flags)
 {
+	struct bch_fs *c = trans->c;
 	bool insert = !(flags & BTREE_TRIGGER_overwrite);
 	struct printbuf buf = PRINTBUF;
 	int ret = 0;
 
-	struct bch_fs *c = trans->c;
+	u64 abs_sectors = ptr_disk_sectors(level ? btree_sectors(c) : k.k->size, p);
+	*sectors = insert ? abs_sectors : -abs_sectors;
+
 	struct bch_dev *ca = bch2_dev_tryget(c, p.ptr.dev);
 	if (unlikely(!ca)) {
 		if (insert && p.ptr.dev != BCH_SB_MEMBER_INVALID)
@@ -579,8 +582,7 @@ static int bch2_trigger_pointer(struct btree_trans *trans,
 
 	struct bpos bucket;
 	struct bch_backpointer bp;
-	bch2_extent_ptr_to_bp(trans->c, ca, btree_id, level, k, p, entry, &bucket, &bp);
-	*sectors = insert ? bp.bucket_len : -((s64) bp.bucket_len);
+	__bch2_extent_ptr_to_bp(trans->c, ca, btree_id, level, k, p, entry, &bucket, &bp, abs_sectors);
 
 	if (flags & BTREE_TRIGGER_transactional) {
 		struct bkey_i_alloc_v4 *a = bch2_trans_start_alloc_update(trans, bucket, 0);
