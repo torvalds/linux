@@ -243,9 +243,10 @@ void expr_eliminate_eq(struct expr **ep1, struct expr **ep2)
  * equals some operand in the other (operands do not need to appear in the same
  * order), recursively.
  */
-int expr_eq(struct expr *e1, struct expr *e2)
+bool expr_eq(struct expr *e1, struct expr *e2)
 {
-	int res, old_count;
+	int old_count;
+	bool res;
 
 	/*
 	 * A NULL expr is taken to be yes, but there's also a different way to
@@ -255,7 +256,7 @@ int expr_eq(struct expr *e1, struct expr *e2)
 		return expr_is_yes(e1) && expr_is_yes(e2);
 
 	if (e1->type != e2->type)
-		return 0;
+		return false;
 	switch (e1->type) {
 	case E_EQUAL:
 	case E_GEQ:
@@ -292,7 +293,7 @@ int expr_eq(struct expr *e1, struct expr *e2)
 		printf(" ?\n");
 	}
 
-	return 0;
+	return false;
 }
 
 /*
@@ -804,10 +805,10 @@ struct expr *expr_transform(struct expr *e)
 	return e;
 }
 
-int expr_contains_symbol(struct expr *dep, struct symbol *sym)
+bool expr_contains_symbol(struct expr *dep, struct symbol *sym)
 {
 	if (!dep)
-		return 0;
+		return false;
 
 	switch (dep->type) {
 	case E_AND:
@@ -829,7 +830,7 @@ int expr_contains_symbol(struct expr *dep, struct symbol *sym)
 	default:
 		;
 	}
-	return 0;
+	return false;
 }
 
 bool expr_depends_symbol(struct expr *dep, struct symbol *sym)
