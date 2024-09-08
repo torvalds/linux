@@ -510,8 +510,10 @@ static inline int iommufd_hwpt_attach_device(struct iommufd_hw_pagetable *hwpt,
 static inline void iommufd_hwpt_detach_device(struct iommufd_hw_pagetable *hwpt,
 					      struct iommufd_device *idev)
 {
-	if (hwpt->fault)
+	if (hwpt->fault) {
 		iommufd_fault_domain_detach_dev(hwpt, idev);
+		return;
+	}
 
 	iommu_detach_group(hwpt->domain, idev->igroup->group);
 }
