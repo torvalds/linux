@@ -36,7 +36,7 @@ static int __cmd_evlist(const char *file_name, struct perf_attr_details *details
 		.force     = details->force,
 	};
 	struct perf_tool tool;
-	bool has_tracepoint = false;
+	bool has_tracepoint = false, has_group = false;
 
 	perf_tool__init(&tool, /*ordered_events=*/false);
 	/* only needed for pipe mode */
@@ -54,10 +54,16 @@ static int __cmd_evlist(const char *file_name, struct perf_attr_details *details
 
 		if (pos->core.attr.type == PERF_TYPE_TRACEPOINT)
 			has_tracepoint = true;
+
+		if (!evsel__is_group_leader(pos))
+			has_group = true;
 	}
 
 	if (has_tracepoint && !details->trace_fields)
 		printf("# Tip: use 'perf evlist --trace-fields' to show fields for tracepoint events\n");
+
+	if (has_group && !details->event_group)
+		printf("# Tip: use 'perf evlist -g' to show group information\n");
 
 	perf_session__delete(session);
 	return 0;
