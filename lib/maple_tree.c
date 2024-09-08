@@ -120,7 +120,6 @@ static const unsigned char mt_min_slots[] = {
 #define MAPLE_BIG_NODE_GAPS	(MAPLE_ARANGE64_SLOTS * 2 + 1)
 
 struct maple_big_node {
-	struct maple_pnode *parent;
 	unsigned long pivot[MAPLE_BIG_NODE_SLOTS - 1];
 	union {
 		struct maple_enode *slot[MAPLE_BIG_NODE_SLOTS];
