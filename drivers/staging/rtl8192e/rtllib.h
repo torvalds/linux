@@ -107,7 +107,7 @@ struct cb_desc {
 	u8 tx_use_drv_assinged_rate:1;
 	u8 hw_sec:1;
 
-	u8 nStuckCount;
+	u8 stuck_count;
 
 	/* Tx Firmware Related flags (10-11)*/
 	u8 cts_enable:1;

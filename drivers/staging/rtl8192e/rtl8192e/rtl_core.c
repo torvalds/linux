@@ -860,13 +860,13 @@ static enum reset_type _rtl92e_tx_check_stuck(struct net_device *dev)
 			skb = __skb_peek(&ring->queue);
 			tcb_desc = (struct cb_desc *)(skb->cb +
 				    MAX_DEV_ADDR_SIZE);
-			tcb_desc->nStuckCount++;
+			tcb_desc->stuck_count++;
 			bCheckFwTxCnt = true;
-			if (tcb_desc->nStuckCount > 1)
+			if (tcb_desc->stuck_count > 1)
 				netdev_info(dev,
-					    "%s: QueueID=%d tcb_desc->nStuckCount=%d\n",
+					    "%s: QueueID=%d tcb_desc->stuck_count=%d\n",
 					    __func__, QueueID,
-					    tcb_desc->nStuckCount);
+					    tcb_desc->stuck_count);
 		}
 	}
 	spin_unlock_irqrestore(&priv->irq_th_lock, flags);
