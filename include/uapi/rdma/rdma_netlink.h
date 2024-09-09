@@ -579,6 +579,7 @@ enum rdma_nldev_attr {
 
 	RDMA_NLDEV_ATTR_EVENT_TYPE,		/* u8 */
 
+	RDMA_NLDEV_SYS_ATTR_MONITOR_MODE,	/* u8 */
 	/*
 	 * Always the end
 	 */
