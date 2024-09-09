@@ -1071,8 +1071,13 @@ void hwss_wait_for_outstanding_hw_updates(struct dc *dc, struct dc_state *dc_con
 		if (!pipe_ctx->stream)
 			continue;
 
-		if (pipe_ctx->stream_res.tg->funcs->wait_drr_doublebuffer_pending_clear)
-			pipe_ctx->stream_res.tg->funcs->wait_drr_doublebuffer_pending_clear(pipe_ctx->stream_res.tg);
+		/* For full update we must wait for all double buffer updates, not just DRR updates. This
+		 * is particularly important for minimal transitions. Only check for OTG_MASTER pipes,
+		 * as non-OTG Master pipes share the same OTG as
+		 */
+		if (resource_is_pipe_type(pipe_ctx, OTG_MASTER) && dc->hwss.wait_for_all_pending_updates) {
+			dc->hwss.wait_for_all_pending_updates(pipe_ctx);
+		}
 
 		hubp = pipe_ctx->plane_res.hubp;
 		if (!hubp)

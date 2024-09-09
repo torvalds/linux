@@ -1185,3 +1185,30 @@ void dcn30_prepare_bandwidth(struct dc *dc,
 	if (!dc->clk_mgr->clks.fw_based_mclk_switching)
 		dc_dmub_srv_p_state_delegate(dc, false, context);
 }
+
+void dcn30_wait_for_all_pending_updates(const struct pipe_ctx *pipe_ctx)
+{
+	struct timing_generator *tg = pipe_ctx->stream_res.tg;
+	bool pending_updates = false;
+	unsigned int i;
+
+	if (tg && tg->funcs->is_tg_enabled(tg)) {
+		// Poll for 100ms maximum
+		for (i = 0; i < 100000; i++) {
+			pending_updates = false;
+			if (tg->funcs->get_optc_double_buffer_pending)
+				pending_updates |= tg->funcs->get_optc_double_buffer_pending(tg);
+
+			if (tg->funcs->get_otg_double_buffer_pending)
+				pending_updates |= tg->funcs->get_otg_double_buffer_pending(tg);
+
+			if (tg->funcs->get_pipe_update_pending && pipe_ctx->plane_state)
+				pending_updates |= tg->funcs->get_pipe_update_pending(tg);
+
+			if (!pending_updates)
+				break;
+
+			udelay(1);
+		}
+	}
+}
