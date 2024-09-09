@@ -175,6 +175,9 @@
 #define LAN887X_LED_LINK_ACT_ANY_SPEED		0x0
 
 /* MX chip top registers */
+#define LAN887X_CHIP_HARD_RST			0xf03e
+#define LAN887X_CHIP_HARD_RST_RESET		BIT(0)
+
 #define LAN887X_CHIP_SOFT_RST			0xf03f
 #define LAN887X_CHIP_SOFT_RST_RESET		BIT(0)
 
@@ -188,8 +191,59 @@
 #define LAN887X_EFUSE_READ_DAT9_SGMII_DIS	BIT(9)
 #define LAN887X_EFUSE_READ_DAT9_MAC_MODE	GENMASK(1, 0)
 
+#define LAN887X_CALIB_CONFIG_100		0x437
+#define LAN887X_CALIB_CONFIG_100_CBL_DIAG_USE_LOCAL_SMPL	BIT(5)
+#define LAN887X_CALIB_CONFIG_100_CBL_DIAG_STB_SYNC_MODE		BIT(4)
+#define LAN887X_CALIB_CONFIG_100_CBL_DIAG_CLK_ALGN_MODE		BIT(3)
+#define LAN887X_CALIB_CONFIG_100_VAL \
+	(LAN887X_CALIB_CONFIG_100_CBL_DIAG_CLK_ALGN_MODE |\
+	LAN887X_CALIB_CONFIG_100_CBL_DIAG_STB_SYNC_MODE |\
+	LAN887X_CALIB_CONFIG_100_CBL_DIAG_USE_LOCAL_SMPL)
+
+#define LAN887X_MAX_PGA_GAIN_100		0x44f
+#define LAN887X_MIN_PGA_GAIN_100		0x450
+#define LAN887X_START_CBL_DIAG_100		0x45a
+#define LAN887X_CBL_DIAG_DONE			BIT(1)
+#define LAN887X_CBL_DIAG_START			BIT(0)
+#define LAN887X_CBL_DIAG_STOP			0x0
+
+#define LAN887X_CBL_DIAG_TDR_THRESH_100		0x45b
+#define LAN887X_CBL_DIAG_AGC_THRESH_100		0x45c
+#define LAN887X_CBL_DIAG_MIN_WAIT_CONFIG_100	0x45d
+#define LAN887X_CBL_DIAG_MAX_WAIT_CONFIG_100	0x45e
+#define LAN887X_CBL_DIAG_CYC_CONFIG_100		0x45f
+#define LAN887X_CBL_DIAG_TX_PULSE_CONFIG_100	0x460
+#define LAN887X_CBL_DIAG_MIN_PGA_GAIN_100	0x462
+#define LAN887X_CBL_DIAG_AGC_GAIN_100		0x497
+#define LAN887X_CBL_DIAG_POS_PEAK_VALUE_100	0x499
+#define LAN887X_CBL_DIAG_NEG_PEAK_VALUE_100	0x49a
+#define LAN887X_CBL_DIAG_POS_PEAK_TIME_100	0x49c
+#define LAN887X_CBL_DIAG_NEG_PEAK_TIME_100	0x49d
+
+#define MICROCHIP_CABLE_NOISE_MARGIN		20
+#define MICROCHIP_CABLE_TIME_MARGIN		89
+#define MICROCHIP_CABLE_MIN_TIME_DIFF		96
+#define MICROCHIP_CABLE_MAX_TIME_DIFF	\
+	(MICROCHIP_CABLE_MIN_TIME_DIFF + MICROCHIP_CABLE_TIME_MARGIN)
+
 #define DRIVER_AUTHOR	"Nisar Sayed <nisar.sayed@microchip.com>"
 #define DRIVER_DESC	"Microchip LAN87XX/LAN937x/LAN887x T1 PHY driver"
+
+/* TEST_MODE_NORMAL: Non-hybrid results to calculate cable status(open/short/ok)
+ * TEST_MODE_HYBRID: Hybrid results to calculate distance to fault
+ */
+enum cable_diag_mode {
+	TEST_MODE_NORMAL,
+	TEST_MODE_HYBRID
+};
+
+/* CD_TEST_INIT: Cable test is initated
+ * CD_TEST_DONE: Cable test is done
+ */
+enum cable_diag_state {
+	CD_TEST_INIT,
+	CD_TEST_DONE
+};
 
 struct access_ereg_val {
 	u8  mode;
@@ -1420,6 +1474,362 @@ static void lan887x_get_strings(struct phy_device *phydev, u8 *data)
 		ethtool_puts(&data, lan887x_hw_stats[i].string);
 }
 
+static int lan887x_cd_reset(struct phy_device *phydev,
+			    enum cable_diag_state cd_done)
+{
+	u16 val;
+	int rc;
+
+	/* Chip hard-reset */
+	rc = phy_write_mmd(phydev, MDIO_MMD_VEND1, LAN887X_CHIP_HARD_RST,
+			   LAN887X_CHIP_HARD_RST_RESET);
+	if (rc < 0)
+		return rc;
+
+	/* Wait for reset to complete */
+	rc = phy_read_poll_timeout(phydev, MII_PHYSID2, val,
+				   ((val & GENMASK(15, 4)) ==
+				    (PHY_ID_LAN887X & GENMASK(15, 4))),
+				   5000, 50000, true);
+	if (rc < 0)
+		return rc;
+
+	if (cd_done == CD_TEST_DONE) {
+		/* Cable diagnostics complete. Restore PHY. */
+		rc = lan887x_phy_setup(phydev);
+		if (rc < 0)
+			return rc;
+
+		rc = lan887x_phy_init(phydev);
+		if (rc < 0)
+			return rc;
+
+		rc = lan887x_phy_reconfig(phydev);
+		if (rc < 0)
+			return rc;
+	}
+
+	return 0;
+}
+
+static int lan887x_cable_test_prep(struct phy_device *phydev,
+				   enum cable_diag_mode mode)
+{
+	static const struct lan887x_regwr_map values[] = {
+		{MDIO_MMD_VEND1, LAN887X_MAX_PGA_GAIN_100, 0x1f},
+		{MDIO_MMD_VEND1, LAN887X_MIN_PGA_GAIN_100, 0x0},
+		{MDIO_MMD_VEND1, LAN887X_CBL_DIAG_TDR_THRESH_100, 0x1},
+		{MDIO_MMD_VEND1, LAN887X_CBL_DIAG_AGC_THRESH_100, 0x3c},
+		{MDIO_MMD_VEND1, LAN887X_CBL_DIAG_MIN_WAIT_CONFIG_100, 0x0},
+		{MDIO_MMD_VEND1, LAN887X_CBL_DIAG_MAX_WAIT_CONFIG_100, 0x46},
+		{MDIO_MMD_VEND1, LAN887X_CBL_DIAG_CYC_CONFIG_100, 0x5a},
+		{MDIO_MMD_VEND1, LAN887X_CBL_DIAG_TX_PULSE_CONFIG_100, 0x44d5},
+		{MDIO_MMD_VEND1, LAN887X_CBL_DIAG_MIN_PGA_GAIN_100, 0x0},
+
+	};
+	int rc;
+
+	rc = lan887x_cd_reset(phydev, CD_TEST_INIT);
+	if (rc < 0)
+		return rc;
+
+	/* Forcing DUT to master mode, as we don't care about
+	 * mode during diagnostics
+	 */
+	rc = phy_write_mmd(phydev, MDIO_MMD_PMAPMD, MDIO_PMA_PMD_BT1_CTRL,
+			   MDIO_PMA_PMD_BT1_CTRL_CFG_MST);
+	if (rc < 0)
+		return rc;
+
+	rc = phy_write_mmd(phydev, MDIO_MMD_PMAPMD, 0x80b0, 0x0038);
+	if (rc < 0)
+		return rc;
+
+	rc = phy_modify_mmd(phydev, MDIO_MMD_VEND1,
+			    LAN887X_CALIB_CONFIG_100, 0,
+			    LAN887X_CALIB_CONFIG_100_VAL);
+	if (rc < 0)
+		return rc;
+
+	for (int i = 0; i < ARRAY_SIZE(values); i++) {
+		rc = phy_write_mmd(phydev, values[i].mmd, values[i].reg,
+				   values[i].val);
+		if (rc < 0)
+			return rc;
+
+		if (mode &&
+		    values[i].reg == LAN887X_CBL_DIAG_MAX_WAIT_CONFIG_100) {
+			rc = phy_write_mmd(phydev, values[i].mmd,
+					   values[i].reg, 0xa);
+			if (rc < 0)
+				return rc;
+		}
+	}
+
+	if (mode == TEST_MODE_HYBRID) {
+		rc = phy_modify_mmd(phydev, MDIO_MMD_PMAPMD,
+				    LAN887X_AFE_PORT_TESTBUS_CTRL4,
+				    BIT(0), BIT(0));
+		if (rc < 0)
+			return rc;
+	}
+
+	/* HW_INIT 100T1, Get DUT running in 100T1 mode */
+	rc = phy_modify_mmd(phydev, MDIO_MMD_VEND1, LAN887X_REG_REG26,
+			    LAN887X_REG_REG26_HW_INIT_SEQ_EN,
+			    LAN887X_REG_REG26_HW_INIT_SEQ_EN);
+	if (rc < 0)
+		return rc;
+
+	/* Cable diag requires hard reset and is sensitive regarding the delays.
+	 * Hard reset is expected into and out of cable diag.
+	 * Wait for 50ms
+	 */
+	msleep(50);
+
+	/* Start cable diag */
+	return phy_write_mmd(phydev, MDIO_MMD_VEND1,
+			   LAN887X_START_CBL_DIAG_100,
+			   LAN887X_CBL_DIAG_START);
+}
+
+static int lan887x_cable_test_chk(struct phy_device *phydev,
+				  enum cable_diag_mode mode)
+{
+	int val;
+	int rc;
+
+	if (mode == TEST_MODE_HYBRID) {
+		/* Cable diag requires hard reset and is sensitive regarding the delays.
+		 * Hard reset is expected into and out of cable diag.
+		 * Wait for cable diag to complete.
+		 * Minimum wait time is 50ms if the condition is not a match.
+		 */
+		rc = phy_read_mmd_poll_timeout(phydev, MDIO_MMD_VEND1,
+					       LAN887X_START_CBL_DIAG_100, val,
+					       ((val & LAN887X_CBL_DIAG_DONE) ==
+						LAN887X_CBL_DIAG_DONE),
+					       50000, 500000, false);
+		if (rc < 0)
+			return rc;
+	} else {
+		rc = phy_read_mmd(phydev, MDIO_MMD_VEND1,
+				  LAN887X_START_CBL_DIAG_100);
+		if (rc < 0)
+			return rc;
+
+		if ((rc & LAN887X_CBL_DIAG_DONE) != LAN887X_CBL_DIAG_DONE)
+			return -EAGAIN;
+	}
+
+	/* Stop cable diag */
+	return phy_write_mmd(phydev, MDIO_MMD_VEND1,
+			     LAN887X_START_CBL_DIAG_100,
+			     LAN887X_CBL_DIAG_STOP);
+}
+
+static int lan887x_cable_test_start(struct phy_device *phydev)
+{
+	int rc, ret;
+
+	rc = lan887x_cable_test_prep(phydev, TEST_MODE_NORMAL);
+	if (rc < 0) {
+		ret = lan887x_cd_reset(phydev, CD_TEST_DONE);
+		if (ret < 0)
+			return ret;
+
+		return rc;
+	}
+
+	return 0;
+}
+
+static int lan887x_cable_test_report(struct phy_device *phydev)
+{
+	int pos_peak_cycle, pos_peak_cycle_hybrid, pos_peak_in_phases;
+	int pos_peak_time, pos_peak_time_hybrid, neg_peak_time;
+	int neg_peak_cycle, neg_peak_in_phases;
+	int pos_peak_in_phases_hybrid;
+	int gain_idx, gain_idx_hybrid;
+	int pos_peak_phase_hybrid;
+	int pos_peak, neg_peak;
+	int distance;
+	int detect;
+	int length;
+	int ret;
+	int rc;
+
+	/* Read non-hybrid results */
+	gain_idx = phy_read_mmd(phydev, MDIO_MMD_VEND1,
+				LAN887X_CBL_DIAG_AGC_GAIN_100);
+	if (gain_idx < 0) {
+		rc = gain_idx;
+		goto error;
+	}
+
+	pos_peak = phy_read_mmd(phydev, MDIO_MMD_VEND1,
+				LAN887X_CBL_DIAG_POS_PEAK_VALUE_100);
+	if (pos_peak < 0) {
+		rc = pos_peak;
+		goto error;
+	}
+
+	neg_peak = phy_read_mmd(phydev, MDIO_MMD_VEND1,
+				LAN887X_CBL_DIAG_NEG_PEAK_VALUE_100);
+	if (neg_peak < 0) {
+		rc = neg_peak;
+		goto error;
+	}
+
+	pos_peak_time = phy_read_mmd(phydev, MDIO_MMD_VEND1,
+				     LAN887X_CBL_DIAG_POS_PEAK_TIME_100);
+	if (pos_peak_time < 0) {
+		rc = pos_peak_time;
+		goto error;
+	}
+
+	neg_peak_time = phy_read_mmd(phydev, MDIO_MMD_VEND1,
+				     LAN887X_CBL_DIAG_NEG_PEAK_TIME_100);
+	if (neg_peak_time < 0) {
+		rc = neg_peak_time;
+		goto error;
+	}
+
+	/* Calculate non-hybrid values */
+	pos_peak_cycle = (pos_peak_time >> 7) & 0x7f;
+	pos_peak_in_phases = (pos_peak_cycle * 96) + (pos_peak_time & 0x7f);
+	neg_peak_cycle = (neg_peak_time >> 7) & 0x7f;
+	neg_peak_in_phases = (neg_peak_cycle * 96) + (neg_peak_time & 0x7f);
+
+	/* Deriving the status of cable */
+	if (pos_peak > MICROCHIP_CABLE_NOISE_MARGIN &&
+	    neg_peak > MICROCHIP_CABLE_NOISE_MARGIN && gain_idx >= 0) {
+		if (pos_peak_in_phases > neg_peak_in_phases &&
+		    ((pos_peak_in_phases - neg_peak_in_phases) >=
+		     MICROCHIP_CABLE_MIN_TIME_DIFF) &&
+		    ((pos_peak_in_phases - neg_peak_in_phases) <
+		     MICROCHIP_CABLE_MAX_TIME_DIFF) &&
+		    pos_peak_in_phases > 0) {
+			detect = LAN87XX_CABLE_TEST_SAME_SHORT;
+		} else if (neg_peak_in_phases > pos_peak_in_phases &&
+			   ((neg_peak_in_phases - pos_peak_in_phases) >=
+			    MICROCHIP_CABLE_MIN_TIME_DIFF) &&
+			   ((neg_peak_in_phases - pos_peak_in_phases) <
+			    MICROCHIP_CABLE_MAX_TIME_DIFF) &&
+			   neg_peak_in_phases > 0) {
+			detect = LAN87XX_CABLE_TEST_OPEN;
+		} else {
+			detect = LAN87XX_CABLE_TEST_OK;
+		}
+	} else {
+		detect = LAN87XX_CABLE_TEST_OK;
+	}
+
+	if (detect == LAN87XX_CABLE_TEST_OK) {
+		distance = 0;
+		goto get_len;
+	}
+
+	/* Re-initialize PHY and start cable diag test */
+	rc = lan887x_cable_test_prep(phydev, TEST_MODE_HYBRID);
+	if (rc < 0)
+		goto cd_stop;
+
+	/* Wait for cable diag test completion */
+	rc = lan887x_cable_test_chk(phydev, TEST_MODE_HYBRID);
+	if (rc < 0)
+		goto cd_stop;
+
+	/* Read hybrid results */
+	gain_idx_hybrid = phy_read_mmd(phydev, MDIO_MMD_VEND1,
+				       LAN887X_CBL_DIAG_AGC_GAIN_100);
+	if (gain_idx_hybrid < 0) {
+		rc = gain_idx_hybrid;
+		goto error;
+	}
+
+	pos_peak_time_hybrid = phy_read_mmd(phydev, MDIO_MMD_VEND1,
+					    LAN887X_CBL_DIAG_POS_PEAK_TIME_100);
+	if (pos_peak_time_hybrid < 0) {
+		rc = pos_peak_time_hybrid;
+		goto error;
+	}
+
+	/* Calculate hybrid values to derive cable length to fault */
+	pos_peak_cycle_hybrid = (pos_peak_time_hybrid >> 7) & 0x7f;
+	pos_peak_phase_hybrid = pos_peak_time_hybrid & 0x7f;
+	pos_peak_in_phases_hybrid = pos_peak_cycle_hybrid * 96 +
+				    pos_peak_phase_hybrid;
+
+	/* Distance to fault calculation.
+	 * distance = (peak_in_phases - peak_in_phases_hybrid) *
+	 *             propagationconstant.
+	 * constant to convert number of phases to meters
+	 * propagationconstant = 0.015953
+	 *                       (0.6811 * 2.9979 * 156.2499 * 0.0001 * 0.5)
+	 * Applying constant 1.5953 as ethtool further devides by 100 to
+	 * convert to meters.
+	 */
+	if (detect == LAN87XX_CABLE_TEST_OPEN) {
+		distance = (((pos_peak_in_phases - pos_peak_in_phases_hybrid)
+			     * 15953) / 10000);
+	} else if (detect == LAN87XX_CABLE_TEST_SAME_SHORT) {
+		distance = (((neg_peak_in_phases - pos_peak_in_phases_hybrid)
+			     * 15953) / 10000);
+	} else {
+		distance = 0;
+	}
+
+get_len:
+	rc = lan887x_cd_reset(phydev, CD_TEST_DONE);
+	if (rc < 0)
+		return rc;
+
+	length = ((u32)distance & GENMASK(15, 0));
+	ethnl_cable_test_result(phydev, ETHTOOL_A_CABLE_PAIR_A,
+				lan87xx_cable_test_report_trans(detect));
+	ethnl_cable_test_fault_length(phydev, ETHTOOL_A_CABLE_PAIR_A, length);
+
+	return 0;
+
+cd_stop:
+	/* Stop cable diag */
+	ret = phy_write_mmd(phydev, MDIO_MMD_VEND1,
+			    LAN887X_START_CBL_DIAG_100,
+			    LAN887X_CBL_DIAG_STOP);
+	if (ret < 0)
+		return ret;
+
+error:
+	/* Cable diag test failed */
+	ret = lan887x_cd_reset(phydev, CD_TEST_DONE);
+	if (ret < 0)
+		return ret;
+
+	/* Return error in failure case */
+	return rc;
+}
+
+static int lan887x_cable_test_get_status(struct phy_device *phydev,
+					 bool *finished)
+{
+	int rc;
+
+	rc = lan887x_cable_test_chk(phydev, TEST_MODE_NORMAL);
+	if (rc < 0) {
+		/* Let PHY statemachine poll again */
+		if (rc == -EAGAIN)
+			return 0;
+		return rc;
+	}
+
+	/* Cable diag test complete */
+	*finished = true;
+
+	/* Retrieve test status and cable length to fault */
+	return lan887x_cable_test_report(phydev);
+}
+
 static struct phy_driver microchip_t1_phy_driver[] = {
 	{
 		PHY_ID_MATCH_MODEL(PHY_ID_LAN87XX),
@@ -1458,6 +1868,7 @@ static struct phy_driver microchip_t1_phy_driver[] = {
 	{
 		PHY_ID_MATCH_MODEL(PHY_ID_LAN887X),
 		.name		= "Microchip LAN887x T1 PHY",
+		.flags          = PHY_POLL_CABLE_TEST,
 		.probe		= lan887x_probe,
 		.get_features	= lan887x_get_features,
 		.config_init    = lan887x_phy_init,
@@ -1468,6 +1879,8 @@ static struct phy_driver microchip_t1_phy_driver[] = {
 		.suspend	= genphy_suspend,
 		.resume		= genphy_resume,
 		.read_status	= genphy_c45_read_status,
+		.cable_test_start = lan887x_cable_test_start,
+		.cable_test_get_status = lan887x_cable_test_get_status,
 	}
 };
 
