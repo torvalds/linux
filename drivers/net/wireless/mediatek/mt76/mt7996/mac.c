@@ -679,14 +679,25 @@ mt7996_mac_fill_rx(struct mt7996_dev *dev, enum mt76_rxq_id q,
 			if (ieee80211_has_a4(fc) && is_mesh && status->amsdu)
 				*qos &= ~IEEE80211_QOS_CTL_A_MSDU_PRESENT;
 		}
+		skb_set_mac_header(skb, (unsigned char *)hdr - skb->data);
 	} else {
 		status->flag |= RX_FLAG_8023;
 		mt7996_wed_check_ppe(dev, &dev->mt76.q_rx[q], msta, skb,
 				     *info);
 	}
 
-	if (rxv && mode >= MT_PHY_TYPE_HE_SU && !(status->flag & RX_FLAG_8023))
-		mt76_connac3_mac_decode_he_radiotap(skb, rxv, mode);
+	if (rxv && !(status->flag & RX_FLAG_8023)) {
+		switch (status->encoding) {
+		case RX_ENC_EHT:
+			mt76_connac3_mac_decode_eht_radiotap(skb, rxv, mode);
+			break;
+		case RX_ENC_HE:
+			mt76_connac3_mac_decode_he_radiotap(skb, rxv, mode);
+			break;
+		default:
+			break;
+		}
+	}
 
 	if (!status->wcid || !ieee80211_is_data_qos(fc) || hw_aggr)
 		return 0;
