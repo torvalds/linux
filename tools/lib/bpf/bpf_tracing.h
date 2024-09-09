@@ -808,7 +808,7 @@ struct pt_regs;
  * tp_btf/fentry/fexit BPF programs. It hides the underlying platform-specific
  * low-level way of getting kprobe input arguments from struct pt_regs, and
  * provides a familiar typed and named function arguments syntax and
- * semantics of accessing kprobe input paremeters.
+ * semantics of accessing kprobe input parameters.
  *
  * Original struct pt_regs* context is preserved as 'ctx' argument. This might
  * be necessary when using BPF helpers like bpf_perf_event_output().

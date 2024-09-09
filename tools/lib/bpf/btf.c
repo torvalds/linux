@@ -4230,7 +4230,7 @@ static bool btf_dedup_identical_structs(struct btf_dedup *d, __u32 id1, __u32 id
  * consists of portions of the graph that come from multiple compilation units.
  * This is due to the fact that types within single compilation unit are always
  * deduplicated and FWDs are already resolved, if referenced struct/union
- * definiton is available. So, if we had unresolved FWD and found corresponding
+ * definition is available. So, if we had unresolved FWD and found corresponding
  * STRUCT/UNION, they will be from different compilation units. This
  * consequently means that when we "link" FWD to corresponding STRUCT/UNION,
  * type graph will likely have at least two different BTF types that describe
