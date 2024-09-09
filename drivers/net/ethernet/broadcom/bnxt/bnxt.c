@@ -13803,6 +13803,7 @@ int bnxt_check_rings(struct bnxt *bp, int tx, int rx, bool sh, int tcs,
 	int max_rx, max_tx, max_cp, tx_sets = 1, tx_cp;
 	struct bnxt_hw_rings hwr = {0};
 	int rx_rings = rx;
+	int rc;
 
 	if (tcs)
 		tx_sets = tcs;
@@ -13835,7 +13836,23 @@ int bnxt_check_rings(struct bnxt *bp, int tx, int rx, bool sh, int tcs,
 	}
 	if (bp->flags & BNXT_FLAG_CHIP_P5_PLUS)
 		hwr.cp_p5 = hwr.tx + rx;
-	return bnxt_hwrm_check_rings(bp, &hwr);
+	rc = bnxt_hwrm_check_rings(bp, &hwr);
+	if (!rc && pci_msix_can_alloc_dyn(bp->pdev)) {
+		if (!bnxt_ulp_registered(bp->edev)) {
+			hwr.cp += bnxt_get_ulp_msix_num(bp);
+			hwr.cp = min_t(int, hwr.cp, bnxt_get_max_func_irqs(bp));
+		}
+		if (hwr.cp > bp->total_irqs) {
+			int total_msix = bnxt_change_msix(bp, hwr.cp);
+
+			if (total_msix < hwr.cp) {
+				netdev_warn(bp->dev, "Unable to allocate %d MSIX vectors, maximum available %d\n",
+					    hwr.cp, total_msix);
+				rc = -ENOSPC;
+			}
+		}
+	}
+	return rc;
 }
 
 static void bnxt_unmap_bars(struct bnxt *bp, struct pci_dev *pdev)

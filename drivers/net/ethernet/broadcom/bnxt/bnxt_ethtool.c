@@ -955,17 +955,18 @@ static int bnxt_set_channels(struct net_device *dev,
 		}
 		tx_xdp = req_rx_rings;
 	}
-	rc = bnxt_check_rings(bp, req_tx_rings, req_rx_rings, sh, tcs, tx_xdp);
-	if (rc) {
-		netdev_warn(dev, "Unable to allocate the requested rings\n");
-		return rc;
-	}
 
 	if (bnxt_get_nr_rss_ctxs(bp, req_rx_rings) !=
 	    bnxt_get_nr_rss_ctxs(bp, bp->rx_nr_rings) &&
 	    netif_is_rxfh_configured(dev)) {
 		netdev_warn(dev, "RSS table size change required, RSS table entries must be default to proceed\n");
 		return -EINVAL;
+	}
+
+	rc = bnxt_check_rings(bp, req_tx_rings, req_rx_rings, sh, tcs, tx_xdp);
+	if (rc) {
+		netdev_warn(dev, "Unable to allocate the requested rings\n");
+		return rc;
 	}
 
 	if (netif_running(dev)) {
