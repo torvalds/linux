@@ -8,6 +8,7 @@ title: Microchip Sparx5 Serdes controller
 
 maintainers:
   - Steen Hegelund <steen.hegelund@microchip.com>
+  - Daniel Machon <daniel.machon@microchip.com>
 
 description: |
   The Sparx5 SERDES interfaces share the same basic functionality, but
@@ -62,12 +63,26 @@ description: |
   * 10.3125 Gbps (10GBASE-R/10GBASE-KR/USXGMII)
   * 25.78125 Gbps (25GBASE-KR/25GBASE-CR/25GBASE-SR/25GBASE-LR/25GBASE-ER)
 
+  lan969x has ten SERDES10G interfaces that share the same features, operating
+  modes and data rates as the equivalent Sparx5 SERDES10G interfaces.
+
 properties:
   $nodename:
     pattern: "^serdes@[0-9a-f]+$"
 
   compatible:
-    const: microchip,sparx5-serdes
+    oneOf:
+      - enum:
+          - microchip,sparx5-serdes
+          - microchip,lan9691-serdes
+      - items:
+          - enum:
+              - microchip,lan9698-serdes
+              - microchip,lan9696-serdes
+              - microchip,lan9694-serdes
+              - microchip,lan9693-serdes
+              - microchip,lan9692-serdes
+          - const: microchip,lan9691-serdes
 
   reg:
     minItems: 1
