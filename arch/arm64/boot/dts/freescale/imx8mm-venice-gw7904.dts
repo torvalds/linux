@@ -16,6 +16,11 @@
 	model = "Gateworks Venice GW7904 i.MX8MM board";
 	compatible = "gateworks,imx8mm-gw7904", "fsl,imx8mm";
 
+	aliases {
+		rtc0 = &gsc_rtc;
+		rtc1 = &snvs_rtc;
+	};
+
 	chosen {
 		stdout-path = &uart2;
 	};
@@ -438,7 +443,7 @@
 		pagesize = <16>;
 	};
 
-	rtc@68 {
+	gsc_rtc: rtc@68 {
 		compatible = "dallas,ds1672";
 		reg = <0x68>;
 	};

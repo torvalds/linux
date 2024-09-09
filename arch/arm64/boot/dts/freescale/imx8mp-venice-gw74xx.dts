@@ -25,6 +25,8 @@
 		ethernet4 = &lan3;
 		ethernet5 = &lan4;
 		ethernet6 = &lan5;
+		rtc0 = &gsc_rtc;
+		rtc1 = &snvs_rtc;
 	};
 
 	chosen {
@@ -481,7 +483,7 @@
 		pagesize = <16>;
 	};
 
-	rtc@68 {
+	gsc_rtc: rtc@68 {
 		compatible = "dallas,ds1672";
 		reg = <0x68>;
 	};
