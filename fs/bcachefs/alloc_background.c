@@ -240,71 +240,73 @@ fsck_err:
 int bch2_alloc_v4_validate(struct bch_fs *c, struct bkey_s_c k,
 			   enum bch_validate_flags flags)
 {
-	struct bkey_s_c_alloc_v4 a = bkey_s_c_to_alloc_v4(k);
+	struct bch_alloc_v4 a;
 	int ret = 0;
 
-	bkey_fsck_err_on(alloc_v4_u64s_noerror(a.v) > bkey_val_u64s(k.k),
+	bkey_val_copy(&a, bkey_s_c_to_alloc_v4(k));
+
+	bkey_fsck_err_on(alloc_v4_u64s_noerror(&a) > bkey_val_u64s(k.k),
 			 c, alloc_v4_val_size_bad,
 			 "bad val size (%u > %zu)",
-			 alloc_v4_u64s_noerror(a.v), bkey_val_u64s(k.k));
+			 alloc_v4_u64s_noerror(&a), bkey_val_u64s(k.k));
 
-	bkey_fsck_err_on(!BCH_ALLOC_V4_BACKPOINTERS_START(a.v) &&
-			 BCH_ALLOC_V4_NR_BACKPOINTERS(a.v),
+	bkey_fsck_err_on(!BCH_ALLOC_V4_BACKPOINTERS_START(&a) &&
+			 BCH_ALLOC_V4_NR_BACKPOINTERS(&a),
 			 c, alloc_v4_backpointers_start_bad,
 			 "invalid backpointers_start");
 
-	bkey_fsck_err_on(alloc_data_type(*a.v, a.v->data_type) != a.v->data_type,
+	bkey_fsck_err_on(alloc_data_type(a, a.data_type) != a.data_type,
 			 c, alloc_key_data_type_bad,
 			 "invalid data type (got %u should be %u)",
-			 a.v->data_type, alloc_data_type(*a.v, a.v->data_type));
+			 a.data_type, alloc_data_type(a, a.data_type));
 
 	for (unsigned i = 0; i < 2; i++)
-		bkey_fsck_err_on(a.v->io_time[i] > LRU_TIME_MAX,
+		bkey_fsck_err_on(a.io_time[i] > LRU_TIME_MAX,
 				 c, alloc_key_io_time_bad,
 				 "invalid io_time[%s]: %llu, max %llu",
 				 i == READ ? "read" : "write",
-				 a.v->io_time[i], LRU_TIME_MAX);
+				 a.io_time[i], LRU_TIME_MAX);
 
-	unsigned stripe_sectors = BCH_ALLOC_V4_BACKPOINTERS_START(a.v) * sizeof(u64) >
+	unsigned stripe_sectors = BCH_ALLOC_V4_BACKPOINTERS_START(&a) * sizeof(u64) >
 		offsetof(struct bch_alloc_v4, stripe_sectors)
-		? a.v->stripe_sectors
+		? a.stripe_sectors
 		: 0;
 
-	switch (a.v->data_type) {
+	switch (a.data_type) {
 	case BCH_DATA_free:
 	case BCH_DATA_need_gc_gens:
 	case BCH_DATA_need_discard:
 		bkey_fsck_err_on(stripe_sectors ||
-				 a.v->dirty_sectors ||
-				 a.v->cached_sectors ||
-				 a.v->stripe,
+				 a.dirty_sectors ||
+				 a.cached_sectors ||
+				 a.stripe,
 				 c, alloc_key_empty_but_have_data,
 				 "empty data type free but have data %u.%u.%u %u",
 				 stripe_sectors,
-				 a.v->dirty_sectors,
-				 a.v->cached_sectors,
-				 a.v->stripe);
+				 a.dirty_sectors,
+				 a.cached_sectors,
+				 a.stripe);
 		break;
 	case BCH_DATA_sb:
 	case BCH_DATA_journal:
 	case BCH_DATA_btree:
 	case BCH_DATA_user:
 	case BCH_DATA_parity:
-		bkey_fsck_err_on(!a.v->dirty_sectors &&
+		bkey_fsck_err_on(!a.dirty_sectors &&
 				 !stripe_sectors,
 				 c, alloc_key_dirty_sectors_0,
 				 "data_type %s but dirty_sectors==0",
-				 bch2_data_type_str(a.v->data_type));
+				 bch2_data_type_str(a.data_type));
 		break;
 	case BCH_DATA_cached:
-		bkey_fsck_err_on(!a.v->cached_sectors ||
-				 a.v->dirty_sectors ||
+		bkey_fsck_err_on(!a.cached_sectors ||
+				 a.dirty_sectors ||
 				 stripe_sectors ||
-				 a.v->stripe,
+				 a.stripe,
 				 c, alloc_key_cached_inconsistency,
 				 "data type inconsistency");
 
-		bkey_fsck_err_on(!a.v->io_time[READ] &&
+		bkey_fsck_err_on(!a.io_time[READ] &&
 				 c->curr_recovery_pass > BCH_RECOVERY_PASS_check_alloc_to_lru_refs,
 				 c, alloc_key_cached_but_read_time_zero,
 				 "cached bucket with read_time == 0");
@@ -556,7 +558,7 @@ int bch2_bucket_gens_init(struct bch_fs *c)
 		struct bpos pos = alloc_gens_pos(iter.pos, &offset);
 		int ret2 = 0;
 
-		if (have_bucket_gens_key && bkey_cmp(iter.pos, pos)) {
+		if (have_bucket_gens_key && !bkey_eq(g.k.p, pos)) {
 			ret2 =  bch2_btree_insert_trans(trans, BTREE_ID_bucket_gens, &g.k_i, 0) ?:
 				bch2_trans_commit(trans, NULL, NULL, BCH_TRANS_COMMIT_no_enospc);
 			if (ret2)
@@ -829,7 +831,7 @@ int bch2_trigger_alloc(struct btree_trans *trans,
 	if (likely(new.k->type == KEY_TYPE_alloc_v4)) {
 		new_a = bkey_s_to_alloc_v4(new).v;
 	} else {
-		BUG_ON(!(flags & BTREE_TRIGGER_gc));
+		BUG_ON(!(flags & (BTREE_TRIGGER_gc|BTREE_TRIGGER_check_repair)));
 
 		struct bkey_i_alloc_v4 *new_ka = bch2_alloc_to_v4_mut_inlined(trans, new.s_c);
 		ret = PTR_ERR_OR_ZERO(new_ka);
@@ -1872,26 +1874,26 @@ static void bch2_do_discards_work(struct work_struct *work)
 	trace_discard_buckets(c, s.seen, s.open, s.need_journal_commit, s.discarded,
 			      bch2_err_str(ret));
 
-	bch2_write_ref_put(c, BCH_WRITE_REF_discard);
 	percpu_ref_put(&ca->io_ref);
+	bch2_write_ref_put(c, BCH_WRITE_REF_discard);
 }
 
 void bch2_dev_do_discards(struct bch_dev *ca)
 {
 	struct bch_fs *c = ca->fs;
 
-	if (!bch2_dev_get_ioref(c, ca->dev_idx, WRITE))
+	if (!bch2_write_ref_tryget(c, BCH_WRITE_REF_discard))
 		return;
 
-	if (!bch2_write_ref_tryget(c, BCH_WRITE_REF_discard))
-		goto put_ioref;
+	if (!bch2_dev_get_ioref(c, ca->dev_idx, WRITE))
+		goto put_write_ref;
 
 	if (queue_work(c->write_ref_wq, &ca->discard_work))
 		return;
 
-	bch2_write_ref_put(c, BCH_WRITE_REF_discard);
-put_ioref:
 	percpu_ref_put(&ca->io_ref);
+put_write_ref:
+	bch2_write_ref_put(c, BCH_WRITE_REF_discard);
 }
 
 void bch2_do_discards(struct bch_fs *c)

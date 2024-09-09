@@ -726,6 +726,7 @@ void bch2_btree_key_cache_drop(struct btree_trans *trans,
 
 	mark_btree_node_locked(trans, path, 0, BTREE_NODE_UNLOCKED);
 	btree_path_set_dirty(path, BTREE_ITER_NEED_TRAVERSE);
+	path->should_be_locked = false;
 }
 
 static unsigned long bch2_btree_key_cache_scan(struct shrinker *shrink,
@@ -777,6 +778,20 @@ static unsigned long bch2_btree_key_cache_scan(struct shrinker *shrink,
 
 	rcu_read_lock();
 	tbl = rht_dereference_rcu(bc->table.tbl, &bc->table);
+
+	/*
+	 * Scanning is expensive while a rehash is in progress - most elements
+	 * will be on the new hashtable, if it's in progress
+	 *
+	 * A rehash could still start while we're scanning - that's ok, we'll
+	 * still see most elements.
+	 */
+	if (unlikely(tbl->nest)) {
+		rcu_read_unlock();
+		srcu_read_unlock(&c->btree_trans_barrier, srcu_idx);
+		return SHRINK_STOP;
+	}
+
 	if (bc->shrink_iter >= tbl->size)
 		bc->shrink_iter = 0;
 	start = bc->shrink_iter;
@@ -784,7 +799,7 @@ static unsigned long bch2_btree_key_cache_scan(struct shrinker *shrink,
 	do {
 		struct rhash_head *pos, *next;
 
-		pos = rht_ptr_rcu(rht_bucket(tbl, bc->shrink_iter));
+		pos = rht_ptr_rcu(&tbl->buckets[bc->shrink_iter]);
 
 		while (!rht_is_a_nulls(pos)) {
 			next = rht_dereference_bucket_rcu(pos->next, tbl, bc->shrink_iter);
@@ -865,12 +880,22 @@ void bch2_fs_btree_key_cache_exit(struct btree_key_cache *bc)
 	while (atomic_long_read(&bc->nr_keys)) {
 		rcu_read_lock();
 		tbl = rht_dereference_rcu(bc->table.tbl, &bc->table);
-		if (tbl)
+		if (tbl) {
+			if (tbl->nest) {
+				/* wait for in progress rehash */
+				rcu_read_unlock();
+				mutex_lock(&bc->table.mutex);
+				mutex_unlock(&bc->table.mutex);
+				rcu_read_lock();
+				continue;
+			}
 			for (i = 0; i < tbl->size; i++)
-				rht_for_each_entry_rcu(ck, pos, tbl, i, hash) {
+				while (pos = rht_ptr_rcu(&tbl->buckets[i]), !rht_is_a_nulls(pos)) {
+					ck = container_of(pos, struct bkey_cached, hash);
 					bkey_cached_evict(bc, ck);
 					list_add(&ck->list, &items);
 				}
+		}
 		rcu_read_unlock();
 	}
 

@@ -1198,10 +1198,12 @@ static void iwl_mvm_trig_link_selection(struct wiphy *wiphy,
 	struct iwl_mvm *mvm =
 		container_of(wk, struct iwl_mvm, trig_link_selection_wk);
 
+	mutex_lock(&mvm->mutex);
 	ieee80211_iterate_active_interfaces(mvm->hw,
 					    IEEE80211_IFACE_ITER_NORMAL,
 					    iwl_mvm_find_link_selection_vif,
 					    NULL);
+	mutex_unlock(&mvm->mutex);
 }
 
 static struct iwl_op_mode *
@@ -1510,6 +1512,8 @@ void iwl_mvm_stop_device(struct iwl_mvm *mvm)
 	iwl_fw_cancel_timestamp(&mvm->fwrt);
 
 	clear_bit(IWL_MVM_STATUS_FIRMWARE_RUNNING, &mvm->status);
+
+	iwl_mvm_pause_tcm(mvm, false);
 
 	iwl_fw_dbg_stop_sync(&mvm->fwrt);
 	iwl_trans_stop_device(mvm->trans);
@@ -2090,6 +2094,20 @@ static void iwl_op_mode_mvm_time_point(struct iwl_op_mode *op_mode,
 	iwl_dbg_tlv_time_point(&mvm->fwrt, tp_id, tp_data);
 }
 
+static void iwl_op_mode_mvm_device_powered_off(struct iwl_op_mode *op_mode)
+{
+	struct iwl_mvm *mvm = IWL_OP_MODE_GET_MVM(op_mode);
+
+	mutex_lock(&mvm->mutex);
+	clear_bit(IWL_MVM_STATUS_IN_D3, &mvm->status);
+	mvm->trans->system_pm_mode = IWL_PLAT_PM_MODE_DISABLED;
+	iwl_mvm_stop_device(mvm);
+#ifdef CONFIG_PM
+	mvm->fast_resume = false;
+#endif
+	mutex_unlock(&mvm->mutex);
+}
+
 #define IWL_MVM_COMMON_OPS					\
 	/* these could be differentiated */			\
 	.queue_full = iwl_mvm_stop_sw_queue,			\
@@ -2102,7 +2120,8 @@ static void iwl_op_mode_mvm_time_point(struct iwl_op_mode *op_mode,
 	/* as we only register one, these MUST be common! */	\
 	.start = iwl_op_mode_mvm_start,				\
 	.stop = iwl_op_mode_mvm_stop,				\
-	.time_point = iwl_op_mode_mvm_time_point
+	.time_point = iwl_op_mode_mvm_time_point,		\
+	.device_powered_off = iwl_op_mode_mvm_device_powered_off
 
 static const struct iwl_op_mode_ops iwl_mvm_ops = {
 	IWL_MVM_COMMON_OPS,

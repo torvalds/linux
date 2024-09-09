@@ -692,6 +692,7 @@ const struct bch_extent_rebalance *bch2_bkey_rebalance_opts(struct bkey_s_c);
 unsigned bch2_bkey_ptrs_need_rebalance(struct bch_fs *, struct bkey_s_c,
 				       unsigned, unsigned);
 bool bch2_bkey_needs_rebalance(struct bch_fs *, struct bkey_s_c);
+u64 bch2_bkey_sectors_need_rebalance(struct bch_fs *, struct bkey_s_c);
 
 int bch2_bkey_set_needs_rebalance(struct bch_fs *, struct bkey_i *,
 				  struct bch_io_opts *);

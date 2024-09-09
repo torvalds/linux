@@ -1390,6 +1390,9 @@ static int intel_spi_populate_chip(struct intel_spi *ispi)
 
 	pdata->name = devm_kasprintf(ispi->dev, GFP_KERNEL, "%s-chip1",
 				     dev_name(ispi->dev));
+	if (!pdata->name)
+		return -ENOMEM;
+
 	pdata->nr_parts = 1;
 	parts = devm_kcalloc(ispi->dev, pdata->nr_parts, sizeof(*parts),
 			     GFP_KERNEL);

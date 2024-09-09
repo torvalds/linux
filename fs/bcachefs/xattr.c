@@ -612,10 +612,20 @@ static int bch2_xattr_bcachefs_get_effective(
 					 name, buffer, size, true);
 }
 
+/* Noop - xattrs in the bcachefs_effective namespace are inherited */
+static int bch2_xattr_bcachefs_set_effective(const struct xattr_handler *handler,
+				   struct mnt_idmap *idmap,
+				   struct dentry *dentry, struct inode *vinode,
+				   const char *name, const void *value,
+				   size_t size, int flags)
+{
+	return 0;
+}
+
 static const struct xattr_handler bch_xattr_bcachefs_effective_handler = {
 	.prefix	= "bcachefs_effective.",
 	.get	= bch2_xattr_bcachefs_get_effective,
-	.set	= bch2_xattr_bcachefs_set,
+	.set	= bch2_xattr_bcachefs_set_effective,
 };
 
 #endif /* NO_BCACHEFS_FS */

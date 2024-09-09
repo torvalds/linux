@@ -310,12 +310,6 @@ struct xe_gt {
 	/** @eclass: per hardware engine class interface on the GT */
 	struct xe_hw_engine_class_intf  eclass[XE_ENGINE_CLASS_MAX];
 
-	/** @pcode: GT's PCODE */
-	struct {
-		/** @pcode.lock: protecting GT's PCODE mailbox data */
-		struct mutex lock;
-	} pcode;
-
 	/** @sysfs: sysfs' kobj used by xe_gt_sysfs */
 	struct kobject *sysfs;
 
@@ -361,6 +355,12 @@ struct xe_gt {
 	 *    of a steered operation
 	 */
 	spinlock_t mcr_lock;
+
+	/**
+	 * @global_invl_lock: protects the register for the duration
+	 *    of a global invalidation of l2 cache
+	 */
+	spinlock_t global_invl_lock;
 
 	/** @wa_active: keep track of active workarounds */
 	struct {

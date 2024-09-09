@@ -273,7 +273,7 @@ static int mock_domain_read_and_clear_dirty(struct iommu_domain *domain,
 	return 0;
 }
 
-const struct iommu_dirty_ops dirty_ops = {
+static const struct iommu_dirty_ops dirty_ops = {
 	.set_dirty_tracking = mock_domain_set_dirty_tracking,
 	.read_and_clear_dirty = mock_domain_read_and_clear_dirty,
 };

@@ -107,7 +107,7 @@ int bch2_set_bucket_needs_journal_commit(struct buckets_waiting_for_journal *b,
 		nr_elements += t->d[i].journal_seq > flushed_seq;
 
 	new_bits = ilog2(roundup_pow_of_two(nr_elements * 3));
-
+realloc:
 	n = kvmalloc(sizeof(*n) + (sizeof(n->d[0]) << new_bits), GFP_KERNEL);
 	if (!n) {
 		ret = -BCH_ERR_ENOMEM_buckets_waiting_for_journal_set;
@@ -118,6 +118,8 @@ retry_rehash:
 	if (nr_rehashes_this_size == 3) {
 		new_bits++;
 		nr_rehashes_this_size = 0;
+		kvfree(n);
+		goto realloc;
 	}
 
 	nr_rehashes++;

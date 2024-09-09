@@ -82,7 +82,8 @@ int bch2_replicas_entry_validate(struct bch_replicas_entry_v1 *r,
 	}
 
 	for (unsigned i = 0; i < r->nr_devs; i++)
-		if (!bch2_member_exists(sb, r->devs[i])) {
+		if (r->devs[i] != BCH_SB_MEMBER_INVALID &&
+		    !bch2_member_exists(sb, r->devs[i])) {
 			prt_printf(err, "invalid device %u in entry ", r->devs[i]);
 			goto bad;
 		}
@@ -451,7 +452,8 @@ retry:
 			.type = BCH_DISK_ACCOUNTING_replicas,
 		};
 
-		memcpy(&k.replicas, e, replicas_entry_bytes(e));
+		unsafe_memcpy(&k.replicas, e, replicas_entry_bytes(e),
+			      "embedded variable length struct");
 
 		struct bpos p = disk_accounting_pos_to_bpos(&k);
 
