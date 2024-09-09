@@ -255,6 +255,11 @@ size_t syscall_arg__scnprintf_sync_file_range_flags(char *bf, size_t size, struc
 size_t syscall_arg__scnprintf_timespec(char *bf, size_t size, struct syscall_arg *arg);
 #define SCA_TIMESPEC syscall_arg__scnprintf_timespec
 
+// 'argname' is just documentational at this point, to remove the previous comment with that info
+#define SCA_TIMESPEC_FROM_USER(argname) \
+	  { .scnprintf	= SCA_TIMESPEC, \
+	    .from_user	= true, }
+
 size_t open__scnprintf_flags(unsigned long flags, char *bf, size_t size, bool show_prefix);
 
 void syscall_arg__set_ret_scnprintf(struct syscall_arg *arg,
