@@ -2055,7 +2055,7 @@ static void qmc_remove(struct platform_device *pdev)
 	qmc_exit_xcc(qmc);
 }
 
-static const struct qmc_data qmc_data_cpm1 = {
+static const struct qmc_data qmc_data_cpm1 __maybe_unused = {
 	.version = QMC_CPM1,
 	.tstate = 0x30000000,
 	.rstate = 0x31000000,
@@ -2065,7 +2065,7 @@ static const struct qmc_data qmc_data_cpm1 = {
 	.rpack = 0x00000000,
 };
 
-static const struct qmc_data qmc_data_qe = {
+static const struct qmc_data qmc_data_qe __maybe_unused = {
 	.version = QMC_QE,
 	.tstate = 0x30000000,
 	.rstate = 0x30000000,
