@@ -107,6 +107,7 @@ enum build_id_rewrite_style {
 	BID_RWS__NONE = 0,
 	BID_RWS__INJECT_HEADER_LAZY,
 	BID_RWS__INJECT_HEADER_ALL,
+	BID_RWS__MMAP2_BUILDID_ALL,
 };
 
 struct perf_inject {
@@ -146,6 +147,16 @@ static int tool__inject_build_id(const struct perf_tool *tool,
 				 __u16 misc,
 				 const char *filename,
 				 struct dso *dso, u32 flags);
+static int tool__inject_mmap2_build_id(const struct perf_tool *tool,
+				      struct perf_sample *sample,
+				      struct machine *machine,
+				      const struct evsel *evsel,
+				      __u16 misc,
+				      __u32 pid, __u32 tid,
+				      __u64 start, __u64 len, __u64 pgoff,
+				      struct dso *dso,
+				      __u32 prot, __u32 flags,
+				      const char *filename);
 
 static int output_bytes(struct perf_inject *inject, void *buf, size_t sz)
 {
@@ -161,6 +172,7 @@ static int output_bytes(struct perf_inject *inject, void *buf, size_t sz)
 
 static int perf_event__repipe_synth(const struct perf_tool *tool,
 				    union perf_event *event)
+
 {
 	struct perf_inject *inject = container_of(tool, struct perf_inject,
 						  tool);
@@ -454,7 +466,9 @@ static int perf_event__repipe_common_mmap(const struct perf_tool *tool,
 					  union perf_event *event,
 					  struct perf_sample *sample,
 					  struct machine *machine,
-					  __u32 pid, __u32 tid, __u32 flags,
+					  __u32 pid, __u32 tid,
+					  __u64 start, __u64 len, __u64 pgoff,
+					  __u32 flags, __u32 prot,
 					  const char *filename,
 					  const struct dso_id *dso_id,
 					  int (*perf_event_process)(const struct perf_tool *tool,
@@ -525,6 +539,26 @@ static int perf_event__repipe_common_mmap(const struct perf_tool *tool,
 			return err;
 		}
 	}
+	if ((inject->build_id_style == BID_RWS__MMAP2_BUILDID_ALL) &&
+	    !(event->header.misc & PERF_RECORD_MISC_MMAP_BUILD_ID)) {
+		struct evsel *evsel = evlist__event2evsel(inject->session->evlist, event);
+
+		if (evsel && !dso_sought) {
+			dso = findnew_dso(pid, tid, filename, dso_id, machine);
+			dso_sought = true;
+		}
+		if (evsel && dso &&
+		    !tool__inject_mmap2_build_id(tool, sample, machine, evsel,
+						 sample->cpumode | PERF_RECORD_MISC_MMAP_BUILD_ID,
+						 pid, tid, start, len, pgoff,
+						 dso,
+						 prot, flags,
+						 filename)) {
+			/* Injected mmap2 so no need to repipe. */
+			dso__put(dso);
+			return 0;
+		}
+	}
 	dso__put(dso);
 	return perf_event__repipe(tool, event, sample, machine);
 }
@@ -536,7 +570,9 @@ static int perf_event__repipe_mmap(const struct perf_tool *tool,
 {
 	return perf_event__repipe_common_mmap(
 		tool, event, sample, machine,
-		event->mmap.pid, event->mmap.tid, /*flags=*/0,
+		event->mmap.pid, event->mmap.tid,
+		event->mmap.start, event->mmap.len, event->mmap.pgoff,
+		/*flags=*/0, PROT_EXEC,
 		event->mmap.filename, /*dso_id=*/NULL,
 		perf_event__process_mmap);
 }
@@ -559,7 +595,9 @@ static int perf_event__repipe_mmap2(const struct perf_tool *tool,
 
 	return perf_event__repipe_common_mmap(
 		tool, event, sample, machine,
-		event->mmap2.pid, event->mmap2.tid, event->mmap2.flags,
+		event->mmap2.pid, event->mmap2.tid,
+		event->mmap2.start, event->mmap2.len, event->mmap2.pgoff,
+		event->mmap2.flags, event->mmap2.prot,
 		event->mmap2.filename, dso_id,
 		perf_event__process_mmap2);
 }
@@ -745,6 +783,45 @@ static int tool__inject_build_id(const struct perf_tool *tool,
 		return -1;
 	}
 
+	return 0;
+}
+
+static int tool__inject_mmap2_build_id(const struct perf_tool *tool,
+				       struct perf_sample *sample,
+				       struct machine *machine,
+				       const struct evsel *evsel,
+				       __u16 misc,
+				       __u32 pid, __u32 tid,
+				       __u64 start, __u64 len, __u64 pgoff,
+				       struct dso *dso,
+				       __u32 prot, __u32 flags,
+				       const char *filename)
+{
+	int err;
+
+	/* Return to repipe anonymous maps. */
+	if (is_anon_memory(filename) || flags & MAP_HUGETLB)
+		return 1;
+	if (is_no_dso_memory(filename))
+		return 1;
+
+	if (dso__read_build_id(dso)) {
+		pr_debug("no build_id found for %s\n", filename);
+		return -1;
+	}
+
+	err = perf_event__synthesize_mmap2_build_id(tool, sample, machine,
+						    perf_event__repipe,
+						    evsel,
+						    misc, pid, tid,
+						    start, len, pgoff,
+						    dso__bid(dso),
+						    prot, flags,
+						    filename);
+	if (err) {
+		pr_err("Can't synthesize build_id event for %s\n", filename);
+		return -1;
+	}
 	return 0;
 }
 
@@ -2261,12 +2338,15 @@ int cmd_inject(int argc, const char **argv)
 	const char *known_build_ids = NULL;
 	bool build_ids;
 	bool build_id_all;
+	bool mmap2_build_id_all;
 
 	struct option options[] = {
 		OPT_BOOLEAN('b', "build-ids", &build_ids,
 			    "Inject build-ids into the output stream"),
 		OPT_BOOLEAN(0, "buildid-all", &build_id_all,
 			    "Inject build-ids of all DSOs into the output stream"),
+		OPT_BOOLEAN(0, "mmap2-buildid-all", &mmap2_build_id_all,
+			    "Rewrite all mmap events as mmap2 events with build IDs"),
 		OPT_STRING(0, "known-build-ids", &known_build_ids,
 			   "buildid path [,buildid path...]",
 			   "build-ids to use for given paths"),
@@ -2363,6 +2443,8 @@ int cmd_inject(int argc, const char **argv)
 			return -1;
 		}
 	}
+	if (mmap2_build_id_all)
+		inject.build_id_style = BID_RWS__MMAP2_BUILDID_ALL;
 	if (build_ids)
 		inject.build_id_style = BID_RWS__INJECT_HEADER_LAZY;
 	if (build_id_all)
