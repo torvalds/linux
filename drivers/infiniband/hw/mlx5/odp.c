@@ -45,7 +45,7 @@
 /* Contains the details of a pagefault. */
 struct mlx5_pagefault {
 	u32			bytes_committed;
-	u32			token;
+	u64			token;
 	u8			event_subtype;
 	u8			type;
 	union {
@@ -74,6 +74,14 @@ struct mlx5_pagefault {
 			u32	rdma_op_len;
 			u64	rdma_va;
 		} rdma;
+		struct {
+			u64	va;
+			u32	mkey;
+			u32	fault_byte_count;
+			u32     prefetch_before_byte_count;
+			u32     prefetch_after_byte_count;
+			u8	flags;
+		} memory;
 	};
 
 	struct mlx5_ib_pf_eq	*eq;
@@ -1273,7 +1281,7 @@ read_user:
 	if (ret)
 		mlx5_ib_err(
 			dev,
-			"Failed reading a WQE following page fault, error %d, wqe_index %x, qpn %x\n",
+			"Failed reading a WQE following page fault, error %d, wqe_index %x, qpn %llx\n",
 			ret, wqe_index, pfault->token);
 
 resolve_page_fault:
@@ -1332,13 +1340,13 @@ static void mlx5_ib_mr_rdma_pfault_handler(struct mlx5_ib_dev *dev,
 	} else if (ret < 0 || pages_in_range(address, length) > ret) {
 		mlx5_ib_page_fault_resume(dev, pfault, 1);
 		if (ret != -ENOENT)
-			mlx5_ib_dbg(dev, "PAGE FAULT error %d. QP 0x%x, type: 0x%x\n",
+			mlx5_ib_dbg(dev, "PAGE FAULT error %d. QP 0x%llx, type: 0x%x\n",
 				    ret, pfault->token, pfault->type);
 		return;
 	}
 
 	mlx5_ib_page_fault_resume(dev, pfault, 0);
-	mlx5_ib_dbg(dev, "PAGE FAULT completed. QP 0x%x, type: 0x%x, prefetch_activated: %d\n",
+	mlx5_ib_dbg(dev, "PAGE FAULT completed. QP 0x%llx, type: 0x%x, prefetch_activated: %d\n",
 		    pfault->token, pfault->type,
 		    prefetch_activated);
 
@@ -1354,7 +1362,7 @@ static void mlx5_ib_mr_rdma_pfault_handler(struct mlx5_ib_dev *dev,
 						    prefetch_len,
 						    &bytes_committed, NULL);
 		if (ret < 0 && ret != -EAGAIN) {
-			mlx5_ib_dbg(dev, "Prefetch failed. ret: %d, QP 0x%x, address: 0x%.16llx, length = 0x%.16x\n",
+			mlx5_ib_dbg(dev, "Prefetch failed. ret: %d, QP 0x%llx, address: 0x%.16llx, length = 0x%.16x\n",
 				    ret, pfault->token, address, prefetch_len);
 		}
 	}
@@ -1405,15 +1413,12 @@ static void mlx5_ib_eq_pf_process(struct mlx5_ib_pf_eq *eq)
 
 		pf_eqe = &eqe->data.page_fault;
 		pfault->event_subtype = eqe->sub_type;
-		pfault->bytes_committed = be32_to_cpu(pf_eqe->bytes_committed);
-
-		mlx5_ib_dbg(eq->dev,
-			    "PAGE_FAULT: subtype: 0x%02x, bytes_committed: 0x%06x\n",
-			    eqe->sub_type, pfault->bytes_committed);
 
 		switch (eqe->sub_type) {
 		case MLX5_PFAULT_SUBTYPE_RDMA:
 			/* RDMA based event */
+			pfault->bytes_committed =
+				be32_to_cpu(pf_eqe->rdma.bytes_committed);
 			pfault->type =
 				be32_to_cpu(pf_eqe->rdma.pftype_token) >> 24;
 			pfault->token =
@@ -1427,10 +1432,12 @@ static void mlx5_ib_eq_pf_process(struct mlx5_ib_pf_eq *eq)
 				be32_to_cpu(pf_eqe->rdma.rdma_op_len);
 			pfault->rdma.rdma_va =
 				be64_to_cpu(pf_eqe->rdma.rdma_va);
-			mlx5_ib_dbg(eq->dev,
-				    "PAGE_FAULT: type:0x%x, token: 0x%06x, r_key: 0x%08x\n",
-				    pfault->type, pfault->token,
-				    pfault->rdma.r_key);
+			mlx5_ib_dbg(
+				eq->dev,
+				"PAGE_FAULT: subtype: 0x%02x, bytes_committed: 0x%06x, type:0x%x, token: 0x%06llx, r_key: 0x%08x\n",
+				eqe->sub_type, pfault->bytes_committed,
+				pfault->type, pfault->token,
+				pfault->rdma.r_key);
 			mlx5_ib_dbg(eq->dev,
 				    "PAGE_FAULT: rdma_op_len: 0x%08x, rdma_va: 0x%016llx\n",
 				    pfault->rdma.rdma_op_len,
@@ -1439,6 +1446,8 @@ static void mlx5_ib_eq_pf_process(struct mlx5_ib_pf_eq *eq)
 
 		case MLX5_PFAULT_SUBTYPE_WQE:
 			/* WQE based event */
+			pfault->bytes_committed =
+				be32_to_cpu(pf_eqe->wqe.bytes_committed);
 			pfault->type =
 				(be32_to_cpu(pf_eqe->wqe.pftype_wq) >> 24) & 0x7;
 			pfault->token =
@@ -1450,11 +1459,12 @@ static void mlx5_ib_eq_pf_process(struct mlx5_ib_pf_eq *eq)
 				be16_to_cpu(pf_eqe->wqe.wqe_index);
 			pfault->wqe.packet_size =
 				be16_to_cpu(pf_eqe->wqe.packet_length);
-			mlx5_ib_dbg(eq->dev,
-				    "PAGE_FAULT: type:0x%x, token: 0x%06x, wq_num: 0x%06x, wqe_index: 0x%04x\n",
-				    pfault->type, pfault->token,
-				    pfault->wqe.wq_num,
-				    pfault->wqe.wqe_index);
+			mlx5_ib_dbg(
+				eq->dev,
+				"PAGE_FAULT: subtype: 0x%02x, bytes_committed: 0x%06x, type:0x%x, token: 0x%06llx, wq_num: 0x%06x, wqe_index: 0x%04x\n",
+				eqe->sub_type, pfault->bytes_committed,
+				pfault->type, pfault->token, pfault->wqe.wq_num,
+				pfault->wqe.wqe_index);
 			break;
 
 		default:
