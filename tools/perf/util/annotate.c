@@ -2474,6 +2474,7 @@ static bool is_stack_operation(struct arch *arch, struct disasm_line *dl)
 	if (arch__is(arch, "x86")) {
 		if (!strncmp(dl->ins.name, "push", 4) ||
 		    !strncmp(dl->ins.name, "pop", 3) ||
+		    !strncmp(dl->ins.name, "call", 4) ||
 		    !strncmp(dl->ins.name, "ret", 3))
 			return true;
 	}
