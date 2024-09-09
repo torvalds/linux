@@ -2172,6 +2172,20 @@ static bool yield_to_task_scx(struct rq *rq, struct task_struct *to)
 		return false;
 }
 
+static void consume_local_task(struct task_struct *p,
+			       struct scx_dispatch_q *dsq, struct rq *rq)
+{
+	lockdep_assert_held(&dsq->lock);	/* released on return */
+
+	/* @dsq is locked and @p is on this rq */
+	WARN_ON_ONCE(p->scx.holding_cpu >= 0);
+	task_unlink_from_dsq(p, dsq);
+	list_add_tail(&p->scx.dsq_list.node, &rq->scx.local_dsq.list);
+	dsq_mod_nr(&rq->scx.local_dsq, 1);
+	p->scx.dsq = &rq->scx.local_dsq;
+	raw_spin_unlock(&dsq->lock);
+}
+
 #ifdef CONFIG_SMP
 /**
  * move_task_to_local_dsq - Move a task from a different rq to a local DSQ
@@ -2207,23 +2221,6 @@ static void move_task_to_local_dsq(struct task_struct *p, u64 enq_flags,
 	dst_rq->scx.extra_enq_flags = 0;
 }
 
-#endif	/* CONFIG_SMP */
-
-static void consume_local_task(struct task_struct *p,
-			       struct scx_dispatch_q *dsq, struct rq *rq)
-{
-	lockdep_assert_held(&dsq->lock);	/* released on return */
-
-	/* @dsq is locked and @p is on this rq */
-	WARN_ON_ONCE(p->scx.holding_cpu >= 0);
-	task_unlink_from_dsq(p, dsq);
-	list_add_tail(&p->scx.dsq_list.node, &rq->scx.local_dsq.list);
-	dsq_mod_nr(&rq->scx.local_dsq, 1);
-	p->scx.dsq = &rq->scx.local_dsq;
-	raw_spin_unlock(&dsq->lock);
-}
-
-#ifdef CONFIG_SMP
 /*
  * Similar to kernel/sched/core.c::is_cpu_allowed(). However, there are two
  * differences:
