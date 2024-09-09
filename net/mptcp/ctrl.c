@@ -12,6 +12,7 @@
 #include <net/netns/generic.h>
 
 #include "protocol.h"
+#include "mib.h"
 
 #define MPTCP_SYSCTL_PATH "net/mptcp"
 
@@ -276,6 +277,25 @@ static int mptcp_pernet_new_table(struct net *net, struct mptcp_pernet *pernet)
 static void mptcp_pernet_del_table(struct mptcp_pernet *pernet) {}
 
 #endif /* CONFIG_SYSCTL */
+
+/* Check the number of retransmissions, and fallback to TCP if needed */
+void mptcp_active_detect_blackhole(struct sock *ssk, bool expired)
+{
+	struct mptcp_subflow_context *subflow;
+	u32 timeouts;
+
+	if (!sk_is_mptcp(ssk))
+		return;
+
+	timeouts = inet_csk(ssk)->icsk_retransmits;
+	subflow = mptcp_subflow_ctx(ssk);
+
+	if (subflow->request_mptcp && ssk->sk_state == TCP_SYN_SENT &&
+	    (timeouts == 2 || (timeouts < 2 && expired))) {
+		MPTCP_INC_STATS(sock_net(ssk), MPTCP_MIB_MPCAPABLEACTIVEDROP);
+		mptcp_subflow_early_fallback(mptcp_sk(subflow->conn), subflow);
+	}
+}
 
 static int __net_init mptcp_net_init(struct net *net)
 {
