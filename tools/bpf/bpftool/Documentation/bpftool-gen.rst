@@ -172,7 +172,7 @@ bpftool gen min_core_btf *INPUT* *OUTPUT* *OBJECT* [*OBJECT*...]
     CO-RE based application, turning the application portable to different
     kernel versions.
 
-    Check examples bellow for more information how to use it.
+    Check examples below for more information on how to use it.
 
 bpftool gen help
     Print short help message.
