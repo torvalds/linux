@@ -3,7 +3,6 @@
 #include "bbpos.h"
 #include "alloc_background.h"
 #include "backpointers.h"
-#include "bbpos.h"
 #include "bkey_buf.h"
 #include "btree_cache.h"
 #include "btree_update.h"
