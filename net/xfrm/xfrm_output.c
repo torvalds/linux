@@ -706,8 +706,6 @@ int xfrm_output(struct sock *sk, struct sk_buff *skb)
 	struct xfrm_state *x = skb_dst(skb)->xfrm;
 	int family;
 	int err;
-	struct xfrm_offload *xo;
-	struct sec_path *sp;
 
 	family = (x->xso.type != XFRM_DEV_OFFLOAD_PACKET) ? x->outer_mode.family
 		: skb_dst(skb)->ops->family;
@@ -730,25 +728,6 @@ int xfrm_output(struct sock *sk, struct sk_buff *skb)
 			kfree_skb(skb);
 			return -EHOSTUNREACH;
 		}
-		sp = secpath_set(skb);
-		if (!sp) {
-			XFRM_INC_STATS(net, LINUX_MIB_XFRMOUTERROR);
-			kfree_skb(skb);
-			return -ENOMEM;
-		}
-
-		sp->olen++;
-		sp->xvec[sp->len++] = x;
-		xfrm_state_hold(x);
-
-		xo = xfrm_offload(skb);
-		if (!xo) {
-			secpath_reset(skb);
-			XFRM_INC_STATS(net, LINUX_MIB_XFRMOUTERROR);
-			kfree_skb(skb);
-			return -EINVAL;
-		}
-		xo->flags |= XFRM_XMIT;
 
 		return xfrm_output_resume(sk, skb, 0);
 	}
