@@ -295,7 +295,7 @@ int mt8365_afe_disable_afe_on(struct mtk_base_afe *afe)
 	return 0;
 }
 
-int mt8365_afe_hd_engen_enable(struct mtk_base_afe *afe, bool apll1)
+static int mt8365_afe_hd_engen_enable(struct mtk_base_afe *afe, bool apll1)
 {
 	if (apll1)
 		regmap_update_bits(afe->regmap, AFE_HD_ENGEN_ENABLE,
@@ -307,7 +307,7 @@ int mt8365_afe_hd_engen_enable(struct mtk_base_afe *afe, bool apll1)
 	return 0;
 }
 
-int mt8365_afe_hd_engen_disable(struct mtk_base_afe *afe, bool apll1)
+static int mt8365_afe_hd_engen_disable(struct mtk_base_afe *afe, bool apll1)
 {
 	if (apll1)
 		regmap_update_bits(afe->regmap, AFE_HD_ENGEN_ENABLE,

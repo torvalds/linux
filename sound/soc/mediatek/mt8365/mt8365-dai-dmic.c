@@ -108,36 +108,6 @@ static void mt8365_dai_disable_dmic(struct mtk_base_afe *afe,
 	regmap_update_bits(afe->regmap, reg, mask, 0);
 }
 
-static const struct reg_sequence mt8365_dmic_iir_coeff[] = {
-	{ AFE_DMIC0_IIR_COEF_02_01, 0x00000000 },
-	{ AFE_DMIC0_IIR_COEF_04_03, 0x00003FB8 },
-	{ AFE_DMIC0_IIR_COEF_06_05, 0x3FB80000 },
-	{ AFE_DMIC0_IIR_COEF_08_07, 0x3FB80000 },
-	{ AFE_DMIC0_IIR_COEF_10_09, 0x0000C048 },
-	{ AFE_DMIC1_IIR_COEF_02_01, 0x00000000 },
-	{ AFE_DMIC1_IIR_COEF_04_03, 0x00003FB8 },
-	{ AFE_DMIC1_IIR_COEF_06_05, 0x3FB80000 },
-	{ AFE_DMIC1_IIR_COEF_08_07, 0x3FB80000 },
-	{ AFE_DMIC1_IIR_COEF_10_09, 0x0000C048 },
-	{ AFE_DMIC2_IIR_COEF_02_01, 0x00000000 },
-	{ AFE_DMIC2_IIR_COEF_04_03, 0x00003FB8 },
-	{ AFE_DMIC2_IIR_COEF_06_05, 0x3FB80000 },
-	{ AFE_DMIC2_IIR_COEF_08_07, 0x3FB80000 },
-	{ AFE_DMIC2_IIR_COEF_10_09, 0x0000C048 },
-	{ AFE_DMIC3_IIR_COEF_02_01, 0x00000000 },
-	{ AFE_DMIC3_IIR_COEF_04_03, 0x00003FB8 },
-	{ AFE_DMIC3_IIR_COEF_06_05, 0x3FB80000 },
-	{ AFE_DMIC3_IIR_COEF_08_07, 0x3FB80000 },
-	{ AFE_DMIC3_IIR_COEF_10_09, 0x0000C048 },
-};
-
-static int mt8365_dai_load_dmic_iir_coeff_table(struct mtk_base_afe *afe)
-{
-	return regmap_multi_reg_write(afe->regmap,
-				      mt8365_dmic_iir_coeff,
-				      ARRAY_SIZE(mt8365_dmic_iir_coeff));
-}
-
 static int mt8365_dai_configure_dmic(struct mtk_base_afe *afe,
 				     struct snd_pcm_substream *substream,
 				     struct snd_soc_dai *dai)

@@ -421,7 +421,6 @@ static inline u32 AutoRstThLo(unsigned int fs)
 	}
 }
 
-bool mt8365_afe_clk_group_48k(int sample_rate);
 bool mt8365_afe_rate_supported(unsigned int rate, unsigned int id);
 bool mt8365_afe_channel_supported(unsigned int channel, unsigned int id);
 

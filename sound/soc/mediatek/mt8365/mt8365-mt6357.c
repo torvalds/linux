@@ -290,9 +290,8 @@ static int mt8365_mt6357_dev_probe(struct mtk_soc_card_data *soc_card_data, bool
 	struct mtk_platform_card_data *card_data = soc_card_data->card_data;
 	struct snd_soc_card *card = card_data->card;
 	struct device *dev = card->dev;
-	struct device_node *platform_node;
 	struct mt8365_mt6357_priv *mach_priv;
-	int i, ret;
+	int ret;
 
 	card->dev = dev;
 	ret = parse_dai_link_info(card);
