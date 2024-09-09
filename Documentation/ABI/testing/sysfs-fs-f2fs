@@ -811,3 +811,11 @@ Contact:	"Daeho Jeong" <daehojeong@google.com>
 Description:	If the percentage of free sections over total sections is under this
 		number, F2FS boosts garbage collection for zoned devices through the
 		background GC thread. the default number is "25".
+
+What:		/sys/fs/f2fs/<disk>/gc_valid_thresh_ratio
+Date:		September 2024
+Contact:	"Daeho Jeong" <daehojeong@google.com>
+Description:	It controls the valid block ratio threshold not to trigger excessive GC
+		for zoned deivces. The initial value of it is 95(%). F2FS will stop the
+		background GC thread from intiating GC for sections having valid blocks
+		exceeding the ratio.
