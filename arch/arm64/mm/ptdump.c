@@ -197,8 +197,8 @@ void note_page(struct ptdump_state *pt_st, unsigned long addr, int level,
 	u64 prot = 0;
 
 	/* check if the current level has been folded dynamically */
-	if ((level == 1 && mm_p4d_folded(st->mm)) ||
-	    (level == 2 && mm_pud_folded(st->mm)))
+	if (st->mm && ((level == 1 && mm_p4d_folded(st->mm)) ||
+	    (level == 2 && mm_pud_folded(st->mm))))
 		level = 0;
 
 	if (level >= 0)
