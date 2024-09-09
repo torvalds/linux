@@ -21,34 +21,30 @@
 			SNDRV_PCM_FMTBIT_S20_3LE | \
 			SNDRV_PCM_FMTBIT_S24_LE)
 
+#define LOONGSON_I2S_TX_ENABLE	(I2S_CTRL_TX_EN | I2S_CTRL_TX_DMA_EN)
+#define LOONGSON_I2S_RX_ENABLE	(I2S_CTRL_RX_EN | I2S_CTRL_RX_DMA_EN)
+
 static int loongson_i2s_trigger(struct snd_pcm_substream *substream, int cmd,
 				struct snd_soc_dai *dai)
 {
 	struct loongson_i2s *i2s = snd_soc_dai_get_drvdata(dai);
+	unsigned int mask;
 	int ret = 0;
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-			regmap_update_bits(i2s->regmap, LS_I2S_CTRL,
-					   I2S_CTRL_TX_EN | I2S_CTRL_TX_DMA_EN,
-					   I2S_CTRL_TX_EN | I2S_CTRL_TX_DMA_EN);
-		else
-			regmap_update_bits(i2s->regmap, LS_I2S_CTRL,
-					   I2S_CTRL_RX_EN | I2S_CTRL_RX_DMA_EN,
-					   I2S_CTRL_RX_EN | I2S_CTRL_RX_DMA_EN);
+		mask = (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) ?
+		       LOONGSON_I2S_TX_ENABLE : LOONGSON_I2S_RX_ENABLE;
+		regmap_update_bits(i2s->regmap, LS_I2S_CTRL, mask, mask);
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
-		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-			regmap_update_bits(i2s->regmap, LS_I2S_CTRL,
-					I2S_CTRL_TX_EN | I2S_CTRL_TX_DMA_EN, 0);
-		else
-			regmap_update_bits(i2s->regmap, LS_I2S_CTRL,
-					I2S_CTRL_RX_EN | I2S_CTRL_RX_DMA_EN, 0);
+		mask = (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) ?
+		       LOONGSON_I2S_TX_ENABLE : LOONGSON_I2S_RX_ENABLE;
+		regmap_update_bits(i2s->regmap, LS_I2S_CTRL, mask, 0);
 		break;
 	default:
 		ret = -EINVAL;
