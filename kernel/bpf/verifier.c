@@ -12132,7 +12132,8 @@ static int check_kfunc_args(struct bpf_verifier_env *env, struct bpf_kfunc_call_
 		switch (kf_arg_type) {
 		case KF_ARG_PTR_TO_CTX:
 			if (reg->type != PTR_TO_CTX) {
-				verbose(env, "arg#%d expected pointer to ctx, but got %s\n", i, btf_type_str(t));
+				verbose(env, "arg#%d expected pointer to ctx, but got %s\n",
+					i, reg_type_str(env, reg->type));
 				return -EINVAL;
 			}
 
