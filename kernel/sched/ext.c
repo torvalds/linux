@@ -2370,12 +2370,6 @@ retry:
 	return false;
 }
 
-enum dispatch_to_local_dsq_ret {
-	DTL_DISPATCHED,		/* successfully dispatched */
-	DTL_LOST,		/* lost race to dequeue */
-	DTL_INVALID,		/* invalid local dsq_id */
-};
-
 /**
  * dispatch_to_local_dsq - Dispatch a task to a local dsq
  * @rq: current rq which is locked
@@ -2390,9 +2384,8 @@ enum dispatch_to_local_dsq_ret {
  * The caller must have exclusive ownership of @p (e.g. through
  * %SCX_OPSS_DISPATCHING).
  */
-static enum dispatch_to_local_dsq_ret
-dispatch_to_local_dsq(struct rq *rq, struct scx_dispatch_q *dst_dsq,
-		      struct task_struct *p, u64 enq_flags)
+static void dispatch_to_local_dsq(struct rq *rq, struct scx_dispatch_q *dst_dsq,
+				  struct task_struct *p, u64 enq_flags)
 {
 	struct rq *src_rq = task_rq(p);
 	struct rq *dst_rq = container_of(dst_dsq, struct rq, scx.local_dsq);
@@ -2405,13 +2398,11 @@ dispatch_to_local_dsq(struct rq *rq, struct scx_dispatch_q *dst_dsq,
 	 */
 	if (rq == src_rq && rq == dst_rq) {
 		dispatch_enqueue(dst_dsq, p, enq_flags | SCX_ENQ_CLEAR_OPSS);
-		return DTL_DISPATCHED;
+		return;
 	}
 
 #ifdef CONFIG_SMP
 	if (likely(task_can_run_on_remote_rq(p, dst_rq, true))) {
-		bool dsp;
-
 		/*
 		 * @p is on a possibly remote @src_rq which we need to lock to
 		 * move the task. If dequeue is in progress, it'd be locking
@@ -2436,10 +2427,8 @@ dispatch_to_local_dsq(struct rq *rq, struct scx_dispatch_q *dst_dsq,
 		}
 
 		/* task_rq couldn't have changed if we're still the holding cpu */
-		dsp = p->scx.holding_cpu == raw_smp_processor_id() &&
-			!WARN_ON_ONCE(src_rq != task_rq(p));
-
-		if (likely(dsp)) {
+		if (likely(p->scx.holding_cpu == raw_smp_processor_id()) &&
+		    !WARN_ON_ONCE(src_rq != task_rq(p))) {
 			/*
 			 * If @p is staying on the same rq, there's no need to
 			 * go through the full deactivate/activate cycle.
@@ -2467,11 +2456,11 @@ dispatch_to_local_dsq(struct rq *rq, struct scx_dispatch_q *dst_dsq,
 			raw_spin_rq_lock(rq);
 		}
 
-		return dsp ? DTL_DISPATCHED : DTL_LOST;
+		return;
 	}
 #endif	/* CONFIG_SMP */
 
-	return DTL_INVALID;
+	dispatch_enqueue(&scx_dsq_global, p, enq_flags | SCX_ENQ_CLEAR_OPSS);
 }
 
 /**
@@ -2548,20 +2537,10 @@ retry:
 
 	dsq = find_dsq_for_dispatch(this_rq(), dsq_id, p);
 
-	if (dsq->id == SCX_DSQ_LOCAL) {
-		switch (dispatch_to_local_dsq(rq, dsq, p, enq_flags)) {
-		case DTL_DISPATCHED:
-			break;
-		case DTL_LOST:
-			break;
-		case DTL_INVALID:
-			dispatch_enqueue(&scx_dsq_global, p,
-					 enq_flags | SCX_ENQ_CLEAR_OPSS);
-			break;
-		}
-	} else {
+	if (dsq->id == SCX_DSQ_LOCAL)
+		dispatch_to_local_dsq(rq, dsq, p, enq_flags);
+	else
 		dispatch_enqueue(dsq, p, enq_flags | SCX_ENQ_CLEAR_OPSS);
-	}
 }
 
 static void flush_dispatch_buf(struct rq *rq)
