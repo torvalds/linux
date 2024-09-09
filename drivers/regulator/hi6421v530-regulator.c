@@ -21,12 +21,10 @@
  * struct hi6421v530_regulator_info - hi6421v530 regulator information
  * @desc: regulator description
  * @mode_mask: ECO mode bitmask of LDOs; for BUCKs, this masks sleep
- * @eco_microamp: eco mode load upper limit (in uA), valid for LDOs only
  */
 struct hi6421v530_regulator_info {
 	struct regulator_desc rdesc;
 	u8 mode_mask;
-	u32 eco_microamp;
 };
 
 /* HI6421v530 regulators */
@@ -68,10 +66,9 @@ static const struct regulator_ops hi6421v530_ldo_ops;
  * emask - enable mask
  * odelay - off/on delay time in uS
  * ecomask - eco mode mask
- * ecoamp - eco mode load uppler limit in uA
  */
 #define HI6421V530_LDO(_ID, v_table, vreg, vmask, ereg, emask,		\
-		   odelay, ecomask, ecoamp) {				\
+		   odelay, ecomask) {					\
 	.rdesc = {							\
 		.name		 = #_ID,				\
 		.of_match        = of_match_ptr(#_ID),			\
@@ -90,22 +87,21 @@ static const struct regulator_ops hi6421v530_ldo_ops;
 		.off_on_delay	 = odelay,				\
 	},								\
 	.mode_mask	= ecomask,					\
-	.eco_microamp	= ecoamp,					\
 }
 
 /* HI6421V530 regulator information */
 
 static struct hi6421v530_regulator_info hi6421v530_regulator_info[] = {
 	HI6421V530_LDO(LDO3, ldo_3_voltages, 0x061, 0xf, 0x060, 0x2,
-		   20000, 0x6, 8000),
+		   20000, 0x6),
 	HI6421V530_LDO(LDO9, ldo_9_11_voltages, 0x06b, 0x7, 0x06a, 0x2,
-		   40000, 0x6, 8000),
+		   40000, 0x6),
 	HI6421V530_LDO(LDO11, ldo_9_11_voltages, 0x06f, 0x7, 0x06e, 0x2,
-		   40000, 0x6, 8000),
+		   40000, 0x6),
 	HI6421V530_LDO(LDO15, ldo_15_16_voltages, 0x077, 0x7, 0x076, 0x2,
-		   40000, 0x6, 8000),
+		   40000, 0x6),
 	HI6421V530_LDO(LDO16, ldo_15_16_voltages, 0x079, 0x7, 0x078, 0x2,
-		   40000, 0x6, 8000),
+		   40000, 0x6),
 };
 
 static unsigned int hi6421v530_regulator_ldo_get_mode(
