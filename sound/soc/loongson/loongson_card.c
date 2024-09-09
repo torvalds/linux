@@ -159,40 +159,41 @@ err:
 static int loongson_asoc_card_probe(struct platform_device *pdev)
 {
 	struct loongson_card_data *ls_priv;
+	struct device *dev = &pdev->dev;
 	struct snd_soc_card *card;
 	int ret;
 
-	ls_priv = devm_kzalloc(&pdev->dev, sizeof(*ls_priv), GFP_KERNEL);
+	ls_priv = devm_kzalloc(dev, sizeof(*ls_priv), GFP_KERNEL);
 	if (!ls_priv)
 		return -ENOMEM;
 
 	card = &ls_priv->snd_card;
 
-	card->dev = &pdev->dev;
+	card->dev = dev;
 	card->owner = THIS_MODULE;
 	card->dai_link = loongson_dai_links;
 	card->num_links = ARRAY_SIZE(loongson_dai_links);
 	snd_soc_card_set_drvdata(card, ls_priv);
 
-	ret = device_property_read_string(&pdev->dev, "model", &card->name);
+	ret = device_property_read_string(dev, "model", &card->name);
 	if (ret) {
-		dev_err(&pdev->dev, "Error parsing card name: %d\n", ret);
+		dev_err(dev, "Error parsing card name: %d\n", ret);
 		return ret;
 	}
-	ret = device_property_read_u32(&pdev->dev, "mclk-fs", &ls_priv->mclk_fs);
+	ret = device_property_read_u32(dev, "mclk-fs", &ls_priv->mclk_fs);
 	if (ret) {
-		dev_err(&pdev->dev, "Error parsing mclk-fs: %d\n", ret);
+		dev_err(dev, "Error parsing mclk-fs: %d\n", ret);
 		return ret;
 	}
 
-	if (has_acpi_companion(&pdev->dev))
+	if (has_acpi_companion(dev))
 		ret = loongson_card_parse_acpi(ls_priv);
 	else
 		ret = loongson_card_parse_of(ls_priv);
 	if (ret < 0)
 		return ret;
 
-	return devm_snd_soc_register_card(&pdev->dev, card);
+	return devm_snd_soc_register_card(dev, card);
 }
 
 static const struct of_device_id loongson_asoc_dt_ids[] = {
