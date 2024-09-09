@@ -28,14 +28,6 @@
 /* Optimal power settings from GUC */
 #define SPX5_SERDES_QUIET_MODE_VAL 0x01ef4e0c
 
-enum sparx5_10g28cmu_mode {
-	SPX5_SD10G28_CMU_MAIN = 0,
-	SPX5_SD10G28_CMU_AUX1 = 1,
-	SPX5_SD10G28_CMU_AUX2 = 3,
-	SPX5_SD10G28_CMU_NONE = 4,
-	SPX5_SD10G28_CMU_MAX,
-};
-
 enum sparx5_sd25g28_mode_preset_type {
 	SPX5_SD25G28_MODE_PRESET_25000,
 	SPX5_SD25G28_MODE_PRESET_10000,
@@ -1648,7 +1640,7 @@ static int sparx5_sd10g28_apply_params(struct sparx5_serdes_macro *macro,
 	if (params->skip_cmu_cfg)
 		return 0;
 
-	cmu_idx = sparx5_serdes_cmu_get(params->cmu_sel, lane_index);
+	cmu_idx = priv->data->ops.serdes_cmu_get(params->cmu_sel, macro->sidx);
 	err = sparx5_cmu_cfg(priv, cmu_idx);
 	if (err)
 		return err;
@@ -2520,6 +2512,7 @@ static const struct sparx5_serdes_match_data sparx5_desc = {
 	},
 	.ops = {
 		.serdes_type_set      = &sparx5_serdes_type_set,
+		.serdes_cmu_get       = &sparx5_serdes_cmu_get,
 	},
 };
 

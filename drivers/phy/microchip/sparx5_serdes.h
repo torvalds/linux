@@ -26,6 +26,14 @@ enum sparx5_serdes_mode {
 	SPX5_SD_MODE_SFI,
 };
 
+enum sparx5_10g28cmu_mode {
+	SPX5_SD10G28_CMU_MAIN = 0,
+	SPX5_SD10G28_CMU_AUX1 = 1,
+	SPX5_SD10G28_CMU_AUX2 = 3,
+	SPX5_SD10G28_CMU_NONE = 4,
+	SPX5_SD10G28_CMU_MAX,
+};
+
 struct sparx5_serdes_macro {
 	struct sparx5_serdes_private *priv;
 	u32 sidx;
@@ -44,6 +52,7 @@ struct sparx5_serdes_consts {
 
 struct sparx5_serdes_ops {
 	void (*serdes_type_set)(struct sparx5_serdes_macro *macro, int sidx);
+	int (*serdes_cmu_get)(enum sparx5_10g28cmu_mode mode, int sd_index);
 };
 
 struct sparx5_serdes_match_data {
