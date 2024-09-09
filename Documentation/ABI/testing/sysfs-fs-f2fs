@@ -791,3 +791,9 @@ Description:	Controls migration window granularity of garbage collection on larg
 		section. it can control the scanning window granularity for GC migration
 		in a unit of segment, while migration_granularity controls the number
 		of segments which can be migrated at the same turn.
+
+What:		/sys/fs/f2fs/<disk>/reserved_segments
+Date:		September 2024
+Contact:	"Daeho Jeong" <daehojeong@google.com>
+Description:	In order to fine tune GC behavior, we can control the number of
+		reserved segments.
