@@ -6877,7 +6877,7 @@ static struct bfq_queue *bfq_init_rq(struct request *rq)
 	const int is_sync = rq_is_sync(rq);
 	struct bfq_queue *bfqq;
 	bool new_queue = false;
-	bool bfqq_already_existing = false, split = false;
+	bool bfqq_already_existing = false;
 	unsigned int a_idx = bfq_actuator_index(bfqd, bio);
 
 	if (unlikely(!rq->elv.icq))
@@ -6914,16 +6914,19 @@ static struct bfq_queue *bfq_init_rq(struct request *rq)
 					true;
 
 			bfqq = bfq_split_bfqq(bic, bfqq);
-			split = true;
-
 			if (!bfqq) {
 				bfqq = bfq_get_bfqq_handle_split(bfqd, bic, bio,
 								 true, is_sync,
 								 NULL);
 				if (unlikely(bfqq == &bfqd->oom_bfqq))
 					bfqq_already_existing = true;
-			} else
+				else
+					bfq_bfqq_resume_state(bfqq, bfqd, bic,
+							      false);
+			} else {
 				bfqq_already_existing = true;
+				bfq_bfqq_resume_state(bfqq, bfqd, bic, true);
+			}
 
 			if (!bfqq_already_existing) {
 				bfqq->waker_bfqq = waker_bfqq;
@@ -6959,18 +6962,8 @@ static struct bfq_queue *bfq_init_rq(struct request *rq)
 	 * resume its state.
 	 */
 	if (likely(bfqq != &bfqd->oom_bfqq) && !bfqq->new_bfqq &&
-	    bfqq_process_refs(bfqq) == 1) {
+	    bfqq_process_refs(bfqq) == 1)
 		bfqq->bic = bic;
-		if (split) {
-			/*
-			 * The queue has just been split from a shared
-			 * queue: restore the idle window and the
-			 * possible weight raising period.
-			 */
-			bfq_bfqq_resume_state(bfqq, bfqd, bic,
-					      bfqq_already_existing);
-		}
-	}
 
 	/*
 	 * Consider bfqq as possibly belonging to a burst of newly
