@@ -1185,11 +1185,6 @@ struct bfq_group *bfqq_group(struct bfq_queue *bfqq);
 			"%s " fmt, pid_str, ##args);			\
 } while (0)
 
-#define bfq_log_bfqg(bfqd, bfqg, fmt, args...)	do {			\
-	blk_add_cgroup_trace_msg((bfqd)->queue,				\
-		&bfqg_to_blkg(bfqg)->blkcg->css, fmt, ##args);		\
-} while (0)
-
 #else /* CONFIG_BFQ_GROUP_IOSCHED */
 
 #define bfq_log_bfqq(bfqd, bfqq, fmt, args...) do {	\
@@ -1199,7 +1194,6 @@ struct bfq_group *bfqq_group(struct bfq_queue *bfqq);
 	bfq_bfqq_name((bfqq), pid_str, MAX_BFQQ_NAME_LENGTH);		\
 	blk_add_trace_msg((bfqd)->queue, "%s " fmt, pid_str, ##args);	\
 } while (0)
-#define bfq_log_bfqg(bfqd, bfqg, fmt, args...)		do {} while (0)
 
 #endif /* CONFIG_BFQ_GROUP_IOSCHED */
 
