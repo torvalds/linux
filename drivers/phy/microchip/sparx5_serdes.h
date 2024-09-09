@@ -28,6 +28,7 @@ enum sparx5_serdes_mode {
 
 struct sparx5_serdes_consts {
 	int sd_max;
+	int cmu_max;
 };
 
 struct sparx5_serdes_match_data {

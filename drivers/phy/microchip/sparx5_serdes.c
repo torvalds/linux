@@ -21,8 +21,6 @@
 
 #include "sparx5_serdes.h"
 
-#define SPX5_CMU_MAX          14
-
 #define SPX5_SERDES_10G_START 13
 #define SPX5_SERDES_25G_START 25
 #define SPX5_SERDES_6G10G_CNT SPX5_SERDES_25G_START
@@ -1101,7 +1099,7 @@ static void sparx5_serdes_cmu_power_off(struct sparx5_serdes_private *priv)
 	int i;
 
 	/* Power down each CMU */
-	for (i = 0; i < SPX5_CMU_MAX; i++) {
+	for (i = 0; i < priv->data->consts.cmu_max; i++) {
 		cmu_inst = sdx5_inst_get(priv, TARGET_SD_CMU, i);
 		cmu_cfg_inst = sdx5_inst_get(priv, TARGET_SD_CMU_CFG, i);
 
@@ -2512,6 +2510,7 @@ static const struct sparx5_serdes_match_data sparx5_desc = {
 	.iomap_size = ARRAY_SIZE(sparx5_serdes_iomap),
 	.consts = {
 		.sd_max       = 33,
+		.cmu_max      = 14,
 	},
 };
 
