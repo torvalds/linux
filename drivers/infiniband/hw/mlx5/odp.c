@@ -401,12 +401,24 @@ static void mlx5_ib_page_fault_resume(struct mlx5_ib_dev *dev,
 
 	MLX5_SET(page_fault_resume_in, in, opcode, MLX5_CMD_OP_PAGE_FAULT_RESUME);
 
-	info = MLX5_ADDR_OF(page_fault_resume_in, in,
-			    page_fault_info.trans_page_fault_info);
-	MLX5_SET(trans_page_fault_info, info, page_fault_type, pfault->type);
-	MLX5_SET(trans_page_fault_info, info, fault_token, pfault->token);
-	MLX5_SET(trans_page_fault_info, info, wq_number, wq_num);
-	MLX5_SET(trans_page_fault_info, info, error, !!error);
+	if (pfault->event_subtype == MLX5_PFAULT_SUBTYPE_MEMORY) {
+		info = MLX5_ADDR_OF(page_fault_resume_in, in,
+				    page_fault_info.mem_page_fault_info);
+		MLX5_SET(mem_page_fault_info, info, fault_token_31_0,
+			 pfault->token & 0xffffffff);
+		MLX5_SET(mem_page_fault_info, info, fault_token_47_32,
+			 (pfault->token >> 32) & 0xffff);
+		MLX5_SET(mem_page_fault_info, info, error, !!error);
+	} else {
+		info = MLX5_ADDR_OF(page_fault_resume_in, in,
+				    page_fault_info.trans_page_fault_info);
+		MLX5_SET(trans_page_fault_info, info, page_fault_type,
+			 pfault->type);
+		MLX5_SET(trans_page_fault_info, info, fault_token,
+			 pfault->token);
+		MLX5_SET(trans_page_fault_info, info, wq_number, wq_num);
+		MLX5_SET(trans_page_fault_info, info, error, !!error);
+	}
 
 	err = mlx5_cmd_exec_in(dev->mdev, page_fault_resume, in);
 	if (err)
@@ -1388,6 +1400,63 @@ static void mlx5_ib_mr_rdma_pfault_handler(struct mlx5_ib_dev *dev,
 	}
 }
 
+#define MLX5_MEMORY_PAGE_FAULT_FLAGS_LAST BIT(7)
+static void mlx5_ib_mr_memory_pfault_handler(struct mlx5_ib_dev *dev,
+					     struct mlx5_pagefault *pfault)
+{
+	u64 prefetch_va =
+		pfault->memory.va - pfault->memory.prefetch_before_byte_count;
+	size_t prefetch_size = pfault->memory.prefetch_before_byte_count +
+			       pfault->memory.fault_byte_count +
+			       pfault->memory.prefetch_after_byte_count;
+	struct mlx5_ib_mkey *mmkey;
+	struct mlx5_ib_mr *mr;
+	int ret = 0;
+
+	mmkey = find_odp_mkey(dev, pfault->memory.mkey);
+	if (IS_ERR(mmkey))
+		goto err;
+
+	mr = container_of(mmkey, struct mlx5_ib_mr, mmkey);
+
+	/* If prefetch fails, handle only demanded page fault */
+	ret = pagefault_mr(mr, prefetch_va, prefetch_size, NULL, 0, true);
+	if (ret < 0) {
+		ret = pagefault_mr(mr, pfault->memory.va,
+				   pfault->memory.fault_byte_count, NULL, 0,
+				   true);
+		if (ret < 0)
+			goto err;
+	}
+
+	mlx5_update_odp_stats(mr, faults, ret);
+	mlx5r_deref_odp_mkey(mmkey);
+
+	if (pfault->memory.flags & MLX5_MEMORY_PAGE_FAULT_FLAGS_LAST)
+		mlx5_ib_page_fault_resume(dev, pfault, 0);
+
+	mlx5_ib_dbg(
+		dev,
+		"PAGE FAULT completed %s. token 0x%llx, mkey: 0x%x, va: 0x%llx, byte_count: 0x%x\n",
+		pfault->memory.flags & MLX5_MEMORY_PAGE_FAULT_FLAGS_LAST ?
+			"" :
+			"without resume cmd",
+		pfault->token, pfault->memory.mkey, pfault->memory.va,
+		pfault->memory.fault_byte_count);
+
+	return;
+
+err:
+	if (!IS_ERR(mmkey))
+		mlx5r_deref_odp_mkey(mmkey);
+	mlx5_ib_page_fault_resume(dev, pfault, 1);
+	mlx5_ib_dbg(
+		dev,
+		"PAGE FAULT error. token 0x%llx, mkey: 0x%x, va: 0x%llx, byte_count: 0x%x, err: %d\n",
+		pfault->token, pfault->memory.mkey, pfault->memory.va,
+		pfault->memory.fault_byte_count, ret);
+}
+
 static void mlx5_ib_pfault(struct mlx5_ib_dev *dev, struct mlx5_pagefault *pfault)
 {
 	u8 event_subtype = pfault->event_subtype;
@@ -1398,6 +1467,9 @@ static void mlx5_ib_pfault(struct mlx5_ib_dev *dev, struct mlx5_pagefault *pfaul
 		break;
 	case MLX5_PFAULT_SUBTYPE_RDMA:
 		mlx5_ib_mr_rdma_pfault_handler(dev, pfault);
+		break;
+	case MLX5_PFAULT_SUBTYPE_MEMORY:
+		mlx5_ib_mr_memory_pfault_handler(dev, pfault);
 		break;
 	default:
 		mlx5_ib_err(dev, "Invalid page fault event subtype: 0x%x\n",
@@ -1417,6 +1489,7 @@ static void mlx5_ib_eqe_pf_action(struct work_struct *work)
 	mempool_free(pfault, eq->pool);
 }
 
+#define MEMORY_SCHEME_PAGE_FAULT_GRANULARITY 4096
 static void mlx5_ib_eq_pf_process(struct mlx5_ib_pf_eq *eq)
 {
 	struct mlx5_eqe_page_fault *pf_eqe;
@@ -1485,6 +1558,41 @@ static void mlx5_ib_eq_pf_process(struct mlx5_ib_pf_eq *eq)
 				eqe->sub_type, pfault->bytes_committed,
 				pfault->type, pfault->token, pfault->wqe.wq_num,
 				pfault->wqe.wqe_index);
+			break;
+
+		case MLX5_PFAULT_SUBTYPE_MEMORY:
+			/* Memory based event */
+			pfault->bytes_committed = 0;
+			pfault->token =
+				be32_to_cpu(pf_eqe->memory.token31_0) |
+				((u64)be16_to_cpu(pf_eqe->memory.token47_32)
+				 << 32);
+			pfault->memory.va = be64_to_cpu(pf_eqe->memory.va);
+			pfault->memory.mkey = be32_to_cpu(pf_eqe->memory.mkey);
+			pfault->memory.fault_byte_count = (be32_to_cpu(
+				pf_eqe->memory.demand_fault_pages) >> 12) *
+				MEMORY_SCHEME_PAGE_FAULT_GRANULARITY;
+			pfault->memory.prefetch_before_byte_count =
+				be16_to_cpu(
+					pf_eqe->memory.pre_demand_fault_pages) *
+				MEMORY_SCHEME_PAGE_FAULT_GRANULARITY;
+			pfault->memory.prefetch_after_byte_count =
+				be16_to_cpu(
+					pf_eqe->memory.post_demand_fault_pages) *
+				MEMORY_SCHEME_PAGE_FAULT_GRANULARITY;
+			pfault->memory.flags = pf_eqe->memory.flags;
+			mlx5_ib_dbg(
+				eq->dev,
+				"PAGE_FAULT: subtype: 0x%02x, token: 0x%06llx, mkey: 0x%06x, fault_byte_count: 0x%06x, va: 0x%016llx, flags: 0x%02x\n",
+				eqe->sub_type, pfault->token,
+				pfault->memory.mkey,
+				pfault->memory.fault_byte_count,
+				pfault->memory.va, pfault->memory.flags);
+			mlx5_ib_dbg(
+				eq->dev,
+				"PAGE_FAULT: prefetch size: before: 0x%06x, after 0x%06x\n",
+				pfault->memory.prefetch_before_byte_count,
+				pfault->memory.prefetch_after_byte_count);
 			break;
 
 		default:
