@@ -242,6 +242,22 @@ config AD7606_IFACE_SPI
 	  To compile this driver as a module, choose M here: the
 	  module will be called ad7606_spi.
 
+config AD7625
+	tristate "Analog Devices AD7625/AD7626 High Speed ADC driver"
+	depends on PWM
+	select IIO_BACKEND
+	help
+	  Say yes here to build support for Analog Devices:
+	  * AD7625 16-Bit, 6 MSPS PulSAR Analog-to-Digital Converter
+	  * AD7626 16-Bit, 10 MSPS PulSAR Analog-to-Digital Converter
+	  * AD7960 18-Bit, 5 MSPS PulSAR Analog-to-Digital Converter
+	  * AD7961 16-Bit, 5 MSPS PulSAR Analog-to-Digital Converter
+
+	  The driver requires the assistance of the AXI ADC IP core to operate.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called ad7625.
+
 config AD7766
 	tristate "Analog Devices AD7766/AD7767 ADC driver"
 	depends on SPI_MASTER
