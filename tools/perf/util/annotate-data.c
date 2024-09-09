@@ -131,6 +131,26 @@ static void pr_debug_location(Dwarf_Die *die, u64 pc, int reg)
 	}
 }
 
+static void pr_debug_scope(Dwarf_Die *scope_die)
+{
+	int tag;
+
+	if (!debug_type_profile && verbose < 3)
+		return;
+
+	pr_info("(die:%lx) ", (long)dwarf_dieoffset(scope_die));
+
+	tag = dwarf_tag(scope_die);
+	if (tag == DW_TAG_subprogram)
+		pr_info("[function] %s\n", dwarf_diename(scope_die));
+	else if (tag == DW_TAG_inlined_subroutine)
+		pr_info("[inlined] %s\n", dwarf_diename(scope_die));
+	else if (tag == DW_TAG_lexical_block)
+		pr_info("[block]\n");
+	else
+		pr_info("[unknown] tag=%x\n", tag);
+}
+
 bool has_reg_type(struct type_state *state, int reg)
 {
 	return (unsigned)reg < ARRAY_SIZE(state->regs);
@@ -1305,8 +1325,9 @@ static enum type_match_result find_data_type_block(struct data_loc_info *dloc,
 		if (dwarf_ranges(&scopes[i], 0, &base, &start, &end) < 0)
 			break;
 
-		pr_debug_dtp("scope: [%d/%d] (die:%lx)\n",
-			     i + 1, nr_scopes, (long)dwarf_dieoffset(&scopes[i]));
+		pr_debug_dtp("scope: [%d/%d] ", i + 1, nr_scopes);
+		pr_debug_scope(&scopes[i]);
+
 		src_ip = map__objdump_2rip(dloc->ms->map, start);
 
 again:
