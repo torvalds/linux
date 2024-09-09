@@ -263,6 +263,11 @@ enum drm_panthor_dev_query_type {
 
 	/** @DRM_PANTHOR_DEV_QUERY_TIMESTAMP_INFO: Query timestamp information. */
 	DRM_PANTHOR_DEV_QUERY_TIMESTAMP_INFO,
+
+	/**
+	 * @DRM_PANTHOR_DEV_QUERY_GROUP_PRIORITIES_INFO: Query allowed group priorities information.
+	 */
+	DRM_PANTHOR_DEV_QUERY_GROUP_PRIORITIES_INFO,
 };
 
 /**
@@ -397,6 +402,23 @@ struct drm_panthor_timestamp_info {
 
 	/** @timestamp_offset: The offset of the timestamp timer. */
 	__u64 timestamp_offset;
+};
+
+/**
+ * struct drm_panthor_group_priorities_info - Group priorities information
+ *
+ * Structure grouping all queryable information relating to the allowed group priorities.
+ */
+struct drm_panthor_group_priorities_info {
+	/**
+	 * @allowed_mask: Bitmask of the allowed group priorities.
+	 *
+	 * Each bit represents a variant of the enum drm_panthor_group_priority.
+	 */
+	__u8 allowed_mask;
+
+	/** @pad: Padding fields, MBZ. */
+	__u8 pad[3];
 };
 
 /**
