@@ -285,4 +285,10 @@ static inline bool gfs2_holder_queued(struct gfs2_holder *gh)
 void gfs2_inode_remember_delete(struct gfs2_glock *gl, u64 generation);
 bool gfs2_inode_already_deleted(struct gfs2_glock *gl, u64 generation);
 
+static inline bool glock_needs_demote(struct gfs2_glock *gl)
+{
+	return (test_bit(GLF_DEMOTE, &gl->gl_flags) ||
+		test_bit(GLF_PENDING_DEMOTE, &gl->gl_flags));
+}
+
 #endif /* __GLOCK_DOT_H__ */

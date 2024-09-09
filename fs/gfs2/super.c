@@ -1030,7 +1030,7 @@ static int gfs2_drop_inode(struct inode *inode)
 	if (inode->i_nlink &&
 	    gfs2_holder_initialized(&ip->i_iopen_gh)) {
 		struct gfs2_glock *gl = ip->i_iopen_gh.gh_gl;
-		if (test_bit(GLF_DEMOTE, &gl->gl_flags))
+		if (glock_needs_demote(gl))
 			clear_nlink(inode);
 	}
 
@@ -1294,7 +1294,7 @@ static bool gfs2_upgrade_iopen_glock(struct inode *inode)
 
 	wait_event_interruptible_timeout(sdp->sd_async_glock_wait,
 		!test_bit(HIF_WAIT, &gh->gh_iflags) ||
-		test_bit(GLF_DEMOTE, &ip->i_gl->gl_flags),
+		glock_needs_demote(ip->i_gl),
 		5 * HZ);
 	if (!test_bit(HIF_HOLDER, &gh->gh_iflags)) {
 		gfs2_glock_dq(gh);

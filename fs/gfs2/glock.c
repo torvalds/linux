@@ -563,11 +563,11 @@ static void state_change(struct gfs2_glock *gl, unsigned int new_state)
 	gl->gl_tchange = jiffies;
 }
 
-static void gfs2_set_demote(struct gfs2_glock *gl)
+static void gfs2_set_demote(int nr, struct gfs2_glock *gl)
 {
 	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
 
-	set_bit(GLF_DEMOTE, &gl->gl_flags);
+	set_bit(nr, &gl->gl_flags);
 	smp_mb();
 	wake_up(&sdp->sd_async_glock_wait);
 }
@@ -1101,7 +1101,7 @@ static void glock_work_func(struct work_struct *work)
 
 		if (!delay) {
 			clear_bit(GLF_PENDING_DEMOTE, &gl->gl_flags);
-			gfs2_set_demote(gl);
+			gfs2_set_demote(GLF_DEMOTE, gl);
 		}
 	}
 	run_queue(gl, 0);
@@ -1443,10 +1443,7 @@ out:
 static void request_demote(struct gfs2_glock *gl, unsigned int state,
 			   unsigned long delay, bool remote)
 {
-	if (delay)
-		set_bit(GLF_PENDING_DEMOTE, &gl->gl_flags);
-	else
-		gfs2_set_demote(gl);
+	gfs2_set_demote(delay ? GLF_PENDING_DEMOTE : GLF_DEMOTE, gl);
 	if (gl->gl_demote_state == LM_ST_EXCLUSIVE) {
 		gl->gl_demote_state = state;
 		gl->gl_demote_time = jiffies;
@@ -1636,12 +1633,6 @@ int gfs2_glock_poll(struct gfs2_holder *gh)
 	return test_bit(HIF_WAIT, &gh->gh_iflags) ? 0 : 1;
 }
 
-static inline bool needs_demote(struct gfs2_glock *gl)
-{
-	return (test_bit(GLF_DEMOTE, &gl->gl_flags) ||
-		test_bit(GLF_PENDING_DEMOTE, &gl->gl_flags));
-}
-
 static void __gfs2_glock_dq(struct gfs2_holder *gh)
 {
 	struct gfs2_glock *gl = gh->gh_gl;
@@ -1650,8 +1641,8 @@ static void __gfs2_glock_dq(struct gfs2_holder *gh)
 
 	/*
 	 * This holder should not be cached, so mark it for demote.
-	 * Note: this should be done before the check for needs_demote
-	 * below.
+	 * Note: this should be done before the glock_needs_demote
+	 * check below.
 	 */
 	if (gh->gh_flags & GL_NOCACHE)
 		request_demote(gl, LM_ST_UNLOCKED, 0, false);
@@ -1664,7 +1655,7 @@ static void __gfs2_glock_dq(struct gfs2_holder *gh)
 	 * If there hasn't been a demote request we are done.
 	 * (Let the remaining holders, if any, keep holding it.)
 	 */
-	if (!needs_demote(gl)) {
+	if (!glock_needs_demote(gl)) {
 		if (list_empty(&gl->gl_holders))
 			fast_path = 1;
 	}
