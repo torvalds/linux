@@ -777,3 +777,11 @@ Description:	The zone UFS we are currently using consists of two parts:
 		blkzone_alloc_policy = 1  Only allow writing to sequential zones
 		blkzone_alloc_policy = 2  Prioritize writing to conventional zones
 		========================  =========================================
+
+What:		/sys/fs/f2fs/<disk>/migration_window_granularity
+Date:		September 2024
+Contact:	"Daeho Jeong" <daehojeong@google.com>
+Description:	Controls migration window granularity of garbage collection on large
+		section. it can control the scanning window granularity for GC migration
+		in a unit of segment, while migration_granularity controls the number
+		of segments which can be migrated at the same turn.
