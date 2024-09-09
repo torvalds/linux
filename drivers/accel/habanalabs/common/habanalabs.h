@@ -704,6 +704,7 @@ struct hl_hints_range {
  * @supports_advanced_cpucp_rc: true if new cpucp opcodes are supported.
  * @supports_engine_modes: true if changing engines/engine_cores modes is supported.
  * @support_dynamic_resereved_fw_size: true if we support dynamic reserved size for fw.
+ * @supports_nvme: indicates whether the asic supports NVMe P2P DMA.
  */
 struct asic_fixed_properties {
 	struct hw_queue_properties	*hw_queues_props;
@@ -824,6 +825,7 @@ struct asic_fixed_properties {
 	u8				supports_advanced_cpucp_rc;
 	u8				supports_engine_modes;
 	u8				support_dynamic_resereved_fw_size;
+	u8				supports_nvme;
 };
 
 /**
@@ -2276,6 +2278,9 @@ struct hl_vm {
 	u8			init_done;
 };
 
+#ifdef CONFIG_HL_HLDIO
+#include "hldio.h"
+#endif
 
 /*
  * DEBUG, PROFILING STRUCTURE
@@ -2346,7 +2351,6 @@ struct hl_fpriv {
 	struct mutex			ctx_lock;
 };
 
-
 /*
  * DebugFS
  */
@@ -2373,6 +2377,7 @@ struct hl_debugfs_entry {
 	const struct hl_info_list	*info_ent;
 	struct hl_dbg_device_entry	*dev_entry;
 };
+
 
 /**
  * struct hl_dbg_device_entry - ASIC specific debugfs manager.
@@ -3334,6 +3339,7 @@ struct eq_heartbeat_debug_info {
  * @captured_err_info: holds information about errors.
  * @reset_info: holds current device reset information.
  * @heartbeat_debug_info: counters used to debug heartbeat failures.
+ * @hldio: describes habanalabs direct storage interaction interface.
  * @irq_affinity_mask: mask of available CPU cores for user and decoder interrupt handling.
  * @stream_master_qid_arr: pointer to array with QIDs of master streams.
  * @fw_inner_major_ver: the major of current loaded preboot inner version.
@@ -3527,7 +3533,9 @@ struct hl_device {
 	struct hl_reset_info		reset_info;
 
 	struct eq_heartbeat_debug_info	heartbeat_debug_info;
-
+#ifdef CONFIG_HL_HLDIO
+	struct hl_dio			hldio;
+#endif
 	cpumask_t			irq_affinity_mask;
 
 	u32				*stream_master_qid_arr;

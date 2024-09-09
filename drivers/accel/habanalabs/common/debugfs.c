@@ -1891,6 +1891,7 @@ void hl_debugfs_device_fini(struct hl_device *hdev)
 		vfree(entry->state_dump[i]);
 
 	kfree(entry->entry_arr);
+
 }
 
 void hl_debugfs_add_device(struct hl_device *hdev)
@@ -1903,6 +1904,7 @@ void hl_debugfs_add_device(struct hl_device *hdev)
 
 	if (!hdev->asic_prop.fw_security_enabled)
 		add_secured_nodes(dev_entry, dev_entry->root);
+
 }
 
 void hl_debugfs_add_file(struct hl_fpriv *hpriv)
@@ -2035,3 +2037,4 @@ void hl_debugfs_set_state_dump(struct hl_device *hdev, char *data,
 
 	up_write(&dev_entry->state_dump_sem);
 }
+

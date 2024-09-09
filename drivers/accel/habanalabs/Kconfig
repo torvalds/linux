@@ -27,3 +27,26 @@ config DRM_ACCEL_HABANALABS
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called habanalabs.
+
+if DRM_ACCEL_HABANALABS
+
+config HL_HLDIO
+	bool "Habanalabs NVMe Direct I/O (HLDIO)"
+	depends on PCI_P2PDMA
+	depends on BLOCK
+	help
+	  Enable NVMe peer-to-peer direct I/O support for Habanalabs AI
+	  accelerators.
+
+	  This allows direct data transfers between NVMe storage devices
+	  and Habanalabs accelerators without involving system memory,
+	  using PCI peer-to-peer DMA capabilities.
+
+	  Requirements:
+	  - CONFIG_PCI_P2PDMA=y
+	  - NVMe device and Habanalabs accelerator under same PCI root complex
+	  - IOMMU disabled or in passthrough mode
+	  - Hardware supporting PCI P2P DMA
+
+	  If unsure, say N
+endif # DRM_ACCEL_HABANALABS
