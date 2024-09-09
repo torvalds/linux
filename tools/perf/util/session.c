@@ -856,7 +856,6 @@ static void branch_stack__printf(struct perf_sample *sample,
 	struct branch_entry *entries = perf_sample__branch_entries(sample);
 	bool callstack = evsel__has_branch_callstack(evsel);
 	u64 *branch_stack_cntr = sample->branch_stack_cntr;
-	struct perf_env *env = evsel__env(evsel);
 	uint64_t i;
 
 	if (!callstack) {
@@ -900,8 +899,11 @@ static void branch_stack__printf(struct perf_sample *sample,
 	}
 
 	if (branch_stack_cntr) {
+		unsigned int br_cntr_width, br_cntr_nr;
+
+		perf_env__find_br_cntr_info(evsel__env(evsel), &br_cntr_nr, &br_cntr_width);
 		printf("... branch stack counters: nr:%" PRIu64 " (counter width: %u max counter nr:%u)\n",
-			sample->branch_stack->nr, env->br_cntr_width, env->br_cntr_nr);
+			sample->branch_stack->nr, br_cntr_width, br_cntr_nr);
 		for (i = 0; i < sample->branch_stack->nr; i++)
 			printf("..... %2"PRIu64": %016" PRIx64 "\n", i, branch_stack_cntr[i]);
 	}

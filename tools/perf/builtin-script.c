@@ -1241,10 +1241,11 @@ static int ip__fprintf_jump(uint64_t ip, struct branch_entry *en,
 	}
 
 	if (PRINT_FIELD(BRCNTR)) {
-		unsigned int width = evsel__env(evsel)->br_cntr_width;
-		unsigned int i = 0, j, num, mask = (1L << width) - 1;
 		struct evsel *pos = evsel__leader(evsel);
+		unsigned int i = 0, j, num, mask, width;
 
+		perf_env__find_br_cntr_info(evsel__env(evsel), NULL, &width);
+		mask = (1L << width) - 1;
 		printed += fprintf(fp, "br_cntr: ");
 		evlist__for_each_entry_from(evsel->evlist, pos) {
 			if (!(pos->core.attr.branch_sample_type & PERF_SAMPLE_BRANCH_COUNTERS))
