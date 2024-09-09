@@ -1411,9 +1411,9 @@ static bool scx_ops_tryset_enable_state(enum scx_ops_enable_state to,
 	return atomic_try_cmpxchg(&scx_ops_enable_state_var, &from_v, to);
 }
 
-static bool scx_ops_bypassing(void)
+static bool scx_rq_bypassing(struct rq *rq)
 {
-	return unlikely(atomic_read(&scx_ops_bypass_depth));
+	return unlikely(rq->scx.flags & SCX_RQ_BYPASSING);
 }
 
 /**
@@ -1948,7 +1948,7 @@ static void do_enqueue_task(struct rq *rq, struct task_struct *p, u64 enq_flags,
 	if (!scx_rq_online(rq))
 		goto local;
 
-	if (scx_ops_bypassing())
+	if (scx_rq_bypassing(rq))
 		goto global;
 
 	if (p->scx.ddsp_dsq_id != SCX_DSQ_INVALID)
@@ -2612,7 +2612,7 @@ static int balance_one(struct rq *rq, struct task_struct *prev)
 		 * bypassing test.
 		 */
 		if ((prev->scx.flags & SCX_TASK_QUEUED) &&
-		    prev->scx.slice && !scx_ops_bypassing()) {
+		    prev->scx.slice && !scx_rq_bypassing(rq)) {
 			rq->scx.flags |= SCX_RQ_BAL_KEEP;
 			goto has_tasks;
 		}
@@ -2625,7 +2625,7 @@ static int balance_one(struct rq *rq, struct task_struct *prev)
 	if (consume_dispatch_q(rq, &scx_dsq_global))
 		goto has_tasks;
 
-	if (!SCX_HAS_OP(dispatch) || scx_ops_bypassing() || !scx_rq_online(rq))
+	if (!SCX_HAS_OP(dispatch) || scx_rq_bypassing(rq) || !scx_rq_online(rq))
 		goto no_tasks;
 
 	dspc->rq = rq;
@@ -2671,7 +2671,8 @@ no_tasks:
 	 * %SCX_OPS_ENQ_LAST is in effect.
 	 */
 	if ((prev->scx.flags & SCX_TASK_QUEUED) &&
-	    (!static_branch_unlikely(&scx_ops_enq_last) || scx_ops_bypassing())) {
+	    (!static_branch_unlikely(&scx_ops_enq_last) ||
+	     scx_rq_bypassing(rq))) {
 		rq->scx.flags |= SCX_RQ_BAL_KEEP;
 		goto has_tasks;
 	}
@@ -2863,7 +2864,7 @@ static void put_prev_task_scx(struct rq *rq, struct task_struct *p,
 		 * forcing a different task. Leave it at the head of the local
 		 * DSQ.
 		 */
-		if (p->scx.slice && !scx_ops_bypassing()) {
+		if (p->scx.slice && !scx_rq_bypassing(rq)) {
 			dispatch_enqueue(&rq->scx.local_dsq, p, SCX_ENQ_HEAD);
 			return;
 		}
@@ -2928,7 +2929,7 @@ static struct task_struct *pick_task_scx(struct rq *rq)
 			return NULL;
 
 		if (unlikely(!p->scx.slice)) {
-			if (!scx_ops_bypassing() && !scx_warned_zero_slice) {
+			if (!scx_rq_bypassing(rq) && !scx_warned_zero_slice) {
 				printk_deferred(KERN_WARNING "sched_ext: %s[%d] has zero slice in pick_next_task_scx()\n",
 						p->comm, p->pid);
 				scx_warned_zero_slice = true;
@@ -2966,7 +2967,7 @@ bool scx_prio_less(const struct task_struct *a, const struct task_struct *b,
 	 * calling ops.core_sched_before(). Accesses are controlled by the
 	 * verifier.
 	 */
-	if (SCX_HAS_OP(core_sched_before) && !scx_ops_bypassing())
+	if (SCX_HAS_OP(core_sched_before) && !scx_rq_bypassing(task_rq(a)))
 		return SCX_CALL_OP_2TASKS_RET(SCX_KF_REST, core_sched_before,
 					      (struct task_struct *)a,
 					      (struct task_struct *)b);
@@ -3325,7 +3326,7 @@ static void task_tick_scx(struct rq *rq, struct task_struct *curr, int queued)
 	 * While disabling, always resched and refresh core-sched timestamp as
 	 * we can't trust the slice management or ops.core_sched_before().
 	 */
-	if (scx_ops_bypassing()) {
+	if (scx_rq_bypassing(rq)) {
 		curr->scx.slice = 0;
 		touch_core_sched(rq, curr);
 	} else if (SCX_HAS_OP(tick)) {
@@ -3664,7 +3665,7 @@ bool scx_can_stop_tick(struct rq *rq)
 {
 	struct task_struct *p = rq->curr;
 
-	if (scx_ops_bypassing())
+	if (scx_rq_bypassing(rq))
 		return false;
 
 	if (p->sched_class != &ext_sched_class)
@@ -4257,16 +4258,8 @@ static void scx_ops_bypass(bool bypass)
 	}
 
 	/*
-	 * We need to guarantee that no tasks are on the BPF scheduler while
-	 * bypassing. Either we see enabled or the enable path sees the
-	 * increased bypass_depth before moving tasks to SCX.
-	 */
-	if (!scx_enabled())
-		return;
-
-	/*
 	 * No task property is changing. We just need to make sure all currently
-	 * queued tasks are re-queued according to the new scx_ops_bypassing()
+	 * queued tasks are re-queued according to the new scx_rq_bypassing()
 	 * state. As an optimization, walk each rq's runnable_list instead of
 	 * the scx_tasks list.
 	 *
@@ -4279,6 +4272,24 @@ static void scx_ops_bypass(bool bypass)
 		struct task_struct *p, *n;
 
 		rq_lock_irqsave(rq, &rf);
+
+		if (bypass) {
+			WARN_ON_ONCE(rq->scx.flags & SCX_RQ_BYPASSING);
+			rq->scx.flags |= SCX_RQ_BYPASSING;
+		} else {
+			WARN_ON_ONCE(!(rq->scx.flags & SCX_RQ_BYPASSING));
+			rq->scx.flags &= ~SCX_RQ_BYPASSING;
+		}
+
+		/*
+		 * We need to guarantee that no tasks are on the BPF scheduler
+		 * while bypassing. Either we see enabled or the enable path
+		 * sees scx_rq_bypassing() before moving tasks to SCX.
+		 */
+		if (!scx_enabled()) {
+			rq_unlock_irqrestore(rq, &rf);
+			continue;
+		}
 
 		/*
 		 * The use of list_for_each_entry_safe_reverse() is required
@@ -6397,17 +6408,17 @@ __bpf_kfunc void scx_bpf_kick_cpu(s32 cpu, u64 flags)
 	if (!ops_cpu_valid(cpu, NULL))
 		return;
 
+	local_irq_save(irq_flags);
+
+	this_rq = this_rq();
+
 	/*
 	 * While bypassing for PM ops, IRQ handling may not be online which can
 	 * lead to irq_work_queue() malfunction such as infinite busy wait for
 	 * IRQ status update. Suppress kicking.
 	 */
-	if (scx_ops_bypassing())
-		return;
-
-	local_irq_save(irq_flags);
-
-	this_rq = this_rq();
+	if (scx_rq_bypassing(this_rq))
+		goto out;
 
 	/*
 	 * Actual kicking is bounced to kick_cpus_irq_workfn() to avoid nesting
