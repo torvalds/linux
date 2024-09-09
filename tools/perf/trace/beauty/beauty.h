@@ -229,6 +229,11 @@ size_t syscall_arg__scnprintf_renameat2_flags(char *bf, size_t size, struct sysc
 size_t syscall_arg__scnprintf_sockaddr(char *bf, size_t size, struct syscall_arg *arg);
 #define SCA_SOCKADDR syscall_arg__scnprintf_sockaddr
 
+// 'argname' is just documentational at this point, to remove the previous comment with that info
+#define SCA_SOCKADDR_FROM_USER(argname) \
+	  { .scnprintf	= SCA_SOCKADDR, \
+	    .from_user	= true, }
+
 size_t syscall_arg__scnprintf_socket_protocol(char *bf, size_t size, struct syscall_arg *arg);
 #define SCA_SK_PROTO syscall_arg__scnprintf_socket_protocol
 
