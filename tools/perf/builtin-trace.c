@@ -102,6 +102,12 @@
 
 /*
  * strtoul: Go from a string to a value, i.e. for msr: MSR_FS_BASE to 0xc0000100
+ *
+ * We have to explicitely mark the direction of the flow of data, if from the
+ * kernel to user space or the other way around, since the BPF collector we
+ * have so far copies only from user to kernel space, mark the arguments that
+ * go that direction, so that we don´t end up collecting the previous contents
+ * for syscall args that goes from kernel to user space.
  */
 struct syscall_arg_fmt {
 	size_t	   (*scnprintf)(char *bf, size_t size, struct syscall_arg *arg);
@@ -110,6 +116,7 @@ struct syscall_arg_fmt {
 	void	   *parm;
 	const char *name;
 	u16	   nr_entries; // for arrays
+	bool	   from_user;
 	bool	   show_zero;
 #ifdef HAVE_LIBBPF_SUPPORT
 	const struct btf_type *type;
@@ -851,6 +858,11 @@ static size_t syscall_arg__scnprintf_filename(char *bf, size_t size,
 
 #define SCA_FILENAME syscall_arg__scnprintf_filename
 
+// 'argname' is just documentational at this point, to remove the previous comment with that info
+#define SCA_FILENAME_FROM_USER(argname) \
+	  { .scnprintf	= SCA_FILENAME, \
+	    .from_user	= true, }
+
 static size_t syscall_arg__scnprintf_pipe_flags(char *bf, size_t size,
 						struct syscall_arg *arg)
 {
@@ -1091,11 +1103,11 @@ static const struct syscall_fmt syscall_fmts[] = {
 	  .arg = { [1] = { .scnprintf = SCA_EFD_FLAGS, /* flags */ }, }, },
 	{ .name     = "faccessat",
 	  .arg = { [0] = { .scnprintf = SCA_FDAT,	  /* dirfd */ },
-		   [1] = { .scnprintf = SCA_FILENAME,	  /* pathname */ },
+		   [1] = SCA_FILENAME_FROM_USER(pathname),
 		   [2] = { .scnprintf = SCA_ACCMODE,	  /* mode */ }, }, },
 	{ .name     = "faccessat2",
 	  .arg = { [0] = { .scnprintf = SCA_FDAT,	  /* dirfd */ },
-		   [1] = { .scnprintf = SCA_FILENAME,	  /* pathname */ },
+		   [1] = SCA_FILENAME_FROM_USER(pathname),
 		   [2] = { .scnprintf = SCA_ACCMODE,	  /* mode */ },
 		   [3] = { .scnprintf = SCA_FACCESSAT2_FLAGS, /* flags */ }, }, },
 	{ .name	    = "fchmodat",
@@ -1117,7 +1129,7 @@ static const struct syscall_fmt syscall_fmts[] = {
 		   [2] = { .scnprintf = SCA_FSMOUNT_ATTR_FLAGS, /* attr_flags */ }, }, },
 	{ .name     = "fspick",
 	  .arg = { [0] = { .scnprintf = SCA_FDAT,	  /* dfd */ },
-		   [1] = { .scnprintf = SCA_FILENAME,	  /* path */ },
+		   [1] = SCA_FILENAME_FROM_USER(path),
 		   [2] = { .scnprintf = SCA_FSPICK_FLAGS, /* flags */ }, }, },
 	{ .name	    = "fstat", .alias = "newfstat", },
 	{ .name	    = "futex",
@@ -1181,20 +1193,20 @@ static const struct syscall_fmt syscall_fmts[] = {
 			   .parm      = &strarray__mmap_flags, },
 		   [5] = { .scnprintf = SCA_HEX,	/* offset */ }, }, },
 	{ .name	    = "mount",
-	  .arg = { [0] = { .scnprintf = SCA_FILENAME, /* dev_name */ },
+	  .arg = { [0] = SCA_FILENAME_FROM_USER(devname),
 		   [3] = { .scnprintf = SCA_MOUNT_FLAGS, /* flags */
 			   .mask_val  = SCAMV_MOUNT_FLAGS, /* flags */ }, }, },
 	{ .name	    = "move_mount",
 	  .arg = { [0] = { .scnprintf = SCA_FDAT,	/* from_dfd */ },
-		   [1] = { .scnprintf = SCA_FILENAME, /* from_pathname */ },
+		   [1] = SCA_FILENAME_FROM_USER(pathname),
 		   [2] = { .scnprintf = SCA_FDAT,	/* to_dfd */ },
-		   [3] = { .scnprintf = SCA_FILENAME, /* to_pathname */ },
+		   [3] = SCA_FILENAME_FROM_USER(pathname),
 		   [4] = { .scnprintf = SCA_MOVE_MOUNT_FLAGS, /* flags */ }, }, },
 	{ .name	    = "mprotect",
 	  .arg = { [0] = { .scnprintf = SCA_HEX,	/* start */ },
 		   [2] = { .scnprintf = SCA_MMAP_PROT, .show_zero = true, /* prot */ }, }, },
 	{ .name	    = "mq_unlink",
-	  .arg = { [0] = { .scnprintf = SCA_FILENAME, /* u_name */ }, }, },
+	  .arg = { [0] = SCA_FILENAME_FROM_USER(u_name), }, },
 	{ .name	    = "mremap",	    .hexret = true,
 	  .arg = { [3] = { .scnprintf = SCA_MREMAP_FLAGS, /* flags */ }, }, },
 	{ .name	    = "name_to_handle_at",
@@ -1203,7 +1215,7 @@ static const struct syscall_fmt syscall_fmts[] = {
 	  .arg = { [0] = { .scnprintf = SCA_TIMESPEC,  /* req */ }, }, },
 	{ .name	    = "newfstatat", .alias = "fstatat",
 	  .arg = { [0] = { .scnprintf = SCA_FDAT,	  /* dirfd */ },
-		   [1] = { .scnprintf = SCA_FILENAME,	  /* pathname */ },
+		   [1] = SCA_FILENAME_FROM_USER(pathname),
 		   [3] = { .scnprintf = SCA_FS_AT_FLAGS, /* flags */ }, }, },
 	{ .name	    = "open",
 	  .arg = { [1] = { .scnprintf = SCA_OPEN_FLAGS, /* flags */ }, }, },
@@ -1299,9 +1311,9 @@ static const struct syscall_fmt syscall_fmts[] = {
 		   [2] = { .scnprintf = SCA_FS_AT_FLAGS, /* flags */ } ,
 		   [3] = { .scnprintf = SCA_STATX_MASK,	 /* mask */ }, }, },
 	{ .name	    = "swapoff",
-	  .arg = { [0] = { .scnprintf = SCA_FILENAME, /* specialfile */ }, }, },
+	  .arg = { [0] = SCA_FILENAME_FROM_USER(specialfile), }, },
 	{ .name	    = "swapon",
-	  .arg = { [0] = { .scnprintf = SCA_FILENAME, /* specialfile */ }, }, },
+	  .arg = { [0] = SCA_FILENAME_FROM_USER(specialfile), }, },
 	{ .name	    = "symlinkat",
 	  .arg = { [0] = { .scnprintf = SCA_FDAT, /* dfd */ }, }, },
 	{ .name	    = "sync_file_range",
@@ -1311,11 +1323,11 @@ static const struct syscall_fmt syscall_fmts[] = {
 	{ .name	    = "tkill",
 	  .arg = { [1] = { .scnprintf = SCA_SIGNUM, /* sig */ }, }, },
 	{ .name     = "umount2", .alias = "umount",
-	  .arg = { [0] = { .scnprintf = SCA_FILENAME, /* name */ }, }, },
+	  .arg = { [0] = SCA_FILENAME_FROM_USER(name), }, },
 	{ .name	    = "uname", .alias = "newuname", },
 	{ .name	    = "unlinkat",
 	  .arg = { [0] = { .scnprintf = SCA_FDAT,	  /* dfd */ },
-		   [1] = { .scnprintf = SCA_FILENAME,	  /* pathname */ },
+		   [1] = SCA_FILENAME_FROM_USER(pathname),
 		   [2] = { .scnprintf = SCA_FS_AT_FLAGS,  /* flags */ }, }, },
 	{ .name	    = "utimensat",
 	  .arg = { [0] = { .scnprintf = SCA_FDAT, /* dirfd */ }, }, },
@@ -1903,9 +1915,10 @@ syscall_arg_fmt__init_array(struct syscall_arg_fmt *arg, struct tep_format_field
 
 		if (strcmp(field->type, "const char *") == 0 &&
 		    ((len >= 4 && strcmp(field->name + len - 4, "name") == 0) ||
-		     strstr(field->name, "path") != NULL))
+		     strstr(field->name, "path") != NULL)) {
 			arg->scnprintf = SCA_FILENAME;
-		else if ((field->flags & TEP_FIELD_IS_POINTER) || strstr(field->name, "addr"))
+			arg->from_user = true;
+		} else if ((field->flags & TEP_FIELD_IS_POINTER) || strstr(field->name, "addr"))
 			arg->scnprintf = SCA_PTR;
 		else if (strcmp(field->type, "pid_t") == 0)
 			arg->scnprintf = SCA_PID;
