@@ -268,7 +268,7 @@ static int bochs_hw_init(struct bochs_device *bochs)
 	if (!devm_request_mem_region(&pdev->dev, addr, size, "bochs-drm"))
 		DRM_WARN("Cannot request framebuffer, boot fb still active?\n");
 
-	bochs->fb_map = devm_ioremap(&pdev->dev, addr, size);
+	bochs->fb_map = devm_ioremap_wc(&pdev->dev, addr, size);
 	if (bochs->fb_map == NULL) {
 		DRM_ERROR("Cannot map framebuffer\n");
 		return -ENOMEM;
