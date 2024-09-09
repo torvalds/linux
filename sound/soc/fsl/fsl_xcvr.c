@@ -1540,7 +1540,7 @@ static struct platform_driver fsl_xcvr_driver = {
 		.pm = pm_ptr(&fsl_xcvr_pm_ops),
 		.of_match_table = fsl_xcvr_dt_ids,
 	},
-	.remove_new = fsl_xcvr_remove,
+	.remove = fsl_xcvr_remove,
 };
 module_platform_driver(fsl_xcvr_driver);
 

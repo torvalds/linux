@@ -1838,7 +1838,7 @@ static struct platform_driver sun4i_codec_driver = {
 		.of_match_table = sun4i_codec_of_match,
 	},
 	.probe = sun4i_codec_probe,
-	.remove_new = sun4i_codec_remove,
+	.remove = sun4i_codec_remove,
 };
 module_platform_driver(sun4i_codec_driver);
 

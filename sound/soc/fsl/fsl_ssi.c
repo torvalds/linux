@@ -1734,7 +1734,7 @@ static struct platform_driver fsl_ssi_driver = {
 		.pm = pm_sleep_ptr(&fsl_ssi_pm),
 	},
 	.probe = fsl_ssi_probe,
-	.remove_new = fsl_ssi_remove,
+	.remove = fsl_ssi_remove,
 };
 
 module_platform_driver(fsl_ssi_driver);

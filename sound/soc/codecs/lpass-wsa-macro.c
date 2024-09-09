@@ -2980,7 +2980,7 @@ static struct platform_driver wsa_macro_driver = {
 		.pm = &wsa_macro_pm_ops,
 	},
 	.probe = wsa_macro_probe,
-	.remove_new = wsa_macro_remove,
+	.remove = wsa_macro_remove,
 };
 
 module_platform_driver(wsa_macro_driver);

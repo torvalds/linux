@@ -2087,7 +2087,7 @@ static struct platform_driver rsnd_driver = {
 		.of_match_table = rsnd_of_match,
 	},
 	.probe		= rsnd_probe,
-	.remove_new	= rsnd_remove,
+	.remove		= rsnd_remove,
 };
 module_platform_driver(rsnd_driver);
 

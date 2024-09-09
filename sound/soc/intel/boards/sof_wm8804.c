@@ -294,7 +294,7 @@ static struct platform_driver sof_wm8804_driver = {
 		.pm = &snd_soc_pm_ops,
 	},
 	.probe = sof_wm8804_probe,
-	.remove_new = sof_wm8804_remove,
+	.remove = sof_wm8804_remove,
 };
 module_platform_driver(sof_wm8804_driver);
 

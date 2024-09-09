@@ -1763,7 +1763,7 @@ static struct platform_driver fsl_spdif_driver = {
 		.pm = pm_ptr(&fsl_spdif_pm),
 	},
 	.probe = fsl_spdif_probe,
-	.remove_new = fsl_spdif_remove,
+	.remove = fsl_spdif_remove,
 };
 
 module_platform_driver(fsl_spdif_driver);

@@ -1019,7 +1019,7 @@ static struct platform_driver tegra210_i2s_driver = {
 		.pm = &tegra210_i2s_pm_ops,
 	},
 	.probe = tegra210_i2s_probe,
-	.remove_new = tegra210_i2s_remove,
+	.remove = tegra210_i2s_remove,
 };
 module_platform_driver(tegra210_i2s_driver)
 

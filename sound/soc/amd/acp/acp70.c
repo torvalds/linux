@@ -278,7 +278,7 @@ static const struct dev_pm_ops acp70_dma_pm_ops = {
 
 static struct platform_driver acp70_driver = {
 	.probe = acp_acp70_audio_probe,
-	.remove_new = acp_acp70_audio_remove,
+	.remove = acp_acp70_audio_remove,
 	.driver = {
 		.name = "acp_asoc_acp70",
 		.pm = &acp70_dma_pm_ops,

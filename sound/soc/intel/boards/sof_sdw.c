@@ -1368,7 +1368,7 @@ static struct platform_driver sof_sdw_driver = {
 		.pm = &snd_soc_pm_ops,
 	},
 	.probe = mc_probe,
-	.remove_new = mc_remove,
+	.remove = mc_remove,
 	.id_table = mc_id_table,
 };
 

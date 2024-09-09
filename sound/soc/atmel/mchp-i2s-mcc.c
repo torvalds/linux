@@ -1129,7 +1129,7 @@ static struct platform_driver mchp_i2s_mcc_driver = {
 		.of_match_table	= mchp_i2s_mcc_dt_ids,
 	},
 	.probe		= mchp_i2s_mcc_probe,
-	.remove_new	= mchp_i2s_mcc_remove,
+	.remove		= mchp_i2s_mcc_remove,
 };
 module_platform_driver(mchp_i2s_mcc_driver);
 

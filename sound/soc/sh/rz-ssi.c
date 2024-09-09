@@ -1204,7 +1204,7 @@ static struct platform_driver rz_ssi_driver = {
 		.of_match_table = rz_ssi_of_match,
 	},
 	.probe		= rz_ssi_probe,
-	.remove_new	= rz_ssi_remove,
+	.remove		= rz_ssi_remove,
 };
 
 module_platform_driver(rz_ssi_driver);

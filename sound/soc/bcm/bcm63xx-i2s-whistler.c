@@ -293,7 +293,7 @@ static struct platform_driver bcm63xx_i2s_driver = {
 		.of_match_table = of_match_ptr(snd_soc_bcm_audio_match),
 	},
 	.probe = bcm63xx_i2s_dev_probe,
-	.remove_new = bcm63xx_i2s_dev_remove,
+	.remove = bcm63xx_i2s_dev_remove,
 };
 
 module_platform_driver(bcm63xx_i2s_driver);

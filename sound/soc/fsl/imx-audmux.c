@@ -354,7 +354,7 @@ static const struct dev_pm_ops imx_audmux_pm = {
 
 static struct platform_driver imx_audmux_driver = {
 	.probe		= imx_audmux_probe,
-	.remove_new	= imx_audmux_remove,
+	.remove		= imx_audmux_remove,
 	.driver	= {
 		.name	= DRIVER_NAME,
 		.pm = pm_sleep_ptr(&imx_audmux_pm),

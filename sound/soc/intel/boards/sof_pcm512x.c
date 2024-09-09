@@ -430,7 +430,7 @@ static void sof_pcm512x_remove(struct platform_device *pdev)
 
 static struct platform_driver sof_audio = {
 	.probe = sof_audio_probe,
-	.remove_new = sof_pcm512x_remove,
+	.remove = sof_pcm512x_remove,
 	.driver = {
 		.name = "sof_pcm512x",
 		.pm = &snd_soc_pm_ops,

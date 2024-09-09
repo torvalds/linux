@@ -293,7 +293,7 @@ static struct platform_driver axi_i2s_driver = {
 		.of_match_table = axi_i2s_of_match,
 	},
 	.probe = axi_i2s_probe,
-	.remove_new = axi_i2s_dev_remove,
+	.remove = axi_i2s_dev_remove,
 };
 module_platform_driver(axi_i2s_driver);
 

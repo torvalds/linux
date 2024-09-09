@@ -637,7 +637,7 @@ static struct platform_driver test_driver = {
 		.of_match_table = test_of_match,
 	},
 	.probe  = test_driver_probe,
-	.remove_new = test_driver_remove,
+	.remove = test_driver_remove,
 };
 module_platform_driver(test_driver);
 

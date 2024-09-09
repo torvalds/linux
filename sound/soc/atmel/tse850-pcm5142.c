@@ -431,7 +431,7 @@ static struct platform_driver tse850_driver = {
 		.of_match_table = tse850_dt_ids,
 	},
 	.probe = tse850_probe,
-	.remove_new = tse850_remove,
+	.remove = tse850_remove,
 };
 
 module_platform_driver(tse850_driver);
