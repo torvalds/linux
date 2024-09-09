@@ -98,7 +98,7 @@ struct rtase_counters {
 	__le64 rx_broadcast;
 	__le32 rx_multicast;
 	__le16 tx_aborted;
-	__le16 tx_underun;
+	__le16 tx_underrun;
 } __packed;
 
 static void rtase_w8(const struct rtase_private *tp, u16 reg, u8 val8)
@@ -1619,8 +1619,8 @@ static void rtase_dump_state(const struct net_device *dev)
 		   le32_to_cpu(counters->rx_multicast));
 	netdev_err(dev, "tx_aborted %d\n",
 		   le16_to_cpu(counters->tx_aborted));
-	netdev_err(dev, "tx_underun %d\n",
-		   le16_to_cpu(counters->tx_underun));
+	netdev_err(dev, "tx_underrun %d\n",
+		   le16_to_cpu(counters->tx_underrun));
 }
 
 static void rtase_tx_timeout(struct net_device *dev, unsigned int txqueue)
