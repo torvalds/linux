@@ -2402,65 +2402,61 @@ static void dispatch_to_local_dsq(struct rq *rq, struct scx_dispatch_q *dst_dsq,
 	}
 
 #ifdef CONFIG_SMP
-	if (likely(task_can_run_on_remote_rq(p, dst_rq, true))) {
-		/*
-		 * @p is on a possibly remote @src_rq which we need to lock to
-		 * move the task. If dequeue is in progress, it'd be locking
-		 * @src_rq and waiting on DISPATCHING, so we can't grab @src_rq
-		 * lock while holding DISPATCHING.
-		 *
-		 * As DISPATCHING guarantees that @p is wholly ours, we can
-		 * pretend that we're moving from a DSQ and use the same
-		 * mechanism - mark the task under transfer with holding_cpu,
-		 * release DISPATCHING and then follow the same protocol. See
-		 * unlink_dsq_and_lock_src_rq().
-		 */
-		p->scx.holding_cpu = raw_smp_processor_id();
-
-		/* store_release ensures that dequeue sees the above */
-		atomic_long_set_release(&p->scx.ops_state, SCX_OPSS_NONE);
-
-		/* switch to @src_rq lock */
-		if (rq != src_rq) {
-			raw_spin_rq_unlock(rq);
-			raw_spin_rq_lock(src_rq);
-		}
-
-		/* task_rq couldn't have changed if we're still the holding cpu */
-		if (likely(p->scx.holding_cpu == raw_smp_processor_id()) &&
-		    !WARN_ON_ONCE(src_rq != task_rq(p))) {
-			/*
-			 * If @p is staying on the same rq, there's no need to
-			 * go through the full deactivate/activate cycle.
-			 * Optimize by abbreviating the operations in
-			 * move_task_to_local_dsq().
-			 */
-			if (src_rq == dst_rq) {
-				p->scx.holding_cpu = -1;
-				dispatch_enqueue(&dst_rq->scx.local_dsq,
-						 p, enq_flags);
-			} else {
-				move_task_to_local_dsq(p, enq_flags,
-						       src_rq, dst_rq);
-			}
-
-			/* if the destination CPU is idle, wake it up */
-			if (sched_class_above(p->sched_class,
-					      dst_rq->curr->sched_class))
-				resched_curr(dst_rq);
-		}
-
-		/* switch back to @rq lock */
-		if (rq != dst_rq) {
-			raw_spin_rq_unlock(dst_rq);
-			raw_spin_rq_lock(rq);
-		}
-
+	if (unlikely(!task_can_run_on_remote_rq(p, dst_rq, true))) {
+		dispatch_enqueue(&scx_dsq_global, p, enq_flags | SCX_ENQ_CLEAR_OPSS);
 		return;
 	}
-#endif	/* CONFIG_SMP */
 
-	dispatch_enqueue(&scx_dsq_global, p, enq_flags | SCX_ENQ_CLEAR_OPSS);
+	/*
+	 * @p is on a possibly remote @src_rq which we need to lock to move the
+	 * task. If dequeue is in progress, it'd be locking @src_rq and waiting
+	 * on DISPATCHING, so we can't grab @src_rq lock while holding
+	 * DISPATCHING.
+	 *
+	 * As DISPATCHING guarantees that @p is wholly ours, we can pretend that
+	 * we're moving from a DSQ and use the same mechanism - mark the task
+	 * under transfer with holding_cpu, release DISPATCHING and then follow
+	 * the same protocol. See unlink_dsq_and_lock_src_rq().
+	 */
+	p->scx.holding_cpu = raw_smp_processor_id();
+
+	/* store_release ensures that dequeue sees the above */
+	atomic_long_set_release(&p->scx.ops_state, SCX_OPSS_NONE);
+
+	/* switch to @src_rq lock */
+	if (rq != src_rq) {
+		raw_spin_rq_unlock(rq);
+		raw_spin_rq_lock(src_rq);
+	}
+
+	/* task_rq couldn't have changed if we're still the holding cpu */
+	if (likely(p->scx.holding_cpu == raw_smp_processor_id()) &&
+	    !WARN_ON_ONCE(src_rq != task_rq(p))) {
+		/*
+		 * If @p is staying on the same rq, there's no need to go
+		 * through the full deactivate/activate cycle. Optimize by
+		 * abbreviating the operations in move_task_to_local_dsq().
+		 */
+		if (src_rq == dst_rq) {
+			p->scx.holding_cpu = -1;
+			dispatch_enqueue(&dst_rq->scx.local_dsq, p, enq_flags);
+		} else {
+			move_task_to_local_dsq(p, enq_flags, src_rq, dst_rq);
+		}
+
+		/* if the destination CPU is idle, wake it up */
+		if (sched_class_above(p->sched_class, dst_rq->curr->sched_class))
+			resched_curr(dst_rq);
+	}
+
+	/* switch back to @rq lock */
+	if (rq != dst_rq) {
+		raw_spin_rq_unlock(dst_rq);
+		raw_spin_rq_lock(rq);
+	}
+#else	/* CONFIG_SMP */
+	BUG();	/* control can not reach here on UP */
+#endif	/* CONFIG_SMP */
 }
 
 /**
