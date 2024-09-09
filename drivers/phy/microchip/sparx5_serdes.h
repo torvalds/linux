@@ -26,13 +26,29 @@ enum sparx5_serdes_mode {
 	SPX5_SD_MODE_SFI,
 };
 
+struct sparx5_serdes_macro {
+	struct sparx5_serdes_private *priv;
+	u32 sidx;
+	u32 stpidx;
+	enum sparx5_serdes_type serdestype;
+	enum sparx5_serdes_mode serdesmode;
+	phy_interface_t portmode;
+	int speed;
+	enum phy_media media;
+};
+
 struct sparx5_serdes_consts {
 	int sd_max;
 	int cmu_max;
 };
 
+struct sparx5_serdes_ops {
+	void (*serdes_type_set)(struct sparx5_serdes_macro *macro, int sidx);
+};
+
 struct sparx5_serdes_match_data {
 	const struct sparx5_serdes_consts consts;
+	const struct sparx5_serdes_ops ops;
 	const struct sparx5_serdes_io_resource *iomap;
 	int iomap_size;
 };
@@ -43,17 +59,6 @@ struct sparx5_serdes_private {
 	struct phy *phys[SPX5_SERDES_MAX];
 	unsigned long coreclock;
 	const struct sparx5_serdes_match_data *data;
-};
-
-struct sparx5_serdes_macro {
-	struct sparx5_serdes_private *priv;
-	u32 sidx;
-	u32 stpidx;
-	enum sparx5_serdes_type serdestype;
-	enum sparx5_serdes_mode serdesmode;
-	phy_interface_t portmode;
-	int speed;
-	enum phy_media media;
 };
 
 /* Read, Write and modify registers content.
