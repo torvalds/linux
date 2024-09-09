@@ -2172,23 +2172,30 @@ static bool yield_to_task_scx(struct rq *rq, struct task_struct *to)
 		return false;
 }
 
-static void consume_local_task(struct task_struct *p,
-			       struct scx_dispatch_q *dsq, struct rq *rq)
+static void move_local_task_to_local_dsq(struct task_struct *p, u64 enq_flags,
+					 struct scx_dispatch_q *src_dsq,
+					 struct rq *dst_rq)
 {
-	lockdep_assert_held(&dsq->lock);	/* released on return */
+	struct scx_dispatch_q *dst_dsq = &dst_rq->scx.local_dsq;
 
-	/* @dsq is locked and @p is on this rq */
+	/* @dsq is locked and @p is on @dst_rq */
+	lockdep_assert_held(&src_dsq->lock);
+	lockdep_assert_rq_held(dst_rq);
+
 	WARN_ON_ONCE(p->scx.holding_cpu >= 0);
-	task_unlink_from_dsq(p, dsq);
-	list_add_tail(&p->scx.dsq_list.node, &rq->scx.local_dsq.list);
-	dsq_mod_nr(&rq->scx.local_dsq, 1);
-	p->scx.dsq = &rq->scx.local_dsq;
-	raw_spin_unlock(&dsq->lock);
+
+	if (enq_flags & (SCX_ENQ_HEAD | SCX_ENQ_PREEMPT))
+		list_add(&p->scx.dsq_list.node, &dst_dsq->list);
+	else
+		list_add_tail(&p->scx.dsq_list.node, &dst_dsq->list);
+
+	dsq_mod_nr(dst_dsq, 1);
+	p->scx.dsq = dst_dsq;
 }
 
 #ifdef CONFIG_SMP
 /**
- * move_task_to_local_dsq - Move a task from a different rq to a local DSQ
+ * move_remote_task_to_local_dsq - Move a task from a foreign rq to a local DSQ
  * @p: task to move
  * @enq_flags: %SCX_ENQ_*
  * @src_rq: rq to move the task from, locked on entry, released on return
@@ -2196,8 +2203,8 @@ static void consume_local_task(struct task_struct *p,
  *
  * Move @p which is currently on @src_rq to @dst_rq's local DSQ.
  */
-static void move_task_to_local_dsq(struct task_struct *p, u64 enq_flags,
-				   struct rq *src_rq, struct rq *dst_rq)
+static void move_remote_task_to_local_dsq(struct task_struct *p, u64 enq_flags,
+					  struct rq *src_rq, struct rq *dst_rq)
 {
 	lockdep_assert_rq_held(src_rq);
 
@@ -2320,7 +2327,7 @@ static bool consume_remote_task(struct rq *this_rq, struct task_struct *p,
 	raw_spin_rq_unlock(this_rq);
 
 	if (unlink_dsq_and_lock_src_rq(p, dsq, src_rq)) {
-		move_task_to_local_dsq(p, 0, src_rq, this_rq);
+		move_remote_task_to_local_dsq(p, 0, src_rq, this_rq);
 		return true;
 	} else {
 		raw_spin_rq_unlock(src_rq);
@@ -2351,7 +2358,9 @@ retry:
 		struct rq *task_rq = task_rq(p);
 
 		if (rq == task_rq) {
-			consume_local_task(p, dsq, rq);
+			task_unlink_from_dsq(p, dsq);
+			move_local_task_to_local_dsq(p, 0, dsq, rq);
+			raw_spin_unlock(&dsq->lock);
 			return true;
 		}
 
@@ -2431,13 +2440,14 @@ static void dispatch_to_local_dsq(struct rq *rq, struct scx_dispatch_q *dst_dsq,
 		/*
 		 * If @p is staying on the same rq, there's no need to go
 		 * through the full deactivate/activate cycle. Optimize by
-		 * abbreviating the operations in move_task_to_local_dsq().
+		 * abbreviating move_remote_task_to_local_dsq().
 		 */
 		if (src_rq == dst_rq) {
 			p->scx.holding_cpu = -1;
 			dispatch_enqueue(&dst_rq->scx.local_dsq, p, enq_flags);
 		} else {
-			move_task_to_local_dsq(p, enq_flags, src_rq, dst_rq);
+			move_remote_task_to_local_dsq(p, enq_flags,
+						      src_rq, dst_rq);
 		}
 
 		/* if the destination CPU is idle, wake it up */
