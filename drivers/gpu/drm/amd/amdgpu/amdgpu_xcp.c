@@ -433,3 +433,204 @@ void amdgpu_xcp_release_sched(struct amdgpu_device *adev,
 	}
 }
 
+#define XCP_CFG_SYSFS_RES_ATTR_SHOW(_name)                         \
+	static ssize_t amdgpu_xcp_res_sysfs_##_name##_show(        \
+		struct amdgpu_xcp_res_details *xcp_res, char *buf) \
+	{                                                          \
+		return sysfs_emit(buf, "%d\n", xcp_res->_name);    \
+	}
+
+struct amdgpu_xcp_res_sysfs_attribute {
+	struct attribute attr;
+	ssize_t (*show)(struct amdgpu_xcp_res_details *xcp_res, char *buf);
+};
+
+#define XCP_CFG_SYSFS_RES_ATTR(_name)                                        \
+	struct amdgpu_xcp_res_sysfs_attribute xcp_res_sysfs_attr_##_name = { \
+		.attr = { .name = __stringify(_name), .mode = 0400 },        \
+		.show = amdgpu_xcp_res_sysfs_##_name##_show,                 \
+	}
+
+XCP_CFG_SYSFS_RES_ATTR_SHOW(num_inst)
+XCP_CFG_SYSFS_RES_ATTR(num_inst);
+XCP_CFG_SYSFS_RES_ATTR_SHOW(num_shared)
+XCP_CFG_SYSFS_RES_ATTR(num_shared);
+
+#define XCP_CFG_SYSFS_RES_ATTR_PTR(_name) xcp_res_sysfs_attr_##_name.attr
+
+static struct attribute *xcp_cfg_res_sysfs_attrs[] = {
+	&XCP_CFG_SYSFS_RES_ATTR_PTR(num_inst),
+	&XCP_CFG_SYSFS_RES_ATTR_PTR(num_shared), NULL
+};
+
+ATTRIBUTE_GROUPS(xcp_cfg_res_sysfs);
+
+#define to_xcp_attr(x) \
+	container_of(x, struct amdgpu_xcp_res_sysfs_attribute, attr)
+#define to_xcp_res(x) container_of(x, struct amdgpu_xcp_res_details, kobj)
+
+static ssize_t xcp_cfg_res_sysfs_attr_show(struct kobject *kobj,
+					   struct attribute *attr, char *buf)
+{
+	struct amdgpu_xcp_res_sysfs_attribute *attribute;
+	struct amdgpu_xcp_res_details *xcp_res;
+
+	attribute = to_xcp_attr(attr);
+	xcp_res = to_xcp_res(kobj);
+
+	if (!attribute->show)
+		return -EIO;
+
+	return attribute->show(xcp_res, buf);
+}
+
+static const struct sysfs_ops xcp_cfg_res_sysfs_ops = {
+	.show = xcp_cfg_res_sysfs_attr_show,
+};
+
+static const struct kobj_type xcp_cfg_res_sysfs_ktype = {
+	.sysfs_ops = &xcp_cfg_res_sysfs_ops,
+	.default_groups = xcp_cfg_res_sysfs_groups,
+};
+
+const char *xcp_res_names[] = {
+	[AMDGPU_XCP_RES_XCC] = "xcc",
+	[AMDGPU_XCP_RES_DMA] = "dma",
+	[AMDGPU_XCP_RES_DEC] = "dec",
+	[AMDGPU_XCP_RES_JPEG] = "jpeg",
+};
+
+static int amdgpu_xcp_get_res_info(struct amdgpu_xcp_mgr *xcp_mgr,
+				   int mode,
+				   struct amdgpu_xcp_cfg *xcp_cfg)
+{
+	if (xcp_mgr->funcs && xcp_mgr->funcs->get_xcp_res_info)
+		return xcp_mgr->funcs->get_xcp_res_info(xcp_mgr, mode, xcp_cfg);
+
+	return -EOPNOTSUPP;
+}
+
+#define to_xcp_cfg(x) container_of(x, struct amdgpu_xcp_cfg, kobj)
+static ssize_t xcp_config_show(struct kobject *kobj,
+			       struct kobj_attribute *attr, char *buf)
+{
+	struct amdgpu_xcp_cfg *xcp_cfg = to_xcp_cfg(kobj);
+
+	return sysfs_emit(buf, "%s\n",
+			  amdgpu_gfx_compute_mode_desc(xcp_cfg->mode));
+}
+
+static ssize_t xcp_config_store(struct kobject *kobj,
+				struct kobj_attribute *attr,
+				const char *buf, size_t size)
+{
+	struct amdgpu_xcp_cfg *xcp_cfg = to_xcp_cfg(kobj);
+	int mode, r;
+
+	if (!strncasecmp("SPX", buf, strlen("SPX")))
+		mode = AMDGPU_SPX_PARTITION_MODE;
+	else if (!strncasecmp("DPX", buf, strlen("DPX")))
+		mode = AMDGPU_DPX_PARTITION_MODE;
+	else if (!strncasecmp("TPX", buf, strlen("TPX")))
+		mode = AMDGPU_TPX_PARTITION_MODE;
+	else if (!strncasecmp("QPX", buf, strlen("QPX")))
+		mode = AMDGPU_QPX_PARTITION_MODE;
+	else if (!strncasecmp("CPX", buf, strlen("CPX")))
+		mode = AMDGPU_CPX_PARTITION_MODE;
+	else
+		return -EINVAL;
+
+	r = amdgpu_xcp_get_res_info(xcp_cfg->xcp_mgr, mode, xcp_cfg);
+
+	if (r)
+		return r;
+
+	xcp_cfg->mode = mode;
+	return size;
+}
+
+static struct kobj_attribute xcp_cfg_sysfs_mode =
+	__ATTR_RW_MODE(xcp_config, 0644);
+
+static void xcp_cfg_sysfs_release(struct kobject *kobj)
+{
+	struct amdgpu_xcp_cfg *xcp_cfg = to_xcp_cfg(kobj);
+
+	kfree(xcp_cfg);
+}
+
+static const struct kobj_type xcp_cfg_sysfs_ktype = {
+	.release = xcp_cfg_sysfs_release,
+	.sysfs_ops = &kobj_sysfs_ops,
+};
+
+void amdgpu_xcp_cfg_sysfs_init(struct amdgpu_device *adev)
+{
+	struct amdgpu_xcp_res_details *xcp_res;
+	struct amdgpu_xcp_cfg *xcp_cfg;
+	int i, r, j, rid;
+
+	if (!adev->xcp_mgr)
+		return;
+
+	xcp_cfg = kzalloc(sizeof(*xcp_cfg), GFP_KERNEL);
+	if (!xcp_cfg)
+		return;
+	xcp_cfg->xcp_mgr = adev->xcp_mgr;
+
+	r = kobject_init_and_add(&xcp_cfg->kobj, &xcp_cfg_sysfs_ktype,
+				 &adev->dev->kobj, "compute_partition_config");
+	if (r)
+		goto err1;
+
+	r = sysfs_create_file(&xcp_cfg->kobj, &xcp_cfg_sysfs_mode.attr);
+	if (r)
+		goto err1;
+
+	r = amdgpu_xcp_get_res_info(xcp_cfg->xcp_mgr, xcp_cfg->xcp_mgr->mode, xcp_cfg);
+	if (r)
+		goto err1;
+
+	xcp_cfg->mode = xcp_cfg->xcp_mgr->mode;
+	for (i = 0; i < xcp_cfg->num_res; i++) {
+		xcp_res = &xcp_cfg->xcp_res[i];
+		rid = xcp_res->id;
+		r = kobject_init_and_add(&xcp_res->kobj,
+					 &xcp_cfg_res_sysfs_ktype,
+					 &xcp_cfg->kobj, "%s",
+					 xcp_res_names[rid]);
+		if (r)
+			goto err;
+	}
+
+	adev->xcp_mgr->xcp_cfg = xcp_cfg;
+	return;
+err:
+	for (j = 0; j < i; j++) {
+		xcp_res = &xcp_cfg->xcp_res[i];
+		kobject_put(&xcp_res->kobj);
+	}
+
+	sysfs_remove_file(&xcp_cfg->kobj, &xcp_cfg_sysfs_mode.attr);
+err1:
+	kobject_put(&xcp_cfg->kobj);
+}
+
+void amdgpu_xcp_cfg_sysfs_fini(struct amdgpu_device *adev)
+{
+	struct amdgpu_xcp_res_details *xcp_res;
+	struct amdgpu_xcp_cfg *xcp_cfg;
+	int i;
+
+	if (!adev->xcp_mgr)
+		return;
+
+	xcp_cfg =  adev->xcp_mgr->xcp_cfg;
+	for (i = 0; i < xcp_cfg->num_res; i++) {
+		xcp_res = &xcp_cfg->xcp_res[i];
+		kobject_put(&xcp_res->kobj);
+	}
+
+	sysfs_remove_file(&xcp_cfg->kobj, &xcp_cfg_sysfs_mode.attr);
+	kobject_put(&xcp_cfg->kobj);
+}

@@ -68,6 +68,7 @@ struct amdgpu_xcp_res_details {
 	enum amdgpu_xcp_res_id id;
 	u8 num_inst;
 	u8 num_shared;
+	struct kobject kobj;
 };
 
 struct amdgpu_xcp_cfg {
@@ -75,6 +76,7 @@ struct amdgpu_xcp_cfg {
 	struct amdgpu_xcp_res_details xcp_res[AMDGPU_XCP_RES_MAX];
 	u8 num_res;
 	struct amdgpu_xcp_mgr *xcp_mgr;
+	struct kobject kobj;
 };
 
 struct amdgpu_xcp_ip_funcs {
@@ -171,6 +173,9 @@ int amdgpu_xcp_open_device(struct amdgpu_device *adev,
 			   struct drm_file *file_priv);
 void amdgpu_xcp_release_sched(struct amdgpu_device *adev,
 			      struct amdgpu_ctx_entity *entity);
+
+void amdgpu_xcp_cfg_sysfs_init(struct amdgpu_device *adev);
+void amdgpu_xcp_cfg_sysfs_fini(struct amdgpu_device *adev);
 
 #define amdgpu_xcp_select_scheds(adev, e, c, d, x, y) \
 	((adev)->xcp_mgr && (adev)->xcp_mgr->funcs && \
