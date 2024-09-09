@@ -116,6 +116,7 @@ test_inject_bids() {
 }
 
 test_record_report
+test_inject_bids -B
 test_inject_bids -b
 test_inject_bids --buildid-all
 test_inject_bids --mmap2-buildid-all

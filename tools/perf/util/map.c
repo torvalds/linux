@@ -116,6 +116,7 @@ static void map__init(struct map *map, u64 start, u64 end, u64 pgoff,
 	map__set_mapping_type(map, MAPPING_TYPE__DSO);
 	assert(map__erange_warned(map) == false);
 	assert(map__priv(map) == false);
+	assert(map__hit(map) == false);
 }
 
 struct map *map__new(struct machine *machine, u64 start, u64 len,
