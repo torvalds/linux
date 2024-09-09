@@ -2655,9 +2655,11 @@ static int axienet_probe(struct platform_device *pdev)
 		switch (value) {
 		case 1:
 			lp->features |= XAE_FEATURE_PARTIAL_RX_CSUM;
+			ndev->features |= NETIF_F_RXCSUM;
 			break;
 		case 2:
 			lp->features |= XAE_FEATURE_FULL_RX_CSUM;
+			ndev->features |= NETIF_F_RXCSUM;
 			break;
 		}
 	}
