@@ -130,6 +130,7 @@ struct perf_inject {
 	struct perf_file_section secs[HEADER_FEAT_BITS];
 	struct guest_session	guest_session;
 	struct strlist		*known_build_ids;
+	const struct evsel	*mmap_evsel;
 };
 
 struct event_entry {
@@ -138,8 +139,13 @@ struct event_entry {
 	union perf_event event[];
 };
 
-static int dso__inject_build_id(struct dso *dso, const struct perf_tool *tool,
-				struct machine *machine, u8 cpumode, u32 flags);
+static int tool__inject_build_id(const struct perf_tool *tool,
+				 struct perf_sample *sample,
+				 struct machine *machine,
+				 const struct evsel *evsel,
+				 __u16 misc,
+				 const char *filename,
+				 struct dso *dso, u32 flags);
 
 static int output_bytes(struct perf_inject *inject, void *buf, size_t sz)
 {
@@ -422,6 +428,28 @@ static struct dso *findnew_dso(int pid, int tid, const char *filename,
 	return dso;
 }
 
+/*
+ * The evsel used for the sample ID for mmap events. Typically stashed when
+ * processing mmap events. If not stashed, search the evlist for the first mmap
+ * gathering event.
+ */
+static const struct evsel *inject__mmap_evsel(struct perf_inject *inject)
+{
+	struct evsel *pos;
+
+	if (inject->mmap_evsel)
+		return inject->mmap_evsel;
+
+	evlist__for_each_entry(inject->session->evlist, pos) {
+		if (pos->core.attr.mmap) {
+			inject->mmap_evsel = pos;
+			return pos;
+		}
+	}
+	pr_err("No mmap events found\n");
+	return NULL;
+}
+
 static int perf_event__repipe_common_mmap(const struct perf_tool *tool,
 					  union perf_event *event,
 					  struct perf_sample *sample,
@@ -469,12 +497,28 @@ static int perf_event__repipe_common_mmap(const struct perf_tool *tool,
 		}
 
 		if (dso && !dso__hit(dso)) {
-			dso__set_hit(dso);
-			dso__inject_build_id(dso, tool, machine, sample->cpumode, flags);
+			struct evsel *evsel = evlist__event2evsel(inject->session->evlist, event);
+
+			if (evsel) {
+				dso__set_hit(dso);
+				tool__inject_build_id(tool, sample, machine, evsel,
+						      /*misc=*/sample->cpumode,
+						      filename, dso, flags);
+			}
 		}
 	} else {
+		int err;
+
+		/*
+		 * Remember the evsel for lazy build id generation. It is used
+		 * for the sample id header type.
+		 */
+		if (inject->build_id_style == BID_RWS__INJECT_HEADER_LAZY &&
+		    !inject->mmap_evsel)
+			inject->mmap_evsel = evlist__event2evsel(inject->session->evlist, event);
+
 		/* Create the thread, map, etc. Not done for the unordered inject all case. */
-		int err = perf_event_process(tool, event, sample, machine);
+		err = perf_event_process(tool, event, sample, machine);
 
 		if (err) {
 			dso__put(dso);
@@ -667,16 +711,20 @@ static bool perf_inject__lookup_known_build_id(struct perf_inject *inject,
 	return false;
 }
 
-static int dso__inject_build_id(struct dso *dso, const struct perf_tool *tool,
-				struct machine *machine, u8 cpumode, u32 flags)
+static int tool__inject_build_id(const struct perf_tool *tool,
+				 struct perf_sample *sample,
+				 struct machine *machine,
+				 const struct evsel *evsel,
+				 __u16 misc,
+				 const char *filename,
+				 struct dso *dso, u32 flags)
 {
-	struct perf_inject *inject = container_of(tool, struct perf_inject,
-						  tool);
+	struct perf_inject *inject = container_of(tool, struct perf_inject, tool);
 	int err;
 
-	if (is_anon_memory(dso__long_name(dso)) || flags & MAP_HUGETLB)
+	if (is_anon_memory(filename) || flags & MAP_HUGETLB)
 		return 0;
-	if (is_no_dso_memory(dso__long_name(dso)))
+	if (is_no_dso_memory(filename))
 		return 0;
 
 	if (inject->known_build_ids != NULL &&
@@ -684,24 +732,65 @@ static int dso__inject_build_id(struct dso *dso, const struct perf_tool *tool,
 		return 1;
 
 	if (dso__read_build_id(dso) < 0) {
-		pr_debug("no build_id found for %s\n", dso__long_name(dso));
+		pr_debug("no build_id found for %s\n", filename);
 		return -1;
 	}
 
-	err = perf_event__synthesize_build_id(tool, dso, cpumode,
-					      perf_event__repipe, machine);
+	err = perf_event__synthesize_build_id(tool, sample, machine,
+					      perf_event__repipe,
+					      evsel, misc, dso__bid(dso),
+					      filename);
 	if (err) {
-		pr_err("Can't synthesize build_id event for %s\n", dso__long_name(dso));
+		pr_err("Can't synthesize build_id event for %s\n", filename);
 		return -1;
 	}
 
 	return 0;
 }
 
+static int mark_dso_hit(const struct perf_tool *tool,
+			struct perf_sample *sample,
+			struct machine *machine,
+			const struct evsel *mmap_evsel,
+			struct map *map, bool sample_in_dso)
+{
+	struct dso *dso;
+	u16 misc = sample->cpumode;
+
+	if (!map)
+		return 0;
+
+	if (!sample_in_dso) {
+		u16 guest_mask = PERF_RECORD_MISC_GUEST_KERNEL |
+			PERF_RECORD_MISC_GUEST_USER;
+
+		if ((misc & guest_mask) != 0) {
+			misc &= PERF_RECORD_MISC_HYPERVISOR;
+			misc |= __map__is_kernel(map)
+				? PERF_RECORD_MISC_GUEST_KERNEL
+				: PERF_RECORD_MISC_GUEST_USER;
+		} else {
+			misc &= PERF_RECORD_MISC_HYPERVISOR;
+			misc |= __map__is_kernel(map)
+				? PERF_RECORD_MISC_KERNEL
+				: PERF_RECORD_MISC_USER;
+		}
+	}
+	dso = map__dso(map);
+	if (dso && !dso__hit(dso)) {
+		dso__set_hit(dso);
+		tool__inject_build_id(tool, sample, machine,
+				      mmap_evsel, misc, dso__long_name(dso), dso,
+				      map__flags(map));
+	}
+	return 0;
+}
+
 struct mark_dso_hit_args {
 	const struct perf_tool *tool;
+	struct perf_sample *sample;
 	struct machine *machine;
-	u8 cpumode;
+	const struct evsel *mmap_evsel;
 };
 
 static int mark_dso_hit_callback(struct callchain_cursor_node *node, void *data)
@@ -709,16 +798,8 @@ static int mark_dso_hit_callback(struct callchain_cursor_node *node, void *data)
 	struct mark_dso_hit_args *args = data;
 	struct map *map = node->ms.map;
 
-	if (map) {
-		struct dso *dso = map__dso(map);
-
-		if (dso && !dso__hit(dso)) {
-			dso__set_hit(dso);
-			dso__inject_build_id(dso, args->tool, args->machine,
-					     args->cpumode, map__flags(map));
-		}
-	}
-	return 0;
+	return mark_dso_hit(args->tool, args->sample, args->machine,
+			    args->mmap_evsel, map, /*sample_in_dso=*/false);
 }
 
 int perf_event__inject_buildid(const struct perf_tool *tool, union perf_event *event,
@@ -728,10 +809,16 @@ int perf_event__inject_buildid(const struct perf_tool *tool, union perf_event *e
 {
 	struct addr_location al;
 	struct thread *thread;
+	struct perf_inject *inject = container_of(tool, struct perf_inject, tool);
 	struct mark_dso_hit_args args = {
 		.tool = tool,
+		/*
+		 * Use the parsed sample data of the sample event, which will
+		 * have a later timestamp than the mmap event.
+		 */
+		.sample = sample,
 		.machine = machine,
-		.cpumode = sample->cpumode,
+		.mmap_evsel = inject__mmap_evsel(inject),
 	};
 
 	addr_location__init(&al);
@@ -743,13 +830,8 @@ int perf_event__inject_buildid(const struct perf_tool *tool, union perf_event *e
 	}
 
 	if (thread__find_map(thread, sample->cpumode, sample->ip, &al)) {
-		struct dso *dso = map__dso(al.map);
-
-		if (!dso__hit(dso)) {
-			dso__set_hit(dso);
-			dso__inject_build_id(dso, tool, machine,
-					     sample->cpumode, map__flags(al.map));
-		}
+		mark_dso_hit(tool, sample, machine, args.mmap_evsel, al.map,
+			     /*sample_in_dso=*/true);
 	}
 
 	sample__for_each_callchain_node(thread, evsel, sample, PERF_MAX_STACK_DEPTH,
@@ -1159,17 +1241,27 @@ static int process_build_id(const struct perf_tool *tool,
 static int synthesize_build_id(struct perf_inject *inject, struct dso *dso, pid_t machine_pid)
 {
 	struct machine *machine = perf_session__findnew_machine(inject->session, machine_pid);
-	u8 cpumode = dso__is_in_kernel_space(dso) ?
-			PERF_RECORD_MISC_GUEST_KERNEL :
-			PERF_RECORD_MISC_GUEST_USER;
+	struct perf_sample synth_sample = {
+		.pid	   = -1,
+		.tid	   = -1,
+		.time	   = -1,
+		.stream_id = -1,
+		.cpu	   = -1,
+		.period	   = 1,
+		.cpumode   = dso__is_in_kernel_space(dso)
+		? PERF_RECORD_MISC_GUEST_KERNEL
+		: PERF_RECORD_MISC_GUEST_USER,
+	};
 
 	if (!machine)
 		return -ENOMEM;
 
 	dso__set_hit(dso);
 
-	return perf_event__synthesize_build_id(&inject->tool, dso, cpumode,
-					       process_build_id, machine);
+	return perf_event__synthesize_build_id(&inject->tool, &synth_sample, machine,
+					       process_build_id, inject__mmap_evsel(inject),
+					       /*misc=*/synth_sample.cpumode,
+					       dso__bid(dso), dso__long_name(dso));
 }
 
 static int guest_session__add_build_ids_cb(struct dso *dso, void *data)

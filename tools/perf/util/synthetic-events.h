@@ -9,6 +9,7 @@
 #include <perf/cpumap.h>
 
 struct auxtrace_record;
+struct build_id;
 struct dso;
 struct evlist;
 struct evsel;
@@ -45,7 +46,14 @@ typedef int (*perf_event__handler_t)(const struct perf_tool *tool, union perf_ev
 
 int perf_event__synthesize_attrs(const struct perf_tool *tool, struct evlist *evlist, perf_event__handler_t process);
 int perf_event__synthesize_attr(const struct perf_tool *tool, struct perf_event_attr *attr, u32 ids, u64 *id, perf_event__handler_t process);
-int perf_event__synthesize_build_id(const struct perf_tool *tool, struct dso *pos, u16 misc, perf_event__handler_t process, struct machine *machine);
+int perf_event__synthesize_build_id(const struct perf_tool *tool,
+				    struct perf_sample *sample,
+				    struct machine *machine,
+				    perf_event__handler_t process,
+				    const struct evsel *evsel,
+				    __u16 misc,
+				    const struct build_id *bid,
+				    const char *filename);
 int perf_event__synthesize_cpu_map(const struct perf_tool *tool, const struct perf_cpu_map *cpus, perf_event__handler_t process, struct machine *machine);
 int perf_event__synthesize_event_update_cpus(const struct perf_tool *tool, struct evsel *evsel, perf_event__handler_t process);
 int perf_event__synthesize_event_update_name(const struct perf_tool *tool, struct evsel *evsel, perf_event__handler_t process);

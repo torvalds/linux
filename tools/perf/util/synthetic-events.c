@@ -2225,28 +2225,48 @@ int perf_event__synthesize_tracing_data(const struct perf_tool *tool, int fd, st
 }
 #endif
 
-int perf_event__synthesize_build_id(const struct perf_tool *tool, struct dso *pos, u16 misc,
-				    perf_event__handler_t process, struct machine *machine)
+int perf_event__synthesize_build_id(const struct perf_tool *tool,
+				    struct perf_sample *sample,
+				    struct machine *machine,
+				    perf_event__handler_t process,
+				    const struct evsel *evsel,
+				    __u16 misc,
+				    const struct build_id *bid,
+				    const char *filename)
 {
 	union perf_event ev;
 	size_t len;
 
-	if (!dso__hit(pos))
-		return 0;
+	len = sizeof(ev.build_id) + strlen(filename) + 1;
+	len = PERF_ALIGN(len, sizeof(u64));
 
-	memset(&ev, 0, sizeof(ev));
+	memset(&ev, 0, len);
 
-	len = dso__long_name_len(pos) + 1;
-	len = PERF_ALIGN(len, NAME_ALIGN);
-	ev.build_id.size = min(dso__bid(pos)->size, sizeof(dso__bid(pos)->data));
-	memcpy(&ev.build_id.build_id, dso__bid(pos)->data, ev.build_id.size);
+	ev.build_id.size = min(bid->size, sizeof(ev.build_id.build_id));
+	memcpy(ev.build_id.build_id, bid->data, ev.build_id.size);
 	ev.build_id.header.type = PERF_RECORD_HEADER_BUILD_ID;
 	ev.build_id.header.misc = misc | PERF_RECORD_MISC_BUILD_ID_SIZE;
 	ev.build_id.pid = machine->pid;
-	ev.build_id.header.size = sizeof(ev.build_id) + len;
-	memcpy(&ev.build_id.filename, dso__long_name(pos), dso__long_name_len(pos));
+	ev.build_id.header.size = len;
+	strcpy(ev.build_id.filename, filename);
 
-	return process(tool, &ev, NULL, machine);
+	if (evsel) {
+		void *array = &ev;
+		int ret;
+
+		array += ev.header.size;
+		ret = perf_event__synthesize_id_sample(array, evsel->core.attr.sample_type, sample);
+		if (ret < 0)
+			return ret;
+
+		if (ret & 7) {
+			pr_err("Bad id sample size %d\n", ret);
+			return -EINVAL;
+		}
+
+		ev.header.size += ret;
+	}
+	return process(tool, &ev, sample, machine);
 }
 
 int perf_event__synthesize_stat_events(struct perf_stat_config *config, const struct perf_tool *tool,
