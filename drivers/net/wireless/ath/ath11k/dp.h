@@ -1305,18 +1305,6 @@ struct htt_ppdu_stats_user_rate {
 #define HTT_TX_INFO_PEERID(_flags) \
 			FIELD_GET(HTT_PPDU_STATS_TX_INFO_FLAGS_PEERID_M, _flags)
 
-struct htt_tx_ppdu_stats_info {
-	struct htt_tlv tlv_hdr;
-	u32 tx_success_bytes;
-	u32 tx_retry_bytes;
-	u32 tx_failed_bytes;
-	u32 flags; /* %HTT_PPDU_STATS_TX_INFO_FLAGS_ */
-	u16 tx_success_msdus;
-	u16 tx_retry_msdus;
-	u16 tx_failed_msdus;
-	u16 tx_duration; /* united in us */
-} __packed;
-
 enum  htt_ppdu_stats_usr_compln_status {
 	HTT_PPDU_STATS_USER_STATUS_OK,
 	HTT_PPDU_STATS_USER_STATUS_FILTERED,
@@ -1362,17 +1350,6 @@ struct htt_ppdu_stats_usr_cmpltn_ack_ba_status {
 	u16 current_seq;
 	u16 start_seq;
 	u32 success_bytes;
-} __packed;
-
-struct htt_ppdu_stats_usr_cmn_array {
-	struct htt_tlv tlv_hdr;
-	u32 num_ppdu_stats;
-	/* tx_ppdu_stats_info is filled by multiple struct htt_tx_ppdu_stats_info
-	 * elements.
-	 * tx_ppdu_stats_info is variable length, with length =
-	 *     number_of_ppdu_stats * sizeof (struct htt_tx_ppdu_stats_info)
-	 */
-	struct htt_tx_ppdu_stats_info tx_ppdu_info[];
 } __packed;
 
 struct htt_ppdu_user_stats {
