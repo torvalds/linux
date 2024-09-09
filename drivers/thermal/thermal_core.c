@@ -323,11 +323,6 @@ static void thermal_zone_broken_disable(struct thermal_zone_device *tz)
 static void thermal_zone_device_set_polling(struct thermal_zone_device *tz,
 					    unsigned long delay)
 {
-	if (!delay) {
-		cancel_delayed_work(&tz->poll_queue);
-		return;
-	}
-
 	if (delay > HZ)
 		delay = round_jiffies_relative(delay);
 
@@ -364,9 +359,7 @@ static void thermal_zone_recheck(struct thermal_zone_device *tz, int error)
 
 static void monitor_thermal_zone(struct thermal_zone_device *tz)
 {
-	if (tz->mode != THERMAL_DEVICE_ENABLED)
-		thermal_zone_device_set_polling(tz, 0);
-	else if (tz->passive > 0)
+	if (tz->passive > 0 && tz->passive_delay_jiffies)
 		thermal_zone_device_set_polling(tz, tz->passive_delay_jiffies);
 	else if (tz->polling_delay_jiffies)
 		thermal_zone_device_set_polling(tz, tz->polling_delay_jiffies);
@@ -554,10 +547,7 @@ void __thermal_zone_device_update(struct thermal_zone_device *tz,
 	int low = -INT_MAX, high = INT_MAX;
 	int temp, ret;
 
-	if (tz->suspended)
-		return;
-
-	if (!thermal_zone_device_is_enabled(tz))
+	if (tz->suspended || tz->mode != THERMAL_DEVICE_ENABLED)
 		return;
 
 	ret = __thermal_zone_get_temp(tz, &temp);
@@ -658,13 +648,6 @@ int thermal_zone_device_disable(struct thermal_zone_device *tz)
 	return thermal_zone_device_set_mode(tz, THERMAL_DEVICE_DISABLED);
 }
 EXPORT_SYMBOL_GPL(thermal_zone_device_disable);
-
-int thermal_zone_device_is_enabled(struct thermal_zone_device *tz)
-{
-	lockdep_assert_held(&tz->lock);
-
-	return tz->mode == THERMAL_DEVICE_ENABLED;
-}
 
 static bool thermal_zone_is_present(struct thermal_zone_device *tz)
 {
@@ -890,8 +873,6 @@ static void thermal_unbind_cdev_from_trip(struct thermal_zone_device *tz,
 					  struct thermal_cooling_device *cdev)
 {
 	struct thermal_instance *pos, *next;
-
-	lockdep_assert_held(&tz->lock);
 
 	mutex_lock(&cdev->lock);
 	list_for_each_entry_safe(pos, next, &tz->thermal_instances, tz_node) {
@@ -1415,13 +1396,8 @@ thermal_zone_device_register_with_trips(const char *type,
 	if (num_trips > 0 && !trips)
 		return ERR_PTR(-EINVAL);
 
-	if (polling_delay) {
-		if (passive_delay > polling_delay)
-			return ERR_PTR(-EINVAL);
-
-		if (!passive_delay)
-			passive_delay = polling_delay;
-	}
+	if (polling_delay && passive_delay > polling_delay)
+		return ERR_PTR(-EINVAL);
 
 	if (!thermal_class)
 		return ERR_PTR(-ENODEV);
