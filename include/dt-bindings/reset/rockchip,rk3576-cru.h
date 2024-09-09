@@ -1,11 +1,11 @@
 /* SPDX-License-Identifier: (GPL-2.0 OR MIT) */
 /*
-* Copyright (c) 2023 Rockchip Electronics Co. Ltd.
-* Copyright (c) 2024 Collabora Ltd.
-*
-* Author: Elaine Zhang <zhangqing@rock-chips.com>
-* Author: Detlev Casanova <detlev.casanova@collabora.com>
-*/
+ * Copyright (c) 2023 Rockchip Electronics Co. Ltd.
+ * Copyright (c) 2024 Collabora Ltd.
+ *
+ * Author: Elaine Zhang <zhangqing@rock-chips.com>
+ * Author: Detlev Casanova <detlev.casanova@collabora.com>
+ */
 
 #ifndef _DT_BINDINGS_RESET_ROCKCHIP_RK3576_H
 #define _DT_BINDINGS_RESET_ROCKCHIP_RK3576_H
