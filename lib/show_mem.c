@@ -44,3 +44,4 @@ void __show_mem(unsigned int filter, nodemask_t *nodemask, int max_zone_idx)
 #endif
 	trace_android_vh_show_mem(filter, nodemask);
 }
+EXPORT_SYMBOL_GPL(__show_mem);
