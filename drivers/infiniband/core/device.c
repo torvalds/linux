@@ -2252,15 +2252,6 @@ struct net_device *ib_device_get_netdev(struct ib_device *ib_dev,
 		spin_unlock(&pdata->netdev_lock);
 	}
 
-	/*
-	 * If we are starting to unregister expedite things by preventing
-	 * propagation of an unregistering netdev.
-	 */
-	if (res && res->reg_state != NETREG_REGISTERED) {
-		dev_put(res);
-		return NULL;
-	}
-
 	return res;
 }
 
