@@ -88,3 +88,7 @@ static size_t syscall_arg__scnprintf_perf_event_attr(char *bf, size_t size, stru
 }
 
 #define SCA_PERF_ATTR syscall_arg__scnprintf_perf_event_attr
+// 'argname' is just documentational at this point, to remove the previous comment with that info
+#define SCA_PERF_ATTR_FROM_USER(argname) \
+          { .scnprintf  = SCA_PERF_ATTR, \
+            .from_user  = true, }
