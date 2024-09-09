@@ -28,6 +28,17 @@
 /* Optimal power settings from GUC */
 #define SPX5_SERDES_QUIET_MODE_VAL 0x01ef4e0c
 
+/* Register target sizes */
+const unsigned int sparx5_serdes_tsize[TSIZE_LAST] = {
+	[TC_SD10G_LANE] = 12,
+	[TC_SD_CMU] = 14,
+	[TC_SD_CMU_CFG] = 14,
+	[TC_SD_LANE] = 25,
+};
+
+/* Pointer to the register target size table */
+const unsigned int *tsize;
+
 enum sparx5_sd25g28_mode_preset_type {
 	SPX5_SD25G28_MODE_PRESET_25000,
 	SPX5_SD25G28_MODE_PRESET_10000,
@@ -2506,6 +2517,7 @@ static struct sparx5_serdes_io_resource sparx5_serdes_iomap[] =  {
 static const struct sparx5_serdes_match_data sparx5_desc = {
 	.iomap = sparx5_serdes_iomap,
 	.iomap_size = ARRAY_SIZE(sparx5_serdes_iomap),
+	.tsize = sparx5_serdes_tsize,
 	.consts = {
 		.sd_max       = 33,
 		.cmu_max      = 14,
@@ -2567,6 +2579,8 @@ static int sparx5_serdes_probe(struct platform_device *pdev)
 	priv->data = device_get_match_data(priv->dev);
 	if (!priv->data)
 		return -EINVAL;
+
+	tsize = priv->data->tsize;
 
 	/* Get coreclock */
 	clk = devm_clk_get(priv->dev, NULL);

@@ -60,6 +60,7 @@ struct sparx5_serdes_match_data {
 	const struct sparx5_serdes_ops ops;
 	const struct sparx5_serdes_io_resource *iomap;
 	int iomap_size;
+	const unsigned int *tsize;
 };
 
 struct sparx5_serdes_private {
