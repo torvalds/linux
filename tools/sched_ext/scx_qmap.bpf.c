@@ -27,6 +27,8 @@
 enum consts {
 	ONE_SEC_IN_NS		= 1000000000,
 	SHARED_DSQ		= 0,
+	HIGHPRI_DSQ		= 1,
+	HIGHPRI_WEIGHT		= 8668,		/* this is what -20 maps to */
 };
 
 char _license[] SEC("license") = "GPL";
@@ -36,10 +38,12 @@ const volatile u32 stall_user_nth;
 const volatile u32 stall_kernel_nth;
 const volatile u32 dsp_inf_loop_after;
 const volatile u32 dsp_batch;
+const volatile bool highpri_boosting;
 const volatile bool print_shared_dsq;
 const volatile s32 disallow_tgid;
 const volatile bool suppress_dump;
 
+u64 nr_highpri_queued;
 u32 test_error_cnt;
 
 UEI_DEFINE(uei);
@@ -95,6 +99,7 @@ static u64 core_sched_tail_seqs[5];
 /* Per-task scheduling context */
 struct task_ctx {
 	bool	force_local;	/* Dispatch directly to local_dsq */
+	bool	highpri;
 	u64	core_sched_seq;
 };
 
@@ -122,6 +127,7 @@ struct {
 /* Statistics */
 u64 nr_enqueued, nr_dispatched, nr_reenqueued, nr_dequeued, nr_ddsp_from_enq;
 u64 nr_core_sched_execed;
+u64 nr_expedited_local, nr_expedited_remote, nr_expedited_lost, nr_expedited_from_timer;
 u32 cpuperf_min, cpuperf_avg, cpuperf_max;
 u32 cpuperf_target_min, cpuperf_target_avg, cpuperf_target_max;
 
@@ -140,17 +146,25 @@ static s32 pick_direct_dispatch_cpu(struct task_struct *p, s32 prev_cpu)
 	return -1;
 }
 
+static struct task_ctx *lookup_task_ctx(struct task_struct *p)
+{
+	struct task_ctx *tctx;
+
+	if (!(tctx = bpf_task_storage_get(&task_ctx_stor, p, 0, 0))) {
+		scx_bpf_error("task_ctx lookup failed");
+		return NULL;
+	}
+	return tctx;
+}
+
 s32 BPF_STRUCT_OPS(qmap_select_cpu, struct task_struct *p,
 		   s32 prev_cpu, u64 wake_flags)
 {
 	struct task_ctx *tctx;
 	s32 cpu;
 
-	tctx = bpf_task_storage_get(&task_ctx_stor, p, 0, 0);
-	if (!tctx) {
-		scx_bpf_error("task_ctx lookup failed");
+	if (!(tctx = lookup_task_ctx(p)))
 		return -ESRCH;
-	}
 
 	cpu = pick_direct_dispatch_cpu(p, prev_cpu);
 
@@ -197,11 +211,8 @@ void BPF_STRUCT_OPS(qmap_enqueue, struct task_struct *p, u64 enq_flags)
 	if (test_error_cnt && !--test_error_cnt)
 		scx_bpf_error("test triggering error");
 
-	tctx = bpf_task_storage_get(&task_ctx_stor, p, 0, 0);
-	if (!tctx) {
-		scx_bpf_error("task_ctx lookup failed");
+	if (!(tctx = lookup_task_ctx(p)))
 		return;
-	}
 
 	/*
 	 * All enqueued tasks must have their core_sched_seq updated for correct
@@ -255,6 +266,10 @@ void BPF_STRUCT_OPS(qmap_enqueue, struct task_struct *p, u64 enq_flags)
 		return;
 	}
 
+	if (highpri_boosting && p->scx.weight >= HIGHPRI_WEIGHT) {
+		tctx->highpri = true;
+		__sync_fetch_and_add(&nr_highpri_queued, 1);
+	}
 	__sync_fetch_and_add(&nr_enqueued, 1);
 }
 
@@ -271,13 +286,80 @@ void BPF_STRUCT_OPS(qmap_dequeue, struct task_struct *p, u64 deq_flags)
 
 static void update_core_sched_head_seq(struct task_struct *p)
 {
-	struct task_ctx *tctx = bpf_task_storage_get(&task_ctx_stor, p, 0, 0);
 	int idx = weight_to_idx(p->scx.weight);
+	struct task_ctx *tctx;
 
-	if (tctx)
+	if ((tctx = lookup_task_ctx(p)))
 		core_sched_head_seqs[idx] = tctx->core_sched_seq;
-	else
-		scx_bpf_error("task_ctx lookup failed");
+}
+
+/*
+ * To demonstrate the use of scx_bpf_dispatch_from_dsq(), implement silly
+ * selective priority boosting mechanism by scanning SHARED_DSQ looking for
+ * highpri tasks, moving them to HIGHPRI_DSQ and then consuming them first. This
+ * makes minor difference only when dsp_batch is larger than 1.
+ *
+ * scx_bpf_dispatch[_vtime]_from_dsq() are allowed both from ops.dispatch() and
+ * non-rq-lock holding BPF programs. As demonstration, this function is called
+ * from qmap_dispatch() and monitor_timerfn().
+ */
+static bool dispatch_highpri(bool from_timer)
+{
+	struct task_struct *p;
+	s32 this_cpu = bpf_get_smp_processor_id();
+
+	/* scan SHARED_DSQ and move highpri tasks to HIGHPRI_DSQ */
+	bpf_for_each(scx_dsq, p, SHARED_DSQ, 0) {
+		static u64 highpri_seq;
+		struct task_ctx *tctx;
+
+		if (!(tctx = lookup_task_ctx(p)))
+			return false;
+
+		if (tctx->highpri) {
+			/* exercise the set_*() and vtime interface too */
+			scx_bpf_dispatch_from_dsq_set_slice(
+				BPF_FOR_EACH_ITER, slice_ns * 2);
+			scx_bpf_dispatch_from_dsq_set_vtime(
+				BPF_FOR_EACH_ITER, highpri_seq++);
+			scx_bpf_dispatch_vtime_from_dsq(
+				BPF_FOR_EACH_ITER, p, HIGHPRI_DSQ, 0);
+		}
+	}
+
+	/*
+	 * Scan HIGHPRI_DSQ and dispatch until a task that can run on this CPU
+	 * is found.
+	 */
+	bpf_for_each(scx_dsq, p, HIGHPRI_DSQ, 0) {
+		bool dispatched = false;
+		s32 cpu;
+
+		if (bpf_cpumask_test_cpu(this_cpu, p->cpus_ptr))
+			cpu = this_cpu;
+		else
+			cpu = scx_bpf_pick_any_cpu(p->cpus_ptr, 0);
+
+		if (scx_bpf_dispatch_from_dsq(BPF_FOR_EACH_ITER, p,
+					      SCX_DSQ_LOCAL_ON | cpu,
+					      SCX_ENQ_PREEMPT)) {
+			if (cpu == this_cpu) {
+				dispatched = true;
+				__sync_fetch_and_add(&nr_expedited_local, 1);
+			} else {
+				__sync_fetch_and_add(&nr_expedited_remote, 1);
+			}
+			if (from_timer)
+				__sync_fetch_and_add(&nr_expedited_from_timer, 1);
+		} else {
+			__sync_fetch_and_add(&nr_expedited_lost, 1);
+		}
+
+		if (dispatched)
+			return true;
+	}
+
+	return false;
 }
 
 void BPF_STRUCT_OPS(qmap_dispatch, s32 cpu, struct task_struct *prev)
@@ -289,7 +371,10 @@ void BPF_STRUCT_OPS(qmap_dispatch, s32 cpu, struct task_struct *prev)
 	void *fifo;
 	s32 i, pid;
 
-	if (scx_bpf_consume(SHARED_DSQ))
+	if (dispatch_highpri(false))
+		return;
+
+	if (!nr_highpri_queued && scx_bpf_consume(SHARED_DSQ))
 		return;
 
 	if (dsp_inf_loop_after && nr_dispatched > dsp_inf_loop_after) {
@@ -326,6 +411,8 @@ void BPF_STRUCT_OPS(qmap_dispatch, s32 cpu, struct task_struct *prev)
 
 		/* Dispatch or advance. */
 		bpf_repeat(BPF_MAX_LOOPS) {
+			struct task_ctx *tctx;
+
 			if (bpf_map_pop_elem(fifo, &pid))
 				break;
 
@@ -333,13 +420,25 @@ void BPF_STRUCT_OPS(qmap_dispatch, s32 cpu, struct task_struct *prev)
 			if (!p)
 				continue;
 
+			if (!(tctx = lookup_task_ctx(p))) {
+				bpf_task_release(p);
+				return;
+			}
+
+			if (tctx->highpri)
+				__sync_fetch_and_sub(&nr_highpri_queued, 1);
+
 			update_core_sched_head_seq(p);
 			__sync_fetch_and_add(&nr_dispatched, 1);
+
 			scx_bpf_dispatch(p, SHARED_DSQ, slice_ns, 0);
 			bpf_task_release(p);
+
 			batch--;
 			cpuc->dsp_cnt--;
 			if (!batch || !scx_bpf_dispatch_nr_slots()) {
+				if (dispatch_highpri(false))
+					return;
 				scx_bpf_consume(SHARED_DSQ);
 				return;
 			}
@@ -664,6 +763,10 @@ static void dump_shared_dsq(void)
 
 static int monitor_timerfn(void *map, int *key, struct bpf_timer *timer)
 {
+	bpf_rcu_read_lock();
+	dispatch_highpri(true);
+	bpf_rcu_read_unlock();
+
 	monitor_cpuperf();
 
 	if (print_shared_dsq)
@@ -682,6 +785,10 @@ s32 BPF_STRUCT_OPS_SLEEPABLE(qmap_init)
 	print_cpus();
 
 	ret = scx_bpf_create_dsq(SHARED_DSQ, -1);
+	if (ret)
+		return ret;
+
+	ret = scx_bpf_create_dsq(HIGHPRI_DSQ, -1);
 	if (ret)
 		return ret;
 
