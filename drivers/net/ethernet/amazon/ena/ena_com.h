@@ -595,6 +595,15 @@ int ena_com_get_dev_basic_stats(struct ena_com_dev *ena_dev,
 int ena_com_get_eni_stats(struct ena_com_dev *ena_dev,
 			  struct ena_admin_eni_stats *stats);
 
+/* ena_com_get_ena_srd_info - Get ENA SRD network interface statistics
+ * @ena_dev: ENA communication layer struct
+ * @info: ena srd stats and flags
+ *
+ * @return: 0 on Success and negative value otherwise.
+ */
+int ena_com_get_ena_srd_info(struct ena_com_dev *ena_dev,
+			     struct ena_admin_ena_srd_info *info);
+
 /* ena_com_set_dev_mtu - Configure the device mtu.
  * @ena_dev: ENA communication layer struct
  * @mtu: mtu value

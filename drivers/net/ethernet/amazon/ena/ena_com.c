@@ -2152,6 +2152,27 @@ int ena_com_get_eni_stats(struct ena_com_dev *ena_dev,
 	return ret;
 }
 
+int ena_com_get_ena_srd_info(struct ena_com_dev *ena_dev,
+			     struct ena_admin_ena_srd_info *info)
+{
+	struct ena_com_stats_ctx ctx;
+	int ret;
+
+	if (!ena_com_get_cap(ena_dev, ENA_ADMIN_ENA_SRD_INFO)) {
+		netdev_err(ena_dev->net_device, "Capability %d isn't supported\n",
+			   ENA_ADMIN_ENA_SRD_INFO);
+		return -EOPNOTSUPP;
+	}
+
+	memset(&ctx, 0x0, sizeof(ctx));
+	ret = ena_get_dev_stats(ena_dev, &ctx, ENA_ADMIN_GET_STATS_TYPE_ENA_SRD);
+	if (likely(ret == 0))
+		memcpy(info, &ctx.get_resp.u.ena_srd_info,
+		       sizeof(ctx.get_resp.u.ena_srd_info));
+
+	return ret;
+}
+
 int ena_com_get_dev_basic_stats(struct ena_com_dev *ena_dev,
 				struct ena_admin_basic_stats *stats)
 {

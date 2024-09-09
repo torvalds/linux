@@ -2798,19 +2798,6 @@ err:
 	ena_com_delete_debug_area(adapter->ena_dev);
 }
 
-int ena_update_hw_stats(struct ena_adapter *adapter)
-{
-	int rc;
-
-	rc = ena_com_get_eni_stats(adapter->ena_dev, &adapter->eni_stats);
-	if (rc) {
-		netdev_err(adapter->netdev, "Failed to get ENI stats\n");
-		return rc;
-	}
-
-	return 0;
-}
-
 static void ena_get_stats64(struct net_device *netdev,
 			    struct rtnl_link_stats64 *stats)
 {

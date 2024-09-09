@@ -51,6 +51,8 @@ enum ena_admin_aq_feature_id {
 /* device capabilities */
 enum ena_admin_aq_caps_id {
 	ENA_ADMIN_ENI_STATS                         = 0,
+	/* ENA SRD customer metrics */
+	ENA_ADMIN_ENA_SRD_INFO                      = 1,
 };
 
 enum ena_admin_placement_policy_type {
@@ -99,11 +101,23 @@ enum ena_admin_get_stats_type {
 	ENA_ADMIN_GET_STATS_TYPE_EXTENDED           = 1,
 	/* extra HW stats for specific network interface */
 	ENA_ADMIN_GET_STATS_TYPE_ENI                = 2,
+	/* extra HW stats for ENA SRD */
+	ENA_ADMIN_GET_STATS_TYPE_ENA_SRD            = 3,
 };
 
 enum ena_admin_get_stats_scope {
 	ENA_ADMIN_SPECIFIC_QUEUE                    = 0,
 	ENA_ADMIN_ETH_TRAFFIC                       = 1,
+};
+
+/* ENA SRD configuration for ENI */
+enum ena_admin_ena_srd_flags {
+	/* Feature enabled */
+	ENA_ADMIN_ENA_SRD_ENABLED                   = BIT(0),
+	/* UDP support enabled */
+	ENA_ADMIN_ENA_SRD_UDP_ENABLED               = BIT(1),
+	/* Bypass Rx UDP ordering */
+	ENA_ADMIN_ENA_SRD_UDP_ORDERING_BYPASS_ENABLED = BIT(2),
 };
 
 struct ena_admin_aq_common_desc {
@@ -419,6 +433,32 @@ struct ena_admin_eni_stats {
 	u64 linklocal_allowance_exceeded;
 };
 
+struct ena_admin_ena_srd_stats {
+	/* Number of packets transmitted over ENA SRD */
+	u64 ena_srd_tx_pkts;
+
+	/* Number of packets transmitted or could have been
+	 * transmitted over ENA SRD
+	 */
+	u64 ena_srd_eligible_tx_pkts;
+
+	/* Number of packets received over ENA SRD */
+	u64 ena_srd_rx_pkts;
+
+	/* Percentage of the ENA SRD resources that is in use */
+	u64 ena_srd_resource_utilization;
+};
+
+/* ENA SRD Statistics Command */
+struct ena_admin_ena_srd_info {
+	/* ENA SRD configuration bitmap. See ena_admin_ena_srd_flags for
+	 * details
+	 */
+	u64 flags;
+
+	struct ena_admin_ena_srd_stats ena_srd_stats;
+};
+
 struct ena_admin_acq_get_stats_resp {
 	struct ena_admin_acq_common_desc acq_common_desc;
 
@@ -428,6 +468,8 @@ struct ena_admin_acq_get_stats_resp {
 		struct ena_admin_basic_stats basic_stats;
 
 		struct ena_admin_eni_stats eni_stats;
+
+		struct ena_admin_ena_srd_info ena_srd_info;
 	} u;
 };
 
