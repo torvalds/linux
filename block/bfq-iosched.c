@@ -6877,7 +6877,6 @@ static struct bfq_queue *bfq_init_rq(struct request *rq)
 	const int is_sync = rq_is_sync(rq);
 	struct bfq_queue *bfqq;
 	bool new_queue = false;
-	bool bfqq_already_existing = false;
 	unsigned int a_idx = bfq_actuator_index(bfqd, bio);
 
 	if (unlikely(!rq->elv.icq))
@@ -6918,30 +6917,26 @@ static struct bfq_queue *bfq_init_rq(struct request *rq)
 				bfqq = bfq_get_bfqq_handle_split(bfqd, bic, bio,
 								 true, is_sync,
 								 NULL);
-				if (unlikely(bfqq == &bfqd->oom_bfqq))
-					bfqq_already_existing = true;
-				else
+				if (likely(bfqq != &bfqd->oom_bfqq)) {
 					bfq_bfqq_resume_state(bfqq, bfqd, bic,
 							      false);
+					bfqq->waker_bfqq = waker_bfqq;
+					bfqq->tentative_waker_bfqq = NULL;
+
+					/*
+					 * If the waker queue disappears, then
+					 * new_bfqq->waker_bfqq must be
+					 * reset. So insert new_bfqq into the
+					 * woken_list of the waker. See
+					 * bfq_check_waker for details.
+					 */
+					if (waker_bfqq)
+						hlist_add_head(
+							&bfqq->woken_list_node,
+							&bfqq->waker_bfqq->woken_list);
+				}
 			} else {
-				bfqq_already_existing = true;
 				bfq_bfqq_resume_state(bfqq, bfqd, bic, true);
-			}
-
-			if (!bfqq_already_existing) {
-				bfqq->waker_bfqq = waker_bfqq;
-				bfqq->tentative_waker_bfqq = NULL;
-
-				/*
-				 * If the waker queue disappears, then
-				 * new_bfqq->waker_bfqq must be
-				 * reset. So insert new_bfqq into the
-				 * woken_list of the waker. See
-				 * bfq_check_waker for details.
-				 */
-				if (waker_bfqq)
-					hlist_add_head(&bfqq->woken_list_node,
-						       &bfqq->waker_bfqq->woken_list);
 			}
 		}
 	}
