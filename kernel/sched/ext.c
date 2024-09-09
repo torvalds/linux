@@ -1719,6 +1719,8 @@ static void dispatch_enqueue(struct scx_dispatch_q *dsq, struct task_struct *p,
 static void task_unlink_from_dsq(struct task_struct *p,
 				 struct scx_dispatch_q *dsq)
 {
+	WARN_ON_ONCE(list_empty(&p->scx.dsq_list.node));
+
 	if (p->scx.dsq_flags & SCX_TASK_DSQ_ON_PRIQ) {
 		rb_erase(&p->scx.dsq_priq, &dsq->priq);
 		RB_CLEAR_NODE(&p->scx.dsq_priq);
@@ -1726,6 +1728,7 @@ static void task_unlink_from_dsq(struct task_struct *p,
 	}
 
 	list_del_init(&p->scx.dsq_list.node);
+	dsq_mod_nr(dsq, -1);
 }
 
 static void dispatch_dequeue(struct rq *rq, struct task_struct *p)
@@ -1762,9 +1765,7 @@ static void dispatch_dequeue(struct rq *rq, struct task_struct *p)
 	*/
 	if (p->scx.holding_cpu < 0) {
 		/* @p must still be on @dsq, dequeue */
-		WARN_ON_ONCE(list_empty(&p->scx.dsq_list.node));
 		task_unlink_from_dsq(p, dsq);
-		dsq_mod_nr(dsq, -1);
 	} else {
 		/*
 		 * We're racing against dispatch_to_local_dsq() which already
@@ -2217,7 +2218,6 @@ static void consume_local_task(struct task_struct *p,
 	WARN_ON_ONCE(p->scx.holding_cpu >= 0);
 	task_unlink_from_dsq(p, dsq);
 	list_add_tail(&p->scx.dsq_list.node, &rq->scx.local_dsq.list);
-	dsq_mod_nr(dsq, -1);
 	dsq_mod_nr(&rq->scx.local_dsq, 1);
 	p->scx.dsq = &rq->scx.local_dsq;
 	raw_spin_unlock(&dsq->lock);
@@ -2307,7 +2307,6 @@ static bool unlink_dsq_and_lock_src_rq(struct task_struct *p,
 
 	WARN_ON_ONCE(p->scx.holding_cpu >= 0);
 	task_unlink_from_dsq(p, dsq);
-	dsq_mod_nr(dsq, -1);
 	p->scx.holding_cpu = cpu;
 
 	raw_spin_unlock(&dsq->lock);
