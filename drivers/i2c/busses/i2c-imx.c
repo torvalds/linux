@@ -687,7 +687,7 @@ static void i2c_imx_stop(struct imx_i2c_struct *i2c_imx, bool atomic)
 		i2c_imx_bus_busy(i2c_imx, 0, atomic);
 
 	/* Disable I2C controller */
-	temp = i2c_imx->hwdata->i2cr_ien_opcode ^ I2CR_IEN,
+	temp = i2c_imx->hwdata->i2cr_ien_opcode ^ I2CR_IEN;
 	imx_i2c_write_reg(temp, i2c_imx, IMX_I2C_I2CR);
 }
 
