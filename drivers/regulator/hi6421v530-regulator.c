@@ -91,7 +91,7 @@ static const struct regulator_ops hi6421v530_ldo_ops;
 
 /* HI6421V530 regulator information */
 
-static struct hi6421v530_regulator_info hi6421v530_regulator_info[] = {
+static const struct hi6421v530_regulator_info hi6421v530_regulator_info[] = {
 	HI6421V530_LDO(LDO3, ldo_3_voltages, 0x061, 0xf, 0x060, 0x2,
 		   20000, 0x6),
 	HI6421V530_LDO(LDO9, ldo_9_11_voltages, 0x06b, 0x7, 0x06a, 0x2,
@@ -107,10 +107,10 @@ static struct hi6421v530_regulator_info hi6421v530_regulator_info[] = {
 static unsigned int hi6421v530_regulator_ldo_get_mode(
 					struct regulator_dev *rdev)
 {
-	struct hi6421v530_regulator_info *info;
+	const struct hi6421v530_regulator_info *info;
 	unsigned int reg_val;
 
-	info = rdev_get_drvdata(rdev);
+	info = container_of(rdev->desc, struct hi6421v530_regulator_info, rdesc);
 	regmap_read(rdev->regmap, rdev->desc->enable_reg, &reg_val);
 
 	if (reg_val & (info->mode_mask))
@@ -122,10 +122,10 @@ static unsigned int hi6421v530_regulator_ldo_get_mode(
 static int hi6421v530_regulator_ldo_set_mode(struct regulator_dev *rdev,
 						unsigned int mode)
 {
-	struct hi6421v530_regulator_info *info;
+	const struct hi6421v530_regulator_info *info;
 	unsigned int new_mode;
 
-	info = rdev_get_drvdata(rdev);
+	info = container_of(rdev->desc, struct hi6421v530_regulator_info, rdesc);
 	switch (mode) {
 	case REGULATOR_MODE_NORMAL:
 		new_mode = 0;
@@ -172,7 +172,6 @@ static int hi6421v530_regulator_probe(struct platform_device *pdev)
 	for (i = 0; i < ARRAY_SIZE(hi6421v530_regulator_info); i++) {
 		config.dev = pdev->dev.parent;
 		config.regmap = pmic->regmap;
-		config.driver_data = &hi6421v530_regulator_info[i];
 
 		rdev = devm_regulator_register(&pdev->dev,
 				&hi6421v530_regulator_info[i].rdesc,
