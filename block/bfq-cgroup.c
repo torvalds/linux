@@ -736,7 +736,6 @@ static void bfq_sync_bfqq_move(struct bfq_data *bfqd,
 		 */
 		bfq_put_cooperator(sync_bfqq);
 		bic_set_bfqq(bic, NULL, true, act_idx);
-		bfq_release_process_ref(bfqd, sync_bfqq);
 	}
 }
 
