@@ -1800,7 +1800,7 @@ s64 callchain_avg_cycles(struct callchain_node *cnode)
 
 int sample__for_each_callchain_node(struct thread *thread, struct evsel *evsel,
 				    struct perf_sample *sample, int max_stack,
-				    callchain_iter_fn cb, void *data)
+				    bool symbols, callchain_iter_fn cb, void *data)
 {
 	struct callchain_cursor *cursor = get_tls_callchain_cursor();
 	int ret;
@@ -1809,9 +1809,9 @@ int sample__for_each_callchain_node(struct thread *thread, struct evsel *evsel,
 		return -ENOMEM;
 
 	/* Fill in the callchain. */
-	ret = thread__resolve_callchain(thread, cursor, evsel, sample,
-					/*parent=*/NULL, /*root_al=*/NULL,
-					max_stack);
+	ret = __thread__resolve_callchain(thread, cursor, evsel, sample,
+					  /*parent=*/NULL, /*root_al=*/NULL,
+					  max_stack, symbols);
 	if (ret)
 		return ret;
 

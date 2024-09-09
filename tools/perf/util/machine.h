@@ -178,13 +178,32 @@ struct mem_info *sample__resolve_mem(struct perf_sample *sample,
 
 struct callchain_cursor;
 
-int thread__resolve_callchain(struct thread *thread,
-			      struct callchain_cursor *cursor,
-			      struct evsel *evsel,
-			      struct perf_sample *sample,
-			      struct symbol **parent,
-			      struct addr_location *root_al,
-			      int max_stack);
+int __thread__resolve_callchain(struct thread *thread,
+				struct callchain_cursor *cursor,
+				struct evsel *evsel,
+				struct perf_sample *sample,
+				struct symbol **parent,
+				struct addr_location *root_al,
+				int max_stack,
+				bool symbols);
+
+static inline int thread__resolve_callchain(struct thread *thread,
+					    struct callchain_cursor *cursor,
+					    struct evsel *evsel,
+					    struct perf_sample *sample,
+					    struct symbol **parent,
+					    struct addr_location *root_al,
+					    int max_stack)
+{
+	return __thread__resolve_callchain(thread,
+					   cursor,
+					   evsel,
+					   sample,
+					   parent,
+					   root_al,
+					   max_stack,
+					   /*symbols=*/true);
+}
 
 /*
  * Default guest kernel is defined by parameter --guestkallsyms
