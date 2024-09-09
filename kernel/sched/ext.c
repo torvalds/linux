@@ -2208,8 +2208,8 @@ static void move_task_to_local_dsq(struct task_struct *p, u64 enq_flags,
 
 #endif	/* CONFIG_SMP */
 
-static void consume_local_task(struct rq *rq, struct scx_dispatch_q *dsq,
-			       struct task_struct *p)
+static void consume_local_task(struct task_struct *p,
+			       struct scx_dispatch_q *dsq, struct rq *rq)
 {
 	lockdep_assert_held(&dsq->lock);	/* released on return */
 
@@ -2318,8 +2318,8 @@ static bool unlink_dsq_and_lock_src_rq(struct task_struct *p,
 		!WARN_ON_ONCE(src_rq != task_rq(p));
 }
 
-static bool consume_remote_task(struct rq *this_rq, struct scx_dispatch_q *dsq,
-				struct task_struct *p, struct rq *src_rq)
+static bool consume_remote_task(struct rq *this_rq, struct task_struct *p,
+				struct scx_dispatch_q *dsq, struct rq *src_rq)
 {
 	raw_spin_rq_unlock(this_rq);
 
@@ -2334,7 +2334,7 @@ static bool consume_remote_task(struct rq *this_rq, struct scx_dispatch_q *dsq,
 }
 #else	/* CONFIG_SMP */
 static inline bool task_can_run_on_remote_rq(struct task_struct *p, struct rq *rq, bool trigger_error) { return false; }
-static inline bool consume_remote_task(struct rq *rq, struct scx_dispatch_q *dsq, struct task_struct *p, struct rq *task_rq) { return false; }
+static inline bool consume_remote_task(struct rq *this_rq, struct task_struct *p, struct scx_dispatch_q *dsq, struct rq *task_rq) { return false; }
 #endif	/* CONFIG_SMP */
 
 static bool consume_dispatch_q(struct rq *rq, struct scx_dispatch_q *dsq)
@@ -2355,12 +2355,12 @@ retry:
 		struct rq *task_rq = task_rq(p);
 
 		if (rq == task_rq) {
-			consume_local_task(rq, dsq, p);
+			consume_local_task(p, dsq, rq);
 			return true;
 		}
 
 		if (task_can_run_on_remote_rq(p, rq, false)) {
-			if (likely(consume_remote_task(rq, dsq, p, task_rq)))
+			if (likely(consume_remote_task(rq, p, dsq, task_rq)))
 				return true;
 			goto retry;
 		}
