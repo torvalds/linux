@@ -2013,6 +2013,12 @@ static int nfs4_handle_reclaim_lease_error(struct nfs_client *clp, int status)
 		nfs_mark_client_ready(clp, -EPERM);
 		clear_bit(NFS4CLNT_LEASE_CONFIRM, &clp->cl_state);
 		return -EPERM;
+	case -ETIMEDOUT:
+		if (clp->cl_cons_state == NFS_CS_SESSION_INITING) {
+			nfs_mark_client_ready(clp, -EIO);
+			return -EIO;
+		}
+		fallthrough;
 	case -EACCES:
 	case -NFS4ERR_DELAY:
 	case -EAGAIN:
