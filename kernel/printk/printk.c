@@ -2679,6 +2679,7 @@ int match_devname_and_update_preferred_console(const char *devname,
 
 	return -ENOENT;
 }
+EXPORT_SYMBOL_GPL(match_devname_and_update_preferred_console);
 
 bool console_suspend_enabled = true;
 EXPORT_SYMBOL(console_suspend_enabled);
