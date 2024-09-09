@@ -2235,6 +2235,7 @@ void tcp_recv_timestamp(struct msghdr *msg, const struct sock *sk,
 			struct scm_timestamping_internal *tss)
 {
 	int new_tstamp = sock_flag(sk, SOCK_TSTAMP_NEW);
+	u32 tsflags = READ_ONCE(sk->sk_tsflags);
 	bool has_timestamping = false;
 
 	if (tss->ts[0].tv_sec || tss->ts[0].tv_nsec) {
@@ -2274,14 +2275,18 @@ void tcp_recv_timestamp(struct msghdr *msg, const struct sock *sk,
 			}
 		}
 
-		if (READ_ONCE(sk->sk_tsflags) & SOF_TIMESTAMPING_SOFTWARE)
+		if (tsflags & SOF_TIMESTAMPING_SOFTWARE &&
+		    (tsflags & SOF_TIMESTAMPING_RX_SOFTWARE ||
+		     !(tsflags & SOF_TIMESTAMPING_OPT_RX_FILTER)))
 			has_timestamping = true;
 		else
 			tss->ts[0] = (struct timespec64) {0};
 	}
 
 	if (tss->ts[2].tv_sec || tss->ts[2].tv_nsec) {
-		if (READ_ONCE(sk->sk_tsflags) & SOF_TIMESTAMPING_RAW_HARDWARE)
+		if (tsflags & SOF_TIMESTAMPING_RAW_HARDWARE &&
+		    (tsflags & SOF_TIMESTAMPING_RX_HARDWARE ||
+		     !(tsflags & SOF_TIMESTAMPING_OPT_RX_FILTER)))
 			has_timestamping = true;
 		else
 			tss->ts[2] = (struct timespec64) {0};
