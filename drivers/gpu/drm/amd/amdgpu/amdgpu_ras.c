@@ -3468,6 +3468,11 @@ init_ras_enabled_flag:
 
 	/* aca is disabled by default */
 	adev->aca.is_enabled = false;
+
+	/* bad page feature is not applicable to specific app platform */
+	if (adev->gmc.is_app_apu &&
+	    amdgpu_ip_version(adev, UMC_HWIP, 0) == IP_VERSION(12, 0, 0))
+		amdgpu_bad_page_threshold = 0;
 }
 
 static void amdgpu_ras_counte_dw(struct work_struct *work)
