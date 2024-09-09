@@ -39,7 +39,10 @@
 
 #define VL_REG_RESULT_INT_STATUS			0x13
 #define VL_REG_RESULT_RANGE_STATUS			0x14
+#define VL_REG_IDENTIFICATION_MODEL_ID			0xC0
 #define VL_REG_RESULT_RANGE_STATUS_COMPLETE		BIT(0)
+
+#define VL53L0X_MODEL_ID_VAL				0xEE
 
 struct vl53l0x_data {
 	struct i2c_client *client;
@@ -223,6 +226,7 @@ static int vl53l0x_probe(struct i2c_client *client)
 	struct vl53l0x_data *data;
 	struct iio_dev *indio_dev;
 	int error;
+	int ret;
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (!indio_dev)
@@ -236,6 +240,13 @@ static int vl53l0x_probe(struct i2c_client *client)
 				     I2C_FUNC_SMBUS_READ_I2C_BLOCK |
 				     I2C_FUNC_SMBUS_BYTE_DATA))
 		return -EOPNOTSUPP;
+
+	ret = i2c_smbus_read_byte_data(data->client, VL_REG_IDENTIFICATION_MODEL_ID);
+	if (ret < 0)
+		return -EINVAL;
+
+	if (ret != VL53L0X_MODEL_ID_VAL)
+		dev_info(&client->dev, "Unknown model id: 0x%x", ret);
 
 	data->vdd_supply = devm_regulator_get(&client->dev, "vdd");
 	if (IS_ERR(data->vdd_supply))
@@ -265,8 +276,6 @@ static int vl53l0x_probe(struct i2c_client *client)
 
 	/* usage of interrupt is optional */
 	if (client->irq) {
-		int ret;
-
 		init_completion(&data->completion);
 
 		ret = vl53l0x_configure_irq(client, indio_dev);
