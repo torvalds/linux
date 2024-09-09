@@ -2503,8 +2503,6 @@ void dc_z10_save_init(struct dc *dc);
 bool dc_is_dmub_outbox_supported(struct dc *dc);
 bool dc_enable_dmub_notifications(struct dc *dc);
 
-void dc_set_abm_level(struct dc *dc, struct pipe_ctx *pipe_ctx, int level);
-
 bool dc_abm_save_restore(
 		struct dc *dc,
 		struct dc_stream_state *stream,

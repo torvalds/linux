@@ -3260,23 +3260,6 @@ fail:
 
 }
 
-void dc_set_abm_level(struct dc *dc, struct pipe_ctx *pipe_ctx, int level)
-{
-	struct timing_generator *tg = pipe_ctx->stream_res.tg;
-	struct abm *abm = pipe_ctx->stream_res.abm;
-
-	if (!abm)
-		return;
-
-	if (tg->funcs->is_blanked && !tg->funcs->is_blanked(tg))
-		tg->funcs->wait_for_state(tg, CRTC_STATE_VBLANK);
-
-	if (level == ABM_LEVEL_IMMEDIATE_DISABLE)
-		dc->hwss.set_abm_immediate_disable(pipe_ctx);
-	else
-		abm->funcs->set_abm_level(abm, level);
-}
-
 static void commit_planes_do_stream_update(struct dc *dc,
 		struct dc_stream_state *stream,
 		struct dc_stream_update *stream_update,
@@ -3405,12 +3388,22 @@ static void commit_planes_do_stream_update(struct dc *dc,
 				dc->link_srv->set_dpms_on(dc->current_state, pipe_ctx);
 			}
 
-			if (stream_update->abm_level) {
-				dc_set_abm_level(dc, pipe_ctx,
-						 *stream_update->abm_level ==
-						 ABM_LEVEL_IMMEDIATE_DISABLE ?
-						 ABM_LEVEL_IMMEDIATE_DISABLE :
-						 stream->abm_level);
+			if (stream_update->abm_level && pipe_ctx->stream_res.abm) {
+				bool should_program_abm = true;
+
+				// if otg funcs defined check if blanked before programming
+				if (pipe_ctx->stream_res.tg->funcs->is_blanked)
+					if (pipe_ctx->stream_res.tg->funcs->is_blanked(pipe_ctx->stream_res.tg))
+						should_program_abm = false;
+
+				if (should_program_abm) {
+					if (*stream_update->abm_level == ABM_LEVEL_IMMEDIATE_DISABLE) {
+						dc->hwss.set_abm_immediate_disable(pipe_ctx);
+					} else {
+						pipe_ctx->stream_res.abm->funcs->set_abm_level(
+							pipe_ctx->stream_res.abm, stream->abm_level);
+					}
+				}
 			}
 		}
 	}
