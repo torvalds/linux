@@ -914,7 +914,7 @@ static struct platform_driver sun4i_can_driver = {
 		.of_match_table = sun4ican_of_match,
 	},
 	.probe = sun4ican_probe,
-	.remove_new = sun4ican_remove,
+	.remove = sun4ican_remove,
 };
 
 module_platform_driver(sun4i_can_driver);
