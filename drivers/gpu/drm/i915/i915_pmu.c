@@ -1232,17 +1232,6 @@ static void i915_pmu_unregister_cpuhp_state(struct i915_pmu *pmu)
 	cpuhp_state_remove_instance(cpuhp_slot, &pmu->cpuhp.node);
 }
 
-static bool is_igp(struct drm_i915_private *i915)
-{
-	struct pci_dev *pdev = to_pci_dev(i915->drm.dev);
-
-	/* IGP is 0000:00:02.0 */
-	return pci_domain_nr(pdev->bus) == 0 &&
-	       pdev->bus->number == 0 &&
-	       PCI_SLOT(pdev->devfn) == 2 &&
-	       PCI_FUNC(pdev->devfn) == 0;
-}
-
 void i915_pmu_register(struct drm_i915_private *i915)
 {
 	struct i915_pmu *pmu = &i915->pmu;
@@ -1266,7 +1255,7 @@ void i915_pmu_register(struct drm_i915_private *i915)
 	pmu->cpuhp.cpu = -1;
 	init_rc6(pmu);
 
-	if (!is_igp(i915)) {
+	if (IS_DGFX(i915)) {
 		pmu->name = kasprintf(GFP_KERNEL,
 				      "i915_%s",
 				      dev_name(i915->drm.dev));
@@ -1318,7 +1307,7 @@ err_attr:
 	pmu->base.event_init = NULL;
 	free_event_attributes(pmu);
 err_name:
-	if (!is_igp(i915))
+	if (IS_DGFX(i915))
 		kfree(pmu->name);
 err:
 	drm_notice(&i915->drm, "Failed to register PMU!\n");
@@ -1346,7 +1335,7 @@ void i915_pmu_unregister(struct drm_i915_private *i915)
 	perf_pmu_unregister(&pmu->base);
 	pmu->base.event_init = NULL;
 	kfree(pmu->base.attr_groups);
-	if (!is_igp(i915))
+	if (IS_DGFX(i915))
 		kfree(pmu->name);
 	free_event_attributes(pmu);
 }
