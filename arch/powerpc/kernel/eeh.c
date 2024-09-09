@@ -1537,10 +1537,6 @@ int eeh_pe_inject_err(struct eeh_pe *pe, int type, int func,
 	if (!eeh_ops || !eeh_ops->err_inject)
 		return -ENOENT;
 
-	/* Check on PCI error type */
-	if (type != EEH_ERR_TYPE_32 && type != EEH_ERR_TYPE_64)
-		return -EINVAL;
-
 	/* Check on PCI error function */
 	if (func < EEH_ERR_FUNC_MIN || func > EEH_ERR_FUNC_MAX)
 		return -EINVAL;
@@ -1847,6 +1843,11 @@ static const struct file_operations eeh_dev_break_fops = {
 	.write	= eeh_dev_break_write,
 	.read   = eeh_debugfs_dev_usage,
 };
+
+int eeh_pe_inject_mmio_error(struct pci_dev *pdev)
+{
+	return eeh_debugfs_break_device(pdev);
+}
 
 static ssize_t eeh_dev_can_recover(struct file *filp,
 				   const char __user *user_buf,
