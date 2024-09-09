@@ -819,6 +819,27 @@ static bool mkey_is_eq(struct mlx5_ib_mkey *mmkey, u32 key)
 	return mmkey->key == key;
 }
 
+static struct mlx5_ib_mkey *find_odp_mkey(struct mlx5_ib_dev *dev, u32 key)
+{
+	struct mlx5_ib_mkey *mmkey;
+
+	xa_lock(&dev->odp_mkeys);
+	mmkey = xa_load(&dev->odp_mkeys, mlx5_base_mkey(key));
+	if (!mmkey) {
+		mmkey = ERR_PTR(-ENOENT);
+		goto out;
+	}
+	if (!mkey_is_eq(mmkey, key)) {
+		mmkey = ERR_PTR(-EFAULT);
+		goto out;
+	}
+	refcount_inc(&mmkey->usecount);
+out:
+	xa_unlock(&dev->odp_mkeys);
+
+	return mmkey;
+}
+
 /*
  * Handle a single data segment in a page-fault WQE or RDMA region.
  *
@@ -846,32 +867,24 @@ static int pagefault_single_data_segment(struct mlx5_ib_dev *dev,
 
 	io_virt += *bytes_committed;
 	bcnt -= *bytes_committed;
-
 next_mr:
-	xa_lock(&dev->odp_mkeys);
-	mmkey = xa_load(&dev->odp_mkeys, mlx5_base_mkey(key));
-	if (!mmkey) {
-		xa_unlock(&dev->odp_mkeys);
-		mlx5_ib_dbg(
-			dev,
-			"skipping non ODP MR (lkey=0x%06x) in page fault handler.\n",
-			key);
-		if (bytes_mapped)
-			*bytes_mapped += bcnt;
-		/*
-		 * The user could specify a SGL with multiple lkeys and only
-		 * some of them are ODP. Treat the non-ODP ones as fully
-		 * faulted.
-		 */
-		ret = 0;
-		goto end;
-	}
-	refcount_inc(&mmkey->usecount);
-	xa_unlock(&dev->odp_mkeys);
-
-	if (!mkey_is_eq(mmkey, key)) {
-		mlx5_ib_dbg(dev, "failed to find mkey %x\n", key);
-		ret = -EFAULT;
+	mmkey = find_odp_mkey(dev, key);
+	if (IS_ERR(mmkey)) {
+		ret = PTR_ERR(mmkey);
+		if (ret == -ENOENT) {
+			mlx5_ib_dbg(
+				dev,
+				"skipping non ODP MR (lkey=0x%06x) in page fault handler.\n",
+				key);
+			if (bytes_mapped)
+				*bytes_mapped += bcnt;
+			/*
+			 * The user could specify a SGL with multiple lkeys and
+			 * only some of them are ODP. Treat the non-ODP ones as
+			 * fully faulted.
+			 */
+			ret = 0;
+		}
 		goto end;
 	}
 
@@ -966,7 +979,7 @@ next_mr:
 	}
 
 end:
-	if (mmkey)
+	if (!IS_ERR(mmkey))
 		mlx5r_deref_odp_mkey(mmkey);
 	while (head) {
 		frame = head;
