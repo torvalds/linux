@@ -26,7 +26,12 @@ enum sparx5_serdes_mode {
 	SPX5_SD_MODE_SFI,
 };
 
+struct sparx5_serdes_consts {
+	int sd_max;
+};
+
 struct sparx5_serdes_match_data {
+	const struct sparx5_serdes_consts consts;
 	const struct sparx5_serdes_io_resource *iomap;
 	int iomap_size;
 };

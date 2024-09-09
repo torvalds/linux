@@ -2510,6 +2510,9 @@ static struct sparx5_serdes_io_resource sparx5_serdes_iomap[] =  {
 static const struct sparx5_serdes_match_data sparx5_desc = {
 	.iomap = sparx5_serdes_iomap,
 	.iomap_size = ARRAY_SIZE(sparx5_serdes_iomap),
+	.consts = {
+		.sd_max       = 33,
+	},
 };
 
 /* Client lookup function, uses serdes index */
@@ -2526,7 +2529,7 @@ static struct phy *sparx5_serdes_xlate(struct device *dev,
 	sidx = args->args[0];
 
 	/* Check validity: ERR_PTR(-ENODEV) if not valid */
-	for (idx = 0; idx < SPX5_SERDES_MAX; idx++) {
+	for (idx = 0; idx < priv->data->consts.sd_max; idx++) {
 		struct sparx5_serdes_macro *macro =
 			phy_get_drvdata(priv->phys[idx]);
 
@@ -2594,7 +2597,7 @@ static int sparx5_serdes_probe(struct platform_device *pdev)
 
 		priv->regs[iomap->id] = iomem + iomap->offset;
 	}
-	for (idx = 0; idx < SPX5_SERDES_MAX; idx++) {
+	for (idx = 0; idx < priv->data->consts.sd_max; idx++) {
 		err = sparx5_phy_create(priv, idx, &priv->phys[idx]);
 		if (err)
 			return err;
