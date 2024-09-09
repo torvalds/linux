@@ -4325,6 +4325,52 @@ fail:
 	return ret;
 }
 
+int rtw89_fw_h2c_cxdrv_role_v7(struct rtw89_dev *rtwdev, u8 type)
+{
+	struct rtw89_btc *btc = &rtwdev->btc;
+	struct rtw89_btc_wl_role_info_v7 *role = &btc->cx.wl.role_info_v7;
+	struct rtw89_h2c_cxrole_v7 *h2c;
+	u32 len = sizeof(*h2c);
+	struct sk_buff *skb;
+	int ret;
+
+	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, len);
+	if (!skb) {
+		rtw89_err(rtwdev, "failed to alloc skb for h2c cxdrv_ctrl\n");
+		return -ENOMEM;
+	}
+	skb_put(skb, len);
+	h2c = (struct rtw89_h2c_cxrole_v7 *)skb->data;
+
+	h2c->hdr.type = type;
+	h2c->hdr.ver = btc->ver->fwlrole;
+	h2c->hdr.len = len - H2C_LEN_CXDRVHDR_V7;
+	memcpy(&h2c->_u8, role, sizeof(h2c->_u8));
+	h2c->_u32.role_map = cpu_to_le32(role->role_map);
+	h2c->_u32.mrole_type = cpu_to_le32(role->mrole_type);
+	h2c->_u32.mrole_noa_duration = cpu_to_le32(role->mrole_noa_duration);
+	h2c->_u32.dbcc_en = cpu_to_le32(role->dbcc_en);
+	h2c->_u32.dbcc_chg = cpu_to_le32(role->dbcc_chg);
+	h2c->_u32.dbcc_2g_phy = cpu_to_le32(role->dbcc_2g_phy);
+
+	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
+			      H2C_CAT_OUTSRC, BTFC_SET,
+			      SET_DRV_INFO, 0, 0,
+			      len);
+
+	ret = rtw89_h2c_tx(rtwdev, skb, false);
+	if (ret) {
+		rtw89_err(rtwdev, "failed to send h2c\n");
+		goto fail;
+	}
+
+	return 0;
+fail:
+	dev_kfree_skb_any(skb);
+
+	return ret;
+}
+
 int rtw89_fw_h2c_cxdrv_role_v8(struct rtw89_dev *rtwdev, u8 type)
 {
 	struct rtw89_btc *btc = &rtwdev->btc;
@@ -4343,6 +4389,7 @@ int rtw89_fw_h2c_cxdrv_role_v8(struct rtw89_dev *rtwdev, u8 type)
 	h2c = (struct rtw89_h2c_cxrole_v8 *)skb->data;
 
 	h2c->hdr.type = type;
+	h2c->hdr.ver = btc->ver->fwlrole;
 	h2c->hdr.len = len - H2C_LEN_CXDRVHDR_V7;
 	memcpy(&h2c->_u8, role, sizeof(h2c->_u8));
 	h2c->_u32.role_map = cpu_to_le32(role->role_map);
@@ -4423,7 +4470,7 @@ int rtw89_fw_h2c_cxdrv_ctrl_v7(struct rtw89_dev *rtwdev, u8 type)
 
 	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, len);
 	if (!skb) {
-		rtw89_err(rtwdev, "failed to alloc skb for h2c cxdrv_ctrl\n");
+		rtw89_err(rtwdev, "failed to alloc skb for h2c cxdrv_ctrl_v7\n");
 		return -ENOMEM;
 	}
 	skb_put(skb, len);
@@ -5267,10 +5314,8 @@ fail:
 }
 
 int rtw89_fw_h2c_rf_tssi(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy_idx,
-			 enum rtw89_tssi_mode tssi_mode)
+			 const struct rtw89_chan *chan, enum rtw89_tssi_mode tssi_mode)
 {
-	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev,
-						       RTW89_CHANCTX_0);
 	struct rtw89_hal *hal = &rtwdev->hal;
 	struct rtw89_h2c_rf_tssi *h2c;
 	u32 len = sizeof(*h2c);
@@ -5314,7 +5359,8 @@ fail:
 	return ret;
 }
 
-int rtw89_fw_h2c_rf_iqk(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy_idx)
+int rtw89_fw_h2c_rf_iqk(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy_idx,
+			const struct rtw89_chan *chan)
 {
 	struct rtw89_h2c_rf_iqk *h2c;
 	u32 len = sizeof(*h2c);
@@ -5349,10 +5395,9 @@ fail:
 	return ret;
 }
 
-int rtw89_fw_h2c_rf_dpk(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy_idx)
+int rtw89_fw_h2c_rf_dpk(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy_idx,
+			const struct rtw89_chan *chan)
 {
-	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev,
-						       RTW89_CHANCTX_0);
 	struct rtw89_h2c_rf_dpk *h2c;
 	u32 len = sizeof(*h2c);
 	struct sk_buff *skb;
@@ -5392,10 +5437,9 @@ fail:
 	return ret;
 }
 
-int rtw89_fw_h2c_rf_txgapk(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy_idx)
+int rtw89_fw_h2c_rf_txgapk(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy_idx,
+			   const struct rtw89_chan *chan)
 {
-	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev,
-						       RTW89_CHANCTX_0);
 	struct rtw89_hal *hal = &rtwdev->hal;
 	struct rtw89_h2c_rf_txgapk *h2c;
 	u32 len = sizeof(*h2c);
@@ -5436,7 +5480,8 @@ fail:
 	return ret;
 }
 
-int rtw89_fw_h2c_rf_dack(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy_idx)
+int rtw89_fw_h2c_rf_dack(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy_idx,
+			 const struct rtw89_chan *chan)
 {
 	struct rtw89_h2c_rf_dack *h2c;
 	u32 len = sizeof(*h2c);
@@ -5472,10 +5517,9 @@ fail:
 	return ret;
 }
 
-int rtw89_fw_h2c_rf_rxdck(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy_idx)
+int rtw89_fw_h2c_rf_rxdck(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy_idx,
+			  const struct rtw89_chan *chan)
 {
-	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev,
-						       RTW89_CHANCTX_0);
 	struct rtw89_h2c_rf_rxdck *h2c;
 	u32 len = sizeof(*h2c);
 	struct sk_buff *skb;
@@ -7132,10 +7176,10 @@ fail:
 int rtw89_fw_h2c_fwips(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
 		       bool enable)
 {
+	struct rtw89_wait_info *wait = &rtwdev->mac.ps_wait;
 	struct rtw89_h2c_fwips *h2c;
 	u32 len = sizeof(*h2c);
 	struct sk_buff *skb;
-	int ret;
 
 	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, len);
 	if (!skb) {
@@ -7154,25 +7198,15 @@ int rtw89_fw_h2c_fwips(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
 			      H2C_FUNC_IPS_CFG, 0, 1,
 			      len);
 
-	ret = rtw89_h2c_tx(rtwdev, skb, false);
-	if (ret) {
-		rtw89_err(rtwdev, "failed to send h2c\n");
-		goto fail;
-	}
-	return 0;
-fail:
-	dev_kfree_skb_any(skb);
-
-	return ret;
+	return rtw89_h2c_tx_and_wait(rtwdev, skb, wait, RTW89_PS_WAIT_COND_IPS_CFG);
 }
 
 int rtw89_fw_h2c_wow_request_aoac(struct rtw89_dev *rtwdev)
 {
-	struct rtw89_wait_info *wait = &rtwdev->mac.fw_ofld_wait;
+	struct rtw89_wait_info *wait = &rtwdev->wow.wait;
 	struct rtw89_h2c_wow_aoac *h2c;
 	u32 len = sizeof(*h2c);
 	struct sk_buff *skb;
-	unsigned int cond;
 
 	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, len);
 	if (!skb) {
@@ -7191,8 +7225,7 @@ int rtw89_fw_h2c_wow_request_aoac(struct rtw89_dev *rtwdev)
 			      H2C_FUNC_AOAC_REPORT_REQ, 1, 0,
 			      len);
 
-	cond = RTW89_WOW_WAIT_COND(H2C_FUNC_AOAC_REPORT_REQ);
-	return rtw89_h2c_tx_and_wait(rtwdev, skb, wait, cond);
+	return rtw89_h2c_tx_and_wait(rtwdev, skb, wait, RTW89_WOW_WAIT_COND_AOAC);
 }
 
 /* Return < 0, if failures happen during waiting for the condition.

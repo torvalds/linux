@@ -370,7 +370,7 @@ void rtw89_core_set_chip_txpwr(struct rtw89_dev *rtwdev)
 		return;
 	}
 
-	roc_idx = atomic_read(&hal->roc_entity_idx);
+	roc_idx = atomic_read(&hal->roc_chanctx_idx);
 	if (roc_idx != RTW89_CHANCTX_IDLE)
 		chanctx_idx = roc_idx;
 
@@ -409,7 +409,7 @@ int rtw89_set_channel(struct rtw89_dev *rtwdev)
 		return -EINVAL;
 	}
 
-	roc_idx = atomic_read(&hal->roc_entity_idx);
+	roc_idx = atomic_read(&hal->roc_chanctx_idx);
 	if (roc_idx != RTW89_CHANCTX_IDLE)
 		chanctx_idx = roc_idx;
 
@@ -429,7 +429,7 @@ int rtw89_set_channel(struct rtw89_dev *rtwdev)
 
 	if (!entity_active || chan_rcd->band_changed) {
 		rtw89_btc_ntfy_switch_band(rtwdev, phy_idx, chan->band_type);
-		rtw89_chip_rfk_band_changed(rtwdev, phy_idx);
+		rtw89_chip_rfk_band_changed(rtwdev, phy_idx, chan);
 	}
 
 	rtw89_set_entity_state(rtwdev, true);
@@ -1583,11 +1583,27 @@ static u16 rtw89_core_get_phy_status_ie_len(struct rtw89_dev *rtwdev,
 	return ie_len;
 }
 
+static void rtw89_core_parse_phy_status_ie01_v2(struct rtw89_dev *rtwdev,
+						const struct rtw89_phy_sts_iehdr *iehdr,
+						struct rtw89_rx_phy_ppdu *phy_ppdu)
+{
+	const struct rtw89_phy_sts_ie01_v2 *ie;
+	u8 *rpl_fd = phy_ppdu->rpl_fd;
+
+	ie = (const struct rtw89_phy_sts_ie01_v2 *)iehdr;
+	rpl_fd[RF_PATH_A] = le32_get_bits(ie->w8, RTW89_PHY_STS_IE01_V2_W8_RPL_FD_A);
+	rpl_fd[RF_PATH_B] = le32_get_bits(ie->w8, RTW89_PHY_STS_IE01_V2_W8_RPL_FD_B);
+	rpl_fd[RF_PATH_C] = le32_get_bits(ie->w9, RTW89_PHY_STS_IE01_V2_W9_RPL_FD_C);
+	rpl_fd[RF_PATH_D] = le32_get_bits(ie->w9, RTW89_PHY_STS_IE01_V2_W9_RPL_FD_D);
+
+	phy_ppdu->bw_idx = le32_get_bits(ie->w5, RTW89_PHY_STS_IE01_V2_W5_BW_IDX);
+}
+
 static void rtw89_core_parse_phy_status_ie01(struct rtw89_dev *rtwdev,
 					     const struct rtw89_phy_sts_iehdr *iehdr,
 					     struct rtw89_rx_phy_ppdu *phy_ppdu)
 {
-	const struct rtw89_phy_sts_ie0 *ie = (const struct rtw89_phy_sts_ie0 *)iehdr;
+	const struct rtw89_phy_sts_ie01 *ie = (const struct rtw89_phy_sts_ie01 *)iehdr;
 	s16 cfo;
 	u32 t;
 
@@ -1598,12 +1614,17 @@ static void rtw89_core_parse_phy_status_ie01(struct rtw89_dev *rtwdev,
 		phy_ppdu->stbc = le32_get_bits(ie->w2, RTW89_PHY_STS_IE01_W2_STBC);
 	}
 
+	if (!phy_ppdu->hdr_2_en)
+		phy_ppdu->rx_path_en =
+			le32_get_bits(ie->w0, RTW89_PHY_STS_IE01_W0_RX_PATH_EN);
+
 	if (phy_ppdu->rate < RTW89_HW_RATE_OFDM6)
 		return;
 
 	if (!phy_ppdu->to_self)
 		return;
 
+	phy_ppdu->rpl_avg = le32_get_bits(ie->w0, RTW89_PHY_STS_IE01_W0_RSSI_AVG_FD);
 	phy_ppdu->ofdm.avg_snr = le32_get_bits(ie->w2, RTW89_PHY_STS_IE01_W2_AVG_SNR);
 	phy_ppdu->ofdm.evm_max = le32_get_bits(ie->w2, RTW89_PHY_STS_IE01_W2_EVM_MAX);
 	phy_ppdu->ofdm.evm_min = le32_get_bits(ie->w2, RTW89_PHY_STS_IE01_W2_EVM_MIN);
@@ -1619,6 +1640,39 @@ static void rtw89_core_parse_phy_status_ie01(struct rtw89_dev *rtwdev,
 	}
 
 	rtw89_phy_cfo_parse(rtwdev, cfo, phy_ppdu);
+
+	if (rtwdev->chip->chip_gen == RTW89_CHIP_BE)
+		rtw89_core_parse_phy_status_ie01_v2(rtwdev, iehdr, phy_ppdu);
+}
+
+static void rtw89_core_parse_phy_status_ie00(struct rtw89_dev *rtwdev,
+					     const struct rtw89_phy_sts_iehdr *iehdr,
+					     struct rtw89_rx_phy_ppdu *phy_ppdu)
+{
+	const struct rtw89_phy_sts_ie00 *ie = (const struct rtw89_phy_sts_ie00 *)iehdr;
+	u16 tmp_rpl;
+
+	tmp_rpl = le32_get_bits(ie->w0, RTW89_PHY_STS_IE00_W0_RPL);
+	phy_ppdu->rpl_avg = tmp_rpl >> 1;
+}
+
+static void rtw89_core_parse_phy_status_ie00_v2(struct rtw89_dev *rtwdev,
+						const struct rtw89_phy_sts_iehdr *iehdr,
+						struct rtw89_rx_phy_ppdu *phy_ppdu)
+{
+	const struct rtw89_phy_sts_ie00_v2 *ie;
+	u8 *rpl_path = phy_ppdu->rpl_path;
+	u16 tmp_rpl[RF_PATH_MAX];
+	u8 i;
+
+	ie = (const struct rtw89_phy_sts_ie00_v2 *)iehdr;
+	tmp_rpl[RF_PATH_A] = le32_get_bits(ie->w4, RTW89_PHY_STS_IE00_V2_W4_RPL_TD_A);
+	tmp_rpl[RF_PATH_B] = le32_get_bits(ie->w4, RTW89_PHY_STS_IE00_V2_W4_RPL_TD_B);
+	tmp_rpl[RF_PATH_C] = le32_get_bits(ie->w4, RTW89_PHY_STS_IE00_V2_W4_RPL_TD_C);
+	tmp_rpl[RF_PATH_D] = le32_get_bits(ie->w5, RTW89_PHY_STS_IE00_V2_W5_RPL_TD_D);
+
+	for (i = 0; i < RF_PATH_MAX; i++)
+		rpl_path[i] = tmp_rpl[i] >> 1;
 }
 
 static int rtw89_core_process_phy_status_ie(struct rtw89_dev *rtwdev,
@@ -1630,6 +1684,11 @@ static int rtw89_core_process_phy_status_ie(struct rtw89_dev *rtwdev,
 	ie = le32_get_bits(iehdr->w0, RTW89_PHY_STS_IEHDR_TYPE);
 
 	switch (ie) {
+	case RTW89_PHYSTS_IE00_CMN_CCK:
+		rtw89_core_parse_phy_status_ie00(rtwdev, iehdr, phy_ppdu);
+		if (rtwdev->chip->chip_gen == RTW89_CHIP_BE)
+			rtw89_core_parse_phy_status_ie00_v2(rtwdev, iehdr, phy_ppdu);
+		break;
 	case RTW89_PHYSTS_IE01_CMN_OFDM:
 		rtw89_core_parse_phy_status_ie01(rtwdev, iehdr, phy_ppdu);
 		break;
@@ -1638,6 +1697,13 @@ static int rtw89_core_process_phy_status_ie(struct rtw89_dev *rtwdev,
 	}
 
 	return 0;
+}
+
+static void rtw89_core_update_phy_ppdu_hdr_v2(struct rtw89_rx_phy_ppdu *phy_ppdu)
+{
+	const struct rtw89_phy_sts_hdr_v2 *hdr = phy_ppdu->buf + PHY_STS_HDR_LEN;
+
+	phy_ppdu->rx_path_en = le32_get_bits(hdr->w0, RTW89_PHY_STS_HDR_V2_W0_PATH_EN);
 }
 
 static void rtw89_core_update_phy_ppdu(struct rtw89_rx_phy_ppdu *phy_ppdu)
@@ -1651,6 +1717,10 @@ static void rtw89_core_update_phy_ppdu(struct rtw89_rx_phy_ppdu *phy_ppdu)
 	rssi[RF_PATH_B] = le32_get_bits(hdr->w1, RTW89_PHY_STS_HDR_W1_RSSI_B);
 	rssi[RF_PATH_C] = le32_get_bits(hdr->w1, RTW89_PHY_STS_HDR_W1_RSSI_C);
 	rssi[RF_PATH_D] = le32_get_bits(hdr->w1, RTW89_PHY_STS_HDR_W1_RSSI_D);
+
+	phy_ppdu->hdr_2_en = le32_get_bits(hdr->w0, RTW89_PHY_STS_HDR_W0_HDR_2_EN);
+	if (phy_ppdu->hdr_2_en)
+		rtw89_core_update_phy_ppdu_hdr_v2(phy_ppdu);
 }
 
 static int rtw89_core_rx_process_phy_ppdu(struct rtw89_dev *rtwdev,
@@ -1703,6 +1773,7 @@ static int rtw89_core_rx_parse_phy_sts(struct rtw89_dev *rtwdev,
 		}
 	}
 
+	rtw89_chip_convert_rpl_to_rssi(rtwdev, phy_ppdu);
 	rtw89_phy_antdiv_parse(rtwdev, phy_ppdu);
 
 	return 0;
@@ -4263,8 +4334,13 @@ void rtw89_core_stop(struct rtw89_dev *rtwdev)
 u8 rtw89_acquire_mac_id(struct rtw89_dev *rtwdev)
 {
 	const struct rtw89_chip_info *chip = rtwdev->chip;
-	u8 mac_id_num = chip->support_macid_num;
+	u8 mac_id_num;
 	u8 mac_id;
+
+	if (rtwdev->support_mlo)
+		mac_id_num = chip->support_macid_num / chip->support_link_num;
+	else
+		mac_id_num = chip->support_macid_num;
 
 	mac_id = find_first_zero_bit(rtwdev->mac_id_map, mac_id_num);
 	if (mac_id == mac_id_num)
@@ -4315,6 +4391,8 @@ int rtw89_core_init(struct rtw89_dev *rtwdev)
 
 	rtw89_init_wait(&rtwdev->mcc.wait);
 	rtw89_init_wait(&rtwdev->mac.fw_ofld_wait);
+	rtw89_init_wait(&rtwdev->wow.wait);
+	rtw89_init_wait(&rtwdev->mac.ps_wait);
 
 	INIT_WORK(&rtwdev->c2h_work, rtw89_fw_c2h_work);
 	INIT_WORK(&rtwdev->ips_work, rtw89_ips_work);
@@ -4681,6 +4759,9 @@ static int rtw89_core_register_hw(struct rtw89_dev *rtwdev)
 	if (chip->chip_gen == RTW89_CHIP_BE)
 		hw->wiphy->flags |= WIPHY_FLAG_DISABLE_WEXT;
 
+	if (rtwdev->support_mlo)
+		hw->wiphy->flags |= WIPHY_FLAG_SUPPORTS_MLO;
+
 	hw->wiphy->features |= NL80211_FEATURE_SCAN_RANDOM_MAC_ADDR;
 
 	hw->wiphy->max_scan_ssids = RTW89_SCANOFLD_MAX_SSID;
@@ -4767,6 +4848,8 @@ EXPORT_SYMBOL(rtw89_core_register);
 void rtw89_core_unregister(struct rtw89_dev *rtwdev)
 {
 	rtw89_core_unregister_hw(rtwdev);
+
+	rtw89_debugfs_deinit(rtwdev);
 }
 EXPORT_SYMBOL(rtw89_core_unregister);
 
@@ -4781,6 +4864,7 @@ struct rtw89_dev *rtw89_alloc_ieee80211_hw(struct device *device,
 	struct ieee80211_ops *ops;
 	u32 driver_data_size;
 	int fw_format = -1;
+	bool support_mlo;
 	bool no_chanctx;
 
 	firmware = rtw89_early_fw_feature_recognize(device, chip, &early_fw, &fw_format);
@@ -4809,6 +4893,14 @@ struct rtw89_dev *rtw89_alloc_ieee80211_hw(struct device *device,
 	if (!hw)
 		goto err;
 
+	/* TODO: When driver MLO arch. is done, determine whether to support MLO
+	 * according to the following conditions.
+	 * 1. run with chanctx_ops
+	 * 2. chip->support_link_num != 0
+	 * 3. FW feature supports AP_LINK_PS
+	 */
+	support_mlo = false;
+
 	hw->wiphy->iface_combinations = rtw89_iface_combs;
 
 	if (no_chanctx || chip->support_chanctx_num == 1)
@@ -4823,9 +4915,12 @@ struct rtw89_dev *rtw89_alloc_ieee80211_hw(struct device *device,
 	rtwdev->chip = chip;
 	rtwdev->fw.req.firmware = firmware;
 	rtwdev->fw.fw_format = fw_format;
+	rtwdev->support_mlo = support_mlo;
 
-	rtw89_debug(rtwdev, RTW89_DBG_FW, "probe driver %s chanctx\n",
+	rtw89_debug(rtwdev, RTW89_DBG_CHAN, "probe driver %s chanctx\n",
 		    no_chanctx ? "without" : "with");
+	rtw89_debug(rtwdev, RTW89_DBG_CHAN, "probe driver %s MLO cap\n",
+		    support_mlo ? "with" : "without");
 
 	return rtwdev;
 
