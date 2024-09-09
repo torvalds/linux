@@ -332,46 +332,46 @@ static void internal_fill_odp_caps(struct mlx5_ib_dev *dev)
 	else
 		dev->odp_max_size = BIT_ULL(MLX5_MAX_UMR_SHIFT + PAGE_SHIFT);
 
-	if (MLX5_CAP_ODP(dev->mdev, ud_odp_caps.send))
+	if (MLX5_CAP_ODP_SCHEME(dev->mdev, ud_odp_caps.send))
 		caps->per_transport_caps.ud_odp_caps |= IB_ODP_SUPPORT_SEND;
 
-	if (MLX5_CAP_ODP(dev->mdev, ud_odp_caps.srq_receive))
+	if (MLX5_CAP_ODP_SCHEME(dev->mdev, ud_odp_caps.srq_receive))
 		caps->per_transport_caps.ud_odp_caps |= IB_ODP_SUPPORT_SRQ_RECV;
 
-	if (MLX5_CAP_ODP(dev->mdev, rc_odp_caps.send))
+	if (MLX5_CAP_ODP_SCHEME(dev->mdev, rc_odp_caps.send))
 		caps->per_transport_caps.rc_odp_caps |= IB_ODP_SUPPORT_SEND;
 
-	if (MLX5_CAP_ODP(dev->mdev, rc_odp_caps.receive))
+	if (MLX5_CAP_ODP_SCHEME(dev->mdev, rc_odp_caps.receive))
 		caps->per_transport_caps.rc_odp_caps |= IB_ODP_SUPPORT_RECV;
 
-	if (MLX5_CAP_ODP(dev->mdev, rc_odp_caps.write))
+	if (MLX5_CAP_ODP_SCHEME(dev->mdev, rc_odp_caps.write))
 		caps->per_transport_caps.rc_odp_caps |= IB_ODP_SUPPORT_WRITE;
 
-	if (MLX5_CAP_ODP(dev->mdev, rc_odp_caps.read))
+	if (MLX5_CAP_ODP_SCHEME(dev->mdev, rc_odp_caps.read))
 		caps->per_transport_caps.rc_odp_caps |= IB_ODP_SUPPORT_READ;
 
-	if (MLX5_CAP_ODP(dev->mdev, rc_odp_caps.atomic))
+	if (MLX5_CAP_ODP_SCHEME(dev->mdev, rc_odp_caps.atomic))
 		caps->per_transport_caps.rc_odp_caps |= IB_ODP_SUPPORT_ATOMIC;
 
-	if (MLX5_CAP_ODP(dev->mdev, rc_odp_caps.srq_receive))
+	if (MLX5_CAP_ODP_SCHEME(dev->mdev, rc_odp_caps.srq_receive))
 		caps->per_transport_caps.rc_odp_caps |= IB_ODP_SUPPORT_SRQ_RECV;
 
-	if (MLX5_CAP_ODP(dev->mdev, xrc_odp_caps.send))
+	if (MLX5_CAP_ODP_SCHEME(dev->mdev, xrc_odp_caps.send))
 		caps->per_transport_caps.xrc_odp_caps |= IB_ODP_SUPPORT_SEND;
 
-	if (MLX5_CAP_ODP(dev->mdev, xrc_odp_caps.receive))
+	if (MLX5_CAP_ODP_SCHEME(dev->mdev, xrc_odp_caps.receive))
 		caps->per_transport_caps.xrc_odp_caps |= IB_ODP_SUPPORT_RECV;
 
-	if (MLX5_CAP_ODP(dev->mdev, xrc_odp_caps.write))
+	if (MLX5_CAP_ODP_SCHEME(dev->mdev, xrc_odp_caps.write))
 		caps->per_transport_caps.xrc_odp_caps |= IB_ODP_SUPPORT_WRITE;
 
-	if (MLX5_CAP_ODP(dev->mdev, xrc_odp_caps.read))
+	if (MLX5_CAP_ODP_SCHEME(dev->mdev, xrc_odp_caps.read))
 		caps->per_transport_caps.xrc_odp_caps |= IB_ODP_SUPPORT_READ;
 
-	if (MLX5_CAP_ODP(dev->mdev, xrc_odp_caps.atomic))
+	if (MLX5_CAP_ODP_SCHEME(dev->mdev, xrc_odp_caps.atomic))
 		caps->per_transport_caps.xrc_odp_caps |= IB_ODP_SUPPORT_ATOMIC;
 
-	if (MLX5_CAP_ODP(dev->mdev, xrc_odp_caps.srq_receive))
+	if (MLX5_CAP_ODP_SCHEME(dev->mdev, xrc_odp_caps.srq_receive))
 		caps->per_transport_caps.xrc_odp_caps |= IB_ODP_SUPPORT_SRQ_RECV;
 
 	if (MLX5_CAP_GEN(dev->mdev, fixed_buffer_size) &&
@@ -388,13 +388,17 @@ static void mlx5_ib_page_fault_resume(struct mlx5_ib_dev *dev,
 	int wq_num = pfault->event_subtype == MLX5_PFAULT_SUBTYPE_WQE ?
 		     pfault->wqe.wq_num : pfault->token;
 	u32 in[MLX5_ST_SZ_DW(page_fault_resume_in)] = {};
+	void *info;
 	int err;
 
 	MLX5_SET(page_fault_resume_in, in, opcode, MLX5_CMD_OP_PAGE_FAULT_RESUME);
-	MLX5_SET(page_fault_resume_in, in, page_fault_type, pfault->type);
-	MLX5_SET(page_fault_resume_in, in, token, pfault->token);
-	MLX5_SET(page_fault_resume_in, in, wq_number, wq_num);
-	MLX5_SET(page_fault_resume_in, in, error, !!error);
+
+	info = MLX5_ADDR_OF(page_fault_resume_in, in,
+			    page_fault_info.trans_page_fault_info);
+	MLX5_SET(trans_page_fault_info, info, page_fault_type, pfault->type);
+	MLX5_SET(trans_page_fault_info, info, fault_token, pfault->token);
+	MLX5_SET(trans_page_fault_info, info, wq_number, wq_num);
+	MLX5_SET(trans_page_fault_info, info, error, !!error);
 
 	err = mlx5_cmd_exec_in(dev->mdev, page_fault_resume, in);
 	if (err)

@@ -1369,6 +1369,10 @@ enum mlx5_qcam_feature_groups {
 #define MLX5_CAP_ODP(mdev, cap)\
 	MLX5_GET(odp_cap, mdev->caps.hca[MLX5_CAP_ODP]->cur, cap)
 
+#define MLX5_CAP_ODP_SCHEME(mdev, cap)                       \
+	MLX5_GET(odp_cap, mdev->caps.hca[MLX5_CAP_ODP]->cur, \
+		 transport_page_fault_scheme_cap.cap)
+
 #define MLX5_CAP_ODP_MAX(mdev, cap)\
 	MLX5_GET(odp_cap, mdev->caps.hca[MLX5_CAP_ODP]->max, cap)
 
