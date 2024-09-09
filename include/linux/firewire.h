@@ -512,6 +512,7 @@ union fw_iso_callback {
 struct fw_iso_context {
 	struct fw_card *card;
 	struct work_struct work;
+	struct mutex flushing_completions_mutex;
 	int type;
 	int channel;
 	int speed;
