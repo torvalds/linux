@@ -601,10 +601,14 @@ bool xe_pm_runtime_get_if_in_use(struct xe_device *xe)
  */
 static bool xe_pm_suspending_or_resuming(struct xe_device *xe)
 {
+#ifdef CONFIG_PM
 	struct device *dev = xe->drm.dev;
 
 	return dev->power.runtime_status == RPM_SUSPENDING ||
 		dev->power.runtime_status == RPM_RESUMING;
+#else
+	return false;
+#endif
 }
 
 /**
