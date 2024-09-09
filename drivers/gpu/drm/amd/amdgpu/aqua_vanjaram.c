@@ -447,6 +447,61 @@ static int __aqua_vanjaram_get_xcp_ip_info(struct amdgpu_xcp_mgr *xcp_mgr, int x
 	return 0;
 }
 
+static int aqua_vanjaram_get_xcp_res_info(struct amdgpu_xcp_mgr *xcp_mgr,
+					  int mode,
+					  struct amdgpu_xcp_cfg *xcp_cfg)
+{
+	struct amdgpu_device *adev = xcp_mgr->adev;
+	int max_res[AMDGPU_XCP_RES_MAX] = {};
+	bool res_lt_xcp;
+	int num_xcp, i;
+
+	if (!(xcp_mgr->supp_xcp_modes & BIT(mode)))
+		return -EINVAL;
+
+	max_res[AMDGPU_XCP_RES_XCC] = NUM_XCC(adev->gfx.xcc_mask);
+	max_res[AMDGPU_XCP_RES_DMA] = adev->sdma.num_instances;
+	max_res[AMDGPU_XCP_RES_DEC] = adev->vcn.num_vcn_inst;
+	max_res[AMDGPU_XCP_RES_JPEG] = adev->jpeg.num_jpeg_inst;
+
+	switch (mode) {
+	case AMDGPU_SPX_PARTITION_MODE:
+		num_xcp = 1;
+		break;
+	case AMDGPU_DPX_PARTITION_MODE:
+		num_xcp = 2;
+		break;
+	case AMDGPU_TPX_PARTITION_MODE:
+		num_xcp = 3;
+		break;
+	case AMDGPU_QPX_PARTITION_MODE:
+		num_xcp = 4;
+		break;
+	case AMDGPU_CPX_PARTITION_MODE:
+		num_xcp = NUM_XCC(adev->gfx.xcc_mask);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	xcp_cfg->num_res = ARRAY_SIZE(max_res);
+
+	for (i = 0; i < xcp_cfg->num_res; i++) {
+		res_lt_xcp = max_res[i] < num_xcp;
+		xcp_cfg->xcp_res[i].id = i;
+		xcp_cfg->xcp_res[i].num_inst =
+			res_lt_xcp ? 1 : max_res[i] / num_xcp;
+		xcp_cfg->xcp_res[i].num_inst =
+			i == AMDGPU_XCP_RES_JPEG ?
+			xcp_cfg->xcp_res[i].num_inst *
+			adev->jpeg.num_jpeg_rings : xcp_cfg->xcp_res[i].num_inst;
+		xcp_cfg->xcp_res[i].num_shared =
+			res_lt_xcp ? num_xcp / max_res[i] : 1;
+	}
+
+	return 0;
+}
+
 static enum amdgpu_gfx_partition
 __aqua_vanjaram_get_auto_mode(struct amdgpu_xcp_mgr *xcp_mgr)
 {
@@ -709,9 +764,11 @@ struct amdgpu_xcp_mgr_funcs aqua_vanjaram_xcp_funcs = {
 	.switch_partition_mode = &aqua_vanjaram_switch_partition_mode,
 	.query_partition_mode = &aqua_vanjaram_query_partition_mode,
 	.get_ip_details = &aqua_vanjaram_get_xcp_ip_details,
+	.get_xcp_res_info = &aqua_vanjaram_get_xcp_res_info,
 	.get_xcp_mem_id = &aqua_vanjaram_get_xcp_mem_id,
 	.select_scheds = &aqua_vanjaram_select_scheds,
-	.update_partition_sched_list = &aqua_vanjaram_update_partition_sched_list
+	.update_partition_sched_list =
+		&aqua_vanjaram_update_partition_sched_list
 };
 
 static int aqua_vanjaram_xcp_mgr_init(struct amdgpu_device *adev)
