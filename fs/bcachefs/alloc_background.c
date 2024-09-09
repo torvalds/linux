@@ -1968,8 +1968,8 @@ static void bch2_do_discards_fast_work(struct work_struct *work)
 			break;
 	}
 
-	bch2_write_ref_put(c, BCH_WRITE_REF_discard_fast);
 	percpu_ref_put(&ca->io_ref);
+	bch2_write_ref_put(c, BCH_WRITE_REF_discard_fast);
 }
 
 static void bch2_discard_one_bucket_fast(struct bch_dev *ca, u64 bucket)
@@ -1979,18 +1979,18 @@ static void bch2_discard_one_bucket_fast(struct bch_dev *ca, u64 bucket)
 	if (discard_in_flight_add(ca, bucket, false))
 		return;
 
-	if (!bch2_dev_get_ioref(c, ca->dev_idx, WRITE))
+	if (!bch2_write_ref_tryget(c, BCH_WRITE_REF_discard_fast))
 		return;
 
-	if (!bch2_write_ref_tryget(c, BCH_WRITE_REF_discard_fast))
-		goto put_ioref;
+	if (!bch2_dev_get_ioref(c, ca->dev_idx, WRITE))
+		goto put_ref;
 
 	if (queue_work(c->write_ref_wq, &ca->discard_fast_work))
 		return;
 
-	bch2_write_ref_put(c, BCH_WRITE_REF_discard_fast);
-put_ioref:
 	percpu_ref_put(&ca->io_ref);
+put_ref:
+	bch2_write_ref_put(c, BCH_WRITE_REF_discard_fast);
 }
 
 static int invalidate_one_bucket(struct btree_trans *trans,
@@ -2132,26 +2132,26 @@ static void bch2_do_invalidates_work(struct work_struct *work)
 	bch2_trans_iter_exit(trans, &iter);
 err:
 	bch2_trans_put(trans);
-	bch2_write_ref_put(c, BCH_WRITE_REF_invalidate);
 	percpu_ref_put(&ca->io_ref);
+	bch2_write_ref_put(c, BCH_WRITE_REF_invalidate);
 }
 
 void bch2_dev_do_invalidates(struct bch_dev *ca)
 {
 	struct bch_fs *c = ca->fs;
 
-	if (!bch2_dev_get_ioref(c, ca->dev_idx, WRITE))
+	if (!bch2_write_ref_tryget(c, BCH_WRITE_REF_invalidate))
 		return;
 
-	if (!bch2_write_ref_tryget(c, BCH_WRITE_REF_invalidate))
-		goto put_ioref;
+	if (!bch2_dev_get_ioref(c, ca->dev_idx, WRITE))
+		goto put_ref;
 
 	if (queue_work(c->write_ref_wq, &ca->invalidate_work))
 		return;
 
-	bch2_write_ref_put(c, BCH_WRITE_REF_invalidate);
-put_ioref:
 	percpu_ref_put(&ca->io_ref);
+put_ref:
+	bch2_write_ref_put(c, BCH_WRITE_REF_invalidate);
 }
 
 void bch2_do_invalidates(struct bch_fs *c)

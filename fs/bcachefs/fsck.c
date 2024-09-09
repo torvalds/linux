@@ -8,6 +8,7 @@
 #include "darray.h"
 #include "dirent.h"
 #include "error.h"
+#include "fs.h"
 #include "fs-common.h"
 #include "fsck.h"
 #include "inode.h"
@@ -962,6 +963,22 @@ fsck_err:
 	return ret;
 }
 
+static bool bch2_inode_open(struct bch_fs *c, struct bpos p)
+{
+	subvol_inum inum = {
+		.subvol = snapshot_t(c, p.snapshot)->subvol,
+		.inum	= p.offset,
+	};
+
+	/* snapshot tree corruption, can't safely delete */
+	if (!inum.subvol) {
+		bch_err_ratelimited(c, "%s(): snapshot %u has no subvol", __func__, p.snapshot);
+		return true;
+	}
+
+	return __bch2_inode_hash_find(c, inum) != NULL;
+}
+
 static int check_inode(struct btree_trans *trans,
 		       struct btree_iter *iter,
 		       struct bkey_s_c k,
@@ -1040,6 +1057,7 @@ static int check_inode(struct btree_trans *trans,
 	}
 
 	if (u.bi_flags & BCH_INODE_unlinked &&
+	    !bch2_inode_open(c, k.k->p) &&
 	    (!c->sb.clean ||
 	     fsck_err(trans, inode_unlinked_but_clean,
 		      "filesystem marked clean, but inode %llu unlinked",
