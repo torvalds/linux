@@ -131,6 +131,13 @@ size_t fw_iso_buffer_lookup(struct fw_iso_buffer *buffer, dma_addr_t completed)
 	return 0;
 }
 
+static void flush_completions_work(struct work_struct *work)
+{
+	struct fw_iso_context *ctx = container_of(work, struct fw_iso_context, work);
+
+	fw_iso_context_flush_completions(ctx);
+}
+
 struct fw_iso_context *fw_iso_context_create(struct fw_card *card,
 		int type, int channel, int speed, size_t header_size,
 		fw_iso_callback_t callback, void *callback_data)
@@ -149,6 +156,7 @@ struct fw_iso_context *fw_iso_context_create(struct fw_card *card,
 	ctx->header_size = header_size;
 	ctx->callback.sc = callback;
 	ctx->callback_data = callback_data;
+	INIT_WORK(&ctx->work, flush_completions_work);
 
 	trace_isoc_outbound_allocate(ctx, channel, speed);
 	trace_isoc_inbound_single_allocate(ctx, channel, header_size);
@@ -218,29 +226,15 @@ EXPORT_SYMBOL(fw_iso_context_queue_flush);
  * to process the context asynchronously, fw_iso_context_schedule_flush_completions() is available
  * instead.
  *
- * Context: Process context. May sleep due to disable_work_sync().
+ * Context: Process context.
  */
 int fw_iso_context_flush_completions(struct fw_iso_context *ctx)
 {
-	int err;
-
 	trace_isoc_outbound_flush_completions(ctx);
 	trace_isoc_inbound_single_flush_completions(ctx);
 	trace_isoc_inbound_multiple_flush_completions(ctx);
 
-	might_sleep();
-
-	// Avoid dead lock due to programming mistake.
-	if (WARN_ON_ONCE(current_work() == &ctx->work))
-		return 0;
-
-	disable_work_sync(&ctx->work);
-
-	err = ctx->card->driver->flush_iso_completions(ctx);
-
-	enable_work(&ctx->work);
-
-	return err;
+	return ctx->card->driver->flush_iso_completions(ctx);
 }
 EXPORT_SYMBOL(fw_iso_context_flush_completions);
 
