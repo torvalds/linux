@@ -1988,7 +1988,9 @@ struct mlx5_ifc_cmd_hca_cap_2_bits {
 	u8         migratable[0x1];
 	u8         reserved_at_81[0x11];
 	u8         query_vuid[0x1];
-	u8         reserved_at_93[0xd];
+	u8         reserved_at_93[0x5];
+	u8         umr_log_entity_size_5[0x1];
+	u8         reserved_at_99[0x7];
 
 	u8	   max_reformat_insert_size[0x8];
 	u8	   max_reformat_insert_offset[0x8];
@@ -4212,8 +4214,7 @@ struct mlx5_ifc_mkc_bits {
 
 	u8         reserved_at_1c0[0x19];
 	u8         relaxed_ordering_read[0x1];
-	u8         reserved_at_1d9[0x1];
-	u8         log_page_size[0x5];
+	u8         log_page_size[0x6];
 
 	u8         reserved_at_1e0[0x20];
 };

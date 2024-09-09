@@ -63,17 +63,6 @@ __mlx5_log_page_size_to_bitmap(unsigned int log_pgsz_bits,
 	return GENMASK(largest_pg_shift, pgsz_shift);
 }
 
-/*
- * For mkc users, instead of a page_offset the command has a start_iova which
- * specifies both the page_offset and the on-the-wire IOVA
- */
-#define mlx5_umem_find_best_pgsz(umem, typ, log_pgsz_fld, pgsz_shift, iova)    \
-	ib_umem_find_best_pgsz(umem,                                           \
-			       __mlx5_log_page_size_to_bitmap(                 \
-				       __mlx5_bit_sz(typ, log_pgsz_fld),       \
-				       pgsz_shift),                            \
-			       iova)
-
 static __always_inline unsigned long
 __mlx5_page_offset_to_bitmask(unsigned int page_offset_bits,
 			      unsigned int offset_shift)
@@ -1722,6 +1711,22 @@ int set_roce_addr(struct mlx5_ib_dev *dev, u32 port_num,
 static inline u32 smi_to_native_portnum(struct mlx5_ib_dev *dev, u32 port)
 {
 	return (port - 1) / dev->num_ports + 1;
+}
+
+/*
+ * For mkc users, instead of a page_offset the command has a start_iova which
+ * specifies both the page_offset and the on-the-wire IOVA
+ */
+static __always_inline unsigned long
+mlx5_umem_mkc_find_best_pgsz(struct mlx5_ib_dev *dev, struct ib_umem *umem,
+			     u64 iova)
+{
+	int page_size_bits =
+		MLX5_CAP_GEN_2(dev->mdev, umr_log_entity_size_5) ? 6 : 5;
+	unsigned long bitmap =
+		__mlx5_log_page_size_to_bitmap(page_size_bits, 0);
+
+	return ib_umem_find_best_pgsz(umem, bitmap, iova);
 }
 
 #endif /* MLX5_IB_H */
