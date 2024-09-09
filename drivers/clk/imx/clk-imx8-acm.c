@@ -488,7 +488,7 @@ static struct platform_driver imx8_acm_clk_driver = {
 		.pm = &imx8_acm_pm_ops,
 	},
 	.probe = imx8_acm_clk_probe,
-	.remove_new = imx8_acm_clk_remove,
+	.remove = imx8_acm_clk_remove,
 };
 module_platform_driver(imx8_acm_clk_driver);
 

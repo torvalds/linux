@@ -3761,7 +3761,7 @@ static void gcc_msm8960_remove(struct platform_device *pdev)
 
 static struct platform_driver gcc_msm8960_driver = {
 	.probe		= gcc_msm8960_probe,
-	.remove_new	= gcc_msm8960_remove,
+	.remove		= gcc_msm8960_remove,
 	.driver		= {
 		.name	= "gcc-msm8960",
 		.of_match_table = gcc_msm8960_match_table,

@@ -817,7 +817,7 @@ static void hi3559av100_crg_remove(struct platform_device *pdev)
 
 static struct platform_driver hi3559av100_crg_driver = {
 	.probe		= hi3559av100_crg_probe,
-	.remove_new	= hi3559av100_crg_remove,
+	.remove		= hi3559av100_crg_remove,
 	.driver		= {
 		.name	= "hi3559av100-clock",
 		.of_match_table = hi3559av100_crg_match_table,
