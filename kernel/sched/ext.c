@@ -1191,7 +1191,7 @@ static struct task_struct *nldsq_next_task(struct scx_dispatch_q *dsq,
 
 		dsq_lnode = container_of(list_node, struct scx_dsq_list_node,
 					 node);
-	} while (dsq_lnode->is_bpf_iter_cursor);
+	} while (dsq_lnode->flags & SCX_DSQ_LNODE_ITER_CURSOR);
 
 	return container_of(dsq_lnode, struct task_struct, scx.dsq_list);
 }
@@ -1209,16 +1209,15 @@ static struct task_struct *nldsq_next_task(struct scx_dispatch_q *dsq,
  */
 enum scx_dsq_iter_flags {
 	/* iterate in the reverse dispatch order */
-	SCX_DSQ_ITER_REV		= 1U << 0,
+	SCX_DSQ_ITER_REV		= 1U << 16,
 
-	__SCX_DSQ_ITER_ALL_FLAGS	= SCX_DSQ_ITER_REV,
+	__SCX_DSQ_ITER_USER_FLAGS	= SCX_DSQ_ITER_REV,
+	__SCX_DSQ_ITER_ALL_FLAGS	= __SCX_DSQ_ITER_USER_FLAGS,
 };
 
 struct bpf_iter_scx_dsq_kern {
 	struct scx_dsq_list_node	cursor;
 	struct scx_dispatch_q		*dsq;
-	u32				dsq_seq;
-	u32				flags;
 } __attribute__((aligned(8)));
 
 struct bpf_iter_scx_dsq {
@@ -1255,6 +1254,9 @@ struct scx_task_iter {
 static void scx_task_iter_init(struct scx_task_iter *iter)
 {
 	lockdep_assert_held(&scx_tasks_lock);
+
+	BUILD_BUG_ON(__SCX_DSQ_ITER_ALL_FLAGS &
+		     ((1U << __SCX_DSQ_LNODE_PRIV_SHIFT) - 1));
 
 	iter->cursor = (struct sched_ext_entity){ .flags = SCX_TASK_CURSOR };
 	list_add(&iter->cursor.tasks_node, &scx_tasks);
@@ -6285,7 +6287,7 @@ __bpf_kfunc int bpf_iter_scx_dsq_new(struct bpf_iter_scx_dsq *it, u64 dsq_id,
 	BUILD_BUG_ON(__alignof__(struct bpf_iter_scx_dsq_kern) !=
 		     __alignof__(struct bpf_iter_scx_dsq));
 
-	if (flags & ~__SCX_DSQ_ITER_ALL_FLAGS)
+	if (flags & ~__SCX_DSQ_ITER_USER_FLAGS)
 		return -EINVAL;
 
 	kit->dsq = find_non_local_dsq(dsq_id);
@@ -6293,9 +6295,8 @@ __bpf_kfunc int bpf_iter_scx_dsq_new(struct bpf_iter_scx_dsq *it, u64 dsq_id,
 		return -ENOENT;
 
 	INIT_LIST_HEAD(&kit->cursor.node);
-	kit->cursor.is_bpf_iter_cursor = true;
-	kit->dsq_seq = READ_ONCE(kit->dsq->seq);
-	kit->flags = flags;
+	kit->cursor.flags |= SCX_DSQ_LNODE_ITER_CURSOR | flags;
+	kit->cursor.priv = READ_ONCE(kit->dsq->seq);
 
 	return 0;
 }
@@ -6309,7 +6310,7 @@ __bpf_kfunc int bpf_iter_scx_dsq_new(struct bpf_iter_scx_dsq *it, u64 dsq_id,
 __bpf_kfunc struct task_struct *bpf_iter_scx_dsq_next(struct bpf_iter_scx_dsq *it)
 {
 	struct bpf_iter_scx_dsq_kern *kit = (void *)it;
-	bool rev = kit->flags & SCX_DSQ_ITER_REV;
+	bool rev = kit->cursor.flags & SCX_DSQ_ITER_REV;
 	struct task_struct *p;
 	unsigned long flags;
 
@@ -6330,7 +6331,7 @@ __bpf_kfunc struct task_struct *bpf_iter_scx_dsq_next(struct bpf_iter_scx_dsq *i
 	 */
 	do {
 		p = nldsq_next_task(kit->dsq, p, rev);
-	} while (p && unlikely(u32_before(kit->dsq_seq, p->scx.dsq_seq)));
+	} while (p && unlikely(u32_before(kit->cursor.priv, p->scx.dsq_seq)));
 
 	if (p) {
 		if (rev)

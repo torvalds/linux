@@ -119,9 +119,17 @@ enum scx_kf_mask {
 	__SCX_KF_TERMINAL	= SCX_KF_ENQUEUE | SCX_KF_SELECT_CPU | SCX_KF_REST,
 };
 
+enum scx_dsq_lnode_flags {
+	SCX_DSQ_LNODE_ITER_CURSOR = 1 << 0,
+
+	/* high 16 bits can be for iter cursor flags */
+	__SCX_DSQ_LNODE_PRIV_SHIFT = 16,
+};
+
 struct scx_dsq_list_node {
 	struct list_head	node;
-	bool			is_bpf_iter_cursor;
+	u32			flags;
+	u32			priv;		/* can be used by iter cursor */
 };
 
 /*
