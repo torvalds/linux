@@ -17,11 +17,11 @@
 #include "loongson_i2s.h"
 
 /* DMA dma_order Register */
-#define DMA_ORDER_STOP          (1 << 4) /* DMA stop */
-#define DMA_ORDER_START         (1 << 3) /* DMA start */
-#define DMA_ORDER_ASK_VALID     (1 << 2) /* DMA ask valid flag */
-#define DMA_ORDER_AXI_UNCO      (1 << 1) /* Uncache access */
-#define DMA_ORDER_ADDR_64       (1 << 0) /* 64bits address support */
+#define DMA_ORDER_STOP          BIT(4) /* DMA stop */
+#define DMA_ORDER_START         BIT(3) /* DMA start */
+#define DMA_ORDER_ASK_VALID     BIT(2) /* DMA ask valid flag */
+#define DMA_ORDER_AXI_UNCO      BIT(1) /* Uncache access */
+#define DMA_ORDER_ADDR_64       BIT(0) /* 64bits address support */
 
 #define DMA_ORDER_ASK_MASK      (~0x1fUL) /* Ask addr mask */
 #define DMA_ORDER_CTRL_MASK     (0x0fUL)  /* Control mask  */
