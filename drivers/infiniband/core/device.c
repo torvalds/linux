@@ -2236,6 +2236,9 @@ struct net_device *ib_device_get_netdev(struct ib_device *ib_dev,
 	if (!rdma_is_port_valid(ib_dev, port))
 		return NULL;
 
+	if (!ib_dev->port_data)
+		return NULL;
+
 	pdata = &ib_dev->port_data[port];
 
 	/*
@@ -2254,6 +2257,7 @@ struct net_device *ib_device_get_netdev(struct ib_device *ib_dev,
 
 	return res;
 }
+EXPORT_SYMBOL(ib_device_get_netdev);
 
 /**
  * ib_device_get_by_netdev - Find an IB device associated with a netdev
