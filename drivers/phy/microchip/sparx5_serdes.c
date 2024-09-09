@@ -2507,6 +2507,11 @@ static struct sparx5_serdes_io_resource sparx5_serdes_iomap[] =  {
 	{ TARGET_SD_LANE_25G + 7, 0x5c8000 }, /* 0x610dd0000: sd_lane_25g_32 */
 };
 
+static const struct sparx5_serdes_match_data sparx5_desc = {
+	.iomap = sparx5_serdes_iomap,
+	.iomap_size = ARRAY_SIZE(sparx5_serdes_iomap),
+};
+
 /* Client lookup function, uses serdes index */
 static struct phy *sparx5_serdes_xlate(struct device *dev,
 				     const struct of_phandle_args *args)
@@ -2555,6 +2560,10 @@ static int sparx5_serdes_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, priv);
 	priv->dev = &pdev->dev;
 
+	priv->data = device_get_match_data(priv->dev);
+	if (!priv->data)
+		return -EINVAL;
+
 	/* Get coreclock */
 	clk = devm_clk_get(priv->dev, NULL);
 	if (IS_ERR(clk)) {
@@ -2579,8 +2588,9 @@ static int sparx5_serdes_probe(struct platform_device *pdev)
 			iores->name);
 		return -ENOMEM;
 	}
-	for (idx = 0; idx < ARRAY_SIZE(sparx5_serdes_iomap); idx++) {
-		struct sparx5_serdes_io_resource *iomap = &sparx5_serdes_iomap[idx];
+	for (idx = 0; idx < priv->data->iomap_size; idx++) {
+		const struct sparx5_serdes_io_resource *iomap =
+			&priv->data->iomap[idx];
 
 		priv->regs[iomap->id] = iomem + iomap->offset;
 	}
@@ -2599,7 +2609,7 @@ static int sparx5_serdes_probe(struct platform_device *pdev)
 }
 
 static const struct of_device_id sparx5_serdes_match[] = {
-	{ .compatible = "microchip,sparx5-serdes" },
+	{ .compatible = "microchip,sparx5-serdes", .data = &sparx5_desc },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, sparx5_serdes_match);

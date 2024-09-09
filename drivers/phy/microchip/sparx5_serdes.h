@@ -26,11 +26,17 @@ enum sparx5_serdes_mode {
 	SPX5_SD_MODE_SFI,
 };
 
+struct sparx5_serdes_match_data {
+	const struct sparx5_serdes_io_resource *iomap;
+	int iomap_size;
+};
+
 struct sparx5_serdes_private {
 	struct device *dev;
 	void __iomem *regs[NUM_TARGETS];
 	struct phy *phys[SPX5_SERDES_MAX];
 	unsigned long coreclock;
+	const struct sparx5_serdes_match_data *data;
 };
 
 struct sparx5_serdes_macro {
