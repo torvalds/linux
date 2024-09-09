@@ -6737,11 +6737,10 @@ bfq_split_bfqq(struct bfq_io_cq *bic, struct bfq_queue *bfqq)
 	return NULL;
 }
 
-static struct bfq_queue *bfq_get_bfqq_handle_split(struct bfq_data *bfqd,
-						   struct bfq_io_cq *bic,
-						   struct bio *bio,
-						   bool split, bool is_sync,
-						   bool *new_queue)
+static struct bfq_queue *
+__bfq_get_bfqq_handle_split(struct bfq_data *bfqd, struct bfq_io_cq *bic,
+			    struct bio *bio, bool split, bool is_sync,
+			    bool *new_queue)
 {
 	unsigned int act_idx = bfq_actuator_index(bfqd, bio);
 	struct bfq_queue *bfqq = bic_to_bfqq(bic, is_sync, act_idx);
@@ -6845,6 +6844,59 @@ static struct bfq_queue *bfq_waker_bfqq(struct bfq_queue *bfqq)
 	return waker_bfqq;
 }
 
+static struct bfq_queue *bfq_get_bfqq_handle_split(struct bfq_data *bfqd,
+						   struct bfq_io_cq *bic,
+						   struct bio *bio,
+						   unsigned int idx,
+						   bool is_sync)
+{
+	struct bfq_queue *waker_bfqq;
+	struct bfq_queue *bfqq;
+	bool new_queue = false;
+
+	bfqq = __bfq_get_bfqq_handle_split(bfqd, bic, bio, false, is_sync,
+					   &new_queue);
+	if (unlikely(new_queue))
+		return bfqq;
+
+	/* If the queue was seeky for too long, break it apart. */
+	if (!bfq_bfqq_coop(bfqq) || !bfq_bfqq_split_coop(bfqq) ||
+	    bic->bfqq_data[idx].stably_merged)
+		return bfqq;
+
+	waker_bfqq = bfq_waker_bfqq(bfqq);
+
+	/* Update bic before losing reference to bfqq */
+	if (bfq_bfqq_in_large_burst(bfqq))
+		bic->bfqq_data[idx].saved_in_large_burst = true;
+
+	bfqq = bfq_split_bfqq(bic, bfqq);
+	if (bfqq) {
+		bfq_bfqq_resume_state(bfqq, bfqd, bic, true);
+		return bfqq;
+	}
+
+	bfqq = __bfq_get_bfqq_handle_split(bfqd, bic, bio, true, is_sync, NULL);
+	if (unlikely(bfqq == &bfqd->oom_bfqq))
+		return bfqq;
+
+	bfq_bfqq_resume_state(bfqq, bfqd, bic, false);
+	bfqq->waker_bfqq = waker_bfqq;
+	bfqq->tentative_waker_bfqq = NULL;
+
+	/*
+	 * If the waker queue disappears, then new_bfqq->waker_bfqq must be
+	 * reset. So insert new_bfqq into the
+	 * woken_list of the waker. See
+	 * bfq_check_waker for details.
+	 */
+	if (waker_bfqq)
+		hlist_add_head(&bfqq->woken_list_node,
+			       &bfqq->waker_bfqq->woken_list);
+
+	return bfqq;
+}
+
 /*
  * If needed, init rq, allocate bfq data structures associated with
  * rq, and increment reference counters in the destination bfq_queue
@@ -6876,7 +6928,6 @@ static struct bfq_queue *bfq_init_rq(struct request *rq)
 	struct bfq_io_cq *bic;
 	const int is_sync = rq_is_sync(rq);
 	struct bfq_queue *bfqq;
-	bool new_queue = false;
 	unsigned int a_idx = bfq_actuator_index(bfqd, bio);
 
 	if (unlikely(!rq->elv.icq))
@@ -6893,53 +6944,9 @@ static struct bfq_queue *bfq_init_rq(struct request *rq)
 		return RQ_BFQQ(rq);
 
 	bic = icq_to_bic(rq->elv.icq);
-
 	bfq_check_ioprio_change(bic, bio);
-
 	bfq_bic_update_cgroup(bic, bio);
-
-	bfqq = bfq_get_bfqq_handle_split(bfqd, bic, bio, false, is_sync,
-					 &new_queue);
-
-	if (likely(!new_queue)) {
-		/* If the queue was seeky for too long, break it apart. */
-		if (bfq_bfqq_coop(bfqq) && bfq_bfqq_split_coop(bfqq) &&
-			!bic->bfqq_data[a_idx].stably_merged) {
-			struct bfq_queue *waker_bfqq = bfq_waker_bfqq(bfqq);
-
-			/* Update bic before losing reference to bfqq */
-			if (bfq_bfqq_in_large_burst(bfqq))
-				bic->bfqq_data[a_idx].saved_in_large_burst =
-					true;
-
-			bfqq = bfq_split_bfqq(bic, bfqq);
-			if (!bfqq) {
-				bfqq = bfq_get_bfqq_handle_split(bfqd, bic, bio,
-								 true, is_sync,
-								 NULL);
-				if (likely(bfqq != &bfqd->oom_bfqq)) {
-					bfq_bfqq_resume_state(bfqq, bfqd, bic,
-							      false);
-					bfqq->waker_bfqq = waker_bfqq;
-					bfqq->tentative_waker_bfqq = NULL;
-
-					/*
-					 * If the waker queue disappears, then
-					 * new_bfqq->waker_bfqq must be
-					 * reset. So insert new_bfqq into the
-					 * woken_list of the waker. See
-					 * bfq_check_waker for details.
-					 */
-					if (waker_bfqq)
-						hlist_add_head(
-							&bfqq->woken_list_node,
-							&bfqq->waker_bfqq->woken_list);
-				}
-			} else {
-				bfq_bfqq_resume_state(bfqq, bfqd, bic, true);
-			}
-		}
-	}
+	bfqq = bfq_get_bfqq_handle_split(bfqd, bic, bio, a_idx, is_sync);
 
 	bfqq_request_allocated(bfqq);
 	bfqq->ref++;
