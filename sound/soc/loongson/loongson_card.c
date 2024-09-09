@@ -68,46 +68,53 @@ static struct snd_soc_dai_link loongson_dai_links[] = {
 	},
 };
 
+static struct acpi_device *loongson_card_acpi_find_device(struct snd_soc_card *card,
+							  const char *name)
+{
+	struct fwnode_handle *fwnode = card->dev->fwnode;
+	struct fwnode_reference_args args;
+	int status;
+
+	memset(&args, 0, sizeof(args));
+	status = acpi_node_get_property_reference(fwnode, name, 0, &args);
+	if (status || !is_acpi_device_node(args.fwnode)) {
+		dev_err(card->dev, "No matching phy in ACPI table\n");
+		return NULL;
+	}
+
+	return to_acpi_device_node(args.fwnode);
+}
+
 static int loongson_card_parse_acpi(struct loongson_card_data *data)
 {
 	struct snd_soc_card *card = &data->snd_card;
-	struct fwnode_handle *fwnode = card->dev->fwnode;
-	struct fwnode_reference_args args;
 	const char *codec_dai_name;
 	struct acpi_device *adev;
 	struct device *phy_dev;
-	int ret, i;
+	int i;
 
 	/* fixup platform name based on reference node */
-	memset(&args, 0, sizeof(args));
-	ret = acpi_node_get_property_reference(fwnode, "cpu", 0, &args);
-	if (ret || !is_acpi_device_node(args.fwnode)) {
-		dev_err(card->dev, "No matching phy in ACPI table\n");
-		return ret ?: -ENOENT;
-	}
-	adev = to_acpi_device_node(args.fwnode);
+	adev = loongson_card_acpi_find_device(card, "cpu");
+	if (!adev)
+		return -ENOENT;
+
 	phy_dev = acpi_get_first_physical_node(adev);
 	if (!phy_dev)
 		return -EPROBE_DEFER;
-	for (i = 0; i < card->num_links; i++)
-		loongson_dai_links[i].platforms->name = dev_name(phy_dev);
 
 	/* fixup codec name based on reference node */
-	memset(&args, 0, sizeof(args));
-	ret = acpi_node_get_property_reference(fwnode, "codec", 0, &args);
-	if (ret || !is_acpi_device_node(args.fwnode)) {
-		dev_err(card->dev, "No matching phy in ACPI table\n");
-		return ret ?: -ENOENT;
-	}
-	adev = to_acpi_device_node(args.fwnode);
+	adev = loongson_card_acpi_find_device(card, "codec");
+	if (!adev)
+		return -ENOENT;
 	snprintf(codec_name, sizeof(codec_name), "i2c-%s", acpi_dev_name(adev));
-	for (i = 0; i < card->num_links; i++)
-		loongson_dai_links[i].codecs->name = codec_name;
 
-	device_property_read_string(card->dev, "codec-dai-name",
-				    &codec_dai_name);
-	for (i = 0; i < card->num_links; i++)
+	device_property_read_string(card->dev, "codec-dai-name", &codec_dai_name);
+
+	for (i = 0; i < card->num_links; i++) {
+		loongson_dai_links[i].platforms->name = dev_name(phy_dev);
+		loongson_dai_links[i].codecs->name = codec_name;
 		loongson_dai_links[i].codecs->dai_name = codec_dai_name;
+	}
 
 	return 0;
 }
