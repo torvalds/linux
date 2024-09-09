@@ -5803,35 +5803,6 @@ void __init init_sched_ext_class(void)
 __bpf_kfunc_start_defs();
 
 /**
- * scx_bpf_create_dsq - Create a custom DSQ
- * @dsq_id: DSQ to create
- * @node: NUMA node to allocate from
- *
- * Create a custom DSQ identified by @dsq_id. Can be called from any sleepable
- * scx callback, and any BPF_PROG_TYPE_SYSCALL prog.
- */
-__bpf_kfunc s32 scx_bpf_create_dsq(u64 dsq_id, s32 node)
-{
-	if (unlikely(node >= (int)nr_node_ids ||
-		     (node < 0 && node != NUMA_NO_NODE)))
-		return -EINVAL;
-	return PTR_ERR_OR_ZERO(create_dsq(dsq_id, node));
-}
-
-__bpf_kfunc_end_defs();
-
-BTF_KFUNCS_START(scx_kfunc_ids_sleepable)
-BTF_ID_FLAGS(func, scx_bpf_create_dsq, KF_SLEEPABLE)
-BTF_KFUNCS_END(scx_kfunc_ids_sleepable)
-
-static const struct btf_kfunc_id_set scx_kfunc_set_sleepable = {
-	.owner			= THIS_MODULE,
-	.set			= &scx_kfunc_ids_sleepable,
-};
-
-__bpf_kfunc_start_defs();
-
-/**
  * scx_bpf_select_cpu_dfl - The default implementation of ops.select_cpu()
  * @p: task_struct to select a CPU for
  * @prev_cpu: CPU @p was on previously
@@ -6169,6 +6140,35 @@ BTF_KFUNCS_END(scx_kfunc_ids_cpu_release)
 static const struct btf_kfunc_id_set scx_kfunc_set_cpu_release = {
 	.owner			= THIS_MODULE,
 	.set			= &scx_kfunc_ids_cpu_release,
+};
+
+__bpf_kfunc_start_defs();
+
+/**
+ * scx_bpf_create_dsq - Create a custom DSQ
+ * @dsq_id: DSQ to create
+ * @node: NUMA node to allocate from
+ *
+ * Create a custom DSQ identified by @dsq_id. Can be called from any sleepable
+ * scx callback, and any BPF_PROG_TYPE_SYSCALL prog.
+ */
+__bpf_kfunc s32 scx_bpf_create_dsq(u64 dsq_id, s32 node)
+{
+	if (unlikely(node >= (int)nr_node_ids ||
+		     (node < 0 && node != NUMA_NO_NODE)))
+		return -EINVAL;
+	return PTR_ERR_OR_ZERO(create_dsq(dsq_id, node));
+}
+
+__bpf_kfunc_end_defs();
+
+BTF_KFUNCS_START(scx_kfunc_ids_unlocked)
+BTF_ID_FLAGS(func, scx_bpf_create_dsq, KF_SLEEPABLE)
+BTF_KFUNCS_END(scx_kfunc_ids_unlocked)
+
+static const struct btf_kfunc_id_set scx_kfunc_set_unlocked = {
+	.owner			= THIS_MODULE,
+	.set			= &scx_kfunc_ids_unlocked,
 };
 
 __bpf_kfunc_start_defs();
@@ -6907,10 +6907,6 @@ static int __init scx_init(void)
 	 * check using scx_kf_allowed().
 	 */
 	if ((ret = register_btf_kfunc_id_set(BPF_PROG_TYPE_STRUCT_OPS,
-					     &scx_kfunc_set_sleepable)) ||
-	    (ret = register_btf_kfunc_id_set(BPF_PROG_TYPE_SYSCALL,
-					     &scx_kfunc_set_sleepable)) ||
-	    (ret = register_btf_kfunc_id_set(BPF_PROG_TYPE_STRUCT_OPS,
 					     &scx_kfunc_set_select_cpu)) ||
 	    (ret = register_btf_kfunc_id_set(BPF_PROG_TYPE_STRUCT_OPS,
 					     &scx_kfunc_set_enqueue_dispatch)) ||
@@ -6918,6 +6914,10 @@ static int __init scx_init(void)
 					     &scx_kfunc_set_dispatch)) ||
 	    (ret = register_btf_kfunc_id_set(BPF_PROG_TYPE_STRUCT_OPS,
 					     &scx_kfunc_set_cpu_release)) ||
+	    (ret = register_btf_kfunc_id_set(BPF_PROG_TYPE_STRUCT_OPS,
+					     &scx_kfunc_set_unlocked)) ||
+	    (ret = register_btf_kfunc_id_set(BPF_PROG_TYPE_SYSCALL,
+					     &scx_kfunc_set_unlocked)) ||
 	    (ret = register_btf_kfunc_id_set(BPF_PROG_TYPE_STRUCT_OPS,
 					     &scx_kfunc_set_any)) ||
 	    (ret = register_btf_kfunc_id_set(BPF_PROG_TYPE_TRACING,
