@@ -35,6 +35,7 @@
 #include <linux/reboot.h>
 #include <linux/usb/ohci_pdriver.h>
 #include <linux/random.h>
+#include <linux/ioport.h>
 
 #include "hardware.h"
 #include <linux/platform_data/video-ep93xx.h>
@@ -139,9 +140,80 @@ EXPORT_SYMBOL_GPL(ep93xx_chip_revision);
 /*************************************************************************
  * EP93xx GPIO
  *************************************************************************/
-static struct resource ep93xx_gpio_resource[] = {
-	DEFINE_RES_MEM(EP93XX_GPIO_PHYS_BASE, 0xcc),
+/* port A */
+static struct resource ep93xx_a_gpio_resources[] = {
+	DEFINE_RES_MEM_NAMED(EP93XX_GPIO_PHYS_BASE,        0x04, "data"),
+	DEFINE_RES_MEM_NAMED(EP93XX_GPIO_PHYS_BASE + 0x10, 0x04, "dir"),
+	DEFINE_RES_MEM_NAMED(EP93XX_GPIO_PHYS_BASE + 0x90, 0x1c, "intr"),
 	DEFINE_RES_IRQ(IRQ_EP93XX_GPIO_AB),
+};
+
+static struct platform_device ep93xx_a_gpio = {
+	.name           = "gpio-ep93xx",
+	.id             = 0,
+	.num_resources = ARRAY_SIZE(ep93xx_a_gpio_resources),
+	.resource = ep93xx_a_gpio_resources,
+};
+
+/* port B */
+static struct resource ep93xx_b_gpio_resources[] = {
+	DEFINE_RES_MEM_NAMED(EP93XX_GPIO_PHYS_BASE + 0x04, 0x04, "data"),
+	DEFINE_RES_MEM_NAMED(EP93XX_GPIO_PHYS_BASE + 0x14, 0x04, "dir"),
+	DEFINE_RES_MEM_NAMED(EP93XX_GPIO_PHYS_BASE + 0xac, 0x1c, "intr"),
+	DEFINE_RES_IRQ(IRQ_EP93XX_GPIO_AB),
+};
+
+static struct platform_device ep93xx_b_gpio = {
+	.name           = "gpio-ep93xx",
+	.id             = 1,
+	.num_resources = ARRAY_SIZE(ep93xx_b_gpio_resources),
+	.resource = ep93xx_b_gpio_resources,
+};
+
+/* port C */
+static struct resource ep93xx_c_gpio_resources[] = {
+	DEFINE_RES_MEM_NAMED(EP93XX_GPIO_PHYS_BASE + 0x08, 0x04, "data"),
+	DEFINE_RES_MEM_NAMED(EP93XX_GPIO_PHYS_BASE + 0x18, 0x04, "dir"),
+};
+
+static struct platform_device ep93xx_c_gpio = {
+	.name           = "gpio-ep93xx",
+	.id             = 2,
+	.num_resources = ARRAY_SIZE(ep93xx_c_gpio_resources),
+	.resource = ep93xx_c_gpio_resources,
+};
+
+/* port D */
+static struct resource ep93xx_d_gpio_resources[] = {
+	DEFINE_RES_MEM_NAMED(EP93XX_GPIO_PHYS_BASE + 0x0c, 0x04, "data"),
+	DEFINE_RES_MEM_NAMED(EP93XX_GPIO_PHYS_BASE + 0x1c, 0x04, "dir"),
+};
+
+static struct platform_device ep93xx_d_gpio = {
+	.name           = "gpio-ep93xx",
+	.id             = 3,
+	.num_resources = ARRAY_SIZE(ep93xx_d_gpio_resources),
+	.resource = ep93xx_d_gpio_resources,
+};
+
+/* port E */
+static struct resource ep93xx_e_gpio_resources[] = {
+	DEFINE_RES_MEM_NAMED(EP93XX_GPIO_PHYS_BASE + 0x20, 0x04, "data"),
+	DEFINE_RES_MEM_NAMED(EP93XX_GPIO_PHYS_BASE + 0x24, 0x04, "dir"),
+};
+
+static struct platform_device ep93xx_e_gpio = {
+	.name           = "gpio-ep93xx",
+	.id             = 4,
+	.num_resources = ARRAY_SIZE(ep93xx_e_gpio_resources),
+	.resource = ep93xx_e_gpio_resources,
+};
+
+/* port F */
+static struct resource ep93xx_f_gpio_resources[] = {
+	DEFINE_RES_MEM_NAMED(EP93XX_GPIO_PHYS_BASE + 0x30, 0x04, "data"),
+	DEFINE_RES_MEM_NAMED(EP93XX_GPIO_PHYS_BASE + 0x34, 0x04, "dir"),
+	DEFINE_RES_MEM_NAMED(EP93XX_GPIO_PHYS_BASE + 0x4c, 0x1c, "intr"),
 	DEFINE_RES_IRQ(IRQ_EP93XX_GPIO0MUX),
 	DEFINE_RES_IRQ(IRQ_EP93XX_GPIO1MUX),
 	DEFINE_RES_IRQ(IRQ_EP93XX_GPIO2MUX),
@@ -152,11 +224,34 @@ static struct resource ep93xx_gpio_resource[] = {
 	DEFINE_RES_IRQ(IRQ_EP93XX_GPIO7MUX),
 };
 
-static struct platform_device ep93xx_gpio_device = {
-	.name		= "gpio-ep93xx",
-	.id		= -1,
-	.num_resources	= ARRAY_SIZE(ep93xx_gpio_resource),
-	.resource	= ep93xx_gpio_resource,
+static struct platform_device ep93xx_f_gpio = {
+	.name           = "gpio-ep93xx",
+	.id             = 5,
+	.num_resources = ARRAY_SIZE(ep93xx_f_gpio_resources),
+	.resource = ep93xx_f_gpio_resources,
+};
+
+/* port G */
+static struct resource ep93xx_g_gpio_resources[] = {
+	DEFINE_RES_MEM_NAMED(EP93XX_GPIO_PHYS_BASE + 0x38, 0x04, "data"),
+	DEFINE_RES_MEM_NAMED(EP93XX_GPIO_PHYS_BASE + 0x3c, 0x04, "dir"),
+};
+
+static struct platform_device ep93xx_g_gpio = {
+	.name           = "gpio-ep93xx",
+	.id             = 6,
+	.num_resources = ARRAY_SIZE(ep93xx_g_gpio_resources),
+	.resource = ep93xx_g_gpio_resources,
+};
+
+static struct platform_device *ep93xx_gpio_device[] __initdata = {
+	&ep93xx_a_gpio,
+	&ep93xx_b_gpio,
+	&ep93xx_c_gpio,
+	&ep93xx_d_gpio,
+	&ep93xx_e_gpio,
+	&ep93xx_f_gpio,
+	&ep93xx_g_gpio,
 };
 
 /*************************************************************************
@@ -335,9 +430,9 @@ static struct gpiod_lookup_table ep93xx_i2c_gpiod_table = {
 	.dev_id		= "i2c-gpio.0",
 	.table		= {
 		/* Use local offsets on gpiochip/port "G" */
-		GPIO_LOOKUP_IDX("G", 1, NULL, 0,
+		GPIO_LOOKUP_IDX("gpio-ep93xx.6", 1, NULL, 0,
 				GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN),
-		GPIO_LOOKUP_IDX("G", 0, NULL, 1,
+		GPIO_LOOKUP_IDX("gpio-ep93xx.6", 0, NULL, 1,
 				GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN),
 		{ }
 	},
@@ -441,8 +536,8 @@ static struct gpiod_lookup_table ep93xx_leds_gpio_table = {
 	.dev_id = "leds-gpio",
 	.table = {
 		/* Use local offsets on gpiochip/port "E" */
-		GPIO_LOOKUP_IDX("E", 0, NULL, 0, GPIO_ACTIVE_HIGH),
-		GPIO_LOOKUP_IDX("E", 1,	NULL, 1, GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP_IDX("gpio-ep93xx.4", 0, NULL, 0, GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP_IDX("gpio-ep93xx.4", 1, NULL, 1, GPIO_ACTIVE_HIGH),
 		{ }
 	},
 };
@@ -975,6 +1070,7 @@ static struct device __init *ep93xx_init_soc(void)
 struct device __init *ep93xx_init_devices(void)
 {
 	struct device *parent;
+	unsigned int i;
 
 	/* Disallow access to MaverickCrunch initially */
 	ep93xx_devcfg_clear_bits(EP93XX_SYSCON_DEVCFG_CPENA);
@@ -989,7 +1085,8 @@ struct device __init *ep93xx_init_devices(void)
 	parent = ep93xx_init_soc();
 
 	/* Get the GPIO working early, other devices need it */
-	platform_device_register(&ep93xx_gpio_device);
+	for (i = 0; i < ARRAY_SIZE(ep93xx_gpio_device); i++)
+		platform_device_register(ep93xx_gpio_device[i]);
 
 	amba_device_register(&uart1_device, &iomem_resource);
 	amba_device_register(&uart2_device, &iomem_resource);

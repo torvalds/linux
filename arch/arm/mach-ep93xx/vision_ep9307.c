@@ -206,9 +206,9 @@ static struct gpiod_lookup_table vision_spi_mmc_gpio_table = {
 	.dev_id = "mmc_spi.2", /* "mmc_spi @ CS2 */
 	.table = {
 		/* Card detect */
-		GPIO_LOOKUP_IDX("B", 7, NULL, 0, GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP_IDX("gpio-ep93xx.1", 7, NULL, 0, GPIO_ACTIVE_LOW),
 		/* Write protect */
-		GPIO_LOOKUP_IDX("F", 0, NULL, 1, GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP_IDX("gpio-ep93xx.5", 0, NULL, 1, GPIO_ACTIVE_HIGH),
 		{ },
 	},
 };
@@ -253,9 +253,9 @@ static struct gpiod_lookup_table vision_spi_cs4271_gpio_table = {
 static struct gpiod_lookup_table vision_spi_cs_gpio_table = {
 	.dev_id = "spi0",
 	.table = {
-		GPIO_LOOKUP_IDX("A", 6, "cs", 0, GPIO_ACTIVE_LOW),
-		GPIO_LOOKUP_IDX("A", 7, "cs", 1, GPIO_ACTIVE_LOW),
-		GPIO_LOOKUP_IDX("G", 2, "cs", 2, GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP_IDX("gpio-ep93xx.0", 6, "cs", 0, GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP_IDX("gpio-ep93xx.0", 7, "cs", 1, GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP_IDX("gpio-ep93xx.6", 2, "cs", 2, GPIO_ACTIVE_LOW),
 		{ },
 	},
 };

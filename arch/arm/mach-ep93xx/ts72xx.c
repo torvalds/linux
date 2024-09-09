@@ -268,7 +268,7 @@ static struct spi_board_info bk3_spi_board_info[] __initdata = {
 static struct gpiod_lookup_table bk3_spi_cs_gpio_table = {
 	.dev_id = "spi0",
 	.table = {
-		GPIO_LOOKUP("F", 3, "cs", GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP("gpio-ep93xx.5", 3, "cs", GPIO_ACTIVE_LOW),
 		{ },
 	},
 };
@@ -318,7 +318,7 @@ static struct gpiod_lookup_table ts72xx_spi_cs_gpio_table = {
 	.dev_id = "spi0",
 	.table = {
 		/* DIO_17 */
-		GPIO_LOOKUP("F", 2, "cs", GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP("gpio-ep93xx.5", 2, "cs", GPIO_ACTIVE_LOW),
 		{ },
 	},
 };

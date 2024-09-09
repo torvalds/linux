@@ -105,7 +105,7 @@ static struct spi_board_info edb93xx_spi_board_info[] __initdata = {
 static struct gpiod_lookup_table edb93xx_spi_cs_gpio_table = {
 	.dev_id = "spi0",
 	.table = {
-		GPIO_LOOKUP("A", 6, "cs", GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP("gpio-ep93xx.0", 6, "cs", GPIO_ACTIVE_LOW),
 		{ },
 	},
 };
