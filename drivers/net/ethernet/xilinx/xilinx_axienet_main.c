@@ -2640,8 +2640,8 @@ static int axienet_probe(struct platform_device *pdev)
 		switch (value) {
 		case 1:
 			lp->features |= XAE_FEATURE_PARTIAL_TX_CSUM;
-			/* Can checksum TCP/UDP over IPv4. */
-			ndev->features |= NETIF_F_IP_CSUM;
+			/* Can checksum any contiguous range */
+			ndev->features |= NETIF_F_HW_CSUM;
 			break;
 		case 2:
 			lp->features |= XAE_FEATURE_FULL_TX_CSUM;
