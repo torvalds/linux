@@ -34,6 +34,10 @@ enum sparx5_10g28cmu_mode {
 	SPX5_SD10G28_CMU_MAX,
 };
 
+enum sparx5_target {
+	SPX5_TARGET_SPARX5,
+};
+
 struct sparx5_serdes_macro {
 	struct sparx5_serdes_private *priv;
 	u32 sidx;
@@ -56,6 +60,7 @@ struct sparx5_serdes_ops {
 };
 
 struct sparx5_serdes_match_data {
+	enum sparx5_target type;
 	const struct sparx5_serdes_consts consts;
 	const struct sparx5_serdes_ops ops;
 	const struct sparx5_serdes_io_resource *iomap;
