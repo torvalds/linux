@@ -455,7 +455,7 @@ static struct platform_driver pwm_omap_dmtimer_driver = {
 		.of_match_table = pwm_omap_dmtimer_of_match,
 	},
 	.probe = pwm_omap_dmtimer_probe,
-	.remove_new = pwm_omap_dmtimer_remove,
+	.remove = pwm_omap_dmtimer_remove,
 };
 module_platform_driver(pwm_omap_dmtimer_driver);
 
