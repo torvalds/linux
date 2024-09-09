@@ -3934,7 +3934,6 @@ static int mlx5_ib_stage_init_init(struct mlx5_ib_dev *dev)
 
 	dev->ib_dev.node_type = RDMA_NODE_IB_CA;
 	dev->ib_dev.local_dma_lkey = 0 /* not supported for now */;
-	dev->ib_dev.phys_port_cnt = dev->num_ports;
 	dev->ib_dev.dev.parent = mdev->device;
 	dev->ib_dev.lag_flags = RDMA_LAG_FLAGS_HASH_ALL_SLAVES;
 
@@ -4649,6 +4648,7 @@ static struct ib_device *mlx5_ib_add_sub_dev(struct ib_device *parent,
 	mplane->mdev = mparent->mdev;
 	mplane->num_ports = mparent->num_plane;
 	mplane->sub_dev_name = name;
+	mplane->ib_dev.phys_port_cnt = mplane->num_ports;
 
 	ret = __mlx5_ib_add(mplane, &plane_profile);
 	if (ret)
@@ -4765,6 +4765,7 @@ static int mlx5r_probe(struct auxiliary_device *adev,
 
 	dev->mdev = mdev;
 	dev->num_ports = num_ports;
+	dev->ib_dev.phys_port_cnt = num_ports;
 
 	if (ll == IB_LINK_LAYER_ETHERNET && !mlx5_get_roce_state(mdev))
 		profile = &raw_eth_profile;
