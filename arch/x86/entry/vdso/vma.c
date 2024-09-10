@@ -65,7 +65,6 @@ static vm_fault_t vdso_fault(const struct vm_special_mapping *sm,
 static void vdso_fix_landing(const struct vdso_image *image,
 		struct vm_area_struct *new_vma)
 {
-#if defined CONFIG_X86_32 || defined CONFIG_IA32_EMULATION
 	if (in_ia32_syscall() && image == &vdso_image_32) {
 		struct pt_regs *regs = current_pt_regs();
 		unsigned long vdso_land = image->sym_int80_landing_pad;
@@ -76,7 +75,6 @@ static void vdso_fix_landing(const struct vdso_image *image,
 		if (regs->ip == old_land_addr)
 			regs->ip = new_vma->vm_start + vdso_land;
 	}
-#endif
 }
 
 static int vdso_mremap(const struct vm_special_mapping *sm,
@@ -266,7 +264,6 @@ int compat_arch_setup_additional_pages(struct linux_binprm *bprm,
 
 bool arch_syscall_is_vdso_sigreturn(struct pt_regs *regs)
 {
-#if defined(CONFIG_X86_32) || defined(CONFIG_IA32_EMULATION)
 	const struct vdso_image *image = current->mm->context.vdso_image;
 	unsigned long vdso = (unsigned long) current->mm->context.vdso;
 
@@ -275,7 +272,6 @@ bool arch_syscall_is_vdso_sigreturn(struct pt_regs *regs)
 		    regs->ip == vdso + image->sym_vdso32_rt_sigreturn_landing_pad)
 			return true;
 	}
-#endif
 	return false;
 }
 
