@@ -302,7 +302,7 @@ static int rsassa_pkcs1_verify(struct crypto_sig *tfm,
 	return 0;
 }
 
-static unsigned int rsassa_pkcs1_max_size(struct crypto_sig *tfm)
+static unsigned int rsassa_pkcs1_key_size(struct crypto_sig *tfm)
 {
 	struct rsassa_pkcs1_ctx *ctx = crypto_sig_ctx(tfm);
 
@@ -419,7 +419,7 @@ static int rsassa_pkcs1_create(struct crypto_template *tmpl, struct rtattr **tb)
 
 	inst->alg.sign = rsassa_pkcs1_sign;
 	inst->alg.verify = rsassa_pkcs1_verify;
-	inst->alg.max_size = rsassa_pkcs1_max_size;
+	inst->alg.key_size = rsassa_pkcs1_key_size;
 	inst->alg.set_pub_key = rsassa_pkcs1_set_pub_key;
 	inst->alg.set_priv_key = rsassa_pkcs1_set_priv_key;
 

@@ -162,7 +162,7 @@ static void ecdsa_exit_tfm(struct crypto_sig *tfm)
 	ecdsa_ecc_ctx_deinit(ctx);
 }
 
-static unsigned int ecdsa_max_size(struct crypto_sig *tfm)
+static unsigned int ecdsa_key_size(struct crypto_sig *tfm)
 {
 	struct ecc_ctx *ctx = crypto_sig_ctx(tfm);
 
@@ -179,7 +179,7 @@ static int ecdsa_nist_p521_init_tfm(struct crypto_sig *tfm)
 static struct sig_alg ecdsa_nist_p521 = {
 	.verify = ecdsa_verify,
 	.set_pub_key = ecdsa_set_pub_key,
-	.max_size = ecdsa_max_size,
+	.key_size = ecdsa_key_size,
 	.init = ecdsa_nist_p521_init_tfm,
 	.exit = ecdsa_exit_tfm,
 	.base = {
@@ -201,7 +201,7 @@ static int ecdsa_nist_p384_init_tfm(struct crypto_sig *tfm)
 static struct sig_alg ecdsa_nist_p384 = {
 	.verify = ecdsa_verify,
 	.set_pub_key = ecdsa_set_pub_key,
-	.max_size = ecdsa_max_size,
+	.key_size = ecdsa_key_size,
 	.init = ecdsa_nist_p384_init_tfm,
 	.exit = ecdsa_exit_tfm,
 	.base = {
@@ -223,7 +223,7 @@ static int ecdsa_nist_p256_init_tfm(struct crypto_sig *tfm)
 static struct sig_alg ecdsa_nist_p256 = {
 	.verify = ecdsa_verify,
 	.set_pub_key = ecdsa_set_pub_key,
-	.max_size = ecdsa_max_size,
+	.key_size = ecdsa_key_size,
 	.init = ecdsa_nist_p256_init_tfm,
 	.exit = ecdsa_exit_tfm,
 	.base = {
@@ -245,7 +245,7 @@ static int ecdsa_nist_p192_init_tfm(struct crypto_sig *tfm)
 static struct sig_alg ecdsa_nist_p192 = {
 	.verify = ecdsa_verify,
 	.set_pub_key = ecdsa_set_pub_key,
-	.max_size = ecdsa_max_size,
+	.key_size = ecdsa_key_size,
 	.init = ecdsa_nist_p192_init_tfm,
 	.exit = ecdsa_exit_tfm,
 	.base = {

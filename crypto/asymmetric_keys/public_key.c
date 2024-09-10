@@ -201,7 +201,7 @@ static int software_key_query(const struct kernel_pkey_params *params,
 		if (ret < 0)
 			goto error_free_tfm;
 
-		len = crypto_sig_maxsize(sig);
+		len = crypto_sig_keysize(sig);
 
 		info->supported_ops = KEYCTL_SUPPORTS_VERIFY;
 		if (pkey->key_is_private)
@@ -332,7 +332,7 @@ static int software_key_eds_op(struct kernel_pkey_params *params,
 		if (ret)
 			goto error_free_tfm;
 
-		ksz = crypto_sig_maxsize(sig);
+		ksz = crypto_sig_keysize(sig);
 	} else {
 		tfm = crypto_alloc_akcipher(alg_name, 0, 0);
 		if (IS_ERR(tfm)) {

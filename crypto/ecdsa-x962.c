@@ -81,7 +81,7 @@ static int ecdsa_x962_verify(struct crypto_sig *tfm,
 	struct ecdsa_x962_signature_ctx sig_ctx;
 	int err;
 
-	sig_ctx.ndigits = DIV_ROUND_UP(crypto_sig_maxsize(ctx->child),
+	sig_ctx.ndigits = DIV_ROUND_UP(crypto_sig_keysize(ctx->child),
 				       sizeof(u64));
 
 	err = asn1_ber_decoder(&ecdsasignature_decoder, &sig_ctx, src, slen);
@@ -92,11 +92,11 @@ static int ecdsa_x962_verify(struct crypto_sig *tfm,
 				 digest, dlen);
 }
 
-static unsigned int ecdsa_x962_max_size(struct crypto_sig *tfm)
+static unsigned int ecdsa_x962_key_size(struct crypto_sig *tfm)
 {
 	struct ecdsa_x962_ctx *ctx = crypto_sig_ctx(tfm);
 
-	return crypto_sig_maxsize(ctx->child);
+	return crypto_sig_keysize(ctx->child);
 }
 
 static int ecdsa_x962_set_pub_key(struct crypto_sig *tfm,
@@ -179,7 +179,7 @@ static int ecdsa_x962_create(struct crypto_template *tmpl, struct rtattr **tb)
 	inst->alg.exit = ecdsa_x962_exit_tfm;
 
 	inst->alg.verify = ecdsa_x962_verify;
-	inst->alg.max_size = ecdsa_x962_max_size;
+	inst->alg.key_size = ecdsa_x962_key_size;
 	inst->alg.set_pub_key = ecdsa_x962_set_pub_key;
 
 	inst->free = ecdsa_x962_free;

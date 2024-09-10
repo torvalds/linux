@@ -241,7 +241,7 @@ static int ecrdsa_set_pub_key(struct crypto_sig *tfm, const void *key,
 	return 0;
 }
 
-static unsigned int ecrdsa_max_size(struct crypto_sig *tfm)
+static unsigned int ecrdsa_key_size(struct crypto_sig *tfm)
 {
 	struct ecrdsa_ctx *ctx = crypto_sig_ctx(tfm);
 
@@ -259,7 +259,7 @@ static void ecrdsa_exit_tfm(struct crypto_sig *tfm)
 static struct sig_alg ecrdsa_alg = {
 	.verify		= ecrdsa_verify,
 	.set_pub_key	= ecrdsa_set_pub_key,
-	.max_size	= ecrdsa_max_size,
+	.key_size	= ecrdsa_key_size,
 	.exit		= ecrdsa_exit_tfm,
 	.base = {
 		.cra_name	 = "ecrdsa",

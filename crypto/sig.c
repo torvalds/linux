@@ -125,7 +125,7 @@ int crypto_register_sig(struct sig_alg *alg)
 		alg->set_priv_key = sig_default_set_key;
 	if (!alg->set_pub_key)
 		return -EINVAL;
-	if (!alg->max_size)
+	if (!alg->key_size)
 		return -EINVAL;
 
 	sig_prepare_alg(alg);

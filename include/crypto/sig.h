@@ -32,7 +32,7 @@ struct crypto_sig {
  * @set_priv_key: Function invokes the algorithm specific set private key
  *		function, which knows how to decode and interpret
  *		the BER encoded private key and parameters. Optional.
- * @max_size:	Function returns key size. Mandatory.
+ * @key_size:	Function returns key size. Mandatory.
  * @init:	Initialize the cryptographic transformation object.
  *		This function is used to initialize the cryptographic
  *		transformation object. This function is called only once at
@@ -58,7 +58,7 @@ struct sig_alg {
 			   const void *key, unsigned int keylen);
 	int (*set_priv_key)(struct crypto_sig *tfm,
 			    const void *key, unsigned int keylen);
-	unsigned int (*max_size)(struct crypto_sig *tfm);
+	unsigned int (*key_size)(struct crypto_sig *tfm);
 	int (*init)(struct crypto_sig *tfm);
 	void (*exit)(struct crypto_sig *tfm);
 
@@ -121,20 +121,20 @@ static inline void crypto_free_sig(struct crypto_sig *tfm)
 }
 
 /**
- * crypto_sig_maxsize() - Get len for output buffer
+ * crypto_sig_keysize() - Get key size
  *
- * Function returns the dest buffer size required for a given key.
+ * Function returns the key size in bytes.
  * Function assumes that the key is already set in the transformation. If this
- * function is called without a setkey or with a failed setkey, you will end up
+ * function is called without a setkey or with a failed setkey, you may end up
  * in a NULL dereference.
  *
  * @tfm:	signature tfm handle allocated with crypto_alloc_sig()
  */
-static inline int crypto_sig_maxsize(struct crypto_sig *tfm)
+static inline unsigned int crypto_sig_keysize(struct crypto_sig *tfm)
 {
 	struct sig_alg *alg = crypto_sig_alg(tfm);
 
-	return alg->max_size(tfm);
+	return alg->key_size(tfm);
 }
 
 /**

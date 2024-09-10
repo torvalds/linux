@@ -4340,7 +4340,7 @@ static int test_sig_one(struct crypto_sig *tfm, const struct sig_testvec *vecs)
 	if (vecs->public_key_vec)
 		return 0;
 
-	sig_size = crypto_sig_maxsize(tfm);
+	sig_size = crypto_sig_keysize(tfm);
 	if (sig_size < vecs->c_size) {
 		pr_err("alg: sig: invalid maxsize %u\n", sig_size);
 		return -EINVAL;
