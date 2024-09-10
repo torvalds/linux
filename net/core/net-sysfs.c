@@ -235,7 +235,7 @@ static ssize_t speed_show(struct device *dev,
 	if (!rtnl_trylock())
 		return restart_syscall();
 
-	if (netif_running(netdev) && netif_device_present(netdev)) {
+	if (netif_running(netdev)) {
 		struct ethtool_link_ksettings cmd;
 
 		if (!__ethtool_get_link_ksettings(netdev, &cmd))
@@ -1524,7 +1524,7 @@ static const struct attribute_group dql_group = {
 };
 #else
 /* Fake declaration, all the code using it should be dead */
-extern const struct attribute_group dql_group;
+static const struct attribute_group dql_group = {};
 #endif /* CONFIG_BQL */
 
 #ifdef CONFIG_XPS

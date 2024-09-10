@@ -403,14 +403,18 @@ struct dsa_switch {
 	 */
 	u32			configure_vlan_while_not_filtering:1;
 
-	/* If the switch driver always programs the CPU port as egress tagged
-	 * despite the VLAN configuration indicating otherwise, then setting
-	 * @untag_bridge_pvid will force the DSA receive path to pop the
-	 * bridge's default_pvid VLAN tagged frames to offer a consistent
-	 * behavior between a vlan_filtering=0 and vlan_filtering=1 bridge
-	 * device.
+	/* Pop the default_pvid of VLAN-unaware bridge ports from tagged frames.
+	 * DEPRECATED: Do NOT set this field in new drivers. Instead look at
+	 * the dsa_software_vlan_untag() comments.
 	 */
 	u32			untag_bridge_pvid:1;
+	/* Pop the default_pvid of VLAN-aware bridge ports from tagged frames.
+	 * Useful if the switch cannot preserve the VLAN tag as seen on the
+	 * wire for user port ingress, and chooses to send all frames as
+	 * VLAN-tagged to the CPU, including those which were originally
+	 * untagged.
+	 */
+	u32			untag_vlan_aware_bridge_pvid:1;
 
 	/* Let DSA manage the FDB entries towards the
 	 * CPU, based on the software bridge database.

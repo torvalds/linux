@@ -742,7 +742,7 @@ SecurityFlags		Flags which control security negotiation and
 			  may use NTLMSSP               		0x00080
 			  must use NTLMSSP           			0x80080
 			  seal (packet encryption)			0x00040
-			  must seal (not implemented yet)               0x40040
+			  must seal                                     0x40040
 
 cifsFYI			If set to non-zero value, additional debug information
 			will be logged to the system error log.  This field

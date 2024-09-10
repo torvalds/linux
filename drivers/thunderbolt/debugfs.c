@@ -323,16 +323,17 @@ static ssize_t port_sb_regs_write(struct file *file, const char __user *user_buf
 
 	if (mutex_lock_interruptible(&tb->lock)) {
 		ret = -ERESTARTSYS;
-		goto out_rpm_put;
+		goto out;
 	}
 
 	ret = sb_regs_write(port, port_sb_regs, ARRAY_SIZE(port_sb_regs),
 			    USB4_SB_TARGET_ROUTER, 0, buf, count, ppos);
 
 	mutex_unlock(&tb->lock);
-out_rpm_put:
+out:
 	pm_runtime_mark_last_busy(&sw->dev);
 	pm_runtime_put_autosuspend(&sw->dev);
+	free_page((unsigned long)buf);
 
 	return ret < 0 ? ret : count;
 }
@@ -355,16 +356,17 @@ static ssize_t retimer_sb_regs_write(struct file *file,
 
 	if (mutex_lock_interruptible(&tb->lock)) {
 		ret = -ERESTARTSYS;
-		goto out_rpm_put;
+		goto out;
 	}
 
 	ret = sb_regs_write(rt->port, retimer_sb_regs, ARRAY_SIZE(retimer_sb_regs),
 			    USB4_SB_TARGET_RETIMER, rt->index, buf, count, ppos);
 
 	mutex_unlock(&tb->lock);
-out_rpm_put:
+out:
 	pm_runtime_mark_last_busy(&rt->dev);
 	pm_runtime_put_autosuspend(&rt->dev);
+	free_page((unsigned long)buf);
 
 	return ret < 0 ? ret : count;
 }

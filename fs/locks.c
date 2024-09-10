@@ -2984,7 +2984,7 @@ static int __init filelock_init(void)
 	filelock_cache = kmem_cache_create("file_lock_cache",
 			sizeof(struct file_lock), 0, SLAB_PANIC, NULL);
 
-	filelease_cache = kmem_cache_create("file_lock_cache",
+	filelease_cache = kmem_cache_create("file_lease_cache",
 			sizeof(struct file_lease), 0, SLAB_PANIC, NULL);
 
 	for_each_possible_cpu(i) {

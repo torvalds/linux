@@ -182,6 +182,21 @@ static void lkdtm_REFCOUNT_SUB_AND_TEST_NEGATIVE(void)
 	check_negative(&neg, 3);
 }
 
+/*
+ * A refcount_sub_and_test() by zero when the counter is at zero should act like
+ * refcount_sub_and_test() above when going negative.
+ */
+static void lkdtm_REFCOUNT_SUB_AND_TEST_ZERO(void)
+{
+	refcount_t neg = REFCOUNT_INIT(0);
+
+	pr_info("attempting bad refcount_sub_and_test() at zero\n");
+	if (refcount_sub_and_test(0, &neg))
+		pr_warn("Weird: refcount_sub_and_test() reported zero\n");
+
+	check_negative(&neg, 0);
+}
+
 static void check_from_zero(refcount_t *ref)
 {
 	switch (refcount_read(ref)) {
@@ -400,6 +415,7 @@ static struct crashtype crashtypes[] = {
 	CRASHTYPE(REFCOUNT_DEC_NEGATIVE),
 	CRASHTYPE(REFCOUNT_DEC_AND_TEST_NEGATIVE),
 	CRASHTYPE(REFCOUNT_SUB_AND_TEST_NEGATIVE),
+	CRASHTYPE(REFCOUNT_SUB_AND_TEST_ZERO),
 	CRASHTYPE(REFCOUNT_INC_ZERO),
 	CRASHTYPE(REFCOUNT_ADD_ZERO),
 	CRASHTYPE(REFCOUNT_INC_SATURATED),

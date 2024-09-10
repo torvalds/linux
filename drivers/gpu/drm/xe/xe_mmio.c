@@ -30,7 +30,8 @@ static void tiles_fini(void *arg)
 	int id;
 
 	for_each_tile(tile, xe, id)
-		tile->mmio.regs = NULL;
+		if (tile != xe_device_get_root_tile(xe))
+			tile->mmio.regs = NULL;
 }
 
 int xe_mmio_probe_tiles(struct xe_device *xe)
@@ -91,9 +92,11 @@ add_mmio_ext:
 static void mmio_fini(void *arg)
 {
 	struct xe_device *xe = arg;
+	struct xe_tile *root_tile = xe_device_get_root_tile(xe);
 
 	pci_iounmap(to_pci_dev(xe->drm.dev), xe->mmio.regs);
 	xe->mmio.regs = NULL;
+	root_tile->mmio.regs = NULL;
 }
 
 int xe_mmio_init(struct xe_device *xe)
@@ -121,11 +124,28 @@ int xe_mmio_init(struct xe_device *xe)
 	return devm_add_action_or_reset(xe->drm.dev, mmio_fini, xe);
 }
 
+static void mmio_flush_pending_writes(struct xe_gt *gt)
+{
+#define DUMMY_REG_OFFSET	0x130030
+	struct xe_tile *tile = gt_to_tile(gt);
+	int i;
+
+	if (tile->xe->info.platform != XE_LUNARLAKE)
+		return;
+
+	/* 4 dummy writes */
+	for (i = 0; i < 4; i++)
+		writel(0, tile->mmio.regs + DUMMY_REG_OFFSET);
+}
+
 u8 xe_mmio_read8(struct xe_gt *gt, struct xe_reg reg)
 {
 	struct xe_tile *tile = gt_to_tile(gt);
 	u32 addr = xe_mmio_adjusted_addr(gt, reg.addr);
 	u8 val;
+
+	/* Wa_15015404425 */
+	mmio_flush_pending_writes(gt);
 
 	val = readb((reg.ext ? tile->mmio_ext.regs : tile->mmio.regs) + addr);
 	trace_xe_reg_rw(gt, false, addr, val, sizeof(val));
@@ -138,6 +158,9 @@ u16 xe_mmio_read16(struct xe_gt *gt, struct xe_reg reg)
 	struct xe_tile *tile = gt_to_tile(gt);
 	u32 addr = xe_mmio_adjusted_addr(gt, reg.addr);
 	u16 val;
+
+	/* Wa_15015404425 */
+	mmio_flush_pending_writes(gt);
 
 	val = readw((reg.ext ? tile->mmio_ext.regs : tile->mmio.regs) + addr);
 	trace_xe_reg_rw(gt, false, addr, val, sizeof(val));
@@ -159,6 +182,9 @@ u32 xe_mmio_read32(struct xe_gt *gt, struct xe_reg reg)
 	struct xe_tile *tile = gt_to_tile(gt);
 	u32 addr = xe_mmio_adjusted_addr(gt, reg.addr);
 	u32 val;
+
+	/* Wa_15015404425 */
+	mmio_flush_pending_writes(gt);
 
 	if (!reg.vf && IS_SRIOV_VF(gt_to_xe(gt)))
 		val = xe_gt_sriov_vf_read32(gt, reg);

@@ -35,7 +35,10 @@ struct cmis_cdb_fw_mng_features_rpl {
 	__be16	resv7;
 };
 
-#define CMIS_CDB_FW_WRITE_MECHANISM_LPL	0x01
+enum cmis_cdb_fw_write_mechanism {
+	CMIS_CDB_FW_WRITE_MECHANISM_LPL		= 0x01,
+	CMIS_CDB_FW_WRITE_MECHANISM_BOTH	= 0x11,
+};
 
 static int
 cmis_fw_update_fw_mng_features_get(struct ethtool_cmis_cdb *cdb,
@@ -64,7 +67,8 @@ cmis_fw_update_fw_mng_features_get(struct ethtool_cmis_cdb *cdb,
 	}
 
 	rpl = (struct cmis_cdb_fw_mng_features_rpl *)args.req.payload;
-	if (!(rpl->write_mechanism == CMIS_CDB_FW_WRITE_MECHANISM_LPL)) {
+	if (!(rpl->write_mechanism == CMIS_CDB_FW_WRITE_MECHANISM_LPL ||
+	      rpl->write_mechanism == CMIS_CDB_FW_WRITE_MECHANISM_BOTH)) {
 		ethnl_module_fw_flash_ntf_err(dev, ntf_params,
 					      "Write LPL is not supported",
 					      NULL);

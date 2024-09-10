@@ -928,7 +928,7 @@ revalidate:
 	}
 
 	if (sync) {
-		if (!(ret = nouveau_fence_wait(fence, false))) {
+		if (!(ret = nouveau_fence_wait(fence, false, false))) {
 			if ((ret = dma_fence_get_status(&fence->base)) == 1)
 				ret = 0;
 		}

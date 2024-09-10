@@ -114,7 +114,7 @@ static int ieee80211_set_mon_options(struct ieee80211_sub_if_data *sdata,
 
 	/* apply all changes now - no failures allowed */
 
-	if (monitor_sdata)
+	if (monitor_sdata && ieee80211_hw_check(&local->hw, WANT_MONITOR_VIF))
 		ieee80211_set_mu_mimo_follow(monitor_sdata, params);
 
 	if (params->flags) {
@@ -3053,6 +3053,9 @@ static int ieee80211_set_tx_power(struct wiphy *wiphy,
 		sdata = IEEE80211_WDEV_TO_SUB_IF(wdev);
 
 		if (sdata->vif.type == NL80211_IFTYPE_MONITOR) {
+			if (!ieee80211_hw_check(&local->hw, WANT_MONITOR_VIF))
+				return -EOPNOTSUPP;
+
 			sdata = wiphy_dereference(local->hw.wiphy,
 						  local->monitor_sdata);
 			if (!sdata)
@@ -3115,7 +3118,7 @@ static int ieee80211_set_tx_power(struct wiphy *wiphy,
 	if (has_monitor) {
 		sdata = wiphy_dereference(local->hw.wiphy,
 					  local->monitor_sdata);
-		if (sdata) {
+		if (sdata && ieee80211_hw_check(&local->hw, WANT_MONITOR_VIF)) {
 			sdata->deflink.user_power_level = local->user_power_level;
 			if (txp_type != sdata->vif.bss_conf.txpower_type)
 				update_txp_type = true;

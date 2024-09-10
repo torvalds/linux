@@ -2116,6 +2116,10 @@ alloc_tagging_slab_free_hook(struct kmem_cache *s, struct slab *slab, void **p,
 	if (!mem_alloc_profiling_enabled())
 		return;
 
+	/* slab->obj_exts might not be NULL if it was created for MEMCG accounting. */
+	if (s->flags & (SLAB_NO_OBJ_EXT | SLAB_NOLEAKTRACE))
+		return;
+
 	obj_exts = slab_obj_exts(slab);
 	if (!obj_exts)
 		return;
@@ -4688,6 +4692,9 @@ static void __kmem_cache_free_bulk(struct kmem_cache *s, size_t size, void **p)
 
 		size = build_detached_freelist(s, size, p, &df);
 		if (!df.slab)
+			continue;
+
+		if (kfence_free(df.freelist))
 			continue;
 
 		do_slab_free(df.s, df.slab, df.freelist, df.tail, df.cnt,

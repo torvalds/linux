@@ -6,8 +6,7 @@
  *
  * Used by the binder driver to optimize the allocation of the smallest
  * available descriptor ID. Each bit in the bitmap represents the state
- * of an ID, with the exception of BIT(0) which is used exclusively to
- * reference binder's context manager.
+ * of an ID.
  *
  * A dbitmap can grow or shrink as needed. This part has been designed
  * considering that users might need to briefly release their locks in
@@ -58,11 +57,7 @@ static inline unsigned int dbitmap_shrink_nbits(struct dbitmap *dmap)
 	if (bit < (dmap->nbits >> 2))
 		return dmap->nbits >> 1;
 
-	/*
-	 * Note that find_last_bit() returns dmap->nbits when no bits
-	 * are set. While this is technically not possible here since
-	 * BIT(0) is always set, this check is left for extra safety.
-	 */
+	/* find_last_bit() returns dmap->nbits when no bits are set. */
 	if (bit == dmap->nbits)
 		return NBITS_MIN;
 
@@ -132,16 +127,17 @@ dbitmap_grow(struct dbitmap *dmap, unsigned long *new, unsigned int nbits)
 }
 
 /*
- * Finds and sets the first zero bit in the bitmap. Upon success @bit
+ * Finds and sets the next zero bit in the bitmap. Upon success @bit
  * is populated with the index and 0 is returned. Otherwise, -ENOSPC
  * is returned to indicate that a dbitmap_grow() is needed.
  */
 static inline int
-dbitmap_acquire_first_zero_bit(struct dbitmap *dmap, unsigned long *bit)
+dbitmap_acquire_next_zero_bit(struct dbitmap *dmap, unsigned long offset,
+			      unsigned long *bit)
 {
 	unsigned long n;
 
-	n = find_first_zero_bit(dmap->map, dmap->nbits);
+	n = find_next_zero_bit(dmap->map, dmap->nbits, offset);
 	if (n == dmap->nbits)
 		return -ENOSPC;
 
@@ -154,9 +150,7 @@ dbitmap_acquire_first_zero_bit(struct dbitmap *dmap, unsigned long *bit)
 static inline void
 dbitmap_clear_bit(struct dbitmap *dmap, unsigned long bit)
 {
-	/* BIT(0) should always set for the context manager */
-	if (bit)
-		clear_bit(bit, dmap->map);
+	clear_bit(bit, dmap->map);
 }
 
 static inline int dbitmap_init(struct dbitmap *dmap)
@@ -168,8 +162,6 @@ static inline int dbitmap_init(struct dbitmap *dmap)
 	}
 
 	dmap->nbits = NBITS_MIN;
-	/* BIT(0) is reserved for the context manager */
-	set_bit(0, dmap->map);
 
 	return 0;
 }

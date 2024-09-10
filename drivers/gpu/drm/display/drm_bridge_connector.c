@@ -216,8 +216,19 @@ static void drm_bridge_connector_debugfs_init(struct drm_connector *connector,
 	}
 }
 
+static void drm_bridge_connector_reset(struct drm_connector *connector)
+{
+	struct drm_bridge_connector *bridge_connector =
+		to_drm_bridge_connector(connector);
+
+	drm_atomic_helper_connector_reset(connector);
+	if (bridge_connector->bridge_hdmi)
+		__drm_atomic_helper_connector_hdmi_reset(connector,
+							 connector->state);
+}
+
 static const struct drm_connector_funcs drm_bridge_connector_funcs = {
-	.reset = drm_atomic_helper_connector_reset,
+	.reset = drm_bridge_connector_reset,
 	.detect = drm_bridge_connector_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
@@ -443,10 +454,8 @@ struct drm_connector *drm_bridge_connector_init(struct drm_device *drm,
 			panel_bridge = bridge;
 	}
 
-	if (connector_type == DRM_MODE_CONNECTOR_Unknown) {
-		kfree(bridge_connector);
+	if (connector_type == DRM_MODE_CONNECTOR_Unknown)
 		return ERR_PTR(-EINVAL);
-	}
 
 	if (bridge_connector->bridge_hdmi)
 		ret = drmm_connector_hdmi_init(drm, connector,
@@ -461,10 +470,8 @@ struct drm_connector *drm_bridge_connector_init(struct drm_device *drm,
 		ret = drmm_connector_init(drm, connector,
 					  &drm_bridge_connector_funcs,
 					  connector_type, ddc);
-	if (ret) {
-		kfree(bridge_connector);
+	if (ret)
 		return ERR_PTR(ret);
-	}
 
 	drm_connector_helper_add(connector, &drm_bridge_connector_helper_funcs);
 

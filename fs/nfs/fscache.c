@@ -265,6 +265,8 @@ static int nfs_netfs_init_request(struct netfs_io_request *rreq, struct file *fi
 {
 	rreq->netfs_priv = get_nfs_open_context(nfs_file_open_context(file));
 	rreq->debug_id = atomic_inc_return(&nfs_netfs_debug_id);
+	/* [DEPRECATED] Use PG_private_2 to mark folio being written to the cache. */
+	__set_bit(NETFS_RREQ_USE_PGPRIV2, &rreq->flags);
 
 	return 0;
 }
@@ -361,7 +363,8 @@ void nfs_netfs_read_completion(struct nfs_pgio_header *hdr)
 		return;
 
 	sreq = netfs->sreq;
-	if (test_bit(NFS_IOHDR_EOF, &hdr->flags))
+	if (test_bit(NFS_IOHDR_EOF, &hdr->flags) &&
+	    sreq->rreq->origin != NETFS_DIO_READ)
 		__set_bit(NETFS_SREQ_CLEAR_TAIL, &sreq->flags);
 
 	if (hdr->error)

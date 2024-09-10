@@ -31,6 +31,8 @@ MODULE_ALIAS("devname:fuse");
 
 static struct kmem_cache *fuse_req_cachep;
 
+static void end_requests(struct list_head *head);
+
 static struct fuse_dev *fuse_get_dev(struct file *file)
 {
 	/*
@@ -773,7 +775,6 @@ static int fuse_check_folio(struct folio *folio)
 	    (folio->flags & PAGE_FLAGS_CHECK_AT_PREP &
 	     ~(1 << PG_locked |
 	       1 << PG_referenced |
-	       1 << PG_uptodate |
 	       1 << PG_lru |
 	       1 << PG_active |
 	       1 << PG_workingset |
@@ -818,9 +819,7 @@ static int fuse_try_move_page(struct fuse_copy_state *cs, struct page **pagep)
 
 	newfolio = page_folio(buf->page);
 
-	if (!folio_test_uptodate(newfolio))
-		folio_mark_uptodate(newfolio);
-
+	folio_clear_uptodate(newfolio);
 	folio_clear_mappedtodisk(newfolio);
 
 	if (fuse_check_folio(newfolio) != 0)
@@ -1618,9 +1617,11 @@ static int fuse_notify_store(struct fuse_conn *fc, unsigned int size,
 
 		this_num = min_t(unsigned, num, PAGE_SIZE - offset);
 		err = fuse_copy_page(cs, &page, offset, this_num, 0);
-		if (!err && offset == 0 &&
-		    (this_num == PAGE_SIZE || file_size == end))
+		if (!PageUptodate(page) && !err && offset == 0 &&
+		    (this_num == PAGE_SIZE || file_size == end)) {
+			zero_user_segment(page, this_num, PAGE_SIZE);
 			SetPageUptodate(page);
+		}
 		unlock_page(page);
 		put_page(page);
 
@@ -1820,6 +1821,13 @@ static void fuse_resend(struct fuse_conn *fc)
 	}
 
 	spin_lock(&fiq->lock);
+	if (!fiq->connected) {
+		spin_unlock(&fiq->lock);
+		list_for_each_entry(req, &to_queue, list)
+			clear_bit(FR_PENDING, &req->flags);
+		end_requests(&to_queue);
+		return;
+	}
 	/* iq and pq requests are both oldest to newest */
 	list_splice(&to_queue, &fiq->pending);
 	fiq->ops->wake_pending_and_unlock(fiq);

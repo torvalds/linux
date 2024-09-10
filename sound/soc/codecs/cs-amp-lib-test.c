@@ -38,6 +38,7 @@ static void cs_amp_lib_test_init_dummy_cal_blob(struct kunit *test, int num_amps
 {
 	struct cs_amp_lib_test_priv *priv = test->priv;
 	unsigned int blob_size;
+	int i;
 
 	blob_size = offsetof(struct cirrus_amp_efi_data, data) +
 		    sizeof(struct cirrus_amp_cal_data) * num_amps;
@@ -49,6 +50,14 @@ static void cs_amp_lib_test_init_dummy_cal_blob(struct kunit *test, int num_amps
 	priv->cal_blob->count = num_amps;
 
 	get_random_bytes(priv->cal_blob->data, sizeof(struct cirrus_amp_cal_data) * num_amps);
+
+	/* Ensure all timestamps are non-zero to mark the entry valid. */
+	for (i = 0; i < num_amps; i++)
+		priv->cal_blob->data[i].calTime[0] |= 1;
+
+	/* Ensure that all UIDs are non-zero and unique. */
+	for (i = 0; i < num_amps; i++)
+		*(u8 *)&priv->cal_blob->data[i].calTarget[0] = i + 1;
 }
 
 static u64 cs_amp_lib_test_get_target_uid(struct kunit *test)
