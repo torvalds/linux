@@ -327,6 +327,7 @@ static u32 soc15_get_xclk(struct amdgpu_device *adev)
 	if (amdgpu_ip_version(adev, MP1_HWIP, 0) == IP_VERSION(12, 0, 0) ||
 	    amdgpu_ip_version(adev, MP1_HWIP, 0) == IP_VERSION(12, 0, 1) ||
 	    amdgpu_ip_version(adev, MP1_HWIP, 0) == IP_VERSION(13, 0, 6) ||
+	    amdgpu_ip_version(adev, MP1_HWIP, 0) == IP_VERSION(13, 0, 12) ||
 	    amdgpu_ip_version(adev, MP1_HWIP, 0) == IP_VERSION(13, 0, 14))
 		return 10000;
 	if (amdgpu_ip_version(adev, MP1_HWIP, 0) == IP_VERSION(10, 0, 0) ||
