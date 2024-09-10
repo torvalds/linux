@@ -663,7 +663,7 @@ static const struct akcipher_testvec rsa_tv_template[] = {
 /*
  * ECDSA test vectors.
  */
-static const struct akcipher_testvec ecdsa_nist_p192_tv_template[] = {
+static const struct sig_testvec ecdsa_nist_p192_tv_template[] = {
 	{
 	.key = /* secp192r1(sha1) */
 	"\x04\xf7\x46\xf8\x2f\x15\xf6\x22\x8e\xd7\x57\x4f\xcc\xe7\xbb\xc1"
@@ -682,7 +682,6 @@ static const struct akcipher_testvec ecdsa_nist_p192_tv_template[] = {
 	"\x80\x6f\xa5\x79\x77\xda\xd0",
 	.c_size = 55,
 	.public_key_vec = true,
-	.siggen_sigver_test = true,
 	}, {
 	.key = /* secp192r1(sha224) */
 	"\x04\xb6\x4b\xb1\xd1\xac\xba\x24\x8f\x65\xb2\x60\x00\x90\xbf\xbd"
@@ -701,7 +700,6 @@ static const struct akcipher_testvec ecdsa_nist_p192_tv_template[] = {
 	"\x5c\x99\xdb\x92\x5b\x36",
 	.c_size = 54,
 	.public_key_vec = true,
-	.siggen_sigver_test = true,
 	}, {
 	.key = /* secp192r1(sha256) */
 	"\x04\xe2\x51\x24\x9b\xf7\xb6\x32\x82\x39\x66\x3d\x5b\xec\x3b\xae"
@@ -720,7 +718,6 @@ static const struct akcipher_testvec ecdsa_nist_p192_tv_template[] = {
 	"\x3a\x97\xd9\xcd\x1a\x6a\x49",
 	.c_size = 55,
 	.public_key_vec = true,
-	.siggen_sigver_test = true,
 	}, {
 	.key = /* secp192r1(sha384) */
 	"\x04\x5a\x13\xfe\x68\x86\x4d\xf4\x17\xc7\xa4\xe5\x8c\x65\x57\xb7"
@@ -740,7 +737,6 @@ static const struct akcipher_testvec ecdsa_nist_p192_tv_template[] = {
 	"\x12\x3b\x3b\x28\xfb\x6d\xe1",
 	.c_size = 55,
 	.public_key_vec = true,
-	.siggen_sigver_test = true,
 	}, {
 	.key = /* secp192r1(sha512) */
 	"\x04\xd5\xf2\x6e\xc3\x94\x5c\x52\xbc\xdf\x86\x6c\x14\xd1\xca\xea"
@@ -761,11 +757,10 @@ static const struct akcipher_testvec ecdsa_nist_p192_tv_template[] = {
 	"\x6a\xdf\x97\xfd\x82\x76\x24",
 	.c_size = 55,
 	.public_key_vec = true,
-	.siggen_sigver_test = true,
 	},
 };
 
-static const struct akcipher_testvec ecdsa_nist_p256_tv_template[] = {
+static const struct sig_testvec ecdsa_nist_p256_tv_template[] = {
 	{
 	.key = /* secp256r1(sha1) */
 	"\x04\xb9\x7b\xbb\xd7\x17\x64\xd2\x7e\xfc\x81\x5d\x87\x06\x83\x41"
@@ -786,7 +781,6 @@ static const struct akcipher_testvec ecdsa_nist_p256_tv_template[] = {
 	"\xfb\x9d\x8b\xde\xd4\x8d\x6f\xad",
 	.c_size = 72,
 	.public_key_vec = true,
-	.siggen_sigver_test = true,
 	}, {
 	.key = /* secp256r1(sha224) */
 	"\x04\x8b\x6d\xc0\x33\x8e\x2d\x8b\x67\xf5\xeb\xc4\x7f\xa0\xf5\xd9"
@@ -807,7 +801,6 @@ static const struct akcipher_testvec ecdsa_nist_p256_tv_template[] = {
 	"\x2e\x8b\xde\x5a\x04\x0e",
 	.c_size = 70,
 	.public_key_vec = true,
-	.siggen_sigver_test = true,
 	}, {
 	.key = /* secp256r1(sha256) */
 	"\x04\xf1\xea\xc4\x53\xf3\xb9\x0e\x9f\x7e\xad\xe3\xea\xd7\x0e\x0f"
@@ -828,7 +821,6 @@ static const struct akcipher_testvec ecdsa_nist_p256_tv_template[] = {
 	"\x2a\x65\x35\x23\xe3\x1d\xfa",
 	.c_size = 71,
 	.public_key_vec = true,
-	.siggen_sigver_test = true,
 	}, {
 	.key = /* secp256r1(sha384) */
 	"\x04\xc5\xc6\xea\x60\xc9\xce\xad\x02\x8d\xf5\x3e\x24\xe3\x52\x1d"
@@ -850,7 +842,6 @@ static const struct akcipher_testvec ecdsa_nist_p256_tv_template[] = {
 	"\xc0\x60\x11\x92\xdc\x17\x89\x12",
 	.c_size = 72,
 	.public_key_vec = true,
-	.siggen_sigver_test = true,
 	}, {
 	.key = /* secp256r1(sha512) */
 	"\x04\xd7\x27\x46\x49\xf6\x26\x85\x12\x40\x76\x8e\xe2\xe6\x2a\x7a"
@@ -873,11 +864,10 @@ static const struct akcipher_testvec ecdsa_nist_p256_tv_template[] = {
 	"\x31\x79\x4a\xe9\x81\x6a\xee",
 	.c_size = 71,
 	.public_key_vec = true,
-	.siggen_sigver_test = true,
 	},
 };
 
-static const struct akcipher_testvec ecdsa_nist_p384_tv_template[] = {
+static const struct sig_testvec ecdsa_nist_p384_tv_template[] = {
 	{
 	.key = /* secp384r1(sha1) */
 	"\x04\x89\x25\xf3\x97\x88\xcb\xb0\x78\xc5\x72\x9a\x14\x6e\x7a\xb1"
@@ -902,7 +892,6 @@ static const struct akcipher_testvec ecdsa_nist_p384_tv_template[] = {
 	"\x79\x12\x2a\xb7\xc5\x15\x92\xc5",
 	.c_size = 104,
 	.public_key_vec = true,
-	.siggen_sigver_test = true,
 	}, {
 	.key = /* secp384r1(sha224) */
 	"\x04\x69\x6c\xcf\x62\xee\xd0\x0d\xe5\xb5\x2f\x70\x54\xcf\x26\xa0"
@@ -927,7 +916,6 @@ static const struct akcipher_testvec ecdsa_nist_p384_tv_template[] = {
 	"\x88\x2b\x82\x26\x5e\x1c\xda\xfb",
 	.c_size = 104,
 	.public_key_vec = true,
-	.siggen_sigver_test = true,
 	}, {
 	.key = /* secp384r1(sha256) */
 	"\x04\xee\xd6\xda\x3e\x94\x90\x00\x27\xed\xf8\x64\x55\xd6\x51\x9a"
@@ -952,7 +940,6 @@ static const struct akcipher_testvec ecdsa_nist_p384_tv_template[] = {
 	"\xf4\x1f\x39\xca\x4d\x43",
 	.c_size = 102,
 	.public_key_vec = true,
-	.siggen_sigver_test = true,
 	}, {
 	.key = /* secp384r1(sha384) */
 	"\x04\x3a\x2f\x62\xe7\x1a\xcf\x24\xd0\x0b\x7c\xe0\xed\x46\x0a\x4f"
@@ -978,7 +965,6 @@ static const struct akcipher_testvec ecdsa_nist_p384_tv_template[] = {
 	"\xab\x8d\x4e\xde\xe6\x6d\x9b\x66",
 	.c_size = 104,
 	.public_key_vec = true,
-	.siggen_sigver_test = true,
 	}, {
 	.key = /* secp384r1(sha512) */
 	"\x04\xb4\xe7\xc1\xeb\x64\x25\x22\x46\xc3\x86\x61\x80\xbe\x1e\x46"
@@ -1005,11 +991,10 @@ static const struct akcipher_testvec ecdsa_nist_p384_tv_template[] = {
 	"\x3c\x93\xff\x50\x5d",
 	.c_size = 101,
 	.public_key_vec = true,
-	.siggen_sigver_test = true,
 	},
 };
 
-static const struct akcipher_testvec ecdsa_nist_p521_tv_template[] = {
+static const struct sig_testvec ecdsa_nist_p521_tv_template[] = {
 	{
 	.key = /* secp521r1(sha224) */
 	"\x04\x01\x4f\x43\x18\xb6\xa9\xc9\x5d\x68\xd3\xa9\x42\xf8\x98\xc0"
@@ -1038,7 +1023,6 @@ static const struct akcipher_testvec ecdsa_nist_p521_tv_template[] = {
 	"\xa3\x50\xb1\xa5\x98\x92\x2a\xa5\x52",
 	.c_size = 137,
 	.public_key_vec = true,
-	.siggen_sigver_test = true,
 	},
 	{
 	.key = /* secp521r1(sha256) */
@@ -1068,7 +1052,6 @@ static const struct akcipher_testvec ecdsa_nist_p521_tv_template[] = {
 	"\xb7\x1d\x91\x55\x38\xb6\xf6\x34\x65\xc7\xbd",
 	.c_size = 139,
 	.public_key_vec = true,
-	.siggen_sigver_test = true,
 	},
 	{
 	.key = /* secp521r1(sha384) */
@@ -1099,7 +1082,6 @@ static const struct akcipher_testvec ecdsa_nist_p521_tv_template[] = {
 	"\x8f\xb4\x22\xc6\x4f\xab\x2b\x62\xc1\x42\xb1",
 	.c_size = 139,
 	.public_key_vec = true,
-	.siggen_sigver_test = true,
 	},
 	{
 	.key = /* secp521r1(sha512) */
@@ -1131,7 +1113,6 @@ static const struct akcipher_testvec ecdsa_nist_p521_tv_template[] = {
 	"\xa6\xe5\x25\x46\x1e\x77\x44\x78\xe0\xd1\x04",
 	.c_size = 139,
 	.public_key_vec = true,
-	.siggen_sigver_test = true,
 	},
 };
 

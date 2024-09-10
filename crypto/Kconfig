@@ -290,7 +290,7 @@ config CRYPTO_ECDH
 config CRYPTO_ECDSA
 	tristate "ECDSA (Elliptic Curve Digital Signature Algorithm)"
 	select CRYPTO_ECC
-	select CRYPTO_AKCIPHER
+	select CRYPTO_SIG
 	select ASN1
 	help
 	  ECDSA (Elliptic Curve Digital Signature Algorithm) (FIPS 186,

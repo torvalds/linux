@@ -4432,7 +4432,6 @@ static int test_sig(struct crypto_sig *tfm, const char *alg,
 	return 0;
 }
 
-__maybe_unused
 static int alg_test_sig(const struct alg_test_desc *desc, const char *driver,
 			u32 type, u32 mask)
 {
@@ -5242,30 +5241,30 @@ static const struct alg_test_desc alg_test_descs[] = {
 		}
 	}, {
 		.alg = "ecdsa-nist-p192",
-		.test = alg_test_akcipher,
+		.test = alg_test_sig,
 		.suite = {
-			.akcipher = __VECS(ecdsa_nist_p192_tv_template)
+			.sig = __VECS(ecdsa_nist_p192_tv_template)
 		}
 	}, {
 		.alg = "ecdsa-nist-p256",
-		.test = alg_test_akcipher,
+		.test = alg_test_sig,
 		.fips_allowed = 1,
 		.suite = {
-			.akcipher = __VECS(ecdsa_nist_p256_tv_template)
+			.sig = __VECS(ecdsa_nist_p256_tv_template)
 		}
 	}, {
 		.alg = "ecdsa-nist-p384",
-		.test = alg_test_akcipher,
+		.test = alg_test_sig,
 		.fips_allowed = 1,
 		.suite = {
-			.akcipher = __VECS(ecdsa_nist_p384_tv_template)
+			.sig = __VECS(ecdsa_nist_p384_tv_template)
 		}
 	}, {
 		.alg = "ecdsa-nist-p521",
-		.test = alg_test_akcipher,
+		.test = alg_test_sig,
 		.fips_allowed = 1,
 		.suite = {
-			.akcipher = __VECS(ecdsa_nist_p521_tv_template)
+			.sig = __VECS(ecdsa_nist_p521_tv_template)
 		}
 	}, {
 		.alg = "ecrdsa",
