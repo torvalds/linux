@@ -136,7 +136,7 @@ FEATURE_DISPLAY ?=              \
          libunwind              \
          libdw-dwarf-unwind     \
          libcapstone            \
-         llvm                   \
+         llvm-perf              \
          zlib                   \
          lzma                   \
          get_cpuid              \

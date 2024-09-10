@@ -73,6 +73,7 @@ FILES=                                          \
          test-libopencsd.bin			\
          test-clang.bin				\
          test-llvm.bin				\
+         test-llvm-perf.bin   \
          test-llvm-version.bin			\
          test-libaio.bin			\
          test-libzstd.bin			\
@@ -381,6 +382,14 @@ $(OUTPUT)test-jvmti-cmlr.bin:
 	$(BUILD)
 
 $(OUTPUT)test-llvm.bin:
+	$(BUILDXX) -std=gnu++17 				\
+		-I$(shell $(LLVM_CONFIG) --includedir) 		\
+		-L$(shell $(LLVM_CONFIG) --libdir)		\
+		$(shell $(LLVM_CONFIG) --libs Core BPF)		\
+		$(shell $(LLVM_CONFIG) --system-libs)		\
+		> $(@:.bin=.make.output) 2>&1
+
+$(OUTPUT)test-llvm-perf.bin:
 	$(BUILDXX) -std=gnu++17 				\
 		-I$(shell $(LLVM_CONFIG) --includedir) 		\
 		-L$(shell $(LLVM_CONFIG) --libdir)		\
