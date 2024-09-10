@@ -74,7 +74,7 @@ static bool pf_needs_enable_ggtt_guest_update(struct xe_device *xe)
 
 static void pf_enable_ggtt_guest_update(struct xe_gt *gt)
 {
-	xe_mmio_write32(gt, VIRTUAL_CTRL_REG, GUEST_GTT_UPDATE_EN);
+	xe_mmio_write32(&gt->mmio, VIRTUAL_CTRL_REG, GUEST_GTT_UPDATE_EN);
 }
 
 /**
@@ -116,13 +116,13 @@ static void pf_clear_vf_scratch_regs(struct xe_gt *gt, unsigned int vfid)
 		count = MED_VF_SW_FLAG_COUNT;
 		for (n = 0; n < count; n++) {
 			scratch = xe_reg_vf_to_pf(MED_VF_SW_FLAG(n), vfid, stride);
-			xe_mmio_write32(gt, scratch, 0);
+			xe_mmio_write32(&gt->mmio, scratch, 0);
 		}
 	} else {
 		count = VF_SW_FLAG_COUNT;
 		for (n = 0; n < count; n++) {
 			scratch = xe_reg_vf_to_pf(VF_SW_FLAG(n), vfid, stride);
-			xe_mmio_write32(gt, scratch, 0);
+			xe_mmio_write32(&gt->mmio, scratch, 0);
 		}
 	}
 }
