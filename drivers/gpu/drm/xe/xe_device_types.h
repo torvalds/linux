@@ -108,6 +108,22 @@ struct xe_mem_region {
 };
 
 /**
+ * struct xe_mmio - register mmio structure
+ *
+ * Represents an MMIO region that the CPU may use to access registers.  A
+ * region may share its IO map with other regions (e.g., all GTs within a
+ * tile share the same map with their parent tile, but represent different
+ * subregions of the overall IO space).
+ */
+struct xe_mmio {
+	/** @regs: Map used to access registers. */
+	void __iomem *regs;
+
+	/** @size: Size of the map. */
+	size_t size;
+};
+
+/**
  * struct xe_tile - hardware tile structure
  *
  * From a driver perspective, a "tile" is effectively a complete GPU, containing
@@ -148,13 +164,7 @@ struct xe_tile {
 	 * * 4MB-8MB: reserved
 	 * * 8MB-16MB: global GTT
 	 */
-	struct {
-		/** @mmio.size: size of tile's MMIO space */
-		size_t size;
-
-		/** @mmio.regs: pointer to tile's MMIO space (starting with registers) */
-		void __iomem *regs;
-	} mmio;
+	struct xe_mmio mmio;
 
 	/**
 	 * @mmio_ext: MMIO-extension info for a tile.
