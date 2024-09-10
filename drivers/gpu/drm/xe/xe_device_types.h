@@ -115,6 +115,9 @@ struct xe_mem_region {
  * subregions of the overall IO space).
  */
 struct xe_mmio {
+	/** @tile: Backpointer to tile, used for tracing */
+	struct xe_tile *tile;
+
 	/** @regs: Map used to access registers. */
 	void __iomem *regs;
 

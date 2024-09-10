@@ -713,6 +713,7 @@ static int xe_info_init(struct xe_device *xe,
 		gt->info.engine_mask = graphics_desc->hw_engine_mask;
 		gt->mmio.regs = tile->mmio.regs;
 		gt->mmio.regs_size = tile->mmio.regs_size;
+		gt->mmio.tile = tile;
 		if (MEDIA_VER(xe) < 13 && media_desc)
 			gt->info.engine_mask |= media_desc->hw_engine_mask;
 
@@ -735,6 +736,7 @@ static int xe_info_init(struct xe_device *xe,
 		gt->mmio.regs_size = tile->mmio.regs_size;
 		gt->mmio.adj_offset = MEDIA_GT_GSI_OFFSET;
 		gt->mmio.adj_limit = MEDIA_GT_GSI_LENGTH;
+		gt->mmio.tile = tile;
 
 		/*
 		 * FIXME: At the moment multi-tile and standalone media are

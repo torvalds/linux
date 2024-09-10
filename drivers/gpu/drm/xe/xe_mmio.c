@@ -98,6 +98,7 @@ static void mmio_multi_tile_setup(struct xe_device *xe, size_t tile_mmio_size)
 	for_each_tile(tile, xe, id) {
 		tile->mmio.regs_size = SZ_4M;
 		tile->mmio.regs = regs;
+		tile->mmio.tile = tile;
 		regs += tile_mmio_size;
 	}
 }
@@ -134,6 +135,7 @@ static void mmio_extension_setup(struct xe_device *xe, size_t tile_mmio_size,
 	for_each_tile(tile, xe, id) {
 		tile->mmio_ext.regs_size = tile_mmio_ext_size;
 		tile->mmio_ext.regs = regs;
+		tile->mmio_ext.tile = tile;
 		regs += tile_mmio_ext_size;
 	}
 }
@@ -179,6 +181,7 @@ int xe_mmio_init(struct xe_device *xe)
 	/* Setup first tile; other tiles (if present) will be setup later. */
 	root_tile->mmio.regs_size = SZ_4M;
 	root_tile->mmio.regs = xe->mmio.regs;
+	root_tile->mmio.tile = root_tile;
 
 	return devm_add_action_or_reset(xe->drm.dev, mmio_fini, xe);
 }
