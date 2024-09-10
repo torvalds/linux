@@ -165,7 +165,7 @@ static void apply_one_mmio(struct xe_gt *gt, struct xe_reg_sr_entry *entry)
 	else if (entry->clr_bits + 1)
 		val = (reg.mcr ?
 		       xe_gt_mcr_unicast_read_any(gt, reg_mcr) :
-		       xe_mmio_read32(gt, reg)) & (~entry->clr_bits);
+		       xe_mmio_read32(&gt->mmio, reg)) & (~entry->clr_bits);
 	else
 		val = 0;
 
@@ -181,7 +181,7 @@ static void apply_one_mmio(struct xe_gt *gt, struct xe_reg_sr_entry *entry)
 	if (entry->reg.mcr)
 		xe_gt_mcr_multicast_write(gt, reg_mcr, val);
 	else
-		xe_mmio_write32(gt, reg, val);
+		xe_mmio_write32(&gt->mmio, reg, val);
 }
 
 void xe_reg_sr_apply_mmio(struct xe_reg_sr *sr, struct xe_gt *gt)
@@ -242,7 +242,7 @@ void xe_reg_sr_apply_whitelist(struct xe_hw_engine *hwe)
 		}
 
 		xe_reg_whitelist_print_entry(&p, 0, reg, entry);
-		xe_mmio_write32(gt, RING_FORCE_TO_NONPRIV(mmio_base, slot),
+		xe_mmio_write32(&gt->mmio, RING_FORCE_TO_NONPRIV(mmio_base, slot),
 				reg | entry->set_bits);
 		slot++;
 	}
@@ -251,7 +251,7 @@ void xe_reg_sr_apply_whitelist(struct xe_hw_engine *hwe)
 	for (; slot < RING_MAX_NONPRIV_SLOTS; slot++) {
 		u32 addr = RING_NOPID(mmio_base).addr;
 
-		xe_mmio_write32(gt, RING_FORCE_TO_NONPRIV(mmio_base, slot), addr);
+		xe_mmio_write32(&gt->mmio, RING_FORCE_TO_NONPRIV(mmio_base, slot), addr);
 	}
 
 	err = xe_force_wake_put(gt_to_fw(gt), XE_FORCEWAKE_ALL);
