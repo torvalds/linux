@@ -2,7 +2,7 @@
 {% if annotate %}
 	/* member {{ name }} (variable-length array) */
 {% endif %}
-	if (xdr_stream_decode_u32(xdr, &ptr->{{ name }}.count) != XDR_UNIT)
+	if (xdr_stream_decode_u32(xdr, &ptr->{{ name }}.count) < 0)
 		return false;
 {% if maxsize != "0" %}
 	if (ptr->{{ name }}.count > {{ maxsize }})

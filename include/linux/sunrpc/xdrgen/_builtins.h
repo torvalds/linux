@@ -184,7 +184,7 @@ xdrgen_decode_string(struct xdr_stream *xdr, string *ptr, u32 maxlen)
 	__be32 *p;
 	u32 len;
 
-	if (unlikely(xdr_stream_decode_u32(xdr, &len) != XDR_UNIT))
+	if (unlikely(xdr_stream_decode_u32(xdr, &len) < 0))
 		return false;
 	if (unlikely(maxlen && len > maxlen))
 		return false;
@@ -215,7 +215,7 @@ xdrgen_decode_opaque(struct xdr_stream *xdr, opaque *ptr, u32 maxlen)
 	__be32 *p;
 	u32 len;
 
-	if (unlikely(xdr_stream_decode_u32(xdr, &len) != XDR_UNIT))
+	if (unlikely(xdr_stream_decode_u32(xdr, &len) < 0))
 		return false;
 	if (unlikely(maxlen && len > maxlen))
 		return false;
