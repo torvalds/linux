@@ -686,7 +686,6 @@ static int qrtr_genpool_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct qrtr_genpool_dev *qdev;
-	unsigned long flags;
 	int rc;
 
 	qdev = devm_kzalloc(dev, sizeof(*qdev), GFP_KERNEL);
@@ -713,10 +712,6 @@ static int qrtr_genpool_probe(struct platform_device *pdev)
 	INIT_WORK(&qdev->setup_work, qrtr_genpool_setup_work);
 	spin_lock_init(&qdev->lock);
 
-	rc = qrtr_genpool_memory_alloc(qdev);
-	if (rc)
-		goto err;
-
 	qdev->reboot_handler.notifier_call = qrtr_genpool_reboot_cb;
 	rc = devm_register_reboot_notifier(qdev->dev, &qdev->reboot_handler);
 	if (rc) {
@@ -731,12 +726,6 @@ static int qrtr_genpool_probe(struct platform_device *pdev)
 	rc = qrtr_genpool_irq_init(qdev);
 	if (rc)
 		goto err;
-
-	/* move to LOCAL_STATE_INIT from LOCAL_STATE_DEFAULT */
-	spin_lock_irqsave(&qdev->lock, flags);
-	qrtr_genpool_set_state(qdev, LOCAL_STATE_INIT);
-	qrtr_genpool_signal_setup(qdev);
-	spin_unlock_irqrestore(&qdev->lock, flags);
 
 	return 0;
 
