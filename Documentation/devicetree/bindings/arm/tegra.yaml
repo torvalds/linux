@@ -217,6 +217,11 @@ properties:
           - const: nvidia,p3737-0000+p3701-0000
           - const: nvidia,p3701-0000
           - const: nvidia,tegra234
+      - description: Jetson AGX Orin Developer Kit with Industrial Module
+        items:
+          - const: nvidia,p3737-0000+p3701-0008
+          - const: nvidia,p3701-0008
+          - const: nvidia,tegra234
       - description: NVIDIA IGX Orin Development Kit
         items:
           - const: nvidia,p3740-0002+p3701-0008
