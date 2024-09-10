@@ -21,9 +21,11 @@ struct uid_gid_extent {
 };
 
 struct uid_gid_map { /* 64 bytes -- 1 cache line */
-	u32 nr_extents;
 	union {
-		struct uid_gid_extent extent[UID_GID_MAP_MAX_BASE_EXTENTS];
+		struct {
+			struct uid_gid_extent extent[UID_GID_MAP_MAX_BASE_EXTENTS];
+			u32 nr_extents;
+		};
 		struct {
 			struct uid_gid_extent *forward;
 			struct uid_gid_extent *reverse;
