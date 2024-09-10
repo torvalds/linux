@@ -3292,13 +3292,13 @@
 
 #define HSW_STEREO_3D_CTL(dev_priv, trans)	_MMIO_PIPE2(dev_priv, trans, _HSW_STEREO_3D_CTL_A)
 
-#define _PCH_TRANS_HTOTAL_B          0xe1000
-#define _PCH_TRANS_HBLANK_B          0xe1004
-#define _PCH_TRANS_HSYNC_B           0xe1008
-#define _PCH_TRANS_VTOTAL_B          0xe100c
-#define _PCH_TRANS_VBLANK_B          0xe1010
-#define _PCH_TRANS_VSYNC_B           0xe1014
-#define _PCH_TRANS_VSYNCSHIFT_B 0xe1028
+#define _PCH_TRANS_HTOTAL_B		0xe1000
+#define _PCH_TRANS_HBLANK_B		0xe1004
+#define _PCH_TRANS_HSYNC_B		0xe1008
+#define _PCH_TRANS_VTOTAL_B		0xe100c
+#define _PCH_TRANS_VBLANK_B		0xe1010
+#define _PCH_TRANS_VSYNC_B		0xe1014
+#define _PCH_TRANS_VSYNCSHIFT_B		0xe1028
 
 #define PCH_TRANS_HTOTAL(pipe)		_MMIO_PIPE(pipe, _PCH_TRANS_HTOTAL_A, _PCH_TRANS_HTOTAL_B)
 #define PCH_TRANS_HBLANK(pipe)		_MMIO_PIPE(pipe, _PCH_TRANS_HBLANK_A, _PCH_TRANS_HBLANK_B)
