@@ -22,13 +22,3 @@ static void dump_4_regs(struct adapter *adapter, int offset)
 	netdev_dbg(adapter->pnetdev, "0x%03x 0x%08x 0x%08x 0x%08x 0x%08x\n",
 		   i, reg[0], reg[1], reg[2], reg[3]);
 }
-
-void mac_reg_dump(struct adapter *adapter)
-{
-	int i;
-
-	netdev_dbg(adapter->pnetdev, "======= MAC REG =======\n");
-
-	for (i = 0x0; i < 0x800; i += 4)
-		dump_4_regs(adapter, i);
-}
