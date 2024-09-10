@@ -37,8 +37,6 @@ static inline int arch_override_mprotect_pkey(struct vm_area_struct *vma,
 static inline int execute_only_pkey(struct mm_struct *mm)
 {
 	// Execute-only mappings are handled by EPAN/FEAT_PAN3.
-	WARN_ON_ONCE(!cpus_have_final_cap(ARM64_HAS_EPAN));
-
 	return -1;
 }
 
