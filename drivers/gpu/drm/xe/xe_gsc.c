@@ -179,7 +179,7 @@ out_bo:
 
 static int gsc_fw_is_loaded(struct xe_gt *gt)
 {
-	return xe_mmio_read32(gt, HECI_FWSTS1(MTL_GSC_HECI1_BASE)) &
+	return xe_mmio_read32(&gt->mmio, HECI_FWSTS1(MTL_GSC_HECI1_BASE)) &
 			      HECI1_FWSTS1_INIT_COMPLETE;
 }
 
@@ -190,7 +190,7 @@ static int gsc_fw_wait(struct xe_gt *gt)
 	 * executed by the GSCCS. To account for possible submission delays or
 	 * other issues, we use a 500ms timeout in the wait here.
 	 */
-	return xe_mmio_wait32(gt, HECI_FWSTS1(MTL_GSC_HECI1_BASE),
+	return xe_mmio_wait32(&gt->mmio, HECI_FWSTS1(MTL_GSC_HECI1_BASE),
 			      HECI1_FWSTS1_INIT_COMPLETE,
 			      HECI1_FWSTS1_INIT_COMPLETE,
 			      500 * USEC_PER_MSEC, NULL, false);
@@ -330,7 +330,7 @@ static int gsc_er_complete(struct xe_gt *gt)
 	 * so in that scenario we're always guaranteed to find the correct
 	 * value.
 	 */
-	er_status = xe_mmio_read32(gt, GSCI_TIMER_STATUS) & GSCI_TIMER_STATUS_VALUE;
+	er_status = xe_mmio_read32(&gt->mmio, GSCI_TIMER_STATUS) & GSCI_TIMER_STATUS_VALUE;
 
 	if (er_status == GSCI_TIMER_STATUS_TIMER_EXPIRED) {
 		/*
@@ -581,11 +581,11 @@ void xe_gsc_wa_14015076503(struct xe_gt *gt, bool prep)
 	if (!XE_WA(gt, 14015076503) || !gsc_fw_is_loaded(gt))
 		return;
 
-	xe_mmio_rmw32(gt, HECI_H_GS1(MTL_GSC_HECI2_BASE), gs1_clr, gs1_set);
+	xe_mmio_rmw32(&gt->mmio, HECI_H_GS1(MTL_GSC_HECI2_BASE), gs1_clr, gs1_set);
 
 	if (prep) {
 		/* make sure the reset bit is clear when writing the CSR reg */
-		xe_mmio_rmw32(gt, HECI_H_CSR(MTL_GSC_HECI2_BASE),
+		xe_mmio_rmw32(&gt->mmio, HECI_H_CSR(MTL_GSC_HECI2_BASE),
 			      HECI_H_CSR_RST, HECI_H_CSR_IG);
 		msleep(200);
 	}
@@ -599,6 +599,7 @@ void xe_gsc_wa_14015076503(struct xe_gt *gt, bool prep)
 void xe_gsc_print_info(struct xe_gsc *gsc, struct drm_printer *p)
 {
 	struct xe_gt *gt = gsc_to_gt(gsc);
+	struct xe_mmio *mmio = &gt->mmio;
 	int err;
 
 	xe_uc_fw_print(&gsc->fw, p);
@@ -613,12 +614,12 @@ void xe_gsc_print_info(struct xe_gsc *gsc, struct drm_printer *p)
 		return;
 
 	drm_printf(p, "\nHECI1 FWSTS: 0x%08x 0x%08x 0x%08x 0x%08x 0x%08x 0x%08x\n",
-			xe_mmio_read32(gt, HECI_FWSTS1(MTL_GSC_HECI1_BASE)),
-			xe_mmio_read32(gt, HECI_FWSTS2(MTL_GSC_HECI1_BASE)),
-			xe_mmio_read32(gt, HECI_FWSTS3(MTL_GSC_HECI1_BASE)),
-			xe_mmio_read32(gt, HECI_FWSTS4(MTL_GSC_HECI1_BASE)),
-			xe_mmio_read32(gt, HECI_FWSTS5(MTL_GSC_HECI1_BASE)),
-			xe_mmio_read32(gt, HECI_FWSTS6(MTL_GSC_HECI1_BASE)));
+			xe_mmio_read32(mmio, HECI_FWSTS1(MTL_GSC_HECI1_BASE)),
+			xe_mmio_read32(mmio, HECI_FWSTS2(MTL_GSC_HECI1_BASE)),
+			xe_mmio_read32(mmio, HECI_FWSTS3(MTL_GSC_HECI1_BASE)),
+			xe_mmio_read32(mmio, HECI_FWSTS4(MTL_GSC_HECI1_BASE)),
+			xe_mmio_read32(mmio, HECI_FWSTS5(MTL_GSC_HECI1_BASE)),
+			xe_mmio_read32(mmio, HECI_FWSTS6(MTL_GSC_HECI1_BASE)));
 
 	xe_force_wake_put(gt_to_fw(gt), XE_FW_GSC);
 }
