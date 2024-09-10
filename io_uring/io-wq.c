@@ -13,6 +13,7 @@
 #include <linux/slab.h>
 #include <linux/rculist_nulls.h>
 #include <linux/cpu.h>
+#include <linux/cpuset.h>
 #include <linux/task_work.h>
 #include <linux/audit.h>
 #include <uapi/linux/io_uring.h>
@@ -1362,22 +1363,34 @@ static int io_wq_cpu_offline(unsigned int cpu, struct hlist_node *node)
 
 int io_wq_cpu_affinity(struct io_uring_task *tctx, cpumask_var_t mask)
 {
+	cpumask_var_t allowed_mask;
+	int ret = 0;
 	int i;
 
 	if (!tctx || !tctx->io_wq)
 		return -EINVAL;
 
+	if (!alloc_cpumask_var(&allowed_mask, GFP_KERNEL))
+		return -ENOMEM;
+	cpuset_cpus_allowed(tctx->io_wq->task, allowed_mask);
+
 	rcu_read_lock();
 	for_each_node(i) {
 		struct io_wqe *wqe = tctx->io_wq->wqes[i];
-
-		if (mask)
-			cpumask_copy(wqe->cpu_mask, mask);
-		else
-			cpumask_copy(wqe->cpu_mask, cpumask_of_node(i));
+		if (mask) {
+			if (cpumask_subset(mask, allowed_mask))
+				cpumask_copy(wqe->cpu_mask, mask);
+			else
+				ret = -EINVAL;
+		} else {
+			if (!cpumask_and(wqe->cpu_mask, cpumask_of_node(i), allowed_mask))
+				cpumask_copy(wqe->cpu_mask, allowed_mask);
+		}
 	}
 	rcu_read_unlock();
-	return 0;
+
+	free_cpumask_var(allowed_mask);
+	return ret;
 }
 
 /*
