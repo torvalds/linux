@@ -13,5 +13,5 @@ xdrgen_decode_{{ name }}(struct xdr_stream *xdr, {{ classifier }}{{ name }} *ptr
 {% if annotate %}
 	/* (variable-length opaque) */
 {% endif %}
-	return xdr_stream_decode_opaque(xdr, ptr->data, ptr->len) >= 0;
+	return xdrgen_decode_opaque(xdr, ptr, {{ maxsize }});
 };
