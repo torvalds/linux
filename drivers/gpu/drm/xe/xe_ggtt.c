@@ -107,8 +107,10 @@ static unsigned int probe_gsm_size(struct pci_dev *pdev)
 
 static void ggtt_update_access_counter(struct xe_ggtt *ggtt)
 {
-	struct xe_gt *gt = XE_WA(ggtt->tile->primary_gt, 22019338487) ? ggtt->tile->primary_gt :
-			   ggtt->tile->media_gt;
+	struct xe_tile *tile = ggtt->tile;
+	struct xe_gt *affected_gt = XE_WA(tile->primary_gt, 22019338487) ?
+		tile->primary_gt : tile->media_gt;
+	struct xe_mmio *mmio = &affected_gt->mmio;
 	u32 max_gtt_writes = XE_WA(ggtt->tile->primary_gt, 22019338487) ? 1100 : 63;
 	/*
 	 * Wa_22019338487: GMD_ID is a RO register, a dummy write forces gunit
@@ -118,7 +120,7 @@ static void ggtt_update_access_counter(struct xe_ggtt *ggtt)
 	lockdep_assert_held(&ggtt->lock);
 
 	if ((++ggtt->access_count % max_gtt_writes) == 0) {
-		xe_mmio_write32(gt, GMD_ID, 0x0);
+		xe_mmio_write32(mmio, GMD_ID, 0x0);
 		ggtt->access_count = 0;
 	}
 }
