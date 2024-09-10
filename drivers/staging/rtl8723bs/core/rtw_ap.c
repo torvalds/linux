@@ -6,7 +6,6 @@
  ******************************************************************************/
 
 #include <drv_types.h>
-#include <rtw_debug.h>
 #include <asm/unaligned.h>
 
 void init_mlme_ap_info(struct adapter *padapter)
