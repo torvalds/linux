@@ -130,6 +130,9 @@ software_key_determine_akcipher(const struct public_key *pkey,
 		    strcmp(hash_algo, "sha3-384") != 0 &&
 		    strcmp(hash_algo, "sha3-512") != 0)
 			return -EINVAL;
+		n = snprintf(alg_name, CRYPTO_MAX_ALG_NAME, "%s(%s)",
+			     encoding, pkey->pkey_algo);
+		return n >= CRYPTO_MAX_ALG_NAME ? -EINVAL : 0;
 	} else if (strcmp(pkey->pkey_algo, "ecrdsa") == 0) {
 		if (strcmp(encoding, "raw") != 0)
 			return -EINVAL;
