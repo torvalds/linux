@@ -239,11 +239,13 @@ static const struct xe_mmio_range xe2lpm_instance0_steering_table[] = {
 
 static void init_steering_l3bank(struct xe_gt *gt)
 {
+	struct xe_mmio *mmio = &gt->mmio;
+
 	if (GRAPHICS_VERx100(gt_to_xe(gt)) >= 1270) {
 		u32 mslice_mask = REG_FIELD_GET(MEML3_EN_MASK,
-						xe_mmio_read32(gt, MIRROR_FUSE3));
+						xe_mmio_read32(mmio, MIRROR_FUSE3));
 		u32 bank_mask = REG_FIELD_GET(GT_L3_EXC_MASK,
-					      xe_mmio_read32(gt, XEHP_FUSE4));
+					      xe_mmio_read32(mmio, XEHP_FUSE4));
 
 		/*
 		 * Group selects mslice, instance selects bank within mslice.
@@ -254,7 +256,7 @@ static void init_steering_l3bank(struct xe_gt *gt)
 			bank_mask & BIT(0) ? 0 : 2;
 	} else if (gt_to_xe(gt)->info.platform == XE_DG2) {
 		u32 mslice_mask = REG_FIELD_GET(MEML3_EN_MASK,
-						xe_mmio_read32(gt, MIRROR_FUSE3));
+						xe_mmio_read32(mmio, MIRROR_FUSE3));
 		u32 bank = __ffs(mslice_mask) * 8;
 
 		/*
@@ -266,7 +268,7 @@ static void init_steering_l3bank(struct xe_gt *gt)
 		gt->steering[L3BANK].instance_target = bank & 0x3;
 	} else {
 		u32 fuse = REG_FIELD_GET(L3BANK_MASK,
-					 ~xe_mmio_read32(gt, MIRROR_FUSE3));
+					 ~xe_mmio_read32(mmio, MIRROR_FUSE3));
 
 		gt->steering[L3BANK].group_target = 0;	/* unused */
 		gt->steering[L3BANK].instance_target = __ffs(fuse);
@@ -276,7 +278,7 @@ static void init_steering_l3bank(struct xe_gt *gt)
 static void init_steering_mslice(struct xe_gt *gt)
 {
 	u32 mask = REG_FIELD_GET(MEML3_EN_MASK,
-				 xe_mmio_read32(gt, MIRROR_FUSE3));
+				 xe_mmio_read32(&gt->mmio, MIRROR_FUSE3));
 
 	/*
 	 * mslice registers are valid (not terminated) if either the meml3
@@ -380,7 +382,7 @@ static void init_steering_oaddrm(struct xe_gt *gt)
 static void init_steering_sqidi_psmi(struct xe_gt *gt)
 {
 	u32 mask = REG_FIELD_GET(XE2_NODE_ENABLE_MASK,
-				 xe_mmio_read32(gt, MIRROR_FUSE3));
+				 xe_mmio_read32(&gt->mmio, MIRROR_FUSE3));
 	u32 select = __ffs(mask);
 
 	gt->steering[SQIDI_PSMI].group_target = select >> 1;
@@ -494,8 +496,8 @@ void xe_gt_mcr_set_implicit_defaults(struct xe_gt *gt)
 		u32 steer_val = REG_FIELD_PREP(MCR_SLICE_MASK, 0) |
 			REG_FIELD_PREP(MCR_SUBSLICE_MASK, 2);
 
-		xe_mmio_write32(gt, MCFG_MCR_SELECTOR, steer_val);
-		xe_mmio_write32(gt, SF_MCR_SELECTOR, steer_val);
+		xe_mmio_write32(&gt->mmio, MCFG_MCR_SELECTOR, steer_val);
+		xe_mmio_write32(&gt->mmio, SF_MCR_SELECTOR, steer_val);
 		/*
 		 * For GAM registers, all reads should be directed to instance 1
 		 * (unicast reads against other instances are not allowed),
@@ -533,7 +535,7 @@ static bool xe_gt_mcr_get_nonterminated_steering(struct xe_gt *gt,
 			continue;
 
 		for (int i = 0; gt->steering[type].ranges[i].end > 0; i++) {
-			if (xe_mmio_in_range(gt, &gt->steering[type].ranges[i], reg)) {
+			if (xe_mmio_in_range(&gt->mmio, &gt->steering[type].ranges[i], reg)) {
 				*group = gt->steering[type].group_target;
 				*instance = gt->steering[type].instance_target;
 				return true;
@@ -544,7 +546,7 @@ static bool xe_gt_mcr_get_nonterminated_steering(struct xe_gt *gt,
 	implicit_ranges = gt->steering[IMPLICIT_STEERING].ranges;
 	if (implicit_ranges)
 		for (int i = 0; implicit_ranges[i].end > 0; i++)
-			if (xe_mmio_in_range(gt, &implicit_ranges[i], reg))
+			if (xe_mmio_in_range(&gt->mmio, &implicit_ranges[i], reg))
 				return false;
 
 	/*
@@ -579,7 +581,7 @@ static void mcr_lock(struct xe_gt *gt) __acquires(&gt->mcr_lock)
 	 * when a read to the relevant register returns 1.
 	 */
 	if (GRAPHICS_VERx100(xe) >= 1270)
-		ret = xe_mmio_wait32(gt, STEER_SEMAPHORE, 0x1, 0x1, 10, NULL,
+		ret = xe_mmio_wait32(&gt->mmio, STEER_SEMAPHORE, 0x1, 0x1, 10, NULL,
 				     true);
 
 	drm_WARN_ON_ONCE(&xe->drm, ret == -ETIMEDOUT);
@@ -589,7 +591,7 @@ static void mcr_unlock(struct xe_gt *gt) __releases(&gt->mcr_lock)
 {
 	/* Release hardware semaphore - this is done by writing 1 to the register */
 	if (GRAPHICS_VERx100(gt_to_xe(gt)) >= 1270)
-		xe_mmio_write32(gt, STEER_SEMAPHORE, 0x1);
+		xe_mmio_write32(&gt->mmio, STEER_SEMAPHORE, 0x1);
 
 	spin_unlock(&gt->mcr_lock);
 }
@@ -603,6 +605,7 @@ static u32 rw_with_mcr_steering(struct xe_gt *gt, struct xe_reg_mcr reg_mcr,
 				u8 rw_flag, int group, int instance, u32 value)
 {
 	const struct xe_reg reg = to_xe_reg(reg_mcr);
+	struct xe_mmio *mmio = &gt->mmio;
 	struct xe_reg steer_reg;
 	u32 steer_val, val = 0;
 
@@ -635,12 +638,12 @@ static u32 rw_with_mcr_steering(struct xe_gt *gt, struct xe_reg_mcr reg_mcr,
 	if (rw_flag == MCR_OP_READ)
 		steer_val |= MCR_MULTICAST;
 
-	xe_mmio_write32(gt, steer_reg, steer_val);
+	xe_mmio_write32(mmio, steer_reg, steer_val);
 
 	if (rw_flag == MCR_OP_READ)
-		val = xe_mmio_read32(gt, reg);
+		val = xe_mmio_read32(mmio, reg);
 	else
-		xe_mmio_write32(gt, reg, value);
+		xe_mmio_write32(mmio, reg, value);
 
 	/*
 	 * If we turned off the multicast bit (during a write) we're required
@@ -649,7 +652,7 @@ static u32 rw_with_mcr_steering(struct xe_gt *gt, struct xe_reg_mcr reg_mcr,
 	 * operation.
 	 */
 	if (rw_flag == MCR_OP_WRITE)
-		xe_mmio_write32(gt, steer_reg, MCR_MULTICAST);
+		xe_mmio_write32(mmio, steer_reg, MCR_MULTICAST);
 
 	return val;
 }
@@ -684,7 +687,7 @@ u32 xe_gt_mcr_unicast_read_any(struct xe_gt *gt, struct xe_reg_mcr reg_mcr)
 					   group, instance, 0);
 		mcr_unlock(gt);
 	} else {
-		val = xe_mmio_read32(gt, reg);
+		val = xe_mmio_read32(&gt->mmio, reg);
 	}
 
 	return val;
@@ -757,7 +760,7 @@ void xe_gt_mcr_multicast_write(struct xe_gt *gt, struct xe_reg_mcr reg_mcr,
 	 * to touch the steering register.
 	 */
 	mcr_lock(gt);
-	xe_mmio_write32(gt, reg, value);
+	xe_mmio_write32(&gt->mmio, reg, value);
 	mcr_unlock(gt);
 }
 
