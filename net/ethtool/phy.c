@@ -164,7 +164,7 @@ int ethnl_phy_doit(struct sk_buff *skb, struct genl_info *info)
 		goto err_unlock_rtnl;
 
 	/* No PHY, return early */
-	if (!req_info.pdn->phy)
+	if (!req_info.pdn)
 		goto err_unlock_rtnl;
 
 	ret = ethnl_phy_reply_size(&req_info.base, info->extack);
