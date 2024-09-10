@@ -228,6 +228,11 @@ static inline struct osnoise_variables *this_cpu_osn_var(void)
 	return this_cpu_ptr(&per_cpu_osnoise_var);
 }
 
+/*
+ * Protect the interface.
+ */
+static struct mutex interface_lock;
+
 #ifdef CONFIG_TIMERLAT_TRACER
 /*
  * Runtime information for the timer mode.
@@ -251,11 +256,6 @@ static inline struct timerlat_variables *this_cpu_tmr_var(void)
 {
 	return this_cpu_ptr(&per_cpu_timerlat_var);
 }
-
-/*
- * Protect the interface.
- */
-static struct mutex interface_lock;
 
 /*
  * tlat_var_reset - Reset the values of the given timerlat_variables
