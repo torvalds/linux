@@ -5,7 +5,6 @@
 #include <api/fs/fs.h>
 #include "tests.h"
 #include "debug.h"
-#include "parse-events.h"
 #include "pmu.h"
 #include "pmus.h"
 #include <dirent.h>
