@@ -103,7 +103,7 @@ struct cpsw_ale_dev_id {
 #define ALE_UCAST_TOUCHED		3
 
 #define ALE_TABLE_SIZE_MULTIPLIER	1024
-#define ALE_STATUS_SIZE_MASK		0x1f
+#define ALE_POLICER_SIZE_MULTIPLIER	8
 
 static inline int cpsw_ale_get_field(u32 *ale_entry, u32 start, u32 bits)
 {
@@ -1303,6 +1303,9 @@ static const struct reg_field ale_fields_cpsw_nu[] = {
 	/* CPSW_ALE_IDVER_REG */
 	[MINOR_VER]	= REG_FIELD(ALE_IDVER, 0, 7),
 	[MAJOR_VER]	= REG_FIELD(ALE_IDVER, 8, 10),
+	/* CPSW_ALE_STATUS_REG */
+	[ALE_ENTRIES]	= REG_FIELD(ALE_STATUS, 0, 7),
+	[ALE_POLICERS]	= REG_FIELD(ALE_STATUS, 8, 15),
 };
 
 static const struct cpsw_ale_dev_id cpsw_ale_id_match[] = {
@@ -1402,8 +1405,8 @@ static int cpsw_ale_regfield_init(struct cpsw_ale *ale)
 
 struct cpsw_ale *cpsw_ale_create(struct cpsw_ale_params *params)
 {
+	u32 ale_entries, rev_major, rev_minor, policers;
 	const struct cpsw_ale_dev_id *ale_dev_id;
-	u32 ale_entries, rev_major, rev_minor;
 	struct cpsw_ale *ale;
 	int ret;
 
@@ -1447,9 +1450,7 @@ struct cpsw_ale *cpsw_ale_create(struct cpsw_ale_params *params)
 
 	if (ale->features & CPSW_ALE_F_STATUS_REG &&
 	    !ale->params.ale_entries) {
-		ale_entries =
-			readl_relaxed(ale->params.ale_regs + ALE_STATUS) &
-			ALE_STATUS_SIZE_MASK;
+		regmap_field_read(ale->fields[ALE_ENTRIES], &ale_entries);
 		/* ALE available on newer NetCP switches has introduced
 		 * a register, ALE_STATUS, to indicate the size of ALE
 		 * table which shows the size as a multiple of 1024 entries.
@@ -1463,8 +1464,20 @@ struct cpsw_ale *cpsw_ale_create(struct cpsw_ale_params *params)
 		ale_entries *= ALE_TABLE_SIZE_MULTIPLIER;
 		ale->params.ale_entries = ale_entries;
 	}
+
+	if (ale->features & CPSW_ALE_F_STATUS_REG &&
+	    !ale->params.num_policers) {
+		regmap_field_read(ale->fields[ALE_POLICERS], &policers);
+		if (!policers)
+			return ERR_PTR(-EINVAL);
+
+		policers *= ALE_POLICER_SIZE_MULTIPLIER;
+		ale->params.num_policers = policers;
+	}
+
 	dev_info(ale->params.dev,
-		 "ALE Table size %ld\n", ale->params.ale_entries);
+		 "ALE Table size %ld, Policers %ld\n", ale->params.ale_entries,
+		 ale->params.num_policers);
 
 	/* set default bits for existing h/w */
 	ale->port_mask_bits = ale->params.ale_ports;

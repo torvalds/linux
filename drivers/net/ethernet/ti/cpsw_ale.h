@@ -15,6 +15,7 @@ struct cpsw_ale_params {
 	void __iomem		*ale_regs;
 	unsigned long		ale_ageout;	/* in secs */
 	unsigned long		ale_entries;
+	unsigned long		num_policers;
 	unsigned long		ale_ports;
 	/* NU Switch has specific handling as number of bits in ALE entries
 	 * are different than other versions of ALE. Also there are specific
@@ -33,6 +34,8 @@ struct regmap;
 enum ale_fields {
 	MINOR_VER,
 	MAJOR_VER,
+	ALE_ENTRIES,
+	ALE_POLICERS,
 	/* terminator */
 	ALE_FIELDS_MAX,
 };
