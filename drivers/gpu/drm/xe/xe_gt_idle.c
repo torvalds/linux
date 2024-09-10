@@ -104,6 +104,7 @@ void xe_gt_idle_enable_pg(struct xe_gt *gt)
 {
 	struct xe_device *xe = gt_to_xe(gt);
 	struct xe_gt_idle *gtidle = &gt->gtidle;
+	struct xe_mmio *mmio = &gt->mmio;
 	u32 vcs_mask, vecs_mask;
 	int i, j;
 
@@ -137,11 +138,11 @@ void xe_gt_idle_enable_pg(struct xe_gt *gt)
 		 * GuC sets the hysteresis value when GuC PC is enabled
 		 * else set it to 25 (25 * 1.28us)
 		 */
-		xe_mmio_write32(gt, MEDIA_POWERGATE_IDLE_HYSTERESIS, 25);
-		xe_mmio_write32(gt, RENDER_POWERGATE_IDLE_HYSTERESIS, 25);
+		xe_mmio_write32(mmio, MEDIA_POWERGATE_IDLE_HYSTERESIS, 25);
+		xe_mmio_write32(mmio, RENDER_POWERGATE_IDLE_HYSTERESIS, 25);
 	}
 
-	xe_mmio_write32(gt, POWERGATE_ENABLE, gtidle->powergate_enable);
+	xe_mmio_write32(mmio, POWERGATE_ENABLE, gtidle->powergate_enable);
 	XE_WARN_ON(xe_force_wake_put(gt_to_fw(gt), XE_FW_GT));
 }
 
@@ -156,7 +157,7 @@ void xe_gt_idle_disable_pg(struct xe_gt *gt)
 	gtidle->powergate_enable = 0;
 
 	XE_WARN_ON(xe_force_wake_get(gt_to_fw(gt), XE_FW_GT));
-	xe_mmio_write32(gt, POWERGATE_ENABLE, gtidle->powergate_enable);
+	xe_mmio_write32(&gt->mmio, POWERGATE_ENABLE, gtidle->powergate_enable);
 	XE_WARN_ON(xe_force_wake_put(gt_to_fw(gt), XE_FW_GT));
 }
 
@@ -216,8 +217,8 @@ int xe_gt_idle_pg_print(struct xe_gt *gt, struct drm_printer *p)
 		if (err)
 			return err;
 
-		pg_enabled = xe_mmio_read32(gt, POWERGATE_ENABLE);
-		pg_status = xe_mmio_read32(gt, POWERGATE_DOMAIN_STATUS);
+		pg_enabled = xe_mmio_read32(&gt->mmio, POWERGATE_ENABLE);
+		pg_status = xe_mmio_read32(&gt->mmio, POWERGATE_DOMAIN_STATUS);
 
 		XE_WARN_ON(xe_force_wake_put(gt_to_fw(gt), XE_FW_GT));
 	}
@@ -361,9 +362,9 @@ void xe_gt_idle_enable_c6(struct xe_gt *gt)
 		return;
 
 	/* Units of 1280 ns for a total of 5s */
-	xe_mmio_write32(gt, RC_IDLE_HYSTERSIS, 0x3B9ACA);
+	xe_mmio_write32(&gt->mmio, RC_IDLE_HYSTERSIS, 0x3B9ACA);
 	/* Enable RC6 */
-	xe_mmio_write32(gt, RC_CONTROL,
+	xe_mmio_write32(&gt->mmio, RC_CONTROL,
 			RC_CTL_HW_ENABLE | RC_CTL_TO_MODE | RC_CTL_RC6_ENABLE);
 }
 
@@ -375,6 +376,6 @@ void xe_gt_idle_disable_c6(struct xe_gt *gt)
 	if (IS_SRIOV_VF(gt_to_xe(gt)))
 		return;
 
-	xe_mmio_write32(gt, RC_CONTROL, 0);
-	xe_mmio_write32(gt, RC_STATE, 0);
+	xe_mmio_write32(&gt->mmio, RC_CONTROL, 0);
+	xe_mmio_write32(&gt->mmio, RC_STATE, 0);
 }
