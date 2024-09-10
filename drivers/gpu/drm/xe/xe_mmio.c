@@ -67,16 +67,16 @@ static void mmio_multi_tile_setup(struct xe_device *xe, size_t tile_mmio_size)
 
 	/* Possibly override number of tile based on configuration register */
 	if (!xe->info.skip_mtcfg) {
-		struct xe_gt *gt = xe_root_mmio_gt(xe);
+		struct xe_mmio *mmio = xe_root_tile_mmio(xe);
 		u8 tile_count;
 		u32 mtcfg;
 
 		/*
 		 * Although the per-tile mmio regs are not yet initialized, this
-		 * is fine as it's going to the root gt, that's guaranteed to be
-		 * initialized earlier in xe_mmio_init()
+		 * is fine as it's going to the root tile's mmio, that's
+		 * guaranteed to be initialized earlier in xe_mmio_init()
 		 */
-		mtcfg = xe_mmio_read64_2x32(gt, XEHP_MTCFG_ADDR);
+		mtcfg = xe_mmio_read64_2x32(mmio, XEHP_MTCFG_ADDR);
 		tile_count = REG_FIELD_GET(TILE_COUNT, mtcfg) + 1;
 
 		if (tile_count < xe->info.tile_count) {
@@ -186,116 +186,111 @@ int xe_mmio_init(struct xe_device *xe)
 	return devm_add_action_or_reset(xe->drm.dev, mmio_fini, xe);
 }
 
-static void mmio_flush_pending_writes(struct xe_gt *gt)
+static void mmio_flush_pending_writes(struct xe_mmio *mmio)
 {
 #define DUMMY_REG_OFFSET	0x130030
-	struct xe_tile *tile = gt_to_tile(gt);
 	int i;
 
-	if (tile->xe->info.platform != XE_LUNARLAKE)
+	if (mmio->tile->xe->info.platform != XE_LUNARLAKE)
 		return;
 
 	/* 4 dummy writes */
 	for (i = 0; i < 4; i++)
-		writel(0, tile->mmio.regs + DUMMY_REG_OFFSET);
+		writel(0, mmio->regs + DUMMY_REG_OFFSET);
 }
 
-u8 xe_mmio_read8(struct xe_gt *gt, struct xe_reg reg)
+u8 __xe_mmio_read8(struct xe_mmio *mmio, struct xe_reg reg)
 {
-	struct xe_tile *tile = gt_to_tile(gt);
-	u32 addr = xe_mmio_adjusted_addr(gt, reg.addr);
+	u32 addr = xe_mmio_adjusted_addr(mmio, reg.addr);
 	u8 val;
 
 	/* Wa_15015404425 */
-	mmio_flush_pending_writes(gt);
+	mmio_flush_pending_writes(mmio);
 
-	val = readb((reg.ext ? tile->mmio_ext.regs : tile->mmio.regs) + addr);
-	trace_xe_reg_rw(gt, false, addr, val, sizeof(val));
+	val = readb(mmio->regs + addr);
+	trace_xe_reg_rw(mmio, false, addr, val, sizeof(val));
 
 	return val;
 }
 
-u16 xe_mmio_read16(struct xe_gt *gt, struct xe_reg reg)
+u16 __xe_mmio_read16(struct xe_mmio *mmio, struct xe_reg reg)
 {
-	struct xe_tile *tile = gt_to_tile(gt);
-	u32 addr = xe_mmio_adjusted_addr(gt, reg.addr);
+	u32 addr = xe_mmio_adjusted_addr(mmio, reg.addr);
 	u16 val;
 
 	/* Wa_15015404425 */
-	mmio_flush_pending_writes(gt);
+	mmio_flush_pending_writes(mmio);
 
-	val = readw((reg.ext ? tile->mmio_ext.regs : tile->mmio.regs) + addr);
-	trace_xe_reg_rw(gt, false, addr, val, sizeof(val));
+	val = readw(mmio->regs + addr);
+	trace_xe_reg_rw(mmio, false, addr, val, sizeof(val));
 
 	return val;
 }
 
-void xe_mmio_write32(struct xe_gt *gt, struct xe_reg reg, u32 val)
+void __xe_mmio_write32(struct xe_mmio *mmio, struct xe_reg reg, u32 val)
 {
-	struct xe_tile *tile = gt_to_tile(gt);
-	u32 addr = xe_mmio_adjusted_addr(gt, reg.addr);
+	u32 addr = xe_mmio_adjusted_addr(mmio, reg.addr);
 
-	trace_xe_reg_rw(gt, true, addr, val, sizeof(val));
+	trace_xe_reg_rw(mmio, true, addr, val, sizeof(val));
 
-	if (!reg.vf && IS_SRIOV_VF(gt_to_xe(gt)))
-		xe_gt_sriov_vf_write32(gt, reg, val);
+	if (!reg.vf && mmio->sriov_vf_gt)
+		xe_gt_sriov_vf_write32(mmio->sriov_vf_gt, reg, val);
 	else
-		writel(val, (reg.ext ? tile->mmio_ext.regs : tile->mmio.regs) + addr);
+		writel(val, mmio->regs + addr);
 }
 
-u32 xe_mmio_read32(struct xe_gt *gt, struct xe_reg reg)
+u32 __xe_mmio_read32(struct xe_mmio *mmio, struct xe_reg reg)
 {
-	struct xe_tile *tile = gt_to_tile(gt);
-	u32 addr = xe_mmio_adjusted_addr(gt, reg.addr);
+	u32 addr = xe_mmio_adjusted_addr(mmio, reg.addr);
 	u32 val;
 
 	/* Wa_15015404425 */
-	mmio_flush_pending_writes(gt);
+	mmio_flush_pending_writes(mmio);
 
-	if (!reg.vf && IS_SRIOV_VF(gt_to_xe(gt)))
-		val = xe_gt_sriov_vf_read32(gt, reg);
+	if (!reg.vf && mmio->sriov_vf_gt)
+		val = xe_gt_sriov_vf_read32(mmio->sriov_vf_gt, reg);
 	else
-		val = readl((reg.ext ? tile->mmio_ext.regs : tile->mmio.regs) + addr);
+		val = readl(mmio->regs + addr);
 
-	trace_xe_reg_rw(gt, false, addr, val, sizeof(val));
+	trace_xe_reg_rw(mmio, false, addr, val, sizeof(val));
 
 	return val;
 }
 
-u32 xe_mmio_rmw32(struct xe_gt *gt, struct xe_reg reg, u32 clr, u32 set)
+u32 __xe_mmio_rmw32(struct xe_mmio *mmio, struct xe_reg reg, u32 clr, u32 set)
 {
 	u32 old, reg_val;
 
-	old = xe_mmio_read32(gt, reg);
+	old = xe_mmio_read32(mmio, reg);
 	reg_val = (old & ~clr) | set;
-	xe_mmio_write32(gt, reg, reg_val);
+	xe_mmio_write32(mmio, reg, reg_val);
 
 	return old;
 }
 
-int xe_mmio_write32_and_verify(struct xe_gt *gt,
-			       struct xe_reg reg, u32 val, u32 mask, u32 eval)
+int __xe_mmio_write32_and_verify(struct xe_mmio *mmio,
+				 struct xe_reg reg, u32 val, u32 mask, u32 eval)
 {
 	u32 reg_val;
 
-	xe_mmio_write32(gt, reg, val);
-	reg_val = xe_mmio_read32(gt, reg);
+	xe_mmio_write32(mmio, reg, val);
+	reg_val = xe_mmio_read32(mmio, reg);
 
 	return (reg_val & mask) != eval ? -EINVAL : 0;
 }
 
-bool xe_mmio_in_range(const struct xe_gt *gt,
-		      const struct xe_mmio_range *range,
-		      struct xe_reg reg)
+bool __xe_mmio_in_range(const struct xe_mmio *mmio,
+			const struct xe_mmio_range *range,
+			struct xe_reg reg)
 {
-	u32 addr = xe_mmio_adjusted_addr(gt, reg.addr);
+	u32 addr = xe_mmio_adjusted_addr(mmio, reg.addr);
 
 	return range && addr >= range->start && addr <= range->end;
 }
 
 /**
  * xe_mmio_read64_2x32() - Read a 64-bit register as two 32-bit reads
- * @gt: MMIO target GT
+ * @mmio: MMIO target
  * @reg: register to read value from
  *
  * Although Intel GPUs have some 64-bit registers, the hardware officially
@@ -315,21 +310,21 @@ bool xe_mmio_in_range(const struct xe_gt *gt,
  *
  * Returns the value of the 64-bit register.
  */
-u64 xe_mmio_read64_2x32(struct xe_gt *gt, struct xe_reg reg)
+u64 __xe_mmio_read64_2x32(struct xe_mmio *mmio, struct xe_reg reg)
 {
 	struct xe_reg reg_udw = { .addr = reg.addr + 0x4 };
 	u32 ldw, udw, oldudw, retries;
 
-	reg.addr = xe_mmio_adjusted_addr(gt, reg.addr);
-	reg_udw.addr = xe_mmio_adjusted_addr(gt, reg_udw.addr);
+	reg.addr = xe_mmio_adjusted_addr(mmio, reg.addr);
+	reg_udw.addr = xe_mmio_adjusted_addr(mmio, reg_udw.addr);
 
 	/* we shouldn't adjust just one register address */
-	xe_gt_assert(gt, reg_udw.addr == reg.addr + 0x4);
+	xe_tile_assert(mmio->tile, reg_udw.addr == reg.addr + 0x4);
 
-	oldudw = xe_mmio_read32(gt, reg_udw);
+	oldudw = xe_mmio_read32(mmio, reg_udw);
 	for (retries = 5; retries; --retries) {
-		ldw = xe_mmio_read32(gt, reg);
-		udw = xe_mmio_read32(gt, reg_udw);
+		ldw = xe_mmio_read32(mmio, reg);
+		udw = xe_mmio_read32(mmio, reg_udw);
 
 		if (udw == oldudw)
 			break;
@@ -337,14 +332,14 @@ u64 xe_mmio_read64_2x32(struct xe_gt *gt, struct xe_reg reg)
 		oldudw = udw;
 	}
 
-	xe_gt_WARN(gt, retries == 0,
-		   "64-bit read of %#x did not stabilize\n", reg.addr);
+	drm_WARN(&mmio->tile->xe->drm, retries == 0,
+		 "64-bit read of %#x did not stabilize\n", reg.addr);
 
 	return (u64)udw << 32 | ldw;
 }
 
-static int __xe_mmio_wait32(struct xe_gt *gt, struct xe_reg reg, u32 mask, u32 val, u32 timeout_us,
-			    u32 *out_val, bool atomic, bool expect_match)
+static int ____xe_mmio_wait32(struct xe_mmio *mmio, struct xe_reg reg, u32 mask, u32 val, u32 timeout_us,
+			      u32 *out_val, bool atomic, bool expect_match)
 {
 	ktime_t cur = ktime_get_raw();
 	const ktime_t end = ktime_add_us(cur, timeout_us);
@@ -354,7 +349,7 @@ static int __xe_mmio_wait32(struct xe_gt *gt, struct xe_reg reg, u32 mask, u32 v
 	bool check;
 
 	for (;;) {
-		read = xe_mmio_read32(gt, reg);
+		read = xe_mmio_read32(mmio, reg);
 
 		check = (read & mask) == val;
 		if (!expect_match)
@@ -380,7 +375,7 @@ static int __xe_mmio_wait32(struct xe_gt *gt, struct xe_reg reg, u32 mask, u32 v
 	}
 
 	if (ret != 0) {
-		read = xe_mmio_read32(gt, reg);
+		read = xe_mmio_read32(mmio, reg);
 
 		check = (read & mask) == val;
 		if (!expect_match)
@@ -398,7 +393,7 @@ static int __xe_mmio_wait32(struct xe_gt *gt, struct xe_reg reg, u32 mask, u32 v
 
 /**
  * xe_mmio_wait32() - Wait for a register to match the desired masked value
- * @gt: MMIO target GT
+ * @mmio: MMIO target
  * @reg: register to read value from
  * @mask: mask to be applied to the value read from the register
  * @val: desired value after applying the mask
@@ -415,15 +410,15 @@ static int __xe_mmio_wait32(struct xe_gt *gt, struct xe_reg reg, u32 mask, u32 v
  * @timeout_us for different reasons, specially in non-atomic contexts. Thus,
  * it is possible that this function succeeds even after @timeout_us has passed.
  */
-int xe_mmio_wait32(struct xe_gt *gt, struct xe_reg reg, u32 mask, u32 val, u32 timeout_us,
-		   u32 *out_val, bool atomic)
+int __xe_mmio_wait32(struct xe_mmio *mmio, struct xe_reg reg, u32 mask, u32 val, u32 timeout_us,
+		     u32 *out_val, bool atomic)
 {
-	return __xe_mmio_wait32(gt, reg, mask, val, timeout_us, out_val, atomic, true);
+	return ____xe_mmio_wait32(mmio, reg, mask, val, timeout_us, out_val, atomic, true);
 }
 
 /**
  * xe_mmio_wait32_not() - Wait for a register to return anything other than the given masked value
- * @gt: MMIO target GT
+ * @mmio: MMIO target
  * @reg: register to read value from
  * @mask: mask to be applied to the value read from the register
  * @val: value not to be matched after applying the mask
@@ -434,8 +429,8 @@ int xe_mmio_wait32(struct xe_gt *gt, struct xe_reg reg, u32 mask, u32 val, u32 t
  * This function works exactly like xe_mmio_wait32() with the exception that
  * @val is expected not to be matched.
  */
-int xe_mmio_wait32_not(struct xe_gt *gt, struct xe_reg reg, u32 mask, u32 val, u32 timeout_us,
-		       u32 *out_val, bool atomic)
+int __xe_mmio_wait32_not(struct xe_mmio *mmio, struct xe_reg reg, u32 mask, u32 val, u32 timeout_us,
+			 u32 *out_val, bool atomic)
 {
-	return __xe_mmio_wait32(gt, reg, mask, val, timeout_us, out_val, atomic, false);
+	return ____xe_mmio_wait32(mmio, reg, mask, val, timeout_us, out_val, atomic, false);
 }
