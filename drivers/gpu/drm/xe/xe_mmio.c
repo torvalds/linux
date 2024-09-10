@@ -199,7 +199,7 @@ static void mmio_flush_pending_writes(struct xe_mmio *mmio)
 		writel(0, mmio->regs + DUMMY_REG_OFFSET);
 }
 
-u8 __xe_mmio_read8(struct xe_mmio *mmio, struct xe_reg reg)
+u8 xe_mmio_read8(struct xe_mmio *mmio, struct xe_reg reg)
 {
 	u32 addr = xe_mmio_adjusted_addr(mmio, reg.addr);
 	u8 val;
@@ -213,7 +213,7 @@ u8 __xe_mmio_read8(struct xe_mmio *mmio, struct xe_reg reg)
 	return val;
 }
 
-u16 __xe_mmio_read16(struct xe_mmio *mmio, struct xe_reg reg)
+u16 xe_mmio_read16(struct xe_mmio *mmio, struct xe_reg reg)
 {
 	u32 addr = xe_mmio_adjusted_addr(mmio, reg.addr);
 	u16 val;
@@ -227,7 +227,7 @@ u16 __xe_mmio_read16(struct xe_mmio *mmio, struct xe_reg reg)
 	return val;
 }
 
-void __xe_mmio_write32(struct xe_mmio *mmio, struct xe_reg reg, u32 val)
+void xe_mmio_write32(struct xe_mmio *mmio, struct xe_reg reg, u32 val)
 {
 	u32 addr = xe_mmio_adjusted_addr(mmio, reg.addr);
 
@@ -239,7 +239,7 @@ void __xe_mmio_write32(struct xe_mmio *mmio, struct xe_reg reg, u32 val)
 		writel(val, mmio->regs + addr);
 }
 
-u32 __xe_mmio_read32(struct xe_mmio *mmio, struct xe_reg reg)
+u32 xe_mmio_read32(struct xe_mmio *mmio, struct xe_reg reg)
 {
 	u32 addr = xe_mmio_adjusted_addr(mmio, reg.addr);
 	u32 val;
@@ -257,7 +257,7 @@ u32 __xe_mmio_read32(struct xe_mmio *mmio, struct xe_reg reg)
 	return val;
 }
 
-u32 __xe_mmio_rmw32(struct xe_mmio *mmio, struct xe_reg reg, u32 clr, u32 set)
+u32 xe_mmio_rmw32(struct xe_mmio *mmio, struct xe_reg reg, u32 clr, u32 set)
 {
 	u32 old, reg_val;
 
@@ -268,8 +268,8 @@ u32 __xe_mmio_rmw32(struct xe_mmio *mmio, struct xe_reg reg, u32 clr, u32 set)
 	return old;
 }
 
-int __xe_mmio_write32_and_verify(struct xe_mmio *mmio,
-				 struct xe_reg reg, u32 val, u32 mask, u32 eval)
+int xe_mmio_write32_and_verify(struct xe_mmio *mmio,
+			       struct xe_reg reg, u32 val, u32 mask, u32 eval)
 {
 	u32 reg_val;
 
@@ -279,9 +279,9 @@ int __xe_mmio_write32_and_verify(struct xe_mmio *mmio,
 	return (reg_val & mask) != eval ? -EINVAL : 0;
 }
 
-bool __xe_mmio_in_range(const struct xe_mmio *mmio,
-			const struct xe_mmio_range *range,
-			struct xe_reg reg)
+bool xe_mmio_in_range(const struct xe_mmio *mmio,
+		      const struct xe_mmio_range *range,
+		      struct xe_reg reg)
 {
 	u32 addr = xe_mmio_adjusted_addr(mmio, reg.addr);
 
@@ -310,7 +310,7 @@ bool __xe_mmio_in_range(const struct xe_mmio *mmio,
  *
  * Returns the value of the 64-bit register.
  */
-u64 __xe_mmio_read64_2x32(struct xe_mmio *mmio, struct xe_reg reg)
+u64 xe_mmio_read64_2x32(struct xe_mmio *mmio, struct xe_reg reg)
 {
 	struct xe_reg reg_udw = { .addr = reg.addr + 0x4 };
 	u32 ldw, udw, oldudw, retries;
@@ -338,8 +338,8 @@ u64 __xe_mmio_read64_2x32(struct xe_mmio *mmio, struct xe_reg reg)
 	return (u64)udw << 32 | ldw;
 }
 
-static int ____xe_mmio_wait32(struct xe_mmio *mmio, struct xe_reg reg, u32 mask, u32 val, u32 timeout_us,
-			      u32 *out_val, bool atomic, bool expect_match)
+static int __xe_mmio_wait32(struct xe_mmio *mmio, struct xe_reg reg, u32 mask, u32 val, u32 timeout_us,
+			    u32 *out_val, bool atomic, bool expect_match)
 {
 	ktime_t cur = ktime_get_raw();
 	const ktime_t end = ktime_add_us(cur, timeout_us);
@@ -410,10 +410,10 @@ static int ____xe_mmio_wait32(struct xe_mmio *mmio, struct xe_reg reg, u32 mask,
  * @timeout_us for different reasons, specially in non-atomic contexts. Thus,
  * it is possible that this function succeeds even after @timeout_us has passed.
  */
-int __xe_mmio_wait32(struct xe_mmio *mmio, struct xe_reg reg, u32 mask, u32 val, u32 timeout_us,
-		     u32 *out_val, bool atomic)
+int xe_mmio_wait32(struct xe_mmio *mmio, struct xe_reg reg, u32 mask, u32 val, u32 timeout_us,
+		   u32 *out_val, bool atomic)
 {
-	return ____xe_mmio_wait32(mmio, reg, mask, val, timeout_us, out_val, atomic, true);
+	return __xe_mmio_wait32(mmio, reg, mask, val, timeout_us, out_val, atomic, true);
 }
 
 /**
@@ -429,8 +429,8 @@ int __xe_mmio_wait32(struct xe_mmio *mmio, struct xe_reg reg, u32 mask, u32 val,
  * This function works exactly like xe_mmio_wait32() with the exception that
  * @val is expected not to be matched.
  */
-int __xe_mmio_wait32_not(struct xe_mmio *mmio, struct xe_reg reg, u32 mask, u32 val, u32 timeout_us,
-			 u32 *out_val, bool atomic)
+int xe_mmio_wait32_not(struct xe_mmio *mmio, struct xe_reg reg, u32 mask, u32 val, u32 timeout_us,
+		       u32 *out_val, bool atomic)
 {
-	return ____xe_mmio_wait32(mmio, reg, mask, val, timeout_us, out_val, atomic, false);
+	return __xe_mmio_wait32(mmio, reg, mask, val, timeout_us, out_val, atomic, false);
 }
