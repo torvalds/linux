@@ -153,7 +153,7 @@ static int rsassa_pkcs1_sign(struct crypto_sig *tfm,
 	struct rsassa_pkcs1_ctx *ctx = crypto_sig_ctx(tfm);
 	unsigned int child_reqsize = crypto_akcipher_reqsize(ctx->child);
 	struct akcipher_request *child_req __free(kfree_sensitive) = NULL;
-	struct scatterlist in_sg[2], out_sg;
+	struct scatterlist in_sg[3], out_sg;
 	struct crypto_wait cwait;
 	unsigned int pad_len;
 	unsigned int ps_end;
@@ -173,24 +173,26 @@ static int rsassa_pkcs1_sign(struct crypto_sig *tfm,
 	if (slen + hash_prefix->size > ctx->key_size - 11)
 		return -EOVERFLOW;
 
-	child_req = kmalloc(sizeof(*child_req) + child_reqsize +
-			    ctx->key_size - 1 - slen, GFP_KERNEL);
+	pad_len = ctx->key_size - slen - hash_prefix->size - 1;
+
+	child_req = kmalloc(sizeof(*child_req) + child_reqsize + pad_len,
+			    GFP_KERNEL);
 	if (!child_req)
 		return -ENOMEM;
 
 	/* RFC 8017 sec 8.2.1 step 1 - EMSA-PKCS1-v1_5 encoding generation */
 	in_buf = (u8 *)(child_req + 1) + child_reqsize;
-	ps_end = ctx->key_size - hash_prefix->size - slen - 2;
+	ps_end = pad_len - 1;
 	in_buf[0] = 0x01;
 	memset(in_buf + 1, 0xff, ps_end - 1);
 	in_buf[ps_end] = 0x00;
-	memcpy(in_buf + ps_end + 1, hash_prefix->data, hash_prefix->size);
 
 	/* RFC 8017 sec 8.2.1 step 2 - RSA signature */
 	crypto_init_wait(&cwait);
-	sg_init_table(in_sg, 2);
-	sg_set_buf(&in_sg[0], in_buf, ctx->key_size - 1 - slen);
-	sg_set_buf(&in_sg[1], src, slen);
+	sg_init_table(in_sg, 3);
+	sg_set_buf(&in_sg[0], in_buf, pad_len);
+	sg_set_buf(&in_sg[1], hash_prefix->data, hash_prefix->size);
+	sg_set_buf(&in_sg[2], src, slen);
 	sg_init_one(&out_sg, dst, dlen);
 	akcipher_request_set_tfm(child_req, ctx->child);
 	akcipher_request_set_crypt(child_req, in_sg, &out_sg,
