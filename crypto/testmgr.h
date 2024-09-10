@@ -162,6 +162,19 @@ struct akcipher_testvec {
 	enum OID algo;
 };
 
+struct sig_testvec {
+	const unsigned char *key;
+	const unsigned char *params;
+	const unsigned char *m;
+	const unsigned char *c;
+	unsigned int key_len;
+	unsigned int param_len;
+	unsigned int m_size;
+	unsigned int c_size;
+	bool public_key_vec;
+	enum OID algo;
+};
+
 struct kpp_testvec {
 	const unsigned char *secret;
 	const unsigned char *b_secret;

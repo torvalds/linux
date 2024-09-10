@@ -64,6 +64,7 @@ enum crypto_attr_type_t {
 	CRYPTOCFGA_STAT_AKCIPHER,	/* No longer supported, do not use. */
 	CRYPTOCFGA_STAT_KPP,		/* No longer supported, do not use. */
 	CRYPTOCFGA_STAT_ACOMP,		/* No longer supported, do not use. */
+	CRYPTOCFGA_REPORT_SIG,		/* struct crypto_report_sig */
 	__CRYPTOCFGA_MAX
 
 #define CRYPTOCFGA_MAX (__CRYPTOCFGA_MAX - 1)
@@ -204,6 +205,10 @@ struct crypto_report_kpp {
 };
 
 struct crypto_report_acomp {
+	char type[CRYPTO_MAX_NAME];
+};
+
+struct crypto_report_sig {
 	char type[CRYPTO_MAX_NAME];
 };
 
