@@ -84,52 +84,6 @@ struct crypto_sig *crypto_alloc_sig(const char *alg_name, u32 type, u32 mask)
 }
 EXPORT_SYMBOL_GPL(crypto_alloc_sig);
 
-int crypto_sig_maxsize(struct crypto_sig *tfm)
-{
-	struct sig_alg *alg = crypto_sig_alg(tfm);
-
-	return alg->max_size(tfm);
-}
-EXPORT_SYMBOL_GPL(crypto_sig_maxsize);
-
-int crypto_sig_sign(struct crypto_sig *tfm,
-		    const void *src, unsigned int slen,
-		    void *dst, unsigned int dlen)
-{
-	struct sig_alg *alg = crypto_sig_alg(tfm);
-
-	return alg->sign(tfm, src, slen, dst, dlen);
-}
-EXPORT_SYMBOL_GPL(crypto_sig_sign);
-
-int crypto_sig_verify(struct crypto_sig *tfm,
-		      const void *src, unsigned int slen,
-		      const void *digest, unsigned int dlen)
-{
-	struct sig_alg *alg = crypto_sig_alg(tfm);
-
-	return alg->verify(tfm, src, slen, digest, dlen);
-}
-EXPORT_SYMBOL_GPL(crypto_sig_verify);
-
-int crypto_sig_set_pubkey(struct crypto_sig *tfm,
-			  const void *key, unsigned int keylen)
-{
-	struct sig_alg *alg = crypto_sig_alg(tfm);
-
-	return alg->set_pub_key(tfm, key, keylen);
-}
-EXPORT_SYMBOL_GPL(crypto_sig_set_pubkey);
-
-int crypto_sig_set_privkey(struct crypto_sig *tfm,
-			  const void *key, unsigned int keylen)
-{
-	struct sig_alg *alg = crypto_sig_alg(tfm);
-
-	return alg->set_priv_key(tfm, key, keylen);
-}
-EXPORT_SYMBOL_GPL(crypto_sig_set_privkey);
-
 static void sig_prepare_alg(struct sig_alg *alg)
 {
 	struct crypto_alg *base = &alg->base;
