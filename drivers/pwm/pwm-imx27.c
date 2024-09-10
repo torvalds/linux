@@ -80,9 +80,12 @@
 /* PWMPR register value of 0xffff has the same effect as 0xfffe */
 #define MX3_PWMPR_MAX			0xfffe
 
+static const char * const pwm_imx27_clks[] = {"ipg", "per"};
+#define PWM_IMX27_PER			1
+
 struct pwm_imx27_chip {
-	struct clk	*clk_ipg;
-	struct clk	*clk_per;
+	struct clk_bulk_data clks[ARRAY_SIZE(pwm_imx27_clks)];
+	int clks_cnt;
 	void __iomem	*mmio_base;
 
 	/*
@@ -98,29 +101,6 @@ static inline struct pwm_imx27_chip *to_pwm_imx27_chip(struct pwm_chip *chip)
 	return pwmchip_get_drvdata(chip);
 }
 
-static int pwm_imx27_clk_prepare_enable(struct pwm_imx27_chip *imx)
-{
-	int ret;
-
-	ret = clk_prepare_enable(imx->clk_ipg);
-	if (ret)
-		return ret;
-
-	ret = clk_prepare_enable(imx->clk_per);
-	if (ret) {
-		clk_disable_unprepare(imx->clk_ipg);
-		return ret;
-	}
-
-	return 0;
-}
-
-static void pwm_imx27_clk_disable_unprepare(struct pwm_imx27_chip *imx)
-{
-	clk_disable_unprepare(imx->clk_per);
-	clk_disable_unprepare(imx->clk_ipg);
-}
-
 static int pwm_imx27_get_state(struct pwm_chip *chip,
 			       struct pwm_device *pwm, struct pwm_state *state)
 {
@@ -129,7 +109,7 @@ static int pwm_imx27_get_state(struct pwm_chip *chip,
 	u64 tmp;
 	int ret;
 
-	ret = pwm_imx27_clk_prepare_enable(imx);
+	ret = clk_bulk_prepare_enable(imx->clks_cnt, imx->clks);
 	if (ret < 0)
 		return ret;
 
@@ -152,7 +132,7 @@ static int pwm_imx27_get_state(struct pwm_chip *chip,
 	}
 
 	prescaler = MX3_PWMCR_PRESCALER_GET(val);
-	pwm_clk = clk_get_rate(imx->clk_per);
+	pwm_clk = clk_get_rate(imx->clks[PWM_IMX27_PER].clk);
 	val = readl(imx->mmio_base + MX3_PWMPR);
 	period = val >= MX3_PWMPR_MAX ? MX3_PWMPR_MAX : val;
 
@@ -172,7 +152,7 @@ static int pwm_imx27_get_state(struct pwm_chip *chip,
 	tmp = NSEC_PER_SEC * (u64)(val) * prescaler;
 	state->duty_cycle = DIV_ROUND_UP_ULL(tmp, pwm_clk);
 
-	pwm_imx27_clk_disable_unprepare(imx);
+	clk_bulk_disable_unprepare(imx->clks_cnt, imx->clks);
 
 	return 0;
 }
@@ -229,7 +209,7 @@ static int pwm_imx27_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	int ret;
 	u32 cr;
 
-	clkrate = clk_get_rate(imx->clk_per);
+	clkrate = clk_get_rate(imx->clks[PWM_IMX27_PER].clk);
 	c = clkrate * state->period;
 
 	do_div(c, NSEC_PER_SEC);
@@ -259,7 +239,7 @@ static int pwm_imx27_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	if (pwm->state.enabled) {
 		pwm_imx27_wait_fifo_slot(chip, pwm);
 	} else {
-		ret = pwm_imx27_clk_prepare_enable(imx);
+		ret = clk_bulk_prepare_enable(imx->clks_cnt, imx->clks);
 		if (ret)
 			return ret;
 
@@ -381,7 +361,7 @@ static int pwm_imx27_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	writel(cr, imx->mmio_base + MX3_PWMCR);
 
 	if (!state->enabled)
-		pwm_imx27_clk_disable_unprepare(imx);
+		clk_bulk_disable_unprepare(imx->clks_cnt, imx->clks);
 
 	return 0;
 }
@@ -403,21 +383,22 @@ static int pwm_imx27_probe(struct platform_device *pdev)
 	struct pwm_imx27_chip *imx;
 	int ret;
 	u32 pwmcr;
+	int i;
 
 	chip = devm_pwmchip_alloc(&pdev->dev, 1, sizeof(*imx));
 	if (IS_ERR(chip))
 		return PTR_ERR(chip);
 	imx = to_pwm_imx27_chip(chip);
 
-	imx->clk_ipg = devm_clk_get(&pdev->dev, "ipg");
-	if (IS_ERR(imx->clk_ipg))
-		return dev_err_probe(&pdev->dev, PTR_ERR(imx->clk_ipg),
-				     "getting ipg clock failed\n");
+	imx->clks_cnt = ARRAY_SIZE(pwm_imx27_clks);
+	for (i = 0; i < imx->clks_cnt; ++i)
+		imx->clks[i].id = pwm_imx27_clks[i];
 
-	imx->clk_per = devm_clk_get(&pdev->dev, "per");
-	if (IS_ERR(imx->clk_per))
-		return dev_err_probe(&pdev->dev, PTR_ERR(imx->clk_per),
-				     "failed to get peripheral clock\n");
+	ret = devm_clk_bulk_get(&pdev->dev, imx->clks_cnt, imx->clks);
+
+	if (ret)
+		return dev_err_probe(&pdev->dev, ret,
+				     "getting clocks failed\n");
 
 	chip->ops = &pwm_imx27_ops;
 
@@ -425,14 +406,14 @@ static int pwm_imx27_probe(struct platform_device *pdev)
 	if (IS_ERR(imx->mmio_base))
 		return PTR_ERR(imx->mmio_base);
 
-	ret = pwm_imx27_clk_prepare_enable(imx);
+	ret = clk_bulk_prepare_enable(imx->clks_cnt, imx->clks);
 	if (ret)
 		return ret;
 
 	/* keep clks on if pwm is running */
 	pwmcr = readl(imx->mmio_base + MX3_PWMCR);
 	if (!(pwmcr & MX3_PWMCR_EN))
-		pwm_imx27_clk_disable_unprepare(imx);
+		clk_bulk_disable_unprepare(imx->clks_cnt, imx->clks);
 
 	return devm_pwmchip_add(&pdev->dev, chip);
 }
