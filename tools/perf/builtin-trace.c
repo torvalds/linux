@@ -2001,11 +2001,14 @@ syscall_arg_fmt__init_array(struct syscall_arg_fmt *arg, struct tep_format_field
 
 		len = strlen(field->name);
 
+		// As far as heuristics (or intention) goes this seems to hold true, and makes sense!
+		if ((field->flags & TEP_FIELD_IS_POINTER) && strstarts(field->type, "const "))
+			arg->from_user = true;
+
 		if (strcmp(field->type, "const char *") == 0 &&
 		    ((len >= 4 && strcmp(field->name + len - 4, "name") == 0) ||
 		     strstr(field->name, "path") != NULL)) {
 			arg->scnprintf = SCA_FILENAME;
-			arg->from_user = true;
 		} else if ((field->flags & TEP_FIELD_IS_POINTER) || strstr(field->name, "addr"))
 			arg->scnprintf = SCA_PTR;
 		else if (strcmp(field->type, "pid_t") == 0)
