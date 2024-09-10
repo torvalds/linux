@@ -58,7 +58,7 @@ struct kernfs_root {
  * kernfs_root - find out the kernfs_root a kernfs_node belongs to
  * @kn: kernfs_node of interest
  *
- * Return the kernfs_root @kn belongs to.
+ * Return: the kernfs_root @kn belongs to.
  */
 static inline struct kernfs_root *kernfs_root(struct kernfs_node *kn)
 {
