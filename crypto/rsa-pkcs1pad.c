@@ -131,42 +131,16 @@ static int pkcs1pad_set_pub_key(struct crypto_akcipher *tfm, const void *key,
 		unsigned int keylen)
 {
 	struct pkcs1pad_ctx *ctx = akcipher_tfm_ctx(tfm);
-	int err;
 
-	ctx->key_size = 0;
-
-	err = crypto_akcipher_set_pub_key(ctx->child, key, keylen);
-	if (err)
-		return err;
-
-	/* Find out new modulus size from rsa implementation */
-	err = crypto_akcipher_maxsize(ctx->child);
-	if (err > PAGE_SIZE)
-		return -ENOTSUPP;
-
-	ctx->key_size = err;
-	return 0;
+	return rsa_set_key(ctx->child, &ctx->key_size, RSA_PUB, key, keylen);
 }
 
 static int pkcs1pad_set_priv_key(struct crypto_akcipher *tfm, const void *key,
 		unsigned int keylen)
 {
 	struct pkcs1pad_ctx *ctx = akcipher_tfm_ctx(tfm);
-	int err;
 
-	ctx->key_size = 0;
-
-	err = crypto_akcipher_set_priv_key(ctx->child, key, keylen);
-	if (err)
-		return err;
-
-	/* Find out new modulus size from rsa implementation */
-	err = crypto_akcipher_maxsize(ctx->child);
-	if (err > PAGE_SIZE)
-		return -ENOTSUPP;
-
-	ctx->key_size = err;
-	return 0;
+	return rsa_set_key(ctx->child, &ctx->key_size, RSA_PRIV, key, keylen);
 }
 
 static unsigned int pkcs1pad_get_max_size(struct crypto_akcipher *tfm)
