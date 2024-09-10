@@ -769,7 +769,8 @@
 	MACRO__(0x7D41, ## __VA_ARGS__), \
 	MACRO__(0x7D51, ## __VA_ARGS__), \
 	MACRO__(0x7D67, ## __VA_ARGS__), \
-	MACRO__(0x7DD1, ## __VA_ARGS__)
+	MACRO__(0x7DD1, ## __VA_ARGS__), \
+	MACRO__(0xB640, ## __VA_ARGS__)
 
 /* MTL */
 #define INTEL_MTL_IDS(MACRO__, ...) \
