@@ -99,6 +99,40 @@ static unsigned int ecdsa_x962_key_size(struct crypto_sig *tfm)
 	return crypto_sig_keysize(ctx->child);
 }
 
+static unsigned int ecdsa_x962_max_size(struct crypto_sig *tfm)
+{
+	struct ecdsa_x962_ctx *ctx = crypto_sig_ctx(tfm);
+	struct sig_alg *alg = crypto_sig_alg(ctx->child);
+	int slen = crypto_sig_keysize(ctx->child);
+
+	/*
+	 * Verify takes ECDSA-Sig-Value (described in RFC 5480) as input,
+	 * which is actually 2 'key_size'-bit integers encoded in ASN.1.
+	 * Account for the ASN.1 encoding overhead here.
+	 *
+	 * NIST P192/256/384 may prepend a '0' to a coordinate to indicate
+	 * a positive integer. NIST P521 never needs it.
+	 */
+	if (strcmp(alg->base.cra_name, "ecdsa-nist-p521") != 0)
+		slen += 1;
+
+	/* Length of encoding the x & y coordinates */
+	slen = 2 * (slen + 2);
+
+	/*
+	 * If coordinate encoding takes at least 128 bytes then an
+	 * additional byte for length encoding is needed.
+	 */
+	return 1 + (slen >= 128) + 1 + slen;
+}
+
+static unsigned int ecdsa_x962_digest_size(struct crypto_sig *tfm)
+{
+	struct ecdsa_x962_ctx *ctx = crypto_sig_ctx(tfm);
+
+	return crypto_sig_digestsize(ctx->child);
+}
+
 static int ecdsa_x962_set_pub_key(struct crypto_sig *tfm,
 				  const void *key, unsigned int keylen)
 {
@@ -180,6 +214,8 @@ static int ecdsa_x962_create(struct crypto_template *tmpl, struct rtattr **tb)
 
 	inst->alg.verify = ecdsa_x962_verify;
 	inst->alg.key_size = ecdsa_x962_key_size;
+	inst->alg.max_size = ecdsa_x962_max_size;
+	inst->alg.digest_size = ecdsa_x962_digest_size;
 	inst->alg.set_pub_key = ecdsa_x962_set_pub_key;
 
 	inst->free = ecdsa_x962_free;

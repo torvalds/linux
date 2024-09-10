@@ -127,6 +127,10 @@ int crypto_register_sig(struct sig_alg *alg)
 		return -EINVAL;
 	if (!alg->key_size)
 		return -EINVAL;
+	if (!alg->max_size)
+		alg->max_size = alg->key_size;
+	if (!alg->digest_size)
+		alg->digest_size = alg->key_size;
 
 	sig_prepare_alg(alg);
 	return crypto_register_alg(base);

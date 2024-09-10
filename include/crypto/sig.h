@@ -33,6 +33,8 @@ struct crypto_sig {
  *		function, which knows how to decode and interpret
  *		the BER encoded private key and parameters. Optional.
  * @key_size:	Function returns key size. Mandatory.
+ * @digest_size: Function returns maximum digest size. Optional.
+ * @max_size:	Function returns maximum signature size. Optional.
  * @init:	Initialize the cryptographic transformation object.
  *		This function is used to initialize the cryptographic
  *		transformation object. This function is called only once at
@@ -59,6 +61,8 @@ struct sig_alg {
 	int (*set_priv_key)(struct crypto_sig *tfm,
 			    const void *key, unsigned int keylen);
 	unsigned int (*key_size)(struct crypto_sig *tfm);
+	unsigned int (*digest_size)(struct crypto_sig *tfm);
+	unsigned int (*max_size)(struct crypto_sig *tfm);
 	int (*init)(struct crypto_sig *tfm);
 	void (*exit)(struct crypto_sig *tfm);
 
@@ -135,6 +139,40 @@ static inline unsigned int crypto_sig_keysize(struct crypto_sig *tfm)
 	struct sig_alg *alg = crypto_sig_alg(tfm);
 
 	return alg->key_size(tfm);
+}
+
+/**
+ * crypto_sig_digestsize() - Get maximum digest size
+ *
+ * Function returns the maximum digest size in bytes.
+ * Function assumes that the key is already set in the transformation. If this
+ * function is called without a setkey or with a failed setkey, you may end up
+ * in a NULL dereference.
+ *
+ * @tfm:	signature tfm handle allocated with crypto_alloc_sig()
+ */
+static inline unsigned int crypto_sig_digestsize(struct crypto_sig *tfm)
+{
+	struct sig_alg *alg = crypto_sig_alg(tfm);
+
+	return alg->digest_size(tfm);
+}
+
+/**
+ * crypto_sig_maxsize() - Get maximum signature size
+ *
+ * Function returns the maximum signature size in bytes.
+ * Function assumes that the key is already set in the transformation. If this
+ * function is called without a setkey or with a failed setkey, you may end up
+ * in a NULL dereference.
+ *
+ * @tfm:	signature tfm handle allocated with crypto_alloc_sig()
+ */
+static inline unsigned int crypto_sig_maxsize(struct crypto_sig *tfm)
+{
+	struct sig_alg *alg = crypto_sig_alg(tfm);
+
+	return alg->max_size(tfm);
 }
 
 /**

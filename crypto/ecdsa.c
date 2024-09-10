@@ -7,6 +7,7 @@
 #include <crypto/internal/ecc.h>
 #include <crypto/internal/sig.h>
 #include <crypto/ecdh.h>
+#include <crypto/sha2.h>
 #include <crypto/sig.h>
 
 struct ecc_ctx {
@@ -169,6 +170,17 @@ static unsigned int ecdsa_key_size(struct crypto_sig *tfm)
 	return DIV_ROUND_UP(ctx->curve->nbits, 8);
 }
 
+static unsigned int ecdsa_digest_size(struct crypto_sig *tfm)
+{
+	/*
+	 * ECDSA key sizes are much smaller than RSA, and thus could
+	 * operate on (hashed) inputs that are larger than the key size.
+	 * E.g. SHA384-hashed input used with secp256r1 based keys.
+	 * Return the largest supported hash size (SHA512).
+	 */
+	return SHA512_DIGEST_SIZE;
+}
+
 static int ecdsa_nist_p521_init_tfm(struct crypto_sig *tfm)
 {
 	struct ecc_ctx *ctx = crypto_sig_ctx(tfm);
@@ -180,6 +192,7 @@ static struct sig_alg ecdsa_nist_p521 = {
 	.verify = ecdsa_verify,
 	.set_pub_key = ecdsa_set_pub_key,
 	.key_size = ecdsa_key_size,
+	.digest_size = ecdsa_digest_size,
 	.init = ecdsa_nist_p521_init_tfm,
 	.exit = ecdsa_exit_tfm,
 	.base = {
@@ -202,6 +215,7 @@ static struct sig_alg ecdsa_nist_p384 = {
 	.verify = ecdsa_verify,
 	.set_pub_key = ecdsa_set_pub_key,
 	.key_size = ecdsa_key_size,
+	.digest_size = ecdsa_digest_size,
 	.init = ecdsa_nist_p384_init_tfm,
 	.exit = ecdsa_exit_tfm,
 	.base = {
@@ -224,6 +238,7 @@ static struct sig_alg ecdsa_nist_p256 = {
 	.verify = ecdsa_verify,
 	.set_pub_key = ecdsa_set_pub_key,
 	.key_size = ecdsa_key_size,
+	.digest_size = ecdsa_digest_size,
 	.init = ecdsa_nist_p256_init_tfm,
 	.exit = ecdsa_exit_tfm,
 	.base = {
@@ -246,6 +261,7 @@ static struct sig_alg ecdsa_nist_p192 = {
 	.verify = ecdsa_verify,
 	.set_pub_key = ecdsa_set_pub_key,
 	.key_size = ecdsa_key_size,
+	.digest_size = ecdsa_digest_size,
 	.init = ecdsa_nist_p192_init_tfm,
 	.exit = ecdsa_exit_tfm,
 	.base = {
