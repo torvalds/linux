@@ -1770,12 +1770,15 @@ struct kvm_x86_ops {
 	void (*write_tsc_multiplier)(struct kvm_vcpu *vcpu);
 
 	/*
-	 * Retrieve somewhat arbitrary exit information.  Intended to
+	 * Retrieve somewhat arbitrary exit/entry information.  Intended to
 	 * be used only from within tracepoints or error paths.
 	 */
 	void (*get_exit_info)(struct kvm_vcpu *vcpu, u32 *reason,
 			      u64 *info1, u64 *info2,
-			      u32 *exit_int_info, u32 *exit_int_info_err_code);
+			      u32 *intr_info, u32 *error_code);
+
+	void (*get_entry_info)(struct kvm_vcpu *vcpu,
+			       u32 *intr_info, u32 *error_code);
 
 	int (*check_intercept)(struct kvm_vcpu *vcpu,
 			       struct x86_instruction_info *info,

@@ -22,15 +22,22 @@ TRACE_EVENT(kvm_entry,
 		__field(	unsigned int,	vcpu_id		)
 		__field(	unsigned long,	rip		)
 		__field(	bool,		immediate_exit	)
+		__field(	u32,		intr_info	)
+		__field(	u32,		error_code	)
 	),
 
 	TP_fast_assign(
 		__entry->vcpu_id        = vcpu->vcpu_id;
 		__entry->rip		= kvm_rip_read(vcpu);
 		__entry->immediate_exit	= force_immediate_exit;
+
+		kvm_x86_call(get_entry_info)(vcpu, &__entry->intr_info,
+					     &__entry->error_code);
 	),
 
-	TP_printk("vcpu %u, rip 0x%lx%s", __entry->vcpu_id, __entry->rip,
+	TP_printk("vcpu %u, rip 0x%lx intr_info 0x%08x error_code 0x%08x%s",
+		  __entry->vcpu_id, __entry->rip,
+		  __entry->intr_info, __entry->error_code,
 		  __entry->immediate_exit ? "[immediate exit]" : "")
 );
 
