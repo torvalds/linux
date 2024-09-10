@@ -2195,6 +2195,7 @@
 /* IVB+ has 3 fitters, 0 is 7x5 capable, the other two only 3x3 */
 #define _PFA_CTL_1		0x68080
 #define _PFB_CTL_1		0x68880
+#define PF_CTL(pipe)		_MMIO_PIPE(pipe, _PFA_CTL_1, _PFB_CTL_1)
 #define   PF_ENABLE			REG_BIT(31)
 #define   PF_PIPE_SEL_MASK_IVB		REG_GENMASK(30, 29) /* ivb/hsw */
 #define   PF_PIPE_SEL_IVB(pipe)		REG_FIELD_PREP(PF_PIPE_SEL_MASK_IVB, (pipe))
@@ -2203,27 +2204,29 @@
 #define   PF_FILTER_MED_3x3		REG_FIELD_PREP(PF_FILTER_MASK, 1)
 #define   PF_FILTER_EDGE_ENHANCE	REG_FIELD_PREP(PF_FILTER_EDGE_MASK, 2)
 #define   PF_FILTER_EDGE_SOFTEN		REG_FIELD_PREP(PF_FILTER_EDGE_MASK, 3)
+
 #define _PFA_WIN_SZ		0x68074
 #define _PFB_WIN_SZ		0x68874
+#define PF_WIN_SZ(pipe)		_MMIO_PIPE(pipe, _PFA_WIN_SZ, _PFB_WIN_SZ)
 #define   PF_WIN_XSIZE_MASK	REG_GENMASK(31, 16)
 #define   PF_WIN_XSIZE(w)	REG_FIELD_PREP(PF_WIN_XSIZE_MASK, (w))
 #define   PF_WIN_YSIZE_MASK	REG_GENMASK(15, 0)
 #define   PF_WIN_YSIZE(h)	REG_FIELD_PREP(PF_WIN_YSIZE_MASK, (h))
+
 #define _PFA_WIN_POS		0x68070
 #define _PFB_WIN_POS		0x68870
+#define PF_WIN_POS(pipe)	_MMIO_PIPE(pipe, _PFA_WIN_POS, _PFB_WIN_POS)
 #define   PF_WIN_XPOS_MASK	REG_GENMASK(31, 16)
 #define   PF_WIN_XPOS(x)	REG_FIELD_PREP(PF_WIN_XPOS_MASK, (x))
 #define   PF_WIN_YPOS_MASK	REG_GENMASK(15, 0)
 #define   PF_WIN_YPOS(y)	REG_FIELD_PREP(PF_WIN_YPOS_MASK, (y))
+
 #define _PFA_VSCALE		0x68084
 #define _PFB_VSCALE		0x68884
+#define PF_VSCALE(pipe)		_MMIO_PIPE(pipe, _PFA_VSCALE, _PFB_VSCALE)
+
 #define _PFA_HSCALE		0x68090
 #define _PFB_HSCALE		0x68890
-
-#define PF_CTL(pipe)		_MMIO_PIPE(pipe, _PFA_CTL_1, _PFB_CTL_1)
-#define PF_WIN_SZ(pipe)		_MMIO_PIPE(pipe, _PFA_WIN_SZ, _PFB_WIN_SZ)
-#define PF_WIN_POS(pipe)	_MMIO_PIPE(pipe, _PFA_WIN_POS, _PFB_WIN_POS)
-#define PF_VSCALE(pipe)		_MMIO_PIPE(pipe, _PFA_VSCALE, _PFB_VSCALE)
 #define PF_HSCALE(pipe)		_MMIO_PIPE(pipe, _PFA_HSCALE, _PFB_HSCALE)
 
 /*
@@ -3103,11 +3106,12 @@
 #define PCH_DPLL(pll) _MMIO((pll) == 0 ? _PCH_DPLL_A : _PCH_DPLL_B)
 
 #define _PCH_FPA0                0xc6040
-#define  FP_CB_TUNE		(0x3 << 22)
-#define _PCH_FPA1                0xc6044
 #define _PCH_FPB0                0xc6048
-#define _PCH_FPB1                0xc604c
 #define PCH_FP0(pll) _MMIO((pll) == 0 ? _PCH_FPA0 : _PCH_FPB0)
+#define  FP_CB_TUNE		(0x3 << 22)
+
+#define _PCH_FPA1                0xc6044
+#define _PCH_FPB1                0xc604c
 #define PCH_FP1(pll) _MMIO((pll) == 0 ? _PCH_FPA1 : _PCH_FPB1)
 
 #define PCH_DPLL_TEST           _MMIO(0xc606c)
@@ -4145,6 +4149,7 @@ enum skl_power_gate {
 #define _DPLL1_CFGCR1	0x6C040
 #define _DPLL2_CFGCR1	0x6C048
 #define _DPLL3_CFGCR1	0x6C050
+#define DPLL_CFGCR1(id)	_MMIO_PIPE((id) - SKL_DPLL1, _DPLL1_CFGCR1, _DPLL2_CFGCR1)
 #define  DPLL_CFGCR1_FREQ_ENABLE	(1 << 31)
 #define  DPLL_CFGCR1_DCO_FRACTION_MASK	(0x7fff << 9)
 #define  DPLL_CFGCR1_DCO_FRACTION(x)	((x) << 9)
@@ -4153,6 +4158,7 @@ enum skl_power_gate {
 #define _DPLL1_CFGCR2	0x6C044
 #define _DPLL2_CFGCR2	0x6C04C
 #define _DPLL3_CFGCR2	0x6C054
+#define DPLL_CFGCR2(id)	_MMIO_PIPE((id) - SKL_DPLL1, _DPLL1_CFGCR2, _DPLL2_CFGCR2)
 #define  DPLL_CFGCR2_QDIV_RATIO_MASK	(0xff << 8)
 #define  DPLL_CFGCR2_QDIV_RATIO(x)	((x) << 8)
 #define  DPLL_CFGCR2_QDIV_MODE(x)	((x) << 7)
@@ -4170,9 +4176,6 @@ enum skl_power_gate {
 #define  DPLL_CFGCR2_PDIV_7 (4 << 2)
 #define  DPLL_CFGCR2_PDIV_7_INVALID	(5 << 2)
 #define  DPLL_CFGCR2_CENTRAL_FREQ_MASK	(3)
-
-#define DPLL_CFGCR1(id)	_MMIO_PIPE((id) - SKL_DPLL1, _DPLL1_CFGCR1, _DPLL2_CFGCR1)
-#define DPLL_CFGCR2(id)	_MMIO_PIPE((id) - SKL_DPLL1, _DPLL1_CFGCR2, _DPLL2_CFGCR2)
 
 /* ICL Clocks */
 #define ICL_DPCLKA_CFGCR0			_MMIO(0x164280)
