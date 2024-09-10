@@ -1262,6 +1262,7 @@
   can_ethtool_op_get_ts_info_hwts
   can_fd_dlc2len
   can_fd_len2dlc
+  can_free_echo_skb
   can_put_echo_skb
   can_rx_offload_add_manual
   can_rx_offload_del
@@ -1294,6 +1295,7 @@
   timecounter_read
   unregister_candev
   __vmalloc
+  work_busy
 
 # required by mhi.ko
   get_random_u32
