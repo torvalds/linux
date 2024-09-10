@@ -2254,7 +2254,8 @@ static void cleanup_domain(struct protection_domain *domain)
 void protection_domain_free(struct protection_domain *domain)
 {
 	WARN_ON(!list_empty(&domain->dev_list));
-	free_io_pgtable_ops(&domain->iop.pgtbl.ops);
+	if (domain->domain.type & __IOMMU_DOMAIN_PAGING)
+		free_io_pgtable_ops(&domain->iop.pgtbl.ops);
 	domain_id_free(domain->id);
 	kfree(domain);
 }
