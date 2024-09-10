@@ -157,6 +157,7 @@ config RESET_MESON
 	tristate "Meson Reset Driver"
 	depends on ARCH_MESON || COMPILE_TEST
 	default ARCH_MESON
+	select REGMAP_MMIO
 	help
 	  This enables the reset driver for Amlogic Meson SoCs.
 
