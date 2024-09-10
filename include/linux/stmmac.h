@@ -308,5 +308,7 @@ struct plat_stmmacenet_data {
 	bool mdio_op_busy;
 	atomic_t phy_clks_suspended;
 	struct completion mdio_op;
+	int board_type;
+	int phy_type;
 };
 #endif

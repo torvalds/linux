@@ -227,3 +227,7 @@ eipv4=	[KNL] Sets ipv4 address at boot up for early ethernet.
 eipv6=	[KNL] Sets ipv6 address at boot up for early ethernet.
 
 ermac=	[KNL] Sets mac address at boot up for early ethernet.
+
+board=  [KNL] Sets Board type of device at boot up for phy detection.
+
+enet=   [KNL] Sets the PHY type on device at boot up for phy detection.
