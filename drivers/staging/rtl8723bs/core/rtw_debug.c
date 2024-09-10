@@ -42,16 +42,3 @@ void bb_reg_dump(struct adapter *adapter)
 	for (i = 0x800; i < 0x1000 ; i += 4)
 		dump_4_regs(adapter, i);
 }
-
-static void dump_4_rf_regs(struct adapter *adapter, int path, int offset)
-{
-	u8 reg[4];
-	int i;
-
-	for (i = 0; i < 4; i++)
-		reg[i] = rtw_hal_read_rfreg(adapter, path, offset + i,
-					    0xffffffff);
-
-	netdev_dbg(adapter->pnetdev, "0x%02x 0x%08x 0x%08x 0x%08x 0x%08x\n",
-		   i, reg[0], reg[1], reg[2], reg[3]);
-}
