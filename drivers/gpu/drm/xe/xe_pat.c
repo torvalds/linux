@@ -165,7 +165,7 @@ static void program_pat(struct xe_gt *gt, const struct xe_pat_table_entry table[
 	for (int i = 0; i < n_entries; i++) {
 		struct xe_reg reg = XE_REG(_PAT_INDEX(i));
 
-		xe_mmio_write32(gt, reg, table[i].value);
+		xe_mmio_write32(&gt->mmio, reg, table[i].value);
 	}
 }
 
@@ -191,7 +191,7 @@ static void xelp_dump(struct xe_gt *gt, struct drm_printer *p)
 	drm_printf(p, "PAT table:\n");
 
 	for (i = 0; i < xe->pat.n_entries; i++) {
-		u32 pat = xe_mmio_read32(gt, XE_REG(_PAT_INDEX(i)));
+		u32 pat = xe_mmio_read32(&gt->mmio, XE_REG(_PAT_INDEX(i)));
 		u8 mem_type = REG_FIELD_GET(XELP_MEM_TYPE_MASK, pat);
 
 		drm_printf(p, "PAT[%2d] = %s (%#8x)\n", i,
@@ -283,7 +283,7 @@ static void xelpg_dump(struct xe_gt *gt, struct drm_printer *p)
 		u32 pat;
 
 		if (xe_gt_is_media_type(gt))
-			pat = xe_mmio_read32(gt, XE_REG(_PAT_INDEX(i)));
+			pat = xe_mmio_read32(&gt->mmio, XE_REG(_PAT_INDEX(i)));
 		else
 			pat = xe_gt_mcr_unicast_read_any(gt, XE_REG_MCR(_PAT_INDEX(i)));
 
@@ -321,10 +321,10 @@ static void xe2lpm_program_pat(struct xe_gt *gt, const struct xe_pat_table_entry
 			       int n_entries)
 {
 	program_pat(gt, table, n_entries);
-	xe_mmio_write32(gt, XE_REG(_PAT_ATS), xe2_pat_ats.value);
+	xe_mmio_write32(&gt->mmio, XE_REG(_PAT_ATS), xe2_pat_ats.value);
 
 	if (IS_DGFX(gt_to_xe(gt)))
-		xe_mmio_write32(gt, XE_REG(_PAT_PTA), xe2_pat_pta.value);
+		xe_mmio_write32(&gt->mmio, XE_REG(_PAT_PTA), xe2_pat_pta.value);
 }
 
 static void xe2_dump(struct xe_gt *gt, struct drm_printer *p)
@@ -341,7 +341,7 @@ static void xe2_dump(struct xe_gt *gt, struct drm_printer *p)
 
 	for (i = 0; i < xe->pat.n_entries; i++) {
 		if (xe_gt_is_media_type(gt))
-			pat = xe_mmio_read32(gt, XE_REG(_PAT_INDEX(i)));
+			pat = xe_mmio_read32(&gt->mmio, XE_REG(_PAT_INDEX(i)));
 		else
 			pat = xe_gt_mcr_unicast_read_any(gt, XE_REG_MCR(_PAT_INDEX(i)));
 
@@ -360,7 +360,7 @@ static void xe2_dump(struct xe_gt *gt, struct drm_printer *p)
 	 * PPGTT entries.
 	 */
 	if (xe_gt_is_media_type(gt))
-		pat = xe_mmio_read32(gt, XE_REG(_PAT_PTA));
+		pat = xe_mmio_read32(&gt->mmio, XE_REG(_PAT_PTA));
 	else
 		pat = xe_gt_mcr_unicast_read_any(gt, XE_REG_MCR(_PAT_PTA));
 
