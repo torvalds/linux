@@ -91,16 +91,17 @@ __read_timestamps(struct xe_gt *gt,
 		  u64 *cpu_delta,
 		  __ktime_func_t cpu_clock)
 {
+	struct xe_mmio *mmio = &gt->mmio;
 	u32 upper, lower, old_upper, loop = 0;
 
-	upper = xe_mmio_read32(gt, upper_reg);
+	upper = xe_mmio_read32(mmio, upper_reg);
 	do {
 		*cpu_delta = local_clock();
 		*cpu_ts = cpu_clock();
-		lower = xe_mmio_read32(gt, lower_reg);
+		lower = xe_mmio_read32(mmio, lower_reg);
 		*cpu_delta = local_clock() - *cpu_delta;
 		old_upper = upper;
-		upper = xe_mmio_read32(gt, upper_reg);
+		upper = xe_mmio_read32(mmio, upper_reg);
 	} while (upper != old_upper && loop++ < 2);
 
 	*engine_ts = (u64)upper << 32 | lower;
