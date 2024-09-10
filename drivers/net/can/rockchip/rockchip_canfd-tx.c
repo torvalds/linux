@@ -63,7 +63,7 @@ void rkcanfd_xmit_retry(struct rkcanfd_priv *priv)
 	rkcanfd_start_xmit_write_cmd(priv, reg_cmd);
 }
 
-int rkcanfd_start_xmit(struct sk_buff *skb, struct net_device *ndev)
+netdev_tx_t rkcanfd_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 {
 	struct rkcanfd_priv *priv = netdev_priv(ndev);
 	u32 reg_frameinfo, reg_id, reg_cmd;
