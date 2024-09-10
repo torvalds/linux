@@ -11688,7 +11688,7 @@ static int attach_uprobe_multi(const struct bpf_program *prog, long cookie, stru
 		ret = 0;
 		break;
 	case 3:
-		opts.retprobe = strcmp(probe_type, "uretprobe.multi") == 0;
+		opts.retprobe = str_has_pfx(probe_type, "uretprobe.multi");
 		*link = bpf_program__attach_uprobe_multi(prog, -1, binary_path, func_name, &opts);
 		ret = libbpf_get_error(*link);
 		break;
