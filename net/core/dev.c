@@ -3312,6 +3312,10 @@ int skb_checksum_help(struct sk_buff *skb)
 		return -EINVAL;
 	}
 
+	if (!skb_frags_readable(skb)) {
+		return -EFAULT;
+	}
+
 	/* Before computing a checksum, we should make sure no frag could
 	 * be modified by an external entity : checksum could be wrong.
 	 */
