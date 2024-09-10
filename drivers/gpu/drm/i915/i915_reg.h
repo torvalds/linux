@@ -3233,19 +3233,19 @@
 
 /* Per-transcoder DIP controls (PCH) */
 #define _VIDEO_DIP_CTL_A         0xe0200
+#define _VIDEO_DIP_CTL_B         0xe1200
+#define TVIDEO_DIP_CTL(pipe) _MMIO_PIPE(pipe, _VIDEO_DIP_CTL_A, _VIDEO_DIP_CTL_B)
+
 #define _VIDEO_DIP_DATA_A        0xe0208
+#define _VIDEO_DIP_DATA_B        0xe1208
+#define TVIDEO_DIP_DATA(pipe) _MMIO_PIPE(pipe, _VIDEO_DIP_DATA_A, _VIDEO_DIP_DATA_B)
+
 #define _VIDEO_DIP_GCP_A         0xe0210
+#define _VIDEO_DIP_GCP_B         0xe1210
+#define TVIDEO_DIP_GCP(pipe) _MMIO_PIPE(pipe, _VIDEO_DIP_GCP_A, _VIDEO_DIP_GCP_B)
 #define  GCP_COLOR_INDICATION		(1 << 2)
 #define  GCP_DEFAULT_PHASE_ENABLE	(1 << 1)
 #define  GCP_AV_MUTE			(1 << 0)
-
-#define _VIDEO_DIP_CTL_B         0xe1200
-#define _VIDEO_DIP_DATA_B        0xe1208
-#define _VIDEO_DIP_GCP_B         0xe1210
-
-#define TVIDEO_DIP_CTL(pipe) _MMIO_PIPE(pipe, _VIDEO_DIP_CTL_A, _VIDEO_DIP_CTL_B)
-#define TVIDEO_DIP_DATA(pipe) _MMIO_PIPE(pipe, _VIDEO_DIP_DATA_A, _VIDEO_DIP_DATA_B)
-#define TVIDEO_DIP_GCP(pipe) _MMIO_PIPE(pipe, _VIDEO_DIP_GCP_A, _VIDEO_DIP_GCP_B)
 
 /* Per-transcoder DIP controls (VLV) */
 #define _VLV_VIDEO_DIP_CTL_A		0x60200
@@ -3273,36 +3273,54 @@
 							 _CHV_VIDEO_DIP_GDCP_PAYLOAD_C)
 
 /* Haswell DIP controls */
-
 #define _HSW_VIDEO_DIP_CTL_A		0x60200
-#define _HSW_VIDEO_DIP_AVI_DATA_A	0x60220
-#define _HSW_VIDEO_DIP_VS_DATA_A	0x60260
-#define _HSW_VIDEO_DIP_SPD_DATA_A	0x602A0
-#define _HSW_VIDEO_DIP_GMP_DATA_A	0x602E0
-#define _HSW_VIDEO_DIP_VSC_DATA_A	0x60320
-#define	_ADL_VIDEO_DIP_AS_DATA_A	0x60484
-#define _GLK_VIDEO_DIP_DRM_DATA_A	0x60440
-#define _HSW_VIDEO_DIP_AVI_ECC_A	0x60240
-#define _HSW_VIDEO_DIP_VS_ECC_A		0x60280
-#define _HSW_VIDEO_DIP_SPD_ECC_A	0x602C0
-#define _HSW_VIDEO_DIP_GMP_ECC_A	0x60300
-#define _HSW_VIDEO_DIP_VSC_ECC_A	0x60344
-#define _HSW_VIDEO_DIP_GCP_A		0x60210
-
 #define _HSW_VIDEO_DIP_CTL_B		0x61200
+#define HSW_TVIDEO_DIP_CTL(dev_priv, trans)		_MMIO_TRANS2(dev_priv, trans, _HSW_VIDEO_DIP_CTL_A)
+
+#define _HSW_VIDEO_DIP_AVI_DATA_A	0x60220
 #define _HSW_VIDEO_DIP_AVI_DATA_B	0x61220
+#define HSW_TVIDEO_DIP_AVI_DATA(dev_priv, trans, i)	_MMIO_TRANS2(dev_priv, trans, _HSW_VIDEO_DIP_AVI_DATA_A + (i) * 4)
+
+#define _HSW_VIDEO_DIP_VS_DATA_A	0x60260
 #define _HSW_VIDEO_DIP_VS_DATA_B	0x61260
+#define HSW_TVIDEO_DIP_VS_DATA(dev_priv, trans, i)	_MMIO_TRANS2(dev_priv, trans, _HSW_VIDEO_DIP_VS_DATA_A + (i) * 4)
+
+#define _HSW_VIDEO_DIP_SPD_DATA_A	0x602A0
 #define _HSW_VIDEO_DIP_SPD_DATA_B	0x612A0
+#define HSW_TVIDEO_DIP_SPD_DATA(dev_priv, trans, i)	_MMIO_TRANS2(dev_priv, trans, _HSW_VIDEO_DIP_SPD_DATA_A + (i) * 4)
+
+#define _HSW_VIDEO_DIP_GMP_DATA_A	0x602E0
 #define _HSW_VIDEO_DIP_GMP_DATA_B	0x612E0
+#define HSW_TVIDEO_DIP_GMP_DATA(dev_priv, trans, i)	_MMIO_TRANS2(dev_priv, trans, _HSW_VIDEO_DIP_GMP_DATA_A + (i) * 4)
+
+#define _HSW_VIDEO_DIP_VSC_DATA_A	0x60320
 #define _HSW_VIDEO_DIP_VSC_DATA_B	0x61320
+#define HSW_TVIDEO_DIP_VSC_DATA(dev_priv, trans, i)	_MMIO_TRANS2(dev_priv, trans, _HSW_VIDEO_DIP_VSC_DATA_A + (i) * 4)
+
+/*ADLP and later: */
+#define	_ADL_VIDEO_DIP_AS_DATA_A	0x60484
 #define _ADL_VIDEO_DIP_AS_DATA_B	0x61484
+#define ADL_TVIDEO_DIP_AS_SDP_DATA(dev_priv, trans, i)	_MMIO_TRANS2(dev_priv, trans,\
+							     _ADL_VIDEO_DIP_AS_DATA_A + (i) * 4)
+
+#define _GLK_VIDEO_DIP_DRM_DATA_A	0x60440
 #define _GLK_VIDEO_DIP_DRM_DATA_B	0x61440
+#define GLK_TVIDEO_DIP_DRM_DATA(dev_priv, trans, i)	_MMIO_TRANS2(dev_priv, trans, _GLK_VIDEO_DIP_DRM_DATA_A + (i) * 4)
+
+#define _HSW_VIDEO_DIP_AVI_ECC_A	0x60240
 #define _HSW_VIDEO_DIP_BVI_ECC_B	0x61240
+#define _HSW_VIDEO_DIP_VS_ECC_A		0x60280
 #define _HSW_VIDEO_DIP_VS_ECC_B		0x61280
+#define _HSW_VIDEO_DIP_SPD_ECC_A	0x602C0
 #define _HSW_VIDEO_DIP_SPD_ECC_B	0x612C0
+#define _HSW_VIDEO_DIP_GMP_ECC_A	0x60300
 #define _HSW_VIDEO_DIP_GMP_ECC_B	0x61300
+#define _HSW_VIDEO_DIP_VSC_ECC_A	0x60344
 #define _HSW_VIDEO_DIP_VSC_ECC_B	0x61344
+
+#define _HSW_VIDEO_DIP_GCP_A		0x60210
 #define _HSW_VIDEO_DIP_GCP_B		0x61210
+#define HSW_TVIDEO_DIP_GCP(dev_priv, trans)		_MMIO_TRANS2(dev_priv, trans, _HSW_VIDEO_DIP_GCP_A)
 
 /* Icelake PPS_DATA and _ECC DIP Registers.
  * These are available for transcoders B,C and eDP.
@@ -3312,28 +3330,16 @@
 
 #define _ICL_VIDEO_DIP_PPS_DATA_A	0x60350
 #define _ICL_VIDEO_DIP_PPS_DATA_B	0x61350
+#define ICL_VIDEO_DIP_PPS_DATA(dev_priv, trans, i)	_MMIO_TRANS2(dev_priv, trans, _ICL_VIDEO_DIP_PPS_DATA_A + (i) * 4)
+
 #define _ICL_VIDEO_DIP_PPS_ECC_A	0x603D4
 #define _ICL_VIDEO_DIP_PPS_ECC_B	0x613D4
-
-#define HSW_TVIDEO_DIP_CTL(dev_priv, trans)		_MMIO_TRANS2(dev_priv, trans, _HSW_VIDEO_DIP_CTL_A)
-#define HSW_TVIDEO_DIP_GCP(dev_priv, trans)		_MMIO_TRANS2(dev_priv, trans, _HSW_VIDEO_DIP_GCP_A)
-#define HSW_TVIDEO_DIP_AVI_DATA(dev_priv, trans, i)	_MMIO_TRANS2(dev_priv, trans, _HSW_VIDEO_DIP_AVI_DATA_A + (i) * 4)
-#define HSW_TVIDEO_DIP_VS_DATA(dev_priv, trans, i)	_MMIO_TRANS2(dev_priv, trans, _HSW_VIDEO_DIP_VS_DATA_A + (i) * 4)
-#define HSW_TVIDEO_DIP_SPD_DATA(dev_priv, trans, i)	_MMIO_TRANS2(dev_priv, trans, _HSW_VIDEO_DIP_SPD_DATA_A + (i) * 4)
-#define HSW_TVIDEO_DIP_GMP_DATA(dev_priv, trans, i)	_MMIO_TRANS2(dev_priv, trans, _HSW_VIDEO_DIP_GMP_DATA_A + (i) * 4)
-#define HSW_TVIDEO_DIP_VSC_DATA(dev_priv, trans, i)	_MMIO_TRANS2(dev_priv, trans, _HSW_VIDEO_DIP_VSC_DATA_A + (i) * 4)
-#define GLK_TVIDEO_DIP_DRM_DATA(dev_priv, trans, i)	_MMIO_TRANS2(dev_priv, trans, _GLK_VIDEO_DIP_DRM_DATA_A + (i) * 4)
-#define ICL_VIDEO_DIP_PPS_DATA(dev_priv, trans, i)	_MMIO_TRANS2(dev_priv, trans, _ICL_VIDEO_DIP_PPS_DATA_A + (i) * 4)
 #define ICL_VIDEO_DIP_PPS_ECC(dev_priv, trans, i)		_MMIO_TRANS2(dev_priv, trans, _ICL_VIDEO_DIP_PPS_ECC_A + (i) * 4)
-/*ADLP and later: */
-#define ADL_TVIDEO_DIP_AS_SDP_DATA(dev_priv, trans, i)	_MMIO_TRANS2(dev_priv, trans,\
-							     _ADL_VIDEO_DIP_AS_DATA_A + (i) * 4)
 
 #define _HSW_STEREO_3D_CTL_A		0x70020
-#define   S3D_ENABLE			(1 << 31)
 #define _HSW_STEREO_3D_CTL_B		0x71020
-
 #define HSW_STEREO_3D_CTL(dev_priv, trans)	_MMIO_PIPE2(dev_priv, trans, _HSW_STEREO_3D_CTL_A)
+#define   S3D_ENABLE			(1 << 31)
 
 #define _PCH_TRANSACONF              0xf0008
 #define _PCH_TRANSBCONF              0xf1008
