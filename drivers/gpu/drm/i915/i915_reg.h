@@ -1138,20 +1138,6 @@
 #define _TRANS_MULT_B		0x6102c
 #define TRANS_MULT(dev_priv, trans)	_MMIO_TRANS2(dev_priv, (trans), _TRANS_MULT_A)
 
-/* DSI 0 timing regs */
-#define _TRANS_HTOTAL_DSI0	0x6b000
-#define _TRANS_HSYNC_DSI0	0x6b008
-#define _TRANS_VTOTAL_DSI0	0x6b00c
-#define _TRANS_VSYNC_DSI0	0x6b014
-#define _TRANS_VSYNCSHIFT_DSI0	0x6b028
-
-/* DSI 1 timing regs */
-#define _TRANS_HTOTAL_DSI1	0x6b800
-#define _TRANS_HSYNC_DSI1	0x6b808
-#define _TRANS_VTOTAL_DSI1	0x6b80c
-#define _TRANS_VSYNC_DSI1	0x6b814
-#define _TRANS_VSYNCSHIFT_DSI1	0x6b828
-
 /* VGA port control */
 #define ADPA			_MMIO(0x61100)
 #define PCH_ADPA                _MMIO(0xe1100)
@@ -2117,11 +2103,6 @@
 #define SWF1(dev_priv, i)	_MMIO(DISPLAY_MMIO_BASE(dev_priv) + 0x71410 + (i) * 4)
 #define SWF3(dev_priv, i)	_MMIO(DISPLAY_MMIO_BASE(dev_priv) + 0x72414 + (i) * 4)
 #define SWF_ILK(i)	_MMIO(0x4F000 + (i) * 4)
-
-/* ICL DSI 0 and 1 */
-#define _PIPEDSI0CONF		0x7b008
-#define _PIPEDSI1CONF		0x7b808
-
 
 /* VBIOS regs */
 #define VGACNTRL		_MMIO(0x71400)
