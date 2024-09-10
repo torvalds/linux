@@ -494,7 +494,8 @@ static int sb_mac(struct dm_integrity_c *ic, bool wr)
 	__u8 *sb = (__u8 *)ic->sb;
 	__u8 *mac = sb + (1 << SECTOR_SHIFT) - mac_size;
 
-	if (sizeof(struct superblock) + mac_size > 1 << SECTOR_SHIFT) {
+	if (sizeof(struct superblock) + mac_size > 1 << SECTOR_SHIFT ||
+	    mac_size > HASH_MAX_DIGESTSIZE) {
 		dm_integrity_io_error(ic, "digest is too long", -EINVAL);
 		return -EINVAL;
 	}
