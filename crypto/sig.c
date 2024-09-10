@@ -5,12 +5,10 @@
  * Copyright (c) 2023 Herbert Xu <herbert@gondor.apana.org.au>
  */
 
-#include <crypto/akcipher.h>
 #include <crypto/internal/sig.h>
 #include <linux/cryptouser.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/scatterlist.h>
 #include <linux/seq_file.h>
 #include <linux/string.h>
 #include <net/netlink.h>
@@ -18,8 +16,6 @@
 #include "internal.h"
 
 #define CRYPTO_ALG_TYPE_SIG_MASK	0x0000000e
-
-static const struct crypto_type crypto_sig_type;
 
 static void crypto_sig_exit_tfm(struct crypto_tfm *tfm)
 {
@@ -31,9 +27,6 @@ static void crypto_sig_exit_tfm(struct crypto_tfm *tfm)
 
 static int crypto_sig_init_tfm(struct crypto_tfm *tfm)
 {
-	if (tfm->__crt_alg->cra_type != &crypto_sig_type)
-		return crypto_init_akcipher_ops_sig(tfm);
-
 	struct crypto_sig *sig = __crypto_sig_tfm(tfm);
 	struct sig_alg *alg = crypto_sig_alg(sig);
 
@@ -93,17 +86,9 @@ EXPORT_SYMBOL_GPL(crypto_alloc_sig);
 
 int crypto_sig_maxsize(struct crypto_sig *tfm)
 {
-	if (crypto_sig_tfm(tfm)->__crt_alg->cra_type != &crypto_sig_type)
-		goto akcipher;
-
 	struct sig_alg *alg = crypto_sig_alg(tfm);
 
 	return alg->max_size(tfm);
-
-akcipher:
-	struct crypto_akcipher **ctx = crypto_sig_ctx(tfm);
-
-	return crypto_akcipher_maxsize(*ctx);
 }
 EXPORT_SYMBOL_GPL(crypto_sig_maxsize);
 
@@ -111,26 +96,9 @@ int crypto_sig_sign(struct crypto_sig *tfm,
 		    const void *src, unsigned int slen,
 		    void *dst, unsigned int dlen)
 {
-	if (crypto_sig_tfm(tfm)->__crt_alg->cra_type != &crypto_sig_type)
-		goto akcipher;
-
 	struct sig_alg *alg = crypto_sig_alg(tfm);
 
 	return alg->sign(tfm, src, slen, dst, dlen);
-
-akcipher:
-	struct crypto_akcipher **ctx = crypto_sig_ctx(tfm);
-	struct crypto_akcipher_sync_data data = {
-		.tfm = *ctx,
-		.src = src,
-		.dst = dst,
-		.slen = slen,
-		.dlen = dlen,
-	};
-
-	return crypto_akcipher_sync_prep(&data) ?:
-	       crypto_akcipher_sync_post(&data,
-					 crypto_akcipher_sign(data.req));
 }
 EXPORT_SYMBOL_GPL(crypto_sig_sign);
 
@@ -138,65 +106,27 @@ int crypto_sig_verify(struct crypto_sig *tfm,
 		      const void *src, unsigned int slen,
 		      const void *digest, unsigned int dlen)
 {
-	if (crypto_sig_tfm(tfm)->__crt_alg->cra_type != &crypto_sig_type)
-		goto akcipher;
-
 	struct sig_alg *alg = crypto_sig_alg(tfm);
 
 	return alg->verify(tfm, src, slen, digest, dlen);
-
-akcipher:
-	struct crypto_akcipher **ctx = crypto_sig_ctx(tfm);
-	struct crypto_akcipher_sync_data data = {
-		.tfm = *ctx,
-		.src = src,
-		.slen = slen,
-		.dlen = dlen,
-	};
-	int err;
-
-	err = crypto_akcipher_sync_prep(&data);
-	if (err)
-		return err;
-
-	memcpy(data.buf + slen, digest, dlen);
-
-	return crypto_akcipher_sync_post(&data,
-					 crypto_akcipher_verify(data.req));
 }
 EXPORT_SYMBOL_GPL(crypto_sig_verify);
 
 int crypto_sig_set_pubkey(struct crypto_sig *tfm,
 			  const void *key, unsigned int keylen)
 {
-	if (crypto_sig_tfm(tfm)->__crt_alg->cra_type != &crypto_sig_type)
-		goto akcipher;
-
 	struct sig_alg *alg = crypto_sig_alg(tfm);
 
 	return alg->set_pub_key(tfm, key, keylen);
-
-akcipher:
-	struct crypto_akcipher **ctx = crypto_sig_ctx(tfm);
-
-	return crypto_akcipher_set_pub_key(*ctx, key, keylen);
 }
 EXPORT_SYMBOL_GPL(crypto_sig_set_pubkey);
 
 int crypto_sig_set_privkey(struct crypto_sig *tfm,
 			  const void *key, unsigned int keylen)
 {
-	if (crypto_sig_tfm(tfm)->__crt_alg->cra_type != &crypto_sig_type)
-		goto akcipher;
-
 	struct sig_alg *alg = crypto_sig_alg(tfm);
 
 	return alg->set_priv_key(tfm, key, keylen);
-
-akcipher:
-	struct crypto_akcipher **ctx = crypto_sig_ctx(tfm);
-
-	return crypto_akcipher_set_priv_key(*ctx, key, keylen);
 }
 EXPORT_SYMBOL_GPL(crypto_sig_set_privkey);
 

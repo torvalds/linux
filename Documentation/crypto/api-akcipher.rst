@@ -11,7 +11,7 @@ Asymmetric Cipher API
    :doc: Generic Public Key API
 
 .. kernel-doc:: include/crypto/akcipher.h
-   :functions: crypto_alloc_akcipher crypto_free_akcipher crypto_akcipher_set_pub_key crypto_akcipher_set_priv_key crypto_akcipher_maxsize crypto_akcipher_encrypt crypto_akcipher_decrypt crypto_akcipher_sign crypto_akcipher_verify
+   :functions: crypto_alloc_akcipher crypto_free_akcipher crypto_akcipher_set_pub_key crypto_akcipher_set_priv_key crypto_akcipher_maxsize crypto_akcipher_encrypt crypto_akcipher_decrypt
 
 Asymmetric Cipher Request Handle
 --------------------------------
