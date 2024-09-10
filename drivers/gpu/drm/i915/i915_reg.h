@@ -1142,7 +1142,6 @@
 #define ADPA			_MMIO(0x61100)
 #define PCH_ADPA                _MMIO(0xe1100)
 #define VLV_ADPA		_MMIO(VLV_DISPLAY_BASE + 0x61100)
-
 #define   ADPA_DAC_ENABLE	(1 << 31)
 #define   ADPA_DAC_DISABLE	0
 #define   ADPA_PIPE_SEL_SHIFT		30
@@ -1185,7 +1184,6 @@
 #define   ADPA_DPMS_SUSPEND	(1 << 10)
 #define   ADPA_DPMS_STANDBY	(2 << 10)
 #define   ADPA_DPMS_OFF		(3 << 10)
-
 
 /* Hotplug control (945+ only) */
 #define PORT_HOTPLUG_EN(dev_priv)		_MMIO(DISPLAY_MMIO_BASE(dev_priv) + 0x61110)
@@ -1437,11 +1435,9 @@
 #define DP_B			_MMIO(0x64100)
 #define DP_C			_MMIO(0x64200)
 #define DP_D			_MMIO(0x64300)
-
 #define VLV_DP_B		_MMIO(VLV_DISPLAY_BASE + 0x64100)
 #define VLV_DP_C		_MMIO(VLV_DISPLAY_BASE + 0x64200)
 #define CHV_DP_D		_MMIO(VLV_DISPLAY_BASE + 0x64300)
-
 #define   DP_PORT_EN			(1 << 31)
 #define   DP_PIPE_SEL_SHIFT		30
 #define   DP_PIPE_SEL_MASK		(1 << 30)
@@ -4250,7 +4246,6 @@ enum skl_power_gate {
 /* ADL-P Type C PLL */
 #define PORTTC1_PLL_ENABLE	0x46038
 #define PORTTC2_PLL_ENABLE	0x46040
-
 #define ADLP_PORTTC_PLL_ENABLE(tc_port)		_MMIO_PORT((tc_port), \
 							    PORTTC1_PLL_ENABLE, \
 							    PORTTC2_PLL_ENABLE)
