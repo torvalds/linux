@@ -102,7 +102,7 @@ static int loongson_i2s_pci_probe(struct pci_dev *pdev,
 	i2s->regmap = devm_regmap_init_mmio(dev, i2s->reg_base,
 					    &loongson_i2s_regmap_config);
 	if (IS_ERR(i2s->regmap))
-		dev_err_probe(dev, PTR_ERR(i2s->regmap), "regmap_init_mmio failed\n");
+		return dev_err_probe(dev, PTR_ERR(i2s->regmap), "regmap_init_mmio failed\n");
 
 	tx_data = &i2s->tx_dma_data;
 	rx_data = &i2s->rx_dma_data;
@@ -115,15 +115,15 @@ static int loongson_i2s_pci_probe(struct pci_dev *pdev,
 
 	tx_data->irq = fwnode_irq_get_byname(fwnode, "tx");
 	if (tx_data->irq < 0)
-		dev_err_probe(dev, tx_data->irq, "dma tx irq invalid\n");
+		return dev_err_probe(dev, tx_data->irq, "dma tx irq invalid\n");
 
 	rx_data->irq = fwnode_irq_get_byname(fwnode, "rx");
 	if (rx_data->irq < 0)
-		dev_err_probe(dev, rx_data->irq, "dma rx irq invalid\n");
+		return dev_err_probe(dev, rx_data->irq, "dma rx irq invalid\n");
 
 	ret = device_property_read_u32(dev, "clock-frequency", &i2s->clk_rate);
 	if (ret)
-		dev_err_probe(dev, ret, "clock-frequency property invalid\n");
+		return dev_err_probe(dev, ret, "clock-frequency property invalid\n");
 
 	dma_set_mask_and_coherent(dev, DMA_BIT_MASK(64));
 
@@ -135,7 +135,7 @@ static int loongson_i2s_pci_probe(struct pci_dev *pdev,
 	ret = devm_snd_soc_register_component(dev, &loongson_i2s_component,
 					      &loongson_i2s_dai, 1);
 	if (ret)
-		dev_err_probe(dev, ret, "register DAI failed\n");
+		return dev_err_probe(dev, ret, "register DAI failed\n");
 
 	return 0;
 }

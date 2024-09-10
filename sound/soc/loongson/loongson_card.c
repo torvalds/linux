@@ -184,16 +184,16 @@ static int loongson_asoc_card_probe(struct platform_device *pdev)
 
 	ret = device_property_read_string(dev, "model", &card->name);
 	if (ret)
-		dev_err_probe(dev, ret, "Error parsing card name\n");
+		return dev_err_probe(dev, ret, "Error parsing card name\n");
 
 	ret = device_property_read_u32(dev, "mclk-fs", &ls_priv->mclk_fs);
 	if (ret)
-		dev_err_probe(dev, ret, "Error parsing mclk-fs\n");
+		return dev_err_probe(dev, ret, "Error parsing mclk-fs\n");
 
 	ret = has_acpi_companion(dev) ? loongson_card_parse_acpi(ls_priv)
 				      : loongson_card_parse_of(ls_priv);
 	if (ret)
-		dev_err_probe(dev, ret, "Error parsing acpi/of properties\n");
+		return dev_err_probe(dev, ret, "Error parsing acpi/of properties\n");
 
 	return devm_snd_soc_register_card(dev, card);
 }
