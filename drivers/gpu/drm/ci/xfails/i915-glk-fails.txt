@@ -63,3 +63,4 @@ xe_module_load@load,Fail
 xe_module_load@many-reload,Fail
 xe_module_load@reload,Fail
 xe_module_load@reload-no-display,Fail
+core_setmaster@master-drop-set-shared-fd,Fail
