@@ -122,6 +122,14 @@ struct xe_mmio {
 	void __iomem *regs;
 
 	/**
+	 * @sriov_vf_gt: Backpointer to GT.
+	 *
+	 * This pointer is only set for GT MMIO regions and only when running
+	 * as an SRIOV VF structure
+	 */
+	struct xe_gt *sriov_vf_gt;
+
+	/**
 	 * @regs_size: Length of the register region within the map.
 	 *
 	 * The size of the iomap set in *regs is generally larger than the
