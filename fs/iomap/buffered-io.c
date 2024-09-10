@@ -1048,7 +1048,7 @@ EXPORT_SYMBOL_GPL(iomap_file_buffered_write);
 
 static int iomap_write_delalloc_ifs_punch(struct inode *inode,
 		struct folio *folio, loff_t start_byte, loff_t end_byte,
-		iomap_punch_t punch)
+		struct iomap *iomap, iomap_punch_t punch)
 {
 	unsigned int first_blk, last_blk, i;
 	loff_t last_byte;
@@ -1073,7 +1073,7 @@ static int iomap_write_delalloc_ifs_punch(struct inode *inode,
 	for (i = first_blk; i <= last_blk; i++) {
 		if (!ifs_block_is_dirty(folio, ifs, i)) {
 			ret = punch(inode, folio_pos(folio) + (i << blkbits),
-				    1 << blkbits);
+				    1 << blkbits, iomap);
 			if (ret)
 				return ret;
 		}
@@ -1085,7 +1085,7 @@ static int iomap_write_delalloc_ifs_punch(struct inode *inode,
 
 static int iomap_write_delalloc_punch(struct inode *inode, struct folio *folio,
 		loff_t *punch_start_byte, loff_t start_byte, loff_t end_byte,
-		iomap_punch_t punch)
+		struct iomap *iomap, iomap_punch_t punch)
 {
 	int ret = 0;
 
@@ -1095,14 +1095,14 @@ static int iomap_write_delalloc_punch(struct inode *inode, struct folio *folio,
 	/* if dirty, punch up to offset */
 	if (start_byte > *punch_start_byte) {
 		ret = punch(inode, *punch_start_byte,
-				start_byte - *punch_start_byte);
+				start_byte - *punch_start_byte, iomap);
 		if (ret)
 			return ret;
 	}
 
 	/* Punch non-dirty blocks within folio */
-	ret = iomap_write_delalloc_ifs_punch(inode, folio, start_byte,
-			end_byte, punch);
+	ret = iomap_write_delalloc_ifs_punch(inode, folio, start_byte, end_byte,
+			iomap, punch);
 	if (ret)
 		return ret;
 
@@ -1135,7 +1135,7 @@ static int iomap_write_delalloc_punch(struct inode *inode, struct folio *folio,
  */
 static int iomap_write_delalloc_scan(struct inode *inode,
 		loff_t *punch_start_byte, loff_t start_byte, loff_t end_byte,
-		iomap_punch_t punch)
+		struct iomap *iomap, iomap_punch_t punch)
 {
 	while (start_byte < end_byte) {
 		struct folio	*folio;
@@ -1151,7 +1151,7 @@ static int iomap_write_delalloc_scan(struct inode *inode,
 		}
 
 		ret = iomap_write_delalloc_punch(inode, folio, punch_start_byte,
-						 start_byte, end_byte, punch);
+				start_byte, end_byte, iomap, punch);
 		if (ret) {
 			folio_unlock(folio);
 			folio_put(folio);
@@ -1200,7 +1200,8 @@ static int iomap_write_delalloc_scan(struct inode *inode,
  * the code to subtle off-by-one bugs....
  */
 static int iomap_write_delalloc_release(struct inode *inode, loff_t start_byte,
-		loff_t end_byte, unsigned flags, iomap_punch_t punch)
+		loff_t end_byte, unsigned flags, struct iomap *iomap,
+		iomap_punch_t punch)
 {
 	loff_t punch_start_byte = start_byte;
 	loff_t scan_end_byte = min(i_size_read(inode), end_byte);
@@ -1253,7 +1254,7 @@ static int iomap_write_delalloc_release(struct inode *inode, loff_t start_byte,
 		WARN_ON_ONCE(data_end > scan_end_byte);
 
 		error = iomap_write_delalloc_scan(inode, &punch_start_byte,
-				start_byte, data_end, punch);
+				start_byte, data_end, iomap, punch);
 		if (error)
 			goto out_unlock;
 
@@ -1263,7 +1264,7 @@ static int iomap_write_delalloc_release(struct inode *inode, loff_t start_byte,
 
 	if (punch_start_byte < end_byte)
 		error = punch(inode, punch_start_byte,
-				end_byte - punch_start_byte);
+				end_byte - punch_start_byte, iomap);
 out_unlock:
 	filemap_invalidate_unlock(inode->i_mapping);
 	return error;
@@ -1330,7 +1331,7 @@ int iomap_file_buffered_write_punch_delalloc(struct inode *inode,
 		return 0;
 
 	return iomap_write_delalloc_release(inode, start_byte, end_byte, flags,
-					punch);
+					iomap, punch);
 }
 EXPORT_SYMBOL_GPL(iomap_file_buffered_write_punch_delalloc);
 

@@ -274,7 +274,8 @@ int iomap_truncate_page(struct inode *inode, loff_t pos, bool *did_zero,
 vm_fault_t iomap_page_mkwrite(struct vm_fault *vmf,
 			const struct iomap_ops *ops);
 
-typedef int (*iomap_punch_t)(struct inode *inode, loff_t offset, loff_t length);
+typedef int (*iomap_punch_t)(struct inode *inode, loff_t offset, loff_t length,
+		struct iomap *iomap);
 int iomap_file_buffered_write_punch_delalloc(struct inode *inode, loff_t pos,
 		loff_t length, ssize_t written, unsigned flag,
 		struct iomap *iomap, iomap_punch_t punch);
