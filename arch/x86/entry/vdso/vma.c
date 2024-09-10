@@ -227,7 +227,6 @@ int map_vdso_once(const struct vdso_image *image, unsigned long addr)
 	return map_vdso(image, addr);
 }
 
-#if defined(CONFIG_X86_32) || defined(CONFIG_IA32_EMULATION)
 static int load_vdso32(void)
 {
 	if (vdso32_enabled != 1)  /* Other values all mean "disabled" */
@@ -235,39 +234,33 @@ static int load_vdso32(void)
 
 	return map_vdso(&vdso_image_32, 0);
 }
-#endif
 
-#ifdef CONFIG_X86_64
 int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 {
-	if (!vdso64_enabled)
-		return 0;
+	if (IS_ENABLED(CONFIG_X86_64)) {
+		if (!vdso64_enabled)
+			return 0;
 
-	return map_vdso(&vdso_image_64, 0);
+		return map_vdso(&vdso_image_64, 0);
+	}
+
+	return load_vdso32();
 }
 
 #ifdef CONFIG_COMPAT
 int compat_arch_setup_additional_pages(struct linux_binprm *bprm,
 				       int uses_interp, bool x32)
 {
-#ifdef CONFIG_X86_X32_ABI
-	if (x32) {
+	if (IS_ENABLED(CONFIG_X86_X32_ABI) && x32) {
 		if (!vdso64_enabled)
 			return 0;
 		return map_vdso(&vdso_image_x32, 0);
 	}
-#endif
-#ifdef CONFIG_IA32_EMULATION
-	return load_vdso32();
-#else
+
+	if (IS_ENABLED(CONFIG_IA32_EMULATION))
+		return load_vdso32();
+
 	return 0;
-#endif
-}
-#endif
-#else
-int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
-{
-	return load_vdso32();
 }
 #endif
 
