@@ -216,7 +216,7 @@
 		reg = <0x24>;
 	};
 
-	baseboard_eeprom: baseboard_eeprom@50 {
+	baseboard_eeprom: eeprom@50 {
 		compatible = "atmel,24c256";
 		reg = <0x50>;
 		vcc-supply = <&ldo4_reg>;
@@ -240,7 +240,7 @@
 	status = "okay";
 	clock-frequency = <100000>;
 
-	cape_eeprom0: cape_eeprom0@54 {
+	cape_eeprom0: eeprom@54 {
 		compatible = "atmel,24c256";
 		reg = <0x54>;
 
@@ -255,7 +255,7 @@
 		};
 	};
 
-	cape_eeprom1: cape_eeprom1@55 {
+	cape_eeprom1: eeprom@55 {
 		compatible = "atmel,24c256";
 		reg = <0x55>;
 
@@ -270,7 +270,7 @@
 		};
 	};
 
-	cape_eeprom2: cape_eeprom2@56 {
+	cape_eeprom2: eeprom@56 {
 		compatible = "atmel,24c256";
 		reg = <0x56>;
 
@@ -285,7 +285,7 @@
 		};
 	};
 
-	cape_eeprom3: cape_eeprom3@57 {
+	cape_eeprom3: eeprom@57 {
 		compatible = "atmel,24c256";
 		reg = <0x57>;
 

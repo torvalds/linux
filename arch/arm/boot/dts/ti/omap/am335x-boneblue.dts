@@ -313,7 +313,7 @@
 };
 
 &i2c0 {
-	baseboard_eeprom: baseboard_eeprom@50 {
+	baseboard_eeprom: eeprom@50 {
 		compatible = "atmel,24c256";
 		reg = <0x50>;
 

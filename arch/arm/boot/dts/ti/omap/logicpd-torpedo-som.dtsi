@@ -103,7 +103,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c3_pins>;
 	clock-frequency = <400000>;
-	at24@50 {
+	eeprom@50 {
 		compatible = "atmel,24c64";
 		readonly;
 		reg = <0x50>;

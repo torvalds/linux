@@ -251,7 +251,7 @@
 		pinctrl-0 = <&tps65910_pins>;
 	};
 
-	at24@50 {
+	eeprom@50 {
 		compatible = "atmel,24c02";
 		pagesize = <8>;
 		reg = <0x50>;
