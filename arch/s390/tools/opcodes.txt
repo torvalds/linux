@@ -1118,9 +1118,9 @@ eb54	niy	SIY_URD
 eb55	cliy	SIY_URD
 eb56	oiy	SIY_URD
 eb57	xiy	SIY_URD
-eb60	lric	RSY_RDRU
-eb61	stric	RSY_RDRU
-eb62	mric	RSY_RDRU
+eb60	lric	RSY_RURD2
+eb61	stric	RSY_RURD2
+eb62	mric	RSY_RURD2
 eb6a	asi	SIY_IRD
 eb6e	alsi	SIY_IRD
 eb71	lpswey	SIY_RD
@@ -1128,7 +1128,7 @@ eb7a	agsi	SIY_IRD
 eb7e	algsi	SIY_IRD
 eb80	icmh	RSY_RURD
 eb81	icmy	RSY_RURD
-eb8a	sqbs	RSY_RDRU
+eb8a	sqbs	RSY_RURD2
 eb8e	mvclu	RSY_RRRD
 eb8f	clclu	RSY_RRRD
 eb90	stmy	RSY_RRRD

@@ -259,7 +259,6 @@ static const unsigned char formats[][6] = {
 	[INSTR_RSL_R0RD]     = { D_20, L4_8, B_16, 0, 0, 0 },
 	[INSTR_RSY_AARD]     = { A_8, A_12, D20_20, B_16, 0, 0 },
 	[INSTR_RSY_CCRD]     = { C_8, C_12, D20_20, B_16, 0, 0 },
-	[INSTR_RSY_RDRU]     = { R_8, D20_20, B_16, U4_12, 0, 0 },
 	[INSTR_RSY_RRRD]     = { R_8, R_12, D20_20, B_16, 0, 0 },
 	[INSTR_RSY_RURD]     = { R_8, U4_12, D20_20, B_16, 0, 0 },
 	[INSTR_RSY_RURD2]    = { R_8, D20_20, B_16, U4_12, 0, 0 },
