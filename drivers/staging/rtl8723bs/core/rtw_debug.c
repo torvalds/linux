@@ -55,14 +55,3 @@ static void dump_4_rf_regs(struct adapter *adapter, int path, int offset)
 	netdev_dbg(adapter->pnetdev, "0x%02x 0x%08x 0x%08x 0x%08x 0x%08x\n",
 		   i, reg[0], reg[1], reg[2], reg[3]);
 }
-
-void rf_reg_dump(struct adapter *adapter)
-{
-	int i, path = 0;
-
-	netdev_dbg(adapter->pnetdev, "======= RF REG =======\n");
-
-	netdev_dbg(adapter->pnetdev, "RF_Path(%x)\n", path);
-	for (i = 0; i < 0x100; i++)
-		dump_4_rf_regs(adapter, path, i);
-}
