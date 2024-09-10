@@ -2934,21 +2934,10 @@ static struct class spi_master_class = {
 
 #ifdef CONFIG_SPI_SLAVE
 /**
- * spi_slave_abort - abort the ongoing transfer request on an SPI slave
+ * spi_target_abort - abort the ongoing transfer request on an SPI slave
  *		     controller
  * @spi: device used for the current transfer
  */
-int spi_slave_abort(struct spi_device *spi)
-{
-	struct spi_controller *ctlr = spi->controller;
-
-	if (spi_controller_is_slave(ctlr) && ctlr->slave_abort)
-		return ctlr->slave_abort(ctlr);
-
-	return -ENOTSUPP;
-}
-EXPORT_SYMBOL_GPL(spi_slave_abort);
-
 int spi_target_abort(struct spi_device *spi)
 {
 	struct spi_controller *ctlr = spi->controller;
