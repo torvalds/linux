@@ -302,7 +302,7 @@ config CRYPTO_ECDSA
 config CRYPTO_ECRDSA
 	tristate "EC-RDSA (Elliptic Curve Russian Digital Signature Algorithm)"
 	select CRYPTO_ECC
-	select CRYPTO_AKCIPHER
+	select CRYPTO_SIG
 	select CRYPTO_STREEBOG
 	select OID_REGISTRY
 	select ASN1
