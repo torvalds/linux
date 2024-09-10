@@ -91,6 +91,19 @@ net_iov_binding(const struct net_iov *niov)
 	return net_iov_owner(niov)->binding;
 }
 
+static inline unsigned long net_iov_virtual_addr(const struct net_iov *niov)
+{
+	struct dmabuf_genpool_chunk_owner *owner = net_iov_owner(niov);
+
+	return owner->base_virtual +
+	       ((unsigned long)net_iov_idx(niov) << PAGE_SHIFT);
+}
+
+static inline u32 net_iov_binding_id(const struct net_iov *niov)
+{
+	return net_iov_owner(niov)->binding->id;
+}
+
 static inline void
 net_devmem_dmabuf_binding_get(struct net_devmem_dmabuf_binding *binding)
 {
@@ -153,6 +166,15 @@ static inline void net_devmem_free_dmabuf(struct net_iov *ppiov)
 {
 }
 
+static inline unsigned long net_iov_virtual_addr(const struct net_iov *niov)
+{
+	return 0;
+}
+
+static inline u32 net_iov_binding_id(const struct net_iov *niov)
+{
+	return 0;
+}
 #endif
 
 #endif /* _NET_DEVMEM_H */
