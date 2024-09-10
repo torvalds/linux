@@ -79,7 +79,14 @@ static struct lockdep_map xe_pm_runtime_nod3cold_map = {
 };
 #endif
 
-static bool __maybe_unused xe_rpm_reclaim_safe(const struct xe_device *xe)
+/**
+ * xe_rpm_reclaim_safe() - Whether runtime resume can be done from reclaim context
+ * @xe: The xe device.
+ *
+ * Return: true if it is safe to runtime resume from reclaim context.
+ * false otherwise.
+ */
+bool xe_rpm_reclaim_safe(const struct xe_device *xe)
 {
 	return !xe->d3cold.capable && !xe->info.has_sriov;
 }

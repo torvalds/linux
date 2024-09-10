@@ -15,7 +15,7 @@
 #include <drm/drm_ioctl.h>
 #include <drm/drm_managed.h>
 #include <drm/drm_print.h>
-#include <drm/xe_drm.h>
+#include <uapi/drm/xe_drm.h>
 
 #include "display/xe_display.h"
 #include "instructions/xe_gpu_commands.h"
