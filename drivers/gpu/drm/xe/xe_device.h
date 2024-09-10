@@ -138,7 +138,7 @@ static inline bool xe_device_uc_enabled(struct xe_device *xe)
 
 static inline struct xe_force_wake *gt_to_fw(struct xe_gt *gt)
 {
-	return &gt->mmio.fw;
+	return &gt->pm.fw;
 }
 
 void xe_device_assert_mem_access(struct xe_device *xe);
