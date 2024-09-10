@@ -298,7 +298,14 @@ static int __init ecdsa_init(void)
 	if (ret)
 		goto x962_tmpl_error;
 
+	ret = crypto_register_template(&ecdsa_p1363_tmpl);
+	if (ret)
+		goto p1363_tmpl_error;
+
 	return 0;
+
+p1363_tmpl_error:
+	crypto_unregister_template(&ecdsa_x962_tmpl);
 
 x962_tmpl_error:
 	crypto_unregister_sig(&ecdsa_nist_p521);
@@ -318,6 +325,7 @@ nist_p256_error:
 static void __exit ecdsa_exit(void)
 {
 	crypto_unregister_template(&ecdsa_x962_tmpl);
+	crypto_unregister_template(&ecdsa_p1363_tmpl);
 
 	if (ecdsa_nist_p192_registered)
 		crypto_unregister_sig(&ecdsa_nist_p192);

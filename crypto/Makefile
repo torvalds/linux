@@ -55,6 +55,7 @@ $(obj)/ecdsasignature.asn1.o: $(obj)/ecdsasignature.asn1.c $(obj)/ecdsasignature
 $(obj)/ecdsa-x962.o: $(obj)/ecdsasignature.asn1.h
 ecdsa_generic-y += ecdsa.o
 ecdsa_generic-y += ecdsa-x962.o
+ecdsa_generic-y += ecdsa-p1363.o
 ecdsa_generic-y += ecdsasignature.asn1.o
 obj-$(CONFIG_CRYPTO_ECDSA) += ecdsa_generic.o
 

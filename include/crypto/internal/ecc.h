@@ -306,4 +306,5 @@ void ecc_point_mult_shamir(const struct ecc_point *result,
 			   const struct ecc_curve *curve);
 
 extern struct crypto_template ecdsa_x962_tmpl;
+extern struct crypto_template ecdsa_p1363_tmpl;
 #endif
