@@ -1391,8 +1391,6 @@ static noinline_for_stack int extent_writepage_io(struct btrfs_inode *inode,
 			goto out;
 		submitted_io = true;
 	}
-
-	btrfs_folio_assert_not_dirty(fs_info, folio, start, len);
 out:
 	/*
 	 * If we didn't submitted any sector (>= i_size), folio dirty get
