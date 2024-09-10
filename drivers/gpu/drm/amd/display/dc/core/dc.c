@@ -6071,7 +6071,12 @@ struct dc_power_profile dc_get_power_profile_for_dc_state(const struct dc_state 
 {
 	struct dc_power_profile profile = { 0 };
 
-	profile.power_level += !context->bw_ctx.bw.dcn.clk.p_state_change_support;
+	if (!context || !context->clk_mgr || !context->clk_mgr->ctx || !context->clk_mgr->ctx->dc)
+		return profile;
+	struct dc *dc = context->clk_mgr->ctx->dc;
 
+
+	if (dc->res_pool->funcs->get_power_profile)
+		profile.power_level = dc->res_pool->funcs->get_power_profile(context);
 	return profile;
 }
