@@ -132,7 +132,7 @@ static void mmio_extension_setup(struct xe_device *xe, size_t tile_mmio_size,
 
 	regs = xe->mmio.regs + tile_mmio_size * xe->info.tile_count;
 	for_each_tile(tile, xe, id) {
-		tile->mmio_ext.size = tile_mmio_ext_size;
+		tile->mmio_ext.regs_size = tile_mmio_ext_size;
 		tile->mmio_ext.regs = regs;
 		regs += tile_mmio_ext_size;
 	}

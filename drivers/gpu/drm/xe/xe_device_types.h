@@ -182,13 +182,7 @@ struct xe_tile {
 	 *
 	 * Each tile has its own additional 256MB (28-bit) MMIO-extension space.
 	 */
-	struct {
-		/** @mmio_ext.size: size of tile's additional MMIO-extension space */
-		size_t size;
-
-		/** @mmio_ext.regs: pointer to tile's additional MMIO-extension space */
-		void __iomem *regs;
-	} mmio_ext;
+	struct xe_mmio mmio_ext;
 
 	/** @mem: memory management info for tile */
 	struct {
