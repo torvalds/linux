@@ -1075,7 +1075,7 @@ static size_t trace__btf_scnprintf(struct trace *trace, struct syscall_arg *arg,
 
 	if (btf_is_enum(arg_fmt->type))
 		return btf_enum_scnprintf(arg_fmt->type, trace->btf, bf, size, val);
-	else if (btf_is_struct(arg_fmt->type))
+	else if (btf_is_struct(arg_fmt->type) || btf_is_union(arg_fmt->type))
 		return btf_struct_scnprintf(arg_fmt->type, trace->btf, bf, size, arg);
 
 	return 0;
@@ -2364,9 +2364,7 @@ static size_t syscall__scnprintf_args(struct syscall *sc, char *bf, size_t size,
 
 			default_scnprintf = sc->arg_fmt[arg.idx].scnprintf;
 
-			if (trace->force_btf ||
-			    (default_scnprintf == NULL ||
-			     (default_scnprintf == SCA_PTR && strstr(field->type, "struct")))) {
+			if (trace->force_btf || default_scnprintf == NULL || default_scnprintf == SCA_PTR) {
 				btf_printed = trace__btf_scnprintf(trace, &arg, bf + printed,
 								   size - printed, val, field->type);
 				if (btf_printed) {
@@ -3663,14 +3661,18 @@ static int trace__bpf_sys_enter_beauty_map(struct trace *trace, int key, unsigne
 		return -1;
 
 	for (i = 0, field = sc->args; field; ++i, field = field->next) {
-		struct_offset = strstr(field->type, "struct ");
-
 		// XXX We're only collecting pointer payloads _from_ user space
 		if (!sc->arg_fmt[i].from_user)
 			continue;
 
-		if (field->flags & TEP_FIELD_IS_POINTER && struct_offset) { /* struct */
-			struct_offset += 7;
+		struct_offset = strstr(field->type, "struct ");
+		if (struct_offset == NULL)
+			struct_offset = strstr(field->type, "union ");
+		else
+			struct_offset++; // "union" is shorter
+
+		if (field->flags & TEP_FIELD_IS_POINTER && struct_offset) { /* struct or union (think BPF's attr arg) */
+			struct_offset += 6;
 
 			/* for 'struct foo *', we only want 'foo' */
 			for (tmp = struct_offset, cnt = 0; *tmp != ' ' && *tmp != '\0'; ++tmp, ++cnt) {
