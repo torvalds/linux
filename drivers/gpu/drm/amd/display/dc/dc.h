@@ -463,6 +463,7 @@ struct dc_config {
 	unsigned int enable_fpo_flicker_detection;
 	bool disable_hbr_audio_dp2;
 	bool consolidated_dpia_dp_lt;
+	bool set_pipe_unlock_order;
 };
 
 enum visual_confirm {
@@ -1461,6 +1462,7 @@ struct dc {
 		struct dc_scratch_space current_state;
 		struct dc_scratch_space new_state;
 		struct dc_stream_state temp_stream; // Used so we don't need to allocate stream on the stack
+		bool pipes_to_unlock_first[MAX_PIPES]; /* Any of the pipes indicated here should be unlocked first */
 	} scratch;
 
 	struct dml2_configuration_options dml2_options;

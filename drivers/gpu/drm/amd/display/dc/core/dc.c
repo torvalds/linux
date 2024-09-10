@@ -1876,6 +1876,41 @@ void dc_z10_save_init(struct dc *dc)
 		dc->hwss.z10_save_init(dc);
 }
 
+/* Set a pipe unlock order based on the change in DET allocation and stores it in dc scratch memory
+ * Prevents over allocation of DET during unlock process
+ * e.g. 2 pipe config with different streams with a max of 20 DET segments
+ *	Before:								After:
+ *		- Pipe0: 10 DET segments			- Pipe0: 12 DET segments
+ *		- Pipe1: 10 DET segments			- Pipe1: 8 DET segments
+ * If Pipe0 gets updated first, 22 DET segments will be allocated
+ */
+static void determine_pipe_unlock_order(struct dc *dc, struct dc_state *context)
+{
+	unsigned int i = 0;
+	struct pipe_ctx *pipe = NULL;
+	struct timing_generator *tg = NULL;
+
+	if (!dc->config.set_pipe_unlock_order)
+		return;
+
+	memset(dc->scratch.pipes_to_unlock_first, 0, sizeof(dc->scratch.pipes_to_unlock_first));
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		pipe = &context->res_ctx.pipe_ctx[i];
+		tg = pipe->stream_res.tg;
+
+		if (!resource_is_pipe_type(pipe, OTG_MASTER) ||
+				!tg->funcs->is_tg_enabled(tg) ||
+				dc_state_get_pipe_subvp_type(context, pipe) == SUBVP_PHANTOM) {
+			continue;
+		}
+
+		if (resource_calculate_det_for_stream(context, pipe) <
+				resource_calculate_det_for_stream(dc->current_state, &dc->current_state->res_ctx.pipe_ctx[i])) {
+			dc->scratch.pipes_to_unlock_first[i] = true;
+		}
+	}
+}
+
 /**
  * dc_commit_state_no_check - Apply context to the hardware
  *
@@ -1974,6 +2009,7 @@ static enum dc_status dc_commit_state_no_check(struct dc *dc, struct dc_state *c
 		context->streams[i]->update_flags.bits.dsc_changed = prev_dsc_changed;
 	}
 
+	determine_pipe_unlock_order(dc, context);
 	/* Program all planes within new context*/
 	if (dc->res_pool->funcs->prepare_mcache_programming)
 		dc->res_pool->funcs->prepare_mcache_programming(dc, context);
@@ -3625,6 +3661,10 @@ static void commit_planes_for_stream_fast(struct dc *dc,
 	struct pipe_ctx *top_pipe_to_program = NULL;
 	struct dc_stream_status *stream_status = NULL;
 	bool should_offload_fams2_flip = false;
+	bool should_lock_all_pipes = (update_type != UPDATE_TYPE_FAST);
+
+	if (should_lock_all_pipes)
+		determine_pipe_unlock_order(dc, context);
 
 	if (dc->debug.fams2_config.bits.enable &&
 			dc->debug.fams2_config.bits.enable_offload_flip &&
@@ -3743,6 +3783,8 @@ static void commit_planes_for_stream(struct dc *dc,
 	bool subvp_curr_use = false;
 	uint8_t current_stream_mask = 0;
 
+	if (should_lock_all_pipes)
+		determine_pipe_unlock_order(dc, context);
 	// Once we apply the new subvp context to hardware it won't be in the
 	// dc->current_state anymore, so we have to cache it before we apply
 	// the new SubVP context
