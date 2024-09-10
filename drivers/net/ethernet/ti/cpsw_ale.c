@@ -10,6 +10,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/regmap.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
 #include <linux/err.h>
@@ -76,7 +77,7 @@ enum {
  * @dev_id: ALE version/SoC id
  * @features: features supported by ALE
  * @tbl_entries: number of ALE entries
- * @major_ver_mask: mask of ALE Major Version Value in ALE_IDVER reg.
+ * @reg_fields: pointer to array of register field configuration
  * @nu_switch_ale: NU Switch ALE
  * @vlan_entry_tbl: ALE vlan entry fields description tbl
  */
@@ -84,7 +85,7 @@ struct cpsw_ale_dev_id {
 	const char *dev_id;
 	u32 features;
 	u32 tbl_entries;
-	u32 major_ver_mask;
+	const struct reg_field *reg_fields;
 	bool nu_switch_ale;
 	const struct ale_entry_fld *vlan_entry_tbl;
 };
@@ -1292,25 +1293,37 @@ void cpsw_ale_stop(struct cpsw_ale *ale)
 	cpsw_ale_control_set(ale, 0, ALE_ENABLE, 0);
 }
 
+static const struct reg_field ale_fields_cpsw[] = {
+	/* CPSW_ALE_IDVER_REG */
+	[MINOR_VER]	= REG_FIELD(ALE_IDVER, 0, 7),
+	[MAJOR_VER]	= REG_FIELD(ALE_IDVER, 8, 15),
+};
+
+static const struct reg_field ale_fields_cpsw_nu[] = {
+	/* CPSW_ALE_IDVER_REG */
+	[MINOR_VER]	= REG_FIELD(ALE_IDVER, 0, 7),
+	[MAJOR_VER]	= REG_FIELD(ALE_IDVER, 8, 10),
+};
+
 static const struct cpsw_ale_dev_id cpsw_ale_id_match[] = {
 	{
 		/* am3/4/5, dra7. dm814x, 66ak2hk-gbe */
 		.dev_id = "cpsw",
 		.tbl_entries = 1024,
-		.major_ver_mask = 0xff,
+		.reg_fields = ale_fields_cpsw,
 		.vlan_entry_tbl = vlan_entry_cpsw,
 	},
 	{
 		/* 66ak2h_xgbe */
 		.dev_id = "66ak2h-xgbe",
 		.tbl_entries = 2048,
-		.major_ver_mask = 0xff,
+		.reg_fields = ale_fields_cpsw,
 		.vlan_entry_tbl = vlan_entry_cpsw,
 	},
 	{
 		.dev_id = "66ak2el",
 		.features = CPSW_ALE_F_STATUS_REG,
-		.major_ver_mask = 0x7,
+		.reg_fields = ale_fields_cpsw_nu,
 		.nu_switch_ale = true,
 		.vlan_entry_tbl = vlan_entry_nu,
 	},
@@ -1318,7 +1331,7 @@ static const struct cpsw_ale_dev_id cpsw_ale_id_match[] = {
 		.dev_id = "66ak2g",
 		.features = CPSW_ALE_F_STATUS_REG,
 		.tbl_entries = 64,
-		.major_ver_mask = 0x7,
+		.reg_fields = ale_fields_cpsw_nu,
 		.nu_switch_ale = true,
 		.vlan_entry_tbl = vlan_entry_nu,
 	},
@@ -1326,20 +1339,20 @@ static const struct cpsw_ale_dev_id cpsw_ale_id_match[] = {
 		.dev_id = "am65x-cpsw2g",
 		.features = CPSW_ALE_F_STATUS_REG | CPSW_ALE_F_HW_AUTOAGING,
 		.tbl_entries = 64,
-		.major_ver_mask = 0x7,
+		.reg_fields = ale_fields_cpsw_nu,
 		.nu_switch_ale = true,
 		.vlan_entry_tbl = vlan_entry_nu,
 	},
 	{
 		.dev_id = "j721e-cpswxg",
 		.features = CPSW_ALE_F_STATUS_REG | CPSW_ALE_F_HW_AUTOAGING,
-		.major_ver_mask = 0x7,
+		.reg_fields = ale_fields_cpsw_nu,
 		.vlan_entry_tbl = vlan_entry_k3_cpswxg,
 	},
 	{
 		.dev_id = "am64-cpswxg",
 		.features = CPSW_ALE_F_STATUS_REG | CPSW_ALE_F_HW_AUTOAGING,
-		.major_ver_mask = 0x7,
+		.reg_fields = ale_fields_cpsw_nu,
 		.vlan_entry_tbl = vlan_entry_k3_cpswxg,
 		.tbl_entries = 512,
 	},
@@ -1361,41 +1374,76 @@ cpsw_ale_dev_id *cpsw_ale_match_id(const struct cpsw_ale_dev_id *id,
 	return NULL;
 }
 
+static const struct regmap_config ale_regmap_cfg = {
+	.reg_bits = 32,
+	.val_bits = 32,
+	.reg_stride = 4,
+	.name = "cpsw-ale",
+};
+
+static int cpsw_ale_regfield_init(struct cpsw_ale *ale)
+{
+	const struct reg_field *reg_fields = ale->params.reg_fields;
+	struct device *dev = ale->params.dev;
+	struct regmap *regmap = ale->regmap;
+	int i;
+
+	for (i = 0; i < ALE_FIELDS_MAX; i++) {
+		ale->fields[i] = devm_regmap_field_alloc(dev, regmap,
+							 reg_fields[i]);
+		if (IS_ERR(ale->fields[i])) {
+			dev_err(dev, "Unable to allocate regmap field %d\n", i);
+			return PTR_ERR(ale->fields[i]);
+		}
+	}
+
+	return 0;
+}
+
 struct cpsw_ale *cpsw_ale_create(struct cpsw_ale_params *params)
 {
 	const struct cpsw_ale_dev_id *ale_dev_id;
+	u32 ale_entries, rev_major, rev_minor;
 	struct cpsw_ale *ale;
-	u32 rev, ale_entries;
+	int ret;
 
 	ale_dev_id = cpsw_ale_match_id(cpsw_ale_id_match, params->dev_id);
 	if (!ale_dev_id)
 		return ERR_PTR(-EINVAL);
 
 	params->ale_entries = ale_dev_id->tbl_entries;
-	params->major_ver_mask = ale_dev_id->major_ver_mask;
 	params->nu_switch_ale = ale_dev_id->nu_switch_ale;
+	params->reg_fields = ale_dev_id->reg_fields;
 
 	ale = devm_kzalloc(params->dev, sizeof(*ale), GFP_KERNEL);
 	if (!ale)
 		return ERR_PTR(-ENOMEM);
+	ale->regmap = devm_regmap_init_mmio(params->dev, params->ale_regs,
+					    &ale_regmap_cfg);
+	if (IS_ERR(ale->regmap)) {
+		dev_err(params->dev, "Couldn't create CPSW ALE regmap\n");
+		return ERR_PTR(-ENOMEM);
+	}
+
+	ale->params = *params;
+	ret = cpsw_ale_regfield_init(ale);
+	if (ret)
+		return ERR_PTR(ret);
 
 	ale->p0_untag_vid_mask = devm_bitmap_zalloc(params->dev, VLAN_N_VID,
 						    GFP_KERNEL);
 	if (!ale->p0_untag_vid_mask)
 		return ERR_PTR(-ENOMEM);
 
-	ale->params = *params;
 	ale->ageout = ale->params.ale_ageout * HZ;
 	ale->features = ale_dev_id->features;
 	ale->vlan_entry_tbl = ale_dev_id->vlan_entry_tbl;
 
-	rev = readl_relaxed(ale->params.ale_regs + ALE_IDVER);
-	ale->version =
-		(ALE_VERSION_MAJOR(rev, ale->params.major_ver_mask) << 8) |
-		 ALE_VERSION_MINOR(rev);
+	regmap_field_read(ale->fields[MINOR_VER], &rev_minor);
+	regmap_field_read(ale->fields[MAJOR_VER], &rev_major);
+	ale->version = rev_major << 8 | rev_minor;
 	dev_info(ale->params.dev, "initialized cpsw ale version %d.%d\n",
-		 ALE_VERSION_MAJOR(rev, ale->params.major_ver_mask),
-		 ALE_VERSION_MINOR(rev));
+		 rev_major, rev_minor);
 
 	if (ale->features & CPSW_ALE_F_STATUS_REG &&
 	    !ale->params.ale_entries) {

@@ -8,6 +8,8 @@
 #ifndef __TI_CPSW_ALE_H__
 #define __TI_CPSW_ALE_H__
 
+struct reg_fields;
+
 struct cpsw_ale_params {
 	struct device		*dev;
 	void __iomem		*ale_regs;
@@ -20,19 +22,26 @@ struct cpsw_ale_params {
 	 * to identify this hardware.
 	 */
 	bool			nu_switch_ale;
-	/* mask bit used in NU Switch ALE is 3 bits instead of 8 bits. So
-	 * pass it from caller.
-	 */
-	u32			major_ver_mask;
+	const struct reg_field *reg_fields;
 	const char		*dev_id;
 	unsigned long		bus_freq;
 };
 
 struct ale_entry_fld;
+struct regmap;
+
+enum ale_fields {
+	MINOR_VER,
+	MAJOR_VER,
+	/* terminator */
+	ALE_FIELDS_MAX,
+};
 
 struct cpsw_ale {
 	struct cpsw_ale_params	params;
 	struct timer_list	timer;
+	struct regmap		*regmap;
+	struct regmap_field	*fields[ALE_FIELDS_MAX];
 	unsigned long		ageout;
 	u32			version;
 	u32			features;
