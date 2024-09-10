@@ -467,7 +467,7 @@ xfs_bmap_punch_delalloc_range(
 			continue;
 		}
 
-		xfs_bmap_del_extent_delay(ip, whichfork, &icur, &got, &del);
+		xfs_bmap_del_extent_delay(ip, whichfork, &icur, &got, &del, 0);
 		if (!xfs_iext_get_extent(ifp, &icur, &got))
 			break;
 	}
