@@ -2669,6 +2669,7 @@ vchiq_bulk_xfer_queue_msg_interruptible(struct vchiq_service *service,
 					enum vchiq_bulk_dir dir)
 {
 	struct vchiq_bulk_queue *queue;
+	struct bulk_waiter *bulk_waiter = NULL;
 	struct vchiq_bulk *bulk;
 	struct vchiq_state *state = service->state;
 	const char dir_char = (dir == VCHIQ_BULK_TRANSMIT) ? 't' : 'r';
@@ -2676,6 +2677,13 @@ vchiq_bulk_xfer_queue_msg_interruptible(struct vchiq_service *service,
 		VCHIQ_MSG_BULK_TX : VCHIQ_MSG_BULK_RX;
 	int status = -EINVAL;
 	int payload[2];
+
+	if (mode == VCHIQ_BULK_MODE_BLOCKING) {
+		bulk_waiter = userdata;
+		init_completion(&bulk_waiter->event);
+		bulk_waiter->actual = 0;
+		bulk_waiter->bulk = NULL;
+	}
 
 	queue = (dir == VCHIQ_BULK_TRANSMIT) ?
 		&service->bulk_tx : &service->bulk_rx;
@@ -2752,6 +2760,14 @@ vchiq_bulk_xfer_queue_msg_interruptible(struct vchiq_service *service,
 	dev_dbg(state->dev, "core: %d: bt:%d %cx li=%x ri=%x p=%x\n",
 		state->id, service->localport, dir_char, queue->local_insert,
 		queue->remote_insert, queue->process);
+
+        if (bulk_waiter) {
+                bulk_waiter->bulk = bulk;
+                if (wait_for_completion_interruptible(&bulk_waiter->event))
+                        status = -EAGAIN;
+                else if (bulk_waiter->actual == VCHIQ_BULK_ACTUAL_ABORTED)
+                        status = -EINVAL;
+        }
 
 	return status;
 
@@ -3088,6 +3104,37 @@ vchiq_remove_service(struct vchiq_instance *instance, unsigned int handle)
 	return status;
 }
 
+int
+vchiq_bulk_xfer_blocking_interruptible(struct vchiq_instance *instance, unsigned int handle,
+				       void *offset, void __user *uoffset, int size,
+				       void __user *userdata, enum vchiq_bulk_dir dir)
+{
+	struct vchiq_service *service = find_service_by_handle(instance, handle);
+	enum vchiq_bulk_mode mode = VCHIQ_BULK_MODE_BLOCKING;
+	int status = -EINVAL;
+
+	if (!service)
+		return -EINVAL;
+
+	if (service->srvstate != VCHIQ_SRVSTATE_OPEN)
+		goto error_exit;
+
+	if (!offset && !uoffset)
+		goto error_exit;
+
+	if (vchiq_check_service(service))
+		goto error_exit;
+
+
+	status = vchiq_bulk_xfer_queue_msg_interruptible(service, offset, uoffset, size,
+							 userdata, mode, dir);
+
+error_exit:
+	vchiq_service_put(service);
+
+	return status;
+}
+
 /*
  * This function may be called by kernel threads or user threads.
  * User threads may receive -EAGAIN to indicate that a signal has been
@@ -3120,12 +3167,6 @@ int vchiq_bulk_transfer(struct vchiq_instance *instance, unsigned int handle,
 	switch (mode) {
 	case VCHIQ_BULK_MODE_NOCALLBACK:
 	case VCHIQ_BULK_MODE_CALLBACK:
-		break;
-	case VCHIQ_BULK_MODE_BLOCKING:
-		bulk_waiter = userdata;
-		init_completion(&bulk_waiter->event);
-		bulk_waiter->actual = 0;
-		bulk_waiter->bulk = NULL;
 		break;
 	default:
 		goto error_exit;
