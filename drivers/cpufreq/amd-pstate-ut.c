@@ -267,7 +267,7 @@ static int amd_pstate_set_mode(enum amd_pstate_mode mode)
 
 static void amd_pstate_ut_check_driver(u32 index)
 {
-	enum amd_pstate_mode mode1, mode2;
+	enum amd_pstate_mode mode1, mode2 = AMD_PSTATE_DISABLE;
 	int ret;
 
 	for (mode1 = AMD_PSTATE_DISABLE; mode1 < AMD_PSTATE_MAX; mode1++) {
