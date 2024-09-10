@@ -1353,6 +1353,7 @@ static int __n2_register_one_hmac(struct n2_ahash_alg *n2ahash)
 	ahash->setkey = n2_hmac_async_setkey;
 
 	base = &ahash->halg.base;
+	err = -EINVAL;
 	if (snprintf(base->cra_name, CRYPTO_MAX_ALG_NAME, "hmac(%s)",
 		     p->child_alg) >= CRYPTO_MAX_ALG_NAME)
 		goto out_free_p;
