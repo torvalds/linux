@@ -100,12 +100,13 @@ static int bch2_check_fix_ptr(struct btree_trans *trans,
 
 	struct bch_dev *ca = bch2_dev_tryget(c, p.ptr.dev);
 	if (!ca) {
-		if (fsck_err(trans, ptr_to_invalid_device,
-			     "pointer to missing device %u\n"
-			     "while marking %s",
-			     p.ptr.dev,
-			     (printbuf_reset(&buf),
-			      bch2_bkey_val_to_text(&buf, c, k), buf.buf)))
+		if (fsck_err_on(p.ptr.dev != BCH_SB_MEMBER_INVALID,
+				trans, ptr_to_invalid_device,
+				"pointer to missing device %u\n"
+				"while marking %s",
+				p.ptr.dev,
+				(printbuf_reset(&buf),
+				 bch2_bkey_val_to_text(&buf, c, k), buf.buf)))
 			*do_update = true;
 		return 0;
 	}
@@ -562,7 +563,7 @@ static int bch2_trigger_pointer(struct btree_trans *trans,
 	struct bch_fs *c = trans->c;
 	struct bch_dev *ca = bch2_dev_tryget(c, p.ptr.dev);
 	if (unlikely(!ca)) {
-		if (insert)
+		if (insert && p.ptr.dev != BCH_SB_MEMBER_INVALID)
 			ret = -EIO;
 		goto err;
 	}
