@@ -2299,12 +2299,6 @@ static int gfx_v9_4_3_cp_resume(struct amdgpu_device *adev)
 	return 0;
 }
 
-static void gfx_v9_4_3_xcc_cp_enable(struct amdgpu_device *adev, bool enable,
-				     int xcc_id)
-{
-	gfx_v9_4_3_xcc_cp_compute_enable(adev, enable, xcc_id);
-}
-
 static void gfx_v9_4_3_xcc_fini(struct amdgpu_device *adev, int xcc_id)
 {
 	if (amdgpu_gfx_disable_kcq(adev, xcc_id))
@@ -2336,7 +2330,7 @@ static void gfx_v9_4_3_xcc_fini(struct amdgpu_device *adev, int xcc_id)
 	}
 
 	gfx_v9_4_3_xcc_kcq_fini_register(adev, xcc_id);
-	gfx_v9_4_3_xcc_cp_enable(adev, false, xcc_id);
+	gfx_v9_4_3_xcc_cp_compute_enable(adev, false, xcc_id);
 }
 
 static int gfx_v9_4_3_hw_init(void *handle)
