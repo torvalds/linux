@@ -161,6 +161,7 @@
 #include <linux/phy_link_topology.h>
 
 #include "dev.h"
+#include "devmem.h"
 #include "net-sysfs.h"
 
 static DEFINE_SPINLOCK(ptype_lock);
@@ -9367,6 +9368,11 @@ int dev_xdp_propagate(struct net_device *dev, struct netdev_bpf *bpf)
 	if (!dev->netdev_ops->ndo_bpf)
 		return -EOPNOTSUPP;
 
+	if (dev_get_min_mp_channel_count(dev)) {
+		NL_SET_ERR_MSG(bpf->extack, "unable to propagate XDP to device using memory provider");
+		return -EBUSY;
+	}
+
 	return dev->netdev_ops->ndo_bpf(dev, bpf);
 }
 EXPORT_SYMBOL_GPL(dev_xdp_propagate);
@@ -9398,6 +9404,11 @@ static int dev_xdp_install(struct net_device *dev, enum bpf_xdp_mode mode,
 {
 	struct netdev_bpf xdp;
 	int err;
+
+	if (dev_get_min_mp_channel_count(dev)) {
+		NL_SET_ERR_MSG(extack, "unable to install XDP to device using memory provider");
+		return -EBUSY;
+	}
 
 	memset(&xdp, 0, sizeof(xdp));
 	xdp.command = mode == XDP_MODE_HW ? XDP_SETUP_PROG_HW : XDP_SETUP_PROG;
@@ -9821,6 +9832,20 @@ err_out:
 	if (old_prog)
 		bpf_prog_put(old_prog);
 	return err;
+}
+
+u32 dev_get_min_mp_channel_count(const struct net_device *dev)
+{
+	int i;
+
+	ASSERT_RTNL();
+
+	for (i = dev->real_num_rx_queues - 1; i >= 0; i--)
+		if (dev->_rx[i].mp_params.mp_priv)
+			/* The channel count is the idx plus 1. */
+			return i + 1;
+
+	return 0;
 }
 
 /**
@@ -11359,6 +11384,7 @@ void unregister_netdevice_many_notify(struct list_head *head,
 		dev_tcx_uninstall(dev);
 		dev_xdp_uninstall(dev);
 		bpf_dev_bound_netdev_unregister(dev);
+		dev_dmabuf_uninstall(dev);
 
 		netdev_offload_xstats_disable_all(dev);
 

@@ -8,6 +8,14 @@
 #ifndef _NET_NETMEM_H
 #define _NET_NETMEM_H
 
+/* net_iov */
+
+struct net_iov {
+	struct dmabuf_genpool_chunk_owner *owner;
+};
+
+/* netmem */
+
 /**
  * typedef netmem_ref - a nonexistent type marking a reference to generic
  * network memory.

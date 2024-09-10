@@ -139,6 +139,10 @@ struct page_pool_stats {
  */
 #define PAGE_POOL_FRAG_GROUP_ALIGN	(4 * sizeof(long))
 
+struct pp_memory_provider_params {
+	void *mp_priv;
+};
+
 struct page_pool {
 	struct page_pool_params_fast p;
 
@@ -196,6 +200,8 @@ struct page_pool {
 	 * TODO: Implement bulk return pages into this structure.
 	 */
 	struct ptr_ring ring;
+
+	void *mp_priv;
 
 #ifdef CONFIG_PAGE_POOL_STATS
 	/* recycle stats are per-cpu to avoid locking */
