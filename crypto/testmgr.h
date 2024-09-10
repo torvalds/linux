@@ -1268,7 +1268,7 @@ static const struct sig_testvec ecrdsa_tv_template[] = {
 /*
  * PKCS#1 RSA test vectors. Obtained from CAVS testing.
  */
-static const struct akcipher_testvec pkcs1pad_rsa_tv_template[] = {
+static const struct sig_testvec pkcs1_rsa_tv_template[] = {
 	{
 	.key =
 	"\x30\x82\x04\xa5\x02\x01\x00\x02\x82\x01\x01\x00\xd7\x1e\x77\x82"
@@ -1380,7 +1380,6 @@ static const struct akcipher_testvec pkcs1pad_rsa_tv_template[] = {
 	"\xda\x62\x8d\xe1\x2a\x71\x91\x43\x40\x61\x3c\x5a\xbe\x86\xfc\x5b"
 	"\xe6\xf9\xa9\x16\x31\x1f\xaf\x25\x6d\xc2\x4a\x23\x6e\x63\x02\xa2",
 	.c_size = 256,
-	.siggen_sigver_test = true,
 	}
 };
 

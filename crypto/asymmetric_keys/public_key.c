@@ -83,13 +83,19 @@ software_key_determine_akcipher(const struct public_key *pkey,
 		if (strcmp(encoding, "pkcs1") == 0) {
 			*sig = op == kernel_pkey_sign ||
 			       op == kernel_pkey_verify;
-			if (!hash_algo) {
+			if (!*sig) {
+				/*
+				 * For encrypt/decrypt, hash_algo is not used
+				 * but allowed to be set for historic reasons.
+				 */
 				n = snprintf(alg_name, CRYPTO_MAX_ALG_NAME,
 					     "pkcs1pad(%s)",
 					     pkey->pkey_algo);
 			} else {
+				if (!hash_algo)
+					return -EINVAL;
 				n = snprintf(alg_name, CRYPTO_MAX_ALG_NAME,
-					     "pkcs1pad(%s,%s)",
+					     "pkcs1(%s,%s)",
 					     pkey->pkey_algo, hash_algo);
 			}
 			return n >= CRYPTO_MAX_ALG_NAME ? -EINVAL : 0;

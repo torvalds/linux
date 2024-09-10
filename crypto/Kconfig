@@ -250,6 +250,7 @@ config CRYPTO_RSA
 	tristate "RSA (Rivest-Shamir-Adleman)"
 	select CRYPTO_AKCIPHER
 	select CRYPTO_MANAGER
+	select CRYPTO_SIG
 	select MPILIB
 	select ASN1
 	help

@@ -82,4 +82,5 @@ static inline int rsa_set_key(struct crypto_akcipher *child,
 }
 
 extern struct crypto_template rsa_pkcs1pad_tmpl;
+extern struct crypto_template rsassa_pkcs1_tmpl;
 #endif
