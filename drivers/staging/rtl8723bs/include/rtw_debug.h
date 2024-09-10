@@ -8,6 +8,5 @@
 #define __RTW_DEBUG_H__
 
 void mac_reg_dump(struct adapter *adapter);
-void bb_reg_dump(struct adapter *adapter);
 
 #endif	/* __RTW_DEBUG_H__ */

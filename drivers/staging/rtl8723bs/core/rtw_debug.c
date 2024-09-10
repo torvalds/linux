@@ -32,13 +32,3 @@ void mac_reg_dump(struct adapter *adapter)
 	for (i = 0x0; i < 0x800; i += 4)
 		dump_4_regs(adapter, i);
 }
-
-void bb_reg_dump(struct adapter *adapter)
-{
-	int i;
-
-	netdev_dbg(adapter->pnetdev, "======= BB REG =======\n");
-
-	for (i = 0x800; i < 0x1000 ; i += 4)
-		dump_4_regs(adapter, i);
-}
