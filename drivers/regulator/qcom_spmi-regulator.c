@@ -245,7 +245,7 @@ enum spmi_saw3_registers {
 	SAW3_VERSION				= 0xFD0,
 };
 
-/* Used for indexing into ctrl_reg.  These are offets from 0x40 */
+/* Used for indexing into ctrl_reg.  These are offsets from 0x40 */
 enum spmi_common_control_register_index {
 	SPMI_COMMON_IDX_VOLTAGE_RANGE		= 0,
 	SPMI_COMMON_IDX_VOLTAGE_SET		= 1,
