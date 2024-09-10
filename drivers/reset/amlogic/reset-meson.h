@@ -12,6 +12,7 @@
 #include <linux/reset-controller.h>
 
 struct meson_reset_param {
+	const struct reset_control_ops *reset_ops;
 	unsigned int reset_num;
 	unsigned int reset_offset;
 	unsigned int level_offset;
@@ -20,5 +21,8 @@ struct meson_reset_param {
 
 int meson_reset_controller_register(struct device *dev, struct regmap *map,
 				    const struct meson_reset_param *param);
+
+extern const struct reset_control_ops meson_reset_ops;
+extern const struct reset_control_ops meson_reset_toggle_ops;
 
 #endif /* __MESON_RESET_H */
