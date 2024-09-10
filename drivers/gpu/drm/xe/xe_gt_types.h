@@ -6,6 +6,7 @@
 #ifndef _XE_GT_TYPES_H_
 #define _XE_GT_TYPES_H_
 
+#include "xe_device_types.h"
 #include "xe_force_wake_types.h"
 #include "xe_gt_idle_types.h"
 #include "xe_gt_sriov_pf_types.h"
@@ -147,15 +148,7 @@ struct xe_gt {
 	 * register space, but have their own copy of GSI registers at a
 	 * specific offset.
 	 */
-	struct {
-		/**
-		 * @mmio.adj_limit: adjust MMIO address if address is below this
-		 * value
-		 */
-		u32 adj_limit;
-		/** @mmio.adj_offset: offect to add to MMIO address when adjusting */
-		u32 adj_offset;
-	} mmio;
+	struct xe_mmio mmio;
 
 	/**
 	 * @pm: power management info for GT.  The driver uses the GT's

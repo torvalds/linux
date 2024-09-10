@@ -9,6 +9,7 @@
 #include <drm/drm_util.h>
 
 #include "xe_device_types.h"
+#include "xe_gt_types.h"
 
 static inline struct xe_device *to_xe_device(const struct drm_device *dev)
 {

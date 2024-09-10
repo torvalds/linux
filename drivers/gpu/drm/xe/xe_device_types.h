@@ -14,7 +14,6 @@
 
 #include "xe_devcoredump_types.h"
 #include "xe_heci_gsc.h"
-#include "xe_gt_types.h"
 #include "xe_lmtt_types.h"
 #include "xe_memirq_types.h"
 #include "xe_oa.h"
@@ -127,6 +126,12 @@ struct xe_mmio {
 	 * non-register regions such as the GGTT PTEs.
 	 */
 	size_t regs_size;
+
+	/** @adj_limit: adjust MMIO address if address is below this value */
+	u32 adj_limit;
+
+	/** @adj_offset: offset to add to MMIO address when adjusting */
+	u32 adj_offset;
 };
 
 /**
