@@ -17,7 +17,17 @@
 #include <asm/set_memory.h>
 #endif
 #include <sound/memalloc.h>
-#include "memalloc_local.h"
+
+struct snd_malloc_ops {
+	void *(*alloc)(struct snd_dma_buffer *dmab, size_t size);
+	void (*free)(struct snd_dma_buffer *dmab);
+	dma_addr_t (*get_addr)(struct snd_dma_buffer *dmab, size_t offset);
+	struct page *(*get_page)(struct snd_dma_buffer *dmab, size_t offset);
+	unsigned int (*get_chunk_size)(struct snd_dma_buffer *dmab,
+				       unsigned int ofs, unsigned int size);
+	int (*mmap)(struct snd_dma_buffer *dmab, struct vm_area_struct *area);
+	void (*sync)(struct snd_dma_buffer *dmab, enum snd_dma_sync_mode mode);
+};
 
 #define DEFAULT_GFP \
 	(GFP_KERNEL | \
