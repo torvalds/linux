@@ -1897,17 +1897,6 @@ static int msm_serial_probe(struct platform_device *pdev)
 	port->uartclk = clk_get_rate(msm_port->clk);
 	dev_info(&pdev->dev, "uartclk = %d\n", port->uartclk);
 
-	ret = msm_clk_bus_prepare(msm_port);
-	if (ret) {
-		dev_err(&pdev->dev, "%s(): failed to prepare clk: %d\n", __func__, ret);
-		return -ENXIO;
-	}
-	ret = msm_clk_bus_vote(msm_port);
-	if (ret) {
-		dev_err(&pdev->dev, "%s(): failed to vote: %d\n", __func__, ret);
-		return -ENXIO;
-	}
-
 	resource = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (unlikely(!resource))
 		return -ENXIO;
@@ -1927,11 +1916,8 @@ static int msm_serial_probe(struct platform_device *pdev)
 static int msm_serial_remove(struct platform_device *pdev)
 {
 	struct uart_port *port = platform_get_drvdata(pdev);
-	struct msm_port *msm_port = UART_TO_MSM(port);
 
 	uart_remove_one_port(&msm_uart_driver, port);
-	msm_clk_bus_unvote(msm_port);
-	msm_clk_bus_unprepare(msm_port);
 
 	return 0;
 }
