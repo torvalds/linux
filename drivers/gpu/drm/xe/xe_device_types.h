@@ -119,8 +119,14 @@ struct xe_mmio {
 	/** @regs: Map used to access registers. */
 	void __iomem *regs;
 
-	/** @size: Size of the map. */
-	size_t size;
+	/**
+	 * @regs_size: Length of the register region within the map.
+	 *
+	 * The size of the iomap set in *regs is generally larger than the
+	 * register mmio space since it includes unused regions and/or
+	 * non-register regions such as the GGTT PTEs.
+	 */
+	size_t regs_size;
 };
 
 /**
