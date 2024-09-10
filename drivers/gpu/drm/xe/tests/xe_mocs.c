@@ -55,7 +55,7 @@ static void read_l3cc_table(struct xe_gt *gt,
 			if (regs_are_mcr(gt))
 				reg_val = xe_gt_mcr_unicast_read_any(gt, XEHP_LNCFCMOCS(i >> 1));
 			else
-				reg_val = xe_mmio_read32(gt, XELP_LNCFCMOCS(i >> 1));
+				reg_val = xe_mmio_read32(&gt->mmio, XELP_LNCFCMOCS(i >> 1));
 
 			mocs_dbg(gt, "reg_val=0x%x\n", reg_val);
 		} else {
@@ -94,7 +94,7 @@ static void read_mocs_table(struct xe_gt *gt,
 		if (regs_are_mcr(gt))
 			reg_val = xe_gt_mcr_unicast_read_any(gt, XEHP_GLOBAL_MOCS(i));
 		else
-			reg_val = xe_mmio_read32(gt, XELP_GLOBAL_MOCS(i));
+			reg_val = xe_mmio_read32(&gt->mmio, XELP_GLOBAL_MOCS(i));
 
 		mocs_expected = get_entry_control(info, i);
 		mocs = reg_val;
