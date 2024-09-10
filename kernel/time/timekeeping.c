@@ -161,13 +161,15 @@ static void tk_set_wall_to_mono(struct timekeeper *tk, struct timespec64 wtm)
 	WARN_ON_ONCE(tk->offs_real != timespec64_to_ktime(tmp));
 	tk->wall_to_monotonic = wtm;
 	set_normalized_timespec64(&tmp, -wtm.tv_sec, -wtm.tv_nsec);
-	tk->offs_real = timespec64_to_ktime(tmp);
-	tk->offs_tai = ktime_add(tk->offs_real, ktime_set(tk->tai_offset, 0));
+	/* Paired with READ_ONCE() in ktime_mono_to_any() */
+	WRITE_ONCE(tk->offs_real, timespec64_to_ktime(tmp));
+	WRITE_ONCE(tk->offs_tai, ktime_add(tk->offs_real, ktime_set(tk->tai_offset, 0)));
 }
 
 static inline void tk_update_sleep_time(struct timekeeper *tk, ktime_t delta)
 {
-	tk->offs_boot = ktime_add(tk->offs_boot, delta);
+	/* Paired with READ_ONCE() in ktime_mono_to_any() */
+	WRITE_ONCE(tk->offs_boot, ktime_add(tk->offs_boot, delta));
 	/*
 	 * Timespec representation for VDSO update to avoid 64bit division
 	 * on every update.
@@ -929,6 +931,14 @@ ktime_t ktime_mono_to_any(ktime_t tmono, enum tk_offsets offs)
 	ktime_t *offset = offsets[offs];
 	unsigned int seq;
 	ktime_t tconv;
+
+	if (IS_ENABLED(CONFIG_64BIT)) {
+		/*
+		 * Paired with WRITE_ONCE()s in tk_set_wall_to_mono() and
+		 * tk_update_sleep_time().
+		 */
+		return ktime_add(tmono, READ_ONCE(*offset));
+	}
 
 	do {
 		seq = read_seqcount_begin(&tk_core.seq);
