@@ -4,8 +4,9 @@
 #include <linux/netdevice.h>
 #include <linux/xarray.h>
 #include <net/net_debug.h>
-#include <net/page_pool/types.h>
+#include <net/netdev_rx_queue.h>
 #include <net/page_pool/helpers.h>
+#include <net/page_pool/types.h>
 #include <net/sock.h>
 
 #include "page_pool_priv.h"
@@ -342,6 +343,30 @@ void page_pool_unlist(struct page_pool *pool)
 	if (!hlist_unhashed(&pool->user.list))
 		hlist_del(&pool->user.list);
 	mutex_unlock(&page_pools_lock);
+}
+
+int page_pool_check_memory_provider(struct net_device *dev,
+				    struct netdev_rx_queue *rxq)
+{
+	struct net_devmem_dmabuf_binding *binding = rxq->mp_params.mp_priv;
+	struct page_pool *pool;
+	struct hlist_node *n;
+
+	if (!binding)
+		return 0;
+
+	mutex_lock(&page_pools_lock);
+	hlist_for_each_entry_safe(pool, n, &dev->page_pools, user.list) {
+		if (pool->mp_priv != binding)
+			continue;
+
+		if (pool->slow.queue_idx == get_netdev_rx_queue_index(rxq)) {
+			mutex_unlock(&page_pools_lock);
+			return 0;
+		}
+	}
+	mutex_unlock(&page_pools_lock);
+	return -ENODATA;
 }
 
 static void page_pool_unreg_netdev_wipe(struct net_device *netdev)
