@@ -5,21 +5,26 @@
 #ifndef SPL_DEBUG_H
 #define SPL_DEBUG_H
 
-#ifdef SPL_ASSERT
-#undef SPL_ASSERT
-#endif
-#define SPL_ASSERT(b)
+#if defined(CONFIG_HAVE_KGDB) || defined(CONFIG_KGDB)
+#define SPL_ASSERT_CRITICAL(expr) do {	\
+	if (WARN_ON(!(expr))) { \
+		kgdb_breakpoint(); \
+	} \
+} while (0)
+#else
+#define SPL_ASSERT_CRITICAL(expr) do {	\
+	if (WARN_ON(!(expr))) { \
+		; \
+	} \
+} while (0)
+#endif /* CONFIG_HAVE_KGDB || CONFIG_KGDB */
 
-#define SPL_ASSERT_CRITICAL(expr)  do {if (expr)/* Do nothing */; } while (0)
+#if defined(CONFIG_DEBUG_KERNEL_DC)
+#define SPL_ASSERT(expr) SPL_ASSERT_CRITICAL(expr)
+#else
+#define SPL_ASSERT(expr) WARN_ON(!(expr))
+#endif /* CONFIG_DEBUG_KERNEL_DC */
 
-#ifdef SPL_DALMSG
-#undef SPL_DALMSG
-#endif
-#define SPL_DALMSG(b)
-
-#ifdef SPL_DAL_ASSERT_MSG
-#undef SPL_DAL_ASSERT_MSG
-#endif
-#define SPL_DAL_ASSERT_MSG(b, m)
+#define SPL_BREAK_TO_DEBUGGER() SPL_ASSERT(0)
 
 #endif  // SPL_DEBUG_H
