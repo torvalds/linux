@@ -166,7 +166,7 @@
 	};
 
 	/* Touch controller */
-	touchscreen@2c {
+	ad7879_ts: touchscreen@2c {
 		compatible = "adi,ad7879-1";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_ad7879_int>;
