@@ -48,10 +48,8 @@ static int bpf_sk_storage_del(struct sock *sk, struct bpf_map *map)
 /* Called by __sk_destruct() & bpf_sk_storage_clone() */
 void bpf_sk_storage_free(struct sock *sk)
 {
-	struct bpf_local_storage_elem *selem;
 	struct bpf_local_storage *sk_storage;
 	bool free_sk_storage = false;
-	struct hlist_node *n;
 
 	rcu_read_lock();
 	sk_storage = rcu_dereference(sk->sk_bpf_storage);
@@ -60,24 +58,8 @@ void bpf_sk_storage_free(struct sock *sk)
 		return;
 	}
 
-	/* Netiher the bpf_prog nor the bpf-map's syscall
-	 * could be modifying the sk_storage->list now.
-	 * Thus, no elem can be added-to or deleted-from the
-	 * sk_storage->list by the bpf_prog or by the bpf-map's syscall.
-	 *
-	 * It is racing with bpf_local_storage_map_free() alone
-	 * when unlinking elem from the sk_storage->list and
-	 * the map's bucket->list.
-	 */
 	raw_spin_lock_bh(&sk_storage->lock);
-	hlist_for_each_entry_safe(selem, n, &sk_storage->list, snode) {
-		/* Always unlink from map before unlinking from
-		 * sk_storage.
-		 */
-		bpf_selem_unlink_map(selem);
-		free_sk_storage = bpf_selem_unlink_storage_nolock(
-			sk_storage, selem, true, false);
-	}
+	free_sk_storage = bpf_local_storage_unlink_nolock(sk_storage);
 	raw_spin_unlock_bh(&sk_storage->lock);
 	rcu_read_unlock();
 
@@ -87,23 +69,12 @@ void bpf_sk_storage_free(struct sock *sk)
 
 static void bpf_sk_storage_map_free(struct bpf_map *map)
 {
-	struct bpf_local_storage_map *smap;
-
-	smap = (struct bpf_local_storage_map *)map;
-	bpf_local_storage_cache_idx_free(&sk_cache, smap->cache_idx);
-	bpf_local_storage_map_free(smap, NULL);
+	bpf_local_storage_map_free(map, &sk_cache, NULL);
 }
 
 static struct bpf_map *bpf_sk_storage_map_alloc(union bpf_attr *attr)
 {
-	struct bpf_local_storage_map *smap;
-
-	smap = bpf_local_storage_map_alloc(attr);
-	if (IS_ERR(smap))
-		return ERR_CAST(smap);
-
-	smap->cache_idx = bpf_local_storage_cache_idx_get(&sk_cache);
-	return &smap->map;
+	return bpf_local_storage_map_alloc(attr, &sk_cache);
 }
 
 static int notsupp_get_next_key(struct bpf_map *map, void *key,
