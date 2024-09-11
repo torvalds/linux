@@ -3590,8 +3590,8 @@ out:
 }
 EXPORT_SYMBOL(mlx5_fs_remove_rx_underlay_qpn);
 
-static struct mlx5_flow_root_namespace
-*get_root_namespace(struct mlx5_core_dev *dev, enum mlx5_flow_namespace_type ns_type)
+struct mlx5_flow_root_namespace *
+mlx5_get_root_namespace(struct mlx5_core_dev *dev, enum mlx5_flow_namespace_type ns_type)
 {
 	struct mlx5_flow_namespace *ns;
 
@@ -3614,7 +3614,7 @@ struct mlx5_modify_hdr *mlx5_modify_header_alloc(struct mlx5_core_dev *dev,
 	struct mlx5_modify_hdr *modify_hdr;
 	int err;
 
-	root = get_root_namespace(dev, ns_type);
+	root = mlx5_get_root_namespace(dev, ns_type);
 	if (!root)
 		return ERR_PTR(-EOPNOTSUPP);
 
@@ -3639,7 +3639,7 @@ void mlx5_modify_header_dealloc(struct mlx5_core_dev *dev,
 {
 	struct mlx5_flow_root_namespace *root;
 
-	root = get_root_namespace(dev, modify_hdr->ns_type);
+	root = mlx5_get_root_namespace(dev, modify_hdr->ns_type);
 	if (WARN_ON(!root))
 		return;
 	root->cmds->modify_header_dealloc(root, modify_hdr);
@@ -3655,7 +3655,7 @@ struct mlx5_pkt_reformat *mlx5_packet_reformat_alloc(struct mlx5_core_dev *dev,
 	struct mlx5_flow_root_namespace *root;
 	int err;
 
-	root = get_root_namespace(dev, ns_type);
+	root = mlx5_get_root_namespace(dev, ns_type);
 	if (!root)
 		return ERR_PTR(-EOPNOTSUPP);
 
@@ -3681,7 +3681,7 @@ void mlx5_packet_reformat_dealloc(struct mlx5_core_dev *dev,
 {
 	struct mlx5_flow_root_namespace *root;
 
-	root = get_root_namespace(dev, pkt_reformat->ns_type);
+	root = mlx5_get_root_namespace(dev, pkt_reformat->ns_type);
 	if (WARN_ON(!root))
 		return;
 	root->cmds->packet_reformat_dealloc(root, pkt_reformat);
@@ -3703,7 +3703,7 @@ mlx5_create_match_definer(struct mlx5_core_dev *dev,
 	struct mlx5_flow_definer *definer;
 	int id;
 
-	root = get_root_namespace(dev, ns_type);
+	root = mlx5_get_root_namespace(dev, ns_type);
 	if (!root)
 		return ERR_PTR(-EOPNOTSUPP);
 
@@ -3727,7 +3727,7 @@ void mlx5_destroy_match_definer(struct mlx5_core_dev *dev,
 {
 	struct mlx5_flow_root_namespace *root;
 
-	root = get_root_namespace(dev, definer->ns_type);
+	root = mlx5_get_root_namespace(dev, definer->ns_type);
 	if (WARN_ON(!root))
 		return;
 
