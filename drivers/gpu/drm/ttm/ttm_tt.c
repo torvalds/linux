@@ -367,7 +367,10 @@ error:
 	}
 	return ret;
 }
+
+#if IS_ENABLED(CONFIG_DRM_TTM_KUNIT_TEST)
 EXPORT_SYMBOL(ttm_tt_populate);
+#endif
 
 void ttm_tt_unpopulate(struct ttm_device *bdev, struct ttm_tt *ttm)
 {
