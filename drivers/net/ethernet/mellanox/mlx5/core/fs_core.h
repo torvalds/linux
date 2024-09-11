@@ -230,19 +230,23 @@ struct mlx5_ft_underlay_qp {
 			   MLX5_BYTE_OFF(fte_match_param,		     \
 					 MLX5_FTE_MATCH_PARAM_RESERVED)))
 
+struct fs_fte_action {
+	int				modify_mask;
+	u32				dests_size;
+	u32				fwd_dests;
+	struct mlx5_flow_context	flow_context;
+	struct mlx5_flow_act		action;
+};
+
 /* Type of children is mlx5_flow_rule */
 struct fs_fte {
 	struct fs_node			node;
 	struct mlx5_fs_dr_rule		fs_dr_rule;
 	u32				val[MLX5_ST_SZ_DW_MATCH_PARAM];
-	u32				dests_size;
-	u32				fwd_dests;
+	struct fs_fte_action		act_dests;
 	u32				index;
-	struct mlx5_flow_context	flow_context;
-	struct mlx5_flow_act		action;
 	enum fs_fte_status		status;
 	struct rhash_head		hash;
-	int				modify_mask;
 };
 
 /* Type of children is mlx5_flow_table/namespace */
