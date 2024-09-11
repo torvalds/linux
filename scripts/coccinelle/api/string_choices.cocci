@@ -203,3 +203,41 @@ e << str_low_high_r.E;
 @@
 
 coccilib.report.print_report(p[0], "opportunity for str_low_high(%s)" % e)
+
+@str_enable_disable depends on patch@
+expression E;
+@@
+-      ((E) ? "enable" : "disable")
++      str_enable_disable(E)
+
+@str_enable_disable_r depends on !patch exists@
+expression E;
+position P;
+@@
+*      ((E@P) ? "enable" : "disable")
+
+@script:python depends on report@
+p << str_enable_disable_r.P;
+e << str_enable_disable_r.E;
+@@
+
+coccilib.report.print_report(p[0], "opportunity for str_enable_disable(%s)" % e)
+
+@str_enabled_disabled depends on patch@
+expression E;
+@@
+-      ((E) ? "enabled" : "disabled")
++      str_enabled_disabled(E)
+
+@str_enabled_disabled_r depends on !patch exists@
+expression E;
+position P;
+@@
+*      ((E@P) ? "enabled" : "disabled")
+
+@script:python depends on report@
+p << str_enabled_disabled_r.P;
+e << str_enabled_disabled_r.E;
+@@
+
+coccilib.report.print_report(p[0], "opportunity for str_enabled_disabled(%s)" % e)
