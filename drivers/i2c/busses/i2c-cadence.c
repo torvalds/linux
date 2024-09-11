@@ -229,6 +229,66 @@ struct cdns_platform_data {
 					     clk_rate_change_nb)
 
 /**
+ * cdns_i2c_init -  Controller initialisation
+ * @id:		Device private data structure
+ *
+ * Initialise the i2c controller.
+ *
+ */
+static void cdns_i2c_init(struct cdns_i2c *id)
+{
+	cdns_i2c_writereg(id->ctrl_reg, CDNS_I2C_CR_OFFSET);
+	/*
+	 * Cadence I2C controller has a bug wherein it generates
+	 * invalid read transaction after HW timeout in master receiver mode.
+	 * HW timeout is not used by this driver and the interrupt is disabled.
+	 * But the feature itself cannot be disabled. Hence maximum value
+	 * is written to this register to reduce the chances of error.
+	 */
+	cdns_i2c_writereg(CDNS_I2C_TIMEOUT_MAX, CDNS_I2C_TIME_OUT_OFFSET);
+}
+
+/**
+ * cdns_i2c_runtime_suspend -  Runtime suspend method for the driver
+ * @dev:	Address of the platform_device structure
+ *
+ * Put the driver into low power mode.
+ *
+ * Return: 0 always
+ */
+static int __maybe_unused cdns_i2c_runtime_suspend(struct device *dev)
+{
+	struct cdns_i2c *xi2c = dev_get_drvdata(dev);
+
+	clk_disable(xi2c->clk);
+
+	return 0;
+}
+
+/**
+ * cdns_i2c_runtime_resume - Runtime resume
+ * @dev:	Address of the platform_device structure
+ *
+ * Runtime resume callback.
+ *
+ * Return: 0 on success and error value on error
+ */
+static int __maybe_unused cdns_i2c_runtime_resume(struct device *dev)
+{
+	struct cdns_i2c *xi2c = dev_get_drvdata(dev);
+	int ret;
+
+	ret = clk_enable(xi2c->clk);
+	if (ret) {
+		dev_err(dev, "Cannot enable clock.\n");
+		return ret;
+	}
+	cdns_i2c_init(xi2c);
+
+	return 0;
+}
+
+/**
  * cdns_i2c_clear_bus_hold - Clear bus hold bit
  * @id:	Pointer to driver data struct
  *
@@ -1158,23 +1218,6 @@ static int cdns_i2c_clk_notifier_cb(struct notifier_block *nb, unsigned long
 	}
 }
 
-/**
- * cdns_i2c_runtime_suspend -  Runtime suspend method for the driver
- * @dev:	Address of the platform_device structure
- *
- * Put the driver into low power mode.
- *
- * Return: 0 always
- */
-static int __maybe_unused cdns_i2c_runtime_suspend(struct device *dev)
-{
-	struct cdns_i2c *xi2c = dev_get_drvdata(dev);
-
-	clk_disable(xi2c->clk);
-
-	return 0;
-}
-
 static int __maybe_unused cdns_i2c_suspend(struct device *dev)
 {
 	struct cdns_i2c *xi2c = dev_get_drvdata(dev);
@@ -1183,49 +1226,6 @@ static int __maybe_unused cdns_i2c_suspend(struct device *dev)
 
 	if (!pm_runtime_status_suspended(dev))
 		return cdns_i2c_runtime_suspend(dev);
-
-	return 0;
-}
-
-/**
- * cdns_i2c_init -  Controller initialisation
- * @id:		Device private data structure
- *
- * Initialise the i2c controller.
- *
- */
-static void cdns_i2c_init(struct cdns_i2c *id)
-{
-	cdns_i2c_writereg(id->ctrl_reg, CDNS_I2C_CR_OFFSET);
-	/*
-	 * Cadence I2C controller has a bug wherein it generates
-	 * invalid read transaction after HW timeout in master receiver mode.
-	 * HW timeout is not used by this driver and the interrupt is disabled.
-	 * But the feature itself cannot be disabled. Hence maximum value
-	 * is written to this register to reduce the chances of error.
-	 */
-	cdns_i2c_writereg(CDNS_I2C_TIMEOUT_MAX, CDNS_I2C_TIME_OUT_OFFSET);
-}
-
-/**
- * cdns_i2c_runtime_resume - Runtime resume
- * @dev:	Address of the platform_device structure
- *
- * Runtime resume callback.
- *
- * Return: 0 on success and error value on error
- */
-static int __maybe_unused cdns_i2c_runtime_resume(struct device *dev)
-{
-	struct cdns_i2c *xi2c = dev_get_drvdata(dev);
-	int ret;
-
-	ret = clk_enable(xi2c->clk);
-	if (ret) {
-		dev_err(dev, "Cannot enable clock.\n");
-		return ret;
-	}
-	cdns_i2c_init(xi2c);
 
 	return 0;
 }
