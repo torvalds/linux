@@ -88,6 +88,7 @@ static int bnxt_re_hwrm_qcaps(struct bnxt_re_dev *rdev);
 
 static int bnxt_re_hwrm_qcfg(struct bnxt_re_dev *rdev, u32 *db_len,
 			     u32 *offset);
+static void bnxt_re_setup_cc(struct bnxt_re_dev *rdev, bool enable);
 static void bnxt_re_set_db_offset(struct bnxt_re_dev *rdev)
 {
 	struct bnxt_qplib_chip_ctx *cctx;
@@ -1860,6 +1861,16 @@ static int bnxt_re_add_device(struct auxiliary_device *adev)
 		goto re_dev_uninit;
 	}
 
+	rdev->nb.notifier_call = bnxt_re_netdev_event;
+	rc = register_netdevice_notifier(&rdev->nb);
+	if (rc) {
+		rdev->nb.notifier_call = NULL;
+		pr_err("%s: Cannot register to netdevice_notifier",
+		       ROCE_DRV_MODULE_NAME);
+		return rc;
+	}
+	bnxt_re_setup_cc(rdev, true);
+
 	return 0;
 
 re_dev_uninit:
@@ -1947,20 +1958,9 @@ exit:
 
 #define BNXT_ADEV_NAME "bnxt_en"
 
-static void bnxt_re_remove(struct auxiliary_device *adev)
+static void bnxt_re_remove_device(struct bnxt_re_dev *rdev,
+				  struct auxiliary_device *aux_dev)
 {
-	struct bnxt_re_en_dev_info *en_info = auxiliary_get_drvdata(adev);
-	struct bnxt_re_dev *rdev;
-
-	mutex_lock(&bnxt_re_mutex);
-	if (!en_info) {
-		mutex_unlock(&bnxt_re_mutex);
-		return;
-	}
-	rdev = en_info->rdev;
-	if (!rdev)
-		goto skip_remove;
-
 	if (rdev->nb.notifier_call) {
 		unregister_netdevice_notifier(&rdev->nb);
 		rdev->nb.notifier_call = NULL;
@@ -1968,13 +1968,30 @@ static void bnxt_re_remove(struct auxiliary_device *adev)
 		/* If notifier is null, we should have already done a
 		 * clean up before coming here.
 		 */
-		goto skip_remove;
+		return;
 	}
 	bnxt_re_setup_cc(rdev, false);
 	ib_unregister_device(&rdev->ibdev);
 	bnxt_re_dev_uninit(rdev);
 	ib_dealloc_device(&rdev->ibdev);
-skip_remove:
+}
+
+static void bnxt_re_remove(struct auxiliary_device *adev)
+{
+	struct bnxt_re_en_dev_info *en_info = auxiliary_get_drvdata(adev);
+	struct bnxt_en_dev *en_dev;
+	struct bnxt_re_dev *rdev;
+
+	mutex_lock(&bnxt_re_mutex);
+	if (!en_info) {
+		mutex_unlock(&bnxt_re_mutex);
+		return;
+	}
+	en_dev = en_info->en_dev;
+	rdev = en_info->rdev;
+
+	if (rdev)
+		bnxt_re_remove_device(rdev, adev);
 	kfree(en_info);
 	mutex_unlock(&bnxt_re_mutex);
 }
@@ -1986,7 +2003,6 @@ static int bnxt_re_probe(struct auxiliary_device *adev,
 		container_of(adev, struct bnxt_aux_priv, aux_dev);
 	struct bnxt_re_en_dev_info *en_info;
 	struct bnxt_en_dev *en_dev;
-	struct bnxt_re_dev *rdev;
 	int rc;
 
 	en_dev = aux_priv->edev;
@@ -2002,23 +2018,8 @@ static int bnxt_re_probe(struct auxiliary_device *adev,
 	auxiliary_set_drvdata(adev, en_info);
 
 	rc = bnxt_re_add_device(adev);
-	if (rc) {
-		mutex_unlock(&bnxt_re_mutex);
-		return rc;
-	}
-
-	rdev = en_info->rdev;
-
-	rdev->nb.notifier_call = bnxt_re_netdev_event;
-	rc = register_netdevice_notifier(&rdev->nb);
-	if (rc) {
-		rdev->nb.notifier_call = NULL;
-		pr_err("%s: Cannot register to netdevice_notifier",
-		       ROCE_DRV_MODULE_NAME);
+	if (rc)
 		goto err;
-	}
-
-	bnxt_re_setup_cc(rdev, true);
 	mutex_unlock(&bnxt_re_mutex);
 	return 0;
 
