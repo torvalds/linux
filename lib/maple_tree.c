@@ -1943,7 +1943,7 @@ static inline void mas_mab_cp(struct ma_state *mas, unsigned char mas_start,
 	for (; i < piv_end; i++, j++) {
 		b_node->pivot[j] = pivots[i];
 		if (unlikely(!b_node->pivot[j]))
-			break;
+			goto complete;
 
 		if (unlikely(mas->max == b_node->pivot[j]))
 			goto complete;
