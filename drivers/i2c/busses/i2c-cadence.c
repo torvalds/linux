@@ -866,6 +866,78 @@ static int cdns_i2c_process_msg(struct cdns_i2c *id, struct i2c_msg *msg,
 	return 0;
 }
 
+static int cdns_i2c_master_common_xfer(struct i2c_adapter *adap,
+				       struct i2c_msg *msgs,
+				       int num)
+{
+	int ret, count;
+	u32 reg;
+	struct cdns_i2c *id = adap->algo_data;
+	bool hold_quirk;
+
+	/* Check if the bus is free */
+
+	ret = readl_relaxed_poll_timeout(id->membase + CDNS_I2C_SR_OFFSET,
+					 reg,
+					 !(reg & CDNS_I2C_SR_BA),
+					 CDNS_I2C_POLL_US, CDNS_I2C_TIMEOUT_US);
+	if (ret) {
+		ret = -EAGAIN;
+		if (id->adap.bus_recovery_info)
+			i2c_recover_bus(adap);
+		return ret;
+	}
+
+	hold_quirk = !!(id->quirks & CDNS_I2C_BROKEN_HOLD_BIT);
+	/*
+	 * Set the flag to one when multiple messages are to be
+	 * processed with a repeated start.
+	 */
+	if (num > 1) {
+		/*
+		 * This controller does not give completion interrupt after a
+		 * master receive message if HOLD bit is set (repeated start),
+		 * resulting in SW timeout. Hence, if a receive message is
+		 * followed by any other message, an error is returned
+		 * indicating that this sequence is not supported.
+		 */
+		for (count = 0; (count < num - 1 && hold_quirk); count++) {
+			if (msgs[count].flags & I2C_M_RD) {
+				dev_warn(adap->dev.parent,
+					 "Can't do repeated start after a receive message\n");
+				return -EOPNOTSUPP;
+			}
+		}
+		id->bus_hold_flag = 1;
+		reg = cdns_i2c_readreg(CDNS_I2C_CR_OFFSET);
+		reg |= CDNS_I2C_CR_HOLD;
+		cdns_i2c_writereg(reg, CDNS_I2C_CR_OFFSET);
+	} else {
+		id->bus_hold_flag = 0;
+	}
+
+	/* Process the msg one by one */
+	for (count = 0; count < num; count++, msgs++) {
+		if (count == (num - 1))
+			id->bus_hold_flag = 0;
+
+		ret = cdns_i2c_process_msg(id, msgs, adap);
+		if (ret)
+			return ret;
+
+		/* Report the other error interrupts to application */
+		if (id->err_status) {
+			cdns_i2c_master_reset(adap);
+
+			if (id->err_status & CDNS_I2C_IXR_NACK)
+				return -ENXIO;
+
+			return -EIO;
+		}
+	}
+	return 0;
+}
+
 /**
  * cdns_i2c_master_xfer - The main i2c transfer function
  * @adap:	pointer to the i2c adapter driver instance
@@ -879,10 +951,8 @@ static int cdns_i2c_process_msg(struct cdns_i2c *id, struct i2c_msg *msg,
 static int cdns_i2c_master_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs,
 				int num)
 {
-	int ret, count;
-	u32 reg;
+	int ret;
 	struct cdns_i2c *id = adap->algo_data;
-	bool hold_quirk;
 #if IS_ENABLED(CONFIG_I2C_SLAVE)
 	bool change_role = false;
 #endif
@@ -907,75 +977,11 @@ static int cdns_i2c_master_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs,
 	}
 #endif
 
-	/* Check if the bus is free */
-
-	ret = readl_relaxed_poll_timeout(id->membase + CDNS_I2C_SR_OFFSET,
-					 reg,
-					 !(reg & CDNS_I2C_SR_BA),
-					 CDNS_I2C_POLL_US, CDNS_I2C_TIMEOUT_US);
-	if (ret) {
-		ret = -EAGAIN;
-		if (id->adap.bus_recovery_info)
-			i2c_recover_bus(adap);
-		goto out;
-	}
-
-	hold_quirk = !!(id->quirks & CDNS_I2C_BROKEN_HOLD_BIT);
-	/*
-	 * Set the flag to one when multiple messages are to be
-	 * processed with a repeated start.
-	 */
-	if (num > 1) {
-		/*
-		 * This controller does not give completion interrupt after a
-		 * master receive message if HOLD bit is set (repeated start),
-		 * resulting in SW timeout. Hence, if a receive message is
-		 * followed by any other message, an error is returned
-		 * indicating that this sequence is not supported.
-		 */
-		for (count = 0; (count < num - 1 && hold_quirk); count++) {
-			if (msgs[count].flags & I2C_M_RD) {
-				dev_warn(adap->dev.parent,
-					 "Can't do repeated start after a receive message\n");
-				ret = -EOPNOTSUPP;
-				goto out;
-			}
-		}
-		id->bus_hold_flag = 1;
-		reg = cdns_i2c_readreg(CDNS_I2C_CR_OFFSET);
-		reg |= CDNS_I2C_CR_HOLD;
-		cdns_i2c_writereg(reg, CDNS_I2C_CR_OFFSET);
-	} else {
-		id->bus_hold_flag = 0;
-	}
-
-	/* Process the msg one by one */
-	for (count = 0; count < num; count++, msgs++) {
-		if (count == (num - 1))
-			id->bus_hold_flag = 0;
-
-		ret = cdns_i2c_process_msg(id, msgs, adap);
-		if (ret)
-			goto out;
-
-		/* Report the other error interrupts to application */
-		if (id->err_status) {
-			cdns_i2c_master_reset(adap);
-
-			if (id->err_status & CDNS_I2C_IXR_NACK) {
-				ret = -ENXIO;
-				goto out;
-			}
-			ret = -EIO;
-			goto out;
-		}
-	}
-
-	ret = num;
-
-out:
-
+	ret = cdns_i2c_master_common_xfer(adap, msgs, num);
+	if (!ret)
+		ret = num;
 #if IS_ENABLED(CONFIG_I2C_SLAVE)
+out:
 	/* Switch i2c mode to slave */
 	if (change_role)
 		cdns_i2c_set_mode(CDNS_I2C_MODE_SLAVE, id);
