@@ -34,6 +34,8 @@
  * @time_maxerror:	Maximum error in microseconds holding the NTP sync distance
  *			(NTP dispersion + delay / 2)
  * @time_esterror:	Estimated error in microseconds holding NTP dispersion
+ * @time_freq:		Frequency offset scaled nsecs/secs
+ * @time_reftime:	Time at last adjustment in seconds
  *
  * Protected by the timekeeping locks.
  */
@@ -47,6 +49,8 @@ struct ntp_data {
 	long			time_constant;
 	long			time_maxerror;
 	long			time_esterror;
+	s64			time_freq;
+	time64_t		time_reftime;
 };
 
 static struct ntp_data tk_ntp_data = {
@@ -63,12 +67,6 @@ static struct ntp_data tk_ntp_data = {
 #define MAX_TICKADJ_SCALED \
 	(((MAX_TICKADJ * NSEC_PER_USEC) << NTP_SCALE_SHIFT) / NTP_INTERVAL_FREQ)
 #define MAX_TAI_OFFSET		100000
-
-/* frequency offset (scaled nsecs/secs):				*/
-static s64			time_freq;
-
-/* time at last adjustment (secs):					*/
-static time64_t		time_reftime;
 
 static long			time_adjust;
 
@@ -245,7 +243,7 @@ static void ntp_update_frequency(struct ntp_data *ntpdata)
 	second_length		 = (u64)(tick_usec * NSEC_PER_USEC * USER_HZ) << NTP_SCALE_SHIFT;
 
 	second_length		+= ntp_tick_adj;
-	second_length		+= time_freq;
+	second_length		+= ntpdata->time_freq;
 
 	new_base		 = div_u64(second_length, NTP_INTERVAL_FREQ);
 
@@ -294,11 +292,11 @@ static void ntp_update_offset(struct ntp_data *ntpdata, long offset)
 	 * and in which mode (PLL or FLL).
 	 */
 	real_secs = __ktime_get_real_seconds();
-	secs = (long)(real_secs - time_reftime);
+	secs = (long)(real_secs - ntpdata->time_reftime);
 	if (unlikely(ntpdata->time_status & STA_FREQHOLD))
 		secs = 0;
 
-	time_reftime = real_secs;
+	ntpdata->time_reftime = real_secs;
 
 	offset64    = offset;
 	freq_adj    = ntp_update_offset_fll(ntpdata, offset64, secs);
@@ -314,9 +312,9 @@ static void ntp_update_offset(struct ntp_data *ntpdata, long offset)
 	freq_adj    += (offset64 * secs) <<
 			(NTP_SCALE_SHIFT - 2 * (SHIFT_PLL + 2 + ntpdata->time_constant));
 
-	freq_adj    = min(freq_adj + time_freq, MAXFREQ_SCALED);
+	freq_adj    = min(freq_adj + ntpdata->time_freq, MAXFREQ_SCALED);
 
-	time_freq   = max(freq_adj, -MAXFREQ_SCALED);
+	ntpdata->time_freq   = max(freq_adj, -MAXFREQ_SCALED);
 
 	ntpdata->time_offset = div_s64(offset64 << NTP_SCALE_SHIFT, NTP_INTERVAL_FREQ);
 }
@@ -696,7 +694,7 @@ static inline void process_adj_status(struct ntp_data *ntpdata, const struct __k
 	 * reference time to current time.
 	 */
 	if (!(ntpdata->time_status & STA_PLL) && (txc->status & STA_PLL))
-		time_reftime = __ktime_get_real_seconds();
+		ntpdata->time_reftime = __ktime_get_real_seconds();
 
 	/* only set allowed bits */
 	ntpdata->time_status &= STA_RONLY;
@@ -716,11 +714,11 @@ static inline void process_adjtimex_modes(struct ntp_data *ntpdata, const struct
 		ntpdata->time_status &= ~STA_NANO;
 
 	if (txc->modes & ADJ_FREQUENCY) {
-		time_freq = txc->freq * PPM_SCALE;
-		time_freq = min(time_freq, MAXFREQ_SCALED);
-		time_freq = max(time_freq, -MAXFREQ_SCALED);
+		ntpdata->time_freq = txc->freq * PPM_SCALE;
+		ntpdata->time_freq = min(ntpdata->time_freq, MAXFREQ_SCALED);
+		ntpdata->time_freq = max(ntpdata->time_freq, -MAXFREQ_SCALED);
 		/* Update pps_freq */
-		pps_set_freq(time_freq);
+		pps_set_freq(ntpdata->time_freq);
 	}
 
 	if (txc->modes & ADJ_MAXERROR)
@@ -775,7 +773,7 @@ int __do_adjtimex(struct __kernel_timex *txc, const struct timespec64 *ts,
 		/* If there are input parameters, then process them: */
 		if (txc->modes) {
 			audit_ntp_set_old(ad, AUDIT_NTP_OFFSET,	ntpdata->time_offset);
-			audit_ntp_set_old(ad, AUDIT_NTP_FREQ,	time_freq);
+			audit_ntp_set_old(ad, AUDIT_NTP_FREQ,	ntpdata->time_freq);
 			audit_ntp_set_old(ad, AUDIT_NTP_STATUS,	ntpdata->time_status);
 			audit_ntp_set_old(ad, AUDIT_NTP_TAI,	*time_tai);
 			audit_ntp_set_old(ad, AUDIT_NTP_TICK,	ntpdata->tick_usec);
@@ -783,7 +781,7 @@ int __do_adjtimex(struct __kernel_timex *txc, const struct timespec64 *ts,
 			process_adjtimex_modes(ntpdata, txc, time_tai);
 
 			audit_ntp_set_new(ad, AUDIT_NTP_OFFSET,	ntpdata->time_offset);
-			audit_ntp_set_new(ad, AUDIT_NTP_FREQ,	time_freq);
+			audit_ntp_set_new(ad, AUDIT_NTP_FREQ,	ntpdata->time_freq);
 			audit_ntp_set_new(ad, AUDIT_NTP_STATUS,	ntpdata->time_status);
 			audit_ntp_set_new(ad, AUDIT_NTP_TAI,	*time_tai);
 			audit_ntp_set_new(ad, AUDIT_NTP_TICK,	ntpdata->tick_usec);
@@ -798,7 +796,7 @@ int __do_adjtimex(struct __kernel_timex *txc, const struct timespec64 *ts,
 	if (is_error_status(ntpdata->time_status))
 		result = TIME_ERROR;
 
-	txc->freq	   = shift_right((time_freq >> PPM_SCALE_INV_SHIFT) *
+	txc->freq	   = shift_right((ntpdata->time_freq >> PPM_SCALE_INV_SHIFT) *
 					 PPM_SCALE_INV, NTP_SCALE_SHIFT);
 	txc->maxerror	   = ntpdata->time_maxerror;
 	txc->esterror	   = ntpdata->time_esterror;
@@ -973,7 +971,7 @@ static long hardpps_update_freq(struct ntp_data *ntpdata, struct pps_normtime fr
 
 	/* If enabled, the system clock frequency is updated */
 	if ((ntpdata->time_status & STA_PPSFREQ) && !(ntpdata->time_status & STA_FREQHOLD)) {
-		time_freq = pps_freq;
+		ntpdata->time_freq = pps_freq;
 		ntp_update_frequency(ntpdata);
 	}
 
