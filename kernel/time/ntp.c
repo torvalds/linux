@@ -31,7 +31,7 @@
 
 
 /* USER_HZ period (usecs): */
-unsigned long			tick_usec = USER_TICK_USEC;
+static unsigned long		tick_usec = USER_TICK_USEC;
 
 static u64			tick_length;
 static u64			tick_length_base;
@@ -44,6 +44,9 @@ static u64			tick_length_base;
 
 /*
  * phase-lock loop variables
+ *
+ * Note: maximum error = NTP sync distance = dispersion + delay / 2;
+ * estimated error = NTP dispersion.
  */
 
 /*
