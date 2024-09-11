@@ -240,11 +240,9 @@ static int meson_crypto_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, mc);
 
 	mc->base = devm_platform_ioremap_resource(pdev, 0);
-	if (IS_ERR(mc->base)) {
-		err = PTR_ERR(mc->base);
-		dev_err(&pdev->dev, "Cannot request MMIO err=%d\n", err);
-		return err;
-	}
+	if (IS_ERR(mc->base))
+		return PTR_ERR(mc->base);
+
 	mc->busclk = devm_clk_get(&pdev->dev, "blkmv");
 	if (IS_ERR(mc->busclk)) {
 		err = PTR_ERR(mc->busclk);
