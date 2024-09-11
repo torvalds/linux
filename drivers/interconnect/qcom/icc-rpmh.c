@@ -314,7 +314,7 @@ int qcom_icc_rpmh_probe(struct platform_device *pdev)
 		if (qp->num_clks == -EPROBE_DEFER)
 			return dev_err_probe(dev, qp->num_clks, "Failed to get QoS clocks\n");
 
-		if (qp->num_clks < 0 || (!qp->num_clks && desc->qos_clks_required)) {
+		if (qp->num_clks < 0 || (!qp->num_clks && desc->qos_requires_clocks)) {
 			dev_info(dev, "Skipping QoS, failed to get clk: %d\n", qp->num_clks);
 			goto skip_qos_config;
 		}
