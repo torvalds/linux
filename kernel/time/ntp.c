@@ -42,6 +42,7 @@
  *
  * @pps_valid:		PPS signal watchdog counter
  * @pps_tf:		PPS phase median filter
+ * @pps_jitter:		PPS current jitter in nanoseconds
  *
  * Protected by the timekeeping locks.
  */
@@ -63,6 +64,7 @@ struct ntp_data {
 #ifdef CONFIG_NTP_PPS
 	int			pps_valid;
 	long			pps_tf[3];
+	long			pps_jitter;
 #endif
 };
 
@@ -98,7 +100,6 @@ static struct ntp_data tk_ntp_data = {
 				   intervals to decrease it */
 #define PPS_MAXWANDER	100000	/* max PPS freq wander (ns/s) */
 
-static long pps_jitter;		/* current jitter (ns) */
 static struct timespec64 pps_fbase; /* beginning of the last freq interval */
 static int pps_shift;		/* current interval duration (s) (shift) */
 static int pps_intcnt;		/* interval counter */
@@ -194,9 +195,9 @@ static inline void pps_fill_timex(struct ntp_data *ntpdata, struct __kernel_time
 {
 	txc->ppsfreq	   = shift_right((pps_freq >> PPM_SCALE_INV_SHIFT) *
 					 PPM_SCALE_INV, NTP_SCALE_SHIFT);
-	txc->jitter	   = pps_jitter;
+	txc->jitter	   = ntpdata->pps_jitter;
 	if (!(ntpdata->time_status & STA_NANO))
-		txc->jitter = pps_jitter / NSEC_PER_USEC;
+		txc->jitter = ntpdata->pps_jitter / NSEC_PER_USEC;
 	txc->shift	   = pps_shift;
 	txc->stabil	   = pps_stabil;
 	txc->jitcnt	   = pps_jitcnt;
@@ -998,9 +999,9 @@ static void hardpps_update_phase(struct ntp_data *ntpdata, long error)
 	 * threshold, the sample is discarded; otherwise, if so enabled,
 	 * the time offset is updated.
 	 */
-	if (jitter > (pps_jitter << PPS_POPCORN)) {
+	if (jitter > (ntpdata->pps_jitter << PPS_POPCORN)) {
 		printk_deferred(KERN_WARNING "hardpps: PPSJITTER: jitter=%ld, limit=%ld\n",
-				jitter, (pps_jitter << PPS_POPCORN));
+				jitter, (ntpdata->pps_jitter << PPS_POPCORN));
 		ntpdata->time_status |= STA_PPSJITTER;
 		pps_jitcnt++;
 	} else if (ntpdata->time_status & STA_PPSTIME) {
@@ -1011,7 +1012,7 @@ static void hardpps_update_phase(struct ntp_data *ntpdata, long error)
 		ntpdata->time_adjust = 0;
 	}
 	/* Update jitter */
-	pps_jitter += (jitter - pps_jitter) >> PPS_INTMIN;
+	ntpdata->pps_jitter += (jitter - ntpdata->pps_jitter) >> PPS_INTMIN;
 }
 
 /*
