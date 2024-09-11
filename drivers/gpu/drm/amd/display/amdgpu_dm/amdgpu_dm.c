@@ -11419,6 +11419,17 @@ static int amdgpu_dm_atomic_check(struct drm_device *dev,
 			drm_dbg(dev, "Failed to determine cursor mode\n");
 			goto fail;
 		}
+
+		/*
+		 * If overlay cursor is needed, DC cannot go through the
+		 * native cursor update path. All enabled planes on the CRTC
+		 * need to be added for DC to not disable a plane by mistake
+		 */
+		if (dm_new_crtc_state->cursor_mode == DM_CURSOR_OVERLAY_MODE) {
+			ret = drm_atomic_add_affected_planes(state, crtc);
+			if (ret)
+				goto fail;
+		}
 	}
 
 	/* Remove exiting planes if they are modified */
