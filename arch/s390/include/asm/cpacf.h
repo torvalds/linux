@@ -183,6 +183,27 @@
 #define CPACF_KLMD_DUFOP	0x4000
 #define CPACF_KLMD_NIP		0x8000
 
+/*
+ * Function codes for KDSA (COMPUTE DIGITAL SIGNATURE AUTHENTICATION)
+ * instruction
+ */
+#define CPACF_KDSA_QUERY 0x00
+#define CPACF_KDSA_ECDSA_VERIFY_P256 0x01
+#define CPACF_KDSA_ECDSA_VERIFY_P384 0x02
+#define CPACF_KDSA_ECDSA_VERIFY_P521 0x03
+#define CPACF_KDSA_ECDSA_SIGN_P256 0x09
+#define CPACF_KDSA_ECDSA_SIGN_P384 0x0a
+#define CPACF_KDSA_ECDSA_SIGN_P521 0x0b
+#define CPACF_KDSA_ENC_ECDSA_SIGN_P256 0x11
+#define CPACF_KDSA_ENC_ECDSA_SIGN_P384 0x12
+#define CPACF_KDSA_ENC_ECDSA_SIGN_P521 0x13
+#define CPACF_KDSA_EDDSA_VERIFY_ED25519 0x20
+#define CPACF_KDSA_EDDSA_VERIFY_ED448 0x24
+#define CPACF_KDSA_EDDSA_SIGN_ED25519 0x28
+#define CPACF_KDSA_EDDSA_SIGN_ED448 0x2c
+#define CPACF_KDSA_ENC_EDDSA_SIGN_ED25519 0x30
+#define CPACF_KDSA_ENC_EDDSA_SIGN_ED448 0x34
+
 typedef struct { unsigned char bytes[16]; } cpacf_mask_t;
 
 /*
@@ -287,6 +308,8 @@ static __always_inline int __cpacf_check_opcode(unsigned int opcode)
 		return test_facility(57);	/* check for MSA5 */
 	case CPACF_KMA:
 		return test_facility(146);	/* check for MSA8 */
+	case CPACF_KDSA:
+		return test_facility(155);	/* check for MSA9 */
 	default:
 		__cpacf_bad_opcode();
 		return 0;
