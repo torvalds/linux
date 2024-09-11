@@ -1190,7 +1190,6 @@ void __bio_release_pages(struct bio *bio, bool mark_dirty)
 	struct folio_iter fi;
 
 	bio_for_each_folio_all(fi, bio) {
-		struct page *page;
 		size_t nr_pages;
 
 		if (mark_dirty) {
@@ -1198,12 +1197,9 @@ void __bio_release_pages(struct bio *bio, bool mark_dirty)
 			folio_mark_dirty(fi.folio);
 			folio_unlock(fi.folio);
 		}
-		page = folio_page(fi.folio, fi.offset / PAGE_SIZE);
 		nr_pages = (fi.offset + fi.length - 1) / PAGE_SIZE -
 			   fi.offset / PAGE_SIZE + 1;
-		do {
-			bio_release_page(bio, page++);
-		} while (--nr_pages != 0);
+		unpin_user_folio(fi.folio, nr_pages);
 	}
 }
 EXPORT_SYMBOL_GPL(__bio_release_pages);
@@ -1241,8 +1237,8 @@ static int bio_iov_add_folio(struct bio *bio, struct folio *folio, size_t len,
 				folio_page(folio, 0), len, offset,
 				&same_page)) {
 		bio->bi_iter.bi_size += len;
-		if (same_page)
-			bio_release_page(bio, folio_page(folio, 0));
+		if (same_page && bio_flagged(bio, BIO_PAGE_PINNED))
+			unpin_user_folio(folio, 1);
 		return 0;
 	}
 	bio_add_folio_nofail(bio, folio, len, offset);
@@ -1258,8 +1254,8 @@ static int bio_iov_add_zone_append_folio(struct bio *bio, struct folio *folio,
 	if (bio_add_hw_folio(q, bio, folio, len, offset,
 			queue_max_zone_append_sectors(q), &same_page) != len)
 		return -EINVAL;
-	if (same_page)
-		bio_release_page(bio, folio_page(folio, 0));
+	if (same_page && bio_flagged(bio, BIO_PAGE_PINNED))
+		unpin_user_folio(folio, 1);
 	return 0;
 }
 
