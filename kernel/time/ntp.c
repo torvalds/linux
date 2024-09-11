@@ -43,6 +43,7 @@
  * @pps_valid:		PPS signal watchdog counter
  * @pps_tf:		PPS phase median filter
  * @pps_jitter:		PPS current jitter in nanoseconds
+ * @pps_fbase:		PPS beginning of the last freq interval
  *
  * Protected by the timekeeping locks.
  */
@@ -65,6 +66,7 @@ struct ntp_data {
 	int			pps_valid;
 	long			pps_tf[3];
 	long			pps_jitter;
+	struct timespec64	pps_fbase;
 #endif
 };
 
@@ -100,7 +102,6 @@ static struct ntp_data tk_ntp_data = {
 				   intervals to decrease it */
 #define PPS_MAXWANDER	100000	/* max PPS freq wander (ns/s) */
 
-static struct timespec64 pps_fbase; /* beginning of the last freq interval */
 static int pps_shift;		/* current interval duration (s) (shift) */
 static int pps_intcnt;		/* interval counter */
 static s64 pps_freq;		/* frequency offset (scaled ns/s) */
@@ -144,7 +145,7 @@ static inline void pps_clear(struct ntp_data *ntpdata)
 	ntpdata->pps_tf[0] = 0;
 	ntpdata->pps_tf[1] = 0;
 	ntpdata->pps_tf[2] = 0;
-	pps_fbase.tv_sec = pps_fbase.tv_nsec = 0;
+	ntpdata->pps_fbase.tv_sec = ntpdata->pps_fbase.tv_nsec = 0;
 	pps_freq = 0;
 }
 
@@ -1045,13 +1046,13 @@ void __hardpps(const struct timespec64 *phase_ts, const struct timespec64 *raw_t
 	 * When called for the first time, just start the frequency
 	 * interval
 	 */
-	if (unlikely(pps_fbase.tv_sec == 0)) {
-		pps_fbase = *raw_ts;
+	if (unlikely(ntpdata->pps_fbase.tv_sec == 0)) {
+		ntpdata->pps_fbase = *raw_ts;
 		return;
 	}
 
 	/* Ok, now we have a base for frequency calculation */
-	freq_norm = pps_normalize_ts(timespec64_sub(*raw_ts, pps_fbase));
+	freq_norm = pps_normalize_ts(timespec64_sub(*raw_ts, ntpdata->pps_fbase));
 
 	/*
 	 * Check that the signal is in the range
@@ -1061,7 +1062,7 @@ void __hardpps(const struct timespec64 *phase_ts, const struct timespec64 *raw_t
 	    (freq_norm.nsec < -MAXFREQ * freq_norm.sec)) {
 		ntpdata->time_status |= STA_PPSJITTER;
 		/* Restart the frequency calibration interval */
-		pps_fbase = *raw_ts;
+		ntpdata->pps_fbase = *raw_ts;
 		printk_deferred(KERN_ERR "hardpps: PPSJITTER: bad pulse\n");
 		return;
 	}
@@ -1070,7 +1071,7 @@ void __hardpps(const struct timespec64 *phase_ts, const struct timespec64 *raw_t
 	if (freq_norm.sec >= (1 << pps_shift)) {
 		pps_calcnt++;
 		/* Restart the frequency calibration interval */
-		pps_fbase = *raw_ts;
+		ntpdata->pps_fbase = *raw_ts;
 		hardpps_update_freq(ntpdata, freq_norm);
 	}
 
