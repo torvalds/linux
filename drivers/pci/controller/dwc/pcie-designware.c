@@ -689,16 +689,27 @@ void dw_pcie_upconfig_setup(struct dw_pcie *pci)
 }
 EXPORT_SYMBOL_GPL(dw_pcie_upconfig_setup);
 
-static void dw_pcie_link_set_max_speed(struct dw_pcie *pci, u32 max_link_speed)
+static void dw_pcie_link_set_max_speed(struct dw_pcie *pci)
 {
 	u32 cap, ctrl2, link_speed;
 	u8 offset = dw_pcie_find_capability(pci, PCI_CAP_ID_EXP);
 
 	cap = dw_pcie_readl_dbi(pci, offset + PCI_EXP_LNKCAP);
+
+	/*
+	 * Even if the platform doesn't want to limit the maximum link speed,
+	 * just cache the hardware default value so that the vendor drivers can
+	 * use it to do any link specific configuration.
+	 */
+	if (pci->max_link_speed < 1) {
+		pci->max_link_speed = FIELD_GET(PCI_EXP_LNKCAP_SLS, cap);
+		return;
+	}
+
 	ctrl2 = dw_pcie_readl_dbi(pci, offset + PCI_EXP_LNKCTL2);
 	ctrl2 &= ~PCI_EXP_LNKCTL2_TLS;
 
-	switch (pcie_link_speed[max_link_speed]) {
+	switch (pcie_link_speed[pci->max_link_speed]) {
 	case PCIE_SPEED_2_5GT:
 		link_speed = PCI_EXP_LNKCTL2_TLS_2_5GT;
 		break;
@@ -1060,8 +1071,7 @@ void dw_pcie_setup(struct dw_pcie *pci)
 {
 	u32 val;
 
-	if (pci->max_link_speed > 0)
-		dw_pcie_link_set_max_speed(pci, pci->max_link_speed);
+	dw_pcie_link_set_max_speed(pci);
 
 	/* Configure Gen1 N_FTS */
 	if (pci->n_fts[0]) {
