@@ -116,6 +116,8 @@ static void io_buffer_unmap(struct io_ring_ctx *ctx, struct io_mapped_ubuf **slo
 
 	*slot = NULL;
 	if (imu != &dummy_ubuf) {
+		if (!refcount_dec_and_test(&imu->refs))
+			return;
 		for (i = 0; i < imu->nr_bvecs; i++)
 			unpin_user_page(imu->bvec[i].bv_page);
 		if (imu->acct_pages)
@@ -990,6 +992,7 @@ static int io_sqe_buffer_register(struct io_ring_ctx *ctx, struct iovec *iov,
 		imu->folio_shift = data.folio_shift;
 		imu->folio_mask = ~((1UL << data.folio_shift) - 1);
 	}
+	refcount_set(&imu->refs, 1);
 	off = (unsigned long) iov->iov_base & ~imu->folio_mask;
 	*pimu = imu;
 	ret = 0;
