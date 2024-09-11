@@ -96,11 +96,16 @@ EXPORT_SYMBOL(dotdot_name);
  *
  * This hash-function tries to avoid losing too many bits of hash
  * information, yet avoid using a prime hash-size or similar.
+ *
+ * Marking the variables "used" ensures that the compiler doesn't
+ * optimize them away completely on architectures with runtime
+ * constant infrastructure, this allows debuggers to see their
+ * values. But updating these values has no effect on those arches.
  */
 
-static unsigned int d_hash_shift __ro_after_init;
+static unsigned int d_hash_shift __ro_after_init __used;
 
-static struct hlist_bl_head *dentry_hashtable __ro_after_init;
+static struct hlist_bl_head *dentry_hashtable __ro_after_init __used;
 
 static inline struct hlist_bl_head *d_hash(unsigned long hashlen)
 {

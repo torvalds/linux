@@ -549,7 +549,7 @@ static int amdgpu_vkms_sw_fini(void *handle)
 
 	adev->mode_info.mode_config_initialized = false;
 
-	kfree(adev->mode_info.bios_hardcoded_edid);
+	drm_edid_free(adev->mode_info.bios_hardcoded_edid);
 	kfree(adev->amdgpu_vkms_output);
 	return 0;
 }

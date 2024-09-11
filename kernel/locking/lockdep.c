@@ -5936,6 +5936,9 @@ __lock_contended(struct lockdep_map *lock, unsigned long ip)
 	if (DEBUG_LOCKS_WARN_ON(!depth))
 		return;
 
+	if (unlikely(lock->key == &__lockdep_no_track__))
+		return;
+
 	hlock = find_held_lock(curr, lock, depth, &i);
 	if (!hlock) {
 		print_lock_contention_bug(curr, lock, ip);
@@ -5976,6 +5979,9 @@ __lock_acquired(struct lockdep_map *lock, unsigned long ip)
 	 * acquire, how the heck did that happen?
 	 */
 	if (DEBUG_LOCKS_WARN_ON(!depth))
+		return;
+
+	if (unlikely(lock->key == &__lockdep_no_track__))
 		return;
 
 	hlock = find_held_lock(curr, lock, depth, &i);

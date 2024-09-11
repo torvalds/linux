@@ -25,7 +25,7 @@
 
 #include "reg_helper.h"
 #include "dcn30_mpc.h"
-#include "dcn30_cm_common.h"
+#include "dcn30/dcn30_cm_common.h"
 #include "basics/conversion.h"
 #include "dcn10/dcn10_cm_common.h"
 #include "dc.h"

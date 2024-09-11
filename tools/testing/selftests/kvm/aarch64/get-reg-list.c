@@ -32,13 +32,13 @@ static struct feature_id_reg feat_id_regs[] = {
 	{
 		ARM64_SYS_REG(3, 0, 10, 2, 2),	/* PIRE0_EL1 */
 		ARM64_SYS_REG(3, 0, 0, 7, 3),	/* ID_AA64MMFR3_EL1 */
-		4,
+		8,
 		1
 	},
 	{
 		ARM64_SYS_REG(3, 0, 10, 2, 3),	/* PIR_EL1 */
 		ARM64_SYS_REG(3, 0, 0, 7, 3),	/* ID_AA64MMFR3_EL1 */
-		4,
+		8,
 		1
 	}
 };

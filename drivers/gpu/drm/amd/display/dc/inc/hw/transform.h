@@ -245,16 +245,6 @@ struct transform_funcs {
 	void (*set_cursor_attributes)(
 			struct transform *xfm_base,
 			const struct dc_cursor_attributes *attr);
-
-	bool (*transform_program_blnd_lut)(
-			struct transform *xfm,
-			const struct pwl_params *params);
-	bool (*transform_program_shaper_lut)(
-			struct transform *xfm,
-			const struct pwl_params *params);
-	bool (*transform_program_3dlut)(
-			struct transform *xfm,
-			struct tetrahedral_params *params);
 };
 
 const uint16_t *get_filter_2tap_16p(void);

@@ -968,9 +968,6 @@ static int bnxt_set_channels(struct net_device *dev,
 		return -EINVAL;
 	}
 
-	bnxt_clear_usr_fltrs(bp, true);
-	if (BNXT_SUPPORTS_MULTI_RSS_CTX(bp))
-		bnxt_clear_rss_ctxs(bp);
 	if (netif_running(dev)) {
 		if (BNXT_PF(bp)) {
 			/* TODO CHIMP_FW: Send message to all VF's
@@ -2000,7 +1997,6 @@ static int bnxt_set_rxfh(struct net_device *dev,
 
 	bnxt_modify_rss(bp, NULL, NULL, rxfh);
 
-	bnxt_clear_usr_fltrs(bp, false);
 	if (netif_running(bp->dev)) {
 		bnxt_close_nic(bp, false, false);
 		rc = bnxt_open_nic(bp, false, false);
@@ -5290,7 +5286,7 @@ void bnxt_ethtool_free(struct bnxt *bp)
 const struct ethtool_ops bnxt_ethtool_ops = {
 	.cap_link_lanes_supported	= 1,
 	.cap_rss_ctx_supported		= 1,
-	.rxfh_max_context_id		= BNXT_MAX_ETH_RSS_CTX,
+	.rxfh_max_num_contexts		= BNXT_MAX_ETH_RSS_CTX + 1,
 	.rxfh_indir_space		= BNXT_MAX_RSS_TABLE_ENTRIES_P5,
 	.rxfh_priv_size			= sizeof(struct bnxt_rss_ctx),
 	.supported_coalesce_params = ETHTOOL_COALESCE_USECS |

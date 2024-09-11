@@ -108,22 +108,6 @@ static void erofs_free_inode(struct inode *inode)
 	kmem_cache_free(erofs_inode_cachep, vi);
 }
 
-static bool check_layout_compatibility(struct super_block *sb,
-				       struct erofs_super_block *dsb)
-{
-	const unsigned int feature = le32_to_cpu(dsb->feature_incompat);
-
-	EROFS_SB(sb)->feature_incompat = feature;
-
-	/* check if current kernel meets all mandatory requirements */
-	if (feature & (~EROFS_ALL_FEATURE_INCOMPAT)) {
-		erofs_err(sb, "unidentified incompatible feature %x, please upgrade kernel",
-			   feature & ~EROFS_ALL_FEATURE_INCOMPAT);
-		return false;
-	}
-	return true;
-}
-
 /* read variable-sized metadata, offset will be aligned by 4-byte */
 void *erofs_read_metadata(struct super_block *sb, struct erofs_buf *buf,
 			  erofs_off_t *offset, int *lengthp)
@@ -279,7 +263,7 @@ static int erofs_scan_devices(struct super_block *sb,
 
 static int erofs_read_superblock(struct super_block *sb)
 {
-	struct erofs_sb_info *sbi;
+	struct erofs_sb_info *sbi = EROFS_SB(sb);
 	struct erofs_buf buf = __EROFS_BUF_INITIALIZER;
 	struct erofs_super_block *dsb;
 	void *data;
@@ -291,9 +275,7 @@ static int erofs_read_superblock(struct super_block *sb)
 		return PTR_ERR(data);
 	}
 
-	sbi = EROFS_SB(sb);
 	dsb = (struct erofs_super_block *)(data + EROFS_SUPER_OFFSET);
-
 	ret = -EINVAL;
 	if (le32_to_cpu(dsb->magic) != EROFS_SUPER_MAGIC_V1) {
 		erofs_err(sb, "cannot find valid erofs superblock");
@@ -318,8 +300,12 @@ static int erofs_read_superblock(struct super_block *sb)
 	}
 
 	ret = -EINVAL;
-	if (!check_layout_compatibility(sb, dsb))
+	sbi->feature_incompat = le32_to_cpu(dsb->feature_incompat);
+	if (sbi->feature_incompat & ~EROFS_ALL_FEATURE_INCOMPAT) {
+		erofs_err(sb, "unidentified incompatible feature %x, please upgrade kernel",
+			  sbi->feature_incompat & ~EROFS_ALL_FEATURE_INCOMPAT);
 		goto out;
+	}
 
 	sbi->sb_size = 128 + dsb->sb_extslots * EROFS_SB_EXTSLOT_SIZE;
 	if (sbi->sb_size > PAGE_SIZE - EROFS_SUPER_OFFSET) {

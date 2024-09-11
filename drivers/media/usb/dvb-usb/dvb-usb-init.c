@@ -23,40 +23,11 @@ static int dvb_usb_force_pid_filter_usage;
 module_param_named(force_pid_filter_usage, dvb_usb_force_pid_filter_usage, int, 0444);
 MODULE_PARM_DESC(force_pid_filter_usage, "force all dvb-usb-devices to use a PID filter, if any (default: 0).");
 
-static int dvb_usb_check_bulk_endpoint(struct dvb_usb_device *d, u8 endpoint)
-{
-	if (endpoint) {
-		int ret;
-
-		ret = usb_pipe_type_check(d->udev, usb_sndbulkpipe(d->udev, endpoint));
-		if (ret)
-			return ret;
-		ret = usb_pipe_type_check(d->udev, usb_rcvbulkpipe(d->udev, endpoint));
-		if (ret)
-			return ret;
-	}
-	return 0;
-}
-
-static void dvb_usb_clear_halt(struct dvb_usb_device *d, u8 endpoint)
-{
-	if (endpoint) {
-		usb_clear_halt(d->udev, usb_sndbulkpipe(d->udev, endpoint));
-		usb_clear_halt(d->udev, usb_rcvbulkpipe(d->udev, endpoint));
-	}
-}
-
 static int dvb_usb_adapter_init(struct dvb_usb_device *d, short *adapter_nrs)
 {
 	struct dvb_usb_adapter *adap;
 	int ret, n, o;
 
-	ret = dvb_usb_check_bulk_endpoint(d, d->props.generic_bulk_ctrl_endpoint);
-	if (ret)
-		return ret;
-	ret = dvb_usb_check_bulk_endpoint(d, d->props.generic_bulk_ctrl_endpoint_response);
-	if (ret)
-		return ret;
 	for (n = 0; n < d->props.num_adapters; n++) {
 		adap = &d->adapter[n];
 		adap->dev = d;
@@ -132,8 +103,10 @@ static int dvb_usb_adapter_init(struct dvb_usb_device *d, short *adapter_nrs)
 	 * when reloading the driver w/o replugging the device
 	 * sometimes a timeout occurs, this helps
 	 */
-	dvb_usb_clear_halt(d, d->props.generic_bulk_ctrl_endpoint);
-	dvb_usb_clear_halt(d, d->props.generic_bulk_ctrl_endpoint_response);
+	if (d->props.generic_bulk_ctrl_endpoint != 0) {
+		usb_clear_halt(d->udev, usb_sndbulkpipe(d->udev, d->props.generic_bulk_ctrl_endpoint));
+		usb_clear_halt(d->udev, usb_rcvbulkpipe(d->udev, d->props.generic_bulk_ctrl_endpoint));
+	}
 
 	return 0;
 

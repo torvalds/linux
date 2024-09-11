@@ -2342,7 +2342,9 @@ EXPORT_SYMBOL(drm_mode_create_aspect_ratio_property);
  *
  *	Default:
  *		The behavior is driver-specific.
+ *
  *	BT2020_RGB:
+ *
  *	BT2020_YCC:
  *		User space configures the pixel operation properties to produce
  *		RGB content with Rec. ITU-R BT.2020 colorimetry, Rec.
@@ -2366,6 +2368,7 @@ EXPORT_SYMBOL(drm_mode_create_aspect_ratio_property);
  *		range.
  *		The variants BT2020_RGB and BT2020_YCC are equivalent and the
  *		driver chooses between RGB and YCbCr on its own.
+ *
  *	SMPTE_170M_YCC:
  *	BT709_YCC:
  *	XVYCC_601:
@@ -2378,6 +2381,7 @@ EXPORT_SYMBOL(drm_mode_create_aspect_ratio_property);
  *	DCI-P3_RGB_Theater:
  *	RGB_WIDE_FIXED:
  *	RGB_WIDE_FLOAT:
+ *
  *	BT601_YCC:
  *		The behavior is undefined.
  *

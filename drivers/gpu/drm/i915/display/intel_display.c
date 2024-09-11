@@ -1032,8 +1032,8 @@ static bool intel_crtc_vrr_enabling(struct intel_atomic_state *state,
 		  vrr_params_changed(old_crtc_state, new_crtc_state)));
 }
 
-static bool intel_crtc_vrr_disabling(struct intel_atomic_state *state,
-				     struct intel_crtc *crtc)
+bool intel_crtc_vrr_disabling(struct intel_atomic_state *state,
+			      struct intel_crtc *crtc)
 {
 	const struct intel_crtc_state *old_crtc_state =
 		intel_atomic_get_old_crtc_state(state, crtc);
@@ -6260,6 +6260,8 @@ static int intel_async_flip_check_hw(struct intel_atomic_state *state, struct in
 		case I915_FORMAT_MOD_Y_TILED:
 		case I915_FORMAT_MOD_Yf_TILED:
 		case I915_FORMAT_MOD_4_TILED:
+		case I915_FORMAT_MOD_4_TILED_BMG_CCS:
+		case I915_FORMAT_MOD_4_TILED_LNL_CCS:
 			break;
 		default:
 			drm_dbg_kms(&i915->drm,
@@ -7511,7 +7513,8 @@ static void intel_atomic_commit_tail(struct intel_atomic_state *state)
 		 *
 		 * FIXME get rid of this funny new->old swapping
 		 */
-		old_crtc_state->dsb = fetch_and_zero(&new_crtc_state->dsb);
+		old_crtc_state->dsb_color_vblank = fetch_and_zero(&new_crtc_state->dsb_color_vblank);
+		old_crtc_state->dsb_color_commit = fetch_and_zero(&new_crtc_state->dsb_color_commit);
 	}
 
 	/* Underruns don't always raise interrupts, so check manually */
@@ -7790,7 +7793,7 @@ void intel_setup_outputs(struct drm_i915_private *dev_priv)
 	struct intel_encoder *encoder;
 	bool dpd_is_edp = false;
 
-	intel_pps_unlock_regs_wa(dev_priv);
+	intel_pps_unlock_regs_wa(display);
 
 	if (!HAS_DISPLAY(dev_priv))
 		return;
@@ -7933,7 +7936,7 @@ void intel_setup_outputs(struct drm_i915_private *dev_priv)
 			g4x_dp_init(dev_priv, DP_D, PORT_D);
 
 		if (SUPPORTS_TV(dev_priv))
-			intel_tv_init(dev_priv);
+			intel_tv_init(display);
 	} else if (DISPLAY_VER(dev_priv) == 2) {
 		if (IS_I85X(dev_priv))
 			intel_lvds_init(dev_priv);

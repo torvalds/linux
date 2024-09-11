@@ -1396,8 +1396,8 @@ struct intel_crtc_state {
 	/* Only valid on TGL+ */
 	enum transcoder mst_master_transcoder;
 
-	/* For DSB related info */
-	struct intel_dsb *dsb;
+	/* For DSB based color LUT updates */
+	struct intel_dsb *dsb_color_vblank, *dsb_color_commit;
 
 	u32 psr2_man_track_ctl;
 
@@ -1907,6 +1907,10 @@ struct intel_dp {
 	} alpm_parameters;
 
 	u8 alpm_dpcd;
+
+	struct {
+		unsigned long mask;
+	} quirks;
 };
 
 enum lspcon_vendor {
@@ -2081,8 +2085,6 @@ dp_to_lspcon(struct intel_dp *intel_dp)
 	return &dp_to_dig_port(intel_dp)->lspcon;
 }
 
-#define dp_to_i915(__intel_dp) to_i915(dp_to_dig_port(__intel_dp)->base.base.dev)
-
 static inline struct intel_digital_port *
 hdmi_to_dig_port(struct intel_hdmi *intel_hdmi)
 {
@@ -2205,7 +2207,13 @@ to_intel_frontbuffer(struct drm_framebuffer *fb)
  * intel_display pointer.
  */
 #define __drm_device_to_intel_display(p) \
-	(&to_i915(p)->display)
+	((p) ? &to_i915(p)->display : NULL)
+#define __device_to_intel_display(p)				\
+	__drm_device_to_intel_display(dev_get_drvdata(p))
+#define __pci_dev_to_intel_display(p)				\
+	__drm_device_to_intel_display(pci_get_drvdata(p))
+#define __intel_atomic_state_to_intel_display(p)	\
+	__drm_device_to_intel_display((p)->base.dev)
 #define __intel_connector_to_intel_display(p)		\
 	__drm_device_to_intel_display((p)->base.dev)
 #define __intel_crtc_to_intel_display(p)		\
@@ -2229,6 +2237,9 @@ to_intel_frontbuffer(struct drm_framebuffer *fb)
 #define to_intel_display(p)				\
 	_Generic(*p,					\
 		 __assoc(drm_device, p),		\
+		 __assoc(device, p),			\
+		 __assoc(pci_dev, p),			\
+		 __assoc(intel_atomic_state, p),	\
 		 __assoc(intel_connector, p),		\
 		 __assoc(intel_crtc, p),		\
 		 __assoc(intel_crtc_state, p),		\

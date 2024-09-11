@@ -714,7 +714,7 @@ EXPORT_SYMBOL(drm_helper_probe_single_connector_modes);
  * @dev: drm_device whose connector state changed
  *
  * This function fires off the uevent for userspace and also calls the
- * output_poll_changed function, which is most commonly used to inform the fbdev
+ * client hotplug function, which is most commonly used to inform the fbdev
  * emulation code and allow it to update the fbcon output configuration.
  *
  * Drivers should call this from their hotplug handling code when a change is
@@ -730,11 +730,7 @@ EXPORT_SYMBOL(drm_helper_probe_single_connector_modes);
  */
 void drm_kms_helper_hotplug_event(struct drm_device *dev)
 {
-	/* send a uevent + call fbdev */
 	drm_sysfs_hotplug_event(dev);
-	if (dev->mode_config.funcs->output_poll_changed)
-		dev->mode_config.funcs->output_poll_changed(dev);
-
 	drm_client_dev_hotplug(dev);
 }
 EXPORT_SYMBOL(drm_kms_helper_hotplug_event);
@@ -750,11 +746,7 @@ void drm_kms_helper_connector_hotplug_event(struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
 
-	/* send a uevent + call fbdev */
 	drm_sysfs_connector_hotplug_event(connector);
-	if (dev->mode_config.funcs->output_poll_changed)
-		dev->mode_config.funcs->output_poll_changed(dev);
-
 	drm_client_dev_hotplug(dev);
 }
 EXPORT_SYMBOL(drm_kms_helper_connector_hotplug_event);

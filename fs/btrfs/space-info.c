@@ -1985,8 +1985,8 @@ static bool is_reclaim_urgent(struct btrfs_space_info *space_info)
 	return unalloc < data_chunk_size;
 }
 
-static int do_reclaim_sweep(struct btrfs_fs_info *fs_info,
-			    struct btrfs_space_info *space_info, int raid)
+static void do_reclaim_sweep(struct btrfs_fs_info *fs_info,
+			     struct btrfs_space_info *space_info, int raid)
 {
 	struct btrfs_block_group *bg;
 	int thresh_pct;
@@ -2031,7 +2031,6 @@ again:
 	}
 
 	up_read(&space_info->groups_sem);
-	return 0;
 }
 
 void btrfs_space_info_update_reclaimable(struct btrfs_space_info *space_info, s64 bytes)
@@ -2074,21 +2073,15 @@ bool btrfs_should_periodic_reclaim(struct btrfs_space_info *space_info)
 	return ret;
 }
 
-int btrfs_reclaim_sweep(struct btrfs_fs_info *fs_info)
+void btrfs_reclaim_sweep(struct btrfs_fs_info *fs_info)
 {
-	int ret;
 	int raid;
 	struct btrfs_space_info *space_info;
 
 	list_for_each_entry(space_info, &fs_info->space_info, list) {
 		if (!btrfs_should_periodic_reclaim(space_info))
 			continue;
-		for (raid = 0; raid < BTRFS_NR_RAID_TYPES; raid++) {
-			ret = do_reclaim_sweep(fs_info, space_info, raid);
-			if (ret)
-				return ret;
-		}
+		for (raid = 0; raid < BTRFS_NR_RAID_TYPES; raid++)
+			do_reclaim_sweep(fs_info, space_info, raid);
 	}
-
-	return ret;
 }

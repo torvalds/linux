@@ -7900,6 +7900,7 @@ static void ath11k_mac_parse_tx_pwr_env(struct ath11k *ar,
 	}
 
 	if (psd) {
+		arvif->reg_tpc_info.is_psd_power = true;
 		arvif->reg_tpc_info.num_pwr_levels = psd->count;
 
 		for (i = 0; i < arvif->reg_tpc_info.num_pwr_levels; i++) {

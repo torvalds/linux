@@ -342,11 +342,6 @@ struct resource_pool *dc_create_resource_pool(struct dc  *dc,
 				res_pool->ref_clocks.xtalin_clock_inKhz;
 			res_pool->ref_clocks.dchub_ref_clock_inKhz =
 				res_pool->ref_clocks.xtalin_clock_inKhz;
-			if (dc->debug.using_dml2)
-				if (res_pool->hubbub && res_pool->hubbub->funcs->get_dchub_ref_freq)
-					res_pool->hubbub->funcs->get_dchub_ref_freq(res_pool->hubbub,
-										    res_pool->ref_clocks.dccg_ref_clock_inKhz,
-										    &res_pool->ref_clocks.dchub_ref_clock_inKhz);
 		} else
 			ASSERT_CRITICAL(false);
 	}
@@ -1511,8 +1506,6 @@ bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 			pipe_ctx->plane_res.scl_data.lb_params.depth = LB_PIXEL_DEPTH_30BPP;
 
 		pipe_ctx->plane_res.scl_data.lb_params.alpha_en = plane_state->per_pixel_alpha;
-		spl_out->scl_data.h_active = pipe_ctx->plane_res.scl_data.h_active;
-		spl_out->scl_data.v_active = pipe_ctx->plane_res.scl_data.v_active;
 
 		// Convert pipe_ctx to respective input params for SPL
 		translate_SPL_in_params_from_pipe_ctx(pipe_ctx, spl_in);
@@ -3241,6 +3234,8 @@ static bool are_stream_backends_same(
 bool dc_is_stream_unchanged(
 	struct dc_stream_state *old_stream, struct dc_stream_state *stream)
 {
+	if (!old_stream || !stream)
+		return false;
 
 	if (!are_stream_backends_same(old_stream, stream))
 		return false;
@@ -3771,8 +3766,10 @@ static bool planes_changed_for_existing_stream(struct dc_state *context,
 		}
 	}
 
-	if (!stream_status)
+	if (!stream_status) {
 		ASSERT(0);
+		return false;
+	}
 
 	for (i = 0; i < set_count; i++)
 		if (set[i].stream == stream)
@@ -5164,7 +5161,7 @@ bool dc_resource_acquire_secondary_pipe_for_mpc_odm_legacy(
 			sec_pipe->stream_res.opp = sec_pipe->top_pipe->stream_res.opp;
 		if (sec_pipe->stream->timing.flags.DSC == 1) {
 #if defined(CONFIG_DRM_AMD_DC_FP)
-			dcn20_acquire_dsc(dc, &state->res_ctx, &sec_pipe->stream_res.dsc, pipe_idx);
+			dcn20_acquire_dsc(dc, &state->res_ctx, &sec_pipe->stream_res.dsc, sec_pipe->stream_res.opp->inst);
 #endif
 			ASSERT(sec_pipe->stream_res.dsc);
 			if (sec_pipe->stream_res.dsc == NULL)
@@ -5270,4 +5267,45 @@ void resource_init_common_dml2_callbacks(struct dc *dc, struct dml2_configuratio
 	dml2_options->svp_pstate.callbacks.get_paired_subvp_stream = &dc_state_get_paired_subvp_stream;
 	dml2_options->svp_pstate.callbacks.remove_phantom_streams_and_planes = &dc_state_remove_phantom_streams_and_planes;
 	dml2_options->svp_pstate.callbacks.release_phantom_streams_and_planes = &dc_state_release_phantom_streams_and_planes;
+}
+
+/* Returns number of DET segments allocated for a given OTG_MASTER pipe */
+int resource_calculate_det_for_stream(struct dc_state *state, struct pipe_ctx *otg_master)
+{
+	struct pipe_ctx *opp_heads[MAX_PIPES];
+	struct pipe_ctx *dpp_pipes[MAX_PIPES];
+
+	int dpp_count = 0;
+	int det_segments = 0;
+
+	if (!otg_master->stream)
+		return 0;
+
+	int slice_count = resource_get_opp_heads_for_otg_master(otg_master,
+			&state->res_ctx, opp_heads);
+
+	for (int slice_idx = 0; slice_idx < slice_count; slice_idx++) {
+		if (opp_heads[slice_idx]->plane_state) {
+			dpp_count = resource_get_dpp_pipes_for_opp_head(
+					opp_heads[slice_idx],
+					&state->res_ctx,
+					dpp_pipes);
+			for (int dpp_idx = 0; dpp_idx < dpp_count; dpp_idx++)
+				det_segments += dpp_pipes[dpp_idx]->hubp_regs.det_size;
+		}
+	}
+	return det_segments;
+}
+
+bool resource_is_hpo_acquired(struct dc_state *context)
+{
+	int i;
+
+	for (i = 0; i < MAX_HPO_DP2_ENCODERS; i++) {
+		if (context->res_ctx.is_hpo_dp_stream_enc_acquired[i]) {
+			return true;
+		}
+	}
+
+	return false;
 }

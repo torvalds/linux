@@ -352,7 +352,7 @@ checkSMB(char *buf, unsigned int total_read, struct TCP_Server_Info *server)
 				 * on simple responses (wct, bcc both zero)
 				 * in particular have seen this on
 				 * ulogoffX and FindClose. This leaves
-				 * one byte of bcc potentially unitialized
+				 * one byte of bcc potentially uninitialized
 				 */
 				/* zero rest of bcc */
 				tmp[sizeof(struct smb_hdr)+1] = 0;
@@ -1234,6 +1234,7 @@ int cifs_inval_name_dfs_link_error(const unsigned int xid,
 				   const char *full_path,
 				   bool *islink)
 {
+	struct TCP_Server_Info *server = tcon->ses->server;
 	struct cifs_ses *ses = tcon->ses;
 	size_t len;
 	char *path;
@@ -1250,12 +1251,12 @@ int cifs_inval_name_dfs_link_error(const unsigned int xid,
 	    !is_tcon_dfs(tcon))
 		return 0;
 
-	spin_lock(&tcon->tc_lock);
-	if (!tcon->origin_fullpath) {
-		spin_unlock(&tcon->tc_lock);
+	spin_lock(&server->srv_lock);
+	if (!server->leaf_fullpath) {
+		spin_unlock(&server->srv_lock);
 		return 0;
 	}
-	spin_unlock(&tcon->tc_lock);
+	spin_unlock(&server->srv_lock);
 
 	/*
 	 * Slow path - tcon is DFS and @full_path has prefix path, so attempt
