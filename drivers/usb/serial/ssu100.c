@@ -500,7 +500,6 @@ static void ssu100_process_read_urb(struct urb *urb)
 
 static struct usb_serial_driver ssu100_device = {
 	.driver = {
-		.owner = THIS_MODULE,
 		.name = "ssu100",
 	},
 	.description	     = DRIVER_DESC,

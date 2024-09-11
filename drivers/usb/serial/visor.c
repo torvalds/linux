@@ -161,7 +161,6 @@ MODULE_DEVICE_TABLE(usb, id_table_combined);
    and Palm 4.0 devices */
 static struct usb_serial_driver handspring_device = {
 	.driver = {
-		.owner =	THIS_MODULE,
 		.name =		"visor",
 	},
 	.description =		"Handspring Visor / Palm OS",
@@ -180,7 +179,6 @@ static struct usb_serial_driver handspring_device = {
 /* All of the device info needed for the Clie UX50, TH55 Palm 5.0 devices */
 static struct usb_serial_driver clie_5_device = {
 	.driver = {
-		.owner =	THIS_MODULE,
 		.name =		"clie_5",
 	},
 	.description =		"Sony Clie 5.0",
@@ -200,7 +198,6 @@ static struct usb_serial_driver clie_5_device = {
 /* device info for the Sony Clie OS version 3.5 */
 static struct usb_serial_driver clie_3_5_device = {
 	.driver = {
-		.owner =	THIS_MODULE,
 		.name =		"clie_3.5",
 	},
 	.description =		"Sony Clie 3.5",

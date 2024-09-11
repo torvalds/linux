@@ -2871,7 +2871,6 @@ static int ftdi_ioctl(struct tty_struct *tty,
 
 static struct usb_serial_driver ftdi_device = {
 	.driver = {
-		.owner =	THIS_MODULE,
 		.name =		"ftdi_sio",
 		.dev_groups =	ftdi_groups,
 	},

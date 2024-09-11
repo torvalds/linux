@@ -454,7 +454,6 @@ static void qc_release(struct usb_serial *serial)
 
 static struct usb_serial_driver qcdevice = {
 	.driver = {
-		.owner     = THIS_MODULE,
 		.name      = "qcserial",
 	},
 	.description         = "Qualcomm USB modem",
