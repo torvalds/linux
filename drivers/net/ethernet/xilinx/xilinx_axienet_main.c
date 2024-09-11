@@ -1188,9 +1188,7 @@ static int axienet_rx_poll(struct napi_struct *napi, int budget)
 				    csumstatus == XAE_IP_UDP_CSUM_VALIDATED) {
 					skb->ip_summed = CHECKSUM_UNNECESSARY;
 				}
-			} else if ((lp->features & XAE_FEATURE_PARTIAL_RX_CSUM) != 0 &&
-				   skb->protocol == htons(ETH_P_IP) &&
-				   skb->len > 64) {
+			} else if (lp->features & XAE_FEATURE_PARTIAL_RX_CSUM) {
 				skb->csum = be32_to_cpu(cur_p->app3 & 0xFFFF);
 				skb->ip_summed = CHECKSUM_COMPLETE;
 			}
@@ -2639,38 +2637,28 @@ static int axienet_probe(struct platform_device *pdev)
 	if (!ret) {
 		switch (value) {
 		case 1:
-			lp->csum_offload_on_tx_path =
-				XAE_FEATURE_PARTIAL_TX_CSUM;
 			lp->features |= XAE_FEATURE_PARTIAL_TX_CSUM;
-			/* Can checksum TCP/UDP over IPv4. */
-			ndev->features |= NETIF_F_IP_CSUM;
+			/* Can checksum any contiguous range */
+			ndev->features |= NETIF_F_HW_CSUM;
 			break;
 		case 2:
-			lp->csum_offload_on_tx_path =
-				XAE_FEATURE_FULL_TX_CSUM;
 			lp->features |= XAE_FEATURE_FULL_TX_CSUM;
 			/* Can checksum TCP/UDP over IPv4. */
 			ndev->features |= NETIF_F_IP_CSUM;
 			break;
-		default:
-			lp->csum_offload_on_tx_path = XAE_NO_CSUM_OFFLOAD;
 		}
 	}
 	ret = of_property_read_u32(pdev->dev.of_node, "xlnx,rxcsum", &value);
 	if (!ret) {
 		switch (value) {
 		case 1:
-			lp->csum_offload_on_rx_path =
-				XAE_FEATURE_PARTIAL_RX_CSUM;
 			lp->features |= XAE_FEATURE_PARTIAL_RX_CSUM;
+			ndev->features |= NETIF_F_RXCSUM;
 			break;
 		case 2:
-			lp->csum_offload_on_rx_path =
-				XAE_FEATURE_FULL_RX_CSUM;
 			lp->features |= XAE_FEATURE_FULL_RX_CSUM;
+			ndev->features |= NETIF_F_RXCSUM;
 			break;
-		default:
-			lp->csum_offload_on_rx_path = XAE_NO_CSUM_OFFLOAD;
 		}
 	}
 	/* For supporting jumbo frames, the Axi Ethernet hardware must have

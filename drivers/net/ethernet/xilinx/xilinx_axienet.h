@@ -529,8 +529,6 @@ struct skbuf_dma_descriptor {
  *		  supported, the maximum frame size would be 9k. Else it is
  *		  1522 bytes (assuming support for basic VLAN)
  * @rxmem:	Stores rx memory size for jumbo frame handling.
- * @csum_offload_on_tx_path:	Stores the checksum selection on TX side.
- * @csum_offload_on_rx_path:	Stores the checksum selection on RX side.
  * @coalesce_count_rx:	Store the irq coalesce on RX side.
  * @coalesce_usec_rx:	IRQ coalesce delay for RX
  * @coalesce_count_tx:	Store the irq coalesce on TX side.
@@ -608,9 +606,6 @@ struct axienet_local {
 
 	u32 max_frm_size;
 	u32 rxmem;
-
-	int csum_offload_on_tx_path;
-	int csum_offload_on_rx_path;
 
 	u32 coalesce_count_rx;
 	u32 coalesce_usec_rx;
