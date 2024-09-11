@@ -843,6 +843,9 @@ static int dma_supported(struct device *dev, u64 mask)
 
 	if (WARN_ON(ops && use_dma_iommu(dev)))
 		return false;
+
+	if (use_dma_iommu(dev))
+		return true;
 	/*
 	 * ->dma_supported sets the bypass flag, so we must always call
 	 * into the method here unless the device is truly direct mapped.
