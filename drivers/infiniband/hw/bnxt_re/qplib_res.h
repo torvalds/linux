@@ -82,6 +82,7 @@ struct bnxt_qplib_db_pacing_data {
 	u32 fifo_room_mask;
 	u32 fifo_room_shift;
 	u32 grc_reg_offset;
+	u32 dev_err_state;
 };
 
 #define BNXT_QPLIB_DBR_PF_DB_OFFSET     0x10000

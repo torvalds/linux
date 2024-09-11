@@ -91,6 +91,15 @@ struct bnxt_re_ring_attr {
 	u8		mode;
 };
 
+/*
+ * Data structure and defines to handle
+ * recovery
+ */
+#define BNXT_RE_PRE_RECOVERY_REMOVE 0x1
+#define BNXT_RE_COMPLETE_REMOVE 0x2
+#define BNXT_RE_POST_RECOVERY_INIT 0x4
+#define BNXT_RE_COMPLETE_INIT 0x8
+
 struct bnxt_re_sqp_entries {
 	struct bnxt_qplib_sge sge;
 	u64 wrid;
@@ -224,4 +233,10 @@ static inline struct device *rdev_to_dev(struct bnxt_re_dev *rdev)
 }
 
 extern const struct uapi_definition bnxt_re_uapi_defs[];
+
+static inline void bnxt_re_set_pacing_dev_state(struct bnxt_re_dev *rdev)
+{
+	rdev->qplib_res.pacing_data->dev_err_state =
+		test_bit(BNXT_RE_FLAG_ERR_DEVICE_DETACHED, &rdev->flags);
+}
 #endif
