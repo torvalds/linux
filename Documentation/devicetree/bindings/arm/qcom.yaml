@@ -45,6 +45,7 @@ description: |
         qcs8550
         qcm2290
         qcm6490
+        qcs9100
         qdu1000
         qrb2210
         qrb4210
@@ -912,6 +913,13 @@ properties:
           - enum:
               - qcom,sa8775p-ride
               - qcom,sa8775p-ride-r3
+          - const: qcom,sa8775p
+
+      - items:
+          - enum:
+              - qcom,qcs9100-ride
+              - qcom,qcs9100-ride-r3
+          - const: qcom,qcs9100
           - const: qcom,sa8775p
 
       - items:
