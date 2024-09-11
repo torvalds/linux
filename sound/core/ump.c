@@ -489,11 +489,7 @@ static void snd_ump_proc_read(struct snd_info_entry *entry,
 			    ump->info.manufacturer_id);
 		snd_iprintf(buffer, "Family ID: 0x%04x\n", ump->info.family_id);
 		snd_iprintf(buffer, "Model ID: 0x%04x\n", ump->info.model_id);
-		snd_iprintf(buffer, "SW Revision: 0x%02x%02x%02x%02x\n",
-			    ump->info.sw_revision[0],
-			    ump->info.sw_revision[1],
-			    ump->info.sw_revision[2],
-			    ump->info.sw_revision[3]);
+		snd_iprintf(buffer, "SW Revision: 0x%4phN\n", ump->info.sw_revision);
 	}
 	snd_iprintf(buffer, "Static Blocks: %s\n",
 		    (ump->info.flags & SNDRV_UMP_EP_INFO_STATIC_BLOCKS) ? "Yes" : "No");
@@ -710,14 +706,11 @@ static int ump_handle_device_info_msg(struct snd_ump_endpoint *ump,
 	ump->info.sw_revision[1] = (buf->device_info.sw_revision >> 16) & 0x7f;
 	ump->info.sw_revision[2] = (buf->device_info.sw_revision >> 8) & 0x7f;
 	ump->info.sw_revision[3] = buf->device_info.sw_revision & 0x7f;
-	ump_dbg(ump, "EP devinfo: manid=%08x, family=%04x, model=%04x, sw=%02x%02x%02x%02x\n",
+	ump_dbg(ump, "EP devinfo: manid=%08x, family=%04x, model=%04x, sw=%4phN\n",
 		ump->info.manufacturer_id,
 		ump->info.family_id,
 		ump->info.model_id,
-		ump->info.sw_revision[0],
-		ump->info.sw_revision[1],
-		ump->info.sw_revision[2],
-		ump->info.sw_revision[3]);
+		ump->info.sw_revision);
 	return 1; /* finished */
 }
 
