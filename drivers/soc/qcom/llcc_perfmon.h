@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2019-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef _SOC_QCOM_LLCC_PERFMON_H_
@@ -73,6 +73,7 @@
 #define TRP_PROF_FILTER_1_CFG2		(0x024018)
 #define TRP_PROF_EVENT_n_CFG(n)		(0x024020 + 4 * (n))
 #define TRP_SCID_n_STATUS(n)		(0x000004 + 0x1000 * (n))
+#define TRP_CAP_COUNTERS_DUMP_CFG	(0x2332C)
 
 /* DRP */
 #define DRP_PROF_EVENT_n_CFG(v, n)	((VER_CHK(v) ? 0x51010 : 0x044010) + 4 * (n))
