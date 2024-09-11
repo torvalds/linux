@@ -403,9 +403,6 @@ int ast_mode_config_init(struct ast_device *ast);
 #define AST_DP501_LINKRATE	0xf014
 #define AST_DP501_EDID_DATA	0xf020
 
-#define AST_DP_POWER_ON			true
-#define AST_DP_POWER_OFF			false
-
 /*
  * ASTDP resoultion table:
  * EX:	ASTDP_A_B_C:

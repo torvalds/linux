@@ -149,27 +149,22 @@ int ast_dp_launch(struct ast_device *ast)
 	return 0;
 }
 
-static bool ast_dp_power_is_on(struct ast_device *ast)
+static bool ast_dp_get_phy_sleep(struct ast_device *ast)
 {
-	u8 vgacre3;
+	u8 vgacre3 = ast_get_index_reg(ast, AST_IO_VGACRI, 0xe3);
 
-	vgacre3 = ast_get_index_reg(ast, AST_IO_VGACRI, 0xe3);
-
-	return !(vgacre3 & AST_DP_PHY_SLEEP);
+	return (vgacre3 & AST_IO_VGACRE3_DP_PHY_SLEEP);
 }
 
-static void ast_dp_power_on_off(struct ast_device *ast, bool on)
+static void ast_dp_set_phy_sleep(struct ast_device *ast, bool sleep)
 {
-	// Read and Turn off DP PHY sleep
-	u8 bE3 = ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xE3, AST_DP_VIDEO_ENABLE);
+	u8 vgacre3 = 0x00;
 
-	// Turn on DP PHY sleep
-	if (!on)
-		bE3 |= AST_DP_PHY_SLEEP;
+	if (sleep)
+		vgacre3 |= AST_IO_VGACRE3_DP_PHY_SLEEP;
 
-	// DP Power on/off
-	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xE3, (u8) ~AST_DP_PHY_SLEEP, bE3);
-
+	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xe3, (u8)~AST_IO_VGACRE3_DP_PHY_SLEEP,
+			       vgacre3);
 	msleep(50);
 }
 
@@ -319,7 +314,7 @@ static void ast_astdp_encoder_helper_atomic_enable(struct drm_encoder *encoder,
 	struct ast_connector *ast_connector = &ast->output.astdp.connector;
 
 	if (ast_connector->physical_status == connector_status_connected) {
-		ast_dp_power_on_off(ast, AST_DP_POWER_ON);
+		ast_dp_set_phy_sleep(ast, false);
 		ast_dp_link_training(ast);
 
 		ast_wait_for_vretrace(ast);
@@ -333,7 +328,7 @@ static void ast_astdp_encoder_helper_atomic_disable(struct drm_encoder *encoder,
 	struct ast_device *ast = to_ast_device(encoder->dev);
 
 	ast_dp_set_on_off(ast, 0);
-	ast_dp_power_on_off(ast, AST_DP_POWER_OFF);
+	ast_dp_set_phy_sleep(ast, true);
 }
 
 static const struct drm_encoder_helper_funcs ast_astdp_encoder_helper_funcs = {
@@ -382,19 +377,19 @@ static int ast_astdp_connector_helper_detect_ctx(struct drm_connector *connector
 	struct ast_connector *ast_connector = to_ast_connector(connector);
 	struct ast_device *ast = to_ast_device(connector->dev);
 	enum drm_connector_status status = connector_status_disconnected;
-	bool power_is_on;
+	bool phy_sleep;
 
 	mutex_lock(&ast->modeset_lock);
 
-	power_is_on = ast_dp_power_is_on(ast);
-	if (!power_is_on)
-		ast_dp_power_on_off(ast, true);
+	phy_sleep = ast_dp_get_phy_sleep(ast);
+	if (phy_sleep)
+		ast_dp_set_phy_sleep(ast, false);
 
 	if (ast_astdp_is_connected(ast))
 		status = connector_status_connected;
 
-	if (!power_is_on && status == connector_status_disconnected)
-		ast_dp_power_on_off(ast, false);
+	if (phy_sleep && status == connector_status_disconnected)
+		ast_dp_set_phy_sleep(ast, true);
 
 	mutex_unlock(&ast->modeset_lock);
 
