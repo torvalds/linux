@@ -55,7 +55,7 @@ struct aux_payload;
 struct set_config_cmd_payload;
 struct dmub_notification;
 
-#define DC_VER "3.2.297"
+#define DC_VER "3.2.299"
 
 #define MAX_SURFACES 3
 #define MAX_PLANES 6
@@ -761,7 +761,8 @@ union dpia_debug_options {
 		uint32_t extend_aux_rd_interval:1; /* bit 2 */
 		uint32_t disable_mst_dsc_work_around:1; /* bit 3 */
 		uint32_t enable_force_tbt3_work_around:1; /* bit 4 */
-		uint32_t reserved:27;
+		uint32_t disable_usb4_pm_support:1; /* bit 5 */
+		uint32_t reserved:26;
 	} bits;
 	uint32_t raw;
 };
@@ -1051,6 +1052,7 @@ struct dc_debug_options {
 	unsigned int disable_spl;
 	unsigned int force_easf;
 	unsigned int force_sharpness;
+	unsigned int force_sharpness_level;
 	unsigned int force_lls;
 	bool notify_dpia_hr_bw;
 	bool enable_ips_visual_confirm;
@@ -1347,7 +1349,7 @@ struct dc_plane_state {
 	enum mpcc_movable_cm_location mcm_location;
 	struct dc_csc_transform cursor_csc_color_matrix;
 	bool adaptive_sharpness_en;
-	unsigned int sharpnessX1000;
+	int sharpness_level;
 	enum linear_light_scaling linear_light_scaling;
 };
 

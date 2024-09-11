@@ -1476,7 +1476,7 @@ static void dc_dmub_srv_exit_low_power_state(const struct dc *dc)
 		ips2_exit_count);
 }
 
-void dc_dmub_srv_set_power_state(struct dc_dmub_srv *dc_dmub_srv, enum dc_acpi_cm_power_state powerState)
+void dc_dmub_srv_set_power_state(struct dc_dmub_srv *dc_dmub_srv, enum dc_acpi_cm_power_state power_state)
 {
 	struct dmub_srv *dmub;
 
@@ -1485,10 +1485,36 @@ void dc_dmub_srv_set_power_state(struct dc_dmub_srv *dc_dmub_srv, enum dc_acpi_c
 
 	dmub = dc_dmub_srv->dmub;
 
-	if (powerState == DC_ACPI_CM_POWER_STATE_D0)
+	if (power_state == DC_ACPI_CM_POWER_STATE_D0)
 		dmub_srv_set_power_state(dmub, DMUB_POWER_STATE_D0);
 	else
 		dmub_srv_set_power_state(dmub, DMUB_POWER_STATE_D3);
+}
+
+void dc_dmub_srv_notify_fw_dc_power_state(struct dc_dmub_srv *dc_dmub_srv,
+					  enum dc_acpi_cm_power_state power_state)
+{
+	union dmub_rb_cmd cmd;
+
+	if (!dc_dmub_srv)
+		return;
+
+	memset(&cmd, 0, sizeof(cmd));
+
+	cmd.idle_opt_set_dc_power_state.header.type = DMUB_CMD__IDLE_OPT;
+	cmd.idle_opt_set_dc_power_state.header.sub_type = DMUB_CMD__IDLE_OPT_SET_DC_POWER_STATE;
+	cmd.idle_opt_set_dc_power_state.header.payload_bytes =
+		sizeof(cmd.idle_opt_set_dc_power_state) - sizeof(cmd.idle_opt_set_dc_power_state.header);
+
+	if (power_state == DC_ACPI_CM_POWER_STATE_D0) {
+		cmd.idle_opt_set_dc_power_state.data.power_state = DMUB_IDLE_OPT_DC_POWER_STATE_D0;
+	} else if (power_state == DC_ACPI_CM_POWER_STATE_D3) {
+		cmd.idle_opt_set_dc_power_state.data.power_state = DMUB_IDLE_OPT_DC_POWER_STATE_D3;
+	} else {
+		cmd.idle_opt_set_dc_power_state.data.power_state = DMUB_IDLE_OPT_DC_POWER_STATE_UNKNOWN;
+	}
+
+	dc_wake_and_execute_dmub_cmd(dc_dmub_srv->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
 }
 
 bool dc_dmub_srv_should_detect(struct dc_dmub_srv *dc_dmub_srv)

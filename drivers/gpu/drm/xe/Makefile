@@ -40,6 +40,7 @@ xe-y += xe_bb.o \
 	xe_ggtt.o \
 	xe_gpu_scheduler.o \
 	xe_gsc.o \
+	xe_gsc_debugfs.o \
 	xe_gsc_proxy.o \
 	xe_gsc_submit.o \
 	xe_gt.o \

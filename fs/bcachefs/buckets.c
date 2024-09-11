@@ -876,7 +876,7 @@ int bch2_trigger_extent(struct btree_trans *trans,
 		need_rebalance_delta -= s != 0;
 		need_rebalance_sectors_delta -= s;
 
-		s = bch2_bkey_sectors_need_rebalance(c, old);
+		s = bch2_bkey_sectors_need_rebalance(c, new.s_c);
 		need_rebalance_delta += s != 0;
 		need_rebalance_sectors_delta += s;
 

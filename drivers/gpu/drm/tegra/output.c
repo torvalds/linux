@@ -21,7 +21,7 @@
 int tegra_output_connector_get_modes(struct drm_connector *connector)
 {
 	struct tegra_output *output = connector_to_output(connector);
-	const struct drm_edid *drm_edid;
+	const struct drm_edid *drm_edid = NULL;
 	int err = 0;
 
 	/*

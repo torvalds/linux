@@ -11,7 +11,7 @@
 #include <drm/drm_drv.h>
 #include <drm/drm_managed.h>
 #include <drm/drm_probe_helper.h>
-#include <drm/xe_drm.h>
+#include <uapi/drm/xe_drm.h>
 
 #include "soc/intel_dram.h"
 #include "i915_drv.h"		/* FIXME: HAS_DISPLAY() depends on this */
@@ -342,16 +342,14 @@ void xe_display_pm_suspend(struct xe_device *xe, bool runtime)
 
 	xe_display_flush_cleanup_work(xe);
 
-	xe_display_flush_cleanup_work(xe);
-
 	intel_dp_mst_suspend(xe);
 
 	intel_hpd_cancel_work(xe);
 
-	if (!runtime && has_display(xe))
+	if (!runtime && has_display(xe)) {
 		intel_display_driver_suspend_access(xe);
-
-	intel_encoder_suspend_all(&xe->display);
+		intel_encoder_suspend_all(&xe->display);
+	}
 
 	intel_opregion_suspend(display, s2idle ? PCI_D1 : PCI_D3cold);
 

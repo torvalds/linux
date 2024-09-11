@@ -1187,11 +1187,15 @@ struct dml2_core_calcs_CalculatePrefetchSchedule_locals {
 	double prefetch_bw_oto;
 	double Tvm_oto;
 	double Tr0_oto;
+	double Tvm_no_trip_oto;
+	double Tr0_no_trip_oto;
 	double Tvm_oto_lines;
 	double Tr0_oto_lines;
 	double dst_y_prefetch_oto;
 	double TimeForFetchingVM;
 	double TimeForFetchingRowInVBlank;
+	double dst_y_per_vm_no_trip_vblank;
+	double dst_y_per_row_no_trip_vblank;
 	double LinesToRequestPrefetchPixelData;
 	unsigned int HostVMDynamicLevelsTrips;
 	double trip_to_mem;
@@ -1199,6 +1203,7 @@ struct dml2_core_calcs_CalculatePrefetchSchedule_locals {
 	double Tr0_trips_rounded;
 	double max_Tsw;
 	double Lsw_oto;
+	double Lsw_equ;
 	double Tpre_rounded;
 	double prefetch_bw_equ;
 	double Tvm_equ;
