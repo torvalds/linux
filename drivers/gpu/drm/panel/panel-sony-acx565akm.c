@@ -562,8 +562,7 @@ static int acx565akm_detect(struct acx565akm_panel *lcd)
 		lcd->enabled ? "enabled" : "disabled ", status);
 
 	acx565akm_read(lcd, MIPI_DCS_GET_DISPLAY_ID, lcd->display_id, 3);
-	dev_dbg(&lcd->spi->dev, "MIPI display ID: %02x%02x%02x\n",
-		lcd->display_id[0], lcd->display_id[1], lcd->display_id[2]);
+	dev_dbg(&lcd->spi->dev, "MIPI display ID: %3phN\n", lcd->display_id);
 
 	switch (lcd->display_id[0]) {
 	case 0x10:
