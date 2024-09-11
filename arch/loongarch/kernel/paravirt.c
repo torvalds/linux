@@ -13,6 +13,7 @@ static int has_steal_clock;
 struct static_key paravirt_steal_enabled;
 struct static_key paravirt_steal_rq_enabled;
 static DEFINE_PER_CPU(struct kvm_steal_time, steal_time) __aligned(64);
+DEFINE_STATIC_KEY_FALSE(virt_spin_lock_key);
 
 static u64 native_steal_clock(int cpu)
 {
@@ -297,6 +298,16 @@ int __init pv_time_init(void)
 #endif
 
 	pr_info("Using paravirt steal-time\n");
+
+	return 0;
+}
+
+int __init pv_spinlock_init(void)
+{
+	if (!cpu_has_hypervisor)
+		return 0;
+
+	static_branch_enable(&virt_spin_lock_key);
 
 	return 0;
 }
