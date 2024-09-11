@@ -114,6 +114,7 @@ static void io_buffer_unmap(struct io_ring_ctx *ctx, struct io_mapped_ubuf **slo
 	struct io_mapped_ubuf *imu = *slot;
 	unsigned int i;
 
+	*slot = NULL;
 	if (imu != &dummy_ubuf) {
 		for (i = 0; i < imu->nr_bvecs; i++)
 			unpin_user_page(imu->bvec[i].bv_page);
@@ -121,7 +122,6 @@ static void io_buffer_unmap(struct io_ring_ctx *ctx, struct io_mapped_ubuf **slo
 			io_unaccount_mem(ctx, imu->acct_pages);
 		kvfree(imu);
 	}
-	*slot = NULL;
 }
 
 static void io_rsrc_put_work(struct io_rsrc_node *node)
