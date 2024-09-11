@@ -335,6 +335,31 @@ err:
 	return ret;
 }
 
+static int io_register_clock(struct io_ring_ctx *ctx,
+			     struct io_uring_clock_register __user *arg)
+{
+	struct io_uring_clock_register reg;
+
+	if (copy_from_user(&reg, arg, sizeof(reg)))
+		return -EFAULT;
+	if (memchr_inv(&reg.__resv, 0, sizeof(reg.__resv)))
+		return -EINVAL;
+
+	switch (reg.clockid) {
+	case CLOCK_MONOTONIC:
+		ctx->clock_offset = 0;
+		break;
+	case CLOCK_BOOTTIME:
+		ctx->clock_offset = TK_OFFS_BOOT;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	ctx->clockid = reg.clockid;
+	return 0;
+}
+
 static int __io_uring_register(struct io_ring_ctx *ctx, unsigned opcode,
 			       void __user *arg, unsigned nr_args)
 	__releases(ctx->uring_lock)
@@ -510,6 +535,12 @@ static int __io_uring_register(struct io_ring_ctx *ctx, unsigned opcode,
 		if (nr_args != 1)
 			break;
 		ret = io_unregister_napi(ctx, arg);
+		break;
+	case IORING_REGISTER_CLOCK:
+		ret = -EINVAL;
+		if (!arg || nr_args)
+			break;
+		ret = io_register_clock(ctx, arg);
 		break;
 	default:
 		ret = -EINVAL;

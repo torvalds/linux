@@ -22,8 +22,6 @@ struct io_rsrc_put {
 	};
 };
 
-typedef void (rsrc_put_fn)(struct io_ring_ctx *ctx, struct io_rsrc_put *prsrc);
-
 struct io_rsrc_data {
 	struct io_ring_ctx		*ctx;
 
@@ -46,8 +44,18 @@ struct io_mapped_ubuf {
 	u64		ubuf;
 	u64		ubuf_end;
 	unsigned int	nr_bvecs;
+	unsigned int    folio_shift;
 	unsigned long	acct_pages;
+	unsigned long   folio_mask;
 	struct bio_vec	bvec[] __counted_by(nr_bvecs);
+};
+
+struct io_imu_folio_data {
+	/* Head folio can be partially included in the fixed buf */
+	unsigned int	nr_pages_head;
+	/* For non-head/tail folios, has to be fully included */
+	unsigned int	nr_pages_mid;
+	unsigned int	folio_shift;
 };
 
 void io_rsrc_node_ref_zero(struct io_rsrc_node *node);
