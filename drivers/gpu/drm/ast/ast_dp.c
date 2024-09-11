@@ -158,9 +158,8 @@ static bool ast_dp_power_is_on(struct ast_device *ast)
 	return !(vgacre3 & AST_DP_PHY_SLEEP);
 }
 
-static void ast_dp_power_on_off(struct drm_device *dev, bool on)
+static void ast_dp_power_on_off(struct ast_device *ast, bool on)
 {
-	struct ast_device *ast = to_ast_device(dev);
 	// Read and Turn off DP PHY sleep
 	u8 bE3 = ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xE3, AST_DP_VIDEO_ENABLE);
 
@@ -192,9 +191,8 @@ static void ast_dp_link_training(struct ast_device *ast)
 	drm_err(dev, "Link training failed\n");
 }
 
-static void ast_dp_set_on_off(struct drm_device *dev, bool on)
+static void ast_dp_set_on_off(struct ast_device *ast, bool on)
 {
-	struct ast_device *ast = to_ast_device(dev);
 	u8 video_on_off = on;
 	u32 i = 0;
 
@@ -317,26 +315,25 @@ static void ast_astdp_encoder_helper_atomic_mode_set(struct drm_encoder *encoder
 static void ast_astdp_encoder_helper_atomic_enable(struct drm_encoder *encoder,
 						   struct drm_atomic_state *state)
 {
-	struct drm_device *dev = encoder->dev;
-	struct ast_device *ast = to_ast_device(dev);
+	struct ast_device *ast = to_ast_device(encoder->dev);
 	struct ast_connector *ast_connector = &ast->output.astdp.connector;
 
 	if (ast_connector->physical_status == connector_status_connected) {
-		ast_dp_power_on_off(dev, AST_DP_POWER_ON);
+		ast_dp_power_on_off(ast, AST_DP_POWER_ON);
 		ast_dp_link_training(ast);
 
 		ast_wait_for_vretrace(ast);
-		ast_dp_set_on_off(dev, 1);
+		ast_dp_set_on_off(ast, 1);
 	}
 }
 
 static void ast_astdp_encoder_helper_atomic_disable(struct drm_encoder *encoder,
 						    struct drm_atomic_state *state)
 {
-	struct drm_device *dev = encoder->dev;
+	struct ast_device *ast = to_ast_device(encoder->dev);
 
-	ast_dp_set_on_off(dev, 0);
-	ast_dp_power_on_off(dev, AST_DP_POWER_OFF);
+	ast_dp_set_on_off(ast, 0);
+	ast_dp_power_on_off(ast, AST_DP_POWER_OFF);
 }
 
 static const struct drm_encoder_helper_funcs ast_astdp_encoder_helper_funcs = {
@@ -383,7 +380,6 @@ static int ast_astdp_connector_helper_detect_ctx(struct drm_connector *connector
 						 bool force)
 {
 	struct ast_connector *ast_connector = to_ast_connector(connector);
-	struct drm_device *dev = connector->dev;
 	struct ast_device *ast = to_ast_device(connector->dev);
 	enum drm_connector_status status = connector_status_disconnected;
 	bool power_is_on;
@@ -392,13 +388,13 @@ static int ast_astdp_connector_helper_detect_ctx(struct drm_connector *connector
 
 	power_is_on = ast_dp_power_is_on(ast);
 	if (!power_is_on)
-		ast_dp_power_on_off(dev, true);
+		ast_dp_power_on_off(ast, true);
 
 	if (ast_astdp_is_connected(ast))
 		status = connector_status_connected;
 
 	if (!power_is_on && status == connector_status_disconnected)
-		ast_dp_power_on_off(dev, false);
+		ast_dp_power_on_off(ast, false);
 
 	mutex_unlock(&ast->modeset_lock);
 
