@@ -414,6 +414,10 @@ static const struct drm_connector_helper_funcs ast_astdp_connector_helper_funcs 
 	.detect_ctx = ast_astdp_connector_helper_detect_ctx,
 };
 
+/*
+ * Output
+ */
+
 static const struct drm_connector_funcs ast_astdp_connector_funcs = {
 	.reset = drm_atomic_helper_connector_reset,
 	.fill_modes = drm_helper_probe_single_connector_modes,
@@ -422,34 +426,18 @@ static const struct drm_connector_funcs ast_astdp_connector_funcs = {
 	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
 };
 
-static int ast_astdp_connector_init(struct drm_device *dev, struct drm_connector *connector)
-{
-	int ret;
-
-	ret = drm_connector_init(dev, connector, &ast_astdp_connector_funcs,
-				 DRM_MODE_CONNECTOR_DisplayPort);
-	if (ret)
-		return ret;
-
-	drm_connector_helper_add(connector, &ast_astdp_connector_helper_funcs);
-
-	connector->interlace_allowed = 0;
-	connector->doublescan_allowed = 0;
-
-	connector->polled = DRM_CONNECTOR_POLL_CONNECT | DRM_CONNECTOR_POLL_DISCONNECT;
-
-	return 0;
-}
-
 int ast_astdp_output_init(struct ast_device *ast)
 {
 	struct drm_device *dev = &ast->base;
 	struct drm_crtc *crtc = &ast->crtc;
-	struct drm_encoder *encoder = &ast->output.astdp.encoder;
-	struct ast_connector *ast_connector = &ast->output.astdp.connector;
-	struct drm_connector *connector = &ast_connector->base;
+	struct drm_encoder *encoder;
+	struct ast_connector *ast_connector;
+	struct drm_connector *connector;
 	int ret;
 
+	/* encoder */
+
+	encoder = &ast->output.astdp.encoder;
 	ret = drm_encoder_init(dev, encoder, &ast_astdp_encoder_funcs,
 			       DRM_MODE_ENCODER_TMDS, NULL);
 	if (ret)
@@ -458,9 +446,20 @@ int ast_astdp_output_init(struct ast_device *ast)
 
 	encoder->possible_crtcs = drm_crtc_mask(crtc);
 
-	ret = ast_astdp_connector_init(dev, connector);
+	/* connector */
+
+	ast_connector = &ast->output.astdp.connector;
+	connector = &ast_connector->base;
+	ret = drm_connector_init(dev, connector, &ast_astdp_connector_funcs,
+				 DRM_MODE_CONNECTOR_DisplayPort);
 	if (ret)
 		return ret;
+	drm_connector_helper_add(connector, &ast_astdp_connector_helper_funcs);
+
+	connector->interlace_allowed = 0;
+	connector->doublescan_allowed = 0;
+	connector->polled = DRM_CONNECTOR_POLL_CONNECT | DRM_CONNECTOR_POLL_DISCONNECT;
+
 	ast_connector->physical_status = connector->status;
 
 	ret = drm_connector_attach_encoder(connector, encoder);
