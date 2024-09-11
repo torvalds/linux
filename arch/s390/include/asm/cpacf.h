@@ -205,8 +205,10 @@
 #define CPACF_KDSA_ENC_EDDSA_SIGN_ED448 0x34
 
 #define CPACF_FC_QUERY 0x00
+#define CPACF_FC_QUERY_AUTH_INFO 0x7F
 
 typedef struct { unsigned char bytes[16]; } cpacf_mask_t;
+typedef struct { unsigned char bytes[256]; } cpacf_qai_t;
 
 /*
  * Prototype for a not existing function to produce a link
@@ -349,12 +351,39 @@ static inline int cpacf_test_func(cpacf_mask_t *mask, unsigned int func)
 	return (mask->bytes[func >> 3] & (0x80 >> (func & 7))) != 0;
 }
 
-static __always_inline int cpacf_query_func(unsigned int opcode, unsigned int func)
+static __always_inline int cpacf_query_func(unsigned int opcode,
+					    unsigned int func)
 {
 	cpacf_mask_t mask;
 
 	if (cpacf_query(opcode, &mask))
 		return cpacf_test_func(&mask, func);
+	return 0;
+}
+
+static __always_inline void __cpacf_qai(unsigned int opcode, cpacf_qai_t *qai)
+{
+	__cpacf_query_insn(opcode, qai, CPACF_FC_QUERY_AUTH_INFO);
+}
+
+/**
+ * cpacf_qai() - Get the query authentication information for a CPACF opcode
+ * @opcode: the opcode of the crypto instruction
+ * @mask: ptr to struct cpacf_qai_t
+ *
+ * Executes the query authentication information function for the given crypto
+ * instruction @opcode and checks if @func is available
+ *
+ * On success 1 is returned and the mask is filled with the query authentication
+ * information for this CPACF opcode, otherwise 0 is returned.
+ */
+static __always_inline int cpacf_qai(unsigned int opcode, cpacf_qai_t *qai)
+{
+	if (cpacf_query_func(opcode, CPACF_FC_QUERY_AUTH_INFO)) {
+		__cpacf_qai(opcode, qai);
+		return 1;
+	}
+	memset(qai, 0, sizeof(*qai));
 	return 0;
 }
 
