@@ -38,6 +38,7 @@
  * @time_reftime:	Time at last adjustment in seconds
  * @time_adjust:	Adjustment value
  * @ntp_tick_adj:	Constant boot-param configurable NTP tick adjustment (upscaled)
+ * @ntp_next_leap_sec:	Second value of the next pending leapsecond, or TIME64_MAX if no leap
  *
  * Protected by the timekeeping locks.
  */
@@ -55,6 +56,7 @@ struct ntp_data {
 	time64_t		time_reftime;
 	long			time_adjust;
 	s64			ntp_tick_adj;
+	time64_t		ntp_next_leap_sec;
 };
 
 static struct ntp_data tk_ntp_data = {
@@ -64,6 +66,7 @@ static struct ntp_data tk_ntp_data = {
 	.time_constant		= 2,
 	.time_maxerror		= NTP_PHASE_LIMIT,
 	.time_esterror		= NTP_PHASE_LIMIT,
+	.ntp_next_leap_sec	= TIME64_MAX,
 };
 
 #define SECS_PER_DAY		86400
@@ -71,9 +74,6 @@ static struct ntp_data tk_ntp_data = {
 #define MAX_TICKADJ_SCALED \
 	(((MAX_TICKADJ * NSEC_PER_USEC) << NTP_SCALE_SHIFT) / NTP_INTERVAL_FREQ)
 #define MAX_TAI_OFFSET		100000
-
-/* second value of the next pending leapsecond, or TIME64_MAX if no leap */
-static time64_t			ntp_next_leap_sec = TIME64_MAX;
 
 #ifdef CONFIG_NTP_PPS
 
@@ -331,7 +331,7 @@ static void __ntp_clear(struct ntp_data *ntpdata)
 	ntpdata->tick_length	= ntpdata->tick_length_base;
 	ntpdata->time_offset	= 0;
 
-	ntp_next_leap_sec = TIME64_MAX;
+	ntpdata->ntp_next_leap_sec = TIME64_MAX;
 	/* Clear PPS state variables */
 	pps_clear();
 }
@@ -362,7 +362,7 @@ ktime_t ntp_get_next_leap(void)
 	ktime_t ret;
 
 	if ((ntpdata->time_state == TIME_INS) && (ntpdata->time_status & STA_INS))
-		return ktime_set(ntp_next_leap_sec, 0);
+		return ktime_set(ntpdata->ntp_next_leap_sec, 0);
 	ret = KTIME_MAX;
 	return ret;
 }
@@ -394,18 +394,18 @@ int second_overflow(time64_t secs)
 		if (ntpdata->time_status & STA_INS) {
 			ntpdata->time_state = TIME_INS;
 			div_s64_rem(secs, SECS_PER_DAY, &rem);
-			ntp_next_leap_sec = secs + SECS_PER_DAY - rem;
+			ntpdata->ntp_next_leap_sec = secs + SECS_PER_DAY - rem;
 		} else if (ntpdata->time_status & STA_DEL) {
 			ntpdata->time_state = TIME_DEL;
 			div_s64_rem(secs + 1, SECS_PER_DAY, &rem);
-			ntp_next_leap_sec = secs + SECS_PER_DAY - rem;
+			ntpdata->ntp_next_leap_sec = secs + SECS_PER_DAY - rem;
 		}
 		break;
 	case TIME_INS:
 		if (!(ntpdata->time_status & STA_INS)) {
-			ntp_next_leap_sec = TIME64_MAX;
+			ntpdata->ntp_next_leap_sec = TIME64_MAX;
 			ntpdata->time_state = TIME_OK;
-		} else if (secs == ntp_next_leap_sec) {
+		} else if (secs == ntpdata->ntp_next_leap_sec) {
 			leap = -1;
 			ntpdata->time_state = TIME_OOP;
 			pr_notice("Clock: inserting leap second 23:59:60 UTC\n");
@@ -413,17 +413,17 @@ int second_overflow(time64_t secs)
 		break;
 	case TIME_DEL:
 		if (!(ntpdata->time_status & STA_DEL)) {
-			ntp_next_leap_sec = TIME64_MAX;
+			ntpdata->ntp_next_leap_sec = TIME64_MAX;
 			ntpdata->time_state = TIME_OK;
-		} else if (secs == ntp_next_leap_sec) {
+		} else if (secs == ntpdata->ntp_next_leap_sec) {
 			leap = 1;
-			ntp_next_leap_sec = TIME64_MAX;
+			ntpdata->ntp_next_leap_sec = TIME64_MAX;
 			ntpdata->time_state = TIME_WAIT;
 			pr_notice("Clock: deleting leap second 23:59:59 UTC\n");
 		}
 		break;
 	case TIME_OOP:
-		ntp_next_leap_sec = TIME64_MAX;
+		ntpdata->ntp_next_leap_sec = TIME64_MAX;
 		ntpdata->time_state = TIME_WAIT;
 		break;
 	case TIME_WAIT:
@@ -683,7 +683,7 @@ static inline void process_adj_status(struct ntp_data *ntpdata, const struct __k
 	if ((ntpdata->time_status & STA_PLL) && !(txc->status & STA_PLL)) {
 		ntpdata->time_state = TIME_OK;
 		ntpdata->time_status = STA_UNSYNC;
-		ntp_next_leap_sec = TIME64_MAX;
+		ntpdata->ntp_next_leap_sec = TIME64_MAX;
 		/* Restart PPS frequency calibration */
 		pps_reset_freq_interval();
 	}
@@ -815,7 +815,7 @@ int __do_adjtimex(struct __kernel_timex *txc, const struct timespec64 *ts,
 		txc->time.tv_usec = ts->tv_nsec / NSEC_PER_USEC;
 
 	/* Handle leapsec adjustments */
-	if (unlikely(ts->tv_sec >= ntp_next_leap_sec)) {
+	if (unlikely(ts->tv_sec >= ntpdata->ntp_next_leap_sec)) {
 		if ((ntpdata->time_state == TIME_INS) && (ntpdata->time_status & STA_INS)) {
 			result = TIME_OOP;
 			txc->tai++;
@@ -826,7 +826,7 @@ int __do_adjtimex(struct __kernel_timex *txc, const struct timespec64 *ts,
 			txc->tai--;
 			txc->time.tv_sec++;
 		}
-		if ((ntpdata->time_state == TIME_OOP) && (ts->tv_sec == ntp_next_leap_sec))
+		if ((ntpdata->time_state == TIME_OOP) && (ts->tv_sec == ntpdata->ntp_next_leap_sec))
 			result = TIME_WAIT;
 	}
 
