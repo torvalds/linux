@@ -489,5 +489,5 @@ int mlx5hws_table_set_default_miss(struct mlx5hws_table *tbl,
 	return 0;
 out:
 	mutex_unlock(&ctx->ctrl_lock);
-	return -ret;
+	return ret;
 }
