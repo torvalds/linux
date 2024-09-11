@@ -283,9 +283,8 @@ static inline s64 ntp_update_offset_fll(s64 offset64, long secs)
 
 static void ntp_update_offset(long offset)
 {
-	s64 freq_adj;
-	s64 offset64;
-	long secs;
+	s64 freq_adj, offset64;
+	long secs, real_secs;
 
 	if (!(time_status & STA_PLL))
 		return;
@@ -303,11 +302,12 @@ static void ntp_update_offset(long offset)
 	 * Select how the frequency is to be controlled
 	 * and in which mode (PLL or FLL).
 	 */
-	secs = (long)(__ktime_get_real_seconds() - time_reftime);
+	real_secs = __ktime_get_real_seconds();
+	secs = (long)(real_secs - time_reftime);
 	if (unlikely(time_status & STA_FREQHOLD))
 		secs = 0;
 
-	time_reftime = __ktime_get_real_seconds();
+	time_reftime = real_secs;
 
 	offset64    = offset;
 	freq_adj    = ntp_update_offset_fll(offset64, secs);
