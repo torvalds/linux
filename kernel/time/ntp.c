@@ -29,6 +29,8 @@
  * @tick_length_base:	Base value for @tick_length
  * @time_state:		State of the clock synchronization
  * @time_status:	Clock status bits
+ * @time_offset:	Time adjustment in nanoseconds
+ * @time_constant:	PLL time constant
  *
  * Protected by the timekeeping locks.
  */
@@ -38,12 +40,15 @@ struct ntp_data {
 	u64			tick_length_base;
 	int			time_state;
 	int			time_status;
+	s64			time_offset;
+	long			time_constant;
 };
 
 static struct ntp_data tk_ntp_data = {
 	.tick_usec		= USER_TICK_USEC,
 	.time_state		= TIME_OK,
 	.time_status		= STA_UNSYNC,
+	.time_constant		= 2,
 };
 
 #define SECS_PER_DAY		86400
@@ -58,12 +63,6 @@ static struct ntp_data tk_ntp_data = {
  * Note: maximum error = NTP sync distance = dispersion + delay / 2;
  * estimated error = NTP dispersion.
  */
-
-/* time adjustment (nsecs):						*/
-static s64			time_offset;
-
-/* pll time constant:							*/
-static long			time_constant = 2;
 
 /* maximum error (usecs):						*/
 static long			time_maxerror = NTP_PHASE_LIMIT;
@@ -128,7 +127,7 @@ static inline s64 ntp_offset_chunk(struct ntp_data *ntpdata, s64 offset)
 	if (ntpdata->time_status & STA_PPSTIME && ntpdata->time_status & STA_PPSSIGNAL)
 		return offset;
 	else
-		return shift_right(offset, SHIFT_PLL + time_constant);
+		return shift_right(offset, SHIFT_PLL + ntpdata->time_constant);
 }
 
 static inline void pps_reset_freq_interval(void)
@@ -211,9 +210,9 @@ static inline void pps_fill_timex(struct ntp_data *ntpdata, struct __kernel_time
 
 #else /* !CONFIG_NTP_PPS */
 
-static inline s64 ntp_offset_chunk(struct ntp_data *ntp, s64 offset)
+static inline s64 ntp_offset_chunk(struct ntp_data *ntpdata, s64 offset)
 {
-	return shift_right(offset, SHIFT_PLL + time_constant);
+	return shift_right(offset, SHIFT_PLL + ntpdata->time_constant);
 }
 
 static inline void pps_reset_freq_interval(void) {}
@@ -315,17 +314,17 @@ static void ntp_update_offset(struct ntp_data *ntpdata, long offset)
 	 * sampling rate (e.g. intermittent network connection)
 	 * to avoid instability.
 	 */
-	if (unlikely(secs > 1 << (SHIFT_PLL + 1 + time_constant)))
-		secs = 1 << (SHIFT_PLL + 1 + time_constant);
+	if (unlikely(secs > 1 << (SHIFT_PLL + 1 + ntpdata->time_constant)))
+		secs = 1 << (SHIFT_PLL + 1 + ntpdata->time_constant);
 
 	freq_adj    += (offset64 * secs) <<
-			(NTP_SCALE_SHIFT - 2 * (SHIFT_PLL + 2 + time_constant));
+			(NTP_SCALE_SHIFT - 2 * (SHIFT_PLL + 2 + ntpdata->time_constant));
 
 	freq_adj    = min(freq_adj + time_freq, MAXFREQ_SCALED);
 
 	time_freq   = max(freq_adj, -MAXFREQ_SCALED);
 
-	time_offset = div_s64(offset64 << NTP_SCALE_SHIFT, NTP_INTERVAL_FREQ);
+	ntpdata->time_offset = div_s64(offset64 << NTP_SCALE_SHIFT, NTP_INTERVAL_FREQ);
 }
 
 static void __ntp_clear(struct ntp_data *ntpdata)
@@ -339,7 +338,7 @@ static void __ntp_clear(struct ntp_data *ntpdata)
 	ntp_update_frequency(ntpdata);
 
 	ntpdata->tick_length	= ntpdata->tick_length_base;
-	time_offset		= 0;
+	ntpdata->time_offset	= 0;
 
 	ntp_next_leap_sec = TIME64_MAX;
 	/* Clear PPS state variables */
@@ -452,8 +451,8 @@ int second_overflow(time64_t secs)
 	/* Compute the phase adjustment for the next second */
 	ntpdata->tick_length	 = ntpdata->tick_length_base;
 
-	delta			 = ntp_offset_chunk(ntpdata, time_offset);
-	time_offset		-= delta;
+	delta			 = ntp_offset_chunk(ntpdata, ntpdata->time_offset);
+	ntpdata->time_offset	-= delta;
 	ntpdata->tick_length	+= delta;
 
 	/* Check PPS signal */
@@ -737,10 +736,10 @@ static inline void process_adjtimex_modes(struct ntp_data *ntpdata, const struct
 		time_esterror = clamp(txc->esterror, 0, NTP_PHASE_LIMIT);
 
 	if (txc->modes & ADJ_TIMECONST) {
-		time_constant = clamp(txc->constant, 0, MAXTC);
+		ntpdata->time_constant = clamp(txc->constant, 0, MAXTC);
 		if (!(ntpdata->time_status & STA_NANO))
-			time_constant += 4;
-		time_constant = clamp(time_constant, 0, MAXTC);
+			ntpdata->time_constant += 4;
+		ntpdata->time_constant = clamp(ntpdata->time_constant, 0, MAXTC);
 	}
 
 	if (txc->modes & ADJ_TAI && txc->constant >= 0 && txc->constant <= MAX_TAI_OFFSET)
@@ -781,7 +780,7 @@ int __do_adjtimex(struct __kernel_timex *txc, const struct timespec64 *ts,
 	} else {
 		/* If there are input parameters, then process them: */
 		if (txc->modes) {
-			audit_ntp_set_old(ad, AUDIT_NTP_OFFSET,	time_offset);
+			audit_ntp_set_old(ad, AUDIT_NTP_OFFSET,	ntpdata->time_offset);
 			audit_ntp_set_old(ad, AUDIT_NTP_FREQ,	time_freq);
 			audit_ntp_set_old(ad, AUDIT_NTP_STATUS,	ntpdata->time_status);
 			audit_ntp_set_old(ad, AUDIT_NTP_TAI,	*time_tai);
@@ -789,15 +788,14 @@ int __do_adjtimex(struct __kernel_timex *txc, const struct timespec64 *ts,
 
 			process_adjtimex_modes(ntpdata, txc, time_tai);
 
-			audit_ntp_set_new(ad, AUDIT_NTP_OFFSET,	time_offset);
+			audit_ntp_set_new(ad, AUDIT_NTP_OFFSET,	ntpdata->time_offset);
 			audit_ntp_set_new(ad, AUDIT_NTP_FREQ,	time_freq);
 			audit_ntp_set_new(ad, AUDIT_NTP_STATUS,	ntpdata->time_status);
 			audit_ntp_set_new(ad, AUDIT_NTP_TAI,	*time_tai);
 			audit_ntp_set_new(ad, AUDIT_NTP_TICK,	ntpdata->tick_usec);
 		}
 
-		txc->offset = shift_right(time_offset * NTP_INTERVAL_FREQ,
-				  NTP_SCALE_SHIFT);
+		txc->offset = shift_right(ntpdata->time_offset * NTP_INTERVAL_FREQ, NTP_SCALE_SHIFT);
 		if (!(ntpdata->time_status & STA_NANO))
 			txc->offset = (u32)txc->offset / NSEC_PER_USEC;
 	}
@@ -811,7 +809,7 @@ int __do_adjtimex(struct __kernel_timex *txc, const struct timespec64 *ts,
 	txc->maxerror	   = time_maxerror;
 	txc->esterror	   = time_esterror;
 	txc->status	   = ntpdata->time_status;
-	txc->constant	   = time_constant;
+	txc->constant	   = ntpdata->time_constant;
 	txc->precision	   = 1;
 	txc->tolerance	   = MAXFREQ_SCALED / PPM_SCALE;
 	txc->tick	   = ntpdata->tick_usec;
@@ -1010,7 +1008,8 @@ static void hardpps_update_phase(struct ntp_data *ntpdata, long error)
 		pps_jitcnt++;
 	} else if (ntpdata->time_status & STA_PPSTIME) {
 		/* Correct the time using the phase offset */
-		time_offset = div_s64(((s64)correction) << NTP_SCALE_SHIFT, NTP_INTERVAL_FREQ);
+		ntpdata->time_offset = div_s64(((s64)correction) << NTP_SCALE_SHIFT,
+					       NTP_INTERVAL_FREQ);
 		/* Cancel running adjtime() */
 		time_adjust = 0;
 	}
