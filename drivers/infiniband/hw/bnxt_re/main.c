@@ -292,10 +292,13 @@ static void bnxt_re_vf_res_config(struct bnxt_re_dev *rdev)
 
 static void bnxt_re_shutdown(struct auxiliary_device *adev)
 {
-	struct bnxt_re_dev *rdev = auxiliary_get_drvdata(adev);
+	struct bnxt_re_en_dev_info *en_info = auxiliary_get_drvdata(adev);
+	struct bnxt_re_dev *rdev;
 
-	if (!rdev)
+	if (!en_info)
 		return;
+
+	rdev = en_info->rdev;
 	ib_unregister_device(&rdev->ibdev);
 	bnxt_re_dev_uninit(rdev);
 }
@@ -1794,13 +1797,32 @@ fail:
 	return rc;
 }
 
+static void bnxt_re_update_en_info_rdev(struct bnxt_re_dev *rdev,
+					struct bnxt_re_en_dev_info *en_info,
+					struct auxiliary_device *adev)
+{
+	/* Before updating the rdev pointer in bnxt_re_en_dev_info structure,
+	 * take the rtnl lock to avoid accessing invalid rdev pointer from
+	 * L2 ULP callbacks. This is applicable in all the places where rdev
+	 * pointer is updated in bnxt_re_en_dev_info.
+	 */
+	rtnl_lock();
+	en_info->rdev = rdev;
+	rdev->adev = adev;
+	rtnl_unlock();
+}
+
 static int bnxt_re_add_device(struct auxiliary_device *adev)
 {
 	struct bnxt_aux_priv *aux_priv =
 		container_of(adev, struct bnxt_aux_priv, aux_dev);
+	struct bnxt_re_en_dev_info *en_info;
 	struct bnxt_en_dev *en_dev;
 	struct bnxt_re_dev *rdev;
 	int rc;
+
+	en_info = auxiliary_get_drvdata(adev);
+	en_dev = en_info->en_dev;
 
 	/* en_dev should never be NULL as long as adev and aux_dev are valid. */
 	en_dev = aux_priv->edev;
@@ -1810,6 +1832,8 @@ static int bnxt_re_add_device(struct auxiliary_device *adev)
 		rc = -ENOMEM;
 		goto exit;
 	}
+
+	bnxt_re_update_en_info_rdev(rdev, en_info, adev);
 
 	rc = bnxt_re_dev_init(rdev);
 	if (rc)
@@ -1821,11 +1845,11 @@ static int bnxt_re_add_device(struct auxiliary_device *adev)
 			aux_priv->aux_dev.name);
 		goto re_dev_uninit;
 	}
-	auxiliary_set_drvdata(adev, rdev);
 
 	return 0;
 
 re_dev_uninit:
+	bnxt_re_update_en_info_rdev(NULL, en_info, adev);
 	bnxt_re_dev_uninit(rdev);
 re_dev_dealloc:
 	ib_dealloc_device(&rdev->ibdev);
@@ -1911,12 +1935,18 @@ exit:
 
 static void bnxt_re_remove(struct auxiliary_device *adev)
 {
-	struct bnxt_re_dev *rdev = auxiliary_get_drvdata(adev);
-
-	if (!rdev)
-		return;
+	struct bnxt_re_en_dev_info *en_info = auxiliary_get_drvdata(adev);
+	struct bnxt_re_dev *rdev;
 
 	mutex_lock(&bnxt_re_mutex);
+	if (!en_info) {
+		mutex_unlock(&bnxt_re_mutex);
+		return;
+	}
+	rdev = en_info->rdev;
+	if (!rdev)
+		goto skip_remove;
+
 	if (rdev->nb.notifier_call) {
 		unregister_netdevice_notifier(&rdev->nb);
 		rdev->nb.notifier_call = NULL;
@@ -1931,16 +1961,31 @@ static void bnxt_re_remove(struct auxiliary_device *adev)
 	bnxt_re_dev_uninit(rdev);
 	ib_dealloc_device(&rdev->ibdev);
 skip_remove:
+	kfree(en_info);
 	mutex_unlock(&bnxt_re_mutex);
 }
 
 static int bnxt_re_probe(struct auxiliary_device *adev,
 			 const struct auxiliary_device_id *id)
 {
+	struct bnxt_aux_priv *aux_priv =
+		container_of(adev, struct bnxt_aux_priv, aux_dev);
+	struct bnxt_re_en_dev_info *en_info;
+	struct bnxt_en_dev *en_dev;
 	struct bnxt_re_dev *rdev;
 	int rc;
 
+	en_dev = aux_priv->edev;
+
 	mutex_lock(&bnxt_re_mutex);
+	en_info = kzalloc(sizeof(*en_info), GFP_KERNEL);
+	if (!en_info) {
+		mutex_unlock(&bnxt_re_mutex);
+		return -ENOMEM;
+	}
+	en_info->en_dev = en_dev;
+
+	auxiliary_set_drvdata(adev, en_info);
 
 	rc = bnxt_re_add_device(adev);
 	if (rc) {
@@ -1948,7 +1993,7 @@ static int bnxt_re_probe(struct auxiliary_device *adev,
 		return rc;
 	}
 
-	rdev = auxiliary_get_drvdata(adev);
+	rdev = en_info->rdev;
 
 	rdev->nb.notifier_call = bnxt_re_netdev_event;
 	rc = register_netdevice_notifier(&rdev->nb);
@@ -1972,11 +2017,13 @@ err:
 
 static int bnxt_re_suspend(struct auxiliary_device *adev, pm_message_t state)
 {
-	struct bnxt_re_dev *rdev = auxiliary_get_drvdata(adev);
+	struct bnxt_re_en_dev_info *en_info = auxiliary_get_drvdata(adev);
+	struct bnxt_re_dev *rdev;
 
-	if (!rdev)
+	if (!en_info)
 		return 0;
 
+	rdev = en_info->rdev;
 	mutex_lock(&bnxt_re_mutex);
 	/* L2 driver may invoke this callback during device error/crash or device
 	 * reset. Current RoCE driver doesn't recover the device in case of
@@ -2009,11 +2056,13 @@ static int bnxt_re_suspend(struct auxiliary_device *adev, pm_message_t state)
 
 static int bnxt_re_resume(struct auxiliary_device *adev)
 {
-	struct bnxt_re_dev *rdev = auxiliary_get_drvdata(adev);
+	struct bnxt_re_en_dev_info *en_info = auxiliary_get_drvdata(adev);
+	struct bnxt_re_dev *rdev;
 
-	if (!rdev)
+	if (!en_info)
 		return 0;
 
+	rdev = en_info->rdev;
 	mutex_lock(&bnxt_re_mutex);
 	/* L2 driver may invoke this callback during device recovery, resume.
 	 * reset. Current RoCE driver doesn't recover the device in case of
