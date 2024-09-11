@@ -44,6 +44,8 @@ def define_neo_la():
         "drivers/irqchip/msm_show_resume_irq.ko",
         "drivers/irqchip/qcom-pdc.ko",
         "drivers/mfd/qcom-i2c-pmic.ko",
+        "drivers/mmc/host/cqhci.ko",
+        "drivers/mmc/host/sdhci-msm.ko",
         "drivers/pci/controller/pci-msm-drv.ko",
         "drivers/perf/qcom_llcc_pmu.ko",
         "drivers/pinctrl/qcom/pinctrl-msm.ko",

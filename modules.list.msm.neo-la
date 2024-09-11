@@ -53,7 +53,6 @@ pinctrl-neo.ko
 phy-generic.ko
 phy-qcom-emu.ko
 qcom_dma_heaps.ko
-sdhci-msm-scaling.ko
 cqhci.ko
 qcom-vadc-common.ko
 qcom-spmi-adc5.ko
