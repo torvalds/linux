@@ -171,7 +171,7 @@ static inline void pps_set_freq(s64 freq)
 	pps_freq = freq;
 }
 
-static inline int is_error_status(int status)
+static inline bool is_error_status(int status)
 {
 	return (status & (STA_UNSYNC|STA_CLOCKERR))
 		/*
@@ -221,7 +221,7 @@ static inline void pps_clear(void) {}
 static inline void pps_dec_valid(void) {}
 static inline void pps_set_freq(s64 freq) {}
 
-static inline int is_error_status(int status)
+static inline bool is_error_status(int status)
 {
 	return status & (STA_UNSYNC|STA_CLOCKERR);
 }
@@ -240,21 +240,6 @@ static inline void pps_fill_timex(struct __kernel_timex *txc)
 }
 
 #endif /* CONFIG_NTP_PPS */
-
-
-/**
- * ntp_synced - Returns 1 if the NTP status is not UNSYNC
- *
- */
-static inline int ntp_synced(void)
-{
-	return !(time_status & STA_UNSYNC);
-}
-
-
-/*
- * NTP methods:
- */
 
 /*
  * Update tick_length and tick_length_base, based on tick_usec, ntp_tick_adj and
@@ -608,6 +593,15 @@ static inline int update_rtc(struct timespec64 *to_set, unsigned long *offset_ns
 	return -ENODEV;
 }
 #endif
+
+/**
+ * ntp_synced - Tells whether the NTP status is not UNSYNC
+ * Returns:	true if not UNSYNC, false otherwise
+ */
+static inline bool ntp_synced(void)
+{
+	return !(time_status & STA_UNSYNC);
+}
 
 /*
  * If we have an externally synchronized Linux clock, then update RTC clock
