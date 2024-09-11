@@ -1965,6 +1965,9 @@ static struct regulator_dev *regulator_dev_lookup(struct device *dev,
 			return r;
 		if (PTR_ERR(r) == -EPROBE_DEFER)
 			return r;
+
+		if (PTR_ERR(r) == -ENODEV)
+			r = NULL;
 	}
 
 	/* if not found, try doing it non-dt way */
