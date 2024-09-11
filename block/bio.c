@@ -1017,6 +1017,29 @@ int bio_add_hw_page(struct request_queue *q, struct bio *bio,
 }
 
 /**
+ * bio_add_hw_folio - attempt to add a folio to a bio with hw constraints
+ * @q: the target queue
+ * @bio: destination bio
+ * @folio: folio to add
+ * @len: vec entry length
+ * @offset: vec entry offset in the folio
+ * @max_sectors: maximum number of sectors that can be added
+ * @same_page: return if the segment has been merged inside the same folio
+ *
+ * Add a folio to a bio while respecting the hardware max_sectors, max_segment
+ * and gap limitations.
+ */
+int bio_add_hw_folio(struct request_queue *q, struct bio *bio,
+		struct folio *folio, size_t len, size_t offset,
+		unsigned int max_sectors, bool *same_page)
+{
+	if (len > UINT_MAX || offset > UINT_MAX)
+		return 0;
+	return bio_add_hw_page(q, bio, folio_page(folio, 0), len, offset,
+			       max_sectors, same_page);
+}
+
+/**
  * bio_add_pc_page	- attempt to add page to passthrough bio
  * @q: the target queue
  * @bio: destination bio
