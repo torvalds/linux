@@ -1287,9 +1287,9 @@ static const struct drm_crtc_funcs ast_crtc_funcs = {
 	.atomic_destroy_state = ast_crtc_atomic_destroy_state,
 };
 
-static int ast_crtc_init(struct drm_device *dev)
+static int ast_crtc_init(struct ast_device *ast)
 {
-	struct ast_device *ast = to_ast_device(dev);
+	struct drm_device *dev = &ast->base;
 	struct drm_crtc *crtc = &ast->crtc;
 	int ret;
 
@@ -1396,7 +1396,7 @@ int ast_mode_config_init(struct ast_device *ast)
 	if (ret)
 		return ret;
 
-	ret = ast_crtc_init(dev);
+	ret = ast_crtc_init(ast);
 	if (ret)
 		return ret;
 

@@ -132,10 +132,10 @@ static void ast_detect_tx_chip(struct ast_device *ast, bool need_post)
 	drm_info(dev, "Using %s\n", info_str[ast->tx_chip]);
 }
 
-static int ast_get_dram_info(struct drm_device *dev)
+static int ast_get_dram_info(struct ast_device *ast)
 {
+	struct drm_device *dev = &ast->base;
 	struct device_node *np = dev->dev->of_node;
-	struct ast_device *ast = to_ast_device(dev);
 	uint32_t mcr_cfg, mcr_scu_mpll, mcr_scu_strap;
 	uint32_t denum, num, div, ref_pll, dsel;
 
@@ -277,7 +277,7 @@ struct drm_device *ast_device_create(struct pci_dev *pdev,
 	ast_detect_widescreen(ast);
 	ast_detect_tx_chip(ast, need_post);
 
-	ret = ast_get_dram_info(dev);
+	ret = ast_get_dram_info(ast);
 	if (ret)
 		return ERR_PTR(ret);
 
@@ -285,7 +285,7 @@ struct drm_device *ast_device_create(struct pci_dev *pdev,
 		 ast->mclk, ast->dram_type, ast->dram_bus_width);
 
 	if (need_post)
-		ast_post_gpu(dev);
+		ast_post_gpu(ast);
 
 	ret = ast_mm_init(ast);
 	if (ret)
