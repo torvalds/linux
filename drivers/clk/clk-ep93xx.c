@@ -383,7 +383,7 @@ static unsigned long ep93xx_div_recalc_rate(struct clk_hw *hw,
 
 	regmap_read(priv->map, clk->reg, &val);
 	index = (val & clk->mask) >> clk->shift;
-	if (index > clk->num_div)
+	if (index >= clk->num_div)
 		return 0;
 
 	return DIV_ROUND_CLOSEST(parent_rate, clk->div[index]);
