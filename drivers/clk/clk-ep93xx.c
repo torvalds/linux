@@ -844,3 +844,7 @@ static struct auxiliary_driver ep93xx_clk_driver = {
 	.id_table	= ep93xx_clk_ids,
 };
 module_auxiliary_driver(ep93xx_clk_driver);
+
+MODULE_LICENSE("GPL");
+MODULE_AUTHOR("Nikita Shubin <nikita.shubin@maquefel.me>");
+MODULE_DESCRIPTION("Clock control for Cirrus EP93xx chips");
