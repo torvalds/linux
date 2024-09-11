@@ -145,7 +145,6 @@ unsigned long random_get_entropy_fallback(void);
  * estimated error = NTP dispersion.
  */
 extern unsigned long tick_usec;		/* USER_HZ period (usec) */
-extern unsigned long tick_nsec;		/* SHIFTED_HZ period (nsec) */
 
 /* Required to safely shift negative values */
 #define shift_right(x, s) ({	\

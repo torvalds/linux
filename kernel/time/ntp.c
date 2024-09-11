@@ -33,9 +33,6 @@
 /* USER_HZ period (usecs): */
 unsigned long			tick_usec = USER_TICK_USEC;
 
-/* SHIFTED_HZ period (nsecs): */
-unsigned long			tick_nsec;
-
 static u64			tick_length;
 static u64			tick_length_base;
 
@@ -253,8 +250,8 @@ static inline int ntp_synced(void)
  */
 
 /*
- * Update (tick_length, tick_length_base, tick_nsec), based
- * on (tick_usec, ntp_tick_adj, time_freq):
+ * Update tick_length and tick_length_base, based on tick_usec, ntp_tick_adj and
+ * time_freq:
  */
 static void ntp_update_frequency(void)
 {
@@ -267,7 +264,6 @@ static void ntp_update_frequency(void)
 	second_length		+= ntp_tick_adj;
 	second_length		+= time_freq;
 
-	tick_nsec		 = div_u64(second_length, HZ) >> NTP_SCALE_SHIFT;
 	new_base		 = div_u64(second_length, NTP_INTERVAL_FREQ);
 
 	/*
