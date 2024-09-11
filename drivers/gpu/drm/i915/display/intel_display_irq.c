@@ -576,6 +576,7 @@ void valleyview_pipestat_irq_handler(struct drm_i915_private *dev_priv,
 
 static void ibx_irq_handler(struct drm_i915_private *dev_priv, u32 pch_iir)
 {
+	struct intel_display *display = &dev_priv->display;
 	enum pipe pipe;
 	u32 hotplug_trigger = pch_iir & SDE_HOTPLUG_MASK;
 
@@ -589,7 +590,7 @@ static void ibx_irq_handler(struct drm_i915_private *dev_priv, u32 pch_iir)
 	}
 
 	if (pch_iir & SDE_AUX_MASK)
-		intel_dp_aux_irq_handler(dev_priv);
+		intel_dp_aux_irq_handler(display);
 
 	if (pch_iir & SDE_GMBUS)
 		intel_gmbus_irq_handler(dev_priv);
@@ -664,6 +665,7 @@ static void cpt_serr_int_handler(struct drm_i915_private *dev_priv)
 
 static void cpt_irq_handler(struct drm_i915_private *dev_priv, u32 pch_iir)
 {
+	struct intel_display *display = &dev_priv->display;
 	enum pipe pipe;
 	u32 hotplug_trigger = pch_iir & SDE_HOTPLUG_MASK_CPT;
 
@@ -677,7 +679,7 @@ static void cpt_irq_handler(struct drm_i915_private *dev_priv, u32 pch_iir)
 	}
 
 	if (pch_iir & SDE_AUX_MASK_CPT)
-		intel_dp_aux_irq_handler(dev_priv);
+		intel_dp_aux_irq_handler(display);
 
 	if (pch_iir & SDE_GMBUS_CPT)
 		intel_gmbus_irq_handler(dev_priv);
@@ -709,7 +711,7 @@ void ilk_display_irq_handler(struct drm_i915_private *dev_priv, u32 de_iir)
 		ilk_hpd_irq_handler(dev_priv, hotplug_trigger);
 
 	if (de_iir & DE_AUX_CHANNEL_A)
-		intel_dp_aux_irq_handler(dev_priv);
+		intel_dp_aux_irq_handler(display);
 
 	if (de_iir & DE_GSE)
 		intel_opregion_asle_intr(display);
@@ -775,7 +777,7 @@ void ivb_display_irq_handler(struct drm_i915_private *dev_priv, u32 de_iir)
 	}
 
 	if (de_iir & DE_AUX_CHANNEL_A_IVB)
-		intel_dp_aux_irq_handler(dev_priv);
+		intel_dp_aux_irq_handler(display);
 
 	if (de_iir & DE_GSE_IVB)
 		intel_opregion_asle_intr(display);
@@ -1065,6 +1067,7 @@ static void gen8_read_and_ack_pch_irqs(struct drm_i915_private *i915, u32 *pch_i
 
 void gen8_de_irq_handler(struct drm_i915_private *dev_priv, u32 master_ctl)
 {
+	struct intel_display *display = &dev_priv->display;
 	u32 iir;
 	enum pipe pipe;
 
@@ -1100,7 +1103,7 @@ void gen8_de_irq_handler(struct drm_i915_private *dev_priv, u32 master_ctl)
 			intel_uncore_write(&dev_priv->uncore, GEN8_DE_PORT_IIR, iir);
 
 			if (iir & gen8_de_port_aux_mask(dev_priv)) {
-				intel_dp_aux_irq_handler(dev_priv);
+				intel_dp_aux_irq_handler(display);
 				found = true;
 			}
 

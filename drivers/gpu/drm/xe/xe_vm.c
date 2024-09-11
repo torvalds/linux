@@ -12,7 +12,7 @@
 #include <drm/drm_print.h>
 #include <drm/ttm/ttm_execbuf_util.h>
 #include <drm/ttm/ttm_tt.h>
-#include <drm/xe_drm.h>
+#include <uapi/drm/xe_drm.h>
 #include <linux/ascii85.h>
 #include <linux/delay.h>
 #include <linux/kthread.h>

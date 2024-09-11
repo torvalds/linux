@@ -4531,6 +4531,9 @@ void amdgpu_device_fini_hw(struct amdgpu_device *adev)
 {
 	dev_info(adev->dev, "amdgpu: finishing device.\n");
 	flush_delayed_work(&adev->delayed_init_work);
+
+	if (adev->mman.initialized)
+		drain_workqueue(adev->mman.bdev.wq);
 	adev->shutdown = true;
 
 	/* make sure IB test finished before entering exclusive mode
@@ -4550,9 +4553,6 @@ void amdgpu_device_fini_hw(struct amdgpu_device *adev)
 			drm_atomic_helper_shutdown(adev_to_drm(adev));
 	}
 	amdgpu_fence_driver_hw_fini(adev);
-
-	if (adev->mman.initialized)
-		drain_workqueue(adev->mman.bdev.wq);
 
 	if (adev->pm.sysfs_initialized)
 		amdgpu_pm_sysfs_fini(adev);
@@ -5489,7 +5489,7 @@ int amdgpu_do_asic_reset(struct list_head *device_list_handle,
 				vram_lost = amdgpu_device_check_vram_lost(tmp_adev);
 
 				if (!test_bit(AMDGPU_SKIP_COREDUMP, &reset_context->flags))
-					amdgpu_coredump(tmp_adev, vram_lost, reset_context);
+					amdgpu_coredump(tmp_adev, false, vram_lost, reset_context->job);
 
 				if (vram_lost) {
 					DRM_INFO("VRAM is lost due to GPU reset!\n");

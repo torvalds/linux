@@ -1366,9 +1366,6 @@ static void dcn401_update_clocks(struct clk_mgr *clk_mgr_base,
 
 	unsigned int num_steps = 0;
 
-	if (dc->work_arounds.skip_clock_update)
-		return;
-
 	if (dc->debug.enable_legacy_clock_update) {
 		dcn401_update_clocks_legacy(clk_mgr_base, context, safe_to_lower);
 		return;

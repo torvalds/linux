@@ -10,7 +10,7 @@
 
 #include <drm/drm_drv.h>
 #include <drm/drm_managed.h>
-#include <drm/xe_drm.h>
+#include <uapi/drm/xe_drm.h>
 
 #include "abi/guc_actions_slpc_abi.h"
 #include "instructions/xe_mi_commands.h"

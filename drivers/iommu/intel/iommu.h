@@ -1154,7 +1154,7 @@ void cache_tag_flush_range_np(struct dmar_domain *domain, unsigned long start,
 
 void intel_context_flush_present(struct device_domain_info *info,
 				 struct context_entry *context,
-				 bool affect_domains);
+				 u16 did, bool affect_domains);
 
 #ifdef CONFIG_INTEL_IOMMU_SVM
 void intel_svm_check(struct intel_iommu *iommu);

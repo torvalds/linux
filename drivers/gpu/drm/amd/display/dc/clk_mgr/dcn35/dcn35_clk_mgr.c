@@ -305,9 +305,6 @@ void dcn35_update_clocks(struct clk_mgr *clk_mgr_base,
 	if (new_clocks->dtbclk_en && !new_clocks->ref_dtbclk_khz)
 		new_clocks->ref_dtbclk_khz = 600000;
 
-	if (dc->debug.min_disp_clk_khz > 0 && new_clocks->dispclk_khz < dc->debug.min_disp_clk_khz)
-		new_clocks->dispclk_khz = dc->debug.min_disp_clk_khz;
-
 	/*
 	 * if it is safe to lower, but we are already in the lower state, we don't have to do anything
 	 * also if safe to lower is false, we just go in the higher state
@@ -384,6 +381,9 @@ void dcn35_update_clocks(struct clk_mgr *clk_mgr_base,
 
 	if (should_set_clock(safe_to_lower, new_clocks->dispclk_khz, clk_mgr_base->clks.dispclk_khz)) {
 		dcn35_disable_otg_wa(clk_mgr_base, context, safe_to_lower, true);
+
+		if (dc->debug.min_disp_clk_khz > 0 && new_clocks->dispclk_khz < dc->debug.min_disp_clk_khz)
+			new_clocks->dispclk_khz = dc->debug.min_disp_clk_khz;
 
 		clk_mgr_base->clks.dispclk_khz = new_clocks->dispclk_khz;
 		dcn35_smu_set_dispclk(clk_mgr, clk_mgr_base->clks.dispclk_khz);
@@ -1100,7 +1100,7 @@ void dcn35_clk_mgr_construct(
 
 	clk_mgr->smu_wm_set.wm_set = (struct dcn35_watermarks *)dm_helpers_allocate_gpu_mem(
 				clk_mgr->base.base.ctx,
-				DC_MEM_ALLOC_TYPE_FRAME_BUFFER,
+				DC_MEM_ALLOC_TYPE_GART,
 				sizeof(struct dcn35_watermarks),
 				&clk_mgr->smu_wm_set.mc_address.quad_part);
 
@@ -1112,7 +1112,7 @@ void dcn35_clk_mgr_construct(
 
 	smu_dpm_clks.dpm_clks = (DpmClocks_t_dcn35 *)dm_helpers_allocate_gpu_mem(
 				clk_mgr->base.base.ctx,
-				DC_MEM_ALLOC_TYPE_FRAME_BUFFER,
+				DC_MEM_ALLOC_TYPE_GART,
 				sizeof(DpmClocks_t_dcn35),
 				&smu_dpm_clks.mc_address.quad_part);
 
@@ -1209,7 +1209,7 @@ void dcn35_clk_mgr_construct(
 	}
 
 	if (smu_dpm_clks.dpm_clks && smu_dpm_clks.mc_address.quad_part != 0)
-		dm_helpers_free_gpu_mem(clk_mgr->base.base.ctx, DC_MEM_ALLOC_TYPE_FRAME_BUFFER,
+		dm_helpers_free_gpu_mem(clk_mgr->base.base.ctx, DC_MEM_ALLOC_TYPE_GART,
 				smu_dpm_clks.dpm_clks);
 
 	if (ctx->dc->config.disable_ips != DMUB_IPS_DISABLE_ALL) {

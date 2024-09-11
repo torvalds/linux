@@ -942,7 +942,7 @@ static __init int test_graph_storage_multi(void)
 {
 	struct fgraph_fixture *fixture;
 	bool printed = false;
-	int i, ret;
+	int i, j, ret;
 
 	pr_cont("PASSED\n");
 	pr_info("Testing multiple fgraph storage on a function: ");
@@ -953,22 +953,35 @@ static __init int test_graph_storage_multi(void)
 		if (ret && ret != -ENODEV) {
 			pr_cont("*Could not set filter* ");
 			printed = true;
-			goto out;
+			goto out2;
 		}
+	}
 
+	for (j = 0; j < ARRAY_SIZE(store_bytes); j++) {
+		fixture = &store_bytes[j];
 		ret = register_ftrace_graph(&fixture->gops);
 		if (ret) {
 			pr_warn("Failed to init store_bytes fgraph tracing\n");
 			printed = true;
-			goto out;
+			goto out1;
 		}
 	}
 
 	DYN_FTRACE_TEST_NAME();
-out:
+out1:
+	while (--j >= 0) {
+		fixture = &store_bytes[j];
+		unregister_ftrace_graph(&fixture->gops);
+
+		if (fixture->error_str && !printed) {
+			pr_cont("*** %s ***", fixture->error_str);
+			printed = true;
+		}
+	}
+out2:
 	while (--i >= 0) {
 		fixture = &store_bytes[i];
-		unregister_ftrace_graph(&fixture->gops);
+		ftrace_free_filter(&fixture->gops.ops);
 
 		if (fixture->error_str && !printed) {
 			pr_cont("*** %s ***", fixture->error_str);

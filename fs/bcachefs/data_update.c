@@ -337,6 +337,7 @@ restart_drop_extra_replicas:
 			printbuf_exit(&buf);
 
 			bch2_fatal_error(c);
+			ret = -EIO;
 			goto out;
 		}
 

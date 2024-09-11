@@ -2464,11 +2464,14 @@ svm_range_unmap_from_cpu(struct mm_struct *mm, struct svm_range *prange,
 		adev = pdd->dev->adev;
 
 		/* Check and drain ih1 ring if cam not available */
-		ih = &adev->irq.ih1;
-		checkpoint_wptr = amdgpu_ih_get_wptr(adev, ih);
-		if (ih->rptr != checkpoint_wptr) {
-			svms->checkpoint_ts[i] = amdgpu_ih_decode_iv_ts(adev, ih, checkpoint_wptr, -1);
-			continue;
+		if (adev->irq.ih1.ring_size) {
+			ih = &adev->irq.ih1;
+			checkpoint_wptr = amdgpu_ih_get_wptr(adev, ih);
+			if (ih->rptr != checkpoint_wptr) {
+				svms->checkpoint_ts[i] =
+					amdgpu_ih_decode_iv_ts(adev, ih, checkpoint_wptr, -1);
+				continue;
+			}
 		}
 
 		/* check if dev->irq.ih_soft is not empty */

@@ -11,7 +11,7 @@
 #include <linux/mutex.h>
 #include <linux/types.h>
 
-#include <drm/xe_drm.h>
+#include <uapi/drm/xe_drm.h>
 #include "regs/xe_reg_defs.h"
 #include "xe_hw_engine_types.h"
 

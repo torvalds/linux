@@ -145,32 +145,32 @@ This is how a well-documented Rust function may look like:
 This example showcases a few ``rustdoc`` features and some conventions followed
 in the kernel:
 
-  - The first paragraph must be a single sentence briefly describing what
-    the documented item does. Further explanations must go in extra paragraphs.
+- The first paragraph must be a single sentence briefly describing what
+  the documented item does. Further explanations must go in extra paragraphs.
 
-  - Unsafe functions must document their safety preconditions under
-    a ``# Safety`` section.
+- Unsafe functions must document their safety preconditions under
+  a ``# Safety`` section.
 
-  - While not shown here, if a function may panic, the conditions under which
-    that happens must be described under a ``# Panics`` section.
+- While not shown here, if a function may panic, the conditions under which
+  that happens must be described under a ``# Panics`` section.
 
-    Please note that panicking should be very rare and used only with a good
-    reason. In almost all cases, a fallible approach should be used, typically
-    returning a ``Result``.
+  Please note that panicking should be very rare and used only with a good
+  reason. In almost all cases, a fallible approach should be used, typically
+  returning a ``Result``.
 
-  - If providing examples of usage would help readers, they must be written in
-    a section called ``# Examples``.
+- If providing examples of usage would help readers, they must be written in
+  a section called ``# Examples``.
 
-  - Rust items (functions, types, constants...) must be linked appropriately
-    (``rustdoc`` will create a link automatically).
+- Rust items (functions, types, constants...) must be linked appropriately
+  (``rustdoc`` will create a link automatically).
 
-  - Any ``unsafe`` block must be preceded by a ``// SAFETY:`` comment
-    describing why the code inside is sound.
+- Any ``unsafe`` block must be preceded by a ``// SAFETY:`` comment
+  describing why the code inside is sound.
 
-    While sometimes the reason might look trivial and therefore unneeded,
-    writing these comments is not just a good way of documenting what has been
-    taken into account, but most importantly, it provides a way to know that
-    there are no *extra* implicit constraints.
+  While sometimes the reason might look trivial and therefore unneeded,
+  writing these comments is not just a good way of documenting what has been
+  taken into account, but most importantly, it provides a way to know that
+  there are no *extra* implicit constraints.
 
 To learn more about how to write documentation for Rust and extra features,
 please take a look at the ``rustdoc`` book at:
