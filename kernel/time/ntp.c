@@ -36,6 +36,8 @@
  * @time_esterror:	Estimated error in microseconds holding NTP dispersion
  * @time_freq:		Frequency offset scaled nsecs/secs
  * @time_reftime:	Time at last adjustment in seconds
+ * @time_adjust:	Adjustment value
+ * @ntp_tick_adj:	Constant boot-param configurable NTP tick adjustment (upscaled)
  *
  * Protected by the timekeeping locks.
  */
@@ -51,6 +53,8 @@ struct ntp_data {
 	long			time_esterror;
 	s64			time_freq;
 	time64_t		time_reftime;
+	long			time_adjust;
+	s64			ntp_tick_adj;
 };
 
 static struct ntp_data tk_ntp_data = {
@@ -67,11 +71,6 @@ static struct ntp_data tk_ntp_data = {
 #define MAX_TICKADJ_SCALED \
 	(((MAX_TICKADJ * NSEC_PER_USEC) << NTP_SCALE_SHIFT) / NTP_INTERVAL_FREQ)
 #define MAX_TAI_OFFSET		100000
-
-static long			time_adjust;
-
-/* constant (boot-param configurable) NTP tick adjustment (upscaled)	*/
-static s64			ntp_tick_adj;
 
 /* second value of the next pending leapsecond, or TIME64_MAX if no leap */
 static time64_t			ntp_next_leap_sec = TIME64_MAX;
@@ -242,7 +241,7 @@ static void ntp_update_frequency(struct ntp_data *ntpdata)
 
 	second_length		 = (u64)(tick_usec * NSEC_PER_USEC * USER_HZ) << NTP_SCALE_SHIFT;
 
-	second_length		+= ntp_tick_adj;
+	second_length		+= ntpdata->ntp_tick_adj;
 	second_length		+= ntpdata->time_freq;
 
 	new_base		 = div_u64(second_length, NTP_INTERVAL_FREQ);
@@ -322,7 +321,7 @@ static void ntp_update_offset(struct ntp_data *ntpdata, long offset)
 static void __ntp_clear(struct ntp_data *ntpdata)
 {
 	/* Stop active adjtime() */
-	time_adjust		= 0;
+	ntpdata->time_adjust	= 0;
 	ntpdata->time_status	|= STA_UNSYNC;
 	ntpdata->time_maxerror	= NTP_PHASE_LIMIT;
 	ntpdata->time_esterror	= NTP_PHASE_LIMIT;
@@ -450,24 +449,24 @@ int second_overflow(time64_t secs)
 	/* Check PPS signal */
 	pps_dec_valid(ntpdata);
 
-	if (!time_adjust)
+	if (!ntpdata->time_adjust)
 		goto out;
 
-	if (time_adjust > MAX_TICKADJ) {
-		time_adjust -= MAX_TICKADJ;
+	if (ntpdata->time_adjust > MAX_TICKADJ) {
+		ntpdata->time_adjust -= MAX_TICKADJ;
 		ntpdata->tick_length += MAX_TICKADJ_SCALED;
 		goto out;
 	}
 
-	if (time_adjust < -MAX_TICKADJ) {
-		time_adjust += MAX_TICKADJ;
+	if (ntpdata->time_adjust < -MAX_TICKADJ) {
+		ntpdata->time_adjust += MAX_TICKADJ;
 		ntpdata->tick_length -= MAX_TICKADJ_SCALED;
 		goto out;
 	}
 
-	ntpdata->tick_length += (s64)(time_adjust * NSEC_PER_USEC / NTP_INTERVAL_FREQ)
+	ntpdata->tick_length += (s64)(ntpdata->time_adjust * NSEC_PER_USEC / NTP_INTERVAL_FREQ)
 				<< NTP_SCALE_SHIFT;
-	time_adjust = 0;
+	ntpdata->time_adjust = 0;
 
 out:
 	return leap;
@@ -758,15 +757,15 @@ int __do_adjtimex(struct __kernel_timex *txc, const struct timespec64 *ts,
 	int result;
 
 	if (txc->modes & ADJ_ADJTIME) {
-		long save_adjust = time_adjust;
+		long save_adjust = ntpdata->time_adjust;
 
 		if (!(txc->modes & ADJ_OFFSET_READONLY)) {
 			/* adjtime() is independent from ntp_adjtime() */
-			time_adjust = txc->offset;
+			ntpdata->time_adjust = txc->offset;
 			ntp_update_frequency(ntpdata);
 
 			audit_ntp_set_old(ad, AUDIT_NTP_ADJUST,	save_adjust);
-			audit_ntp_set_new(ad, AUDIT_NTP_ADJUST,	time_adjust);
+			audit_ntp_set_new(ad, AUDIT_NTP_ADJUST,	ntpdata->time_adjust);
 		}
 		txc->offset = save_adjust;
 	} else {
@@ -1003,7 +1002,7 @@ static void hardpps_update_phase(struct ntp_data *ntpdata, long error)
 		ntpdata->time_offset = div_s64(((s64)correction) << NTP_SCALE_SHIFT,
 					       NTP_INTERVAL_FREQ);
 		/* Cancel running adjtime() */
-		time_adjust = 0;
+		ntpdata->time_adjust = 0;
 	}
 	/* Update jitter */
 	pps_jitter += (jitter - pps_jitter) >> PPS_INTMIN;
@@ -1075,11 +1074,11 @@ void __hardpps(const struct timespec64 *phase_ts, const struct timespec64 *raw_t
 
 static int __init ntp_tick_adj_setup(char *str)
 {
-	int rc = kstrtos64(str, 0, &ntp_tick_adj);
+	int rc = kstrtos64(str, 0, &tk_ntp_data.ntp_tick_adj);
 	if (rc)
 		return rc;
 
-	ntp_tick_adj <<= NTP_SCALE_SHIFT;
+	tk_ntp_data.ntp_tick_adj <<= NTP_SCALE_SHIFT;
 	return 1;
 }
 
