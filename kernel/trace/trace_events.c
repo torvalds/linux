@@ -3149,8 +3149,6 @@ static void __trace_remove_event_call(struct trace_event_call *call)
 {
 	event_remove(call);
 	trace_destroy_fields(call);
-	free_event_filter(call->filter);
-	call->filter = NULL;
 }
 
 static int probe_remove_event_call(struct trace_event_call *call)

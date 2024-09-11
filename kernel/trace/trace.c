@@ -593,19 +593,6 @@ int tracing_check_open_get_tr(struct trace_array *tr)
 	return 0;
 }
 
-int call_filter_check_discard(struct trace_event_call *call, void *rec,
-			      struct trace_buffer *buffer,
-			      struct ring_buffer_event *event)
-{
-	if (unlikely(call->flags & TRACE_EVENT_FL_FILTERED) &&
-	    !filter_match_preds(call->filter, rec)) {
-		__trace_event_discard_commit(buffer, event);
-		return 1;
-	}
-
-	return 0;
-}
-
 /**
  * trace_find_filtered_pid - check if a pid exists in a filtered_pid list
  * @filtered_pids: The list of pids to check
@@ -2889,7 +2876,6 @@ void
 trace_function(struct trace_array *tr, unsigned long ip, unsigned long
 	       parent_ip, unsigned int trace_ctx)
 {
-	struct trace_event_call *call = &event_function;
 	struct trace_buffer *buffer = tr->array_buffer.buffer;
 	struct ring_buffer_event *event;
 	struct ftrace_entry *entry;
@@ -2902,11 +2888,9 @@ trace_function(struct trace_array *tr, unsigned long ip, unsigned long
 	entry->ip			= ip;
 	entry->parent_ip		= parent_ip;
 
-	if (!call_filter_check_discard(call, entry, buffer, event)) {
-		if (static_branch_unlikely(&trace_function_exports_enabled))
-			ftrace_exports(event, TRACE_EXPORT_FUNCTION);
-		__buffer_unlock_commit(buffer, event);
-	}
+	if (static_branch_unlikely(&trace_function_exports_enabled))
+		ftrace_exports(event, TRACE_EXPORT_FUNCTION);
+	__buffer_unlock_commit(buffer, event);
 }
 
 #ifdef CONFIG_STACKTRACE
@@ -2932,7 +2916,6 @@ static void __ftrace_trace_stack(struct trace_buffer *buffer,
 				 unsigned int trace_ctx,
 				 int skip, struct pt_regs *regs)
 {
-	struct trace_event_call *call = &event_kernel_stack;
 	struct ring_buffer_event *event;
 	unsigned int size, nr_entries;
 	struct ftrace_stack *fstack;
@@ -2986,8 +2969,7 @@ static void __ftrace_trace_stack(struct trace_buffer *buffer,
 	memcpy(&entry->caller, fstack->calls,
 	       flex_array_size(entry, caller, nr_entries));
 
-	if (!call_filter_check_discard(call, entry, buffer, event))
-		__buffer_unlock_commit(buffer, event);
+	__buffer_unlock_commit(buffer, event);
 
  out:
 	/* Again, don't let gcc optimize things here */
@@ -3060,7 +3042,6 @@ static void
 ftrace_trace_userstack(struct trace_array *tr,
 		       struct trace_buffer *buffer, unsigned int trace_ctx)
 {
-	struct trace_event_call *call = &event_user_stack;
 	struct ring_buffer_event *event;
 	struct userstack_entry *entry;
 
@@ -3094,8 +3075,7 @@ ftrace_trace_userstack(struct trace_array *tr,
 	memset(&entry->caller, 0, sizeof(entry->caller));
 
 	stack_trace_save_user(entry->caller, FTRACE_STACK_ENTRIES);
-	if (!call_filter_check_discard(call, entry, buffer, event))
-		__buffer_unlock_commit(buffer, event);
+	__buffer_unlock_commit(buffer, event);
 
  out_drop_count:
 	__this_cpu_dec(user_stack_count);
@@ -3264,7 +3244,6 @@ static void trace_printk_start_stop_comm(int enabled)
  */
 int trace_vbprintk(unsigned long ip, const char *fmt, va_list args)
 {
-	struct trace_event_call *call = &event_bprint;
 	struct ring_buffer_event *event;
 	struct trace_buffer *buffer;
 	struct trace_array *tr = READ_ONCE(printk_trace);
@@ -3308,10 +3287,8 @@ int trace_vbprintk(unsigned long ip, const char *fmt, va_list args)
 	entry->fmt			= fmt;
 
 	memcpy(entry->buf, tbuffer, sizeof(u32) * len);
-	if (!call_filter_check_discard(call, entry, buffer, event)) {
-		__buffer_unlock_commit(buffer, event);
-		ftrace_trace_stack(tr, buffer, trace_ctx, 6, NULL);
-	}
+	__buffer_unlock_commit(buffer, event);
+	ftrace_trace_stack(tr, buffer, trace_ctx, 6, NULL);
 
 out:
 	ring_buffer_nest_end(buffer);
@@ -3331,7 +3308,6 @@ static int
 __trace_array_vprintk(struct trace_buffer *buffer,
 		      unsigned long ip, const char *fmt, va_list args)
 {
-	struct trace_event_call *call = &event_print;
 	struct ring_buffer_event *event;
 	int len = 0, size;
 	struct print_entry *entry;
@@ -3366,10 +3342,8 @@ __trace_array_vprintk(struct trace_buffer *buffer,
 	entry->ip = ip;
 
 	memcpy(&entry->buf, tbuffer, len + 1);
-	if (!call_filter_check_discard(call, entry, buffer, event)) {
-		__buffer_unlock_commit(buffer, event);
-		ftrace_trace_stack(printk_trace, buffer, trace_ctx, 6, NULL);
-	}
+	__buffer_unlock_commit(buffer, event);
+	ftrace_trace_stack(printk_trace, buffer, trace_ctx, 6, NULL);
 
 out:
 	ring_buffer_nest_end(buffer);

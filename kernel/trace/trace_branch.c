@@ -30,7 +30,6 @@ static struct trace_array *branch_tracer;
 static void
 probe_likely_condition(struct ftrace_likely_data *f, int val, int expect)
 {
-	struct trace_event_call *call = &event_branch;
 	struct trace_array *tr = branch_tracer;
 	struct trace_buffer *buffer;
 	struct trace_array_cpu *data;
@@ -80,8 +79,7 @@ probe_likely_condition(struct ftrace_likely_data *f, int val, int expect)
 	entry->line = f->data.line;
 	entry->correct = val == expect;
 
-	if (!call_filter_check_discard(call, entry, buffer, event))
-		trace_buffer_unlock_commit_nostack(buffer, event);
+	trace_buffer_unlock_commit_nostack(buffer, event);
 
  out:
 	current->trace_recursion &= ~TRACE_BRANCH_BIT;
