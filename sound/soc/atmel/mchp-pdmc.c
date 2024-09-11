@@ -90,6 +90,15 @@
 #define MCHP_PDMC_DS_NO			2
 #define MCHP_PDMC_EDGE_NO		2
 
+/*
+ * ---- DMA chunk size allowed ----
+ */
+#define MCHP_PDMC_DMA_8_WORD_CHUNK			8
+#define MCHP_PDMC_DMA_4_WORD_CHUNK			4
+#define MCHP_PDMC_DMA_2_WORD_CHUNK			2
+#define MCHP_PDMC_DMA_1_WORD_CHUNK			1
+#define DMA_BURST_ALIGNED(_p, _s, _w)		!(_p % (_s * _w))
+
 struct mic_map {
 	int ds_pos;
 	int clk_edge;
@@ -511,15 +520,18 @@ static u32 mchp_pdmc_mr_set_osr(int audio_filter_en, unsigned int osr)
 	return 0;
 }
 
-static inline int mchp_pdmc_period_to_maxburst(int period_size)
+static inline int mchp_pdmc_period_to_maxburst(int period_size, int sample_size)
 {
-	if (!(period_size % 8))
-		return 8;
-	if (!(period_size % 4))
-		return 4;
-	if (!(period_size % 2))
-		return 2;
-	return 1;
+	int p_size = period_size;
+	int s_size = sample_size;
+
+	if (DMA_BURST_ALIGNED(p_size, s_size, MCHP_PDMC_DMA_8_WORD_CHUNK))
+		return MCHP_PDMC_DMA_8_WORD_CHUNK;
+	if (DMA_BURST_ALIGNED(p_size, s_size, MCHP_PDMC_DMA_4_WORD_CHUNK))
+		return MCHP_PDMC_DMA_4_WORD_CHUNK;
+	if (DMA_BURST_ALIGNED(p_size, s_size, MCHP_PDMC_DMA_2_WORD_CHUNK))
+		return MCHP_PDMC_DMA_2_WORD_CHUNK;
+	return MCHP_PDMC_DMA_1_WORD_CHUNK;
 }
 
 static struct snd_pcm_chmap_elem mchp_pdmc_std_chmaps[] = {
@@ -547,14 +559,18 @@ static int mchp_pdmc_hw_params(struct snd_pcm_substream *substream,
 	unsigned int channels = params_channels(params);
 	unsigned int osr = 0, osr_start;
 	unsigned int fs = params_rate(params);
+	int sample_bytes = params_physical_width(params) / 8;
+	int period_bytes = params_period_size(params) *
+		params_channels(params) * sample_bytes;
+	int maxburst;
 	u32 mr_val = 0;
 	u32 cfgr_val = 0;
 	int i;
 	int ret;
 
-	dev_dbg(comp->dev, "%s() rate=%u format=%#x width=%u channels=%u\n",
+	dev_dbg(comp->dev, "%s() rate=%u format=%#x width=%u channels=%u period_bytes=%d\n",
 		__func__, params_rate(params), params_format(params),
-		params_width(params), params_channels(params));
+		params_width(params), params_channels(params), period_bytes);
 
 	if (channels > dd->mic_no) {
 		dev_err(comp->dev, "more channels %u than microphones %d\n",
@@ -608,7 +624,8 @@ static int mchp_pdmc_hw_params(struct snd_pcm_substream *substream,
 
 	mr_val |= FIELD_PREP(MCHP_PDMC_MR_SINCORDER_MASK, dd->sinc_order);
 
-	dd->addr.maxburst = mchp_pdmc_period_to_maxburst(snd_pcm_lib_period_bytes(substream));
+	maxburst = mchp_pdmc_period_to_maxburst(period_bytes, sample_bytes);
+	dd->addr.maxburst = maxburst;
 	mr_val |= FIELD_PREP(MCHP_PDMC_MR_CHUNK_MASK, dd->addr.maxburst);
 	dev_dbg(comp->dev, "maxburst set to %d\n", dd->addr.maxburst);
 
