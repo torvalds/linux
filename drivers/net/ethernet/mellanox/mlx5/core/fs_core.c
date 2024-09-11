@@ -683,6 +683,8 @@ static void del_hw_fte(struct fs_node *node)
 				       fte->index, fg->id);
 		node->active = false;
 	}
+	/* Avoid double call to del_hw_fte */
+	fte->node.del_hw_func = NULL;
 }
 
 static void del_sw_fte(struct fs_node *node)
@@ -2265,8 +2267,6 @@ void mlx5_del_flow_rules(struct mlx5_flow_handle *handle)
 		tree_remove_node(&handle->rule[i]->node, true);
 	if (list_empty(&fte->node.children)) {
 		fte->node.del_hw_func(&fte->node);
-		/* Avoid double call to del_hw_fte */
-		fte->node.del_hw_func = NULL;
 		up_write_ref_node(&fte->node, false);
 		tree_put_node(&fte->node, false);
 	} else if (fte->dests_size) {
