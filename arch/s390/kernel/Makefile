@@ -50,6 +50,7 @@ extra-y				+= vmlinux.lds
 obj-$(CONFIG_SYSFS)		+= nospec-sysfs.o
 CFLAGS_REMOVE_nospec-branch.o	+= $(CC_FLAGS_EXPOLINE)
 
+obj-$(CONFIG_SYSFS)		+= cpacf.o
 obj-$(CONFIG_MODULES)		+= module.o
 obj-$(CONFIG_SCHED_TOPOLOGY)	+= topology.o hiperdispatch.o
 obj-$(CONFIG_NUMA)		+= numa.o
