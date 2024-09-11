@@ -241,7 +241,6 @@ struct fs_fte {
 	struct mlx5_flow_context	flow_context;
 	struct mlx5_flow_act		action;
 	enum fs_fte_status		status;
-	struct mlx5_fc			*counter;
 	struct rhash_head		hash;
 	int				modify_mask;
 };
