@@ -41,6 +41,8 @@
 #define AST_IO_VGACRD7_EDID_VALID_FLAG	BIT(0)
 #define AST_IO_VGACRDC_LINK_SUCCESS	BIT(0)
 #define AST_IO_VGACRDF_HPD		BIT(0)
+#define AST_IO_VGACRDF_DP_VIDEO_ENABLE	BIT(4) /* mirrors AST_IO_VGACRE3_DP_VIDEO_ENABLE */
+#define AST_IO_VGACRE3_DP_VIDEO_ENABLE	BIT(0)
 #define AST_IO_VGACRE3_DP_PHY_SLEEP	BIT(4)
 #define AST_IO_VGACRE5_EDID_READ_DONE	BIT(0)
 
@@ -68,17 +70,6 @@
 /*
  * AST DisplayPort
  */
-
-/* Define for Soc scratched reg used on ASTDP */
-#define AST_DP_VIDEO_ENABLE		BIT(0)
-
-/*
- * CRDF[b4]: Mirror of AST_DP_VIDEO_ENABLE
- * Precondition:	A. ~AST_DP_PHY_SLEEP  &&
- *			B. DP_HPD &&
- *			C. DP_LINK_SUCCESS
- */
-#define ASTDP_MIRROR_VIDEO_ENABLE	BIT(4)
 
 /*
  * ASTDP setmode registers:

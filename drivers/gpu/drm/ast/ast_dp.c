@@ -186,22 +186,39 @@ static void ast_dp_link_training(struct ast_device *ast)
 	drm_err(dev, "Link training failed\n");
 }
 
-static void ast_dp_set_on_off(struct ast_device *ast, bool on)
+static bool __ast_dp_wait_enable(struct ast_device *ast, bool enabled)
 {
-	u8 video_on_off = on;
-	u32 i = 0;
+	u8 vgacrdf_test = 0x00;
+	u8 vgacrdf;
+	unsigned int i;
 
-	// Video On/Off
-	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xE3, (u8) ~AST_DP_VIDEO_ENABLE, on);
+	if (enabled)
+		vgacrdf_test |= AST_IO_VGACRDF_DP_VIDEO_ENABLE;
 
-	video_on_off <<= 4;
-	while (ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xDF,
-						ASTDP_MIRROR_VIDEO_ENABLE) != video_on_off) {
-		// wait 1 ms
-		mdelay(1);
-		if (++i > 200)
-			break;
+	for (i = 0; i < 200; ++i) {
+		if (i)
+			mdelay(1);
+		vgacrdf = ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xdf,
+						 AST_IO_VGACRDF_DP_VIDEO_ENABLE);
+		if (vgacrdf == vgacrdf_test)
+			return true;
 	}
+
+	return false;
+}
+
+static void ast_dp_set_enable(struct ast_device *ast, bool enabled)
+{
+	struct drm_device *dev = &ast->base;
+	u8 vgacre3 = 0x00;
+
+	if (enabled)
+		vgacre3 |= AST_IO_VGACRE3_DP_VIDEO_ENABLE;
+
+	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xe3, (u8)~AST_IO_VGACRE3_DP_VIDEO_ENABLE,
+			       vgacre3);
+
+	drm_WARN_ON(dev, !__ast_dp_wait_enable(ast, enabled));
 }
 
 static void ast_dp_set_mode(struct drm_crtc *crtc, struct ast_vbios_mode_info *vbios_mode)
@@ -318,7 +335,7 @@ static void ast_astdp_encoder_helper_atomic_enable(struct drm_encoder *encoder,
 		ast_dp_link_training(ast);
 
 		ast_wait_for_vretrace(ast);
-		ast_dp_set_on_off(ast, 1);
+		ast_dp_set_enable(ast, true);
 	}
 }
 
@@ -327,7 +344,7 @@ static void ast_astdp_encoder_helper_atomic_disable(struct drm_encoder *encoder,
 {
 	struct ast_device *ast = to_ast_device(encoder->dev);
 
-	ast_dp_set_on_off(ast, 0);
+	ast_dp_set_enable(ast, false);
 	ast_dp_set_phy_sleep(ast, true);
 }
 
