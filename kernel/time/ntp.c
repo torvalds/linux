@@ -44,6 +44,8 @@
  * @pps_tf:		PPS phase median filter
  * @pps_jitter:		PPS current jitter in nanoseconds
  * @pps_fbase:		PPS beginning of the last freq interval
+ * @pps_shift:		PPS current interval duration in seconds (shift value)
+ * @pps_intcnt:		PPS interval counter
  *
  * Protected by the timekeeping locks.
  */
@@ -67,6 +69,8 @@ struct ntp_data {
 	long			pps_tf[3];
 	long			pps_jitter;
 	struct timespec64	pps_fbase;
+	int			pps_shift;
+	int			pps_intcnt;
 #endif
 };
 
@@ -102,8 +106,6 @@ static struct ntp_data tk_ntp_data = {
 				   intervals to decrease it */
 #define PPS_MAXWANDER	100000	/* max PPS freq wander (ns/s) */
 
-static int pps_shift;		/* current interval duration (s) (shift) */
-static int pps_intcnt;		/* interval counter */
 static s64 pps_freq;		/* frequency offset (scaled ns/s) */
 static long pps_stabil;		/* current stability (scaled ns/s) */
 
@@ -128,11 +130,11 @@ static inline s64 ntp_offset_chunk(struct ntp_data *ntpdata, s64 offset)
 		return shift_right(offset, SHIFT_PLL + ntpdata->time_constant);
 }
 
-static inline void pps_reset_freq_interval(void)
+static inline void pps_reset_freq_interval(struct ntp_data *ntpdata)
 {
 	/* The PPS calibration interval may end surprisingly early */
-	pps_shift = PPS_INTMIN;
-	pps_intcnt = 0;
+	ntpdata->pps_shift = PPS_INTMIN;
+	ntpdata->pps_intcnt = 0;
 }
 
 /**
@@ -141,7 +143,7 @@ static inline void pps_reset_freq_interval(void)
  */
 static inline void pps_clear(struct ntp_data *ntpdata)
 {
-	pps_reset_freq_interval();
+	pps_reset_freq_interval(ntpdata);
 	ntpdata->pps_tf[0] = 0;
 	ntpdata->pps_tf[1] = 0;
 	ntpdata->pps_tf[2] = 0;
@@ -199,7 +201,7 @@ static inline void pps_fill_timex(struct ntp_data *ntpdata, struct __kernel_time
 	txc->jitter	   = ntpdata->pps_jitter;
 	if (!(ntpdata->time_status & STA_NANO))
 		txc->jitter = ntpdata->pps_jitter / NSEC_PER_USEC;
-	txc->shift	   = pps_shift;
+	txc->shift	   = ntpdata->pps_shift;
 	txc->stabil	   = pps_stabil;
 	txc->jitcnt	   = pps_jitcnt;
 	txc->calcnt	   = pps_calcnt;
@@ -214,7 +216,7 @@ static inline s64 ntp_offset_chunk(struct ntp_data *ntpdata, s64 offset)
 	return shift_right(offset, SHIFT_PLL + ntpdata->time_constant);
 }
 
-static inline void pps_reset_freq_interval(void) {}
+static inline void pps_reset_freq_interval(struct ntp_data *ntpdata) {}
 static inline void pps_clear(struct ntp_data *ntpdata) {}
 static inline void pps_dec_valid(struct ntp_data *ntpdata) {}
 static inline void pps_set_freq(s64 freq) {}
@@ -693,7 +695,7 @@ static inline void process_adj_status(struct ntp_data *ntpdata, const struct __k
 		ntpdata->time_status = STA_UNSYNC;
 		ntpdata->ntp_next_leap_sec = TIME64_MAX;
 		/* Restart PPS frequency calibration */
-		pps_reset_freq_interval();
+		pps_reset_freq_interval(ntpdata);
 	}
 
 	/*
@@ -896,13 +898,13 @@ static inline void pps_phase_filter_add(struct ntp_data *ntpdata, long err)
  * Decrease frequency calibration interval length. It is halved after four
  * consecutive unstable intervals.
  */
-static inline void pps_dec_freq_interval(void)
+static inline void pps_dec_freq_interval(struct ntp_data *ntpdata)
 {
-	if (--pps_intcnt <= -PPS_INTCOUNT) {
-		pps_intcnt = -PPS_INTCOUNT;
-		if (pps_shift > PPS_INTMIN) {
-			pps_shift--;
-			pps_intcnt = 0;
+	if (--ntpdata->pps_intcnt <= -PPS_INTCOUNT) {
+		ntpdata->pps_intcnt = -PPS_INTCOUNT;
+		if (ntpdata->pps_shift > PPS_INTMIN) {
+			ntpdata->pps_shift--;
+			ntpdata->pps_intcnt = 0;
 		}
 	}
 }
@@ -911,13 +913,13 @@ static inline void pps_dec_freq_interval(void)
  * Increase frequency calibration interval length. It is doubled after
  * four consecutive stable intervals.
  */
-static inline void pps_inc_freq_interval(void)
+static inline void pps_inc_freq_interval(struct ntp_data *ntpdata)
 {
-	if (++pps_intcnt >= PPS_INTCOUNT) {
-		pps_intcnt = PPS_INTCOUNT;
-		if (pps_shift < PPS_INTMAX) {
-			pps_shift++;
-			pps_intcnt = 0;
+	if (++ntpdata->pps_intcnt >= PPS_INTCOUNT) {
+		ntpdata->pps_intcnt = PPS_INTCOUNT;
+		if (ntpdata->pps_shift < PPS_INTMAX) {
+			ntpdata->pps_shift++;
+			ntpdata->pps_intcnt = 0;
 		}
 	}
 }
@@ -938,10 +940,10 @@ static long hardpps_update_freq(struct ntp_data *ntpdata, struct pps_normtime fr
 	s64 ftemp;
 
 	/* Check if the frequency interval was too long */
-	if (freq_norm.sec > (2 << pps_shift)) {
+	if (freq_norm.sec > (2 << ntpdata->pps_shift)) {
 		ntpdata->time_status |= STA_PPSERROR;
 		pps_errcnt++;
-		pps_dec_freq_interval();
+		pps_dec_freq_interval(ntpdata);
 		printk_deferred(KERN_ERR "hardpps: PPSERROR: interval too long - %lld s\n",
 				freq_norm.sec);
 		return 0;
@@ -960,10 +962,10 @@ static long hardpps_update_freq(struct ntp_data *ntpdata, struct pps_normtime fr
 		printk_deferred(KERN_WARNING "hardpps: PPSWANDER: change=%ld\n", delta);
 		ntpdata->time_status |= STA_PPSWANDER;
 		pps_stbcnt++;
-		pps_dec_freq_interval();
+		pps_dec_freq_interval(ntpdata);
 	} else {
 		/* Good sample */
-		pps_inc_freq_interval();
+		pps_inc_freq_interval(ntpdata);
 	}
 
 	/*
@@ -1068,7 +1070,7 @@ void __hardpps(const struct timespec64 *phase_ts, const struct timespec64 *raw_t
 	}
 
 	/* Signal is ok. Check if the current frequency interval is finished */
-	if (freq_norm.sec >= (1 << pps_shift)) {
+	if (freq_norm.sec >= (1 << ntpdata->pps_shift)) {
 		pps_calcnt++;
 		/* Restart the frequency calibration interval */
 		ntpdata->pps_fbase = *raw_ts;
