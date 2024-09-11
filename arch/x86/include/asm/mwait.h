@@ -80,7 +80,7 @@ static __always_inline void __mwait(u32 eax, u32 ecx)
  */
 static __always_inline void __mwaitx(u32 eax, u32 ebx, u32 ecx)
 {
-	/* No MDS buffer clear as this is AMD/HYGON only */
+	/* No need for TSA buffer clearing on AMD */
 
 	/* "mwaitx %eax, %ebx, %ecx" */
 	asm volatile(".byte 0x0f, 0x01, 0xfb"
