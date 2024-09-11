@@ -10,6 +10,7 @@
 #include <drm/drm_device.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_mode.h>
+#include <drm/drm_framebuffer.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_kunit_helpers.h>
 #include <drm/drm_print.h>
@@ -438,7 +439,67 @@ static void drm_test_framebuffer_modifiers_not_supported(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, PTR_ERR(fb), -EINVAL);
 }
 
+/* Parameters for testing drm_framebuffer_check_src_coords function */
+struct drm_framebuffer_check_src_coords_case {
+	const char *name;
+	const int expect;
+	const unsigned int fb_size;
+	const uint32_t src_x;
+	const uint32_t src_y;
+
+	/* Deltas to be applied on source */
+	const uint32_t dsrc_w;
+	const uint32_t dsrc_h;
+};
+
+static const struct drm_framebuffer_check_src_coords_case
+drm_framebuffer_check_src_coords_cases[] = {
+	{ .name = "Success: source fits into fb",
+	  .expect = 0,
+	},
+	{ .name = "Fail: overflowing fb with x-axis coordinate",
+	  .expect = -ENOSPC, .src_x = 1, .fb_size = UINT_MAX,
+	},
+	{ .name = "Fail: overflowing fb with y-axis coordinate",
+	  .expect = -ENOSPC, .src_y = 1, .fb_size = UINT_MAX,
+	},
+	{ .name = "Fail: overflowing fb with source width",
+	  .expect = -ENOSPC, .dsrc_w = 1, .fb_size = UINT_MAX - 1,
+	},
+	{ .name = "Fail: overflowing fb with source height",
+	  .expect = -ENOSPC, .dsrc_h = 1, .fb_size = UINT_MAX - 1,
+	},
+};
+
+static void drm_test_framebuffer_check_src_coords(struct kunit *test)
+{
+	const struct drm_framebuffer_check_src_coords_case *params = test->param_value;
+	const uint32_t src_x = params->src_x;
+	const uint32_t src_y = params->src_y;
+	const uint32_t src_w = (params->fb_size << 16) + params->dsrc_w;
+	const uint32_t src_h = (params->fb_size << 16) + params->dsrc_h;
+	const struct drm_framebuffer fb = {
+		.width  = params->fb_size,
+		.height = params->fb_size
+	};
+	int ret;
+
+	ret = drm_framebuffer_check_src_coords(src_x, src_y, src_w, src_h, &fb);
+	KUNIT_EXPECT_EQ(test, ret, params->expect);
+}
+
+static void
+check_src_coords_test_to_desc(const struct drm_framebuffer_check_src_coords_case *t,
+			      char *desc)
+{
+	strscpy(desc, t->name, KUNIT_PARAM_DESC_SIZE);
+}
+
+KUNIT_ARRAY_PARAM(check_src_coords, drm_framebuffer_check_src_coords_cases,
+		  check_src_coords_test_to_desc);
+
 static struct kunit_case drm_framebuffer_tests[] = {
+	KUNIT_CASE_PARAM(drm_test_framebuffer_check_src_coords, check_src_coords_gen_params),
 	KUNIT_CASE_PARAM(drm_test_framebuffer_create, drm_framebuffer_create_gen_params),
 	KUNIT_CASE(drm_test_framebuffer_modifiers_not_supported),
 	{ }
