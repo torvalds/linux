@@ -2307,7 +2307,7 @@ void intel_hdcp_component_init(struct drm_i915_private *i915)
 	display->hdcp.comp_added = true;
 	mutex_unlock(&display->hdcp.hdcp_mutex);
 	if (intel_hdcp_gsc_cs_required(display))
-		ret = intel_hdcp_gsc_init(i915);
+		ret = intel_hdcp_gsc_init(display);
 	else
 		ret = component_add_typed(display->drm->dev, &i915_hdcp_ops,
 					  I915_COMPONENT_HDCP);
@@ -2570,7 +2570,7 @@ void intel_hdcp_component_fini(struct drm_i915_private *i915)
 	mutex_unlock(&display->hdcp.hdcp_mutex);
 
 	if (intel_hdcp_gsc_cs_required(display))
-		intel_hdcp_gsc_fini(i915);
+		intel_hdcp_gsc_fini(display);
 	else
 		component_del(display->drm->dev, &i915_hdcp_ops);
 }

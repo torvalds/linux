@@ -67,9 +67,10 @@ out:
 }
 
 /*This function helps allocate memory for the command that we will send to gsc cs */
-static int intel_hdcp_gsc_initialize_message(struct xe_device *xe,
+static int intel_hdcp_gsc_initialize_message(struct intel_display *display,
 					     struct intel_hdcp_gsc_message *hdcp_message)
 {
+	struct xe_device *xe = to_xe_device(display->drm);
 	struct xe_bo *bo = NULL;
 	u64 cmd_in, cmd_out;
 	int ret = 0;
@@ -81,7 +82,7 @@ static int intel_hdcp_gsc_initialize_message(struct xe_device *xe,
 				  XE_BO_FLAG_GGTT);
 
 	if (IS_ERR(bo)) {
-		drm_err(&xe->drm, "Failed to allocate bo for HDCP streaming command!\n");
+		drm_err(display->drm, "Failed to allocate bo for HDCP streaming command!\n");
 		ret = PTR_ERR(bo);
 		goto out;
 	}
@@ -97,7 +98,7 @@ out:
 	return ret;
 }
 
-static int intel_hdcp_gsc_hdcp2_init(struct xe_device *xe)
+static int intel_hdcp_gsc_hdcp2_init(struct intel_display *display)
 {
 	struct intel_hdcp_gsc_message *hdcp_message;
 	int ret;
@@ -111,14 +112,14 @@ static int intel_hdcp_gsc_hdcp2_init(struct xe_device *xe)
 	 * NOTE: No need to lock the comp mutex here as it is already
 	 * going to be taken before this function called
 	 */
-	ret = intel_hdcp_gsc_initialize_message(xe, hdcp_message);
+	ret = intel_hdcp_gsc_initialize_message(display, hdcp_message);
 	if (ret) {
-		drm_err(&xe->drm, "Could not initialize hdcp_message\n");
+		drm_err(display->drm, "Could not initialize hdcp_message\n");
 		kfree(hdcp_message);
 		return ret;
 	}
 
-	xe->display.hdcp.hdcp_message = hdcp_message;
+	display->hdcp.hdcp_message = hdcp_message;
 	return ret;
 }
 
@@ -138,7 +139,7 @@ static const struct i915_hdcp_ops gsc_hdcp_ops = {
 	.close_hdcp_session = intel_hdcp_gsc_close_session,
 };
 
-int intel_hdcp_gsc_init(struct xe_device *xe)
+int intel_hdcp_gsc_init(struct intel_display *display)
 {
 	struct i915_hdcp_arbiter *data;
 	int ret;
@@ -147,33 +148,33 @@ int intel_hdcp_gsc_init(struct xe_device *xe)
 	if (!data)
 		return -ENOMEM;
 
-	mutex_lock(&xe->display.hdcp.hdcp_mutex);
-	xe->display.hdcp.arbiter = data;
-	xe->display.hdcp.arbiter->hdcp_dev = xe->drm.dev;
-	xe->display.hdcp.arbiter->ops = &gsc_hdcp_ops;
-	ret = intel_hdcp_gsc_hdcp2_init(xe);
+	mutex_lock(&display->hdcp.hdcp_mutex);
+	display->hdcp.arbiter = data;
+	display->hdcp.arbiter->hdcp_dev = display->drm->dev;
+	display->hdcp.arbiter->ops = &gsc_hdcp_ops;
+	ret = intel_hdcp_gsc_hdcp2_init(display);
 	if (ret)
 		kfree(data);
 
-	mutex_unlock(&xe->display.hdcp.hdcp_mutex);
+	mutex_unlock(&display->hdcp.hdcp_mutex);
 
 	return ret;
 }
 
-void intel_hdcp_gsc_fini(struct xe_device *xe)
+void intel_hdcp_gsc_fini(struct intel_display *display)
 {
 	struct intel_hdcp_gsc_message *hdcp_message =
-					xe->display.hdcp.hdcp_message;
-	struct i915_hdcp_arbiter *arb = xe->display.hdcp.arbiter;
+					display->hdcp.hdcp_message;
+	struct i915_hdcp_arbiter *arb = display->hdcp.arbiter;
 
 	if (hdcp_message) {
 		xe_bo_unpin_map_no_vm(hdcp_message->hdcp_bo);
 		kfree(hdcp_message);
-		xe->display.hdcp.hdcp_message = NULL;
+		display->hdcp.hdcp_message = NULL;
 	}
 
 	kfree(arb);
-	xe->display.hdcp.arbiter = NULL;
+	display->hdcp.arbiter = NULL;
 }
 
 static int xe_gsc_send_sync(struct xe_device *xe,
