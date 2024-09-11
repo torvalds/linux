@@ -260,3 +260,22 @@ e << str_read_write_r.E;
 @@
 
 coccilib.report.print_report(p[0], "opportunity for str_read_write(%s)" % e)
+
+@str_write_read depends on patch@
+expression E;
+@@
+-      ((E) ? "write" : "read")
++      str_write_read(E)
+
+@str_write_read_r depends on !patch exists@
+expression E;
+position P;
+@@
+*      ((E@P) ? "write" : "read")
+
+@script:python depends on report@
+p << str_write_read_r.P;
+e << str_write_read_r.E;
+@@
+
+coccilib.report.print_report(p[0], "opportunity for str_write_read(%s)" % e)
