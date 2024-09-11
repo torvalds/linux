@@ -498,8 +498,40 @@ check_src_coords_test_to_desc(const struct drm_framebuffer_check_src_coords_case
 KUNIT_ARRAY_PARAM(check_src_coords, drm_framebuffer_check_src_coords_cases,
 		  check_src_coords_test_to_desc);
 
+/*
+ * Test if drm_framebuffer_cleanup() really pops out the framebuffer object
+ * from device's fb_list and decrement the number of framebuffers for that
+ * device, which is the only things it does.
+ */
+static void drm_test_framebuffer_cleanup(struct kunit *test)
+{
+	struct drm_framebuffer_test_priv *priv = test->priv;
+	struct drm_device *dev = &priv->dev;
+	struct list_head *fb_list = &dev->mode_config.fb_list;
+	struct drm_format_info format = { };
+	struct drm_framebuffer fb1 = { .dev = dev, .format = &format };
+	struct drm_framebuffer fb2 = { .dev = dev, .format = &format };
+
+	/* This will result on [fb_list] -> fb2 -> fb1 */
+	drm_framebuffer_init(dev, &fb1, NULL);
+	drm_framebuffer_init(dev, &fb2, NULL);
+
+	drm_framebuffer_cleanup(&fb1);
+
+	/* Now fb2 is the only one element on fb_list */
+	KUNIT_ASSERT_TRUE(test, list_is_singular(&fb2.head));
+	KUNIT_ASSERT_EQ(test, dev->mode_config.num_fb, 1);
+
+	drm_framebuffer_cleanup(&fb2);
+
+	/* Now fb_list is empty */
+	KUNIT_ASSERT_TRUE(test, list_empty(fb_list));
+	KUNIT_ASSERT_EQ(test, dev->mode_config.num_fb, 0);
+}
+
 static struct kunit_case drm_framebuffer_tests[] = {
 	KUNIT_CASE_PARAM(drm_test_framebuffer_check_src_coords, check_src_coords_gen_params),
+	KUNIT_CASE(drm_test_framebuffer_cleanup),
 	KUNIT_CASE_PARAM(drm_test_framebuffer_create, drm_framebuffer_create_gen_params),
 	KUNIT_CASE(drm_test_framebuffer_modifiers_not_supported),
 	{ }
