@@ -311,17 +311,6 @@ static void rtw_ips_work(struct work_struct *work)
 	mutex_unlock(&rtwdev->mutex);
 }
 
-static u8 rtw_acquire_macid(struct rtw_dev *rtwdev)
-{
-	unsigned long mac_id;
-
-	mac_id = find_first_zero_bit(rtwdev->mac_id_map, RTW_MAX_MAC_ID_NUM);
-	if (mac_id < RTW_MAX_MAC_ID_NUM)
-		set_bit(mac_id, rtwdev->mac_id_map);
-
-	return mac_id;
-}
-
 static void rtw_sta_rc_work(struct work_struct *work)
 {
 	struct rtw_sta_info *si = container_of(work, struct rtw_sta_info,
@@ -340,12 +329,14 @@ int rtw_sta_add(struct rtw_dev *rtwdev, struct ieee80211_sta *sta,
 	struct rtw_vif *rtwvif = (struct rtw_vif *)vif->drv_priv;
 	int i;
 
-	si->mac_id = rtw_acquire_macid(rtwdev);
-	if (si->mac_id >= RTW_MAX_MAC_ID_NUM)
-		return -ENOSPC;
+	if (vif->type == NL80211_IFTYPE_STATION) {
+		si->mac_id = rtwvif->mac_id;
+	} else {
+		si->mac_id = rtw_acquire_macid(rtwdev);
+		if (si->mac_id >= RTW_MAX_MAC_ID_NUM)
+			return -ENOSPC;
+	}
 
-	if (vif->type == NL80211_IFTYPE_STATION && vif->cfg.assoc == 0)
-		rtwvif->mac_id = si->mac_id;
 	si->rtwdev = rtwdev;
 	si->sta = sta;
 	si->vif = vif;
@@ -370,11 +361,13 @@ void rtw_sta_remove(struct rtw_dev *rtwdev, struct ieee80211_sta *sta,
 		    bool fw_exist)
 {
 	struct rtw_sta_info *si = (struct rtw_sta_info *)sta->drv_priv;
+	struct ieee80211_vif *vif = si->vif;
 	int i;
 
 	cancel_work_sync(&si->rc_work);
 
-	rtw_release_macid(rtwdev, si->mac_id);
+	if (vif->type != NL80211_IFTYPE_STATION)
+		rtw_release_macid(rtwdev, si->mac_id);
 	if (fw_exist)
 		rtw_fw_media_status_report(rtwdev, si->mac_id, false);
 
@@ -614,6 +607,8 @@ static void rtw_reset_vif_iter(void *data, u8 *mac, struct ieee80211_vif *vif)
 	rtw_bf_disassoc(rtwdev, vif, NULL);
 	rtw_vif_assoc_changed(rtwvif, NULL);
 	rtw_txq_cleanup(rtwdev, vif->txq);
+
+	rtw_release_macid(rtwdev, rtwvif->mac_id);
 }
 
 void rtw_fw_recovery(struct rtw_dev *rtwdev)
@@ -2139,7 +2134,6 @@ int rtw_core_init(struct rtw_dev *rtwdev)
 	rtwdev->sec.total_cam_num = 32;
 	rtwdev->hal.current_channel = 1;
 	rtwdev->dm_info.fix_rate = U8_MAX;
-	set_bit(RTW_BC_MC_MACID, rtwdev->mac_id_map);
 
 	rtw_stats_init(rtwdev);
 

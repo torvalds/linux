@@ -558,30 +558,32 @@ static void rtw8852b_rfk_init(struct rtw89_dev *rtwdev)
 
 	rtw8852b_dpk_init(rtwdev);
 	rtw8852b_rck(rtwdev);
-	rtw8852b_dack(rtwdev);
-	rtw8852b_rx_dck(rtwdev, RTW89_PHY_0);
+	rtw8852b_dack(rtwdev, RTW89_CHANCTX_0);
+	rtw8852b_rx_dck(rtwdev, RTW89_PHY_0, RTW89_CHANCTX_0);
 }
 
 static void rtw8852b_rfk_channel(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif)
 {
+	enum rtw89_chanctx_idx chanctx_idx = rtwvif->chanctx_idx;
 	enum rtw89_phy_idx phy_idx = rtwvif->phy_idx;
 
-	rtw8852b_rx_dck(rtwdev, phy_idx);
-	rtw8852b_iqk(rtwdev, phy_idx);
-	rtw8852b_tssi(rtwdev, phy_idx, true);
-	rtw8852b_dpk(rtwdev, phy_idx);
+	rtw8852b_rx_dck(rtwdev, phy_idx, chanctx_idx);
+	rtw8852b_iqk(rtwdev, phy_idx, chanctx_idx);
+	rtw8852b_tssi(rtwdev, phy_idx, true, chanctx_idx);
+	rtw8852b_dpk(rtwdev, phy_idx, chanctx_idx);
 }
 
 static void rtw8852b_rfk_band_changed(struct rtw89_dev *rtwdev,
-				      enum rtw89_phy_idx phy_idx)
+				      enum rtw89_phy_idx phy_idx,
+				      const struct rtw89_chan *chan)
 {
-	rtw8852b_tssi_scan(rtwdev, phy_idx);
+	rtw8852b_tssi_scan(rtwdev, phy_idx, chan);
 }
 
 static void rtw8852b_rfk_scan(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
 			      bool start)
 {
-	rtw8852b_wifi_scan_notify(rtwdev, start, rtwvif->phy_idx);
+	rtw8852b_wifi_scan_notify(rtwdev, start, rtwvif->phy_idx, rtwvif->chanctx_idx);
 }
 
 static void rtw8852b_rfk_track(struct rtw89_dev *rtwdev)
@@ -739,9 +741,11 @@ static const struct rtw89_chip_ops rtw8852b_chip_ops = {
 	.get_thermal		= rtw8852bx_get_thermal,
 	.ctrl_btg_bt_rx		= rtw8852bx_ctrl_btg_bt_rx,
 	.query_ppdu		= rtw8852bx_query_ppdu,
+	.convert_rpl_to_rssi	= rtw8852bx_convert_rpl_to_rssi,
 	.ctrl_nbtg_bt_tx	= rtw8852bx_ctrl_nbtg_bt_tx,
 	.cfg_txrx_path		= rtw8852bx_bb_cfg_txrx_path,
 	.set_txpwr_ul_tb_offset	= rtw8852bx_set_txpwr_ul_tb_offset,
+	.digital_pwr_comp	= NULL,
 	.pwr_on_func		= rtw8852b_pwr_on_func,
 	.pwr_off_func		= rtw8852b_pwr_off_func,
 	.query_rxdesc		= rtw89_core_query_rxdesc,
@@ -817,6 +821,7 @@ const struct rtw89_chip_info rtw8852b_chip_info = {
 	.dig_regs		= &rtw8852b_dig_regs,
 	.tssi_dbw_table		= NULL,
 	.support_macid_num	= RTW89_MAX_MAC_ID_NUM,
+	.support_link_num	= 0,
 	.support_chanctx_num	= 0,
 	.support_rnr		= false,
 	.support_bands		= BIT(NL80211_BAND_2GHZ) |

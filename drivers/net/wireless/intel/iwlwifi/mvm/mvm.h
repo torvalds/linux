@@ -512,7 +512,7 @@ struct iwl_mvm_vif {
 	bool bf_enabled;
 	bool ba_enabled;
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 	/* WoWLAN GTK rekey data */
 	struct {
 		u8 kck[NL80211_KCK_EXT_LEN];
@@ -1178,7 +1178,7 @@ struct iwl_mvm {
 
 	struct ieee80211_vif *p2p_device_vif;
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 	struct wiphy_wowlan_support wowlan;
 	int gtk_ivlen, gtk_icvlen, ptk_ivlen, ptk_icvlen;
 
@@ -2306,7 +2306,7 @@ void iwl_mvm_ipv6_addr_change(struct ieee80211_hw *hw,
 void iwl_mvm_set_default_unicast_key(struct ieee80211_hw *hw,
 				     struct ieee80211_vif *vif, int idx);
 extern const struct file_operations iwl_dbgfs_d3_test_ops;
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 void iwl_mvm_set_last_nonqos_seq(struct iwl_mvm *mvm,
 				 struct ieee80211_vif *vif);
 void iwl_mvm_fast_suspend(struct iwl_mvm *mvm);

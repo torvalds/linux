@@ -893,6 +893,8 @@ struct ieee80211_chanctx {
 	struct ieee80211_chan_req req;
 
 	struct ieee80211_chanctx_conf conf;
+
+	bool radar_detected;
 };
 
 struct mac80211_qos_map {
@@ -1067,6 +1069,7 @@ struct ieee80211_link_data {
 	int ap_power_level; /* in dBm */
 
 	bool radar_required;
+	struct wiphy_delayed_work dfs_cac_timer_work;
 
 	union {
 		struct ieee80211_link_data_managed mgd;
@@ -1164,8 +1167,6 @@ struct ieee80211_sub_if_data {
 
 	struct ieee80211_link_data deflink;
 	struct ieee80211_link_data __rcu *link[IEEE80211_MLD_MAX_NUM_LINKS];
-
-	struct wiphy_delayed_work dfs_cac_timer_work;
 
 	/* for ieee80211_set_active_links_async() */
 	struct wiphy_work activate_links_work;
@@ -2650,7 +2651,8 @@ void ieee80211_recalc_chanctx_min_def(struct ieee80211_local *local,
 bool ieee80211_is_radar_required(struct ieee80211_local *local);
 
 void ieee80211_dfs_cac_timer_work(struct wiphy *wiphy, struct wiphy_work *work);
-void ieee80211_dfs_cac_cancel(struct ieee80211_local *local);
+void ieee80211_dfs_cac_cancel(struct ieee80211_local *local,
+			      struct ieee80211_chanctx *chanctx);
 void ieee80211_dfs_radar_detected_work(struct wiphy *wiphy,
 				       struct wiphy_work *work);
 int ieee80211_send_action_csa(struct ieee80211_sub_if_data *sdata,

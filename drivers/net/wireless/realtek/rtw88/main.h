@@ -742,7 +742,6 @@ struct rtw_txq {
 	unsigned long flags;
 };
 
-#define RTW_BC_MC_MACID 1
 DECLARE_EWMA(rssi, 10, 16);
 
 struct rtw_sta_info {
@@ -805,7 +804,7 @@ struct rtw_bf_info {
 struct rtw_vif {
 	enum rtw_net_type net_type;
 	u16 aid;
-	u8 mac_id; /* for STA mode only */
+	u8 mac_id;
 	u8 mac_addr[ETH_ALEN];
 	u8 bssid[ETH_ALEN];
 	u8 port;
@@ -2129,6 +2128,17 @@ static inline bool rtw_chip_has_rx_ldpc(struct rtw_dev *rtwdev)
 static inline bool rtw_chip_has_tx_stbc(struct rtw_dev *rtwdev)
 {
 	return rtwdev->chip->tx_stbc;
+}
+
+static inline u8 rtw_acquire_macid(struct rtw_dev *rtwdev)
+{
+	unsigned long mac_id;
+
+	mac_id = find_first_zero_bit(rtwdev->mac_id_map, RTW_MAX_MAC_ID_NUM);
+	if (mac_id < RTW_MAX_MAC_ID_NUM)
+		set_bit(mac_id, rtwdev->mac_id_map);
+
+	return mac_id;
 }
 
 static inline void rtw_release_macid(struct rtw_dev *rtwdev, u8 mac_id)

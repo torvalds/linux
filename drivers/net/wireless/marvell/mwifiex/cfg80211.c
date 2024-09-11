@@ -1906,7 +1906,7 @@ mwifiex_cfg80211_del_station(struct wiphy *wiphy, struct net_device *dev,
 	struct mwifiex_sta_node *sta_node;
 	u8 deauth_mac[ETH_ALEN];
 
-	if (!priv->bss_started && priv->wdev.cac_started) {
+	if (!priv->bss_started && priv->wdev.links[0].cac_started) {
 		mwifiex_dbg(priv->adapter, INFO, "%s: abort CAC!\n", __func__);
 		mwifiex_abort_cac(priv);
 	}
@@ -4038,7 +4038,7 @@ mwifiex_cfg80211_channel_switch(struct wiphy *wiphy, struct net_device *dev,
 		return -EBUSY;
 	}
 
-	if (priv->wdev.cac_started)
+	if (priv->wdev.links[0].cac_started)
 		return -EBUSY;
 
 	if (cfg80211_chandef_identical(&params->chandef,
@@ -4205,7 +4205,7 @@ static int
 mwifiex_cfg80211_start_radar_detection(struct wiphy *wiphy,
 				       struct net_device *dev,
 				       struct cfg80211_chan_def *chandef,
-				       u32 cac_time_ms)
+				       u32 cac_time_ms, int link_id)
 {
 	struct mwifiex_private *priv = mwifiex_netdev_get_priv(dev);
 	struct mwifiex_radar_params radar_params;
