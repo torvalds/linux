@@ -274,6 +274,23 @@ fib_rule6_test()
 			"$getnomatch" "ipproto ipv6-icmp match" \
 			"ipproto ipv6-tcp no match"
 	fi
+
+	fib_check_iproute_support "dscp" "tos"
+	if [ $? -eq 0 ]; then
+		match="dscp 0x3f"
+		getmatch="tos 0xfc"
+		getnomatch="tos 0xf4"
+		fib_rule6_test_match_n_redirect "$match" "$getmatch" \
+			"$getnomatch" "dscp redirect to table" \
+			"dscp no redirect to table"
+
+		match="dscp 0x3f"
+		getmatch="from $SRC_IP6 iif $DEV tos 0xfc"
+		getnomatch="from $SRC_IP6 iif $DEV tos 0xf4"
+		fib_rule6_test_match_n_redirect "$match" "$getmatch" \
+			"$getnomatch" "iif dscp redirect to table" \
+			"iif dscp no redirect to table"
+	fi
 }
 
 fib_rule6_vrf_test()
@@ -467,6 +484,23 @@ fib_rule4_test()
 		fib_rule4_test_match_n_redirect "$match" "$match" \
 			"$getnomatch" "ipproto icmp match" \
 			"ipproto tcp no match"
+	fi
+
+	fib_check_iproute_support "dscp" "tos"
+	if [ $? -eq 0 ]; then
+		match="dscp 0x3f"
+		getmatch="tos 0xfc"
+		getnomatch="tos 0xf4"
+		fib_rule4_test_match_n_redirect "$match" "$getmatch" \
+			"$getnomatch" "dscp redirect to table" \
+			"dscp no redirect to table"
+
+		match="dscp 0x3f"
+		getmatch="from $SRC_IP iif $DEV tos 0xfc"
+		getnomatch="from $SRC_IP iif $DEV tos 0xf4"
+		fib_rule4_test_match_n_redirect "$match" "$getmatch" \
+			"$getnomatch" "iif dscp redirect to table" \
+			"iif dscp no redirect to table"
 	fi
 }
 
