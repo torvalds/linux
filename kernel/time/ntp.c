@@ -41,6 +41,7 @@
  * @ntp_next_leap_sec:	Second value of the next pending leapsecond, or TIME64_MAX if no leap
  *
  * @pps_valid:		PPS signal watchdog counter
+ * @pps_tf:		PPS phase median filter
  *
  * Protected by the timekeeping locks.
  */
@@ -61,6 +62,7 @@ struct ntp_data {
 	time64_t		ntp_next_leap_sec;
 #ifdef CONFIG_NTP_PPS
 	int			pps_valid;
+	long			pps_tf[3];
 #endif
 };
 
@@ -96,7 +98,6 @@ static struct ntp_data tk_ntp_data = {
 				   intervals to decrease it */
 #define PPS_MAXWANDER	100000	/* max PPS freq wander (ns/s) */
 
-static long pps_tf[3];		/* phase median filter */
 static long pps_jitter;		/* current jitter (ns) */
 static struct timespec64 pps_fbase; /* beginning of the last freq interval */
 static int pps_shift;		/* current interval duration (s) (shift) */
@@ -134,13 +135,14 @@ static inline void pps_reset_freq_interval(void)
 
 /**
  * pps_clear - Clears the PPS state variables
+ * @ntpdata:	Pointer to ntp data
  */
-static inline void pps_clear(void)
+static inline void pps_clear(struct ntp_data *ntpdata)
 {
 	pps_reset_freq_interval();
-	pps_tf[0] = 0;
-	pps_tf[1] = 0;
-	pps_tf[2] = 0;
+	ntpdata->pps_tf[0] = 0;
+	ntpdata->pps_tf[1] = 0;
+	ntpdata->pps_tf[2] = 0;
 	pps_fbase.tv_sec = pps_fbase.tv_nsec = 0;
 	pps_freq = 0;
 }
@@ -156,7 +158,7 @@ static inline void pps_dec_valid(struct ntp_data *ntpdata)
 	} else {
 		ntpdata->time_status &= ~(STA_PPSSIGNAL | STA_PPSJITTER |
 					  STA_PPSWANDER | STA_PPSERROR);
-		pps_clear();
+		pps_clear(ntpdata);
 	}
 }
 
@@ -211,7 +213,7 @@ static inline s64 ntp_offset_chunk(struct ntp_data *ntpdata, s64 offset)
 }
 
 static inline void pps_reset_freq_interval(void) {}
-static inline void pps_clear(void) {}
+static inline void pps_clear(struct ntp_data *ntpdata) {}
 static inline void pps_dec_valid(struct ntp_data *ntpdata) {}
 static inline void pps_set_freq(s64 freq) {}
 
@@ -337,7 +339,7 @@ static void __ntp_clear(struct ntp_data *ntpdata)
 
 	ntpdata->ntp_next_leap_sec = TIME64_MAX;
 	/* Clear PPS state variables */
-	pps_clear();
+	pps_clear(ntpdata);
 }
 
 /**
@@ -870,22 +872,22 @@ static inline struct pps_normtime pps_normalize_ts(struct timespec64 ts)
 }
 
 /* Get current phase correction and jitter */
-static inline long pps_phase_filter_get(long *jitter)
+static inline long pps_phase_filter_get(struct ntp_data *ntpdata, long *jitter)
 {
-	*jitter = pps_tf[0] - pps_tf[1];
+	*jitter = ntpdata->pps_tf[0] - ntpdata->pps_tf[1];
 	if (*jitter < 0)
 		*jitter = -*jitter;
 
 	/* TODO: test various filters */
-	return pps_tf[0];
+	return ntpdata->pps_tf[0];
 }
 
 /* Add the sample to the phase filter */
-static inline void pps_phase_filter_add(long err)
+static inline void pps_phase_filter_add(struct ntp_data *ntpdata, long err)
 {
-	pps_tf[2] = pps_tf[1];
-	pps_tf[1] = pps_tf[0];
-	pps_tf[0] = err;
+	ntpdata->pps_tf[2] = ntpdata->pps_tf[1];
+	ntpdata->pps_tf[1] = ntpdata->pps_tf[0];
+	ntpdata->pps_tf[0] = err;
 }
 
 /*
@@ -988,8 +990,8 @@ static void hardpps_update_phase(struct ntp_data *ntpdata, long error)
 	long jitter;
 
 	/* Add the sample to the median filter */
-	pps_phase_filter_add(correction);
-	correction = pps_phase_filter_get(&jitter);
+	pps_phase_filter_add(ntpdata, correction);
+	correction = pps_phase_filter_get(ntpdata, &jitter);
 
 	/*
 	 * Nominal jitter is due to PPS signal noise. If it exceeds the
