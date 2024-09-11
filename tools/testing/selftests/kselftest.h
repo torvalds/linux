@@ -373,15 +373,7 @@ static inline __noreturn __printf(1, 2) void ksft_exit_fail_msg(const char *msg,
 
 static inline __noreturn void ksft_exit_fail_perror(const char *msg)
 {
-#ifndef NOLIBC
 	ksft_exit_fail_msg("%s: %s (%d)\n", msg, strerror(errno), errno);
-#else
-	/*
-	 * nolibc doesn't provide strerror() and it seems
-	 * inappropriate to add one, just print the errno.
-	 */
-	ksft_exit_fail_msg("%s: %d)\n", msg, errno);
-#endif
 }
 
 static inline __noreturn void ksft_exit_xfail(void)
