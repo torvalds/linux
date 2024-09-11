@@ -5,6 +5,7 @@
  * Copyright (c) 2022 Maíra Canal <mairacanal@riseup.net>
  */
 
+#include <kunit/device.h>
 #include <kunit/test.h>
 
 #include <drm/drm_device.h>
@@ -568,10 +569,93 @@ static void drm_test_framebuffer_lookup_inexistent(struct kunit *test)
 	KUNIT_EXPECT_NULL(test, fb);
 }
 
+/*
+ * Test if drm_framebuffer_init initializes the framebuffer successfully,
+ * asserting that its modeset object struct and its refcount are correctly
+ * set and that strictly one framebuffer is initialized.
+ */
+static void drm_test_framebuffer_init(struct kunit *test)
+{
+	struct drm_framebuffer_test_priv *priv = test->priv;
+	struct drm_device *dev = &priv->dev;
+	struct drm_format_info format = { };
+	struct drm_framebuffer fb1 = { .dev = dev, .format = &format };
+	struct drm_framebuffer_funcs funcs = { };
+	int ret;
+
+	ret = drm_framebuffer_init(dev, &fb1, &funcs);
+	KUNIT_ASSERT_EQ(test, ret, 0);
+
+	/* Check if fb->funcs is actually set to the drm_framebuffer_funcs passed on */
+	KUNIT_EXPECT_PTR_EQ(test, fb1.funcs, &funcs);
+
+	/* The fb->comm must be set to the current running process */
+	KUNIT_EXPECT_STREQ(test, fb1.comm, current->comm);
+
+	/* The fb->base must be successfully initialized */
+	KUNIT_EXPECT_NE(test, fb1.base.id, 0);
+	KUNIT_EXPECT_EQ(test, fb1.base.type, DRM_MODE_OBJECT_FB);
+	KUNIT_EXPECT_EQ(test, kref_read(&fb1.base.refcount), 1);
+	KUNIT_EXPECT_PTR_EQ(test, fb1.base.free_cb, &drm_framebuffer_free);
+
+	/* There must be just that one fb initialized */
+	KUNIT_EXPECT_EQ(test, dev->mode_config.num_fb, 1);
+	KUNIT_EXPECT_PTR_EQ(test, dev->mode_config.fb_list.prev, &fb1.head);
+	KUNIT_EXPECT_PTR_EQ(test, dev->mode_config.fb_list.next, &fb1.head);
+
+	drm_framebuffer_cleanup(&fb1);
+}
+
+/* Try to init a framebuffer without setting its format */
+static void drm_test_framebuffer_init_bad_format(struct kunit *test)
+{
+	struct drm_framebuffer_test_priv *priv = test->priv;
+	struct drm_device *dev = &priv->dev;
+	struct drm_framebuffer fb1 = { .dev = dev, .format = NULL };
+	struct drm_framebuffer_funcs funcs = { };
+	int ret;
+
+	/* Fails if fb.format isn't set */
+	ret = drm_framebuffer_init(dev, &fb1, &funcs);
+	KUNIT_EXPECT_EQ(test, ret, -EINVAL);
+}
+
+/*
+ * Test calling drm_framebuffer_init() passing a framebuffer linked to a
+ * different drm_device parent from the one passed on the first argument, which
+ * must fail.
+ */
+static void drm_test_framebuffer_init_dev_mismatch(struct kunit *test)
+{
+	struct drm_framebuffer_test_priv *priv = test->priv;
+	struct drm_device *right_dev = &priv->dev;
+	struct drm_device *wrong_dev;
+	struct device *wrong_dev_parent;
+	struct drm_format_info format = { };
+	struct drm_framebuffer fb1 = { .dev = right_dev, .format = &format };
+	struct drm_framebuffer_funcs funcs = { };
+	int ret;
+
+	wrong_dev_parent = kunit_device_register(test, "drm-kunit-wrong-device-mock");
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, wrong_dev_parent);
+
+	wrong_dev = __drm_kunit_helper_alloc_drm_device(test, wrong_dev_parent,
+							sizeof(struct drm_device),
+							0, 0);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, wrong_dev);
+
+	/* Fails if fb->dev doesn't point to the drm_device passed on first arg */
+	ret = drm_framebuffer_init(wrong_dev, &fb1, &funcs);
+	KUNIT_EXPECT_EQ(test, ret, -EINVAL);
+}
+
 static struct kunit_case drm_framebuffer_tests[] = {
 	KUNIT_CASE_PARAM(drm_test_framebuffer_check_src_coords, check_src_coords_gen_params),
 	KUNIT_CASE(drm_test_framebuffer_cleanup),
 	KUNIT_CASE_PARAM(drm_test_framebuffer_create, drm_framebuffer_create_gen_params),
+	KUNIT_CASE(drm_test_framebuffer_init),
+	KUNIT_CASE(drm_test_framebuffer_init_bad_format),
+	KUNIT_CASE(drm_test_framebuffer_init_dev_mismatch),
 	KUNIT_CASE(drm_test_framebuffer_lookup),
 	KUNIT_CASE(drm_test_framebuffer_lookup_inexistent),
 	KUNIT_CASE(drm_test_framebuffer_modifiers_not_supported),
