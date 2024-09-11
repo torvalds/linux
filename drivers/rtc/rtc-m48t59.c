@@ -458,6 +458,8 @@ static int m48t59_rtc_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, m48t59);
 
 	m48t59->rtc->ops = &m48t59_rtc_ops;
+	m48t59->rtc->range_min = RTC_TIMESTAMP_BEGIN_1900;
+	m48t59->rtc->range_max = RTC_TIMESTAMP_END_2099;
 
 	nvmem_cfg.size = pdata->offset;
 	ret = devm_rtc_nvmem_register(m48t59->rtc, &nvmem_cfg);
