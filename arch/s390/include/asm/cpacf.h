@@ -204,6 +204,8 @@
 #define CPACF_KDSA_ENC_EDDSA_SIGN_ED25519 0x30
 #define CPACF_KDSA_ENC_EDDSA_SIGN_ED448 0x34
 
+#define CPACF_FC_QUERY 0x00
+
 typedef struct { unsigned char bytes[16]; } cpacf_mask_t;
 
 /*
@@ -214,78 +216,83 @@ typedef struct { unsigned char bytes[16]; } cpacf_mask_t;
 void __cpacf_bad_opcode(void);
 
 static __always_inline void __cpacf_query_rre(u32 opc, u8 r1, u8 r2,
-					      cpacf_mask_t *mask)
+					      u8 *pb, u8 fc)
 {
 	asm volatile(
-		"	la	%%r1,%[mask]\n"
-		"	xgr	%%r0,%%r0\n"
+		"	la	%%r1,%[pb]\n"
+		"	lghi	%%r0,%[fc]\n"
 		"	.insn	rre,%[opc] << 16,%[r1],%[r2]\n"
-		: [mask] "=R" (*mask)
-		: [opc] "i" (opc),
+		: [pb] "=R" (*pb)
+		: [opc] "i" (opc), [fc] "i" (fc),
 		  [r1] "i" (r1), [r2] "i" (r2)
-		: "cc", "r0", "r1");
+		: "cc", "memory", "r0", "r1");
 }
 
-static __always_inline void __cpacf_query_rrf(u32 opc,
-					      u8 r1, u8 r2, u8 r3, u8 m4,
-					      cpacf_mask_t *mask)
+static __always_inline void __cpacf_query_rrf(u32 opc, u8 r1, u8 r2, u8 r3,
+					      u8 m4, u8 *pb, u8 fc)
 {
 	asm volatile(
-		"	la	%%r1,%[mask]\n"
-		"	xgr	%%r0,%%r0\n"
+		"	la	%%r1,%[pb]\n"
+		"	lghi	%%r0,%[fc]\n"
 		"	.insn	rrf,%[opc] << 16,%[r1],%[r2],%[r3],%[m4]\n"
-		: [mask] "=R" (*mask)
-		: [opc] "i" (opc), [r1] "i" (r1), [r2] "i" (r2),
-		  [r3] "i" (r3), [m4] "i" (m4)
-		: "cc", "r0", "r1");
+		: [pb] "=R" (*pb)
+		: [opc] "i" (opc), [fc] "i" (fc), [r1] "i" (r1),
+		  [r2] "i" (r2), [r3] "i" (r3), [m4] "i" (m4)
+		: "cc", "memory", "r0", "r1");
+}
+
+static __always_inline void __cpacf_query_insn(unsigned int opcode, void *pb,
+					       u8 fc)
+{
+	switch (opcode) {
+	case CPACF_KDSA:
+		__cpacf_query_rre(CPACF_KDSA, 0, 2, pb, fc);
+		break;
+	case CPACF_KIMD:
+		__cpacf_query_rre(CPACF_KIMD, 0, 2, pb, fc);
+		break;
+	case CPACF_KLMD:
+		__cpacf_query_rre(CPACF_KLMD, 0, 2, pb, fc);
+		break;
+	case CPACF_KM:
+		__cpacf_query_rre(CPACF_KM, 2, 4, pb, fc);
+		break;
+	case CPACF_KMA:
+		__cpacf_query_rrf(CPACF_KMA, 2, 4, 6, 0, pb, fc);
+		break;
+	case CPACF_KMAC:
+		__cpacf_query_rre(CPACF_KMAC, 0, 2, pb, fc);
+		break;
+	case CPACF_KMC:
+		__cpacf_query_rre(CPACF_KMC, 2, 4, pb, fc);
+		break;
+	case CPACF_KMCTR:
+		__cpacf_query_rrf(CPACF_KMCTR, 2, 4, 6, 0, pb, fc);
+		break;
+	case CPACF_KMF:
+		__cpacf_query_rre(CPACF_KMF, 2, 4, pb, fc);
+		break;
+	case CPACF_KMO:
+		__cpacf_query_rre(CPACF_KMO, 2, 4, pb, fc);
+		break;
+	case CPACF_PCC:
+		__cpacf_query_rre(CPACF_PCC, 0, 0, pb, fc);
+		break;
+	case CPACF_PCKMO:
+		__cpacf_query_rre(CPACF_PCKMO, 0, 0, pb, fc);
+		break;
+	case CPACF_PRNO:
+		__cpacf_query_rre(CPACF_PRNO, 2, 4, pb, fc);
+		break;
+	default:
+		__cpacf_bad_opcode();
+	}
 }
 
 static __always_inline void __cpacf_query(unsigned int opcode,
 					  cpacf_mask_t *mask)
 {
-	switch (opcode) {
-	case CPACF_KDSA:
-		__cpacf_query_rre(CPACF_KDSA, 0, 2, mask);
-		break;
-	case CPACF_KIMD:
-		__cpacf_query_rre(CPACF_KIMD, 0, 2, mask);
-		break;
-	case CPACF_KLMD:
-		__cpacf_query_rre(CPACF_KLMD, 0, 2, mask);
-		break;
-	case CPACF_KM:
-		__cpacf_query_rre(CPACF_KM, 2, 4, mask);
-		break;
-	case CPACF_KMA:
-		__cpacf_query_rrf(CPACF_KMA, 2, 4, 6, 0, mask);
-		break;
-	case CPACF_KMAC:
-		__cpacf_query_rre(CPACF_KMAC, 0, 2, mask);
-		break;
-	case CPACF_KMC:
-		__cpacf_query_rre(CPACF_KMC, 2, 4, mask);
-		break;
-	case CPACF_KMCTR:
-		__cpacf_query_rrf(CPACF_KMCTR, 2, 4, 6, 0, mask);
-		break;
-	case CPACF_KMF:
-		__cpacf_query_rre(CPACF_KMF, 2, 4, mask);
-		break;
-	case CPACF_KMO:
-		__cpacf_query_rre(CPACF_KMO, 2, 4, mask);
-		break;
-	case CPACF_PCC:
-		__cpacf_query_rre(CPACF_PCC, 0, 0, mask);
-		break;
-	case CPACF_PCKMO:
-		__cpacf_query_rre(CPACF_PCKMO, 0, 0, mask);
-		break;
-	case CPACF_PRNO:
-		__cpacf_query_rre(CPACF_PRNO, 2, 4, mask);
-		break;
-	default:
-		__cpacf_bad_opcode();
-	}
+	__cpacf_query_insn(opcode, mask, CPACF_FC_QUERY);
 }
 
 static __always_inline int __cpacf_check_opcode(unsigned int opcode)
@@ -317,14 +324,15 @@ static __always_inline int __cpacf_check_opcode(unsigned int opcode)
 }
 
 /**
- * cpacf_query() - check if a specific CPACF function is available
+ * cpacf_query() - Query the function code mask for this CPACF opcode
  * @opcode: the opcode of the crypto instruction
- * @func: the function code to test for
+ * @mask: ptr to struct cpacf_mask_t
  *
  * Executes the query function for the given crypto instruction @opcode
  * and checks if @func is available
  *
- * Returns 1 if @func is available for @opcode, 0 otherwise
+ * On success 1 is returned and the mask is filled with the function
+ * code mask for this CPACF opcode, otherwise 0 is returned.
  */
 static __always_inline int cpacf_query(unsigned int opcode, cpacf_mask_t *mask)
 {
