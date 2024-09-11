@@ -334,7 +334,6 @@ bool pmo_dcn4_fams2_optimize_dcc_mcache(struct dml2_pmo_optimize_dcc_mcache_in_o
 							in_out->cfg_support_info->plane_support_info[i].dpps_used)) {
 							result = false;
 						} else {
-							free_pipes -= planes_on_stream;
 							break;
 						}
 					} else {
@@ -672,8 +671,6 @@ bool pmo_dcn4_fams2_initialize(struct dml2_pmo_initialize_in_out *in_out)
 			/* populate list */
 			expand_base_strategies(pmo, base_strategy_list_4_display, base_strategy_list_4_display_size, 4);
 			break;
-		default:
-			break;
 		}
 	}
 
@@ -944,7 +941,8 @@ static void build_synchronized_timing_groups(
 		for (j = i + 1; j < display_config->display_config.num_streams; j++) {
 			if (memcmp(master_timing,
 				&display_config->display_config.stream_descriptors[j].timing,
-				sizeof(struct dml2_timing_cfg)) == 0) {
+				sizeof(struct dml2_timing_cfg)) == 0 &&
+				display_config->display_config.stream_descriptors[i].output.output_encoder == display_config->display_config.stream_descriptors[j].output.output_encoder) {
 				set_bit_in_bitfield(&pmo->scratch.pmo_dcn4.synchronized_timing_group_masks[timing_group_idx], j);
 				set_bit_in_bitfield(&stream_mapped_mask, j);
 			}
