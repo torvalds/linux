@@ -31,6 +31,9 @@
  * @time_status:	Clock status bits
  * @time_offset:	Time adjustment in nanoseconds
  * @time_constant:	PLL time constant
+ * @time_maxerror:	Maximum error in microseconds holding the NTP sync distance
+ *			(NTP dispersion + delay / 2)
+ * @time_esterror:	Estimated error in microseconds holding NTP dispersion
  *
  * Protected by the timekeeping locks.
  */
@@ -42,6 +45,8 @@ struct ntp_data {
 	int			time_status;
 	s64			time_offset;
 	long			time_constant;
+	long			time_maxerror;
+	long			time_esterror;
 };
 
 static struct ntp_data tk_ntp_data = {
@@ -49,6 +54,8 @@ static struct ntp_data tk_ntp_data = {
 	.time_state		= TIME_OK,
 	.time_status		= STA_UNSYNC,
 	.time_constant		= 2,
+	.time_maxerror		= NTP_PHASE_LIMIT,
+	.time_esterror		= NTP_PHASE_LIMIT,
 };
 
 #define SECS_PER_DAY		86400
@@ -56,19 +63,6 @@ static struct ntp_data tk_ntp_data = {
 #define MAX_TICKADJ_SCALED \
 	(((MAX_TICKADJ * NSEC_PER_USEC) << NTP_SCALE_SHIFT) / NTP_INTERVAL_FREQ)
 #define MAX_TAI_OFFSET		100000
-
-/*
- * phase-lock loop variables
- *
- * Note: maximum error = NTP sync distance = dispersion + delay / 2;
- * estimated error = NTP dispersion.
- */
-
-/* maximum error (usecs):						*/
-static long			time_maxerror = NTP_PHASE_LIMIT;
-
-/* estimated error (usecs):						*/
-static long			time_esterror = NTP_PHASE_LIMIT;
 
 /* frequency offset (scaled nsecs/secs):				*/
 static s64			time_freq;
@@ -332,8 +326,8 @@ static void __ntp_clear(struct ntp_data *ntpdata)
 	/* Stop active adjtime() */
 	time_adjust		= 0;
 	ntpdata->time_status	|= STA_UNSYNC;
-	time_maxerror		= NTP_PHASE_LIMIT;
-	time_esterror		= NTP_PHASE_LIMIT;
+	ntpdata->time_maxerror	= NTP_PHASE_LIMIT;
+	ntpdata->time_esterror	= NTP_PHASE_LIMIT;
 
 	ntp_update_frequency(ntpdata);
 
@@ -442,9 +436,9 @@ int second_overflow(time64_t secs)
 	}
 
 	/* Bump the maxerror field */
-	time_maxerror += MAXFREQ / NSEC_PER_USEC;
-	if (time_maxerror > NTP_PHASE_LIMIT) {
-		time_maxerror = NTP_PHASE_LIMIT;
+	ntpdata->time_maxerror += MAXFREQ / NSEC_PER_USEC;
+	if (ntpdata->time_maxerror > NTP_PHASE_LIMIT) {
+		ntpdata->time_maxerror = NTP_PHASE_LIMIT;
 		ntpdata->time_status |= STA_UNSYNC;
 	}
 
@@ -730,10 +724,10 @@ static inline void process_adjtimex_modes(struct ntp_data *ntpdata, const struct
 	}
 
 	if (txc->modes & ADJ_MAXERROR)
-		time_maxerror = clamp(txc->maxerror, 0, NTP_PHASE_LIMIT);
+		ntpdata->time_maxerror = clamp(txc->maxerror, 0, NTP_PHASE_LIMIT);
 
 	if (txc->modes & ADJ_ESTERROR)
-		time_esterror = clamp(txc->esterror, 0, NTP_PHASE_LIMIT);
+		ntpdata->time_esterror = clamp(txc->esterror, 0, NTP_PHASE_LIMIT);
 
 	if (txc->modes & ADJ_TIMECONST) {
 		ntpdata->time_constant = clamp(txc->constant, 0, MAXTC);
@@ -806,8 +800,8 @@ int __do_adjtimex(struct __kernel_timex *txc, const struct timespec64 *ts,
 
 	txc->freq	   = shift_right((time_freq >> PPM_SCALE_INV_SHIFT) *
 					 PPM_SCALE_INV, NTP_SCALE_SHIFT);
-	txc->maxerror	   = time_maxerror;
-	txc->esterror	   = time_esterror;
+	txc->maxerror	   = ntpdata->time_maxerror;
+	txc->esterror	   = ntpdata->time_esterror;
 	txc->status	   = ntpdata->time_status;
 	txc->constant	   = ntpdata->time_constant;
 	txc->precision	   = 1;
