@@ -48,6 +48,10 @@
  * @pps_intcnt:		PPS interval counter
  * @pps_freq:		PPS frequency offset in scaled ns/s
  * @pps_stabil:		PPS current stability in scaled ns/s
+ * @pps_calcnt:		PPS monitor: calibration intervals
+ * @pps_jitcnt:		PPS monitor: jitter limit exceeded
+ * @pps_stbcnt:		PPS monitor: stability limit exceeded
+ * @pps_errcnt:		PPS monitor: calibration errors
  *
  * Protected by the timekeeping locks.
  */
@@ -75,6 +79,10 @@ struct ntp_data {
 	int			pps_intcnt;
 	s64			pps_freq;
 	long			pps_stabil;
+	long			pps_calcnt;
+	long			pps_jitcnt;
+	long			pps_stbcnt;
+	long			pps_errcnt;
 #endif
 };
 
@@ -109,15 +117,6 @@ static struct ntp_data tk_ntp_data = {
 				   increase pps_shift or consecutive bad
 				   intervals to decrease it */
 #define PPS_MAXWANDER	100000	/* max PPS freq wander (ns/s) */
-
-/*
- * PPS signal quality monitors
- */
-static long pps_calcnt;		/* calibration intervals */
-static long pps_jitcnt;		/* jitter limit exceeded */
-static long pps_stbcnt;		/* stability limit exceeded */
-static long pps_errcnt;		/* calibration errors */
-
 
 /*
  * PPS kernel consumer compensates the whole phase error immediately.
@@ -204,10 +203,10 @@ static inline void pps_fill_timex(struct ntp_data *ntpdata, struct __kernel_time
 		txc->jitter = ntpdata->pps_jitter / NSEC_PER_USEC;
 	txc->shift	   = ntpdata->pps_shift;
 	txc->stabil	   = ntpdata->pps_stabil;
-	txc->jitcnt	   = pps_jitcnt;
-	txc->calcnt	   = pps_calcnt;
-	txc->errcnt	   = pps_errcnt;
-	txc->stbcnt	   = pps_stbcnt;
+	txc->jitcnt	   = ntpdata->pps_jitcnt;
+	txc->calcnt	   = ntpdata->pps_calcnt;
+	txc->errcnt	   = ntpdata->pps_errcnt;
+	txc->stbcnt	   = ntpdata->pps_stbcnt;
 }
 
 #else /* !CONFIG_NTP_PPS */
@@ -943,7 +942,7 @@ static long hardpps_update_freq(struct ntp_data *ntpdata, struct pps_normtime fr
 	/* Check if the frequency interval was too long */
 	if (freq_norm.sec > (2 << ntpdata->pps_shift)) {
 		ntpdata->time_status |= STA_PPSERROR;
-		pps_errcnt++;
+		ntpdata->pps_errcnt++;
 		pps_dec_freq_interval(ntpdata);
 		printk_deferred(KERN_ERR "hardpps: PPSERROR: interval too long - %lld s\n",
 				freq_norm.sec);
@@ -962,7 +961,7 @@ static long hardpps_update_freq(struct ntp_data *ntpdata, struct pps_normtime fr
 	if (delta > PPS_MAXWANDER || delta < -PPS_MAXWANDER) {
 		printk_deferred(KERN_WARNING "hardpps: PPSWANDER: change=%ld\n", delta);
 		ntpdata->time_status |= STA_PPSWANDER;
-		pps_stbcnt++;
+		ntpdata->pps_stbcnt++;
 		pps_dec_freq_interval(ntpdata);
 	} else {
 		/* Good sample */
@@ -1007,7 +1006,7 @@ static void hardpps_update_phase(struct ntp_data *ntpdata, long error)
 		printk_deferred(KERN_WARNING "hardpps: PPSJITTER: jitter=%ld, limit=%ld\n",
 				jitter, (ntpdata->pps_jitter << PPS_POPCORN));
 		ntpdata->time_status |= STA_PPSJITTER;
-		pps_jitcnt++;
+		ntpdata->pps_jitcnt++;
 	} else if (ntpdata->time_status & STA_PPSTIME) {
 		/* Correct the time using the phase offset */
 		ntpdata->time_offset = div_s64(((s64)correction) << NTP_SCALE_SHIFT,
@@ -1072,7 +1071,7 @@ void __hardpps(const struct timespec64 *phase_ts, const struct timespec64 *raw_t
 
 	/* Signal is ok. Check if the current frequency interval is finished */
 	if (freq_norm.sec >= (1 << ntpdata->pps_shift)) {
-		pps_calcnt++;
+		ntpdata->pps_calcnt++;
 		/* Restart the frequency calibration interval */
 		ntpdata->pps_fbase = *raw_ts;
 		hardpps_update_freq(ntpdata, freq_norm);
