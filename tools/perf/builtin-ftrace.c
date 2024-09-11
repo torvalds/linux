@@ -80,6 +80,24 @@ static bool check_ftrace_capable(void)
 	return false;
 }
 
+static bool is_ftrace_supported(void)
+{
+	char *file;
+	bool supported = false;
+
+	file = get_tracing_file("set_ftrace_pid");
+	if (!file) {
+		pr_debug("cannot get tracing file set_ftrace_pid\n");
+		return false;
+	}
+
+	if (!access(file, F_OK))
+		supported = true;
+
+	put_tracing_file(file);
+	return supported;
+}
+
 static int __write_tracing_file(const char *name, const char *val, bool append)
 {
 	char *file;
@@ -1582,6 +1600,11 @@ int cmd_ftrace(int argc, const char **argv)
 
 	if (!check_ftrace_capable())
 		return -1;
+
+	if (!is_ftrace_supported()) {
+		pr_err("ftrace is not supported on this system\n");
+		return -ENOTSUP;
+	}
 
 	ret = perf_config(perf_ftrace_config, &ftrace);
 	if (ret < 0)
