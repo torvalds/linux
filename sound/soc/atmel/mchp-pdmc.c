@@ -777,6 +777,7 @@ static const struct snd_soc_dai_ops mchp_pdmc_dai_ops = {
 };
 
 static struct snd_soc_dai_driver mchp_pdmc_dai = {
+	.name	= "mchp-pdmc",
 	.capture = {
 		.stream_name	= "Capture",
 		.channels_min	= 1,
