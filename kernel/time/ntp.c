@@ -22,16 +22,19 @@
 #include "ntp_internal.h"
 #include "timekeeping_internal.h"
 
-
-/*
- * NTP timekeeping variables:
+/**
+ * struct ntp_data - Structure holding all NTP related state
+ * @tick_usec:		USER_HZ period in microseconds
  *
- * Note: All of the NTP state is protected by the timekeeping locks.
+ * Protected by the timekeeping locks.
  */
+struct ntp_data {
+	unsigned long		tick_usec;
+};
 
-
-/* USER_HZ period (usecs): */
-static unsigned long		tick_usec = USER_TICK_USEC;
+static struct ntp_data tk_ntp_data = {
+	.tick_usec		= USER_TICK_USEC,
+};
 
 static u64			tick_length;
 static u64			tick_length_base;
@@ -245,13 +248,11 @@ static inline void pps_fill_timex(struct __kernel_timex *txc)
  * Update tick_length and tick_length_base, based on tick_usec, ntp_tick_adj and
  * time_freq:
  */
-static void ntp_update_frequency(void)
+static void ntp_update_frequency(struct ntp_data *ntpdata)
 {
-	u64 second_length;
-	u64 new_base;
+	u64 second_length, new_base, tick_usec = (u64)ntpdata->tick_usec;
 
-	second_length		 = (u64)(tick_usec * NSEC_PER_USEC * USER_HZ)
-						<< NTP_SCALE_SHIFT;
+	second_length		 = (u64)(tick_usec * NSEC_PER_USEC * USER_HZ) << NTP_SCALE_SHIFT;
 
 	second_length		+= ntp_tick_adj;
 	second_length		+= time_freq;
@@ -330,10 +331,7 @@ static void ntp_update_offset(long offset)
 	time_offset = div_s64(offset64 << NTP_SCALE_SHIFT, NTP_INTERVAL_FREQ);
 }
 
-/**
- * ntp_clear - Clears the NTP state variables
- */
-void ntp_clear(void)
+static void __ntp_clear(struct ntp_data *ntpdata)
 {
 	/* Stop active adjtime() */
 	time_adjust	= 0;
@@ -341,7 +339,7 @@ void ntp_clear(void)
 	time_maxerror	= NTP_PHASE_LIMIT;
 	time_esterror	= NTP_PHASE_LIMIT;
 
-	ntp_update_frequency();
+	ntp_update_frequency(ntpdata);
 
 	tick_length	= tick_length_base;
 	time_offset	= 0;
@@ -349,6 +347,14 @@ void ntp_clear(void)
 	ntp_next_leap_sec = TIME64_MAX;
 	/* Clear PPS state variables */
 	pps_clear();
+}
+
+/**
+ * ntp_clear - Clears the NTP state variables
+ */
+void ntp_clear(void)
+{
+	__ntp_clear(&tk_ntp_data);
 }
 
 
@@ -706,7 +712,7 @@ static inline void process_adj_status(const struct __kernel_timex *txc)
 }
 
 
-static inline void process_adjtimex_modes(const struct __kernel_timex *txc,
+static inline void process_adjtimex_modes(struct ntp_data *ntpdata, const struct __kernel_timex *txc,
 					  s32 *time_tai)
 {
 	if (txc->modes & ADJ_STATUS)
@@ -747,12 +753,11 @@ static inline void process_adjtimex_modes(const struct __kernel_timex *txc,
 		ntp_update_offset(txc->offset);
 
 	if (txc->modes & ADJ_TICK)
-		tick_usec = txc->tick;
+		ntpdata->tick_usec = txc->tick;
 
 	if (txc->modes & (ADJ_TICK|ADJ_FREQUENCY|ADJ_OFFSET))
-		ntp_update_frequency();
+		ntp_update_frequency(ntpdata);
 }
-
 
 /*
  * adjtimex() mainly allows reading (and writing, if superuser) of
@@ -761,6 +766,7 @@ static inline void process_adjtimex_modes(const struct __kernel_timex *txc,
 int __do_adjtimex(struct __kernel_timex *txc, const struct timespec64 *ts,
 		  s32 *time_tai, struct audit_ntp_data *ad)
 {
+	struct ntp_data *ntpdata = &tk_ntp_data;
 	int result;
 
 	if (txc->modes & ADJ_ADJTIME) {
@@ -769,7 +775,7 @@ int __do_adjtimex(struct __kernel_timex *txc, const struct timespec64 *ts,
 		if (!(txc->modes & ADJ_OFFSET_READONLY)) {
 			/* adjtime() is independent from ntp_adjtime() */
 			time_adjust = txc->offset;
-			ntp_update_frequency();
+			ntp_update_frequency(ntpdata);
 
 			audit_ntp_set_old(ad, AUDIT_NTP_ADJUST,	save_adjust);
 			audit_ntp_set_new(ad, AUDIT_NTP_ADJUST,	time_adjust);
@@ -782,15 +788,15 @@ int __do_adjtimex(struct __kernel_timex *txc, const struct timespec64 *ts,
 			audit_ntp_set_old(ad, AUDIT_NTP_FREQ,	time_freq);
 			audit_ntp_set_old(ad, AUDIT_NTP_STATUS,	time_status);
 			audit_ntp_set_old(ad, AUDIT_NTP_TAI,	*time_tai);
-			audit_ntp_set_old(ad, AUDIT_NTP_TICK,	tick_usec);
+			audit_ntp_set_old(ad, AUDIT_NTP_TICK,	ntpdata->tick_usec);
 
-			process_adjtimex_modes(txc, time_tai);
+			process_adjtimex_modes(ntpdata, txc, time_tai);
 
 			audit_ntp_set_new(ad, AUDIT_NTP_OFFSET,	time_offset);
 			audit_ntp_set_new(ad, AUDIT_NTP_FREQ,	time_freq);
 			audit_ntp_set_new(ad, AUDIT_NTP_STATUS,	time_status);
 			audit_ntp_set_new(ad, AUDIT_NTP_TAI,	*time_tai);
-			audit_ntp_set_new(ad, AUDIT_NTP_TICK,	tick_usec);
+			audit_ntp_set_new(ad, AUDIT_NTP_TICK,	ntpdata->tick_usec);
 		}
 
 		txc->offset = shift_right(time_offset * NTP_INTERVAL_FREQ,
@@ -811,7 +817,7 @@ int __do_adjtimex(struct __kernel_timex *txc, const struct timespec64 *ts,
 	txc->constant	   = time_constant;
 	txc->precision	   = 1;
 	txc->tolerance	   = MAXFREQ_SCALED / PPM_SCALE;
-	txc->tick	   = tick_usec;
+	txc->tick	   = ntpdata->tick_usec;
 	txc->tai	   = *time_tai;
 
 	/* Fill PPS status fields */
@@ -932,7 +938,7 @@ static inline void pps_inc_freq_interval(void)
  * too long, the data are discarded.
  * Returns the difference between old and new frequency values.
  */
-static long hardpps_update_freq(struct pps_normtime freq_norm)
+static long hardpps_update_freq(struct ntp_data *ntpdata, struct pps_normtime freq_norm)
 {
 	long delta, delta_mod;
 	s64 ftemp;
@@ -979,7 +985,7 @@ static long hardpps_update_freq(struct pps_normtime freq_norm)
 	/* If enabled, the system clock frequency is updated */
 	if ((time_status & STA_PPSFREQ) && !(time_status & STA_FREQHOLD)) {
 		time_freq = pps_freq;
-		ntp_update_frequency();
+		ntp_update_frequency(ntpdata);
 	}
 
 	return delta;
@@ -1030,6 +1036,7 @@ static void hardpps_update_phase(long error)
 void __hardpps(const struct timespec64 *phase_ts, const struct timespec64 *raw_ts)
 {
 	struct pps_normtime pts_norm, freq_norm;
+	struct ntp_data *ntpdata = &tk_ntp_data;
 
 	pts_norm = pps_normalize_ts(*phase_ts);
 
@@ -1070,7 +1077,7 @@ void __hardpps(const struct timespec64 *phase_ts, const struct timespec64 *raw_t
 		pps_calcnt++;
 		/* Restart the frequency calibration interval */
 		pps_fbase = *raw_ts;
-		hardpps_update_freq(freq_norm);
+		hardpps_update_freq(ntpdata, freq_norm);
 	}
 
 	hardpps_update_phase(pts_norm.nsec);
