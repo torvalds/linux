@@ -603,8 +603,8 @@ static int arm_ni_probe(struct platform_device *pdev)
 	 */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	base = devm_ioremap(&pdev->dev, res->start, resource_size(res));
-	if (IS_ERR(base))
-		return PTR_ERR(base);
+	if (!base)
+		return -ENOMEM;
 
 	arm_ni_probe_domain(base, &cfg);
 	if (cfg.type != NI_GLOBAL)
