@@ -123,3 +123,45 @@ e << str_false_true_r.E;
 @@
 
 coccilib.report.print_report(p[0], "opportunity for str_false_true(%s)" % e)
+
+@str_hi_lo depends on patch@
+expression E;
+@@
+(
+-      ((E) ? "hi" : "lo")
++      str_hi_lo(E)
+)
+
+@str_hi_lo_r depends on !patch exists@
+expression E;
+position P;
+@@
+(
+*      ((E@P) ? "hi" : "lo")
+)
+
+@script:python depends on report@
+p << str_hi_lo_r.P;
+e << str_hi_lo_r.E;
+@@
+
+coccilib.report.print_report(p[0], "opportunity for str_hi_lo(%s)" % e)
+
+@str_high_low depends on patch@
+expression E;
+@@
+-      ((E) ? "high" : "low")
++      str_high_low(E)
+
+@str_high_low_r depends on !patch exists@
+expression E;
+position P;
+@@
+*      ((E@P) ? "high" : "low")
+
+@script:python depends on report@
+p << str_high_low_r.P;
+e << str_high_low_r.E;
+@@
+
+coccilib.report.print_report(p[0], "opportunity for str_high_low(%s)" % e)
