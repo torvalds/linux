@@ -19,18 +19,19 @@ struct intel_hdcp_gsc_message {
 	void *hdcp_cmd_out;
 };
 
-bool intel_hdcp_gsc_cs_required(struct drm_i915_private *i915)
+bool intel_hdcp_gsc_cs_required(struct intel_display *display)
 {
-	return DISPLAY_VER(i915) >= 14;
+	return DISPLAY_VER(display) >= 14;
 }
 
-bool intel_hdcp_gsc_check_status(struct drm_i915_private *i915)
+bool intel_hdcp_gsc_check_status(struct intel_display *display)
 {
+	struct drm_i915_private *i915 = to_i915(display->drm);
 	struct intel_gt *gt = i915->media_gt;
 	struct intel_gsc_uc *gsc = gt ? &gt->uc.gsc : NULL;
 
 	if (!gsc || !intel_uc_fw_is_running(&gsc->fw)) {
-		drm_dbg_kms(&i915->drm,
+		drm_dbg_kms(display->drm,
 			    "GSC components required for HDCP2.2 are not ready\n");
 		return false;
 	}

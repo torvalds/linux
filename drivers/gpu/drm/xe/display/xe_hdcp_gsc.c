@@ -30,13 +30,14 @@ struct intel_hdcp_gsc_message {
 
 #define HDCP_GSC_HEADER_SIZE sizeof(struct intel_gsc_mtl_header)
 
-bool intel_hdcp_gsc_cs_required(struct xe_device *xe)
+bool intel_hdcp_gsc_cs_required(struct intel_display *display)
 {
-	return DISPLAY_VER(xe) >= 14;
+	return DISPLAY_VER(display) >= 14;
 }
 
-bool intel_hdcp_gsc_check_status(struct xe_device *xe)
+bool intel_hdcp_gsc_check_status(struct intel_display *display)
 {
+	struct xe_device *xe = to_xe_device(display->drm);
 	struct xe_tile *tile = xe_device_get_root_tile(xe);
 	struct xe_gt *gt = tile->media_gt;
 	struct xe_gsc *gsc = &gt->uc.gsc;
