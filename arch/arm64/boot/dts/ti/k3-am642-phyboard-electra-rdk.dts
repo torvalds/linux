@@ -344,6 +344,10 @@
 	};
 };
 
+&i2c_som_rtc {
+	trickle-resistor-ohms = <3000>;
+};
+
 &main_i2c1 {
 	status = "okay";
 	pinctrl-names = "default";
