@@ -412,7 +412,8 @@ static int mlx5_check_dev_ids(struct mlx5_core_dev *dev, u16 dev_id)
 	return 0;
 }
 
-static bool mlx5_is_reset_now_capable(struct mlx5_core_dev *dev)
+static bool mlx5_is_reset_now_capable(struct mlx5_core_dev *dev,
+				      u8 reset_method)
 {
 	u16 dev_id;
 	int err;
@@ -423,9 +424,11 @@ static bool mlx5_is_reset_now_capable(struct mlx5_core_dev *dev)
 	}
 
 #if IS_ENABLED(CONFIG_HOTPLUG_PCI_PCIE)
-	err = mlx5_check_hotplug_interrupt(dev);
-	if (err)
-		return false;
+	if (reset_method != MLX5_MFRL_REG_PCI_RESET_METHOD_HOT_RESET) {
+		err = mlx5_check_hotplug_interrupt(dev);
+		if (err)
+			return false;
+	}
 #endif
 
 	err = pci_read_config_word(dev->pdev, PCI_DEVICE_ID, &dev_id);
@@ -446,7 +449,7 @@ static void mlx5_sync_reset_request_event(struct work_struct *work)
 		mlx5_core_warn(dev, "Failed reading MFRL, err %d\n", err);
 
 	if (err || test_bit(MLX5_FW_RESET_FLAGS_NACK_RESET_REQUEST, &fw_reset->reset_flags) ||
-	    !mlx5_is_reset_now_capable(dev)) {
+	    !mlx5_is_reset_now_capable(dev, fw_reset->reset_method)) {
 		err = mlx5_fw_reset_set_reset_sync_nack(dev);
 		mlx5_core_warn(dev, "PCI Sync FW Update Reset Nack %s",
 			       err ? "Failed" : "Sent");
