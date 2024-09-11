@@ -25,19 +25,20 @@
 /**
  * struct ntp_data - Structure holding all NTP related state
  * @tick_usec:		USER_HZ period in microseconds
+ * @tick_length:	Adjusted tick length
+ * @tick_length_base:	Base value for @tick_length
  *
  * Protected by the timekeeping locks.
  */
 struct ntp_data {
 	unsigned long		tick_usec;
+	u64			tick_length;
+	u64			tick_length_base;
 };
 
 static struct ntp_data tk_ntp_data = {
 	.tick_usec		= USER_TICK_USEC,
 };
-
-static u64			tick_length;
-static u64			tick_length_base;
 
 #define SECS_PER_DAY		86400
 #define MAX_TICKADJ		500LL		/* usecs */
@@ -263,8 +264,8 @@ static void ntp_update_frequency(struct ntp_data *ntpdata)
 	 * Don't wait for the next second_overflow, apply the change to the
 	 * tick length immediately:
 	 */
-	tick_length		+= new_base - tick_length_base;
-	tick_length_base	 = new_base;
+	ntpdata->tick_length		+= new_base - ntpdata->tick_length_base;
+	ntpdata->tick_length_base	 = new_base;
 }
 
 static inline s64 ntp_update_offset_fll(s64 offset64, long secs)
@@ -341,8 +342,8 @@ static void __ntp_clear(struct ntp_data *ntpdata)
 
 	ntp_update_frequency(ntpdata);
 
-	tick_length	= tick_length_base;
-	time_offset	= 0;
+	ntpdata->tick_length	= ntpdata->tick_length_base;
+	time_offset		= 0;
 
 	ntp_next_leap_sec = TIME64_MAX;
 	/* Clear PPS state variables */
@@ -360,7 +361,7 @@ void ntp_clear(void)
 
 u64 ntp_tick_length(void)
 {
-	return tick_length;
+	return tk_ntp_data.tick_length;
 }
 
 /**
@@ -391,6 +392,7 @@ ktime_t ntp_get_next_leap(void)
  */
 int second_overflow(time64_t secs)
 {
+	struct ntp_data *ntpdata = &tk_ntp_data;
 	s64 delta;
 	int leap = 0;
 	s32 rem;
@@ -451,11 +453,11 @@ int second_overflow(time64_t secs)
 	}
 
 	/* Compute the phase adjustment for the next second */
-	tick_length	 = tick_length_base;
+	ntpdata->tick_length	 = ntpdata->tick_length_base;
 
-	delta		 = ntp_offset_chunk(time_offset);
-	time_offset	-= delta;
-	tick_length	+= delta;
+	delta			 = ntp_offset_chunk(time_offset);
+	time_offset		-= delta;
+	ntpdata->tick_length	+= delta;
 
 	/* Check PPS signal */
 	pps_dec_valid();
@@ -465,18 +467,18 @@ int second_overflow(time64_t secs)
 
 	if (time_adjust > MAX_TICKADJ) {
 		time_adjust -= MAX_TICKADJ;
-		tick_length += MAX_TICKADJ_SCALED;
+		ntpdata->tick_length += MAX_TICKADJ_SCALED;
 		goto out;
 	}
 
 	if (time_adjust < -MAX_TICKADJ) {
 		time_adjust += MAX_TICKADJ;
-		tick_length -= MAX_TICKADJ_SCALED;
+		ntpdata->tick_length -= MAX_TICKADJ_SCALED;
 		goto out;
 	}
 
-	tick_length += (s64)(time_adjust * NSEC_PER_USEC / NTP_INTERVAL_FREQ)
-							 << NTP_SCALE_SHIFT;
+	ntpdata->tick_length += (s64)(time_adjust * NSEC_PER_USEC / NTP_INTERVAL_FREQ)
+				<< NTP_SCALE_SHIFT;
 	time_adjust = 0;
 
 out:
