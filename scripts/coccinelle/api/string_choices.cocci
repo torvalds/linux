@@ -104,3 +104,22 @@ e << str_true_false_r.E;
 @@
 
 coccilib.report.print_report(p[0], "opportunity for str_true_false(%s)" % e)
+
+@str_false_true depends on patch@
+expression E;
+@@
+-      ((E) ? "false" : "true")
++      str_false_true(E)
+
+@str_false_true_r depends on !patch exists@
+expression E;
+position P;
+@@
+*      ((E@P) ? "false" : "true")
+
+@script:python depends on report@
+p << str_false_true_r.P;
+e << str_false_true_r.E;
+@@
+
+coccilib.report.print_report(p[0], "opportunity for str_false_true(%s)" % e)
