@@ -40,6 +40,8 @@
  * @ntp_tick_adj:	Constant boot-param configurable NTP tick adjustment (upscaled)
  * @ntp_next_leap_sec:	Second value of the next pending leapsecond, or TIME64_MAX if no leap
  *
+ * @pps_valid:		PPS signal watchdog counter
+ *
  * Protected by the timekeeping locks.
  */
 struct ntp_data {
@@ -57,6 +59,9 @@ struct ntp_data {
 	long			time_adjust;
 	s64			ntp_tick_adj;
 	time64_t		ntp_next_leap_sec;
+#ifdef CONFIG_NTP_PPS
+	int			pps_valid;
+#endif
 };
 
 static struct ntp_data tk_ntp_data = {
@@ -91,7 +96,6 @@ static struct ntp_data tk_ntp_data = {
 				   intervals to decrease it */
 #define PPS_MAXWANDER	100000	/* max PPS freq wander (ns/s) */
 
-static int pps_valid;		/* signal watchdog counter */
 static long pps_tf[3];		/* phase median filter */
 static long pps_jitter;		/* current jitter (ns) */
 static struct timespec64 pps_fbase; /* beginning of the last freq interval */
@@ -147,9 +151,9 @@ static inline void pps_clear(void)
  */
 static inline void pps_dec_valid(struct ntp_data *ntpdata)
 {
-	if (pps_valid > 0)
-		pps_valid--;
-	else {
+	if (ntpdata->pps_valid > 0) {
+		ntpdata->pps_valid--;
+	} else {
 		ntpdata->time_status &= ~(STA_PPSSIGNAL | STA_PPSJITTER |
 					  STA_PPSWANDER | STA_PPSERROR);
 		pps_clear();
@@ -1032,7 +1036,7 @@ void __hardpps(const struct timespec64 *phase_ts, const struct timespec64 *raw_t
 
 	/* indicate signal presence */
 	ntpdata->time_status |= STA_PPSSIGNAL;
-	pps_valid = PPS_VALID;
+	ntpdata->pps_valid = PPS_VALID;
 
 	/*
 	 * When called for the first time, just start the frequency
