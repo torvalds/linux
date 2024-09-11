@@ -358,6 +358,7 @@ static const struct drm_framebuffer_test drm_framebuffer_create_cases[] = {
 struct drm_framebuffer_test_priv {
 	struct drm_device dev;
 	bool buffer_created;
+	bool buffer_freed;
 };
 
 static struct drm_framebuffer *fb_create_mock(struct drm_device *dev,
@@ -649,10 +650,59 @@ static void drm_test_framebuffer_init_dev_mismatch(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, ret, -EINVAL);
 }
 
+static void destroy_free_mock(struct drm_framebuffer *fb)
+{
+	struct drm_framebuffer_test_priv *priv = container_of(fb->dev, typeof(*priv), dev);
+
+	priv->buffer_freed = true;
+}
+
+static struct drm_framebuffer_funcs framebuffer_funcs_free_mock = {
+	.destroy = destroy_free_mock,
+};
+
+/*
+ * In summary, the drm_framebuffer_free() function must implicitly call
+ * fb->funcs->destroy() and garantee that the framebufer object is unregistered
+ * from the drm_device idr pool.
+ */
+static void drm_test_framebuffer_free(struct kunit *test)
+{
+	struct drm_framebuffer_test_priv *priv = test->priv;
+	struct drm_device *dev = &priv->dev;
+	struct drm_mode_object *obj;
+	struct drm_framebuffer fb = {
+		.dev = dev,
+		.funcs = &framebuffer_funcs_free_mock,
+	};
+	int id, ret;
+
+	priv->buffer_freed = false;
+
+	/*
+	 * Mock	a framebuffer that was not unregistered	at the moment of the
+	 * drm_framebuffer_free() call.
+	 */
+	ret = drm_mode_object_add(dev, &fb.base, DRM_MODE_OBJECT_FB);
+	KUNIT_ASSERT_EQ(test, ret, 0);
+	id = fb.base.id;
+
+	drm_framebuffer_free(&fb.base.refcount);
+
+	/* The framebuffer object must be unregistered */
+	obj = drm_mode_object_find(dev, NULL, id, DRM_MODE_OBJECT_FB);
+	KUNIT_EXPECT_PTR_EQ(test, obj, NULL);
+	KUNIT_EXPECT_EQ(test, fb.base.id, 0);
+
+	/* Test if fb->funcs->destroy() was called */
+	KUNIT_EXPECT_EQ(test, priv->buffer_freed, true);
+}
+
 static struct kunit_case drm_framebuffer_tests[] = {
 	KUNIT_CASE_PARAM(drm_test_framebuffer_check_src_coords, check_src_coords_gen_params),
 	KUNIT_CASE(drm_test_framebuffer_cleanup),
 	KUNIT_CASE_PARAM(drm_test_framebuffer_create, drm_framebuffer_create_gen_params),
+	KUNIT_CASE(drm_test_framebuffer_free),
 	KUNIT_CASE(drm_test_framebuffer_init),
 	KUNIT_CASE(drm_test_framebuffer_init_bad_format),
 	KUNIT_CASE(drm_test_framebuffer_init_dev_mismatch),
