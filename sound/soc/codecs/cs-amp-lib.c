@@ -182,6 +182,10 @@ static int _cs_amp_get_efi_calibration_data(struct device *dev, u64 target_uid, 
 		for (i = 0; i < efi_data->count; ++i) {
 			u64 cal_target = cs_amp_cal_target_u64(&efi_data->data[i]);
 
+			/* Skip empty entries */
+			if (!efi_data->data[i].calTime[0] && !efi_data->data[i].calTime[1])
+				continue;
+
 			/* Skip entries with unpopulated silicon ID */
 			if (cal_target == 0)
 				continue;
@@ -193,7 +197,8 @@ static int _cs_amp_get_efi_calibration_data(struct device *dev, u64 target_uid, 
 		}
 	}
 
-	if (!cal && (amp_index >= 0) && (amp_index < efi_data->count)) {
+	if (!cal && (amp_index >= 0) && (amp_index < efi_data->count) &&
+	    (efi_data->data[amp_index].calTime[0] || efi_data->data[amp_index].calTime[1])) {
 		u64 cal_target = cs_amp_cal_target_u64(&efi_data->data[amp_index]);
 
 		/*

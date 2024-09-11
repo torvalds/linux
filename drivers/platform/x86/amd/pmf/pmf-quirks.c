@@ -25,7 +25,7 @@ static const struct dmi_system_id fwbug_list[] = {
 		.ident = "ROG Zephyrus G14",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
-			DMI_MATCH(DMI_PRODUCT_NAME, "GA403UV"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "GA403U"),
 		},
 		.driver_data = &quirk_no_sps_bug,
 	},

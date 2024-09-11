@@ -286,6 +286,9 @@ static void account_end_timestamp(struct lock_contention *con)
 			goto next;
 
 		for (int i = 0; i < total_cpus; i++) {
+			if (cpu_data[i].lock == 0)
+				continue;
+
 			update_lock_stat(stat_fd, -1, end_ts, aggr_mode,
 					 &cpu_data[i]);
 		}

@@ -129,7 +129,7 @@ static int io_provided_buffers_select(struct io_kiocb *req, size_t *len,
 
 	iov[0].iov_base = buf;
 	iov[0].iov_len = *len;
-	return 0;
+	return 1;
 }
 
 static struct io_uring_buf *io_ring_head_to_buf(struct io_uring_buf_ring *br,
