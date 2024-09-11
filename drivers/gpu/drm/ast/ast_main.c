@@ -110,7 +110,7 @@ static void ast_detect_tx_chip(struct ast_device *ast, bool need_post)
 			ast->dp501_fw_addr = drmm_kzalloc(dev, 32*1024, GFP_KERNEL);
 			if (ast->dp501_fw_addr) {
 				/* backup firmware */
-				if (ast_backup_fw(dev, ast->dp501_fw_addr, 32*1024)) {
+				if (ast_backup_fw(ast, ast->dp501_fw_addr, 32*1024)) {
 					drmm_kfree(dev, ast->dp501_fw_addr);
 					ast->dp501_fw_addr = NULL;
 				}

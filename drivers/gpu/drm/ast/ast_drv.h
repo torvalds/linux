@@ -455,8 +455,8 @@ int ast_vga_output_init(struct ast_device *ast);
 int ast_sil164_output_init(struct ast_device *ast);
 
 /* ast dp501 */
-bool ast_backup_fw(struct drm_device *dev, u8 *addr, u32 size);
-void ast_init_3rdtx(struct drm_device *dev);
+bool ast_backup_fw(struct ast_device *ast, u8 *addr, u32 size);
+void ast_init_3rdtx(struct ast_device *ast);
 int ast_dp501_output_init(struct ast_device *ast);
 
 /* aspeed DP */

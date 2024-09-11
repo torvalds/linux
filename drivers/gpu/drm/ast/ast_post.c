@@ -360,7 +360,7 @@ void ast_post_gpu(struct drm_device *dev)
 		else
 			ast_init_dram_reg(dev);
 
-		ast_init_3rdtx(dev);
+		ast_init_3rdtx(ast);
 	} else {
 		if (ast->tx_chip == AST_TX_SIL164)
 			ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xa3, 0xcf, 0x80);	/* Enable DVO */
