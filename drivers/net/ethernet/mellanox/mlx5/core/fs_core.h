@@ -133,6 +133,7 @@ enum mlx5_flow_steering_capabilty {
 	MLX5_FLOW_STEERING_CAP_VLAN_PUSH_ON_RX = 1UL << 0,
 	MLX5_FLOW_STEERING_CAP_VLAN_POP_ON_TX = 1UL << 1,
 	MLX5_FLOW_STEERING_CAP_MATCH_RANGES = 1UL << 2,
+	MLX5_FLOW_STEERING_CAP_DUPLICATE_MATCH = 1UL << 3,
 };
 
 struct mlx5_flow_steering {
@@ -238,12 +239,18 @@ struct fs_fte_action {
 	struct mlx5_flow_act		action;
 };
 
+struct fs_fte_dup {
+	struct list_head children;
+	struct fs_fte_action act_dests;
+};
+
 /* Type of children is mlx5_flow_rule */
 struct fs_fte {
 	struct fs_node			node;
 	struct mlx5_fs_dr_rule		fs_dr_rule;
 	u32				val[MLX5_ST_SZ_DW_MATCH_PARAM];
 	struct fs_fte_action		act_dests;
+	struct fs_fte_dup		*dup;
 	u32				index;
 	enum fs_fte_status		status;
 	struct rhash_head		hash;

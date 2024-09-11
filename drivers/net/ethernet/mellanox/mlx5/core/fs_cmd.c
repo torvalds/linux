@@ -1071,7 +1071,7 @@ static int mlx5_cmd_create_match_definer(struct mlx5_flow_root_namespace *ns,
 static u32 mlx5_cmd_get_capabilities(struct mlx5_flow_root_namespace *ns,
 				     enum fs_flow_table_type ft_type)
 {
-	return 0;
+	return MLX5_FLOW_STEERING_CAP_DUPLICATE_MATCH;
 }
 
 static const struct mlx5_flow_cmds mlx5_flow_cmds = {

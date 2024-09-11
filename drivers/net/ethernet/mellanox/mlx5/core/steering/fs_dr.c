@@ -813,11 +813,11 @@ static int mlx5_cmd_dr_destroy_ns(struct mlx5_flow_root_namespace *ns)
 static u32 mlx5_cmd_dr_get_capabilities(struct mlx5_flow_root_namespace *ns,
 					enum fs_flow_table_type ft_type)
 {
-	u32 steering_caps = 0;
+	u32 steering_caps = MLX5_FLOW_STEERING_CAP_DUPLICATE_MATCH;
 
 	if (ft_type != FS_FT_FDB ||
 	    MLX5_CAP_GEN(ns->dev, steering_format_version) == MLX5_STEERING_FORMAT_CONNECTX_5)
-		return 0;
+		return steering_caps;
 
 	steering_caps |= MLX5_FLOW_STEERING_CAP_VLAN_PUSH_ON_RX;
 	steering_caps |= MLX5_FLOW_STEERING_CAP_VLAN_POP_ON_TX;
