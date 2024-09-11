@@ -279,3 +279,22 @@ e << str_write_read_r.E;
 @@
 
 coccilib.report.print_report(p[0], "opportunity for str_write_read(%s)" % e)
+
+@str_on_off depends on patch@
+expression E;
+@@
+-      ((E) ? "on" : "off")
++      str_on_off(E)
+
+@str_on_off_r depends on !patch exists@
+expression E;
+position P;
+@@
+*      ((E@P) ? "on" : "off")
+
+@script:python depends on report@
+p << str_on_off_r.P;
+e << str_on_off_r.E;
+@@
+
+coccilib.report.print_report(p[0], "opportunity for str_on_off(%s)" % e)
