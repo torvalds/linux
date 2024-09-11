@@ -109,23 +109,24 @@ struct snd_pcm_ops {
 #define SNDRV_PCM_RATE_5512		(1U<<0)		/* 5512Hz */
 #define SNDRV_PCM_RATE_8000		(1U<<1)		/* 8000Hz */
 #define SNDRV_PCM_RATE_11025		(1U<<2)		/* 11025Hz */
-#define SNDRV_PCM_RATE_12000		(1U<<3)		/* 12000Hz */
-#define SNDRV_PCM_RATE_16000		(1U<<4)		/* 16000Hz */
-#define SNDRV_PCM_RATE_22050		(1U<<5)		/* 22050Hz */
-#define SNDRV_PCM_RATE_24000		(1U<<6)		/* 24000Hz */
-#define SNDRV_PCM_RATE_32000		(1U<<7)		/* 32000Hz */
-#define SNDRV_PCM_RATE_44100		(1U<<8)		/* 44100Hz */
-#define SNDRV_PCM_RATE_48000		(1U<<9)		/* 48000Hz */
-#define SNDRV_PCM_RATE_64000		(1U<<10)	/* 64000Hz */
-#define SNDRV_PCM_RATE_88200		(1U<<11)	/* 88200Hz */
-#define SNDRV_PCM_RATE_96000		(1U<<12)	/* 96000Hz */
-#define SNDRV_PCM_RATE_128000		(1U<<13)	/* 128000Hz */
-#define SNDRV_PCM_RATE_176400		(1U<<14)	/* 176400Hz */
-#define SNDRV_PCM_RATE_192000		(1U<<15)	/* 192000Hz */
-#define SNDRV_PCM_RATE_352800		(1U<<16)	/* 352800Hz */
-#define SNDRV_PCM_RATE_384000		(1U<<17)	/* 384000Hz */
-#define SNDRV_PCM_RATE_705600		(1U<<18)	/* 705600Hz */
-#define SNDRV_PCM_RATE_768000		(1U<<19)	/* 768000Hz */
+#define SNDRV_PCM_RATE_16000		(1U<<3)		/* 16000Hz */
+#define SNDRV_PCM_RATE_22050		(1U<<4)		/* 22050Hz */
+#define SNDRV_PCM_RATE_32000		(1U<<5)		/* 32000Hz */
+#define SNDRV_PCM_RATE_44100		(1U<<6)		/* 44100Hz */
+#define SNDRV_PCM_RATE_48000		(1U<<7)		/* 48000Hz */
+#define SNDRV_PCM_RATE_64000		(1U<<8)		/* 64000Hz */
+#define SNDRV_PCM_RATE_88200		(1U<<9)		/* 88200Hz */
+#define SNDRV_PCM_RATE_96000		(1U<<10)	/* 96000Hz */
+#define SNDRV_PCM_RATE_176400		(1U<<11)	/* 176400Hz */
+#define SNDRV_PCM_RATE_192000		(1U<<12)	/* 192000Hz */
+#define SNDRV_PCM_RATE_352800		(1U<<13)	/* 352800Hz */
+#define SNDRV_PCM_RATE_384000		(1U<<14)	/* 384000Hz */
+#define SNDRV_PCM_RATE_705600		(1U<<15)	/* 705600Hz */
+#define SNDRV_PCM_RATE_768000		(1U<<16)	/* 768000Hz */
+/* extended rates since 6.12 */
+#define SNDRV_PCM_RATE_12000		(1U<<17)	/* 12000Hz */
+#define SNDRV_PCM_RATE_24000		(1U<<18)	/* 24000Hz */
+#define SNDRV_PCM_RATE_128000		(1U<<19)	/* 128000Hz */
 
 #define SNDRV_PCM_RATE_CONTINUOUS	(1U<<30)	/* continuous range */
 #define SNDRV_PCM_RATE_KNOT		(1U<<31)	/* supports more non-continuous rates */
