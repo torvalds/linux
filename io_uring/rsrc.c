@@ -17,6 +17,7 @@
 #include "openclose.h"
 #include "rsrc.h"
 #include "memmap.h"
+#include "register.h"
 
 struct io_rsrc_update {
 	struct file			*file;
@@ -1136,4 +1137,94 @@ int io_import_fixed(int ddir, struct iov_iter *iter,
 	}
 
 	return 0;
+}
+
+static int io_copy_buffers(struct io_ring_ctx *ctx, struct io_ring_ctx *src_ctx)
+{
+	struct io_mapped_ubuf **user_bufs;
+	struct io_rsrc_data *data;
+	int i, ret, nbufs;
+
+	/*
+	 * Drop our own lock here. We'll setup the data we need and reference
+	 * the source buffers, then re-grab, check, and assign at the end.
+	 */
+	mutex_unlock(&ctx->uring_lock);
+
+	mutex_lock(&src_ctx->uring_lock);
+	ret = -ENXIO;
+	nbufs = src_ctx->nr_user_bufs;
+	if (!nbufs)
+		goto out_unlock;
+	ret = io_rsrc_data_alloc(ctx, IORING_RSRC_BUFFER, NULL, nbufs, &data);
+	if (ret)
+		goto out_unlock;
+
+	ret = -ENOMEM;
+	user_bufs = kcalloc(nbufs, sizeof(*ctx->user_bufs), GFP_KERNEL);
+	if (!user_bufs)
+		goto out_free_data;
+
+	for (i = 0; i < nbufs; i++) {
+		struct io_mapped_ubuf *src = src_ctx->user_bufs[i];
+
+		refcount_inc(&src->refs);
+		user_bufs[i] = src;
+	}
+
+	/* Have a ref on the bufs now, drop src lock and re-grab our own lock */
+	mutex_unlock(&src_ctx->uring_lock);
+	mutex_lock(&ctx->uring_lock);
+	if (!ctx->user_bufs) {
+		ctx->user_bufs = user_bufs;
+		ctx->buf_data = data;
+		ctx->nr_user_bufs = nbufs;
+		return 0;
+	}
+
+	/* someone raced setting up buffers, dump ours */
+	for (i = 0; i < nbufs; i++)
+		io_buffer_unmap(ctx, &user_bufs[i]);
+	io_rsrc_data_free(data);
+	kfree(user_bufs);
+	return -EBUSY;
+out_free_data:
+	io_rsrc_data_free(data);
+out_unlock:
+	mutex_unlock(&src_ctx->uring_lock);
+	mutex_lock(&ctx->uring_lock);
+	return ret;
+}
+
+/*
+ * Copy the registered buffers from the source ring whose file descriptor
+ * is given in the src_fd to the current ring. This is identical to registering
+ * the buffers with ctx, except faster as mappings already exist.
+ *
+ * Since the memory is already accounted once, don't account it again.
+ */
+int io_register_copy_buffers(struct io_ring_ctx *ctx, void __user *arg)
+{
+	struct io_uring_copy_buffers buf;
+	bool registered_src;
+	struct file *file;
+	int ret;
+
+	if (ctx->user_bufs || ctx->nr_user_bufs)
+		return -EBUSY;
+	if (copy_from_user(&buf, arg, sizeof(buf)))
+		return -EFAULT;
+	if (buf.flags & ~IORING_REGISTER_SRC_REGISTERED)
+		return -EINVAL;
+	if (memchr_inv(buf.pad, 0, sizeof(buf.pad)))
+		return -EINVAL;
+
+	registered_src = (buf.flags & IORING_REGISTER_SRC_REGISTERED) != 0;
+	file = io_uring_register_get_file(buf.src_fd, registered_src);
+	if (IS_ERR(file))
+		return PTR_ERR(file);
+	ret = io_copy_buffers(ctx, file->private_data);
+	if (!registered_src)
+		fput(file);
+	return ret;
 }
