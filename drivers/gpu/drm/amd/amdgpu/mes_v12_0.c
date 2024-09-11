@@ -479,6 +479,11 @@ static int mes_v12_0_misc_op(struct amdgpu_mes *mes,
 	union MESAPI__MISC misc_pkt;
 	int pipe;
 
+	if (mes->adev->enable_uni_mes)
+		pipe = AMDGPU_MES_KIQ_PIPE;
+	else
+		pipe = AMDGPU_MES_SCHED_PIPE;
+
 	memset(&misc_pkt, 0, sizeof(misc_pkt));
 
 	misc_pkt.header.type = MES_API_TYPE_SCHEDULER;
@@ -513,6 +518,7 @@ static int mes_v12_0_misc_op(struct amdgpu_mes *mes,
 		misc_pkt.wait_reg_mem.reg_offset2 = input->wrm_reg.reg1;
 		break;
 	case MES_MISC_OP_SET_SHADER_DEBUGGER:
+		pipe = AMDGPU_MES_SCHED_PIPE;
 		misc_pkt.opcode = MESAPI_MISC__SET_SHADER_DEBUGGER;
 		misc_pkt.set_shader_debugger.process_context_addr =
 				input->set_shader_debugger.process_context_addr;
@@ -529,11 +535,6 @@ static int mes_v12_0_misc_op(struct amdgpu_mes *mes,
 		DRM_ERROR("unsupported misc op (%d) \n", input->op);
 		return -EINVAL;
 	}
-
-	if (mes->adev->enable_uni_mes)
-		pipe = AMDGPU_MES_KIQ_PIPE;
-	else
-		pipe = AMDGPU_MES_SCHED_PIPE;
 
 	return mes_v12_0_submit_pkt_and_poll_completion(mes, pipe,
 			&misc_pkt, sizeof(misc_pkt),
