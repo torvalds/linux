@@ -529,10 +529,51 @@ static void drm_test_framebuffer_cleanup(struct kunit *test)
 	KUNIT_ASSERT_EQ(test, dev->mode_config.num_fb, 0);
 }
 
+/*
+ * Initialize a framebuffer, lookup its id and test if the returned reference
+ * matches.
+ */
+static void drm_test_framebuffer_lookup(struct kunit *test)
+{
+	struct drm_framebuffer_test_priv *priv = test->priv;
+	struct drm_device *dev = &priv->dev;
+	struct drm_format_info format = { };
+	struct drm_framebuffer expected_fb = { .dev = dev, .format = &format };
+	struct drm_framebuffer *returned_fb;
+	uint32_t id = 0;
+	int ret;
+
+	ret = drm_framebuffer_init(dev, &expected_fb, NULL);
+	KUNIT_ASSERT_EQ(test, ret, 0);
+	id = expected_fb.base.id;
+
+	/* Looking for expected_fb */
+	returned_fb = drm_framebuffer_lookup(dev, NULL, id);
+	KUNIT_EXPECT_PTR_EQ(test, returned_fb, &expected_fb);
+	drm_framebuffer_put(returned_fb);
+
+	drm_framebuffer_cleanup(&expected_fb);
+}
+
+/* Try to lookup an id that is not linked to a framebuffer */
+static void drm_test_framebuffer_lookup_inexistent(struct kunit *test)
+{
+	struct drm_framebuffer_test_priv *priv = test->priv;
+	struct drm_device *dev = &priv->dev;
+	struct drm_framebuffer *fb;
+	uint32_t id = 0;
+
+	/* Looking for an inexistent framebuffer */
+	fb = drm_framebuffer_lookup(dev, NULL, id);
+	KUNIT_EXPECT_NULL(test, fb);
+}
+
 static struct kunit_case drm_framebuffer_tests[] = {
 	KUNIT_CASE_PARAM(drm_test_framebuffer_check_src_coords, check_src_coords_gen_params),
 	KUNIT_CASE(drm_test_framebuffer_cleanup),
 	KUNIT_CASE_PARAM(drm_test_framebuffer_create, drm_framebuffer_create_gen_params),
+	KUNIT_CASE(drm_test_framebuffer_lookup),
+	KUNIT_CASE(drm_test_framebuffer_lookup_inexistent),
 	KUNIT_CASE(drm_test_framebuffer_modifiers_not_supported),
 	{ }
 };
