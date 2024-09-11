@@ -305,10 +305,17 @@ static void bnxt_re_shutdown(struct auxiliary_device *adev)
 
 static void bnxt_re_stop_irq(void *handle)
 {
-	struct bnxt_re_dev *rdev = (struct bnxt_re_dev *)handle;
-	struct bnxt_qplib_rcfw *rcfw = &rdev->rcfw;
+	struct bnxt_re_en_dev_info *en_info = auxiliary_get_drvdata(handle);
+	struct bnxt_qplib_rcfw *rcfw;
+	struct bnxt_re_dev *rdev;
 	struct bnxt_qplib_nq *nq;
 	int indx;
+
+	if (!en_info)
+		return;
+
+	rdev = en_info->rdev;
+	rcfw = &rdev->rcfw;
 
 	for (indx = BNXT_RE_NQ_IDX; indx < rdev->num_msix; indx++) {
 		nq = &rdev->nq[indx - 1];
@@ -320,12 +327,19 @@ static void bnxt_re_stop_irq(void *handle)
 
 static void bnxt_re_start_irq(void *handle, struct bnxt_msix_entry *ent)
 {
-	struct bnxt_re_dev *rdev = (struct bnxt_re_dev *)handle;
-	struct bnxt_msix_entry *msix_ent = rdev->en_dev->msix_entries;
-	struct bnxt_qplib_rcfw *rcfw = &rdev->rcfw;
+	struct bnxt_re_en_dev_info *en_info = auxiliary_get_drvdata(handle);
+	struct bnxt_msix_entry *msix_ent;
+	struct bnxt_qplib_rcfw *rcfw;
+	struct bnxt_re_dev *rdev;
 	struct bnxt_qplib_nq *nq;
 	int indx, rc;
 
+	if (!en_info)
+		return;
+
+	rdev = en_info->rdev;
+	msix_ent = rdev->en_dev->msix_entries;
+	rcfw = &rdev->rcfw;
 	if (!ent) {
 		/* Not setting the f/w timeout bit in rcfw.
 		 * During the driver unload the first command
@@ -374,7 +388,7 @@ static int bnxt_re_register_netdev(struct bnxt_re_dev *rdev)
 
 	en_dev = rdev->en_dev;
 
-	rc = bnxt_register_dev(en_dev, &bnxt_re_ulp_ops, rdev);
+	rc = bnxt_register_dev(en_dev, &bnxt_re_ulp_ops, rdev->adev);
 	if (!rc)
 		rdev->qplib_res.pdev = rdev->en_dev->pdev;
 	return rc;
