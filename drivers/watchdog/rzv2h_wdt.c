@@ -270,3 +270,4 @@ static struct platform_driver rzv2h_wdt_driver = {
 module_platform_driver(rzv2h_wdt_driver);
 MODULE_AUTHOR("Lad Prabhakar <prabhakar.mahadev-lad.rj@bp.renesas.com>");
 MODULE_DESCRIPTION("Renesas RZ/V2H(P) WDT Watchdog Driver");
+MODULE_LICENSE("GPL");
