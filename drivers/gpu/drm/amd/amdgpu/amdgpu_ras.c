@@ -882,7 +882,7 @@ int amdgpu_ras_feature_enable_on_boot(struct amdgpu_device *adev,
 			if (ret)
 				return ret;
 
-			/* gfx block ras dsiable cmd must send to ras-ta */
+			/* gfx block ras disable cmd must send to ras-ta */
 			if (head->block == AMDGPU_RAS_BLOCK__GFX)
 				con->features |= BIT(head->block);
 

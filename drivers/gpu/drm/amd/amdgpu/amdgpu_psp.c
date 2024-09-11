@@ -2853,7 +2853,7 @@ static int psp_load_non_psp_fw(struct psp_context *psp)
 		if (ret)
 			return ret;
 
-		/* Start rlc autoload after psp recieved all the gfx firmware */
+		/* Start rlc autoload after psp received all the gfx firmware */
 		if (psp->autoload_supported && ucode->ucode_id == (amdgpu_sriov_vf(adev) ?
 		    adev->virt.autoload_ucode_id : AMDGPU_UCODE_ID_RLC_G)) {
 			ret = psp_rlc_autoload_start(psp);
