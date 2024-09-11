@@ -41,7 +41,10 @@
 #define DEFAULT_PORT_MASK	1
 #define DEFAULT_UNTAG_MASK	1
 
-#define NETIF_PRUETH_HSR_OFFLOAD_FEATURES	NETIF_F_HW_HSR_FWD
+#define NETIF_PRUETH_HSR_OFFLOAD_FEATURES	(NETIF_F_HW_HSR_FWD | \
+						 NETIF_F_HW_HSR_DUP | \
+						 NETIF_F_HW_HSR_TAG_INS | \
+						 NETIF_F_HW_HSR_TAG_RM)
 
 /* CTRLMMR_ICSSG_RGMII_CTRL register bits */
 #define ICSSG_CTRL_RGMII_ID_MODE                BIT(24)
@@ -744,6 +747,29 @@ static void emac_ndo_set_rx_mode(struct net_device *ndev)
 	queue_work(emac->cmd_wq, &emac->rx_mode_work);
 }
 
+static netdev_features_t emac_ndo_fix_features(struct net_device *ndev,
+					       netdev_features_t features)
+{
+	/* hsr tag insertion offload and hsr dup offload are tightly coupled in
+	 * firmware implementation. Both these features need to be enabled /
+	 * disabled together.
+	 */
+	if (!(ndev->features & (NETIF_F_HW_HSR_DUP | NETIF_F_HW_HSR_TAG_INS)))
+		if ((features & NETIF_F_HW_HSR_DUP) ||
+		    (features & NETIF_F_HW_HSR_TAG_INS))
+			features |= NETIF_F_HW_HSR_DUP |
+				    NETIF_F_HW_HSR_TAG_INS;
+
+	if ((ndev->features & NETIF_F_HW_HSR_DUP) ||
+	    (ndev->features & NETIF_F_HW_HSR_TAG_INS))
+		if (!(features & NETIF_F_HW_HSR_DUP) ||
+		    !(features & NETIF_F_HW_HSR_TAG_INS))
+			features &= ~(NETIF_F_HW_HSR_DUP |
+				      NETIF_F_HW_HSR_TAG_INS);
+
+	return features;
+}
+
 static const struct net_device_ops emac_netdev_ops = {
 	.ndo_open = emac_ndo_open,
 	.ndo_stop = emac_ndo_stop,
@@ -755,6 +781,7 @@ static const struct net_device_ops emac_netdev_ops = {
 	.ndo_eth_ioctl = icssg_ndo_ioctl,
 	.ndo_get_stats64 = icssg_ndo_get_stats64,
 	.ndo_get_phys_port_name = icssg_ndo_get_phys_port_name,
+	.ndo_fix_features = emac_ndo_fix_features,
 };
 
 static int prueth_netdev_init(struct prueth *prueth,
@@ -981,6 +1008,13 @@ static void icssg_change_mode(struct prueth *prueth)
 
 	for (mac = PRUETH_MAC0; mac < PRUETH_NUM_MACS; mac++) {
 		emac = prueth->emac[mac];
+		if (prueth->is_hsr_offload_mode) {
+			if (emac->ndev->features & NETIF_F_HW_HSR_TAG_RM)
+				icssg_set_port_state(emac, ICSSG_EMAC_HSR_RX_OFFLOAD_ENABLE);
+			else
+				icssg_set_port_state(emac, ICSSG_EMAC_HSR_RX_OFFLOAD_DISABLE);
+		}
+
 		if (netif_running(emac->ndev)) {
 			icssg_fdb_add_del(emac, eth_stp_addr, prueth->default_vlan,
 					  ICSSG_FDB_ENTRY_P0_MEMBERSHIP |
