@@ -1,15 +1,16 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-// Copyright 2020 IBM Corp.
+// Copyright 2024 IBM Corp.
 /dts-v1/;
 
-#include "aspeed-g6.dtsi"
 #include <dt-bindings/gpio/aspeed-gpio.h>
 #include <dt-bindings/i2c/i2c.h>
 #include <dt-bindings/leds/leds-pca955x.h>
+#include "aspeed-g6.dtsi"
+#include "ibm-power11-quad.dtsi"
 
 / {
-	model = "Everest";
-	compatible = "ibm,everest-bmc", "aspeed,ast2600";
+	model = "Fuji";
+	compatible = "ibm,fuji-bmc", "aspeed,ast2600";
 
 	aliases {
 		i2c500 = &cfam4_i2c0;
@@ -167,7 +168,6 @@
 
 	chosen {
 		stdout-path = &uart5;
-		bootargs = "console=ttyS4,115200n8";
 	};
 
 	memory@80000000 {
@@ -180,9 +180,9 @@
 		#size-cells = <1>;
 		ranges;
 
-		event_log: tcg_event_log@b3d00000 {
-			no-map;
+		event_log: region@b3d00000 {
 			reg = <0xb3d00000 0x100000>;
+			no-map;
 		};
 
 		ramoops@b3e00000 {
@@ -197,15 +197,15 @@
 
 		/* LPC FW cycle bridge region requires natural alignment */
 		flash_memory: region@b4000000 {
-			no-map;
 			reg = <0xb4000000 0x04000000>; /* 64M */
+			no-map;
 		};
 
 		/* VGA region is dictated by hardware strapping */
 		vga_memory: region@bf000000 {
-			no-map;
 			compatible = "shared-dma-pool";
 			reg = <0xbf000000 0x01000000>; /* 16M */
+			no-map;
 		};
 	};
 
@@ -214,26 +214,26 @@
 		poll-interval = <1000>;
 
 		event-fan0-presence {
-			label = "fan0-presence";
 			gpios = <&pca0 15 GPIO_ACTIVE_LOW>;
+			label = "fan0-presence";
 			linux,code = <15>;
 		};
 
 		event-fan1-presence {
-			label = "fan1-presence";
 			gpios = <&pca0 14 GPIO_ACTIVE_LOW>;
+			label = "fan1-presence";
 			linux,code = <14>;
 		};
 
 		event-fan2-presence {
-			label = "fan2-presence";
 			gpios = <&pca0 13 GPIO_ACTIVE_LOW>;
+			label = "fan2-presence";
 			linux,code = <13>;
 		};
 
 		event-fan3-presence {
-			label = "fan3-presence";
 			gpios = <&pca0 12 GPIO_ACTIVE_LOW>;
+			label = "fan3-presence";
 			linux,code = <12>;
 		};
 	};
@@ -286,13 +286,15 @@
 &gpio0 {
 	gpio-line-names =
 	/*A0-A7*/	"","","","","","","","",
-	/*B0-B7*/	"USERSPACE_RSTIND_BUFF","","","","","","checkstop","",
+	/*B0-B7*/	"bmc-management-ready","","","","","","checkstop","",
 	/*C0-C7*/	"","","","","","","","",
 	/*D0-D7*/	"","","","","","","","",
 	/*E0-E7*/	"","","","","","","","",
-	/*F0-F7*/	"","","rtc-battery-voltage-read-enable","reset-cause-pinhole","","","factory-reset-toggle","",
+	/*F0-F7*/	"","","rtc-battery-voltage-read-enable","reset-cause-pinhole","","",
+			"factory-reset-toggle","",
 	/*G0-G7*/	"","","","","","","","",
-	/*H0-H7*/	"led-rtc-battery","led-bmc","led-rear-enc-id0","led-rear-enc-fault0","","","","",
+	/*H0-H7*/	"led-rtc-battery","led-bmc","led-rear-enc-id0","led-rear-enc-fault0","","",
+			"","",
 	/*I0-I7*/	"","","","","","","bmc-secure-boot","",
 	/*J0-J7*/	"","","","","","","","",
 	/*K0-K7*/	"","","","","","","","",
@@ -302,7 +304,8 @@
 	/*O0-O7*/	"","","","usb-power","","","","",
 	/*P0-P7*/	"","","","","led-pcieslot-power","","","",
 	/*Q0-Q7*/	"","","regulator-standby-faulted","","","","","",
-	/*R0-R7*/	"bmc-tpm-reset","power-chassis-control","power-chassis-good","","","I2C_FLASH_MICRO_N","","",
+	/*R0-R7*/	"bmc-tpm-reset","power-chassis-control","power-chassis-good","","",
+			"I2C_FLASH_MICRO_N","","",
 	/*S0-S7*/	"","","","","power-ffs-sync-history","","","",
 	/*T0-T7*/	"","","","","","","","",
 	/*U0-U7*/	"","","","","","","","",
@@ -310,9 +313,9 @@
 	/*W0-W7*/	"","","","","","","","",
 	/*X0-X7*/	"","","","","","","","",
 	/*Y0-Y7*/	"","","","","","","","",
-	/*Z0-Z7*/   "","","","","","","","";
+	/*Z0-Z7*/	"","","","","","","","";
 
-	usb_power {
+	usb-power-hog {
 		gpio-hog;
 		gpios = <ASPEED_GPIO(O, 3) GPIO_ACTIVE_LOW>;
 		output-high;
@@ -327,12 +330,11 @@
 		reg = <0x51>;
 	};
 
-	pca1: pca9552@62 {
+	led-controller@62 {
 		compatible = "nxp,pca9552";
 		reg = <0x62>;
 		#address-cells = <1>;
 		#size-cells = <0>;
-
 		gpio-controller;
 		#gpio-cells = <2>;
 
@@ -395,12 +397,11 @@
 &i2c4 {
 	status = "okay";
 
-	pca2: pca9552@65 {
+	led-controller@65 {
 		compatible = "nxp,pca9552";
 		reg = <0x65>;
 		#address-cells = <1>;
 		#size-cells = <0>;
-
 		gpio-controller;
 		#gpio-cells = <2>;
 
@@ -422,112 +423,111 @@
 		reg = <0x70>;
 		#address-cells = <1>;
 		#size-cells = <0>;
-		status = "okay";
 		i2c-mux-idle-disconnect;
 
 		i2c4mux0chn0: i2c@0 {
+			reg = <0>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			reg = <0>;
+
 			eeprom@52 {
 				compatible = "atmel,24c64";
 				reg = <0x52>;
 			};
 
-			pca_cable_card_c01: pca9551@62 {
+			led-controller@62 {
 				compatible = "nxp,pca9551";
 				reg = <0x62>;
 				#address-cells = <1>;
 				#size-cells = <0>;
-
 				gpio-controller;
 				#gpio-cells = <2>;
 
 				led@0 {
-					label = "cablecard-c01-cxp-top";
 					reg = <0>;
-					retain-state-shutdown;
 					default-state = "keep";
+					label = "cablecard-c01-cxp-top";
+					retain-state-shutdown;
 					type = <PCA955X_TYPE_LED>;
 				};
 
 				led@1 {
-					label = "cablecard-c01-cxp-bot";
 					reg = <1>;
-					retain-state-shutdown;
 					default-state = "keep";
+					label = "cablecard-c01-cxp-bot";
+					retain-state-shutdown;
 					type = <PCA955X_TYPE_LED>;
 				};
 			};
 		};
 
 		i2c4mux0chn1: i2c@1 {
+			reg = <1>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			reg = <1>;
+
 			eeprom@50 {
 				compatible = "atmel,24c64";
 				reg = <0x50>;
 			};
 
-			pca_cable_card_c02: pca9551@60 {
+			led-controller@60 {
 				compatible = "nxp,pca9551";
 				reg = <0x60>;
 				#address-cells = <1>;
 				#size-cells = <0>;
-
 				gpio-controller;
 				#gpio-cells = <2>;
 
 				led@0 {
-					label = "cablecard-c02-cxp-top";
 					reg = <0>;
-					retain-state-shutdown;
 					default-state = "keep";
+					label = "cablecard-c02-cxp-top";
+					retain-state-shutdown;
 					type = <PCA955X_TYPE_LED>;
 				};
 
 				led@1 {
-					label = "cablecard-c02-cxp-bot";
 					reg = <1>;
-					retain-state-shutdown;
 					default-state = "keep";
+					label = "cablecard-c02-cxp-bot";
+					retain-state-shutdown;
 					type = <PCA955X_TYPE_LED>;
 				};
 			};
 		};
 
 		i2c4mux0chn2: i2c@2 {
+			reg = <2>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			reg = <2>;
+
 			eeprom@51 {
 				compatible = "atmel,24c64";
 				reg = <0x51>;
 			};
 
-			pca_cable_card_c03: pca9551@61 {
+			led-controller@61 {
 				compatible = "nxp,pca9551";
 				reg = <0x61>;
 				#address-cells = <1>;
 				#size-cells = <0>;
-
 				gpio-controller;
 				#gpio-cells = <2>;
 
 				led@0 {
-					label = "cablecard-c03-cxp-top";
 					reg = <0>;
-					retain-state-shutdown;
 					default-state = "keep";
+					label = "cablecard-c03-cxp-top";
+					retain-state-shutdown;
 					type = <PCA955X_TYPE_LED>;
 				};
 
 				led@1 {
-					label = "cablecard-c03-cxp-bot";
 					reg = <1>;
-					retain-state-shutdown;
 					default-state = "keep";
+					label = "cablecard-c03-cxp-bot";
+					retain-state-shutdown;
 					type = <PCA955X_TYPE_LED>;
 				};
 			};
@@ -538,12 +538,11 @@
 &i2c5 {
 	status = "okay";
 
-	pca3: pca9552@66 {
+	led-controller@66 {
 		compatible = "nxp,pca9552";
 		reg = <0x66>;
 		#address-cells = <1>;
 		#size-cells = <0>;
-
 		gpio-controller;
 		#gpio-cells = <2>;
 
@@ -567,148 +566,147 @@
 		reg = <0x70>;
 		#address-cells = <1>;
 		#size-cells = <0>;
-		status = "okay";
 		i2c-mux-idle-disconnect;
 
 		i2c5mux0chn0: i2c@0 {
+			reg = <0>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			reg = <0>;
+
 			eeprom@50 {
 				compatible = "atmel,24c64";
 				reg = <0x50>;
 			};
 
-			pca_cable_card_c04: pca9551@60 {
+			led-controller@60 {
 				compatible = "nxp,pca9551";
 				reg = <0x60>;
 				#address-cells = <1>;
 				#size-cells = <0>;
-
 				gpio-controller;
 				#gpio-cells = <2>;
 
 				led@0 {
-					label = "cablecard-c04-cxp-top";
 					reg = <0>;
-					retain-state-shutdown;
 					default-state = "keep";
+					label = "cablecard-c04-cxp-top";
+					retain-state-shutdown;
 					type = <PCA955X_TYPE_LED>;
 				};
 
 				led@1 {
-					label = "cablecard-c04-cxp-bot";
 					reg = <1>;
-					retain-state-shutdown;
 					default-state = "keep";
+					label = "cablecard-c04-cxp-bot";
+					retain-state-shutdown;
 					type = <PCA955X_TYPE_LED>;
 				};
 			};
 		};
 
 		i2c5mux0chn1: i2c@1 {
+			reg = <1>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			reg = <1>;
+
 			eeprom@51 {
 				compatible = "atmel,24c64";
 				reg = <0x51>;
 			};
 
-			pca_cable_card_c05: pca9551@61 {
+			led-controller@61 {
 				compatible = "nxp,pca9551";
 				reg = <0x61>;
 				#address-cells = <1>;
 				#size-cells = <0>;
-
 				gpio-controller;
 				#gpio-cells = <2>;
 
 				led@0 {
-					label = "cablecard-c05-cxp-top";
 					reg = <0>;
-					retain-state-shutdown;
 					default-state = "keep";
+					label = "cablecard-c05-cxp-top";
+					retain-state-shutdown;
 					type = <PCA955X_TYPE_LED>;
 				};
 
 				led@1 {
-					label = "cablecard-c05-cxp-bot";
 					reg = <1>;
-					retain-state-shutdown;
 					default-state = "keep";
+					label = "cablecard-c05-cxp-bot";
+					retain-state-shutdown;
 					type = <PCA955X_TYPE_LED>;
 				};
 			};
 		};
 
 		i2c5mux0chn2: i2c@2 {
+			reg = <2>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			reg = <2>;
+
 			eeprom@52 {
 				compatible = "atmel,24c64";
 				reg = <0x52>;
 			};
 
-			pca_cable_card_c06: pca9551@62 {
+			led-controller@62 {
 				compatible = "nxp,pca9551";
 				reg = <0x62>;
 				#address-cells = <1>;
 				#size-cells = <0>;
-
 				gpio-controller;
 				#gpio-cells = <2>;
 
 				led@0 {
-					label = "cablecard-c06-cxp-top";
 					reg = <0>;
-					retain-state-shutdown;
 					default-state = "keep";
+					label = "cablecard-c06-cxp-top";
+					retain-state-shutdown;
 					type = <PCA955X_TYPE_LED>;
 				};
 
 				led@1 {
-					label = "cablecard-c06-cxp-bot";
 					reg = <1>;
-					retain-state-shutdown;
 					default-state = "keep";
+					label = "cablecard-c06-cxp-bot";
+					retain-state-shutdown;
 					type = <PCA955X_TYPE_LED>;
 				};
 			};
 		};
 
 		i2c5mux0chn3: i2c@3 {
+			reg = <3>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			reg = <3>;
+
 			eeprom@53 {
 				compatible = "atmel,24c64";
 				reg = <0x53>;
 			};
 
-			pca_cable_card_c07: pca9551@63 {
+			led-controller@63 {
 				compatible = "nxp,pca9551";
 				reg = <0x63>;
 				#address-cells = <1>;
 				#size-cells = <0>;
-
 				gpio-controller;
 				#gpio-cells = <2>;
 
 				led@0 {
-					label = "cablecard-c07-cxp-top";
 					reg = <0>;
-					retain-state-shutdown;
 					default-state = "keep";
+					label = "cablecard-c07-cxp-top";
+					retain-state-shutdown;
 					type = <PCA955X_TYPE_LED>;
 				};
 
 				led@1 {
-					label = "cablecard-c07-cxp-bot";
 					reg = <1>;
-					retain-state-shutdown;
 					default-state = "keep";
+					label = "cablecard-c07-cxp-bot";
+					retain-state-shutdown;
 					type = <PCA955X_TYPE_LED>;
 				};
 			};
@@ -724,248 +722,246 @@
 		reg = <0x70>;
 		#address-cells = <1>;
 		#size-cells = <0>;
-		status = "okay";
 		i2c-mux-idle-disconnect;
 
 		i2c6mux0chn0: i2c@0 {
+			reg = <0>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			reg = <0>;
+
 			eeprom@50 {
-			compatible = "atmel,24c64";
-			reg = <0x50>;
+				compatible = "atmel,24c64";
+				reg = <0x50>;
 			};
 
-			pca_cable_card_c08: pca9551@60 {
+			led-controller@60 {
 				compatible = "nxp,pca9551";
 				reg = <0x60>;
 				#address-cells = <1>;
 				#size-cells = <0>;
-
 				gpio-controller;
 				#gpio-cells = <2>;
 
 				led@0 {
-					label = "cablecard-c08-cxp-top";
 					reg = <0>;
-					retain-state-shutdown;
 					default-state = "keep";
+					label = "cablecard-c08-cxp-top";
+					retain-state-shutdown;
 					type = <PCA955X_TYPE_LED>;
 				};
 
 				led@1 {
-					label = "cablecard-c08-cxp-bot";
 					reg = <1>;
-					retain-state-shutdown;
 					default-state = "keep";
+					label = "cablecard-c08-cxp-bot";
+					retain-state-shutdown;
 					type = <PCA955X_TYPE_LED>;
 				};
 			};
 		};
 
 		i2c6mux0chn1: i2c@1 {
+			reg = <1>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			reg = <1>;
+
 			eeprom@52 {
 				compatible = "atmel,24c64";
 				reg = <0x52>;
 			};
 
-			pca_cable_card_c09: pca9551@62 {
+			led-controller@62 {
 				compatible = "nxp,pca9551";
 				reg = <0x62>;
 				#address-cells = <1>;
 				#size-cells = <0>;
-
 				gpio-controller;
 				#gpio-cells = <2>;
 
 				led@0 {
-					label = "cablecard-c09-cxp-top";
 					reg = <0>;
-					retain-state-shutdown;
 					default-state = "keep";
+					label = "cablecard-c09-cxp-top";
+					retain-state-shutdown;
 					type = <PCA955X_TYPE_LED>;
 				};
 
 				led@1 {
-					label = "cablecard-c09-cxp-bot";
 					reg = <1>;
-					retain-state-shutdown;
 					default-state = "keep";
+					label = "cablecard-c09-cxp-bot";
+					retain-state-shutdown;
 					type = <PCA955X_TYPE_LED>;
 				};
 			};
 		};
 
 		i2c6mux0chn2: i2c@2 {
+			reg = <2>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			reg = <2>;
+
 			eeprom@53 {
 				compatible = "atmel,24c64";
 				reg = <0x53>;
 			};
 
-			pca_cable_card_c10: pca9551@63 {
+			led-controller@63 {
 				compatible = "nxp,pca9551";
 				reg = <0x63>;
 				#address-cells = <1>;
 				#size-cells = <0>;
-
 				gpio-controller;
 				#gpio-cells = <2>;
 
 				led@0 {
-					label = "cablecard-c10-cxp-top";
 					reg = <0>;
-					retain-state-shutdown;
 					default-state = "keep";
+					label = "cablecard-c10-cxp-top";
+					retain-state-shutdown;
 					type = <PCA955X_TYPE_LED>;
 				};
 
 				led@1 {
-					label = "cablecard-c10-cxp-bot";
 					reg = <1>;
-					retain-state-shutdown;
 					default-state = "keep";
+					label = "cablecard-c10-cxp-bot";
+					retain-state-shutdown;
 					type = <PCA955X_TYPE_LED>;
 				};
 			};
 		};
 
 		i2c6mux0chn3: i2c@3 {
+			reg = <3>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			reg = <3>;
+
 			eeprom@51 {
 				compatible = "atmel,24c64";
 				reg = <0x51>;
 			};
 
-			pca_cable_card_c11: pca9551@61 {
+			led-controller@61 {
 				compatible = "nxp,pca9551";
 				reg = <0x61>;
 				#address-cells = <1>;
 				#size-cells = <0>;
-
 				gpio-controller;
 				#gpio-cells = <2>;
 
 				led@0 {
-					label = "cablecard-c11-cxp-top";
 					reg = <0>;
-					retain-state-shutdown;
 					default-state = "keep";
+					label = "cablecard-c11-cxp-top";
+					retain-state-shutdown;
 					type = <PCA955X_TYPE_LED>;
 				};
 
 				led@1 {
-					label = "cablecard-c11-cxp-bot";
 					reg = <1>;
-					retain-state-shutdown;
 					default-state = "keep";
+					label = "cablecard-c11-cxp-bot";
+					retain-state-shutdown;
 					type = <PCA955X_TYPE_LED>;
 				};
 			};
 		};
 	};
 
-	pca_pcie_slot: pca9552@65 {
+	led-controller@65 {
 		compatible = "nxp,pca9552";
 		reg = <0x65>;
 		#address-cells = <1>;
 		#size-cells = <0>;
-
 		gpio-controller;
 		#gpio-cells = <2>;
 
 		led@1 {
-			label = "pcieslot-c01";
 			reg = <1>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "pcieslot-c01";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 
 		led@2 {
-			label = "pcieslot-c02";
 			reg = <2>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "pcieslot-c02";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 
 		led@3 {
-			label = "pcieslot-c03";
 			reg = <3>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "pcieslot-c03";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 
 		led@4 {
-			label = "pcieslot-c04";
 			reg = <4>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "pcieslot-c04";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 
 		led@5 {
-			label = "pcieslot-c05";
 			reg = <5>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "pcieslot-c05";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 
 		led@6 {
-			label = "pcieslot-c06";
 			reg = <6>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "pcieslot-c06";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 
 		led@7 {
-			label = "pcieslot-c07";
 			reg = <7>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "pcieslot-c07";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 
 		led@8 {
-			label = "pcieslot-c08";
 			reg = <8>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "pcieslot-c08";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 
 		led@9 {
-			label = "pcieslot-c09";
 			reg = <9>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "pcieslot-c09";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 
 		led@10 {
-			label = "pcieslot-c10";
 			reg = <10>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "pcieslot-c10";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 
 		led@11 {
-			label = "pcieslot-c11";
 			reg = <11>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "pcieslot-c11";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 	};
@@ -974,814 +970,808 @@
 &i2c7 {
 	status = "okay";
 
-	pic0_dimm: pca9552@31 {
+	led-controller@31 {
 		compatible = "ibm,pca9552";
 		reg = <0x31>;
 		#address-cells = <1>;
 		#size-cells = <0>;
-
 		gpio-controller;
 		#gpio-cells = <2>;
 
 		led@0 {
-			label = "ddimm0";
 			reg = <0>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "ddimm0";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 
 		led@1 {
-			label = "ddimm1";
 			reg = <1>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "ddimm1";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 
 		led@2 {
-			label = "ddimm2";
 			reg = <2>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "ddimm2";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 
 		led@3 {
-			label = "ddimm3";
 			reg = <3>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "ddimm3";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 
 		led@4 {
-			label = "ddimm4";
 			reg = <4>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "ddimm4";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 
 		led@5 {
-			label = "ddimm5";
 			reg = <5>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "ddimm5";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 
 		led@6 {
-			label = "ddimm6";
 			reg = <6>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "ddimm6";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 
 		led@7 {
-			label = "ddimm7";
 			reg = <7>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "ddimm7";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 
 		led@8 {
-			label = "ddimm8";
 			reg = <8>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "ddimm8";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 
 		led@9 {
-			label = "ddimm9";
 			reg = <9>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "ddimm9";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 
 		led@10 {
-			label = "ddimm10";
 			reg = <10>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "ddimm10";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 
 		led@11 {
-			label = "ddimm11";
 			reg = <11>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "ddimm11";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 
 		led@12 {
-			label = "ddimm12";
 			reg = <12>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "ddimm12";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 
 		led@13 {
-			label = "ddimm13";
 			reg = <13>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "ddimm13";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 
 		led@14 {
-			label = "ddimm14";
 			reg = <14>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "ddimm14";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 
 		led@15 {
-			label = "ddimm15";
 			reg = <15>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "ddimm15";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 	};
 
-	pic1_dimm: pca9552@32 {
+	led-controller@32 {
 		compatible = "ibm,pca9552";
 		reg = <0x32>;
 		#address-cells = <1>;
 		#size-cells = <0>;
-
 		gpio-controller;
 		#gpio-cells = <2>;
 
 		led@0 {
-			label = "ddimm16";
 			reg = <0>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "ddimm16";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 
 		led@1 {
-			label = "ddimm17";
 			reg = <1>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "ddimm17";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 
 		led@2 {
-			label = "ddimm18";
 			reg = <2>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "ddimm18";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 
 		led@3 {
-			label = "ddimm19";
 			reg = <3>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "ddimm19";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 
 		led@4 {
-			label = "ddimm20";
 			reg = <4>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "ddimm20";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 
 		led@5 {
-			label = "ddimm21";
 			reg = <5>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "ddimm21";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 
 		led@6 {
-			label = "ddimm22";
 			reg = <6>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "ddimm22";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 
 		led@7 {
-			label = "ddimm23";
 			reg = <7>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "ddimm23";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 
 		led@8 {
-			label = "ddimm24";
 			reg = <8>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "ddimm24";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 
 		led@9 {
-			label = "ddimm25";
 			reg = <9>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "ddimm25";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 
 		led@10 {
-			label = "ddimm26";
 			reg = <10>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "ddimm26";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 
 		led@11 {
-			label = "ddimm27";
 			reg = <11>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "ddimm27";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 
 		led@12 {
-			label = "ddimm28";
 			reg = <12>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "ddimm28";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 
 		led@13 {
-			label = "ddimm29";
 			reg = <13>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "ddimm29";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 
 		led@14 {
-			label = "ddimm30";
 			reg = <14>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "ddimm30";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 
 		led@15 {
-			label = "ddimm31";
 			reg = <15>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "ddimm31";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 	};
 
-	pic2_dimm: pca9552@33 {
+	led-controller@33 {
 		compatible = "ibm,pca9552";
 		reg = <0x33>;
 		#address-cells = <1>;
 		#size-cells = <0>;
-
 		gpio-controller;
 		#gpio-cells = <2>;
 
 		led@0 {
-			label = "ddimm32";
 			reg = <0>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "ddimm32";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 
 		led@1 {
-			label = "ddimm33";
 			reg = <1>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "ddimm33";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 
 		led@2 {
-			label = "ddimm34";
 			reg = <2>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "ddimm34";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 
 		led@3 {
-			label = "ddimm35";
 			reg = <3>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "ddimm35";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 
 		led@4 {
-			label = "ddimm36";
 			reg = <4>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "ddimm36";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 
 		led@5 {
-			label = "ddimm37";
 			reg = <5>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "ddimm37";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 
 		led@6 {
-			label = "ddimm38";
 			reg = <6>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "ddimm38";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 
 		led@7 {
-			label = "ddimm39";
 			reg = <7>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "ddimm39";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 
 		led@8 {
-			label = "ddimm40";
 			reg = <8>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "ddimm40";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 
 		led@9 {
-			label = "ddimm41";
 			reg = <9>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "ddimm41";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 
 		led@10 {
-			label = "ddimm42";
 			reg = <10>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "ddimm42";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 
 		led@11 {
-			label = "ddimm43";
 			reg = <11>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "ddimm43";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 
 		led@12 {
-			label = "ddimm44";
 			reg = <12>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "ddimm44";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 
 		led@13 {
-			label = "ddimm45";
 			reg = <13>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "ddimm45";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 
 		led@14 {
-			label = "ddimm46";
 			reg = <14>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "ddimm46";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 
 		led@15 {
-			label = "ddimm47";
 			reg = <15>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "ddimm47";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 	};
 
-	pic3_dimm: pca9552@30 {
+	led-controller@30 {
 		compatible = "ibm,pca9552";
 		reg = <0x30>;
 		#address-cells = <1>;
 		#size-cells = <0>;
-
 		gpio-controller;
 		#gpio-cells = <2>;
 
 		led@0 {
-			label = "ddimm48";
 			reg = <0>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "ddimm48";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 
 		led@1 {
-			label = "ddimm49";
 			reg = <1>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "ddimm49";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 
 		led@2 {
-			label = "ddimm50";
 			reg = <2>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "ddimm50";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 
 		led@3 {
-			label = "ddimm51";
 			reg = <3>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "ddimm51";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 
 		led@4 {
-			label = "ddimm52";
 			reg = <4>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "ddimm52";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 
 		led@5 {
-			label = "ddimm53";
 			reg = <5>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "ddimm53";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 
 		led@6 {
-			label = "ddimm54";
 			reg = <6>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "ddimm54";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 
 		led@7 {
-			label = "ddimm55";
 			reg = <7>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "ddimm55";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 
 		led@8 {
-			label = "ddimm56";
 			reg = <8>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "ddimm56";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 
 		led@9 {
-			label = "ddimm57";
 			reg = <9>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "ddimm57";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 
 		led@10 {
-			label = "ddimm58";
 			reg = <10>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "ddimm58";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 
 		led@11 {
-			label = "ddimm59";
 			reg = <11>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "ddimm59";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 
 		led@12 {
-			label = "ddimm60";
 			reg = <12>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "ddimm60";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 
 		led@13 {
-			label = "ddimm61";
 			reg = <13>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "ddimm61";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 
 		led@14 {
-			label = "ddimm62";
 			reg = <14>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "ddimm62";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 
 		led@15 {
-			label = "ddimm63";
 			reg = <15>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "ddimm63";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 	};
 
-	pic0_vrm_misc: pca9552@34 {
+	led-controller@34 {
 		compatible = "ibm,pca9552";
 		reg = <0x34>;
 		#address-cells = <1>;
 		#size-cells = <0>;
-
 		gpio-controller;
 		#gpio-cells = <2>;
 
 		led@0 {
-			label = "planar";
 			reg = <0>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "planar";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 
 		led@1 {
-			label = "tpm";
 			reg = <1>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "tpm";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 
 		led@2 {
-			label = "cpu3-c61";
 			reg = <2>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "cpu3-c61";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 
 		led@3 {
-			label = "cpu0-c14";
 			reg = <3>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "cpu0-c14";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 
 		led@4 {
-			label = "opencapi-connector3";
 			reg = <4>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "opencapi-connector3";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 
 		led@5 {
-			label = "opencapi-connector4";
 			reg = <5>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "opencapi-connector4";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 
 		led@6 {
-			label = "opencapi-connector5";
 			reg = <6>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "opencapi-connector5";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 
 		led@8 {
-			label = "vrm4";
 			reg = <8>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "vrm4";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 
 		led@9 {
-			label = "vrm5";
 			reg = <9>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "vrm5";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 
 		led@10 {
-			label = "vrm6";
 			reg = <10>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "vrm6";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 
 		led@11 {
-			label = "vrm7";
 			reg = <11>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "vrm7";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 
 		led@12 {
-			label = "vrm12";
 			reg = <12>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "vrm12";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 
 		led@13 {
-			label = "vrm13";
 			reg = <13>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "vrm13";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 
 		led@14 {
-			label = "vrm14";
 			reg = <14>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "vrm14";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 
 		led@15 {
-			label = "vrm15";
 			reg = <15>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "vrm15";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 	};
 
-	pic1_vrm_misc: pca9552@35 {
+	led-controller@35 {
 		compatible = "ibm,pca9552";
 		reg = <0x35>;
 		#address-cells = <1>;
 		#size-cells = <0>;
-
 		gpio-controller;
 		#gpio-cells = <2>;
 
 		led@0 {
-			label = "dasd-backplane";
 			reg = <0>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "dasd-backplane";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 
 		led@1 {
-			label = "power-distribution";
 			reg = <1>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "power-distribution";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 
 		led@2 {
-			label = "cpu1-c19";
 			reg = <2>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "cpu1-c19";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 
 		led@3 {
-			label = "cpu2-c56";
 			reg = <3>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "cpu2-c56";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 
 		led@4 {
-			label = "opencapi-connector0";
 			reg = <4>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "opencapi-connector0";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 
 		led@5 {
-			label = "opencapi-connector1";
 			reg = <5>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "opencapi-connector1";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 
 		led@6 {
-			label = "opencapi-connector2";
 			reg = <6>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "opencapi-connector2";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 
 		led@8 {
-			label = "vrm0";
 			reg = <8>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "vrm0";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 
 		led@9 {
-			label = "vrm1";
 			reg = <9>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "vrm1";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 
 		led@10 {
-			label = "vrm2";
 			reg = <10>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "vrm2";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 
 		led@11 {
-			label = "vrm3";
 			reg = <11>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "vrm3";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 
 		led@12 {
-			label = "vrm8";
 			reg = <12>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "vrm8";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 
 		led@13 {
-			label = "vrm9";
 			reg = <13>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "vrm9";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 
 		led@14 {
-			label = "vrm10";
 			reg = <14>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "vrm10";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 
 		led@15 {
-			label = "vrm11";
 			reg = <15>;
-			retain-state-shutdown;
 			default-state = "keep";
+			label = "vrm11";
+			retain-state-shutdown;
 			type = <PCA955X_TYPE_LED>;
 		};
 	};
@@ -1790,7 +1780,7 @@
 &i2c8 {
 	status = "okay";
 
-	ucd90320@11 {
+	pmic@11 {
 		compatible = "ti,ucd90320";
 		reg = <0x11>;
 	};
@@ -1815,19 +1805,19 @@
 		reg = <0x70>;
 		#address-cells = <1>;
 		#size-cells = <0>;
-		status = "okay";
 		i2c-mux-idle-disconnect;
+		reset-gpio = <&gpio0 ASPEED_GPIO(S, 5) GPIO_ACTIVE_LOW>;
 
 		i2c8mux0chn0: i2c@0 {
+			reg = <0>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			reg = <0>;
 		};
 
 		i2c8mux0chn1: i2c@1 {
+			reg = <1>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			reg = <1>;
 		};
 	};
 };
@@ -1942,7 +1932,7 @@
 	multi-master;
 	status = "okay";
 
-	ibm-panel@62 {
+	lcd-controller@62 {
 		compatible = "ibm,op-panel";
 		reg = <(0x62 | I2C_OWN_SLAVE_ADDRESS)>;
 	};
@@ -1952,13 +1942,13 @@
 		reg = <0x70>;
 		#address-cells = <1>;
 		#size-cells = <0>;
-		status = "okay";
 		idle-state = <1>;
 
 		i2c14mux0chn0: i2c@0 {
+			reg = <0>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			reg = <0>;
+
 			eeprom@50 {
 				compatible = "atmel,24c64";
 				reg = <0x50>;
@@ -1966,9 +1956,10 @@
 		};
 
 		i2c14mux0chn1: i2c@1 {
+			reg = <1>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			reg = <1>;
+
 			eeprom@51 {
 				compatible = "atmel,24c32";
 				reg = <0x51>;
@@ -1976,221 +1967,195 @@
 		};
 
 		i2c14mux0chn2: i2c@2 {
+			reg = <2>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			reg = <2>;
+
 			eeprom@50 {
 				compatible = "atmel,24c32";
 				reg = <0x50>;
 			};
 
-			pca_oppanel: pca9551@60 {
+			led-controller@60 {
 				compatible = "nxp,pca9551";
 				reg = <0x60>;
 				#address-cells = <1>;
 				#size-cells = <0>;
-
 				gpio-controller;
 				#gpio-cells = <2>;
 
 				led@0 {
-					label = "front-sys-id0";
 					reg = <0>;
-					retain-state-shutdown;
 					default-state = "keep";
+					label = "front-sys-id0";
+					retain-state-shutdown;
 					type = <PCA955X_TYPE_LED>;
 				};
 
 				led@1 {
-					label = "front-check-log0";
 					reg = <1>;
-					retain-state-shutdown;
 					default-state = "keep";
+					label = "front-check-log0";
+					retain-state-shutdown;
 					type = <PCA955X_TYPE_LED>;
 				};
 
 				led@2 {
-					label = "front-enc-fault1";
 					reg = <2>;
-					retain-state-shutdown;
 					default-state = "keep";
+					label = "front-enc-fault1";
+					retain-state-shutdown;
 					type = <PCA955X_TYPE_LED>;
 				};
 
 				led@3 {
-					label = "front-sys-pwron0";
 					reg = <3>;
-					retain-state-shutdown;
 					default-state = "keep";
+					label = "front-sys-pwron0";
+					retain-state-shutdown;
 					type = <PCA955X_TYPE_LED>;
 				};
 			};
 		};
 
 		i2c14mux0chn3: i2c@3 {
+			reg = <3>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			reg = <3>;
 
-			max31785@52 {
+			pwm@52 {
 				compatible = "maxim,max31785a";
+				reg = <0x52>;
 				#address-cells = <1>;
 				#size-cells = <0>;
-				reg = <0x52>;
-
-				fan@0 {
-					compatible = "pmbus-fan";
-					reg = <0>;
-					tach-pulses = <2>;
-				};
-
-				fan@1 {
-					compatible = "pmbus-fan";
-					reg = <1>;
-					tach-pulses = <2>;
-				};
-
-				fan@2 {
-					compatible = "pmbus-fan";
-					reg = <2>;
-					tach-pulses = <2>;
-				};
-
-				fan@3 {
-					compatible = "pmbus-fan";
-					reg = <3>;
-					tach-pulses = <2>;
-				};
 			};
 
-			pca_fan_nvme: pca9552@60 {
+			led-controller@60 {
 				compatible = "nxp,pca9552";
 				reg = <0x60>;
 				#address-cells = <1>;
 				#size-cells = <0>;
-
 				gpio-controller;
 				#gpio-cells = <2>;
 
 				led@0 {
-					label = "nvme0";
 					reg = <0>;
-					retain-state-shutdown;
 					default-state = "keep";
+					label = "nvme0";
+					retain-state-shutdown;
 					type = <PCA955X_TYPE_LED>;
 				};
 
 				led@1 {
-					label = "nvme1";
 					reg = <1>;
-					retain-state-shutdown;
 					default-state = "keep";
+					label = "nvme1";
+					retain-state-shutdown;
 					type = <PCA955X_TYPE_LED>;
 				};
 
 				led@2 {
-					label = "nvme2";
 					reg = <2>;
-					retain-state-shutdown;
 					default-state = "keep";
+					label = "nvme2";
+					retain-state-shutdown;
 					type = <PCA955X_TYPE_LED>;
 				};
 
 				led@3 {
-					label = "nvme3";
 					reg = <3>;
-					retain-state-shutdown;
 					default-state = "keep";
+					label = "nvme3";
+					retain-state-shutdown;
 					type = <PCA955X_TYPE_LED>;
 				};
 
 				led@4 {
-					label = "nvme4";
 					reg = <4>;
-					retain-state-shutdown;
 					default-state = "keep";
+					label = "nvme4";
+					retain-state-shutdown;
 					type = <PCA955X_TYPE_LED>;
 				};
 
 				led@5 {
-					label = "nvme5";
 					reg = <5>;
-					retain-state-shutdown;
 					default-state = "keep";
+					label = "nvme5";
+					retain-state-shutdown;
 					type = <PCA955X_TYPE_LED>;
 				};
 
 				led@6 {
-					label = "nvme6";
 					reg = <6>;
-					retain-state-shutdown;
 					default-state = "keep";
+					label = "nvme6";
+					retain-state-shutdown;
 					type = <PCA955X_TYPE_LED>;
 				};
 
 				led@7 {
-					label = "nvme7";
 					reg = <7>;
-					retain-state-shutdown;
 					default-state = "keep";
+					label = "nvme7";
+					retain-state-shutdown;
 					type = <PCA955X_TYPE_LED>;
 				};
 
 				led@8 {
-					label = "nvme8";
 					reg = <8>;
-					retain-state-shutdown;
 					default-state = "keep";
+					label = "nvme8";
+					retain-state-shutdown;
 					type = <PCA955X_TYPE_LED>;
 				};
 
 				led@9 {
-					label = "nvme9";
 					reg = <9>;
-					retain-state-shutdown;
 					default-state = "keep";
+					label = "nvme9";
+					retain-state-shutdown;
 					type = <PCA955X_TYPE_LED>;
 				};
 
 				led@10 {
-					label = "fan0";
 					reg = <10>;
-					retain-state-shutdown;
 					default-state = "keep";
+					label = "fan0";
+					retain-state-shutdown;
 					type = <PCA955X_TYPE_LED>;
 				};
 
 				led@11 {
-					label = "fan1";
 					reg = <11>;
-					retain-state-shutdown;
 					default-state = "keep";
+					label = "fan1";
+					retain-state-shutdown;
 					type = <PCA955X_TYPE_LED>;
 				};
 
 				led@12 {
-					label = "fan2";
 					reg = <12>;
-					retain-state-shutdown;
 					default-state = "keep";
+					label = "fan2";
+					retain-state-shutdown;
 					type = <PCA955X_TYPE_LED>;
 				};
 
 				led@13 {
-					label = "fan3";
 					reg = <13>;
-					retain-state-shutdown;
 					default-state = "keep";
+					label = "fan3";
+					retain-state-shutdown;
 					type = <PCA955X_TYPE_LED>;
 				};
 			};
 
-			pca0: pca9552@61 {
+			pca0: led-controller@61 {
 				compatible = "nxp,pca9552";
 				#address-cells = <1>;
 				#size-cells = <0>;
 				reg = <0x61>;
-
 				gpio-controller;
 				#gpio-cells = <2>;
 
@@ -2211,13 +2176,13 @@
 		reg = <0x71>;
 		#address-cells = <1>;
 		#size-cells = <0>;
-		status = "okay";
 		i2c-mux-idle-disconnect;
 
 		i2c14mux1chn0: i2c@0 {
+			reg = <0>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			reg = <0>;
+
 			eeprom@50 {
 				compatible = "atmel,24c32";
 				reg = <0x50>;
@@ -2225,9 +2190,10 @@
 		};
 
 		i2c14mux1chn1: i2c@1 {
+			reg = <1>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			reg = <1>;
+
 			eeprom@50 {
 				compatible = "atmel,24c32";
 				reg = <0x50>;
@@ -2235,9 +2201,10 @@
 		};
 
 		i2c14mux1chn2: i2c@2 {
+			reg = <2>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			reg = <2>;
+
 			eeprom@50 {
 				compatible = "atmel,24c32";
 				reg = <0x50>;
@@ -2245,9 +2212,10 @@
 		};
 
 		i2c14mux1chn3: i2c@3 {
+			reg = <3>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			reg = <3>;
+
 			eeprom@50 {
 				compatible = "atmel,24c32";
 				reg = <0x50>;
@@ -2267,9 +2235,9 @@
 		i2c-mux-idle-disconnect;
 
 		i2c15mux0chn0: i2c@0 {
+			reg = <0>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			reg = <0>;
 
 			eeprom@53 {
 				compatible = "atmel,24c64";
@@ -2278,9 +2246,9 @@
 		};
 
 		i2c15mux0chn1: i2c@1 {
+			reg = <1>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			reg = <1>;
 
 			eeprom@53 {
 				compatible = "atmel,24c64";
@@ -2289,9 +2257,9 @@
 		};
 
 		i2c15mux0chn2: i2c@2 {
+			reg = <2>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			reg = <2>;
 
 			eeprom@53 {
 				compatible = "atmel,24c64";
@@ -2300,9 +2268,9 @@
 		};
 
 		i2c15mux0chn3: i2c@3 {
+			reg = <3>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			reg = <3>;
 
 			eeprom@53 {
 				compatible = "atmel,24c64";
@@ -2319,9 +2287,9 @@
 		i2c-mux-idle-disconnect;
 
 		i2c15mux1chn0: i2c@0 {
+			reg = <0>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			reg = <0>;
 
 			eeprom@53 {
 				compatible = "atmel,24c64";
@@ -2330,9 +2298,9 @@
 		};
 
 		i2c15mux1chn1: i2c@1 {
+			reg = <1>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			reg = <1>;
 
 			eeprom@53 {
 				compatible = "atmel,24c64";
@@ -2341,9 +2309,9 @@
 		};
 
 		i2c15mux1chn2: i2c@2 {
+			reg = <2>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			reg = <2>;
 
 			eeprom@53 {
 				compatible = "atmel,24c64";
@@ -2352,9 +2320,9 @@
 		};
 
 		i2c15mux1chn3: i2c@3 {
+			reg = <3>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			reg = <3>;
 
 			eeprom@53 {
 				compatible = "atmel,24c64";
@@ -2371,9 +2339,9 @@
 		i2c-mux-idle-disconnect;
 
 		i2c15mux2chn0: i2c@0 {
+			reg = <0>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			reg = <0>;
 
 			eeprom@53 {
 				compatible = "atmel,24c64";
@@ -2382,9 +2350,9 @@
 		};
 
 		i2c15mux2chn1: i2c@1 {
+			reg = <1>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			reg = <1>;
 
 			eeprom@53 {
 				compatible = "atmel,24c64";
@@ -2393,15 +2361,15 @@
 		};
 
 		i2c15mux2chn2: i2c@2 {
+			reg = <2>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			reg = <2>;
 		};
 
 		i2c15mux2chn3: i2c@3 {
+			reg = <3>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			reg = <3>;
 		};
 	};
 };
@@ -2497,8 +2465,6 @@
 	aspeed,lpc-interrupts = <11 IRQ_TYPE_LEVEL_LOW>;
 };
 
-#include "ibm-power10-quad.dtsi"
-
 &fsi_hub0 {
 	cfam@4,0 { /* DCM2_C0 */
 		reg = <4 0>;
@@ -2507,22 +2473,22 @@
 		chip-id = <4>;
 
 		scom@1000 {
-			compatible = "ibm,fsi2pib";
+			compatible = "ibm,p9-scom";
 			reg = <0x1000 0x400>;
 		};
 
 		i2c@1800 {
-			compatible = "ibm,fsi-i2c-master";
+			compatible = "ibm,i2c-fsi";
 			reg = <0x1800 0x400>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 
 			cfam4_i2c0: i2c-bus@0 {
+				reg = <0>;	/* OM01 */
 				#address-cells = <1>;
 				#size-cells = <0>;
-				reg = <0>;	/* OM01 */
 
-				i2cr@20 {
+				fsi@20 {
 					compatible = "ibm,i2cr-fsi-master";
 					reg = <0x20>;
 					#address-cells = <2>;
@@ -2540,21 +2506,19 @@
 						};
 
 						sbefifo500: sbefifo@2400 {
-							compatible = "ibm,p9-sbefifo";
+							compatible = "ibm,odyssey-sbefifo";
 							reg = <0x2400 0x400>;
-							#address-cells = <1>;
-							#size-cells = <0>;
 						};
 					};
 				};
 			};
 
 			cfam4_i2c1: i2c-bus@1 {
+				reg = <1>;	/* OM23 */
 				#address-cells = <1>;
 				#size-cells = <0>;
-				reg = <1>;	/* OM23 */
 
-				i2cr@20 {
+				fsi@20 {
 					compatible = "ibm,i2cr-fsi-master";
 					reg = <0x20>;
 					#address-cells = <2>;
@@ -2572,21 +2536,19 @@
 						};
 
 						sbefifo501: sbefifo@2400 {
-							compatible = "ibm,p9-sbefifo";
+							compatible = "ibm,odyssey-sbefifo";
 							reg = <0x2400 0x400>;
-							#address-cells = <1>;
-							#size-cells = <0>;
 						};
 					};
 				};
 			};
 
 			cfam4_i2c10: i2c-bus@a {
+				reg = <10>;	/* OP3A */
 				#address-cells = <1>;
 				#size-cells = <0>;
-				reg = <10>;	/* OP3A */
 
-				i2cr@20 {
+				fsi@20 {
 					compatible = "ibm,i2cr-fsi-master";
 					reg = <0x20>;
 					#address-cells = <2>;
@@ -2604,21 +2566,19 @@
 						};
 
 						sbefifo510: sbefifo@2400 {
-							compatible = "ibm,p9-sbefifo";
+							compatible = "ibm,odyssey-sbefifo";
 							reg = <0x2400 0x400>;
-							#address-cells = <1>;
-							#size-cells = <0>;
 						};
 					};
 				};
 			};
 
 			cfam4_i2c11: i2c-bus@b {
+				reg = <11>;	/* OP3B */
 				#address-cells = <1>;
 				#size-cells = <0>;
-				reg = <11>;	/* OP3B */
 
-				i2cr@20 {
+				fsi@20 {
 					compatible = "ibm,i2cr-fsi-master";
 					reg = <0x20>;
 					#address-cells = <2>;
@@ -2636,21 +2596,19 @@
 						};
 
 						sbefifo511: sbefifo@2400 {
-							compatible = "ibm,p9-sbefifo";
+							compatible = "ibm,odyssey-sbefifo";
 							reg = <0x2400 0x400>;
-							#address-cells = <1>;
-							#size-cells = <0>;
 						};
 					};
 				};
 			};
 
 			cfam4_i2c12: i2c-bus@c {
+				reg = <12>;	/* OP4A */
 				#address-cells = <1>;
 				#size-cells = <0>;
-				reg = <12>;	/* OP4A */
 
-				i2cr@20 {
+				fsi@20 {
 					compatible = "ibm,i2cr-fsi-master";
 					reg = <0x20>;
 					#address-cells = <2>;
@@ -2668,21 +2626,19 @@
 						};
 
 						sbefifo512: sbefifo@2400 {
-							compatible = "ibm,p9-sbefifo";
+							compatible = "ibm,odyssey-sbefifo";
 							reg = <0x2400 0x400>;
-							#address-cells = <1>;
-							#size-cells = <0>;
 						};
 					};
 				};
 			};
 
 			cfam4_i2c13: i2c-bus@d {
+				reg = <13>;	/* OP4B */
 				#address-cells = <1>;
 				#size-cells = <0>;
-				reg = <13>;	/* OP4B */
 
-				i2cr@20 {
+				fsi@20 {
 					compatible = "ibm,i2cr-fsi-master";
 					reg = <0x20>;
 					#address-cells = <2>;
@@ -2700,21 +2656,19 @@
 						};
 
 						sbefifo513: sbefifo@2400 {
-							compatible = "ibm,p9-sbefifo";
+							compatible = "ibm,odyssey-sbefifo";
 							reg = <0x2400 0x400>;
-							#address-cells = <1>;
-							#size-cells = <0>;
 						};
 					};
 				};
 			};
 
 			cfam4_i2c14: i2c-bus@e {
+				reg = <14>;	/* OP5A */
 				#address-cells = <1>;
 				#size-cells = <0>;
-				reg = <14>;	/* OP5A */
 
-				i2cr@20 {
+				fsi@20 {
 					compatible = "ibm,i2cr-fsi-master";
 					reg = <0x20>;
 					#address-cells = <2>;
@@ -2732,21 +2686,19 @@
 						};
 
 						sbefifo514: sbefifo@2400 {
-							compatible = "ibm,p9-sbefifo";
+							compatible = "ibm,odyssey-sbefifo";
 							reg = <0x2400 0x400>;
-							#address-cells = <1>;
-							#size-cells = <0>;
 						};
 					};
 				};
 			};
 
 			cfam4_i2c15: i2c-bus@f {
+				reg = <15>;	/* OP5B */
 				#address-cells = <1>;
 				#size-cells = <0>;
-				reg = <15>;	/* OP5B */
 
-				i2cr@20 {
+				fsi@20 {
 					compatible = "ibm,i2cr-fsi-master";
 					reg = <0x20>;
 					#address-cells = <2>;
@@ -2764,10 +2716,8 @@
 						};
 
 						sbefifo515: sbefifo@2400 {
-							compatible = "ibm,p9-sbefifo";
+							compatible = "ibm,odyssey-sbefifo";
 							reg = <0x2400 0x400>;
-							#address-cells = <1>;
-							#size-cells = <0>;
 						};
 					};
 				};
@@ -2781,68 +2731,66 @@
 			#size-cells = <0>;
 
 			cfam4_spi0: spi@0 {
+				compatible = "ibm,spi-fsi";
 				reg = <0x0>;
 				#address-cells = <1>;
 				#size-cells = <0>;
 
 				eeprom@0 {
-					at25,byte-len = <0x80000>;
-					at25,addr-mode = <4>;
-					at25,page-size = <256>;
-
 					compatible = "atmel,at25";
 					reg = <0>;
-					spi-max-frequency = <1000000>;
+					address-width = <24>;
+					pagesize = <256>;
+					size = <0x80000>;
+					spi-max-frequency = <10000000>;
 				};
 			};
 
 			cfam4_spi1: spi@20 {
+				compatible = "ibm,spi-fsi";
 				reg = <0x20>;
 				#address-cells = <1>;
 				#size-cells = <0>;
 
 				eeprom@0 {
-					at25,byte-len = <0x80000>;
-					at25,addr-mode = <4>;
-					at25,page-size = <256>;
-
 					compatible = "atmel,at25";
 					reg = <0>;
-					spi-max-frequency = <1000000>;
+					address-width = <24>;
+					pagesize = <256>;
+					size = <0x80000>;
+					spi-max-frequency = <10000000>;
 				};
 			};
 
 			cfam4_spi2: spi@40 {
+				compatible = "ibm,spi-fsi";
 				reg = <0x40>;
-				compatible = "ibm,fsi2spi";
 				#address-cells = <1>;
 				#size-cells = <0>;
 
 				eeprom@0 {
-					at25,byte-len = <0x80000>;
-					at25,addr-mode = <4>;
-					at25,page-size = <256>;
-
 					compatible = "atmel,at25";
 					reg = <0>;
-					spi-max-frequency = <1000000>;
+					address-width = <24>;
+					pagesize = <256>;
+					size = <0x80000>;
+					spi-max-frequency = <10000000>;
 				};
 			};
 
 			cfam4_spi3: spi@60 {
+				compatible = "ibm,spi-fsi";
 				reg = <0x60>;
-				compatible = "ibm,fsi2spi";
 				#address-cells = <1>;
 				#size-cells = <0>;
 
 				eeprom@0 {
-					at25,byte-len = <0x80000>;
-					at25,addr-mode = <4>;
-					at25,page-size = <256>;
-
 					compatible = "atmel,at25";
 					reg = <0>;
-					spi-max-frequency = <1000000>;
+					address-width = <24>;
+					pagesize = <256>;
+					size = <0x80000>;
+					spi-max-frequency = <10000000>;
 				};
 			};
 		};
@@ -2850,25 +2798,22 @@
 		sbefifo@2400 {
 			compatible = "ibm,p9-sbefifo";
 			reg = <0x2400 0x400>;
-			#address-cells = <1>;
-			#size-cells = <0>;
 
-			fsi_occ4: occ {
+			occ {
 				compatible = "ibm,p10-occ";
 
-				occ-hwmon {
+				hwmon {
 					compatible = "ibm,p10-occ-hwmon";
 					ibm,no-poll-on-init;
 				};
 			};
 		};
 
-		fsi_hub4: hub@3400 {
-			compatible = "fsi-master-hub";
+		fsi@3400 {
+			compatible = "ibm,p9-fsi-controller";
 			reg = <0x3400 0x400>;
 			#address-cells = <2>;
 			#size-cells = <0>;
-
 			no-scan-on-init;
 		};
 	};
@@ -2880,22 +2825,22 @@
 		chip-id = <5>;
 
 		scom@1000 {
-			compatible = "ibm,fsi2pib";
+			compatible = "ibm,p9-scom";
 			reg = <0x1000 0x400>;
 		};
 
 		i2c@1800 {
-			compatible = "ibm,fsi-i2c-master";
+			compatible = "ibm,i2c-fsi";
 			reg = <0x1800 0x400>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 
 			cfam5_i2c2: i2c-bus@2 {
+				reg = <2>;	/* OM45 */
 				#address-cells = <1>;
 				#size-cells = <0>;
-				reg = <2>;	/* OM45 */
 
-				i2cr@20 {
+				fsi@20 {
 					compatible = "ibm,i2cr-fsi-master";
 					reg = <0x20>;
 					#address-cells = <2>;
@@ -2913,21 +2858,19 @@
 						};
 
 						sbefifo602: sbefifo@2400 {
-							compatible = "ibm,p9-sbefifo";
+							compatible = "ibm,odyssey-sbefifo";
 							reg = <0x2400 0x400>;
-							#address-cells = <1>;
-							#size-cells = <0>;
 						};
 					};
 				};
 			};
 
 			cfam5_i2c3: i2c-bus@3 {
+				reg = <3>;	/* OM67 */
 				#address-cells = <1>;
 				#size-cells = <0>;
-				reg = <3>;	/* OM67 */
 
-				i2cr@20 {
+				fsi@20 {
 					compatible = "ibm,i2cr-fsi-master";
 					reg = <0x20>;
 					#address-cells = <2>;
@@ -2945,21 +2888,19 @@
 						};
 
 						sbefifo603: sbefifo@2400 {
-							compatible = "ibm,p9-sbefifo";
+							compatible = "ibm,odyssey-sbefifo";
 							reg = <0x2400 0x400>;
-							#address-cells = <1>;
-							#size-cells = <0>;
 						};
 					};
 				};
 			};
 
 			cfam5_i2c10: i2c-bus@a {
+				reg = <10>;	/* OP3A */
 				#address-cells = <1>;
 				#size-cells = <0>;
-				reg = <10>;	/* OP3A */
 
-				i2cr@20 {
+				fsi@20 {
 					compatible = "ibm,i2cr-fsi-master";
 					reg = <0x20>;
 					#address-cells = <2>;
@@ -2977,21 +2918,19 @@
 						};
 
 						sbefifo610: sbefifo@2400 {
-							compatible = "ibm,p9-sbefifo";
+							compatible = "ibm,odyssey-sbefifo";
 							reg = <0x2400 0x400>;
-							#address-cells = <1>;
-							#size-cells = <0>;
 						};
 					};
 				};
 			};
 
 			cfam5_i2c11: i2c-bus@b {
+				reg = <11>;	/* OP3B */
 				#address-cells = <1>;
 				#size-cells = <0>;
-				reg = <11>;	/* OP3B */
 
-				i2cr@20 {
+				fsi@20 {
 					compatible = "ibm,i2cr-fsi-master";
 					reg = <0x20>;
 					#address-cells = <2>;
@@ -3009,21 +2948,19 @@
 						};
 
 						sbefifo611: sbefifo@2400 {
-							compatible = "ibm,p9-sbefifo";
+							compatible = "ibm,odyssey-sbefifo";
 							reg = <0x2400 0x400>;
-							#address-cells = <1>;
-							#size-cells = <0>;
 						};
 					};
 				};
 			};
 
 			cfam5_i2c14: i2c-bus@e {
+				reg = <14>;	/* OP5A */
 				#address-cells = <1>;
 				#size-cells = <0>;
-				reg = <14>;	/* OP5A */
 
-				i2cr@20 {
+				fsi@20 {
 					compatible = "ibm,i2cr-fsi-master";
 					reg = <0x20>;
 					#address-cells = <2>;
@@ -3041,21 +2978,19 @@
 						};
 
 						sbefifo614: sbefifo@2400 {
-							compatible = "ibm,p9-sbefifo";
+							compatible = "ibm,odyssey-sbefifo";
 							reg = <0x2400 0x400>;
-							#address-cells = <1>;
-							#size-cells = <0>;
 						};
 					};
 				};
 			};
 
 			cfam5_i2c15: i2c-bus@f {
+				reg = <15>;	/* OP5B */
 				#address-cells = <1>;
 				#size-cells = <0>;
-				reg = <15>;	/* OP5B */
 
-				i2cr@20 {
+				fsi@20 {
 					compatible = "ibm,i2cr-fsi-master";
 					reg = <0x20>;
 					#address-cells = <2>;
@@ -3073,21 +3008,19 @@
 						};
 
 						sbefifo615: sbefifo@2400 {
-							compatible = "ibm,p9-sbefifo";
+							compatible = "ibm,odyssey-sbefifo";
 							reg = <0x2400 0x400>;
-							#address-cells = <1>;
-							#size-cells = <0>;
 						};
 					};
 				};
 			};
 
 			cfam5_i2c16: i2c-bus@10 {
+				reg = <16>;	/* OP6A */
 				#address-cells = <1>;
 				#size-cells = <0>;
-				reg = <16>;	/* OP6A */
 
-				i2cr@20 {
+				fsi@20 {
 					compatible = "ibm,i2cr-fsi-master";
 					reg = <0x20>;
 					#address-cells = <2>;
@@ -3105,21 +3038,19 @@
 						};
 
 						sbefifo616: sbefifo@2400 {
-							compatible = "ibm,p9-sbefifo";
+							compatible = "ibm,odyssey-sbefifo";
 							reg = <0x2400 0x400>;
-							#address-cells = <1>;
-							#size-cells = <0>;
 						};
 					};
 				};
 			};
 
 			cfam5_i2c17: i2c-bus@11 {
+				reg = <17>;	/* OP6B */
 				#address-cells = <1>;
 				#size-cells = <0>;
-				reg = <17>;	/* OP6B */
 
-				i2cr@20 {
+				fsi@20 {
 					compatible = "ibm,i2cr-fsi-master";
 					reg = <0x20>;
 					#address-cells = <2>;
@@ -3137,10 +3068,8 @@
 						};
 
 						sbefifo617: sbefifo@2400 {
-							compatible = "ibm,p9-sbefifo";
+							compatible = "ibm,odyssey-sbefifo";
 							reg = <0x2400 0x400>;
-							#address-cells = <1>;
-							#size-cells = <0>;
 						};
 					};
 				};
@@ -3154,68 +3083,66 @@
 			#size-cells = <0>;
 
 			cfam5_spi0: spi@0 {
+				compatible = "ibm,spi-fsi";
 				reg = <0x0>;
 				#address-cells = <1>;
 				#size-cells = <0>;
 
 				eeprom@0 {
-					at25,byte-len = <0x80000>;
-					at25,addr-mode = <4>;
-					at25,page-size = <256>;
-
 					compatible = "atmel,at25";
 					reg = <0>;
-					spi-max-frequency = <1000000>;
+					address-width = <24>;
+					pagesize = <256>;
+					size = <0x80000>;
+					spi-max-frequency = <10000000>;
 				};
 			};
 
 			cfam5_spi1: spi@20 {
+				compatible = "ibm,spi-fsi";
 				reg = <0x20>;
 				#address-cells = <1>;
 				#size-cells = <0>;
 
 				eeprom@0 {
-					at25,byte-len = <0x80000>;
-					at25,addr-mode = <4>;
-					at25,page-size = <256>;
-
 					compatible = "atmel,at25";
 					reg = <0>;
-					spi-max-frequency = <1000000>;
+					address-width = <24>;
+					pagesize = <256>;
+					size = <0x80000>;
+					spi-max-frequency = <10000000>;
 				};
 			};
 
 			cfam5_spi2: spi@40 {
+				compatible = "ibm,spi-fsi";
 				reg = <0x40>;
-				compatible = "ibm,fsi2spi";
 				#address-cells = <1>;
 				#size-cells = <0>;
 
 				eeprom@0 {
-					at25,byte-len = <0x80000>;
-					at25,addr-mode = <4>;
-					at25,page-size = <256>;
-
 					compatible = "atmel,at25";
 					reg = <0>;
-					spi-max-frequency = <1000000>;
+					address-width = <24>;
+					pagesize = <256>;
+					size = <0x80000>;
+					spi-max-frequency = <10000000>;
 				};
 			};
 
 			cfam5_spi3: spi@60 {
+				compatible = "ibm,spi-fsi";
 				reg = <0x60>;
-				compatible = "ibm,fsi2spi";
 				#address-cells = <1>;
 				#size-cells = <0>;
 
 				eeprom@0 {
-					at25,byte-len = <0x80000>;
-					at25,addr-mode = <4>;
-					at25,page-size = <256>;
-
 					compatible = "atmel,at25";
 					reg = <0>;
-					spi-max-frequency = <1000000>;
+					address-width = <24>;
+					pagesize = <256>;
+					size = <0x80000>;
+					spi-max-frequency = <10000000>;
 				};
 			};
 		};
@@ -3223,25 +3150,22 @@
 		sbefifo@2400 {
 			compatible = "ibm,p9-sbefifo";
 			reg = <0x2400 0x400>;
-			#address-cells = <1>;
-			#size-cells = <0>;
 
-			fsi_occ5: occ {
+			occ {
 				compatible = "ibm,p10-occ";
 
-				occ-hwmon {
+				hwmon {
 					compatible = "ibm,p10-occ-hwmon";
 					ibm,no-poll-on-init;
 				};
 			};
 		};
 
-		fsi_hub5: hub@3400 {
-			compatible = "fsi-master-hub";
+		fsi@3400 {
+			compatible = "ibm,p9-fsi-controller";
 			reg = <0x3400 0x400>;
 			#address-cells = <2>;
 			#size-cells = <0>;
-
 			no-scan-on-init;
 		};
 	};
@@ -3253,22 +3177,22 @@
 		chip-id = <6>;
 
 		scom@1000 {
-			compatible = "ibm,fsi2pib";
+			compatible = "ibm,p9-scom";
 			reg = <0x1000 0x400>;
 		};
 
 		i2c@1800 {
-			compatible = "ibm,fsi-i2c-master";
+			compatible = "ibm,i2c-fsi";
 			reg = <0x1800 0x400>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 
 			cfam6_i2c0: i2c-bus@0 {
+				reg = <0>;	/* OM01 */
 				#address-cells = <1>;
 				#size-cells = <0>;
-				reg = <0>;	/* OM01 */
 
-				i2cr@20 {
+				fsi@20 {
 					compatible = "ibm,i2cr-fsi-master";
 					reg = <0x20>;
 					#address-cells = <2>;
@@ -3286,21 +3210,19 @@
 						};
 
 						sbefifo700: sbefifo@2400 {
-							compatible = "ibm,p9-sbefifo";
+							compatible = "ibm,odyssey-sbefifo";
 							reg = <0x2400 0x400>;
-							#address-cells = <1>;
-							#size-cells = <0>;
 						};
 					};
 				};
 			};
 
 			cfam6_i2c1: i2c-bus@1 {
+				reg = <1>;	/* OM23 */
 				#address-cells = <1>;
 				#size-cells = <0>;
-				reg = <1>;	/* OM23 */
 
-				i2cr@20 {
+				fsi@20 {
 					compatible = "ibm,i2cr-fsi-master";
 					reg = <0x20>;
 					#address-cells = <2>;
@@ -3318,21 +3240,19 @@
 						};
 
 						sbefifo701: sbefifo@2400 {
-							compatible = "ibm,p9-sbefifo";
+							compatible = "ibm,odyssey-sbefifo";
 							reg = <0x2400 0x400>;
-							#address-cells = <1>;
-							#size-cells = <0>;
 						};
 					};
 				};
 			};
 
 			cfam6_i2c10: i2c-bus@a {
+				reg = <10>;	/* OP3A */
 				#address-cells = <1>;
 				#size-cells = <0>;
-				reg = <10>;	/* OP3A */
 
-				i2cr@20 {
+				fsi@20 {
 					compatible = "ibm,i2cr-fsi-master";
 					reg = <0x20>;
 					#address-cells = <2>;
@@ -3350,21 +3270,19 @@
 						};
 
 						sbefifo710: sbefifo@2400 {
-							compatible = "ibm,p9-sbefifo";
+							compatible = "ibm,odyssey-sbefifo";
 							reg = <0x2400 0x400>;
-							#address-cells = <1>;
-							#size-cells = <0>;
 						};
 					};
 				};
 			};
 
 			cfam6_i2c11: i2c-bus@b {
+				reg = <11>;	/* OP3B */
 				#address-cells = <1>;
 				#size-cells = <0>;
-				reg = <11>;	/* OP3B */
 
-				i2cr@20 {
+				fsi@20 {
 					compatible = "ibm,i2cr-fsi-master";
 					reg = <0x20>;
 					#address-cells = <2>;
@@ -3382,21 +3300,19 @@
 						};
 
 						sbefifo711: sbefifo@2400 {
-							compatible = "ibm,p9-sbefifo";
+							compatible = "ibm,odyssey-sbefifo";
 							reg = <0x2400 0x400>;
-							#address-cells = <1>;
-							#size-cells = <0>;
 						};
 					};
 				};
 			};
 
 			cfam6_i2c12: i2c-bus@c {
+				reg = <12>;	/* OP4A */
 				#address-cells = <1>;
 				#size-cells = <0>;
-				reg = <12>;	/* OP4A */
 
-				i2cr@20 {
+				fsi@20 {
 					compatible = "ibm,i2cr-fsi-master";
 					reg = <0x20>;
 					#address-cells = <2>;
@@ -3414,21 +3330,19 @@
 						};
 
 						sbefifo712: sbefifo@2400 {
-							compatible = "ibm,p9-sbefifo";
+							compatible = "ibm,odyssey-sbefifo";
 							reg = <0x2400 0x400>;
-							#address-cells = <1>;
-							#size-cells = <0>;
 						};
 					};
 				};
 			};
 
 			cfam6_i2c13: i2c-bus@d {
+				reg = <13>;	/* OP4B */
 				#address-cells = <1>;
 				#size-cells = <0>;
-				reg = <13>;	/* OP4B */
 
-				i2cr@20 {
+				fsi@20 {
 					compatible = "ibm,i2cr-fsi-master";
 					reg = <0x20>;
 					#address-cells = <2>;
@@ -3446,21 +3360,19 @@
 						};
 
 						sbefifo713: sbefifo@2400 {
-							compatible = "ibm,p9-sbefifo";
+							compatible = "ibm,odyssey-sbefifo";
 							reg = <0x2400 0x400>;
-							#address-cells = <1>;
-							#size-cells = <0>;
 						};
 					};
 				};
 			};
 
 			cfam6_i2c14: i2c-bus@e {
+				reg = <14>;	/* OP5A */
 				#address-cells = <1>;
 				#size-cells = <0>;
-				reg = <14>;	/* OP5A */
 
-				i2cr@20 {
+				fsi@20 {
 					compatible = "ibm,i2cr-fsi-master";
 					reg = <0x20>;
 					#address-cells = <2>;
@@ -3478,21 +3390,19 @@
 						};
 
 						sbefifo714: sbefifo@2400 {
-							compatible = "ibm,p9-sbefifo";
+							compatible = "ibm,odyssey-sbefifo";
 							reg = <0x2400 0x400>;
-							#address-cells = <1>;
-							#size-cells = <0>;
 						};
 					};
 				};
 			};
 
 			cfam6_i2c15: i2c-bus@f {
+				reg = <15>;	/* OP5B */
 				#address-cells = <1>;
 				#size-cells = <0>;
-				reg = <15>;	/* OP5B */
 
-				i2cr@20 {
+				fsi@20 {
 					compatible = "ibm,i2cr-fsi-master";
 					reg = <0x20>;
 					#address-cells = <2>;
@@ -3510,10 +3420,8 @@
 						};
 
 						sbefifo715: sbefifo@2400 {
-							compatible = "ibm,p9-sbefifo";
+							compatible = "ibm,odyssey-sbefifo";
 							reg = <0x2400 0x400>;
-							#address-cells = <1>;
-							#size-cells = <0>;
 						};
 					};
 				};
@@ -3527,68 +3435,66 @@
 			#size-cells = <0>;
 
 			cfam6_spi0: spi@0 {
+				compatible = "ibm,spi-fsi";
 				reg = <0x0>;
 				#address-cells = <1>;
 				#size-cells = <0>;
 
 				eeprom@0 {
-					at25,byte-len = <0x80000>;
-					at25,addr-mode = <4>;
-					at25,page-size = <256>;
-
 					compatible = "atmel,at25";
 					reg = <0>;
-					spi-max-frequency = <1000000>;
+					address-width = <24>;
+					pagesize = <256>;
+					size = <0x80000>;
+					spi-max-frequency = <10000000>;
 				};
 			};
 
 			cfam6_spi1: spi@20 {
+				compatible = "ibm,spi-fsi";
 				reg = <0x20>;
 				#address-cells = <1>;
 				#size-cells = <0>;
 
 				eeprom@0 {
-					at25,byte-len = <0x80000>;
-					at25,addr-mode = <4>;
-					at25,page-size = <256>;
-
 					compatible = "atmel,at25";
 					reg = <0>;
-					spi-max-frequency = <1000000>;
+					address-width = <24>;
+					pagesize = <256>;
+					size = <0x80000>;
+					spi-max-frequency = <10000000>;
 				};
 			};
 
 			cfam6_spi2: spi@40 {
+				compatible = "ibm,spi-fsi";
 				reg = <0x40>;
-				compatible = "ibm,fsi2spi";
 				#address-cells = <1>;
 				#size-cells = <0>;
 
 				eeprom@0 {
-					at25,byte-len = <0x80000>;
-					at25,addr-mode = <4>;
-					at25,page-size = <256>;
-
 					compatible = "atmel,at25";
 					reg = <0>;
-					spi-max-frequency = <1000000>;
+					address-width = <24>;
+					pagesize = <256>;
+					size = <0x80000>;
+					spi-max-frequency = <10000000>;
 				};
 			};
 
 			cfam6_spi3: spi@60 {
+				compatible = "ibm,spi-fsi";
 				reg = <0x60>;
-				compatible = "ibm,fsi2spi";
 				#address-cells = <1>;
 				#size-cells = <0>;
 
 				eeprom@0 {
-					at25,byte-len = <0x80000>;
-					at25,addr-mode = <4>;
-					at25,page-size = <256>;
-
 					compatible = "atmel,at25";
 					reg = <0>;
-					spi-max-frequency = <1000000>;
+					address-width = <24>;
+					pagesize = <256>;
+					size = <0x80000>;
+					spi-max-frequency = <10000000>;
 				};
 			};
 		};
@@ -3596,25 +3502,22 @@
 		sbefifo@2400 {
 			compatible = "ibm,p9-sbefifo";
 			reg = <0x2400 0x400>;
-			#address-cells = <1>;
-			#size-cells = <0>;
 
-			fsi_occ6: occ {
+			occ {
 				compatible = "ibm,p10-occ";
 
-				occ-hwmon {
+				hwmon {
 					compatible = "ibm,p10-occ-hwmon";
 					ibm,no-poll-on-init;
 				};
 			};
 		};
 
-		fsi_hub6: hub@3400 {
-			compatible = "fsi-master-hub";
+		fsi@3400 {
+			compatible = "ibm,p9-fsi-controller";
 			reg = <0x3400 0x400>;
 			#address-cells = <2>;
 			#size-cells = <0>;
-
 			no-scan-on-init;
 		};
 	};
@@ -3626,22 +3529,22 @@
 		chip-id = <7>;
 
 		scom@1000 {
-			compatible = "ibm,fsi2pib";
+			compatible = "ibm,p9-scom";
 			reg = <0x1000 0x400>;
 		};
 
 		i2c@1800 {
-			compatible = "ibm,fsi-i2c-master";
+			compatible = "ibm,i2c-fsi";
 			reg = <0x1800 0x400>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 
 			cfam7_i2c2: i2c-bus@2 {
+				reg = <2>;	/* OM45 */
 				#address-cells = <1>;
 				#size-cells = <0>;
-				reg = <2>;	/* OM45 */
 
-				i2cr@20 {
+				fsi@20 {
 					compatible = "ibm,i2cr-fsi-master";
 					reg = <0x20>;
 					#address-cells = <2>;
@@ -3659,21 +3562,19 @@
 						};
 
 						sbefifo802: sbefifo@2400 {
-							compatible = "ibm,p9-sbefifo";
+							compatible = "ibm,odyssey-sbefifo";
 							reg = <0x2400 0x400>;
-							#address-cells = <1>;
-							#size-cells = <0>;
 						};
 					};
 				};
 			};
 
 			cfam7_i2c3: i2c-bus@3 {
+				reg = <3>;	/* OM67 */
 				#address-cells = <1>;
 				#size-cells = <0>;
-				reg = <3>;	/* OM67 */
 
-				i2cr@20 {
+				fsi@20 {
 					compatible = "ibm,i2cr-fsi-master";
 					reg = <0x20>;
 					#address-cells = <2>;
@@ -3691,21 +3592,19 @@
 						};
 
 						sbefifo803: sbefifo@2400 {
-							compatible = "ibm,p9-sbefifo";
+							compatible = "ibm,odyssey-sbefifo";
 							reg = <0x2400 0x400>;
-							#address-cells = <1>;
-							#size-cells = <0>;
 						};
 					};
 				};
 			};
 
 			cfam7_i2c10: i2c-bus@a {
+				reg = <10>;	/* OP3A */
 				#address-cells = <1>;
 				#size-cells = <0>;
-				reg = <10>;	/* OP3A */
 
-				i2cr@20 {
+				fsi@20 {
 					compatible = "ibm,i2cr-fsi-master";
 					reg = <0x20>;
 					#address-cells = <2>;
@@ -3723,21 +3622,19 @@
 						};
 
 						sbefifo810: sbefifo@2400 {
-							compatible = "ibm,p9-sbefifo";
+							compatible = "ibm,odyssey-sbefifo";
 							reg = <0x2400 0x400>;
-							#address-cells = <1>;
-							#size-cells = <0>;
 						};
 					};
 				};
 			};
 
 			cfam7_i2c11: i2c-bus@b {
+				reg = <11>;	/* OP3B */
 				#address-cells = <1>;
 				#size-cells = <0>;
-				reg = <11>;	/* OP3B */
 
-				i2cr@20 {
+				fsi@20 {
 					compatible = "ibm,i2cr-fsi-master";
 					reg = <0x20>;
 					#address-cells = <2>;
@@ -3755,21 +3652,19 @@
 						};
 
 						sbefifo811: sbefifo@2400 {
-							compatible = "ibm,p9-sbefifo";
+							compatible = "ibm,odyssey-sbefifo";
 							reg = <0x2400 0x400>;
-							#address-cells = <1>;
-							#size-cells = <0>;
 						};
 					};
 				};
 			};
 
 			cfam7_i2c14: i2c-bus@e {
+				reg = <14>;	/* OP5A */
 				#address-cells = <1>;
 				#size-cells = <0>;
-				reg = <14>;	/* OP5A */
 
-				i2cr@20 {
+				fsi@20 {
 					compatible = "ibm,i2cr-fsi-master";
 					reg = <0x20>;
 					#address-cells = <2>;
@@ -3787,21 +3682,19 @@
 						};
 
 						sbefifo814: sbefifo@2400 {
-							compatible = "ibm,p9-sbefifo";
+							compatible = "ibm,odyssey-sbefifo";
 							reg = <0x2400 0x400>;
-							#address-cells = <1>;
-							#size-cells = <0>;
 						};
 					};
 				};
 			};
 
 			cfam7_i2c15: i2c-bus@f {
+				reg = <15>;	/* OP5B */
 				#address-cells = <1>;
 				#size-cells = <0>;
-				reg = <15>;	/* OP5B */
 
-				i2cr@20 {
+				fsi@20 {
 					compatible = "ibm,i2cr-fsi-master";
 					reg = <0x20>;
 					#address-cells = <2>;
@@ -3819,21 +3712,19 @@
 						};
 
 						sbefifo815: sbefifo@2400 {
-							compatible = "ibm,p9-sbefifo";
+							compatible = "ibm,odyssey-sbefifo";
 							reg = <0x2400 0x400>;
-							#address-cells = <1>;
-							#size-cells = <0>;
 						};
 					};
 				};
 			};
 
 			cfam7_i2c16: i2c-bus@10 {
+				reg = <16>;	/* OP6A */
 				#address-cells = <1>;
 				#size-cells = <0>;
-				reg = <16>;	/* OP6A */
 
-				i2cr@20 {
+				fsi@20 {
 					compatible = "ibm,i2cr-fsi-master";
 					reg = <0x20>;
 					#address-cells = <2>;
@@ -3851,21 +3742,19 @@
 						};
 
 						sbefifo816: sbefifo@2400 {
-							compatible = "ibm,p9-sbefifo";
+							compatible = "ibm,odyssey-sbefifo";
 							reg = <0x2400 0x400>;
-							#address-cells = <1>;
-							#size-cells = <0>;
 						};
 					};
 				};
 			};
 
 			cfam7_i2c17: i2c-bus@11 {
+				reg = <17>;	/* OP6B */
 				#address-cells = <1>;
 				#size-cells = <0>;
-				reg = <17>;	/* OP6B */
 
-				i2cr@20 {
+				fsi@20 {
 					compatible = "ibm,i2cr-fsi-master";
 					reg = <0x20>;
 					#address-cells = <2>;
@@ -3883,10 +3772,8 @@
 						};
 
 						sbefifo817: sbefifo@2400 {
-							compatible = "ibm,p9-sbefifo";
+							compatible = "ibm,odyssey-sbefifo";
 							reg = <0x2400 0x400>;
-							#address-cells = <1>;
-							#size-cells = <0>;
 						};
 					};
 				};
@@ -3900,68 +3787,66 @@
 			#size-cells = <0>;
 
 			cfam7_spi0: spi@0 {
+				compatible = "ibm,spi-fsi";
 				reg = <0x0>;
 				#address-cells = <1>;
 				#size-cells = <0>;
 
 				eeprom@0 {
-					at25,byte-len = <0x80000>;
-					at25,addr-mode = <4>;
-					at25,page-size = <256>;
-
 					compatible = "atmel,at25";
 					reg = <0>;
-					spi-max-frequency = <1000000>;
+					address-width = <24>;
+					pagesize = <256>;
+					size = <0x80000>;
+					spi-max-frequency = <10000000>;
 				};
 			};
 
 			cfam7_spi1: spi@20 {
+				compatible = "ibm,spi-fsi";
 				reg = <0x20>;
 				#address-cells = <1>;
 				#size-cells = <0>;
 
 				eeprom@0 {
-					at25,byte-len = <0x80000>;
-					at25,addr-mode = <4>;
-					at25,page-size = <256>;
-
 					compatible = "atmel,at25";
 					reg = <0>;
-					spi-max-frequency = <1000000>;
+					address-width = <24>;
+					pagesize = <256>;
+					size = <0x80000>;
+					spi-max-frequency = <10000000>;
 				};
 			};
 
 			cfam7_spi2: spi@40 {
+				compatible = "ibm,spi-fsi";
 				reg = <0x40>;
-				compatible = "ibm,fsi2spi";
 				#address-cells = <1>;
 				#size-cells = <0>;
 
 				eeprom@0 {
-					at25,byte-len = <0x80000>;
-					at25,addr-mode = <4>;
-					at25,page-size = <256>;
-
 					compatible = "atmel,at25";
 					reg = <0>;
-					spi-max-frequency = <1000000>;
+					address-width = <24>;
+					pagesize = <256>;
+					size = <0x80000>;
+					spi-max-frequency = <10000000>;
 				};
 			};
 
 			cfam7_spi3: spi@60 {
+				compatible = "ibm,spi-fsi";
 				reg = <0x60>;
-				compatible = "ibm,fsi2spi";
 				#address-cells = <1>;
 				#size-cells = <0>;
 
 				eeprom@0 {
-					at25,byte-len = <0x80000>;
-					at25,addr-mode = <4>;
-					at25,page-size = <256>;
-
 					compatible = "atmel,at25";
 					reg = <0>;
-					spi-max-frequency = <1000000>;
+					address-width = <24>;
+					pagesize = <256>;
+					size = <0x80000>;
+					spi-max-frequency = <10000000>;
 				};
 			};
 		};
@@ -3969,43 +3854,23 @@
 		sbefifo@2400 {
 			compatible = "ibm,p9-sbefifo";
 			reg = <0x2400 0x400>;
-			#address-cells = <1>;
-			#size-cells = <0>;
 
-			fsi_occ7: occ {
+			occ {
 				compatible = "ibm,p10-occ";
 
-				occ-hwmon {
+				hwmon {
 					compatible = "ibm,p10-occ-hwmon";
 					ibm,no-poll-on-init;
 				};
 			};
 		};
 
-		fsi_hub7: hub@3400 {
-			compatible = "fsi-master-hub";
+		fsi@3400 {
+			compatible = "ibm,p9-fsi-controller";
 			reg = <0x3400 0x400>;
 			#address-cells = <2>;
 			#size-cells = <0>;
-
 			no-scan-on-init;
 		};
 	};
-};
-
-/* Legacy OCC numbering (to get rid of when userspace is fixed) */
-&fsi_occ4 {
-	reg = <5>;
-};
-
-&fsi_occ5 {
-	reg = <6>;
-};
-
-&fsi_occ6 {
-	reg = <7>;
-};
-
-&fsi_occ7 {
-	reg = <8>;
 };
