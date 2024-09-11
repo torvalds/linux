@@ -452,12 +452,17 @@ EXPORT_SYMBOL_GPL(of_property_read_string);
 
 /**
  * of_property_match_string() - Find string in a list and return index
- * @np: pointer to node containing string list property
+ * @np: pointer to the node containing the string list property
  * @propname: string list property name
- * @string: pointer to string to search for in string list
+ * @string: pointer to the string to search for in the string list
  *
- * This function searches a string list property and returns the index
- * of a specific string value.
+ * Search for an exact match of string in a device node property which is a
+ * string of lists.
+ *
+ * Return: the index of the first occurrence of the string on success, -EINVAL
+ * if the property does not exist, -ENODATA if the property does not have a
+ * value, and -EILSEQ if the string is not null-terminated within the length of
+ * the property data.
  */
 int of_property_match_string(const struct device_node *np, const char *propname,
 			     const char *string)
