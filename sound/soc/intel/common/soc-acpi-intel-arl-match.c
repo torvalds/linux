@@ -323,6 +323,12 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_arl_machines[] = {
 		.quirk_data = &arl_lt6911_hdmi,
 		.sof_tplg_filename = "sof-arl-rt5682-ssp1-hdmi-ssp02.tplg",
 	},
+	/* place amp-only boards in the end of table */
+	{
+		.id = "INTC10B0",
+		.drv_name = "arl_lt6911_hdmi_ssp",
+		.sof_tplg_filename = "sof-arl-hdmi-ssp02.tplg",
+	},
 	{},
 };
 EXPORT_SYMBOL_GPL(snd_soc_acpi_intel_arl_machines);
