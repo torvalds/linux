@@ -496,41 +496,54 @@ static const struct snd_malloc_ops snd_dma_dev_ops = {
 /*
  * Write-combined pages
  */
-/* x86-specific allocations */
 #ifdef CONFIG_SND_DMA_SGBUF
-#define x86_fallback(dmab)	(!get_dma_ops(dmab->dev.dev))
-#else
-#define x86_fallback(dmab)	false
-#endif
-
+/* x86-specific allocations */
 static void *snd_dma_wc_alloc(struct snd_dma_buffer *dmab, size_t size)
 {
-	if (x86_fallback(dmab))
-		return do_alloc_pages(dmab->dev.dev, size, &dmab->addr, true);
+	void *p = do_alloc_pages(dmab->dev.dev, size, &dmab->addr, true);
+
+	if (!p)
+		return NULL;
+	dmab->addr = dma_map_single(dmab->dev.dev, p, size, DMA_BIDIRECTIONAL);
+	if (dmab->addr == DMA_MAPPING_ERROR) {
+		do_free_pages(dmab->area, size, true);
+		return NULL;
+	}
+	return p;
+}
+
+static void snd_dma_wc_free(struct snd_dma_buffer *dmab)
+{
+	dma_unmap_single(dmab->dev.dev, dmab->addr, dmab->bytes,
+			 DMA_BIDIRECTIONAL);
+	do_free_pages(dmab->area, dmab->bytes, true);
+}
+
+static int snd_dma_wc_mmap(struct snd_dma_buffer *dmab,
+			   struct vm_area_struct *area)
+{
+	area->vm_page_prot = pgprot_writecombine(area->vm_page_prot);
+	return dma_mmap_coherent(dmab->dev.dev, area,
+				 dmab->area, dmab->addr, dmab->bytes);
+}
+#else
+static void *snd_dma_wc_alloc(struct snd_dma_buffer *dmab, size_t size)
+{
 	return dma_alloc_wc(dmab->dev.dev, size, &dmab->addr, DEFAULT_GFP);
 }
 
 static void snd_dma_wc_free(struct snd_dma_buffer *dmab)
 {
-	if (x86_fallback(dmab)) {
-		do_free_pages(dmab->area, dmab->bytes, true);
-		return;
-	}
 	dma_free_wc(dmab->dev.dev, dmab->bytes, dmab->area, dmab->addr);
 }
 
 static int snd_dma_wc_mmap(struct snd_dma_buffer *dmab,
 			   struct vm_area_struct *area)
 {
-#ifdef CONFIG_SND_DMA_SGBUF
-	if (x86_fallback(dmab)) {
-		area->vm_page_prot = pgprot_writecombine(area->vm_page_prot);
-		return snd_dma_continuous_mmap(dmab, area);
-	}
-#endif
 	return dma_mmap_wc(dmab->dev.dev, area,
 			   dmab->area, dmab->addr, dmab->bytes);
 }
+#endif
 
 static const struct snd_malloc_ops snd_dma_wc_ops = {
 	.alloc = snd_dma_wc_alloc,
@@ -804,7 +817,7 @@ static void *snd_dma_sg_alloc(struct snd_dma_buffer *dmab, size_t size)
 
 	dmab->dev.type = type; /* restore the type */
 	/* if IOMMU is present but failed, give up */
-	if (!x86_fallback(dmab))
+	if (get_dma_ops(dmab->dev.dev))
 		return NULL;
 	/* try fallback */
 	return snd_dma_sg_fallback_alloc(dmab, size);
