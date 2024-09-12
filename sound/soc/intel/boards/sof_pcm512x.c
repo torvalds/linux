@@ -371,8 +371,7 @@ static int sof_audio_probe(struct platform_device *pdev)
 		sof_pcm512x_quirk = SOF_PCM512X_SSP_CODEC(2);
 	} else {
 		dmic_be_num = 2;
-		if (mach->mach_params.common_hdmi_codec_drv &&
-		    (mach->mach_params.codec_mask & IDISP_CODEC_MASK))
+		if (mach->mach_params.codec_mask & IDISP_CODEC_MASK)
 			ctx->idisp_codec = true;
 
 		/* links are always present in topology */
