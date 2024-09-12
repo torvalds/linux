@@ -529,6 +529,8 @@ cifs_sfu_type(struct cifs_fattr *fattr, const char *path,
 	struct cifs_fid fid;
 	struct cifs_open_parms oparms;
 	struct cifs_io_parms io_parms = {0};
+	char *symlink_buf_utf16;
+	unsigned int symlink_len_utf16;
 	char buf[24];
 	unsigned int bytes_read;
 	char *pbuf;
@@ -616,6 +618,33 @@ cifs_sfu_type(struct cifs_fattr *fattr, const char *path,
 			cifs_dbg(FYI, "Symlink\n");
 			fattr->cf_mode |= S_IFLNK;
 			fattr->cf_dtype = DT_LNK;
+			if ((fattr->cf_eof > 8) && (fattr->cf_eof % 2 == 0)) {
+				symlink_buf_utf16 = kmalloc(fattr->cf_eof-8 + 1, GFP_KERNEL);
+				if (symlink_buf_utf16) {
+					io_parms.offset = 8;
+					io_parms.length = fattr->cf_eof-8 + 1;
+					buf_type = CIFS_NO_BUFFER;
+					rc = tcon->ses->server->ops->sync_read(xid, &fid, &io_parms,
+									       &symlink_len_utf16,
+									       &symlink_buf_utf16,
+									       &buf_type);
+					if ((rc == 0) &&
+					    (symlink_len_utf16 > 0) &&
+					    (symlink_len_utf16 < fattr->cf_eof-8 + 1) &&
+					    (symlink_len_utf16 % 2 == 0)) {
+						fattr->cf_symlink_target =
+							cifs_strndup_from_utf16(symlink_buf_utf16,
+										symlink_len_utf16,
+										true,
+										cifs_sb->local_nls);
+						if (!fattr->cf_symlink_target)
+							rc = -ENOMEM;
+					}
+					kfree(symlink_buf_utf16);
+				} else {
+					rc = -ENOMEM;
+				}
+			}
 		} else if (memcmp("LnxFIFO", pbuf, 8) == 0) {
 			cifs_dbg(FYI, "FIFO\n");
 			fattr->cf_mode |= S_IFIFO;
