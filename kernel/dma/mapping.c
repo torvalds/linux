@@ -841,20 +841,23 @@ static int dma_supported(struct device *dev, u64 mask)
 {
 	const struct dma_map_ops *ops = get_dma_ops(dev);
 
-	if (WARN_ON(ops && use_dma_iommu(dev)))
-		return false;
-
-	if (use_dma_iommu(dev))
+	if (use_dma_iommu(dev)) {
+		if (WARN_ON(ops))
+			return false;
 		return true;
+	}
+
 	/*
-	 * ->dma_supported sets the bypass flag, so we must always call
-	 * into the method here unless the device is truly direct mapped.
+	 * ->dma_supported sets and clears the bypass flag, so ignore it here
+	 * and always call into the method if there is one.
 	 */
-	if (!ops)
-		return dma_direct_supported(dev, mask);
-	if (!ops->dma_supported)
-		return 1;
-	return ops->dma_supported(dev, mask);
+	if (ops) {
+		if (!ops->dma_supported)
+			return true;
+		return ops->dma_supported(dev, mask);
+	}
+
+	return dma_direct_supported(dev, mask);
 }
 
 bool dma_pci_p2pdma_supported(struct device *dev)
