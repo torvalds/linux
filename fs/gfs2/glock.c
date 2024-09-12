@@ -959,10 +959,9 @@ static void gfs2_glock_poke(struct gfs2_glock *gl)
 	gfs2_holder_uninit(&gh);
 }
 
-static bool gfs2_try_evict(struct gfs2_glock *gl)
+static void gfs2_try_evict(struct gfs2_glock *gl)
 {
 	struct gfs2_inode *ip;
-	bool evicted = false;
 
 	/*
 	 * If there is contention on the iopen glock and we have an inode, try
@@ -997,9 +996,7 @@ static bool gfs2_try_evict(struct gfs2_glock *gl)
 			gfs2_glock_poke(ip->i_gl);
 			iput(&ip->i_inode);
 		}
-		evicted = !ip;
 	}
-	return evicted;
 }
 
 bool gfs2_queue_try_to_evict(struct gfs2_glock *gl)
@@ -1048,13 +1045,7 @@ static void delete_work_func(struct work_struct *work)
 		 * care about compatibility with such nodes, we can skip this
 		 * step entirely.
 		 */
-		if (gfs2_try_evict(gl)) {
-			if (!test_bit(SDF_KILL, &sdp->sd_flags)) {
-				gfs2_glock_hold(gl);
-				if (!gfs2_queue_verify_delete(gl, true))
-					gfs2_glock_put(gl);
-			}
-		}
+		gfs2_try_evict(gl);
 	}
 
 	if (verify_delete) {
