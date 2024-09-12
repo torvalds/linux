@@ -1768,7 +1768,7 @@ Kernel response contents:
 When set, the optional ``ETHTOOL_A_PODL_PSE_ADMIN_STATE`` attribute identifies
 the operational state of the PoDL PSE functions.  The operational state of the
 PSE function can be changed using the ``ETHTOOL_A_PODL_PSE_ADMIN_CONTROL``
-action. This option is corresponding to ``IEEE 802.3-2018`` 30.15.1.1.2
+action. This attribute corresponds to ``IEEE 802.3-2018`` 30.15.1.1.2
 aPoDLPSEAdminState. Possible values are:
 
 .. kernel-doc:: include/uapi/linux/ethtool.h
@@ -1782,8 +1782,8 @@ The same goes for ``ETHTOOL_A_C33_PSE_ADMIN_STATE`` implementing
 
 When set, the optional ``ETHTOOL_A_PODL_PSE_PW_D_STATUS`` attribute identifies
 the power detection status of the PoDL PSE.  The status depend on internal PSE
-state machine and automatic PD classification support. This option is
-corresponding to ``IEEE 802.3-2018`` 30.15.1.1.3 aPoDLPSEPowerDetectionStatus.
+state machine and automatic PD classification support. This attribute
+corresponds to ``IEEE 802.3-2018`` 30.15.1.1.3 aPoDLPSEPowerDetectionStatus.
 Possible values are:
 
 .. kernel-doc:: include/uapi/linux/ethtool.h
@@ -1797,12 +1797,13 @@ The same goes for ``ETHTOOL_A_C33_PSE_ADMIN_PW_D_STATUS`` implementing
 
 When set, the optional ``ETHTOOL_A_C33_PSE_PW_CLASS`` attribute identifies
 the power class of the C33 PSE. It depends on the class negotiated between
-the PSE and the PD. This option is corresponding to ``IEEE 802.3-2022``
+the PSE and the PD. This attribute corresponds to ``IEEE 802.3-2022``
 30.9.1.1.8 aPSEPowerClassification.
 
 When set, the optional ``ETHTOOL_A_C33_PSE_ACTUAL_PW`` attribute identifies
-This option is corresponding to ``IEEE 802.3-2022`` 30.9.1.1.23 aPSEActualPower.
-Actual power is reported in mW.
+the actual power drawn by the C33 PSE. This attribute corresponds to
+``IEEE 802.3-2022`` 30.9.1.1.23 aPSEActualPower. Actual power is reported
+in mW.
 
 When set, the optional ``ETHTOOL_A_C33_PSE_EXT_STATE`` attribute identifies
 the extended error state of the C33 PSE. Possible values are:
@@ -1851,7 +1852,7 @@ Request contents:
   ======================================  ======  =============================
 
 When set, the optional ``ETHTOOL_A_PODL_PSE_ADMIN_CONTROL`` attribute is used
-to control PoDL PSE Admin functions. This option is implementing
+to control PoDL PSE Admin functions. This option implements
 ``IEEE 802.3-2018`` 30.15.1.2.1 acPoDLPSEAdminControl. See
 ``ETHTOOL_A_PODL_PSE_ADMIN_STATE`` for supported values.
 
