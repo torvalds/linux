@@ -50,13 +50,11 @@ void dpp35_dppclk_control(
 				DPPCLK_RATE_CONTROL, dppclk_div,
 				DPP_CLOCK_ENABLE, 1);
 		else
-			REG_UPDATE_2(DPP_CONTROL,
-					DPP_CLOCK_ENABLE, 1,
-					DISPCLK_R_GATE_DISABLE, 1);
+			REG_UPDATE(DPP_CONTROL,
+					DPP_CLOCK_ENABLE, 1);
 	} else
-		REG_UPDATE_2(DPP_CONTROL,
-				DPP_CLOCK_ENABLE, 0,
-				DISPCLK_R_GATE_DISABLE, 0);
+		REG_UPDATE(DPP_CONTROL,
+				DPP_CLOCK_ENABLE, 0);
 }
 
 void dpp35_program_bias_and_scale_fcnv(
