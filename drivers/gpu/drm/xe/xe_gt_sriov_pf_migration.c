@@ -297,6 +297,91 @@ int xe_gt_sriov_pf_migration_restore_guc_state(struct xe_gt *gt, unsigned int vf
 	return ret;
 }
 
+#ifdef CONFIG_DEBUG_FS
+/**
+ * xe_gt_sriov_pf_migration_read_guc_state() - Read a GuC VF state.
+ * @gt: the &xe_gt
+ * @vfid: the VF identifier
+ * @buf: the user space buffer to read to
+ * @count: the maximum number of bytes to read
+ * @pos: the current position in the buffer
+ *
+ * This function is for PF only.
+ *
+ * This function reads up to @count bytes from the saved VF GuC state buffer
+ * at offset @pos into the user space address starting at @buf.
+ *
+ * Return: the number of bytes read or a negative error code on failure.
+ */
+ssize_t xe_gt_sriov_pf_migration_read_guc_state(struct xe_gt *gt, unsigned int vfid,
+						char __user *buf, size_t count, loff_t *pos)
+{
+	struct xe_gt_sriov_state_snapshot *snapshot;
+	ssize_t ret;
+
+	xe_gt_assert(gt, IS_SRIOV_PF(gt_to_xe(gt)));
+	xe_gt_assert(gt, vfid != PFID);
+	xe_gt_assert(gt, vfid <= xe_sriov_pf_get_totalvfs(gt_to_xe(gt)));
+
+	if (!pf_migration_supported(gt))
+		return -ENOPKG;
+
+	mutex_lock(pf_migration_mutex(gt));
+	snapshot = pf_pick_vf_snapshot(gt, vfid);
+	if (snapshot->guc.size)
+		ret = simple_read_from_buffer(buf, count, pos, snapshot->guc.buff,
+					      snapshot->guc.size);
+	else
+		ret = -ENODATA;
+	mutex_unlock(pf_migration_mutex(gt));
+
+	return ret;
+}
+
+/**
+ * xe_gt_sriov_pf_migration_write_guc_state() - Write a GuC VF state.
+ * @gt: the &xe_gt
+ * @vfid: the VF identifier
+ * @buf: the user space buffer with GuC VF state
+ * @size: the size of GuC VF state (in bytes)
+ *
+ * This function is for PF only.
+ *
+ * This function reads @size bytes of the VF GuC state stored at user space
+ * address @buf and writes it into a internal VF state buffer.
+ *
+ * Return: the number of bytes used or a negative error code on failure.
+ */
+ssize_t xe_gt_sriov_pf_migration_write_guc_state(struct xe_gt *gt, unsigned int vfid,
+						 const char __user *buf, size_t size)
+{
+	struct xe_gt_sriov_state_snapshot *snapshot;
+	loff_t pos = 0;
+	ssize_t ret;
+
+	xe_gt_assert(gt, IS_SRIOV_PF(gt_to_xe(gt)));
+	xe_gt_assert(gt, vfid != PFID);
+	xe_gt_assert(gt, vfid <= xe_sriov_pf_get_totalvfs(gt_to_xe(gt)));
+
+	if (!pf_migration_supported(gt))
+		return -ENOPKG;
+
+	mutex_lock(pf_migration_mutex(gt));
+	snapshot = pf_pick_vf_snapshot(gt, vfid);
+	ret = pf_alloc_guc_state(gt, snapshot, size);
+	if (!ret) {
+		ret = simple_write_to_buffer(snapshot->guc.buff, size, &pos, buf, size);
+		if (ret < 0)
+			pf_free_guc_state(gt, snapshot);
+		else
+			pf_dump_guc_state(gt, snapshot);
+	}
+	mutex_unlock(pf_migration_mutex(gt));
+
+	return ret;
+}
+#endif /* CONFIG_DEBUG_FS */
+
 static bool pf_check_migration_support(struct xe_gt *gt)
 {
 	/* GuC 70.25 with save/restore v2 is required */

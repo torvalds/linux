@@ -17,6 +17,7 @@
 #include "xe_gt_sriov_pf_control.h"
 #include "xe_gt_sriov_pf_debugfs.h"
 #include "xe_gt_sriov_pf_helpers.h"
+#include "xe_gt_sriov_pf_migration.h"
 #include "xe_gt_sriov_pf_monitor.h"
 #include "xe_gt_sriov_pf_policy.h"
 #include "xe_gt_sriov_pf_service.h"
@@ -375,6 +376,44 @@ static const struct file_operations control_ops = {
 	.llseek		= default_llseek,
 };
 
+/*
+ *      /sys/kernel/debug/dri/0/
+ *      ├── gt0
+ *      │   ├── vf1
+ *      │   │   ├── guc_state
+ */
+static ssize_t guc_state_read(struct file *file, char __user *buf,
+			      size_t count, loff_t *pos)
+{
+	struct dentry *dent = file_dentry(file);
+	struct dentry *parent = dent->d_parent;
+	struct xe_gt *gt = extract_gt(parent);
+	unsigned int vfid = extract_vfid(parent);
+
+	return xe_gt_sriov_pf_migration_read_guc_state(gt, vfid, buf, count, pos);
+}
+
+static ssize_t guc_state_write(struct file *file, const char __user *buf,
+			       size_t count, loff_t *pos)
+{
+	struct dentry *dent = file_dentry(file);
+	struct dentry *parent = dent->d_parent;
+	struct xe_gt *gt = extract_gt(parent);
+	unsigned int vfid = extract_vfid(parent);
+
+	if (*pos)
+		return -EINVAL;
+
+	return xe_gt_sriov_pf_migration_write_guc_state(gt, vfid, buf, count);
+}
+
+static const struct file_operations guc_state_ops = {
+	.owner		= THIS_MODULE,
+	.read		= guc_state_read,
+	.write		= guc_state_write,
+	.llseek		= default_llseek,
+};
+
 /**
  * xe_gt_sriov_pf_debugfs_register - Register SR-IOV PF specific entries in GT debugfs.
  * @gt: the &xe_gt to register
@@ -423,5 +462,12 @@ void xe_gt_sriov_pf_debugfs_register(struct xe_gt *gt, struct dentry *root)
 
 		pf_add_config_attrs(gt, vfdentry, VFID(n));
 		debugfs_create_file("control", 0600, vfdentry, NULL, &control_ops);
+
+		/* for testing/debugging purposes only! */
+		if (IS_ENABLED(CONFIG_DRM_XE_DEBUG)) {
+			debugfs_create_file("guc_state",
+					    IS_ENABLED(CONFIG_DRM_XE_DEBUG_SRIOV) ? 0600 : 0400,
+					    vfdentry, NULL, &guc_state_ops);
+		}
 	}
 }
