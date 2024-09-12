@@ -953,6 +953,8 @@ static int kvm_loongarch_cpucfg_has_attr(struct kvm_vcpu *vcpu,
 	case LOONGARCH_CPUCFG2:
 	case LOONGARCH_CPUCFG6:
 		return 0;
+	case CPUCFG_KVM_FEATURE:
+		return 0;
 	default:
 		return -ENXIO;
 	}
@@ -963,8 +965,8 @@ static int kvm_loongarch_cpucfg_has_attr(struct kvm_vcpu *vcpu,
 static int kvm_loongarch_pvtime_has_attr(struct kvm_vcpu *vcpu,
 					 struct kvm_device_attr *attr)
 {
-	if (!kvm_pvtime_supported() ||
-			attr->attr != KVM_LOONGARCH_VCPU_PVTIME_GPA)
+	if (!kvm_guest_has_pv_feature(vcpu, KVM_FEATURE_STEAL_TIME)
+			|| attr->attr != KVM_LOONGARCH_VCPU_PVTIME_GPA)
 		return -ENXIO;
 
 	return 0;
@@ -996,9 +998,18 @@ static int kvm_loongarch_cpucfg_get_attr(struct kvm_vcpu *vcpu,
 	uint64_t val;
 	uint64_t __user *uaddr = (uint64_t __user *)attr->addr;
 
-	ret = _kvm_get_cpucfg_mask(attr->attr, &val);
-	if (ret)
-		return ret;
+	switch (attr->attr) {
+	case 0 ... (KVM_MAX_CPUCFG_REGS - 1):
+		ret = _kvm_get_cpucfg_mask(attr->attr, &val);
+		if (ret)
+			return ret;
+		break;
+	case CPUCFG_KVM_FEATURE:
+		val = vcpu->kvm->arch.pv_features & LOONGARCH_PV_FEAT_MASK;
+		break;
+	default:
+		return -ENXIO;
+	}
 
 	put_user(val, uaddr);
 
@@ -1011,8 +1022,8 @@ static int kvm_loongarch_pvtime_get_attr(struct kvm_vcpu *vcpu,
 	u64 gpa;
 	u64 __user *user = (u64 __user *)attr->addr;
 
-	if (!kvm_pvtime_supported() ||
-			attr->attr != KVM_LOONGARCH_VCPU_PVTIME_GPA)
+	if (!kvm_guest_has_pv_feature(vcpu, KVM_FEATURE_STEAL_TIME)
+			|| attr->attr != KVM_LOONGARCH_VCPU_PVTIME_GPA)
 		return -ENXIO;
 
 	gpa = vcpu->arch.st.guest_addr;
@@ -1044,7 +1055,28 @@ static int kvm_loongarch_vcpu_get_attr(struct kvm_vcpu *vcpu,
 static int kvm_loongarch_cpucfg_set_attr(struct kvm_vcpu *vcpu,
 					 struct kvm_device_attr *attr)
 {
-	return -ENXIO;
+	u64 val, valid;
+	u64 __user *user = (u64 __user *)attr->addr;
+	struct kvm *kvm = vcpu->kvm;
+
+	switch (attr->attr) {
+	case CPUCFG_KVM_FEATURE:
+		if (get_user(val, user))
+			return -EFAULT;
+
+		valid = LOONGARCH_PV_FEAT_MASK;
+		if (val & ~valid)
+			return -EINVAL;
+
+		/* All vCPUs need set the same PV features */
+		if ((kvm->arch.pv_features & LOONGARCH_PV_FEAT_UPDATED)
+				&& ((kvm->arch.pv_features & valid) != val))
+			return -EINVAL;
+		kvm->arch.pv_features = val | LOONGARCH_PV_FEAT_UPDATED;
+		return 0;
+	default:
+		return -ENXIO;
+	}
 }
 
 static int kvm_loongarch_pvtime_set_attr(struct kvm_vcpu *vcpu,
@@ -1054,8 +1086,8 @@ static int kvm_loongarch_pvtime_set_attr(struct kvm_vcpu *vcpu,
 	u64 gpa, __user *user = (u64 __user *)attr->addr;
 	struct kvm *kvm = vcpu->kvm;
 
-	if (!kvm_pvtime_supported() ||
-			attr->attr != KVM_LOONGARCH_VCPU_PVTIME_GPA)
+	if (!kvm_guest_has_pv_feature(vcpu, KVM_FEATURE_STEAL_TIME)
+			|| attr->attr != KVM_LOONGARCH_VCPU_PVTIME_GPA)
 		return -ENXIO;
 
 	if (get_user(gpa, user))

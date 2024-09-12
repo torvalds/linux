@@ -2,6 +2,8 @@
 #ifndef _ASM_LOONGARCH_KVM_PARA_H
 #define _ASM_LOONGARCH_KVM_PARA_H
 
+#include <uapi/asm/kvm_para.h>
+
 /*
  * Hypercall code field
  */

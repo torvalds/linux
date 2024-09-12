@@ -130,4 +130,9 @@ static inline bool kvm_pvtime_supported(void)
 	return !!sched_info_on();
 }
 
+static inline bool kvm_guest_has_pv_feature(struct kvm_vcpu *vcpu, unsigned int feature)
+{
+	return vcpu->kvm->arch.pv_features & BIT(feature);
+}
+
 #endif /* __ASM_LOONGARCH_KVM_VCPU_H__ */
