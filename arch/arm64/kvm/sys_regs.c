@@ -2095,26 +2095,6 @@ static bool bad_redir_trap(struct kvm_vcpu *vcpu,
 #define EL2_REG_REDIR(name, rst, v)	EL2_REG(name, bad_redir_trap, rst, v)
 
 /*
- * EL{0,1}2 registers are the EL2 view on an EL0 or EL1 register when
- * HCR_EL2.E2H==1, and only in the sysreg table for convenience of
- * handling traps. Given that, they are always hidden from userspace.
- */
-static unsigned int hidden_user_visibility(const struct kvm_vcpu *vcpu,
-					   const struct sys_reg_desc *rd)
-{
-	return REG_HIDDEN_USER;
-}
-
-#define EL12_REG(name, acc, rst, v) {		\
-	SYS_DESC(SYS_##name##_EL12),		\
-	.access = acc,				\
-	.reset = rst,				\
-	.reg = name##_EL1,			\
-	.val = v,				\
-	.visibility = hidden_user_visibility,	\
-}
-
-/*
  * Since reset() callback and field val are not used for idregs, they will be
  * used for specific purposes for idregs.
  * The reset() would return KVM sanitised register value. The value would be the
@@ -2217,6 +2197,18 @@ static bool access_spsr(struct kvm_vcpu *vcpu,
 		__vcpu_sys_reg(vcpu, SPSR_EL1) = p->regval;
 	else
 		p->regval = __vcpu_sys_reg(vcpu, SPSR_EL1);
+
+	return true;
+}
+
+static bool access_cntkctl_el12(struct kvm_vcpu *vcpu,
+				struct sys_reg_params *p,
+				const struct sys_reg_desc *r)
+{
+	if (p->is_write)
+		__vcpu_sys_reg(vcpu, CNTKCTL_EL1) = p->regval;
+	else
+		p->regval = __vcpu_sys_reg(vcpu, CNTKCTL_EL1);
 
 	return true;
 }
@@ -2792,14 +2784,10 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 	{ SYS_DESC(SYS_SP_EL1), access_sp_el1},
 
 	/* AArch32 SPSR_* are RES0 if trapped from a NV guest */
-	{ SYS_DESC(SYS_SPSR_irq), .access = trap_raz_wi,
-	  .visibility = hidden_user_visibility },
-	{ SYS_DESC(SYS_SPSR_abt), .access = trap_raz_wi,
-	  .visibility = hidden_user_visibility },
-	{ SYS_DESC(SYS_SPSR_und), .access = trap_raz_wi,
-	  .visibility = hidden_user_visibility },
-	{ SYS_DESC(SYS_SPSR_fiq), .access = trap_raz_wi,
-	  .visibility = hidden_user_visibility },
+	{ SYS_DESC(SYS_SPSR_irq), .access = trap_raz_wi },
+	{ SYS_DESC(SYS_SPSR_abt), .access = trap_raz_wi },
+	{ SYS_DESC(SYS_SPSR_und), .access = trap_raz_wi },
+	{ SYS_DESC(SYS_SPSR_fiq), .access = trap_raz_wi },
 
 	{ SYS_DESC(SYS_IFSR32_EL2), undef_access, reset_unknown, IFSR32_EL2 },
 	EL2_REG(AFSR0_EL2, access_rw, reset_val, 0),
@@ -2825,7 +2813,7 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 	EL2_REG_VNCR(CNTVOFF_EL2, reset_val, 0),
 	EL2_REG(CNTHCTL_EL2, access_rw, reset_val, 0),
 
-	EL12_REG(CNTKCTL, access_rw, reset_val, 0),
+	{ SYS_DESC(SYS_CNTKCTL_EL12), access_cntkctl_el12 },
 
 	EL2_REG(SP_EL2, NULL, reset_unknown, 0),
 };
@@ -4365,7 +4353,7 @@ int kvm_sys_reg_get_user(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg,
 	int ret;
 
 	r = id_to_sys_reg_desc(vcpu, reg->id, table, num);
-	if (!r || sysreg_hidden_user(vcpu, r))
+	if (!r || sysreg_hidden(vcpu, r))
 		return -ENOENT;
 
 	if (r->get_user) {
@@ -4409,7 +4397,7 @@ int kvm_sys_reg_set_user(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg,
 		return -EFAULT;
 
 	r = id_to_sys_reg_desc(vcpu, reg->id, table, num);
-	if (!r || sysreg_hidden_user(vcpu, r))
+	if (!r || sysreg_hidden(vcpu, r))
 		return -ENOENT;
 
 	if (sysreg_user_write_ignore(vcpu, r))
@@ -4495,7 +4483,7 @@ static int walk_one_sys_reg(const struct kvm_vcpu *vcpu,
 	if (!(rd->reg || rd->get_user))
 		return 0;
 
-	if (sysreg_hidden_user(vcpu, rd))
+	if (sysreg_hidden(vcpu, rd))
 		return 0;
 
 	if (!copy_reg_to_user(rd, uind))
