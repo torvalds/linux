@@ -2927,7 +2927,7 @@ static int handle_ir_packet_per_buffer(struct context *context,
 	copy_iso_headers(ctx, (u32 *) (last + 1));
 
 	if (last->control & cpu_to_le16(DESCRIPTOR_IRQ_ALWAYS))
-		flush_iso_completions(ctx, FW_ISO_CONTEXT_COMPLETIONS_CAUSE_IRQ);
+		flush_iso_completions(ctx, FW_ISO_CONTEXT_COMPLETIONS_CAUSE_INTERRUPT);
 
 	return 1;
 }
@@ -2963,7 +2963,7 @@ static int handle_ir_buffer_fill(struct context *context,
 
 	if (last->control & cpu_to_le16(DESCRIPTOR_IRQ_ALWAYS)) {
 		trace_isoc_inbound_multiple_completions(&ctx->base, completed,
-							FW_ISO_CONTEXT_COMPLETIONS_CAUSE_IRQ);
+							FW_ISO_CONTEXT_COMPLETIONS_CAUSE_INTERRUPT);
 
 		ctx->base.callback.mc(&ctx->base,
 				      buffer_dma + completed,
@@ -3059,7 +3059,7 @@ static int handle_it_packet(struct context *context,
 	ctx->header_length += 4;
 
 	if (last->control & cpu_to_le16(DESCRIPTOR_IRQ_ALWAYS))
-		flush_iso_completions(ctx, FW_ISO_CONTEXT_COMPLETIONS_CAUSE_IRQ);
+		flush_iso_completions(ctx, FW_ISO_CONTEXT_COMPLETIONS_CAUSE_INTERRUPT);
 
 	return 1;
 }
