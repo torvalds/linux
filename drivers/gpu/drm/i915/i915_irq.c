@@ -1404,14 +1404,14 @@ int intel_irq_install(struct drm_i915_private *dev_priv)
 	 * interrupts as enabled _before_ actually enabling them to avoid
 	 * special cases in our ordering checks.
 	 */
-	dev_priv->runtime_pm.irqs_enabled = true;
+	dev_priv->irqs_enabled = true;
 
 	intel_irq_reset(dev_priv);
 
 	ret = request_irq(irq, intel_irq_handler(dev_priv),
 			  IRQF_SHARED, DRIVER_NAME, dev_priv);
 	if (ret < 0) {
-		dev_priv->runtime_pm.irqs_enabled = false;
+		dev_priv->irqs_enabled = false;
 		return ret;
 	}
 
@@ -1437,7 +1437,7 @@ void intel_irq_uninstall(struct drm_i915_private *dev_priv)
 	 * intel_display_driver_remove() calling us out of sequence.
 	 * Would be nice if it didn't do that...
 	 */
-	if (!dev_priv->runtime_pm.irqs_enabled)
+	if (!dev_priv->irqs_enabled)
 		return;
 
 	intel_irq_reset(dev_priv);
@@ -1445,7 +1445,7 @@ void intel_irq_uninstall(struct drm_i915_private *dev_priv)
 	free_irq(irq, dev_priv);
 
 	intel_hpd_cancel_work(dev_priv);
-	dev_priv->runtime_pm.irqs_enabled = false;
+	dev_priv->irqs_enabled = false;
 }
 
 /**
@@ -1458,7 +1458,7 @@ void intel_irq_uninstall(struct drm_i915_private *dev_priv)
 void intel_runtime_pm_disable_interrupts(struct drm_i915_private *dev_priv)
 {
 	intel_irq_reset(dev_priv);
-	dev_priv->runtime_pm.irqs_enabled = false;
+	dev_priv->irqs_enabled = false;
 	intel_synchronize_irq(dev_priv);
 }
 
@@ -1471,14 +1471,14 @@ void intel_runtime_pm_disable_interrupts(struct drm_i915_private *dev_priv)
  */
 void intel_runtime_pm_enable_interrupts(struct drm_i915_private *dev_priv)
 {
-	dev_priv->runtime_pm.irqs_enabled = true;
+	dev_priv->irqs_enabled = true;
 	intel_irq_reset(dev_priv);
 	intel_irq_postinstall(dev_priv);
 }
 
 bool intel_irqs_enabled(struct drm_i915_private *dev_priv)
 {
-	return dev_priv->runtime_pm.irqs_enabled;
+	return dev_priv->irqs_enabled;
 }
 
 void intel_synchronize_irq(struct drm_i915_private *i915)

@@ -42,7 +42,6 @@ struct intel_runtime_pm {
 	atomic_t wakeref_count;
 	struct device *kdev; /* points to i915->drm.dev */
 	bool available;
-	bool irqs_enabled;
 	bool no_wakeref_tracking;
 
 	/*
