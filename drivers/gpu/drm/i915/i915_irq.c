@@ -1406,14 +1406,12 @@ int intel_irq_install(struct drm_i915_private *dev_priv)
 	 */
 	dev_priv->runtime_pm.irqs_enabled = true;
 
-	dev_priv->irq_enabled = true;
-
 	intel_irq_reset(dev_priv);
 
 	ret = request_irq(irq, intel_irq_handler(dev_priv),
 			  IRQF_SHARED, DRIVER_NAME, dev_priv);
 	if (ret < 0) {
-		dev_priv->irq_enabled = false;
+		dev_priv->runtime_pm.irqs_enabled = false;
 		return ret;
 	}
 
@@ -1439,10 +1437,8 @@ void intel_irq_uninstall(struct drm_i915_private *dev_priv)
 	 * intel_display_driver_remove() calling us out of sequence.
 	 * Would be nice if it didn't do that...
 	 */
-	if (!dev_priv->irq_enabled)
+	if (!dev_priv->runtime_pm.irqs_enabled)
 		return;
-
-	dev_priv->irq_enabled = false;
 
 	intel_irq_reset(dev_priv);
 
