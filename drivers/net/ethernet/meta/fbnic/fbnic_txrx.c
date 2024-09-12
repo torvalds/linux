@@ -1012,13 +1012,13 @@ static int fbnic_alloc_napi_vector(struct fbnic_dev *fbd, struct fbnic_net *fbn,
 	nv->fbd = fbd;
 	nv->v_idx = v_idx;
 
-	/* Record IRQ to NAPI struct */
-	netif_napi_set_irq(&nv->napi,
-			   pci_irq_vector(to_pci_dev(fbd->dev), nv->v_idx));
-
 	/* Tie napi to netdev */
 	list_add(&nv->napis, &fbn->napis);
 	netif_napi_add(fbn->netdev, &nv->napi, fbnic_poll);
+
+	/* Record IRQ to NAPI struct */
+	netif_napi_set_irq(&nv->napi,
+			   pci_irq_vector(to_pci_dev(fbd->dev), nv->v_idx));
 
 	/* Tie nv back to PCIe dev */
 	nv->dev = fbd->dev;
