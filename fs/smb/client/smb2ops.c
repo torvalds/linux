@@ -5072,12 +5072,12 @@ static int __cifs_sfu_make_node(unsigned int xid, struct inode *inode,
 
 	switch (mode & S_IFMT) {
 	case S_IFCHR:
-		strscpy(pdev.type, "IntxCHR");
+		memcpy(pdev.type, "IntxCHR\0", 8);
 		pdev.major = cpu_to_le64(MAJOR(dev));
 		pdev.minor = cpu_to_le64(MINOR(dev));
 		break;
 	case S_IFBLK:
-		strscpy(pdev.type, "IntxBLK");
+		memcpy(pdev.type, "IntxBLK\0", 8);
 		pdev.major = cpu_to_le64(MAJOR(dev));
 		pdev.minor = cpu_to_le64(MINOR(dev));
 		break;
