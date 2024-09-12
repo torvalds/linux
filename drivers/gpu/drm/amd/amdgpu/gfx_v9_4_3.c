@@ -1701,7 +1701,15 @@ static void gfx_v9_4_3_xcc_cp_compute_enable(struct amdgpu_device *adev,
 		WREG32_SOC15_RLC(GC, GET_INST(GC, xcc_id), regCP_MEC_CNTL, 0);
 	} else {
 		WREG32_SOC15_RLC(GC, GET_INST(GC, xcc_id), regCP_MEC_CNTL,
-			(CP_MEC_CNTL__MEC_ME1_HALT_MASK | CP_MEC_CNTL__MEC_ME2_HALT_MASK));
+			(CP_MEC_CNTL__MEC_INVALIDATE_ICACHE_MASK |
+			 CP_MEC_CNTL__MEC_ME1_PIPE0_RESET_MASK |
+			 CP_MEC_CNTL__MEC_ME1_PIPE1_RESET_MASK |
+			 CP_MEC_CNTL__MEC_ME1_PIPE2_RESET_MASK |
+			 CP_MEC_CNTL__MEC_ME1_PIPE3_RESET_MASK |
+			 CP_MEC_CNTL__MEC_ME2_PIPE0_RESET_MASK |
+			 CP_MEC_CNTL__MEC_ME2_PIPE1_RESET_MASK |
+			 CP_MEC_CNTL__MEC_ME1_HALT_MASK |
+			 CP_MEC_CNTL__MEC_ME2_HALT_MASK));
 		adev->gfx.kiq[xcc_id].ring.sched.ready = false;
 	}
 	udelay(50);
