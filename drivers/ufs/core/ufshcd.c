@@ -5481,10 +5481,13 @@ static irqreturn_t ufshcd_uic_cmd_compl(struct ufs_hba *hba, u32 intr_status)
 
 	spin_lock(hba->host->host_lock);
 	cmd = hba->active_uic_cmd;
+	if (WARN_ON_ONCE(!cmd))
+		goto unlock;
+
 	if (ufshcd_is_auto_hibern8_error(hba, intr_status))
 		hba->errors |= (UFSHCD_UIC_HIBERN8_MASK & intr_status);
 
-	if (intr_status & UIC_COMMAND_COMPL && cmd) {
+	if (intr_status & UIC_COMMAND_COMPL) {
 		cmd->argument2 |= ufshcd_get_uic_cmd_result(hba);
 		cmd->argument3 = ufshcd_get_dme_attr_val(hba);
 		if (!hba->uic_async_done)
@@ -5501,7 +5504,10 @@ static irqreturn_t ufshcd_uic_cmd_compl(struct ufs_hba *hba, u32 intr_status)
 
 	if (retval == IRQ_HANDLED)
 		ufshcd_add_uic_command_trace(hba, cmd, UFS_CMD_COMP);
+
+unlock:
 	spin_unlock(hba->host->host_lock);
+
 	return retval;
 }
 
