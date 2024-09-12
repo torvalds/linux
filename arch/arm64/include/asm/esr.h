@@ -122,8 +122,8 @@
 #define ESR_ELx_FSC_SECC_TTW(n)	(0x1c + (n))
 
 /* Status codes for individual page table levels */
-#define ESR_ELx_FSC_ACCESS_L(n)	(ESR_ELx_FSC_ACCESS + n)
-#define ESR_ELx_FSC_PERM_L(n)	(ESR_ELx_FSC_PERM + n)
+#define ESR_ELx_FSC_ACCESS_L(n)	(ESR_ELx_FSC_ACCESS + (n))
+#define ESR_ELx_FSC_PERM_L(n)	(ESR_ELx_FSC_PERM + (n))
 
 #define ESR_ELx_FSC_FAULT_nL	(0x2C)
 #define ESR_ELx_FSC_FAULT_L(n)	(((n) < 0 ? ESR_ELx_FSC_FAULT_nL : \
@@ -161,6 +161,7 @@
 
 /* ISS field definitions for exceptions taken in to Hyp */
 #define ESR_ELx_FSC_ADDRSZ	(0x00)
+#define ESR_ELx_FSC_ADDRSZ_L(n)	(ESR_ELx_FSC_ADDRSZ + (n))
 #define ESR_ELx_CV		(UL(1) << 24)
 #define ESR_ELx_COND_SHIFT	(20)
 #define ESR_ELx_COND_MASK	(UL(0xF) << ESR_ELx_COND_SHIFT)
