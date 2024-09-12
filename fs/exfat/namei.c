@@ -288,8 +288,22 @@ static int exfat_check_max_dentries(struct inode *inode)
 	return 0;
 }
 
-/* find empty directory entry.
- * if there isn't any empty slot, expand cluster chain.
+/*
+ * Find an empty directory entry set.
+ *
+ * If there isn't any empty slot, expand cluster chain.
+ *
+ * in:
+ *   inode: inode of the parent directory
+ *   num_entries: specifies how many dentries in the empty directory entry set
+ *
+ * out:
+ *   p_dir: the cluster where the empty directory entry set is located
+ *   es: The found empty directory entry set
+ *
+ * return:
+ *   the directory entry index in p_dir is returned on succeeds
+ *   -error code is returned on failure
  */
 static int exfat_find_empty_entry(struct inode *inode,
 		struct exfat_chain *p_dir, int num_entries,
@@ -381,7 +395,10 @@ static int exfat_find_empty_entry(struct inode *inode,
 		inode->i_blocks += sbi->cluster_size >> 9;
 	}
 
-	return dentry;
+	p_dir->dir = exfat_sector_to_cluster(sbi, es->bh[0]->b_blocknr);
+	p_dir->size -= dentry / sbi->dentries_per_clu;
+
+	return dentry & (sbi->dentries_per_clu - 1);
 }
 
 /*
@@ -613,15 +630,16 @@ static int exfat_find(struct inode *dir, struct qstr *qname,
 	if (dentry < 0)
 		return dentry; /* -error value */
 
-	info->dir = cdir;
-	info->entry = dentry;
-	info->num_subdirs = 0;
-
 	/* adjust cdir to the optimized value */
 	cdir.dir = hint_opt.clu;
 	if (cdir.flags & ALLOC_NO_FAT_CHAIN)
 		cdir.size -= dentry / sbi->dentries_per_clu;
 	dentry = hint_opt.eidx;
+
+	info->dir = cdir;
+	info->entry = dentry;
+	info->num_subdirs = 0;
+
 	if (exfat_get_dentry_set(&es, sb, &cdir, dentry, ES_2_ENTRIES))
 		return -EIO;
 	ep = exfat_get_dentry_cached(&es, ES_IDX_FILE);

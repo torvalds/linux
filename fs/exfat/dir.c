@@ -148,7 +148,8 @@ static int exfat_readdir(struct inode *inode, loff_t *cpos, struct exfat_dir_ent
 			ep = exfat_get_dentry(sb, &clu, i + 1, &bh);
 			if (!ep)
 				return -EIO;
-			dir_entry->entry = dentry;
+			dir_entry->entry = i;
+			dir_entry->dir = clu;
 			brelse(bh);
 
 			ei->hint_bmap.off = EXFAT_DEN_TO_CLU(dentry, sbi);
@@ -256,7 +257,7 @@ get_new:
 	if (!nb->lfn[0])
 		goto end_of_dir;
 
-	i_pos = ((loff_t)ei->start_clu << 32) |	(de.entry & 0xffffffff);
+	i_pos = ((loff_t)de.dir.dir << 32) | (de.entry & 0xffffffff);
 	tmp = exfat_iget(sb, i_pos);
 	if (tmp) {
 		inum = tmp->i_ino;
