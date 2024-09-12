@@ -497,6 +497,23 @@ void get_mclk_switch_visual_confirm_color(
 	}
 }
 
+void get_cursor_visual_confirm_color(
+		struct pipe_ctx *pipe_ctx,
+		struct tg_color *color)
+{
+	uint32_t color_value = MAX_TG_COLOR_VALUE;
+
+	if (pipe_ctx->stream && pipe_ctx->stream->cursor_position.enable) {
+		color->color_r_cr = color_value;
+		color->color_g_y = 0;
+		color->color_b_cb = 0;
+	} else {
+		color->color_r_cr = 0;
+		color->color_g_y = 0;
+		color->color_b_cb = color_value;
+	}
+}
+
 void set_p_state_switch_method(
 		struct dc *dc,
 		struct dc_state *context,
