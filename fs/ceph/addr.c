@@ -2145,7 +2145,7 @@ static int __ceph_pool_perm_get(struct ceph_inode_info *ci,
 	}
 
 	pool_ns_len = pool_ns ? pool_ns->len : 0;
-	perm = kmalloc(sizeof(*perm) + pool_ns_len + 1, GFP_NOFS);
+	perm = kmalloc(struct_size(perm, pool_ns, pool_ns_len + 1), GFP_NOFS);
 	if (!perm) {
 		err = -ENOMEM;
 		goto out_unlock;
