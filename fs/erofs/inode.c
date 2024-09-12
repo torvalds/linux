@@ -5,7 +5,6 @@
  * Copyright (C) 2021, Alibaba Cloud
  */
 #include "xattr.h"
-
 #include <trace/events/erofs.h>
 
 static int erofs_fill_symlink(struct inode *inode, void *kaddr,
@@ -16,7 +15,7 @@ static int erofs_fill_symlink(struct inode *inode, void *kaddr,
 
 	m_pofs += vi->xattr_isize;
 	/* check if it cannot be handled with fast symlink scheme */
-	if (vi->datalayout != EROFS_INODE_FLAT_INLINE || inode->i_size < 0 ||
+	if (vi->datalayout != EROFS_INODE_FLAT_INLINE ||
 	    check_add_overflow(m_pofs, inode->i_size, &off) ||
 	    off > i_blocksize(inode))
 		return 0;
@@ -131,6 +130,11 @@ static int erofs_read_inode(struct inode *inode)
 		goto err_out;
 	}
 
+	if (unlikely(inode->i_size < 0)) {
+		erofs_err(sb, "negative i_size @ nid %llu", vi->nid);
+		err = -EFSCORRUPTED;
+		goto err_out;
+	}
 	switch (inode->i_mode & S_IFMT) {
 	case S_IFREG:
 	case S_IFDIR:
@@ -186,7 +190,6 @@ static int erofs_read_inode(struct inode *inode)
 		inode->i_blocks = round_up(inode->i_size, sb->s_blocksize) >> 9;
 	else
 		inode->i_blocks = nblks << (sb->s_blocksize_bits - 9);
-
 err_out:
 	DBG_BUGON(err);
 	erofs_put_metabuf(&buf);
