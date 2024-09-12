@@ -663,7 +663,7 @@ static void err_print_params(struct drm_i915_error_state_buf *m,
 	struct intel_display *display = &m->i915->display;
 
 	i915_params_dump(params, &p);
-	intel_display_params_dump(display, &p);
+	intel_display_params_dump(&display->params, display->drm->driver->name, &p);
 }
 
 static void err_print_pciid(struct drm_i915_error_state_buf *m,

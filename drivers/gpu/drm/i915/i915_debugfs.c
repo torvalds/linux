@@ -78,7 +78,7 @@ static int i915_capabilities(struct seq_file *m, void *data)
 
 	kernel_param_lock(THIS_MODULE);
 	i915_params_dump(&i915->params, &p);
-	intel_display_params_dump(display, &p);
+	intel_display_params_dump(&display->params, display->drm->driver->name, &p);
 	kernel_param_unlock(THIS_MODULE);
 
 	return 0;
