@@ -1669,7 +1669,7 @@ void dcn401_hardware_release(struct dc *dc)
 	}
 }
 
-void dcn401_wait_for_det_buffer_update(struct dc *dc, struct dc_state *context, struct pipe_ctx *otg_master)
+void dcn401_wait_for_det_buffer_update_under_otg_master(struct dc *dc, struct dc_state *context, struct pipe_ctx *otg_master)
 {
 	struct pipe_ctx *opp_heads[MAX_PIPES];
 	struct pipe_ctx *dpp_pipes[MAX_PIPES];
@@ -1695,6 +1695,9 @@ void dcn401_wait_for_det_buffer_update(struct dc *dc, struct dc_state *context, 
 						hubbub->funcs->wait_for_det_update)
 						hubbub->funcs->wait_for_det_update(hubbub, dpp_pipe->plane_res.hubp->inst);
 			}
+		} else {
+			if (hubbub && opp_heads[slice_idx]->plane_res.hubp && hubbub->funcs->wait_for_det_update)
+				hubbub->funcs->wait_for_det_update(hubbub, opp_heads[slice_idx]->plane_res.hubp->inst);
 		}
 	}
 }
@@ -1730,8 +1733,10 @@ void dcn401_interdependent_update_lock(struct dc *dc,
 			}
 
 			if (dc->scratch.pipes_to_unlock_first[i]) {
+				struct pipe_ctx *old_pipe = &dc->current_state->res_ctx.pipe_ctx[i];
 				dc->hwss.pipe_control_lock(dc, pipe, false);
-				dcn401_wait_for_det_buffer_update(dc, context, pipe);
+				/* Assumes pipe of the same index in current_state is also an OTG_MASTER pipe*/
+				dcn401_wait_for_det_buffer_update_under_otg_master(dc, dc->current_state, old_pipe);
 			}
 		}
 
