@@ -46,6 +46,7 @@
 #include <linux/crash_dump.h>
 #include <net/busy_poll.h>
 #include <net/vxlan.h>
+#include <net/netdev_queues.h>
 
 #include "cq_enet_desc.h"
 #include "vnic_dev.h"
@@ -2571,6 +2572,54 @@ static void enic_clear_intr_mode(struct enic *enic)
 	vnic_dev_set_intr_mode(enic->vdev, VNIC_DEV_INTR_MODE_UNKNOWN);
 }
 
+static void enic_get_queue_stats_rx(struct net_device *dev, int idx,
+				    struct netdev_queue_stats_rx *rxs)
+{
+	struct enic *enic = netdev_priv(dev);
+	struct enic_rq_stats *rqstats = &enic->rq_stats[idx];
+
+	rxs->bytes = rqstats->bytes;
+	rxs->packets = rqstats->packets;
+	rxs->hw_drops = rqstats->bad_fcs + rqstats->pkt_truncated;
+	rxs->hw_drop_overruns = rqstats->pkt_truncated;
+	rxs->csum_unnecessary = rqstats->csum_unnecessary +
+				rqstats->csum_unnecessary_encap;
+}
+
+static void enic_get_queue_stats_tx(struct net_device *dev, int idx,
+				    struct netdev_queue_stats_tx *txs)
+{
+	struct enic *enic = netdev_priv(dev);
+	struct enic_wq_stats *wqstats = &enic->wq_stats[idx];
+
+	txs->bytes = wqstats->bytes;
+	txs->packets = wqstats->packets;
+	txs->csum_none = wqstats->csum_none;
+	txs->needs_csum = wqstats->csum_partial + wqstats->encap_csum +
+			  wqstats->tso;
+	txs->hw_gso_packets = wqstats->tso;
+	txs->stop = wqstats->stopped;
+	txs->wake = wqstats->wake;
+}
+
+static void enic_get_base_stats(struct net_device *dev,
+				struct netdev_queue_stats_rx *rxs,
+				struct netdev_queue_stats_tx *txs)
+{
+	rxs->bytes = 0;
+	rxs->packets = 0;
+	rxs->hw_drops = 0;
+	rxs->hw_drop_overruns = 0;
+	rxs->csum_unnecessary = 0;
+	txs->bytes = 0;
+	txs->packets = 0;
+	txs->csum_none = 0;
+	txs->needs_csum = 0;
+	txs->hw_gso_packets = 0;
+	txs->stop = 0;
+	txs->wake = 0;
+}
+
 static const struct net_device_ops enic_netdev_dynamic_ops = {
 	.ndo_open		= enic_open,
 	.ndo_stop		= enic_stop,
@@ -2617,6 +2666,12 @@ static const struct net_device_ops enic_netdev_ops = {
 	.ndo_rx_flow_steer	= enic_rx_flow_steer,
 #endif
 	.ndo_features_check	= enic_features_check,
+};
+
+static const struct netdev_stat_ops enic_netdev_stat_ops = {
+	.get_queue_stats_rx	= enic_get_queue_stats_rx,
+	.get_queue_stats_tx	= enic_get_queue_stats_tx,
+	.get_base_stats		= enic_get_base_stats,
 };
 
 static void enic_dev_deinit(struct enic *enic)
@@ -2961,6 +3016,7 @@ static int enic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		netdev->netdev_ops = &enic_netdev_dynamic_ops;
 	else
 		netdev->netdev_ops = &enic_netdev_ops;
+	netdev->stat_ops = &enic_netdev_stat_ops;
 
 	netdev->watchdog_timeo = 2 * HZ;
 	enic_set_ethtool_ops(netdev);
