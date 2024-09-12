@@ -184,7 +184,7 @@ static enum usb_device_speed __get_dwc3_maximum_speed(struct device_node *np)
 
 	ret = of_property_read_string(dwc3_np, "maximum-speed", &maximum_speed);
 	if (ret < 0)
-		return ret;
+		return USB_SPEED_UNKNOWN;
 
 	ret = match_string(speed_names, ARRAY_SIZE(speed_names), maximum_speed);
 
