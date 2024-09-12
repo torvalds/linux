@@ -376,7 +376,7 @@ enum {
 	GIF_SW_PAGED		= 3,
 	GIF_FREE_VFS_INODE      = 5,
 	GIF_GLOP_PENDING	= 6,
-	GIF_DEFERRED_DELETE	= 7,
+	GIF_DEFER_DELETE	= 7,
 };
 
 struct gfs2_inode {

@@ -1324,7 +1324,7 @@ static enum dinode_demise evict_should_delete(struct inode *inode,
 	if (unlikely(test_bit(GIF_ALLOC_FAILED, &ip->i_flags)))
 		goto should_delete;
 
-	if (test_bit(GIF_DEFERRED_DELETE, &ip->i_flags))
+	if (test_bit(GIF_DEFER_DELETE, &ip->i_flags))
 		return SHOULD_DEFER_EVICTION;
 
 	/* Deletes should never happen under memory pressure anymore.  */
