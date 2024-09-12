@@ -995,60 +995,6 @@ parse_DFS_referrals_exit:
 	return rc;
 }
 
-struct cifs_aio_ctx *
-cifs_aio_ctx_alloc(void)
-{
-	struct cifs_aio_ctx *ctx;
-
-	/*
-	 * Must use kzalloc to initialize ctx->bv to NULL and ctx->direct_io
-	 * to false so that we know when we have to unreference pages within
-	 * cifs_aio_ctx_release()
-	 */
-	ctx = kzalloc(sizeof(struct cifs_aio_ctx), GFP_KERNEL);
-	if (!ctx)
-		return NULL;
-
-	INIT_LIST_HEAD(&ctx->list);
-	mutex_init(&ctx->aio_mutex);
-	init_completion(&ctx->done);
-	kref_init(&ctx->refcount);
-	return ctx;
-}
-
-void
-cifs_aio_ctx_release(struct kref *refcount)
-{
-	struct cifs_aio_ctx *ctx = container_of(refcount,
-					struct cifs_aio_ctx, refcount);
-
-	cifsFileInfo_put(ctx->cfile);
-
-	/*
-	 * ctx->bv is only set if setup_aio_ctx_iter() was call successfuly
-	 * which means that iov_iter_extract_pages() was a success and thus
-	 * that we may have references or pins on pages that we need to
-	 * release.
-	 */
-	if (ctx->bv) {
-		if (ctx->should_dirty || ctx->bv_need_unpin) {
-			unsigned int i;
-
-			for (i = 0; i < ctx->nr_pinned_pages; i++) {
-				struct page *page = ctx->bv[i].bv_page;
-
-				if (ctx->should_dirty)
-					set_page_dirty(page);
-				if (ctx->bv_need_unpin)
-					unpin_user_page(page);
-			}
-		}
-		kvfree(ctx->bv);
-	}
-
-	kfree(ctx);
-}
-
 /**
  * cifs_alloc_hash - allocate hash and hash context together
  * @name: The name of the crypto hash algo

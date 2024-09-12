@@ -664,7 +664,7 @@ static noinline int merge_extent_mapping(struct btrfs_inode *inode,
 	start_diff = start - em->start;
 	em->start = start;
 	em->len = end - start;
-	if (em->disk_bytenr < EXTENT_MAP_LAST_BYTE && !extent_map_is_compressed(em))
+	if (em->disk_bytenr < EXTENT_MAP_LAST_BYTE)
 		em->offset += start_diff;
 	return add_extent_mapping(inode, em, 0);
 }

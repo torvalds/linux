@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0 OR MIT
 /******************************************************************************
  *
- * COPYRIGHT (C) 2014-2023 VMware, Inc., Palo Alto, CA., USA
+ * Copyright (c) 2014-2024 Broadcom. All Rights Reserved. The term
+ * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
@@ -29,6 +30,7 @@
 #include "vmwgfx_kms.h"
 #include "vmwgfx_vkms.h"
 #include "vmw_surface_cache.h"
+#include <linux/fsnotify.h>
 
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
@@ -735,7 +737,7 @@ int vmw_kms_stdu_surface_dirty(struct vmw_private *dev_priv,
 	int ret;
 
 	if (!srf)
-		srf = &vfbs->surface->res;
+		srf = &vmw_user_object_surface(&vfbs->uo)->res;
 
 	ret = vmw_validation_add_resource(&val_ctx, srf, 0, VMW_RES_DIRTY_NONE,
 					  NULL, NULL);
@@ -745,12 +747,6 @@ int vmw_kms_stdu_surface_dirty(struct vmw_private *dev_priv,
 	ret = vmw_validation_prepare(&val_ctx, &dev_priv->cmdbuf_mutex, true);
 	if (ret)
 		goto out_unref;
-
-	if (vfbs->is_bo_proxy) {
-		ret = vmw_kms_update_proxy(srf, clips, num_clips, inc);
-		if (ret)
-			goto out_finish;
-	}
 
 	sdirty.base.fifo_commit = vmw_kms_stdu_surface_fifo_commit;
 	sdirty.base.clip = vmw_kms_stdu_surface_clip;
@@ -765,7 +761,7 @@ int vmw_kms_stdu_surface_dirty(struct vmw_private *dev_priv,
 	ret = vmw_kms_helper_dirty(dev_priv, framebuffer, clips, vclips,
 				   dest_x, dest_y, num_clips, inc,
 				   &sdirty.base);
-out_finish:
+
 	vmw_kms_helper_validation_finish(dev_priv, NULL, &val_ctx, out_fence,
 					 NULL);
 
@@ -877,6 +873,32 @@ vmw_stdu_connector_mode_valid(struct drm_connector *connector,
 	return MODE_OK;
 }
 
+/*
+ * Trigger a modeset if the X,Y position of the Screen Target changes.
+ * This is needed when multi-mon is cycled. The original Screen Target will have
+ * the same mode but its relative X,Y position in the topology will change.
+ */
+static int vmw_stdu_connector_atomic_check(struct drm_connector *conn,
+					   struct drm_atomic_state *state)
+{
+	struct drm_connector_state *conn_state;
+	struct vmw_screen_target_display_unit *du;
+	struct drm_crtc_state *new_crtc_state;
+
+	conn_state = drm_atomic_get_connector_state(state, conn);
+	du = vmw_connector_to_stdu(conn);
+
+	if (!conn_state->crtc)
+		return 0;
+
+	new_crtc_state = drm_atomic_get_new_crtc_state(state, conn_state->crtc);
+	if (du->base.gui_x != du->base.set_gui_x ||
+	    du->base.gui_y != du->base.set_gui_y)
+		new_crtc_state->mode_changed = true;
+
+	return 0;
+}
+
 static const struct drm_connector_funcs vmw_stdu_connector_funcs = {
 	.dpms = vmw_du_connector_dpms,
 	.detect = vmw_du_connector_detect,
@@ -891,7 +913,8 @@ static const struct drm_connector_funcs vmw_stdu_connector_funcs = {
 static const struct
 drm_connector_helper_funcs vmw_stdu_connector_helper_funcs = {
 	.get_modes = vmw_connector_get_modes,
-	.mode_valid = vmw_stdu_connector_mode_valid
+	.mode_valid = vmw_stdu_connector_mode_valid,
+	.atomic_check = vmw_stdu_connector_atomic_check,
 };
 
 
@@ -918,15 +941,13 @@ vmw_stdu_primary_plane_cleanup_fb(struct drm_plane *plane,
 {
 	struct vmw_plane_state *vps = vmw_plane_state_to_vps(old_state);
 
-	if (vps->surf)
+	if (vmw_user_object_surface(&vps->uo))
 		WARN_ON(!vps->pinned);
-
 	vmw_du_plane_cleanup_fb(plane, old_state);
 
 	vps->content_fb_type = SAME_AS_DISPLAY;
 	vps->cpp = 0;
 }
-
 
 
 /**
@@ -952,13 +973,15 @@ vmw_stdu_primary_plane_prepare_fb(struct drm_plane *plane,
 	enum stdu_content_type new_content_type;
 	struct vmw_framebuffer_surface *new_vfbs;
 	uint32_t hdisplay = new_state->crtc_w, vdisplay = new_state->crtc_h;
+	struct drm_plane_state *old_state = plane->state;
+	struct drm_rect rect;
 	int ret;
 
 	/* No FB to prepare */
 	if (!new_fb) {
-		if (vps->surf) {
+		if (vmw_user_object_surface(&vps->uo)) {
 			WARN_ON(vps->pinned != 0);
-			vmw_surface_unreference(&vps->surf);
+			vmw_user_object_unref(&vps->uo);
 		}
 
 		return 0;
@@ -968,8 +991,8 @@ vmw_stdu_primary_plane_prepare_fb(struct drm_plane *plane,
 	new_vfbs = (vfb->bo) ? NULL : vmw_framebuffer_to_vfbs(new_fb);
 
 	if (new_vfbs &&
-	    new_vfbs->surface->metadata.base_size.width == hdisplay &&
-	    new_vfbs->surface->metadata.base_size.height == vdisplay)
+	    vmw_user_object_surface(&new_vfbs->uo)->metadata.base_size.width == hdisplay &&
+	    vmw_user_object_surface(&new_vfbs->uo)->metadata.base_size.height == vdisplay)
 		new_content_type = SAME_AS_DISPLAY;
 	else if (vfb->bo)
 		new_content_type = SEPARATE_BO;
@@ -1007,29 +1030,29 @@ vmw_stdu_primary_plane_prepare_fb(struct drm_plane *plane,
 			metadata.num_sizes = 1;
 			metadata.scanout = true;
 		} else {
-			metadata = new_vfbs->surface->metadata;
+			metadata = vmw_user_object_surface(&new_vfbs->uo)->metadata;
 		}
 
 		metadata.base_size.width = hdisplay;
 		metadata.base_size.height = vdisplay;
 		metadata.base_size.depth = 1;
 
-		if (vps->surf) {
+		if (vmw_user_object_surface(&vps->uo)) {
 			struct drm_vmw_size cur_base_size =
-				vps->surf->metadata.base_size;
+				vmw_user_object_surface(&vps->uo)->metadata.base_size;
 
 			if (cur_base_size.width != metadata.base_size.width ||
 			    cur_base_size.height != metadata.base_size.height ||
-			    vps->surf->metadata.format != metadata.format) {
+			    vmw_user_object_surface(&vps->uo)->metadata.format != metadata.format) {
 				WARN_ON(vps->pinned != 0);
-				vmw_surface_unreference(&vps->surf);
+				vmw_user_object_unref(&vps->uo);
 			}
 
 		}
 
-		if (!vps->surf) {
+		if (!vmw_user_object_surface(&vps->uo)) {
 			ret = vmw_gb_surface_define(dev_priv, &metadata,
-						    &vps->surf);
+						    &vps->uo.surface);
 			if (ret != 0) {
 				DRM_ERROR("Couldn't allocate STDU surface.\n");
 				return ret;
@@ -1042,18 +1065,19 @@ vmw_stdu_primary_plane_prepare_fb(struct drm_plane *plane,
 		 * The only time we add a reference in prepare_fb is if the
 		 * state object doesn't have a reference to begin with
 		 */
-		if (vps->surf) {
+		if (vmw_user_object_surface(&vps->uo)) {
 			WARN_ON(vps->pinned != 0);
-			vmw_surface_unreference(&vps->surf);
+			vmw_user_object_unref(&vps->uo);
 		}
 
-		vps->surf = vmw_surface_reference(new_vfbs->surface);
+		memcpy(&vps->uo, &new_vfbs->uo, sizeof(vps->uo));
+		vmw_user_object_ref(&vps->uo);
 	}
 
-	if (vps->surf) {
+	if (vmw_user_object_surface(&vps->uo)) {
 
 		/* Pin new surface before flipping */
-		ret = vmw_resource_pin(&vps->surf->res, false);
+		ret = vmw_resource_pin(&vmw_user_object_surface(&vps->uo)->res, false);
 		if (ret)
 			goto out_srf_unref;
 
@@ -1061,6 +1085,34 @@ vmw_stdu_primary_plane_prepare_fb(struct drm_plane *plane,
 	}
 
 	vps->content_fb_type = new_content_type;
+
+	/*
+	 * The drm fb code will do blit's via the vmap interface, which doesn't
+	 * trigger vmw_bo page dirty tracking due to being kernel side (and thus
+	 * doesn't require mmap'ing) so we have to update the surface's dirty
+	 * regions by hand but we want to be careful to not overwrite the
+	 * resource if it has been written to by the gpu (res_dirty).
+	 */
+	if (vps->uo.buffer && vps->uo.buffer->is_dumb) {
+		struct vmw_surface *surf = vmw_user_object_surface(&vps->uo);
+		struct vmw_resource *res = &surf->res;
+
+		if (!res->res_dirty && drm_atomic_helper_damage_merged(old_state,
+								       new_state,
+								       &rect)) {
+			/*
+			 * At some point it might be useful to actually translate
+			 * (rect.x1, rect.y1) => start, and (rect.x2, rect.y2) => end,
+			 * but currently the fb code will just report the entire fb
+			 * dirty so in practice it doesn't matter.
+			 */
+			pgoff_t start = res->guest_memory_offset >> PAGE_SHIFT;
+			pgoff_t end = __KERNEL_DIV_ROUND_UP(res->guest_memory_offset +
+							    res->guest_memory_size,
+							    PAGE_SIZE);
+			vmw_resource_dirty_update(res, start, end);
+		}
+	}
 
 	/*
 	 * This should only happen if the buffer object is too large to create a
@@ -1072,7 +1124,7 @@ vmw_stdu_primary_plane_prepare_fb(struct drm_plane *plane,
 	return 0;
 
 out_srf_unref:
-	vmw_surface_unreference(&vps->surf);
+	vmw_user_object_unref(&vps->uo);
 	return ret;
 }
 
@@ -1214,13 +1266,7 @@ static uint32_t
 vmw_stdu_surface_fifo_size_same_display(struct vmw_du_update_plane *update,
 					uint32_t num_hits)
 {
-	struct vmw_framebuffer_surface *vfbs;
 	uint32_t size = 0;
-
-	vfbs = container_of(update->vfb, typeof(*vfbs), base);
-
-	if (vfbs->is_bo_proxy)
-		size += sizeof(struct vmw_stdu_update_gb_image) * num_hits;
 
 	size += sizeof(struct vmw_stdu_update);
 
@@ -1230,59 +1276,12 @@ vmw_stdu_surface_fifo_size_same_display(struct vmw_du_update_plane *update,
 static uint32_t vmw_stdu_surface_fifo_size(struct vmw_du_update_plane *update,
 					   uint32_t num_hits)
 {
-	struct vmw_framebuffer_surface *vfbs;
 	uint32_t size = 0;
-
-	vfbs = container_of(update->vfb, typeof(*vfbs), base);
-
-	if (vfbs->is_bo_proxy)
-		size += sizeof(struct vmw_stdu_update_gb_image) * num_hits;
 
 	size += sizeof(struct vmw_stdu_surface_copy) + sizeof(SVGA3dCopyBox) *
 		num_hits + sizeof(struct vmw_stdu_update);
 
 	return size;
-}
-
-static uint32_t
-vmw_stdu_surface_update_proxy(struct vmw_du_update_plane *update, void *cmd)
-{
-	struct vmw_framebuffer_surface *vfbs;
-	struct drm_plane_state *state = update->plane->state;
-	struct drm_plane_state *old_state = update->old_state;
-	struct vmw_stdu_update_gb_image *cmd_update = cmd;
-	struct drm_atomic_helper_damage_iter iter;
-	struct drm_rect clip;
-	uint32_t copy_size = 0;
-
-	vfbs = container_of(update->vfb, typeof(*vfbs), base);
-
-	/*
-	 * proxy surface is special where a buffer object type fb is wrapped
-	 * in a surface and need an update gb image command to sync with device.
-	 */
-	drm_atomic_helper_damage_iter_init(&iter, old_state, state);
-	drm_atomic_for_each_plane_damage(&iter, &clip) {
-		SVGA3dBox *box = &cmd_update->body.box;
-
-		cmd_update->header.id = SVGA_3D_CMD_UPDATE_GB_IMAGE;
-		cmd_update->header.size = sizeof(cmd_update->body);
-		cmd_update->body.image.sid = vfbs->surface->res.id;
-		cmd_update->body.image.face = 0;
-		cmd_update->body.image.mipmap = 0;
-
-		box->x = clip.x1;
-		box->y = clip.y1;
-		box->z = 0;
-		box->w = drm_rect_width(&clip);
-		box->h = drm_rect_height(&clip);
-		box->d = 1;
-
-		copy_size += sizeof(*cmd_update);
-		cmd_update++;
-	}
-
-	return copy_size;
 }
 
 static uint32_t
@@ -1299,7 +1298,7 @@ vmw_stdu_surface_populate_copy(struct vmw_du_update_plane  *update, void *cmd,
 	cmd_copy->header.id = SVGA_3D_CMD_SURFACE_COPY;
 	cmd_copy->header.size = sizeof(cmd_copy->body) + sizeof(SVGA3dCopyBox) *
 		num_hits;
-	cmd_copy->body.src.sid = vfbs->surface->res.id;
+	cmd_copy->body.src.sid = vmw_user_object_surface(&vfbs->uo)->res.id;
 	cmd_copy->body.dest.sid = stdu->display_srf->res.id;
 
 	return sizeof(*cmd_copy);
@@ -1370,10 +1369,7 @@ static int vmw_stdu_plane_update_surface(struct vmw_private *dev_priv,
 	srf_update.mutex = &dev_priv->cmdbuf_mutex;
 	srf_update.intr = true;
 
-	if (vfbs->is_bo_proxy)
-		srf_update.post_prepare = vmw_stdu_surface_update_proxy;
-
-	if (vfbs->surface->res.id != stdu->display_srf->res.id) {
+	if (vmw_user_object_surface(&vfbs->uo)->res.id != stdu->display_srf->res.id) {
 		srf_update.calc_fifo_size = vmw_stdu_surface_fifo_size;
 		srf_update.pre_clip = vmw_stdu_surface_populate_copy;
 		srf_update.clip = vmw_stdu_surface_populate_clip;
@@ -1417,7 +1413,7 @@ vmw_stdu_primary_plane_atomic_update(struct drm_plane *plane,
 		stdu = vmw_crtc_to_stdu(crtc);
 		dev_priv = vmw_priv(crtc->dev);
 
-		stdu->display_srf = vps->surf;
+		stdu->display_srf = vmw_user_object_surface(&vps->uo);
 		stdu->content_fb_type = vps->content_fb_type;
 		stdu->cpp = vps->cpp;
 

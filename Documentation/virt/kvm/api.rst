@@ -6368,7 +6368,7 @@ a single guest_memfd file, but the bound ranges must not overlap).
 See KVM_SET_USER_MEMORY_REGION2 for additional details.
 
 4.143 KVM_PRE_FAULT_MEMORY
-------------------------
+---------------------------
 
 :Capability: KVM_CAP_PRE_FAULT_MEMORY
 :Architectures: none
@@ -6404,6 +6404,12 @@ KVM_PRE_FAULT_MEMORY populates KVM's stage-2 page tables used to map memory
 for the current vCPU state.  KVM maps memory as if the vCPU generated a
 stage-2 read page fault, e.g. faults in memory as needed, but doesn't break
 CoW.  However, KVM does not mark any newly created stage-2 PTE as Accessed.
+
+In the case of confidential VM types where there is an initial set up of
+private guest memory before the guest is 'finalized'/measured, this ioctl
+should only be issued after completing all the necessary setup to put the
+guest into a 'finalized' state so that the above semantics can be reliably
+ensured.
 
 In some cases, multiple vCPUs might share the page tables.  In this
 case, the ioctl can be called in parallel.
