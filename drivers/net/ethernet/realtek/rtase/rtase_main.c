@@ -2023,7 +2023,8 @@ static int rtase_init_board(struct pci_dev *pdev, struct net_device **dev_out,
 	if (ret < 0)
 		goto err_out_disable;
 
-	if (dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64))) {
+	ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
+	if (ret) {
 		dev_err(&pdev->dev, "no usable dma addressing method\n");
 		goto err_out_free_res;
 	}
