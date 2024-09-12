@@ -1712,7 +1712,7 @@ static void hsw_crtc_enable(struct intel_atomic_state *state,
 
 		intel_dsc_enable(pipe_crtc_state);
 
-		if (DISPLAY_VER(dev_priv) >= 13)
+		if (HAS_UNCOMPRESSED_JOINER(dev_priv))
 			intel_uncompressed_joiner_enable(pipe_crtc_state);
 
 		intel_set_pipe_src_size(pipe_crtc_state);
@@ -3546,6 +3546,9 @@ static void enabled_joiner_pipes(struct drm_i915_private *dev_priv,
 	*primary_pipes = 0;
 	*secondary_pipes = 0;
 
+	if (!HAS_BIGJOINER(dev_priv))
+		return;
+
 	for_each_intel_crtc_in_pipe_mask(&dev_priv->drm, crtc,
 					 joiner_pipes(dev_priv)) {
 		enum intel_display_power_domain power_domain;
@@ -3565,7 +3568,7 @@ static void enabled_joiner_pipes(struct drm_i915_private *dev_priv,
 				*secondary_pipes |= BIT(pipe);
 		}
 
-		if (DISPLAY_VER(dev_priv) < 13)
+		if (!HAS_UNCOMPRESSED_JOINER(dev_priv))
 			continue;
 
 		power_domain = POWER_DOMAIN_PIPE(pipe);
@@ -7966,7 +7969,7 @@ static int max_dotclock(struct drm_i915_private *i915)
 	int max_dotclock = i915->display.cdclk.max_dotclk_freq;
 
 	/* icl+ might use joiner */
-	if (DISPLAY_VER(i915) >= 11)
+	if (HAS_BIGJOINER(i915))
 		max_dotclock *= 2;
 
 	return max_dotclock;

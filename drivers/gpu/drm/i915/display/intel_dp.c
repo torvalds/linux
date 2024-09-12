@@ -2520,7 +2520,7 @@ bool intel_dp_joiner_needs_dsc(struct drm_i915_private *i915, bool use_joiner)
 	 * limitation. DG2 onwards pipe joiner can be enabled without
 	 * compression.
 	 */
-	return DISPLAY_VER(i915) < 13 && use_joiner;
+	return !HAS_UNCOMPRESSED_JOINER(i915) && use_joiner;
 }
 
 static int
