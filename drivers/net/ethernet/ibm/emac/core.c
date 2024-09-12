@@ -3182,7 +3182,7 @@ static int emac_probe(struct platform_device *ofdev)
 
 	netif_carrier_off(ndev);
 
-	err = register_netdev(ndev);
+	err = devm_register_netdev(&ofdev->dev, ndev);
 	if (err) {
 		printk(KERN_ERR "%pOF: failed to register net device (%d)!\n",
 		       np, err);
@@ -3247,8 +3247,6 @@ static void emac_remove(struct platform_device *ofdev)
 	struct emac_instance *dev = platform_get_drvdata(ofdev);
 
 	DBG(dev, "remove" NL);
-
-	unregister_netdev(dev->ndev);
 
 	cancel_work_sync(&dev->reset_work);
 
