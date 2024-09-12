@@ -954,19 +954,16 @@ static void set_sysreg_masks(struct kvm *kvm, int sr, u64 res0, u64 res1)
 int kvm_init_nv_sysregs(struct kvm *kvm)
 {
 	u64 res0, res1;
-	int ret = 0;
 
-	mutex_lock(&kvm->arch.config_lock);
+	lockdep_assert_held(&kvm->arch.config_lock);
 
 	if (kvm->arch.sysreg_masks)
-		goto out;
+		return 0;
 
 	kvm->arch.sysreg_masks = kzalloc(sizeof(*(kvm->arch.sysreg_masks)),
 					 GFP_KERNEL_ACCOUNT);
-	if (!kvm->arch.sysreg_masks) {
-		ret = -ENOMEM;
-		goto out;
-	}
+	if (!kvm->arch.sysreg_masks)
+		return -ENOMEM;
 
 	limit_nv_id_regs(kvm);
 
@@ -1195,8 +1192,6 @@ int kvm_init_nv_sysregs(struct kvm *kvm)
 	if (!kvm_has_feat(kvm, ID_AA64PFR0_EL1, AMU, V1P1))
 		res0 |= ~(res0 | res1);
 	set_sysreg_masks(kvm, HAFGRTR_EL2, res0, res1);
-out:
-	mutex_unlock(&kvm->arch.config_lock);
 
-	return ret;
+	return 0;
 }
