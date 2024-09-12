@@ -651,8 +651,6 @@ static void err_print_capabilities(struct drm_i915_error_state_buf *m,
 	struct drm_printer p = i915_error_printer(m);
 
 	intel_device_info_print(&error->device_info, &error->runtime_info, &p);
-	intel_display_device_info_print(&error->display_device_info,
-					&error->display_runtime_info, &p);
 	intel_driver_caps_print(&error->driver_caps, &p);
 }
 
@@ -660,10 +658,8 @@ static void err_print_params(struct drm_i915_error_state_buf *m,
 			     const struct i915_params *params)
 {
 	struct drm_printer p = i915_error_printer(m);
-	struct intel_display *display = &m->i915->display;
 
 	i915_params_dump(params, &p);
-	intel_display_params_dump(&display->params, display->drm->driver->name, &p);
 }
 
 static void err_print_pciid(struct drm_i915_error_state_buf *m,
@@ -1031,7 +1027,6 @@ static void i915_vma_coredump_free(struct i915_vma_coredump *vma)
 static void cleanup_params(struct i915_gpu_coredump *error)
 {
 	i915_params_free(&error->params);
-	intel_display_params_free(&error->display_params);
 }
 
 static void cleanup_uc(struct intel_uc_coredump *uc)
@@ -1992,17 +1987,12 @@ static void capture_gen(struct i915_gpu_coredump *error)
 	error->suspend_count = i915->suspend_count;
 
 	i915_params_copy(&error->params, &i915->params);
-	intel_display_params_copy(&error->display_params);
 	memcpy(&error->device_info,
 	       INTEL_INFO(i915),
 	       sizeof(error->device_info));
 	memcpy(&error->runtime_info,
 	       RUNTIME_INFO(i915),
 	       sizeof(error->runtime_info));
-	memcpy(&error->display_device_info, DISPLAY_INFO(i915),
-	       sizeof(error->display_device_info));
-	memcpy(&error->display_runtime_info, DISPLAY_RUNTIME_INFO(i915),
-	       sizeof(error->display_runtime_info));
 	error->driver_caps = i915->caps;
 }
 
