@@ -208,6 +208,59 @@
 	};
 };
 
+&package_thermal {
+	trips {
+		package_active1: trip-active1 {
+			temperature = <45000>;
+			hysteresis = <5000>;
+			type = "active";
+		};
+		package_active2: trip-active2 {
+			temperature = <50000>;
+			hysteresis = <5000>;
+			type = "active";
+		};
+		package_active3: trip-active3 {
+			temperature = <60000>;
+			hysteresis = <5000>;
+			type = "active";
+		};
+		package_active4: trip-active4 {
+			temperature = <70000>;
+			hysteresis = <5000>;
+			type = "active";
+		};
+		package_active5: trip-active5 {
+			temperature = <80000>;
+			hysteresis = <5000>;
+			type = "active";
+		};
+	};
+
+	cooling-maps {
+		map1 {
+			trip = <&package_active1>;
+			cooling-device = <&fan 1 1>;
+		};
+		map2 {
+			trip = <&package_active2>;
+			cooling-device = <&fan 2 2>;
+		};
+		map3 {
+			trip = <&package_active3>;
+			cooling-device = <&fan 3 3>;
+		};
+		map4 {
+			trip = <&package_active4>;
+			cooling-device = <&fan 4 4>;
+		};
+		map5 {
+			trip = <&package_active5>;
+			cooling-device = <&fan 5 5>;
+		};
+	};
+};
+
 &pcie2x1l1 {
 	linux,pci-domain = <1>;
 	pinctrl-names = "default";
