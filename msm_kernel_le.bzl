@@ -125,6 +125,7 @@ def _define_kernel_build(
 
     if target_arch == "arm":
         out_list += ["zImage"] + ["module.lds"] + ["utsrelease.h"]
+        out_list += ["scripts/sign-file"] + ["certs/signing_key.x509"] + ["certs/signing_key.pem"]
 
     # LE builds don't build compressed, so remove from list
     out_list.remove("Image.lz4")
@@ -182,7 +183,6 @@ def _define_kernel_dist(target, msm_target, variant):
 
     if msm_target == "mdm9607":
         msm_dist_targets += [
-            ":signing_key",
             ":verity_key",
         ]
     else:
@@ -206,6 +206,7 @@ def _define_kernel_dist(target, msm_target, variant):
             "**/Image": "755",
             "**/*.dtb*": "755",
             "**/LinuxLoader*": "755",
+            "**/sign-file": "755",
             "**/*": "644",
         },
         log = "info",
