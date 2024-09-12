@@ -214,9 +214,12 @@ EXPORT_SYMBOL(fw_iso_context_queue_flush);
  * @ctx: the isochronous context
  *
  * Process the isochronous context in the current process context. The registered callback function
- * is called if some packets have been already transferred since the last time. If it is required
- * to process the context asynchronously, fw_iso_context_schedule_flush_completions() is available
- * instead.
+ * is called when a queued packet buffer with the interrupt flag is completed, either after
+ * transmission in the IT context or after being filled in the IR context. Additionally, the
+ * callback function is also called for the packet buffer completed at last. Furthermore, the
+ * callback function is called as well when the header buffer in the context becomes full. If it is
+ * required to process the context asynchronously, fw_iso_context_schedule_flush_completions() is
+ * available instead.
  *
  * Context: Process context. May sleep due to disable_work_sync().
  */

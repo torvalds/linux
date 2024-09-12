@@ -537,9 +537,11 @@ int fw_iso_context_flush_completions(struct fw_iso_context *ctx);
  * @ctx: the isochronous context
  *
  * Schedule a work item on workqueue to process the isochronous context. The registered callback
- * function is called in the worker if some packets have been already transferred since the last
- * time. If it is required to process the context in the current context,
- * fw_iso_context_flush_completions() is available instead.
+ * function is called by the worker when a queued packet buffer with the interrupt flag is
+ * completed, either after transmission in the IT context or after being filled in the IR context.
+ * The callback function is also called when the header buffer in the context becomes full, If it
+ * is required to process the context in the current context, fw_iso_context_flush_completions() is
+ * available instead.
  *
  * Context: Any context.
  */
