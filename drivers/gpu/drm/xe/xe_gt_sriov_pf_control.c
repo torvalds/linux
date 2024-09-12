@@ -13,6 +13,7 @@
 #include "xe_gt_sriov_pf_config.h"
 #include "xe_gt_sriov_pf_control.h"
 #include "xe_gt_sriov_pf_helpers.h"
+#include "xe_gt_sriov_pf_migration.h"
 #include "xe_gt_sriov_pf_monitor.h"
 #include "xe_gt_sriov_pf_service.h"
 #include "xe_gt_sriov_printk.h"
@@ -177,6 +178,7 @@ static const char *control_bit_to_string(enum xe_gt_sriov_control_bits bit)
 	CASE2STR(PAUSE_SEND_PAUSE);
 	CASE2STR(PAUSE_WAIT_GUC);
 	CASE2STR(PAUSE_GUC_DONE);
+	CASE2STR(PAUSE_SAVE_GUC);
 	CASE2STR(PAUSE_FAILED);
 	CASE2STR(PAUSED);
 	CASE2STR(RESUME_WIP);
@@ -416,6 +418,10 @@ static void pf_enter_vf_ready(struct xe_gt *gt, unsigned int vfid)
  *	:        |                                      :             /
  *	:        v                                      :            /
  *	:       PAUSE_GUC_DONE                          o-----restart
+ *	:        |                                      :
+ *	:        |   o---<--busy                        :
+ *	:        v  /         /                         :
+ *	:       PAUSE_SAVE_GUC                          :
  *	:      /                                        :
  *	:     /                                         :
  *	:....o..............o...............o...........:
@@ -435,6 +441,7 @@ static void pf_exit_vf_pause_wip(struct xe_gt *gt, unsigned int vfid)
 		pf_escape_vf_state(gt, vfid, XE_GT_SRIOV_STATE_PAUSE_SEND_PAUSE);
 		pf_escape_vf_state(gt, vfid, XE_GT_SRIOV_STATE_PAUSE_WAIT_GUC);
 		pf_escape_vf_state(gt, vfid, XE_GT_SRIOV_STATE_PAUSE_GUC_DONE);
+		pf_escape_vf_state(gt, vfid, XE_GT_SRIOV_STATE_PAUSE_SAVE_GUC);
 	}
 }
 
@@ -465,12 +472,41 @@ static void pf_enter_vf_pause_rejected(struct xe_gt *gt, unsigned int vfid)
 	pf_enter_vf_pause_failed(gt, vfid);
 }
 
+static void pf_enter_vf_pause_save_guc(struct xe_gt *gt, unsigned int vfid)
+{
+	if (!pf_enter_vf_state(gt, vfid, XE_GT_SRIOV_STATE_PAUSE_SAVE_GUC))
+		pf_enter_vf_state_machine_bug(gt, vfid);
+}
+
+static bool pf_exit_vf_pause_save_guc(struct xe_gt *gt, unsigned int vfid)
+{
+	int err;
+
+	if (!pf_exit_vf_state(gt, vfid, XE_GT_SRIOV_STATE_PAUSE_SAVE_GUC))
+		return false;
+
+	err = xe_gt_sriov_pf_migration_save_guc_state(gt, vfid);
+	if (err) {
+		/* retry if busy */
+		if (err == -EBUSY) {
+			pf_enter_vf_pause_save_guc(gt, vfid);
+			return true;
+		}
+		/* give up on error */
+		if (err == -EIO)
+			pf_enter_vf_mismatch(gt, vfid);
+	}
+
+	pf_enter_vf_pause_completed(gt, vfid);
+	return true;
+}
+
 static bool pf_exit_vf_pause_guc_done(struct xe_gt *gt, unsigned int vfid)
 {
 	if (!pf_exit_vf_state(gt, vfid, XE_GT_SRIOV_STATE_PAUSE_GUC_DONE))
 		return false;
 
-	pf_enter_vf_pause_completed(gt, vfid);
+	pf_enter_vf_pause_save_guc(gt, vfid);
 	return true;
 }
 
@@ -1337,6 +1373,9 @@ static bool pf_process_vf_state_machine(struct xe_gt *gt, unsigned int vfid)
 	}
 
 	if (pf_exit_vf_pause_guc_done(gt, vfid))
+		return true;
+
+	if (pf_exit_vf_pause_save_guc(gt, vfid))
 		return true;
 
 	if (pf_exit_vf_resume_send_resume(gt, vfid))
