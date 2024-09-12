@@ -2515,12 +2515,20 @@ static enum surface_update_type get_scaling_info_update_type(
 	if (!u->scaling_info)
 		return UPDATE_TYPE_FAST;
 
-	if (u->scaling_info->dst_rect.width != u->surface->dst_rect.width
+	if (u->scaling_info->src_rect.width != u->surface->src_rect.width
+			|| u->scaling_info->src_rect.height != u->surface->src_rect.height
+			|| u->scaling_info->dst_rect.width != u->surface->dst_rect.width
 			|| u->scaling_info->dst_rect.height != u->surface->dst_rect.height
+			|| u->scaling_info->clip_rect.width != u->surface->clip_rect.width
+			|| u->scaling_info->clip_rect.height != u->surface->clip_rect.height
 			|| u->scaling_info->scaling_quality.integer_scaling !=
-				u->surface->scaling_quality.integer_scaling
-			) {
+					u->surface->scaling_quality.integer_scaling) {
 		update_flags->bits.scaling_change = 1;
+
+		if (u->scaling_info->src_rect.width > u->surface->src_rect.width
+				|| u->scaling_info->src_rect.height > u->surface->src_rect.height)
+			/* Making src rect bigger requires a bandwidth change */
+			update_flags->bits.clock_change = 1;
 
 		if ((u->scaling_info->dst_rect.width < u->surface->dst_rect.width
 			|| u->scaling_info->dst_rect.height < u->surface->dst_rect.height)
@@ -2528,27 +2536,13 @@ static enum surface_update_type get_scaling_info_update_type(
 					|| u->scaling_info->dst_rect.height < u->surface->src_rect.height))
 			/* Making dst rect smaller requires a bandwidth change */
 			update_flags->bits.bandwidth_change = 1;
+
+		if (u->scaling_info->src_rect.width > dc->caps.max_optimizable_video_width &&
+			(u->scaling_info->clip_rect.width > u->surface->clip_rect.width ||
+			 u->scaling_info->clip_rect.height > u->surface->clip_rect.height))
+			 /* Changing clip size of a large surface may result in MPC slice count change */
+			update_flags->bits.bandwidth_change = 1;
 	}
-
-	if (u->scaling_info->src_rect.width != u->surface->src_rect.width
-		|| u->scaling_info->src_rect.height != u->surface->src_rect.height) {
-
-		update_flags->bits.scaling_change = 1;
-		if (u->scaling_info->src_rect.width > u->surface->src_rect.width
-				|| u->scaling_info->src_rect.height > u->surface->src_rect.height)
-			/* Making src rect bigger requires a bandwidth change */
-			update_flags->bits.clock_change = 1;
-	}
-
-	if (u->scaling_info->src_rect.width > dc->caps.max_optimizable_video_width &&
-		(u->scaling_info->clip_rect.width > u->surface->clip_rect.width ||
-		 u->scaling_info->clip_rect.height > u->surface->clip_rect.height))
-		 /* Changing clip size of a large surface may result in MPC slice count change */
-		update_flags->bits.bandwidth_change = 1;
-
-	if (u->scaling_info->clip_rect.width != u->surface->clip_rect.width ||
-			u->scaling_info->clip_rect.height != u->surface->clip_rect.height)
-		update_flags->bits.clip_size_change = 1;
 
 	if (u->scaling_info->src_rect.x != u->surface->src_rect.x
 			|| u->scaling_info->src_rect.y != u->surface->src_rect.y
@@ -2558,13 +2552,13 @@ static enum surface_update_type get_scaling_info_update_type(
 			|| u->scaling_info->dst_rect.y != u->surface->dst_rect.y)
 		update_flags->bits.position_change = 1;
 
+	/* process every update flag before returning */
 	if (update_flags->bits.clock_change
 			|| update_flags->bits.bandwidth_change
 			|| update_flags->bits.scaling_change)
 		return UPDATE_TYPE_FULL;
 
-	if (update_flags->bits.position_change ||
-			update_flags->bits.clip_size_change)
+	if (update_flags->bits.position_change)
 		return UPDATE_TYPE_MED;
 
 	return UPDATE_TYPE_FAST;
@@ -3263,8 +3257,7 @@ static bool update_planes_and_stream_state(struct dc *dc,
 
 		if (update_type != UPDATE_TYPE_MED)
 			continue;
-		if (surface->update_flags.bits.clip_size_change ||
-				surface->update_flags.bits.position_change) {
+		if (surface->update_flags.bits.position_change) {
 			for (j = 0; j < dc->res_pool->pipe_count; j++) {
 				struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[j];
 

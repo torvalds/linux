@@ -1732,7 +1732,6 @@ static void dcn20_update_dchubp_dpp(
 	if (pipe_ctx->update_flags.bits.scaler ||
 			plane_state->update_flags.bits.scaling_change ||
 			plane_state->update_flags.bits.position_change ||
-			plane_state->update_flags.bits.clip_size_change ||
 			plane_state->update_flags.bits.per_pixel_alpha_change ||
 			pipe_ctx->stream->update_flags.bits.scaling) {
 		pipe_ctx->plane_res.scl_data.lb_params.alpha_en = pipe_ctx->plane_state->per_pixel_alpha;
@@ -1745,7 +1744,6 @@ static void dcn20_update_dchubp_dpp(
 	if (pipe_ctx->update_flags.bits.viewport ||
 			(context == dc->current_state && plane_state->update_flags.bits.position_change) ||
 			(context == dc->current_state && plane_state->update_flags.bits.scaling_change) ||
-			(context == dc->current_state && plane_state->update_flags.bits.clip_size_change) ||
 			(context == dc->current_state && pipe_ctx->stream->update_flags.bits.scaling)) {
 
 		hubp->funcs->mem_program_viewport(
