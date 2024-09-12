@@ -840,7 +840,7 @@ void pci_epc_destroy(struct pci_epc *epc)
 	device_unregister(&epc->dev);
 
 #ifdef CONFIG_PCI_DOMAINS_GENERIC
-	pci_bus_release_domain_nr(NULL, &epc->dev);
+	pci_bus_release_domain_nr(&epc->dev, epc->domain_nr);
 #endif
 }
 EXPORT_SYMBOL_GPL(pci_epc_destroy);
