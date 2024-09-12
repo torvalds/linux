@@ -62,7 +62,6 @@ static inline struct snd_soc_acpi_mach *snd_soc_acpi_codec_list(void *arg)
  * @platform: string used for HDAudio codec support
  * @codec_mask: used for HDAudio support
  * @dmic_num: number of SoC- or chipset-attached PDM digital microphones
- * @common_hdmi_codec_drv: use commom HDAudio HDMI codec driver
  * @link_mask: SoundWire links enabled on the board
  * @links: array of SoundWire link _ADR descriptors, null terminated
  * @i2s_link_mask: I2S/TDM links enabled on the board
@@ -80,7 +79,6 @@ struct snd_soc_acpi_mach_params {
 	const char *platform;
 	u32 codec_mask;
 	u32 dmic_num;
-	bool common_hdmi_codec_drv;
 	u32 link_mask;
 	const struct snd_soc_acpi_link_adr *links;
 	u32 i2s_link_mask;
