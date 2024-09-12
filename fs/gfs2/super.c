@@ -1257,7 +1257,7 @@ static void gfs2_glock_put_eventually(struct gfs2_glock *gl)
 		gfs2_glock_put(gl);
 }
 
-static bool gfs2_upgrade_iopen_glock(struct inode *inode)
+static enum evict_behavior gfs2_upgrade_iopen_glock(struct inode *inode)
 {
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_sbd *sdp = GFS2_SB(inode);
@@ -1290,7 +1290,7 @@ static bool gfs2_upgrade_iopen_glock(struct inode *inode)
 	gfs2_holder_reinit(LM_ST_EXCLUSIVE, GL_ASYNC | GL_NOCACHE, gh);
 	error = gfs2_glock_nq(gh);
 	if (error)
-		return false;
+		return EVICT_SHOULD_SKIP_DELETE;
 
 	wait_event_interruptible_timeout(sdp->sd_async_glock_wait,
 		!test_bit(HIF_WAIT, &gh->gh_iflags) ||
@@ -1298,9 +1298,14 @@ static bool gfs2_upgrade_iopen_glock(struct inode *inode)
 		5 * HZ);
 	if (!test_bit(HIF_HOLDER, &gh->gh_iflags)) {
 		gfs2_glock_dq(gh);
-		return false;
+		if (glock_needs_demote(ip->i_gl))
+			return EVICT_SHOULD_SKIP_DELETE;
+		return EVICT_SHOULD_DEFER_DELETE;
 	}
-	return gfs2_glock_holder_ready(gh) == 0;
+	error = gfs2_glock_holder_ready(gh);
+	if (error)
+		return EVICT_SHOULD_SKIP_DELETE;
+	return EVICT_SHOULD_DELETE;
 }
 
 /**
@@ -1359,9 +1364,12 @@ static enum evict_behavior evict_should_delete(struct inode *inode,
 should_delete:
 	if (gfs2_holder_initialized(&ip->i_iopen_gh) &&
 	    test_bit(HIF_HOLDER, &ip->i_iopen_gh.gh_iflags)) {
-		if (!gfs2_upgrade_iopen_glock(inode)) {
+		enum evict_behavior behavior =
+			gfs2_upgrade_iopen_glock(inode);
+
+		if (behavior != EVICT_SHOULD_DELETE) {
 			gfs2_holder_uninit(&ip->i_iopen_gh);
-			return EVICT_SHOULD_SKIP_DELETE;
+			return behavior;
 		}
 	}
 	return EVICT_SHOULD_DELETE;
