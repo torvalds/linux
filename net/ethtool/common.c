@@ -655,6 +655,7 @@ int ethtool_check_max_channel(struct net_device *dev,
 {
 	u64 max_rxnfc_in_use;
 	u32 max_rxfh_in_use;
+	int max_mp_in_use;
 
 	/* ensure the new Rx count fits within the configured Rx flow
 	 * indirection table/rxnfc settings
@@ -670,6 +671,13 @@ int ethtool_check_max_channel(struct net_device *dev,
 	if (channels.combined_count + channels.rx_count <= max_rxnfc_in_use) {
 		if (info)
 			GENL_SET_ERR_MSG(info, "requested channel counts are too low for existing ntuple filter settings");
+		return -EINVAL;
+	}
+
+	max_mp_in_use = dev_get_min_mp_channel_count(dev);
+	if (channels.combined_count + channels.rx_count <= max_mp_in_use) {
+		if (info)
+			GENL_SET_ERR_MSG_FMT(info, "requested channel counts are too low for existing memory provider setting (%d)", max_mp_in_use);
 		return -EINVAL;
 	}
 
