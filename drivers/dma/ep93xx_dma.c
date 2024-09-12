@@ -1404,9 +1404,9 @@ static struct ep93xx_dma_engine *ep93xx_dma_of_probe(struct platform_device *pde
 		edmac->edma = edma;
 
 		if (edma->m2m)
-			sprintf(dma_clk_name, "m2m%u", i);
+			snprintf(dma_clk_name, sizeof(dma_clk_name), "m2m%u", i);
 		else
-			sprintf(dma_clk_name, "m2p%u", i);
+			snprintf(dma_clk_name, sizeof(dma_clk_name), "m2p%u", i);
 
 		edmac->clk = devm_clk_get(dev, dma_clk_name);
 		if (IS_ERR(edmac->clk)) {
