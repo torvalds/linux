@@ -1940,12 +1940,15 @@ lpfc_issue_cmf_sync_wqe(struct lpfc_hba *phba, u32 ms, u64 total)
 	atot = atomic_xchg(&phba->cgn_sync_alarm_cnt, 0);
 	wtot = atomic_xchg(&phba->cgn_sync_warn_cnt, 0);
 
+	spin_lock_irqsave(&phba->hbalock, iflags);
+
 	/* ONLY Managed mode will send the CMF_SYNC_WQE to the HBA */
 	if (phba->cmf_active_mode != LPFC_CFG_MANAGED ||
-	    phba->link_state == LPFC_LINK_DOWN)
-		return 0;
+	    phba->link_state < LPFC_LINK_UP) {
+		ret_val = 0;
+		goto out_unlock;
+	}
 
-	spin_lock_irqsave(&phba->hbalock, iflags);
 	sync_buf = __lpfc_sli_get_iocbq(phba);
 	if (!sync_buf) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_CGN_MGMT,
