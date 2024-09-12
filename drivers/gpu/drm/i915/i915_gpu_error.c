@@ -40,8 +40,8 @@
 #include <drm/drm_cache.h>
 #include <drm/drm_print.h>
 
+#include "display/intel_display_snapshot.h"
 #include "display/intel_dmc.h"
-#include "display/intel_overlay.h"
 
 #include "gem/i915_gem_context.h"
 #include "gem/i915_gem_lmem.h"
@@ -905,11 +905,10 @@ static void __err_print_to_sgl(struct drm_i915_error_state_buf *m,
 		err_print_gt_info(m, error->gt);
 	}
 
-	if (error->overlay)
-		intel_overlay_print_error_state(&p, error->overlay);
-
 	err_print_capabilities(m, error);
 	err_print_params(m, &error->params);
+
+	intel_display_snapshot_print(error->display_snapshot, &p);
 }
 
 static int err_print_to_sgl(struct i915_gpu_coredump *error)
@@ -1077,7 +1076,7 @@ void __i915_gpu_coredump_free(struct kref *error_ref)
 		cleanup_gt(gt);
 	}
 
-	kfree(error->overlay);
+	intel_display_snapshot_free(error->display_snapshot);
 
 	cleanup_params(error);
 
@@ -2097,6 +2096,7 @@ static struct i915_gpu_coredump *
 __i915_gpu_coredump(struct intel_gt *gt, intel_engine_mask_t engine_mask, u32 dump_flags)
 {
 	struct drm_i915_private *i915 = gt->i915;
+	struct intel_display *display = &i915->display;
 	struct i915_gpu_coredump *error;
 
 	/* Check if GPU capture has been disabled */
@@ -2138,7 +2138,7 @@ __i915_gpu_coredump(struct intel_gt *gt, intel_engine_mask_t engine_mask, u32 du
 		error->simulated |= error->gt->simulated;
 	}
 
-	error->overlay = intel_overlay_capture_error_state(i915);
+	error->display_snapshot = intel_display_snapshot_capture(display);
 
 	return error;
 }

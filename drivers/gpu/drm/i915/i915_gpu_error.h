@@ -31,7 +31,7 @@
 struct drm_i915_private;
 struct i915_vma_compress;
 struct intel_engine_capture_vma;
-struct intel_overlay_error_state;
+struct intel_display_snapshot;
 
 struct i915_vma_coredump {
 	struct i915_vma_coredump *next;
@@ -218,9 +218,9 @@ struct i915_gpu_coredump {
 	struct i915_params params;
 	struct intel_display_params display_params;
 
-	struct intel_overlay_error_state *overlay;
-
 	struct scatterlist *sgl, *fit;
+
+	struct intel_display_snapshot *display_snapshot;
 };
 
 struct i915_gpu_error {
