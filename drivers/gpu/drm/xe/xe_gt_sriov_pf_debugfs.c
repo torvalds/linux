@@ -313,6 +313,9 @@ static const struct {
 	{ "stop", xe_gt_sriov_pf_control_stop_vf },
 	{ "pause", xe_gt_sriov_pf_control_pause_vf },
 	{ "resume", xe_gt_sriov_pf_control_resume_vf },
+#ifdef CONFIG_DRM_XE_DEBUG_SRIOV
+	{ "restore!", xe_gt_sriov_pf_migration_restore_guc_state },
+#endif
 };
 
 static ssize_t control_write(struct file *file, const char __user *buf, size_t count, loff_t *pos)
