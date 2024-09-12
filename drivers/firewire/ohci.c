@@ -1141,9 +1141,8 @@ static struct descriptor *find_branch_descriptor(struct descriptor *d, int z)
 		return d + z - 1;
 }
 
-static void context_tasklet(unsigned long data)
+static void context_retire_descriptors(struct context *ctx)
 {
-	struct context *ctx = (struct context *) data;
 	struct descriptor *d, *last;
 	u32 address;
 	int z;
@@ -1182,45 +1181,19 @@ static void context_tasklet(unsigned long data)
 	}
 }
 
+static void context_tasklet(unsigned long data)
+{
+	struct context *ctx = (struct context *) data;
+
+	context_retire_descriptors(ctx);
+}
+
 static void ohci_isoc_context_work(struct work_struct *work)
 {
 	struct fw_iso_context *base = container_of(work, struct fw_iso_context, work);
 	struct iso_context *isoc_ctx = container_of(base, struct iso_context, base);
-	struct context *ctx = &isoc_ctx->context;
-	struct descriptor *d, *last;
-	u32 address;
-	int z;
-	struct descriptor_buffer *desc;
 
-	desc = list_entry(ctx->buffer_list.next, struct descriptor_buffer, list);
-	last = ctx->last;
-	while (last->branch_address != 0) {
-		struct descriptor_buffer *old_desc = desc;
-
-		address = le32_to_cpu(last->branch_address);
-		z = address & 0xf;
-		address &= ~0xf;
-		ctx->current_bus = address;
-
-		// If the branch address points to a buffer outside of the current buffer, advance
-		// to the next buffer.
-		if (address < desc->buffer_bus || address >= desc->buffer_bus + desc->used)
-			desc = list_entry(desc->list.next, struct descriptor_buffer, list);
-		d = desc->buffer + (address - desc->buffer_bus) / sizeof(*d);
-		last = find_branch_descriptor(d, z);
-
-		if (!ctx->callback(ctx, d, last))
-			break;
-
-		if (old_desc != desc) {
-			// If we've advanced to the next buffer, move the previous buffer to the
-			// free list.
-			old_desc->used = 0;
-			guard(spinlock_irqsave)(&ctx->ohci->lock);
-			list_move_tail(&old_desc->list, &ctx->buffer_list);
-		}
-		ctx->last = last;
-	}
+	context_retire_descriptors(&isoc_ctx->context);
 }
 
 /*
