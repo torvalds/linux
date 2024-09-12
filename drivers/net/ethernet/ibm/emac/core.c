@@ -32,7 +32,6 @@
 #include <linux/ethtool.h>
 #include <linux/mii.h>
 #include <linux/bitops.h>
-#include <linux/workqueue.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
@@ -96,11 +95,6 @@ MODULE_LICENSE("GPL");
 static u32 busy_phy_map;
 static DEFINE_MUTEX(emac_phy_map_lock);
 
-/* This is the wait queue used to wait on any event related to probe, that
- * is discovery of MALs, other EMACs, ZMII/RGMIIs, etc...
- */
-static DECLARE_WAIT_QUEUE_HEAD(emac_probe_wait);
-
 /* Having stable interface names is a doomed idea. However, it would be nice
  * if we didn't have completely random interface names at boot too :-) It's
  * just a matter of making everybody's life easier. Since we are doing
@@ -115,9 +109,6 @@ static DECLARE_WAIT_QUEUE_HEAD(emac_probe_wait);
 
 #define EMAC_BOOT_LIST_SIZE	4
 static struct device_node *emac_boot_list[EMAC_BOOT_LIST_SIZE];
-
-/* How long should I wait for dependent devices ? */
-#define EMAC_PROBE_DEP_TIMEOUT	(HZ * 5)
 
 /* I don't want to litter system log with timeout errors
  * when we have brain-damaged PHY.
@@ -973,8 +964,6 @@ static void __emac_set_multicast_list(struct emac_instance *dev)
 	 * we need is just to stop RX channel. This seems to work on all
 	 * tested SoCs.                                                --ebs
 	 *
-	 * If we need the full reset, we might just trigger the workqueue
-	 * and do it async... a bit nasty but should work --BenH
 	 */
 	dev->mcast_pending = 0;
 	emac_rx_disable(dev);
@@ -2378,7 +2367,9 @@ static int emac_check_deps(struct emac_instance *dev,
 		if (deps[i].drvdata != NULL)
 			there++;
 	}
-	return there == EMAC_DEP_COUNT;
+	if (there != EMAC_DEP_COUNT)
+		return -EPROBE_DEFER;
+	return 0;
 }
 
 static void emac_put_deps(struct emac_instance *dev)
@@ -2389,19 +2380,6 @@ static void emac_put_deps(struct emac_instance *dev)
 	platform_device_put(dev->mdio_dev);
 	platform_device_put(dev->tah_dev);
 }
-
-static int emac_of_bus_notify(struct notifier_block *nb, unsigned long action,
-			      void *data)
-{
-	/* We are only intereted in device addition */
-	if (action == BUS_NOTIFY_BOUND_DRIVER)
-		wake_up_all(&emac_probe_wait);
-	return 0;
-}
-
-static struct notifier_block emac_of_bus_notifier = {
-	.notifier_call = emac_of_bus_notify
-};
 
 static int emac_wait_deps(struct emac_instance *dev)
 {
@@ -2419,18 +2397,13 @@ static int emac_wait_deps(struct emac_instance *dev)
 		deps[EMAC_DEP_MDIO_IDX].phandle = dev->mdio_ph;
 	if (dev->blist && dev->blist > emac_boot_list)
 		deps[EMAC_DEP_PREV_IDX].phandle = 0xffffffffu;
-	bus_register_notifier(&platform_bus_type, &emac_of_bus_notifier);
-	wait_event_timeout(emac_probe_wait,
-			   emac_check_deps(dev, deps),
-			   EMAC_PROBE_DEP_TIMEOUT);
-	bus_unregister_notifier(&platform_bus_type, &emac_of_bus_notifier);
-	err = emac_check_deps(dev, deps) ? 0 : -ENODEV;
+	err = emac_check_deps(dev, deps);
 	for (i = 0; i < EMAC_DEP_COUNT; i++) {
 		of_node_put(deps[i].node);
 		if (err)
 			platform_device_put(deps[i].ofdev);
 	}
-	if (err == 0) {
+	if (!err) {
 		dev->mal_dev = deps[EMAC_DEP_MAL_IDX].ofdev;
 		dev->zmii_dev = deps[EMAC_DEP_ZMII_IDX].ofdev;
 		dev->rgmii_dev = deps[EMAC_DEP_RGMII_IDX].ofdev;
@@ -3087,12 +3060,8 @@ static int emac_probe(struct platform_device *ofdev)
 
 	/* Wait for dependent devices */
 	err = emac_wait_deps(dev);
-	if (err) {
-		printk(KERN_ERR
-		       "%pOF: Timeout waiting for dependent devices\n", np);
-		/*  display more info about what's missing ? */
+	if (err)
 		goto err_irq_unmap;
-	}
 	dev->mal = platform_get_drvdata(dev->mal_dev);
 	if (dev->mdio_dev != NULL)
 		dev->mdio_instance = platform_get_drvdata(dev->mdio_dev);
@@ -3192,10 +3161,6 @@ static int emac_probe(struct platform_device *ofdev)
 	wmb();
 	platform_set_drvdata(ofdev, dev);
 
-	/* There's a new kid in town ! Let's tell everybody */
-	wake_up_all(&emac_probe_wait);
-
-
 	printk(KERN_INFO "%s: EMAC-%d %pOF, MAC %pM\n",
 	       ndev->name, dev->cell_index, np, ndev->dev_addr);
 
@@ -3228,14 +3193,8 @@ static int emac_probe(struct platform_device *ofdev)
 	if (dev->wol_irq)
 		irq_dispose_mapping(dev->wol_irq);
  err_gone:
-	/* if we were on the bootlist, remove us as we won't show up and
-	 * wake up all waiters to notify them in case they were waiting
-	 * on us
-	 */
-	if (blist) {
+	if (blist)
 		*blist = NULL;
-		wake_up_all(&emac_probe_wait);
-	}
 	return err;
 }
 
