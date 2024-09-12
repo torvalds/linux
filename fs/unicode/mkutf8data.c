@@ -36,7 +36,7 @@
 #define FOLD_NAME	"CaseFolding.txt"
 #define NORM_NAME	"NormalizationCorrections.txt"
 #define TEST_NAME	"NormalizationTest.txt"
-#define UTF8_NAME	"utf8data.h"
+#define UTF8_NAME	"utf8data.c"
 
 const char	*age_name  = AGE_NAME;
 const char	*ccc_name  = CCC_NAME;
