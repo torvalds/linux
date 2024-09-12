@@ -170,6 +170,33 @@ int selinux_nlmsg_lookup(u16 sclass, u16 nlmsg_type, u32 *perm)
 {
 	int err = 0;
 
+	if (selinux_policycap_netlink_xperm()) {
+		switch (sclass) {
+		case SECCLASS_NETLINK_ROUTE_SOCKET:
+			*perm = NETLINK_ROUTE_SOCKET__NLMSG;
+			break;
+		case SECCLASS_NETLINK_TCPDIAG_SOCKET:
+			*perm = NETLINK_TCPDIAG_SOCKET__NLMSG;
+			break;
+		case SECCLASS_NETLINK_XFRM_SOCKET:
+			*perm = NETLINK_XFRM_SOCKET__NLMSG;
+			break;
+		case SECCLASS_NETLINK_AUDIT_SOCKET:
+			*perm = NETLINK_AUDIT_SOCKET__NLMSG;
+			break;
+		/* While it is possible to add a similar permission to other
+		 * netlink classes, note that the extended permission value is
+		 * matched against the nlmsg_type field. Notably,
+		 * SECCLASS_NETLINK_GENERIC_SOCKET uses dynamic values for this
+		 * field, which means that it cannot be added as-is.
+		 */
+		default:
+			err = -ENOENT;
+			break;
+		}
+		return err;
+	}
+
 	switch (sclass) {
 	case SECCLASS_NETLINK_ROUTE_SOCKET:
 		/* RTM_MAX always points to RTM_SETxxxx, ie RTM_NEWxxx + 3.
