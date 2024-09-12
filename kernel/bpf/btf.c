@@ -5572,8 +5572,10 @@ btf_parse_struct_metas(struct bpf_verifier_log *log, struct btf *btf)
 		aof->ids[aof->cnt++] = i;
 	}
 
-	if (!aof->cnt)
+	if (!aof->cnt) {
+		kfree(aof);
 		return NULL;
+	}
 	sort(&aof->ids, aof->cnt, sizeof(aof->ids[0]), btf_id_cmp_func, NULL);
 
 	for (i = 1; i < n; i++) {
