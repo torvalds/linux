@@ -116,6 +116,11 @@
 	status = "okay";
 };
 
+&gpu {
+	mali-supply = <&vdd_gpu_s0>;
+	status = "okay";
+};
+
 &i2c0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c0m2_xfer>;
@@ -386,6 +391,17 @@
 
 		regulators {
 			vdd_gpu_s0: vdd_gpu_mem_s0: dcdc-reg1 {
+				/*
+				 * RK3588's GPU power domain cannot be enabled
+				 * without this regulator active, but it
+				 * doesn't have to be on when the GPU PD is
+				 * disabled.  Because the PD binding does not
+				 * currently allow us to express this
+				 * relationship, we have no choice but to do
+				 * this instead:
+				 */
+				regulator-always-on;
+
 				regulator-boot-on;
 				regulator-min-microvolt = <550000>;
 				regulator-max-microvolt = <950000>;
