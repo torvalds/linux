@@ -185,8 +185,7 @@ static bool dmub_replay_copy_settings(struct dmub_replay *dmub,
 	else
 		copy_settings_data->flags.bitfields.force_wakeup_by_tps3 = 0;
 
-
-	dm_execute_dmub_cmd(dc, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
+	dc_wake_and_execute_dmub_cmd(dc, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
 
 	return true;
 }

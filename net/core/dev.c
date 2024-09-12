@@ -5150,6 +5150,7 @@ int do_xdp_generic(struct bpf_prog *xdp_prog, struct sk_buff **pskb)
 			bpf_net_ctx_clear(bpf_net_ctx);
 			return XDP_DROP;
 		}
+		bpf_net_ctx_clear(bpf_net_ctx);
 	}
 	return XDP_PASS;
 out_redir:
@@ -9911,6 +9912,15 @@ static void netdev_sync_lower_features(struct net_device *upper,
 	}
 }
 
+static bool netdev_has_ip_or_hw_csum(netdev_features_t features)
+{
+	netdev_features_t ip_csum_mask = NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM;
+	bool ip_csum = (features & ip_csum_mask) == ip_csum_mask;
+	bool hw_csum = features & NETIF_F_HW_CSUM;
+
+	return ip_csum || hw_csum;
+}
+
 static netdev_features_t netdev_fix_features(struct net_device *dev,
 	netdev_features_t features)
 {
@@ -9992,20 +10002,19 @@ static netdev_features_t netdev_fix_features(struct net_device *dev,
 		features &= ~NETIF_F_LRO;
 	}
 
-	if (features & NETIF_F_HW_TLS_TX) {
-		bool ip_csum = (features & (NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM)) ==
-			(NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM);
-		bool hw_csum = features & NETIF_F_HW_CSUM;
-
-		if (!ip_csum && !hw_csum) {
-			netdev_dbg(dev, "Dropping TLS TX HW offload feature since no CSUM feature.\n");
-			features &= ~NETIF_F_HW_TLS_TX;
-		}
+	if ((features & NETIF_F_HW_TLS_TX) && !netdev_has_ip_or_hw_csum(features)) {
+		netdev_dbg(dev, "Dropping TLS TX HW offload feature since no CSUM feature.\n");
+		features &= ~NETIF_F_HW_TLS_TX;
 	}
 
 	if ((features & NETIF_F_HW_TLS_RX) && !(features & NETIF_F_RXCSUM)) {
 		netdev_dbg(dev, "Dropping TLS RX HW offload feature since no RXCSUM feature.\n");
 		features &= ~NETIF_F_HW_TLS_RX;
+	}
+
+	if ((features & NETIF_F_GSO_UDP_L4) && !netdev_has_ip_or_hw_csum(features)) {
+		netdev_dbg(dev, "Dropping USO feature since no CSUM feature.\n");
+		features &= ~NETIF_F_GSO_UDP_L4;
 	}
 
 	return features;

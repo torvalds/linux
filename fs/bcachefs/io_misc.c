@@ -126,11 +126,7 @@ err_noprint:
 
 	if (closure_nr_remaining(&cl) != 1) {
 		bch2_trans_unlock_long(trans);
-
-		if (closure_sync_timeout(&cl, HZ * 10)) {
-			bch2_print_allocator_stuck(c);
-			closure_sync(&cl);
-		}
+		bch2_wait_on_allocator(c, &cl);
 	}
 
 	return ret;
