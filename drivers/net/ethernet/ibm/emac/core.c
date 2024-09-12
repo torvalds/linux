@@ -3053,7 +3053,7 @@ static int emac_probe(struct platform_device *ofdev)
 
 	/* Allocate our net_device structure */
 	err = -ENOMEM;
-	ndev = alloc_etherdev(sizeof(struct emac_instance));
+	ndev = devm_alloc_etherdev(&ofdev->dev, sizeof(struct emac_instance));
 	if (!ndev)
 		goto err_gone;
 
@@ -3072,7 +3072,7 @@ static int emac_probe(struct platform_device *ofdev)
 	/* Init various config data based on device-tree */
 	err = emac_init_config(dev);
 	if (err)
-		goto err_free;
+		goto err_gone;
 
 	/* Get interrupts. EMAC irq is mandatory, WOL irq is optional */
 	dev->emac_irq = irq_of_parse_and_map(np, 0);
@@ -3080,7 +3080,7 @@ static int emac_probe(struct platform_device *ofdev)
 	if (!dev->emac_irq) {
 		printk(KERN_ERR "%pOF: Can't map main interrupt\n", np);
 		err = -ENODEV;
-		goto err_free;
+		goto err_gone;
 	}
 	ndev->irq = dev->emac_irq;
 
@@ -3239,8 +3239,6 @@ static int emac_probe(struct platform_device *ofdev)
 		irq_dispose_mapping(dev->wol_irq);
 	if (dev->emac_irq)
 		irq_dispose_mapping(dev->emac_irq);
- err_free:
-	free_netdev(ndev);
  err_gone:
 	/* if we were on the bootlist, remove us as we won't show up and
 	 * wake up all waiters to notify them in case they were waiting
@@ -3289,7 +3287,6 @@ static void emac_remove(struct platform_device *ofdev)
 	if (dev->emac_irq)
 		irq_dispose_mapping(dev->emac_irq);
 
-	free_netdev(dev->ndev);
 }
 
 /* XXX Features in here should be replaced by properties... */
