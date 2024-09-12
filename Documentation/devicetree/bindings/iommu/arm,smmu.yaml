@@ -36,7 +36,9 @@ properties:
         items:
           - enum:
               - qcom,qcm2290-smmu-500
+              - qcom,qcs8300-smmu-500
               - qcom,qdu1000-smmu-500
+              - qcom,sa8255p-smmu-500
               - qcom,sa8775p-smmu-500
               - qcom,sc7180-smmu-500
               - qcom,sc7280-smmu-500
@@ -84,6 +86,7 @@ properties:
         items:
           - enum:
               - qcom,qcm2290-smmu-500
+              - qcom,sa8255p-smmu-500
               - qcom,sa8775p-smmu-500
               - qcom,sc7280-smmu-500
               - qcom,sc8180x-smmu-500
@@ -552,7 +555,9 @@ allOf:
               - cavium,smmu-v2
               - marvell,ap806-smmu-500
               - nvidia,smmu-500
+              - qcom,qcs8300-smmu-500
               - qcom,qdu1000-smmu-500
+              - qcom,sa8255p-smmu-500
               - qcom,sc7180-smmu-500
               - qcom,sdm670-smmu-500
               - qcom,sdm845-smmu-500
