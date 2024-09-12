@@ -76,8 +76,6 @@
  *              frame decreases this level and sending one frame increases it.
  * @dma_rx: RX DMA channel
  * @dma_tx: TX DMA channel
- * @dma_rx_data: RX parameters passed to the DMA engine
- * @dma_tx_data: TX parameters passed to the DMA engine
  * @rx_sgt: sg table for RX transfers
  * @tx_sgt: sg table for TX transfers
  * @zeropage: dummy page used as RX buffer when only TX buffer is passed in by
