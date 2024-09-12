@@ -129,7 +129,7 @@ static ssize_t cifs_shash_xarray(const struct iov_iter *iter, ssize_t maxsize,
 			for (j = foffset / PAGE_SIZE; j < npages; j++) {
 				len = min_t(size_t, maxsize, PAGE_SIZE - offset);
 				p = kmap_local_page(folio_page(folio, j));
-				ret = crypto_shash_update(shash, p, len);
+				ret = crypto_shash_update(shash, p + offset, len);
 				kunmap_local(p);
 				if (ret < 0)
 					return ret;
