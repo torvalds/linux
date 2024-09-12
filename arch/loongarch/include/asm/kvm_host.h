@@ -30,6 +30,7 @@
 #define KVM_HALT_POLL_NS_DEFAULT	500000
 #define KVM_REQ_TLB_FLUSH_GPA		KVM_ARCH_REQ(0)
 #define KVM_REQ_STEAL_UPDATE		KVM_ARCH_REQ(1)
+#define KVM_REQ_PMU			KVM_ARCH_REQ(2)
 
 #define KVM_GUESTDBG_SW_BP_MASK		\
 	(KVM_GUESTDBG_ENABLE | KVM_GUESTDBG_USE_SW_BP)
@@ -60,9 +61,13 @@ struct kvm_arch_memory_slot {
 	unsigned long flags;
 };
 
+#define HOST_MAX_PMNUM			16
 struct kvm_context {
 	unsigned long vpid_cache;
 	struct kvm_vcpu *last_vcpu;
+	/* Host PMU CSR */
+	u64 perf_ctrl[HOST_MAX_PMNUM];
+	u64 perf_cntr[HOST_MAX_PMNUM];
 };
 
 struct kvm_world_switch {
@@ -134,8 +139,9 @@ enum emulation_result {
 #define KVM_LARCH_LSX		(0x1 << 1)
 #define KVM_LARCH_LASX		(0x1 << 2)
 #define KVM_LARCH_LBT		(0x1 << 3)
-#define KVM_LARCH_SWCSR_LATEST	(0x1 << 4)
-#define KVM_LARCH_HWCSR_USABLE	(0x1 << 5)
+#define KVM_LARCH_PMU		(0x1 << 4)
+#define KVM_LARCH_SWCSR_LATEST	(0x1 << 5)
+#define KVM_LARCH_HWCSR_USABLE	(0x1 << 6)
 
 struct kvm_vcpu_arch {
 	/*
@@ -173,6 +179,9 @@ struct kvm_vcpu_arch {
 
 	/* CSR state */
 	struct loongarch_csrs *csr;
+
+	/* Guest max PMU CSR id */
+	int max_pmu_csrid;
 
 	/* GPR used as IO source/target */
 	u32 io_gpr;
@@ -244,6 +253,16 @@ static inline bool kvm_guest_has_lasx(struct kvm_vcpu_arch *arch)
 static inline bool kvm_guest_has_lbt(struct kvm_vcpu_arch *arch)
 {
 	return arch->cpucfg[2] & (CPUCFG2_X86BT | CPUCFG2_ARMBT | CPUCFG2_MIPSBT);
+}
+
+static inline bool kvm_guest_has_pmu(struct kvm_vcpu_arch *arch)
+{
+	return arch->cpucfg[6] & CPUCFG6_PMP;
+}
+
+static inline int kvm_get_pmu_num(struct kvm_vcpu_arch *arch)
+{
+	return (arch->cpucfg[6] & CPUCFG6_PMNUM) >> CPUCFG6_PMNUM_SHIFT;
 }
 
 /* Debug: dump vcpu state */

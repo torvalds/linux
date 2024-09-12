@@ -98,6 +98,7 @@ struct kvm_fpu {
 #define  KVM_LOONGARCH_VM_FEAT_X86BT	2
 #define  KVM_LOONGARCH_VM_FEAT_ARMBT	3
 #define  KVM_LOONGARCH_VM_FEAT_MIPSBT	4
+#define  KVM_LOONGARCH_VM_FEAT_PMU	5
 
 /* Device Control API on vcpu fd */
 #define KVM_LOONGARCH_VCPU_CPUCFG	0

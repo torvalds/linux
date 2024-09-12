@@ -122,6 +122,10 @@ static int kvm_vm_feature_has_attr(struct kvm *kvm, struct kvm_device_attr *attr
 		if (cpu_has_lbt_mips)
 			return 0;
 		return -ENXIO;
+	case KVM_LOONGARCH_VM_FEAT_PMU:
+		if (cpu_has_pmp)
+			return 0;
+		return -ENXIO;
 	default:
 		return -ENXIO;
 	}
