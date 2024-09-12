@@ -342,7 +342,8 @@ void xe_display_pm_suspend(struct xe_device *xe, bool runtime)
 
 	xe_display_flush_cleanup_work(xe);
 
-	intel_dp_mst_suspend(xe);
+	if (!runtime)
+		intel_dp_mst_suspend(xe);
 
 	intel_hpd_cancel_work(xe);
 
@@ -407,7 +408,9 @@ void xe_display_pm_resume(struct xe_device *xe, bool runtime)
 		intel_display_driver_resume_access(xe);
 
 	/* MST sideband requires HPD interrupts enabled */
-	intel_dp_mst_resume(xe);
+	if (!runtime)
+		intel_dp_mst_resume(xe);
+
 	if (!runtime && has_display(xe)) {
 		intel_display_driver_resume(xe);
 		drm_kms_helper_poll_enable(&xe->drm);
