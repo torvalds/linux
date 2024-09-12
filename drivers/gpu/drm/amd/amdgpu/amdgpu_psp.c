@@ -639,6 +639,8 @@ static const char *psp_gfx_cmd_name(enum psp_gfx_cmd_id cmd_id)
 		return "AUTOLOAD_RLC";
 	case GFX_CMD_ID_BOOT_CFG:
 		return "BOOT_CFG";
+	case GFX_CMD_ID_CONFIG_SQ_PERFMON:
+		return "CONFIG_SQ_PERFMON";
 	default:
 		return "UNKNOWN CMD";
 	}
@@ -3736,8 +3738,44 @@ out:
 	return err;
 }
 
+int psp_config_sq_perfmon(struct psp_context *psp,
+		uint32_t xcp_id, bool core_override_enable,
+		bool reg_override_enable, bool perfmon_override_enable)
+{
+	int ret;
+
+	if (amdgpu_sriov_vf(psp->adev))
+		return 0;
+
+	if (xcp_id > MAX_XCP) {
+		dev_err(psp->adev->dev, "invalid xcp_id %d\n", xcp_id);
+		return -EINVAL;
+	}
+
+	if (amdgpu_ip_version(psp->adev, MP0_HWIP, 0) != IP_VERSION(13, 0, 6)) {
+		dev_err(psp->adev->dev, "Unsupported MP0 version 0x%x for CONFIG_SQ_PERFMON command\n",
+			amdgpu_ip_version(psp->adev, MP0_HWIP, 0));
+		return -EINVAL;
+	}
+	struct psp_gfx_cmd_resp *cmd = acquire_psp_cmd_buf(psp);
+
+	cmd->cmd_id	=	GFX_CMD_ID_CONFIG_SQ_PERFMON;
+	cmd->cmd.config_sq_perfmon.gfx_xcp_mask	=	BIT_MASK(xcp_id);
+	cmd->cmd.config_sq_perfmon.core_override	=	core_override_enable;
+	cmd->cmd.config_sq_perfmon.reg_override	=	reg_override_enable;
+	cmd->cmd.config_sq_perfmon.perfmon_override = perfmon_override_enable;
+
+	ret = psp_cmd_submit_buf(psp, NULL, cmd, psp->fence_buf_mc_addr);
+	if (ret)
+		dev_warn(psp->adev->dev, "PSP failed to config sq: xcp%d core%d reg%d perfmon%d\n",
+			xcp_id, core_override_enable, reg_override_enable, perfmon_override_enable);
+
+	release_psp_cmd_buf(psp);
+	return ret;
+}
+
 static int psp_set_clockgating_state(void *handle,
-				     enum amd_clockgating_state state)
+					enum amd_clockgating_state state)
 {
 	return 0;
 }
