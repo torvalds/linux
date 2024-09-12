@@ -2124,10 +2124,8 @@ static void zonda_pll_adjust_l_val(unsigned long rate, unsigned long prate, u32 
 
 	quotient = rate;
 	remainder = do_div(quotient, prate);
-	*l = quotient;
 
-	if ((remainder * 2) / prate)
-		*l = *l + 1;
+	*l = rate + (u32)(remainder * 2 >= prate);
 }
 
 static int clk_zonda_pll_set_rate(struct clk_hw *hw, unsigned long rate,
