@@ -2067,6 +2067,14 @@ void detect_edp_sink_caps(struct dc_link *link)
 	core_link_read_dpcd(link, DP_SINK_PR_MAX_NUMBER_OF_DEVIATION_LINE,
 			&link->dpcd_caps.pr_info.max_deviation_line,
 			sizeof(link->dpcd_caps.pr_info.max_deviation_line));
+
+	/*
+	 * OLED Emission Rate info
+	 */
+	if (link->dpcd_sink_ext_caps.bits.emission_output)
+		core_link_read_dpcd(link, DP_SINK_EMISSION_RATE,
+				(uint8_t *)&link->dpcd_caps.edp_oled_emission_rate,
+				sizeof(link->dpcd_caps.edp_oled_emission_rate));
 }
 
 bool dp_get_max_link_enc_cap(const struct dc_link *link, struct dc_link_settings *max_link_enc_cap)
