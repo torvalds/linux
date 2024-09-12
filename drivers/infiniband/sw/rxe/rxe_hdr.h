@@ -890,14 +890,14 @@ static inline __be32 __immdt_imm(void *arg)
 {
 	struct rxe_immdt *immdt = arg;
 
-	return immdt->imm;
+	return be32_to_cpu(immdt->imm);
 }
 
 static inline void __immdt_set_imm(void *arg, __be32 imm)
 {
 	struct rxe_immdt *immdt = arg;
 
-	immdt->imm = imm;
+	immdt->imm = cpu_to_be32(imm);
 }
 
 static inline __be32 immdt_imm(struct rxe_pkt_info *pkt)
