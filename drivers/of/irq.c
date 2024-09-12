@@ -429,9 +429,8 @@ int of_irq_to_resource(struct device_node *dev, int index, struct resource *r)
 		of_property_read_string_index(dev, "interrupt-names", index,
 					      &name);
 
-		r->start = r->end = irq;
-		r->flags = IORESOURCE_IRQ | irq_get_trigger_type(irq);
-		r->name = name ? name : of_node_full_name(dev);
+		*r = DEFINE_RES_IRQ_NAMED(irq, name ?: of_node_full_name(dev));
+		r->flags |= irq_get_trigger_type(irq);
 	}
 
 	return irq;
