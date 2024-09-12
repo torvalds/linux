@@ -22,6 +22,7 @@ static const struct class role_class = {
 
 struct usb_role_switch {
 	struct device dev;
+	struct lock_class_key key;
 	struct mutex lock; /* device lock*/
 	struct module *module; /* the module this device depends on */
 	enum usb_role role;
@@ -34,8 +35,6 @@ struct usb_role_switch {
 	usb_role_switch_set_t set;
 	usb_role_switch_get_t get;
 	bool allow_userspace_control;
-
-	struct lock_class_key key;
 };
 
 #define to_role_switch(d)	container_of(d, struct usb_role_switch, dev)
@@ -329,6 +328,8 @@ static void usb_role_switch_release(struct device *dev)
 {
 	struct usb_role_switch *sw = to_role_switch(dev);
 
+	mutex_destroy(&sw->lock);
+	lockdep_unregister_key(&sw->key);
 	kfree(sw);
 }
 
@@ -367,7 +368,8 @@ usb_role_switch_register(struct device *parent,
 	if (!sw)
 		return ERR_PTR(-ENOMEM);
 
-	mutex_init(&sw->lock);
+	lockdep_register_key(&sw->key);
+	mutex_init_with_key(&sw->lock, &sw->key);
 
 	sw->allow_userspace_control = desc->allow_userspace_control;
 	sw->usb2_port = desc->usb2_port;
@@ -399,9 +401,6 @@ usb_role_switch_register(struct device *parent,
 
 	sw->registered = true;
 
-	lockdep_register_key(&sw->key);
-	lockdep_set_class(&sw->lock, &sw->key);
-
 	/* TODO: Symlinks for the host port and the device controller. */
 
 	return sw;
@@ -418,9 +417,6 @@ void usb_role_switch_unregister(struct usb_role_switch *sw)
 {
 	if (IS_ERR_OR_NULL(sw))
 		return;
-
-	lockdep_unregister_key(&sw->key);
-
 	sw->registered = false;
 	if (dev_fwnode(&sw->dev))
 		component_del(&sw->dev, &connector_ops);
