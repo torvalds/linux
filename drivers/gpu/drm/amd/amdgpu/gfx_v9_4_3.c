@@ -2248,6 +2248,8 @@ static int gfx_v9_4_3_xcc_cp_resume(struct amdgpu_device *adev, int xcc_id)
 		r = gfx_v9_4_3_xcc_cp_compute_load_microcode(adev, xcc_id);
 		if (r)
 			return r;
+	} else {
+		gfx_v9_4_3_xcc_cp_compute_enable(adev, false, xcc_id);
 	}
 
 	r = gfx_v9_4_3_xcc_kiq_resume(adev, xcc_id);
