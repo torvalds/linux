@@ -34,8 +34,8 @@ void gen6_disable_rps_interrupts(struct drm_i915_private *dev_priv);
 void gen6_rps_reset_ei(struct drm_i915_private *dev_priv);
 u32 gen6_sanitize_rps_pm_mask(const struct drm_i915_private *i915, u32 mask);
 
-void intel_runtime_pm_disable_interrupts(struct drm_i915_private *dev_priv);
-void intel_runtime_pm_enable_interrupts(struct drm_i915_private *dev_priv);
+void intel_irq_suspend(struct drm_i915_private *i915);
+void intel_irq_resume(struct drm_i915_private *i915);
 bool intel_irqs_enabled(struct drm_i915_private *dev_priv);
 void intel_synchronize_irq(struct drm_i915_private *i915);
 void intel_synchronize_hardirq(struct drm_i915_private *i915);

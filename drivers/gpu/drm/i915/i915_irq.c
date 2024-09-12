@@ -1449,31 +1449,29 @@ void intel_irq_uninstall(struct drm_i915_private *dev_priv)
 }
 
 /**
- * intel_runtime_pm_disable_interrupts - runtime interrupt disabling
- * @dev_priv: i915 device instance
+ * intel_irq_suspend - Suspend interrupts
+ * @i915: i915 device instance
  *
- * This function is used to disable interrupts at runtime, both in the runtime
- * pm and the system suspend/resume code.
+ * This function is used to disable interrupts at runtime.
  */
-void intel_runtime_pm_disable_interrupts(struct drm_i915_private *dev_priv)
+void intel_irq_suspend(struct drm_i915_private *i915)
 {
-	intel_irq_reset(dev_priv);
-	dev_priv->irqs_enabled = false;
-	intel_synchronize_irq(dev_priv);
+	intel_irq_reset(i915);
+	i915->irqs_enabled = false;
+	intel_synchronize_irq(i915);
 }
 
 /**
- * intel_runtime_pm_enable_interrupts - runtime interrupt enabling
- * @dev_priv: i915 device instance
+ * intel_irq_resume - Resume interrupts
+ * @i915: i915 device instance
  *
- * This function is used to enable interrupts at runtime, both in the runtime
- * pm and the system suspend/resume code.
+ * This function is used to enable interrupts at runtime.
  */
-void intel_runtime_pm_enable_interrupts(struct drm_i915_private *dev_priv)
+void intel_irq_resume(struct drm_i915_private *i915)
 {
-	dev_priv->irqs_enabled = true;
-	intel_irq_reset(dev_priv);
-	intel_irq_postinstall(dev_priv);
+	i915->irqs_enabled = true;
+	intel_irq_reset(i915);
+	intel_irq_postinstall(i915);
 }
 
 bool intel_irqs_enabled(struct drm_i915_private *dev_priv)

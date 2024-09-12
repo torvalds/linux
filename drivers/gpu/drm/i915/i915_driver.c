@@ -950,7 +950,7 @@ void i915_driver_shutdown(struct drm_i915_private *i915)
 
 	intel_dp_mst_suspend(i915);
 
-	intel_runtime_pm_disable_interrupts(i915);
+	intel_irq_suspend(i915);
 	intel_hpd_cancel_work(i915);
 
 	if (HAS_DISPLAY(i915))
@@ -1035,7 +1035,7 @@ static int i915_drm_suspend(struct drm_device *dev)
 
 	intel_dp_mst_suspend(dev_priv);
 
-	intel_runtime_pm_disable_interrupts(dev_priv);
+	intel_irq_suspend(dev_priv);
 	intel_hpd_cancel_work(dev_priv);
 
 	if (HAS_DISPLAY(dev_priv))
@@ -1181,7 +1181,7 @@ static int i915_drm_resume(struct drm_device *dev)
 	 * Modeset enabling in intel_display_driver_init_hw() also needs working
 	 * interrupts.
 	 */
-	intel_runtime_pm_enable_interrupts(dev_priv);
+	intel_irq_resume(dev_priv);
 
 	if (HAS_DISPLAY(dev_priv))
 		drm_mode_config_reset(dev);
@@ -1481,7 +1481,7 @@ static int intel_runtime_suspend(struct device *kdev)
 	for_each_gt(gt, dev_priv, i)
 		intel_gt_runtime_suspend(gt);
 
-	intel_runtime_pm_disable_interrupts(dev_priv);
+	intel_irq_suspend(dev_priv);
 
 	for_each_gt(gt, dev_priv, i)
 		intel_uncore_suspend(gt->uncore);
@@ -1494,7 +1494,7 @@ static int intel_runtime_suspend(struct device *kdev)
 			"Runtime suspend failed, disabling it (%d)\n", ret);
 		intel_uncore_runtime_resume(&dev_priv->uncore);
 
-		intel_runtime_pm_enable_interrupts(dev_priv);
+		intel_irq_resume(dev_priv);
 
 		for_each_gt(gt, dev_priv, i)
 			intel_gt_runtime_resume(gt);
@@ -1587,7 +1587,7 @@ static int intel_runtime_resume(struct device *kdev)
 	for_each_gt(gt, dev_priv, i)
 		intel_uncore_runtime_resume(gt->uncore);
 
-	intel_runtime_pm_enable_interrupts(dev_priv);
+	intel_irq_resume(dev_priv);
 
 	/*
 	 * No point of rolling back things in case of an error, as the best
