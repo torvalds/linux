@@ -148,7 +148,7 @@ static struct fuse_req *fuse_get_req(struct mnt_idmap *idmap,
 	if (for_background)
 		__set_bit(FR_BACKGROUND, &req->flags);
 
-	if ((fm->sb->s_iflags & SB_I_NOIDMAP) || idmap) {
+	if (!fm->sb || (fm->sb->s_iflags & SB_I_NOIDMAP) || idmap) {
 		kuid_t idmapped_fsuid;
 		kgid_t idmapped_fsgid;
 
@@ -517,7 +517,7 @@ static void fuse_force_creds(struct fuse_req *req)
 {
 	struct fuse_conn *fc = req->fm->fc;
 
-	if (req->fm->sb->s_iflags & SB_I_NOIDMAP) {
+	if (!req->fm->sb || req->fm->sb->s_iflags & SB_I_NOIDMAP) {
 		req->in.h.uid = from_kuid_munged(fc->user_ns, current_fsuid());
 		req->in.h.gid = from_kgid_munged(fc->user_ns, current_fsgid());
 	} else {
