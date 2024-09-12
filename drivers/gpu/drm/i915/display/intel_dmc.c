@@ -1194,21 +1194,43 @@ void intel_dmc_fini(struct intel_display *display)
 	}
 }
 
-void intel_dmc_print_error_state(struct drm_printer *p,
-				 struct intel_display *display)
+struct intel_dmc_snapshot {
+	bool initialized;
+	bool loaded;
+	u32 version;
+};
+
+struct intel_dmc_snapshot *intel_dmc_snapshot_capture(struct intel_display *display)
 {
 	struct intel_dmc *dmc = display_to_dmc(display);
+	struct intel_dmc_snapshot *snapshot;
 
 	if (!HAS_DMC(display))
+		return NULL;
+
+	snapshot = kzalloc(sizeof(*snapshot), GFP_ATOMIC);
+	if (!snapshot)
+		return NULL;
+
+	snapshot->initialized = dmc;
+	snapshot->loaded = intel_dmc_has_payload(display);
+	if (dmc)
+		snapshot->version = dmc->version;
+
+	return snapshot;
+}
+
+void intel_dmc_snapshot_print(const struct intel_dmc_snapshot *snapshot, struct drm_printer *p)
+{
+	if (!snapshot)
 		return;
 
-	drm_printf(p, "DMC initialized: %s\n", str_yes_no(dmc));
-	drm_printf(p, "DMC loaded: %s\n",
-		   str_yes_no(intel_dmc_has_payload(display)));
-	if (dmc)
+	drm_printf(p, "DMC initialized: %s\n", str_yes_no(snapshot->initialized));
+	drm_printf(p, "DMC loaded: %s\n", str_yes_no(snapshot->loaded));
+	if (snapshot->initialized)
 		drm_printf(p, "DMC fw version: %d.%d\n",
-			   DMC_VERSION_MAJOR(dmc->version),
-			   DMC_VERSION_MINOR(dmc->version));
+			   DMC_VERSION_MAJOR(snapshot->version),
+			   DMC_VERSION_MINOR(snapshot->version));
 }
 
 static int intel_dmc_debugfs_status_show(struct seq_file *m, void *unused)

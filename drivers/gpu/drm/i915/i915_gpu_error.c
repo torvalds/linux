@@ -41,7 +41,6 @@
 #include <drm/drm_print.h>
 
 #include "display/intel_display_snapshot.h"
-#include "display/intel_dmc.h"
 
 #include "gem/i915_gem_context.h"
 #include "gem/i915_gem_lmem.h"
@@ -870,8 +869,6 @@ static void __err_print_to_sgl(struct drm_i915_error_state_buf *m,
 	err_print_pciid(m, m->i915);
 
 	err_printf(m, "IOMMU enabled?: %d\n", error->iommu);
-
-	intel_dmc_print_error_state(&p, &m->i915->display);
 
 	err_printf(m, "RPM wakelock: %s\n", str_yes_no(error->wakelock));
 	err_printf(m, "PM suspended: %s\n", str_yes_no(error->suspended));
