@@ -372,6 +372,16 @@
 	};
 };
 
+&pmm8155au_1_gpios {
+	pmm8155au_1_sdc2_cd: sdc2-cd-default-state {
+		pins = "gpio4";
+		function = "normal";
+		input-enable;
+		bias-pull-up;
+		power-source = <0>;
+	};
+};
+
 &qupv3_id_1 {
 	status = "okay";
 };
@@ -389,10 +399,10 @@
 &sdhc_2 {
 	status = "okay";
 
-	cd-gpios = <&tlmm 4 GPIO_ACTIVE_LOW>;
+	cd-gpios = <&pmm8155au_1_gpios 4 GPIO_ACTIVE_LOW>;
 	pinctrl-names = "default", "sleep";
-	pinctrl-0 = <&sdc2_on>;
-	pinctrl-1 = <&sdc2_off>;
+	pinctrl-0 = <&sdc2_on &pmm8155au_1_sdc2_cd>;
+	pinctrl-1 = <&sdc2_off &pmm8155au_1_sdc2_cd>;
 	vqmmc-supply = <&vreg_l13c_2p96>; /* IO line power */
 	vmmc-supply = <&vreg_l17a_2p96>;  /* Card power line */
 	bus-width = <4>;
@@ -488,120 +498,102 @@
 &tlmm {
 	gpio-reserved-ranges = <0 4>;
 
-	sdc2_on: sdc2_on {
-		clk {
+	sdc2_on: sdc2-on-state {
+		clk-pins {
 			pins = "sdc2_clk";
 			bias-disable;		/* No pull */
 			drive-strength = <16>;	/* 16 MA */
 		};
 
-		cmd {
+		cmd-pins {
 			pins = "sdc2_cmd";
 			bias-pull-up;		/* pull up */
 			drive-strength = <16>;	/* 16 MA */
 		};
 
-		data {
+		data-pins {
 			pins = "sdc2_data";
 			bias-pull-up;		/* pull up */
 			drive-strength = <16>;	/* 16 MA */
 		};
-
-		sd-cd {
-			pins = "gpio96";
-			function = "gpio";
-			bias-pull-up;		/* pull up */
-			drive-strength = <2>;	/* 2 MA */
-		};
 	};
 
-	sdc2_off: sdc2_off {
-		clk {
+	sdc2_off: sdc2-off-state {
+		clk-pins {
 			pins = "sdc2_clk";
 			bias-disable;		/* No pull */
 			drive-strength = <2>;	/* 2 MA */
 		};
 
-		cmd {
+		cmd-pins {
 			pins = "sdc2_cmd";
 			bias-pull-up;		/* pull up */
 			drive-strength = <2>;	/* 2 MA */
 		};
 
-		data {
+		data-pins {
 			pins = "sdc2_data";
 			bias-pull-up;		/* pull up */
 			drive-strength = <2>;	/* 2 MA */
 		};
-
-		sd-cd {
-			pins = "gpio96";
-			function = "gpio";
-			bias-pull-up;		/* pull up */
-			drive-strength = <2>;	/* 2 MA */
-		};
 	};
 
-	usb2phy_ac_en1_default: usb2phy_ac_en1_default {
-		mux {
-			pins = "gpio113";
-			function = "usb2phy_ac";
-			bias-disable;
-			drive-strength = <2>;
-		};
+	usb2phy_ac_en1_default: usb2phy-ac-en1-default-state {
+		pins = "gpio113";
+		function = "usb2phy_ac";
+		bias-disable;
+		drive-strength = <2>;
 	};
 
-	usb2phy_ac_en2_default: usb2phy_ac_en2_default {
-		mux {
-			pins = "gpio123";
-			function = "usb2phy_ac";
-			bias-disable;
-			drive-strength = <2>;
-		};
+	usb2phy_ac_en2_default: usb2phy-ac-en2-default-state {
+		pins = "gpio123";
+		function = "usb2phy_ac";
+		bias-disable;
+		drive-strength = <2>;
 	};
 
-	ethernet_defaults: ethernet-defaults {
-		mdc {
+	ethernet_defaults: ethernet-defaults-state {
+		mdc-pins {
 			pins = "gpio7";
 			function = "rgmii";
 			bias-pull-up;
 		};
 
-		mdio {
+		mdio-pins {
 			pins = "gpio59";
 			function = "rgmii";
 			bias-pull-up;
 		};
 
-		rgmii-rx {
+		rgmii-rx-pins {
 			pins = "gpio117", "gpio118", "gpio119", "gpio120", "gpio115", "gpio116";
 			function = "rgmii";
 			bias-disable;
 			drive-strength = <2>;
 		};
 
-		rgmii-tx {
+		rgmii-tx-pins {
 			pins = "gpio122", "gpio4", "gpio5", "gpio6", "gpio114", "gpio121";
 			function = "rgmii";
 			bias-pull-up;
 			drive-strength = <16>;
 		};
 
-		phy-intr {
+		phy-intr-pins {
 			pins = "gpio124";
 			function = "emac_phy";
 			bias-disable;
 			drive-strength = <8>;
 		};
 
-		pps {
+		pps-pins {
 			pins = "gpio81";
 			function = "emac_pps";
 			bias-disable;
 			drive-strength = <8>;
 		};
 
-		phy-reset {
+		phy-reset-pins {
 			pins = "gpio79";
 			function = "gpio";
 			bias-pull-up;
