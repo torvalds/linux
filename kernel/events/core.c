@@ -14002,21 +14002,19 @@ static void perf_event_setup_cpumask(unsigned int cpu)
 	struct cpumask *pmu_cpumask;
 	unsigned int scope;
 
-	cpumask_set_cpu(cpu, perf_online_mask);
-
 	/*
 	 * Early boot stage, the cpumask hasn't been set yet.
 	 * The perf_online_<domain>_masks includes the first CPU of each domain.
-	 * Always uncondifionally set the boot CPU for the perf_online_<domain>_masks.
+	 * Always unconditionally set the boot CPU for the perf_online_<domain>_masks.
 	 */
-	if (!topology_sibling_cpumask(cpu)) {
+	if (cpumask_empty(perf_online_mask)) {
 		for (scope = PERF_PMU_SCOPE_NONE + 1; scope < PERF_PMU_MAX_SCOPE; scope++) {
 			pmu_cpumask = perf_scope_cpumask(scope);
 			if (WARN_ON_ONCE(!pmu_cpumask))
 				continue;
 			cpumask_set_cpu(cpu, pmu_cpumask);
 		}
-		return;
+		goto end;
 	}
 
 	for (scope = PERF_PMU_SCOPE_NONE + 1; scope < PERF_PMU_MAX_SCOPE; scope++) {
@@ -14031,6 +14029,8 @@ static void perf_event_setup_cpumask(unsigned int cpu)
 		    cpumask_any_and(pmu_cpumask, cpumask) >= nr_cpu_ids)
 			cpumask_set_cpu(cpu, pmu_cpumask);
 	}
+end:
+	cpumask_set_cpu(cpu, perf_online_mask);
 }
 
 int perf_event_init_cpu(unsigned int cpu)
