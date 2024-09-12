@@ -104,7 +104,7 @@ TEST_GEN_FILES += $(BINARIES_64)
 endif
 else
 
-ifneq (,$(findstring $(ARCH),powerpc))
+ifneq (,$(filter $(ARCH),arm64 powerpc))
 TEST_GEN_FILES += protection_keys
 endif
 

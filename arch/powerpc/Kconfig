@@ -1026,6 +1026,10 @@ config PPC_MEM_KEYS
 
 	  If unsure, say y.
 
+config ARCH_PKEY_BITS
+	int
+	default 5
+
 config PPC_SECURE_BOOT
 	prompt "Enable secure boot support"
 	bool
