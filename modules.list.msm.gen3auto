@@ -70,6 +70,7 @@ qcom_logbuf_vh.ko
 mem-hooks.ko
 soc_sleep_stats.ko
 boot_stats.ko
+bootmarker_proxy.ko
 pcs_xpcs.ko
 micrel.ko
 stmmac.ko
