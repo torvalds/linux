@@ -661,9 +661,17 @@ EXPORT_SYMBOL(xp_alloc_batch);
 
 bool xp_can_alloc(struct xsk_buff_pool *pool, u32 count)
 {
+	u32 req_count, avail_count;
+
 	if (pool->free_list_cnt >= count)
 		return true;
-	return xskq_cons_has_entries(pool->fq, count - pool->free_list_cnt);
+
+	req_count = count - pool->free_list_cnt;
+	avail_count = xskq_cons_nb_entries(pool->fq, req_count);
+	if (!avail_count)
+		pool->fq->queue_empty_descs++;
+
+	return avail_count >= req_count;
 }
 EXPORT_SYMBOL(xp_can_alloc);
 
