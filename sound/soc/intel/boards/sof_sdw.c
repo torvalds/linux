@@ -617,27 +617,6 @@ static const struct snd_soc_ops sdw_ops = {
 	.shutdown = asoc_sdw_shutdown,
 };
 
-struct asoc_sdw_endpoint {
-	struct list_head list;
-
-	u32 link_mask;
-	const char *codec_name;
-	const char *name_prefix;
-	bool include_sidecar;
-
-	struct asoc_sdw_codec_info *codec_info;
-	const struct asoc_sdw_dai_info *dai_info;
-};
-
-struct asoc_sdw_dailink {
-	bool initialised;
-
-	u8 group_id;
-	u32 link_mask[SNDRV_PCM_STREAM_LAST + 1];
-	int num_devs[SNDRV_PCM_STREAM_LAST + 1];
-	struct list_head endpoints;
-};
-
 static const char * const type_strings[] = {"SimpleJack", "SmartAmp", "SmartMic"};
 
 static int asoc_sdw_count_sdw_endpoints(struct snd_soc_card *card, int *num_devs, int *num_ends)
