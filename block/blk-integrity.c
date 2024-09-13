@@ -53,7 +53,6 @@ new_segment:
 
 	return segments;
 }
-EXPORT_SYMBOL(blk_rq_count_integrity_sg);
 
 /**
  * blk_rq_map_integrity_sg - Map integrity metadata into a scatterlist
