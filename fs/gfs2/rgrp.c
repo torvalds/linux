@@ -1987,10 +1987,8 @@ static bool gfs2_rgrp_used_recently(const struct gfs2_blkreserv *rs,
 static u32 gfs2_orlov_skip(const struct gfs2_inode *ip)
 {
 	const struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
-	u32 skip;
 
-	get_random_bytes(&skip, sizeof(skip));
-	return skip % sdp->sd_rgrps;
+	return get_random_u32() % sdp->sd_rgrps;
 }
 
 static bool gfs2_select_rgrp(struct gfs2_rgrpd **pos, const struct gfs2_rgrpd *begin)
