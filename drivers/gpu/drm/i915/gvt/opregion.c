@@ -439,7 +439,7 @@ int intel_vgpu_emulate_opregion_request(struct intel_vgpu *vgpu, u32 swsci)
 		gvt_vgpu_err("requesting SMI service\n");
 		return 0;
 	}
-	/* ignore non 0->1 trasitions */
+	/* ignore non 0->1 transitions */
 	if ((vgpu_cfg_space(vgpu)[INTEL_GVT_PCI_SWSCI]
 				& SWSCI_SCI_TRIGGER) ||
 			!(swsci & SWSCI_SCI_TRIGGER)) {
