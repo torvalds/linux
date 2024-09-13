@@ -204,7 +204,6 @@ extern void os_kill_process(int pid, int reap_child);
 extern void os_kill_ptraced_process(int pid, int reap_child);
 
 extern int os_getpid(void);
-extern int os_getpgrp(void);
 
 extern void init_new_thread_signals(void);
 

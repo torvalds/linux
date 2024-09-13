@@ -53,11 +53,6 @@ int os_getpid(void)
 	return syscall(__NR_getpid);
 }
 
-int os_getpgrp(void)
-{
-	return getpgrp();
-}
-
 int os_map_memory(void *virt, int fd, unsigned long long off, unsigned long len,
 		  int r, int w, int x)
 {
