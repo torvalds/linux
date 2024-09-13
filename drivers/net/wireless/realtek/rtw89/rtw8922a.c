@@ -2035,7 +2035,7 @@ static void rtw8922a_rfk_channel(struct rtw89_dev *rtwdev, struct rtw89_vif *rtw
 	rtw89_phy_rfk_pre_ntfy_and_wait(rtwdev, phy_idx, 5);
 	rtw89_phy_rfk_txgapk_and_wait(rtwdev, phy_idx, chan, 54);
 	rtw89_phy_rfk_iqk_and_wait(rtwdev, phy_idx, chan, 84);
-	rtw89_phy_rfk_tssi_and_wait(rtwdev, phy_idx, chan, RTW89_TSSI_NORMAL, 6);
+	rtw89_phy_rfk_tssi_and_wait(rtwdev, phy_idx, chan, RTW89_TSSI_NORMAL, 20);
 	rtw89_phy_rfk_dpk_and_wait(rtwdev, phy_idx, chan, 34);
 	rtw89_phy_rfk_rxdck_and_wait(rtwdev, RTW89_PHY_0, chan, 32);
 
