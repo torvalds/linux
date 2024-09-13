@@ -34,20 +34,20 @@ def emit_version_declarations(
     environment: Environment, program: str, version: _RpcVersion
 ) -> None:
     """Emit declarations for each RPC version's procedures"""
-    arguments = set()
+    arguments = dict.fromkeys([])
     for procedure in version.procedures:
         if procedure.name not in excluded_apis:
-            arguments.add(procedure.argument.type_name)
+            arguments[procedure.argument.type_name] = None
     if len(arguments) > 0:
         print("")
         template = environment.get_template("declaration/argument.j2")
         for argument in arguments:
             print(template.render(program=program, argument=argument))
 
-    results = set()
+    results = dict.fromkeys([])
     for procedure in version.procedures:
         if procedure.name not in excluded_apis:
-            results.add(procedure.result.type_name)
+            results[procedure.result.type_name] = None
     if len(results) > 0:
         print("")
         template = environment.get_template("declaration/result.j2")
@@ -59,10 +59,10 @@ def emit_version_argument_decoders(
     environment: Environment, program: str, version: _RpcVersion
 ) -> None:
     """Emit server argument decoders for each RPC version's procedures"""
-    arguments = set()
+    arguments = dict.fromkeys([])
     for procedure in version.procedures:
         if procedure.name not in excluded_apis:
-            arguments.add(procedure.argument.type_name)
+            arguments[procedure.argument.type_name] = None
 
     template = environment.get_template("decoder/argument.j2")
     for argument in arguments:
@@ -73,10 +73,10 @@ def emit_version_result_decoders(
     environment: Environment, program: str, version: _RpcVersion
 ) -> None:
     """Emit client result decoders for each RPC version's procedures"""
-    results = set()
+    results = dict.fromkeys([])
     for procedure in version.procedures:
         if procedure.name not in excluded_apis:
-            results.add(procedure.result.type_name)
+            results[procedure.result.type_name] = None
 
     template = environment.get_template("decoder/result.j2")
     for result in results:
@@ -87,10 +87,10 @@ def emit_version_argument_encoders(
     environment: Environment, program: str, version: _RpcVersion
 ) -> None:
     """Emit client argument encoders for each RPC version's procedures"""
-    arguments = set()
+    arguments = dict.fromkeys([])
     for procedure in version.procedures:
         if procedure.name not in excluded_apis:
-            arguments.add(procedure.argument.type_name)
+            arguments[procedure.argument.type_name] = None
 
     template = environment.get_template("encoder/argument.j2")
     for argument in arguments:
@@ -101,10 +101,10 @@ def emit_version_result_encoders(
     environment: Environment, program: str, version: _RpcVersion
 ) -> None:
     """Emit server result encoders for each RPC version's procedures"""
-    results = set()
+    results = dict.fromkeys([])
     for procedure in version.procedures:
         if procedure.name not in excluded_apis:
-            results.add(procedure.result.type_name)
+            results[procedure.result.type_name] = None
 
     template = environment.get_template("encoder/result.j2")
     for result in results:
