@@ -95,16 +95,6 @@ static inline bool transcoder_is_dsi(enum transcoder transcoder)
 	return transcoder == TRANSCODER_DSI_A || transcoder == TRANSCODER_DSI_C;
 }
 
-/*
- * Global legacy plane identifier. Valid only for primary/sprite
- * planes on pre-g4x, and only for primary planes on g4x-bdw.
- */
-enum i9xx_plane_id {
-	PLANE_A,
-	PLANE_B,
-	PLANE_C,
-};
-
 #define plane_name(p) ((p) + 'A')
 
 #define for_each_plane_id_on_crtc(__crtc, __p) \
