@@ -1008,8 +1008,7 @@ bool gfs2_queue_try_to_evict(struct gfs2_glock *gl)
 
 	if (test_and_set_bit(GLF_TRY_TO_EVICT, &gl->gl_flags))
 		return false;
-	return queue_delayed_work(sdp->sd_delete_wq,
-				  &gl->gl_delete, 0);
+	return !mod_delayed_work(sdp->sd_delete_wq, &gl->gl_delete, 0);
 }
 
 bool gfs2_queue_verify_delete(struct gfs2_glock *gl, bool later)
