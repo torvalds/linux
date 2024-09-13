@@ -93,6 +93,27 @@ struct asoc_sdw_mc_private {
 	int codec_info_list_count;
 };
 
+struct asoc_sdw_endpoint {
+	struct list_head list;
+
+	u32 link_mask;
+	const char *codec_name;
+	const char *name_prefix;
+	bool include_sidecar;
+
+	struct asoc_sdw_codec_info *codec_info;
+	const struct asoc_sdw_dai_info *dai_info;
+};
+
+struct asoc_sdw_dailink {
+	bool initialised;
+
+	u8 group_id;
+	u32 link_mask[SNDRV_PCM_STREAM_LAST + 1];
+	int num_devs[SNDRV_PCM_STREAM_LAST + 1];
+	struct list_head endpoints;
+};
+
 extern struct asoc_sdw_codec_info codec_info_list[];
 int asoc_sdw_get_codec_info_list_count(void);
 
@@ -139,6 +160,16 @@ int asoc_sdw_init_simple_dai_link(struct device *dev, struct snd_soc_dai_link *d
 				  const char *codec_dai_name,
 				  int (*init)(struct snd_soc_pcm_runtime *rtd),
 				  const struct snd_soc_ops *ops);
+
+int asoc_sdw_count_sdw_endpoints(struct snd_soc_card *card, int *num_devs, int *num_ends);
+
+struct asoc_sdw_dailink *asoc_sdw_find_dailink(struct asoc_sdw_dailink *dailinks,
+					       const struct snd_soc_acpi_endpoint *new);
+
+int asoc_sdw_parse_sdw_endpoints(struct snd_soc_card *card,
+				 struct asoc_sdw_dailink *soc_dais,
+				 struct asoc_sdw_endpoint *soc_ends,
+				 int *num_devs);
 
 int asoc_sdw_rtd_init(struct snd_soc_pcm_runtime *rtd);
 
