@@ -107,6 +107,20 @@ new_segment:
 }
 EXPORT_SYMBOL(blk_rq_map_integrity_sg);
 
+int blk_rq_integrity_map_user(struct request *rq, void __user *ubuf,
+			      ssize_t bytes, u32 seed)
+{
+	int ret = bio_integrity_map_user(rq->bio, ubuf, bytes, seed);
+
+	if (ret)
+		return ret;
+
+	rq->nr_integrity_segments = blk_rq_count_integrity_sg(rq->q, rq->bio);
+	rq->cmd_flags |= REQ_INTEGRITY;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(blk_rq_integrity_map_user);
+
 bool blk_integrity_merge_rq(struct request_queue *q, struct request *req,
 			    struct request *next)
 {
