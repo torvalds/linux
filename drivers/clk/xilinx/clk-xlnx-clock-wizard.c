@@ -1082,7 +1082,7 @@ static int clk_wzrd_probe(struct platform_device *pdev)
 	clk_name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "%s_mul", dev_name(&pdev->dev));
 	if (!clk_name)
 		return -ENOMEM;
-	clk_wzrd->clks_internal[wzrd_clk_mul] = clk_hw_register_fixed_factor
+	clk_wzrd->clks_internal[wzrd_clk_mul] = devm_clk_hw_register_fixed_factor
 			(&pdev->dev, clk_name,
 			 __clk_get_name(clk_wzrd->clk_in1),
 			0, mult, div);
@@ -1092,10 +1092,8 @@ static int clk_wzrd_probe(struct platform_device *pdev)
 	}
 
 	clk_name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "%s_mul_div", dev_name(&pdev->dev));
-	if (!clk_name) {
-		ret = -ENOMEM;
-		goto err_rm_int_clk;
-	}
+	if (!clk_name)
+		return -ENOMEM;
 
 	if (is_versal) {
 		edged = !!(readl(clk_wzrd->base + WZRD_CLK_CFG_REG(is_versal, 20)) &
@@ -1110,11 +1108,11 @@ static int clk_wzrd_probe(struct platform_device *pdev)
 
 		clk_mul_name = clk_hw_get_name(clk_wzrd->clks_internal[wzrd_clk_mul]);
 		clk_wzrd->clks_internal[wzrd_clk_mul_div] =
-			clk_hw_register_fixed_factor(&pdev->dev, clk_name,
-						     clk_mul_name, 0, 1, div);
+			devm_clk_hw_register_fixed_factor(&pdev->dev, clk_name,
+							  clk_mul_name, 0, 1, div);
 	} else {
 		ctrl_reg = clk_wzrd->base + WZRD_CLK_CFG_REG(is_versal, 0);
-		clk_wzrd->clks_internal[wzrd_clk_mul_div] = clk_hw_register_divider
+		clk_wzrd->clks_internal[wzrd_clk_mul_div] = devm_clk_hw_register_divider
 			(&pdev->dev, clk_name,
 			 clk_hw_get_name(clk_wzrd->clks_internal[wzrd_clk_mul]),
 			flags, ctrl_reg, 0, 8, CLK_DIVIDER_ONE_BASED |
@@ -1122,18 +1120,15 @@ static int clk_wzrd_probe(struct platform_device *pdev)
 	}
 	if (IS_ERR(clk_wzrd->clks_internal[wzrd_clk_mul_div])) {
 		dev_err(&pdev->dev, "unable to register divider clock\n");
-		ret = PTR_ERR(clk_wzrd->clks_internal[wzrd_clk_mul_div]);
-		goto err_rm_int_clk;
+		return PTR_ERR(clk_wzrd->clks_internal[wzrd_clk_mul_div]);
 	}
 
 	/* register div per output */
 	for (i = nr_outputs - 1; i >= 0 ; i--) {
 		clkout_name = devm_kasprintf(&pdev->dev, GFP_KERNEL,
 					     "%s_out%d", dev_name(&pdev->dev), i);
-		if (!clkout_name) {
-			ret = -ENOMEM;
-			goto err_rm_int_clk;
-		}
+		if (!clkout_name)
+			return -ENOMEM;
 
 		if (is_versal) {
 			clk_wzrd->clk_data.hws[i] = clk_wzrd_ver_register_divider
@@ -1165,20 +1160,15 @@ static int clk_wzrd_probe(struct platform_device *pdev)
 					DIV_O, &clkwzrd_lock);
 		}
 		if (IS_ERR(clk_wzrd->clk_data.hws[i])) {
-			int j;
-
-			for (j = i + 1; j < nr_outputs; j++)
-				clk_hw_unregister(clk_wzrd->clk_data.hws[j]);
 			dev_err(&pdev->dev,
 				"unable to register divider clock\n");
-			ret = PTR_ERR(clk_wzrd->clk_data.hws[i]);
-			goto err_rm_int_clks;
+			return PTR_ERR(clk_wzrd->clk_data.hws[i]);
 		}
 	}
 
 out:
 	clk_wzrd->clk_data.num = nr_outputs;
-	ret = of_clk_add_hw_provider(pdev->dev.of_node, of_clk_hw_onecell_get, &clk_wzrd->clk_data);
+	ret = devm_of_clk_add_hw_provider(&pdev->dev, of_clk_hw_onecell_get, &clk_wzrd->clk_data);
 	if (ret) {
 		dev_err(&pdev->dev, "unable to register clock provider\n");
 		return ret;
@@ -1201,25 +1191,6 @@ out:
 	}
 
 	return 0;
-
-err_rm_int_clks:
-	clk_hw_unregister(clk_wzrd->clks_internal[1]);
-err_rm_int_clk:
-	clk_hw_unregister(clk_wzrd->clks_internal[0]);
-	return ret;
-}
-
-static void clk_wzrd_remove(struct platform_device *pdev)
-{
-	int i;
-	struct clk_wzrd *clk_wzrd = platform_get_drvdata(pdev);
-
-	of_clk_del_provider(pdev->dev.of_node);
-
-	for (i = 0; i < WZRD_NUM_OUTPUTS; i++)
-		clk_hw_unregister(clk_wzrd->clk_data.hws[i]);
-	for (i = 0; i < wzrd_clk_int_max; i++)
-		clk_hw_unregister(clk_wzrd->clks_internal[i]);
 }
 
 static const struct of_device_id clk_wzrd_ids[] = {
@@ -1238,7 +1209,6 @@ static struct platform_driver clk_wzrd_driver = {
 		.pm = &clk_wzrd_dev_pm_ops,
 	},
 	.probe = clk_wzrd_probe,
-	.remove = clk_wzrd_remove,
 };
 module_platform_driver(clk_wzrd_driver);
 
