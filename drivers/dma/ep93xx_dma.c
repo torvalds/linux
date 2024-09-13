@@ -1504,7 +1504,7 @@ static int ep93xx_dma_probe(struct platform_device *pdev)
 	int ret;
 
 	edma = ep93xx_dma_of_probe(pdev);
-	if (!edma)
+	if (IS_ERR(edma))
 		return PTR_ERR(edma);
 
 	dma_dev = &edma->dma_dev;
