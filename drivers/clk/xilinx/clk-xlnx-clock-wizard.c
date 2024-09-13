@@ -17,6 +17,7 @@
 #include <linux/of.h>
 #include <linux/math64.h>
 #include <linux/module.h>
+#include <linux/overflow.h>
 #include <linux/err.h>
 #include <linux/iopoll.h>
 
@@ -121,26 +122,24 @@ enum clk_wzrd_int_clks {
 /**
  * struct clk_wzrd - Clock wizard private data structure
  *
- * @clk_data:		Clock data
  * @nb:			Notifier block
  * @base:		Memory base
  * @clk_in1:		Handle to input clock 'clk_in1'
  * @axi_clk:		Handle to input clock 's_axi_aclk'
  * @clks_internal:	Internal clocks
- * @clkout:		Output clocks
  * @speed_grade:	Speed grade of the device
  * @suspended:		Flag indicating power state of the device
+ * @clk_data:		Output clock data
  */
 struct clk_wzrd {
-	struct clk_onecell_data clk_data;
 	struct notifier_block nb;
 	void __iomem *base;
 	struct clk *clk_in1;
 	struct clk *axi_clk;
-	struct clk *clks_internal[wzrd_clk_int_max];
-	struct clk *clkout[WZRD_NUM_OUTPUTS];
+	struct clk_hw *clks_internal[wzrd_clk_int_max];
 	unsigned int speed_grade;
 	bool suspended;
+	struct clk_hw_onecell_data clk_data;
 };
 
 /**
@@ -765,7 +764,7 @@ static const struct clk_ops clk_wzrd_clk_divider_ops_f = {
 	.recalc_rate = clk_wzrd_recalc_ratef,
 };
 
-static struct clk *clk_wzrd_register_divf(struct device *dev,
+static struct clk_hw *clk_wzrd_register_divf(struct device *dev,
 					  const char *name,
 					  const char *parent_name,
 					  unsigned long flags,
@@ -805,10 +804,10 @@ static struct clk *clk_wzrd_register_divf(struct device *dev,
 	if (ret)
 		return ERR_PTR(ret);
 
-	return hw->clk;
+	return hw;
 }
 
-static struct clk *clk_wzrd_ver_register_divider(struct device *dev,
+static struct clk_hw *clk_wzrd_ver_register_divider(struct device *dev,
 						 const char *name,
 						 const char *parent_name,
 						 unsigned long flags,
@@ -852,10 +851,10 @@ static struct clk *clk_wzrd_ver_register_divider(struct device *dev,
 	if (ret)
 		return ERR_PTR(ret);
 
-	return hw->clk;
+	return hw;
 }
 
-static struct clk *clk_wzrd_register_divider(struct device *dev,
+static struct clk_hw *clk_wzrd_register_divider(struct device *dev,
 					     const char *name,
 					     const char *parent_name,
 					     unsigned long flags,
@@ -898,7 +897,7 @@ static struct clk *clk_wzrd_register_divider(struct device *dev,
 	if (ret)
 		return ERR_PTR(ret);
 
-	return hw->clk;
+	return hw;
 }
 
 static int clk_wzrd_clk_notifier(struct notifier_block *nb, unsigned long event,
@@ -978,7 +977,12 @@ static int clk_wzrd_probe(struct platform_device *pdev)
 	int nr_outputs;
 	int i, ret;
 
-	clk_wzrd = devm_kzalloc(&pdev->dev, sizeof(*clk_wzrd), GFP_KERNEL);
+	ret = of_property_read_u32(np, "xlnx,nr-outputs", &nr_outputs);
+	if (ret || nr_outputs > WZRD_NUM_OUTPUTS)
+		return -EINVAL;
+
+	clk_wzrd = devm_kzalloc(&pdev->dev, struct_size(clk_wzrd, clk_data.hws, nr_outputs),
+				GFP_KERNEL);
 	if (!clk_wzrd)
 		return -ENOMEM;
 	platform_set_drvdata(pdev, clk_wzrd);
@@ -1016,17 +1020,13 @@ static int clk_wzrd_probe(struct platform_device *pdev)
 	if (data)
 		is_versal = data->is_versal;
 
-	ret = of_property_read_u32(np, "xlnx,nr-outputs", &nr_outputs);
-	if (ret || nr_outputs > WZRD_NUM_OUTPUTS)
-		return -EINVAL;
-
 	clkout_name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "%s_out0", dev_name(&pdev->dev));
 	if (!clkout_name)
 		return -ENOMEM;
 
 	if (is_versal) {
 		if (nr_outputs == 1) {
-			clk_wzrd->clkout[0] = clk_wzrd_ver_register_divider
+			clk_wzrd->clk_data.hws[0] = clk_wzrd_ver_register_divider
 				(&pdev->dev, clkout_name,
 				__clk_get_name(clk_wzrd->clk_in1), 0,
 				clk_wzrd->base, WZRD_CLK_CFG_REG(is_versal, 3),
@@ -1059,7 +1059,7 @@ static int clk_wzrd_probe(struct platform_device *pdev)
 		div = 64;
 	} else {
 		if (nr_outputs == 1) {
-			clk_wzrd->clkout[0] = clk_wzrd_register_divider
+			clk_wzrd->clk_data.hws[0] = clk_wzrd_register_divider
 				(&pdev->dev, clkout_name,
 				__clk_get_name(clk_wzrd->clk_in1), 0,
 				clk_wzrd->base, WZRD_CLK_CFG_REG(is_versal, 3),
@@ -1082,7 +1082,7 @@ static int clk_wzrd_probe(struct platform_device *pdev)
 	clk_name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "%s_mul", dev_name(&pdev->dev));
 	if (!clk_name)
 		return -ENOMEM;
-	clk_wzrd->clks_internal[wzrd_clk_mul] = clk_register_fixed_factor
+	clk_wzrd->clks_internal[wzrd_clk_mul] = clk_hw_register_fixed_factor
 			(&pdev->dev, clk_name,
 			 __clk_get_name(clk_wzrd->clk_in1),
 			0, mult, div);
@@ -1108,15 +1108,15 @@ static int clk_wzrd_probe(struct platform_device *pdev)
 		if (!div)
 			div = 1;
 
-		clk_mul_name = __clk_get_name(clk_wzrd->clks_internal[wzrd_clk_mul]);
+		clk_mul_name = clk_hw_get_name(clk_wzrd->clks_internal[wzrd_clk_mul]);
 		clk_wzrd->clks_internal[wzrd_clk_mul_div] =
-			clk_register_fixed_factor(&pdev->dev, clk_name,
-						  clk_mul_name, 0, 1, div);
+			clk_hw_register_fixed_factor(&pdev->dev, clk_name,
+						     clk_mul_name, 0, 1, div);
 	} else {
 		ctrl_reg = clk_wzrd->base + WZRD_CLK_CFG_REG(is_versal, 0);
-		clk_wzrd->clks_internal[wzrd_clk_mul_div] = clk_register_divider
+		clk_wzrd->clks_internal[wzrd_clk_mul_div] = clk_hw_register_divider
 			(&pdev->dev, clk_name,
-			 __clk_get_name(clk_wzrd->clks_internal[wzrd_clk_mul]),
+			 clk_hw_get_name(clk_wzrd->clks_internal[wzrd_clk_mul]),
 			flags, ctrl_reg, 0, 8, CLK_DIVIDER_ONE_BASED |
 			CLK_DIVIDER_ALLOW_ZERO, &clkwzrd_lock);
 	}
@@ -1136,7 +1136,7 @@ static int clk_wzrd_probe(struct platform_device *pdev)
 		}
 
 		if (is_versal) {
-			clk_wzrd->clkout[i] = clk_wzrd_ver_register_divider
+			clk_wzrd->clk_data.hws[i] = clk_wzrd_ver_register_divider
 						(&pdev->dev,
 						 clkout_name, clk_name, 0,
 						 clk_wzrd->base,
@@ -1148,7 +1148,7 @@ static int clk_wzrd_probe(struct platform_device *pdev)
 						 DIV_O, &clkwzrd_lock);
 		} else {
 			if (!i)
-				clk_wzrd->clkout[i] = clk_wzrd_register_divf
+				clk_wzrd->clk_data.hws[i] = clk_wzrd_register_divf
 					(&pdev->dev, clkout_name, clk_name, flags, clk_wzrd->base,
 					(WZRD_CLK_CFG_REG(is_versal, 2) + i * 12),
 					WZRD_CLKOUT_DIVIDE_SHIFT,
@@ -1156,7 +1156,7 @@ static int clk_wzrd_probe(struct platform_device *pdev)
 					CLK_DIVIDER_ONE_BASED | CLK_DIVIDER_ALLOW_ZERO,
 					DIV_O, &clkwzrd_lock);
 			else
-				clk_wzrd->clkout[i] = clk_wzrd_register_divider
+				clk_wzrd->clk_data.hws[i] = clk_wzrd_register_divider
 					(&pdev->dev, clkout_name, clk_name, 0, clk_wzrd->base,
 					(WZRD_CLK_CFG_REG(is_versal, 2) + i * 12),
 					WZRD_CLKOUT_DIVIDE_SHIFT,
@@ -1164,22 +1164,25 @@ static int clk_wzrd_probe(struct platform_device *pdev)
 					CLK_DIVIDER_ONE_BASED | CLK_DIVIDER_ALLOW_ZERO,
 					DIV_O, &clkwzrd_lock);
 		}
-		if (IS_ERR(clk_wzrd->clkout[i])) {
+		if (IS_ERR(clk_wzrd->clk_data.hws[i])) {
 			int j;
 
 			for (j = i + 1; j < nr_outputs; j++)
-				clk_unregister(clk_wzrd->clkout[j]);
+				clk_hw_unregister(clk_wzrd->clk_data.hws[j]);
 			dev_err(&pdev->dev,
 				"unable to register divider clock\n");
-			ret = PTR_ERR(clk_wzrd->clkout[i]);
+			ret = PTR_ERR(clk_wzrd->clk_data.hws[i]);
 			goto err_rm_int_clks;
 		}
 	}
 
 out:
-	clk_wzrd->clk_data.clks = clk_wzrd->clkout;
-	clk_wzrd->clk_data.clk_num = ARRAY_SIZE(clk_wzrd->clkout);
-	of_clk_add_provider(np, of_clk_src_onecell_get, &clk_wzrd->clk_data);
+	clk_wzrd->clk_data.num = nr_outputs;
+	ret = of_clk_add_hw_provider(pdev->dev.of_node, of_clk_hw_onecell_get, &clk_wzrd->clk_data);
+	if (ret) {
+		dev_err(&pdev->dev, "unable to register clock provider\n");
+		return ret;
+	}
 
 	if (clk_wzrd->speed_grade) {
 		clk_wzrd->nb.notifier_call = clk_wzrd_clk_notifier;
@@ -1200,9 +1203,9 @@ out:
 	return 0;
 
 err_rm_int_clks:
-	clk_unregister(clk_wzrd->clks_internal[1]);
+	clk_hw_unregister(clk_wzrd->clks_internal[1]);
 err_rm_int_clk:
-	clk_unregister(clk_wzrd->clks_internal[0]);
+	clk_hw_unregister(clk_wzrd->clks_internal[0]);
 	return ret;
 }
 
@@ -1214,9 +1217,9 @@ static void clk_wzrd_remove(struct platform_device *pdev)
 	of_clk_del_provider(pdev->dev.of_node);
 
 	for (i = 0; i < WZRD_NUM_OUTPUTS; i++)
-		clk_unregister(clk_wzrd->clkout[i]);
+		clk_hw_unregister(clk_wzrd->clk_data.hws[i]);
 	for (i = 0; i < wzrd_clk_int_max; i++)
-		clk_unregister(clk_wzrd->clks_internal[i]);
+		clk_hw_unregister(clk_wzrd->clks_internal[i]);
 }
 
 static const struct of_device_id clk_wzrd_ids[] = {
