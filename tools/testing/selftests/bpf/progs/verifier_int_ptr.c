@@ -6,7 +6,7 @@
 #include "bpf_misc.h"
 
 SEC("socket")
-__description("ARG_PTR_TO_LONG uninitialized")
+__description("arg pointer to long uninitialized")
 __success
 __naked void arg_ptr_to_long_uninitialized(void)
 {
@@ -34,7 +34,7 @@ __naked void arg_ptr_to_long_uninitialized(void)
 }
 
 SEC("socket")
-__description("ARG_PTR_TO_LONG half-uninitialized")
+__description("arg pointer to long half-uninitialized")
 __success
 __retval(0)
 __naked void ptr_to_long_half_uninitialized(void)
@@ -64,7 +64,7 @@ __naked void ptr_to_long_half_uninitialized(void)
 }
 
 SEC("cgroup/sysctl")
-__description("ARG_PTR_TO_LONG misaligned")
+__description("arg pointer to long misaligned")
 __failure __msg("misaligned stack access off 0+-20+0 size 8")
 __naked void arg_ptr_to_long_misaligned(void)
 {
@@ -95,7 +95,7 @@ __naked void arg_ptr_to_long_misaligned(void)
 }
 
 SEC("cgroup/sysctl")
-__description("ARG_PTR_TO_LONG size < sizeof(long)")
+__description("arg pointer to long size < sizeof(long)")
 __failure __msg("invalid indirect access to stack R4 off=-4 size=8")
 __naked void to_long_size_sizeof_long(void)
 {
@@ -124,7 +124,7 @@ __naked void to_long_size_sizeof_long(void)
 }
 
 SEC("cgroup/sysctl")
-__description("ARG_PTR_TO_LONG initialized")
+__description("arg pointer to long initialized")
 __success
 __naked void arg_ptr_to_long_initialized(void)
 {
