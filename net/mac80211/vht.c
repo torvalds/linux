@@ -280,10 +280,10 @@ ieee80211_vht_cap_ie_to_sta_vht_cap(struct ieee80211_sub_if_data *sdata,
 	/*
 	 * This is a workaround for VHT-enabled STAs which break the spec
 	 * and have the VHT-MCS Rx map filled in with value 3 for all eight
-	 * spacial streams, an example is AR9462.
+	 * spatial streams, an example is AR9462.
 	 *
 	 * As per spec, in section 22.1.1 Introduction to the VHT PHY
-	 * A VHT STA shall support at least single spactial stream VHT-MCSs
+	 * A VHT STA shall support at least single spatial stream VHT-MCSs
 	 * 0 to 7 (transmit and receive) in all supported channel widths.
 	 */
 	if (vht_cap->vht_mcs.rx_mcs_map == cpu_to_le16(0xFFFF)) {

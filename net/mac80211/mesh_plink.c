@@ -667,7 +667,7 @@ void mesh_plink_timer(struct timer_list *t)
 	/*
 	 * This STA is valid because sta_info_destroy() will
 	 * del_timer_sync() this timer after having made sure
-	 * it cannot be readded (by deleting the plink.)
+	 * it cannot be re-added (by deleting the plink.)
 	 */
 	sta = mesh->plink_sta;
 

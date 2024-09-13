@@ -2452,7 +2452,7 @@ static inline bool ieee80211_can_run_worker(struct ieee80211_local *local)
 	/*
 	 * If quiescing is set, we are racing with __ieee80211_suspend.
 	 * __ieee80211_suspend flushes the workers after setting quiescing,
-	 * and we check quiescing / suspended before enqueing new workers.
+	 * and we check quiescing / suspended before enqueuing new workers.
 	 * We should abort the worker to avoid the races below.
 	 */
 	if (local->quiescing)
