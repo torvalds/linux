@@ -472,8 +472,6 @@ int al_add_le(struct ntfs_inode *ni, enum ATTR_TYPE type, const __le16 *name,
 	      u8 name_len, CLST svcn, __le16 id, const struct MFT_REF *ref,
 	      struct ATTR_LIST_ENTRY **new_le);
 bool al_remove_le(struct ntfs_inode *ni, struct ATTR_LIST_ENTRY *le);
-bool al_delete_le(struct ntfs_inode *ni, enum ATTR_TYPE type, CLST vcn,
-		  const __le16 *name, u8 name_len, const struct MFT_REF *ref);
 int al_update(struct ntfs_inode *ni, int sync);
 static inline size_t al_aligned(size_t size)
 {
