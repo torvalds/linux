@@ -962,20 +962,175 @@ static const struct versal_clk_data versal_data = {
 	.is_versal	= true,
 };
 
-static int clk_wzrd_probe(struct platform_device *pdev)
+static int clk_wzrd_register_output_clocks(struct device *dev, int nr_outputs)
 {
 	const char *clkout_name, *clk_name, *clk_mul_name;
+	struct clk_wzrd *clk_wzrd = dev_get_drvdata(dev);
 	u32 regl, regh, edge, regld, reghd, edged, div;
-	struct device_node *np = pdev->dev.of_node;
 	const struct versal_clk_data *data;
-	struct clk_wzrd *clk_wzrd;
 	unsigned long flags = 0;
+	bool is_versal = false;
 	void __iomem *ctrl_reg;
 	u32 reg, reg_f, mult;
-	bool is_versal = false;
+	int i;
+
+	data = device_get_match_data(dev);
+	if (data)
+		is_versal = data->is_versal;
+
+	clkout_name = devm_kasprintf(dev, GFP_KERNEL, "%s_out0", dev_name(dev));
+	if (!clkout_name)
+		return -ENOMEM;
+
+	if (is_versal) {
+		if (nr_outputs == 1) {
+			clk_wzrd->clk_data.hws[0] = clk_wzrd_ver_register_divider
+				(dev, clkout_name,
+				__clk_get_name(clk_wzrd->clk_in1), 0,
+				clk_wzrd->base, WZRD_CLK_CFG_REG(is_versal, 3),
+				WZRD_CLKOUT_DIVIDE_SHIFT,
+				WZRD_CLKOUT_DIVIDE_WIDTH,
+				CLK_DIVIDER_ONE_BASED | CLK_DIVIDER_ALLOW_ZERO,
+				DIV_ALL, &clkwzrd_lock);
+
+			return 0;
+		}
+		/* register multiplier */
+		edge = !!(readl(clk_wzrd->base + WZRD_CLK_CFG_REG(is_versal, 0)) &
+				BIT(8));
+		regl = (readl(clk_wzrd->base + WZRD_CLK_CFG_REG(is_versal, 1)) &
+			     WZRD_CLKFBOUT_L_MASK) >> WZRD_CLKFBOUT_L_SHIFT;
+		regh = (readl(clk_wzrd->base + WZRD_CLK_CFG_REG(is_versal, 1)) &
+			     WZRD_CLKFBOUT_H_MASK) >> WZRD_CLKFBOUT_H_SHIFT;
+		mult = regl + regh + edge;
+		if (!mult)
+			mult = 1;
+		mult = mult * WZRD_FRAC_GRADIENT;
+
+		regl = readl(clk_wzrd->base + WZRD_CLK_CFG_REG(is_versal, 51)) &
+			     WZRD_CLKFBOUT_FRAC_EN;
+		if (regl) {
+			regl = readl(clk_wzrd->base + WZRD_CLK_CFG_REG(is_versal, 48)) &
+				WZRD_VERSAL_FRAC_MASK;
+			mult = mult + regl;
+		}
+		div = 64;
+	} else {
+		if (nr_outputs == 1) {
+			clk_wzrd->clk_data.hws[0] = clk_wzrd_register_divider
+				(dev, clkout_name,
+				__clk_get_name(clk_wzrd->clk_in1), 0,
+				clk_wzrd->base, WZRD_CLK_CFG_REG(is_versal, 3),
+				WZRD_CLKOUT_DIVIDE_SHIFT,
+				WZRD_CLKOUT_DIVIDE_WIDTH,
+				CLK_DIVIDER_ONE_BASED | CLK_DIVIDER_ALLOW_ZERO,
+				DIV_ALL, &clkwzrd_lock);
+
+			return 0;
+		}
+		reg = readl(clk_wzrd->base + WZRD_CLK_CFG_REG(is_versal, 0));
+		reg_f = reg & WZRD_CLKFBOUT_FRAC_MASK;
+		reg_f =  reg_f >> WZRD_CLKFBOUT_FRAC_SHIFT;
+
+		reg = reg & WZRD_CLKFBOUT_MULT_MASK;
+		reg =  reg >> WZRD_CLKFBOUT_MULT_SHIFT;
+		mult = (reg * 1000) + reg_f;
+		div = 1000;
+	}
+	clk_name = devm_kasprintf(dev, GFP_KERNEL, "%s_mul", dev_name(dev));
+	if (!clk_name)
+		return -ENOMEM;
+	clk_wzrd->clks_internal[wzrd_clk_mul] = devm_clk_hw_register_fixed_factor
+			(dev, clk_name,
+			 __clk_get_name(clk_wzrd->clk_in1),
+			0, mult, div);
+	if (IS_ERR(clk_wzrd->clks_internal[wzrd_clk_mul])) {
+		dev_err(dev, "unable to register fixed-factor clock\n");
+		return PTR_ERR(clk_wzrd->clks_internal[wzrd_clk_mul]);
+	}
+
+	clk_name = devm_kasprintf(dev, GFP_KERNEL, "%s_mul_div", dev_name(dev));
+	if (!clk_name)
+		return -ENOMEM;
+
+	if (is_versal) {
+		edged = !!(readl(clk_wzrd->base + WZRD_CLK_CFG_REG(is_versal, 20)) &
+			     BIT(10));
+		regld = (readl(clk_wzrd->base + WZRD_CLK_CFG_REG(is_versal, 21)) &
+			     WZRD_CLKFBOUT_L_MASK) >> WZRD_CLKFBOUT_L_SHIFT;
+		reghd = (readl(clk_wzrd->base + WZRD_CLK_CFG_REG(is_versal, 21)) &
+		     WZRD_CLKFBOUT_H_MASK) >> WZRD_CLKFBOUT_H_SHIFT;
+		div = (regld  + reghd + edged);
+		if (!div)
+			div = 1;
+
+		clk_mul_name = clk_hw_get_name(clk_wzrd->clks_internal[wzrd_clk_mul]);
+		clk_wzrd->clks_internal[wzrd_clk_mul_div] =
+			devm_clk_hw_register_fixed_factor(dev, clk_name, clk_mul_name, 0, 1, div);
+	} else {
+		ctrl_reg = clk_wzrd->base + WZRD_CLK_CFG_REG(is_versal, 0);
+		clk_wzrd->clks_internal[wzrd_clk_mul_div] = devm_clk_hw_register_divider
+			(dev, clk_name,
+			 clk_hw_get_name(clk_wzrd->clks_internal[wzrd_clk_mul]),
+			flags, ctrl_reg, 0, 8, CLK_DIVIDER_ONE_BASED |
+			CLK_DIVIDER_ALLOW_ZERO, &clkwzrd_lock);
+	}
+	if (IS_ERR(clk_wzrd->clks_internal[wzrd_clk_mul_div])) {
+		dev_err(dev, "unable to register divider clock\n");
+		return PTR_ERR(clk_wzrd->clks_internal[wzrd_clk_mul_div]);
+	}
+
+	/* register div per output */
+	for (i = nr_outputs - 1; i >= 0 ; i--) {
+		clkout_name = devm_kasprintf(dev, GFP_KERNEL, "%s_out%d", dev_name(dev), i);
+		if (!clkout_name)
+			return -ENOMEM;
+
+		if (is_versal) {
+			clk_wzrd->clk_data.hws[i] = clk_wzrd_ver_register_divider
+						(dev,
+						 clkout_name, clk_name, 0,
+						 clk_wzrd->base,
+						 (WZRD_CLK_CFG_REG(is_versal, 3) + i * 8),
+						 WZRD_CLKOUT_DIVIDE_SHIFT,
+						 WZRD_CLKOUT_DIVIDE_WIDTH,
+						 CLK_DIVIDER_ONE_BASED |
+						 CLK_DIVIDER_ALLOW_ZERO,
+						 DIV_O, &clkwzrd_lock);
+		} else {
+			if (!i)
+				clk_wzrd->clk_data.hws[i] = clk_wzrd_register_divf
+					(dev, clkout_name, clk_name, flags, clk_wzrd->base,
+					(WZRD_CLK_CFG_REG(is_versal, 2) + i * 12),
+					WZRD_CLKOUT_DIVIDE_SHIFT,
+					WZRD_CLKOUT_DIVIDE_WIDTH,
+					CLK_DIVIDER_ONE_BASED | CLK_DIVIDER_ALLOW_ZERO,
+					DIV_O, &clkwzrd_lock);
+			else
+				clk_wzrd->clk_data.hws[i] = clk_wzrd_register_divider
+					(dev, clkout_name, clk_name, 0, clk_wzrd->base,
+					(WZRD_CLK_CFG_REG(is_versal, 2) + i * 12),
+					WZRD_CLKOUT_DIVIDE_SHIFT,
+					WZRD_CLKOUT_DIVIDE_WIDTH,
+					CLK_DIVIDER_ONE_BASED | CLK_DIVIDER_ALLOW_ZERO,
+					DIV_O, &clkwzrd_lock);
+		}
+		if (IS_ERR(clk_wzrd->clk_data.hws[i])) {
+			dev_err(dev, "unable to register divider clock\n");
+			return PTR_ERR(clk_wzrd->clk_data.hws[i]);
+		}
+	}
+
+	return 0;
+}
+
+static int clk_wzrd_probe(struct platform_device *pdev)
+{
+	struct device_node *np = pdev->dev.of_node;
+	struct clk_wzrd *clk_wzrd;
 	unsigned long rate;
 	int nr_outputs;
-	int i, ret;
+	int ret;
 
 	ret = of_property_read_u32(np, "xlnx,nr-outputs", &nr_outputs);
 	if (ret || nr_outputs > WZRD_NUM_OUTPUTS)
@@ -1011,162 +1166,14 @@ static int clk_wzrd_probe(struct platform_device *pdev)
 				     "s_axi_aclk not found\n");
 	rate = clk_get_rate(clk_wzrd->axi_clk);
 	if (rate > WZRD_ACLK_MAX_FREQ) {
-		dev_err(&pdev->dev, "s_axi_aclk frequency (%lu) too high\n",
-			rate);
+		dev_err(&pdev->dev, "s_axi_aclk frequency (%lu) too high\n", rate);
 		return -EINVAL;
 	}
 
-	data = device_get_match_data(&pdev->dev);
-	if (data)
-		is_versal = data->is_versal;
+	ret = clk_wzrd_register_output_clocks(&pdev->dev, nr_outputs);
+	if (ret)
+		return ret;
 
-	clkout_name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "%s_out0", dev_name(&pdev->dev));
-	if (!clkout_name)
-		return -ENOMEM;
-
-	if (is_versal) {
-		if (nr_outputs == 1) {
-			clk_wzrd->clk_data.hws[0] = clk_wzrd_ver_register_divider
-				(&pdev->dev, clkout_name,
-				__clk_get_name(clk_wzrd->clk_in1), 0,
-				clk_wzrd->base, WZRD_CLK_CFG_REG(is_versal, 3),
-				WZRD_CLKOUT_DIVIDE_SHIFT,
-				WZRD_CLKOUT_DIVIDE_WIDTH,
-				CLK_DIVIDER_ONE_BASED | CLK_DIVIDER_ALLOW_ZERO,
-				DIV_ALL, &clkwzrd_lock);
-
-			goto out;
-		}
-		/* register multiplier */
-		edge = !!(readl(clk_wzrd->base + WZRD_CLK_CFG_REG(is_versal, 0)) &
-				BIT(8));
-		regl = (readl(clk_wzrd->base + WZRD_CLK_CFG_REG(is_versal, 1)) &
-			     WZRD_CLKFBOUT_L_MASK) >> WZRD_CLKFBOUT_L_SHIFT;
-		regh = (readl(clk_wzrd->base + WZRD_CLK_CFG_REG(is_versal, 1)) &
-			     WZRD_CLKFBOUT_H_MASK) >> WZRD_CLKFBOUT_H_SHIFT;
-		mult = regl + regh + edge;
-		if (!mult)
-			mult = 1;
-		mult = mult * WZRD_FRAC_GRADIENT;
-
-		regl = readl(clk_wzrd->base + WZRD_CLK_CFG_REG(is_versal, 51)) &
-			     WZRD_CLKFBOUT_FRAC_EN;
-		if (regl) {
-			regl = readl(clk_wzrd->base + WZRD_CLK_CFG_REG(is_versal, 48)) &
-				WZRD_VERSAL_FRAC_MASK;
-			mult = mult + regl;
-		}
-		div = 64;
-	} else {
-		if (nr_outputs == 1) {
-			clk_wzrd->clk_data.hws[0] = clk_wzrd_register_divider
-				(&pdev->dev, clkout_name,
-				__clk_get_name(clk_wzrd->clk_in1), 0,
-				clk_wzrd->base, WZRD_CLK_CFG_REG(is_versal, 3),
-				WZRD_CLKOUT_DIVIDE_SHIFT,
-				WZRD_CLKOUT_DIVIDE_WIDTH,
-				CLK_DIVIDER_ONE_BASED | CLK_DIVIDER_ALLOW_ZERO,
-				DIV_ALL, &clkwzrd_lock);
-
-			goto out;
-		}
-		reg = readl(clk_wzrd->base + WZRD_CLK_CFG_REG(is_versal, 0));
-		reg_f = reg & WZRD_CLKFBOUT_FRAC_MASK;
-		reg_f =  reg_f >> WZRD_CLKFBOUT_FRAC_SHIFT;
-
-		reg = reg & WZRD_CLKFBOUT_MULT_MASK;
-		reg =  reg >> WZRD_CLKFBOUT_MULT_SHIFT;
-		mult = (reg * 1000) + reg_f;
-		div = 1000;
-	}
-	clk_name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "%s_mul", dev_name(&pdev->dev));
-	if (!clk_name)
-		return -ENOMEM;
-	clk_wzrd->clks_internal[wzrd_clk_mul] = devm_clk_hw_register_fixed_factor
-			(&pdev->dev, clk_name,
-			 __clk_get_name(clk_wzrd->clk_in1),
-			0, mult, div);
-	if (IS_ERR(clk_wzrd->clks_internal[wzrd_clk_mul])) {
-		dev_err(&pdev->dev, "unable to register fixed-factor clock\n");
-		return PTR_ERR(clk_wzrd->clks_internal[wzrd_clk_mul]);
-	}
-
-	clk_name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "%s_mul_div", dev_name(&pdev->dev));
-	if (!clk_name)
-		return -ENOMEM;
-
-	if (is_versal) {
-		edged = !!(readl(clk_wzrd->base + WZRD_CLK_CFG_REG(is_versal, 20)) &
-			     BIT(10));
-		regld = (readl(clk_wzrd->base + WZRD_CLK_CFG_REG(is_versal, 21)) &
-			     WZRD_CLKFBOUT_L_MASK) >> WZRD_CLKFBOUT_L_SHIFT;
-		reghd = (readl(clk_wzrd->base + WZRD_CLK_CFG_REG(is_versal, 21)) &
-		     WZRD_CLKFBOUT_H_MASK) >> WZRD_CLKFBOUT_H_SHIFT;
-		div = (regld  + reghd + edged);
-		if (!div)
-			div = 1;
-
-		clk_mul_name = clk_hw_get_name(clk_wzrd->clks_internal[wzrd_clk_mul]);
-		clk_wzrd->clks_internal[wzrd_clk_mul_div] =
-			devm_clk_hw_register_fixed_factor(&pdev->dev, clk_name,
-							  clk_mul_name, 0, 1, div);
-	} else {
-		ctrl_reg = clk_wzrd->base + WZRD_CLK_CFG_REG(is_versal, 0);
-		clk_wzrd->clks_internal[wzrd_clk_mul_div] = devm_clk_hw_register_divider
-			(&pdev->dev, clk_name,
-			 clk_hw_get_name(clk_wzrd->clks_internal[wzrd_clk_mul]),
-			flags, ctrl_reg, 0, 8, CLK_DIVIDER_ONE_BASED |
-			CLK_DIVIDER_ALLOW_ZERO, &clkwzrd_lock);
-	}
-	if (IS_ERR(clk_wzrd->clks_internal[wzrd_clk_mul_div])) {
-		dev_err(&pdev->dev, "unable to register divider clock\n");
-		return PTR_ERR(clk_wzrd->clks_internal[wzrd_clk_mul_div]);
-	}
-
-	/* register div per output */
-	for (i = nr_outputs - 1; i >= 0 ; i--) {
-		clkout_name = devm_kasprintf(&pdev->dev, GFP_KERNEL,
-					     "%s_out%d", dev_name(&pdev->dev), i);
-		if (!clkout_name)
-			return -ENOMEM;
-
-		if (is_versal) {
-			clk_wzrd->clk_data.hws[i] = clk_wzrd_ver_register_divider
-						(&pdev->dev,
-						 clkout_name, clk_name, 0,
-						 clk_wzrd->base,
-						 (WZRD_CLK_CFG_REG(is_versal, 3) + i * 8),
-						 WZRD_CLKOUT_DIVIDE_SHIFT,
-						 WZRD_CLKOUT_DIVIDE_WIDTH,
-						 CLK_DIVIDER_ONE_BASED |
-						 CLK_DIVIDER_ALLOW_ZERO,
-						 DIV_O, &clkwzrd_lock);
-		} else {
-			if (!i)
-				clk_wzrd->clk_data.hws[i] = clk_wzrd_register_divf
-					(&pdev->dev, clkout_name, clk_name, flags, clk_wzrd->base,
-					(WZRD_CLK_CFG_REG(is_versal, 2) + i * 12),
-					WZRD_CLKOUT_DIVIDE_SHIFT,
-					WZRD_CLKOUT_DIVIDE_WIDTH,
-					CLK_DIVIDER_ONE_BASED | CLK_DIVIDER_ALLOW_ZERO,
-					DIV_O, &clkwzrd_lock);
-			else
-				clk_wzrd->clk_data.hws[i] = clk_wzrd_register_divider
-					(&pdev->dev, clkout_name, clk_name, 0, clk_wzrd->base,
-					(WZRD_CLK_CFG_REG(is_versal, 2) + i * 12),
-					WZRD_CLKOUT_DIVIDE_SHIFT,
-					WZRD_CLKOUT_DIVIDE_WIDTH,
-					CLK_DIVIDER_ONE_BASED | CLK_DIVIDER_ALLOW_ZERO,
-					DIV_O, &clkwzrd_lock);
-		}
-		if (IS_ERR(clk_wzrd->clk_data.hws[i])) {
-			dev_err(&pdev->dev,
-				"unable to register divider clock\n");
-			return PTR_ERR(clk_wzrd->clk_data.hws[i]);
-		}
-	}
-
-out:
 	clk_wzrd->clk_data.num = nr_outputs;
 	ret = devm_of_clk_add_hw_provider(&pdev->dev, of_clk_hw_onecell_get, &clk_wzrd->clk_data);
 	if (ret) {
