@@ -640,7 +640,7 @@ struct asoc_sdw_dailink {
 
 static const char * const type_strings[] = {"SimpleJack", "SmartAmp", "SmartMic"};
 
-static int count_sdw_endpoints(struct snd_soc_card *card, int *num_devs, int *num_ends)
+static int asoc_sdw_count_sdw_endpoints(struct snd_soc_card *card, int *num_devs, int *num_ends)
 {
 	struct device *dev = card->dev;
 	struct snd_soc_acpi_mach *mach = dev_get_platdata(dev);
@@ -660,8 +660,8 @@ static int count_sdw_endpoints(struct snd_soc_card *card, int *num_devs, int *nu
 	return 0;
 }
 
-static struct asoc_sdw_dailink *find_dailink(struct asoc_sdw_dailink *dailinks,
-					     const struct snd_soc_acpi_endpoint *new)
+static struct asoc_sdw_dailink *asoc_sdw_find_dailink(struct asoc_sdw_dailink *dailinks,
+						      const struct snd_soc_acpi_endpoint *new)
 {
 	while (dailinks->initialised) {
 		if (new->aggregated && dailinks->group_id == new->group_id)
@@ -677,10 +677,10 @@ static struct asoc_sdw_dailink *find_dailink(struct asoc_sdw_dailink *dailinks,
 	return dailinks;
 }
 
-static int parse_sdw_endpoints(struct snd_soc_card *card,
-			       struct asoc_sdw_dailink *sof_dais,
-			       struct asoc_sdw_endpoint *sof_ends,
-			       int *num_devs)
+static int asoc_sdw_parse_sdw_endpoints(struct snd_soc_card *card,
+					struct asoc_sdw_dailink *sof_dais,
+					struct asoc_sdw_endpoint *sof_ends,
+					int *num_devs)
 {
 	struct device *dev = card->dev;
 	struct asoc_sdw_mc_private *ctx = snd_soc_card_get_drvdata(card);
@@ -743,7 +743,7 @@ static int parse_sdw_endpoints(struct snd_soc_card *card,
 
 				adr_end = &adr_dev->endpoints[j];
 				dai_info = &codec_info->dais[adr_end->num];
-				sof_dai = find_dailink(sof_dais, adr_end);
+				sof_dai = asoc_sdw_find_dailink(sof_dais, adr_end);
 
 				if (dai_info->quirk && !(dai_info->quirk & sof_sdw_quirk))
 					continue;
@@ -1115,7 +1115,7 @@ static int sof_card_dai_links_create(struct snd_soc_card *card)
 	unsigned long ssp_mask;
 	int ret;
 
-	ret = count_sdw_endpoints(card, &num_devs, &num_ends);
+	ret = asoc_sdw_count_sdw_endpoints(card, &num_devs, &num_ends);
 	if (ret < 0) {
 		dev_err(dev, "failed to count devices/endpoints: %d\n", ret);
 		return ret;
@@ -1133,7 +1133,7 @@ static int sof_card_dai_links_create(struct snd_soc_card *card)
 		goto err_dai;
 	}
 
-	ret = parse_sdw_endpoints(card, sof_dais, sof_ends, &num_devs);
+	ret = asoc_sdw_parse_sdw_endpoints(card, sof_dais, sof_ends, &num_devs);
 	if (ret < 0)
 		goto err_end;
 
