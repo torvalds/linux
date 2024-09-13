@@ -1135,6 +1135,7 @@ static bool host1x_drm_wants_iommu(struct host1x_device *dev)
 
 static int host1x_drm_probe(struct host1x_device *dev)
 {
+	struct device *dma_dev = dev->dev.parent;
 	struct tegra_drm *tegra;
 	struct drm_device *drm;
 	int err;
@@ -1149,8 +1150,8 @@ static int host1x_drm_probe(struct host1x_device *dev)
 		goto put;
 	}
 
-	if (host1x_drm_wants_iommu(dev) && iommu_present(&platform_bus_type)) {
-		tegra->domain = iommu_domain_alloc(&platform_bus_type);
+	if (host1x_drm_wants_iommu(dev) && device_iommu_mapped(dma_dev)) {
+		tegra->domain = iommu_paging_domain_alloc(dma_dev);
 		if (!tegra->domain) {
 			err = -ENOMEM;
 			goto free;
