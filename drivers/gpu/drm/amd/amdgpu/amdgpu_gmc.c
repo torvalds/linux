@@ -1244,14 +1244,14 @@ void amdgpu_gmc_sysfs_fini(struct amdgpu_device *adev)
 
 int amdgpu_gmc_get_nps_memranges(struct amdgpu_device *adev,
 				 struct amdgpu_mem_partition_info *mem_ranges,
-				 int exp_ranges)
+				 uint8_t *exp_ranges)
 {
 	struct amdgpu_gmc_memrange *ranges;
 	int range_cnt, ret, i, j;
 	uint32_t nps_type;
 	bool refresh;
 
-	if (!mem_ranges)
+	if (!mem_ranges || !exp_ranges)
 		return -EINVAL;
 
 	refresh = (adev->init_lvl->level != AMDGPU_INIT_LEVEL_MINIMAL_XGMI) &&
@@ -1265,16 +1265,16 @@ int amdgpu_gmc_get_nps_memranges(struct amdgpu_device *adev,
 	/* TODO: For now, expect ranges and partition count to be the same.
 	 * Adjust if there are holes expected in any NPS domain.
 	 */
-	if (range_cnt != exp_ranges) {
+	if (*exp_ranges && (range_cnt != *exp_ranges)) {
 		dev_warn(
 			adev->dev,
 			"NPS config mismatch - expected ranges: %d discovery - nps mode: %d, nps ranges: %d",
-			exp_ranges, nps_type, range_cnt);
+			*exp_ranges, nps_type, range_cnt);
 		ret = -EINVAL;
 		goto err;
 	}
 
-	for (i = 0; i < exp_ranges; ++i) {
+	for (i = 0; i < range_cnt; ++i) {
 		if (ranges[i].base_address >= ranges[i].limit_address) {
 			dev_warn(
 				adev->dev,
@@ -1315,6 +1315,8 @@ int amdgpu_gmc_get_nps_memranges(struct amdgpu_device *adev,
 			ranges[i].limit_address - ranges[i].base_address + 1;
 	}
 
+	if (!*exp_ranges)
+		*exp_ranges = range_cnt;
 err:
 	kfree(ranges);
 

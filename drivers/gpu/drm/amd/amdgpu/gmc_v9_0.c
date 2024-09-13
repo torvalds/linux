@@ -1387,10 +1387,29 @@ gmc_v9_0_get_memory_partition(struct amdgpu_device *adev, u32 *supp_modes)
 }
 
 static enum amdgpu_memory_partition
+gmc_v9_0_query_vf_memory_partition(struct amdgpu_device *adev)
+{
+	switch (adev->gmc.num_mem_partitions) {
+	case 0:
+		return UNKNOWN_MEMORY_PARTITION_MODE;
+	case 1:
+		return AMDGPU_NPS1_PARTITION_MODE;
+	case 2:
+		return AMDGPU_NPS2_PARTITION_MODE;
+	case 4:
+		return AMDGPU_NPS4_PARTITION_MODE;
+	default:
+		return AMDGPU_NPS1_PARTITION_MODE;
+	}
+
+	return AMDGPU_NPS1_PARTITION_MODE;
+}
+
+static enum amdgpu_memory_partition
 gmc_v9_0_query_memory_partition(struct amdgpu_device *adev)
 {
 	if (amdgpu_sriov_vf(adev))
-		return AMDGPU_NPS1_PARTITION_MODE;
+		return gmc_v9_0_query_vf_memory_partition(adev);
 
 	return gmc_v9_0_get_memory_partition(adev, NULL);
 }
@@ -1935,6 +1954,8 @@ gmc_v9_0_init_sw_mem_ranges(struct amdgpu_device *adev,
 
 	switch (mode) {
 	case UNKNOWN_MEMORY_PARTITION_MODE:
+		adev->gmc.num_mem_partitions = 0;
+		break;
 	case AMDGPU_NPS1_PARTITION_MODE:
 		adev->gmc.num_mem_partitions = 1;
 		break;
@@ -1954,7 +1975,7 @@ gmc_v9_0_init_sw_mem_ranges(struct amdgpu_device *adev,
 
 	/* Use NPS range info, if populated */
 	r = amdgpu_gmc_get_nps_memranges(adev, mem_ranges,
-					 adev->gmc.num_mem_partitions);
+					 &adev->gmc.num_mem_partitions);
 	if (!r) {
 		l = 0;
 		for (i = 1; i < adev->gmc.num_mem_partitions; ++i) {
@@ -1964,6 +1985,11 @@ gmc_v9_0_init_sw_mem_ranges(struct amdgpu_device *adev,
 		}
 
 	} else {
+		if (!adev->gmc.num_mem_partitions) {
+			dev_err(adev->dev,
+				"Not able to detect NPS mode, fall back to NPS1");
+			adev->gmc.num_mem_partitions = 1;
+		}
 		/* Fallback to sw based calculation */
 		size = (adev->gmc.real_vram_size + SZ_16M) >> AMDGPU_GPU_PAGE_SHIFT;
 		size /= adev->gmc.num_mem_partitions;

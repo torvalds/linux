@@ -466,7 +466,7 @@ void amdgpu_gmc_sysfs_fini(struct amdgpu_device *adev);
 
 int amdgpu_gmc_get_nps_memranges(struct amdgpu_device *adev,
 				 struct amdgpu_mem_partition_info *mem_ranges,
-				 int exp_ranges);
+				 uint8_t *exp_ranges);
 
 int amdgpu_gmc_request_memory_partition(struct amdgpu_device *adev,
 					int nps_mode);
