@@ -290,8 +290,15 @@ unsigned long __get_wchan(struct task_struct *p)
 
 int elf_core_copy_task_fpregs(struct task_struct *t, elf_fpregset_t *fpu)
 {
-	int cpu = current_thread_info()->cpu;
+#ifdef CONFIG_X86_32
+	extern int have_fpx_regs;
 
-	return save_i387_registers(userspace_pid[cpu], (unsigned long *) fpu) == 0;
+	/* FIXME: A plain copy does not work on i386 with have_fpx_regs */
+	if (have_fpx_regs)
+		return 0;
+#endif
+	memcpy(fpu, &t->thread.regs.regs.fp, sizeof(*fpu));
+
+	return 1;
 }
 

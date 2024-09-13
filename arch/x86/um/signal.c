@@ -204,34 +204,30 @@ static int copy_sc_from_user(struct pt_regs *regs,
 
 #ifdef CONFIG_X86_32
 	if (have_fpx_regs) {
-		struct user_fxsr_struct fpx;
-		int pid = userspace_pid[current_thread_info()->cpu];
+		struct user_fxsr_struct *fpx;
+		fpx = (void *)&regs->regs.fp;
 
-		err = copy_from_user(&fpx,
-			&((struct _fpstate __user *)sc.fpstate)->_fxsr_env[0],
-				     sizeof(struct user_fxsr_struct));
+		err = convert_fxsr_from_user(fpx, (void *)sc.fpstate);
 		if (err)
 			return 1;
-
-		err = convert_fxsr_from_user(&fpx, (void *)sc.fpstate);
+	} else {
+		BUILD_BUG_ON(sizeof(regs->regs.fp) > sizeof(struct _fpstate));
+		err = copy_from_user(regs->regs.fp, (void *)sc.fpstate,
+				     sizeof(regs->regs.fp));
 		if (err)
 			return 1;
-
-		err = restore_fpx_registers(pid, (unsigned long *) &fpx);
-		if (err < 0) {
-			printk(KERN_ERR "copy_sc_from_user - "
-			       "restore_fpx_registers failed, errno = %d\n",
-			       -err);
-			return 1;
-		}
-	} else
-#endif
+	}
+#else
 	{
+		/* FIXME: Save/restore extended state (past the 16 YMM regs) */
+		BUILD_BUG_ON(sizeof(regs->regs.fp) < sizeof(struct _xstate));
+
 		err = copy_from_user(regs->regs.fp, (void *)sc.fpstate,
 				     sizeof(struct _xstate));
 		if (err)
 			return 1;
 	}
+#endif
 	return 0;
 }
 
@@ -291,34 +287,35 @@ static int copy_sc_to_user(struct sigcontext __user *to,
 
 #ifdef CONFIG_X86_32
 	if (have_fpx_regs) {
-		int pid = userspace_pid[current_thread_info()->cpu];
-		struct user_fxsr_struct fpx;
+		struct user_fxsr_struct *fpx;
 
-		err = save_fpx_registers(pid, (unsigned long *) &fpx);
-		if (err < 0){
-			printk(KERN_ERR "copy_sc_to_user - save_fpx_registers "
-			       "failed, errno = %d\n", err);
-			return 1;
-		}
+		fpx = (void *)&regs->regs.fp;
 
-		err = convert_fxsr_to_user(&to_fp->fpstate, &fpx);
+		err = convert_fxsr_to_user(&to_fp->fpstate, fpx);
 		if (err)
 			return 1;
 
-		err |= __put_user(fpx.swd, &to_fp->fpstate.status);
+		err |= __put_user(fpx->swd, &to_fp->fpstate.status);
 		err |= __put_user(X86_FXSR_MAGIC, &to_fp->fpstate.magic);
 		if (err)
 			return 1;
 
-		if (copy_to_user(&to_fp->fpstate._fxsr_env[0], &fpx,
-				 sizeof(struct user_fxsr_struct)))
+	} else {
+		if (copy_to_user(to_fp, regs->regs.fp, sizeof(regs->regs.fp)))
 			return 1;
-	} else
-#endif
-	{
-		if (copy_to_user(to_fp, regs->regs.fp, sizeof(struct _xstate)))
-			return 1;
+
+		/* Need to fill in the sw_reserved bits ... */
+		BUILD_BUG_ON(offsetof(typeof(*to_fp),
+				      fpstate.sw_reserved.magic1) >=
+			     sizeof(struct _fpstate));
+		__put_user(0, &to_fp->fpstate.sw_reserved.magic1);
+		__put_user(sizeof(struct _fpstate),
+			   &to_fp->fpstate.sw_reserved.extended_size);
 	}
+#else
+	if (copy_to_user(to_fp, regs->regs.fp, sizeof(struct _xstate)))
+		return 1;
+#endif
 
 	return 0;
 }

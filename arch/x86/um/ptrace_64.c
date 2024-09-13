@@ -190,15 +190,10 @@ int peek_user(struct task_struct *child, long addr, long data)
 
 static int get_fpregs(struct user_i387_struct __user *buf, struct task_struct *child)
 {
-	int err, n, cpu = ((struct thread_info *) child->stack)->cpu;
-	struct user_i387_struct fpregs;
+	int n;
 
-	err = save_i387_registers(userspace_pid[cpu],
-				  (unsigned long *) &fpregs);
-	if (err)
-		return err;
-
-	n = copy_to_user(buf, &fpregs, sizeof(fpregs));
+	n = copy_to_user(buf, &child->thread.regs.regs.fp,
+			 sizeof(struct user_i387_struct));
 	if (n > 0)
 		return -EFAULT;
 
@@ -207,15 +202,14 @@ static int get_fpregs(struct user_i387_struct __user *buf, struct task_struct *c
 
 static int set_fpregs(struct user_i387_struct __user *buf, struct task_struct *child)
 {
-	int n, cpu = ((struct thread_info *) child->stack)->cpu;
-	struct user_i387_struct fpregs;
+	int n;
 
-	n = copy_from_user(&fpregs, buf, sizeof(fpregs));
+	n = copy_from_user(&child->thread.regs.regs.fp, buf,
+			   sizeof(struct user_i387_struct));
 	if (n > 0)
 		return -EFAULT;
 
-	return restore_i387_registers(userspace_pid[cpu],
-				      (unsigned long *) &fpregs);
+	return 0;
 }
 
 long subarch_ptrace(struct task_struct *child, long request,

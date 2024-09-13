@@ -19,14 +19,14 @@
 
 static int have_xstate_support;
 
-int save_i387_registers(int pid, unsigned long *fp_regs)
+static int save_i387_registers(int pid, unsigned long *fp_regs)
 {
 	if (ptrace(PTRACE_GETFPREGS, pid, 0, fp_regs) < 0)
 		return -errno;
 	return 0;
 }
 
-int save_fp_registers(int pid, unsigned long *fp_regs)
+static int save_fp_registers(int pid, unsigned long *fp_regs)
 {
 #ifdef PTRACE_GETREGSET
 	struct iovec iov;
@@ -42,14 +42,14 @@ int save_fp_registers(int pid, unsigned long *fp_regs)
 		return save_i387_registers(pid, fp_regs);
 }
 
-int restore_i387_registers(int pid, unsigned long *fp_regs)
+static int restore_i387_registers(int pid, unsigned long *fp_regs)
 {
 	if (ptrace(PTRACE_SETFPREGS, pid, 0, fp_regs) < 0)
 		return -errno;
 	return 0;
 }
 
-int restore_fp_registers(int pid, unsigned long *fp_regs)
+static int restore_fp_registers(int pid, unsigned long *fp_regs)
 {
 #ifdef PTRACE_SETREGSET
 	struct iovec iov;
@@ -66,14 +66,14 @@ int restore_fp_registers(int pid, unsigned long *fp_regs)
 
 #ifdef __i386__
 int have_fpx_regs = 1;
-int save_fpx_registers(int pid, unsigned long *fp_regs)
+static int save_fpx_registers(int pid, unsigned long *fp_regs)
 {
 	if (ptrace(PTRACE_GETFPXREGS, pid, 0, fp_regs) < 0)
 		return -errno;
 	return 0;
 }
 
-int restore_fpx_registers(int pid, unsigned long *fp_regs)
+static int restore_fpx_registers(int pid, unsigned long *fp_regs)
 {
 	if (ptrace(PTRACE_SETFPXREGS, pid, 0, fp_regs) < 0)
 		return -errno;
