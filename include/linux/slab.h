@@ -242,19 +242,72 @@ bool slab_is_available(void);
 
 /**
  * struct kmem_cache_args - Less common arguments for kmem_cache_create()
- * @align: The required alignment for the objects.
- * @useroffset: Usercopy region offset
- * @usersize: Usercopy region size
- * @freeptr_offset: Custom offset for the free pointer in RCU caches
- * @use_freeptr_offset: Whether a @freeptr_offset is used
- * @ctor: A constructor for the objects.
+ *
+ * Any uninitialized fields of the structure are interpreted as unused. The
+ * exception is @freeptr_offset where %0 is a valid value, so
+ * @use_freeptr_offset must be also set to %true in order to interpret the field
+ * as used. For @useroffset %0 is also valid, but only with non-%0
+ * @usersize.
+ *
+ * When %NULL args is passed to kmem_cache_create(), it is equivalent to all
+ * fields unused.
  */
 struct kmem_cache_args {
+	/**
+	 * @align: The required alignment for the objects.
+	 *
+	 * %0 means no specific alignment is requested.
+	 */
 	unsigned int align;
+	/**
+	 * @useroffset: Usercopy region offset.
+	 *
+	 * %0 is a valid offset, when @usersize is non-%0
+	 */
 	unsigned int useroffset;
+	/**
+	 * @usersize: Usercopy region size.
+	 *
+	 * %0 means no usercopy region is specified.
+	 */
 	unsigned int usersize;
+	/**
+	 * @freeptr_offset: Custom offset for the free pointer
+	 * in &SLAB_TYPESAFE_BY_RCU caches
+	 *
+	 * By default &SLAB_TYPESAFE_BY_RCU caches place the free pointer
+	 * outside of the object. This might cause the object to grow in size.
+	 * Cache creators that have a reason to avoid this can specify a custom
+	 * free pointer offset in their struct where the free pointer will be
+	 * placed.
+	 *
+	 * Note that placing the free pointer inside the object requires the
+	 * caller to ensure that no fields are invalidated that are required to
+	 * guard against object recycling (See &SLAB_TYPESAFE_BY_RCU for
+	 * details).
+	 *
+	 * Using %0 as a value for @freeptr_offset is valid. If @freeptr_offset
+	 * is specified, %use_freeptr_offset must be set %true.
+	 *
+	 * Note that @ctor currently isn't supported with custom free pointers
+	 * as a @ctor requires an external free pointer.
+	 */
 	unsigned int freeptr_offset;
+	/**
+	 * @use_freeptr_offset: Whether a @freeptr_offset is used.
+	 */
 	bool use_freeptr_offset;
+	/**
+	 * @ctor: A constructor for the objects.
+	 *
+	 * The constructor is invoked for each object in a newly allocated slab
+	 * page. It is the cache user's responsibility to free object in the
+	 * same state as after calling the constructor, or deal appropriately
+	 * with any differences between a freshly constructed and a reallocated
+	 * object.
+	 *
+	 * %NULL means no constructor.
+	 */
 	void (*ctor)(void *);
 };
 
@@ -275,30 +328,20 @@ __kmem_cache_create(const char *name, unsigned int size, unsigned int align,
 }
 
 /**
- * kmem_cache_create_usercopy - Create a cache with a region suitable
- * for copying to userspace
+ * kmem_cache_create_usercopy - Create a kmem cache with a region suitable
+ * for copying to userspace.
  * @name: A string which is used in /proc/slabinfo to identify this cache.
  * @size: The size of objects to be created in this cache.
  * @align: The required alignment for the objects.
  * @flags: SLAB flags
  * @useroffset: Usercopy region offset
  * @usersize: Usercopy region size
- * @ctor: A constructor for the objects.
+ * @ctor: A constructor for the objects, or %NULL.
  *
- * Cannot be called within a interrupt, but can be interrupted.
- * The @ctor is run when new pages are allocated by the cache.
- *
- * The flags are
- *
- * %SLAB_POISON - Poison the slab with a known test pattern (a5a5a5a5)
- * to catch references to uninitialised memory.
- *
- * %SLAB_RED_ZONE - Insert `Red` zones around the allocated memory to check
- * for buffer overruns.
- *
- * %SLAB_HWCACHE_ALIGN - Align the objects in this cache to a hardware
- * cacheline.  This can be beneficial if you're counting cycles as closely
- * as davem.
+ * This is a legacy wrapper, new code should use either KMEM_CACHE_USERCOPY()
+ * if whitelisting a single field is sufficient, or kmem_cache_create() with
+ * the necessary parameters passed via the args parameter (see
+ * &struct kmem_cache_args)
  *
  * Return: a pointer to the cache on success, NULL on failure.
  */
@@ -333,6 +376,31 @@ __kmem_cache_default_args(const char *name, unsigned int size,
 	return __kmem_cache_create_args(name, size, &kmem_default_args, flags);
 }
 
+/**
+ * kmem_cache_create - Create a kmem cache.
+ * @__name: A string which is used in /proc/slabinfo to identify this cache.
+ * @__object_size: The size of objects to be created in this cache.
+ * @__args: Optional arguments, see &struct kmem_cache_args. Passing %NULL
+ *	    means defaults will be used for all the arguments.
+ *
+ * This is currently implemented as a macro using ``_Generic()`` to call
+ * either the new variant of the function, or a legacy one.
+ *
+ * The new variant has 4 parameters:
+ * ``kmem_cache_create(name, object_size, args, flags)``
+ *
+ * See __kmem_cache_create_args() which implements this.
+ *
+ * The legacy variant has 5 parameters:
+ * ``kmem_cache_create(name, object_size, align, flags, ctor)``
+ *
+ * The align and ctor parameters map to the respective fields of
+ * &struct kmem_cache_args
+ *
+ * Context: Cannot be called within a interrupt, but can be interrupted.
+ *
+ * Return: a pointer to the cache on success, NULL on failure.
+ */
 #define kmem_cache_create(__name, __object_size, __args, ...)           \
 	_Generic((__args),                                              \
 		struct kmem_cache_args *: __kmem_cache_create_args,	\
