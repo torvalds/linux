@@ -190,6 +190,13 @@ int cache_tag_assign_domain(struct dmar_domain *domain,
 	u16 did = domain_get_id_for_dev(domain, dev);
 	int ret;
 
+	/* domain->qi_bach will be freed in iommu_free_domain() path. */
+	if (!domain->qi_batch) {
+		domain->qi_batch = kzalloc(sizeof(*domain->qi_batch), GFP_KERNEL);
+		if (!domain->qi_batch)
+			return -ENOMEM;
+	}
+
 	ret = __cache_tag_assign_domain(domain, did, dev, pasid);
 	if (ret || domain->domain.type != IOMMU_DOMAIN_NESTED)
 		return ret;
@@ -255,6 +262,154 @@ static unsigned long calculate_psi_aligned_address(unsigned long start,
 	return ALIGN_DOWN(start, VTD_PAGE_SIZE << mask);
 }
 
+static void qi_batch_flush_descs(struct intel_iommu *iommu, struct qi_batch *batch)
+{
+	if (!iommu || !batch->index)
+		return;
+
+	qi_submit_sync(iommu, batch->descs, batch->index, 0);
+
+	/* Reset the index value and clean the whole batch buffer. */
+	memset(batch, 0, sizeof(*batch));
+}
+
+static void qi_batch_increment_index(struct intel_iommu *iommu, struct qi_batch *batch)
+{
+	if (++batch->index == QI_MAX_BATCHED_DESC_COUNT)
+		qi_batch_flush_descs(iommu, batch);
+}
+
+static void qi_batch_add_iotlb(struct intel_iommu *iommu, u16 did, u64 addr,
+			       unsigned int size_order, u64 type,
+			       struct qi_batch *batch)
+{
+	qi_desc_iotlb(iommu, did, addr, size_order, type, &batch->descs[batch->index]);
+	qi_batch_increment_index(iommu, batch);
+}
+
+static void qi_batch_add_dev_iotlb(struct intel_iommu *iommu, u16 sid, u16 pfsid,
+				   u16 qdep, u64 addr, unsigned int mask,
+				   struct qi_batch *batch)
+{
+	/*
+	 * According to VT-d spec, software is recommended to not submit any Device-TLB
+	 * invalidation requests while address remapping hardware is disabled.
+	 */
+	if (!(iommu->gcmd & DMA_GCMD_TE))
+		return;
+
+	qi_desc_dev_iotlb(sid, pfsid, qdep, addr, mask, &batch->descs[batch->index]);
+	qi_batch_increment_index(iommu, batch);
+}
+
+static void qi_batch_add_piotlb(struct intel_iommu *iommu, u16 did, u32 pasid,
+				u64 addr, unsigned long npages, bool ih,
+				struct qi_batch *batch)
+{
+	/*
+	 * npages == -1 means a PASID-selective invalidation, otherwise,
+	 * a positive value for Page-selective-within-PASID invalidation.
+	 * 0 is not a valid input.
+	 */
+	if (!npages)
+		return;
+
+	qi_desc_piotlb(did, pasid, addr, npages, ih, &batch->descs[batch->index]);
+	qi_batch_increment_index(iommu, batch);
+}
+
+static void qi_batch_add_pasid_dev_iotlb(struct intel_iommu *iommu, u16 sid, u16 pfsid,
+					 u32 pasid,  u16 qdep, u64 addr,
+					 unsigned int size_order, struct qi_batch *batch)
+{
+	/*
+	 * According to VT-d spec, software is recommended to not submit any
+	 * Device-TLB invalidation requests while address remapping hardware
+	 * is disabled.
+	 */
+	if (!(iommu->gcmd & DMA_GCMD_TE))
+		return;
+
+	qi_desc_dev_iotlb_pasid(sid, pfsid, pasid, qdep, addr, size_order,
+				&batch->descs[batch->index]);
+	qi_batch_increment_index(iommu, batch);
+}
+
+static void cache_tag_flush_iotlb(struct dmar_domain *domain, struct cache_tag *tag,
+				  unsigned long addr, unsigned long pages,
+				  unsigned long mask, int ih)
+{
+	struct intel_iommu *iommu = tag->iommu;
+	u64 type = DMA_TLB_PSI_FLUSH;
+
+	if (domain->use_first_level) {
+		qi_batch_add_piotlb(iommu, tag->domain_id, tag->pasid, addr,
+				    pages, ih, domain->qi_batch);
+		return;
+	}
+
+	/*
+	 * Fallback to domain selective flush if no PSI support or the size
+	 * is too big.
+	 */
+	if (!cap_pgsel_inv(iommu->cap) ||
+	    mask > cap_max_amask_val(iommu->cap) || pages == -1) {
+		addr = 0;
+		mask = 0;
+		ih = 0;
+		type = DMA_TLB_DSI_FLUSH;
+	}
+
+	if (ecap_qis(iommu->ecap))
+		qi_batch_add_iotlb(iommu, tag->domain_id, addr | ih, mask, type,
+				   domain->qi_batch);
+	else
+		__iommu_flush_iotlb(iommu, tag->domain_id, addr | ih, mask, type);
+}
+
+static void cache_tag_flush_devtlb_psi(struct dmar_domain *domain, struct cache_tag *tag,
+				       unsigned long addr, unsigned long mask)
+{
+	struct intel_iommu *iommu = tag->iommu;
+	struct device_domain_info *info;
+	u16 sid;
+
+	info = dev_iommu_priv_get(tag->dev);
+	sid = PCI_DEVID(info->bus, info->devfn);
+
+	if (tag->pasid == IOMMU_NO_PASID) {
+		qi_batch_add_dev_iotlb(iommu, sid, info->pfsid, info->ats_qdep,
+				       addr, mask, domain->qi_batch);
+		if (info->dtlb_extra_inval)
+			qi_batch_add_dev_iotlb(iommu, sid, info->pfsid, info->ats_qdep,
+					       addr, mask, domain->qi_batch);
+		return;
+	}
+
+	qi_batch_add_pasid_dev_iotlb(iommu, sid, info->pfsid, tag->pasid,
+				     info->ats_qdep, addr, mask, domain->qi_batch);
+	if (info->dtlb_extra_inval)
+		qi_batch_add_pasid_dev_iotlb(iommu, sid, info->pfsid, tag->pasid,
+					     info->ats_qdep, addr, mask,
+					     domain->qi_batch);
+}
+
+static void cache_tag_flush_devtlb_all(struct dmar_domain *domain, struct cache_tag *tag)
+{
+	struct intel_iommu *iommu = tag->iommu;
+	struct device_domain_info *info;
+	u16 sid;
+
+	info = dev_iommu_priv_get(tag->dev);
+	sid = PCI_DEVID(info->bus, info->devfn);
+
+	qi_batch_add_dev_iotlb(iommu, sid, info->pfsid, info->ats_qdep, 0,
+			       MAX_AGAW_PFN_WIDTH, domain->qi_batch);
+	if (info->dtlb_extra_inval)
+		qi_batch_add_dev_iotlb(iommu, sid, info->pfsid, info->ats_qdep, 0,
+				       MAX_AGAW_PFN_WIDTH, domain->qi_batch);
+}
+
 /*
  * Invalidates a range of IOVA from @start (inclusive) to @end (inclusive)
  * when the memory mappings in the target domain have been modified.
@@ -262,6 +417,7 @@ static unsigned long calculate_psi_aligned_address(unsigned long start,
 void cache_tag_flush_range(struct dmar_domain *domain, unsigned long start,
 			   unsigned long end, int ih)
 {
+	struct intel_iommu *iommu = NULL;
 	unsigned long pages, mask, addr;
 	struct cache_tag *tag;
 	unsigned long flags;
@@ -270,30 +426,14 @@ void cache_tag_flush_range(struct dmar_domain *domain, unsigned long start,
 
 	spin_lock_irqsave(&domain->cache_lock, flags);
 	list_for_each_entry(tag, &domain->cache_tags, node) {
-		struct intel_iommu *iommu = tag->iommu;
-		struct device_domain_info *info;
-		u16 sid;
+		if (iommu && iommu != tag->iommu)
+			qi_batch_flush_descs(iommu, domain->qi_batch);
+		iommu = tag->iommu;
 
 		switch (tag->type) {
 		case CACHE_TAG_IOTLB:
 		case CACHE_TAG_NESTING_IOTLB:
-			if (domain->use_first_level) {
-				qi_flush_piotlb(iommu, tag->domain_id,
-						tag->pasid, addr, pages, ih);
-			} else {
-				/*
-				 * Fallback to domain selective flush if no
-				 * PSI support or the size is too big.
-				 */
-				if (!cap_pgsel_inv(iommu->cap) ||
-				    mask > cap_max_amask_val(iommu->cap))
-					iommu->flush.flush_iotlb(iommu, tag->domain_id,
-								 0, 0, DMA_TLB_DSI_FLUSH);
-				else
-					iommu->flush.flush_iotlb(iommu, tag->domain_id,
-								 addr | ih, mask,
-								 DMA_TLB_PSI_FLUSH);
-			}
+			cache_tag_flush_iotlb(domain, tag, addr, pages, mask, ih);
 			break;
 		case CACHE_TAG_NESTING_DEVTLB:
 			/*
@@ -307,23 +447,13 @@ void cache_tag_flush_range(struct dmar_domain *domain, unsigned long start,
 			mask = MAX_AGAW_PFN_WIDTH;
 			fallthrough;
 		case CACHE_TAG_DEVTLB:
-			info = dev_iommu_priv_get(tag->dev);
-			sid = PCI_DEVID(info->bus, info->devfn);
-
-			if (tag->pasid == IOMMU_NO_PASID)
-				qi_flush_dev_iotlb(iommu, sid, info->pfsid,
-						   info->ats_qdep, addr, mask);
-			else
-				qi_flush_dev_iotlb_pasid(iommu, sid, info->pfsid,
-							 tag->pasid, info->ats_qdep,
-							 addr, mask);
-
-			quirk_extra_dev_tlb_flush(info, addr, mask, tag->pasid, info->ats_qdep);
+			cache_tag_flush_devtlb_psi(domain, tag, addr, mask);
 			break;
 		}
 
 		trace_cache_tag_flush_range(tag, start, end, addr, pages, mask);
 	}
+	qi_batch_flush_descs(iommu, domain->qi_batch);
 	spin_unlock_irqrestore(&domain->cache_lock, flags);
 }
 
@@ -333,39 +463,30 @@ void cache_tag_flush_range(struct dmar_domain *domain, unsigned long start,
  */
 void cache_tag_flush_all(struct dmar_domain *domain)
 {
+	struct intel_iommu *iommu = NULL;
 	struct cache_tag *tag;
 	unsigned long flags;
 
 	spin_lock_irqsave(&domain->cache_lock, flags);
 	list_for_each_entry(tag, &domain->cache_tags, node) {
-		struct intel_iommu *iommu = tag->iommu;
-		struct device_domain_info *info;
-		u16 sid;
+		if (iommu && iommu != tag->iommu)
+			qi_batch_flush_descs(iommu, domain->qi_batch);
+		iommu = tag->iommu;
 
 		switch (tag->type) {
 		case CACHE_TAG_IOTLB:
 		case CACHE_TAG_NESTING_IOTLB:
-			if (domain->use_first_level)
-				qi_flush_piotlb(iommu, tag->domain_id,
-						tag->pasid, 0, -1, 0);
-			else
-				iommu->flush.flush_iotlb(iommu, tag->domain_id,
-							 0, 0, DMA_TLB_DSI_FLUSH);
+			cache_tag_flush_iotlb(domain, tag, 0, -1, 0, 0);
 			break;
 		case CACHE_TAG_DEVTLB:
 		case CACHE_TAG_NESTING_DEVTLB:
-			info = dev_iommu_priv_get(tag->dev);
-			sid = PCI_DEVID(info->bus, info->devfn);
-
-			qi_flush_dev_iotlb(iommu, sid, info->pfsid, info->ats_qdep,
-					   0, MAX_AGAW_PFN_WIDTH);
-			quirk_extra_dev_tlb_flush(info, 0, MAX_AGAW_PFN_WIDTH,
-						  IOMMU_NO_PASID, info->ats_qdep);
+			cache_tag_flush_devtlb_all(domain, tag);
 			break;
 		}
 
 		trace_cache_tag_flush_all(tag);
 	}
+	qi_batch_flush_descs(iommu, domain->qi_batch);
 	spin_unlock_irqrestore(&domain->cache_lock, flags);
 }
 
@@ -383,6 +504,7 @@ void cache_tag_flush_all(struct dmar_domain *domain)
 void cache_tag_flush_range_np(struct dmar_domain *domain, unsigned long start,
 			      unsigned long end)
 {
+	struct intel_iommu *iommu = NULL;
 	unsigned long pages, mask, addr;
 	struct cache_tag *tag;
 	unsigned long flags;
@@ -391,7 +513,9 @@ void cache_tag_flush_range_np(struct dmar_domain *domain, unsigned long start,
 
 	spin_lock_irqsave(&domain->cache_lock, flags);
 	list_for_each_entry(tag, &domain->cache_tags, node) {
-		struct intel_iommu *iommu = tag->iommu;
+		if (iommu && iommu != tag->iommu)
+			qi_batch_flush_descs(iommu, domain->qi_batch);
+		iommu = tag->iommu;
 
 		if (!cap_caching_mode(iommu->cap) || domain->use_first_level) {
 			iommu_flush_write_buffer(iommu);
@@ -399,22 +523,11 @@ void cache_tag_flush_range_np(struct dmar_domain *domain, unsigned long start,
 		}
 
 		if (tag->type == CACHE_TAG_IOTLB ||
-		    tag->type == CACHE_TAG_NESTING_IOTLB) {
-			/*
-			 * Fallback to domain selective flush if no
-			 * PSI support or the size is too big.
-			 */
-			if (!cap_pgsel_inv(iommu->cap) ||
-			    mask > cap_max_amask_val(iommu->cap))
-				iommu->flush.flush_iotlb(iommu, tag->domain_id,
-							 0, 0, DMA_TLB_DSI_FLUSH);
-			else
-				iommu->flush.flush_iotlb(iommu, tag->domain_id,
-							 addr, mask,
-							 DMA_TLB_PSI_FLUSH);
-		}
+		    tag->type == CACHE_TAG_NESTING_IOTLB)
+			cache_tag_flush_iotlb(domain, tag, addr, pages, mask, 0);
 
 		trace_cache_tag_flush_range_np(tag, start, end, addr, pages, mask);
 	}
+	qi_batch_flush_descs(iommu, domain->qi_batch);
 	spin_unlock_irqrestore(&domain->cache_lock, flags);
 }
