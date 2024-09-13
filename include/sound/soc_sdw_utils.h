@@ -161,6 +161,16 @@ int asoc_sdw_init_simple_dai_link(struct device *dev, struct snd_soc_dai_link *d
 				  int (*init)(struct snd_soc_pcm_runtime *rtd),
 				  const struct snd_soc_ops *ops);
 
+int asoc_sdw_count_sdw_endpoints(struct snd_soc_card *card, int *num_devs, int *num_ends);
+
+struct asoc_sdw_dailink *asoc_sdw_find_dailink(struct asoc_sdw_dailink *dailinks,
+					       const struct snd_soc_acpi_endpoint *new);
+
+int asoc_sdw_parse_sdw_endpoints(struct snd_soc_card *card,
+				 struct asoc_sdw_dailink *soc_dais,
+				 struct asoc_sdw_endpoint *soc_ends,
+				 int *num_devs);
+
 int asoc_sdw_rtd_init(struct snd_soc_pcm_runtime *rtd);
 
 /* DMIC support */
