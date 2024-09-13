@@ -780,7 +780,7 @@ g4x_find_best_dpll(const struct intel_limit *limit,
 	max_n = limit->n.max;
 	/* based on hardware requirement, prefer smaller n to precision */
 	for (clock.n = limit->n.min; clock.n <= max_n; clock.n++) {
-		/* based on hardware requirement, prefere larger m1,m2 */
+		/* based on hardware requirement, prefer larger m1,m2 */
 		for (clock.m1 = limit->m1.max;
 		     clock.m1 >= limit->m1.min; clock.m1--) {
 			for (clock.m2 = limit->m2.max;

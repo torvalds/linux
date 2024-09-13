@@ -426,7 +426,7 @@ static void intel_scaler_info(struct seq_file *m, struct intel_crtc *crtc)
 	int num_scalers = crtc->num_scalers;
 	int i;
 
-	/* Not all platformas have a scaler */
+	/* Not all platforms have a scaler */
 	if (num_scalers) {
 		seq_printf(m, "\tnum_scalers=%d, scaler_users=%x scaler_id=%d scaling_filter=%d",
 			   num_scalers,
