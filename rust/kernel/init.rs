@@ -133,7 +133,7 @@
 //! # }
 //! # // `Error::from_errno` is `pub(crate)` in the `kernel` crate, thus provide a workaround.
 //! # trait FromErrno {
-//! #     fn from_errno(errno: core::ffi::c_int) -> Error {
+//! #     fn from_errno(errno: kernel::ffi::c_int) -> Error {
 //! #         // Dummy error that can be constructed outside the `kernel` crate.
 //! #         Error::from(core::fmt::Error)
 //! #     }

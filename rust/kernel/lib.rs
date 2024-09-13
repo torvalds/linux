@@ -27,6 +27,8 @@ compile_error!("Missing kernel configuration for conditional compilation");
 // Allow proc-macros to refer to `::kernel` inside the `kernel` crate (this crate).
 extern crate self as kernel;
 
+pub use ffi;
+
 pub mod alloc;
 #[cfg(CONFIG_BLOCK)]
 pub mod block;

@@ -8,10 +8,10 @@ use crate::{
     alloc::Flags,
     bindings,
     error::Result,
+    ffi::{c_ulong, c_void},
     prelude::*,
     transmute::{AsBytes, FromBytes},
 };
-use core::ffi::{c_ulong, c_void};
 use core::mem::{size_of, MaybeUninit};
 
 /// The type used for userspace addresses.
@@ -45,7 +45,7 @@ pub type UserPtr = usize;
 /// every byte in the region.
 ///
 /// ```no_run
-/// use core::ffi::c_void;
+/// use kernel::ffi::c_void;
 /// use kernel::error::Result;
 /// use kernel::uaccess::{UserPtr, UserSlice};
 ///
@@ -67,7 +67,7 @@ pub type UserPtr = usize;
 /// Example illustrating a TOCTOU (time-of-check to time-of-use) bug.
 ///
 /// ```no_run
-/// use core::ffi::c_void;
+/// use kernel::ffi::c_void;
 /// use kernel::error::{code::EINVAL, Result};
 /// use kernel::uaccess::{UserPtr, UserSlice};
 ///

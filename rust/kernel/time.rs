@@ -12,10 +12,10 @@
 pub const NSEC_PER_MSEC: i64 = bindings::NSEC_PER_MSEC as i64;
 
 /// The time unit of Linux kernel. One jiffy equals (1/HZ) second.
-pub type Jiffies = core::ffi::c_ulong;
+pub type Jiffies = crate::ffi::c_ulong;
 
 /// The millisecond time unit.
-pub type Msecs = core::ffi::c_uint;
+pub type Msecs = crate::ffi::c_uint;
 
 /// Converts milliseconds to jiffies.
 #[inline]

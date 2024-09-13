@@ -24,10 +24,10 @@ pub type KVmalloc = Kmalloc;
 
 extern "C" {
     #[link_name = "aligned_alloc"]
-    fn libc_aligned_alloc(align: usize, size: usize) -> *mut core::ffi::c_void;
+    fn libc_aligned_alloc(align: usize, size: usize) -> *mut crate::ffi::c_void;
 
     #[link_name = "free"]
-    fn libc_free(ptr: *mut core::ffi::c_void);
+    fn libc_free(ptr: *mut crate::ffi::c_void);
 }
 
 // SAFETY:

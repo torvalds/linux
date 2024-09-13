@@ -4,13 +4,9 @@
 //!
 //! C header: [`include/linux/sched.h`](srctree/include/linux/sched.h).
 
+use crate::ffi::{c_int, c_long, c_uint};
 use crate::types::Opaque;
-use core::{
-    ffi::{c_int, c_long, c_uint},
-    marker::PhantomData,
-    ops::Deref,
-    ptr,
-};
+use core::{marker::PhantomData, ops::Deref, ptr};
 
 /// A sentinel value used for infinite timeouts.
 pub const MAX_SCHEDULE_TIMEOUT: c_long = c_long::MAX;

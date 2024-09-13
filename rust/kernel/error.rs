@@ -100,7 +100,7 @@ impl Error {
     ///
     /// It is a bug to pass an out-of-range `errno`. `EINVAL` would
     /// be returned in such a case.
-    pub fn from_errno(errno: core::ffi::c_int) -> Error {
+    pub fn from_errno(errno: crate::ffi::c_int) -> Error {
         if errno < -(bindings::MAX_ERRNO as i32) || errno >= 0 {
             // TODO: Make it a `WARN_ONCE` once available.
             crate::pr_warn!(
@@ -119,7 +119,7 @@ impl Error {
     /// Creates an [`Error`] from a kernel error code.
     ///
     /// Returns [`None`] if `errno` is out-of-range.
-    const fn try_from_errno(errno: core::ffi::c_int) -> Option<Error> {
+    const fn try_from_errno(errno: crate::ffi::c_int) -> Option<Error> {
         if errno < -(bindings::MAX_ERRNO as i32) || errno >= 0 {
             return None;
         }
@@ -133,7 +133,7 @@ impl Error {
     /// # Safety
     ///
     /// `errno` must be within error code range (i.e. `>= -MAX_ERRNO && < 0`).
-    const unsafe fn from_errno_unchecked(errno: core::ffi::c_int) -> Error {
+    const unsafe fn from_errno_unchecked(errno: crate::ffi::c_int) -> Error {
         // INVARIANT: The contract ensures the type invariant
         // will hold.
         // SAFETY: The caller guarantees `errno` is non-zero.
@@ -141,7 +141,7 @@ impl Error {
     }
 
     /// Returns the kernel error code.
-    pub fn to_errno(self) -> core::ffi::c_int {
+    pub fn to_errno(self) -> crate::ffi::c_int {
         self.0.get()
     }
 
@@ -259,7 +259,7 @@ pub type Result<T = (), E = Error> = core::result::Result<T, E>;
 
 /// Converts an integer as returned by a C kernel function to an error if it's negative, and
 /// `Ok(())` otherwise.
-pub fn to_result(err: core::ffi::c_int) -> Result {
+pub fn to_result(err: crate::ffi::c_int) -> Result {
     if err < 0 {
         Err(Error::from_errno(err))
     } else {
@@ -282,15 +282,15 @@ pub fn to_result(err: core::ffi::c_int) -> Result {
 /// fn devm_platform_ioremap_resource(
 ///     pdev: &mut PlatformDevice,
 ///     index: u32,
-/// ) -> Result<*mut core::ffi::c_void> {
+/// ) -> Result<*mut kernel::ffi::c_void> {
 ///     // SAFETY: `pdev` points to a valid platform device. There are no safety requirements
 ///     // on `index`.
 ///     from_err_ptr(unsafe { bindings::devm_platform_ioremap_resource(pdev.to_ptr(), index) })
 /// }
 /// ```
 pub fn from_err_ptr<T>(ptr: *mut T) -> Result<*mut T> {
-    // CAST: Casting a pointer to `*const core::ffi::c_void` is always valid.
-    let const_ptr: *const core::ffi::c_void = ptr.cast();
+    // CAST: Casting a pointer to `*const crate::ffi::c_void` is always valid.
+    let const_ptr: *const crate::ffi::c_void = ptr.cast();
     // SAFETY: The FFI function does not deref the pointer.
     if unsafe { bindings::IS_ERR(const_ptr) } {
         // SAFETY: The FFI function does not deref the pointer.
@@ -306,7 +306,7 @@ pub fn from_err_ptr<T>(ptr: *mut T) -> Result<*mut T> {
         //
         // SAFETY: `IS_ERR()` ensures `err` is a
         // negative value greater-or-equal to `-bindings::MAX_ERRNO`.
-        return Err(unsafe { Error::from_errno_unchecked(err as core::ffi::c_int) });
+        return Err(unsafe { Error::from_errno_unchecked(err as crate::ffi::c_int) });
     }
     Ok(ptr)
 }
@@ -326,7 +326,7 @@ pub fn from_err_ptr<T>(ptr: *mut T) -> Result<*mut T> {
 /// # use kernel::bindings;
 /// unsafe extern "C" fn probe_callback(
 ///     pdev: *mut bindings::platform_device,
-/// ) -> core::ffi::c_int {
+/// ) -> kernel::ffi::c_int {
 ///     from_result(|| {
 ///         let ptr = devm_alloc(pdev)?;
 ///         bindings::platform_set_drvdata(pdev, ptr);
