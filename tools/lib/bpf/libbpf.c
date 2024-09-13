@@ -9059,6 +9059,11 @@ unsigned int bpf_object__kversion(const struct bpf_object *obj)
 	return obj ? obj->kern_version : 0;
 }
 
+int bpf_object__token_fd(const struct bpf_object *obj)
+{
+	return obj->token_fd ?: -1;
+}
+
 struct btf *bpf_object__btf(const struct bpf_object *obj)
 {
 	return obj ? obj->btf : NULL;

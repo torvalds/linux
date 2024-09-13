@@ -294,6 +294,14 @@ LIBBPF_API const char *bpf_object__name(const struct bpf_object *obj);
 LIBBPF_API unsigned int bpf_object__kversion(const struct bpf_object *obj);
 LIBBPF_API int bpf_object__set_kversion(struct bpf_object *obj, __u32 kern_version);
 
+/**
+ * @brief **bpf_object__token_fd** is an accessor for BPF token FD associated
+ * with BPF object.
+ * @param obj Pointer to a valid BPF object
+ * @return BPF token FD or -1, if it wasn't set
+ */
+LIBBPF_API int bpf_object__token_fd(const struct bpf_object *obj);
+
 struct btf;
 LIBBPF_API struct btf *bpf_object__btf(const struct bpf_object *obj);
 LIBBPF_API int bpf_object__btf_fd(const struct bpf_object *obj);
