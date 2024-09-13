@@ -3171,13 +3171,13 @@ EXPORT_SYMBOL(rtw89_phy_rfk_dack_and_wait);
 int rtw89_phy_rfk_rxdck_and_wait(struct rtw89_dev *rtwdev,
 				 enum rtw89_phy_idx phy_idx,
 				 const struct rtw89_chan *chan,
-				 unsigned int ms)
+				 bool is_chl_k, unsigned int ms)
 {
 	int ret;
 
 	rtw89_phy_rfk_report_prep(rtwdev);
 
-	ret = rtw89_fw_h2c_rf_rxdck(rtwdev, phy_idx, chan);
+	ret = rtw89_fw_h2c_rf_rxdck(rtwdev, phy_idx, chan, is_chl_k);
 	if (ret)
 		return ret;
 

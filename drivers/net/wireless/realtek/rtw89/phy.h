@@ -929,7 +929,7 @@ int rtw89_phy_rfk_dack_and_wait(struct rtw89_dev *rtwdev,
 int rtw89_phy_rfk_rxdck_and_wait(struct rtw89_dev *rtwdev,
 				 enum rtw89_phy_idx phy_idx,
 				 const struct rtw89_chan *chan,
-				 unsigned int ms);
+				 bool is_chl_k, unsigned int ms);
 void rtw89_phy_rfk_tssi_fill_fwcmd_efuse_to_de(struct rtw89_dev *rtwdev,
 					       enum rtw89_phy_idx phy,
 					       const struct rtw89_chan *chan,

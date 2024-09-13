@@ -4286,7 +4286,7 @@ struct rtw89_h2c_rf_dack {
 	__le32 type;
 } __packed;
 
-struct rtw89_h2c_rf_rxdck {
+struct rtw89_h2c_rf_rxdck_v0 {
 	u8 len;
 	u8 phy;
 	u8 is_afe;
@@ -4295,6 +4295,11 @@ struct rtw89_h2c_rf_rxdck {
 	u8 cur_bw;
 	u8 cur_ch;
 	u8 rxdck_dbg_en;
+} __packed;
+
+struct rtw89_h2c_rf_rxdck {
+	struct rtw89_h2c_rf_rxdck_v0 v0;
+	u8 is_chl_k;
 } __packed;
 
 enum rtw89_rf_log_type {
@@ -4501,7 +4506,7 @@ int rtw89_fw_h2c_rf_txgapk(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy_idx,
 int rtw89_fw_h2c_rf_dack(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy_idx,
 			 const struct rtw89_chan *chan);
 int rtw89_fw_h2c_rf_rxdck(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy_idx,
-			  const struct rtw89_chan *chan);
+			  const struct rtw89_chan *chan, bool is_chl_k);
 int rtw89_fw_h2c_raw_with_hdr(struct rtw89_dev *rtwdev,
 			      u8 h2c_class, u8 h2c_func, u8 *buf, u16 len,
 			      bool rack, bool dack);
