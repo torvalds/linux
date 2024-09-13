@@ -40,11 +40,6 @@ LIST_HEAD(slab_caches);
 DEFINE_MUTEX(slab_mutex);
 struct kmem_cache *kmem_cache;
 
-static LIST_HEAD(slab_caches_to_rcu_destroy);
-static void slab_caches_to_rcu_destroy_workfn(struct work_struct *work);
-static DECLARE_WORK(slab_caches_to_rcu_destroy_work,
-		    slab_caches_to_rcu_destroy_workfn);
-
 /*
  * Set of flags that will prevent slab merging
  */
@@ -502,81 +497,19 @@ fail:
 }
 EXPORT_SYMBOL(kmem_buckets_create);
 
-#ifdef SLAB_SUPPORTS_SYSFS
 /*
  * For a given kmem_cache, kmem_cache_destroy() should only be called
  * once or there will be a use-after-free problem. The actual deletion
  * and release of the kobject does not need slab_mutex or cpu_hotplug_lock
  * protection. So they are now done without holding those locks.
- *
- * Note that there will be a slight delay in the deletion of sysfs files
- * if kmem_cache_release() is called indrectly from a work function.
  */
 static void kmem_cache_release(struct kmem_cache *s)
 {
-	if (slab_state >= FULL) {
-		sysfs_slab_unlink(s);
+	kfence_shutdown_cache(s);
+	if (__is_defined(SLAB_SUPPORTS_SYSFS) && slab_state >= FULL)
 		sysfs_slab_release(s);
-	} else {
+	else
 		slab_kmem_cache_release(s);
-	}
-}
-#else
-static void kmem_cache_release(struct kmem_cache *s)
-{
-	slab_kmem_cache_release(s);
-}
-#endif
-
-static void slab_caches_to_rcu_destroy_workfn(struct work_struct *work)
-{
-	LIST_HEAD(to_destroy);
-	struct kmem_cache *s, *s2;
-
-	/*
-	 * On destruction, SLAB_TYPESAFE_BY_RCU kmem_caches are put on the
-	 * @slab_caches_to_rcu_destroy list.  The slab pages are freed
-	 * through RCU and the associated kmem_cache are dereferenced
-	 * while freeing the pages, so the kmem_caches should be freed only
-	 * after the pending RCU operations are finished.  As rcu_barrier()
-	 * is a pretty slow operation, we batch all pending destructions
-	 * asynchronously.
-	 */
-	mutex_lock(&slab_mutex);
-	list_splice_init(&slab_caches_to_rcu_destroy, &to_destroy);
-	mutex_unlock(&slab_mutex);
-
-	if (list_empty(&to_destroy))
-		return;
-
-	rcu_barrier();
-
-	list_for_each_entry_safe(s, s2, &to_destroy, list) {
-		debugfs_slab_release(s);
-		kfence_shutdown_cache(s);
-		kmem_cache_release(s);
-	}
-}
-
-static int shutdown_cache(struct kmem_cache *s)
-{
-	/* free asan quarantined objects */
-	kasan_cache_shutdown(s);
-
-	if (__kmem_cache_shutdown(s) != 0)
-		return -EBUSY;
-
-	list_del(&s->list);
-
-	if (s->flags & SLAB_TYPESAFE_BY_RCU) {
-		list_add_tail(&s->list, &slab_caches_to_rcu_destroy);
-		schedule_work(&slab_caches_to_rcu_destroy_work);
-	} else {
-		kfence_shutdown_cache(s);
-		debugfs_slab_release(s);
-	}
-
-	return 0;
 }
 
 void slab_kmem_cache_release(struct kmem_cache *s)
@@ -588,29 +521,63 @@ void slab_kmem_cache_release(struct kmem_cache *s)
 
 void kmem_cache_destroy(struct kmem_cache *s)
 {
-	int err = -EBUSY;
-	bool rcu_set;
+	int err;
 
 	if (unlikely(!s) || !kasan_check_byte(s))
 		return;
 
+	/* in-flight kfree_rcu()'s may include objects from our cache */
+	kvfree_rcu_barrier();
+
+	if (IS_ENABLED(CONFIG_SLUB_RCU_DEBUG) &&
+	    (s->flags & SLAB_TYPESAFE_BY_RCU)) {
+		/*
+		 * Under CONFIG_SLUB_RCU_DEBUG, when objects in a
+		 * SLAB_TYPESAFE_BY_RCU slab are freed, SLUB will internally
+		 * defer their freeing with call_rcu().
+		 * Wait for such call_rcu() invocations here before actually
+		 * destroying the cache.
+		 *
+		 * It doesn't matter that we haven't looked at the slab refcount
+		 * yet - slabs with SLAB_TYPESAFE_BY_RCU can't be merged, so
+		 * the refcount should be 1 here.
+		 */
+		rcu_barrier();
+	}
+
 	cpus_read_lock();
 	mutex_lock(&slab_mutex);
 
-	rcu_set = s->flags & SLAB_TYPESAFE_BY_RCU;
-
 	s->refcount--;
-	if (s->refcount)
-		goto out_unlock;
+	if (s->refcount) {
+		mutex_unlock(&slab_mutex);
+		cpus_read_unlock();
+		return;
+	}
 
-	err = shutdown_cache(s);
+	/* free asan quarantined objects */
+	kasan_cache_shutdown(s);
+
+	err = __kmem_cache_shutdown(s);
 	WARN(err, "%s %s: Slab cache still has objects when called from %pS",
 	     __func__, s->name, (void *)_RET_IP_);
-out_unlock:
+
+	list_del(&s->list);
+
 	mutex_unlock(&slab_mutex);
 	cpus_read_unlock();
-	if (!err && !rcu_set)
-		kmem_cache_release(s);
+
+	if (slab_state >= FULL)
+		sysfs_slab_unlink(s);
+	debugfs_slab_release(s);
+
+	if (err)
+		return;
+
+	if (s->flags & SLAB_TYPESAFE_BY_RCU)
+		rcu_barrier();
+
+	kmem_cache_release(s);
 }
 EXPORT_SYMBOL(kmem_cache_destroy);
 
