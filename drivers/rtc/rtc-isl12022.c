@@ -172,7 +172,7 @@ static int isl12022_rtc_read_time(struct device *dev, struct rtc_time *tm)
 {
 	struct isl12022 *isl12022 = dev_get_drvdata(dev);
 	struct regmap *regmap = isl12022->regmap;
-	uint8_t buf[ISL12022_REG_INT + 1];
+	u8 buf[ISL12022_REG_INT + 1];
 	int ret;
 
 	ret = regmap_bulk_read(regmap, ISL12022_REG_SC, buf, sizeof(buf));
@@ -209,7 +209,7 @@ static int isl12022_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	struct isl12022 *isl12022 = dev_get_drvdata(dev);
 	struct regmap *regmap = isl12022->regmap;
 	int ret;
-	uint8_t buf[ISL12022_REG_DW + 1];
+	u8 buf[ISL12022_REG_DW + 1];
 
 	dev_dbg(dev, "%s: %ptR\n", __func__, tm);
 
