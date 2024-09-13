@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include "api/fs/fs.h"
 #include "util/evsel.h"
+#include "util/evlist.h"
 #include "util/pmu.h"
 #include "util/pmus.h"
 #include "util/topdown.h"
@@ -87,11 +88,24 @@ bool arch_is_topdown_metrics(const struct evsel *evsel)
  */
 bool arch_topdown_sample_read(struct evsel *leader)
 {
+	struct evsel *evsel;
+
 	if (!evsel__sys_has_perf_metrics(leader))
 		return false;
 
-	if (arch_is_topdown_slots(leader))
-		return true;
+	if (!arch_is_topdown_slots(leader))
+		return false;
+
+	/*
+	 * If slots event as leader event but no topdown metric events
+	 * in group, slots event should still sample as leader.
+	 */
+	evlist__for_each_entry(leader->evlist, evsel) {
+		if (evsel->core.leader != leader->core.leader)
+			return false;
+		if (evsel != leader && arch_is_topdown_metrics(evsel))
+			return true;
+	}
 
 	return false;
 }
