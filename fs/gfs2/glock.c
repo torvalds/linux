@@ -36,6 +36,7 @@
 #include <linux/pid_namespace.h>
 #include <linux/fdtable.h>
 #include <linux/file.h>
+#include <linux/random.h>
 
 #include "gfs2.h"
 #include "incore.h"
@@ -1018,7 +1019,7 @@ bool gfs2_queue_verify_delete(struct gfs2_glock *gl, bool later)
 
 	if (test_and_set_bit(GLF_VERIFY_DELETE, &gl->gl_flags))
 		return false;
-	delay = later ? 5 * HZ : 0;
+	delay = later ? HZ + get_random_long() % (HZ * 9) : 0;
 	return queue_delayed_work(sdp->sd_delete_wq, &gl->gl_delete, delay);
 }
 
