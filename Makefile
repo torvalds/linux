@@ -578,10 +578,6 @@ else
 	RUSTC_OR_CLIPPY = $(RUSTC)
 endif
 
-ifdef RUST_LIB_SRC
-	export RUST_LIB_SRC
-endif
-
 # Allows the usage of unstable features in stable compilers.
 export RUSTC_BOOTSTRAP := 1
 
