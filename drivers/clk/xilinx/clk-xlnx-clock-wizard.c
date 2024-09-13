@@ -1001,21 +1001,15 @@ static int clk_wzrd_probe(struct platform_device *pdev)
 		return dev_err_probe(&pdev->dev, PTR_ERR(clk_wzrd->clk_in1),
 				     "clk_in1 not found\n");
 
-	clk_wzrd->axi_clk = devm_clk_get(&pdev->dev, "s_axi_aclk");
+	clk_wzrd->axi_clk = devm_clk_get_enabled(&pdev->dev, "s_axi_aclk");
 	if (IS_ERR(clk_wzrd->axi_clk))
 		return dev_err_probe(&pdev->dev, PTR_ERR(clk_wzrd->axi_clk),
 				     "s_axi_aclk not found\n");
-	ret = clk_prepare_enable(clk_wzrd->axi_clk);
-	if (ret) {
-		dev_err(&pdev->dev, "enabling s_axi_aclk failed\n");
-		return ret;
-	}
 	rate = clk_get_rate(clk_wzrd->axi_clk);
 	if (rate > WZRD_ACLK_MAX_FREQ) {
 		dev_err(&pdev->dev, "s_axi_aclk frequency (%lu) too high\n",
 			rate);
-		ret = -EINVAL;
-		goto err_disable_clk;
+		return -EINVAL;
 	}
 
 	data = device_get_match_data(&pdev->dev);
@@ -1023,16 +1017,12 @@ static int clk_wzrd_probe(struct platform_device *pdev)
 		is_versal = data->is_versal;
 
 	ret = of_property_read_u32(np, "xlnx,nr-outputs", &nr_outputs);
-	if (ret || nr_outputs > WZRD_NUM_OUTPUTS) {
-		ret = -EINVAL;
-		goto err_disable_clk;
-	}
+	if (ret || nr_outputs > WZRD_NUM_OUTPUTS)
+		return -EINVAL;
 
 	clkout_name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "%s_out0", dev_name(&pdev->dev));
-	if (!clkout_name) {
-		ret = -ENOMEM;
-		goto err_disable_clk;
-	}
+	if (!clkout_name)
+		return -ENOMEM;
 
 	if (is_versal) {
 		if (nr_outputs == 1) {
@@ -1090,18 +1080,15 @@ static int clk_wzrd_probe(struct platform_device *pdev)
 		div = 1000;
 	}
 	clk_name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "%s_mul", dev_name(&pdev->dev));
-	if (!clk_name) {
-		ret = -ENOMEM;
-		goto err_disable_clk;
-	}
+	if (!clk_name)
+		return -ENOMEM;
 	clk_wzrd->clks_internal[wzrd_clk_mul] = clk_register_fixed_factor
 			(&pdev->dev, clk_name,
 			 __clk_get_name(clk_wzrd->clk_in1),
 			0, mult, div);
 	if (IS_ERR(clk_wzrd->clks_internal[wzrd_clk_mul])) {
 		dev_err(&pdev->dev, "unable to register fixed-factor clock\n");
-		ret = PTR_ERR(clk_wzrd->clks_internal[wzrd_clk_mul]);
-		goto err_disable_clk;
+		return PTR_ERR(clk_wzrd->clks_internal[wzrd_clk_mul]);
 	}
 
 	clk_name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "%s_mul_div", dev_name(&pdev->dev));
@@ -1197,13 +1184,14 @@ out:
 	if (clk_wzrd->speed_grade) {
 		clk_wzrd->nb.notifier_call = clk_wzrd_clk_notifier;
 
-		ret = clk_notifier_register(clk_wzrd->clk_in1,
-					    &clk_wzrd->nb);
+		ret = devm_clk_notifier_register(&pdev->dev, clk_wzrd->clk_in1,
+						 &clk_wzrd->nb);
 		if (ret)
 			dev_warn(&pdev->dev,
 				 "unable to register clock notifier\n");
 
-		ret = clk_notifier_register(clk_wzrd->axi_clk, &clk_wzrd->nb);
+		ret = devm_clk_notifier_register(&pdev->dev, clk_wzrd->axi_clk,
+						 &clk_wzrd->nb);
 		if (ret)
 			dev_warn(&pdev->dev,
 				 "unable to register clock notifier\n");
@@ -1215,9 +1203,6 @@ err_rm_int_clks:
 	clk_unregister(clk_wzrd->clks_internal[1]);
 err_rm_int_clk:
 	clk_unregister(clk_wzrd->clks_internal[0]);
-err_disable_clk:
-	clk_disable_unprepare(clk_wzrd->axi_clk);
-
 	return ret;
 }
 
@@ -1232,13 +1217,6 @@ static void clk_wzrd_remove(struct platform_device *pdev)
 		clk_unregister(clk_wzrd->clkout[i]);
 	for (i = 0; i < wzrd_clk_int_max; i++)
 		clk_unregister(clk_wzrd->clks_internal[i]);
-
-	if (clk_wzrd->speed_grade) {
-		clk_notifier_unregister(clk_wzrd->axi_clk, &clk_wzrd->nb);
-		clk_notifier_unregister(clk_wzrd->clk_in1, &clk_wzrd->nb);
-	}
-
-	clk_disable_unprepare(clk_wzrd->axi_clk);
 }
 
 static const struct of_device_id clk_wzrd_ids[] = {
