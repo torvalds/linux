@@ -153,8 +153,6 @@ bool blk_integrity_merge_bio(struct request_queue *q, struct request *req,
 	    q->limits.max_integrity_segments)
 		return false;
 
-	req->nr_integrity_segments += nr_integrity_segs;
-
 	return true;
 }
 
