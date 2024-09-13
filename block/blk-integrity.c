@@ -134,7 +134,6 @@ bool blk_integrity_merge_bio(struct request_queue *q, struct request *req,
 			     struct bio *bio)
 {
 	int nr_integrity_segs;
-	struct bio *next = bio->bi_next;
 
 	if (blk_integrity_rq(req) == 0 && bio_integrity(bio) == NULL)
 		return true;
@@ -145,10 +144,7 @@ bool blk_integrity_merge_bio(struct request_queue *q, struct request *req,
 	if (bio_integrity(req->bio)->bip_flags != bio_integrity(bio)->bip_flags)
 		return false;
 
-	bio->bi_next = NULL;
 	nr_integrity_segs = blk_rq_count_integrity_sg(q, bio);
-	bio->bi_next = next;
-
 	if (req->nr_integrity_segments + nr_integrity_segs >
 	    q->limits.max_integrity_segments)
 		return false;
