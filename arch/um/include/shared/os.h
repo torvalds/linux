@@ -199,7 +199,6 @@ extern int create_mem_file(unsigned long long len);
 extern void report_enomem(void);
 
 /* process.c */
-extern unsigned long os_process_pc(int pid);
 extern int os_process_parent(int pid);
 extern void os_alarm_process(int pid);
 extern void os_stop_process(int pid);
