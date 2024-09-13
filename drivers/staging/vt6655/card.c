@@ -391,8 +391,8 @@ void card_safe_reset_tx(struct vnt_private *priv)
 	priv->tail_td[0] = &priv->ap_td0_rings[0];
 	priv->apCurrTD[0] = &priv->ap_td0_rings[0];
 
-	priv->tail_td[1] = &priv->apTD1Rings[0];
-	priv->apCurrTD[1] = &priv->apTD1Rings[0];
+	priv->tail_td[1] = &priv->ap_td1_rings[0];
+	priv->apCurrTD[1] = &priv->ap_td1_rings[0];
 
 	for (uu = 0; uu < TYPE_MAXTD; uu++)
 		priv->iTDUsed[uu] = 0;
@@ -403,7 +403,7 @@ void card_safe_reset_tx(struct vnt_private *priv)
 		/* init all Tx Packet pointer to NULL */
 	}
 	for (uu = 0; uu < priv->opts.tx_descs[1]; uu++) {
-		curr_td = &priv->apTD1Rings[uu];
+		curr_td = &priv->ap_td1_rings[uu];
 		curr_td->td0.owner = OWNED_BY_HOST;
 		/* init all Tx Packet pointer to NULL */
 	}

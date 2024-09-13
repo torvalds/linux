@@ -554,7 +554,7 @@ static bool device_init_rings(struct vnt_private *priv)
 		+ priv->opts.rx_descs0 * sizeof(struct vnt_rx_desc)
 		+ priv->opts.rx_descs1 * sizeof(struct vnt_rx_desc);
 
-	priv->apTD1Rings = vir_pool
+	priv->ap_td1_rings = vir_pool
 		+ priv->opts.rx_descs0 * sizeof(struct vnt_rx_desc)
 		+ priv->opts.rx_descs1 * sizeof(struct vnt_rx_desc)
 		+ priv->opts.tx_descs[0] * sizeof(struct vnt_tx_desc);
@@ -761,7 +761,7 @@ static int device_init_td1_ring(struct vnt_private *priv)
 	curr = priv->td1_pool_dma;
 	for (i = 0; i < priv->opts.tx_descs[1];
 	     i++, curr += sizeof(struct vnt_tx_desc)) {
-		desc = &priv->apTD1Rings[i];
+		desc = &priv->ap_td1_rings[i];
 		desc->td_info = kzalloc(sizeof(*desc->td_info), GFP_KERNEL);
 		if (!desc->td_info) {
 			ret = -ENOMEM;
@@ -771,19 +771,19 @@ static int device_init_td1_ring(struct vnt_private *priv)
 		desc->td_info->buf = priv->tx1_bufs + i * PKT_BUF_SZ;
 		desc->td_info->buf_dma = priv->tx_bufs_dma1 + i * PKT_BUF_SZ;
 
-		desc->next = &(priv->apTD1Rings[(i + 1) % priv->opts.tx_descs[1]]);
+		desc->next = &(priv->ap_td1_rings[(i + 1) % priv->opts.tx_descs[1]]);
 		desc->next_desc = cpu_to_le32(curr + sizeof(struct vnt_tx_desc));
 	}
 
 	if (i > 0)
-		priv->apTD1Rings[i - 1].next_desc = cpu_to_le32(priv->td1_pool_dma);
-	priv->tail_td[1] = priv->apCurrTD[1] = &priv->apTD1Rings[0];
+		priv->ap_td1_rings[i - 1].next_desc = cpu_to_le32(priv->td1_pool_dma);
+	priv->tail_td[1] = priv->apCurrTD[1] = &priv->ap_td1_rings[0];
 
 	return 0;
 
 err_free_desc:
 	while (i--) {
-		desc = &priv->apTD1Rings[i];
+		desc = &priv->ap_td1_rings[i];
 		kfree(desc->td_info);
 	}
 
@@ -808,7 +808,7 @@ static void device_free_td1_ring(struct vnt_private *priv)
 	int i;
 
 	for (i = 0; i < priv->opts.tx_descs[1]; i++) {
-		struct vnt_tx_desc *desc = &priv->apTD1Rings[i];
+		struct vnt_tx_desc *desc = &priv->ap_td1_rings[i];
 		struct vnt_td_info *td_info = desc->td_info;
 
 		dev_kfree_skb(td_info->skb);
