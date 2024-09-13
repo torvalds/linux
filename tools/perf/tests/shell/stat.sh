@@ -73,9 +73,27 @@ test_topdown_groups() {
     err=1
     return
   fi
-  if perf stat -e '{topdown-retiring,slots}' true 2>&1 | grep -E -q "<not supported>"
+  if perf stat -e 'instructions,topdown-retiring,slots' true 2>&1 | grep -E -q "<not supported>"
   then
-    echo "Topdown event group test [Failed slots not reordered first]"
+    echo "Topdown event group test [Failed slots not reordered first in no-group case]"
+    err=1
+    return
+  fi
+  if perf stat -e '{instructions,topdown-retiring,slots}' true 2>&1 | grep -E -q "<not supported>"
+  then
+    echo "Topdown event group test [Failed slots not reordered first in single group case]"
+    err=1
+    return
+  fi
+  if perf stat -e '{instructions,slots},topdown-retiring' true 2>&1 | grep -E -q "<not supported>"
+  then
+    echo "Topdown event group test [Failed topdown metrics event not move into slots group]"
+    err=1
+    return
+  fi
+  if perf stat -e '{instructions,slots},{topdown-retiring}' true 2>&1 | grep -E -q "<not supported>"
+  then
+    echo "Topdown event group test [Failed topdown metrics group not merge into slots group]"
     err=1
     return
   fi
