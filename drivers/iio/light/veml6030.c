@@ -150,8 +150,8 @@ static int veml6030_als_pwr_on(struct veml6030_data *data)
 
 static int veml6030_als_shut_down(struct veml6030_data *data)
 {
-	return regmap_update_bits(data->regmap, VEML6030_REG_ALS_CONF,
-				 VEML6030_ALS_SD, 1);
+	return regmap_set_bits(data->regmap, VEML6030_REG_ALS_CONF,
+				 VEML6030_ALS_SD);
 }
 
 static void veml6030_als_shut_down_action(void *data)
