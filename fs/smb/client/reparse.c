@@ -242,7 +242,7 @@ static int detect_directory_symlink_target(struct cifs_sb_info *cifs_sb,
 	return 0;
 }
 
-static int nfs_set_reparse_buf(struct reparse_posix_data *buf,
+static int nfs_set_reparse_buf(struct reparse_nfs_data_buffer *buf,
 			       mode_t mode, dev_t dev,
 			       struct kvec *iov)
 {
@@ -281,13 +281,13 @@ static int mknod_nfs(unsigned int xid, struct inode *inode,
 		     const char *full_path, umode_t mode, dev_t dev)
 {
 	struct cifs_open_info_data data;
-	struct reparse_posix_data *p;
+	struct reparse_nfs_data_buffer *p;
 	struct inode *new;
 	struct kvec iov;
 	__u8 buf[sizeof(*p) + sizeof(__le64)];
 	int rc;
 
-	p = (struct reparse_posix_data *)buf;
+	p = (struct reparse_nfs_data_buffer *)buf;
 	rc = nfs_set_reparse_buf(p, mode, dev, &iov);
 	if (rc)
 		return rc;
@@ -474,7 +474,7 @@ int smb2_mknod_reparse(unsigned int xid, struct inode *inode,
 }
 
 /* See MS-FSCC 2.1.2.6 for the 'NFS' style reparse tags */
-static int parse_reparse_posix(struct reparse_posix_data *buf,
+static int parse_reparse_nfs(struct reparse_nfs_data_buffer *buf,
 			       struct cifs_sb_info *cifs_sb,
 			       struct cifs_open_info_data *data)
 {
@@ -702,7 +702,7 @@ int parse_reparse_point(struct reparse_data_buffer *buf,
 	/* See MS-FSCC 2.1.2 */
 	switch (le32_to_cpu(buf->ReparseTag)) {
 	case IO_REPARSE_TAG_NFS:
-		return parse_reparse_posix((struct reparse_posix_data *)buf,
+		return parse_reparse_nfs((struct reparse_nfs_data_buffer *)buf,
 					   cifs_sb, data);
 	case IO_REPARSE_TAG_SYMLINK:
 		return parse_reparse_symlink(
@@ -816,7 +816,7 @@ static bool posix_reparse_to_fattr(struct cifs_sb_info *cifs_sb,
 				   struct cifs_fattr *fattr,
 				   struct cifs_open_info_data *data)
 {
-	struct reparse_posix_data *buf = (struct reparse_posix_data *)data->reparse.buf;
+	struct reparse_nfs_data_buffer *buf = (struct reparse_nfs_data_buffer *)data->reparse.buf;
 
 	if (buf == NULL)
 		return true;
