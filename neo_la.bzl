@@ -73,6 +73,7 @@ def define_neo_la():
         "drivers/slimbus/slim-qcom-ngd-ctrl.ko",
         "drivers/slimbus/slimbus.ko",
         "drivers/soc/qcom/boot_stats.ko",
+        "drivers/soc/qcom/cdsprm.ko",
         "drivers/soc/qcom/cmd-db.ko",
         "drivers/soc/qcom/core_hang_detect.ko",
         "drivers/soc/qcom/debug_symbol.ko",
