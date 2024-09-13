@@ -409,6 +409,8 @@ static int create_native_socket(const unsigned int xid, struct inode *inode,
 
 static int nfs_set_reparse_buf(struct reparse_nfs_data_buffer *buf,
 			       mode_t mode, dev_t dev,
+			       __le16 *symname_utf16,
+			       int symname_utf16_len,
 			       struct kvec *iov)
 {
 	u64 type;
@@ -419,13 +421,18 @@ static int nfs_set_reparse_buf(struct reparse_nfs_data_buffer *buf,
 	switch ((type = reparse_mode_nfs_type(mode))) {
 	case NFS_SPECFILE_BLK:
 	case NFS_SPECFILE_CHR:
-		dlen = sizeof(__le64);
+		dlen = 2 * sizeof(__le32);
+		((__le32 *)buf->DataBuffer)[0] = cpu_to_le32(MAJOR(dev));
+		((__le32 *)buf->DataBuffer)[1] = cpu_to_le32(MINOR(dev));
+		break;
+	case NFS_SPECFILE_LNK:
+		dlen = symname_utf16_len;
+		memcpy(buf->DataBuffer, symname_utf16, symname_utf16_len);
 		break;
 	case NFS_SPECFILE_FIFO:
 	case NFS_SPECFILE_SOCK:
 		dlen = 0;
 		break;
-	case NFS_SPECFILE_LNK: /* TODO: add support for NFS symlinks */
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -435,8 +442,6 @@ static int nfs_set_reparse_buf(struct reparse_nfs_data_buffer *buf,
 	buf->InodeType = cpu_to_le64(type);
 	buf->ReparseDataLength = cpu_to_le16(len + dlen -
 					     sizeof(struct reparse_data_buffer));
-	*(__le64 *)buf->DataBuffer = cpu_to_le64(((u64)MINOR(dev) << 32) |
-						 MAJOR(dev));
 	iov->iov_base = buf;
 	iov->iov_len = len + dlen;
 	return 0;
@@ -447,21 +452,42 @@ static int mknod_nfs(unsigned int xid, struct inode *inode,
 		     const char *full_path, umode_t mode, dev_t dev,
 		     const char *symname)
 {
+	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
 	struct cifs_open_info_data data;
-	struct reparse_nfs_data_buffer *p;
+	struct reparse_nfs_data_buffer *p = NULL;
+	__le16 *symname_utf16 = NULL;
+	int symname_utf16_len = 0;
 	struct inode *new;
 	struct kvec iov;
 	__u8 buf[sizeof(*p) + sizeof(__le64)];
 	int rc;
 
-	p = (struct reparse_nfs_data_buffer *)buf;
-	rc = nfs_set_reparse_buf(p, mode, dev, &iov);
+	if (S_ISLNK(mode)) {
+		symname_utf16 = cifs_strndup_to_utf16(symname, strlen(symname),
+						      &symname_utf16_len,
+						      cifs_sb->local_nls,
+						      NO_MAP_UNI_RSVD);
+		if (!symname_utf16) {
+			rc = -ENOMEM;
+			goto out;
+		}
+		symname_utf16_len -= 2; /* symlink is without trailing wide-nul */
+		p = kzalloc(sizeof(*p) + symname_utf16_len, GFP_KERNEL);
+		if (!p) {
+			rc = -ENOMEM;
+			goto out;
+		}
+	} else {
+		p = (struct reparse_nfs_data_buffer *)buf;
+	}
+	rc = nfs_set_reparse_buf(p, mode, dev, symname_utf16, symname_utf16_len, &iov);
 	if (rc)
-		return rc;
+		goto out;
 
 	data = (struct cifs_open_info_data) {
 		.reparse_point = true,
 		.reparse = { .tag = IO_REPARSE_TAG_NFS, .buf = (struct reparse_data_buffer *)p, },
+		.symlink_target = kstrdup(symname, GFP_KERNEL),
 	};
 
 	new = smb2_get_reparse_inode(&data, inode->i_sb, xid,
@@ -471,6 +497,11 @@ static int mknod_nfs(unsigned int xid, struct inode *inode,
 	else
 		rc = PTR_ERR(new);
 	cifs_free_open_info(&data);
+out:
+	if (S_ISLNK(mode)) {
+		kfree(symname_utf16);
+		kfree(p);
+	}
 	return rc;
 }
 
