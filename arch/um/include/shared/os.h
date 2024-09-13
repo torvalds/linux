@@ -200,7 +200,6 @@ extern void report_enomem(void);
 
 /* process.c */
 extern void os_alarm_process(int pid);
-extern void os_stop_process(int pid);
 extern void os_kill_process(int pid, int reap_child);
 extern void os_kill_ptraced_process(int pid, int reap_child);
 
