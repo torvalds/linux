@@ -281,21 +281,12 @@ u8 efuse_OneByteWrite(struct adapter *padapter, u16 addr, u8 data, bool bPseudoT
 {
 	u8 tmpidx = 0;
 	u8 bResult = false;
-	u32 efuseValue;
 
 	if (bPseudoTest)
 		return Efuse_Write1ByteToFakeContent(addr, data);
 
-
 	/*  -----------------e-fuse reg ctrl --------------------------------- */
 	/* address */
-
-
-	efuseValue = rtw_read32(padapter, EFUSE_CTRL);
-	efuseValue |= (BIT21 | BIT31);
-	efuseValue &= ~(0x3FFFF);
-	efuseValue |= ((addr << 8 | data) & 0x3FFFF);
-
 
 	/*  <20130227, Kordan> 8192E MP chip A-cut had better not set 0x34[11] until B-Cut. */
 
