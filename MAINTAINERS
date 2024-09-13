@@ -23241,7 +23241,7 @@ F:	Documentation/devicetree/bindings/net/ti,icss*.yaml
 F:	drivers/net/ethernet/ti/icssg/*
 
 TI J721E CSI2RX DRIVER
-M:	Jai Luthra <j-luthra@ti.com>
+M:	Jai Luthra <jai.luthra@linux.dev>
 L:	linux-media@vger.kernel.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/media/ti,j721e-csi2rx-shim.yaml
