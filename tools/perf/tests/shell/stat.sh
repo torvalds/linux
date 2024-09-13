@@ -79,6 +79,12 @@ test_topdown_groups() {
     err=1
     return
   fi
+  if perf stat -e '{instructions,r400,r8000}' true 2>&1 | grep -E -q "<not supported>"
+  then
+    echo "Topdown event group test [Failed raw format slots not reordered first]"
+    err=1
+    return
+  fi
   echo "Topdown event group test [Success]"
 }
 
