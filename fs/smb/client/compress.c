@@ -318,7 +318,7 @@ int smb_compress(struct TCP_Server_Info *server, struct smb_rqst *rq, compress_s
 {
 	struct iov_iter iter;
 	u32 slen, dlen;
-	void *src, *dst;
+	void *src, *dst = NULL;
 	int ret;
 
 	if (!server || !rq || !rq->rq_iov || !rq->rq_iov->iov_base)
