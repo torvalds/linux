@@ -54,6 +54,10 @@
 
 #define ISL12022_BETA_TSE	(1 << 7)
 
+struct isl12022 {
+	struct regmap *regmap;
+};
+
 static umode_t isl12022_hwmon_is_visible(const void *data,
 					 enum hwmon_sensor_types type,
 					 u32 attr, int channel)
@@ -116,7 +120,8 @@ static const struct hwmon_chip_info isl12022_hwmon_chip_info = {
 
 static void isl12022_hwmon_register(struct device *dev)
 {
-	struct regmap *regmap = dev_get_drvdata(dev);
+	struct isl12022 *isl12022 = dev_get_drvdata(dev);
+	struct regmap *regmap = isl12022->regmap;
 	struct device *hwmon;
 	int ret;
 
@@ -143,7 +148,8 @@ static void isl12022_hwmon_register(struct device *dev)
  */
 static int isl12022_rtc_read_time(struct device *dev, struct rtc_time *tm)
 {
-	struct regmap *regmap = dev_get_drvdata(dev);
+	struct isl12022 *isl12022 = dev_get_drvdata(dev);
+	struct regmap *regmap = isl12022->regmap;
 	uint8_t buf[ISL12022_REG_INT + 1];
 	int ret;
 
@@ -178,7 +184,8 @@ static int isl12022_rtc_read_time(struct device *dev, struct rtc_time *tm)
 
 static int isl12022_rtc_set_time(struct device *dev, struct rtc_time *tm)
 {
-	struct regmap *regmap = dev_get_drvdata(dev);
+	struct isl12022 *isl12022 = dev_get_drvdata(dev);
+	struct regmap *regmap = isl12022->regmap;
 	int ret;
 	uint8_t buf[ISL12022_REG_DW + 1];
 
@@ -210,7 +217,8 @@ static int isl12022_rtc_set_time(struct device *dev, struct rtc_time *tm)
 
 static int isl12022_rtc_ioctl(struct device *dev, unsigned int cmd, unsigned long arg)
 {
-	struct regmap *regmap = dev_get_drvdata(dev);
+	struct isl12022 *isl12022 = dev_get_drvdata(dev);
+	struct regmap *regmap = isl12022->regmap;
 	u32 user, val;
 	int ret;
 
@@ -248,7 +256,8 @@ static const struct regmap_config regmap_config = {
 
 static int isl12022_register_clock(struct device *dev)
 {
-	struct regmap *regmap = dev_get_drvdata(dev);
+	struct isl12022 *isl12022 = dev_get_drvdata(dev);
+	struct regmap *regmap = isl12022->regmap;
 	struct clk_hw *hw;
 	int ret;
 
@@ -288,7 +297,8 @@ static const u32 trip_levels[2][7] = {
 
 static void isl12022_set_trip_levels(struct device *dev)
 {
-	struct regmap *regmap = dev_get_drvdata(dev);
+	struct isl12022 *isl12022 = dev_get_drvdata(dev);
+	struct regmap *regmap = isl12022->regmap;
 	u32 levels[2] = {0, 0};
 	int ret, i, j, x[2];
 	u8 val, mask;
@@ -325,6 +335,7 @@ static void isl12022_set_trip_levels(struct device *dev)
 
 static int isl12022_probe(struct i2c_client *client)
 {
+	struct isl12022 *isl12022;
 	struct rtc_device *rtc;
 	struct regmap *regmap;
 	int ret;
@@ -332,13 +343,19 @@ static int isl12022_probe(struct i2c_client *client)
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
 		return -ENODEV;
 
+	/* Allocate driver state */
+	isl12022 = devm_kzalloc(&client->dev, sizeof(*isl12022), GFP_KERNEL);
+	if (!isl12022)
+		return -ENOMEM;
+
 	regmap = devm_regmap_init_i2c(client, &regmap_config);
 	if (IS_ERR(regmap)) {
 		dev_err(&client->dev, "regmap allocation failed\n");
 		return PTR_ERR(regmap);
 	}
+	isl12022->regmap = regmap;
 
-	dev_set_drvdata(&client->dev, regmap);
+	dev_set_drvdata(&client->dev, isl12022);
 
 	ret = isl12022_register_clock(&client->dev);
 	if (ret)
