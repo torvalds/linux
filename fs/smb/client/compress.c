@@ -233,7 +233,7 @@ static int collect_sample(const struct iov_iter *iter, ssize_t max, u8 *sample)
 static int is_compressible(const struct iov_iter *data)
 {
 	const size_t read_size = SZ_2K, bkt_size = 256, max = SZ_4M;
-	struct bucket *bkt;
+	struct bucket *bkt = NULL;
 	int i = 0, ret = 0;
 	size_t len;
 	u8 *sample;
