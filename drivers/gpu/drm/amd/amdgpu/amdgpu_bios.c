@@ -414,7 +414,36 @@ static inline bool amdgpu_acpi_vfct_bios(struct amdgpu_device *adev)
 }
 #endif
 
-bool amdgpu_get_bios(struct amdgpu_device *adev)
+static bool amdgpu_get_bios_apu(struct amdgpu_device *adev)
+{
+	if (amdgpu_acpi_vfct_bios(adev)) {
+		dev_info(adev->dev, "Fetched VBIOS from VFCT\n");
+		goto success;
+	}
+
+	if (igp_read_bios_from_vram(adev)) {
+		dev_info(adev->dev, "Fetched VBIOS from VRAM BAR\n");
+		goto success;
+	}
+
+	if (amdgpu_read_bios(adev)) {
+		dev_info(adev->dev, "Fetched VBIOS from ROM BAR\n");
+		goto success;
+	}
+
+	if (amdgpu_read_platform_bios(adev)) {
+		dev_info(adev->dev, "Fetched VBIOS from platform\n");
+		goto success;
+	}
+
+	dev_err(adev->dev, "Unable to locate a BIOS ROM\n");
+	return false;
+
+success:
+	return true;
+}
+
+static bool amdgpu_get_bios_dgpu(struct amdgpu_device *adev)
 {
 	if (amdgpu_atrm_get_bios(adev)) {
 		dev_info(adev->dev, "Fetched VBIOS from ATRM\n");
@@ -455,8 +484,22 @@ bool amdgpu_get_bios(struct amdgpu_device *adev)
 	return false;
 
 success:
-	adev->is_atom_fw = adev->asic_type >= CHIP_VEGA10;
 	return true;
+}
+
+bool amdgpu_get_bios(struct amdgpu_device *adev)
+{
+	bool found;
+
+	if (adev->flags & AMD_IS_APU)
+		found = amdgpu_get_bios_apu(adev);
+	else
+		found = amdgpu_get_bios_dgpu(adev);
+
+	if (found)
+		adev->is_atom_fw = adev->asic_type >= CHIP_VEGA10;
+
+	return found;
 }
 
 /* helper function for soc15 and onwards to read bios from rom */
