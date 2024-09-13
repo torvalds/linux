@@ -4362,6 +4362,14 @@ struct rtw89_c2h_rf_rxdck_rpt_log {
 	u8 timeout[2];
 } __packed;
 
+struct rtw89_c2h_rf_tssi_rpt_log {
+	s8 alignment_power[2][2][4];
+	u8 alignment_power_cw_h[2][2][4];
+	u8 alignment_power_cw_l[2][2][4];
+	u8 tssi_alimk_state[2][2];
+	u8 default_txagc_offset[2][2];
+} __packed;
+
 struct rtw89_c2h_rf_txgapk_rpt_log {
 	__le32 r0x8010[2];
 	__le32 chk_cnt;

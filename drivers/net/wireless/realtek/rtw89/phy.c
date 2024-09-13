@@ -2692,7 +2692,9 @@ static void rtw89_phy_c2h_rfk_rpt_log(struct rtw89_dev *rtwdev,
 	struct rtw89_c2h_rf_txgapk_rpt_log *txgapk;
 	struct rtw89_c2h_rf_rxdck_rpt_log *rxdck;
 	struct rtw89_c2h_rf_dack_rpt_log *dack;
+	struct rtw89_c2h_rf_tssi_rpt_log *tssi;
 	struct rtw89_c2h_rf_dpk_rpt_log *dpk;
+	int i, j, k;
 
 	switch (func) {
 	case RTW89_PHY_C2H_RFK_LOG_FUNC_DPK:
@@ -2769,6 +2771,39 @@ static void rtw89_phy_c2h_rfk_rpt_log(struct rtw89_dev *rtwdev,
 			    "RXDCK ver:%d band:%2ph bw:%2ph ch:%2ph to:%2ph\n",
 			    rxdck->ver, rxdck->band, rxdck->bw, rxdck->ch,
 			    rxdck->timeout);
+		return;
+	case RTW89_PHY_C2H_RFK_LOG_FUNC_TSSI:
+		if (len != sizeof(*tssi))
+			goto out;
+
+		tssi = content;
+		for (i = 0; i < 2; i++) {
+			for (j = 0; j < 2; j++) {
+				for (k = 0; k < 4; k++) {
+					rtw89_debug(rtwdev, RTW89_DBG_RFK,
+						    "[TSSI] alignment_power_cw_h[%d][%d][%d]=%d\n",
+						    i, j, k, tssi->alignment_power_cw_h[i][j][k]);
+					rtw89_debug(rtwdev, RTW89_DBG_RFK,
+						    "[TSSI] alignment_power_cw_l[%d][%d][%d]=%d\n",
+						    i, j, k, tssi->alignment_power_cw_l[i][j][k]);
+					rtw89_debug(rtwdev, RTW89_DBG_RFK,
+						    "[TSSI] alignment_power[%d][%d][%d]=%d\n",
+						    i, j, k, tssi->alignment_power[i][j][k]);
+					rtw89_debug(rtwdev, RTW89_DBG_RFK,
+						    "[TSSI] alignment_power_cw[%d][%d][%d]=%d\n",
+						    i, j, k,
+						    (tssi->alignment_power_cw_h[i][j][k] << 8) +
+						     tssi->alignment_power_cw_l[i][j][k]);
+				}
+
+				rtw89_debug(rtwdev, RTW89_DBG_RFK,
+					    "[TSSI] tssi_alimk_state[%d][%d]=%d\n",
+					    i, j, tssi->tssi_alimk_state[i][j]);
+				rtw89_debug(rtwdev, RTW89_DBG_RFK,
+					    "[TSSI] default_txagc_offset[%d]=%d\n",
+					    j, tssi->default_txagc_offset[0][j]);
+			}
+		}
 		return;
 	case RTW89_PHY_C2H_RFK_LOG_FUNC_TXGAPK:
 		if (len != sizeof(*txgapk))
