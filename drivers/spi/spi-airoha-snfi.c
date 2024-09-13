@@ -405,7 +405,7 @@ static int airoha_snand_write_data(struct airoha_snand_ctrl *as_ctrl, u8 cmd,
 	for (i = 0; i < len; i += data_len) {
 		int err;
 
-		data_len = min(len, SPI_MAX_TRANSFER_SIZE);
+		data_len = min(len - i, SPI_MAX_TRANSFER_SIZE);
 		err = airoha_snand_set_fifo_op(as_ctrl, cmd, data_len);
 		if (err)
 			return err;
@@ -427,7 +427,7 @@ static int airoha_snand_read_data(struct airoha_snand_ctrl *as_ctrl, u8 *data,
 	for (i = 0; i < len; i += data_len) {
 		int err;
 
-		data_len = min(len, SPI_MAX_TRANSFER_SIZE);
+		data_len = min(len - i, SPI_MAX_TRANSFER_SIZE);
 		err = airoha_snand_set_fifo_op(as_ctrl, 0xc, data_len);
 		if (err)
 			return err;
