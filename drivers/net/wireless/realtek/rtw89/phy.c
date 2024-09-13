@@ -2792,8 +2792,23 @@ static void rtw89_phy_c2h_rfk_rpt_log(struct rtw89_dev *rtwdev,
 
 		dack = content;
 
-		rtw89_debug(rtwdev, RTW89_DBG_RFK, "[DACK]ver=0x%x 0x%x\n",
-			    dack->fwdack_ver, dack->fwdack_rpt_ver);
+		rtw89_debug(rtwdev, RTW89_DBG_RFK, "[DACK]FWDACK SUMMARY!!!!!\n");
+		rtw89_debug(rtwdev, RTW89_DBG_RFK,
+			    "[DACK]FWDACK ver = 0x%x, FWDACK rpt_ver = 0x%x, driver rpt_ver = 0x%x\n",
+			    dack->fwdack_ver, dack->fwdack_info_ver, 0x2);
+
+		rtw89_debug(rtwdev, RTW89_DBG_RFK,
+			    "[DACK]timeout code = [0x%x 0x%x 0x%x 0x%x 0x%x]\n",
+			    dack->addck_timeout, dack->cdack_timeout, dack->dadck_timeout,
+			    dack->adgaink_timeout, dack->msbk_timeout);
+		rtw89_debug(rtwdev, RTW89_DBG_RFK,
+			    "[DACK]DACK fail = 0x%x\n", dack->dack_fail);
+		rtw89_debug(rtwdev, RTW89_DBG_RFK,
+			    "[DACK]S0 WBADCK = [0x%x]\n", dack->wbdck_d[0]);
+		rtw89_debug(rtwdev, RTW89_DBG_RFK,
+			    "[DACK]S1 WBADCK = [0x%x]\n", dack->wbdck_d[1]);
+		rtw89_debug(rtwdev, RTW89_DBG_RFK,
+			    "[DACK]DRCK = [0x%x]\n", dack->rck_d);
 		rtw89_debug(rtwdev, RTW89_DBG_RFK, "[DACK]S0 CDACK ic = [0x%x, 0x%x]\n",
 			    dack->cdack_d[0][0][0], dack->cdack_d[0][0][1]);
 		rtw89_debug(rtwdev, RTW89_DBG_RFK, "[DACK]S0 CDACK qc = [0x%x, 0x%x]\n",
@@ -2804,13 +2819,17 @@ static void rtw89_phy_c2h_rfk_rpt_log(struct rtw89_dev *rtwdev,
 			    dack->cdack_d[1][1][0], dack->cdack_d[1][1][1]);
 
 		rtw89_debug(rtwdev, RTW89_DBG_RFK, "[DACK]S0 ADC_DCK ic = [0x%x, 0x%x]\n",
-			    dack->addck2_d[0][0][0], dack->addck2_d[0][0][1]);
+			    ((u32)dack->addck2_hd[0][0][0] << 8) | dack->addck2_ld[0][0][0],
+			    ((u32)dack->addck2_hd[0][0][1] << 8) | dack->addck2_ld[0][0][1]);
 		rtw89_debug(rtwdev, RTW89_DBG_RFK, "[DACK]S0 ADC_DCK qc = [0x%x, 0x%x]\n",
-			    dack->addck2_d[0][1][0], dack->addck2_d[0][1][1]);
+			    ((u32)dack->addck2_hd[0][1][0] << 8) | dack->addck2_ld[0][1][0],
+			    ((u32)dack->addck2_hd[0][1][1] << 8) | dack->addck2_ld[0][1][1]);
 		rtw89_debug(rtwdev, RTW89_DBG_RFK, "[DACK]S1 ADC_DCK ic = [0x%x, 0x%x]\n",
-			    dack->addck2_d[1][0][0], dack->addck2_d[1][0][1]);
+			    ((u32)dack->addck2_hd[1][0][0] << 8) | dack->addck2_ld[1][0][0],
+			    ((u32)dack->addck2_hd[1][0][1] << 8) | dack->addck2_ld[1][0][1]);
 		rtw89_debug(rtwdev, RTW89_DBG_RFK, "[DACK]S1 ADC_DCK qc = [0x%x, 0x%x]\n",
-			    dack->addck2_d[1][1][0], dack->addck2_d[1][1][1]);
+			    ((u32)dack->addck2_hd[1][1][0] << 8) | dack->addck2_ld[1][1][0],
+			    ((u32)dack->addck2_hd[1][1][1] << 8) | dack->addck2_ld[1][1][1]);
 
 		rtw89_debug(rtwdev, RTW89_DBG_RFK, "[DACK]S0 ADC_GAINK ic = 0x%x, qc = 0x%x\n",
 			    dack->adgaink_d[0][0], dack->adgaink_d[0][1]);
@@ -2823,18 +2842,29 @@ static void rtw89_phy_c2h_rfk_rpt_log(struct rtw89_dev *rtwdev,
 			    dack->dadck_d[1][0], dack->dadck_d[1][1]);
 
 		rtw89_debug(rtwdev, RTW89_DBG_RFK, "[DACK]S0 biask iqc = 0x%x\n",
-			    dack->biask_d[0][0]);
+			    ((u32)dack->biask_hd[0][0] << 8) | dack->biask_ld[0][0]);
 		rtw89_debug(rtwdev, RTW89_DBG_RFK, "[DACK]S1 biask iqc = 0x%x\n",
-			    dack->biask_d[1][0]);
+			    ((u32)dack->biask_hd[1][0] << 8) | dack->biask_ld[1][0]);
 
-		rtw89_debug(rtwdev, RTW89_DBG_RFK, "[DACK]S0 MSBK ic: %*ph\n",
-			    (int)sizeof(dack->msbk_d[0][0]), dack->msbk_d[0][0]);
-		rtw89_debug(rtwdev, RTW89_DBG_RFK, "[DACK]S0 MSBK qc: %*ph\n",
-			    (int)sizeof(dack->msbk_d[0][1]), dack->msbk_d[0][1]);
-		rtw89_debug(rtwdev, RTW89_DBG_RFK, "[DACK]S1 MSBK ic: %*ph\n",
-			    (int)sizeof(dack->msbk_d[1][0]), dack->msbk_d[1][0]);
-		rtw89_debug(rtwdev, RTW89_DBG_RFK, "[DACK]S1 MSBK qc: %*ph\n",
-			    (int)sizeof(dack->msbk_d[1][1]), dack->msbk_d[1][1]);
+		rtw89_debug(rtwdev, RTW89_DBG_RFK, "[DACK]S0 MSBK ic:\n");
+		for (i = 0; i < 0x10; i++)
+			rtw89_debug(rtwdev, RTW89_DBG_RFK, "[DACK]0x%x\n",
+				    dack->msbk_d[0][0][i]);
+
+		rtw89_debug(rtwdev, RTW89_DBG_RFK, "[DACK]S0 MSBK qc:\n");
+		for (i = 0; i < 0x10; i++)
+			rtw89_debug(rtwdev, RTW89_DBG_RFK, "[DACK]0x%x\n",
+				    dack->msbk_d[0][1][i]);
+
+		rtw89_debug(rtwdev, RTW89_DBG_RFK, "[DACK]S1 MSBK ic:\n");
+		for (i = 0; i < 0x10; i++)
+			rtw89_debug(rtwdev, RTW89_DBG_RFK, "[DACK]0x%x\n",
+				    dack->msbk_d[1][0][i]);
+
+		rtw89_debug(rtwdev, RTW89_DBG_RFK, "[DACK]S1 MSBK qc:\n");
+		for (i = 0; i < 0x10; i++)
+			rtw89_debug(rtwdev, RTW89_DBG_RFK, "[DACK]0x%x\n",
+				    dack->msbk_d[1][1][i]);
 		return;
 	case RTW89_PHY_C2H_RFK_LOG_FUNC_RXDCK:
 		if (len != sizeof(*rxdck))

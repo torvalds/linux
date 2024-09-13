@@ -4375,19 +4375,25 @@ struct rtw89_c2h_rf_dpk_rpt_log {
 
 struct rtw89_c2h_rf_dack_rpt_log {
 	u8 fwdack_ver;
-	u8 fwdack_rpt_ver;
+	u8 fwdack_info_ver;
 	u8 msbk_d[2][2][16];
 	u8 dadck_d[2][2];
 	u8 cdack_d[2][2][2];
-	__le16 addck2_d[2][2][2];
+	u8 addck2_hd[2][2][2];
+	u8 addck2_ld[2][2][2];
 	u8 adgaink_d[2][2];
-	__le16 biask_d[2][2];
+	u8 biask_hd[2][2];
+	u8 biask_ld[2][2];
 	u8 addck_timeout;
 	u8 cdack_timeout;
 	u8 dadck_timeout;
 	u8 msbk_timeout;
 	u8 adgaink_timeout;
+	u8 wbadcdck_timeout;
+	u8 drck_timeout;
 	u8 dack_fail;
+	u8 wbdck_d[2];
+	u8 rck_d;
 } __packed;
 
 struct rtw89_c2h_rf_rxdck_rpt_log {
