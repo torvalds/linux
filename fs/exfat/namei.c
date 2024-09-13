@@ -779,26 +779,23 @@ unlock:
 /* remove an entry, BUT don't truncate */
 static int exfat_unlink(struct inode *dir, struct dentry *dentry)
 {
-	struct exfat_chain cdir;
 	struct super_block *sb = dir->i_sb;
 	struct inode *inode = dentry->d_inode;
 	struct exfat_inode_info *ei = EXFAT_I(inode);
 	struct exfat_entry_set_cache es;
-	int entry, err = 0;
+	int err = 0;
 
 	if (unlikely(exfat_forced_shutdown(sb)))
 		return -EIO;
 
 	mutex_lock(&EXFAT_SB(sb)->s_lock);
-	exfat_chain_dup(&cdir, &ei->dir);
-	entry = ei->entry;
 	if (ei->dir.dir == DIR_DELETED) {
 		exfat_err(sb, "abnormal access to deleted dentry");
 		err = -ENOENT;
 		goto unlock;
 	}
 
-	err = exfat_get_dentry_set(&es, sb, &cdir, entry, ES_ALL_ENTRIES);
+	err = exfat_get_dentry_set_by_ei(&es, sb, ei);
 	if (err) {
 		err = -EIO;
 		goto unlock;
@@ -928,20 +925,17 @@ static int exfat_check_dir_empty(struct super_block *sb,
 static int exfat_rmdir(struct inode *dir, struct dentry *dentry)
 {
 	struct inode *inode = dentry->d_inode;
-	struct exfat_chain cdir, clu_to_free;
+	struct exfat_chain clu_to_free;
 	struct super_block *sb = inode->i_sb;
 	struct exfat_sb_info *sbi = EXFAT_SB(sb);
 	struct exfat_inode_info *ei = EXFAT_I(inode);
 	struct exfat_entry_set_cache es;
-	int entry, err;
+	int err;
 
 	if (unlikely(exfat_forced_shutdown(sb)))
 		return -EIO;
 
 	mutex_lock(&EXFAT_SB(inode->i_sb)->s_lock);
-
-	exfat_chain_dup(&cdir, &ei->dir);
-	entry = ei->entry;
 
 	if (ei->dir.dir == DIR_DELETED) {
 		exfat_err(sb, "abnormal access to deleted dentry");
@@ -960,7 +954,7 @@ static int exfat_rmdir(struct inode *dir, struct dentry *dentry)
 		goto unlock;
 	}
 
-	err = exfat_get_dentry_set(&es, sb, &cdir, entry, ES_ALL_ENTRIES);
+	err = exfat_get_dentry_set_by_ei(&es, sb, ei);
 	if (err) {
 		err = -EIO;
 		goto unlock;
@@ -995,8 +989,8 @@ unlock:
 	return err;
 }
 
-static int exfat_rename_file(struct inode *parent_inode, struct exfat_chain *p_dir,
-		int oldentry, struct exfat_uni_name *p_uniname,
+static int exfat_rename_file(struct inode *parent_inode,
+		struct exfat_chain *p_dir, struct exfat_uni_name *p_uniname,
 		struct exfat_inode_info *ei)
 {
 	int ret, num_new_entries;
@@ -1012,7 +1006,7 @@ static int exfat_rename_file(struct inode *parent_inode, struct exfat_chain *p_d
 	if (num_new_entries < 0)
 		return num_new_entries;
 
-	ret = exfat_get_dentry_set(&old_es, sb, p_dir, oldentry, ES_ALL_ENTRIES);
+	ret = exfat_get_dentry_set_by_ei(&old_es, sb, ei);
 	if (ret) {
 		ret = -EIO;
 		return ret;
@@ -1066,21 +1060,19 @@ put_old_es:
 	return ret;
 }
 
-static int exfat_move_file(struct inode *parent_inode, struct exfat_chain *p_olddir,
-		int oldentry, struct exfat_chain *p_newdir,
-		struct exfat_uni_name *p_uniname, struct exfat_inode_info *ei)
+static int exfat_move_file(struct inode *parent_inode,
+		struct exfat_chain *p_newdir, struct exfat_uni_name *p_uniname,
+		struct exfat_inode_info *ei)
 {
 	int ret, newentry, num_new_entries;
 	struct exfat_dentry *epmov, *epnew;
-	struct super_block *sb = parent_inode->i_sb;
 	struct exfat_entry_set_cache mov_es, new_es;
 
 	num_new_entries = exfat_calc_num_entries(p_uniname);
 	if (num_new_entries < 0)
 		return num_new_entries;
 
-	ret = exfat_get_dentry_set(&mov_es, sb, p_olddir, oldentry,
-			ES_ALL_ENTRIES);
+	ret = exfat_get_dentry_set_by_ei(&mov_es, parent_inode->i_sb, ei);
 	if (ret)
 		return -EIO;
 
@@ -1129,8 +1121,7 @@ static int __exfat_rename(struct inode *old_parent_inode,
 		struct dentry *new_dentry)
 {
 	int ret;
-	int dentry;
-	struct exfat_chain olddir, newdir;
+	struct exfat_chain newdir;
 	struct exfat_uni_name uni_name;
 	struct super_block *sb = old_parent_inode->i_sb;
 	struct exfat_sb_info *sbi = EXFAT_SB(sb);
@@ -1146,11 +1137,6 @@ static int __exfat_rename(struct inode *old_parent_inode,
 		exfat_err(sb, "abnormal access to deleted source dentry");
 		return -ENOENT;
 	}
-
-	exfat_chain_set(&olddir, EXFAT_I(old_parent_inode)->start_clu,
-		EXFAT_B_TO_CLU_ROUND_UP(i_size_read(old_parent_inode), sbi),
-		EXFAT_I(old_parent_inode)->flags);
-	dentry = ei->entry;
 
 	/* check whether new dir is existing directory and empty */
 	if (new_inode) {
@@ -1186,21 +1172,18 @@ static int __exfat_rename(struct inode *old_parent_inode,
 
 	exfat_set_volume_dirty(sb);
 
-	if (olddir.dir == newdir.dir)
-		ret = exfat_rename_file(new_parent_inode, &olddir, dentry,
+	if (new_parent_inode == old_parent_inode)
+		ret = exfat_rename_file(new_parent_inode, &newdir,
 				&uni_name, ei);
 	else
-		ret = exfat_move_file(new_parent_inode, &olddir, dentry,
-				&newdir, &uni_name, ei);
+		ret = exfat_move_file(new_parent_inode, &newdir,
+				&uni_name, ei);
 
 	if (!ret && new_inode) {
 		struct exfat_entry_set_cache es;
-		struct exfat_chain *p_dir = &(new_ei->dir);
-		int new_entry = new_ei->entry;
 
 		/* delete entries of new_dir */
-		ret = exfat_get_dentry_set(&es, sb, p_dir, new_entry,
-				ES_ALL_ENTRIES);
+		ret = exfat_get_dentry_set_by_ei(&es, sb, new_ei);
 		if (ret) {
 			ret = -EIO;
 			goto del_out;

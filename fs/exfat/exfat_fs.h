@@ -508,6 +508,8 @@ struct exfat_dentry *exfat_get_dentry_cached(struct exfat_entry_set_cache *es,
 int exfat_get_dentry_set(struct exfat_entry_set_cache *es,
 		struct super_block *sb, struct exfat_chain *p_dir, int entry,
 		unsigned int num_entries);
+#define exfat_get_dentry_set_by_ei(es, sb, ei)		\
+	exfat_get_dentry_set(es, sb, &(ei)->dir, (ei)->entry, ES_ALL_ENTRIES)
 int exfat_get_empty_dentry_set(struct exfat_entry_set_cache *es,
 		struct super_block *sb, struct exfat_chain *p_dir, int entry,
 		unsigned int num_entries);
