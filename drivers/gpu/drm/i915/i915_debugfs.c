@@ -76,10 +76,8 @@ static int i915_capabilities(struct seq_file *m, void *data)
 	intel_gt_info_print(&to_gt(i915)->info, &p);
 	intel_driver_caps_print(&i915->caps, &p);
 
-	kernel_param_lock(THIS_MODULE);
 	i915_params_dump(&i915->params, &p);
 	intel_display_params_dump(&display->params, display->drm->driver->name, &p);
-	kernel_param_unlock(THIS_MODULE);
 
 	return 0;
 }
