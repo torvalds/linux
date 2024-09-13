@@ -370,6 +370,7 @@ static void imx_uart_soft_reset(struct imx_port *sport)
 	sport->idle_counter = 0;
 }
 
+/* called with port.lock taken and irqs off */
 static void imx_uart_disable_loopback_rs485(struct imx_port *sport)
 {
 	unsigned int uts;
@@ -470,6 +471,7 @@ static void imx_uart_stop_tx(struct uart_port *port)
 	}
 }
 
+/* called with port.lock taken and irqs off */
 static void imx_uart_stop_rx_with_loopback_ctrl(struct uart_port *port, bool loopback)
 {
 	struct imx_port *sport = to_imx_port(port);
@@ -803,6 +805,8 @@ static irqreturn_t imx_uart_txint(int irq, void *dev_id)
  * issuing soft reset to the UART (just stop/start of RX does not help). Note
  * that what we do here is sending isolated start bit about 2.4 times shorter
  * than it is to be on UART configured baud rate.
+ *
+ * Called with port.lock taken and irqs off.
  */
 static void imx_uart_check_flood(struct imx_port *sport, u32 usr2)
 {
@@ -838,6 +842,7 @@ static void imx_uart_check_flood(struct imx_port *sport, u32 usr2)
 	}
 }
 
+/* called with port.lock taken and irqs off */
 static irqreturn_t __imx_uart_rxint(int irq, void *dev_id)
 {
 	struct imx_port *sport = dev_id;
@@ -916,6 +921,7 @@ static void imx_uart_clear_rx_errors(struct imx_port *sport);
 /*
  * We have a modem side uart, so the meanings of RTS and CTS are inverted.
  */
+/* called with port.lock taken and irqs off */
 static unsigned int imx_uart_get_hwmctrl(struct imx_port *sport)
 {
 	unsigned int tmp = TIOCM_DSR;
@@ -938,6 +944,8 @@ static unsigned int imx_uart_get_hwmctrl(struct imx_port *sport)
 
 /*
  * Handle any change of modem status signal since we were last called.
+ *
+ * Called with port.lock taken and irqs off.
  */
 static void imx_uart_mctrl_check(struct imx_port *sport)
 {
@@ -1277,6 +1285,7 @@ static int imx_uart_start_rx_dma(struct imx_port *sport)
 	return 0;
 }
 
+/* called with port.lock taken and irqs off */
 static void imx_uart_clear_rx_errors(struct imx_port *sport)
 {
 	struct tty_port *port = &sport->port.state->port;
@@ -1407,6 +1416,7 @@ err:
 	return ret;
 }
 
+/* called with port.lock taken and irqs off */
 static void imx_uart_enable_dma(struct imx_port *sport)
 {
 	u32 ucr1;
