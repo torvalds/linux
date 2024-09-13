@@ -379,7 +379,9 @@ properties:
 
       - description: i.MX6Q PHYTEC phyFLEX-i.MX6
         items:
-          - const: phytec,imx6q-pbab01    # PHYTEC phyFLEX carrier board
+          - enum:
+              - comvetia,imx6q-lxr        # Comvetia LXR board
+              - phytec,imx6q-pbab01       # PHYTEC phyFLEX carrier board
           - const: phytec,imx6q-pfla02    # PHYTEC phyFLEX-i.MX6 Quad
           - const: fsl,imx6q
 
