@@ -211,6 +211,7 @@ dtb-$(CONFIG_SOC_IMX6Q) += \
 	imx6q-kontron-samx6i-ads2.dtb \
 	imx6q-kp-tpc.dtb \
 	imx6q-logicpd.dtb \
+	imx6q-lxr.dtb \
 	imx6q-marsboard.dtb \
 	imx6q-mba6a.dtb \
 	imx6q-mba6b.dtb \
