@@ -484,12 +484,10 @@ static int tegra_kbc_parse_dt(struct tegra_kbc *kbc)
 	struct device_node *np = kbc->dev->of_node;
 	u32 prop;
 	int i;
-	u32 num_rows = 0;
-	u32 num_cols = 0;
+	int num_rows;
+	int num_cols;
 	u32 cols_cfg[KBC_MAX_GPIO];
 	u32 rows_cfg[KBC_MAX_GPIO];
-	int proplen;
-	int ret;
 
 	if (!of_property_read_u32(np, "nvidia,debounce-delay-ms", &prop))
 		kbc->debounce_cnt = prop;
@@ -503,56 +501,23 @@ static int tegra_kbc_parse_dt(struct tegra_kbc *kbc)
 	    of_property_read_bool(np, "nvidia,wakeup-source")) /* legacy */
 		kbc->wakeup = true;
 
-	if (!of_get_property(np, "nvidia,kbc-row-pins", &proplen)) {
-		dev_err(kbc->dev, "property nvidia,kbc-row-pins not found\n");
-		return -ENOENT;
-	}
-	num_rows = proplen / sizeof(u32);
-
-	if (!of_get_property(np, "nvidia,kbc-col-pins", &proplen)) {
-		dev_err(kbc->dev, "property nvidia,kbc-col-pins not found\n");
-		return -ENOENT;
-	}
-	num_cols = proplen / sizeof(u32);
-
-	if (num_rows > kbc->hw_support->max_rows) {
-		dev_err(kbc->dev,
-			"Number of rows is more than supported by hardware\n");
-		return -EINVAL;
-	}
-
-	if (num_cols > kbc->hw_support->max_columns) {
-		dev_err(kbc->dev,
-			"Number of cols is more than supported by hardware\n");
-		return -EINVAL;
-	}
-
-	if (!of_get_property(np, "linux,keymap", &proplen)) {
+	if (!of_property_present(np, "linux,keymap")) {
 		dev_err(kbc->dev, "property linux,keymap not found\n");
 		return -ENOENT;
-	}
-
-	if (!num_rows || !num_cols || ((num_rows + num_cols) > KBC_MAX_GPIO)) {
-		dev_err(kbc->dev,
-			"keypad rows/columns not properly specified\n");
-		return -EINVAL;
 	}
 
 	/* Set all pins as non-configured */
 	for (i = 0; i < kbc->num_rows_and_columns; i++)
 		kbc->pin_cfg[i].type = PIN_CFG_IGNORE;
 
-	ret = of_property_read_u32_array(np, "nvidia,kbc-row-pins",
-				rows_cfg, num_rows);
-	if (ret < 0) {
+	num_rows = of_property_read_variable_u32_array(np, "nvidia,kbc-row-pins",
+				rows_cfg, 1, KBC_MAX_GPIO);
+	if (num_rows < 0) {
 		dev_err(kbc->dev, "Rows configurations are not proper\n");
-		return -EINVAL;
-	}
-
-	ret = of_property_read_u32_array(np, "nvidia,kbc-col-pins",
-				cols_cfg, num_cols);
-	if (ret < 0) {
-		dev_err(kbc->dev, "Cols configurations are not proper\n");
+		return num_rows;
+	} else if (num_rows > kbc->hw_support->max_rows) {
+		dev_err(kbc->dev,
+			"Number of rows is more than supported by hardware\n");
 		return -EINVAL;
 	}
 
@@ -561,9 +526,26 @@ static int tegra_kbc_parse_dt(struct tegra_kbc *kbc)
 		kbc->pin_cfg[rows_cfg[i]].num = i;
 	}
 
+	num_cols = of_property_read_variable_u32_array(np, "nvidia,kbc-col-pins",
+				cols_cfg, 1, KBC_MAX_GPIO);
+	if (num_cols < 0) {
+		dev_err(kbc->dev, "Cols configurations are not proper\n");
+		return num_cols;
+	} else if (num_cols > kbc->hw_support->max_columns) {
+		dev_err(kbc->dev,
+			"Number of cols is more than supported by hardware\n");
+		return -EINVAL;
+	}
+
 	for (i = 0; i < num_cols; i++) {
 		kbc->pin_cfg[cols_cfg[i]].type = PIN_CFG_COL;
 		kbc->pin_cfg[cols_cfg[i]].num = i;
+	}
+
+	if (!num_rows || !num_cols || ((num_rows + num_cols) > KBC_MAX_GPIO)) {
+		dev_err(kbc->dev,
+			"keypad rows/columns not properly specified\n");
+		return -EINVAL;
 	}
 
 	return 0;
