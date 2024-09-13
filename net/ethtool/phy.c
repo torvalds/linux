@@ -251,8 +251,6 @@ static int ethnl_phy_dump_one_dev(struct sk_buff *skb, struct net_device *dev,
 	int ret = 0;
 	void *ehdr;
 
-	pri->base.dev = dev;
-
 	if (!dev->link_topo)
 		return 0;
 
