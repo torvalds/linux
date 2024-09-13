@@ -44,10 +44,10 @@
 #include "xattr.h"
 #include "lops.h"
 
-enum dinode_demise {
-	SHOULD_DELETE_DINODE,
-	SHOULD_NOT_DELETE_DINODE,
-	SHOULD_DEFER_EVICTION,
+enum evict_behavior {
+	EVICT_SHOULD_DELETE,
+	EVICT_SHOULD_SKIP_DELETE,
+	EVICT_SHOULD_DEFER_DELETE,
 };
 
 /**
@@ -1313,8 +1313,8 @@ static bool gfs2_upgrade_iopen_glock(struct inode *inode)
  *
  * Returns: the fate of the dinode
  */
-static enum dinode_demise evict_should_delete(struct inode *inode,
-					      struct gfs2_holder *gh)
+static enum evict_behavior evict_should_delete(struct inode *inode,
+					       struct gfs2_holder *gh)
 {
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct super_block *sb = inode->i_sb;
@@ -1325,11 +1325,11 @@ static enum dinode_demise evict_should_delete(struct inode *inode,
 		goto should_delete;
 
 	if (test_bit(GIF_DEFER_DELETE, &ip->i_flags))
-		return SHOULD_DEFER_EVICTION;
+		return EVICT_SHOULD_DEFER_DELETE;
 
 	/* Deletes should never happen under memory pressure anymore.  */
 	if (WARN_ON_ONCE(current->flags & PF_MEMALLOC))
-		return SHOULD_DEFER_EVICTION;
+		return EVICT_SHOULD_DEFER_DELETE;
 
 	/* Must not read inode block until block type has been verified */
 	ret = gfs2_glock_nq_init(ip->i_gl, LM_ST_EXCLUSIVE, GL_SKIP, gh);
@@ -1337,34 +1337,34 @@ static enum dinode_demise evict_should_delete(struct inode *inode,
 		glock_clear_object(ip->i_iopen_gh.gh_gl, ip);
 		ip->i_iopen_gh.gh_flags |= GL_NOCACHE;
 		gfs2_glock_dq_uninit(&ip->i_iopen_gh);
-		return SHOULD_DEFER_EVICTION;
+		return EVICT_SHOULD_DEFER_DELETE;
 	}
 
 	if (gfs2_inode_already_deleted(ip->i_gl, ip->i_no_formal_ino))
-		return SHOULD_NOT_DELETE_DINODE;
+		return EVICT_SHOULD_SKIP_DELETE;
 	ret = gfs2_check_blk_type(sdp, ip->i_no_addr, GFS2_BLKST_UNLINKED);
 	if (ret)
-		return SHOULD_NOT_DELETE_DINODE;
+		return EVICT_SHOULD_SKIP_DELETE;
 
 	ret = gfs2_instantiate(gh);
 	if (ret)
-		return SHOULD_NOT_DELETE_DINODE;
+		return EVICT_SHOULD_SKIP_DELETE;
 
 	/*
 	 * The inode may have been recreated in the meantime.
 	 */
 	if (inode->i_nlink)
-		return SHOULD_NOT_DELETE_DINODE;
+		return EVICT_SHOULD_SKIP_DELETE;
 
 should_delete:
 	if (gfs2_holder_initialized(&ip->i_iopen_gh) &&
 	    test_bit(HIF_HOLDER, &ip->i_iopen_gh.gh_iflags)) {
 		if (!gfs2_upgrade_iopen_glock(inode)) {
 			gfs2_holder_uninit(&ip->i_iopen_gh);
-			return SHOULD_NOT_DELETE_DINODE;
+			return EVICT_SHOULD_SKIP_DELETE;
 		}
 	}
-	return SHOULD_DELETE_DINODE;
+	return EVICT_SHOULD_DELETE;
 }
 
 /**
@@ -1475,6 +1475,7 @@ static void gfs2_evict_inode(struct inode *inode)
 	struct gfs2_sbd *sdp = sb->s_fs_info;
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_holder gh;
+	enum evict_behavior behavior;
 	int ret;
 
 	if (inode->i_nlink || sb_rdonly(sb) || !ip->i_no_addr)
@@ -1489,10 +1490,10 @@ static void gfs2_evict_inode(struct inode *inode)
 		goto out;
 
 	gfs2_holder_mark_uninitialized(&gh);
-	ret = evict_should_delete(inode, &gh);
-	if (ret == SHOULD_DEFER_EVICTION)
+	behavior = evict_should_delete(inode, &gh);
+	if (behavior == EVICT_SHOULD_DEFER_DELETE)
 		goto out;
-	if (ret == SHOULD_DELETE_DINODE)
+	if (behavior == EVICT_SHOULD_DELETE)
 		ret = evict_unlinked_inode(inode);
 	else
 		ret = evict_linked_inode(inode);
