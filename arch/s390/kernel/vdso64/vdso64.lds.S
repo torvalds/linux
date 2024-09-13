@@ -42,6 +42,10 @@ SECTIONS
 	.rodata		: { *(.rodata .rodata.* .gnu.linkonce.r.*) }
 	.rodata1	: { *(.rodata1) }
 
+	. = ALIGN(8);
+	.altinstructions	: { *(.altinstructions) }
+	.altinstr_replacement	: { *(.altinstr_replacement) }
+
 	.dynamic	: { *(.dynamic) }		:text	:dynamic
 
 	.eh_frame_hdr	: { *(.eh_frame_hdr) }		:text	:eh_frame_hdr

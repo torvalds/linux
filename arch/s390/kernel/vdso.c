@@ -12,12 +12,14 @@
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
 #include <linux/smp.h>
 #include <linux/time_namespace.h>
 #include <linux/random.h>
 #include <vdso/datapage.h>
+#include <asm/alternative.h>
 #include <asm/vdso.h>
 
 extern char vdso64_start[], vdso64_end[];
@@ -250,8 +252,25 @@ static struct page ** __init vdso_setup_pages(void *start, void *end)
 	return pagelist;
 }
 
+static void vdso_apply_alternatives(void)
+{
+	const struct elf64_shdr *alt, *shdr;
+	struct alt_instr *start, *end;
+	const struct elf64_hdr *hdr;
+
+	hdr = (struct elf64_hdr *)vdso64_start;
+	shdr = (void *)hdr + hdr->e_shoff;
+	alt = find_section(hdr, shdr, ".altinstructions");
+	if (!alt)
+		return;
+	start = (void *)hdr + alt->sh_offset;
+	end = (void *)hdr + alt->sh_offset + alt->sh_size;
+	apply_alternatives(start, end);
+}
+
 static int __init vdso_init(void)
 {
+	vdso_apply_alternatives();
 	vdso64_mapping.pages = vdso_setup_pages(vdso64_start, vdso64_end);
 	if (IS_ENABLED(CONFIG_COMPAT))
 		vdso32_mapping.pages = vdso_setup_pages(vdso32_start, vdso32_end);
