@@ -4699,6 +4699,7 @@ lpfc_create_port(struct lpfc_hba *phba, int instance, struct device *dev)
 	uint64_t wwn;
 	bool use_no_reset_hba = false;
 	int rc;
+	u8 if_type;
 
 	if (lpfc_no_hba_reset_cnt) {
 		if (phba->sli_rev < LPFC_SLI_REV4 &&
@@ -4773,10 +4774,24 @@ lpfc_create_port(struct lpfc_hba *phba, int instance, struct device *dev)
 	shost->max_id = LPFC_MAX_TARGET;
 	shost->max_lun = vport->cfg_max_luns;
 	shost->this_id = -1;
-	if (phba->sli_rev == LPFC_SLI_REV4)
-		shost->max_cmd_len = LPFC_FCP_CDB_LEN_32;
-	else
+
+	/* Set max_cmd_len applicable to ASIC support */
+	if (phba->sli_rev == LPFC_SLI_REV4) {
+		if_type = bf_get(lpfc_sli_intf_if_type,
+				 &phba->sli4_hba.sli_intf);
+		switch (if_type) {
+		case LPFC_SLI_INTF_IF_TYPE_2:
+			fallthrough;
+		case LPFC_SLI_INTF_IF_TYPE_6:
+			shost->max_cmd_len = LPFC_FCP_CDB_LEN_32;
+			break;
+		default:
+			shost->max_cmd_len = LPFC_FCP_CDB_LEN;
+			break;
+		}
+	} else {
 		shost->max_cmd_len = LPFC_FCP_CDB_LEN;
+	}
 
 	if (phba->sli_rev == LPFC_SLI_REV4) {
 		if (!phba->cfg_fcp_mq_threshold ||
@@ -10436,6 +10451,7 @@ lpfc_sli4_queue_create(struct lpfc_hba *phba)
 	struct lpfc_vector_map_info *cpup;
 	struct lpfc_vector_map_info *eqcpup;
 	struct lpfc_eq_intr_info *eqi;
+	u32 wqesize;
 
 	/*
 	 * Create HBA Record arrays.
@@ -10655,9 +10671,15 @@ lpfc_sli4_queue_create(struct lpfc_hba *phba)
 	 * Create ELS Work Queues
 	 */
 
-	/* Create slow-path ELS Work Queue */
+	/*
+	 * Create slow-path ELS Work Queue.
+	 * Increase the ELS WQ size when WQEs contain an embedded cdb
+	 */
+	wqesize = (phba->fcp_embed_io) ?
+			LPFC_WQE128_SIZE : phba->sli4_hba.wq_esize;
+
 	qdesc = lpfc_sli4_queue_alloc(phba, LPFC_DEFAULT_PAGE_SIZE,
-				      phba->sli4_hba.wq_esize,
+				      wqesize,
 				      phba->sli4_hba.wq_ecount, cpu);
 	if (!qdesc) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
