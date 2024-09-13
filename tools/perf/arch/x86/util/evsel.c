@@ -6,6 +6,7 @@
 #include "util/pmu.h"
 #include "util/pmus.h"
 #include "linux/string.h"
+#include "topdown.h"
 #include "evsel.h"
 #include "util/debug.h"
 #include "env.h"
@@ -65,7 +66,7 @@ bool arch_evsel__must_be_in_group(const struct evsel *evsel)
 	    strcasestr(evsel->name, "uops_retired.slots"))
 		return false;
 
-	return strcasestr(evsel->name, "topdown") || strcasestr(evsel->name, "slots");
+	return arch_is_topdown_metrics(evsel) || arch_is_topdown_slots(evsel);
 }
 
 int arch_evsel__hw_name(struct evsel *evsel, char *bf, size_t size)
