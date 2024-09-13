@@ -1146,20 +1146,6 @@ static int clk_wzrd_probe(struct platform_device *pdev)
 	if (IS_ERR(clk_wzrd->base))
 		return PTR_ERR(clk_wzrd->base);
 
-	ret = of_property_read_u32(np, "xlnx,speed-grade", &clk_wzrd->speed_grade);
-	if (!ret) {
-		if (clk_wzrd->speed_grade < 1 || clk_wzrd->speed_grade > 3) {
-			dev_warn(&pdev->dev, "invalid speed grade '%d'\n",
-				 clk_wzrd->speed_grade);
-			clk_wzrd->speed_grade = 0;
-		}
-	}
-
-	clk_wzrd->clk_in1 = devm_clk_get(&pdev->dev, "clk_in1");
-	if (IS_ERR(clk_wzrd->clk_in1))
-		return dev_err_probe(&pdev->dev, PTR_ERR(clk_wzrd->clk_in1),
-				     "clk_in1 not found\n");
-
 	clk_wzrd->axi_clk = devm_clk_get_enabled(&pdev->dev, "s_axi_aclk");
 	if (IS_ERR(clk_wzrd->axi_clk))
 		return dev_err_probe(&pdev->dev, PTR_ERR(clk_wzrd->axi_clk),
@@ -1170,31 +1156,48 @@ static int clk_wzrd_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	ret = clk_wzrd_register_output_clocks(&pdev->dev, nr_outputs);
-	if (ret)
-		return ret;
+	if (!of_property_present(np, "xlnx,static-config")) {
+		ret = of_property_read_u32(np, "xlnx,speed-grade", &clk_wzrd->speed_grade);
+		if (!ret) {
+			if (clk_wzrd->speed_grade < 1 || clk_wzrd->speed_grade > 3) {
+				dev_warn(&pdev->dev, "invalid speed grade '%d'\n",
+					 clk_wzrd->speed_grade);
+				clk_wzrd->speed_grade = 0;
+			}
+		}
 
-	clk_wzrd->clk_data.num = nr_outputs;
-	ret = devm_of_clk_add_hw_provider(&pdev->dev, of_clk_hw_onecell_get, &clk_wzrd->clk_data);
-	if (ret) {
-		dev_err(&pdev->dev, "unable to register clock provider\n");
-		return ret;
-	}
+		clk_wzrd->clk_in1 = devm_clk_get(&pdev->dev, "clk_in1");
+		if (IS_ERR(clk_wzrd->clk_in1))
+			return dev_err_probe(&pdev->dev, PTR_ERR(clk_wzrd->clk_in1),
+					     "clk_in1 not found\n");
 
-	if (clk_wzrd->speed_grade) {
-		clk_wzrd->nb.notifier_call = clk_wzrd_clk_notifier;
-
-		ret = devm_clk_notifier_register(&pdev->dev, clk_wzrd->clk_in1,
-						 &clk_wzrd->nb);
+		ret = clk_wzrd_register_output_clocks(&pdev->dev, nr_outputs);
 		if (ret)
-			dev_warn(&pdev->dev,
-				 "unable to register clock notifier\n");
+			return ret;
 
-		ret = devm_clk_notifier_register(&pdev->dev, clk_wzrd->axi_clk,
-						 &clk_wzrd->nb);
-		if (ret)
-			dev_warn(&pdev->dev,
-				 "unable to register clock notifier\n");
+		clk_wzrd->clk_data.num = nr_outputs;
+		ret = devm_of_clk_add_hw_provider(&pdev->dev, of_clk_hw_onecell_get,
+						  &clk_wzrd->clk_data);
+		if (ret) {
+			dev_err(&pdev->dev, "unable to register clock provider\n");
+			return ret;
+		}
+
+		if (clk_wzrd->speed_grade) {
+			clk_wzrd->nb.notifier_call = clk_wzrd_clk_notifier;
+
+			ret = devm_clk_notifier_register(&pdev->dev, clk_wzrd->clk_in1,
+							 &clk_wzrd->nb);
+			if (ret)
+				dev_warn(&pdev->dev,
+					 "unable to register clock notifier\n");
+
+			ret = devm_clk_notifier_register(&pdev->dev, clk_wzrd->axi_clk,
+							 &clk_wzrd->nb);
+			if (ret)
+				dev_warn(&pdev->dev,
+					 "unable to register clock notifier\n");
+		}
 	}
 
 	return 0;
