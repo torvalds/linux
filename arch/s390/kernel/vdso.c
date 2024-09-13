@@ -19,6 +19,7 @@
 #include <linux/time_namespace.h>
 #include <linux/random.h>
 #include <vdso/datapage.h>
+#include <asm/vdso/vsyscall.h>
 #include <asm/alternative.h>
 #include <asm/vdso.h>
 
@@ -30,12 +31,6 @@ static struct vm_special_mapping vvar_mapping;
 static union vdso_data_store vdso_data_store __page_aligned_data;
 
 struct vdso_data *vdso_data = vdso_data_store.data;
-
-enum vvar_pages {
-	VVAR_DATA_PAGE_OFFSET,
-	VVAR_TIMENS_PAGE_OFFSET,
-	VVAR_NR_PAGES,
-};
 
 #ifdef CONFIG_TIME_NS
 struct vdso_data *arch_get_vdso_data(void *vvar_page)
