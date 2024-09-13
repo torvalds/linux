@@ -967,7 +967,7 @@ int mlx5hws_matcher_attach_at(struct mlx5hws_matcher *matcher,
 
 	ret = hws_matcher_check_and_process_at(matcher, at);
 	if (ret)
-		return -ret;
+		return ret;
 
 	required_stes = at->num_of_action_stes - (!is_jumbo || at->only_term);
 	if (matcher->action_ste[MLX5HWS_ACTION_STE_IDX_ANY].max_stes < required_stes) {

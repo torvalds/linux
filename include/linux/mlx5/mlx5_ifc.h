@@ -1856,7 +1856,8 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 	u8         reserved_at_328[0x2];
 	u8	   relaxed_ordering_read[0x1];
 	u8         log_max_pd[0x5];
-	u8         reserved_at_330[0x6];
+	u8         reserved_at_330[0x5];
+	u8         pcie_reset_using_hotreset_method[0x1];
 	u8         pci_sync_for_fw_update_with_driver_unload[0x1];
 	u8         vnic_env_cnt_steering_fail[0x1];
 	u8         vport_counter_local_loopback[0x1];
@@ -11189,6 +11190,11 @@ struct mlx5_ifc_mcda_reg_bits {
 };
 
 enum {
+	MLX5_MFRL_REG_PCI_RESET_METHOD_LINK_TOGGLE = 0,
+	MLX5_MFRL_REG_PCI_RESET_METHOD_HOT_RESET = 1,
+};
+
+enum {
 	MLX5_MFRL_REG_RESET_STATE_IDLE = 0,
 	MLX5_MFRL_REG_RESET_STATE_IN_NEGOTIATION = 1,
 	MLX5_MFRL_REG_RESET_STATE_RESET_IN_PROGRESS = 2,
@@ -11215,7 +11221,8 @@ struct mlx5_ifc_mfrl_reg_bits {
 	u8         pci_sync_for_fw_update_start[0x1];
 	u8         pci_sync_for_fw_update_resp[0x2];
 	u8         rst_type_sel[0x3];
-	u8         reserved_at_28[0x4];
+	u8         pci_reset_req_method[0x3];
+	u8         reserved_at_2b[0x1];
 	u8         reset_state[0x4];
 	u8         reset_type[0x8];
 	u8         reset_level[0x8];

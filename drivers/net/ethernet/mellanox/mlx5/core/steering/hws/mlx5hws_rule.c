@@ -751,11 +751,11 @@ int mlx5hws_rule_destroy(struct mlx5hws_rule *rule,
 
 	ret = hws_rule_enqueue_precheck(rule, attr);
 	if (unlikely(ret))
-		return -ret;
+		return ret;
 
 	ret = hws_rule_destroy_hws(rule, attr);
 
-	return -ret;
+	return ret;
 }
 
 int mlx5hws_rule_action_update(struct mlx5hws_rule *rule,
@@ -767,7 +767,7 @@ int mlx5hws_rule_action_update(struct mlx5hws_rule *rule,
 
 	ret = hws_rule_enqueue_precheck_update(rule, attr);
 	if (unlikely(ret))
-		return -ret;
+		return ret;
 
 	ret = hws_rule_create_hws(rule,
 				  attr,
@@ -776,5 +776,5 @@ int mlx5hws_rule_action_update(struct mlx5hws_rule *rule,
 				  at_idx,
 				  rule_actions);
 
-	return -ret;
+	return ret;
 }
