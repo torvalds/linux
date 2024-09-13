@@ -2694,9 +2694,83 @@ static void rtw89_phy_c2h_rfk_rpt_log(struct rtw89_dev *rtwdev,
 	struct rtw89_c2h_rf_dack_rpt_log *dack;
 	struct rtw89_c2h_rf_tssi_rpt_log *tssi;
 	struct rtw89_c2h_rf_dpk_rpt_log *dpk;
+	struct rtw89_c2h_rf_iqk_rpt_log *iqk;
 	int i, j, k;
 
 	switch (func) {
+	case RTW89_PHY_C2H_RFK_LOG_FUNC_IQK:
+		if (len != sizeof(*iqk))
+			goto out;
+
+		iqk = content;
+		rtw89_debug(rtwdev, RTW89_DBG_RFK,
+			    "[IQK] iqk->is_iqk_init = %x\n", iqk->is_iqk_init);
+		rtw89_debug(rtwdev, RTW89_DBG_RFK,
+			    "[IQK] iqk->is_reload = %x\n", iqk->is_reload);
+		rtw89_debug(rtwdev, RTW89_DBG_RFK,
+			    "[IQK] iqk->is_nbiqk = %x\n", iqk->is_nbiqk);
+		rtw89_debug(rtwdev, RTW89_DBG_RFK,
+			    "[IQK] iqk->txiqk_en = %x\n", iqk->txiqk_en);
+		rtw89_debug(rtwdev, RTW89_DBG_RFK,
+			    "[IQK] iqk->rxiqk_en = %x\n", iqk->rxiqk_en);
+		rtw89_debug(rtwdev, RTW89_DBG_RFK,
+			    "[IQK] iqk->lok_en = %x\n", iqk->lok_en);
+		rtw89_debug(rtwdev, RTW89_DBG_RFK,
+			    "[IQK] iqk->iqk_xym_en = %x\n", iqk->iqk_xym_en);
+		rtw89_debug(rtwdev, RTW89_DBG_RFK,
+			    "[IQK] iqk->iqk_sram_en = %x\n", iqk->iqk_sram_en);
+		rtw89_debug(rtwdev, RTW89_DBG_RFK,
+			    "[IQK] iqk->iqk_fft_en = %x\n", iqk->iqk_fft_en);
+		rtw89_debug(rtwdev, RTW89_DBG_RFK,
+			    "[IQK] iqk->is_fw_iqk = %x\n", iqk->is_fw_iqk);
+		rtw89_debug(rtwdev, RTW89_DBG_RFK,
+			    "[IQK] iqk->is_iqk_enable = %x\n", iqk->is_iqk_enable);
+		rtw89_debug(rtwdev, RTW89_DBG_RFK,
+			    "[IQK] iqk->iqk_cfir_en = %x\n", iqk->iqk_cfir_en);
+		rtw89_debug(rtwdev, RTW89_DBG_RFK,
+			    "[IQK] iqk->thermal_rek_en = %x\n", iqk->thermal_rek_en);
+		rtw89_debug(rtwdev, RTW89_DBG_RFK,
+			    "[IQK] iqk->version = %x\n", iqk->version);
+		rtw89_debug(rtwdev, RTW89_DBG_RFK,
+			    "[IQK] iqk->phy = %x\n", iqk->phy);
+		rtw89_debug(rtwdev, RTW89_DBG_RFK,
+			    "[IQK] iqk->fwk_status = %x\n", iqk->fwk_status);
+
+		for (i = 0; i < 2; i++) {
+			rtw89_debug(rtwdev, RTW89_DBG_RFK,
+				    "[IQK] ======== Path %x  ========\n", i);
+			rtw89_debug(rtwdev, RTW89_DBG_RFK, "[IQK] iqk->iqk_band[%d] = %x\n",
+				    i, iqk->iqk_band[i]);
+			rtw89_debug(rtwdev, RTW89_DBG_RFK, "[IQK] iqk->iqk_ch[%d] = %x\n",
+				    i, iqk->iqk_ch[i]);
+			rtw89_debug(rtwdev, RTW89_DBG_RFK, "[IQK] iqk->iqk_bw[%d] = %x\n",
+				    i, iqk->iqk_bw[i]);
+			rtw89_debug(rtwdev, RTW89_DBG_RFK, "[IQK] iqk->lok_idac[%d] = %x\n",
+				    i, le32_to_cpu(iqk->lok_idac[i]));
+			rtw89_debug(rtwdev, RTW89_DBG_RFK, "[IQK] iqk->lok_vbuf[%d] = %x\n",
+				    i, le32_to_cpu(iqk->lok_vbuf[i]));
+			rtw89_debug(rtwdev, RTW89_DBG_RFK, "[IQK] iqk->iqk_tx_fail[%d] = %x\n",
+				    i, iqk->iqk_tx_fail[i]);
+			rtw89_debug(rtwdev, RTW89_DBG_RFK, "[IQK] iqk->iqk_rx_fail[%d] = %x\n",
+				    i, iqk->iqk_rx_fail[i]);
+			for (j = 0; j < 4; j++)
+				rtw89_debug(rtwdev, RTW89_DBG_RFK,
+					    "[IQK] iqk->rftxgain[%d][%d] = %x\n",
+					    i, j, le32_to_cpu(iqk->rftxgain[i][j]));
+			for (j = 0; j < 4; j++)
+				rtw89_debug(rtwdev, RTW89_DBG_RFK,
+					    "[IQK] iqk->tx_xym[%d][%d] = %x\n",
+					    i, j, le32_to_cpu(iqk->tx_xym[i][j]));
+			for (j = 0; j < 4; j++)
+				rtw89_debug(rtwdev, RTW89_DBG_RFK,
+					    "[IQK] iqk->rfrxgain[%d][%d] = %x\n",
+					    i, j, le32_to_cpu(iqk->rfrxgain[i][j]));
+			for (j = 0; j < 4; j++)
+				rtw89_debug(rtwdev, RTW89_DBG_RFK,
+					    "[IQK] iqk->rx_xym[%d][%d] = %x\n",
+					    i, j, le32_to_cpu(iqk->rx_xym[i][j]));
+		}
+		return;
 	case RTW89_PHY_C2H_RFK_LOG_FUNC_DPK:
 		if (len != sizeof(*dpk))
 			goto out;

@@ -4318,6 +4318,42 @@ struct rtw89_c2h_rf_run_log {
 	__le32 arg[4];
 } __packed;
 
+struct rtw89_c2h_rf_iqk_rpt_log {
+	bool iqk_tx_fail[2];
+	bool iqk_rx_fail[2];
+	bool is_iqk_init;
+	bool is_reload;
+	bool is_wb_txiqk[2];
+	bool is_wb_rxiqk[2];
+	bool is_nbiqk;
+	bool txiqk_en;
+	bool rxiqk_en;
+	bool lok_en;
+	bool iqk_xym_en;
+	bool iqk_sram_en;
+	bool iqk_fft_en;
+	bool is_fw_iqk;
+	bool is_iqk_enable;
+	bool iqk_cfir_en;
+	bool thermal_rek_en;
+	u8 iqk_band[2];
+	u8 iqk_ch[2];
+	u8 iqk_bw[2];
+	u8 iqk_times;
+	u8 version;
+	u8 phy;
+	u8 fwk_status;
+	u8 rsvd;
+	__le32 reload_cnt;
+	__le32 iqk_fail_cnt;
+	__le32 lok_idac[2];
+	__le32 lok_vbuf[2];
+	__le32 rftxgain[2][4];
+	__le32 rfrxgain[2][4];
+	__le32 tx_xym[2][4];
+	__le32 rx_xym[2][4];
+} __packed;
+
 struct rtw89_c2h_rf_dpk_rpt_log {
 	u8 ver;
 	u8 idx[2];
