@@ -18,45 +18,6 @@
 #include <longjmp.h>
 #include <os.h>
 
-#define FAILURE_PID    -1
-
-#define STAT_PATH_LEN sizeof("/proc/#######/stat\0")
-#define COMM_SCANF "%*[^)])"
-
-int os_process_parent(int pid)
-{
-	char stat[STAT_PATH_LEN];
-	char data[256];
-	int parent = FAILURE_PID, n, fd;
-
-	if (pid == -1)
-		return parent;
-
-	snprintf(stat, sizeof(stat), "/proc/%d/stat", pid);
-	fd = open(stat, O_RDONLY, 0);
-	if (fd < 0) {
-		printk(UM_KERN_ERR "Couldn't open '%s', errno = %d\n", stat,
-		       errno);
-		return parent;
-	}
-
-	CATCH_EINTR(n = read(fd, data, sizeof(data)));
-	close(fd);
-
-	if (n < 0) {
-		printk(UM_KERN_ERR "Couldn't read '%s', errno = %d\n", stat,
-		       errno);
-		return parent;
-	}
-
-	parent = FAILURE_PID;
-	n = sscanf(data, "%*d " COMM_SCANF " %*c %d", &parent);
-	if (n != 1)
-		printk(UM_KERN_ERR "Failed to scan '%s'\n", data);
-
-	return parent;
-}
-
 void os_alarm_process(int pid)
 {
 	kill(pid, SIGALRM);
