@@ -41,9 +41,26 @@
 #include "intel_vdsc.h"
 #include "intel_wm.h"
 
+static struct intel_display *node_to_intel_display(struct drm_info_node *node)
+{
+	return to_intel_display(node->minor->dev);
+}
+
 static inline struct drm_i915_private *node_to_i915(struct drm_info_node *node)
 {
 	return to_i915(node->minor->dev);
+}
+
+static int intel_display_caps(struct seq_file *m, void *data)
+{
+	struct intel_display *display = node_to_intel_display(m->private);
+	struct drm_printer p = drm_seq_file_printer(m);
+
+	intel_display_device_info_print(DISPLAY_INFO(display),
+					DISPLAY_RUNTIME_INFO(display), &p);
+	intel_display_params_dump(&display->params, display->drm->driver->name, &p);
+
+	return 0;
 }
 
 static int i915_frontbuffer_tracking(struct seq_file *m, void *unused)
@@ -1027,6 +1044,7 @@ static const struct file_operations i915_fifo_underrun_reset_ops = {
 };
 
 static const struct drm_info_list intel_display_debugfs_list[] = {
+	{"intel_display_caps", intel_display_caps, 0},
 	{"i915_frontbuffer_tracking", i915_frontbuffer_tracking, 0},
 	{"i915_sr_status", i915_sr_status, 0},
 	{"i915_gem_framebuffer", i915_gem_framebuffer_info, 0},
