@@ -27,7 +27,7 @@ Arguments
     File descriptor returned by open().
 
 ``duty_cycle``
-    Duty cicle, describing the pulse width in percent (from 1 to 99) of
+    Duty cycle, describing the pulse width in percent (from 1 to 99) of
     the total cycle. Values 0 and 100 are reserved.
 
 Description
