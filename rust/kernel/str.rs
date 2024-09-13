@@ -189,7 +189,7 @@ impl CStr {
         // to a `NUL`-terminated C string.
         let len = unsafe { bindings::strlen(ptr) } + 1;
         // SAFETY: Lifetime guaranteed by the safety precondition.
-        let bytes = unsafe { core::slice::from_raw_parts(ptr as _, len as _) };
+        let bytes = unsafe { core::slice::from_raw_parts(ptr as _, len) };
         // SAFETY: As `len` is returned by `strlen`, `bytes` does not contain interior `NUL`.
         // As we have added 1 to `len`, the last byte is known to be `NUL`.
         unsafe { Self::from_bytes_with_nul_unchecked(bytes) }
@@ -248,7 +248,7 @@ impl CStr {
     /// Returns a C pointer to the string.
     #[inline]
     pub const fn as_char_ptr(&self) -> *const crate::ffi::c_char {
-        self.0.as_ptr() as _
+        self.0.as_ptr()
     }
 
     /// Convert the string to a byte slice without the trailing `NUL` byte.
@@ -838,7 +838,7 @@ impl CString {
         // SAFETY: The buffer is valid for read because `f.bytes_written()` is bounded by `size`
         // (which the minimum buffer size) and is non-zero (we wrote at least the `NUL` terminator)
         // so `f.bytes_written() - 1` doesn't underflow.
-        let ptr = unsafe { bindings::memchr(buf.as_ptr().cast(), 0, (f.bytes_written() - 1) as _) };
+        let ptr = unsafe { bindings::memchr(buf.as_ptr().cast(), 0, f.bytes_written() - 1) };
         if !ptr.is_null() {
             return Err(EINVAL);
         }
