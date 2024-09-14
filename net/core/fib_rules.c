@@ -11,6 +11,7 @@
 #include <linux/list.h>
 #include <linux/module.h>
 #include <net/net_namespace.h>
+#include <net/inet_dscp.h>
 #include <net/sock.h>
 #include <net/fib_rules.h>
 #include <net/ip_tunnels.h>
@@ -766,7 +767,8 @@ static const struct nla_policy fib_rule_policy[FRA_MAX + 1] = {
 	[FRA_PROTOCOL]  = { .type = NLA_U8 },
 	[FRA_IP_PROTO]  = { .type = NLA_U8 },
 	[FRA_SPORT_RANGE] = { .len = sizeof(struct fib_rule_port_range) },
-	[FRA_DPORT_RANGE] = { .len = sizeof(struct fib_rule_port_range) }
+	[FRA_DPORT_RANGE] = { .len = sizeof(struct fib_rule_port_range) },
+	[FRA_DSCP]	= NLA_POLICY_MAX(NLA_U8, INET_DSCP_MASK >> 2),
 };
 
 int fib_nl_newrule(struct sk_buff *skb, struct nlmsghdr *nlh,

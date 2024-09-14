@@ -274,6 +274,23 @@ fib_rule6_test()
 			"$getnomatch" "ipproto ipv6-icmp match" \
 			"ipproto ipv6-tcp no match"
 	fi
+
+	fib_check_iproute_support "dscp" "tos"
+	if [ $? -eq 0 ]; then
+		match="dscp 0x3f"
+		getmatch="tos 0xfc"
+		getnomatch="tos 0xf4"
+		fib_rule6_test_match_n_redirect "$match" "$getmatch" \
+			"$getnomatch" "dscp redirect to table" \
+			"dscp no redirect to table"
+
+		match="dscp 0x3f"
+		getmatch="from $SRC_IP6 iif $DEV tos 0xfc"
+		getnomatch="from $SRC_IP6 iif $DEV tos 0xf4"
+		fib_rule6_test_match_n_redirect "$match" "$getmatch" \
+			"$getnomatch" "iif dscp redirect to table" \
+			"iif dscp no redirect to table"
+	fi
 }
 
 fib_rule6_vrf_test()
@@ -319,6 +336,34 @@ fib_rule6_connect_test()
 	log_test $? 1 "rule6 dsfield tcp no connect (dsfield 0x20)"
 
 	$IP -6 rule del dsfield 0x04 table $RTABLE_PEER
+
+	ip rule help 2>&1 | grep -q dscp
+	if [ $? -ne 0 ]; then
+		echo "SKIP: iproute2 iprule too old, missing dscp match"
+		cleanup_peer
+		return
+	fi
+
+	$IP -6 rule add dscp 0x3f table $RTABLE_PEER
+
+	nettest -q -6 -B -t 5 -N $testns -O $peerns -U -D -Q 0xfc \
+		-l 2001:db8::1:11 -r 2001:db8::1:11
+	log_test $? 0 "rule6 dscp udp connect"
+
+	nettest -q -6 -B -t 5 -N $testns -O $peerns -Q 0xfc \
+		-l 2001:db8::1:11 -r 2001:db8::1:11
+	log_test $? 0 "rule6 dscp tcp connect"
+
+	nettest -q -6 -B -t 5 -N $testns -O $peerns -U -D -Q 0xf4 \
+		-l 2001:db8::1:11 -r 2001:db8::1:11
+	log_test $? 1 "rule6 dscp udp no connect"
+
+	nettest -q -6 -B -t 5 -N $testns -O $peerns -Q 0xf4 \
+		-l 2001:db8::1:11 -r 2001:db8::1:11
+	log_test $? 1 "rule6 dscp tcp no connect"
+
+	$IP -6 rule del dscp 0x3f table $RTABLE_PEER
+
 	cleanup_peer
 }
 
@@ -468,6 +513,23 @@ fib_rule4_test()
 			"$getnomatch" "ipproto icmp match" \
 			"ipproto tcp no match"
 	fi
+
+	fib_check_iproute_support "dscp" "tos"
+	if [ $? -eq 0 ]; then
+		match="dscp 0x3f"
+		getmatch="tos 0xfc"
+		getnomatch="tos 0xf4"
+		fib_rule4_test_match_n_redirect "$match" "$getmatch" \
+			"$getnomatch" "dscp redirect to table" \
+			"dscp no redirect to table"
+
+		match="dscp 0x3f"
+		getmatch="from $SRC_IP iif $DEV tos 0xfc"
+		getnomatch="from $SRC_IP iif $DEV tos 0xf4"
+		fib_rule4_test_match_n_redirect "$match" "$getmatch" \
+			"$getnomatch" "iif dscp redirect to table" \
+			"iif dscp no redirect to table"
+	fi
 }
 
 fib_rule4_vrf_test()
@@ -513,6 +575,34 @@ fib_rule4_connect_test()
 	log_test $? 1 "rule4 dsfield tcp no connect (dsfield 0x20)"
 
 	$IP -4 rule del dsfield 0x04 table $RTABLE_PEER
+
+	ip rule help 2>&1 | grep -q dscp
+	if [ $? -ne 0 ]; then
+		echo "SKIP: iproute2 iprule too old, missing dscp match"
+		cleanup_peer
+		return
+	fi
+
+	$IP -4 rule add dscp 0x3f table $RTABLE_PEER
+
+	nettest -q -B -t 5 -N $testns -O $peerns -D -U -Q 0xfc \
+		-l 198.51.100.11 -r 198.51.100.11
+	log_test $? 0 "rule4 dscp udp connect"
+
+	nettest -q -B -t 5 -N $testns -O $peerns -Q 0xfc \
+		-l 198.51.100.11 -r 198.51.100.11
+	log_test $? 0 "rule4 dscp tcp connect"
+
+	nettest -q -B -t 5 -N $testns -O $peerns -D -U -Q 0xf4 \
+		-l 198.51.100.11 -r 198.51.100.11
+	log_test $? 1 "rule4 dscp udp no connect"
+
+	nettest -q -B -t 5 -N $testns -O $peerns -Q 0xf4 \
+		-l 198.51.100.11 -r 198.51.100.11
+	log_test $? 1 "rule4 dscp tcp no connect"
+
+	$IP -4 rule del dscp 0x3f table $RTABLE_PEER
+
 	cleanup_peer
 }
 ################################################################################
