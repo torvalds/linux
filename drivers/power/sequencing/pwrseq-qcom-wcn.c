@@ -283,7 +283,7 @@ static int pwrseq_qcom_wcn_probe(struct platform_device *pdev)
 				     "Failed to get the Bluetooth enable GPIO\n");
 
 	ctx->wlan_gpio = devm_gpiod_get_optional(dev, "wlan-enable",
-						 GPIOD_OUT_LOW);
+						 GPIOD_ASIS);
 	if (IS_ERR(ctx->wlan_gpio))
 		return dev_err_probe(dev, PTR_ERR(ctx->wlan_gpio),
 				     "Failed to get the WLAN enable GPIO\n");

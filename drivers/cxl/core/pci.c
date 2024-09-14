@@ -834,11 +834,13 @@ static void cxl_disable_rch_root_ints(struct cxl_dport *dport)
 void cxl_setup_parent_dport(struct device *host, struct cxl_dport *dport)
 {
 	struct device *dport_dev = dport->dport_dev;
-	struct pci_host_bridge *host_bridge;
 
-	host_bridge = to_pci_host_bridge(dport_dev);
-	if (host_bridge->native_aer)
-		dport->rcrb.aer_cap = cxl_rcrb_to_aer(dport_dev, dport->rcrb.base);
+	if (dport->rch) {
+		struct pci_host_bridge *host_bridge = to_pci_host_bridge(dport_dev);
+
+		if (host_bridge->native_aer)
+			dport->rcrb.aer_cap = cxl_rcrb_to_aer(dport_dev, dport->rcrb.base);
+	}
 
 	dport->reg_map.host = host;
 	cxl_dport_map_regs(dport);

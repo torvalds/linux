@@ -41,7 +41,6 @@ int dasd_gendisk_alloc(struct dasd_block *block)
 		 */
 		.max_segment_size = PAGE_SIZE,
 		.seg_boundary_mask = PAGE_SIZE - 1,
-		.dma_alignment = PAGE_SIZE - 1,
 		.max_segments = USHRT_MAX,
 	};
 	struct gendisk *gdp;

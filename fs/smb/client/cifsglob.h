@@ -2017,9 +2017,9 @@ extern spinlock_t		cifs_tcp_ses_lock;
 /*
  * Global transaction id (XID) information
  */
-extern unsigned int GlobalCurrentXid;	/* protected by GlobalMid_Sem */
-extern unsigned int GlobalTotalActiveXid; /* prot by GlobalMid_Sem */
-extern unsigned int GlobalMaxActiveXid;	/* prot by GlobalMid_Sem */
+extern unsigned int GlobalCurrentXid;	/* protected by GlobalMid_Lock */
+extern unsigned int GlobalTotalActiveXid; /* prot by GlobalMid_Lock */
+extern unsigned int GlobalMaxActiveXid;	/* prot by GlobalMid_Lock */
 extern spinlock_t GlobalMid_Lock; /* protects above & list operations on midQ entries */
 
 /*

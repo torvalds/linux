@@ -451,7 +451,8 @@ retry:
 			.type = BCH_DISK_ACCOUNTING_replicas,
 		};
 
-		memcpy(&k.replicas, e, replicas_entry_bytes(e));
+		unsafe_memcpy(&k.replicas, e, replicas_entry_bytes(e),
+			      "embedded variable length struct");
 
 		struct bpos p = disk_accounting_pos_to_bpos(&k);
 

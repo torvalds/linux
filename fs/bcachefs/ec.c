@@ -107,24 +107,23 @@ struct ec_bio {
 
 /* Stripes btree keys: */
 
-int bch2_stripe_invalid(struct bch_fs *c, struct bkey_s_c k,
-			enum bch_validate_flags flags,
-			struct printbuf *err)
+int bch2_stripe_validate(struct bch_fs *c, struct bkey_s_c k,
+			 enum bch_validate_flags flags)
 {
 	const struct bch_stripe *s = bkey_s_c_to_stripe(k).v;
 	int ret = 0;
 
 	bkey_fsck_err_on(bkey_eq(k.k->p, POS_MIN) ||
-			 bpos_gt(k.k->p, POS(0, U32_MAX)), c, err,
-			 stripe_pos_bad,
+			 bpos_gt(k.k->p, POS(0, U32_MAX)),
+			 c, stripe_pos_bad,
 			 "stripe at bad pos");
 
-	bkey_fsck_err_on(bkey_val_u64s(k.k) < stripe_val_u64s(s), c, err,
-			 stripe_val_size_bad,
+	bkey_fsck_err_on(bkey_val_u64s(k.k) < stripe_val_u64s(s),
+			 c, stripe_val_size_bad,
 			 "incorrect value size (%zu < %u)",
 			 bkey_val_u64s(k.k), stripe_val_u64s(s));
 
-	ret = bch2_bkey_ptrs_invalid(c, k, flags, err);
+	ret = bch2_bkey_ptrs_validate(c, k, flags);
 fsck_err:
 	return ret;
 }

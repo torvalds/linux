@@ -39,7 +39,7 @@ PHDRS {
 
 SECTIONS
 {
-	. = __START_KERNEL;
+	. = TEXT_OFFSET;
 	.text : {
 		_stext = .;		/* Start of text section */
 		_text = .;		/* Text and read-only data */

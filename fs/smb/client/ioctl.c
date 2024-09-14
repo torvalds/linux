@@ -229,9 +229,11 @@ static int cifs_shutdown(struct super_block *sb, unsigned long arg)
 
 shutdown_good:
 	trace_smb3_shutdown_done(flags, tcon->tid);
+	cifs_put_tlink(tlink);
 	return 0;
 shutdown_out_err:
 	trace_smb3_shutdown_err(rc, flags, tcon->tid);
+	cifs_put_tlink(tlink);
 	return rc;
 }
 
