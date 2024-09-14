@@ -558,7 +558,6 @@ ftrace_push_return_trace(unsigned long ret, unsigned long func,
 			 int fgraph_idx)
 {
 	struct ftrace_ret_stack *ret_stack;
-	unsigned long long calltime;
 	unsigned long val;
 	int offset;
 
@@ -587,8 +586,6 @@ ftrace_push_return_trace(unsigned long ret, unsigned long func,
 		atomic_inc(&current->trace_overrun);
 		return -EBUSY;
 	}
-
-	calltime = trace_clock_local();
 
 	offset = READ_ONCE(current->curr_ret_stack);
 	ret_stack = RET_STACK(current, offset);
@@ -623,7 +620,6 @@ ftrace_push_return_trace(unsigned long ret, unsigned long func,
 
 	ret_stack->ret = ret;
 	ret_stack->func = func;
-	ret_stack->calltime = calltime;
 #ifdef HAVE_FUNCTION_GRAPH_FP_TEST
 	ret_stack->fp = frame_pointer;
 #endif
@@ -757,7 +753,6 @@ ftrace_pop_return_trace(struct ftrace_graph_ret *trace, unsigned long *ret,
 	*offset += FGRAPH_FRAME_OFFSET;
 	*ret = ret_stack->ret;
 	trace->func = ret_stack->func;
-	trace->calltime = ret_stack->calltime;
 	trace->overrun = atomic_read(&current->trace_overrun);
 	trace->depth = current->curr_ret_depth;
 	/*

@@ -127,13 +127,18 @@ static inline int ftrace_graph_ignore_irqs(void)
 	return in_hardirq();
 }
 
+struct fgraph_times {
+	unsigned long long		calltime;
+	unsigned long long		sleeptime; /* may be optional! */
+};
+
 int trace_graph_entry(struct ftrace_graph_ent *trace,
 		      struct fgraph_ops *gops)
 {
 	unsigned long *task_var = fgraph_get_task_var(gops);
 	struct trace_array *tr = gops->private;
 	struct trace_array_cpu *data;
-	unsigned long *sleeptime;
+	struct fgraph_times *ftimes;
 	unsigned long flags;
 	unsigned int trace_ctx;
 	long disabled;
@@ -168,12 +173,18 @@ int trace_graph_entry(struct ftrace_graph_ent *trace,
 	if (ftrace_graph_ignore_irqs())
 		return 0;
 
-	/* save the current sleep time if we are to ignore it */
-	if (!fgraph_sleep_time) {
-		sleeptime = fgraph_reserve_data(gops->idx, sizeof(*sleeptime));
-		if (sleeptime)
-			*sleeptime = current->ftrace_sleeptime;
+	if (fgraph_sleep_time) {
+		/* Only need to record the calltime */
+		ftimes = fgraph_reserve_data(gops->idx, sizeof(ftimes->calltime));
+	} else {
+		ftimes = fgraph_reserve_data(gops->idx, sizeof(*ftimes));
+		if (ftimes)
+			ftimes->sleeptime = current->ftrace_sleeptime;
 	}
+	if (!ftimes)
+		return 0;
+
+	ftimes->calltime = trace_clock_local();
 
 	/*
 	 * Stop here if tracing_threshold is set. We only write function return
@@ -247,19 +258,13 @@ void __trace_graph_return(struct trace_array *tr,
 }
 
 static void handle_nosleeptime(struct ftrace_graph_ret *trace,
-			       struct fgraph_ops *gops)
+			       struct fgraph_times *ftimes,
+			       int size)
 {
-	unsigned long long *sleeptime;
-	int size;
-
-	if (fgraph_sleep_time)
+	if (fgraph_sleep_time || size < sizeof(*ftimes))
 		return;
 
-	sleeptime = fgraph_retrieve_data(gops->idx, &size);
-	if (!sleeptime)
-		return;
-
-	trace->calltime += current->ftrace_sleeptime - *sleeptime;
+	ftimes->calltime += current->ftrace_sleeptime - ftimes->sleeptime;
 }
 
 void trace_graph_return(struct ftrace_graph_ret *trace,
@@ -268,9 +273,11 @@ void trace_graph_return(struct ftrace_graph_ret *trace,
 	unsigned long *task_var = fgraph_get_task_var(gops);
 	struct trace_array *tr = gops->private;
 	struct trace_array_cpu *data;
+	struct fgraph_times *ftimes;
 	unsigned long flags;
 	unsigned int trace_ctx;
 	long disabled;
+	int size;
 	int cpu;
 
 	ftrace_graph_addr_finish(gops, trace);
@@ -280,7 +287,13 @@ void trace_graph_return(struct ftrace_graph_ret *trace,
 		return;
 	}
 
-	handle_nosleeptime(trace, gops);
+	ftimes = fgraph_retrieve_data(gops->idx, &size);
+	if (!ftimes)
+		return;
+
+	handle_nosleeptime(trace, ftimes, size);
+
+	trace->calltime = ftimes->calltime;
 
 	local_irq_save(flags);
 	cpu = raw_smp_processor_id();
@@ -297,6 +310,9 @@ void trace_graph_return(struct ftrace_graph_ret *trace,
 static void trace_graph_thresh_return(struct ftrace_graph_ret *trace,
 				      struct fgraph_ops *gops)
 {
+	struct fgraph_times *ftimes;
+	int size;
+
 	ftrace_graph_addr_finish(gops, trace);
 
 	if (trace_recursion_test(TRACE_GRAPH_NOTRACE_BIT)) {
@@ -304,10 +320,16 @@ static void trace_graph_thresh_return(struct ftrace_graph_ret *trace,
 		return;
 	}
 
-	handle_nosleeptime(trace, gops);
+	ftimes = fgraph_retrieve_data(gops->idx, &size);
+	if (!ftimes)
+		return;
+
+	handle_nosleeptime(trace, ftimes, size);
+
+	trace->calltime = ftimes->calltime;
 
 	if (tracing_thresh &&
-	    (trace->rettime - trace->calltime < tracing_thresh))
+	    (trace->rettime - ftimes->calltime < tracing_thresh))
 		return;
 	else
 		trace_graph_return(trace, gops);

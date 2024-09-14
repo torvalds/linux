@@ -821,6 +821,7 @@ void ftrace_graph_graph_time_control(bool enable)
 }
 
 struct profile_fgraph_data {
+	unsigned long long		calltime;
 	unsigned long long		subtime;
 	unsigned long long		sleeptime;
 };
@@ -842,6 +843,7 @@ static int profile_graph_entry(struct ftrace_graph_ent *trace,
 
 	profile_data->subtime = 0;
 	profile_data->sleeptime = current->ftrace_sleeptime;
+	profile_data->calltime = trace_clock_local();
 
 	return 1;
 }
@@ -850,9 +852,9 @@ static void profile_graph_return(struct ftrace_graph_ret *trace,
 				 struct fgraph_ops *gops)
 {
 	struct profile_fgraph_data *profile_data;
-	struct profile_fgraph_data *parent_data;
 	struct ftrace_profile_stat *stat;
 	unsigned long long calltime;
+	unsigned long long rettime = trace_clock_local();
 	struct ftrace_profile *rec;
 	unsigned long flags;
 	int size;
@@ -862,29 +864,28 @@ static void profile_graph_return(struct ftrace_graph_ret *trace,
 	if (!stat->hash || !ftrace_profile_enabled)
 		goto out;
 
+	profile_data = fgraph_retrieve_data(gops->idx, &size);
+
 	/* If the calltime was zero'd ignore it */
-	if (!trace->calltime)
+	if (!profile_data || !profile_data->calltime)
 		goto out;
 
-	calltime = trace->rettime - trace->calltime;
+	calltime = rettime - profile_data->calltime;
 
 	if (!fgraph_sleep_time) {
-		profile_data = fgraph_retrieve_data(gops->idx, &size);
-		if (profile_data && current->ftrace_sleeptime)
+		if (current->ftrace_sleeptime)
 			calltime -= current->ftrace_sleeptime - profile_data->sleeptime;
 	}
 
 	if (!fgraph_graph_time) {
+		struct profile_fgraph_data *parent_data;
 
 		/* Append this call time to the parent time to subtract */
 		parent_data = fgraph_retrieve_parent_data(gops->idx, &size, 1);
 		if (parent_data)
 			parent_data->subtime += calltime;
 
-		if (!profile_data)
-			profile_data = fgraph_retrieve_data(gops->idx, &size);
-
-		if (profile_data && profile_data->subtime && profile_data->subtime < calltime)
+		if (profile_data->subtime && profile_data->subtime < calltime)
 			calltime -= profile_data->subtime;
 		else
 			calltime = 0;
