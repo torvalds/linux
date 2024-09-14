@@ -269,7 +269,7 @@ static void da9030_charger_check_state(struct da9030_charger *charger)
 		}
 		if (charger->adc.vchmax_res > charger->thresholds.vcharge_max ||
 		    charger->adc.vchmin_res < charger->thresholds.vcharge_min ||
-		    /* Tempreture readings are negative */
+		    /* Temperature readings are negative */
 		    charger->adc.tbat_res < charger->thresholds.tbat_high ||
 		    charger->adc.tbat_res > charger->thresholds.tbat_low) {
 			/* disable charger */
@@ -470,7 +470,7 @@ static int da9030_battery_charger_init(struct da9030_charger *charger)
 	if (ret)
 		return ret;
 
-	/* enable auto ADC measuremnts */
+	/* enable auto ADC measurements */
 	return da903x_write(charger->master, DA9030_ADC_AUTO_CONTROL,
 			    DA9030_ADC_TBAT_ENABLE | DA9030_ADC_VBAT_IN_TXON |
 			    DA9030_ADC_VCH_ENABLE | DA9030_ADC_ICH_ENABLE |

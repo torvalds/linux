@@ -283,7 +283,7 @@ static void ab8500_btemp_periodic_work(struct work_struct *work)
 			dev_warn(di->dev, "failed to identify the battery\n");
 	}
 
-	/* Failover if a reading is erroneous, use last meausurement */
+	/* Failover if a reading is erroneous, use last measurement */
 	ret = thermal_zone_get_temp(di->tz, &bat_temp);
 	if (ret) {
 		dev_err(di->dev, "error reading temperature\n");

@@ -832,7 +832,7 @@ static const struct smb2_register smb2_init_seq[] = {
 		  AUTO_RECHG_BIT | EN_ANALOG_DROP_IN_VBATT_BIT |
 		  CHARGER_INHIBIT_BIT,
 	  .val = CHARGER_INHIBIT_BIT },
-	/* STAT pin software override, match downstream. Parallell charging? */
+	/* STAT pin software override, match downstream. Parallel charging? */
 	{ .addr = STAT_CFG,
 	  .mask = STAT_SW_OVERRIDE_CFG_BIT,
 	  .val = STAT_SW_OVERRIDE_CFG_BIT },

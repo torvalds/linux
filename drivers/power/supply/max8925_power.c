@@ -73,7 +73,7 @@ struct max8925_power_info {
 	unsigned		usb_online:1;
 	unsigned		bat_online:1;
 	unsigned		chg_mode:2;
-	unsigned		batt_detect:1;	/* detecing MB by ID pin */
+	unsigned		batt_detect:1;	/* detecting MB by ID pin */
 	unsigned		topoff_threshold:2;
 	unsigned		fast_charge:3;
 	unsigned		no_temp_support:1;
