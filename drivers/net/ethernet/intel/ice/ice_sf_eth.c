@@ -108,9 +108,9 @@ static int ice_sf_dev_probe(struct auxiliary_device *adev,
 	vsi->flags = ICE_VSI_FLAG_INIT;
 
 	priv = ice_allocate_sf(&adev->dev, pf);
-	if (!priv) {
+	if (IS_ERR(priv)) {
 		dev_err(dev, "Subfunction devlink alloc failed");
-		return -ENOMEM;
+		return PTR_ERR(priv);
 	}
 
 	priv->dev = sf_dev;
