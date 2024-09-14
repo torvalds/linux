@@ -820,10 +820,15 @@ void ftrace_graph_graph_time_control(bool enable)
 	fgraph_graph_time = enable;
 }
 
+struct profile_fgraph_data {
+	unsigned long long		subtime;
+	unsigned long long		sleeptime;
+};
+
 static int profile_graph_entry(struct ftrace_graph_ent *trace,
 			       struct fgraph_ops *gops)
 {
-	unsigned long long *subtime;
+	struct profile_fgraph_data *profile_data;
 
 	function_profile_call(trace->func, 0, NULL, NULL);
 
@@ -831,9 +836,12 @@ static int profile_graph_entry(struct ftrace_graph_ent *trace,
 	if (!current->ret_stack)
 		return 0;
 
-	subtime = fgraph_reserve_data(gops->idx, sizeof(*subtime));
-	if (subtime)
-		*subtime = 0;
+	profile_data = fgraph_reserve_data(gops->idx, sizeof(*profile_data));
+	if (!profile_data)
+		return 0;
+
+	profile_data->subtime = 0;
+	profile_data->sleeptime = current->ftrace_sleeptime;
 
 	return 1;
 }
@@ -841,9 +849,10 @@ static int profile_graph_entry(struct ftrace_graph_ent *trace,
 static void profile_graph_return(struct ftrace_graph_ret *trace,
 				 struct fgraph_ops *gops)
 {
+	struct profile_fgraph_data *profile_data;
+	struct profile_fgraph_data *parent_data;
 	struct ftrace_profile_stat *stat;
 	unsigned long long calltime;
-	unsigned long long *subtime;
 	struct ftrace_profile *rec;
 	unsigned long flags;
 	int size;
@@ -859,16 +868,24 @@ static void profile_graph_return(struct ftrace_graph_ret *trace,
 
 	calltime = trace->rettime - trace->calltime;
 
+	if (!fgraph_sleep_time) {
+		profile_data = fgraph_retrieve_data(gops->idx, &size);
+		if (profile_data && current->ftrace_sleeptime)
+			calltime -= current->ftrace_sleeptime - profile_data->sleeptime;
+	}
+
 	if (!fgraph_graph_time) {
 
 		/* Append this call time to the parent time to subtract */
-		subtime = fgraph_retrieve_parent_data(gops->idx, &size, 1);
-		if (subtime)
-			*subtime += calltime;
+		parent_data = fgraph_retrieve_parent_data(gops->idx, &size, 1);
+		if (parent_data)
+			parent_data->subtime += calltime;
 
-		subtime = fgraph_retrieve_data(gops->idx, &size);
-		if (subtime && *subtime && *subtime < calltime)
-			calltime -= *subtime;
+		if (!profile_data)
+			profile_data = fgraph_retrieve_data(gops->idx, &size);
+
+		if (profile_data && profile_data->subtime && profile_data->subtime < calltime)
+			calltime -= profile_data->subtime;
 		else
 			calltime = 0;
 	}

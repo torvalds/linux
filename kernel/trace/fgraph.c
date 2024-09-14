@@ -495,7 +495,7 @@ found:
 }
 
 /* Both enabled by default (can be cleared by function_graph tracer flags */
-static bool fgraph_sleep_time = true;
+bool fgraph_sleep_time = true;
 
 #ifdef CONFIG_DYNAMIC_FTRACE
 /*
@@ -1046,9 +1046,7 @@ ftrace_graph_probe_sched_switch(void *ignore, bool preempt,
 				struct task_struct *next,
 				unsigned int prev_state)
 {
-	struct ftrace_ret_stack *ret_stack;
 	unsigned long long timestamp;
-	int offset;
 
 	/*
 	 * Does the user want to count the time a function was asleep.
@@ -1065,17 +1063,7 @@ ftrace_graph_probe_sched_switch(void *ignore, bool preempt,
 	if (!next->ftrace_timestamp)
 		return;
 
-	/*
-	 * Update all the counters in next to make up for the
-	 * time next was sleeping.
-	 */
-	timestamp -= next->ftrace_timestamp;
-
-	for (offset = next->curr_ret_stack; offset > 0; ) {
-		ret_stack = get_ret_stack(next, offset, &offset);
-		if (ret_stack)
-			ret_stack->calltime += timestamp;
-	}
+	next->ftrace_sleeptime += timestamp - next->ftrace_timestamp;
 }
 
 static DEFINE_PER_CPU(unsigned long *, idle_ret_stack);

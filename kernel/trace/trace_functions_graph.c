@@ -133,6 +133,7 @@ int trace_graph_entry(struct ftrace_graph_ent *trace,
 	unsigned long *task_var = fgraph_get_task_var(gops);
 	struct trace_array *tr = gops->private;
 	struct trace_array_cpu *data;
+	unsigned long *sleeptime;
 	unsigned long flags;
 	unsigned int trace_ctx;
 	long disabled;
@@ -166,6 +167,13 @@ int trace_graph_entry(struct ftrace_graph_ent *trace,
 
 	if (ftrace_graph_ignore_irqs())
 		return 0;
+
+	/* save the current sleep time if we are to ignore it */
+	if (!fgraph_sleep_time) {
+		sleeptime = fgraph_reserve_data(gops->idx, sizeof(*sleeptime));
+		if (sleeptime)
+			*sleeptime = current->ftrace_sleeptime;
+	}
 
 	/*
 	 * Stop here if tracing_threshold is set. We only write function return
@@ -238,6 +246,22 @@ void __trace_graph_return(struct trace_array *tr,
 		trace_buffer_unlock_commit_nostack(buffer, event);
 }
 
+static void handle_nosleeptime(struct ftrace_graph_ret *trace,
+			       struct fgraph_ops *gops)
+{
+	unsigned long long *sleeptime;
+	int size;
+
+	if (fgraph_sleep_time)
+		return;
+
+	sleeptime = fgraph_retrieve_data(gops->idx, &size);
+	if (!sleeptime)
+		return;
+
+	trace->calltime += current->ftrace_sleeptime - *sleeptime;
+}
+
 void trace_graph_return(struct ftrace_graph_ret *trace,
 			struct fgraph_ops *gops)
 {
@@ -255,6 +279,8 @@ void trace_graph_return(struct ftrace_graph_ret *trace,
 		*task_var &= ~TRACE_GRAPH_NOTRACE;
 		return;
 	}
+
+	handle_nosleeptime(trace, gops);
 
 	local_irq_save(flags);
 	cpu = raw_smp_processor_id();
@@ -277,6 +303,8 @@ static void trace_graph_thresh_return(struct ftrace_graph_ret *trace,
 		trace_recursion_clear(TRACE_GRAPH_NOTRACE_BIT);
 		return;
 	}
+
+	handle_nosleeptime(trace, gops);
 
 	if (tracing_thresh &&
 	    (trace->rettime - trace->calltime < tracing_thresh))
