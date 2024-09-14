@@ -388,6 +388,7 @@ struct sdw_intel;
 /* struct intel_sdw_hw_ops - SoundWire ops for Intel platforms.
  * @debugfs_init: initialize all debugfs capabilities
  * @debugfs_exit: close and cleanup debugfs capabilities
+ * @get_link_count: fetch link count from hardware registers
  * @register_dai: read all PDI information and register DAIs
  * @check_clock_stop: throw error message if clock is not stopped.
  * @start_bus: normal start
@@ -411,6 +412,8 @@ struct sdw_intel;
 struct sdw_intel_hw_ops {
 	void (*debugfs_init)(struct sdw_intel *sdw);
 	void (*debugfs_exit)(struct sdw_intel *sdw);
+
+	int (*get_link_count)(struct sdw_intel *sdw);
 
 	int (*register_dai)(struct sdw_intel *sdw);
 
@@ -446,5 +449,10 @@ extern const struct sdw_intel_hw_ops sdw_intel_lnl_hw_ops;
  */
 
 #define SDW_INTEL_DEV_NUM_IDA_MIN           6
+
+/*
+ * Max number of links supported in hardware
+ */
+#define SDW_INTEL_MAX_LINKS                5
 
 #endif

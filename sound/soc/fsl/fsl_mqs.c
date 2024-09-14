@@ -265,7 +265,6 @@ static void fsl_mqs_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 }
 
-#ifdef CONFIG_PM
 static int fsl_mqs_runtime_resume(struct device *dev)
 {
 	struct fsl_mqs *mqs_priv = dev_get_drvdata(dev);
@@ -299,14 +298,10 @@ static int fsl_mqs_runtime_suspend(struct device *dev)
 
 	return 0;
 }
-#endif
 
 static const struct dev_pm_ops fsl_mqs_pm_ops = {
-	SET_RUNTIME_PM_OPS(fsl_mqs_runtime_suspend,
-			   fsl_mqs_runtime_resume,
-			   NULL)
-	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
-				pm_runtime_force_resume)
+	RUNTIME_PM_OPS(fsl_mqs_runtime_suspend, fsl_mqs_runtime_resume, NULL)
+	SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend, pm_runtime_force_resume)
 };
 
 static const struct fsl_mqs_soc_data fsl_mqs_imx8qm_data = {
@@ -386,11 +381,11 @@ MODULE_DEVICE_TABLE(of, fsl_mqs_dt_ids);
 
 static struct platform_driver fsl_mqs_driver = {
 	.probe		= fsl_mqs_probe,
-	.remove_new	= fsl_mqs_remove,
+	.remove		= fsl_mqs_remove,
 	.driver		= {
 		.name	= "fsl-mqs",
 		.of_match_table = fsl_mqs_dt_ids,
-		.pm = &fsl_mqs_pm_ops,
+		.pm = pm_ptr(&fsl_mqs_pm_ops),
 	},
 };
 

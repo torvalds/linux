@@ -28,7 +28,6 @@
 #define ACP6x_REG_END			0x125C000
 
 static const struct sof_amd_acp_desc acp63_chip_info = {
-	.rev		= 6,
 	.host_bridge_id = HOST_BRIDGE_ACP63,
 	.pgfsm_base	= ACP6X_PGFSM_BASE,
 	.ext_intr_enb = ACP6X_EXTERNAL_INTR_ENB,
@@ -50,6 +49,7 @@ static const struct sof_amd_acp_desc acp63_chip_info = {
 
 static const struct sof_dev_desc acp63_desc = {
 	.machines		= snd_soc_acpi_amd_acp63_sof_machines,
+	.alt_machines           = snd_soc_acpi_amd_acp63_sof_sdw_machines,
 	.resindex_lpe_base	= 0,
 	.resindex_pcicfg_base	= -1,
 	.resindex_imr_base	= -1,
