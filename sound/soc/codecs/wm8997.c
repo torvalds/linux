@@ -1210,7 +1210,7 @@ static struct platform_driver wm8997_codec_driver = {
 		.name = "wm8997-codec",
 	},
 	.probe = wm8997_probe,
-	.remove_new = wm8997_remove,
+	.remove = wm8997_remove,
 };
 
 module_platform_driver(wm8997_codec_driver);

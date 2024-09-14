@@ -264,8 +264,8 @@ static int axi_i2s_probe(struct platform_device *pdev)
 		goto err_clk_disable;
 
 	dev_info(&pdev->dev, "probed, capture %s, playback %s\n",
-		 i2s->has_capture ? "enabled" : "disabled",
-		 i2s->has_playback ? "enabled" : "disabled");
+		 str_enabled_disabled(i2s->has_capture),
+		 str_enabled_disabled(i2s->has_playback));
 
 	return 0;
 
@@ -293,7 +293,7 @@ static struct platform_driver axi_i2s_driver = {
 		.of_match_table = axi_i2s_of_match,
 	},
 	.probe = axi_i2s_probe,
-	.remove_new = axi_i2s_dev_remove,
+	.remove = axi_i2s_dev_remove,
 };
 module_platform_driver(axi_i2s_driver);
 

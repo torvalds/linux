@@ -317,6 +317,20 @@ static int intel_link_probe(struct auxiliary_device *auxdev,
 	bus->link_id = auxdev->id;
 	bus->clk_stop_timeout = 1;
 
+	/*
+	 * paranoia check: make sure ACPI-reported number of links is aligned with
+	 * hardware capabilities.
+	 */
+	ret = sdw_intel_get_link_count(sdw);
+	if (ret < 0) {
+		dev_err(dev, "%s: sdw_intel_get_link_count failed: %d\n", __func__, ret);
+		return ret;
+	}
+	if (ret <= sdw->instance) {
+		dev_err(dev, "%s: invalid link id %d, link count %d\n", __func__, auxdev->id, ret);
+		return -EINVAL;
+	}
+
 	sdw_cdns_probe(cdns);
 
 	/* Set ops */

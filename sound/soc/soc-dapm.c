@@ -2254,7 +2254,7 @@ static const struct file_operations dapm_bias_fops = {
 void snd_soc_dapm_debugfs_init(struct snd_soc_dapm_context *dapm,
 	struct dentry *parent)
 {
-	if (!parent || IS_ERR(parent))
+	if (IS_ERR_OR_NULL(parent))
 		return;
 
 	dapm->debugfs_dapm = debugfs_create_dir("dapm", parent);
@@ -2751,8 +2751,7 @@ static int dapm_update_dai_unlocked(struct snd_pcm_substream *substream,
 	if (!w)
 		return 0;
 
-	dev_dbg(dai->dev, "Update DAI routes for %s %s\n", dai->name,
-		dir == SNDRV_PCM_STREAM_PLAYBACK ? "playback" : "capture");
+	dev_dbg(dai->dev, "Update DAI routes for %s %s\n", dai->name, snd_pcm_direction_name(dir));
 
 	snd_soc_dapm_widget_for_each_sink_path(w, p) {
 		ret = dapm_update_dai_chan(p, p->sink, channels);

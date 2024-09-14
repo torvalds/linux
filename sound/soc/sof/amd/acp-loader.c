@@ -219,7 +219,7 @@ int acp_dsp_pre_fw_run(struct snd_sof_dev *sdev)
 			dev_err(sdev->dev, "acp dma transfer status: %d\n", ret);
 	}
 
-	if (desc->rev > 3) {
+	if (adata->pci_rev > ACP_RN_PCI_ID) {
 		/* Cache Window enable */
 		snd_sof_dsp_write(sdev, ACP_DSP_BAR, ACP_DSP0_CACHE_OFFSET0, desc->sram_pte_offset);
 		snd_sof_dsp_write(sdev, ACP_DSP_BAR, ACP_DSP0_CACHE_SIZE0, SRAM1_SIZE | BIT(31));

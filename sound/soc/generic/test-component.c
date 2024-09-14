@@ -181,14 +181,6 @@ static int test_dai_trigger(struct snd_pcm_substream *substream, int cmd, struct
 	return 0;
 }
 
-static int test_dai_bespoke_trigger(struct snd_pcm_substream *substream,
-				    int cmd, struct snd_soc_dai *dai)
-{
-	mile_stone(dai);
-
-	return 0;
-}
-
 static const u64 test_dai_formats =
 	/*
 	 * Select below from Sound Card, not auto
@@ -228,7 +220,6 @@ static const struct snd_soc_dai_ops test_verbose_ops = {
 	.hw_params		= test_dai_hw_params,
 	.hw_free		= test_dai_hw_free,
 	.trigger		= test_dai_trigger,
-	.bespoke_trigger	= test_dai_bespoke_trigger,
 	.auto_selectable_formats	= &test_dai_formats,
 	.num_auto_selectable_formats	= 1,
 };
@@ -646,7 +637,7 @@ static struct platform_driver test_driver = {
 		.of_match_table = test_of_match,
 	},
 	.probe  = test_driver_probe,
-	.remove_new = test_driver_remove,
+	.remove = test_driver_remove,
 };
 module_platform_driver(test_driver);
 

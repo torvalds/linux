@@ -71,12 +71,75 @@ static int dmic_init(struct snd_soc_pcm_runtime *rtd)
 }
 
 /*
+ * HDA External Codec DAI Link
+ */
+static const struct snd_soc_dapm_widget hda_widgets[] = {
+	SND_SOC_DAPM_MIC("Analog In", NULL),
+	SND_SOC_DAPM_MIC("Digital In", NULL),
+	SND_SOC_DAPM_MIC("Alt Analog In", NULL),
+
+	SND_SOC_DAPM_HP("Analog Out", NULL),
+	SND_SOC_DAPM_SPK("Digital Out", NULL),
+	SND_SOC_DAPM_HP("Alt Analog Out", NULL),
+};
+
+static const struct snd_soc_dapm_route hda_routes[] = {
+	{ "Codec Input Pin1", NULL, "Analog In" },
+	{ "Codec Input Pin2", NULL, "Digital In" },
+	{ "Codec Input Pin3", NULL, "Alt Analog In" },
+
+	{ "Analog Out", NULL, "Codec Output Pin1" },
+	{ "Digital Out", NULL, "Codec Output Pin2" },
+	{ "Alt Analog Out", NULL, "Codec Output Pin3" },
+
+	/* CODEC BE connections */
+	{ "codec0_in", NULL, "Analog CPU Capture" },
+	{ "Analog CPU Capture", NULL, "Analog Codec Capture" },
+	{ "codec1_in", NULL, "Digital CPU Capture" },
+	{ "Digital CPU Capture", NULL, "Digital Codec Capture" },
+	{ "codec2_in", NULL, "Alt Analog CPU Capture" },
+	{ "Alt Analog CPU Capture", NULL, "Alt Analog Codec Capture" },
+
+	{ "Analog Codec Playback", NULL, "Analog CPU Playback" },
+	{ "Analog CPU Playback", NULL, "codec0_out" },
+	{ "Digital Codec Playback", NULL, "Digital CPU Playback" },
+	{ "Digital CPU Playback", NULL, "codec1_out" },
+	{ "Alt Analog Codec Playback", NULL, "Alt Analog CPU Playback" },
+	{ "Alt Analog CPU Playback", NULL, "codec2_out" },
+};
+
+static int hda_init(struct snd_soc_pcm_runtime *rtd)
+{
+	struct snd_soc_card *card = rtd->card;
+	int ret;
+
+	ret = snd_soc_dapm_new_controls(&card->dapm, hda_widgets,
+					ARRAY_SIZE(hda_widgets));
+	if (ret) {
+		dev_err(rtd->dev, "fail to add hda widgets, ret %d\n", ret);
+		return ret;
+	}
+
+	ret = snd_soc_dapm_add_routes(&card->dapm, hda_routes,
+				      ARRAY_SIZE(hda_routes));
+	if (ret)
+		dev_err(rtd->dev, "fail to add hda routes, ret %d\n", ret);
+
+	return ret;
+}
+
+/*
  * DAI Link Helpers
  */
 
 enum sof_dmic_be_type {
 	SOF_DMIC_01,
 	SOF_DMIC_16K,
+};
+
+enum sof_hda_be_type {
+	SOF_HDA_ANALOG,
+	SOF_HDA_DIGITAL,
 };
 
 /* DEFAULT_LINK_ORDER: the order used in sof_rt5682 */
@@ -94,6 +157,16 @@ static struct snd_soc_dai_link_component dmic_component[] = {
 		.dai_name = "dmic-hifi",
 	}
 };
+
+SND_SOC_DAILINK_DEF(hda_analog_cpus,
+		    DAILINK_COMP_ARRAY(COMP_CPU("Analog CPU DAI")));
+SND_SOC_DAILINK_DEF(hda_analog_codecs,
+		    DAILINK_COMP_ARRAY(COMP_CODEC("ehdaudio0D0", "Analog Codec DAI")));
+
+SND_SOC_DAILINK_DEF(hda_digital_cpus,
+		    DAILINK_COMP_ARRAY(COMP_CPU("Digital CPU DAI")));
+SND_SOC_DAILINK_DEF(hda_digital_codecs,
+		    DAILINK_COMP_ARRAY(COMP_CODEC("ehdaudio0D0", "Digital Codec DAI")));
 
 static struct snd_soc_dai_link_component platform_component[] = {
 	{
@@ -380,6 +453,55 @@ static int set_hdmi_in_link(struct device *dev, struct snd_soc_dai_link *link,
 	return 0;
 }
 
+static int set_hda_codec_link(struct device *dev, struct snd_soc_dai_link *link,
+			      int be_id, enum sof_hda_be_type be_type)
+{
+	switch (be_type) {
+	case SOF_HDA_ANALOG:
+		dev_dbg(dev, "link %d: hda analog\n", be_id);
+
+		link->name = "Analog Playback and Capture";
+
+		/* cpus */
+		link->cpus = hda_analog_cpus;
+		link->num_cpus = ARRAY_SIZE(hda_analog_cpus);
+
+		/* codecs */
+		link->codecs = hda_analog_codecs;
+		link->num_codecs = ARRAY_SIZE(hda_analog_codecs);
+		break;
+	case SOF_HDA_DIGITAL:
+		dev_dbg(dev, "link %d: hda digital\n", be_id);
+
+		link->name = "Digital Playback and Capture";
+
+		/* cpus */
+		link->cpus = hda_digital_cpus;
+		link->num_cpus = ARRAY_SIZE(hda_digital_cpus);
+
+		/* codecs */
+		link->codecs = hda_digital_codecs;
+		link->num_codecs = ARRAY_SIZE(hda_digital_codecs);
+		break;
+	default:
+		dev_err(dev, "invalid be type %d\n", be_type);
+		return -EINVAL;
+	}
+
+	/* platforms */
+	link->platforms = platform_component;
+	link->num_platforms = ARRAY_SIZE(platform_component);
+
+	link->id = be_id;
+	if (be_type == SOF_HDA_ANALOG)
+		link->init = hda_init;
+	link->no_pcm = 1;
+	link->dpcm_capture = 1;
+	link->dpcm_playback = 1;
+
+	return 0;
+}
+
 static int calculate_num_links(struct sof_card_private *ctx)
 {
 	int num_links = 0;
@@ -408,6 +530,10 @@ static int calculate_num_links(struct sof_card_private *ctx)
 
 	/* HDMI-In */
 	num_links += hweight32(ctx->ssp_mask_hdmi_in);
+
+	/* HDA external codec */
+	if (ctx->hda_codec_present)
+		num_links += 2;
 
 	return num_links;
 }
@@ -565,6 +691,32 @@ int sof_intel_board_set_dai_link(struct device *dev, struct snd_soc_card *card,
 				idx++;
 				be_id++;
 			}
+			break;
+		case SOF_LINK_HDA:
+			/* HDA external codec */
+			if (!ctx->hda_codec_present)
+				continue;
+
+			ret = set_hda_codec_link(dev, &links[idx], be_id,
+						 SOF_HDA_ANALOG);
+			if (ret) {
+				dev_err(dev, "fail to set hda analog link, ret %d\n",
+					ret);
+				return ret;
+			}
+
+			idx++;
+			be_id++;
+
+			ret = set_hda_codec_link(dev, &links[idx], be_id,
+						 SOF_HDA_DIGITAL);
+			if (ret) {
+				dev_err(dev, "fail to set hda digital link, ret %d\n",
+					ret);
+				return ret;
+			}
+
+			idx++;
 			break;
 		case SOF_LINK_NONE:
 			/* caught here if it's not used as terminator in macro */
