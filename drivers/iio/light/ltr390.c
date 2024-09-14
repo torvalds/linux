@@ -39,6 +39,7 @@
 
 #define LTR390_PART_NUMBER_ID		0xb
 #define LTR390_ALS_UVS_GAIN_MASK	0x07
+#define LTR390_ALS_UVS_MEAS_RATE_MASK	GENMASK(2, 0)
 #define LTR390_ALS_UVS_INT_TIME_MASK	0x70
 #define LTR390_ALS_UVS_INT_TIME(x)	FIELD_PREP(LTR390_ALS_UVS_INT_TIME_MASK, (x))
 
@@ -87,6 +88,18 @@ static const struct regmap_config ltr390_regmap_config = {
 	.val_bits = 8,
 };
 
+/* Sampling frequency is in mili Hz and mili Seconds */
+static const int ltr390_samp_freq_table[][2] = {
+		[0] = { 40000, 25 },
+		[1] = { 20000, 50 },
+		[2] = { 10000, 100 },
+		[3] = { 5000, 200 },
+		[4] = { 2000, 500 },
+		[5] = { 1000, 1000 },
+		[6] = { 500, 2000 },
+		[7] = { 500, 2000 },
+};
+
 static int ltr390_register_read(struct ltr390_data *data, u8 register_address)
 {
 	struct device *dev = &data->client->dev;
@@ -133,6 +146,18 @@ static int ltr390_counts_per_uvi(struct ltr390_data *data)
 	const int orig_int_time = 400;
 
 	return DIV_ROUND_CLOSEST(23 * data->gain * data->int_time_us, 10 * orig_gain * orig_int_time);
+}
+
+static int ltr390_get_samp_freq(struct ltr390_data *data)
+{
+	int ret, value;
+
+	ret = regmap_read(data->regmap, LTR390_ALS_UVS_MEAS_RATE, &value);
+	if (ret < 0)
+		return ret;
+	value = FIELD_GET(LTR390_ALS_UVS_MEAS_RATE_MASK, value);
+
+	return ltr390_samp_freq_table[value][0];
 }
 
 static int ltr390_read_raw(struct iio_dev *iio_device,
@@ -191,6 +216,10 @@ static int ltr390_read_raw(struct iio_dev *iio_device,
 		*val = data->int_time_us;
 		return IIO_VAL_INT;
 
+	case IIO_CHAN_INFO_SAMP_FREQ:
+		*val = ltr390_get_samp_freq(data);
+		return IIO_VAL_INT;
+
 	default:
 		return -EINVAL;
 	}
@@ -199,6 +228,7 @@ static int ltr390_read_raw(struct iio_dev *iio_device,
 /* integration time in us */
 static const int ltr390_int_time_map_us[] = { 400000, 200000, 100000, 50000, 25000, 12500 };
 static const int ltr390_gain_map[] = { 1, 3, 6, 9, 18 };
+static const int ltr390_freq_map[] = { 40000, 20000, 10000, 5000, 2000, 1000, 500, 500 };
 
 static const struct iio_chan_spec ltr390_channels[] = {
 	/* UV sensor */
@@ -206,16 +236,20 @@ static const struct iio_chan_spec ltr390_channels[] = {
 		.type = IIO_UVINDEX,
 		.scan_index = 0,
 		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) | BIT(IIO_CHAN_INFO_SCALE),
-		.info_mask_shared_by_all = BIT(IIO_CHAN_INFO_INT_TIME),
-		.info_mask_shared_by_all_available = BIT(IIO_CHAN_INFO_INT_TIME) | BIT(IIO_CHAN_INFO_SCALE)
+		.info_mask_shared_by_all = BIT(IIO_CHAN_INFO_INT_TIME) | BIT(IIO_CHAN_INFO_SAMP_FREQ),
+		.info_mask_shared_by_all_available = BIT(IIO_CHAN_INFO_INT_TIME) |
+							BIT(IIO_CHAN_INFO_SCALE) |
+							BIT(IIO_CHAN_INFO_SAMP_FREQ),
 	},
 	/* ALS sensor */
 	{
 		.type = IIO_LIGHT,
 		.scan_index = 1,
 		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) | BIT(IIO_CHAN_INFO_SCALE),
-		.info_mask_shared_by_all = BIT(IIO_CHAN_INFO_INT_TIME),
-		.info_mask_shared_by_all_available = BIT(IIO_CHAN_INFO_INT_TIME) | BIT(IIO_CHAN_INFO_SCALE)
+		.info_mask_shared_by_all = BIT(IIO_CHAN_INFO_INT_TIME) | BIT(IIO_CHAN_INFO_SAMP_FREQ),
+		.info_mask_shared_by_all_available = BIT(IIO_CHAN_INFO_INT_TIME) |
+							BIT(IIO_CHAN_INFO_SCALE) |
+							BIT(IIO_CHAN_INFO_SAMP_FREQ),
 	},
 };
 
@@ -264,6 +298,23 @@ static int ltr390_set_int_time(struct ltr390_data *data, int val)
 	return -EINVAL;
 }
 
+static int ltr390_set_samp_freq(struct ltr390_data *data, int val)
+{
+	int idx;
+
+	for (idx = 0; idx < ARRAY_SIZE(ltr390_samp_freq_table); idx++) {
+		if (ltr390_samp_freq_table[idx][0] != val)
+			continue;
+
+		guard(mutex)(&data->lock);
+		return regmap_update_bits(data->regmap,
+					LTR390_ALS_UVS_MEAS_RATE,
+					LTR390_ALS_UVS_MEAS_RATE_MASK, idx);
+	}
+
+	return -EINVAL;
+}
+
 static int ltr390_read_avail(struct iio_dev *indio_dev, struct iio_chan_spec const *chan,
 				const int **vals, int *type, int *length, long mask)
 {
@@ -277,6 +328,11 @@ static int ltr390_read_avail(struct iio_dev *indio_dev, struct iio_chan_spec con
 		*length = ARRAY_SIZE(ltr390_int_time_map_us);
 		*type = IIO_VAL_INT;
 		*vals = ltr390_int_time_map_us;
+		return IIO_AVAIL_LIST;
+	case IIO_CHAN_INFO_SAMP_FREQ:
+		*length = ARRAY_SIZE(ltr390_freq_map);
+		*type = IIO_VAL_INT;
+		*vals = ltr390_freq_map;
 		return IIO_AVAIL_LIST;
 	default:
 		return -EINVAL;
@@ -300,6 +356,12 @@ static int ltr390_write_raw(struct iio_dev *indio_dev, struct iio_chan_spec cons
 			return -EINVAL;
 
 		return ltr390_set_int_time(data, val);
+
+	case IIO_CHAN_INFO_SAMP_FREQ:
+		if (val2 != 0)
+			return -EINVAL;
+
+		return ltr390_set_samp_freq(data, val);
 
 	default:
 		return -EINVAL;
