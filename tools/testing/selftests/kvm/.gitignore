@@ -5,4 +5,7 @@
 !*.h
 !*.S
 !*.sh
+!.gitignore
 !config
+!settings
+!Makefile
