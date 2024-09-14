@@ -577,6 +577,16 @@ static void fsl_samsung_hdmi_calculate_phy(struct phy_config *cal_phy, unsigned 
 	/* pll_div_regs 3-6 are fixed and pre-defined already */
 }
 
+static u32 fsl_samsung_hdmi_phy_get_closest_rate(unsigned long rate,
+						 u32 int_div_clk, u32 frac_div_clk)
+{
+	/* Calculate the absolute value of the differences and return whichever is closest */
+	if (abs((long)rate - (long)int_div_clk) < abs((long)(rate - (long)frac_div_clk)))
+		return int_div_clk;
+
+	return frac_div_clk;
+}
+
 static long phy_clk_round_rate(struct clk_hw *hw,
 			       unsigned long rate, unsigned long *parent_rate)
 {
@@ -615,6 +625,15 @@ static int phy_use_fract_div(struct fsl_samsung_hdmi_phy *phy, const struct phy_
 	return fsl_samsung_hdmi_phy_configure(phy, phy->cur_cfg);
 }
 
+static int phy_use_integer_div(struct fsl_samsung_hdmi_phy *phy,
+			       const struct phy_config *int_div_clk)
+{
+	phy->cur_cfg  = &calculated_phy_pll_cfg;
+	dev_dbg(phy->dev, "fsl_samsung_hdmi_phy: integer divider rate = %u\n",
+		phy->cur_cfg->pixclk);
+	return fsl_samsung_hdmi_phy_configure(phy, phy->cur_cfg);
+}
+
 static int phy_clk_set_rate(struct clk_hw *hw,
 			    unsigned long rate, unsigned long parent_rate)
 {
@@ -636,20 +655,19 @@ static int phy_clk_set_rate(struct clk_hw *hw,
 	 * and use it if that value is an exact match.
 	 */
 	int_div_clk = fsl_samsung_hdmi_phy_find_pms(rate, &p, &m, &s);
-	if (int_div_clk == rate) {
-		dev_dbg(phy->dev, "fsl_samsung_hdmi_phy: integer divider rate = %u\n",
-				   int_div_clk);
-
-		fsl_samsung_hdmi_calculate_phy(&calculated_phy_pll_cfg, int_div_clk, p, m, s);
-		phy->cur_cfg  = &calculated_phy_pll_cfg;
-		return fsl_samsung_hdmi_phy_configure(phy, phy->cur_cfg);
-	}
+	fsl_samsung_hdmi_calculate_phy(&calculated_phy_pll_cfg, int_div_clk, p, m, s);
+	if (int_div_clk == rate)
+		return phy_use_integer_div(phy, &calculated_phy_pll_cfg);
 
 	/*
-	 * If neither the fractional divider nor the integer divider can find an exact value
-	 * fall back to using the fractional divider
+	 * Compare the difference between the integer clock and the fractional clock against
+	 * the desired clock and which whichever is closest.
 	 */
-	return phy_use_fract_div(phy, fract_div_phy);
+	if (fsl_samsung_hdmi_phy_get_closest_rate(rate, int_div_clk,
+						  fract_div_phy->pixclk) == fract_div_phy->pixclk)
+		return phy_use_fract_div(phy, fract_div_phy);
+	else
+		return phy_use_integer_div(phy, &calculated_phy_pll_cfg);
 }
 
 static const struct clk_ops phy_clk_ops = {
