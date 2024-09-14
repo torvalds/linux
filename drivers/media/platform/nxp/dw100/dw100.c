@@ -1311,7 +1311,7 @@ static void dw100_hw_set_destination(struct dw100_device *dw_dev,
 	}
 
 	dev_dbg(&dw_dev->pdev->dev,
-		"Set HW source registers for %ux%u - stride %u, pixfmt: %p4cc, dma:%pad\n",
+		"Set HW destination registers for %ux%u - stride %u, pixfmt: %p4cc, dma:%pad\n",
 		width, height, stride, &fourcc, &addr_y);
 
 	/* Pixel Format */
