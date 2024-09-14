@@ -192,7 +192,7 @@ struct rockchip_spi {
 	u8 rsd;
 
 	bool target_abort;
-	bool cs_inactive; /* spi target tansmition stop when cs inactive */
+	bool cs_inactive; /* spi target transmission stop when cs inactive */
 	bool cs_high_supported; /* native CS supports active-high polarity */
 
 	struct spi_transfer *xfer; /* Store xfer temporarily */

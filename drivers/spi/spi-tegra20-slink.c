@@ -542,7 +542,7 @@ static int tegra_slink_start_dma_based_transfer(
 	if (tspi->is_packed) {
 		val |= SLINK_PACKED;
 		tegra_slink_writel(tspi, val, SLINK_DMA_CTL);
-		/* HW need small delay after settign Packed mode */
+		/* HW need small delay after setting Packed mode */
 		udelay(1);
 	}
 	tspi->dma_control_reg = val;

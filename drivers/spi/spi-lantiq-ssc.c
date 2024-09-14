@@ -139,7 +139,7 @@
 #define LTQ_SPI_FGPO_CLROUTN_S	0
 
 #define LTQ_SPI_RXREQ_RXCNT_M	0xFFFF	/* Receive count value */
-#define LTQ_SPI_RXCNT_TODO_M	0xFFFF	/* Recevie to-do value */
+#define LTQ_SPI_RXCNT_TODO_M	0xFFFF	/* Receive to-do value */
 
 #define LTQ_SPI_IRNEN_TFI	BIT(4)	/* TX finished interrupt */
 #define LTQ_SPI_IRNEN_F		BIT(3)	/* Frame end interrupt request */

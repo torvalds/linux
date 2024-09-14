@@ -226,7 +226,7 @@ static irqreturn_t pic32_sqi_isr(int irq, void *dev_id)
 	if (status & PESQI_PKTCOMP) {
 		/* mask all interrupts */
 		enable = 0;
-		/* complete trasaction */
+		/* complete transaction */
 		complete(&sqi->xfer_done);
 	}
 

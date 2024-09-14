@@ -111,7 +111,7 @@
 #define  SFC_VER_4			0x4
 #define  SFC_VER_5			0x5
 
-/* Delay line controller resiter */
+/* Delay line controller register */
 #define SFC_DLL_CTRL0			0x3C
 #define SFC_DLL_CTRL0_SCLK_SMP_DLL	BIT(15)
 #define SFC_DLL_CTRL0_DLL_MAX_VER4	0xFFU

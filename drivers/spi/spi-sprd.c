@@ -728,7 +728,7 @@ static int sprd_spi_setup_transfer(struct spi_device *sdev,
 	if (ret)
 		return ret;
 
-	/* Set tansfer speed and valid bits */
+	/* Set transfer speed and valid bits */
 	sprd_spi_set_speed(ss, t->speed_hz);
 	sprd_spi_set_transfer_bits(ss, bits_per_word);
 
