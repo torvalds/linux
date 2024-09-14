@@ -1139,7 +1139,7 @@ int io_import_fixed(int ddir, struct iov_iter *iter,
 	return 0;
 }
 
-static int io_copy_buffers(struct io_ring_ctx *ctx, struct io_ring_ctx *src_ctx)
+static int io_clone_buffers(struct io_ring_ctx *ctx, struct io_ring_ctx *src_ctx)
 {
 	struct io_mapped_ubuf **user_bufs;
 	struct io_rsrc_data *data;
@@ -1203,9 +1203,9 @@ out_unlock:
  *
  * Since the memory is already accounted once, don't account it again.
  */
-int io_register_copy_buffers(struct io_ring_ctx *ctx, void __user *arg)
+int io_register_clone_buffers(struct io_ring_ctx *ctx, void __user *arg)
 {
-	struct io_uring_copy_buffers buf;
+	struct io_uring_clone_buffers buf;
 	bool registered_src;
 	struct file *file;
 	int ret;
@@ -1223,7 +1223,7 @@ int io_register_copy_buffers(struct io_ring_ctx *ctx, void __user *arg)
 	file = io_uring_register_get_file(buf.src_fd, registered_src);
 	if (IS_ERR(file))
 		return PTR_ERR(file);
-	ret = io_copy_buffers(ctx, file->private_data);
+	ret = io_clone_buffers(ctx, file->private_data);
 	if (!registered_src)
 		fput(file);
 	return ret;
