@@ -82,6 +82,8 @@ enum rt1320_version_id {
 };
 
 #define RT1320_VER_B_ID 0x07392238
+#define RT1320_VAB_MCU_PATCH "realtek/rt1320/rt1320-patch-code-vab.bin"
+#define RT1320_VC_MCU_PATCH "realtek/rt1320/rt1320-patch-code-vc.bin"
 
 struct rt1320_sdw_priv {
 	struct snd_soc_component *component;
