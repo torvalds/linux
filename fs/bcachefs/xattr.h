@@ -44,6 +44,6 @@ int bch2_xattr_set(struct btree_trans *, subvol_inum,
 
 ssize_t bch2_xattr_list(struct dentry *, char *, size_t);
 
-extern const struct xattr_handler *bch2_xattr_handlers[];
+extern const struct xattr_handler * const bch2_xattr_handlers[];
 
 #endif /* _BCACHEFS_XATTR_H */

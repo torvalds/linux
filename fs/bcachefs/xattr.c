@@ -609,7 +609,7 @@ static const struct xattr_handler bch_xattr_bcachefs_effective_handler = {
 
 #endif /* NO_BCACHEFS_FS */
 
-const struct xattr_handler *bch2_xattr_handlers[] = {
+const struct xattr_handler * const bch2_xattr_handlers[] = {
 	&bch_xattr_user_handler,
 	&bch_xattr_trusted_handler,
 	&bch_xattr_security_handler,
