@@ -5,10 +5,28 @@
 
 #include <tools/le_byteshift.h>
 #include <sys/random.h>
+#include <sys/auxv.h>
 #include <string.h>
 #include <stdint.h>
 #include <stdbool.h>
 #include "../kselftest.h"
+
+#if defined(__aarch64__)
+static bool cpu_has_capabilities(void)
+{
+	return getauxval(AT_HWCAP) & HWCAP_ASIMD;
+}
+#elif defined(__s390x__)
+static bool cpu_has_capabilities(void)
+{
+	return getauxval(AT_HWCAP) & HWCAP_S390_VXRS;
+}
+#else
+static bool cpu_has_capabilities(void)
+{
+	return true;
+}
+#endif
 
 static uint32_t rol32(uint32_t word, unsigned int shift)
 {
@@ -67,6 +85,8 @@ int main(int argc, char *argv[])
 	uint8_t output1[BLOCK_SIZE * BLOCKS], output2[BLOCK_SIZE * BLOCKS];
 
 	ksft_print_header();
+	if (!cpu_has_capabilities())
+		ksft_exit_skip("Required CPU capabilities missing\n");
 	ksft_set_plan(1);
 
 	for (unsigned int trial = 0; trial < TRIALS; ++trial) {
