@@ -247,7 +247,7 @@ static struct platform_driver cc770_platform_driver = {
 		.of_match_table = cc770_platform_table,
 	},
 	.probe = cc770_platform_probe,
-	.remove_new = cc770_platform_remove,
+	.remove = cc770_platform_remove,
 };
 
 module_platform_driver(cc770_platform_driver);
