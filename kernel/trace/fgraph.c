@@ -390,21 +390,7 @@ void *fgraph_reserve_data(int idx, int size_bytes)
  */
 void *fgraph_retrieve_data(int idx, int *size_bytes)
 {
-	int offset = current->curr_ret_stack - 1;
-	unsigned long val;
-
-	val = get_fgraph_entry(current, offset);
-	while (__get_type(val) == FGRAPH_TYPE_DATA) {
-		if (__get_data_index(val) == idx)
-			goto found;
-		offset -= __get_data_size(val) + 1;
-		val = get_fgraph_entry(current, offset);
-	}
-	return NULL;
-found:
-	if (size_bytes)
-		*size_bytes = __get_data_size(val) * sizeof(long);
-	return get_data_type_data(current, offset);
+	return fgraph_retrieve_parent_data(idx, size_bytes, 0);
 }
 
 /**
@@ -458,6 +444,54 @@ get_ret_stack(struct task_struct *t, int offset, int *frame_offset)
 
 	*frame_offset = offset;
 	return RET_STACK(t, offset);
+}
+
+/**
+ * fgraph_retrieve_parent_data - get data from a parent function
+ * @idx: The index into the fgraph_array (fgraph_ops::idx)
+ * @size_bytes: A pointer to retrieved data size
+ * @depth: The depth to find the parent (0 is the current function)
+ *
+ * This is similar to fgraph_retrieve_data() but can be used to retrieve
+ * data from a parent caller function.
+ *
+ * Return: a pointer to the specified parent data or NULL if not found
+ */
+void *fgraph_retrieve_parent_data(int idx, int *size_bytes, int depth)
+{
+	struct ftrace_ret_stack *ret_stack = NULL;
+	int offset = current->curr_ret_stack;
+	unsigned long val;
+
+	if (offset <= 0)
+		return NULL;
+
+	for (;;) {
+		int next_offset;
+
+		ret_stack = get_ret_stack(current, offset, &next_offset);
+		if (!ret_stack || --depth < 0)
+			break;
+		offset = next_offset;
+	}
+
+	if (!ret_stack)
+		return NULL;
+
+	offset--;
+
+	val = get_fgraph_entry(current, offset);
+	while (__get_type(val) == FGRAPH_TYPE_DATA) {
+		if (__get_data_index(val) == idx)
+			goto found;
+		offset -= __get_data_size(val) + 1;
+		val = get_fgraph_entry(current, offset);
+	}
+	return NULL;
+found:
+	if (size_bytes)
+		*size_bytes = __get_data_size(val) * sizeof(long);
+	return get_data_type_data(current, offset);
 }
 
 /* Both enabled by default (can be cleared by function_graph tracer flags */

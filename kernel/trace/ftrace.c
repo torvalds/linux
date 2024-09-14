@@ -823,7 +823,7 @@ void ftrace_graph_graph_time_control(bool enable)
 static int profile_graph_entry(struct ftrace_graph_ent *trace,
 			       struct fgraph_ops *gops)
 {
-	struct ftrace_ret_stack *ret_stack;
+	unsigned long long *subtime;
 
 	function_profile_call(trace->func, 0, NULL, NULL);
 
@@ -831,9 +831,9 @@ static int profile_graph_entry(struct ftrace_graph_ent *trace,
 	if (!current->ret_stack)
 		return 0;
 
-	ret_stack = ftrace_graph_get_ret_stack(current, 0);
-	if (ret_stack)
-		ret_stack->subtime = 0;
+	subtime = fgraph_reserve_data(gops->idx, sizeof(*subtime));
+	if (subtime)
+		*subtime = 0;
 
 	return 1;
 }
@@ -841,11 +841,12 @@ static int profile_graph_entry(struct ftrace_graph_ent *trace,
 static void profile_graph_return(struct ftrace_graph_ret *trace,
 				 struct fgraph_ops *gops)
 {
-	struct ftrace_ret_stack *ret_stack;
 	struct ftrace_profile_stat *stat;
 	unsigned long long calltime;
+	unsigned long long *subtime;
 	struct ftrace_profile *rec;
 	unsigned long flags;
+	int size;
 
 	local_irq_save(flags);
 	stat = this_cpu_ptr(&ftrace_profile_stats);
@@ -861,13 +862,13 @@ static void profile_graph_return(struct ftrace_graph_ret *trace,
 	if (!fgraph_graph_time) {
 
 		/* Append this call time to the parent time to subtract */
-		ret_stack = ftrace_graph_get_ret_stack(current, 1);
-		if (ret_stack)
-			ret_stack->subtime += calltime;
+		subtime = fgraph_retrieve_parent_data(gops->idx, &size, 1);
+		if (subtime)
+			*subtime += calltime;
 
-		ret_stack = ftrace_graph_get_ret_stack(current, 0);
-		if (ret_stack && ret_stack->subtime < calltime)
-			calltime -= ret_stack->subtime;
+		subtime = fgraph_retrieve_data(gops->idx, &size);
+		if (subtime && *subtime && *subtime < calltime)
+			calltime -= *subtime;
 		else
 			calltime = 0;
 	}
