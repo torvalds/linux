@@ -187,6 +187,15 @@ static struct cmn2asic_mapping smu_v14_0_2_feature_mask_map[SMU_FEATURE_COUNT] =
 	FEA_MAP(MEM_TEMP_READ),
 	FEA_MAP(ATHUB_MMHUB_PG),
 	FEA_MAP(SOC_PCC),
+	FEA_MAP(EDC_PWRBRK),
+	FEA_MAP(SOC_EDC_XVMIN),
+	FEA_MAP(GFX_PSM_DIDT),
+	FEA_MAP(APT_ALL_ENABLE),
+	FEA_MAP(APT_SQ_THROTTLE),
+	FEA_MAP(APT_PF_DCS),
+	FEA_MAP(GFX_EDC_XVMIN),
+	FEA_MAP(GFX_DIDT_XVMIN),
+	FEA_MAP(FAN_ABNORMAL),
 	[SMU_FEATURE_DPM_VCLK_BIT] = {1, FEATURE_MM_DPM_BIT},
 	[SMU_FEATURE_DPM_DCLK_BIT] = {1, FEATURE_MM_DPM_BIT},
 	[SMU_FEATURE_PPT_BIT] = {1, FEATURE_THROTTLERS_BIT},
@@ -674,6 +683,9 @@ static int smu_v14_0_2_set_default_dpm_table(struct smu_context *smu)
 		pcie_table->clk_freq[pcie_table->num_of_link_levels] =
 					skutable->LclkFreq[link_level];
 		pcie_table->num_of_link_levels++;
+
+		if (link_level == 0)
+			link_level++;
 	}
 
 	/* dcefclk dpm table setup */

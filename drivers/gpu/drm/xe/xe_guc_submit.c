@@ -1375,6 +1375,8 @@ static void __guc_exec_queue_process_msg_resume(struct xe_sched_msg *msg)
 
 static void guc_exec_queue_process_msg(struct xe_sched_msg *msg)
 {
+	struct xe_device *xe = guc_to_xe(exec_queue_to_guc(msg->private_data));
+
 	trace_xe_sched_msg_recv(msg);
 
 	switch (msg->opcode) {
@@ -1394,7 +1396,7 @@ static void guc_exec_queue_process_msg(struct xe_sched_msg *msg)
 		XE_WARN_ON("Unknown message type");
 	}
 
-	xe_pm_runtime_put(guc_to_xe(exec_queue_to_guc(msg->private_data)));
+	xe_pm_runtime_put(xe);
 }
 
 static const struct drm_sched_backend_ops drm_sched_ops = {
