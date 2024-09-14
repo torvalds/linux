@@ -593,6 +593,8 @@ static void hpre_close_sva_prefetch(struct hisi_qm *qm)
 
 static void hpre_enable_clock_gate(struct hisi_qm *qm)
 {
+	unsigned long offset;
+	u8 clusters_num, i;
 	u32 val;
 
 	if (qm->ver < QM_HW_V3)
@@ -606,17 +608,23 @@ static void hpre_enable_clock_gate(struct hisi_qm *qm)
 	val |= HPRE_PEH_CFG_AUTO_GATE_EN;
 	writel(val, qm->io_base + HPRE_PEH_CFG_AUTO_GATE);
 
-	val = readl(qm->io_base + HPRE_CLUSTER_DYN_CTL);
-	val |= HPRE_CLUSTER_DYN_CTL_EN;
-	writel(val, qm->io_base + HPRE_CLUSTER_DYN_CTL);
+	clusters_num = qm->cap_tables.dev_cap_table[HPRE_CLUSTER_NUM_CAP_IDX].cap_val;
+	for (i = 0; i < clusters_num; i++) {
+		offset = (unsigned long)i * HPRE_CLSTR_ADDR_INTRVL;
+		val = readl(qm->io_base + offset + HPRE_CLUSTER_DYN_CTL);
+		val |= HPRE_CLUSTER_DYN_CTL_EN;
+		writel(val, qm->io_base + offset + HPRE_CLUSTER_DYN_CTL);
 
-	val = readl_relaxed(qm->io_base + HPRE_CORE_SHB_CFG);
-	val |= HPRE_CORE_GATE_EN;
-	writel(val, qm->io_base + HPRE_CORE_SHB_CFG);
+		val = readl(qm->io_base + offset + HPRE_CORE_SHB_CFG);
+		val |= HPRE_CORE_GATE_EN;
+		writel(val, qm->io_base + offset + HPRE_CORE_SHB_CFG);
+	}
 }
 
 static void hpre_disable_clock_gate(struct hisi_qm *qm)
 {
+	unsigned long offset;
+	u8 clusters_num, i;
 	u32 val;
 
 	if (qm->ver < QM_HW_V3)
@@ -630,13 +638,17 @@ static void hpre_disable_clock_gate(struct hisi_qm *qm)
 	val &= ~HPRE_PEH_CFG_AUTO_GATE_EN;
 	writel(val, qm->io_base + HPRE_PEH_CFG_AUTO_GATE);
 
-	val = readl(qm->io_base + HPRE_CLUSTER_DYN_CTL);
-	val &= ~HPRE_CLUSTER_DYN_CTL_EN;
-	writel(val, qm->io_base + HPRE_CLUSTER_DYN_CTL);
+	clusters_num = qm->cap_tables.dev_cap_table[HPRE_CLUSTER_NUM_CAP_IDX].cap_val;
+	for (i = 0; i < clusters_num; i++) {
+		offset = (unsigned long)i * HPRE_CLSTR_ADDR_INTRVL;
+		val = readl(qm->io_base + offset + HPRE_CLUSTER_DYN_CTL);
+		val &= ~HPRE_CLUSTER_DYN_CTL_EN;
+		writel(val, qm->io_base + offset + HPRE_CLUSTER_DYN_CTL);
 
-	val = readl_relaxed(qm->io_base + HPRE_CORE_SHB_CFG);
-	val &= ~HPRE_CORE_GATE_EN;
-	writel(val, qm->io_base + HPRE_CORE_SHB_CFG);
+		val = readl(qm->io_base + offset + HPRE_CORE_SHB_CFG);
+		val &= ~HPRE_CORE_GATE_EN;
+		writel(val, qm->io_base + offset + HPRE_CORE_SHB_CFG);
+	}
 }
 
 static int hpre_set_user_domain_and_cache(struct hisi_qm *qm)
