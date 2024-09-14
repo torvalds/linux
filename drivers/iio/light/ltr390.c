@@ -18,15 +18,18 @@
  *   - Interrupt support
  */
 
+#include <linux/bitfield.h>
 #include <linux/device.h>
 #include <linux/i2c.h>
+#include <linux/irq.h>
+#include <linux/interrupt.h>
 #include <linux/math.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/regmap.h>
-#include <linux/bitfield.h>
 
 #include <linux/iio/iio.h>
+#include <linux/iio/events.h>
 
 #include <asm/unaligned.h>
 
@@ -34,9 +37,12 @@
 #define LTR390_ALS_UVS_MEAS_RATE	0x04
 #define LTR390_ALS_UVS_GAIN		0x05
 #define LTR390_PART_ID			0x06
+#define LTR390_MAIN_STATUS		0x07
 #define LTR390_ALS_DATA			0x0D
 #define LTR390_UVS_DATA			0x10
 #define LTR390_INT_CFG			0x19
+#define LTR390_THRESH_UP		0x21
+#define LTR390_THRESH_LOW		0x24
 
 #define LTR390_PART_NUMBER_ID		0xb
 #define LTR390_ALS_UVS_GAIN_MASK	0x07
@@ -47,6 +53,8 @@
 #define LTR390_SW_RESET	      BIT(4)
 #define LTR390_UVS_MODE	      BIT(3)
 #define LTR390_SENSOR_ENABLE  BIT(1)
+#define LTR390_LS_INT_EN      BIT(2)
+#define LTR390_LS_INT_SEL_UVS BIT(5)
 
 #define LTR390_FRACTIONAL_PRECISION 100
 
@@ -231,6 +239,22 @@ static const int ltr390_int_time_map_us[] = { 400000, 200000, 100000, 50000, 250
 static const int ltr390_gain_map[] = { 1, 3, 6, 9, 18 };
 static const int ltr390_freq_map[] = { 40000, 20000, 10000, 5000, 2000, 1000, 500, 500 };
 
+static const struct iio_event_spec ltr390_event_spec[] = {
+	{
+		.type = IIO_EV_TYPE_THRESH,
+		.dir = IIO_EV_DIR_RISING,
+		.mask_separate = BIT(IIO_EV_INFO_VALUE),
+	}, {
+		.type = IIO_EV_TYPE_THRESH,
+		.dir = IIO_EV_DIR_FALLING,
+		.mask_separate = BIT(IIO_EV_INFO_VALUE),
+	}, {
+		.type = IIO_EV_TYPE_THRESH,
+		.dir = IIO_EV_DIR_EITHER,
+		.mask_separate = BIT(IIO_EV_INFO_ENABLE),
+	}
+};
+
 static const struct iio_chan_spec ltr390_channels[] = {
 	/* UV sensor */
 	{
@@ -241,6 +265,8 @@ static const struct iio_chan_spec ltr390_channels[] = {
 		.info_mask_shared_by_all_available = BIT(IIO_CHAN_INFO_INT_TIME) |
 							BIT(IIO_CHAN_INFO_SCALE) |
 							BIT(IIO_CHAN_INFO_SAMP_FREQ),
+		.event_spec = ltr390_event_spec,
+		.num_event_specs = ARRAY_SIZE(ltr390_event_spec),
 	},
 	/* ALS sensor */
 	{
@@ -251,6 +277,8 @@ static const struct iio_chan_spec ltr390_channels[] = {
 		.info_mask_shared_by_all_available = BIT(IIO_CHAN_INFO_INT_TIME) |
 							BIT(IIO_CHAN_INFO_SCALE) |
 							BIT(IIO_CHAN_INFO_SAMP_FREQ),
+		.event_spec = ltr390_event_spec,
+		.num_event_specs = ARRAY_SIZE(ltr390_event_spec),
 	},
 };
 
@@ -369,11 +397,182 @@ static int ltr390_write_raw(struct iio_dev *indio_dev, struct iio_chan_spec cons
 	}
 }
 
+static int ltr390_read_threshold(struct iio_dev *indio_dev,
+				enum iio_event_direction dir,
+				int *val, int *val2)
+{
+	struct ltr390_data *data = iio_priv(indio_dev);
+	int ret;
+
+	switch (dir) {
+	case IIO_EV_DIR_RISING:
+		ret = ltr390_register_read(data, LTR390_THRESH_UP);
+		if (ret < 0)
+			return ret;
+		*val = ret;
+		return IIO_VAL_INT;
+
+	case IIO_EV_DIR_FALLING:
+		ret = ltr390_register_read(data, LTR390_THRESH_LOW);
+		if (ret < 0)
+			return ret;
+		*val = ret;
+		return IIO_VAL_INT;
+	default:
+		return -EINVAL;
+	}
+}
+
+static int ltr390_write_threshold(struct iio_dev *indio_dev,
+				enum iio_event_direction dir,
+				int val, int val2)
+{
+	struct ltr390_data *data = iio_priv(indio_dev);
+
+	guard(mutex)(&data->lock);
+	switch (dir) {
+	case IIO_EV_DIR_RISING:
+		return regmap_bulk_write(data->regmap, LTR390_THRESH_UP, &val, 3);
+
+	case IIO_EV_DIR_FALLING:
+		return regmap_bulk_write(data->regmap, LTR390_THRESH_LOW, &val, 3);
+
+	default:
+		return -EINVAL;
+	}
+}
+
+static int ltr390_read_event_value(struct iio_dev *indio_dev,
+				const struct iio_chan_spec *chan,
+				enum iio_event_type type,
+				enum iio_event_direction dir,
+				enum iio_event_info info,
+				int *val, int *val2)
+{
+	switch (info) {
+	case IIO_EV_INFO_VALUE:
+		return ltr390_read_threshold(indio_dev, dir, val, val2);
+
+	default:
+		return -EINVAL;
+	}
+}
+
+static int ltr390_write_event_value(struct iio_dev *indio_dev,
+				const struct iio_chan_spec *chan,
+				enum iio_event_type type,
+				enum iio_event_direction dir,
+				enum iio_event_info info,
+				int val, int val2)
+{
+	switch (info) {
+	case IIO_EV_INFO_VALUE:
+		if (val2 != 0)
+			return -EINVAL;
+
+		return ltr390_write_threshold(indio_dev, dir, val, val2);
+
+	default:
+		return -EINVAL;
+	}
+}
+
+static int ltr390_read_event_config(struct iio_dev *indio_dev,
+				const struct iio_chan_spec *chan,
+				enum iio_event_type type,
+				enum iio_event_direction dir)
+{
+	struct ltr390_data *data = iio_priv(indio_dev);
+	int ret, status;
+
+	ret = regmap_read(data->regmap, LTR390_INT_CFG, &status);
+	if (ret < 0)
+		return ret;
+
+	return FIELD_GET(LTR390_LS_INT_EN, status);
+}
+
+static int ltr390_write_event_config(struct iio_dev *indio_dev,
+				const struct iio_chan_spec *chan,
+				enum iio_event_type type,
+				enum iio_event_direction dir,
+				int state)
+{
+	struct ltr390_data *data = iio_priv(indio_dev);
+	int ret;
+
+	if (state != 1  && state != 0)
+		return -EINVAL;
+
+	if (state == 0)
+		return regmap_clear_bits(data->regmap, LTR390_INT_CFG, LTR390_LS_INT_EN);
+
+	guard(mutex)(&data->lock);
+	ret = regmap_set_bits(data->regmap, LTR390_INT_CFG, LTR390_LS_INT_EN);
+	if (ret < 0)
+		return ret;
+
+	switch (chan->type) {
+	case IIO_LIGHT:
+		ret = ltr390_set_mode(data, LTR390_SET_ALS_MODE);
+		if (ret < 0)
+			return ret;
+
+		return regmap_clear_bits(data->regmap, LTR390_INT_CFG, LTR390_LS_INT_SEL_UVS);
+
+	case IIO_UVINDEX:
+		ret = ltr390_set_mode(data, LTR390_SET_UVS_MODE);
+		if (ret < 0)
+			return ret;
+
+		return regmap_set_bits(data->regmap, LTR390_INT_CFG, LTR390_LS_INT_SEL_UVS);
+
+	default:
+		return -EINVAL;
+	}
+}
+
 static const struct iio_info ltr390_info = {
 	.read_raw = ltr390_read_raw,
 	.write_raw = ltr390_write_raw,
 	.read_avail = ltr390_read_avail,
+	.read_event_value = ltr390_read_event_value,
+	.read_event_config = ltr390_read_event_config,
+	.write_event_value = ltr390_write_event_value,
+	.write_event_config = ltr390_write_event_config,
 };
+
+static irqreturn_t ltr390_interrupt_handler(int irq, void *private)
+{
+	struct iio_dev *indio_dev = private;
+	struct ltr390_data *data = iio_priv(indio_dev);
+	int ret, status;
+
+	/* Reading the status register to clear the interrupt flag, Datasheet pg: 17*/
+	ret = regmap_read(data->regmap, LTR390_MAIN_STATUS, &status);
+	if (ret < 0)
+		return ret;
+
+	switch (data->mode) {
+	case LTR390_SET_ALS_MODE:
+		iio_push_event(indio_dev,
+				IIO_UNMOD_EVENT_CODE(IIO_LIGHT, 0,
+				IIO_EV_TYPE_THRESH,
+				IIO_EV_DIR_EITHER),
+				iio_get_time_ns(indio_dev));
+		break;
+
+	case LTR390_SET_UVS_MODE:
+		iio_push_event(indio_dev,
+				IIO_UNMOD_EVENT_CODE(IIO_UVINDEX, 0,
+				IIO_EV_TYPE_THRESH,
+				IIO_EV_DIR_EITHER),
+				iio_get_time_ns(indio_dev));
+		break;
+	}
+
+	return IRQ_HANDLED;
+}
 
 static int ltr390_probe(struct i2c_client *client)
 {
@@ -427,6 +626,17 @@ static int ltr390_probe(struct i2c_client *client)
 	ret = regmap_set_bits(data->regmap, LTR390_MAIN_CTRL, LTR390_SENSOR_ENABLE);
 	if (ret)
 		return dev_err_probe(dev, ret, "failed to enable the sensor\n");
+
+	if (client->irq) {
+		ret = devm_request_threaded_irq(dev, client->irq,
+						NULL, ltr390_interrupt_handler,
+						IRQF_ONESHOT,
+						"ltr390_thresh_event",
+						indio_dev);
+		if (ret)
+			return dev_err_probe(dev, ret,
+					     "request irq (%d) failed\n", client->irq);
+	}
 
 	return devm_iio_device_register(dev, indio_dev);
 }
