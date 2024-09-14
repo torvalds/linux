@@ -75,8 +75,13 @@ static inline void kvm_save_lasx(struct loongarch_fpu *fpu) { }
 static inline void kvm_restore_lasx(struct loongarch_fpu *fpu) { }
 #endif
 
+#ifdef CONFIG_CPU_HAS_LBT
+int kvm_own_lbt(struct kvm_vcpu *vcpu);
+#else
+static inline int kvm_own_lbt(struct kvm_vcpu *vcpu) { return -EINVAL; }
+#endif
+
 void kvm_init_timer(struct kvm_vcpu *vcpu, unsigned long hz);
-void kvm_reset_timer(struct kvm_vcpu *vcpu);
 void kvm_save_timer(struct kvm_vcpu *vcpu);
 void kvm_restore_timer(struct kvm_vcpu *vcpu);
 
@@ -123,6 +128,11 @@ static inline void kvm_write_reg(struct kvm_vcpu *vcpu, int num, unsigned long v
 static inline bool kvm_pvtime_supported(void)
 {
 	return !!sched_info_on();
+}
+
+static inline bool kvm_guest_has_pv_feature(struct kvm_vcpu *vcpu, unsigned int feature)
+{
+	return vcpu->kvm->arch.pv_features & BIT(feature);
 }
 
 #endif /* __ASM_LOONGARCH_KVM_VCPU_H__ */
