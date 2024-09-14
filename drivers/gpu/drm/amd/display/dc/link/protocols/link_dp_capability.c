@@ -1207,6 +1207,13 @@ static void get_active_converter_info(
 			dp_hw_fw_revision.ieee_fw_rev,
 			sizeof(dp_hw_fw_revision.ieee_fw_rev));
 	}
+
+	core_link_read_dpcd(
+		link,
+		DP_BRANCH_VENDOR_SPECIFIC_START,
+		(uint8_t *)link->dpcd_caps.branch_vendor_specific_data,
+		sizeof(link->dpcd_caps.branch_vendor_specific_data));
+
 	if (link->dpcd_caps.dpcd_rev.raw >= DPCD_REV_14 &&
 			link->dpcd_caps.dongle_type != DISPLAY_DONGLE_NONE) {
 		union dp_dfp_cap_ext dfp_cap_ext;

@@ -1166,6 +1166,7 @@ struct dpcd_caps {
 	int8_t branch_dev_name[6];
 	int8_t branch_hw_revision;
 	int8_t branch_fw_revision[2];
+	int8_t branch_vendor_specific_data[4];
 
 	bool allow_invalid_MSA_timing_param;
 	bool panel_mode_edp;
@@ -1357,6 +1358,9 @@ struct dp_trace {
 #endif
 #ifndef DP_TUNNELING_IRQ
 #define DP_TUNNELING_IRQ				(1 << 5)
+#endif
+#ifndef DP_BRANCH_VENDOR_SPECIFIC_START
+#define DP_BRANCH_VENDOR_SPECIFIC_START     0x50C
 #endif
 /** USB4 DPCD BW Allocation Registers Chapter 10.7 **/
 #ifndef DP_TUNNELING_CAPABILITIES
