@@ -300,11 +300,6 @@ inline void rtw_set_oper_bw(struct adapter *adapter, u8 bw)
 	adapter_to_dvobj(adapter)->oper_bwmode = bw;
 }
 
-inline u8 rtw_get_oper_choffset(struct adapter *adapter)
-{
-	return adapter_to_dvobj(adapter)->oper_ch_offset;
-}
-
 inline void rtw_set_oper_choffset(struct adapter *adapter, u8 offset)
 {
 	adapter_to_dvobj(adapter)->oper_ch_offset = offset;
