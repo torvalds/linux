@@ -1,0 +1,40 @@
+#!/bin/bash -eu
+#
+# Staging drivers must not be signed if they are not listed in a
+# signature-inclusion file to prevent loading of 'unsafe' drivers in a
+# Secure Boot environment.
+#
+# Exit with status 0 if the provided module needs to be signed, 1 otherwise
+#
+
+mod=${1}
+
+# Sign the module if not a staging driver
+if [ "${mod/\/drivers\/staging\//}" = "${mod}" ] ; then
+	exit 0
+fi
+
+root=$(dirname "$(realpath -e "${0}")")/../..
+. "${root}"/debian/debian.env
+
+# Collect the signature-inclusion files
+sig_incls=()
+for d in debian "${DEBIAN}" ; do
+	if [ -f "${root}"/"${d}"/signature-inclusion ] ; then
+		sig_incls+=("${root}"/"${d}"/signature-inclusion)
+	fi
+done
+
+# Sign the module if no signature-inclusion files
+if [ ${#sig_incls[@]} -eq 0 ] ; then
+	exit 0
+fi
+
+# Sign the module if listed in signature-inclusion files
+if grep -qFx "${mod##*/}" "${sig_incls[@]}" ; then
+	exit 0
+fi
+
+# Don't sign the module
+echo "UBUNTU: Not signing ${1}"
+exit 1

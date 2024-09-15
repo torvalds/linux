@@ -1,0 +1,42 @@
+#!/usr/bin/python3
+
+import os
+import sys
+
+from subprocess import check_output
+
+droot = 'debian'
+if len(sys.argv) > 1:
+    droot = sys.argv[1]
+
+debian = 'debian.master'
+if len(sys.argv) > 2:
+    debian = sys.argv[2]
+
+rules = os.path.join(droot, 'rules')
+changelog = os.path.join(debian, 'changelog')
+changelog_new = os.path.join(debian, 'changelog.new')
+
+# Generate the list of new changes
+changes = check_output(['make', '-s', '-f', rules, 'printchanges']).decode('UTF-8')
+
+# Insert the new changes into the changelog
+with open(changelog) as orig, open(changelog_new, 'w') as new:
+    printed = False
+    skip_newline = False
+    for line in orig:
+        if line.startswith('  CHANGELOG: '):
+            if not printed:
+                printed = True
+                if changes == '':
+                    skip_newline = True
+                    continue
+                new.write(changes)
+        else:
+            if skip_newline and line.strip() == '':
+                skip_newline = False
+                continue
+            new.write(line)
+
+# Replace the original changelog with the new one
+os.rename(changelog_new, changelog)

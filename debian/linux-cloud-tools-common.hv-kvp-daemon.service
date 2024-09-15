@@ -1,0 +1,19 @@
+# On Azure/Hyper-V systems start the hv_kvp_daemon
+#
+# author "Andy Whitcroft <apw@canonical.com>"
+[Unit]
+Description=Hyper-V KVP Protocol Daemon
+ConditionVirtualization=microsoft
+ConditionKernelCommandLine=!snapd_recovery_mode
+DefaultDependencies=no
+BindsTo=sys-devices-virtual-misc-vmbus\x21hv_kvp.device
+After=sys-devices-virtual-misc-vmbus\x21hv_kvp.device systemd-remount-fs.service
+Before=shutdown.target cloud-init-local.service walinuxagent.service
+Conflicts=shutdown.target
+RequiresMountsFor=/var/lib/hyperv
+
+[Service]
+ExecStart=/usr/sbin/hv_kvp_daemon -n
+
+[Install]
+WantedBy=multi-user.target

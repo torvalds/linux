@@ -1,0 +1,1 @@
+SUBSYSTEM=="misc", KERNEL=="vmbus/hv_vss", TAG+="systemd", ENV{SYSTEMD_WANTS}+="hv-vss-daemon.service"

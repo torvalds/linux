@@ -1,0 +1,7 @@
+zfs-linux 2.2.5-1ubuntu1 modulename=zfs debpath=pool/universe/z/%package%/zfs-dkms_%version%_all.deb arch=amd64 arch=arm64 arch=ppc64el arch=s390x rprovides=spl-modules rprovides=spl-dkms rprovides=zfs-modules rprovides=zfs-dkms
+ipu6-drivers 0~git202407190257.9369b88e-0ubuntu1 modulename=ipu6 debpath=pool/universe/i/%package%/intel-ipu6-dkms_%version%_amd64.deb arch=amd64 rprovides=ipu6-modules rprovides=intel-ipu6-dkms type=standalone
+ipu7-drivers 0~git202407090310.f40d5a70-0ubuntu2 modulename=ipu7 debpath=pool/universe/i/%package%/intel-ipu7-dkms_%version%_amd64.deb arch=amd64 rprovides=ipu7-modules rprovides=intel-ipu7-dkms type=standalone
+backport-iwlwifi-dkms 1:0~89.12325-git36c5be1a-0ubuntu1 modulename=iwlwifi debpath=pool/universe/b/%package%/backport-iwlwifi-dkms_%version%_all.deb arch=amd64 rprovides=iwlwifi-modules rprovides=backport-iwlwifi-dkms type=standalone
+v4l2loopback 0.12.7-2ubuntu5 modulename=v4l2loopback debpath=pool/universe/v/%package%/v4l2loopback-dkms_%version%_all.deb arch=amd64 rprovides=v4l2loopback-modules rprovides=v4l2loopback-dkms
+usbio-drivers 0~git202408092230.70c524c5-0ubuntu1 modulename=usbio debpath=pool/universe/u/%package%/intel-usbio-dkms_%version%_amd64.deb arch=amd64 rprovides=usbio-modules rprovides=intel-usbio-dkms type=standalone
+vision-drivers 0~git202408091833.02081ea4-0ubuntu2 modulename=vision debpath=pool/universe/v/%package%/intel-vision-dkms_%version%_amd64.deb arch=amd64 rprovides=vision-modules rprovides=intel-vision-dkms type=standalone

@@ -1,0 +1,64 @@
+#!/usr/bin/env python3
+
+import re
+import os
+import sys
+
+def version_cmp(a, b):
+    a = re.split(r"[\.-]+", a)
+    b = re.split(r"[\.-]+", b)
+    i = 0
+    while True:
+        if len(a) <= i:
+            if len(b) <= i:
+                return 0
+            return -1
+        if len(b) <= i:
+            return 1
+        if int(a[i]) < int(b[i]):
+            return -1
+        if int(a[i]) > int(b[i]):
+            return 1
+        i += 1
+
+if len(sys.argv) == 4:
+    sys.argv.append("debian.master/changelog")
+
+if len(sys.argv) == 5:
+    changelog, end, start, source_changelog = sys.argv[1:]
+else:
+    print("Usage: insert-ubuntu-changes <changelog> <stop at> <start at> [<source changelog>]")
+    sys.exit(1)
+
+changes = []
+output = False
+with open(source_changelog) as fh:
+    for line in fh:
+        m = re.match(r"^\S+\s+\((.*)\)", line)
+        if m:
+            if version_cmp(m.group(1), end) <= 0:
+                break
+            if m.group(1) == start:
+                output = True
+            if output:
+                changes.append("\n")
+                changes.append("  [ Ubuntu: {} ]\n".format(m.group(1)))
+                changes.append("\n")
+                continue
+
+        if output and re.match(r"^(  * |    |      )\S", line):
+            changes.append(line)
+
+printed = 3
+with open(changelog + ".new", "w") as fh_new:
+    with open(changelog) as fh:
+        for line in fh:
+            if line.startswith("  CHANGELOG: "):
+                printed -= 1
+                fh_new.write(line)
+                if printed == 0:
+                    fh_new.write("".join(changes))
+                continue
+            fh_new.write(line)
+
+os.rename(changelog + ".new", changelog)

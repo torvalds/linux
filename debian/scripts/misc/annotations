@@ -1,0 +1,34 @@
+#!/usr/bin/env python3
+# -*- mode: python -*-
+
+# This file is not installed; it's just to run annotations from inside a source
+# distribution without installing it in the system.
+
+import sys
+
+# Prevent generating .pyc files on import
+#
+# We may end up adding these files to our git repos by mistake, so simply
+# prevent generating them in advance.
+#
+# There's a tiny performance penalty with this, because python needs to
+# re-generate the bytecode on-the-fly every time the script is executed, but
+# this overhead is absolutely negligible compared the rest of the kernel build
+# time.
+sys.dont_write_bytecode = True
+
+import os  # noqa: E402 Import not at top of file
+from kconfig import run  # noqa: E402 Import not at top of file
+
+
+# Update PATH to make sure that annotations can be executed directly from the
+# source directory.
+def update_path():
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    current_path = os.environ.get("PATH", "")
+    new_path = f"{script_dir}:{current_path}"
+    os.environ["PATH"] = new_path
+
+
+update_path()
+exit(run.main())

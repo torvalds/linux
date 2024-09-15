@@ -1,0 +1,6 @@
+arch="arm64"
+supported="Generic 64K pages"
+target="Geared toward desktop and server systems."
+desc="=HUMAN= SMP"
+bootloader="grub-efi-arm64 [arm64] | flash-kernel [arm64]"
+provides="kvm-api-4, redhat-cluster-modules, ivtv-modules"

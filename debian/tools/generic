@@ -1,0 +1,60 @@
+#!/bin/bash
+full_version=`uname -r`
+
+# First check for a fully qualified version.
+this="/usr/lib/linux-tools/$full_version/`basename $0`"
+if [ -f "$this" ]; then
+	exec "$this" "$@"
+fi
+
+# Removing flavour from version i.e. generic or server.
+flavour_abi=${full_version#*-}
+flavour=${flavour_abi#*-}
+version=${full_version%-$flavour}
+this="$0_$version"
+if [ -f "$this" ]; then
+	exec "$this" "$@"
+fi
+
+# Before saucy kernels we had no flavour linkage.
+if dpkg --compare-versions "$version" lt "3.11.0"; then
+	flavour=''
+else
+	flavour="-$flavour"
+fi
+# Hint at the cloud tools if they exist (trusty and later)
+if dpkg --compare-versions "$version" ge "3.13.0"; then
+	cld=""
+else
+	cld=":"
+fi
+# Work out if this is an LTS backport or not.
+codename=`lsb_release -cs`
+case "$codename" in
+precise)	base='3.2.0-9999' ;;
+trusty)		base='3.13.0-9999' ;;
+*)		base='' ;;
+esac
+std=""
+lts=":"
+if [ "$base" != "" ]; then
+	if dpkg --compare-versions "$version" gt "$base"; then
+		std=":"
+		lts=""
+	fi
+fi
+
+# Give them a hint as to what to install.
+		echo "WARNING: `basename $0` not found for kernel $version" >&2
+		echo "" >&2
+		echo "  You may need to install the following packages for this specific kernel:" >&2
+		echo "    linux-tools-$version$flavour" >&2
+$cld		echo "    linux-cloud-tools-$version$flavour" >&2
+		echo "" >&2
+		echo "  You may also want to install one of the following packages to keep up to date:" >&2
+$std		echo "    linux-tools$flavour" >&2
+$std $cld	echo "    linux-cloud-tools$flavour" >&2
+$lts		echo "    linux-tools$flavour-lts-<series>" >&2
+$lts $cld	echo "    linux-cloud-tools$flavour-lts-<series>" >&2
+
+exit 2

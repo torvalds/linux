@@ -1,0 +1,8 @@
+Package: linux-doc
+Build-Profiles: <!stage1>
+Architecture: all
+Section: doc
+Priority: optional
+Description: Linux kernel specific documentation for version PKGVER
+ This package is deprecated and it is temporarily provided only for
+ compatibility reasons. It will be dropped in the future.

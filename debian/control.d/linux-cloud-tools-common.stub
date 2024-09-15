@@ -1,0 +1,10 @@
+Package: linux-cloud-tools-common
+Build-Profiles: <!stage1>
+Architecture: all
+Multi-Arch: foreign
+Section: kernel
+Priority: optional
+Depends: ${misc:Depends}
+Description: Linux kernel version specific cloud tools for version PKGVER
+ This package provides the architecture independent parts for kernel
+ version locked tools for cloud tools for version PKGVER.

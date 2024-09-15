@@ -1,0 +1,62 @@
+#!/bin/sh
+set -e
+
+version=@abiname@@localversion@
+image_path=/boot/@image-stem@-$version
+
+#
+# When we install linux-image we have to run kernel postinst.d support to
+# generate the initramfs, create links etc.  Should it have an associated
+# linux-image-extra package and we install that we also need to run kernel
+# postinst.d, to regenerate the initramfs.  If we are installing both at the
+# same time, we necessarily trigger kernel postinst.d twice. As this includes
+# rebuilding the initramfs and reconfiguring the boot loader this is very time
+# consuming.
+#
+# Similarly for removal when we remove the linux-image-extra package we need to
+# run kernel postinst.d handling in order to pare down the initramfs to
+# linux-image contents only.  When we remove the linux-image need to remove the
+# now redundant initramfs.  If we are removing both at the same time, then
+# we will rebuilt the initramfs and then immediatly remove it.
+#
+# Switches to using a trigger against the linux-image package for all
+# postinst.d and postrm.d handling.  On installation postinst.d gets triggered
+# twice once by linux-image and once by linux-image-extra.  As triggers are
+# non-cumulative we will only run this processing once.  When removing both
+# packages we will trigger postinst.d from linux-image-extra and then in
+# linux-image postrm.d we effectivly ignore the pending trigger and simply run
+# the postrm.d.  This prevents us from rebuilding the initramfs.
+#
+if [ "$1" = triggered ]; then
+    trigger=/usr/lib/linux/triggers/$version
+    if [ -f "$trigger" ]; then
+	sh "$trigger"
+	rm -f "$trigger"
+    fi
+    exit 0
+fi
+
+if [ "$1" != configure ]; then
+    exit 0
+fi
+
+depmod $version
+
+if [ -f /lib/modules/$version/.fresh-install ]; then
+    change=install
+else
+    change=upgrade
+fi
+linux-update-symlinks $change $version $image_path
+rm -f /lib/modules/$version/.fresh-install
+
+if [ -d /etc/kernel/postinst.d ]; then
+    mkdir -p /usr/lib/linux/triggers
+    cat - >/usr/lib/linux/triggers/$version <<EOF
+DEB_MAINT_PARAMS="$*" run-parts --report --exit-on-error --arg=$version \
+      --arg=$image_path /etc/kernel/postinst.d
+EOF
+    dpkg-trigger --no-await linux-update-$version
+fi
+
+exit 0
