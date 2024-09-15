@@ -988,13 +988,10 @@ static int io_sqe_buffer_register(struct io_ring_ctx *ctx, struct iovec *iov,
 	imu->ubuf_end = imu->ubuf + iov->iov_len;
 	imu->nr_bvecs = nr_pages;
 	imu->folio_shift = PAGE_SHIFT;
-	imu->folio_mask = PAGE_MASK;
-	if (coalesced) {
+	if (coalesced)
 		imu->folio_shift = data.folio_shift;
-		imu->folio_mask = ~((1UL << data.folio_shift) - 1);
-	}
 	refcount_set(&imu->refs, 1);
-	off = (unsigned long) iov->iov_base & ~imu->folio_mask;
+	off = (unsigned long) iov->iov_base & ((1UL << imu->folio_shift) - 1);
 	*pimu = imu;
 	ret = 0;
 
@@ -1132,7 +1129,7 @@ int io_import_fixed(int ddir, struct iov_iter *iter,
 			iter->bvec = bvec + seg_skip;
 			iter->nr_segs -= seg_skip;
 			iter->count -= bvec->bv_len + offset;
-			iter->iov_offset = offset & ~imu->folio_mask;
+			iter->iov_offset = offset & ((1UL << imu->folio_shift) - 1);
 		}
 	}
 
