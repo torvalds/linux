@@ -937,11 +937,6 @@ static u32 rtl8723bs_hal_deinit(struct adapter *padapter)
 	return _SUCCESS;
 }
 
-static u32 rtl8723bs_inirp_init(struct adapter *padapter)
-{
-	return _SUCCESS;
-}
-
 static u32 rtl8723bs_inirp_deinit(struct adapter *padapter)
 {
 	return _SUCCESS;
@@ -1272,7 +1267,6 @@ void rtl8723bs_set_hal_ops(struct adapter *padapter)
 	pHalFunc->hal_init = &rtl8723bs_hal_init;
 	pHalFunc->hal_deinit = &rtl8723bs_hal_deinit;
 
-	pHalFunc->inirp_init = &rtl8723bs_inirp_init;
 	pHalFunc->inirp_deinit = &rtl8723bs_inirp_deinit;
 
 	pHalFunc->init_xmit_priv = &rtl8723bs_init_xmit_priv;
