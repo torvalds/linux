@@ -162,8 +162,6 @@ enum hal_intf_ps_func {
 typedef s32 (*c2h_id_filter)(u8 *c2h_evt);
 
 struct hal_ops {
-	u32 (*hal_power_on)(struct adapter *padapter);
-	void (*hal_power_off)(struct adapter *padapter);
 	u32 (*hal_init)(struct adapter *padapter);
 	u32 (*hal_deinit)(struct adapter *padapter);
 
@@ -171,7 +169,6 @@ struct hal_ops {
 
 	u32 (*inirp_init)(struct adapter *padapter);
 	u32 (*inirp_deinit)(struct adapter *padapter);
-	void (*irp_reset)(struct adapter *padapter);
 
 	s32	(*init_xmit_priv)(struct adapter *padapter);
 	void (*free_xmit_priv)(struct adapter *padapter);
@@ -192,8 +189,6 @@ struct hal_ops {
 	void (*enable_interrupt)(struct adapter *padapter);
 	void (*disable_interrupt)(struct adapter *padapter);
 	u8 (*check_ips_status)(struct adapter *padapter);
-	s32		(*interrupt_handler)(struct adapter *padapter);
-	void    (*clear_interrupt)(struct adapter *padapter);
 	void (*set_bwmode_handler)(struct adapter *padapter, enum channel_width Bandwidth, u8 Offset);
 	void (*set_channel_handler)(struct adapter *padapter, u8 channel);
 	void (*set_chnl_bw_handler)(struct adapter *padapter, u8 channel, enum channel_width Bandwidth, u8 Offset40, u8 Offset80);
@@ -223,8 +218,6 @@ struct hal_ops {
 
 	void (*run_thread)(struct adapter *padapter);
 	void (*cancel_thread)(struct adapter *padapter);
-
-	u8 (*interface_ps_func)(struct adapter *padapter, enum hal_intf_ps_func efunc_id, u8 *val);
 
 	s32	(*hal_xmit)(struct adapter *padapter, struct xmit_frame *pxmitframe);
 	/*
