@@ -827,7 +827,8 @@ struct profile_fgraph_data {
 };
 
 static int profile_graph_entry(struct ftrace_graph_ent *trace,
-			       struct fgraph_ops *gops)
+			       struct fgraph_ops *gops,
+			       struct fgraph_extras *extras)
 {
 	struct profile_fgraph_data *profile_data;
 
