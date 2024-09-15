@@ -4872,8 +4872,7 @@ void mlmeext_joinbss_event_callback(struct adapter *padapter, int join_res)
 		/* set_link_timer(pmlmeext, DISCONNECT_TO); */
 	}
 
-	if (get_iface_type(padapter) == IFACE_PORT0)
-		rtw_lps_ctrl_wk_cmd(padapter, LPS_CTRL_CONNECT, 0);
+	rtw_lps_ctrl_wk_cmd(padapter, LPS_CTRL_CONNECT, 0);
 }
 
 /* currently only adhoc mode will go here */

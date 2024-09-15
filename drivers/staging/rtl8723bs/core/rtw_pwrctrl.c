@@ -452,10 +452,6 @@ void LPS_Enter(struct adapter *padapter, const char *msg)
 	if (n_assoc_iface != 1)
 		return;
 
-	/* Skip lps enter request for adapter not port0 */
-	if (get_iface_type(padapter) != IFACE_PORT0)
-		return;
-
 	if (!PS_RDY_CHECK(dvobj->padapters))
 		return;
 
