@@ -1822,21 +1822,3 @@ void rtw_release_macid(struct adapter *padapter, struct sta_info *psta)
 	}
 	spin_unlock_bh(&pdvobj->lock);
 }
-
-/* For 8188E RA */
-u8 rtw_search_max_mac_id(struct adapter *padapter)
-{
-	u8 max_mac_id = 0;
-	struct dvobj_priv *pdvobj = adapter_to_dvobj(padapter);
-	int i;
-
-	spin_lock_bh(&pdvobj->lock);
-	for (i = (NUM_STA-1); i >= 0 ; i--) {
-		if (pdvobj->macid[i] == true)
-			break;
-	}
-	max_mac_id = i;
-	spin_unlock_bh(&pdvobj->lock);
-
-	return max_mac_id;
-}

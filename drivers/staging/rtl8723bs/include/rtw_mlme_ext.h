@@ -528,7 +528,6 @@ void rtw_camid_free(struct adapter *adapter, u8 cam_id);
 
 extern void rtw_alloc_macid(struct adapter *padapter, struct sta_info *psta);
 extern void rtw_release_macid(struct adapter *padapter, struct sta_info *psta);
-extern u8 rtw_search_max_mac_id(struct adapter *padapter);
 
 void report_join_res(struct adapter *padapter, int res);
 void report_survey_event(struct adapter *padapter, union recv_frame *precv_frame);
