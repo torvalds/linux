@@ -1179,19 +1179,19 @@ static void acpi_device_get_busid(struct acpi_device *device)
 	 * TBD: Shouldn't this value be unique (within the ACPI namespace)?
 	 */
 	if (!acpi_dev_parent(device)) {
-		strcpy(device->pnp.bus_id, "ACPI");
+		strscpy(device->pnp.bus_id, "ACPI");
 		return;
 	}
 
 	switch (device->device_type) {
 	case ACPI_BUS_TYPE_POWER_BUTTON:
-		strcpy(device->pnp.bus_id, "PWRF");
+		strscpy(device->pnp.bus_id, "PWRF");
 		break;
 	case ACPI_BUS_TYPE_SLEEP_BUTTON:
-		strcpy(device->pnp.bus_id, "SLPF");
+		strscpy(device->pnp.bus_id, "SLPF");
 		break;
 	case ACPI_BUS_TYPE_ECDT_EC:
-		strcpy(device->pnp.bus_id, "ECDT");
+		strscpy(device->pnp.bus_id, "ECDT");
 		break;
 	default:
 		acpi_get_name(device->handle, ACPI_SINGLE_NAME, &buffer);
@@ -1202,7 +1202,7 @@ static void acpi_device_get_busid(struct acpi_device *device)
 			else
 				break;
 		}
-		strcpy(device->pnp.bus_id, bus_id);
+		strscpy(device->pnp.bus_id, bus_id);
 		break;
 	}
 }
@@ -1453,8 +1453,8 @@ static void acpi_set_pnp_ids(acpi_handle handle, struct acpi_device_pnp *pnp,
 			 acpi_object_is_system_bus(handle)) {
 			/* \_SB, \_TZ, LNXSYBUS */
 			acpi_add_id(pnp, ACPI_BUS_HID);
-			strcpy(pnp->device_name, ACPI_BUS_DEVICE_NAME);
-			strcpy(pnp->device_class, ACPI_BUS_CLASS);
+			strscpy(pnp->device_name, ACPI_BUS_DEVICE_NAME);
+			strscpy(pnp->device_class, ACPI_BUS_CLASS);
 		}
 
 		break;
