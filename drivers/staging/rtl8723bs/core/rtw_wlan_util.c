@@ -435,21 +435,6 @@ void invalidate_cam_all(struct adapter *padapter)
 	spin_unlock_bh(&cam_ctl->lock);
 }
 
-static u32 _ReadCAM(struct adapter *padapter, u32 addr)
-{
-	u32 count = 0, cmd;
-
-	cmd = CAM_POLLINIG | addr;
-	rtw_write32(padapter, RWCAM, cmd);
-
-	do {
-		if (0 == (rtw_read32(padapter, REG_CAMCMD) & CAM_POLLINIG))
-			break;
-	} while (count++ < 100);
-
-	return rtw_read32(padapter, REG_CAMREAD);
-}
-
 void _write_cam(struct adapter *padapter, u8 entry, u16 ctrl, u8 *mac, u8 *key)
 {
 	unsigned int i, val, addr;
