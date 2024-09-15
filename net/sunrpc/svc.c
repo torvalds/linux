@@ -706,6 +706,8 @@ svc_prepare_thread(struct svc_serv *serv, struct svc_pool *pool, int node)
 	if (!svc_init_buffer(rqstp, serv->sv_max_mesg, node))
 		goto out_enomem;
 
+	rqstp->rq_err = -EAGAIN; /* No error yet */
+
 	serv->sv_nrthreads += 1;
 	pool->sp_nrthreads += 1;
 
@@ -792,6 +794,7 @@ svc_start_kthreads(struct svc_serv *serv, struct svc_pool *pool, int nrservs)
 	struct svc_pool *chosen_pool;
 	unsigned int state = serv->sv_nrthreads-1;
 	int node;
+	int err;
 
 	do {
 		nrservs--;
@@ -814,6 +817,13 @@ svc_start_kthreads(struct svc_serv *serv, struct svc_pool *pool, int nrservs)
 
 		svc_sock_update_bufs(serv);
 		wake_up_process(task);
+
+		wait_var_event(&rqstp->rq_err, rqstp->rq_err != -EAGAIN);
+		err = rqstp->rq_err;
+		if (err) {
+			svc_exit_thread(rqstp);
+			return err;
+		}
 	} while (nrservs > 0);
 
 	return 0;

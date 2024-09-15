@@ -873,11 +873,9 @@ nfsd(void *vrqstp)
 
 	/* At this point, the thread shares current->fs
 	 * with the init process. We need to create files with the
-	 * umask as defined by the client instead of init's umask. */
-	if (unshare_fs_struct() < 0) {
-		printk("Unable to start nfsd thread: out of memory\n");
-		goto out;
-	}
+	 * umask as defined by the client instead of init's umask.
+	 */
+	svc_thread_init_status(rqstp, unshare_fs_struct());
 
 	current->fs->umask = 0;
 
@@ -899,7 +897,6 @@ nfsd(void *vrqstp)
 
 	atomic_dec(&nfsd_th_cnt);
 
-out:
 	/* Release the thread */
 	svc_exit_thread(rqstp);
 	return 0;

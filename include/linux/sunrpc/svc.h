@@ -21,6 +21,7 @@
 #include <linux/wait.h>
 #include <linux/mm.h>
 #include <linux/pagevec.h>
+#include <linux/kthread.h>
 
 /*
  *
@@ -232,6 +233,11 @@ struct svc_rqst {
 	struct net		*rq_bc_net;	/* pointer to backchannel's
 						 * net namespace
 						 */
+
+	int			rq_err;		/* Thread sets this to inidicate
+						 * initialisation success.
+						 */
+
 	unsigned long	bc_to_initval;
 	unsigned int	bc_to_retries;
 	void **			rq_lease_breaker; /* The v4 client breaking a lease */
@@ -303,6 +309,31 @@ static inline bool svc_thread_should_stop(struct svc_rqst *rqstp)
 		set_bit(RQ_VICTIM, &rqstp->rq_flags);
 
 	return test_bit(RQ_VICTIM, &rqstp->rq_flags);
+}
+
+/**
+ * svc_thread_init_status - report whether thread has initialised successfully
+ * @rqstp: the thread in question
+ * @err: errno code
+ *
+ * After performing any initialisation that could fail, and before starting
+ * normal work, each sunrpc svc_thread must call svc_thread_init_status()
+ * with an appropriate error, or zero.
+ *
+ * If zero is passed, the thread is ready and must continue until
+ * svc_thread_should_stop() returns true.  If a non-zero error is passed
+ * the call will not return - the thread will exit.
+ */
+static inline void svc_thread_init_status(struct svc_rqst *rqstp, int err)
+{
+	rqstp->rq_err = err;
+	/* memory barrier ensures assignment to error above is visible before
+	 * waitqueue_active() test below completes.
+	 */
+	smp_mb();
+	wake_up_var(&rqstp->rq_err);
+	if (err)
+		kthread_exit(1);
 }
 
 struct svc_deferred_req {

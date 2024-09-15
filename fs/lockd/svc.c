@@ -124,6 +124,8 @@ lockd(void *vrqstp)
 	struct net *net = &init_net;
 	struct lockd_net *ln = net_generic(net, lockd_net_id);
 
+	svc_thread_init_status(rqstp, 0);
+
 	/* try_to_freeze() is called from svc_recv() */
 	set_freezable();
 
