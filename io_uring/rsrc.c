@@ -38,7 +38,7 @@ static int io_sqe_buffer_register(struct io_ring_ctx *ctx, struct iovec *iov,
 static const struct io_mapped_ubuf dummy_ubuf = {
 	/* set invalid range, so io_import_fixed() fails meeting it */
 	.ubuf = -1UL,
-	.ubuf_end = 0,
+	.len = UINT_MAX,
 };
 
 int __io_account_mem(struct user_struct *user, unsigned long nr_pages)
@@ -985,7 +985,7 @@ static int io_sqe_buffer_register(struct io_ring_ctx *ctx, struct iovec *iov,
 	size = iov->iov_len;
 	/* store original address for later verification */
 	imu->ubuf = (unsigned long) iov->iov_base;
-	imu->ubuf_end = imu->ubuf + iov->iov_len;
+	imu->len = iov->iov_len;
 	imu->nr_bvecs = nr_pages;
 	imu->folio_shift = PAGE_SHIFT;
 	if (coalesced)
@@ -1086,7 +1086,7 @@ int io_import_fixed(int ddir, struct iov_iter *iter,
 	if (unlikely(check_add_overflow(buf_addr, (u64)len, &buf_end)))
 		return -EFAULT;
 	/* not inside the mapped region */
-	if (unlikely(buf_addr < imu->ubuf || buf_end > imu->ubuf_end))
+	if (unlikely(buf_addr < imu->ubuf || buf_end > (imu->ubuf + imu->len)))
 		return -EFAULT;
 
 	/*
