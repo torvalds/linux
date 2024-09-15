@@ -604,45 +604,6 @@ static void Hal_GetEfuseDefinition(
 #define EFUSE_ACCESS_ON_8723			0x69	/*  For RTL8723 only. */
 #define REG_EFUSE_ACCESS_8723			0x00CF	/*  Efuse access protection for RTL8723 */
 
-/*  */
-static void Hal_BT_EfusePowerSwitch(
-	struct adapter *padapter, u8 bWrite, u8 PwrState
-)
-{
-	u8 tempval;
-	if (PwrState) {
-		/*  enable BT power cut */
-		/*  0x6A[14] = 1 */
-		tempval = rtw_read8(padapter, 0x6B);
-		tempval |= BIT(6);
-		rtw_write8(padapter, 0x6B, tempval);
-
-		/*  Attention!! Between 0x6A[14] and 0x6A[15] setting need 100us delay */
-		/*  So don't write 0x6A[14]= 1 and 0x6A[15]= 0 together! */
-		msleep(1);
-		/*  disable BT output isolation */
-		/*  0x6A[15] = 0 */
-		tempval = rtw_read8(padapter, 0x6B);
-		tempval &= ~BIT(7);
-		rtw_write8(padapter, 0x6B, tempval);
-	} else {
-		/*  enable BT output isolation */
-		/*  0x6A[15] = 1 */
-		tempval = rtw_read8(padapter, 0x6B);
-		tempval |= BIT(7);
-		rtw_write8(padapter, 0x6B, tempval);
-
-		/*  Attention!! Between 0x6A[14] and 0x6A[15] setting need 100us delay */
-		/*  So don't write 0x6A[14]= 1 and 0x6A[15]= 0 together! */
-
-		/*  disable BT power cut */
-		/*  0x6A[14] = 1 */
-		tempval = rtw_read8(padapter, 0x6B);
-		tempval &= ~BIT(6);
-		rtw_write8(padapter, 0x6B, tempval);
-	}
-
-}
 static void Hal_EfusePowerSwitch(
 	struct adapter *padapter, u8 bWrite, u8 PwrState
 )
@@ -1906,7 +1867,6 @@ void rtl8723b_set_hal_ops(struct hal_ops *pHalFunc)
 	pHalFunc->write_rfreg = &PHY_SetRFReg_8723B;
 
 	/*  Efuse related function */
-	pHalFunc->BTEfusePowerSwitch = &Hal_BT_EfusePowerSwitch;
 	pHalFunc->EfusePowerSwitch = &Hal_EfusePowerSwitch;
 	pHalFunc->ReadEFuse = &Hal_ReadEFuse;
 	pHalFunc->EFUSEGetEfuseDefinition = &Hal_GetEfuseDefinition;
