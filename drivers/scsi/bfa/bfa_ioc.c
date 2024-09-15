@@ -2254,31 +2254,10 @@ bfa_ioc_boot(struct bfa_ioc_s *ioc, u32 boot_type, u32 boot_env)
 	return status;
 }
 
-/*
- * Enable/disable IOC failure auto recovery.
- */
-void
-bfa_ioc_auto_recover(bfa_boolean_t auto_recover)
-{
-	bfa_auto_recover = auto_recover;
-}
-
-
-
 bfa_boolean_t
 bfa_ioc_is_operational(struct bfa_ioc_s *ioc)
 {
 	return bfa_fsm_cmp_state(ioc, bfa_ioc_sm_op);
-}
-
-bfa_boolean_t
-bfa_ioc_is_initialized(struct bfa_ioc_s *ioc)
-{
-	u32 r32 = bfa_ioc_get_cur_ioc_fwstate(ioc);
-
-	return ((r32 != BFI_IOC_UNINIT) &&
-		(r32 != BFI_IOC_INITING) &&
-		(r32 != BFI_IOC_MEMTEST));
 }
 
 bfa_boolean_t
