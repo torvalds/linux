@@ -460,19 +460,6 @@ static u32 _ReadCAM(struct adapter *padapter, u32 addr)
 	return rtw_read32(padapter, REG_CAMREAD);
 }
 
-void read_cam(struct adapter *padapter, u8 entry, u8 *get_key)
-{
-	u32 j, addr, cmd;
-
-	addr = entry << 3;
-
-	for (j = 0; j < 6; j++) {
-		cmd = _ReadCAM(padapter, addr+j);
-		if (j > 1) /* get key from cam */
-			memcpy(get_key+(j-2)*4, &cmd, 4);
-	}
-}
-
 void _write_cam(struct adapter *padapter, u8 entry, u16 ctrl, u8 *mac, u8 *key)
 {
 	unsigned int i, val, addr;
