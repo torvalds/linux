@@ -27,9 +27,8 @@ void rtw_hal_read_chip_version(struct adapter *padapter)
 
 void rtw_hal_def_value_init(struct adapter *padapter)
 {
-	if (is_primary_adapter(padapter))
-		if (padapter->HalFunc.init_default_value)
-			padapter->HalFunc.init_default_value(padapter);
+	if (padapter->HalFunc.init_default_value)
+		padapter->HalFunc.init_default_value(padapter);
 }
 
 void rtw_hal_free_data(struct adapter *padapter)
@@ -37,24 +36,21 @@ void rtw_hal_free_data(struct adapter *padapter)
 	/* free HAL Data */
 	rtw_hal_data_deinit(padapter);
 
-	if (is_primary_adapter(padapter))
-		if (padapter->HalFunc.free_hal_data)
-			padapter->HalFunc.free_hal_data(padapter);
+	if (padapter->HalFunc.free_hal_data)
+		padapter->HalFunc.free_hal_data(padapter);
 }
 
 void rtw_hal_dm_init(struct adapter *padapter)
 {
-	if (is_primary_adapter(padapter))
-		if (padapter->HalFunc.dm_init)
-			padapter->HalFunc.dm_init(padapter);
+	if (padapter->HalFunc.dm_init)
+		padapter->HalFunc.dm_init(padapter);
 }
 
 void rtw_hal_dm_deinit(struct adapter *padapter)
 {
 	/*  cancel dm  timer */
-	if (is_primary_adapter(padapter))
-		if (padapter->HalFunc.dm_deinit)
-			padapter->HalFunc.dm_deinit(padapter);
+	if (padapter->HalFunc.dm_deinit)
+		padapter->HalFunc.dm_deinit(padapter);
 }
 
 static void rtw_hal_init_opmode(struct adapter *padapter)

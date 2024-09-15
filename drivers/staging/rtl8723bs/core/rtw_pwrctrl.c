@@ -73,9 +73,6 @@ int ips_leave(struct adapter *padapter)
 	struct pwrctrl_priv *pwrpriv = adapter_to_pwrctl(padapter);
 	int ret;
 
-	if (!is_primary_adapter(padapter))
-		return _SUCCESS;
-
 	mutex_lock(&pwrpriv->lock);
 	ret = _ips_leave(padapter);
 	mutex_unlock(&pwrpriv->lock);

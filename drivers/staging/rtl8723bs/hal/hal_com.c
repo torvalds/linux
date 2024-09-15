@@ -13,23 +13,20 @@
 
 u8 rtw_hal_data_init(struct adapter *padapter)
 {
-	if (is_primary_adapter(padapter)) {	/* if (padapter->isprimary) */
-		padapter->hal_data_sz = sizeof(struct hal_com_data);
-		padapter->HalData = vzalloc(padapter->hal_data_sz);
-		if (!padapter->HalData)
-			return _FAIL;
-	}
+	padapter->hal_data_sz = sizeof(struct hal_com_data);
+	padapter->HalData = vzalloc(padapter->hal_data_sz);
+	if (!padapter->HalData)
+		return _FAIL;
+
 	return _SUCCESS;
 }
 
 void rtw_hal_data_deinit(struct adapter *padapter)
 {
-	if (is_primary_adapter(padapter)) {	/* if (padapter->isprimary) */
-		if (padapter->HalData) {
-			vfree(padapter->HalData);
-			padapter->HalData = NULL;
-			padapter->hal_data_sz = 0;
-		}
+	if (padapter->HalData) {
+		vfree(padapter->HalData);
+		padapter->HalData = NULL;
+		padapter->hal_data_sz = 0;
 	}
 }
 

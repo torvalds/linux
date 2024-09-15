@@ -633,8 +633,7 @@ void rtw_reset_drv_sw(struct adapter *padapter)
 	struct pwrctrl_priv *pwrctrlpriv = adapter_to_pwrctl(padapter);
 
 	/* hal_priv */
-	if (is_primary_adapter(padapter))
-		rtw_hal_def_value_init(padapter);
+	rtw_hal_def_value_init(padapter);
 
 	RTW_ENABLE_FUNC(padapter, DF_RX_BIT);
 	RTW_ENABLE_FUNC(padapter, DF_TX_BIT);

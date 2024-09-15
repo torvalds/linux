@@ -1258,8 +1258,7 @@ static void dynamic_chk_wk_hdl(struct adapter *padapter)
 
 
 	/* always call rtw_ps_processor() at last one. */
-	if (is_primary_adapter(padapter))
-		rtw_ps_processor(padapter);
+	rtw_ps_processor(padapter);
 }
 
 void lps_ctrl_wk_hdl(struct adapter *padapter, u8 lps_ctrl_type);

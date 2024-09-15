@@ -182,7 +182,6 @@ struct registry_priv {
 
 #include <drv_types_sdio.h>
 
-#define is_primary_adapter(adapter) (1)
 #define get_iface_type(adapter) (IFACE_PORT0)
 #define GET_PRIMARY_ADAPTER(padapter) (((struct adapter *)padapter)->dvobj->if1)
 #define GET_IFACE_NUMS(padapter) (((struct adapter *)padapter)->dvobj->iface_nums)
