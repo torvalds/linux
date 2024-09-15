@@ -320,8 +320,6 @@ static inline struct device *dvobj_to_dev(struct dvobj_priv *dvobj)
 	return &dvobj->intf_data.func->dev;
 }
 
-struct adapter *dvobj_get_port0_adapter(struct dvobj_priv *dvobj);
-
 enum {
 	IFACE_PORT0, /* mapping to port0 for C/D series chips */
 	IFACE_PORT1, /* mapping to port1 for C/D series chip */

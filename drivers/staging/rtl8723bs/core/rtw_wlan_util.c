@@ -1840,11 +1840,3 @@ u8 rtw_search_max_mac_id(struct adapter *padapter)
 
 	return max_mac_id;
 }
-
-struct adapter *dvobj_get_port0_adapter(struct dvobj_priv *dvobj)
-{
-	if (get_iface_type(dvobj->padapters[i]) != IFACE_PORT0)
-		return NULL;
-
-	return dvobj->padapters;
-}
