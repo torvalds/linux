@@ -801,53 +801,6 @@ void btrfs_folio_set_writer_lock(const struct btrfs_fs_info *fs_info,
 	spin_unlock_irqrestore(&subpage->lock, flags);
 }
 
-/*
- * Find any subpage writer locked range inside @folio, starting at file offset
- * @search_start. The caller should ensure the folio is locked.
- *
- * Return true and update @found_start_ret and @found_len_ret to the first
- * writer locked range.
- * Return false if there is no writer locked range.
- */
-bool btrfs_subpage_find_writer_locked(const struct btrfs_fs_info *fs_info,
-				      struct folio *folio, u64 search_start,
-				      u64 *found_start_ret, u32 *found_len_ret)
-{
-	struct btrfs_subpage *subpage = folio_get_private(folio);
-	const u32 sectors_per_page = fs_info->sectors_per_page;
-	const unsigned int len = PAGE_SIZE - offset_in_page(search_start);
-	const unsigned int start_bit = subpage_calc_start_bit(fs_info, folio,
-						locked, search_start, len);
-	const unsigned int locked_bitmap_start = sectors_per_page * btrfs_bitmap_nr_locked;
-	const unsigned int locked_bitmap_end = locked_bitmap_start + sectors_per_page;
-	unsigned long flags;
-	int first_zero;
-	int first_set;
-	bool found = false;
-
-	ASSERT(folio_test_locked(folio));
-	spin_lock_irqsave(&subpage->lock, flags);
-	first_set = find_next_bit(subpage->bitmaps, locked_bitmap_end, start_bit);
-	if (first_set >= locked_bitmap_end)
-		goto out;
-
-	found = true;
-
-	*found_start_ret = folio_pos(folio) +
-		((first_set - locked_bitmap_start) << fs_info->sectorsize_bits);
-	/*
-	 * Since @first_set is ensured to be smaller than locked_bitmap_end
-	 * here, @found_start_ret should be inside the folio.
-	 */
-	ASSERT(*found_start_ret < folio_pos(folio) + PAGE_SIZE);
-
-	first_zero = find_next_zero_bit(subpage->bitmaps, locked_bitmap_end, first_set);
-	*found_len_ret = (first_zero - first_set) << fs_info->sectorsize_bits;
-out:
-	spin_unlock_irqrestore(&subpage->lock, flags);
-	return found;
-}
-
 #define GET_SUBPAGE_BITMAP(subpage, fs_info, name, dst)			\
 {									\
 	const int sectors_per_page = fs_info->sectors_per_page;		\

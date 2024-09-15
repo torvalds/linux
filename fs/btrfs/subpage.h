@@ -108,10 +108,6 @@ void btrfs_folio_set_writer_lock(const struct btrfs_fs_info *fs_info,
 				 struct folio *folio, u64 start, u32 len);
 void btrfs_folio_end_writer_lock_bitmap(const struct btrfs_fs_info *fs_info,
 					struct folio *folio, unsigned long bitmap);
-bool btrfs_subpage_find_writer_locked(const struct btrfs_fs_info *fs_info,
-				      struct folio *folio, u64 search_start,
-				      u64 *found_start_ret, u32 *found_len_ret);
-
 /*
  * Template for subpage related operations.
  *
