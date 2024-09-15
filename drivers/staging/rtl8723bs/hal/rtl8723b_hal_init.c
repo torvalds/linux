@@ -1888,7 +1888,6 @@ void rtl8723b_set_hal_ops(struct hal_ops *pHalFunc)
 	pHalFunc->set_chnl_bw_handler = &PHY_SetSwChnlBWMode8723B;
 
 	pHalFunc->set_tx_power_level_handler = &PHY_SetTxPowerLevel8723B;
-	pHalFunc->get_tx_power_level_handler = &PHY_GetTxPowerLevel8723B;
 
 	pHalFunc->hal_dm_watchdog = &rtl8723b_HalDmWatchDog;
 	pHalFunc->hal_dm_watchdog_in_lps = &rtl8723b_HalDmWatchDog_in_LPS;

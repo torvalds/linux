@@ -575,10 +575,6 @@ void PHY_SetTxPowerLevel8723B(struct adapter *Adapter, u8 Channel)
 	PHY_SetTxPowerLevelByPath(Adapter, Channel, RFPath);
 }
 
-void PHY_GetTxPowerLevel8723B(struct adapter *Adapter, s32 *powerlevel)
-{
-}
-
 static void phy_SetRegBW_8723B(
 	struct adapter *Adapter, enum channel_width CurrentBW
 )

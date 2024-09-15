@@ -49,8 +49,6 @@ void PHY_SetTxPowerIndex(struct adapter *Adapter, u32 PowerIndex,
 u8 PHY_GetTxPowerIndex(struct adapter *padapter, u8 RFPath, u8 Rate,
 			enum channel_width BandWidth, u8 Channel);
 
-void PHY_GetTxPowerLevel8723B(struct adapter *Adapter, s32 *powerlevel);
-
 void PHY_SetTxPowerLevel8723B(struct adapter *Adapter, u8 channel);
 
 /*  Call after initialization */
