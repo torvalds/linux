@@ -1076,8 +1076,8 @@ OldOpenRetry:
 	pSMB->OpenFlags |= cpu_to_le16(REQ_MORE_INFO);
 	pSMB->Mode = cpu_to_le16(access_flags_to_smbopen_mode(access_flags));
 	pSMB->Mode |= cpu_to_le16(0x40); /* deny none */
-	/* set file as system file if special file such
-	   as fifo and server expecting SFU style and
+	/* set file as system file if special file such as fifo,
+	 * socket, char or block and server expecting SFU style and
 	   no Unix extensions */
 
 	if (create_options & CREATE_OPTION_SPECIAL)
@@ -1193,8 +1193,8 @@ openRetry:
 	req->AllocationSize = 0;
 
 	/*
-	 * Set file as system file if special file such as fifo and server
-	 * expecting SFU style and no Unix extensions.
+	 * Set file as system file if special file such as fifo, socket, char
+	 * or block and server expecting SFU style and no Unix extensions.
 	 */
 	if (create_options & CREATE_OPTION_SPECIAL)
 		req->FileAttributes = cpu_to_le32(ATTR_SYSTEM);
