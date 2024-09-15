@@ -1171,6 +1171,7 @@ static noinline_for_stack int writepage_delalloc(struct btrfs_inode *inode,
 	u64 delalloc_end = page_end;
 	u64 delalloc_to_write = 0;
 	int ret = 0;
+	int bit;
 
 	/* Save the dirty bitmap as our submission bitmap will be a subset of it. */
 	if (btrfs_is_subpage(fs_info, inode->vfs_inode.i_mapping)) {
@@ -1178,6 +1179,12 @@ static noinline_for_stack int writepage_delalloc(struct btrfs_inode *inode,
 		btrfs_get_subpage_dirty_bitmap(fs_info, folio, &bio_ctrl->submit_bitmap);
 	} else {
 		bio_ctrl->submit_bitmap = 1;
+	}
+
+	for_each_set_bit(bit, &bio_ctrl->submit_bitmap, fs_info->sectors_per_page) {
+		u64 start = page_start + (bit << fs_info->sectorsize_bits);
+
+		btrfs_folio_set_writer_lock(fs_info, folio, start, fs_info->sectorsize);
 	}
 
 	/* Lock all (subpage) delalloc ranges inside the folio first. */
@@ -1190,9 +1197,6 @@ static noinline_for_stack int writepage_delalloc(struct btrfs_inode *inode,
 		}
 		set_delalloc_bitmap(folio, &delalloc_bitmap, delalloc_start,
 				    min(delalloc_end, page_end) + 1 - delalloc_start);
-		btrfs_folio_set_writer_lock(fs_info, folio, delalloc_start,
-					    min(delalloc_end, page_end) + 1 -
-					    delalloc_start);
 		last_delalloc_end = delalloc_end;
 		delalloc_start = delalloc_end + 1;
 	}
