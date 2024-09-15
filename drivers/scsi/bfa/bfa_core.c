@@ -1934,24 +1934,6 @@ bfa_comp_free(struct bfa_s *bfa, struct list_head *comp_q)
 }
 
 /*
- * Return the list of PCI vendor/device id lists supported by this
- * BFA instance.
- */
-void
-bfa_get_pciids(struct bfa_pciid_s **pciids, int *npciids)
-{
-	static struct bfa_pciid_s __pciids[] = {
-		{BFA_PCI_VENDOR_ID_BROCADE, BFA_PCI_DEVICE_ID_FC_8G2P},
-		{BFA_PCI_VENDOR_ID_BROCADE, BFA_PCI_DEVICE_ID_FC_8G1P},
-		{BFA_PCI_VENDOR_ID_BROCADE, BFA_PCI_DEVICE_ID_CT},
-		{BFA_PCI_VENDOR_ID_BROCADE, BFA_PCI_DEVICE_ID_CT_FC},
-	};
-
-	*npciids = ARRAY_SIZE(__pciids);
-	*pciids = __pciids;
-}
-
-/*
  * Use this function query the default struct bfa_iocfc_cfg_s value (compiled
  * into BFA layer). The OS driver can then turn back and overwrite entries that
  * have been configured by the user.
@@ -1986,21 +1968,4 @@ bfa_cfg_get_default(struct bfa_iocfc_cfg_s *cfg)
 	cfg->drvcfg.ioc_recover = BFA_FALSE;
 	cfg->drvcfg.delay_comp = BFA_FALSE;
 
-}
-
-void
-bfa_cfg_get_min(struct bfa_iocfc_cfg_s *cfg)
-{
-	bfa_cfg_get_default(cfg);
-	cfg->fwcfg.num_ioim_reqs   = BFA_IOIM_MIN;
-	cfg->fwcfg.num_tskim_reqs  = BFA_TSKIM_MIN;
-	cfg->fwcfg.num_fcxp_reqs   = BFA_FCXP_MIN;
-	cfg->fwcfg.num_uf_bufs     = BFA_UF_MIN;
-	cfg->fwcfg.num_rports      = BFA_RPORT_MIN;
-	cfg->fwcfg.num_fwtio_reqs = 0;
-
-	cfg->drvcfg.num_sgpgs      = BFA_SGPG_MIN;
-	cfg->drvcfg.num_reqq_elems = BFA_REQQ_NELEMS_MIN;
-	cfg->drvcfg.num_rspq_elems = BFA_RSPQ_NELEMS_MIN;
-	cfg->drvcfg.min_cfg	   = BFA_TRUE;
 }
