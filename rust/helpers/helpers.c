@@ -11,6 +11,7 @@
 #include "bug.c"
 #include "build_assert.c"
 #include "build_bug.c"
+#include "cred.c"
 #include "err.c"
 #include "fs.c"
 #include "kunit.c"
