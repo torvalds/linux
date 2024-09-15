@@ -764,17 +764,6 @@ static void PHY_HandleSwChnlAndSetBW8723B(
 	}
 }
 
-void PHY_SetBWMode8723B(
-	struct adapter *Adapter,
-	enum channel_width Bandwidth, /*  20M or 40M */
-	unsigned char Offset /*  Upper, Lower, or Don't care */
-)
-{
-	struct hal_com_data *pHalData = GET_HAL_DATA(Adapter);
-
-	PHY_HandleSwChnlAndSetBW8723B(Adapter, false, true, pHalData->CurrentChannel, Bandwidth, Offset, Offset, pHalData->CurrentChannel);
-}
-
 /*  Call after initialization */
 void PHY_SwChnl8723B(struct adapter *Adapter, u8 channel)
 {

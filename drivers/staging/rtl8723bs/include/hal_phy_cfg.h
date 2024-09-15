@@ -53,9 +53,6 @@ void PHY_GetTxPowerLevel8723B(struct adapter *Adapter, s32 *powerlevel);
 
 void PHY_SetTxPowerLevel8723B(struct adapter *Adapter, u8 channel);
 
-void PHY_SetBWMode8723B(struct adapter *Adapter, enum channel_width Bandwidth,
-			unsigned char Offset);
-
 /*  Call after initialization */
 void PHY_SwChnl8723B(struct adapter *Adapter, u8 channel);
 

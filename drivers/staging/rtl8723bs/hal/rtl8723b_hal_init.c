@@ -1884,7 +1884,6 @@ void rtl8723b_set_hal_ops(struct hal_ops *pHalFunc)
 
 	pHalFunc->UpdateRAMaskHandler = &UpdateHalRAMask8723B;
 
-	pHalFunc->set_bwmode_handler = &PHY_SetBWMode8723B;
 	pHalFunc->set_channel_handler = &PHY_SwChnl8723B;
 	pHalFunc->set_chnl_bw_handler = &PHY_SetSwChnlBWMode8723B;
 
