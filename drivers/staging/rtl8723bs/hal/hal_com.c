@@ -796,19 +796,6 @@ u8 GetHalDefVar(
 	return bResult;
 }
 
-void GetHalODMVar(
-	struct adapter *Adapter,
-	enum hal_odm_variable eVariable,
-	void *pValue1,
-	void *pValue2
-)
-{
-	switch (eVariable) {
-	default:
-		break;
-	}
-}
-
 void SetHalODMVar(
 	struct adapter *Adapter,
 	enum hal_odm_variable eVariable,
