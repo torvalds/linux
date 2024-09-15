@@ -223,7 +223,10 @@ are signed through the PKCS#7 message format to enforce some level of
 authorization of the policies (prohibiting an attacker from gaining
 unconstrained root, and deploying an "allow all" policy). These
 policies must be signed by a certificate that chains to the
-``SYSTEM_TRUSTED_KEYRING``. With openssl, the policy can be signed by::
+``SYSTEM_TRUSTED_KEYRING``, or to the secondary and/or platform keyrings if
+``CONFIG_IPE_POLICY_SIG_SECONDARY_KEYRING`` and/or
+``CONFIG_IPE_POLICY_SIG_PLATFORM_KEYRING`` are enabled, respectively.
+With openssl, the policy can be signed by::
 
    openssl smime -sign \
       -in "$MY_POLICY" \

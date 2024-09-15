@@ -169,9 +169,21 @@ struct ipe_policy *ipe_new_policy(const char *text, size_t textlen,
 			goto err;
 		}
 
-		rc = verify_pkcs7_signature(NULL, 0, new->pkcs7, pkcs7len, NULL,
+		rc = verify_pkcs7_signature(NULL, 0, new->pkcs7, pkcs7len,
+#ifdef CONFIG_IPE_POLICY_SIG_SECONDARY_KEYRING
+					    VERIFY_USE_SECONDARY_KEYRING,
+#else
+					    NULL,
+#endif
 					    VERIFYING_UNSPECIFIED_SIGNATURE,
 					    set_pkcs7_data, new);
+#ifdef CONFIG_IPE_POLICY_SIG_PLATFORM_KEYRING
+		if (rc == -ENOKEY)
+			rc = verify_pkcs7_signature(NULL, 0, new->pkcs7, pkcs7len,
+						    VERIFY_USE_PLATFORM_KEYRING,
+						    VERIFYING_UNSPECIFIED_SIGNATURE,
+						    set_pkcs7_data, new);
+#endif
 		if (rc)
 			goto err;
 	} else {
