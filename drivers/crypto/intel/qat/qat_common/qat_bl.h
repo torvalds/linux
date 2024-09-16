@@ -23,6 +23,8 @@ struct qat_alg_buf_list {
 	);
 	struct qat_alg_buf buffers[];
 } __packed;
+static_assert(offsetof(struct qat_alg_buf_list, buffers) == sizeof(struct qat_alg_buf_list_hdr),
+	      "struct member likely outside of __struct_group()");
 
 struct qat_alg_fixed_buf_list {
 	struct qat_alg_buf_list_hdr sgl_hdr;
