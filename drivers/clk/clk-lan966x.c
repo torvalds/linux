@@ -31,6 +31,13 @@ static const char * const lan966x_clk_names[] = {
 	"flexcom4", "timer1", "usb_refclk",
 };
 
+static const char * const lan969x_clk_names[] = {
+	"qspi0", "qspi2", "sdmmc0", "sdmmc1",
+	"mcan0", "mcan1", "flexcom0",
+	"flexcom1", "flexcom2", "flexcom3",
+	"timer1", "usb_refclk",
+};
+
 struct lan966x_gck {
 	struct clk_hw hw;
 	void __iomem *reg;
@@ -61,6 +68,13 @@ static const struct clk_gate_soc_desc lan966x_clk_gate_desc[] = {
 	{ }
 };
 
+static const struct clk_gate_soc_desc lan969x_clk_gate_desc[] = {
+	{ "usb_drd", 10 },
+	{ "mcramc", 9 },
+	{ "hmatrix", 8 },
+	{ }
+};
+
 struct lan966x_match_data {
 	char *name;
 	const char * const *clk_name;
@@ -75,6 +89,14 @@ static struct lan966x_match_data lan966x_desc = {
 	.clk_gate_desc = lan966x_clk_gate_desc,
 	.num_total_clks = 18,
 	.num_generic_clks = 14,
+};
+
+static struct lan966x_match_data lan969x_desc = {
+	.name = "lan969x",
+	.clk_name = lan969x_clk_names,
+	.clk_gate_desc = lan969x_clk_gate_desc,
+	.num_total_clks = 15,
+	.num_generic_clks = 12,
 };
 
 static DEFINE_SPINLOCK(clk_gate_lock);
@@ -281,6 +303,7 @@ static int lan966x_clk_probe(struct platform_device *pdev)
 
 static const struct of_device_id lan966x_clk_dt_ids[] = {
 	{ .compatible = "microchip,lan966x-gck", .data = &lan966x_desc },
+	{ .compatible = "microchip,lan9691-gck", .data = &lan969x_desc },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, lan966x_clk_dt_ids);
