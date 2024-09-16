@@ -182,6 +182,7 @@ int __init main(int argc, char **argv, char **envp)
 }
 
 extern void *__real_malloc(int);
+extern void __real_free(void *);
 
 /* workaround for -Wmissing-prototypes warnings */
 void *__wrap_malloc(int size);
@@ -218,10 +219,6 @@ void *__wrap_calloc(int n, int size)
 	memset(ptr, 0, n * size);
 	return ptr;
 }
-
-extern void __real_free(void *);
-
-extern unsigned long high_physmem;
 
 void __wrap_free(void *ptr)
 {
