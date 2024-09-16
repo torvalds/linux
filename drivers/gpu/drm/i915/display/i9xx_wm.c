@@ -2994,8 +2994,9 @@ static int ilk_compute_intermediate_wm(struct intel_atomic_state *state,
 		intel_atomic_get_new_crtc_state(state, crtc);
 	const struct intel_crtc_state *old_crtc_state =
 		intel_atomic_get_old_crtc_state(state, crtc);
-	struct intel_pipe_wm *a = &new_crtc_state->wm.ilk.intermediate;
-	const struct intel_pipe_wm *b = &old_crtc_state->wm.ilk.optimal;
+	struct intel_pipe_wm *intermediate = &new_crtc_state->wm.ilk.intermediate;
+	const struct intel_pipe_wm *optimal = &new_crtc_state->wm.ilk.optimal;
+	const struct intel_pipe_wm *active = &old_crtc_state->wm.ilk.optimal;
 	int level;
 
 	/*
@@ -3003,25 +3004,29 @@ static int ilk_compute_intermediate_wm(struct intel_atomic_state *state,
 	 * currently active watermarks to get values that are safe both before
 	 * and after the vblank.
 	 */
-	*a = new_crtc_state->wm.ilk.optimal;
+	*intermediate = *optimal;
 	if (!new_crtc_state->hw.active ||
 	    intel_crtc_needs_modeset(new_crtc_state) ||
 	    state->skip_intermediate_wm)
 		return 0;
 
-	a->pipe_enabled |= b->pipe_enabled;
-	a->sprites_enabled |= b->sprites_enabled;
-	a->sprites_scaled |= b->sprites_scaled;
+	intermediate->pipe_enabled |= active->pipe_enabled;
+	intermediate->sprites_enabled |= active->sprites_enabled;
+	intermediate->sprites_scaled |= active->sprites_scaled;
 
 	for (level = 0; level < dev_priv->display.wm.num_levels; level++) {
-		struct intel_wm_level *a_wm = &a->wm[level];
-		const struct intel_wm_level *b_wm = &b->wm[level];
+		struct intel_wm_level *intermediate_wm = &intermediate->wm[level];
+		const struct intel_wm_level *active_wm = &active->wm[level];
 
-		a_wm->enable &= b_wm->enable;
-		a_wm->pri_val = max(a_wm->pri_val, b_wm->pri_val);
-		a_wm->spr_val = max(a_wm->spr_val, b_wm->spr_val);
-		a_wm->cur_val = max(a_wm->cur_val, b_wm->cur_val);
-		a_wm->fbc_val = max(a_wm->fbc_val, b_wm->fbc_val);
+		intermediate_wm->enable &= active_wm->enable;
+		intermediate_wm->pri_val = max(intermediate_wm->pri_val,
+					       active_wm->pri_val);
+		intermediate_wm->spr_val = max(intermediate_wm->spr_val,
+					       active_wm->spr_val);
+		intermediate_wm->cur_val = max(intermediate_wm->cur_val,
+					       active_wm->cur_val);
+		intermediate_wm->fbc_val = max(intermediate_wm->fbc_val,
+					       active_wm->fbc_val);
 	}
 
 	/*
@@ -3030,14 +3035,14 @@ static int ilk_compute_intermediate_wm(struct intel_atomic_state *state,
 	 * there's no safe way to transition from the old state to
 	 * the new state, so we need to fail the atomic transaction.
 	 */
-	if (!ilk_validate_pipe_wm(dev_priv, a))
+	if (!ilk_validate_pipe_wm(dev_priv, intermediate))
 		return -EINVAL;
 
 	/*
 	 * If our intermediate WM are identical to the final WM, then we can
 	 * omit the post-vblank programming; only update if it's different.
 	 */
-	if (memcmp(a, &new_crtc_state->wm.ilk.optimal, sizeof(*a)) != 0)
+	if (memcmp(intermediate, optimal, sizeof(*intermediate)) != 0)
 		new_crtc_state->wm.need_postvbl_update = true;
 
 	return 0;
