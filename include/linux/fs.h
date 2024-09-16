@@ -146,8 +146,7 @@ typedef int (dio_iodone_t)(struct kiocb *iocb, loff_t offset,
 /* Expect random access pattern */
 #define FMODE_RANDOM		((__force fmode_t)(1 << 12))
 
-/* File is huge (eg. /dev/mem): treat loff_t as unsigned */
-#define FMODE_UNSIGNED_OFFSET	((__force fmode_t)(1 << 13))
+/* FMODE_* bit 13 */
 
 /* File is opened with O_PATH; almost nothing can be done with it */
 #define FMODE_PATH		((__force fmode_t)(1 << 14))
@@ -683,7 +682,8 @@ struct inode {
 #endif
 
 	/* Misc */
-	unsigned long		i_state;
+	u32			i_state;
+	/* 32-bit hole */
 	struct rw_semaphore	i_rwsem;
 
 	unsigned long		dirtied_when;	/* jiffies of first dirtying */
@@ -745,6 +745,21 @@ struct inode {
 
 	void			*i_private; /* fs or device private pointer */
 } __randomize_layout;
+
+/*
+ * Get bit address from inode->i_state to use with wait_var_event()
+ * infrastructre.
+ */
+#define inode_state_wait_address(inode, bit) ((char *)&(inode)->i_state + (bit))
+
+struct wait_queue_head *inode_bit_waitqueue(struct wait_bit_queue_entry *wqe,
+					    struct inode *inode, u32 bit);
+
+static inline void inode_wake_up_bit(struct inode *inode, u32 bit)
+{
+	/* Caller is responsible for correct memory barriers. */
+	wake_up_var(inode_state_wait_address(inode, bit));
+}
 
 struct timespec64 timestamp_truncate(struct timespec64 t, struct inode *inode);
 
@@ -1268,7 +1283,7 @@ struct super_block {
 	time64_t		   s_time_min;
 	time64_t		   s_time_max;
 #ifdef CONFIG_FSNOTIFY
-	__u32			s_fsnotify_mask;
+	u32			s_fsnotify_mask;
 	struct fsnotify_sb_info	*s_fsnotify_info;
 #endif
 
@@ -1684,7 +1699,7 @@ static inline bool __sb_start_write_trylock(struct super_block *sb, int level)
 #define __sb_writers_acquired(sb, lev)	\
 	percpu_rwsem_acquire(&(sb)->s_writers.rw_sem[(lev)-1], 1, _THIS_IP_)
 #define __sb_writers_release(sb, lev)	\
-	percpu_rwsem_release(&(sb)->s_writers.rw_sem[(lev)-1], 1, _THIS_IP_)
+	percpu_rwsem_release(&(sb)->s_writers.rw_sem[(lev)-1], _THIS_IP_)
 
 /**
  * __sb_write_started - check if sb freeze level is held
@@ -2074,6 +2089,8 @@ struct file_operations {
 #define FOP_DIO_PARALLEL_WRITE	((__force fop_flags_t)(1 << 3))
 /* Contains huge pages */
 #define FOP_HUGE_PAGES		((__force fop_flags_t)(1 << 4))
+/* Treat loff_t as unsigned (e.g., /dev/mem) */
+#define FOP_UNSIGNED_OFFSET	((__force fop_flags_t)(1 << 5))
 
 /* Wrap a directory iterator that needs exclusive inode access */
 int wrap_directory_iterator(struct file *, struct dir_context *,
@@ -2373,8 +2390,6 @@ static inline void kiocb_clone(struct kiocb *kiocb, struct kiocb *kiocb_src,
  *
  * I_REFERENCED		Marks the inode as recently references on the LRU list.
  *
- * I_DIO_WAKEUP		Never set.  Only used as a key for wait_on_bit().
- *
  * I_WB_SWITCH		Cgroup bdi_writeback switching in progress.  Used to
  *			synchronize competing switching instances and to tell
  *			wb stat updates to grab the i_pages lock.  See
@@ -2397,30 +2412,32 @@ static inline void kiocb_clone(struct kiocb *kiocb, struct kiocb *kiocb_src,
  *			i_count.
  *
  * Q: What is the difference between I_WILL_FREE and I_FREEING?
+ *
+ * __I_{SYNC,NEW,LRU_ISOLATING} are used to derive unique addresses to wait
+ * upon. There's one free address left.
  */
-#define I_DIRTY_SYNC		(1 << 0)
-#define I_DIRTY_DATASYNC	(1 << 1)
-#define I_DIRTY_PAGES		(1 << 2)
-#define __I_NEW			3
+#define __I_NEW			0
 #define I_NEW			(1 << __I_NEW)
-#define I_WILL_FREE		(1 << 4)
-#define I_FREEING		(1 << 5)
-#define I_CLEAR			(1 << 6)
-#define __I_SYNC		7
+#define __I_SYNC		1
 #define I_SYNC			(1 << __I_SYNC)
-#define I_REFERENCED		(1 << 8)
-#define __I_DIO_WAKEUP		9
-#define I_DIO_WAKEUP		(1 << __I_DIO_WAKEUP)
+#define __I_LRU_ISOLATING	2
+#define I_LRU_ISOLATING		(1 << __I_LRU_ISOLATING)
+
+#define I_DIRTY_SYNC		(1 << 3)
+#define I_DIRTY_DATASYNC	(1 << 4)
+#define I_DIRTY_PAGES		(1 << 5)
+#define I_WILL_FREE		(1 << 6)
+#define I_FREEING		(1 << 7)
+#define I_CLEAR			(1 << 8)
+#define I_REFERENCED		(1 << 9)
 #define I_LINKABLE		(1 << 10)
 #define I_DIRTY_TIME		(1 << 11)
-#define I_WB_SWITCH		(1 << 13)
-#define I_OVL_INUSE		(1 << 14)
-#define I_CREATING		(1 << 15)
-#define I_DONTCACHE		(1 << 16)
-#define I_SYNC_QUEUED		(1 << 17)
-#define I_PINNING_NETFS_WB	(1 << 18)
-#define __I_LRU_ISOLATING	19
-#define I_LRU_ISOLATING		(1 << __I_LRU_ISOLATING)
+#define I_WB_SWITCH		(1 << 12)
+#define I_OVL_INUSE		(1 << 13)
+#define I_CREATING		(1 << 14)
+#define I_DONTCACHE		(1 << 15)
+#define I_SYNC_QUEUED		(1 << 16)
+#define I_PINNING_NETFS_WB	(1 << 17)
 
 #define I_DIRTY_INODE (I_DIRTY_SYNC | I_DIRTY_DATASYNC)
 #define I_DIRTY (I_DIRTY_INODE | I_DIRTY_PAGES)
@@ -2554,10 +2571,17 @@ struct super_block *sget(struct file_system_type *type,
 struct super_block *sget_dev(struct fs_context *fc, dev_t dev);
 
 /* Alas, no aliases. Too much hassle with bringing module.h everywhere */
-#define fops_get(fops) \
-	(((fops) && try_module_get((fops)->owner) ? (fops) : NULL))
-#define fops_put(fops) \
-	do { if (fops) module_put((fops)->owner); } while(0)
+#define fops_get(fops) ({						\
+	const struct file_operations *_fops = (fops);			\
+	(((_fops) && try_module_get((_fops)->owner) ? (_fops) : NULL));	\
+})
+
+#define fops_put(fops) ({						\
+	const struct file_operations *_fops = (fops);			\
+	if (_fops)							\
+		module_put((_fops)->owner);				\
+})
+
 /*
  * This one is to be used *ONLY* from ->open() instances.
  * fops must be non-NULL, pinned down *and* module dependencies
@@ -3220,7 +3244,9 @@ static inline ssize_t blockdev_direct_IO(struct kiocb *iocb,
 }
 #endif
 
+bool inode_dio_finished(const struct inode *inode);
 void inode_dio_wait(struct inode *inode);
+void inode_dio_wait_interruptible(struct inode *inode);
 
 /**
  * inode_dio_begin - signal start of a direct I/O requests
@@ -3244,7 +3270,7 @@ static inline void inode_dio_begin(struct inode *inode)
 static inline void inode_dio_end(struct inode *inode)
 {
 	if (atomic_dec_and_test(&inode->i_dio_count))
-		wake_up_bit(&inode->i_state, __I_DIO_WAKEUP);
+		wake_up_var(&inode->i_dio_count);
 }
 
 extern void inode_set_flags(struct inode *inode, unsigned int flags,

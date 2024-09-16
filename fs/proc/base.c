@@ -827,12 +827,9 @@ static int __mem_open(struct inode *inode, struct file *file, unsigned int mode)
 
 static int mem_open(struct inode *inode, struct file *file)
 {
-	int ret = __mem_open(inode, file, PTRACE_MODE_ATTACH);
-
-	/* OK to pass negative loff_t, we can catch out-of-range */
-	file->f_mode |= FMODE_UNSIGNED_OFFSET;
-
-	return ret;
+	if (WARN_ON_ONCE(!(file->f_op->fop_flags & FOP_UNSIGNED_OFFSET)))
+		return -EINVAL;
+	return __mem_open(inode, file, PTRACE_MODE_ATTACH);
 }
 
 static ssize_t mem_rw(struct file *file, char __user *buf,
@@ -932,6 +929,7 @@ static const struct file_operations proc_mem_operations = {
 	.write		= mem_write,
 	.open		= mem_open,
 	.release	= mem_release,
+	.fop_flags	= FOP_UNSIGNED_OFFSET,
 };
 
 static int environ_open(struct inode *inode, struct file *file)

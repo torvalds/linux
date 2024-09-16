@@ -235,7 +235,7 @@ static int kcore_ram_list(struct list_head *list)
 	int nid, ret;
 	unsigned long end_pfn;
 
-	/* Not inialized....update now */
+	/* Not initialized....update now */
 	/* find out "max pfn" */
 	end_pfn = 0;
 	for_each_node_state(nid, N_MEMORY) {

@@ -1427,7 +1427,7 @@ static const struct super_operations pipefs_ops = {
 
 /*
  * pipefs should _never_ be mounted by userland - too much of security hassle,
- * no real gain from having the whole whorehouse mounted. So we don't need
+ * no real gain from having the whole file system mounted. So we don't need
  * any operations on the root directory. However, we need a non-trivial
  * d_name - pipe: will go nicely and kill the special-casing in procfs.
  */

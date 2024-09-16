@@ -360,7 +360,7 @@ static int read_file_page(struct file *file, unsigned long index,
 	pr_debug("read bitmap file (%dB @ %llu)\n", (int)PAGE_SIZE,
 		 (unsigned long long)index << PAGE_SHIFT);
 
-	bh = alloc_page_buffers(page, blocksize, false);
+	bh = alloc_page_buffers(page, blocksize);
 	if (!bh) {
 		ret = -ENOMEM;
 		goto out;

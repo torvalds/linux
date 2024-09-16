@@ -343,6 +343,12 @@ static long f_dupfd_query(int fd, struct file *filp)
 	return f.file == filp;
 }
 
+/* Let the caller figure out whether a given file was just created. */
+static long f_created_query(const struct file *filp)
+{
+	return !!(filp->f_mode & FMODE_CREATED);
+}
+
 static long do_fcntl(int fd, unsigned int cmd, unsigned long arg,
 		struct file *filp)
 {
@@ -352,6 +358,9 @@ static long do_fcntl(int fd, unsigned int cmd, unsigned long arg,
 	long err = -EINVAL;
 
 	switch (cmd) {
+	case F_CREATED_QUERY:
+		err = f_created_query(filp);
+		break;
 	case F_DUPFD:
 		err = f_dupfd(argi, filp, 0);
 		break;
@@ -463,6 +472,7 @@ static long do_fcntl(int fd, unsigned int cmd, unsigned long arg,
 static int check_fcntl_cmd(unsigned cmd)
 {
 	switch (cmd) {
+	case F_CREATED_QUERY:
 	case F_DUPFD:
 	case F_DUPFD_CLOEXEC:
 	case F_DUPFD_QUERY:

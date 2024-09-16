@@ -774,12 +774,11 @@ EXPORT_SYMBOL(block_dirty_folio);
 static int fsync_buffers_list(spinlock_t *lock, struct list_head *list)
 {
 	struct buffer_head *bh;
-	struct list_head tmp;
 	struct address_space *mapping;
 	int err = 0, err2;
 	struct blk_plug plug;
+	LIST_HEAD(tmp);
 
-	INIT_LIST_HEAD(&tmp);
 	blk_start_plug(&plug);
 
 	spin_lock(lock);
@@ -958,12 +957,9 @@ no_grow:
 }
 EXPORT_SYMBOL_GPL(folio_alloc_buffers);
 
-struct buffer_head *alloc_page_buffers(struct page *page, unsigned long size,
-				       bool retry)
+struct buffer_head *alloc_page_buffers(struct page *page, unsigned long size)
 {
 	gfp_t gfp = GFP_NOFS | __GFP_ACCOUNT;
-	if (retry)
-		gfp |= __GFP_NOFAIL;
 
 	return folio_alloc_buffers(page_folio(page), size, gfp);
 }

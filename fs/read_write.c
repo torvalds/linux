@@ -36,7 +36,7 @@ EXPORT_SYMBOL(generic_ro_fops);
 
 static inline bool unsigned_offsets(struct file *file)
 {
-	return file->f_mode & FMODE_UNSIGNED_OFFSET;
+	return file->f_op->fop_flags & FOP_UNSIGNED_OFFSET;
 }
 
 /**

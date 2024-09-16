@@ -14,12 +14,6 @@
 
 #define MAX_BUF_SZ	PAGE_SIZE
 
-static int adi_open(struct inode *inode, struct file *file)
-{
-	file->f_mode |= FMODE_UNSIGNED_OFFSET;
-	return 0;
-}
-
 static int read_mcd_tag(unsigned long addr)
 {
 	long err;
@@ -206,9 +200,9 @@ static loff_t adi_llseek(struct file *file, loff_t offset, int whence)
 static const struct file_operations adi_fops = {
 	.owner		= THIS_MODULE,
 	.llseek		= adi_llseek,
-	.open		= adi_open,
 	.read		= adi_read,
 	.write		= adi_write,
+	.fop_flags	= FOP_UNSIGNED_OFFSET,
 };
 
 static struct miscdevice adi_miscdev = {

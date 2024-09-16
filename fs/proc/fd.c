@@ -59,7 +59,7 @@ static int seq_show(struct seq_file *m, void *v)
 		   real_mount(file->f_path.mnt)->mnt_id,
 		   file_inode(file)->i_ino);
 
-	/* show_fd_locks() never deferences files so a stale value is safe */
+	/* show_fd_locks() never dereferences files, so a stale value is safe */
 	show_fd_locks(m, file, files);
 	if (seq_has_overflowed(m))
 		goto out;
