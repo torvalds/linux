@@ -158,3 +158,72 @@ poisoned BTB entry and using that safe one for all function returns.
 In older Zen1 and Zen2, this is accomplished using a reinterpretation
 technique similar to Retbleed one: srso_untrain_ret() and
 srso_safe_ret().
+
+Checking the safe RET mitigation actually works
+-----------------------------------------------
+
+In case one wants to validate whether the SRSO safe RET mitigation works
+on a kernel, one could use two performance counters
+
+* PMC_0xc8 - Count of RET/RET lw retired
+* PMC_0xc9 - Count of RET/RET lw retired mispredicted
+
+and compare the number of RETs retired properly vs those retired
+mispredicted, in kernel mode. Another way of specifying those events
+is::
+
+        # perf list ex_ret_near_ret
+
+        List of pre-defined events (to be used in -e or -M):
+
+        core:
+          ex_ret_near_ret
+               [Retired Near Returns]
+          ex_ret_near_ret_mispred
+               [Retired Near Returns Mispredicted]
+
+Either the command using the event mnemonics::
+
+        # perf stat -e ex_ret_near_ret:k -e ex_ret_near_ret_mispred:k sleep 10s
+
+or using the raw PMC numbers::
+
+        # perf stat -e cpu/event=0xc8,umask=0/k -e cpu/event=0xc9,umask=0/k sleep 10s
+
+should give the same amount. I.e., every RET retired should be
+mispredicted::
+
+        [root@brent: ~/kernel/linux/tools/perf> ./perf stat -e cpu/event=0xc8,umask=0/k -e cpu/event=0xc9,umask=0/k sleep 10s
+
+         Performance counter stats for 'sleep 10s':
+
+                   137,167      cpu/event=0xc8,umask=0/k
+                   137,173      cpu/event=0xc9,umask=0/k
+
+              10.004110303 seconds time elapsed
+
+               0.000000000 seconds user
+               0.004462000 seconds sys
+
+vs the case when the mitigation is disabled (spec_rstack_overflow=off)
+or not functioning properly, showing usually a lot smaller number of
+mispredicted retired RETs vs the overall count of retired RETs during
+a workload::
+
+       [root@brent: ~/kernel/linux/tools/perf> ./perf stat -e cpu/event=0xc8,umask=0/k -e cpu/event=0xc9,umask=0/k sleep 10s
+
+        Performance counter stats for 'sleep 10s':
+
+                  201,627      cpu/event=0xc8,umask=0/k
+                    4,074      cpu/event=0xc9,umask=0/k
+
+             10.003267252 seconds time elapsed
+
+              0.002729000 seconds user
+              0.000000000 seconds sys
+
+Also, there is a selftest which performs the above, go to
+tools/testing/selftests/x86/ and do::
+
+        make srso
+        ./srso
