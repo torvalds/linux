@@ -424,6 +424,8 @@ struct mwifiex_bssdescriptor {
 	u16 wpa_offset;
 	struct ieee_types_generic *bcn_rsn_ie;
 	u16 rsn_offset;
+	struct ieee_types_generic *bcn_rsnx_ie;
+	u16 rsnx_offset;
 	struct ieee_types_generic *bcn_wapi_ie;
 	u16 wapi_offset;
 	u8 *beacon_buf;
@@ -525,6 +527,8 @@ struct mwifiex_private {
 	u8 bss_priority;
 	u8 bss_num;
 	u8 bss_started;
+	u8 auth_flag;
+	u16 auth_alg;
 	u8 frame_type;
 	u8 curr_addr[ETH_ALEN];
 	u8 media_connected;
@@ -608,6 +612,7 @@ struct mwifiex_private {
 #define MWIFIEX_ASSOC_RSP_BUF_SIZE  500
 	u8 assoc_rsp_buf[MWIFIEX_ASSOC_RSP_BUF_SIZE];
 	u32 assoc_rsp_size;
+	struct cfg80211_bss *req_bss;
 
 #define MWIFIEX_GENIE_BUF_SIZE      256
 	u8 gen_ie_buf[MWIFIEX_GENIE_BUF_SIZE];
@@ -647,6 +652,7 @@ struct mwifiex_private {
 	u16 gen_idx;
 	u8 ap_11n_enabled;
 	u8 ap_11ac_enabled;
+	bool host_mlme_reg;
 	u32 mgmt_frame_mask;
 	struct mwifiex_roc_cfg roc_cfg;
 	bool scan_aborting;
@@ -793,7 +799,7 @@ struct mwifiex_auto_tdls_peer {
 	u8 mac_addr[ETH_ALEN];
 	u8 tdls_status;
 	int rssi;
-	long rssi_jiffies;
+	unsigned long rssi_jiffies;
 	u8 failure_count;
 	u8 do_discover;
 	u8 do_setup;
@@ -876,6 +882,8 @@ struct mwifiex_adapter {
 	struct work_struct main_work;
 	struct workqueue_struct *rx_workqueue;
 	struct work_struct rx_work;
+	struct workqueue_struct *host_mlme_workqueue;
+	struct work_struct host_mlme_work;
 	bool rx_work_enabled;
 	bool rx_processing;
 	bool delay_main_work;
@@ -907,6 +915,9 @@ struct mwifiex_adapter {
 	u8 cmd_resp_received;
 	u8 event_received;
 	u8 data_received;
+	u8 assoc_resp_received;
+	struct mwifiex_private *priv_link_lost;
+	u8 host_mlme_link_lost;
 	u16 seq_num;
 	struct cmd_ctrl_node *cmd_pool;
 	struct cmd_ctrl_node *curr_cmd;
@@ -996,6 +1007,8 @@ struct mwifiex_adapter {
 	bool is_up;
 
 	bool ext_scan;
+	bool host_mlme_enabled;
+	struct ieee80211_txrx_stypes mwifiex_mgmt_stypes[NUM_NL80211_IFTYPES];
 	u8 fw_api_ver;
 	u8 key_api_major_ver, key_api_minor_ver;
 	u8 max_p2p_conn, max_sta_conn;
@@ -1061,6 +1074,9 @@ int mwifiex_recv_packet(struct mwifiex_private *priv, struct sk_buff *skb);
 int mwifiex_uap_recv_packet(struct mwifiex_private *priv,
 			    struct sk_buff *skb);
 
+void mwifiex_host_mlme_disconnect(struct mwifiex_private *priv,
+				  u16 reason_code, u8 *sa);
+
 int mwifiex_process_mgmt_packet(struct mwifiex_private *priv,
 				struct sk_buff *skb);
 
@@ -1092,6 +1108,7 @@ void mwifiex_insert_cmd_to_pending_q(struct mwifiex_adapter *adapter,
 
 int mwifiex_exec_next_cmd(struct mwifiex_adapter *adapter);
 int mwifiex_process_cmdresp(struct mwifiex_adapter *adapter);
+void mwifiex_process_assoc_resp(struct mwifiex_adapter *adapter);
 int mwifiex_handle_rx_packet(struct mwifiex_adapter *adapter,
 			     struct sk_buff *skb);
 int mwifiex_process_tx(struct mwifiex_private *priv, struct sk_buff *skb,
@@ -1286,14 +1303,12 @@ mwifiex_get_priv_by_id(struct mwifiex_adapter *adapter,
 	int i;
 
 	for (i = 0; i < adapter->priv_num; i++) {
-		if (adapter->priv[i]) {
-			if (adapter->priv[i]->bss_mode == NL80211_IFTYPE_UNSPECIFIED)
-				continue;
+		if (adapter->priv[i]->bss_mode == NL80211_IFTYPE_UNSPECIFIED)
+			continue;
 
-			if ((adapter->priv[i]->bss_num == bss_num) &&
-			    (adapter->priv[i]->bss_type == bss_type))
-				break;
-		}
+		if ((adapter->priv[i]->bss_num == bss_num) &&
+		    (adapter->priv[i]->bss_type == bss_type))
+			break;
 	}
 	return ((i < adapter->priv_num) ? adapter->priv[i] : NULL);
 }
@@ -1309,11 +1324,9 @@ mwifiex_get_priv(struct mwifiex_adapter *adapter,
 	int i;
 
 	for (i = 0; i < adapter->priv_num; i++) {
-		if (adapter->priv[i]) {
-			if (bss_role == MWIFIEX_BSS_ROLE_ANY ||
-			    GET_BSS_ROLE(adapter->priv[i]) == bss_role)
-				break;
-		}
+		if (bss_role == MWIFIEX_BSS_ROLE_ANY ||
+		    GET_BSS_ROLE(adapter->priv[i]) == bss_role)
+			break;
 	}
 
 	return ((i < adapter->priv_num) ? adapter->priv[i] : NULL);
@@ -1331,12 +1344,10 @@ mwifiex_get_unused_bss_num(struct mwifiex_adapter *adapter, u8 bss_type)
 
 	memset(index, 0, sizeof(index));
 	for (i = 0; i < adapter->priv_num; i++)
-		if (adapter->priv[i]) {
-			if (adapter->priv[i]->bss_type == bss_type &&
-			    !(adapter->priv[i]->bss_mode ==
-			      NL80211_IFTYPE_UNSPECIFIED)) {
-				index[adapter->priv[i]->bss_num] = 1;
-			}
+		if (adapter->priv[i]->bss_type == bss_type &&
+		    !(adapter->priv[i]->bss_mode ==
+		      NL80211_IFTYPE_UNSPECIFIED)) {
+			index[adapter->priv[i]->bss_num] = 1;
 		}
 	for (j = 0; j < MWIFIEX_MAX_BSS_NUM; j++)
 		if (!index[j])

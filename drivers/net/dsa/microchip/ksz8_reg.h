@@ -1,13 +1,18 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * Microchip KSZ8795 register definitions
+ * Microchip KSZ8XXX series register definitions
+ *
+ * The base for these definitions is KSZ8795 but unless indicated
+ * differently by their prefix, they apply to all KSZ8 series
+ * devices. Registers and masks that do change are defined in
+ * dedicated structures in ksz_common.c.
  *
  * Copyright (c) 2017 Microchip Technology Inc.
  *	Tristram Ha <Tristram.Ha@microchip.com>
  */
 
-#ifndef __KSZ8795_REG_H
-#define __KSZ8795_REG_H
+#ifndef __KSZ8_REG_H
+#define __KSZ8_REG_H
 
 #define KS_PORT_M			0x1F
 
@@ -359,8 +364,6 @@
 #define REG_IND_DATA_1			0x77
 #define REG_IND_DATA_0			0x78
 
-#define REG_IND_DATA_PME_EEE_ACL	0xA0
-
 #define REG_INT_STATUS			0x7C
 #define REG_INT_ENABLE			0x7D
 
@@ -703,8 +706,6 @@
 #define KSZ8795_ID_HI			0x0022
 #define KSZ8795_ID_LO			0x1550
 #define KSZ8863_ID_LO			0x1430
-
-#define KSZ8795_SW_ID			0x8795
 
 #define PHY_REG_LINK_MD			0x1D
 

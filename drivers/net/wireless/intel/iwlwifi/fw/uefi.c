@@ -638,7 +638,7 @@ int iwl_uefi_get_mcc(struct iwl_fw_runtime *fwrt, char *mcc)
 		goto out;
 	}
 
-	if (data->mcc != UEFI_MCC_CHINA) {
+	if (data->mcc != BIOS_MCC_CHINA) {
 		ret = -EINVAL;
 		IWL_DEBUG_RADIO(fwrt, "UEFI WRDD is supported only for CN\n");
 		goto out;
@@ -729,3 +729,32 @@ out:
 	kfree(data);
 	return ret;
 }
+
+int iwl_uefi_get_puncturing(struct iwl_fw_runtime *fwrt)
+{
+	struct uefi_cnv_var_puncturing_data *data;
+	/* default value is not enabled if there is any issue in reading
+	 * uefi variable or revision is not supported
+	 */
+	int puncturing = 0;
+
+	data = iwl_uefi_get_verified_variable(fwrt->trans,
+					      IWL_UEFI_PUNCTURING_NAME,
+					      "UefiCnvWlanPuncturing",
+					      sizeof(*data), NULL);
+	if (IS_ERR(data))
+		return puncturing;
+
+	if (data->revision != IWL_UEFI_PUNCTURING_REVISION) {
+		IWL_DEBUG_RADIO(fwrt, "Unsupported UEFI PUNCTURING rev:%d\n",
+				data->revision);
+	} else {
+		puncturing = data->puncturing & IWL_UEFI_PUNCTURING_REV0_MASK;
+		IWL_DEBUG_RADIO(fwrt, "Loaded puncturing bits from UEFI: %d\n",
+				puncturing);
+	}
+
+	kfree(data);
+	return puncturing;
+}
+IWL_EXPORT_SYMBOL(iwl_uefi_get_puncturing);

@@ -29,7 +29,7 @@ int iwl_mvm_find_free_sta_id(struct iwl_mvm *mvm, enum nl80211_iftype iftype)
 	int sta_id;
 	u32 reserved_ids = 0;
 
-	BUILD_BUG_ON(IWL_MVM_STATION_COUNT_MAX > 32);
+	BUILD_BUG_ON(IWL_STATION_COUNT_MAX > 32);
 	WARN_ON_ONCE(test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status));
 
 	lockdep_assert_held(&mvm->mutex);
@@ -900,7 +900,7 @@ static int iwl_mvm_sta_alloc_queue_tvqm(struct iwl_mvm *mvm,
 	struct iwl_mvm_txq *mvmtxq =
 		iwl_mvm_txq_from_tid(sta, tid);
 	unsigned int wdg_timeout =
-		iwl_mvm_get_wd_timeout(mvm, mvmsta->vif, false, false);
+		iwl_mvm_get_wd_timeout(mvm, mvmsta->vif);
 	int queue = -1;
 
 	lockdep_assert_held(&mvm->mutex);
@@ -1080,7 +1080,7 @@ static void iwl_mvm_unshare_queue(struct iwl_mvm *mvm, int queue)
 		return;
 
 	mvmsta = iwl_mvm_sta_from_mac80211(sta);
-	wdg_timeout = iwl_mvm_get_wd_timeout(mvm, mvmsta->vif, false, false);
+	wdg_timeout = iwl_mvm_get_wd_timeout(mvm, mvmsta->vif);
 
 	ssn = IEEE80211_SEQ_TO_SN(mvmsta->tid_data[tid].seq_number);
 
@@ -1330,7 +1330,7 @@ static int iwl_mvm_sta_alloc_queue(struct iwl_mvm *mvm,
 		.frame_limit = IWL_FRAME_LIMIT,
 	};
 	unsigned int wdg_timeout =
-		iwl_mvm_get_wd_timeout(mvm, mvmsta->vif, false, false);
+		iwl_mvm_get_wd_timeout(mvm, mvmsta->vif);
 	int queue = -1;
 	u16 queue_tmp;
 	unsigned long disable_agg_tids = 0;
@@ -1622,7 +1622,7 @@ void iwl_mvm_realloc_queues_after_restart(struct iwl_mvm *mvm,
 {
 	struct iwl_mvm_sta *mvm_sta = iwl_mvm_sta_from_mac80211(sta);
 	unsigned int wdg =
-		iwl_mvm_get_wd_timeout(mvm, mvm_sta->vif, false, false);
+		iwl_mvm_get_wd_timeout(mvm, mvm_sta->vif);
 	int i;
 	struct iwl_trans_txq_scd_cfg cfg = {
 		.sta_id = mvm_sta->deflink.sta_id,
@@ -2359,7 +2359,7 @@ int iwl_mvm_send_add_bcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 	int queue;
 	int ret;
 	unsigned int wdg_timeout =
-		iwl_mvm_get_wd_timeout(mvm, vif, false, false);
+		iwl_mvm_get_wd_timeout(mvm, vif);
 	struct iwl_trans_txq_scd_cfg cfg = {
 		.fifo = IWL_MVM_TX_FIFO_VO,
 		.sta_id = mvmvif->deflink.bcast_sta.sta_id,
@@ -2568,7 +2568,7 @@ int iwl_mvm_add_mcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 		.aggregate = false,
 		.frame_limit = IWL_FRAME_LIMIT,
 	};
-	unsigned int timeout = iwl_mvm_get_wd_timeout(mvm, vif, false, false);
+	unsigned int timeout = iwl_mvm_get_wd_timeout(mvm, vif);
 	int ret;
 
 	lockdep_assert_held(&mvm->mutex);
@@ -3207,7 +3207,7 @@ int iwl_mvm_sta_tx_agg_oper(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
 	struct iwl_mvm_tid_data *tid_data = &mvmsta->tid_data[tid];
 	unsigned int wdg_timeout =
-		iwl_mvm_get_wd_timeout(mvm, vif, sta->tdls, false);
+		iwl_mvm_get_wd_timeout(mvm, vif);
 	int queue, ret;
 	bool alloc_queue = true;
 	enum iwl_mvm_queue_status queue_status;
@@ -4326,7 +4326,7 @@ int iwl_mvm_add_pasn_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	u16 queue;
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	unsigned int wdg_timeout =
-		iwl_mvm_get_wd_timeout(mvm, vif, false, false);
+		iwl_mvm_get_wd_timeout(mvm, vif);
 	bool mld = iwl_mvm_has_mld_api(mvm->fw);
 	u32 type = mld ? STATION_TYPE_PEER : IWL_STA_LINK;
 
@@ -4455,10 +4455,10 @@ void iwl_mvm_count_mpdu(struct iwl_mvm_sta *mvm_sta, u8 fw_sta_id, u32 count,
 		       sizeof(queue_counter->per_link));
 		queue_counter->window_start = jiffies;
 
-		IWL_DEBUG_STATS(mvm, "MPDU counters are cleared\n");
+		IWL_DEBUG_INFO(mvm, "MPDU counters are cleared\n");
 	}
 
-	for (int i = 0; i < IWL_MVM_FW_MAX_LINK_ID; i++)
+	for (int i = 0; i < IWL_FW_MAX_LINK_ID; i++)
 		total_mpdus += tx ? queue_counter->per_link[i].tx :
 				    queue_counter->per_link[i].rx;
 

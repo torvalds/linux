@@ -84,6 +84,7 @@
 #include <net/netkit.h>
 #include <linux/un.h>
 #include <net/xdp_sock_drv.h>
+#include <net/inet_dscp.h>
 
 #include "dev.h"
 
@@ -2371,7 +2372,7 @@ static int __bpf_redirect_neigh_v4(struct sk_buff *skb, struct net_device *dev,
 		struct flowi4 fl4 = {
 			.flowi4_flags = FLOWI_FLAG_ANYSRC,
 			.flowi4_mark  = skb->mark,
-			.flowi4_tos   = RT_TOS(ip4h->tos),
+			.flowi4_tos   = ip4h->tos & INET_DSCP_MASK,
 			.flowi4_oif   = dev->ifindex,
 			.flowi4_proto = ip4h->protocol,
 			.daddr	      = ip4h->daddr,
@@ -3189,6 +3190,7 @@ BPF_CALL_3(bpf_skb_vlan_push, struct sk_buff *, skb, __be16, vlan_proto,
 	bpf_push_mac_rcsum(skb);
 	ret = skb_vlan_push(skb, vlan_proto, vlan_tci);
 	bpf_pull_mac_rcsum(skb);
+	skb_reset_mac_len(skb);
 
 	bpf_compute_data_pointers(skb);
 	return ret;
@@ -5278,6 +5280,11 @@ static int bpf_sol_tcp_setsockopt(struct sock *sk, int optname,
 			return -EINVAL;
 		inet_csk(sk)->icsk_rto_min = timeout;
 		break;
+	case TCP_BPF_SOCK_OPS_CB_FLAGS:
+		if (val & ~(BPF_SOCK_OPS_ALL_CB_FLAGS))
+			return -EINVAL;
+		tp->bpf_sock_ops_cb_flags = val;
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -5366,6 +5373,17 @@ static int sol_tcp_sockopt(struct sock *sk, int optname,
 		if (*optlen < 1)
 			return -EINVAL;
 		break;
+	case TCP_BPF_SOCK_OPS_CB_FLAGS:
+		if (*optlen != sizeof(int))
+			return -EINVAL;
+		if (getopt) {
+			struct tcp_sock *tp = tcp_sk(sk);
+			int cb_flags = tp->bpf_sock_ops_cb_flags;
+
+			memcpy(optval, &cb_flags, *optlen);
+			return 0;
+		}
+		return bpf_sol_tcp_setsockopt(sk, optname, optval, *optlen);
 	default:
 		if (getopt)
 			return -EINVAL;
@@ -5899,7 +5917,7 @@ static int bpf_ipv4_fib_lookup(struct net *net, struct bpf_fib_lookup *params,
 		fl4.flowi4_iif = params->ifindex;
 		fl4.flowi4_oif = 0;
 	}
-	fl4.flowi4_tos = params->tos & IPTOS_RT_MASK;
+	fl4.flowi4_tos = params->tos & INET_DSCP_MASK;
 	fl4.flowi4_scope = RT_SCOPE_UNIVERSE;
 	fl4.flowi4_flags = 0;
 
@@ -12045,7 +12063,7 @@ int bpf_dynptr_from_skb_rdonly(struct __sk_buff *skb, u64 flags,
 }
 
 BTF_KFUNCS_START(bpf_kfunc_check_set_skb)
-BTF_ID_FLAGS(func, bpf_dynptr_from_skb)
+BTF_ID_FLAGS(func, bpf_dynptr_from_skb, KF_TRUSTED_ARGS)
 BTF_KFUNCS_END(bpf_kfunc_check_set_skb)
 
 BTF_KFUNCS_START(bpf_kfunc_check_set_xdp)
@@ -12094,6 +12112,7 @@ static int __init bpf_kfunc_init(void)
 	ret = ret ?: register_btf_kfunc_id_set(BPF_PROG_TYPE_LWT_XMIT, &bpf_kfunc_set_skb);
 	ret = ret ?: register_btf_kfunc_id_set(BPF_PROG_TYPE_LWT_SEG6LOCAL, &bpf_kfunc_set_skb);
 	ret = ret ?: register_btf_kfunc_id_set(BPF_PROG_TYPE_NETFILTER, &bpf_kfunc_set_skb);
+	ret = ret ?: register_btf_kfunc_id_set(BPF_PROG_TYPE_TRACING, &bpf_kfunc_set_skb);
 	ret = ret ?: register_btf_kfunc_id_set(BPF_PROG_TYPE_XDP, &bpf_kfunc_set_xdp);
 	ret = ret ?: register_btf_kfunc_id_set(BPF_PROG_TYPE_CGROUP_SOCK_ADDR,
 					       &bpf_kfunc_set_sock_addr);

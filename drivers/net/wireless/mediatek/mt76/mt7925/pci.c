@@ -279,7 +279,7 @@ static int mt7925_pci_probe(struct pci_dev *pdev,
 		.rx_skb = mt7925_queue_rx_skb,
 		.rx_poll_complete = mt792x_rx_poll_complete,
 		.sta_add = mt7925_mac_sta_add,
-		.sta_assoc = mt7925_mac_sta_assoc,
+		.sta_event = mt7925_mac_sta_event,
 		.sta_remove = mt7925_mac_sta_remove,
 		.update_survey = mt792x_update_channel,
 	};
@@ -448,6 +448,8 @@ static int mt7925_pci_suspend(struct device *device)
 	flush_work(&dev->reset_work);
 	cancel_delayed_work_sync(&pm->ps_work);
 	cancel_work_sync(&pm->wake_work);
+
+	mt7925_roc_abort_sync(dev);
 
 	err = mt792x_mcu_drv_pmctrl(dev);
 	if (err < 0)

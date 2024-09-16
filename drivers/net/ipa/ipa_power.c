@@ -242,11 +242,8 @@ ipa_power_init(struct device *dev, const struct ipa_power_data *data)
 	int ret;
 
 	clk = clk_get(dev, "core");
-	if (IS_ERR(clk)) {
-		dev_err_probe(dev, PTR_ERR(clk), "error getting core clock\n");
-
-		return ERR_CAST(clk);
-	}
+	if (IS_ERR(clk))
+		return dev_err_cast_probe(dev, clk, "error getting core clock\n");
 
 	ret = clk_set_rate(clk, data->core_clock_rate);
 	if (ret) {

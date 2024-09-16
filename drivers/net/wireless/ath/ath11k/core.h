@@ -399,6 +399,7 @@ struct ath11k_vif {
 	u8 bssid[ETH_ALEN];
 	struct cfg80211_bitrate_mask bitrate_mask;
 	struct delayed_work connection_loss_work;
+	struct work_struct bcn_tx_work;
 	int num_legacy_stations;
 	int rtscts_prot_mode;
 	int txpower;
@@ -406,11 +407,17 @@ struct ath11k_vif {
 	bool wpaie_present;
 	bool bcca_zero_sent;
 	bool do_not_send_tmpl;
-	struct ieee80211_chanctx_conf chanctx;
 	struct ath11k_arp_ns_offload arp_ns_offload;
 	struct ath11k_rekey_data rekey_data;
 
 	struct ath11k_reg_tpc_power_info reg_tpc_info;
+
+	/* Must be last - ends in a flexible-array member.
+	 *
+	 * FIXME: Driver should not copy struct ieee80211_chanctx_conf,
+	 * especially because it has a flexible array. Find a better way.
+	 */
+	struct ieee80211_chanctx_conf chanctx;
 };
 
 struct ath11k_vif_iter {

@@ -3,11 +3,11 @@
 #define FS_ENET_H
 
 #include <linux/clk.h>
-#include <linux/mii.h>
 #include <linux/netdevice.h>
 #include <linux/types.h>
 #include <linux/list.h>
 #include <linux/phy.h>
+#include <linux/phylink.h>
 #include <linux/dma-mapping.h>
 
 #ifdef CONFIG_CPM1
@@ -77,8 +77,8 @@ struct fs_ops {
 	void (*free_bd)(struct net_device *dev);
 	void (*cleanup_data)(struct net_device *dev);
 	void (*set_multicast_list)(struct net_device *dev);
-	void (*adjust_link)(struct net_device *dev);
-	void (*restart)(struct net_device *dev);
+	void (*restart)(struct net_device *dev, phy_interface_t interface,
+			int speed, int duplex);
 	void (*stop)(struct net_device *dev);
 	void (*napi_clear_event)(struct net_device *dev);
 	void (*napi_enable)(struct net_device *dev);
@@ -91,14 +91,6 @@ struct fs_ops {
 	int (*get_regs)(struct net_device *dev, void *p, int *sizep);
 	int (*get_regs_len)(struct net_device *dev);
 	void (*tx_restart)(struct net_device *dev);
-};
-
-struct phy_info {
-	unsigned int id;
-	const char *name;
-	void (*startup) (struct net_device * dev);
-	void (*shutdown) (struct net_device * dev);
-	void (*ack_int) (struct net_device * dev);
 };
 
 /* The FEC stores dest/src/type, data, and checksum for receive packets.
@@ -122,15 +114,9 @@ struct fs_platform_info {
 
 	u32 dpram_offset;
 
-	struct device_node *phy_node;
-
 	int rx_ring, tx_ring;	/* number of buffers on rx	*/
 	int rx_copybreak;	/* limit we copy small frames	*/
 	int napi_weight;	/* NAPI weight			*/
-
-	int use_rmii;		/* use RMII mode		*/
-
-	struct clk *clk_per;	/* 'per' clock for register access */
 };
 
 struct fs_enet_private {
@@ -154,13 +140,10 @@ struct fs_enet_private {
 	cbd_t __iomem *cur_rx;
 	cbd_t __iomem *cur_tx;
 	int tx_free;
-	const struct phy_info *phy;
 	u32 msg_enable;
-	struct mii_if_info mii_if;
-	unsigned int last_mii_status;
+	struct phylink *phylink;
+	struct phylink_config phylink_config;
 	int interrupt;
-
-	int oldduplex, oldspeed, oldlink;	/* current settings */
 
 	/* event masks */
 	u32 ev_napi;		/* mask of NAPI events */

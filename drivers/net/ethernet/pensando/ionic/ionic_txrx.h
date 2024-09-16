@@ -4,9 +4,11 @@
 #ifndef _IONIC_TXRX_H_
 #define _IONIC_TXRX_H_
 
+struct bpf_prog;
+
 void ionic_tx_flush(struct ionic_cq *cq);
 
-void ionic_rx_fill(struct ionic_queue *q);
+void ionic_rx_fill(struct ionic_queue *q, struct bpf_prog *xdp_prog);
 void ionic_rx_empty(struct ionic_queue *q);
 void ionic_tx_empty(struct ionic_queue *q);
 int ionic_rx_napi(struct napi_struct *napi, int budget);

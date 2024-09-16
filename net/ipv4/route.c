@@ -512,7 +512,7 @@ static void __build_flow_key(const struct net *net, struct flowi4 *fl4,
 						    sk->sk_protocol;
 	}
 
-	flowi4_init_output(fl4, oif, mark, tos & IPTOS_RT_MASK, scope,
+	flowi4_init_output(fl4, oif, mark, tos & INET_DSCP_MASK, scope,
 			   prot, flow_flags, iph->daddr, iph->saddr, 0, 0,
 			   sock_net_uid(net, sk));
 }
@@ -541,7 +541,7 @@ static void build_sk_flow_key(struct flowi4 *fl4, const struct sock *sk)
 	if (inet_opt && inet_opt->opt.srr)
 		daddr = inet_opt->opt.faddr;
 	flowi4_init_output(fl4, sk->sk_bound_dev_if, READ_ONCE(sk->sk_mark),
-			   ip_sock_rt_tos(sk) & IPTOS_RT_MASK,
+			   ip_sock_rt_tos(sk),
 			   ip_sock_rt_scope(sk),
 			   inet_test_bit(HDRINCL, sk) ?
 				IPPROTO_RAW : sk->sk_protocol,
@@ -1263,7 +1263,7 @@ void ip_rt_get_source(u8 *addr, struct sk_buff *skb, struct rtable *rt)
 		struct flowi4 fl4 = {
 			.daddr = iph->daddr,
 			.saddr = iph->saddr,
-			.flowi4_tos = iph->tos & IPTOS_RT_MASK,
+			.flowi4_tos = iph->tos & INET_DSCP_MASK,
 			.flowi4_oif = rt->dst.dev->ifindex,
 			.flowi4_iif = skb->dev->ifindex,
 			.flowi4_mark = skb->mark,
@@ -2160,7 +2160,7 @@ int ip_route_use_hint(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 	if (rt->rt_type != RTN_LOCAL)
 		goto skip_validate_source;
 
-	tos &= IPTOS_RT_MASK;
+	tos &= INET_DSCP_MASK;
 	err = fib_validate_source(skb, saddr, daddr, tos, 0, dev, in_dev, &tag);
 	if (err < 0)
 		goto martian_source;
@@ -2470,7 +2470,7 @@ int ip_route_input_noref(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 	struct fib_result res;
 	int err;
 
-	tos &= IPTOS_RT_MASK;
+	tos &= INET_DSCP_MASK;
 	rcu_read_lock();
 	err = ip_route_input_rcu(skb, daddr, saddr, tos, dev, &res);
 	rcu_read_unlock();
@@ -2618,7 +2618,7 @@ struct rtable *ip_route_output_key_hash(struct net *net, struct flowi4 *fl4,
 	struct rtable *rth;
 
 	fl4->flowi4_iif = LOOPBACK_IFINDEX;
-	fl4->flowi4_tos &= IPTOS_RT_MASK;
+	fl4->flowi4_tos &= INET_DSCP_MASK;
 
 	rcu_read_lock();
 	rth = ip_route_output_key_hash_rcu(net, fl4, &res, skb);
@@ -3261,7 +3261,7 @@ static int inet_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh,
 
 	fl4.daddr = dst;
 	fl4.saddr = src;
-	fl4.flowi4_tos = rtm->rtm_tos & IPTOS_RT_MASK;
+	fl4.flowi4_tos = rtm->rtm_tos & INET_DSCP_MASK;
 	fl4.flowi4_oif = tb[RTA_OIF] ? nla_get_u32(tb[RTA_OIF]) : 0;
 	fl4.flowi4_mark = mark;
 	fl4.flowi4_uid = uid;
@@ -3286,7 +3286,7 @@ static int inet_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh,
 		skb->dev	= dev;
 		skb->mark	= mark;
 		err = ip_route_input_rcu(skb, dst, src,
-					 rtm->rtm_tos & IPTOS_RT_MASK, dev,
+					 rtm->rtm_tos & INET_DSCP_MASK, dev,
 					 &res);
 
 		rt = skb_rtable(skb);

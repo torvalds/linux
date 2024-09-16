@@ -1,6 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Microchip KSZ8795 switch driver
+ * Microchip KSZ8XXX series switch driver
+ *
+ * It supports the following switches:
+ * - KSZ8863, KSZ8873 aka KSZ88X3
+ * - KSZ8895, KSZ8864 aka KSZ8895 family
+ * - KSZ8794, KSZ8795, KSZ8765 aka KSZ87XX
+ * Note that it does NOT support:
+ * - KSZ8563, KSZ8567 - see KSZ9477 driver
  *
  * Copyright (C) 2017 Microchip Technology Inc.
  *	Tristram Ha <Tristram.Ha@microchip.com>
@@ -23,7 +30,7 @@
 #include <linux/phylink.h>
 
 #include "ksz_common.h"
-#include "ksz8795_reg.h"
+#include "ksz8_reg.h"
 #include "ksz8.h"
 
 static void ksz_cfg(struct ksz_device *dev, u32 addr, u8 bits, bool set)
@@ -38,6 +45,20 @@ static void ksz_port_cfg(struct ksz_device *dev, int port, int offset, u8 bits,
 			   bits, set ? bits : 0);
 }
 
+/**
+ * ksz8_ind_write8 - EEE/ACL/PME indirect register write
+ * @dev: The device structure.
+ * @table: Function & table select, register 110.
+ * @addr: Indirect access control, register 111.
+ * @data: The data to be written.
+ *
+ * This function performs an indirect register write for EEE, ACL or
+ * PME switch functionalities. Both 8-bit registers 110 and 111 are
+ * written at once with ksz_write16, using the serial multiple write
+ * functionality.
+ *
+ * Return: 0 on success, or an error code on failure.
+ */
 static int ksz8_ind_write8(struct ksz_device *dev, u8 table, u16 addr, u8 data)
 {
 	const u16 *regs;
@@ -56,6 +77,59 @@ static int ksz8_ind_write8(struct ksz_device *dev, u8 table, u16 addr, u8 data)
 	mutex_unlock(&dev->alu_mutex);
 
 	return ret;
+}
+
+/**
+ * ksz8_ind_read8 - EEE/ACL/PME indirect register read
+ * @dev: The device structure.
+ * @table: Function & table select, register 110.
+ * @addr: Indirect access control, register 111.
+ * @val: The value read.
+ *
+ * This function performs an indirect register read for EEE, ACL or
+ * PME switch functionalities. Both 8-bit registers 110 and 111 are
+ * written at once with ksz_write16, using the serial multiple write
+ * functionality.
+ *
+ * Return: 0 on success, or an error code on failure.
+ */
+static int ksz8_ind_read8(struct ksz_device *dev, u8 table, u16 addr, u8 *val)
+{
+	const u16 *regs;
+	u16 ctrl_addr;
+	int ret = 0;
+
+	regs = dev->info->regs;
+
+	mutex_lock(&dev->alu_mutex);
+
+	ctrl_addr = IND_ACC_TABLE(table | TABLE_READ) | addr;
+	ret = ksz_write16(dev, regs[REG_IND_CTRL_0], ctrl_addr);
+	if (!ret)
+		ret = ksz_read8(dev, regs[REG_IND_BYTE], val);
+
+	mutex_unlock(&dev->alu_mutex);
+
+	return ret;
+}
+
+int ksz8_pme_write8(struct ksz_device *dev, u32 reg, u8 value)
+{
+	return ksz8_ind_write8(dev, (u8)(reg >> 8), (u8)(reg), value);
+}
+
+int ksz8_pme_pread8(struct ksz_device *dev, int port, int offset, u8 *data)
+{
+	u8 table = (u8)(offset >> 8 | (port + 1));
+
+	return ksz8_ind_read8(dev, table, (u8)(offset), data);
+}
+
+int ksz8_pme_pwrite8(struct ksz_device *dev, int port, int offset, u8 data)
+{
+	u8 table = (u8)(offset >> 8 | (port + 1));
+
+	return ksz8_ind_write8(dev, table, (u8)(offset), data);
 }
 
 int ksz8_reset_switch(struct ksz_device *dev)
@@ -120,7 +194,9 @@ int ksz8_change_mtu(struct ksz_device *dev, int port, int mtu)
 	case KSZ8794_CHIP_ID:
 	case KSZ8765_CHIP_ID:
 		return ksz8795_change_mtu(dev, frame_size);
-	case KSZ8830_CHIP_ID:
+	case KSZ88X3_CHIP_ID:
+	case KSZ8864_CHIP_ID:
+	case KSZ8895_CHIP_ID:
 		return ksz8863_change_mtu(dev, frame_size);
 	}
 
@@ -317,7 +393,7 @@ static void ksz8863_r_mib_pkt(struct ksz_device *dev, int port, u16 addr,
 void ksz8_r_mib_pkt(struct ksz_device *dev, int port, u16 addr,
 		    u64 *dropped, u64 *cnt)
 {
-	if (ksz_is_ksz88x3(dev))
+	if (is_ksz88xx(dev))
 		ksz8863_r_mib_pkt(dev, port, addr, dropped, cnt);
 	else
 		ksz8795_r_mib_pkt(dev, port, addr, dropped, cnt);
@@ -325,7 +401,7 @@ void ksz8_r_mib_pkt(struct ksz_device *dev, int port, u16 addr,
 
 void ksz8_freeze_mib(struct ksz_device *dev, int port, bool freeze)
 {
-	if (ksz_is_ksz88x3(dev))
+	if (is_ksz88xx(dev))
 		return;
 
 	/* enable the port for flush/freeze function */
@@ -343,7 +419,8 @@ void ksz8_port_init_cnt(struct ksz_device *dev, int port)
 	struct ksz_port_mib *mib = &dev->ports[port].mib;
 	u64 *dropped;
 
-	if (!ksz_is_ksz88x3(dev)) {
+	/* For KSZ8795 family. */
+	if (ksz_is_ksz87xx(dev)) {
 		/* flush all enabled port MIB counters */
 		ksz_cfg(dev, REG_SW_CTRL_6, BIT(port), true);
 		ksz_cfg(dev, REG_SW_CTRL_6, SW_MIB_COUNTER_FLUSH, true);
@@ -542,11 +619,11 @@ static int ksz8_r_sta_mac_table(struct ksz_device *dev, u16 addr,
 			shifts[STATIC_MAC_FWD_PORTS];
 	alu->is_override = (data_hi & masks[STATIC_MAC_TABLE_OVERRIDE]) ? 1 : 0;
 
-	/* KSZ8795 family switches have STATIC_MAC_TABLE_USE_FID and
+	/* KSZ8795/KSZ8895 family switches have STATIC_MAC_TABLE_USE_FID and
 	 * STATIC_MAC_TABLE_FID definitions off by 1 when doing read on the
 	 * static MAC table compared to doing write.
 	 */
-	if (ksz_is_ksz87xx(dev))
+	if (ksz_is_ksz87xx(dev) || ksz_is_8895_family(dev))
 		data_hi >>= 1;
 	alu->is_static = true;
 	alu->is_use_fid = (data_hi & masks[STATIC_MAC_TABLE_USE_FID]) ? 1 : 0;
@@ -1545,6 +1622,7 @@ static void ksz8795_cpu_interface_select(struct ksz_device *dev, int port)
 
 void ksz8_port_setup(struct ksz_device *dev, int port, bool cpu_port)
 {
+	const u16 *regs = dev->info->regs;
 	struct dsa_switch *ds = dev->ds;
 	const u32 *masks;
 	int queues;
@@ -1575,6 +1653,13 @@ void ksz8_port_setup(struct ksz_device *dev, int port, bool cpu_port)
 		member = BIT(dsa_upstream_port(ds, port));
 
 	ksz8_cfg_port_member(dev, port, member);
+
+	/* Disable all WoL options by default. Otherwise
+	 * ksz_switch_macaddr_get/put logic will not work properly.
+	 * CPU port 4 has no WoL functionality.
+	 */
+	if (ksz_is_ksz87xx(dev) && !cpu_port)
+		ksz8_pme_pwrite8(dev, port, regs[REG_PORT_PME_CTRL], 0);
 }
 
 static void ksz88x3_config_rmii_clk(struct ksz_device *dev)
@@ -1617,7 +1702,8 @@ void ksz8_config_cpu_port(struct dsa_switch *ds)
 	for (i = 0; i < dev->phy_port_cnt; i++) {
 		p = &dev->ports[i];
 
-		if (!ksz_is_ksz88x3(dev)) {
+		/* For KSZ8795 family. */
+		if (ksz_is_ksz87xx(dev)) {
 			ksz_pread8(dev, i, regs[P_REMOTE_STATUS], &remote);
 			if (remote & KSZ8_PORT_FIBER_MODE)
 				p->fiber = 1;
@@ -1790,7 +1876,8 @@ int ksz8_enable_stp_addr(struct ksz_device *dev)
 int ksz8_setup(struct dsa_switch *ds)
 {
 	struct ksz_device *dev = ds->priv;
-	int i;
+	const u16 *regs = dev->info->regs;
+	int i, ret = 0;
 
 	ds->mtu_enforcement_ingress = true;
 
@@ -1829,7 +1916,21 @@ int ksz8_setup(struct dsa_switch *ds)
 	for (i = 0; i < (dev->info->num_vlans / 4); i++)
 		ksz8_r_vlan_entries(dev, i);
 
-	return ksz8_handle_global_errata(ds);
+	/* Make sure PME (WoL) is not enabled. If requested, it will
+	 * be enabled by ksz_wol_pre_shutdown(). Otherwise, some PMICs
+	 * do not like PME events changes before shutdown. PME only
+	 * available on KSZ87xx family.
+	 */
+	if (ksz_is_ksz87xx(dev)) {
+		ret = ksz8_pme_write8(dev, regs[REG_SW_PME_CTRL], 0);
+		if (!ret)
+			ret = ksz_rmw8(dev, REG_INT_ENABLE, INT_PME, 0);
+	}
+
+	if (!ret)
+		return ksz8_handle_global_errata(ds);
+	else
+		return ret;
 }
 
 void ksz8_get_caps(struct ksz_device *dev, int port,

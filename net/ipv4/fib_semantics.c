@@ -543,8 +543,7 @@ void rtmsg_fib(int event, __be32 key, struct fib_alias *fa,
 		    info->nlh, GFP_KERNEL);
 	return;
 errout:
-	if (err < 0)
-		rtnl_set_sk_err(info->nl_net, RTNLGRP_IPV4_ROUTE, err);
+	rtnl_set_sk_err(info->nl_net, RTNLGRP_IPV4_ROUTE, err);
 }
 
 static int fib_detect_death(struct fib_info *fi, int order,
@@ -2066,8 +2065,7 @@ static void fib_select_default(const struct flowi4 *flp, struct fib_result *res)
 
 		if (fa->fa_slen != slen)
 			continue;
-		if (fa->fa_dscp &&
-		    fa->fa_dscp != inet_dsfield_to_dscp(flp->flowi4_tos))
+		if (fa->fa_dscp && !fib_dscp_masked_match(fa->fa_dscp, flp))
 			continue;
 		if (fa->tb_id != tb->tb_id)
 			continue;

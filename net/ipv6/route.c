@@ -174,7 +174,7 @@ static void rt6_uncached_list_flush_dev(struct net_device *dev)
 			struct net_device *rt_dev = rt->dst.dev;
 			bool handled = false;
 
-			if (rt_idev->dev == dev) {
+			if (rt_idev && rt_idev->dev == dev) {
 				rt->rt6i_idev = in6_dev_get(blackhole_netdev);
 				in6_dev_put(rt_idev);
 				handled = true;
@@ -6193,8 +6193,7 @@ void inet6_rt_notify(int event, struct fib6_info *rt, struct nl_info *info,
 		    info->nlh, gfp_any());
 	return;
 errout:
-	if (err < 0)
-		rtnl_set_sk_err(net, RTNLGRP_IPV6_ROUTE, err);
+	rtnl_set_sk_err(net, RTNLGRP_IPV6_ROUTE, err);
 }
 
 void fib6_rt_update(struct net *net, struct fib6_info *rt,
@@ -6220,8 +6219,7 @@ void fib6_rt_update(struct net *net, struct fib6_info *rt,
 		    info->nlh, gfp_any());
 	return;
 errout:
-	if (err < 0)
-		rtnl_set_sk_err(net, RTNLGRP_IPV6_ROUTE, err);
+	rtnl_set_sk_err(net, RTNLGRP_IPV6_ROUTE, err);
 }
 
 void fib6_info_hw_flags_set(struct net *net, struct fib6_info *f6i,
