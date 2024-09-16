@@ -378,6 +378,35 @@ static int detect_directory_symlink_target(struct cifs_sb_info *cifs_sb,
 	return 0;
 }
 
+static int create_native_socket(const unsigned int xid, struct inode *inode,
+				struct dentry *dentry, struct cifs_tcon *tcon,
+				const char *full_path)
+{
+	struct reparse_data_buffer buf = {
+		.ReparseTag = cpu_to_le32(IO_REPARSE_TAG_AF_UNIX),
+		.ReparseDataLength = cpu_to_le16(0),
+	};
+	struct cifs_open_info_data data = {
+		.reparse_point = true,
+		.reparse = { .tag = IO_REPARSE_TAG_AF_UNIX, .buf = &buf, },
+	};
+	struct kvec iov = {
+		.iov_base = &buf,
+		.iov_len = sizeof(buf),
+	};
+	struct inode *new;
+	int rc = 0;
+
+	new = smb2_get_reparse_inode(&data, inode->i_sb, xid,
+				     tcon, full_path, false, &iov, NULL);
+	if (!IS_ERR(new))
+		d_instantiate(dentry, new);
+	else
+		rc = PTR_ERR(new);
+	cifs_free_open_info(&data);
+	return rc;
+}
+
 static int nfs_set_reparse_buf(struct reparse_nfs_data_buffer *buf,
 			       mode_t mode, dev_t dev,
 			       struct kvec *iov)
@@ -600,6 +629,9 @@ int smb2_mknod_reparse(unsigned int xid, struct inode *inode,
 		       const char *full_path, umode_t mode, dev_t dev)
 {
 	struct smb3_fs_context *ctx = CIFS_SB(inode->i_sb)->ctx;
+
+	if (S_ISSOCK(mode) && !ctx->nonativesocket && ctx->reparse_type != CIFS_REPARSE_TYPE_NONE)
+		return create_native_socket(xid, inode, dentry, tcon, full_path);
 
 	switch (ctx->reparse_type) {
 	case CIFS_REPARSE_TYPE_NFS:

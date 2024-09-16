@@ -179,6 +179,7 @@ enum cifs_param {
 	Opt_cache,
 	Opt_reparse,
 	Opt_upcalltarget,
+	Opt_nativesocket,
 	Opt_symlink,
 	Opt_symlinkroot,
 
@@ -310,6 +311,7 @@ struct smb3_fs_context {
 	bool dfs_automount:1; /* set for dfs automount only */
 	enum cifs_reparse_type reparse_type;
 	enum cifs_symlink_type symlink_type;
+	bool nonativesocket:1;
 	bool dfs_conn:1; /* set for dfs mounts */
 	char *dns_dom;
 	char *symlinkroot; /* top level directory for native SMB symlinks in absolute format */
