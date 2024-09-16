@@ -2393,76 +2393,77 @@ out:
  * but how to implement it without killing performance need more thinking.
  */
 static int fuse_write_begin(struct file *file, struct address_space *mapping,
-		loff_t pos, unsigned len, struct page **pagep, void **fsdata)
+		loff_t pos, unsigned len, struct folio **foliop, void **fsdata)
 {
 	pgoff_t index = pos >> PAGE_SHIFT;
 	struct fuse_conn *fc = get_fuse_conn(file_inode(file));
-	struct page *page;
+	struct folio *folio;
 	loff_t fsize;
 	int err = -ENOMEM;
 
 	WARN_ON(!fc->writeback_cache);
 
-	page = grab_cache_page_write_begin(mapping, index);
-	if (!page)
+	folio = __filemap_get_folio(mapping, index, FGP_WRITEBEGIN,
+			mapping_gfp_mask(mapping));
+	if (IS_ERR(folio))
 		goto error;
 
-	fuse_wait_on_page_writeback(mapping->host, page->index);
+	fuse_wait_on_page_writeback(mapping->host, folio->index);
 
-	if (PageUptodate(page) || len == PAGE_SIZE)
+	if (folio_test_uptodate(folio) || len >= folio_size(folio))
 		goto success;
 	/*
-	 * Check if the start this page comes after the end of file, in which
-	 * case the readpage can be optimized away.
+	 * Check if the start of this folio comes after the end of file,
+	 * in which case the readpage can be optimized away.
 	 */
 	fsize = i_size_read(mapping->host);
-	if (fsize <= (pos & PAGE_MASK)) {
-		size_t off = pos & ~PAGE_MASK;
+	if (fsize <= folio_pos(folio)) {
+		size_t off = offset_in_folio(folio, pos);
 		if (off)
-			zero_user_segment(page, 0, off);
+			folio_zero_segment(folio, 0, off);
 		goto success;
 	}
-	err = fuse_do_readpage(file, page);
+	err = fuse_do_readpage(file, &folio->page);
 	if (err)
 		goto cleanup;
 success:
-	*pagep = page;
+	*foliop = folio;
 	return 0;
 
 cleanup:
-	unlock_page(page);
-	put_page(page);
+	folio_unlock(folio);
+	folio_put(folio);
 error:
 	return err;
 }
 
 static int fuse_write_end(struct file *file, struct address_space *mapping,
 		loff_t pos, unsigned len, unsigned copied,
-		struct page *page, void *fsdata)
+		struct folio *folio, void *fsdata)
 {
-	struct inode *inode = page->mapping->host;
+	struct inode *inode = folio->mapping->host;
 
 	/* Haven't copied anything?  Skip zeroing, size extending, dirtying. */
 	if (!copied)
 		goto unlock;
 
 	pos += copied;
-	if (!PageUptodate(page)) {
+	if (!folio_test_uptodate(folio)) {
 		/* Zero any unwritten bytes at the end of the page */
 		size_t endoff = pos & ~PAGE_MASK;
 		if (endoff)
-			zero_user_segment(page, endoff, PAGE_SIZE);
-		SetPageUptodate(page);
+			folio_zero_segment(folio, endoff, PAGE_SIZE);
+		folio_mark_uptodate(folio);
 	}
 
 	if (pos > inode->i_size)
 		i_size_write(inode, pos);
 
-	set_page_dirty(page);
+	folio_mark_dirty(folio);
 
 unlock:
-	unlock_page(page);
-	put_page(page);
+	folio_unlock(folio);
+	folio_put(folio);
 
 	return copied;
 }

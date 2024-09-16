@@ -133,8 +133,8 @@ extern void sysv_free_block(struct super_block *, sysv_zone_t);
 extern unsigned long sysv_count_free_blocks(struct super_block *);
 
 /* itree.c */
-extern void sysv_truncate(struct inode *);
-extern int sysv_prepare_chunk(struct page *page, loff_t pos, unsigned len);
+void sysv_truncate(struct inode *);
+int sysv_prepare_chunk(struct folio *folio, loff_t pos, unsigned len);
 
 /* inode.c */
 extern struct inode *sysv_iget(struct super_block *, unsigned int);
@@ -148,15 +148,15 @@ extern void sysv_destroy_icache(void);
 
 
 /* dir.c */
-extern struct sysv_dir_entry *sysv_find_entry(struct dentry *, struct page **);
-extern int sysv_add_link(struct dentry *, struct inode *);
-extern int sysv_delete_entry(struct sysv_dir_entry *, struct page *);
-extern int sysv_make_empty(struct inode *, struct inode *);
-extern int sysv_empty_dir(struct inode *);
-extern int sysv_set_link(struct sysv_dir_entry *, struct page *,
+struct sysv_dir_entry *sysv_find_entry(struct dentry *, struct folio **);
+int sysv_add_link(struct dentry *, struct inode *);
+int sysv_delete_entry(struct sysv_dir_entry *, struct folio *);
+int sysv_make_empty(struct inode *, struct inode *);
+int sysv_empty_dir(struct inode *);
+int sysv_set_link(struct sysv_dir_entry *, struct folio *,
 			struct inode *);
-extern struct sysv_dir_entry *sysv_dotdot(struct inode *, struct page **);
-extern ino_t sysv_inode_by_name(struct dentry *);
+struct sysv_dir_entry *sysv_dotdot(struct inode *, struct folio **);
+ino_t sysv_inode_by_name(struct dentry *);
 
 
 extern const struct inode_operations sysv_file_inode_operations;

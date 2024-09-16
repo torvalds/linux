@@ -451,20 +451,20 @@ static void blkdev_readahead(struct readahead_control *rac)
 }
 
 static int blkdev_write_begin(struct file *file, struct address_space *mapping,
-		loff_t pos, unsigned len, struct page **pagep, void **fsdata)
+		loff_t pos, unsigned len, struct folio **foliop, void **fsdata)
 {
-	return block_write_begin(mapping, pos, len, pagep, blkdev_get_block);
+	return block_write_begin(mapping, pos, len, foliop, blkdev_get_block);
 }
 
 static int blkdev_write_end(struct file *file, struct address_space *mapping,
-		loff_t pos, unsigned len, unsigned copied, struct page *page,
+		loff_t pos, unsigned len, unsigned copied, struct folio *folio,
 		void *fsdata)
 {
 	int ret;
-	ret = block_write_end(file, mapping, pos, len, copied, page, fsdata);
+	ret = block_write_end(file, mapping, pos, len, copied, folio, fsdata);
 
-	unlock_page(page);
-	put_page(page);
+	folio_unlock(folio);
+	folio_put(folio);
 
 	return ret;
 }

@@ -312,11 +312,11 @@ static void omfs_write_failed(struct address_space *mapping, loff_t to)
 
 static int omfs_write_begin(struct file *file, struct address_space *mapping,
 			loff_t pos, unsigned len,
-			struct page **pagep, void **fsdata)
+			struct folio **foliop, void **fsdata)
 {
 	int ret;
 
-	ret = block_write_begin(mapping, pos, len, pagep, omfs_get_block);
+	ret = block_write_begin(mapping, pos, len, foliop, omfs_get_block);
 	if (unlikely(ret))
 		omfs_write_failed(mapping, pos + len);
 
