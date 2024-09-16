@@ -3656,8 +3656,8 @@ struct rtw89_chip_ops {
 				    struct rtw89_vif_link *rtwvif_link,
 				    struct rtw89_sta_link *rtwsta_link);
 	int (*h2c_assoc_cmac_tbl)(struct rtw89_dev *rtwdev,
-				  struct ieee80211_vif *vif,
-				  struct ieee80211_sta *sta);
+				  struct rtw89_vif_link *rtwvif_link,
+				  struct rtw89_sta_link *rtwsta_link);
 	int (*h2c_ampdu_cmac_tbl)(struct rtw89_dev *rtwdev,
 				  struct ieee80211_vif *vif,
 				  struct ieee80211_sta *sta);
@@ -6656,21 +6656,21 @@ void rtw89_core_napi_start(struct rtw89_dev *rtwdev);
 void rtw89_core_napi_stop(struct rtw89_dev *rtwdev);
 int rtw89_core_napi_init(struct rtw89_dev *rtwdev);
 void rtw89_core_napi_deinit(struct rtw89_dev *rtwdev);
-int rtw89_core_sta_add(struct rtw89_dev *rtwdev,
-		       struct ieee80211_vif *vif,
-		       struct ieee80211_sta *sta);
-int rtw89_core_sta_assoc(struct rtw89_dev *rtwdev,
-			 struct ieee80211_vif *vif,
-			 struct ieee80211_sta *sta);
-int rtw89_core_sta_disassoc(struct rtw89_dev *rtwdev,
-			    struct ieee80211_vif *vif,
-			    struct ieee80211_sta *sta);
-int rtw89_core_sta_disconnect(struct rtw89_dev *rtwdev,
-			      struct ieee80211_vif *vif,
-			      struct ieee80211_sta *sta);
-int rtw89_core_sta_remove(struct rtw89_dev *rtwdev,
-			  struct ieee80211_vif *vif,
-			  struct ieee80211_sta *sta);
+int rtw89_core_sta_link_add(struct rtw89_dev *rtwdev,
+			    struct rtw89_vif_link *rtwvif_link,
+			    struct rtw89_sta_link *rtwsta_link);
+int rtw89_core_sta_link_assoc(struct rtw89_dev *rtwdev,
+			      struct rtw89_vif_link *rtwvif_link,
+			      struct rtw89_sta_link *rtwsta_link);
+int rtw89_core_sta_link_disassoc(struct rtw89_dev *rtwdev,
+				 struct rtw89_vif_link *rtwvif_link,
+				 struct rtw89_sta_link *rtwsta_link);
+int rtw89_core_sta_link_disconnect(struct rtw89_dev *rtwdev,
+				   struct rtw89_vif_link *rtwvif_link,
+				   struct rtw89_sta_link *rtwsta_link);
+int rtw89_core_sta_link_remove(struct rtw89_dev *rtwdev,
+			       struct rtw89_vif_link *rtwvif_link,
+			       struct rtw89_sta_link *rtwsta_link);
 void rtw89_core_set_tid_config(struct rtw89_dev *rtwdev,
 			       struct ieee80211_sta *sta,
 			       struct cfg80211_tid_config *tid_config);
@@ -6702,6 +6702,12 @@ int rtw89_core_acquire_sta_ba_entry(struct rtw89_dev *rtwdev,
 int rtw89_core_release_sta_ba_entry(struct rtw89_dev *rtwdev,
 				    struct rtw89_sta_link *rtwsta_link, u8 tid,
 				    u8 *cam_idx);
+void rtw89_core_free_sta_pending_ba(struct rtw89_dev *rtwdev,
+				    struct ieee80211_sta *sta);
+void rtw89_core_free_sta_pending_forbid_ba(struct rtw89_dev *rtwdev,
+					   struct ieee80211_sta *sta);
+void rtw89_core_free_sta_pending_roc_tx(struct rtw89_dev *rtwdev,
+					struct ieee80211_sta *sta);
 void rtw89_vif_type_mapping(struct rtw89_vif_link *rtwvif_link, bool assoc);
 int rtw89_chip_info_setup(struct rtw89_dev *rtwdev);
 void rtw89_chip_cfg_txpwr_ul_tb_offset(struct rtw89_dev *rtwdev,

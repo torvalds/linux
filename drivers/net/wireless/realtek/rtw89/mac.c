@@ -4877,7 +4877,7 @@ rtw89_mac_bcn_fltr_rpt(struct rtw89_dev *rtwdev, struct rtw89_vif_link *rtwvif_l
 		if (!rtwdev->scanning && !rtwvif_link->offchan)
 			ieee80211_connection_loss(vif);
 		else
-			rtw89_fw_h2c_set_bcn_fltr_cfg(rtwdev, vif, true);
+			rtw89_fw_h2c_set_bcn_fltr_cfg(rtwdev, rtwvif_link, true);
 		return;
 	case RTW89_BCN_FLTR_NOTIFY:
 		nl_event = NL80211_CQM_RSSI_THRESHOLD_EVENT_HIGH;
@@ -5969,11 +5969,9 @@ static int rtw89_mac_init_bfee_ax(struct rtw89_dev *rtwdev, u8 mac_idx)
 }
 
 static int rtw89_mac_set_csi_para_reg_ax(struct rtw89_dev *rtwdev,
-					 struct ieee80211_vif *vif,
-					 struct ieee80211_sta *sta)
+					 struct rtw89_vif_link *rtwvif_link,
+					 struct rtw89_sta_link *rtwsta_link)
 {
-	struct rtw89_vif_link *rtwvif_link = (struct rtw89_vif_link *)vif->drv_priv;
-	struct rtw89_sta_link *rtwsta_link = (struct rtw89_sta_link *)sta->drv_priv;
 	u8 nc = 1, nr = 3, ng = 0, cb = 1, cs = 1, ldpc_en = 1, stbc_en = 1;
 	struct ieee80211_link_sta *link_sta;
 	u8 mac_idx = rtwvif_link->mac_idx;
@@ -6036,11 +6034,9 @@ static int rtw89_mac_set_csi_para_reg_ax(struct rtw89_dev *rtwdev,
 }
 
 static int rtw89_mac_csi_rrsc_ax(struct rtw89_dev *rtwdev,
-				 struct ieee80211_vif *vif,
-				 struct ieee80211_sta *sta)
+				 struct rtw89_vif_link *rtwvif_link,
+				 struct rtw89_sta_link *rtwsta_link)
 {
-	struct rtw89_vif_link *rtwvif_link = (struct rtw89_vif_link *)vif->drv_priv;
-	struct rtw89_sta_link *rtwsta_link = (struct rtw89_sta_link *)sta->drv_priv;
 	u32 rrsc = BIT(RTW89_MAC_BF_RRSC_6M) | BIT(RTW89_MAC_BF_RRSC_24M);
 	struct ieee80211_link_sta *link_sta;
 	u8 mac_idx = rtwvif_link->mac_idx;
@@ -6084,11 +6080,9 @@ static int rtw89_mac_csi_rrsc_ax(struct rtw89_dev *rtwdev,
 }
 
 static void rtw89_mac_bf_assoc_ax(struct rtw89_dev *rtwdev,
-				  struct ieee80211_vif *vif,
-				  struct ieee80211_sta *sta)
+				  struct rtw89_vif_link *rtwvif_link,
+				  struct rtw89_sta_link *rtwsta_link)
 {
-	struct rtw89_vif_link *rtwvif_link = (struct rtw89_vif_link *)vif->drv_priv;
-	struct rtw89_sta_link *rtwsta_link = (struct rtw89_sta_link *)sta->drv_priv;
 	struct ieee80211_link_sta *link_sta;
 	bool has_beamformer_cap;
 
@@ -6103,16 +6097,15 @@ static void rtw89_mac_bf_assoc_ax(struct rtw89_dev *rtwdev,
 		rtw89_debug(rtwdev, RTW89_DBG_BF,
 			    "initialize bfee for new association\n");
 		rtw89_mac_init_bfee_ax(rtwdev, rtwvif_link->mac_idx);
-		rtw89_mac_set_csi_para_reg_ax(rtwdev, vif, sta);
-		rtw89_mac_csi_rrsc_ax(rtwdev, vif, sta);
+		rtw89_mac_set_csi_para_reg_ax(rtwdev, rtwvif_link, rtwsta_link);
+		rtw89_mac_csi_rrsc_ax(rtwdev, rtwvif_link, rtwsta_link);
 	}
 }
 
-void rtw89_mac_bf_disassoc(struct rtw89_dev *rtwdev, struct ieee80211_vif *vif,
-			   struct ieee80211_sta *sta)
+void rtw89_mac_bf_disassoc(struct rtw89_dev *rtwdev,
+			   struct rtw89_vif_link *rtwvif_link,
+			   struct rtw89_sta_link *rtwsta_link)
 {
-	struct rtw89_vif_link *rtwvif_link = (struct rtw89_vif_link *)vif->drv_priv;
-
 	rtw89_mac_bfee_ctrl(rtwdev, rtwvif_link->mac_idx, false);
 }
 
@@ -6146,7 +6139,7 @@ void rtw89_mac_bf_set_gid_table(struct rtw89_dev *rtwdev, struct ieee80211_vif *
 
 struct rtw89_mac_bf_monitor_iter_data {
 	struct rtw89_dev *rtwdev;
-	struct ieee80211_sta *down_sta;
+	struct rtw89_sta_link *down_rtwsta_link;
 	int count;
 };
 
@@ -6156,11 +6149,11 @@ void rtw89_mac_bf_monitor_calc_iter(void *data, struct ieee80211_sta *sta)
 	struct rtw89_sta_link *rtwsta_link = (struct rtw89_sta_link *)sta->drv_priv;
 	struct rtw89_mac_bf_monitor_iter_data *iter_data =
 				(struct rtw89_mac_bf_monitor_iter_data *)data;
-	struct ieee80211_sta *down_sta = iter_data->down_sta;
+	struct rtw89_sta_link *down_rtwsta_link = iter_data->down_rtwsta_link;
 	struct ieee80211_link_sta *link_sta;
 	int *count = &iter_data->count;
 
-	if (down_sta == sta)
+	if (down_rtwsta_link == rtwsta_link)
 		return;
 
 	rcu_read_lock();
@@ -6173,12 +6166,13 @@ void rtw89_mac_bf_monitor_calc_iter(void *data, struct ieee80211_sta *sta)
 }
 
 void rtw89_mac_bf_monitor_calc(struct rtw89_dev *rtwdev,
-			       struct ieee80211_sta *sta, bool disconnect)
+			       struct rtw89_sta_link *rtwsta_link,
+			       bool disconnect)
 {
 	struct rtw89_mac_bf_monitor_iter_data data;
 
 	data.rtwdev = rtwdev;
-	data.down_sta = disconnect ? sta : NULL;
+	data.down_rtwsta_link = disconnect ? rtwsta_link : NULL;
 	data.count = 0;
 	ieee80211_iterate_stations_atomic(rtwdev->hw,
 					  rtw89_mac_bf_monitor_calc_iter,

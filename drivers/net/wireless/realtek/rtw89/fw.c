@@ -2831,12 +2831,11 @@ static void __get_sta_he_pkt_padding(struct rtw89_dev *rtwdev,
 }
 
 int rtw89_fw_h2c_assoc_cmac_tbl(struct rtw89_dev *rtwdev,
-				struct ieee80211_vif *vif,
-				struct ieee80211_sta *sta)
+				struct rtw89_vif_link *rtwvif_link,
+				struct rtw89_sta_link *rtwsta_link)
 {
+	struct ieee80211_vif *vif = rtwvif_to_vif(rtwvif_link);
 	const struct rtw89_chip_info *chip = rtwdev->chip;
-	struct rtw89_sta_link *rtwsta_link = sta_to_rtwsta_safe(sta);
-	struct rtw89_vif_link *rtwvif_link = (struct rtw89_vif_link *)vif->drv_priv;
 	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev,
 						       rtwvif_link->chanctx_idx);
 	struct ieee80211_link_sta *link_sta;
@@ -2979,11 +2978,10 @@ static void __get_sta_eht_pkt_padding(struct rtw89_dev *rtwdev,
 }
 
 int rtw89_fw_h2c_assoc_cmac_tbl_g7(struct rtw89_dev *rtwdev,
-				   struct ieee80211_vif *vif,
-				   struct ieee80211_sta *sta)
+				   struct rtw89_vif_link *rtwvif_link,
+				   struct rtw89_sta_link *rtwsta_link)
 {
-	struct rtw89_vif_link *rtwvif_link = (struct rtw89_vif_link *)vif->drv_priv;
-	struct rtw89_sta_link *rtwsta_link = sta_to_rtwsta_safe(sta);
+	struct ieee80211_vif *vif = rtwvif_to_vif(rtwvif_link);
 	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, rtwvif_link->chanctx_idx);
 	u8 mac_id = rtwsta_link ? rtwsta_link->mac_id : rtwvif_link->mac_id;
 	struct rtw89_h2c_cctlinfo_ud_g7 *h2c;
@@ -3788,10 +3786,9 @@ fail:
 }
 
 int rtw89_fw_h2c_set_bcn_fltr_cfg(struct rtw89_dev *rtwdev,
-				  struct ieee80211_vif *vif,
+				  struct rtw89_vif_link *rtwvif_link,
 				  bool connect)
 {
-	struct rtw89_vif_link *rtwvif_link = vif_to_rtwvif_safe(vif);
 	struct ieee80211_bss_conf *bss_conf;
 	s32 thold = RTW89_DEFAULT_CQM_THOLD;
 	u32 hyst = RTW89_DEFAULT_CQM_HYST;

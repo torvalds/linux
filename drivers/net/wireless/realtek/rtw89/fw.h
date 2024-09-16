@@ -4413,11 +4413,11 @@ int rtw89_fw_h2c_default_dmac_tbl_v2(struct rtw89_dev *rtwdev,
 				     struct rtw89_vif_link *rtwvif_link,
 				     struct rtw89_sta_link *rtwsta_link);
 int rtw89_fw_h2c_assoc_cmac_tbl(struct rtw89_dev *rtwdev,
-				struct ieee80211_vif *vif,
-				struct ieee80211_sta *sta);
+				struct rtw89_vif_link *rtwvif_link,
+				struct rtw89_sta_link *rtwsta_link);
 int rtw89_fw_h2c_assoc_cmac_tbl_g7(struct rtw89_dev *rtwdev,
-				   struct ieee80211_vif *vif,
-				   struct ieee80211_sta *sta);
+				   struct rtw89_vif_link *rtwvif_link,
+				   struct rtw89_sta_link *rtwsta_link);
 int rtw89_fw_h2c_ampdu_cmac_tbl_g7(struct rtw89_dev *rtwdev,
 				   struct ieee80211_vif *vif,
 				   struct ieee80211_sta *sta);
@@ -4452,7 +4452,7 @@ int rtw89_fw_h2c_set_edca(struct rtw89_dev *rtwdev, struct rtw89_vif_link *rtwvi
 			  u8 ac, u32 val);
 int rtw89_fw_h2c_set_ofld_cfg(struct rtw89_dev *rtwdev);
 int rtw89_fw_h2c_set_bcn_fltr_cfg(struct rtw89_dev *rtwdev,
-				  struct ieee80211_vif *vif,
+				  struct rtw89_vif_link *rtwvif_link,
 				  bool connect);
 int rtw89_fw_h2c_rssi_offload(struct rtw89_dev *rtwdev,
 			      struct rtw89_rx_phy_ppdu *phy_ppdu);
@@ -4654,12 +4654,12 @@ static inline int rtw89_chip_h2c_update_beacon(struct rtw89_dev *rtwdev,
 }
 
 static inline int rtw89_chip_h2c_assoc_cmac_tbl(struct rtw89_dev *rtwdev,
-						struct ieee80211_vif *vif,
-						struct ieee80211_sta *sta)
+						struct rtw89_vif_link *rtwvif_link,
+						struct rtw89_sta_link *rtwsta_link)
 {
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 
-	return chip->ops->h2c_assoc_cmac_tbl(rtwdev, vif, sta);
+	return chip->ops->h2c_assoc_cmac_tbl(rtwdev, rtwvif_link, rtwsta_link);
 }
 
 static inline int rtw89_chip_h2c_ampdu_cmac_tbl(struct rtw89_dev *rtwdev,
