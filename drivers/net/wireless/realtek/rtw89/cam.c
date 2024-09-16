@@ -655,16 +655,23 @@ int rtw89_cam_fill_bssid_cam_info(struct rtw89_dev *rtwdev,
 				  struct rtw89_vif_link *rtwvif_link,
 				  struct rtw89_sta_link *rtwsta_link, u8 *cmd)
 {
-	struct ieee80211_vif *vif = rtwvif_to_vif(rtwvif_link);
 	struct rtw89_bssid_cam_entry *bssid_cam = rtw89_get_bssid_cam_of(rtwvif_link,
 									 rtwsta_link);
-	u8 bss_color = vif->bss_conf.he_bss_color.color;
+	struct ieee80211_bss_conf *bss_conf;
+	u8 bss_color;
 	u8 bss_mask;
 
-	if (vif->bss_conf.nontransmitted)
+	rcu_read_lock();
+
+	bss_conf = rtw89_vif_rcu_dereference_link(rtwvif_link, false);
+	bss_color = bss_conf->he_bss_color.color;
+
+	if (bss_conf->nontransmitted)
 		bss_mask = RTW89_BSSID_MATCH_5_BYTES;
 	else
 		bss_mask = RTW89_BSSID_MATCH_ALL;
+
+	rcu_read_unlock();
 
 	FWCMD_SET_ADDR_BSSID_IDX(cmd, bssid_cam->bssid_cam_idx);
 	FWCMD_SET_ADDR_BSSID_OFFSET(cmd, bssid_cam->offset);
