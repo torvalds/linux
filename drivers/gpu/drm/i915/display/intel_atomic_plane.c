@@ -493,6 +493,61 @@ static bool i9xx_must_disable_cxsr(const struct intel_crtc_state *new_crtc_state
 	return old_ctl != new_ctl;
 }
 
+static bool ilk_must_disable_lp_wm(const struct intel_crtc_state *new_crtc_state,
+				   const struct intel_plane_state *old_plane_state,
+				   const struct intel_plane_state *new_plane_state)
+{
+	struct intel_plane *plane = to_intel_plane(new_plane_state->uapi.plane);
+	bool old_visible = old_plane_state->uapi.visible;
+	bool new_visible = new_plane_state->uapi.visible;
+	bool modeset, turn_on;
+
+	if (plane->id == PLANE_CURSOR)
+		return false;
+
+	modeset = intel_crtc_needs_modeset(new_crtc_state);
+	turn_on = new_visible && (!old_visible || modeset);
+
+	/*
+	 * ILK/SNB DVSACNTR/Sprite Enable
+	 * IVB SPR_CTL/Sprite Enable
+	 * "When in Self Refresh Big FIFO mode, a write to enable the
+	 *  plane will be internally buffered and delayed while Big FIFO
+	 *  mode is exiting."
+	 *
+	 * Which means that enabling the sprite can take an extra frame
+	 * when we start in big FIFO mode (LP1+). Thus we need to drop
+	 * down to LP0 and wait for vblank in order to make sure the
+	 * sprite gets enabled on the next vblank after the register write.
+	 * Doing otherwise would risk enabling the sprite one frame after
+	 * we've already signalled flip completion. We can resume LP1+
+	 * once the sprite has been enabled.
+	 *
+	 * With experimental results seems this is needed also for primary
+	 * plane, not only sprite plane.
+	 */
+	if (turn_on)
+		return true;
+
+	/*
+	 * WaCxSRDisabledForSpriteScaling:ivb
+	 * IVB SPR_SCALE/Scaling Enable
+	 * "Low Power watermarks must be disabled for at least one
+	 *  frame before enabling sprite scaling, and kept disabled
+	 *  until sprite scaling is disabled."
+	 *
+	 * ILK/SNB DVSASCALE/Scaling Enable
+	 * "When in Self Refresh Big FIFO mode, scaling enable will be
+	 *  masked off while Big FIFO mode is exiting."
+	 *
+	 * Despite the w/a only being listed for IVB we assume that
+	 * the ILK/SNB note has similar ramifications, hence we apply
+	 * the w/a on all three platforms.
+	 */
+	return !intel_plane_is_scaled(old_plane_state) &&
+		intel_plane_is_scaled(new_plane_state);
+}
+
 static int intel_plane_atomic_calc_changes(const struct intel_crtc_state *old_crtc_state,
 					   struct intel_crtc_state *new_crtc_state,
 					   const struct intel_plane_state *old_plane_state,
@@ -568,44 +623,8 @@ static int intel_plane_atomic_calc_changes(const struct intel_crtc_state *old_cr
 	    i9xx_must_disable_cxsr(new_crtc_state, old_plane_state, new_plane_state))
 		new_crtc_state->disable_cxsr = true;
 
-	/*
-	 * ILK/SNB DVSACNTR/Sprite Enable
-	 * IVB SPR_CTL/Sprite Enable
-	 * "When in Self Refresh Big FIFO mode, a write to enable the
-	 *  plane will be internally buffered and delayed while Big FIFO
-	 *  mode is exiting."
-	 *
-	 * Which means that enabling the sprite can take an extra frame
-	 * when we start in big FIFO mode (LP1+). Thus we need to drop
-	 * down to LP0 and wait for vblank in order to make sure the
-	 * sprite gets enabled on the next vblank after the register write.
-	 * Doing otherwise would risk enabling the sprite one frame after
-	 * we've already signalled flip completion. We can resume LP1+
-	 * once the sprite has been enabled.
-	 *
-	 *
-	 * WaCxSRDisabledForSpriteScaling:ivb
-	 * IVB SPR_SCALE/Scaling Enable
-	 * "Low Power watermarks must be disabled for at least one
-	 *  frame before enabling sprite scaling, and kept disabled
-	 *  until sprite scaling is disabled."
-	 *
-	 * ILK/SNB DVSASCALE/Scaling Enable
-	 * "When in Self Refresh Big FIFO mode, scaling enable will be
-	 *  masked off while Big FIFO mode is exiting."
-	 *
-	 * Despite the w/a only being listed for IVB we assume that
-	 * the ILK/SNB note has similar ramifications, hence we apply
-	 * the w/a on all three platforms.
-	 *
-	 * With experimental results seems this is needed also for primary
-	 * plane, not only sprite plane.
-	 */
-	if (plane->id != PLANE_CURSOR &&
-	    (IS_IRONLAKE(dev_priv) || IS_SANDYBRIDGE(dev_priv) ||
-	     IS_IVYBRIDGE(dev_priv)) &&
-	    (turn_on || (!intel_plane_is_scaled(old_plane_state) &&
-			 intel_plane_is_scaled(new_plane_state))))
+	if ((IS_IRONLAKE(dev_priv) || IS_SANDYBRIDGE(dev_priv) || IS_IVYBRIDGE(dev_priv)) &&
+	    ilk_must_disable_lp_wm(new_crtc_state, old_plane_state, new_plane_state))
 		new_crtc_state->disable_lp_wm = true;
 
 	if (intel_plane_do_async_flip(plane, old_crtc_state, new_crtc_state)) {
