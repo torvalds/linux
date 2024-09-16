@@ -120,8 +120,8 @@ static void ast_detect_tx_chip(struct ast_device *ast, bool need_post)
 			ast->tx_chip = AST_TX_DP501;
 		}
 	} else if (IS_AST_GEN7(ast)) {
-		if (ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xD1, TX_TYPE_MASK) ==
-		    ASTDP_DPMCU_TX) {
+		if (ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xd1, AST_IO_VGACRD1_TX_TYPE_MASK) ==
+		    AST_IO_VGACRD1_TX_ASTDP) {
 			int ret = ast_dp_launch(ast);
 
 			if (!ret)
