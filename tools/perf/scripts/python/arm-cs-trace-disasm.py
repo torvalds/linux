@@ -49,13 +49,36 @@ def default_objdump():
 	return config if config else "objdump"
 
 # Command line parsing.
+def int_arg(v):
+	v = int(v)
+	if v < 0:
+		raise argparse.ArgumentTypeError("Argument must be a positive integer")
+	return v
+
 args = argparse.ArgumentParser()
 args.add_argument("-k", "--vmlinux",
 		  help="Set path to vmlinux file. Omit to autodetect if running on same machine")
 args.add_argument("-d", "--objdump", nargs="?", const=default_objdump(),
 		  help="Show disassembly. Can also be used to change the objdump path"),
 args.add_argument("-v", "--verbose", action="store_true", help="Enable debugging log")
+args.add_argument("--start-time", type=int_arg, help="Monotonic clock time of sample to start from. "
+		  "See 'time' field on samples in -v mode.")
+args.add_argument("--stop-time", type=int_arg, help="Monotonic clock time of sample to stop at. "
+		  "See 'time' field on samples in -v mode.")
+args.add_argument("--start-sample", type=int_arg, help="Index of sample to start from. "
+		  "See 'index' field on samples in -v mode.")
+args.add_argument("--stop-sample", type=int_arg, help="Index of sample to stop at. "
+		  "See 'index' field on samples in -v mode.")
+
 options = args.parse_args()
+if (options.start_time and options.stop_time and
+    options.start_time >= options.stop_time):
+	print("--start-time must less than --stop-time")
+	exit(2)
+if (options.start_sample and options.stop_sample and
+    options.start_sample >= options.stop_sample):
+	print("--start-sample must less than --stop-sample")
+	exit(2)
 
 # Initialize global dicts and regular expression
 disasm_cache = dict()
@@ -63,6 +86,7 @@ cpu_data = dict()
 disasm_re = re.compile(r"^\s*([0-9a-fA-F]+):")
 disasm_func_re = re.compile(r"^\s*([0-9a-fA-F]+)\s.*:")
 cache_size = 64*1024
+sample_idx = -1
 
 glb_source_file_name	= None
 glb_line_number		= None
@@ -151,10 +175,10 @@ def print_disam(dso_fname, dso_start, start_addr, stop_addr):
 
 def print_sample(sample):
 	print("Sample = { cpu: %04d addr: 0x%016x phys_addr: 0x%016x ip: 0x%016x " \
-	      "pid: %d tid: %d period: %d time: %d }" % \
+	      "pid: %d tid: %d period: %d time: %d index: %d}" % \
 	      (sample['cpu'], sample['addr'], sample['phys_addr'], \
 	       sample['ip'], sample['pid'], sample['tid'], \
-	       sample['period'], sample['time']))
+	       sample['period'], sample['time'], sample_idx))
 
 def trace_begin():
 	print('ARM CoreSight Trace Data Assembler Dump')
@@ -216,6 +240,7 @@ def print_srccode(comm, param_dict, sample, symbol, dso):
 def process_event(param_dict):
 	global cache_size
 	global options
+	global sample_idx
 
 	sample = param_dict["sample"]
 	comm = param_dict["comm"]
@@ -230,6 +255,17 @@ def process_event(param_dict):
 	cpu = sample["cpu"]
 	ip = sample["ip"]
 	addr = sample["addr"]
+
+	sample_idx += 1
+
+	if (options.start_time and sample["time"] < options.start_time):
+		return
+	if (options.stop_time and sample["time"] > options.stop_time):
+		exit(0)
+	if (options.start_sample and sample_idx < options.start_sample):
+		return
+	if (options.stop_sample and sample_idx > options.stop_sample):
+		exit(0)
 
 	if (options.verbose == True):
 		print("Event type: %s" % name)
