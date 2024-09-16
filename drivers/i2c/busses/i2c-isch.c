@@ -270,27 +270,26 @@ static const struct i2c_algorithm smbus_algorithm = {
 	.functionality	= sch_func,
 };
 
-static int smbus_sch_probe(struct platform_device *dev)
+static int smbus_sch_probe(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
 	struct sch_i2c *priv;
 	struct resource *res;
 
-	priv = devm_kzalloc(&dev->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
-	res = platform_get_resource(dev, IORESOURCE_IO, 0);
+	res = platform_get_resource(pdev, IORESOURCE_IO, 0);
 	if (!res)
 		return -EBUSY;
 
-	priv->smba = devm_ioport_map(&dev->dev, res->start, resource_size(res));
-	if (!priv->smba) {
-		dev_err(&dev->dev, "SMBus region %pR already in use!\n", res);
-		return -EBUSY;
-	}
+	priv->smba = devm_ioport_map(dev, res->start, resource_size(res));
+	if (!priv->smba)
+		return dev_err_probe(dev, -EBUSY, "SMBus region %pR already in use!\n", res);
 
 	/* set up the sysfs linkage to our parent device */
-	priv->adapter.dev.parent = &dev->dev;
+	priv->adapter.dev.parent = dev;
 	priv->adapter.owner = THIS_MODULE,
 	priv->adapter.class = I2C_CLASS_HWMON,
 	priv->adapter.algo = &smbus_algorithm,
@@ -298,7 +297,7 @@ static int smbus_sch_probe(struct platform_device *dev)
 	snprintf(priv->adapter.name, sizeof(priv->adapter.name),
 		 "SMBus SCH adapter at %04x", (unsigned short)res->start);
 
-	return devm_i2c_add_adapter(&dev->dev, &priv->adapter);
+	return devm_i2c_add_adapter(dev, &priv->adapter);
 }
 
 static struct platform_driver smbus_sch_driver = {
