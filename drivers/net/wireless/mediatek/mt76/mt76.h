@@ -636,6 +636,7 @@ struct mt76_sdio {
 	u8 hw_ver;
 	wait_queue_head_t wait;
 
+	int pse_mcu_quota_max;
 	struct {
 		int pse_data_quota;
 		int ple_data_quota;
