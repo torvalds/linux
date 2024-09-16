@@ -94,4 +94,5 @@
 	status = "okay";
 	pinctrl-0 = <&eth_pins>;
 	pnictrl-names = "default";
+	phy-mode = "rmii";
 };
