@@ -1325,7 +1325,7 @@ static bool is_dsc_need_re_compute(
 		if (new_crtc_state->enable && new_crtc_state->active) {
 			if (new_crtc_state->mode_changed || new_crtc_state->active_changed ||
 					new_crtc_state->connectors_changed) {
-				DRM_DEBUG_DRIVER("%s:%d MST_DSC dsc recompte required."
+				DRM_DEBUG_DRIVER("%s:%d MST_DSC dsc recompute required."
 						 "stream 0x%p in new dc_state\n",
 						 __func__, __LINE__, stream);
 				is_dsc_need_re_compute = true;

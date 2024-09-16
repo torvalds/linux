@@ -832,6 +832,7 @@ int amdgpu_mes_reset_hw_queue_mmio(struct amdgpu_device *adev, int queue_type,
 	struct mes_reset_queue_input queue_input;
 	int r;
 
+	queue_input.queue_type = queue_type;
 	queue_input.use_mmio = true;
 	queue_input.me_id = me_id;
 	queue_input.pipe_id = pipe_id;

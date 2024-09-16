@@ -2407,10 +2407,9 @@ static int destroy_queue_cpsch(struct device_queue_manager *dqm,
 		pdd->sdma_past_activity_counter += sdma_val;
 	}
 
-	list_del(&q->list);
-	qpd->queue_count--;
 	if (q->properties.is_active) {
 		decrement_queue_count(dqm, qpd, q);
+		q->properties.is_active = false;
 		if (!dqm->dev->kfd->shared_resources.enable_mes) {
 			retval = execute_queues_cpsch(dqm,
 						      KFD_UNMAP_QUEUES_FILTER_DYNAMIC_QUEUES, 0,
@@ -2421,6 +2420,8 @@ static int destroy_queue_cpsch(struct device_queue_manager *dqm,
 			retval = remove_queue_mes(dqm, q, qpd);
 		}
 	}
+	list_del(&q->list);
+	qpd->queue_count--;
 
 	/*
 	 * Unconditionally decrement this counter, regardless of the queue's
