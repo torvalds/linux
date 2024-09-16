@@ -393,22 +393,22 @@ void intel_plane_set_invisible(struct intel_crtc_state *crtc_state,
 }
 
 /* FIXME nuke when all wm code is atomic */
-static bool intel_wm_need_update(const struct intel_plane_state *cur,
-				 struct intel_plane_state *new)
+static bool intel_wm_need_update(const struct intel_plane_state *old_plane_state,
+				 const struct intel_plane_state *new_plane_state)
 {
 	/* Update watermarks on tiling or size changes. */
-	if (new->uapi.visible != cur->uapi.visible)
+	if (old_plane_state->uapi.visible != new_plane_state->uapi.visible)
 		return true;
 
-	if (!cur->hw.fb || !new->hw.fb)
+	if (!old_plane_state->hw.fb || !new_plane_state->hw.fb)
 		return false;
 
-	if (cur->hw.fb->modifier != new->hw.fb->modifier ||
-	    cur->hw.rotation != new->hw.rotation ||
-	    drm_rect_width(&new->uapi.src) != drm_rect_width(&cur->uapi.src) ||
-	    drm_rect_height(&new->uapi.src) != drm_rect_height(&cur->uapi.src) ||
-	    drm_rect_width(&new->uapi.dst) != drm_rect_width(&cur->uapi.dst) ||
-	    drm_rect_height(&new->uapi.dst) != drm_rect_height(&cur->uapi.dst))
+	if (old_plane_state->hw.fb->modifier != new_plane_state->hw.fb->modifier ||
+	    old_plane_state->hw.rotation != new_plane_state->hw.rotation ||
+	    drm_rect_width(&old_plane_state->uapi.src) != drm_rect_width(&new_plane_state->uapi.src) ||
+	    drm_rect_height(&old_plane_state->uapi.src) != drm_rect_height(&new_plane_state->uapi.src) ||
+	    drm_rect_width(&old_plane_state->uapi.dst) != drm_rect_width(&new_plane_state->uapi.dst) ||
+	    drm_rect_height(&old_plane_state->uapi.dst) != drm_rect_height(&new_plane_state->uapi.dst))
 		return true;
 
 	return false;
