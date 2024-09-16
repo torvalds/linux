@@ -6,6 +6,7 @@
  */
 
 #include "habanalabs.h"
+#include "hldio.h"
 #include "../include/hw_ip/mmu/mmu_general.h"
 
 #include <linux/pci.h>
@@ -601,6 +602,198 @@ static int engines_show(struct seq_file *s, void *data)
 
 	return 0;
 }
+
+#ifdef CONFIG_HL_HLDIO
+/* DIO debugfs functions following the standard pattern */
+static int dio_ssd2hl_show(struct seq_file *s, void *data)
+{
+	struct hl_debugfs_entry *entry = s->private;
+	struct hl_dbg_device_entry *dev_entry = entry->dev_entry;
+	struct hl_device *hdev = dev_entry->hdev;
+
+	if (!hdev->asic_prop.supports_nvme) {
+		seq_puts(s, "NVMe Direct I/O not supported\\n");
+		return 0;
+	}
+
+	seq_puts(s, "Usage: echo \"fd=N va=0xADDR off=N len=N\" > dio_ssd2hl\n");
+	seq_printf(s, "Last transfer: %zu bytes\\n", dev_entry->dio_stats.last_len_read);
+	seq_puts(s, "Note: All parameters must be page-aligned (4KB)\\n");
+
+	return 0;
+}
+
+static ssize_t dio_ssd2hl_write(struct file *file, const char __user *buf,
+				size_t count, loff_t *f_pos)
+{
+	struct seq_file *s = file->private_data;
+	struct hl_debugfs_entry *entry = s->private;
+	struct hl_dbg_device_entry *dev_entry = entry->dev_entry;
+	struct hl_device *hdev = dev_entry->hdev;
+	struct hl_ctx *ctx = hdev->kernel_ctx;
+	char kbuf[128];
+	u64 device_va = 0, off_bytes = 0, len_bytes = 0;
+	u32 fd = 0;
+	size_t len_read = 0;
+	int rc, parsed;
+
+	if (!hdev->asic_prop.supports_nvme)
+		return -EOPNOTSUPP;
+
+	if (count >= sizeof(kbuf))
+		return -EINVAL;
+
+	if (copy_from_user(kbuf, buf, count))
+		return -EFAULT;
+
+	kbuf[count] = 0;
+
+	/* Parse: fd=N va=0xADDR off=N len=N */
+	parsed = sscanf(kbuf, "fd=%u va=0x%llx off=%llu len=%llu",
+			&fd, &device_va, &off_bytes, &len_bytes);
+	if (parsed != 4) {
+		dev_err(hdev->dev, "Invalid format. Expected: fd=N va=0xADDR off=N len=N\\n");
+		return -EINVAL;
+	}
+
+	/* Validate file descriptor */
+	if (fd == 0) {
+		dev_err(hdev->dev, "Invalid file descriptor: %u\\n", fd);
+		return -EINVAL;
+	}
+
+	/* Validate alignment requirements */
+	if (!IS_ALIGNED(device_va, PAGE_SIZE) ||
+	    !IS_ALIGNED(off_bytes, PAGE_SIZE) ||
+	    !IS_ALIGNED(len_bytes, PAGE_SIZE)) {
+		dev_err(hdev->dev,
+			"All parameters must be page-aligned (4KB)\\n");
+		return -EINVAL;
+	}
+
+	/* Validate transfer size */
+	if (len_bytes == 0 || len_bytes > SZ_1G) {
+		dev_err(hdev->dev, "Invalid length: %llu (max 1GB)\\n",
+			len_bytes);
+		return -EINVAL;
+	}
+
+	dev_dbg(hdev->dev, "DIO SSD2HL: fd=%u va=0x%llx off=%llu len=%llu\\n",
+		fd, device_va, off_bytes, len_bytes);
+
+	rc = hl_dio_ssd2hl(hdev, ctx, fd, device_va, off_bytes, len_bytes, &len_read);
+	if (rc < 0) {
+		dev_entry->dio_stats.failed_ops++;
+		dev_err(hdev->dev, "SSD2HL operation failed: %d\\n", rc);
+		return rc;
+	}
+
+	/* Update statistics */
+	dev_entry->dio_stats.total_ops++;
+	dev_entry->dio_stats.successful_ops++;
+	dev_entry->dio_stats.bytes_transferred += len_read;
+	dev_entry->dio_stats.last_len_read = len_read;
+
+	dev_dbg(hdev->dev, "DIO SSD2HL completed: %zu bytes transferred\\n", len_read);
+
+	return count;
+}
+
+static int dio_hl2ssd_show(struct seq_file *s, void *data)
+{
+	seq_puts(s, "HL2SSD (device-to-SSD) transfers not implemented\\n");
+	return 0;
+}
+
+static ssize_t dio_hl2ssd_write(struct file *file, const char __user *buf,
+			       size_t count, loff_t *f_pos)
+{
+	struct seq_file *s = file->private_data;
+	struct hl_debugfs_entry *entry = s->private;
+	struct hl_dbg_device_entry *dev_entry = entry->dev_entry;
+	struct hl_device *hdev = dev_entry->hdev;
+
+	if (!hdev->asic_prop.supports_nvme)
+		return -EOPNOTSUPP;
+
+	dev_dbg(hdev->dev, "HL2SSD operation not implemented\\n");
+	return -EOPNOTSUPP;
+}
+
+static int dio_stats_show(struct seq_file *s, void *data)
+{
+	struct hl_debugfs_entry *entry = s->private;
+	struct hl_dbg_device_entry *dev_entry = entry->dev_entry;
+	struct hl_device *hdev = dev_entry->hdev;
+	struct hl_dio_stats *stats = &dev_entry->dio_stats;
+	u64 avg_bytes_per_op = 0, success_rate = 0;
+
+	if (!hdev->asic_prop.supports_nvme) {
+		seq_puts(s, "NVMe Direct I/O not supported\\n");
+		return 0;
+	}
+
+	if (stats->successful_ops > 0)
+		avg_bytes_per_op = stats->bytes_transferred / stats->successful_ops;
+
+	if (stats->total_ops > 0)
+		success_rate = (stats->successful_ops * 100) / stats->total_ops;
+
+	seq_puts(s, "=== Habanalabs Direct I/O Statistics ===\\n");
+	seq_printf(s, "Total operations:     %llu\\n", stats->total_ops);
+	seq_printf(s, "Successful ops:       %llu\\n", stats->successful_ops);
+	seq_printf(s, "Failed ops:           %llu\\n", stats->failed_ops);
+	seq_printf(s, "Success rate:         %llu%%\\n", success_rate);
+	seq_printf(s, "Total bytes:          %llu\\n", stats->bytes_transferred);
+	seq_printf(s, "Avg bytes per op:     %llu\\n", avg_bytes_per_op);
+	seq_printf(s, "Last transfer:        %zu bytes\\n", stats->last_len_read);
+
+	return 0;
+}
+
+static int dio_reset_show(struct seq_file *s, void *data)
+{
+	seq_puts(s, "Write '1' to reset DIO statistics\\n");
+	return 0;
+}
+
+static ssize_t dio_reset_write(struct file *file, const char __user *buf,
+			       size_t count, loff_t *f_pos)
+{
+	struct seq_file *s = file->private_data;
+	struct hl_debugfs_entry *entry = s->private;
+	struct hl_dbg_device_entry *dev_entry = entry->dev_entry;
+	struct hl_device *hdev = dev_entry->hdev;
+	char kbuf[8];
+	unsigned long val;
+	int rc;
+
+	if (!hdev->asic_prop.supports_nvme)
+		return -EOPNOTSUPP;
+
+	if (count >= sizeof(kbuf))
+		return -EINVAL;
+
+	if (copy_from_user(kbuf, buf, count))
+		return -EFAULT;
+
+	kbuf[count] = 0;
+
+	rc = kstrtoul(kbuf, 0, &val);
+	if (rc)
+		return rc;
+
+	if (val == 1) {
+		memset(&dev_entry->dio_stats, 0, sizeof(dev_entry->dio_stats));
+		dev_dbg(hdev->dev, "DIO statistics reset\\n");
+	} else {
+		dev_err(hdev->dev, "Write '1' to reset statistics\\n");
+		return -EINVAL;
+	}
+
+	return count;
+}
+#endif
 
 static ssize_t hl_memory_scrub(struct file *f, const char __user *buf,
 					size_t count, loff_t *ppos)
@@ -1633,6 +1826,13 @@ static const struct hl_info_list hl_debugfs_list[] = {
 	{"mmu", mmu_show, mmu_asid_va_write},
 	{"mmu_error", mmu_ack_error, mmu_ack_error_value_write},
 	{"engines", engines_show, NULL},
+#ifdef CONFIG_HL_HLDIO
+	/* DIO entries - only created if NVMe is supported */
+	{"dio_ssd2hl", dio_ssd2hl_show, dio_ssd2hl_write},
+	{"dio_stats", dio_stats_show, NULL},
+	{"dio_reset", dio_reset_show, dio_reset_write},
+	{"dio_hl2ssd", dio_hl2ssd_show, dio_hl2ssd_write},
+#endif
 };
 
 static int hl_debugfs_open(struct inode *inode, struct file *file)
@@ -1831,6 +2031,11 @@ static void add_files_to_device(struct hl_device *hdev, struct hl_dbg_device_ent
 				&hdev->asic_prop.server_type);
 
 	for (i = 0, entry = dev_entry->entry_arr ; i < count ; i++, entry++) {
+		/* Skip DIO entries if NVMe is not supported */
+		if (strncmp(hl_debugfs_list[i].name, "dio_", 4) == 0 &&
+		    !hdev->asic_prop.supports_nvme)
+			continue;
+
 		debugfs_create_file(hl_debugfs_list[i].name,
 					0644,
 					root,
@@ -1872,6 +2077,11 @@ int hl_debugfs_device_init(struct hl_device *hdev)
 
 	spin_lock_init(&hdev->debugfs_cfg_accesses.lock);
 	hdev->debugfs_cfg_accesses.head = 0; /* already zero by alloc but explicit init is fine */
+
+#ifdef CONFIG_HL_HLDIO
+	/* Initialize DIO statistics */
+	memset(&dev_entry->dio_stats, 0, sizeof(dev_entry->dio_stats));
+#endif
 
 	return 0;
 }

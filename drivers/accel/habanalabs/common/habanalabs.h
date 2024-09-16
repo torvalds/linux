@@ -2410,6 +2410,7 @@ struct hl_debugfs_entry {
  * @i2c_addr: generic u8 debugfs file for address value to use in i2c_data_read.
  * @i2c_reg: generic u8 debugfs file for register value to use in i2c_data_read.
  * @i2c_len: generic u8 debugfs file for length value to use in i2c_data_read.
+ * @dio_stats: Direct I/O statistics
  */
 struct hl_dbg_device_entry {
 	struct dentry			*root;
@@ -2441,6 +2442,9 @@ struct hl_dbg_device_entry {
 	u8				i2c_addr;
 	u8				i2c_reg;
 	u8				i2c_len;
+#ifdef CONFIG_HL_HLDIO
+	struct hl_dio_stats	dio_stats;
+#endif
 };
 
 /**
