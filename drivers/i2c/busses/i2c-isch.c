@@ -55,14 +55,15 @@ MODULE_PARM_DESC(backbone_speed, "Backbone speed in kHz, (default = 33000)");
  * and this function will execute it.
  * return 0 for success and others for failure.
  */
-static int sch_transaction(void)
+static int sch_transaction(struct i2c_adapter *adap)
 {
 	int temp;
 	int result = 0;
 	int retries = 0;
 
-	dev_dbg(&sch_adapter.dev, "Transaction (pre): CNT=%02x, CMD=%02x, "
-		"ADD=%02x, DAT0=%02x, DAT1=%02x\n", inb(SMBHSTCNT),
+	dev_dbg(&adap->dev,
+		"Transaction (pre): CNT=%02x, CMD=%02x, ADD=%02x, DAT0=%02x, DAT1=%02x\n",
+		inb(SMBHSTCNT),
 		inb(SMBHSTCMD), inb(SMBHSTADD), inb(SMBHSTDAT0),
 		inb(SMBHSTDAT1));
 
@@ -70,19 +71,14 @@ static int sch_transaction(void)
 	temp = inb(SMBHSTSTS) & 0x0f;
 	if (temp) {
 		/* Can not be busy since we checked it in sch_access */
-		if (temp & 0x01) {
-			dev_dbg(&sch_adapter.dev, "Completion (%02x). "
-				"Clear...\n", temp);
-		}
-		if (temp & 0x06) {
-			dev_dbg(&sch_adapter.dev, "SMBus error (%02x). "
-				"Resetting...\n", temp);
-		}
+		if (temp & 0x01)
+			dev_dbg(&adap->dev, "Completion (%02x). Clear...\n", temp);
+		if (temp & 0x06)
+			dev_dbg(&adap->dev, "SMBus error (%02x). Resetting...\n", temp);
 		outb(temp, SMBHSTSTS);
 		temp = inb(SMBHSTSTS) & 0x0f;
 		if (temp) {
-			dev_err(&sch_adapter.dev,
-				"SMBus is not ready: (%02x)\n", temp);
+			dev_err(&adap->dev, "SMBus is not ready: (%02x)\n", temp);
 			return -EAGAIN;
 		}
 	}
@@ -97,31 +93,30 @@ static int sch_transaction(void)
 
 	/* If the SMBus is still busy, we give up */
 	if (retries > MAX_RETRIES) {
-		dev_err(&sch_adapter.dev, "SMBus Timeout!\n");
+		dev_err(&adap->dev, "SMBus Timeout!\n");
 		result = -ETIMEDOUT;
 	} else if (temp & 0x04) {
 		result = -EIO;
-		dev_dbg(&sch_adapter.dev, "Bus collision! SMBus may be "
-			"locked until next hard reset. (sorry!)\n");
+		dev_dbg(&adap->dev, "Bus collision! SMBus may be locked until next hard reset. (sorry!)\n");
 		/* Clock stops and target is stuck in mid-transmission */
 	} else if (temp & 0x02) {
 		result = -EIO;
-		dev_err(&sch_adapter.dev, "Error: no response!\n");
+		dev_err(&adap->dev, "Error: no response!\n");
 	} else if (temp & 0x01) {
-		dev_dbg(&sch_adapter.dev, "Post complete!\n");
+		dev_dbg(&adap->dev, "Post complete!\n");
 		outb(temp, SMBHSTSTS);
 		temp = inb(SMBHSTSTS) & 0x07;
 		if (temp & 0x06) {
 			/* Completion clear failed */
-			dev_dbg(&sch_adapter.dev, "Failed reset at end of "
-				"transaction (%02x), Bus error!\n", temp);
+			dev_dbg(&adap->dev,
+				"Failed reset at end of transaction (%02x), Bus error!\n", temp);
 		}
 	} else {
 		result = -ENXIO;
-		dev_dbg(&sch_adapter.dev, "No such address.\n");
+		dev_dbg(&adap->dev, "No such address.\n");
 	}
-	dev_dbg(&sch_adapter.dev, "Transaction (post): CNT=%02x, CMD=%02x, "
-		"ADD=%02x, DAT0=%02x, DAT1=%02x\n", inb(SMBHSTCNT),
+	dev_dbg(&adap->dev, "Transaction (post): CNT=%02x, CMD=%02x, ADD=%02x, DAT0=%02x, DAT1=%02x\n",
+		inb(SMBHSTCNT),
 		inb(SMBHSTCMD), inb(SMBHSTADD), inb(SMBHSTDAT0),
 		inb(SMBHSTDAT1));
 	return result;
@@ -143,7 +138,7 @@ static s32 sch_access(struct i2c_adapter *adap, u16 addr,
 	/* Make sure the SMBus host is not busy */
 	temp = inb(SMBHSTSTS) & 0x0f;
 	if (temp & 0x08) {
-		dev_dbg(&sch_adapter.dev, "SMBus busy (%02x)\n", temp);
+		dev_dbg(&adap->dev, "SMBus busy (%02x)\n", temp);
 		return -EAGAIN;
 	}
 	temp = inw(SMBHSTCLK);
@@ -154,13 +149,11 @@ static s32 sch_access(struct i2c_adapter *adap, u16 addr,
 		 * 100 kHz. If we actually run at 25 MHz the bus will be
 		 * run ~75 kHz instead which should do no harm.
 		 */
-		dev_notice(&sch_adapter.dev,
-			"Clock divider uninitialized. Setting defaults\n");
+		dev_notice(&adap->dev, "Clock divider uninitialized. Setting defaults\n");
 		outw(backbone_speed / (4 * 100), SMBHSTCLK);
 	}
 
-	dev_dbg(&sch_adapter.dev, "access size: %d %s\n", size,
-		(read_write)?"READ":"WRITE");
+	dev_dbg(&adap->dev, "access size: %d %s\n", size, (read_write)?"READ":"WRITE");
 	switch (size) {
 	case I2C_SMBUS_QUICK:
 		outb((addr << 1) | read_write, SMBHSTADD);
@@ -205,10 +198,10 @@ static s32 sch_access(struct i2c_adapter *adap, u16 addr,
 		dev_warn(&adap->dev, "Unsupported transaction %d\n", size);
 		return -EOPNOTSUPP;
 	}
-	dev_dbg(&sch_adapter.dev, "write size %d to 0x%04x\n", size, SMBHSTCNT);
+	dev_dbg(&adap->dev, "write size %d to 0x%04x\n", size, SMBHSTCNT);
 	outb((inb(SMBHSTCNT) & 0xb0) | (size & 0x7), SMBHSTCNT);
 
-	rc = sch_transaction();
+	rc = sch_transaction(adap);
 	if (rc)	/* Error in transaction */
 		return rc;
 
