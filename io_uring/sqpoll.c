@@ -196,9 +196,6 @@ static int __io_sq_thread(struct io_ring_ctx *ctx, bool cap_entries)
 			ret = io_submit_sqes(ctx, to_submit);
 		mutex_unlock(&ctx->uring_lock);
 
-		if (io_napi(ctx))
-			ret += io_napi_sqpoll_busy_poll(ctx);
-
 		if (to_submit && wq_has_sleeper(&ctx->sqo_sq_wait))
 			wake_up(&ctx->sqo_sq_wait);
 		if (creds)
@@ -322,6 +319,10 @@ static int io_sq_thread(void *data)
 		}
 		if (io_sq_tw(&retry_list, IORING_TW_CAP_ENTRIES_VALUE))
 			sqt_spin = true;
+
+		list_for_each_entry(ctx, &sqd->ctx_list, sqd_list)
+			if (io_napi(ctx))
+				io_napi_sqpoll_busy_poll(ctx);
 
 		if (sqt_spin || !time_after(jiffies, timeout)) {
 			if (sqt_spin) {
