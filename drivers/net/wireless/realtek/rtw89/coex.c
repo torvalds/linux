@@ -4995,12 +4995,12 @@ static void rtw89_tx_time_iter(void *data, struct ieee80211_sta *sta)
 	struct rtw89_txtime_data *iter_data =
 				(struct rtw89_txtime_data *)data;
 	struct rtw89_dev *rtwdev = iter_data->rtwdev;
-	struct rtw89_vif *rtwvif = rtwsta->rtwvif;
+	struct rtw89_vif_link *rtwvif_link = rtwsta->rtwvif_link;
 	struct rtw89_btc *btc = &rtwdev->btc;
 	struct rtw89_btc_cx *cx = &btc->cx;
 	struct rtw89_btc_wl_info *wl = &cx->wl;
 	struct rtw89_btc_wl_link_info *plink = NULL;
-	u8 port = rtwvif->port;
+	u8 port = rtwvif_link->port;
 	u32 tx_time = iter_data->tx_time;
 	u8 tx_retry = iter_data->tx_retry;
 	u16 enable = iter_data->enable;
@@ -7481,12 +7481,13 @@ static void _update_bt_info(struct rtw89_dev *rtwdev, u8 *buf, u32 len)
 	_run_coex(rtwdev, BTC_RSN_UPDATE_BT_INFO);
 }
 
-void rtw89_btc_ntfy_role_info(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
+void rtw89_btc_ntfy_role_info(struct rtw89_dev *rtwdev,
+			      struct rtw89_vif_link *rtwvif_link,
 			      struct rtw89_sta *rtwsta, enum btc_role_state state)
 {
 	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev,
-						       rtwvif->chanctx_idx);
-	struct ieee80211_vif *vif = rtwvif_to_vif(rtwvif);
+						       rtwvif_link->chanctx_idx);
+	struct ieee80211_vif *vif = rtwvif_to_vif(rtwvif_link);
 	struct ieee80211_sta *sta = rtwsta_to_sta(rtwsta);
 	struct rtw89_btc *btc = &rtwdev->btc;
 	const struct rtw89_btc_ver *ver = btc->ver;
@@ -7499,7 +7500,7 @@ void rtw89_btc_ntfy_role_info(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif
 	rtw89_debug(rtwdev, RTW89_DBG_BTC,
 		    "[BTC], role is STA=%d\n",
 		    vif->type == NL80211_IFTYPE_STATION);
-	rtw89_debug(rtwdev, RTW89_DBG_BTC, "[BTC], port=%d\n", rtwvif->port);
+	rtw89_debug(rtwdev, RTW89_DBG_BTC, "[BTC], port=%d\n", rtwvif_link->port);
 	rtw89_debug(rtwdev, RTW89_DBG_BTC, "[BTC], band=%d ch=%d bw=%d\n",
 		    chan->band_type, chan->channel, chan->band_width);
 	rtw89_debug(rtwdev, RTW89_DBG_BTC, "[BTC], associated=%d\n",
@@ -7527,15 +7528,15 @@ void rtw89_btc_ntfy_role_info(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif
 		r.mode = mode;
 	}
 
-	if (rtwvif->wifi_role >= RTW89_WIFI_ROLE_MLME_MAX)
+	if (rtwvif_link->wifi_role >= RTW89_WIFI_ROLE_MLME_MAX)
 		return;
 
 	rtw89_debug(rtwdev, RTW89_DBG_BTC,
-		    "[BTC], wifi_role=%d\n", rtwvif->wifi_role);
+		    "[BTC], wifi_role=%d\n", rtwvif_link->wifi_role);
 
-	r.role = rtwvif->wifi_role;
-	r.phy = rtwvif->phy_idx;
-	r.pid = rtwvif->port;
+	r.role = rtwvif_link->wifi_role;
+	r.phy = rtwvif_link->phy_idx;
+	r.pid = rtwvif_link->port;
 	r.active = true;
 	r.connected = MLME_LINKED;
 	r.bcn_period = vif->bss_conf.beacon_int;
@@ -7547,7 +7548,7 @@ void rtw89_btc_ntfy_role_info(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif
 	r.chdef.center_ch = chan->channel;
 	r.chdef.bw = chan->band_width;
 	r.chdef.chan = chan->primary_channel;
-	ether_addr_copy(r.mac_addr, rtwvif->mac_addr);
+	ether_addr_copy(r.mac_addr, rtwvif_link->mac_addr);
 
 	if (rtwsta && vif->type == NL80211_IFTYPE_STATION)
 		r.mac_id = rtwsta->mac_id;
@@ -7793,14 +7794,14 @@ static void rtw89_btc_ntfy_wl_sta_iter(void *data, struct ieee80211_sta *sta)
 	struct rtw89_btc_wl_link_info *link_info = NULL;
 	struct rtw89_sta *rtwsta = (struct rtw89_sta *)sta->drv_priv;
 	struct rtw89_traffic_stats *link_info_t = NULL;
-	struct rtw89_vif *rtwvif = rtwsta->rtwvif;
-	struct rtw89_traffic_stats *stats = &rtwvif->stats;
+	struct rtw89_vif_link *rtwvif_link = rtwsta->rtwvif_link;
+	struct rtw89_traffic_stats *stats = &rtwvif_link->stats;
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 	struct rtw89_btc_wl_role_info *r;
 	struct rtw89_btc_wl_role_info_v1 *r1;
 	u32 last_tx_rate, last_rx_rate;
 	u16 last_tx_lvl, last_rx_lvl;
-	u8 port = rtwvif->port;
+	u8 port = rtwvif_link->port;
 	u8 rssi;
 	u8 busy = 0;
 	u8 dir = 0;
@@ -7812,7 +7813,7 @@ static void rtw89_btc_ntfy_wl_sta_iter(void *data, struct ieee80211_sta *sta)
 	rtw89_debug(rtwdev, RTW89_DBG_BTC, "[BTC], rssi=%d\n", rssi);
 
 	link_info = &wl->link_info[port];
-	link_info->stat.traffic = rtwvif->stats;
+	link_info->stat.traffic = rtwvif_link->stats;
 	link_info_t = &link_info->stat.traffic;
 
 	if (link_info->connected == MLME_NO_LINK) {

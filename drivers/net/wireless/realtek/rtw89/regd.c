@@ -793,18 +793,18 @@ static bool __rtw89_reg_6ghz_tpe_recalc(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_regulatory_info *regulatory = &rtwdev->regulatory;
 	struct rtw89_reg_6ghz_tpe new = {};
-	struct rtw89_vif *rtwvif;
+	struct rtw89_vif_link *rtwvif_link;
 	bool changed = false;
 
-	rtw89_for_each_rtwvif(rtwdev, rtwvif) {
+	rtw89_for_each_rtwvif(rtwdev, rtwvif_link) {
 		const struct rtw89_reg_6ghz_tpe *tmp;
 		const struct rtw89_chan *chan;
 
-		chan = rtw89_chan_get(rtwdev, rtwvif->chanctx_idx);
+		chan = rtw89_chan_get(rtwdev, rtwvif_link->chanctx_idx);
 		if (chan->band_type != RTW89_BAND_6G)
 			continue;
 
-		tmp = &rtwvif->reg_6ghz_tpe;
+		tmp = &rtwvif_link->reg_6ghz_tpe;
 		if (!tmp->valid)
 			continue;
 
@@ -831,16 +831,16 @@ static bool __rtw89_reg_6ghz_tpe_recalc(struct rtw89_dev *rtwdev)
 }
 
 static int rtw89_reg_6ghz_tpe_recalc(struct rtw89_dev *rtwdev,
-				     struct rtw89_vif *rtwvif, bool active,
+				     struct rtw89_vif_link *rtwvif_link, bool active,
 				     unsigned int *changed)
 {
-	struct ieee80211_vif *vif = rtwvif_to_vif(rtwvif);
+	struct ieee80211_vif *vif = rtwvif_to_vif(rtwvif_link);
 	struct ieee80211_bss_conf *bss_conf = &vif->bss_conf;
-	struct rtw89_reg_6ghz_tpe *tpe = &rtwvif->reg_6ghz_tpe;
+	struct rtw89_reg_6ghz_tpe *tpe = &rtwvif_link->reg_6ghz_tpe;
 
 	memset(tpe, 0, sizeof(*tpe));
 
-	if (!active || rtwvif->reg_6ghz_power != RTW89_REG_6GHZ_POWER_STD)
+	if (!active || rtwvif_link->reg_6ghz_power != RTW89_REG_6GHZ_POWER_STD)
 		goto bottom;
 
 	rtw89_calculate_tpe(rtwdev, tpe, &bss_conf->tpe);
@@ -867,19 +867,19 @@ static bool __rtw89_reg_6ghz_power_recalc(struct rtw89_dev *rtwdev)
 	const struct rtw89_regd *regd = regulatory->regd;
 	enum rtw89_reg_6ghz_power sel;
 	const struct rtw89_chan *chan;
-	struct rtw89_vif *rtwvif;
+	struct rtw89_vif_link *rtwvif_link;
 	int count = 0;
 	u8 index;
 
-	rtw89_for_each_rtwvif(rtwdev, rtwvif) {
-		chan = rtw89_chan_get(rtwdev, rtwvif->chanctx_idx);
+	rtw89_for_each_rtwvif(rtwdev, rtwvif_link) {
+		chan = rtw89_chan_get(rtwdev, rtwvif_link->chanctx_idx);
 		if (chan->band_type != RTW89_BAND_6G)
 			continue;
 
-		if (count != 0 && rtwvif->reg_6ghz_power == sel)
+		if (count != 0 && rtwvif_link->reg_6ghz_power == sel)
 			continue;
 
-		sel = rtwvif->reg_6ghz_power;
+		sel = rtwvif_link->reg_6ghz_power;
 		count++;
 	}
 
@@ -908,35 +908,35 @@ static bool __rtw89_reg_6ghz_power_recalc(struct rtw89_dev *rtwdev)
 }
 
 static int rtw89_reg_6ghz_power_recalc(struct rtw89_dev *rtwdev,
-				       struct rtw89_vif *rtwvif, bool active,
+				       struct rtw89_vif_link *rtwvif_link, bool active,
 				       unsigned int *changed)
 {
-	struct ieee80211_vif *vif = rtwvif_to_vif(rtwvif);
+	struct ieee80211_vif *vif = rtwvif_to_vif(rtwvif_link);
 
 	if (active) {
 		switch (vif->bss_conf.power_type) {
 		case IEEE80211_REG_VLP_AP:
-			rtwvif->reg_6ghz_power = RTW89_REG_6GHZ_POWER_VLP;
+			rtwvif_link->reg_6ghz_power = RTW89_REG_6GHZ_POWER_VLP;
 			break;
 		case IEEE80211_REG_LPI_AP:
-			rtwvif->reg_6ghz_power = RTW89_REG_6GHZ_POWER_LPI;
+			rtwvif_link->reg_6ghz_power = RTW89_REG_6GHZ_POWER_LPI;
 			break;
 		case IEEE80211_REG_SP_AP:
-			rtwvif->reg_6ghz_power = RTW89_REG_6GHZ_POWER_STD;
+			rtwvif_link->reg_6ghz_power = RTW89_REG_6GHZ_POWER_STD;
 			break;
 		default:
-			rtwvif->reg_6ghz_power = RTW89_REG_6GHZ_POWER_DFLT;
+			rtwvif_link->reg_6ghz_power = RTW89_REG_6GHZ_POWER_DFLT;
 			break;
 		}
 	} else {
-		rtwvif->reg_6ghz_power = RTW89_REG_6GHZ_POWER_DFLT;
+		rtwvif_link->reg_6ghz_power = RTW89_REG_6GHZ_POWER_DFLT;
 	}
 
 	*changed += __rtw89_reg_6ghz_power_recalc(rtwdev);
 	return 0;
 }
 
-int rtw89_reg_6ghz_recalc(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
+int rtw89_reg_6ghz_recalc(struct rtw89_dev *rtwdev, struct rtw89_vif_link *rtwvif_link,
 			  bool active)
 {
 	unsigned int changed = 0;
@@ -948,11 +948,11 @@ int rtw89_reg_6ghz_recalc(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
 	 * so must do reg_6ghz_tpe_recalc() after reg_6ghz_power_recalc().
 	 */
 
-	ret = rtw89_reg_6ghz_power_recalc(rtwdev, rtwvif, active, &changed);
+	ret = rtw89_reg_6ghz_power_recalc(rtwdev, rtwvif_link, active, &changed);
 	if (ret)
 		return ret;
 
-	ret = rtw89_reg_6ghz_tpe_recalc(rtwdev, rtwvif, active, &changed);
+	ret = rtw89_reg_6ghz_tpe_recalc(rtwdev, rtwvif_link, active, &changed);
 	if (ret)
 		return ret;
 

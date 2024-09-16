@@ -2094,10 +2094,10 @@ static int rtw89_mac_set_csi_para_reg_be(struct rtw89_dev *rtwdev,
 					 struct ieee80211_vif *vif,
 					 struct ieee80211_sta *sta)
 {
-	struct rtw89_vif *rtwvif = (struct rtw89_vif *)vif->drv_priv;
+	struct rtw89_vif_link *rtwvif_link = (struct rtw89_vif_link *)vif->drv_priv;
 	u8 nc = 1, nr = 3, ng = 0, cb = 1, cs = 1, ldpc_en = 1, stbc_en = 1;
-	u8 mac_idx = rtwvif->mac_idx;
-	u8 port_sel = rtwvif->port;
+	u8 mac_idx = rtwvif_link->mac_idx;
+	u8 port_sel = rtwvif_link->port;
 	u8 sound_dim = 3, t;
 	u8 *phy_cap;
 	u32 reg;
@@ -2158,9 +2158,9 @@ static int rtw89_mac_csi_rrsc_be(struct rtw89_dev *rtwdev,
 				 struct ieee80211_vif *vif,
 				 struct ieee80211_sta *sta)
 {
-	struct rtw89_vif *rtwvif = (struct rtw89_vif *)vif->drv_priv;
+	struct rtw89_vif_link *rtwvif_link = (struct rtw89_vif_link *)vif->drv_priv;
 	u32 rrsc = BIT(RTW89_MAC_BF_RRSC_6M) | BIT(RTW89_MAC_BF_RRSC_24M);
-	u8 mac_idx = rtwvif->mac_idx;
+	u8 mac_idx = rtwvif_link->mac_idx;
 	int ret;
 	u32 reg;
 
@@ -2198,12 +2198,12 @@ static void rtw89_mac_bf_assoc_be(struct rtw89_dev *rtwdev,
 				  struct ieee80211_vif *vif,
 				  struct ieee80211_sta *sta)
 {
-	struct rtw89_vif *rtwvif = (struct rtw89_vif *)vif->drv_priv;
+	struct rtw89_vif_link *rtwvif_link = (struct rtw89_vif_link *)vif->drv_priv;
 
 	if (rtw89_sta_has_beamformer_cap(sta)) {
 		rtw89_debug(rtwdev, RTW89_DBG_BF,
 			    "initialize bfee for new association\n");
-		rtw89_mac_init_bfee_be(rtwdev, rtwvif->mac_idx);
+		rtw89_mac_init_bfee_be(rtwdev, rtwvif_link->mac_idx);
 		rtw89_mac_set_csi_para_reg_be(rtwdev, vif, sta);
 		rtw89_mac_csi_rrsc_be(rtwdev, vif, sta);
 	}

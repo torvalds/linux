@@ -1004,12 +1004,12 @@ struct rtw89_mac_gen_def {
 	bool (*is_txq_empty)(struct rtw89_dev *rtwdev);
 
 	int (*add_chan_list)(struct rtw89_dev *rtwdev,
-			     struct rtw89_vif *rtwvif, bool connected);
+			     struct rtw89_vif_link *rtwvif_link, bool connected);
 	int (*add_chan_list_pno)(struct rtw89_dev *rtwdev,
-				 struct rtw89_vif *rtwvif);
+				 struct rtw89_vif_link *rtwvif_link);
 	int (*scan_offload)(struct rtw89_dev *rtwdev,
 			    struct rtw89_scan_option *option,
-			    struct rtw89_vif *rtwvif,
+			    struct rtw89_vif_link *rtwvif_link,
 			    bool wowlan);
 
 	int (*wow_config_mac)(struct rtw89_dev *rtwdev, bool enable_wow);
@@ -1033,81 +1033,89 @@ u32 rtw89_mac_reg_by_port(struct rtw89_dev *rtwdev, u32 base, u8 port, u8 mac_id
 }
 
 static inline u32
-rtw89_read32_port(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif, u32 base)
+rtw89_read32_port(struct rtw89_dev *rtwdev, struct rtw89_vif_link *rtwvif_link, u32 base)
 {
 	u32 reg;
 
-	reg = rtw89_mac_reg_by_port(rtwdev, base, rtwvif->port, rtwvif->mac_idx);
+	reg = rtw89_mac_reg_by_port(rtwdev, base, rtwvif_link->port,
+				    rtwvif_link->mac_idx);
 	return rtw89_read32(rtwdev, reg);
 }
 
 static inline u32
-rtw89_read32_port_mask(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
+rtw89_read32_port_mask(struct rtw89_dev *rtwdev, struct rtw89_vif_link *rtwvif_link,
 		       u32 base, u32 mask)
 {
 	u32 reg;
 
-	reg = rtw89_mac_reg_by_port(rtwdev, base, rtwvif->port, rtwvif->mac_idx);
+	reg = rtw89_mac_reg_by_port(rtwdev, base, rtwvif_link->port,
+				    rtwvif_link->mac_idx);
 	return rtw89_read32_mask(rtwdev, reg, mask);
 }
 
 static inline void
-rtw89_write32_port(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif, u32 base,
+rtw89_write32_port(struct rtw89_dev *rtwdev, struct rtw89_vif_link *rtwvif_link, u32 base,
 		   u32 data)
 {
 	u32 reg;
 
-	reg = rtw89_mac_reg_by_port(rtwdev, base, rtwvif->port, rtwvif->mac_idx);
+	reg = rtw89_mac_reg_by_port(rtwdev, base, rtwvif_link->port,
+				    rtwvif_link->mac_idx);
 	rtw89_write32(rtwdev, reg, data);
 }
 
 static inline void
-rtw89_write32_port_mask(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
+rtw89_write32_port_mask(struct rtw89_dev *rtwdev, struct rtw89_vif_link *rtwvif_link,
 			u32 base, u32 mask, u32 data)
 {
 	u32 reg;
 
-	reg = rtw89_mac_reg_by_port(rtwdev, base, rtwvif->port, rtwvif->mac_idx);
+	reg = rtw89_mac_reg_by_port(rtwdev, base, rtwvif_link->port,
+				    rtwvif_link->mac_idx);
 	rtw89_write32_mask(rtwdev, reg, mask, data);
 }
 
 static inline void
-rtw89_write16_port_mask(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
+rtw89_write16_port_mask(struct rtw89_dev *rtwdev, struct rtw89_vif_link *rtwvif_link,
 			u32 base, u32 mask, u16 data)
 {
 	u32 reg;
 
-	reg = rtw89_mac_reg_by_port(rtwdev, base, rtwvif->port, rtwvif->mac_idx);
+	reg = rtw89_mac_reg_by_port(rtwdev, base, rtwvif_link->port,
+				    rtwvif_link->mac_idx);
 	rtw89_write16_mask(rtwdev, reg, mask, data);
 }
 
 static inline void
-rtw89_write32_port_clr(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
+rtw89_write32_port_clr(struct rtw89_dev *rtwdev, struct rtw89_vif_link *rtwvif_link,
 		       u32 base, u32 bit)
 {
 	u32 reg;
 
-	reg = rtw89_mac_reg_by_port(rtwdev, base, rtwvif->port, rtwvif->mac_idx);
+	reg = rtw89_mac_reg_by_port(rtwdev, base, rtwvif_link->port,
+				    rtwvif_link->mac_idx);
 	rtw89_write32_clr(rtwdev, reg, bit);
 }
 
 static inline void
-rtw89_write16_port_clr(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
+rtw89_write16_port_clr(struct rtw89_dev *rtwdev, struct rtw89_vif_link *rtwvif_link,
 		       u32 base, u16 bit)
 {
 	u32 reg;
 
-	reg = rtw89_mac_reg_by_port(rtwdev, base, rtwvif->port, rtwvif->mac_idx);
+	reg = rtw89_mac_reg_by_port(rtwdev, base, rtwvif_link->port,
+				    rtwvif_link->mac_idx);
 	rtw89_write16_clr(rtwdev, reg, bit);
 }
 
 static inline void
-rtw89_write32_port_set(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
+rtw89_write32_port_set(struct rtw89_dev *rtwdev, struct rtw89_vif_link *rtwvif_link,
 		       u32 base, u32 bit)
 {
 	u32 reg;
 
-	reg = rtw89_mac_reg_by_port(rtwdev, base, rtwvif->port, rtwvif->mac_idx);
+	reg = rtw89_mac_reg_by_port(rtwdev, base, rtwvif_link->port,
+				    rtwvif_link->mac_idx);
 	rtw89_write32_set(rtwdev, reg, bit);
 }
 
@@ -1139,21 +1147,21 @@ int rtw89_mac_dle_dfi_qempty_cfg(struct rtw89_dev *rtwdev,
 				 struct rtw89_mac_dle_dfi_qempty *qempty);
 void rtw89_mac_dump_l0_to_l1(struct rtw89_dev *rtwdev,
 			     enum mac_ax_err_info err);
-int rtw89_mac_add_vif(struct rtw89_dev *rtwdev, struct rtw89_vif *vif);
-int rtw89_mac_port_update(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif);
+int rtw89_mac_add_vif(struct rtw89_dev *rtwdev, struct rtw89_vif_link *vif);
+int rtw89_mac_port_update(struct rtw89_dev *rtwdev, struct rtw89_vif_link *rtwvif_link);
 void rtw89_mac_port_tsf_sync(struct rtw89_dev *rtwdev,
-			     struct rtw89_vif *rtwvif,
-			     struct rtw89_vif *rtwvif_src,
+			     struct rtw89_vif_link *rtwvif_link,
+			     struct rtw89_vif_link *rtwvif_src,
 			     u16 offset_tu);
-int rtw89_mac_port_get_tsf(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
+int rtw89_mac_port_get_tsf(struct rtw89_dev *rtwdev, struct rtw89_vif_link *rtwvif_link,
 			   u64 *tsf);
 void rtw89_mac_port_cfg_rx_sync(struct rtw89_dev *rtwdev,
-				struct rtw89_vif *rtwvif, bool en);
+				struct rtw89_vif_link *rtwvif_link, bool en);
 void rtw89_mac_set_he_obss_narrow_bw_ru(struct rtw89_dev *rtwdev,
 					struct ieee80211_vif *vif);
-void rtw89_mac_stop_ap(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif);
+void rtw89_mac_stop_ap(struct rtw89_dev *rtwdev, struct rtw89_vif_link *rtwvif_link);
 void rtw89_mac_enable_beacon_for_ap_vifs(struct rtw89_dev *rtwdev, bool en);
-int rtw89_mac_remove_vif(struct rtw89_dev *rtwdev, struct rtw89_vif *vif);
+int rtw89_mac_remove_vif(struct rtw89_dev *rtwdev, struct rtw89_vif_link *vif);
 int rtw89_mac_enable_bb_rf(struct rtw89_dev *rtwdev);
 int rtw89_mac_disable_bb_rf(struct rtw89_dev *rtwdev);
 
@@ -1268,10 +1276,10 @@ void rtw89_mac_bf_monitor_calc(struct rtw89_dev *rtwdev,
 			       struct ieee80211_sta *sta, bool disconnect);
 void _rtw89_mac_bf_monitor_track(struct rtw89_dev *rtwdev);
 void rtw89_mac_bfee_ctrl(struct rtw89_dev *rtwdev, u8 mac_idx, bool en);
-int rtw89_mac_vif_init(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif);
-int rtw89_mac_vif_deinit(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif);
+int rtw89_mac_vif_init(struct rtw89_dev *rtwdev, struct rtw89_vif_link *rtwvif_link);
+int rtw89_mac_vif_deinit(struct rtw89_dev *rtwdev, struct rtw89_vif_link *rtwvif_link);
 int rtw89_mac_set_hw_muedca_ctrl(struct rtw89_dev *rtwdev,
-				 struct rtw89_vif *rtwvif, bool en);
+				 struct rtw89_vif_link *rtwvif_link, bool en);
 int rtw89_mac_set_macid_pause(struct rtw89_dev *rtwdev, u8 macid, bool pause);
 
 static inline void rtw89_mac_bf_monitor_track(struct rtw89_dev *rtwdev)
@@ -1454,7 +1462,7 @@ int rtw89_mac_read_xtal_si(struct rtw89_dev *rtwdev, u8 offset, u8 *val)
 	return mac->read_xtal_si(rtwdev, offset, val);
 }
 
-void rtw89_mac_pkt_drop_vif(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif);
+void rtw89_mac_pkt_drop_vif(struct rtw89_dev *rtwdev, struct rtw89_vif_link *rtwvif_link);
 int rtw89_mac_resize_ple_rx_quota(struct rtw89_dev *rtwdev, bool wow);
 int rtw89_mac_ptk_drop_by_band_and_wait(struct rtw89_dev *rtwdev,
 					enum rtw89_mac_idx band);

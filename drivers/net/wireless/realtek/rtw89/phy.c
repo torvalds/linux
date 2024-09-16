@@ -298,12 +298,12 @@ static void rtw89_phy_ra_sta_update(struct rtw89_dev *rtwdev,
 				    struct ieee80211_sta *sta, bool csi)
 {
 	struct rtw89_sta *rtwsta = (struct rtw89_sta *)sta->drv_priv;
-	struct rtw89_vif *rtwvif = rtwsta->rtwvif;
-	struct rtw89_phy_rate_pattern *rate_pattern = &rtwvif->rate_pattern;
+	struct rtw89_vif_link *rtwvif_link = rtwsta->rtwvif_link;
+	struct rtw89_phy_rate_pattern *rate_pattern = &rtwvif_link->rate_pattern;
 	struct rtw89_ra_info *ra = &rtwsta->ra;
 	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev,
-						       rtwvif->chanctx_idx);
-	struct ieee80211_vif *vif = rtwvif_to_vif(rtwsta->rtwvif);
+						       rtwvif_link->chanctx_idx);
+	struct ieee80211_vif *vif = rtwvif_to_vif(rtwsta->rtwvif_link);
 	const u64 *high_rate_masks = rtw89_ra_mask_ht_rates;
 	u8 rssi = ewma_rssi_read(&rtwsta->avg_rssi);
 	u64 ra_mask = 0;
@@ -458,7 +458,7 @@ static void rtw89_phy_ra_sta_update(struct rtw89_dev *rtwdev,
 	ra->fixed_csi_rate_en = false;
 	ra->ra_csi_rate_en = true;
 	ra->cr_tbl_sel = false;
-	ra->band_num = rtwvif->phy_idx;
+	ra->band_num = rtwvif_link->phy_idx;
 	ra->csi_bw = bw_mode;
 	ra->csi_gi_ltf = RTW89_GILTF_LGI_4XHE32;
 	ra->csi_mcs_ss_idx = 5;
@@ -528,10 +528,10 @@ void rtw89_phy_rate_pattern_vif(struct rtw89_dev *rtwdev,
 				const struct cfg80211_bitrate_mask *mask)
 {
 	struct ieee80211_supported_band *sband;
-	struct rtw89_vif *rtwvif = (struct rtw89_vif *)vif->drv_priv;
+	struct rtw89_vif_link *rtwvif_link = (struct rtw89_vif_link *)vif->drv_priv;
 	struct rtw89_phy_rate_pattern next_pattern = {0};
 	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev,
-						       rtwvif->chanctx_idx);
+						       rtwvif_link->chanctx_idx);
 	static const u16 hw_rate_he[][RTW89_CHIP_GEN_NUM] = {
 		RTW89_HW_RATE_BY_CHIP_GEN(HE_NSS1_MCS0),
 		RTW89_HW_RATE_BY_CHIP_GEN(HE_NSS2_MCS0),
@@ -600,7 +600,7 @@ void rtw89_phy_rate_pattern_vif(struct rtw89_dev *rtwdev,
 	if (!next_pattern.enable)
 		goto out;
 
-	rtwvif->rate_pattern = next_pattern;
+	rtwvif_link->rate_pattern = next_pattern;
 	rtw89_debug(rtwdev, RTW89_DBG_RA,
 		    "configure pattern: rate 0x%x, mask 0x%llx, mode 0x%x\n",
 		    next_pattern.rate,
@@ -609,7 +609,7 @@ void rtw89_phy_rate_pattern_vif(struct rtw89_dev *rtwdev,
 	return;
 
 out:
-	rtwvif->rate_pattern.enable = false;
+	rtwvif_link->rate_pattern.enable = false;
 	rtw89_debug(rtwdev, RTW89_DBG_RA, "unset rate pattern\n");
 }
 
@@ -4290,33 +4290,33 @@ void rtw89_phy_cfo_parse(struct rtw89_dev *rtwdev, s16 cfo_val,
 	cfo->packet_count++;
 }
 
-void rtw89_phy_ul_tb_assoc(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif)
+void rtw89_phy_ul_tb_assoc(struct rtw89_dev *rtwdev, struct rtw89_vif_link *rtwvif_link)
 {
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev,
-						       rtwvif->chanctx_idx);
+						       rtwvif_link->chanctx_idx);
 	struct rtw89_phy_ul_tb_info *ul_tb_info = &rtwdev->ul_tb_info;
 
 	if (!chip->ul_tb_waveform_ctrl)
 		return;
 
-	rtwvif->def_tri_idx =
+	rtwvif_link->def_tri_idx =
 		rtw89_phy_read32_mask(rtwdev, R_DCFO_OPT, B_TXSHAPE_TRIANGULAR_CFG);
 
 	if (chip->chip_id == RTL8852B && rtwdev->hal.cv > CHIP_CBV)
-		rtwvif->dyn_tb_bedge_en = false;
+		rtwvif_link->dyn_tb_bedge_en = false;
 	else if (chan->band_type >= RTW89_BAND_5G &&
 		 chan->band_width >= RTW89_CHANNEL_WIDTH_40)
-		rtwvif->dyn_tb_bedge_en = true;
+		rtwvif_link->dyn_tb_bedge_en = true;
 	else
-		rtwvif->dyn_tb_bedge_en = false;
+		rtwvif_link->dyn_tb_bedge_en = false;
 
 	rtw89_debug(rtwdev, RTW89_DBG_UL_TB,
 		    "[ULTB] def_if_bandedge=%d, def_tri_idx=%d\n",
-		    ul_tb_info->def_if_bandedge, rtwvif->def_tri_idx);
+		    ul_tb_info->def_if_bandedge, rtwvif_link->def_tri_idx);
 	rtw89_debug(rtwdev, RTW89_DBG_UL_TB,
 		    "[ULTB] dyn_tb_begde_en=%d, dyn_tb_tri_en=%d\n",
-		    rtwvif->dyn_tb_bedge_en, ul_tb_info->dyn_tb_tri_en);
+		    rtwvif_link->dyn_tb_bedge_en, ul_tb_info->dyn_tb_tri_en);
 }
 
 struct rtw89_phy_ul_tb_check_data {
@@ -4338,7 +4338,7 @@ struct rtw89_phy_power_diff {
 };
 
 static void rtw89_phy_ofdma_power_diff(struct rtw89_dev *rtwdev,
-				       struct rtw89_vif *rtwvif)
+				       struct rtw89_vif_link *rtwvif_link)
 {
 	static const struct rtw89_phy_power_diff table[2] = {
 		{0x0, 0x0, 0x0, 0x0, 0xf4, 0x3, 0x3},
@@ -4350,13 +4350,13 @@ static void rtw89_phy_ofdma_power_diff(struct rtw89_dev *rtwdev,
 	if (!rtwdev->chip->ul_tb_pwr_diff)
 		return;
 
-	if (rtwvif->pwr_diff_en == rtwvif->pre_pwr_diff_en) {
-		rtwvif->pwr_diff_en = false;
+	if (rtwvif_link->pwr_diff_en == rtwvif_link->pre_pwr_diff_en) {
+		rtwvif_link->pwr_diff_en = false;
 		return;
 	}
 
-	rtwvif->pre_pwr_diff_en = rtwvif->pwr_diff_en;
-	param = &table[rtwvif->pwr_diff_en];
+	rtwvif_link->pre_pwr_diff_en = rtwvif_link->pwr_diff_en;
+	param = &table[rtwvif_link->pwr_diff_en];
 
 	rtw89_phy_write32_mask(rtwdev, R_Q_MATRIX_00, B_Q_MATRIX_00_REAL,
 			       param->q_00);
@@ -4365,32 +4365,32 @@ static void rtw89_phy_ofdma_power_diff(struct rtw89_dev *rtwdev,
 	rtw89_phy_write32_mask(rtwdev, R_CUSTOMIZE_Q_MATRIX,
 			       B_CUSTOMIZE_Q_MATRIX_EN, param->q_matrix_en);
 
-	reg = rtw89_mac_reg_by_idx(rtwdev, R_AX_PWR_UL_TB_1T, rtwvif->mac_idx);
+	reg = rtw89_mac_reg_by_idx(rtwdev, R_AX_PWR_UL_TB_1T, rtwvif_link->mac_idx);
 	rtw89_write32_mask(rtwdev, reg, B_AX_PWR_UL_TB_1T_NORM_BW160,
 			   param->ultb_1t_norm_160);
 
-	reg = rtw89_mac_reg_by_idx(rtwdev, R_AX_PWR_UL_TB_2T, rtwvif->mac_idx);
+	reg = rtw89_mac_reg_by_idx(rtwdev, R_AX_PWR_UL_TB_2T, rtwvif_link->mac_idx);
 	rtw89_write32_mask(rtwdev, reg, B_AX_PWR_UL_TB_2T_NORM_BW160,
 			   param->ultb_2t_norm_160);
 
-	reg = rtw89_mac_reg_by_idx(rtwdev, R_AX_PATH_COM1, rtwvif->mac_idx);
+	reg = rtw89_mac_reg_by_idx(rtwdev, R_AX_PATH_COM1, rtwvif_link->mac_idx);
 	rtw89_write32_mask(rtwdev, reg, B_AX_PATH_COM1_NORM_1STS,
 			   param->com1_norm_1sts);
 
-	reg = rtw89_mac_reg_by_idx(rtwdev, R_AX_PATH_COM2, rtwvif->mac_idx);
+	reg = rtw89_mac_reg_by_idx(rtwdev, R_AX_PATH_COM2, rtwvif_link->mac_idx);
 	rtw89_write32_mask(rtwdev, reg, B_AX_PATH_COM2_RESP_1STS_PATH,
 			   param->com2_resp_1sts_path);
 }
 
 static
 void rtw89_phy_ul_tb_ctrl_check(struct rtw89_dev *rtwdev,
-				struct rtw89_vif *rtwvif,
+				struct rtw89_vif_link *rtwvif_link,
 				struct rtw89_phy_ul_tb_check_data *ul_tb_data)
 {
 	struct rtw89_traffic_stats *stats = &rtwdev->stats;
-	struct ieee80211_vif *vif = rtwvif_to_vif(rtwvif);
+	struct ieee80211_vif *vif = rtwvif_to_vif(rtwvif_link);
 
-	if (rtwvif->wifi_role != RTW89_WIFI_ROLE_STATION)
+	if (rtwvif_link->wifi_role != RTW89_WIFI_ROLE_STATION)
 		return;
 
 	if (!vif->cfg.assoc)
@@ -4403,11 +4403,11 @@ void rtw89_phy_ul_tb_ctrl_check(struct rtw89_dev *rtwdev,
 			ul_tb_data->low_tf_client = true;
 
 		ul_tb_data->valid = true;
-		ul_tb_data->def_tri_idx = rtwvif->def_tri_idx;
-		ul_tb_data->dyn_tb_bedge_en = rtwvif->dyn_tb_bedge_en;
+		ul_tb_data->def_tri_idx = rtwvif_link->def_tri_idx;
+		ul_tb_data->dyn_tb_bedge_en = rtwvif_link->dyn_tb_bedge_en;
 	}
 
-	rtw89_phy_ofdma_power_diff(rtwdev, rtwvif);
+	rtw89_phy_ofdma_power_diff(rtwdev, rtwvif_link);
 }
 
 static void rtw89_phy_ul_tb_waveform_ctrl(struct rtw89_dev *rtwdev,
@@ -4453,7 +4453,7 @@ void rtw89_phy_ul_tb_ctrl_track(struct rtw89_dev *rtwdev)
 {
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 	struct rtw89_phy_ul_tb_check_data ul_tb_data = {};
-	struct rtw89_vif *rtwvif;
+	struct rtw89_vif_link *rtwvif_link;
 
 	if (!chip->ul_tb_waveform_ctrl && !chip->ul_tb_pwr_diff)
 		return;
@@ -4461,8 +4461,8 @@ void rtw89_phy_ul_tb_ctrl_track(struct rtw89_dev *rtwdev)
 	if (rtwdev->total_sta_assoc != 1)
 		return;
 
-	rtw89_for_each_rtwvif(rtwdev, rtwvif)
-		rtw89_phy_ul_tb_ctrl_check(rtwdev, rtwvif, &ul_tb_data);
+	rtw89_for_each_rtwvif(rtwdev, rtwvif_link)
+		rtw89_phy_ul_tb_ctrl_check(rtwdev, rtwvif_link, &ul_tb_data);
 
 	if (!ul_tb_data.valid)
 		return;
@@ -5757,13 +5757,13 @@ static void rtw89_phy_tx_path_div_sta_iter(void *data, struct ieee80211_sta *sta
 {
 	struct rtw89_sta *rtwsta = (struct rtw89_sta *)sta->drv_priv;
 	struct rtw89_dev *rtwdev = rtwsta->rtwdev;
-	struct rtw89_vif *rtwvif = rtwsta->rtwvif;
+	struct rtw89_vif_link *rtwvif_link = rtwsta->rtwvif_link;
 	struct rtw89_hal *hal = &rtwdev->hal;
 	bool *done = data;
 	u8 rssi_a, rssi_b;
 	u32 candidate;
 
-	if (rtwvif->wifi_role != RTW89_WIFI_ROLE_STATION || sta->tdls)
+	if (rtwvif_link->wifi_role != RTW89_WIFI_ROLE_STATION || sta->tdls)
 		return;
 
 	if (*done)
