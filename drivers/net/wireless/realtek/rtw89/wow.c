@@ -1123,12 +1123,12 @@ static int rtw89_wow_cfg_wake(struct rtw89_dev *rtwdev, bool wow)
 	struct ieee80211_vif *wow_vif = rtw_wow->wow_vif;
 	struct rtw89_vif_link *rtwvif_link = (struct rtw89_vif_link *)wow_vif->drv_priv;
 	struct ieee80211_sta *wow_sta;
-	struct rtw89_sta *rtwsta = NULL;
+	struct rtw89_sta_link *rtwsta_link = NULL;
 	int ret;
 
 	wow_sta = ieee80211_find_sta(wow_vif, rtwvif_link->bssid);
 	if (wow_sta)
-		rtwsta = (struct rtw89_sta *)wow_sta->drv_priv;
+		rtwsta_link = (struct rtw89_sta_link *)wow_sta->drv_priv;
 
 	if (wow) {
 		if (rtw_wow->pattern_cnt)
@@ -1147,7 +1147,7 @@ static int rtw89_wow_cfg_wake(struct rtw89_dev *rtwdev, bool wow)
 	}
 
 	if (wow) {
-		ret = rtw89_chip_h2c_dctl_sec_cam(rtwdev, rtwvif_link, rtwsta);
+		ret = rtw89_chip_h2c_dctl_sec_cam(rtwdev, rtwvif_link, rtwsta_link);
 		if (ret) {
 			rtw89_err(rtwdev, "failed to update dctl cam sec entry: %d\n",
 				  ret);
@@ -1155,7 +1155,7 @@ static int rtw89_wow_cfg_wake(struct rtw89_dev *rtwdev, bool wow)
 		}
 	}
 
-	ret = rtw89_fw_h2c_cam(rtwdev, rtwvif_link, rtwsta, NULL);
+	ret = rtw89_fw_h2c_cam(rtwdev, rtwvif_link, rtwsta_link, NULL);
 	if (ret) {
 		rtw89_warn(rtwdev, "failed to send h2c cam\n");
 		return ret;
@@ -1198,7 +1198,7 @@ static int rtw89_wow_swap_fw(struct rtw89_dev *rtwdev, bool wow)
 	bool include_bb = !!chip->bbmcu_nr;
 	bool disable_intr_for_dlfw = false;
 	struct ieee80211_sta *wow_sta;
-	struct rtw89_sta *rtwsta = NULL;
+	struct rtw89_sta_link *rtwsta_link = NULL;
 	bool is_conn = true;
 	int ret;
 
@@ -1207,7 +1207,7 @@ static int rtw89_wow_swap_fw(struct rtw89_dev *rtwdev, bool wow)
 
 	wow_sta = ieee80211_find_sta(wow_vif, rtwvif_link->bssid);
 	if (wow_sta)
-		rtwsta = (struct rtw89_sta *)wow_sta->drv_priv;
+		rtwsta_link = (struct rtw89_sta_link *)wow_sta->drv_priv;
 	else
 		is_conn = false;
 
@@ -1225,7 +1225,7 @@ static int rtw89_wow_swap_fw(struct rtw89_dev *rtwdev, bool wow)
 
 	rtw89_phy_init_rf_reg(rtwdev, true);
 
-	ret = rtw89_fw_h2c_role_maintain(rtwdev, rtwvif_link, rtwsta,
+	ret = rtw89_fw_h2c_role_maintain(rtwdev, rtwvif_link, rtwsta_link,
 					 RTW89_ROLE_FW_RESTORE);
 	if (ret) {
 		rtw89_warn(rtwdev, "failed to send h2c role maintain\n");
@@ -1241,20 +1241,20 @@ static int rtw89_wow_swap_fw(struct rtw89_dev *rtwdev, bool wow)
 	if (!is_conn)
 		rtw89_cam_reset_keys(rtwdev);
 
-	ret = rtw89_fw_h2c_join_info(rtwdev, rtwvif_link, rtwsta, !is_conn);
+	ret = rtw89_fw_h2c_join_info(rtwdev, rtwvif_link, rtwsta_link, !is_conn);
 	if (ret) {
 		rtw89_warn(rtwdev, "failed to send h2c join info\n");
 		return ret;
 	}
 
-	ret = rtw89_fw_h2c_cam(rtwdev, rtwvif_link, rtwsta, NULL);
+	ret = rtw89_fw_h2c_cam(rtwdev, rtwvif_link, rtwsta_link, NULL);
 	if (ret) {
 		rtw89_warn(rtwdev, "failed to send h2c cam\n");
 		return ret;
 	}
 
 	if (is_conn) {
-		ret = rtw89_fw_h2c_general_pkt(rtwdev, rtwvif_link, rtwsta->mac_id);
+		ret = rtw89_fw_h2c_general_pkt(rtwdev, rtwvif_link, rtwsta_link->mac_id);
 		if (ret) {
 			rtw89_warn(rtwdev, "failed to send h2c general packet\n");
 			return ret;

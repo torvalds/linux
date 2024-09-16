@@ -6160,18 +6160,18 @@ void _rtw89_mac_bf_monitor_track(struct rtw89_dev *rtwdev)
 }
 
 static int
-__rtw89_mac_set_tx_time(struct rtw89_dev *rtwdev, struct rtw89_sta *rtwsta,
+__rtw89_mac_set_tx_time(struct rtw89_dev *rtwdev, struct rtw89_sta_link *rtwsta_link,
 			u32 tx_time)
 {
 #define MAC_AX_DFLT_TX_TIME 5280
-	u8 mac_idx = rtwsta->rtwvif_link->mac_idx;
+	u8 mac_idx = rtwsta_link->rtwvif_link->mac_idx;
 	u32 max_tx_time = tx_time == 0 ? MAC_AX_DFLT_TX_TIME : tx_time;
 	u32 reg;
 	int ret = 0;
 
-	if (rtwsta->cctl_tx_time) {
-		rtwsta->ampdu_max_time = (max_tx_time - 512) >> 9;
-		ret = rtw89_fw_h2c_txtime_cmac_tbl(rtwdev, rtwsta);
+	if (rtwsta_link->cctl_tx_time) {
+		rtwsta_link->ampdu_max_time = (max_tx_time - 512) >> 9;
+		ret = rtw89_fw_h2c_txtime_cmac_tbl(rtwdev, rtwsta_link);
 	} else {
 		ret = rtw89_mac_check_mac_en(rtwdev, mac_idx, RTW89_CMAC_SEL);
 		if (ret) {
@@ -6187,31 +6187,31 @@ __rtw89_mac_set_tx_time(struct rtw89_dev *rtwdev, struct rtw89_sta *rtwsta,
 	return ret;
 }
 
-int rtw89_mac_set_tx_time(struct rtw89_dev *rtwdev, struct rtw89_sta *rtwsta,
+int rtw89_mac_set_tx_time(struct rtw89_dev *rtwdev, struct rtw89_sta_link *rtwsta_link,
 			  bool resume, u32 tx_time)
 {
 	int ret = 0;
 
 	if (!resume) {
-		rtwsta->cctl_tx_time = true;
-		ret = __rtw89_mac_set_tx_time(rtwdev, rtwsta, tx_time);
+		rtwsta_link->cctl_tx_time = true;
+		ret = __rtw89_mac_set_tx_time(rtwdev, rtwsta_link, tx_time);
 	} else {
-		ret = __rtw89_mac_set_tx_time(rtwdev, rtwsta, tx_time);
-		rtwsta->cctl_tx_time = false;
+		ret = __rtw89_mac_set_tx_time(rtwdev, rtwsta_link, tx_time);
+		rtwsta_link->cctl_tx_time = false;
 	}
 
 	return ret;
 }
 
-int rtw89_mac_get_tx_time(struct rtw89_dev *rtwdev, struct rtw89_sta *rtwsta,
+int rtw89_mac_get_tx_time(struct rtw89_dev *rtwdev, struct rtw89_sta_link *rtwsta_link,
 			  u32 *tx_time)
 {
-	u8 mac_idx = rtwsta->rtwvif_link->mac_idx;
+	u8 mac_idx = rtwsta_link->rtwvif_link->mac_idx;
 	u32 reg;
 	int ret = 0;
 
-	if (rtwsta->cctl_tx_time) {
-		*tx_time = (rtwsta->ampdu_max_time + 1) << 9;
+	if (rtwsta_link->cctl_tx_time) {
+		*tx_time = (rtwsta_link->ampdu_max_time + 1) << 9;
 	} else {
 		ret = rtw89_mac_check_mac_en(rtwdev, mac_idx, RTW89_CMAC_SEL);
 		if (ret) {
@@ -6227,33 +6227,33 @@ int rtw89_mac_get_tx_time(struct rtw89_dev *rtwdev, struct rtw89_sta *rtwsta,
 }
 
 int rtw89_mac_set_tx_retry_limit(struct rtw89_dev *rtwdev,
-				 struct rtw89_sta *rtwsta,
+				 struct rtw89_sta_link *rtwsta_link,
 				 bool resume, u8 tx_retry)
 {
 	int ret = 0;
 
-	rtwsta->data_tx_cnt_lmt = tx_retry;
+	rtwsta_link->data_tx_cnt_lmt = tx_retry;
 
 	if (!resume) {
-		rtwsta->cctl_tx_retry_limit = true;
-		ret = rtw89_fw_h2c_txtime_cmac_tbl(rtwdev, rtwsta);
+		rtwsta_link->cctl_tx_retry_limit = true;
+		ret = rtw89_fw_h2c_txtime_cmac_tbl(rtwdev, rtwsta_link);
 	} else {
-		ret = rtw89_fw_h2c_txtime_cmac_tbl(rtwdev, rtwsta);
-		rtwsta->cctl_tx_retry_limit = false;
+		ret = rtw89_fw_h2c_txtime_cmac_tbl(rtwdev, rtwsta_link);
+		rtwsta_link->cctl_tx_retry_limit = false;
 	}
 
 	return ret;
 }
 
 int rtw89_mac_get_tx_retry_limit(struct rtw89_dev *rtwdev,
-				 struct rtw89_sta *rtwsta, u8 *tx_retry)
+				 struct rtw89_sta_link *rtwsta_link, u8 *tx_retry)
 {
-	u8 mac_idx = rtwsta->rtwvif_link->mac_idx;
+	u8 mac_idx = rtwsta_link->rtwvif_link->mac_idx;
 	u32 reg;
 	int ret = 0;
 
-	if (rtwsta->cctl_tx_retry_limit) {
-		*tx_retry = rtwsta->data_tx_cnt_lmt;
+	if (rtwsta_link->cctl_tx_retry_limit) {
+		*tx_retry = rtwsta_link->data_tx_cnt_lmt;
 	} else {
 		ret = rtw89_mac_check_mac_en(rtwdev, mac_idx, RTW89_CMAC_SEL);
 		if (ret) {
@@ -6340,7 +6340,7 @@ int rtw89_mac_read_xtal_si_ax(struct rtw89_dev *rtwdev, u8 offset, u8 *val)
 }
 
 static
-void rtw89_mac_pkt_drop_sta(struct rtw89_dev *rtwdev, struct rtw89_sta *rtwsta)
+void rtw89_mac_pkt_drop_sta(struct rtw89_dev *rtwdev, struct rtw89_sta_link *rtwsta_link)
 {
 	static const enum rtw89_pkt_drop_sel sels[] = {
 		RTW89_PKT_DROP_SEL_MACID_BE_ONCE,
@@ -6348,12 +6348,12 @@ void rtw89_mac_pkt_drop_sta(struct rtw89_dev *rtwdev, struct rtw89_sta *rtwsta)
 		RTW89_PKT_DROP_SEL_MACID_VI_ONCE,
 		RTW89_PKT_DROP_SEL_MACID_VO_ONCE,
 	};
-	struct rtw89_vif_link *rtwvif_link = rtwsta->rtwvif_link;
+	struct rtw89_vif_link *rtwvif_link = rtwsta_link->rtwvif_link;
 	struct rtw89_pkt_drop_params params = {0};
 	int i;
 
 	params.mac_band = RTW89_MAC_0;
-	params.macid = rtwsta->mac_id;
+	params.macid = rtwsta_link->mac_id;
 	params.port = rtwvif_link->port;
 	params.mbssid = 0;
 	params.tf_trs = rtwvif_link->trigger;
@@ -6366,15 +6366,15 @@ void rtw89_mac_pkt_drop_sta(struct rtw89_dev *rtwdev, struct rtw89_sta *rtwsta)
 
 static void rtw89_mac_pkt_drop_vif_iter(void *data, struct ieee80211_sta *sta)
 {
-	struct rtw89_sta *rtwsta = (struct rtw89_sta *)sta->drv_priv;
-	struct rtw89_vif_link *rtwvif_link = rtwsta->rtwvif_link;
+	struct rtw89_sta_link *rtwsta_link = (struct rtw89_sta_link *)sta->drv_priv;
+	struct rtw89_vif_link *rtwvif_link = rtwsta_link->rtwvif_link;
 	struct rtw89_dev *rtwdev = rtwvif_link->rtwdev;
 	struct rtw89_vif_link *target = data;
 
 	if (rtwvif_link != target)
 		return;
 
-	rtw89_mac_pkt_drop_sta(rtwdev, rtwsta);
+	rtw89_mac_pkt_drop_sta(rtwdev, rtwsta_link);
 }
 
 void rtw89_mac_pkt_drop_vif(struct rtw89_dev *rtwdev, struct rtw89_vif_link *rtwvif_link)

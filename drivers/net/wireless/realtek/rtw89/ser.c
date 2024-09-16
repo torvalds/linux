@@ -309,19 +309,19 @@ static void ser_reset_vif(struct rtw89_dev *rtwdev, struct rtw89_vif_link *rtwvi
 static void ser_sta_deinit_cam_iter(void *data, struct ieee80211_sta *sta)
 {
 	struct rtw89_vif_link *target_rtwvif = (struct rtw89_vif_link *)data;
-	struct rtw89_sta *rtwsta = (struct rtw89_sta *)sta->drv_priv;
-	struct rtw89_vif_link *rtwvif_link = rtwsta->rtwvif_link;
+	struct rtw89_sta_link *rtwsta_link = (struct rtw89_sta_link *)sta->drv_priv;
+	struct rtw89_vif_link *rtwvif_link = rtwsta_link->rtwvif_link;
 	struct rtw89_dev *rtwdev = rtwvif_link->rtwdev;
 
 	if (rtwvif_link != target_rtwvif)
 		return;
 
 	if (rtwvif_link->net_type == RTW89_NET_TYPE_AP_MODE || sta->tdls)
-		rtw89_cam_deinit_addr_cam(rtwdev, &rtwsta->addr_cam);
+		rtw89_cam_deinit_addr_cam(rtwdev, &rtwsta_link->addr_cam);
 	if (sta->tdls)
-		rtw89_cam_deinit_bssid_cam(rtwdev, &rtwsta->bssid_cam);
+		rtw89_cam_deinit_bssid_cam(rtwdev, &rtwsta_link->bssid_cam);
 
-	INIT_LIST_HEAD(&rtwsta->ba_cam_list);
+	INIT_LIST_HEAD(&rtwsta_link->ba_cam_list);
 }
 
 static void ser_deinit_cam(struct rtw89_dev *rtwdev, struct rtw89_vif_link *rtwvif_link)

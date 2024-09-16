@@ -1742,7 +1742,7 @@ plain_log:
 
 #define H2C_CAM_LEN 60
 int rtw89_fw_h2c_cam(struct rtw89_dev *rtwdev, struct rtw89_vif_link *rtwvif_link,
-		     struct rtw89_sta *rtwsta, const u8 *scan_mac_addr)
+		     struct rtw89_sta_link *rtwsta_link, const u8 *scan_mac_addr)
 {
 	struct sk_buff *skb;
 	int ret;
@@ -1753,9 +1753,9 @@ int rtw89_fw_h2c_cam(struct rtw89_dev *rtwdev, struct rtw89_vif_link *rtwvif_lin
 		return -ENOMEM;
 	}
 	skb_put(skb, H2C_CAM_LEN);
-	rtw89_cam_fill_addr_cam_info(rtwdev, rtwvif_link, rtwsta, scan_mac_addr,
+	rtw89_cam_fill_addr_cam_info(rtwdev, rtwvif_link, rtwsta_link, scan_mac_addr,
 				     skb->data);
-	rtw89_cam_fill_bssid_cam_info(rtwdev, rtwvif_link, rtwsta, skb->data);
+	rtw89_cam_fill_bssid_cam_info(rtwdev, rtwvif_link, rtwsta_link, skb->data);
 
 	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
 			      H2C_CAT_MAC,
@@ -1778,7 +1778,7 @@ fail:
 
 int rtw89_fw_h2c_dctl_sec_cam_v1(struct rtw89_dev *rtwdev,
 				 struct rtw89_vif_link *rtwvif_link,
-				 struct rtw89_sta *rtwsta)
+				 struct rtw89_sta_link *rtwsta_link)
 {
 	struct rtw89_h2c_dctlinfo_ud_v1 *h2c;
 	u32 len = sizeof(*h2c);
@@ -1793,7 +1793,7 @@ int rtw89_fw_h2c_dctl_sec_cam_v1(struct rtw89_dev *rtwdev,
 	skb_put(skb, len);
 	h2c = (struct rtw89_h2c_dctlinfo_ud_v1 *)skb->data;
 
-	rtw89_cam_fill_dctl_sec_cam_info_v1(rtwdev, rtwvif_link, rtwsta, h2c);
+	rtw89_cam_fill_dctl_sec_cam_info_v1(rtwdev, rtwvif_link, rtwsta_link, h2c);
 
 	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
 			      H2C_CAT_MAC,
@@ -1817,7 +1817,7 @@ EXPORT_SYMBOL(rtw89_fw_h2c_dctl_sec_cam_v1);
 
 int rtw89_fw_h2c_dctl_sec_cam_v2(struct rtw89_dev *rtwdev,
 				 struct rtw89_vif_link *rtwvif_link,
-				 struct rtw89_sta *rtwsta)
+				 struct rtw89_sta_link *rtwsta_link)
 {
 	struct rtw89_h2c_dctlinfo_ud_v2 *h2c;
 	u32 len = sizeof(*h2c);
@@ -1832,7 +1832,7 @@ int rtw89_fw_h2c_dctl_sec_cam_v2(struct rtw89_dev *rtwdev,
 	skb_put(skb, len);
 	h2c = (struct rtw89_h2c_dctlinfo_ud_v2 *)skb->data;
 
-	rtw89_cam_fill_dctl_sec_cam_info_v2(rtwdev, rtwvif_link, rtwsta, h2c);
+	rtw89_cam_fill_dctl_sec_cam_info_v2(rtwdev, rtwvif_link, rtwsta_link, h2c);
 
 	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
 			      H2C_CAT_MAC,
@@ -1856,9 +1856,9 @@ EXPORT_SYMBOL(rtw89_fw_h2c_dctl_sec_cam_v2);
 
 int rtw89_fw_h2c_default_dmac_tbl_v2(struct rtw89_dev *rtwdev,
 				     struct rtw89_vif_link *rtwvif_link,
-				     struct rtw89_sta *rtwsta)
+				     struct rtw89_sta_link *rtwsta_link)
 {
-	u8 mac_id = rtwsta ? rtwsta->mac_id : rtwvif_link->mac_id;
+	u8 mac_id = rtwsta_link ? rtwsta_link->mac_id : rtwvif_link->mac_id;
 	struct rtw89_h2c_dctlinfo_ud_v2 *h2c;
 	u32 len = sizeof(*h2c);
 	struct sk_buff *skb;
@@ -1909,21 +1909,23 @@ fail:
 }
 EXPORT_SYMBOL(rtw89_fw_h2c_default_dmac_tbl_v2);
 
-int rtw89_fw_h2c_ba_cam(struct rtw89_dev *rtwdev, struct rtw89_sta *rtwsta,
+int rtw89_fw_h2c_ba_cam(struct rtw89_dev *rtwdev, struct rtw89_sta_link *rtwsta_link,
 			bool valid, struct ieee80211_ampdu_params *params)
 {
 	const struct rtw89_chip_info *chip = rtwdev->chip;
-	struct rtw89_vif_link *rtwvif_link = rtwsta->rtwvif_link;
+	struct rtw89_vif_link *rtwvif_link = rtwsta_link->rtwvif_link;
 	struct rtw89_h2c_ba_cam *h2c;
-	u8 macid = rtwsta->mac_id;
+	u8 macid = rtwsta_link->mac_id;
 	u32 len = sizeof(*h2c);
 	struct sk_buff *skb;
 	u8 entry_idx;
 	int ret;
 
 	ret = valid ?
-	      rtw89_core_acquire_sta_ba_entry(rtwdev, rtwsta, params->tid, &entry_idx) :
-	      rtw89_core_release_sta_ba_entry(rtwdev, rtwsta, params->tid, &entry_idx);
+	      rtw89_core_acquire_sta_ba_entry(rtwdev, rtwsta_link, params->tid,
+					      &entry_idx) :
+	      rtw89_core_release_sta_ba_entry(rtwdev, rtwsta_link, params->tid,
+					      &entry_idx);
 	if (ret) {
 		/* it still works even if we don't have static BA CAM, because
 		 * hardware can create dynamic BA CAM automatically.
@@ -2041,13 +2043,13 @@ void rtw89_fw_h2c_init_dynamic_ba_cam_v0_ext(struct rtw89_dev *rtwdev)
 	}
 }
 
-int rtw89_fw_h2c_ba_cam_v1(struct rtw89_dev *rtwdev, struct rtw89_sta *rtwsta,
+int rtw89_fw_h2c_ba_cam_v1(struct rtw89_dev *rtwdev, struct rtw89_sta_link *rtwsta_link,
 			   bool valid, struct ieee80211_ampdu_params *params)
 {
 	const struct rtw89_chip_info *chip = rtwdev->chip;
-	struct rtw89_vif_link *rtwvif_link = rtwsta->rtwvif_link;
+	struct rtw89_vif_link *rtwvif_link = rtwsta_link->rtwvif_link;
 	struct rtw89_h2c_ba_cam_v1 *h2c;
-	u8 macid = rtwsta->mac_id;
+	u8 macid = rtwsta_link->mac_id;
 	u32 len = sizeof(*h2c);
 	struct sk_buff *skb;
 	u8 entry_idx;
@@ -2055,8 +2057,10 @@ int rtw89_fw_h2c_ba_cam_v1(struct rtw89_dev *rtwdev, struct rtw89_sta *rtwsta,
 	int ret;
 
 	ret = valid ?
-	      rtw89_core_acquire_sta_ba_entry(rtwdev, rtwsta, params->tid, &entry_idx) :
-	      rtw89_core_release_sta_ba_entry(rtwdev, rtwsta, params->tid, &entry_idx);
+	      rtw89_core_acquire_sta_ba_entry(rtwdev, rtwsta_link, params->tid,
+					      &entry_idx) :
+	      rtw89_core_release_sta_ba_entry(rtwdev, rtwsta_link, params->tid,
+					      &entry_idx);
 	if (ret) {
 		/* it still works even if we don't have static BA CAM, because
 		 * hardware can create dynamic BA CAM automatically.
@@ -2627,10 +2631,10 @@ static void __rtw89_fw_h2c_set_tx_path(struct rtw89_dev *rtwdev,
 #define H2C_CMC_TBL_LEN 68
 int rtw89_fw_h2c_default_cmac_tbl(struct rtw89_dev *rtwdev,
 				  struct rtw89_vif_link *rtwvif_link,
-				  struct rtw89_sta *rtwsta)
+				  struct rtw89_sta_link *rtwsta_link)
 {
 	const struct rtw89_chip_info *chip = rtwdev->chip;
-	u8 macid = rtwsta ? rtwsta->mac_id : rtwvif_link->mac_id;
+	u8 macid = rtwsta_link ? rtwsta_link->mac_id : rtwvif_link->mac_id;
 	struct sk_buff *skb;
 	int ret;
 
@@ -2676,9 +2680,9 @@ EXPORT_SYMBOL(rtw89_fw_h2c_default_cmac_tbl);
 
 int rtw89_fw_h2c_default_cmac_tbl_g7(struct rtw89_dev *rtwdev,
 				     struct rtw89_vif_link *rtwvif_link,
-				     struct rtw89_sta *rtwsta)
+				     struct rtw89_sta_link *rtwsta_link)
 {
-	u8 mac_id = rtwsta ? rtwsta->mac_id : rtwvif_link->mac_id;
+	u8 mac_id = rtwsta_link ? rtwsta_link->mac_id : rtwvif_link->mac_id;
 	struct rtw89_h2c_cctlinfo_ud_g7 *h2c;
 	u32 len = sizeof(*h2c);
 	struct sk_buff *skb;
@@ -2817,13 +2821,13 @@ int rtw89_fw_h2c_assoc_cmac_tbl(struct rtw89_dev *rtwdev,
 				struct ieee80211_sta *sta)
 {
 	const struct rtw89_chip_info *chip = rtwdev->chip;
-	struct rtw89_sta *rtwsta = sta_to_rtwsta_safe(sta);
+	struct rtw89_sta_link *rtwsta_link = sta_to_rtwsta_safe(sta);
 	struct rtw89_vif_link *rtwvif_link = (struct rtw89_vif_link *)vif->drv_priv;
 	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev,
 						       rtwvif_link->chanctx_idx);
 	struct sk_buff *skb;
 	u8 pads[RTW89_PPE_BW_NUM];
-	u8 mac_id = rtwsta ? rtwsta->mac_id : rtwvif_link->mac_id;
+	u8 mac_id = rtwsta_link ? rtwsta_link->mac_id : rtwvif_link->mac_id;
 	u16 lowest_rate;
 	int ret;
 
@@ -2954,9 +2958,9 @@ int rtw89_fw_h2c_assoc_cmac_tbl_g7(struct rtw89_dev *rtwdev,
 				   struct ieee80211_sta *sta)
 {
 	struct rtw89_vif_link *rtwvif_link = (struct rtw89_vif_link *)vif->drv_priv;
-	struct rtw89_sta *rtwsta = sta_to_rtwsta_safe(sta);
+	struct rtw89_sta_link *rtwsta_link = sta_to_rtwsta_safe(sta);
 	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, rtwvif_link->chanctx_idx);
-	u8 mac_id = rtwsta ? rtwsta->mac_id : rtwvif_link->mac_id;
+	u8 mac_id = rtwsta_link ? rtwsta_link->mac_id : rtwvif_link->mac_id;
 	struct rtw89_h2c_cctlinfo_ud_g7 *h2c;
 	u8 pads[RTW89_PPE_BW_NUM];
 	u32 len = sizeof(*h2c);
@@ -3069,7 +3073,7 @@ int rtw89_fw_h2c_ampdu_cmac_tbl_g7(struct rtw89_dev *rtwdev,
 				   struct ieee80211_vif *vif,
 				   struct ieee80211_sta *sta)
 {
-	struct rtw89_sta *rtwsta = (struct rtw89_sta *)sta->drv_priv;
+	struct rtw89_sta_link *rtwsta_link = (struct rtw89_sta_link *)sta->drv_priv;
 	struct rtw89_h2c_cctlinfo_ud_g7 *h2c;
 	u32 len = sizeof(*h2c);
 	struct sk_buff *skb;
@@ -3086,11 +3090,11 @@ int rtw89_fw_h2c_ampdu_cmac_tbl_g7(struct rtw89_dev *rtwdev,
 	skb_put(skb, len);
 	h2c = (struct rtw89_h2c_cctlinfo_ud_g7 *)skb->data;
 
-	for_each_set_bit(tid, rtwsta->ampdu_map, IEEE80211_NUM_TIDS) {
+	for_each_set_bit(tid, rtwsta_link->ampdu_map, IEEE80211_NUM_TIDS) {
 		if (agg_num == 0)
-			agg_num = rtwsta->ampdu_params[tid].agg_num;
+			agg_num = rtwsta_link->ampdu_params[tid].agg_num;
 		else
-			agg_num = min(agg_num, rtwsta->ampdu_params[tid].agg_num);
+			agg_num = min(agg_num, rtwsta_link->ampdu_params[tid].agg_num);
 	}
 
 	if (agg_num <= 0x20)
@@ -3106,7 +3110,7 @@ int rtw89_fw_h2c_ampdu_cmac_tbl_g7(struct rtw89_dev *rtwdev,
 	else if (agg_num > 0x200 && agg_num <= 0x400)
 		ba_bmap = 5;
 
-	h2c->c0 = le32_encode_bits(rtwsta->mac_id, CCTLINFO_G7_C0_MACID) |
+	h2c->c0 = le32_encode_bits(rtwsta_link->mac_id, CCTLINFO_G7_C0_MACID) |
 		  le32_encode_bits(1, CCTLINFO_G7_C0_OP);
 
 	h2c->w3 = le32_encode_bits(ba_bmap, CCTLINFO_G7_W3_BA_BMAP);
@@ -3132,7 +3136,7 @@ fail:
 EXPORT_SYMBOL(rtw89_fw_h2c_ampdu_cmac_tbl_g7);
 
 int rtw89_fw_h2c_txtime_cmac_tbl(struct rtw89_dev *rtwdev,
-				 struct rtw89_sta *rtwsta)
+				 struct rtw89_sta_link *rtwsta_link)
 {
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 	struct sk_buff *skb;
@@ -3144,15 +3148,15 @@ int rtw89_fw_h2c_txtime_cmac_tbl(struct rtw89_dev *rtwdev,
 		return -ENOMEM;
 	}
 	skb_put(skb, H2C_CMC_TBL_LEN);
-	SET_CTRL_INFO_MACID(skb->data, rtwsta->mac_id);
+	SET_CTRL_INFO_MACID(skb->data, rtwsta_link->mac_id);
 	SET_CTRL_INFO_OPERATION(skb->data, 1);
-	if (rtwsta->cctl_tx_time) {
+	if (rtwsta_link->cctl_tx_time) {
 		SET_CMC_TBL_AMPDU_TIME_SEL(skb->data, 1);
-		SET_CMC_TBL_AMPDU_MAX_TIME(skb->data, rtwsta->ampdu_max_time);
+		SET_CMC_TBL_AMPDU_MAX_TIME(skb->data, rtwsta_link->ampdu_max_time);
 	}
-	if (rtwsta->cctl_tx_retry_limit) {
+	if (rtwsta_link->cctl_tx_retry_limit) {
 		SET_CMC_TBL_DATA_TXCNT_LMT_SEL(skb->data, 1);
-		SET_CMC_TBL_DATA_TX_CNT_LMT(skb->data, rtwsta->data_tx_cnt_lmt);
+		SET_CMC_TBL_DATA_TX_CNT_LMT(skb->data, rtwsta_link->data_tx_cnt_lmt);
 	}
 
 	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
@@ -3174,7 +3178,7 @@ fail:
 }
 
 int rtw89_fw_h2c_txpath_cmac_tbl(struct rtw89_dev *rtwdev,
-				 struct rtw89_sta *rtwsta)
+				 struct rtw89_sta_link *rtwsta_link)
 {
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 	struct sk_buff *skb;
@@ -3189,7 +3193,7 @@ int rtw89_fw_h2c_txpath_cmac_tbl(struct rtw89_dev *rtwdev,
 		return -ENOMEM;
 	}
 	skb_put(skb, H2C_CMC_TBL_LEN);
-	SET_CTRL_INFO_MACID(skb->data, rtwsta->mac_id);
+	SET_CTRL_INFO_MACID(skb->data, rtwsta_link->mac_id);
 	SET_CTRL_INFO_OPERATION(skb->data, 1);
 
 	__rtw89_fw_h2c_set_tx_path(rtwdev, skb);
@@ -3378,16 +3382,16 @@ EXPORT_SYMBOL(rtw89_fw_h2c_update_beacon_be);
 #define H2C_ROLE_MAINTAIN_LEN 4
 int rtw89_fw_h2c_role_maintain(struct rtw89_dev *rtwdev,
 			       struct rtw89_vif_link *rtwvif_link,
-			       struct rtw89_sta *rtwsta,
+			       struct rtw89_sta_link *rtwsta_link,
 			       enum rtw89_upd_mode upd_mode)
 {
 	struct sk_buff *skb;
-	u8 mac_id = rtwsta ? rtwsta->mac_id : rtwvif_link->mac_id;
+	u8 mac_id = rtwsta_link ? rtwsta_link->mac_id : rtwvif_link->mac_id;
 	u8 self_role;
 	int ret;
 
 	if (rtwvif_link->net_type == RTW89_NET_TYPE_AP_MODE) {
-		if (rtwsta)
+		if (rtwsta_link)
 			self_role = RTW89_SELF_ROLE_AP_CLIENT;
 		else
 			self_role = rtwvif_link->self_role;
@@ -3426,9 +3430,9 @@ fail:
 
 static enum rtw89_fw_sta_type
 rtw89_fw_get_sta_type(struct rtw89_dev *rtwdev, struct rtw89_vif_link *rtwvif_link,
-		      struct rtw89_sta *rtwsta)
+		      struct rtw89_sta_link *rtwsta_link)
 {
-	struct ieee80211_sta *sta = rtwsta_to_sta_safe(rtwsta);
+	struct ieee80211_sta *sta = rtwsta_to_sta_safe(rtwsta_link);
 	struct ieee80211_vif *vif = rtwvif_to_vif(rtwvif_link);
 
 	if (!sta)
@@ -3451,10 +3455,10 @@ by_vif:
 }
 
 int rtw89_fw_h2c_join_info(struct rtw89_dev *rtwdev, struct rtw89_vif_link *rtwvif_link,
-			   struct rtw89_sta *rtwsta, bool dis_conn)
+			   struct rtw89_sta_link *rtwsta_link, bool dis_conn)
 {
 	struct sk_buff *skb;
-	u8 mac_id = rtwsta ? rtwsta->mac_id : rtwvif_link->mac_id;
+	u8 mac_id = rtwsta_link ? rtwsta_link->mac_id : rtwvif_link->mac_id;
 	u8 self_role = rtwvif_link->self_role;
 	enum rtw89_fw_sta_type sta_type;
 	u8 net_type = rtwvif_link->net_type;
@@ -3469,7 +3473,7 @@ int rtw89_fw_h2c_join_info(struct rtw89_dev *rtwdev, struct rtw89_vif_link *rtwv
 		format_v1 = true;
 	}
 
-	if (net_type == RTW89_NET_TYPE_AP_MODE && rtwsta) {
+	if (net_type == RTW89_NET_TYPE_AP_MODE && rtwsta_link) {
 		self_role = RTW89_SELF_ROLE_AP_CLIENT;
 		net_type = dis_conn ? RTW89_NET_TYPE_NO_LINK : net_type;
 	}
@@ -3502,7 +3506,7 @@ int rtw89_fw_h2c_join_info(struct rtw89_dev *rtwdev, struct rtw89_vif_link *rtwv
 
 	h2c_v1 = (struct rtw89_h2c_join_v1 *)skb->data;
 
-	sta_type = rtw89_fw_get_sta_type(rtwdev, rtwvif_link, rtwsta);
+	sta_type = rtw89_fw_get_sta_type(rtwdev, rtwvif_link, rtwsta_link);
 
 	h2c_v1->w1 = le32_encode_bits(sta_type, RTW89_H2C_JOININFO_W1_STA_TYPE);
 	h2c_v1->w2 = 0;

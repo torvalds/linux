@@ -3354,7 +3354,7 @@ struct rtw89_sec_cam_entry {
 	u8 key[32];
 };
 
-struct rtw89_sta {
+struct rtw89_sta_link {
 	u8 mac_id;
 	bool disassoc;
 	bool er_cap;
@@ -3647,10 +3647,10 @@ struct rtw89_chip_ops {
 	int (*resume_sch_tx)(struct rtw89_dev *rtwdev, u8 mac_idx, u32 tx_en);
 	int (*h2c_dctl_sec_cam)(struct rtw89_dev *rtwdev,
 				struct rtw89_vif_link *rtwvif_link,
-				struct rtw89_sta *rtwsta);
+				struct rtw89_sta_link *rtwsta_link);
 	int (*h2c_default_cmac_tbl)(struct rtw89_dev *rtwdev,
 				    struct rtw89_vif_link *rtwvif_link,
-				    struct rtw89_sta *rtwsta);
+				    struct rtw89_sta_link *rtwsta_link);
 	int (*h2c_assoc_cmac_tbl)(struct rtw89_dev *rtwdev,
 				  struct ieee80211_vif *vif,
 				  struct ieee80211_sta *sta);
@@ -3659,10 +3659,10 @@ struct rtw89_chip_ops {
 				  struct ieee80211_sta *sta);
 	int (*h2c_default_dmac_tbl)(struct rtw89_dev *rtwdev,
 				    struct rtw89_vif_link *rtwvif_link,
-				    struct rtw89_sta *rtwsta);
+				    struct rtw89_sta_link *rtwsta_link);
 	int (*h2c_update_beacon)(struct rtw89_dev *rtwdev,
 				 struct rtw89_vif_link *rtwvif_link);
-	int (*h2c_ba_cam)(struct rtw89_dev *rtwdev, struct rtw89_sta *rtwsta,
+	int (*h2c_ba_cam)(struct rtw89_dev *rtwdev, struct rtw89_sta_link *rtwsta_link,
 			  bool valid, struct ieee80211_ampdu_params *params);
 
 	void (*btc_set_rfe)(struct rtw89_dev *rtwdev);
@@ -5977,21 +5977,21 @@ static inline struct rtw89_vif_link *vif_to_rtwvif_safe(struct ieee80211_vif *vi
 	return vif ? (struct rtw89_vif_link *)vif->drv_priv : NULL;
 }
 
-static inline struct ieee80211_sta *rtwsta_to_sta(struct rtw89_sta *rtwsta)
+static inline struct ieee80211_sta *rtwsta_to_sta(struct rtw89_sta_link *rtwsta_link)
 {
-	void *p = rtwsta;
+	void *p = rtwsta_link;
 
 	return container_of(p, struct ieee80211_sta, drv_priv);
 }
 
-static inline struct ieee80211_sta *rtwsta_to_sta_safe(struct rtw89_sta *rtwsta)
+static inline struct ieee80211_sta *rtwsta_to_sta_safe(struct rtw89_sta_link *rtwsta_link)
 {
-	return rtwsta ? rtwsta_to_sta(rtwsta) : NULL;
+	return rtwsta_link ? rtwsta_to_sta(rtwsta_link) : NULL;
 }
 
-static inline struct rtw89_sta *sta_to_rtwsta_safe(struct ieee80211_sta *sta)
+static inline struct rtw89_sta_link *sta_to_rtwsta_safe(struct ieee80211_sta *sta)
 {
-	return sta ? (struct rtw89_sta *)sta->drv_priv : NULL;
+	return sta ? (struct rtw89_sta_link *)sta->drv_priv : NULL;
 }
 
 static inline u8 rtw89_hw_to_rate_info_bw(enum rtw89_bandwidth hw_bw)
@@ -6079,26 +6079,26 @@ enum nl80211_he_ru_alloc rtw89_he_rua_to_ru_alloc(u16 rua)
 
 static inline
 struct rtw89_addr_cam_entry *rtw89_get_addr_cam_of(struct rtw89_vif_link *rtwvif_link,
-						   struct rtw89_sta *rtwsta)
+						   struct rtw89_sta_link *rtwsta_link)
 {
-	if (rtwsta) {
-		struct ieee80211_sta *sta = rtwsta_to_sta(rtwsta);
+	if (rtwsta_link) {
+		struct ieee80211_sta *sta = rtwsta_to_sta(rtwsta_link);
 
 		if (rtwvif_link->net_type == RTW89_NET_TYPE_AP_MODE || sta->tdls)
-			return &rtwsta->addr_cam;
+			return &rtwsta_link->addr_cam;
 	}
 	return &rtwvif_link->addr_cam;
 }
 
 static inline
 struct rtw89_bssid_cam_entry *rtw89_get_bssid_cam_of(struct rtw89_vif_link *rtwvif_link,
-						     struct rtw89_sta *rtwsta)
+						     struct rtw89_sta_link *rtwsta_link)
 {
-	if (rtwsta) {
-		struct ieee80211_sta *sta = rtwsta_to_sta(rtwsta);
+	if (rtwsta_link) {
+		struct ieee80211_sta *sta = rtwsta_to_sta(rtwsta_link);
 
 		if (sta->tdls)
-			return &rtwsta->bssid_cam;
+			return &rtwsta_link->bssid_cam;
 	}
 	return &rtwvif_link->bssid_cam;
 }
@@ -6458,13 +6458,13 @@ int rtw89_chip_resume_sch_tx(struct rtw89_dev *rtwdev, u8 mac_idx, u32 tx_en)
 static inline
 int rtw89_chip_h2c_dctl_sec_cam(struct rtw89_dev *rtwdev,
 				struct rtw89_vif_link *rtwvif_link,
-				struct rtw89_sta *rtwsta)
+				struct rtw89_sta_link *rtwsta_link)
 {
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 
 	if (!chip->ops->h2c_dctl_sec_cam)
 		return 0;
-	return chip->ops->h2c_dctl_sec_cam(rtwdev, rtwvif_link, rtwsta);
+	return chip->ops->h2c_dctl_sec_cam(rtwdev, rtwvif_link, rtwsta_link);
 }
 
 static inline u8 *get_hdr_bssid(struct ieee80211_hdr *hdr)
@@ -6646,9 +6646,11 @@ u8 rtw89_core_acquire_bit_map(unsigned long *addr, unsigned long size);
 void rtw89_core_release_bit_map(unsigned long *addr, u8 bit);
 void rtw89_core_release_all_bits_map(unsigned long *addr, unsigned int nbits);
 int rtw89_core_acquire_sta_ba_entry(struct rtw89_dev *rtwdev,
-				    struct rtw89_sta *rtwsta, u8 tid, u8 *cam_idx);
+				    struct rtw89_sta_link *rtwsta_link, u8 tid,
+				    u8 *cam_idx);
 int rtw89_core_release_sta_ba_entry(struct rtw89_dev *rtwdev,
-				    struct rtw89_sta *rtwsta, u8 tid, u8 *cam_idx);
+				    struct rtw89_sta_link *rtwsta_link, u8 tid,
+				    u8 *cam_idx);
 void rtw89_vif_type_mapping(struct ieee80211_vif *vif, bool assoc);
 int rtw89_chip_info_setup(struct rtw89_dev *rtwdev);
 bool rtw89_ra_report_to_bitrate(struct rtw89_dev *rtwdev, u8 rpt_rate, u16 *bitrate);
