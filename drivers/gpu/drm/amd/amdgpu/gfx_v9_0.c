@@ -3931,6 +3931,10 @@ static int gfx_v9_0_cp_resume(struct amdgpu_device *adev)
 			return r;
 	}
 
+	if (adev->gfx.num_gfx_rings)
+		gfx_v9_0_cp_gfx_enable(adev, false);
+	gfx_v9_0_cp_compute_enable(adev, false);
+
 	r = gfx_v9_0_kiq_resume(adev);
 	if (r)
 		return r;
