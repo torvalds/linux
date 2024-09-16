@@ -712,11 +712,21 @@ void rtw89_cam_fill_addr_cam_info(struct rtw89_dev *rtwdev,
 	struct rtw89_addr_cam_entry *addr_cam =
 		rtw89_get_addr_cam_of(rtwvif_link, rtwsta_link);
 	struct ieee80211_sta *sta = rtwsta_to_sta_safe(rtwsta_link);
+	struct ieee80211_link_sta *link_sta;
 	const u8 *sma = scan_mac_addr ? scan_mac_addr : rtwvif_link->mac_addr;
 	u8 sma_hash, tma_hash, addr_msk_start;
 	u8 sma_start = 0;
 	u8 tma_start = 0;
-	u8 *tma = sta ? sta->addr : rtwvif_link->bssid;
+	const u8 *tma;
+
+	rcu_read_lock();
+
+	if (sta) {
+		link_sta = rtw89_sta_rcu_dereference_link(rtwsta_link, true);
+		tma = link_sta->addr;
+	} else {
+		tma = rtwvif_link->bssid;
+	}
 
 	if (addr_cam->addr_mask != 0) {
 		addr_msk_start = __ffs(addr_cam->addr_mask);
@@ -791,6 +801,8 @@ void rtw89_cam_fill_addr_cam_info(struct rtw89_dev *rtwdev,
 	FWCMD_SET_ADDR_SEC_ENT4(cmd, addr_cam->sec_ent[4]);
 	FWCMD_SET_ADDR_SEC_ENT5(cmd, addr_cam->sec_ent[5]);
 	FWCMD_SET_ADDR_SEC_ENT6(cmd, addr_cam->sec_ent[6]);
+
+	rcu_read_unlock();
 }
 
 void rtw89_cam_fill_dctl_sec_cam_info_v1(struct rtw89_dev *rtwdev,

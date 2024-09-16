@@ -465,6 +465,7 @@ rtw89_core_tx_update_ampdu_info(struct rtw89_dev *rtwdev,
 {
 	struct ieee80211_sta *sta = tx_req->sta;
 	struct rtw89_tx_desc_info *desc_info = &tx_req->desc_info;
+	struct ieee80211_link_sta *link_sta;
 	struct sk_buff *skb = tx_req->skb;
 	struct rtw89_sta_link *rtwsta_link;
 	u8 ampdu_num;
@@ -486,13 +487,18 @@ rtw89_core_tx_update_ampdu_info(struct rtw89_dev *rtwdev,
 	tid = skb->priority & IEEE80211_QOS_CTL_TAG1D_MASK;
 	rtwsta_link = (struct rtw89_sta_link *)sta->drv_priv;
 
+	rcu_read_lock();
+
+	link_sta = rtw89_sta_rcu_dereference_link(rtwsta_link, false);
 	ampdu_num = (u8)((rtwsta_link->ampdu_params[tid].agg_num ?
 			  rtwsta_link->ampdu_params[tid].agg_num :
-			  4 << sta->deflink.ht_cap.ampdu_factor) - 1);
+			  4 << link_sta->ht_cap.ampdu_factor) - 1);
 
 	desc_info->agg_en = true;
-	desc_info->ampdu_density = sta->deflink.ht_cap.ampdu_density;
+	desc_info->ampdu_density = link_sta->ht_cap.ampdu_density;
 	desc_info->ampdu_num = ampdu_num;
+
+	rcu_read_unlock();
 }
 
 static void
@@ -721,14 +727,25 @@ __rtw89_core_tx_check_he_qos_htc(struct rtw89_dev *rtwdev,
 	struct rtw89_sta_link *rtwsta_link = sta_to_rtwsta_safe(sta);
 	struct sk_buff *skb = tx_req->skb;
 	struct ieee80211_hdr *hdr = (void *)skb->data;
+	struct ieee80211_link_sta *link_sta;
 	__le16 fc = hdr->frame_control;
 
 	/* AP IOT issue with EAPoL, ARP and DHCP */
 	if (pkt_type < PACKET_MAX)
 		return false;
 
-	if (!sta || !sta->deflink.he_cap.has_he)
+	if (!rtwsta_link)
 		return false;
+
+	rcu_read_lock();
+
+	link_sta = rtw89_sta_rcu_dereference_link(rtwsta_link, false);
+	if (!link_sta->he_cap.has_he) {
+		rcu_read_unlock();
+		return false;
+	}
+
+	rcu_read_unlock();
 
 	if (!ieee80211_is_data_qos(fc))
 		return false;
@@ -802,10 +819,13 @@ static u16 rtw89_core_get_data_rate(struct rtw89_dev *rtwdev,
 	struct ieee80211_vif *vif = tx_req->vif;
 	struct ieee80211_sta *sta = tx_req->sta;
 	struct rtw89_vif_link *rtwvif_link = (struct rtw89_vif_link *)vif->drv_priv;
+	struct rtw89_sta_link *rtwsta_link = sta_to_rtwsta_safe(sta);
 	struct rtw89_phy_rate_pattern *rate_pattern = &rtwvif_link->rate_pattern;
 	enum rtw89_chanctx_idx idx = rtwvif_link->chanctx_idx;
 	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, idx);
+	struct ieee80211_link_sta *link_sta;
 	u16 lowest_rate;
+	u16 rate;
 
 	if (rate_pattern->enable)
 		return rate_pattern->rate;
@@ -817,10 +837,23 @@ static u16 rtw89_core_get_data_rate(struct rtw89_dev *rtwdev,
 	else
 		lowest_rate = RTW89_HW_RATE_OFDM6;
 
-	if (!sta || !sta->deflink.supp_rates[chan->band_type])
+	if (!rtwsta_link)
 		return lowest_rate;
 
-	return __ffs(sta->deflink.supp_rates[chan->band_type]) + lowest_rate;
+	rcu_read_lock();
+
+	link_sta = rtw89_sta_rcu_dereference_link(rtwsta_link, false);
+	if (!link_sta->supp_rates[chan->band_type]) {
+		rate = lowest_rate;
+		goto out;
+	}
+
+	rate = __ffs(link_sta->supp_rates[chan->band_type]) + lowest_rate;
+
+out:
+	rcu_read_unlock();
+
+	return rate;
 }
 
 static void
@@ -3645,12 +3678,20 @@ int rtw89_core_sta_assoc(struct rtw89_dev *rtwdev,
 
 	if (vif->type == NL80211_IFTYPE_AP || sta->tdls) {
 		if (sta->tdls) {
+			struct ieee80211_link_sta *link_sta;
+
+			rcu_read_lock();
+
+			link_sta = rtw89_sta_rcu_dereference_link(rtwsta_link, true);
 			ret = rtw89_cam_init_bssid_cam(rtwdev, rtwvif_link, bssid_cam,
-						       sta->addr);
+						       link_sta->addr);
 			if (ret) {
 				rtw89_warn(rtwdev, "failed to send h2c init bssid cam for TDLS\n");
+				rcu_read_unlock();
 				return ret;
 			}
+
+			rcu_read_unlock();
 		}
 
 		ret = rtw89_cam_init_addr_cam(rtwdev, &rtwsta_link->addr_cam, bssid_cam);

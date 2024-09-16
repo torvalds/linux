@@ -7489,8 +7489,8 @@ void rtw89_btc_ntfy_role_info(struct rtw89_dev *rtwdev,
 	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev,
 						       rtwvif_link->chanctx_idx);
 	struct ieee80211_vif *vif = rtwvif_to_vif(rtwvif_link);
-	struct ieee80211_sta *sta = rtwsta_to_sta(rtwsta_link);
 	struct ieee80211_bss_conf *bss_conf;
+	struct ieee80211_link_sta *link_sta;
 	struct rtw89_btc *btc = &rtwdev->btc;
 	const struct rtw89_btc_ver *ver = btc->ver;
 	struct rtw89_btc_wl_info *wl = &btc->cx.wl;
@@ -7516,19 +7516,21 @@ void rtw89_btc_ntfy_role_info(struct rtw89_dev *rtwdev,
 		    bss_conf->beacon_int, bss_conf->dtim_period);
 
 	if (rtwsta_link) {
+		link_sta = rtw89_sta_rcu_dereference_link(rtwsta_link, false);
+
 		rtw89_debug(rtwdev, RTW89_DBG_BTC, "[BTC], STA mac_id=%d\n",
 			    rtwsta_link->mac_id);
 
 		rtw89_debug(rtwdev, RTW89_DBG_BTC,
 			    "[BTC], STA support HE=%d VHT=%d HT=%d\n",
-			    sta->deflink.he_cap.has_he,
-			    sta->deflink.vht_cap.vht_supported,
-			    sta->deflink.ht_cap.ht_supported);
-		if (sta->deflink.he_cap.has_he)
+			    link_sta->he_cap.has_he,
+			    link_sta->vht_cap.vht_supported,
+			    link_sta->ht_cap.ht_supported);
+		if (link_sta->he_cap.has_he)
 			mode |= BIT(BTC_WL_MODE_HE);
-		if (sta->deflink.vht_cap.vht_supported)
+		if (link_sta->vht_cap.vht_supported)
 			mode |= BIT(BTC_WL_MODE_VHT);
-		if (sta->deflink.ht_cap.ht_supported)
+		if (link_sta->ht_cap.ht_supported)
 			mode |= BIT(BTC_WL_MODE_HT);
 
 		r.mode = mode;

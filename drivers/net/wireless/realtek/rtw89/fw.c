@@ -2776,24 +2776,25 @@ fail:
 EXPORT_SYMBOL(rtw89_fw_h2c_default_cmac_tbl_g7);
 
 static void __get_sta_he_pkt_padding(struct rtw89_dev *rtwdev,
-				     struct ieee80211_sta *sta, u8 *pads)
+				     struct ieee80211_link_sta *link_sta,
+				     u8 *pads)
 {
 	bool ppe_th;
 	u8 ppe16, ppe8;
-	u8 nss = min(sta->deflink.rx_nss, rtwdev->hal.tx_nss) - 1;
-	u8 ppe_thres_hdr = sta->deflink.he_cap.ppe_thres[0];
+	u8 nss = min(link_sta->rx_nss, rtwdev->hal.tx_nss) - 1;
+	u8 ppe_thres_hdr = link_sta->he_cap.ppe_thres[0];
 	u8 ru_bitmap;
 	u8 n, idx, sh;
 	u16 ppe;
 	int i;
 
 	ppe_th = FIELD_GET(IEEE80211_HE_PHY_CAP6_PPE_THRESHOLD_PRESENT,
-			   sta->deflink.he_cap.he_cap_elem.phy_cap_info[6]);
+			   link_sta->he_cap.he_cap_elem.phy_cap_info[6]);
 	if (!ppe_th) {
 		u8 pad;
 
 		pad = FIELD_GET(IEEE80211_HE_PHY_CAP9_NOMINAL_PKT_PADDING_MASK,
-				sta->deflink.he_cap.he_cap_elem.phy_cap_info[9]);
+				link_sta->he_cap.he_cap_elem.phy_cap_info[9]);
 
 		for (i = 0; i < RTW89_PPE_BW_NUM; i++)
 			pads[i] = pad;
@@ -2815,7 +2816,7 @@ static void __get_sta_he_pkt_padding(struct rtw89_dev *rtwdev,
 		sh = n & 7;
 		n += IEEE80211_PPE_THRES_INFO_PPET_SIZE * 2;
 
-		ppe = le16_to_cpu(*((__le16 *)&sta->deflink.he_cap.ppe_thres[idx]));
+		ppe = le16_to_cpu(*((__le16 *)&link_sta->he_cap.ppe_thres[idx]));
 		ppe16 = (ppe >> sh) & IEEE80211_PPE_THRES_NSS_MASK;
 		sh += IEEE80211_PPE_THRES_INFO_PPET_SIZE;
 		ppe8 = (ppe >> sh) & IEEE80211_PPE_THRES_NSS_MASK;
@@ -2838,6 +2839,7 @@ int rtw89_fw_h2c_assoc_cmac_tbl(struct rtw89_dev *rtwdev,
 	struct rtw89_vif_link *rtwvif_link = (struct rtw89_vif_link *)vif->drv_priv;
 	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev,
 						       rtwvif_link->chanctx_idx);
+	struct ieee80211_link_sta *link_sta;
 	struct sk_buff *skb;
 	u8 pads[RTW89_PPE_BW_NUM];
 	u8 mac_id = rtwsta_link ? rtwsta_link->mac_id : rtwvif_link->mac_id;
@@ -2845,8 +2847,20 @@ int rtw89_fw_h2c_assoc_cmac_tbl(struct rtw89_dev *rtwdev,
 	int ret;
 
 	memset(pads, 0, sizeof(pads));
-	if (sta && sta->deflink.he_cap.has_he)
-		__get_sta_he_pkt_padding(rtwdev, sta, pads);
+
+	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, H2C_CMC_TBL_LEN);
+	if (!skb) {
+		rtw89_err(rtwdev, "failed to alloc skb for fw dl\n");
+		return -ENOMEM;
+	}
+
+	rcu_read_lock();
+
+	if (rtwsta_link)
+		link_sta = rtw89_sta_rcu_dereference_link(rtwsta_link, true);
+
+	if (rtwsta_link && link_sta->he_cap.has_he)
+		__get_sta_he_pkt_padding(rtwdev, link_sta, pads);
 
 	if (vif->p2p)
 		lowest_rate = RTW89_HW_RATE_OFDM6;
@@ -2855,11 +2869,6 @@ int rtw89_fw_h2c_assoc_cmac_tbl(struct rtw89_dev *rtwdev,
 	else
 		lowest_rate = RTW89_HW_RATE_OFDM6;
 
-	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, H2C_CMC_TBL_LEN);
-	if (!skb) {
-		rtw89_err(rtwdev, "failed to alloc skb for fw dl\n");
-		return -ENOMEM;
-	}
 	skb_put(skb, H2C_CMC_TBL_LEN);
 	SET_CTRL_INFO_MACID(skb->data, mac_id);
 	SET_CTRL_INFO_OPERATION(skb->data, 1);
@@ -2884,11 +2893,13 @@ int rtw89_fw_h2c_assoc_cmac_tbl(struct rtw89_dev *rtwdev,
 		SET_CMC_TBL_NOMINAL_PKT_PADDING80(skb->data, pads[RTW89_CHANNEL_WIDTH_80]);
 		SET_CMC_TBL_NOMINAL_PKT_PADDING160(skb->data, pads[RTW89_CHANNEL_WIDTH_160]);
 	}
-	if (sta)
+	if (rtwsta_link)
 		SET_CMC_TBL_BSR_QUEUE_SIZE_FORMAT(skb->data,
-						  sta->deflink.he_cap.has_he);
+						  link_sta->he_cap.has_he);
 	if (rtwvif_link->net_type == RTW89_NET_TYPE_AP_MODE)
 		SET_CMC_TBL_DATA_DCM(skb->data, 0);
+
+	rcu_read_unlock();
 
 	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
 			      H2C_CAT_MAC, H2C_CL_MAC_FR_EXCHG,
@@ -2910,9 +2921,10 @@ fail:
 EXPORT_SYMBOL(rtw89_fw_h2c_assoc_cmac_tbl);
 
 static void __get_sta_eht_pkt_padding(struct rtw89_dev *rtwdev,
-				      struct ieee80211_sta *sta, u8 *pads)
+				      struct ieee80211_link_sta *link_sta,
+				      u8 *pads)
 {
-	u8 nss = min(sta->deflink.rx_nss, rtwdev->hal.tx_nss) - 1;
+	u8 nss = min(link_sta->rx_nss, rtwdev->hal.tx_nss) - 1;
 	u16 ppe_thres_hdr;
 	u8 ppe16, ppe8;
 	u8 n, idx, sh;
@@ -2921,12 +2933,12 @@ static void __get_sta_eht_pkt_padding(struct rtw89_dev *rtwdev,
 	u16 ppe;
 	int i;
 
-	ppe_th = !!u8_get_bits(sta->deflink.eht_cap.eht_cap_elem.phy_cap_info[5],
+	ppe_th = !!u8_get_bits(link_sta->eht_cap.eht_cap_elem.phy_cap_info[5],
 			       IEEE80211_EHT_PHY_CAP5_PPE_THRESHOLD_PRESENT);
 	if (!ppe_th) {
 		u8 pad;
 
-		pad = u8_get_bits(sta->deflink.eht_cap.eht_cap_elem.phy_cap_info[5],
+		pad = u8_get_bits(link_sta->eht_cap.eht_cap_elem.phy_cap_info[5],
 				  IEEE80211_EHT_PHY_CAP5_COMMON_NOMINAL_PKT_PAD_MASK);
 
 		for (i = 0; i < RTW89_PPE_BW_NUM; i++)
@@ -2935,7 +2947,7 @@ static void __get_sta_eht_pkt_padding(struct rtw89_dev *rtwdev,
 		return;
 	}
 
-	ppe_thres_hdr = get_unaligned_le16(sta->deflink.eht_cap.eht_ppe_thres);
+	ppe_thres_hdr = get_unaligned_le16(link_sta->eht_cap.eht_ppe_thres);
 	ru_bitmap = u16_get_bits(ppe_thres_hdr,
 				 IEEE80211_EHT_PPE_THRES_RU_INDEX_BITMASK_MASK);
 	n = hweight8(ru_bitmap);
@@ -2952,7 +2964,7 @@ static void __get_sta_eht_pkt_padding(struct rtw89_dev *rtwdev,
 		sh = n & 7;
 		n += IEEE80211_EHT_PPE_THRES_INFO_PPET_SIZE * 2;
 
-		ppe = get_unaligned_le16(sta->deflink.eht_cap.eht_ppe_thres + idx);
+		ppe = get_unaligned_le16(link_sta->eht_cap.eht_ppe_thres + idx);
 		ppe16 = (ppe >> sh) & IEEE80211_PPE_THRES_NSS_MASK;
 		sh += IEEE80211_EHT_PPE_THRES_INFO_PPET_SIZE;
 		ppe8 = (ppe >> sh) & IEEE80211_PPE_THRES_NSS_MASK;
@@ -2976,6 +2988,7 @@ int rtw89_fw_h2c_assoc_cmac_tbl_g7(struct rtw89_dev *rtwdev,
 	u8 mac_id = rtwsta_link ? rtwsta_link->mac_id : rtwvif_link->mac_id;
 	struct rtw89_h2c_cctlinfo_ud_g7 *h2c;
 	struct ieee80211_bss_conf *bss_conf;
+	struct ieee80211_link_sta *link_sta;
 	u8 pads[RTW89_PPE_BW_NUM];
 	u32 len = sizeof(*h2c);
 	struct sk_buff *skb;
@@ -2983,12 +2996,6 @@ int rtw89_fw_h2c_assoc_cmac_tbl_g7(struct rtw89_dev *rtwdev,
 	int ret;
 
 	memset(pads, 0, sizeof(pads));
-	if (sta) {
-		if (sta->deflink.eht_cap.has_eht)
-			__get_sta_eht_pkt_padding(rtwdev, sta, pads);
-		else if (sta->deflink.he_cap.has_he)
-			__get_sta_he_pkt_padding(rtwdev, sta, pads);
-	}
 
 	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, len);
 	if (!skb) {
@@ -2999,6 +3006,15 @@ int rtw89_fw_h2c_assoc_cmac_tbl_g7(struct rtw89_dev *rtwdev,
 	rcu_read_lock();
 
 	bss_conf = rtw89_vif_rcu_dereference_link(rtwvif_link, true);
+
+	if (rtwsta_link) {
+		link_sta = rtw89_sta_rcu_dereference_link(rtwsta_link, true);
+
+		if (link_sta->eht_cap.has_eht)
+			__get_sta_eht_pkt_padding(rtwdev, link_sta, pads);
+		else if (link_sta->he_cap.has_he)
+			__get_sta_he_pkt_padding(rtwdev, link_sta, pads);
+	}
 
 	if (vif->p2p)
 		lowest_rate = RTW89_HW_RATE_OFDM6;
@@ -3063,8 +3079,8 @@ int rtw89_fw_h2c_assoc_cmac_tbl_g7(struct rtw89_dev *rtwdev,
 				   CCTLINFO_G7_W6_ULDL);
 	h2c->m6 = cpu_to_le32(CCTLINFO_G7_W6_ULDL);
 
-	if (sta) {
-		h2c->w8 = le32_encode_bits(sta->deflink.he_cap.has_he,
+	if (rtwsta_link) {
+		h2c->w8 = le32_encode_bits(link_sta->he_cap.has_he,
 					   CCTLINFO_G7_W8_BSR_QUEUE_SIZE_FORMAT);
 		h2c->m8 = cpu_to_le32(CCTLINFO_G7_W8_BSR_QUEUE_SIZE_FORMAT);
 	}
@@ -3453,23 +3469,27 @@ static enum rtw89_fw_sta_type
 rtw89_fw_get_sta_type(struct rtw89_dev *rtwdev, struct rtw89_vif_link *rtwvif_link,
 		      struct rtw89_sta_link *rtwsta_link)
 {
-	struct ieee80211_sta *sta = rtwsta_to_sta_safe(rtwsta_link);
 	struct ieee80211_bss_conf *bss_conf;
+	struct ieee80211_link_sta *link_sta;
 	enum rtw89_fw_sta_type type;
 
-	if (!sta)
-		goto by_vif;
-
-	if (sta->deflink.eht_cap.has_eht)
-		return RTW89_FW_BE_STA;
-	else if (sta->deflink.he_cap.has_he)
-		return RTW89_FW_AX_STA;
-	else
-		return RTW89_FW_N_AC_STA;
-
-by_vif:
 	rcu_read_lock();
 
+	if (!rtwsta_link)
+		goto by_vif;
+
+	link_sta = rtw89_sta_rcu_dereference_link(rtwsta_link, true);
+
+	if (link_sta->eht_cap.has_eht)
+		type = RTW89_FW_BE_STA;
+	else if (link_sta->he_cap.has_he)
+		type = RTW89_FW_AX_STA;
+	else
+		type = RTW89_FW_N_AC_STA;
+
+	goto out;
+
+by_vif:
 	bss_conf = rtw89_vif_rcu_dereference_link(rtwvif_link, true);
 
 	if (bss_conf->eht_support)
@@ -3479,6 +3499,7 @@ by_vif:
 	else
 		type = RTW89_FW_N_AC_STA;
 
+out:
 	rcu_read_unlock();
 
 	return type;
