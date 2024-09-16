@@ -59,7 +59,7 @@
 #include "display/intel_overlay.h"
 #include "display/intel_pch_refclk.h"
 #include "display/intel_pps.h"
-#include "display/intel_sprite.h"
+#include "display/intel_sprite_uapi.h"
 #include "display/skl_watermark.h"
 
 #include "gem/i915_gem_context.h"
