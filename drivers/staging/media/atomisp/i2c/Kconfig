@@ -27,16 +27,6 @@ config VIDEO_ATOMISP_GC2235
 
 	  It currently only works with the atomisp driver.
 
-config VIDEO_ATOMISP_MSRLIST_HELPER
-	tristate "Helper library to load, parse and apply large register lists."
-	depends on I2C
-	help
-	  This is a helper library to be used from a sensor driver to load, parse
-	  and apply large register lists.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called libmsrlisthelper.
-
 config VIDEO_ATOMISP_MT9M114
 	tristate "Aptina mt9m114 sensor support"
 	depends on ACPI
