@@ -693,6 +693,28 @@ static void mes_v11_0_free_ucode_buffers(struct amdgpu_device *adev,
 			      (void **)&adev->mes.ucode_fw_ptr[pipe]);
 }
 
+static void mes_v11_0_get_fw_version(struct amdgpu_device *adev)
+{
+	int pipe;
+
+	/* get MES scheduler/KIQ versions */
+	mutex_lock(&adev->srbm_mutex);
+
+	for (pipe = 0; pipe < AMDGPU_MAX_MES_PIPES; pipe++) {
+		soc21_grbm_select(adev, 3, pipe, 0, 0);
+
+		if (pipe == AMDGPU_MES_SCHED_PIPE)
+			adev->mes.sched_version =
+				RREG32_SOC15(GC, 0, regCP_MES_GP3_LO);
+		else if (pipe == AMDGPU_MES_KIQ_PIPE && adev->enable_mes_kiq)
+			adev->mes.kiq_version =
+				RREG32_SOC15(GC, 0, regCP_MES_GP3_LO);
+	}
+
+	soc21_grbm_select(adev, 0, 0, 0, 0);
+	mutex_unlock(&adev->srbm_mutex);
+}
+
 static void mes_v11_0_enable(struct amdgpu_device *adev, bool enable)
 {
 	uint64_t ucode_addr;
@@ -1062,18 +1084,6 @@ static int mes_v11_0_queue_init(struct amdgpu_device *adev,
 		mes_v11_0_queue_init_register(ring);
 	}
 
-	/* get MES scheduler/KIQ versions */
-	mutex_lock(&adev->srbm_mutex);
-	soc21_grbm_select(adev, 3, pipe, 0, 0);
-
-	if (pipe == AMDGPU_MES_SCHED_PIPE)
-		adev->mes.sched_version = RREG32_SOC15(GC, 0, regCP_MES_GP3_LO);
-	else if (pipe == AMDGPU_MES_KIQ_PIPE && adev->enable_mes_kiq)
-		adev->mes.kiq_version = RREG32_SOC15(GC, 0, regCP_MES_GP3_LO);
-
-	soc21_grbm_select(adev, 0, 0, 0, 0);
-	mutex_unlock(&adev->srbm_mutex);
-
 	return 0;
 }
 
@@ -1320,15 +1330,24 @@ static int mes_v11_0_kiq_hw_init(struct amdgpu_device *adev)
 
 	mes_v11_0_enable(adev, true);
 
+	mes_v11_0_get_fw_version(adev);
+
 	mes_v11_0_kiq_setting(&adev->gfx.kiq[0].ring);
 
 	r = mes_v11_0_queue_init(adev, AMDGPU_MES_KIQ_PIPE);
 	if (r)
 		goto failure;
 
-	r = mes_v11_0_hw_init(adev);
-	if (r)
-		goto failure;
+	if ((adev->mes.sched_version & AMDGPU_MES_VERSION_MASK) >= 0x47)
+		adev->mes.enable_legacy_queue_map = true;
+	else
+		adev->mes.enable_legacy_queue_map = false;
+
+	if (adev->mes.enable_legacy_queue_map) {
+		r = mes_v11_0_hw_init(adev);
+		if (r)
+			goto failure;
+	}
 
 	return r;
 

@@ -456,11 +456,13 @@ static int test__name_cmp(struct test_suite *test __maybe_unused, int subtest __
 /**
  * Test perf_pmu__match() that's used to search for a PMU given a name passed
  * on the command line. The name that's passed may also be a filename type glob
- * match.
+ * match. If the name does not match, perf_pmu__match() attempts to match the
+ * alias of the PMU, if provided.
  */
 static int test__pmu_match(struct test_suite *test __maybe_unused, int subtest __maybe_unused)
 {
 	struct perf_pmu test_pmu;
+	test_pmu.alias_name = NULL;
 
 	test_pmu.name = "pmuname";
 	TEST_ASSERT_EQUAL("Exact match", perf_pmu__match(&test_pmu, "pmuname"),	     true);
