@@ -270,6 +270,10 @@ static int kfd_get_cu_occupancy(struct attribute *attr, char *buffer)
 	struct kfd_node *dev = NULL;
 	struct kfd_process *proc = NULL;
 	struct kfd_process_device *pdd = NULL;
+	int i;
+	struct kfd_cu_occupancy cu_occupancy[AMDGPU_MAX_QUEUES];
+
+	memset(cu_occupancy, 0x0, sizeof(cu_occupancy));
 
 	pdd = container_of(attr, struct kfd_process_device, attr_cu_occupancy);
 	dev = pdd->dev;
@@ -287,8 +291,16 @@ static int kfd_get_cu_occupancy(struct attribute *attr, char *buffer)
 	/* Collect wave count from device if it supports */
 	wave_cnt = 0;
 	max_waves_per_cu = 0;
-	dev->kfd2kgd->get_cu_occupancy(dev->adev, proc->pasid, &wave_cnt,
+
+	dev->kfd2kgd->get_cu_occupancy(dev->adev, cu_occupancy,
 			&max_waves_per_cu, 0);
+
+	for (i = 0; i < AMDGPU_MAX_QUEUES; i++) {
+		if (cu_occupancy[i].wave_cnt != 0 &&
+		    kfd_dqm_is_queue_in_process(dev->dqm, &pdd->qpd,
+						cu_occupancy[i].doorbell_off))
+			wave_cnt += cu_occupancy[i].wave_cnt;
+	}
 
 	/* Translate wave count to number of compute units */
 	cu_cnt = (wave_cnt + (max_waves_per_cu - 1)) / max_waves_per_cu;
