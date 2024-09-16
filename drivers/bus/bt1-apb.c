@@ -185,33 +185,12 @@ static int bt1_apb_request_rst(struct bt1_apb *apb)
 	return ret;
 }
 
-static void bt1_apb_disable_clk(void *data)
-{
-	struct bt1_apb *apb = data;
-
-	clk_disable_unprepare(apb->pclk);
-}
-
 static int bt1_apb_request_clk(struct bt1_apb *apb)
 {
-	int ret;
-
-	apb->pclk = devm_clk_get(apb->dev, "pclk");
+	apb->pclk = devm_clk_get_enabled(apb->dev, "pclk");
 	if (IS_ERR(apb->pclk))
 		return dev_err_probe(apb->dev, PTR_ERR(apb->pclk),
 				     "Couldn't get APB clock descriptor\n");
-
-	ret = clk_prepare_enable(apb->pclk);
-	if (ret) {
-		dev_err(apb->dev, "Couldn't enable the APB clock\n");
-		return ret;
-	}
-
-	ret = devm_add_action_or_reset(apb->dev, bt1_apb_disable_clk, apb);
-	if (ret) {
-		dev_err(apb->dev, "Can't add APB EHB clocks disable action\n");
-		return ret;
-	}
 
 	apb->rate = clk_get_rate(apb->pclk);
 	if (!apb->rate) {
