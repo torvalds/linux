@@ -2231,8 +2231,10 @@ static int bmi323_core_runtime_resume(struct device *dev)
 	 * after being reset in the lower power state by runtime-pm.
 	 */
 	ret = bmi323_init(data);
-	if (!ret)
+	if (ret) {
+		dev_err(data->dev, "Device power-on and init failed: %d", ret);
 		return ret;
+	}
 
 	/* Register must be cleared before changing an active config */
 	ret = regmap_write(data->regmap, BMI323_FEAT_IO0_REG, 0);
