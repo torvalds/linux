@@ -79,7 +79,7 @@ static int sch_transaction(struct i2c_adapter *adap)
 {
 	struct sch_i2c *priv = container_of(adap, struct sch_i2c, adapter);
 	int temp;
-	int result = 0;
+	int rc;
 
 	dev_dbg(&adap->dev,
 		"Transaction (pre): CNT=%02x, CMD=%02x, ADD=%02x, DAT0=%02x, DAT1=%02x\n",
@@ -108,17 +108,16 @@ static int sch_transaction(struct i2c_adapter *adap)
 	temp |= 0x10;
 	sch_io_wr8(priv, SMBHSTCNT, temp);
 
-	result = read_poll_timeout(sch_io_rd8, temp, !(temp & 0x08), 200, 500000, true,
-				   priv, SMBHSTSTS);
+	rc = read_poll_timeout(sch_io_rd8, temp, !(temp & 0x08), 200, 500000, true, priv, SMBHSTSTS);
 	/* If the SMBus is still busy, we give up */
-	if (result) {
+	if (rc) {
 		dev_err(&adap->dev, "SMBus Timeout!\n");
 	} else if (temp & 0x04) {
-		result = -EIO;
+		rc = -EIO;
 		dev_dbg(&adap->dev, "Bus collision! SMBus may be locked until next hard reset. (sorry!)\n");
 		/* Clock stops and target is stuck in mid-transmission */
 	} else if (temp & 0x02) {
-		result = -EIO;
+		rc = -EIO;
 		dev_err(&adap->dev, "Error: no response!\n");
 	} else if (temp & 0x01) {
 		dev_dbg(&adap->dev, "Post complete!\n");
@@ -130,14 +129,14 @@ static int sch_transaction(struct i2c_adapter *adap)
 				"Failed reset at end of transaction (%02x), Bus error!\n", temp);
 		}
 	} else {
-		result = -ENXIO;
+		rc = -ENXIO;
 		dev_dbg(&adap->dev, "No such address.\n");
 	}
 	dev_dbg(&adap->dev, "Transaction (post): CNT=%02x, CMD=%02x, ADD=%02x, DAT0=%02x, DAT1=%02x\n",
 		sch_io_rd8(priv, SMBHSTCNT), sch_io_rd8(priv, SMBHSTCMD),
 		sch_io_rd8(priv, SMBHSTADD),
 		sch_io_rd8(priv, SMBHSTDAT0), sch_io_rd8(priv, SMBHSTDAT1));
-	return result;
+	return rc;
 }
 
 /*
