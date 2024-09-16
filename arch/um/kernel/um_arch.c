@@ -366,18 +366,15 @@ int __init linux_main(int argc, char **argv)
 
 	setup_machinename(init_utsname()->machine);
 
-	highmem = 0;
+	physmem_size = (physmem_size + PAGE_SIZE - 1) & PAGE_MASK;
 	iomem_size = (iomem_size + PAGE_SIZE - 1) & PAGE_MASK;
+
 	max_physmem = TASK_SIZE - uml_physmem - iomem_size - MIN_VMALLOC;
 
-	/*
-	 * Zones have to begin on a 1 << MAX_PAGE_ORDER page boundary,
-	 * so this makes sure that's true for highmem
-	 */
-	max_physmem &= ~((1 << (PAGE_SHIFT + MAX_PAGE_ORDER)) - 1);
 	if (physmem_size + iomem_size > max_physmem) {
-		highmem = physmem_size + iomem_size - max_physmem;
-		physmem_size -= highmem;
+		physmem_size = max_physmem - iomem_size;
+		os_info("Physical memory size shrunk to %llu bytes\n",
+			physmem_size);
 	}
 
 	high_physmem = uml_physmem + physmem_size;
@@ -413,8 +410,8 @@ void __init setup_arch(char **cmdline_p)
 	u8 rng_seed[32];
 
 	stack_protections((unsigned long) &init_thread_info);
-	setup_physmem(uml_physmem, uml_reserved, physmem_size, highmem);
-	mem_total_pages(physmem_size, iomem_size, highmem);
+	setup_physmem(uml_physmem, uml_reserved, physmem_size);
+	mem_total_pages(physmem_size, iomem_size);
 	uml_dtb_init();
 	read_initrd();
 

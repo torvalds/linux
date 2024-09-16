@@ -24,17 +24,14 @@ EXPORT_SYMBOL(high_physmem);
 
 extern unsigned long long physmem_size;
 
-void __init mem_total_pages(unsigned long physmem, unsigned long iomem,
-		     unsigned long highmem)
+void __init mem_total_pages(unsigned long physmem, unsigned long iomem)
 {
-	unsigned long phys_pages, highmem_pages;
-	unsigned long iomem_pages, total_pages;
+	unsigned long phys_pages, iomem_pages, total_pages;
 
-	phys_pages    = physmem >> PAGE_SHIFT;
-	iomem_pages   = iomem   >> PAGE_SHIFT;
-	highmem_pages = highmem >> PAGE_SHIFT;
+	phys_pages  = physmem >> PAGE_SHIFT;
+	iomem_pages = iomem   >> PAGE_SHIFT;
 
-	total_pages   = phys_pages + iomem_pages + highmem_pages;
+	total_pages = phys_pages + iomem_pages;
 
 	max_mapnr = total_pages;
 }
@@ -64,13 +61,12 @@ void map_memory(unsigned long virt, unsigned long phys, unsigned long len,
  * @reserve_end:	end address of the physical kernel memory.
  * @len:	Length of total physical memory that should be mapped/made
  *		available, in bytes.
- * @highmem:	Number of highmem bytes that should be mapped/made available.
  *
- * Creates an unlinked temporary file of size (len + highmem) and memory maps
+ * Creates an unlinked temporary file of size (len) and memory maps
  * it on the last executable image address (uml_reserved).
  *
  * The offset is needed as the length of the total physical memory
- * (len + highmem) includes the size of the memory used be the executable image,
+ * (len) includes the size of the memory used be the executable image,
  * but the mapped-to address is the last address of the executable image
  * (uml_reserved == end address of executable image).
  *
@@ -78,7 +74,7 @@ void map_memory(unsigned long virt, unsigned long phys, unsigned long len,
  * of all user space processes/kernel tasks.
  */
 void __init setup_physmem(unsigned long start, unsigned long reserve_end,
-			  unsigned long len, unsigned long long highmem)
+			  unsigned long len)
 {
 	unsigned long reserve = reserve_end - start;
 	unsigned long map_size = len - reserve;
@@ -90,7 +86,7 @@ void __init setup_physmem(unsigned long start, unsigned long reserve_end,
 		exit(1);
 	}
 
-	physmem_fd = create_mem_file(len + highmem);
+	physmem_fd = create_mem_file(len);
 
 	err = os_map_memory((void *) reserve_end, physmem_fd, reserve,
 			    map_size, 1, 1, 1);
@@ -109,7 +105,7 @@ void __init setup_physmem(unsigned long start, unsigned long reserve_end,
 	os_write_file(physmem_fd, __syscall_stub_start, PAGE_SIZE);
 	os_fsync_file(physmem_fd);
 
-	memblock_add(__pa(start), len + highmem);
+	memblock_add(__pa(start), len);
 	memblock_reserve(__pa(start), reserve);
 
 	min_low_pfn = PFN_UP(__pa(reserve_end));
@@ -136,10 +132,6 @@ int phys_mapping(unsigned long phys, unsigned long long *offset_out)
 			}
 			region = region->next;
 		}
-	}
-	else if (phys < __pa(end_iomem) + highmem) {
-		fd = physmem_fd;
-		*offset_out = phys - iomem_size;
 	}
 
 	return fd;
