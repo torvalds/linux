@@ -97,16 +97,14 @@ static inline int rtw89_wow_get_sec_hdr_len(struct rtw89_dev *rtwdev)
 #ifdef CONFIG_PM
 static inline bool rtw89_wow_mgd_linked(struct rtw89_dev *rtwdev)
 {
-	struct ieee80211_vif *wow_vif = rtwdev->wow.wow_vif;
-	struct rtw89_vif_link *rtwvif_link = (struct rtw89_vif_link *)wow_vif->drv_priv;
+	struct rtw89_vif_link *rtwvif_link = rtwdev->wow.rtwvif_link;
 
 	return rtwvif_link->net_type == RTW89_NET_TYPE_INFRA;
 }
 
 static inline bool rtw89_wow_no_link(struct rtw89_dev *rtwdev)
 {
-	struct ieee80211_vif *wow_vif = rtwdev->wow.wow_vif;
-	struct rtw89_vif_link *rtwvif_link = (struct rtw89_vif_link *)wow_vif->drv_priv;
+	struct rtw89_vif_link *rtwvif_link = rtwdev->wow.rtwvif_link;
 
 	return rtwvif_link->net_type == RTW89_NET_TYPE_NO_LINK;
 }

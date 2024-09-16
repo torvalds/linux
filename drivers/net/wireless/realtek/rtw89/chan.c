@@ -234,12 +234,24 @@ void rtw89_entity_init(struct rtw89_dev *rtwdev)
 	rtw89_config_default_chandef(rtwdev);
 }
 
+static bool rtw89_vif_is_active_role(struct rtw89_vif *rtwvif)
+{
+	struct rtw89_vif_link *rtwvif_link;
+	unsigned int link_id;
+
+	rtw89_vif_for_each_link(rtwvif, rtwvif_link, link_id)
+		if (rtwvif_link->chanctx_assigned)
+			return true;
+
+	return false;
+}
+
 static void rtw89_entity_calculate_weight(struct rtw89_dev *rtwdev,
 					  struct rtw89_entity_weight *w)
 {
 	struct rtw89_hal *hal = &rtwdev->hal;
 	const struct rtw89_chanctx_cfg *cfg;
-	struct rtw89_vif_link *rtwvif_link;
+	struct rtw89_vif *rtwvif;
 	int idx;
 
 	for_each_set_bit(idx, hal->entity_map, NUM_OF_RTW89_CHANCTX) {
@@ -254,8 +266,8 @@ static void rtw89_entity_calculate_weight(struct rtw89_dev *rtwdev,
 			w->active_chanctxs++;
 	}
 
-	rtw89_for_each_rtwvif(rtwdev, rtwvif_link) {
-		if (rtwvif_link->chanctx_assigned)
+	rtw89_for_each_rtwvif(rtwdev, rtwvif) {
+		if (rtw89_vif_is_active_role(rtwvif))
 			w->active_roles++;
 	}
 }
@@ -522,13 +534,21 @@ out:
 
 static void rtw89_mcc_role_macid_sta_iter(void *data, struct ieee80211_sta *sta)
 {
-	struct rtw89_sta_link *rtwsta_link = (struct rtw89_sta_link *)sta->drv_priv;
-	struct rtw89_vif_link *rtwvif_link = rtwsta_link->rtwvif_link;
 	struct rtw89_mcc_role *mcc_role = data;
-	struct rtw89_vif_link *target = mcc_role->rtwvif_link;
+	struct rtw89_vif *target = mcc_role->rtwvif_link->rtwvif;
+	struct rtw89_sta *rtwsta = sta_to_rtwsta(sta);
+	struct rtw89_vif *rtwvif = rtwsta->rtwvif;
+	struct rtw89_dev *rtwdev = rtwsta->rtwdev;
+	struct rtw89_sta_link *rtwsta_link;
 
-	if (rtwvif_link != target)
+	if (rtwvif != target)
 		return;
+
+	rtwsta_link = rtw89_sta_get_link_inst(rtwsta, 0);
+	if (unlikely(!rtwsta_link)) {
+		rtw89_err(rtwdev, "mcc sta macid: find no link on HW-0\n");
+		return;
+	}
 
 	rtw89_mcc_role_fw_macid_bitmap_set_bit(mcc_role, rtwsta_link->mac_id);
 }
@@ -605,7 +625,7 @@ fill:
 		return;
 	}
 
-	ret = rtw89_mac_port_get_tsf(rtwdev, mcc_role->rtwvif_link, &tsf);
+	ret = rtw89_mac_port_get_tsf(rtwdev, rtwvif_link, &tsf);
 	if (ret) {
 		rtw89_warn(rtwdev, "MCC failed to get port tsf: %d\n", ret);
 		return;
@@ -727,11 +747,18 @@ static int rtw89_mcc_fill_all_roles(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_mcc_fill_role_selector sel = {};
 	struct rtw89_vif_link *rtwvif_link;
+	struct rtw89_vif *rtwvif;
 	int ret;
 
-	rtw89_for_each_rtwvif(rtwdev, rtwvif_link) {
-		if (!rtwvif_link->chanctx_assigned)
+	rtw89_for_each_rtwvif(rtwdev, rtwvif) {
+		if (!rtw89_vif_is_active_role(rtwvif))
 			continue;
+
+		rtwvif_link = rtw89_vif_get_link_inst(rtwvif, 0);
+		if (unlikely(!rtwvif_link)) {
+			rtw89_err(rtwdev, "mcc fill roles: find no link on HW-0\n");
+			continue;
+		}
 
 		if (sel.bind_vif[rtwvif_link->chanctx_idx]) {
 			rtw89_warn(rtwdev,
@@ -2384,12 +2411,30 @@ void rtw89_chanctx_proceed(struct rtw89_dev *rtwdev)
 	rtw89_queue_chanctx_work(rtwdev);
 }
 
+static void __rtw89_swap_chanctx(struct rtw89_vif *rtwvif,
+				 enum rtw89_chanctx_idx idx1,
+				 enum rtw89_chanctx_idx idx2)
+{
+	struct rtw89_vif_link *rtwvif_link;
+	unsigned int link_id;
+
+	rtw89_vif_for_each_link(rtwvif, rtwvif_link, link_id) {
+		if (!rtwvif_link->chanctx_assigned)
+			continue;
+
+		if (rtwvif_link->chanctx_idx == idx1)
+			rtwvif_link->chanctx_idx = idx2;
+		else if (rtwvif_link->chanctx_idx == idx2)
+			rtwvif_link->chanctx_idx = idx1;
+	}
+}
+
 static void rtw89_swap_chanctx(struct rtw89_dev *rtwdev,
 			       enum rtw89_chanctx_idx idx1,
 			       enum rtw89_chanctx_idx idx2)
 {
 	struct rtw89_hal *hal = &rtwdev->hal;
-	struct rtw89_vif_link *rtwvif_link;
+	struct rtw89_vif *rtwvif;
 	u8 cur;
 
 	if (idx1 == idx2)
@@ -2400,14 +2445,8 @@ static void rtw89_swap_chanctx(struct rtw89_dev *rtwdev,
 
 	swap(hal->chanctx[idx1], hal->chanctx[idx2]);
 
-	rtw89_for_each_rtwvif(rtwdev, rtwvif_link) {
-		if (!rtwvif_link->chanctx_assigned)
-			continue;
-		if (rtwvif_link->chanctx_idx == idx1)
-			rtwvif_link->chanctx_idx = idx2;
-		else if (rtwvif_link->chanctx_idx == idx2)
-			rtwvif_link->chanctx_idx = idx1;
-	}
+	rtw89_for_each_rtwvif(rtwdev, rtwvif)
+		__rtw89_swap_chanctx(rtwvif, idx1, idx2);
 
 	cur = atomic_read(&hal->roc_chanctx_idx);
 	if (cur == idx1)

@@ -21,14 +21,14 @@
  * twice cause the list to be added twice.
  */
 static inline bool rtw89_rtwvif_in_list(struct rtw89_dev *rtwdev,
-					struct rtw89_vif_link *new)
+					struct rtw89_vif *new)
 {
-	struct rtw89_vif_link *rtwvif_link;
+	struct rtw89_vif *rtwvif;
 
 	lockdep_assert_held(&rtwdev->mutex);
 
-	rtw89_for_each_rtwvif(rtwdev, rtwvif_link)
-		if (rtwvif_link == new)
+	rtw89_for_each_rtwvif(rtwdev, rtwvif)
+		if (rtwvif == new)
 			return true;
 
 	return false;

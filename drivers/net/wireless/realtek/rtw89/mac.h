@@ -1466,7 +1466,7 @@ int rtw89_mac_read_xtal_si(struct rtw89_dev *rtwdev, u8 offset, u8 *val)
 	return mac->read_xtal_si(rtwdev, offset, val);
 }
 
-void rtw89_mac_pkt_drop_vif(struct rtw89_dev *rtwdev, struct rtw89_vif_link *rtwvif_link);
+void rtw89_mac_pkt_drop_vif(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif);
 int rtw89_mac_resize_ple_rx_quota(struct rtw89_dev *rtwdev, bool wow);
 int rtw89_mac_ptk_drop_by_band_and_wait(struct rtw89_dev *rtwdev,
 					enum rtw89_mac_idx band);
