@@ -49,7 +49,7 @@ struct sch_i2c {
 };
 
 static int backbone_speed = 33000; /* backbone speed in kHz */
-module_param(backbone_speed, int, S_IRUSR | S_IWUSR);
+module_param(backbone_speed, int, 0600);
 MODULE_PARM_DESC(backbone_speed, "Backbone speed in kHz, (default = 33000)");
 
 static inline u8 sch_io_rd8(struct sch_i2c *priv, unsigned int offset)
