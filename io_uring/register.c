@@ -561,7 +561,7 @@ static int __io_uring_register(struct io_ring_ctx *ctx, unsigned opcode,
  * true, then the registered index is used. Otherwise, the normal fd table.
  * Caller must call fput() on the returned file, unless it's an ERR_PTR.
  */
-struct file *io_uring_register_get_file(int fd, bool registered)
+struct file *io_uring_register_get_file(unsigned int fd, bool registered)
 {
 	struct file *file;
 
