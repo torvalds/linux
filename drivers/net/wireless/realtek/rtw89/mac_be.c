@@ -2091,11 +2091,9 @@ static int rtw89_mac_init_bfee_be(struct rtw89_dev *rtwdev, u8 mac_idx)
 }
 
 static int rtw89_mac_set_csi_para_reg_be(struct rtw89_dev *rtwdev,
-					 struct ieee80211_vif *vif,
-					 struct ieee80211_sta *sta)
+					 struct rtw89_vif_link *rtwvif_link,
+					 struct rtw89_sta_link *rtwsta_link)
 {
-	struct rtw89_vif_link *rtwvif_link = (struct rtw89_vif_link *)vif->drv_priv;
-	struct rtw89_sta_link *rtwsta_link = (struct rtw89_sta_link *)sta->drv_priv;
 	u8 nc = 1, nr = 3, ng = 0, cb = 1, cs = 1, ldpc_en = 1, stbc_en = 1;
 	struct ieee80211_link_sta *link_sta;
 	u8 mac_idx = rtwvif_link->mac_idx;
@@ -2162,11 +2160,9 @@ static int rtw89_mac_set_csi_para_reg_be(struct rtw89_dev *rtwdev,
 }
 
 static int rtw89_mac_csi_rrsc_be(struct rtw89_dev *rtwdev,
-				 struct ieee80211_vif *vif,
-				 struct ieee80211_sta *sta)
+				 struct rtw89_vif_link *rtwvif_link,
+				 struct rtw89_sta_link *rtwsta_link)
 {
-	struct rtw89_vif_link *rtwvif_link = (struct rtw89_vif_link *)vif->drv_priv;
-	struct rtw89_sta_link *rtwsta_link = (struct rtw89_sta_link *)sta->drv_priv;
 	u32 rrsc = BIT(RTW89_MAC_BF_RRSC_6M) | BIT(RTW89_MAC_BF_RRSC_24M);
 	struct ieee80211_link_sta *link_sta;
 	u8 mac_idx = rtwvif_link->mac_idx;
@@ -2210,11 +2206,9 @@ static int rtw89_mac_csi_rrsc_be(struct rtw89_dev *rtwdev,
 }
 
 static void rtw89_mac_bf_assoc_be(struct rtw89_dev *rtwdev,
-				  struct ieee80211_vif *vif,
-				  struct ieee80211_sta *sta)
+				  struct rtw89_vif_link *rtwvif_link,
+				  struct rtw89_sta_link *rtwsta_link)
 {
-	struct rtw89_vif_link *rtwvif_link = (struct rtw89_vif_link *)vif->drv_priv;
-	struct rtw89_sta_link *rtwsta_link = (struct rtw89_sta_link *)sta->drv_priv;
 	struct ieee80211_link_sta *link_sta;
 	bool has_beamformer_cap;
 
@@ -2229,8 +2223,8 @@ static void rtw89_mac_bf_assoc_be(struct rtw89_dev *rtwdev,
 		rtw89_debug(rtwdev, RTW89_DBG_BF,
 			    "initialize bfee for new association\n");
 		rtw89_mac_init_bfee_be(rtwdev, rtwvif_link->mac_idx);
-		rtw89_mac_set_csi_para_reg_be(rtwdev, vif, sta);
-		rtw89_mac_csi_rrsc_be(rtwdev, vif, sta);
+		rtw89_mac_set_csi_para_reg_be(rtwdev, rtwvif_link, rtwsta_link);
+		rtw89_mac_csi_rrsc_be(rtwdev, rtwvif_link, rtwsta_link);
 	}
 }
 

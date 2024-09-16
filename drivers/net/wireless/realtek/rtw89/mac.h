@@ -951,8 +951,9 @@ struct rtw89_mac_gen_def {
 	void (*dmac_func_pre_en)(struct rtw89_dev *rtwdev);
 	void (*dle_func_en)(struct rtw89_dev *rtwdev, bool enable);
 	void (*dle_clk_en)(struct rtw89_dev *rtwdev, bool enable);
-	void (*bf_assoc)(struct rtw89_dev *rtwdev, struct ieee80211_vif *vif,
-			 struct ieee80211_sta *sta);
+	void (*bf_assoc)(struct rtw89_dev *rtwdev,
+			 struct rtw89_vif_link *rtwvif_link,
+			 struct rtw89_sta_link *rtwsta_link);
 
 	int (*typ_fltr_opt)(struct rtw89_dev *rtwdev,
 			    enum rtw89_machdr_frame_type type,
@@ -1259,21 +1260,24 @@ void rtw89_mac_power_mode_change(struct rtw89_dev *rtwdev, bool enter);
 void rtw89_mac_notify_wake(struct rtw89_dev *rtwdev);
 
 static inline
-void rtw89_mac_bf_assoc(struct rtw89_dev *rtwdev, struct ieee80211_vif *vif,
-			struct ieee80211_sta *sta)
+void rtw89_mac_bf_assoc(struct rtw89_dev *rtwdev,
+			struct rtw89_vif_link *rtwvif_link,
+			struct rtw89_sta_link *rtwsta_link)
 {
 	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
 
 	if (mac->bf_assoc)
-		mac->bf_assoc(rtwdev, vif, sta);
+		mac->bf_assoc(rtwdev, rtwvif_link, rtwsta_link);
 }
 
-void rtw89_mac_bf_disassoc(struct rtw89_dev *rtwdev, struct ieee80211_vif *vif,
-			   struct ieee80211_sta *sta);
+void rtw89_mac_bf_disassoc(struct rtw89_dev *rtwdev,
+			   struct rtw89_vif_link *rtwvif_link,
+			   struct rtw89_sta_link *rtwsta_link);
 void rtw89_mac_bf_set_gid_table(struct rtw89_dev *rtwdev, struct ieee80211_vif *vif,
 				struct ieee80211_bss_conf *conf);
 void rtw89_mac_bf_monitor_calc(struct rtw89_dev *rtwdev,
-			       struct ieee80211_sta *sta, bool disconnect);
+			       struct rtw89_sta_link *rtwsta_link,
+			       bool disconnect);
 void _rtw89_mac_bf_monitor_track(struct rtw89_dev *rtwdev);
 void rtw89_mac_bfee_ctrl(struct rtw89_dev *rtwdev, u8 mac_idx, bool en);
 int rtw89_mac_vif_init(struct rtw89_dev *rtwdev, struct rtw89_vif_link *rtwvif_link);

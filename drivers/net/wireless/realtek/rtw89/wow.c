@@ -1240,7 +1240,7 @@ static int rtw89_wow_swap_fw(struct rtw89_dev *rtwdev, bool wow)
 		return ret;
 	}
 
-	ret = rtw89_chip_h2c_assoc_cmac_tbl(rtwdev, wow_vif, wow_sta);
+	ret = rtw89_chip_h2c_assoc_cmac_tbl(rtwdev, rtwvif_link, rtwsta_link);
 	if (ret) {
 		rtw89_warn(rtwdev, "failed to send h2c assoc cmac tbl\n");
 		return ret;
@@ -1267,7 +1267,7 @@ static int rtw89_wow_swap_fw(struct rtw89_dev *rtwdev, bool wow)
 			rtw89_warn(rtwdev, "failed to send h2c general packet\n");
 			return ret;
 		}
-		rtw89_phy_ra_assoc(rtwdev, wow_sta);
+		rtw89_phy_ra_assoc(rtwdev, rtwsta_link);
 		rtw89_phy_set_bss_color(rtwdev, rtwvif_link);
 		rtw89_chip_cfg_txpwr_ul_tb_offset(rtwdev, rtwvif_link);
 	}
@@ -1374,13 +1374,14 @@ static int rtw89_wow_disable_trx_post(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_wow_param *rtw_wow = &rtwdev->wow;
 	struct ieee80211_vif *vif = rtw_wow->wow_vif;
+	struct rtw89_vif_link *rtwvif_link = (struct rtw89_vif_link *)vif->drv_priv;
 	int ret;
 
 	ret = rtw89_mac_cfg_ppdu_status(rtwdev, RTW89_MAC_0, true);
 	if (ret)
 		rtw89_err(rtwdev, "cfg ppdu status\n");
 
-	rtw89_fw_h2c_set_bcn_fltr_cfg(rtwdev, vif, true);
+	rtw89_fw_h2c_set_bcn_fltr_cfg(rtwdev, rtwvif_link, true);
 
 	return ret;
 }
