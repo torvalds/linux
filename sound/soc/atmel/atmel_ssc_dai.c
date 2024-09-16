@@ -836,6 +836,7 @@ static const struct snd_soc_dai_ops atmel_ssc_dai_ops = {
 
 static struct snd_soc_dai_driver atmel_ssc_dai = {
 		.playback = {
+			.stream_name = "Playback",
 			.channels_min = 1,
 			.channels_max = 2,
 			.rates = SNDRV_PCM_RATE_CONTINUOUS,
@@ -843,6 +844,7 @@ static struct snd_soc_dai_driver atmel_ssc_dai = {
 			.rate_max = 384000,
 			.formats = ATMEL_SSC_FORMATS,},
 		.capture = {
+			.stream_name = "Capture",
 			.channels_min = 1,
 			.channels_max = 2,
 			.rates = SNDRV_PCM_RATE_CONTINUOUS,
