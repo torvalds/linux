@@ -45,7 +45,7 @@ struct bucket {
 };
 
 /**
- * calc_shannon_entropy() - Compute Shannon entropy of the sampled data.
+ * has_low_entropy() - Compute Shannon entropy of the sampled data.
  * @bkt:	Bytes counts of the sample.
  * @slen:	Size of the sample.
  *
@@ -60,7 +60,7 @@ struct bucket {
  * Also Shannon entropy is the last computed heuristic; if we got this far and ended up
  * with uncertainty, just stay on the safe side and call it uncompressible.
  */
-static bool calc_shannon_entropy(struct bucket *bkt, size_t slen)
+static bool has_low_entropy(struct bucket *bkt, size_t slen)
 {
 	const size_t threshold = 65, max_entropy = 8 * ilog2(16);
 	size_t i, p, p2, len, sum = 0;
@@ -79,17 +79,21 @@ static bool calc_shannon_entropy(struct bucket *bkt, size_t slen)
 	return ((sum * 100 / max_entropy) <= threshold);
 }
 
+#define BYTE_DIST_BAD		0
+#define BYTE_DIST_GOOD		1
+#define BYTE_DIST_MAYBE		2
 /**
  * calc_byte_distribution() - Compute byte distribution on the sampled data.
  * @bkt:	Byte counts of the sample.
  * @slen:	Size of the sample.
  *
  * Return:
- * 1:	High probability (normal (Gaussian) distribution) of the data being compressible.
- * 0:	A "hard no" for compression -- either a computed uniform distribution of the bytes (e.g.
- *	random or encrypted data), or calc_shannon_entropy() returned false (see above).
- * 2:	When computed byte distribution resulted in "low > n < high" grounds.
- *	calc_shannon_entropy() should be used for a final decision.
+ * BYTE_DIST_BAD:	A "hard no" for compression -- a computed uniform distribution of
+ *			the bytes (e.g. random or encrypted data).
+ * BYTE_DIST_GOOD:	High probability (normal (Gaussian) distribution) of the data being
+ *			compressible.
+ * BYTE_DIST_MAYBE:	When computed byte distribution resulted in "low > n < high"
+ *			grounds.  has_low_entropy() should be used for a final decision.
  */
 static int calc_byte_distribution(struct bucket *bkt, size_t slen)
 {
@@ -101,7 +105,7 @@ static int calc_byte_distribution(struct bucket *bkt, size_t slen)
 		sum += bkt[i].count;
 
 	if (sum > threshold)
-		return i;
+		return BYTE_DIST_BAD;
 
 	for (; i < high && bkt[i].count > 0; i++) {
 		sum += bkt[i].count;
@@ -110,36 +114,29 @@ static int calc_byte_distribution(struct bucket *bkt, size_t slen)
 	}
 
 	if (i <= low)
-		return 1;
+		return BYTE_DIST_GOOD;
 
 	if (i >= high)
-		return 0;
+		return BYTE_DIST_BAD;
 
-	return 2;
+	return BYTE_DIST_MAYBE;
 }
 
-static bool check_ascii_bytes(const struct bucket *bkt)
+static bool is_mostly_ascii(const struct bucket *bkt)
 {
-	const size_t threshold = 64;
 	size_t count = 0;
 	int i;
 
-	for (i = 0; i < threshold; i++)
+	for (i = 0; i < 256; i++)
 		if (bkt[i].count > 0)
-			count++;
+			/* Too many non-ASCII (0-63) bytes. */
+			if (++count > 64)
+				return false;
 
-	for (; i < 256; i++) {
-		if (bkt[i].count > 0) {
-			count++;
-			if (count > threshold)
-				break;
-		}
-	}
-
-	return (count < threshold);
+	return true;
 }
 
-static bool check_repeated_data(const u8 *sample, size_t len)
+static bool has_repeated_data(const u8 *sample, size_t len)
 {
 	size_t s = len / 2;
 
@@ -222,71 +219,79 @@ static int collect_sample(const struct iov_iter *iter, ssize_t max, u8 *sample)
  * is_compressible() - Determines if a chunk of data is compressible.
  * @data: Iterator containing uncompressed data.
  *
- * Return:
- * 0:		@data is not compressible
- * 1:		@data is compressible
- * -ENOMEM:	failed to allocate memory for sample buffer
+ * Return: true if @data is compressible, false otherwise.
  *
  * Tests shows that this function is quite reliable in predicting data compressibility,
  * matching close to 1:1 with the behaviour of LZ77 compression success and failures.
  */
-static int is_compressible(const struct iov_iter *data)
+static bool is_compressible(const struct iov_iter *data)
 {
 	const size_t read_size = SZ_2K, bkt_size = 256, max = SZ_4M;
 	struct bucket *bkt = NULL;
-	int i = 0, ret = 0;
 	size_t len;
 	u8 *sample;
+	bool ret = false;
+	int i;
 
+	/* Preventive double check -- already checked in should_compress(). */
 	len = iov_iter_count(data);
-	if (len < read_size)
-		return 0;
+	if (unlikely(len < read_size))
+		return ret;
 
 	if (len - read_size > max)
 		len = max;
 
 	sample = kvzalloc(len, GFP_KERNEL);
-	if (!sample)
-		return -ENOMEM;
+	if (!sample) {
+		WARN_ON_ONCE(1);
+
+		return ret;
+	}
 
 	/* Sample 2K bytes per page of the uncompressed data. */
-	ret = collect_sample(data, len, sample);
-	if (ret < 0)
+	i = collect_sample(data, len, sample);
+	if (i <= 0) {
+		WARN_ON_ONCE(1);
+
 		goto out;
+	}
 
-	len = ret;
-	ret = 1;
+	len = i;
+	ret = true;
 
-	if (check_repeated_data(sample, len))
+	if (has_repeated_data(sample, len))
 		goto out;
 
 	bkt = kcalloc(bkt_size, sizeof(*bkt), GFP_KERNEL);
 	if (!bkt) {
-		kvfree(sample);
-		return -ENOMEM;
+		WARN_ON_ONCE(1);
+		ret = false;
+
+		goto out;
 	}
 
 	for (i = 0; i < len; i++)
 		bkt[sample[i]].count++;
 
-	if (check_ascii_bytes(bkt))
+	if (is_mostly_ascii(bkt))
 		goto out;
 
 	/* Sort in descending order */
 	sort(bkt, bkt_size, sizeof(*bkt), cmp_bkt, NULL);
 
-	ret = calc_byte_distribution(bkt, len);
-	if (ret != 2)
-		goto out;
+	i = calc_byte_distribution(bkt, len);
+	if (i != BYTE_DIST_MAYBE) {
+		ret = !!i;
 
-	ret = calc_shannon_entropy(bkt, len);
+		goto out;
+	}
+
+	ret = has_low_entropy(bkt, len);
 out:
 	kvfree(sample);
 	kfree(bkt);
 
-	WARN(ret < 0, "%s: ret=%d\n", __func__, ret);
-
-	return !!ret;
+	return ret;
 }
 
 bool should_compress(const struct cifs_tcon *tcon, const struct smb_rqst *rq)
@@ -305,7 +310,7 @@ bool should_compress(const struct cifs_tcon *tcon, const struct smb_rqst *rq)
 	if (shdr->Command == SMB2_WRITE) {
 		const struct smb2_write_req *wreq = rq->rq_iov->iov_base;
 
-		if (wreq->Length < SMB_COMPRESS_MIN_LEN)
+		if (le32_to_cpu(wreq->Length) < SMB_COMPRESS_MIN_LEN)
 			return false;
 
 		return is_compressible(&rq->rq_iter);
