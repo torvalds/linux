@@ -3868,12 +3868,12 @@ static int proc_task_readdir(struct file *file, struct dir_context *ctx)
 	if (!dir_emit_dots(file, ctx))
 		return 0;
 
-	/* f_version caches the tgid value that the last readdir call couldn't
-	 * return. lseek aka telldir automagically resets f_version to 0.
+	/* We cache the tgid value that the last readdir call couldn't
+	 * return and lseek resets it to 0.
 	 */
 	ns = proc_pid_ns(inode->i_sb);
-	tid = (int)file->f_version;
-	file->f_version = 0;
+	tid = (int)(intptr_t)file->private_data;
+	file->private_data = NULL;
 	for (task = first_tid(proc_pid(inode), tid, ctx->pos - 2, ns);
 	     task;
 	     task = next_tid(task), ctx->pos++) {
@@ -3888,7 +3888,7 @@ static int proc_task_readdir(struct file *file, struct dir_context *ctx)
 				proc_task_instantiate, task, NULL)) {
 			/* returning this tgid failed, save it as the first
 			 * pid for the next readir call */
-			file->f_version = (u64)tid;
+			file->private_data = (void *)(intptr_t)tid;
 			put_task_struct(task);
 			break;
 		}
@@ -3913,6 +3913,24 @@ static int proc_task_getattr(struct mnt_idmap *idmap,
 	return 0;
 }
 
+/*
+ * proc_task_readdir() set @file->private_data to a positive integer
+ * value, so casting that to u64 is safe. generic_llseek_cookie() will
+ * set @cookie to 0, so casting to an int is safe. The WARN_ON_ONCE() is
+ * here to catch any unexpected change in behavior either in
+ * proc_task_readdir() or generic_llseek_cookie().
+ */
+static loff_t proc_dir_llseek(struct file *file, loff_t offset, int whence)
+{
+	u64 cookie = (u64)(intptr_t)file->private_data;
+	loff_t off;
+
+	off = generic_llseek_cookie(file, offset, whence, &cookie);
+	WARN_ON_ONCE(cookie > INT_MAX);
+	file->private_data = (void *)(intptr_t)cookie; /* serialized by f_pos_lock */
+	return off;
+}
+
 static const struct inode_operations proc_task_inode_operations = {
 	.lookup		= proc_task_lookup,
 	.getattr	= proc_task_getattr,
@@ -3923,7 +3941,7 @@ static const struct inode_operations proc_task_inode_operations = {
 static const struct file_operations proc_task_operations = {
 	.read		= generic_read_dir,
 	.iterate_shared	= proc_task_readdir,
-	.llseek		= generic_file_llseek,
+	.llseek		= proc_dir_llseek,
 };
 
 void __init set_proc_pid_nlink(void)

@@ -3497,7 +3497,7 @@ static void sock_def_destruct(struct sock *sk)
 void sk_send_sigurg(struct sock *sk)
 {
 	if (sk->sk_socket && sk->sk_socket->file)
-		if (send_sigurg(&sk->sk_socket->file->f_owner))
+		if (send_sigurg(sk->sk_socket->file))
 			sk_wake_async(sk, SOCK_WAKE_URG, POLL_PRI);
 }
 EXPORT_SYMBOL(sk_send_sigurg);

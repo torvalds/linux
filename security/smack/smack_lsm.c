@@ -1950,7 +1950,7 @@ static int smack_file_send_sigiotask(struct task_struct *tsk,
 	/*
 	 * struct fown_struct is never outside the context of a struct file
 	 */
-	file = container_of(fown, struct file, f_owner);
+	file = fown->file;
 
 	/* we don't log here as rc can be overriden */
 	blob = smack_file(file);

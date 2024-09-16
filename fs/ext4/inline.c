@@ -1460,6 +1460,7 @@ int ext4_read_inline_dir(struct file *file,
 	struct ext4_iloc iloc;
 	void *dir_buf = NULL;
 	int dotdot_offset, dotdot_size, extra_offset, extra_size;
+	struct dir_private_info *info = file->private_data;
 
 	ret = ext4_get_inode_loc(inode, &iloc);
 	if (ret)
@@ -1503,12 +1504,12 @@ int ext4_read_inline_dir(struct file *file,
 	extra_size = extra_offset + inline_size;
 
 	/*
-	 * If the version has changed since the last call to
+	 * If the cookie has changed since the last call to
 	 * readdir(2), then we might be pointing to an invalid
 	 * dirent right now.  Scan from the start of the inline
 	 * dir to make sure.
 	 */
-	if (!inode_eq_iversion(inode, file->f_version)) {
+	if (!inode_eq_iversion(inode, info->cookie)) {
 		for (i = 0; i < extra_size && i < offset;) {
 			/*
 			 * "." is with offset 0 and
@@ -1540,7 +1541,7 @@ int ext4_read_inline_dir(struct file *file,
 		}
 		offset = i;
 		ctx->pos = offset;
-		file->f_version = inode_query_iversion(inode);
+		info->cookie = inode_query_iversion(inode);
 	}
 
 	while (ctx->pos < extra_size) {
