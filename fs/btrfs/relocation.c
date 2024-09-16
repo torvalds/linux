@@ -36,6 +36,7 @@
 #include "relocation.h"
 #include "super.h"
 #include "tree-checker.h"
+#include "raid-stripe-tree.h"
 
 /*
  * Relocation overview
@@ -2965,21 +2966,34 @@ static int relocate_one_folio(struct reloc_control *rc,
 	u64 folio_end;
 	u64 cur;
 	int ret;
+	const bool use_rst = btrfs_need_stripe_tree_update(fs_info, rc->block_group->flags);
 
 	ASSERT(index <= last_index);
 	folio = filemap_lock_folio(inode->i_mapping, index);
 	if (IS_ERR(folio)) {
-		page_cache_sync_readahead(inode->i_mapping, ra, NULL,
-					  index, last_index + 1 - index);
+
+		/*
+		 * On relocation we're doing readahead on the relocation inode,
+		 * but if the filesystem is backed by a RAID stripe tree we can
+		 * get ENOENT (e.g. due to preallocated extents not being
+		 * mapped in the RST) from the lookup.
+		 *
+		 * But readahead doesn't handle the error and submits invalid
+		 * reads to the device, causing a assertion failures.
+		 */
+		if (!use_rst)
+			page_cache_sync_readahead(inode->i_mapping, ra, NULL,
+						  index, last_index + 1 - index);
 		folio = __filemap_get_folio(inode->i_mapping, index,
-					    FGP_LOCK | FGP_ACCESSED | FGP_CREAT, mask);
+					    FGP_LOCK | FGP_ACCESSED | FGP_CREAT,
+					    mask);
 		if (IS_ERR(folio))
 			return PTR_ERR(folio);
 	}
 
 	WARN_ON(folio_order(folio));
 
-	if (folio_test_readahead(folio))
+	if (folio_test_readahead(folio) && !use_rst)
 		page_cache_async_readahead(inode->i_mapping, ra, NULL,
 					   folio, last_index + 1 - index);
 
