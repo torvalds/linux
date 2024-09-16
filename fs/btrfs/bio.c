@@ -73,20 +73,13 @@ struct btrfs_bio *btrfs_bio_alloc(unsigned int nr_vecs, blk_opf_t opf,
 
 static struct btrfs_bio *btrfs_split_bio(struct btrfs_fs_info *fs_info,
 					 struct btrfs_bio *orig_bbio,
-					 u64 map_length, bool use_append)
+					 u64 map_length)
 {
 	struct btrfs_bio *bbio;
 	struct bio *bio;
 
-	if (use_append) {
-		unsigned int nr_segs;
-
-		bio = bio_split_rw(&orig_bbio->bio, &fs_info->limits, &nr_segs,
-				   &btrfs_clone_bioset, map_length);
-	} else {
-		bio = bio_split(&orig_bbio->bio, map_length >> SECTOR_SHIFT,
-				GFP_NOFS, &btrfs_clone_bioset);
-	}
+	bio = bio_split(&orig_bbio->bio, map_length >> SECTOR_SHIFT, GFP_NOFS,
+			&btrfs_clone_bioset);
 	bbio = btrfs_bio(bio);
 	btrfs_bio_init(bbio, fs_info, NULL, orig_bbio);
 	bbio->inode = orig_bbio->inode;
@@ -659,6 +652,19 @@ static bool btrfs_wq_submit_bio(struct btrfs_bio *bbio,
 	return true;
 }
 
+static u64 btrfs_append_map_length(struct btrfs_bio *bbio, u64 map_length)
+{
+	unsigned int nr_segs;
+	int sector_offset;
+
+	map_length = min(map_length, bbio->fs_info->max_zone_append_size);
+	sector_offset = bio_split_rw_at(&bbio->bio, &bbio->fs_info->limits,
+					&nr_segs, map_length);
+	if (sector_offset)
+		return sector_offset << SECTOR_SHIFT;
+	return map_length;
+}
+
 static bool btrfs_submit_chunk(struct btrfs_bio *bbio, int mirror_num)
 {
 	struct btrfs_inode *inode = bbio->inode;
@@ -688,10 +694,10 @@ static bool btrfs_submit_chunk(struct btrfs_bio *bbio, int mirror_num)
 
 	map_length = min(map_length, length);
 	if (use_append)
-		map_length = min(map_length, fs_info->max_zone_append_size);
+		map_length = btrfs_append_map_length(bbio, map_length);
 
 	if (map_length < length) {
-		bbio = btrfs_split_bio(fs_info, bbio, map_length, use_append);
+		bbio = btrfs_split_bio(fs_info, bbio, map_length);
 		bio = &bbio->bio;
 	}
 

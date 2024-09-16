@@ -1363,8 +1363,8 @@ static void nvme_rdma_set_sig_domain(struct blk_integrity *bi,
 	if (control & NVME_RW_PRINFO_PRCHK_REF)
 		domain->sig.dif.ref_remap = true;
 
-	domain->sig.dif.app_tag = le16_to_cpu(cmd->rw.apptag);
-	domain->sig.dif.apptag_check_mask = le16_to_cpu(cmd->rw.appmask);
+	domain->sig.dif.app_tag = le16_to_cpu(cmd->rw.lbat);
+	domain->sig.dif.apptag_check_mask = le16_to_cpu(cmd->rw.lbatm);
 	domain->sig.dif.app_escape = true;
 	if (pi_type == NVME_NS_DPS_PI_TYPE3)
 		domain->sig.dif.ref_escape = true;
@@ -1876,6 +1876,8 @@ static int nvme_rdma_route_resolved(struct nvme_rdma_queue *queue)
 		 */
 		priv.hrqsize = cpu_to_le16(queue->queue_size);
 		priv.hsqsize = cpu_to_le16(queue->ctrl->ctrl.sqsize);
+		/* cntlid should only be set when creating an I/O queue */
+		priv.cntlid = cpu_to_le16(ctrl->ctrl.cntlid);
 	}
 
 	ret = rdma_connect_locked(queue->cm_id, &param);
