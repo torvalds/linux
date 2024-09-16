@@ -3397,7 +3397,7 @@ static void ilk_write_wm_values(struct drm_i915_private *dev_priv,
 	dev_priv->display.wm.hw = *results;
 }
 
-bool ilk_disable_lp_wm(struct drm_i915_private *dev_priv)
+bool ilk_disable_cxsr(struct drm_i915_private *dev_priv)
 {
 	return _ilk_disable_lp_wm(dev_priv, WM_DIRTY_LP_ALL);
 }

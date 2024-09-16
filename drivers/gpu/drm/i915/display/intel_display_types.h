@@ -1143,9 +1143,6 @@ struct intel_crtc_state {
 	/* w/a for waiting 2 vblanks during crtc enable */
 	enum pipe hsw_workaround_pipe;
 
-	/* IVB sprite scaling w/a (WaCxSRDisabledForSpriteScaling:ivb) */
-	bool disable_lp_wm;
-
 	struct intel_crtc_wm_state wm;
 
 	int min_cdclk[I915_MAX_PLANES];

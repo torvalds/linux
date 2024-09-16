@@ -13,12 +13,12 @@ struct intel_crtc_state;
 struct intel_plane_state;
 
 #ifdef I915
-bool ilk_disable_lp_wm(struct drm_i915_private *i915);
+bool ilk_disable_cxsr(struct drm_i915_private *i915);
 void ilk_wm_sanitize(struct drm_i915_private *i915);
 bool intel_set_memory_cxsr(struct drm_i915_private *i915, bool enable);
 void i9xx_wm_init(struct drm_i915_private *i915);
 #else
-static inline bool ilk_disable_lp_wm(struct drm_i915_private *i915)
+static inline bool ilk_disable_cxsr(struct drm_i915_private *i915)
 {
 	return false;
 }

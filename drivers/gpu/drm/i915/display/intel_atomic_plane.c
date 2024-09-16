@@ -471,9 +471,9 @@ static bool i9xx_must_disable_cxsr(const struct intel_crtc_state *new_crtc_state
 	return old_ctl != new_ctl;
 }
 
-static bool ilk_must_disable_lp_wm(const struct intel_crtc_state *new_crtc_state,
-				   const struct intel_plane_state *old_plane_state,
-				   const struct intel_plane_state *new_plane_state)
+static bool ilk_must_disable_cxsr(const struct intel_crtc_state *new_crtc_state,
+				  const struct intel_plane_state *old_plane_state,
+				  const struct intel_plane_state *new_plane_state)
 {
 	struct intel_plane *plane = to_intel_plane(new_plane_state->uapi.plane);
 	bool old_visible = old_plane_state->uapi.visible;
@@ -588,8 +588,8 @@ static int intel_plane_atomic_calc_changes(const struct intel_crtc_state *old_cr
 		new_crtc_state->disable_cxsr = true;
 
 	if ((IS_IRONLAKE(dev_priv) || IS_SANDYBRIDGE(dev_priv) || IS_IVYBRIDGE(dev_priv)) &&
-	    ilk_must_disable_lp_wm(new_crtc_state, old_plane_state, new_plane_state))
-		new_crtc_state->disable_lp_wm = true;
+	    ilk_must_disable_cxsr(new_crtc_state, old_plane_state, new_plane_state))
+		new_crtc_state->disable_cxsr = true;
 
 	if (intel_plane_do_async_flip(plane, old_crtc_state, new_crtc_state)) {
 		new_crtc_state->do_async_flip = true;
