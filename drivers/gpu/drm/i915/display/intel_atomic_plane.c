@@ -392,28 +392,6 @@ void intel_plane_set_invisible(struct intel_crtc_state *crtc_state,
 	plane_state->uapi.visible = false;
 }
 
-/* FIXME nuke when all wm code is atomic */
-static bool intel_wm_need_update(const struct intel_plane_state *old_plane_state,
-				 const struct intel_plane_state *new_plane_state)
-{
-	/* Update watermarks on tiling or size changes. */
-	if (old_plane_state->uapi.visible != new_plane_state->uapi.visible)
-		return true;
-
-	if (!old_plane_state->hw.fb || !new_plane_state->hw.fb)
-		return false;
-
-	if (old_plane_state->hw.fb->modifier != new_plane_state->hw.fb->modifier ||
-	    old_plane_state->hw.rotation != new_plane_state->hw.rotation ||
-	    drm_rect_width(&old_plane_state->uapi.src) != drm_rect_width(&new_plane_state->uapi.src) ||
-	    drm_rect_height(&old_plane_state->uapi.src) != drm_rect_height(&new_plane_state->uapi.src) ||
-	    drm_rect_width(&old_plane_state->uapi.dst) != drm_rect_width(&new_plane_state->uapi.dst) ||
-	    drm_rect_height(&old_plane_state->uapi.dst) != drm_rect_height(&new_plane_state->uapi.dst))
-		return true;
-
-	return false;
-}
-
 static bool intel_plane_is_scaled(const struct intel_plane_state *plane_state)
 {
 	int src_w = drm_rect_width(&plane_state->uapi.src) >> 16;
@@ -601,20 +579,6 @@ static int intel_plane_atomic_calc_changes(const struct intel_crtc_state *old_cr
 		       plane->base.base.id, plane->base.name,
 		       was_visible, visible,
 		       turn_off, turn_on, mode_changed);
-
-	if (turn_on) {
-		if (DISPLAY_VER(dev_priv) < 5 && !IS_G4X(dev_priv))
-			new_crtc_state->update_wm_pre = true;
-	} else if (turn_off) {
-		if (DISPLAY_VER(dev_priv) < 5 && !IS_G4X(dev_priv))
-			new_crtc_state->update_wm_post = true;
-	} else if (intel_wm_need_update(old_plane_state, new_plane_state)) {
-		if (DISPLAY_VER(dev_priv) < 5 && !IS_G4X(dev_priv)) {
-			/* FIXME bollocks */
-			new_crtc_state->update_wm_pre = true;
-			new_crtc_state->update_wm_post = true;
-		}
-	}
 
 	if (visible || was_visible)
 		new_crtc_state->fb_bits |= plane->frontbuffer_bit;

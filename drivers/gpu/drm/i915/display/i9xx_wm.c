@@ -706,6 +706,76 @@ static void pnv_update_wm(struct drm_i915_private *dev_priv)
 	}
 }
 
+static bool i9xx_wm_need_update(const struct intel_plane_state *old_plane_state,
+				const struct intel_plane_state *new_plane_state)
+{
+	/* Update watermarks on tiling or size changes. */
+	if (old_plane_state->uapi.visible != new_plane_state->uapi.visible)
+		return true;
+
+	if (!old_plane_state->hw.fb || !new_plane_state->hw.fb)
+		return false;
+
+	if (old_plane_state->hw.fb->modifier != new_plane_state->hw.fb->modifier ||
+	    old_plane_state->hw.rotation != new_plane_state->hw.rotation ||
+	    drm_rect_width(&old_plane_state->uapi.src) != drm_rect_width(&new_plane_state->uapi.src) ||
+	    drm_rect_height(&old_plane_state->uapi.src) != drm_rect_height(&new_plane_state->uapi.src) ||
+	    drm_rect_width(&old_plane_state->uapi.dst) != drm_rect_width(&new_plane_state->uapi.dst) ||
+	    drm_rect_height(&old_plane_state->uapi.dst) != drm_rect_height(&new_plane_state->uapi.dst))
+		return true;
+
+	return false;
+}
+
+static void i9xx_wm_compute(struct intel_crtc_state *new_crtc_state,
+			    const struct intel_plane_state *old_plane_state,
+			    const struct intel_plane_state *new_plane_state)
+{
+	bool turn_off, turn_on, visible, was_visible, mode_changed;
+
+	mode_changed = intel_crtc_needs_modeset(new_crtc_state);
+	was_visible = old_plane_state->uapi.visible;
+	visible = new_plane_state->uapi.visible;
+
+	if (!was_visible && !visible)
+		return;
+
+	turn_off = was_visible && (!visible || mode_changed);
+	turn_on = visible && (!was_visible || mode_changed);
+
+	/* FIXME nuke when all wm code is atomic */
+	if (turn_on) {
+		new_crtc_state->update_wm_pre = true;
+	} else if (turn_off) {
+		new_crtc_state->update_wm_post = true;
+	} else if (i9xx_wm_need_update(old_plane_state, new_plane_state)) {
+		/* FIXME bollocks */
+		new_crtc_state->update_wm_pre = true;
+		new_crtc_state->update_wm_post = true;
+	}
+}
+
+static int i9xx_compute_watermarks(struct intel_atomic_state *state,
+				   struct intel_crtc *crtc)
+{
+	struct intel_crtc_state *new_crtc_state =
+		intel_atomic_get_new_crtc_state(state, crtc);
+	const struct intel_plane_state *old_plane_state;
+	const struct intel_plane_state *new_plane_state;
+	struct intel_plane *plane;
+	int i;
+
+	for_each_oldnew_intel_plane_in_state(state, plane, old_plane_state,
+					     new_plane_state, i) {
+		if (plane->pipe != crtc->pipe)
+			continue;
+
+		i9xx_wm_compute(new_crtc_state, old_plane_state, new_plane_state);
+	}
+
+	return 0;
+}
+
 /*
  * Documentation says:
  * "If the line size is small, the TLB fetches can get in the way of the
@@ -4057,18 +4127,22 @@ static const struct intel_wm_funcs g4x_wm_funcs = {
 };
 
 static const struct intel_wm_funcs pnv_wm_funcs = {
+	.compute_watermarks = i9xx_compute_watermarks,
 	.update_wm = pnv_update_wm,
 };
 
 static const struct intel_wm_funcs i965_wm_funcs = {
+	.compute_watermarks = i9xx_compute_watermarks,
 	.update_wm = i965_update_wm,
 };
 
 static const struct intel_wm_funcs i9xx_wm_funcs = {
+	.compute_watermarks = i9xx_compute_watermarks,
 	.update_wm = i9xx_update_wm,
 };
 
 static const struct intel_wm_funcs i845_wm_funcs = {
+	.compute_watermarks = i9xx_compute_watermarks,
 	.update_wm = i845_update_wm,
 };
 
