@@ -1902,6 +1902,23 @@ void intel_color_post_update(const struct intel_crtc_state *crtc_state)
 		i915->display.funcs.color->color_post_update(crtc_state);
 }
 
+void intel_color_modeset(const struct intel_crtc_state *crtc_state)
+{
+	struct intel_display *display = to_intel_display(crtc_state);
+
+	intel_color_load_luts(crtc_state);
+	intel_color_commit_noarm(crtc_state);
+	intel_color_commit_arm(crtc_state);
+
+	if (DISPLAY_VER(display) < 9) {
+		struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+		struct intel_plane *plane = to_intel_plane(crtc->base.primary);
+
+		/* update DSPCNTR to configure gamma/csc for pipe bottom color */
+		plane->disable_arm(plane, crtc_state);
+	}
+}
+
 void intel_color_prepare_commit(struct intel_atomic_state *state,
 				struct intel_crtc *crtc)
 {
