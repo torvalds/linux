@@ -75,12 +75,12 @@ static u64 get_mcs_ra_mask(u16 mcs_map, u8 highest_mcs, u8 gap)
 	return ra_mask;
 }
 
-static u64 get_he_ra_mask(struct ieee80211_sta *sta)
+static u64 get_he_ra_mask(struct ieee80211_link_sta *link_sta)
 {
-	struct ieee80211_sta_he_cap cap = sta->deflink.he_cap;
+	struct ieee80211_sta_he_cap cap = link_sta->he_cap;
 	u16 mcs_map;
 
-	switch (sta->deflink.bandwidth) {
+	switch (link_sta->bandwidth) {
 	case IEEE80211_STA_RX_BW_160:
 		if (cap.he_cap_elem.phy_cap_info[0] &
 		    IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_80PLUS80_MHZ_IN_5G)
@@ -118,14 +118,14 @@ static u64 get_eht_mcs_ra_mask(u8 *max_nss, u8 start_mcs, u8 n_nss)
 	return mask;
 }
 
-static u64 get_eht_ra_mask(struct ieee80211_sta *sta)
+static u64 get_eht_ra_mask(struct ieee80211_link_sta *link_sta)
 {
-	struct ieee80211_sta_eht_cap *eht_cap = &sta->deflink.eht_cap;
+	struct ieee80211_sta_eht_cap *eht_cap = &link_sta->eht_cap;
 	struct ieee80211_eht_mcs_nss_supp_20mhz_only *mcs_nss_20mhz;
 	struct ieee80211_eht_mcs_nss_supp_bw *mcs_nss;
-	u8 *he_phy_cap = sta->deflink.he_cap.he_cap_elem.phy_cap_info;
+	u8 *he_phy_cap = link_sta->he_cap.he_cap_elem.phy_cap_info;
 
-	switch (sta->deflink.bandwidth) {
+	switch (link_sta->bandwidth) {
 	case IEEE80211_STA_RX_BW_320:
 		mcs_nss = &eht_cap->eht_mcs_nss_supp.bw._320;
 		/* MCS 9, 11, 13 */
@@ -197,9 +197,9 @@ static u64 rtw89_phy_ra_mask_recover(u64 ra_mask, u64 ra_mask_bak)
 
 static u64 rtw89_phy_ra_mask_cfg(struct rtw89_dev *rtwdev,
 				 struct rtw89_sta_link *rtwsta_link,
+				 struct ieee80211_link_sta *link_sta,
 				 const struct rtw89_chan *chan)
 {
-	struct ieee80211_sta *sta = rtwsta_to_sta(rtwsta_link);
 	struct cfg80211_bitrate_mask *mask = &rtwsta_link->mask;
 	enum nl80211_band band;
 	u64 cfg_mask;
@@ -228,17 +228,17 @@ static u64 rtw89_phy_ra_mask_cfg(struct rtw89_dev *rtwdev,
 		return -1;
 	}
 
-	if (sta->deflink.he_cap.has_he) {
+	if (link_sta->he_cap.has_he) {
 		cfg_mask |= u64_encode_bits(mask->control[band].he_mcs[0],
 					    RA_MASK_HE_1SS_RATES);
 		cfg_mask |= u64_encode_bits(mask->control[band].he_mcs[1],
 					    RA_MASK_HE_2SS_RATES);
-	} else if (sta->deflink.vht_cap.vht_supported) {
+	} else if (link_sta->vht_cap.vht_supported) {
 		cfg_mask |= u64_encode_bits(mask->control[band].vht_mcs[0],
 					    RA_MASK_VHT_1SS_RATES);
 		cfg_mask |= u64_encode_bits(mask->control[band].vht_mcs[1],
 					    RA_MASK_VHT_2SS_RATES);
-	} else if (sta->deflink.ht_cap.ht_supported) {
+	} else if (link_sta->ht_cap.ht_supported) {
 		cfg_mask |= u64_encode_bits(mask->control[band].ht_mcs[0],
 					    RA_MASK_HT_1SS_RATES);
 		cfg_mask |= u64_encode_bits(mask->control[band].ht_mcs[1],
@@ -296,15 +296,15 @@ static void rtw89_phy_ra_gi_ltf(struct rtw89_dev *rtwdev,
 }
 
 static void rtw89_phy_ra_sta_update(struct rtw89_dev *rtwdev,
-				    struct ieee80211_sta *sta, bool csi)
+				    struct rtw89_vif_link *rtwvif_link,
+				    struct rtw89_sta_link *rtwsta_link,
+				    struct ieee80211_link_sta *link_sta,
+				    bool p2p, bool csi)
 {
-	struct rtw89_sta_link *rtwsta_link = (struct rtw89_sta_link *)sta->drv_priv;
-	struct rtw89_vif_link *rtwvif_link = rtwsta_link->rtwvif_link;
 	struct rtw89_phy_rate_pattern *rate_pattern = &rtwvif_link->rate_pattern;
 	struct rtw89_ra_info *ra = &rtwsta_link->ra;
 	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev,
 						       rtwvif_link->chanctx_idx);
-	struct ieee80211_vif *vif = rtwvif_to_vif(rtwsta_link->rtwvif_link);
 	const u64 *high_rate_masks = rtw89_ra_mask_ht_rates;
 	u8 rssi = ewma_rssi_read(&rtwsta_link->avg_rssi);
 	u64 ra_mask = 0;
@@ -321,65 +321,65 @@ static void rtw89_phy_ra_sta_update(struct rtw89_dev *rtwdev,
 
 	memset(ra, 0, sizeof(*ra));
 	/* Set the ra mask from sta's capability */
-	if (sta->deflink.eht_cap.has_eht) {
+	if (link_sta->eht_cap.has_eht) {
 		mode |= RTW89_RA_MODE_EHT;
-		ra_mask |= get_eht_ra_mask(sta);
+		ra_mask |= get_eht_ra_mask(link_sta);
 		high_rate_masks = rtw89_ra_mask_eht_rates;
-	} else if (sta->deflink.he_cap.has_he) {
+	} else if (link_sta->he_cap.has_he) {
 		mode |= RTW89_RA_MODE_HE;
 		csi_mode = RTW89_RA_RPT_MODE_HE;
-		ra_mask |= get_he_ra_mask(sta);
+		ra_mask |= get_he_ra_mask(link_sta);
 		high_rate_masks = rtw89_ra_mask_he_rates;
-		if (sta->deflink.he_cap.he_cap_elem.phy_cap_info[2] &
+		if (link_sta->he_cap.he_cap_elem.phy_cap_info[2] &
 		    IEEE80211_HE_PHY_CAP2_STBC_RX_UNDER_80MHZ)
 			stbc_en = 1;
-		if (sta->deflink.he_cap.he_cap_elem.phy_cap_info[1] &
+		if (link_sta->he_cap.he_cap_elem.phy_cap_info[1] &
 		    IEEE80211_HE_PHY_CAP1_LDPC_CODING_IN_PAYLOAD)
 			ldpc_en = 1;
 		rtw89_phy_ra_gi_ltf(rtwdev, rtwsta_link, chan, &fix_giltf_en, &fix_giltf);
-	} else if (sta->deflink.vht_cap.vht_supported) {
-		u16 mcs_map = le16_to_cpu(sta->deflink.vht_cap.vht_mcs.rx_mcs_map);
+	} else if (link_sta->vht_cap.vht_supported) {
+		u16 mcs_map = le16_to_cpu(link_sta->vht_cap.vht_mcs.rx_mcs_map);
 
 		mode |= RTW89_RA_MODE_VHT;
 		csi_mode = RTW89_RA_RPT_MODE_VHT;
 		/* MCS9 (non-20MHz), MCS8, MCS7 */
-		if (sta->deflink.bandwidth == IEEE80211_STA_RX_BW_20)
+		if (link_sta->bandwidth == IEEE80211_STA_RX_BW_20)
 			ra_mask |= get_mcs_ra_mask(mcs_map, 8, 1);
 		else
 			ra_mask |= get_mcs_ra_mask(mcs_map, 9, 1);
 		high_rate_masks = rtw89_ra_mask_vht_rates;
-		if (sta->deflink.vht_cap.cap & IEEE80211_VHT_CAP_RXSTBC_MASK)
+		if (link_sta->vht_cap.cap & IEEE80211_VHT_CAP_RXSTBC_MASK)
 			stbc_en = 1;
-		if (sta->deflink.vht_cap.cap & IEEE80211_VHT_CAP_RXLDPC)
+		if (link_sta->vht_cap.cap & IEEE80211_VHT_CAP_RXLDPC)
 			ldpc_en = 1;
-	} else if (sta->deflink.ht_cap.ht_supported) {
+	} else if (link_sta->ht_cap.ht_supported) {
 		mode |= RTW89_RA_MODE_HT;
 		csi_mode = RTW89_RA_RPT_MODE_HT;
-		ra_mask |= ((u64)sta->deflink.ht_cap.mcs.rx_mask[3] << 48) |
-			   ((u64)sta->deflink.ht_cap.mcs.rx_mask[2] << 36) |
-			   ((u64)sta->deflink.ht_cap.mcs.rx_mask[1] << 24) |
-			   ((u64)sta->deflink.ht_cap.mcs.rx_mask[0] << 12);
+		ra_mask |= ((u64)link_sta->ht_cap.mcs.rx_mask[3] << 48) |
+			   ((u64)link_sta->ht_cap.mcs.rx_mask[2] << 36) |
+			   ((u64)link_sta->ht_cap.mcs.rx_mask[1] << 24) |
+			   ((u64)link_sta->ht_cap.mcs.rx_mask[0] << 12);
 		high_rate_masks = rtw89_ra_mask_ht_rates;
-		if (sta->deflink.ht_cap.cap & IEEE80211_HT_CAP_RX_STBC)
+		if (link_sta->ht_cap.cap & IEEE80211_HT_CAP_RX_STBC)
 			stbc_en = 1;
-		if (sta->deflink.ht_cap.cap & IEEE80211_HT_CAP_LDPC_CODING)
+		if (link_sta->ht_cap.cap & IEEE80211_HT_CAP_LDPC_CODING)
 			ldpc_en = 1;
 	}
 
 	switch (chan->band_type) {
 	case RTW89_BAND_2G:
-		ra_mask |= sta->deflink.supp_rates[NL80211_BAND_2GHZ];
-		if (sta->deflink.supp_rates[NL80211_BAND_2GHZ] & 0xf)
+		ra_mask |= link_sta->supp_rates[NL80211_BAND_2GHZ];
+		if (link_sta->supp_rates[NL80211_BAND_2GHZ] & 0xf)
 			mode |= RTW89_RA_MODE_CCK;
-		if (sta->deflink.supp_rates[NL80211_BAND_2GHZ] & 0xff0)
+		if (link_sta->supp_rates[NL80211_BAND_2GHZ] & 0xff0)
 			mode |= RTW89_RA_MODE_OFDM;
 		break;
 	case RTW89_BAND_5G:
-		ra_mask |= (u64)sta->deflink.supp_rates[NL80211_BAND_5GHZ] << 4;
+		ra_mask |= (u64)link_sta->supp_rates[NL80211_BAND_5GHZ] << 4;
 		mode |= RTW89_RA_MODE_OFDM;
 		break;
 	case RTW89_BAND_6G:
-		ra_mask |= (u64)sta->deflink.supp_rates[NL80211_BAND_6GHZ] << 4;
+		ra_mask |= (u64)link_sta->supp_rates[NL80211_BAND_6GHZ] << 4;
 		mode |= RTW89_RA_MODE_OFDM;
 		break;
 	default:
@@ -406,37 +406,37 @@ static void rtw89_phy_ra_sta_update(struct rtw89_dev *rtwdev,
 		ra_mask &= rtw89_phy_ra_mask_rssi(rtwdev, rssi, 0);
 
 	ra_mask = rtw89_phy_ra_mask_recover(ra_mask, ra_mask_bak);
-	ra_mask &= rtw89_phy_ra_mask_cfg(rtwdev, rtwsta_link, chan);
+	ra_mask &= rtw89_phy_ra_mask_cfg(rtwdev, rtwsta_link, link_sta, chan);
 
-	switch (sta->deflink.bandwidth) {
+	switch (link_sta->bandwidth) {
 	case IEEE80211_STA_RX_BW_160:
 		bw_mode = RTW89_CHANNEL_WIDTH_160;
-		sgi = sta->deflink.vht_cap.vht_supported &&
-		      (sta->deflink.vht_cap.cap & IEEE80211_VHT_CAP_SHORT_GI_160);
+		sgi = link_sta->vht_cap.vht_supported &&
+		      (link_sta->vht_cap.cap & IEEE80211_VHT_CAP_SHORT_GI_160);
 		break;
 	case IEEE80211_STA_RX_BW_80:
 		bw_mode = RTW89_CHANNEL_WIDTH_80;
-		sgi = sta->deflink.vht_cap.vht_supported &&
-		      (sta->deflink.vht_cap.cap & IEEE80211_VHT_CAP_SHORT_GI_80);
+		sgi = link_sta->vht_cap.vht_supported &&
+		      (link_sta->vht_cap.cap & IEEE80211_VHT_CAP_SHORT_GI_80);
 		break;
 	case IEEE80211_STA_RX_BW_40:
 		bw_mode = RTW89_CHANNEL_WIDTH_40;
-		sgi = sta->deflink.ht_cap.ht_supported &&
-		      (sta->deflink.ht_cap.cap & IEEE80211_HT_CAP_SGI_40);
+		sgi = link_sta->ht_cap.ht_supported &&
+		      (link_sta->ht_cap.cap & IEEE80211_HT_CAP_SGI_40);
 		break;
 	default:
 		bw_mode = RTW89_CHANNEL_WIDTH_20;
-		sgi = sta->deflink.ht_cap.ht_supported &&
-		      (sta->deflink.ht_cap.cap & IEEE80211_HT_CAP_SGI_20);
+		sgi = link_sta->ht_cap.ht_supported &&
+		      (link_sta->ht_cap.cap & IEEE80211_HT_CAP_SGI_20);
 		break;
 	}
 
-	if (sta->deflink.he_cap.he_cap_elem.phy_cap_info[3] &
+	if (link_sta->he_cap.he_cap_elem.phy_cap_info[3] &
 	    IEEE80211_HE_PHY_CAP3_DCM_MAX_CONST_RX_16_QAM)
 		ra->dcm_cap = 1;
 
-	if (rate_pattern->enable && !vif->p2p) {
-		ra_mask = rtw89_phy_ra_mask_cfg(rtwdev, rtwsta_link, chan);
+	if (rate_pattern->enable && !p2p) {
+		ra_mask = rtw89_phy_ra_mask_cfg(rtwdev, rtwsta_link, link_sta, chan);
 		ra_mask &= rate_pattern->ra_mask;
 		mode = rate_pattern->ra_mode;
 	}
@@ -447,7 +447,7 @@ static void rtw89_phy_ra_sta_update(struct rtw89_dev *rtwdev,
 	ra->macid = rtwsta_link->mac_id;
 	ra->stbc_cap = stbc_en;
 	ra->ldpc_cap = ldpc_en;
-	ra->ss_num = min(sta->deflink.rx_nss, rtwdev->hal.tx_nss) - 1;
+	ra->ss_num = min(link_sta->rx_nss, rtwdev->hal.tx_nss) - 1;
 	ra->en_sgi = sgi;
 	ra->ra_mask = ra_mask;
 	ra->fix_giltf_en = fix_giltf_en;
@@ -470,9 +470,18 @@ void rtw89_phy_ra_update_sta(struct rtw89_dev *rtwdev, struct ieee80211_sta *sta
 			     u32 changed)
 {
 	struct rtw89_sta_link *rtwsta_link = (struct rtw89_sta_link *)sta->drv_priv;
+	struct rtw89_vif_link *rtwvif_link = rtwsta_link->rtwvif_link;
+	struct ieee80211_vif *vif = rtwvif_to_vif(rtwvif_link);
 	struct rtw89_ra_info *ra = &rtwsta_link->ra;
+	struct ieee80211_link_sta *link_sta;
 
-	rtw89_phy_ra_sta_update(rtwdev, sta, false);
+	rcu_read_lock();
+
+	link_sta = rtw89_sta_rcu_dereference_link(rtwsta_link, false);
+	rtw89_phy_ra_sta_update(rtwdev, rtwvif_link, rtwsta_link,
+				link_sta, vif->p2p, false);
+
+	rcu_read_unlock();
 
 	if (changed & IEEE80211_RC_SUPP_RATES_CHANGED)
 		ra->upd_mask = 1;
@@ -631,11 +640,22 @@ void rtw89_phy_ra_update(struct rtw89_dev *rtwdev)
 void rtw89_phy_ra_assoc(struct rtw89_dev *rtwdev, struct ieee80211_sta *sta)
 {
 	struct rtw89_sta_link *rtwsta_link = (struct rtw89_sta_link *)sta->drv_priv;
+	struct rtw89_vif_link *rtwvif_link = rtwsta_link->rtwvif_link;
+	struct ieee80211_vif *vif = rtwvif_to_vif(rtwvif_link);
 	struct rtw89_ra_info *ra = &rtwsta_link->ra;
 	u8 rssi = ewma_rssi_read(&rtwsta_link->avg_rssi) >> RSSI_FACTOR;
-	bool csi = rtw89_sta_has_beamformer_cap(sta);
+	struct ieee80211_link_sta *link_sta;
+	bool csi;
 
-	rtw89_phy_ra_sta_update(rtwdev, sta, csi);
+	rcu_read_lock();
+
+	link_sta = rtw89_sta_rcu_dereference_link(rtwsta_link, true);
+	csi = rtw89_sta_has_beamformer_cap(link_sta);
+
+	rtw89_phy_ra_sta_update(rtwdev, rtwvif_link, rtwsta_link,
+				link_sta, vif->p2p, csi);
+
+	rcu_read_unlock();
 
 	if (rssi > 40)
 		ra->init_rate_lv = 1;
@@ -2554,11 +2574,11 @@ struct rtw89_phy_iter_ra_data {
 	struct sk_buff *c2h;
 };
 
-static void rtw89_phy_c2h_ra_rpt_iter(void *data, struct ieee80211_sta *sta)
+static void __rtw89_phy_c2h_ra_rpt_iter(struct rtw89_sta_link *rtwsta_link,
+					struct ieee80211_link_sta *link_sta,
+					struct rtw89_phy_iter_ra_data *ra_data)
 {
-	struct rtw89_phy_iter_ra_data *ra_data = (struct rtw89_phy_iter_ra_data *)data;
 	struct rtw89_dev *rtwdev = ra_data->rtwdev;
-	struct rtw89_sta_link *rtwsta_link = (struct rtw89_sta_link *)sta->drv_priv;
 	const struct rtw89_c2h_ra_rpt *c2h =
 		(const struct rtw89_c2h_ra_rpt *)ra_data->c2h->data;
 	struct rtw89_ra_report *ra_report = &rtwsta_link->ra_report;
@@ -2662,8 +2682,22 @@ static void rtw89_phy_c2h_ra_rpt_iter(void *data, struct ieee80211_sta *sta)
 			     u16_encode_bits(mode, RTW89_HW_RATE_MASK_MOD) |
 			     u16_encode_bits(rate, RTW89_HW_RATE_MASK_VAL);
 	ra_report->might_fallback_legacy = mcs <= 2;
-	sta->deflink.agg.max_rc_amsdu_len = get_max_amsdu_len(rtwdev, ra_report);
-	rtwsta_link->max_agg_wait = sta->deflink.agg.max_rc_amsdu_len / 1500 - 1;
+	link_sta->agg.max_rc_amsdu_len = get_max_amsdu_len(rtwdev, ra_report);
+	rtwsta_link->max_agg_wait = link_sta->agg.max_rc_amsdu_len / 1500 - 1;
+}
+
+static void rtw89_phy_c2h_ra_rpt_iter(void *data, struct ieee80211_sta *sta)
+{
+	struct rtw89_phy_iter_ra_data *ra_data = (struct rtw89_phy_iter_ra_data *)data;
+	struct rtw89_sta_link *rtwsta_link = (struct rtw89_sta_link *)sta->drv_priv;
+	struct ieee80211_link_sta *link_sta;
+
+	rcu_read_lock();
+
+	link_sta = rtw89_sta_rcu_dereference_link(rtwsta_link, false);
+	__rtw89_phy_c2h_ra_rpt_iter(rtwsta_link, link_sta, ra_data);
+
+	rcu_read_unlock();
 }
 
 static void

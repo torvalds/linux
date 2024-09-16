@@ -3526,10 +3526,19 @@ static void rtw89_sta_info_get_iter(void *data, struct ieee80211_sta *sta)
 	struct rtw89_hal *hal = &rtwdev->hal;
 	u8 ant_num = hal->ant_diversity ? 2 : rtwdev->chip->rf_path_num;
 	bool ant_asterisk = hal->tx_path_diversity || hal->ant_diversity;
+	struct ieee80211_link_sta *link_sta;
 	u8 evm_min, evm_max, evm_1ss;
+	u16 max_rc_amsdu_len;
 	u8 rssi;
 	u8 snr;
 	int i;
+
+	rcu_read_lock();
+
+	link_sta = rtw89_sta_rcu_dereference_link(rtwsta_link, true);
+	max_rc_amsdu_len = link_sta->agg.max_rc_amsdu_len;
+
+	rcu_read_unlock();
 
 	seq_printf(m, "TX rate [%d]: ", rtwsta_link->mac_id);
 
@@ -3553,7 +3562,7 @@ static void rtw89_sta_info_get_iter(void *data, struct ieee80211_sta *sta)
 	seq_printf(m, " BW:%u", rtw89_rate_info_bw_to_mhz(rate->bw));
 	seq_printf(m, "\t(hw_rate=0x%x)", rtwsta_link->ra_report.hw_rate);
 	seq_printf(m, "\t==> agg_wait=%d (%d)\n", rtwsta_link->max_agg_wait,
-		   sta->deflink.agg.max_rc_amsdu_len);
+		   max_rc_amsdu_len);
 
 	seq_printf(m, "RX rate [%d]: ", rtwsta_link->mac_id);
 
@@ -3777,9 +3786,17 @@ static void rtw89_sta_ids_get_iter(void *data, struct ieee80211_sta *sta)
 	struct rtw89_sta_link *rtwsta_link = (struct rtw89_sta_link *)sta->drv_priv;
 	struct rtw89_dev *rtwdev = rtwsta_link->rtwdev;
 	struct seq_file *m = (struct seq_file *)data;
+	struct ieee80211_link_sta *link_sta;
 
-	seq_printf(m, "STA [%d] %pM %s\n", rtwsta_link->mac_id, sta->addr,
+	rcu_read_lock();
+
+	link_sta = rtw89_sta_rcu_dereference_link(rtwsta_link, true);
+
+	seq_printf(m, "STA [%d] %pM %s\n", rtwsta_link->mac_id, link_sta->addr,
 		   sta->tdls ? "(TDLS)" : "");
+
+	rcu_read_unlock();
+
 	rtw89_dump_addr_cam(m, rtwdev, &rtwsta_link->addr_cam);
 	rtw89_dump_ba_cam(m, rtwsta_link);
 }
