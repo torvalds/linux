@@ -75,6 +75,7 @@
 #define KF_ITER_NEXT    (1 << 9) /* kfunc implements BPF iter next method */
 #define KF_ITER_DESTROY (1 << 10) /* kfunc implements BPF iter destructor */
 #define KF_RCU_PROTECTED (1 << 11) /* kfunc should be protected by rcu cs when they are invoked */
+#define KF_FASTCALL     (1 << 12) /* kfunc supports bpf_fastcall protocol */
 
 /*
  * Tag marking a kernel function as a kfunc. This is meant to minimize the
