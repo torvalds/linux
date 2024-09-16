@@ -564,8 +564,9 @@ static void rtw89_mcc_fill_role_policy(struct rtw89_dev *rtwdev,
 static void rtw89_mcc_fill_role_limit(struct rtw89_dev *rtwdev,
 				      struct rtw89_mcc_role *mcc_role)
 {
-	struct ieee80211_vif *vif = rtwvif_to_vif(mcc_role->rtwvif_link);
+	struct rtw89_vif_link *rtwvif_link = mcc_role->rtwvif_link;
 	struct ieee80211_p2p_noa_desc *noa_desc;
+	struct ieee80211_bss_conf *bss_conf;
 	u32 bcn_intvl_us = ieee80211_tu_to_usec(mcc_role->beacon_interval);
 	u32 max_toa_us, max_tob_us, max_dur_us;
 	u32 start_time, interval, duration;
@@ -576,19 +577,26 @@ static void rtw89_mcc_fill_role_limit(struct rtw89_dev *rtwdev,
 	if (!mcc_role->is_go && !mcc_role->is_gc)
 		return;
 
+	rcu_read_lock();
+
+	bss_conf = rtw89_vif_rcu_dereference_link(rtwvif_link, true);
+
 	/* find the first periodic NoA */
 	for (i = 0; i < RTW89_P2P_MAX_NOA_NUM; i++) {
-		noa_desc = &vif->bss_conf.p2p_noa_attr.desc[i];
+		noa_desc = &bss_conf->p2p_noa_attr.desc[i];
 		if (noa_desc->count == 255)
 			goto fill;
 	}
 
+	rcu_read_unlock();
 	return;
 
 fill:
 	start_time = le32_to_cpu(noa_desc->start_time);
 	interval = le32_to_cpu(noa_desc->interval);
 	duration = le32_to_cpu(noa_desc->duration);
+
+	rcu_read_unlock();
 
 	if (interval != bcn_intvl_us) {
 		rtw89_debug(rtwdev, RTW89_DBG_CHAN,
@@ -635,12 +643,18 @@ static int rtw89_mcc_fill_role(struct rtw89_dev *rtwdev,
 			       struct rtw89_vif_link *rtwvif_link,
 			       struct rtw89_mcc_role *role)
 {
-	struct ieee80211_vif *vif = rtwvif_to_vif(rtwvif_link);
+	struct ieee80211_bss_conf *bss_conf;
 	const struct rtw89_chan *chan;
 
 	memset(role, 0, sizeof(*role));
 	role->rtwvif_link = rtwvif_link;
-	role->beacon_interval = vif->bss_conf.beacon_int;
+
+	rcu_read_lock();
+
+	bss_conf = rtw89_vif_rcu_dereference_link(rtwvif_link, true);
+	role->beacon_interval = bss_conf->beacon_int;
+
+	rcu_read_unlock();
 
 	if (!role->beacon_interval) {
 		rtw89_warn(rtwdev,

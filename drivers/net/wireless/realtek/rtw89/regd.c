@@ -834,16 +834,21 @@ static int rtw89_reg_6ghz_tpe_recalc(struct rtw89_dev *rtwdev,
 				     struct rtw89_vif_link *rtwvif_link, bool active,
 				     unsigned int *changed)
 {
-	struct ieee80211_vif *vif = rtwvif_to_vif(rtwvif_link);
-	struct ieee80211_bss_conf *bss_conf = &vif->bss_conf;
 	struct rtw89_reg_6ghz_tpe *tpe = &rtwvif_link->reg_6ghz_tpe;
+	struct ieee80211_bss_conf *bss_conf;
 
 	memset(tpe, 0, sizeof(*tpe));
 
 	if (!active || rtwvif_link->reg_6ghz_power != RTW89_REG_6GHZ_POWER_STD)
 		goto bottom;
 
+	rcu_read_lock();
+
+	bss_conf = rtw89_vif_rcu_dereference_link(rtwvif_link, true);
 	rtw89_calculate_tpe(rtwdev, tpe, &bss_conf->tpe);
+
+	rcu_read_unlock();
+
 	if (!tpe->valid)
 		goto bottom;
 
@@ -911,10 +916,14 @@ static int rtw89_reg_6ghz_power_recalc(struct rtw89_dev *rtwdev,
 				       struct rtw89_vif_link *rtwvif_link, bool active,
 				       unsigned int *changed)
 {
-	struct ieee80211_vif *vif = rtwvif_to_vif(rtwvif_link);
+	struct ieee80211_bss_conf *bss_conf;
+
+	rcu_read_lock();
+
+	bss_conf = rtw89_vif_rcu_dereference_link(rtwvif_link, true);
 
 	if (active) {
-		switch (vif->bss_conf.power_type) {
+		switch (bss_conf->power_type) {
 		case IEEE80211_REG_VLP_AP:
 			rtwvif_link->reg_6ghz_power = RTW89_REG_6GHZ_POWER_VLP;
 			break;
@@ -931,6 +940,8 @@ static int rtw89_reg_6ghz_power_recalc(struct rtw89_dev *rtwdev,
 	} else {
 		rtwvif_link->reg_6ghz_power = RTW89_REG_6GHZ_POWER_DFLT;
 	}
+
+	rcu_read_unlock();
 
 	*changed += __rtw89_reg_6ghz_power_recalc(rtwdev);
 	return 0;

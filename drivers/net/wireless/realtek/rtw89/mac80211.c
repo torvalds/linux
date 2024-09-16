@@ -111,6 +111,7 @@ static int rtw89_ops_add_interface(struct ieee80211_hw *hw,
 {
 	struct rtw89_dev *rtwdev = hw->priv;
 	struct rtw89_vif_link *rtwvif_link = (struct rtw89_vif_link *)vif->drv_priv;
+	struct ieee80211_bss_conf *bss_conf;
 	int ret = 0;
 
 	rtw89_debug(rtwdev, RTW89_DBG_STATE, "add vif %pM type %d, p2p %d\n",
@@ -151,7 +152,14 @@ static int rtw89_ops_add_interface(struct ieee80211_hw *hw,
 	rtwvif_link->chanctx_assigned = false;
 	rtwvif_link->hit_rule = 0;
 	rtwvif_link->reg_6ghz_power = RTW89_REG_6GHZ_POWER_DFLT;
-	ether_addr_copy(rtwvif_link->mac_addr, vif->addr);
+
+	rcu_read_lock();
+
+	bss_conf = rtw89_vif_rcu_dereference_link(rtwvif_link, true);
+	ether_addr_copy(rtwvif_link->mac_addr, bss_conf->addr);
+
+	rcu_read_unlock();
+
 	INIT_LIST_HEAD(&rtwvif_link->general_pkt_list);
 
 	ret = rtw89_mac_add_vif(rtwdev, rtwvif_link);
@@ -314,13 +322,19 @@ static const u8 ac_to_fw_idx[IEEE80211_NUM_ACS] = {
 static u8 rtw89_aifsn_to_aifs(struct rtw89_dev *rtwdev,
 			      struct rtw89_vif_link *rtwvif_link, u8 aifsn)
 {
-	struct ieee80211_vif *vif = rtwvif_to_vif(rtwvif_link);
 	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev,
 						       rtwvif_link->chanctx_idx);
+	struct ieee80211_bss_conf *bss_conf;
 	u8 slot_time;
 	u8 sifs;
 
-	slot_time = vif->bss_conf.use_short_slot ? 9 : 20;
+	rcu_read_lock();
+
+	bss_conf = rtw89_vif_rcu_dereference_link(rtwvif_link, true);
+	slot_time = bss_conf->use_short_slot ? 9 : 20;
+
+	rcu_read_unlock();
+
 	sifs = chan->band_type == RTW89_BAND_2G ? 10 : 16;
 
 	return aifsn * slot_time + sifs;
@@ -486,7 +500,7 @@ static void rtw89_ops_link_info_changed(struct ieee80211_hw *hw,
 		rtw89_mac_bf_set_gid_table(rtwdev, vif, conf);
 
 	if (changed & BSS_CHANGED_P2P_PS)
-		rtw89_core_update_p2p_ps(rtwdev, vif);
+		rtw89_core_update_p2p_ps(rtwdev, rtwvif_link, conf);
 
 	if (changed & BSS_CHANGED_CQM)
 		rtw89_fw_h2c_set_bcn_fltr_cfg(rtwdev, vif, true);
@@ -516,7 +530,7 @@ static int rtw89_ops_start_ap(struct ieee80211_hw *hw,
 	if (rtwdev->scanning)
 		rtw89_hw_scan_abort(rtwdev, rtwdev->scan_info.scanning_vif);
 
-	ether_addr_copy(rtwvif_link->bssid, vif->bss_conf.bssid);
+	ether_addr_copy(rtwvif_link->bssid, link_conf->bssid);
 	rtw89_cam_bssid_changed(rtwdev, rtwvif_link);
 	rtw89_mac_port_update(rtwdev, rtwvif_link);
 	rtw89_chip_h2c_assoc_cmac_tbl(rtwdev, vif, NULL);

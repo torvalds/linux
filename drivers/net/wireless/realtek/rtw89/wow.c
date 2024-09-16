@@ -633,10 +633,12 @@ static struct ieee80211_key_conf *rtw89_wow_gtk_rekey(struct rtw89_dev *rtwdev,
 static void rtw89_wow_update_key_info(struct rtw89_dev *rtwdev, bool rx_ready)
 {
 	struct ieee80211_vif *wow_vif = rtwdev->wow.wow_vif;
+	struct rtw89_vif_link *rtwvif_link = (struct rtw89_vif_link *)wow_vif->drv_priv;
 	struct rtw89_wow_param *rtw_wow = &rtwdev->wow;
 	struct rtw89_wow_aoac_report *aoac_rpt = &rtw_wow->aoac_rpt;
 	struct rtw89_set_key_info_iter_data data = {.error = false,
 						    .rx_ready = rx_ready};
+	struct ieee80211_bss_conf *bss_conf;
 	struct ieee80211_key_conf *key;
 
 	rcu_read_lock();
@@ -669,9 +671,15 @@ static void rtw89_wow_update_key_info(struct rtw89_dev *rtwdev, bool rx_ready)
 		return;
 
 	rtw89_rx_pn_set_pmf(rtwdev, key, aoac_rpt->igtk_ipn);
-	ieee80211_gtk_rekey_notify(wow_vif, wow_vif->bss_conf.bssid,
+
+	rcu_read_lock();
+
+	bss_conf = rtw89_vif_rcu_dereference_link(rtwvif_link, true);
+	ieee80211_gtk_rekey_notify(wow_vif, bss_conf->bssid,
 				   aoac_rpt->eapol_key_replay_count,
-				   GFP_KERNEL);
+				   GFP_ATOMIC);
+
+	rcu_read_unlock();
 }
 
 static void rtw89_wow_leave_deep_ps(struct rtw89_dev *rtwdev)

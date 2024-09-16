@@ -3461,6 +3461,8 @@ struct rtw89_p2p_noa_setter {
 };
 
 struct rtw89_vif_link {
+	unsigned int link_id;
+
 	struct list_head list;
 	struct rtw89_dev *rtwdev;
 	struct rtw89_roc roc;
@@ -5994,6 +5996,36 @@ static inline struct rtw89_sta_link *sta_to_rtwsta_safe(struct ieee80211_sta *st
 	return sta ? (struct rtw89_sta_link *)sta->drv_priv : NULL;
 }
 
+static inline struct ieee80211_bss_conf *
+__rtw89_vif_rcu_dereference_link(struct rtw89_vif_link *rtwvif_link, bool *nolink)
+{
+	struct ieee80211_vif *vif = rtwvif_to_vif(rtwvif_link);
+	struct ieee80211_bss_conf *bss_conf;
+
+	bss_conf = rcu_dereference(vif->link_conf[rtwvif_link->link_id]);
+	if (unlikely(!bss_conf)) {
+		*nolink = true;
+		return &vif->bss_conf;
+	}
+
+	*nolink = false;
+	return bss_conf;
+}
+
+#define rtw89_vif_rcu_dereference_link(rtwvif_link, assert)		\
+({									\
+	typeof(rtwvif_link) p = rtwvif_link;				\
+	struct ieee80211_bss_conf *bss_conf;				\
+	bool nolink;							\
+									\
+	bss_conf = __rtw89_vif_rcu_dereference_link(p, &nolink);	\
+	if (unlikely(nolink) && (assert))				\
+		rtw89_err(p->rtwdev,					\
+			  "%s: cannot find exact bss_conf for link_id %u\n",\
+			  __func__, p->link_id);			\
+	bss_conf;							\
+})
+
 static inline u8 rtw89_hw_to_rate_info_bw(enum rtw89_bandwidth hw_bw)
 {
 	if (hw_bw == RTW89_CHANNEL_WIDTH_160)
@@ -6347,20 +6379,6 @@ static inline void rtw89_chip_cfg_txrx_path(struct rtw89_dev *rtwdev)
 		chip->ops->cfg_txrx_path(rtwdev);
 }
 
-static inline
-void rtw89_chip_cfg_txpwr_ul_tb_offset(struct rtw89_dev *rtwdev,
-				       struct ieee80211_vif *vif)
-{
-	struct rtw89_vif_link *rtwvif_link = (struct rtw89_vif_link *)vif->drv_priv;
-	const struct rtw89_chip_info *chip = rtwdev->chip;
-
-	if (!vif->bss_conf.he_support || !vif->cfg.assoc)
-		return;
-
-	if (chip->ops->set_txpwr_ul_tb_offset)
-		chip->ops->set_txpwr_ul_tb_offset(rtwdev, 0, rtwvif_link->mac_idx);
-}
-
 static inline void rtw89_chip_digital_pwr_comp(struct rtw89_dev *rtwdev,
 					       enum rtw89_phy_idx phy_idx)
 {
@@ -6653,6 +6671,8 @@ int rtw89_core_release_sta_ba_entry(struct rtw89_dev *rtwdev,
 				    u8 *cam_idx);
 void rtw89_vif_type_mapping(struct ieee80211_vif *vif, bool assoc);
 int rtw89_chip_info_setup(struct rtw89_dev *rtwdev);
+void rtw89_chip_cfg_txpwr_ul_tb_offset(struct rtw89_dev *rtwdev,
+				       struct ieee80211_vif *vif);
 bool rtw89_ra_report_to_bitrate(struct rtw89_dev *rtwdev, u8 rpt_rate, u16 *bitrate);
 int rtw89_regd_setup(struct rtw89_dev *rtwdev);
 int rtw89_regd_init(struct rtw89_dev *rtwdev,
@@ -6675,7 +6695,9 @@ void rtw89_core_scan_complete(struct rtw89_dev *rtwdev,
 			      struct ieee80211_vif *vif, bool hw_scan);
 int rtw89_reg_6ghz_recalc(struct rtw89_dev *rtwdev, struct rtw89_vif_link *rtwvif_link,
 			  bool active);
-void rtw89_core_update_p2p_ps(struct rtw89_dev *rtwdev, struct ieee80211_vif *vif);
+void rtw89_core_update_p2p_ps(struct rtw89_dev *rtwdev,
+			      struct rtw89_vif_link *rtwvif_link,
+			      struct ieee80211_bss_conf *bss_conf);
 void rtw89_core_ntfy_btc_event(struct rtw89_dev *rtwdev, enum rtw89_btc_hmsg event);
 
 #endif

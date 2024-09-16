@@ -7490,12 +7490,17 @@ void rtw89_btc_ntfy_role_info(struct rtw89_dev *rtwdev,
 						       rtwvif_link->chanctx_idx);
 	struct ieee80211_vif *vif = rtwvif_to_vif(rtwvif_link);
 	struct ieee80211_sta *sta = rtwsta_to_sta(rtwsta_link);
+	struct ieee80211_bss_conf *bss_conf;
 	struct rtw89_btc *btc = &rtwdev->btc;
 	const struct rtw89_btc_ver *ver = btc->ver;
 	struct rtw89_btc_wl_info *wl = &btc->cx.wl;
 	struct rtw89_btc_wl_link_info r = {0};
 	struct rtw89_btc_wl_link_info *wlinfo = NULL;
 	u8 mode = 0, rlink_id, link_mode_ori, pta_req_mac_ori, wa_type;
+
+	rcu_read_lock();
+
+	bss_conf = rtw89_vif_rcu_dereference_link(rtwvif_link, false);
 
 	rtw89_debug(rtwdev, RTW89_DBG_BTC, "[BTC], state=%d\n", state);
 	rtw89_debug(rtwdev, RTW89_DBG_BTC,
@@ -7508,7 +7513,7 @@ void rtw89_btc_ntfy_role_info(struct rtw89_dev *rtwdev,
 		    state == BTC_ROLE_MSTS_STA_CONN_END);
 	rtw89_debug(rtwdev, RTW89_DBG_BTC,
 		    "[BTC], bcn_period=%d dtim_period=%d\n",
-		    vif->bss_conf.beacon_int, vif->bss_conf.dtim_period);
+		    bss_conf->beacon_int, bss_conf->dtim_period);
 
 	if (rtwsta_link) {
 		rtw89_debug(rtwdev, RTW89_DBG_BTC, "[BTC], STA mac_id=%d\n",
@@ -7529,8 +7534,10 @@ void rtw89_btc_ntfy_role_info(struct rtw89_dev *rtwdev,
 		r.mode = mode;
 	}
 
-	if (rtwvif_link->wifi_role >= RTW89_WIFI_ROLE_MLME_MAX)
+	if (rtwvif_link->wifi_role >= RTW89_WIFI_ROLE_MLME_MAX) {
+		rcu_read_unlock();
 		return;
+	}
 
 	rtw89_debug(rtwdev, RTW89_DBG_BTC,
 		    "[BTC], wifi_role=%d\n", rtwvif_link->wifi_role);
@@ -7540,8 +7547,8 @@ void rtw89_btc_ntfy_role_info(struct rtw89_dev *rtwdev,
 	r.pid = rtwvif_link->port;
 	r.active = true;
 	r.connected = MLME_LINKED;
-	r.bcn_period = vif->bss_conf.beacon_int;
-	r.dtim_period = vif->bss_conf.dtim_period;
+	r.bcn_period = bss_conf->beacon_int;
+	r.dtim_period = bss_conf->dtim_period;
 	r.band = chan->band_type;
 	r.ch = chan->channel;
 	r.bw = chan->band_width;
@@ -7550,6 +7557,8 @@ void rtw89_btc_ntfy_role_info(struct rtw89_dev *rtwdev,
 	r.chdef.bw = chan->band_width;
 	r.chdef.chan = chan->primary_channel;
 	ether_addr_copy(r.mac_addr, rtwvif_link->mac_addr);
+
+	rcu_read_unlock();
 
 	if (rtwsta_link && vif->type == NL80211_IFTYPE_STATION)
 		r.mac_id = rtwsta_link->mac_id;

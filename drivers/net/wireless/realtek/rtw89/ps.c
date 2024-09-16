@@ -214,9 +214,9 @@ static void rtw89_tsf32_toggle(struct rtw89_dev *rtwdev,
 }
 
 static void rtw89_p2p_disable_all_noa(struct rtw89_dev *rtwdev,
-				      struct ieee80211_vif *vif)
+				      struct rtw89_vif_link *rtwvif_link,
+				      struct ieee80211_bss_conf *bss_conf)
 {
-	struct rtw89_vif_link *rtwvif_link = (struct rtw89_vif_link *)vif->drv_priv;
 	enum rtw89_p2pps_action act;
 	u8 noa_id;
 
@@ -229,20 +229,21 @@ static void rtw89_p2p_disable_all_noa(struct rtw89_dev *rtwdev,
 		else
 			act = RTW89_P2P_ACT_REMOVE;
 		rtw89_tsf32_toggle(rtwdev, rtwvif_link, act);
-		rtw89_fw_h2c_p2p_act(rtwdev, vif, NULL, act, noa_id);
+		rtw89_fw_h2c_p2p_act(rtwdev, rtwvif_link, bss_conf,
+				     NULL, act, noa_id);
 	}
 }
 
 static void rtw89_p2p_update_noa(struct rtw89_dev *rtwdev,
-				 struct ieee80211_vif *vif)
+				 struct rtw89_vif_link *rtwvif_link,
+				 struct ieee80211_bss_conf *bss_conf)
 {
-	struct rtw89_vif_link *rtwvif_link = (struct rtw89_vif_link *)vif->drv_priv;
 	struct ieee80211_p2p_noa_desc *desc;
 	enum rtw89_p2pps_action act;
 	u8 noa_id;
 
 	for (noa_id = 0; noa_id < RTW89_P2P_MAX_NOA_NUM; noa_id++) {
-		desc = &vif->bss_conf.p2p_noa_attr.desc[noa_id];
+		desc = &bss_conf->p2p_noa_attr.desc[noa_id];
 		if (!desc->count || !desc->duration)
 			break;
 
@@ -251,15 +252,18 @@ static void rtw89_p2p_update_noa(struct rtw89_dev *rtwdev,
 		else
 			act = RTW89_P2P_ACT_UPDATE;
 		rtw89_tsf32_toggle(rtwdev, rtwvif_link, act);
-		rtw89_fw_h2c_p2p_act(rtwdev, vif, desc, act, noa_id);
+		rtw89_fw_h2c_p2p_act(rtwdev, rtwvif_link, bss_conf,
+				     desc, act, noa_id);
 	}
 	rtwvif_link->last_noa_nr = noa_id;
 }
 
-void rtw89_process_p2p_ps(struct rtw89_dev *rtwdev, struct ieee80211_vif *vif)
+void rtw89_process_p2p_ps(struct rtw89_dev *rtwdev,
+			  struct rtw89_vif_link *rtwvif_link,
+			  struct ieee80211_bss_conf *bss_conf)
 {
-	rtw89_p2p_disable_all_noa(rtwdev, vif);
-	rtw89_p2p_update_noa(rtwdev, vif);
+	rtw89_p2p_disable_all_noa(rtwdev, rtwvif_link, bss_conf);
+	rtw89_p2p_update_noa(rtwdev, rtwvif_link, bss_conf);
 }
 
 void rtw89_recalc_lps(struct rtw89_dev *rtwdev)

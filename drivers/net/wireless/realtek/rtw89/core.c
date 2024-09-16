@@ -571,7 +571,10 @@ static u16 rtw89_core_get_mgmt_rate(struct rtw89_dev *rtwdev,
 	struct sk_buff *skb = tx_req->skb;
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_vif *vif = tx_info->control.vif;
+	struct rtw89_vif_link *rtwvif_link = vif_to_rtwvif_safe(vif);
+	struct ieee80211_bss_conf *bss_conf;
 	u16 lowest_rate;
+	u16 rate;
 
 	if (tx_info->flags & IEEE80211_TX_CTL_NO_CCK_RATE ||
 	    (vif && vif->p2p))
@@ -581,10 +584,23 @@ static u16 rtw89_core_get_mgmt_rate(struct rtw89_dev *rtwdev,
 	else
 		lowest_rate = RTW89_HW_RATE_OFDM6;
 
-	if (!vif || !vif->bss_conf.basic_rates || !tx_req->sta)
+	if (!rtwvif_link)
 		return lowest_rate;
 
-	return __ffs(vif->bss_conf.basic_rates) + lowest_rate;
+	rcu_read_lock();
+
+	bss_conf = rtw89_vif_rcu_dereference_link(rtwvif_link, false);
+	if (!bss_conf->basic_rates || !tx_req->sta) {
+		rate = lowest_rate;
+		goto out;
+	}
+
+	rate = __ffs(bss_conf->basic_rates) + lowest_rate;
+
+out:
+	rcu_read_unlock();
+
+	return rate;
 }
 
 static u8 rtw89_core_tx_get_mac_id(struct rtw89_dev *rtwdev,
@@ -1879,6 +1895,7 @@ struct rtw89_vif_rx_stats_iter_data {
 
 static void rtw89_stats_trigger_frame(struct rtw89_dev *rtwdev,
 				      struct ieee80211_vif *vif,
+				      struct ieee80211_bss_conf *bss_conf,
 				      struct sk_buff *skb)
 {
 	struct rtw89_vif_link *rtwvif_link = (struct rtw89_vif_link *)vif->drv_priv;
@@ -1886,7 +1903,7 @@ static void rtw89_stats_trigger_frame(struct rtw89_dev *rtwdev,
 	u8 *pos, *end, type, tf_bw;
 	u16 aid, tf_rua;
 
-	if (!ether_addr_equal(vif->bss_conf.bssid, tf->ta) ||
+	if (!ether_addr_equal(bss_conf->bssid, tf->ta) ||
 	    rtwvif_link->wifi_role != RTW89_WIFI_ROLE_STATION ||
 	    rtwvif_link->net_type == RTW89_NET_TYPE_NO_LINK)
 		return;
@@ -2010,6 +2027,7 @@ static void rtw89_vif_rx_stats_iter(void *data, u8 *mac,
 	struct sk_buff *skb = iter_data->skb;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	struct rtw89_rx_phy_ppdu *phy_ppdu = iter_data->phy_ppdu;
+	struct ieee80211_bss_conf *bss_conf;
 	const u8 *bssid = iter_data->bssid;
 
 	if (rtwdev->scanning &&
@@ -2017,16 +2035,19 @@ static void rtw89_vif_rx_stats_iter(void *data, u8 *mac,
 	     ieee80211_is_probe_resp(hdr->frame_control)))
 		rtw89_core_cancel_6ghz_probe_tx(rtwdev, skb);
 
-	if (!vif->bss_conf.bssid)
-		return;
+	rcu_read_lock();
+
+	bss_conf = rtw89_vif_rcu_dereference_link(rtwvif_link, false);
+	if (!bss_conf->bssid)
+		goto out;
 
 	if (ieee80211_is_trigger(hdr->frame_control)) {
-		rtw89_stats_trigger_frame(rtwdev, vif, skb);
-		return;
+		rtw89_stats_trigger_frame(rtwdev, vif, bss_conf, skb);
+		goto out;
 	}
 
-	if (!ether_addr_equal(vif->bss_conf.bssid, bssid))
-		return;
+	if (!ether_addr_equal(bss_conf->bssid, bssid))
+		goto out;
 
 	if (ieee80211_is_beacon(hdr->frame_control)) {
 		if (vif->type == NL80211_IFTYPE_STATION &&
@@ -2037,13 +2058,16 @@ static void rtw89_vif_rx_stats_iter(void *data, u8 *mac,
 		pkt_stat->beacon_nr++;
 	}
 
-	if (!ether_addr_equal(vif->addr, hdr->addr1))
-		return;
+	if (!ether_addr_equal(bss_conf->addr, hdr->addr1))
+		goto out;
 
 	if (desc_info->data_rate < RTW89_HW_RATE_NR)
 		pkt_stat->rx_rate_cnt[desc_info->data_rate]++;
 
 	rtw89_traffic_stats_accu(rtwdev, &rtwvif_link->stats, skb, false);
+
+out:
+	rcu_read_unlock();
 }
 
 static void rtw89_core_rx_stats(struct rtw89_dev *rtwdev,
@@ -3008,7 +3032,7 @@ static int rtw89_core_send_nullfunc(struct rtw89_dev *rtwdev,
 		return 0;
 
 	rcu_read_lock();
-	sta = ieee80211_find_sta(vif, vif->bss_conf.bssid);
+	sta = ieee80211_find_sta(vif, vif->cfg.ap_addr);
 	if (!sta) {
 		ret = -EINVAL;
 		goto out;
@@ -3241,14 +3265,16 @@ static void rtw89_core_rfk_track(struct rtw89_dev *rtwdev)
 	rtw89_chip_rfk_track(rtwdev);
 }
 
-void rtw89_core_update_p2p_ps(struct rtw89_dev *rtwdev, struct ieee80211_vif *vif)
+void rtw89_core_update_p2p_ps(struct rtw89_dev *rtwdev,
+			      struct rtw89_vif_link *rtwvif_link,
+			      struct ieee80211_bss_conf *bss_conf)
 {
 	enum rtw89_entity_mode mode = rtw89_get_entity_mode(rtwdev);
 
 	if (mode == RTW89_ENTITY_MODE_MCC)
 		rtw89_queue_chanctx_change(rtwdev, RTW89_CHANCTX_P2P_PS_CHANGE);
 	else
-		rtw89_process_p2p_ps(rtwdev, vif);
+		rtw89_process_p2p_ps(rtwdev, rtwvif_link, bss_conf);
 }
 
 void rtw89_traffic_stats_init(struct rtw89_dev *rtwdev,
@@ -3410,6 +3436,7 @@ int rtw89_core_release_sta_ba_entry(struct rtw89_dev *rtwdev,
 void rtw89_vif_type_mapping(struct ieee80211_vif *vif, bool assoc)
 {
 	struct rtw89_vif_link *rtwvif_link = (struct rtw89_vif_link *)vif->drv_priv;
+	const struct ieee80211_bss_conf *bss_conf;
 
 	switch (vif->type) {
 	case NL80211_IFTYPE_STATION:
@@ -3445,7 +3472,11 @@ void rtw89_vif_type_mapping(struct ieee80211_vif *vif, bool assoc)
 	case NL80211_IFTYPE_STATION:
 		if (assoc) {
 			rtwvif_link->net_type = RTW89_NET_TYPE_INFRA;
-			rtwvif_link->trigger = vif->bss_conf.he_support;
+
+			rcu_read_lock();
+			bss_conf = rtw89_vif_rcu_dereference_link(rtwvif_link, false);
+			rtwvif_link->trigger = bss_conf->he_support;
+			rcu_read_unlock();
 		} else {
 			rtwvif_link->net_type = RTW89_NET_TYPE_NO_LINK;
 			rtwvif_link->trigger = false;
@@ -3656,11 +3687,16 @@ int rtw89_core_sta_assoc(struct rtw89_dev *rtwdev,
 	rtw89_mac_bf_monitor_calc(rtwdev, sta, false);
 
 	if (vif->type == NL80211_IFTYPE_STATION && !sta->tdls) {
-		struct ieee80211_bss_conf *bss_conf = &vif->bss_conf;
+		struct ieee80211_bss_conf *bss_conf;
 
+		rcu_read_lock();
+
+		bss_conf = rtw89_vif_rcu_dereference_link(rtwvif_link, true);
 		if (bss_conf->he_support &&
 		    !(bss_conf->he_oper.params & IEEE80211_HE_OPERATION_ER_SU_DISABLE))
 			rtwsta_link->er_cap = true;
+
+		rcu_read_unlock();
 
 		rtw89_btc_ntfy_role_info(rtwdev, rtwvif_link, rtwsta_link,
 					 BTC_ROLE_MSTS_STA_CONN_END);
@@ -4480,11 +4516,18 @@ void rtw89_core_scan_complete(struct rtw89_dev *rtwdev,
 {
 	struct rtw89_vif_link *rtwvif_link =
 		vif ? (struct rtw89_vif_link *)vif->drv_priv : NULL;
+	struct ieee80211_bss_conf *bss_conf;
 
 	if (!rtwvif_link)
 		return;
 
-	ether_addr_copy(rtwvif_link->mac_addr, vif->addr);
+	rcu_read_lock();
+
+	bss_conf = rtw89_vif_rcu_dereference_link(rtwvif_link, true);
+	ether_addr_copy(rtwvif_link->mac_addr, bss_conf->addr);
+
+	rcu_read_unlock();
+
 	rtw89_fw_h2c_cam(rtwdev, rtwvif_link, NULL, NULL);
 
 	rtw89_chip_rfk_scan(rtwdev, rtwvif_link, false);
@@ -4699,6 +4742,27 @@ int rtw89_chip_info_setup(struct rtw89_dev *rtwdev)
 	return 0;
 }
 EXPORT_SYMBOL(rtw89_chip_info_setup);
+
+void rtw89_chip_cfg_txpwr_ul_tb_offset(struct rtw89_dev *rtwdev,
+				       struct ieee80211_vif *vif)
+{
+	struct rtw89_vif_link *rtwvif_link = (struct rtw89_vif_link *)vif->drv_priv;
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+	struct ieee80211_bss_conf *bss_conf;
+
+	rcu_read_lock();
+
+	bss_conf = rtw89_vif_rcu_dereference_link(rtwvif_link, false);
+	if (!bss_conf->he_support || !vif->cfg.assoc) {
+		rcu_read_unlock();
+		return;
+	}
+
+	rcu_read_unlock();
+
+	if (chip->ops->set_txpwr_ul_tb_offset)
+		chip->ops->set_txpwr_ul_tb_offset(rtwdev, 0, rtwvif_link->mac_idx);
+}
 
 static int rtw89_core_register_hw(struct rtw89_dev *rtwdev)
 {

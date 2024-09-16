@@ -6006,15 +6006,24 @@ void rtw89_phy_dm_init(struct rtw89_dev *rtwdev)
 
 void rtw89_phy_set_bss_color(struct rtw89_dev *rtwdev, struct ieee80211_vif *vif)
 {
+	struct rtw89_vif_link *rtwvif_link = (struct rtw89_vif_link *)vif->drv_priv;
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 	const struct rtw89_reg_def *bss_clr_vld = &chip->bss_clr_vld;
 	enum rtw89_phy_idx phy_idx = RTW89_PHY_0;
+	struct ieee80211_bss_conf *bss_conf;
 	u8 bss_color;
 
-	if (!vif->bss_conf.he_support || !vif->cfg.assoc)
-		return;
+	rcu_read_lock();
 
-	bss_color = vif->bss_conf.he_bss_color.color;
+	bss_conf = rtw89_vif_rcu_dereference_link(rtwvif_link, true);
+	if (!bss_conf->he_support || !vif->cfg.assoc) {
+		rcu_read_unlock();
+		return;
+	}
+
+	bss_color = bss_conf->he_bss_color.color;
+
+	rcu_read_unlock();
 
 	rtw89_phy_write32_idx(rtwdev, bss_clr_vld->addr, bss_clr_vld->mask, 0x1,
 			      phy_idx);

@@ -4141,10 +4141,11 @@ static void rtw89_mac_port_cfg_func_sw(struct rtw89_dev *rtwdev,
 {
 	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
 	const struct rtw89_port_reg *p = mac->port_base;
-	struct ieee80211_vif *vif = rtwvif_to_vif(rtwvif_link);
 	const struct rtw89_chip_info *chip = rtwdev->chip;
+	struct ieee80211_bss_conf *bss_conf;
 	bool need_backup = false;
 	u32 backup_val;
+	u16 beacon_int;
 
 	if (!rtw89_read32_port_mask(rtwdev, rtwvif_link, p->port_cfg, B_AX_PORT_FUNC_EN))
 		return;
@@ -4168,7 +4169,14 @@ static void rtw89_mac_port_cfg_func_sw(struct rtw89_dev *rtwdev,
 				       B_AX_BCNERLY_MASK);
 	}
 
-	msleep(vif->bss_conf.beacon_int + 1);
+	rcu_read_lock();
+
+	bss_conf = rtw89_vif_rcu_dereference_link(rtwvif_link, true);
+	beacon_int = bss_conf->beacon_int;
+
+	rcu_read_unlock();
+
+	msleep(beacon_int + 1);
 	rtw89_write32_port_clr(rtwdev, rtwvif_link, p->port_cfg, B_AX_PORT_FUNC_EN |
 							    B_AX_BRK_SETUP);
 	rtw89_write32_port_set(rtwdev, rtwvif_link, p->port_cfg, B_AX_TSFTR_RST);
@@ -4301,8 +4309,18 @@ static void rtw89_mac_port_cfg_bcn_intv(struct rtw89_dev *rtwdev,
 {
 	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
 	const struct rtw89_port_reg *p = mac->port_base;
-	struct ieee80211_vif *vif = rtwvif_to_vif(rtwvif_link);
-	u16 bcn_int = vif->bss_conf.beacon_int ? vif->bss_conf.beacon_int : BCN_INTERVAL;
+	struct ieee80211_bss_conf *bss_conf;
+	u16 bcn_int;
+
+	rcu_read_lock();
+
+	bss_conf = rtw89_vif_rcu_dereference_link(rtwvif_link, true);
+	if (bss_conf->beacon_int)
+		bcn_int = bss_conf->beacon_int;
+	else
+		bcn_int = BCN_INTERVAL;
+
+	rcu_read_unlock();
 
 	rtw89_write32_port_mask(rtwdev, rtwvif_link, p->bcn_space, B_AX_BCN_SPACE_MASK,
 				bcn_int);
@@ -4326,14 +4344,22 @@ static void rtw89_mac_port_cfg_hiq_dtim(struct rtw89_dev *rtwdev,
 {
 	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
 	const struct rtw89_port_reg *p = mac->port_base;
-	struct ieee80211_vif *vif = rtwvif_to_vif(rtwvif_link);
+	struct ieee80211_bss_conf *bss_conf;
+	u8 dtim_period;
 	u32 addr;
+
+	rcu_read_lock();
+
+	bss_conf = rtw89_vif_rcu_dereference_link(rtwvif_link, true);
+	dtim_period = bss_conf->dtim_period;
+
+	rcu_read_unlock();
 
 	addr = rtw89_mac_reg_by_idx(rtwdev, p->md_tsft, rtwvif_link->mac_idx);
 	rtw89_write8_set(rtwdev, addr, B_AX_UPD_HGQMD | B_AX_UPD_TIMIE);
 
 	rtw89_write16_port_mask(rtwdev, rtwvif_link, p->dtim_ctrl, B_AX_DTIM_NUM_MASK,
-				vif->bss_conf.dtim_period);
+				dtim_period);
 }
 
 static void rtw89_mac_port_cfg_bcn_setup_time(struct rtw89_dev *rtwdev,
@@ -4381,18 +4407,24 @@ static void rtw89_mac_port_cfg_bss_color(struct rtw89_dev *rtwdev,
 {
 	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
 	const struct rtw89_port_reg *p = mac->port_base;
-	struct ieee80211_vif *vif = rtwvif_to_vif(rtwvif_link);
 	static const u32 masks[RTW89_PORT_NUM] = {
 		B_AX_BSS_COLOB_AX_PORT_0_MASK, B_AX_BSS_COLOB_AX_PORT_1_MASK,
 		B_AX_BSS_COLOB_AX_PORT_2_MASK, B_AX_BSS_COLOB_AX_PORT_3_MASK,
 		B_AX_BSS_COLOB_AX_PORT_4_MASK,
 	};
+	struct ieee80211_bss_conf *bss_conf;
 	u8 port = rtwvif_link->port;
 	u32 reg_base;
 	u32 reg;
 	u8 bss_color;
 
-	bss_color = vif->bss_conf.he_bss_color.color;
+	rcu_read_lock();
+
+	bss_conf = rtw89_vif_rcu_dereference_link(rtwvif_link, true);
+	bss_color = bss_conf->he_bss_color.color;
+
+	rcu_read_unlock();
+
 	reg_base = port >= 4 ? p->bss_color + 4 : p->bss_color;
 	reg = rtw89_mac_reg_by_idx(rtwdev, reg_base, rtwvif_link->mac_idx);
 	rtw89_write32_mask(rtwdev, reg, masks[port], bss_color);
@@ -4670,16 +4702,28 @@ void rtw89_mac_set_he_obss_narrow_bw_ru(struct rtw89_dev *rtwdev,
 	struct rtw89_vif_link *rtwvif_link = (struct rtw89_vif_link *)vif->drv_priv;
 	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
 	struct ieee80211_hw *hw = rtwdev->hw;
+	struct ieee80211_bss_conf *bss_conf;
+	struct cfg80211_chan_def oper;
 	bool tolerated = true;
 	u32 reg;
 
-	if (!vif->bss_conf.he_support || vif->type != NL80211_IFTYPE_STATION)
-		return;
+	rcu_read_lock();
 
-	if (!(vif->bss_conf.chanreq.oper.chan->flags & IEEE80211_CHAN_RADAR))
+	bss_conf = rtw89_vif_rcu_dereference_link(rtwvif_link, true);
+	if (!bss_conf->he_support || vif->type != NL80211_IFTYPE_STATION) {
+		rcu_read_unlock();
 		return;
+	}
 
-	cfg80211_bss_iter(hw->wiphy, &vif->bss_conf.chanreq.oper,
+	oper = bss_conf->chanreq.oper;
+	if (!(oper.chan->flags & IEEE80211_CHAN_RADAR)) {
+		rcu_read_unlock();
+		return;
+	}
+
+	rcu_read_unlock();
+
+	cfg80211_bss_iter(hw->wiphy, &oper,
 			  rtw89_mac_check_he_obss_narrow_bw_ru_iter,
 			  &tolerated);
 
