@@ -17,9 +17,9 @@
 #include <linux/container_of.h>
 #include <linux/delay.h>
 #include <linux/device.h>
-#include <linux/ioport.h>
 #include <linux/i2c.h>
-#include <linux/io.h>
+#include <linux/iopoll.h>
+#include <linux/ioport.h>
 #include <linux/stddef.h>
 #include <linux/string_choices.h>
 #include <linux/types.h>
@@ -33,9 +33,6 @@
 #define SMBHSTDAT0	0x06
 #define SMBHSTDAT1	0x07
 #define SMBBLKDAT	0x20
-
-/* Other settings */
-#define MAX_RETRIES	5000
 
 /* I2C constants */
 #define SCH_QUICK		0x00
@@ -83,7 +80,6 @@ static int sch_transaction(struct i2c_adapter *adap)
 	struct sch_i2c *priv = container_of(adap, struct sch_i2c, adapter);
 	int temp;
 	int result = 0;
-	int retries = 0;
 
 	dev_dbg(&adap->dev,
 		"Transaction (pre): CNT=%02x, CMD=%02x, ADD=%02x, DAT0=%02x, DAT1=%02x\n",
@@ -112,15 +108,11 @@ static int sch_transaction(struct i2c_adapter *adap)
 	temp |= 0x10;
 	sch_io_wr8(priv, SMBHSTCNT, temp);
 
-	do {
-		usleep_range(100, 200);
-		temp = sch_io_rd8(priv, SMBHSTSTS) & 0x0f;
-	} while ((temp & 0x08) && (retries++ < MAX_RETRIES));
-
+	result = read_poll_timeout(sch_io_rd8, temp, !(temp & 0x08), 200, 500000, true,
+				   priv, SMBHSTSTS);
 	/* If the SMBus is still busy, we give up */
-	if (retries > MAX_RETRIES) {
+	if (result) {
 		dev_err(&adap->dev, "SMBus Timeout!\n");
-		result = -ETIMEDOUT;
 	} else if (temp & 0x04) {
 		result = -EIO;
 		dev_dbg(&adap->dev, "Bus collision! SMBus may be locked until next hard reset. (sorry!)\n");
@@ -130,7 +122,7 @@ static int sch_transaction(struct i2c_adapter *adap)
 		dev_err(&adap->dev, "Error: no response!\n");
 	} else if (temp & 0x01) {
 		dev_dbg(&adap->dev, "Post complete!\n");
-		sch_io_wr8(priv, SMBHSTSTS, temp);
+		sch_io_wr8(priv, SMBHSTSTS, temp & 0x0f);
 		temp = sch_io_rd8(priv, SMBHSTSTS) & 0x07;
 		if (temp & 0x06) {
 			/* Completion clear failed */
