@@ -1268,8 +1268,8 @@ static int rtw89_wow_swap_fw(struct rtw89_dev *rtwdev, bool wow)
 			return ret;
 		}
 		rtw89_phy_ra_assoc(rtwdev, wow_sta);
-		rtw89_phy_set_bss_color(rtwdev, wow_vif);
-		rtw89_chip_cfg_txpwr_ul_tb_offset(rtwdev, wow_vif);
+		rtw89_phy_set_bss_color(rtwdev, rtwvif_link);
+		rtw89_chip_cfg_txpwr_ul_tb_offset(rtwdev, rtwvif_link);
 	}
 
 	if (chip_gen == RTW89_CHIP_BE)

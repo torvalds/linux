@@ -3466,9 +3466,9 @@ int rtw89_core_release_sta_ba_entry(struct rtw89_dev *rtwdev,
 	case NL80211_IFTYPE_ ## _type:	\
 		rtwvif_link->wifi_role = RTW89_WIFI_ROLE_ ## _type;	\
 		break
-void rtw89_vif_type_mapping(struct ieee80211_vif *vif, bool assoc)
+void rtw89_vif_type_mapping(struct rtw89_vif_link *rtwvif_link, bool assoc)
 {
-	struct rtw89_vif_link *rtwvif_link = (struct rtw89_vif_link *)vif->drv_priv;
+	const struct ieee80211_vif *vif = rtwvif_to_vif(rtwvif_link);
 	const struct ieee80211_bss_conf *bss_conf;
 
 	switch (vif->type) {
@@ -3638,7 +3638,7 @@ int rtw89_core_sta_disconnect(struct rtw89_dev *rtwdev,
 		rtw89_cam_deinit_bssid_cam(rtwdev, &rtwsta_link->bssid_cam);
 
 	if (vif->type == NL80211_IFTYPE_STATION && !sta->tdls) {
-		rtw89_vif_type_mapping(vif, false);
+		rtw89_vif_type_mapping(rtwvif_link, false);
 		rtw89_fw_release_general_pkt_list_vif(rtwdev, rtwvif_link, true);
 	}
 
@@ -4785,9 +4785,9 @@ int rtw89_chip_info_setup(struct rtw89_dev *rtwdev)
 EXPORT_SYMBOL(rtw89_chip_info_setup);
 
 void rtw89_chip_cfg_txpwr_ul_tb_offset(struct rtw89_dev *rtwdev,
-				       struct ieee80211_vif *vif)
+				       struct rtw89_vif_link *rtwvif_link)
 {
-	struct rtw89_vif_link *rtwvif_link = (struct rtw89_vif_link *)vif->drv_priv;
+	struct ieee80211_vif *vif = rtwvif_to_vif(rtwvif_link);
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 	struct ieee80211_bss_conf *bss_conf;
 

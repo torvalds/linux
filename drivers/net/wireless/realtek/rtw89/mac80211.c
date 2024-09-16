@@ -106,12 +106,60 @@ static int rtw89_ops_config(struct ieee80211_hw *hw, u32 changed)
 	return 0;
 }
 
+static int __rtw89_ops_add_iface_link(struct rtw89_dev *rtwdev,
+				      struct rtw89_vif_link *rtwvif_link)
+{
+	struct ieee80211_bss_conf *bss_conf;
+	int ret;
+
+	rtw89_leave_ps_mode(rtwdev);
+
+	rtw89_vif_type_mapping(rtwvif_link, false);
+
+	INIT_WORK(&rtwvif_link->update_beacon_work, rtw89_core_update_beacon_work);
+	INIT_LIST_HEAD(&rtwvif_link->general_pkt_list);
+
+	rtwvif_link->hit_rule = 0;
+	rtwvif_link->bcn_hit_cond = 0;
+	rtwvif_link->chanctx_assigned = false;
+	rtwvif_link->chanctx_idx = RTW89_CHANCTX_0;
+	rtwvif_link->reg_6ghz_power = RTW89_REG_6GHZ_POWER_DFLT;
+
+	rcu_read_lock();
+
+	bss_conf = rtw89_vif_rcu_dereference_link(rtwvif_link, true);
+	ether_addr_copy(rtwvif_link->mac_addr, bss_conf->addr);
+
+	rcu_read_unlock();
+
+	ret = rtw89_mac_add_vif(rtwdev, rtwvif_link);
+	if (ret)
+		return ret;
+
+	rtw89_btc_ntfy_role_info(rtwdev, rtwvif_link, NULL, BTC_ROLE_START);
+	return 0;
+}
+
+static void __rtw89_ops_remove_iface_link(struct rtw89_dev *rtwdev,
+					  struct rtw89_vif_link *rtwvif_link)
+{
+	mutex_unlock(&rtwdev->mutex);
+	cancel_work_sync(&rtwvif_link->update_beacon_work);
+	mutex_lock(&rtwdev->mutex);
+
+	rtw89_leave_ps_mode(rtwdev);
+
+	rtw89_btc_ntfy_role_info(rtwdev, rtwvif_link, NULL, BTC_ROLE_STOP);
+
+	rtw89_mac_remove_vif(rtwdev, rtwvif_link);
+}
+
 static int rtw89_ops_add_interface(struct ieee80211_hw *hw,
 				   struct ieee80211_vif *vif)
 {
 	struct rtw89_dev *rtwdev = hw->priv;
 	struct rtw89_vif_link *rtwvif_link = (struct rtw89_vif_link *)vif->drv_priv;
-	struct ieee80211_bss_conf *bss_conf;
+	u8 mac_id, port;
 	int ret = 0;
 
 	rtw89_debug(rtwdev, RTW89_DBG_STATE, "add vif %pM type %d, p2p %d\n",
@@ -128,53 +176,47 @@ static int rtw89_ops_add_interface(struct ieee80211_hw *hw,
 	rtwvif_link->rtwdev = rtwdev;
 	rtwvif_link->roc.state = RTW89_ROC_IDLE;
 	rtwvif_link->offchan = false;
-	if (!rtw89_rtwvif_in_list(rtwdev, rtwvif_link))
-		list_add_tail(&rtwvif_link->list, &rtwdev->rtwvifs_list);
-
-	INIT_WORK(&rtwvif_link->update_beacon_work, rtw89_core_update_beacon_work);
 	INIT_DELAYED_WORK(&rtwvif_link->roc.roc_work, rtw89_roc_work);
-	rtw89_leave_ps_mode(rtwdev);
 
 	rtw89_traffic_stats_init(rtwdev, &rtwvif_link->stats);
-	rtw89_vif_type_mapping(vif, false);
-	rtwvif_link->port = rtw89_core_acquire_bit_map(rtwdev->hw_port,
-						       RTW89_PORT_NUM);
-	if (rtwvif_link->port == RTW89_PORT_NUM) {
+
+	mac_id = rtw89_acquire_mac_id(rtwdev);
+	if (mac_id == RTW89_MAX_MAC_ID_NUM) {
 		ret = -ENOSPC;
-		list_del_init(&rtwvif_link->list);
-		goto out;
+		goto err;
 	}
 
-	rtwvif_link->bcn_hit_cond = 0;
+	port = rtw89_core_acquire_bit_map(rtwdev->hw_port, RTW89_PORT_NUM);
+	if (port == RTW89_PORT_NUM) {
+		ret = -ENOSPC;
+		goto release_macid;
+	}
+
 	rtwvif_link->mac_idx = RTW89_MAC_0;
 	rtwvif_link->phy_idx = RTW89_PHY_0;
-	rtwvif_link->chanctx_idx = RTW89_CHANCTX_0;
-	rtwvif_link->chanctx_assigned = false;
-	rtwvif_link->hit_rule = 0;
-	rtwvif_link->reg_6ghz_power = RTW89_REG_6GHZ_POWER_DFLT;
-
-	rcu_read_lock();
-
-	bss_conf = rtw89_vif_rcu_dereference_link(rtwvif_link, true);
-	ether_addr_copy(rtwvif_link->mac_addr, bss_conf->addr);
-
-	rcu_read_unlock();
-
-	INIT_LIST_HEAD(&rtwvif_link->general_pkt_list);
-
-	ret = rtw89_mac_add_vif(rtwdev, rtwvif_link);
-	if (ret) {
-		rtw89_core_release_bit_map(rtwdev->hw_port, rtwvif_link->port);
-		list_del_init(&rtwvif_link->list);
-		goto out;
-	}
+	rtwvif_link->mac_id = mac_id;
+	rtwvif_link->port = port;
 
 	rtw89_core_txq_init(rtwdev, vif->txq);
 
-	rtw89_btc_ntfy_role_info(rtwdev, rtwvif_link, NULL, BTC_ROLE_START);
+	if (!rtw89_rtwvif_in_list(rtwdev, rtwvif_link))
+		list_add_tail(&rtwvif_link->list, &rtwdev->rtwvifs_list);
+
+	ret = __rtw89_ops_add_iface_link(rtwdev, rtwvif_link);
+	if (ret)
+		goto release_port;
 
 	rtw89_recalc_lps(rtwdev);
-out:
+
+	mutex_unlock(&rtwdev->mutex);
+	return 0;
+
+release_port:
+	list_del_init(&rtwvif_link->list);
+	rtw89_core_release_bit_map(rtwdev->hw_port, port);
+release_macid:
+	rtw89_release_mac_id(rtwdev, mac_id);
+err:
 	mutex_unlock(&rtwdev->mutex);
 
 	return ret;
@@ -189,14 +231,14 @@ static void rtw89_ops_remove_interface(struct ieee80211_hw *hw,
 	rtw89_debug(rtwdev, RTW89_DBG_STATE, "remove vif %pM type %d p2p %d\n",
 		    vif->addr, vif->type, vif->p2p);
 
-	cancel_work_sync(&rtwvif_link->update_beacon_work);
 	cancel_delayed_work_sync(&rtwvif_link->roc.roc_work);
 
 	mutex_lock(&rtwdev->mutex);
-	rtw89_leave_ps_mode(rtwdev);
-	rtw89_btc_ntfy_role_info(rtwdev, rtwvif_link, NULL, BTC_ROLE_STOP);
-	rtw89_mac_remove_vif(rtwdev, rtwvif_link);
+
+	__rtw89_ops_remove_iface_link(rtwdev, rtwvif_link);
+
 	rtw89_core_release_bit_map(rtwdev->hw_port, rtwvif_link->port);
+	rtw89_release_mac_id(rtwdev, rtwvif_link->mac_id);
 	list_del_init(&rtwvif_link->list);
 	rtw89_recalc_lps(rtwdev);
 	rtw89_enter_ips_by_hwflags(rtwdev);
@@ -417,6 +459,7 @@ static void rtw89_conf_tx(struct rtw89_dev *rtwdev,
 static void rtw89_station_mode_sta_assoc(struct rtw89_dev *rtwdev,
 					 struct ieee80211_vif *vif)
 {
+	struct rtw89_vif_link *rtwvif_link = (struct rtw89_vif_link *)vif->drv_priv;
 	struct ieee80211_sta *sta;
 
 	if (vif->type != NL80211_IFTYPE_STATION)
@@ -428,9 +471,18 @@ static void rtw89_station_mode_sta_assoc(struct rtw89_dev *rtwdev,
 		return;
 	}
 
-	rtw89_vif_type_mapping(vif, true);
+	rtw89_vif_type_mapping(rtwvif_link, true);
 
 	rtw89_core_sta_assoc(rtwdev, vif, sta);
+}
+
+static void __rtw89_ops_bss_link_assoc(struct rtw89_dev *rtwdev,
+				       struct rtw89_vif_link *rtwvif_link)
+{
+	rtw89_phy_set_bss_color(rtwdev, rtwvif_link);
+	rtw89_chip_cfg_txpwr_ul_tb_offset(rtwdev, rtwvif_link);
+	rtw89_mac_port_update(rtwdev, rtwvif_link);
+	rtw89_mac_set_he_obss_narrow_bw_ru(rtwdev, rtwvif_link);
 }
 
 static void rtw89_ops_vif_cfg_changed(struct ieee80211_hw *hw,
@@ -445,10 +497,7 @@ static void rtw89_ops_vif_cfg_changed(struct ieee80211_hw *hw,
 	if (changed & BSS_CHANGED_ASSOC) {
 		if (vif->cfg.assoc) {
 			rtw89_station_mode_sta_assoc(rtwdev, vif);
-			rtw89_phy_set_bss_color(rtwdev, vif);
-			rtw89_chip_cfg_txpwr_ul_tb_offset(rtwdev, vif);
-			rtw89_mac_port_update(rtwdev, rtwvif_link);
-			rtw89_mac_set_he_obss_narrow_bw_ru(rtwdev, vif);
+			__rtw89_ops_bss_link_assoc(rtwdev, rtwvif_link);
 
 			rtw89_queue_chanctx_work(rtwdev);
 		} else {
@@ -494,7 +543,7 @@ static void rtw89_ops_link_info_changed(struct ieee80211_hw *hw,
 		rtw89_conf_tx(rtwdev, rtwvif_link);
 
 	if (changed & BSS_CHANGED_HE_BSS_COLOR)
-		rtw89_phy_set_bss_color(rtwdev, vif);
+		rtw89_phy_set_bss_color(rtwdev, rtwvif_link);
 
 	if (changed & BSS_CHANGED_MU_GROUPS)
 		rtw89_mac_bf_set_gid_table(rtwdev, vif, conf);
