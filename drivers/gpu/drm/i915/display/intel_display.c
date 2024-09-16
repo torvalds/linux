@@ -4334,22 +4334,11 @@ static int intel_crtc_atomic_check(struct intel_atomic_state *state,
 	if (ret)
 		return ret;
 
-	ret = intel_compute_pipe_wm(state, crtc);
+	ret = intel_wm_compute(state, crtc);
 	if (ret) {
 		drm_dbg_kms(&dev_priv->drm,
-			    "Target pipe watermarks are invalid\n");
-		return ret;
-	}
-
-	/*
-	 * Calculate 'intermediate' watermarks that satisfy both the
-	 * old state and the new state.  We can program these
-	 * immediately.
-	 */
-	ret = intel_compute_intermediate_wm(state, crtc);
-	if (ret) {
-		drm_dbg_kms(&dev_priv->drm,
-			    "No valid intermediate pipe watermarks are possible\n");
+			    "[CRTC:%d:%s] watermarks are invalid\n",
+			    crtc->base.base.id, crtc->base.name);
 		return ret;
 	}
 
