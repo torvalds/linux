@@ -274,7 +274,6 @@ static int smbus_sch_probe(struct platform_device *dev)
 {
 	struct sch_i2c *priv;
 	struct resource *res;
-	int retval;
 
 	priv = devm_kzalloc(&dev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -299,20 +298,7 @@ static int smbus_sch_probe(struct platform_device *dev)
 	snprintf(priv->adapter.name, sizeof(priv->adapter.name),
 		 "SMBus SCH adapter at %04x", (unsigned short)res->start);
 
-	retval = i2c_add_adapter(&priv->adapter);
-	if (retval)
-		return retval;
-
-	platform_set_drvdata(dev, priv);
-
-	return 0;
-}
-
-static void smbus_sch_remove(struct platform_device *pdev)
-{
-	struct sch_i2c *priv = platform_get_drvdata(pdev);
-
-	i2c_del_adapter(&priv->adapter);
+	return devm_i2c_add_adapter(&dev->dev, &priv->adapter);
 }
 
 static struct platform_driver smbus_sch_driver = {
@@ -320,7 +306,6 @@ static struct platform_driver smbus_sch_driver = {
 		.name = "isch_smbus",
 	},
 	.probe		= smbus_sch_probe,
-	.remove_new	= smbus_sch_remove,
 };
 
 module_platform_driver(smbus_sch_driver);
