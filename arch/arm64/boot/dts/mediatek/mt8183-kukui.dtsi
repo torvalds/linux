@@ -290,6 +290,11 @@
 	};
 };
 
+&dpi0 {
+	/* TODO Re-enable after DP to Type-C port muxing can be described */
+	status = "disabled";
+};
+
 &gic {
 	mediatek,broken-save-restore-fw;
 };
