@@ -732,19 +732,6 @@ static bool smu_v14_0_2_is_dpm_running(struct smu_context *smu)
 	return !!(feature_enabled & SMC_DPM_FEATURE);
 }
 
-static void smu_v14_0_2_dump_pptable(struct smu_context *smu)
-{
-       struct smu_table_context *table_context = &smu->smu_table;
-       PPTable_t *pptable = table_context->driver_pptable;
-       PFE_Settings_t *PFEsettings = &pptable->PFE_Settings;
-
-       dev_info(smu->adev->dev, "Dumped PPTable:\n");
-
-       dev_info(smu->adev->dev, "Version = 0x%08x\n", PFEsettings->Version);
-       dev_info(smu->adev->dev, "FeaturesToRun[0] = 0x%08x\n", PFEsettings->FeaturesToRun[0]);
-       dev_info(smu->adev->dev, "FeaturesToRun[1] = 0x%08x\n", PFEsettings->FeaturesToRun[1]);
-}
-
 static uint32_t smu_v14_0_2_get_throttler_status(SmuMetrics_t *metrics)
 {
 	uint32_t throttler_status = 0;
@@ -2806,7 +2793,6 @@ static const struct pptable_funcs smu_v14_0_2_ppt_funcs = {
 	.i2c_init = smu_v14_0_2_i2c_control_init,
 	.i2c_fini = smu_v14_0_2_i2c_control_fini,
 	.is_dpm_running = smu_v14_0_2_is_dpm_running,
-	.dump_pptable = smu_v14_0_2_dump_pptable,
 	.init_microcode = smu_v14_0_init_microcode,
 	.load_microcode = smu_v14_0_load_microcode,
 	.fini_microcode = smu_v14_0_fini_microcode,

@@ -859,11 +859,6 @@ struct pptable_funcs {
 	int (*display_disable_memory_clock_switch)(struct smu_context *smu, bool disable_memory_clock_switch);
 
 	/**
-	 * @dump_pptable: Print the power play table to the system log.
-	 */
-	void (*dump_pptable)(struct smu_context *smu);
-
-	/**
 	 * @get_power_limit: Get the device's power limits.
 	 */
 	int (*get_power_limit)(struct smu_context *smu,
