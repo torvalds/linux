@@ -1601,6 +1601,10 @@ _panel_replay_compute_config(struct intel_dp *intel_dp,
 
 	/* Remaining checks are for eDP only */
 
+	if (to_intel_crtc(crtc_state->uapi.crtc)->pipe != PIPE_A &&
+	    to_intel_crtc(crtc_state->uapi.crtc)->pipe != PIPE_B)
+		return false;
+
 	/* 128b/132b Panel Replay is not supported on eDP */
 	if (intel_dp_is_uhbr(crtc_state)) {
 		drm_dbg_kms(display->drm,
