@@ -2792,6 +2792,7 @@ static void rdma_nl_notify_err_msg(struct ib_device *device, u32 port_num,
 		dev_warn_ratelimited(&device->dev,
 				     "Failed to send RDMA monitor netdev detach event: port %d\n",
 				     port_num);
+		break;
 	default:
 		break;
 	}
