@@ -278,7 +278,7 @@ bool intel_crtc_is_joiner_primary(const struct intel_crtc_state *crtc_state)
 		crtc->pipe == joiner_primary_pipe(crtc_state);
 }
 
-static int intel_crtc_num_joined_pipes(const struct intel_crtc_state *crtc_state)
+int intel_crtc_num_joined_pipes(const struct intel_crtc_state *crtc_state)
 {
 	return hweight8(intel_crtc_joined_pipe_mask(crtc_state));
 }
