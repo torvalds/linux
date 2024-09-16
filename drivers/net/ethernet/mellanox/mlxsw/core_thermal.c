@@ -165,52 +165,22 @@ static int mlxsw_get_cooling_device_idx(struct mlxsw_thermal *thermal,
 	return -ENODEV;
 }
 
-static int mlxsw_thermal_bind(struct thermal_zone_device *tzdev,
-			      struct thermal_cooling_device *cdev)
+static bool mlxsw_thermal_should_bind(struct thermal_zone_device *tzdev,
+				      const struct thermal_trip *trip,
+				      struct thermal_cooling_device *cdev,
+				      struct cooling_spec *c)
 {
 	struct mlxsw_thermal *thermal = thermal_zone_device_priv(tzdev);
-	struct device *dev = thermal->bus_info->dev;
-	int i, err;
+	const struct mlxsw_cooling_states *state = trip->priv;
 
 	/* If the cooling device is one of ours bind it */
 	if (mlxsw_get_cooling_device_idx(thermal, cdev) < 0)
-		return 0;
+		return false;
 
-	for (i = 0; i < MLXSW_THERMAL_NUM_TRIPS; i++) {
-		const struct mlxsw_cooling_states *state = &thermal->cooling_states[i];
+	c->upper = state->max_state;
+	c->lower = state->min_state;
 
-		err = thermal_zone_bind_cooling_device(tzdev, i, cdev,
-						       state->max_state,
-						       state->min_state,
-						       THERMAL_WEIGHT_DEFAULT);
-		if (err < 0) {
-			dev_err(dev, "Failed to bind cooling device to trip %d\n", i);
-			return err;
-		}
-	}
-	return 0;
-}
-
-static int mlxsw_thermal_unbind(struct thermal_zone_device *tzdev,
-				struct thermal_cooling_device *cdev)
-{
-	struct mlxsw_thermal *thermal = thermal_zone_device_priv(tzdev);
-	struct device *dev = thermal->bus_info->dev;
-	int i;
-	int err;
-
-	/* If the cooling device is our one unbind it */
-	if (mlxsw_get_cooling_device_idx(thermal, cdev) < 0)
-		return 0;
-
-	for (i = 0; i < MLXSW_THERMAL_NUM_TRIPS; i++) {
-		err = thermal_zone_unbind_cooling_device(tzdev, i, cdev);
-		if (err < 0) {
-			dev_err(dev, "Failed to unbind cooling device\n");
-			return err;
-		}
-	}
-	return 0;
+	return true;
 }
 
 static int mlxsw_thermal_get_temp(struct thermal_zone_device *tzdev,
@@ -240,57 +210,27 @@ static struct thermal_zone_params mlxsw_thermal_params = {
 };
 
 static struct thermal_zone_device_ops mlxsw_thermal_ops = {
-	.bind = mlxsw_thermal_bind,
-	.unbind = mlxsw_thermal_unbind,
+	.should_bind = mlxsw_thermal_should_bind,
 	.get_temp = mlxsw_thermal_get_temp,
 };
 
-static int mlxsw_thermal_module_bind(struct thermal_zone_device *tzdev,
-				     struct thermal_cooling_device *cdev)
+static bool mlxsw_thermal_module_should_bind(struct thermal_zone_device *tzdev,
+					     const struct thermal_trip *trip,
+					     struct thermal_cooling_device *cdev,
+					     struct cooling_spec *c)
 {
 	struct mlxsw_thermal_module *tz = thermal_zone_device_priv(tzdev);
+	const struct mlxsw_cooling_states *state = trip->priv;
 	struct mlxsw_thermal *thermal = tz->parent;
-	int i, j, err;
 
 	/* If the cooling device is one of ours bind it */
 	if (mlxsw_get_cooling_device_idx(thermal, cdev) < 0)
-		return 0;
+		return false;
 
-	for (i = 0; i < MLXSW_THERMAL_NUM_TRIPS; i++) {
-		const struct mlxsw_cooling_states *state = &tz->cooling_states[i];
+	c->upper = state->max_state;
+	c->lower = state->min_state;
 
-		err = thermal_zone_bind_cooling_device(tzdev, i, cdev,
-						       state->max_state,
-						       state->min_state,
-						       THERMAL_WEIGHT_DEFAULT);
-		if (err < 0)
-			goto err_thermal_zone_bind_cooling_device;
-	}
-	return 0;
-
-err_thermal_zone_bind_cooling_device:
-	for (j = i - 1; j >= 0; j--)
-		thermal_zone_unbind_cooling_device(tzdev, j, cdev);
-	return err;
-}
-
-static int mlxsw_thermal_module_unbind(struct thermal_zone_device *tzdev,
-				       struct thermal_cooling_device *cdev)
-{
-	struct mlxsw_thermal_module *tz = thermal_zone_device_priv(tzdev);
-	struct mlxsw_thermal *thermal = tz->parent;
-	int i;
-	int err;
-
-	/* If the cooling device is one of ours unbind it */
-	if (mlxsw_get_cooling_device_idx(thermal, cdev) < 0)
-		return 0;
-
-	for (i = 0; i < MLXSW_THERMAL_NUM_TRIPS; i++) {
-		err = thermal_zone_unbind_cooling_device(tzdev, i, cdev);
-		WARN_ON(err);
-	}
-	return err;
+	return true;
 }
 
 static int mlxsw_thermal_module_temp_get(struct thermal_zone_device *tzdev,
@@ -313,8 +253,7 @@ static int mlxsw_thermal_module_temp_get(struct thermal_zone_device *tzdev,
 }
 
 static struct thermal_zone_device_ops mlxsw_thermal_module_ops = {
-	.bind		= mlxsw_thermal_module_bind,
-	.unbind		= mlxsw_thermal_module_unbind,
+	.should_bind	= mlxsw_thermal_module_should_bind,
 	.get_temp	= mlxsw_thermal_module_temp_get,
 };
 
@@ -342,8 +281,7 @@ static int mlxsw_thermal_gearbox_temp_get(struct thermal_zone_device *tzdev,
 }
 
 static struct thermal_zone_device_ops mlxsw_thermal_gearbox_ops = {
-	.bind		= mlxsw_thermal_module_bind,
-	.unbind		= mlxsw_thermal_module_unbind,
+	.should_bind	= mlxsw_thermal_module_should_bind,
 	.get_temp	= mlxsw_thermal_gearbox_temp_get,
 };
 
@@ -450,6 +388,7 @@ mlxsw_thermal_module_init(struct mlxsw_thermal *thermal,
 			  struct mlxsw_thermal_area *area, u8 module)
 {
 	struct mlxsw_thermal_module *module_tz;
+	int i;
 
 	module_tz = &area->tz_module_arr[module];
 	module_tz->module = module;
@@ -461,6 +400,8 @@ mlxsw_thermal_module_init(struct mlxsw_thermal *thermal,
 	       sizeof(thermal->trips));
 	memcpy(module_tz->cooling_states, default_cooling_states,
 	       sizeof(thermal->cooling_states));
+	for (i = 0; i < MLXSW_THERMAL_NUM_TRIPS; i++)
+		module_tz->trips[i].priv = &module_tz->cooling_states[i];
 
 	return mlxsw_thermal_module_tz_init(module_tz);
 }
@@ -566,7 +507,7 @@ mlxsw_thermal_gearboxes_init(struct device *dev, struct mlxsw_core *core,
 	struct mlxsw_thermal_module *gearbox_tz;
 	char mgpir_pl[MLXSW_REG_MGPIR_LEN];
 	u8 gbox_num;
-	int i;
+	int i, j;
 	int err;
 
 	mlxsw_reg_mgpir_pack(mgpir_pl, area->slot_index);
@@ -593,6 +534,9 @@ mlxsw_thermal_gearboxes_init(struct device *dev, struct mlxsw_core *core,
 		       sizeof(thermal->trips));
 		memcpy(gearbox_tz->cooling_states, default_cooling_states,
 		       sizeof(thermal->cooling_states));
+		for (j = 0; j < MLXSW_THERMAL_NUM_TRIPS; j++)
+			gearbox_tz->trips[j].priv = &gearbox_tz->cooling_states[j];
+
 		gearbox_tz->module = i;
 		gearbox_tz->parent = thermal;
 		gearbox_tz->slot_index = area->slot_index;
@@ -709,6 +653,9 @@ int mlxsw_thermal_init(struct mlxsw_core *core,
 	thermal->bus_info = bus_info;
 	memcpy(thermal->trips, default_thermal_trips, sizeof(thermal->trips));
 	memcpy(thermal->cooling_states, default_cooling_states, sizeof(thermal->cooling_states));
+	for (i = 0; i < MLXSW_THERMAL_NUM_TRIPS; i++)
+		thermal->trips[i].priv = &thermal->cooling_states[i];
+
 	thermal->line_cards[0].slot_index = 0;
 
 	err = mlxsw_reg_query(thermal->core, MLXSW_REG(mfcr), mfcr_pl);
