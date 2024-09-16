@@ -306,7 +306,7 @@ enum btrfs_read_policy {
 	BTRFS_NR_READ_POLICY,
 };
 
-#ifdef CONFIG_BTRFS_DEBUG
+#ifdef CONFIG_BTRFS_EXPERIMENTAL
 /*
  * Checksum mode - offload it to workqueues or do it synchronously in
  * btrfs_submit_chunk().
@@ -430,7 +430,7 @@ struct btrfs_fs_devices {
 	/* Policy used to read the mirrored stripes. */
 	enum btrfs_read_policy read_policy;
 
-#ifdef CONFIG_BTRFS_DEBUG
+#ifdef CONFIG_BTRFS_EXPERIMENTAL
 	/* Checksum mode - offload it or do it synchronously. */
 	enum btrfs_offload_csum_mode offload_csum_mode;
 #endif

@@ -263,10 +263,10 @@ enum {
 	 BTRFS_FEATURE_INCOMPAT_ZONED		|	\
 	 BTRFS_FEATURE_INCOMPAT_SIMPLE_QUOTA)
 
-#ifdef CONFIG_BTRFS_DEBUG
+#ifdef CONFIG_BTRFS_EXPERIMENTAL
 	/*
 	 * Features under developmen like Extent tree v2 support is enabled
-	 * only under CONFIG_BTRFS_DEBUG.
+	 * only under CONFIG_BTRFS_EXPERIMENTAL
 	 */
 #define BTRFS_FEATURE_INCOMPAT_SUPP		\
 	(BTRFS_FEATURE_INCOMPAT_SUPP_STABLE |	\
