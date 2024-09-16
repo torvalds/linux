@@ -36,6 +36,8 @@ struct cpu_task {
 
 extern struct cpu_task cpu_tasks[];
 
+extern unsigned long long physmem_size;
+
 extern unsigned long high_physmem;
 extern unsigned long uml_physmem;
 extern unsigned long uml_reserved;

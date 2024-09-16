@@ -22,8 +22,6 @@ static int physmem_fd = -1;
 unsigned long high_physmem;
 EXPORT_SYMBOL(high_physmem);
 
-extern unsigned long long physmem_size;
-
 void __init mem_total_pages(unsigned long physmem, unsigned long iomem)
 {
 	unsigned long phys_pages, iomem_pages, total_pages;
