@@ -106,10 +106,10 @@ void rtw89_chanctx_ops_change(struct rtw89_dev *rtwdev,
 			      struct ieee80211_chanctx_conf *ctx,
 			      u32 changed);
 int rtw89_chanctx_ops_assign_vif(struct rtw89_dev *rtwdev,
-				 struct rtw89_vif *rtwvif,
+				 struct rtw89_vif_link *rtwvif_link,
 				 struct ieee80211_chanctx_conf *ctx);
 void rtw89_chanctx_ops_unassign_vif(struct rtw89_dev *rtwdev,
-				    struct rtw89_vif *rtwvif,
+				    struct rtw89_vif_link *rtwvif_link,
 				    struct ieee80211_chanctx_conf *ctx);
 
 #endif

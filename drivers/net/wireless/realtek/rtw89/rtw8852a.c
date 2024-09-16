@@ -1350,10 +1350,11 @@ static void rtw8852a_rfk_init(struct rtw89_dev *rtwdev)
 	rtw8852a_rx_dck(rtwdev, RTW89_PHY_0, true, RTW89_CHANCTX_0);
 }
 
-static void rtw8852a_rfk_channel(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif)
+static void rtw8852a_rfk_channel(struct rtw89_dev *rtwdev,
+				 struct rtw89_vif_link *rtwvif_link)
 {
-	enum rtw89_chanctx_idx chanctx_idx = rtwvif->chanctx_idx;
-	enum rtw89_phy_idx phy_idx = rtwvif->phy_idx;
+	enum rtw89_chanctx_idx chanctx_idx = rtwvif_link->chanctx_idx;
+	enum rtw89_phy_idx phy_idx = rtwvif_link->phy_idx;
 
 	rtw8852a_rx_dck(rtwdev, phy_idx, true, chanctx_idx);
 	rtw8852a_iqk(rtwdev, phy_idx, chanctx_idx);
@@ -1368,10 +1369,11 @@ static void rtw8852a_rfk_band_changed(struct rtw89_dev *rtwdev,
 	rtw8852a_tssi_scan(rtwdev, phy_idx, chan);
 }
 
-static void rtw8852a_rfk_scan(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
+static void rtw8852a_rfk_scan(struct rtw89_dev *rtwdev,
+			      struct rtw89_vif_link *rtwvif_link,
 			      bool start)
 {
-	rtw8852a_wifi_scan_notify(rtwdev, start, rtwvif->phy_idx);
+	rtw8852a_wifi_scan_notify(rtwdev, start, rtwvif_link->phy_idx);
 }
 
 static void rtw8852a_rfk_track(struct rtw89_dev *rtwdev)

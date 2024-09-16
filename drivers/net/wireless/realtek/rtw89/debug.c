@@ -3740,21 +3740,22 @@ static void rtw89_dump_pkt_offload(struct seq_file *m, struct list_head *pkt_lis
 static
 void rtw89_vif_ids_get_iter(void *data, u8 *mac, struct ieee80211_vif *vif)
 {
-	struct rtw89_vif *rtwvif = (struct rtw89_vif *)vif->drv_priv;
-	struct rtw89_dev *rtwdev = rtwvif->rtwdev;
+	struct rtw89_vif_link *rtwvif_link = (struct rtw89_vif_link *)vif->drv_priv;
+	struct rtw89_dev *rtwdev = rtwvif_link->rtwdev;
 	struct seq_file *m = (struct seq_file *)data;
-	struct rtw89_bssid_cam_entry *bssid_cam = &rtwvif->bssid_cam;
+	struct rtw89_bssid_cam_entry *bssid_cam = &rtwvif_link->bssid_cam;
 
-	seq_printf(m, "VIF [%d] %pM\n", rtwvif->mac_id, rtwvif->mac_addr);
+	seq_printf(m, "VIF [%d] %pM\n", rtwvif_link->mac_id, rtwvif_link->mac_addr);
 	seq_printf(m, "\tbssid_cam_idx=%u\n", bssid_cam->bssid_cam_idx);
-	rtw89_dump_addr_cam(m, rtwdev, &rtwvif->addr_cam);
-	rtw89_dump_pkt_offload(m, &rtwvif->general_pkt_list, "\tpkt_ofld[GENERAL]: ");
+	rtw89_dump_addr_cam(m, rtwdev, &rtwvif_link->addr_cam);
+	rtw89_dump_pkt_offload(m, &rtwvif_link->general_pkt_list,
+			       "\tpkt_ofld[GENERAL]: ");
 }
 
 static void rtw89_dump_ba_cam(struct seq_file *m, struct rtw89_sta *rtwsta)
 {
-	struct rtw89_vif *rtwvif = rtwsta->rtwvif;
-	struct rtw89_dev *rtwdev = rtwvif->rtwdev;
+	struct rtw89_vif_link *rtwvif_link = rtwsta->rtwvif_link;
+	struct rtw89_dev *rtwdev = rtwvif_link->rtwdev;
 	struct rtw89_ba_cam_entry *entry;
 	bool first = true;
 
