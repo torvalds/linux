@@ -101,12 +101,13 @@ static void ast_detect_tx_chip(struct ast_device *ast, bool need_post)
 		 * the SOC scratch register #1 bits 11:8 (interestingly marked
 		 * as "reserved" in the spec)
 		 */
-		jreg = ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xd1, 0xff);
+		jreg = ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xd1,
+					      AST_IO_VGACRD1_TX_TYPE_MASK);
 		switch (jreg) {
-		case 0x04:
+		case AST_IO_VGACRD1_TX_SIL164_VBIOS:
 			ast->tx_chip = AST_TX_SIL164;
 			break;
-		case 0x08:
+		case AST_IO_VGACRD1_TX_DP501_VBIOS:
 			ast->dp501_fw_addr = drmm_kzalloc(dev, 32*1024, GFP_KERNEL);
 			if (ast->dp501_fw_addr) {
 				/* backup firmware */
@@ -116,7 +117,7 @@ static void ast_detect_tx_chip(struct ast_device *ast, bool need_post)
 				}
 			}
 			fallthrough;
-		case 0x0c:
+		case AST_IO_VGACRD1_TX_FW_EMBEDDED_FW:
 			ast->tx_chip = AST_TX_DP501;
 		}
 	} else if (IS_AST_GEN7(ast)) {

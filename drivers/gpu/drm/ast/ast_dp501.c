@@ -444,18 +444,19 @@ static void ast_init_analog(struct ast_device *ast)
 
 void ast_init_3rdtx(struct ast_device *ast)
 {
-	u8 jreg;
+	u8 vgacrd1;
 
 	if (IS_AST_GEN4(ast) || IS_AST_GEN5(ast)) {
-		jreg = ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xd1, 0xff);
-		switch (jreg & 0x0e) {
-		case 0x04:
+		vgacrd1 = ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xd1,
+						 AST_IO_VGACRD1_TX_TYPE_MASK);
+		switch (vgacrd1) {
+		case AST_IO_VGACRD1_TX_SIL164_VBIOS:
 			ast_init_dvo(ast);
 			break;
-		case 0x08:
+		case AST_IO_VGACRD1_TX_DP501_VBIOS:
 			ast_launch_m68k(ast);
 			break;
-		case 0x0c:
+		case AST_IO_VGACRD1_TX_FW_EMBEDDED_FW:
 			ast_init_dvo(ast);
 			break;
 		default:
