@@ -4697,9 +4697,9 @@ static void rtw89_mac_check_he_obss_narrow_bw_ru_iter(struct wiphy *wiphy,
 }
 
 void rtw89_mac_set_he_obss_narrow_bw_ru(struct rtw89_dev *rtwdev,
-					struct ieee80211_vif *vif)
+					struct rtw89_vif_link *rtwvif_link)
 {
-	struct rtw89_vif_link *rtwvif_link = (struct rtw89_vif_link *)vif->drv_priv;
+	struct ieee80211_vif *vif = rtwvif_to_vif_safe(rtwvif_link);
 	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
 	struct ieee80211_hw *hw = rtwdev->hw;
 	struct ieee80211_bss_conf *bss_conf;
@@ -4742,32 +4742,12 @@ void rtw89_mac_stop_ap(struct rtw89_dev *rtwdev, struct rtw89_vif_link *rtwvif_l
 
 int rtw89_mac_add_vif(struct rtw89_dev *rtwdev, struct rtw89_vif_link *rtwvif_link)
 {
-	int ret;
-
-	rtwvif_link->mac_id = rtw89_acquire_mac_id(rtwdev);
-	if (rtwvif_link->mac_id == RTW89_MAX_MAC_ID_NUM)
-		return -ENOSPC;
-
-	ret = rtw89_mac_vif_init(rtwdev, rtwvif_link);
-	if (ret)
-		goto release_mac_id;
-
-	return 0;
-
-release_mac_id:
-	rtw89_release_mac_id(rtwdev, rtwvif_link->mac_id);
-
-	return ret;
+	return rtw89_mac_vif_init(rtwdev, rtwvif_link);
 }
 
 int rtw89_mac_remove_vif(struct rtw89_dev *rtwdev, struct rtw89_vif_link *rtwvif_link)
 {
-	int ret;
-
-	ret = rtw89_mac_vif_deinit(rtwdev, rtwvif_link);
-	rtw89_release_mac_id(rtwdev, rtwvif_link->mac_id);
-
-	return ret;
+	return rtw89_mac_vif_deinit(rtwdev, rtwvif_link);
 }
 
 static void
