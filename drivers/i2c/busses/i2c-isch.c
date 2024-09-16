@@ -19,10 +19,11 @@
 #include <linux/platform_device.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
-#include <linux/stddef.h>
 #include <linux/ioport.h>
 #include <linux/i2c.h>
 #include <linux/io.h>
+#include <linux/stddef.h>
+#include <linux/string_choices.h>
 
 /* SCH SMBus address offsets */
 #define SMBHSTCNT	(0 + sch_smba)
@@ -153,7 +154,7 @@ static s32 sch_access(struct i2c_adapter *adap, u16 addr,
 		outw(backbone_speed / (4 * 100), SMBHSTCLK);
 	}
 
-	dev_dbg(&adap->dev, "access size: %d %s\n", size, (read_write)?"READ":"WRITE");
+	dev_dbg(&adap->dev, "access size: %d %s\n", size, str_read_write(read_write));
 	switch (size) {
 	case I2C_SMBUS_QUICK:
 		outb((addr << 1) | read_write, SMBHSTADD);
