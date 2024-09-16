@@ -821,8 +821,9 @@ static int atmel_ssc_resume(struct snd_soc_component *component)
 	return 0;
 }
 
+/* S24_LE is not supported if more than 2 channels (of TDM slots) are used. */
 #define ATMEL_SSC_FORMATS (SNDRV_PCM_FMTBIT_S8     | SNDRV_PCM_FMTBIT_S16_LE |\
-			  SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S32_LE)
+			   SNDRV_PCM_FMTBIT_S32_LE)
 
 static const struct snd_soc_dai_ops atmel_ssc_dai_ops = {
 	.startup	= atmel_ssc_startup,
