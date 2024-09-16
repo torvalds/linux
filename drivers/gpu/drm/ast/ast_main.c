@@ -76,7 +76,22 @@ static void ast_detect_tx_chip(struct ast_device *ast, bool need_post)
 	};
 
 	struct drm_device *dev = &ast->base;
-	u8 jreg;
+	u8 jreg, vgacrd1;
+
+	/*
+	 * Several of the listed TX chips are not explicitly supported
+	 * by the ast driver. If these exist in real-world devices, they
+	 * are most likely reported as VGA or SIL164 outputs. We warn here
+	 * to get bug reports for these devices. If none come in for some
+	 * time, we can begin to fail device probing on these values.
+	 */
+	vgacrd1 = ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xd1, AST_IO_VGACRD1_TX_TYPE_MASK);
+	drm_WARN(dev, vgacrd1 == AST_IO_VGACRD1_TX_ITE66121_VBIOS,
+		 "ITE IT66121 detected, 0x%x, Gen%lu\n", vgacrd1, AST_GEN(ast));
+	drm_WARN(dev, vgacrd1 == AST_IO_VGACRD1_TX_CH7003_VBIOS,
+		 "Chrontel CH7003 detected, 0x%x, Gen%lu\n", vgacrd1, AST_GEN(ast));
+	drm_WARN(dev, vgacrd1 == AST_IO_VGACRD1_TX_ANX9807_VBIOS,
+		 "Analogix ANX9807 detected, 0x%x, Gen%lu\n", vgacrd1, AST_GEN(ast));
 
 	/* Check 3rd Tx option (digital output afaik) */
 	ast->tx_chip = AST_TX_NONE;
