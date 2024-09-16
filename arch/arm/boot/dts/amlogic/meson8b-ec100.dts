@@ -431,7 +431,7 @@
 			  "NAND_CS1 (EMMC)", "NAND_CS2 iNAND_RS1 (EMMC)",
 			  "NAND_nR/B iNAND_CMD (EMMC)", "NAND_ALE (EMMC)",
 			  "NAND_CLE (EMMC)", "nRE_S1 NAND_nRE (EMMC)",
-			  "nWE_S1 NAND_nWE (EMMC)",  "", "", "SPI_CS",
+			  "nWE_S1 NAND_nWE (EMMC)",  "", "", "", "SPI_CS",
 			  /* Bank DIF */
 			  "RMII_RXD1", "RMII_RXD0", "RMII_CRS_DV",
 			  "RMII_50M_IN", "GPIODIF_4", "GPIODIF_5",
