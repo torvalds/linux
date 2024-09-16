@@ -338,8 +338,11 @@ static int qcom_ethqos_add_ipaddr(struct ip_params *ip_info,
 		} else {
 			ETHQOSINFO("Assigned IPv4 address: %s\r\n",
 				   ip_info->ipv4_addr_str);
-
+#if (IS_ENABLED(CONFIG_BOOTMARKER_PROXY))
+	bootmarker_place_marker("M - Etherent Assigned IPv4 address");
+#else
 	ETHQOSINFO("M - Etherent Assigned IPv4 address\n");
+#endif
 		}
 	return res;
 }
@@ -385,8 +388,11 @@ static int qcom_ethqos_add_ipv6addr(struct ip_params *ip_info,
 	} else {
 		ETHQOSDBG("Assigned IPv6 address: %s\r\n",
 			  ip_info->ipv6_addr_str);
-
+#if (IS_ENABLED(CONFIG_BOOTMARKER_PROXY))
+		bootmarker_place_marker("M - Ethernet Assigned IPv6 address");
+#else
 		ETHQOSINFO("M - Ethernet Assigned IPv6 address\n");
+#endif
 	}
 	return ret;
 }
@@ -2217,8 +2223,11 @@ static int qcom_ethqos_probe(struct platform_device *pdev)
 		ETHQOSERR("Error creating logging context for emac\n");
 	else
 		ETHQOSDBG("IPC logging has been enabled for emac\n");
-
+#if (IS_ENABLED(CONFIG_BOOTMARKER_PROXY))
+	bootmarker_place_marker("M - Ethernet probe start");
+#else
 	ETHQOSINFO("M - Ethernet probe start\n");
+#endif
 
 #ifdef MODULE
 		if (eipv4)
@@ -2412,8 +2421,11 @@ static int qcom_ethqos_probe(struct platform_device *pdev)
 		ethqos_set_early_eth_param(priv, ethqos);
 	}
 	atomic_set(&priv->plat->phy_clks_suspended, 0);
-
+#if (IS_ENABLED(CONFIG_BOOTMARKER_PROXY))
+	bootmarker_place_marker("M - Ethernet probe end");
+#else
 	ETHQOSINFO("M - Ethernet probe end\n");
+#endif
 	return ret;
 
 err_clk:
