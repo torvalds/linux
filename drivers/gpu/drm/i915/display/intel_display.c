@@ -1177,6 +1177,22 @@ static void intel_post_plane_update(struct intel_atomic_state *state,
 		intel_encoders_audio_enable(state, crtc);
 }
 
+static void intel_post_plane_update_after_readout(struct intel_atomic_state *state,
+						  struct intel_crtc *crtc)
+{
+	const struct intel_crtc_state *new_crtc_state =
+		intel_atomic_get_new_crtc_state(state, crtc);
+
+	/* Must be done after gamma readout due to HSW split gamma vs. IPS w/a */
+	hsw_ips_post_update(state, crtc);
+
+	/*
+	 * Activate DRRS after state readout to avoid
+	 * dp_m_n vs. dp_m2_n2 confusion on BDW+.
+	 */
+	intel_drrs_activate(new_crtc_state);
+}
+
 static void intel_crtc_enable_flip_done(struct intel_atomic_state *state,
 					struct intel_crtc *crtc)
 {
@@ -7532,14 +7548,7 @@ static void intel_atomic_commit_tail(struct intel_atomic_state *state)
 
 		intel_modeset_verify_crtc(state, crtc);
 
-		/* Must be done after gamma readout due to HSW split gamma vs. IPS w/a */
-		hsw_ips_post_update(state, crtc);
-
-		/*
-		 * Activate DRRS after state readout to avoid
-		 * dp_m_n vs. dp_m2_n2 confusion on BDW+.
-		 */
-		intel_drrs_activate(new_crtc_state);
+		intel_post_plane_update_after_readout(state, crtc);
 
 		/*
 		 * DSB cleanup is done in cleanup_work aligning with framebuffer
