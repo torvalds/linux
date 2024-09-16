@@ -4614,8 +4614,6 @@ smb2_readv_callback(struct mid_q_entry *mid)
 			      0, cifs_trace_rw_credits_read_response_clear);
 	rdata->credits.value = 0;
 	rdata->subreq.transferred += rdata->got_bytes;
-	if (rdata->subreq.start + rdata->subreq.transferred >= rdata->subreq.rreq->i_size)
-		__set_bit(NETFS_SREQ_HIT_EOF, &rdata->subreq.flags);
 	trace_netfs_sreq(&rdata->subreq, netfs_sreq_trace_io_progress);
 	INIT_WORK(&rdata->subreq.work, smb2_readv_worker);
 	queue_work(cifsiod_wq, &rdata->subreq.work);
