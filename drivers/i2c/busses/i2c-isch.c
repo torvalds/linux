@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
-    i2c-isch.c - Linux kernel driver for Intel SCH chipset SMBus
-    - Based on i2c-piix4.c
-    Copyright (c) 1998 - 2002 Frodo Looijaard <frodol@dds.nl> and
-    Philip Edelbrock <phil@netroedge.com>
-    - Intel SCH support
-    Copyright (c) 2007 - 2008 Jacob Jun Pan <jacob.jun.pan@intel.com>
-
-*/
+ *  Linux kernel driver for Intel SCH chipset SMBus
+ *  - Based on i2c-piix4.c
+ *  Copyright (c) 1998 - 2002 Frodo Looijaard <frodol@dds.nl> and
+ *  Philip Edelbrock <phil@netroedge.com>
+ *  - Intel SCH support
+ *  Copyright (c) 2007 - 2008 Jacob Jun Pan <jacob.jun.pan@intel.com>
+ */
 
 /* Supports: Intel SCH chipsets (AF82US15W, AF82US15L, AF82UL11L) */
 
@@ -72,10 +71,14 @@ static inline void sch_io_wr16(struct sch_i2c *priv, unsigned int offset, u16 va
 	iowrite16(value, priv->smba + offset);
 }
 
-/*
- * Start the i2c transaction -- the i2c_access will prepare the transaction
- * and this function will execute it.
- * return 0 for success and others for failure.
+/**
+ * sch_transaction - Start the i2c transaction
+ * @adap: the i2c adapter pointer
+ *
+ * The sch_access() will prepare the transaction and
+ * this function will execute it.
+ *
+ * Return: 0 for success and others for failure.
  */
 static int sch_transaction(struct i2c_adapter *adap)
 {
@@ -105,7 +108,7 @@ static int sch_transaction(struct i2c_adapter *adap)
 		}
 	}
 
-	/* start the transaction by setting bit 4 */
+	/* Start the transaction by setting bit 4 */
 	temp = sch_io_rd8(priv, SMBHSTCNT);
 	temp |= 0x10;
 	sch_io_wr8(priv, SMBHSTCNT, temp);
@@ -141,12 +144,17 @@ static int sch_transaction(struct i2c_adapter *adap)
 	return rc;
 }
 
-/*
- * This is the main access entry for i2c-sch access
- * adap is i2c_adapter pointer, addr is the i2c device bus address, read_write
- * (0 for read and 1 for write), size is i2c transaction type and data is the
- * union of transaction for data to be transferred or data read from bus.
- * return 0 for success and others for failure.
+/**
+ * sch_access - the main access entry for i2c-sch access
+ * @adap: the i2c adapter pointer
+ * @addr: the i2c device bus address
+ * @flags: I2C_CLIENT_* flags (usually zero or I2C_CLIENT_PEC)
+ * @read_write: 0 for read and 1 for write
+ * @command: Byte interpreted by slave, for protocols which use such bytes
+ * @size: the i2c transaction type
+ * @data: the union of transaction for data to be transferred or data read from bus
+ *
+ * Return: 0 for success and others for failure.
  */
 static s32 sch_access(struct i2c_adapter *adap, u16 addr,
 		 unsigned short flags, char read_write,
@@ -281,7 +289,7 @@ static int smbus_sch_probe(struct platform_device *pdev)
 	if (!priv->smba)
 		return dev_err_probe(dev, -EBUSY, "SMBus region %pR already in use!\n", res);
 
-	/* set up the sysfs linkage to our parent device */
+	/* Set up the sysfs linkage to our parent device */
 	priv->adapter.dev.parent = dev;
 	priv->adapter.owner = THIS_MODULE,
 	priv->adapter.class = I2C_CLASS_HWMON,
