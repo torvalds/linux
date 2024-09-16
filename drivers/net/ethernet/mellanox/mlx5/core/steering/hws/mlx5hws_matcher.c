@@ -675,7 +675,7 @@ static int hws_matcher_bind_mt(struct mlx5hws_matcher *matcher)
 	if (!(matcher->flags & MLX5HWS_MATCHER_FLAGS_COLLISION)) {
 		ret = mlx5hws_definer_mt_init(ctx, matcher->mt);
 		if (ret) {
-			if (ret == E2BIG)
+			if (ret == -E2BIG)
 				mlx5hws_err(ctx, "Failed to set matcher templates with match definers\n");
 			return ret;
 		}
