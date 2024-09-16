@@ -2650,7 +2650,8 @@ static enum surface_update_type det_surface_update(const struct dc *dc,
 		elevate_update_type(&overall_type, type);
 	}
 
-	if (update_flags->bits.lut_3d) {
+	if (update_flags->bits.lut_3d &&
+			u->surface->mcm_luts.lut3d_data.lut3d_src != DC_CM2_TRANSFER_FUNC_SOURCE_VIDMEM) {
 		type = UPDATE_TYPE_FULL;
 		elevate_update_type(&overall_type, type);
 	}
@@ -2926,9 +2927,19 @@ static void copy_surface_update_to_plane(
 			sizeof(struct dc_transfer_func_distributed_points));
 	}
 
-	if (srf_update->func_shaper)
+	if (srf_update->cm2_params) {
+		surface->mcm_shaper_3dlut_setting = srf_update->cm2_params->component_settings.shaper_3dlut_setting;
+		surface->mcm_lut1d_enable = srf_update->cm2_params->component_settings.lut1d_enable;
+		surface->mcm_luts = srf_update->cm2_params->cm2_luts;
+	}
+
+	if (srf_update->func_shaper) {
 		memcpy(&surface->in_shaper_func, srf_update->func_shaper,
 		sizeof(surface->in_shaper_func));
+
+		if (surface->mcm_shaper_3dlut_setting >= DC_CM2_SHAPER_3DLUT_SETTING_ENABLE_SHAPER)
+			surface->mcm_luts.shaper = &surface->in_shaper_func;
+	}
 
 	if (srf_update->lut3d_func)
 		memcpy(&surface->lut3d_func, srf_update->lut3d_func,
@@ -2942,9 +2953,16 @@ static void copy_surface_update_to_plane(
 		surface->sdr_white_level_nits =
 				srf_update->sdr_white_level_nits;
 
-	if (srf_update->blend_tf)
+	if (srf_update->blend_tf) {
 		memcpy(&surface->blend_tf, srf_update->blend_tf,
 		sizeof(surface->blend_tf));
+
+		if (surface->mcm_lut1d_enable)
+			surface->mcm_luts.lut1d_func = &surface->blend_tf;
+	}
+
+	if (srf_update->cm2_params || srf_update->blend_tf)
+		surface->lut_bank_a = !surface->lut_bank_a;
 
 	if (srf_update->input_csc_color_matrix)
 		surface->input_csc_color_matrix =
@@ -2957,11 +2975,7 @@ static void copy_surface_update_to_plane(
 	if (srf_update->gamut_remap_matrix)
 		surface->gamut_remap_matrix =
 			*srf_update->gamut_remap_matrix;
-	if (srf_update->cm2_params) {
-		surface->mcm_shaper_3dlut_setting = srf_update->cm2_params->component_settings.shaper_3dlut_setting;
-		surface->mcm_lut1d_enable = srf_update->cm2_params->component_settings.lut1d_enable;
-		surface->mcm_luts = srf_update->cm2_params->cm2_luts;
-	}
+
 	if (srf_update->cursor_csc_color_matrix)
 		surface->cursor_csc_color_matrix =
 			*srf_update->cursor_csc_color_matrix;

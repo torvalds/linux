@@ -345,6 +345,8 @@ struct timing_generator_funcs {
 	bool (*get_optc_double_buffer_pending)(struct timing_generator *tg);
 	bool (*get_otg_double_buffer_pending)(struct timing_generator *tg);
 	bool (*get_pipe_update_pending)(struct timing_generator *tg);
+	void (*set_vupdate_keepout)(struct timing_generator *tg, bool enable);
+	bool (*wait_update_lock_status)(struct timing_generator *tg, bool locked);
 };
 
 #endif

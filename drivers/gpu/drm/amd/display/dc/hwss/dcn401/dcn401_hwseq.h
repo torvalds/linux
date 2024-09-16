@@ -95,4 +95,6 @@ void dcn401_reset_back_end_for_pipe(
 void dcn401_reset_hw_ctx_wrap(
 		struct dc *dc,
 		struct dc_state *context);
+void dcn401_perform_3dlut_wa_unlock(struct pipe_ctx *pipe_ctx);
+
 #endif /* __DC_HWSS_DCN401_H__ */

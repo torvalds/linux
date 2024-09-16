@@ -1458,8 +1458,12 @@ void dcn20_pipe_control_lock(
 	} else {
 		if (lock)
 			pipe->stream_res.tg->funcs->lock(pipe->stream_res.tg);
-		else
-			pipe->stream_res.tg->funcs->unlock(pipe->stream_res.tg);
+		else {
+			if (dc->hwseq->funcs.perform_3dlut_wa_unlock)
+				dc->hwseq->funcs.perform_3dlut_wa_unlock(pipe);
+			else
+				pipe->stream_res.tg->funcs->unlock(pipe->stream_res.tg);
+		}
 	}
 }
 

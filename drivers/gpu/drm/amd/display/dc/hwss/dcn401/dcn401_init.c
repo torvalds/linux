@@ -138,6 +138,7 @@ static const struct hwseq_private_funcs dcn401_private_funcs = {
 	.apply_single_controller_ctx_to_hw = dce110_apply_single_controller_ctx_to_hw,
 	.reset_back_end_for_pipe = dcn401_reset_back_end_for_pipe,
 	.populate_mcm_luts = NULL,
+	.perform_3dlut_wa_unlock = dcn401_perform_3dlut_wa_unlock,
 };
 
 void dcn401_hw_sequencer_init_functions(struct dc *dc)

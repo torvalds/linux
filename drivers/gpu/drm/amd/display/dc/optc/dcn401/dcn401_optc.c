@@ -430,6 +430,35 @@ static void optc401_program_global_sync(
 	REG_UPDATE(OTG_PSTATE_REGISTER, OTG_PSTATE_KEEPOUT_START, pstate_keepout);
 }
 
+static void optc401_set_vupdate_keepout(struct timing_generator *tg, bool enable)
+{
+	struct optc *optc1 = DCN10TG_FROM_TG(tg);
+
+	REG_SET_3(OTG_VUPDATE_KEEPOUT, 0,
+		MASTER_UPDATE_LOCK_VUPDATE_KEEPOUT_START_OFFSET, 0,
+		MASTER_UPDATE_LOCK_VUPDATE_KEEPOUT_END_OFFSET, optc1->vready_offset + 10,
+		OTG_MASTER_UPDATE_LOCK_VUPDATE_KEEPOUT_EN, enable);
+
+	return;
+}
+
+static bool optc401_wait_update_lock_status(struct timing_generator *tg, bool locked)
+{
+	struct optc *optc1 = DCN10TG_FROM_TG(tg);
+	uint32_t lock_status = 0;
+
+	REG_WAIT(OTG_MASTER_UPDATE_LOCK,
+			UPDATE_LOCK_STATUS, locked,
+			1, 150000);
+
+	REG_GET(OTG_MASTER_UPDATE_LOCK, UPDATE_LOCK_STATUS, &lock_status);
+
+	if (lock_status != locked)
+		return false;
+
+	return true;
+}
+
 static struct timing_generator_funcs dcn401_tg_funcs = {
 		.validate_timing = optc1_validate_timing,
 		.program_timing = optc1_program_timing,
@@ -496,6 +525,8 @@ static struct timing_generator_funcs dcn401_tg_funcs = {
 		.get_optc_double_buffer_pending = optc3_get_optc_double_buffer_pending,
 		.get_otg_double_buffer_pending = optc3_get_otg_update_pending,
 		.get_pipe_update_pending = optc3_get_pipe_update_pending,
+		.set_vupdate_keepout = optc401_set_vupdate_keepout,
+		.wait_update_lock_status = optc401_wait_update_lock_status,
 };
 
 void dcn401_timing_generator_init(struct optc *optc1)

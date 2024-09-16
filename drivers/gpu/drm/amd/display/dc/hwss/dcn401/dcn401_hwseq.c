@@ -506,7 +506,7 @@ void dcn401_populate_mcm_luts(struct dc *dc,
 	dcn401_get_mcm_lut_xable_from_pipe_ctx(dc, pipe_ctx, &shaper_xable, &lut3d_xable, &lut1d_xable);
 
 	/* 1D LUT */
-	if (mcm_luts.lut1d_func && lut3d_xable != MCM_LUT_DISABLE) {
+	if (mcm_luts.lut1d_func) {
 		memset(&m_lut_params, 0, sizeof(m_lut_params));
 		if (mcm_luts.lut1d_func->type == TF_TYPE_HWPWL)
 			m_lut_params.pwl = &mcm_luts.lut1d_func->pwl;
@@ -521,7 +521,7 @@ void dcn401_populate_mcm_luts(struct dc *dc,
 				mpc->funcs->populate_lut(mpc, MCM_LUT_1DLUT, m_lut_params, lut_bank_a, mpcc_id);
 		}
 		if (mpc->funcs->program_lut_mode)
-			mpc->funcs->program_lut_mode(mpc, MCM_LUT_1DLUT, lut1d_xable, lut_bank_a, mpcc_id);
+			mpc->funcs->program_lut_mode(mpc, MCM_LUT_1DLUT, lut1d_xable && m_lut_params.pwl, lut_bank_a, mpcc_id);
 	}
 
 	/* Shaper */
@@ -669,10 +669,16 @@ bool dcn401_set_mcm_luts(struct pipe_ctx *pipe_ctx,
 {
 	struct dpp *dpp_base = pipe_ctx->plane_res.dpp;
 	int mpcc_id = pipe_ctx->plane_res.hubp->inst;
-	struct mpc *mpc = pipe_ctx->stream_res.opp->ctx->dc->res_pool->mpc;
+	struct dc *dc = pipe_ctx->stream_res.opp->ctx->dc;
+	struct mpc *mpc = dc->res_pool->mpc;
 	bool result;
 	const struct pwl_params *lut_params = NULL;
 	bool rval;
+
+	if (plane_state->mcm_luts.lut3d_data.lut3d_src == DC_CM2_TRANSFER_FUNC_SOURCE_VIDMEM) {
+		dcn401_populate_mcm_luts(dc, pipe_ctx, plane_state->mcm_luts, plane_state->lut_bank_a);
+		return true;
+	}
 
 	mpc->funcs->set_movable_cm_location(mpc, MPCC_MOVABLE_CM_LOCATION_BEFORE, mpcc_id);
 	pipe_ctx->plane_state->mcm_location = MPCC_MOVABLE_CM_LOCATION_BEFORE;
@@ -1811,6 +1817,54 @@ void dcn401_interdependent_update_lock(struct dc *dc,
 
 			dc->hwss.pipe_control_lock(dc, pipe, false);
 		}
+	}
+}
+
+void dcn401_perform_3dlut_wa_unlock(struct pipe_ctx *pipe_ctx)
+{
+	/* If 3DLUT FL is enabled and 3DLUT is in use, follow the workaround sequence for pipe unlock to make sure that
+	 * HUBP will properly fetch 3DLUT contents after unlock.
+	 *
+	 * This is meant to work around a known HW issue where VREADY will cancel the pending 3DLUT_ENABLE signal regardless
+	 * of whether OTG lock is currently being held or not.
+	 */
+	struct pipe_ctx *wa_pipes[MAX_PIPES] = { NULL };
+	struct pipe_ctx *odm_pipe, *mpc_pipe;
+	int i, wa_pipe_ct = 0;
+
+	for (odm_pipe = pipe_ctx; odm_pipe != NULL; odm_pipe = odm_pipe->next_odm_pipe) {
+		for (mpc_pipe = odm_pipe; mpc_pipe != NULL; mpc_pipe = mpc_pipe->bottom_pipe) {
+			if (mpc_pipe->plane_state && mpc_pipe->plane_state->mcm_luts.lut3d_data.lut3d_src
+						== DC_CM2_TRANSFER_FUNC_SOURCE_VIDMEM
+					&& mpc_pipe->plane_state->mcm_shaper_3dlut_setting
+						== DC_CM2_SHAPER_3DLUT_SETTING_ENABLE_SHAPER_3DLUT) {
+				wa_pipes[wa_pipe_ct++] = mpc_pipe;
+			}
+		}
+	}
+
+	if (wa_pipe_ct > 0) {
+		if (pipe_ctx->stream_res.tg->funcs->set_vupdate_keepout)
+			pipe_ctx->stream_res.tg->funcs->set_vupdate_keepout(pipe_ctx->stream_res.tg, true);
+
+		for (i = 0; i < wa_pipe_ct; ++i) {
+			if (wa_pipes[i]->plane_res.hubp->funcs->hubp_enable_3dlut_fl)
+				wa_pipes[i]->plane_res.hubp->funcs->hubp_enable_3dlut_fl(wa_pipes[i]->plane_res.hubp, true);
+		}
+
+		pipe_ctx->stream_res.tg->funcs->unlock(pipe_ctx->stream_res.tg);
+		if (pipe_ctx->stream_res.tg->funcs->wait_update_lock_status)
+			pipe_ctx->stream_res.tg->funcs->wait_update_lock_status(pipe_ctx->stream_res.tg, false);
+
+		for (i = 0; i < wa_pipe_ct; ++i) {
+			if (wa_pipes[i]->plane_res.hubp->funcs->hubp_enable_3dlut_fl)
+				wa_pipes[i]->plane_res.hubp->funcs->hubp_enable_3dlut_fl(wa_pipes[i]->plane_res.hubp, true);
+		}
+
+		if (pipe_ctx->stream_res.tg->funcs->set_vupdate_keepout)
+			pipe_ctx->stream_res.tg->funcs->set_vupdate_keepout(pipe_ctx->stream_res.tg, false);
+	} else {
+		pipe_ctx->stream_res.tg->funcs->unlock(pipe_ctx->stream_res.tg);
 	}
 }
 
