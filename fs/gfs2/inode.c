@@ -750,6 +750,7 @@ static int gfs2_create_inode(struct inode *dir, struct dentry *dentry,
 	if (error)
 		goto fail_free_inode;
 	gfs2_cancel_delete_work(io_gl);
+	io_gl->gl_no_formal_ino = ip->i_no_formal_ino;
 
 retry:
 	error = insert_inode_locked4(inode, ip->i_no_addr, iget_test, &ip->i_no_addr);
