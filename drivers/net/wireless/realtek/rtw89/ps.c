@@ -147,6 +147,8 @@ static void rtw89_leave_lps_vif(struct rtw89_dev *rtwdev,
 void rtw89_leave_lps(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_vif_link *rtwvif_link;
+	struct rtw89_vif *rtwvif;
+	unsigned int link_id;
 
 	lockdep_assert_held(&rtwdev->mutex);
 
@@ -155,21 +157,25 @@ void rtw89_leave_lps(struct rtw89_dev *rtwdev)
 
 	__rtw89_leave_ps_mode(rtwdev);
 
-	rtw89_for_each_rtwvif(rtwdev, rtwvif_link)
-		rtw89_leave_lps_vif(rtwdev, rtwvif_link);
+	rtw89_for_each_rtwvif(rtwdev, rtwvif)
+		rtw89_vif_for_each_link(rtwvif, rtwvif_link, link_id)
+			rtw89_leave_lps_vif(rtwdev, rtwvif_link);
 }
 
 void rtw89_enter_ips(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_vif_link *rtwvif_link;
+	struct rtw89_vif *rtwvif;
+	unsigned int link_id;
 
 	set_bit(RTW89_FLAG_INACTIVE_PS, rtwdev->flags);
 
 	if (!test_bit(RTW89_FLAG_POWERON, rtwdev->flags))
 		return;
 
-	rtw89_for_each_rtwvif(rtwdev, rtwvif_link)
-		rtw89_mac_vif_deinit(rtwdev, rtwvif_link);
+	rtw89_for_each_rtwvif(rtwdev, rtwvif)
+		rtw89_vif_for_each_link(rtwvif, rtwvif_link, link_id)
+			rtw89_mac_vif_deinit(rtwdev, rtwvif_link);
 
 	rtw89_core_stop(rtwdev);
 }
@@ -177,6 +183,8 @@ void rtw89_enter_ips(struct rtw89_dev *rtwdev)
 void rtw89_leave_ips(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_vif_link *rtwvif_link;
+	struct rtw89_vif *rtwvif;
+	unsigned int link_id;
 	int ret;
 
 	if (test_bit(RTW89_FLAG_POWERON, rtwdev->flags))
@@ -188,8 +196,9 @@ void rtw89_leave_ips(struct rtw89_dev *rtwdev)
 
 	rtw89_set_channel(rtwdev);
 
-	rtw89_for_each_rtwvif(rtwdev, rtwvif_link)
-		rtw89_mac_vif_init(rtwdev, rtwvif_link);
+	rtw89_for_each_rtwvif(rtwdev, rtwvif)
+		rtw89_vif_for_each_link(rtwvif, rtwvif_link, link_id)
+			rtw89_mac_vif_init(rtwdev, rtwvif_link);
 
 	clear_bit(RTW89_FLAG_INACTIVE_PS, rtwdev->flags);
 }
@@ -269,16 +278,22 @@ void rtw89_process_p2p_ps(struct rtw89_dev *rtwdev,
 void rtw89_recalc_lps(struct rtw89_dev *rtwdev)
 {
 	struct ieee80211_vif *vif, *found_vif = NULL;
-	struct rtw89_vif_link *rtwvif_link;
+	struct rtw89_vif *rtwvif;
 	enum rtw89_entity_mode mode;
 	int count = 0;
+
+	/* FIXME: Fix rtw89_enter_lps() and __rtw89_enter_ps_mode()
+	 * to take MLO cases into account before doing the following.
+	 */
+	if (rtwdev->support_mlo)
+		goto disable_lps;
 
 	mode = rtw89_get_entity_mode(rtwdev);
 	if (mode == RTW89_ENTITY_MODE_MCC)
 		goto disable_lps;
 
-	rtw89_for_each_rtwvif(rtwdev, rtwvif_link) {
-		vif = rtwvif_to_vif(rtwvif_link);
+	rtw89_for_each_rtwvif(rtwdev, rtwvif) {
+		vif = rtwvif_to_vif(rtwvif);
 
 		if (vif->type != NL80211_IFTYPE_STATION) {
 			count = 0;

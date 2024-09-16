@@ -794,21 +794,25 @@ static bool __rtw89_reg_6ghz_tpe_recalc(struct rtw89_dev *rtwdev)
 	struct rtw89_regulatory_info *regulatory = &rtwdev->regulatory;
 	struct rtw89_reg_6ghz_tpe new = {};
 	struct rtw89_vif_link *rtwvif_link;
+	struct rtw89_vif *rtwvif;
+	unsigned int link_id;
 	bool changed = false;
 
-	rtw89_for_each_rtwvif(rtwdev, rtwvif_link) {
+	rtw89_for_each_rtwvif(rtwdev, rtwvif) {
 		const struct rtw89_reg_6ghz_tpe *tmp;
 		const struct rtw89_chan *chan;
 
-		chan = rtw89_chan_get(rtwdev, rtwvif_link->chanctx_idx);
-		if (chan->band_type != RTW89_BAND_6G)
-			continue;
+		rtw89_vif_for_each_link(rtwvif, rtwvif_link, link_id) {
+			chan = rtw89_chan_get(rtwdev, rtwvif_link->chanctx_idx);
+			if (chan->band_type != RTW89_BAND_6G)
+				continue;
 
-		tmp = &rtwvif_link->reg_6ghz_tpe;
-		if (!tmp->valid)
-			continue;
+			tmp = &rtwvif_link->reg_6ghz_tpe;
+			if (!tmp->valid)
+				continue;
 
-		tpe_intersect_constraint(&new, tmp->constraint);
+			tpe_intersect_constraint(&new, tmp->constraint);
+		}
 	}
 
 	if (memcmp(&regulatory->reg_6ghz_tpe, &new,
@@ -873,19 +877,23 @@ static bool __rtw89_reg_6ghz_power_recalc(struct rtw89_dev *rtwdev)
 	enum rtw89_reg_6ghz_power sel;
 	const struct rtw89_chan *chan;
 	struct rtw89_vif_link *rtwvif_link;
+	struct rtw89_vif *rtwvif;
+	unsigned int link_id;
 	int count = 0;
 	u8 index;
 
-	rtw89_for_each_rtwvif(rtwdev, rtwvif_link) {
-		chan = rtw89_chan_get(rtwdev, rtwvif_link->chanctx_idx);
-		if (chan->band_type != RTW89_BAND_6G)
-			continue;
+	rtw89_for_each_rtwvif(rtwdev, rtwvif) {
+		rtw89_vif_for_each_link(rtwvif, rtwvif_link, link_id) {
+			chan = rtw89_chan_get(rtwdev, rtwvif_link->chanctx_idx);
+			if (chan->band_type != RTW89_BAND_6G)
+				continue;
 
-		if (count != 0 && rtwvif_link->reg_6ghz_power == sel)
-			continue;
+			if (count != 0 && rtwvif_link->reg_6ghz_power == sel)
+				continue;
 
-		sel = rtwvif_link->reg_6ghz_power;
-		count++;
+			sel = rtwvif_link->reg_6ghz_power;
+			count++;
+		}
 	}
 
 	if (count != 1)

@@ -466,12 +466,12 @@ static void rtw89_phy_ra_sta_update(struct rtw89_dev *rtwdev,
 	ra->csi_mode = csi_mode;
 }
 
-void rtw89_phy_ra_update_sta(struct rtw89_dev *rtwdev, struct ieee80211_sta *sta,
-			     u32 changed)
+static void __rtw89_phy_ra_update_sta(struct rtw89_dev *rtwdev,
+				      struct rtw89_vif_link *rtwvif_link,
+				      struct rtw89_sta_link *rtwsta_link,
+				      u32 changed)
 {
-	struct rtw89_sta_link *rtwsta_link = (struct rtw89_sta_link *)sta->drv_priv;
-	struct rtw89_vif_link *rtwvif_link = rtwsta_link->rtwvif_link;
-	struct ieee80211_vif *vif = rtwvif_to_vif(rtwvif_link);
+	struct ieee80211_vif *vif = rtwvif_link_to_vif(rtwvif_link);
 	struct rtw89_ra_info *ra = &rtwsta_link->ra;
 	struct ieee80211_link_sta *link_sta;
 
@@ -497,6 +497,20 @@ void rtw89_phy_ra_update_sta(struct rtw89_dev *rtwdev, struct ieee80211_sta *sta
 		    ra->giltf);
 
 	rtw89_fw_h2c_ra(rtwdev, ra, false);
+}
+
+void rtw89_phy_ra_update_sta(struct rtw89_dev *rtwdev, struct ieee80211_sta *sta,
+			     u32 changed)
+{
+	struct rtw89_sta *rtwsta = sta_to_rtwsta(sta);
+	struct rtw89_vif_link *rtwvif_link;
+	struct rtw89_sta_link *rtwsta_link;
+	unsigned int link_id;
+
+	rtw89_sta_for_each_link(rtwsta, rtwsta_link, link_id) {
+		rtwvif_link = rtwsta_link->rtwvif_link;
+		__rtw89_phy_ra_update_sta(rtwdev, rtwvif_link, rtwsta_link, changed);
+	}
 }
 
 static bool __check_rate_pattern(struct rtw89_phy_rate_pattern *next,
@@ -533,12 +547,12 @@ static bool __check_rate_pattern(struct rtw89_phy_rate_pattern *next,
 		[RTW89_CHIP_BE] = RTW89_HW_RATE_V1_ ## rate, \
 	}
 
-void rtw89_phy_rate_pattern_vif(struct rtw89_dev *rtwdev,
-				struct ieee80211_vif *vif,
-				const struct cfg80211_bitrate_mask *mask)
+static
+void __rtw89_phy_rate_pattern_vif(struct rtw89_dev *rtwdev,
+				  struct rtw89_vif_link *rtwvif_link,
+				  const struct cfg80211_bitrate_mask *mask)
 {
 	struct ieee80211_supported_band *sband;
-	struct rtw89_vif_link *rtwvif_link = (struct rtw89_vif_link *)vif->drv_priv;
 	struct rtw89_phy_rate_pattern next_pattern = {0};
 	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev,
 						       rtwvif_link->chanctx_idx);
@@ -623,6 +637,18 @@ out:
 	rtw89_debug(rtwdev, RTW89_DBG_RA, "unset rate pattern\n");
 }
 
+void rtw89_phy_rate_pattern_vif(struct rtw89_dev *rtwdev,
+				struct ieee80211_vif *vif,
+				const struct cfg80211_bitrate_mask *mask)
+{
+	struct rtw89_vif *rtwvif = vif_to_rtwvif(vif);
+	struct rtw89_vif_link *rtwvif_link;
+	unsigned int link_id;
+
+	rtw89_vif_for_each_link(rtwvif, rtwvif_link, link_id)
+		__rtw89_phy_rate_pattern_vif(rtwdev, rtwvif_link, mask);
+}
+
 static void rtw89_phy_ra_update_sta_iter(void *data, struct ieee80211_sta *sta)
 {
 	struct rtw89_dev *rtwdev = (struct rtw89_dev *)data;
@@ -640,7 +666,7 @@ void rtw89_phy_ra_update(struct rtw89_dev *rtwdev)
 void rtw89_phy_ra_assoc(struct rtw89_dev *rtwdev, struct rtw89_sta_link *rtwsta_link)
 {
 	struct rtw89_vif_link *rtwvif_link = rtwsta_link->rtwvif_link;
-	struct ieee80211_vif *vif = rtwvif_to_vif(rtwvif_link);
+	struct ieee80211_vif *vif = rtwvif_link_to_vif(rtwvif_link);
 	struct rtw89_ra_info *ra = &rtwsta_link->ra;
 	u8 rssi = ewma_rssi_read(&rtwsta_link->avg_rssi) >> RSSI_FACTOR;
 	struct ieee80211_link_sta *link_sta;
@@ -2688,13 +2714,17 @@ static void __rtw89_phy_c2h_ra_rpt_iter(struct rtw89_sta_link *rtwsta_link,
 static void rtw89_phy_c2h_ra_rpt_iter(void *data, struct ieee80211_sta *sta)
 {
 	struct rtw89_phy_iter_ra_data *ra_data = (struct rtw89_phy_iter_ra_data *)data;
-	struct rtw89_sta_link *rtwsta_link = (struct rtw89_sta_link *)sta->drv_priv;
+	struct rtw89_sta *rtwsta = sta_to_rtwsta(sta);
+	struct rtw89_sta_link *rtwsta_link;
 	struct ieee80211_link_sta *link_sta;
+	unsigned int link_id;
 
 	rcu_read_lock();
 
-	link_sta = rtw89_sta_rcu_dereference_link(rtwsta_link, false);
-	__rtw89_phy_c2h_ra_rpt_iter(rtwsta_link, link_sta, ra_data);
+	rtw89_sta_for_each_link(rtwsta, rtwsta_link, link_id) {
+		link_sta = rtw89_sta_rcu_dereference_link(rtwsta_link, false);
+		__rtw89_phy_c2h_ra_rpt_iter(rtwsta_link, link_sta, ra_data);
+	}
 
 	rcu_read_unlock();
 }
@@ -4422,7 +4452,7 @@ void rtw89_phy_ul_tb_ctrl_check(struct rtw89_dev *rtwdev,
 				struct rtw89_phy_ul_tb_check_data *ul_tb_data)
 {
 	struct rtw89_traffic_stats *stats = &rtwdev->stats;
-	struct ieee80211_vif *vif = rtwvif_to_vif(rtwvif_link);
+	struct ieee80211_vif *vif = rtwvif_link_to_vif(rtwvif_link);
 
 	if (rtwvif_link->wifi_role != RTW89_WIFI_ROLE_STATION)
 		return;
@@ -4488,6 +4518,8 @@ void rtw89_phy_ul_tb_ctrl_track(struct rtw89_dev *rtwdev)
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 	struct rtw89_phy_ul_tb_check_data ul_tb_data = {};
 	struct rtw89_vif_link *rtwvif_link;
+	struct rtw89_vif *rtwvif;
+	unsigned int link_id;
 
 	if (!chip->ul_tb_waveform_ctrl && !chip->ul_tb_pwr_diff)
 		return;
@@ -4495,8 +4527,9 @@ void rtw89_phy_ul_tb_ctrl_track(struct rtw89_dev *rtwdev)
 	if (rtwdev->total_sta_assoc != 1)
 		return;
 
-	rtw89_for_each_rtwvif(rtwdev, rtwvif_link)
-		rtw89_phy_ul_tb_ctrl_check(rtwdev, rtwvif_link, &ul_tb_data);
+	rtw89_for_each_rtwvif(rtwdev, rtwvif)
+		rtw89_vif_for_each_link(rtwvif, rtwvif_link, link_id)
+			rtw89_phy_ul_tb_ctrl_check(rtwdev, rtwvif_link, &ul_tb_data);
 
 	if (!ul_tb_data.valid)
 		return;
@@ -4660,12 +4693,10 @@ struct rtw89_phy_iter_rssi_data {
 	bool rssi_changed;
 };
 
-static void rtw89_phy_stat_rssi_update_iter(void *data,
-					    struct ieee80211_sta *sta)
+static
+void __rtw89_phy_stat_rssi_update_iter(struct rtw89_sta_link *rtwsta_link,
+				       struct rtw89_phy_iter_rssi_data *rssi_data)
 {
-	struct rtw89_sta_link *rtwsta_link = (struct rtw89_sta_link *)sta->drv_priv;
-	struct rtw89_phy_iter_rssi_data *rssi_data =
-					(struct rtw89_phy_iter_rssi_data *)data;
 	struct rtw89_phy_ch_info *ch_info = rssi_data->ch_info;
 	unsigned long rssi_curr;
 
@@ -4683,6 +4714,19 @@ static void rtw89_phy_stat_rssi_update_iter(void *data,
 		rtwsta_link->prev_rssi = rssi_curr;
 		rssi_data->rssi_changed = true;
 	}
+}
+
+static void rtw89_phy_stat_rssi_update_iter(void *data,
+					    struct ieee80211_sta *sta)
+{
+	struct rtw89_phy_iter_rssi_data *rssi_data =
+					(struct rtw89_phy_iter_rssi_data *)data;
+	struct rtw89_sta *rtwsta = sta_to_rtwsta(sta);
+	struct rtw89_sta_link *rtwsta_link;
+	unsigned int link_id;
+
+	rtw89_sta_for_each_link(rtwsta, rtwsta_link, link_id)
+		__rtw89_phy_stat_rssi_update_iter(rtwsta_link, rssi_data);
 }
 
 static void rtw89_phy_stat_rssi_update(struct rtw89_dev *rtwdev)
@@ -5788,23 +5832,12 @@ void rtw89_phy_dig(struct rtw89_dev *rtwdev)
 		rtw89_phy_dig_sdagc_follow_pagc_config(rtwdev, false);
 }
 
-static void rtw89_phy_tx_path_div_sta_iter(void *data, struct ieee80211_sta *sta)
+static void __rtw89_phy_tx_path_div_sta_iter(struct rtw89_dev *rtwdev,
+					     struct rtw89_sta_link *rtwsta_link)
 {
-	struct rtw89_sta_link *rtwsta_link = (struct rtw89_sta_link *)sta->drv_priv;
-	struct rtw89_dev *rtwdev = rtwsta_link->rtwdev;
-	struct rtw89_vif_link *rtwvif_link = rtwsta_link->rtwvif_link;
 	struct rtw89_hal *hal = &rtwdev->hal;
-	bool *done = data;
 	u8 rssi_a, rssi_b;
 	u32 candidate;
-
-	if (rtwvif_link->wifi_role != RTW89_WIFI_ROLE_STATION || sta->tdls)
-		return;
-
-	if (*done)
-		return;
-
-	*done = true;
 
 	rssi_a = ewma_rssi_read(&rtwsta_link->rssi[RF_PATH_A]);
 	rssi_b = ewma_rssi_read(&rtwsta_link->rssi[RF_PATH_B]);
@@ -5828,6 +5861,37 @@ static void rtw89_phy_tx_path_div_sta_iter(void *data, struct ieee80211_sta *sta
 	} else if (hal->antenna_tx == RF_B) {
 		rtw89_phy_write32_mask(rtwdev, R_P0_RFMODE, B_P0_RFMODE_MUX, 0x11);
 		rtw89_phy_write32_mask(rtwdev, R_P1_RFMODE, B_P1_RFMODE_MUX, 0x12);
+	}
+}
+
+static void rtw89_phy_tx_path_div_sta_iter(void *data, struct ieee80211_sta *sta)
+{
+	struct rtw89_sta *rtwsta = sta_to_rtwsta(sta);
+	struct rtw89_dev *rtwdev = rtwsta->rtwdev;
+	struct rtw89_vif *rtwvif = rtwsta->rtwvif;
+	struct ieee80211_vif *vif = rtwvif_to_vif(rtwvif);
+	struct rtw89_vif_link *rtwvif_link;
+	struct rtw89_sta_link *rtwsta_link;
+	unsigned int link_id;
+	bool *done = data;
+
+	if (WARN(ieee80211_vif_is_mld(vif), "MLD mix path_div\n"))
+		return;
+
+	if (sta->tdls)
+		return;
+
+	if (*done)
+		return;
+
+	rtw89_sta_for_each_link(rtwsta, rtwsta_link, link_id) {
+		rtwvif_link = rtwsta_link->rtwvif_link;
+		if (rtwvif_link->wifi_role != RTW89_WIFI_ROLE_STATION)
+			continue;
+
+		*done = true;
+		__rtw89_phy_tx_path_div_sta_iter(rtwdev, rtwsta_link);
+		return;
 	}
 }
 
@@ -6040,7 +6104,7 @@ void rtw89_phy_dm_init(struct rtw89_dev *rtwdev)
 void rtw89_phy_set_bss_color(struct rtw89_dev *rtwdev,
 			     struct rtw89_vif_link *rtwvif_link)
 {
-	struct ieee80211_vif *vif = rtwvif_to_vif(rtwvif_link);
+	struct ieee80211_vif *vif = rtwvif_link_to_vif(rtwvif_link);
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 	const struct rtw89_reg_def *bss_clr_vld = &chip->bss_clr_vld;
 	enum rtw89_phy_idx phy_idx = RTW89_PHY_0;

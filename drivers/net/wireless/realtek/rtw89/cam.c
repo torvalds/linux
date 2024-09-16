@@ -211,24 +211,16 @@ static int rtw89_cam_get_addr_cam_key_idx(struct rtw89_addr_cam_entry *addr_cam,
 	return 0;
 }
 
-static int rtw89_cam_detach_sec_cam(struct rtw89_dev *rtwdev,
-				    struct ieee80211_vif *vif,
-				    struct ieee80211_sta *sta,
-				    const struct rtw89_sec_cam_entry *sec_cam,
-				    bool inform_fw)
+static int __rtw89_cam_detach_sec_cam(struct rtw89_dev *rtwdev,
+				      struct rtw89_vif_link *rtwvif_link,
+				      struct rtw89_sta_link *rtwsta_link,
+				      const struct rtw89_sec_cam_entry *sec_cam,
+				      bool inform_fw)
 {
-	struct rtw89_sta_link *rtwsta_link = sta_to_rtwsta_safe(sta);
-	struct rtw89_vif_link *rtwvif_link;
 	struct rtw89_addr_cam_entry *addr_cam;
 	unsigned int i;
 	int ret = 0;
 
-	if (!vif) {
-		rtw89_err(rtwdev, "No iface for deleting sec cam\n");
-		return -EINVAL;
-	}
-
-	rtwvif_link = (struct rtw89_vif_link *)vif->drv_priv;
 	addr_cam = rtw89_get_addr_cam_of(rtwvif_link, rtwsta_link);
 
 	for_each_set_bit(i, addr_cam->sec_cam_map, RTW89_SEC_CAM_IN_ADDR_CAM) {
@@ -251,24 +243,16 @@ static int rtw89_cam_detach_sec_cam(struct rtw89_dev *rtwdev,
 	return ret;
 }
 
-static int rtw89_cam_attach_sec_cam(struct rtw89_dev *rtwdev,
-				    struct ieee80211_vif *vif,
-				    struct ieee80211_sta *sta,
-				    struct ieee80211_key_conf *key,
-				    struct rtw89_sec_cam_entry *sec_cam)
+static int __rtw89_cam_attach_sec_cam(struct rtw89_dev *rtwdev,
+				      struct rtw89_vif_link *rtwvif_link,
+				      struct rtw89_sta_link *rtwsta_link,
+				      struct ieee80211_key_conf *key,
+				      struct rtw89_sec_cam_entry *sec_cam)
 {
-	struct rtw89_sta_link *rtwsta_link = sta_to_rtwsta_safe(sta);
-	struct rtw89_vif_link *rtwvif_link;
 	struct rtw89_addr_cam_entry *addr_cam;
 	u8 key_idx = 0;
 	int ret;
 
-	if (!vif) {
-		rtw89_err(rtwdev, "No iface for adding sec cam\n");
-		return -EINVAL;
-	}
-
-	rtwvif_link = (struct rtw89_vif_link *)vif->drv_priv;
 	addr_cam = rtw89_get_addr_cam_of(rtwvif_link, rtwsta_link);
 
 	if (key->cipher == WLAN_CIPHER_SUITE_WEP40 ||
@@ -297,6 +281,92 @@ static int rtw89_cam_attach_sec_cam(struct rtw89_dev *rtwdev,
 			  ret);
 		clear_bit(key_idx, addr_cam->sec_cam_map);
 		return ret;
+	}
+
+	return 0;
+}
+
+static int rtw89_cam_detach_sec_cam(struct rtw89_dev *rtwdev,
+				    struct ieee80211_vif *vif,
+				    struct ieee80211_sta *sta,
+				    const struct rtw89_sec_cam_entry *sec_cam,
+				    bool inform_fw)
+{
+	struct rtw89_sta *rtwsta = sta_to_rtwsta_safe(sta);
+	struct rtw89_sta_link *rtwsta_link;
+	struct rtw89_vif_link *rtwvif_link;
+	struct rtw89_vif *rtwvif;
+	unsigned int link_id;
+	int ret;
+
+	if (!vif) {
+		rtw89_err(rtwdev, "No iface for deleting sec cam\n");
+		return -EINVAL;
+	}
+
+	rtwvif = vif_to_rtwvif(vif);
+
+	rtw89_vif_for_each_link(rtwvif, rtwvif_link, link_id) {
+		rtwsta_link = rtwsta ? rtwsta->links[link_id] : NULL;
+		if (rtwsta && !rtwsta_link)
+			continue;
+
+		ret = __rtw89_cam_detach_sec_cam(rtwdev, rtwvif_link, rtwsta_link,
+						 sec_cam, inform_fw);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
+static int rtw89_cam_attach_sec_cam(struct rtw89_dev *rtwdev,
+				    struct ieee80211_vif *vif,
+				    struct ieee80211_sta *sta,
+				    struct ieee80211_key_conf *key,
+				    struct rtw89_sec_cam_entry *sec_cam)
+{
+	struct rtw89_sta *rtwsta = sta_to_rtwsta_safe(sta);
+	struct rtw89_sta_link *rtwsta_link;
+	struct rtw89_vif_link *rtwvif_link;
+	struct rtw89_vif *rtwvif;
+	unsigned int link_id;
+	int key_link_id;
+	int ret;
+
+	if (!vif) {
+		rtw89_err(rtwdev, "No iface for adding sec cam\n");
+		return -EINVAL;
+	}
+
+	rtwvif = vif_to_rtwvif(vif);
+
+	key_link_id = ieee80211_vif_is_mld(vif) ? key->link_id : 0;
+	if (key_link_id >= 0) {
+		rtwvif_link = rtwvif->links[key_link_id];
+		rtwsta_link = rtwsta ? rtwsta->links[key_link_id] : NULL;
+
+		if (!rtwvif_link || (rtwsta && !rtwsta_link)) {
+			rtw89_err(rtwdev, "No drv link for adding sec cam\n");
+			return -ENOLINK;
+		}
+
+		return __rtw89_cam_attach_sec_cam(rtwdev, rtwvif_link,
+						  rtwsta_link, key, sec_cam);
+	}
+
+	/* key_link_id < 0: MLD pairwise key */
+	if (!rtwsta) {
+		rtw89_err(rtwdev, "No sta for adding MLD pairwise sec cam\n");
+		return -EINVAL;
+	}
+
+	rtw89_sta_for_each_link(rtwsta, rtwsta_link, link_id) {
+		rtwvif_link = rtwsta_link->rtwvif_link;
+		ret = __rtw89_cam_attach_sec_cam(rtwdev, rtwvif_link,
+						 rtwsta_link, key, sec_cam);
+		if (ret)
+			return ret;
 	}
 
 	return 0;
@@ -708,10 +778,10 @@ void rtw89_cam_fill_addr_cam_info(struct rtw89_dev *rtwdev,
 				  const u8 *scan_mac_addr,
 				  u8 *cmd)
 {
-	struct ieee80211_vif *vif = rtwvif_to_vif(rtwvif_link);
+	struct ieee80211_vif *vif = rtwvif_link_to_vif(rtwvif_link);
 	struct rtw89_addr_cam_entry *addr_cam =
 		rtw89_get_addr_cam_of(rtwvif_link, rtwsta_link);
-	struct ieee80211_sta *sta = rtwsta_to_sta_safe(rtwsta_link);
+	struct ieee80211_sta *sta = rtwsta_link_to_sta_safe(rtwsta_link);
 	struct ieee80211_link_sta *link_sta;
 	const u8 *sma = scan_mac_addr ? scan_mac_addr : rtwvif_link->mac_addr;
 	u8 sma_hash, tma_hash, addr_msk_start;

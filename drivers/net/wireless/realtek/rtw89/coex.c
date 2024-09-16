@@ -4989,13 +4989,11 @@ struct rtw89_txtime_data {
 	bool reenable;
 };
 
-static void rtw89_tx_time_iter(void *data, struct ieee80211_sta *sta)
+static void __rtw89_tx_time_iter(struct rtw89_vif_link *rtwvif_link,
+				 struct rtw89_sta_link *rtwsta_link,
+				 struct rtw89_txtime_data *iter_data)
 {
-	struct rtw89_sta_link *rtwsta_link = (struct rtw89_sta_link *)sta->drv_priv;
-	struct rtw89_txtime_data *iter_data =
-				(struct rtw89_txtime_data *)data;
 	struct rtw89_dev *rtwdev = iter_data->rtwdev;
-	struct rtw89_vif_link *rtwvif_link = rtwsta_link->rtwvif_link;
 	struct rtw89_btc *btc = &rtwdev->btc;
 	struct rtw89_btc_cx *cx = &btc->cx;
 	struct rtw89_btc_wl_info *wl = &cx->wl;
@@ -5045,6 +5043,21 @@ static void rtw89_tx_time_iter(void *data, struct ieee80211_sta *sta)
 		rtw89_debug(rtwdev, RTW89_DBG_BTC,
 			    "[BTC], %s(): set, tx_time=%d tx_retry= %d\n",
 			    __func__, tx_time, tx_retry);
+	}
+}
+
+static void rtw89_tx_time_iter(void *data, struct ieee80211_sta *sta)
+{
+	struct rtw89_sta *rtwsta = sta_to_rtwsta(sta);
+	struct rtw89_txtime_data *iter_data =
+				(struct rtw89_txtime_data *)data;
+	struct rtw89_vif_link *rtwvif_link;
+	struct rtw89_sta_link *rtwsta_link;
+	unsigned int link_id;
+
+	rtw89_sta_for_each_link(rtwsta, rtwsta_link, link_id) {
+		rtwvif_link = rtwsta_link->rtwvif_link;
+		__rtw89_tx_time_iter(rtwvif_link, rtwsta_link, iter_data);
 	}
 }
 
@@ -7488,7 +7501,7 @@ void rtw89_btc_ntfy_role_info(struct rtw89_dev *rtwdev,
 {
 	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev,
 						       rtwvif_link->chanctx_idx);
-	struct ieee80211_vif *vif = rtwvif_to_vif(rtwvif_link);
+	struct ieee80211_vif *vif = rtwvif_link_to_vif(rtwvif_link);
 	struct ieee80211_bss_conf *bss_conf;
 	struct ieee80211_link_sta *link_sta;
 	struct rtw89_btc *btc = &rtwdev->btc;
@@ -7794,20 +7807,20 @@ struct rtw89_btc_wl_sta_iter_data {
 	bool is_traffic_change;
 };
 
-static void rtw89_btc_ntfy_wl_sta_iter(void *data, struct ieee80211_sta *sta)
+static
+void __rtw89_btc_ntfy_wl_sta_iter(struct rtw89_vif_link *rtwvif_link,
+				  struct rtw89_sta_link *rtwsta_link,
+				  struct rtw89_btc_wl_sta_iter_data *iter_data)
 {
-	struct rtw89_btc_wl_sta_iter_data *iter_data =
-				(struct rtw89_btc_wl_sta_iter_data *)data;
+	struct rtw89_vif *rtwvif = rtwvif_link->rtwvif;
 	struct rtw89_dev *rtwdev = iter_data->rtwdev;
 	struct rtw89_btc *btc = &rtwdev->btc;
 	struct rtw89_btc_dm *dm = &btc->dm;
 	const struct rtw89_btc_ver *ver = btc->ver;
 	struct rtw89_btc_wl_info *wl = &btc->cx.wl;
 	struct rtw89_btc_wl_link_info *link_info = NULL;
-	struct rtw89_sta_link *rtwsta_link = (struct rtw89_sta_link *)sta->drv_priv;
 	struct rtw89_traffic_stats *link_info_t = NULL;
-	struct rtw89_vif_link *rtwvif_link = rtwsta_link->rtwvif_link;
-	struct rtw89_traffic_stats *stats = &rtwvif_link->stats;
+	struct rtw89_traffic_stats *stats = &rtwvif->stats;
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 	struct rtw89_btc_wl_role_info *r;
 	struct rtw89_btc_wl_role_info_v1 *r1;
@@ -7825,7 +7838,7 @@ static void rtw89_btc_ntfy_wl_sta_iter(void *data, struct ieee80211_sta *sta)
 	rtw89_debug(rtwdev, RTW89_DBG_BTC, "[BTC], rssi=%d\n", rssi);
 
 	link_info = &wl->link_info[port];
-	link_info->stat.traffic = rtwvif_link->stats;
+	link_info->stat.traffic = *stats;
 	link_info_t = &link_info->stat.traffic;
 
 	if (link_info->connected == MLME_NO_LINK) {
@@ -7927,6 +7940,21 @@ static void rtw89_btc_ntfy_wl_sta_iter(void *data, struct ieee80211_sta *sta)
 
 	if (is_traffic_change)
 		iter_data->is_traffic_change = true;
+}
+
+static void rtw89_btc_ntfy_wl_sta_iter(void *data, struct ieee80211_sta *sta)
+{
+	struct rtw89_sta *rtwsta = sta_to_rtwsta(sta);
+	struct rtw89_btc_wl_sta_iter_data *iter_data =
+				(struct rtw89_btc_wl_sta_iter_data *)data;
+	struct rtw89_vif_link *rtwvif_link;
+	struct rtw89_sta_link *rtwsta_link;
+	unsigned int link_id;
+
+	rtw89_sta_for_each_link(rtwsta, rtwsta_link, link_id) {
+		rtwvif_link = rtwsta_link->rtwvif_link;
+		__rtw89_btc_ntfy_wl_sta_iter(rtwvif_link, rtwsta_link, iter_data);
+	}
 }
 
 #define BTC_NHM_CHK_INTVL 20
