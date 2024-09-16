@@ -541,19 +541,19 @@ void rtw89_cam_deinit_bssid_cam(struct rtw89_dev *rtwdev,
 				struct rtw89_bssid_cam_entry *bssid_cam);
 void rtw89_cam_fill_addr_cam_info(struct rtw89_dev *rtwdev,
 				  struct rtw89_vif_link *vif,
-				  struct rtw89_sta *rtwsta,
+				  struct rtw89_sta_link *rtwsta_link,
 				  const u8 *scan_mac_addr, u8 *cmd);
 void rtw89_cam_fill_dctl_sec_cam_info_v1(struct rtw89_dev *rtwdev,
 					 struct rtw89_vif_link *rtwvif_link,
-					 struct rtw89_sta *rtwsta,
+					 struct rtw89_sta_link *rtwsta_link,
 					 struct rtw89_h2c_dctlinfo_ud_v1 *h2c);
 void rtw89_cam_fill_dctl_sec_cam_info_v2(struct rtw89_dev *rtwdev,
 					 struct rtw89_vif_link *rtwvif_link,
-					 struct rtw89_sta *rtwsta,
+					 struct rtw89_sta_link *rtwsta_link,
 					 struct rtw89_h2c_dctlinfo_ud_v2 *h2c);
 int rtw89_cam_fill_bssid_cam_info(struct rtw89_dev *rtwdev,
 				  struct rtw89_vif_link *rtwvif_link,
-				  struct rtw89_sta *rtwsta, u8 *cmd);
+				  struct rtw89_sta_link *rtwsta_link, u8 *cmd);
 int rtw89_cam_sec_key_add(struct rtw89_dev *rtwdev,
 			  struct ieee80211_vif *vif,
 			  struct ieee80211_sta *sta,

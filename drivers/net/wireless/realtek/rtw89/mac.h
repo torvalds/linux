@@ -1384,15 +1384,15 @@ static inline bool rtw89_mac_get_power_state(struct rtw89_dev *rtwdev)
 	return !!val;
 }
 
-int rtw89_mac_set_tx_time(struct rtw89_dev *rtwdev, struct rtw89_sta *rtwsta,
+int rtw89_mac_set_tx_time(struct rtw89_dev *rtwdev, struct rtw89_sta_link *rtwsta_link,
 			  bool resume, u32 tx_time);
-int rtw89_mac_get_tx_time(struct rtw89_dev *rtwdev, struct rtw89_sta *rtwsta,
+int rtw89_mac_get_tx_time(struct rtw89_dev *rtwdev, struct rtw89_sta_link *rtwsta_link,
 			  u32 *tx_time);
 int rtw89_mac_set_tx_retry_limit(struct rtw89_dev *rtwdev,
-				 struct rtw89_sta *rtwsta,
+				 struct rtw89_sta_link *rtwsta_link,
 				 bool resume, u8 tx_retry);
 int rtw89_mac_get_tx_retry_limit(struct rtw89_dev *rtwdev,
-				 struct rtw89_sta *rtwsta, u8 *tx_retry);
+				 struct rtw89_sta_link *rtwsta_link, u8 *tx_retry);
 
 enum rtw89_mac_xtal_si_offset {
 	XTAL0 = 0x0,

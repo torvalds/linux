@@ -217,7 +217,7 @@ static int rtw89_cam_detach_sec_cam(struct rtw89_dev *rtwdev,
 				    const struct rtw89_sec_cam_entry *sec_cam,
 				    bool inform_fw)
 {
-	struct rtw89_sta *rtwsta = sta_to_rtwsta_safe(sta);
+	struct rtw89_sta_link *rtwsta_link = sta_to_rtwsta_safe(sta);
 	struct rtw89_vif_link *rtwvif_link;
 	struct rtw89_addr_cam_entry *addr_cam;
 	unsigned int i;
@@ -229,7 +229,7 @@ static int rtw89_cam_detach_sec_cam(struct rtw89_dev *rtwdev,
 	}
 
 	rtwvif_link = (struct rtw89_vif_link *)vif->drv_priv;
-	addr_cam = rtw89_get_addr_cam_of(rtwvif_link, rtwsta);
+	addr_cam = rtw89_get_addr_cam_of(rtwvif_link, rtwsta_link);
 
 	for_each_set_bit(i, addr_cam->sec_cam_map, RTW89_SEC_CAM_IN_ADDR_CAM) {
 		if (addr_cam->sec_ent[i] != sec_cam->sec_cam_idx)
@@ -239,11 +239,11 @@ static int rtw89_cam_detach_sec_cam(struct rtw89_dev *rtwdev,
 	}
 
 	if (inform_fw) {
-		ret = rtw89_chip_h2c_dctl_sec_cam(rtwdev, rtwvif_link, rtwsta);
+		ret = rtw89_chip_h2c_dctl_sec_cam(rtwdev, rtwvif_link, rtwsta_link);
 		if (ret)
 			rtw89_err(rtwdev,
 				  "failed to update dctl cam del key: %d\n", ret);
-		ret = rtw89_fw_h2c_cam(rtwdev, rtwvif_link, rtwsta, NULL);
+		ret = rtw89_fw_h2c_cam(rtwdev, rtwvif_link, rtwsta_link, NULL);
 		if (ret)
 			rtw89_err(rtwdev, "failed to update cam del key: %d\n", ret);
 	}
@@ -257,7 +257,7 @@ static int rtw89_cam_attach_sec_cam(struct rtw89_dev *rtwdev,
 				    struct ieee80211_key_conf *key,
 				    struct rtw89_sec_cam_entry *sec_cam)
 {
-	struct rtw89_sta *rtwsta = sta_to_rtwsta_safe(sta);
+	struct rtw89_sta_link *rtwsta_link = sta_to_rtwsta_safe(sta);
 	struct rtw89_vif_link *rtwvif_link;
 	struct rtw89_addr_cam_entry *addr_cam;
 	u8 key_idx = 0;
@@ -269,7 +269,7 @@ static int rtw89_cam_attach_sec_cam(struct rtw89_dev *rtwdev,
 	}
 
 	rtwvif_link = (struct rtw89_vif_link *)vif->drv_priv;
-	addr_cam = rtw89_get_addr_cam_of(rtwvif_link, rtwsta);
+	addr_cam = rtw89_get_addr_cam_of(rtwvif_link, rtwsta_link);
 
 	if (key->cipher == WLAN_CIPHER_SUITE_WEP40 ||
 	    key->cipher == WLAN_CIPHER_SUITE_WEP104)
@@ -285,13 +285,13 @@ static int rtw89_cam_attach_sec_cam(struct rtw89_dev *rtwdev,
 	addr_cam->sec_ent_keyid[key_idx] = key->keyidx;
 	addr_cam->sec_ent[key_idx] = sec_cam->sec_cam_idx;
 	set_bit(key_idx, addr_cam->sec_cam_map);
-	ret = rtw89_chip_h2c_dctl_sec_cam(rtwdev, rtwvif_link, rtwsta);
+	ret = rtw89_chip_h2c_dctl_sec_cam(rtwdev, rtwvif_link, rtwsta_link);
 	if (ret) {
 		rtw89_err(rtwdev, "failed to update dctl cam sec entry: %d\n",
 			  ret);
 		return ret;
 	}
-	ret = rtw89_fw_h2c_cam(rtwdev, rtwvif_link, rtwsta, NULL);
+	ret = rtw89_fw_h2c_cam(rtwdev, rtwvif_link, rtwsta_link, NULL);
 	if (ret) {
 		rtw89_err(rtwdev, "failed to update addr cam sec entry: %d\n",
 			  ret);
@@ -653,11 +653,11 @@ int rtw89_cam_init(struct rtw89_dev *rtwdev, struct rtw89_vif_link *rtwvif_link)
 
 int rtw89_cam_fill_bssid_cam_info(struct rtw89_dev *rtwdev,
 				  struct rtw89_vif_link *rtwvif_link,
-				  struct rtw89_sta *rtwsta, u8 *cmd)
+				  struct rtw89_sta_link *rtwsta_link, u8 *cmd)
 {
 	struct ieee80211_vif *vif = rtwvif_to_vif(rtwvif_link);
 	struct rtw89_bssid_cam_entry *bssid_cam = rtw89_get_bssid_cam_of(rtwvif_link,
-									 rtwsta);
+									 rtwsta_link);
 	u8 bss_color = vif->bss_conf.he_bss_color.color;
 	u8 bss_mask;
 
@@ -697,14 +697,14 @@ static u8 rtw89_cam_addr_hash(u8 start, const u8 *addr)
 
 void rtw89_cam_fill_addr_cam_info(struct rtw89_dev *rtwdev,
 				  struct rtw89_vif_link *rtwvif_link,
-				  struct rtw89_sta *rtwsta,
+				  struct rtw89_sta_link *rtwsta_link,
 				  const u8 *scan_mac_addr,
 				  u8 *cmd)
 {
 	struct ieee80211_vif *vif = rtwvif_to_vif(rtwvif_link);
 	struct rtw89_addr_cam_entry *addr_cam =
-		rtw89_get_addr_cam_of(rtwvif_link, rtwsta);
-	struct ieee80211_sta *sta = rtwsta_to_sta_safe(rtwsta);
+		rtw89_get_addr_cam_of(rtwvif_link, rtwsta_link);
+	struct ieee80211_sta *sta = rtwsta_to_sta_safe(rtwsta_link);
 	const u8 *sma = scan_mac_addr ? scan_mac_addr : rtwvif_link->mac_addr;
 	u8 sma_hash, tma_hash, addr_msk_start;
 	u8 sma_start = 0;
@@ -757,7 +757,8 @@ void rtw89_cam_fill_addr_cam_info(struct rtw89_dev *rtwdev,
 	FWCMD_SET_ADDR_LSIG_TXOP(cmd, rtwvif_link->lsig_txop);
 	FWCMD_SET_ADDR_TGT_IND(cmd, rtwvif_link->tgt_ind);
 	FWCMD_SET_ADDR_FRM_TGT_IND(cmd, rtwvif_link->frm_tgt_ind);
-	FWCMD_SET_ADDR_MACID(cmd, rtwsta ? rtwsta->mac_id : rtwvif_link->mac_id);
+	FWCMD_SET_ADDR_MACID(cmd, rtwsta_link ? rtwsta_link->mac_id :
+						rtwvif_link->mac_id);
 	if (rtwvif_link->net_type == RTW89_NET_TYPE_INFRA)
 		FWCMD_SET_ADDR_AID12(cmd, vif->cfg.aid & 0xfff);
 	else if (rtwvif_link->net_type == RTW89_NET_TYPE_AP_MODE)
@@ -787,15 +788,16 @@ void rtw89_cam_fill_addr_cam_info(struct rtw89_dev *rtwdev,
 
 void rtw89_cam_fill_dctl_sec_cam_info_v1(struct rtw89_dev *rtwdev,
 					 struct rtw89_vif_link *rtwvif_link,
-					 struct rtw89_sta *rtwsta,
+					 struct rtw89_sta_link *rtwsta_link,
 					 struct rtw89_h2c_dctlinfo_ud_v1 *h2c)
 {
 	struct rtw89_addr_cam_entry *addr_cam =
-		rtw89_get_addr_cam_of(rtwvif_link, rtwsta);
+		rtw89_get_addr_cam_of(rtwvif_link, rtwsta_link);
 	struct rtw89_wow_param *rtw_wow = &rtwdev->wow;
 	u8 *ptk_tx_iv = rtw_wow->key_info.ptk_tx_iv;
 
-	h2c->c0 = le32_encode_bits(rtwsta ? rtwsta->mac_id : rtwvif_link->mac_id,
+	h2c->c0 = le32_encode_bits(rtwsta_link ? rtwsta_link->mac_id :
+						 rtwvif_link->mac_id,
 				   DCTLINFO_V1_C0_MACID) |
 		  le32_encode_bits(1, DCTLINFO_V1_C0_OP);
 
@@ -867,15 +869,16 @@ void rtw89_cam_fill_dctl_sec_cam_info_v1(struct rtw89_dev *rtwdev,
 
 void rtw89_cam_fill_dctl_sec_cam_info_v2(struct rtw89_dev *rtwdev,
 					 struct rtw89_vif_link *rtwvif_link,
-					 struct rtw89_sta *rtwsta,
+					 struct rtw89_sta_link *rtwsta_link,
 					 struct rtw89_h2c_dctlinfo_ud_v2 *h2c)
 {
 	struct rtw89_addr_cam_entry *addr_cam =
-		rtw89_get_addr_cam_of(rtwvif_link, rtwsta);
+		rtw89_get_addr_cam_of(rtwvif_link, rtwsta_link);
 	struct rtw89_wow_param *rtw_wow = &rtwdev->wow;
 	u8 *ptk_tx_iv = rtw_wow->key_info.ptk_tx_iv;
 
-	h2c->c0 = le32_encode_bits(rtwsta ? rtwsta->mac_id : rtwvif_link->mac_id,
+	h2c->c0 = le32_encode_bits(rtwsta_link ? rtwsta_link->mac_id :
+						 rtwvif_link->mac_id,
 				   DCTLINFO_V2_C0_MACID) |
 		  le32_encode_bits(1, DCTLINFO_V2_C0_OP);
 

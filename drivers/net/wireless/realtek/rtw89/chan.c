@@ -522,15 +522,15 @@ out:
 
 static void rtw89_mcc_role_macid_sta_iter(void *data, struct ieee80211_sta *sta)
 {
-	struct rtw89_sta *rtwsta = (struct rtw89_sta *)sta->drv_priv;
-	struct rtw89_vif_link *rtwvif_link = rtwsta->rtwvif_link;
+	struct rtw89_sta_link *rtwsta_link = (struct rtw89_sta_link *)sta->drv_priv;
+	struct rtw89_vif_link *rtwvif_link = rtwsta_link->rtwvif_link;
 	struct rtw89_mcc_role *mcc_role = data;
 	struct rtw89_vif_link *target = mcc_role->rtwvif_link;
 
 	if (rtwvif_link != target)
 		return;
 
-	rtw89_mcc_role_fw_macid_bitmap_set_bit(mcc_role, rtwsta->mac_id);
+	rtw89_mcc_role_fw_macid_bitmap_set_bit(mcc_role, rtwsta_link->mac_id);
 }
 
 static void rtw89_mcc_fill_role_macid_bitmap(struct rtw89_dev *rtwdev,

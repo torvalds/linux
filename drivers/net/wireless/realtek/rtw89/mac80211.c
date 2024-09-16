@@ -29,10 +29,11 @@ static void rtw89_ops_tx(struct ieee80211_hw *hw,
 	int ret, qsel;
 
 	if (rtwvif_link->offchan && !(flags & IEEE80211_TX_CTL_TX_OFFCHAN) && sta) {
-		struct rtw89_sta *rtwsta = (struct rtw89_sta *)sta->drv_priv;
+		struct rtw89_sta_link *rtwsta_link =
+			(struct rtw89_sta_link *)sta->drv_priv;
 
 		rtw89_debug(rtwdev, RTW89_DBG_TXRX, "ops_tx during offchan\n");
-		skb_queue_tail(&rtwsta->roc_queue, skb);
+		skb_queue_tail(&rtwsta_link->roc_queue, skb);
 		return;
 	}
 
@@ -548,8 +549,8 @@ static int rtw89_ops_set_tim(struct ieee80211_hw *hw, struct ieee80211_sta *sta,
 			     bool set)
 {
 	struct rtw89_dev *rtwdev = hw->priv;
-	struct rtw89_sta *rtwsta = (struct rtw89_sta *)sta->drv_priv;
-	struct rtw89_vif_link *rtwvif_link = rtwsta->rtwvif_link;
+	struct rtw89_sta_link *rtwsta_link = (struct rtw89_sta_link *)sta->drv_priv;
+	struct rtw89_vif_link *rtwvif_link = rtwsta_link->rtwvif_link;
 
 	ieee80211_queue_work(rtwdev->hw, &rtwvif_link->update_beacon_work);
 
@@ -668,7 +669,7 @@ static int rtw89_ops_ampdu_action(struct ieee80211_hw *hw,
 {
 	struct rtw89_dev *rtwdev = hw->priv;
 	struct ieee80211_sta *sta = params->sta;
-	struct rtw89_sta *rtwsta = (struct rtw89_sta *)sta->drv_priv;
+	struct rtw89_sta_link *rtwsta_link = (struct rtw89_sta_link *)sta->drv_priv;
 	u16 tid = params->tid;
 	struct ieee80211_txq *txq = sta->txq[tid];
 	struct rtw89_txq *rtwtxq = (struct rtw89_txq *)txq->drv_priv;
@@ -681,7 +682,7 @@ static int rtw89_ops_ampdu_action(struct ieee80211_hw *hw,
 	case IEEE80211_AMPDU_TX_STOP_FLUSH_CONT:
 		mutex_lock(&rtwdev->mutex);
 		clear_bit(RTW89_TXQ_F_AMPDU, &rtwtxq->flags);
-		clear_bit(tid, rtwsta->ampdu_map);
+		clear_bit(tid, rtwsta_link->ampdu_map);
 		rtw89_chip_h2c_ampdu_cmac_tbl(rtwdev, vif, sta);
 		mutex_unlock(&rtwdev->mutex);
 		ieee80211_stop_tx_ba_cb_irqsafe(vif, sta->addr, tid);
@@ -689,21 +690,21 @@ static int rtw89_ops_ampdu_action(struct ieee80211_hw *hw,
 	case IEEE80211_AMPDU_TX_OPERATIONAL:
 		mutex_lock(&rtwdev->mutex);
 		set_bit(RTW89_TXQ_F_AMPDU, &rtwtxq->flags);
-		rtwsta->ampdu_params[tid].agg_num = params->buf_size;
-		rtwsta->ampdu_params[tid].amsdu = params->amsdu;
-		set_bit(tid, rtwsta->ampdu_map);
+		rtwsta_link->ampdu_params[tid].agg_num = params->buf_size;
+		rtwsta_link->ampdu_params[tid].amsdu = params->amsdu;
+		set_bit(tid, rtwsta_link->ampdu_map);
 		rtw89_leave_ps_mode(rtwdev);
 		rtw89_chip_h2c_ampdu_cmac_tbl(rtwdev, vif, sta);
 		mutex_unlock(&rtwdev->mutex);
 		break;
 	case IEEE80211_AMPDU_RX_START:
 		mutex_lock(&rtwdev->mutex);
-		rtw89_chip_h2c_ba_cam(rtwdev, rtwsta, true, params);
+		rtw89_chip_h2c_ba_cam(rtwdev, rtwsta_link, true, params);
 		mutex_unlock(&rtwdev->mutex);
 		break;
 	case IEEE80211_AMPDU_RX_STOP:
 		mutex_lock(&rtwdev->mutex);
-		rtw89_chip_h2c_ba_cam(rtwdev, rtwsta, false, params);
+		rtw89_chip_h2c_ba_cam(rtwdev, rtwsta_link, false, params);
 		mutex_unlock(&rtwdev->mutex);
 		break;
 	default:
@@ -732,9 +733,9 @@ static void rtw89_ops_sta_statistics(struct ieee80211_hw *hw,
 				     struct ieee80211_sta *sta,
 				     struct station_info *sinfo)
 {
-	struct rtw89_sta *rtwsta = (struct rtw89_sta *)sta->drv_priv;
+	struct rtw89_sta_link *rtwsta_link = (struct rtw89_sta_link *)sta->drv_priv;
 
-	sinfo->txrate = rtwsta->ra_report.txrate;
+	sinfo->txrate = rtwsta_link->ra_report.txrate;
 	sinfo->filled |= BIT_ULL(NL80211_STA_INFO_TX_BITRATE);
 }
 
@@ -778,14 +779,14 @@ struct rtw89_iter_bitrate_mask_data {
 static void rtw89_ra_mask_info_update_iter(void *data, struct ieee80211_sta *sta)
 {
 	struct rtw89_iter_bitrate_mask_data *br_data = data;
-	struct rtw89_sta *rtwsta = (struct rtw89_sta *)sta->drv_priv;
-	struct ieee80211_vif *vif = rtwvif_to_vif(rtwsta->rtwvif_link);
+	struct rtw89_sta_link *rtwsta_link = (struct rtw89_sta_link *)sta->drv_priv;
+	struct ieee80211_vif *vif = rtwvif_to_vif(rtwsta_link->rtwvif_link);
 
 	if (vif != br_data->vif || vif->p2p)
 		return;
 
-	rtwsta->use_cfg_mask = true;
-	rtwsta->mask = *br_data->mask;
+	rtwsta_link->use_cfg_mask = true;
+	rtwsta_link->mask = *br_data->mask;
 	rtw89_phy_ra_update_sta(br_data->rtwdev, sta, IEEE80211_RC_SUPP_RATES_CHANGED);
 }
 
@@ -1054,8 +1055,8 @@ static int rtw89_ops_cancel_remain_on_channel(struct ieee80211_hw *hw,
 static void rtw89_set_tid_config_iter(void *data, struct ieee80211_sta *sta)
 {
 	struct cfg80211_tid_config *tid_config = data;
-	struct rtw89_sta *rtwsta = (struct rtw89_sta *)sta->drv_priv;
-	struct rtw89_dev *rtwdev = rtwsta->rtwvif_link->rtwdev;
+	struct rtw89_sta_link *rtwsta_link = (struct rtw89_sta_link *)sta->drv_priv;
+	struct rtw89_dev *rtwdev = rtwsta_link->rtwvif_link->rtwdev;
 
 	rtw89_core_set_tid_config(rtwdev, sta, tid_config);
 }

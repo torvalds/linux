@@ -3518,11 +3518,11 @@ static void rtw89_sta_info_get_iter(void *data, struct ieee80211_sta *sta)
 		[NL80211_RATE_INFO_EHT_GI_1_6] = "1.6",
 		[NL80211_RATE_INFO_EHT_GI_3_2] = "3.2",
 	};
-	struct rtw89_sta *rtwsta = (struct rtw89_sta *)sta->drv_priv;
-	struct rate_info *rate = &rtwsta->ra_report.txrate;
-	struct ieee80211_rx_status *status = &rtwsta->rx_status;
+	struct rtw89_sta_link *rtwsta_link = (struct rtw89_sta_link *)sta->drv_priv;
+	struct rate_info *rate = &rtwsta_link->ra_report.txrate;
+	struct ieee80211_rx_status *status = &rtwsta_link->rx_status;
 	struct seq_file *m = (struct seq_file *)data;
-	struct rtw89_dev *rtwdev = rtwsta->rtwdev;
+	struct rtw89_dev *rtwdev = rtwsta_link->rtwdev;
 	struct rtw89_hal *hal = &rtwdev->hal;
 	u8 ant_num = hal->ant_diversity ? 2 : rtwdev->chip->rf_path_num;
 	bool ant_asterisk = hal->tx_path_diversity || hal->ant_diversity;
@@ -3531,7 +3531,7 @@ static void rtw89_sta_info_get_iter(void *data, struct ieee80211_sta *sta)
 	u8 snr;
 	int i;
 
-	seq_printf(m, "TX rate [%d]: ", rtwsta->mac_id);
+	seq_printf(m, "TX rate [%d]: ", rtwsta_link->mac_id);
 
 	if (rate->flags & RATE_INFO_FLAGS_MCS)
 		seq_printf(m, "HT MCS-%d%s", rate->mcs,
@@ -3549,13 +3549,13 @@ static void rtw89_sta_info_get_iter(void *data, struct ieee80211_sta *sta)
 			   eht_gi_str[rate->eht_gi] : "N/A");
 	else
 		seq_printf(m, "Legacy %d", rate->legacy);
-	seq_printf(m, "%s", rtwsta->ra_report.might_fallback_legacy ? " FB_G" : "");
+	seq_printf(m, "%s", rtwsta_link->ra_report.might_fallback_legacy ? " FB_G" : "");
 	seq_printf(m, " BW:%u", rtw89_rate_info_bw_to_mhz(rate->bw));
-	seq_printf(m, "\t(hw_rate=0x%x)", rtwsta->ra_report.hw_rate);
-	seq_printf(m, "\t==> agg_wait=%d (%d)\n", rtwsta->max_agg_wait,
+	seq_printf(m, "\t(hw_rate=0x%x)", rtwsta_link->ra_report.hw_rate);
+	seq_printf(m, "\t==> agg_wait=%d (%d)\n", rtwsta_link->max_agg_wait,
 		   sta->deflink.agg.max_rc_amsdu_len);
 
-	seq_printf(m, "RX rate [%d]: ", rtwsta->mac_id);
+	seq_printf(m, "RX rate [%d]: ", rtwsta_link->mac_id);
 
 	switch (status->encoding) {
 	case RX_ENC_LEGACY:
@@ -3582,24 +3582,24 @@ static void rtw89_sta_info_get_iter(void *data, struct ieee80211_sta *sta)
 		break;
 	}
 	seq_printf(m, " BW:%u", rtw89_rate_info_bw_to_mhz(status->bw));
-	seq_printf(m, "\t(hw_rate=0x%x)\n", rtwsta->rx_hw_rate);
+	seq_printf(m, "\t(hw_rate=0x%x)\n", rtwsta_link->rx_hw_rate);
 
-	rssi = ewma_rssi_read(&rtwsta->avg_rssi);
+	rssi = ewma_rssi_read(&rtwsta_link->avg_rssi);
 	seq_printf(m, "RSSI: %d dBm (raw=%d, prev=%d) [",
-		   RTW89_RSSI_RAW_TO_DBM(rssi), rssi, rtwsta->prev_rssi);
+		   RTW89_RSSI_RAW_TO_DBM(rssi), rssi, rtwsta_link->prev_rssi);
 	for (i = 0; i < ant_num; i++) {
-		rssi = ewma_rssi_read(&rtwsta->rssi[i]);
+		rssi = ewma_rssi_read(&rtwsta_link->rssi[i]);
 		seq_printf(m, "%d%s%s", RTW89_RSSI_RAW_TO_DBM(rssi),
 			   ant_asterisk && (hal->antenna_tx & BIT(i)) ? "*" : "",
 			   i + 1 == ant_num ? "" : ", ");
 	}
 	seq_puts(m, "]\n");
 
-	evm_1ss = ewma_evm_read(&rtwsta->evm_1ss);
+	evm_1ss = ewma_evm_read(&rtwsta_link->evm_1ss);
 	seq_printf(m, "EVM: [%2u.%02u, ", evm_1ss >> 2, (evm_1ss & 0x3) * 25);
 	for (i = 0; i < (hal->ant_diversity ? 2 : 1); i++) {
-		evm_min = ewma_evm_read(&rtwsta->evm_min[i]);
-		evm_max = ewma_evm_read(&rtwsta->evm_max[i]);
+		evm_min = ewma_evm_read(&rtwsta_link->evm_min[i]);
+		evm_max = ewma_evm_read(&rtwsta_link->evm_max[i]);
 
 		seq_printf(m, "%s(%2u.%02u, %2u.%02u)", i == 0 ? "" : " ",
 			   evm_min >> 2, (evm_min & 0x3) * 25,
@@ -3607,7 +3607,7 @@ static void rtw89_sta_info_get_iter(void *data, struct ieee80211_sta *sta)
 	}
 	seq_puts(m, "]\t");
 
-	snr = ewma_snr_read(&rtwsta->avg_snr);
+	snr = ewma_snr_read(&rtwsta_link->avg_snr);
 	seq_printf(m, "SNR: %u\n", snr);
 }
 
@@ -3752,14 +3752,14 @@ void rtw89_vif_ids_get_iter(void *data, u8 *mac, struct ieee80211_vif *vif)
 			       "\tpkt_ofld[GENERAL]: ");
 }
 
-static void rtw89_dump_ba_cam(struct seq_file *m, struct rtw89_sta *rtwsta)
+static void rtw89_dump_ba_cam(struct seq_file *m, struct rtw89_sta_link *rtwsta_link)
 {
-	struct rtw89_vif_link *rtwvif_link = rtwsta->rtwvif_link;
+	struct rtw89_vif_link *rtwvif_link = rtwsta_link->rtwvif_link;
 	struct rtw89_dev *rtwdev = rtwvif_link->rtwdev;
 	struct rtw89_ba_cam_entry *entry;
 	bool first = true;
 
-	list_for_each_entry(entry, &rtwsta->ba_cam_list, list) {
+	list_for_each_entry(entry, &rtwsta_link->ba_cam_list, list) {
 		if (first) {
 			seq_puts(m, "\tba_cam ");
 			first = false;
@@ -3774,14 +3774,14 @@ static void rtw89_dump_ba_cam(struct seq_file *m, struct rtw89_sta *rtwsta)
 
 static void rtw89_sta_ids_get_iter(void *data, struct ieee80211_sta *sta)
 {
-	struct rtw89_sta *rtwsta = (struct rtw89_sta *)sta->drv_priv;
-	struct rtw89_dev *rtwdev = rtwsta->rtwdev;
+	struct rtw89_sta_link *rtwsta_link = (struct rtw89_sta_link *)sta->drv_priv;
+	struct rtw89_dev *rtwdev = rtwsta_link->rtwdev;
 	struct seq_file *m = (struct seq_file *)data;
 
-	seq_printf(m, "STA [%d] %pM %s\n", rtwsta->mac_id, sta->addr,
+	seq_printf(m, "STA [%d] %pM %s\n", rtwsta_link->mac_id, sta->addr,
 		   sta->tdls ? "(TDLS)" : "");
-	rtw89_dump_addr_cam(m, rtwdev, &rtwsta->addr_cam);
-	rtw89_dump_ba_cam(m, rtwsta);
+	rtw89_dump_addr_cam(m, rtwdev, &rtwsta_link->addr_cam);
+	rtw89_dump_ba_cam(m, rtwsta_link);
 }
 
 static int rtw89_debug_priv_stations_get(struct seq_file *m, void *v)
