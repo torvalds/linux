@@ -405,7 +405,7 @@ static void i9xx_pipe_crc_irq_handler(struct drm_i915_private *dev_priv,
 				     res1, res2);
 }
 
-void i9xx_pipestat_irq_reset(struct drm_i915_private *dev_priv)
+static void i9xx_pipestat_irq_reset(struct drm_i915_private *dev_priv)
 {
 	enum pipe pipe;
 
@@ -1464,6 +1464,17 @@ void vlv_display_irq_reset(struct drm_i915_private *dev_priv)
 
 	GEN3_IRQ_RESET(uncore, VLV_);
 	dev_priv->irq_mask = ~0u;
+}
+
+void i9xx_display_irq_reset(struct drm_i915_private *i915)
+{
+	if (I915_HAS_HOTPLUG(i915)) {
+		i915_hotplug_interrupt_update(i915, 0xffffffff, 0);
+		intel_uncore_rmw(&i915->uncore,
+				 PORT_HOTPLUG_STAT(i915), 0, 0);
+	}
+
+	i9xx_pipestat_irq_reset(i915);
 }
 
 void vlv_display_irq_postinstall(struct drm_i915_private *dev_priv)

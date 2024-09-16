@@ -849,7 +849,7 @@ static void i8xx_irq_reset(struct drm_i915_private *dev_priv)
 {
 	struct intel_uncore *uncore = &dev_priv->uncore;
 
-	i9xx_pipestat_irq_reset(dev_priv);
+	i9xx_display_irq_reset(dev_priv);
 
 	gen2_irq_reset(uncore);
 	dev_priv->irq_mask = ~0u;
@@ -1037,13 +1037,7 @@ static void i915_irq_reset(struct drm_i915_private *dev_priv)
 {
 	struct intel_uncore *uncore = &dev_priv->uncore;
 
-	if (I915_HAS_HOTPLUG(dev_priv)) {
-		i915_hotplug_interrupt_update(dev_priv, 0xffffffff, 0);
-		intel_uncore_rmw(&dev_priv->uncore,
-				 PORT_HOTPLUG_STAT(dev_priv), 0, 0);
-	}
-
-	i9xx_pipestat_irq_reset(dev_priv);
+	i9xx_display_irq_reset(dev_priv);
 
 	GEN3_IRQ_RESET(uncore, GEN2_);
 	dev_priv->irq_mask = ~0u;
@@ -1148,10 +1142,7 @@ static void i965_irq_reset(struct drm_i915_private *dev_priv)
 {
 	struct intel_uncore *uncore = &dev_priv->uncore;
 
-	i915_hotplug_interrupt_update(dev_priv, 0xffffffff, 0);
-	intel_uncore_rmw(uncore, PORT_HOTPLUG_STAT(dev_priv), 0, 0);
-
-	i9xx_pipestat_irq_reset(dev_priv);
+	i9xx_display_irq_reset(dev_priv);
 
 	GEN3_IRQ_RESET(uncore, GEN2_);
 	dev_priv->irq_mask = ~0u;
