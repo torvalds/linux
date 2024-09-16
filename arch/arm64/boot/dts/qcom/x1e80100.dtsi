@@ -3126,14 +3126,16 @@
 
 			clocks = <&gcc GCC_PCIE_5_AUX_CLK>,
 				 <&gcc GCC_PCIE_5_CFG_AHB_CLK>,
-				 <&rpmhcc RPMH_CXO_CLK>,
+				 <&tcsr TCSR_PCIE_2L_5_CLKREF_EN>,
 				 <&gcc GCC_PCIE_5_PHY_RCHNG_CLK>,
-				 <&gcc GCC_PCIE_5_PIPE_CLK>;
+				 <&gcc GCC_PCIE_5_PIPE_CLK>,
+				 <&gcc GCC_PCIE_5_PIPEDIV2_CLK>;
 			clock-names = "aux",
 				      "cfg_ahb",
 				      "ref",
 				      "rchng",
-				      "pipe";
+				      "pipe",
+				      "pipediv2";
 
 			resets = <&gcc GCC_PCIE_5_PHY_BCR>;
 			reset-names = "phy";
