@@ -470,7 +470,7 @@ static int gfs2_dinode_in(struct gfs2_inode *ip, const void *buf)
  * Returns: errno
  */
 
-int gfs2_inode_refresh(struct gfs2_inode *ip)
+static int gfs2_inode_refresh(struct gfs2_inode *ip)
 {
 	struct buffer_head *dibh;
 	int error;
