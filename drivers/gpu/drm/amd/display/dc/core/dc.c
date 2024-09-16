@@ -1235,16 +1235,8 @@ static void disable_dangling_plane(struct dc *dc, struct dc_state *context)
 			 */
 			if (is_phantom) {
 				if (tg->funcs->enable_crtc) {
-					int main_pipe_width = 0, main_pipe_height = 0;
-					struct dc_stream_state *old_paired_stream = dc_state_get_paired_subvp_stream(dc->current_state, old_stream);
-
-					if (old_paired_stream) {
-						main_pipe_width = old_paired_stream->dst.width;
-						main_pipe_height = old_paired_stream->dst.height;
-					}
-
-					if (dc->hwss.blank_phantom)
-						dc->hwss.blank_phantom(dc, tg, main_pipe_width, main_pipe_height);
+					if (dc->hwseq->funcs.blank_pixel_data)
+						dc->hwseq->funcs.blank_pixel_data(dc, pipe, true);
 					tg->funcs->enable_crtc(tg);
 				}
 			}
