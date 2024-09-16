@@ -24,7 +24,7 @@
 
 #define DIV_MAX		255
 
-static const char *clk_names[N_CLOCKS] = {
+static const char * const clk_names[N_CLOCKS] = {
 	"qspi0", "qspi1", "qspi2", "sdmmc0",
 	"pi", "mcan0", "mcan1", "flexcom0",
 	"flexcom1", "flexcom2", "flexcom3",
