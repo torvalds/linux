@@ -1430,7 +1430,7 @@ static void rtw8723d_pwr_track(struct rtw_dev *rtwdev)
 	dm_info->pwr_trk_triggered = false;
 }
 
-static struct rtw_chip_ops rtw8723d_ops = {
+static const struct rtw_chip_ops rtw8723d_ops = {
 	.phy_set_param		= rtw8723d_phy_set_param,
 	.read_efuse		= rtw8723x_read_efuse,
 	.query_rx_desc		= rtw8723d_query_rx_desc,
@@ -1788,7 +1788,7 @@ static const struct rtw_pwr_seq_cmd trans_cardemu_to_act_8723d[] = {
 	 RTW_PWR_CMD_END, 0, 0},
 };
 
-static const struct rtw_pwr_seq_cmd *card_enable_flow_8723d[] = {
+static const struct rtw_pwr_seq_cmd * const card_enable_flow_8723d[] = {
 	trans_carddis_to_cardemu_8723d,
 	trans_cardemu_to_act_8723d,
 	NULL
@@ -2004,7 +2004,7 @@ static const struct rtw_pwr_seq_cmd trans_act_to_post_carddis_8723d[] = {
 	 RTW_PWR_CMD_END, 0, 0},
 };
 
-static const struct rtw_pwr_seq_cmd *card_disable_flow_8723d[] = {
+static const struct rtw_pwr_seq_cmd * const card_disable_flow_8723d[] = {
 	trans_act_to_lps_8723d,
 	trans_act_to_pre_carddis_8723d,
 	trans_act_to_cardemu_8723d,

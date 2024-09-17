@@ -1978,13 +1978,13 @@ static const struct rtw_pwr_seq_cmd trans_cardemu_to_carddis_8822b[] = {
 	 RTW_PWR_CMD_END, 0, 0},
 };
 
-static const struct rtw_pwr_seq_cmd *card_enable_flow_8822b[] = {
+static const struct rtw_pwr_seq_cmd * const card_enable_flow_8822b[] = {
 	trans_carddis_to_cardemu_8822b,
 	trans_cardemu_to_act_8822b,
 	NULL
 };
 
-static const struct rtw_pwr_seq_cmd *card_disable_flow_8822b[] = {
+static const struct rtw_pwr_seq_cmd * const card_disable_flow_8822b[] = {
 	trans_act_to_cardemu_8822b,
 	trans_cardemu_to_carddis_8822b,
 	NULL
@@ -2156,7 +2156,7 @@ static const struct rtw_rqpn rqpn_table_8822b[] = {
 	 RTW_DMA_MAPPING_EXTRA, RTW_DMA_MAPPING_HIGH},
 };
 
-static struct rtw_prioq_addrs prioq_addrs_8822b = {
+static const struct rtw_prioq_addrs prioq_addrs_8822b = {
 	.prio[RTW_DMA_MAPPING_EXTRA] = {
 		.rsvd = REG_FIFOPAGE_INFO_4, .avail = REG_FIFOPAGE_INFO_4 + 2,
 	},
@@ -2172,7 +2172,7 @@ static struct rtw_prioq_addrs prioq_addrs_8822b = {
 	.wsize = true,
 };
 
-static struct rtw_chip_ops rtw8822b_ops = {
+static const struct rtw_chip_ops rtw8822b_ops = {
 	.phy_set_param		= rtw8822b_phy_set_param,
 	.read_efuse		= rtw8822b_read_efuse,
 	.query_rx_desc		= rtw8822b_query_rx_desc,
@@ -2521,7 +2521,7 @@ static const struct rtw_reg_domain coex_info_hw_regs_8822b[] = {
 	{0xc50,  MASKBYTE0, RTW_REG_DOMAIN_MAC8},
 };
 
-static struct rtw_hw_reg_offset rtw8822b_edcca_th[] = {
+static const struct rtw_hw_reg_offset rtw8822b_edcca_th[] = {
 	[EDCCA_TH_L2H_IDX] = {{.addr = 0x8a4, .mask = MASKBYTE0}, .offset = 0},
 	[EDCCA_TH_H2L_IDX] = {{.addr = 0x8a4, .mask = MASKBYTE1}, .offset = 0},
 };

@@ -1167,7 +1167,7 @@ enum rtw_fwcd_item {
 
 /* hardware configuration for each IC */
 struct rtw_chip_info {
-	struct rtw_chip_ops *ops;
+	const struct rtw_chip_ops *ops;
 	u8 id;
 
 	const char *fw_name;
@@ -1209,8 +1209,8 @@ struct rtw_chip_info {
 
 	/* init values */
 	u8 sys_func_en;
-	const struct rtw_pwr_seq_cmd **pwr_on_seq;
-	const struct rtw_pwr_seq_cmd **pwr_off_seq;
+	const struct rtw_pwr_seq_cmd * const *pwr_on_seq;
+	const struct rtw_pwr_seq_cmd * const *pwr_off_seq;
 	const struct rtw_rqpn *rqpn_table;
 	const struct rtw_prioq_addrs *prioq_addrs;
 	const struct rtw_page_table *page_table;
@@ -1242,7 +1242,7 @@ struct rtw_chip_info {
 	u8 bfer_su_max_num;
 	u8 bfer_mu_max_num;
 
-	struct rtw_hw_reg_offset *edcca_th;
+	const struct rtw_hw_reg_offset *edcca_th;
 	s8 l2h_th_ini_cs;
 	s8 l2h_th_ini_ad;
 
