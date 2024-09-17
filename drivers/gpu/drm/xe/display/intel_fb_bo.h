@@ -15,7 +15,7 @@ struct xe_bo;
 
 void intel_fb_bo_framebuffer_fini(struct xe_bo *bo);
 int intel_fb_bo_framebuffer_init(struct intel_framebuffer *intel_fb,
-				 struct xe_bo *bo,
+				 struct drm_gem_object *obj,
 				 struct drm_mode_fb_cmd2 *mode_cmd);
 
 struct drm_gem_object *intel_fb_bo_lookup_valid_bo(struct drm_i915_private *i915,

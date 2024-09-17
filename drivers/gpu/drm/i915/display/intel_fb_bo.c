@@ -17,9 +17,10 @@ void intel_fb_bo_framebuffer_fini(struct drm_i915_gem_object *obj)
 }
 
 int intel_fb_bo_framebuffer_init(struct intel_framebuffer *intel_fb,
-				 struct drm_i915_gem_object *obj,
+				 struct drm_gem_object *_obj,
 				 struct drm_mode_fb_cmd2 *mode_cmd)
 {
+	struct drm_i915_gem_object *obj = to_intel_bo(_obj);
 	struct drm_i915_private *i915 = to_i915(obj->base.dev);
 	unsigned int tiling, stride;
 
