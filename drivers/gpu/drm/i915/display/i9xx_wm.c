@@ -7,6 +7,7 @@
 #include "i915_reg.h"
 #include "i9xx_wm.h"
 #include "intel_atomic.h"
+#include "intel_bo.h"
 #include "intel_display.h"
 #include "intel_display_trace.h"
 #include "intel_fb.h"
@@ -2185,12 +2186,12 @@ static void i9xx_update_wm(struct drm_i915_private *dev_priv)
 
 	crtc = single_enabled_crtc(dev_priv);
 	if (IS_I915GM(dev_priv) && crtc) {
-		struct drm_i915_gem_object *obj;
+		struct drm_gem_object *obj;
 
-		obj = intel_fb_obj(crtc->base.primary->state->fb);
+		obj = intel_fb_bo(crtc->base.primary->state->fb);
 
 		/* self-refresh seems busted with untiled */
-		if (!i915_gem_object_is_tiled(obj))
+		if (!intel_bo_is_tiled(obj))
 			crtc = NULL;
 	}
 

@@ -2125,3 +2125,8 @@ struct drm_i915_gem_object *intel_fb_obj(const struct drm_framebuffer *fb)
 {
 	return fb ? to_intel_bo(fb->obj[0]) : NULL;
 }
+
+struct drm_gem_object *intel_fb_bo(const struct drm_framebuffer *fb)
+{
+	return fb ? fb->obj[0] : NULL;
+}

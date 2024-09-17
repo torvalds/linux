@@ -12,6 +12,7 @@
 struct drm_device;
 struct drm_file;
 struct drm_framebuffer;
+struct drm_gem_object;
 struct drm_i915_gem_object;
 struct drm_i915_private;
 struct drm_mode_fb_cmd2;
@@ -97,5 +98,7 @@ bool intel_fb_uses_dpt(const struct drm_framebuffer *fb);
 unsigned int intel_fb_modifier_to_tiling(u64 fb_modifier);
 
 struct drm_i915_gem_object *intel_fb_obj(const struct drm_framebuffer *fb);
+
+struct drm_gem_object *intel_fb_bo(const struct drm_framebuffer *fb);
 
 #endif /* __INTEL_FB_H__ */

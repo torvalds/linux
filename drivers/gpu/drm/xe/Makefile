@@ -165,6 +165,7 @@ $(obj)/i915-display/%.o: $(srctree)/drivers/gpu/drm/i915/display/%.c FORCE
 xe-$(CONFIG_DRM_XE_DISPLAY) += \
 	display/ext/i915_irq.o \
 	display/ext/i915_utils.o \
+	display/intel_bo.o \
 	display/intel_fb_bo.o \
 	display/intel_fbdev_fb.o \
 	display/xe_display.o \
