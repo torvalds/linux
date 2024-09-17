@@ -809,19 +809,19 @@ properties:
           - const: kontron,sl-imx6ull   # Kontron SL i.MX6ULL SoM
           - const: fsl,imx6ull
 
-      - description: TQ Systems TQMa6ULLx SoM on MBa6ULx board
+      - description: TQ-Systems TQMa6ULLx SoM on MBa6ULx board
         items:
           - enum:
-              - tq,imx6ull-tqma6ull2-mba6ulx
-          - const: tq,imx6ull-tqma6ull2      # MCIMX6Y2
+              - tq,imx6ull-tqma6ull2-mba6ulx # TQMa6ULL socketable SoM with MCIMX6Y2 on MBa6ULx EVK
+          - const: tq,imx6ull-tqma6ull2      # TQMa6ULL socketable SoM with MCIMX6Y2
           - const: fsl,imx6ull
 
-      - description: TQ Systems TQMa6ULLxL SoM on MBa6ULx[L] board
+      - description: TQ-Systems TQMa6ULLxL SoM on MBa6ULx[L] board
         items:
           - enum:
-              - tq,imx6ull-tqma6ull2l-mba6ulx # using LGA adapter
-              - tq,imx6ull-tqma6ull2l-mba6ulxl
-          - const: tq,imx6ull-tqma6ull2l      # MCIMX6Y2, LGA SoM variant
+              - tq,imx6ull-tqma6ull2l-mba6ulx  # TQMa6ULLxL LGA SoM with socketable Adapter on MBa6ULx EVK
+              - tq,imx6ull-tqma6ull2l-mba6ulxl # TQMa6ULLxL LGA SoM on MBa6ULxL gateway board
+          - const: tq,imx6ull-tqma6ull2l       # TQMa6ULLxL LGA SoM with MCIMX6Y2
           - const: fsl,imx6ull
 
       - description: Seeed Stuido i.MX6ULL SoM on dev boards
@@ -939,8 +939,8 @@ properties:
               - fsl,imx8mm-ddr4-evk       # i.MX8MM DDR4 EVK Board
               - fsl,imx8mm-evk            # i.MX8MM EVK Board
               - fsl,imx8mm-evkb           # i.MX8MM EVKB Board
+              - gateworks,imx8mm-gw75xx-0x # i.MX8MM Gateworks Board
               - gateworks,imx8mm-gw7904
-              - gateworks,imx8mm-gw7905-0x # i.MX8MM Gateworks Board
               - gw,imx8mm-gw71xx-0x       # i.MX8MM Gateworks Development Kit
               - gw,imx8mm-gw72xx-0x       # i.MX8MM Gateworks Development Kit
               - gw,imx8mm-gw73xx-0x       # i.MX8MM Gateworks Development Kit
@@ -953,7 +953,6 @@ properties:
               - toradex,verdin-imx8mm     # Verdin iMX8M Mini Modules
               - toradex,verdin-imx8mm-nonwifi  # Verdin iMX8M Mini Modules without Wi-Fi / BT
               - toradex,verdin-imx8mm-wifi  # Verdin iMX8M Mini Wi-Fi / BT Modules
-              - variscite,var-som-mx8mm   # i.MX8MM Variscite VAR-SOM-MX8MM module
               - prt,prt8mm                # i.MX8MM Protonic PRT8MM Board
           - const: fsl,imx8mm
 
@@ -1082,7 +1081,7 @@ properties:
               - gateworks,imx8mp-gw72xx-2x # i.MX8MP Gateworks Board
               - gateworks,imx8mp-gw73xx-2x # i.MX8MP Gateworks Board
               - gateworks,imx8mp-gw74xx   # i.MX8MP Gateworks Board
-              - gateworks,imx8mp-gw7905-2x # i.MX8MP Gateworks Board
+              - gateworks,imx8mp-gw75xx-2x # i.MX8MP Gateworks Board
               - skov,imx8mp-skov-revb-hdmi # SKOV i.MX8MP climate control without panel
               - skov,imx8mp-skov-revb-lt6 # SKOV i.MX8MP climate control with 7” panel
               - skov,imx8mp-skov-revb-mi1010ait-1cp1 # SKOV i.MX8MP climate control with 10.1" panel
@@ -1166,6 +1165,12 @@ properties:
               - tq,imx8mp-tqma8mpql-mba8mpxl      # TQ-Systems GmbH i.MX8MP TQMa8MPQL SOM on MBa8MPxL
               - tq,imx8mp-tqma8mpql-mba8mp-ras314 # TQ-Systems GmbH i.MX8MP TQMa8MPQL SOM on MBa8MP-RAS314
           - const: tq,imx8mp-tqma8mpql            # TQ-Systems GmbH i.MX8MP TQMa8MPQL SOM
+          - const: fsl,imx8mp
+
+      - description: Variscite VAR-SOM-MX8M Plus based boards
+        items:
+          - const: variscite,var-som-mx8mp-symphony
+          - const: variscite,var-som-mx8mp
           - const: fsl,imx8mp
 
       - description: i.MX8MQ based Boards
@@ -1293,6 +1298,7 @@ properties:
           - enum:
               - fsl,imx93-9x9-qsb         # i.MX93 9x9 QSB Board
               - fsl,imx93-11x11-evk       # i.MX93 11x11 EVK Board
+              - fsl,imx93-14x14-evk       # i.MX93 14x14 EVK Board
           - const: fsl,imx93
 
       - description: i.MX95 based Boards
@@ -1342,6 +1348,12 @@ properties:
         items:
           - const: variscite,var-som-mx93-symphony
           - const: variscite,var-som-mx93
+          - const: fsl,imx93
+
+      - description: Kontron OSM-S i.MX93 SoM based boards
+        items:
+          - const: kontron,imx93-bl-osm-s # Kontron BL i.MX93 OSM-S board
+          - const: kontron,imx93-osm-s    # Kontron OSM-S i.MX93 SoM
           - const: fsl,imx93
 
       - description:
@@ -1522,6 +1534,12 @@ properties:
               - fsl,ls2080a-qds
               - fsl,ls2080a-rdb
           - const: fsl,ls2080a
+
+      - description: LS2081A based Boards
+        items:
+          - enum:
+              - fsl,ls2081a-rdb
+          - const: fsl,ls2081a
 
       - description: LS2088A based Boards
         items:

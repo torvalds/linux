@@ -254,8 +254,8 @@
 		interrupts = <6 4>; /* PATA_DATA6, active high */
 	};
 
-	sensor1: lm75@48 {
-		compatible = "lm75";
+	sensor1: temperature-sensor@48 {
+		compatible = "national,lm75b";
 		reg = <0x48>;
 	};
 

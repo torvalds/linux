@@ -247,7 +247,7 @@
 			qcom,smd-edge = <15>;
 
 			rpm_requests: rpm-requests {
-				compatible = "qcom,rpm-msm8976";
+				compatible = "qcom,rpm-msm8976", "qcom,smd-rpm";
 				qcom,smd-channels = "rpm_requests";
 
 				rpmcc: clock-controller {
@@ -661,6 +661,11 @@
 					   "s10_p1", "s10_p2";
 			#qcom,sensors = <11>;
 			#thermal-sensor-cells = <1>;
+		};
+
+		restart@4ab000 {
+			compatible = "qcom,pshold";
+			reg = <0x004ab000 0x4>;
 		};
 
 		tlmm: pinctrl@1000000 {

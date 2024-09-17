@@ -14,7 +14,7 @@
 	compatible = "crystalfontz,cfa10037", "crystalfontz,cfa10036", "fsl,imx28";
 
 	apb@80000000 {
-		apbh@80000000 {
+		apbh-bus@80000000 {
 			pinctrl@80018000 {
 				usb_pins_cfa10037: usb-10037@0 {
 					reg = <0>;
@@ -38,7 +38,7 @@
 			};
 		};
 
-		apbx@80040000 {
+		apbx-bus@80040000 {
 			usbphy1: usbphy@8007e000 {
 				status = "okay";
 			};

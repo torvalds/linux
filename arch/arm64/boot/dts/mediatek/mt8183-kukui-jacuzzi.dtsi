@@ -91,16 +91,11 @@
 
 &dsi0 {
 	status = "okay";
-	/delete-property/#size-cells;
-	/delete-property/#address-cells;
 	/delete-node/panel@0;
-	ports {
-		port {
-			dsi_out: endpoint {
-				remote-endpoint = <&anx7625_in>;
-			};
-		};
-	};
+};
+
+&dsi_out {
+	remote-endpoint = <&anx7625_in>;
 };
 
 &i2c0 {

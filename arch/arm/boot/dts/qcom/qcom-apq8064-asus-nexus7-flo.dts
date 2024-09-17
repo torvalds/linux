@@ -125,8 +125,6 @@
 &gsbi1_i2c {
 	status = "okay";
 	clock-frequency = <200000>;
-	pinctrl-0 = <&i2c1_pins>;
-	pinctrl-names = "default";
 
 	eeprom@52 {
 		compatible = "atmel,24c128";
@@ -148,8 +146,6 @@
 
 &gsbi3_i2c {
 	clock-frequency = <200000>;
-	pinctrl-0 = <&i2c3_pins>;
-	pinctrl-names = "default";
 	status = "okay";
 
 	trackpad@10 {

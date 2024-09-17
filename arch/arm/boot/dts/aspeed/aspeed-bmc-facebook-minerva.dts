@@ -11,7 +11,8 @@
 	compatible = "facebook,minerva-cmc", "aspeed,ast2600";
 
 	aliases {
-		serial5 = &uart5;
+		serial4 = &uart5;
+		serial5 = &uart6;
 		/*
 		 * PCA9548 (2-0077) provides 8 channels connecting to
 		 * 6 pcs of FCB (Fan Controller Board).
@@ -22,6 +23,8 @@
 		i2c19 = &imux19;
 		i2c20 = &imux20;
 		i2c21 = &imux21;
+
+		spi1 = &spi_gpio;
 	};
 
 	chosen {
@@ -43,10 +46,53 @@
 	leds {
 		compatible = "gpio-leds";
 
-		led-fan-fault {
-			label = "led-fan-fault";
+		led-0 {
+			label = "bmc_heartbeat_amber";
+			gpios = <&gpio0 ASPEED_GPIO(P, 7) GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "heartbeat";
+		};
+
+		led-1 {
+			label = "fp_id_amber";
+			default-state = "off";
+			gpios = <&gpio0 ASPEED_GPIO(B, 5) GPIO_ACTIVE_HIGH>;
+		};
+
+		led-2 {
+			label = "power_blue";
+			default-state = "off";
+			gpios = <&gpio0 ASPEED_GPIO(P, 4) GPIO_ACTIVE_HIGH>;
+		};
+
+		led-3 {
+			label = "fan_status_led";
 			gpios = <&leds_gpio 9 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
+		};
+
+		led-4 {
+			label = "fan_fault_led_n";
+			gpios = <&leds_gpio 10 GPIO_ACTIVE_LOW>;
+			default-state = "off";
+		};
+	};
+
+	spi_gpio: spi {
+		status = "okay";
+		compatible = "spi-gpio";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		sck-gpios = <&gpio0 ASPEED_GPIO(Z, 3) GPIO_ACTIVE_HIGH>;
+		mosi-gpios = <&gpio0 ASPEED_GPIO(Z, 4) GPIO_ACTIVE_HIGH>;
+		miso-gpios = <&gpio0 ASPEED_GPIO(Z, 5) GPIO_ACTIVE_HIGH>;
+		num-chipselects = <1>;
+		cs-gpios = <&gpio0 ASPEED_GPIO(Z, 0) GPIO_ACTIVE_LOW>;
+
+		tpm@0 {
+			compatible = "infineon,slb9670", "tcg,tpm_tis-spi";
+			spi-max-frequency = <33000000>;
+			reg = <0>;
 		};
 	};
 };
@@ -77,6 +123,10 @@
 	};
 };
 
+&mdio3 {
+	status = "okay";
+};
+
 &fmc {
 	status = "okay";
 	flash@0 {
@@ -92,10 +142,6 @@
 		label = "alt-bmc";
 		spi-max-frequency = <50000000>;
 	};
-};
-
-&rtc {
-	status = "okay";
 };
 
 &sgpiom0 {
@@ -119,14 +165,15 @@
 		shunt-resistor = <1000>;
 	};
 
-	power-monitor@67 {
-		compatible = "adi,ltc2945";
-		reg = <0x67>;
+	power-monitor@44 {
+		compatible = "lltc,ltc4287";
+		reg = <0x44>;
+		shunt-resistor-micro-ohms = <2000>;
 	};
 
-	power-monitor@68 {
-		compatible = "adi,ltc2945";
-		reg = <0x68>;
+	power-monitor@43 {
+		compatible = "infineon,xdp710";
+		reg = <0x43>;
 	};
 
 	leds_gpio: gpio@19 {
@@ -145,9 +192,9 @@
 		reg = <0x4b>;
 	};
 
-	temperature-sensor@48 {
+	temperature-sensor@4f {
 		compatible = "ti,tmp75";
-		reg = <0x48>;
+		reg = <0x4f>;
 	};
 
 	eeprom@54 {
@@ -182,6 +229,35 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 			};
+
+			power-sensor@40 {
+				compatible = "ti,ina238";
+				reg = <0x40>;
+				shunt-resistor = <1000>;
+			};
+
+			power-sensor@41 {
+				compatible = "ti,ina238";
+				reg = <0x41>;
+				shunt-resistor = <1000>;
+			};
+
+			power-sensor@44 {
+				compatible = "ti,ina238";
+				reg = <0x44>;
+				shunt-resistor = <1000>;
+			};
+
+			power-sensor@45 {
+				compatible = "ti,ina238";
+				reg = <0x45>;
+				shunt-resistor = <1000>;
+			};
+
+			temperature-sensor@4b {
+				compatible = "ti,tmp75";
+				reg = <0x4b>;
+			};
 		};
 
 		imux17: i2c@1 {
@@ -199,6 +275,35 @@
 				reg = <0x5e>;
 				#address-cells = <1>;
 				#size-cells = <0>;
+			};
+
+			power-sensor@40 {
+				compatible = "ti,ina238";
+				reg = <0x40>;
+				shunt-resistor = <1000>;
+			};
+
+			power-sensor@41 {
+				compatible = "ti,ina238";
+				reg = <0x41>;
+				shunt-resistor = <1000>;
+			};
+
+			power-sensor@44 {
+				compatible = "ti,ina238";
+				reg = <0x44>;
+				shunt-resistor = <1000>;
+			};
+
+			power-sensor@45 {
+				compatible = "ti,ina238";
+				reg = <0x45>;
+				shunt-resistor = <1000>;
+			};
+
+			temperature-sensor@4b {
+				compatible = "ti,tmp75";
+				reg = <0x4b>;
 			};
 		};
 
@@ -218,6 +323,35 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 			};
+
+			power-sensor@40 {
+				compatible = "ti,ina238";
+				reg = <0x40>;
+				shunt-resistor = <1000>;
+			};
+
+			power-sensor@41 {
+				compatible = "ti,ina238";
+				reg = <0x41>;
+				shunt-resistor = <1000>;
+			};
+
+			power-sensor@44 {
+				compatible = "ti,ina238";
+				reg = <0x44>;
+				shunt-resistor = <1000>;
+			};
+
+			power-sensor@45 {
+				compatible = "ti,ina238";
+				reg = <0x45>;
+				shunt-resistor = <1000>;
+			};
+
+			temperature-sensor@4b {
+				compatible = "ti,tmp75";
+				reg = <0x4b>;
+			};
 		};
 
 		imux19: i2c@3 {
@@ -236,9 +370,38 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 			};
+
+			power-sensor@40 {
+				compatible = "ti,ina238";
+				reg = <0x40>;
+				shunt-resistor = <1000>;
+			};
+
+			power-sensor@41 {
+				compatible = "ti,ina238";
+				reg = <0x41>;
+				shunt-resistor = <1000>;
+			};
+
+			power-sensor@44 {
+				compatible = "ti,ina238";
+				reg = <0x44>;
+				shunt-resistor = <1000>;
+			};
+
+			power-sensor@45 {
+				compatible = "ti,ina238";
+				reg = <0x45>;
+				shunt-resistor = <1000>;
+			};
+
+			temperature-sensor@4b {
+				compatible = "ti,tmp75";
+				reg = <0x4b>;
+			};
 		};
 
-		imux20: i2c@4 {
+		imux20: i2c@5 {
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <4>;
@@ -254,9 +417,37 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 			};
+
+			power-sensor@40 {
+				compatible = "ti,ina238";
+				reg = <0x40>;
+				shunt-resistor = <1000>;
+			};
+
+			power-sensor@41 {
+				compatible = "ti,ina238";
+				reg = <0x41>;
+				shunt-resistor = <1000>;
+			};
+
+			power-sensor@44 {
+				compatible = "ti,ina238";
+				reg = <0x44>;
+				shunt-resistor = <1000>;
+			};
+
+			power-sensor@45 {
+				compatible = "ti,ina238";
+				reg = <0x45>;
+				shunt-resistor = <1000>;
+			};
+			temperature-sensor@4b {
+				compatible = "ti,tmp75";
+				reg = <0x4b>;
+			};
 		};
 
-		imux21: i2c@5 {
+		imux21: i2c@4 {
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <5>;
@@ -271,6 +462,34 @@
 				reg = <0x5e>;
 				#address-cells = <1>;
 				#size-cells = <0>;
+			};
+
+			power-sensor@40 {
+				compatible = "ti,ina238";
+				reg = <0x40>;
+				shunt-resistor = <1000>;
+			};
+
+			power-sensor@41 {
+				compatible = "ti,ina238";
+				reg = <0x41>;
+				shunt-resistor = <1000>;
+			};
+
+			power-sensor@44 {
+				compatible = "ti,ina238";
+				reg = <0x44>;
+				shunt-resistor = <1000>;
+			};
+
+			power-sensor@45 {
+				compatible = "ti,ina238";
+				reg = <0x45>;
+				shunt-resistor = <1000>;
+			};
+			temperature-sensor@4b {
+				compatible = "ti,tmp75";
+				reg = <0x4b>;
 			};
 		};
 	};
@@ -302,14 +521,16 @@
 
 &i2c9 {
 	status = "okay";
-};
 
-&i2c10 {
-	status = "okay";
-};
+	eeprom@50 {
+		compatible = "atmel,24c64";
+		reg = <0x50>;
+	};
 
-&i2c11 {
-	status = "okay";
+	rtc@51 {
+		compatible = "nxp,pcf8563";
+		reg = <0x51>;
+	};
 };
 
 &i2c12 {
@@ -338,6 +559,11 @@
 		compatible = "atmel,24c128";
 		reg = <0x50>;
 	};
+
+	eeprom@56 {
+		compatible = "atmel,24c64";
+		reg = <0x56>;
+	};
 };
 
 &adc0 {
@@ -353,6 +579,10 @@
 	aspeed,int-vref-microvolt = <2500000>;
 	status = "okay";
 	pinctrl-0 = <&pinctrl_adc10_default>;
+};
+
+&ehci0 {
+	status = "okay";
 };
 
 &ehci1 {
@@ -381,12 +611,12 @@
 	/*N0-N7*/	"","","","","","","","",
 	/*O0-O7*/	"","","","","","","","",
 	/*P0-P7*/	"","","","","","","","",
-	/*Q0-Q7*/	"","","","","","","","",
+	/*Q0-Q7*/	"","","","","","power-chassis-control","","",
 	/*R0-R7*/	"","","","","","","","",
-	/*S0-S7*/	"","","","","","","","",
+	/*S0-S7*/	"","","","","","","","host0-ready",
 	/*T0-T7*/	"","","","","","","","",
 	/*U0-U7*/	"","","","","","","","",
-	/*V0-V7*/	"","","","","BAT_DETECT","","","",
+	/*V0-V7*/	"","","","","BAT_DETECT","","power-chassis-good","",
 	/*W0-W7*/	"","","","","","","","",
 	/*X0-X7*/	"","","BLADE_UART_SEL3","","","","","",
 	/*Y0-Y7*/	"","","","","","","","",
@@ -397,118 +627,118 @@
 	gpio-line-names =
 	/*"input pin","output pin"*/
 	/*A0 - A7*/
-	"PRSNT_MTIA_BLADE0_N","PWREN_MTIA_BLADE0_EN",
-	"PRSNT_MTIA_BLADE1_N","PWREN_MTIA_BLADE1_EN",
-	"PRSNT_MTIA_BLADE2_N","PWREN_MTIA_BLADE2_EN",
-	"PRSNT_MTIA_BLADE3_N","PWREN_MTIA_BLADE3_EN",
-	"PRSNT_MTIA_BLADE4_N","PWREN_MTIA_BLADE4_EN",
-	"PRSNT_MTIA_BLADE5_N","PWREN_MTIA_BLADE5_EN",
-	"PRSNT_MTIA_BLADE6_N","PWREN_MTIA_BLADE6_EN",
-	"PRSNT_MTIA_BLADE7_N","PWREN_MTIA_BLADE7_EN",
+	"PRSNT_MTIA_BLADE0_N","PWREN_MTIA_BLADE0_EN_N",
+	"PRSNT_MTIA_BLADE1_N","PWREN_MTIA_BLADE1_EN_N",
+	"PRSNT_MTIA_BLADE2_N","PWREN_MTIA_BLADE2_EN_N",
+	"PRSNT_MTIA_BLADE3_N","PWREN_MTIA_BLADE3_EN_N",
+	"PRSNT_MTIA_BLADE4_N","PWREN_MTIA_BLADE4_EN_N",
+	"PRSNT_MTIA_BLADE5_N","PWREN_MTIA_BLADE5_EN_N",
+	"PRSNT_MTIA_BLADE6_N","PWREN_MTIA_BLADE6_EN_N",
+	"PRSNT_MTIA_BLADE7_N","PWREN_MTIA_BLADE7_EN_N",
 	/*B0 - B7*/
-	"PRSNT_MTIA_BLADE8_N","PWREN_MTIA_BLADE8_EN",
-	"PRSNT_MTIA_BLADE9_N","PWREN_MTIA_BLADE9_EN",
-	"PRSNT_MTIA_BLADE10_N","PWREN_MTIA_BLADE10_EN",
-	"PRSNT_MTIA_BLADE11_N","PWREN_MTIA_BLADE11_EN",
-	"PRSNT_MTIA_BLADE12_N","PWREN_MTIA_BLADE12_EN",
-	"PRSNT_MTIA_BLADE13_N","PWREN_MTIA_BLADE13_EN",
-	"PRSNT_MTIA_BLADE14_N","PWREN_MTIA_BLADE14_EN",
-	"PRSNT_MTIA_BLADE15_N","PWREN_MTIA_BLADE15_EN",
+	"PRSNT_MTIA_BLADE8_N","PWREN_MTIA_BLADE8_EN_N",
+	"PRSNT_MTIA_BLADE9_N","PWREN_MTIA_BLADE9_EN_N",
+	"PRSNT_MTIA_BLADE10_N","PWREN_MTIA_BLADE10_EN_N",
+	"PRSNT_MTIA_BLADE11_N","PWREN_MTIA_BLADE11_EN_N",
+	"PRSNT_MTIA_BLADE12_N","PWREN_MTIA_BLADE12_EN_N",
+	"PRSNT_MTIA_BLADE13_N","PWREN_MTIA_BLADE13_EN_N",
+	"PRSNT_MTIA_BLADE14_N","PWREN_MTIA_BLADE14_EN_N",
+	"PRSNT_MTIA_BLADE15_N","PWREN_MTIA_BLADE15_EN_N",
 	/*C0 - C7*/
-	"PRSNT_NW_BLADE0_N","PWREN_NW_BLADE0_EN",
-	"PRSNT_NW_BLADE1_N","PWREN_NW_BLADE1_EN",
-	"PRSNT_NW_BLADE2_N","PWREN_NW_BLADE2_EN",
-	"PRSNT_NW_BLADE3_N","PWREN_NW_BLADE3_EN",
-	"PRSNT_NW_BLADE4_N","PWREN_NW_BLADE4_EN",
-	"PRSNT_NW_BLADE5_N","PWREN_NW_BLADE5_EN",
-	"PRSNT_FCB_TOP_0_N","PWREN_MTIA_BLADE0_HSC_EN",
-	"PRSNT_FCB_TOP_1_N","PWREN_MTIA_BLADE1_HSC_EN",
+	"PRSNT_NW_BLADE0_N","PWREN_NW_BLADE0_EN_N",
+	"PRSNT_NW_BLADE1_N","PWREN_NW_BLADE1_EN_N",
+	"PRSNT_NW_BLADE2_N","PWREN_NW_BLADE2_EN_N",
+	"PRSNT_NW_BLADE3_N","PWREN_NW_BLADE3_EN_N",
+	"PRSNT_NW_BLADE4_N","PWREN_NW_BLADE4_EN_N",
+	"PRSNT_NW_BLADE5_N","PWREN_NW_BLADE5_EN_N",
+	"PRSNT_FCB_TOP_0_N","PWREN_MTIA_BLADE0_HSC_EN_N",
+	"PRSNT_FCB_TOP_1_N","PWREN_MTIA_BLADE1_HSC_EN_N",
 	/*D0 - D7*/
-	"PRSNT_FCB_MIDDLE_0_N","PWREN_MTIA_BLADE2_HSC_EN",
-	"PRSNT_FCB_MIDDLE_1_N","PWREN_MTIA_BLADE3_HSC_EN",
-	"PRSNT_FCB_BOTTOM_0_N","PWREN_MTIA_BLADE4_HSC_EN",
-	"PRSNT_FCB_BOTTOM_1_N","PWREN_MTIA_BLADE5_HSC_EN",
-	"PWRGD_MTIA_BLADE0_PWROK_L_BUF","PWREN_MTIA_BLADE6_HSC_EN",
-	"PWRGD_MTIA_BLADE1_PWROK_L_BUF","PWREN_MTIA_BLADE7_HSC_EN",
-	"PWRGD_MTIA_BLADE2_PWROK_L_BUF","PWREN_MTIA_BLADE8_HSC_EN",
-	"PWRGD_MTIA_BLADE3_PWROK_L_BUF","PWREN_MTIA_BLADE9_HSC_EN",
+	"PRSNT_FCB_MIDDLE_0_N","PWREN_MTIA_BLADE2_HSC_EN_N",
+	"PRSNT_FCB_MIDDLE_1_N","PWREN_MTIA_BLADE3_HSC_EN_N",
+	"PRSNT_FCB_BOTTOM_1_N","PWREN_MTIA_BLADE4_HSC_EN_N",
+	"PRSNT_FCB_BOTTOM_0_N","PWREN_MTIA_BLADE5_HSC_EN_N",
+	"PWRGD_MTIA_BLADE0_PWROK_N","PWREN_MTIA_BLADE6_HSC_EN_N",
+	"PWRGD_MTIA_BLADE1_PWROK_N","PWREN_MTIA_BLADE7_HSC_EN_N",
+	"PWRGD_MTIA_BLADE2_PWROK_N","PWREN_MTIA_BLADE8_HSC_EN_N",
+	"PWRGD_MTIA_BLADE3_PWROK_N","PWREN_MTIA_BLADE9_HSC_EN_N",
 	/*E0 - E7*/
-	"PWRGD_MTIA_BLADE4_PWROK_L_BUF","PWREN_MTIA_BLADE10_HSC_EN",
-	"PWRGD_MTIA_BLADE5_PWROK_L_BUF","PWREN_MTIA_BLADE11_HSC_EN",
-	"PWRGD_MTIA_BLADE6_PWROK_L_BUF","PWREN_MTIA_BLADE12_HSC_EN",
-	"PWRGD_MTIA_BLADE7_PWROK_L_BUF","PWREN_MTIA_BLADE13_HSC_EN",
-	"PWRGD_MTIA_BLADE8_PWROK_L_BUF","PWREN_MTIA_BLADE14_HSC_EN",
-	"PWRGD_MTIA_BLADE9_PWROK_L_BUF","PWREN_MTIA_BLADE15_HSC_EN",
-	"PWRGD_MTIA_BLADE10_PWROK_L_BUF","PWREN_NW_BLADE0_HSC_EN",
-	"PWRGD_MTIA_BLADE11_PWROK_L_BUF","PWREN_NW_BLADE1_HSC_EN",
+	"PWRGD_MTIA_BLADE4_PWROK_N","PWREN_MTIA_BLADE10_HSC_EN_N",
+	"PWRGD_MTIA_BLADE5_PWROK_N","PWREN_MTIA_BLADE11_HSC_EN_N",
+	"PWRGD_MTIA_BLADE6_PWROK_N","PWREN_MTIA_BLADE12_HSC_EN_N",
+	"PWRGD_MTIA_BLADE7_PWROK_N","PWREN_MTIA_BLADE13_HSC_EN_N",
+	"PWRGD_MTIA_BLADE8_PWROK_N","PWREN_MTIA_BLADE14_HSC_EN_N",
+	"PWRGD_MTIA_BLADE9_PWROK_N","PWREN_MTIA_BLADE15_HSC_EN_N",
+	"PWRGD_MTIA_BLADE10_PWROK_N","PWREN_NW_BLADE0_HSC_EN_N",
+	"PWRGD_MTIA_BLADE11_PWROK_N","PWREN_NW_BLADE1_HSC_EN_N",
 	/*F0 - F7*/
-	"PWRGD_MTIA_BLADE12_PWROK_L_BUF","PWREN_NW_BLADE2_HSC_EN",
-	"PWRGD_MTIA_BLADE13_PWROK_L_BUF","PWREN_NW_BLADE3_HSC_EN",
-	"PWRGD_MTIA_BLADE14_PWROK_L_BUF","PWREN_NW_BLADE4_HSC_EN",
-	"PWRGD_MTIA_BLADE15_PWROK_L_BUF","PWREN_NW_BLADE5_HSC_EN",
-	"PWRGD_NW_BLADE0_PWROK_L_BUF","PWREN_FCB_TOP_L_EN",
-	"PWRGD_NW_BLADE1_PWROK_L_BUF","PWREN_FCB_TOP_R_EN",
-	"PWRGD_NW_BLADE2_PWROK_L_BUF","PWREN_FCB_MIDDLE_L_EN",
-	"PWRGD_NW_BLADE3_PWROK_L_BUF","PWREN_FCB_MIDDLE_R_EN",
+	"PWRGD_MTIA_BLADE12_PWROK_N","PWREN_NW_BLADE2_HSC_EN_N",
+	"PWRGD_MTIA_BLADE13_PWROK_N","PWREN_NW_BLADE3_HSC_EN_N",
+	"PWRGD_MTIA_BLADE14_PWROK_N","PWREN_NW_BLADE4_HSC_EN_N",
+	"PWRGD_MTIA_BLADE15_PWROK_N","PWREN_NW_BLADE5_HSC_EN_N",
+	"PWRGD_NW_BLADE0_PWROK_N","PWREN_FCB_TOP_0_EN_N",
+	"PWRGD_NW_BLADE1_PWROK_N","PWREN_FCB_TOP_1_EN_N",
+	"PWRGD_NW_BLADE2_PWROK_N","PWREN_FCB_MIDDLE_0_EN_N",
+	"PWRGD_NW_BLADE3_PWROK_N","PWREN_FCB_MIDDLE_1_EN_N",
 	/*G0 - G7*/
-	"PWRGD_NW_BLADE4_PWROK_L_BUF","PWREN_FCB_BOTTOM_L_EN",
-	"PWRGD_NW_BLADE5_PWROK_L_BUF","PWREN_FCB_BOTTOM_R_EN",
-	"PWRGD_FCB_TOP_0_PWROK_L_BUF","FM_CMM_AC_CYCLE_N",
-	"PWRGD_FCB_TOP_1_PWROK_L_BUF","MGMT_SFP_TX_DIS",
-	"PWRGD_FCB_MIDDLE_0_PWROK_L_BUF","",
-	"PWRGD_FCB_MIDDLE_1_PWROK_L_BUF","RST_I2CRST_MTIA_BLADE0_1_N",
-	"PWRGD_FCB_BOTTOM_0_PWROK_L_BUF","RST_I2CRST_MTIA_BLADE2_3_N",
-	"PWRGD_FCB_BOTTOM_1_PWROK_L_BUF","RST_I2CRST_MTIA_BLADE4_5_N",
+	"PWRGD_NW_BLADE4_PWROK_N","PWREN_FCB_BOTTOM_1_EN_N",
+	"PWRGD_NW_BLADE5_PWROK_N","PWREN_FCB_BOTTOM_0_EN_N",
+	"PWRGD_FCB_TOP_0_PWROK_N","FM_CMM_AC_CYCLE_N",
+	"PWRGD_FCB_TOP_1_PWROK_N","MGMT_SFP_TX_DIS",
+	"PWRGD_FCB_MIDDLE_0_PWROK_N","FM_MDIO_SW_SEL",
+	"PWRGD_FCB_MIDDLE_1_PWROK_N","FM_P24V_SMPWR_EN",
+	"PWRGD_FCB_BOTTOM_1_PWROK_N","",
+	"PWRGD_FCB_BOTTOM_0_PWROK_N","",
 	/*H0 - H7*/
-	"LEAK_DETECT_MTIA_BLADE0_N_BUF","RST_I2CRST_MTIA_BLADE6_7_N",
-	"LEAK_DETECT_MTIA_BLADE1_N_BUF","RST_I2CRST_MTIA_BLADE8_9_N",
-	"LEAK_DETECT_MTIA_BLADE2_N_BUF","RST_I2CRST_MTIA_BLADE10_11_N",
-	"LEAK_DETECT_MTIA_BLADE3_N_BUF","RST_I2CRST_MTIA_BLADE12_13_N",
-	"LEAK_DETECT_MTIA_BLADE4_N_BUF","RST_I2CRST_MTIA_BLADE14_15_N",
-	"LEAK_DETECT_MTIA_BLADE5_N_BUF","RST_I2CRST_NW_BLADE0_1_2_N",
-	"LEAK_DETECT_MTIA_BLADE6_N_BUF","RST_I2CRST_NW_BLADE3_4_5_N",
-	"LEAK_DETECT_MTIA_BLADE7_N_BUF","RST_I2CRST_FCB_N",
+	"LEAK_DETECT_MTIA_BLADE0_N","",
+	"LEAK_DETECT_MTIA_BLADE1_N","",
+	"LEAK_DETECT_MTIA_BLADE2_N","",
+	"LEAK_DETECT_MTIA_BLADE3_N","",
+	"LEAK_DETECT_MTIA_BLADE4_N","",
+	"LEAK_DETECT_MTIA_BLADE5_N","",
+	"LEAK_DETECT_MTIA_BLADE6_N","",
+	"LEAK_DETECT_MTIA_BLADE7_N","",
 	/*I0 - I7*/
-	"LEAK_DETECT_MTIA_BLADE8_N_BUF","RST_I2CRST_FCB_B_L_N",
-	"LEAK_DETECT_MTIA_BLADE9_N_BUF","RST_I2CRST_FCB_B_R_N",
-	"LEAK_DETECT_MTIA_BLADE10_N_BUF","RST_I2CRST_FCB_M_L_N",
-	"LEAK_DETECT_MTIA_BLADE11_N_BUF","RST_I2CRST_FCB_M_R_N",
-	"LEAK_DETECT_MTIA_BLADE12_N_BUF","RST_I2CRST_FCB_T_L_N",
-	"LEAK_DETECT_MTIA_BLADE13_N_BUF","RST_I2CRST_FCB_T_R_N",
-	"LEAK_DETECT_MTIA_BLADE14_N_BUF","BMC_READY",
-	"LEAK_DETECT_MTIA_BLADE15_N_BUF","wFM_88E6393X_BIN_UPDATE_EN_N",
+	"LEAK_DETECT_MTIA_BLADE8_N","RST_I2CRST_FCB_BOTTOM_1_N",
+	"LEAK_DETECT_MTIA_BLADE9_N","RST_I2CRST_FCB_BOTTOM_0_N",
+	"LEAK_DETECT_MTIA_BLADE10_N","RST_I2CRST_FCB_MIDDLE_0_N",
+	"LEAK_DETECT_MTIA_BLADE11_N","RST_I2CRST_FCB_MIDDLE_1_N",
+	"LEAK_DETECT_MTIA_BLADE12_N","RST_I2CRST_FCB_TOP_0_N",
+	"LEAK_DETECT_MTIA_BLADE13_N","RST_I2CRST_FCB_TOP_1_N",
+	"LEAK_DETECT_MTIA_BLADE14_N","BMC_READY",
+	"LEAK_DETECT_MTIA_BLADE15_N","FM_88E6393X_BIN_UPDATE_EN_N",
 	/*J0 - J7*/
-	"LEAK_DETECT_NW_BLADE0_N_BUF","WATER_VALVE_CLOSED_N",
-	"LEAK_DETECT_NW_BLADE1_N_BUF","",
-	"LEAK_DETECT_NW_BLADE2_N_BUF","",
-	"LEAK_DETECT_NW_BLADE3_N_BUF","",
-	"LEAK_DETECT_NW_BLADE4_N_BUF","",
-	"LEAK_DETECT_NW_BLADE5_N_BUF","",
-	"MTIA_BLADE0_STATUS_LED","",
-	"MTIA_BLADE1_STATUS_LED","",
+	"LEAK_DETECT_NW_BLADE0_N","WATER_VALVE_CLOSED_N",
+	"LEAK_DETECT_NW_BLADE1_N","",
+	"LEAK_DETECT_NW_BLADE2_N","",
+	"LEAK_DETECT_NW_BLADE3_N","",
+	"LEAK_DETECT_NW_BLADE4_N","",
+	"LEAK_DETECT_NW_BLADE5_N","",
+	"PWRGD_MTIA_BLADE0_HSC_PWROK_N","",
+	"PWRGD_MTIA_BLADE1_HSC_PWROK_N","",
 	/*K0 - K7*/
-	"MTIA_BLADE2_STATUS_LED","",
-	"MTIA_BLADE3_STATUS_LED","",
-	"MTIA_BLADE4_STATUS_LED","",
-	"MTIA_BLADE5_STATUS_LED","",
-	"MTIA_BLADE6_STATUS_LED","",
-	"MTIA_BLADE7_STATUS_LED","",
-	"MTIA_BLADE8_STATUS_LED","",
-	"MTIA_BLADE9_STATUS_LED","",
+	"PWRGD_MTIA_BLADE2_HSC_PWROK_N","",
+	"PWRGD_MTIA_BLADE3_HSC_PWROK_N","",
+	"PWRGD_MTIA_BLADE4_HSC_PWROK_N","",
+	"PWRGD_MTIA_BLADE5_HSC_PWROK_N","",
+	"PWRGD_MTIA_BLADE6_HSC_PWROK_N","",
+	"PWRGD_MTIA_BLADE7_HSC_PWROK_N","",
+	"PWRGD_MTIA_BLADE8_HSC_PWROK_N","",
+	"PWRGD_MTIA_BLADE9_HSC_PWROK_N","",
 	/*L0 - L7*/
-	"MTIA_BLADE10_STATUS_LED","",
-	"MTIA_BLADE11_STATUS_LED","",
-	"MTIA_BLADE12_STATUS_LED","",
-	"MTIA_BLADE13_STATUS_LED","",
-	"MTIA_BLADE14_STATUS_LED","",
-	"MTIA_BLADE15_STATUS_LED","",
-	"NW_BLADE0_STATUS_LED","",
-	"NW_BLADE1_STATUS_LED","",
+	"PWRGD_MTIA_BLADE10_HSC_PWROK_N","",
+	"PWRGD_MTIA_BLADE11_HSC_PWROK_N","",
+	"PWRGD_MTIA_BLADE12_HSC_PWROK_N","",
+	"PWRGD_MTIA_BLADE13_HSC_PWROK_N","",
+	"PWRGD_MTIA_BLADE14_HSC_PWROK_N","",
+	"PWRGD_MTIA_BLADE15_HSC_PWROK_N","",
+	"PWRGD_NW_BLADE0_HSC_PWROK_N","",
+	"PWRGD_NW_BLADE1_HSC_PWROK_N","",
 	/*M0 - M7*/
-	"NW_BLADE2_STATUS_LED","",
-	"NW_BLADE3_STATUS_LED","",
-	"NW_BLADE4_STATUS_LED","",
-	"NW_BLADE5_STATUS_LED","",
+	"PWRGD_NW_BLADE2_HSC_PWROK_N","",
+	"PWRGD_NW_BLADE3_HSC_PWROK_N","",
+	"PWRGD_NW_BLADE4_HSC_PWROK_N","",
+	"PWRGD_NW_BLADE5_HSC_PWROK_N","",
 	"RPU_READY","",
 	"IT_GEAR_RPU_LINK_N","",
 	"IT_GEAR_LEAK","",
@@ -516,28 +746,28 @@
 	/*N0 - N7*/
 	"VALVE_STS0","",
 	"VALVE_STS1","",
-	"VALVE_STS2","",
-	"VALVE_STS3","",
-	"CR_TOGGLE_BOOT_BUF_N","",
-	"CMM_LC_RDY_LED_N","",
-	"CMM_LC_UNRDY_LED_N","",
+	"PCA9555_IRQ0_N","",
+	"PCA9555_IRQ1_N","",
+	"CR_TOGGLE_BOOT_N","",
+	"IRQ_FCB_TOP0_N","",
+	"IRQ_FCB_TOP1_N","",
 	"CMM_CABLE_CARTRIDGE_PRSNT_BOT_N","",
 	/*O0 - O7*/
 	"CMM_CABLE_CARTRIDGE_PRSNT_TOP_N","",
 	"BOT_BCB_CABLE_PRSNT_N","",
 	"TOP_BCB_CABLE_PRSNT_N","",
-	"CHASSIS0_LEAK_Q_N","",
-	"CHASSIS1_LEAK_Q_N","",
-	"LEAK0_DETECT","",
-	"LEAK1_DETECT","",
-	"MGMT_SFP_PRSNT_N","",
+	"IRQ_FCB_MID0_N","",
+	"IRQ_FCB_MID1_N","",
+	"CHASSIS_LEAK0_DETECT_N","",
+	"CHASSIS_LEAK1_DETECT_N","",
+	"VALVE_RMON_A_1","",
 	/*P0 - P7*/
-	"MGMT_SFP_TX_FAULT","",
-	"MGMT_SFP_RX_LOS","",
-	"","",
-	"","",
-	"","",
-	"","",
-	"","",
-	"","";
+	"VALVE_RMON_A_2","",
+	"VALVE_RMON_B_1","",
+	"VALVE_RMON_B_2","",
+	"RPU_READY_SPARE","",
+	"IT_GEAR_LEAK_SPARE","",
+	"IT_GEAR_RPU_LINK_SPARE_N","",
+	"IRQ_FCB_BOT0_N","",
+	"IRQ_FCB_BOT0_N","";
 };
