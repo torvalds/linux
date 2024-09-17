@@ -328,12 +328,8 @@ according to the following rule:
 		--> filename: Kbuild
 		obj-m := 8123.o
 
-		ccflags-y := -Iinclude
+		ccflags-y := -I $(src)/include
 		8123-y := 8123_if.o 8123_pci.o 8123_bin.o
-
-	Note that in the assignment there is no space between -I and
-	the path. This is a limitation of kbuild: there must be no
-	space present.
 
 4.3 Several Subdirectories
 --------------------------
