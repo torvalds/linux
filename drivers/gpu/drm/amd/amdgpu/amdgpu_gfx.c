@@ -1363,35 +1363,35 @@ static ssize_t amdgpu_gfx_set_compute_partition(struct device *dev,
 	return count;
 }
 
+static const char *xcp_desc[] = {
+	[AMDGPU_SPX_PARTITION_MODE] = "SPX",
+	[AMDGPU_DPX_PARTITION_MODE] = "DPX",
+	[AMDGPU_TPX_PARTITION_MODE] = "TPX",
+	[AMDGPU_QPX_PARTITION_MODE] = "QPX",
+	[AMDGPU_CPX_PARTITION_MODE] = "CPX",
+};
+
 static ssize_t amdgpu_gfx_get_available_compute_partition(struct device *dev,
 						struct device_attribute *addr,
 						char *buf)
 {
 	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct amdgpu_device *adev = drm_to_adev(ddev);
-	char *supported_partition;
+	struct amdgpu_xcp_mgr *xcp_mgr = adev->xcp_mgr;
+	int size = 0, mode;
+	char *sep = "";
 
-	/* TBD */
-	switch (NUM_XCC(adev->gfx.xcc_mask)) {
-	case 8:
-		supported_partition = "SPX, DPX, QPX, CPX";
-		break;
-	case 6:
-		supported_partition = "SPX, TPX, CPX";
-		break;
-	case 4:
-		supported_partition = "SPX, DPX, CPX";
-		break;
-	/* this seems only existing in emulation phase */
-	case 2:
-		supported_partition = "SPX, CPX";
-		break;
-	default:
-		supported_partition = "Not supported";
-		break;
+	if (!xcp_mgr || !xcp_mgr->avail_xcp_modes)
+		return sysfs_emit(buf, "Not supported\n");
+
+	for_each_inst(mode, xcp_mgr->avail_xcp_modes) {
+		size += sysfs_emit_at(buf, size, "%s%s", sep, xcp_desc[mode]);
+		sep = ", ";
 	}
 
-	return sysfs_emit(buf, "%s\n", supported_partition);
+	size += sysfs_emit_at(buf, size, "\n");
+
+	return size;
 }
 
 static int amdgpu_gfx_run_cleaner_shader_job(struct amdgpu_ring *ring)

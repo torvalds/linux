@@ -97,6 +97,8 @@ struct amdgpu_xcp_mgr {
 
 	 /* Used to determine KFD memory size limits per XCP */
 	unsigned int num_xcp_per_mem_partition;
+	uint32_t supp_xcp_modes;
+	uint32_t avail_xcp_modes;
 };
 
 struct amdgpu_xcp_mgr_funcs {
