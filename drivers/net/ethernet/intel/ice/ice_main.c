@@ -3675,6 +3675,12 @@ void ice_set_netdev_features(struct net_device *netdev)
 	 */
 	netdev->hw_features |= NETIF_F_RXFCS;
 
+	/* Mutual exclusivity for TSO and GCS is enforced by the
+	 * ice_fix_features() ndo callback.
+	 */
+	if (ice_is_feature_supported(pf, ICE_F_GCS))
+		netdev->hw_features |= NETIF_F_HW_CSUM;
+
 	netif_set_tso_max_size(netdev, ICE_MAX_TSO_SIZE);
 }
 
@@ -6241,6 +6247,38 @@ ice_fdb_del(struct ndmsg *ndm, __always_unused struct nlattr *tb[],
 	return err;
 }
 
+/**
+ * ice_fix_features_gcs - enforce  Generic Checksum (GCS) feature restrictions
+ * @netdev: ptr to the netdev that flags are being fixed on
+ * @features: features that need to be checked and possibly fixed
+ *
+ * Due to E830 hardware limitations on TSO (NETIF_F_ALL_TSO) with GCS
+ * (NETIF_F_HW_CSUM), inner packet header modification is not supported and
+ * maximum segment size is limited to 1023 bytes, make TSO and GCS mutually
+ * exclusive. If both TSO and GCS are requested, then choose TSO and drop
+ * GCS, else preserve existing settings.
+ *
+ * Note: IP checksums enforcement is handled by netdev_fix_features().
+ *
+ * Return: updated features based on device GCS limitations
+ */
+static netdev_features_t
+ice_fix_features_gcs(struct net_device *netdev, netdev_features_t features)
+{
+	if (!((features & NETIF_F_HW_CSUM) && (features & NETIF_F_ALL_TSO)))
+		return features;
+
+	if (netdev->features & NETIF_F_HW_CSUM) {
+		netdev_warn(netdev, "Dropping TSO. TSO and HW checksum are mutually exclusive.\n");
+		features &= ~NETIF_F_ALL_TSO;
+	} else {
+		netdev_warn(netdev, "Dropping HW checksum. TSO and HW checksum are mutually exclusive.\n");
+		features &= ~NETIF_F_HW_CSUM;
+	}
+
+	return features;
+}
+
 #define NETIF_VLAN_OFFLOAD_FEATURES	(NETIF_F_HW_VLAN_CTAG_RX | \
 					 NETIF_F_HW_VLAN_CTAG_TX | \
 					 NETIF_F_HW_VLAN_STAG_RX | \
@@ -6288,6 +6326,8 @@ ice_fdb_del(struct ndmsg *ndm, __always_unused struct nlattr *tb[],
  *	These are mutually exclusive as there is currently no way to
  *	enable/disable VLAN filtering based on VLAN ethertype when using VLAN
  *	prune rules.
+ *
+ * Return: updated features list
  */
 static netdev_features_t
 ice_fix_features(struct net_device *netdev, netdev_features_t features)
@@ -6342,6 +6382,9 @@ ice_fix_features(struct net_device *netdev, netdev_features_t features)
 		netdev_warn(netdev, "Disabling VLAN stripping as FCS/CRC stripping is also disabled and there is no VLAN configured\n");
 		features &= ~NETIF_VLAN_STRIPPING_FEATURES;
 	}
+
+	if (ice_is_feature_supported(np->vsi->back, ICE_F_GCS))
+		features = ice_fix_features_gcs(netdev, features);
 
 	return features;
 }
