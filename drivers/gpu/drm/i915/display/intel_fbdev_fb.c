@@ -9,6 +9,7 @@
 
 #include "i915_drv.h"
 #include "intel_display_types.h"
+#include "intel_fb.h"
 #include "intel_fbdev_fb.h"
 
 struct intel_framebuffer *intel_fbdev_fb_alloc(struct drm_fb_helper *helper,
@@ -60,7 +61,7 @@ struct intel_framebuffer *intel_fbdev_fb_alloc(struct drm_fb_helper *helper,
 		return ERR_PTR(-ENOMEM);
 	}
 
-	fb = intel_framebuffer_create(obj, &mode_cmd);
+	fb = intel_framebuffer_create(intel_bo_to_drm_bo(obj), &mode_cmd);
 	i915_gem_object_put(obj);
 
 	return to_intel_framebuffer(fb);
