@@ -177,6 +177,7 @@ struct qcom_ethqos {
 	struct delayed_work ipv4_addr_assign_wq;
 	struct delayed_work ipv6_addr_assign_wq;
 	bool early_eth_enabled;
+	bool driver_load_fail;
 	/* Key Performance Indicators */
 	bool print_kpi;
 
