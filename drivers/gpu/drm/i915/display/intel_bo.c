@@ -20,6 +20,11 @@ bool intel_bo_is_shmem(struct drm_gem_object *obj)
 	return i915_gem_object_is_shmem(to_intel_bo(obj));
 }
 
+bool intel_bo_is_protected(struct drm_gem_object *obj)
+{
+	return i915_gem_object_is_protected(to_intel_bo(obj));
+}
+
 void intel_bo_flush_if_display(struct drm_gem_object *obj)
 {
 	i915_gem_object_flush_if_display(to_intel_bo(obj));

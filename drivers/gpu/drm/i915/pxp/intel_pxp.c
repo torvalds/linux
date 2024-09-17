@@ -461,9 +461,11 @@ void intel_pxp_fini_hw(struct intel_pxp *pxp)
 }
 
 int intel_pxp_key_check(struct intel_pxp *pxp,
-			struct drm_i915_gem_object *obj,
+			struct drm_gem_object *_obj,
 			bool assign)
 {
+	struct drm_i915_gem_object *obj = to_intel_bo(_obj);
+
 	if (!intel_pxp_is_active(pxp))
 		return -ENODEV;
 
