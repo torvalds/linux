@@ -10,6 +10,7 @@
 #include <linux/list.h>
 #include <linux/spinlock.h>
 #include <linux/mutex.h>
+#include <linux/freezer.h>
 #include "fs.h"
 
 struct inode;
@@ -54,6 +55,11 @@ static inline bool btrfs_free_space_trimming_bitmap(
 					    struct btrfs_free_space *info)
 {
 	return (info->trim_state == BTRFS_TRIM_STATE_TRIMMING);
+}
+
+static inline bool btrfs_trim_interrupted(void)
+{
+	return fatal_signal_pending(current) || freezing(current);
 }
 
 /*
