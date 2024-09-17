@@ -1685,6 +1685,8 @@ int v4l2_subdev_routing_validate(struct v4l2_subdev *sd,
  * function implements a best-effort compatibility by calling the .s_stream()
  * operation, limited to subdevs that have a single source pad.
  *
+ * Drivers that are not stream-aware shall set @streams_mask to BIT_ULL(0).
+ *
  * Return:
  * * 0: Success
  * * -EALREADY: One of the streams in streams_mask is already enabled
@@ -1714,6 +1716,8 @@ int v4l2_subdev_enable_streams(struct v4l2_subdev *sd, u32 pad,
  * .enable_streams() and .disable_streams() operations. For other subdevs, this
  * function implements a best-effort compatibility by calling the .s_stream()
  * operation, limited to subdevs that have a single source pad.
+ *
+ * Drivers that are not stream-aware shall set @streams_mask to BIT_ULL(0).
  *
  * Return:
  * * 0: Success
