@@ -821,7 +821,7 @@ static pci_ers_result_t common_process(struct pcistub_device *psdev,
 	}
 	clear_bit(_PCIB_op_pending, (unsigned long *)&pdev->flags);
 
-	res = (pci_ers_result_t)aer_op->err;
+	res = (__force pci_ers_result_t)aer_op->err;
 	return res;
 }
 
