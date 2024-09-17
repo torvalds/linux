@@ -84,13 +84,16 @@ int mt76_mcu_skb_send_and_get_msg(struct mt76_dev *dev, struct sk_buff *skb,
 	mutex_lock(&dev->mcu.mutex);
 
 	if (dev->mcu_ops->mcu_skb_prepare_msg) {
+		orig_skb = skb;
 		ret = dev->mcu_ops->mcu_skb_prepare_msg(dev, skb, cmd, &seq);
 		if (ret < 0)
 			goto out;
 	}
 
 retry:
-	orig_skb = skb_get(skb);
+	/* orig skb might be needed for retry, mcu_skb_send_msg consumes it */
+	if (orig_skb)
+		skb_get(orig_skb);
 	ret = dev->mcu_ops->mcu_skb_send_msg(dev, skb, cmd, &seq);
 	if (ret < 0)
 		goto out;
@@ -105,7 +108,7 @@ retry:
 	do {
 		skb = mt76_mcu_get_response(dev, expires);
 		if (!skb && !test_bit(MT76_MCU_RESET, &dev->phy.state) &&
-		    retry++ < dev->mcu_ops->max_retry) {
+		    orig_skb && retry++ < dev->mcu_ops->max_retry) {
 			dev_err(dev->dev, "Retry message %08x (seq %d)\n",
 				cmd, seq);
 			skb = orig_skb;
