@@ -498,6 +498,7 @@ static const struct file_operations psb_gem_fops = {
 	.mmap = drm_gem_mmap,
 	.poll = drm_poll,
 	.read = drm_read,
+	.fop_flags = FOP_UNSIGNED_OFFSET,
 };
 
 static const struct drm_driver driver = {

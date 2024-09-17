@@ -13,7 +13,7 @@ iwlmvm-y += ptp.o
 iwlmvm-y += time-sync.o
 iwlmvm-$(CONFIG_IWLWIFI_DEBUGFS) += debugfs.o debugfs-vif.o
 iwlmvm-$(CONFIG_IWLWIFI_LEDS) += led.o
-iwlmvm-$(CONFIG_PM) += d3.o
+iwlmvm-$(CONFIG_PM_SLEEP) += d3.o
 iwlmvm-$(CONFIG_IWLMEI) += vendor-cmd.o
 
 subdir-ccflags-y += -I $(src)/../

@@ -14,6 +14,11 @@
 #include "ps.h"
 #include "usb.h"
 
+static bool rtw_switch_usb_mode = true;
+module_param_named(switch_usb_mode, rtw_switch_usb_mode, bool, 0644);
+MODULE_PARM_DESC(switch_usb_mode,
+		 "Set to N to disable switching to USB 3 mode to avoid potential interference in the 2.4 GHz band (default: Y)");
+
 #define RTW_USB_MAX_RXQ_LEN	512
 
 struct rtw_usb_txcb {
@@ -541,11 +546,12 @@ static void rtw_usb_rx_handler(struct work_struct *work)
 	struct rtw_usb *rtwusb = container_of(work, struct rtw_usb, rx_work);
 	struct rtw_dev *rtwdev = rtwusb->rtwdev;
 	const struct rtw_chip_info *chip = rtwdev->chip;
-	struct rtw_rx_pkt_stat pkt_stat;
-	struct ieee80211_rx_status rx_status;
-	struct sk_buff *skb;
 	u32 pkt_desc_sz = chip->rx_pkt_desc_sz;
-	u32 pkt_offset;
+	struct ieee80211_rx_status rx_status;
+	u32 pkt_offset, next_pkt, urb_len;
+	struct rtw_rx_pkt_stat pkt_stat;
+	struct sk_buff *next_skb;
+	struct sk_buff *skb;
 	u8 *rx_desc;
 	int limit;
 
@@ -554,28 +560,48 @@ static void rtw_usb_rx_handler(struct work_struct *work)
 		if (!skb)
 			break;
 
-		rx_desc = skb->data;
-		chip->ops->query_rx_desc(rtwdev, rx_desc, &pkt_stat,
-					 &rx_status);
-		pkt_offset = pkt_desc_sz + pkt_stat.drv_info_sz +
-			     pkt_stat.shift;
-
-		if (pkt_stat.is_c2h) {
-			skb_put(skb, pkt_stat.pkt_len + pkt_offset);
-			rtw_fw_c2h_cmd_rx_irqsafe(rtwdev, pkt_offset, skb);
-			continue;
-		}
-
 		if (skb_queue_len(&rtwusb->rx_queue) >= RTW_USB_MAX_RXQ_LEN) {
 			dev_dbg_ratelimited(rtwdev->dev, "failed to get rx_queue, overflow\n");
 			dev_kfree_skb_any(skb);
 			continue;
 		}
 
-		skb_put(skb, pkt_stat.pkt_len);
-		skb_reserve(skb, pkt_offset);
-		memcpy(skb->cb, &rx_status, sizeof(rx_status));
-		ieee80211_rx_irqsafe(rtwdev->hw, skb);
+		urb_len = skb->len;
+
+		do {
+			rx_desc = skb->data;
+			chip->ops->query_rx_desc(rtwdev, rx_desc, &pkt_stat,
+						 &rx_status);
+			pkt_offset = pkt_desc_sz + pkt_stat.drv_info_sz +
+				     pkt_stat.shift;
+
+			next_pkt = round_up(pkt_stat.pkt_len + pkt_offset, 8);
+
+			if (urb_len >= next_pkt + pkt_desc_sz)
+				next_skb = skb_clone(skb, GFP_KERNEL);
+			else
+				next_skb = NULL;
+
+			if (pkt_stat.is_c2h) {
+				skb_trim(skb, pkt_stat.pkt_len + pkt_offset);
+				rtw_fw_c2h_cmd_rx_irqsafe(rtwdev, pkt_offset, skb);
+			} else {
+				skb_pull(skb, pkt_offset);
+				skb_trim(skb, pkt_stat.pkt_len);
+				rtw_update_rx_freq_for_invalid(rtwdev, skb,
+							       &rx_status,
+							       &pkt_stat);
+				rtw_rx_stats(rtwdev, pkt_stat.vif, skb);
+				memcpy(skb->cb, &rx_status, sizeof(rx_status));
+				ieee80211_rx_irqsafe(rtwdev->hw, skb);
+			}
+
+			skb = next_skb;
+			if (skb)
+				skb_pull(skb, next_pkt);
+
+			urb_len -= next_pkt;
+		} while (skb);
 	}
 }
 
@@ -619,6 +645,7 @@ static void rtw_usb_read_port_complete(struct urb *urb)
 			if (skb)
 				dev_kfree_skb_any(skb);
 		} else {
+			skb_put(skb, urb->actual_length);
 			skb_queue_tail(&rtwusb->rx_queue, skb);
 			queue_work(rtwusb->rxwq, &rtwusb->rx_work);
 		}
@@ -713,9 +740,69 @@ static void rtw_usb_link_ps(struct rtw_dev *rtwdev, bool enter)
 	/* empty function for rtw_hci_ops */
 }
 
+static void rtw_usb_init_burst_pkt_len(struct rtw_dev *rtwdev)
+{
+	struct rtw_usb *rtwusb = rtw_get_usb_priv(rtwdev);
+	enum usb_device_speed speed = rtwusb->udev->speed;
+	u8 rxdma, burst_size;
+
+	rxdma = BIT_DMA_BURST_CNT | BIT_DMA_MODE;
+
+	if (speed == USB_SPEED_SUPER)
+		burst_size = BIT_DMA_BURST_SIZE_1024;
+	else if (speed == USB_SPEED_HIGH)
+		burst_size = BIT_DMA_BURST_SIZE_512;
+	else
+		burst_size = BIT_DMA_BURST_SIZE_64;
+
+	u8p_replace_bits(&rxdma, burst_size, BIT_DMA_BURST_SIZE);
+
+	rtw_write8(rtwdev, REG_RXDMA_MODE, rxdma);
+	rtw_write16_set(rtwdev, REG_TXDMA_OFFSET_CHK, BIT_DROP_DATA_EN);
+}
+
 static void rtw_usb_interface_cfg(struct rtw_dev *rtwdev)
 {
-	/* empty function for rtw_hci_ops */
+	rtw_usb_init_burst_pkt_len(rtwdev);
+}
+
+static void rtw_usb_dynamic_rx_agg_v1(struct rtw_dev *rtwdev, bool enable)
+{
+	u8 size, timeout;
+	u16 val16;
+
+	rtw_write32_set(rtwdev, REG_RXDMA_AGG_PG_TH, BIT_EN_PRE_CALC);
+	rtw_write8_set(rtwdev, REG_TXDMA_PQ_MAP, BIT_RXDMA_AGG_EN);
+	rtw_write8_clr(rtwdev, REG_RXDMA_AGG_PG_TH + 3, BIT(7));
+
+	if (enable) {
+		size = 0x5;
+		timeout = 0x20;
+	} else {
+		size = 0x0;
+		timeout = 0x1;
+	}
+	val16 = u16_encode_bits(size, BIT_RXDMA_AGG_PG_TH) |
+		u16_encode_bits(timeout, BIT_DMA_AGG_TO_V1);
+
+	rtw_write16(rtwdev, REG_RXDMA_AGG_PG_TH, val16);
+}
+
+static void rtw_usb_dynamic_rx_agg(struct rtw_dev *rtwdev, bool enable)
+{
+	switch (rtwdev->chip->id) {
+	case RTW_CHIP_TYPE_8822C:
+	case RTW_CHIP_TYPE_8822B:
+	case RTW_CHIP_TYPE_8821C:
+		rtw_usb_dynamic_rx_agg_v1(rtwdev, enable);
+		break;
+	case RTW_CHIP_TYPE_8723D:
+		/* Doesn't like aggregation. */
+		break;
+	case RTW_CHIP_TYPE_8703B:
+		/* Likely not found in USB devices. */
+		break;
+	}
 }
 
 static struct rtw_hci_ops rtw_usb_ops = {
@@ -727,6 +814,7 @@ static struct rtw_hci_ops rtw_usb_ops = {
 	.deep_ps = rtw_usb_deep_ps,
 	.link_ps = rtw_usb_link_ps,
 	.interface_cfg = rtw_usb_interface_cfg,
+	.dynamic_rx_agg = rtw_usb_dynamic_rx_agg,
 
 	.write8  = rtw_usb_write8,
 	.write16 = rtw_usb_write16,
@@ -841,6 +929,77 @@ static void rtw_usb_intf_deinit(struct rtw_dev *rtwdev,
 	usb_set_intfdata(intf, NULL);
 }
 
+static int rtw_usb_switch_mode_new(struct rtw_dev *rtwdev)
+{
+	enum usb_device_speed cur_speed;
+	u8 id = rtwdev->chip->id;
+	bool can_switch;
+	u32 pad_ctrl2;
+
+	if (rtw_read8(rtwdev, REG_SYS_CFG2 + 3) == 0x20)
+		cur_speed = USB_SPEED_SUPER;
+	else
+		cur_speed = USB_SPEED_HIGH;
+
+	if (cur_speed == USB_SPEED_SUPER)
+		return 0;
+
+	pad_ctrl2 = rtw_read32(rtwdev, REG_PAD_CTRL2);
+
+	can_switch = !!(pad_ctrl2 & (BIT_MASK_USB23_SW_MODE_V1 |
+				     BIT_USB3_USB2_TRANSITION));
+
+	if (!can_switch) {
+		rtw_dbg(rtwdev, RTW_DBG_USB,
+			"Switching to USB 3 mode unsupported by the chip\n");
+		return 0;
+	}
+
+	/* At this point cur_speed is USB_SPEED_HIGH. If we already tried
+	 * to switch don't try again - it's a USB 2 port.
+	 */
+	if (u32_get_bits(pad_ctrl2, BIT_MASK_USB23_SW_MODE_V1) == BIT_USB_MODE_U3)
+		return 0;
+
+	/* Enable IO wrapper timeout */
+	if (id == RTW_CHIP_TYPE_8822B || id == RTW_CHIP_TYPE_8821C)
+		rtw_write8_clr(rtwdev, REG_SW_MDIO + 3, BIT(0));
+
+	u32p_replace_bits(&pad_ctrl2, BIT_USB_MODE_U3, BIT_MASK_USB23_SW_MODE_V1);
+	pad_ctrl2 |= BIT_RSM_EN_V1;
+
+	rtw_write32(rtwdev, REG_PAD_CTRL2, pad_ctrl2);
+	rtw_write8(rtwdev, REG_PAD_CTRL2 + 1, 4);
+
+	rtw_write16_set(rtwdev, REG_SYS_PW_CTRL, BIT_APFM_OFFMAC);
+	usleep_range(1000, 1001);
+	rtw_write32_set(rtwdev, REG_PAD_CTRL2, BIT_NO_PDN_CHIPOFF_V1);
+
+	return 1;
+}
+
+static int rtw_usb_switch_mode(struct rtw_dev *rtwdev)
+{
+	u8 id = rtwdev->chip->id;
+
+	if (id != RTW_CHIP_TYPE_8822C && id != RTW_CHIP_TYPE_8822B)
+		return 0;
+
+	if (!rtwdev->efuse.usb_mode_switch) {
+		rtw_dbg(rtwdev, RTW_DBG_USB,
+			"Switching to USB 3 mode disabled by chip's efuse\n");
+		return 0;
+	}
+
+	if (!rtw_switch_usb_mode) {
+		rtw_dbg(rtwdev, RTW_DBG_USB,
+			"Switching to USB 3 mode disabled by module parameter\n");
+		return 0;
+	}
+
+	return rtw_usb_switch_mode_new(rtwdev);
+}
+
 int rtw_usb_probe(struct usb_interface *intf, const struct usb_device_id *id)
 {
 	struct rtw_dev *rtwdev;
@@ -893,6 +1052,14 @@ int rtw_usb_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	ret = rtw_chip_info_setup(rtwdev);
 	if (ret) {
 		rtw_err(rtwdev, "failed to setup chip information\n");
+		goto err_destroy_rxwq;
+	}
+
+	ret = rtw_usb_switch_mode(rtwdev);
+	if (ret) {
+		/* Not a fail, but we do need to skip rtw_register_hw. */
+		rtw_dbg(rtwdev, RTW_DBG_USB, "switching to USB 3 mode\n");
+		ret = 0;
 		goto err_destroy_rxwq;
 	}
 

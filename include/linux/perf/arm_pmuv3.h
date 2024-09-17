@@ -6,8 +6,9 @@
 #ifndef __PERF_ARM_PMUV3_H
 #define __PERF_ARM_PMUV3_H
 
-#define ARMV8_PMU_MAX_COUNTERS	32
-#define ARMV8_PMU_COUNTER_MASK	(ARMV8_PMU_MAX_COUNTERS - 1)
+#define ARMV8_PMU_MAX_GENERAL_COUNTERS	31
+#define ARMV8_PMU_CYCLE_IDX		31
+#define ARMV8_PMU_INSTR_IDX		32 /* Not accessible from AArch32 */
 
 /*
  * Common architectural and microarchitectural event numbers.
@@ -227,8 +228,10 @@
  */
 #define ARMV8_PMU_OVSR_P		GENMASK(30, 0)
 #define ARMV8_PMU_OVSR_C		BIT(31)
+#define ARMV8_PMU_OVSR_F		BIT_ULL(32) /* arm64 only */
 /* Mask for writable bits is both P and C fields */
-#define ARMV8_PMU_OVERFLOWED_MASK	(ARMV8_PMU_OVSR_P | ARMV8_PMU_OVSR_C)
+#define ARMV8_PMU_OVERFLOWED_MASK	(ARMV8_PMU_OVSR_P | ARMV8_PMU_OVSR_C | \
+					ARMV8_PMU_OVSR_F)
 
 /*
  * PMXEVTYPER: Event selection reg

@@ -1053,13 +1053,13 @@ static void kvaser_pciefd_write_dma_map_altera(struct kvaser_pciefd *pcie,
 	void __iomem *serdes_base;
 	u32 word1, word2;
 
-#ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
-	word1 = addr | KVASER_PCIEFD_ALTERA_DMA_64BIT;
-	word2 = addr >> 32;
-#else
-	word1 = addr;
-	word2 = 0;
-#endif
+	if (IS_ENABLED(CONFIG_ARCH_DMA_ADDR_T_64BIT)) {
+		word1 = lower_32_bits(addr) | KVASER_PCIEFD_ALTERA_DMA_64BIT;
+		word2 = upper_32_bits(addr);
+	} else {
+		word1 = addr;
+		word2 = 0;
+	}
 	serdes_base = KVASER_PCIEFD_SERDES_ADDR(pcie) + 0x8 * index;
 	iowrite32(word1, serdes_base);
 	iowrite32(word2, serdes_base + 0x4);
@@ -1072,9 +1072,9 @@ static void kvaser_pciefd_write_dma_map_sf2(struct kvaser_pciefd *pcie,
 	u32 lsb = addr & KVASER_PCIEFD_SF2_DMA_LSB_MASK;
 	u32 msb = 0x0;
 
-#ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
-	msb = addr >> 32;
-#endif
+	if (IS_ENABLED(CONFIG_ARCH_DMA_ADDR_T_64BIT))
+		msb = upper_32_bits(addr);
+
 	serdes_base = KVASER_PCIEFD_SERDES_ADDR(pcie) + 0x10 * index;
 	iowrite32(lsb, serdes_base);
 	iowrite32(msb, serdes_base + 0x4);
@@ -1087,9 +1087,9 @@ static void kvaser_pciefd_write_dma_map_xilinx(struct kvaser_pciefd *pcie,
 	u32 lsb = addr & KVASER_PCIEFD_XILINX_DMA_LSB_MASK;
 	u32 msb = 0x0;
 
-#ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
-	msb = addr >> 32;
-#endif
+	if (IS_ENABLED(CONFIG_ARCH_DMA_ADDR_T_64BIT))
+		msb = upper_32_bits(addr);
+
 	serdes_base = KVASER_PCIEFD_SERDES_ADDR(pcie) + 0x8 * index;
 	iowrite32(msb, serdes_base);
 	iowrite32(lsb, serdes_base + 0x4);
@@ -1104,6 +1104,9 @@ static int kvaser_pciefd_setup_dma(struct kvaser_pciefd *pcie)
 
 	/* Disable the DMA */
 	iowrite32(0, KVASER_PCIEFD_SRB_ADDR(pcie) + KVASER_PCIEFD_SRB_CTRL_REG);
+
+	dma_set_mask_and_coherent(&pcie->pci->dev, DMA_BIT_MASK(64));
+
 	for (i = 0; i < KVASER_PCIEFD_DMA_COUNT; i++) {
 		pcie->dma_data[i] = dmam_alloc_coherent(&pcie->pci->dev,
 							KVASER_PCIEFD_DMA_SIZE,

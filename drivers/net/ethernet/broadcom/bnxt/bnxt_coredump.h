@@ -111,7 +111,15 @@ struct hwrm_dbg_cmn_output {
 	#define HWRM_DBG_CMN_FLAGS_MORE	1
 };
 
+#define BNXT_DBG_FL_CR_DUMP_SIZE_SOC	\
+	DBG_QCFG_REQ_FLAGS_CRASHDUMP_SIZE_FOR_DEST_DEST_SOC_DDR
+#define BNXT_DBG_FL_CR_DUMP_SIZE_HOST	\
+	DBG_QCFG_REQ_FLAGS_CRASHDUMP_SIZE_FOR_DEST_DEST_HOST_DDR
+#define BNXT_DBG_CR_DUMP_MDM_CFG_DDR	\
+	DBG_CRASHDUMP_MEDIUM_CFG_REQ_TYPE_DDR
+
 int bnxt_get_coredump(struct bnxt *bp, u16 dump_type, void *buf, u32 *dump_len);
+int bnxt_hwrm_get_dump_len(struct bnxt *bp, u16 dump_type, u32 *dump_len);
 u32 bnxt_get_coredump_length(struct bnxt *bp, u16 dump_type);
 
 #endif

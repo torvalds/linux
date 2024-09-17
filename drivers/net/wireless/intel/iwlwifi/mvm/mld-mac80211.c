@@ -223,7 +223,7 @@ static void iwl_mvm_restart_mpdu_count(struct iwl_mvm *mvm,
 		spin_unlock_bh(&mvmsta->mpdu_counters[q].lock);
 	}
 
-	IWL_DEBUG_STATS(mvm, "MPDU counters are cleared\n");
+	IWL_DEBUG_INFO(mvm, "MPDU counters are cleared\n");
 }
 
 static int iwl_mvm_esr_mode_active(struct iwl_mvm *mvm,
@@ -268,6 +268,9 @@ static int iwl_mvm_esr_mode_active(struct iwl_mvm *mvm,
 	 * will be at the end of the window.
 	 */
 	iwl_mvm_restart_mpdu_count(mvm, mvmvif);
+
+	iwl_dbg_tlv_time_point(&mvm->fwrt, IWL_FW_INI_TIME_ESR_LINK_UP,
+			       NULL);
 
 	return ret;
 }
@@ -455,6 +458,9 @@ static int iwl_mvm_esr_mode_inactive(struct iwl_mvm *mvm,
 
 	/* Start a new counting window */
 	iwl_mvm_restart_mpdu_count(mvm, mvmvif);
+
+	iwl_dbg_tlv_time_point(&mvm->fwrt, IWL_FW_INI_TIME_ESR_LINK_DOWN,
+			       NULL);
 
 	return ret;
 }
@@ -1334,6 +1340,22 @@ iwl_mvm_mld_mac_pre_channel_switch(struct ieee80211_hw *hw,
 			selected = iwl_mvm_get_other_link(vif, primary);
 		else
 			selected = primary;
+
+		/*
+		 * remembers to tell the firmware that this link can't tx
+		 * Note that this logic seems to be unrelated to esr, but it
+		 * really is needed only when esr is active. When we have a
+		 * single link, the firmware will handle all this on its own.
+		 * In multi-link scenarios, we can learn about the CSA from
+		 * another link and this logic is too complex for the firmware
+		 * to track.
+		 * Since we want to de-activate the link that got a CSA, we
+		 * need to tell the firmware not to send any frame on that link
+		 * as the firmware may not be aware that link is under a CSA
+		 * with mode=1 (no Tx allowed).
+		 */
+		if (chsw->block_tx && mvmvif->link[chsw->link_id])
+			mvmvif->link[chsw->link_id]->csa_block_tx = true;
 
 		iwl_mvm_exit_esr(mvm, vif, IWL_MVM_ESR_EXIT_CSA, selected);
 		mutex_unlock(&mvm->mutex);

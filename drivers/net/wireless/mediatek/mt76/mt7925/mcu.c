@@ -638,6 +638,9 @@ static int mt7925_load_clc(struct mt792x_dev *dev, const char *fw_name)
 	for (offset = 0; offset < len; offset += le32_to_cpu(clc->len)) {
 		clc = (const struct mt7925_clc *)(clc_base + offset);
 
+		if (clc->idx > ARRAY_SIZE(phy->clc))
+			break;
+
 		/* do not init buf again if chip reset triggered */
 		if (phy->clc[clc->idx])
 			continue;
@@ -1770,16 +1773,19 @@ mt7925_mcu_sta_cmd(struct mt76_phy *phy,
 	struct mt76_vif *mvif = (struct mt76_vif *)info->vif->drv_priv;
 	struct mt76_dev *dev = phy->dev;
 	struct sk_buff *skb;
+	int conn_state;
 
 	skb = __mt76_connac_mcu_alloc_sta_req(dev, mvif, info->wcid,
 					      MT7925_STA_UPDATE_MAX_SIZE);
 	if (IS_ERR(skb))
 		return PTR_ERR(skb);
 
+	conn_state = info->enable ? CONN_STATE_PORT_SECURE :
+				    CONN_STATE_DISCONNECT;
 	if (info->link_sta)
 		mt76_connac_mcu_sta_basic_tlv(dev, skb, info->vif,
 					      info->link_sta,
-					      info->enable, info->newly);
+					      conn_state, info->newly);
 	if (info->link_sta && info->enable) {
 		mt7925_mcu_sta_phy_tlv(skb, info->vif, info->link_sta);
 		mt7925_mcu_sta_ht_tlv(skb, info->link_sta);
@@ -2171,12 +2177,12 @@ void mt7925_mcu_bss_rlm_tlv(struct sk_buff *skb, struct mt76_phy *phy,
 
 	tlv = mt76_connac_mcu_add_tlv(skb, UNI_BSS_INFO_RLM, sizeof(*req));
 	req = (struct bss_rlm_tlv *)tlv;
-	req->control_channel = chandef->chan->hw_value,
-	req->center_chan = ieee80211_frequency_to_channel(freq1),
-	req->center_chan2 = ieee80211_frequency_to_channel(freq2),
-	req->tx_streams = hweight8(phy->antenna_mask),
-	req->ht_op_info = 4, /* set HT 40M allowed */
-	req->rx_streams = hweight8(phy->antenna_mask),
+	req->control_channel = chandef->chan->hw_value;
+	req->center_chan = ieee80211_frequency_to_channel(freq1);
+	req->center_chan2 = ieee80211_frequency_to_channel(freq2);
+	req->tx_streams = hweight8(phy->antenna_mask);
+	req->ht_op_info = 4; /* set HT 40M allowed */
+	req->rx_streams = hweight8(phy->antenna_mask);
 	req->band = band;
 
 	switch (chandef->width) {

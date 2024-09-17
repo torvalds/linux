@@ -119,29 +119,41 @@ static const struct fs_parameter_spec coda_param_specs[] = {
 	{}
 };
 
-static int coda_parse_fd(struct fs_context *fc, int fd)
+static int coda_set_idx(struct fs_context *fc, struct file *file)
 {
 	struct coda_fs_context *ctx = fc->fs_private;
-	struct fd f;
 	struct inode *inode;
 	int idx;
 
-	f = fdget(fd);
-	if (!f.file)
-		return -EBADF;
-	inode = file_inode(f.file);
+	inode = file_inode(file);
 	if (!S_ISCHR(inode->i_mode) || imajor(inode) != CODA_PSDEV_MAJOR) {
-		fdput(f);
-		return invalf(fc, "code: Not coda psdev");
+		return invalf(fc, "coda: Not coda psdev");
 	}
-
 	idx = iminor(inode);
-	fdput(f);
-
 	if (idx < 0 || idx >= MAX_CODADEVS)
 		return invalf(fc, "coda: Bad minor number");
 	ctx->idx = idx;
 	return 0;
+}
+
+static int coda_parse_fd(struct fs_context *fc, struct fs_parameter *param,
+			 struct fs_parse_result *result)
+{
+	struct file *file;
+	int err;
+
+	if (param->type == fs_value_is_file) {
+		file = param->file;
+		param->file = NULL;
+	} else {
+		file = fget(result->uint_32);
+	}
+	if (!file)
+		return -EBADF;
+
+	err = coda_set_idx(fc, file);
+	fput(file);
+	return err;
 }
 
 static int coda_parse_param(struct fs_context *fc, struct fs_parameter *param)
@@ -155,7 +167,7 @@ static int coda_parse_param(struct fs_context *fc, struct fs_parameter *param)
 
 	switch (opt) {
 	case Opt_fd:
-		return coda_parse_fd(fc, result.uint_32);
+		return coda_parse_fd(fc, param, &result);
 	}
 
 	return 0;
@@ -167,6 +179,7 @@ static int coda_parse_param(struct fs_context *fc, struct fs_parameter *param)
  */
 static int coda_parse_monolithic(struct fs_context *fc, void *_data)
 {
+	struct file *file;
 	struct coda_mount_data *data = _data;
 
 	if (!data)
@@ -175,7 +188,11 @@ static int coda_parse_monolithic(struct fs_context *fc, void *_data)
 	if (data->version != CODA_MOUNT_VERSION)
 		return invalf(fc, "coda: Bad mount version");
 
-	coda_parse_fd(fc, data->fd);
+	file = fget(data->fd);
+	if (file) {
+		coda_set_idx(fc, file);
+		fput(file);
+	}
 	return 0;
 }
 

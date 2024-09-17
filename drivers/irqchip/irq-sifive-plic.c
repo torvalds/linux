@@ -4,6 +4,7 @@
  * Copyright (C) 2018 Christoph Hellwig
  */
 #define pr_fmt(fmt) "riscv-plic: " fmt
+#include <linux/acpi.h>
 #include <linux/cpu.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
@@ -71,6 +72,8 @@ struct plic_priv {
 	unsigned long plic_quirks;
 	unsigned int nr_irqs;
 	unsigned long *prio_save;
+	u32 gsi_base;
+	int acpi_plic_id;
 };
 
 struct plic_handler {
@@ -325,6 +328,10 @@ static int plic_irq_domain_translate(struct irq_domain *d,
 {
 	struct plic_priv *priv = d->host_data;
 
+	/* For DT, gsi_base is always zero. */
+	if (fwspec->param[0] >= priv->gsi_base)
+		fwspec->param[0] = fwspec->param[0] - priv->gsi_base;
+
 	if (test_bit(PLIC_QUIRK_EDGE_INTERRUPT, &priv->plic_quirks))
 		return irq_domain_translate_twocell(d, fwspec, hwirq, type);
 
@@ -426,17 +433,36 @@ static const struct of_device_id plic_match[] = {
 	{}
 };
 
+#ifdef CONFIG_ACPI
+
+static const struct acpi_device_id plic_acpi_match[] = {
+	{ "RSCV0001", 0 },
+	{}
+};
+MODULE_DEVICE_TABLE(acpi, plic_acpi_match);
+
+#endif
 static int plic_parse_nr_irqs_and_contexts(struct fwnode_handle *fwnode,
-					   u32 *nr_irqs, u32 *nr_contexts)
+					   u32 *nr_irqs, u32 *nr_contexts,
+					   u32 *gsi_base, u32 *id)
 {
 	int rc;
 
-	/*
-	 * Currently, only OF fwnode is supported so extend this
-	 * function for ACPI support.
-	 */
-	if (!is_of_node(fwnode))
-		return -EINVAL;
+	if (!is_of_node(fwnode)) {
+		rc = riscv_acpi_get_gsi_info(fwnode, gsi_base, id, nr_irqs, NULL);
+		if (rc) {
+			pr_err("%pfwP: failed to find GSI mapping\n", fwnode);
+			return rc;
+		}
+
+		*nr_contexts = acpi_rintc_get_plic_nr_contexts(*id);
+		if (WARN_ON(!*nr_contexts)) {
+			pr_err("%pfwP: no PLIC context available\n", fwnode);
+			return -EINVAL;
+		}
+
+		return 0;
+	}
 
 	rc = of_property_read_u32(to_of_node(fwnode), "riscv,ndev", nr_irqs);
 	if (rc) {
@@ -450,22 +476,28 @@ static int plic_parse_nr_irqs_and_contexts(struct fwnode_handle *fwnode,
 		return -EINVAL;
 	}
 
+	*gsi_base = 0;
+	*id = 0;
+
 	return 0;
 }
 
 static int plic_parse_context_parent(struct fwnode_handle *fwnode, u32 context,
-				     u32 *parent_hwirq, int *parent_cpu)
+				     u32 *parent_hwirq, int *parent_cpu, u32 id)
 {
 	struct of_phandle_args parent;
 	unsigned long hartid;
 	int rc;
 
-	/*
-	 * Currently, only OF fwnode is supported so extend this
-	 * function for ACPI support.
-	 */
-	if (!is_of_node(fwnode))
-		return -EINVAL;
+	if (!is_of_node(fwnode)) {
+		hartid = acpi_rintc_ext_parent_to_hartid(id, context);
+		if (hartid == INVALID_HARTID)
+			return -EINVAL;
+
+		*parent_cpu = riscv_hartid_to_cpuid(hartid);
+		*parent_hwirq = RV_IRQ_EXT;
+		return 0;
+	}
 
 	rc = of_irq_parse_one(to_of_node(fwnode), context, &parent);
 	if (rc)
@@ -489,6 +521,8 @@ static int plic_probe(struct fwnode_handle *fwnode)
 	struct plic_priv *priv;
 	irq_hw_number_t hwirq;
 	void __iomem *regs;
+	int id, context_id;
+	u32 gsi_base;
 
 	if (is_of_node(fwnode)) {
 		const struct of_device_id *id;
@@ -501,10 +535,12 @@ static int plic_probe(struct fwnode_handle *fwnode)
 		if (!regs)
 			return -ENOMEM;
 	} else {
-		return -ENODEV;
+		regs = devm_platform_ioremap_resource(to_platform_device(fwnode->dev), 0);
+		if (IS_ERR(regs))
+			return PTR_ERR(regs);
 	}
 
-	error = plic_parse_nr_irqs_and_contexts(fwnode, &nr_irqs, &nr_contexts);
+	error = plic_parse_nr_irqs_and_contexts(fwnode, &nr_irqs, &nr_contexts, &gsi_base, &id);
 	if (error)
 		goto fail_free_regs;
 
@@ -518,6 +554,8 @@ static int plic_probe(struct fwnode_handle *fwnode)
 	priv->plic_quirks = plic_quirks;
 	priv->nr_irqs = nr_irqs;
 	priv->regs = regs;
+	priv->gsi_base = gsi_base;
+	priv->acpi_plic_id = id;
 
 	priv->prio_save = bitmap_zalloc(nr_irqs, GFP_KERNEL);
 	if (!priv->prio_save) {
@@ -526,10 +564,21 @@ static int plic_probe(struct fwnode_handle *fwnode)
 	}
 
 	for (i = 0; i < nr_contexts; i++) {
-		error = plic_parse_context_parent(fwnode, i, &parent_hwirq, &cpu);
+		error = plic_parse_context_parent(fwnode, i, &parent_hwirq, &cpu,
+						  priv->acpi_plic_id);
 		if (error) {
 			pr_warn("%pfwP: hwirq for context%d not found\n", fwnode, i);
 			continue;
+		}
+
+		if (is_of_node(fwnode)) {
+			context_id = i;
+		} else {
+			context_id = acpi_rintc_get_plic_context(priv->acpi_plic_id, i);
+			if (context_id == INVALID_CONTEXT) {
+				pr_warn("%pfwP: invalid context id for context%d\n", fwnode, i);
+				continue;
+			}
 		}
 
 		/*
@@ -569,10 +618,10 @@ static int plic_probe(struct fwnode_handle *fwnode)
 		cpumask_set_cpu(cpu, &priv->lmask);
 		handler->present = true;
 		handler->hart_base = priv->regs + CONTEXT_BASE +
-			i * CONTEXT_SIZE;
+			context_id * CONTEXT_SIZE;
 		raw_spin_lock_init(&handler->enable_lock);
 		handler->enable_base = priv->regs + CONTEXT_ENABLE_BASE +
-			i * CONTEXT_ENABLE_SIZE;
+			context_id * CONTEXT_ENABLE_SIZE;
 		handler->priv = priv;
 
 		handler->enable_save = kcalloc(DIV_ROUND_UP(nr_irqs, 32),
@@ -588,8 +637,8 @@ done:
 		nr_handlers++;
 	}
 
-	priv->irqdomain = irq_domain_add_linear(to_of_node(fwnode), nr_irqs + 1,
-						&plic_irqdomain_ops, priv);
+	priv->irqdomain = irq_domain_create_linear(fwnode, nr_irqs + 1,
+						   &plic_irqdomain_ops, priv);
 	if (WARN_ON(!priv->irqdomain))
 		goto fail_cleanup_contexts;
 
@@ -626,13 +675,18 @@ done:
 		}
 	}
 
+#ifdef CONFIG_ACPI
+	if (!acpi_disabled)
+		acpi_dev_clear_dependencies(ACPI_COMPANION(fwnode->dev));
+#endif
+
 	pr_info("%pfwP: mapped %d interrupts with %d handlers for %d contexts.\n",
 		fwnode, nr_irqs, nr_handlers, nr_contexts);
 	return 0;
 
 fail_cleanup_contexts:
 	for (i = 0; i < nr_contexts; i++) {
-		if (plic_parse_context_parent(fwnode, i, &parent_hwirq, &cpu))
+		if (plic_parse_context_parent(fwnode, i, &parent_hwirq, &cpu, priv->acpi_plic_id))
 			continue;
 		if (parent_hwirq != RV_IRQ_EXT || cpu < 0)
 			continue;
@@ -663,6 +717,7 @@ static struct platform_driver plic_driver = {
 		.name		= "riscv-plic",
 		.of_match_table	= plic_match,
 		.suppress_bind_attrs = true,
+		.acpi_match_table = ACPI_PTR(plic_acpi_match),
 	},
 	.probe = plic_platform_probe,
 };

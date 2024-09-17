@@ -439,6 +439,19 @@ static void mt7925_roc_iter(void *priv, u8 *mac,
 	mt7925_mcu_abort_roc(phy, &mvif->bss_conf, phy->roc_token_id);
 }
 
+void mt7925_roc_abort_sync(struct mt792x_dev *dev)
+{
+	struct mt792x_phy *phy = &dev->phy;
+
+	del_timer_sync(&phy->roc_timer);
+	cancel_work_sync(&phy->roc_work);
+	if (test_and_clear_bit(MT76_STATE_ROC, &phy->mt76->state))
+		ieee80211_iterate_interfaces(mt76_hw(dev),
+					     IEEE80211_IFACE_ITER_RESUME_ALL,
+					     mt7925_roc_iter, (void *)phy);
+}
+EXPORT_SYMBOL_GPL(mt7925_roc_abort_sync);
+
 void mt7925_roc_work(struct work_struct *work)
 {
 	struct mt792x_phy *phy;
@@ -1078,23 +1091,26 @@ static void mt7925_mac_link_sta_assoc(struct mt76_dev *mdev,
 	mt792x_mutex_release(dev);
 }
 
-void mt7925_mac_sta_assoc(struct mt76_dev *mdev, struct ieee80211_vif *vif,
-			  struct ieee80211_sta *sta)
+int mt7925_mac_sta_event(struct mt76_dev *mdev, struct ieee80211_vif *vif,
+			 struct ieee80211_sta *sta, enum mt76_sta_event ev)
 {
+	struct ieee80211_link_sta *link_sta = &sta->deflink;
+
+	if (ev != MT76_STA_EVENT_ASSOC)
+		return 0;
+
 	if (ieee80211_vif_is_mld(vif)) {
 		struct mt792x_sta *msta = (struct mt792x_sta *)sta->drv_priv;
-		struct ieee80211_link_sta *link_sta;
 
 		link_sta = mt792x_sta_to_link_sta(vif, sta, msta->deflink_id);
-
 		mt7925_mac_set_links(mdev, vif);
-
-		mt7925_mac_link_sta_assoc(mdev, vif, link_sta);
-	} else {
-		mt7925_mac_link_sta_assoc(mdev, vif, &sta->deflink);
 	}
+
+	mt7925_mac_link_sta_assoc(mdev, vif, link_sta);
+
+	return 0;
 }
-EXPORT_SYMBOL_GPL(mt7925_mac_sta_assoc);
+EXPORT_SYMBOL_GPL(mt7925_mac_sta_event);
 
 static void mt7925_mac_link_sta_remove(struct mt76_dev *mdev,
 				       struct ieee80211_vif *vif,
@@ -1108,6 +1124,8 @@ static void mt7925_mac_link_sta_remove(struct mt76_dev *mdev,
 
 	msta = (struct mt792x_sta *)link_sta->sta->drv_priv;
 	mlink = mt792x_sta_to_link(msta, link_id);
+
+	mt7925_roc_abort_sync(dev);
 
 	mt76_connac_free_pending_tx_skbs(&dev->pm, &mlink->wcid);
 	mt76_connac_pm_wake(&dev->mphy, &dev->pm);

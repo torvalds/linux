@@ -165,9 +165,9 @@ static void sock_fanout_set_ebpf(int fd)
 	attr.insns = (unsigned long) prog;
 	attr.insn_cnt = ARRAY_SIZE(prog);
 	attr.license = (unsigned long) "GPL";
-	attr.log_buf = (unsigned long) log_buf,
-	attr.log_size = sizeof(log_buf),
-	attr.log_level = 1,
+	attr.log_buf = (unsigned long) log_buf;
+	attr.log_size = sizeof(log_buf);
+	attr.log_level = 1;
 
 	pfd = syscall(__NR_bpf, BPF_PROG_LOAD, &attr, sizeof(attr));
 	if (pfd < 0) {

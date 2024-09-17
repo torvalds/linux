@@ -75,6 +75,17 @@ Only files which are linked to the main kernel image or are compiled as
 kernel modules are supported by this mechanism.
 
 
+Module specific configs
+-----------------------
+
+Gcov kernel configs for specific modules are described below:
+
+CONFIG_GCOV_PROFILE_RDS:
+        Enables GCOV profiling on RDS for checking which functions or
+        lines are executed. This config is used by the rds selftest to
+        generate coverage reports. If left unset the report is omitted.
+
+
 Files
 -----
 
