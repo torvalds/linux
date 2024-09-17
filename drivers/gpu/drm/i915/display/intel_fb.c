@@ -1870,7 +1870,7 @@ static void intel_user_framebuffer_destroy(struct drm_framebuffer *fb)
 
 	intel_frontbuffer_put(intel_fb->frontbuffer);
 
-	intel_fb_bo_framebuffer_fini(intel_fb_obj(fb));
+	intel_fb_bo_framebuffer_fini(intel_fb_bo(fb));
 
 	kfree(intel_fb);
 }
@@ -2076,7 +2076,7 @@ err_free_dpt:
 err_frontbuffer_put:
 	intel_frontbuffer_put(intel_fb->frontbuffer);
 err:
-	intel_fb_bo_framebuffer_fini(to_intel_bo(obj));
+	intel_fb_bo_framebuffer_fini(obj);
 	return ret;
 }
 

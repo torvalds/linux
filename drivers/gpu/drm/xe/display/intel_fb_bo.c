@@ -11,8 +11,10 @@
 #include "intel_fb_bo.h"
 #include "xe_bo.h"
 
-void intel_fb_bo_framebuffer_fini(struct xe_bo *bo)
+void intel_fb_bo_framebuffer_fini(struct drm_gem_object *obj)
 {
+	struct xe_bo *bo = gem_to_xe_bo(obj);
+
 	if (bo->flags & XE_BO_FLAG_PINNED) {
 		/* Unpin our kernel fb first */
 		xe_bo_lock(bo, false);

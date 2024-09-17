@@ -11,7 +11,7 @@
 #include "intel_fb.h"
 #include "intel_fb_bo.h"
 
-void intel_fb_bo_framebuffer_fini(struct drm_i915_gem_object *obj)
+void intel_fb_bo_framebuffer_fini(struct drm_gem_object *obj)
 {
 	/* Nothing to do for i915 */
 }

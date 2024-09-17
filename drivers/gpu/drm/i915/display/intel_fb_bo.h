@@ -8,12 +8,11 @@
 
 struct drm_file;
 struct drm_gem_object;
-struct drm_i915_gem_object;
 struct drm_i915_private;
 struct drm_mode_fb_cmd2;
 struct intel_framebuffer;
 
-void intel_fb_bo_framebuffer_fini(struct drm_i915_gem_object *obj);
+void intel_fb_bo_framebuffer_fini(struct drm_gem_object *obj);
 
 int intel_fb_bo_framebuffer_init(struct intel_framebuffer *intel_fb,
 				 struct drm_gem_object *obj,
