@@ -266,7 +266,7 @@ config AS_HAS_FCSR_CLASS
 	def_bool $(as-instr,movfcsr2gr \$t0$(comma)\$fcsr0)
 
 config AS_HAS_THIN_ADD_SUB
-	def_bool $(cc-option,-Wa$(comma)-mthin-add-sub)
+	def_bool $(cc-option,-Wa$(comma)-mthin-add-sub) || AS_IS_LLVM
 
 config AS_HAS_LSX_EXTENSION
 	def_bool $(as-instr,vld \$vr0$(comma)\$a0$(comma)0)
