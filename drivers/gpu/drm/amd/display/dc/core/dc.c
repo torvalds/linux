@@ -5760,7 +5760,7 @@ enum dc_status dc_process_dmub_set_mst_slots(const struct dc *dc,
  *
  * @dc: [in] dc structure
  * @link_index: [in] link index
- * @ts: [in] request tps
+ * @tps: [in] request tps
  *
  * Submits set_tps_notification command to dmub via inbox message
  */
