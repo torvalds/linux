@@ -102,6 +102,9 @@ int exfat_write_inode(struct inode *inode, struct writeback_control *wbc)
 {
 	int ret;
 
+	if (unlikely(exfat_forced_shutdown(inode->i_sb)))
+		return -EIO;
+
 	mutex_lock(&EXFAT_SB(inode->i_sb)->s_lock);
 	ret = __exfat_write_inode(inode, wbc->sync_mode == WB_SYNC_ALL);
 	mutex_unlock(&EXFAT_SB(inode->i_sb)->s_lock);
@@ -402,6 +405,9 @@ static void exfat_readahead(struct readahead_control *rac)
 static int exfat_writepages(struct address_space *mapping,
 		struct writeback_control *wbc)
 {
+	if (unlikely(exfat_forced_shutdown(mapping->host->i_sb)))
+		return -EIO;
+
 	return mpage_writepages(mapping, wbc, exfat_get_block);
 }
 
@@ -421,6 +427,9 @@ static int exfat_write_begin(struct file *file, struct address_space *mapping,
 		struct folio **foliop, void **fsdata)
 {
 	int ret;
+
+	if (unlikely(exfat_forced_shutdown(mapping->host->i_sb)))
+		return -EIO;
 
 	ret = block_write_begin(mapping, pos, len, foliop, exfat_get_block);
 
