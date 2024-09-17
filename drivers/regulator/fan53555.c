@@ -46,7 +46,7 @@
 /* VSEL bit definitions */
 #define VSEL_BUCK_EN		BIT(7)
 #define VSEL_MODE		BIT(6)
-/* Chip ID and Verison */
+/* Chip ID and Version */
 #define DIE_ID			0x0F	/* ID1 */
 #define DIE_REV			0x0F	/* ID2 */
 /* Control bit definitions */
