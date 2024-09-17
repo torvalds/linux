@@ -55,8 +55,8 @@
  * cancelled as soon as busyness is detected.
  */
 
-#include "gem/i915_gem_object_frontbuffer.h"
-#include "gem/i915_gem_object_types.h"
+#include <drm/drm_gem.h>
+
 #include "i915_active.h"
 #include "i915_drv.h"
 #include "intel_bo.h"
@@ -175,14 +175,14 @@ void __intel_fb_invalidate(struct intel_frontbuffer *front,
 			   enum fb_op_origin origin,
 			   unsigned int frontbuffer_bits)
 {
-	struct drm_i915_private *i915 = intel_bo_to_i915(front->obj);
-	struct intel_display *display = &i915->display;
+	struct intel_display *display = to_intel_display(front->obj->dev);
+	struct drm_i915_private *i915 = to_i915(display->drm);
 
 	if (origin == ORIGIN_CS) {
-		spin_lock(&i915->display.fb_tracking.lock);
-		i915->display.fb_tracking.busy_bits |= frontbuffer_bits;
-		i915->display.fb_tracking.flip_bits &= ~frontbuffer_bits;
-		spin_unlock(&i915->display.fb_tracking.lock);
+		spin_lock(&display->fb_tracking.lock);
+		display->fb_tracking.busy_bits |= frontbuffer_bits;
+		display->fb_tracking.flip_bits &= ~frontbuffer_bits;
+		spin_unlock(&display->fb_tracking.lock);
 	}
 
 	trace_intel_frontbuffer_invalidate(display, frontbuffer_bits, origin);
@@ -197,14 +197,15 @@ void __intel_fb_flush(struct intel_frontbuffer *front,
 		      enum fb_op_origin origin,
 		      unsigned int frontbuffer_bits)
 {
-	struct drm_i915_private *i915 = intel_bo_to_i915(front->obj);
+	struct intel_display *display = to_intel_display(front->obj->dev);
+	struct drm_i915_private *i915 = to_i915(display->drm);
 
 	if (origin == ORIGIN_CS) {
-		spin_lock(&i915->display.fb_tracking.lock);
+		spin_lock(&display->fb_tracking.lock);
 		/* Filter out new bits since rendering started. */
-		frontbuffer_bits &= i915->display.fb_tracking.busy_bits;
-		i915->display.fb_tracking.busy_bits &= ~frontbuffer_bits;
-		spin_unlock(&i915->display.fb_tracking.lock);
+		frontbuffer_bits &= display->fb_tracking.busy_bits;
+		display->fb_tracking.busy_bits &= ~frontbuffer_bits;
+		spin_unlock(&display->fb_tracking.lock);
 	}
 
 	if (frontbuffer_bits)
@@ -216,7 +217,7 @@ static void intel_frontbuffer_flush_work(struct work_struct *work)
 	struct intel_frontbuffer *front =
 		container_of(work, struct intel_frontbuffer, flush_work);
 
-	intel_bo_flush_if_display(intel_bo_to_drm_bo(front->obj));
+	intel_bo_flush_if_display(front->obj);
 	intel_frontbuffer_flush(front, ORIGIN_DIRTYFB);
 	intel_frontbuffer_put(front);
 }
@@ -257,19 +258,20 @@ static void frontbuffer_retire(struct i915_active *ref)
 }
 
 static void frontbuffer_release(struct kref *ref)
-	__releases(&intel_bo_to_i915(front->obj)->display.fb_tracking.lock)
+	__releases(&to_intel_display(front->obj->dev)->fb_tracking.lock)
 {
 	struct intel_frontbuffer *ret, *front =
 		container_of(ref, typeof(*front), ref);
-	struct drm_i915_gem_object *obj = front->obj;
+	struct drm_gem_object *obj = front->obj;
+	struct intel_display *display = to_intel_display(obj->dev);
 
-	drm_WARN_ON(&intel_bo_to_i915(obj)->drm, atomic_read(&front->bits));
+	drm_WARN_ON(display->drm, atomic_read(&front->bits));
 
-	i915_ggtt_clear_scanout(obj);
+	i915_ggtt_clear_scanout(to_intel_bo(obj));
 
-	ret = intel_bo_set_frontbuffer(intel_bo_to_drm_bo(obj), NULL);
-	drm_WARN_ON(&intel_bo_to_i915(obj)->drm, ret);
-	spin_unlock(&intel_bo_to_i915(obj)->display.fb_tracking.lock);
+	ret = intel_bo_set_frontbuffer(obj, NULL);
+	drm_WARN_ON(display->drm, ret);
+	spin_unlock(&display->fb_tracking.lock);
 
 	i915_active_fini(&front->write);
 	kfree_rcu(front, rcu);
@@ -289,7 +291,7 @@ intel_frontbuffer_get(struct drm_gem_object *obj)
 	if (!front)
 		return NULL;
 
-	front->obj = to_intel_bo(obj);
+	front->obj = obj;
 	kref_init(&front->ref);
 	atomic_set(&front->bits, 0);
 	i915_active_init(&front->write,
@@ -310,7 +312,7 @@ void intel_frontbuffer_put(struct intel_frontbuffer *front)
 {
 	kref_put_lock(&front->ref,
 		      frontbuffer_release,
-		      &intel_bo_to_i915(front->obj)->display.fb_tracking.lock);
+		      &to_intel_display(front->obj->dev)->fb_tracking.lock);
 }
 
 /**
@@ -339,13 +341,17 @@ void intel_frontbuffer_track(struct intel_frontbuffer *old,
 	BUILD_BUG_ON(I915_MAX_PLANES > INTEL_FRONTBUFFER_BITS_PER_PIPE);
 
 	if (old) {
-		drm_WARN_ON(&intel_bo_to_i915(old->obj)->drm,
+		struct intel_display *display = to_intel_display(old->obj->dev);
+
+		drm_WARN_ON(display->drm,
 			    !(atomic_read(&old->bits) & frontbuffer_bits));
 		atomic_andnot(frontbuffer_bits, &old->bits);
 	}
 
 	if (new) {
-		drm_WARN_ON(&intel_bo_to_i915(new->obj)->drm,
+		struct intel_display *display = to_intel_display(new->obj->dev);
+
+		drm_WARN_ON(display->drm,
 			    atomic_read(&new->bits) & frontbuffer_bits);
 		atomic_or(frontbuffer_bits, &new->bits);
 	}

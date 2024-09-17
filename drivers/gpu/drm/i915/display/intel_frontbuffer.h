@@ -45,7 +45,7 @@ struct intel_frontbuffer {
 	struct kref ref;
 	atomic_t bits;
 	struct i915_active write;
-	struct drm_i915_gem_object *obj;
+	struct drm_gem_object *obj;
 	struct rcu_head rcu;
 
 	struct work_struct flush_work;
