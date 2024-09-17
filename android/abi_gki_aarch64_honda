@@ -1,0 +1,108 @@
+[abi_symbol_list]
+# commonly used by custom vendor modules
+  __bitmap_subset
+  devres_find
+  input_device_enabled
+  pvclock_gtod_register_notifier
+  refcount_dec_if_one
+
+# commonly required by ledtrig-heartbeat.ko modules
+  avenrun
+
+# commonly required by ledtrig-*.ko modules
+  led_blink_set_oneshot
+  led_get_default_pattern
+  led_set_brightness
+  led_set_brightness_nosleep
+  led_stop_software_blink
+
+# required by cls_flower.ko module
+  flow_rule_alloc
+  idr_get_next_ul
+  radix_tree_tagged
+  skb_flow_dissect_ct
+  skb_flow_dissect_hash
+  skb_flow_dissect_meta
+  skb_flow_dissect_tunnel_info
+  skb_flow_dissector_init
+  tc_cleanup_offload_action
+  tc_setup_cb_call
+  tc_setup_cb_destroy
+  tc_setup_cb_reoffload
+  tc_setup_cb_add
+  tc_setup_offload_action
+  tcf_action_update_hw_stats
+  tcf_exts_num_actions
+  tcf_exts_terse_dump
+  tcf_exts_validate_ex
+
+# required by act_vlan.ko module
+  jiffies_to_clock_t
+  skb_eth_push
+  skb_eth_pop
+  __skb_vlan_pop
+  skb_vlan_push
+  skb_vlan_pop
+  tcf_action_check_ctrlact
+  tcf_action_set_ctrlact
+  tcf_action_update_stats
+  tcf_chain_put_by_act
+  tcf_generic_walker
+  tcf_idr_check_alloc
+  tcf_idr_cleanup
+  tcf_idr_create_from_flags
+  tcf_idr_release
+  tcf_idr_search
+  tcf_idrinfo_destroy
+  tcf_register_action
+  tcf_unregister_action
+
+# required by ebtables.ko module
+  __audit_log_nfcfg
+  audit_enabled
+  nf_register_sockopt
+  nf_unregister_sockopt
+  vmalloc_node
+  xt_check_match
+  xt_check_target
+  xt_compat_add_offset
+  xt_compat_calc_jump
+  xt_compat_flush_offsets
+  xt_compat_init_offsets
+  xt_compat_lock
+  xt_compat_match_offset
+  xt_compat_target_offset
+  xt_compat_unlock
+  xt_data_to_user
+  xt_find_match
+  xt_register_target
+  xt_request_find_match
+  xt_request_find_target
+  xt_unregister_target
+
+# commonly required by ebt_*.ko modules
+  xt_register_match
+  xt_unregister_match
+
+# required by ebt_arpreply.ko module
+  arp_send
+
+# required by ebt_log.ko module
+  nf_log_packet
+  sysctl_nf_log_all_netns
+
+# required by xt_LOG.ko module
+  nf_log_buf_add
+  nf_log_buf_close
+  nf_log_buf_open
+  nf_log_register
+  nf_log_set
+  nf_log_unregister
+  nf_log_unset
+  nf_logger_find_get
+  nf_logger_put
+  xt_register_targets
+  xt_unregister_targets
+
+# required by audio related modules
+  snd_pcm_suspend_all

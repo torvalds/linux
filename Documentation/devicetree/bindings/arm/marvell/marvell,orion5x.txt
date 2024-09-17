@@ -1,0 +1,25 @@
+Marvell Orion SoC Family Device Tree Bindings
+---------------------------------------------
+
+Boards with a SoC of the Marvell Orion family, eg 88f5181
+
+* Required root node properties:
+compatible: must contain "marvell,orion5x"
+
+In addition, the above compatible shall be extended with the specific
+SoC. Currently known SoC compatibles are:
+
+"marvell,orion5x-88f5181"
+"marvell,orion5x-88f5182"
+
+And in addition, the compatible shall be extended with the specific
+board. Currently known boards are:
+
+"buffalo,lsgl"
+"buffalo,lswsgl"
+"buffalo,lswtgl"
+"lacie,ethernet-disk-mini-v2"
+"lacie,d2-network"
+"marvell,rd-88f5182-nas"
+"maxtor,shared-storage-2"
+"netgear,wnr854t"

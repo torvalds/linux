@@ -1,0 +1,43 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Plug and Play BIOS configuration
+#
+config PNPBIOS
+	bool "Plug and Play BIOS support"
+	depends on ISA && X86_32
+	default n
+	help
+	  Linux uses the PNPBIOS as defined in "Plug and Play BIOS
+	  Specification Version 1.0A May 5, 1994" to autodetect built-in
+	  mainboard resources (e.g. parallel port resources).
+
+	  Some features (e.g. event notification, docking station information,
+	  ISAPNP services) are not currently implemented.
+
+	  If you would like the kernel to detect and allocate resources to
+	  your mainboard devices (on some systems they are disabled by the
+	  BIOS) say Y here.  Also the PNPBIOS can help prevent resource
+	  conflicts between mainboard devices and other bus devices.
+
+	  Note: ACPI is expected to supersede PNPBIOS some day, currently it
+	  co-exists nicely.  If you have a non-ISA system that supports ACPI,
+	  you probably don't need PNPBIOS support.
+
+config PNPBIOS_PROC_FS
+	bool "Plug and Play BIOS /proc interface"
+	depends on PNPBIOS && PROC_FS
+	help
+	  If you say Y here and to "/proc file system support", you will be
+	  able to directly access the PNPBIOS.  This includes resource
+	  allocation, ESCD, and other PNPBIOS services.  Using this
+	  interface is potentially dangerous because the PNPBIOS driver will
+	  not be notified of any resource changes made by writing directly.
+	  Also some buggy systems will fault when accessing certain features
+	  in the PNPBIOS /proc interface (e.g. "boot" configs).
+
+	  See the latest pcmcia-cs (stand-alone package) for a nice set of
+	  PNPBIOS /proc interface tools (lspnp and setpnp).
+
+	  Unless you are debugging or have other specific reasons, it is
+	  recommended that you say N here.
+

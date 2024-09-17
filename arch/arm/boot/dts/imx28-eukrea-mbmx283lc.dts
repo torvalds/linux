@@ -1,0 +1,64 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+/*
+ * Copyright 2013 Eukréa Electromatique <eric@eukrea.com>
+ * Copyright 2013 Eukréa Electromatique <denis@eukrea.com>
+ */
+
+/*
+ * Module contains : i.MX282 + 64MB DDR2 + NAND + Ethernet PHY + RTC
+ */
+
+/dts-v1/;
+#include "imx28-eukrea-mbmx28lc.dtsi"
+
+/ {
+	model = "Eukrea Electromatique MBMX283LC";
+	compatible = "eukrea,mbmx283lc", "eukrea,mbmx28lc", "fsl,imx28";
+
+	memory@40000000 {
+		device_type = "memory";
+		reg = <0x40000000 0x04000000>;
+	};
+};
+
+&gpmi {
+	pinctrl-names = "default";
+	pinctrl-0 = <&gpmi_pins_a>;
+	status = "okay";
+};
+
+&i2c0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c0_pins_a>;
+	status = "okay";
+
+	pcf8563: rtc@51 {
+		compatible = "nxp,pcf8563";
+		reg = <0x51>;
+	};
+};
+
+
+&mac0 {
+	phy-mode = "rmii";
+	pinctrl-names = "default";
+	pinctrl-0 = <&mac0_pins_a>;
+	phy-reset-gpios = <&gpio4 13 GPIO_ACTIVE_LOW>;
+	status = "okay";
+};
+
+&pinctrl{
+	pinctrl-names = "default";
+	pinctrl-0 = <&hog_pins_cpuimx283>;
+
+	hog_pins_cpuimx283: hog-cpuimx283@0 {
+		reg = <0>;
+		fsl,pinmux-ids = <
+			MX28_PAD_ENET0_RX_CLK__GPIO_4_13
+			MX28_PAD_ENET0_TX_CLK__GPIO_4_5
+		>;
+		fsl,drive-strength = <MXS_DRIVE_4mA>;
+		fsl,voltage = <MXS_VOLTAGE_HIGH>;
+		fsl,pull-up = <MXS_PULL_ENABLE>;
+	};
+};

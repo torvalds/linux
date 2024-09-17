@@ -1,0 +1,120 @@
+// SPDX-License-Identifier: GPL-2.0+ OR MIT
+//
+// Copyright 2016 Freescale Semiconductor, Inc.
+
+#include "imx6q.dtsi"
+
+/ {
+	soc {
+		ocram2: sram@940000 {
+			compatible = "mmio-sram";
+			reg = <0x00940000 0x20000>;
+			ranges = <0 0x00940000 0x20000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			clocks = <&clks IMX6QDL_CLK_OCRAM>;
+		};
+
+		ocram3: sram@960000 {
+			compatible = "mmio-sram";
+			reg = <0x00960000 0x20000>;
+			ranges = <0 0x00960000 0x20000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			clocks = <&clks IMX6QDL_CLK_OCRAM>;
+		};
+
+		bus@2100000 {
+			pre1: pre@21c8000 {
+				compatible = "fsl,imx6qp-pre";
+				reg = <0x021c8000 0x1000>;
+				interrupts = <GIC_SPI 90 IRQ_TYPE_EDGE_RISING>;
+				clocks = <&clks IMX6QDL_CLK_PRE0>;
+				clock-names = "axi";
+				fsl,iram = <&ocram2>;
+			};
+
+			pre2: pre@21c9000 {
+				compatible = "fsl,imx6qp-pre";
+				reg = <0x021c9000 0x1000>;
+				interrupts = <GIC_SPI 97 IRQ_TYPE_EDGE_RISING>;
+				clocks = <&clks IMX6QDL_CLK_PRE1>;
+				clock-names = "axi";
+				fsl,iram = <&ocram2>;
+			};
+
+			pre3: pre@21ca000 {
+				compatible = "fsl,imx6qp-pre";
+				reg = <0x021ca000 0x1000>;
+				interrupts = <GIC_SPI 98 IRQ_TYPE_EDGE_RISING>;
+				clocks = <&clks IMX6QDL_CLK_PRE2>;
+				clock-names = "axi";
+				fsl,iram = <&ocram3>;
+			};
+
+			pre4: pre@21cb000 {
+				compatible = "fsl,imx6qp-pre";
+				reg = <0x021cb000 0x1000>;
+				interrupts = <GIC_SPI 99 IRQ_TYPE_EDGE_RISING>;
+				clocks = <&clks IMX6QDL_CLK_PRE3>;
+				clock-names = "axi";
+				fsl,iram = <&ocram3>;
+			};
+
+			prg1: prg@21cc000 {
+				compatible = "fsl,imx6qp-prg";
+				reg = <0x021cc000 0x1000>;
+				clocks = <&clks IMX6QDL_CLK_PRG0_APB>,
+					 <&clks IMX6QDL_CLK_PRG0_AXI>;
+				clock-names = "ipg", "axi";
+				fsl,pres = <&pre1>, <&pre2>, <&pre3>;
+			};
+
+			prg2: prg@21cd000 {
+				compatible = "fsl,imx6qp-prg";
+				reg = <0x021cd000 0x1000>;
+				clocks = <&clks IMX6QDL_CLK_PRG1_APB>,
+					 <&clks IMX6QDL_CLK_PRG1_AXI>;
+				clock-names = "ipg", "axi";
+				fsl,pres = <&pre4>, <&pre2>, <&pre3>;
+			};
+		};
+	};
+};
+
+&fec {
+	interrupts = <0 118 IRQ_TYPE_LEVEL_HIGH>,
+		     <0 119 IRQ_TYPE_LEVEL_HIGH>;
+};
+
+&gpc {
+	compatible = "fsl,imx6qp-gpc", "fsl,imx6q-gpc";
+};
+
+&ipu1 {
+	compatible = "fsl,imx6qp-ipu", "fsl,imx6q-ipu";
+	fsl,prg = <&prg1>;
+};
+
+&ipu2 {
+	compatible = "fsl,imx6qp-ipu", "fsl,imx6q-ipu";
+	fsl,prg = <&prg2>;
+};
+
+&ldb {
+	clocks = <&clks IMX6QDL_CLK_LDB_DI0_SEL>, <&clks IMX6QDL_CLK_LDB_DI1_SEL>,
+		 <&clks IMX6QDL_CLK_IPU1_DI0_SEL>, <&clks IMX6QDL_CLK_IPU1_DI1_SEL>,
+		 <&clks IMX6QDL_CLK_IPU2_DI0_SEL>, <&clks IMX6QDL_CLK_IPU2_DI1_SEL>,
+		 <&clks IMX6QDL_CLK_LDB_DI0_PODF>, <&clks IMX6QDL_CLK_LDB_DI1_PODF>;
+	clock-names = "di0_pll", "di1_pll",
+		      "di0_sel", "di1_sel", "di2_sel", "di3_sel",
+		      "di0", "di1";
+};
+
+&mmdc0 {
+	compatible = "fsl,imx6qp-mmdc", "fsl,imx6q-mmdc";
+};
+
+&pcie {
+	compatible = "fsl,imx6qp-pcie";
+};

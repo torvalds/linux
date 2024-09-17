@@ -1,0 +1,46 @@
+# SPDX-License-Identifier: GPL-2.0
+
+menuconfig ACPI_DPTF
+	bool "Intel DPTF (Dynamic Platform and Thermal Framework) Support"
+	depends on X86
+	help
+	  Intel Dynamic Platform and Thermal Framework (DPTF) is a platform
+	  level hardware/software solution for power and thermal management.
+
+	  As a container for multiple power/thermal technologies, DPTF provides
+	  a coordinated approach for different policies to effect the hardware
+	  state of a system.
+
+if ACPI_DPTF
+
+config DPTF_POWER
+	tristate "Platform Power DPTF Participant"
+	default m
+	help
+	  This driver adds support for Dynamic Platform and Thermal Framework
+	  (DPTF) Platform Power Participant device (INT3407) support.
+	  This participant is responsible for exposing platform telemetry:
+		max_platform_power
+		platform_power_source
+		adapter_rating
+		battery_steady_power
+		charger_type
+
+	  To compile this driver as a module, choose M here:
+	  the module will be called dptf_power.
+
+config DPTF_PCH_FIVR
+	tristate "PCH FIVR DPTF Participant"
+	default m
+	help
+	  This driver adds support for Dynamic Platform and Thermal Framework
+	  (DPTF) PCH FIVR Participant device support. This driver allows to
+	  switch the PCH FIVR (Fully Integrated Voltage Regulator) frequency.
+	  This participant is responsible for exposing:
+		freq_mhz_low_clock
+		freq_mhz_high_clock
+
+	  To compile this driver as a module, choose M here:
+	  the module will be called dptf_pch_fivr.
+
+endif

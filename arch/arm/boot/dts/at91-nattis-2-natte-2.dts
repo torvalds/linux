@@ -1,0 +1,306 @@
+// SPDX-License-Identifier: GPL-2.0+
+/*
+ * at91-nattis-2-natte-2.dts - Device Tree file for the Linea/Nattis board
+ *
+ * Copyright (C) 2017 Axentia Technologies AB
+ *
+ * Author: Peter Rosin <peda@axentia.se>
+ */
+/dts-v1/;
+#include "at91-linea.dtsi"
+#include "at91-natte.dtsi"
+
+/ {
+	model = "Axentia Linea-Nattis v2 Natte v2";
+	compatible = "axentia,nattis-2", "axentia,natte-2", "axentia,linea",
+		     "atmel,sama5d31", "atmel,sama5d3", "atmel,sama5";
+
+	gpio-keys {
+		compatible = "gpio-keys";
+
+		key-wakeup {
+			label = "Wakeup";
+			linux,code = <10>;
+			wakeup-source;
+			gpios = <&pioB 27 GPIO_ACTIVE_LOW>;
+		};
+	};
+
+	panel_reg: panel-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "panel-VCC";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+	};
+
+	bl_reg: backlight-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "panel-VDD";
+		regulator-min-microvolt = <12000000>;
+		regulator-max-microvolt = <12000000>;
+	};
+
+	panel_bl: backlight {
+		compatible = "pwm-backlight";
+		pwms = <&hlcdc_pwm 0 100000 0>;
+
+		brightness-levels = < 0  1  2  3  4  5  6  7  8  9
+				     10 11 12 13 14 15 16 17 18 19
+				     20 21 22 23 24 25 26 27 28 29
+				     30 31 32 33 34 35 36 37 38 39
+				     40 41 42 43 44 45 46 47 48 49
+				     50 51 52 53 54 55 56 57 58 59
+				     60 61 62 63 64 65 66 67 68 69
+				     70 71 72 73 74 75 76 77 78 79
+				     80 81 82 83 84 85 86 87 88 89
+				     90 91 92 93 94 95 96 97 98 99
+				    100>;
+		default-brightness-level = <40>;
+
+		power-supply = <&bl_reg>;
+		enable-gpios = <&pioA 20 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_blon>;
+	};
+
+	panel: panel {
+		compatible = "sharp,lq150x1lg11", "panel-lvds";
+
+		backlight = <&panel_bl>;
+		power-supply = <&panel_reg>;
+
+		width-mm = <304>;
+		height-mm = <228>;
+
+		data-mapping = "jeida-18";
+
+		panel-timing {
+			// 1024x768 @ 60Hz (typical)
+			clock-frequency = <50000000 65000000 80000000>;
+			hactive = <1024>;
+			vactive = <768>;
+			hfront-porch = <48 88 88>;
+			hback-porch = <96 168 168>;
+			hsync-len = <32 64 64>;
+			vsync-len = <3 13 74>;
+			vfront-porch = <3 13 74>;
+			vback-porch = <3 12 74>;
+		};
+
+		port {
+			panel_input: endpoint {
+				remote-endpoint = <&lvds_encoder_output>;
+			};
+		};
+	};
+
+	lvds-encoder {
+		compatible = "ti,ds90c185", "lvds-encoder";
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_lvds_prlud0 &pinctrl_lvds_hipow0>;
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+
+				lvds_encoder_input: endpoint {
+					remote-endpoint = <&hlcdc_output>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+
+				lvds_encoder_output: endpoint {
+					remote-endpoint = <&panel_input>;
+				};
+			};
+		};
+	};
+
+	sound {
+		compatible = "simple-audio-card";
+
+		simple-audio-card,name = "nattis-tfa9879";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,bitclock-master = <&cpu_dai>;
+		simple-audio-card,frame-master = <&cpu_dai>;
+		simple-audio-card,widgets = "Line", "Line Out Jack";
+		simple-audio-card,routing = "Line Out Jack", "LINEOUT";
+
+		cpu_dai: simple-audio-card,cpu {
+			sound-dai = <&ssc0>;
+		};
+
+		simple-audio-card,codec {
+			sound-dai = <&amp>;
+		};
+	};
+};
+
+&pinctrl {
+	nattis {
+		pinctrl_usba_vbus: usba_vbus {
+			atmel,pins = <AT91_PIOD 28 AT91_PERIPH_GPIO
+				      AT91_PINCTRL_DEGLITCH>;
+		};
+
+		pinctrl_mmc0_cd: mmc0_cd {
+			atmel,pins = <AT91_PIOD  5 AT91_PERIPH_GPIO
+				      AT91_PINCTRL_PULL_UP_DEGLITCH>;
+		};
+
+		pinctrl_lvds_prlud0: lvds_prlud0 {
+			atmel,pins = <AT91_PIOA 21 AT91_PERIPH_GPIO
+				      (AT91_PINCTRL_OUTPUT |
+				       AT91_PINCTRL_OUTPUT_VAL(0))>;
+		};
+
+		pinctrl_lvds_hipow0: lvds_hipow0 {
+			atmel,pins = <AT91_PIOA 23 AT91_PERIPH_GPIO
+				      (AT91_PINCTRL_OUTPUT |
+				       AT91_PINCTRL_OUTPUT_VAL(0))>;
+		};
+
+		pinctrl_blon: blon {
+			atmel,pins = <AT91_PIOA 20 AT91_PERIPH_GPIO
+				      (AT91_PINCTRL_OUTPUT |
+				       AT91_PINCTRL_OUTPUT_VAL(0))>;
+		};
+	};
+};
+
+&watchdog {
+	status = "okay";
+};
+
+&i2c0 {
+	status = "okay";
+
+	clock-frequency = <100000>;
+
+	temp@18 {
+		compatible = "nxp,se97b", "jedec,jc-42.4-temp";
+		reg = <0x18>;
+		smbus-timeout-disable;
+	};
+
+	eeprom@50 {
+		compatible = "nxp,se97b", "atmel,24c02";
+		reg = <0x50>;
+		pagesize = <16>;
+	};
+
+	amp: amplifier@6c {
+		 compatible = "nxp,tfa9879";
+		 reg = <0x6c>;
+		 #sound-dai-cells = <0>;
+	};
+};
+
+&ssc0 {
+	status = "okay";
+
+	atmel,clk-from-rk-pin;
+	#sound-dai-cells = <0>;
+};
+
+&hlcdc {
+	status = "okay";
+
+	hlcdc-display-controller {
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_lcd_base &pinctrl_lcd_rgb565>;
+
+		port@0 {
+			hlcdc_output: endpoint {
+				remote-endpoint = <&lvds_encoder_input>;
+				bus-width = <16>;
+			};
+		};
+	};
+};
+
+&mmc0 {
+	status = "okay";
+
+	pinctrl-0 = <&pinctrl_mmc0_clk_cmd_dat0
+		     &pinctrl_mmc0_dat1_3
+		     &pinctrl_mmc0_cd>;
+
+	slot@0 {
+		reg = <0>;
+		bus-width = <4>;
+		cd-gpios = <&pioD 5 GPIO_ACTIVE_HIGH>;
+		cd-inverted;
+	};
+};
+
+&usart0 {
+	status = "okay";
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_usart0>;
+	atmel,use-dma-rx;
+};
+
+&nand {
+	partitions {
+		compatible = "fixed-partitions";
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		at91bootstrap@0 {
+			label = "at91bootstrap";
+			reg = <0x0 0x40000>;
+		};
+
+		barebox@40000 {
+			label = "barebox";
+			reg = <0x40000 0x60000>;
+		};
+
+		bareboxenv@c0000 {
+			label = "bareboxenv";
+			reg = <0xc0000 0x40000>;
+		};
+
+		bareboxenv2@100000 {
+			label = "bareboxenv2";
+			reg = <0x100000 0x40000>;
+		};
+
+		oftree@180000 {
+			label = "oftree";
+			reg = <0x180000 0x20000>;
+		};
+
+		kernel@200000 {
+			label = "kernel";
+			reg = <0x200000 0x500000>;
+		};
+
+		rootfs@800000 {
+			label = "rootfs";
+			reg = <0x800000 0x1f800000>;
+		};
+	};
+};
+
+&dbgu {
+	status = "okay";
+
+	atmel,use-dma-rx;
+};
+
+&usb0 {
+	status = "okay";
+
+	atmel,vbus-gpio = <&pioD 28 GPIO_ACTIVE_HIGH>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_usba_vbus>;
+};

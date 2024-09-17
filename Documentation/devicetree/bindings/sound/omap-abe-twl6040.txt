@@ -1,0 +1,91 @@
+* Texas Instruments OMAP4+ and twl6040 based audio setups
+
+Required properties:
+- compatible: "ti,abe-twl6040"
+- ti,model: Name of the sound card ( for example "SDP4430")
+- ti,mclk-freq: MCLK frequency for HPPLL operation
+- ti,mcpdm: phandle for the McPDM node
+- ti,twl6040: phandle for the twl6040 core node
+- ti,audio-routing: List of connections between audio components.
+  Each entry is a pair of strings, the first being the connection's sink,
+  the second being the connection's source.
+
+Optional properties:
+- ti,dmic: phandle for the OMAP dmic node if the machine have it connected
+- ti,jack-detection: Need to be present if the board capable to detect jack
+  insertion, removal.
+
+Available audio endpoints for the audio-routing table:
+
+Board connectors:
+ * Headset Stereophone
+ * Earphone Spk
+ * Ext Spk
+ * Line Out
+ * Vibrator
+ * Headset Mic
+ * Main Handset Mic
+ * Sub Handset Mic
+ * Line In
+ * Digital Mic
+
+twl6040 pins:
+ * HSOL
+ * HSOR
+ * EP
+ * HFL
+ * HFR
+ * AUXL
+ * AUXR
+ * VIBRAL
+ * VIBRAR
+ * HSMIC
+ * MAINMIC
+ * SUBMIC
+ * AFML
+ * AFMR
+
+ * Headset Mic Bias
+ * Main Mic Bias
+ * Digital Mic1 Bias
+ * Digital Mic2 Bias
+
+Digital mic pins:
+ * DMic
+
+Example:
+
+sound {
+	compatible = "ti,abe-twl6040";
+	ti,model = "SDP4430";
+
+	ti,jack-detection;
+	ti,mclk-freq = <38400000>;
+
+	ti,mcpdm = <&mcpdm>;
+	ti,dmic = <&dmic>;
+
+	ti,twl6040 = <&twl6040>;
+
+	/* Audio routing */
+	ti,audio-routing =
+		"Headset Stereophone", "HSOL",
+		"Headset Stereophone", "HSOR",
+		"Earphone Spk", "EP",
+		"Ext Spk", "HFL",
+		"Ext Spk", "HFR",
+		"Line Out", "AUXL",
+		"Line Out", "AUXR",
+		"Vibrator", "VIBRAL",
+		"Vibrator", "VIBRAR",
+		"HSMIC", "Headset Mic",
+		"Headset Mic", "Headset Mic Bias",
+		"MAINMIC", "Main Handset Mic",
+		"Main Handset Mic", "Main Mic Bias",
+		"SUBMIC", "Sub Handset Mic",
+		"Sub Handset Mic", "Main Mic Bias",
+		"AFML", "Line In",
+		"AFMR", "Line In",
+		"DMic", "Digital Mic",
+		"Digital Mic", "Digital Mic1 Bias";
+};

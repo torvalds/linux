@@ -1,0 +1,49 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/reset/lantiq,reset.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Lantiq XWAY SoC RCU reset controller
+
+maintainers:
+  - Martin Blumenstingl <martin.blumenstingl@googlemail.com>
+
+description: |
+  This binding describes a reset-controller found on the RCU module on Lantiq
+  XWAY SoCs. This node has to be a sub node of the Lantiq RCU block.
+
+properties:
+  compatible:
+    enum:
+      - lantiq,danube-reset
+      - lantiq,xrx200-reset
+
+  reg:
+    description: |
+      Defines the following sets of registers in the parent syscon device
+      Offset of the reset set register
+      Offset of the reset status register
+    maxItems: 2
+
+  '#reset-cells':
+    description: |
+      The first cell takes the reset set bit and the second cell takes the
+      status bit.
+    const: 2
+
+required:
+  - compatible
+  - reg
+  - '#reset-cells'
+
+additionalProperties: false
+
+examples:
+  - |
+    // On the xRX200 SoCs:
+    reset0: reset-controller@10 {
+        compatible = "lantiq,xrx200-reset";
+        reg = <0x10 0x04>, <0x14 0x04>;
+        #reset-cells = <2>;
+    };

@@ -1,0 +1,87 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause)
+/*
+ * QorIQ QMan Portals device tree
+ *
+ * Copyright 2011-2016 Freescale Semiconductor Inc.
+ *
+ */
+
+&qportals {
+	#address-cells = <1>;
+	#size-cells = <1>;
+	compatible = "simple-bus";
+
+	qportal0: qman-portal@0 {
+		/*
+		 * bootloader fix-ups are expected to provide the
+		 * "fsl,bman-portal-<hardware revision>" compatible
+		 */
+		compatible = "fsl,qman-portal";
+		reg = <0x0 0x4000>, <0x4000000 0x4000>;
+		interrupts = <GIC_SPI 172 IRQ_TYPE_LEVEL_HIGH>;
+		cell-index = <0>;
+	};
+
+	qportal1: qman-portal@10000 {
+		compatible = "fsl,qman-portal";
+		reg = <0x10000 0x4000>, <0x4010000 0x4000>;
+		interrupts = <GIC_SPI 174 IRQ_TYPE_LEVEL_HIGH>;
+		cell-index = <1>;
+	};
+
+	qportal2: qman-portal@20000 {
+		compatible = "fsl,qman-portal";
+		reg = <0x20000 0x4000>, <0x4020000 0x4000>;
+		interrupts = <GIC_SPI 176 IRQ_TYPE_LEVEL_HIGH>;
+		cell-index = <2>;
+	};
+
+	qportal3: qman-portal@30000 {
+		compatible = "fsl,qman-portal";
+		reg = <0x30000 0x4000>, <0x4030000 0x4000>;
+		interrupts = <GIC_SPI 178 IRQ_TYPE_LEVEL_HIGH>;
+		cell-index = <3>;
+	};
+
+	qportal4: qman-portal@40000 {
+		compatible = "fsl,qman-portal";
+		reg = <0x40000 0x4000>, <0x4040000 0x4000>;
+		interrupts = <GIC_SPI 180 IRQ_TYPE_LEVEL_HIGH>;
+		cell-index = <4>;
+	};
+
+	qportal5: qman-portal@50000 {
+		compatible = "fsl,qman-portal";
+		reg = <0x50000 0x4000>, <0x4050000 0x4000>;
+		interrupts = <GIC_SPI 182 IRQ_TYPE_LEVEL_HIGH>;
+		cell-index = <5>;
+	};
+
+	qportal6: qman-portal@60000 {
+		compatible = "fsl,qman-portal";
+		reg = <0x60000 0x4000>, <0x4060000 0x4000>;
+		interrupts = <GIC_SPI 184 IRQ_TYPE_LEVEL_HIGH>;
+		cell-index = <6>;
+	};
+
+	qportal7: qman-portal@70000 {
+		compatible = "fsl,qman-portal";
+		reg = <0x70000 0x4000>, <0x4070000 0x4000>;
+		interrupts = <GIC_SPI 186 IRQ_TYPE_LEVEL_HIGH>;
+		cell-index = <7>;
+	};
+
+	qportal8: qman-portal@80000 {
+		compatible = "fsl,qman-portal";
+		reg = <0x80000 0x4000>, <0x4080000 0x4000>;
+		interrupts = <GIC_SPI 188 IRQ_TYPE_LEVEL_HIGH>;
+		cell-index = <8>;
+	};
+
+	qportal9: qman-portal@90000 {
+		compatible = "fsl,qman-portal";
+		reg = <0x90000 0x4000>, <0x4090000 0x4000>;
+		interrupts = <GIC_SPI 190 IRQ_TYPE_LEVEL_HIGH>;
+		cell-index = <9>;
+	};
+};

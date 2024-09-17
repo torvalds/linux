@@ -1,0 +1,40 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+/*
+ * Copyright (C) 2021 MediaTek Inc.
+ */
+/dts-v1/;
+#include "mt8195-cherry.dtsi"
+
+/ {
+	model = "Acer Tomato (rev3 - 4) board";
+	compatible = "google,tomato-rev4", "google,tomato-rev3",
+		     "google,tomato", "mediatek,mt8195";
+};
+
+&pio_default {
+	pins-low-power-hdmi-disable {
+		pinmux = <PINMUX_GPIO31__FUNC_GPIO31>,
+			 <PINMUX_GPIO32__FUNC_GPIO32>,
+			 <PINMUX_GPIO33__FUNC_GPIO33>,
+			 <PINMUX_GPIO34__FUNC_GPIO34>,
+			 <PINMUX_GPIO35__FUNC_GPIO35>;
+		input-enable;
+		bias-pull-down;
+	};
+
+	pins-low-power-pcie0-disable {
+		pinmux = <PINMUX_GPIO19__FUNC_GPIO19>,
+			 <PINMUX_GPIO20__FUNC_GPIO20>,
+			 <PINMUX_GPIO21__FUNC_GPIO21>;
+		input-enable;
+		bias-pull-down;
+	};
+};
+
+&ts_10 {
+	status = "okay";
+};
+
+&watchdog {
+	/delete-property/ mediatek,disable-extrst;
+};

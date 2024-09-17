@@ -1,0 +1,34 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * at91sam9x35.dtsi - Device Tree Include file for AT91SAM9X35 SoC
+ *
+ * Copyright (C) 2012 Jean-Christophe PLAGNIOL-VILLARD <plagnioj@jcrosoft.com>
+ */
+
+#include "at91sam9x5.dtsi"
+#include "at91sam9x5_lcd.dtsi"
+#include "at91sam9x5_macb0.dtsi"
+#include "at91sam9x5_can.dtsi"
+
+/ {
+	model = "Atmel AT91SAM9X35 SoC";
+	compatible = "atmel,at91sam9x35", "atmel,at91sam9x5";
+
+	ahb {
+		apb {
+			pinctrl@fffff400 {
+				atmel,mux-mask = <
+				      /*    A         B          C     */
+				       0xffffffff 0xffe03fff 0xc000000c  /* pioA */
+				       0x000406ff 0x00047e3f 0x00000000  /* pioB */
+				       0xfdffffff 0x00000000 0xb83fffff  /* pioC */
+				       0x003fffff 0x003f8000 0x00000000  /* pioD */
+				      >;
+			};
+
+			pmc: pmc@fffffc00 {
+				compatible = "atmel,at91sam9x35-pmc", "atmel,at91sam9x5-pmc", "syscon";
+			};
+		};
+	};
+};

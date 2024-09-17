@@ -1,0 +1,61 @@
+/* nicstar.c  v0.22  Jawaid Bazyar (bazyar@hypermall.com)
+ * nicstar.c, M. Welsh (matt.welsh@cl.cam.ac.uk)
+ *
+ * Hacked October, 1997 by Jawaid Bazyar, Interlink Advertising Services Inc.
+ * 	http://www.hypermall.com/
+ * 10/1/97 - commented out CFG_PHYIE bit - we don't care when the PHY
+ *	interrupts us (except possibly for removal/insertion of the cable?)
+ * 10/4/97 - began heavy inline documentation of the code. Corrected typos
+ *	and spelling mistakes.
+ * 10/5/97 - added code to handle PHY interrupts, disable PHY on
+ *	loss of link, and correctly re-enable PHY when link is
+ *	re-established. (put back CFG_PHYIE)
+ *
+ *   Modified to work with the IDT7721 nicstar -- AAL5 (tested) only.
+ *
+ * R. D. Rechenmacher <ron@fnal.gov>, Aug. 6, 1997
+ *
+ * Linux driver for the IDT77201 NICStAR PCI ATM controller.
+ * PHY component is expected to be 155 Mbps S/UNI-Lite or IDT 77155;
+ * see init_nicstar() for PHY initialization to change this. This driver
+ * expects the Linux ATM stack to support scatter-gather lists 
+ * (skb->atm.iovcnt != 0) for Rx skb's passed to vcc->push.
+ *
+ * Implementing minimal-copy of received data:
+ *   IDT always receives data into a small buffer, then large buffers
+ *     as needed. This means that data must always be copied to create
+ *     the linear buffer needed by most non-ATM protocol stacks (e.g. IP)
+ *     Fix is simple: make large buffers large enough to hold entire
+ *     SDU, and leave <small_buffer_data> bytes empty at the start. Then
+ *     copy small buffer contents to head of large buffer.
+ *   Trick is to avoid fragmenting Linux, due to need for a lot of large
+ *     buffers. This is done by 2 things:
+ *       1) skb->destructor / skb->atm.recycle_buffer
+ *            combined, allow nicstar_free_rx_skb to be called to
+ *            recycle large data buffers
+ *       2) skb_clone of received buffers
+ *   See nicstar_free_rx_skb and linearize_buffer for implementation
+ *     details.
+ *
+ *
+ *
+ * Copyright (c) 1996 University of Cambridge Computer Laboratory
+ *
+ *   This program is free software; you can redistribute it and/or modify
+ *   it under the terms of the GNU General Public License as published by
+ *   the Free Software Foundation; either version 2 of the License, or
+ *   (at your option) any later version.
+ * 
+ *   This program is distributed in the hope that it will be useful,
+ *   but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *   GNU General Public License for more details.
+ *
+ *   You should have received a copy of the GNU General Public License
+ *   along with this program; if not, write to the Free Software
+ *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ *
+ * M. Welsh, 6 July 1996
+ *
+ *
+ */

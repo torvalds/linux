@@ -1,0 +1,82 @@
+OMAP Control Module bindings
+
+Control Module contains miscellaneous features under it based on SoC type.
+Pincontrol is one common feature, and it has a specialized support
+described in [1]. Typically some clock nodes are also under control module.
+Syscon is used to share register level access to drivers external to
+control module driver itself.
+
+See [2] for documentation about clock/clockdomain nodes.
+
+[1] Documentation/devicetree/bindings/pinctrl/pinctrl-single.txt
+[2] Documentation/devicetree/bindings/clock/ti/*
+
+Required properties:
+- compatible:	Must be one of:
+		"ti,am3-scm"
+		"ti,am4-scm"
+		"ti,dm814-scrm"
+		"ti,dm816-scrm"
+		"ti,omap2-scm"
+		"ti,omap3-scm"
+		"ti,omap4-scm-core"
+		"ti,omap4-scm-padconf-core"
+		"ti,omap4-scm-wkup"
+		"ti,omap4-scm-padconf-wkup"
+		"ti,omap5-scm-core"
+		"ti,omap5-scm-padconf-core"
+		"ti,omap5-scm-wkup-pad-conf"
+		"ti,dra7-scm-core"
+- reg:		Contains Control Module register address range
+		(base address and length)
+
+Optional properties:
+- clocks:	clocks for this module
+- clockdomains:	clockdomains for this module
+
+Examples:
+
+scm: scm@2000 {
+	compatible = "ti,omap3-scm", "simple-bus";
+	reg = <0x2000 0x2000>;
+	#address-cells = <1>;
+	#size-cells = <1>;
+	ranges = <0 0x2000 0x2000>;
+
+	omap3_pmx_core: pinmux@30 {
+		compatible = "ti,omap3-padconf",
+			     "pinctrl-single";
+		reg = <0x30 0x230>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		#interrupt-cells = <1>;
+		interrupt-controller;
+		pinctrl-single,register-width = <16>;
+		pinctrl-single,function-mask = <0xff1f>;
+	};
+
+	scm_conf: scm_conf@270 {
+		compatible = "syscon";
+		reg = <0x270 0x330>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		scm_clocks: clocks {
+			#address-cells = <1>;
+			#size-cells = <0>;
+		};
+	};
+
+	scm_clockdomains: clockdomains {
+	};
+}
+
+&scm_clocks {
+	mcbsp5_mux_fck: mcbsp5_mux_fck {
+		#clock-cells = <0>;
+		compatible = "ti,composite-mux-clock";
+		clocks = <&core_96m_fck>, <&mcbsp_clks>;
+		ti,bit-shift = <4>;
+		reg = <0x02d8>;
+	};
+};

@@ -1,0 +1,284 @@
+# SPDX-License-Identifier: GPL-2.0-only
+menuconfig SAMPLES
+	bool "Sample kernel code"
+	help
+	  You can build and test sample kernel code here.
+
+if SAMPLES
+
+config SAMPLE_AUXDISPLAY
+	bool "auxdisplay sample"
+	depends on CC_CAN_LINK
+
+config SAMPLE_TRACE_EVENTS
+	tristate "Build trace_events examples -- loadable modules only"
+	depends on EVENT_TRACING && m
+	help
+	  This builds the trace event example module.
+
+config SAMPLE_TRACE_CUSTOM_EVENTS
+	tristate "Build custom trace event example -- loadable modules only"
+	depends on EVENT_TRACING && m
+	help
+	  This builds the custom trace event example module.
+
+config SAMPLE_TRACE_PRINTK
+        tristate "Build trace_printk module - tests various trace_printk formats"
+	depends on EVENT_TRACING && m
+	help
+	 This builds a module that calls trace_printk() and can be used to
+	 test various trace_printk() calls from a module.
+
+config SAMPLE_FTRACE_DIRECT
+	tristate "Build register_ftrace_direct() example"
+	depends on DYNAMIC_FTRACE_WITH_DIRECT_CALLS && m
+	depends on HAVE_SAMPLE_FTRACE_DIRECT
+	help
+	  This builds an ftrace direct function example
+	  that hooks to wake_up_process and prints the parameters.
+
+config SAMPLE_FTRACE_DIRECT_MULTI
+	tristate "Build register_ftrace_direct_multi() example"
+	depends on DYNAMIC_FTRACE_WITH_DIRECT_CALLS && m
+	depends on HAVE_SAMPLE_FTRACE_DIRECT_MULTI
+	help
+	  This builds an ftrace direct function example
+	  that hooks to wake_up_process and schedule, and prints
+	  the function addresses.
+
+config SAMPLE_TRACE_ARRAY
+        tristate "Build sample module for kernel access to Ftrace instancess"
+	depends on EVENT_TRACING && m
+	help
+	 This builds a module that demonstrates the use of various APIs to
+	 access Ftrace instances from within the kernel.
+
+config SAMPLE_KOBJECT
+	tristate "Build kobject examples"
+	help
+	  This config option will allow you to build a number of
+	  different kobject sample modules showing how to use kobjects,
+	  ksets, and ktypes properly.
+
+	  If in doubt, say "N" here.
+
+config SAMPLE_KPROBES
+	tristate "Build kprobes examples -- loadable modules only"
+	depends on KPROBES && m
+	help
+	  This build several kprobes example modules.
+
+config SAMPLE_KRETPROBES
+	tristate "Build kretprobes example -- loadable modules only"
+	default m
+	depends on SAMPLE_KPROBES && KRETPROBES
+
+config SAMPLE_HW_BREAKPOINT
+	tristate "Build kernel hardware breakpoint examples -- loadable module only"
+	depends on HAVE_HW_BREAKPOINT && m
+	help
+	  This builds kernel hardware breakpoint example modules.
+
+config SAMPLE_FPROBE
+	tristate "Build fprobe examples -- loadable modules only"
+	depends on FPROBE && m
+	help
+	  This builds a fprobe example module. This module has an option 'symbol'.
+	  You can specify a probed symbol or symbols separated with ','.
+
+config SAMPLE_KFIFO
+	tristate "Build kfifo examples -- loadable modules only"
+	depends on m
+	help
+	  This config option will allow you to build a number of
+	  different kfifo sample modules showing how to use the
+	  generic kfifo API.
+
+	  If in doubt, say "N" here.
+
+config SAMPLE_KDB
+	tristate "Build kdb command example -- loadable modules only"
+	depends on KGDB_KDB && m
+	help
+	  Build an example of how to dynamically add the hello
+	  command to the kdb shell.
+
+config SAMPLE_QMI_CLIENT
+	tristate "Build qmi client sample -- loadable modules only"
+	depends on m
+	depends on ARCH_QCOM
+	depends on NET
+	select QCOM_QMI_HELPERS
+	help
+	  Build an QMI client sample driver, which demonstrates how to
+	  communicate with a remote QRTR service, using QMI encoded messages.
+
+config SAMPLE_RPMSG_CLIENT
+	tristate "Build rpmsg client sample -- loadable modules only"
+	depends on RPMSG && m
+	help
+	  Build an rpmsg client sample driver, which demonstrates how
+	  to communicate with an AMP-configured remote processor over
+	  the rpmsg bus.
+
+config SAMPLE_LIVEPATCH
+	tristate "Build live patching samples -- loadable modules only"
+	depends on LIVEPATCH && m
+	help
+	  Build sample live patch demonstrations.
+
+config SAMPLE_CONFIGFS
+	tristate "Build configfs patching sample -- loadable modules only"
+	depends on CONFIGFS_FS && m
+	help
+	  Builds a sample configfs interface.
+
+config SAMPLE_CONNECTOR
+	tristate "Build connector sample -- loadable modules only"
+	depends on CONNECTOR && HEADERS_INSTALL && m
+	help
+	  When enabled, this builds both a sample kernel module for
+	  the connector interface and a user space tool to communicate
+	  with it.
+	  See also Documentation/driver-api/connector.rst
+
+config SAMPLE_FANOTIFY_ERROR
+	bool "Build fanotify error monitoring sample"
+	depends on FANOTIFY && CC_CAN_LINK && HEADERS_INSTALL
+	help
+	  When enabled, this builds an example code that uses the
+	  FAN_FS_ERROR fanotify mechanism to monitor filesystem
+	  errors.
+	  See also Documentation/admin-guide/filesystem-monitoring.rst.
+
+config SAMPLE_HIDRAW
+	bool "hidraw sample"
+	depends on CC_CAN_LINK && HEADERS_INSTALL
+
+config SAMPLE_LANDLOCK
+	bool "Landlock example"
+	depends on CC_CAN_LINK && HEADERS_INSTALL
+	help
+	  Build a simple Landlock sandbox manager able to start a process
+	  restricted by a user-defined filesystem access control policy.
+
+config SAMPLE_PIDFD
+	bool "pidfd sample"
+	depends on CC_CAN_LINK && HEADERS_INSTALL
+
+config SAMPLE_SECCOMP
+	bool "Build seccomp sample code"
+	depends on SECCOMP_FILTER && CC_CAN_LINK && HEADERS_INSTALL
+	help
+	  Build samples of seccomp filters using various methods of
+	  BPF filter construction.
+
+config SAMPLE_TIMER
+	bool "Timer sample"
+	depends on CC_CAN_LINK && HEADERS_INSTALL
+
+config SAMPLE_UHID
+	bool "UHID sample"
+	depends on CC_CAN_LINK && HEADERS_INSTALL
+	help
+	  Build UHID sample program.
+
+config SAMPLE_VFIO_MDEV_MTTY
+	tristate "Build VFIO mtty example mediated device sample code -- loadable modules only"
+	depends on VFIO_MDEV && m
+	help
+	  Build a virtual tty sample driver for use as a VFIO
+	  mediated device
+
+config SAMPLE_VFIO_MDEV_MDPY
+	tristate "Build VFIO mdpy example mediated device sample code -- loadable modules only"
+	depends on VFIO_MDEV && m
+	help
+	  Build a virtual display sample driver for use as a VFIO
+	  mediated device.  It is a simple framebuffer and supports
+	  the region display interface (VFIO_GFX_PLANE_TYPE_REGION).
+
+config SAMPLE_VFIO_MDEV_MDPY_FB
+	tristate "Build VFIO mdpy example guest fbdev driver -- loadable module only"
+	depends on FB && m
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+	help
+	  Guest fbdev driver for the virtual display sample driver.
+
+config SAMPLE_VFIO_MDEV_MBOCHS
+	tristate "Build VFIO mdpy example mediated device sample code -- loadable modules only"
+	depends on VFIO_MDEV && m
+	select DMA_SHARED_BUFFER
+	help
+	  Build a virtual display sample driver for use as a VFIO
+	  mediated device.  It supports the region display interface
+	  (VFIO_GFX_PLANE_TYPE_DMABUF).
+	  Emulate enough of qemu stdvga to make bochs-drm.ko happy.
+	  That is basically the vram memory bar and the bochs dispi
+	  interface vbe registers in the mmio register bar.
+	  Specifically it does *not* include any legacy vga stuff.
+	  Device looks a lot like "qemu -device secondary-vga".
+
+config SAMPLE_ANDROID_BINDERFS
+	bool "Build Android binderfs example"
+	depends on CC_CAN_LINK && HEADERS_INSTALL
+	help
+	  Builds a sample program to illustrate the use of the Android binderfs
+	  filesystem.
+
+config SAMPLE_VFS
+	bool "Build example programs that use new VFS system calls"
+	depends on CC_CAN_LINK && HEADERS_INSTALL
+	help
+	  Build example userspace programs that use new VFS system calls such
+	  as mount API and statx().  Note that this is restricted to the x86
+	  arch whilst it accesses system calls that aren't yet in all arches.
+
+config SAMPLE_INTEL_MEI
+	bool "Build example program working with intel mei driver"
+	depends on INTEL_MEI
+	depends on CC_CAN_LINK && HEADERS_INSTALL
+	help
+	  Build a sample program to work with mei device.
+
+config SAMPLE_WATCHDOG
+	bool "watchdog sample"
+	depends on CC_CAN_LINK
+
+config SAMPLE_WATCH_QUEUE
+	bool "Build example watch_queue notification API consumer"
+	depends on CC_CAN_LINK && HEADERS_INSTALL
+	help
+	  Build example userspace program to use the new mount_notify(),
+	  sb_notify() syscalls and the KEYCTL_WATCH_KEY keyctl() function.
+
+config SAMPLE_CORESIGHT_SYSCFG
+	tristate "Build example loadable module for CoreSight config"
+	depends on CORESIGHT && m
+	help
+	  Build an example loadable module that adds new CoreSight features
+	  and configuration using the CoreSight system configuration API.
+	  This demonstrates how a user may create their own CoreSight
+	  configurations and easily load them into the system at runtime.
+
+config SAMPLE_GUNYAH
+	bool "Build example Gunyah Virtual Machine Manager"
+	depends on CC_CAN_LINK && HEADERS_INSTALL
+	depends on GUNYAH
+	help
+	  Build an example Gunyah VMM userspace program capable of launching
+	  a basic virtual machine under the Gunyah hypervisor.
+	  This demonstrates how to create a virtual machine under the Gunyah
+	  hypervisor.
+
+source "samples/rust/Kconfig"
+
+endif # SAMPLES
+
+config HAVE_SAMPLE_FTRACE_DIRECT
+	bool
+
+config HAVE_SAMPLE_FTRACE_DIRECT_MULTI
+	bool

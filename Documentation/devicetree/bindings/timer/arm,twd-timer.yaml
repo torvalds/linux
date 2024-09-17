@@ -1,0 +1,56 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/timer/arm,twd-timer.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: ARM Timer-Watchdog Timer
+
+maintainers:
+  - Rob Herring <robh@kernel.org>
+
+description:
+  ARM 11MP, Cortex-A5 and Cortex-A9 are often associated with a per-core
+  Timer-Watchdog (aka TWD), which provides both a per-cpu local timer
+  and watchdog.
+
+  The TWD is usually attached to a GIC to deliver its two per-processor
+  interrupts.
+
+properties:
+  compatible:
+    enum:
+      - arm,cortex-a9-twd-timer
+      - arm,cortex-a5-twd-timer
+      - arm,arm11mp-twd-timer
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  always-on:
+    description:
+      If present, the timer is powered through an always-on power domain,
+      therefore it never loses context.
+
+required:
+  - compatible
+  - reg
+  - interrupts
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+    timer@2c000600 {
+            compatible = "arm,arm11mp-twd-timer";
+            reg = <0x2c000600 0x20>;
+            interrupts = <GIC_PPI 13 0xf01>;
+    };

@@ -1,0 +1,117 @@
+.. SPDX-License-Identifier: GPL-2.0
+
+======================================
+README file for the dc395x SCSI driver
+======================================
+
+Status
+------
+The driver has been tested with CD-R and CD-R/W drives. These should
+be safe to use. Testing with hard disks has not been done to any
+great degree and caution should be exercised if you want to attempt
+to use this driver with hard disks.
+
+This is a 2.5 only driver. For a 2.4 driver please see the original
+driver (which this driver started from) at
+http://www.garloff.de/kurt/linux/dc395/
+
+Problems, questions and patches should be submitted to the mailing
+list. Details on the list, including archives, are available at
+http://lists.twibble.org/mailman/listinfo/dc395x/
+
+Parameters
+----------
+The driver uses the settings from the EEPROM set in the SCSI BIOS
+setup. If there is no EEPROM, the driver uses default values.
+Both can be overridden by command line parameters (module or kernel
+parameters).
+
+The following parameters are available:
+
+safe
+   Default: 0, Acceptable values: 0 or 1
+
+   If safe is set to 1 then the adapter will use conservative
+   ("safe") default settings. This sets:
+
+		shortcut for dc395x=7,4,9,15,2,10
+
+adapter_id
+   Default: 7, Acceptable values: 0 to 15
+
+   Sets the host adapter SCSI ID.
+
+max_speed
+   Default: 1, Acceptable value: 0 to 7
+
+   ==  ========
+   0   20   Mhz
+   1   12.2 Mhz
+   2   10   Mhz
+   3   8    Mhz
+   4   6.7  Mhz
+   5   5.8  Hhz
+   6   5    Mhz
+   7   4    Mhz
+   ==  ========
+
+dev_mode
+   Bitmap for device configuration
+
+   DevMode bit definition:
+
+      === ======== ========  =========================================
+      Bit Val(hex) Val(dec)  Meaning
+      === ======== ========  =========================================
+       0    0x01       1     Parity check
+       1    0x02       2     Synchronous Negotiation
+       2    0x04       4     Disconnection
+       3    0x08       8     Send Start command on startup. (Not used)
+       4    0x10      16     Tagged Command Queueing
+       5    0x20      32     Wide Negotiation
+      === ======== ========  =========================================
+
+adapter_mode
+   Bitmap for adapter configuration
+
+   AdaptMode bit definition
+
+    ===== ======== ========  ====================================================
+      Bit Val(hex) Val(dec)  Meaning
+    ===== ======== ========  ====================================================
+       0    0x01       1     Support more than two drives. (Not used)
+       1    0x02       2     Use DOS compatible mapping for HDs greater than 1GB.
+       2    0x04       4     Reset SCSI Bus on startup.
+       3    0x08       8     Active Negation: Improves SCSI Bus noise immunity.
+       4    0x10      16     Immediate return on BIOS seek command. (Not used)
+    (*)5    0x20      32     Check for LUNs >= 1.
+    ===== ======== ========  ====================================================
+
+tags
+   Default: 3, Acceptable values: 0-5
+
+   The number of tags is 1<<x, if x has been specified
+
+reset_delay
+   Default: 1, Acceptable values: 0-180
+
+   The seconds to not accept commands after a SCSI Reset
+
+
+For the built  in driver the parameters should be prefixed with
+dc395x. (eg "dc395x.safe=1")
+
+
+Copyright
+---------
+The driver is free software. It is protected by the GNU General Public
+License (GPL). Please read it, before using this driver. It should be
+included in your kernel sources and with your distribution. It carries the
+filename COPYING. If you don't have it, please ask me to send you one by
+email.
+
+Note: The GNU GPL says also something about warranty and liability.
+Please be aware the following: While we do my best to provide a working and
+reliable driver, there is a chance, that it will kill your valuable data.
+We refuse to take any responsibility for that. The driver is provided as-is
+and YOU USE IT AT YOUR OWN RESPONSIBILITY.

@@ -1,0 +1,139 @@
+CMA3000-D0x Accelerometer
+=========================
+
+Supported chips:
+* VTI CMA3000-D0x
+
+Datasheet:
+  CMA3000-D0X Product Family Specification 8281000A.02.pdf
+  <http://www.vti.fi/en/>
+
+:Author: Hemanth V <hemanthv@ti.com>
+
+
+Description
+-----------
+
+CMA3000 Tri-axis accelerometer supports Motion detect, Measurement and
+Free fall modes.
+
+Motion Detect Mode:
+    Its the low power mode where interrupts are generated only
+    when motion exceeds the defined thresholds.
+
+Measurement Mode:
+    This mode is used to read the acceleration data on X,Y,Z
+    axis and supports 400, 100, 40 Hz sample frequency.
+
+Free fall Mode:
+    This mode is intended to save system resources.
+
+Threshold values:
+    Chip supports defining threshold values for above modes
+    which includes time and g value. Refer product specifications for
+    more details.
+
+CMA3000 chip supports mutually exclusive I2C and SPI interfaces for
+communication, currently the driver supports I2C based communication only.
+Initial configuration for bus mode is set in non volatile memory and can later
+be modified through bus interface command.
+
+Driver reports acceleration data through input subsystem. It generates ABS_MISC
+event with value 1 when free fall is detected.
+
+Platform data need to be configured for initial default values.
+
+Platform Data
+-------------
+
+fuzz_x:
+    Noise on X Axis
+
+fuzz_y:
+    Noise on Y Axis
+
+fuzz_z:
+    Noise on Z Axis
+
+g_range:
+    G range in milli g i.e 2000 or 8000
+
+mode:
+    Default Operating mode
+
+mdthr:
+    Motion detect g range threshold value
+
+mdfftmr:
+    Motion detect and free fall time threshold value
+
+ffthr:
+    Free fall g range threshold value
+
+Input Interface
+---------------
+
+Input driver version is 1.0.0
+Input device ID: bus 0x18 vendor 0x0 product 0x0 version 0x0
+Input device name: "cma3000-accelerometer"
+
+Supported events::
+
+  Event type 0 (Sync)
+  Event type 3 (Absolute)
+    Event code 0 (X)
+      Value     47
+      Min    -8000
+      Max     8000
+      Fuzz     200
+    Event code 1 (Y)
+      Value    -28
+      Min    -8000
+      Max     8000
+      Fuzz     200
+    Event code 2 (Z)
+      Value    905
+      Min    -8000
+      Max     8000
+      Fuzz     200
+    Event code 40 (Misc)
+      Value      0
+      Min        0
+      Max        1
+  Event type 4 (Misc)
+
+
+Register/Platform parameters Description
+----------------------------------------
+
+mode::
+
+	0: power down mode
+	1: 100 Hz Measurement mode
+	2: 400 Hz Measurement mode
+	3: 40 Hz Measurement mode
+	4: Motion Detect mode (default)
+	5: 100 Hz Free fall mode
+	6: 40 Hz Free fall mode
+	7: Power off mode
+
+grange::
+
+	2000: 2000 mg or 2G Range
+	8000: 8000 mg or 8G Range
+
+mdthr::
+
+	X: X * 71mg (8G Range)
+	X: X * 18mg (2G Range)
+
+mdfftmr::
+
+	X: (X & 0x70) * 100 ms (MDTMR)
+	   (X & 0x0F) * 2.5 ms (FFTMR 400 Hz)
+	   (X & 0x0F) * 10 ms  (FFTMR 100 Hz)
+
+ffthr::
+
+       X: (X >> 2) * 18mg (2G Range)
+       X: (X & 0x0F) * 71 mg (8G Range)

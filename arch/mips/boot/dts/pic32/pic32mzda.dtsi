@@ -1,0 +1,298 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Copyright (C) 2015 Microchip Technology Inc.  All rights reserved.
+ */
+#include <dt-bindings/clock/microchip,pic32-clock.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+
+/ {
+	#address-cells = <1>;
+	#size-cells = <1>;
+	interrupt-parent = <&evic>;
+
+	aliases {
+		gpio0 = &gpio0;
+		gpio1 = &gpio1;
+		gpio2 = &gpio2;
+		gpio3 = &gpio3;
+		gpio4 = &gpio4;
+		gpio5 = &gpio5;
+		gpio6 = &gpio6;
+		gpio7 = &gpio7;
+		gpio8 = &gpio8;
+		gpio9 = &gpio9;
+		serial0 = &uart1;
+		serial1 = &uart2;
+		serial2 = &uart3;
+		serial3 = &uart4;
+		serial4 = &uart5;
+		serial5 = &uart6;
+	};
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu@0 {
+			compatible = "mti,mips14KEc";
+			device_type = "cpu";
+		};
+	};
+
+	soc {
+		compatible = "microchip,pic32mzda-infra";
+		interrupts = <0 IRQ_TYPE_EDGE_RISING>;
+	};
+
+	/* external clock input on TxCLKI pin */
+	txcki: txcki_clk {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <4000000>;
+		status = "disabled";
+	};
+
+	/* external input on REFCLKIx pin */
+	refix: refix_clk {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <24000000>;
+		status = "disabled";
+	};
+
+	rootclk: clock-controller@1f801200 {
+		compatible = "microchip,pic32mzda-clk";
+		reg = <0x1f801200 0x200>;
+		#clock-cells = <1>;
+		microchip,pic32mzda-sosc;
+	};
+
+	evic: interrupt-controller@1f810000 {
+		compatible = "microchip,pic32mzda-evic";
+		interrupt-controller;
+		#interrupt-cells = <2>;
+		reg = <0x1f810000 0x1000>;
+		microchip,external-irqs = <3 8 13 18 23>;
+	};
+
+	pic32_pinctrl: pinctrl@1f801400{
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "microchip,pic32mzda-pinctrl";
+		reg = <0x1f801400 0x400>;
+		clocks = <&rootclk PB1CLK>;
+	};
+
+	/* PORTA */
+	gpio0: gpio0@1f860000 {
+		compatible = "microchip,pic32mzda-gpio";
+		reg = <0x1f860000 0x100>;
+		interrupts = <118 IRQ_TYPE_LEVEL_HIGH>;
+		#gpio-cells = <2>;
+		gpio-controller;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+		clocks = <&rootclk PB4CLK>;
+		microchip,gpio-bank = <0>;
+		gpio-ranges = <&pic32_pinctrl 0 0 16>;
+	};
+
+	/* PORTB */
+	gpio1: gpio1@1f860100 {
+		compatible = "microchip,pic32mzda-gpio";
+		reg = <0x1f860100 0x100>;
+		interrupts = <119 IRQ_TYPE_LEVEL_HIGH>;
+		#gpio-cells = <2>;
+		gpio-controller;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+		clocks = <&rootclk PB4CLK>;
+		microchip,gpio-bank = <1>;
+		gpio-ranges = <&pic32_pinctrl 0 16 16>;
+	};
+
+	/* PORTC */
+	gpio2: gpio2@1f860200 {
+		compatible = "microchip,pic32mzda-gpio";
+		reg = <0x1f860200 0x100>;
+		interrupts = <120 IRQ_TYPE_LEVEL_HIGH>;
+		#gpio-cells = <2>;
+		gpio-controller;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+		clocks = <&rootclk PB4CLK>;
+		microchip,gpio-bank = <2>;
+		gpio-ranges = <&pic32_pinctrl 0 32 16>;
+	};
+
+	/* PORTD */
+	gpio3: gpio3@1f860300 {
+		compatible = "microchip,pic32mzda-gpio";
+		reg = <0x1f860300 0x100>;
+		interrupts = <121 IRQ_TYPE_LEVEL_HIGH>;
+		#gpio-cells = <2>;
+		gpio-controller;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+		clocks = <&rootclk PB4CLK>;
+		microchip,gpio-bank = <3>;
+		gpio-ranges = <&pic32_pinctrl 0 48 16>;
+	};
+
+	/* PORTE */
+	gpio4: gpio4@1f860400 {
+		compatible = "microchip,pic32mzda-gpio";
+		reg = <0x1f860400 0x100>;
+		interrupts = <122 IRQ_TYPE_LEVEL_HIGH>;
+		#gpio-cells = <2>;
+		gpio-controller;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+		clocks = <&rootclk PB4CLK>;
+		microchip,gpio-bank = <4>;
+		gpio-ranges = <&pic32_pinctrl 0 64 16>;
+	};
+
+	/* PORTF */
+	gpio5: gpio5@1f860500 {
+		compatible = "microchip,pic32mzda-gpio";
+		reg = <0x1f860500 0x100>;
+		interrupts = <123 IRQ_TYPE_LEVEL_HIGH>;
+		#gpio-cells = <2>;
+		gpio-controller;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+		clocks = <&rootclk PB4CLK>;
+		microchip,gpio-bank = <5>;
+		gpio-ranges = <&pic32_pinctrl 0 80 16>;
+	};
+
+	/* PORTG */
+	gpio6: gpio6@1f860600 {
+		compatible = "microchip,pic32mzda-gpio";
+		reg = <0x1f860600 0x100>;
+		interrupts = <124 IRQ_TYPE_LEVEL_HIGH>;
+		#gpio-cells = <2>;
+		gpio-controller;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+		clocks = <&rootclk PB4CLK>;
+		microchip,gpio-bank = <6>;
+		gpio-ranges = <&pic32_pinctrl 0 96 16>;
+	};
+
+	/* PORTH */
+	gpio7: gpio7@1f860700 {
+		compatible = "microchip,pic32mzda-gpio";
+		reg = <0x1f860700 0x100>;
+		interrupts = <125 IRQ_TYPE_LEVEL_HIGH>;
+		#gpio-cells = <2>;
+		gpio-controller;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+		clocks = <&rootclk PB4CLK>;
+		microchip,gpio-bank = <7>;
+		gpio-ranges = <&pic32_pinctrl 0 112 16>;
+	};
+
+	/* PORTI does not exist */
+
+	/* PORTJ */
+	gpio8: gpio8@1f860800 {
+		compatible = "microchip,pic32mzda-gpio";
+		reg = <0x1f860800 0x100>;
+		interrupts = <126 IRQ_TYPE_LEVEL_HIGH>;
+		#gpio-cells = <2>;
+		gpio-controller;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+		clocks = <&rootclk PB4CLK>;
+		microchip,gpio-bank = <8>;
+		gpio-ranges = <&pic32_pinctrl 0 128 16>;
+	};
+
+	/* PORTK */
+	gpio9: gpio9@1f860900 {
+		compatible = "microchip,pic32mzda-gpio";
+		reg = <0x1f860900 0x100>;
+		interrupts = <127 IRQ_TYPE_LEVEL_HIGH>;
+		#gpio-cells = <2>;
+		gpio-controller;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+		clocks = <&rootclk PB4CLK>;
+		microchip,gpio-bank = <9>;
+		gpio-ranges = <&pic32_pinctrl 0 144 16>;
+	};
+
+	sdhci: sdhci@1f8ec000 {
+		compatible = "microchip,pic32mzda-sdhci";
+		reg = <0x1f8ec000 0x100>;
+		interrupts = <191 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&rootclk REF4CLK>, <&rootclk PB5CLK>;
+		clock-names = "base_clk", "sys_clk";
+		bus-width = <4>;
+		cap-sd-highspeed;
+		status = "disabled";
+	};
+
+	uart1: serial@1f822000 {
+		compatible = "microchip,pic32mzda-uart";
+		reg = <0x1f822000 0x50>;
+		interrupts = <112 IRQ_TYPE_LEVEL_HIGH>,
+			<113 IRQ_TYPE_LEVEL_HIGH>,
+			<114 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&rootclk PB2CLK>;
+		status = "disabled";
+	};
+
+	uart2: serial@1f822200 {
+		compatible = "microchip,pic32mzda-uart";
+		reg = <0x1f822200 0x50>;
+		interrupts = <145 IRQ_TYPE_LEVEL_HIGH>,
+			<146 IRQ_TYPE_LEVEL_HIGH>,
+			<147 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&rootclk PB2CLK>;
+		status = "disabled";
+	};
+
+	uart3: serial@1f822400 {
+		compatible = "microchip,pic32mzda-uart";
+		reg = <0x1f822400 0x50>;
+		interrupts = <157 IRQ_TYPE_LEVEL_HIGH>,
+			<158 IRQ_TYPE_LEVEL_HIGH>,
+			<159 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&rootclk PB2CLK>;
+		status = "disabled";
+	};
+
+	uart4: serial@1f822600 {
+		compatible = "microchip,pic32mzda-uart";
+		reg = <0x1f822600 0x50>;
+		interrupts = <170 IRQ_TYPE_LEVEL_HIGH>,
+			<171 IRQ_TYPE_LEVEL_HIGH>,
+			<172 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&rootclk PB2CLK>;
+		status = "disabled";
+	};
+
+	uart5: serial@1f822800 {
+		compatible = "microchip,pic32mzda-uart";
+		reg = <0x1f822800 0x50>;
+		interrupts = <179 IRQ_TYPE_LEVEL_HIGH>,
+			<180 IRQ_TYPE_LEVEL_HIGH>,
+			<181 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&rootclk PB2CLK>;
+		status = "disabled";
+	};
+
+	uart6: serial@1f822A00 {
+		compatible = "microchip,pic32mzda-uart";
+		reg = <0x1f822A00 0x50>;
+		interrupts = <188 IRQ_TYPE_LEVEL_HIGH>,
+			<189 IRQ_TYPE_LEVEL_HIGH>,
+			<190 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&rootclk PB2CLK>;
+		status = "disabled";
+	};
+};

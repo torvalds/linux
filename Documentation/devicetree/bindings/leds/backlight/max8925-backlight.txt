@@ -1,0 +1,10 @@
+88pm860x-backlight bindings
+
+Optional properties:
+  - maxim,max8925-dual-string: whether support dual string
+
+Example:
+
+	backlights {
+		maxim,max8925-dual-string = <0>;
+	};

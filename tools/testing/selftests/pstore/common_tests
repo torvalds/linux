@@ -1,0 +1,83 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-2.0-only
+
+# common_tests - Shell script commonly used by pstore test scripts
+#
+# Copyright (C) Hitachi Ltd., 2015
+#  Written by Hiraku Toyooka <hiraku.toyooka.gu@hitachi.com>
+#
+
+# Utilities
+errexit() { # message
+    echo "Error: $1" 1>&2
+    exit 1
+}
+
+absdir() { # file_path
+    (cd `dirname $1`; pwd)
+}
+
+show_result() { # result_value
+    if [ $1 -eq 0 ]; then
+	prlog "ok"
+    else
+	prlog "FAIL"
+	rc=1
+    fi
+}
+
+check_files_exist() { # type of pstorefs file
+    if [ -e ${1}-${backend}-0 ]; then
+	prlog "ok"
+	for f in `ls ${1}-${backend}-*`; do
+            prlog -e "\t${f}"
+	done
+    else
+	prlog "FAIL"
+	rc=1
+    fi
+}
+
+operate_files() { # tested value, files, operation
+    if [ $1 -eq 0 ]; then
+	prlog
+	for f in $2; do
+	    prlog -ne "\t${f} ... "
+	    # execute operation
+	    $3 $f
+	    show_result $?
+	done
+    else
+	prlog " ... FAIL"
+	rc=1
+    fi
+}
+
+# Parameters
+TEST_STRING_PATTERN="Testing pstore: uuid="
+UUID=`cat /proc/sys/kernel/random/uuid`
+TOP_DIR=`absdir $0`
+LOG_DIR=$TOP_DIR/logs/`date +%Y%m%d-%H%M%S`_${UUID}/
+REBOOT_FLAG=$TOP_DIR/reboot_flag
+
+# Preparing logs
+LOG_FILE=$LOG_DIR/`basename $0`.log
+mkdir -p $LOG_DIR || errexit "Failed to make a log directory: $LOG_DIR"
+date > $LOG_FILE
+prlog() { # messages
+    /bin/echo "$@" | tee -a $LOG_FILE
+}
+
+# Starting tests
+rc=0
+prlog "=== Pstore unit tests (`basename $0`) ==="
+prlog "UUID="$UUID
+
+prlog -n "Checking pstore backend is registered ... "
+backend=`cat /sys/module/pstore/parameters/backend`
+show_result $?
+prlog -e "\tbackend=${backend}"
+prlog -e "\tcmdline=`cat /proc/cmdline`"
+if [ $rc -ne 0 ]; then
+    exit 1
+fi

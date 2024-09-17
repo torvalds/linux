@@ -1,0 +1,55 @@
+Xilinx Video IP Pipeline (VIPP)
+-------------------------------
+
+General concept
+---------------
+
+Xilinx video IP pipeline processes video streams through one or more Xilinx
+video IP cores. Each video IP core is represented as documented in video.txt
+and IP core specific documentation, xlnx,v-*.txt, in this directory. The DT
+node of the VIPP represents as a top level node of the pipeline and defines
+mappings between DMAs and the video IP cores.
+
+Required properties:
+
+- compatible: Must be "xlnx,video".
+
+- dmas, dma-names: List of one DMA specifier and identifier string (as defined
+  in Documentation/devicetree/bindings/dma/dma.txt) per port. Each port
+  requires a DMA channel with the identifier string set to "port" followed by
+  the port index.
+
+- ports: Video port, using the DT bindings defined in ../video-interfaces.txt.
+
+Required port properties:
+
+- direction: should be either "input" or "output" depending on the direction
+  of stream.
+
+Example:
+
+	video_cap {
+		compatible = "xlnx,video";
+		dmas = <&vdma_1 1>, <&vdma_3 1>;
+		dma-names = "port0", "port1";
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+				direction = "input";
+				vcap0_in0: endpoint {
+					remote-endpoint = <&scaler0_out>;
+				};
+			};
+			port@1 {
+				reg = <1>;
+				direction = "input";
+				vcap0_in1: endpoint {
+					remote-endpoint = <&switch_out1>;
+				};
+			};
+		};
+	};

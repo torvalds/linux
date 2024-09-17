@@ -1,0 +1,23 @@
+Mediatek/Ralink USB PHY
+
+Required properties:
+ - compatible: "ralink,rt3352-usbphy"
+	       "mediatek,mt7620-usbphy"
+	       "mediatek,mt7628-usbphy"
+ - reg: required for "mediatek,mt7628-usbphy", unused otherwise
+ - #phy-cells: should be 0
+ - ralink,sysctl: a phandle to a ralink syscon register region
+ - resets: the two reset controllers for host and device
+ - reset-names: the names of the 2 reset controllers
+
+Example:
+
+usbphy: phy {
+	compatible = "mediatek,mt7628-usbphy";
+	reg = <0x10120000 0x1000>;
+	#phy-cells = <0>;
+
+	ralink,sysctl = <&sysc>;
+	resets = <&rstctrl 22 &rstctrl 25>;
+	reset-names = "host", "device";
+};

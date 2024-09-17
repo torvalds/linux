@@ -1,0 +1,29 @@
+config OLPC_EC
+	select REGULATOR
+	bool
+
+menuconfig OLPC_XO175
+	bool "Platform support for OLPC XO 1.75 hardware"
+	depends on ARCH_MMP || COMPILE_TEST
+	help
+	  Say Y here to get to see options for the ARM-based OLPC platform.
+	  This option alone does not add any kernel code.
+
+	  Unless you have an OLPC XO laptop, you will want to say N.
+
+if OLPC_XO175
+
+config OLPC_XO175_EC
+	tristate "OLPC XO 1.75 Embedded Controller"
+	depends on SPI_SLAVE
+	depends on INPUT
+	depends on POWER_SUPPLY
+	select OLPC_EC
+	help
+	  Include support for the OLPC XO Embedded Controller (EC). The EC
+	  provides various platform services, including support for the power,
+	  button, restart, shutdown and battery charging status.
+
+	  Unless you have an OLPC XO laptop, you will want to say N.
+
+endif # OLPC_XO175

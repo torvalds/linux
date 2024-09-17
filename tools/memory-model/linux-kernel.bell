@@ -1,0 +1,84 @@
+// SPDX-License-Identifier: GPL-2.0+
+(*
+ * Copyright (C) 2015 Jade Alglave <j.alglave@ucl.ac.uk>,
+ * Copyright (C) 2016 Luc Maranget <luc.maranget@inria.fr> for Inria
+ * Copyright (C) 2017 Alan Stern <stern@rowland.harvard.edu>,
+ *                    Andrea Parri <parri.andrea@gmail.com>
+ *
+ * An earlier version of this file appeared in the companion webpage for
+ * "Frightening small children and disconcerting grown-ups: Concurrency
+ * in the Linux kernel" by Alglave, Maranget, McKenney, Parri, and Stern,
+ * which appeared in ASPLOS 2018.
+ *)
+
+"Linux-kernel memory consistency model"
+
+enum Accesses = 'once (*READ_ONCE,WRITE_ONCE*) ||
+		'release (*smp_store_release*) ||
+		'acquire (*smp_load_acquire*) ||
+		'noreturn (* R of non-return RMW *)
+instructions R[{'once,'acquire,'noreturn}]
+instructions W[{'once,'release}]
+instructions RMW[{'once,'acquire,'release}]
+
+enum Barriers = 'wmb (*smp_wmb*) ||
+		'rmb (*smp_rmb*) ||
+		'mb (*smp_mb*) ||
+		'barrier (*barrier*) ||
+		'rcu-lock (*rcu_read_lock*)  ||
+		'rcu-unlock (*rcu_read_unlock*) ||
+		'sync-rcu (*synchronize_rcu*) ||
+		'before-atomic (*smp_mb__before_atomic*) ||
+		'after-atomic (*smp_mb__after_atomic*) ||
+		'after-spinlock (*smp_mb__after_spinlock*) ||
+		'after-unlock-lock (*smp_mb__after_unlock_lock*)
+instructions F[Barriers]
+
+(* SRCU *)
+enum SRCU = 'srcu-lock || 'srcu-unlock || 'sync-srcu
+instructions SRCU[SRCU]
+(* All srcu events *)
+let Srcu = Srcu-lock | Srcu-unlock | Sync-srcu
+
+(* Compute matching pairs of nested Rcu-lock and Rcu-unlock *)
+let rcu-rscs = let rec
+	    unmatched-locks = Rcu-lock \ domain(matched)
+	and unmatched-unlocks = Rcu-unlock \ range(matched)
+	and unmatched = unmatched-locks | unmatched-unlocks
+	and unmatched-po = [unmatched] ; po ; [unmatched]
+	and unmatched-locks-to-unlocks =
+		[unmatched-locks] ; po ; [unmatched-unlocks]
+	and matched = matched | (unmatched-locks-to-unlocks \
+		(unmatched-po ; unmatched-po))
+	in matched
+
+(* Validate nesting *)
+flag ~empty Rcu-lock \ domain(rcu-rscs) as unbalanced-rcu-locking
+flag ~empty Rcu-unlock \ range(rcu-rscs) as unbalanced-rcu-locking
+
+(* Compute matching pairs of nested Srcu-lock and Srcu-unlock *)
+let srcu-rscs = let rec
+	    unmatched-locks = Srcu-lock \ domain(matched)
+	and unmatched-unlocks = Srcu-unlock \ range(matched)
+	and unmatched = unmatched-locks | unmatched-unlocks
+	and unmatched-po = ([unmatched] ; po ; [unmatched]) & loc
+	and unmatched-locks-to-unlocks =
+		([unmatched-locks] ; po ; [unmatched-unlocks]) & loc
+	and matched = matched | (unmatched-locks-to-unlocks \
+		(unmatched-po ; unmatched-po))
+	in matched
+
+(* Validate nesting *)
+flag ~empty Srcu-lock \ domain(srcu-rscs) as unbalanced-srcu-locking
+flag ~empty Srcu-unlock \ range(srcu-rscs) as unbalanced-srcu-locking
+
+(* Check for use of synchronize_srcu() inside an RCU critical section *)
+flag ~empty rcu-rscs & (po ; [Sync-srcu] ; po) as invalid-sleep
+
+(* Validate SRCU dynamic match *)
+flag ~empty different-values(srcu-rscs) as srcu-bad-nesting
+
+(* Compute marked and plain memory accesses *)
+let Marked = (~M) | IW | Once | Release | Acquire | domain(rmw) | range(rmw) |
+		LKR | LKW | UL | LF | RL | RU
+let Plain = M \ Marked

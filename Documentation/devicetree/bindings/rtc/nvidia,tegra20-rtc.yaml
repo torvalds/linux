@@ -1,0 +1,61 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/rtc/nvidia,tegra20-rtc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: NVIDIA Tegra real-time clock
+
+maintainers:
+  - Thierry Reding <thierry.reding@gmail.com>
+  - Jon Hunter <jonathanh@nvidia.com>
+
+description: |
+  The Tegra RTC maintains seconds and milliseconds counters, and five
+  alarm registers. The alarms and other interrupts may wake the system
+  from low-power state.
+
+properties:
+  compatible:
+    oneOf:
+      - const: nvidia,tegra20-rtc
+      - items:
+          - enum:
+              - nvidia,tegra30-rtc
+              - nvidia,tegra114-rtc
+              - nvidia,tegra124-rtc
+              - nvidia,tegra210-rtc
+              - nvidia,tegra186-rtc
+              - nvidia,tegra194-rtc
+              - nvidia,tegra234-rtc
+          - const: nvidia,tegra20-rtc
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  clock-names:
+    items:
+      - const: rtc
+
+additionalProperties: false
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+
+examples:
+  - |
+    timer@7000e000 {
+        compatible = "nvidia,tegra20-rtc";
+        reg = <0x7000e000 0x100>;
+        interrupts = <0 2 0x04>;
+        clocks = <&tegra_car 4>;
+    };

@@ -1,0 +1,146 @@
+Lantiq GSWIP Ethernet switches
+==================================
+
+Required properties for GSWIP core:
+
+- compatible	: "lantiq,xrx200-gswip" for the embedded GSWIP in the
+		  xRX200 SoC
+		  "lantiq,xrx300-gswip" for the embedded GSWIP in the
+		  xRX300 SoC
+		  "lantiq,xrx330-gswip" for the embedded GSWIP in the
+		  xRX330 SoC
+- reg		: memory range of the GSWIP core registers
+		: memory range of the GSWIP MDIO registers
+		: memory range of the GSWIP MII registers
+
+See Documentation/devicetree/bindings/net/dsa/dsa.txt for a list of
+additional required and optional properties.
+
+
+Required properties for MDIO bus:
+- compatible	: "lantiq,xrx200-mdio" for the MDIO bus inside the GSWIP
+		  core of the xRX200 SoC and the PHYs connected to it.
+
+See Documentation/devicetree/bindings/net/mdio.txt for a list of additional
+required and optional properties.
+
+
+Required properties for GPHY firmware loading:
+- compatible	: "lantiq,xrx200-gphy-fw", "lantiq,gphy-fw"
+		  "lantiq,xrx300-gphy-fw", "lantiq,gphy-fw"
+		  "lantiq,xrx330-gphy-fw", "lantiq,gphy-fw"
+		  for the loading of the firmware into the embedded
+		  GPHY core of the SoC.
+- lantiq,rcu	: reference to the rcu syscon
+
+The GPHY firmware loader has a list of GPHY entries, one for each
+embedded GPHY
+
+- reg		: Offset of the GPHY firmware register in the RCU
+		  register range
+- resets	: list of resets of the embedded GPHY
+- reset-names	: list of names of the resets
+
+Example:
+
+Ethernet switch on the VRX200 SoC:
+
+switch@e108000 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	compatible = "lantiq,xrx200-gswip";
+	reg = <	0xe108000 0x3100	/* switch */
+		0xe10b100 0xd8		/* mdio */
+		0xe10b1d8 0x130		/* mii */
+		>;
+	dsa,member = <0 0>;
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			label = "lan3";
+			phy-mode = "rgmii";
+			phy-handle = <&phy0>;
+		};
+
+		port@1 {
+			reg = <1>;
+			label = "lan4";
+			phy-mode = "rgmii";
+			phy-handle = <&phy1>;
+		};
+
+		port@2 {
+			reg = <2>;
+			label = "lan2";
+			phy-mode = "internal";
+			phy-handle = <&phy11>;
+		};
+
+		port@4 {
+			reg = <4>;
+			label = "lan1";
+			phy-mode = "internal";
+			phy-handle = <&phy13>;
+		};
+
+		port@5 {
+			reg = <5>;
+			label = "wan";
+			phy-mode = "rgmii";
+			phy-handle = <&phy5>;
+		};
+
+		port@6 {
+			reg = <0x6>;
+			ethernet = <&eth0>;
+		};
+	};
+
+	mdio {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "lantiq,xrx200-mdio";
+		reg = <0>;
+
+		phy0: ethernet-phy@0 {
+			reg = <0x0>;
+		};
+		phy1: ethernet-phy@1 {
+			reg = <0x1>;
+		};
+		phy5: ethernet-phy@5 {
+			reg = <0x5>;
+		};
+		phy11: ethernet-phy@11 {
+			reg = <0x11>;
+		};
+		phy13: ethernet-phy@13 {
+			reg = <0x13>;
+		};
+	};
+
+	gphy-fw {
+		compatible = "lantiq,xrx200-gphy-fw", "lantiq,gphy-fw";
+		lantiq,rcu = <&rcu0>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		gphy@20 {
+			reg = <0x20>;
+
+			resets = <&reset0 31 30>;
+			reset-names = "gphy";
+		};
+
+		gphy@68 {
+			reg = <0x68>;
+
+			resets = <&reset0 29 28>;
+			reset-names = "gphy";
+		};
+	};
+};

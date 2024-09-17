@@ -1,0 +1,196 @@
+# SPDX-License-Identifier: GPL-2.0
+#
+# Physical Layer USB driver configuration
+#
+menu "USB Physical Layer drivers"
+
+config USB_PHY
+	select EXTCON
+	def_bool n
+
+#
+# USB Transceiver Drivers
+#
+config AB8500_USB
+	tristate "AB8500 USB Transceiver Driver"
+	depends on AB8500_CORE
+	select USB_PHY
+	help
+	  Enable this to support the USB OTG transceiver in AB8500 chip.
+	  This transceiver supports high and full speed devices plus,
+	  in host mode, low speed.
+
+config FSL_USB2_OTG
+	tristate "Freescale USB OTG Transceiver Driver"
+	depends on USB_EHCI_FSL && USB_FSL_USB2 && USB_OTG_FSM=y && PM
+	depends on USB_GADGET || !USB_GADGET # if USB_GADGET=m, this can't be 'y'
+	select USB_PHY
+	help
+	  Enable this to support Freescale USB OTG transceiver.
+
+config ISP1301_OMAP
+	tristate "Philips ISP1301 with OMAP OTG"
+	depends on I2C
+	depends on ARCH_OMAP_OTG || (ARM && COMPILE_TEST)
+	depends on USB
+	depends on USB_GADGET || !USB_GADGET # if USB_GADGET=m, this can't be 'y'
+	select USB_PHY
+	help
+	  If you say yes here you get support for the Philips ISP1301
+	  USB-On-The-Go transceiver working with the OMAP OTG controller.
+	  The ISP1301 is a full speed USB  transceiver which is used in
+	  products including H2, H3, and H4 development boards for Texas
+	  Instruments OMAP processors.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called phy-isp1301-omap.
+
+config KEYSTONE_USB_PHY
+	tristate "Keystone USB PHY Driver"
+	depends on ARCH_KEYSTONE || COMPILE_TEST
+	depends on NOP_USB_XCEIV
+	help
+	  Enable this to support Keystone USB phy. This driver provides
+	  interface to interact with USB 2.0 and USB 3.0 PHY that is part
+	  of the Keystone SOC.
+
+config NOP_USB_XCEIV
+	tristate "NOP USB Transceiver Driver"
+	depends on USB_GADGET || !USB_GADGET # if USB_GADGET=m, NOP can't be built-in
+	select USB_PHY
+	help
+	  This driver is to be used by all the usb transceiver which are either
+	  built-in with usb ip or which are autonomous and doesn't require any
+	  phy programming such as ISP1x04 etc.
+
+config AM335X_CONTROL_USB
+	tristate
+
+config AM335X_PHY_USB
+	tristate "AM335x USB PHY Driver"
+	depends on ARM || COMPILE_TEST
+	depends on NOP_USB_XCEIV
+	select USB_PHY
+	select AM335X_CONTROL_USB
+	select USB_COMMON
+	help
+	  This driver provides PHY support for that phy which part for the
+	  AM335x SoC.
+
+config TWL6030_USB
+	tristate "TWL6030 USB Transceiver Driver"
+	depends on TWL4030_CORE && OMAP_USB2 && USB_MUSB_OMAP2PLUS
+	depends on OF
+	help
+	  Enable this to support the USB OTG transceiver on TWL6030
+	  family chips. This TWL6030 transceiver has the VBUS and ID GND
+	  and OTG SRP events capabilities. For all other transceiver functionality
+	  UTMI PHY is embedded in OMAP4430. The internal PHY configurations APIs
+	  are hooked to this driver through platform_data structure.
+	  The definition of internal PHY APIs are in the mach-omap2 layer.
+
+config USB_GPIO_VBUS
+	tristate "GPIO based peripheral-only VBUS sensing 'transceiver'"
+	depends on GPIOLIB || COMPILE_TEST
+	depends on USB_GADGET || !USB_GADGET # if USB_GADGET=m, this can't be 'y'
+	select USB_PHY
+	help
+	  Provides simple GPIO VBUS sensing for controllers with an
+	  internal transceiver via the usb_phy interface, and
+	  optionally control of a D+ pullup GPIO as well as a VBUS
+	  current limit regulator.
+
+config OMAP_OTG
+	tristate "OMAP USB OTG controller driver"
+	depends on ARCH_OMAP_OTG && EXTCON
+	help
+	  Enable this to support some transceivers on OMAP1 platforms. OTG
+	  controller is needed to switch between host and peripheral modes.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called phy-omap-otg.
+
+config TAHVO_USB
+	tristate "Tahvo USB transceiver driver"
+	depends on MFD_RETU
+	depends on USB_GADGET || !USB_GADGET # if USB_GADGET=m, this can't be 'y'
+	select USB_PHY
+	help
+	  Enable this to support USB transceiver on Tahvo. This is used
+	  at least on Nokia 770.
+
+config TAHVO_USB_HOST_BY_DEFAULT
+	depends on TAHVO_USB
+	bool "Device in USB host mode by default"
+	help
+	  Say Y here, if you want the device to enter USB host mode
+	  by default on bootup.
+
+config USB_ISP1301
+	tristate "NXP ISP1301 USB transceiver support"
+	depends on USB || USB_GADGET
+	depends on I2C
+	select USB_PHY
+	help
+	  Say Y here to add support for the NXP ISP1301 USB transceiver driver.
+	  This chip is typically used as USB transceiver for USB host, gadget
+	  and OTG drivers (to be selected separately).
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called phy-isp1301.
+
+config USB_MV_OTG
+	tristate "Marvell USB OTG support"
+	depends on USB_EHCI_MV && USB_MV_UDC && PM && USB_OTG
+	depends on USB_GADGET || !USB_GADGET # if USB_GADGET=m, this can't be 'y'
+	select USB_PHY
+	help
+	  Say Y here if you want to build Marvell USB OTG transceiver
+	  driver in kernel (including PXA and MMP series). This driver
+	  implements role switch between EHCI host driver and gadget driver.
+
+	  To compile this driver as a module, choose M here.
+
+config USB_MXS_PHY
+	tristate "Freescale MXS USB PHY support"
+	depends on ARCH_MXC || ARCH_MXS
+	select STMP_DEVICE
+	select USB_PHY
+	help
+	  Enable this to support the Freescale MXS USB PHY.
+
+	  MXS Phy is used by some of the i.MX SoCs, for example imx23/28/6x.
+
+config USB_TEGRA_PHY
+	tristate "NVIDIA Tegra USB PHY Driver"
+	depends on ARCH_TEGRA || COMPILE_TEST
+	select USB_COMMON
+	select USB_PHY
+	select USB_ULPI
+	help
+	  This driver provides PHY support for the USB controllers found
+	  on NVIDIA Tegra SoC's.
+
+config USB_ULPI
+	bool "Generic ULPI Transceiver Driver"
+	depends on ARM || ARM64 || COMPILE_TEST
+	select USB_ULPI_VIEWPORT
+	help
+	  Enable this to support ULPI connected USB OTG transceivers which
+	  are likely found on embedded boards.
+
+config USB_ULPI_VIEWPORT
+	bool
+	help
+	  Provides read/write operations to the ULPI phy register set for
+	  controllers with a viewport register (e.g. Chipidea/ARC controllers).
+
+config JZ4770_PHY
+	tristate "Ingenic SoCs Transceiver Driver"
+	depends on MIPS || COMPILE_TEST
+	select USB_PHY
+	help
+	  This driver provides PHY support for the USB controller found
+	  on the JZ-series and X-series SoCs from Ingenic.
+
+endmenu

@@ -1,0 +1,68 @@
+# SPDX-License-Identifier: GPL-2.0-or-later OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/watchdog/xlnx,xps-timebase-wdt.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Xilinx AXI/PLB softcore and window Watchdog Timer
+
+maintainers:
+  - Shubhrajyoti Datta <shubhrajyoti.datta@xilinx.com>
+  - Srinivas Neeli <srinivas.neeli@xilinx.com>
+
+description:
+  The Timebase watchdog timer(WDT) is a free-running 32 bit counter.
+  WDT uses a dual-expiration architecture. After one expiration of
+  the timeout interval, an interrupt is generated and the WDT state
+  bit is set to one in the status register. If the state bit is not
+  cleared (by writing a one to the state bit) before the next
+  expiration of the timeout interval, a WDT reset is generated.
+
+allOf:
+  - $ref: watchdog.yaml#
+
+properties:
+  compatible:
+    enum:
+      - xlnx,xps-timebase-wdt-1.01.a
+      - xlnx,xps-timebase-wdt-1.00.a
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  clock-frequency:
+    description: Frequency of clock in Hz
+
+  xlnx,wdt-interval:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: Watchdog timeout interval
+    minimum: 8
+    maximum: 32
+
+  xlnx,wdt-enable-once:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [0, 1]
+    description: If watchdog is configured as enable once,
+                 then the watchdog cannot be disabled after
+                 it has been enabled.
+
+required:
+  - compatible
+  - reg
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    watchdog@40100000 {
+      compatible = "xlnx,xps-timebase-wdt-1.00.a";
+      reg = <0x40100000 0x1000>;
+      clock-frequency = <50000000>;
+      clocks = <&clkc 15>;
+      xlnx,wdt-enable-once = <0x0>;
+      xlnx,wdt-interval = <0x1b>;
+    };
+...

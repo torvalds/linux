@@ -1,0 +1,19 @@
+# SPDX-License-Identifier: GPL-2.0-only
+menuconfig SIOX
+	tristate "Eckelmann SIOX Support"
+	help
+	  SIOX stands for Serial Input Output eXtension and is a synchronous
+	  bus system invented by Eckelmann AG. It is used in their control and
+	  remote monitoring systems for commercial and industrial refrigeration
+	  to drive additional I/O units.
+
+	  Unless you know better, it is probably safe to say "no" here.
+
+if SIOX
+
+config SIOX_BUS_GPIO
+	tristate "SIOX GPIO bus driver"
+	help
+	  SIOX bus driver that controls the four bus lines using GPIOs.
+
+endif

@@ -1,0 +1,122 @@
+# SPDX-License-Identifier: GPL-2.0
+# common clock support for NXP i.MX SoC family.
+config MXC_CLK
+	tristate "IMX clock"
+	depends on ARCH_MXC || COMPILE_TEST
+
+config MXC_CLK_SCU
+	tristate
+
+config CLK_IMX1
+	def_bool SOC_IMX1
+	select MXC_CLK
+
+config CLK_IMX25
+	def_bool SOC_IMX25
+	select MXC_CLK
+
+config CLK_IMX27
+	def_bool SOC_IMX27
+	select MXC_CLK
+
+config CLK_IMX31
+	def_bool SOC_IMX31
+	select MXC_CLK
+
+config CLK_IMX35
+	def_bool SOC_IMX35
+	select MXC_CLK
+
+config CLK_IMX5
+	def_bool SOC_IMX5
+	select MXC_CLK
+
+config CLK_IMX6Q
+	def_bool SOC_IMX6Q
+	select MXC_CLK
+
+config CLK_IMX6SL
+	def_bool SOC_IMX6SL
+	select MXC_CLK
+
+config CLK_IMX6SLL
+	def_bool SOC_IMX6SLL
+	select MXC_CLK
+
+config CLK_IMX6SX
+	def_bool SOC_IMX6SX
+	select MXC_CLK
+
+config CLK_IMX6UL
+	def_bool SOC_IMX6UL
+	select MXC_CLK
+
+config CLK_IMX7D
+	def_bool SOC_IMX7D
+	select MXC_CLK
+
+config CLK_IMX7ULP
+	def_bool SOC_IMX7ULP
+	select MXC_CLK
+
+config CLK_VF610
+	def_bool SOC_VF610
+	select MXC_CLK
+
+config CLK_IMX8MM
+	tristate "IMX8MM CCM Clock Driver"
+	depends on ARCH_MXC || COMPILE_TEST
+	select MXC_CLK
+	help
+	    Build the driver for i.MX8MM CCM Clock Driver
+
+config CLK_IMX8MN
+	tristate "IMX8MN CCM Clock Driver"
+	depends on ARCH_MXC || COMPILE_TEST
+	select MXC_CLK
+	help
+	    Build the driver for i.MX8MN CCM Clock Driver
+
+config CLK_IMX8MP
+	tristate "IMX8MP CCM Clock Driver"
+	depends on ARCH_MXC || COMPILE_TEST
+	select MXC_CLK
+	help
+	    Build the driver for i.MX8MP CCM Clock Driver
+
+config CLK_IMX8MQ
+	tristate "IMX8MQ CCM Clock Driver"
+	depends on ARCH_MXC || COMPILE_TEST
+	select MXC_CLK
+	help
+	    Build the driver for i.MX8MQ CCM Clock Driver
+
+config CLK_IMX8QXP
+	tristate "IMX8QXP SCU Clock"
+	depends on (ARCH_MXC && ARM64) || COMPILE_TEST
+	depends on IMX_SCU && HAVE_ARM_SMCCC
+	select MXC_CLK_SCU
+	select MXC_CLK
+	help
+	  Build the driver for IMX8QXP SCU based clocks.
+
+config CLK_IMX8ULP
+	tristate "IMX8ULP CCM Clock Driver"
+	depends on ARCH_MXC || COMPILE_TEST
+	select MXC_CLK
+	help
+	    Build the driver for i.MX8ULP CCM Clock Driver
+
+config CLK_IMX93
+	tristate "IMX93 CCM Clock Driver"
+	depends on ARCH_MXC || COMPILE_TEST
+	select MXC_CLK
+	help
+	    Build the driver for i.MX93 CCM Clock Driver
+
+config CLK_IMXRT1050
+	tristate "IMXRT1050 CCM Clock Driver"
+	depends on SOC_IMXRT
+	select MXC_CLK
+	help
+	    Build the driver for i.MXRT1050 CCM Clock Driver

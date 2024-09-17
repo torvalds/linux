@@ -1,0 +1,17 @@
+config DRM_ZYNQMP_DPSUB
+	tristate "ZynqMP DisplayPort Controller Driver"
+	depends on ARCH_ZYNQMP || COMPILE_TEST
+	depends on COMMON_CLK && DRM && OF
+	depends on DMADEVICES
+	depends on PHY_XILINX_ZYNQMP
+	depends on XILINX_ZYNQMP_DPDMA
+	select DMA_ENGINE
+	select DRM_DISPLAY_DP_HELPER
+	select DRM_DISPLAY_HELPER
+	select DRM_GEM_DMA_HELPER
+	select DRM_KMS_HELPER
+	select GENERIC_PHY
+	help
+	  This is a DRM/KMS driver for ZynqMP DisplayPort controller. Choose
+	  this option if you have a Xilinx ZynqMP SoC with DisplayPort
+	  subsystem.

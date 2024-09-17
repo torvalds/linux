@@ -1,0 +1,23 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Potentiostat drivers
+#
+# When adding new entries keep the list in alphabetical order
+
+menu "Digital potentiostats"
+
+config LMP91000
+	tristate "Texas Instruments LMP91000 potentiostat driver"
+	depends on I2C
+	select REGMAP_I2C
+	select IIO_BUFFER
+	select IIO_BUFFER_CB
+	select IIO_TRIGGERED_BUFFER
+	help
+	  Say yes here to build support for the Texas Instruments
+	  LMP91000 digital potentiostat chip.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called lmp91000
+
+endmenu

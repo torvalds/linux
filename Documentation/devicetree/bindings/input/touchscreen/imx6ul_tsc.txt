@@ -1,0 +1,38 @@
+* Freescale i.MX6UL Touch Controller
+
+Required properties:
+- compatible: must be "fsl,imx6ul-tsc".
+- reg: this touch controller address and the ADC2 address.
+- interrupts: the interrupt of this touch controller and ADC2.
+- clocks: the root clock of touch controller and ADC2.
+- clock-names; must be "tsc" and "adc".
+- xnur-gpio: the X- gpio this controller connect to.
+  This xnur-gpio returns to low once the finger leave the touch screen (The
+  last touch event the touch controller capture).
+
+Optional properties:
+- measure-delay-time: the value of measure delay time.
+  Before X-axis or Y-axis measurement, the screen need some time before
+  even potential distribution ready.
+  This value depends on the touch screen.
+- pre-charge-time: the touch screen need some time to precharge.
+  This value depends on the touch screen.
+- touchscreen-average-samples: Number of data samples which are averaged for
+  each read. Valid values are 1, 4, 8, 16 and 32.
+
+Example:
+	tsc: tsc@2040000 {
+		compatible = "fsl,imx6ul-tsc";
+		reg = <0x02040000 0x4000>, <0x0219c000 0x4000>;
+		interrupts = <GIC_SPI 3 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 101 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&clks IMX6UL_CLK_IPG>,
+			 <&clks IMX6UL_CLK_ADC2>;
+		clock-names = "tsc", "adc";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_tsc>;
+		xnur-gpio = <&gpio1 3 GPIO_ACTIVE_LOW>;
+		measure-delay-time = <0xfff>;
+		pre-charge-time = <0xffff>;
+		touchscreen-average-samples = <32>;
+	};

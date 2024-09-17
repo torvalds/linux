@@ -1,0 +1,214 @@
+// SPDX-License-Identifier: GPL-2.0-or-later OR MIT
+/*
+ * Copyright (c) 2021 Oleksij Rempel <kernel@pengutronix.de>, Pengutronix
+ */
+/dts-v1/;
+#include "sama5d36.dtsi"
+
+/ {
+	model = "EVB-KSZ9477";
+	compatible = "microchip,sama5d3-ksz9477-evb", "atmel,sama5d36",
+		     "atmel,sama5d3", "atmel,sama5";
+
+	chosen {
+		stdout-path = &dbgu;
+	};
+
+	reg_3v3: regulator-3v3 {
+		compatible = "regulator-fixed";
+		regulator-name = "3v3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+	};
+
+	reg_vcc_mmc0: regulator-mmc0 {
+		compatible = "regulator-fixed";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_mcc0_vcc>;
+		regulator-name = "mmc0-vcc";
+		regulator-max-microvolt = <3300000>;
+		regulator-min-microvolt = <3300000>;
+		gpio = <&pioE 2 GPIO_ACTIVE_LOW>;
+	};
+};
+
+&dbgu {
+	status = "okay";
+};
+
+&ebi {
+	pinctrl-0 = <&pinctrl_ebi_nand_addr>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+
+&i2c0 {
+	pinctrl-0 = <&pinctrl_i2c0_pu>;
+	status = "okay";
+};
+
+&macb0 {
+	phy-mode = "rgmii";
+	status = "okay";
+
+	fixed-link {
+		speed = <1000>;
+		full-duplex;
+	};
+};
+
+&main_xtal {
+	clock-frequency = <12000000>;
+};
+
+&mmc0 {
+	pinctrl-0 = <&pinctrl_mmc0_clk_cmd_dat0 &pinctrl_mmc0_dat1_3
+		     &pinctrl_mmc0_dat4_7 &pinctrl_mmc0_cd>;
+	status = "okay";
+
+	slot@0 {
+		reg = <0>;
+		bus-width = <8>;
+		cd-gpios = <&pioE 0 GPIO_ACTIVE_LOW>;
+		disable-wp;
+		vmmc-supply = <&reg_vcc_mmc0>;
+		vqmmc-supply = <&reg_3v3>;
+	};
+};
+
+&nand_controller {
+	status = "okay";
+
+	nand@3 {
+		reg = <0x3 0x0 0x2>;
+		atmel,rb = <0>;
+		nand-bus-width = <8>;
+		nand-ecc-mode = "hw";
+		nand-ecc-strength = <4>;
+		nand-ecc-step-size = <512>;
+		nand-on-flash-bbt;
+		label = "atmel_nand";
+	};
+};
+
+&slow_xtal {
+	clock-frequency = <32768>;
+};
+
+&spi0 {
+	cs-gpios = <&pioD 13 GPIO_ACTIVE_LOW>, <0>, <0>,
+		   <&pioD 16 GPIO_ACTIVE_LOW>;
+	status = "okay";
+};
+
+&spi1 {
+	pinctrl-0 = <&pinctrl_spi_ksz>;
+	cs-gpios = <&pioC 25 GPIO_ACTIVE_LOW>;
+	status = "okay";
+
+	switch@0 {
+		compatible = "microchip,ksz9477";
+		reg = <0>;
+		spi-max-frequency = <1000000>;
+		spi-cpha;
+		spi-cpol;
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+				label = "lan1";
+				phy-mode = "internal";
+			};
+
+			port@1 {
+				reg = <1>;
+				label = "lan2";
+				phy-mode = "internal";
+			};
+
+			port@2 {
+				reg = <2>;
+				label = "lan3";
+				phy-mode = "internal";
+			};
+
+			port@3 {
+				reg = <3>;
+				label = "lan4";
+				phy-mode = "internal";
+			};
+
+			port@4 {
+				reg = <4>;
+				label = "lan5";
+				phy-mode = "internal";
+			};
+
+			port@5 {
+				reg = <5>;
+				label = "cpu";
+				ethernet = <&macb0>;
+				phy-mode = "rgmii-txid";
+
+				fixed-link {
+					speed = <1000>;
+					full-duplex;
+				};
+			};
+		};
+	};
+};
+
+&usb0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_usba_vbus>;
+	atmel,vbus-gpio = <&pioE 9 GPIO_ACTIVE_HIGH>;
+	status = "okay";
+};
+
+&pinctrl {
+	board {
+		pinctrl_i2c0_pu: i2c0-pu {
+			atmel,pins =
+				<AT91_PIOA 30 AT91_PERIPH_A AT91_PINCTRL_PULL_UP>,
+				<AT91_PIOA 31 AT91_PERIPH_A AT91_PINCTRL_PULL_UP>;
+		};
+
+		pinctrl_mmc0_cd: mmc0-cd {
+			atmel,pins = <AT91_PIOE 0 AT91_PERIPH_GPIO AT91_PINCTRL_NONE>;
+		};
+
+		pinctrl_mcc0_vcc: mmc0-vcc {
+			atmel,pins = <AT91_PIOE 2 AT91_PERIPH_GPIO AT91_PINCTRL_NONE>;
+		};
+
+		pinctrl_spi_ksz: spi-ksz {
+			atmel,pins =
+				<
+				/* SPI1_MISO */
+				AT91_PIOC 22 AT91_PERIPH_A AT91_PINCTRL_PULL_UP
+				/* SPI1_MOSI */
+				AT91_PIOC 23 AT91_PERIPH_A AT91_PINCTRL_NONE
+				/* SPI1_SPCK */
+				AT91_PIOC 24 AT91_PERIPH_A AT91_PINCTRL_NONE
+
+				/* SPI CS */
+				AT91_PIOC 25 AT91_PERIPH_GPIO AT91_PINCTRL_NONE
+				/* switch IRQ */
+				AT91_PIOB 28 AT91_PERIPH_GPIO AT91_PINCTRL_DEGLITCH
+				/* switch PME_N, SoC IN */
+				AT91_PIOC 30 AT91_PERIPH_GPIO AT91_PINCTRL_PULL_UP
+				/* switch RST */
+				AT91_PIOC 31 AT91_PERIPH_GPIO AT91_PINCTRL_PULL_UP_DEGLITCH
+				>;
+		};
+
+		pinctrl_usba_vbus: usba-vbus {
+			atmel,pins =
+				<AT91_PIOE 9 AT91_PERIPH_GPIO AT91_PINCTRL_DEGLITCH>;
+		};
+	};
+};

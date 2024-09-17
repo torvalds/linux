@@ -1,0 +1,39 @@
+Keystone 2 DSP GPIO controller bindings
+
+HOST OS userland running on ARM can send interrupts to DSP cores using
+the DSP GPIO controller IP. It provides 28 IRQ signals per each DSP core.
+This is one of the component used by the IPC mechanism used on Keystone SOCs.
+
+For example TCI6638K2K SoC has 8 DSP GPIO controllers:
+ - 8 for C66x CorePacx CPUs 0-7
+
+Keystone 2 DSP GPIO controller has specific features:
+- each GPIO can be configured only as output pin;
+- setting GPIO value to 1 causes IRQ generation on target DSP core;
+- reading pin value returns 0 - if IRQ was handled or 1 - IRQ is still
+  pending.
+
+Required Properties:
+- compatible: should be "ti,keystone-dsp-gpio"
+- ti,syscon-dev: phandle/offset pair. The phandle to syscon used to
+  access device state control registers and the offset of device's specific
+  registers within device state control registers range.
+- gpio-controller: Marks the device node as a gpio controller.
+- #gpio-cells: Should be 2.
+
+Please refer to gpio.txt in this directory for details of the common GPIO
+bindings used by client devices.
+
+Example:
+	dspgpio0: keystone_dsp_gpio@2620240 {
+		compatible = "ti,keystone-dsp-gpio";
+		ti,syscon-dev = <&devctrl 0x240>;
+		gpio-controller;
+		#gpio-cells = <2>;
+	};
+
+	dsp0: dsp0 {
+		compatible = "linux,rproc-user";
+		...
+		kick-gpio = <&dspgpio0 27>;
+	};

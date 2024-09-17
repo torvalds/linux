@@ -1,0 +1,3 @@
+graph G {
+      Hello -- World
+}

@@ -1,0 +1,276 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+/*
+ * Device tree source for the Emerson/Artesyn MVME2500
+ *
+ * Copyright 2014 Elettra-Sincrotrone Trieste S.C.p.A.
+ *
+ * Based on: P2020 DS Device Tree Source
+ * Copyright 2009 Freescale Semiconductor Inc.
+ */
+
+/include/ "p2020si-pre.dtsi"
+
+/ {
+	model = "MVME2500";
+	compatible = "artesyn,MVME2500";
+
+	aliases {
+		serial2 = &serial2;
+		serial3 = &serial3;
+		serial4 = &serial4;
+		serial5 = &serial5;
+	};
+
+	memory {
+		device_type = "memory";
+	};
+
+	soc: soc@ffe00000 {
+		ranges = <0x0 0 0xffe00000 0x100000>;
+
+		i2c@3000 {
+			hwmon@4c {
+				compatible = "adi,adt7461";
+				reg = <0x4c>;
+			};
+
+			rtc@68 {
+				compatible = "dallas,ds1337";
+				reg = <0x68>;
+				interrupts = <8 1 0 0>;
+			};
+
+			eeprom@54 {
+				compatible = "atmel,24c64";
+				reg = <0x54>;
+			};
+
+			eeprom@52 {
+				compatible = "atmel,24c512";
+				reg = <0x52>;
+			};
+
+			eeprom@53 {
+				compatible = "atmel,24c512";
+				reg = <0x53>;
+			};
+
+			eeprom@50 {
+				compatible = "atmel,24c02";
+				reg = <0x50>;
+			};
+
+		};
+
+		spi0: spi@7000 {
+			fsl,espi-num-chipselects = <2>;
+
+			flash@0 {
+				compatible = "atmel,at25df641", "jedec,spi-nor";
+				reg = <0>;
+				spi-max-frequency = <10000000>;
+			};
+			flash@1 {
+				compatible = "atmel,at25df641", "jedec,spi-nor";
+				reg = <1>;
+				spi-max-frequency = <10000000>;
+			};
+		};
+
+		usb@22000 {
+			dr_mode = "host";
+			phy_type = "ulpi";
+		};
+
+		enet0: ethernet@24000 {
+			tbi-handle = <&tbi0>;
+			phy-handle = <&phy1>;
+			phy-connection-type = "rgmii-id";
+		};
+
+		mdio@24520 {
+			phy1: ethernet-phy@1 {
+				compatible = "brcm,bcm54616S";
+				interrupts = <6 1 0 0>;
+				reg = <0x1>;
+			};
+
+			phy2: ethernet-phy@2 {
+				compatible = "brcm,bcm54616S";
+				interrupts = <6 1 0 0>;
+				reg = <0x2>;
+			};
+
+			phy3: ethernet-phy@3 {
+				compatible = "brcm,bcm54616S";
+				interrupts = <5 1 0 0>;
+				reg = <0x3>;
+			};
+
+			phy7: ethernet-phy@7 {
+				compatible = "brcm,bcm54616S";
+				interrupts = <7 1 0 0>;
+				reg = <0x7>;
+			};
+
+			tbi0: tbi-phy@11 {
+				reg = <0x11>;
+				device_type = "tbi-phy";
+			};
+		};
+
+		enet1: ethernet@25000 {
+			tbi-handle = <&tbi1>;
+			phy-handle = <&phy7>;
+			phy-connection-type = "rgmii-id";
+		};
+
+		mdio@25520 {
+			tbi1: tbi-phy@11 {
+				reg = <0x11>;
+				device_type = "tbi-phy";
+			};
+		};
+
+		enet2: ethernet@26000 {
+			tbi-handle = <&tbi2>;
+			phy-handle = <&phy3>;
+			phy-connection-type = "rgmii-id";
+		};
+
+		mdio@26520 {
+			tbi2: tbi-phy@11 {
+				reg = <0x11>;
+				device_type = "tbi-phy";
+			};
+		};
+	};
+
+	lbc: localbus@ffe05000 {
+		reg = <0 0xffe05000 0 0x1000>;
+
+		ranges = <0x0 0x0 0x0 0xfff00000 0x00080000
+			  0x1 0x0 0x0 0xffc40000 0x00010000
+			  0x2 0x0 0x0 0xffc50000 0x00010000
+			  0x3 0x0 0x0 0xffc60000 0x00010000
+			  0x4 0x0 0x0 0xffc70000 0x00010000
+			  0x6 0x0 0x0 0xffc80000 0x00010000
+			  0x5 0x0 0x0 0xffdf0000 0x00008000>;
+
+		serial2: serial@1,0 {
+			device_type = "serial";
+			compatible = "ns16550";
+			reg = <0x1 0x0 0x100>;
+			clock-frequency = <1843200>;
+			interrupts = <11 2 0 0>;
+		};
+
+		serial3: serial@2,0 {
+			device_type = "serial";
+			compatible = "ns16550";
+			reg = <0x2 0x0 0x100>;
+			clock-frequency = <1843200>;
+			interrupts = <1 2 0 0>;
+		};
+
+		serial4: serial@3,0 {
+			device_type = "serial";
+			compatible = "ns16550";
+			reg = <0x3 0x0 0x100>;
+			clock-frequency = <1843200>;
+			interrupts = <2 2 0 0>;
+		};
+
+		serial5: serial@4,0 {
+			device_type = "serial";
+			compatible = "ns16550";
+			reg = <0x4 0x0 0x100>;
+			clock-frequency = <1843200>;
+			interrupts = <3 2 0 0>;
+		};
+
+		mram@0,0 {
+			compatible = "everspin,mram", "mtd-ram";
+			reg = <0x0 0x0 0x80000>;
+			bank-width = <2>;
+		};
+
+		board-control@5,0 {
+			compatible = "artesyn,mvme2500-fpga";
+			reg = <0x5 0x0 0x01000>;
+		};
+
+		cpld@6,0 {
+			compatible = "artesyn,mvme2500-cpld";
+			reg = <0x6 0x0 0x10000>;
+			interrupts = <9 1 0 0>;
+		};
+	};
+
+	pci0: pcie@ffe08000 {
+		reg = <0 0xffe08000 0 0x1000>;
+		ranges = <0x2000000 0x0 0x80000000 0 0x80000000 0x0 0x20000000
+			  0x1000000 0x0 0x00000000 0 0xffc00000 0x0 0x10000>;
+		pcie@0 {
+			ranges = <0x2000000 0x0 0x80000000
+				  0x2000000 0x0 0x80000000
+				  0x0 0x20000000
+
+				  0x1000000 0x0 0x0
+				  0x1000000 0x0 0x0
+				  0x0 0x10000>;
+		};
+	};
+
+	pci1: pcie@ffe09000 {
+		reg = <0 0xffe09000 0 0x1000>;
+		ranges = <0x2000000 0x0 0xa0000000 0 0xa0000000 0x0 0x20000000
+			  0x1000000 0x0 0x00000000 0 0xffc10000 0x0 0x10000>;
+		pcie@0 {
+			ranges = <0x2000000 0x0 0xa0000000
+				  0x2000000 0x0 0xa0000000
+				  0x0 0x20000000
+
+				  0x1000000 0x0 0x0
+				  0x1000000 0x0 0x0
+				  0x0 0x10000>;
+		};
+
+	};
+
+	pci2: pcie@ffe0a000 {
+		reg = <0 0xffe0a000 0 0x1000>;
+		ranges = <0x2000000 0x0 0xc0000000 0 0xc0000000 0x0 0x20000000
+			  0x1000000 0x0 0x00000000 0 0xffc20000 0x0 0x10000>;
+		pcie@0 {
+			ranges = <0x2000000 0x0 0xc0000000
+				  0x2000000 0x0 0xc0000000
+				  0x0 0x20000000
+
+				  0x1000000 0x0 0x0
+				  0x1000000 0x0 0x0
+				  0x0 0x10000>;
+		};
+	};
+};
+
+/include/ "p2020si-post.dtsi"
+
+/ {
+	soc@ffe00000 {
+		serial@4600 {
+			status = "disabled";
+		};
+
+		i2c@3100 {
+			status = "disabled";
+		};
+
+		sdhc@2e000 {
+			compatible = "fsl,p2020-esdhc", "fsl,esdhc";
+			non-removable;
+		};
+
+	};
+
+};

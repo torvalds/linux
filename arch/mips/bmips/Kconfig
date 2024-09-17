@@ -1,0 +1,83 @@
+# SPDX-License-Identifier: GPL-2.0
+if BMIPS_GENERIC
+
+choice
+	prompt "Built-in device tree"
+	help
+	  Legacy bootloaders do not pass a DTB pointer to the kernel, so
+	  if a "wrapper" is not being used, the kernel will need to include
+	  a device tree that matches the target board.
+
+	  The builtin DTB will only be used if the firmware does not supply
+	  a valid DTB.
+
+config DT_NONE
+	bool "None"
+
+config DT_BCM93384WVG
+	bool "BCM93384WVG Zephyr CPU"
+	select BUILTIN_DTB
+
+config DT_BCM93384WVG_VIPER
+	bool "BCM93384WVG Viper CPU (EXPERIMENTAL)"
+	select BUILTIN_DTB
+
+config DT_BCM96368MVWG
+	bool "BCM96368MVWG"
+	select BUILTIN_DTB
+
+config DT_BCM9EJTAGPRB
+	bool "BCM9EJTAGPRB"
+	select BUILTIN_DTB
+
+config DT_BCM97125CBMB
+	bool "BCM97125CBMB"
+	select BUILTIN_DTB
+
+config DT_BCM97346DBSMB
+	bool "BCM97346DBSMB"
+	select BUILTIN_DTB
+
+config DT_BCM97358SVMB
+	bool "BCM97358SVMB"
+	select BUILTIN_DTB
+
+config DT_BCM97360SVMB
+	bool "BCM97360SVMB"
+	select BUILTIN_DTB
+
+config DT_BCM97362SVMB
+	bool "BCM97362SVMB"
+	select BUILTIN_DTB
+
+config DT_BCM97420C
+	bool "BCM97420C"
+	select BUILTIN_DTB
+
+config DT_BCM97425SVMB
+	bool "BCM97425SVMB"
+	select BUILTIN_DTB
+
+config DT_BCM97435SVMB
+	bool "BCM97435SVMB"
+	select BUILTIN_DTB
+
+config DT_COMTREND_VR3032U
+	bool "Comtrend VR-3032u"
+	select BUILTIN_DTB
+
+config DT_NETGEAR_CVG834G
+	bool "NETGEAR CVG834G"
+	select BUILTIN_DTB
+
+config DT_SFR_NEUFBOX4_SERCOMM
+	bool "SFR Neufbox 4 (Sercomm)"
+	select BUILTIN_DTB
+
+config DT_SFR_NEUFBOX6_SERCOMM
+	bool "SFR Neufbox 6 (Sercomm)"
+	select BUILTIN_DTB
+
+endchoice
+
+endif

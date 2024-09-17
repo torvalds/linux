@@ -1,0 +1,46 @@
+# SPDX-License-Identifier: GPL-2.0-only
+menuconfig ARCH_ASPEED
+	bool "Aspeed BMC architectures"
+	depends on (CPU_LITTLE_ENDIAN && ARCH_MULTI_V5) || ARCH_MULTI_V6 || ARCH_MULTI_V7
+	select SRAM
+	select WATCHDOG
+	select ASPEED_WATCHDOG
+	select MFD_SYSCON
+	select PINCTRL
+	help
+	  Say Y here if you want to run your kernel on an ASpeed BMC SoC.
+
+if ARCH_ASPEED
+
+config MACH_ASPEED_G4
+	bool "Aspeed SoC 4th Generation"
+	depends on ARCH_MULTI_V5
+	select CPU_ARM926T
+	select PINCTRL_ASPEED_G4
+	select FTTMR010_TIMER
+	help
+	  Say yes if you intend to run on an Aspeed ast2400 or similar
+	  fourth generation BMCs, such as those used by OpenPower Power8
+	  systems.
+
+config MACH_ASPEED_G5
+	bool "Aspeed SoC 5th Generation"
+	depends on ARCH_MULTI_V6
+	select PINCTRL_ASPEED_G5
+	select FTTMR010_TIMER
+	help
+	  Say yes if you intend to run on an Aspeed ast2500 or similar
+	  fifth generation Aspeed BMCs.
+
+config MACH_ASPEED_G6
+	bool "Aspeed SoC 6th Generation"
+	depends on ARCH_MULTI_V7
+	select CPU_V7
+	select PINCTRL_ASPEED_G6
+	select ARM_GIC
+	select HAVE_ARM_ARCH_TIMER
+	help
+	  Say yes if you intend to run on an Aspeed ast2600 or similar
+	  sixth generation Aspeed BMCs.
+
+endif

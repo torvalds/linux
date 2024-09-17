@@ -1,0 +1,103 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Cavium ethernet device configuration
+#
+
+config NET_VENDOR_CAVIUM
+	bool "Cavium ethernet drivers"
+	default y
+	help
+	  Select this option if you want enable Cavium network support.
+
+	  If you have a Cavium SoC or network adapter, say Y.
+
+if NET_VENDOR_CAVIUM
+
+config THUNDER_NIC_PF
+	tristate "Thunder Physical function driver"
+	depends on 64BIT && PCI
+	select THUNDER_NIC_BGX
+	help
+	  This driver supports Thunder's NIC physical function.
+	  The NIC provides the controller and DMA engines to
+	  move network traffic to/from the memory. The NIC
+	  works closely with TNS, BGX and SerDes to implement the
+	  functions replacing and virtualizing those of a typical
+	  standalone PCIe NIC chip.
+
+config THUNDER_NIC_VF
+	tristate "Thunder Virtual function driver"
+	imply CAVIUM_PTP
+	depends on 64BIT && PCI
+	help
+	  This driver supports Thunder's NIC virtual function
+
+config	THUNDER_NIC_BGX
+	tristate "Thunder MAC interface driver (BGX)"
+	depends on 64BIT && PCI
+	select PHYLIB
+	select MDIO_THUNDER if PCI
+	select THUNDER_NIC_RGX
+	help
+	  This driver supports programming and controlling of MAC
+	  interface from NIC physical function driver.
+
+config	THUNDER_NIC_RGX
+	tristate "Thunder MAC interface driver (RGX)"
+	depends on 64BIT && PCI
+	select PHYLIB
+	select MDIO_THUNDER if PCI
+	help
+	  This driver supports configuring XCV block of RGX interface
+	  present on CN81XX chip.
+
+config CAVIUM_PTP
+	tristate "Cavium PTP coprocessor as PTP clock"
+	depends on 64BIT && PCI
+	depends on PTP_1588_CLOCK
+	help
+	  This driver adds support for the Precision Time Protocol Clocks and
+	  Timestamping coprocessor (PTP) found on Cavium processors.
+	  PTP provides timestamping mechanism that is suitable for use in IEEE 1588
+	  Precision Time Protocol or other purposes.  Timestamps can be used in
+	  BGX, TNS, GTI, and NIC blocks.
+
+config LIQUIDIO
+	tristate "Cavium LiquidIO support"
+	depends on 64BIT && PCI
+	depends on PCI
+	depends on PTP_1588_CLOCK_OPTIONAL
+	select FW_LOADER
+	select LIBCRC32C
+	select NET_DEVLINK
+	help
+	  This driver supports Cavium LiquidIO Intelligent Server Adapters
+	  based on CN66XX, CN68XX and CN23XX chips.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called liquidio.  This is recommended.
+
+config OCTEON_MGMT_ETHERNET
+	tristate "Octeon Management port ethernet driver (CN5XXX, CN6XXX)"
+	depends on CAVIUM_OCTEON_SOC
+	select PHYLIB
+	select MDIO_OCTEON
+	default y
+	help
+	  Enable the ethernet driver for the management
+	  port on Cavium Networks' Octeon CN57XX, CN56XX, CN55XX,
+	  CN54XX, CN52XX, and CN6XXX chips.
+
+config LIQUIDIO_VF
+	tristate "Cavium LiquidIO VF support"
+	depends on 64BIT && PCI_MSI
+	depends on PTP_1588_CLOCK_OPTIONAL
+	help
+	  This driver supports Cavium LiquidIO Intelligent Server Adapter
+	  based on CN23XX chips.
+
+	  To compile this driver as a module, choose M here: The module
+	  will be called liquidio_vf. MSI-X interrupt support is required
+	  for this driver to work correctly
+
+endif # NET_VENDOR_CAVIUM

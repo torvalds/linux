@@ -1,0 +1,279 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/mfd/stericsson,db8500-prcmu.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: ST-Ericsson DB8500 PRCMU - Power Reset and Control Management Unit
+
+maintainers:
+  - Linus Walleij <linus.walleij@linaro.org>
+
+description:
+  The DB8500 Power Reset and Control Management Unit is an XP70 8-bit
+  microprocessor that is embedded in the always-on power domain of the
+  DB8500 SoCs to manage the low power states, powering up and down parts
+  of the silicon, and controlling reset of different IP blocks.
+
+properties:
+  $nodename:
+    pattern: '^prcmu@[0-9a-f]+$'
+
+  compatible:
+    description: The device is compatible both to the device-specific
+      compatible "stericsson,db8500-prcmu" and "syscon". The latter
+      compatible is needed for the device to be exposed as a system
+      controller so that arbitrary registers can be access by
+      different operating system components.
+    items:
+      - const: stericsson,db8500-prcmu
+      - const: syscon
+
+  reg:
+    items:
+      - description: Main PRCMU register area
+      - description: PRCMU TCPM register area
+      - description: PRCMU TCDM register area
+
+  reg-names:
+    items:
+      - const: prcmu
+      - const: prcmu-tcpm
+      - const: prcmu-tcdm
+
+  interrupts:
+    maxItems: 1
+
+  '#address-cells':
+    const: 1
+
+  '#size-cells':
+    const: 1
+
+  ranges: true
+
+  interrupt-controller: true
+
+  '#interrupt-cells':
+    const: 2
+
+  db8500-prcmu-regulators:
+    description: Node describing the DB8500 regulators. These are mainly
+      power rails inside the silicon but some of those are also routed
+      out to external pins.
+    type: object
+
+    properties:
+      compatible:
+        const: stericsson,db8500-prcmu-regulator
+
+      db8500_vape:
+        description: The voltage for the application processor, the
+          main voltage domain for the chip.
+        type: object
+        $ref: ../regulator/regulator.yaml#
+
+      db8500_varm:
+        description: The voltage for the ARM Cortex A-9 CPU.
+        type: object
+        $ref: ../regulator/regulator.yaml#
+
+      db8500_vmodem:
+        description: The voltage for the modem subsystem.
+        type: object
+        $ref: ../regulator/regulator.yaml#
+
+      db8500_vpll:
+        description: The voltage for the phase locked loop clocks.
+        type: object
+        $ref: ../regulator/regulator.yaml#
+
+      db8500_vsmps1:
+        description: Also known as VIO12, is a step-down voltage regulator
+          for 1.2V I/O. SMPS means System Management Power Source.
+        type: object
+        $ref: ../regulator/regulator.yaml#
+
+      db8500_vsmps2:
+        description: Also known as VIO18, is a step-down voltage regulator
+          for 1.8V I/O. SMPS means System Management Power Source.
+        type: object
+        $ref: ../regulator/regulator.yaml#
+
+      db8500_vsmps3:
+        description: This is a step-down voltage regulator
+          for 0.87 thru 1.875V I/O. SMPS means System Management Power Source.
+        type: object
+        $ref: ../regulator/regulator.yaml#
+
+      db8500_vrf1:
+        description: RF transciever voltage regulator.
+        type: object
+        $ref: ../regulator/regulator.yaml#
+
+      db8500_sva_mmdsp:
+        description: Smart Video Accelerator (SVA) multimedia DSP (MMDSP)
+          voltage regulator. This is the voltage for the accelerator DSP
+          for video encoding and decoding.
+        type: object
+        $ref: ../regulator/regulator.yaml#
+
+      db8500_sva_mmdsp_ret:
+        description: Smart Video Accelerator (SVA) multimedia DSP (MMDSP)
+          voltage regulator for retention mode.
+        type: object
+        $ref: ../regulator/regulator.yaml#
+
+      db8500_sva_pipe:
+        description: Smart Video Accelerator (SVA) multimedia DSP (MMDSP)
+          voltage regulator for the data pipe.
+        type: object
+        $ref: ../regulator/regulator.yaml#
+
+      db8500_sia_mmdsp:
+        description: Smart Image Accelerator (SIA) multimedia DSP (MMDSP)
+          voltage regulator. This is the voltage for the accelerator DSP
+          for image encoding and decoding.
+        type: object
+        $ref: ../regulator/regulator.yaml#
+
+      db8500_sia_mmdsp_ret:
+        description: Smart Image Accelerator (SIA) multimedia DSP (MMDSP)
+          voltage regulator for retention mode.
+        type: object
+        $ref: ../regulator/regulator.yaml#
+
+      db8500_sia_pipe:
+        description: Smart Image Accelerator (SIA) multimedia DSP (MMDSP)
+          voltage regulator for the data pipe.
+        type: object
+        $ref: ../regulator/regulator.yaml#
+
+      db8500_sga:
+        description: Smart Graphics Accelerator (SGA) voltage regulator.
+          This is in effect controlling the power to the MALI400 3D
+          accelerator block.
+        type: object
+        $ref: ../regulator/regulator.yaml#
+
+      db8500_b2r2_mcde:
+        description: Blit Blend Rotate and Rescale (B2R2), and Multi-Channel
+          Display Engine (MCDE) voltage regulator. These are two graphics
+          blocks.
+        type: object
+        $ref: ../regulator/regulator.yaml#
+
+      db8500_esram12:
+        description: Embedded Static RAM (ESRAM) 1 and 2 voltage regulator.
+        type: object
+        $ref: ../regulator/regulator.yaml#
+
+      db8500_esram12_ret:
+        description: Embedded Static RAM (ESRAM) 1 and 2 voltage regulator for
+          retention mode.
+        type: object
+        $ref: ../regulator/regulator.yaml#
+
+      db8500_esram34:
+        description: Embedded Static RAM (ESRAM) 3 and 4 voltage regulator.
+        type: object
+        $ref: ../regulator/regulator.yaml#
+
+      db8500_esram34_ret:
+        description: Embedded Static RAM (ESRAM) 3 and 4 voltage regulator for
+          retention mode.
+        type: object
+        $ref: ../regulator/regulator.yaml#
+
+    required:
+      - compatible
+      - db8500_vape
+      - db8500_varm
+      - db8500_vmodem
+      - db8500_vpll
+      - db8500_vsmps1
+      - db8500_vsmps2
+      - db8500_vsmps3
+      - db8500_vrf1
+      - db8500_sva_mmdsp
+      - db8500_sva_mmdsp_ret
+      - db8500_sva_pipe
+      - db8500_sia_mmdsp
+      - db8500_sia_mmdsp_ret
+      - db8500_sia_pipe
+      - db8500_sga
+      - db8500_b2r2_mcde
+      - db8500_esram12
+      - db8500_esram12_ret
+      - db8500_esram34
+      - db8500_esram34_ret
+
+    additionalProperties: false
+
+patternProperties:
+  "^thermal@[0-9a-f]+$":
+    description: Node describing the DB8500 thermal control functions.
+      This binds to an operating system driver that monitors the
+      temperature of the SoC.
+    type: object
+
+    properties:
+      compatible:
+        const: stericsson,db8500-thermal
+
+      reg:
+        maxItems: 1
+
+      interrupts:
+        items:
+          - description: Hotmon low interrupt (falling temperature)
+          - description: Hotmon high interrupt (rising temperature)
+
+      interrupt-names:
+        items:
+          - const: IRQ_HOTMON_LOW
+          - const: IRQ_HOTMON_HIGH
+
+      '#thermal-sensor-cells':
+        const: 0
+
+    additionalProperties: false
+
+  "^prcmu-timer-4@[0-9a-f]+$":
+    description: Node describing the externally visible timer 4 in the
+      PRCMU block. This timer is interesting to the operating system
+      since even thought it has a very low resolution (32768 Hz) it is
+      always on, and thus provides a consistent monotonic timeline for
+      the system.
+    type: object
+
+    properties:
+      compatible:
+        const: stericsson,db8500-prcmu-timer-4
+
+      reg:
+        maxItems: 1
+
+    additionalProperties: false
+
+  "^ab850[05]$":
+    description: Node describing the Analog Baseband 8500 mixed-signals
+      ASIC AB8500 and subcomponents. The AB8500 is accessed through the
+      PRCMU and hence it appears here. This component has a separate
+      set of devicetree bindings. The AB8505 is a newer version of the
+      same ASIC.
+    type: object
+    $ref: stericsson,ab8500.yaml#
+
+required:
+  - compatible
+  - reg
+  - '#address-cells'
+  - '#size-cells'
+  - ranges
+  - interrupts
+  - interrupt-controller
+  - '#interrupt-cells'
+  - db8500-prcmu-regulators
+
+additionalProperties: false

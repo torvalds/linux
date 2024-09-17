@@ -1,0 +1,746 @@
+[
+    {
+        "BriefDescription": "L1 Data Cacheable reads and writes",
+        "Counter": "0,1",
+        "EventCode": "0x40",
+        "EventName": "L1D_CACHE.ALL_CACHE_REF",
+        "SampleAfterValue": "2000000",
+        "UMask": "0xa3"
+    },
+    {
+        "BriefDescription": "L1 Data reads and writes",
+        "Counter": "0,1",
+        "EventCode": "0x40",
+        "EventName": "L1D_CACHE.ALL_REF",
+        "SampleAfterValue": "2000000",
+        "UMask": "0x83"
+    },
+    {
+        "BriefDescription": "Modified cache lines evicted from the L1 data cache",
+        "Counter": "0,1",
+        "EventCode": "0x40",
+        "EventName": "L1D_CACHE.EVICT",
+        "SampleAfterValue": "200000",
+        "UMask": "0x10"
+    },
+    {
+        "BriefDescription": "L1 Cacheable Data Reads",
+        "Counter": "0,1",
+        "EventCode": "0x40",
+        "EventName": "L1D_CACHE.LD",
+        "SampleAfterValue": "2000000",
+        "UMask": "0xa1"
+    },
+    {
+        "BriefDescription": "L1 Data line replacements",
+        "Counter": "0,1",
+        "EventCode": "0x40",
+        "EventName": "L1D_CACHE.REPL",
+        "SampleAfterValue": "200000",
+        "UMask": "0x8"
+    },
+    {
+        "BriefDescription": "Modified cache lines allocated in the L1 data cache",
+        "Counter": "0,1",
+        "EventCode": "0x40",
+        "EventName": "L1D_CACHE.REPLM",
+        "SampleAfterValue": "200000",
+        "UMask": "0x48"
+    },
+    {
+        "BriefDescription": "L1 Cacheable Data Writes",
+        "Counter": "0,1",
+        "EventCode": "0x40",
+        "EventName": "L1D_CACHE.ST",
+        "SampleAfterValue": "2000000",
+        "UMask": "0xa2"
+    },
+    {
+        "BriefDescription": "Cycles L2 address bus is in use.",
+        "Counter": "0,1",
+        "EventCode": "0x21",
+        "EventName": "L2_ADS.SELF",
+        "SampleAfterValue": "200000",
+        "UMask": "0x40"
+    },
+    {
+        "BriefDescription": "All data requests from the L1 data cache",
+        "Counter": "0,1",
+        "EventCode": "0x2C",
+        "EventName": "L2_DATA_RQSTS.SELF.E_STATE",
+        "SampleAfterValue": "200000",
+        "UMask": "0x44"
+    },
+    {
+        "BriefDescription": "All data requests from the L1 data cache",
+        "Counter": "0,1",
+        "EventCode": "0x2C",
+        "EventName": "L2_DATA_RQSTS.SELF.I_STATE",
+        "SampleAfterValue": "200000",
+        "UMask": "0x41"
+    },
+    {
+        "BriefDescription": "All data requests from the L1 data cache",
+        "Counter": "0,1",
+        "EventCode": "0x2C",
+        "EventName": "L2_DATA_RQSTS.SELF.MESI",
+        "SampleAfterValue": "200000",
+        "UMask": "0x4f"
+    },
+    {
+        "BriefDescription": "All data requests from the L1 data cache",
+        "Counter": "0,1",
+        "EventCode": "0x2C",
+        "EventName": "L2_DATA_RQSTS.SELF.M_STATE",
+        "SampleAfterValue": "200000",
+        "UMask": "0x48"
+    },
+    {
+        "BriefDescription": "All data requests from the L1 data cache",
+        "Counter": "0,1",
+        "EventCode": "0x2C",
+        "EventName": "L2_DATA_RQSTS.SELF.S_STATE",
+        "SampleAfterValue": "200000",
+        "UMask": "0x42"
+    },
+    {
+        "BriefDescription": "Cycles the L2 cache data bus is busy.",
+        "Counter": "0,1",
+        "EventCode": "0x22",
+        "EventName": "L2_DBUS_BUSY.SELF",
+        "SampleAfterValue": "200000",
+        "UMask": "0x40"
+    },
+    {
+        "BriefDescription": "Cycles the L2 transfers data to the core.",
+        "Counter": "0,1",
+        "EventCode": "0x23",
+        "EventName": "L2_DBUS_BUSY_RD.SELF",
+        "SampleAfterValue": "200000",
+        "UMask": "0x40"
+    },
+    {
+        "BriefDescription": "L2 cacheable instruction fetch requests",
+        "Counter": "0,1",
+        "EventCode": "0x28",
+        "EventName": "L2_IFETCH.SELF.E_STATE",
+        "SampleAfterValue": "200000",
+        "UMask": "0x44"
+    },
+    {
+        "BriefDescription": "L2 cacheable instruction fetch requests",
+        "Counter": "0,1",
+        "EventCode": "0x28",
+        "EventName": "L2_IFETCH.SELF.I_STATE",
+        "SampleAfterValue": "200000",
+        "UMask": "0x41"
+    },
+    {
+        "BriefDescription": "L2 cacheable instruction fetch requests",
+        "Counter": "0,1",
+        "EventCode": "0x28",
+        "EventName": "L2_IFETCH.SELF.MESI",
+        "SampleAfterValue": "200000",
+        "UMask": "0x4f"
+    },
+    {
+        "BriefDescription": "L2 cacheable instruction fetch requests",
+        "Counter": "0,1",
+        "EventCode": "0x28",
+        "EventName": "L2_IFETCH.SELF.M_STATE",
+        "SampleAfterValue": "200000",
+        "UMask": "0x48"
+    },
+    {
+        "BriefDescription": "L2 cacheable instruction fetch requests",
+        "Counter": "0,1",
+        "EventCode": "0x28",
+        "EventName": "L2_IFETCH.SELF.S_STATE",
+        "SampleAfterValue": "200000",
+        "UMask": "0x42"
+    },
+    {
+        "BriefDescription": "L2 cache reads",
+        "Counter": "0,1",
+        "EventCode": "0x29",
+        "EventName": "L2_LD.SELF.ANY.E_STATE",
+        "SampleAfterValue": "200000",
+        "UMask": "0x74"
+    },
+    {
+        "BriefDescription": "L2 cache reads",
+        "Counter": "0,1",
+        "EventCode": "0x29",
+        "EventName": "L2_LD.SELF.ANY.I_STATE",
+        "SampleAfterValue": "200000",
+        "UMask": "0x71"
+    },
+    {
+        "BriefDescription": "L2 cache reads",
+        "Counter": "0,1",
+        "EventCode": "0x29",
+        "EventName": "L2_LD.SELF.ANY.MESI",
+        "SampleAfterValue": "200000",
+        "UMask": "0x7f"
+    },
+    {
+        "BriefDescription": "L2 cache reads",
+        "Counter": "0,1",
+        "EventCode": "0x29",
+        "EventName": "L2_LD.SELF.ANY.M_STATE",
+        "SampleAfterValue": "200000",
+        "UMask": "0x78"
+    },
+    {
+        "BriefDescription": "L2 cache reads",
+        "Counter": "0,1",
+        "EventCode": "0x29",
+        "EventName": "L2_LD.SELF.ANY.S_STATE",
+        "SampleAfterValue": "200000",
+        "UMask": "0x72"
+    },
+    {
+        "BriefDescription": "L2 cache reads",
+        "Counter": "0,1",
+        "EventCode": "0x29",
+        "EventName": "L2_LD.SELF.DEMAND.E_STATE",
+        "SampleAfterValue": "200000",
+        "UMask": "0x44"
+    },
+    {
+        "BriefDescription": "L2 cache reads",
+        "Counter": "0,1",
+        "EventCode": "0x29",
+        "EventName": "L2_LD.SELF.DEMAND.I_STATE",
+        "SampleAfterValue": "200000",
+        "UMask": "0x41"
+    },
+    {
+        "BriefDescription": "L2 cache reads",
+        "Counter": "0,1",
+        "EventCode": "0x29",
+        "EventName": "L2_LD.SELF.DEMAND.MESI",
+        "SampleAfterValue": "200000",
+        "UMask": "0x4f"
+    },
+    {
+        "BriefDescription": "L2 cache reads",
+        "Counter": "0,1",
+        "EventCode": "0x29",
+        "EventName": "L2_LD.SELF.DEMAND.M_STATE",
+        "SampleAfterValue": "200000",
+        "UMask": "0x48"
+    },
+    {
+        "BriefDescription": "L2 cache reads",
+        "Counter": "0,1",
+        "EventCode": "0x29",
+        "EventName": "L2_LD.SELF.DEMAND.S_STATE",
+        "SampleAfterValue": "200000",
+        "UMask": "0x42"
+    },
+    {
+        "BriefDescription": "L2 cache reads",
+        "Counter": "0,1",
+        "EventCode": "0x29",
+        "EventName": "L2_LD.SELF.PREFETCH.E_STATE",
+        "SampleAfterValue": "200000",
+        "UMask": "0x54"
+    },
+    {
+        "BriefDescription": "L2 cache reads",
+        "Counter": "0,1",
+        "EventCode": "0x29",
+        "EventName": "L2_LD.SELF.PREFETCH.I_STATE",
+        "SampleAfterValue": "200000",
+        "UMask": "0x51"
+    },
+    {
+        "BriefDescription": "L2 cache reads",
+        "Counter": "0,1",
+        "EventCode": "0x29",
+        "EventName": "L2_LD.SELF.PREFETCH.MESI",
+        "SampleAfterValue": "200000",
+        "UMask": "0x5f"
+    },
+    {
+        "BriefDescription": "L2 cache reads",
+        "Counter": "0,1",
+        "EventCode": "0x29",
+        "EventName": "L2_LD.SELF.PREFETCH.M_STATE",
+        "SampleAfterValue": "200000",
+        "UMask": "0x58"
+    },
+    {
+        "BriefDescription": "L2 cache reads",
+        "Counter": "0,1",
+        "EventCode": "0x29",
+        "EventName": "L2_LD.SELF.PREFETCH.S_STATE",
+        "SampleAfterValue": "200000",
+        "UMask": "0x52"
+    },
+    {
+        "BriefDescription": "All read requests from L1 instruction and data caches",
+        "Counter": "0,1",
+        "EventCode": "0x2D",
+        "EventName": "L2_LD_IFETCH.SELF.E_STATE",
+        "SampleAfterValue": "200000",
+        "UMask": "0x44"
+    },
+    {
+        "BriefDescription": "All read requests from L1 instruction and data caches",
+        "Counter": "0,1",
+        "EventCode": "0x2D",
+        "EventName": "L2_LD_IFETCH.SELF.I_STATE",
+        "SampleAfterValue": "200000",
+        "UMask": "0x41"
+    },
+    {
+        "BriefDescription": "All read requests from L1 instruction and data caches",
+        "Counter": "0,1",
+        "EventCode": "0x2D",
+        "EventName": "L2_LD_IFETCH.SELF.MESI",
+        "SampleAfterValue": "200000",
+        "UMask": "0x4f"
+    },
+    {
+        "BriefDescription": "All read requests from L1 instruction and data caches",
+        "Counter": "0,1",
+        "EventCode": "0x2D",
+        "EventName": "L2_LD_IFETCH.SELF.M_STATE",
+        "SampleAfterValue": "200000",
+        "UMask": "0x48"
+    },
+    {
+        "BriefDescription": "All read requests from L1 instruction and data caches",
+        "Counter": "0,1",
+        "EventCode": "0x2D",
+        "EventName": "L2_LD_IFETCH.SELF.S_STATE",
+        "SampleAfterValue": "200000",
+        "UMask": "0x42"
+    },
+    {
+        "BriefDescription": "L2 cache misses.",
+        "Counter": "0,1",
+        "EventCode": "0x24",
+        "EventName": "L2_LINES_IN.SELF.ANY",
+        "SampleAfterValue": "200000",
+        "UMask": "0x70"
+    },
+    {
+        "BriefDescription": "L2 cache misses.",
+        "Counter": "0,1",
+        "EventCode": "0x24",
+        "EventName": "L2_LINES_IN.SELF.DEMAND",
+        "SampleAfterValue": "200000",
+        "UMask": "0x40"
+    },
+    {
+        "BriefDescription": "L2 cache misses.",
+        "Counter": "0,1",
+        "EventCode": "0x24",
+        "EventName": "L2_LINES_IN.SELF.PREFETCH",
+        "SampleAfterValue": "200000",
+        "UMask": "0x50"
+    },
+    {
+        "BriefDescription": "L2 cache lines evicted.",
+        "Counter": "0,1",
+        "EventCode": "0x26",
+        "EventName": "L2_LINES_OUT.SELF.ANY",
+        "SampleAfterValue": "200000",
+        "UMask": "0x70"
+    },
+    {
+        "BriefDescription": "L2 cache lines evicted.",
+        "Counter": "0,1",
+        "EventCode": "0x26",
+        "EventName": "L2_LINES_OUT.SELF.DEMAND",
+        "SampleAfterValue": "200000",
+        "UMask": "0x40"
+    },
+    {
+        "BriefDescription": "L2 cache lines evicted.",
+        "Counter": "0,1",
+        "EventCode": "0x26",
+        "EventName": "L2_LINES_OUT.SELF.PREFETCH",
+        "SampleAfterValue": "200000",
+        "UMask": "0x50"
+    },
+    {
+        "BriefDescription": "L2 locked accesses",
+        "Counter": "0,1",
+        "EventCode": "0x2B",
+        "EventName": "L2_LOCK.SELF.E_STATE",
+        "SampleAfterValue": "200000",
+        "UMask": "0x44"
+    },
+    {
+        "BriefDescription": "L2 locked accesses",
+        "Counter": "0,1",
+        "EventCode": "0x2B",
+        "EventName": "L2_LOCK.SELF.I_STATE",
+        "SampleAfterValue": "200000",
+        "UMask": "0x41"
+    },
+    {
+        "BriefDescription": "L2 locked accesses",
+        "Counter": "0,1",
+        "EventCode": "0x2B",
+        "EventName": "L2_LOCK.SELF.MESI",
+        "SampleAfterValue": "200000",
+        "UMask": "0x4f"
+    },
+    {
+        "BriefDescription": "L2 locked accesses",
+        "Counter": "0,1",
+        "EventCode": "0x2B",
+        "EventName": "L2_LOCK.SELF.M_STATE",
+        "SampleAfterValue": "200000",
+        "UMask": "0x48"
+    },
+    {
+        "BriefDescription": "L2 locked accesses",
+        "Counter": "0,1",
+        "EventCode": "0x2B",
+        "EventName": "L2_LOCK.SELF.S_STATE",
+        "SampleAfterValue": "200000",
+        "UMask": "0x42"
+    },
+    {
+        "BriefDescription": "L2 cache line modifications.",
+        "Counter": "0,1",
+        "EventCode": "0x25",
+        "EventName": "L2_M_LINES_IN.SELF",
+        "SampleAfterValue": "200000",
+        "UMask": "0x40"
+    },
+    {
+        "BriefDescription": "Modified lines evicted from the L2 cache",
+        "Counter": "0,1",
+        "EventCode": "0x27",
+        "EventName": "L2_M_LINES_OUT.SELF.ANY",
+        "SampleAfterValue": "200000",
+        "UMask": "0x70"
+    },
+    {
+        "BriefDescription": "Modified lines evicted from the L2 cache",
+        "Counter": "0,1",
+        "EventCode": "0x27",
+        "EventName": "L2_M_LINES_OUT.SELF.DEMAND",
+        "SampleAfterValue": "200000",
+        "UMask": "0x40"
+    },
+    {
+        "BriefDescription": "Modified lines evicted from the L2 cache",
+        "Counter": "0,1",
+        "EventCode": "0x27",
+        "EventName": "L2_M_LINES_OUT.SELF.PREFETCH",
+        "SampleAfterValue": "200000",
+        "UMask": "0x50"
+    },
+    {
+        "BriefDescription": "Cycles no L2 cache requests are pending",
+        "Counter": "0,1",
+        "EventCode": "0x32",
+        "EventName": "L2_NO_REQ.SELF",
+        "SampleAfterValue": "200000",
+        "UMask": "0x40"
+    },
+    {
+        "BriefDescription": "Rejected L2 cache requests",
+        "Counter": "0,1",
+        "EventCode": "0x30",
+        "EventName": "L2_REJECT_BUSQ.SELF.ANY.E_STATE",
+        "SampleAfterValue": "200000",
+        "UMask": "0x74"
+    },
+    {
+        "BriefDescription": "Rejected L2 cache requests",
+        "Counter": "0,1",
+        "EventCode": "0x30",
+        "EventName": "L2_REJECT_BUSQ.SELF.ANY.I_STATE",
+        "SampleAfterValue": "200000",
+        "UMask": "0x71"
+    },
+    {
+        "BriefDescription": "Rejected L2 cache requests",
+        "Counter": "0,1",
+        "EventCode": "0x30",
+        "EventName": "L2_REJECT_BUSQ.SELF.ANY.MESI",
+        "SampleAfterValue": "200000",
+        "UMask": "0x7f"
+    },
+    {
+        "BriefDescription": "Rejected L2 cache requests",
+        "Counter": "0,1",
+        "EventCode": "0x30",
+        "EventName": "L2_REJECT_BUSQ.SELF.ANY.M_STATE",
+        "SampleAfterValue": "200000",
+        "UMask": "0x78"
+    },
+    {
+        "BriefDescription": "Rejected L2 cache requests",
+        "Counter": "0,1",
+        "EventCode": "0x30",
+        "EventName": "L2_REJECT_BUSQ.SELF.ANY.S_STATE",
+        "SampleAfterValue": "200000",
+        "UMask": "0x72"
+    },
+    {
+        "BriefDescription": "Rejected L2 cache requests",
+        "Counter": "0,1",
+        "EventCode": "0x30",
+        "EventName": "L2_REJECT_BUSQ.SELF.DEMAND.E_STATE",
+        "SampleAfterValue": "200000",
+        "UMask": "0x44"
+    },
+    {
+        "BriefDescription": "Rejected L2 cache requests",
+        "Counter": "0,1",
+        "EventCode": "0x30",
+        "EventName": "L2_REJECT_BUSQ.SELF.DEMAND.I_STATE",
+        "SampleAfterValue": "200000",
+        "UMask": "0x41"
+    },
+    {
+        "BriefDescription": "Rejected L2 cache requests",
+        "Counter": "0,1",
+        "EventCode": "0x30",
+        "EventName": "L2_REJECT_BUSQ.SELF.DEMAND.MESI",
+        "SampleAfterValue": "200000",
+        "UMask": "0x4f"
+    },
+    {
+        "BriefDescription": "Rejected L2 cache requests",
+        "Counter": "0,1",
+        "EventCode": "0x30",
+        "EventName": "L2_REJECT_BUSQ.SELF.DEMAND.M_STATE",
+        "SampleAfterValue": "200000",
+        "UMask": "0x48"
+    },
+    {
+        "BriefDescription": "Rejected L2 cache requests",
+        "Counter": "0,1",
+        "EventCode": "0x30",
+        "EventName": "L2_REJECT_BUSQ.SELF.DEMAND.S_STATE",
+        "SampleAfterValue": "200000",
+        "UMask": "0x42"
+    },
+    {
+        "BriefDescription": "Rejected L2 cache requests",
+        "Counter": "0,1",
+        "EventCode": "0x30",
+        "EventName": "L2_REJECT_BUSQ.SELF.PREFETCH.E_STATE",
+        "SampleAfterValue": "200000",
+        "UMask": "0x54"
+    },
+    {
+        "BriefDescription": "Rejected L2 cache requests",
+        "Counter": "0,1",
+        "EventCode": "0x30",
+        "EventName": "L2_REJECT_BUSQ.SELF.PREFETCH.I_STATE",
+        "SampleAfterValue": "200000",
+        "UMask": "0x51"
+    },
+    {
+        "BriefDescription": "Rejected L2 cache requests",
+        "Counter": "0,1",
+        "EventCode": "0x30",
+        "EventName": "L2_REJECT_BUSQ.SELF.PREFETCH.MESI",
+        "SampleAfterValue": "200000",
+        "UMask": "0x5f"
+    },
+    {
+        "BriefDescription": "Rejected L2 cache requests",
+        "Counter": "0,1",
+        "EventCode": "0x30",
+        "EventName": "L2_REJECT_BUSQ.SELF.PREFETCH.M_STATE",
+        "SampleAfterValue": "200000",
+        "UMask": "0x58"
+    },
+    {
+        "BriefDescription": "Rejected L2 cache requests",
+        "Counter": "0,1",
+        "EventCode": "0x30",
+        "EventName": "L2_REJECT_BUSQ.SELF.PREFETCH.S_STATE",
+        "SampleAfterValue": "200000",
+        "UMask": "0x52"
+    },
+    {
+        "BriefDescription": "L2 cache requests",
+        "Counter": "0,1",
+        "EventCode": "0x2E",
+        "EventName": "L2_RQSTS.SELF.ANY.E_STATE",
+        "SampleAfterValue": "200000",
+        "UMask": "0x74"
+    },
+    {
+        "BriefDescription": "L2 cache requests",
+        "Counter": "0,1",
+        "EventCode": "0x2E",
+        "EventName": "L2_RQSTS.SELF.ANY.I_STATE",
+        "SampleAfterValue": "200000",
+        "UMask": "0x71"
+    },
+    {
+        "BriefDescription": "L2 cache requests",
+        "Counter": "0,1",
+        "EventCode": "0x2E",
+        "EventName": "L2_RQSTS.SELF.ANY.MESI",
+        "SampleAfterValue": "200000",
+        "UMask": "0x7f"
+    },
+    {
+        "BriefDescription": "L2 cache requests",
+        "Counter": "0,1",
+        "EventCode": "0x2E",
+        "EventName": "L2_RQSTS.SELF.ANY.M_STATE",
+        "SampleAfterValue": "200000",
+        "UMask": "0x78"
+    },
+    {
+        "BriefDescription": "L2 cache requests",
+        "Counter": "0,1",
+        "EventCode": "0x2E",
+        "EventName": "L2_RQSTS.SELF.ANY.S_STATE",
+        "SampleAfterValue": "200000",
+        "UMask": "0x72"
+    },
+    {
+        "BriefDescription": "L2 cache requests",
+        "Counter": "0,1",
+        "EventCode": "0x2E",
+        "EventName": "L2_RQSTS.SELF.DEMAND.E_STATE",
+        "SampleAfterValue": "200000",
+        "UMask": "0x44"
+    },
+    {
+        "BriefDescription": "L2 cache demand requests from this core that missed the L2",
+        "Counter": "0,1",
+        "EventCode": "0x2E",
+        "EventName": "L2_RQSTS.SELF.DEMAND.I_STATE",
+        "SampleAfterValue": "200000",
+        "UMask": "0x41"
+    },
+    {
+        "BriefDescription": "L2 cache demand requests from this core",
+        "Counter": "0,1",
+        "EventCode": "0x2E",
+        "EventName": "L2_RQSTS.SELF.DEMAND.MESI",
+        "SampleAfterValue": "200000",
+        "UMask": "0x4f"
+    },
+    {
+        "BriefDescription": "L2 cache requests",
+        "Counter": "0,1",
+        "EventCode": "0x2E",
+        "EventName": "L2_RQSTS.SELF.DEMAND.M_STATE",
+        "SampleAfterValue": "200000",
+        "UMask": "0x48"
+    },
+    {
+        "BriefDescription": "L2 cache requests",
+        "Counter": "0,1",
+        "EventCode": "0x2E",
+        "EventName": "L2_RQSTS.SELF.DEMAND.S_STATE",
+        "SampleAfterValue": "200000",
+        "UMask": "0x42"
+    },
+    {
+        "BriefDescription": "L2 cache requests",
+        "Counter": "0,1",
+        "EventCode": "0x2E",
+        "EventName": "L2_RQSTS.SELF.PREFETCH.E_STATE",
+        "SampleAfterValue": "200000",
+        "UMask": "0x54"
+    },
+    {
+        "BriefDescription": "L2 cache requests",
+        "Counter": "0,1",
+        "EventCode": "0x2E",
+        "EventName": "L2_RQSTS.SELF.PREFETCH.I_STATE",
+        "SampleAfterValue": "200000",
+        "UMask": "0x51"
+    },
+    {
+        "BriefDescription": "L2 cache requests",
+        "Counter": "0,1",
+        "EventCode": "0x2E",
+        "EventName": "L2_RQSTS.SELF.PREFETCH.MESI",
+        "SampleAfterValue": "200000",
+        "UMask": "0x5f"
+    },
+    {
+        "BriefDescription": "L2 cache requests",
+        "Counter": "0,1",
+        "EventCode": "0x2E",
+        "EventName": "L2_RQSTS.SELF.PREFETCH.M_STATE",
+        "SampleAfterValue": "200000",
+        "UMask": "0x58"
+    },
+    {
+        "BriefDescription": "L2 cache requests",
+        "Counter": "0,1",
+        "EventCode": "0x2E",
+        "EventName": "L2_RQSTS.SELF.PREFETCH.S_STATE",
+        "SampleAfterValue": "200000",
+        "UMask": "0x52"
+    },
+    {
+        "BriefDescription": "L2 store requests",
+        "Counter": "0,1",
+        "EventCode": "0x2A",
+        "EventName": "L2_ST.SELF.E_STATE",
+        "SampleAfterValue": "200000",
+        "UMask": "0x44"
+    },
+    {
+        "BriefDescription": "L2 store requests",
+        "Counter": "0,1",
+        "EventCode": "0x2A",
+        "EventName": "L2_ST.SELF.I_STATE",
+        "SampleAfterValue": "200000",
+        "UMask": "0x41"
+    },
+    {
+        "BriefDescription": "L2 store requests",
+        "Counter": "0,1",
+        "EventCode": "0x2A",
+        "EventName": "L2_ST.SELF.MESI",
+        "SampleAfterValue": "200000",
+        "UMask": "0x4f"
+    },
+    {
+        "BriefDescription": "L2 store requests",
+        "Counter": "0,1",
+        "EventCode": "0x2A",
+        "EventName": "L2_ST.SELF.M_STATE",
+        "SampleAfterValue": "200000",
+        "UMask": "0x48"
+    },
+    {
+        "BriefDescription": "L2 store requests",
+        "Counter": "0,1",
+        "EventCode": "0x2A",
+        "EventName": "L2_ST.SELF.S_STATE",
+        "SampleAfterValue": "200000",
+        "UMask": "0x42"
+    },
+    {
+        "BriefDescription": "Retired loads that hit the L2 cache (precise event).",
+        "Counter": "0,1",
+        "EventCode": "0xCB",
+        "EventName": "MEM_LOAD_RETIRED.L2_HIT",
+        "SampleAfterValue": "200000",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Retired loads that miss the L2 cache",
+        "Counter": "0,1",
+        "EventCode": "0xCB",
+        "EventName": "MEM_LOAD_RETIRED.L2_MISS",
+        "SampleAfterValue": "10000",
+        "UMask": "0x2"
+    }
+]

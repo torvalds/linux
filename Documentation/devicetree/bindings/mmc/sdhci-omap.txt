@@ -1,0 +1,43 @@
+* TI OMAP SDHCI Controller
+
+Refer to mmc.txt for standard MMC bindings.
+
+For UHS devices which require tuning, the device tree should have a "cpu_thermal" node which maps to the appropriate thermal zone. This is used to get the temperature of the zone during tuning.
+
+Required properties:
+- compatible: Should be "ti,omap2430-sdhci" for omap2430 controllers
+	      Should be "ti,omap3-sdhci" for omap3 controllers
+	      Should be "ti,omap4-sdhci" for omap4 and ti81 controllers
+	      Should be "ti,omap5-sdhci" for omap5 controllers
+	      Should be "ti,dra7-sdhci" for DRA7 and DRA72 controllers
+	      Should be "ti,k2g-sdhci" for K2G
+	      Should be "ti,am335-sdhci" for am335x controllers
+	      Should be "ti,am437-sdhci" for am437x controllers
+- ti,hwmods: Must be "mmc<n>", <n> is controller instance starting 1
+	     (Not required for K2G).
+- pinctrl-names: Should be subset of "default", "hs", "sdr12", "sdr25", "sdr50",
+		 "ddr50-rev11", "sdr104-rev11", "ddr50", "sdr104",
+		 "ddr_1_8v-rev11", "ddr_1_8v" or "ddr_3_3v", "hs200_1_8v-rev11",
+		 "hs200_1_8v",
+- pinctrl-<n> : Pinctrl states as described in bindings/pinctrl/pinctrl-bindings.txt
+
+Optional properties:
+- dmas:		List of DMA specifiers with the controller specific format as described
+		in the generic DMA client binding. A tx and rx specifier is required.
+- dma-names:	List of DMA request names. These strings correspond 1:1 with the
+		DMA specifiers listed in dmas. The string naming is to be "tx"
+		and "rx" for TX and RX DMA requests, respectively.
+
+Deprecated properties:
+- ti,non-removable: Compatible with the generic non-removable property
+
+Example:
+	mmc1: mmc@4809c000 {
+		compatible = "ti,dra7-sdhci";
+		reg = <0x4809c000 0x400>;
+		ti,hwmods = "mmc1";
+		bus-width = <4>;
+		vmmc-supply = <&vmmc>; /* phandle to regulator node */
+		dmas = <&sdma 61 &sdma 62>;
+		dma-names = "tx", "rx";
+	};

@@ -1,0 +1,64 @@
+What:		/sys/bus/typec/devices/.../displayport/configuration
+Date:		July 2018
+Contact:	Heikki Krogerus <heikki.krogerus@linux.intel.com>
+Description:
+		Shows the current DisplayPort configuration for the connector.
+		Valid values are USB, source and sink. Source means DisplayPort
+		source, and sink means DisplayPort sink.
+
+		All supported configurations are listed as space separated list
+		with the active one wrapped in square brackets.
+
+		Source example:
+
+			USB [source] sink
+
+		The configuration can be changed by writing to the file
+
+		Note. USB configuration does not equal to Exit Mode. It is
+		separate configuration defined in VESA DisplayPort Alt Mode on
+		USB Type-C Standard. Functionally it equals to the situation
+		where the mode has been exited (to exit the mode, see
+		Documentation/ABI/testing/sysfs-bus-typec, and use file
+		/sys/bus/typec/devices/.../active).
+
+What:		/sys/bus/typec/devices/.../displayport/pin_assignment
+Date:		July 2018
+Contact:	Heikki Krogerus <heikki.krogerus@linux.intel.com>
+Description:
+		VESA DisplayPort Alt Mode on USB Type-C Standard defines six
+		different pin assignments for USB Type-C connector that are
+		labeled A, B, C, D, E, and F. The supported pin assignments are
+		listed as space separated list with the active one wrapped in
+		square brackets.
+
+		Example:
+
+			C [D]
+
+		Pin assignment can be changed by writing to the file. It is
+		possible to set pin assignment before configuration has been
+		set, but the assignment will not be active before the
+		connector is actually configured.
+
+		Note. As of VESA DisplayPort Alt Mode on USB Type-C Standard
+		version 1.0b, pin assignments A, B, and F are deprecated. Only
+		pin assignment D can now carry simultaneously one channel of
+		USB SuperSpeed protocol. From user perspective pin assignments C
+		and E are equal, where all channels on the connector are used
+		for carrying DisplayPort protocol (allowing higher resolutions).
+
+What:		/sys/bus/typec/devices/.../displayport/hpd
+Date:		Dec 2022
+Contact:	Badhri Jagan Sridharan <badhri@google.com>
+Description:
+		VESA DisplayPort Alt Mode on USB Type-C Standard defines how
+		HotPlugDetect(HPD) shall be supported on the USB-C connector when
+		operating in DisplayPort Alt Mode. This is a read only node which
+		reflects the current state of HPD.
+
+		Valid values:
+			- 1: when HPD’s logical state is high (HPD_High) as defined
+			     by VESA DisplayPort Alt Mode on USB Type-C Standard.
+			- 0 when HPD’s logical state is low (HPD_Low) as defined by
+			     VESA DisplayPort Alt Mode on USB Type-C Standard.

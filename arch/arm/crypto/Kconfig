@@ -1,0 +1,243 @@
+# SPDX-License-Identifier: GPL-2.0
+
+menu "Accelerated Cryptographic Algorithms for CPU (arm)"
+
+config CRYPTO_CURVE25519_NEON
+	tristate "Public key crypto: Curve25519 (NEON)"
+	depends on KERNEL_MODE_NEON
+	select CRYPTO_LIB_CURVE25519_GENERIC
+	select CRYPTO_ARCH_HAVE_LIB_CURVE25519
+	help
+	  Curve25519 algorithm
+
+	  Architecture: arm with
+	  - NEON (Advanced SIMD) extensions
+
+config CRYPTO_GHASH_ARM_CE
+	tristate "Hash functions: GHASH (PMULL/NEON/ARMv8 Crypto Extensions)"
+	depends on KERNEL_MODE_NEON
+	select CRYPTO_HASH
+	select CRYPTO_CRYPTD
+	select CRYPTO_GF128MUL
+	help
+	  GCM GHASH function (NIST SP800-38D)
+
+	  Architecture: arm using
+	  - PMULL (Polynomial Multiply Long) instructions
+	  - NEON (Advanced SIMD) extensions
+	  - ARMv8 Crypto Extensions
+
+	  Use an implementation of GHASH (used by the GCM AEAD chaining mode)
+	  that uses the 64x64 to 128 bit polynomial multiplication (vmull.p64)
+	  that is part of the ARMv8 Crypto Extensions, or a slower variant that
+	  uses the vmull.p8 instruction that is part of the basic NEON ISA.
+
+config CRYPTO_NHPOLY1305_NEON
+	tristate "Hash functions: NHPoly1305 (NEON)"
+	depends on KERNEL_MODE_NEON
+	select CRYPTO_NHPOLY1305
+	help
+	  NHPoly1305 hash function (Adiantum)
+
+	  Architecture: arm using:
+	  - NEON (Advanced SIMD) extensions
+
+config CRYPTO_POLY1305_ARM
+	tristate "Hash functions: Poly1305 (NEON)"
+	select CRYPTO_HASH
+	select CRYPTO_ARCH_HAVE_LIB_POLY1305
+	help
+	  Poly1305 authenticator algorithm (RFC7539)
+
+	  Architecture: arm optionally using
+	  - NEON (Advanced SIMD) extensions
+
+config CRYPTO_BLAKE2S_ARM
+	bool "Hash functions: BLAKE2s"
+	select CRYPTO_ARCH_HAVE_LIB_BLAKE2S
+	help
+	  BLAKE2s cryptographic hash function (RFC 7693)
+
+	  Architecture: arm
+
+	  This is faster than the generic implementations of BLAKE2s and
+	  BLAKE2b, but slower than the NEON implementation of BLAKE2b.
+	  There is no NEON implementation of BLAKE2s, since NEON doesn't
+	  really help with it.
+
+config CRYPTO_BLAKE2B_NEON
+	tristate "Hash functions: BLAKE2b (NEON)"
+	depends on KERNEL_MODE_NEON
+	select CRYPTO_BLAKE2B
+	help
+	  BLAKE2b cryptographic hash function (RFC 7693)
+
+	  Architecture: arm using
+	  - NEON (Advanced SIMD) extensions
+
+	  BLAKE2b digest algorithm optimized with ARM NEON instructions.
+	  On ARM processors that have NEON support but not the ARMv8
+	  Crypto Extensions, typically this BLAKE2b implementation is
+	  much faster than the SHA-2 family and slightly faster than
+	  SHA-1.
+
+config CRYPTO_SHA1_ARM
+	tristate "Hash functions: SHA-1"
+	select CRYPTO_SHA1
+	select CRYPTO_HASH
+	help
+	  SHA-1 secure hash algorithm (FIPS 180)
+
+	  Architecture: arm
+
+config CRYPTO_SHA1_ARM_NEON
+	tristate "Hash functions: SHA-1 (NEON)"
+	depends on KERNEL_MODE_NEON
+	select CRYPTO_SHA1_ARM
+	select CRYPTO_SHA1
+	select CRYPTO_HASH
+	help
+	  SHA-1 secure hash algorithm (FIPS 180)
+
+	  Architecture: arm using
+	  - NEON (Advanced SIMD) extensions
+
+config CRYPTO_SHA1_ARM_CE
+	tristate "Hash functions: SHA-1 (ARMv8 Crypto Extensions)"
+	depends on KERNEL_MODE_NEON
+	select CRYPTO_SHA1_ARM
+	select CRYPTO_HASH
+	help
+	  SHA-1 secure hash algorithm (FIPS 180)
+
+	  Architecture: arm using ARMv8 Crypto Extensions
+
+config CRYPTO_SHA2_ARM_CE
+	tristate "Hash functions: SHA-224 and SHA-256 (ARMv8 Crypto Extensions)"
+	depends on KERNEL_MODE_NEON
+	select CRYPTO_SHA256_ARM
+	select CRYPTO_HASH
+	help
+	  SHA-224 and SHA-256 secure hash algorithms (FIPS 180)
+
+	  Architecture: arm using
+	  - ARMv8 Crypto Extensions
+
+config CRYPTO_SHA256_ARM
+	tristate "Hash functions: SHA-224 and SHA-256 (NEON)"
+	select CRYPTO_HASH
+	depends on !CPU_V7M
+	help
+	  SHA-224 and SHA-256 secure hash algorithms (FIPS 180)
+
+	  Architecture: arm using
+	  - NEON (Advanced SIMD) extensions
+
+config CRYPTO_SHA512_ARM
+	tristate "Hash functions: SHA-384 and SHA-512 (NEON)"
+	select CRYPTO_HASH
+	depends on !CPU_V7M
+	help
+	  SHA-384 and SHA-512 secure hash algorithms (FIPS 180)
+
+	  Architecture: arm using
+	  - NEON (Advanced SIMD) extensions
+
+config CRYPTO_AES_ARM
+	tristate "Ciphers: AES"
+	select CRYPTO_ALGAPI
+	select CRYPTO_AES
+	help
+	  Block ciphers: AES cipher algorithms (FIPS-197)
+
+	  Architecture: arm
+
+	  On ARM processors without the Crypto Extensions, this is the
+	  fastest AES implementation for single blocks.  For multiple
+	  blocks, the NEON bit-sliced implementation is usually faster.
+
+	  This implementation may be vulnerable to cache timing attacks,
+	  since it uses lookup tables.  However, as countermeasures it
+	  disables IRQs and preloads the tables; it is hoped this makes
+	  such attacks very difficult.
+
+config CRYPTO_AES_ARM_BS
+	tristate "Ciphers: AES, modes: ECB/CBC/CTR/XTS (bit-sliced NEON)"
+	depends on KERNEL_MODE_NEON
+	select CRYPTO_SKCIPHER
+	select CRYPTO_LIB_AES
+	select CRYPTO_AES
+	select CRYPTO_CBC
+	select CRYPTO_SIMD
+	help
+	  Length-preserving ciphers: AES cipher algorithms (FIPS-197)
+	  with block cipher modes:
+	   - ECB (Electronic Codebook) mode (NIST SP800-38A)
+	   - CBC (Cipher Block Chaining) mode (NIST SP800-38A)
+	   - CTR (Counter) mode (NIST SP800-38A)
+	   - XTS (XOR Encrypt XOR with ciphertext stealing) mode (NIST SP800-38E
+	     and IEEE 1619)
+
+	  Bit sliced AES gives around 45% speedup on Cortex-A15 for CTR mode
+	  and for XTS mode encryption, CBC and XTS mode decryption speedup is
+	  around 25%. (CBC encryption speed is not affected by this driver.)
+	  This implementation does not rely on any lookup tables so it is
+	  believed to be invulnerable to cache timing attacks.
+
+config CRYPTO_AES_ARM_CE
+	tristate "Ciphers: AES, modes: ECB/CBC/CTS/CTR/XTS (ARMv8 Crypto Extensions)"
+	depends on KERNEL_MODE_NEON
+	select CRYPTO_SKCIPHER
+	select CRYPTO_LIB_AES
+	select CRYPTO_SIMD
+	help
+	  Length-preserving ciphers: AES cipher algorithms (FIPS-197)
+	   with block cipher modes:
+	   - ECB (Electronic Codebook) mode (NIST SP800-38A)
+	   - CBC (Cipher Block Chaining) mode (NIST SP800-38A)
+	   - CTR (Counter) mode (NIST SP800-38A)
+	   - CTS (Cipher Text Stealing) mode (NIST SP800-38A)
+	   - XTS (XOR Encrypt XOR with ciphertext stealing) mode (NIST SP800-38E
+	     and IEEE 1619)
+
+	  Architecture: arm using:
+	  - ARMv8 Crypto Extensions
+
+config CRYPTO_CHACHA20_NEON
+	tristate "Ciphers: ChaCha20, XChaCha20, XChaCha12 (NEON)"
+	select CRYPTO_SKCIPHER
+	select CRYPTO_ARCH_HAVE_LIB_CHACHA
+	help
+	  Length-preserving ciphers: ChaCha20, XChaCha20, and XChaCha12
+	  stream cipher algorithms
+
+	  Architecture: arm using:
+	  - NEON (Advanced SIMD) extensions
+
+config CRYPTO_CRC32_ARM_CE
+	tristate "CRC32C and CRC32"
+	depends on KERNEL_MODE_NEON
+	depends on CRC32
+	select CRYPTO_HASH
+	help
+	  CRC32c CRC algorithm with the iSCSI polynomial (RFC 3385 and RFC 3720)
+	  and CRC32 CRC algorithm (IEEE 802.3)
+
+	  Architecture: arm using:
+	  - CRC and/or PMULL instructions
+
+	  Drivers: crc32-arm-ce and crc32c-arm-ce
+
+config CRYPTO_CRCT10DIF_ARM_CE
+	tristate "CRCT10DIF"
+	depends on KERNEL_MODE_NEON
+	depends on CRC_T10DIF
+	select CRYPTO_HASH
+	help
+	  CRC16 CRC algorithm used for the T10 (SCSI) Data Integrity Field (DIF)
+
+	  Architecture: arm using:
+	  - PMULL (Polynomial Multiply Long) instructions
+
+endmenu
+

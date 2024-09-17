@@ -1,0 +1,18 @@
+WM8737 audio CODEC
+
+This device supports both I2C and SPI (configured with pin strapping
+on the board).
+
+Required properties:
+
+  - compatible : "wlf,wm8737"
+
+  - reg : the I2C address of the device for I2C, the chip select
+          number for SPI.
+
+Example:
+
+wm8737: codec@1a {
+	compatible = "wlf,wm8737";
+	reg = <0x1a>;
+};

@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: GPL-2.0
+config KS7010
+	tristate "KeyStream KS7010 SDIO support"
+	depends on MMC && WIRELESS
+	select WIRELESS_EXT
+	select WEXT_PRIV
+	select FW_LOADER
+	select CRYPTO
+	select CRYPTO_HASH
+	select CRYPTO_MICHAEL_MIC
+	help
+	  This is a driver for KeyStream KS7010 based SDIO WIFI cards. It is
+	  found on at least later Spectec SDW-821 (FCC-ID "S2Y-WLAN-11G-K" only,
+	  sadly not FCC-ID "S2Y-WLAN-11B-G") and Spectec SDW-823 microSD cards.

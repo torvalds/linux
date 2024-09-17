@@ -1,0 +1,91 @@
+PPC440SPe DMA/XOR (DMA Controller and XOR Accelerator)
+
+Device nodes needed for operation of the ppc440spe-adma driver
+are specified hereby. These are I2O/DMA, DMA and XOR nodes
+for DMA engines and Memory Queue Module node. The latter is used
+by ADMA driver for configuration of RAID-6 H/W capabilities of
+the PPC440SPe. In addition to the nodes and properties described
+below, the ranges property of PLB node must specify ranges for
+DMA devices.
+
+ i) The I2O node
+
+ Required properties:
+
+ - compatible		: "ibm,i2o-440spe";
+ - reg			: <registers mapping>
+ - dcr-reg		: <DCR registers range>
+
+ Example:
+
+	I2O: i2o@400100000 {
+		compatible = "ibm,i2o-440spe";
+		reg = <0x00000004 0x00100000 0x100>;
+		dcr-reg = <0x060 0x020>;
+	};
+
+
+ ii) The DMA node
+
+ Required properties:
+
+ - compatible		: "ibm,dma-440spe";
+ - cell-index		: 1 cell, hardware index of the DMA engine
+			  (typically 0x0 and 0x1 for DMA0 and DMA1)
+ - reg			: <registers mapping>
+ - dcr-reg		: <DCR registers range>
+ - interrupts		: <interrupt mapping for DMA0/1 interrupts sources:
+			   2 sources: DMAx CS FIFO Needs Service IRQ (on UIC0)
+			   and DMA Error IRQ (on UIC1). The latter is common
+			   for both DMA engines>.
+
+ Example:
+
+	DMA0: dma0@400100100 {
+		compatible = "ibm,dma-440spe";
+		cell-index = <0>;
+		reg = <0x00000004 0x00100100 0x100>;
+		dcr-reg = <0x060 0x020>;
+		interrupt-parent = <&DMA0>;
+		interrupts = <0 1>;
+		#interrupt-cells = <1>;
+		#address-cells = <0>;
+		#size-cells = <0>;
+		interrupt-map = <
+			0 &UIC0 0x14 4
+			1 &UIC1 0x16 4>;
+	};
+
+
+ iii) XOR Accelerator node
+
+ Required properties:
+
+ - compatible		: "amcc,xor-accelerator";
+ - reg			: <registers mapping>
+ - interrupts		: <interrupt mapping for XOR interrupt source>
+
+ Example:
+
+	xor-accel@400200000 {
+		compatible = "amcc,xor-accelerator";
+		reg = <0x00000004 0x00200000 0x400>;
+		interrupt-parent = <&UIC1>;
+		interrupts = <0x1f 4>;
+	};
+
+
+ iv) Memory Queue Module node
+
+ Required properties:
+
+ - compatible		: "ibm,mq-440spe";
+ - dcr-reg		: <DCR registers range>
+
+ Example:
+
+	MQ0: mq {
+		compatible = "ibm,mq-440spe";
+		dcr-reg = <0x040 0x020>;
+	};
+

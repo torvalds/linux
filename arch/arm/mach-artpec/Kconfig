@@ -1,0 +1,22 @@
+# SPDX-License-Identifier: GPL-2.0-only
+menuconfig ARCH_ARTPEC
+	bool "Axis Communications ARM based ARTPEC SoCs"
+	depends on ARCH_MULTI_V7
+
+if ARCH_ARTPEC
+
+config MACH_ARTPEC6
+	bool "Axis ARTPEC-6 ARM Cortex A9 Platform"
+	depends on ARCH_MULTI_V7
+	select ARM_AMBA
+	select ARM_GIC
+	select ARM_GLOBAL_TIMER
+	select ARM_PSCI
+	select HAVE_ARM_ARCH_TIMER
+	select HAVE_ARM_SCU
+	select HAVE_ARM_TWD if SMP
+	select MFD_SYSCON
+	help
+	  Support for Axis ARTPEC-6 ARM Cortex A9 Platform
+
+endif

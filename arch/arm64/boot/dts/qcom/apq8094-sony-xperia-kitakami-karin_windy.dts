@@ -1,0 +1,24 @@
+// SPDX-License-Identifier: BSD-3-Clause
+/*
+ * Copyright (c) 2020, Konrad Dybcio <konrad.dybcio@somainline.org>
+ */
+
+/dts-v1/;
+
+/* As the names may imply, there is quite a bunch of duplication there. */
+#include "msm8994-sony-xperia-kitakami-karin.dts"
+
+/ {
+	model = "Sony Xperia Z4 Tablet (Wi-Fi)";
+	compatible = "sony,karin_windy", "qcom,apq8094";
+	chassis-type = "tablet";
+
+	/*
+	 * This model uses the APQ variant of MSM8994 (APQ8094).
+	 * The v1/v2/v2.1 story (from kitakami.dtsi) also applies here.
+	 */
+	qcom,msm-id = <253 0x20000>, <253 0x20001>;
+};
+
+/delete-node/ &pm8994_l1;
+/delete-node/ &pm8994_l19;

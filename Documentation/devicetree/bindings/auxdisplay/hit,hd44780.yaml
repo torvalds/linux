@@ -1,0 +1,125 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/auxdisplay/hit,hd44780.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Hitachi HD44780 Character LCD Controller
+
+maintainers:
+  - Geert Uytterhoeven <geert@linux-m68k.org>
+
+description:
+  The Hitachi HD44780 Character LCD Controller is commonly used on character
+  LCDs that can display one or more lines of text. It exposes an M6800 bus
+  interface, which can be used in either 4-bit or 8-bit mode. By using a
+  GPIO expander it is possible to use the driver with one of the popular I2C
+  expander boards based on the PCF8574 available for these displays. For
+  an example see below.
+
+properties:
+  compatible:
+    const: hit,hd44780
+
+  data-gpios:
+    description:
+      GPIO pins connected to the data signal lines DB0-DB7 (8-bit mode) or
+      DB4-DB7 (4-bit mode) of the LCD Controller's bus interface.
+    oneOf:
+      - maxItems: 4
+      - maxItems: 8
+
+  enable-gpios:
+    description:
+      GPIO pin connected to the "E" (Enable) signal line of the LCD
+      Controller's bus interface.
+    maxItems: 1
+
+  rs-gpios:
+    description:
+      GPIO pin connected to the "RS" (Register Select) signal line of the LCD
+      Controller's bus interface.
+    maxItems: 1
+
+  rw-gpios:
+    description:
+      GPIO pin connected to the "RW" (Read/Write) signal line of the LCD
+      Controller's bus interface.
+    maxItems: 1
+
+  backlight-gpios:
+    description: GPIO pin used for enabling the LCD's backlight.
+    maxItems: 1
+
+  display-height-chars:
+    description: Height of the display, in character cells,
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 1
+    maximum: 4
+
+  display-width-chars:
+    description: Width of the display, in character cells.
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 1
+    maximum: 64
+
+  internal-buffer-width:
+    description:
+      Internal buffer width (default is 40 for displays with 1 or 2 lines, and
+      display-width-chars for displays with more than 2 lines).
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 1
+    maximum: 64
+
+required:
+  - compatible
+  - data-gpios
+  - enable-gpios
+  - rs-gpios
+  - display-height-chars
+  - display-width-chars
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+    auxdisplay {
+            compatible = "hit,hd44780";
+
+            data-gpios = <&hc595 0 GPIO_ACTIVE_HIGH>,
+                         <&hc595 1 GPIO_ACTIVE_HIGH>,
+                         <&hc595 2 GPIO_ACTIVE_HIGH>,
+                         <&hc595 3 GPIO_ACTIVE_HIGH>;
+            enable-gpios = <&hc595 4 GPIO_ACTIVE_HIGH>;
+            rs-gpios = <&hc595 5 GPIO_ACTIVE_HIGH>;
+
+            display-height-chars = <2>;
+            display-width-chars = <16>;
+    };
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+    i2c {
+            #address-cells = <1>;
+            #size-cells = <0>;
+
+            pcf8574: pcf8574@27 {
+                    compatible = "nxp,pcf8574";
+                    reg = <0x27>;
+                    gpio-controller;
+                    #gpio-cells = <2>;
+            };
+    };
+    hd44780 {
+            compatible = "hit,hd44780";
+            display-height-chars = <2>;
+            display-width-chars  = <16>;
+            data-gpios = <&pcf8574 4 0>,
+                         <&pcf8574 5 0>,
+                         <&pcf8574 6 0>,
+                         <&pcf8574 7 0>;
+            enable-gpios = <&pcf8574 2 0>;
+            rs-gpios = <&pcf8574 0 0>;
+            rw-gpios = <&pcf8574 1 0>;
+            backlight-gpios = <&pcf8574 3 0>;
+    };

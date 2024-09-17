@@ -1,0 +1,136 @@
+What:		/sys/bus/firewire/devices/fw[0-9]+/
+Date:		May 2007
+KernelVersion:	2.6.22
+Contact:	linux1394-devel@lists.sourceforge.net
+Description:
+		IEEE 1394 node device attributes.
+		Read-only.  Mutable during the node device's lifetime.
+		See IEEE 1212 for semantic definitions.
+
+		config_rom
+			Contents of the Configuration ROM register.
+			Binary attribute; an array of host-endian u32.
+
+		guid
+			The node's EUI-64 in the bus information block of
+			Configuration ROM.
+			Hexadecimal string representation of an u64.
+
+
+What:		/sys/bus/firewire/devices/fw[0-9]+/units
+Date:		June 2009
+KernelVersion:	2.6.31
+Contact:	linux1394-devel@lists.sourceforge.net
+Description:
+		IEEE 1394 node device attribute.
+		Read-only.  Mutable during the node device's lifetime.
+		See IEEE 1212 for semantic definitions.
+
+		units
+			Summary of all units present in an IEEE 1394 node.
+			Contains space-separated tuples of specifier_id and
+			version of each unit present in the node.  Specifier_id
+			and version are hexadecimal string representations of
+			u24 of the respective unit directory entries.
+			Specifier_id and version within each tuple are separated
+			by a colon.
+
+Users:		udev rules to set ownership and access permissions or ACLs of
+		/dev/fw[0-9]+ character device files
+
+
+What:		/sys/bus/firewire/devices/fw[0-9]+/is_local
+Date:		July 2012
+KernelVersion:	3.6
+Contact:	linux1394-devel@lists.sourceforge.net
+Description:
+		IEEE 1394 node device attribute.
+		Read-only and immutable.
+Values:		1: The sysfs entry represents a local node (a controller card).
+
+		0: The sysfs entry represents a remote node.
+
+
+What:		/sys/bus/firewire/devices/fw[0-9]+[.][0-9]+/
+Date:		May 2007
+KernelVersion:	2.6.22
+Contact:	linux1394-devel@lists.sourceforge.net
+Description:
+		IEEE 1394 unit device attributes.
+		Read-only.  Immutable during the unit device's lifetime.
+		See IEEE 1212 for semantic definitions.
+
+		modalias
+			Same as MODALIAS in the uevent at device creation.
+
+		rom_index
+			Offset of the unit directory within the parent device's
+			(node device's) Configuration ROM, in quadlets.
+			Decimal string representation.
+
+
+What:		/sys/bus/firewire/devices/*/
+Date:		May 2007
+KernelVersion:	2.6.22
+Contact:	linux1394-devel@lists.sourceforge.net
+Description:
+		Attributes common to IEEE 1394 node devices and unit devices.
+		Read-only.  Mutable during the node device's lifetime.
+		Immutable during the unit device's lifetime.
+		See IEEE 1212 for semantic definitions.
+
+		These attributes are only created if the root directory of an
+		IEEE 1394 node or the unit directory of an IEEE 1394 unit
+		actually contains according entries.
+
+		hardware_version
+			Hexadecimal string representation of an u24.
+
+		hardware_version_name
+			Contents of a respective textual descriptor leaf.
+
+		model
+			Hexadecimal string representation of an u24.
+
+		model_name
+			Contents of a respective textual descriptor leaf.
+
+		specifier_id
+			Hexadecimal string representation of an u24.
+			Mandatory in unit directories according to IEEE 1212.
+
+		vendor
+			Hexadecimal string representation of an u24.
+			Mandatory in the root directory according to IEEE 1212.
+
+		vendor_name
+			Contents of a respective textual descriptor leaf.
+
+		version
+			Hexadecimal string representation of an u24.
+			Mandatory in unit directories according to IEEE 1212.
+
+
+What:		/sys/bus/firewire/drivers/sbp2/fw*/host*/target*/*:*:*:*/ieee1394_id
+		formerly
+		/sys/bus/ieee1394/drivers/sbp2/fw*/host*/target*/*:*:*:*/ieee1394_id
+Date:		Feb 2004
+KernelVersion:	2.6.4
+Contact:	linux1394-devel@lists.sourceforge.net
+Description:
+		SCSI target port identifier and logical unit identifier of a
+		logical unit of an SBP-2 target.  The identifiers are specified
+		in SAM-2...SAM-4 annex A.  They are persistent and world-wide
+		unique properties the SBP-2 attached target.
+
+		Read-only attribute, immutable during the target's lifetime.
+		Format, as exposed by firewire-sbp2 since 2.6.22, May 2007:
+		Colon-separated hexadecimal string representations of
+
+			u64 EUI-64 : u24 directory_ID : u16 LUN
+
+		without 0x prefixes, without whitespace.  The former sbp2 driver
+		(removed in 2.6.37 after being superseded by firewire-sbp2) used
+		a somewhat shorter format which was not as close to SAM.
+
+Users:		udev rules to create /dev/disk/by-id/ symlinks

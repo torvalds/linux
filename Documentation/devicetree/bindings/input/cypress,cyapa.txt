@@ -1,0 +1,42 @@
+Cypress I2C Touchpad
+
+Required properties:
+- compatible: must be "cypress,cyapa".
+- reg: I2C address of the chip.
+- interrupts: interrupt to which the chip is connected (see interrupt
+	binding[0]).
+
+Optional properties:
+- wakeup-source: touchpad can be used as a wakeup source.
+- pinctrl-names: should be "default" (see pinctrl binding [1]).
+- pinctrl-0: a phandle pointing to the pin settings for the device (see
+	pinctrl binding [1]).
+- vcc-supply: a phandle for the regulator supplying 3.3V power.
+
+[0]: Documentation/devicetree/bindings/interrupt-controller/interrupts.txt
+[1]: Documentation/devicetree/bindings/pinctrl/pinctrl-bindings.txt
+
+Example:
+	&i2c0 {
+		/* ... */
+
+		/* Cypress Gen3 touchpad */
+		touchpad@67 {
+			compatible = "cypress,cyapa";
+			reg = <0x67>;
+			interrupt-parent = <&gpio>;
+			interrupts = <2 IRQ_TYPE_EDGE_FALLING>;	/* GPIO 2 */
+			wakeup-source;
+		};
+
+		/* Cypress Gen5 and later touchpad */
+		touchpad@24 {
+			compatible = "cypress,cyapa";
+			reg = <0x24>;
+			interrupt-parent = <&gpio>;
+			interrupts = <2 IRQ_TYPE_EDGE_FALLING>;	/* GPIO 2 */
+			wakeup-source;
+		};
+
+		/* ... */
+	};

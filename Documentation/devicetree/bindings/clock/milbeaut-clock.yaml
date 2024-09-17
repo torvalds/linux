@@ -1,0 +1,77 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/clock/milbeaut-clock.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Milbeaut SoCs Clock Controller Binding
+
+maintainers:
+  - Taichi Sugaya <sugaya.taichi@socionext.com>
+
+description: |
+  Milbeaut SoCs Clock controller is an integrated clock controller, which
+  generates and supplies to all modules.
+
+  This binding uses common clock bindings
+  [1] Documentation/devicetree/bindings/clock/clock-bindings.txt
+
+properties:
+  compatible:
+    enum:
+      - socionext,milbeaut-m10v-ccu
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+    description: external clock
+
+  '#clock-cells':
+    const: 1
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - '#clock-cells'
+
+additionalProperties: false
+
+examples:
+  # Clock controller node:
+  - |
+    m10v-clk-ctrl@1d021000 {
+        compatible = "socionext,milbeaut-m10v-ccu";
+        reg = <0x1d021000 0x4000>;
+        #clock-cells = <1>;
+        clocks = <&clki40mhz>;
+    };
+
+  # Required an external clock for Clock controller node:
+  - |
+    clocks {
+        clki40mhz: clki40mhz {
+            compatible = "fixed-clock";
+            #clock-cells = <0>;
+            clock-frequency = <40000000>;
+        };
+        /* other clocks */
+    };
+
+  # The clock consumer shall specify the desired clock-output of the clock
+  # controller as below by specifying output-id in its "clk" phandle cell.
+  # 2: uart
+  # 4: 32-bit timer
+  # 7: UHS-I/II
+  - |
+    serial@1e700010 {
+        compatible = "socionext,milbeaut-usio-uart";
+        reg = <0x1e700010 0x10>;
+        interrupts = <0 141 0x4>, <0 149 0x4>;
+        interrupt-names = "rx", "tx";
+        clocks = <&clk 2>;
+    };
+
+...

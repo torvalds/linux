@@ -1,0 +1,74 @@
+Texas Instruments DRA7x Display Subsystem
+=========================================
+
+See Documentation/devicetree/bindings/display/ti/ti,omap-dss.txt for generic
+description about OMAP Display Subsystem bindings.
+
+DSS Core
+--------
+
+Required properties:
+- compatible: "ti,dra7-dss"
+- reg: address and length of the register spaces for 'dss'
+- ti,hwmods: "dss_core"
+- clocks: handle to fclk
+- clock-names: "fck"
+- syscon: phandle to control module core syscon node
+
+Optional properties:
+
+Some DRA7xx SoCs have one dedicated video PLL, some have two. These properties
+can be used to describe the video PLLs:
+
+- reg: address and length of the register spaces for 'pll1_clkctrl',
+  'pll1', 'pll2_clkctrl', 'pll2'
+- clocks: handle to video1 pll clock and video2 pll clock
+- clock-names: "video1_clk" and "video2_clk"
+
+Required nodes:
+- DISPC
+
+Optional nodes:
+- DSS Submodules: HDMI
+- Video port for DPI output
+
+DPI Endpoint required properties:
+- data-lines: number of lines used
+
+
+DISPC
+-----
+
+Required properties:
+- compatible: "ti,dra7-dispc"
+- reg: address and length of the register space
+- ti,hwmods: "dss_dispc"
+- interrupts: the DISPC interrupt
+- clocks: handle to fclk
+- clock-names: "fck"
+
+Optional properties:
+- max-memory-bandwidth: Input memory (from main memory to dispc) bandwidth limit
+			in bytes per second
+
+
+HDMI
+----
+
+Required properties:
+- compatible: "ti,dra7-hdmi"
+- reg: addresses and lengths of the register spaces for 'wp', 'pll', 'phy',
+       'core'
+- reg-names: "wp", "pll", "phy", "core"
+- interrupts: the HDMI interrupt line
+- ti,hwmods: "dss_hdmi"
+- vdda-supply: vdda power supply
+- clocks: handles to fclk and pll clock
+- clock-names: "fck", "sys_clk"
+
+Optional nodes:
+- Video port for HDMI output
+
+HDMI Endpoint optional properties:
+- lanes: list of 8 pin numbers for the HDMI lanes: CLK+, CLK-, D0+, D0-,
+  D1+, D1-, D2+, D2-. (default: 0,1,2,3,4,5,6,7)

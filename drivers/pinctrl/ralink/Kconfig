@@ -1,0 +1,35 @@
+# SPDX-License-Identifier: GPL-2.0-only
+menu "Ralink pinctrl drivers"
+        depends on RALINK
+
+config PINCTRL_RALINK
+        bool "Ralink pinctrl driver"
+        select PINMUX
+        select GENERIC_PINCONF
+
+config PINCTRL_MT7620
+        bool "MT7620 pinctrl subdriver"
+        depends on RALINK && SOC_MT7620
+        select PINCTRL_RALINK
+
+config PINCTRL_MT7621
+        bool "MT7621 pinctrl subdriver"
+        depends on RALINK && SOC_MT7621
+        select PINCTRL_RALINK
+
+config PINCTRL_RT2880
+        bool "RT2880 pinctrl subdriver"
+        depends on RALINK && SOC_RT288X
+        select PINCTRL_RALINK
+
+config PINCTRL_RT305X
+        bool "RT305X pinctrl subdriver"
+        depends on RALINK && SOC_RT305X
+        select PINCTRL_RALINK
+
+config PINCTRL_RT3883
+        bool "RT3883 pinctrl subdriver"
+        depends on RALINK && SOC_RT3883
+        select PINCTRL_RALINK
+
+endmenu

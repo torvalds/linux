@@ -1,0 +1,40 @@
+TI DA8xx/OMAP-L1xx/AM18xx USB PHY
+
+Required properties:
+ - compatible: must be "ti,da830-usb-phy".
+ - #phy-cells: must be 1.
+
+This device controls the PHY for both the USB 1.1 OHCI and USB 2.0 OTG
+controllers on DA8xx SoCs. Consumers of this device should use index 0 for
+the USB 2.0 phy device and index 1 for the USB 1.1 phy device.
+
+It also requires a "syscon" node with compatible = "ti,da830-cfgchip", "syscon"
+to access the CFGCHIP2 register.
+
+Example:
+
+	cfgchip: cfgchip@1417c {
+		compatible = "ti,da830-cfgchip", "syscon";
+		reg = <0x1417c 0x14>;
+	};
+
+	usb_phy: usb-phy {
+		compatible = "ti,da830-usb-phy";
+		#phy-cells = <1>;
+	};
+
+	usb20: usb@200000 {
+		compatible = "ti,da830-musb";
+		reg = <0x200000 0x1000>;
+		interrupts = <58>;
+		phys = <&usb_phy 0>;
+		phy-names = "usb-phy";
+	};
+
+	usb11: usb@225000 {
+		compatible = "ti,da830-ohci";
+		reg = <0x225000 0x1000>;
+		interrupts = <59>;
+		phys = <&usb_phy 1>;
+		phy-names = "usb-phy";
+	};

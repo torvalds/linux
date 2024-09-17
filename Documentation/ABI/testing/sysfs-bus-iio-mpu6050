@@ -1,0 +1,13 @@
+What:           /sys/bus/iio/devices/iio:deviceX/in_gyro_matrix
+What:           /sys/bus/iio/devices/iio:deviceX/in_accel_matrix
+What:           /sys/bus/iio/devices/iio:deviceX/in_magn_matrix
+KernelVersion:  3.4.0
+Contact:        linux-iio@vger.kernel.org
+Description:
+		This is mounting matrix for motion sensors. Mounting matrix
+		is a 3x3 unitary matrix. A typical mounting matrix would look like
+		[0, 1, 0; 1, 0, 0; 0, 0, -1]. Using this information, it would be
+		easy to tell the relative positions among sensors as well as their
+		positions relative to the board that holds these sensors. Identity matrix
+		[1, 0, 0; 0, 1, 0; 0, 0, 1] means sensor chip and device are perfectly
+		aligned with each other. All axes are exactly the same.

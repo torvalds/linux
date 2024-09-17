@@ -1,0 +1,57 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/sound/audio-graph-card.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Audio Graph Card
+
+maintainers:
+  - Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+
+allOf:
+  - $ref: /schemas/sound/audio-graph.yaml#
+
+properties:
+  compatible:
+    enum:
+      - audio-graph-card
+      - audio-graph-scu-card
+
+required:
+  - compatible
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    sound {
+        compatible = "audio-graph-card";
+
+        dais = <&cpu_port_a>;
+    };
+
+    cpu {
+        /*
+         * dai-controller own settings
+         */
+
+        port {
+            cpu_endpoint: endpoint {
+                remote-endpoint = <&codec_endpoint>;
+                dai-format = "left_j";
+            };
+        };
+    };
+
+    codec {
+        /*
+         * codec own settings
+         */
+
+        port {
+            codec_endpoint: endpoint {
+                remote-endpoint = <&cpu_endpoint>;
+            };
+        };
+    };

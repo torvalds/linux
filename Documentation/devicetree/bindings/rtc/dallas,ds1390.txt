@@ -1,0 +1,18 @@
+* Dallas DS1390		SPI Serial Real-Time Clock
+
+Required properties:
+- compatible: Should contain "dallas,ds1390".
+- reg: SPI address for chip
+
+Optional properties:
+- trickle-resistor-ohms : Selected resistor for trickle charger
+	Values usable for ds1390 are 250, 2000, 4000
+	Should be given if trickle charger should be enabled
+- trickle-diode-disable : Do not use internal trickle charger diode
+	Should be given if internal trickle charger diode should be disabled
+Example:
+	ds1390: rtc@0 {
+		compatible = "dallas,ds1390";
+		trickle-resistor-ohms = <250>;
+		reg = <0>;
+	};

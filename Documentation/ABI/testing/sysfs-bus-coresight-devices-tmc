@@ -1,0 +1,93 @@
+What:		/sys/bus/coresight/devices/<memory_map>.tmc/trigger_cntr
+Date:		November 2014
+KernelVersion:	3.19
+Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
+Description:	(RW) Disables write access to the Trace RAM by stopping the
+		formatter after a defined number of words have been stored
+		following the trigger event. Additional interface for this
+		driver are expected to be added as it matures.
+
+What:           /sys/bus/coresight/devices/<memory_map>.tmc/mgmt/rsz
+Date:           March 2016
+KernelVersion:  4.7
+Contact:        Mathieu Poirier <mathieu.poirier@linaro.org>
+Description:    (Read) Defines the size, in 32-bit words, of the local RAM buffer.
+                The value is read directly from HW register RSZ, 0x004.
+
+What:           /sys/bus/coresight/devices/<memory_map>.tmc/mgmt/sts
+Date:           March 2016
+KernelVersion:  4.7
+Contact:        Mathieu Poirier <mathieu.poirier@linaro.org>
+Description:	(Read) Shows the value held by the TMC status register.  The value
+                is read directly from HW register STS, 0x00C.
+
+What:		/sys/bus/coresight/devices/<memory_map>.tmc/mgmt/rrp
+Date:		March 2016
+KernelVersion:	4.7
+Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
+Description:	(Read) Shows the value held by the TMC RAM Read Pointer register
+		that is used to read entries from the Trace RAM over the APB
+		interface.  The value is read directly from HW register RRP,
+		0x014.
+
+What:		/sys/bus/coresight/devices/<memory_map>.tmc/mgmt/rwp
+Date:		March 2016
+KernelVersion:	4.7
+Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
+Description:	(Read) Shows the value held by the TMC RAM Write Pointer register
+		that is used to sets the write pointer to write entries from
+		the CoreSight bus into the Trace RAM. The value is read directly
+		from HW register RWP, 0x018.
+
+What:		/sys/bus/coresight/devices/<memory_map>.tmc/mgmt/trg
+Date:		March 2016
+KernelVersion:	4.7
+Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
+Description:	(Read) Similar to "trigger_cntr" above except that this value is
+		read directly from HW register TRG, 0x01C.
+
+What:		/sys/bus/coresight/devices/<memory_map>.tmc/mgmt/ctl
+Date:		March 2016
+KernelVersion:	4.7
+Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
+Description:	(Read) Shows the value held by the TMC Control register. The value
+		is read directly from HW register CTL, 0x020.
+
+What:		/sys/bus/coresight/devices/<memory_map>.tmc/mgmt/ffsr
+Date:		March 2016
+KernelVersion:	4.7
+Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
+Description:	(Read) Shows the value held by the TMC Formatter and Flush Status
+		register.  The value is read directly from HW register FFSR,
+		0x300.
+
+What:		/sys/bus/coresight/devices/<memory_map>.tmc/mgmt/ffcr
+Date:		March 2016
+KernelVersion:	4.7
+Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
+Description:	(Read) Shows the value held by the TMC Formatter and Flush Control
+		register.  The value is read directly from HW register FFCR,
+		0x304.
+
+What:		/sys/bus/coresight/devices/<memory_map>.tmc/mgmt/mode
+Date:		March 2016
+KernelVersion:	4.7
+Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
+Description:	(Read) Shows the value held by the TMC Mode register, which
+		indicate the mode the device has been configured to enact.  The
+		The value is read directly from the MODE register, 0x028.
+
+What:		/sys/bus/coresight/devices/<memory_map>.tmc/mgmt/devid
+Date:		March 2016
+KernelVersion:	4.7
+Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
+Description:	(Read) Indicates the capabilities of the Coresight TMC.
+		The value is read directly from the DEVID register, 0xFC8,
+
+What:		/sys/bus/coresight/devices/<memory_map>.tmc/buffer_size
+Date:		December 2018
+KernelVersion:	4.19
+Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
+Description:	(RW) Size of the trace buffer for TMC-ETR when used in SYSFS
+		mode. Writable only for TMC-ETR configurations. The value
+		should be aligned to the kernel pagesize.

@@ -1,0 +1,66 @@
+# SPDX-License-Identifier: GPL-2.0
+
+# Ignore header name
+ignore define _UAPI_DVBDMX_H_
+
+# Ignore limit constants
+ignore define DMX_FILTER_SIZE
+
+# dmx_pes_type_t enum symbols
+replace enum dmx_ts_pes :c:type:`dmx_pes_type`
+replace symbol DMX_PES_AUDIO0 :c:type:`dmx_pes_type`
+replace symbol DMX_PES_VIDEO0 :c:type:`dmx_pes_type`
+replace symbol DMX_PES_TELETEXT0 :c:type:`dmx_pes_type`
+replace symbol DMX_PES_SUBTITLE0 :c:type:`dmx_pes_type`
+replace symbol DMX_PES_PCR0 :c:type:`dmx_pes_type`
+replace symbol DMX_PES_AUDIO1 :c:type:`dmx_pes_type`
+replace symbol DMX_PES_VIDEO1 :c:type:`dmx_pes_type`
+replace symbol DMX_PES_TELETEXT1 :c:type:`dmx_pes_type`
+replace symbol DMX_PES_SUBTITLE1 :c:type:`dmx_pes_type`
+replace symbol DMX_PES_PCR1 :c:type:`dmx_pes_type`
+replace symbol DMX_PES_AUDIO2 :c:type:`dmx_pes_type`
+replace symbol DMX_PES_VIDEO2 :c:type:`dmx_pes_type`
+replace symbol DMX_PES_TELETEXT2 :c:type:`dmx_pes_type`
+replace symbol DMX_PES_SUBTITLE2 :c:type:`dmx_pes_type`
+replace symbol DMX_PES_PCR2 :c:type:`dmx_pes_type`
+replace symbol DMX_PES_AUDIO3 :c:type:`dmx_pes_type`
+replace symbol DMX_PES_VIDEO3 :c:type:`dmx_pes_type`
+replace symbol DMX_PES_TELETEXT3 :c:type:`dmx_pes_type`
+replace symbol DMX_PES_SUBTITLE3 :c:type:`dmx_pes_type`
+replace symbol DMX_PES_PCR3 :c:type:`dmx_pes_type`
+replace symbol DMX_PES_OTHER :c:type:`dmx_pes_type`
+
+# Ignore obsolete symbols
+ignore define DMX_PES_AUDIO
+ignore define DMX_PES_VIDEO
+ignore define DMX_PES_TELETEXT
+ignore define DMX_PES_SUBTITLE
+ignore define DMX_PES_PCR
+
+# dmx_input_t symbols
+replace enum dmx_input :c:type:`dmx_input`
+replace symbol DMX_IN_FRONTEND :c:type:`dmx_input`
+replace symbol DMX_IN_DVR :c:type:`dmx_input`
+
+# Flags for struct dmx_sct_filter_params
+replace define DMX_CHECK_CRC :c:type:`dmx_sct_filter_params`
+replace define DMX_ONESHOT :c:type:`dmx_sct_filter_params`
+replace define DMX_IMMEDIATE_START :c:type:`dmx_sct_filter_params`
+
+# some typedefs should point to struct/enums
+replace typedef dmx_filter_t :c:type:`dmx_filter`
+replace typedef dmx_pes_type_t :c:type:`dmx_pes_type`
+replace typedef dmx_input_t :c:type:`dmx_input`
+
+replace symbol DMX_BUFFER_FLAG_HAD_CRC32_DISCARD :c:type:`dmx_buffer_flags`
+replace	symbol DMX_BUFFER_FLAG_TEI :c:type:`dmx_buffer_flags`
+replace	symbol DMX_BUFFER_PKT_COUNTER_MISMATCH :c:type:`dmx_buffer_flags`
+replace	symbol DMX_BUFFER_FLAG_DISCONTINUITY_DETECTED :c:type:`dmx_buffer_flags`
+replace	symbol DMX_BUFFER_FLAG_DISCONTINUITY_INDICATOR :c:type:`dmx_buffer_flags`
+
+replace symbol DMX_OUT_DECODER :c:type:`dmx_output`
+replace symbol DMX_OUT_TAP :c:type:`dmx_output`
+replace symbol DMX_OUT_TS_TAP :c:type:`dmx_output`
+replace symbol DMX_OUT_TSDEMUX_TAP :c:type:`dmx_output`
+
+replace ioctl DMX_DQBUF dmx_qbuf

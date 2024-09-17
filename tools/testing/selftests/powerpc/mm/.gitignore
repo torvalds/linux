@@ -1,0 +1,15 @@
+# SPDX-License-Identifier: GPL-2.0-only
+hugetlb_vs_thp_test
+subpage_prot
+tempfile
+prot_sao
+segv_errors
+wild_bctr
+large_vm_fork_separation
+bad_accesses
+tlbie_test
+pkey_exec_prot
+pkey_siginfo
+stack_expansion_ldst
+stack_expansion_signal
+large_vm_gpr_corruption

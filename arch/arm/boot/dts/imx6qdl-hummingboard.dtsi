@@ -1,0 +1,368 @@
+/*
+ * Copyright (C) 2013,2014 Russell King
+ *
+ * This file is dual-licensed: you can use it either under the terms
+ * of the GPL or the X11 license, at your option. Note that this dual
+ * licensing only applies to this file, and not this project as a
+ * whole.
+ *
+ *  a) This file is free software; you can redistribute it and/or
+ *     modify it under the terms of the GNU General Public License
+ *     version 2 as published by the Free Software Foundation.
+ *
+ *     This file is distributed in the hope that it will be useful,
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ * Or, alternatively,
+ *
+ *  b) Permission is hereby granted, free of charge, to any person
+ *     obtaining a copy of this software and associated documentation
+ *     files (the "Software"), to deal in the Software without
+ *     restriction, including without limitation the rights to use,
+ *     copy, modify, merge, publish, distribute, sublicense, and/or
+ *     sell copies of the Software, and to permit persons to whom the
+ *     Software is furnished to do so, subject to the following
+ *     conditions:
+ *
+ *     The above copyright notice and this permission notice shall be
+ *     included in all copies or substantial portions of the Software.
+ *
+ *     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ *     EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ *     OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ *     NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ *     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ *     WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ *     OTHER DEALINGS IN THE SOFTWARE.
+ */
+#include <dt-bindings/sound/fsl-imx-audmux.h>
+
+/ {
+	/* Will be filled by the bootloader */
+	memory@10000000 {
+		device_type = "memory";
+		reg = <0x10000000 0>;
+	};
+
+	chosen {
+		stdout-path = &uart1;
+	};
+
+	ir_recv: ir-receiver {
+		compatible = "gpio-ir-receiver";
+		gpios = <&gpio3 5 GPIO_ACTIVE_LOW>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_hummingboard_gpio3_5>;
+	};
+
+	v_3v2: regulator-v-3v2 {
+		compatible = "regulator-fixed";
+		regulator-always-on;
+		regulator-max-microvolt = <3300000>;
+		regulator-min-microvolt = <3300000>;
+		regulator-name = "v_3v2";
+		vin-supply = <&v_5v0>;
+	};
+
+	v_5v0: regulator-v-5v0 {
+		compatible = "regulator-fixed";
+		regulator-always-on;
+		regulator-max-microvolt = <5000000>;
+		regulator-min-microvolt = <5000000>;
+		regulator-name = "v_5v0";
+	};
+
+	v_sd: regulator-v-sd {
+		compatible = "regulator-fixed";
+		gpio = <&gpio4 30 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_hummingboard_vmmc>;
+		regulator-boot-on;
+		regulator-max-microvolt = <3300000>;
+		regulator-min-microvolt = <3300000>;
+		regulator-name = "v_sd";
+		startup-delay-us = <1000>;
+		vin-supply = <&v_3v2>;
+	};
+
+	v_usb2: regulator-v-usb2 {
+		compatible = "regulator-fixed";
+		enable-active-high;
+		gpio = <&gpio1 0 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_hummingboard_usbh1_vbus>;
+		regulator-max-microvolt = <5000000>;
+		regulator-min-microvolt = <5000000>;
+		regulator-name = "v_usb2";
+		vin-supply = <&v_5v0>;
+	};
+
+	v_usb1: regulator-v-usb1 {
+		compatible = "regulator-fixed";
+		enable-active-high;
+		gpio = <&gpio3 22 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_hummingboard_usbotg_vbus>;
+		regulator-max-microvolt = <5000000>;
+		regulator-min-microvolt = <5000000>;
+		regulator-name = "v_usb1";
+		vin-supply = <&v_5v0>;
+	};
+
+	audio: sound-sgtl5000 {
+		compatible = "simple-audio-card";
+		simple-audio-card,name = "On-board Codec";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,bitclock-master = <&sound_codec>;
+		simple-audio-card,frame-master = <&sound_codec>;
+		simple-audio-card,widgets =
+			"Microphone", "Headphone Jack",
+			"Headphone", "Headphone Jack";
+		simple-audio-card,routing =
+			"MIC_IN", "Headphone Jack",
+			"Headphone Jack", "Mic Bias",
+			"Headphone Jack", "HP_OUT";
+
+		sound_cpu: simple-audio-card,cpu {
+			sound-dai = <&ssi1>;
+		};
+
+		sound_codec: simple-audio-card,codec {
+			sound-dai = <&sgtl5000>;
+		};
+	};
+
+	sound-spdif {
+		compatible = "fsl,imx-audio-spdif";
+		model = "On-board SPDIF";
+		/* IMX6 doesn't implement this yet */
+		spdif-controller = <&spdif>;
+		spdif-out;
+	};
+};
+
+&audmux {
+	status = "okay";
+
+	ssi1 {
+		fsl,audmux-port = <0>;
+		fsl,port-config = <
+			(IMX_AUDMUX_V2_PTCR_SYN |
+			 IMX_AUDMUX_V2_PTCR_TFSEL(4) |
+			 IMX_AUDMUX_V2_PTCR_TCSEL(4) |
+			 IMX_AUDMUX_V2_PTCR_TFSDIR |
+			 IMX_AUDMUX_V2_PTCR_TCLKDIR)
+			 IMX_AUDMUX_V2_PDCR_RXDSEL(4)
+		>;
+	};
+
+	pins5 {
+		fsl,audmux-port = <4>;
+		fsl,port-config = <
+			IMX_AUDMUX_V2_PTCR_SYN
+			IMX_AUDMUX_V2_PDCR_RXDSEL(0)
+		>;
+	};
+};
+
+&can1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_hummingboard_flexcan1>;
+	status = "okay";
+};
+
+&hdmi {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_hummingboard_hdmi>;
+	ddc-i2c-bus = <&i2c2>;
+	status = "okay";
+};
+
+&i2c1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_hummingboard_i2c1>;
+	status = "okay";
+
+	/* Pro baseboard model */
+	rtc@68 {
+		compatible = "nxp,pcf8523";
+		reg = <0x68>;
+	};
+
+	/* Pro baseboard model */
+	sgtl5000: codec@a {
+		clocks = <&clks IMX6QDL_CLK_CKO>;
+		compatible = "fsl,sgtl5000";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_hummingboard_sgtl5000>;
+		#sound-dai-cells = <0>;
+		reg = <0x0a>;
+		VDDA-supply = <&v_3v2>;
+		VDDIO-supply = <&v_3v2>;
+	};
+};
+
+&i2c2 {
+	clock-frequency = <100000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_hummingboard_i2c2>;
+	status = "okay";
+};
+
+&iomuxc {
+	hummingboard {
+		pinctrl_hummingboard_flexcan1: hummingboard-flexcan1 {
+			fsl,pins = <
+				MX6QDL_PAD_SD3_CLK__FLEXCAN1_RX 0x80000000
+				MX6QDL_PAD_SD3_CMD__FLEXCAN1_TX 0x80000000
+			>;
+		};
+
+		pinctrl_hummingboard_gpio3_5: hummingboard-gpio3_5 {
+			fsl,pins = <
+				MX6QDL_PAD_EIM_DA5__GPIO3_IO05 0x1b0b1
+			>;
+		};
+
+		pinctrl_hummingboard_hdmi: hummingboard-hdmi {
+			fsl,pins = <
+				MX6QDL_PAD_KEY_ROW2__HDMI_TX_CEC_LINE 0x1f8b0
+			>;
+		};
+
+		pinctrl_hummingboard_i2c1: hummingboard-i2c1 {
+			fsl,pins = <
+				MX6QDL_PAD_EIM_D21__I2C1_SCL 0x4001b8b1
+				MX6QDL_PAD_EIM_D28__I2C1_SDA 0x4001b8b1
+			>;
+		};
+
+		pinctrl_hummingboard_i2c2: hummingboard-i2c2 {
+			fsl,pins = <
+				MX6QDL_PAD_KEY_COL3__I2C2_SCL 0x4001b8b1
+				MX6QDL_PAD_KEY_ROW3__I2C2_SDA 0x4001b8b1
+			>;
+		};
+
+		pinctrl_hummingboard_pcie_reset: hummingboard-pcie-reset {
+			fsl,pins = <
+				MX6QDL_PAD_EIM_DA4__GPIO3_IO04 0x1b0b1
+			>;
+		};
+
+		pinctrl_hummingboard_pwm1: pwm1grp {
+			fsl,pins = <MX6QDL_PAD_DISP0_DAT8__PWM1_OUT 0x1b0b1>;
+		};
+
+		pinctrl_hummingboard_sgtl5000: hummingboard-sgtl5000 {
+			fsl,pins = <
+				MX6QDL_PAD_DISP0_DAT19__AUD5_RXD 0x130b0
+				MX6QDL_PAD_KEY_COL0__AUD5_TXC 0x130b0
+				MX6QDL_PAD_KEY_ROW0__AUD5_TXD 0x110b0
+				MX6QDL_PAD_KEY_COL1__AUD5_TXFS 0x130b0
+				MX6QDL_PAD_GPIO_5__CCM_CLKO1 0x130b0
+			>;
+		};
+
+		pinctrl_hummingboard_spdif: hummingboard-spdif {
+			fsl,pins = <MX6QDL_PAD_GPIO_17__SPDIF_OUT 0x13091>;
+		};
+
+		pinctrl_hummingboard_usbh1_vbus: hummingboard-usbh1-vbus {
+			fsl,pins = <MX6QDL_PAD_GPIO_0__GPIO1_IO00 0x1b0b0>;
+		};
+
+		pinctrl_hummingboard_usbotg_id: hummingboard-usbotg-id {
+			/*
+			 * We want it pulled down for a fixed host connection.
+			 */
+			fsl,pins = <MX6QDL_PAD_ENET_RX_ER__USB_OTG_ID 0x13059>;
+		};
+
+		pinctrl_hummingboard_usbotg_vbus: hummingboard-usbotg-vbus {
+			fsl,pins = <MX6QDL_PAD_EIM_D22__GPIO3_IO22 0x1b0b0>;
+		};
+
+		pinctrl_hummingboard_usdhc2_aux: hummingboard-usdhc2-aux {
+			fsl,pins = <
+				MX6QDL_PAD_GPIO_4__GPIO1_IO04    0x1f071
+			>;
+		};
+
+		pinctrl_hummingboard_usdhc2: hummingboard-usdhc2 {
+			fsl,pins = <
+				MX6QDL_PAD_SD2_CMD__SD2_CMD    0x17059
+				MX6QDL_PAD_SD2_CLK__SD2_CLK    0x10059
+				MX6QDL_PAD_SD2_DAT0__SD2_DATA0 0x17059
+				MX6QDL_PAD_SD2_DAT1__SD2_DATA1 0x17059
+				MX6QDL_PAD_SD2_DAT2__SD2_DATA2 0x17059
+				MX6QDL_PAD_SD2_DAT3__SD2_DATA3 0x13059
+			>;
+		};
+		pinctrl_hummingboard_vmmc: hummingboard-vmmc {
+			fsl,pins = <
+				MX6QDL_PAD_DISP0_DAT9__GPIO4_IO30 0x1b0b0
+			>;
+		};
+	};
+};
+
+&pcie {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_hummingboard_pcie_reset>;
+	reset-gpio = <&gpio3 4 GPIO_ACTIVE_LOW>;
+	status = "okay";
+};
+
+&pwm1 {
+	 pinctrl-names = "default";
+	 pinctrl-0 = <&pinctrl_hummingboard_pwm1>;
+	 status = "okay";
+};
+
+&pwm2 {
+	 pinctrl-names = "default";
+	 status = "okay";
+};
+
+&spdif {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_hummingboard_spdif>;
+	status = "okay";
+};
+
+&ssi1 {
+	status = "okay";
+};
+
+&usbh1 {
+	disable-over-current;
+	vbus-supply = <&v_usb2>;
+	status = "okay";
+};
+
+&usbotg {
+	disable-over-current;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_hummingboard_usbotg_id>;
+	vbus-supply = <&v_usb1>;
+	status = "okay";
+};
+
+&usdhc2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <
+		&pinctrl_hummingboard_usdhc2_aux
+		&pinctrl_hummingboard_usdhc2
+	>;
+	vmmc-supply = <&v_sd>;
+	cd-gpios = <&gpio1 4 GPIO_ACTIVE_LOW>;
+	status = "okay";
+};
+
+&vcc_3v3 {
+	vin-supply = <&v_3v2>;
+};

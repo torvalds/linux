@@ -1,0 +1,110 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: "http://devicetree.org/schemas/iio/dac/st,stm32-dac.yaml#"
+$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+
+title: STMicroelectronics STM32 DAC bindings
+
+description: |
+  The STM32 DAC is a 12-bit voltage output digital-to-analog converter. The DAC
+  may be configured in 8 or 12-bit mode. It has two output channels, each with
+  its own converter.
+  It has built-in noise and triangle waveform generator and supports external
+  triggers for conversions. The DAC's output buffer allows a high drive output
+  current.
+
+maintainers:
+  - Fabrice Gasnier <fabrice.gasnier@foss.st.com>
+
+properties:
+  compatible:
+    enum:
+      - st,stm32f4-dac-core
+      - st,stm32h7-dac-core
+
+  reg:
+    maxItems: 1
+
+  resets:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  clock-names:
+    items:
+      - const: pclk
+
+  vref-supply:
+    description: Phandle to the vref input analog reference voltage.
+
+  '#address-cells':
+    const: 1
+
+  '#size-cells':
+    const: 0
+
+additionalProperties: false
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - clock-names
+  - vref-supply
+  - '#address-cells'
+  - '#size-cells'
+
+patternProperties:
+  "^dac@[1-2]+$":
+    type: object
+    description:
+      A DAC block node should contain at least one subnode, representing an
+      DAC instance/channel available on the machine.
+
+    properties:
+      compatible:
+        const: st,stm32-dac
+
+      reg:
+        description: Must be either 1 or 2, to define (single) channel in use
+        enum: [1, 2]
+
+      '#io-channel-cells':
+        const: 1
+
+    additionalProperties: false
+
+    required:
+      - compatible
+      - reg
+      - '#io-channel-cells'
+
+examples:
+  - |
+    // Example on stm32mp157c
+    #include <dt-bindings/clock/stm32mp1-clks.h>
+    dac: dac@40017000 {
+      compatible = "st,stm32h7-dac-core";
+      reg = <0x40017000 0x400>;
+      clocks = <&rcc DAC12>;
+      clock-names = "pclk";
+      vref-supply = <&vref>;
+      #address-cells = <1>;
+      #size-cells = <0>;
+
+      dac@1 {
+        compatible = "st,stm32-dac";
+        #io-channel-cells = <1>;
+        reg = <1>;
+      };
+
+      dac@2 {
+        compatible = "st,stm32-dac";
+        #io-channel-cells = <1>;
+        reg = <2>;
+      };
+    };
+
+...

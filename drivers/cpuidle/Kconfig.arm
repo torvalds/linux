@@ -1,0 +1,124 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# ARM CPU Idle drivers
+#
+config ARM_CPUIDLE
+	bool "Generic ARM CPU idle Driver"
+	depends on ARM
+	select DT_IDLE_STATES
+	select CPU_IDLE_MULTIPLE_DRIVERS
+	help
+	  Select this to enable generic cpuidle driver for ARM.
+	  It provides a generic idle driver whose idle states are configured
+	  at run-time through DT nodes. The CPUidle suspend backend is
+	  initialized by calling the CPU operations init idle hook
+	  provided by architecture code.
+
+config ARM_PSCI_CPUIDLE
+	bool "PSCI CPU idle Driver"
+	depends on ARM_PSCI_FW
+	select DT_IDLE_STATES
+	select CPU_IDLE_MULTIPLE_DRIVERS
+	help
+	  Select this to enable PSCI firmware based CPUidle driver for ARM.
+	  It provides an idle driver that is capable of detecting and
+	  managing idle states through the PSCI firmware interface.
+
+config ARM_PSCI_CPUIDLE_DOMAIN
+	bool "PSCI CPU idle Domain"
+	depends on ARM_PSCI_CPUIDLE
+	depends on PM_GENERIC_DOMAINS_OF
+	select DT_IDLE_GENPD
+	default y
+	help
+	  Select this to enable the PSCI based CPUidle driver to use PM domains,
+	  which is needed to support the hierarchical DT based layout of the
+	  idle states.
+
+config ARM_BIG_LITTLE_CPUIDLE
+	bool "Support for ARM big.LITTLE processors"
+	depends on ARCH_VEXPRESS_TC2_PM || ARCH_EXYNOS || COMPILE_TEST
+	depends on MCPM && !ARM64
+	select ARM_CPU_SUSPEND
+	select CPU_IDLE_MULTIPLE_DRIVERS
+	select DT_IDLE_STATES
+	help
+	  Select this option to enable CPU idle driver for big.LITTLE based
+	  ARM systems. Driver manages CPUs coordination through MCPM and
+	  define different C-states for little and big cores through the
+	  multiple CPU idle drivers infrastructure.
+
+config ARM_CLPS711X_CPUIDLE
+	bool "CPU Idle Driver for CLPS711X processors"
+	depends on ARCH_CLPS711X && !ARM64 || COMPILE_TEST
+	help
+	  Select this to enable cpuidle on Cirrus Logic CLPS711X SOCs.
+
+config ARM_HIGHBANK_CPUIDLE
+	bool "CPU Idle Driver for Calxeda processors"
+	depends on ARM_PSCI && !ARM64
+	select ARM_CPU_SUSPEND
+	help
+	  Select this to enable cpuidle on Calxeda processors.
+
+config ARM_KIRKWOOD_CPUIDLE
+	bool "CPU Idle Driver for Marvell Kirkwood SoCs"
+	depends on (MACH_KIRKWOOD || COMPILE_TEST) && !ARM64
+	help
+	  This adds the CPU Idle driver for Marvell Kirkwood SoCs.
+
+config ARM_ZYNQ_CPUIDLE
+	bool "CPU Idle Driver for Xilinx Zynq processors"
+	depends on (ARCH_ZYNQ || COMPILE_TEST) && !ARM64
+	help
+	  Select this to enable cpuidle on Xilinx Zynq processors.
+
+config ARM_U8500_CPUIDLE
+	bool "Cpu Idle Driver for the ST-E u8500 processors"
+	depends on ARCH_U8500 && !ARM64
+	help
+	  Select this to enable cpuidle for ST-E u8500 processors.
+
+config ARM_AT91_CPUIDLE
+	bool "Cpu Idle Driver for the AT91 processors"
+	default y
+	depends on (ARCH_AT91 || COMPILE_TEST) && !ARM64
+	help
+	  Select this to enable cpuidle for AT91 processors.
+
+config ARM_EXYNOS_CPUIDLE
+	bool "Cpu Idle Driver for the Exynos processors"
+	depends on (ARCH_EXYNOS || COMPILE_TEST) && !ARM64
+	select ARCH_NEEDS_CPU_IDLE_COUPLED if SMP
+	help
+	  Select this to enable cpuidle for Exynos processors.
+
+config ARM_MVEBU_V7_CPUIDLE
+	bool "CPU Idle Driver for mvebu v7 family processors"
+	depends on (ARCH_MVEBU || COMPILE_TEST) && !ARM64
+	help
+	  Select this to enable cpuidle on Armada 370, 38x and XP processors.
+
+config ARM_TEGRA_CPUIDLE
+	bool "CPU Idle Driver for NVIDIA Tegra SoCs"
+	depends on (ARCH_TEGRA || COMPILE_TEST) && !ARM64 && MMU
+	depends on ARCH_SUSPEND_POSSIBLE
+	select ARCH_NEEDS_CPU_IDLE_COUPLED if SMP
+	select ARM_CPU_SUSPEND
+	help
+	  Select this to enable cpuidle for NVIDIA Tegra20/30/114/124 SoCs.
+
+config ARM_QCOM_SPM_CPUIDLE
+	bool "CPU Idle Driver for Qualcomm Subsystem Power Manager (SPM)"
+	depends on (ARCH_QCOM || COMPILE_TEST) && !ARM64 && MMU
+	depends on ARCH_SUSPEND_POSSIBLE
+	select ARM_CPU_SUSPEND
+	select CPU_IDLE_MULTIPLE_DRIVERS
+	select DT_IDLE_STATES
+	select QCOM_SCM
+	select QCOM_SPM
+	help
+	  Select this to enable cpuidle for Qualcomm processors.
+	  The Subsystem Power Manager (SPM) controls low power modes for the
+	  CPU and L2 cores. It interface with various system drivers to put
+	  the cores in low power modes.

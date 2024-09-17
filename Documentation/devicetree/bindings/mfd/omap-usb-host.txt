@@ -1,0 +1,103 @@
+OMAP HS USB Host
+
+Required properties:
+
+- compatible: should be "ti,usbhs-host"
+- reg: should contain one register range i.e. start and length
+- ti,hwmods: must contain "usb_host_hs"
+
+Optional properties:
+
+- num-ports: number of USB ports. Usually this is automatically detected
+  from the IP's revision register but can be overridden by specifying
+  this property. A maximum of 3 ports are supported at the moment.
+
+- portN-mode: String specifying the port mode for port N, where N can be
+  from 1 to 3. If the port mode is not specified, that port is treated
+  as unused. When specified, it must be one of the following.
+	"ehci-phy",
+        "ehci-tll",
+        "ehci-hsic",
+        "ohci-phy-6pin-datse0",
+        "ohci-phy-6pin-dpdm",
+        "ohci-phy-3pin-datse0",
+        "ohci-phy-4pin-dpdm",
+        "ohci-tll-6pin-datse0",
+        "ohci-tll-6pin-dpdm",
+        "ohci-tll-3pin-datse0",
+        "ohci-tll-4pin-dpdm",
+        "ohci-tll-2pin-datse0",
+        "ohci-tll-2pin-dpdm",
+
+- single-ulpi-bypass: Must be present if the controller contains a single
+  ULPI bypass control bit. e.g. OMAP3 silicon <= ES2.1
+
+- clocks: a list of phandles and clock-specifier pairs, one for each entry in
+  clock-names.
+
+- clock-names: should include:
+  For OMAP3
+  * "usbhost_120m_fck" - 120MHz Functional clock.
+
+  For OMAP4+
+  * "refclk_60m_int" - 60MHz internal reference clock for UTMI clock mux
+  * "refclk_60m_ext_p1" - 60MHz external ref. clock for Port 1's UTMI clock mux.
+  * "refclk_60m_ext_p2" - 60MHz external ref. clock for Port 2's UTMI clock mux
+  * "utmi_p1_gfclk" - Port 1 UTMI clock mux.
+  * "utmi_p2_gfclk" - Port 2 UTMI clock mux.
+  * "usb_host_hs_utmi_p1_clk" - Port 1 UTMI clock gate.
+  * "usb_host_hs_utmi_p2_clk" - Port 2 UTMI clock gate.
+  * "usb_host_hs_utmi_p3_clk" - Port 3 UTMI clock gate.
+  * "usb_host_hs_hsic480m_p1_clk" - Port 1 480MHz HSIC clock gate.
+  * "usb_host_hs_hsic480m_p2_clk" - Port 2 480MHz HSIC clock gate.
+  * "usb_host_hs_hsic480m_p3_clk" - Port 3 480MHz HSIC clock gate.
+  * "usb_host_hs_hsic60m_p1_clk" - Port 1 60MHz HSIC clock gate.
+  * "usb_host_hs_hsic60m_p2_clk" - Port 2 60MHz HSIC clock gate.
+  * "usb_host_hs_hsic60m_p3_clk" - Port 3 60MHz HSIC clock gate.
+
+Required properties if child node exists:
+
+- #address-cells: Must be 1
+- #size-cells: Must be 1
+- ranges: must be present
+
+Properties for children:
+
+The OMAP HS USB Host subsystem contains EHCI and OHCI controllers.
+See Documentation/devicetree/bindings/usb/ehci-omap.txt and
+Documentation/devicetree/bindings/usb/ohci-omap3.txt.
+
+Example for OMAP4:
+
+usbhshost: usbhshost@4a064000 {
+	compatible = "ti,usbhs-host";
+	reg = <0x4a064000 0x800>;
+	ti,hwmods = "usb_host_hs";
+	#address-cells = <1>;
+	#size-cells = <1>;
+	ranges;
+
+	usbhsohci: ohci@4a064800 {
+		compatible = "ti,ohci-omap3", "usb-ohci";
+		reg = <0x4a064800 0x400>;
+		interrupt-parent = <&gic>;
+		interrupts = <0 76 0x4>;
+	};
+
+	usbhsehci: ehci@4a064c00 {
+		compatible = "ti,ehci-omap", "usb-ehci";
+		reg = <0x4a064c00 0x400>;
+		interrupt-parent = <&gic>;
+		interrupts = <0 77 0x4>;
+	};
+};
+
+&usbhshost {
+	port1-mode = "ehci-phy";
+	port2-mode = "ehci-tll";
+	port3-mode = "ehci-phy";
+};
+
+&usbhsehci {
+	phys = <&hsusb1_phy 0 &hsusb3_phy>;
+};

@@ -1,0 +1,12 @@
+cat <<EOF
+static __always_inline void
+arch_${atomic}_set_release(${atomic}_t *v, ${int} i)
+{
+	if (__native_word(${atomic}_t)) {
+		smp_store_release(&(v)->counter, i);
+	} else {
+		__atomic_release_fence();
+		arch_${atomic}_set(v, i);
+	}
+}
+EOF

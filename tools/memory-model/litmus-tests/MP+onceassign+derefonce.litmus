@@ -1,0 +1,33 @@
+C MP+onceassign+derefonce
+
+(*
+ * Result: Never
+ *
+ * This litmus test demonstrates that rcu_assign_pointer() and
+ * rcu_dereference() suffice to ensure that an RCU reader will not see
+ * pre-initialization garbage when it traverses an RCU-protected data
+ * structure containing a newly inserted element.
+ *)
+
+{
+p=y;
+}
+
+P0(int *x, int **p) // Producer
+{
+	WRITE_ONCE(*x, 1);
+	rcu_assign_pointer(*p, x);
+}
+
+P1(int *x, int **p) // Consumer
+{
+	int *r0;
+	int r1;
+
+	rcu_read_lock();
+	r0 = rcu_dereference(*p);
+	r1 = READ_ONCE(*r0);
+	rcu_read_unlock();
+}
+
+exists (1:r0=x /\ 1:r1=0) (* Bad outcome. *)

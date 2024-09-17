@@ -1,0 +1,8 @@
+# SPDX-License-Identifier: GPL-2.0-only
+vdso_test
+vdso_test_abi
+vdso_test_clock_getres
+vdso_test_correctness
+vdso_test_gettimeofday
+vdso_test_getcpu
+vdso_standalone_test_x86

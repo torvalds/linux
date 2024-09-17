@@ -1,0 +1,81 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/rng/omap_rng.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: OMAP SoC and Inside-Secure HWRNG Module
+
+maintainers:
+  - Jayesh Choudhary <j-choudhary@ti.com>
+
+properties:
+  compatible:
+    enum:
+      - ti,omap2-rng
+      - ti,omap4-rng
+      - inside-secure,safexcel-eip76
+
+  ti,hwmods:
+    const: rng
+    deprecated: true
+    description: Name of the hwmod associated with the RNG module
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    minItems: 1
+    items:
+      - description: EIP150 gatable clock
+      - description: Main gatable clock
+
+  clock-names:
+    minItems: 1
+    items:
+      - const: core
+      - const: reg
+
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - ti,omap4-rng
+              - inside-secure,safexcel-eip76
+
+    then:
+      required:
+        - interrupts
+
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    /* AM335x */
+    rng: rng@48310000 {
+            compatible = "ti,omap4-rng";
+            ti,hwmods = "rng";
+            reg = <0x48310000 0x2000>;
+            interrupts = <111>;
+    };
+  - |
+    /* SafeXcel IP-76 */
+    trng: rng@f2760000 {
+            compatible = "inside-secure,safexcel-eip76";
+            reg = <0xf2760000 0x7d>;
+            interrupts = <0 59 4>;
+            clocks = <&cpm_syscon0 1 25>;
+    };
+
+...

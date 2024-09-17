@@ -1,0 +1,26 @@
+Broadcom BCM2835 VideoCore mailbox IPC
+
+Required properties:
+
+- compatible:	Should be "brcm,bcm2835-mbox"
+- reg:		Specifies base physical address and size of the registers
+- interrupts:	The interrupt number
+		  See bindings/interrupt-controller/brcm,bcm2835-armctrl-ic.txt
+- #mbox-cells:	Specifies the number of cells needed to encode a mailbox
+		  channel. The value shall be 0, since there is only one
+		  mailbox channel implemented by the device.
+
+Example:
+
+mailbox: mailbox@7e00b880 {
+	compatible = "brcm,bcm2835-mbox";
+	reg = <0x7e00b880 0x40>;
+	interrupts = <0 1>;
+	#mbox-cells = <0>;
+};
+
+firmware: firmware {
+	compatible = "raspberrypi,firmware";
+	mboxes = <&mailbox>;
+	#power-domain-cells = <1>;
+};

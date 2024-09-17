@@ -1,0 +1,43 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Intel x86 Platform Specific Drivers
+#
+
+config INTEL_ATOMISP2_PDX86
+	bool
+
+config INTEL_ATOMISP2_LED
+	tristate "Intel AtomISP v2 camera LED driver"
+	depends on GPIOLIB && LEDS_GPIO
+	select INTEL_ATOMISP2_PDX86
+	help
+	  Many Bay Trail and Cherry Trail devices come with a camera attached
+	  to Intel's Image Signal Processor. Linux currently does not have a
+	  driver for these, so they do not work as a camera. Some of these
+	  camera's have a LED which is controlled through a GPIO.
+
+	  Some of these devices have a firmware issue where the LED gets turned
+	  on at boot. This driver will turn the LED off at boot and also allows
+	  controlling the LED (repurposing it) through the sysfs LED interface.
+
+	  Which GPIO is attached to the LED is usually not described in the
+	  ACPI tables, so this driver contains per-system info about the GPIO
+	  inside the driver, this means that this driver only works on systems
+	  the driver knows about.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called intel_atomisp2_led.
+
+config INTEL_ATOMISP2_PM
+	tristate "Intel AtomISP v2 dummy / power-management driver"
+	depends on PCI && IOSF_MBI && PM
+	depends on !INTEL_ATOMISP
+	select INTEL_ATOMISP2_PDX86
+	help
+	  Power-management driver for Intel's Image Signal Processor found on
+	  Bay Trail and Cherry Trail devices. This dummy driver's sole purpose
+	  is to turn the ISP off (put it in D3) to save power and to allow
+	  entering of S0ix modes.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called intel_atomisp2_pm.

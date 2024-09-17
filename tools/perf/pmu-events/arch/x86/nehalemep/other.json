@@ -1,0 +1,146 @@
+[
+    {
+        "BriefDescription": "ES segment renames",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xD5",
+        "EventName": "ES_REG_RENAMES",
+        "SampleAfterValue": "2000000",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "I/O transactions",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x6C",
+        "EventName": "IO_TRANSACTIONS",
+        "SampleAfterValue": "2000000",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "L1I instruction fetch stall cycles",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x80",
+        "EventName": "L1I.CYCLES_STALLED",
+        "SampleAfterValue": "2000000",
+        "UMask": "0x4"
+    },
+    {
+        "BriefDescription": "L1I instruction fetch hits",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x80",
+        "EventName": "L1I.HITS",
+        "SampleAfterValue": "2000000",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "L1I instruction fetch misses",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x80",
+        "EventName": "L1I.MISSES",
+        "SampleAfterValue": "2000000",
+        "UMask": "0x2"
+    },
+    {
+        "BriefDescription": "L1I Instruction fetches",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x80",
+        "EventName": "L1I.READS",
+        "SampleAfterValue": "2000000",
+        "UMask": "0x3"
+    },
+    {
+        "BriefDescription": "Large ITLB hit",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x82",
+        "EventName": "LARGE_ITLB.HIT",
+        "SampleAfterValue": "200000",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "All loads dispatched",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x13",
+        "EventName": "LOAD_DISPATCH.ANY",
+        "SampleAfterValue": "2000000",
+        "UMask": "0x7"
+    },
+    {
+        "BriefDescription": "Loads dispatched from the MOB",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x13",
+        "EventName": "LOAD_DISPATCH.MOB",
+        "SampleAfterValue": "2000000",
+        "UMask": "0x4"
+    },
+    {
+        "BriefDescription": "Loads dispatched that bypass the MOB",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x13",
+        "EventName": "LOAD_DISPATCH.RS",
+        "SampleAfterValue": "2000000",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Loads dispatched from stage 305",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x13",
+        "EventName": "LOAD_DISPATCH.RS_DELAYED",
+        "SampleAfterValue": "2000000",
+        "UMask": "0x2"
+    },
+    {
+        "BriefDescription": "False dependencies due to partial address aliasing",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x7",
+        "EventName": "PARTIAL_ADDRESS_ALIAS",
+        "SampleAfterValue": "200000",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "All Store buffer stall cycles",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x4",
+        "EventName": "SB_DRAIN.ANY",
+        "SampleAfterValue": "200000",
+        "UMask": "0x7"
+    },
+    {
+        "BriefDescription": "Segment rename stall cycles",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xD4",
+        "EventName": "SEG_RENAME_STALLS",
+        "SampleAfterValue": "2000000",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Thread responded HIT to snoop",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB8",
+        "EventName": "SNOOP_RESPONSE.HIT",
+        "SampleAfterValue": "100000",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Thread responded HITE to snoop",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB8",
+        "EventName": "SNOOP_RESPONSE.HITE",
+        "SampleAfterValue": "100000",
+        "UMask": "0x2"
+    },
+    {
+        "BriefDescription": "Thread responded HITM to snoop",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB8",
+        "EventName": "SNOOP_RESPONSE.HITM",
+        "SampleAfterValue": "100000",
+        "UMask": "0x4"
+    },
+    {
+        "BriefDescription": "Super Queue full stall cycles",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xF6",
+        "EventName": "SQ_FULL_STALL_CYCLES",
+        "SampleAfterValue": "2000000",
+        "UMask": "0x1"
+    }
+]

@@ -1,0 +1,124 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (C) 2017 Marvell Technology Group Ltd.
+ *
+ * Device Tree file for Marvell Armada AP810.
+ */
+
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+
+/dts-v1/;
+
+/ {
+	model = "Marvell Armada AP810";
+	compatible = "marvell,armada-ap810";
+	#address-cells = <2>;
+	#size-cells = <2>;
+
+	aliases {
+		serial0 = &uart0_ap0;
+		serial1 = &uart1_ap0;
+	};
+
+	psci {
+		compatible = "arm,psci-0.2";
+		method = "smc";
+	};
+
+	ap810-ap0 {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		compatible = "simple-bus";
+		interrupt-parent = <&gic>;
+		ranges;
+
+		config-space@e8000000 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			compatible = "simple-bus";
+			ranges = <0x0 0x0 0xe8000000 0x4000000>;
+			interrupt-parent = <&gic>;
+
+			gic: interrupt-controller@3000000 {
+				compatible = "arm,gic-v3";
+				#interrupt-cells = <3>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+				interrupt-controller;
+				interrupts = <GIC_PPI 9 IRQ_TYPE_LEVEL_HIGH>;
+				ranges;
+
+				reg = <0x3000000 0x10000>,	/* GICD */
+				      <0x3060000 0x100000>,	/* GICR */
+				      <0x00c0000 0x2000>,	/* GICC */
+				      <0x00d0000 0x1000>,	/* GICH */
+				      <0x00e0000 0x2000>;	/* GICV */
+
+				gic_its_ap0: interrupt-controller@3040000 {
+					compatible = "arm,gic-v3-its";
+					msi-controller;
+					#msi-cells = <1>;
+					reg = <0x3040000 0x20000>;
+				};
+			};
+
+			timer {
+				compatible = "arm,armv8-timer";
+				interrupts = <GIC_PPI 13 IRQ_TYPE_LEVEL_LOW>,
+					     <GIC_PPI 14 IRQ_TYPE_LEVEL_LOW>,
+					     <GIC_PPI 11 IRQ_TYPE_LEVEL_LOW>,
+					     <GIC_PPI 10 IRQ_TYPE_LEVEL_LOW>;
+			};
+
+			xor@400000 {
+				compatible = "marvell,armada-7k-xor", "marvell,xor-v2";
+				reg = <0x400000 0x1000>,
+				      <0x410000 0x1000>;
+				msi-parent = <&gic_its_ap0 0xa0>;
+				dma-coherent;
+			};
+
+			xor@420000 {
+				compatible = "marvell,armada-7k-xor", "marvell,xor-v2";
+				reg = <0x420000 0x1000>,
+				      <0x430000 0x1000>;
+				msi-parent = <&gic_its_ap0 0xa1>;
+				dma-coherent;
+			};
+
+			xor@440000 {
+				compatible = "marvell,armada-7k-xor", "marvell,xor-v2";
+				reg = <0x440000 0x1000>,
+				      <0x450000 0x1000>;
+				msi-parent = <&gic_its_ap0 0xa2>;
+				dma-coherent;
+			};
+
+			xor@460000 {
+				compatible = "marvell,armada-7k-xor", "marvell,xor-v2";
+				reg = <0x460000 0x1000>,
+				      <0x470000 0x1000>;
+				msi-parent = <&gic_its_ap0 0xa3>;
+				dma-coherent;
+			};
+
+			uart0_ap0: serial@512000 {
+				compatible = "snps,dw-apb-uart";
+				reg = <0x512000 0x100>;
+				reg-shift = <2>;
+				interrupts = <GIC_SPI 22 IRQ_TYPE_LEVEL_HIGH>;
+				reg-io-width = <1>;
+				status = "disabled";
+			};
+
+			uart1_ap0: serial@512100 {
+				compatible = "snps,dw-apb-uart";
+				reg = <0x512100 0x100>;
+				reg-shift = <2>;
+				interrupts = <GIC_SPI 23 IRQ_TYPE_LEVEL_HIGH>;
+				reg-io-width = <1>;
+				status = "disabled";
+			};
+		};
+	};
+};

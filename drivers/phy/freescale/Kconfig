@@ -1,0 +1,49 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+if (ARCH_MXC && ARM64) || COMPILE_TEST
+
+config PHY_FSL_IMX8MQ_USB
+	tristate "Freescale i.MX8M USB3 PHY"
+	depends on OF && HAS_IOMEM
+	select GENERIC_PHY
+	default ARCH_MXC && ARM64
+
+config PHY_MIXEL_LVDS_PHY
+	tristate "Mixel LVDS PHY support"
+	depends on OF
+	select GENERIC_PHY
+	select REGMAP_MMIO
+	help
+	  Enable this to add support for the Mixel LVDS PHY as found
+	  on NXP's i.MX8qm SoC.
+
+config PHY_MIXEL_MIPI_DPHY
+	tristate "Mixel MIPI DSI PHY support"
+	depends on OF && HAS_IOMEM
+	select GENERIC_PHY
+	select GENERIC_PHY_MIPI_DPHY
+	select REGMAP_MMIO
+	help
+	  Enable this to add support for the Mixel DSI PHY as found
+	  on NXP's i.MX8 family of SOCs.
+
+config PHY_FSL_IMX8M_PCIE
+	tristate "Freescale i.MX8M PCIE PHY"
+	depends on OF && HAS_IOMEM
+	select GENERIC_PHY
+	help
+	  Enable this to add support for the PCIE PHY as found on
+	  i.MX8M family of SOCs.
+
+endif
+
+config PHY_FSL_LYNX_28G
+	tristate "Freescale Layerscape Lynx 28G SerDes PHY support"
+	depends on OF
+	depends on ARCH_LAYERSCAPE || COMPILE_TEST
+	select GENERIC_PHY
+	help
+	  Enable this to add support for the Lynx SerDes 28G PHY as
+	  found on NXP's Layerscape platforms such as LX2160A.
+	  Used to change the protocol running on SerDes lanes at runtime.
+	  Only useful for a restricted set of Ethernet protocols.

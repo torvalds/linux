@@ -1,0 +1,13 @@
+
+# SPDX-License-Identifier: GPL-2.0
+# Copyright (c) 2020, Intel Corporation. All rights reserved.
+#
+config INTEL_MEI_PXP
+	tristate "Intel PXP services of ME Interface"
+	select INTEL_MEI_ME
+	depends on DRM_I915
+	help
+	  MEI Support for PXP Services on Intel platforms.
+
+	  Enables the ME FW services required for PXP support through
+	  I915 display driver of Intel.

@@ -1,0 +1,85 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+# Copyright (C) 2022 Microchip Technology, Inc. and its subsidiaries
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/spi/atmel,at91rm9200-spi.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Atmel SPI device
+
+maintainers:
+  - Tudor Ambarus <tudor.ambarus@microchip.com>
+
+allOf:
+  - $ref: spi-controller.yaml#
+
+properties:
+  compatible:
+    oneOf:
+      - const: atmel,at91rm9200-spi
+      - items:
+          - const: microchip,sam9x60-spi
+          - const: atmel,at91rm9200-spi
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  clock-names:
+    contains:
+      const: spi_clk
+
+  clocks:
+    maxItems: 1
+
+  dmas:
+    items:
+      - description: TX DMA Channel
+      - description: RX DMA Channel
+
+  dma-names:
+    items:
+      - const: tx
+      - const: rx
+
+  atmel,fifo-size:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: |
+      Maximum number of data the RX and TX FIFOs can store for FIFO
+      capable SPI controllers.
+    enum: [ 16, 32 ]
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clock-names
+  - clocks
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+    #include <dt-bindings/interrupt-controller/irq.h>
+
+    spi1: spi@fffcc000 {
+        compatible = "atmel,at91rm9200-spi";
+        reg = <0xfffcc000 0x4000>;
+        interrupts = <13 IRQ_TYPE_LEVEL_HIGH 5>;
+        #address-cells = <1>;
+        #size-cells = <0>;
+        clocks = <&spi1_clk>;
+        clock-names = "spi_clk";
+        cs-gpios = <&pioB 3 GPIO_ACTIVE_HIGH>;
+        atmel,fifo-size = <32>;
+
+        mmc@0 {
+            compatible = "mmc-spi-slot";
+            reg = <0>;
+            gpios = <&pioC 4 GPIO_ACTIVE_HIGH>;    /* CD */
+            spi-max-frequency = <25000000>;
+        };
+    };

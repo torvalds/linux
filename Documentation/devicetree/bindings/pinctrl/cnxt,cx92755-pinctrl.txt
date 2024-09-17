@@ -1,0 +1,86 @@
+Conexant Digicolor CX92755 General Purpose Pin Mapping
+
+This document describes the device tree binding of the pin mapping hardware
+modules in the Conexant Digicolor CX92755 SoCs. The CX92755 in one of the
+Digicolor series of SoCs.
+
+=== Pin Controller Node ===
+
+Required Properties:
+
+- compatible: Must be "cnxt,cx92755-pinctrl"
+- reg: Base address of the General Purpose Pin Mapping register block and the
+  size of the block.
+- gpio-controller: Marks the device node as a GPIO controller.
+- #gpio-cells: Must be <2>. The first cell is the pin number and the
+  second cell is used to specify flags. See include/dt-bindings/gpio/gpio.h
+  for possible values.
+
+For example, the following is the bare minimum node:
+
+	pinctrl: pinctrl@f0000e20 {
+		compatible = "cnxt,cx92755-pinctrl";
+		reg = <0xf0000e20 0x100>;
+		gpio-controller;
+		#gpio-cells = <2>;
+	};
+
+As a pin controller device, in addition to the required properties, this node
+should also contain the pin configuration nodes that client devices reference,
+if any.
+
+For a general description of GPIO bindings, please refer to ../gpio/gpio.txt.
+
+=== Pin Configuration Node ===
+
+Each pin configuration node is a sub-node of the pin controller node and is a
+container of an arbitrary number of subnodes, called pin group nodes in this
+document.
+
+Please refer to the pinctrl-bindings.txt in this directory for details of the
+common pinctrl bindings used by client devices, including the definition of a
+"pin configuration node".
+
+=== Pin Group Node ===
+
+A pin group node specifies the desired pin mux for an arbitrary number of
+pins. The name of the pin group node is optional and not used.
+
+A pin group node only affects the properties specified in the node, and has no
+effect on any properties that are omitted.
+
+The pin group node accepts a subset of the generic pin config properties. For
+details generic pin config properties, please refer to pinctrl-bindings.txt
+and <include/linux/pinctrl/pinconfig-generic.h>.
+
+Required Pin Group Node Properties:
+
+- pins: Multiple strings. Specifies the name(s) of one or more pins to be
+  configured by this node. The format of a pin name string is "GP_xy", where x
+  is an uppercase character from 'A' to 'R', and y is a digit from 0 to 7.
+- function: String. Specifies the pin mux selection. Values must be one of:
+  "gpio", "client_a", "client_b", "client_c"
+
+Example:
+	pinctrl: pinctrl@f0000e20 {
+		compatible = "cnxt,cx92755-pinctrl";
+		reg = <0xf0000e20 0x100>;
+
+		uart0_default: uart0_active {
+			data_signals {
+				pins = "GP_O0", "GP_O1";
+				function = "client_b";
+			};
+		};
+	};
+
+	uart0: uart@f0000740 {
+		compatible = "cnxt,cx92755-usart";
+		...
+		pinctrl-0 = <&uart0_default>;
+		pinctrl-names = "default";
+	};
+
+In the example above, a single pin group configuration node defines the
+"client select" for the Rx and Tx signals of uart0. The uart0 node references
+that pin configuration node using the &uart0_default phandle.

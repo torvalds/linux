@@ -1,0 +1,51 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+config CRYPTO_DEV_NX_ENCRYPT
+	tristate "Encryption acceleration support on pSeries platform"
+	depends on PPC_PSERIES && IBMVIO && !CPU_LITTLE_ENDIAN
+	default y
+	select CRYPTO_AES
+	select CRYPTO_CCM
+	help
+	  Support for PowerPC Nest (NX) encryption acceleration. This
+	  module supports acceleration for AES and SHA2 algorithms on
+	  the pSeries platform.  If you choose 'M' here, this module
+	  will be called nx_crypto.
+
+config CRYPTO_DEV_NX_COMPRESS
+	tristate "Compression acceleration support"
+	default y
+	select CRYPTO_ALGAPI
+	select 842_DECOMPRESS
+	help
+	  Support for PowerPC Nest (NX) compression acceleration. This
+	  module supports acceleration for compressing memory with the 842
+	  algorithm using the cryptographic API.  One of the platform
+	  drivers must be selected also.  If you choose 'M' here, this
+	  module will be called nx_compress.
+
+if CRYPTO_DEV_NX_COMPRESS
+
+config CRYPTO_DEV_NX_COMPRESS_PSERIES
+	tristate "Compression acceleration support on pSeries platform"
+	depends on PPC_PSERIES && IBMVIO
+	depends on PPC_VAS
+	default y
+	help
+	  Support for PowerPC Nest (NX) compression acceleration. This
+	  module supports acceleration for compressing memory with the 842
+	  algorithm.  This supports NX hardware on the pSeries platform.
+	  If you choose 'M' here, this module will be called nx_compress_pseries.
+
+config CRYPTO_DEV_NX_COMPRESS_POWERNV
+	tristate "Compression acceleration support on PowerNV platform"
+	depends on PPC_POWERNV
+	depends on PPC_VAS
+	default y
+	help
+	  Support for PowerPC Nest (NX) compression acceleration. This
+	  module supports acceleration for compressing memory with the 842
+	  algorithm.  This supports NX hardware on the PowerNV platform.
+	  If you choose 'M' here, this module will be called nx_compress_powernv.
+
+endif

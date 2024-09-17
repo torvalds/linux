@@ -1,0 +1,20 @@
+Things to be done.
+
+0. Fix the bugs (see BUGS-parport).
+
+1. Proper documentation.
+
+2. A better lp.c:
+
+   a) ECP support would be nice.  This can only work if both the port and
+      the printer support it.
+
+   b) Handle status readback automatically.  IEEE1284 printers can post status
+      bits when they have something to say.  We should read out and deal 
+      with (maybe just log) whatever the printer wants to tell the world.
+
+3. Support more hardware (eg m68k, Sun bpp).
+
+4. A better PLIP (make use of bidirectional/ECP/EPP ports).
+
+See <URL:http://people.redhat.com/twaugh/parport/>.

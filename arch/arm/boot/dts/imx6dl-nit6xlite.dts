@@ -1,0 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0 OR X11
+/*
+ * Copyright 2015 Boundary Devices, Inc.
+ */
+/dts-v1/;
+
+#include "imx6dl.dtsi"
+#include "imx6qdl-nit6xlite.dtsi"
+
+/ {
+	model = "Boundary Devices i.MX6 Solo Nitrogen6_Lite Board";
+	compatible = "boundary,imx6dl-nit6xlite", "fsl,imx6dl";
+};

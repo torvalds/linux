@@ -1,0 +1,53 @@
+* Atmel Extensible Direct Memory Access Controller (XDMAC)
+
+* XDMA Controller
+Required properties:
+- compatible: Should be "atmel,sama5d4-dma", "microchip,sam9x60-dma" or
+  "microchip,sama7g5-dma".
+- reg: Should contain DMA registers location and length.
+- interrupts: Should contain DMA interrupt.
+- #dma-cells: Must be <1>, used to represent the number of integer cells in
+the dmas property of client devices.
+  - The 1st cell specifies the channel configuration register:
+    - bit 13: SIF, source interface identifier, used to get the memory
+    interface identifier,
+    - bit 14: DIF, destination interface identifier, used to get the peripheral
+    interface identifier,
+    - bit 30-24: PERID, peripheral identifier.
+
+Example:
+
+dma1: dma-controller@f0004000 {
+	compatible = "atmel,sama5d4-dma";
+	reg = <0xf0004000 0x200>;
+	interrupts = <50 4 0>;
+	#dma-cells = <1>;
+};
+
+
+* DMA clients
+DMA clients connected to the Atmel XDMA controller must use the format
+described in the dma.txt file, using a one-cell specifier for each channel.
+The two cells in order are:
+1. A phandle pointing to the DMA controller.
+2. Channel configuration register. Configurable fields are:
+    - bit 13: SIF, source interface identifier, used to get the memory
+    interface identifier,
+    - bit 14: DIF, destination interface identifier, used to get the peripheral
+    interface identifier,
+  - bit 30-24: PERID, peripheral identifier.
+
+Example:
+
+i2c2: i2c@f8024000 {
+	compatible = "atmel,at91sam9x5-i2c";
+	reg = <0xf8024000 0x4000>;
+	interrupts = <34 4 6>;
+	dmas = <&dma1
+		(AT91_XDMAC_DT_MEM_IF(0) | AT91_XDMAC_DT_PER_IF(1)
+		 | AT91_XDMAC_DT_PERID(6))>,
+	       <&dma1
+		(AT91_XDMAC_DT_MEM_IF(0) | AT91_XDMAC_DT_PER_IF(1)
+		| AT91_XDMAC_DT_PERID(7))>;
+	dma-names = "tx", "rx";
+};

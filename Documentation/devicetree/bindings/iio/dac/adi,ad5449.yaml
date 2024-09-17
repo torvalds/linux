@@ -1,0 +1,96 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/iio/dac/adi,ad5449.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Analog Devices AD5449 and similar DACs
+
+maintainers:
+  - Lars-Peter Clausen <lars@metafoo.de>
+  - Jonathan Cameron <jic23@kernel.org>
+
+description:
+  Family of multiplying DACs from Analog Devices
+
+properties:
+  compatible:
+    enum:
+      - adi,ad5415
+      - adi,ad5426
+      - adi,ad5429
+      - adi,ad5432
+      - adi,ad5439
+      - adi,ad5443
+      - adi,ad5449
+
+  reg:
+    maxItems: 1
+
+  VREF-supply: true
+  VREFA-supply: true
+  VREFB-supply: true
+
+required:
+  - compatible
+  - reg
+
+allOf:
+  - $ref: /schemas/spi/spi-peripheral-props.yaml#
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - adi,ad5415
+              - adi,ad5426
+              - adi,ad5432
+    then:
+      properties:
+        VREF-supply: true
+        VREFA-supply: false
+        VREFB-supply: false
+      required:
+        - VREF-supply
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - adi,ad5429
+              - adi,ad5439
+              - adi,ad5449
+    then:
+      properties:
+        VREF-supply: false
+        VREFA-supply: true
+        VREFB-supply: true
+      required:
+        - VREFA-supply
+        - VREFB-supply
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    spi {
+        #address-cells = <1>;
+        #size-cells = <0>;
+        dac@0 {
+            reg = <0>;
+            compatible = "adi,ad5415";
+            VREF-supply = <&dac_ref>;
+        };
+    };
+  - |
+    spi {
+        #address-cells = <1>;
+        #size-cells = <0>;
+        dac@0 {
+            reg = <0>;
+            compatible = "adi,ad5429";
+            VREFA-supply = <&dac_refA>;
+            VREFB-supply = <&dac_refB>;
+        };
+    };
+...

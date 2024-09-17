@@ -1,0 +1,19 @@
+* Alphascale asm9260 SoC Real Time Clock
+
+Required properties:
+- compatible: Should be "alphascale,asm9260-rtc"
+- reg: Physical base address of the controller and length
+       of memory mapped region.
+- interrupts: IRQ line for the RTC.
+- clocks: Reference to the clock entry.
+- clock-names: should contain:
+  * "ahb" for the SoC RTC clock
+
+Example:
+rtc0: rtc@800a0000 {
+	compatible = "alphascale,asm9260-rtc";
+	reg = <0x800a0000 0x100>;
+	clocks = <&acc CLKID_AHB_RTC>;
+	clock-names = "ahb";
+	interrupts = <2>;
+};

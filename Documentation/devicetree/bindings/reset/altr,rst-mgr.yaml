@@ -1,0 +1,47 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/reset/altr,rst-mgr.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Altera SOCFPGA Reset Manager
+
+maintainers:
+  - Dinh Nguyen <dinguyen@altera.com>
+
+properties:
+  compatible:
+    oneOf:
+      - description: Cyclone5/Arria5/Arria10
+        const: altr,rst-mgr
+      - description: Stratix10 ARM64 SoC
+        items:
+          - const: altr,stratix10-rst-mgr
+          - const: altr,rst-mgr
+
+  reg:
+    maxItems: 1
+
+  altr,modrst-offset:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: Offset of the first modrst register
+
+  '#reset-cells':
+    const: 1
+
+required:
+  - compatible
+  - reg
+  - altr,modrst-offset
+  - '#reset-cells'
+
+additionalProperties: false
+
+examples:
+  - |
+    rstmgr@ffd05000 {
+        compatible = "altr,rst-mgr";
+        reg = <0xffd05000 0x1000>;
+        altr,modrst-offset = <0x10>;
+        #reset-cells = <1>;
+    };

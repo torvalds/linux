@@ -1,0 +1,142 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Device Tree file for Marvell Armada 390 Development Board
+ * (DB-88F6920)
+ *
+ * Copyright (C) 2016 Marvell
+ *
+ * Grzegorz Jaszczyk <jaz@semihalf.com>
+ */
+
+/dts-v1/;
+#include "armada-390.dtsi"
+
+/ {
+	model = "Marvell Armada 390 Development Board";
+	compatible = "marvell,a390-db", "marvell,armada390";
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
+	memory {
+		device_type = "memory";
+		reg = <0x00000000 0x80000000>; /* 2 GB */
+	};
+
+	soc {
+		ranges = <MBUS_ID(0xf0, 0x01) 0 0xf1000000 0x100000
+			  MBUS_ID(0x01, 0x1d) 0 0xfff00000 0x100000>;
+
+		internal-regs {
+			i2c@11000 {
+				status = "okay";
+				clock-frequency = <100000>;
+
+				eeprom@50 {
+					compatible = "atmel,24c64";
+					reg = <0x50>;
+				};
+			};
+
+			/* CON104 */
+			serial@12000 {
+				status = "okay";
+			};
+
+			/* CON97 */
+			usb@58000 {
+				status = "okay";
+			};
+
+			/* CON98 */
+			usb3@f8000 {
+				status = "okay";
+			};
+		};
+
+		pcie {
+			status = "okay";
+
+			/* CON30 */
+			pcie@1,0 {
+				status = "okay";
+			};
+
+			/* CON44 */
+			pcie@2,0 {
+				status = "okay";
+			};
+
+			/* CON61 */
+			pcie@3,0 {
+				status = "okay";
+			};
+		};
+	};
+};
+
+&spi1 {
+	status = "okay";
+	pinctrl-0 = <&spi1_pins>;
+	pinctrl-names = "default";
+
+	flash@1 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "n25q128a13",
+			     "jedec,spi-nor";
+		reg = <0>; /* Chip select 0 */
+		spi-max-frequency = <108000000>;
+
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			partition@0 {
+				label = "U-Boot";
+				reg = <0 0x400000>;
+			};
+			partition@400000 {
+				label = "Filesystem";
+				reg = <0x400000 0xc00000>;
+			};
+		};
+	};
+};
+
+&nand_controller {
+	status = "okay";
+	pinctrl-0 = <&nand_pins>;
+	pinctrl-names = "default";
+
+	nand@0 {
+		reg = <0>;
+		label = "pxa3xx_nand-0";
+		nand-rb = <0>;
+		marvell,nand-keep-config;
+		nand-on-flash-bbt;
+		nand-ecc-strength = <8>;
+		nand-ecc-step-size = <512>;
+
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			partition@0 {
+				label = "U-Boot";
+				reg = <0 0x800000>;
+			};
+			partition@800000 {
+				label = "Linux";
+				reg = <0x800000 0x800000>;
+			};
+			partition@1000000 {
+				label = "Filesystem";
+				reg = <0x1000000 0x3f000000>;
+			};
+		};
+	};
+};

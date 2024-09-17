@@ -1,0 +1,57 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/iio/magnetometer/asahi-kasei,ak8974.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Asahi Kasei AK8974 magnetometer sensor
+
+maintainers:
+  - Linus Walleij <linus.walleij@linaro.org>
+
+properties:
+  compatible:
+    enum:
+      - alps,hscdtd008a
+      - asahi-kasei,ak8974
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    minItems: 1
+    maxItems: 2
+    description: |
+      Data ready (DRDY) and interrupt (INT1) lines from the chip. The DRDY
+      interrupt must be placed first. The interrupts can be triggered on
+      rising or falling edges.
+
+  avdd-supply: true
+
+  dvdd-supply: true
+
+  mount-matrix: true
+
+additionalProperties: false
+
+required:
+  - compatible
+  - reg
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        magnetometer@f {
+            compatible = "asahi-kasei,ak8974";
+            reg = <0x0f>;
+            avdd-supply = <&foo_reg>;
+            dvdd-supply = <&bar_reg>;
+            interrupts = <0 IRQ_TYPE_EDGE_RISING>,
+                         <1 IRQ_TYPE_EDGE_RISING>;
+        };
+    };
+...

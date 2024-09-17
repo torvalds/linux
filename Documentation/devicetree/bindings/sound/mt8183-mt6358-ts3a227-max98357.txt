@@ -1,0 +1,25 @@
+MT8183 with MT6358, TS3A227, MAX98357, and RT1015 CODECS
+
+Required properties:
+- compatible : "mediatek,mt8183_mt6358_ts3a227_max98357" for MAX98357A codec
+               "mediatek,mt8183_mt6358_ts3a227_max98357b" for MAX98357B codec
+               "mediatek,mt8183_mt6358_ts3a227_rt1015" for RT1015 codec
+               "mediatek,mt8183_mt6358_ts3a227_rt1015p" for RT1015P codec
+- mediatek,platform: the phandle of MT8183 ASoC platform
+
+Optional properties:
+- mediatek,headset-codec: the phandles of ts3a227 codecs
+- mediatek,ec-codec: the phandle of EC codecs.
+                     See google,cros-ec-codec.txt for more details.
+- mediatek,hdmi-codec: the phandles of HDMI codec
+
+Example:
+
+	sound {
+		compatible = "mediatek,mt8183_mt6358_ts3a227_max98357";
+		mediatek,headset-codec = <&ts3a227>;
+		mediatek,ec-codec = <&ec_codec>;
+		mediatek,hdmi-codec = <&it6505dptx>;
+		mediatek,platform = <&afe>;
+	};
+

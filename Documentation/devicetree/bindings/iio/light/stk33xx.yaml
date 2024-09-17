@@ -1,0 +1,57 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/iio/light/stk33xx.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: |
+  Sensortek STK33xx I2C Ambient Light and Proximity sensor
+
+maintainers:
+  - Jonathan Cameron <jic23@kernel.org>
+
+description: |
+  Ambient light and proximity sensor over an i2c interface.
+
+allOf:
+  - $ref: ../common.yaml#
+
+properties:
+  compatible:
+    enum:
+      - sensortek,stk3310
+      - sensortek,stk3311
+      - sensortek,stk3335
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  proximity-near-level: true
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+
+    i2c {
+
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        stk3310@48 {
+                compatible = "sensortek,stk3310";
+                reg = <0x48>;
+                proximity-near-level = <25>;
+                interrupt-parent = <&gpio1>;
+                interrupts = <5 IRQ_TYPE_LEVEL_LOW>;
+        };
+    };
+...

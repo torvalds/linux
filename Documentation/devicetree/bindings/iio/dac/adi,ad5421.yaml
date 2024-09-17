@@ -1,0 +1,52 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/iio/dac/adi,ad5421.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Analog Devices AD5421 DAC
+
+maintainers:
+  - Lars-Peter Clausen <lars@metafoo.de>
+  - Jonathan Cameron <jic23@kernel.org>
+
+description: |
+  AD5421 is designed for us in loop-powered, 4 mA to 20 mA smart transmitter
+  applications. It provides a 16-bit DAC, current amplifier, voltage regulator
+  to drive the loop and a voltage reference.
+
+properties:
+  compatible:
+    const: adi,ad5421
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+    description: Fault signal.
+
+required:
+  - compatible
+  - reg
+
+allOf:
+  - $ref: /schemas/spi/spi-peripheral-props.yaml#
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+    spi {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        dac@0 {
+            compatible = "adi,ad5421";
+            reg = <0>;
+            spi-max-frequency = <30000000>;
+            interrupts = <55 IRQ_TYPE_LEVEL_HIGH>;
+        };
+    };
+...

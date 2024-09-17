@@ -1,0 +1,85 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/regulator/onnn,fan53880.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Onsemi FAN53880 PMIC
+
+maintainers:
+  - Christoph Fritz <chf.fritz@googlemail.com>
+
+description: |
+  The FAN53880 is an I2C porgrammable power management IC (PMIC)
+  that contains a BUCK (step-down converter), four low dropouts (LDO)
+  and one BOOST (step-up converter) output. It is designed for mobile
+  power applications.
+
+properties:
+  $nodename:
+    pattern: "pmic@[0-9a-f]{1,2}"
+  compatible:
+    enum:
+      - onnn,fan53880
+
+  reg:
+    maxItems: 1
+
+  VIN12-supply:
+    description: Input supply phandle(s) for LDO1 and LDO2
+
+  VIN3-supply:
+    description: Input supply phandle(s) for LDO3
+
+  VIN4-supply:
+    description: Input supply phandle(s) for LDO4
+
+  PVIN-supply:
+    description: Input supply phandle(s) for BUCK and BOOST
+
+  regulators:
+    type: object
+    $ref: regulator.yaml#
+    description: |
+      list of regulators provided by this controller, must be named
+      after their hardware counterparts LDO[1-4], BUCK and BOOST
+
+    patternProperties:
+      "^LDO[1-4]$":
+        type: object
+        $ref: regulator.yaml#
+
+      "^BUCK|BOOST$":
+        type: object
+        $ref: regulator.yaml#
+
+    additionalProperties: false
+
+required:
+  - compatible
+  - reg
+  - regulators
+
+additionalProperties: false
+
+examples:
+  - |
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        pmic@35 {
+            compatible = "onnn,fan53880";
+            reg = <0x35>;
+
+            PVIN-supply = <&fixreg_example_vcc>;
+
+            regulators {
+                BUCK {
+                    regulator-min-microvolt = <1200000>;
+                    regulator-max-microvolt = <1200000>;
+                };
+            };
+       };
+     };
+...

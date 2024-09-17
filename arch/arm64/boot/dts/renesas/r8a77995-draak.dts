@@ -1,0 +1,16 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Device Tree Source for the Draak board with R-Car D3
+ *
+ * Copyright (C) 2016-2018 Renesas Electronics Corp.
+ * Copyright (C) 2017 Glider bvba
+ */
+
+/dts-v1/;
+#include "r8a77995.dtsi"
+#include "draak.dtsi"
+
+/ {
+	model = "Renesas Draak board based on r8a77995";
+	compatible = "renesas,draak", "renesas,r8a77995";
+};

@@ -1,0 +1,79 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/memory-controllers/nvidia,tegra20-mc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: NVIDIA Tegra20 SoC Memory Controller
+
+maintainers:
+  - Dmitry Osipenko <digetx@gmail.com>
+  - Jon Hunter <jonathanh@nvidia.com>
+  - Thierry Reding <thierry.reding@gmail.com>
+
+description: |
+  The Tegra20 Memory Controller merges request streams from various client
+  interfaces into request stream(s) for the various memory target devices,
+  and returns response data to the various clients. The Memory Controller
+  has a configurable arbitration algorithm to allow the user to fine-tune
+  performance among the various clients.
+
+  Tegra20 Memory Controller includes the GART (Graphics Address Relocation
+  Table) which allows Memory Controller to provide a linear view of a
+  fragmented memory pages.
+
+properties:
+  compatible:
+    const: nvidia,tegra20-mc-gart
+
+  reg:
+    items:
+      - description: controller registers
+      - description: GART registers
+
+  clocks:
+    maxItems: 1
+
+  clock-names:
+    items:
+      - const: mc
+
+  interrupts:
+    maxItems: 1
+
+  "#reset-cells":
+    const: 1
+
+  "#iommu-cells":
+    const: 0
+
+  "#interconnect-cells":
+    const: 1
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+  - clock-names
+  - "#reset-cells"
+  - "#iommu-cells"
+  - "#interconnect-cells"
+
+additionalProperties: false
+
+examples:
+  - |
+    memory-controller@7000f000 {
+        compatible = "nvidia,tegra20-mc-gart";
+        reg = <0x7000f000 0x400>,	/* Controller registers */
+              <0x58000000 0x02000000>;	/* GART aperture */
+        clocks = <&clock_controller 32>;
+        clock-names = "mc";
+
+        interrupts = <0 77 4>;
+
+        #iommu-cells = <0>;
+        #reset-cells = <1>;
+        #interconnect-cells = <1>;
+    };

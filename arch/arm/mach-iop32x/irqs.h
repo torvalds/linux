@@ -1,0 +1,48 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
+/*
+ * Author:	Rory Bolt <rorybolt@pacbell.net>
+ * Copyright:	(C) 2002 Rory Bolt
+ */
+
+#ifndef __IOP32X_IRQS_H
+#define __IOP32X_IRQS_H
+
+/* Interrupts in Linux start at 1, hardware starts at 0 */
+
+#define IOP_IRQ(x) ((x) + 1)
+
+/*
+ * IOP80321 chipset interrupts
+ */
+#define IRQ_IOP32X_DMA0_EOT	IOP_IRQ(0)
+#define IRQ_IOP32X_DMA0_EOC	IOP_IRQ(1)
+#define IRQ_IOP32X_DMA1_EOT	IOP_IRQ(2)
+#define IRQ_IOP32X_DMA1_EOC	IOP_IRQ(3)
+#define IRQ_IOP32X_AA_EOT	IOP_IRQ(6)
+#define IRQ_IOP32X_AA_EOC	IOP_IRQ(7)
+#define IRQ_IOP32X_CORE_PMON	IOP_IRQ(8)
+#define IRQ_IOP32X_TIMER0	IOP_IRQ(9)
+#define IRQ_IOP32X_TIMER1	IOP_IRQ(10)
+#define IRQ_IOP32X_I2C_0	IOP_IRQ(11)
+#define IRQ_IOP32X_I2C_1	IOP_IRQ(12)
+#define IRQ_IOP32X_MESSAGING	IOP_IRQ(13)
+#define IRQ_IOP32X_ATU_BIST	IOP_IRQ(14)
+#define IRQ_IOP32X_PERFMON	IOP_IRQ(15)
+#define IRQ_IOP32X_CORE_PMU	IOP_IRQ(16)
+#define IRQ_IOP32X_BIU_ERR	IOP_IRQ(17)
+#define IRQ_IOP32X_ATU_ERR	IOP_IRQ(18)
+#define IRQ_IOP32X_MCU_ERR	IOP_IRQ(19)
+#define IRQ_IOP32X_DMA0_ERR	IOP_IRQ(20)
+#define IRQ_IOP32X_DMA1_ERR	IOP_IRQ(21)
+#define IRQ_IOP32X_AA_ERR	IOP_IRQ(23)
+#define IRQ_IOP32X_MSG_ERR	IOP_IRQ(24)
+#define IRQ_IOP32X_SSP		IOP_IRQ(25)
+#define IRQ_IOP32X_XINT0	IOP_IRQ(27)
+#define IRQ_IOP32X_XINT1	IOP_IRQ(28)
+#define IRQ_IOP32X_XINT2	IOP_IRQ(29)
+#define IRQ_IOP32X_XINT3	IOP_IRQ(30)
+#define IRQ_IOP32X_HPI		IOP_IRQ(31)
+
+#define IOP32X_NR_IRQS		(IRQ_IOP32X_HPI + 1)
+
+#endif

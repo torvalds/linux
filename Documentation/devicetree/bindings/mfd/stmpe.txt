@@ -1,0 +1,42 @@
+* ST Microelectronics STMPE Multi-Functional Device
+
+STMPE is an MFD device which may expose the following inbuilt devices: gpio,
+keypad, touchscreen, adc, pwm, rotator.
+
+Required properties:
+ - compatible			: "st,stmpe[610|801|811|1600|1601|2401|2403]"
+ - reg				: I2C/SPI address of the device
+
+Optional properties:
+ - interrupts			: The interrupt outputs from the controller
+ - interrupt-controller		: Marks the device node as an interrupt controller
+ - wakeup-source		: Marks the input device as wakable
+ - st,autosleep-timeout		: Valid entries (ms); 4, 16, 32, 64, 128, 256, 512 and 1024
+ - irq-gpio			: If present, which GPIO to use for event IRQ
+
+Optional properties for devices with touch and ADC (STMPE811|STMPE610):
+ - st,sample-time		: ADC conversion time in number of clock.
+					0 -> 36 clocks		4 -> 80 clocks (recommended)
+					1 -> 44 clocks		5 -> 96 clocks
+					2 -> 56 clocks		6 -> 124 clocks
+					3 -> 64 clocks
+ - st,mod-12b			: ADC Bit mode
+					0 -> 10bit ADC		1 -> 12bit ADC
+ - st,ref-sel			: ADC reference source
+					0 -> internal		1 -> external
+ - st,adc-freq			: ADC Clock speed
+					0 -> 1.625 MHz		2 || 3 -> 6.5 MHz
+					1 -> 3.25 MHz
+
+Example:
+
+	stmpe1601: stmpe1601@40 {
+		compatible = "st,stmpe1601";
+		reg = <0x40>;
+		interrupts = <26 0x4>;
+		interrupt-parent = <&gpio6>;
+		interrupt-controller;
+
+		wakeup-source;
+		st,autosleep-timeout = <1024>;
+	};

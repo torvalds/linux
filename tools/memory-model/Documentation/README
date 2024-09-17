@@ -1,0 +1,76 @@
+It has been said that successful communication requires first identifying
+what your audience knows and then building a bridge from their current
+knowledge to what they need to know.  Unfortunately, the expected
+Linux-kernel memory model (LKMM) audience might be anywhere from novice
+to expert both in kernel hacking and in understanding LKMM.
+
+This document therefore points out a number of places to start reading,
+depending on what you know and what you would like to learn.  Please note
+that the documents later in this list assume that the reader understands
+the material provided by documents earlier in this list.
+
+o	You are new to Linux-kernel concurrency: simple.txt
+
+o	You have some background in Linux-kernel concurrency, and would
+	like an overview of the types of low-level concurrency primitives
+	that the Linux kernel provides:  ordering.txt
+
+	Here, "low level" means atomic operations to single variables.
+
+o	You are familiar with the Linux-kernel concurrency primitives
+	that you need, and just want to get started with LKMM litmus
+	tests:  litmus-tests.txt
+
+o	You are familiar with Linux-kernel concurrency, and would
+	like a detailed intuitive understanding of LKMM, including
+	situations involving more than two threads:  recipes.txt
+
+o	You would like a detailed understanding of what your compiler can
+	and cannot do to control dependencies:  control-dependencies.txt
+
+o	You are familiar with Linux-kernel concurrency and the use of
+	LKMM, and would like a quick reference:  cheatsheet.txt
+
+o	You are familiar with Linux-kernel concurrency and the use
+	of LKMM, and would like to learn about LKMM's requirements,
+	rationale, and implementation:	explanation.txt
+
+o	You are interested in the publications related to LKMM, including
+	hardware manuals, academic literature, standards-committee
+	working papers, and LWN articles:  references.txt
+
+
+====================
+DESCRIPTION OF FILES
+====================
+
+README
+	This file.
+
+cheatsheet.txt
+	Quick-reference guide to the Linux-kernel memory model.
+
+control-dependencies.txt
+	Guide to preventing compiler optimizations from destroying
+	your control dependencies.
+
+explanation.txt
+	Detailed description of the memory model.
+
+litmus-tests.txt
+	The format, features, capabilities, and limitations of the litmus
+	tests that LKMM can evaluate.
+
+ordering.txt
+	Overview of the Linux kernel's low-level memory-ordering
+	primitives by category.
+
+recipes.txt
+	Common memory-ordering patterns.
+
+references.txt
+	Background information.
+
+simple.txt
+	Starting point for someone new to Linux-kernel concurrency.
+	And also a reminder of the simpler approaches to concurrency!

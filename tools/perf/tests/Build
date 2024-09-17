@@ -1,0 +1,107 @@
+# SPDX-License-Identifier: GPL-2.0
+
+perf-y += builtin-test.o
+perf-y += builtin-test-list.o
+perf-y += parse-events.o
+perf-y += dso-data.o
+perf-y += attr.o
+perf-y += vmlinux-kallsyms.o
+perf-y += openat-syscall.o
+perf-y += openat-syscall-all-cpus.o
+perf-y += openat-syscall-tp-fields.o
+perf-y += mmap-basic.o
+perf-y += perf-record.o
+perf-y += evsel-roundtrip-name.o
+perf-y += evsel-tp-sched.o
+perf-y += fdarray.o
+perf-y += pmu.o
+perf-y += pmu-events.o
+perf-y += hists_common.o
+perf-y += hists_link.o
+perf-y += hists_filter.o
+perf-y += hists_output.o
+perf-y += hists_cumulate.o
+perf-y += python-use.o
+perf-y += bp_signal.o
+perf-y += bp_signal_overflow.o
+perf-y += bp_account.o
+perf-y += wp.o
+perf-y += task-exit.o
+perf-y += sw-clock.o
+perf-y += mmap-thread-lookup.o
+perf-y += thread-maps-share.o
+perf-y += switch-tracking.o
+perf-y += keep-tracking.o
+perf-y += code-reading.o
+perf-y += sample-parsing.o
+perf-y += parse-no-sample-id-all.o
+perf-y += kmod-path.o
+perf-y += thread-map.o
+perf-y += llvm.o llvm-src-base.o llvm-src-kbuild.o llvm-src-prologue.o llvm-src-relocation.o
+perf-y += bpf.o
+perf-y += topology.o
+perf-y += mem.o
+perf-y += cpumap.o
+perf-y += stat.o
+perf-y += event_update.o
+perf-y += event-times.o
+perf-y += expr.o
+perf-y += backward-ring-buffer.o
+perf-y += sdt.o
+perf-y += is_printable_array.o
+perf-y += bitmap.o
+perf-y += perf-hooks.o
+perf-y += clang.o
+perf-y += unit_number__scnprintf.o
+perf-y += mem2node.o
+perf-y += maps.o
+perf-y += time-utils-test.o
+perf-y += genelf.o
+perf-y += api-io.o
+perf-y += demangle-java-test.o
+perf-y += demangle-ocaml-test.o
+perf-y += pfm.o
+perf-y += parse-metric.o
+perf-y += pe-file-parsing.o
+perf-y += expand-cgroup.o
+perf-y += perf-time-to-tsc.o
+perf-y += dlfilter-test.o
+perf-y += sigtrap.o
+
+$(OUTPUT)tests/llvm-src-base.c: tests/bpf-script-example.c tests/Build
+	$(call rule_mkdir)
+	$(Q)echo '#include <tests/llvm.h>' > $@
+	$(Q)echo 'const char test_llvm__bpf_base_prog[] =' >> $@
+	$(Q)sed -e 's/"/\\"/g' -e 's/\(.*\)/"\1\\n"/g' $< >> $@
+	$(Q)echo ';' >> $@
+
+$(OUTPUT)tests/llvm-src-kbuild.c: tests/bpf-script-test-kbuild.c tests/Build
+	$(call rule_mkdir)
+	$(Q)echo '#include <tests/llvm.h>' > $@
+	$(Q)echo 'const char test_llvm__bpf_test_kbuild_prog[] =' >> $@
+	$(Q)sed -e 's/"/\\"/g' -e 's/\(.*\)/"\1\\n"/g' $< >> $@
+	$(Q)echo ';' >> $@
+
+$(OUTPUT)tests/llvm-src-prologue.c: tests/bpf-script-test-prologue.c tests/Build
+	$(call rule_mkdir)
+	$(Q)echo '#include <tests/llvm.h>' > $@
+	$(Q)echo 'const char test_llvm__bpf_test_prologue_prog[] =' >> $@
+	$(Q)sed -e 's/"/\\"/g' -e 's/\(.*\)/"\1\\n"/g' $< >> $@
+	$(Q)echo ';' >> $@
+
+$(OUTPUT)tests/llvm-src-relocation.c: tests/bpf-script-test-relocation.c tests/Build
+	$(call rule_mkdir)
+	$(Q)echo '#include <tests/llvm.h>' > $@
+	$(Q)echo 'const char test_llvm__bpf_test_relocation[] =' >> $@
+	$(Q)sed -e 's/"/\\"/g' -e 's/\(.*\)/"\1\\n"/g' $< >> $@
+	$(Q)echo ';' >> $@
+
+ifeq ($(SRCARCH),$(filter $(SRCARCH),x86 arm arm64 powerpc))
+perf-$(CONFIG_DWARF_UNWIND) += dwarf-unwind.o
+endif
+
+CFLAGS_attr.o         += -DBINDIR="BUILD_STR($(bindir_SQ))" -DPYTHON="BUILD_STR($(PYTHON_WORD))"
+CFLAGS_python-use.o   += -DPYTHONPATH="BUILD_STR($(OUTPUT)python)" -DPYTHON="BUILD_STR($(PYTHON_WORD))"
+CFLAGS_dwarf-unwind.o += -fno-optimize-sibling-calls
+
+perf-y += workloads/

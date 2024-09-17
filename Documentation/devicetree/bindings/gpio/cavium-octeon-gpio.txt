@@ -1,0 +1,49 @@
+* General Purpose Input Output (GPIO) bus.
+
+Properties:
+- compatible: "cavium,octeon-3860-gpio"
+
+  Compatibility with all cn3XXX, cn5XXX and cn6XXX SOCs.
+
+- reg: The base address of the GPIO unit's register bank.
+
+- gpio-controller: This is a GPIO controller.
+
+- #gpio-cells: Must be <2>.  The first cell is the GPIO pin.
+
+- interrupt-controller: The GPIO controller is also an interrupt
+  controller, many of its pins may be configured as an interrupt
+  source.
+
+- #interrupt-cells: Must be <2>.  The first cell is the GPIO pin
+   connected to the interrupt source.  The second cell is the interrupt
+   triggering protocol and may have one of four values:
+   1 - edge triggered on the rising edge.
+   2 - edge triggered on the falling edge
+   4 - level triggered active high.
+   8 - level triggered active low.
+
+- interrupts: Interrupt routing for each pin.
+
+Example:
+
+	gpio-controller@1070000000800 {
+		#gpio-cells = <2>;
+		compatible = "cavium,octeon-3860-gpio";
+		reg = <0x10700 0x00000800 0x0 0x100>;
+		gpio-controller;
+		/* Interrupts are specified by two parts:
+		 * 1) GPIO pin number (0..15)
+		 * 2) Triggering (1 - edge rising
+		 *		  2 - edge falling
+		 *		  4 - level active high
+		 *		  8 - level active low)
+		 */
+		interrupt-controller;
+		#interrupt-cells = <2>;
+		/* The GPIO pin connect to 16 consecutive CUI bits */
+		interrupts = <0 16>, <0 17>, <0 18>, <0 19>,
+			     <0 20>, <0 21>, <0 22>, <0 23>,
+			     <0 24>, <0 25>, <0 26>, <0 27>,
+			     <0 28>, <0 29>, <0 30>, <0 31>;
+	};

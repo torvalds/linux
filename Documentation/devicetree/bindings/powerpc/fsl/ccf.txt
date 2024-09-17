@@ -1,0 +1,46 @@
+Freescale CoreNet Coherency Fabric(CCF) Device Tree Binding
+
+DESCRIPTION
+
+The CoreNet coherency fabric is a fabric-oriented, connectivity infrastructure
+that enables the implementation of coherent, multicore systems.
+
+Required properties:
+
+- compatible: <string list>
+		fsl,corenet1-cf - CoreNet coherency fabric version 1.
+		Example chips: T4240, B4860
+
+		fsl,corenet2-cf - CoreNet coherency fabric version 2.
+		Example chips: P5040, P5020, P4080, P3041, P2041
+
+		fsl,corenet-cf - Used to represent the common registers
+		between CCF version 1 and CCF version 2.  This compatible
+		is retained for compatibility reasons, as it was already
+		used for both CCF version 1 chips and CCF version 2
+		chips.  It should be specified after either
+		"fsl,corenet1-cf" or "fsl,corenet2-cf".
+
+- reg: <prop-encoded-array>
+		A standard property. Represents the CCF registers.
+
+- interrupts: <prop-encoded-array>
+		Interrupt mapping for CCF error interrupt.
+
+- fsl,ccf-num-csdids: <u32>
+		Specifies the number of Coherency Subdomain ID Port Mapping
+		Registers that are supported by the CCF.
+
+- fsl,ccf-num-snoopids: <u32>
+		Specifies the number of Snoop ID Port Mapping Registers that
+		are supported by CCF.
+
+Example:
+
+	corenet-cf@18000 {
+		compatible = "fsl,corenet2-cf", "fsl,corenet-cf";
+		reg = <0x18000 0x1000>;
+		interrupts = <16 2 1 31>;
+		fsl,ccf-num-csdids = <32>;
+		fsl,ccf-num-snoopids = <32>;
+	};

@@ -1,0 +1,66 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/mmc/synopsys-dw-mshc-common.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Synopsys Designware Mobile Storage Host Controller Common Properties
+
+allOf:
+  - $ref: "mmc-controller.yaml#"
+
+maintainers:
+  - Ulf Hansson <ulf.hansson@linaro.org>
+
+# Everything else is described in the common file
+properties:
+  resets:
+    maxItems: 1
+
+  reset-names:
+    const: reset
+
+  clock-frequency:
+    description:
+      Should be the frequency (in Hz) of the ciu clock.  If this
+      is specified and the ciu clock is specified then we'll try to set the ciu
+      clock to this at probe time.
+
+  fifo-depth:
+    description:
+      The maximum size of the tx/rx fifo's. If this property is not
+      specified, the default value of the fifo size is determined from the
+      controller registers.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  card-detect-delay:
+    description:
+      Delay in milli-seconds before detecting card after card
+      insert event. The default value is 0.
+    $ref: /schemas/types.yaml#/definitions/uint32
+    default: 0
+
+  data-addr:
+    description:
+      Override fifo address with value provided by DT. The default FIFO reg
+      offset is assumed as 0x100 (version < 0x240A) and 0x200(version >= 0x240A)
+      by driver. If the controller does not follow this rule, please use
+      this property to set fifo address in device tree.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  fifo-watermark-aligned:
+    description:
+      Data done irq is expected if data length is less than
+      watermark in PIO mode. But fifo watermark is requested to be aligned
+      with data length in some SoC so that TX/RX irq can be generated with
+      data done irq. Add this watermark quirk to mark this requirement and
+      force fifo watermark setting accordingly.
+    $ref: /schemas/types.yaml#/definitions/flag
+
+  dmas:
+    maxItems: 1
+
+  dma-names:
+    const: rx-tx
+
+additionalProperties: true

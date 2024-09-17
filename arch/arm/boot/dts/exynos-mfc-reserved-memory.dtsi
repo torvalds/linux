@@ -1,0 +1,32 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Samsung's Exynos SoC MFC (Video Codec) reserved memory common definition.
+ *
+ * Copyright (c) 2016 Samsung Electronics Co., Ltd
+ */
+
+/ {
+	reserved-memory {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		mfc_left: region-mfc-left {
+			compatible = "shared-dma-pool";
+			no-map;
+			size = <0x2400000>;
+			alignment = <0x100000>;
+		};
+
+		mfc_right: region-mfc-right {
+			compatible = "shared-dma-pool";
+			no-map;
+			size = <0x800000>;
+			alignment = <0x100000>;
+		};
+	};
+};
+
+&mfc {
+	memory-region = <&mfc_left>, <&mfc_right>;
+};

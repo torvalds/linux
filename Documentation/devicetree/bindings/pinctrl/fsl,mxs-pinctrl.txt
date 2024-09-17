@@ -1,0 +1,127 @@
+* Freescale MXS Pin Controller
+
+The pins controlled by mxs pin controller are organized in banks, each bank
+has 32 pins.  Each pin has 4 multiplexing functions, and generally, the 4th
+function is GPIO.  The configuration on the pins includes drive strength,
+voltage and pull-up.
+
+Required properties:
+- compatible: "fsl,imx23-pinctrl" or "fsl,imx28-pinctrl"
+- reg: Should contain the register physical address and length for the
+  pin controller.
+
+Please refer to pinctrl-bindings.txt in this directory for details of the
+common pinctrl bindings used by client devices.
+
+The node of mxs pin controller acts as a container for an arbitrary number of
+subnodes.  Each of these subnodes represents some desired configuration for
+a group of pins, and only affects those parameters that are explicitly listed.
+In other words, a subnode that describes a drive strength parameter implies no
+information about pull-up. For this reason, even seemingly boolean values are
+actually tristates in this binding: unspecified, off, or on. Unspecified is
+represented as an absent property, and off/on are represented as integer
+values 0 and 1.
+
+Those subnodes under mxs pin controller node will fall into two categories.
+One is to set up a group of pins for a function, both mux selection and pin
+configurations, and it's called group node in the binding document.   The other
+one is to adjust the pin configuration for some particular pins that need a
+different configuration than what is defined in group node.  The binding
+document calls this type of node config node.
+
+On mxs, there is no hardware pin group. The pin group in this binding only
+means a group of pins put together for particular peripheral to work in
+particular function, like SSP0 functioning as mmc0-8bit.  That said, the
+group node should include all the pins needed for one function rather than
+having these pins defined in several group nodes.  It also means each of
+"pinctrl-*" phandle in client device node should only have one group node
+pointed in there, while the phandle can have multiple config node referenced
+there to adjust configurations for some pins in the group.
+
+Required subnode-properties:
+- fsl,pinmux-ids: An integer array.  Each integer in the array specify a pin
+  with given mux function, with bank, pin and mux packed as below.
+
+    [15..12] : bank number
+    [11..4]  : pin number
+    [3..0]   : mux selection
+
+  This integer with mux selection packed is used as an entity by both group
+  and config nodes to identify a pin.  The mux selection in the integer takes
+  effects only on group node, and will get ignored by driver with config node,
+  since config node is only meant to set up pin configurations.
+
+  Valid values for these integers are listed below.
+
+- reg: Should be the index of the group nodes for same function.  This property
+  is required only for group nodes, and should not be present in any config
+  nodes.
+
+Optional subnode-properties:
+- fsl,drive-strength: Integer.
+    0: MXS_DRIVE_4mA
+    1: MXS_DRIVE_8mA
+    2: MXS_DRIVE_12mA
+    3: MXS_DRIVE_16mA
+- fsl,voltage: Integer.
+    0: MXS_VOLTAGE_LOW  - 1.8 V
+    1: MXS_VOLTAGE_HIGH - 3.3 V
+- fsl,pull-up: Integer.
+    0: MXS_PULL_DISABLE - Disable the internal pull-up
+    1: MXS_PULL_ENABLE  - Enable the internal pull-up
+
+Note that when enabling the pull-up, the internal pad keeper gets disabled.
+Also, some pins doesn't have a pull up, in that case, setting the fsl,pull-up
+will only disable the internal pad keeper.
+
+Examples:
+
+pinctrl@80018000 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	compatible = "fsl,imx28-pinctrl";
+	reg = <0x80018000 2000>;
+
+	mmc0_8bit_pins_a: mmc0-8bit@0 {
+		reg = <0>;
+		fsl,pinmux-ids = <
+			MX28_PAD_SSP0_DATA0__SSP0_D0
+			MX28_PAD_SSP0_DATA1__SSP0_D1
+			MX28_PAD_SSP0_DATA2__SSP0_D2
+			MX28_PAD_SSP0_DATA3__SSP0_D3
+			MX28_PAD_SSP0_DATA4__SSP0_D4
+			MX28_PAD_SSP0_DATA5__SSP0_D5
+			MX28_PAD_SSP0_DATA6__SSP0_D6
+			MX28_PAD_SSP0_DATA7__SSP0_D7
+			MX28_PAD_SSP0_CMD__SSP0_CMD
+			MX28_PAD_SSP0_DETECT__SSP0_CARD_DETECT
+			MX28_PAD_SSP0_SCK__SSP0_SCK
+		>;
+		fsl,drive-strength = <MXS_DRIVE_4mA>;
+		fsl,voltage = <MXS_VOLTAGE_HIGH>;
+		fsl,pull-up = <MXS_PULL_ENABLE>;
+	};
+
+	mmc_cd_cfg: mmc-cd-cfg {
+		fsl,pinmux-ids = <MX28_PAD_SSP0_DETECT__SSP0_CARD_DETECT>;
+		fsl,pull-up = <MXS_PULL_DISABLE>;
+	};
+
+	mmc_sck_cfg: mmc-sck-cfg {
+		fsl,pinmux-ids = <MX28_PAD_SSP0_SCK__SSP0_SCK>;
+		fsl,drive-strength = <MXS_DRIVE_12mA>;
+		fsl,pull-up = <MXS_PULL_DISABLE>;
+	};
+};
+
+In this example, group node mmc0-8bit defines a group of pins for mxs SSP0
+to function as a 8-bit mmc device, with 8mA, 3.3V and pull-up configurations
+applied on all these pins.  And config nodes mmc-cd-cfg and mmc-sck-cfg are
+adjusting the configuration for pins card-detection and clock from what group
+node mmc0-8bit defines.  Only the configuration properties to be adjusted need
+to be listed in the config nodes.
+
+Valid values for i.MX28/i.MX23 pinmux-id are defined in
+arch/arm/boot/dts/imx28-pinfunc.h and arch/arm/boot/dts/imx23-pinfunc.h.
+The definitions for the padconfig properties can be found in
+arch/arm/boot/dts/mxs-pinfunc.h.
