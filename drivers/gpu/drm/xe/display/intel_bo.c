@@ -77,3 +77,8 @@ struct intel_frontbuffer *intel_bo_set_frontbuffer(struct drm_gem_object *obj,
 {
 	return front;
 }
+
+void intel_bo_describe(struct seq_file *m, struct drm_gem_object *obj)
+{
+	/* FIXME */
+}

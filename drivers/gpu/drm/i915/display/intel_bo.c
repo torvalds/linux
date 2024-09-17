@@ -4,6 +4,7 @@
 #include "gem/i915_gem_mman.h"
 #include "gem/i915_gem_object.h"
 #include "gem/i915_gem_object_frontbuffer.h"
+#include "i915_debugfs.h"
 #include "intel_bo.h"
 
 bool intel_bo_is_tiled(struct drm_gem_object *obj)
@@ -50,4 +51,9 @@ struct intel_frontbuffer *intel_bo_set_frontbuffer(struct drm_gem_object *obj,
 						   struct intel_frontbuffer *front)
 {
 	return i915_gem_object_set_frontbuffer(to_intel_bo(obj), front);
+}
+
+void intel_bo_describe(struct seq_file *m, struct drm_gem_object *obj)
+{
+	i915_debugfs_describe_obj(m, to_intel_bo(obj));
 }

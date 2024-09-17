@@ -11,10 +11,10 @@
 #include <drm/drm_fourcc.h>
 
 #include "hsw_ips.h"
-#include "i915_debugfs.h"
 #include "i915_irq.h"
 #include "i915_reg.h"
 #include "intel_alpm.h"
+#include "intel_bo.h"
 #include "intel_crtc.h"
 #include "intel_crtc_state_dump.h"
 #include "intel_de.h"
@@ -125,7 +125,7 @@ static int i915_gem_framebuffer_info(struct seq_file *m, void *data)
 			   fbdev_fb->base.format->cpp[0] * 8,
 			   fbdev_fb->base.modifier,
 			   drm_framebuffer_read_refcount(&fbdev_fb->base));
-		i915_debugfs_describe_obj(m, intel_fb_obj(&fbdev_fb->base));
+		intel_bo_describe(m, intel_fb_bo(&fbdev_fb->base));
 		seq_putc(m, '\n');
 	}
 #endif
@@ -143,7 +143,7 @@ static int i915_gem_framebuffer_info(struct seq_file *m, void *data)
 			   fb->base.format->cpp[0] * 8,
 			   fb->base.modifier,
 			   drm_framebuffer_read_refcount(&fb->base));
-		i915_debugfs_describe_obj(m, intel_fb_obj(&fb->base));
+		intel_bo_describe(m, intel_fb_bo(&fb->base));
 		seq_putc(m, '\n');
 	}
 	mutex_unlock(&dev_priv->drm.mode_config.fb_lock);
