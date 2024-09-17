@@ -244,14 +244,14 @@ Reporting the bug
 Once you find where the bug happened, by inspecting its location,
 you could either try to fix it yourself or report it upstream.
 
-In order to report it upstream, you should identify the mailing list
-used for the development of the affected code. This can be done by using
-the ``get_maintainer.pl`` script.
+In order to report it upstream, you should identify the bug tracker, if any, or
+mailing list used for the development of the affected code. This can be done by
+using the ``get_maintainer.pl`` script.
 
 For example, if you find a bug at the gspca's sonixj.c file, you can get
 its maintainers with::
 
-	$ ./scripts/get_maintainer.pl -f drivers/media/usb/gspca/sonixj.c
+	$ ./scripts/get_maintainer.pl --bug -f drivers/media/usb/gspca/sonixj.c
 	Hans Verkuil <hverkuil@xs4all.nl> (odd fixer:GSPCA USB WEBCAM DRIVER,commit_signer:1/1=100%)
 	Mauro Carvalho Chehab <mchehab@kernel.org> (maintainer:MEDIA INPUT INFRASTRUCTURE (V4L/DVB),commit_signer:1/1=100%)
 	Tejun Heo <tj@kernel.org> (commit_signer:1/1=100%)
@@ -267,11 +267,12 @@ Please notice that it will point to:
 - The driver maintainer (Hans Verkuil);
 - The subsystem maintainer (Mauro Carvalho Chehab);
 - The driver and/or subsystem mailing list (linux-media@vger.kernel.org);
-- the Linux Kernel mailing list (linux-kernel@vger.kernel.org).
+- The Linux Kernel mailing list (linux-kernel@vger.kernel.org);
+- The bug reporting URIs for the driver/subsystem (none in the above example).
 
-Usually, the fastest way to have your bug fixed is to report it to mailing
-list used for the development of the code (linux-media ML) copying the
-driver maintainer (Hans).
+If the listing contains bug reporting URIs at the end, please prefer them over
+email. Otherwise, please report bugs to the mailing list used for the
+development of the code (linux-media ML) copying the driver maintainer (Hans).
 
 If you are totally stumped as to whom to send the report, and
 ``get_maintainer.pl`` didn't provide you anything useful, send it to
