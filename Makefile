@@ -783,7 +783,7 @@ else # !may-sync-config
 # and include/config/auto.conf but do not care if they are up-to-date.
 # Use auto.conf to show the error message
 
-checked-configs := include/generated/autoconf.h include/config/auto.conf
+checked-configs := include/generated/autoconf.h include/generated/rustc_cfg include/config/auto.conf
 missing-configs := $(filter-out $(wildcard $(checked-configs)), $(checked-configs))
 
 ifdef missing-configs
@@ -1201,7 +1201,8 @@ PHONY += prepare archprepare
 
 archprepare: outputmakefile archheaders archscripts scripts include/config/kernel.release \
 	asm-generic $(version_h) include/generated/utsrelease.h \
-	include/generated/compile.h include/generated/autoconf.h remove-stale-files
+	include/generated/compile.h include/generated/autoconf.h \
+	include/generated/rustc_cfg remove-stale-files
 
 prepare0: archprepare
 	$(Q)$(MAKE) $(build)=scripts/mod
