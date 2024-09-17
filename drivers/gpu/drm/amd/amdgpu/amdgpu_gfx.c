@@ -1604,21 +1604,46 @@ static DEVICE_ATTR(available_compute_partition, 0444,
 
 int amdgpu_gfx_sysfs_init(struct amdgpu_device *adev)
 {
+	struct amdgpu_xcp_mgr *xcp_mgr = adev->xcp_mgr;
+	bool xcp_switch_supported;
 	int r;
+
+	if (!xcp_mgr)
+		return 0;
+
+	xcp_switch_supported =
+		(xcp_mgr->funcs && xcp_mgr->funcs->switch_partition_mode);
+
+	if (!xcp_switch_supported)
+		dev_attr_current_compute_partition.attr.mode &=
+			~(S_IWUSR | S_IWGRP | S_IWOTH);
 
 	r = device_create_file(adev->dev, &dev_attr_current_compute_partition);
 	if (r)
 		return r;
 
-	r = device_create_file(adev->dev, &dev_attr_available_compute_partition);
+	if (xcp_switch_supported)
+		r = device_create_file(adev->dev,
+				       &dev_attr_available_compute_partition);
 
 	return r;
 }
 
 void amdgpu_gfx_sysfs_fini(struct amdgpu_device *adev)
 {
+	struct amdgpu_xcp_mgr *xcp_mgr = adev->xcp_mgr;
+	bool xcp_switch_supported;
+
+	if (!xcp_mgr)
+		return;
+
+	xcp_switch_supported =
+		(xcp_mgr->funcs && xcp_mgr->funcs->switch_partition_mode);
 	device_remove_file(adev->dev, &dev_attr_current_compute_partition);
-	device_remove_file(adev->dev, &dev_attr_available_compute_partition);
+
+	if (xcp_switch_supported)
+		device_remove_file(adev->dev,
+				   &dev_attr_available_compute_partition);
 }
 
 int amdgpu_gfx_sysfs_isolation_shader_init(struct amdgpu_device *adev)

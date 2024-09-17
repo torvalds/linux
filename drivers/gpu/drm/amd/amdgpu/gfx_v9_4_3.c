@@ -1165,12 +1165,9 @@ static int gfx_v9_4_3_sw_init(struct amdgpu_ip_block *ip_block)
 	if (r)
 		return r;
 
-
-	if (!amdgpu_sriov_vf(adev)) {
-		r = amdgpu_gfx_sysfs_init(adev);
-		if (r)
-			return r;
-	}
+	r = amdgpu_gfx_sysfs_init(adev);
+	if (r)
+		return r;
 
 	gfx_v9_4_3_alloc_ip_dump(adev);
 
@@ -1201,8 +1198,7 @@ static int gfx_v9_4_3_sw_fini(struct amdgpu_ip_block *ip_block)
 	gfx_v9_4_3_mec_fini(adev);
 	amdgpu_bo_unref(&adev->gfx.rlc.clear_state_obj);
 	gfx_v9_4_3_free_microcode(adev);
-	if (!amdgpu_sriov_vf(adev))
-		amdgpu_gfx_sysfs_fini(adev);
+	amdgpu_gfx_sysfs_fini(adev);
 	amdgpu_gfx_sysfs_isolation_shader_fini(adev);
 
 	kfree(adev->gfx.ip_dump_core);
