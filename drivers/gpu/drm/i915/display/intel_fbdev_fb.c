@@ -67,8 +67,9 @@ struct intel_framebuffer *intel_fbdev_fb_alloc(struct drm_fb_helper *helper,
 }
 
 int intel_fbdev_fb_fill_info(struct drm_i915_private *i915, struct fb_info *info,
-			     struct drm_i915_gem_object *obj, struct i915_vma *vma)
+			     struct drm_gem_object *_obj, struct i915_vma *vma)
 {
+	struct drm_i915_gem_object *obj = to_intel_bo(_obj);
 	struct i915_gem_ww_ctx ww;
 	void __iomem *vaddr;
 	int ret;

@@ -79,8 +79,9 @@ err:
 }
 
 int intel_fbdev_fb_fill_info(struct drm_i915_private *i915, struct fb_info *info,
-			      struct drm_i915_gem_object *obj, struct i915_vma *vma)
+			      struct drm_gem_object *_obj, struct i915_vma *vma)
 {
+	struct xe_bo *obj = gem_to_xe_bo(_obj);
 	struct pci_dev *pdev = to_pci_dev(i915->drm.dev);
 
 	if (!(obj->flags & XE_BO_FLAG_SYSTEM)) {
