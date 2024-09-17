@@ -489,7 +489,7 @@ static int aqr107_config_init(struct phy_device *phydev)
 {
 	struct aqr107_priv *priv = phydev->priv;
 	u32 led_active_low;
-	int ret, index = 0;
+	int ret;
 
 	/* Check that the PHY interface type is compatible */
 	if (phydev->interface != PHY_INTERFACE_MODE_SGMII &&
@@ -516,10 +516,9 @@ static int aqr107_config_init(struct phy_device *phydev)
 
 	/* Restore LED polarity state after reset */
 	for_each_set_bit(led_active_low, &priv->leds_active_low, AQR_MAX_LEDS) {
-		ret = aqr_phy_led_active_low_set(phydev, index, led_active_low);
+		ret = aqr_phy_led_active_low_set(phydev, led_active_low, true);
 		if (ret)
 			return ret;
-		index++;
 	}
 
 	return 0;
