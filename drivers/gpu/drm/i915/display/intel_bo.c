@@ -34,3 +34,8 @@ int intel_bo_fb_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma)
 {
 	return i915_gem_fb_mmap(to_intel_bo(obj), vma);
 }
+
+int intel_bo_read_from_page(struct drm_gem_object *obj, u64 offset, void *dst, int size)
+{
+	return i915_gem_object_read_from_page(to_intel_bo(obj), offset, dst, size);
+}
