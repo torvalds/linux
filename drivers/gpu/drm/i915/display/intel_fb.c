@@ -1963,20 +1963,20 @@ static const struct drm_framebuffer_funcs intel_fb_funcs = {
 };
 
 int intel_framebuffer_init(struct intel_framebuffer *intel_fb,
-			   struct drm_i915_gem_object *obj,
+			   struct drm_gem_object *obj,
 			   struct drm_mode_fb_cmd2 *mode_cmd)
 {
-	struct drm_i915_private *dev_priv = to_i915(intel_bo_to_drm_bo(obj)->dev);
+	struct drm_i915_private *dev_priv = to_i915(obj->dev);
 	struct drm_framebuffer *fb = &intel_fb->base;
 	u32 max_stride;
 	int ret = -EINVAL;
 	int i;
 
-	ret = intel_fb_bo_framebuffer_init(intel_fb, obj, mode_cmd);
+	ret = intel_fb_bo_framebuffer_init(intel_fb, to_intel_bo(obj), mode_cmd);
 	if (ret)
 		return ret;
 
-	intel_fb->frontbuffer = intel_frontbuffer_get(obj);
+	intel_fb->frontbuffer = intel_frontbuffer_get(to_intel_bo(obj));
 	if (!intel_fb->frontbuffer) {
 		ret = -ENOMEM;
 		goto err;
@@ -2042,7 +2042,7 @@ int intel_framebuffer_init(struct intel_framebuffer *intel_fb,
 			}
 		}
 
-		fb->obj[i] = intel_bo_to_drm_bo(obj);
+		fb->obj[i] = obj;
 	}
 
 	ret = intel_fill_fb_info(dev_priv, intel_fb);
@@ -2076,7 +2076,7 @@ err_free_dpt:
 err_frontbuffer_put:
 	intel_frontbuffer_put(intel_fb->frontbuffer);
 err:
-	intel_fb_bo_framebuffer_fini(obj);
+	intel_fb_bo_framebuffer_fini(to_intel_bo(obj));
 	return ret;
 }
 
@@ -2111,7 +2111,7 @@ intel_framebuffer_create(struct drm_i915_gem_object *obj,
 	if (!intel_fb)
 		return ERR_PTR(-ENOMEM);
 
-	ret = intel_framebuffer_init(intel_fb, obj, mode_cmd);
+	ret = intel_framebuffer_init(intel_fb, intel_bo_to_drm_bo(obj), mode_cmd);
 	if (ret)
 		goto err;
 

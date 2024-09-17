@@ -85,7 +85,7 @@ void intel_fb_fill_view(const struct intel_framebuffer *fb, unsigned int rotatio
 int intel_plane_compute_gtt(struct intel_plane_state *plane_state);
 
 int intel_framebuffer_init(struct intel_framebuffer *ifb,
-			   struct drm_i915_gem_object *obj,
+			   struct drm_gem_object *obj,
 			   struct drm_mode_fb_cmd2 *mode_cmd);
 struct drm_framebuffer *
 intel_user_framebuffer_create(struct drm_device *dev,
