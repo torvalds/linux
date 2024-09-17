@@ -557,6 +557,7 @@ struct q2spi_dma_transfer {
  * @is_start_seq_fail: start sequence fail due to slave not responding
  * @wait_comp_start_fail: completion for transfer callback during start sequence failure
  * @q2spi_log_lvl: reflects log level in q2spi driver
+ * @sleep_cmd_sent: reflects sleep command sumitted to the slave
  */
 struct q2spi_geni {
 	struct device *wrapper_dev;
@@ -666,6 +667,7 @@ struct q2spi_geni {
 	bool is_start_seq_fail;
 	struct completion wait_comp_start_fail;
 	u32 q2spi_log_lvl;
+	atomic_t sleep_cmd_sent;
 };
 
 /**

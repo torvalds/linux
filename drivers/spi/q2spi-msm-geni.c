@@ -1005,6 +1005,7 @@ void q2spi_doorbell(struct q2spi_geni *q2spi,
 		return;
 
 	atomic_set(&q2spi->slave_in_sleep, 0);
+	atomic_set(&q2spi->sleep_cmd_sent, 0);
 	memcpy(&q2spi->q2spi_cr_hdr_event, q2spi_cr_hdr_event,
 	       sizeof(struct qup_q2spi_cr_header_event));
 	queue_work(q2spi->doorbell_wq, &q2spi->q2spi_doorbell_work);
@@ -1921,6 +1922,8 @@ static int __q2spi_transfer(struct q2spi_geni *q2spi, struct q2spi_request q2spi
 		Q2SPI_DEBUG(q2spi, "%s q2spi_pkt:%p CR Doorbell Pending try again\n",
 			    __func__, q2spi_pkt);
 		return 0;
+	} else if (ret == -EINVAL) {
+		return -EINVAL;
 	} else if (ret) {
 		Q2SPI_DEBUG(q2spi, "%s q2spi_pkt:%p __q2spi_send_messages ret:%d\n",
 			    __func__, q2spi_pkt, ret);
@@ -3115,6 +3118,10 @@ int __q2spi_send_messages(struct q2spi_geni *q2spi, void *ptr)
 		Q2SPI_DEBUG(q2spi, "%s Err couldnt find free q2spi pkt in tx queue!!!\n", __func__);
 		goto send_msg_exit;
 	}
+	if (q2spi_pkt->is_client_sleep_pkt && atomic_read(&q2spi->sleep_cmd_sent)) {
+		ret = -EINVAL;
+		goto send_msg_exit;
+	}
 
 	q2spi_pkt->state = IN_USE;
 	if (!q2spi_pkt) {
@@ -3163,8 +3170,10 @@ int __q2spi_send_messages(struct q2spi_geni *q2spi, void *ptr)
 	}
 
 	/* add 2msec delay for slave to complete sleep process after it received a sleep packet */
-	if (q2spi_pkt->is_client_sleep_pkt)
+	if (q2spi_pkt->is_client_sleep_pkt) {
 		usleep_range(2000, 3000);
+		atomic_set(&q2spi->sleep_cmd_sent, 1);
+	}
 send_msg_exit:
 	mutex_unlock(&q2spi->send_msgs_lock);
 	if (atomic_read(&q2spi->sma_rd_pending))
