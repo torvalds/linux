@@ -2086,7 +2086,7 @@ intel_user_framebuffer_create(struct drm_device *dev,
 			      const struct drm_mode_fb_cmd2 *user_mode_cmd)
 {
 	struct drm_framebuffer *fb;
-	struct drm_i915_gem_object *obj;
+	struct drm_gem_object *obj;
 	struct drm_mode_fb_cmd2 mode_cmd = *user_mode_cmd;
 	struct drm_i915_private *i915 = to_i915(dev);
 
@@ -2094,8 +2094,8 @@ intel_user_framebuffer_create(struct drm_device *dev,
 	if (IS_ERR(obj))
 		return ERR_CAST(obj);
 
-	fb = intel_framebuffer_create(obj, &mode_cmd);
-	drm_gem_object_put(intel_bo_to_drm_bo(obj));
+	fb = intel_framebuffer_create(to_intel_bo(obj), &mode_cmd);
+	drm_gem_object_put(obj);
 
 	return fb;
 }

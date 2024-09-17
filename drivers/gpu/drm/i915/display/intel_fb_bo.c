@@ -74,7 +74,7 @@ int intel_fb_bo_framebuffer_init(struct intel_framebuffer *intel_fb,
 	return 0;
 }
 
-struct drm_i915_gem_object *
+struct drm_gem_object *
 intel_fb_bo_lookup_valid_bo(struct drm_i915_private *i915,
 			    struct drm_file *filp,
 			    const struct drm_mode_fb_cmd2 *mode_cmd)
@@ -93,5 +93,5 @@ intel_fb_bo_lookup_valid_bo(struct drm_i915_private *i915,
 		return ERR_PTR(-EREMOTE);
 	}
 
-	return obj;
+	return intel_bo_to_drm_bo(obj);
 }
