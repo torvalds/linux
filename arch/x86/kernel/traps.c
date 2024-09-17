@@ -1451,34 +1451,8 @@ DEFINE_IDTENTRY_SW(iret_error)
 }
 #endif
 
-/* Do not enable FRED by default yet. */
-static bool enable_fred __ro_after_init = false;
-
-#ifdef CONFIG_X86_FRED
-static int __init fred_setup(char *str)
-{
-	if (!str)
-		return -EINVAL;
-
-	if (!cpu_feature_enabled(X86_FEATURE_FRED))
-		return 0;
-
-	if (!strcmp(str, "on"))
-		enable_fred = true;
-	else if (!strcmp(str, "off"))
-		enable_fred = false;
-	else
-		pr_warn("invalid FRED option: 'fred=%s'\n", str);
-	return 0;
-}
-early_param("fred", fred_setup);
-#endif
-
 void __init trap_init(void)
 {
-	if (cpu_feature_enabled(X86_FEATURE_FRED) && !enable_fred)
-		setup_clear_cpu_cap(X86_FEATURE_FRED);
-
 	/* Init cpu_entry_area before IST entries are set up */
 	setup_cpu_entry_areas();
 
@@ -1486,7 +1460,7 @@ void __init trap_init(void)
 	sev_es_init_vc_handling();
 
 	/* Initialize TSS before setting up traps so ISTs work */
-	cpu_init_exception_handling();
+	cpu_init_exception_handling(true);
 
 	/* Setup traps as cpu_init() might #GP */
 	if (!cpu_feature_enabled(X86_FEATURE_FRED))
