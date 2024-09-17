@@ -654,6 +654,13 @@ int xe_device_probe(struct xe_device *xe)
 		err = xe_gt_init_early(gt);
 		if (err)
 			return err;
+
+		/*
+		 * Only after this point can GT-specific MMIO operations
+		 * (including things like communication with the GuC)
+		 * be performed.
+		 */
+		xe_gt_mmio_init(gt);
 	}
 
 	for_each_tile(tile, xe, id) {

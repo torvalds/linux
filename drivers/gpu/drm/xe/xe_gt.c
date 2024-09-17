@@ -625,6 +625,30 @@ int xe_gt_init(struct xe_gt *gt)
 	return 0;
 }
 
+/**
+ * xe_gt_mmio_init() - Initialize GT's MMIO access
+ * @gt: the GT object
+ *
+ * Initialize GT's MMIO accessor, which will be used to access registers inside
+ * this GT.
+ */
+void xe_gt_mmio_init(struct xe_gt *gt)
+{
+	struct xe_tile *tile = gt_to_tile(gt);
+
+	gt->mmio.regs = tile->mmio.regs;
+	gt->mmio.regs_size = tile->mmio.regs_size;
+	gt->mmio.tile = tile;
+
+	if (gt->info.type == XE_GT_TYPE_MEDIA) {
+		gt->mmio.adj_offset = MEDIA_GT_GSI_OFFSET;
+		gt->mmio.adj_limit = MEDIA_GT_GSI_LENGTH;
+	}
+
+	if (IS_SRIOV_VF(gt_to_xe(gt)))
+		gt->mmio.sriov_vf_gt = gt;
+}
+
 void xe_gt_record_user_engines(struct xe_gt *gt)
 {
 	struct xe_hw_engine *hwe;
