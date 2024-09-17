@@ -284,10 +284,6 @@ static bool amdgpu_atrm_get_bios(struct amdgpu_device *adev)
 	acpi_status status;
 	bool found = false;
 
-	/* ATRM is for the discrete card only */
-	if (adev->flags & AMD_IS_APU)
-		return false;
-
 	/* ATRM is for on-platform devices only */
 	if (dev_is_removable(&adev->pdev->dev))
 		return false;
@@ -343,11 +339,8 @@ static inline bool amdgpu_atrm_get_bios(struct amdgpu_device *adev)
 
 static bool amdgpu_read_disabled_bios(struct amdgpu_device *adev)
 {
-	if (adev->flags & AMD_IS_APU)
-		return igp_read_bios_from_vram(adev);
-	else
-		return (!adev->asic_funcs || !adev->asic_funcs->read_disabled_bios) ?
-			false : amdgpu_asic_read_disabled_bios(adev);
+	return (!adev->asic_funcs || !adev->asic_funcs->read_disabled_bios) ?
+		false : amdgpu_asic_read_disabled_bios(adev);
 }
 
 #ifdef CONFIG_ACPI
@@ -452,11 +445,6 @@ static bool amdgpu_get_bios_dgpu(struct amdgpu_device *adev)
 
 	if (amdgpu_acpi_vfct_bios(adev)) {
 		dev_info(adev->dev, "Fetched VBIOS from VFCT\n");
-		goto success;
-	}
-
-	if (igp_read_bios_from_vram(adev)) {
-		dev_info(adev->dev, "Fetched VBIOS from VRAM BAR\n");
 		goto success;
 	}
 
