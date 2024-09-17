@@ -68,7 +68,6 @@ struct task_desc {
 	struct sched_atom	**atoms;
 
 	pthread_t		thread;
-	sem_t			sleep_sem;
 
 	sem_t			ready_for_work;
 	sem_t			work_done_sem;
@@ -80,12 +79,10 @@ enum sched_event_type {
 	SCHED_EVENT_RUN,
 	SCHED_EVENT_SLEEP,
 	SCHED_EVENT_WAKEUP,
-	SCHED_EVENT_MIGRATION,
 };
 
 struct sched_atom {
 	enum sched_event_type	type;
-	int			specific_wait;
 	u64			timestamp;
 	u64			duration;
 	unsigned long		nr;
@@ -421,14 +418,13 @@ static void add_sched_event_wakeup(struct perf_sched *sched, struct task_desc *t
 
 	wakee_event->wait_sem = zalloc(sizeof(*wakee_event->wait_sem));
 	sem_init(wakee_event->wait_sem, 0, 0);
-	wakee_event->specific_wait = 1;
 	event->wait_sem = wakee_event->wait_sem;
 
 	sched->nr_wakeup_events++;
 }
 
 static void add_sched_event_sleep(struct perf_sched *sched, struct task_desc *task,
-				  u64 timestamp, const char task_state __maybe_unused)
+				  u64 timestamp)
 {
 	struct sched_atom *event = get_new_event(task, timestamp);
 
@@ -468,7 +464,7 @@ static struct task_desc *register_pid(struct perf_sched *sched,
 	 * every task starts in sleeping state - this gets ignored
 	 * if there's no wakeup pointing to this sleep state:
 	 */
-	add_sched_event_sleep(sched, task, 0, 0);
+	add_sched_event_sleep(sched, task, 0);
 
 	sched->pid_to_task[pid] = task;
 	sched->nr_tasks++;
@@ -528,8 +524,6 @@ static void perf_sched__process_event(struct perf_sched *sched,
 			if (atom->wait_sem)
 				ret = sem_post(atom->wait_sem);
 			BUG_ON(ret);
-			break;
-		case SCHED_EVENT_MIGRATION:
 			break;
 		default:
 			BUG_ON(1);
@@ -673,7 +667,6 @@ static void create_tasks(struct perf_sched *sched)
 		parms->task = task = sched->tasks[i];
 		parms->sched = sched;
 		parms->fd = self_open_counters(sched, i);
-		sem_init(&task->sleep_sem, 0, 0);
 		sem_init(&task->ready_for_work, 0, 0);
 		sem_init(&task->work_done_sem, 0, 0);
 		task->curr_event = 0;
@@ -697,7 +690,6 @@ static void destroy_tasks(struct perf_sched *sched)
 		task = sched->tasks[i];
 		err = pthread_join(task->thread, NULL);
 		BUG_ON(err);
-		sem_destroy(&task->sleep_sem);
 		sem_destroy(&task->ready_for_work);
 		sem_destroy(&task->work_done_sem);
 	}
@@ -751,7 +743,6 @@ static void wait_for_tasks(struct perf_sched *sched)
 
 	for (i = 0; i < sched->nr_tasks; i++) {
 		task = sched->tasks[i];
-		sem_init(&task->sleep_sem, 0, 0);
 		task->curr_event = 0;
 	}
 }
@@ -852,7 +843,6 @@ static int replay_switch_event(struct perf_sched *sched,
 		   *next_comm  = evsel__strval(evsel, sample, "next_comm");
 	const u32 prev_pid = evsel__intval(evsel, sample, "prev_pid"),
 		  next_pid = evsel__intval(evsel, sample, "next_pid");
-	const char prev_state = evsel__taskstate(evsel, sample, "prev_state");
 	struct task_desc *prev, __maybe_unused *next;
 	u64 timestamp0, timestamp = sample->time;
 	int cpu = sample->cpu;
@@ -884,7 +874,7 @@ static int replay_switch_event(struct perf_sched *sched,
 	sched->cpu_last_switched[cpu] = timestamp;
 
 	add_sched_event_run(sched, prev, timestamp, delta);
-	add_sched_event_sleep(sched, prev, timestamp, prev_state);
+	add_sched_event_sleep(sched, prev, timestamp);
 
 	return 0;
 }
