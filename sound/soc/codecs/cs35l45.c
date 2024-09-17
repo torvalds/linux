@@ -177,7 +177,7 @@ static int cs35l45_activate_ctl(struct snd_soc_component *component,
 	struct snd_kcontrol_volatile *vd;
 	unsigned int index_offset;
 
-	kcontrol = snd_soc_component_get_kcontrol_locked(component, ctl_name);
+	kcontrol = snd_soc_component_get_kcontrol(component, ctl_name);
 	if (!kcontrol) {
 		dev_err(component->dev, "Can't find kcontrol %s\n", ctl_name);
 		return -EINVAL;

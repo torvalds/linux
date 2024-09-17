@@ -176,8 +176,8 @@ module_param(power_save, xint, 0644);
 MODULE_PARM_DESC(power_save, "Automatic power-saving timeout "
 		 "(in second, 0 = disable).");
 
-static bool pm_blacklist = true;
-module_param(pm_blacklist, bool, 0644);
+static int pm_blacklist = -1;
+module_param(pm_blacklist, bint, 0644);
 MODULE_PARM_DESC(pm_blacklist, "Enable power-management denylist");
 
 /* reset the HD-audio controller in power save mode.
@@ -189,7 +189,7 @@ module_param(power_save_controller, bool, 0644);
 MODULE_PARM_DESC(power_save_controller, "Reset controller in power save mode.");
 #else /* CONFIG_PM */
 #define power_save	0
-#define pm_blacklist	false
+#define pm_blacklist	0
 #define power_save_controller	false
 #endif /* CONFIG_PM */
 
@@ -931,10 +931,14 @@ static int __maybe_unused param_set_xint(const char *val, const struct kernel_pa
 	if (ret || prev == power_save)
 		return ret;
 
+	if (pm_blacklist > 0)
+		return 0;
+
 	mutex_lock(&card_list_lock);
 	list_for_each_entry(hda, &card_list, list) {
 		chip = &hda->chip;
-		if (!hda->probe_continued || chip->disabled)
+		if (!hda->probe_continued || chip->disabled ||
+		    hda->runtime_pm_disabled)
 			continue;
 		snd_hda_set_power_save(&chip->bus, power_save * 1000);
 	}
@@ -1817,7 +1821,7 @@ static int azx_create(struct snd_card *card, struct pci_dev *pci,
 
 	/* use the non-cached pages in non-snoop mode */
 	if (!azx_snoop(chip))
-		azx_bus(chip)->dma_type = SNDRV_DMA_TYPE_DEV_WC_SG;
+		azx_bus(chip)->dma_type = SNDRV_DMA_TYPE_DEV_WC;
 
 	if (chip->driver_type == AZX_DRIVER_NVIDIA) {
 		dev_dbg(chip->card->dev, "Enable delay in RIRB handling\n");
@@ -2251,9 +2255,10 @@ static const struct snd_pci_quirk power_save_denylist[] = {
 
 static void set_default_power_save(struct azx *chip)
 {
+	struct hda_intel *hda = container_of(chip, struct hda_intel, chip);
 	int val = power_save;
 
-	if (pm_blacklist) {
+	if (pm_blacklist < 0) {
 		const struct snd_pci_quirk *q;
 
 		q = snd_pci_quirk_lookup(chip->pci, power_save_denylist);
@@ -2261,7 +2266,11 @@ static void set_default_power_save(struct azx *chip)
 			dev_info(chip->card->dev, "device %04x:%04x is on the power_save denylist, forcing power_save to 0\n",
 				 q->subvendor, q->subdevice);
 			val = 0;
+			hda->runtime_pm_disabled = 1;
 		}
+	} else if (pm_blacklist > 0) {
+		dev_info(chip->card->dev, "Forcing power_save to 0 via option\n");
+		val = 0;
 	}
 	snd_hda_set_power_save(&chip->bus, val * 1000);
 }
