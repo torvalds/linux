@@ -294,7 +294,7 @@ static void intel_overlay_flip_prepare(struct intel_overlay *overlay,
 	drm_WARN_ON(&overlay->i915->drm, overlay->old_vma);
 
 	if (vma)
-		frontbuffer = intel_frontbuffer_get(vma->obj);
+		frontbuffer = intel_frontbuffer_get(intel_bo_to_drm_bo(vma->obj));
 
 	intel_frontbuffer_track(overlay->frontbuffer, frontbuffer,
 				INTEL_FRONTBUFFER_OVERLAY(pipe));

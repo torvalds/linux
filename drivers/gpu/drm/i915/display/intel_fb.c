@@ -1976,7 +1976,7 @@ int intel_framebuffer_init(struct intel_framebuffer *intel_fb,
 	if (ret)
 		return ret;
 
-	intel_fb->frontbuffer = intel_frontbuffer_get(to_intel_bo(obj));
+	intel_fb->frontbuffer = intel_frontbuffer_get(obj);
 	if (!intel_fb->frontbuffer) {
 		ret = -ENOMEM;
 		goto err;
