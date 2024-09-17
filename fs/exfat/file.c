@@ -74,7 +74,6 @@ out:
 	/* Expanded range not zeroed, do not update valid_size */
 	i_size_write(inode, size);
 
-	ei->i_size_aligned = round_up(size, sb->s_blocksize);
 	inode->i_blocks = round_up(size, sbi->cluster_size) >> 9;
 	mark_inode_dirty(inode);
 
@@ -244,8 +243,6 @@ void exfat_truncate(struct inode *inode)
 	struct super_block *sb = inode->i_sb;
 	struct exfat_sb_info *sbi = EXFAT_SB(sb);
 	struct exfat_inode_info *ei = EXFAT_I(inode);
-	unsigned int blocksize = i_blocksize(inode);
-	loff_t aligned_size;
 	int err;
 
 	mutex_lock(&sbi->s_lock);
@@ -263,14 +260,6 @@ void exfat_truncate(struct inode *inode)
 
 	inode->i_blocks = round_up(i_size_read(inode), sbi->cluster_size) >> 9;
 write_size:
-	aligned_size = i_size_read(inode);
-	if (aligned_size & (blocksize - 1)) {
-		aligned_size |= (blocksize - 1);
-		aligned_size++;
-	}
-
-	if (ei->i_size_aligned > i_size_read(inode))
-		ei->i_size_aligned = aligned_size;
 	mutex_unlock(&sbi->s_lock);
 }
 

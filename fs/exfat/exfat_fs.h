@@ -309,8 +309,6 @@ struct exfat_inode_info {
 	/* for avoiding the race between alloc and free */
 	unsigned int cache_valid_id;
 
-	/* block-aligned i_size (used in cont_write_begin) */
-	loff_t i_size_aligned;
 	/* on-disk position of directory entry or 0 */
 	loff_t i_pos;
 	loff_t valid_size;
