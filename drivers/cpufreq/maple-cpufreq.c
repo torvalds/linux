@@ -238,4 +238,5 @@ bail_noprops:
 module_init(maple_cpufreq_init);
 
 
+MODULE_DESCRIPTION("cpufreq driver for Maple 970FX/970MP boards");
 MODULE_LICENSE("GPL");

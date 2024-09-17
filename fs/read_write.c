@@ -36,7 +36,36 @@ EXPORT_SYMBOL(generic_ro_fops);
 
 static inline bool unsigned_offsets(struct file *file)
 {
-	return file->f_mode & FMODE_UNSIGNED_OFFSET;
+	return file->f_op->fop_flags & FOP_UNSIGNED_OFFSET;
+}
+
+/**
+ * vfs_setpos_cookie - update the file offset for lseek and reset cookie
+ * @file:	file structure in question
+ * @offset:	file offset to seek to
+ * @maxsize:	maximum file size
+ * @cookie:	cookie to reset
+ *
+ * Update the file offset to the value specified by @offset if the given
+ * offset is valid and it is not equal to the current file offset and
+ * reset the specified cookie to indicate that a seek happened.
+ *
+ * Return the specified offset on success and -EINVAL on invalid offset.
+ */
+static loff_t vfs_setpos_cookie(struct file *file, loff_t offset,
+				loff_t maxsize, u64 *cookie)
+{
+	if (offset < 0 && !unsigned_offsets(file))
+		return -EINVAL;
+	if (offset > maxsize)
+		return -EINVAL;
+
+	if (offset != file->f_pos) {
+		file->f_pos = offset;
+		if (cookie)
+			*cookie = 0;
+	}
+	return offset;
 }
 
 /**
@@ -53,18 +82,62 @@ static inline bool unsigned_offsets(struct file *file)
  */
 loff_t vfs_setpos(struct file *file, loff_t offset, loff_t maxsize)
 {
-	if (offset < 0 && !unsigned_offsets(file))
-		return -EINVAL;
-	if (offset > maxsize)
-		return -EINVAL;
-
-	if (offset != file->f_pos) {
-		file->f_pos = offset;
-		file->f_version = 0;
-	}
-	return offset;
+	return vfs_setpos_cookie(file, offset, maxsize, NULL);
 }
 EXPORT_SYMBOL(vfs_setpos);
+
+/**
+ * must_set_pos - check whether f_pos has to be updated
+ * @file: file to seek on
+ * @offset: offset to use
+ * @whence: type of seek operation
+ * @eof: end of file
+ *
+ * Check whether f_pos needs to be updated and update @offset according
+ * to @whence.
+ *
+ * Return: 0 if f_pos doesn't need to be updated, 1 if f_pos has to be
+ * updated, and negative error code on failure.
+ */
+static int must_set_pos(struct file *file, loff_t *offset, int whence, loff_t eof)
+{
+	switch (whence) {
+	case SEEK_END:
+		*offset += eof;
+		break;
+	case SEEK_CUR:
+		/*
+		 * Here we special-case the lseek(fd, 0, SEEK_CUR)
+		 * position-querying operation.  Avoid rewriting the "same"
+		 * f_pos value back to the file because a concurrent read(),
+		 * write() or lseek() might have altered it
+		 */
+		if (*offset == 0) {
+			*offset = file->f_pos;
+			return 0;
+		}
+		break;
+	case SEEK_DATA:
+		/*
+		 * In the generic case the entire file is data, so as long as
+		 * offset isn't at the end of the file then the offset is data.
+		 */
+		if ((unsigned long long)*offset >= eof)
+			return -ENXIO;
+		break;
+	case SEEK_HOLE:
+		/*
+		 * There is a virtual hole at the end of the file, so as long as
+		 * offset isn't i_size or larger, return i_size.
+		 */
+		if ((unsigned long long)*offset >= eof)
+			return -ENXIO;
+		*offset = eof;
+		break;
+	}
+
+	return 1;
+}
 
 /**
  * generic_file_llseek_size - generic llseek implementation for regular files
@@ -86,50 +159,72 @@ loff_t
 generic_file_llseek_size(struct file *file, loff_t offset, int whence,
 		loff_t maxsize, loff_t eof)
 {
-	switch (whence) {
-	case SEEK_END:
-		offset += eof;
-		break;
-	case SEEK_CUR:
-		/*
-		 * Here we special-case the lseek(fd, 0, SEEK_CUR)
-		 * position-querying operation.  Avoid rewriting the "same"
-		 * f_pos value back to the file because a concurrent read(),
-		 * write() or lseek() might have altered it
-		 */
-		if (offset == 0)
-			return file->f_pos;
-		/*
-		 * f_lock protects against read/modify/write race with other
-		 * SEEK_CURs. Note that parallel writes and reads behave
-		 * like SEEK_SET.
-		 */
-		spin_lock(&file->f_lock);
-		offset = vfs_setpos(file, file->f_pos + offset, maxsize);
-		spin_unlock(&file->f_lock);
+	int ret;
+
+	ret = must_set_pos(file, &offset, whence, eof);
+	if (ret < 0)
+		return ret;
+	if (ret == 0)
 		return offset;
-	case SEEK_DATA:
+
+	if (whence == SEEK_CUR) {
 		/*
-		 * In the generic case the entire file is data, so as long as
-		 * offset isn't at the end of the file then the offset is data.
+		 * f_lock protects against read/modify/write race with
+		 * other SEEK_CURs. Note that parallel writes and reads
+		 * behave like SEEK_SET.
 		 */
-		if ((unsigned long long)offset >= eof)
-			return -ENXIO;
-		break;
-	case SEEK_HOLE:
-		/*
-		 * There is a virtual hole at the end of the file, so as long as
-		 * offset isn't i_size or larger, return i_size.
-		 */
-		if ((unsigned long long)offset >= eof)
-			return -ENXIO;
-		offset = eof;
-		break;
+		guard(spinlock)(&file->f_lock);
+		return vfs_setpos(file, file->f_pos + offset, maxsize);
 	}
 
 	return vfs_setpos(file, offset, maxsize);
 }
 EXPORT_SYMBOL(generic_file_llseek_size);
+
+/**
+ * generic_llseek_cookie - versioned llseek implementation
+ * @file:	file structure to seek on
+ * @offset:	file offset to seek to
+ * @whence:	type of seek
+ * @cookie:	cookie to update
+ *
+ * See generic_file_llseek for a general description and locking assumptions.
+ *
+ * In contrast to generic_file_llseek, this function also resets a
+ * specified cookie to indicate a seek took place.
+ */
+loff_t generic_llseek_cookie(struct file *file, loff_t offset, int whence,
+			     u64 *cookie)
+{
+	struct inode *inode = file->f_mapping->host;
+	loff_t maxsize = inode->i_sb->s_maxbytes;
+	loff_t eof = i_size_read(inode);
+	int ret;
+
+	if (WARN_ON_ONCE(!cookie))
+		return -EINVAL;
+
+	/*
+	 * Require that this is only used for directories that guarantee
+	 * synchronization between readdir and seek so that an update to
+	 * @cookie is correctly synchronized with concurrent readdir.
+	 */
+	if (WARN_ON_ONCE(!(file->f_mode & FMODE_ATOMIC_POS)))
+		return -EINVAL;
+
+	ret = must_set_pos(file, &offset, whence, eof);
+	if (ret < 0)
+		return ret;
+	if (ret == 0)
+		return offset;
+
+	/* No need to hold f_lock because we know that f_pos_lock is held. */
+	if (whence == SEEK_CUR)
+		return vfs_setpos_cookie(file, file->f_pos + offset, maxsize, cookie);
+
+	return vfs_setpos_cookie(file, offset, maxsize, cookie);
+}
+EXPORT_SYMBOL(generic_llseek_cookie);
 
 /**
  * generic_file_llseek - generic llseek implementation for regular files
@@ -270,10 +365,8 @@ loff_t default_llseek(struct file *file, loff_t offset, int whence)
 	}
 	retval = -EINVAL;
 	if (offset >= 0 || unsigned_offsets(file)) {
-		if (offset != file->f_pos) {
+		if (offset != file->f_pos)
 			file->f_pos = offset;
-			file->f_version = 0;
-		}
 		retval = offset;
 	}
 out:

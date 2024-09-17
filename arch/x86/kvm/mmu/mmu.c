@@ -4674,16 +4674,14 @@ out_unlock:
 bool kvm_mmu_may_ignore_guest_pat(void)
 {
 	/*
-	 * When EPT is enabled (shadow_memtype_mask is non-zero), the CPU does
-	 * not support self-snoop (or is affected by an erratum), and the VM
+	 * When EPT is enabled (shadow_memtype_mask is non-zero), and the VM
 	 * has non-coherent DMA (DMA doesn't snoop CPU caches), KVM's ABI is to
 	 * honor the memtype from the guest's PAT so that guest accesses to
 	 * memory that is DMA'd aren't cached against the guest's wishes.  As a
 	 * result, KVM _may_ ignore guest PAT, whereas without non-coherent DMA,
-	 * KVM _always_ ignores or honors guest PAT, i.e. doesn't toggle SPTE
-	 * bits in response to non-coherent device (un)registration.
+	 * KVM _always_ ignores guest PAT (when EPT is enabled).
 	 */
-	return !static_cpu_has(X86_FEATURE_SELFSNOOP) && shadow_memtype_mask;
+	return shadow_memtype_mask;
 }
 
 int kvm_tdp_page_fault(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault)

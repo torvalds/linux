@@ -10,6 +10,7 @@ config SPARX5_SWITCH
 	select PHY_SPARX5_SERDES
 	select RESET_CONTROLLER
 	select VCAP
+	select FDMA
 	help
 	  This driver supports the Sparx5 network switch device.
 

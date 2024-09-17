@@ -653,6 +653,9 @@ xfs_alloc_file_space(
 	xfs_bmbt_irec_t		imaps[1], *imapp;
 	int			error;
 
+	if (xfs_is_always_cow_inode(ip))
+		return 0;
+
 	trace_xfs_alloc_file_space(ip);
 
 	if (xfs_is_shutdown(mp))
@@ -847,6 +850,14 @@ xfs_free_file_space(
 
 	if (len <= 0)	/* if nothing being freed */
 		return 0;
+
+	/*
+	 * Now AIO and DIO has drained we flush and (if necessary) invalidate
+	 * the cached range over the first operation we are about to run.
+	 */
+	error = xfs_flush_unmap_range(ip, offset, len);
+	if (error)
+		return error;
 
 	startoffset_fsb = XFS_B_TO_FSB(mp, offset);
 	endoffset_fsb = XFS_B_TO_FSBT(mp, offset + len);

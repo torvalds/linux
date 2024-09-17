@@ -188,9 +188,59 @@ static size_t netfs_limit_xarray(const struct iov_iter *iter, size_t start_offse
 	return min(span, max_size);
 }
 
+/*
+ * Select the span of a folio queue iterator we're going to use.  Limit it by
+ * both maximum size and maximum number of segments.  Returns the size of the
+ * span in bytes.
+ */
+static size_t netfs_limit_folioq(const struct iov_iter *iter, size_t start_offset,
+				 size_t max_size, size_t max_segs)
+{
+	const struct folio_queue *folioq = iter->folioq;
+	unsigned int nsegs = 0;
+	unsigned int slot = iter->folioq_slot;
+	size_t span = 0, n = iter->count;
+
+	if (WARN_ON(!iov_iter_is_folioq(iter)) ||
+	    WARN_ON(start_offset > n) ||
+	    n == 0)
+		return 0;
+	max_size = umin(max_size, n - start_offset);
+
+	if (slot >= folioq_nr_slots(folioq)) {
+		folioq = folioq->next;
+		slot = 0;
+	}
+
+	start_offset += iter->iov_offset;
+	do {
+		size_t flen = folioq_folio_size(folioq, slot);
+
+		if (start_offset < flen) {
+			span += flen - start_offset;
+			nsegs++;
+			start_offset = 0;
+		} else {
+			start_offset -= flen;
+		}
+		if (span >= max_size || nsegs >= max_segs)
+			break;
+
+		slot++;
+		if (slot >= folioq_nr_slots(folioq)) {
+			folioq = folioq->next;
+			slot = 0;
+		}
+	} while (folioq);
+
+	return umin(span, max_size);
+}
+
 size_t netfs_limit_iter(const struct iov_iter *iter, size_t start_offset,
 			size_t max_size, size_t max_segs)
 {
+	if (iov_iter_is_folioq(iter))
+		return netfs_limit_folioq(iter, start_offset, max_size, max_segs);
 	if (iov_iter_is_bvec(iter))
 		return netfs_limit_bvec(iter, start_offset, max_size, max_segs);
 	if (iov_iter_is_xarray(iter))

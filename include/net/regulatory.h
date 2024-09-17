@@ -121,7 +121,7 @@ struct regulatory_request {
  * @REGULATORY_DISABLE_BEACON_HINTS: enable this if your driver needs to
  *	ensure that passive scan flags and beaconing flags may not be lifted by
  *	cfg80211 due to regulatory beacon hints. For more information on beacon
- *	hints read the documenation for regulatory_hint_found_beacon()
+ *	hints read the documentation for regulatory_hint_found_beacon()
  * @REGULATORY_COUNTRY_IE_FOLLOW_POWER:  for devices that have a preference
  *	that even though they may have programmed their own custom power
  *	setting prior to wiphy registration, they want to ensure their channel

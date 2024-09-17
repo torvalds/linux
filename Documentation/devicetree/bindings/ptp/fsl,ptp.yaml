@@ -11,11 +11,14 @@ maintainers:
 
 properties:
   compatible:
-    enum:
-      - fsl,etsec-ptp
-      - fsl,fman-ptp-timer
-      - fsl,dpaa2-ptp
-      - fsl,enetc-ptp
+    oneOf:
+      - enum:
+          - fsl,etsec-ptp
+          - fsl,fman-ptp-timer
+          - fsl,dpaa2-ptp
+      - items:
+          - const: pci1957,ee02
+          - const: fsl,enetc-ptp
 
   reg:
     maxItems: 1
@@ -122,6 +125,15 @@ properties:
 required:
   - compatible
   - reg
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: fsl,enetc-ptp
+    then:
+      $ref: /schemas/pci/pci-device.yaml
 
 additionalProperties: false
 

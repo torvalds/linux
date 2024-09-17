@@ -89,6 +89,31 @@ static struct equiv_cpu_table {
 	struct equiv_cpu_entry *entry;
 } equiv_table;
 
+union zen_patch_rev {
+	struct {
+		__u32 rev	 : 8,
+		      stepping	 : 4,
+		      model	 : 4,
+		      __reserved : 4,
+		      ext_model	 : 4,
+		      ext_fam	 : 8;
+	};
+	__u32 ucode_rev;
+};
+
+union cpuid_1_eax {
+	struct {
+		__u32 stepping    : 4,
+		      model	  : 4,
+		      family	  : 4,
+		      __reserved0 : 4,
+		      ext_model   : 4,
+		      ext_fam     : 8,
+		      __reserved1 : 4;
+	};
+	__u32 full;
+};
+
 /*
  * This points to the current valid container of microcode patches which we will
  * save from the initrd/builtin before jettisoning its contents. @mc is the
@@ -96,7 +121,6 @@ static struct equiv_cpu_table {
  */
 struct cont_desc {
 	struct microcode_amd *mc;
-	u32		     cpuid_1_eax;
 	u32		     psize;
 	u8		     *data;
 	size_t		     size;
@@ -109,9 +133,41 @@ struct cont_desc {
 static const char
 ucode_path[] __maybe_unused = "kernel/x86/microcode/AuthenticAMD.bin";
 
+/*
+ * This is CPUID(1).EAX on the BSP. It is used in two ways:
+ *
+ * 1. To ignore the equivalence table on Zen1 and newer.
+ *
+ * 2. To match which patches to load because the patch revision ID
+ *    already contains the f/m/s for which the microcode is destined
+ *    for.
+ */
+static u32 bsp_cpuid_1_eax __ro_after_init;
+
+static union cpuid_1_eax ucode_rev_to_cpuid(unsigned int val)
+{
+	union zen_patch_rev p;
+	union cpuid_1_eax c;
+
+	p.ucode_rev = val;
+	c.full = 0;
+
+	c.stepping  = p.stepping;
+	c.model     = p.model;
+	c.ext_model = p.ext_model;
+	c.family    = 0xf;
+	c.ext_fam   = p.ext_fam;
+
+	return c;
+}
+
 static u16 find_equiv_id(struct equiv_cpu_table *et, u32 sig)
 {
 	unsigned int i;
+
+	/* Zen and newer do not need an equivalence table. */
+	if (x86_family(bsp_cpuid_1_eax) >= 0x17)
+		return 0;
 
 	if (!et || !et->num_entries)
 		return 0;
@@ -158,6 +214,10 @@ static bool verify_equivalence_table(const u8 *buf, size_t buf_size)
 
 	if (!verify_container(buf, buf_size))
 		return false;
+
+	/* Zen and newer do not need an equivalence table. */
+	if (x86_family(bsp_cpuid_1_eax) >= 0x17)
+		return true;
 
 	cont_type = hdr[1];
 	if (cont_type != UCODE_EQUIV_CPU_TABLE_TYPE) {
@@ -222,8 +282,9 @@ __verify_patch_section(const u8 *buf, size_t buf_size, u32 *sh_psize)
  * exceed the per-family maximum). @sh_psize is the size read from the section
  * header.
  */
-static unsigned int __verify_patch_size(u8 family, u32 sh_psize, size_t buf_size)
+static unsigned int __verify_patch_size(u32 sh_psize, size_t buf_size)
 {
+	u8 family = x86_family(bsp_cpuid_1_eax);
 	u32 max_size;
 
 	if (family >= 0x15)
@@ -258,9 +319,9 @@ static unsigned int __verify_patch_size(u8 family, u32 sh_psize, size_t buf_size
  * positive: patch is not for this family, skip it
  * 0: success
  */
-static int
-verify_patch(u8 family, const u8 *buf, size_t buf_size, u32 *patch_size)
+static int verify_patch(const u8 *buf, size_t buf_size, u32 *patch_size)
 {
+	u8 family = x86_family(bsp_cpuid_1_eax);
 	struct microcode_header_amd *mc_hdr;
 	unsigned int ret;
 	u32 sh_psize;
@@ -286,7 +347,7 @@ verify_patch(u8 family, const u8 *buf, size_t buf_size, u32 *patch_size)
 		return -1;
 	}
 
-	ret = __verify_patch_size(family, sh_psize, buf_size);
+	ret = __verify_patch_size(sh_psize, buf_size);
 	if (!ret) {
 		pr_debug("Per-family patch size mismatch.\n");
 		return -1;
@@ -306,6 +367,15 @@ verify_patch(u8 family, const u8 *buf, size_t buf_size, u32 *patch_size)
 		return 1;
 
 	return 0;
+}
+
+static bool mc_patch_matches(struct microcode_amd *mc, u16 eq_id)
+{
+	/* Zen and newer do not need an equivalence table. */
+	if (x86_family(bsp_cpuid_1_eax) >= 0x17)
+		return ucode_rev_to_cpuid(mc->hdr.patch_id).full == bsp_cpuid_1_eax;
+	else
+		return eq_id == mc->hdr.processor_rev_id;
 }
 
 /*
@@ -336,7 +406,7 @@ static size_t parse_container(u8 *ucode, size_t size, struct cont_desc *desc)
 	 * doesn't contain a patch for the CPU, scan through the whole container
 	 * so that it can be skipped in case there are other containers appended.
 	 */
-	eq_id = find_equiv_id(&table, desc->cpuid_1_eax);
+	eq_id = find_equiv_id(&table, bsp_cpuid_1_eax);
 
 	buf  += hdr[2] + CONTAINER_HDR_SZ;
 	size -= hdr[2] + CONTAINER_HDR_SZ;
@@ -350,7 +420,7 @@ static size_t parse_container(u8 *ucode, size_t size, struct cont_desc *desc)
 		u32 patch_size;
 		int ret;
 
-		ret = verify_patch(x86_family(desc->cpuid_1_eax), buf, size, &patch_size);
+		ret = verify_patch(buf, size, &patch_size);
 		if (ret < 0) {
 			/*
 			 * Patch verification failed, skip to the next container, if
@@ -363,7 +433,7 @@ static size_t parse_container(u8 *ucode, size_t size, struct cont_desc *desc)
 		}
 
 		mc = (struct microcode_amd *)(buf + SECTION_HDR_SIZE);
-		if (eq_id == mc->hdr.processor_rev_id) {
+		if (mc_patch_matches(mc, eq_id)) {
 			desc->psize = patch_size;
 			desc->mc = mc;
 		}
@@ -421,6 +491,7 @@ static int __apply_microcode_amd(struct microcode_amd *mc)
 
 	/* verify patch application was successful */
 	native_rdmsr(MSR_AMD64_PATCH_LEVEL, rev, dummy);
+
 	if (rev != mc->hdr.patch_id)
 		return -1;
 
@@ -438,13 +509,11 @@ static int __apply_microcode_amd(struct microcode_amd *mc)
  *
  * Returns true if container found (sets @desc), false otherwise.
  */
-static bool early_apply_microcode(u32 cpuid_1_eax, u32 old_rev, void *ucode, size_t size)
+static bool early_apply_microcode(u32 old_rev, void *ucode, size_t size)
 {
 	struct cont_desc desc = { 0 };
 	struct microcode_amd *mc;
 	bool ret = false;
-
-	desc.cpuid_1_eax = cpuid_1_eax;
 
 	scan_containers(ucode, size, &desc);
 
@@ -463,9 +532,10 @@ static bool early_apply_microcode(u32 cpuid_1_eax, u32 old_rev, void *ucode, siz
 	return !__apply_microcode_amd(mc);
 }
 
-static bool get_builtin_microcode(struct cpio_data *cp, u8 family)
+static bool get_builtin_microcode(struct cpio_data *cp)
 {
 	char fw_name[36] = "amd-ucode/microcode_amd.bin";
+	u8 family = x86_family(bsp_cpuid_1_eax);
 	struct firmware fw;
 
 	if (IS_ENABLED(CONFIG_X86_32))
@@ -484,11 +554,11 @@ static bool get_builtin_microcode(struct cpio_data *cp, u8 family)
 	return false;
 }
 
-static void __init find_blobs_in_containers(unsigned int cpuid_1_eax, struct cpio_data *ret)
+static void __init find_blobs_in_containers(struct cpio_data *ret)
 {
 	struct cpio_data cp;
 
-	if (!get_builtin_microcode(&cp, x86_family(cpuid_1_eax)))
+	if (!get_builtin_microcode(&cp))
 		cp = find_microcode_in_initrd(ucode_path);
 
 	*ret = cp;
@@ -499,16 +569,18 @@ void __init load_ucode_amd_bsp(struct early_load_data *ed, unsigned int cpuid_1_
 	struct cpio_data cp = { };
 	u32 dummy;
 
+	bsp_cpuid_1_eax = cpuid_1_eax;
+
 	native_rdmsr(MSR_AMD64_PATCH_LEVEL, ed->old_rev, dummy);
 
 	/* Needed in load_microcode_amd() */
 	ucode_cpu_info[0].cpu_sig.sig = cpuid_1_eax;
 
-	find_blobs_in_containers(cpuid_1_eax, &cp);
+	find_blobs_in_containers(&cp);
 	if (!(cp.data && cp.size))
 		return;
 
-	if (early_apply_microcode(cpuid_1_eax, ed->old_rev, cp.data, cp.size))
+	if (early_apply_microcode(ed->old_rev, cp.data, cp.size))
 		native_rdmsr(MSR_AMD64_PATCH_LEVEL, ed->new_rev, dummy);
 }
 
@@ -525,11 +597,9 @@ static int __init save_microcode_in_initrd(void)
 	if (dis_ucode_ldr || c->x86_vendor != X86_VENDOR_AMD || c->x86 < 0x10)
 		return 0;
 
-	find_blobs_in_containers(cpuid_1_eax, &cp);
+	find_blobs_in_containers(&cp);
 	if (!(cp.data && cp.size))
 		return -EINVAL;
-
-	desc.cpuid_1_eax = cpuid_1_eax;
 
 	scan_containers(cp.data, cp.size, &desc);
 	if (!desc.mc)
@@ -543,17 +613,56 @@ static int __init save_microcode_in_initrd(void)
 }
 early_initcall(save_microcode_in_initrd);
 
+static inline bool patch_cpus_equivalent(struct ucode_patch *p, struct ucode_patch *n)
+{
+	/* Zen and newer hardcode the f/m/s in the patch ID */
+        if (x86_family(bsp_cpuid_1_eax) >= 0x17) {
+		union cpuid_1_eax p_cid = ucode_rev_to_cpuid(p->patch_id);
+		union cpuid_1_eax n_cid = ucode_rev_to_cpuid(n->patch_id);
+
+		/* Zap stepping */
+		p_cid.stepping = 0;
+		n_cid.stepping = 0;
+
+		return p_cid.full == n_cid.full;
+	} else {
+		return p->equiv_cpu == n->equiv_cpu;
+	}
+}
+
 /*
  * a small, trivial cache of per-family ucode patches
  */
-static struct ucode_patch *cache_find_patch(u16 equiv_cpu)
+static struct ucode_patch *cache_find_patch(struct ucode_cpu_info *uci, u16 equiv_cpu)
 {
 	struct ucode_patch *p;
+	struct ucode_patch n;
+
+	n.equiv_cpu = equiv_cpu;
+	n.patch_id  = uci->cpu_sig.rev;
+
+	WARN_ON_ONCE(!n.patch_id);
 
 	list_for_each_entry(p, &microcode_cache, plist)
-		if (p->equiv_cpu == equiv_cpu)
+		if (patch_cpus_equivalent(p, &n))
 			return p;
+
 	return NULL;
+}
+
+static inline bool patch_newer(struct ucode_patch *p, struct ucode_patch *n)
+{
+	/* Zen and newer hardcode the f/m/s in the patch ID */
+        if (x86_family(bsp_cpuid_1_eax) >= 0x17) {
+		union zen_patch_rev zp, zn;
+
+		zp.ucode_rev = p->patch_id;
+		zn.ucode_rev = n->patch_id;
+
+		return zn.rev > zp.rev;
+	} else {
+		return n->patch_id > p->patch_id;
+	}
 }
 
 static void update_cache(struct ucode_patch *new_patch)
@@ -561,8 +670,8 @@ static void update_cache(struct ucode_patch *new_patch)
 	struct ucode_patch *p;
 
 	list_for_each_entry(p, &microcode_cache, plist) {
-		if (p->equiv_cpu == new_patch->equiv_cpu) {
-			if (p->patch_id >= new_patch->patch_id) {
+		if (patch_cpus_equivalent(p, new_patch)) {
+			if (!patch_newer(p, new_patch)) {
 				/* we already have the latest patch */
 				kfree(new_patch->data);
 				kfree(new_patch);
@@ -593,13 +702,22 @@ static void free_cache(void)
 static struct ucode_patch *find_patch(unsigned int cpu)
 {
 	struct ucode_cpu_info *uci = ucode_cpu_info + cpu;
-	u16 equiv_id;
+	u32 rev, dummy __always_unused;
+	u16 equiv_id = 0;
 
-	equiv_id = find_equiv_id(&equiv_table, uci->cpu_sig.sig);
-	if (!equiv_id)
-		return NULL;
+	/* fetch rev if not populated yet: */
+	if (!uci->cpu_sig.rev) {
+		rdmsr(MSR_AMD64_PATCH_LEVEL, rev, dummy);
+		uci->cpu_sig.rev = rev;
+	}
 
-	return cache_find_patch(equiv_id);
+	if (x86_family(bsp_cpuid_1_eax) < 0x17) {
+		equiv_id = find_equiv_id(&equiv_table, uci->cpu_sig.sig);
+		if (!equiv_id)
+			return NULL;
+	}
+
+	return cache_find_patch(uci, equiv_id);
 }
 
 void reload_ucode_amd(unsigned int cpu)
@@ -649,7 +767,7 @@ static enum ucode_state apply_microcode_amd(int cpu)
 	struct ucode_cpu_info *uci;
 	struct ucode_patch *p;
 	enum ucode_state ret;
-	u32 rev, dummy __always_unused;
+	u32 rev;
 
 	BUG_ON(raw_smp_processor_id() != cpu);
 
@@ -659,10 +777,10 @@ static enum ucode_state apply_microcode_amd(int cpu)
 	if (!p)
 		return UCODE_NFOUND;
 
+	rev = uci->cpu_sig.rev;
+
 	mc_amd  = p->data;
 	uci->mc = p->data;
-
-	rdmsr(MSR_AMD64_PATCH_LEVEL, rev, dummy);
 
 	/* need to apply patch? */
 	if (rev > mc_amd->hdr.patch_id) {
@@ -709,6 +827,10 @@ static size_t install_equiv_cpu_table(const u8 *buf, size_t buf_size)
 	hdr = (const u32 *)buf;
 	equiv_tbl_len = hdr[2];
 
+	/* Zen and newer do not need an equivalence table. */
+	if (x86_family(bsp_cpuid_1_eax) >= 0x17)
+		goto out;
+
 	equiv_table.entry = vmalloc(equiv_tbl_len);
 	if (!equiv_table.entry) {
 		pr_err("failed to allocate equivalent CPU table\n");
@@ -718,12 +840,16 @@ static size_t install_equiv_cpu_table(const u8 *buf, size_t buf_size)
 	memcpy(equiv_table.entry, buf + CONTAINER_HDR_SZ, equiv_tbl_len);
 	equiv_table.num_entries = equiv_tbl_len / sizeof(struct equiv_cpu_entry);
 
+out:
 	/* add header length */
 	return equiv_tbl_len + CONTAINER_HDR_SZ;
 }
 
 static void free_equiv_cpu_table(void)
 {
+	if (x86_family(bsp_cpuid_1_eax) >= 0x17)
+		return;
+
 	vfree(equiv_table.entry);
 	memset(&equiv_table, 0, sizeof(equiv_table));
 }
@@ -749,7 +875,7 @@ static int verify_and_add_patch(u8 family, u8 *fw, unsigned int leftover,
 	u16 proc_id;
 	int ret;
 
-	ret = verify_patch(family, fw, leftover, patch_size);
+	ret = verify_patch(fw, leftover, patch_size);
 	if (ret)
 		return ret;
 
@@ -774,7 +900,7 @@ static int verify_and_add_patch(u8 family, u8 *fw, unsigned int leftover,
 	patch->patch_id  = mc_hdr->patch_id;
 	patch->equiv_cpu = proc_id;
 
-	pr_debug("%s: Added patch_id: 0x%08x, proc_id: 0x%04x\n",
+	pr_debug("%s: Adding patch_id: 0x%08x, proc_id: 0x%04x\n",
 		 __func__, patch->patch_id, proc_id);
 
 	/* ... and add to cache. */

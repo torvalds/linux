@@ -608,6 +608,11 @@ enum {
 	RELEASE_ALL_PAGES_MASK = 0x4000,
 };
 
+/* This limit is based on the capability of the firmware as it cannot release
+ * more than 50000 back to the host in one go.
+ */
+#define MAX_RECLAIM_NPAGES (-50000)
+
 static int req_pages_handler(struct notifier_block *nb,
 			     unsigned long type, void *data)
 {
@@ -639,7 +644,16 @@ static int req_pages_handler(struct notifier_block *nb,
 
 	req->dev = dev;
 	req->func_id = func_id;
-	req->npages = npages;
+
+	/* npages > 0 means HCA asking host to allocate/give pages,
+	 * npages < 0 means HCA asking host to reclaim back the pages allocated.
+	 * Here we are restricting the maximum number of pages that can be
+	 * reclaimed to be MAX_RECLAIM_NPAGES. Note that MAX_RECLAIM_NPAGES is
+	 * a negative value.
+	 * Since MAX_RECLAIM is negative, we are using max() to restrict
+	 * req->npages (and not min ()).
+	 */
+	req->npages = max_t(s32, npages, MAX_RECLAIM_NPAGES);
 	req->ec_function = ec_function;
 	req->release_all = release_all;
 	INIT_WORK(&req->work, pages_work_handler);
