@@ -27,8 +27,6 @@
 #include "intel_vblank.h"
 #include "skl_watermark.h"
 
-#include "gem/i915_gem_object.h"
-
 /* Cursor formats */
 static const u32 intel_cursor_formats[] = {
 	DRM_FORMAT_ARGB8888,

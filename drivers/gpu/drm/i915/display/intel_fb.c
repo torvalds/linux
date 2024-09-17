@@ -3,14 +3,13 @@
  * Copyright © 2021 Intel Corporation
  */
 
-#include <drm/drm_blend.h>
-#include <drm/drm_modeset_helper.h>
-
 #include <linux/dma-fence.h>
 #include <linux/dma-resv.h>
 
-#include "gem/i915_gem_object.h"
-#include "gem/i915_gem_object_types.h"
+#include <drm/drm_blend.h>
+#include <drm/drm_gem.h>
+#include <drm/drm_modeset_helper.h>
+
 #include "i915_drv.h"
 #include "intel_atomic_plane.h"
 #include "intel_bo.h"
