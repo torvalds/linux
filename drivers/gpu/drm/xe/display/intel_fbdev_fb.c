@@ -71,7 +71,7 @@ struct intel_framebuffer *intel_fbdev_fb_alloc(struct drm_fb_helper *helper,
 		goto err;
 	}
 
-	drm_gem_object_put(intel_bo_to_drm_bo(obj));
+	drm_gem_object_put(&obj->ttm.base);
 
 	return to_intel_framebuffer(fb);
 
@@ -102,7 +102,7 @@ int intel_fbdev_fb_fill_info(struct drm_i915_private *i915, struct fb_info *info
 	XE_WARN_ON(iosys_map_is_null(&obj->vmap));
 
 	info->screen_base = obj->vmap.vaddr_iomem;
-	info->screen_size = intel_bo_to_drm_bo(obj)->size;
+	info->screen_size = obj->ttm.base.size;
 
 	return 0;
 }
