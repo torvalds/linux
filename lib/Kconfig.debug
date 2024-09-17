@@ -97,7 +97,7 @@ config BOOT_PRINTK_DELAY
 	  using "boot_delay=N".
 
 	  It is likely that you would also need to use "lpj=M" to preset
-	  the "loops per jiffie" value.
+	  the "loops per jiffy" value.
 	  See a previous boot log for the "lpj" value to use for your
 	  system, and then set "lpj=M" before setting "boot_delay=N".
 	  NOTE:  Using this option may adversely affect SMP systems.
