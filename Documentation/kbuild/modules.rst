@@ -224,10 +224,9 @@ module 8123.ko, which is built from the following files::
 3.2 Separate Kbuild File and Makefile
 -------------------------------------
 
-	In newer versions of the kernel, kbuild will first look for a
-	file named "Kbuild," and only if that is not found, will it
-	then look for a makefile. Utilizing a "Kbuild" file allows us
-	to split up the makefile from example 1 into two files:
+	Kbuild will first look for a file named "Kbuild", and if it is not
+	found, it will then look for "Makefile". Utilizing a "Kbuild" file
+	allows us to split up the "Makefile" from example 1 into two files:
 
 	Example 2::
 
@@ -249,37 +248,6 @@ module 8123.ko, which is built from the following files::
 	each file; however, some external modules use makefiles
 	consisting of several hundred lines, and here it really pays
 	off to separate the kbuild part from the rest.
-
-	The next example shows a backward compatible version.
-
-	Example 3::
-
-		--> filename: Kbuild
-		obj-m  := 8123.o
-		8123-y := 8123_if.o 8123_pci.o 8123_bin.o
-
-		--> filename: Makefile
-		ifneq ($(KERNELRELEASE),)
-		# kbuild part of makefile
-		include Kbuild
-
-		else
-		# normal makefile
-		KDIR ?= /lib/modules/`uname -r`/build
-
-		default:
-			$(MAKE) -C $(KDIR) M=$$PWD
-
-		# Module specific targets
-		genbin:
-			echo "X" > 8123_bin.o_shipped
-
-		endif
-
-	Here the "Kbuild" file is included from the makefile. This
-	allows an older version of kbuild, which only knows of
-	makefiles, to be used when the "make" and kbuild parts are
-	split into separate files.
 
 3.3 Binary Blobs
 ----------------
