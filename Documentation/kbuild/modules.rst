@@ -521,9 +521,3 @@ build.
 
 		ext2-y := balloc.o bitmap.o dir.o
 		ext2-$(CONFIG_EXT2_FS_XATTR) += xattr.o
-
-	External modules have traditionally used "grep" to check for
-	specific `CONFIG_` settings directly in .config. This usage is
-	broken. As introduced before, external modules should use
-	kbuild for building and can therefore use the same methods as
-	in-tree modules when testing for `CONFIG_` definitions.
