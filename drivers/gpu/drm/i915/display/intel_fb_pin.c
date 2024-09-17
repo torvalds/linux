@@ -26,7 +26,8 @@ intel_fb_pin_to_dpt(const struct drm_framebuffer *fb,
 {
 	struct drm_device *dev = fb->dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
+	struct drm_gem_object *_obj = intel_fb_bo(fb);
+	struct drm_i915_gem_object *obj = to_intel_bo(_obj);
 	struct i915_gem_ww_ctx ww;
 	struct i915_vma *vma;
 	int ret;
@@ -111,7 +112,8 @@ intel_fb_pin_to_ggtt(const struct drm_framebuffer *fb,
 {
 	struct drm_device *dev = fb->dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
+	struct drm_gem_object *_obj = intel_fb_bo(fb);
+	struct drm_i915_gem_object *obj = to_intel_bo(_obj);
 	intel_wakeref_t wakeref;
 	struct i915_gem_ww_ctx ww;
 	struct i915_vma *vma;
@@ -274,9 +276,11 @@ int intel_plane_pin_fb(struct intel_plane_state *plane_state)
 		 * will trigger might_sleep() even if it won't actually sleep,
 		 * which is the case when the fb has already been pinned.
 		 */
-		if (intel_plane_needs_physical(plane))
-			plane_state->phys_dma_addr =
-				i915_gem_object_get_dma_address(intel_fb_obj(&fb->base), 0);
+		if (intel_plane_needs_physical(plane)) {
+			struct drm_i915_gem_object *obj = to_intel_bo(intel_fb_bo(&fb->base));
+
+			plane_state->phys_dma_addr = i915_gem_object_get_dma_address(obj, 0);
+		}
 	} else {
 		unsigned int alignment = intel_plane_fb_min_alignment(plane_state);
 
