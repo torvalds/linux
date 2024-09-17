@@ -492,7 +492,7 @@
 			};
 		};
 
-		ddr-cluster5-thermal {
+		ddr-ctrl5-thermal {
 			polling-delay-passive = <1000>;
 			polling-delay = <5000>;
 			thermal-sensors = <&tmu 1>;

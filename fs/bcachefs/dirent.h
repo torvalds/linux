@@ -7,12 +7,11 @@
 enum bch_validate_flags;
 extern const struct bch_hash_desc bch2_dirent_hash_desc;
 
-int bch2_dirent_invalid(struct bch_fs *, struct bkey_s_c,
-			enum bch_validate_flags, struct printbuf *);
+int bch2_dirent_validate(struct bch_fs *, struct bkey_s_c, enum bch_validate_flags);
 void bch2_dirent_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
 
 #define bch2_bkey_ops_dirent ((struct bkey_ops) {	\
-	.key_invalid	= bch2_dirent_invalid,		\
+	.key_validate	= bch2_dirent_validate,		\
 	.val_to_text	= bch2_dirent_to_text,		\
 	.min_val_size	= 16,				\
 })

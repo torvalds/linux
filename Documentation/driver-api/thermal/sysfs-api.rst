@@ -4,8 +4,6 @@ Generic Thermal Sysfs driver How To
 
 Written by Sujith Thomas <sujith.thomas@intel.com>, Zhang Rui <rui.zhang@intel.com>
 
-Updated: 2 January 2008
-
 Copyright (c)  2008 Intel Corporation
 
 
@@ -38,23 +36,23 @@ temperature) and throttle appropriate devices.
 
     ::
 
-	struct thermal_zone_device
-	*thermal_zone_device_register(char *type,
-				      int trips, int mask, void *devdata,
-				      struct thermal_zone_device_ops *ops,
-				      const struct thermal_zone_params *tzp,
-				      int passive_delay, int polling_delay))
+	struct thermal_zone_device *
+	thermal_zone_device_register_with_trips(const char *type,
+					const struct thermal_trip *trips,
+					int num_trips, void *devdata,
+					const struct thermal_zone_device_ops *ops,
+					const struct thermal_zone_params *tzp,
+					unsigned int passive_delay,
+					unsigned int polling_delay)
 
-    This interface function adds a new thermal zone device (sensor) to
+    This interface function adds a new thermal zone device (sensor) to the
     /sys/class/thermal folder as `thermal_zone[0-*]`. It tries to bind all the
-    thermal cooling devices registered at the same time.
+    thermal cooling devices registered to it at the same time.
 
     type:
 	the thermal zone type.
     trips:
-	the total number of trip points this thermal zone supports.
-    mask:
-	Bit string: If 'n'th bit is set, then trip point 'n' is writable.
+	the table of trip points for this thermal zone.
     devdata:
 	device private data
     ops:
@@ -67,32 +65,29 @@ temperature) and throttle appropriate devices.
 	.get_temp:
 		get the current temperature of the thermal zone.
 	.set_trips:
-		    set the trip points window. Whenever the current temperature
-		    is updated, the trip points immediately below and above the
-		    current temperature are found.
-	.get_mode:
-		   get the current mode (enabled/disabled) of the thermal zone.
-
-			- "enabled" means the kernel thermal management is
-			  enabled.
-			- "disabled" will prevent kernel thermal driver action
-			  upon trip points so that user applications can take
-			  charge of thermal management.
-	.set_mode:
-		set the mode (enabled/disabled) of the thermal zone.
-	.get_trip_type:
-		get the type of certain trip point.
-	.get_trip_temp:
-			get the temperature above which the certain trip point
-			will be fired.
+		set the trip points window. Whenever the current temperature
+		is updated, the trip points immediately below and above the
+		current temperature are found.
+	.change_mode:
+		change the mode (enabled/disabled) of the thermal zone.
+	.set_trip_temp:
+		set the temperature of a given trip point.
+	.get_crit_temp:
+		get the critical temperature for this thermal zone.
 	.set_emul_temp:
-			set the emulation temperature which helps in debugging
-			different threshold temperature points.
+		set the emulation temperature which helps in debugging
+		different threshold temperature points.
+	.get_trend:
+		get the trend of most recent zone temperature changes.
+	.hot:
+		hot trip point crossing handler.
+	.critical:
+		critical trip point crossing handler.
     tzp:
 	thermal zone platform parameters.
     passive_delay:
-	number of milliseconds to wait between polls when
-	performing passive cooling.
+	number of milliseconds to wait between polls when performing passive
+	cooling.
     polling_delay:
 	number of milliseconds to wait between polls when checking
 	whether trip points have been crossed (0 for interrupt driven systems).

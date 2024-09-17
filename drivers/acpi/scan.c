@@ -2273,6 +2273,8 @@ static int acpi_bus_attach(struct acpi_device *device, void *first_pass)
 	if (device->handler)
 		goto ok;
 
+	acpi_ec_register_opregions(device);
+
 	if (!device->flags.initialized) {
 		device->flags.power_manageable =
 			device->power.states[ACPI_STATE_D0].flags.valid;

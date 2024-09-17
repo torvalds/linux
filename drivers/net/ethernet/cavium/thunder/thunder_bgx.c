@@ -1054,17 +1054,11 @@ static int phy_interface_mode(u8 lmac_type)
 
 static int bgx_lmac_enable(struct bgx *bgx, u8 lmacid)
 {
-	struct lmac *lmac, **priv;
+	struct lmac *lmac;
 	u64 cfg;
 
 	lmac = &bgx->lmac[lmacid];
 	lmac->bgx = bgx;
-
-	lmac->netdev = alloc_netdev_dummy(sizeof(struct lmac *));
-	if (!lmac->netdev)
-		return -ENOMEM;
-	priv = netdev_priv(lmac->netdev);
-	*priv = lmac;
 
 	if ((lmac->lmac_type == BGX_MODE_SGMII) ||
 	    (lmac->lmac_type == BGX_MODE_QSGMII) ||
@@ -1191,7 +1185,6 @@ static void bgx_lmac_disable(struct bgx *bgx, u8 lmacid)
 	    (lmac->lmac_type != BGX_MODE_10G_KR) && lmac->phydev)
 		phy_disconnect(lmac->phydev);
 
-	free_netdev(lmac->netdev);
 	lmac->phydev = NULL;
 }
 
@@ -1653,6 +1646,23 @@ static int bgx_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	bgx_get_qlm_mode(bgx);
 
+	for (lmac = 0; lmac < bgx->lmac_count; lmac++) {
+		struct lmac *lmacp, **priv;
+
+		lmacp = &bgx->lmac[lmac];
+		lmacp->netdev = alloc_netdev_dummy(sizeof(struct lmac *));
+
+		if (!lmacp->netdev) {
+			for (int i = 0; i < lmac; i++)
+				free_netdev(bgx->lmac[i].netdev);
+			err = -ENOMEM;
+			goto err_enable;
+		}
+
+		priv = netdev_priv(lmacp->netdev);
+		*priv = lmacp;
+	}
+
 	err = bgx_init_phy(bgx);
 	if (err)
 		goto err_enable;
@@ -1692,8 +1702,10 @@ static void bgx_remove(struct pci_dev *pdev)
 	u8 lmac;
 
 	/* Disable all LMACs */
-	for (lmac = 0; lmac < bgx->lmac_count; lmac++)
+	for (lmac = 0; lmac < bgx->lmac_count; lmac++) {
 		bgx_lmac_disable(bgx, lmac);
+		free_netdev(bgx->lmac[lmac].netdev);
+	}
 
 	pci_free_irq(pdev, GMPX_GMI_TX_INT, bgx);
 

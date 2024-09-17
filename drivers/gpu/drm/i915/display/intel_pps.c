@@ -351,6 +351,9 @@ static int intel_num_pps(struct drm_i915_private *i915)
 	if (IS_GEMINILAKE(i915) || IS_BROXTON(i915))
 		return 2;
 
+	if (INTEL_PCH_TYPE(i915) >= PCH_MTL)
+		return 2;
+
 	if (INTEL_PCH_TYPE(i915) >= PCH_DG1)
 		return 1;
 

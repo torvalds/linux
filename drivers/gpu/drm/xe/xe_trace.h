@@ -309,7 +309,7 @@ DECLARE_EVENT_CLASS(xe_hw_fence,
 		    TP_ARGS(fence),
 
 		    TP_STRUCT__entry(
-			     __string(dev, __dev_name_gt(fence->ctx->gt))
+			     __string(dev, __dev_name_xe(fence->xe))
 			     __field(u64, ctx)
 			     __field(u32, seqno)
 			     __field(struct xe_hw_fence *, fence)

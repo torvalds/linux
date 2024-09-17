@@ -24,7 +24,6 @@ static int bch2_memcmp(const void *l, const void *r,  const void *priv)
 static void verify_replicas_entry(struct bch_replicas_entry_v1 *e)
 {
 #ifdef CONFIG_BCACHEFS_DEBUG
-	BUG_ON(e->data_type >= BCH_DATA_NR);
 	BUG_ON(!e->nr_devs);
 	BUG_ON(e->nr_required > 1 &&
 	       e->nr_required >= e->nr_devs);
@@ -83,7 +82,8 @@ int bch2_replicas_entry_validate(struct bch_replicas_entry_v1 *r,
 	}
 
 	for (unsigned i = 0; i < r->nr_devs; i++)
-		if (!bch2_member_exists(sb, r->devs[i])) {
+		if (r->devs[i] != BCH_SB_MEMBER_INVALID &&
+		    !bch2_member_exists(sb, r->devs[i])) {
 			prt_printf(err, "invalid device %u in entry ", r->devs[i]);
 			goto bad;
 		}
@@ -452,7 +452,8 @@ retry:
 			.type = BCH_DISK_ACCOUNTING_replicas,
 		};
 
-		memcpy(&k.replicas, e, replicas_entry_bytes(e));
+		unsafe_memcpy(&k.replicas, e, replicas_entry_bytes(e),
+			      "embedded variable length struct");
 
 		struct bpos p = disk_accounting_pos_to_bpos(&k);
 
@@ -795,7 +796,7 @@ bool bch2_have_enough_devs(struct bch_fs *c, struct bch_devs_mask devs,
 			nr_online += test_bit(e->devs[i], devs.d);
 
 			struct bch_dev *ca = bch2_dev_rcu(c, e->devs[i]);
-			nr_failed += ca && ca->mi.state == BCH_MEMBER_STATE_failed;
+			nr_failed += !ca || ca->mi.state == BCH_MEMBER_STATE_failed;
 		}
 		rcu_read_unlock();
 

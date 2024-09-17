@@ -197,8 +197,12 @@ static const struct attribute_group omnia_mcu_base_group = {
 
 static const struct attribute_group *omnia_mcu_groups[] = {
 	&omnia_mcu_base_group,
+#ifdef CONFIG_TURRIS_OMNIA_MCU_GPIO
 	&omnia_mcu_gpio_group,
+#endif
+#ifdef CONFIG_TURRIS_OMNIA_MCU_SYSOFF_WAKEUP
 	&omnia_mcu_poweroff_group,
+#endif
 	NULL
 };
 

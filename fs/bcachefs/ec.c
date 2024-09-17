@@ -107,24 +107,23 @@ struct ec_bio {
 
 /* Stripes btree keys: */
 
-int bch2_stripe_invalid(struct bch_fs *c, struct bkey_s_c k,
-			enum bch_validate_flags flags,
-			struct printbuf *err)
+int bch2_stripe_validate(struct bch_fs *c, struct bkey_s_c k,
+			 enum bch_validate_flags flags)
 {
 	const struct bch_stripe *s = bkey_s_c_to_stripe(k).v;
 	int ret = 0;
 
 	bkey_fsck_err_on(bkey_eq(k.k->p, POS_MIN) ||
-			 bpos_gt(k.k->p, POS(0, U32_MAX)), c, err,
-			 stripe_pos_bad,
+			 bpos_gt(k.k->p, POS(0, U32_MAX)),
+			 c, stripe_pos_bad,
 			 "stripe at bad pos");
 
-	bkey_fsck_err_on(bkey_val_u64s(k.k) < stripe_val_u64s(s), c, err,
-			 stripe_val_size_bad,
+	bkey_fsck_err_on(bkey_val_u64s(k.k) < stripe_val_u64s(s),
+			 c, stripe_val_size_bad,
 			 "incorrect value size (%zu < %u)",
 			 bkey_val_u64s(k.k), stripe_val_u64s(s));
 
-	ret = bch2_bkey_ptrs_invalid(c, k, flags, err);
+	ret = bch2_bkey_ptrs_validate(c, k, flags);
 fsck_err:
 	return ret;
 }
@@ -1809,6 +1808,9 @@ static int new_stripe_alloc_buckets(struct btree_trans *trans, struct ec_stripe_
 	BUG_ON(v->nr_blocks	!= h->s->nr_data + h->s->nr_parity);
 	BUG_ON(v->nr_redundant	!= h->s->nr_parity);
 
+	/* * We bypass the sector allocator which normally does this: */
+	bitmap_and(devs.d, devs.d, c->rw_devs[BCH_DATA_user].d, BCH_SB_MEMBERS_MAX);
+
 	for_each_set_bit(i, h->s->blocks_gotten, v->nr_blocks) {
 		__clear_bit(v->ptrs[i].dev, devs.d);
 		if (i < h->s->nr_data)
@@ -2235,6 +2237,23 @@ void bch2_stripes_heap_to_text(struct printbuf *out, struct bch_fs *c)
 	mutex_unlock(&c->ec_stripes_heap_lock);
 }
 
+static void bch2_new_stripe_to_text(struct printbuf *out, struct bch_fs *c,
+				    struct ec_stripe_new *s)
+{
+	prt_printf(out, "\tidx %llu blocks %u+%u allocated %u ref %u %u %s obs",
+		   s->idx, s->nr_data, s->nr_parity,
+		   bitmap_weight(s->blocks_allocated, s->nr_data),
+		   atomic_read(&s->ref[STRIPE_REF_io]),
+		   atomic_read(&s->ref[STRIPE_REF_stripe]),
+		   bch2_watermarks[s->h->watermark]);
+
+	struct bch_stripe *v = &bkey_i_to_stripe(&s->new_stripe.key)->v;
+	unsigned i;
+	for_each_set_bit(i, s->blocks_gotten, v->nr_blocks)
+		prt_printf(out, " %u", s->blocks[i]);
+	prt_newline(out);
+}
+
 void bch2_new_stripes_to_text(struct printbuf *out, struct bch_fs *c)
 {
 	struct ec_stripe_head *h;
@@ -2247,23 +2266,15 @@ void bch2_new_stripes_to_text(struct printbuf *out, struct bch_fs *c)
 		       bch2_watermarks[h->watermark]);
 
 		if (h->s)
-			prt_printf(out, "\tidx %llu blocks %u+%u allocated %u\n",
-			       h->s->idx, h->s->nr_data, h->s->nr_parity,
-			       bitmap_weight(h->s->blocks_allocated,
-					     h->s->nr_data));
+			bch2_new_stripe_to_text(out, c, h->s);
 	}
 	mutex_unlock(&c->ec_stripe_head_lock);
 
 	prt_printf(out, "in flight:\n");
 
 	mutex_lock(&c->ec_stripe_new_lock);
-	list_for_each_entry(s, &c->ec_stripe_new_list, list) {
-		prt_printf(out, "\tidx %llu blocks %u+%u ref %u %u %s\n",
-			   s->idx, s->nr_data, s->nr_parity,
-			   atomic_read(&s->ref[STRIPE_REF_io]),
-			   atomic_read(&s->ref[STRIPE_REF_stripe]),
-			   bch2_watermarks[s->h->watermark]);
-	}
+	list_for_each_entry(s, &c->ec_stripe_new_list, list)
+		bch2_new_stripe_to_text(out, c, s);
 	mutex_unlock(&c->ec_stripe_new_lock);
 }
 

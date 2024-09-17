@@ -33,14 +33,13 @@ static inline enum bch_lru_type lru_type(struct bkey_s_c l)
 	return BCH_LRU_read;
 }
 
-int bch2_lru_invalid(struct bch_fs *, struct bkey_s_c,
-		     enum bch_validate_flags, struct printbuf *);
+int bch2_lru_validate(struct bch_fs *, struct bkey_s_c, enum bch_validate_flags);
 void bch2_lru_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
 
 void bch2_lru_pos_to_text(struct printbuf *, struct bpos);
 
 #define bch2_bkey_ops_lru ((struct bkey_ops) {	\
-	.key_invalid	= bch2_lru_invalid,	\
+	.key_validate	= bch2_lru_validate,	\
 	.val_to_text	= bch2_lru_to_text,	\
 	.min_val_size	= 8,			\
 })

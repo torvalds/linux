@@ -7,6 +7,7 @@
 
 #include <linux/bitops.h>
 #include <linux/bits.h>
+#include <linux/build_bug.h>
 #include <linux/clk.h>
 #include <linux/device.h>
 #include <linux/err.h>
@@ -252,24 +253,20 @@ CS42L43_IRQ_COMPLETE(load_detect)
 static irqreturn_t cs42l43_mic_shutter(int irq, void *data)
 {
 	struct cs42l43_codec *priv = data;
-	static const char * const controls[] = {
-		"Decimator 1 Switch",
-		"Decimator 2 Switch",
-		"Decimator 3 Switch",
-		"Decimator 4 Switch",
-	};
-	int i, ret;
+	struct snd_soc_component *component = priv->component;
+	int i;
 
 	dev_dbg(priv->dev, "Microphone shutter changed\n");
 
-	if (!priv->component)
+	if (!component)
 		return IRQ_NONE;
 
-	for (i = 0; i < ARRAY_SIZE(controls); i++) {
-		ret = snd_soc_component_notify_control(priv->component,
-						       controls[i]);
-		if (ret)
+	for (i = 1; i < ARRAY_SIZE(priv->kctl); i++) {
+		if (!priv->kctl[i])
 			return IRQ_NONE;
+
+		snd_ctl_notify(component->card->snd_card,
+			       SNDRV_CTL_EVENT_MASK_VALUE, &priv->kctl[i]->id);
 	}
 
 	return IRQ_HANDLED;
@@ -278,17 +275,18 @@ static irqreturn_t cs42l43_mic_shutter(int irq, void *data)
 static irqreturn_t cs42l43_spk_shutter(int irq, void *data)
 {
 	struct cs42l43_codec *priv = data;
-	int ret;
+	struct snd_soc_component *component = priv->component;
 
 	dev_dbg(priv->dev, "Speaker shutter changed\n");
 
-	if (!priv->component)
+	if (!component)
 		return IRQ_NONE;
 
-	ret = snd_soc_component_notify_control(priv->component,
-					       "Speaker Digital Switch");
-	if (ret)
+	if (!priv->kctl[0])
 		return IRQ_NONE;
+
+	snd_ctl_notify(component->card->snd_card,
+		       SNDRV_CTL_EVENT_MASK_VALUE, &priv->kctl[0]->id);
 
 	return IRQ_HANDLED;
 }
@@ -590,7 +588,46 @@ static int cs42l43_asp_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mas
 	return 0;
 }
 
+static int cs42l43_dai_probe(struct snd_soc_dai *dai)
+{
+	struct snd_soc_component *component = dai->component;
+	struct cs42l43_codec *priv = snd_soc_component_get_drvdata(component);
+	static const char * const controls[] = {
+		"Speaker Digital Switch",
+		"Decimator 1 Switch",
+		"Decimator 2 Switch",
+		"Decimator 3 Switch",
+		"Decimator 4 Switch",
+	};
+	int i;
+
+	static_assert(ARRAY_SIZE(controls) == ARRAY_SIZE(priv->kctl));
+
+	for (i = 0; i < ARRAY_SIZE(controls); i++) {
+		if (priv->kctl[i])
+			continue;
+
+		priv->kctl[i] = snd_soc_component_get_kcontrol(component, controls[i]);
+	}
+
+	return 0;
+}
+
+static int cs42l43_dai_remove(struct snd_soc_dai *dai)
+{
+	struct snd_soc_component *component = dai->component;
+	struct cs42l43_codec *priv = snd_soc_component_get_drvdata(component);
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(priv->kctl); i++)
+		priv->kctl[i] = NULL;
+
+	return 0;
+}
+
 static const struct snd_soc_dai_ops cs42l43_asp_ops = {
+	.probe		= cs42l43_dai_probe,
+	.remove		= cs42l43_dai_remove,
 	.startup	= cs42l43_startup,
 	.hw_params	= cs42l43_asp_hw_params,
 	.set_fmt	= cs42l43_asp_set_fmt,
@@ -608,9 +645,11 @@ static int cs42l43_sdw_hw_params(struct snd_pcm_substream *substream,
 		return ret;
 
 	return cs42l43_set_sample_rate(substream, params, dai);
-};
+}
 
 static const struct snd_soc_dai_ops cs42l43_sdw_ops = {
+	.probe		= cs42l43_dai_probe,
+	.remove		= cs42l43_dai_remove,
 	.startup	= cs42l43_startup,
 	.set_stream	= cs42l43_sdw_set_stream,
 	.hw_params	= cs42l43_sdw_hw_params,

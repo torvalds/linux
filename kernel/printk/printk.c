@@ -2316,7 +2316,7 @@ asmlinkage int vprintk_emit(int facility, int level,
 	 * non-panic CPUs are generating any messages, they will be
 	 * silently dropped.
 	 */
-	if (other_cpu_in_panic())
+	if (other_cpu_in_panic() && !panic_triggering_all_cpu_backtrace)
 		return 0;
 
 	if (level == LOGLEVEL_SCHED) {
@@ -2620,6 +2620,7 @@ int match_devname_and_update_preferred_console(const char *devname,
 
 	return -ENOENT;
 }
+EXPORT_SYMBOL_GPL(match_devname_and_update_preferred_console);
 
 bool console_suspend_enabled = true;
 EXPORT_SYMBOL(console_suspend_enabled);

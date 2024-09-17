@@ -56,6 +56,8 @@ static inline subvol_inum inode_inum(struct bch_inode_info *inode)
 	};
 }
 
+struct bch_inode_info *__bch2_inode_hash_find(struct bch_fs *, subvol_inum);
+
 /*
  * Set if we've gotten a btree error for this inode, and thus the vfs inode and
  * btree inode may be inconsistent:
@@ -193,6 +195,11 @@ int bch2_vfs_init(void);
 #else
 
 #define bch2_inode_update_after_write(_trans, _inode, _inode_u, _fields)	({ do {} while (0); })
+
+static inline struct bch_inode_info *__bch2_inode_hash_find(struct bch_fs *c, subvol_inum inum)
+{
+	return NULL;
+}
 
 static inline void bch2_evict_subvolume_inodes(struct bch_fs *c,
 					       snapshot_id_list *s) {}
