@@ -489,7 +489,7 @@
 				clock-names = "sha_clk";
 			};
 
-			trng: trng@f0030000 {
+			trng: rng@f0030000 {
 				compatible = "microchip,sam9x60-trng";
 				reg = <0xf0030000 0x100>;
 				interrupts = <38 IRQ_TYPE_LEVEL_HIGH 0>;
