@@ -20,7 +20,7 @@ struct intel_framebuffer *intel_fbdev_fb_alloc(struct drm_fb_helper *helper,
 	struct drm_device *dev = helper->dev;
 	struct xe_device *xe = to_xe_device(dev);
 	struct drm_mode_fb_cmd2 mode_cmd = {};
-	struct drm_i915_gem_object *obj;
+	struct xe_bo *obj;
 	int size;
 
 	/* we don't do packed 24bpp */
