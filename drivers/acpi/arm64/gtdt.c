@@ -363,7 +363,7 @@ static int __init gtdt_import_sbsa_gwdt(struct acpi_gtdt_watchdog *wd,
 	}
 
 	irq = map_gt_gsi(wd->timer_interrupt, wd->timer_flags);
-	res[2] = (struct resource)DEFINE_RES_IRQ(irq);
+	res[2] = DEFINE_RES_IRQ(irq);
 	if (irq <= 0) {
 		pr_warn("failed to map the Watchdog interrupt.\n");
 		nr_res--;
