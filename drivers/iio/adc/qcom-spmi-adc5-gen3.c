@@ -57,6 +57,8 @@ static LIST_HEAD(adc_tm_device_list);
 
 #define ADC5_GEN3_SID				0x4f
 #define ADC5_GEN3_SID_MASK			GENMASK(3, 0)
+#define ADC5_GEN4_SID_MASK			GENMASK(4, 0)
+#define ADC5_GEN4_BUS_INDEX_MASK		GENMASK(6, 5)
 
 #define ADC5_GEN3_PERPH_CH			0x50
 #define ADC5_GEN3_CHAN_CONV_REQ			BIT(7)
@@ -109,9 +111,13 @@ static LIST_HEAD(adc_tm_device_list);
 #define ADC5_GEN3_CONV_REQ			0xe5
 #define ADC5_GEN3_CONV_REQ_REQ			BIT(0)
 
-#define ADC5_GEN3_SID_OFFSET			0x8
-#define ADC5_GEN3_CHANNEL_MASK			0xff
-#define V_CHAN(x)				(((x).sid << ADC5_GEN3_SID_OFFSET) | (x).channel)
+#define ADC5_GEN4_V_CHAN_CHANNEL_MASK		GENMASK(7, 0)
+#define ADC5_GEN4_V_CHAN_SID_MASK		GENMASK(12, 8)
+#define ADC5_GEN4_V_CHAN_BUS_INDEX_MASK		GENMASK(14, 13)
+#define V_CHAN(x) \
+	(FIELD_PREP(ADC5_GEN4_V_CHAN_BUS_INDEX_MASK, (x).bus_index) | \
+	 FIELD_PREP(ADC5_GEN4_V_CHAN_SID_MASK, (x).sid) | \
+	 FIELD_PREP(ADC5_GEN4_V_CHAN_CHANNEL_MASK, (x).channel))
 
 #define ADC_TM5_GEN3_LOWER_MASK(n)		((n) & GENMASK(7, 0))
 #define ADC_TM5_GEN3_UPPER_MASK(n)		(((n) & GENMASK(15, 8)) >> 8)
@@ -161,6 +167,7 @@ struct adc5_base_data {
  * @avg_samples: ability to provide single result from the ADC
  *	that is an average of multiple measurements.
  * @sdam_index: Index for which SDAM this channel is on.
+ * @bus_index: Index for which SPMI bus this channel is associated with.
  * @generation: indicates if channel is ADC5 GEN3 or GEN4
  * @scale_fn_type: Represents the scaling function to convert voltage
  *	physical units desired by the client for the channel.
@@ -196,6 +203,7 @@ struct adc5_channel_prop {
 	unsigned int			hw_settle_time;
 	unsigned int			avg_samples;
 	unsigned int			sdam_index;
+	unsigned int			bus_index;
 	enum vadc_generation		generation;
 
 	enum vadc_scale_fn_type		scale_fn_type;
@@ -408,7 +416,8 @@ static int adc5_gen3_configure(struct adc5_chip *adc,
 		return ret;
 
 	/* Write SID */
-	buf[0] = prop->sid & ADC5_GEN3_SID_MASK;
+	buf[0] = FIELD_PREP(ADC5_GEN4_BUS_INDEX_MASK, prop->bus_index) |
+		 FIELD_PREP(ADC5_GEN4_SID_MASK, prop->sid);
 
 	/*
 	 * Use channel 0 by default for immediate conversion and
@@ -875,7 +884,8 @@ static int adc_tm5_gen3_configure(struct adc5_channel_prop *prop)
 		return ret;
 
 	/* Write SID */
-	buf[0] = prop->sid & ADC5_GEN3_SID_MASK;
+	buf[0] = FIELD_PREP(ADC5_GEN4_BUS_INDEX_MASK, prop->bus_index) |
+		 FIELD_PREP(ADC5_GEN4_SID_MASK, prop->sid);
 
 	/*
 	 * Select TM channel and indicate there is an actual
@@ -1521,6 +1531,10 @@ static const struct of_device_id adc5_match_table[] = {
 		.compatible = "qcom,spmi-adc5-gen3",
 		.data = &adc5_gen3_data_pmic,
 	},
+	{
+		.compatible = "qcom,spmi-adc5-gen4",
+		.data = &adc5_gen4_data_pmic,
+	},
 	{ }
 };
 MODULE_DEVICE_TABLE(of, adc5_match_table);
@@ -1533,6 +1547,7 @@ static int adc5_get_dt_channel_data(struct adc5_chip *adc,
 	const char *name = node->name, *channel_name;
 	u32 chan, value, varr[2];
 	u32 sid = 0;
+	u32 bus_index = 0;
 	int ret, val;
 	struct device *dev = adc->dev;
 
@@ -1546,16 +1561,19 @@ static int adc5_get_dt_channel_data(struct adc5_chip *adc,
 		prop->generation = ADC5_GEN4;
 		prop->data = &adc5_gen4_data_pmic;
 	} else {
-		prop->generation = ADC5_GEN3;
+		prop->generation = (data == &adc5_gen3_data_pmic) ? ADC5_GEN3 : ADC5_GEN4;
 		prop->data = data;
 	}
 
 	/*
 	 * Value read from "reg" is virtual channel number
-	 * virtual channel number = (sid << 8 | channel number).
+	 * virtual channel number = (bus index << 13 | sid << 8 | channel number).
+	 * ADC5 GEN3 channels bus index = 0
 	 */
-	sid = (chan >> ADC5_GEN3_SID_OFFSET);
-	chan = (chan & ADC5_GEN3_CHANNEL_MASK);
+
+	bus_index = FIELD_GET(ADC5_GEN4_V_CHAN_BUS_INDEX_MASK, chan);
+	sid = FIELD_GET(ADC5_GEN4_V_CHAN_SID_MASK, chan);
+	chan = FIELD_GET(ADC5_GEN4_V_CHAN_CHANNEL_MASK, chan);
 
 	if (chan > ADC5_OFFSET_EXT2 ||
 	    !prop->data->adc_chans[chan].datasheet_name) {
@@ -1564,6 +1582,7 @@ static int adc5_get_dt_channel_data(struct adc5_chip *adc,
 	}
 
 	/* the channel has DT description */
+	prop->bus_index = bus_index;
 	prop->channel = chan;
 	prop->sid = sid;
 
