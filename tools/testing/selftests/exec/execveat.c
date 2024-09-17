@@ -117,7 +117,7 @@ static int check_execveat_invoked_rc(int fd, const char *path, int flags,
 	}
 	if ((WEXITSTATUS(status) != expected_rc) &&
 	    (WEXITSTATUS(status) != expected_rc2)) {
-		ksft_print_msg("child %d exited with %d not %d nor %d\n",
+		ksft_print_msg("child %d exited with %d neither %d nor %d\n",
 			       child, WEXITSTATUS(status), expected_rc,
 			       expected_rc2);
 		ksft_test_result_fail("%s\n", test_name);
