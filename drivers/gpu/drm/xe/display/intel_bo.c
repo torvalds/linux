@@ -66,3 +66,14 @@ out_unlock:
 	xe_bo_unlock(bo);
 	return ret;
 }
+
+struct intel_frontbuffer *intel_bo_get_frontbuffer(struct drm_gem_object *obj)
+{
+	return NULL;
+}
+
+struct intel_frontbuffer *intel_bo_set_frontbuffer(struct drm_gem_object *obj,
+						   struct intel_frontbuffer *front)
+{
+	return front;
+}

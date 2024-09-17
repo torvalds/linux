@@ -17,4 +17,8 @@ void intel_bo_flush_if_display(struct drm_gem_object *obj);
 int intel_bo_fb_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma);
 int intel_bo_read_from_page(struct drm_gem_object *obj, u64 offset, void *dst, int size);
 
+struct intel_frontbuffer *intel_bo_get_frontbuffer(struct drm_gem_object *obj);
+struct intel_frontbuffer *intel_bo_set_frontbuffer(struct drm_gem_object *obj,
+						   struct intel_frontbuffer *front);
+
 #endif /* __INTEL_BO__ */

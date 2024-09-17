@@ -3,6 +3,7 @@
 
 #include "gem/i915_gem_mman.h"
 #include "gem/i915_gem_object.h"
+#include "gem/i915_gem_object_frontbuffer.h"
 #include "intel_bo.h"
 
 bool intel_bo_is_tiled(struct drm_gem_object *obj)
@@ -38,4 +39,15 @@ int intel_bo_fb_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma)
 int intel_bo_read_from_page(struct drm_gem_object *obj, u64 offset, void *dst, int size)
 {
 	return i915_gem_object_read_from_page(to_intel_bo(obj), offset, dst, size);
+}
+
+struct intel_frontbuffer *intel_bo_get_frontbuffer(struct drm_gem_object *obj)
+{
+	return i915_gem_object_get_frontbuffer(to_intel_bo(obj));
+}
+
+struct intel_frontbuffer *intel_bo_set_frontbuffer(struct drm_gem_object *obj,
+						   struct intel_frontbuffer *front)
+{
+	return i915_gem_object_set_frontbuffer(to_intel_bo(obj), front);
 }

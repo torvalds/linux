@@ -59,6 +59,7 @@
 #include "gem/i915_gem_object_types.h"
 #include "i915_active.h"
 #include "i915_drv.h"
+#include "intel_bo.h"
 #include "intel_display_trace.h"
 #include "intel_display_types.h"
 #include "intel_dp.h"
@@ -266,7 +267,7 @@ static void frontbuffer_release(struct kref *ref)
 
 	i915_ggtt_clear_scanout(obj);
 
-	ret = i915_gem_object_set_frontbuffer(obj, NULL);
+	ret = intel_bo_set_frontbuffer(intel_bo_to_drm_bo(obj), NULL);
 	drm_WARN_ON(&intel_bo_to_i915(obj)->drm, ret);
 	spin_unlock(&intel_bo_to_i915(obj)->display.fb_tracking.lock);
 
@@ -280,7 +281,7 @@ intel_frontbuffer_get(struct drm_i915_gem_object *obj)
 	struct drm_i915_private *i915 = intel_bo_to_i915(obj);
 	struct intel_frontbuffer *front, *cur;
 
-	front = i915_gem_object_get_frontbuffer(obj);
+	front = intel_bo_get_frontbuffer(intel_bo_to_drm_bo(obj));
 	if (front)
 		return front;
 
@@ -298,7 +299,7 @@ intel_frontbuffer_get(struct drm_i915_gem_object *obj)
 	INIT_WORK(&front->flush_work, intel_frontbuffer_flush_work);
 
 	spin_lock(&i915->display.fb_tracking.lock);
-	cur = i915_gem_object_set_frontbuffer(obj, front);
+	cur = intel_bo_set_frontbuffer(intel_bo_to_drm_bo(obj), front);
 	spin_unlock(&i915->display.fb_tracking.lock);
 	if (cur != front)
 		kfree(front);
