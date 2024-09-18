@@ -859,7 +859,6 @@ static void __evsel__config_callchain(struct evsel *evsel, struct record_opts *o
 {
 	bool function = evsel__is_function_event(evsel);
 	struct perf_event_attr *attr = &evsel->core.attr;
-	const char *arch = perf_env__arch(evsel__env(evsel));
 
 	evsel__set_sample_bit(evsel, CALLCHAIN);
 
@@ -890,6 +889,8 @@ static void __evsel__config_callchain(struct evsel *evsel, struct record_opts *o
 
 	if (param->record_mode == CALLCHAIN_DWARF) {
 		if (!function) {
+			const char *arch = perf_env__arch(evsel__env(evsel));
+
 			evsel__set_sample_bit(evsel, REGS_USER);
 			evsel__set_sample_bit(evsel, STACK_USER);
 			if (opts->sample_user_regs &&
