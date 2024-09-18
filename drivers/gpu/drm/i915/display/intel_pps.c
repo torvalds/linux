@@ -1211,6 +1211,20 @@ static void vlv_steal_power_sequencer(struct intel_display *display,
 	}
 }
 
+static enum pipe vlv_active_pipe(struct intel_dp *intel_dp)
+{
+	struct intel_display *display = to_intel_display(intel_dp);
+	struct drm_i915_private *dev_priv = to_i915(display->drm);
+	struct intel_encoder *encoder = &dp_to_dig_port(intel_dp)->base;
+	enum pipe pipe;
+
+	if (g4x_dp_port_enabled(dev_priv, intel_dp->output_reg,
+				encoder->port, &pipe))
+		return pipe;
+
+	return INVALID_PIPE;
+}
+
 /* Call on all DP, not just eDP */
 void vlv_pps_pipe_init(struct intel_dp *intel_dp)
 {
