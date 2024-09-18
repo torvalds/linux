@@ -481,7 +481,6 @@ devm_hwmon_device_register_with_info(struct device *dev,
 				const struct attribute_group **extra_groups);
 
 void hwmon_device_unregister(struct device *dev);
-void devm_hwmon_device_unregister(struct device *dev);
 
 int hwmon_notify_event(struct device *dev, enum hwmon_sensor_types type,
 		       u32 attr, int channel);

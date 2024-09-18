@@ -6,18 +6,17 @@
  * Copyright (c) 2011 David George <david.george@ska.ac.za>
  */
 
-#include <linux/module.h>
-#include <linux/init.h>
-#include <linux/slab.h>
-#include <linux/jiffies.h>
-#include <linux/i2c.h>
-#include <linux/hwmon.h>
-#include <linux/hwmon-sysfs.h>
+#include <linux/bitfield.h>
+#include <linux/bits.h>
 #include <linux/err.h>
+#include <linux/hwmon.h>
+#include <linux/i2c.h>
+#include <linux/init.h>
+#include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/of.h>
-
-#include <linux/platform_data/max6697.h>
+#include <linux/regmap.h>
+#include <linux/slab.h>
 
 enum chips { max6581, max6602, max6622, max6636, max6689, max6693, max6694,
 	     max6697, max6698, max6699 };
@@ -33,21 +32,36 @@ static const u8 MAX6697_REG_MAX[] = {
 static const u8 MAX6697_REG_CRIT[] = {
 			0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27 };
 
+#define MAX6697_REG_MIN			0x30
 /*
- * Map device tree / platform data register bit map to chip bit map.
+ * Map device tree / internal register bit map to chip bit map.
  * Applies to alert register and over-temperature register.
  */
+
+#define MAX6697_EXTERNAL_MASK_DT	GENMASK(7, 1)
+#define MAX6697_LOCAL_MASK_DT		BIT(0)
+#define MAX6697_EXTERNAL_MASK_CHIP	GENMASK(6, 0)
+#define MAX6697_LOCAL_MASK_CHIP		BIT(7)
+
+/* alert - local channel is in bit 6 */
 #define MAX6697_ALERT_MAP_BITS(reg)	((((reg) & 0x7e) >> 1) | \
 				 (((reg) & 0x01) << 6) | ((reg) & 0x80))
-#define MAX6697_OVERT_MAP_BITS(reg) (((reg) >> 1) | (((reg) & 0x01) << 7))
 
-#define MAX6697_REG_STAT(n)		(0x44 + (n))
+/* over-temperature - local channel is in bit 7 */
+#define MAX6697_OVERT_MAP_BITS(reg)	\
+	(FIELD_PREP(MAX6697_EXTERNAL_MASK_CHIP, FIELD_GET(MAX6697_EXTERNAL_MASK_DT, reg)) | \
+	 FIELD_PREP(MAX6697_LOCAL_MASK_CHIP, FIELD_GET(MAX6697_LOCAL_MASK_DT, reg)))
+
+#define MAX6697_REG_STAT_ALARM		0x44
+#define MAX6697_REG_STAT_CRIT		0x45
+#define MAX6697_REG_STAT_FAULT		0x46
+#define MAX6697_REG_STAT_MIN_ALARM	0x47
 
 #define MAX6697_REG_CONFIG		0x41
-#define MAX6581_CONF_EXTENDED		(1 << 1)
-#define MAX6693_CONF_BETA		(1 << 2)
-#define MAX6697_CONF_RESISTANCE		(1 << 3)
-#define MAX6697_CONF_TIMEOUT		(1 << 5)
+#define MAX6581_CONF_EXTENDED		BIT(1)
+#define MAX6693_CONF_BETA		BIT(2)
+#define MAX6697_CONF_RESISTANCE		BIT(3)
+#define MAX6697_CONF_TIMEOUT		BIT(5)
 #define MAX6697_REG_ALERT_MASK		0x42
 #define MAX6697_REG_OVERT_MASK		0x43
 
@@ -67,35 +81,24 @@ struct max6697_chip_data {
 	u32 have_crit;
 	u32 have_fault;
 	u8 valid_conf;
-	const u8 *alarm_map;
 };
 
 struct max6697_data {
-	struct i2c_client *client;
+	struct regmap *regmap;
 
 	enum chips type;
 	const struct max6697_chip_data *chip;
 
-	int update_interval;	/* in milli-seconds */
 	int temp_offset;	/* in degrees C */
 
 	struct mutex update_lock;
-	unsigned long last_updated;	/* In jiffies */
-	bool valid;		/* true if following fields are valid */
 
-	/* 1x local and up to 7x remote */
-	u8 temp[8][4];		/* [nr][0]=temp [1]=ext [2]=max [3]=crit */
 #define MAX6697_TEMP_INPUT	0
 #define MAX6697_TEMP_EXT	1
 #define MAX6697_TEMP_MAX	2
 #define MAX6697_TEMP_CRIT	3
 	u32 alarms;
 };
-
-/* Diode fault status bits on MAX6581 are right shifted by one bit */
-static const u8 max6581_alarm_map[] = {
-	 0, 0, 1, 2, 3, 4, 5, 6, 8, 9, 10, 11, 12, 13, 14, 15,
-	 16, 17, 18, 19, 20, 21, 22, 23 };
 
 static const struct max6697_chip_data max6697_chip_data[] = {
 	[max6581] = {
@@ -104,7 +107,6 @@ static const struct max6697_chip_data max6697_chip_data[] = {
 		.have_ext = 0x7f,
 		.have_fault = 0xfe,
 		.valid_conf = MAX6581_CONF_EXTENDED | MAX6697_CONF_TIMEOUT,
-		.alarm_map = max6581_alarm_map,
 	},
 	[max6602] = {
 		.channels = 5,
@@ -173,545 +175,398 @@ static const struct max6697_chip_data max6697_chip_data[] = {
 	},
 };
 
-static inline int max6581_offset_to_millic(int val)
+static int max6697_alarm_channel_map(int channel)
 {
-	return sign_extend32(val, 7) * 250;
-}
-
-static struct max6697_data *max6697_update_device(struct device *dev)
-{
-	struct max6697_data *data = dev_get_drvdata(dev);
-	struct i2c_client *client = data->client;
-	struct max6697_data *ret = data;
-	int val;
-	int i;
-	u32 alarms;
-
-	mutex_lock(&data->update_lock);
-
-	if (data->valid &&
-	    !time_after(jiffies, data->last_updated
-			+ msecs_to_jiffies(data->update_interval)))
-		goto abort;
-
-	for (i = 0; i < data->chip->channels; i++) {
-		if (data->chip->have_ext & (1 << i)) {
-			val = i2c_smbus_read_byte_data(client,
-						       MAX6697_REG_TEMP_EXT[i]);
-			if (unlikely(val < 0)) {
-				ret = ERR_PTR(val);
-				goto abort;
-			}
-			data->temp[i][MAX6697_TEMP_EXT] = val;
-		}
-
-		val = i2c_smbus_read_byte_data(client, MAX6697_REG_TEMP[i]);
-		if (unlikely(val < 0)) {
-			ret = ERR_PTR(val);
-			goto abort;
-		}
-		data->temp[i][MAX6697_TEMP_INPUT] = val;
-
-		val = i2c_smbus_read_byte_data(client, MAX6697_REG_MAX[i]);
-		if (unlikely(val < 0)) {
-			ret = ERR_PTR(val);
-			goto abort;
-		}
-		data->temp[i][MAX6697_TEMP_MAX] = val;
-
-		if (data->chip->have_crit & (1 << i)) {
-			val = i2c_smbus_read_byte_data(client,
-						       MAX6697_REG_CRIT[i]);
-			if (unlikely(val < 0)) {
-				ret = ERR_PTR(val);
-				goto abort;
-			}
-			data->temp[i][MAX6697_TEMP_CRIT] = val;
-		}
+	switch (channel) {
+	case 0:
+		return 6;
+	case 7:
+		return 7;
+	default:
+		return channel - 1;
 	}
-
-	alarms = 0;
-	for (i = 0; i < 3; i++) {
-		val = i2c_smbus_read_byte_data(client, MAX6697_REG_STAT(i));
-		if (unlikely(val < 0)) {
-			ret = ERR_PTR(val);
-			goto abort;
-		}
-		alarms = (alarms << 8) | val;
-	}
-	data->alarms = alarms;
-	data->last_updated = jiffies;
-	data->valid = true;
-abort:
-	mutex_unlock(&data->update_lock);
-
-	return ret;
 }
 
-static ssize_t temp_input_show(struct device *dev,
-			       struct device_attribute *devattr, char *buf)
+static int max6697_read(struct device *dev, enum hwmon_sensor_types type,
+			u32 attr, int channel, long *val)
 {
-	int index = to_sensor_dev_attr(devattr)->index;
-	struct max6697_data *data = max6697_update_device(dev);
-	int temp;
-
-	if (IS_ERR(data))
-		return PTR_ERR(data);
-
-	temp = (data->temp[index][MAX6697_TEMP_INPUT] - data->temp_offset) << 3;
-	temp |= data->temp[index][MAX6697_TEMP_EXT] >> 5;
-
-	return sprintf(buf, "%d\n", temp * 125);
-}
-
-static ssize_t temp_show(struct device *dev, struct device_attribute *devattr,
-			 char *buf)
-{
-	int nr = to_sensor_dev_attr_2(devattr)->nr;
-	int index = to_sensor_dev_attr_2(devattr)->index;
-	struct max6697_data *data = max6697_update_device(dev);
-	int temp;
-
-	if (IS_ERR(data))
-		return PTR_ERR(data);
-
-	temp = data->temp[nr][index];
-	temp -= data->temp_offset;
-
-	return sprintf(buf, "%d\n", temp * 1000);
-}
-
-static ssize_t alarm_show(struct device *dev, struct device_attribute *attr,
-			  char *buf)
-{
-	int index = to_sensor_dev_attr(attr)->index;
-	struct max6697_data *data = max6697_update_device(dev);
-
-	if (IS_ERR(data))
-		return PTR_ERR(data);
-
-	if (data->chip->alarm_map)
-		index = data->chip->alarm_map[index];
-
-	return sprintf(buf, "%u\n", (data->alarms >> index) & 0x1);
-}
-
-static ssize_t temp_store(struct device *dev,
-			  struct device_attribute *devattr, const char *buf,
-			  size_t count)
-{
-	int nr = to_sensor_dev_attr_2(devattr)->nr;
-	int index = to_sensor_dev_attr_2(devattr)->index;
+	unsigned int offset_regs[2] = { MAX6581_REG_OFFSET_SELECT, MAX6581_REG_OFFSET };
+	unsigned int temp_regs[2] = { MAX6697_REG_TEMP[channel],
+				      MAX6697_REG_TEMP_EXT[channel] };
 	struct max6697_data *data = dev_get_drvdata(dev);
-	long temp;
+	struct regmap *regmap = data->regmap;
+	u8 regdata[2] = { };
+	u32 regval;
 	int ret;
 
-	ret = kstrtol(buf, 10, &temp);
-	if (ret < 0)
-		return ret;
+	switch (attr) {
+	case hwmon_temp_input:
+		ret = regmap_multi_reg_read(regmap, temp_regs, regdata,
+					    data->chip->have_ext & BIT(channel) ? 2 : 1);
+		if (ret)
+			return ret;
+		*val = (((regdata[0] - data->temp_offset) << 3) | (regdata[1] >> 5)) * 125;
+		break;
+	case hwmon_temp_max:
+		ret = regmap_read(regmap, MAX6697_REG_MAX[channel], &regval);
+		if (ret)
+			return ret;
+		*val = ((int)regval - data->temp_offset) * 1000;
+		break;
+	case hwmon_temp_crit:
+		ret = regmap_read(regmap, MAX6697_REG_CRIT[channel], &regval);
+		if (ret)
+			return ret;
+		*val = ((int)regval - data->temp_offset) * 1000;
+		break;
+	case hwmon_temp_min:
+		ret = regmap_read(regmap, MAX6697_REG_MIN, &regval);
+		if (ret)
+			return ret;
+		*val = ((int)regval - data->temp_offset) * 1000;
+		break;
+	case hwmon_temp_offset:
+		ret = regmap_multi_reg_read(regmap, offset_regs, regdata, 2);
+		if (ret)
+			return ret;
 
-	mutex_lock(&data->update_lock);
-	temp = clamp_val(temp, -1000000, 1000000);	/* prevent underflow */
-	temp = DIV_ROUND_CLOSEST(temp, 1000) + data->temp_offset;
-	temp = clamp_val(temp, 0, data->type == max6581 ? 255 : 127);
-	data->temp[nr][index] = temp;
-	ret = i2c_smbus_write_byte_data(data->client,
-					index == 2 ? MAX6697_REG_MAX[nr]
-						   : MAX6697_REG_CRIT[nr],
-					temp);
-	mutex_unlock(&data->update_lock);
+		if (!(regdata[0] & BIT(channel - 1)))
+			regdata[1] = 0;
 
-	return ret < 0 ? ret : count;
+		*val = sign_extend32(regdata[1], 7) * 250;
+		break;
+	case hwmon_temp_fault:
+		ret = regmap_read(regmap, MAX6697_REG_STAT_FAULT, &regval);
+		if (ret)
+			return ret;
+		if (data->type == max6581)
+			*val = !!(regval & BIT(channel - 1));
+		else
+			*val = !!(regval & BIT(channel));
+		break;
+	case hwmon_temp_crit_alarm:
+		ret = regmap_read(regmap, MAX6697_REG_STAT_CRIT, &regval);
+		if (ret)
+			return ret;
+		/*
+		 * In the MAX6581 datasheet revision 0 to 3, the local channel
+		 * overtemperature status is reported in bit 6 of register 0x45,
+		 * and the overtemperature status for remote channel 7 is
+		 * reported in bit 7. In Revision 4 and later, the local channel
+		 * overtemperature status is reported in bit 7, and the remote
+		 * channel 7 overtemperature status is reported in bit 6. A real
+		 * chip was found to match the functionality documented in
+		 * Revision 4 and later.
+		 */
+		*val = !!(regval & BIT(channel ? channel - 1 : 7));
+		break;
+	case hwmon_temp_max_alarm:
+		ret = regmap_read(regmap, MAX6697_REG_STAT_ALARM, &regval);
+		if (ret)
+			return ret;
+		*val = !!(regval & BIT(max6697_alarm_channel_map(channel)));
+		break;
+	case hwmon_temp_min_alarm:
+		ret = regmap_read(regmap, MAX6697_REG_STAT_MIN_ALARM, &regval);
+		if (ret)
+			return ret;
+		*val = !!(regval & BIT(max6697_alarm_channel_map(channel)));
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+	return 0;
 }
 
-static ssize_t offset_store(struct device *dev, struct device_attribute *devattr, const char *buf,
-			    size_t count)
+static int max6697_write(struct device *dev, enum hwmon_sensor_types type,
+			 u32 attr, int channel, long val)
 {
-	int val, ret, index, select;
-	struct max6697_data *data;
-	bool channel_enabled;
-	long temp;
-
-	index = to_sensor_dev_attr(devattr)->index;
-	data = dev_get_drvdata(dev);
-	ret = kstrtol(buf, 10, &temp);
-	if (ret < 0)
-		return ret;
-
-	mutex_lock(&data->update_lock);
-	select = i2c_smbus_read_byte_data(data->client, MAX6581_REG_OFFSET_SELECT);
-	if (select < 0) {
-		ret = select;
-		goto abort;
-	}
-	channel_enabled = (select & (1 << (index - 1)));
-	temp = clamp_val(temp, MAX6581_OFFSET_MIN, MAX6581_OFFSET_MAX);
-	val = DIV_ROUND_CLOSEST(temp, 250);
-	/* disable the offset for channel if the new offset is 0 */
-	if (val == 0) {
-		if (channel_enabled)
-			ret = i2c_smbus_write_byte_data(data->client, MAX6581_REG_OFFSET_SELECT,
-							select & ~(1 << (index - 1)));
-		ret = ret < 0 ? ret : count;
-		goto abort;
-	}
-	if (!channel_enabled) {
-		ret = i2c_smbus_write_byte_data(data->client, MAX6581_REG_OFFSET_SELECT,
-						select | (1 << (index - 1)));
-		if (ret < 0)
-			goto abort;
-	}
-	ret = i2c_smbus_write_byte_data(data->client, MAX6581_REG_OFFSET, val);
-	ret = ret < 0 ? ret : count;
-
-abort:
-	mutex_unlock(&data->update_lock);
-	return ret;
-}
-
-static ssize_t offset_show(struct device *dev, struct device_attribute *devattr, char *buf)
-{
-	struct max6697_data *data;
-	int select, ret, index;
-
-	index = to_sensor_dev_attr(devattr)->index;
-	data = dev_get_drvdata(dev);
-	mutex_lock(&data->update_lock);
-	select = i2c_smbus_read_byte_data(data->client, MAX6581_REG_OFFSET_SELECT);
-	if (select < 0)
-		ret = select;
-	else if (select & (1 << (index - 1)))
-		ret = i2c_smbus_read_byte_data(data->client, MAX6581_REG_OFFSET);
-	else
-		ret = 0;
-	mutex_unlock(&data->update_lock);
-	return ret < 0 ? ret : sprintf(buf, "%d\n", max6581_offset_to_millic(ret));
-}
-
-static SENSOR_DEVICE_ATTR_RO(temp1_input, temp_input, 0);
-static SENSOR_DEVICE_ATTR_2_RW(temp1_max, temp, 0, MAX6697_TEMP_MAX);
-static SENSOR_DEVICE_ATTR_2_RW(temp1_crit, temp, 0, MAX6697_TEMP_CRIT);
-
-static SENSOR_DEVICE_ATTR_RO(temp2_input, temp_input, 1);
-static SENSOR_DEVICE_ATTR_2_RW(temp2_max, temp, 1, MAX6697_TEMP_MAX);
-static SENSOR_DEVICE_ATTR_2_RW(temp2_crit, temp, 1, MAX6697_TEMP_CRIT);
-
-static SENSOR_DEVICE_ATTR_RO(temp3_input, temp_input, 2);
-static SENSOR_DEVICE_ATTR_2_RW(temp3_max, temp, 2, MAX6697_TEMP_MAX);
-static SENSOR_DEVICE_ATTR_2_RW(temp3_crit, temp, 2, MAX6697_TEMP_CRIT);
-
-static SENSOR_DEVICE_ATTR_RO(temp4_input, temp_input, 3);
-static SENSOR_DEVICE_ATTR_2_RW(temp4_max, temp, 3, MAX6697_TEMP_MAX);
-static SENSOR_DEVICE_ATTR_2_RW(temp4_crit, temp, 3, MAX6697_TEMP_CRIT);
-
-static SENSOR_DEVICE_ATTR_RO(temp5_input, temp_input, 4);
-static SENSOR_DEVICE_ATTR_2_RW(temp5_max, temp, 4, MAX6697_TEMP_MAX);
-static SENSOR_DEVICE_ATTR_2_RW(temp5_crit, temp, 4, MAX6697_TEMP_CRIT);
-
-static SENSOR_DEVICE_ATTR_RO(temp6_input, temp_input, 5);
-static SENSOR_DEVICE_ATTR_2_RW(temp6_max, temp, 5, MAX6697_TEMP_MAX);
-static SENSOR_DEVICE_ATTR_2_RW(temp6_crit, temp, 5, MAX6697_TEMP_CRIT);
-
-static SENSOR_DEVICE_ATTR_RO(temp7_input, temp_input, 6);
-static SENSOR_DEVICE_ATTR_2_RW(temp7_max, temp, 6, MAX6697_TEMP_MAX);
-static SENSOR_DEVICE_ATTR_2_RW(temp7_crit, temp, 6, MAX6697_TEMP_CRIT);
-
-static SENSOR_DEVICE_ATTR_RO(temp8_input, temp_input, 7);
-static SENSOR_DEVICE_ATTR_2_RW(temp8_max, temp, 7, MAX6697_TEMP_MAX);
-static SENSOR_DEVICE_ATTR_2_RW(temp8_crit, temp, 7, MAX6697_TEMP_CRIT);
-
-static SENSOR_DEVICE_ATTR_RO(temp1_max_alarm, alarm, 22);
-static SENSOR_DEVICE_ATTR_RO(temp2_max_alarm, alarm, 16);
-static SENSOR_DEVICE_ATTR_RO(temp3_max_alarm, alarm, 17);
-static SENSOR_DEVICE_ATTR_RO(temp4_max_alarm, alarm, 18);
-static SENSOR_DEVICE_ATTR_RO(temp5_max_alarm, alarm, 19);
-static SENSOR_DEVICE_ATTR_RO(temp6_max_alarm, alarm, 20);
-static SENSOR_DEVICE_ATTR_RO(temp7_max_alarm, alarm, 21);
-static SENSOR_DEVICE_ATTR_RO(temp8_max_alarm, alarm, 23);
-
-static SENSOR_DEVICE_ATTR_RO(temp1_crit_alarm, alarm, 15);
-static SENSOR_DEVICE_ATTR_RO(temp2_crit_alarm, alarm, 8);
-static SENSOR_DEVICE_ATTR_RO(temp3_crit_alarm, alarm, 9);
-static SENSOR_DEVICE_ATTR_RO(temp4_crit_alarm, alarm, 10);
-static SENSOR_DEVICE_ATTR_RO(temp5_crit_alarm, alarm, 11);
-static SENSOR_DEVICE_ATTR_RO(temp6_crit_alarm, alarm, 12);
-static SENSOR_DEVICE_ATTR_RO(temp7_crit_alarm, alarm, 13);
-static SENSOR_DEVICE_ATTR_RO(temp8_crit_alarm, alarm, 14);
-
-static SENSOR_DEVICE_ATTR_RO(temp2_fault, alarm, 1);
-static SENSOR_DEVICE_ATTR_RO(temp3_fault, alarm, 2);
-static SENSOR_DEVICE_ATTR_RO(temp4_fault, alarm, 3);
-static SENSOR_DEVICE_ATTR_RO(temp5_fault, alarm, 4);
-static SENSOR_DEVICE_ATTR_RO(temp6_fault, alarm, 5);
-static SENSOR_DEVICE_ATTR_RO(temp7_fault, alarm, 6);
-static SENSOR_DEVICE_ATTR_RO(temp8_fault, alarm, 7);
-
-/* There is no offset for local temperature so starting from temp2 */
-static SENSOR_DEVICE_ATTR_RW(temp2_offset, offset, 1);
-static SENSOR_DEVICE_ATTR_RW(temp3_offset, offset, 2);
-static SENSOR_DEVICE_ATTR_RW(temp4_offset, offset, 3);
-static SENSOR_DEVICE_ATTR_RW(temp5_offset, offset, 4);
-static SENSOR_DEVICE_ATTR_RW(temp6_offset, offset, 5);
-static SENSOR_DEVICE_ATTR_RW(temp7_offset, offset, 6);
-static SENSOR_DEVICE_ATTR_RW(temp8_offset, offset, 7);
-
-static DEVICE_ATTR(dummy, 0, NULL, NULL);
-
-static umode_t max6697_is_visible(struct kobject *kobj, struct attribute *attr,
-				  int index)
-{
-	struct device *dev = kobj_to_dev(kobj);
 	struct max6697_data *data = dev_get_drvdata(dev);
+	struct regmap *regmap = data->regmap;
+	int ret;
+
+	switch (attr) {
+	case hwmon_temp_max:
+		val = clamp_val(val, -1000000, 1000000);	/* prevent underflow */
+		val = DIV_ROUND_CLOSEST(val, 1000) + data->temp_offset;
+		val = clamp_val(val, 0, data->type == max6581 ? 255 : 127);
+		return regmap_write(regmap, MAX6697_REG_MAX[channel], val);
+	case hwmon_temp_crit:
+		val = clamp_val(val, -1000000, 1000000);	/* prevent underflow */
+		val = DIV_ROUND_CLOSEST(val, 1000) + data->temp_offset;
+		val = clamp_val(val, 0, data->type == max6581 ? 255 : 127);
+		return regmap_write(regmap, MAX6697_REG_CRIT[channel], val);
+	case hwmon_temp_min:
+		val = clamp_val(val, -1000000, 1000000);	/* prevent underflow */
+		val = DIV_ROUND_CLOSEST(val, 1000) + data->temp_offset;
+		val = clamp_val(val, 0, 255);
+		return regmap_write(regmap, MAX6697_REG_MIN, val);
+	case hwmon_temp_offset:
+		mutex_lock(&data->update_lock);
+		val = clamp_val(val, MAX6581_OFFSET_MIN, MAX6581_OFFSET_MAX);
+		val = DIV_ROUND_CLOSEST(val, 250);
+		if (!val) {	/* disable this (and only this) channel */
+			ret = regmap_clear_bits(regmap, MAX6581_REG_OFFSET_SELECT,
+						BIT(channel - 1));
+		} else {
+			/* enable channel and update offset */
+			ret = regmap_set_bits(regmap, MAX6581_REG_OFFSET_SELECT,
+					      BIT(channel - 1));
+			if (ret)
+				goto unlock;
+			ret = regmap_write(regmap, MAX6581_REG_OFFSET, val);
+		}
+unlock:
+		mutex_unlock(&data->update_lock);
+		return ret;
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static umode_t max6697_is_visible(const void *_data, enum hwmon_sensor_types type,
+				  u32 attr, int channel)
+{
+	const struct max6697_data *data = _data;
 	const struct max6697_chip_data *chip = data->chip;
-	int channel = index / 7;	/* channel number */
-	int nr = index % 7;		/* attribute index within channel */
 
 	if (channel >= chip->channels)
 		return 0;
 
-	if ((nr == 3 || nr == 4) && !(chip->have_crit & (1 << channel)))
-		return 0;
-	if (nr == 5 && !(chip->have_fault & (1 << channel)))
-		return 0;
-	/* offset reg is only supported on max6581 remote channels */
-	if (nr == 6)
-		if (data->type != max6581 || channel == 0)
-			return 0;
-
-	return attr->mode;
-}
-
-/*
- * max6697_is_visible uses the index into the following array to determine
- * if attributes should be created or not. Any change in order or content
- * must be matched in max6697_is_visible.
- */
-static struct attribute *max6697_attributes[] = {
-	&sensor_dev_attr_temp1_input.dev_attr.attr,
-	&sensor_dev_attr_temp1_max.dev_attr.attr,
-	&sensor_dev_attr_temp1_max_alarm.dev_attr.attr,
-	&sensor_dev_attr_temp1_crit.dev_attr.attr,
-	&sensor_dev_attr_temp1_crit_alarm.dev_attr.attr,
-	&dev_attr_dummy.attr,
-	&dev_attr_dummy.attr,
-
-	&sensor_dev_attr_temp2_input.dev_attr.attr,
-	&sensor_dev_attr_temp2_max.dev_attr.attr,
-	&sensor_dev_attr_temp2_max_alarm.dev_attr.attr,
-	&sensor_dev_attr_temp2_crit.dev_attr.attr,
-	&sensor_dev_attr_temp2_crit_alarm.dev_attr.attr,
-	&sensor_dev_attr_temp2_fault.dev_attr.attr,
-	&sensor_dev_attr_temp2_offset.dev_attr.attr,
-
-	&sensor_dev_attr_temp3_input.dev_attr.attr,
-	&sensor_dev_attr_temp3_max.dev_attr.attr,
-	&sensor_dev_attr_temp3_max_alarm.dev_attr.attr,
-	&sensor_dev_attr_temp3_crit.dev_attr.attr,
-	&sensor_dev_attr_temp3_crit_alarm.dev_attr.attr,
-	&sensor_dev_attr_temp3_fault.dev_attr.attr,
-	&sensor_dev_attr_temp3_offset.dev_attr.attr,
-
-	&sensor_dev_attr_temp4_input.dev_attr.attr,
-	&sensor_dev_attr_temp4_max.dev_attr.attr,
-	&sensor_dev_attr_temp4_max_alarm.dev_attr.attr,
-	&sensor_dev_attr_temp4_crit.dev_attr.attr,
-	&sensor_dev_attr_temp4_crit_alarm.dev_attr.attr,
-	&sensor_dev_attr_temp4_fault.dev_attr.attr,
-	&sensor_dev_attr_temp4_offset.dev_attr.attr,
-
-	&sensor_dev_attr_temp5_input.dev_attr.attr,
-	&sensor_dev_attr_temp5_max.dev_attr.attr,
-	&sensor_dev_attr_temp5_max_alarm.dev_attr.attr,
-	&sensor_dev_attr_temp5_crit.dev_attr.attr,
-	&sensor_dev_attr_temp5_crit_alarm.dev_attr.attr,
-	&sensor_dev_attr_temp5_fault.dev_attr.attr,
-	&sensor_dev_attr_temp5_offset.dev_attr.attr,
-
-	&sensor_dev_attr_temp6_input.dev_attr.attr,
-	&sensor_dev_attr_temp6_max.dev_attr.attr,
-	&sensor_dev_attr_temp6_max_alarm.dev_attr.attr,
-	&sensor_dev_attr_temp6_crit.dev_attr.attr,
-	&sensor_dev_attr_temp6_crit_alarm.dev_attr.attr,
-	&sensor_dev_attr_temp6_fault.dev_attr.attr,
-	&sensor_dev_attr_temp6_offset.dev_attr.attr,
-
-	&sensor_dev_attr_temp7_input.dev_attr.attr,
-	&sensor_dev_attr_temp7_max.dev_attr.attr,
-	&sensor_dev_attr_temp7_max_alarm.dev_attr.attr,
-	&sensor_dev_attr_temp7_crit.dev_attr.attr,
-	&sensor_dev_attr_temp7_crit_alarm.dev_attr.attr,
-	&sensor_dev_attr_temp7_fault.dev_attr.attr,
-	&sensor_dev_attr_temp7_offset.dev_attr.attr,
-
-	&sensor_dev_attr_temp8_input.dev_attr.attr,
-	&sensor_dev_attr_temp8_max.dev_attr.attr,
-	&sensor_dev_attr_temp8_max_alarm.dev_attr.attr,
-	&sensor_dev_attr_temp8_crit.dev_attr.attr,
-	&sensor_dev_attr_temp8_crit_alarm.dev_attr.attr,
-	&sensor_dev_attr_temp8_fault.dev_attr.attr,
-	&sensor_dev_attr_temp8_offset.dev_attr.attr,
-	NULL
-};
-
-static const struct attribute_group max6697_group = {
-	.attrs = max6697_attributes, .is_visible = max6697_is_visible,
-};
-__ATTRIBUTE_GROUPS(max6697);
-
-static void max6697_get_config_of(struct device_node *node,
-				  struct max6697_platform_data *pdata)
-{
-	int len;
-	const __be32 *prop;
-
-	pdata->smbus_timeout_disable =
-		of_property_read_bool(node, "smbus-timeout-disable");
-	pdata->extended_range_enable =
-		of_property_read_bool(node, "extended-range-enable");
-	pdata->beta_compensation =
-		of_property_read_bool(node, "beta-compensation-enable");
-
-	prop = of_get_property(node, "alert-mask", &len);
-	if (prop && len == sizeof(u32))
-		pdata->alert_mask = be32_to_cpu(prop[0]);
-	prop = of_get_property(node, "over-temperature-mask", &len);
-	if (prop && len == sizeof(u32))
-		pdata->over_temperature_mask = be32_to_cpu(prop[0]);
-	prop = of_get_property(node, "resistance-cancellation", &len);
-	if (prop) {
-		if (len == sizeof(u32))
-			pdata->resistance_cancellation = be32_to_cpu(prop[0]);
-		else
-			pdata->resistance_cancellation = 0xfe;
+	switch (attr) {
+	case hwmon_temp_max:
+		return 0644;
+	case hwmon_temp_input:
+	case hwmon_temp_max_alarm:
+		return 0444;
+	case hwmon_temp_min:
+		if (data->type == max6581)
+			return channel ? 0444 : 0644;
+		break;
+	case hwmon_temp_min_alarm:
+		if (data->type == max6581)
+			return 0444;
+		break;
+	case hwmon_temp_crit:
+		if (chip->have_crit & BIT(channel))
+			return 0644;
+		break;
+	case hwmon_temp_crit_alarm:
+		if (chip->have_crit & BIT(channel))
+			return 0444;
+		break;
+	case hwmon_temp_fault:
+		if (chip->have_fault & BIT(channel))
+			return 0444;
+		break;
+	case hwmon_temp_offset:
+		if (data->type == max6581 && channel)
+			return 0644;
+		break;
+	default:
+		break;
 	}
-	prop = of_get_property(node, "transistor-ideality", &len);
-	if (prop && len == 2 * sizeof(u32)) {
-			pdata->ideality_mask = be32_to_cpu(prop[0]);
-			pdata->ideality_value = be32_to_cpu(prop[1]);
-	}
-}
-
-static int max6697_init_chip(struct max6697_data *data,
-			     struct i2c_client *client)
-{
-	struct max6697_platform_data *pdata = dev_get_platdata(&client->dev);
-	struct max6697_platform_data p;
-	const struct max6697_chip_data *chip = data->chip;
-	int factor = chip->channels;
-	int ret, reg;
-
-	/*
-	 * Don't touch configuration if neither platform data nor OF
-	 * configuration was specified. If that is the case, use the
-	 * current chip configuration.
-	 */
-	if (!pdata && !client->dev.of_node) {
-		reg = i2c_smbus_read_byte_data(client, MAX6697_REG_CONFIG);
-		if (reg < 0)
-			return reg;
-		if (data->type == max6581) {
-			if (reg & MAX6581_CONF_EXTENDED)
-				data->temp_offset = 64;
-			reg = i2c_smbus_read_byte_data(client,
-						       MAX6581_REG_RESISTANCE);
-			if (reg < 0)
-				return reg;
-			factor += hweight8(reg);
-		} else {
-			if (reg & MAX6697_CONF_RESISTANCE)
-				factor++;
-		}
-		goto done;
-	}
-
-	if (client->dev.of_node) {
-		memset(&p, 0, sizeof(p));
-		max6697_get_config_of(client->dev.of_node, &p);
-		pdata = &p;
-	}
-
-	reg = 0;
-	if (pdata->smbus_timeout_disable &&
-	    (chip->valid_conf & MAX6697_CONF_TIMEOUT)) {
-		reg |= MAX6697_CONF_TIMEOUT;
-	}
-	if (pdata->extended_range_enable &&
-	    (chip->valid_conf & MAX6581_CONF_EXTENDED)) {
-		reg |= MAX6581_CONF_EXTENDED;
-		data->temp_offset = 64;
-	}
-	if (pdata->resistance_cancellation &&
-	    (chip->valid_conf & MAX6697_CONF_RESISTANCE)) {
-		reg |= MAX6697_CONF_RESISTANCE;
-		factor++;
-	}
-	if (pdata->beta_compensation &&
-	    (chip->valid_conf & MAX6693_CONF_BETA)) {
-		reg |= MAX6693_CONF_BETA;
-	}
-
-	ret = i2c_smbus_write_byte_data(client, MAX6697_REG_CONFIG, reg);
-	if (ret < 0)
-		return ret;
-
-	ret = i2c_smbus_write_byte_data(client, MAX6697_REG_ALERT_MASK,
-				MAX6697_ALERT_MAP_BITS(pdata->alert_mask));
-	if (ret < 0)
-		return ret;
-
-	ret = i2c_smbus_write_byte_data(client, MAX6697_REG_OVERT_MASK,
-			MAX6697_OVERT_MAP_BITS(pdata->over_temperature_mask));
-	if (ret < 0)
-		return ret;
-
-	if (data->type == max6581) {
-		factor += hweight8(pdata->resistance_cancellation >> 1);
-		ret = i2c_smbus_write_byte_data(client, MAX6581_REG_RESISTANCE,
-					pdata->resistance_cancellation >> 1);
-		if (ret < 0)
-			return ret;
-		ret = i2c_smbus_write_byte_data(client, MAX6581_REG_IDEALITY,
-						pdata->ideality_value);
-		if (ret < 0)
-			return ret;
-		ret = i2c_smbus_write_byte_data(client,
-						MAX6581_REG_IDEALITY_SELECT,
-						pdata->ideality_mask >> 1);
-		if (ret < 0)
-			return ret;
-	}
-done:
-	data->update_interval = factor * MAX6697_CONV_TIME;
 	return 0;
 }
 
+/* Return 0 if detection is successful, -ENODEV otherwise */
+static const struct hwmon_channel_info * const max6697_info[] = {
+	HWMON_CHANNEL_INFO(temp,
+			   HWMON_T_INPUT | HWMON_T_MAX | HWMON_T_CRIT |
+			   HWMON_T_MIN | HWMON_T_MIN_ALARM |
+			   HWMON_T_MAX_ALARM | HWMON_T_CRIT_ALARM,
+			   HWMON_T_INPUT | HWMON_T_MAX | HWMON_T_CRIT |
+			   HWMON_T_MAX_ALARM | HWMON_T_CRIT_ALARM |
+			   HWMON_T_MIN | HWMON_T_MIN_ALARM |
+			   HWMON_T_FAULT | HWMON_T_OFFSET,
+			   HWMON_T_INPUT | HWMON_T_MAX | HWMON_T_CRIT |
+			   HWMON_T_MAX_ALARM | HWMON_T_CRIT_ALARM |
+			   HWMON_T_MIN | HWMON_T_MIN_ALARM |
+			   HWMON_T_FAULT | HWMON_T_OFFSET,
+			   HWMON_T_INPUT | HWMON_T_MAX | HWMON_T_CRIT |
+			   HWMON_T_MAX_ALARM | HWMON_T_CRIT_ALARM |
+			   HWMON_T_MIN | HWMON_T_MIN_ALARM |
+			   HWMON_T_FAULT | HWMON_T_OFFSET,
+			   HWMON_T_INPUT | HWMON_T_MAX | HWMON_T_CRIT |
+			   HWMON_T_MAX_ALARM | HWMON_T_CRIT_ALARM |
+			   HWMON_T_MIN | HWMON_T_MIN_ALARM |
+			   HWMON_T_FAULT | HWMON_T_OFFSET,
+			   HWMON_T_INPUT | HWMON_T_MAX | HWMON_T_CRIT |
+			   HWMON_T_MAX_ALARM | HWMON_T_CRIT_ALARM |
+			   HWMON_T_MIN | HWMON_T_MIN_ALARM |
+			   HWMON_T_FAULT | HWMON_T_OFFSET,
+			   HWMON_T_INPUT | HWMON_T_MAX | HWMON_T_CRIT |
+			   HWMON_T_MAX_ALARM | HWMON_T_CRIT_ALARM |
+			   HWMON_T_MIN | HWMON_T_MIN_ALARM |
+			   HWMON_T_FAULT | HWMON_T_OFFSET,
+			   HWMON_T_INPUT | HWMON_T_MAX | HWMON_T_CRIT |
+			   HWMON_T_MAX_ALARM | HWMON_T_CRIT_ALARM |
+			   HWMON_T_MIN | HWMON_T_MIN_ALARM |
+			   HWMON_T_FAULT | HWMON_T_OFFSET),
+	NULL
+};
+
+static const struct hwmon_ops max6697_hwmon_ops = {
+	.is_visible = max6697_is_visible,
+	.read = max6697_read,
+	.write = max6697_write,
+};
+
+static const struct hwmon_chip_info max6697_chip_info = {
+	.ops = &max6697_hwmon_ops,
+	.info = max6697_info,
+};
+
+static int max6697_config_of(struct device_node *node, struct max6697_data *data)
+{
+	const struct max6697_chip_data *chip = data->chip;
+	struct regmap *regmap = data->regmap;
+	int ret, confreg;
+	u32 vals[2];
+
+	confreg = 0;
+	if (of_property_read_bool(node, "smbus-timeout-disable") &&
+	    (chip->valid_conf & MAX6697_CONF_TIMEOUT)) {
+		confreg |= MAX6697_CONF_TIMEOUT;
+	}
+	if (of_property_read_bool(node, "extended-range-enable") &&
+	    (chip->valid_conf & MAX6581_CONF_EXTENDED)) {
+		confreg |= MAX6581_CONF_EXTENDED;
+		data->temp_offset = 64;
+	}
+	if (of_property_read_bool(node, "beta-compensation-enable") &&
+	    (chip->valid_conf & MAX6693_CONF_BETA)) {
+		confreg |= MAX6693_CONF_BETA;
+	}
+
+	if (of_property_read_u32(node, "alert-mask", vals))
+		vals[0] = 0;
+	ret = regmap_write(regmap, MAX6697_REG_ALERT_MASK,
+			   MAX6697_ALERT_MAP_BITS(vals[0]));
+	if (ret)
+		return ret;
+
+	if (of_property_read_u32(node, "over-temperature-mask", vals))
+		vals[0] = 0;
+	ret = regmap_write(regmap, MAX6697_REG_OVERT_MASK,
+			   MAX6697_OVERT_MAP_BITS(vals[0]));
+	if (ret)
+		return ret;
+
+	if (data->type != max6581) {
+		if (of_property_read_bool(node, "resistance-cancellation") &&
+		    chip->valid_conf & MAX6697_CONF_RESISTANCE) {
+			confreg |= MAX6697_CONF_RESISTANCE;
+		}
+	} else {
+		if (of_property_read_u32(node, "resistance-cancellation", &vals[0])) {
+			if (of_property_read_bool(node, "resistance-cancellation"))
+				vals[0] = 0xfe;
+			else
+				vals[0] = 0;
+		}
+
+		vals[0] &= 0xfe;
+		ret = regmap_write(regmap, MAX6581_REG_RESISTANCE, vals[0] >> 1);
+		if (ret < 0)
+			return ret;
+
+		if (of_property_read_u32_array(node, "transistor-ideality", vals, 2)) {
+			vals[0] = 0;
+			vals[1] = 0;
+		}
+
+		ret = regmap_write(regmap, MAX6581_REG_IDEALITY, vals[1]);
+		if (ret < 0)
+			return ret;
+		ret = regmap_write(regmap, MAX6581_REG_IDEALITY_SELECT,
+				   (vals[0] & 0xfe) >> 1);
+		if (ret < 0)
+			return ret;
+	}
+	return regmap_write(regmap, MAX6697_REG_CONFIG, confreg);
+}
+
+static int max6697_init_chip(struct device_node *np, struct max6697_data *data)
+{
+	unsigned int reg;
+	int ret;
+
+	/*
+	 * Don't touch configuration if there is no devicetree configuration.
+	 * If that is the case, use the current chip configuration.
+	 */
+	if (!np) {
+		struct regmap *regmap = data->regmap;
+
+		ret = regmap_read(regmap, MAX6697_REG_CONFIG, &reg);
+		if (ret < 0)
+			return ret;
+		if (data->type == max6581) {
+			if (reg & MAX6581_CONF_EXTENDED)
+				data->temp_offset = 64;
+			ret = regmap_read(regmap, MAX6581_REG_RESISTANCE, &reg);
+		}
+	} else {
+		ret = max6697_config_of(np, data);
+	}
+
+	return ret;
+}
+
+static bool max6697_volatile_reg(struct device *dev, unsigned int reg)
+{
+	switch (reg) {
+	case 0x00 ... 0x09:	/* temperature high bytes */
+	case 0x44 ... 0x47:	/* status */
+	case 0x51 ... 0x58:	/* temperature low bytes */
+		return true;
+	default:
+		return false;
+	}
+}
+
+static bool max6697_writeable_reg(struct device *dev, unsigned int reg)
+{
+	return reg != 0x0a && reg != 0x0f && !max6697_volatile_reg(dev, reg);
+}
+
+static const struct regmap_config max6697_regmap_config = {
+	.reg_bits = 8,
+	.val_bits = 8,
+	.max_register = 0x58,
+	.writeable_reg = max6697_writeable_reg,
+	.volatile_reg = max6697_volatile_reg,
+	.cache_type = REGCACHE_MAPLE,
+};
+
 static int max6697_probe(struct i2c_client *client)
 {
-	struct i2c_adapter *adapter = client->adapter;
 	struct device *dev = &client->dev;
 	struct max6697_data *data;
 	struct device *hwmon_dev;
+	struct regmap *regmap;
 	int err;
 
-	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
-		return -ENODEV;
+	regmap = regmap_init_i2c(client, &max6697_regmap_config);
+	if (IS_ERR(regmap))
+		return PTR_ERR(regmap);
 
 	data = devm_kzalloc(dev, sizeof(struct max6697_data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
+	data->regmap = regmap;
 	data->type = (uintptr_t)i2c_get_match_data(client);
 	data->chip = &max6697_chip_data[data->type];
-	data->client = client;
 	mutex_init(&data->update_lock);
 
-	err = max6697_init_chip(data, client);
+	err = max6697_init_chip(client->dev.of_node, data);
 	if (err)
 		return err;
 
-	hwmon_dev = devm_hwmon_device_register_with_groups(dev, client->name,
-							   data,
-							   max6697_groups);
+	hwmon_dev = devm_hwmon_device_register_with_info(dev, client->name, data,
+							 &max6697_chip_info, NULL);
 	return PTR_ERR_OR_ZERO(hwmon_dev);
 }
 
