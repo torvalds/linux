@@ -159,12 +159,12 @@ void hmm_bo_device_exit(struct hmm_bo_device *bdev);
 int hmm_bo_device_inited(struct hmm_bo_device *bdev);
 
 /*
- * increse buffer object reference.
+ * increase buffer object reference.
  */
 void hmm_bo_ref(struct hmm_buffer_object *bo);
 
 /*
- * decrese buffer object reference. if reference reaches 0,
+ * decrease buffer object reference. if reference reaches 0,
  * release function of the buffer object will be called.
  *
  * this call is also used to release hmm_buffer_object or its
