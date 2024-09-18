@@ -1613,7 +1613,7 @@ void xe_vm_close_and_put(struct xe_vm *vm)
 
 	up_write(&vm->lock);
 
-	mutex_lock(&xe->usm.lock);
+	down_write(&xe->usm.lock);
 	if (vm->usm.asid) {
 		void *lookup;
 
@@ -1623,7 +1623,7 @@ void xe_vm_close_and_put(struct xe_vm *vm)
 		lookup = xa_erase(&xe->usm.asid_to_vm, vm->usm.asid);
 		xe_assert(xe, lookup == vm);
 	}
-	mutex_unlock(&xe->usm.lock);
+	up_write(&xe->usm.lock);
 
 	for_each_tile(tile, xe, id)
 		xe_range_fence_tree_fini(&vm->rftree[id]);
@@ -1772,11 +1772,11 @@ int xe_vm_create_ioctl(struct drm_device *dev, void *data,
 		goto err_close_and_put;
 
 	if (xe->info.has_asid) {
-		mutex_lock(&xe->usm.lock);
+		down_write(&xe->usm.lock);
 		err = xa_alloc_cyclic(&xe->usm.asid_to_vm, &asid, vm,
 				      XA_LIMIT(1, XE_MAX_ASID - 1),
 				      &xe->usm.next_asid, GFP_KERNEL);
-		mutex_unlock(&xe->usm.lock);
+		up_write(&xe->usm.lock);
 		if (err < 0)
 			goto err_free_id;
 

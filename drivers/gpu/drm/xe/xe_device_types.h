@@ -369,7 +369,7 @@ struct xe_device {
 		/** @usm.next_asid: next ASID, used to cyclical alloc asids */
 		u32 next_asid;
 		/** @usm.lock: protects UM state */
-		struct mutex lock;
+		struct rw_semaphore lock;
 	} usm;
 
 	/** @pinned: pinned BO state */
