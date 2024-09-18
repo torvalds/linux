@@ -33,6 +33,12 @@
  mod_node_page_state
  page_cache_sync_ra
  proc_create
+ arch_vma_name
+ __pmd_trans_huge_lock
+ anon_vma_name
+ vm_normal_page
+ walk_page_range
+ pmd_clear_bad
  profile_event_register
  profile_event_unregister
  drop_super
