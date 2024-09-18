@@ -243,6 +243,7 @@ config S390
 	select TRACE_IRQFLAGS_SUPPORT
 	select TTY
 	select USER_STACKTRACE_SUPPORT
+	select VDSO_GETRANDOM
 	select VIRT_CPU_ACCOUNTING
 	select ZONE_DMA
 	# Note: keep the above list sorted alphabetically

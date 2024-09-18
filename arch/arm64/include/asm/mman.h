@@ -2,9 +2,11 @@
 #ifndef __ASM_MMAN_H__
 #define __ASM_MMAN_H__
 
+#include <uapi/asm/mman.h>
+
+#ifndef BUILD_VDSO
 #include <linux/compiler.h>
 #include <linux/types.h>
-#include <uapi/asm/mman.h>
 
 static inline unsigned long arch_calc_vm_prot_bits(unsigned long prot,
 	unsigned long pkey)
@@ -67,5 +69,7 @@ static inline bool arch_validate_flags(unsigned long vm_flags)
 	return !(vm_flags & VM_MTE) || (vm_flags & VM_MTE_ALLOWED);
 }
 #define arch_validate_flags(vm_flags) arch_validate_flags(vm_flags)
+
+#endif /* !BUILD_VDSO */
 
 #endif /* ! __ASM_MMAN_H__ */
