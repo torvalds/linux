@@ -11,11 +11,7 @@
 
 /* PGDIR_SHIFT determines what a third-level page table entry can map */
 
-#ifdef CONFIG_64BIT
 #define PGDIR_SHIFT	30
-#else
-#define PGDIR_SHIFT	31
-#endif
 #define PGDIR_SIZE	(1UL << PGDIR_SHIFT)
 #define PGDIR_MASK	(~(PGDIR_SIZE-1))
 
@@ -32,13 +28,8 @@
  */
 
 #define PTRS_PER_PTE 512
-#ifdef CONFIG_64BIT
 #define PTRS_PER_PMD 512
 #define PTRS_PER_PGD 512
-#else
-#define PTRS_PER_PMD 1024
-#define PTRS_PER_PGD 1024
-#endif
 
 #define USER_PTRS_PER_PGD ((TASK_SIZE + (PGDIR_SIZE - 1)) / PGDIR_SIZE)
 
