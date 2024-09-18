@@ -922,7 +922,7 @@ queue_message(struct vchiq_state *state, struct vchiq_service *service,
 
 	if (!(flags & QMFLAGS_NO_MUTEX_LOCK) &&
 	    mutex_lock_killable(&state->slot_mutex))
-		return -EAGAIN;
+		return -EINTR;
 
 	if (type == VCHIQ_MSG_DATA) {
 		int tx_end_index;
@@ -963,7 +963,7 @@ queue_message(struct vchiq_state *state, struct vchiq_service *service,
 			mutex_unlock(&state->slot_mutex);
 
 			if (wait_for_completion_killable(&state->data_quota_event))
-				return -EAGAIN;
+				return -EINTR;
 
 			mutex_lock(&state->slot_mutex);
 			spin_lock(&state->quota_spinlock);
@@ -987,11 +987,11 @@ queue_message(struct vchiq_state *state, struct vchiq_service *service,
 			VCHIQ_SERVICE_STATS_INC(service, quota_stalls);
 			mutex_unlock(&state->slot_mutex);
 			if (wait_for_completion_killable(&quota->quota_event))
-				return -EAGAIN;
+				return -EINTR;
 			if (service->closing)
 				return -EHOSTDOWN;
 			if (mutex_lock_killable(&state->slot_mutex))
-				return -EAGAIN;
+				return -EINTR;
 			if (service->srvstate != VCHIQ_SRVSTATE_OPEN) {
 				/* The service has been closed */
 				mutex_unlock(&state->slot_mutex);
@@ -1524,7 +1524,7 @@ parse_open(struct vchiq_state *state, struct vchiq_header *header)
 			set_service_state(service, VCHIQ_SRVSTATE_OPENSYNC);
 		} else {
 			if (queue_message(state, NULL, openack_id, memcpy_copy_callback,
-					  &ack_payload, sizeof(ack_payload), 0) == -EAGAIN)
+					  &ack_payload, sizeof(ack_payload), 0) == -EINTR)
 				goto bail_not_ready;
 
 			/* The service is now open */
@@ -1539,7 +1539,7 @@ parse_open(struct vchiq_state *state, struct vchiq_header *header)
 fail_open:
 	/* No available service, or an invalid request - send a CLOSE */
 	if (queue_message(state, NULL, MAKE_CLOSE(0, VCHIQ_MSG_SRCPORT(msgid)),
-			  NULL, NULL, 0, 0) == -EAGAIN)
+			  NULL, NULL, 0, 0) == -EINTR)
 		goto bail_not_ready;
 
 	return 1;
@@ -1786,7 +1786,7 @@ parse_message(struct vchiq_state *state, struct vchiq_header *header)
 		if (state->conn_state != VCHIQ_CONNSTATE_PAUSE_SENT) {
 			/* Send a PAUSE in response */
 			if (queue_message(state, NULL, MAKE_PAUSE, NULL, NULL, 0,
-					  QMFLAGS_NO_MUTEX_UNLOCK) == -EAGAIN)
+					  QMFLAGS_NO_MUTEX_UNLOCK) == -EINTR)
 				goto bail_not_ready;
 		}
 		/* At this point slot_mutex is held */
@@ -1903,7 +1903,7 @@ handle_poll(struct vchiq_state *state)
 
 	case VCHIQ_CONNSTATE_PAUSING:
 		if (queue_message(state, NULL, MAKE_PAUSE, NULL, NULL, 0,
-				  QMFLAGS_NO_MUTEX_UNLOCK) != -EAGAIN) {
+				  QMFLAGS_NO_MUTEX_UNLOCK) != -EINTR) {
 			vchiq_set_conn_state(state, VCHIQ_CONNSTATE_PAUSE_SENT);
 		} else {
 			/* Retry later */
@@ -1913,7 +1913,7 @@ handle_poll(struct vchiq_state *state)
 
 	case VCHIQ_CONNSTATE_RESUMING:
 		if (queue_message(state, NULL, MAKE_RESUME, NULL, NULL, 0,
-				  QMFLAGS_NO_MUTEX_LOCK) != -EAGAIN) {
+				  QMFLAGS_NO_MUTEX_LOCK) != -EINTR) {
 			vchiq_set_conn_state(state, VCHIQ_CONNSTATE_CONNECTED);
 		} else {
 			/*
@@ -3276,11 +3276,11 @@ int vchiq_queue_kernel_message(struct vchiq_instance *instance, unsigned int han
 					     data, size);
 
 		/*
-		 * vchiq_queue_message() may return -EAGAIN, so we need to
+		 * vchiq_queue_message() may return -EINTR, so we need to
 		 * implement a retry mechanism since this function is supposed
 		 * to block until queued
 		 */
-		if (status != -EAGAIN)
+		if (status != -EINTR)
 			break;
 
 		msleep(1);
