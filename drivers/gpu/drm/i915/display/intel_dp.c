@@ -6629,20 +6629,8 @@ static void intel_edp_backlight_setup(struct intel_dp *intel_dp,
 	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
 	enum pipe pipe = INVALID_PIPE;
 
-	if (IS_VALLEYVIEW(i915) || IS_CHERRYVIEW(i915)) {
-		/*
-		 * Figure out the current pipe for the initial backlight setup.
-		 * If the current pipe isn't valid, try the PPS pipe, and if that
-		 * fails just assume pipe A.
-		 */
-		pipe = vlv_active_pipe(intel_dp);
-
-		if (pipe != PIPE_A && pipe != PIPE_B)
-			pipe = intel_dp->pps.vlv_pps_pipe;
-
-		if (pipe != PIPE_A && pipe != PIPE_B)
-			pipe = PIPE_A;
-	}
+	if (IS_VALLEYVIEW(i915) || IS_CHERRYVIEW(i915))
+		pipe = vlv_pps_backlight_initial_pipe(intel_dp);
 
 	intel_backlight_setup(connector, pipe);
 }

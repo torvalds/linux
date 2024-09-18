@@ -47,6 +47,7 @@ void intel_pps_reset_all(struct intel_display *display);
 
 void vlv_pps_pipe_init(struct intel_dp *intel_dp);
 void vlv_pps_pipe_reset(struct intel_dp *intel_dp);
+enum pipe vlv_pps_backlight_initial_pipe(struct intel_dp *intel_dp);
 void vlv_pps_port_enable_unlocked(struct intel_encoder *encoder,
 				  const struct intel_crtc_state *crtc_state);
 void vlv_pps_port_disable(struct intel_encoder *encoder,

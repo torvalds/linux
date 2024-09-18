@@ -1227,6 +1227,26 @@ void vlv_pps_pipe_reset(struct intel_dp *intel_dp)
 		intel_dp->pps.vlv_active_pipe = vlv_active_pipe(intel_dp);
 }
 
+enum pipe vlv_pps_backlight_initial_pipe(struct intel_dp *intel_dp)
+{
+	enum pipe pipe;
+
+	/*
+	 * Figure out the current pipe for the initial backlight setup. If the
+	 * current pipe isn't valid, try the PPS pipe, and if that fails just
+	 * assume pipe A.
+	 */
+	pipe = vlv_active_pipe(intel_dp);
+
+	if (pipe != PIPE_A && pipe != PIPE_B)
+		pipe = intel_dp->pps.vlv_pps_pipe;
+
+	if (pipe != PIPE_A && pipe != PIPE_B)
+		pipe = PIPE_A;
+
+	return pipe;
+}
+
 /* Call on all DP, not just eDP */
 void vlv_pps_port_enable_unlocked(struct intel_encoder *encoder,
 				  const struct intel_crtc_state *crtc_state)
