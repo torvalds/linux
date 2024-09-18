@@ -124,7 +124,7 @@
 &pcie3x1 {
 	num-lanes = <1>;
 	pinctrl-names = "default";
-	pinctrl-0 = <&pcie30x1m0_pins>;
+	pinctrl-0 = <&pcie30x1_reset_h>;
 	reset-gpios = <&gpio0 RK_PC3 GPIO_ACTIVE_HIGH>;
 	vpcie3v3-supply = <&vcc3v3_minipcie>;
 	status = "okay";
@@ -147,6 +147,10 @@
 
 		pcie30x1_enable_h: pcie30x1-enable-h {
 			rockchip,pins = <0 RK_PC5 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		pcie30x1_reset_h: pcie30x1-reset-h {
+			rockchip,pins = <0 RK_PC3 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 
 		pcie30x2_reset_h: pcie30x2-reset-h {
