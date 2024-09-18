@@ -61,12 +61,9 @@ properties:
       GPIO connection to R/B signal from NAND chip
     maxItems: 1
 
-patternProperties:
-  "@[0-9a-f]+$":
-    $ref: /schemas/mtd/partitions/partition.yaml
-
 allOf:
   - $ref: /schemas/memory-controllers/ti,gpmc-child.yaml
+  - $ref: mtd.yaml#
 
 required:
   - compatible
