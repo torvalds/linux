@@ -853,31 +853,19 @@ vchiq_bulk_transmit(struct vchiq_instance *instance, unsigned int handle, const 
 {
 	int ret;
 
-	while (1) {
-		switch (mode) {
-		case VCHIQ_BULK_MODE_NOCALLBACK:
-		case VCHIQ_BULK_MODE_CALLBACK:
-			ret = vchiq_bulk_xfer_callback(instance, handle, (void *)data,
-						       NULL, size, mode, userdata,
-						       VCHIQ_BULK_TRANSMIT);
-			break;
-		case VCHIQ_BULK_MODE_BLOCKING:
-			ret = vchiq_blocking_bulk_transfer(instance, handle, (void *)data, size,
-							   VCHIQ_BULK_TRANSMIT);
-			break;
-		default:
-			return -EINVAL;
-		}
-
-		/*
-		 * vchiq_*_bulk_transfer() may return -EINTR, so we need
-		 * to implement a retry mechanism since this function is
-		 * supposed to block until queued
-		 */
-		if (ret != -EINTR)
-			break;
-
-		msleep(1);
+	switch (mode) {
+	case VCHIQ_BULK_MODE_NOCALLBACK:
+	case VCHIQ_BULK_MODE_CALLBACK:
+		ret = vchiq_bulk_xfer_callback(instance, handle, (void *)data,
+					       NULL, size, mode, userdata,
+					       VCHIQ_BULK_TRANSMIT);
+		break;
+	case VCHIQ_BULK_MODE_BLOCKING:
+		ret = vchiq_blocking_bulk_transfer(instance, handle, (void *)data, size,
+						   VCHIQ_BULK_TRANSMIT);
+		break;
+	default:
+		return -EINVAL;
 	}
 
 	return ret;
@@ -890,30 +878,18 @@ int vchiq_bulk_receive(struct vchiq_instance *instance, unsigned int handle,
 {
 	int ret;
 
-	while (1) {
-		switch (mode) {
-		case VCHIQ_BULK_MODE_NOCALLBACK:
-		case VCHIQ_BULK_MODE_CALLBACK:
-			ret = vchiq_bulk_xfer_callback(instance, handle, (void *)data, NULL,
-						       size, mode, userdata, VCHIQ_BULK_RECEIVE);
-			break;
-		case VCHIQ_BULK_MODE_BLOCKING:
-			ret = vchiq_blocking_bulk_transfer(instance, handle, (void *)data, size,
-							   VCHIQ_BULK_RECEIVE);
-			break;
-		default:
-			return -EINVAL;
-		}
-
-		/*
-		 * vchiq_*_bulk_transfer() may return -EINTR, so we need
-		 * to implement a retry mechanism since this function is
-		 * supposed to block until queued
-		 */
-		if (ret != -EINTR)
-			break;
-
-		msleep(1);
+	switch (mode) {
+	case VCHIQ_BULK_MODE_NOCALLBACK:
+	case VCHIQ_BULK_MODE_CALLBACK:
+		ret = vchiq_bulk_xfer_callback(instance, handle, (void *)data, NULL,
+					       size, mode, userdata, VCHIQ_BULK_RECEIVE);
+		break;
+	case VCHIQ_BULK_MODE_BLOCKING:
+		ret = vchiq_blocking_bulk_transfer(instance, handle, (void *)data, size,
+						   VCHIQ_BULK_RECEIVE);
+		break;
+	default:
+		return -EINVAL;
 	}
 
 	return ret;
