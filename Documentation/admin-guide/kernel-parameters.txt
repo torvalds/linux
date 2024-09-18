@@ -333,12 +333,17 @@
 					  allowed anymore to lift isolation
 					  requirements as needed. This option
 					  does not override iommu=pt
-			force_enable - Force enable the IOMMU on platforms known
-				       to be buggy with IOMMU enabled. Use this
-				       option with care.
-			pgtbl_v1     - Use v1 page table for DMA-API (Default).
-			pgtbl_v2     - Use v2 page table for DMA-API.
-			irtcachedis  - Disable Interrupt Remapping Table (IRT) caching.
+			force_enable    - Force enable the IOMMU on platforms known
+				          to be buggy with IOMMU enabled. Use this
+				          option with care.
+			pgtbl_v1        - Use v1 page table for DMA-API (Default).
+			pgtbl_v2        - Use v2 page table for DMA-API.
+			irtcachedis     - Disable Interrupt Remapping Table (IRT) caching.
+			nohugepages     - Limit page-sizes used for v1 page-tables
+				          to 4 KiB.
+			v2_pgsizes_only - Limit page-sizes used for v1 page-tables
+				          to 4KiB/2Mib/1GiB.
+
 
 	amd_iommu_dump=	[HW,X86-64]
 			Enable AMD IOMMU driver option to dump the ACPI table
