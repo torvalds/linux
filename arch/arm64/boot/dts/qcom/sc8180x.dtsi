@@ -3662,7 +3662,7 @@
 				     <GIC_SPI 773 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 774 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 775 IRQ_TYPE_LEVEL_HIGH>;
-
+			dma-coherent;
 		};
 
 		remoteproc_adsp: remoteproc@17300000 {
