@@ -3269,24 +3269,9 @@ error_exit:
 int vchiq_queue_kernel_message(struct vchiq_instance *instance, unsigned int handle, void *data,
 			       unsigned int size)
 {
-	int status;
 
-	while (1) {
-		status = vchiq_queue_message(instance, handle, memcpy_copy_callback,
-					     data, size);
-
-		/*
-		 * vchiq_queue_message() may return -EINTR, so we need to
-		 * implement a retry mechanism since this function is supposed
-		 * to block until queued
-		 */
-		if (status != -EINTR)
-			break;
-
-		msleep(1);
-	}
-
-	return status;
+	return vchiq_queue_message(instance, handle, memcpy_copy_callback,
+				   data, size);
 }
 EXPORT_SYMBOL(vchiq_queue_kernel_message);
 
