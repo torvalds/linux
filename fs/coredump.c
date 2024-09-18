@@ -18,6 +18,7 @@
 #include <linux/personality.h>
 #include <linux/binfmts.h>
 #include <linux/coredump.h>
+#include <linux/sort.h>
 #include <linux/sched/coredump.h>
 #include <linux/sched/signal.h>
 #include <linux/sched/task_stack.h>
@@ -464,7 +465,17 @@ static bool dump_interrupted(void)
 	 * but then we need to teach dump_write() to restart and clear
 	 * TIF_SIGPENDING.
 	 */
-	return fatal_signal_pending(current) || freezing(current);
+	if (fatal_signal_pending(current)) {
+		coredump_report_failure("interrupted: fatal signal pending");
+		return true;
+	}
+
+	if (freezing(current)) {
+		coredump_report_failure("interrupted: freezing");
+		return true;
+	}
+
+	return false;
 }
 
 static void wait_for_dump_helpers(struct file *file)
@@ -519,7 +530,7 @@ static int umh_pipe_setup(struct subprocess_info *info, struct cred *new)
 	return err;
 }
 
-void do_coredump(const kernel_siginfo_t *siginfo)
+int do_coredump(const kernel_siginfo_t *siginfo)
 {
 	struct core_state core_state;
 	struct core_name cn;
@@ -527,7 +538,7 @@ void do_coredump(const kernel_siginfo_t *siginfo)
 	struct linux_binfmt * binfmt;
 	const struct cred *old_cred;
 	struct cred *cred;
-	int retval = 0;
+	int retval;
 	int ispipe;
 	size_t *argv = NULL;
 	int argc = 0;
@@ -551,14 +562,20 @@ void do_coredump(const kernel_siginfo_t *siginfo)
 	audit_core_dumps(siginfo->si_signo);
 
 	binfmt = mm->binfmt;
-	if (!binfmt || !binfmt->core_dump)
+	if (!binfmt || !binfmt->core_dump) {
+		retval = -ENOEXEC;
 		goto fail;
-	if (!__get_dumpable(cprm.mm_flags))
+	}
+	if (!__get_dumpable(cprm.mm_flags)) {
+		retval = -EACCES;
 		goto fail;
+	}
 
 	cred = prepare_creds();
-	if (!cred)
+	if (!cred) {
+		retval = -EPERM;
 		goto fail;
+	}
 	/*
 	 * We cannot trust fsuid as being the "true" uid of the process
 	 * nor do we know its entire history. We only know it was tainted
@@ -586,8 +603,8 @@ void do_coredump(const kernel_siginfo_t *siginfo)
 		struct subprocess_info *sub_info;
 
 		if (ispipe < 0) {
-			printk(KERN_WARNING "format_corename failed\n");
-			printk(KERN_WARNING "Aborting core\n");
+			coredump_report_failure("format_corename failed, aborting core");
+			retval = ispipe;
 			goto fail_unlock;
 		}
 
@@ -607,27 +624,24 @@ void do_coredump(const kernel_siginfo_t *siginfo)
 			 * right pid if a thread in a multi-threaded
 			 * core_pattern process dies.
 			 */
-			printk(KERN_WARNING
-				"Process %d(%s) has RLIMIT_CORE set to 1\n",
-				task_tgid_vnr(current), current->comm);
-			printk(KERN_WARNING "Aborting core\n");
+			coredump_report_failure("RLIMIT_CORE is set to 1, aborting core");
+			retval = -EPERM;
 			goto fail_unlock;
 		}
 		cprm.limit = RLIM_INFINITY;
 
 		dump_count = atomic_inc_return(&core_dump_count);
 		if (core_pipe_limit && (core_pipe_limit < dump_count)) {
-			printk(KERN_WARNING "Pid %d(%s) over core_pipe_limit\n",
-			       task_tgid_vnr(current), current->comm);
-			printk(KERN_WARNING "Skipping core dump\n");
+			coredump_report_failure("over core_pipe_limit, skipping core dump");
+			retval = -E2BIG;
 			goto fail_dropcount;
 		}
 
 		helper_argv = kmalloc_array(argc + 1, sizeof(*helper_argv),
 					    GFP_KERNEL);
 		if (!helper_argv) {
-			printk(KERN_WARNING "%s failed to allocate memory\n",
-			       __func__);
+			coredump_report_failure("%s failed to allocate memory", __func__);
+			retval = -ENOMEM;
 			goto fail_dropcount;
 		}
 		for (argi = 0; argi < argc; argi++)
@@ -644,8 +658,7 @@ void do_coredump(const kernel_siginfo_t *siginfo)
 
 		kfree(helper_argv);
 		if (retval) {
-			printk(KERN_INFO "Core dump to |%s pipe failed\n",
-			       cn.corename);
+			coredump_report_failure("|%s pipe failed", cn.corename);
 			goto close_fail;
 		}
 	} else {
@@ -654,14 +667,16 @@ void do_coredump(const kernel_siginfo_t *siginfo)
 		int open_flags = O_CREAT | O_WRONLY | O_NOFOLLOW |
 				 O_LARGEFILE | O_EXCL;
 
-		if (cprm.limit < binfmt->min_coredump)
+		if (cprm.limit < binfmt->min_coredump) {
+			coredump_report_failure("over coredump resource limit, skipping core dump");
+			retval = -E2BIG;
 			goto fail_unlock;
+		}
 
 		if (need_suid_safe && cn.corename[0] != '/') {
-			printk(KERN_WARNING "Pid %d(%s) can only dump core "\
-				"to fully qualified path!\n",
-				task_tgid_vnr(current), current->comm);
-			printk(KERN_WARNING "Skipping core dump\n");
+			coredump_report_failure(
+				"this process can only dump core to a fully qualified path, skipping core dump");
+			retval = -EPERM;
 			goto fail_unlock;
 		}
 
@@ -707,20 +722,28 @@ void do_coredump(const kernel_siginfo_t *siginfo)
 		} else {
 			cprm.file = filp_open(cn.corename, open_flags, 0600);
 		}
-		if (IS_ERR(cprm.file))
+		if (IS_ERR(cprm.file)) {
+			retval = PTR_ERR(cprm.file);
 			goto fail_unlock;
+		}
 
 		inode = file_inode(cprm.file);
-		if (inode->i_nlink > 1)
+		if (inode->i_nlink > 1) {
+			retval = -EMLINK;
 			goto close_fail;
-		if (d_unhashed(cprm.file->f_path.dentry))
+		}
+		if (d_unhashed(cprm.file->f_path.dentry)) {
+			retval = -EEXIST;
 			goto close_fail;
+		}
 		/*
 		 * AK: actually i see no reason to not allow this for named
 		 * pipes etc, but keep the previous behaviour for now.
 		 */
-		if (!S_ISREG(inode->i_mode))
+		if (!S_ISREG(inode->i_mode)) {
+			retval = -EISDIR;
 			goto close_fail;
+		}
 		/*
 		 * Don't dump core if the filesystem changed owner or mode
 		 * of the file during file creation. This is an issue when
@@ -730,19 +753,24 @@ void do_coredump(const kernel_siginfo_t *siginfo)
 		idmap = file_mnt_idmap(cprm.file);
 		if (!vfsuid_eq_kuid(i_uid_into_vfsuid(idmap, inode),
 				    current_fsuid())) {
-			pr_info_ratelimited("Core dump to %s aborted: cannot preserve file owner\n",
-					    cn.corename);
+			coredump_report_failure("Core dump to %s aborted: "
+				"cannot preserve file owner", cn.corename);
+			retval = -EPERM;
 			goto close_fail;
 		}
 		if ((inode->i_mode & 0677) != 0600) {
-			pr_info_ratelimited("Core dump to %s aborted: cannot preserve file permissions\n",
-					    cn.corename);
+			coredump_report_failure("Core dump to %s aborted: "
+				"cannot preserve file permissions", cn.corename);
+			retval = -EPERM;
 			goto close_fail;
 		}
-		if (!(cprm.file->f_mode & FMODE_CAN_WRITE))
+		if (!(cprm.file->f_mode & FMODE_CAN_WRITE)) {
+			retval = -EACCES;
 			goto close_fail;
-		if (do_truncate(idmap, cprm.file->f_path.dentry,
-				0, 0, cprm.file))
+		}
+		retval = do_truncate(idmap, cprm.file->f_path.dentry,
+				0, 0, cprm.file);
+		if (retval)
 			goto close_fail;
 	}
 
@@ -757,11 +785,16 @@ void do_coredump(const kernel_siginfo_t *siginfo)
 		 * have this set to NULL.
 		 */
 		if (!cprm.file) {
-			pr_info("Core dump to |%s disabled\n", cn.corename);
+			coredump_report_failure("Core dump to |%s disabled", cn.corename);
+			retval = -EPERM;
 			goto close_fail;
 		}
-		if (!dump_vma_snapshot(&cprm))
+		if (!dump_vma_snapshot(&cprm)) {
+			coredump_report_failure("Can't get VMA snapshot for core dump |%s",
+				cn.corename);
+			retval = -EACCES;
 			goto close_fail;
+		}
 
 		file_start_write(cprm.file);
 		core_dumped = binfmt->core_dump(&cprm);
@@ -777,9 +810,21 @@ void do_coredump(const kernel_siginfo_t *siginfo)
 		}
 		file_end_write(cprm.file);
 		free_vma_snapshot(&cprm);
+	} else {
+		coredump_report_failure("Core dump to %s%s has been interrupted",
+			ispipe ? "|" : "", cn.corename);
+		retval = -EAGAIN;
+		goto fail;
 	}
+	coredump_report(
+		"written to %s%s: VMAs: %d, size %zu; core: %lld bytes, pos %lld",
+		ispipe ? "|" : "", cn.corename,
+		cprm.vma_count, cprm.vma_data_size, cprm.written, cprm.pos);
 	if (ispipe && core_pipe_limit)
 		wait_for_dump_helpers(cprm.file);
+
+	retval = 0;
+
 close_fail:
 	if (cprm.file)
 		filp_close(cprm.file, NULL);
@@ -794,7 +839,7 @@ fail_unlock:
 fail_creds:
 	put_cred(cred);
 fail:
-	return;
+	return retval;
 }
 
 /*
@@ -814,8 +859,16 @@ static int __dump_emit(struct coredump_params *cprm, const void *addr, int nr)
 	if (dump_interrupted())
 		return 0;
 	n = __kernel_write(file, addr, nr, &pos);
-	if (n != nr)
+	if (n != nr) {
+		if (n < 0)
+			coredump_report_failure("failed when writing out, error %zd", n);
+		else
+			coredump_report_failure(
+				"partially written out, only %zd(of %d) bytes written",
+				n, nr);
+
 		return 0;
+	}
 	file->f_pos = pos;
 	cprm->written += n;
 	cprm->pos += n;
@@ -828,9 +881,16 @@ static int __dump_skip(struct coredump_params *cprm, size_t nr)
 	static char zeroes[PAGE_SIZE];
 	struct file *file = cprm->file;
 	if (file->f_mode & FMODE_LSEEK) {
-		if (dump_interrupted() ||
-		    vfs_llseek(file, nr, SEEK_CUR) < 0)
+		int ret;
+
+		if (dump_interrupted())
 			return 0;
+
+		ret = vfs_llseek(file, nr, SEEK_CUR);
+		if (ret < 0) {
+			coredump_report_failure("failed when seeking, error %d", ret);
+			return 0;
+		}
 		cprm->pos += nr;
 		return 1;
 	} else {
@@ -983,11 +1043,10 @@ void validate_coredump_safety(void)
 {
 	if (suid_dumpable == SUID_DUMP_ROOT &&
 	    core_pattern[0] != '/' && core_pattern[0] != '|') {
-		pr_warn(
-"Unsafe core_pattern used with fs.suid_dumpable=2.\n"
-"Pipe handler or fully qualified core dump path required.\n"
-"Set kernel.core_pattern before fs.suid_dumpable.\n"
-		);
+
+		coredump_report_failure("Unsafe core_pattern used with fs.suid_dumpable=2: "
+			"pipe handler or fully qualified core dump path required. "
+			"Set kernel.core_pattern before fs.suid_dumpable.");
 	}
 }
 
@@ -1191,6 +1250,18 @@ static void free_vma_snapshot(struct coredump_params *cprm)
 	}
 }
 
+static int cmp_vma_size(const void *vma_meta_lhs_ptr, const void *vma_meta_rhs_ptr)
+{
+	const struct core_vma_metadata *vma_meta_lhs = vma_meta_lhs_ptr;
+	const struct core_vma_metadata *vma_meta_rhs = vma_meta_rhs_ptr;
+
+	if (vma_meta_lhs->dump_size < vma_meta_rhs->dump_size)
+		return -1;
+	if (vma_meta_lhs->dump_size > vma_meta_rhs->dump_size)
+		return 1;
+	return 0;
+}
+
 /*
  * Under the mmap_lock, take a snapshot of relevant information about the task's
  * VMAs.
@@ -1252,6 +1323,9 @@ static bool dump_vma_snapshot(struct coredump_params *cprm)
 
 		cprm->vma_data_size += m->dump_size;
 	}
+
+	sort(cprm->vma_meta, cprm->vma_count, sizeof(*cprm->vma_meta),
+		cmp_vma_size, NULL);
 
 	return true;
 }
