@@ -1977,7 +1977,6 @@ static void bnxt_re_remove_device(struct bnxt_re_dev *rdev, u8 op_type,
 static void bnxt_re_remove(struct auxiliary_device *adev)
 {
 	struct bnxt_re_en_dev_info *en_info = auxiliary_get_drvdata(adev);
-	struct bnxt_en_dev *en_dev;
 	struct bnxt_re_dev *rdev;
 
 	mutex_lock(&bnxt_re_mutex);
@@ -1985,7 +1984,6 @@ static void bnxt_re_remove(struct auxiliary_device *adev)
 		mutex_unlock(&bnxt_re_mutex);
 		return;
 	}
-	en_dev = en_info->en_dev;
 	rdev = en_info->rdev;
 
 	if (rdev)
