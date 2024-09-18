@@ -198,13 +198,13 @@ static int handle_pagefault(struct xe_gt *gt, struct pagefault *pf)
 		return -EFAULT;
 
 	/* ASID to VM */
-	mutex_lock(&xe->usm.lock);
+	down_read(&xe->usm.lock);
 	vm = xa_load(&xe->usm.asid_to_vm, pf->asid);
 	if (vm && xe_vm_in_fault_mode(vm))
 		xe_vm_get(vm);
 	else
 		vm = NULL;
-	mutex_unlock(&xe->usm.lock);
+	up_read(&xe->usm.lock);
 	if (!vm)
 		return -EINVAL;
 
@@ -549,11 +549,11 @@ static int handle_acc(struct xe_gt *gt, struct acc *acc)
 		return -EINVAL;
 
 	/* ASID to VM */
-	mutex_lock(&xe->usm.lock);
+	down_read(&xe->usm.lock);
 	vm = xa_load(&xe->usm.asid_to_vm, acc->asid);
 	if (vm)
 		xe_vm_get(vm);
-	mutex_unlock(&xe->usm.lock);
+	up_read(&xe->usm.lock);
 	if (!vm || !xe_vm_in_fault_mode(vm))
 		return -EINVAL;
 
