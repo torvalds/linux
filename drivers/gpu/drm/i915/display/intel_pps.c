@@ -262,10 +262,10 @@ bxt_power_sequencer_idx(struct intel_dp *intel_dp)
 	/* We should never land here with regular DP ports */
 	drm_WARN_ON(display->drm, !intel_dp_is_edp(intel_dp));
 
-	if (!intel_dp->pps.pps_reset)
+	if (!intel_dp->pps.bxt_pps_reset)
 		return pps_idx;
 
-	intel_dp->pps.pps_reset = false;
+	intel_dp->pps.bxt_pps_reset = false;
 
 	/*
 	 * Only the HW needs to be reprogrammed, the SW state is fixed and
@@ -479,7 +479,7 @@ void intel_pps_reset_all(struct intel_display *display)
 			continue;
 
 		if (DISPLAY_VER(display) >= 9)
-			intel_dp->pps.pps_reset = true;
+			intel_dp->pps.bxt_pps_reset = true;
 		else
 			intel_dp->pps.vlv_pps_pipe = INVALID_PIPE;
 	}
