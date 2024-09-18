@@ -115,6 +115,44 @@ static const char *guc_name(struct xe_guc *guc)
  *            |           |
  *            |           |
  *            +-----------+
+ *
+ *
+ * MSI-X use case
+ *
+ * When using MSI-X, hw engines report interrupt status and source to engine
+ * instance 0. For this scenario, in order to differentiate between the
+ * engines, we need to pass different status/source pointers in the LRC.
+ *
+ * The requirements on those pointers are:
+ * - Interrupt status should be 4KiB aligned
+ * - Interrupt source should be 64 bytes aligned
+ *
+ * To accommodate this, we duplicate the memirq page layout above -
+ * allocating a page for each engine instance and pass this page in the LRC.
+ * Note that the same page can be reused for different engine types.
+ * For example, an LRC executing on CCS #x will have pointers to page #x,
+ * and an LRC executing on BCS #x will have the same pointers.
+ *
+ * ::
+ *
+ *   0x0000   +==============================+  <== page for instance 0 (BCS0, CCS0, etc.)
+ *            | Interrupt Status Report Page |
+ *   0x0400   +==============================+
+ *            | Interrupt Source Report Page |
+ *   0x0440   +==============================+
+ *            | Interrupt Enable Mask        |
+ *            +==============================+
+ *            | Not used                     |
+ *   0x1000   +==============================+  <== page for instance 1 (BCS1, CCS1, etc.)
+ *            | Interrupt Status Report Page |
+ *   0x1400   +==============================+
+ *            | Interrupt Source Report Page |
+ *   0x1440   +==============================+
+ *            | Not used                     |
+ *   0x2000   +==============================+  <== page for instance 2 (BCS2, CCS2, etc.)
+ *            | ...                          |
+ *            +==============================+
+ *
  */
 
 static void __release_xe_bo(struct drm_device *drm, void *arg)
@@ -124,18 +162,30 @@ static void __release_xe_bo(struct drm_device *drm, void *arg)
 	xe_bo_unpin_map_no_vm(bo);
 }
 
+static inline bool hw_reports_to_instance_zero(struct xe_memirq *memirq)
+{
+	/*
+	 * When the HW engines are configured to use MSI-X,
+	 * they report interrupt status and source to the offset of
+	 * engine instance 0.
+	 */
+	return xe_device_has_msix(memirq_to_xe(memirq));
+}
+
 static int memirq_alloc_pages(struct xe_memirq *memirq)
 {
 	struct xe_device *xe = memirq_to_xe(memirq);
 	struct xe_tile *tile = memirq_to_tile(memirq);
+	size_t bo_size = hw_reports_to_instance_zero(memirq) ?
+		XE_HW_ENGINE_MAX_INSTANCE * SZ_4K : SZ_4K;
 	struct xe_bo *bo;
 	int err;
 
-	BUILD_BUG_ON(!IS_ALIGNED(XE_MEMIRQ_SOURCE_OFFSET, SZ_64));
-	BUILD_BUG_ON(!IS_ALIGNED(XE_MEMIRQ_STATUS_OFFSET, SZ_4K));
+	BUILD_BUG_ON(!IS_ALIGNED(XE_MEMIRQ_SOURCE_OFFSET(0), SZ_64));
+	BUILD_BUG_ON(!IS_ALIGNED(XE_MEMIRQ_STATUS_OFFSET(0), SZ_4K));
 
 	/* XXX: convert to managed bo */
-	bo = xe_bo_create_pin_map(xe, tile, NULL, SZ_4K,
+	bo = xe_bo_create_pin_map(xe, tile, NULL, bo_size,
 				  ttm_bo_type_kernel,
 				  XE_BO_FLAG_SYSTEM |
 				  XE_BO_FLAG_GGTT |
@@ -150,19 +200,20 @@ static int memirq_alloc_pages(struct xe_memirq *memirq)
 	memirq_assert(memirq, !xe_bo_is_vram(bo));
 	memirq_assert(memirq, !memirq->bo);
 
-	iosys_map_memset(&bo->vmap, 0, 0, SZ_4K);
+	iosys_map_memset(&bo->vmap, 0, 0, bo_size);
 
 	memirq->bo = bo;
-	memirq->source = IOSYS_MAP_INIT_OFFSET(&bo->vmap, XE_MEMIRQ_SOURCE_OFFSET);
-	memirq->status = IOSYS_MAP_INIT_OFFSET(&bo->vmap, XE_MEMIRQ_STATUS_OFFSET);
+	memirq->source = IOSYS_MAP_INIT_OFFSET(&bo->vmap, XE_MEMIRQ_SOURCE_OFFSET(0));
+	memirq->status = IOSYS_MAP_INIT_OFFSET(&bo->vmap, XE_MEMIRQ_STATUS_OFFSET(0));
 	memirq->mask = IOSYS_MAP_INIT_OFFSET(&bo->vmap, XE_MEMIRQ_ENABLE_OFFSET);
 
 	memirq_assert(memirq, !memirq->source.is_iomem);
 	memirq_assert(memirq, !memirq->status.is_iomem);
 	memirq_assert(memirq, !memirq->mask.is_iomem);
 
-	memirq_debug(memirq, "page offsets: source %#x status %#x\n",
-		     xe_memirq_source_ptr(memirq), xe_memirq_status_ptr(memirq));
+	memirq_debug(memirq, "page offsets: bo %#x bo_size %zu source %#x status %#x\n",
+		     xe_bo_ggtt_addr(bo), bo_size, XE_MEMIRQ_SOURCE_OFFSET(0),
+		     XE_MEMIRQ_STATUS_OFFSET(0));
 
 	return drmm_add_action_or_reset(&xe->drm, __release_xe_bo, memirq->bo);
 
@@ -213,35 +264,45 @@ int xe_memirq_init(struct xe_memirq *memirq)
 /**
  * xe_memirq_source_ptr - Get GGTT's offset of the `Interrupt Source Report Page`_.
  * @memirq: the &xe_memirq to query
+ * @hwe: the hw engine for which we want the report page
  *
  * Shall be called when `Memory Based Interrupts`_ are used
  * and xe_memirq_init() didn't fail.
  *
  * Return: GGTT's offset of the `Interrupt Source Report Page`_.
  */
-u32 xe_memirq_source_ptr(struct xe_memirq *memirq)
+u32 xe_memirq_source_ptr(struct xe_memirq *memirq, struct xe_hw_engine *hwe)
 {
+	u16 instance;
+
 	memirq_assert(memirq, xe_device_uses_memirq(memirq_to_xe(memirq)));
 	memirq_assert(memirq, memirq->bo);
 
-	return xe_bo_ggtt_addr(memirq->bo) + XE_MEMIRQ_SOURCE_OFFSET;
+	instance = hw_reports_to_instance_zero(memirq) ? hwe->instance : 0;
+
+	return xe_bo_ggtt_addr(memirq->bo) + XE_MEMIRQ_SOURCE_OFFSET(instance);
 }
 
 /**
  * xe_memirq_status_ptr - Get GGTT's offset of the `Interrupt Status Report Page`_.
  * @memirq: the &xe_memirq to query
+ * @hwe: the hw engine for which we want the report page
  *
  * Shall be called when `Memory Based Interrupts`_ are used
  * and xe_memirq_init() didn't fail.
  *
  * Return: GGTT's offset of the `Interrupt Status Report Page`_.
  */
-u32 xe_memirq_status_ptr(struct xe_memirq *memirq)
+u32 xe_memirq_status_ptr(struct xe_memirq *memirq, struct xe_hw_engine *hwe)
 {
+	u16 instance;
+
 	memirq_assert(memirq, xe_device_uses_memirq(memirq_to_xe(memirq)));
 	memirq_assert(memirq, memirq->bo);
 
-	return xe_bo_ggtt_addr(memirq->bo) + XE_MEMIRQ_STATUS_OFFSET;
+	instance = hw_reports_to_instance_zero(memirq) ? hwe->instance : 0;
+
+	return xe_bo_ggtt_addr(memirq->bo) + XE_MEMIRQ_STATUS_OFFSET(instance);
 }
 
 /**
@@ -284,8 +345,8 @@ int xe_memirq_init_guc(struct xe_memirq *memirq, struct xe_guc *guc)
 	memirq_assert(memirq, xe_device_uses_memirq(memirq_to_xe(memirq)));
 	memirq_assert(memirq, memirq->bo);
 
-	source = xe_memirq_source_ptr(memirq) + offset;
-	status = xe_memirq_status_ptr(memirq) + offset * SZ_16;
+	source = xe_memirq_source_ptr(memirq, NULL) + offset;
+	status = xe_memirq_status_ptr(memirq, NULL) + offset * SZ_16;
 
 	err = xe_guc_self_cfg64(guc, GUC_KLV_SELF_CFG_MEMIRQ_SOURCE_ADDR_KEY,
 				source);

@@ -9,12 +9,13 @@
 #include <linux/types.h>
 
 struct xe_guc;
+struct xe_hw_engine;
 struct xe_memirq;
 
 int xe_memirq_init(struct xe_memirq *memirq);
 
-u32 xe_memirq_source_ptr(struct xe_memirq *memirq);
-u32 xe_memirq_status_ptr(struct xe_memirq *memirq);
+u32 xe_memirq_source_ptr(struct xe_memirq *memirq, struct xe_hw_engine *hwe);
+u32 xe_memirq_status_ptr(struct xe_memirq *memirq, struct xe_hw_engine *hwe);
 u32 xe_memirq_enable_ptr(struct xe_memirq *memirq);
 
 void xe_memirq_reset(struct xe_memirq *memirq);
