@@ -460,6 +460,30 @@ hw_engine_setup_default_state(struct xe_hw_engine *hwe)
 	xe_rtp_process_to_sr(&ctx, engine_entries, &hwe->reg_sr);
 }
 
+static const struct engine_info *find_engine_info(enum xe_engine_class class, int instance)
+{
+	const struct engine_info *info;
+	enum xe_hw_engine_id id;
+
+	for (id = 0; id < XE_NUM_HW_ENGINES; ++id) {
+		info = &engine_infos[id];
+		if (info->class == class && info->instance == instance)
+			return info;
+	}
+
+	return NULL;
+}
+
+static u16 get_msix_irq_offset(struct xe_gt *gt, enum xe_engine_class class)
+{
+	/* For MSI-X, hw engines report to offset of engine instance zero */
+	const struct engine_info *info = find_engine_info(class, 0);
+
+	xe_gt_assert(gt, info);
+
+	return info ? info->irq_offset : 0;
+}
+
 static void hw_engine_init_early(struct xe_gt *gt, struct xe_hw_engine *hwe,
 				 enum xe_hw_engine_id id)
 {
@@ -479,7 +503,9 @@ static void hw_engine_init_early(struct xe_gt *gt, struct xe_hw_engine *hwe,
 	hwe->class = info->class;
 	hwe->instance = info->instance;
 	hwe->mmio_base = info->mmio_base;
-	hwe->irq_offset = info->irq_offset;
+	hwe->irq_offset = xe_device_has_msix(gt_to_xe(gt)) ?
+		get_msix_irq_offset(gt, info->class) :
+		info->irq_offset;
 	hwe->domain = info->domain;
 	hwe->name = info->name;
 	hwe->fence_irq = &gt->fence_irq[info->class];

@@ -438,6 +438,28 @@ static void memirq_dispatch_guc(struct xe_memirq *memirq, struct iosys_map *stat
 }
 
 /**
+ * xe_memirq_hwe_handler - Check and process interrupts for a specific HW engine.
+ * @memirq: the &xe_memirq
+ * @hwe: the hw engine to process
+ *
+ * This function reads and dispatches `Memory Based Interrupts` for the provided HW engine.
+ */
+void xe_memirq_hwe_handler(struct xe_memirq *memirq, struct xe_hw_engine *hwe)
+{
+	u16 offset = hwe->irq_offset;
+	u16 instance = hw_reports_to_instance_zero(memirq) ? hwe->instance : 0;
+	struct iosys_map src_offset = IOSYS_MAP_INIT_OFFSET(&memirq->bo->vmap,
+							    XE_MEMIRQ_SOURCE_OFFSET(instance));
+
+	if (memirq_received(memirq, &src_offset, offset, "SRC")) {
+		struct iosys_map status_offset =
+			IOSYS_MAP_INIT_OFFSET(&memirq->bo->vmap,
+					      XE_MEMIRQ_STATUS_OFFSET(instance) + offset * SZ_16);
+		memirq_dispatch_engine(memirq, &status_offset, hwe);
+	}
+}
+
+/**
  * xe_memirq_handler - The `Memory Based Interrupts`_ Handler.
  * @memirq: the &xe_memirq
  *
@@ -464,13 +486,8 @@ void xe_memirq_handler(struct xe_memirq *memirq)
 		if (gt->tile != tile)
 			continue;
 
-		for_each_hw_engine(hwe, gt, id) {
-			if (memirq_received(memirq, &memirq->source, hwe->irq_offset, "SRC")) {
-				map = IOSYS_MAP_INIT_OFFSET(&memirq->status,
-							    hwe->irq_offset * SZ_16);
-				memirq_dispatch_engine(memirq, &map, hwe);
-			}
-		}
+		for_each_hw_engine(hwe, gt, id)
+			xe_memirq_hwe_handler(memirq, hwe);
 	}
 
 	/* GuC and media GuC (if present) must be checked separately */
