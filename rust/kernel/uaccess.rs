@@ -9,7 +9,7 @@ use crate::{
     bindings,
     error::Result,
     prelude::*,
-    types::{AsBytes, FromBytes},
+    transmute::{AsBytes, FromBytes},
 };
 use alloc::vec::Vec;
 use core::ffi::{c_ulong, c_void};
