@@ -1211,6 +1211,13 @@ static void vlv_steal_power_sequencer(struct intel_display *display,
 	}
 }
 
+/* Call on all DP, not just eDP */
+void vlv_pps_pipe_init(struct intel_dp *intel_dp)
+{
+	intel_dp->pps.vlv_pps_pipe = INVALID_PIPE;
+	intel_dp->pps.vlv_active_pipe = vlv_active_pipe(intel_dp);
+}
+
 void vlv_pps_init(struct intel_encoder *encoder,
 		  const struct intel_crtc_state *crtc_state)
 {
