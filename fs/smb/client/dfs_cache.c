@@ -126,6 +126,7 @@ static inline void free_tgts(struct cache_entry *ce)
 
 static inline void flush_cache_ent(struct cache_entry *ce)
 {
+	cifs_dbg(FYI, "%s: %s\n", __func__, ce->path);
 	hlist_del_init(&ce->hlist);
 	kfree(ce->path);
 	free_tgts(ce);
@@ -441,34 +442,31 @@ static struct cache_entry *alloc_cache_entry(struct dfs_info3_param *refs, int n
 	return ce;
 }
 
-static void remove_oldest_entry_locked(void)
+/* Remove all referrals that have a single target or oldest entry */
+static void purge_cache(void)
 {
 	int i;
 	struct cache_entry *ce;
-	struct cache_entry *to_del = NULL;
-
-	WARN_ON(!rwsem_is_locked(&htable_rw_lock));
+	struct cache_entry *oldest = NULL;
 
 	for (i = 0; i < CACHE_HTABLE_SIZE; i++) {
 		struct hlist_head *l = &cache_htable[i];
+		struct hlist_node *n;
 
-		hlist_for_each_entry(ce, l, hlist) {
+		hlist_for_each_entry_safe(ce, n, l, hlist) {
 			if (hlist_unhashed(&ce->hlist))
 				continue;
-			if (!to_del || timespec64_compare(&ce->etime,
-							  &to_del->etime) < 0)
-				to_del = ce;
+			if (ce->numtgts == 1)
+				flush_cache_ent(ce);
+			else if (!oldest ||
+				 timespec64_compare(&ce->etime,
+						    &oldest->etime) < 0)
+				oldest = ce;
 		}
 	}
 
-	if (!to_del) {
-		cifs_dbg(FYI, "%s: no entry to remove\n", __func__);
-		return;
-	}
-
-	cifs_dbg(FYI, "%s: removing entry\n", __func__);
-	dump_ce(to_del);
-	flush_cache_ent(to_del);
+	if (atomic_read(&cache_count) >= CACHE_MAX_ENTRIES && oldest)
+		flush_cache_ent(oldest);
 }
 
 /* Add a new DFS cache entry */
@@ -484,7 +482,7 @@ static struct cache_entry *add_cache_entry_locked(struct dfs_info3_param *refs,
 
 	if (atomic_read(&cache_count) >= CACHE_MAX_ENTRIES) {
 		cifs_dbg(FYI, "%s: reached max cache size (%d)\n", __func__, CACHE_MAX_ENTRIES);
-		remove_oldest_entry_locked();
+		purge_cache();
 	}
 
 	rc = cache_entry_hash(refs[0].path_name, strlen(refs[0].path_name), &hash);
