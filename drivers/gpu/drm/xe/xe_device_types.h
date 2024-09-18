@@ -226,13 +226,13 @@ struct xe_tile {
 			struct xe_lmtt lmtt;
 		} pf;
 		struct {
-			/** @sriov.vf.memirq: Memory Based Interrupts. */
-			struct xe_memirq memirq;
-
 			/** @sriov.vf.ggtt_balloon: GGTT regions excluded from use. */
 			struct xe_ggtt_node *ggtt_balloon[2];
 		} vf;
 	} sriov;
+
+	/** @memirq: Memory Based Interrupts. */
+	struct xe_memirq memirq;
 
 	/** @pcode: tile's PCODE */
 	struct {
