@@ -7284,9 +7284,11 @@ static int ath12k_connect_pdev_htc_service(struct ath12k_base *ab,
 					   u32 pdev_idx)
 {
 	int status;
-	u32 svc_id[] = { ATH12K_HTC_SVC_ID_WMI_CONTROL,
-			 ATH12K_HTC_SVC_ID_WMI_CONTROL_MAC1,
-			 ATH12K_HTC_SVC_ID_WMI_CONTROL_MAC2 };
+	static const u32 svc_id[] = {
+		ATH12K_HTC_SVC_ID_WMI_CONTROL,
+		ATH12K_HTC_SVC_ID_WMI_CONTROL_MAC1,
+		ATH12K_HTC_SVC_ID_WMI_CONTROL_MAC2
+	};
 	struct ath12k_htc_svc_conn_req conn_req = {};
 	struct ath12k_htc_svc_conn_resp conn_resp = {};
 
