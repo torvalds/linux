@@ -242,7 +242,7 @@ s_uGetDataDuration(
 	unsigned char dur_type,
 	unsigned int frame_length,
 	unsigned char pkt_type,
-	unsigned short wRate,
+	unsigned short rate,
 	bool bNeedAck,
 	unsigned int uFragIdx,
 	unsigned int cbLastFragmentSize,
@@ -275,7 +275,7 @@ s_uGetDataDuration(
 		} else {
 			/* First Frag or Mid Frag */
 			uNextPktTime = s_uGetTxRsvTime(priv, pkt_type,
-						       len, wRate, bNeedAck);
+						       len, rate, bNeedAck);
 		}
 
 		return priv->uSIFS + uAckTime + uNextPktTime;
@@ -293,7 +293,7 @@ s_uGetDataDuration(
 		} else {
 			/* First Frag or Mid Frag */
 			uNextPktTime = s_uGetTxRsvTime(priv, pkt_type,
-						       len, wRate, bNeedAck);
+						       len, rate, bNeedAck);
 		}
 
 		return priv->uSIFS + uAckTime + uNextPktTime;
@@ -311,20 +311,20 @@ s_uGetDataDuration(
 				return 0;
 		} else {
 			/* First Frag or Mid Frag */
-			if (wRate < RATE_18M)
-				wRate = RATE_18M;
-			else if (wRate > RATE_54M)
-				wRate = RATE_54M;
+			if (rate < RATE_18M)
+				rate = RATE_18M;
+			else if (rate > RATE_54M)
+				rate = RATE_54M;
 
-			wRate -= RATE_18M;
+			rate -= RATE_18M;
 
 			if (byFBOption == AUTO_FB_0)
-				wRate = fb_opt0[FB_RATE0][wRate];
+				rate = fb_opt0[FB_RATE0][rate];
 			else
-				wRate = fb_opt1[FB_RATE0][wRate];
+				rate = fb_opt1[FB_RATE0][rate];
 
 			uNextPktTime = s_uGetTxRsvTime(priv, pkt_type,
-						       len, wRate, bNeedAck);
+						       len, rate, bNeedAck);
 		}
 
 		return priv->uSIFS + uAckTime + uNextPktTime;
