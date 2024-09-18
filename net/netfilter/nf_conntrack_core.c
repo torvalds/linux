@@ -2197,80 +2197,6 @@ static void nf_conntrack_attach(struct sk_buff *nskb, const struct sk_buff *skb)
 	nf_conntrack_get(skb_nfct(nskb));
 }
 
-static int __nf_conntrack_update(struct net *net, struct sk_buff *skb,
-				 struct nf_conn *ct,
-				 enum ip_conntrack_info ctinfo)
-{
-	const struct nf_nat_hook *nat_hook;
-	struct nf_conntrack_tuple_hash *h;
-	struct nf_conntrack_tuple tuple;
-	unsigned int status;
-	int dataoff;
-	u16 l3num;
-	u8 l4num;
-
-	l3num = nf_ct_l3num(ct);
-
-	dataoff = get_l4proto(skb, skb_network_offset(skb), l3num, &l4num);
-	if (dataoff <= 0)
-		return NF_DROP;
-
-	if (!nf_ct_get_tuple(skb, skb_network_offset(skb), dataoff, l3num,
-			     l4num, net, &tuple))
-		return NF_DROP;
-
-	if (ct->status & IPS_SRC_NAT) {
-		memcpy(tuple.src.u3.all,
-		       ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.src.u3.all,
-		       sizeof(tuple.src.u3.all));
-		tuple.src.u.all =
-			ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.src.u.all;
-	}
-
-	if (ct->status & IPS_DST_NAT) {
-		memcpy(tuple.dst.u3.all,
-		       ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.dst.u3.all,
-		       sizeof(tuple.dst.u3.all));
-		tuple.dst.u.all =
-			ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.dst.u.all;
-	}
-
-	h = nf_conntrack_find_get(net, nf_ct_zone(ct), &tuple);
-	if (!h)
-		return NF_ACCEPT;
-
-	/* Store status bits of the conntrack that is clashing to re-do NAT
-	 * mangling according to what it has been done already to this packet.
-	 */
-	status = ct->status;
-
-	nf_ct_put(ct);
-	ct = nf_ct_tuplehash_to_ctrack(h);
-	nf_ct_set(skb, ct, ctinfo);
-
-	nat_hook = rcu_dereference(nf_nat_hook);
-	if (!nat_hook)
-		return NF_ACCEPT;
-
-	if (status & IPS_SRC_NAT) {
-		unsigned int verdict = nat_hook->manip_pkt(skb, ct,
-							   NF_NAT_MANIP_SRC,
-							   IP_CT_DIR_ORIGINAL);
-		if (verdict != NF_ACCEPT)
-			return verdict;
-	}
-
-	if (status & IPS_DST_NAT) {
-		unsigned int verdict = nat_hook->manip_pkt(skb, ct,
-							   NF_NAT_MANIP_DST,
-							   IP_CT_DIR_ORIGINAL);
-		if (verdict != NF_ACCEPT)
-			return verdict;
-	}
-
-	return NF_ACCEPT;
-}
-
 /* This packet is coming from userspace via nf_queue, complete the packet
  * processing after the helper invocation in nf_confirm().
  */
@@ -2333,17 +2259,6 @@ static int nf_conntrack_update(struct net *net, struct sk_buff *skb)
 	ct = nf_ct_get(skb, &ctinfo);
 	if (!ct)
 		return NF_ACCEPT;
-
-	if (!nf_ct_is_confirmed(ct)) {
-		int ret = __nf_conntrack_update(net, skb, ct, ctinfo);
-
-		if (ret != NF_ACCEPT)
-			return ret;
-
-		ct = nf_ct_get(skb, &ctinfo);
-		if (!ct)
-			return NF_ACCEPT;
-	}
 
 	return nf_confirm_cthelper(skb, ct, ctinfo);
 }

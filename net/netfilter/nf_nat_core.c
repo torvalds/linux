@@ -1324,7 +1324,6 @@ static const struct nf_nat_hook nat_hook = {
 #ifdef CONFIG_XFRM
 	.decode_session		= __nf_nat_decode_session,
 #endif
-	.manip_pkt		= nf_nat_manip_pkt,
 	.remove_nat_bysrc	= nf_nat_cleanup_conntrack,
 };
 
