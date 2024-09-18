@@ -656,7 +656,7 @@ MODULE_DEVICE_TABLE(of, sof_of_mt8186_ids);
 /* DT driver definition */
 static struct platform_driver snd_sof_of_mt8186_driver = {
 	.probe = sof_of_probe,
-	.remove_new = sof_of_remove,
+	.remove = sof_of_remove,
 	.shutdown = sof_of_shutdown,
 	.driver = {
 	.name = "sof-audio-of-mt8186",

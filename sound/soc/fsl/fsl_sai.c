@@ -1817,7 +1817,7 @@ static const struct dev_pm_ops fsl_sai_pm_ops = {
 
 static struct platform_driver fsl_sai_driver = {
 	.probe = fsl_sai_probe,
-	.remove_new = fsl_sai_remove,
+	.remove = fsl_sai_remove,
 	.driver = {
 		.name = "fsl-sai",
 		.pm = &fsl_sai_pm_ops,

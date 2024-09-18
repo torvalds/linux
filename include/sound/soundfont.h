@@ -86,9 +86,11 @@ struct snd_sf_list {
 };
 
 /* Prototypes for soundfont.c */
-int snd_soundfont_load(struct snd_sf_list *sflist, const void __user *data,
+int snd_soundfont_load(struct snd_card *card,
+		       struct snd_sf_list *sflist, const void __user *data,
 		       long count, int client);
-int snd_soundfont_load_guspatch(struct snd_sf_list *sflist, const char __user *data,
+int snd_soundfont_load_guspatch(struct snd_card *card,
+				struct snd_sf_list *sflist, const char __user *data,
 				long count);
 int snd_soundfont_close_check(struct snd_sf_list *sflist, int client);
 

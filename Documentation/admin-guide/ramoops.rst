@@ -129,7 +129,7 @@ Setting the ramoops parameters can be done in several different manners:
     takes a size, alignment and name as arguments. The name is used
     to map the memory to a label that can be retrieved by ramoops.
 
-	reserver_mem=2M:4096:oops  ramoops.mem_name=oops
+	reserve_mem=2M:4096:oops  ramoops.mem_name=oops
 
 You can specify either RAM memory or peripheral devices' memory. However, when
 specifying RAM, be sure to reserve the memory by issuing memblock_reserve()

@@ -1194,7 +1194,7 @@ static void mchp_spdifrx_remove(struct platform_device *pdev)
 
 static struct platform_driver mchp_spdifrx_driver = {
 	.probe	= mchp_spdifrx_probe,
-	.remove_new = mchp_spdifrx_remove,
+	.remove = mchp_spdifrx_remove,
 	.driver	= {
 		.name	= "mchp_spdifrx",
 		.of_match_table = mchp_spdifrx_dt_ids,

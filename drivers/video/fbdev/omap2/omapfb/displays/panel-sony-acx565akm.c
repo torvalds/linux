@@ -466,19 +466,20 @@ static ssize_t show_cabc_available_modes(struct device *dev,
 		char *buf)
 {
 	struct panel_drv_data *ddata = dev_get_drvdata(dev);
-	int len;
+	int len = 0;
 	int i;
 
 	if (!ddata->has_cabc)
 		return sysfs_emit(buf, "%s\n", cabc_modes[0]);
 
-	for (i = 0, len = 0;
-	     len < PAGE_SIZE && i < ARRAY_SIZE(cabc_modes); i++)
-		len += snprintf(&buf[len], PAGE_SIZE - len, "%s%s%s",
-			i ? " " : "", cabc_modes[i],
-			i == ARRAY_SIZE(cabc_modes) - 1 ? "\n" : "");
+	for (i = 0; i < ARRAY_SIZE(cabc_modes); i++)
+		len += sysfs_emit_at(buf, len, "%s ", cabc_modes[i]);
 
-	return len < PAGE_SIZE ? len : PAGE_SIZE - 1;
+	/* Remove the trailing space */
+	if (len)
+		buf[len - 1] = '\n';
+
+	return len;
 }
 
 static DEVICE_ATTR(cabc_mode, S_IRUGO | S_IWUSR,

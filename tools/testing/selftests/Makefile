@@ -1,4 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0
+TARGETS += acct
 TARGETS += alsa
 TARGETS += amd-pstate
 TARGETS += arm64
@@ -109,7 +110,6 @@ TARGETS += tmpfs
 TARGETS += tpm2
 TARGETS += tty
 TARGETS += uevent
-TARGETS += user
 TARGETS += user_events
 TARGETS += vDSO
 TARGETS += mm

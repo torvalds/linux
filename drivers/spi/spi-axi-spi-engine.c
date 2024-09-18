@@ -41,6 +41,7 @@
 #define SPI_ENGINE_CONFIG_CPHA			BIT(0)
 #define SPI_ENGINE_CONFIG_CPOL			BIT(1)
 #define SPI_ENGINE_CONFIG_3WIRE			BIT(2)
+#define SPI_ENGINE_CONFIG_SDO_IDLE_HIGH		BIT(3)
 
 #define SPI_ENGINE_INST_TRANSFER		0x0
 #define SPI_ENGINE_INST_ASSERT			0x1
@@ -137,6 +138,10 @@ static unsigned int spi_engine_get_config(struct spi_device *spi)
 		config |= SPI_ENGINE_CONFIG_CPHA;
 	if (spi->mode & SPI_3WIRE)
 		config |= SPI_ENGINE_CONFIG_3WIRE;
+	if (spi->mode & SPI_MOSI_IDLE_HIGH)
+		config |= SPI_ENGINE_CONFIG_SDO_IDLE_HIGH;
+	if (spi->mode & SPI_MOSI_IDLE_LOW)
+		config &= ~SPI_ENGINE_CONFIG_SDO_IDLE_HIGH;
 
 	return config;
 }
@@ -258,7 +263,7 @@ static void spi_engine_compile_message(struct spi_message *msg, bool dry,
 					clk_div - 1));
 		}
 
-		if (bits_per_word != xfer->bits_per_word) {
+		if (bits_per_word != xfer->bits_per_word && xfer->len) {
 			bits_per_word = xfer->bits_per_word;
 			spi_engine_program_add_cmd(p, dry,
 				SPI_ENGINE_CMD_WRITE(SPI_ENGINE_CMD_REG_XFER_BITS,
@@ -692,9 +697,13 @@ static int spi_engine_probe(struct platform_device *pdev)
 	host->num_chipselect = 8;
 
 	/* Some features depend of the IP core version. */
-	if (ADI_AXI_PCORE_VER_MINOR(version) >= 2) {
-		host->mode_bits |= SPI_CS_HIGH;
-		host->setup = spi_engine_setup;
+	if (ADI_AXI_PCORE_VER_MAJOR(version) >= 1) {
+		if (ADI_AXI_PCORE_VER_MINOR(version) >= 2) {
+			host->mode_bits |= SPI_CS_HIGH;
+			host->setup = spi_engine_setup;
+		}
+		if (ADI_AXI_PCORE_VER_MINOR(version) >= 3)
+			host->mode_bits |= SPI_MOSI_IDLE_LOW | SPI_MOSI_IDLE_HIGH;
 	}
 
 	if (host->max_speed_hz == 0)

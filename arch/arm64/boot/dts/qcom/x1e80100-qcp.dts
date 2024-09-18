@@ -729,10 +729,6 @@
 	status = "okay";
 };
 
-&smb2360_3 {
-	status = "okay";
-};
-
 &smb2360_0_eusb2_repeater {
 	vdd18-supply = <&vreg_l3d_1p8>;
 	vdd3-supply = <&vreg_l2b_3p0>;
@@ -743,9 +739,17 @@
 	vdd3-supply = <&vreg_l14b_3p0>;
 };
 
+&smb2360_2 {
+	status = "okay";
+};
+
 &smb2360_2_eusb2_repeater {
 	vdd18-supply = <&vreg_l3d_1p8>;
 	vdd3-supply = <&vreg_l8b_3p0>;
+};
+
+&smb2360_3 {
+	status = "okay";
 };
 
 &swr0 {
@@ -763,6 +767,7 @@
 		sound-name-prefix = "SpkrLeft";
 		vdd-1p8-supply = <&vreg_l15b_1p8>;
 		vdd-io-supply = <&vreg_l12b_1p2>;
+		qcom,port-mapping = <1 2 3 7 10 13>;
 	};
 
 	/* WSA8845, Right Speaker */
@@ -774,6 +779,7 @@
 		sound-name-prefix = "SpkrRight";
 		vdd-1p8-supply = <&vreg_l15b_1p8>;
 		vdd-io-supply = <&vreg_l12b_1p2>;
+		qcom,port-mapping = <4 5 6 7 11 13>;
 	};
 };
 

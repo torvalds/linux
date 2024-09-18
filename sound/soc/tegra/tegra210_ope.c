@@ -407,7 +407,7 @@ static struct platform_driver tegra210_ope_driver = {
 		.pm = &tegra210_ope_pm_ops,
 	},
 	.probe = tegra210_ope_probe,
-	.remove_new = tegra210_ope_remove,
+	.remove = tegra210_ope_remove,
 };
 module_platform_driver(tegra210_ope_driver)
 

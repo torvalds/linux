@@ -706,9 +706,29 @@ static void intel_program_sdi(struct sdw_intel *sdw, int dev_num)
 			__func__, sdw->instance, dev_num);
 }
 
+static int intel_get_link_count(struct sdw_intel *sdw)
+{
+	int ret;
+
+	ret = hdac_bus_eml_get_count(sdw->link_res->hbus, true, AZX_REG_ML_LEPTR_ID_SDW);
+	if (!ret) {
+		dev_err(sdw->cdns.dev, "%s: could not retrieve link count\n", __func__);
+		return -ENODEV;
+	}
+
+	if (ret > SDW_INTEL_MAX_LINKS) {
+		dev_err(sdw->cdns.dev, "%s: link count %d exceed max %d\n", __func__, ret, SDW_INTEL_MAX_LINKS);
+		return -EINVAL;
+	}
+
+	return ret;
+}
+
 const struct sdw_intel_hw_ops sdw_intel_lnl_hw_ops = {
 	.debugfs_init = intel_ace2x_debugfs_init,
 	.debugfs_exit = intel_ace2x_debugfs_exit,
+
+	.get_link_count = intel_get_link_count,
 
 	.register_dai = intel_register_dai,
 

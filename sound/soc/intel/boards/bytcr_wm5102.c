@@ -663,7 +663,7 @@ static struct platform_driver snd_byt_wm5102_mc_driver = {
 		.name = "bytcr_wm5102",
 	},
 	.probe = snd_byt_wm5102_mc_probe,
-	.remove_new = snd_byt_wm5102_mc_remove,
+	.remove = snd_byt_wm5102_mc_remove,
 };
 
 module_platform_driver(snd_byt_wm5102_mc_driver);

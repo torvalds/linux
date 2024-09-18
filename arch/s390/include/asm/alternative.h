@@ -39,11 +39,7 @@
 #define ALT_TYPE_SHIFT		20
 #define ALT_CTX_SHIFT		28
 
-#define ALT_FACILITY_EARLY(facility)	(ALT_CTX_EARLY << ALT_CTX_SHIFT		| \
-					 ALT_TYPE_FACILITY << ALT_TYPE_SHIFT	| \
-					 (facility) << ALT_DATA_SHIFT)
-
-#define ALT_FACILITY(facility)		(ALT_CTX_LATE << ALT_CTX_SHIFT		| \
+#define ALT_FACILITY(facility)		(ALT_CTX_EARLY << ALT_CTX_SHIFT		| \
 					 ALT_TYPE_FACILITY << ALT_TYPE_SHIFT	| \
 					 (facility) << ALT_DATA_SHIFT)
 

@@ -323,15 +323,15 @@ static int cs42l42_sdw_read_prop(struct sdw_slave *peripheral)
 	prop->scp_int1_mask = SDW_SCP_INT1_BUS_CLASH | SDW_SCP_INT1_PARITY;
 
 	/* DP1 - capture */
-	ports[0].num = CS42L42_SDW_CAPTURE_PORT,
-	ports[0].type = SDW_DPN_FULL,
-	ports[0].ch_prep_timeout = 10,
+	ports[0].num = CS42L42_SDW_CAPTURE_PORT;
+	ports[0].type = SDW_DPN_FULL;
+	ports[0].ch_prep_timeout = 10;
 	prop->src_dpn_prop = &ports[0];
 
 	/* DP2 - playback */
-	ports[1].num = CS42L42_SDW_PLAYBACK_PORT,
-	ports[1].type = SDW_DPN_FULL,
-	ports[1].ch_prep_timeout = 10,
+	ports[1].num = CS42L42_SDW_PLAYBACK_PORT;
+	ports[1].type = SDW_DPN_FULL;
+	ports[1].ch_prep_timeout = 10;
 	prop->sink_dpn_prop = &ports[1];
 
 	return 0;

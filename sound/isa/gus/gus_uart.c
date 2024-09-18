@@ -89,7 +89,9 @@ static int snd_gf1_uart_output_open(struct snd_rawmidi_substream *substream)
 	gus->midi_substream_output = substream;
 	spin_unlock_irqrestore(&gus->uart_cmd_lock, flags);
 #if 0
-	snd_printk(KERN_DEBUG "write init - cmd = 0x%x, stat = 0x%x\n", gus->gf1.uart_cmd, snd_gf1_uart_stat(gus));
+	dev_dbg(gus->card->dev,
+		"write init - cmd = 0x%x, stat = 0x%x\n",
+		gus->gf1.uart_cmd, snd_gf1_uart_stat(gus));
 #endif
 	return 0;
 }
@@ -111,18 +113,17 @@ static int snd_gf1_uart_input_open(struct snd_rawmidi_substream *substream)
 		for (i = 0; i < 1000 && (snd_gf1_uart_stat(gus) & 0x01); i++)
 			snd_gf1_uart_get(gus);	/* clean Rx */
 		if (i >= 1000)
-			snd_printk(KERN_ERR "gus midi uart init read - cleanup error\n");
+			dev_err(gus->card->dev, "gus midi uart init read - cleanup error\n");
 	}
 	spin_unlock_irqrestore(&gus->uart_cmd_lock, flags);
 #if 0
-	snd_printk(KERN_DEBUG
-		   "read init - enable = %i, cmd = 0x%x, stat = 0x%x\n",
-		   gus->uart_enable, gus->gf1.uart_cmd, snd_gf1_uart_stat(gus));
-	snd_printk(KERN_DEBUG
-		   "[0x%x] reg (ctrl/status) = 0x%x, reg (data) = 0x%x "
-		   "(page = 0x%x)\n",
-		   gus->gf1.port + 0x100, inb(gus->gf1.port + 0x100),
-		   inb(gus->gf1.port + 0x101), inb(gus->gf1.port + 0x102));
+	dev_dbg(gus->card->dev,
+		"read init - enable = %i, cmd = 0x%x, stat = 0x%x\n",
+		gus->uart_enable, gus->gf1.uart_cmd, snd_gf1_uart_stat(gus));
+	dev_dbg(gus->card->dev,
+		"[0x%x] reg (ctrl/status) = 0x%x, reg (data) = 0x%x (page = 0x%x)\n",
+		gus->gf1.port + 0x100, inb(gus->gf1.port + 0x100),
+		inb(gus->gf1.port + 0x101), inb(gus->gf1.port + 0x102));
 #endif
 	return 0;
 }

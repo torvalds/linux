@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
  * Spreadtrum Whale2 platform peripherals
  *
  * Copyright (C) 2016, Spreadtrum Communications Inc.
- *
- * SPDX-License-Identifier: (GPL-2.0+ OR MIT)
  */
 
 #include <dt-bindings/clock/sprd,sc9860-clk.h>
@@ -75,9 +74,10 @@
 					     "sprd,sc9836-uart";
 				reg = <0x0 0x100>;
 				interrupts = <GIC_SPI 2 IRQ_TYPE_LEVEL_HIGH>;
-				clock-names = "enable", "uart", "source";
 				clocks = <&apapb_gate CLK_UART0_EB>,
-				       <&ap_clk CLK_UART0>, <&ext_26m>;
+					 <&ap_clk CLK_UART0>,
+					 <&ext_26m>;
+				clock-names = "enable", "uart", "source";
 				status = "disabled";
 			};
 
@@ -86,9 +86,10 @@
 					     "sprd,sc9836-uart";
 				reg = <0x100000 0x100>;
 				interrupts = <GIC_SPI 3 IRQ_TYPE_LEVEL_HIGH>;
-				clock-names = "enable", "uart", "source";
 				clocks = <&apapb_gate CLK_UART1_EB>,
-				       <&ap_clk CLK_UART1>, <&ext_26m>;
+					 <&ap_clk CLK_UART1>,
+					 <&ext_26m>;
+				clock-names = "enable", "uart", "source";
 				status = "disabled";
 			};
 
@@ -97,9 +98,10 @@
 					     "sprd,sc9836-uart";
 				reg = <0x200000 0x100>;
 				interrupts = <GIC_SPI 4 IRQ_TYPE_LEVEL_HIGH>;
-				clock-names = "enable", "uart", "source";
 				clocks = <&apapb_gate CLK_UART2_EB>,
-				       <&ap_clk CLK_UART2>, <&ext_26m>;
+					 <&ap_clk CLK_UART2>,
+					 <&ext_26m>;
+				clock-names = "enable", "uart", "source";
 				status = "disabled";
 			};
 
@@ -108,9 +110,10 @@
 					     "sprd,sc9836-uart";
 				reg = <0x300000 0x100>;
 				interrupts = <GIC_SPI 5 IRQ_TYPE_LEVEL_HIGH>;
-				clock-names = "enable", "uart", "source";
 				clocks = <&apapb_gate CLK_UART3_EB>,
-				       <&ap_clk CLK_UART3>, <&ext_26m>;
+					 <&ap_clk CLK_UART3>,
+					 <&ext_26m>;
+				clock-names = "enable", "uart", "source";
 				status = "disabled";
 			};
 		};
@@ -129,19 +132,19 @@
 				/* For backwards compatibility: */
 				#dma-channels = <32>;
 				dma-channels = <32>;
-				clock-names = "enable";
 				clocks = <&apahb_gate CLK_DMA_EB>;
+				clock-names = "enable";
 			};
 
-			sdio3: sdio@50430000 {
+			sdio3: mmc@50430000 {
 				compatible = "sprd,sdhci-r11";
 				reg = <0 0x50430000 0 0x1000>;
 				interrupts = <GIC_SPI 41 IRQ_TYPE_LEVEL_HIGH>;
 
-				clock-names = "sdio", "enable", "2x_enable";
 				clocks = <&aon_prediv CLK_EMMC_2X>,
-				       <&apahb_gate CLK_EMMC_EB>,
-				       <&aon_gate CLK_EMMC_2X_EN>;
+					 <&apahb_gate CLK_EMMC_EB>,
+					 <&aon_gate CLK_EMMC_2X_EN>;
+				clock-names = "sdio", "enable", "2x_enable";
 				assigned-clocks = <&aon_prediv CLK_EMMC_2X>;
 				assigned-clock-parents = <&clk_l0_409m6>;
 
@@ -194,8 +197,8 @@
 				compatible = "sprd,hwspinlock-r3p0";
 				reg = <0 0x40500000 0 0x1000>;
 				#hwlock-cells = <1>;
-				clock-names = "enable";
 				clocks = <&aon_gate CLK_SPLK_EB>;
+				clock-names = "enable";
 			};
 
 			eic_debounce: gpio@40210000 {
@@ -258,9 +261,9 @@
 				reg = <0 0x40310000 0 0x1000>;
 				interrupts = <GIC_SPI 61 IRQ_TYPE_LEVEL_HIGH>;
 				timeout-sec = <12>;
-				clock-names = "enable", "rtc_enable";
 				clocks = <&aon_gate CLK_APCPU_WDG_EB>,
-				       <&aon_gate CLK_AP_WDG_RTC_EB>;
+					 <&aon_gate CLK_AP_WDG_RTC_EB>;
+				clock-names = "enable", "rtc_enable";
 			};
 		};
 
@@ -277,9 +280,9 @@
 				/* For backwards compatibility: */
 				#dma-channels = <32>;
 				dma-channels = <32>;
-				clock-names = "enable", "ashb_eb";
 				clocks = <&agcp_gate CLK_AGCP_DMAAP_EB>,
-				       <&agcp_gate CLK_AGCP_AP_ASHB_EB>;
+					 <&agcp_gate CLK_AGCP_AP_ASHB_EB>;
+				clock-names = "enable", "ashb_eb";
 			};
 		};
 	};

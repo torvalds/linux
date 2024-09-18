@@ -154,13 +154,6 @@ enum mt6360_pmu_chg_type {
 	MT6360_CHG_TYPE_MAX,
 };
 
-static enum power_supply_usb_type mt6360_charger_usb_types[] = {
-	POWER_SUPPLY_USB_TYPE_UNKNOWN,
-	POWER_SUPPLY_USB_TYPE_SDP,
-	POWER_SUPPLY_USB_TYPE_DCP,
-	POWER_SUPPLY_USB_TYPE_CDP,
-};
-
 static int mt6360_get_chrdet_ext_stat(struct mt6360_chg_info *mci,
 					     bool *pwr_rdy)
 {
@@ -574,8 +567,10 @@ static const struct power_supply_desc mt6360_charger_desc = {
 	.get_property		= mt6360_charger_get_property,
 	.set_property		= mt6360_charger_set_property,
 	.property_is_writeable	= mt6360_charger_property_is_writeable,
-	.usb_types		= mt6360_charger_usb_types,
-	.num_usb_types		= ARRAY_SIZE(mt6360_charger_usb_types),
+	.usb_types		= BIT(POWER_SUPPLY_USB_TYPE_SDP) |
+				  BIT(POWER_SUPPLY_USB_TYPE_CDP) |
+				  BIT(POWER_SUPPLY_USB_TYPE_DCP) |
+				  BIT(POWER_SUPPLY_USB_TYPE_UNKNOWN),
 };
 
 static const struct regulator_ops mt6360_chg_otg_ops = {

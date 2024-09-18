@@ -288,13 +288,13 @@ static void pstore_dump(struct kmsg_dumper *dumper,
 	why = kmsg_dump_reason_str(reason);
 
 	if (pstore_cannot_block_path(reason)) {
-		if (!spin_trylock_irqsave(&psinfo->buf_lock, flags)) {
+		if (!raw_spin_trylock_irqsave(&psinfo->buf_lock, flags)) {
 			pr_err("dump skipped in %s path because of concurrent dump\n",
 					in_nmi() ? "NMI" : why);
 			return;
 		}
 	} else {
-		spin_lock_irqsave(&psinfo->buf_lock, flags);
+		raw_spin_lock_irqsave(&psinfo->buf_lock, flags);
 	}
 
 	kmsg_dump_rewind(&iter);
@@ -364,7 +364,7 @@ static void pstore_dump(struct kmsg_dumper *dumper,
 		total += record.size;
 		part++;
 	}
-	spin_unlock_irqrestore(&psinfo->buf_lock, flags);
+	raw_spin_unlock_irqrestore(&psinfo->buf_lock, flags);
 
 	if (saved_ret) {
 		pr_err_once("backend (%s) writing error (%d)\n", psinfo->name,
@@ -503,7 +503,7 @@ int pstore_register(struct pstore_info *psi)
 		psi->write_user = pstore_write_user_compat;
 	psinfo = psi;
 	mutex_init(&psinfo->read_mutex);
-	spin_lock_init(&psinfo->buf_lock);
+	raw_spin_lock_init(&psinfo->buf_lock);
 
 	if (psi->flags & PSTORE_FLAGS_DMESG)
 		allocate_buf_for_compression();

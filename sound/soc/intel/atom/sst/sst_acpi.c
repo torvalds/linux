@@ -358,7 +358,7 @@ static struct platform_driver sst_acpi_driver = {
 		.pm			= &intel_sst_pm,
 	},
 	.probe	= sst_acpi_probe,
-	.remove_new = sst_acpi_remove,
+	.remove = sst_acpi_remove,
 };
 
 module_platform_driver(sst_acpi_driver);

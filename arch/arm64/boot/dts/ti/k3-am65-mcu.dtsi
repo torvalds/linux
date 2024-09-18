@@ -292,13 +292,13 @@
 		ranges = <0x0 0x47000000 0x0 0x47000000 0x0 0x100>, /* FSS Control */
 			 <0x0 0x47040000 0x0 0x47040000 0x0 0x100>, /* OSPI0 Control */
 			 <0x0 0x47050000 0x0 0x47050000 0x0 0x100>, /* OSPI1 Control */
-			 <0x5 0x00000000 0x5 0x00000000 0x1 0x0000000>, /* OSPI0 Memory */
-			 <0x7 0x00000000 0x7 0x00000000 0x1 0x0000000>; /* OSPI1 Memory */
+			 <0x0 0x50000000 0x0 0x50000000 0x0 0x10000000>, /* FSS data region 1 */
+			 <0x4 0x00000000 0x4 0x00000000 0x4 0x00000000>; /* FSS data region 0/3 */
 
 		ospi0: spi@47040000 {
 			compatible = "ti,am654-ospi", "cdns,qspi-nor";
 			reg = <0x0 0x47040000 0x0 0x100>,
-				<0x5 0x00000000 0x1 0x0000000>;
+			      <0x5 0x00000000 0x1 0x00000000>;
 			interrupts = <GIC_SPI 552 IRQ_TYPE_LEVEL_HIGH>;
 			cdns,fifo-depth = <256>;
 			cdns,fifo-width = <4>;
@@ -316,7 +316,7 @@
 		ospi1: spi@47050000 {
 			compatible = "ti,am654-ospi", "cdns,qspi-nor";
 			reg = <0x0 0x47050000 0x0 0x100>,
-				<0x7 0x00000000 0x1 0x00000000>;
+			      <0x7 0x00000000 0x1 0x00000000>;
 			interrupts = <GIC_SPI 553 IRQ_TYPE_LEVEL_HIGH>;
 			cdns,fifo-depth = <256>;
 			cdns,fifo-width = <4>;
@@ -438,6 +438,14 @@
 			ti,btcm-enable = <1>;
 			ti,loczrama = <1>;
 		};
+	};
+
+	mcu_esm: esm@40800000 {
+		compatible = "ti,j721e-esm";
+		reg = <0x00 0x40800000 0x00 0x1000>;
+		bootph-pre-ram;
+		/* Interrupt sources: mrti0, mrti1 */
+		ti,esm-pins = <104>, <105>;
 	};
 
 	mcu_rti1: watchdog@40610000 {

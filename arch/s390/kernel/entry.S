@@ -42,7 +42,7 @@ _LPP_OFFSET	= __LC_LPP
 
 	.macro LPSWEY address, lpswe
 	ALTERNATIVE_2 "b \lpswe;nopr", \
-		".insn siy,0xeb0000000071,\address,0", ALT_FACILITY_EARLY(193),		\
+		".insn siy,0xeb0000000071,\address,0", ALT_FACILITY(193),		\
 		__stringify(.insn siy,0xeb0000000071,LOWCORE_ALT_ADDRESS+\address,0),	\
 		ALT_LOWCORE
 	.endm

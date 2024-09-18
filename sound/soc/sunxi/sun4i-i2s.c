@@ -1684,7 +1684,7 @@ static const struct dev_pm_ops sun4i_i2s_pm_ops = {
 
 static struct platform_driver sun4i_i2s_driver = {
 	.probe	= sun4i_i2s_probe,
-	.remove_new = sun4i_i2s_remove,
+	.remove = sun4i_i2s_remove,
 	.driver	= {
 		.name		= "sun4i-i2s",
 		.of_match_table	= sun4i_i2s_match,

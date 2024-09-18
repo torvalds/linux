@@ -1314,6 +1314,11 @@ out_free_interp:
 		   emulate the SVr4 behavior. Sigh. */
 		error = vm_mmap(NULL, 0, PAGE_SIZE, PROT_READ | PROT_EXEC,
 				MAP_FIXED | MAP_PRIVATE, 0);
+
+		retval = do_mseal(0, PAGE_SIZE, 0);
+		if (retval)
+			pr_warn_ratelimited("pid=%d, couldn't seal address 0, ret=%d.\n",
+					    task_pid_nr(current), retval);
 	}
 
 	regs = current_pt_regs();
@@ -2027,8 +2032,10 @@ static int elf_core_dump(struct coredump_params *cprm)
 	 * Collect all the non-memory information about the process for the
 	 * notes.  This also sets up the file header.
 	 */
-	if (!fill_note_info(&elf, e_phnum, &info, cprm))
+	if (!fill_note_info(&elf, e_phnum, &info, cprm)) {
+		coredump_report_failure("Error collecting note info");
 		goto end_coredump;
+	}
 
 	has_dumped = 1;
 
@@ -2039,12 +2046,14 @@ static int elf_core_dump(struct coredump_params *cprm)
 	{
 		size_t sz = info.size;
 
-		/* For cell spufs */
+		/* For cell spufs and x86 xstate */
 		sz += elf_coredump_extra_notes_size();
 
 		phdr4note = kmalloc(sizeof(*phdr4note), GFP_KERNEL);
-		if (!phdr4note)
+		if (!phdr4note) {
+			coredump_report_failure("Error allocating program headers note entry");
 			goto end_coredump;
+		}
 
 		fill_elf_note_phdr(phdr4note, sz, offset);
 		offset += sz;
@@ -2058,18 +2067,24 @@ static int elf_core_dump(struct coredump_params *cprm)
 
 	if (e_phnum == PN_XNUM) {
 		shdr4extnum = kmalloc(sizeof(*shdr4extnum), GFP_KERNEL);
-		if (!shdr4extnum)
+		if (!shdr4extnum) {
+			coredump_report_failure("Error allocating extra program headers");
 			goto end_coredump;
+		}
 		fill_extnum_info(&elf, shdr4extnum, e_shoff, segs);
 	}
 
 	offset = dataoff;
 
-	if (!dump_emit(cprm, &elf, sizeof(elf)))
+	if (!dump_emit(cprm, &elf, sizeof(elf))) {
+		coredump_report_failure("Error emitting the ELF headers");
 		goto end_coredump;
+	}
 
-	if (!dump_emit(cprm, phdr4note, sizeof(*phdr4note)))
+	if (!dump_emit(cprm, phdr4note, sizeof(*phdr4note))) {
+		coredump_report_failure("Error emitting the program header for notes");
 		goto end_coredump;
+	}
 
 	/* Write program headers for segments dump */
 	for (i = 0; i < cprm->vma_count; i++) {
@@ -2092,20 +2107,28 @@ static int elf_core_dump(struct coredump_params *cprm)
 			phdr.p_flags |= PF_X;
 		phdr.p_align = ELF_EXEC_PAGESIZE;
 
-		if (!dump_emit(cprm, &phdr, sizeof(phdr)))
+		if (!dump_emit(cprm, &phdr, sizeof(phdr))) {
+			coredump_report_failure("Error emitting program headers");
 			goto end_coredump;
+		}
 	}
 
-	if (!elf_core_write_extra_phdrs(cprm, offset))
+	if (!elf_core_write_extra_phdrs(cprm, offset)) {
+		coredump_report_failure("Error writing out extra program headers");
 		goto end_coredump;
+	}
 
 	/* write out the notes section */
-	if (!write_note_info(&info, cprm))
+	if (!write_note_info(&info, cprm)) {
+		coredump_report_failure("Error writing out notes");
 		goto end_coredump;
+	}
 
-	/* For cell spufs */
-	if (elf_coredump_extra_notes_write(cprm))
+	/* For cell spufs and x86 xstate */
+	if (elf_coredump_extra_notes_write(cprm)) {
+		coredump_report_failure("Error writing out extra notes");
 		goto end_coredump;
+	}
 
 	/* Align to page */
 	dump_skip_to(cprm, dataoff);
@@ -2113,16 +2136,22 @@ static int elf_core_dump(struct coredump_params *cprm)
 	for (i = 0; i < cprm->vma_count; i++) {
 		struct core_vma_metadata *meta = cprm->vma_meta + i;
 
-		if (!dump_user_range(cprm, meta->start, meta->dump_size))
+		if (!dump_user_range(cprm, meta->start, meta->dump_size)) {
+			coredump_report_failure("Error writing out the process memory");
 			goto end_coredump;
+		}
 	}
 
-	if (!elf_core_write_extra_data(cprm))
+	if (!elf_core_write_extra_data(cprm)) {
+		coredump_report_failure("Error writing out extra data");
 		goto end_coredump;
+	}
 
 	if (e_phnum == PN_XNUM) {
-		if (!dump_emit(cprm, shdr4extnum, sizeof(*shdr4extnum)))
+		if (!dump_emit(cprm, shdr4extnum, sizeof(*shdr4extnum))) {
+			coredump_report_failure("Error emitting extra program headers");
 			goto end_coredump;
+		}
 	}
 
 end_coredump:

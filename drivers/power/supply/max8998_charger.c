@@ -191,6 +191,7 @@ static const struct platform_device_id max8998_battery_id[] = {
 	{ "max8998-battery", TYPE_MAX8998 },
 	{ }
 };
+MODULE_DEVICE_TABLE(platform, max8998_battery_id);
 
 static struct platform_driver max8998_battery_driver = {
 	.driver = {

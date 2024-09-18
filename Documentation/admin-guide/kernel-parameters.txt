@@ -333,12 +333,17 @@
 					  allowed anymore to lift isolation
 					  requirements as needed. This option
 					  does not override iommu=pt
-			force_enable - Force enable the IOMMU on platforms known
-				       to be buggy with IOMMU enabled. Use this
-				       option with care.
-			pgtbl_v1     - Use v1 page table for DMA-API (Default).
-			pgtbl_v2     - Use v2 page table for DMA-API.
-			irtcachedis  - Disable Interrupt Remapping Table (IRT) caching.
+			force_enable    - Force enable the IOMMU on platforms known
+				          to be buggy with IOMMU enabled. Use this
+				          option with care.
+			pgtbl_v1        - Use v1 page table for DMA-API (Default).
+			pgtbl_v2        - Use v2 page table for DMA-API.
+			irtcachedis     - Disable Interrupt Remapping Table (IRT) caching.
+			nohugepages     - Limit page-sizes used for v1 page-tables
+				          to 4 KiB.
+			v2_pgsizes_only - Limit page-sizes used for v1 page-tables
+				          to 4KiB/2Mib/1GiB.
+
 
 	amd_iommu_dump=	[HW,X86-64]
 			Enable AMD IOMMU driver option to dump the ACPI table
@@ -516,6 +521,18 @@
 			BayCom Serial Port AX.25 Modem (Half Duplex Mode)
 			Format: <io>,<irq>,<mode>
 			See header of drivers/net/hamradio/baycom_ser_hdx.c.
+
+	bdev_allow_write_mounted=
+			Format: <bool>
+			Control the ability to open a mounted block device
+			for writing, i.e., allow / disallow writes that bypass
+			the FS. This was implemented as a means to prevent
+			fuzzers from crashing the kernel by overwriting the
+			metadata underneath a mounted FS without its awareness.
+			This also prevents destructive formatting of mounted
+			filesystems by naive storage tooling that don't use
+			O_EXCL. Default is Y and can be changed through the
+			Kconfig option CONFIG_BLK_DEV_WRITE_MOUNTED.
 
 	bert_disable	[ACPI]
 			Disable BERT OS support on buggy BIOSes.
@@ -4957,6 +4974,10 @@
 			Set maximum number of finished RCU callbacks to
 			process in one batch.
 
+	rcutree.csd_lock_suppress_rcu_stall=	[KNL]
+			Do only a one-line RCU CPU stall warning when
+			there is an ongoing too-long CSD-lock wait.
+
 	rcutree.do_rcu_barrier=	[KNL]
 			Request a call to rcu_barrier().  This is
 			throttled so that userspace tests can safely
@@ -5404,7 +5425,13 @@
 			Time to wait (s) after boot before inducing stall.
 
 	rcutorture.stall_cpu_irqsoff= [KNL]
-			Disable interrupts while stalling if set.
+			Disable interrupts while stalling if set, but only
+			on the first stall in the set.
+
+	rcutorture.stall_cpu_repeat= [KNL]
+			Number of times to repeat the stall sequence,
+			so that rcutorture.stall_cpu_repeat=3 will result
+			in four stall sequences.
 
 	rcutorture.stall_gp_kthread= [KNL]
 			Duration (s) of forced sleep within RCU
@@ -5591,14 +5618,6 @@
 			A negative value will take the default.  A value
 			of zero will disable batching.	Batching is
 			always disabled for synchronize_rcu_tasks().
-
-	rcupdate.rcu_tasks_rude_lazy_ms= [KNL]
-			Set timeout in milliseconds RCU Tasks
-			Rude asynchronous callback batching for
-			call_rcu_tasks_rude().	A negative value
-			will take the default.	A value of zero will
-			disable batching.  Batching is always disabled
-			for synchronize_rcu_tasks_rude().
 
 	rcupdate.rcu_tasks_trace_lazy_ms= [KNL]
 			Set timeout in milliseconds RCU Tasks
@@ -7373,6 +7392,13 @@
 			duration in seconds.  The default value is 30 and
 			it can be updated at runtime by writing to the
 			corresponding sysfs file.
+
+	workqueue.panic_on_stall=<uint>
+			Panic when workqueue stall is detected by
+			CONFIG_WQ_WATCHDOG. It sets the number times of the
+			stall to trigger panic.
+
+			The default is 0, which disables the panic on stall.
 
 	workqueue.cpu_intensive_thresh_us=
 			Per-cpu work items which run for longer than this

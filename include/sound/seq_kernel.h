@@ -86,10 +86,6 @@ static inline size_t snd_seq_event_packet_size(struct snd_seq_event *ev)
 /* interface for OSS emulation */
 int snd_seq_set_queue_tempo(int client, struct snd_seq_queue_tempo *tempo);
 
-/* port callback routines */
-void snd_port_init_callback(struct snd_seq_port_callback *p);
-struct snd_seq_port_callback *snd_port_alloc_callback(void);
-
 /* port attach/detach */
 int snd_seq_event_port_attach(int client, struct snd_seq_port_callback *pcbp,
 			      int cap, int type, int midi_channels, int midi_voices, char *portname);

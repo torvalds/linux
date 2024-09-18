@@ -138,7 +138,7 @@ static const __maybe_unused struct of_device_id fxl6408_dt_ids[] = {
 MODULE_DEVICE_TABLE(of, fxl6408_dt_ids);
 
 static const struct i2c_device_id fxl6408_id[] = {
-	{ "fxl6408", 0 },
+	{ "fxl6408" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, fxl6408_id);
