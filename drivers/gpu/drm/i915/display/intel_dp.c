@@ -3964,6 +3964,9 @@ intel_edp_init_dpcd(struct intel_dp *intel_dp, struct intel_connector *connector
 			 drm_dp_is_branch(intel_dp->dpcd));
 	intel_init_dpcd_quirks(intel_dp, &intel_dp->desc.ident);
 
+	intel_dp->colorimetry_support =
+		intel_dp_get_colorimetry_status(intel_dp);
+
 	/*
 	 * Read the eDP display control registers.
 	 *
@@ -4076,6 +4079,9 @@ intel_dp_get_dpcd(struct intel_dp *intel_dp)
 				 drm_dp_is_branch(intel_dp->dpcd));
 
 		intel_init_dpcd_quirks(intel_dp, &intel_dp->desc.ident);
+
+		intel_dp->colorimetry_support =
+			intel_dp_get_colorimetry_status(intel_dp);
 
 		intel_dp_update_sink_caps(intel_dp);
 	}
@@ -6860,9 +6866,6 @@ intel_dp_init_connector(struct intel_digital_port *dig_port,
 			drm_dbg_kms(&dev_priv->drm,
 				    "HDCP init failed, skipping.\n");
 	}
-
-	intel_dp->colorimetry_support =
-		intel_dp_get_colorimetry_status(intel_dp);
 
 	intel_dp->frl.is_trained = false;
 	intel_dp->frl.trained_rate_gbps = 0;
