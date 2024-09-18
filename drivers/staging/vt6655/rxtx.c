@@ -238,7 +238,7 @@ static __le16 get_rtscts_time(struct vnt_private *priv,
 static
 unsigned int
 s_uGetDataDuration(
-	struct vnt_private *pDevice,
+	struct vnt_private *priv,
 	unsigned char byDurType,
 	unsigned int cbFrameLength,
 	unsigned char byPktType,
@@ -264,9 +264,9 @@ s_uGetDataDuration(
 	switch (byDurType) {
 	case DATADUR_B:    /* DATADUR_B */
 		if (bNeedAck) {
-			uAckTime = bb_get_frame_time(pDevice->preamble_type,
+			uAckTime = bb_get_frame_time(priv->preamble_type,
 						     byPktType, 14,
-						     pDevice->byTopCCKBasicRate);
+						     priv->byTopCCKBasicRate);
 		}
 		/* Non Frag or Last Frag */
 		if ((uMACfragNum == 1) || bLastFrag) {
@@ -274,17 +274,17 @@ s_uGetDataDuration(
 				return 0;
 		} else {
 			/* First Frag or Mid Frag */
-			uNextPktTime = s_uGetTxRsvTime(pDevice, byPktType,
+			uNextPktTime = s_uGetTxRsvTime(priv, byPktType,
 						       len, wRate, bNeedAck);
 		}
 
-		return pDevice->uSIFS + uAckTime + uNextPktTime;
+		return priv->uSIFS + uAckTime + uNextPktTime;
 
 	case DATADUR_A:    /* DATADUR_A */
 		if (bNeedAck) {
-			uAckTime = bb_get_frame_time(pDevice->preamble_type,
+			uAckTime = bb_get_frame_time(priv->preamble_type,
 						     byPktType, 14,
-						     pDevice->byTopOFDMBasicRate);
+						     priv->byTopOFDMBasicRate);
 		}
 		/* Non Frag or Last Frag */
 		if ((uMACfragNum == 1) || bLastFrag) {
@@ -292,18 +292,18 @@ s_uGetDataDuration(
 				return 0;
 		} else {
 			/* First Frag or Mid Frag */
-			uNextPktTime = s_uGetTxRsvTime(pDevice, byPktType,
+			uNextPktTime = s_uGetTxRsvTime(priv, byPktType,
 						       len, wRate, bNeedAck);
 		}
 
-		return pDevice->uSIFS + uAckTime + uNextPktTime;
+		return priv->uSIFS + uAckTime + uNextPktTime;
 
 	case DATADUR_A_F0:    /* DATADUR_A_F0 */
 	case DATADUR_A_F1:    /* DATADUR_A_F1 */
 		if (bNeedAck) {
-			uAckTime = bb_get_frame_time(pDevice->preamble_type,
+			uAckTime = bb_get_frame_time(priv->preamble_type,
 						     byPktType, 14,
-						     pDevice->byTopOFDMBasicRate);
+						     priv->byTopOFDMBasicRate);
 		}
 		/* Non Frag or Last Frag */
 		if ((uMACfragNum == 1) || bLastFrag) {
@@ -323,11 +323,11 @@ s_uGetDataDuration(
 			else
 				wRate = fb_opt1[FB_RATE0][wRate];
 
-			uNextPktTime = s_uGetTxRsvTime(pDevice, byPktType,
+			uNextPktTime = s_uGetTxRsvTime(priv, byPktType,
 						       len, wRate, bNeedAck);
 		}
 
-		return pDevice->uSIFS + uAckTime + uNextPktTime;
+		return priv->uSIFS + uAckTime + uNextPktTime;
 
 	default:
 		break;
