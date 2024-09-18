@@ -247,7 +247,7 @@ s_uGetDataDuration(
 	unsigned int frag_idx,
 	unsigned int last_fragment_size,
 	unsigned int mac_frag_num,
-	unsigned char byFBOption
+	unsigned char fb_option
 )
 {
 	bool bLastFrag = false;
@@ -318,7 +318,7 @@ s_uGetDataDuration(
 
 			rate -= RATE_18M;
 
-			if (byFBOption == AUTO_FB_0)
+			if (fb_option == AUTO_FB_0)
 				rate = fb_opt0[FB_RATE0][rate];
 			else
 				rate = fb_opt1[FB_RATE0][rate];
