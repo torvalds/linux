@@ -675,7 +675,7 @@ static irqreturn_t r592_irq(int irq, void *data)
 	return ret;
 }
 
-/* External inteface: set settings */
+/* External interface: set settings */
 static int r592_set_param(struct memstick_host *host,
 			enum memstick_param param, int value)
 {
