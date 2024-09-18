@@ -27,6 +27,7 @@
  profile_event_unregister
  drop_super
  si_swapinfo
+ __show_mem
  single_open
  sock_from_file
  task_cputime_adjusted
