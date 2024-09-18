@@ -2945,6 +2945,7 @@ int
 vchiq_connect_internal(struct vchiq_state *state, struct vchiq_instance *instance)
 {
 	struct vchiq_service *service;
+	int status = 0;
 	int i;
 
 	/* Find all services registered to this client and enable them. */
@@ -2956,9 +2957,10 @@ vchiq_connect_internal(struct vchiq_state *state, struct vchiq_instance *instanc
 	}
 
 	if (state->conn_state == VCHIQ_CONNSTATE_DISCONNECTED) {
-		if (queue_message(state, NULL, MAKE_CONNECT, NULL, NULL, 0,
-				  QMFLAGS_IS_BLOCKING) == -EAGAIN)
-			return -EAGAIN;
+		status = queue_message(state, NULL, MAKE_CONNECT, NULL, NULL, 0,
+				       QMFLAGS_IS_BLOCKING);
+		if (status)
+			return status;
 
 		vchiq_set_conn_state(state, VCHIQ_CONNSTATE_CONNECTING);
 	}
@@ -2971,7 +2973,7 @@ vchiq_connect_internal(struct vchiq_state *state, struct vchiq_instance *instanc
 		complete(&state->connect);
 	}
 
-	return 0;
+	return status;
 }
 
 void
