@@ -314,7 +314,7 @@ static inline void intel_wakeref_untrack(struct intel_wakeref *wf,
 
 static inline intel_wakeref_t intel_wakeref_track(struct intel_wakeref *wf)
 {
-	return -1;
+	return INTEL_WAKEREF_DEF;
 }
 
 static inline void intel_wakeref_untrack(struct intel_wakeref *wf,

@@ -24,14 +24,14 @@ static inline intel_wakeref_t intel_runtime_pm_get(struct xe_runtime_pm *pm)
 {
 	struct xe_device *xe = container_of(pm, struct xe_device, runtime_pm);
 
-	return xe_pm_runtime_resume_and_get(xe);
+	return xe_pm_runtime_resume_and_get(xe) ? INTEL_WAKEREF_DEF : 0;
 }
 
 static inline intel_wakeref_t intel_runtime_pm_get_if_in_use(struct xe_runtime_pm *pm)
 {
 	struct xe_device *xe = container_of(pm, struct xe_device, runtime_pm);
 
-	return xe_pm_runtime_get_if_in_use(xe);
+	return xe_pm_runtime_get_if_in_use(xe) ? INTEL_WAKEREF_DEF : 0;
 }
 
 static inline intel_wakeref_t intel_runtime_pm_get_noresume(struct xe_runtime_pm *pm)
@@ -39,7 +39,8 @@ static inline intel_wakeref_t intel_runtime_pm_get_noresume(struct xe_runtime_pm
 	struct xe_device *xe = container_of(pm, struct xe_device, runtime_pm);
 
 	xe_pm_runtime_get_noresume(xe);
-	return true;
+
+	return INTEL_WAKEREF_DEF;
 }
 
 static inline void intel_runtime_pm_put_unchecked(struct xe_runtime_pm *pm)

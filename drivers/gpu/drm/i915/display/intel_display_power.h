@@ -232,7 +232,7 @@ intel_display_power_put_async(struct drm_i915_private *i915,
 			      enum intel_display_power_domain domain,
 			      intel_wakeref_t wakeref)
 {
-	__intel_display_power_put_async(i915, domain, -1, -1);
+	__intel_display_power_put_async(i915, domain, INTEL_WAKEREF_DEF, -1);
 }
 
 static inline void
@@ -241,7 +241,7 @@ intel_display_power_put_async_delay(struct drm_i915_private *i915,
 				    intel_wakeref_t wakeref,
 				    int delay_ms)
 {
-	__intel_display_power_put_async(i915, domain, -1, delay_ms);
+	__intel_display_power_put_async(i915, domain, INTEL_WAKEREF_DEF, delay_ms);
 }
 #endif
 
