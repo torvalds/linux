@@ -240,7 +240,7 @@ unsigned int
 s_uGetDataDuration(
 	struct vnt_private *priv,
 	unsigned char dur_type,
-	unsigned int cbFrameLength,
+	unsigned int frame_length,
 	unsigned char byPktType,
 	unsigned short wRate,
 	bool bNeedAck,
@@ -259,7 +259,7 @@ s_uGetDataDuration(
 	if (uFragIdx == (uMACfragNum - 2))
 		len = cbLastFragmentSize;
 	else
-		len = cbFrameLength;
+		len = frame_length;
 
 	switch (dur_type) {
 	case DATADUR_B:    /* DATADUR_B */
