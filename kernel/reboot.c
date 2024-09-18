@@ -1023,7 +1023,7 @@ static int __init reboot_setup(char *str)
 		 * reboot= will cause us to skip DMI checking
 		 * below.
 		 */
-		reboot_default = 0;
+		reboot_default = false;
 
 		if (!strncmp(str, "panic_", 6)) {
 			mode = &panic_reboot_mode;
@@ -1155,7 +1155,7 @@ static ssize_t mode_store(struct kobject *kobj, struct kobj_attribute *attr,
 	else
 		return -EINVAL;
 
-	reboot_default = 0;
+	reboot_default = false;
 
 	return count;
 }
@@ -1177,7 +1177,7 @@ static ssize_t force_store(struct kobject *kobj, struct kobj_attribute *attr,
 	if (kstrtobool(buf, &res))
 		return -EINVAL;
 
-	reboot_default = 0;
+	reboot_default = false;
 	reboot_force = res;
 
 	return count;
@@ -1234,7 +1234,7 @@ static ssize_t type_store(struct kobject *kobj, struct kobj_attribute *attr,
 	else
 		return -EINVAL;
 
-	reboot_default = 0;
+	reboot_default = false;
 
 	return count;
 }
@@ -1263,7 +1263,7 @@ static ssize_t cpu_store(struct kobject *kobj, struct kobj_attribute *attr,
 	if (cpunum >= num_possible_cpus())
 		return -ERANGE;
 
-	reboot_default = 0;
+	reboot_default = false;
 	reboot_cpu = cpunum;
 
 	return count;
