@@ -54,6 +54,13 @@ properties:
           - const: armsom,sige7
           - const: rockchip,rk3588
 
+      - description: ArmSoM LM7 SoM
+        items:
+          - enum:
+              - armsom,w3
+          - const: armsom,lm7
+          - const: rockchip,rk3588
+
       - description: Asus Tinker board
         items:
           - const: asus,rk3288-tinker
