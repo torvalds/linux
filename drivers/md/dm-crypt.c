@@ -2621,15 +2621,12 @@ static int crypt_set_keyring_key(struct crypt_config *cc, const char *key_string
 	down_read(&key->sem);
 
 	ret = set_key(cc, key);
+	up_read(&key->sem);
+	key_put(key);
 	if (ret < 0) {
-		up_read(&key->sem);
-		key_put(key);
 		kfree_sensitive(new_key_string);
 		return ret;
 	}
-
-	up_read(&key->sem);
-	key_put(key);
 
 	/* clear the flag since following operations may invalidate previously valid key */
 	clear_bit(DM_CRYPT_KEY_VALID, &cc->flags);
