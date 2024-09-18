@@ -157,6 +157,13 @@ static const char * const drv_names_anorak[] = {
 	""
 };
 
+static const char * const drv_names_neo[] = {
+	"TZ", "HYP", "HLOS", "L3", "SECPROC", "AUDIO", "SENSOR", "AOP", "DEBUG",
+	"GPU", "DISPLAY", "COMPUTE_DSP", "TME_HW", "TME_SW", "WPSS",
+	"MDM SW", "MDM HW", "WLAN RF", "WLAN BB", "DDR AUX", "ARC CPRF",
+	""
+};
+
 static ssize_t debug_time_ms_show(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
@@ -556,6 +563,8 @@ static const struct of_device_id drv_match_table[] = {
 	  .data = drv_names_niobe },
 	{ .compatible = "qcom,sys-pm-anorak",
 	  .data = drv_names_anorak },
+	{ .compatible = "qcom,sys-pm-neo",
+	  .data = drv_names_neo },
 	{ }
 };
 
