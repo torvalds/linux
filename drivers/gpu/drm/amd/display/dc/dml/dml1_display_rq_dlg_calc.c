@@ -559,12 +559,11 @@ static void get_surf_rq_param(
 		const struct _vcs_dpi_display_pipe_source_params_st *pipe_src_param,
 		bool is_chroma)
 {
-	bool mode_422 = 0;
 	unsigned int vp_width = 0;
 	unsigned int vp_height = 0;
 	unsigned int data_pitch = 0;
 	unsigned int meta_pitch = 0;
-	unsigned int ppe = mode_422 ? 2 : 1;
+	unsigned int ppe = 1;
 	bool surf_linear;
 	bool surf_vert;
 	unsigned int bytes_per_element;
