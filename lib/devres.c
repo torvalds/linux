@@ -307,8 +307,7 @@ EXPORT_SYMBOL(devm_ioport_map);
  */
 void devm_ioport_unmap(struct device *dev, void __iomem *addr)
 {
-	ioport_unmap(addr);
-	WARN_ON(devres_destroy(dev, devm_ioport_map_release,
+	WARN_ON(devres_release(dev, devm_ioport_map_release,
 			       devm_ioport_map_match, (__force void *)addr));
 }
 EXPORT_SYMBOL(devm_ioport_unmap);
