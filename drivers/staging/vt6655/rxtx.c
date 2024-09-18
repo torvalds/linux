@@ -246,17 +246,17 @@ s_uGetDataDuration(
 	bool need_ack,
 	unsigned int frag_idx,
 	unsigned int last_fragment_size,
-	unsigned int uMACfragNum,
+	unsigned int mac_frag_num,
 	unsigned char byFBOption
 )
 {
 	bool bLastFrag = false;
 	unsigned int uAckTime = 0, uNextPktTime = 0, len;
 
-	if (frag_idx == (uMACfragNum - 1))
+	if (frag_idx == (mac_frag_num - 1))
 		bLastFrag = true;
 
-	if (frag_idx == (uMACfragNum - 2))
+	if (frag_idx == (mac_frag_num - 2))
 		len = last_fragment_size;
 	else
 		len = frame_length;
@@ -269,7 +269,7 @@ s_uGetDataDuration(
 						     priv->byTopCCKBasicRate);
 		}
 		/* Non Frag or Last Frag */
-		if ((uMACfragNum == 1) || bLastFrag) {
+		if ((mac_frag_num == 1) || bLastFrag) {
 			if (!need_ack)
 				return 0;
 		} else {
@@ -287,7 +287,7 @@ s_uGetDataDuration(
 						     priv->byTopOFDMBasicRate);
 		}
 		/* Non Frag or Last Frag */
-		if ((uMACfragNum == 1) || bLastFrag) {
+		if ((mac_frag_num == 1) || bLastFrag) {
 			if (!need_ack)
 				return 0;
 		} else {
@@ -306,7 +306,7 @@ s_uGetDataDuration(
 						     priv->byTopOFDMBasicRate);
 		}
 		/* Non Frag or Last Frag */
-		if ((uMACfragNum == 1) || bLastFrag) {
+		if ((mac_frag_num == 1) || bLastFrag) {
 			if (!need_ack)
 				return 0;
 		} else {
