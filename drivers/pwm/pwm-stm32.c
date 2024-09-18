@@ -222,7 +222,7 @@ static int stm32_pwm_capture(struct pwm_chip *chip, struct pwm_device *pwm,
 
 		scale = max_arr / min(max_arr, raw_prd);
 	} else {
-		scale = priv->max_arr; /* bellow resolution, use max scale */
+		scale = priv->max_arr; /* below resolution, use max scale */
 	}
 
 	if (psc && scale > 1) {
