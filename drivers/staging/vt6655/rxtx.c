@@ -235,20 +235,16 @@ static __le16 get_rtscts_time(struct vnt_private *priv,
 }
 
 /* byFreqType 0: 5GHz, 1:2.4Ghz */
-static
-unsigned int
-s_uGetDataDuration(
-	struct vnt_private *priv,
-	unsigned char dur_type,
-	unsigned int frame_length,
-	unsigned char pkt_type,
-	unsigned short rate,
-	bool need_ack,
-	unsigned int frag_idx,
-	unsigned int last_fragment_size,
-	unsigned int mac_frag_num,
-	unsigned char fb_option
-)
+static unsigned int s_uGetDataDuration(struct vnt_private *priv,
+				       unsigned char dur_type,
+				       unsigned int frame_length,
+				       unsigned char pkt_type,
+				       unsigned short rate,
+				       bool need_ack,
+				       unsigned int frag_idx,
+				       unsigned int last_fragment_size,
+				       unsigned int mac_frag_num,
+				       unsigned char fb_option)
 {
 	bool last_frag = false;
 	unsigned int ack_time = 0, next_pkt_time = 0, len;
