@@ -241,7 +241,7 @@ s_uGetDataDuration(
 	struct vnt_private *priv,
 	unsigned char dur_type,
 	unsigned int frame_length,
-	unsigned char byPktType,
+	unsigned char pkt_type,
 	unsigned short wRate,
 	bool bNeedAck,
 	unsigned int uFragIdx,
@@ -265,7 +265,7 @@ s_uGetDataDuration(
 	case DATADUR_B:    /* DATADUR_B */
 		if (bNeedAck) {
 			uAckTime = bb_get_frame_time(priv->preamble_type,
-						     byPktType, 14,
+						     pkt_type, 14,
 						     priv->byTopCCKBasicRate);
 		}
 		/* Non Frag or Last Frag */
@@ -274,7 +274,7 @@ s_uGetDataDuration(
 				return 0;
 		} else {
 			/* First Frag or Mid Frag */
-			uNextPktTime = s_uGetTxRsvTime(priv, byPktType,
+			uNextPktTime = s_uGetTxRsvTime(priv, pkt_type,
 						       len, wRate, bNeedAck);
 		}
 
@@ -283,7 +283,7 @@ s_uGetDataDuration(
 	case DATADUR_A:    /* DATADUR_A */
 		if (bNeedAck) {
 			uAckTime = bb_get_frame_time(priv->preamble_type,
-						     byPktType, 14,
+						     pkt_type, 14,
 						     priv->byTopOFDMBasicRate);
 		}
 		/* Non Frag or Last Frag */
@@ -292,7 +292,7 @@ s_uGetDataDuration(
 				return 0;
 		} else {
 			/* First Frag or Mid Frag */
-			uNextPktTime = s_uGetTxRsvTime(priv, byPktType,
+			uNextPktTime = s_uGetTxRsvTime(priv, pkt_type,
 						       len, wRate, bNeedAck);
 		}
 
@@ -302,7 +302,7 @@ s_uGetDataDuration(
 	case DATADUR_A_F1:    /* DATADUR_A_F1 */
 		if (bNeedAck) {
 			uAckTime = bb_get_frame_time(priv->preamble_type,
-						     byPktType, 14,
+						     pkt_type, 14,
 						     priv->byTopOFDMBasicRate);
 		}
 		/* Non Frag or Last Frag */
@@ -323,7 +323,7 @@ s_uGetDataDuration(
 			else
 				wRate = fb_opt1[FB_RATE0][wRate];
 
-			uNextPktTime = s_uGetTxRsvTime(priv, byPktType,
+			uNextPktTime = s_uGetTxRsvTime(priv, pkt_type,
 						       len, wRate, bNeedAck);
 		}
 
