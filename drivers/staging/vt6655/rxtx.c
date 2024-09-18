@@ -244,7 +244,7 @@ s_uGetDataDuration(
 	unsigned char pkt_type,
 	unsigned short rate,
 	bool need_ack,
-	unsigned int uFragIdx,
+	unsigned int frag_idx,
 	unsigned int cbLastFragmentSize,
 	unsigned int uMACfragNum,
 	unsigned char byFBOption
@@ -253,10 +253,10 @@ s_uGetDataDuration(
 	bool bLastFrag = false;
 	unsigned int uAckTime = 0, uNextPktTime = 0, len;
 
-	if (uFragIdx == (uMACfragNum - 1))
+	if (frag_idx == (uMACfragNum - 1))
 		bLastFrag = true;
 
-	if (uFragIdx == (uMACfragNum - 2))
+	if (frag_idx == (uMACfragNum - 2))
 		len = cbLastFragmentSize;
 	else
 		len = frame_length;
