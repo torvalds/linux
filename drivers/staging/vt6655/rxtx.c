@@ -251,7 +251,7 @@ s_uGetDataDuration(
 )
 {
 	bool last_frag = false;
-	unsigned int uAckTime = 0, uNextPktTime = 0, len;
+	unsigned int ack_time = 0, uNextPktTime = 0, len;
 
 	if (frag_idx == (mac_frag_num - 1))
 		last_frag = true;
@@ -264,7 +264,7 @@ s_uGetDataDuration(
 	switch (dur_type) {
 	case DATADUR_B:    /* DATADUR_B */
 		if (need_ack) {
-			uAckTime = bb_get_frame_time(priv->preamble_type,
+			ack_time = bb_get_frame_time(priv->preamble_type,
 						     pkt_type, 14,
 						     priv->byTopCCKBasicRate);
 		}
@@ -278,11 +278,11 @@ s_uGetDataDuration(
 						       len, rate, need_ack);
 		}
 
-		return priv->uSIFS + uAckTime + uNextPktTime;
+		return priv->uSIFS + ack_time + uNextPktTime;
 
 	case DATADUR_A:    /* DATADUR_A */
 		if (need_ack) {
-			uAckTime = bb_get_frame_time(priv->preamble_type,
+			ack_time = bb_get_frame_time(priv->preamble_type,
 						     pkt_type, 14,
 						     priv->byTopOFDMBasicRate);
 		}
@@ -296,12 +296,12 @@ s_uGetDataDuration(
 						       len, rate, need_ack);
 		}
 
-		return priv->uSIFS + uAckTime + uNextPktTime;
+		return priv->uSIFS + ack_time + uNextPktTime;
 
 	case DATADUR_A_F0:    /* DATADUR_A_F0 */
 	case DATADUR_A_F1:    /* DATADUR_A_F1 */
 		if (need_ack) {
-			uAckTime = bb_get_frame_time(priv->preamble_type,
+			ack_time = bb_get_frame_time(priv->preamble_type,
 						     pkt_type, 14,
 						     priv->byTopOFDMBasicRate);
 		}
@@ -327,7 +327,7 @@ s_uGetDataDuration(
 						       len, rate, need_ack);
 		}
 
-		return priv->uSIFS + uAckTime + uNextPktTime;
+		return priv->uSIFS + ack_time + uNextPktTime;
 
 	default:
 		break;
