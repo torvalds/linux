@@ -870,11 +870,11 @@ vchiq_bulk_transmit(struct vchiq_instance *instance, unsigned int handle, const 
 		}
 
 		/*
-		 * vchiq_*_bulk_transfer() may return -EAGAIN, so we need
+		 * vchiq_*_bulk_transfer() may return -EINTR, so we need
 		 * to implement a retry mechanism since this function is
 		 * supposed to block until queued
 		 */
-		if (ret != -EAGAIN)
+		if (ret != -EINTR)
 			break;
 
 		msleep(1);
@@ -906,11 +906,11 @@ int vchiq_bulk_receive(struct vchiq_instance *instance, unsigned int handle,
 		}
 
 		/*
-		 * vchiq_*_bulk_transfer() may return -EAGAIN, so we need
+		 * vchiq_*_bulk_transfer() may return -EINTR, so we need
 		 * to implement a retry mechanism since this function is
 		 * supposed to block until queued
 		 */
-		if (ret != -EAGAIN)
+		if (ret != -EINTR)
 			break;
 
 		msleep(1);

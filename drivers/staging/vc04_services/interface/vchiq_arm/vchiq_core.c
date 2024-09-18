@@ -2689,16 +2689,16 @@ vchiq_bulk_xfer_queue_msg_killable(struct vchiq_service *service,
 		&service->bulk_tx : &service->bulk_rx;
 
 	if (mutex_lock_killable(&service->bulk_mutex))
-		return -EAGAIN;
+		return -EINTR;
 
 	if (queue->local_insert == queue->remove + VCHIQ_NUM_SERVICE_BULKS) {
 		VCHIQ_SERVICE_STATS_INC(service, bulk_stalls);
 		do {
 			mutex_unlock(&service->bulk_mutex);
 			if (wait_for_completion_killable(&service->bulk_remove_event))
-				return -EAGAIN;
+				return -EINTR;
 			if (mutex_lock_killable(&service->bulk_mutex))
-				return -EAGAIN;
+				return -EINTR;
 		} while (queue->local_insert == queue->remove +
 				VCHIQ_NUM_SERVICE_BULKS);
 	}
@@ -2729,7 +2729,7 @@ vchiq_bulk_xfer_queue_msg_killable(struct vchiq_service *service,
 	 * claim it here to ensure that isn't happening
 	 */
 	if (mutex_lock_killable(&state->slot_mutex)) {
-		status = -EAGAIN;
+		status = -EINTR;
 		goto cancel_bulk_error_exit;
 	}
 
@@ -2764,7 +2764,7 @@ vchiq_bulk_xfer_queue_msg_killable(struct vchiq_service *service,
         if (bulk_waiter) {
                 bulk_waiter->bulk = bulk;
 		if (wait_for_completion_killable(&bulk_waiter->event))
-                        status = -EAGAIN;
+			status = -EINTR;
                 else if (bulk_waiter->actual == VCHIQ_BULK_ACTUAL_ABORTED)
                         status = -EINVAL;
         }
@@ -3203,7 +3203,7 @@ vchiq_bulk_xfer_waiting(struct vchiq_instance *instance,
 	status = 0;
 
 	if (wait_for_completion_killable(&bulk_waiter->event))
-		return -EAGAIN;
+		return -EINTR;
 	else if (bulk_waiter->actual == VCHIQ_BULK_ACTUAL_ABORTED)
 		return -EINVAL;
 
