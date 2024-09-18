@@ -545,7 +545,7 @@ intel_display_power_get_if_enabled(struct drm_i915_private *dev_priv,
 
 	wakeref = intel_runtime_pm_get_if_in_use(&dev_priv->runtime_pm);
 	if (!wakeref)
-		return false;
+		return 0;
 
 	mutex_lock(&power_domains->lock);
 
