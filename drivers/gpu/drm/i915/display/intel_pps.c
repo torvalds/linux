@@ -1218,6 +1218,15 @@ void vlv_pps_pipe_init(struct intel_dp *intel_dp)
 	intel_dp->pps.vlv_active_pipe = vlv_active_pipe(intel_dp);
 }
 
+/* Call on all DP, not just eDP */
+void vlv_pps_pipe_reset(struct intel_dp *intel_dp)
+{
+	intel_wakeref_t wakeref;
+
+	with_intel_pps_lock(intel_dp, wakeref)
+		intel_dp->pps.vlv_active_pipe = vlv_active_pipe(intel_dp);
+}
+
 void vlv_pps_init(struct intel_encoder *encoder,
 		  const struct intel_crtc_state *crtc_state)
 {
