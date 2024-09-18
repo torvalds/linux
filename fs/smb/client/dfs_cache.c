@@ -1334,9 +1334,8 @@ void dfs_cache_refresh(struct work_struct *work)
 	struct cifs_ses *ses;
 
 	tcon = container_of(work, struct cifs_tcon, dfs_cache_work.work);
-	ses = tcon->ses->dfs_root_ses;
 
-	for (; ses; ses = ses->dfs_root_ses)
+	list_for_each_entry(ses, &tcon->dfs_ses_list, dlist)
 		refresh_ses_referral(ses);
 	refresh_tcon_referral(tcon, false);
 

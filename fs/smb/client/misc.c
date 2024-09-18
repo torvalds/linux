@@ -145,6 +145,9 @@ tcon_info_alloc(bool dir_leases_enabled, enum smb3_tcon_ref_trace trace)
 	mutex_init(&ret_buf->fscache_lock);
 #endif
 	trace_smb3_tcon_ref(ret_buf->debug_id, ret_buf->tc_count, trace);
+#ifdef CONFIG_CIFS_DFS_UPCALL
+	INIT_LIST_HEAD(&ret_buf->dfs_ses_list);
+#endif
 
 	return ret_buf;
 }
