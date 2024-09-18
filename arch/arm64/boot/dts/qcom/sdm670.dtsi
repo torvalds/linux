@@ -1737,6 +1737,7 @@
 				     <GIC_SPI 341 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 342 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 343 IRQ_TYPE_LEVEL_HIGH>;
+			dma-coherent;
 		};
 
 		gladiator_noc: interconnect@17900000 {
