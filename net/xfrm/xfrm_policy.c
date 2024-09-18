@@ -4206,7 +4206,6 @@ static int __net_init xfrm_policy_init(struct net *net)
 
 		net->xfrm.policy_count[dir] = 0;
 		net->xfrm.policy_count[XFRM_POLICY_MAX + dir] = 0;
-		INIT_HLIST_HEAD(&net->xfrm.policy_inexact[dir]);
 
 		htab = &net->xfrm.policy_bydst[dir];
 		htab->table = xfrm_hash_alloc(sz);
@@ -4259,8 +4258,6 @@ static void xfrm_policy_fini(struct net *net)
 
 	for (dir = 0; dir < XFRM_POLICY_MAX; dir++) {
 		struct xfrm_policy_hash *htab;
-
-		WARN_ON(!hlist_empty(&net->xfrm.policy_inexact[dir]));
 
 		htab = &net->xfrm.policy_bydst[dir];
 		sz = (htab->hmask + 1) * sizeof(struct hlist_head);
