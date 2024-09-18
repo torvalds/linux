@@ -481,7 +481,7 @@ intel_dp_link_down(struct intel_encoder *encoder,
 		intel_wakeref_t wakeref;
 
 		with_intel_pps_lock(intel_dp, wakeref)
-			intel_dp->pps.active_pipe = INVALID_PIPE;
+			intel_dp->pps.vlv_active_pipe = INVALID_PIPE;
 	}
 }
 
@@ -1277,7 +1277,7 @@ static void intel_dp_encoder_reset(struct drm_encoder *encoder)
 		intel_wakeref_t wakeref;
 
 		with_intel_pps_lock(intel_dp, wakeref)
-			intel_dp->pps.active_pipe = vlv_active_pipe(intel_dp);
+			intel_dp->pps.vlv_active_pipe = vlv_active_pipe(intel_dp);
 	}
 
 	intel_pps_encoder_reset(intel_dp);

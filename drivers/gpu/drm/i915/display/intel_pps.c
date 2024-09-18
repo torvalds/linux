@@ -33,7 +33,7 @@ static const char *pps_name(struct intel_dp *intel_dp)
 	struct intel_pps *pps = &intel_dp->pps;
 
 	if (IS_VALLEYVIEW(i915) || IS_CHERRYVIEW(i915)) {
-		switch (pps->pps_pipe) {
+		switch (pps->vlv_pps_pipe) {
 		case INVALID_PIPE:
 			/*
 			 * FIXME would be nice if we can guarantee
@@ -45,7 +45,7 @@ static const char *pps_name(struct intel_dp *intel_dp)
 		case PIPE_B:
 			return "PPS B";
 		default:
-			MISSING_CASE(pps->pps_pipe);
+			MISSING_CASE(pps->vlv_pps_pipe);
 			break;
 		}
 	} else {
@@ -96,7 +96,7 @@ vlv_power_sequencer_kick(struct intel_dp *intel_dp)
 	struct intel_display *display = to_intel_display(intel_dp);
 	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
-	enum pipe pipe = intel_dp->pps.pps_pipe;
+	enum pipe pipe = intel_dp->pps.vlv_pps_pipe;
 	bool pll_enabled, release_cl_override = false;
 	enum dpio_phy phy = vlv_pipe_to_phy(pipe);
 	enum dpio_channel ch = vlv_pipe_to_channel(pipe);
@@ -182,18 +182,18 @@ static enum pipe vlv_find_free_pps(struct intel_display *display)
 
 		if (encoder->type == INTEL_OUTPUT_EDP) {
 			drm_WARN_ON(display->drm,
-				    intel_dp->pps.active_pipe != INVALID_PIPE &&
-				    intel_dp->pps.active_pipe !=
-				    intel_dp->pps.pps_pipe);
+				    intel_dp->pps.vlv_active_pipe != INVALID_PIPE &&
+				    intel_dp->pps.vlv_active_pipe !=
+				    intel_dp->pps.vlv_pps_pipe);
 
-			if (intel_dp->pps.pps_pipe != INVALID_PIPE)
-				pipes &= ~(1 << intel_dp->pps.pps_pipe);
+			if (intel_dp->pps.vlv_pps_pipe != INVALID_PIPE)
+				pipes &= ~(1 << intel_dp->pps.vlv_pps_pipe);
 		} else {
 			drm_WARN_ON(display->drm,
-				    intel_dp->pps.pps_pipe != INVALID_PIPE);
+				    intel_dp->pps.vlv_pps_pipe != INVALID_PIPE);
 
-			if (intel_dp->pps.active_pipe != INVALID_PIPE)
-				pipes &= ~(1 << intel_dp->pps.active_pipe);
+			if (intel_dp->pps.vlv_active_pipe != INVALID_PIPE)
+				pipes &= ~(1 << intel_dp->pps.vlv_active_pipe);
 		}
 	}
 
@@ -215,11 +215,11 @@ vlv_power_sequencer_pipe(struct intel_dp *intel_dp)
 	/* We should never land here with regular DP ports */
 	drm_WARN_ON(display->drm, !intel_dp_is_edp(intel_dp));
 
-	drm_WARN_ON(display->drm, intel_dp->pps.active_pipe != INVALID_PIPE &&
-		    intel_dp->pps.active_pipe != intel_dp->pps.pps_pipe);
+	drm_WARN_ON(display->drm, intel_dp->pps.vlv_active_pipe != INVALID_PIPE &&
+		    intel_dp->pps.vlv_active_pipe != intel_dp->pps.vlv_pps_pipe);
 
-	if (intel_dp->pps.pps_pipe != INVALID_PIPE)
-		return intel_dp->pps.pps_pipe;
+	if (intel_dp->pps.vlv_pps_pipe != INVALID_PIPE)
+		return intel_dp->pps.vlv_pps_pipe;
 
 	pipe = vlv_find_free_pps(display);
 
@@ -231,7 +231,7 @@ vlv_power_sequencer_pipe(struct intel_dp *intel_dp)
 		pipe = PIPE_A;
 
 	vlv_steal_power_sequencer(display, pipe);
-	intel_dp->pps.pps_pipe = pipe;
+	intel_dp->pps.vlv_pps_pipe = pipe;
 
 	drm_dbg_kms(display->drm,
 		    "picked %s for [ENCODER:%d:%s]\n",
@@ -248,7 +248,7 @@ vlv_power_sequencer_pipe(struct intel_dp *intel_dp)
 	 */
 	vlv_power_sequencer_kick(intel_dp);
 
-	return intel_dp->pps.pps_pipe;
+	return intel_dp->pps.vlv_pps_pipe;
 }
 
 static int
@@ -327,19 +327,19 @@ vlv_initial_power_sequencer_setup(struct intel_dp *intel_dp)
 
 	/* try to find a pipe with this port selected */
 	/* first pick one where the panel is on */
-	intel_dp->pps.pps_pipe = vlv_initial_pps_pipe(display, port,
-						      pps_has_pp_on);
+	intel_dp->pps.vlv_pps_pipe = vlv_initial_pps_pipe(display, port,
+							  pps_has_pp_on);
 	/* didn't find one? pick one where vdd is on */
-	if (intel_dp->pps.pps_pipe == INVALID_PIPE)
-		intel_dp->pps.pps_pipe = vlv_initial_pps_pipe(display, port,
-							      pps_has_vdd_on);
+	if (intel_dp->pps.vlv_pps_pipe == INVALID_PIPE)
+		intel_dp->pps.vlv_pps_pipe = vlv_initial_pps_pipe(display, port,
+								  pps_has_vdd_on);
 	/* didn't find one? pick one with just the correct port */
-	if (intel_dp->pps.pps_pipe == INVALID_PIPE)
-		intel_dp->pps.pps_pipe = vlv_initial_pps_pipe(display, port,
-							      pps_any);
+	if (intel_dp->pps.vlv_pps_pipe == INVALID_PIPE)
+		intel_dp->pps.vlv_pps_pipe = vlv_initial_pps_pipe(display, port,
+								  pps_any);
 
 	/* didn't find one? just let vlv_power_sequencer_pipe() pick one when needed */
-	if (intel_dp->pps.pps_pipe == INVALID_PIPE) {
+	if (intel_dp->pps.vlv_pps_pipe == INVALID_PIPE) {
 		drm_dbg_kms(display->drm,
 			    "[ENCODER:%d:%s] no initial power sequencer\n",
 			    dig_port->base.base.base.id, dig_port->base.base.name);
@@ -462,7 +462,7 @@ void intel_pps_reset_all(struct intel_display *display)
 	/*
 	 * We can't grab pps_mutex here due to deadlock with power_domain
 	 * mutex when power_domain functions are called while holding pps_mutex.
-	 * That also means that in order to use pps_pipe the code needs to
+	 * That also means that in order to use vlv_pps_pipe the code needs to
 	 * hold both a power domain reference and pps_mutex, and the power domain
 	 * reference get/put must be done while _not_ holding pps_mutex.
 	 * pps_{lock,unlock}() do these steps in the correct order, so one
@@ -473,7 +473,7 @@ void intel_pps_reset_all(struct intel_display *display)
 		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 
 		drm_WARN_ON(display->drm,
-			    intel_dp->pps.active_pipe != INVALID_PIPE);
+			    intel_dp->pps.vlv_active_pipe != INVALID_PIPE);
 
 		if (encoder->type != INTEL_OUTPUT_EDP)
 			continue;
@@ -481,7 +481,7 @@ void intel_pps_reset_all(struct intel_display *display)
 		if (DISPLAY_VER(display) >= 9)
 			intel_dp->pps.pps_reset = true;
 		else
-			intel_dp->pps.pps_pipe = INVALID_PIPE;
+			intel_dp->pps.vlv_pps_pipe = INVALID_PIPE;
 	}
 }
 
@@ -550,7 +550,7 @@ static bool edp_have_panel_power(struct intel_dp *intel_dp)
 	lockdep_assert_held(&display->pps.mutex);
 
 	if ((IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) &&
-	    intel_dp->pps.pps_pipe == INVALID_PIPE)
+	    intel_dp->pps.vlv_pps_pipe == INVALID_PIPE)
 		return false;
 
 	return (intel_de_read(display, _pp_stat_reg(intel_dp)) & PP_ON) != 0;
@@ -564,7 +564,7 @@ static bool edp_have_panel_vdd(struct intel_dp *intel_dp)
 	lockdep_assert_held(&display->pps.mutex);
 
 	if ((IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) &&
-	    intel_dp->pps.pps_pipe == INVALID_PIPE)
+	    intel_dp->pps.vlv_pps_pipe == INVALID_PIPE)
 		return false;
 
 	return intel_de_read(display, _pp_ctrl_reg(intel_dp)) & EDP_FORCE_VDD;
@@ -1153,10 +1153,10 @@ static void vlv_detach_power_sequencer(struct intel_dp *intel_dp)
 {
 	struct intel_display *display = to_intel_display(intel_dp);
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
-	enum pipe pipe = intel_dp->pps.pps_pipe;
+	enum pipe pipe = intel_dp->pps.vlv_pps_pipe;
 	i915_reg_t pp_on_reg = PP_ON_DELAYS(display, pipe);
 
-	drm_WARN_ON(display->drm, intel_dp->pps.active_pipe != INVALID_PIPE);
+	drm_WARN_ON(display->drm, intel_dp->pps.vlv_active_pipe != INVALID_PIPE);
 
 	if (drm_WARN_ON(display->drm, pipe != PIPE_A && pipe != PIPE_B))
 		return;
@@ -1179,7 +1179,7 @@ static void vlv_detach_power_sequencer(struct intel_dp *intel_dp)
 	intel_de_write(display, pp_on_reg, 0);
 	intel_de_posting_read(display, pp_on_reg);
 
-	intel_dp->pps.pps_pipe = INVALID_PIPE;
+	intel_dp->pps.vlv_pps_pipe = INVALID_PIPE;
 }
 
 static void vlv_steal_power_sequencer(struct intel_display *display,
@@ -1192,12 +1192,12 @@ static void vlv_steal_power_sequencer(struct intel_display *display,
 	for_each_intel_dp(display->drm, encoder) {
 		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 
-		drm_WARN(display->drm, intel_dp->pps.active_pipe == pipe,
+		drm_WARN(display->drm, intel_dp->pps.vlv_active_pipe == pipe,
 			 "stealing PPS %c from active [ENCODER:%d:%s]\n",
 			 pipe_name(pipe), encoder->base.base.id,
 			 encoder->base.name);
 
-		if (intel_dp->pps.pps_pipe != pipe)
+		if (intel_dp->pps.vlv_pps_pipe != pipe)
 			continue;
 
 		drm_dbg_kms(display->drm,
@@ -1219,10 +1219,10 @@ void vlv_pps_init(struct intel_encoder *encoder,
 
 	lockdep_assert_held(&display->pps.mutex);
 
-	drm_WARN_ON(display->drm, intel_dp->pps.active_pipe != INVALID_PIPE);
+	drm_WARN_ON(display->drm, intel_dp->pps.vlv_active_pipe != INVALID_PIPE);
 
-	if (intel_dp->pps.pps_pipe != INVALID_PIPE &&
-	    intel_dp->pps.pps_pipe != crtc->pipe) {
+	if (intel_dp->pps.vlv_pps_pipe != INVALID_PIPE &&
+	    intel_dp->pps.vlv_pps_pipe != crtc->pipe) {
 		/*
 		 * If another power sequencer was being used on this
 		 * port previously make sure to turn off vdd there while
@@ -1237,13 +1237,13 @@ void vlv_pps_init(struct intel_encoder *encoder,
 	 */
 	vlv_steal_power_sequencer(display, crtc->pipe);
 
-	intel_dp->pps.active_pipe = crtc->pipe;
+	intel_dp->pps.vlv_active_pipe = crtc->pipe;
 
 	if (!intel_dp_is_edp(intel_dp))
 		return;
 
 	/* now it's all ours */
-	intel_dp->pps.pps_pipe = crtc->pipe;
+	intel_dp->pps.vlv_pps_pipe = crtc->pipe;
 
 	drm_dbg_kms(display->drm,
 		    "initializing %s for [ENCODER:%d:%s]\n",
