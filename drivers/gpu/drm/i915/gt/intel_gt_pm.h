@@ -105,9 +105,13 @@ int intel_gt_runtime_resume(struct intel_gt *gt);
 
 ktime_t intel_gt_get_awake_time(const struct intel_gt *gt);
 
+#define INTEL_WAKEREF_MOCK_GT ((intel_wakeref_t)-ENODEV)
+
 static inline bool is_mock_gt(const struct intel_gt *gt)
 {
-	return I915_SELFTEST_ONLY(gt->awake == -ENODEV);
+	BUILD_BUG_ON(INTEL_WAKEREF_DEF == INTEL_WAKEREF_MOCK_GT);
+
+	return I915_SELFTEST_ONLY(gt->awake == INTEL_WAKEREF_MOCK_GT);
 }
 
 #endif /* INTEL_GT_PM_H */
