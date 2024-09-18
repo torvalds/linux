@@ -1172,7 +1172,7 @@ int amdgpu_gmc_get_nps_memranges(struct amdgpu_device *adev,
 		return -EINVAL;
 
 	ret = amdgpu_discovery_get_nps_info(adev, &nps_type, &ranges,
-					    &range_cnt);
+					    &range_cnt, false);
 
 	if (ret)
 		return ret;
