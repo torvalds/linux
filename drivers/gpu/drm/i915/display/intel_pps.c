@@ -472,16 +472,17 @@ void intel_pps_reset_all(struct intel_display *display)
 	for_each_intel_dp(display->drm, encoder) {
 		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 
-		drm_WARN_ON(display->drm,
-			    intel_dp->pps.vlv_active_pipe != INVALID_PIPE);
+		if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
+			drm_WARN_ON(display->drm,
+				    intel_dp->pps.vlv_active_pipe != INVALID_PIPE);
 
 		if (encoder->type != INTEL_OUTPUT_EDP)
 			continue;
 
-		if (DISPLAY_VER(display) >= 9)
-			intel_dp->pps.bxt_pps_reset = true;
-		else
+		if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
 			intel_dp->pps.vlv_pps_pipe = INVALID_PIPE;
+		else
+			intel_dp->pps.bxt_pps_reset = true;
 	}
 }
 
