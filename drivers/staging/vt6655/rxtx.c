@@ -243,7 +243,7 @@ s_uGetDataDuration(
 	unsigned int frame_length,
 	unsigned char pkt_type,
 	unsigned short rate,
-	bool bNeedAck,
+	bool need_ack,
 	unsigned int uFragIdx,
 	unsigned int cbLastFragmentSize,
 	unsigned int uMACfragNum,
@@ -263,51 +263,51 @@ s_uGetDataDuration(
 
 	switch (dur_type) {
 	case DATADUR_B:    /* DATADUR_B */
-		if (bNeedAck) {
+		if (need_ack) {
 			uAckTime = bb_get_frame_time(priv->preamble_type,
 						     pkt_type, 14,
 						     priv->byTopCCKBasicRate);
 		}
 		/* Non Frag or Last Frag */
 		if ((uMACfragNum == 1) || bLastFrag) {
-			if (!bNeedAck)
+			if (!need_ack)
 				return 0;
 		} else {
 			/* First Frag or Mid Frag */
 			uNextPktTime = s_uGetTxRsvTime(priv, pkt_type,
-						       len, rate, bNeedAck);
+						       len, rate, need_ack);
 		}
 
 		return priv->uSIFS + uAckTime + uNextPktTime;
 
 	case DATADUR_A:    /* DATADUR_A */
-		if (bNeedAck) {
+		if (need_ack) {
 			uAckTime = bb_get_frame_time(priv->preamble_type,
 						     pkt_type, 14,
 						     priv->byTopOFDMBasicRate);
 		}
 		/* Non Frag or Last Frag */
 		if ((uMACfragNum == 1) || bLastFrag) {
-			if (!bNeedAck)
+			if (!need_ack)
 				return 0;
 		} else {
 			/* First Frag or Mid Frag */
 			uNextPktTime = s_uGetTxRsvTime(priv, pkt_type,
-						       len, rate, bNeedAck);
+						       len, rate, need_ack);
 		}
 
 		return priv->uSIFS + uAckTime + uNextPktTime;
 
 	case DATADUR_A_F0:    /* DATADUR_A_F0 */
 	case DATADUR_A_F1:    /* DATADUR_A_F1 */
-		if (bNeedAck) {
+		if (need_ack) {
 			uAckTime = bb_get_frame_time(priv->preamble_type,
 						     pkt_type, 14,
 						     priv->byTopOFDMBasicRate);
 		}
 		/* Non Frag or Last Frag */
 		if ((uMACfragNum == 1) || bLastFrag) {
-			if (!bNeedAck)
+			if (!need_ack)
 				return 0;
 		} else {
 			/* First Frag or Mid Frag */
@@ -324,7 +324,7 @@ s_uGetDataDuration(
 				rate = fb_opt1[FB_RATE0][rate];
 
 			uNextPktTime = s_uGetTxRsvTime(priv, pkt_type,
-						       len, rate, bNeedAck);
+						       len, rate, need_ack);
 		}
 
 		return priv->uSIFS + uAckTime + uNextPktTime;
