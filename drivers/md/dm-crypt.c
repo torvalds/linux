@@ -2614,32 +2614,31 @@ static int crypt_set_keyring_key(struct crypt_config *cc, const char *key_string
 
 	key = request_key(type, key_desc + 1, NULL);
 	if (IS_ERR(key)) {
-		kfree_sensitive(new_key_string);
-		return PTR_ERR(key);
+		ret = PTR_ERR(key);
+		goto free_new_key_string;
 	}
 
 	down_read(&key->sem);
-
 	ret = set_key(cc, key);
 	up_read(&key->sem);
 	key_put(key);
-	if (ret < 0) {
-		kfree_sensitive(new_key_string);
-		return ret;
-	}
+	if (ret < 0)
+		goto free_new_key_string;
 
 	/* clear the flag since following operations may invalidate previously valid key */
 	clear_bit(DM_CRYPT_KEY_VALID, &cc->flags);
 
 	ret = crypt_setkey(cc);
+	if (ret)
+		goto free_new_key_string;
 
-	if (!ret) {
-		set_bit(DM_CRYPT_KEY_VALID, &cc->flags);
-		kfree_sensitive(cc->key_string);
-		cc->key_string = new_key_string;
-	} else
-		kfree_sensitive(new_key_string);
+	set_bit(DM_CRYPT_KEY_VALID, &cc->flags);
+	kfree_sensitive(cc->key_string);
+	cc->key_string = new_key_string;
+	return 0;
 
+free_new_key_string:
+	kfree_sensitive(new_key_string);
 	return ret;
 }
 
