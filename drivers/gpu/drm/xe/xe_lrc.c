@@ -602,7 +602,7 @@ static void set_memory_based_intr(u32 *regs, struct xe_hw_engine *hwe)
 	struct xe_memirq *memirq = &gt_to_tile(hwe->gt)->sriov.vf.memirq;
 	struct xe_device *xe = gt_to_xe(hwe->gt);
 
-	if (!IS_SRIOV_VF(xe) || !xe_device_has_memirq(xe))
+	if (!xe_device_uses_memirq(xe))
 		return;
 
 	regs[CTX_LRM_INT_MASK_ENABLE] = MI_LOAD_REGISTER_MEM |

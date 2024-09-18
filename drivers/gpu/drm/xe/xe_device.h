@@ -10,6 +10,7 @@
 
 #include "xe_device_types.h"
 #include "xe_gt_types.h"
+#include "xe_sriov.h"
 
 static inline struct xe_device *to_xe_device(const struct drm_device *dev)
 {
@@ -157,6 +158,11 @@ static inline bool xe_device_has_sriov(struct xe_device *xe)
 static inline bool xe_device_has_memirq(struct xe_device *xe)
 {
 	return GRAPHICS_VERx100(xe) >= 1250;
+}
+
+static inline bool xe_device_uses_memirq(struct xe_device *xe)
+{
+	return xe_device_has_memirq(xe) && IS_SRIOV_VF(xe);
 }
 
 u32 xe_device_ccs_bytes(struct xe_device *xe, u64 size);
