@@ -962,7 +962,7 @@ queue_message(struct vchiq_state *state, struct vchiq_service *service,
 			spin_unlock(&state->quota_spinlock);
 			mutex_unlock(&state->slot_mutex);
 
-			if (wait_for_completion_interruptible(&state->data_quota_event))
+			if (wait_for_completion_killable(&state->data_quota_event))
 				return -EAGAIN;
 
 			mutex_lock(&state->slot_mutex);
@@ -986,7 +986,7 @@ queue_message(struct vchiq_state *state, struct vchiq_service *service,
 				quota->message_use_count, quota->slot_use_count);
 			VCHIQ_SERVICE_STATS_INC(service, quota_stalls);
 			mutex_unlock(&state->slot_mutex);
-			if (wait_for_completion_interruptible(&quota->quota_event))
+			if (wait_for_completion_killable(&quota->quota_event))
 				return -EAGAIN;
 			if (service->closing)
 				return -EHOSTDOWN;
@@ -2662,11 +2662,11 @@ close_service_complete(struct vchiq_service *service, int failstate)
  * returned to user context.
  */
 static int
-vchiq_bulk_xfer_queue_msg_interruptible(struct vchiq_service *service,
-					void *offset, void __user *uoffset,
-					int size, void *userdata,
-					enum vchiq_bulk_mode mode,
-					enum vchiq_bulk_dir dir)
+vchiq_bulk_xfer_queue_msg_killable(struct vchiq_service *service,
+				   void *offset, void __user *uoffset,
+				   int size, void *userdata,
+				   enum vchiq_bulk_mode mode,
+				   enum vchiq_bulk_dir dir)
 {
 	struct vchiq_bulk_queue *queue;
 	struct bulk_waiter *bulk_waiter = NULL;
@@ -2695,7 +2695,7 @@ vchiq_bulk_xfer_queue_msg_interruptible(struct vchiq_service *service,
 		VCHIQ_SERVICE_STATS_INC(service, bulk_stalls);
 		do {
 			mutex_unlock(&service->bulk_mutex);
-			if (wait_for_completion_interruptible(&service->bulk_remove_event))
+			if (wait_for_completion_killable(&service->bulk_remove_event))
 				return -EAGAIN;
 			if (mutex_lock_killable(&service->bulk_mutex))
 				return -EAGAIN;
@@ -2763,7 +2763,7 @@ vchiq_bulk_xfer_queue_msg_interruptible(struct vchiq_service *service,
 
         if (bulk_waiter) {
                 bulk_waiter->bulk = bulk;
-                if (wait_for_completion_interruptible(&bulk_waiter->event))
+		if (wait_for_completion_killable(&bulk_waiter->event))
                         status = -EAGAIN;
                 else if (bulk_waiter->actual == VCHIQ_BULK_ACTUAL_ABORTED)
                         status = -EINVAL;
@@ -3105,9 +3105,9 @@ vchiq_remove_service(struct vchiq_instance *instance, unsigned int handle)
 }
 
 int
-vchiq_bulk_xfer_blocking_interruptible(struct vchiq_instance *instance, unsigned int handle,
-				       void *offset, void __user *uoffset, int size,
-				       void __user *userdata, enum vchiq_bulk_dir dir)
+vchiq_bulk_xfer_blocking(struct vchiq_instance *instance, unsigned int handle,
+			 void *offset, void __user *uoffset, int size,
+			 void __user *userdata, enum vchiq_bulk_dir dir)
 {
 	struct vchiq_service *service = find_service_by_handle(instance, handle);
 	enum vchiq_bulk_mode mode = VCHIQ_BULK_MODE_BLOCKING;
@@ -3126,8 +3126,8 @@ vchiq_bulk_xfer_blocking_interruptible(struct vchiq_instance *instance, unsigned
 		goto error_exit;
 
 
-	status = vchiq_bulk_xfer_queue_msg_interruptible(service, offset, uoffset, size,
-							 userdata, mode, dir);
+	status = vchiq_bulk_xfer_queue_msg_killable(service, offset, uoffset, size,
+						    userdata, mode, dir);
 
 error_exit:
 	vchiq_service_put(service);
@@ -3136,10 +3136,10 @@ error_exit:
 }
 
 int
-vchiq_bulk_xfer_callback_interruptible(struct vchiq_instance *instance, unsigned int handle,
-				       void *offset, void __user *uoffset, int size,
-				       enum vchiq_bulk_mode mode, void *userdata,
-				       enum vchiq_bulk_dir dir)
+vchiq_bulk_xfer_callback(struct vchiq_instance *instance, unsigned int handle,
+			 void *offset, void __user *uoffset, int size,
+			 enum vchiq_bulk_mode mode, void *userdata,
+			 enum vchiq_bulk_dir dir)
 {
 	struct vchiq_service *service = find_service_by_handle(instance, handle);
 	int status = -EINVAL;
@@ -3160,8 +3160,8 @@ vchiq_bulk_xfer_callback_interruptible(struct vchiq_instance *instance, unsigned
 	if (vchiq_check_service(service))
 		goto error_exit;
 
-	status = vchiq_bulk_xfer_queue_msg_interruptible(service, offset, uoffset,
-							 size, userdata, mode, dir);
+	status = vchiq_bulk_xfer_queue_msg_killable(service, offset, uoffset,
+						    size, userdata, mode, dir);
 
 error_exit:
 	vchiq_service_put(service);
@@ -3175,8 +3175,8 @@ error_exit:
  * and the call should be retried after being returned to user context.
  */
 int
-vchiq_bulk_xfer_waiting_interruptible(struct vchiq_instance *instance,
-				      unsigned int handle, struct bulk_waiter *userdata)
+vchiq_bulk_xfer_waiting(struct vchiq_instance *instance,
+			unsigned int handle, struct bulk_waiter *userdata)
 {
 	struct vchiq_service *service = find_service_by_handle(instance, handle);
 	struct bulk_waiter *bulk_waiter;
@@ -3200,7 +3200,7 @@ vchiq_bulk_xfer_waiting_interruptible(struct vchiq_instance *instance,
 
 	status = 0;
 
-	if (wait_for_completion_interruptible(&bulk_waiter->event))
+	if (wait_for_completion_killable(&bulk_waiter->event))
 		return -EAGAIN;
 	else if (bulk_waiter->actual == VCHIQ_BULK_ACTUAL_ABORTED)
 		return -EINVAL;

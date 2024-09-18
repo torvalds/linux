@@ -305,9 +305,9 @@ static int vchiq_irq_queue_bulk_tx_rx(struct vchiq_instance *instance,
 
 		userdata = &waiter->bulk_waiter;
 
-		status = vchiq_bulk_xfer_blocking_interruptible(instance, args->handle,
-								NULL, args->data, args->size,
-								userdata, dir);
+		status = vchiq_bulk_xfer_blocking(instance, args->handle,
+						  NULL, args->data, args->size,
+						  userdata, dir);
 
 	} else if (args->mode == VCHIQ_BULK_MODE_WAITING) {
 		mutex_lock(&instance->bulk_waiter_list_mutex);
@@ -330,13 +330,13 @@ static int vchiq_irq_queue_bulk_tx_rx(struct vchiq_instance *instance,
 			waiter, current->pid);
 		userdata = &waiter->bulk_waiter;
 
-		status = vchiq_bulk_xfer_waiting_interruptible(instance, args->handle, userdata);
+		status = vchiq_bulk_xfer_waiting(instance, args->handle, userdata);
 	} else {
 		userdata = args->userdata;
 
-		status = vchiq_bulk_xfer_callback_interruptible(instance, args->handle, NULL,
-								args->data, args->size,
-								args->mode, userdata, dir);
+		status = vchiq_bulk_xfer_callback(instance, args->handle, NULL,
+						  args->data, args->size,
+						  args->mode, userdata, dir);
 
 	}
 
