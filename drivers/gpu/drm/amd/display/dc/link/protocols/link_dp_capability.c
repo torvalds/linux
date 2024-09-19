@@ -212,6 +212,13 @@ static enum dc_link_rate linkRateInKHzToLinkRateMultiplier(uint32_t link_rate_in
 	case 10000000:
 		link_rate = LINK_RATE_UHBR10;	// UHBR10 - 10.0 Gbps/Lane
 		break;
+	case 13500000:
+		link_rate = LINK_RATE_UHBR13_5;	// UHBR13.5 - 13.5 Gbps/Lane
+		break;
+	case 20000000:
+		link_rate = LINK_RATE_UHBR20;	// UHBR20 - 20.0 Gbps/Lane
+		break;
+
 	default:
 		link_rate = LINK_RATE_UNKNOWN;
 		break;
@@ -541,6 +548,23 @@ static enum dc_link_rate increase_link_rate(struct dc_link *link,
 	}
 }
 
+static void increase_edp_link_rate(struct dc_link *link,
+		struct dc_link_settings *current_link_setting)
+{
+	if (current_link_setting->use_link_rate_set) {
+		if (current_link_setting->link_rate_set < link->dpcd_caps.edp_supported_link_rates_count) {
+			current_link_setting->link_rate_set++;
+			current_link_setting->link_rate =
+				link->dpcd_caps.edp_supported_link_rates[current_link_setting->link_rate_set];
+		} else {
+			current_link_setting->use_link_rate_set = false;
+			current_link_setting->link_rate = LINK_RATE_UHBR10;
+		}
+	} else {
+		current_link_setting->link_rate = increase_link_rate(link, current_link_setting->link_rate);
+	}
+}
+
 static bool decide_fallback_link_setting_max_bw_policy(
 		struct dc_link *link,
 		const struct dc_link_settings *max,
@@ -759,14 +783,7 @@ bool edp_decide_link_settings(struct dc_link *link,
 					increase_lane_count(
 							current_link_setting.lane_count);
 		} else {
-			if (current_link_setting.link_rate_set < link->dpcd_caps.edp_supported_link_rates_count) {
-				current_link_setting.link_rate_set++;
-				current_link_setting.link_rate =
-					link->dpcd_caps.edp_supported_link_rates[current_link_setting.link_rate_set];
-				current_link_setting.lane_count =
-									initial_link_setting.lane_count;
-			} else
-				break;
+			increase_edp_link_rate(link, &current_link_setting);
 		}
 	}
 	return false;
@@ -818,9 +835,7 @@ bool decide_edp_link_settings_with_dsc(struct dc_link *link,
 			if (policy) {
 				/* minimize lane */
 				if (current_link_setting.link_rate < max_link_rate) {
-					current_link_setting.link_rate =
-							increase_link_rate(link,
-									current_link_setting.link_rate);
+					increase_edp_link_rate(link, &current_link_setting);
 				} else {
 					if (current_link_setting.lane_count <
 									link->verified_link_cap.lane_count) {
@@ -839,9 +854,7 @@ bool decide_edp_link_settings_with_dsc(struct dc_link *link,
 							increase_lane_count(
 									current_link_setting.lane_count);
 				} else {
-					current_link_setting.link_rate =
-							increase_link_rate(link,
-									current_link_setting.link_rate);
+					increase_edp_link_rate(link, &current_link_setting);
 					current_link_setting.lane_count =
 							initial_link_setting.lane_count;
 				}
@@ -874,18 +887,15 @@ bool decide_edp_link_settings_with_dsc(struct dc_link *link,
 		}
 		if (policy) {
 			/* minimize lane */
-			if (current_link_setting.link_rate_set <
-					link->dpcd_caps.edp_supported_link_rates_count
-					&& current_link_setting.link_rate < max_link_rate) {
-				current_link_setting.link_rate_set++;
-				current_link_setting.link_rate =
-					link->dpcd_caps.edp_supported_link_rates[current_link_setting.link_rate_set];
+			if (current_link_setting.link_rate < max_link_rate) {
+				increase_edp_link_rate(link, &current_link_setting);
 			} else {
 				if (current_link_setting.lane_count < link->verified_link_cap.lane_count) {
 					current_link_setting.lane_count =
 							increase_lane_count(
 									current_link_setting.lane_count);
 					current_link_setting.link_rate_set = initial_link_setting.link_rate_set;
+					current_link_setting.use_link_rate_set = initial_link_setting.use_link_rate_set;
 					current_link_setting.link_rate =
 						link->dpcd_caps.edp_supported_link_rates[current_link_setting.link_rate_set];
 				} else
@@ -899,13 +909,8 @@ bool decide_edp_link_settings_with_dsc(struct dc_link *link,
 						increase_lane_count(
 								current_link_setting.lane_count);
 			} else {
-				if (current_link_setting.link_rate_set < link->dpcd_caps.edp_supported_link_rates_count) {
-					current_link_setting.link_rate_set++;
-					current_link_setting.link_rate =
-						link->dpcd_caps.edp_supported_link_rates[current_link_setting.link_rate_set];
-					current_link_setting.lane_count =
-						initial_link_setting.lane_count;
-				} else
+				increase_edp_link_rate(link, &current_link_setting);
+				if (current_link_setting.link_rate == LINK_RATE_UNKNOWN)
 					break;
 			}
 		}
@@ -1166,6 +1171,8 @@ static void get_active_converter_info(
 							link->dpcd_caps.dongle_caps.dp_hdmi_frl_max_link_bw_in_kbps = intersect_frl_link_bw_support(
 									link->dpcd_caps.dongle_caps.dp_hdmi_frl_max_link_bw_in_kbps,
 									hdmi_encoded_link_bw);
+							DC_LOG_DC("%s: pcon frl link bw = %u\n", __func__,
+								link->dpcd_caps.dongle_caps.dp_hdmi_frl_max_link_bw_in_kbps);
 						}
 
 						if (link->dpcd_caps.dongle_caps.dp_hdmi_frl_max_link_bw_in_kbps > 0)
@@ -1541,7 +1548,11 @@ enum dc_status dp_retrieve_lttpr_cap(struct dc_link *link)
 	 * Override count to 1 if we receive a known bad count (0 or an invalid value) */
 	if ((link->chip_caps & EXT_DISPLAY_PATH_CAPS__DP_FIXED_VS_EN) &&
 			(dp_parse_lttpr_repeater_count(link->dpcd_caps.lttpr_caps.phy_repeater_cnt) == 0)) {
-		ASSERT(0);
+		/* If you see this message consistently, either the host platform has FIXED_VS flag
+		 * incorrectly configured or the sink device is returning an invalid count.
+		 */
+		DC_LOG_ERROR("lttpr_caps phy_repeater_cnt is 0x%x, forcing it to 0x80.",
+			     link->dpcd_caps.lttpr_caps.phy_repeater_cnt);
 		link->dpcd_caps.lttpr_caps.phy_repeater_cnt = 0x80;
 		DC_LOG_DC("lttpr_caps forced phy_repeater_cnt = %d\n", link->dpcd_caps.lttpr_caps.phy_repeater_cnt);
 	}
@@ -2254,7 +2265,7 @@ bool dp_verify_link_cap_with_retries(
 
 		memset(&link->verified_link_cap, 0,
 				sizeof(struct dc_link_settings));
-		if (!link_detect_connection_type(link, &type) || type == dc_connection_none) {
+		if (link->link_enc && (!link_detect_connection_type(link, &type) || type == dc_connection_none)) {
 			link->verified_link_cap = fail_safe_link_settings;
 			break;
 		} else if (dp_verify_link_cap(link, known_limit_link_setting, &fail_count)) {

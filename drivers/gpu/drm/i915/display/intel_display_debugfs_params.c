@@ -151,13 +151,13 @@ intel_display_debugfs_create_uint(const char *name, umode_t mode,
 	} while (0)
 
 /* add a subdirectory with files for each intel display param */
-void intel_display_debugfs_params(struct drm_i915_private *i915)
+void intel_display_debugfs_params(struct intel_display *display)
 {
-	struct drm_minor *minor = i915->drm.primary;
+	struct drm_minor *minor = display->drm->primary;
 	struct dentry *dir;
 	char dirname[16];
 
-	snprintf(dirname, sizeof(dirname), "%s_params", i915->drm.driver->name);
+	snprintf(dirname, sizeof(dirname), "%s_params", display->drm->driver->name);
 	dir = debugfs_lookup(dirname, minor->debugfs_root);
 	if (!dir)
 		dir = debugfs_create_dir(dirname, minor->debugfs_root);
@@ -171,7 +171,7 @@ void intel_display_debugfs_params(struct drm_i915_private *i915)
 	 */
 
 #define REGISTER(T, x, unused, mode, ...) _intel_display_param_create_file( \
-		dir, #x, mode, &i915->display.params.x);
+		dir, #x, mode, &display->params.x);
 	INTEL_DISPLAY_PARAMS_FOR_EACH(REGISTER);
 #undef REGISTER
 }

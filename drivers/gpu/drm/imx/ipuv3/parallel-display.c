@@ -34,7 +34,7 @@ struct imx_parallel_display_encoder {
 
 struct imx_parallel_display {
 	struct device *dev;
-	void *edid;
+	const struct drm_edid *drm_edid;
 	u32 bus_format;
 	u32 bus_flags;
 	struct drm_display_mode mode;
@@ -62,9 +62,9 @@ static int imx_pd_connector_get_modes(struct drm_connector *connector)
 	if (num_modes > 0)
 		return num_modes;
 
-	if (imxpd->edid) {
-		drm_connector_update_edid_property(connector, imxpd->edid);
-		num_modes = drm_add_edid_modes(connector, imxpd->edid);
+	if (imxpd->drm_edid) {
+		drm_edid_connector_update(connector, imxpd->drm_edid);
+		num_modes = drm_edid_connector_add_modes(connector);
 	}
 
 	if (np) {
@@ -331,7 +331,7 @@ static int imx_pd_probe(struct platform_device *pdev)
 
 	edidp = of_get_property(np, "edid", &edid_len);
 	if (edidp)
-		imxpd->edid = devm_kmemdup(dev, edidp, edid_len, GFP_KERNEL);
+		imxpd->drm_edid = drm_edid_alloc(edidp, edid_len);
 
 	ret = of_property_read_string(np, "interface-pix-fmt", &fmt);
 	if (!ret) {
@@ -355,7 +355,11 @@ static int imx_pd_probe(struct platform_device *pdev)
 
 static void imx_pd_remove(struct platform_device *pdev)
 {
+	struct imx_parallel_display *imxpd = platform_get_drvdata(pdev);
+
 	component_del(&pdev->dev, &imx_pd_ops);
+
+	drm_edid_free(imxpd->drm_edid);
 }
 
 static const struct of_device_id imx_pd_dt_ids[] = {

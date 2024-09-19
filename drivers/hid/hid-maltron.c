@@ -22,7 +22,7 @@
 #include "hid-ids.h"
 
 /* The original buggy USB descriptor */
-static u8 maltron_rdesc_o[] = {
+static const u8 maltron_rdesc_o[] = {
 	0x05, 0x01,        /* Usage Page (Generic Desktop Ctrls) */
 	0x09, 0x80,        /* Usage (Sys Control)                */
 	0xA1, 0x01,        /* Collection (Application)           */
@@ -79,7 +79,7 @@ static u8 maltron_rdesc_o[] = {
 };
 
 /* The patched descriptor, allowing media key events to be accepted as valid */
-static u8 maltron_rdesc[] = {
+static const u8 maltron_rdesc[] = {
 	0x05, 0x01,        /* Usage Page (Generic Desktop Ctrls) */
 	0x09, 0x80,        /* Usage (Sys Control)                */
 	0xA1, 0x01,        /* Collection (Application)           */
@@ -137,8 +137,8 @@ static u8 maltron_rdesc[] = {
 	0xC0               /* End Collection                     */
 };
 
-static __u8 *maltron_report_fixup(struct hid_device *hdev, __u8 *rdesc,
-				  unsigned int *rsize)
+static const __u8 *maltron_report_fixup(struct hid_device *hdev, __u8 *rdesc,
+					unsigned int *rsize)
 {
 	if (*rsize == sizeof(maltron_rdesc_o) &&
 	    !memcmp(maltron_rdesc_o, rdesc, sizeof(maltron_rdesc_o))) {

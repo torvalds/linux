@@ -30,6 +30,7 @@ kms_cursor_crc@cursor-random-64x64,Fail
 kms_cursor_crc@cursor-size-change,Fail
 kms_cursor_crc@cursor-sliding-64x21,Fail
 kms_cursor_crc@cursor-sliding-64x64,Fail
+kms_cursor_edge_walk@64x64-left-edge,Fail
 kms_flip@flip-vs-modeset-vs-hang,Fail
 kms_flip@flip-vs-panning-vs-hang,Fail
 kms_lease@lease-uevent,Fail
@@ -37,4 +38,3 @@ kms_plane@pixel-format,Fail
 kms_plane_cursor@primary,Fail
 kms_rotation_crc@primary-rotation-180,Fail
 perf@i915-ref-count,Fail
-tools_test@tools_test,Fail

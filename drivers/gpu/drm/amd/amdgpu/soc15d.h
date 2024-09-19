@@ -413,6 +413,10 @@
 #              define PACKET3_QUERY_STATUS_DOORBELL_OFFSET(x)  ((x) << 2)
 #              define PACKET3_QUERY_STATUS_ENG_SEL(x)          ((x) << 25)
 
+#define PACKET3_RUN_CLEANER_SHADER                      0xD2
+/* 1. header
+ * 2. RESERVED [31:0]
+ */
 
 #define VCE_CMD_NO_OP		0x00000000
 #define VCE_CMD_END		0x00000001

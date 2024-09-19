@@ -751,12 +751,11 @@ cifs_close_deferred_file(struct cifsInodeInfo *cifs_inode)
 {
 	struct cifsFileInfo *cfile = NULL;
 	struct file_list *tmp_list, *tmp_next_list;
-	struct list_head file_head;
+	LIST_HEAD(file_head);
 
 	if (cifs_inode == NULL)
 		return;
 
-	INIT_LIST_HEAD(&file_head);
 	spin_lock(&cifs_inode->open_file_lock);
 	list_for_each_entry(cfile, &cifs_inode->openFileList, flist) {
 		if (delayed_work_pending(&cfile->deferred)) {
@@ -787,9 +786,8 @@ cifs_close_all_deferred_files(struct cifs_tcon *tcon)
 {
 	struct cifsFileInfo *cfile;
 	struct file_list *tmp_list, *tmp_next_list;
-	struct list_head file_head;
+	LIST_HEAD(file_head);
 
-	INIT_LIST_HEAD(&file_head);
 	spin_lock(&tcon->open_file_lock);
 	list_for_each_entry(cfile, &tcon->openFileList, tlist) {
 		if (delayed_work_pending(&cfile->deferred)) {
@@ -819,11 +817,10 @@ cifs_close_deferred_file_under_dentry(struct cifs_tcon *tcon, const char *path)
 {
 	struct cifsFileInfo *cfile;
 	struct file_list *tmp_list, *tmp_next_list;
-	struct list_head file_head;
 	void *page;
 	const char *full_path;
+	LIST_HEAD(file_head);
 
-	INIT_LIST_HEAD(&file_head);
 	page = alloc_dentry_path();
 	spin_lock(&tcon->open_file_lock);
 	list_for_each_entry(cfile, &tcon->openFileList, tlist) {

@@ -651,10 +651,6 @@ static long isst_if_def_ioctl(struct file *file, unsigned int cmd,
 
 /* Lock to prevent module registration when already opened by user space */
 static DEFINE_MUTEX(punit_misc_dev_open_lock);
-/* Lock to allow one shared misc device for all ISST interfaces */
-static DEFINE_MUTEX(punit_misc_dev_reg_lock);
-static int misc_usage_count;
-static int misc_device_ret;
 static int misc_device_open;
 
 static int isst_if_open(struct inode *inode, struct file *file)
@@ -720,39 +716,23 @@ static struct miscdevice isst_if_char_driver = {
 
 static int isst_misc_reg(void)
 {
-	mutex_lock(&punit_misc_dev_reg_lock);
-	if (misc_device_ret)
-		goto unlock_exit;
+	int ret;
 
-	if (!misc_usage_count) {
-		misc_device_ret = isst_if_cpu_info_init();
-		if (misc_device_ret)
-			goto unlock_exit;
+	ret = isst_if_cpu_info_init();
+	if (ret)
+		return ret;
 
-		misc_device_ret = misc_register(&isst_if_char_driver);
-		if (misc_device_ret) {
-			isst_if_cpu_info_exit();
-			goto unlock_exit;
-		}
-	}
-	misc_usage_count++;
+	ret = misc_register(&isst_if_char_driver);
+	if (ret)
+		isst_if_cpu_info_exit();
 
-unlock_exit:
-	mutex_unlock(&punit_misc_dev_reg_lock);
-
-	return misc_device_ret;
+	return ret;
 }
 
 static void isst_misc_unreg(void)
 {
-	mutex_lock(&punit_misc_dev_reg_lock);
-	if (misc_usage_count)
-		misc_usage_count--;
-	if (!misc_usage_count && !misc_device_ret) {
-		misc_deregister(&isst_if_char_driver);
-		isst_if_cpu_info_exit();
-	}
-	mutex_unlock(&punit_misc_dev_reg_lock);
+	misc_deregister(&isst_if_char_driver);
+	isst_if_cpu_info_exit();
 }
 
 /**

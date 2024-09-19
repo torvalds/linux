@@ -2363,8 +2363,8 @@ static int _bnx2fc_create(struct net_device *netdev,
 	interface->vlan_id = vlan_id;
 	interface->tm_timeout = BNX2FC_TM_TIMEOUT;
 
-	interface->timer_work_queue =
-			create_singlethread_workqueue("bnx2fc_timer_wq");
+	interface->timer_work_queue = alloc_ordered_workqueue(
+		"%s", WQ_MEM_RECLAIM, "bnx2fc_timer_wq");
 	if (!interface->timer_work_queue) {
 		printk(KERN_ERR PFX "ulp_init could not create timer_wq\n");
 		rc = -EINVAL;

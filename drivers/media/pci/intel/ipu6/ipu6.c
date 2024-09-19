@@ -576,9 +576,7 @@ static int ipu6_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (ret)
 		return dev_err_probe(dev, ret, "Failed to set DMA mask\n");
 
-	ret = dma_set_max_seg_size(dev, UINT_MAX);
-	if (ret)
-		return dev_err_probe(dev, ret, "Failed to set max_seg_size\n");
+	dma_set_max_seg_size(dev, UINT_MAX);
 
 	ret = ipu6_pci_config_setup(pdev, isp->hw_ver);
 	if (ret)

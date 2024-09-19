@@ -97,8 +97,8 @@ int xe_guc_id_mgr_init(struct xe_guc_id_mgr *idm, unsigned int limit)
 	if (ret)
 		return ret;
 
-	xe_gt_info(idm_to_gt(idm), "using %u GUC ID%s\n",
-		   idm->total, str_plural(idm->total));
+	xe_gt_dbg(idm_to_gt(idm), "using %u GuC ID%s\n",
+		  idm->total, str_plural(idm->total));
 	return 0;
 }
 

@@ -36,6 +36,7 @@
 #include "intel_pps.h"
 #include "intel_psr.h"
 #include "intel_psr_regs.h"
+#include "intel_vdsc.h"
 #include "intel_wm.h"
 
 static inline struct drm_i915_private *node_to_i915(struct drm_info_node *node)
@@ -492,7 +493,7 @@ static void crtc_updates_info(struct seq_file *m,
 	seq_printf(m, "%sMax update: %lluns\n",
 		   hdr, crtc->debug.vbl.max);
 	seq_printf(m, "%sAverage update: %lluns\n",
-		   hdr, div64_u64(crtc->debug.vbl.sum,  count));
+		   hdr, div64_u64(crtc->debug.vbl.sum, count));
 	seq_printf(m, "%sOverruns > %uus: %u\n",
 		   hdr, VBLANK_EVASION_TIME_US, crtc->debug.vbl.over);
 }
@@ -551,6 +552,7 @@ static void crtc_updates_add(struct intel_crtc *crtc)
 static void intel_crtc_info(struct seq_file *m, struct intel_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
+	struct drm_printer p = drm_seq_file_printer(m);
 	const struct intel_crtc_state *crtc_state =
 		to_intel_crtc_state(crtc->base.state);
 	struct intel_encoder *encoder;
@@ -580,6 +582,8 @@ static void intel_crtc_info(struct seq_file *m, struct intel_crtc *crtc)
 		seq_printf(m, "\tLinked to 0x%x pipes as a %s\n",
 			   crtc_state->joiner_pipes,
 			   intel_crtc_is_joiner_secondary(crtc_state) ? "slave" : "master");
+
+	intel_vdsc_state_dump(&p, 1, crtc_state);
 
 	for_each_intel_encoder_mask(&dev_priv->drm, encoder,
 				    crtc_state->uapi.encoder_mask)
@@ -1008,7 +1012,7 @@ i915_fifo_underrun_reset_write(struct file *filp,
 			return ret;
 	}
 
-	intel_fbc_reset_underrun(dev_priv);
+	intel_fbc_reset_underrun(&dev_priv->display);
 
 	return cnt;
 }
@@ -1045,6 +1049,7 @@ static const struct {
 
 void intel_display_debugfs_register(struct drm_i915_private *i915)
 {
+	struct intel_display *display = &i915->display;
 	struct drm_minor *minor = i915->drm.primary;
 	int i;
 
@@ -1060,15 +1065,15 @@ void intel_display_debugfs_register(struct drm_i915_private *i915)
 				 ARRAY_SIZE(intel_display_debugfs_list),
 				 minor->debugfs_root, minor);
 
-	intel_bios_debugfs_register(i915);
+	intel_bios_debugfs_register(display);
 	intel_cdclk_debugfs_register(i915);
 	intel_dmc_debugfs_register(i915);
-	intel_fbc_debugfs_register(i915);
+	intel_fbc_debugfs_register(display);
 	intel_hpd_debugfs_register(i915);
-	intel_opregion_debugfs_register(i915);
-	intel_psr_debugfs_register(i915);
+	intel_opregion_debugfs_register(display);
+	intel_psr_debugfs_register(display);
 	intel_wm_debugfs_register(i915);
-	intel_display_debugfs_params(i915);
+	intel_display_debugfs_params(display);
 }
 
 static int i915_hdcp_sink_capability_show(struct seq_file *m, void *data)

@@ -121,6 +121,7 @@
 
 #include <linux/acpi.h>
 #include <linux/backlight.h>
+#include <linux/bits.h>
 #include <linux/ctype.h>
 #include <linux/i8042.h>
 #include <linux/init.h>
@@ -224,6 +225,17 @@ static const struct key_entry panasonic_keymap[] = {
 	{ KE_KEY, 8, { KEY_PROG1 } }, /* Change CPU boost */
 	{ KE_KEY, 9, { KEY_BATTERY } },
 	{ KE_KEY, 10, { KEY_SUSPEND } },
+	{ KE_KEY, 21, { KEY_MACRO1 } },
+	{ KE_KEY, 22, { KEY_MACRO2 } },
+	{ KE_KEY, 24, { KEY_MACRO3 } },
+	{ KE_KEY, 25, { KEY_MACRO4 } },
+	{ KE_KEY, 34, { KEY_MACRO5 } },
+	{ KE_KEY, 35, { KEY_MACRO6 } },
+	{ KE_KEY, 36, { KEY_MACRO7 } },
+	{ KE_KEY, 37, { KEY_MACRO8 } },
+	{ KE_KEY, 41, { KEY_MACRO9 } },
+	{ KE_KEY, 42, { KEY_MACRO10 } },
+	{ KE_KEY, 43, { KEY_MACRO11 } },
 	{ KE_END, 0 }
 };
 
@@ -830,8 +842,8 @@ static void acpi_pcc_generate_keyinput(struct pcc_acpi *pcc)
 		return;
 	}
 
-	key = result & 0xf;
-	updown = result & 0x80; /* 0x80 == key down; 0x00 = key up */
+	key = result & GENMASK(6, 0);
+	updown = result & BIT(7); /* 0x80 == key down; 0x00 = key up */
 
 	/* hack: some firmware sends no key down for sleep / hibernate */
 	if (key == 7 || key == 10) {

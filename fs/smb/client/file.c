@@ -1403,7 +1403,7 @@ void
 cifs_reopen_persistent_handles(struct cifs_tcon *tcon)
 {
 	struct cifsFileInfo *open_file, *tmp;
-	struct list_head tmp_list;
+	LIST_HEAD(tmp_list);
 
 	if (!tcon->use_persistent || !tcon->need_reopen_files)
 		return;
@@ -1411,7 +1411,6 @@ cifs_reopen_persistent_handles(struct cifs_tcon *tcon)
 	tcon->need_reopen_files = false;
 
 	cifs_dbg(FYI, "Reopen persistent handles\n");
-	INIT_LIST_HEAD(&tmp_list);
 
 	/* list all files open on tree connection, reopen resilient handles  */
 	spin_lock(&tcon->open_file_lock);
@@ -2094,9 +2093,7 @@ cifs_unlock_range(struct cifsFileInfo *cfile, struct file_lock *flock,
 	struct cifsInodeInfo *cinode = CIFS_I(d_inode(cfile->dentry));
 	struct cifsLockInfo *li, *tmp;
 	__u64 length = cifs_flock_len(flock);
-	struct list_head tmp_llist;
-
-	INIT_LIST_HEAD(&tmp_llist);
+	LIST_HEAD(tmp_llist);
 
 	/*
 	 * Accessing maxBuf is racy with cifs_reconnect - need to store value

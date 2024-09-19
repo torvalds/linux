@@ -184,4 +184,7 @@ xfs_get_defquota(struct xfs_quotainfo *qi, xfs_dqtype_t type)
 	}
 }
 
+int xfs_qm_qino_load(struct xfs_mount *mp, xfs_dqtype_t type,
+		struct xfs_inode **ipp);
+
 #endif /* __XFS_QM_H__ */

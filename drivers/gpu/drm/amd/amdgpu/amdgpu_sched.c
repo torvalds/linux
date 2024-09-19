@@ -22,7 +22,6 @@
  * Authors: Andres Rodriguez <andresx7@gmail.com>
  */
 
-#include <linux/fdtable.h>
 #include <linux/file.h>
 #include <linux/pid.h>
 

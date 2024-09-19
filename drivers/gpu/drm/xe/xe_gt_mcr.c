@@ -8,8 +8,10 @@
 #include "regs/xe_gt_regs.h"
 #include "xe_assert.h"
 #include "xe_gt.h"
+#include "xe_gt_printk.h"
 #include "xe_gt_topology.h"
 #include "xe_gt_types.h"
+#include "xe_guc_hwconfig.h"
 #include "xe_mmio.h"
 #include "xe_sriov.h"
 
@@ -297,6 +299,36 @@ static void init_steering_mslice(struct xe_gt *gt)
 
 static unsigned int dss_per_group(struct xe_gt *gt)
 {
+	struct xe_guc *guc = &gt->uc.guc;
+	u32 max_slices = 0, max_subslices = 0;
+	int ret;
+
+	/*
+	 * Try to query the GuC's hwconfig table for the maximum number of
+	 * slices and subslices.  These don't reflect the platform's actual
+	 * slice/DSS counts, just the physical layout by which we should
+	 * determine the steering targets.  On older platforms with older GuC
+	 * firmware releases it's possible that these attributes may not be
+	 * included in the table, so we can always fall back to the old
+	 * hardcoded layouts.
+	 */
+#define HWCONFIG_ATTR_MAX_SLICES	1
+#define HWCONFIG_ATTR_MAX_SUBSLICES	70
+
+	ret = xe_guc_hwconfig_lookup_u32(guc, HWCONFIG_ATTR_MAX_SLICES,
+					 &max_slices);
+	if (ret < 0 || max_slices == 0)
+		goto fallback;
+
+	ret = xe_guc_hwconfig_lookup_u32(guc, HWCONFIG_ATTR_MAX_SUBSLICES,
+					 &max_subslices);
+	if (ret < 0 || max_subslices == 0)
+		goto fallback;
+
+	return DIV_ROUND_UP(max_subslices, max_slices);
+
+fallback:
+	xe_gt_dbg(gt, "GuC hwconfig cannot provide dss/slice; using typical fallback values\n");
 	if (gt_to_xe(gt)->info.platform == XE_PVC)
 		return 8;
 	else if (GRAPHICS_VERx100(gt_to_xe(gt)) >= 1250)
@@ -314,16 +346,16 @@ static unsigned int dss_per_group(struct xe_gt *gt)
  */
 void xe_gt_mcr_get_dss_steering(struct xe_gt *gt, unsigned int dss, u16 *group, u16 *instance)
 {
-	int dss_per_grp = dss_per_group(gt);
-
 	xe_gt_assert(gt, dss < XE_MAX_DSS_FUSE_BITS);
 
-	*group = dss / dss_per_grp;
-	*instance = dss % dss_per_grp;
+	*group = dss / gt->steering_dss_per_grp;
+	*instance = dss % gt->steering_dss_per_grp;
 }
 
 static void init_steering_dss(struct xe_gt *gt)
 {
+	gt->steering_dss_per_grp = dss_per_group(gt);
+
 	xe_gt_mcr_get_dss_steering(gt,
 				   min(xe_dss_mask_group_ffs(gt->fuse_topo.g_dss_mask, 0, 0),
 				       xe_dss_mask_group_ffs(gt->fuse_topo.c_dss_mask, 0, 0)),

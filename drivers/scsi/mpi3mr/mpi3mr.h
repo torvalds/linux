@@ -57,8 +57,8 @@ extern struct list_head mrioc_list;
 extern int prot_mask;
 extern atomic64_t event_counter;
 
-#define MPI3MR_DRIVER_VERSION	"8.9.1.0.51"
-#define MPI3MR_DRIVER_RELDATE	"29-May-2024"
+#define MPI3MR_DRIVER_VERSION	"8.10.0.5.50"
+#define MPI3MR_DRIVER_RELDATE	"08-Aug-2024"
 
 #define MPI3MR_DRIVER_NAME	"mpi3mr"
 #define MPI3MR_DRIVER_LICENSE	"GPL"
@@ -213,6 +213,7 @@ extern atomic64_t event_counter;
 #define MPI3MR_HDB_QUERY_ELEMENT_TRIGGER_FORMAT_INDEX   0
 #define MPI3MR_HDB_QUERY_ELEMENT_TRIGGER_FORMAT_DATA    1
 
+#define MPI3MR_THRESHOLD_REPLY_COUNT	100
 
 /* SGE Flag definition */
 #define MPI3MR_SGEFLAGS_SYSTEM_SIMPLE_END_OF_LIST \
@@ -1059,7 +1060,6 @@ struct scmd_priv {
  * @sbq_lock: Sense buffer queue lock
  * @sbq_host_index: Sense buffer queuehost index
  * @event_masks: Event mask bitmap
- * @fwevt_worker_name: Firmware event worker thread name
  * @fwevt_worker_thread: Firmware event worker thread
  * @fwevt_lock: Firmware event lock
  * @fwevt_list: Firmware event list
@@ -1240,7 +1240,6 @@ struct mpi3mr_ioc {
 	u32 sbq_host_index;
 	u32 event_masks[MPI3_EVENT_NOTIFY_EVENTMASK_WORDS];
 
-	char fwevt_worker_name[MPI3MR_NAME_LENGTH];
 	struct workqueue_struct	*fwevt_worker_thread;
 	spinlock_t fwevt_lock;
 	struct list_head fwevt_list;

@@ -23,7 +23,7 @@
 #include "cifsproto.h"
 #include "smb2proto.h"
 #include "cifs_debug.h"
-#include "smb2status.h"
+#include "../common/smb2status.h"
 #include "smb2glob.h"
 
 static int

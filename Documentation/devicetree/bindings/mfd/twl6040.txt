@@ -2,7 +2,7 @@ Texas Instruments TWL6040 family
 
 The TWL6040s are 8-channel high quality low-power audio codecs providing audio,
 vibra and GPO functionality on OMAP4+ platforms.
-They are connected ot the host processor via i2c for commands, McPDM for audio
+They are connected to the host processor via i2c for commands, McPDM for audio
 data and commands.
 
 Required properties:

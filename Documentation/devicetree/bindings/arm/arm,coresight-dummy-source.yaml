@@ -17,7 +17,7 @@ description: |
   The Coresight dummy source component is for the specific coresight source
   devices kernel don't have permission to access or configure. For some SOCs,
   there would be Coresight source trace components on sub-processor which
-  are conneted to AP processor via debug bus. For these devices, a dummy driver
+  are connected to AP processor via debug bus. For these devices, a dummy driver
   is needed to register them as Coresight source devices, so that paths can be
   created in the driver. It provides Coresight API for operations on dummy
   source devices, such as enabling and disabling them. It also provides the

@@ -1647,25 +1647,15 @@ static int anx7625_get_swing_setting(struct device *dev,
 {
 	int num_regs;
 
-	if (of_get_property(dev->of_node,
-			    "analogix,lane0-swing", &num_regs)) {
-		if (num_regs > DP_TX_SWING_REG_CNT)
-			num_regs = DP_TX_SWING_REG_CNT;
-
+	num_regs = of_property_read_variable_u8_array(dev->of_node, "analogix,lane0-swing",
+						      pdata->lane0_reg_data, 1, DP_TX_SWING_REG_CNT);
+	if (num_regs > 0)
 		pdata->dp_lane0_swing_reg_cnt = num_regs;
-		of_property_read_u8_array(dev->of_node, "analogix,lane0-swing",
-					  pdata->lane0_reg_data, num_regs);
-	}
 
-	if (of_get_property(dev->of_node,
-			    "analogix,lane1-swing", &num_regs)) {
-		if (num_regs > DP_TX_SWING_REG_CNT)
-			num_regs = DP_TX_SWING_REG_CNT;
-
+	num_regs = of_property_read_variable_u8_array(dev->of_node, "analogix,lane1-swing",
+						      pdata->lane1_reg_data, 1, DP_TX_SWING_REG_CNT);
+	if (num_regs > 0)
 		pdata->dp_lane1_swing_reg_cnt = num_regs;
-		of_property_read_u8_array(dev->of_node, "analogix,lane1-swing",
-					  pdata->lane1_reg_data, num_regs);
-	}
 
 	return 0;
 }

@@ -92,7 +92,7 @@ void xe_heci_gsc_fini(struct xe_device *xe)
 {
 	struct xe_heci_gsc *heci_gsc = &xe->heci_gsc;
 
-	if (!HAS_HECI_GSCFI(xe))
+	if (!HAS_HECI_GSCFI(xe) && !HAS_HECI_CSCFI(xe))
 		return;
 
 	if (heci_gsc->adev) {
@@ -177,12 +177,14 @@ void xe_heci_gsc_init(struct xe_device *xe)
 	const struct heci_gsc_def *def;
 	int ret;
 
-	if (!HAS_HECI_GSCFI(xe))
+	if (!HAS_HECI_GSCFI(xe) && !HAS_HECI_CSCFI(xe))
 		return;
 
 	heci_gsc->irq = -1;
 
-	if (xe->info.platform == XE_PVC) {
+	if (xe->info.platform == XE_BATTLEMAGE) {
+		def = &heci_gsc_def_dg2;
+	} else if (xe->info.platform == XE_PVC) {
 		def = &heci_gsc_def_pvc;
 	} else if (xe->info.platform == XE_DG2) {
 		def = &heci_gsc_def_dg2;
@@ -222,6 +224,26 @@ void xe_heci_gsc_irq_handler(struct xe_device *xe, u32 iir)
 
 	if (!HAS_HECI_GSCFI(xe)) {
 		drm_warn_once(&xe->drm, "GSC irq: not supported");
+		return;
+	}
+
+	if (xe->heci_gsc.irq < 0)
+		return;
+
+	ret = generic_handle_irq(xe->heci_gsc.irq);
+	if (ret)
+		drm_err_ratelimited(&xe->drm, "error handling GSC irq: %d\n", ret);
+}
+
+void xe_heci_csc_irq_handler(struct xe_device *xe, u32 iir)
+{
+	int ret;
+
+	if ((iir & CSC_IRQ_INTF(1)) == 0)
+		return;
+
+	if (!HAS_HECI_CSCFI(xe)) {
+		drm_warn_once(&xe->drm, "CSC irq: not supported");
 		return;
 	}
 

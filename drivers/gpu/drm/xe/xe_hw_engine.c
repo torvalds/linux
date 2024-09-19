@@ -5,7 +5,10 @@
 
 #include "xe_hw_engine.h"
 
+#include <linux/nospec.h>
+
 #include <drm/drm_managed.h>
+#include <uapi/drm/xe_drm.h>
 
 #include "regs/xe_engine_regs.h"
 #include "regs/xe_gt_regs.h"
@@ -20,6 +23,7 @@
 #include "xe_gt_printk.h"
 #include "xe_gt_mcr.h"
 #include "xe_gt_topology.h"
+#include "xe_hw_engine_group.h"
 #include "xe_hw_fence.h"
 #include "xe_irq.h"
 #include "xe_lrc.h"
@@ -263,19 +267,28 @@ static const struct engine_info engine_infos[] = {
 	},
 };
 
-static void hw_engine_fini(struct drm_device *drm, void *arg)
+static void hw_engine_fini(void *arg)
 {
 	struct xe_hw_engine *hwe = arg;
 
 	if (hwe->exl_port)
 		xe_execlist_port_destroy(hwe->exl_port);
-	xe_lrc_put(hwe->kernel_lrc);
 
 	hwe->gt = NULL;
 }
 
-static void hw_engine_mmio_write32(struct xe_hw_engine *hwe, struct xe_reg reg,
-				   u32 val)
+/**
+ * xe_hw_engine_mmio_write32() - Write engine register
+ * @hwe: engine
+ * @reg: register to write into
+ * @val: desired 32-bit value to write
+ *
+ * This function will write val into an engine specific register.
+ * Forcewake must be held by the caller.
+ *
+ */
+void xe_hw_engine_mmio_write32(struct xe_hw_engine *hwe,
+			       struct xe_reg reg, u32 val)
 {
 	xe_gt_assert(hwe->gt, !(reg.addr & hwe->mmio_base));
 	xe_force_wake_assert_held(gt_to_fw(hwe->gt), hwe->domain);
@@ -285,7 +298,17 @@ static void hw_engine_mmio_write32(struct xe_hw_engine *hwe, struct xe_reg reg,
 	xe_mmio_write32(hwe->gt, reg, val);
 }
 
-static u32 hw_engine_mmio_read32(struct xe_hw_engine *hwe, struct xe_reg reg)
+/**
+ * xe_hw_engine_mmio_read32() - Read engine register
+ * @hwe: engine
+ * @reg: register to read from
+ *
+ * This function will read from an engine specific register.
+ * Forcewake must be held by the caller.
+ *
+ * Return: value of the 32-bit register.
+ */
+u32 xe_hw_engine_mmio_read32(struct xe_hw_engine *hwe, struct xe_reg reg)
 {
 	xe_gt_assert(hwe->gt, !(reg.addr & hwe->mmio_base));
 	xe_force_wake_assert_held(gt_to_fw(hwe->gt), hwe->domain);
@@ -304,14 +327,14 @@ void xe_hw_engine_enable_ring(struct xe_hw_engine *hwe)
 		xe_mmio_write32(hwe->gt, RCU_MODE,
 				_MASKED_BIT_ENABLE(RCU_MODE_CCS_ENABLE));
 
-	hw_engine_mmio_write32(hwe, RING_HWSTAM(0), ~0x0);
-	hw_engine_mmio_write32(hwe, RING_HWS_PGA(0),
-			       xe_bo_ggtt_addr(hwe->hwsp));
-	hw_engine_mmio_write32(hwe, RING_MODE(0),
-			       _MASKED_BIT_ENABLE(GFX_DISABLE_LEGACY_MODE));
-	hw_engine_mmio_write32(hwe, RING_MI_MODE(0),
-			       _MASKED_BIT_DISABLE(STOP_RING));
-	hw_engine_mmio_read32(hwe, RING_MI_MODE(0));
+	xe_hw_engine_mmio_write32(hwe, RING_HWSTAM(0), ~0x0);
+	xe_hw_engine_mmio_write32(hwe, RING_HWS_PGA(0),
+				  xe_bo_ggtt_addr(hwe->hwsp));
+	xe_hw_engine_mmio_write32(hwe, RING_MODE(0),
+				  _MASKED_BIT_ENABLE(GFX_DISABLE_LEGACY_MODE));
+	xe_hw_engine_mmio_write32(hwe, RING_MI_MODE(0),
+				  _MASKED_BIT_DISABLE(STOP_RING));
+	xe_hw_engine_mmio_read32(hwe, RING_MI_MODE(0));
 }
 
 static bool xe_hw_engine_match_fixed_cslice_mode(const struct xe_gt *gt,
@@ -425,6 +448,12 @@ hw_engine_setup_default_state(struct xe_hw_engine *hwe)
 					   0xA,
 					   XE_RTP_ACTION_FLAG(ENGINE_BASE)))
 		},
+		/* Enable Priority Mem Read */
+		{ XE_RTP_NAME("Priority_Mem_Read"),
+		  XE_RTP_RULES(GRAPHICS_VERSION_RANGE(2001, XE_RTP_END_VERSION_UNDEFINED)),
+		  XE_RTP_ACTIONS(SET(CSFE_CHICKEN1(0), CS_PRIORITY_MEM_READ,
+				     XE_RTP_ACTION_FLAG(ENGINE_BASE)))
+		},
 		{}
 	};
 
@@ -528,21 +557,13 @@ static int hw_engine_init(struct xe_gt *gt, struct xe_hw_engine *hwe,
 		goto err_name;
 	}
 
-	hwe->kernel_lrc = xe_lrc_create(hwe, NULL, SZ_16K);
-	if (IS_ERR(hwe->kernel_lrc)) {
-		err = PTR_ERR(hwe->kernel_lrc);
-		goto err_hwsp;
-	}
-
 	if (!xe_device_uc_enabled(xe)) {
 		hwe->exl_port = xe_execlist_port_create(xe, hwe);
 		if (IS_ERR(hwe->exl_port)) {
 			err = PTR_ERR(hwe->exl_port);
-			goto err_kernel_lrc;
+			goto err_hwsp;
 		}
-	}
-
-	if (xe_device_uc_enabled(xe)) {
+	} else {
 		/* GSCCS has a special interrupt for reset */
 		if (hwe->class == XE_ENGINE_CLASS_OTHER)
 			hwe->irq_handler = xe_gsc_hwe_irq_handler;
@@ -555,10 +576,8 @@ static int hw_engine_init(struct xe_gt *gt, struct xe_hw_engine *hwe,
 	if (xe->info.has_usm && hwe->class == XE_ENGINE_CLASS_COPY)
 		gt->usm.reserved_bcs_instance = hwe->instance;
 
-	return drmm_add_action_or_reset(&xe->drm, hw_engine_fini, hwe);
+	return devm_add_action_or_reset(xe->drm.dev, hw_engine_fini, hwe);
 
-err_kernel_lrc:
-	xe_lrc_put(hwe->kernel_lrc);
 err_hwsp:
 	xe_bo_unpin_map_no_vm(hwe->hwsp);
 err_name:
@@ -761,6 +780,9 @@ int xe_hw_engines_init(struct xe_gt *gt)
 	}
 
 	hw_engine_setup_logical_mapping(gt);
+	err = xe_hw_engine_setup_groups(gt);
+	if (err)
+		return err;
 
 	return 0;
 }
@@ -791,7 +813,7 @@ xe_hw_engine_snapshot_instdone_capture(struct xe_hw_engine *hwe,
 	unsigned int dss;
 	u16 group, instance;
 
-	snapshot->reg.instdone.ring = hw_engine_mmio_read32(hwe, RING_INSTDONE(0));
+	snapshot->reg.instdone.ring = xe_hw_engine_mmio_read32(hwe, RING_INSTDONE(0));
 
 	if (snapshot->hwe->class != XE_ENGINE_CLASS_RENDER)
 		return;
@@ -887,53 +909,53 @@ xe_hw_engine_snapshot_capture(struct xe_hw_engine *hwe)
 		return snapshot;
 
 	snapshot->reg.ring_execlist_status =
-		hw_engine_mmio_read32(hwe, RING_EXECLIST_STATUS_LO(0));
-	val = hw_engine_mmio_read32(hwe, RING_EXECLIST_STATUS_HI(0));
+		xe_hw_engine_mmio_read32(hwe, RING_EXECLIST_STATUS_LO(0));
+	val = xe_hw_engine_mmio_read32(hwe, RING_EXECLIST_STATUS_HI(0));
 	snapshot->reg.ring_execlist_status |= val << 32;
 
 	snapshot->reg.ring_execlist_sq_contents =
-		hw_engine_mmio_read32(hwe, RING_EXECLIST_SQ_CONTENTS_LO(0));
-	val = hw_engine_mmio_read32(hwe, RING_EXECLIST_SQ_CONTENTS_HI(0));
+		xe_hw_engine_mmio_read32(hwe, RING_EXECLIST_SQ_CONTENTS_LO(0));
+	val = xe_hw_engine_mmio_read32(hwe, RING_EXECLIST_SQ_CONTENTS_HI(0));
 	snapshot->reg.ring_execlist_sq_contents |= val << 32;
 
-	snapshot->reg.ring_acthd = hw_engine_mmio_read32(hwe, RING_ACTHD(0));
-	val = hw_engine_mmio_read32(hwe, RING_ACTHD_UDW(0));
+	snapshot->reg.ring_acthd = xe_hw_engine_mmio_read32(hwe, RING_ACTHD(0));
+	val = xe_hw_engine_mmio_read32(hwe, RING_ACTHD_UDW(0));
 	snapshot->reg.ring_acthd |= val << 32;
 
-	snapshot->reg.ring_bbaddr = hw_engine_mmio_read32(hwe, RING_BBADDR(0));
-	val = hw_engine_mmio_read32(hwe, RING_BBADDR_UDW(0));
+	snapshot->reg.ring_bbaddr = xe_hw_engine_mmio_read32(hwe, RING_BBADDR(0));
+	val = xe_hw_engine_mmio_read32(hwe, RING_BBADDR_UDW(0));
 	snapshot->reg.ring_bbaddr |= val << 32;
 
 	snapshot->reg.ring_dma_fadd =
-		hw_engine_mmio_read32(hwe, RING_DMA_FADD(0));
-	val = hw_engine_mmio_read32(hwe, RING_DMA_FADD_UDW(0));
+		xe_hw_engine_mmio_read32(hwe, RING_DMA_FADD(0));
+	val = xe_hw_engine_mmio_read32(hwe, RING_DMA_FADD_UDW(0));
 	snapshot->reg.ring_dma_fadd |= val << 32;
 
-	snapshot->reg.ring_hwstam = hw_engine_mmio_read32(hwe, RING_HWSTAM(0));
-	snapshot->reg.ring_hws_pga = hw_engine_mmio_read32(hwe, RING_HWS_PGA(0));
-	snapshot->reg.ring_start = hw_engine_mmio_read32(hwe, RING_START(0));
+	snapshot->reg.ring_hwstam = xe_hw_engine_mmio_read32(hwe, RING_HWSTAM(0));
+	snapshot->reg.ring_hws_pga = xe_hw_engine_mmio_read32(hwe, RING_HWS_PGA(0));
+	snapshot->reg.ring_start = xe_hw_engine_mmio_read32(hwe, RING_START(0));
 	if (GRAPHICS_VERx100(hwe->gt->tile->xe) >= 2000) {
-		val = hw_engine_mmio_read32(hwe, RING_START_UDW(0));
+		val = xe_hw_engine_mmio_read32(hwe, RING_START_UDW(0));
 		snapshot->reg.ring_start |= val << 32;
 	}
 	if (xe_gt_has_indirect_ring_state(hwe->gt)) {
 		snapshot->reg.indirect_ring_state =
-			hw_engine_mmio_read32(hwe, INDIRECT_RING_STATE(0));
+			xe_hw_engine_mmio_read32(hwe, INDIRECT_RING_STATE(0));
 	}
 
 	snapshot->reg.ring_head =
-		hw_engine_mmio_read32(hwe, RING_HEAD(0)) & HEAD_ADDR;
+		xe_hw_engine_mmio_read32(hwe, RING_HEAD(0)) & HEAD_ADDR;
 	snapshot->reg.ring_tail =
-		hw_engine_mmio_read32(hwe, RING_TAIL(0)) & TAIL_ADDR;
-	snapshot->reg.ring_ctl = hw_engine_mmio_read32(hwe, RING_CTL(0));
+		xe_hw_engine_mmio_read32(hwe, RING_TAIL(0)) & TAIL_ADDR;
+	snapshot->reg.ring_ctl = xe_hw_engine_mmio_read32(hwe, RING_CTL(0));
 	snapshot->reg.ring_mi_mode =
-		hw_engine_mmio_read32(hwe, RING_MI_MODE(0));
-	snapshot->reg.ring_mode = hw_engine_mmio_read32(hwe, RING_MODE(0));
-	snapshot->reg.ring_imr = hw_engine_mmio_read32(hwe, RING_IMR(0));
-	snapshot->reg.ring_esr = hw_engine_mmio_read32(hwe, RING_ESR(0));
-	snapshot->reg.ring_emr = hw_engine_mmio_read32(hwe, RING_EMR(0));
-	snapshot->reg.ring_eir = hw_engine_mmio_read32(hwe, RING_EIR(0));
-	snapshot->reg.ipehr = hw_engine_mmio_read32(hwe, RING_IPEHR(0));
+		xe_hw_engine_mmio_read32(hwe, RING_MI_MODE(0));
+	snapshot->reg.ring_mode = xe_hw_engine_mmio_read32(hwe, RING_MODE(0));
+	snapshot->reg.ring_imr = xe_hw_engine_mmio_read32(hwe, RING_IMR(0));
+	snapshot->reg.ring_esr = xe_hw_engine_mmio_read32(hwe, RING_ESR(0));
+	snapshot->reg.ring_emr = xe_hw_engine_mmio_read32(hwe, RING_EMR(0));
+	snapshot->reg.ring_eir = xe_hw_engine_mmio_read32(hwe, RING_EIR(0));
+	snapshot->reg.ipehr = xe_hw_engine_mmio_read32(hwe, RING_IPEHR(0));
 	xe_hw_engine_snapshot_instdone_capture(hwe, snapshot);
 
 	if (snapshot->hwe->class == XE_ENGINE_CLASS_COMPUTE)
@@ -1134,4 +1156,42 @@ u64 xe_hw_engine_read_timestamp(struct xe_hw_engine *hwe)
 enum xe_force_wake_domains xe_hw_engine_to_fw_domain(struct xe_hw_engine *hwe)
 {
 	return engine_infos[hwe->engine_id].domain;
+}
+
+static const enum xe_engine_class user_to_xe_engine_class[] = {
+	[DRM_XE_ENGINE_CLASS_RENDER] = XE_ENGINE_CLASS_RENDER,
+	[DRM_XE_ENGINE_CLASS_COPY] = XE_ENGINE_CLASS_COPY,
+	[DRM_XE_ENGINE_CLASS_VIDEO_DECODE] = XE_ENGINE_CLASS_VIDEO_DECODE,
+	[DRM_XE_ENGINE_CLASS_VIDEO_ENHANCE] = XE_ENGINE_CLASS_VIDEO_ENHANCE,
+	[DRM_XE_ENGINE_CLASS_COMPUTE] = XE_ENGINE_CLASS_COMPUTE,
+};
+
+/**
+ * xe_hw_engine_lookup() - Lookup hardware engine for class:instance
+ * @xe: xe device
+ * @eci: engine class and instance
+ *
+ * This function will find a hardware engine for given engine
+ * class and instance.
+ *
+ * Return: If found xe_hw_engine pointer, NULL otherwise.
+ */
+struct xe_hw_engine *
+xe_hw_engine_lookup(struct xe_device *xe,
+		    struct drm_xe_engine_class_instance eci)
+{
+	unsigned int idx;
+
+	if (eci.engine_class >= ARRAY_SIZE(user_to_xe_engine_class))
+		return NULL;
+
+	if (eci.gt_id >= xe->info.gt_count)
+		return NULL;
+
+	idx = array_index_nospec(eci.engine_class,
+				 ARRAY_SIZE(user_to_xe_engine_class));
+
+	return xe_gt_hw_engine(xe_device_get_gt(xe, eci.gt_id),
+			       user_to_xe_engine_class[idx],
+			       eci.engine_instance, true);
 }

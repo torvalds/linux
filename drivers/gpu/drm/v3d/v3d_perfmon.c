@@ -195,6 +195,23 @@ static const struct v3d_perf_counter_desc v3d_v71_performance_counters[] = {
 	{"QPU", "QPU-stalls-other", "[QPU] Stalled qcycles waiting for any other reason (vary/W/Z)"},
 };
 
+void v3d_perfmon_init(struct v3d_dev *v3d)
+{
+	const struct v3d_perf_counter_desc *counters = NULL;
+	unsigned int max = 0;
+
+	if (v3d->ver >= 71) {
+		counters = v3d_v71_performance_counters;
+		max = ARRAY_SIZE(v3d_v71_performance_counters);
+	} else if (v3d->ver >= 42) {
+		counters = v3d_v42_performance_counters;
+		max = ARRAY_SIZE(v3d_v42_performance_counters);
+	}
+
+	v3d->perfmon_info.max_counters = max;
+	v3d->perfmon_info.counters = counters;
+}
+
 void v3d_perfmon_get(struct v3d_perfmon *perfmon)
 {
 	if (perfmon)
@@ -321,7 +338,7 @@ int v3d_perfmon_create_ioctl(struct drm_device *dev, void *data,
 
 	/* Make sure all counters are valid. */
 	for (i = 0; i < req->ncounters; i++) {
-		if (req->counters[i] >= v3d->max_counters)
+		if (req->counters[i] >= v3d->perfmon_info.max_counters)
 			return -EINVAL;
 	}
 
@@ -416,25 +433,14 @@ int v3d_perfmon_get_counter_ioctl(struct drm_device *dev, void *data,
 			return -EINVAL;
 	}
 
+	if (!v3d->perfmon_info.max_counters)
+		return -EOPNOTSUPP;
+
 	/* Make sure that the counter ID is valid */
-	if (req->counter >= v3d->max_counters)
+	if (req->counter >= v3d->perfmon_info.max_counters)
 		return -EINVAL;
 
-	BUILD_BUG_ON(ARRAY_SIZE(v3d_v42_performance_counters) !=
-		     V3D_V42_NUM_PERFCOUNTERS);
-	BUILD_BUG_ON(ARRAY_SIZE(v3d_v71_performance_counters) !=
-		     V3D_V71_NUM_PERFCOUNTERS);
-	BUILD_BUG_ON(V3D_MAX_COUNTERS < V3D_V42_NUM_PERFCOUNTERS);
-	BUILD_BUG_ON(V3D_MAX_COUNTERS < V3D_V71_NUM_PERFCOUNTERS);
-	BUILD_BUG_ON((V3D_MAX_COUNTERS != V3D_V42_NUM_PERFCOUNTERS) &&
-		     (V3D_MAX_COUNTERS != V3D_V71_NUM_PERFCOUNTERS));
-
-	if (v3d->ver >= 71)
-		counter = &v3d_v71_performance_counters[req->counter];
-	else if (v3d->ver >= 42)
-		counter = &v3d_v42_performance_counters[req->counter];
-	else
-		return -EOPNOTSUPP;
+	counter = &v3d->perfmon_info.counters[req->counter];
 
 	strscpy(req->name, counter->name, sizeof(req->name));
 	strscpy(req->category, counter->category, sizeof(req->category));

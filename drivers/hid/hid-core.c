@@ -723,7 +723,7 @@ static void hid_device_release(struct device *dev)
  * items, though they are not used yet.
  */
 
-static u8 *fetch_item(__u8 *start, __u8 *end, struct hid_item *item)
+static const u8 *fetch_item(const __u8 *start, const __u8 *end, struct hid_item *item)
 {
 	u8 b;
 
@@ -880,8 +880,8 @@ static int hid_scan_report(struct hid_device *hid)
 {
 	struct hid_parser *parser;
 	struct hid_item item;
-	__u8 *start = hid->dev_rdesc;
-	__u8 *end = start + hid->dev_rsize;
+	const __u8 *start = hid->dev_rdesc;
+	const __u8 *end = start + hid->dev_rsize;
 	static int (*dispatch_type[])(struct hid_parser *parser,
 				      struct hid_item *item) = {
 		hid_scan_main,
@@ -946,7 +946,7 @@ static int hid_scan_report(struct hid_device *hid)
  * Allocate the device report as read by the bus driver. This function should
  * only be called from parse() in ll drivers.
  */
-int hid_parse_report(struct hid_device *hid, __u8 *start, unsigned size)
+int hid_parse_report(struct hid_device *hid, const __u8 *start, unsigned size)
 {
 	hid->dev_rdesc = kmemdup(start, size, GFP_KERNEL);
 	if (!hid->dev_rdesc)
@@ -1204,10 +1204,10 @@ int hid_open_report(struct hid_device *device)
 	struct hid_parser *parser;
 	struct hid_item item;
 	unsigned int size;
-	__u8 *start;
+	const __u8 *start;
 	__u8 *buf;
-	__u8 *end;
-	__u8 *next;
+	const __u8 *end;
+	const __u8 *next;
 	int ret;
 	int i;
 	static int (*dispatch_type[])(struct hid_parser *parser,
@@ -1911,6 +1911,31 @@ int hid_set_field(struct hid_field *field, unsigned offset, __s32 value)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(hid_set_field);
+
+struct hid_field *hid_find_field(struct hid_device *hdev, unsigned int report_type,
+				 unsigned int application, unsigned int usage)
+{
+	struct list_head *report_list = &hdev->report_enum[report_type].report_list;
+	struct hid_report *report;
+	int i, j;
+
+	list_for_each_entry(report, report_list, list) {
+		if (report->application != application)
+			continue;
+
+		for (i = 0; i < report->maxfield; i++) {
+			struct hid_field *field = report->field[i];
+
+			for (j = 0; j < field->maxusage; j++) {
+				if (field->usage[j].hid == usage)
+					return field;
+			}
+		}
+	}
+
+	return NULL;
+}
+EXPORT_SYMBOL_GPL(hid_find_field);
 
 static struct hid_report *hid_get_report(struct hid_report_enum *report_enum,
 		const u8 *data)

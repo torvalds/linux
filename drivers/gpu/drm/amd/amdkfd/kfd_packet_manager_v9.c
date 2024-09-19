@@ -37,11 +37,14 @@ static int pm_map_process_v9(struct packet_manager *pm,
 	struct kfd_node *kfd = pm->dqm->dev;
 	struct kfd_process_device *pdd =
 			container_of(qpd, struct kfd_process_device, qpd);
+	struct amdgpu_device *adev = kfd->adev;
 
 	packet = (struct pm4_mes_map_process *)buffer;
 	memset(buffer, 0, sizeof(struct pm4_mes_map_process));
 	packet->header.u32All = pm_build_pm4_header(IT_MAP_PROCESS,
 					sizeof(struct pm4_mes_map_process));
+	if (adev->enforce_isolation[kfd->node_id])
+		packet->bitfields2.exec_cleaner_shader = 1;
 	packet->bitfields2.diq_enable = (qpd->is_debug) ? 1 : 0;
 	packet->bitfields2.process_quantum = 10;
 	packet->bitfields2.pasid = qpd->pqm->process->pasid;
@@ -89,14 +92,18 @@ static int pm_map_process_aldebaran(struct packet_manager *pm,
 	struct pm4_mes_map_process_aldebaran *packet;
 	uint64_t vm_page_table_base_addr = qpd->page_table_base;
 	struct kfd_dev *kfd = pm->dqm->dev->kfd;
+	struct kfd_node *knode = pm->dqm->dev;
 	struct kfd_process_device *pdd =
 			container_of(qpd, struct kfd_process_device, qpd);
 	int i;
+	struct amdgpu_device *adev = kfd->adev;
 
 	packet = (struct pm4_mes_map_process_aldebaran *)buffer;
 	memset(buffer, 0, sizeof(struct pm4_mes_map_process_aldebaran));
 	packet->header.u32All = pm_build_pm4_header(IT_MAP_PROCESS,
 			sizeof(struct pm4_mes_map_process_aldebaran));
+	if (adev->enforce_isolation[knode->node_id])
+		packet->bitfields2.exec_cleaner_shader = 1;
 	packet->bitfields2.diq_enable = (qpd->is_debug) ? 1 : 0;
 	packet->bitfields2.process_quantum = 10;
 	packet->bitfields2.pasid = qpd->pqm->process->pasid;
@@ -144,17 +151,22 @@ static int pm_runlist_v9(struct packet_manager *pm, uint32_t *buffer,
 
 	int concurrent_proc_cnt = 0;
 	struct kfd_node *kfd = pm->dqm->dev;
+	struct amdgpu_device *adev = kfd->adev;
 
 	/* Determine the number of processes to map together to HW:
 	 * it can not exceed the number of VMIDs available to the
 	 * scheduler, and it is determined by the smaller of the number
 	 * of processes in the runlist and kfd module parameter
 	 * hws_max_conc_proc.
+	 * However, if enforce_isolation is set (toggle LDS/VGPRs/SGPRs
+	 * cleaner between process switch), enable single-process mode
+	 * in HWS.
 	 * Note: the arbitration between the number of VMIDs and
 	 * hws_max_conc_proc has been done in
 	 * kgd2kfd_device_init().
 	 */
-	concurrent_proc_cnt = min(pm->dqm->processes_count,
+	concurrent_proc_cnt = adev->enforce_isolation[kfd->node_id] ?
+			1 : min(pm->dqm->processes_count,
 			kfd->max_proc_per_quantum);
 
 	packet = (struct pm4_mes_runlist *)buffer;

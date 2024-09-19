@@ -529,6 +529,8 @@ cifs_sfu_type(struct cifs_fattr *fattr, const char *path,
 	struct cifs_fid fid;
 	struct cifs_open_parms oparms;
 	struct cifs_io_parms io_parms = {0};
+	char *symlink_buf_utf16;
+	unsigned int symlink_len_utf16;
 	char buf[24];
 	unsigned int bytes_read;
 	char *pbuf;
@@ -539,10 +541,11 @@ cifs_sfu_type(struct cifs_fattr *fattr, const char *path,
 	fattr->cf_mode &= ~S_IFMT;
 
 	if (fattr->cf_eof == 0) {
+		cifs_dbg(FYI, "Fifo\n");
 		fattr->cf_mode |= S_IFIFO;
 		fattr->cf_dtype = DT_FIFO;
 		return 0;
-	} else if (fattr->cf_eof < 8) {
+	} else if (fattr->cf_eof > 1 && fattr->cf_eof < 8) {
 		fattr->cf_mode |= S_IFREG;
 		fattr->cf_dtype = DT_REG;
 		return -EINVAL;	 /* EOPNOTSUPP? */
@@ -584,7 +587,7 @@ cifs_sfu_type(struct cifs_fattr *fattr, const char *path,
 	rc = tcon->ses->server->ops->sync_read(xid, &fid, &io_parms,
 					&bytes_read, &pbuf, &buf_type);
 	if ((rc == 0) && (bytes_read >= 8)) {
-		if (memcmp("IntxBLK", pbuf, 8) == 0) {
+		if (memcmp("IntxBLK\0", pbuf, 8) == 0) {
 			cifs_dbg(FYI, "Block device\n");
 			fattr->cf_mode |= S_IFBLK;
 			fattr->cf_dtype = DT_BLK;
@@ -596,7 +599,7 @@ cifs_sfu_type(struct cifs_fattr *fattr, const char *path,
 				mnr = le64_to_cpu(*(__le64 *)(pbuf+16));
 				fattr->cf_rdev = MKDEV(mjr, mnr);
 			}
-		} else if (memcmp("IntxCHR", pbuf, 8) == 0) {
+		} else if (memcmp("IntxCHR\0", pbuf, 8) == 0) {
 			cifs_dbg(FYI, "Char device\n");
 			fattr->cf_mode |= S_IFCHR;
 			fattr->cf_dtype = DT_CHR;
@@ -612,10 +615,37 @@ cifs_sfu_type(struct cifs_fattr *fattr, const char *path,
 			cifs_dbg(FYI, "Socket\n");
 			fattr->cf_mode |= S_IFSOCK;
 			fattr->cf_dtype = DT_SOCK;
-		} else if (memcmp("IntxLNK", pbuf, 7) == 0) {
+		} else if (memcmp("IntxLNK\1", pbuf, 8) == 0) {
 			cifs_dbg(FYI, "Symlink\n");
 			fattr->cf_mode |= S_IFLNK;
 			fattr->cf_dtype = DT_LNK;
+			if ((fattr->cf_eof > 8) && (fattr->cf_eof % 2 == 0)) {
+				symlink_buf_utf16 = kmalloc(fattr->cf_eof-8 + 1, GFP_KERNEL);
+				if (symlink_buf_utf16) {
+					io_parms.offset = 8;
+					io_parms.length = fattr->cf_eof-8 + 1;
+					buf_type = CIFS_NO_BUFFER;
+					rc = tcon->ses->server->ops->sync_read(xid, &fid, &io_parms,
+									       &symlink_len_utf16,
+									       &symlink_buf_utf16,
+									       &buf_type);
+					if ((rc == 0) &&
+					    (symlink_len_utf16 > 0) &&
+					    (symlink_len_utf16 < fattr->cf_eof-8 + 1) &&
+					    (symlink_len_utf16 % 2 == 0)) {
+						fattr->cf_symlink_target =
+							cifs_strndup_from_utf16(symlink_buf_utf16,
+										symlink_len_utf16,
+										true,
+										cifs_sb->local_nls);
+						if (!fattr->cf_symlink_target)
+							rc = -ENOMEM;
+					}
+					kfree(symlink_buf_utf16);
+				} else {
+					rc = -ENOMEM;
+				}
+			}
 		} else if (memcmp("LnxFIFO", pbuf, 8) == 0) {
 			cifs_dbg(FYI, "FIFO\n");
 			fattr->cf_mode |= S_IFIFO;
@@ -625,6 +655,10 @@ cifs_sfu_type(struct cifs_fattr *fattr, const char *path,
 			fattr->cf_dtype = DT_REG;
 			rc = -EOPNOTSUPP;
 		}
+	} else if ((rc == 0) && (bytes_read == 1) && (pbuf[0] == '\0')) {
+		cifs_dbg(FYI, "Socket\n");
+		fattr->cf_mode |= S_IFSOCK;
+		fattr->cf_dtype = DT_SOCK;
 	} else {
 		fattr->cf_mode |= S_IFREG; /* then it is a file */
 		fattr->cf_dtype = DT_REG;

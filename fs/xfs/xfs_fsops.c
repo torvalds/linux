@@ -485,7 +485,7 @@ xfs_do_force_shutdown(
 	const char	*why;
 
 
-	if (test_and_set_bit(XFS_OPSTATE_SHUTDOWN, &mp->m_opstate)) {
+	if (xfs_set_shutdown(mp)) {
 		xlog_shutdown_wait(mp->m_log);
 		return;
 	}

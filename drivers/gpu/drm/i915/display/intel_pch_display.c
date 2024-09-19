@@ -358,6 +358,7 @@ void ilk_pch_pre_enable(struct intel_atomic_state *state,
 void ilk_pch_enable(struct intel_atomic_state *state,
 		    struct intel_crtc *crtc)
 {
+	struct intel_display *display = to_intel_display(state);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	const struct intel_crtc_state *crtc_state =
 		intel_atomic_get_new_crtc_state(state, crtc);
@@ -399,7 +400,7 @@ void ilk_pch_enable(struct intel_atomic_state *state,
 	intel_enable_shared_dpll(crtc_state);
 
 	/* set transcoder timing, panel must allow it */
-	assert_pps_unlocked(dev_priv, pipe);
+	assert_pps_unlocked(display, pipe);
 	if (intel_crtc_has_dp_encoder(crtc_state)) {
 		intel_pch_transcoder_set_m1_n1(crtc, &crtc_state->dp_m_n);
 		intel_pch_transcoder_set_m2_n2(crtc, &crtc_state->dp_m2_n2);

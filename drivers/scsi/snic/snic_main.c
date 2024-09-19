@@ -300,9 +300,8 @@ snic_add_host(struct Scsi_Host *shost, struct pci_dev *pdev)
 	}
 
 	SNIC_BUG_ON(shost->work_q != NULL);
-	snprintf(shost->work_q_name, sizeof(shost->work_q_name), "scsi_wq_%d",
-		 shost->host_no);
-	shost->work_q = create_singlethread_workqueue(shost->work_q_name);
+	shost->work_q = alloc_ordered_workqueue("scsi_wq_%d", WQ_MEM_RECLAIM,
+						shost->host_no);
 	if (!shost->work_q) {
 		SNIC_HOST_ERR(shost, "Failed to Create ScsiHost wq.\n");
 
@@ -873,7 +872,7 @@ snic_global_data_init(void)
 	snic_glob->req_cache[SNIC_REQ_CACHE_MAX_SGL] = cachep;
 
 	len = sizeof(struct snic_host_req);
-	cachep = kmem_cache_create("snic_req_maxsgl", len, SNIC_SG_DESC_ALIGN,
+	cachep = kmem_cache_create("snic_req_tm", len, SNIC_SG_DESC_ALIGN,
 				   SLAB_HWCACHE_ALIGN, NULL);
 	if (!cachep) {
 		SNIC_ERR("Failed to create snic tm req slab\n");
@@ -884,7 +883,8 @@ snic_global_data_init(void)
 	snic_glob->req_cache[SNIC_REQ_TM_CACHE] = cachep;
 
 	/* snic_event queue */
-	snic_glob->event_q = create_singlethread_workqueue("snic_event_wq");
+	snic_glob->event_q =
+		alloc_ordered_workqueue("%s", WQ_MEM_RECLAIM, "snic_event_wq");
 	if (!snic_glob->event_q) {
 		SNIC_ERR("snic event queue create failed\n");
 		ret = -ENOMEM;
