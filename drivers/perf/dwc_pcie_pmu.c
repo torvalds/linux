@@ -82,7 +82,6 @@ struct dwc_pcie_pmu {
 	u16			ras_des_offset;
 	u32			nr_lanes;
 
-	struct list_head	pmu_node;
 	struct hlist_node	cpuhp_node;
 	struct perf_event	*event[DWC_PCIE_EVENT_TYPE_MAX];
 	int			on_cpu;
