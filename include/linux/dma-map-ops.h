@@ -13,20 +13,7 @@
 struct cma;
 struct iommu_ops;
 
-/*
- * Values for struct dma_map_ops.flags:
- *
- * DMA_F_PCI_P2PDMA_SUPPORTED: Indicates the dma_map_ops implementation can
- * handle PCI P2PDMA pages in the map_sg/unmap_sg operation.
- * DMA_F_CAN_SKIP_SYNC: DMA sync operations can be skipped if the device is
- * coherent and it's not an SWIOTLB buffer.
- */
-#define DMA_F_PCI_P2PDMA_SUPPORTED     (1 << 0)
-#define DMA_F_CAN_SKIP_SYNC            (1 << 1)
-
 struct dma_map_ops {
-	unsigned int flags;
-
 	void *(*alloc)(struct device *dev, size_t size,
 			dma_addr_t *dma_handle, gfp_t gfp,
 			unsigned long attrs);
@@ -88,7 +75,7 @@ struct dma_map_ops {
 	unsigned long (*get_merge_boundary)(struct device *dev);
 };
 
-#ifdef CONFIG_DMA_OPS
+#ifdef CONFIG_ARCH_HAS_DMA_OPS
 #include <asm/dma-mapping.h>
 
 static inline const struct dma_map_ops *get_dma_ops(struct device *dev)
@@ -103,7 +90,7 @@ static inline void set_dma_ops(struct device *dev,
 {
 	dev->dma_ops = dma_ops;
 }
-#else /* CONFIG_DMA_OPS */
+#else /* CONFIG_ARCH_HAS_DMA_OPS */
 static inline const struct dma_map_ops *get_dma_ops(struct device *dev)
 {
 	return NULL;
@@ -112,7 +99,7 @@ static inline void set_dma_ops(struct device *dev,
 			       const struct dma_map_ops *dma_ops)
 {
 }
-#endif /* CONFIG_DMA_OPS */
+#endif /* CONFIG_ARCH_HAS_DMA_OPS */
 
 #ifdef CONFIG_DMA_CMA
 extern struct cma *dma_contiguous_default_area;
