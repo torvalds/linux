@@ -67,6 +67,11 @@ static const struct of_device_id pci_pwrctl_pwrseq_of_match[] = {
 		.data = "wlan",
 	},
 	{
+		/* ATH11K in WCN6855 package. */
+		.compatible = "pci17cb,1103",
+		.data = "wlan",
+	},
+	{
 		/* ATH12K in WCN7850 package. */
 		.compatible = "pci17cb,1107",
 		.data = "wlan",
