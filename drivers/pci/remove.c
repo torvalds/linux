@@ -165,7 +165,7 @@ void pci_remove_root_bus(struct pci_bus *bus)
 #ifdef CONFIG_PCI_DOMAINS_GENERIC
 	/* Release domain_nr if it was dynamically allocated */
 	if (host_bridge->domain_nr == PCI_DOMAIN_NR_NOT_SET)
-		pci_bus_release_domain_nr(bus, host_bridge->dev.parent);
+		pci_bus_release_domain_nr(host_bridge->dev.parent, bus->domain_nr);
 #endif
 
 	pci_remove_bus(bus);
