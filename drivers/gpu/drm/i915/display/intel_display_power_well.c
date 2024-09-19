@@ -879,12 +879,11 @@ void bxt_enable_dc9(struct intel_display *display)
 
 	drm_dbg_kms(display->drm, "Enabling DC9\n");
 	/*
-	 * Power sequencer reset is not needed on
-	 * platforms with South Display Engine on PCH,
-	 * because PPS registers are always on.
+	 * Power sequencer reset is needed on BXT/GLK, because the PPS registers
+	 * aren't always on, unlike with South Display Engine on PCH.
 	 */
-	if (!HAS_PCH_SPLIT(dev_priv))
-		intel_pps_reset_all(display);
+	if (IS_BROXTON(dev_priv) || IS_GEMINILAKE(dev_priv))
+		bxt_pps_reset_all(display);
 	gen9_set_dc_state(display, DC_STATE_EN_DC9);
 }
 
@@ -1270,7 +1269,7 @@ static void vlv_display_power_well_deinit(struct drm_i915_private *dev_priv)
 	/* make sure we're done processing display irqs */
 	intel_synchronize_irq(dev_priv);
 
-	intel_pps_reset_all(display);
+	vlv_pps_reset_all(display);
 
 	/* Prevent us from re-enabling polling on accident in late suspend */
 	if (!dev_priv->drm.dev->power.is_suspended)

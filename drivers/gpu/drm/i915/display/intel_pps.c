@@ -70,7 +70,7 @@ intel_wakeref_t intel_pps_lock(struct intel_dp *intel_dp)
 	intel_wakeref_t wakeref;
 
 	/*
-	 * See intel_pps_reset_all() why we need a power domain reference here.
+	 * See vlv_pps_reset_all() why we need a power domain reference here.
 	 */
 	wakeref = intel_display_power_get(dev_priv, POWER_DOMAIN_DISPLAY_CORE);
 	mutex_lock(&display->pps.mutex);
@@ -448,13 +448,9 @@ pps_initial_setup(struct intel_dp *intel_dp)
 	return intel_pps_is_valid(intel_dp);
 }
 
-void intel_pps_reset_all(struct intel_display *display)
+void vlv_pps_reset_all(struct intel_display *display)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	struct intel_encoder *encoder;
-
-	if (drm_WARN_ON(display->drm, !IS_LP(dev_priv)))
-		return;
 
 	if (!HAS_DISPLAY(display))
 		return;
@@ -472,16 +468,26 @@ void intel_pps_reset_all(struct intel_display *display)
 	for_each_intel_dp(display->drm, encoder) {
 		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 
-		if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
-			drm_WARN_ON(display->drm,
-				    intel_dp->pps.vlv_active_pipe != INVALID_PIPE);
+		drm_WARN_ON(display->drm, intel_dp->pps.vlv_active_pipe != INVALID_PIPE);
 
-		if (encoder->type != INTEL_OUTPUT_EDP)
-			continue;
-
-		if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
+		if (encoder->type == INTEL_OUTPUT_EDP)
 			intel_dp->pps.vlv_pps_pipe = INVALID_PIPE;
-		else
+	}
+}
+
+void bxt_pps_reset_all(struct intel_display *display)
+{
+	struct intel_encoder *encoder;
+
+	if (!HAS_DISPLAY(display))
+		return;
+
+	/* See vlv_pps_reset_all() for why we can't grab pps_mutex here. */
+
+	for_each_intel_dp(display->drm, encoder) {
+		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
+
+		if (encoder->type == INTEL_OUTPUT_EDP)
 			intel_dp->pps.bxt_pps_reset = true;
 	}
 }
