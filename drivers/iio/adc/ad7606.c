@@ -32,12 +32,12 @@
  * Scales are computed as 5000/32768 and 10000/32768 respectively,
  * so that when applied to the raw values they provide mV values
  */
-static const unsigned int ad7606_scale_avail[2] = {
+static const unsigned int ad7606_16bit_hw_scale_avail[2] = {
 	152588, 305176
 };
 
 
-static const unsigned int ad7616_sw_scale_avail[3] = {
+static const unsigned int ad7606_16bit_sw_scale_avail[3] = {
 	76293, 152588, 305176
 };
 
@@ -61,6 +61,25 @@ int ad7606_reset(struct ad7606_state *st)
 	return -ENODEV;
 }
 EXPORT_SYMBOL_NS_GPL(ad7606_reset, IIO_AD7606);
+
+static int ad7606_16bit_chan_scale_setup(struct ad7606_state *st, int ch)
+{
+	if (!st->sw_mode_en) {
+		/* tied to logic low, analog input range is +/- 5V */
+		st->range[ch] = 0;
+		st->scale_avail = ad7606_16bit_hw_scale_avail;
+		st->num_scales = ARRAY_SIZE(ad7606_16bit_hw_scale_avail);
+		return 0;
+	}
+
+	/* Scale of 0.076293 is only available in sw mode */
+	/* After reset, in software mode, ±10 V is set by default */
+	st->range[ch] = 2;
+	st->scale_avail = ad7606_16bit_sw_scale_avail;
+	st->num_scales = ARRAY_SIZE(ad7606_16bit_sw_scale_avail);
+
+	return 0;
+}
 
 static int ad7606_reg_access(struct iio_dev *indio_dev,
 			     unsigned int reg,
@@ -358,34 +377,40 @@ static const struct ad7606_chip_info ad7606_chip_info_tbl[] = {
 	[ID_AD7605_4] = {
 		.channels = ad7605_channels,
 		.num_channels = 5,
+		.scale_setup_cb = ad7606_16bit_chan_scale_setup,
 	},
 	[ID_AD7606_8] = {
 		.channels = ad7606_channels_16bit,
 		.num_channels = 9,
+		.scale_setup_cb = ad7606_16bit_chan_scale_setup,
 		.oversampling_avail = ad7606_oversampling_avail,
 		.oversampling_num = ARRAY_SIZE(ad7606_oversampling_avail),
 	},
 	[ID_AD7606_6] = {
 		.channels = ad7606_channels_16bit,
 		.num_channels = 7,
+		.scale_setup_cb = ad7606_16bit_chan_scale_setup,
 		.oversampling_avail = ad7606_oversampling_avail,
 		.oversampling_num = ARRAY_SIZE(ad7606_oversampling_avail),
 	},
 	[ID_AD7606_4] = {
 		.channels = ad7606_channels_16bit,
 		.num_channels = 5,
+		.scale_setup_cb = ad7606_16bit_chan_scale_setup,
 		.oversampling_avail = ad7606_oversampling_avail,
 		.oversampling_num = ARRAY_SIZE(ad7606_oversampling_avail),
 	},
 	[ID_AD7606B] = {
 		.channels = ad7606_channels_16bit,
 		.num_channels = 9,
+		.scale_setup_cb = ad7606_16bit_chan_scale_setup,
 		.oversampling_avail = ad7606_oversampling_avail,
 		.oversampling_num = ARRAY_SIZE(ad7606_oversampling_avail),
 	},
 	[ID_AD7616] = {
 		.channels = ad7616_channels,
 		.num_channels = 17,
+		.scale_setup_cb = ad7606_16bit_chan_scale_setup,
 		.oversampling_avail = ad7616_oversampling_avail,
 		.oversampling_num = ARRAY_SIZE(ad7616_oversampling_avail),
 		.os_req_reset = true,
@@ -523,6 +548,35 @@ static const struct iio_trigger_ops ad7606_trigger_ops = {
 	.validate_device = iio_trigger_validate_own_device,
 };
 
+static int ad7606_sw_mode_setup(struct iio_dev *indio_dev)
+{
+	struct ad7606_state *st = iio_priv(indio_dev);
+
+	st->sw_mode_en = st->bops->sw_mode_config &&
+			 device_property_present(st->dev, "adi,sw-mode");
+	if (!st->sw_mode_en)
+		return 0;
+
+	indio_dev->info = &ad7606_info_os_range_and_debug;
+
+	return st->bops->sw_mode_config(indio_dev);
+}
+
+static int ad7606_chan_scales_setup(struct iio_dev *indio_dev)
+{
+	unsigned int num_channels = indio_dev->num_channels - 1;
+	struct ad7606_state *st = iio_priv(indio_dev);
+	int ch, ret;
+
+	for (ch = 0; ch < num_channels; ch++) {
+		ret = st->chip_info->scale_setup_cb(st, ch);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
 int ad7606_probe(struct device *dev, int irq, void __iomem *base_address,
 		 const char *name, unsigned int id,
 		 const struct ad7606_bus_ops *bops)
@@ -542,11 +596,7 @@ int ad7606_probe(struct device *dev, int irq, void __iomem *base_address,
 	mutex_init(&st->lock);
 	st->bops = bops;
 	st->base_address = base_address;
-	/* tied to logic low, analog input range is +/- 5V */
-	st->range[0] = 0;
 	st->oversampling = 1;
-	st->scale_avail = ad7606_scale_avail;
-	st->num_scales = ARRAY_SIZE(ad7606_scale_avail);
 
 	ret = devm_regulator_get_enable(dev, "avcc");
 	if (ret)
@@ -595,23 +645,13 @@ int ad7606_probe(struct device *dev, int irq, void __iomem *base_address,
 	st->write_scale = ad7606_write_scale_hw;
 	st->write_os = ad7606_write_os_hw;
 
-	if (st->bops->sw_mode_config)
-		st->sw_mode_en = device_property_present(st->dev,
-							 "adi,sw-mode");
+	ret = ad7606_sw_mode_setup(indio_dev);
+	if (ret)
+		return ret;
 
-	if (st->sw_mode_en) {
-		/* Scale of 0.076293 is only available in sw mode */
-		st->scale_avail = ad7616_sw_scale_avail;
-		st->num_scales = ARRAY_SIZE(ad7616_sw_scale_avail);
-
-		/* After reset, in software mode, ±10 V is set by default */
-		memset32(st->range, 2, ARRAY_SIZE(st->range));
-		indio_dev->info = &ad7606_info_os_range_and_debug;
-
-		ret = st->bops->sw_mode_config(indio_dev);
-		if (ret < 0)
-			return ret;
-	}
+	ret = ad7606_chan_scales_setup(indio_dev);
+	if (ret)
+		return ret;
 
 	st->trig = devm_iio_trigger_alloc(dev, "%s-dev%d",
 					  indio_dev->name,
