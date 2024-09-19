@@ -885,7 +885,7 @@ static int oxu_buf_alloc(struct oxu_hcd *oxu, struct ehci_qtd *qtd, int len)
 	int a_blocks;	/* blocks allocated */
 	int i, j;
 
-	/* Don't allocte bigger than supported */
+	/* Don't allocate bigger than supported */
 	if (len > BUFFER_SIZE * BUFFER_NUM) {
 		oxu_err(oxu, "buffer too big (%d)\n", len);
 		return -ENOMEM;

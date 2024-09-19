@@ -426,7 +426,7 @@ static void xhci_handle_stopped_cmd_ring(struct xhci_hcd *xhci,
 	}
 }
 
-/* Must be called with xhci->lock held, releases and aquires lock back */
+/* Must be called with xhci->lock held, releases and acquires lock back */
 static int xhci_abort_cmd_ring(struct xhci_hcd *xhci, unsigned long flags)
 {
 	struct xhci_segment *new_seg	= xhci->cmd_ring->deq_seg;
@@ -799,7 +799,7 @@ static void xhci_unmap_td_bounce_buffer(struct xhci_hcd *xhci,
 
 	dma_unmap_single(dev, seg->bounce_dma, ring->bounce_buf_len,
 			 DMA_FROM_DEVICE);
-	/* for in tranfers we need to copy the data from bounce to sg */
+	/* for in transfers we need to copy the data from bounce to sg */
 	if (urb->num_sgs) {
 		len = sg_pcopy_from_buffer(urb->sg, urb->num_sgs, seg->bounce_buf,
 					   seg->bounce_len, seg->bounce_offs);
@@ -2442,7 +2442,7 @@ static int process_isoc_td(struct xhci_hcd *xhci, struct xhci_virt_ep *ep,
 		sum_trbs_for_length = true;
 		break;
 	case COMP_STOPPED_SHORT_PACKET:
-		/* field normally containing residue now contains tranferred */
+		/* field normally containing residue now contains transferred */
 		frame->status = short_framestatus;
 		requested = remaining;
 		break;

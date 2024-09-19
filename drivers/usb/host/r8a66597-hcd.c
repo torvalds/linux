@@ -759,7 +759,7 @@ static void enable_r8a66597_pipe_dma(struct r8a66597 *r8a66597,
 	struct r8a66597_pipe_info *info = &pipe->info;
 	unsigned short mbw = mbw_value(r8a66597);
 
-	/* pipe dma is only for external controlles */
+	/* pipe dma is only for external controllers */
 	if (r8a66597->pdata->on_chip)
 		return;
 

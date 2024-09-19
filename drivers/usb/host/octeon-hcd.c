@@ -3346,7 +3346,7 @@ static int octeon_usb_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 			break;
 		case USB_PORT_FEAT_INDICATOR:
 			dev_dbg(dev, " INDICATOR\n");
-			/* Port inidicator not supported */
+			/* Port indicator not supported */
 			break;
 		case USB_PORT_FEAT_C_CONNECTION:
 			dev_dbg(dev, " C_CONNECTION\n");
