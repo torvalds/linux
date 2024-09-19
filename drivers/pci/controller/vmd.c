@@ -1042,9 +1042,9 @@ static void vmd_remove(struct pci_dev *dev)
 
 static void vmd_shutdown(struct pci_dev *dev)
 {
-        struct vmd_dev *vmd = pci_get_drvdata(dev);
+	struct vmd_dev *vmd = pci_get_drvdata(dev);
 
-        vmd_remove_irq_domain(vmd);
+	vmd_remove_irq_domain(vmd);
 }
 
 #ifdef CONFIG_PM_SLEEP
