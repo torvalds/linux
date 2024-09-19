@@ -211,7 +211,6 @@ struct mtk_pcie_port {
  * @base: IO mapped register base
  * @cfg: IO mapped register map for PCIe config
  * @free_ck: free-run reference clock
- * @mem: non-prefetchable memory resource
  * @ports: pointer to PCIe port information
  * @soc: pointer to SoC-dependent operations
  */
