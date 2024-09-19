@@ -63,6 +63,10 @@
 #define MAKE_REMOTE_USE			(VCHIQ_MSG_REMOTE_USE << TYPE_SHIFT)
 #define MAKE_REMOTE_USE_ACTIVE		(VCHIQ_MSG_REMOTE_USE_ACTIVE << TYPE_SHIFT)
 
+#define PAGELIST_WRITE			0
+#define PAGELIST_READ			1
+#define PAGELIST_READ_WITH_FRAGMENTS	2
+
 #define BELL2	0x08
 
 /* Ensure the fields are wide enough */

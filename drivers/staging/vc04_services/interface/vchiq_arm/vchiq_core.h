@@ -17,7 +17,6 @@
 
 #include "../../include/linux/raspberrypi/vchiq.h"
 #include "vchiq_cfg.h"
-#include "vchiq_pagelist.h"
 
 /* Do this so that we can test-build the code on non-rpi systems */
 #if IS_ENABLED(CONFIG_RASPBERRYPI_FIRMWARE)
@@ -409,6 +408,16 @@ struct vchiq_state {
 	struct vchiq_slot_info slot_info[VCHIQ_MAX_SLOTS];
 
 	struct opaque_platform_state *platform_state;
+};
+
+struct pagelist {
+	u32 length;
+	u16 type;
+	u16 offset;
+	u32 addrs[1];	/* N.B. 12 LSBs hold the number
+			 * of following pages at consecutive
+			 * addresses.
+			 */
 };
 
 struct vchiq_pagelist_info {
