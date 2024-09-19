@@ -23,9 +23,10 @@
 	.section .rodata
 
 	.balign 32
-.Lconstants:
+SYM_DATA_START_LOCAL(chacha20_constants)
 	.long	0x61707865,0x3320646e,0x79622d32,0x6b206574 # endian-neutral
 	.long	0x03020100,0x07060504,0x0b0a0908,0x0f0e0d0c # byte swap
+SYM_DATA_END(chacha20_constants)
 
 	.text
 /*
@@ -40,7 +41,7 @@
  */
 SYM_FUNC_START(__arch_chacha20_blocks_nostack)
 	CFI_STARTPROC
-	larl	%r1,.Lconstants
+	larl	%r1,chacha20_constants
 
 	/* COPY0 = "expand 32-byte k" */
 	VL	COPY0,0,,%r1
