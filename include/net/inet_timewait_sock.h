@@ -58,7 +58,7 @@ struct inet_timewait_sock {
 #define tw_dr			__tw_common.skc_tw_dr
 
 	__u32			tw_mark;
-	volatile unsigned char	tw_substate;
+	unsigned char		tw_substate;
 	unsigned char		tw_rcv_wscale;
 
 	/* Socket demultiplex comparisons on incoming packets. */

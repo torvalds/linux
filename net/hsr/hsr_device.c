@@ -427,6 +427,9 @@ static void hsr_proxy_announce(struct timer_list *t)
 	 * of SAN nodes stored in ProxyNodeTable.
 	 */
 	interlink = hsr_port_get_hsr(hsr, HSR_PT_INTERLINK);
+	if (!interlink)
+		goto done;
+
 	list_for_each_entry_rcu(node, &hsr->proxy_node_db, mac_list) {
 		if (hsr_addr_is_redbox(hsr, node->macaddress_A))
 			continue;
@@ -441,6 +444,7 @@ static void hsr_proxy_announce(struct timer_list *t)
 		mod_timer(&hsr->announce_proxy_timer, jiffies + interval);
 	}
 
+done:
 	rcu_read_unlock();
 }
 
@@ -554,6 +558,12 @@ void hsr_dev_setup(struct net_device *dev)
 	dev->netdev_ops = &hsr_device_ops;
 	SET_NETDEV_DEVTYPE(dev, &hsr_type);
 	dev->priv_flags |= IFF_NO_QUEUE | IFF_DISABLE_NETPOLL;
+	/* Prevent recursive tx locking */
+	dev->lltx = true;
+	/* Not sure about this. Taken from bridge code. netdevice.h says
+	 * it means "Does not change network namespaces".
+	 */
+	dev->netns_local = true;
 
 	dev->needs_free_netdev = true;
 
@@ -563,16 +573,10 @@ void hsr_dev_setup(struct net_device *dev)
 
 	dev->features = dev->hw_features;
 
-	/* Prevent recursive tx locking */
-	dev->features |= NETIF_F_LLTX;
 	/* VLAN on top of HSR needs testing and probably some work on
 	 * hsr_header_create() etc.
 	 */
 	dev->features |= NETIF_F_VLAN_CHALLENGED;
-	/* Not sure about this. Taken from bridge code. netdev_features.h says
-	 * it means "Does not change network namespaces".
-	 */
-	dev->features |= NETIF_F_NETNS_LOCAL;
 }
 
 /* Return true if dev is a HSR master; return false otherwise.
@@ -625,7 +629,6 @@ int hsr_dev_finalize(struct net_device *hsr_dev, struct net_device *slave[2],
 	/* Overflow soon to find bugs easier: */
 	hsr->sequence_nr = HSR_SEQNR_START;
 	hsr->sup_sequence_nr = HSR_SUP_SEQNR_START;
-	hsr->interlink_sequence_nr = HSR_SEQNR_START;
 
 	timer_setup(&hsr->announce_timer, hsr_announce, 0);
 	timer_setup(&hsr->prune_timer, hsr_prune_nodes, 0);

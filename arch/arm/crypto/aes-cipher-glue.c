@@ -9,9 +9,10 @@
 #include <crypto/aes.h>
 #include <crypto/algapi.h>
 #include <linux/module.h>
+#include "aes-cipher.h"
 
-asmlinkage void __aes_arm_encrypt(u32 *rk, int rounds, const u8 *in, u8 *out);
-asmlinkage void __aes_arm_decrypt(u32 *rk, int rounds, const u8 *in, u8 *out);
+EXPORT_SYMBOL_GPL(__aes_arm_encrypt);
+EXPORT_SYMBOL_GPL(__aes_arm_decrypt);
 
 static void aes_arm_encrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
 {

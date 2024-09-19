@@ -52,16 +52,17 @@ tcp_timewait_check_oow_rate_limit(struct inet_timewait_sock *tw,
 	return TCP_TW_SUCCESS;
 }
 
-static void twsk_rcv_nxt_update(struct tcp_timewait_sock *tcptw, u32 seq)
+static void twsk_rcv_nxt_update(struct tcp_timewait_sock *tcptw, u32 seq,
+				u32 rcv_nxt)
 {
 #ifdef CONFIG_TCP_AO
 	struct tcp_ao_info *ao;
 
 	ao = rcu_dereference(tcptw->ao_info);
-	if (unlikely(ao && seq < tcptw->tw_rcv_nxt))
+	if (unlikely(ao && seq < rcv_nxt))
 		WRITE_ONCE(ao->rcv_sne, ao->rcv_sne + 1);
 #endif
-	tcptw->tw_rcv_nxt = seq;
+	WRITE_ONCE(tcptw->tw_rcv_nxt, seq);
 }
 
 /*
@@ -98,8 +99,9 @@ enum tcp_tw_status
 tcp_timewait_state_process(struct inet_timewait_sock *tw, struct sk_buff *skb,
 			   const struct tcphdr *th, u32 *tw_isn)
 {
-	struct tcp_options_received tmp_opt;
 	struct tcp_timewait_sock *tcptw = tcp_twsk((struct sock *)tw);
+	u32 rcv_nxt = READ_ONCE(tcptw->tw_rcv_nxt);
+	struct tcp_options_received tmp_opt;
 	bool paws_reject = false;
 	int ts_recent_stamp;
 
@@ -117,26 +119,26 @@ tcp_timewait_state_process(struct inet_timewait_sock *tw, struct sk_buff *skb,
 		}
 	}
 
-	if (tw->tw_substate == TCP_FIN_WAIT2) {
+	if (READ_ONCE(tw->tw_substate) == TCP_FIN_WAIT2) {
 		/* Just repeat all the checks of tcp_rcv_state_process() */
 
 		/* Out of window, send ACK */
 		if (paws_reject ||
 		    !tcp_in_window(TCP_SKB_CB(skb)->seq, TCP_SKB_CB(skb)->end_seq,
-				   tcptw->tw_rcv_nxt,
-				   tcptw->tw_rcv_nxt + tcptw->tw_rcv_wnd))
+				   rcv_nxt,
+				   rcv_nxt + tcptw->tw_rcv_wnd))
 			return tcp_timewait_check_oow_rate_limit(
 				tw, skb, LINUX_MIB_TCPACKSKIPPEDFINWAIT2);
 
 		if (th->rst)
 			goto kill;
 
-		if (th->syn && !before(TCP_SKB_CB(skb)->seq, tcptw->tw_rcv_nxt))
+		if (th->syn && !before(TCP_SKB_CB(skb)->seq, rcv_nxt))
 			return TCP_TW_RST;
 
 		/* Dup ACK? */
 		if (!th->ack ||
-		    !after(TCP_SKB_CB(skb)->end_seq, tcptw->tw_rcv_nxt) ||
+		    !after(TCP_SKB_CB(skb)->end_seq, rcv_nxt) ||
 		    TCP_SKB_CB(skb)->end_seq == TCP_SKB_CB(skb)->seq) {
 			inet_twsk_put(tw);
 			return TCP_TW_SUCCESS;
@@ -146,12 +148,13 @@ tcp_timewait_state_process(struct inet_timewait_sock *tw, struct sk_buff *skb,
 		 * reset.
 		 */
 		if (!th->fin ||
-		    TCP_SKB_CB(skb)->end_seq != tcptw->tw_rcv_nxt + 1)
+		    TCP_SKB_CB(skb)->end_seq != rcv_nxt + 1)
 			return TCP_TW_RST;
 
 		/* FIN arrived, enter true time-wait state. */
-		tw->tw_substate	  = TCP_TIME_WAIT;
-		twsk_rcv_nxt_update(tcptw, TCP_SKB_CB(skb)->end_seq);
+		WRITE_ONCE(tw->tw_substate, TCP_TIME_WAIT);
+		twsk_rcv_nxt_update(tcptw, TCP_SKB_CB(skb)->end_seq,
+				    rcv_nxt);
 
 		if (tmp_opt.saw_tstamp) {
 			WRITE_ONCE(tcptw->tw_ts_recent_stamp,
@@ -182,7 +185,7 @@ tcp_timewait_state_process(struct inet_timewait_sock *tw, struct sk_buff *skb,
 	 */
 
 	if (!paws_reject &&
-	    (TCP_SKB_CB(skb)->seq == tcptw->tw_rcv_nxt &&
+	    (TCP_SKB_CB(skb)->seq == rcv_nxt &&
 	     (TCP_SKB_CB(skb)->seq == TCP_SKB_CB(skb)->end_seq || th->rst))) {
 		/* In window segment, it may be only reset or bare ack. */
 
@@ -229,7 +232,7 @@ kill:
 	 */
 
 	if (th->syn && !th->rst && !th->ack && !paws_reject &&
-	    (after(TCP_SKB_CB(skb)->seq, tcptw->tw_rcv_nxt) ||
+	    (after(TCP_SKB_CB(skb)->seq, rcv_nxt) ||
 	     (tmp_opt.saw_tstamp &&
 	      (s32)(READ_ONCE(tcptw->tw_ts_recent) - tmp_opt.rcv_tsval) < 0))) {
 		u32 isn = tcptw->tw_snd_nxt + 65535 + 2;
@@ -624,6 +627,8 @@ struct sock *tcp_create_openreq_child(const struct sock *sk,
 	tcp_bpf_clone(sk, newsk);
 
 	__TCP_INC_STATS(sock_net(sk), TCP_MIB_PASSIVEOPENS);
+
+	xa_init_flags(&newsk->sk_user_frags, XA_FLAGS_ALLOC1);
 
 	return newsk;
 }

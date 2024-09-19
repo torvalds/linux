@@ -214,6 +214,30 @@ static struct prm_handler_info *find_prm_handler(const guid_t *guid)
 #define UPDATE_LOCK_ALREADY_HELD 	4
 #define UPDATE_UNLOCK_WITHOUT_LOCK 	5
 
+int acpi_call_prm_handler(guid_t handler_guid, void *param_buffer)
+{
+	struct prm_handler_info *handler = find_prm_handler(&handler_guid);
+	struct prm_module_info *module = find_prm_module(&handler_guid);
+	struct prm_context_buffer context;
+	efi_status_t status;
+
+	if (!module || !handler)
+		return -ENODEV;
+
+	memset(&context, 0, sizeof(context));
+	ACPI_COPY_NAMESEG(context.signature, "PRMC");
+	context.identifier         = handler->guid;
+	context.static_data_buffer = handler->static_data_buffer_addr;
+	context.mmio_ranges        = module->mmio_info;
+
+	status = efi_call_acpi_prm_handler(handler->handler_addr,
+					   (u64)param_buffer,
+					   &context);
+
+	return efi_status_to_err(status);
+}
+EXPORT_SYMBOL_GPL(acpi_call_prm_handler);
+
 /*
  * This is the PlatformRtMechanism opregion space handler.
  * @function: indicates the read/write. In fact as the PlatformRtMechanism

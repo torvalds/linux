@@ -17,6 +17,7 @@ ipv6_flowlabel
 ipv6_flowlabel_mgr
 log.txt
 msg_zerocopy
+ncdevmem
 nettest
 psock_fanout
 psock_snd
@@ -34,6 +35,7 @@ scm_pidfd
 scm_rights
 sk_bind_sendto_listen
 sk_connect_zero_addr
+sk_so_peek_off
 socket
 so_incoming_cpu
 so_netns_cookie

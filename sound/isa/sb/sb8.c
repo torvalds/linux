@@ -123,11 +123,11 @@ static int snd_sb8_probe(struct device *pdev, unsigned int dev)
 			
 	if (chip->hardware >= SB_HW_16) {
 		if (chip->hardware == SB_HW_ALS100)
-			snd_printk(KERN_WARNING "ALS100 chip detected at 0x%lx, try snd-als100 module\n",
-				    port[dev]);
+			dev_warn(pdev, "ALS100 chip detected at 0x%lx, try snd-als100 module\n",
+				 port[dev]);
 		else
-			snd_printk(KERN_WARNING "SB 16 chip detected at 0x%lx, try snd-sb16 module\n",
-				   port[dev]);
+			dev_warn(pdev, "SB 16 chip detected at 0x%lx, try snd-sb16 module\n",
+				 port[dev]);
 		return -ENODEV;
 	}
 
@@ -143,12 +143,12 @@ static int snd_sb8_probe(struct device *pdev, unsigned int dev)
 		err = snd_opl3_create(card, chip->port + 8, 0,
 				      OPL3_HW_AUTO, 1, &opl3);
 		if (err < 0)
-			snd_printk(KERN_WARNING "sb8: no OPL device at 0x%lx\n", chip->port + 8);
+			dev_warn(pdev, "sb8: no OPL device at 0x%lx\n", chip->port + 8);
 	} else {
 		err = snd_opl3_create(card, chip->port, chip->port + 2,
 				      OPL3_HW_AUTO, 1, &opl3);
 		if (err < 0) {
-			snd_printk(KERN_WARNING "sb8: no OPL device at 0x%lx-0x%lx\n",
+			dev_warn(pdev, "sb8: no OPL device at 0x%lx-0x%lx\n",
 				   chip->port, chip->port + 2);
 		}
 	}

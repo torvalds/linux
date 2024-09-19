@@ -12,10 +12,9 @@
 #include <linux/mfd/intel_soc_pmic.h>
 #include <linux/mfd/intel_soc_pmic_mrfld.h>
 #include <linux/module.h>
+#include <linux/platform_data/x86/intel_scu_ipc.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
-
-#include <asm/intel_scu_ipc.h>
 
 /*
  * Level 2 IRQs

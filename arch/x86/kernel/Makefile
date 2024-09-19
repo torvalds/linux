@@ -35,6 +35,14 @@ KMSAN_SANITIZE_nmi.o					:= n
 # If instrumentation of the following files is enabled, boot hangs during
 # first second.
 KCOV_INSTRUMENT_head$(BITS).o				:= n
+# These are called from save_stack_trace() on debug paths,
+# and produce large amounts of uninteresting coverage.
+KCOV_INSTRUMENT_stacktrace.o				:= n
+KCOV_INSTRUMENT_dumpstack.o				:= n
+KCOV_INSTRUMENT_dumpstack_$(BITS).o			:= n
+KCOV_INSTRUMENT_unwind_orc.o				:= n
+KCOV_INSTRUMENT_unwind_frame.o				:= n
+KCOV_INSTRUMENT_unwind_guess.o				:= n
 
 CFLAGS_irq.o := -I $(src)/../include/asm/trace
 

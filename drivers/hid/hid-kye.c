@@ -466,7 +466,7 @@ static __u8 *kye_tablet_fixup(struct hid_device *hdev, __u8 *rdesc, unsigned int
 	return rdesc;
 }
 
-static __u8 *kye_report_fixup(struct hid_device *hdev, __u8 *rdesc,
+static const __u8 *kye_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 		unsigned int *rsize)
 {
 	switch (hdev->product) {

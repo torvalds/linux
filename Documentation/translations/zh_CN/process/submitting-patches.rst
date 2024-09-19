@@ -208,7 +208,7 @@ torvalds@linux-foundation.org 。他收到的邮件很多，所以一般来说�
 如果您有修复可利用安全漏洞的补丁，请将该补丁发送到 security@kernel.org 。对于
 严重的bug，可以考虑短期禁令以允许分销商（有时间）向用户发布补丁；在这种情况下，
 显然不应将补丁发送到任何公共列表。
-参见 Documentation/translations/zh_CN/admin-guide/security-bugs.rst 。
+参见 Documentation/translations/zh_CN/process/security-bugs.rst 。
 
 修复已发布内核中严重错误的补丁程序应该抄送给稳定版维护人员，方法是把以下列行
 放进补丁的签准区（注意，不是电子邮件收件人）::

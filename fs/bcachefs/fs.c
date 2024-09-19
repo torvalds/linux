@@ -177,6 +177,14 @@ static unsigned bch2_inode_hash(subvol_inum inum)
 	return jhash_3words(inum.subvol, inum.inum >> 32, inum.inum, JHASH_INITVAL);
 }
 
+struct bch_inode_info *__bch2_inode_hash_find(struct bch_fs *c, subvol_inum inum)
+{
+	return to_bch_ei(ilookup5_nowait(c->vfs_sb,
+					 bch2_inode_hash(inum),
+					 bch2_iget5_test,
+					 &inum));
+}
+
 static struct bch_inode_info *bch2_inode_insert(struct bch_fs *c, struct bch_inode_info *inode)
 {
 	subvol_inum inum = inode_inum(inode);
@@ -1644,14 +1652,16 @@ again:
 				break;
 			}
 		} else if (clean_pass && this_pass_clean) {
-			wait_queue_head_t *wq = bit_waitqueue(&inode->v.i_state, __I_NEW);
-			DEFINE_WAIT_BIT(wait, &inode->v.i_state, __I_NEW);
+			struct wait_bit_queue_entry wqe;
+			struct wait_queue_head *wq_head;
 
-			prepare_to_wait(wq, &wait.wq_entry, TASK_UNINTERRUPTIBLE);
+			wq_head = inode_bit_waitqueue(&wqe, &inode->v, __I_NEW);
+			prepare_to_wait_event(wq_head, &wqe.wq_entry,
+					      TASK_UNINTERRUPTIBLE);
 			mutex_unlock(&c->vfs_inodes_lock);
 
 			schedule();
-			finish_wait(wq, &wait.wq_entry);
+			finish_wait(wq_head, &wqe.wq_entry);
 			goto again;
 		}
 	}

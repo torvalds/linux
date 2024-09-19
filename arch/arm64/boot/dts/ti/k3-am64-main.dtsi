@@ -389,7 +389,8 @@
 		bootph-pre-ram;
 		compatible = "ti,j721e-esm";
 		reg = <0x00 0x420000 0x00 0x1000>;
-		ti,esm-pins = <160>, <161>;
+		/* Interrupt sources: rti0, rti1, rti8, rti9, rti10, rti11 */
+		ti,esm-pins = <160>, <161>, <162>, <163>, <164>, <165>;
 	};
 
 	main_uart0: serial@2800000 {
@@ -677,6 +678,7 @@
 		assigned-clock-parents = <&k3_clks 13 9>;
 		clock-names = "fck";
 		power-domains = <&k3_pds 13 TI_SCI_PD_EXCLUSIVE>;
+		status = "disabled";
 
 		dmas = <&main_pktdma 0xC500 15>,
 		       <&main_pktdma 0xC501 15>,
@@ -701,6 +703,7 @@
 				phys = <&phy_gmii_sel 1>;
 				mac-address = [00 00 00 00 00 00];
 				ti,syscon-efuse = <&main_conf 0x200>;
+				status = "disabled";
 			};
 
 			cpsw_port2: port@2 {
@@ -709,6 +712,7 @@
 				label = "port2";
 				phys = <&phy_gmii_sel 2>;
 				mac-address = [00 00 00 00 00 00];
+				status = "disabled";
 			};
 		};
 
@@ -759,7 +763,7 @@
 	};
 
 	usbss0: cdns-usb@f900000 {
-		compatible = "ti,am64-usb";
+		compatible = "ti,am64-usb", "ti,j721e-usb";
 		reg = <0x00 0xf900000 0x00 0x100>;
 		power-domains = <&k3_pds 161 TI_SCI_PD_EXCLUSIVE>;
 		clocks = <&k3_clks 161 9>, <&k3_clks 161 1>;

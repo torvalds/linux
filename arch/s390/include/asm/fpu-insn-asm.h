@@ -407,6 +407,28 @@
 	MRXBOPC	0, 0x0E, v1
 .endm
 
+/* VECTOR STORE BYTE REVERSED ELEMENTS */
+	.macro	VSTBR	vr1, disp, index="%r0", base, m
+	VX_NUM	v1, \vr1
+	GR_NUM	x2, \index
+	GR_NUM	b2, \base
+	.word	0xE600 | ((v1&15) << 4) | (x2&15)
+	.word	(b2 << 12) | (\disp)
+	MRXBOPC	\m, 0x0E, v1
+.endm
+.macro	VSTBRH	vr1, disp, index="%r0", base
+	VSTBR	\vr1, \disp, \index, \base, 1
+.endm
+.macro	VSTBRF	vr1, disp, index="%r0", base
+	VSTBR	\vr1, \disp, \index, \base, 2
+.endm
+.macro	VSTBRG	vr1, disp, index="%r0", base
+	VSTBR	\vr1, \disp, \index, \base, 3
+.endm
+.macro	VSTBRQ	vr1, disp, index="%r0", base
+	VSTBR	\vr1, \disp, \index, \base, 4
+.endm
+
 /* VECTOR STORE MULTIPLE */
 .macro	VSTM	vfrom, vto, disp, base, hint=3
 	VX_NUM	v1, \vfrom

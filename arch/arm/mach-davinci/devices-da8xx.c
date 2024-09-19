@@ -21,7 +21,6 @@
 #include "common.h"
 #include "cputype.h"
 #include "da8xx.h"
-#include "cpuidle.h"
 #include "irqs.h"
 #include "sram.h"
 

@@ -854,7 +854,7 @@ static struct platform_driver softing_driver = {
 		.name = KBUILD_MODNAME,
 	},
 	.probe = softing_pdev_probe,
-	.remove_new = softing_pdev_remove,
+	.remove = softing_pdev_remove,
 };
 
 module_platform_driver(softing_driver);

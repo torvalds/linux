@@ -20,63 +20,6 @@
 
 #include "mpi-internal.h"
 
-/* Constants allocated right away at startup.  */
-static MPI constants[MPI_NUMBER_OF_CONSTANTS];
-
-/* Initialize the MPI subsystem.  This is called early and allows to
- * do some initialization without taking care of threading issues.
- */
-static int __init mpi_init(void)
-{
-	int idx;
-	unsigned long value;
-
-	for (idx = 0; idx < MPI_NUMBER_OF_CONSTANTS; idx++) {
-		switch (idx) {
-		case MPI_C_ZERO:
-			value = 0;
-			break;
-		case MPI_C_ONE:
-			value = 1;
-			break;
-		case MPI_C_TWO:
-			value = 2;
-			break;
-		case MPI_C_THREE:
-			value = 3;
-			break;
-		case MPI_C_FOUR:
-			value = 4;
-			break;
-		case MPI_C_EIGHT:
-			value = 8;
-			break;
-		default:
-			pr_err("MPI: invalid mpi_const selector %d\n", idx);
-			return -EFAULT;
-		}
-		constants[idx] = mpi_alloc_set_ui(value);
-		constants[idx]->flags = (16|32);
-	}
-
-	return 0;
-}
-postcore_initcall(mpi_init);
-
-/* Return a constant MPI descripbed by NO which is one of the
- * MPI_C_xxx macros.  There is no need to copy this returned value; it
- * may be used directly.
- */
-MPI mpi_const(enum gcry_mpi_constants no)
-{
-	if ((int)no < 0 || no > MPI_NUMBER_OF_CONSTANTS)
-		pr_err("MPI: invalid mpi_const selector %d\n", no);
-	if (!constants[no])
-		pr_err("MPI: MPI subsystem not initialized\n");
-	return constants[no];
-}
-EXPORT_SYMBOL_GPL(mpi_const);
-
 /****************
  * Note:  It was a bad idea to use the number of limbs to allocate
  *	  because on a alpha the limbs are large but we normally need
@@ -163,15 +106,6 @@ int mpi_resize(MPI a, unsigned nlimbs)
 	return 0;
 }
 
-void mpi_clear(MPI a)
-{
-	if (!a)
-		return;
-	a->nlimbs = 0;
-	a->flags = 0;
-}
-EXPORT_SYMBOL_GPL(mpi_clear);
-
 void mpi_free(MPI a)
 {
 	if (!a)
@@ -199,6 +133,8 @@ MPI mpi_copy(MPI a)
 
 	if (a) {
 		b = mpi_alloc(a->nlimbs);
+		if (!b)
+			return NULL;
 		b->nlimbs = a->nlimbs;
 		b->sign = a->sign;
 		b->flags = a->flags;
@@ -208,122 +144,6 @@ MPI mpi_copy(MPI a)
 	} else
 		b = NULL;
 	return b;
-}
-
-/****************
- * This function allocates an MPI which is optimized to hold
- * a value as large as the one given in the argument and allocates it
- * with the same flags as A.
- */
-MPI mpi_alloc_like(MPI a)
-{
-	MPI b;
-
-	if (a) {
-		b = mpi_alloc(a->nlimbs);
-		b->nlimbs = 0;
-		b->sign = 0;
-		b->flags = a->flags;
-	} else
-		b = NULL;
-
-	return b;
-}
-
-
-/* Set U into W and release U.  If W is NULL only U will be released. */
-void mpi_snatch(MPI w, MPI u)
-{
-	if (w) {
-		mpi_assign_limb_space(w, u->d, u->alloced);
-		w->nlimbs = u->nlimbs;
-		w->sign   = u->sign;
-		w->flags  = u->flags;
-		u->alloced = 0;
-		u->nlimbs = 0;
-		u->d = NULL;
-	}
-	mpi_free(u);
-}
-
-
-MPI mpi_set(MPI w, MPI u)
-{
-	mpi_ptr_t wp, up;
-	mpi_size_t usize = u->nlimbs;
-	int usign = u->sign;
-
-	if (!w)
-		w = mpi_alloc(mpi_get_nlimbs(u));
-	RESIZE_IF_NEEDED(w, usize);
-	wp = w->d;
-	up = u->d;
-	MPN_COPY(wp, up, usize);
-	w->nlimbs = usize;
-	w->flags = u->flags;
-	w->flags &= ~(16|32); /* Reset the immutable and constant flags.  */
-	w->sign = usign;
-	return w;
-}
-EXPORT_SYMBOL_GPL(mpi_set);
-
-MPI mpi_set_ui(MPI w, unsigned long u)
-{
-	if (!w)
-		w = mpi_alloc(1);
-	/* FIXME: If U is 0 we have no need to resize and thus possible
-	 * allocating the limbs.
-	 */
-	RESIZE_IF_NEEDED(w, 1);
-	w->d[0] = u;
-	w->nlimbs = u ? 1 : 0;
-	w->sign = 0;
-	w->flags = 0;
-	return w;
-}
-EXPORT_SYMBOL_GPL(mpi_set_ui);
-
-MPI mpi_alloc_set_ui(unsigned long u)
-{
-	MPI w = mpi_alloc(1);
-	w->d[0] = u;
-	w->nlimbs = u ? 1 : 0;
-	w->sign = 0;
-	return w;
-}
-
-/****************
- * Swap the value of A and B, when SWAP is 1.
- * Leave the value when SWAP is 0.
- * This implementation should be constant-time regardless of SWAP.
- */
-void mpi_swap_cond(MPI a, MPI b, unsigned long swap)
-{
-	mpi_size_t i;
-	mpi_size_t nlimbs;
-	mpi_limb_t mask = ((mpi_limb_t)0) - swap;
-	mpi_limb_t x;
-
-	if (a->alloced > b->alloced)
-		nlimbs = b->alloced;
-	else
-		nlimbs = a->alloced;
-	if (a->nlimbs > nlimbs || b->nlimbs > nlimbs)
-		return;
-
-	for (i = 0; i < nlimbs; i++) {
-		x = mask & (a->d[i] ^ b->d[i]);
-		a->d[i] = a->d[i] ^ x;
-		b->d[i] = b->d[i] ^ x;
-	}
-
-	x = mask & (a->nlimbs ^ b->nlimbs);
-	a->nlimbs = a->nlimbs ^ x;
-	b->nlimbs = b->nlimbs ^ x;
-
-	x = mask & (a->sign ^ b->sign);
-	a->sign = a->sign ^ x;
-	b->sign = b->sign ^ x;
 }
 
 MODULE_DESCRIPTION("Multiprecision maths library");

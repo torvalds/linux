@@ -3543,7 +3543,7 @@ scanhex(unsigned long *vp)
 		}
 	} else if (c == '$') {
 		int i;
-		for (i=0; i<63; i++) {
+		for (i = 0; i < (KSYM_NAME_LEN - 1); i++) {
 			c = inchar();
 			if (isspace(c) || c == '\0') {
 				termch = c;

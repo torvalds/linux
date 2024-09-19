@@ -24,11 +24,11 @@
 #include <linux/tty.h>
 #include <linux/personality.h>
 #include <linux/binfmts.h>
+#include <asm/vdso-symbols.h>
 #include <asm/access-regs.h>
 #include <asm/ucontext.h>
 #include <linux/uaccess.h>
 #include <asm/lowcore.h>
-#include <asm/vdso.h>
 #include <asm/fpu.h>
 #include "compat_linux.h"
 #include "compat_ptrace.h"

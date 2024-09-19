@@ -410,6 +410,18 @@ EXPORT_SYMBOL_GPL(walk_system_ram_range);
 #ifdef CONFIG_EXECMEM
 static struct execmem_info execmem_info __ro_after_init;
 
+#if defined(CONFIG_PPC_8xx) || defined(CONFIG_PPC_BOOK3S_603)
+static void prealloc_execmem_pgtable(void)
+{
+	unsigned long va;
+
+	for (va = ALIGN_DOWN(MODULES_VADDR, PGDIR_SIZE); va < MODULES_END; va += PGDIR_SIZE)
+		pte_alloc_kernel(pmd_off_k(va), va);
+}
+#else
+static void prealloc_execmem_pgtable(void) { }
+#endif
+
 struct execmem_info __init *execmem_arch_setup(void)
 {
 	pgprot_t kprobes_prot = strict_module_rwx_enabled() ? PAGE_KERNEL_ROX : PAGE_KERNEL_EXEC;
@@ -440,6 +452,8 @@ struct execmem_info __init *execmem_arch_setup(void)
 	start = VMALLOC_START;
 	end = VMALLOC_END;
 #endif
+
+	prealloc_execmem_pgtable();
 
 	execmem_info = (struct execmem_info){
 		.ranges = {

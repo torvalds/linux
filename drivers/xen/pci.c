@@ -44,15 +44,11 @@ static int xen_add_device(struct device *dev)
 	}
 #endif
 	if (pci_seg_supported) {
-		struct {
-			struct physdev_pci_device_add add;
-			uint32_t pxm;
-		} add_ext = {
-			.add.seg = pci_domain_nr(pci_dev->bus),
-			.add.bus = pci_dev->bus->number,
-			.add.devfn = pci_dev->devfn
-		};
-		struct physdev_pci_device_add *add = &add_ext.add;
+		DEFINE_RAW_FLEX(struct physdev_pci_device_add, add, optarr, 1);
+
+		add->seg = pci_domain_nr(pci_dev->bus);
+		add->bus = pci_dev->bus->number;
+		add->devfn = pci_dev->devfn;
 
 #ifdef CONFIG_ACPI
 		acpi_handle handle;

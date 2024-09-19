@@ -9,7 +9,6 @@
 
 #include <drm/drm_managed.h>
 #include <drm/xe_drm.h>
-#include <generated/xe_wa_oob.h>
 
 #include <generated/xe_wa_oob.h>
 
@@ -47,7 +46,6 @@
 #include "xe_migrate.h"
 #include "xe_mmio.h"
 #include "xe_pat.h"
-#include "xe_pcode.h"
 #include "xe_pm.h"
 #include "xe_mocs.h"
 #include "xe_reg_sr.h"
@@ -387,7 +385,6 @@ int xe_gt_init_early(struct xe_gt *gt)
 	xe_tuning_process_gt(gt);
 
 	xe_force_wake_init_gt(gt, gt_to_fw(gt));
-	xe_pcode_init(gt);
 	spin_lock_init(&gt->global_invl_lock);
 
 	return 0;
@@ -755,12 +752,13 @@ static int gt_reset(struct xe_gt *gt)
 
 	xe_gt_info(gt, "reset started\n");
 
+	xe_pm_runtime_get(gt_to_xe(gt));
+
 	if (xe_fault_inject_gt_reset()) {
 		err = -ECANCELED;
 		goto err_fail;
 	}
 
-	xe_pm_runtime_get(gt_to_xe(gt));
 	xe_gt_sanitize(gt);
 
 	err = xe_force_wake_get(gt_to_fw(gt), XE_FORCEWAKE_ALL);
@@ -795,11 +793,11 @@ err_out:
 	XE_WARN_ON(xe_force_wake_put(gt_to_fw(gt), XE_FORCEWAKE_ALL));
 err_msg:
 	XE_WARN_ON(xe_uc_start(&gt->uc));
-	xe_pm_runtime_put(gt_to_xe(gt));
 err_fail:
 	xe_gt_err(gt, "reset failed (%pe)\n", ERR_PTR(err));
 
 	xe_device_declare_wedged(gt_to_xe(gt));
+	xe_pm_runtime_put(gt_to_xe(gt));
 
 	return err;
 }

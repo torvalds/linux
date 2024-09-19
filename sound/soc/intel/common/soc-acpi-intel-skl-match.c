@@ -8,9 +8,6 @@
 
 #include <sound/soc-acpi.h>
 #include <sound/soc-acpi-intel-match.h>
-#include "../skylake/skl.h"
-
-static struct skl_machine_pdata skl_dmic_data;
 
 static const struct snd_soc_acpi_codecs skl_codecs = {
 	.num_codecs = 1,
@@ -29,7 +26,6 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_skl_machines[] = {
 		.fw_filename = "intel/dsp_fw_release.bin",
 		.machine_quirk = snd_soc_acpi_codec_list,
 		.quirk_data = &skl_codecs,
-		.pdata = &skl_dmic_data,
 	},
 	{
 		.id = "MX98357A",
@@ -37,7 +33,6 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_skl_machines[] = {
 		.fw_filename = "intel/dsp_fw_release.bin",
 		.machine_quirk = snd_soc_acpi_codec_list,
 		.quirk_data = &skl_codecs,
-		.pdata = &skl_dmic_data,
 	},
 	{},
 };

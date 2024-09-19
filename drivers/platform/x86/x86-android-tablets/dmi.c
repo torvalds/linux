@@ -99,17 +99,17 @@ const struct dmi_system_id x86_android_tablet_ids[] __initconst = {
 	{
 		/* Lenovo Yoga Book X91F / X91L */
 		.matches = {
-			/* Non exact match to match F + L versions */
+			/* Inexact match to match F + L versions */
 			DMI_MATCH(DMI_PRODUCT_NAME, "Lenovo YB1-X91"),
 		},
 		.driver_data = (void *)&lenovo_yogabook_x91_info,
 	},
 	{
 		/*
-		 * Lenovo Yoga Tablet 2 Pro 1380F/L (13") This has more or less
-		 * the same BIOS as the 830F/L or 1050F/L (8" and 10") below,
-		 * but unlike the 8" / 10" models which share the same mainboard
-		 * this model has a different mainboard.
+		 * Lenovo Yoga Tablet 2 Pro 1380F/L (13")
+		 * This has more or less the same BIOS as the 830F/L or 1050F/L
+		 * (8" and 10") below, but unlike the 8"/10" models which share
+		 * the same mainboard this model has a different mainboard.
 		 * This match for the 13" model MUST come before the 8" + 10"
 		 * match since that one will also match the 13" model!
 		 */
@@ -124,8 +124,8 @@ const struct dmi_system_id x86_android_tablet_ids[] __initconst = {
 	},
 	{
 		/*
-		 * Lenovo Yoga Tablet 2 830F/L or 1050F/L (The 8" and 10"
-		 * Lenovo Yoga Tablet 2 use the same mainboard)
+		 * Lenovo Yoga Tablet 2 830F/L or 1050F/L
+		 * The 8" and 10" Lenovo Yoga Tablet 2 use the same mainboard.
 		 */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Intel Corp."),
@@ -163,7 +163,7 @@ const struct dmi_system_id x86_android_tablet_ids[] __initconst = {
 		.driver_data = (void *)&nextbook_ares8_info,
 	},
 	{
-		/* Nextbook Ares 8A (CHT version)*/
+		/* Nextbook Ares 8A (CHT version) */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Insyde"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "CherryTrail"),

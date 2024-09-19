@@ -24,6 +24,7 @@
 #include <linux/crc32.h>
 #include <linux/if_vlan.h>
 #include <linux/of_net.h>
+#include <linux/phy_fixed.h>
 #include <net/ip.h>
 #include <net/ncsi.h>
 
@@ -49,6 +50,15 @@
 
 #define FTGMAC_100MHZ		100000000
 #define FTGMAC_25MHZ		25000000
+
+/* For NC-SI to register a fixed-link phy device */
+static struct fixed_phy_status ncsi_phy_status = {
+	.link = 1,
+	.speed = SPEED_100,
+	.duplex = DUPLEX_FULL,
+	.pause = 0,
+	.asym_pause = 0
+};
 
 struct ftgmac100 {
 	/* Registers */
@@ -1541,7 +1551,8 @@ static int ftgmac100_open(struct net_device *netdev)
 	if (netdev->phydev) {
 		/* If we have a PHY, start polling */
 		phy_start(netdev->phydev);
-	} else if (priv->use_ncsi) {
+	}
+	if (priv->use_ncsi) {
 		/* If using NC-SI, set our carrier on and start the stack */
 		netif_carrier_on(netdev);
 
@@ -1554,6 +1565,7 @@ static int ftgmac100_open(struct net_device *netdev)
 	return 0;
 
 err_ncsi:
+	phy_stop(netdev->phydev);
 	napi_disable(&priv->napi);
 	netif_stop_queue(netdev);
 err_alloc:
@@ -1587,7 +1599,7 @@ static int ftgmac100_stop(struct net_device *netdev)
 	netif_napi_del(&priv->napi);
 	if (netdev->phydev)
 		phy_stop(netdev->phydev);
-	else if (priv->use_ncsi)
+	if (priv->use_ncsi)
 		ncsi_stop_dev(priv->ndev);
 
 	ftgmac100_stop_hw(priv);
@@ -1725,6 +1737,9 @@ static void ftgmac100_phy_disconnect(struct net_device *netdev)
 	phy_disconnect(netdev->phydev);
 	if (of_phy_is_fixed_link(priv->dev->of_node))
 		of_phy_deregister_fixed_link(priv->dev->of_node);
+
+	if (priv->use_ncsi)
+		fixed_phy_unregister(netdev->phydev);
 }
 
 static void ftgmac100_destroy_mdio(struct net_device *netdev)
@@ -1802,6 +1817,7 @@ static int ftgmac100_probe(struct platform_device *pdev)
 	struct resource *res;
 	int irq;
 	struct net_device *netdev;
+	struct phy_device *phydev;
 	struct ftgmac100 *priv;
 	struct device_node *np;
 	int err = 0;
@@ -1887,6 +1903,14 @@ static int ftgmac100_probe(struct platform_device *pdev)
 		priv->ndev = ncsi_register_dev(netdev, ftgmac100_ncsi_handler);
 		if (!priv->ndev) {
 			err = -EINVAL;
+			goto err_phy_connect;
+		}
+
+		phydev = fixed_phy_register(PHY_POLL, &ncsi_phy_status, NULL);
+		err = phy_connect_direct(netdev, phydev, ftgmac100_adjust_link,
+					 PHY_INTERFACE_MODE_MII);
+		if (err) {
+			dev_err(&pdev->dev, "Connecting PHY failed\n");
 			goto err_phy_connect;
 		}
 	} else if (np && of_phy_is_fixed_link(np)) {

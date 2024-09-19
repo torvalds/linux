@@ -1370,7 +1370,7 @@ static bool ahci_broken_suspend(struct pci_dev *pdev)
 		 * V1.03 is known to be broken.  V3.04 is known to
 		 * work.  Between, there are V1.06, V2.06 and V3.03
 		 * that we don't have much idea about.  For now,
-		 * blacklist anything older than V3.04.
+		 * assume that anything older than V3.04 is broken.
 		 *
 		 * http://bugzilla.kernel.org/show_bug.cgi?id=15104
 		 */

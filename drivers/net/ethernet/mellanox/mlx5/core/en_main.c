@@ -1016,30 +1016,31 @@ err_rq_xdp_prog:
 
 static void mlx5e_free_rq(struct mlx5e_rq *rq)
 {
-	struct bpf_prog *old_prog;
-
-	if (xdp_rxq_info_is_reg(&rq->xdp_rxq)) {
-		old_prog = rcu_dereference_protected(rq->xdp_prog,
-						     lockdep_is_held(&rq->priv->state_lock));
-		if (old_prog)
-			bpf_prog_put(old_prog);
-	}
+	kvfree(rq->dim);
+	page_pool_destroy(rq->page_pool);
 
 	switch (rq->wq_type) {
 	case MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ:
+		mlx5e_rq_free_shampo(rq);
 		kvfree(rq->mpwqe.info);
 		mlx5_core_destroy_mkey(rq->mdev, be32_to_cpu(rq->mpwqe.umr_mkey_be));
 		mlx5e_free_mpwqe_rq_drop_page(rq);
-		mlx5e_rq_free_shampo(rq);
 		break;
 	default: /* MLX5_WQ_TYPE_CYCLIC */
 		mlx5e_free_wqe_alloc_info(rq);
 	}
 
-	kvfree(rq->dim);
-	xdp_rxq_info_unreg(&rq->xdp_rxq);
-	page_pool_destroy(rq->page_pool);
 	mlx5_wq_destroy(&rq->wq_ctrl);
+
+	if (xdp_rxq_info_is_reg(&rq->xdp_rxq)) {
+		struct bpf_prog *old_prog;
+
+		old_prog = rcu_dereference_protected(rq->xdp_prog,
+						     lockdep_is_held(&rq->priv->state_lock));
+		if (old_prog)
+			bpf_prog_put(old_prog);
+	}
+	xdp_rxq_info_unreg(&rq->xdp_rxq);
 }
 
 int mlx5e_create_rq(struct mlx5e_rq *rq, struct mlx5e_rq_param *param, u16 q_counter)
@@ -4414,9 +4415,9 @@ static netdev_features_t mlx5e_fix_features(struct net_device *netdev,
 
 	if (mlx5e_is_uplink_rep(priv)) {
 		features = mlx5e_fix_uplink_rep_features(netdev, features);
-		features |= NETIF_F_NETNS_LOCAL;
+		netdev->netns_local = true;
 	} else {
-		features &= ~NETIF_F_NETNS_LOCAL;
+		netdev->netns_local = false;
 	}
 
 	mutex_unlock(&priv->state_lock);

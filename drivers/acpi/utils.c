@@ -801,7 +801,8 @@ acpi_evaluate_dsm(acpi_handle handle, const guid_t *guid, u64 rev, u64 func,
 
 	if (ret != AE_NOT_FOUND)
 		acpi_handle_warn(handle,
-				 "failed to evaluate _DSM %pUb (0x%x)\n", guid, ret);
+				 "failed to evaluate _DSM %pUb rev:%lld func:%lld (0x%x)\n",
+				 guid, rev, func, ret);
 
 	return NULL;
 }

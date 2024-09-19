@@ -397,7 +397,7 @@
 		>;
 	};
 
-	pinctrl_usdhc3_100mhz: usdhc3grp_100mhz {
+	pinctrl_usdhc3_100mhz: usdhc3-100mhz-grp {
 		fsl,pins = <
 			MX6QDL_PAD_SD3_CMD__SD3_CMD    0x170B1
 			MX6QDL_PAD_SD3_CLK__SD3_CLK    0x100B1
@@ -408,7 +408,7 @@
 		>;
 	};
 
-	pinctrl_usdhc3_200mhz: usdhc3grp_200mhz {
+	pinctrl_usdhc3_200mhz: usdhc3-200mhz-grp {
 		fsl,pins = <
 			MX6QDL_PAD_SD3_CMD__SD3_CMD    0x170F9
 			MX6QDL_PAD_SD3_CLK__SD3_CLK    0x100F9
@@ -434,7 +434,7 @@
 		>;
 	};
 
-	pinctrl_usdhc4_100mhz: usdhc4grp_100mhz {
+	pinctrl_usdhc4_100mhz: usdhc4-100mhz-grp {
 		fsl,pins = <
 			MX6QDL_PAD_SD4_CMD__SD4_CMD    0x170B1
 			MX6QDL_PAD_SD4_CLK__SD4_CLK    0x100B1
@@ -449,7 +449,7 @@
 		>;
 	};
 
-	pinctrl_usdhc4_200mhz: usdhc4grp_200mhz {
+	pinctrl_usdhc4_200mhz: usdhc4-200mhz-grp {
 		fsl,pins = <
 			MX6QDL_PAD_SD4_CMD__SD4_CMD    0x170F9
 			MX6QDL_PAD_SD4_CLK__SD4_CLK    0x100F9

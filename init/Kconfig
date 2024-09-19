@@ -1143,6 +1143,19 @@ config CPUSETS
 
 	  Say N if unsure.
 
+config CPUSETS_V1
+	bool "Legacy cgroup v1 cpusets controller"
+	depends on CPUSETS
+	default n
+	help
+	  Legacy cgroup v1 cpusets controller which has been deprecated by
+	  cgroup v2 implementation. The v1 is there for legacy applications
+	  which haven't migrated to the new cgroup v2 interface yet. If you
+	  do not have any such application then you are completely fine leaving
+	  this option disabled.
+
+	  Say N if unsure.
+
 config PROC_PID_CPUSET
 	bool "Include legacy /proc/<pid>/cpuset file"
 	depends on CPUSETS
@@ -1686,6 +1699,19 @@ config IO_URING
 	  This option enables support for the io_uring interface, enabling
 	  applications to submit and complete IO through submission and
 	  completion rings that are shared between the kernel and application.
+
+config GCOV_PROFILE_URING
+	bool "Enable GCOV profiling on the io_uring subsystem"
+	depends on GCOV_KERNEL
+	help
+	  Enable GCOV profiling on the io_uring subsystem, to facilitate
+	  code coverage testing.
+
+	  If unsure, say N.
+
+	  Note that this will have a negative impact on the performance of
+	  the io_uring subsystem, hence this should only be enabled for
+	  specific test purposes.
 
 config ADVISE_SYSCALLS
 	bool "Enable madvise/fadvise syscalls" if EXPERT

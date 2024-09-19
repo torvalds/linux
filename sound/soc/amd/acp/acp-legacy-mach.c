@@ -242,11 +242,4 @@ module_platform_driver(acp_asoc_audio);
 
 MODULE_IMPORT_NS(SND_SOC_AMD_MACH);
 MODULE_DESCRIPTION("ACP chrome audio support");
-MODULE_ALIAS("platform:acp3xalc56821019");
-MODULE_ALIAS("platform:acp3xalc5682sm98360");
-MODULE_ALIAS("platform:acp3xalc5682s1019");
-MODULE_ALIAS("platform:acp3x-es83xx");
-MODULE_ALIAS("platform:rmb-nau8825-max");
-MODULE_ALIAS("platform:rmb-rt5682s-rt1019");
-MODULE_ALIAS("platform:acp-pdm-mach");
 MODULE_LICENSE("GPL v2");

@@ -51,6 +51,7 @@
 #include <linux/debugfs.h>
 #include <linux/delay.h>
 #include <linux/intel_tpmi.h>
+#include <linux/intel_vsec.h>
 #include <linux/io.h>
 #include <linux/iopoll.h>
 #include <linux/module.h>
@@ -58,8 +59,6 @@
 #include <linux/security.h>
 #include <linux/sizes.h>
 #include <linux/string_helpers.h>
-
-#include "vsec.h"
 
 /**
  * struct intel_tpmi_pfs_entry - TPMI PM Feature Structure (PFS) entry

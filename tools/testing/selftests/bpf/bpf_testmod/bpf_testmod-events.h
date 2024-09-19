@@ -34,6 +34,12 @@ DECLARE_TRACE(bpf_testmod_test_write_bare,
 	TP_ARGS(task, ctx)
 );
 
+/* Used in bpf_testmod_test_read() to test __nullable suffix */
+DECLARE_TRACE(bpf_testmod_test_nullable_bare,
+	TP_PROTO(struct bpf_testmod_test_read_ctx *ctx__nullable),
+	TP_ARGS(ctx__nullable)
+);
+
 #undef BPF_TESTMOD_DECLARE_TRACE
 #ifdef DECLARE_TRACE_WRITABLE
 #define BPF_TESTMOD_DECLARE_TRACE(call, proto, args, size) \

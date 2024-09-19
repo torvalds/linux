@@ -97,7 +97,9 @@ static inline bool __bch2_ptr_matches_stripe(const struct bch_extent_ptr *stripe
 					     const struct bch_extent_ptr *data_ptr,
 					     unsigned sectors)
 {
-	return  data_ptr->dev    == stripe_ptr->dev &&
+	return  (data_ptr->dev    == stripe_ptr->dev ||
+		 data_ptr->dev    == BCH_SB_MEMBER_INVALID ||
+		 stripe_ptr->dev  == BCH_SB_MEMBER_INVALID) &&
 		data_ptr->gen    == stripe_ptr->gen &&
 		data_ptr->offset >= stripe_ptr->offset &&
 		data_ptr->offset  < stripe_ptr->offset + sectors;

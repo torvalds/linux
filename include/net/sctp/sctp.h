@@ -28,7 +28,7 @@
 #define __net_sctp_h__
 
 /* Header Strategy.
- *    Start getting some control over the header file depencies:
+ *    Start getting some control over the header file dependencies:
  *       includes
  *       constants
  *       structs

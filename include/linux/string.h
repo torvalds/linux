@@ -76,12 +76,16 @@ ssize_t sized_strscpy(char *, const char *, size_t);
  * known size.
  */
 #define __strscpy0(dst, src, ...)	\
-	sized_strscpy(dst, src, sizeof(dst) + __must_be_array(dst))
-#define __strscpy1(dst, src, size)	sized_strscpy(dst, src, size)
+	sized_strscpy(dst, src, sizeof(dst) + __must_be_array(dst) +	\
+				__must_be_cstr(dst) + __must_be_cstr(src))
+#define __strscpy1(dst, src, size)	\
+	sized_strscpy(dst, src, size + __must_be_cstr(dst) + __must_be_cstr(src))
 
 #define __strscpy_pad0(dst, src, ...)	\
-	sized_strscpy_pad(dst, src, sizeof(dst) + __must_be_array(dst))
-#define __strscpy_pad1(dst, src, size)	sized_strscpy_pad(dst, src, size)
+	sized_strscpy_pad(dst, src, sizeof(dst) + __must_be_array(dst) +	\
+				    __must_be_cstr(dst) + __must_be_cstr(src))
+#define __strscpy_pad1(dst, src, size)	\
+	sized_strscpy_pad(dst, src, size + __must_be_cstr(dst) + __must_be_cstr(src))
 
 /**
  * strscpy - Copy a C-string into a sized buffer

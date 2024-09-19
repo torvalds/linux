@@ -67,62 +67,6 @@ static void test_snd_soc_card_get_kcontrol(struct kunit *test)
 	KUNIT_EXPECT_NULL(test, kc);
 }
 
-static void test_snd_soc_card_get_kcontrol_locked(struct kunit *test)
-{
-	struct soc_card_test_priv *priv = test->priv;
-	struct snd_soc_card *card = priv->card;
-	struct snd_kcontrol *kc, *kcw;
-	struct soc_mixer_control *mc;
-	int i, ret;
-
-	ret = snd_soc_add_card_controls(card, test_card_controls, ARRAY_SIZE(test_card_controls));
-	KUNIT_ASSERT_EQ(test, ret, 0);
-
-	/* Look up every control */
-	for (i = 0; i < ARRAY_SIZE(test_card_controls); ++i) {
-		down_read(&card->snd_card->controls_rwsem);
-		kc = snd_soc_card_get_kcontrol_locked(card, test_card_controls[i].name);
-		up_read(&card->snd_card->controls_rwsem);
-		KUNIT_EXPECT_NOT_ERR_OR_NULL_MSG(test, kc, "Failed to find '%s'\n",
-						 test_card_controls[i].name);
-		if (!kc)
-			continue;
-
-		/* Test that it is the correct control */
-		mc = (struct soc_mixer_control *)kc->private_value;
-		KUNIT_EXPECT_EQ_MSG(test, mc->shift, i, "For '%s'\n", test_card_controls[i].name);
-
-		down_write(&card->snd_card->controls_rwsem);
-		kcw = snd_soc_card_get_kcontrol_locked(card, test_card_controls[i].name);
-		up_write(&card->snd_card->controls_rwsem);
-		KUNIT_EXPECT_NOT_ERR_OR_NULL_MSG(test, kcw, "Failed to find '%s'\n",
-						 test_card_controls[i].name);
-
-		KUNIT_EXPECT_PTR_EQ(test, kc, kcw);
-	}
-
-	/* Test some names that should not be found */
-	down_read(&card->snd_card->controls_rwsem);
-	kc = snd_soc_card_get_kcontrol_locked(card, "None");
-	up_read(&card->snd_card->controls_rwsem);
-	KUNIT_EXPECT_NULL(test, kc);
-
-	down_read(&card->snd_card->controls_rwsem);
-	kc = snd_soc_card_get_kcontrol_locked(card, "Left None");
-	up_read(&card->snd_card->controls_rwsem);
-	KUNIT_EXPECT_NULL(test, kc);
-
-	down_read(&card->snd_card->controls_rwsem);
-	kc = snd_soc_card_get_kcontrol_locked(card, "Left");
-	up_read(&card->snd_card->controls_rwsem);
-	KUNIT_EXPECT_NULL(test, kc);
-
-	down_read(&card->snd_card->controls_rwsem);
-	kc = snd_soc_card_get_kcontrol_locked(card, NULL);
-	up_read(&card->snd_card->controls_rwsem);
-	KUNIT_EXPECT_NULL(test, kc);
-}
-
 static int soc_card_test_case_init(struct kunit *test)
 {
 	struct soc_card_test_priv *priv;
@@ -169,7 +113,6 @@ static void soc_card_test_case_exit(struct kunit *test)
 
 static struct kunit_case soc_card_test_cases[] = {
 	KUNIT_CASE(test_snd_soc_card_get_kcontrol),
-	KUNIT_CASE(test_snd_soc_card_get_kcontrol_locked),
 	{}
 };
 
