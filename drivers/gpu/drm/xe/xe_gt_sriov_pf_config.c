@@ -2042,7 +2042,7 @@ static int pf_validate_vf_config(struct xe_gt *gt, unsigned int vfid)
 		valid_all = valid_all && valid_lmem;
 	}
 
-	return valid_all ? 1 : valid_any ? -ENOKEY : -ENODATA;
+	return valid_all ? 0 : valid_any ? -ENOKEY : -ENODATA;
 }
 
 /**
