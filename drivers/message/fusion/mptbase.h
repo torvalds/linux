@@ -729,7 +729,6 @@ typedef struct _MPT_ADAPTER
 	struct list_head	 fw_event_list;
 	spinlock_t		 fw_event_lock;
 	u8			 fw_events_off; /* if '1', then ignore events */
-	char 			 fw_event_q_name[MPT_KOBJ_NAME_LEN];
 
 	struct mutex		 sas_discovery_mutex;
 	u8			 sas_discovery_runtime;
@@ -764,7 +763,6 @@ typedef struct _MPT_ADAPTER
 	u8			 fc_link_speed[2];
 	spinlock_t		 fc_rescan_work_lock;
 	struct work_struct	 fc_rescan_work;
-	char			 fc_rescan_work_q_name[MPT_KOBJ_NAME_LEN];
 	struct workqueue_struct *fc_rescan_work_q;
 
 	/* driver forced bus resets count */
@@ -778,7 +776,6 @@ typedef struct _MPT_ADAPTER
 	spinlock_t		  scsi_lookup_lock;
 	u64			dma_mask;
 	u32			  broadcast_aen_busy;
-	char			 reset_work_q_name[MPT_KOBJ_NAME_LEN];
 	struct workqueue_struct *reset_work_q;
 	struct delayed_work	 fault_reset_work;
 

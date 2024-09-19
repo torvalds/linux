@@ -12301,10 +12301,8 @@ _scsih_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	scsi_host_set_guard(shost, SHOST_DIX_GUARD_CRC);
 
 	/* event thread */
-	snprintf(ioc->firmware_event_name, sizeof(ioc->firmware_event_name),
-	    "fw_event_%s%d", ioc->driver_name, ioc->id);
 	ioc->firmware_event_thread = alloc_ordered_workqueue(
-	    ioc->firmware_event_name, 0);
+		"fw_event_%s%d", 0, ioc->driver_name, ioc->id);
 	if (!ioc->firmware_event_thread) {
 		ioc_err(ioc, "failure at %s:%d/%s()!\n",
 			__FILE__, __LINE__, __func__);

@@ -1988,8 +1988,8 @@ megasas_fusion_start_watchdog(struct megasas_instance *instance)
 		 sizeof(instance->fault_handler_work_q_name),
 		 "poll_megasas%d_status", instance->host->host_no);
 
-	instance->fw_fault_work_q =
-		create_singlethread_workqueue(instance->fault_handler_work_q_name);
+	instance->fw_fault_work_q = alloc_ordered_workqueue(
+		"%s", WQ_MEM_RECLAIM, instance->fault_handler_work_q_name);
 	if (!instance->fw_fault_work_q) {
 		dev_err(&instance->pdev->dev, "Failed from %s %d\n",
 			__func__, __LINE__);

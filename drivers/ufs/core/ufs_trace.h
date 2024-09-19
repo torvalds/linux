@@ -9,6 +9,7 @@
 #if !defined(_TRACE_UFS_H) || defined(TRACE_HEADER_MULTI_READ)
 #define _TRACE_UFS_H
 
+#include <ufs/ufs.h>
 #include <linux/tracepoint.h>
 
 #define str_opcode(opcode)						\
@@ -394,6 +395,11 @@ TRACE_EVENT(ufshcd_exception_event,
 );
 
 #endif /* if !defined(_TRACE_UFS_H) || defined(TRACE_HEADER_MULTI_READ) */
+
+#undef TRACE_INCLUDE_PATH
+#define TRACE_INCLUDE_PATH ../../drivers/ufs/core
+#undef TRACE_INCLUDE_FILE
+#define TRACE_INCLUDE_FILE ufs_trace
 
 /* This part must be outside protection */
 #include <trace/define_trace.h>
