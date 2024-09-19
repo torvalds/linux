@@ -32,6 +32,9 @@ noinline static void real_init(void)
 	/* set a nice name */
 	stub_syscall2(__NR_prctl, PR_SET_NAME, (unsigned long)"uml-userspace");
 
+	/* Make sure this process dies if the kernel dies */
+	stub_syscall2(__NR_prctl, PR_SET_PDEATHSIG, SIGKILL);
+
 	/* read information from STDIN and close it */
 	res = stub_syscall3(__NR_read, 0,
 			    (unsigned long)&init_data, sizeof(init_data));
