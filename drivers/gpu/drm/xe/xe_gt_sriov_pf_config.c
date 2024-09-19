@@ -34,6 +34,8 @@
 #include "xe_ttm_vram_mgr.h"
 #include "xe_wopcm.h"
 
+#define make_u64_from_u32(hi, lo) ((u64)((u64)(u32)(hi) << 32 | (u32)(lo)))
+
 /*
  * Return: number of KLVs that were successfully parsed and saved,
  *         negative error code on failure.
@@ -2072,6 +2074,174 @@ bool xe_gt_sriov_pf_config_is_empty(struct xe_gt *gt, unsigned int vfid)
 	mutex_unlock(xe_gt_sriov_pf_master_mutex(gt));
 
 	return empty;
+}
+
+/**
+ * xe_gt_sriov_pf_config_save - Save a VF provisioning config as binary blob.
+ * @gt: the &xe_gt
+ * @vfid: the VF identifier (can't be PF)
+ * @buf: the buffer to save a config to (or NULL if query the buf size)
+ * @size: the size of the buffer (or 0 if query the buf size)
+ *
+ * This function can only be called on PF.
+ *
+ * Return: mininum size of the buffer or the number of bytes saved,
+ *         or a negative error code on failure.
+ */
+ssize_t xe_gt_sriov_pf_config_save(struct xe_gt *gt, unsigned int vfid, void *buf, size_t size)
+{
+	struct xe_gt_sriov_config *config;
+	ssize_t ret;
+
+	xe_gt_assert(gt, IS_SRIOV_PF(gt_to_xe(gt)));
+	xe_gt_assert(gt, vfid);
+	xe_gt_assert(gt, !(!buf ^ !size));
+
+	mutex_lock(xe_gt_sriov_pf_master_mutex(gt));
+	ret = pf_validate_vf_config(gt, vfid);
+	if (!size) {
+		ret = ret ? 0 : SZ_4K;
+	} else if (!ret) {
+		if (size < SZ_4K) {
+			ret = -ENOBUFS;
+		} else {
+			config = pf_pick_vf_config(gt, vfid);
+			ret = encode_config(buf, config, false) * sizeof(u32);
+		}
+	}
+	mutex_unlock(xe_gt_sriov_pf_master_mutex(gt));
+
+	return ret;
+}
+
+static int pf_restore_vf_config_klv(struct xe_gt *gt, unsigned int vfid,
+				    u32 key, u32 len, const u32 *value)
+{
+	switch (key) {
+	case GUC_KLV_VF_CFG_NUM_CONTEXTS_KEY:
+		if (len != GUC_KLV_VF_CFG_NUM_CONTEXTS_LEN)
+			return -EBADMSG;
+		return pf_provision_vf_ctxs(gt, vfid, value[0]);
+
+	case GUC_KLV_VF_CFG_NUM_DOORBELLS_KEY:
+		if (len != GUC_KLV_VF_CFG_NUM_DOORBELLS_LEN)
+			return -EBADMSG;
+		return pf_provision_vf_dbs(gt, vfid, value[0]);
+
+	case GUC_KLV_VF_CFG_EXEC_QUANTUM_KEY:
+		if (len != GUC_KLV_VF_CFG_EXEC_QUANTUM_LEN)
+			return -EBADMSG;
+		return pf_provision_exec_quantum(gt, vfid, value[0]);
+
+	case GUC_KLV_VF_CFG_PREEMPT_TIMEOUT_KEY:
+		if (len != GUC_KLV_VF_CFG_PREEMPT_TIMEOUT_LEN)
+			return -EBADMSG;
+		return pf_provision_preempt_timeout(gt, vfid, value[0]);
+
+	/* auto-generate case statements */
+#define define_threshold_key_to_provision_case(TAG, ...)				\
+	case MAKE_GUC_KLV_VF_CFG_THRESHOLD_KEY(TAG):					\
+		BUILD_BUG_ON(MAKE_GUC_KLV_VF_CFG_THRESHOLD_LEN(TAG) != 1u);		\
+		if (len != MAKE_GUC_KLV_VF_CFG_THRESHOLD_LEN(TAG))			\
+			return -EBADMSG;						\
+		return pf_provision_threshold(gt, vfid,					\
+					      MAKE_XE_GUC_KLV_THRESHOLD_INDEX(TAG),	\
+					      value[0]);
+
+	MAKE_XE_GUC_KLV_THRESHOLDS_SET(define_threshold_key_to_provision_case)
+#undef define_threshold_key_to_provision_case
+	}
+
+	if (xe_gt_is_media_type(gt))
+		return -EKEYREJECTED;
+
+	switch (key) {
+	case GUC_KLV_VF_CFG_GGTT_SIZE_KEY:
+		if (len != GUC_KLV_VF_CFG_GGTT_SIZE_LEN)
+			return -EBADMSG;
+		return pf_provision_vf_ggtt(gt, vfid, make_u64_from_u32(value[1], value[0]));
+
+	case GUC_KLV_VF_CFG_LMEM_SIZE_KEY:
+		if (!IS_DGFX(gt_to_xe(gt)))
+			return -EKEYREJECTED;
+		if (len != GUC_KLV_VF_CFG_LMEM_SIZE_LEN)
+			return -EBADMSG;
+		return pf_provision_vf_lmem(gt, vfid, make_u64_from_u32(value[1], value[0]));
+	}
+
+	return -EKEYREJECTED;
+}
+
+static int pf_restore_vf_config(struct xe_gt *gt, unsigned int vfid,
+				const u32 *klvs, size_t num_dwords)
+{
+	int err;
+
+	while (num_dwords >= GUC_KLV_LEN_MIN) {
+		u32 key = FIELD_GET(GUC_KLV_0_KEY, klvs[0]);
+		u32 len = FIELD_GET(GUC_KLV_0_LEN, klvs[0]);
+
+		klvs += GUC_KLV_LEN_MIN;
+		num_dwords -= GUC_KLV_LEN_MIN;
+
+		if (num_dwords < len)
+			err = -EBADMSG;
+		else
+			err = pf_restore_vf_config_klv(gt, vfid, key, len, klvs);
+
+		if (err) {
+			xe_gt_sriov_dbg(gt, "restore failed on key %#x (%pe)\n", key, ERR_PTR(err));
+			return err;
+		}
+
+		klvs += len;
+		num_dwords -= len;
+	}
+
+	return pf_validate_vf_config(gt, vfid);
+}
+
+/**
+ * xe_gt_sriov_pf_config_restore - Restore a VF provisioning config from binary blob.
+ * @gt: the &xe_gt
+ * @vfid: the VF identifier (can't be PF)
+ * @buf: the buffer with config data
+ * @size: the size of the config data
+ *
+ * This function can only be called on PF.
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
+int xe_gt_sriov_pf_config_restore(struct xe_gt *gt, unsigned int vfid,
+				  const void *buf, size_t size)
+{
+	int err;
+
+	xe_gt_assert(gt, IS_SRIOV_PF(gt_to_xe(gt)));
+	xe_gt_assert(gt, vfid);
+
+	if (!size)
+		return -ENODATA;
+
+	if (size % sizeof(u32))
+		return -EINVAL;
+
+	if (IS_ENABLED(CONFIG_DRM_XE_DEBUG_SRIOV)) {
+		struct drm_printer p = xe_gt_info_printer(gt);
+
+		drm_printf(&p, "restoring VF%u config:\n", vfid);
+		xe_guc_klv_print(buf, size / sizeof(u32), &p);
+	}
+
+	mutex_lock(xe_gt_sriov_pf_master_mutex(gt));
+	err = pf_send_vf_cfg_reset(gt, vfid);
+	if (!err) {
+		pf_release_vf_config(gt, vfid);
+		err = pf_restore_vf_config(gt, vfid, buf, size / sizeof(u32));
+	}
+	mutex_unlock(xe_gt_sriov_pf_master_mutex(gt));
+
+	return err;
 }
 
 /**
