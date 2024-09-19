@@ -833,7 +833,7 @@ static void panthor_vm_stop(struct panthor_vm *vm)
 
 static void panthor_vm_start(struct panthor_vm *vm)
 {
-	drm_sched_start(&vm->sched, true);
+	drm_sched_start(&vm->sched);
 }
 
 /**

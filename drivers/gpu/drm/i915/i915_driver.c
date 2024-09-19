@@ -49,7 +49,7 @@
 #include "display/intel_bw.h"
 #include "display/intel_cdclk.h"
 #include "display/intel_display_driver.h"
-#include "display/intel_display_types.h"
+#include "display/intel_display.h"
 #include "display/intel_dmc.h"
 #include "display/intel_dp.h"
 #include "display/intel_dpt.h"
@@ -58,10 +58,8 @@
 #include "display/intel_hotplug.h"
 #include "display/intel_overlay.h"
 #include "display/intel_pch_refclk.h"
-#include "display/intel_pipe_crc.h"
 #include "display/intel_pps.h"
 #include "display/intel_sprite.h"
-#include "display/intel_vga.h"
 #include "display/skl_watermark.h"
 
 #include "gem/i915_gem_context.h"
@@ -442,6 +440,7 @@ static int i915_pcode_init(struct drm_i915_private *i915)
  */
 static int i915_driver_hw_probe(struct drm_i915_private *dev_priv)
 {
+	struct intel_display *display = &dev_priv->display;
 	struct pci_dev *pdev = to_pci_dev(dev_priv->drm.dev);
 	int ret;
 
@@ -451,8 +450,8 @@ static int i915_driver_hw_probe(struct drm_i915_private *dev_priv)
 	if (HAS_PPGTT(dev_priv)) {
 		if (intel_vgpu_active(dev_priv) &&
 		    !intel_vgpu_has_full_ppgtt(dev_priv)) {
-			i915_report_error(dev_priv,
-					  "incompatible vGPU found, support for isolated ppGTT required\n");
+			drm_err(&dev_priv->drm,
+				"incompatible vGPU found, support for isolated ppGTT required\n");
 			return -ENXIO;
 		}
 	}
@@ -465,8 +464,8 @@ static int i915_driver_hw_probe(struct drm_i915_private *dev_priv)
 		 */
 		if (intel_vgpu_active(dev_priv) &&
 		    !intel_vgpu_has_hwsp_emulation(dev_priv)) {
-			i915_report_error(dev_priv,
-					  "old vGPU host found, support for HWSP emulation required\n");
+			drm_err(&dev_priv->drm,
+				"old vGPU host found, support for HWSP emulation required\n");
 			return -ENXIO;
 		}
 	}
@@ -542,7 +541,7 @@ static int i915_driver_hw_probe(struct drm_i915_private *dev_priv)
 	if (ret)
 		goto err_msi;
 
-	intel_opregion_setup(dev_priv);
+	intel_opregion_setup(display);
 
 	ret = i915_pcode_init(dev_priv);
 	if (ret)
@@ -559,7 +558,7 @@ static int i915_driver_hw_probe(struct drm_i915_private *dev_priv)
 	return 0;
 
 err_opregion:
-	intel_opregion_cleanup(dev_priv);
+	intel_opregion_cleanup(display);
 err_msi:
 	if (pdev->msi_enabled)
 		pci_disable_msi(pdev);
@@ -580,11 +579,12 @@ err_perf:
  */
 static void i915_driver_hw_remove(struct drm_i915_private *dev_priv)
 {
+	struct intel_display *display = &dev_priv->display;
 	struct pci_dev *pdev = to_pci_dev(dev_priv->drm.dev);
 
 	i915_perf_fini(dev_priv);
 
-	intel_opregion_cleanup(dev_priv);
+	intel_opregion_cleanup(display);
 
 	if (pdev->msi_enabled)
 		pci_disable_msi(pdev);
@@ -723,7 +723,7 @@ i915_driver_create(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (IS_ERR(i915))
 		return i915;
 
-	pci_set_drvdata(pdev, i915);
+	pci_set_drvdata(pdev, &i915->drm);
 
 	/* Device parameters start as a copy of module parameters. */
 	i915_params_copy(&i915->params, &i915_modparams);
@@ -1014,6 +1014,7 @@ static int i915_drm_prepare(struct drm_device *dev)
 static int i915_drm_suspend(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct intel_display *display = &dev_priv->display;
 	struct pci_dev *pdev = to_pci_dev(dev_priv->drm.dev);
 	pci_power_t opregion_target_state;
 
@@ -1049,7 +1050,7 @@ static int i915_drm_suspend(struct drm_device *dev)
 	i915_save_display(dev_priv);
 
 	opregion_target_state = suspend_to_idle(dev_priv) ? PCI_D1 : PCI_D3cold;
-	intel_opregion_suspend(dev_priv, opregion_target_state);
+	intel_opregion_suspend(display, opregion_target_state);
 
 	dev_priv->suspend_count++;
 
@@ -1138,6 +1139,7 @@ int i915_driver_suspend_switcheroo(struct drm_i915_private *i915,
 static int i915_drm_resume(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct intel_display *display = &dev_priv->display;
 	struct intel_gt *gt;
 	int ret, i;
 
@@ -1165,7 +1167,7 @@ static int i915_drm_resume(struct drm_device *dev)
 	intel_dmc_resume(dev_priv);
 
 	i915_restore_display(dev_priv);
-	intel_pps_unlock_regs_wa(dev_priv);
+	intel_pps_unlock_regs_wa(display);
 
 	intel_init_pch_refclk(dev_priv);
 
@@ -1205,7 +1207,7 @@ static int i915_drm_resume(struct drm_device *dev)
 	}
 	intel_hpd_poll_disable(dev_priv);
 
-	intel_opregion_resume(dev_priv);
+	intel_opregion_resume(display);
 
 	intel_fbdev_set_suspend(dev, FBINFO_STATE_RUNNING, false);
 
@@ -1454,6 +1456,7 @@ static int i915_pm_restore(struct device *kdev)
 static int intel_runtime_suspend(struct device *kdev)
 {
 	struct drm_i915_private *dev_priv = kdev_to_i915(kdev);
+	struct intel_display *display = &dev_priv->display;
 	struct intel_runtime_pm *rpm = &dev_priv->runtime_pm;
 	struct pci_dev *pdev = to_pci_dev(dev_priv->drm.dev);
 	struct pci_dev *root_pdev;
@@ -1528,7 +1531,7 @@ static int intel_runtime_suspend(struct device *kdev)
 		 * won't be able to restore them. Since PCI_D3hot matches the
 		 * actual specification and appears to be working, use it.
 		 */
-		intel_opregion_notify_adapter(dev_priv, PCI_D3hot);
+		intel_opregion_notify_adapter(display, PCI_D3hot);
 	} else {
 		/*
 		 * current versions of firmware which depend on this opregion
@@ -1537,7 +1540,7 @@ static int intel_runtime_suspend(struct device *kdev)
 		 * to distinguish it from notifications that might be sent via
 		 * the suspend path.
 		 */
-		intel_opregion_notify_adapter(dev_priv, PCI_D1);
+		intel_opregion_notify_adapter(display, PCI_D1);
 	}
 
 	assert_forcewakes_inactive(&dev_priv->uncore);
@@ -1552,6 +1555,7 @@ static int intel_runtime_suspend(struct device *kdev)
 static int intel_runtime_resume(struct device *kdev)
 {
 	struct drm_i915_private *dev_priv = kdev_to_i915(kdev);
+	struct intel_display *display = &dev_priv->display;
 	struct intel_runtime_pm *rpm = &dev_priv->runtime_pm;
 	struct pci_dev *pdev = to_pci_dev(dev_priv->drm.dev);
 	struct pci_dev *root_pdev;
@@ -1566,7 +1570,7 @@ static int intel_runtime_resume(struct device *kdev)
 	drm_WARN_ON_ONCE(&dev_priv->drm, atomic_read(&rpm->wakeref_count));
 	disable_rpm_wakeref_asserts(rpm);
 
-	intel_opregion_notify_adapter(dev_priv, PCI_D0);
+	intel_opregion_notify_adapter(display, PCI_D0);
 
 	root_pdev = pcie_find_root_port(pdev);
 	if (root_pdev)
@@ -1694,9 +1698,9 @@ static const struct drm_ioctl_desc i915_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(I915_FREE, drm_noop, DRM_AUTH),
 	DRM_IOCTL_DEF_DRV(I915_INIT_HEAP, drm_noop, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
 	DRM_IOCTL_DEF_DRV(I915_CMDBUFFER, drm_noop, DRM_AUTH),
-	DRM_IOCTL_DEF_DRV(I915_DESTROY_HEAP,  drm_noop, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
-	DRM_IOCTL_DEF_DRV(I915_SET_VBLANK_PIPE,  drm_noop, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
-	DRM_IOCTL_DEF_DRV(I915_GET_VBLANK_PIPE,  drm_noop, DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(I915_DESTROY_HEAP, drm_noop, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
+	DRM_IOCTL_DEF_DRV(I915_SET_VBLANK_PIPE, drm_noop, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
+	DRM_IOCTL_DEF_DRV(I915_GET_VBLANK_PIPE, drm_noop, DRM_AUTH),
 	DRM_IOCTL_DEF_DRV(I915_VBLANK_SWAP, drm_noop, DRM_AUTH),
 	DRM_IOCTL_DEF_DRV(I915_HWS_ADDR, drm_noop, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
 	DRM_IOCTL_DEF_DRV(I915_GEM_INIT, drm_noop, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),

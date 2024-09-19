@@ -321,8 +321,11 @@ static void update_mqd(struct mqd_manager *mm, void *mqd,
 static bool check_preemption_failed(struct mqd_manager *mm, void *mqd)
 {
 	struct v9_mqd *m = (struct v9_mqd *)mqd;
+	uint32_t doorbell_id = m->queue_doorbell_id0;
 
-	return kfd_check_hiq_mqd_doorbell_id(mm->dev, m->queue_doorbell_id0, 0);
+	m->queue_doorbell_id0 = 0;
+
+	return kfd_check_hiq_mqd_doorbell_id(mm->dev, doorbell_id, 0);
 }
 
 static int get_wave_state(struct mqd_manager *mm, void *mqd,
@@ -624,6 +627,7 @@ static bool check_preemption_failed_v9_4_3(struct mqd_manager *mm, void *mqd)
 		m = get_mqd(mqd + hiq_mqd_size * inst);
 		ret |= kfd_check_hiq_mqd_doorbell_id(mm->dev,
 					m->queue_doorbell_id0, inst);
+		m->queue_doorbell_id0 = 0;
 		++inst;
 	}
 

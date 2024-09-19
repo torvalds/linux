@@ -2266,7 +2266,6 @@ crtc_or_fake_commit(struct drm_atomic_state *state, struct drm_crtc *crtc)
  * automatically.
  *
  * Returns:
- *
  * 0 on success. -EBUSY when userspace schedules nonblocking commits too fast,
  * -ENOMEM on allocation failures and -EINTR when a signal is pending.
  */
@@ -3009,7 +3008,6 @@ EXPORT_SYMBOL(drm_atomic_helper_cleanup_planes);
  * don't pass the right state structures to the callbacks.
  *
  * Returns:
- *
  * Returns 0 on success. Can return -ERESTARTSYS when @stall is true and the
  * waiting for the previous commits has been interrupted.
  */

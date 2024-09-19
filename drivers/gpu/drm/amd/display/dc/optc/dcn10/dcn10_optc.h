@@ -201,6 +201,7 @@ struct dcn_optc_registers {
 	uint32_t OTG_CRC1_WINDOWB_Y_CONTROL_READBACK;
 	uint32_t OPTC_CLOCK_CONTROL;
 	uint32_t OPTC_WIDTH_CONTROL2;
+	uint32_t OTG_PSTATE_REGISTER;
 };
 
 #define TG_COMMON_MASK_SH_LIST_DCN(mask_sh)\
@@ -590,7 +591,11 @@ struct dcn_optc_registers {
 	type OTG_V_COUNT_STOP_TIMER;
 
 #define TG_REG_FIELD_LIST_DCN401(type) \
-	type OPTC_SEGMENT_WIDTH_LAST;
+	type OPTC_SEGMENT_WIDTH_LAST;\
+	type OTG_PSTATE_KEEPOUT_START;\
+	type OTG_PSTATE_EXTEND;\
+	type OTG_UNBLANK;\
+	type OTG_PSTATE_ALLOW_WIDTH_MIN;
 
 
 struct dcn_optc_shift {

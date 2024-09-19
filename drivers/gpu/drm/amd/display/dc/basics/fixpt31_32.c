@@ -486,3 +486,30 @@ int dc_fixpt_s4d19(struct fixed31_32 arg)
 	else
 		return ux_dy(arg.value, 4, 19);
 }
+
+struct fixed31_32 dc_fixpt_from_ux_dy(unsigned int value,
+	unsigned int integer_bits,
+	unsigned int fractional_bits)
+{
+	struct fixed31_32 fixpt_value = dc_fixpt_zero;
+	struct fixed31_32 fixpt_int_value = dc_fixpt_zero;
+	long long frac_mask = ((long long)1 << (long long)integer_bits) - 1;
+
+	fixpt_value.value = (long long)value << (FIXED31_32_BITS_PER_FRACTIONAL_PART - fractional_bits);
+	frac_mask = frac_mask << fractional_bits;
+	fixpt_int_value.value = value & frac_mask;
+	fixpt_int_value.value <<= (FIXED31_32_BITS_PER_FRACTIONAL_PART - fractional_bits);
+	fixpt_value.value |= fixpt_int_value.value;
+	return fixpt_value;
+}
+
+struct fixed31_32 dc_fixpt_from_int_dy(unsigned int int_value,
+	unsigned int frac_value,
+	unsigned int integer_bits,
+	unsigned int fractional_bits)
+{
+	struct fixed31_32 fixpt_value = dc_fixpt_from_int(int_value);
+
+	fixpt_value.value |= (long long)frac_value << (FIXED31_32_BITS_PER_FRACTIONAL_PART - fractional_bits);
+	return fixpt_value;
+}
