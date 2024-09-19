@@ -3531,8 +3531,9 @@ int smb2_open(struct ksmbd_work *work)
 			memcpy(fp->create_guid, dh_info.CreateGuid,
 					SMB2_CREATE_GUID_SIZE);
 			if (dh_info.timeout)
-				fp->durable_timeout = min(dh_info.timeout,
-						DURABLE_HANDLE_MAX_TIMEOUT);
+				fp->durable_timeout =
+					min_t(unsigned int, dh_info.timeout,
+					      DURABLE_HANDLE_MAX_TIMEOUT);
 			else
 				fp->durable_timeout = 60;
 		}
