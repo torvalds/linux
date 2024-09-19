@@ -739,25 +739,15 @@ EXPORT_SYMBOL_GPL(ufshcd_delay_us);
  * Return: -ETIMEDOUT on error, zero on success.
  */
 static int ufshcd_wait_for_register(struct ufs_hba *hba, u32 reg, u32 mask,
-				u32 val, unsigned long interval_us,
-				unsigned long timeout_ms)
+				    u32 val, unsigned long interval_us,
+				    unsigned long timeout_ms)
 {
-	int err = 0;
-	unsigned long timeout = jiffies + msecs_to_jiffies(timeout_ms);
+	u32 v;
 
-	/* ignore bits that we don't intend to wait on */
-	val = val & mask;
+	val &= mask; /* ignore bits that we don't intend to wait on */
 
-	while ((ufshcd_readl(hba, reg) & mask) != val) {
-		usleep_range(interval_us, interval_us + 50);
-		if (time_after(jiffies, timeout)) {
-			if ((ufshcd_readl(hba, reg) & mask) != val)
-				err = -ETIMEDOUT;
-			break;
-		}
-	}
-
-	return err;
+	return read_poll_timeout(ufshcd_readl, v, (v & mask) == val,
+				 interval_us, timeout_ms * 1000, false, hba, reg);
 }
 
 /**
