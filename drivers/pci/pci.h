@@ -13,8 +13,23 @@
 
 #define PCIE_LINK_RETRAIN_TIMEOUT_MS	1000
 
-/* Power stable to PERST# inactive from PCIe card Electromechanical Spec */
+/*
+ * Power stable to PERST# inactive.
+ *
+ * See the "Power Sequencing and Reset Signal Timings" table of the PCI Express
+ * Card Electromechanical Specification, Revision 5.1, Section 2.9.2, Symbol
+ * "T_PVPERL".
+ */
 #define PCIE_T_PVPERL_MS		100
+
+/*
+ * REFCLK stable before PERST# inactive.
+ *
+ * See the "Power Sequencing and Reset Signal Timings" table of the PCI Express
+ * Card Electromechanical Specification, Revision 5.1, Section 2.9.2, Symbol
+ * "T_PERST-CLK".
+ */
+#define PCIE_T_PERST_CLK_US		100
 
 /*
  * End of conventional reset (PERST# de-asserted) to first configuration
