@@ -425,8 +425,8 @@ static struct irq_chip nwl_msi_irq_chip = {
 };
 
 static struct msi_domain_info nwl_msi_domain_info = {
-	.flags = (MSI_FLAG_USE_DEF_DOM_OPS | MSI_FLAG_USE_DEF_CHIP_OPS |
-		  MSI_FLAG_MULTI_PCI_MSI),
+	.flags = MSI_FLAG_USE_DEF_DOM_OPS | MSI_FLAG_USE_DEF_CHIP_OPS |
+		 MSI_FLAG_NO_AFFINITY | MSI_FLAG_MULTI_PCI_MSI,
 	.chip = &nwl_msi_irq_chip,
 };
 #endif
@@ -441,16 +441,9 @@ static void nwl_compose_msi_msg(struct irq_data *data, struct msi_msg *msg)
 	msg->data = data->hwirq;
 }
 
-static int nwl_msi_set_affinity(struct irq_data *irq_data,
-				const struct cpumask *mask, bool force)
-{
-	return -EINVAL;
-}
-
 static struct irq_chip nwl_irq_chip = {
 	.name = "Xilinx MSI",
 	.irq_compose_msi_msg = nwl_compose_msi_msg,
-	.irq_set_affinity = nwl_msi_set_affinity,
 };
 
 static int nwl_irq_domain_alloc(struct irq_domain *domain, unsigned int virq,
