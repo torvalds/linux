@@ -139,7 +139,6 @@ void pcie_clear_device_status(struct pci_dev *dev);
 void pcie_clear_root_pme_status(struct pci_dev *dev);
 bool pci_check_pme_status(struct pci_dev *dev);
 void pci_pme_wakeup_bus(struct pci_bus *bus);
-int __pci_pme_wakeup(struct pci_dev *dev, void *ign);
 void pci_pme_restore(struct pci_dev *dev);
 bool pci_dev_need_resume(struct pci_dev *dev);
 void pci_dev_adjust_pme(struct pci_dev *dev);
@@ -189,7 +188,6 @@ static inline bool pcie_downstream_port(const struct pci_dev *dev)
 }
 
 void pci_vpd_init(struct pci_dev *dev);
-void pci_vpd_release(struct pci_dev *dev);
 extern const struct attribute_group pci_dev_vpd_attr_group;
 
 /* PCI Virtual Channel */
