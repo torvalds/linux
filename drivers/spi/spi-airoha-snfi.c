@@ -211,9 +211,6 @@ struct airoha_snand_dev {
 
 	u8 *txrx_buf;
 	dma_addr_t dma_addr;
-
-	u64 cur_page_num;
-	bool data_need_update;
 };
 
 struct airoha_snand_ctrl {
@@ -644,11 +641,6 @@ static ssize_t airoha_snand_dirmap_read(struct spi_mem_dirmap_desc *desc,
 	u32 val, rd_mode;
 	int err;
 
-	if (!as_dev->data_need_update)
-		return len;
-
-	as_dev->data_need_update = false;
-
 	switch (op->cmd.opcode) {
 	case SPI_NAND_OP_READ_FROM_CACHE_DUAL:
 		rd_mode = 1;
@@ -895,23 +887,11 @@ static ssize_t airoha_snand_dirmap_write(struct spi_mem_dirmap_desc *desc,
 static int airoha_snand_exec_op(struct spi_mem *mem,
 				const struct spi_mem_op *op)
 {
-	struct airoha_snand_dev *as_dev = spi_get_ctldata(mem->spi);
 	u8 data[8], cmd, opcode = op->cmd.opcode;
 	struct airoha_snand_ctrl *as_ctrl;
 	int i, err;
 
 	as_ctrl = spi_controller_get_devdata(mem->spi->controller);
-	if (opcode == SPI_NAND_OP_PROGRAM_EXECUTE &&
-	    op->addr.val == as_dev->cur_page_num) {
-		as_dev->data_need_update = true;
-	} else if (opcode == SPI_NAND_OP_PAGE_READ) {
-		if (!as_dev->data_need_update &&
-		    op->addr.val == as_dev->cur_page_num)
-			return 0;
-
-		as_dev->data_need_update = true;
-		as_dev->cur_page_num = op->addr.val;
-	}
 
 	/* switch to manual mode */
 	err = airoha_snand_set_mode(as_ctrl, SPI_MODE_MANUAL);
@@ -996,7 +976,6 @@ static int airoha_snand_setup(struct spi_device *spi)
 	if (dma_mapping_error(as_ctrl->dev, as_dev->dma_addr))
 		return -ENOMEM;
 
-	as_dev->data_need_update = true;
 	spi_set_ctldata(spi, as_dev);
 
 	return 0;
