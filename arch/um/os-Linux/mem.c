@@ -42,7 +42,7 @@ void kasan_map_memory(void *start, size_t len)
 }
 
 /* Set by make_tempfile() during early boot. */
-static char *tempdir = NULL;
+char *tempdir = NULL;
 
 /* Check if dir is on tmpfs. Return 0 if yes, -1 if no or error. */
 static int __init check_tmpfs(const char *dir)
