@@ -66,24 +66,6 @@ enum backlight_type {
 	BACKLIGHT_TYPE_MAX,
 };
 
-/**
- * enum backlight_notification - the type of notification
- *
- * The notifications that is used for notification sent to the receiver
- * that registered notifications using backlight_register_notifier().
- */
-enum backlight_notification {
-	/**
-	 * @BACKLIGHT_REGISTERED: The backlight device is registered.
-	 */
-	BACKLIGHT_REGISTERED,
-
-	/**
-	 * @BACKLIGHT_UNREGISTERED: The backlight revice is unregistered.
-	 */
-	BACKLIGHT_UNREGISTERED,
-};
-
 /** enum backlight_scale - the type of scale used for brightness values
  *
  * The type of scale used for brightness values.
@@ -421,8 +403,6 @@ void devm_backlight_device_unregister(struct device *dev,
 				      struct backlight_device *bd);
 void backlight_force_update(struct backlight_device *bd,
 			    enum backlight_update_reason reason);
-int backlight_register_notifier(struct notifier_block *nb);
-int backlight_unregister_notifier(struct notifier_block *nb);
 struct backlight_device *backlight_device_get_by_name(const char *name);
 struct backlight_device *backlight_device_get_by_type(enum backlight_type type);
 int backlight_device_set_brightness(struct backlight_device *bd,
