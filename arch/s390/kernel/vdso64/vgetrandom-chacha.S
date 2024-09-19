@@ -130,16 +130,22 @@ SYM_FUNC_START(__arch_chacha20_blocks_nostack)
 	/* OUTPUT3 = STATE3 + COPY3 */
 	VAF	STATE3,STATE3,COPY3
 
-	/*
-	 * 32 bit wise little endian store to OUTPUT. If the vector
-	 * enhancement facility 2 is not installed use the slow path.
-	 */
-	ALTERNATIVE "brc 0xf,.Lstoreslow", "nop", ALT_FACILITY(148)
-	VSTBRF	STATE0,0,,%r2
-	VSTBRF	STATE1,16,,%r2
-	VSTBRF	STATE2,32,,%r2
-	VSTBRF	STATE3,48,,%r2
-.Lstoredone:
+	ALTERNATIVE							\
+		__stringify(						\
+		/* Convert STATE to little endian and store to OUTPUT */\
+		VPERM	TMP0,STATE0,STATE0,BEPERM;			\
+		VPERM	TMP1,STATE1,STATE1,BEPERM;			\
+		VPERM	TMP2,STATE2,STATE2,BEPERM;			\
+		VPERM	TMP3,STATE3,STATE3,BEPERM;			\
+		VSTM	TMP0,TMP3,0,%r2),				\
+		__stringify(						\
+		/* 32 bit wise little endian store to OUTPUT */		\
+		VSTBRF	STATE0,0,,%r2;					\
+		VSTBRF	STATE1,16,,%r2;					\
+		VSTBRF	STATE2,32,,%r2;					\
+		VSTBRF	STATE3,48,,%r2;					\
+		brcl	0,0),						\
+		ALT_FACILITY(148)
 
 	/* ++COPY3.COUNTER */
 	/* alsih %r3,1 */
@@ -171,14 +177,5 @@ SYM_FUNC_START(__arch_chacha20_blocks_nostack)
 	VZERO	TMP3
 
 	br	%r14
-
-.Lstoreslow:
-	/* Convert STATE to little endian format and store to OUTPUT */
-	VPERM	TMP0,STATE0,STATE0,BEPERM
-	VPERM	TMP1,STATE1,STATE1,BEPERM
-	VPERM	TMP2,STATE2,STATE2,BEPERM
-	VPERM	TMP3,STATE3,STATE3,BEPERM
-	VSTM	TMP0,TMP3,0,%r2
-	j	.Lstoredone
 	CFI_ENDPROC
 SYM_FUNC_END(__arch_chacha20_blocks_nostack)
