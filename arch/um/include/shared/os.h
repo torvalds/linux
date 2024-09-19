@@ -325,9 +325,6 @@ extern int __ignore_sigio_fd(int fd);
 /* tty.c */
 extern int get_pty(void);
 
-/* sys-$ARCH/task_size.c */
-extern unsigned long os_get_top_address(void);
-
 long syscall(long number, ...);
 
 /* irqflags tracing */
