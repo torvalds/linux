@@ -417,6 +417,81 @@ static const struct file_operations guc_state_ops = {
 	.llseek		= default_llseek,
 };
 
+/*
+ *      /sys/kernel/debug/dri/0/
+ *      ├── gt0
+ *      │   ├── vf1
+ *      │   │   ├── config_blob
+ */
+static ssize_t config_blob_read(struct file *file, char __user *buf,
+				size_t count, loff_t *pos)
+{
+	struct dentry *dent = file_dentry(file);
+	struct dentry *parent = dent->d_parent;
+	struct xe_gt *gt = extract_gt(parent);
+	unsigned int vfid = extract_vfid(parent);
+	ssize_t ret;
+	void *tmp;
+
+	ret = xe_gt_sriov_pf_config_save(gt, vfid, NULL, 0);
+	if (!ret)
+		return -ENODATA;
+	if (ret < 0)
+		return ret;
+
+	tmp = kzalloc(ret, GFP_KERNEL);
+	if (!tmp)
+		return -ENOMEM;
+
+	ret = xe_gt_sriov_pf_config_save(gt, vfid, tmp, ret);
+	if (ret > 0)
+		ret = simple_read_from_buffer(buf, count, pos, tmp, ret);
+
+	kfree(tmp);
+	return ret;
+}
+
+static ssize_t config_blob_write(struct file *file, const char __user *buf,
+				 size_t count, loff_t *pos)
+{
+	struct dentry *dent = file_dentry(file);
+	struct dentry *parent = dent->d_parent;
+	struct xe_gt *gt = extract_gt(parent);
+	unsigned int vfid = extract_vfid(parent);
+	ssize_t ret;
+	void *tmp;
+
+	if (*pos)
+		return -EINVAL;
+
+	if (!count)
+		return -ENODATA;
+
+	if (count > SZ_4K)
+		return -EINVAL;
+
+	tmp = kzalloc(count, GFP_KERNEL);
+	if (!tmp)
+		return -ENOMEM;
+
+	if (copy_from_user(tmp, buf, count)) {
+		ret = -EFAULT;
+	} else {
+		ret = xe_gt_sriov_pf_config_restore(gt, vfid, tmp, count);
+		if (!ret)
+			ret = count;
+	}
+	kfree(tmp);
+	return ret;
+}
+
+static const struct file_operations config_blob_ops = {
+	.owner		= THIS_MODULE,
+	.read		= config_blob_read,
+	.write		= config_blob_write,
+	.llseek		= default_llseek,
+};
+
 /**
  * xe_gt_sriov_pf_debugfs_register - Register SR-IOV PF specific entries in GT debugfs.
  * @gt: the &xe_gt to register
@@ -471,6 +546,9 @@ void xe_gt_sriov_pf_debugfs_register(struct xe_gt *gt, struct dentry *root)
 			debugfs_create_file("guc_state",
 					    IS_ENABLED(CONFIG_DRM_XE_DEBUG_SRIOV) ? 0600 : 0400,
 					    vfdentry, NULL, &guc_state_ops);
+			debugfs_create_file("config_blob",
+					    IS_ENABLED(CONFIG_DRM_XE_DEBUG_SRIOV) ? 0600 : 0400,
+					    vfdentry, NULL, &config_blob_ops);
 		}
 	}
 }
