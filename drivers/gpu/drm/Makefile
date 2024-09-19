@@ -68,6 +68,7 @@ drm-y := \
 	drm_prime.o \
 	drm_print.o \
 	drm_property.o \
+	drm_rect.o \
 	drm_syncobj.o \
 	drm_sysfs.o \
 	drm_trace_points.o \
@@ -140,7 +141,6 @@ drm_kms_helper-y := \
 	drm_modeset_helper.o \
 	drm_plane_helper.o \
 	drm_probe_helper.o \
-	drm_rect.o \
 	drm_self_refresh_helper.o \
 	drm_simple_kms_helper.o
 drm_kms_helper-$(CONFIG_DRM_PANEL_BRIDGE) += bridge/panel.o
