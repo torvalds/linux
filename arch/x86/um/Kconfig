@@ -29,9 +29,6 @@ config X86_64
 	def_bool 64BIT
 	select MODULES_USE_ELF_RELA
 
-config 3_LEVEL_PGTABLES
-	def_bool 64BIT
-
 config ARCH_HAS_SC_SIGNALS
 	def_bool !64BIT
 

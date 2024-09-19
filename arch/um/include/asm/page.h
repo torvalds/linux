@@ -35,14 +35,22 @@ struct page;
 typedef struct { unsigned long pte; } pte_t;
 typedef struct { unsigned long pgd; } pgd_t;
 
-#ifdef CONFIG_3_LEVEL_PGTABLES
+#if CONFIG_PGTABLE_LEVELS > 2
+
 typedef struct { unsigned long pmd; } pmd_t;
 #define pmd_val(x)	((x).pmd)
 #define __pmd(x) ((pmd_t) { (x) } )
-#endif
+
+#if CONFIG_PGTABLE_LEVELS > 3
+
+typedef struct { unsigned long pud; } pud_t;
+#define pud_val(x)	((x).pud)
+#define __pud(x) ((pud_t) { (x) } )
+
+#endif /* CONFIG_PGTABLE_LEVELS > 3 */
+#endif /* CONFIG_PGTABLE_LEVELS > 2 */
 
 #define pte_val(x)	((x).pte)
-
 
 #define pte_get_bits(p, bits) ((p).pte & (bits))
 #define pte_set_bits(p, bits) ((p).pte |= (bits))

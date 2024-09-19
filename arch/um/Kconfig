@@ -209,8 +209,8 @@ config MMAPPER
 
 config PGTABLE_LEVELS
 	int
-	default 3 if 3_LEVEL_PGTABLES
-	default 2
+	default 4 if 64BIT
+	default 2 if !64BIT
 
 config UML_TIME_TRAVEL_SUPPORT
 	bool

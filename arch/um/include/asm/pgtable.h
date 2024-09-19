@@ -24,10 +24,12 @@
 /* We borrow bit 10 to store the exclusive marker in swap PTEs. */
 #define _PAGE_SWP_EXCLUSIVE	0x400
 
-#ifdef CONFIG_3_LEVEL_PGTABLES
-#include <asm/pgtable-3level.h>
-#else
+#if CONFIG_PGTABLE_LEVELS == 4
+#include <asm/pgtable-4level.h>
+#elif CONFIG_PGTABLE_LEVELS == 2
 #include <asm/pgtable-2level.h>
+#else
+#error "Unsupported number of page table levels"
 #endif
 
 extern pgd_t swapper_pg_dir[PTRS_PER_PGD];

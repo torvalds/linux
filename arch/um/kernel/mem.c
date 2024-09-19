@@ -95,7 +95,7 @@ static void __init one_page_table_init(pmd_t *pmd)
 
 static void __init one_md_table_init(pud_t *pud)
 {
-#ifdef CONFIG_3_LEVEL_PGTABLES
+#if CONFIG_PGTABLE_LEVELS > 2
 	pmd_t *pmd_table = (pmd_t *) memblock_alloc_low(PAGE_SIZE, PAGE_SIZE);
 	if (!pmd_table)
 		panic("%s: Failed to allocate %lu bytes align=%lx\n",
@@ -103,6 +103,19 @@ static void __init one_md_table_init(pud_t *pud)
 
 	set_pud(pud, __pud(_KERNPG_TABLE + (unsigned long) __pa(pmd_table)));
 	BUG_ON(pmd_table != pmd_offset(pud, 0));
+#endif
+}
+
+static void __init one_ud_table_init(p4d_t *p4d)
+{
+#if CONFIG_PGTABLE_LEVELS > 3
+	pud_t *pud_table = (pud_t *) memblock_alloc_low(PAGE_SIZE, PAGE_SIZE);
+	if (!pud_table)
+		panic("%s: Failed to allocate %lu bytes align=%lx\n",
+		      __func__, PAGE_SIZE, PAGE_SIZE);
+
+	set_p4d(p4d, __p4d(_KERNPG_TABLE + (unsigned long) __pa(pud_table)));
+	BUG_ON(pud_table != pud_offset(p4d, 0));
 #endif
 }
 
@@ -123,6 +136,8 @@ static void __init fixrange_init(unsigned long start, unsigned long end,
 
 	for ( ; (i < PTRS_PER_PGD) && (vaddr < end); pgd++, i++) {
 		p4d = p4d_offset(pgd, vaddr);
+		if (p4d_none(*p4d))
+			one_ud_table_init(p4d);
 		pud = pud_offset(p4d, vaddr);
 		if (pud_none(*pud))
 			one_md_table_init(pud);
