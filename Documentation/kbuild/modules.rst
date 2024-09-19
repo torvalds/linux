@@ -4,35 +4,6 @@ Building External Modules
 
 This document describes how to build an out-of-tree kernel module.
 
-.. Table of Contents
-
-	=== 1 Introduction
-	=== 2 How to Build External Modules
-	   --- 2.1 Command Syntax
-	   --- 2.2 Options
-	   --- 2.3 Targets
-	   --- 2.4 Building Separate Files
-	=== 3. Creating a Kbuild File for an External Module
-	   --- 3.1 Shared Makefile
-	   --- 3.2 Separate Kbuild file and Makefile
-	   --- 3.3 Binary Blobs
-	   --- 3.4 Building Multiple Modules
-	=== 4. Include Files
-	   --- 4.1 Kernel Includes
-	   --- 4.2 Single Subdirectory
-	   --- 4.3 Several Subdirectories
-	=== 5. Module Installation
-	   --- 5.1 INSTALL_MOD_PATH
-	   --- 5.2 INSTALL_MOD_DIR
-	=== 6. Module Versioning
-	   --- 6.1 Symbols From the Kernel (vmlinux + modules)
-	   --- 6.2 Symbols and External Modules
-	   --- 6.3 Symbols From Another External Module
-	=== 7. Tips & Tricks
-	   --- 7.1 Testing for CONFIG_FOO_BAR
-
-
-
 1. Introduction
 ===============
 
