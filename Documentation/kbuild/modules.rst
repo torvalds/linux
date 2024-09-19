@@ -9,7 +9,7 @@ Introduction
 
 "kbuild" is the build system used by the Linux kernel. Modules must use
 kbuild to stay compatible with changes in the build infrastructure and
-to pick up the right flags to "gcc." Functionality for building modules
+to pick up the right flags to the compiler. Functionality for building modules
 both in-tree and out-of-tree is provided. The method for building
 either is similar, and all modules are initially developed and built
 out-of-tree.
@@ -256,7 +256,7 @@ Kernel Includes
 
 		#include <linux/module.h>
 
-	kbuild will add options to "gcc" so the relevant directories
+	kbuild will add options to the compiler so the relevant directories
 	are searched.
 
 Single Subdirectory
