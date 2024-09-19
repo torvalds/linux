@@ -73,6 +73,11 @@ enum amdgpu_memory_partition {
 	AMDGPU_NPS8_PARTITION_MODE = 8,
 };
 
+#define AMDGPU_ALL_NPS_MASK                                                  \
+	(BIT(AMDGPU_NPS1_PARTITION_MODE) | BIT(AMDGPU_NPS2_PARTITION_MODE) | \
+	 BIT(AMDGPU_NPS3_PARTITION_MODE) | BIT(AMDGPU_NPS4_PARTITION_MODE) | \
+	 BIT(AMDGPU_NPS6_PARTITION_MODE) | BIT(AMDGPU_NPS8_PARTITION_MODE))
+
 /*
  * GMC page fault information
  */
@@ -308,6 +313,7 @@ struct amdgpu_gmc {
 	uint8_t num_mem_partitions;
 	const struct amdgpu_gmc_funcs	*gmc_funcs;
 	enum amdgpu_memory_partition	requested_nps_mode;
+	uint32_t supported_nps_modes;
 
 	struct amdgpu_xgmi xgmi;
 	struct amdgpu_irq_src	ecc_irq;
