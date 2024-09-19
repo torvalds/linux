@@ -2009,14 +2009,13 @@ fs/erofs/erofs_fs.h
 fs/erofs/inode.c
 fs/erofs/internal.h
 fs/erofs/namei.c
-fs/erofs/pcpubuf.c
 fs/erofs/super.c
 fs/erofs/sysfs.c
-fs/erofs/utils.c
 fs/erofs/xattr.c
 fs/erofs/xattr.h
 fs/erofs/zdata.c
 fs/erofs/zmap.c
+fs/erofs/zutil.c
 fs/eventfd.c
 fs/eventpoll.c
 fs/exec.c
@@ -2781,6 +2780,7 @@ include/linux/cgroup_rdma.h
 include/linux/cgroup_subsys.h
 include/linux/circ_buf.h
 include/linux/cleancache.h
+include/linux/cleanup.h
 include/linux/clk-provider.h
 include/linux/clk.h
 include/linux/clk/clk-conf.h
@@ -4336,6 +4336,7 @@ include/trace/hooks/fips140.h
 include/trace/hooks/fpsimd.h
 include/trace/hooks/fs.h
 include/trace/hooks/ftrace_dump.h
+include/trace/hooks/fuse.h
 include/trace/hooks/futex.h
 include/trace/hooks/gic.h
 include/trace/hooks/gic_v3.h
@@ -5937,6 +5938,7 @@ net/ipv4/proc.c
 net/ipv4/protocol.c
 net/ipv4/raw.c
 net/ipv4/route.c
+net/ipv4/syncookies.c
 net/ipv4/sysctl_net_ipv4.c
 net/ipv4/tcp.c
 net/ipv4/tcp_bpf.c
@@ -6027,6 +6029,7 @@ net/ipv6/route.c
 net/ipv6/rpl.c
 net/ipv6/seg6.c
 net/ipv6/sit.c
+net/ipv6/syncookies.c
 net/ipv6/sysctl_net_ipv6.c
 net/ipv6/tcp_ipv6.c
 net/ipv6/tcpv6_offload.c
@@ -6504,8 +6507,8 @@ sound/usb/mixer_s1810c.c
 sound/usb/mixer_s1810c.h
 sound/usb/mixer_scarlett.c
 sound/usb/mixer_scarlett.h
-sound/usb/mixer_scarlett_gen2.c
-sound/usb/mixer_scarlett_gen2.h
+sound/usb/mixer_scarlett2.c
+sound/usb/mixer_scarlett2.h
 sound/usb/mixer_us16x08.c
 sound/usb/mixer_us16x08.h
 sound/usb/pcm.c
