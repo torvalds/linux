@@ -6,8 +6,8 @@
  *      Contact: David Cohen <david.a.cohen@linux.intel.com>
  */
 
-#ifndef __INTEL_MID_WDT_H__
-#define __INTEL_MID_WDT_H__
+#ifndef __PLATFORM_X86_INTEL_MID_WDT_H_
+#define __PLATFORM_X86_INTEL_MID_WDT_H_
 
 #include <linux/platform_device.h>
 
@@ -16,4 +16,4 @@ struct intel_mid_wdt_pdata {
 	int (*probe)(struct platform_device *pdev);
 };
 
-#endif /*__INTEL_MID_WDT_H__*/
+#endif	/* __PLATFORM_X86_INTEL_MID_WDT_H_ */

@@ -13,13 +13,13 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+#include <linux/backlight.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/input.h>
 #include <linux/input/sparse-keymap.h>
 #include <linux/dmi.h>
-#include <linux/fb.h>
 #include <linux/acpi.h>
 
 #include "asus-wmi.h"
@@ -192,7 +192,7 @@ static void eeepc_wmi_quirks(struct asus_wmi_driver *driver)
 
 	driver->quirks = quirks;
 	driver->quirks->wapf = -1;
-	driver->panel_power = FB_BLANK_UNBLANK;
+	driver->panel_power = BACKLIGHT_POWER_ON;
 }
 
 static struct asus_wmi_driver asus_wmi_driver = {
