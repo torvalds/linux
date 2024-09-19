@@ -50,6 +50,14 @@ properties:
       - const: disp_axi
     minItems: 1
 
+  dmas:
+    items:
+      - description: DMA specifier for the RX DMA channel.
+
+  dma-names:
+    items:
+      - const: rx
+
   interrupts:
     items:
       - description: LCDIF DMA interrupt
@@ -155,6 +163,18 @@ allOf:
       properties:
         interrupts:
           maxItems: 1
+
+  - if:
+      not:
+        properties:
+          compatible:
+            contains:
+              enum:
+                - fsl,imx28-lcdif
+    then:
+      properties:
+        dmas: false
+        dma-names: false
 
 examples:
   - |
