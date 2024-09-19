@@ -8,9 +8,9 @@
  *	PIO mode and smarter silicon.
  *
  *	The practical upshot of this is that we must always tune the
- *	drive for the right PIO mode. We must also ignore all the blacklists
- *	and the drive bus mastering DMA information. Also to confuse matters
- *	further we can do DMA on PIO only drives.
+ *	drive for the right PIO mode and ignore the drive bus mastering DMA
+ *	information. Also to confuse matters further we can do DMA on PIO only
+ *	drives.
  *
  *	DMA on the 5510 also requires we disable_hlt() during DMA on early
  *	revisions.

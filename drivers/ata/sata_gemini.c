@@ -417,6 +417,7 @@ static const struct of_device_id gemini_sata_of_match[] = {
 	{ .compatible = "cortina,gemini-sata-bridge", },
 	{ /* sentinel */ }
 };
+MODULE_DEVICE_TABLE(of, gemini_sata_of_match);
 
 static struct platform_driver gemini_sata_driver = {
 	.driver = {
