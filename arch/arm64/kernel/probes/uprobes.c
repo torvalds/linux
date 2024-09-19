@@ -17,12 +17,20 @@ void arch_uprobe_copy_ixol(struct page *page, unsigned long vaddr,
 	void *xol_page_kaddr = kmap_atomic(page);
 	void *dst = xol_page_kaddr + (vaddr & ~PAGE_MASK);
 
+	/*
+	 * Initial cache maintenance of the xol page done via set_pte_at().
+	 * Subsequent CMOs only needed if the xol slot changes.
+	 */
+	if (!memcmp(dst, src, len))
+		goto done;
+
 	/* Initialize the slot */
 	memcpy(dst, src, len);
 
 	/* flush caches (dcache/icache) */
 	sync_icache_aliases((unsigned long)dst, (unsigned long)dst + len);
 
+done:
 	kunmap_atomic(xol_page_kaddr);
 }
 
