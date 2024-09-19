@@ -5,6 +5,7 @@
 #include <linux/completion.h>
 #include <linux/mutex.h>
 #include <linux/bitops.h>
+#include <linux/io.h>
 #include <linux/kthread.h>
 #include <linux/wait.h>
 #include <linux/delay.h>
@@ -60,6 +61,8 @@
 #define MAKE_RESUME			(VCHIQ_MSG_RESUME << TYPE_SHIFT)
 #define MAKE_REMOTE_USE			(VCHIQ_MSG_REMOTE_USE << TYPE_SHIFT)
 #define MAKE_REMOTE_USE_ACTIVE		(VCHIQ_MSG_REMOTE_USE_ACTIVE << TYPE_SHIFT)
+
+#define BELL2	0x08
 
 /* Ensure the fields are wide enough */
 static_assert(VCHIQ_MSG_SRCPORT(VCHIQ_MAKE_MSG(0, 0, VCHIQ_PORT_MAX))
@@ -524,6 +527,25 @@ remote_event_wait(wait_queue_head_t *wq, struct remote_event *event)
 
 	event->fired = 0;
 	return ret;
+}
+
+static void
+remote_event_signal(struct vchiq_state *state, struct remote_event *event)
+{
+	struct vchiq_drv_mgmt *mgmt = dev_get_drvdata(state->dev);
+
+	/*
+	 * Ensure that all writes to shared data structures have completed
+	 * before signalling the peer.
+	 */
+	wmb();
+
+	event->fired = 1;
+
+	dsb(sy);         /* data barrier operation */
+
+	if (event->armed)
+		writel(0, mgmt->regs + BELL2); /* trigger vc interrupt */
 }
 
 /*

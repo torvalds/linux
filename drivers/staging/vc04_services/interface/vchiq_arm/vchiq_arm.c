@@ -48,7 +48,6 @@
 #define VCHIQ_PLATFORM_FRAGMENTS_COUNT_IDX  1
 
 #define BELL0	0x00
-#define BELL2	0x08
 
 #define ARM_DS_ACTIVE	BIT(2)
 
@@ -616,24 +615,6 @@ static struct vchiq_arm_state *vchiq_platform_get_arm_state(struct vchiq_state *
 	return (struct vchiq_arm_state *)state->platform_state;
 }
 
-void
-remote_event_signal(struct vchiq_state *state, struct remote_event *event)
-{
-	struct vchiq_drv_mgmt *mgmt = dev_get_drvdata(state->dev);
-
-	/*
-	 * Ensure that all writes to shared data structures have completed
-	 * before signalling the peer.
-	 */
-	wmb();
-
-	event->fired = 1;
-
-	dsb(sy);         /* data barrier operation */
-
-	if (event->armed)
-		writel(0, mgmt->regs + BELL2); /* trigger vc interrupt */
-}
 
 int
 vchiq_prepare_bulk_data(struct vchiq_instance *instance, struct vchiq_bulk *bulk, void *offset,
