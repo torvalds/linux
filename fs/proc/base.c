@@ -2626,7 +2626,7 @@ static ssize_t timerslack_ns_write(struct file *file, const char __user *buf,
 	}
 
 	task_lock(p);
-	if (task_is_realtime(p))
+	if (rt_or_dl_task_policy(p))
 		slack_ns = 0;
 	else if (slack_ns == 0)
 		slack_ns = p->default_timer_slack_ns;
