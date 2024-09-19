@@ -121,7 +121,7 @@ static void pmac_backlight_unblank(void)
 
 		props = &pmac_backlight->props;
 		props->brightness = props->max_brightness;
-		props->power = FB_BLANK_UNBLANK;
+		props->power = BACKLIGHT_POWER_ON;
 		backlight_update_status(pmac_backlight);
 	}
 	mutex_unlock(&pmac_backlight_mutex);

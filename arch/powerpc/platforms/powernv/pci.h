@@ -274,7 +274,6 @@ int pnv_pci_cfg_write(struct pci_dn *pdn,
 		      int where, int size, u32 val);
 extern struct iommu_table *pnv_pci_table_alloc(int nid);
 
-extern void pnv_pci_init_ioda_hub(struct device_node *np);
 extern void pnv_pci_init_ioda2_phb(struct device_node *np);
 extern void pnv_pci_init_npu2_opencapi_phb(struct device_node *np);
 extern void pnv_pci_reset_secondary_bus(struct pci_dev *dev);
