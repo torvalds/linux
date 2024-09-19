@@ -22,7 +22,7 @@ static int mpq8785_identify(struct i2c_client *client,
 		break;
 	case 1:
 	case 2:
-		info->format[PSC_VOLTAGE_OUT] = direct,
+		info->format[PSC_VOLTAGE_OUT] = direct;
 		info->m[PSC_VOLTAGE_OUT] = 64;
 		info->b[PSC_VOLTAGE_OUT] = 0;
 		info->R[PSC_VOLTAGE_OUT] = 1;
