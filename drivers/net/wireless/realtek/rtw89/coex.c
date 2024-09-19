@@ -4855,6 +4855,8 @@ static void _set_btg_ctrl(struct rtw89_dev *rtwdev)
 
 	if (rtwdev->dbcc_en) {
 		if (ver->fwlrole == 0) {
+			wl_rinfo.dbcc_2g_phy = RTW89_PHY_MAX;
+
 			for (i = 0; i < RTW89_PHY_MAX; i++) {
 				if (wl_dinfo->real_band[i] == RTW89_BAND_2G)
 					wl_rinfo.dbcc_2g_phy = i;
