@@ -112,10 +112,14 @@ static __always_inline void *get_stub_data(void)
 	unsigned long ret;
 
 	asm volatile (
-		"movl %%esp,%0 ;"
-		"andl %1,%0"
+		"call _here_%=;"
+		"_here_%=:"
+		"popl %0;"
+		"andl %1, %0 ;"
+		"addl %2, %0 ;"
 		: "=a" (ret)
-		: "g" (~(STUB_DATA_PAGES * UM_KERN_PAGE_SIZE - 1)));
+		: "g" (~(UM_KERN_PAGE_SIZE - 1)),
+		  "g" (UM_KERN_PAGE_SIZE));
 
 	return (void *)ret;
 }
