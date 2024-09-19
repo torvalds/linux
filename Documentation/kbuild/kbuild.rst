@@ -134,6 +134,11 @@ KBUILD_OUTPUT
 -------------
 Specify the output directory when building the kernel.
 
+This variable can also be used to point to the kernel output directory when
+building external modules against a pre-built kernel in a separate build
+directory. Please note that this does NOT specify the output directory for the
+external modules themselves.
+
 The output directory can also be specified using "O=...".
 
 Setting "O=..." takes precedence over KBUILD_OUTPUT.
