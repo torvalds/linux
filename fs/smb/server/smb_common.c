@@ -9,7 +9,7 @@
 #include "smb_common.h"
 #include "server.h"
 #include "misc.h"
-#include "smbstatus.h"
+#include "../common/smb2status.h"
 #include "connection.h"
 #include "ksmbd_work.h"
 #include "mgmt/user_session.h"

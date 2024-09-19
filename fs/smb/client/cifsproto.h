@@ -225,7 +225,7 @@ extern int cifs_set_file_info(struct inode *inode, struct iattr *attrs,
 extern int cifs_rename_pending_delete(const char *full_path,
 				      struct dentry *dentry,
 				      const unsigned int xid);
-extern int sid_to_id(struct cifs_sb_info *cifs_sb, struct cifs_sid *psid,
+extern int sid_to_id(struct cifs_sb_info *cifs_sb, struct smb_sid *psid,
 				struct cifs_fattr *fattr, uint sidtype);
 extern int cifs_acl_to_fattr(struct cifs_sb_info *cifs_sb,
 			      struct cifs_fattr *fattr, struct inode *inode,
@@ -233,19 +233,19 @@ extern int cifs_acl_to_fattr(struct cifs_sb_info *cifs_sb,
 			      const char *path, const struct cifs_fid *pfid);
 extern int id_mode_to_cifs_acl(struct inode *inode, const char *path, __u64 *pnmode,
 					kuid_t uid, kgid_t gid);
-extern struct cifs_ntsd *get_cifs_acl(struct cifs_sb_info *, struct inode *,
-				      const char *, u32 *, u32);
-extern struct cifs_ntsd *get_cifs_acl_by_fid(struct cifs_sb_info *,
-				const struct cifs_fid *, u32 *, u32);
+extern struct smb_ntsd *get_cifs_acl(struct cifs_sb_info *cifssmb, struct inode *ino,
+				      const char *path, u32 *plen, u32 info);
+extern struct smb_ntsd *get_cifs_acl_by_fid(struct cifs_sb_info *cifssb,
+				const struct cifs_fid *pfid, u32 *plen, u32 info);
 extern struct posix_acl *cifs_get_acl(struct mnt_idmap *idmap,
 				      struct dentry *dentry, int type);
 extern int cifs_set_acl(struct mnt_idmap *idmap,
 			struct dentry *dentry, struct posix_acl *acl, int type);
-extern int set_cifs_acl(struct cifs_ntsd *, __u32, struct inode *,
-				const char *, int);
-extern unsigned int setup_authusers_ACE(struct cifs_ace *pace);
-extern unsigned int setup_special_mode_ACE(struct cifs_ace *pace, __u64 nmode);
-extern unsigned int setup_special_user_owner_ACE(struct cifs_ace *pace);
+extern int set_cifs_acl(struct smb_ntsd *pntsd, __u32 len, struct inode *ino,
+				const char *path, int flag);
+extern unsigned int setup_authusers_ACE(struct smb_ace *pace);
+extern unsigned int setup_special_mode_ACE(struct smb_ace *pace, __u64 nmode);
+extern unsigned int setup_special_user_owner_ACE(struct smb_ace *pace);
 
 extern void dequeue_mid(struct mid_q_entry *mid, bool malformed);
 extern int cifs_read_from_socket(struct TCP_Server_Info *server, char *buf,
@@ -570,9 +570,9 @@ extern int CIFSSMBSetEA(const unsigned int xid, struct cifs_tcon *tcon,
 		const struct nls_table *nls_codepage,
 		struct cifs_sb_info *cifs_sb);
 extern int CIFSSMBGetCIFSACL(const unsigned int xid, struct cifs_tcon *tcon,
-			__u16 fid, struct cifs_ntsd **acl_inf, __u32 *buflen);
+			__u16 fid, struct smb_ntsd **acl_inf, __u32 *buflen);
 extern int CIFSSMBSetCIFSACL(const unsigned int, struct cifs_tcon *, __u16,
-			struct cifs_ntsd *, __u32, int);
+			struct smb_ntsd *pntsd, __u32 len, int aclflag);
 extern int cifs_do_get_acl(const unsigned int xid, struct cifs_tcon *tcon,
 			   const unsigned char *searchName,
 			   struct posix_acl **acl, const int acl_type,
@@ -676,6 +676,10 @@ char *extract_sharename(const char *unc);
 int parse_reparse_point(struct reparse_data_buffer *buf,
 			u32 plen, struct cifs_sb_info *cifs_sb,
 			bool unicode, struct cifs_open_info_data *data);
+int __cifs_sfu_make_node(unsigned int xid, struct inode *inode,
+			 struct dentry *dentry, struct cifs_tcon *tcon,
+			 const char *full_path, umode_t mode, dev_t dev,
+			 const char *symname);
 int cifs_sfu_make_node(unsigned int xid, struct inode *inode,
 		       struct dentry *dentry, struct cifs_tcon *tcon,
 		       const char *full_path, umode_t mode, dev_t dev);

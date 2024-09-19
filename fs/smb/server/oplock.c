@@ -10,7 +10,7 @@
 #include "oplock.h"
 
 #include "smb_common.h"
-#include "smbstatus.h"
+#include "../common/smb2status.h"
 #include "connection.h"
 #include "mgmt/user_session.h"
 #include "mgmt/share_config.h"
