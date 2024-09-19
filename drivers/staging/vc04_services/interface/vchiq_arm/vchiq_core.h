@@ -6,6 +6,7 @@
 
 #include <linux/mutex.h>
 #include <linux/completion.h>
+#include <linux/dma-mapping.h>
 #include <linux/debugfs.h>
 #include <linux/dev_printk.h>
 #include <linux/kthread.h>
@@ -16,6 +17,7 @@
 
 #include "../../include/linux/raspberrypi/vchiq.h"
 #include "vchiq_cfg.h"
+#include "vchiq_pagelist.h"
 
 /* Do this so that we can test-build the code on non-rpi systems */
 #if IS_ENABLED(CONFIG_RASPBERRYPI_FIRMWARE)
@@ -409,6 +411,18 @@ struct vchiq_state {
 	struct opaque_platform_state *platform_state;
 };
 
+struct vchiq_pagelist_info {
+	struct pagelist *pagelist;
+	size_t pagelist_buffer_size;
+	dma_addr_t dma_addr;
+	enum dma_data_direction dma_dir;
+	unsigned int num_pages;
+	unsigned int pages_need_release;
+	struct page **pages;
+	struct scatterlist *scatterlist;
+	unsigned int scatterlist_mapped;
+};
+
 static inline bool vchiq_remote_initialised(const struct vchiq_state *state)
 {
 	return state->remote && state->remote->initialised;
@@ -528,11 +542,6 @@ vchiq_queue_message(struct vchiq_instance *instance, unsigned int handle,
 					     size_t offset, size_t maxsize),
 		    void *context,
 		    size_t size);
-
-int vchiq_prepare_bulk_data(struct vchiq_instance *instance, struct vchiq_bulk *bulk, void *offset,
-			    void __user *uoffset, int size, int dir);
-
-void vchiq_complete_bulk(struct vchiq_instance *instance, struct vchiq_bulk *bulk);
 
 void vchiq_dump_platform_state(struct seq_file *f);
 
