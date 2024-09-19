@@ -4898,8 +4898,16 @@ void device_shutdown(void)
 
 		idx = device_links_read_lock();
 		list_for_each_entry_rcu(link, &dev->links.suppliers, c_node,
-				device_links_read_lock_held())
+				device_links_read_lock_held()) {
+			/*
+			 * sync_state_only suppliers don't need to wait,
+			 * aren't reordered on devices_kset, so making them
+			 * wait could result in a hang
+			 */
+			if (device_link_flag_is_sync_state_only(link->flags))
+				continue;
 			link->supplier->p->shutdown_after = cookie;
+		}
 		device_links_read_unlock(idx);
 		put_device(dev);
 
