@@ -3,6 +3,7 @@
 #include <linux/stringify.h>
 #include <linux/linkage.h>
 #include <asm/alternative.h>
+#include <asm/dwarf.h>
 #include <asm/fpu-insn.h>
 
 #define STATE0	%v0
@@ -38,6 +39,7 @@
  *				       size_t nblocks)
  */
 SYM_FUNC_START(__arch_chacha20_blocks_nostack)
+	CFI_STARTPROC
 	larl	%r1,.Lconstants
 
 	/* COPY0 = "expand 32-byte k" */
@@ -177,4 +179,5 @@ SYM_FUNC_START(__arch_chacha20_blocks_nostack)
 	VPERM	TMP3,STATE3,STATE3,BEPERM
 	VSTM	TMP0,TMP3,0,%r2
 	j	.Lstoredone
+	CFI_ENDPROC
 SYM_FUNC_END(__arch_chacha20_blocks_nostack)
