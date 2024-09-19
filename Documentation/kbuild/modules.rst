@@ -152,7 +152,6 @@ module 8123.ko, which is built from the following files::
 	8123_if.c
 	8123_if.h
 	8123_pci.c
-	8123_bin.o_shipped	<= Binary blob
 
 Shared Makefile
 ---------------
@@ -170,7 +169,7 @@ Shared Makefile
 		ifneq ($(KERNELRELEASE),)
 		# kbuild part of makefile
 		obj-m  := 8123.o
-		8123-y := 8123_if.o 8123_pci.o 8123_bin.o
+		8123-y := 8123_if.o 8123_pci.o
 
 		else
 		# normal makefile
@@ -178,10 +177,6 @@ Shared Makefile
 
 		default:
 			$(MAKE) -C $(KDIR) M=$$PWD
-
-		# Module specific targets
-		genbin:
-			echo "X" > 8123_bin.o_shipped
 
 		endif
 
@@ -204,7 +199,7 @@ Separate Kbuild File and Makefile
 
 		--> filename: Kbuild
 		obj-m  := 8123.o
-		8123-y := 8123_if.o 8123_pci.o 8123_bin.o
+		8123-y := 8123_if.o 8123_pci.o
 
 		--> filename: Makefile
 		KDIR ?= /lib/modules/`uname -r`/build
@@ -212,34 +207,10 @@ Separate Kbuild File and Makefile
 		default:
 			$(MAKE) -C $(KDIR) M=$$PWD
 
-		# Module specific targets
-		genbin:
-			echo "X" > 8123_bin.o_shipped
-
 	The split in example 2 is questionable due to the simplicity of
 	each file; however, some external modules use makefiles
 	consisting of several hundred lines, and here it really pays
 	off to separate the kbuild part from the rest.
-
-Binary Blobs
-------------
-
-	Some external modules need to include an object file as a blob.
-	kbuild has support for this, but requires the blob file to be
-	named <filename>_shipped. When the kbuild rules kick in, a copy
-	of <filename>_shipped is created with _shipped stripped off,
-	giving us <filename>. This shortened filename can be used in
-	the assignment to the module.
-
-	Throughout this section, 8123_bin.o_shipped has been used to
-	build the kernel module 8123.ko; it has been included as
-	8123_bin.o::
-
-		8123-y := 8123_if.o 8123_pci.o 8123_bin.o
-
-	Although there is no distinction between the ordinary source
-	files and the binary file, kbuild will pick up different rules
-	when creating the object file for the module.
 
 Building Multiple Modules
 -------------------------
@@ -301,7 +272,7 @@ Single Subdirectory
 		obj-m := 8123.o
 
 		ccflags-y := -I $(src)/include
-		8123-y := 8123_if.o 8123_pci.o 8123_bin.o
+		8123-y := 8123_if.o 8123_pci.o
 
 Several Subdirectories
 ----------------------
