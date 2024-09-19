@@ -178,3 +178,6 @@ SECTIONS
 
   DISCARDS
 }
+
+ASSERT(__syscall_stub_end - __syscall_stub_start <= PAGE_SIZE,
+       "STUB code must not be larger than one page");
