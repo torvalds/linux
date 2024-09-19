@@ -46,6 +46,7 @@ struct amdgpu_hive_info {
 	atomic_t ras_recovery;
 	struct ras_event_manager event_mgr;
 	struct work_struct reset_on_init_work;
+	atomic_t requested_nps_mode;
 };
 
 struct amdgpu_pcs_ras_field {

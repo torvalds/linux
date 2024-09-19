@@ -161,6 +161,9 @@ struct amdgpu_gmc_funcs {
 
 	enum amdgpu_memory_partition (*query_mem_partition_mode)(
 		struct amdgpu_device *adev);
+	/* Request NPS mode */
+	int (*request_mem_partition_mode)(struct amdgpu_device *adev,
+					  int nps_mode);
 };
 
 struct amdgpu_xgmi_ras {
@@ -304,6 +307,7 @@ struct amdgpu_gmc {
 	struct amdgpu_mem_partition_info *mem_partitions;
 	uint8_t num_mem_partitions;
 	const struct amdgpu_gmc_funcs	*gmc_funcs;
+	enum amdgpu_memory_partition	requested_nps_mode;
 
 	struct amdgpu_xgmi xgmi;
 	struct amdgpu_irq_src	ecc_irq;
@@ -454,4 +458,6 @@ int amdgpu_gmc_get_nps_memranges(struct amdgpu_device *adev,
 				 struct amdgpu_mem_partition_info *mem_ranges,
 				 int exp_ranges);
 
+int amdgpu_gmc_request_memory_partition(struct amdgpu_device *adev,
+					int nps_mode);
 #endif
