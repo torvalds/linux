@@ -229,14 +229,16 @@ static struct xe_gt_sriov_config *pf_pick_vf_config(struct xe_gt *gt, unsigned i
 }
 
 /* Return: number of configuration dwords written */
-static u32 encode_config_ggtt(u32 *cfg, const struct xe_gt_sriov_config *config)
+static u32 encode_config_ggtt(u32 *cfg, const struct xe_gt_sriov_config *config, bool details)
 {
 	u32 n = 0;
 
 	if (xe_ggtt_node_allocated(config->ggtt_region)) {
-		cfg[n++] = PREP_GUC_KLV_TAG(VF_CFG_GGTT_START);
-		cfg[n++] = lower_32_bits(config->ggtt_region->base.start);
-		cfg[n++] = upper_32_bits(config->ggtt_region->base.start);
+		if (details) {
+			cfg[n++] = PREP_GUC_KLV_TAG(VF_CFG_GGTT_START);
+			cfg[n++] = lower_32_bits(config->ggtt_region->base.start);
+			cfg[n++] = upper_32_bits(config->ggtt_region->base.start);
+		}
 
 		cfg[n++] = PREP_GUC_KLV_TAG(VF_CFG_GGTT_SIZE);
 		cfg[n++] = lower_32_bits(config->ggtt_region->base.size);
@@ -247,20 +249,24 @@ static u32 encode_config_ggtt(u32 *cfg, const struct xe_gt_sriov_config *config)
 }
 
 /* Return: number of configuration dwords written */
-static u32 encode_config(u32 *cfg, const struct xe_gt_sriov_config *config)
+static u32 encode_config(u32 *cfg, const struct xe_gt_sriov_config *config, bool details)
 {
 	u32 n = 0;
 
-	n += encode_config_ggtt(cfg, config);
+	n += encode_config_ggtt(cfg, config, details);
 
-	cfg[n++] = PREP_GUC_KLV_TAG(VF_CFG_BEGIN_CONTEXT_ID);
-	cfg[n++] = config->begin_ctx;
+	if (details) {
+		cfg[n++] = PREP_GUC_KLV_TAG(VF_CFG_BEGIN_CONTEXT_ID);
+		cfg[n++] = config->begin_ctx;
+	}
 
 	cfg[n++] = PREP_GUC_KLV_TAG(VF_CFG_NUM_CONTEXTS);
 	cfg[n++] = config->num_ctxs;
 
-	cfg[n++] = PREP_GUC_KLV_TAG(VF_CFG_BEGIN_DOORBELL_ID);
-	cfg[n++] = config->begin_db;
+	if (details) {
+		cfg[n++] = PREP_GUC_KLV_TAG(VF_CFG_BEGIN_DOORBELL_ID);
+		cfg[n++] = config->begin_db;
+	}
 
 	cfg[n++] = PREP_GUC_KLV_TAG(VF_CFG_NUM_DOORBELLS);
 	cfg[n++] = config->num_dbs;
@@ -301,7 +307,7 @@ static int pf_push_full_vf_config(struct xe_gt *gt, unsigned int vfid)
 	if (!cfg)
 		return -ENOMEM;
 
-	num_dwords = encode_config(cfg, config);
+	num_dwords = encode_config(cfg, config, true);
 	xe_gt_assert(gt, num_dwords <= max_cfg_dwords);
 
 	if (xe_gt_is_media_type(gt)) {
@@ -309,10 +315,10 @@ static int pf_push_full_vf_config(struct xe_gt *gt, unsigned int vfid)
 		struct xe_gt_sriov_config *other = pf_pick_vf_config(primary, vfid);
 
 		/* media-GT will never include a GGTT config */
-		xe_gt_assert(gt, !encode_config_ggtt(cfg + num_dwords, config));
+		xe_gt_assert(gt, !encode_config_ggtt(cfg + num_dwords, config, true));
 
 		/* the GGTT config must be taken from the primary-GT instead */
-		num_dwords += encode_config_ggtt(cfg + num_dwords, other);
+		num_dwords += encode_config_ggtt(cfg + num_dwords, other, true);
 	}
 	xe_gt_assert(gt, num_dwords <= max_cfg_dwords);
 
