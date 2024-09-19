@@ -595,7 +595,7 @@ xfs_unmount_flush_inodes(
 	xfs_extent_busy_wait_all(mp);
 	flush_workqueue(xfs_discard_wq);
 
-	set_bit(XFS_OPSTATE_UNMOUNTING, &mp->m_opstate);
+	xfs_set_unmounting(mp);
 
 	xfs_ail_push_all_sync(mp->m_ail);
 	xfs_inodegc_stop(mp);
