@@ -12,6 +12,7 @@
 #include <linux/errno.h>
 #include <linux/gfp.h>
 #include <linux/security.h>
+#include <linux/timekeeping.h>
 
 #include "include/apparmor.h"
 #include "include/capability.h"
@@ -31,7 +32,8 @@ struct aa_sfs_entry aa_sfs_entry_caps[] = {
 
 struct audit_cache {
 	struct aa_profile *profile;
-	kernel_cap_t caps;
+	/* Capabilities go from 0 to CAP_LAST_CAP */
+	u64 ktime_ns_expiration[CAP_LAST_CAP+1];
 };
 
 static DEFINE_PER_CPU(struct audit_cache, audit_cache);
@@ -64,6 +66,8 @@ static void audit_cb(struct audit_buffer *ab, void *va)
 static int audit_caps(struct apparmor_audit_data *ad, struct aa_profile *profile,
 		      int cap, int error)
 {
+	const u64 AUDIT_CACHE_TIMEOUT_NS = 1000*1000*1000; /* 1 second */
+
 	struct aa_ruleset *rules = list_first_entry(&profile->rules,
 						    typeof(*rules), list);
 	struct audit_cache *ent;
@@ -89,7 +93,8 @@ static int audit_caps(struct apparmor_audit_data *ad, struct aa_profile *profile
 
 	/* Do simple duplicate message elimination */
 	ent = &get_cpu_var(audit_cache);
-	if (profile == ent->profile && cap_raised(ent->caps, cap)) {
+	/* If the capability was never raised the timestamp check would also catch that */
+	if (profile == ent->profile && ktime_get_ns() <= ent->ktime_ns_expiration[cap]) {
 		put_cpu_var(audit_cache);
 		if (COMPLAIN_MODE(profile))
 			return complain_error(error);
@@ -99,7 +104,7 @@ static int audit_caps(struct apparmor_audit_data *ad, struct aa_profile *profile
 		if (profile != ent->profile)
 			cap_clear(ent->caps);
 		ent->profile = aa_get_profile(profile);
-		cap_raise(ent->caps, cap);
+		ent->ktime_ns_expiration[cap] = ktime_get_ns() + AUDIT_CACHE_TIMEOUT_NS;
 	}
 	put_cpu_var(audit_cache);
 
