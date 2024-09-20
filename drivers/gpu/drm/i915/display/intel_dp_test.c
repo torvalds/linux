@@ -29,7 +29,8 @@ intel_dp_adjust_compliance_config(struct intel_dp *intel_dp,
 	if (intel_dp->compliance.test_data.bpc != 0) {
 		int bpp = 3 * intel_dp->compliance.test_data.bpc;
 
-		limits->pipe.min_bpp = limits->pipe.max_bpp = bpp;
+		limits->pipe.min_bpp = bpp;
+		limits->pipe.max_bpp = bpp;
 		pipe_config->dither_force_disable = bpp == 6 * 3;
 
 		drm_dbg_kms(&i915->drm, "Setting pipe_bpp to %d\n", bpp);
@@ -47,20 +48,20 @@ intel_dp_adjust_compliance_config(struct intel_dp *intel_dp,
 			index = intel_dp_rate_index(intel_dp->common_rates,
 						    intel_dp->num_common_rates,
 						    intel_dp->compliance.test_link_rate);
-			if (index >= 0)
-				limits->min_rate = limits->max_rate =
-					intel_dp->compliance.test_link_rate;
-			limits->min_lane_count = limits->max_lane_count =
-				intel_dp->compliance.test_lane_count;
+			if (index >= 0) {
+				limits->min_rate = intel_dp->compliance.test_link_rate;
+				limits->max_rate = intel_dp->compliance.test_link_rate;
+			}
+			limits->min_lane_count = intel_dp->compliance.test_lane_count;
+			limits->max_lane_count = intel_dp->compliance.test_lane_count;
 		}
 	}
 }
 
 /* Compliance test status bits  */
-#define INTEL_DP_RESOLUTION_SHIFT_MASK	0
-#define INTEL_DP_RESOLUTION_PREFERRED	(1 << INTEL_DP_RESOLUTION_SHIFT_MASK)
-#define INTEL_DP_RESOLUTION_STANDARD	(2 << INTEL_DP_RESOLUTION_SHIFT_MASK)
-#define INTEL_DP_RESOLUTION_FAILSAFE	(3 << INTEL_DP_RESOLUTION_SHIFT_MASK)
+#define INTEL_DP_RESOLUTION_PREFERRED	1
+#define INTEL_DP_RESOLUTION_STANDARD	2
+#define INTEL_DP_RESOLUTION_FAILSAFE	3
 
 static u8 intel_dp_autotest_link_training(struct intel_dp *intel_dp)
 {
@@ -169,8 +170,7 @@ static u8 intel_dp_autotest_edid(struct intel_dp *intel_dp)
 	struct intel_connector *intel_connector = intel_dp->attached_connector;
 	struct drm_connector *connector = &intel_connector->base;
 
-	if (intel_connector->detect_edid == NULL ||
-	    connector->edid_corrupt ||
+	if (!intel_connector->detect_edid || connector->edid_corrupt ||
 	    intel_dp->aux.i2c_defer_count > 6) {
 		/* Check EDID read for NACKs, DEFERs and corruption
 		 * (DP CTS 1.2 Core r1.1)
@@ -180,7 +180,7 @@ static u8 intel_dp_autotest_edid(struct intel_dp *intel_dp)
 		 * Use failsafe mode for all cases
 		 */
 		if (intel_dp->aux.i2c_nack_count > 0 ||
-			intel_dp->aux.i2c_defer_count > 0)
+		    intel_dp->aux.i2c_defer_count > 0)
 			drm_dbg_kms(&i915->drm,
 				    "EDID read had %d NACKs, %d DEFERs\n",
 				    intel_dp->aux.i2c_nack_count,
