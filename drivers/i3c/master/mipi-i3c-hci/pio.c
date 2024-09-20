@@ -979,7 +979,7 @@ static void hci_pio_recycle_ibi_slot(struct i3c_hci *hci,
 	i3c_generic_ibi_recycle_slot(dev_ibi->pool, slot);
 }
 
-static bool hci_pio_irq_handler(struct i3c_hci *hci, unsigned int unused)
+static bool hci_pio_irq_handler(struct i3c_hci *hci)
 {
 	struct hci_pio_data *pio = hci->io_data;
 	u32 status;
