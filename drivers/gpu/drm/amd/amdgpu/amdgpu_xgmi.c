@@ -1564,3 +1564,41 @@ int amdgpu_xgmi_reset_on_init(struct amdgpu_device *adev)
 
 	return 0;
 }
+
+int amdgpu_xgmi_request_nps_change(struct amdgpu_device *adev,
+				   struct amdgpu_hive_info *hive,
+				   int req_nps_mode)
+{
+	struct amdgpu_device *tmp_adev;
+	int cur_nps_mode, r;
+
+	/* This is expected to be called only during unload of driver. The
+	 * request needs to be placed only once for all devices in the hive. If
+	 * one of them fail, revert the request for previous successful devices.
+	 * After placing the request, make hive mode as UNKNOWN so that other
+	 * devices don't request anymore.
+	 */
+	mutex_lock(&hive->hive_lock);
+	list_for_each_entry(tmp_adev, &hive->device_list, gmc.xgmi.head) {
+		r = adev->gmc.gmc_funcs->request_mem_partition_mode(
+			tmp_adev, req_nps_mode);
+		if (r)
+			goto err;
+	}
+	/* Set to UNKNOWN so that other devices don't request anymore */
+	atomic_set(&hive->requested_nps_mode, UNKNOWN_MEMORY_PARTITION_MODE);
+
+	mutex_unlock(&hive->hive_lock);
+
+	return 0;
+err:
+	/* Request back current mode if one of the requests failed */
+	cur_nps_mode = adev->gmc.gmc_funcs->query_mem_partition_mode(tmp_adev);
+	list_for_each_entry_continue_reverse(tmp_adev, &hive->device_list,
+					     gmc.xgmi.head)
+		adev->gmc.gmc_funcs->request_mem_partition_mode(tmp_adev,
+								cur_nps_mode);
+	mutex_lock(&hive->hive_lock);
+
+	return r;
+}

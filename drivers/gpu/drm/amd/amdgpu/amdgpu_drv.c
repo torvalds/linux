@@ -2429,6 +2429,7 @@ amdgpu_pci_remove(struct pci_dev *pdev)
 	struct amdgpu_device *adev = drm_to_adev(dev);
 
 	amdgpu_xcp_dev_unplug(adev);
+	amdgpu_gmc_prepare_nps_mode_change(adev);
 	drm_dev_unplug(dev);
 
 	if (adev->pm.rpm_mode != AMDGPU_RUNPM_NONE) {

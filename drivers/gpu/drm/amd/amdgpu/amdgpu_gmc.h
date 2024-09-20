@@ -466,4 +466,6 @@ int amdgpu_gmc_get_nps_memranges(struct amdgpu_device *adev,
 
 int amdgpu_gmc_request_memory_partition(struct amdgpu_device *adev,
 					int nps_mode);
+void amdgpu_gmc_prepare_nps_mode_change(struct amdgpu_device *adev);
+
 #endif
