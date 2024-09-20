@@ -4294,8 +4294,27 @@ int amdgpu_ras_reset_gpu(struct amdgpu_device *adev)
 		ras->gpu_reset_flags |= AMDGPU_RAS_GPU_RESET_MODE1_RESET;
 	}
 
-	if (atomic_cmpxchg(&ras->in_recovery, 0, 1) == 0)
+	if (atomic_cmpxchg(&ras->in_recovery, 0, 1) == 0) {
+		struct amdgpu_hive_info *hive = amdgpu_get_xgmi_hive(adev);
+		int hive_ras_recovery = 0;
+
+		if (hive) {
+			hive_ras_recovery = atomic_read(&hive->ras_recovery);
+			amdgpu_put_xgmi_hive(hive);
+		}
+		/* In the case of multiple GPUs, after a GPU has started
+		 * resetting all GPUs on hive, other GPUs do not need to
+		 * trigger GPU reset again.
+		 */
+		if (!hive_ras_recovery)
+			amdgpu_reset_domain_schedule(ras->adev->reset_domain, &ras->recovery_work);
+		else
+			atomic_set(&ras->in_recovery, 0);
+	} else {
+		flush_work(&ras->recovery_work);
 		amdgpu_reset_domain_schedule(ras->adev->reset_domain, &ras->recovery_work);
+	}
+
 	return 0;
 }
 
