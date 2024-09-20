@@ -3,7 +3,7 @@
  * Xilinx Zynq MPSoC Firmware layer
  *
  *  Copyright (C) 2014-2021 Xilinx
- *  Copyright (C) 2022 - 2023, Advanced Micro Devices, Inc.
+ *  Copyright (C) 2022 - 2024, Advanced Micro Devices, Inc.
  *
  *  Michal Simek <michal.simek@amd.com>
  *  Davorin Mista <davorin.mista@aggios.com>
@@ -32,6 +32,19 @@
 /* SMC SIP service Call Function Identifier Prefix */
 #define PM_SIP_SVC			0xC2000000
 
+/* SMC function ID to get SiP SVC version */
+#define GET_SIP_SVC_VERSION	(0x8200ff03U)
+
+/* SiP Service Calls version numbers */
+#define SIP_SVC_VERSION_MAJOR		(0U)
+#define SIP_SVC_VERSION_MINOR		(2U)
+
+#define SIP_SVC_PASSTHROUGH_VERSION	((SIP_SVC_VERSION_MAJOR << 16) | \
+					 SIP_SVC_VERSION_MINOR)
+
+/* Fixed ID for FW specific APIs */
+#define PASS_THROUGH_FW_CMD_ID	GENMASK(11, 0)
+
 /* PM API versions */
 #define PM_API_VERSION_1	1
 #define PM_API_VERSION_2	2
@@ -51,6 +64,7 @@
 
 #define API_ID_MASK		GENMASK(7, 0)
 #define MODULE_ID_MASK		GENMASK(11, 8)
+#define PLM_MODULE_ID_MASK	GENMASK(15, 8)
 
 /* Firmware feature check version mask */
 #define FIRMWARE_VERSION_MASK		0xFFFFU
@@ -62,7 +76,13 @@
 #define GET_CALLBACK_DATA		0xa01
 
 /* Number of 32bits values in payload */
-#define PAYLOAD_ARG_CNT	4U
+#define PAYLOAD_ARG_CNT	7U
+
+/* Number of 64bits arguments for SMC call */
+#define SMC_ARG_CNT_64	8U
+
+/* Number of 32bits arguments for SMC call */
+#define SMC_ARG_CNT_32	13U
 
 /* Number of arguments for a callback */
 #define CB_ARG_CNT     4
@@ -130,6 +150,7 @@
 
 enum pm_module_id {
 	PM_MODULE_ID = 0x0,
+	XPM_MODULE_ID = 0x2,
 	XSEM_MODULE_ID = 0x3,
 	TF_A_MODULE_ID = 0xa,
 };
@@ -537,6 +558,7 @@ struct zynqmp_pm_query_data {
 };
 
 int zynqmp_pm_invoke_fn(u32 pm_api_id, u32 *ret_payload, u32 num_args, ...);
+int zynqmp_pm_invoke_fw_fn(u32 pm_api_id, u32 *ret_payload, u32 num_args, ...);
 
 #if IS_REACHABLE(CONFIG_ZYNQMP_FIRMWARE)
 int zynqmp_pm_get_api_version(u32 *version);
