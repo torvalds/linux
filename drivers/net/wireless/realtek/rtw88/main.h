@@ -848,9 +848,8 @@ struct rtw_chip_ops {
 	void (*phy_set_param)(struct rtw_dev *rtwdev);
 	void (*set_channel)(struct rtw_dev *rtwdev, u8 channel,
 			    u8 bandwidth, u8 primary_chan_idx);
-	void (*query_rx_desc)(struct rtw_dev *rtwdev, u8 *rx_desc,
-			      struct rtw_rx_pkt_stat *pkt_stat,
-			      struct ieee80211_rx_status *rx_status);
+	void (*query_phy_status)(struct rtw_dev *rtwdev, u8 *phy_status,
+				 struct rtw_rx_pkt_stat *pkt_stat);
 	u32 (*read_rf)(struct rtw_dev *rtwdev, enum rtw_rf_path rf_path,
 		       u32 addr, u32 mask);
 	bool (*write_rf)(struct rtw_dev *rtwdev, enum rtw_rf_path rf_path,
