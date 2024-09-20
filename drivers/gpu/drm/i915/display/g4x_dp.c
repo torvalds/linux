@@ -1169,12 +1169,8 @@ intel_dp_hotplug(struct intel_encoder *encoder,
 	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 	enum intel_hotplug_state state;
 
-	if (intel_dp->compliance.test_active &&
-	    intel_dp->compliance.test_type == DP_TEST_LINK_PHY_TEST_PATTERN) {
-		intel_dp_phy_test(encoder);
-		/* just do the PHY test and nothing else */
+	if (intel_dp_test_phy(intel_dp))
 		return INTEL_HOTPLUG_UNCHANGED;
-	}
 
 	state = intel_encoder_hotplug(encoder, connector);
 

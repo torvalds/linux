@@ -2455,7 +2455,7 @@ intel_dp_compute_config_limits(struct intel_dp *intel_dp,
 		limits->min_rate = limits->max_rate;
 	}
 
-	intel_dp_adjust_compliance_config(intel_dp, crtc_state, limits);
+	intel_dp_test_compute_config(intel_dp, crtc_state, limits);
 
 	return intel_dp_compute_config_link_bpp_limits(intel_dp,
 						       crtc_state,
@@ -5108,7 +5108,7 @@ static void intel_dp_check_device_service_irq(struct intel_dp *intel_dp)
 	drm_dp_dpcd_writeb(&intel_dp->aux, DP_DEVICE_SERVICE_IRQ_VECTOR, val);
 
 	if (val & DP_AUTOMATED_TEST_REQUEST)
-		intel_dp_handle_test_request(intel_dp);
+		intel_dp_test_request(intel_dp);
 
 	if (val & DP_CP_IRQ)
 		intel_hdcp_handle_cp_irq(intel_dp->attached_connector);

@@ -542,7 +542,7 @@ intel_dp_mst_compute_config_limits(struct intel_dp *intel_dp,
 	 */
 	limits->pipe.max_bpp = min(crtc_state->pipe_bpp, 24);
 
-	intel_dp_adjust_compliance_config(intel_dp, crtc_state, limits);
+	intel_dp_test_compute_config(intel_dp, crtc_state, limits);
 
 	if (!intel_dp_compute_config_link_bpp_limits(intel_dp,
 						     crtc_state,

@@ -16,8 +16,7 @@
 #include "intel_dp_test.h"
 
 /* Adjust link config limits based on compliance test requests. */
-void
-intel_dp_adjust_compliance_config(struct intel_dp *intel_dp,
+void intel_dp_test_compute_config(struct intel_dp *intel_dp,
 				  struct intel_crtc_state *pipe_config,
 				  struct link_config_limits *limits)
 {
@@ -339,7 +338,7 @@ static u8 intel_dp_autotest_phy_pattern(struct intel_dp *intel_dp)
 	return DP_TEST_ACK;
 }
 
-void intel_dp_handle_test_request(struct intel_dp *intel_dp)
+void intel_dp_test_request(struct intel_dp *intel_dp)
 {
 	struct intel_display *display = to_intel_display(intel_dp);
 	u8 response = DP_TEST_NAK;
@@ -477,10 +476,16 @@ static int intel_dp_do_phy_test(struct intel_encoder *encoder,
 	return 0;
 }
 
-void intel_dp_phy_test(struct intel_encoder *encoder)
+bool intel_dp_test_phy(struct intel_dp *intel_dp)
 {
+	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
+	struct intel_encoder *encoder = &dig_port->base;
 	struct drm_modeset_acquire_ctx ctx;
 	int ret;
+
+	if (!intel_dp->compliance.test_active ||
+	    intel_dp->compliance.test_type != DP_TEST_LINK_PHY_TEST_PATTERN)
+		return false;
 
 	drm_modeset_acquire_init(&ctx, 0);
 
@@ -499,4 +504,6 @@ void intel_dp_phy_test(struct intel_encoder *encoder)
 	drm_modeset_acquire_fini(&ctx);
 	drm_WARN(encoder->base.dev, ret,
 		 "Acquiring modeset locks failed with %i\n", ret);
+
+	return true;
 }
