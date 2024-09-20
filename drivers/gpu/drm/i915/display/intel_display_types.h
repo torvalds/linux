@@ -1413,6 +1413,8 @@ struct intel_crtc {
 #ifdef CONFIG_DEBUG_FS
 	struct intel_pipe_crc pipe_crc;
 #endif
+
+	bool block_dc_for_vblank;
 };
 
 struct intel_plane {
