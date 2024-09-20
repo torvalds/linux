@@ -872,7 +872,7 @@ static void atmel_tdes_done_task(unsigned long data)
 		if (!err)
 			err = atmel_tdes_crypt_start(dd);
 		if (!err)
-			return; /* DMA started. Not fininishing. */
+			return; /* DMA started. Not finishing. */
 	}
 
 	atmel_tdes_finish_req(dd, err);

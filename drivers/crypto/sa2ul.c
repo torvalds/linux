@@ -574,7 +574,7 @@ static int sa_format_cmdl_gen(struct sa_cmdl_cfg *cfg, u8 *cmdl,
 	/* Clear the command label */
 	memzero_explicit(cmdl, (SA_MAX_CMDL_WORDS * sizeof(u32)));
 
-	/* Iniialize the command update structure */
+	/* Initialize the command update structure */
 	memzero_explicit(upd_info, sizeof(*upd_info));
 
 	if (cfg->enc_eng_id && cfg->auth_eng_id) {
