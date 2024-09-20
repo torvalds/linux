@@ -185,6 +185,7 @@
 		reg = <0x71>;
 		#address-cells = <1>;
 		#size-cells = <0>;
+		i2c-mux-idle-disconnect;
 
 		i2c0mux0ch0: i2c@0 {
 			#address-cells = <1>;
@@ -213,6 +214,7 @@
 		reg = <0x72>;
 		#address-cells = <1>;
 		#size-cells = <0>;
+		i2c-mux-idle-disconnect;
 
 		i2c0mux1ch0: i2c@0 {
 			#address-cells = <1>;
@@ -247,6 +249,7 @@
 				reg = <0x70>;
 				#address-cells = <1>;
 				#size-cells = <0>;
+				i2c-mux-idle-disconnect;
 
 				i2c30mux0ch0: i2c@0 {
 					#address-cells = <1>;
@@ -328,6 +331,7 @@
 		reg = <0x73>;
 		#address-cells = <1>;
 		#size-cells = <0>;
+		i2c-mux-idle-disconnect;
 
 		i2c0mux2ch0: i2c@0 {
 			#address-cells = <1>;
@@ -356,6 +360,7 @@
 		reg = <0x75>;
 		#address-cells = <1>;
 		#size-cells = <0>;
+		i2c-mux-idle-disconnect;
 
 		i2c0mux3ch0: i2c@0 {
 			#address-cells = <1>;
@@ -384,6 +389,7 @@
 		reg = <0x76>;
 		#address-cells = <1>;
 		#size-cells = <0>;
+		i2c-mux-idle-disconnect;
 
 		i2c0mux4ch0: i2c@0 {
 			#address-cells = <1>;
@@ -426,6 +432,7 @@
 		reg = <0x77>;
 		#address-cells = <1>;
 		#size-cells = <0>;
+		i2c-mux-idle-disconnect;
 
 		i2c0mux5ch0: i2c@0 {
 			#address-cells = <1>;
