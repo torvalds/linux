@@ -291,8 +291,6 @@ bool aa_label_replace(struct aa_label *old, struct aa_label *new);
 bool aa_label_make_newest(struct aa_labelset *ls, struct aa_label *old,
 			  struct aa_label *new);
 
-struct aa_label *aa_label_find(struct aa_label *l);
-
 struct aa_profile *aa_label_next_in_merge(struct label_it *I,
 					  struct aa_label *a,
 					  struct aa_label *b);
@@ -320,8 +318,6 @@ void aa_label_seq_xprint(struct seq_file *f, struct aa_ns *ns,
 			 struct aa_label *label, int flags, gfp_t gfp);
 void aa_label_xprintk(struct aa_ns *ns, struct aa_label *label, int flags,
 		      gfp_t gfp);
-void aa_label_audit(struct audit_buffer *ab, struct aa_label *label, gfp_t gfp);
-void aa_label_seq_print(struct seq_file *f, struct aa_label *label, gfp_t gfp);
 void aa_label_printk(struct aa_label *label, gfp_t gfp);
 
 struct aa_label *aa_label_strn_parse(struct aa_label *base, const char *str,

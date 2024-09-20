@@ -579,11 +579,6 @@ struct aa_profile *aa_lookupn_profile(struct aa_ns *ns, const char *hname,
 	return profile;
 }
 
-struct aa_profile *aa_lookup_profile(struct aa_ns *ns, const char *hname)
-{
-	return aa_lookupn_profile(ns, hname, strlen(hname));
-}
-
 struct aa_profile *aa_fqlookupn_profile(struct aa_label *base,
 					const char *fqname, size_t n)
 {
