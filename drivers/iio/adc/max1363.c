@@ -34,6 +34,8 @@
 #include <linux/iio/trigger_consumer.h>
 #include <linux/iio/triggered_buffer.h>
 
+#include <asm/unaligned.h>
+
 #define MAX1363_SETUP_BYTE(a) ((a) | 0x80)
 
 /* There is a fair bit more defined here than currently
@@ -392,7 +394,7 @@ static int max1363_read_single_chan(struct iio_dev *indio_dev,
 			if (data < 0)
 				return data;
 
-			data = (rxbuf[1] | rxbuf[0] << 8) &
+			data = get_unaligned_be16(rxbuf) &
 				((1 << st->chip_info->bits) - 1);
 		} else {
 			/* Get reading */
