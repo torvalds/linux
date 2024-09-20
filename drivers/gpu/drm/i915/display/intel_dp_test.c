@@ -15,15 +15,13 @@
 #include "intel_dp_mst.h"
 #include "intel_dp_test.h"
 
-#define dp_to_i915(__intel_dp) to_i915(dp_to_dig_port(__intel_dp)->base.base.dev)
-
 /* Adjust link config limits based on compliance test requests. */
 void
 intel_dp_adjust_compliance_config(struct intel_dp *intel_dp,
 				  struct intel_crtc_state *pipe_config,
 				  struct link_config_limits *limits)
 {
-	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
+	struct intel_display *display = to_intel_display(intel_dp);
 
 	/* For DP Compliance we override the computed bpp for the pipe */
 	if (intel_dp->compliance.test_data.bpc != 0) {
@@ -33,7 +31,7 @@ intel_dp_adjust_compliance_config(struct intel_dp *intel_dp,
 		limits->pipe.max_bpp = bpp;
 		pipe_config->dither_force_disable = bpp == 6 * 3;
 
-		drm_dbg_kms(&i915->drm, "Setting pipe_bpp to %d\n", bpp);
+		drm_dbg_kms(display->drm, "Setting pipe_bpp to %d\n", bpp);
 	}
 
 	/* Use values requested by Compliance Test Request */
@@ -65,7 +63,7 @@ intel_dp_adjust_compliance_config(struct intel_dp *intel_dp,
 
 static u8 intel_dp_autotest_link_training(struct intel_dp *intel_dp)
 {
-	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
+	struct intel_display *display = to_intel_display(intel_dp);
 	int status = 0;
 	int test_link_rate;
 	u8 test_lane_count, test_link_bw;
@@ -77,7 +75,7 @@ static u8 intel_dp_autotest_link_training(struct intel_dp *intel_dp)
 				   &test_lane_count);
 
 	if (status <= 0) {
-		drm_dbg_kms(&i915->drm, "Lane count read failed\n");
+		drm_dbg_kms(display->drm, "Lane count read failed\n");
 		return DP_TEST_NAK;
 	}
 	test_lane_count &= DP_MAX_LANE_COUNT_MASK;
@@ -85,7 +83,7 @@ static u8 intel_dp_autotest_link_training(struct intel_dp *intel_dp)
 	status = drm_dp_dpcd_readb(&intel_dp->aux, DP_TEST_LINK_RATE,
 				   &test_link_bw);
 	if (status <= 0) {
-		drm_dbg_kms(&i915->drm, "Link Rate read failed\n");
+		drm_dbg_kms(display->drm, "Link Rate read failed\n");
 		return DP_TEST_NAK;
 	}
 	test_link_rate = drm_dp_bw_code_to_link_rate(test_link_bw);
@@ -103,7 +101,7 @@ static u8 intel_dp_autotest_link_training(struct intel_dp *intel_dp)
 
 static u8 intel_dp_autotest_video_pattern(struct intel_dp *intel_dp)
 {
-	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
+	struct intel_display *display = to_intel_display(intel_dp);
 	u8 test_pattern;
 	u8 test_misc;
 	__be16 h_width, v_height;
@@ -113,7 +111,7 @@ static u8 intel_dp_autotest_video_pattern(struct intel_dp *intel_dp)
 	status = drm_dp_dpcd_readb(&intel_dp->aux, DP_TEST_PATTERN,
 				   &test_pattern);
 	if (status <= 0) {
-		drm_dbg_kms(&i915->drm, "Test pattern read failed\n");
+		drm_dbg_kms(display->drm, "Test pattern read failed\n");
 		return DP_TEST_NAK;
 	}
 	if (test_pattern != DP_COLOR_RAMP)
@@ -122,21 +120,21 @@ static u8 intel_dp_autotest_video_pattern(struct intel_dp *intel_dp)
 	status = drm_dp_dpcd_read(&intel_dp->aux, DP_TEST_H_WIDTH_HI,
 				  &h_width, 2);
 	if (status <= 0) {
-		drm_dbg_kms(&i915->drm, "H Width read failed\n");
+		drm_dbg_kms(display->drm, "H Width read failed\n");
 		return DP_TEST_NAK;
 	}
 
 	status = drm_dp_dpcd_read(&intel_dp->aux, DP_TEST_V_HEIGHT_HI,
 				  &v_height, 2);
 	if (status <= 0) {
-		drm_dbg_kms(&i915->drm, "V Height read failed\n");
+		drm_dbg_kms(display->drm, "V Height read failed\n");
 		return DP_TEST_NAK;
 	}
 
 	status = drm_dp_dpcd_readb(&intel_dp->aux, DP_TEST_MISC0,
 				   &test_misc);
 	if (status <= 0) {
-		drm_dbg_kms(&i915->drm, "TEST MISC read failed\n");
+		drm_dbg_kms(display->drm, "TEST MISC read failed\n");
 		return DP_TEST_NAK;
 	}
 	if ((test_misc & DP_TEST_COLOR_FORMAT_MASK) != DP_COLOR_FORMAT_RGB)
@@ -165,7 +163,7 @@ static u8 intel_dp_autotest_video_pattern(struct intel_dp *intel_dp)
 
 static u8 intel_dp_autotest_edid(struct intel_dp *intel_dp)
 {
-	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
+	struct intel_display *display = to_intel_display(intel_dp);
 	u8 test_result = DP_TEST_ACK;
 	struct intel_connector *intel_connector = intel_dp->attached_connector;
 	struct drm_connector *connector = &intel_connector->base;
@@ -181,7 +179,7 @@ static u8 intel_dp_autotest_edid(struct intel_dp *intel_dp)
 		 */
 		if (intel_dp->aux.i2c_nack_count > 0 ||
 		    intel_dp->aux.i2c_defer_count > 0)
-			drm_dbg_kms(&i915->drm,
+			drm_dbg_kms(display->drm,
 				    "EDID read had %d NACKs, %d DEFERs\n",
 				    intel_dp->aux.i2c_nack_count,
 				    intel_dp->aux.i2c_defer_count);
@@ -195,7 +193,7 @@ static u8 intel_dp_autotest_edid(struct intel_dp *intel_dp)
 
 		if (drm_dp_dpcd_writeb(&intel_dp->aux, DP_TEST_EDID_CHECKSUM,
 				       block->checksum) <= 0)
-			drm_dbg_kms(&i915->drm,
+			drm_dbg_kms(display->drm,
 				    "Failed to write EDID checksum\n");
 
 		test_result = DP_TEST_ACK | DP_TEST_EDID_CHECKSUM_WRITE;
@@ -211,8 +209,7 @@ static u8 intel_dp_autotest_edid(struct intel_dp *intel_dp)
 static void intel_dp_phy_pattern_update(struct intel_dp *intel_dp,
 					const struct intel_crtc_state *crtc_state)
 {
-	struct drm_i915_private *dev_priv =
-			to_i915(dp_to_dig_port(intel_dp)->base.base.dev);
+	struct intel_display *display = to_intel_display(intel_dp);
 	struct drm_dp_phy_test_params *data =
 			&intel_dp->compliance.test_data.phytest;
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
@@ -222,27 +219,28 @@ static void intel_dp_phy_pattern_update(struct intel_dp *intel_dp,
 
 	switch (data->phy_pattern) {
 	case DP_LINK_QUAL_PATTERN_DISABLE:
-		drm_dbg_kms(&dev_priv->drm, "Disable Phy Test Pattern\n");
-		intel_de_write(dev_priv, DDI_DP_COMP_CTL(pipe), 0x0);
-		if (DISPLAY_VER(dev_priv) >= 10)
-			intel_de_rmw(dev_priv, dp_tp_ctl_reg(encoder, crtc_state),
+		drm_dbg_kms(display->drm, "Disable Phy Test Pattern\n");
+		intel_de_write(display, DDI_DP_COMP_CTL(pipe), 0x0);
+		if (DISPLAY_VER(display) >= 10)
+			intel_de_rmw(display, dp_tp_ctl_reg(encoder, crtc_state),
 				     DP_TP_CTL_TRAIN_PAT4_SEL_MASK | DP_TP_CTL_LINK_TRAIN_MASK,
 				     DP_TP_CTL_LINK_TRAIN_NORMAL);
 		break;
 	case DP_LINK_QUAL_PATTERN_D10_2:
-		drm_dbg_kms(&dev_priv->drm, "Set D10.2 Phy Test Pattern\n");
-		intel_de_write(dev_priv, DDI_DP_COMP_CTL(pipe),
+		drm_dbg_kms(display->drm, "Set D10.2 Phy Test Pattern\n");
+		intel_de_write(display, DDI_DP_COMP_CTL(pipe),
 			       DDI_DP_COMP_CTL_ENABLE | DDI_DP_COMP_CTL_D10_2);
 		break;
 	case DP_LINK_QUAL_PATTERN_ERROR_RATE:
-		drm_dbg_kms(&dev_priv->drm, "Set Error Count Phy Test Pattern\n");
-		intel_de_write(dev_priv, DDI_DP_COMP_CTL(pipe),
+		drm_dbg_kms(display->drm,
+			    "Set Error Count Phy Test Pattern\n");
+		intel_de_write(display, DDI_DP_COMP_CTL(pipe),
 			       DDI_DP_COMP_CTL_ENABLE |
 			       DDI_DP_COMP_CTL_SCRAMBLED_0);
 		break;
 	case DP_LINK_QUAL_PATTERN_PRBS7:
-		drm_dbg_kms(&dev_priv->drm, "Set PRBS7 Phy Test Pattern\n");
-		intel_de_write(dev_priv, DDI_DP_COMP_CTL(pipe),
+		drm_dbg_kms(display->drm, "Set PRBS7 Phy Test Pattern\n");
+		intel_de_write(display, DDI_DP_COMP_CTL(pipe),
 			       DDI_DP_COMP_CTL_ENABLE | DDI_DP_COMP_CTL_PRBS7);
 		break;
 	case DP_LINK_QUAL_PATTERN_80BIT_CUSTOM:
@@ -251,15 +249,15 @@ static void intel_dp_phy_pattern_update(struct intel_dp *intel_dp,
 		 * current firmware of DPR-100 could not set it, so hardcoding
 		 * now for complaince test.
 		 */
-		drm_dbg_kms(&dev_priv->drm,
+		drm_dbg_kms(display->drm,
 			    "Set 80Bit Custom Phy Test Pattern 0x3e0f83e0 0x0f83e0f8 0x0000f83e\n");
 		pattern_val = 0x3e0f83e0;
-		intel_de_write(dev_priv, DDI_DP_COMP_PAT(pipe, 0), pattern_val);
+		intel_de_write(display, DDI_DP_COMP_PAT(pipe, 0), pattern_val);
 		pattern_val = 0x0f83e0f8;
-		intel_de_write(dev_priv, DDI_DP_COMP_PAT(pipe, 1), pattern_val);
+		intel_de_write(display, DDI_DP_COMP_PAT(pipe, 1), pattern_val);
 		pattern_val = 0x0000f83e;
-		intel_de_write(dev_priv, DDI_DP_COMP_PAT(pipe, 2), pattern_val);
-		intel_de_write(dev_priv, DDI_DP_COMP_CTL(pipe),
+		intel_de_write(display, DDI_DP_COMP_PAT(pipe, 2), pattern_val);
+		intel_de_write(display, DDI_DP_COMP_CTL(pipe),
 			       DDI_DP_COMP_CTL_ENABLE |
 			       DDI_DP_COMP_CTL_CUSTOM80);
 		break;
@@ -269,39 +267,42 @@ static void intel_dp_phy_pattern_update(struct intel_dp *intel_dp,
 		 * current firmware of DPR-100 could not set it, so hardcoding
 		 * now for complaince test.
 		 */
-		drm_dbg_kms(&dev_priv->drm, "Set HBR2 compliance Phy Test Pattern\n");
+		drm_dbg_kms(display->drm,
+			    "Set HBR2 compliance Phy Test Pattern\n");
 		pattern_val = 0xFB;
-		intel_de_write(dev_priv, DDI_DP_COMP_CTL(pipe),
+		intel_de_write(display, DDI_DP_COMP_CTL(pipe),
 			       DDI_DP_COMP_CTL_ENABLE | DDI_DP_COMP_CTL_HBR2 |
 			       pattern_val);
 		break;
 	case DP_LINK_QUAL_PATTERN_CP2520_PAT_3:
-		if (DISPLAY_VER(dev_priv) < 10)  {
-			drm_warn(&dev_priv->drm, "Platform does not support TPS4\n");
+		if (DISPLAY_VER(display) < 10)  {
+			drm_warn(display->drm,
+				 "Platform does not support TPS4\n");
 			break;
 		}
-		drm_dbg_kms(&dev_priv->drm, "Set TPS4 compliance Phy Test Pattern\n");
-		intel_de_write(dev_priv, DDI_DP_COMP_CTL(pipe), 0x0);
-		intel_de_rmw(dev_priv, dp_tp_ctl_reg(encoder, crtc_state),
+		drm_dbg_kms(display->drm,
+			    "Set TPS4 compliance Phy Test Pattern\n");
+		intel_de_write(display, DDI_DP_COMP_CTL(pipe), 0x0);
+		intel_de_rmw(display, dp_tp_ctl_reg(encoder, crtc_state),
 			     DP_TP_CTL_TRAIN_PAT4_SEL_MASK | DP_TP_CTL_LINK_TRAIN_MASK,
 			     DP_TP_CTL_TRAIN_PAT4_SEL_TP4A | DP_TP_CTL_LINK_TRAIN_PAT4);
 		break;
 	default:
-		drm_warn(&dev_priv->drm, "Invalid Phy Test Pattern\n");
+		drm_warn(display->drm, "Invalid Phy Test Pattern\n");
 	}
 }
 
 static void intel_dp_process_phy_request(struct intel_dp *intel_dp,
 					 const struct intel_crtc_state *crtc_state)
 {
-	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
+	struct intel_display *display = to_intel_display(intel_dp);
 	struct drm_dp_phy_test_params *data =
 		&intel_dp->compliance.test_data.phytest;
 	u8 link_status[DP_LINK_STATUS_SIZE];
 
 	if (drm_dp_dpcd_read_phy_link_status(&intel_dp->aux, DP_PHY_DPRX,
 					     link_status) < 0) {
-		drm_dbg_kms(&i915->drm, "failed to get link status\n");
+		drm_dbg_kms(display->drm, "failed to get link status\n");
 		return;
 	}
 
@@ -322,12 +323,13 @@ static void intel_dp_process_phy_request(struct intel_dp *intel_dp,
 
 static u8 intel_dp_autotest_phy_pattern(struct intel_dp *intel_dp)
 {
-	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
+	struct intel_display *display = to_intel_display(intel_dp);
 	struct drm_dp_phy_test_params *data =
 		&intel_dp->compliance.test_data.phytest;
 
 	if (drm_dp_get_phy_test_pattern(&intel_dp->aux, data)) {
-		drm_dbg_kms(&i915->drm, "DP Phy Test pattern AUX read failure\n");
+		drm_dbg_kms(display->drm,
+			    "DP Phy Test pattern AUX read failure\n");
 		return DP_TEST_NAK;
 	}
 
@@ -339,37 +341,37 @@ static u8 intel_dp_autotest_phy_pattern(struct intel_dp *intel_dp)
 
 void intel_dp_handle_test_request(struct intel_dp *intel_dp)
 {
-	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
+	struct intel_display *display = to_intel_display(intel_dp);
 	u8 response = DP_TEST_NAK;
 	u8 request = 0;
 	int status;
 
 	status = drm_dp_dpcd_readb(&intel_dp->aux, DP_TEST_REQUEST, &request);
 	if (status <= 0) {
-		drm_dbg_kms(&i915->drm,
+		drm_dbg_kms(display->drm,
 			    "Could not read test request from sink\n");
 		goto update_status;
 	}
 
 	switch (request) {
 	case DP_TEST_LINK_TRAINING:
-		drm_dbg_kms(&i915->drm, "LINK_TRAINING test requested\n");
+		drm_dbg_kms(display->drm, "LINK_TRAINING test requested\n");
 		response = intel_dp_autotest_link_training(intel_dp);
 		break;
 	case DP_TEST_LINK_VIDEO_PATTERN:
-		drm_dbg_kms(&i915->drm, "TEST_PATTERN test requested\n");
+		drm_dbg_kms(display->drm, "TEST_PATTERN test requested\n");
 		response = intel_dp_autotest_video_pattern(intel_dp);
 		break;
 	case DP_TEST_LINK_EDID_READ:
-		drm_dbg_kms(&i915->drm, "EDID test requested\n");
+		drm_dbg_kms(display->drm, "EDID test requested\n");
 		response = intel_dp_autotest_edid(intel_dp);
 		break;
 	case DP_TEST_LINK_PHY_TEST_PATTERN:
-		drm_dbg_kms(&i915->drm, "PHY_PATTERN test requested\n");
+		drm_dbg_kms(display->drm, "PHY_PATTERN test requested\n");
 		response = intel_dp_autotest_phy_pattern(intel_dp);
 		break;
 	default:
-		drm_dbg_kms(&i915->drm, "Invalid test request '%02x'\n",
+		drm_dbg_kms(display->drm, "Invalid test request '%02x'\n",
 			    request);
 		break;
 	}
@@ -380,7 +382,7 @@ void intel_dp_handle_test_request(struct intel_dp *intel_dp)
 update_status:
 	status = drm_dp_dpcd_writeb(&intel_dp->aux, DP_TEST_RESPONSE, response);
 	if (status <= 0)
-		drm_dbg_kms(&i915->drm,
+		drm_dbg_kms(display->drm,
 			    "Could not write test response to sink\n");
 }
 
@@ -390,14 +392,14 @@ static int intel_dp_prep_phy_test(struct intel_dp *intel_dp,
 				  struct drm_modeset_acquire_ctx *ctx,
 				  u8 *pipe_mask)
 {
-	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
+	struct intel_display *display = to_intel_display(intel_dp);
 	struct drm_connector_list_iter conn_iter;
 	struct intel_connector *connector;
 	int ret = 0;
 
 	*pipe_mask = 0;
 
-	drm_connector_list_iter_begin(&i915->drm, &conn_iter);
+	drm_connector_list_iter_begin(display->drm, &conn_iter);
 	for_each_intel_connector_iter(connector, &conn_iter) {
 		struct drm_connector_state *conn_state =
 			connector->base.state;
@@ -417,7 +419,8 @@ static int intel_dp_prep_phy_test(struct intel_dp *intel_dp,
 
 		crtc_state = to_intel_crtc_state(crtc->base.state);
 
-		drm_WARN_ON(&i915->drm, !intel_crtc_has_dp_encoder(crtc_state));
+		drm_WARN_ON(display->drm,
+			    !intel_crtc_has_dp_encoder(crtc_state));
 
 		if (!crtc_state->hw.active)
 			continue;
@@ -436,13 +439,13 @@ static int intel_dp_prep_phy_test(struct intel_dp *intel_dp,
 static int intel_dp_do_phy_test(struct intel_encoder *encoder,
 				struct drm_modeset_acquire_ctx *ctx)
 {
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct intel_display *display = to_intel_display(encoder);
 	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 	struct intel_crtc *crtc;
 	u8 pipe_mask;
 	int ret;
 
-	ret = drm_modeset_lock(&dev_priv->drm.mode_config.connection_mutex,
+	ret = drm_modeset_lock(&display->drm->mode_config.connection_mutex,
 			       ctx);
 	if (ret)
 		return ret;
@@ -454,15 +457,15 @@ static int intel_dp_do_phy_test(struct intel_encoder *encoder,
 	if (pipe_mask == 0)
 		return 0;
 
-	drm_dbg_kms(&dev_priv->drm, "[ENCODER:%d:%s] PHY test\n",
+	drm_dbg_kms(display->drm, "[ENCODER:%d:%s] PHY test\n",
 		    encoder->base.base.id, encoder->base.name);
 
-	for_each_intel_crtc_in_pipe_mask(&dev_priv->drm, crtc, pipe_mask) {
+	for_each_intel_crtc_in_pipe_mask(display->drm, crtc, pipe_mask) {
 		const struct intel_crtc_state *crtc_state =
 			to_intel_crtc_state(crtc->base.state);
 
 		/* test on the MST master transcoder */
-		if (DISPLAY_VER(dev_priv) >= 12 &&
+		if (DISPLAY_VER(display) >= 12 &&
 		    intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DP_MST) &&
 		    !intel_dp_mst_is_master_trans(crtc_state))
 			continue;
