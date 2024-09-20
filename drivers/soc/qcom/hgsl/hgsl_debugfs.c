@@ -14,12 +14,14 @@ static int hgsl_client_mem_show(struct seq_file *s, void *unused)
 {
 	struct hgsl_priv *priv = s->private;
 	struct hgsl_mem_node *tmp = NULL;
+	struct rb_node *rb = NULL;
 
 	seq_printf(s, "%16s %16s %10s %10s\n",
 			"gpuaddr", "size", "flags", "type");
 
 	mutex_lock(&priv->lock);
-	list_for_each_entry(tmp, &priv->mem_allocated, node) {
+	for (rb = rb_first(&priv->mem_allocated); rb; rb = rb_next(rb)) {
+		tmp = rb_entry(rb, struct hgsl_mem_node, mem_rb_node);
 		seq_printf(s, "%p %16llx %10x %10d\n",
 				tmp->memdesc.gpuaddr,
 				tmp->memdesc.size,
@@ -37,6 +39,7 @@ static int hgsl_client_memtype_show(struct seq_file *s, void *unused)
 {
 	struct hgsl_priv *priv = s->private;
 	struct hgsl_mem_node *tmp = NULL;
+	struct rb_node *rb = NULL;
 	int i;
 	int memtype;
 
@@ -71,7 +74,8 @@ static int hgsl_client_memtype_show(struct seq_file *s, void *unused)
 		gpu_mem_types[i].size = 0;
 
 	mutex_lock(&priv->lock);
-	list_for_each_entry(tmp, &priv->mem_allocated, node) {
+	for (rb = rb_first(&priv->mem_allocated); rb; rb = rb_next(rb)) {
+		tmp = rb_entry(rb, struct hgsl_mem_node, mem_rb_node);
 		memtype = GET_MEMTYPE(tmp->flags);
 		if (memtype < ARRAY_SIZE(gpu_mem_types))
 			gpu_mem_types[memtype].size += tmp->memdesc.size;
