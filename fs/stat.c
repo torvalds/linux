@@ -564,20 +564,17 @@ static int do_readlinkat(int dfd, const char __user *pathname,
 			 char __user *buf, int bufsiz)
 {
 	struct path path;
-	struct filename *name;
 	int error;
 	unsigned int lookup_flags = 0;
 
 	if (bufsiz <= 0)
 		return -EINVAL;
 
-	name = getname_flags(pathname, LOOKUP_EMPTY);
+	CLASS(filename_flags, name)(pathname, LOOKUP_EMPTY);
 retry:
 	error = filename_lookup(dfd, name, lookup_flags, &path, NULL);
-	if (unlikely(error)) {
-		putname(name);
+	if (unlikely(error))
 		return error;
-	}
 
 	/*
 	 * AFS mountpoints allow readlink(2) but are not symlinks
@@ -597,7 +594,6 @@ retry:
 		lookup_flags |= LOOKUP_REVAL;
 		goto retry;
 	}
-	putname(name);
 	return error;
 }
 
