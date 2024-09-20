@@ -225,11 +225,14 @@ static int __do_feature_check_call(const u32 api_id, u32 *ret_payload)
 	 * Feature check of TF-A APIs is done in the TF-A layer and it expects for
 	 * MODULE_ID_MASK bits of SMC's arg[0] to be the same as PM_MODULE_ID.
 	 */
-	if (module_id == TF_A_MODULE_ID)
+	if (module_id == TF_A_MODULE_ID) {
 		module_id = PM_MODULE_ID;
+		smc_arg[1] = api_id;
+	} else {
+		smc_arg[1] = (api_id & API_ID_MASK);
+	}
 
 	smc_arg[0] = PM_SIP_SVC | FIELD_PREP(MODULE_ID_MASK, module_id) | feature_check_api_id;
-	smc_arg[1] = (api_id & API_ID_MASK);
 
 	ret = do_fw_call(ret_payload, 2, smc_arg[0], smc_arg[1]);
 	if (ret)
