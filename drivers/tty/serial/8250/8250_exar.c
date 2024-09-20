@@ -179,11 +179,13 @@
 
 /* CTI EEPROM offsets */
 #define CTI_EE_OFF_XR17C15X_OSC_FREQ	0x04  /* 2 words */
-#define CTI_EE_OFF_XR17V25X_OSC_FREQ	0x08  /* 2 words */
 #define CTI_EE_OFF_XR17C15X_PART_NUM	0x0A  /* 4 words */
-#define CTI_EE_OFF_XR17V25X_PART_NUM	0x0E  /* 4 words */
 #define CTI_EE_OFF_XR17C15X_SERIAL_NUM	0x0E  /* 1 word */
+
+#define CTI_EE_OFF_XR17V25X_OSC_FREQ	0x08  /* 2 words */
+#define CTI_EE_OFF_XR17V25X_PART_NUM	0x0E  /* 4 words */
 #define CTI_EE_OFF_XR17V25X_SERIAL_NUM	0x12  /* 1 word */
+
 #define CTI_EE_OFF_XR17V35X_SERIAL_NUM	0x11  /* 2 word */
 #define CTI_EE_OFF_XR17V35X_BRD_FLAGS	0x13  /* 1 word */
 #define CTI_EE_OFF_XR17V35X_PORT_FLAGS	0x14  /* 1 word */
