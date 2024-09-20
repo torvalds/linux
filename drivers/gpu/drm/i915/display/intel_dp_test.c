@@ -6,6 +6,7 @@
 #include <drm/display/drm_dp.h>
 #include <drm/display/drm_dp_helper.h>
 #include <drm/drm_edid.h>
+#include <drm/drm_probe_helper.h>
 
 #include "i915_drv.h"
 #include "i915_reg.h"
@@ -16,6 +17,15 @@
 #include "intel_dp_link_training.h"
 #include "intel_dp_mst.h"
 #include "intel_dp_test.h"
+
+void intel_dp_test_reset(struct intel_dp *intel_dp)
+{
+	/*
+	 * Clearing compliance test variables to allow capturing
+	 * of values for next automated test request.
+	 */
+	memset(&intel_dp->compliance, 0, sizeof(intel_dp->compliance));
+}
 
 /* Adjust link config limits based on compliance test requests. */
 void intel_dp_test_compute_config(struct intel_dp *intel_dp,
@@ -508,6 +518,33 @@ bool intel_dp_test_phy(struct intel_dp *intel_dp)
 		 "Acquiring modeset locks failed with %i\n", ret);
 
 	return true;
+}
+
+bool intel_dp_test_short_pulse(struct intel_dp *intel_dp)
+{
+	struct intel_display *display = to_intel_display(intel_dp);
+	bool reprobe_needed = false;
+
+	switch (intel_dp->compliance.test_type) {
+	case DP_TEST_LINK_TRAINING:
+		drm_dbg_kms(display->drm,
+			    "Link Training Compliance Test requested\n");
+		/* Send a Hotplug Uevent to userspace to start modeset */
+		drm_kms_helper_hotplug_event(display->drm);
+		break;
+	case DP_TEST_LINK_PHY_TEST_PATTERN:
+		drm_dbg_kms(display->drm,
+			    "PHY test pattern Compliance Test requested\n");
+		/*
+		 * Schedule long hpd to do the test
+		 *
+		 * FIXME get rid of the ad-hoc phy test modeset code
+		 * and properly incorporate it into the normal modeset.
+		 */
+		reprobe_needed = true;
+	}
+
+	return reprobe_needed;
 }
 
 static ssize_t i915_displayport_test_active_write(struct file *file,
