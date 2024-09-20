@@ -344,7 +344,7 @@ static ssize_t enabled_store(struct config_item *item,
 		goto out_unlock;
 
 	err = -EINVAL;
-	if ((bool)enabled == nt->enabled) {
+	if (enabled == nt->enabled) {
 		pr_info("network logging has already %s\n",
 			nt->enabled ? "started" : "stopped");
 		goto out_unlock;
@@ -369,6 +369,7 @@ static ssize_t enabled_store(struct config_item *item,
 		if (err)
 			goto out_unlock;
 
+		nt->enabled = true;
 		pr_info("network logging started\n");
 	} else {	/* false */
 		/* We need to disable the netconsole before cleaning it up
@@ -380,8 +381,6 @@ static ssize_t enabled_store(struct config_item *item,
 		spin_unlock_irqrestore(&target_list_lock, flags);
 		netpoll_cleanup(&nt->np);
 	}
-
-	nt->enabled = enabled;
 
 	mutex_unlock(&dynamic_netconsole_mutex);
 	return strnlen(buf, count);
@@ -974,6 +973,7 @@ restart:
 				/* rtnl_lock already held
 				 * we might sleep in __netpoll_cleanup()
 				 */
+				nt->enabled = false;
 				spin_unlock_irqrestore(&target_list_lock, flags);
 
 				__netpoll_cleanup(&nt->np);
@@ -981,7 +981,6 @@ restart:
 				spin_lock_irqsave(&target_list_lock, flags);
 				netdev_put(nt->np.dev, &nt->np.dev_tracker);
 				nt->np.dev = NULL;
-				nt->enabled = false;
 				stopped = true;
 				netconsole_target_put(nt);
 				goto restart;
@@ -1262,6 +1261,8 @@ static int __init init_netconsole(void)
 		while ((target_config = strsep(&input, ";"))) {
 			nt = alloc_param_target(target_config, count);
 			if (IS_ERR(nt)) {
+				if (IS_ENABLED(CONFIG_NETCONSOLE_DYNAMIC))
+					continue;
 				err = PTR_ERR(nt);
 				goto fail;
 			}

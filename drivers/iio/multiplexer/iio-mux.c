@@ -30,7 +30,6 @@ struct mux {
 	int cached_state;
 	struct mux_control *control;
 	struct iio_channel *parent;
-	struct iio_dev *indio_dev;
 	struct iio_chan_spec *chan;
 	struct iio_chan_spec_ext_info *ext_info;
 	struct mux_child *child;

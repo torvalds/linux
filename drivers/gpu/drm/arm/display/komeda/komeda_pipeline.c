@@ -5,10 +5,12 @@
  *
  */
 #include <linux/of.h>
+#include <linux/seq_file.h>
 
 #include <drm/drm_print.h>
 
 #include "komeda_dev.h"
+#include "komeda_kms.h"
 #include "komeda_pipeline.h"
 
 /** komeda_pipeline_add - Add a pipeline to &komeda_dev */
@@ -246,7 +248,7 @@ static void komeda_component_dump(struct komeda_component *c)
 		  c->max_active_outputs, c->supported_outputs);
 }
 
-static void komeda_pipeline_dump(struct komeda_pipeline *pipe)
+void komeda_pipeline_dump(struct komeda_pipeline *pipe)
 {
 	struct komeda_component *c;
 	int id;
@@ -350,7 +352,6 @@ int komeda_assemble_pipelines(struct komeda_dev *mdev)
 		pipe = mdev->pipelines[i];
 
 		komeda_pipeline_assemble(pipe);
-		komeda_pipeline_dump(pipe);
 	}
 
 	return 0;

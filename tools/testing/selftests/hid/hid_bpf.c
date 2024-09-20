@@ -16,6 +16,11 @@
 
 #define SHOW_UHID_DEBUG 0
 
+#define min(a, b) \
+	({ __typeof__(a) _a = (a); \
+	__typeof__(b) _b = (b); \
+	_a < _b ? _a : _b; })
+
 static unsigned char rdesc[] = {
 	0x06, 0x00, 0xff,	/* Usage Page (Vendor Defined Page 1) */
 	0x09, 0x21,		/* Usage (Vendor Usage 0x21) */
@@ -111,6 +116,10 @@ struct hid_hw_request_syscall_args {
 static pthread_mutex_t uhid_started_mtx = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t uhid_started = PTHREAD_COND_INITIALIZER;
 
+static pthread_mutex_t uhid_output_mtx = PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t uhid_output_cond = PTHREAD_COND_INITIALIZER;
+static unsigned char output_report[10];
+
 /* no need to protect uhid_stopped, only one thread accesses it */
 static bool uhid_stopped;
 
@@ -205,6 +214,13 @@ static int uhid_event(struct __test_metadata *_metadata, int fd)
 		break;
 	case UHID_OUTPUT:
 		UHID_LOG("UHID_OUTPUT from uhid-dev");
+
+		pthread_mutex_lock(&uhid_output_mtx);
+		memcpy(output_report,
+		       ev.u.output.data,
+		       min(ev.u.output.size, sizeof(output_report)));
+		pthread_cond_signal(&uhid_output_cond);
+		pthread_mutex_unlock(&uhid_output_mtx);
 		break;
 	case UHID_GET_REPORT:
 		UHID_LOG("UHID_GET_REPORT from uhid-dev");
@@ -444,7 +460,7 @@ FIXTURE(hid_bpf) {
 	int hid_id;
 	pthread_t tid;
 	struct hid *skel;
-	int hid_links[3]; /* max number of programs loaded in a single test */
+	struct bpf_link *hid_links[3]; /* max number of programs loaded in a single test */
 };
 static void detach_bpf(FIXTURE_DATA(hid_bpf) * self)
 {
@@ -454,9 +470,14 @@ static void detach_bpf(FIXTURE_DATA(hid_bpf) * self)
 		close(self->hidraw_fd);
 	self->hidraw_fd = 0;
 
+	if (!self->skel)
+		return;
+
+	hid__detach(self->skel);
+
 	for (i = 0; i < ARRAY_SIZE(self->hid_links); i++) {
 		if (self->hid_links[i])
-			close(self->hid_links[i]);
+			bpf_link__destroy(self->hid_links[i]);
 	}
 
 	hid__destroy(self->skel);
@@ -511,14 +532,8 @@ static void load_programs(const struct test_program programs[],
 			  FIXTURE_DATA(hid_bpf) * self,
 			  const FIXTURE_VARIANT(hid_bpf) * variant)
 {
-	int attach_fd, err = -EINVAL;
-	struct attach_prog_args args = {
-		.retval = -1,
-	};
-	DECLARE_LIBBPF_OPTS(bpf_test_run_opts, tattr,
-			    .ctx_in = &args,
-			    .ctx_size_in = sizeof(args),
-	);
+	struct bpf_map *iter_map;
+	int err = -EINVAL;
 
 	ASSERT_LE(progs_count, ARRAY_SIZE(self->hid_links))
 		TH_LOG("too many programs are to be loaded");
@@ -529,36 +544,51 @@ static void load_programs(const struct test_program programs[],
 
 	for (int i = 0; i < progs_count; i++) {
 		struct bpf_program *prog;
+		struct bpf_map *map;
+		int *ops_hid_id;
 
 		prog = bpf_object__find_program_by_name(*self->skel->skeleton->obj,
 							programs[i].name);
 		ASSERT_OK_PTR(prog) TH_LOG("can not find program by name '%s'", programs[i].name);
 
 		bpf_program__set_autoload(prog, true);
+
+		map = bpf_object__find_map_by_name(*self->skel->skeleton->obj,
+							  programs[i].name + 4);
+		ASSERT_OK_PTR(map) TH_LOG("can not find struct_ops by name '%s'",
+					  programs[i].name + 4);
+
+		/* hid_id is the first field of struct hid_bpf_ops */
+		ops_hid_id = bpf_map__initial_value(map, NULL);
+		ASSERT_OK_PTR(ops_hid_id) TH_LOG("unable to retrieve struct_ops data");
+
+		*ops_hid_id = self->hid_id;
 	}
+
+	/* we disable the auto-attach feature of all maps because we
+	 * only want the tested one to be manually attached in the next
+	 * call to bpf_map__attach_struct_ops()
+	 */
+	bpf_object__for_each_map(iter_map, *self->skel->skeleton->obj)
+		bpf_map__set_autoattach(iter_map, false);
 
 	err = hid__load(self->skel);
 	ASSERT_OK(err) TH_LOG("hid_skel_load failed: %d", err);
 
-	attach_fd = bpf_program__fd(self->skel->progs.attach_prog);
-	ASSERT_GE(attach_fd, 0) TH_LOG("locate attach_prog: %d", attach_fd);
-
 	for (int i = 0; i < progs_count; i++) {
-		struct bpf_program *prog;
+		struct bpf_map *map;
 
-		prog = bpf_object__find_program_by_name(*self->skel->skeleton->obj,
-							programs[i].name);
-		ASSERT_OK_PTR(prog) TH_LOG("can not find program by name '%s'", programs[i].name);
+		map = bpf_object__find_map_by_name(*self->skel->skeleton->obj,
+							  programs[i].name + 4);
+		ASSERT_OK_PTR(map) TH_LOG("can not find struct_ops by name '%s'",
+					  programs[i].name + 4);
 
-		args.prog_fd = bpf_program__fd(prog);
-		args.hid = self->hid_id;
-		args.insert_head = programs[i].insert_head;
-		err = bpf_prog_test_run_opts(attach_fd, &tattr);
-		ASSERT_GE(args.retval, 0)
-			TH_LOG("attach_hid(%s): %d", programs[i].name, args.retval);
-
-		self->hid_links[i] = args.retval;
+		self->hid_links[i] = bpf_map__attach_struct_ops(map);
+		ASSERT_OK_PTR(self->hid_links[i]) TH_LOG("failed to attach struct ops '%s'",
+							 programs[i].name + 4);
 	}
+
+	hid__attach(self->skel);
 
 	self->hidraw_fd = open_hidraw(self->dev_id);
 	ASSERT_GE(self->hidraw_fd, 0) TH_LOG("open_hidraw");
@@ -624,6 +654,65 @@ TEST_F(hid_bpf, raw_event)
 }
 
 /*
+ * Attach hid_first_event to the given uhid device,
+ * retrieve and open the matching hidraw node,
+ * inject one event in the uhid device,
+ * check that the program sees it and can change the data
+ */
+TEST_F(hid_bpf, subprog_raw_event)
+{
+	const struct test_program progs[] = {
+		{ .name = "hid_subprog_first_event" },
+	};
+	__u8 buf[10] = {0};
+	int err;
+
+	LOAD_PROGRAMS(progs);
+
+	/* inject one event */
+	buf[0] = 1;
+	buf[1] = 42;
+	uhid_send_event(_metadata, self->uhid_fd, buf, 6);
+
+	/* read the data from hidraw */
+	memset(buf, 0, sizeof(buf));
+	err = read(self->hidraw_fd, buf, sizeof(buf));
+	ASSERT_EQ(err, 6) TH_LOG("read_hidraw");
+	ASSERT_EQ(buf[0], 1);
+	ASSERT_EQ(buf[2], 47);
+
+	/* inject another event */
+	memset(buf, 0, sizeof(buf));
+	buf[0] = 1;
+	buf[1] = 47;
+	uhid_send_event(_metadata, self->uhid_fd, buf, 6);
+
+	/* read the data from hidraw */
+	memset(buf, 0, sizeof(buf));
+	err = read(self->hidraw_fd, buf, sizeof(buf));
+	ASSERT_EQ(err, 6) TH_LOG("read_hidraw");
+	ASSERT_EQ(buf[2], 52);
+}
+
+/*
+ * Attach hid_first_event to the given uhid device,
+ * attempt at re-attaching it, we should not lock and
+ * return an invalid struct bpf_link
+ */
+TEST_F(hid_bpf, multiple_attach)
+{
+	const struct test_program progs[] = {
+		{ .name = "hid_first_event" },
+	};
+	struct bpf_link *link;
+
+	LOAD_PROGRAMS(progs);
+
+	link = bpf_map__attach_struct_ops(self->skel->maps.first_event);
+	ASSERT_NULL(link) TH_LOG("unexpected return value when re-attaching the struct_ops");
+}
+
+/*
  * Ensures that we can attach/detach programs
  */
 TEST_F(hid_bpf, test_attach_detach)
@@ -632,13 +721,17 @@ TEST_F(hid_bpf, test_attach_detach)
 		{ .name = "hid_first_event" },
 		{ .name = "hid_second_event" },
 	};
+	struct bpf_link *link;
 	__u8 buf[10] = {0};
-	int err, link;
+	int err, link_fd;
 
 	LOAD_PROGRAMS(progs);
 
 	link = self->hid_links[0];
-	ASSERT_GT(link, 0) TH_LOG("HID-BPF link not created");
+	ASSERT_OK_PTR(link) TH_LOG("HID-BPF link not created");
+
+	link_fd = bpf_link__fd(link);
+	ASSERT_GE(link_fd, 0) TH_LOG("HID-BPF link FD not valid");
 
 	/* inject one event */
 	buf[0] = 1;
@@ -657,7 +750,7 @@ TEST_F(hid_bpf, test_attach_detach)
 
 	/* pin the first program and immediately unpin it */
 #define PIN_PATH "/sys/fs/bpf/hid_first_event"
-	err = bpf_obj_pin(link, PIN_PATH);
+	err = bpf_obj_pin(link_fd, PIN_PATH);
 	ASSERT_OK(err) TH_LOG("error while calling bpf_obj_pin");
 	remove(PIN_PATH);
 #undef PIN_PATH
@@ -734,8 +827,100 @@ TEST_F(hid_bpf, test_hid_change_report)
 }
 
 /*
- * Attach hid_user_raw_request to the given uhid device,
- * call the bpf program from userspace
+ * Call hid_bpf_input_report against the given uhid device,
+ * check that the program is called and does the expected.
+ */
+TEST_F(hid_bpf, test_hid_user_input_report_call)
+{
+	struct hid_hw_request_syscall_args args = {
+		.retval = -1,
+		.size = 10,
+	};
+	DECLARE_LIBBPF_OPTS(bpf_test_run_opts, tattrs,
+			    .ctx_in = &args,
+			    .ctx_size_in = sizeof(args),
+	);
+	__u8 buf[10] = {0};
+	int err, prog_fd;
+
+	LOAD_BPF;
+
+	args.hid = self->hid_id;
+	args.data[0] = 1; /* report ID */
+	args.data[1] = 2; /* report ID */
+	args.data[2] = 42; /* report ID */
+
+	prog_fd = bpf_program__fd(self->skel->progs.hid_user_input_report);
+
+	/* check that there is no data to read from hidraw */
+	memset(buf, 0, sizeof(buf));
+	err = read(self->hidraw_fd, buf, sizeof(buf));
+	ASSERT_EQ(err, -1) TH_LOG("read_hidraw");
+
+	err = bpf_prog_test_run_opts(prog_fd, &tattrs);
+
+	ASSERT_OK(err) TH_LOG("error while calling bpf_prog_test_run_opts");
+
+	ASSERT_EQ(args.retval, 0);
+
+	/* read the data from hidraw */
+	memset(buf, 0, sizeof(buf));
+	err = read(self->hidraw_fd, buf, sizeof(buf));
+	ASSERT_EQ(err, 6) TH_LOG("read_hidraw");
+	ASSERT_EQ(buf[0], 1);
+	ASSERT_EQ(buf[1], 2);
+	ASSERT_EQ(buf[2], 42);
+}
+
+/*
+ * Call hid_bpf_hw_output_report against the given uhid device,
+ * check that the program is called and does the expected.
+ */
+TEST_F(hid_bpf, test_hid_user_output_report_call)
+{
+	struct hid_hw_request_syscall_args args = {
+		.retval = -1,
+		.size = 10,
+	};
+	DECLARE_LIBBPF_OPTS(bpf_test_run_opts, tattrs,
+			    .ctx_in = &args,
+			    .ctx_size_in = sizeof(args),
+	);
+	int err, cond_err, prog_fd;
+	struct timespec time_to_wait;
+
+	LOAD_BPF;
+
+	args.hid = self->hid_id;
+	args.data[0] = 1; /* report ID */
+	args.data[1] = 2; /* report ID */
+	args.data[2] = 42; /* report ID */
+
+	prog_fd = bpf_program__fd(self->skel->progs.hid_user_output_report);
+
+	pthread_mutex_lock(&uhid_output_mtx);
+
+	memset(output_report, 0, sizeof(output_report));
+	clock_gettime(CLOCK_REALTIME, &time_to_wait);
+	time_to_wait.tv_sec += 2;
+
+	err = bpf_prog_test_run_opts(prog_fd, &tattrs);
+	cond_err = pthread_cond_timedwait(&uhid_output_cond, &uhid_output_mtx, &time_to_wait);
+
+	ASSERT_OK(err) TH_LOG("error while calling bpf_prog_test_run_opts");
+	ASSERT_OK(cond_err) TH_LOG("error while calling waiting for the condition");
+
+	ASSERT_EQ(args.retval, 3);
+
+	ASSERT_EQ(output_report[0], 1);
+	ASSERT_EQ(output_report[1], 2);
+	ASSERT_EQ(output_report[2], 42);
+
+	pthread_mutex_unlock(&uhid_output_mtx);
+}
+
+/*
+ * Call hid_hw_raw_request against the given uhid device,
  * check that the program is called and does the expected.
  */
 TEST_F(hid_bpf, test_hid_user_raw_request_call)
@@ -765,6 +950,325 @@ TEST_F(hid_bpf, test_hid_user_raw_request_call)
 	ASSERT_EQ(args.retval, 2);
 
 	ASSERT_EQ(args.data[1], 2);
+}
+
+/*
+ * Call hid_hw_raw_request against the given uhid device,
+ * check that the program is called and prevents the
+ * call to uhid.
+ */
+TEST_F(hid_bpf, test_hid_filter_raw_request_call)
+{
+	const struct test_program progs[] = {
+		{ .name = "hid_test_filter_raw_request" },
+	};
+	__u8 buf[10] = {0};
+	int err;
+
+	LOAD_PROGRAMS(progs);
+
+	/* first check that we did not attach to device_event */
+
+	/* inject one event */
+	buf[0] = 1;
+	buf[1] = 42;
+	uhid_send_event(_metadata, self->uhid_fd, buf, 6);
+
+	/* read the data from hidraw */
+	memset(buf, 0, sizeof(buf));
+	err = read(self->hidraw_fd, buf, sizeof(buf));
+	ASSERT_EQ(err, 6) TH_LOG("read_hidraw");
+	ASSERT_EQ(buf[0], 1);
+	ASSERT_EQ(buf[1], 42);
+	ASSERT_EQ(buf[2], 0) TH_LOG("leftovers_from_previous_test");
+
+	/* now check that our program is preventing hid_hw_raw_request() */
+
+	/* emit hid_hw_raw_request from hidraw */
+	/* Get Feature */
+	memset(buf, 0, sizeof(buf));
+	buf[0] = 0x1; /* Report Number */
+	err = ioctl(self->hidraw_fd, HIDIOCGFEATURE(sizeof(buf)), buf);
+	ASSERT_LT(err, 0) TH_LOG("unexpected success while reading HIDIOCGFEATURE: %d", err);
+	ASSERT_EQ(errno, 20) TH_LOG("unexpected error code while reading HIDIOCGFEATURE: %d",
+				    errno);
+
+	/* remove our bpf program and check that we can now emit commands */
+
+	/* detach the program */
+	detach_bpf(self);
+
+	self->hidraw_fd = open_hidraw(self->dev_id);
+	ASSERT_GE(self->hidraw_fd, 0) TH_LOG("open_hidraw");
+
+	err = ioctl(self->hidraw_fd, HIDIOCGFEATURE(sizeof(buf)), buf);
+	ASSERT_GE(err, 0) TH_LOG("error while reading HIDIOCGFEATURE: %d", err);
+}
+
+/*
+ * Call hid_hw_raw_request against the given uhid device,
+ * check that the program is called and can issue the call
+ * to uhid and transform the answer.
+ */
+TEST_F(hid_bpf, test_hid_change_raw_request_call)
+{
+	const struct test_program progs[] = {
+		{ .name = "hid_test_hidraw_raw_request" },
+	};
+	__u8 buf[10] = {0};
+	int err;
+
+	LOAD_PROGRAMS(progs);
+
+	/* emit hid_hw_raw_request from hidraw */
+	/* Get Feature */
+	memset(buf, 0, sizeof(buf));
+	buf[0] = 0x1; /* Report Number */
+	err = ioctl(self->hidraw_fd, HIDIOCGFEATURE(sizeof(buf)), buf);
+	ASSERT_EQ(err, 3) TH_LOG("unexpected returned size while reading HIDIOCGFEATURE: %d", err);
+
+	ASSERT_EQ(buf[0], 2);
+	ASSERT_EQ(buf[1], 3);
+	ASSERT_EQ(buf[2], 4);
+}
+
+/*
+ * Call hid_hw_raw_request against the given uhid device,
+ * check that the program is not making infinite loops.
+ */
+TEST_F(hid_bpf, test_hid_infinite_loop_raw_request_call)
+{
+	const struct test_program progs[] = {
+		{ .name = "hid_test_infinite_loop_raw_request" },
+	};
+	__u8 buf[10] = {0};
+	int err;
+
+	LOAD_PROGRAMS(progs);
+
+	/* emit hid_hw_raw_request from hidraw */
+	/* Get Feature */
+	memset(buf, 0, sizeof(buf));
+	buf[0] = 0x1; /* Report Number */
+	err = ioctl(self->hidraw_fd, HIDIOCGFEATURE(sizeof(buf)), buf);
+	ASSERT_EQ(err, 3) TH_LOG("unexpected returned size while reading HIDIOCGFEATURE: %d", err);
+}
+
+/*
+ * Call hid_hw_output_report against the given uhid device,
+ * check that the program is called and prevents the
+ * call to uhid.
+ */
+TEST_F(hid_bpf, test_hid_filter_output_report_call)
+{
+	const struct test_program progs[] = {
+		{ .name = "hid_test_filter_output_report" },
+	};
+	__u8 buf[10] = {0};
+	int err;
+
+	LOAD_PROGRAMS(progs);
+
+	/* first check that we did not attach to device_event */
+
+	/* inject one event */
+	buf[0] = 1;
+	buf[1] = 42;
+	uhid_send_event(_metadata, self->uhid_fd, buf, 6);
+
+	/* read the data from hidraw */
+	memset(buf, 0, sizeof(buf));
+	err = read(self->hidraw_fd, buf, sizeof(buf));
+	ASSERT_EQ(err, 6) TH_LOG("read_hidraw");
+	ASSERT_EQ(buf[0], 1);
+	ASSERT_EQ(buf[1], 42);
+	ASSERT_EQ(buf[2], 0) TH_LOG("leftovers_from_previous_test");
+
+	/* now check that our program is preventing hid_hw_output_report() */
+
+	buf[0] = 1; /* report ID */
+	buf[1] = 2;
+	buf[2] = 42;
+
+	err = write(self->hidraw_fd, buf, 3);
+	ASSERT_LT(err, 0) TH_LOG("unexpected success while sending hid_hw_output_report: %d", err);
+	ASSERT_EQ(errno, 25) TH_LOG("unexpected error code while sending hid_hw_output_report: %d",
+				    errno);
+
+	/* remove our bpf program and check that we can now emit commands */
+
+	/* detach the program */
+	detach_bpf(self);
+
+	self->hidraw_fd = open_hidraw(self->dev_id);
+	ASSERT_GE(self->hidraw_fd, 0) TH_LOG("open_hidraw");
+
+	err = write(self->hidraw_fd, buf, 3);
+	ASSERT_GE(err, 0) TH_LOG("error while sending hid_hw_output_report: %d", err);
+}
+
+/*
+ * Call hid_hw_output_report against the given uhid device,
+ * check that the program is called and can issue the call
+ * to uhid and transform the answer.
+ */
+TEST_F(hid_bpf, test_hid_change_output_report_call)
+{
+	const struct test_program progs[] = {
+		{ .name = "hid_test_hidraw_output_report" },
+	};
+	__u8 buf[10] = {0};
+	int err;
+
+	LOAD_PROGRAMS(progs);
+
+	/* emit hid_hw_output_report from hidraw */
+	buf[0] = 1; /* report ID */
+	buf[1] = 2;
+	buf[2] = 42;
+
+	err = write(self->hidraw_fd, buf, 10);
+	ASSERT_EQ(err, 2) TH_LOG("unexpected returned size while sending hid_hw_output_report: %d",
+				 err);
+}
+
+/*
+ * Call hid_hw_output_report against the given uhid device,
+ * check that the program is not making infinite loops.
+ */
+TEST_F(hid_bpf, test_hid_infinite_loop_output_report_call)
+{
+	const struct test_program progs[] = {
+		{ .name = "hid_test_infinite_loop_output_report" },
+	};
+	__u8 buf[10] = {0};
+	int err;
+
+	LOAD_PROGRAMS(progs);
+
+	/* emit hid_hw_output_report from hidraw */
+	buf[0] = 1; /* report ID */
+	buf[1] = 2;
+	buf[2] = 42;
+
+	err = write(self->hidraw_fd, buf, 8);
+	ASSERT_EQ(err, 2) TH_LOG("unexpected returned size while sending hid_hw_output_report: %d",
+				 err);
+}
+
+/*
+ * Attach hid_multiply_event_wq to the given uhid device,
+ * retrieve and open the matching hidraw node,
+ * inject one event in the uhid device,
+ * check that the program sees it and can add extra data
+ */
+TEST_F(hid_bpf, test_multiply_events_wq)
+{
+	const struct test_program progs[] = {
+		{ .name = "hid_test_multiply_events_wq" },
+	};
+	__u8 buf[10] = {0};
+	int err;
+
+	LOAD_PROGRAMS(progs);
+
+	/* inject one event */
+	buf[0] = 1;
+	buf[1] = 42;
+	uhid_send_event(_metadata, self->uhid_fd, buf, 6);
+
+	/* read the data from hidraw */
+	memset(buf, 0, sizeof(buf));
+	err = read(self->hidraw_fd, buf, sizeof(buf));
+	ASSERT_EQ(err, 6) TH_LOG("read_hidraw");
+	ASSERT_EQ(buf[0], 1);
+	ASSERT_EQ(buf[1], 47);
+
+	usleep(100000);
+
+	/* read the data from hidraw */
+	memset(buf, 0, sizeof(buf));
+	err = read(self->hidraw_fd, buf, sizeof(buf));
+	ASSERT_EQ(err, 9) TH_LOG("read_hidraw");
+	ASSERT_EQ(buf[0], 2);
+	ASSERT_EQ(buf[1], 3);
+}
+
+/*
+ * Attach hid_multiply_event to the given uhid device,
+ * retrieve and open the matching hidraw node,
+ * inject one event in the uhid device,
+ * check that the program sees it and can add extra data
+ */
+TEST_F(hid_bpf, test_multiply_events)
+{
+	const struct test_program progs[] = {
+		{ .name = "hid_test_multiply_events" },
+	};
+	__u8 buf[10] = {0};
+	int err;
+
+	LOAD_PROGRAMS(progs);
+
+	/* inject one event */
+	buf[0] = 1;
+	buf[1] = 42;
+	uhid_send_event(_metadata, self->uhid_fd, buf, 6);
+
+	/* read the data from hidraw */
+	memset(buf, 0, sizeof(buf));
+	err = read(self->hidraw_fd, buf, sizeof(buf));
+	ASSERT_EQ(err, 9) TH_LOG("read_hidraw");
+	ASSERT_EQ(buf[0], 2);
+	ASSERT_EQ(buf[1], 47);
+
+	/* read the data from hidraw */
+	memset(buf, 0, sizeof(buf));
+	err = read(self->hidraw_fd, buf, sizeof(buf));
+	ASSERT_EQ(err, 9) TH_LOG("read_hidraw");
+	ASSERT_EQ(buf[0], 2);
+	ASSERT_EQ(buf[1], 52);
+}
+
+/*
+ * Call hid_bpf_input_report against the given uhid device,
+ * check that the program is not making infinite loops.
+ */
+TEST_F(hid_bpf, test_hid_infinite_loop_input_report_call)
+{
+	const struct test_program progs[] = {
+		{ .name = "hid_test_infinite_loop_input_report" },
+	};
+	__u8 buf[10] = {0};
+	int err;
+
+	LOAD_PROGRAMS(progs);
+
+	/* emit hid_hw_output_report from hidraw */
+	buf[0] = 1; /* report ID */
+	buf[1] = 2;
+	buf[2] = 42;
+
+	uhid_send_event(_metadata, self->uhid_fd, buf, 6);
+
+	/* read the data from hidraw */
+	memset(buf, 0, sizeof(buf));
+	err = read(self->hidraw_fd, buf, sizeof(buf));
+	ASSERT_EQ(err, 6) TH_LOG("read_hidraw");
+	ASSERT_EQ(buf[0], 1);
+	ASSERT_EQ(buf[1], 3);
+
+	/* read the data from hidraw: hid_bpf_try_input_report should work exactly one time */
+	memset(buf, 0, sizeof(buf));
+	err = read(self->hidraw_fd, buf, sizeof(buf));
+	ASSERT_EQ(err, 6) TH_LOG("read_hidraw");
+	ASSERT_EQ(buf[0], 1);
+	ASSERT_EQ(buf[1], 4);
+
+	/* read the data from hidraw: there should be none */
+	memset(buf, 0, sizeof(buf));
+	err = read(self->hidraw_fd, buf, sizeof(buf));
+	ASSERT_EQ(err, -1) TH_LOG("read_hidraw");
 }
 
 /*

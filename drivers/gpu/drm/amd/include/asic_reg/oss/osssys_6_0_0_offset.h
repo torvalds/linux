@@ -237,6 +237,10 @@
 #define regSEM_REGISTER_LAST_PART2_BASE_IDX                                                             0
 #define regIH_CLIENT_CFG                                                                                0x0184
 #define regIH_CLIENT_CFG_BASE_IDX                                                                       0
+#define regIH_RING1_CLIENT_CFG_INDEX                                                                    0x0185
+#define regIH_RING1_CLIENT_CFG_INDEX_BASE_IDX                                                           0
+#define regIH_RING1_CLIENT_CFG_DATA                                                                     0x0186
+#define regIH_RING1_CLIENT_CFG_DATA_BASE_IDX                                                            0
 #define regIH_CLIENT_CFG_INDEX                                                                          0x0188
 #define regIH_CLIENT_CFG_INDEX_BASE_IDX                                                                 0
 #define regIH_CLIENT_CFG_DATA                                                                           0x0189

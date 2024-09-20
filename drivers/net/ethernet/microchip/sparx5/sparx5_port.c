@@ -370,7 +370,7 @@ static int sparx5_port_disable(struct sparx5 *sparx5, struct sparx5_port *port, 
 	/* 6: Wait while the last frame is exiting the queues */
 	usleep_range(8 * spd_prm, 10 * spd_prm);
 
-	/* 7: Flush the queues accociated with the port->portno */
+	/* 7: Flush the queues associated with the port->portno */
 	spx5_rmw(HSCH_FLUSH_CTRL_FLUSH_PORT_SET(port->portno) |
 		 HSCH_FLUSH_CTRL_FLUSH_DST_SET(1) |
 		 HSCH_FLUSH_CTRL_FLUSH_SRC_SET(1) |

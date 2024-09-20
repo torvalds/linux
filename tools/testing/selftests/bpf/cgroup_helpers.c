@@ -429,7 +429,7 @@ int create_and_get_cgroup(const char *relative_path)
  * which is an invalid cgroup id.
  * If there is a failure, it prints the error to stderr.
  */
-unsigned long long get_cgroup_id_from_path(const char *cgroup_workdir)
+static unsigned long long get_cgroup_id_from_path(const char *cgroup_workdir)
 {
 	int dirfd, err, flags, mount_id, fhsize;
 	union {
@@ -507,6 +507,9 @@ int cgroup_setup_and_join(const char *path) {
 
 /**
  * setup_classid_environment() - Setup the cgroupv1 net_cls environment
+ *
+ * This function should only be called in a custom mount namespace, e.g.
+ * created by running setup_cgroup_environment.
  *
  * After calling this function, cleanup_classid_environment should be called
  * once testing is complete.

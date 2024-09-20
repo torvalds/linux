@@ -66,7 +66,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_lvds_bl>;
 		enable-gpios = <&gpio6 9 GPIO_ACTIVE_HIGH>;
-		pwms = <&pwm1 0 50000>;
+		pwms = <&pwm1 0 50000 0>;
 		brightness-levels = <
 			0 4 8 16 32 64 80 96 112
 			128 144 160 176 250
@@ -78,7 +78,7 @@
 	pwm_fan: pwm-fan {
 		compatible = "pwm-fan";
 		#cooling-cells = <2>;
-		pwms = <&pwm4 0 50000>;
+		pwms = <&pwm4 0 50000 0>;
 		cooling-levels = <0 64 127 191 255>;
 		status = "disabled";
 	};
@@ -145,7 +145,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_rgb_bl>;
 		enable-gpios = <&gpio6 8 GPIO_ACTIVE_HIGH>;
-		pwms = <&pwm3 0 5000000>;
+		pwms = <&pwm3 0 5000000 0>;
 		brightness-levels = <
 			250 176 160 144 128 112
 			96 80 64 48 32 16 8 1
@@ -736,17 +736,14 @@
 };
 
 &pwm1 {
-	#pwm-cells = <2>;
 	status = "okay";
 };
 
 &pwm3 {
-	#pwm-cells = <2>;
 	status = "okay";
 };
 
 &pwm4 {
-	#pwm-cells = <2>;
 	status = "okay";
 };
 

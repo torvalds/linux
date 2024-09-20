@@ -9,6 +9,7 @@
 
 / {
 	model = "Google fennel sku1 board";
+	chassis-type = "convertible";
 	compatible = "google,fennel-sku1", "google,fennel", "mediatek,mt8183";
 
 	pwmleds {

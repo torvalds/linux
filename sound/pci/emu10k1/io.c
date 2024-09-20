@@ -422,6 +422,59 @@ void snd_emu1010_update_clock(struct snd_emu10k1 *emu)
 	snd_emu1010_fpga_write(emu, EMU_HANA_DOCK_LEDS_2, leds);
 }
 
+void snd_emu1010_load_firmware_entry(struct snd_emu10k1 *emu, int dock,
+				     const struct firmware *fw_entry)
+{
+	__always_unused u16 write_post;
+
+	// On E-MU 1010 rev1 the FPGA is a Xilinx Spartan IIE XC2S50E.
+	// On E-MU 0404b it is a Xilinx Spartan III XC3S50.
+	// The wiring is as follows:
+	// GPO7 -> FPGA input & 1K resistor -> FPGA /PGMN <- FPGA output
+	//   In normal operation, the active low reset line is held up by
+	//   an FPGA output, while the GPO pin performs its duty as control
+	//   register access strobe signal. Writing the respective bit to
+	//   EMU_HANA_FPGA_CONFIG puts the FPGA output into high-Z mode, at
+	//   which point the GPO pin can control the reset line through the
+	//   resistor.
+	// GPO6 -> FPGA CCLK & FPGA input
+	// GPO5 -> FPGA DIN (dual function)
+
+	// If the FPGA is already programmed, return it to programming mode
+	snd_emu1010_fpga_write(emu, EMU_HANA_FPGA_CONFIG,
+			       dock ? EMU_HANA_FPGA_CONFIG_AUDIODOCK :
+				      EMU_HANA_FPGA_CONFIG_HANA);
+
+	// Assert reset line for 100uS
+	outw(0x00, emu->port + A_GPIO);
+	write_post = inw(emu->port + A_GPIO);
+	udelay(100);
+	outw(0x80, emu->port + A_GPIO);
+	write_post = inw(emu->port + A_GPIO);
+	udelay(100);  // Allow FPGA memory to clean
+
+	// Upload the netlist. Keep reset line high!
+	for (int n = 0; n < fw_entry->size; n++) {
+		u8 value = fw_entry->data[n];
+		for (int i = 0; i < 8; i++) {
+			u16 reg = 0x80;
+			if (value & 1)
+				reg |= 0x20;
+			value >>= 1;
+			outw(reg, emu->port + A_GPIO);
+			write_post = inw(emu->port + A_GPIO);
+			outw(reg | 0x40, emu->port + A_GPIO);
+			write_post = inw(emu->port + A_GPIO);
+		}
+	}
+
+	// After programming, set GPIO bit 4 high again.
+	// This appears to be a config word that the rev1 Hana
+	// firmware reads; weird things happen without this.
+	outw(0x10, emu->port + A_GPIO);
+	write_post = inw(emu->port + A_GPIO);
+}
+
 void snd_emu10k1_intr_enable(struct snd_emu10k1 *emu, unsigned int intrenb)
 {
 	unsigned long flags;

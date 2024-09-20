@@ -118,7 +118,7 @@
 		      <0x0 0x0c0c0000 0 0x2000>, /* GICC */
 		      <0x0 0x0c0d0000 0 0x1000>, /* GICH */
 		      <0x0 0x0c0e0000 0 0x20000>; /* GICV */
-		interrupts = <1 9 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_PPI 9 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <2>;
 		#size-cells = <2>;
 		ranges;
@@ -131,7 +131,7 @@
 	};
 
 	thermal-zones {
-		core-cluster {
+		cluster-thermal {
 			polling-delay-passive = <1000>;
 			polling-delay = <5000>;
 			thermal-sensors = <&tmu 0>;
@@ -166,7 +166,7 @@
 			};
 		};
 
-		soc {
+		soc-thermal {
 			polling-delay-passive = <1000>;
 			polling-delay = <5000>;
 			thermal-sensors = <&tmu 1>;
@@ -183,10 +183,10 @@
 
 	timer {
 		compatible = "arm,armv8-timer";
-		interrupts = <1 13 IRQ_TYPE_LEVEL_LOW>,/* Physical Secure PPI */
-			     <1 14 IRQ_TYPE_LEVEL_LOW>,/* Physical Non-Secure PPI */
-			     <1 11 IRQ_TYPE_LEVEL_LOW>,/* Virtual PPI */
-			     <1 10 IRQ_TYPE_LEVEL_LOW>;/* Hypervisor PPI */
+		interrupts = <GIC_PPI 13 IRQ_TYPE_LEVEL_LOW>,/* Physical Secure PPI */
+			     <GIC_PPI 14 IRQ_TYPE_LEVEL_LOW>,/* Physical Non-Secure PPI */
+			     <GIC_PPI 11 IRQ_TYPE_LEVEL_LOW>,/* Virtual PPI */
+			     <GIC_PPI 10 IRQ_TYPE_LEVEL_LOW>;/* Hypervisor PPI */
 	};
 
 	pmu {
@@ -280,7 +280,7 @@
 		tmu: tmu@1f80000 {
 			compatible = "fsl,qoriq-tmu";
 			reg = <0x0 0x1f80000 0x0 0x10000>;
-			interrupts = <0 23 0x4>;
+			interrupts = <GIC_SPI 23 IRQ_TYPE_LEVEL_HIGH>;
 			fsl,tmu-range = <0xb0000 0x9002a 0x6004c 0x70062>;
 			fsl,tmu-calibration =
 				/* Calibration data group 1 */
@@ -347,7 +347,7 @@
 			reg = <0x0 0x21c0500 0x0 0x100>;
 			clocks = <&clockgen QORIQ_CLK_PLATFORM_PLL
 					    QORIQ_CLK_PLL_DIV(4)>;
-			interrupts = <0 32 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>;
 			status = "disabled";
 		};
 
@@ -356,14 +356,14 @@
 			reg = <0x0 0x21c0600 0x0 0x100>;
 			clocks = <&clockgen QORIQ_CLK_PLATFORM_PLL
 					    QORIQ_CLK_PLL_DIV(4)>;
-			interrupts = <0 32 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>;
 			status = "disabled";
 		};
 
 		gpio0: gpio@2300000 {
 			compatible = "fsl,ls1088a-gpio", "fsl,qoriq-gpio";
 			reg = <0x0 0x2300000 0x0 0x10000>;
-			interrupts = <0 36 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 36 IRQ_TYPE_LEVEL_HIGH>;
 			little-endian;
 			gpio-controller;
 			#gpio-cells = <2>;
@@ -374,7 +374,7 @@
 		gpio1: gpio@2310000 {
 			compatible = "fsl,ls1088a-gpio", "fsl,qoriq-gpio";
 			reg = <0x0 0x2310000 0x0 0x10000>;
-			interrupts = <0 36 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 36 IRQ_TYPE_LEVEL_HIGH>;
 			little-endian;
 			gpio-controller;
 			#gpio-cells = <2>;
@@ -385,7 +385,7 @@
 		gpio2: gpio@2320000 {
 			compatible = "fsl,ls1088a-gpio", "fsl,qoriq-gpio";
 			reg = <0x0 0x2320000 0x0 0x10000>;
-			interrupts = <0 37 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>;
 			little-endian;
 			gpio-controller;
 			#gpio-cells = <2>;
@@ -396,7 +396,7 @@
 		gpio3: gpio@2330000 {
 			compatible = "fsl,ls1088a-gpio", "fsl,qoriq-gpio";
 			reg = <0x0 0x2330000 0x0 0x10000>;
-			interrupts = <0 37 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>;
 			little-endian;
 			gpio-controller;
 			#gpio-cells = <2>;
@@ -407,7 +407,7 @@
 		ifc: memory-controller@2240000 {
 			compatible = "fsl,ifc";
 			reg = <0x0 0x2240000 0x0 0x20000>;
-			interrupts = <0 21 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 21 IRQ_TYPE_LEVEL_HIGH>;
 			little-endian;
 			#address-cells = <2>;
 			#size-cells = <1>;
@@ -419,7 +419,7 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <0x0 0x2000000 0x0 0x10000>;
-			interrupts = <0 34 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 34 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&clockgen QORIQ_CLK_PLATFORM_PLL
 					    QORIQ_CLK_PLL_DIV(8)>;
 			status = "disabled";
@@ -430,7 +430,7 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <0x0 0x2010000 0x0 0x10000>;
-			interrupts = <0 34 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 34 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&clockgen QORIQ_CLK_PLATFORM_PLL
 					    QORIQ_CLK_PLL_DIV(8)>;
 			status = "disabled";
@@ -441,7 +441,7 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <0x0 0x2020000 0x0 0x10000>;
-			interrupts = <0 35 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 35 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&clockgen QORIQ_CLK_PLATFORM_PLL
 					    QORIQ_CLK_PLL_DIV(8)>;
 			status = "disabled";
@@ -452,7 +452,7 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <0x0 0x2030000 0x0 0x10000>;
-			interrupts = <0 35 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 35 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&clockgen QORIQ_CLK_PLATFORM_PLL
 					    QORIQ_CLK_PLL_DIV(8)>;
 			status = "disabled";
@@ -474,10 +474,10 @@
 			status = "disabled";
 		};
 
-		esdhc: esdhc@2140000 {
+		esdhc: mmc@2140000 {
 			compatible = "fsl,ls1088a-esdhc", "fsl,esdhc";
 			reg = <0x0 0x2140000 0x0 0x10000>;
-			interrupts = <0 28 0x4>; /* Level high type */
+			interrupts = <GIC_SPI 28 IRQ_TYPE_LEVEL_HIGH>;
 			clock-frequency = <0>;
 			clocks = <&clockgen QORIQ_CLK_HWACCEL 1>;
 			voltage-ranges = <1800 1800 3300 3300>;
@@ -490,7 +490,7 @@
 		usb0: usb@3100000 {
 			compatible = "snps,dwc3";
 			reg = <0x0 0x3100000 0x0 0x10000>;
-			interrupts = <0 80 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 80 IRQ_TYPE_LEVEL_HIGH>;
 			dr_mode = "host";
 			snps,quirk-frame-length-adjustment = <0x20>;
 			snps,dis_rxdet_inp3_quirk;
@@ -501,7 +501,7 @@
 		usb1: usb@3110000 {
 			compatible = "snps,dwc3";
 			reg = <0x0 0x3110000 0x0 0x10000>;
-			interrupts = <0 81 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 81 IRQ_TYPE_LEVEL_HIGH>;
 			dr_mode = "host";
 			snps,quirk-frame-length-adjustment = <0x20>;
 			snps,dis_rxdet_inp3_quirk;
@@ -514,7 +514,7 @@
 			reg = <0x0 0x3200000 0x0 0x10000>,
 				<0x7 0x100520 0x0 0x4>;
 			reg-names = "ahci", "sata-ecc";
-			interrupts = <0 133 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 133 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&clockgen QORIQ_CLK_PLATFORM_PLL
 					    QORIQ_CLK_PLL_DIV(4)>;
 			dma-coherent;
@@ -565,7 +565,7 @@
 			reg = <0x00 0x03400000 0x0 0x00100000>, /* controller registers */
 			      <0x20 0x00000000 0x0 0x00002000>; /* configuration space */
 			reg-names = "regs", "config";
-			interrupts = <0 108 IRQ_TYPE_LEVEL_HIGH>; /* aer interrupt */
+			interrupts = <GIC_SPI 108 IRQ_TYPE_LEVEL_HIGH>; /* aer interrupt */
 			interrupt-names = "aer";
 			#address-cells = <3>;
 			#size-cells = <2>;
@@ -604,7 +604,7 @@
 			reg = <0x00 0x03500000 0x0 0x00100000>, /* controller registers */
 			      <0x28 0x00000000 0x0 0x00002000>; /* configuration space */
 			reg-names = "regs", "config";
-			interrupts = <0 113 IRQ_TYPE_LEVEL_HIGH>; /* aer interrupt */
+			interrupts = <GIC_SPI 113 IRQ_TYPE_LEVEL_HIGH>; /* aer interrupt */
 			interrupt-names = "aer";
 			#address-cells = <3>;
 			#size-cells = <2>;
@@ -642,7 +642,7 @@
 			reg = <0x00 0x03600000 0x0 0x00100000>, /* controller registers */
 			      <0x30 0x00000000 0x0 0x00002000>; /* configuration space */
 			reg-names = "regs", "config";
-			interrupts = <0 118 IRQ_TYPE_LEVEL_HIGH>; /* aer interrupt */
+			interrupts = <GIC_SPI 118 IRQ_TYPE_LEVEL_HIGH>; /* aer interrupt */
 			interrupt-names = "aer";
 			#address-cells = <3>;
 			#size-cells = <2>;
@@ -880,7 +880,7 @@
 			};
 		};
 
-		cluster1_core0_watchdog: wdt@c000000 {
+		cluster1_core0_watchdog: watchdog@c000000 {
 			compatible = "arm,sp805", "arm,primecell";
 			reg = <0x0 0xc000000 0x0 0x1000>;
 			clocks = <&clockgen QORIQ_CLK_PLATFORM_PLL
@@ -890,7 +890,7 @@
 			clock-names = "wdog_clk", "apb_pclk";
 		};
 
-		cluster1_core1_watchdog: wdt@c010000 {
+		cluster1_core1_watchdog: watchdog@c010000 {
 			compatible = "arm,sp805", "arm,primecell";
 			reg = <0x0 0xc010000 0x0 0x1000>;
 			clocks = <&clockgen QORIQ_CLK_PLATFORM_PLL
@@ -900,7 +900,7 @@
 			clock-names = "wdog_clk", "apb_pclk";
 		};
 
-		cluster1_core2_watchdog: wdt@c020000 {
+		cluster1_core2_watchdog: watchdog@c020000 {
 			compatible = "arm,sp805", "arm,primecell";
 			reg = <0x0 0xc020000 0x0 0x1000>;
 			clocks = <&clockgen QORIQ_CLK_PLATFORM_PLL
@@ -910,7 +910,7 @@
 			clock-names = "wdog_clk", "apb_pclk";
 		};
 
-		cluster1_core3_watchdog: wdt@c030000 {
+		cluster1_core3_watchdog: watchdog@c030000 {
 			compatible = "arm,sp805", "arm,primecell";
 			reg = <0x0 0xc030000 0x0 0x1000>;
 			clocks = <&clockgen QORIQ_CLK_PLATFORM_PLL
@@ -920,7 +920,7 @@
 			clock-names = "wdog_clk", "apb_pclk";
 		};
 
-		cluster2_core0_watchdog: wdt@c100000 {
+		cluster2_core0_watchdog: watchdog@c100000 {
 			compatible = "arm,sp805", "arm,primecell";
 			reg = <0x0 0xc100000 0x0 0x1000>;
 			clocks = <&clockgen QORIQ_CLK_PLATFORM_PLL
@@ -930,7 +930,7 @@
 			clock-names = "wdog_clk", "apb_pclk";
 		};
 
-		cluster2_core1_watchdog: wdt@c110000 {
+		cluster2_core1_watchdog: watchdog@c110000 {
 			compatible = "arm,sp805", "arm,primecell";
 			reg = <0x0 0xc110000 0x0 0x1000>;
 			clocks = <&clockgen QORIQ_CLK_PLATFORM_PLL
@@ -940,7 +940,7 @@
 			clock-names = "wdog_clk", "apb_pclk";
 		};
 
-		cluster2_core2_watchdog: wdt@c120000 {
+		cluster2_core2_watchdog: watchdog@c120000 {
 			compatible = "arm,sp805", "arm,primecell";
 			reg = <0x0 0xc120000 0x0 0x1000>;
 			clocks = <&clockgen QORIQ_CLK_PLATFORM_PLL
@@ -950,7 +950,7 @@
 			clock-names = "wdog_clk", "apb_pclk";
 		};
 
-		cluster2_core3_watchdog: wdt@c130000 {
+		cluster2_core3_watchdog: watchdog@c130000 {
 			compatible = "arm,sp805", "arm,primecell";
 			reg = <0x0 0xc130000 0x0 0x1000>;
 			clocks = <&clockgen QORIQ_CLK_PLATFORM_PLL
@@ -1040,7 +1040,7 @@
 			little-endian;
 		};
 
-		ftm_alarm0: timer@2800000 {
+		ftm_alarm0: rtc@2800000 {
 			compatible = "fsl,ls1088a-ftm-alarm";
 			reg = <0x0 0x2800000 0x0 0x10000>;
 			fsl,rcpm-wakeup = <&rcpm 0x0 0x0 0x0 0x0 0x4000 0x0>;

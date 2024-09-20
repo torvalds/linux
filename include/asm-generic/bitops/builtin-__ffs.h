@@ -8,7 +8,7 @@
  *
  * Undefined if no bit exists, so code should check against 0 first.
  */
-static __always_inline unsigned long __ffs(unsigned long word)
+static __always_inline unsigned int __ffs(unsigned long word)
 {
 	return __builtin_ctzl(word);
 }

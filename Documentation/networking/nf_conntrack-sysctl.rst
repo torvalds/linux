@@ -222,11 +222,11 @@ nf_flowtable_tcp_timeout - INTEGER (seconds)
 
         Control offload timeout for tcp connections.
         TCP connections may be offloaded from nf conntrack to nf flow table.
-        Once aged, the connection is returned to nf conntrack with tcp pickup timeout.
+        Once aged, the connection is returned to nf conntrack.
 
 nf_flowtable_udp_timeout - INTEGER (seconds)
         default 30
 
         Control offload timeout for udp connections.
         UDP connections may be offloaded from nf conntrack to nf flow table.
-        Once aged, the connection is returned to nf conntrack with udp pickup timeout.
+        Once aged, the connection is returned to nf conntrack.

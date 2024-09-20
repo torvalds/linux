@@ -175,9 +175,6 @@ MODULE_PARM_DESC(debug_support, "Enable debug command support");
 #define TLMI_SMP_PWD BIT(6) /* System Management */
 #define TLMI_CERT    BIT(7) /* Certificate Based */
 
-#define to_tlmi_pwd_setting(kobj)  container_of(kobj, struct tlmi_pwd_setting, kobj)
-#define to_tlmi_attr_setting(kobj)  container_of(kobj, struct tlmi_attr_setting, kobj)
-
 static const struct tlmi_err_codes tlmi_errs[] = {
 	{"Success", 0},
 	{"Not Supported", -EOPNOTSUPP},
@@ -197,6 +194,16 @@ static const char * const level_options[] = {
 static struct think_lmi tlmi_priv;
 static const struct class *fw_attr_class;
 static DEFINE_MUTEX(tlmi_mutex);
+
+static inline struct tlmi_pwd_setting *to_tlmi_pwd_setting(struct kobject *kobj)
+{
+	return container_of(kobj, struct tlmi_pwd_setting, kobj);
+}
+
+static inline struct tlmi_attr_setting *to_tlmi_attr_setting(struct kobject *kobj)
+{
+	return container_of(kobj, struct tlmi_attr_setting, kobj);
+}
 
 /* Convert BIOS WMI error string to suitable error code */
 static int tlmi_errstr_to_err(const char *errstr)
@@ -1501,7 +1508,7 @@ static struct tlmi_pwd_setting *tlmi_create_auth(const char *pwd_type,
 	if (!new_pwd)
 		return NULL;
 
-	strscpy(new_pwd->kbdlang, "us", TLMI_LANG_MAXLEN);
+	strscpy(new_pwd->kbdlang, "us");
 	new_pwd->encoding = TLMI_ENCODING_ASCII;
 	new_pwd->pwd_type = pwd_type;
 	new_pwd->role = pwd_role;
@@ -1575,7 +1582,7 @@ static int tlmi_analyze(void)
 			goto fail_clear_attr;
 		}
 		setting->index = i;
-		strscpy(setting->display_name, item, TLMI_SETTINGS_MAXLEN);
+		strscpy(setting->display_name, item);
 		/* If BIOS selections supported, load those */
 		if (tlmi_priv.can_get_bios_selections) {
 			ret = tlmi_get_bios_selections(setting->display_name,

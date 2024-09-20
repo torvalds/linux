@@ -28,7 +28,7 @@
 #define SMU14_DRIVER_IF_VERSION_INV 0xFFFFFFFF
 #define SMU14_DRIVER_IF_VERSION_SMU_V14_0_0 0x7
 #define SMU14_DRIVER_IF_VERSION_SMU_V14_0_1 0x6
-#define SMU14_DRIVER_IF_VERSION_SMU_V14_0_2 0x1
+#define SMU14_DRIVER_IF_VERSION_SMU_V14_0_2 0x26
 
 #define FEATURE_MASK(feature) (1ULL << feature)
 
@@ -39,11 +39,24 @@
 #define MP1_SRAM			0x03c00004
 
 /* address block */
-#define smnMP1_FIRMWARE_FLAGS		0x3010028
+#define smnMP1_FIRMWARE_FLAGS_14_0_0	0x3010028
+#define smnMP1_FIRMWARE_FLAGS		0x3010024
 #define smnMP1_PUB_CTRL			0x3010d10
 
 #define MAX_DPM_LEVELS 16
 #define MAX_PCIE_CONF 3
+
+#define SMU14_TOOL_SIZE			0x19000
+
+#define CTF_OFFSET_EDGE			5
+#define CTF_OFFSET_HOTSPOT		5
+#define CTF_OFFSET_MEM			5
+
+extern const int decoded_link_speed[5];
+extern const int decoded_link_width[7];
+
+#define DECODE_GEN_SPEED(gen_speed_idx)		(decoded_link_speed[gen_speed_idx])
+#define DECODE_LANE_WIDTH(lane_width_idx)	(decoded_link_width[lane_width_idx])
 
 struct smu_14_0_max_sustainable_clocks {
 	uint32_t display_clock;
@@ -160,7 +173,7 @@ int smu_v14_0_register_irq_handler(struct smu_context *smu);
 int smu_v14_0_baco_set_armd3_sequence(struct smu_context *smu,
 				      enum smu_baco_seq baco_seq);
 
-bool smu_v14_0_baco_is_support(struct smu_context *smu);
+int smu_v14_0_get_bamaco_support(struct smu_context *smu);
 
 enum smu_baco_state smu_v14_0_baco_get_state(struct smu_context *smu);
 
@@ -226,6 +239,10 @@ int smu_v14_0_od_edit_dpm_table(struct smu_context *smu,
 				long input[], uint32_t size);
 
 void smu_v14_0_set_smu_mailbox_registers(struct smu_context *smu);
+
+int smu_v14_0_enable_thermal_alert(struct smu_context *smu);
+
+int smu_v14_0_disable_thermal_alert(struct smu_context *smu);
 
 #endif
 #endif

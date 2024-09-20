@@ -218,39 +218,7 @@ void perf_callchain_kernel(struct perf_callchain_entry_ctx *entry,
 void perf_callchain_user(struct perf_callchain_entry_ctx *entry,
 			 struct pt_regs *regs)
 {
-	struct stack_frame_user __user *sf;
-	unsigned long ip, sp;
-	bool first = true;
-
-	if (is_compat_task())
-		return;
-	perf_callchain_store(entry, instruction_pointer(regs));
-	sf = (void __user *)user_stack_pointer(regs);
-	pagefault_disable();
-	while (entry->nr < entry->max_stack) {
-		if (__get_user(sp, &sf->back_chain))
-			break;
-		if (__get_user(ip, &sf->gprs[8]))
-			break;
-		if (ip & 0x1) {
-			/*
-			 * If the instruction address is invalid, and this
-			 * is the first stack frame, assume r14 has not
-			 * been written to the stack yet. Otherwise exit.
-			 */
-			if (first && !(regs->gprs[14] & 0x1))
-				ip = regs->gprs[14];
-			else
-				break;
-		}
-		perf_callchain_store(entry, ip);
-		/* Sanity check: ABI requires SP to be aligned 8 bytes. */
-		if (!sp || sp & 0x7)
-			break;
-		sf = (void __user *)sp;
-		first = false;
-	}
-	pagefault_enable();
+	arch_stack_walk_user_common(NULL, NULL, entry, regs, true);
 }
 
 /* Perf definitions for PMU event attributes in sysfs */

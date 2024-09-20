@@ -43,7 +43,7 @@ DECLARE_EVENT_CLASS(fs_str,
 
 	TP_fast_assign(
 		__entry->dev		= c->dev;
-		__assign_str(str, str);
+		__assign_str(str);
 	),
 
 	TP_printk("%d,%d\n%s", MAJOR(__entry->dev), MINOR(__entry->dev), __get_str(str))
@@ -64,7 +64,7 @@ DECLARE_EVENT_CLASS(trans_str,
 		__entry->dev		= trans->c->dev;
 		strscpy(__entry->trans_fn, trans->fn, sizeof(__entry->trans_fn));
 		__entry->caller_ip		= caller_ip;
-		__assign_str(str, str);
+		__assign_str(str);
 	),
 
 	TP_printk("%d,%d %s %pS %s",
@@ -85,7 +85,7 @@ DECLARE_EVENT_CLASS(trans_str_nocaller,
 	TP_fast_assign(
 		__entry->dev		= trans->c->dev;
 		strscpy(__entry->trans_fn, trans->fn, sizeof(__entry->trans_fn));
-		__assign_str(str, str);
+		__assign_str(str);
 	),
 
 	TP_printk("%d,%d %s %s",
@@ -198,6 +198,56 @@ DECLARE_EVENT_CLASS(bio,
 	TP_printk("%d,%d  %s %llu + %u",
 		  MAJOR(__entry->dev), MINOR(__entry->dev), __entry->rwbs,
 		  (unsigned long long)__entry->sector, __entry->nr_sector)
+);
+
+/* fs.c: */
+TRACE_EVENT(bch2_sync_fs,
+	TP_PROTO(struct super_block *sb, int wait),
+
+	TP_ARGS(sb, wait),
+
+	TP_STRUCT__entry(
+		__field(	dev_t,	dev			)
+		__field(	int,	wait			)
+
+	),
+
+	TP_fast_assign(
+		__entry->dev	= sb->s_dev;
+		__entry->wait	= wait;
+	),
+
+	TP_printk("dev %d,%d wait %d",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->wait)
+);
+
+/* fs-io.c: */
+TRACE_EVENT(bch2_fsync,
+	TP_PROTO(struct file *file, int datasync),
+
+	TP_ARGS(file, datasync),
+
+	TP_STRUCT__entry(
+		__field(	dev_t,	dev			)
+		__field(	ino_t,	ino			)
+		__field(	ino_t,	parent			)
+		__field(	int,	datasync		)
+	),
+
+	TP_fast_assign(
+		struct dentry *dentry = file->f_path.dentry;
+
+		__entry->dev		= dentry->d_sb->s_dev;
+		__entry->ino		= d_inode(dentry)->i_ino;
+		__entry->parent		= d_inode(dentry->d_parent)->i_ino;
+		__entry->datasync	= datasync;
+	),
+
+	TP_printk("dev %d,%d ino %lu parent %lu datasync %d ",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  (unsigned long) __entry->ino,
+		  (unsigned long) __entry->parent, __entry->datasync)
 );
 
 /* super-io.c: */
@@ -638,99 +688,14 @@ DEFINE_EVENT(bch_fs, gc_gens_end,
 
 /* Allocator */
 
-DECLARE_EVENT_CLASS(bucket_alloc,
-	TP_PROTO(struct bch_dev *ca, const char *alloc_reserve,
-		 u64 bucket,
-		 u64 free,
-		 u64 avail,
-		 u64 copygc_wait_amount,
-		 s64 copygc_waiting_for,
-		 struct bucket_alloc_state *s,
-		 bool nonblocking,
-		 const char *err),
-	TP_ARGS(ca, alloc_reserve, bucket, free, avail,
-		copygc_wait_amount, copygc_waiting_for,
-		s, nonblocking, err),
-
-	TP_STRUCT__entry(
-		__field(u8,			dev			)
-		__array(char,	reserve,	16			)
-		__field(u64,			bucket	)
-		__field(u64,			free			)
-		__field(u64,			avail			)
-		__field(u64,			copygc_wait_amount	)
-		__field(s64,			copygc_waiting_for	)
-		__field(u64,			seen			)
-		__field(u64,			open			)
-		__field(u64,			need_journal_commit	)
-		__field(u64,			nouse			)
-		__field(bool,			nonblocking		)
-		__field(u64,			nocow			)
-		__array(char,			err,	32		)
-	),
-
-	TP_fast_assign(
-		__entry->dev		= ca->dev_idx;
-		strscpy(__entry->reserve, alloc_reserve, sizeof(__entry->reserve));
-		__entry->bucket		= bucket;
-		__entry->free		= free;
-		__entry->avail		= avail;
-		__entry->copygc_wait_amount	= copygc_wait_amount;
-		__entry->copygc_waiting_for	= copygc_waiting_for;
-		__entry->seen		= s->buckets_seen;
-		__entry->open		= s->skipped_open;
-		__entry->need_journal_commit = s->skipped_need_journal_commit;
-		__entry->nouse		= s->skipped_nouse;
-		__entry->nonblocking	= nonblocking;
-		__entry->nocow		= s->skipped_nocow;
-		strscpy(__entry->err, err, sizeof(__entry->err));
-	),
-
-	TP_printk("reserve %s bucket %u:%llu free %llu avail %llu copygc_wait %llu/%lli seen %llu open %llu need_journal_commit %llu nouse %llu nocow %llu nonblocking %u err %s",
-		  __entry->reserve,
-		  __entry->dev,
-		  __entry->bucket,
-		  __entry->free,
-		  __entry->avail,
-		  __entry->copygc_wait_amount,
-		  __entry->copygc_waiting_for,
-		  __entry->seen,
-		  __entry->open,
-		  __entry->need_journal_commit,
-		  __entry->nouse,
-		  __entry->nocow,
-		  __entry->nonblocking,
-		  __entry->err)
+DEFINE_EVENT(fs_str, bucket_alloc,
+	TP_PROTO(struct bch_fs *c, const char *str),
+	TP_ARGS(c, str)
 );
 
-DEFINE_EVENT(bucket_alloc, bucket_alloc,
-	TP_PROTO(struct bch_dev *ca, const char *alloc_reserve,
-		 u64 bucket,
-		 u64 free,
-		 u64 avail,
-		 u64 copygc_wait_amount,
-		 s64 copygc_waiting_for,
-		 struct bucket_alloc_state *s,
-		 bool nonblocking,
-		 const char *err),
-	TP_ARGS(ca, alloc_reserve, bucket, free, avail,
-		copygc_wait_amount, copygc_waiting_for,
-		s, nonblocking, err)
-);
-
-DEFINE_EVENT(bucket_alloc, bucket_alloc_fail,
-	TP_PROTO(struct bch_dev *ca, const char *alloc_reserve,
-		 u64 bucket,
-		 u64 free,
-		 u64 avail,
-		 u64 copygc_wait_amount,
-		 s64 copygc_waiting_for,
-		 struct bucket_alloc_state *s,
-		 bool nonblocking,
-		 const char *err),
-	TP_ARGS(ca, alloc_reserve, bucket, free, avail,
-		copygc_wait_amount, copygc_waiting_for,
-		s, nonblocking, err)
+DEFINE_EVENT(fs_str, bucket_alloc_fail,
+	TP_PROTO(struct bch_fs *c, const char *str),
+	TP_ARGS(c, str)
 );
 
 TRACE_EVENT(discard_buckets,
@@ -1023,10 +988,33 @@ TRACE_EVENT(trans_restart_split_race,
 		  __entry->u64s_remaining)
 );
 
-DEFINE_EVENT(transaction_event,	trans_blocked_journal_reclaim,
+TRACE_EVENT(trans_blocked_journal_reclaim,
 	TP_PROTO(struct btree_trans *trans,
 		 unsigned long caller_ip),
-	TP_ARGS(trans, caller_ip)
+	TP_ARGS(trans, caller_ip),
+
+	TP_STRUCT__entry(
+		__array(char,			trans_fn, 32	)
+		__field(unsigned long,		caller_ip	)
+
+		__field(unsigned long,		key_cache_nr_keys	)
+		__field(unsigned long,		key_cache_nr_dirty	)
+		__field(long,			must_wait		)
+	),
+
+	TP_fast_assign(
+		strscpy(__entry->trans_fn, trans->fn, sizeof(__entry->trans_fn));
+		__entry->caller_ip		= caller_ip;
+		__entry->key_cache_nr_keys	= atomic_long_read(&trans->c->btree_key_cache.nr_keys);
+		__entry->key_cache_nr_dirty	= atomic_long_read(&trans->c->btree_key_cache.nr_dirty);
+		__entry->must_wait		= __bch2_btree_key_cache_must_wait(trans->c);
+	),
+
+	TP_printk("%s %pS key cache keys %lu dirty %lu must_wait %li",
+		  __entry->trans_fn, (void *) __entry->caller_ip,
+		  __entry->key_cache_nr_keys,
+		  __entry->key_cache_nr_dirty,
+		  __entry->must_wait)
 );
 
 TRACE_EVENT(trans_restart_journal_preres_get,

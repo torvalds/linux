@@ -13,7 +13,7 @@ struct __cgrps_kfunc_map_value {
 	struct cgroup __kptr * cgrp;
 };
 
-struct hash_map {
+struct {
 	__uint(type, BPF_MAP_TYPE_HASH);
 	__type(key, int);
 	__type(value, struct __cgrps_kfunc_map_value);

@@ -305,8 +305,8 @@ static inline int read_sub_irq_data(struct regmap_irq_chip_data *data,
 					   unsigned int b)
 {
 	const struct regmap_irq_chip *chip = data->chip;
+	const struct regmap_irq_sub_irq_map *subreg;
 	struct regmap *map = data->map;
-	struct regmap_irq_sub_irq_map *subreg;
 	unsigned int reg;
 	int i, ret = 0;
 

@@ -1,0 +1,30 @@
+C cmpxchg-fail-unordered-2
+
+(*
+ * Result: Sometimes
+ *
+ * Demonstrate that a failing cmpxchg() operation does not act as either
+ * an acquire release operation.  (In contrast, a successful cmpxchg()
+ * does act as both an acquire and a release operation.)
+ *)
+
+{}
+
+P0(int *x, int *y)
+{
+	int r1;
+
+	WRITE_ONCE(*x, 1);
+	r1 = cmpxchg(y, 0, 1);
+}
+
+P1(int *x, int *y)
+{
+	int r1;
+	int r2;
+
+	r1 = cmpxchg(y, 0, 1);
+	r2 = READ_ONCE(*x);
+}
+
+exists (0:r1=0 /\ 1:r1=1 /\ 1:r2=0)

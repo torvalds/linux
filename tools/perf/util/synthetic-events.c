@@ -385,8 +385,8 @@ static void perf_record_mmap2__read_build_id(struct perf_record_mmap2 *event,
 	id.ino_generation = event->ino_generation;
 
 	dso = dsos__findnew_id(&machine->dsos, event->filename, &id);
-	if (dso && dso->has_build_id) {
-		bid = dso->bid;
+	if (dso && dso__has_build_id(dso)) {
+		bid = *dso__bid(dso);
 		rc = 0;
 		goto out;
 	}
@@ -407,7 +407,7 @@ out:
 		event->__reserved_1 = 0;
 		event->__reserved_2 = 0;
 
-		if (dso && !dso->has_build_id)
+		if (dso && !dso__has_build_id(dso))
 			dso__set_build_id(dso, &bid);
 	} else {
 		if (event->filename[0] == '/') {
@@ -684,7 +684,7 @@ static int perf_event__synthesize_modules_maps_cb(struct map *map, void *data)
 
 	dso = map__dso(map);
 	if (symbol_conf.buildid_mmap2) {
-		size = PERF_ALIGN(dso->long_name_len + 1, sizeof(u64));
+		size = PERF_ALIGN(dso__long_name_len(dso) + 1, sizeof(u64));
 		event->mmap2.header.type = PERF_RECORD_MMAP2;
 		event->mmap2.header.size = (sizeof(event->mmap2) -
 					(sizeof(event->mmap2.filename) - size));
@@ -694,11 +694,11 @@ static int perf_event__synthesize_modules_maps_cb(struct map *map, void *data)
 		event->mmap2.len   = map__size(map);
 		event->mmap2.pid   = args->machine->pid;
 
-		memcpy(event->mmap2.filename, dso->long_name, dso->long_name_len + 1);
+		memcpy(event->mmap2.filename, dso__long_name(dso), dso__long_name_len(dso) + 1);
 
 		perf_record_mmap2__read_build_id(&event->mmap2, args->machine, false);
 	} else {
-		size = PERF_ALIGN(dso->long_name_len + 1, sizeof(u64));
+		size = PERF_ALIGN(dso__long_name_len(dso) + 1, sizeof(u64));
 		event->mmap.header.type = PERF_RECORD_MMAP;
 		event->mmap.header.size = (sizeof(event->mmap) -
 					(sizeof(event->mmap.filename) - size));
@@ -708,7 +708,7 @@ static int perf_event__synthesize_modules_maps_cb(struct map *map, void *data)
 		event->mmap.len   = map__size(map);
 		event->mmap.pid   = args->machine->pid;
 
-		memcpy(event->mmap.filename, dso->long_name, dso->long_name_len + 1);
+		memcpy(event->mmap.filename, dso__long_name(dso), dso__long_name_len(dso) + 1);
 	}
 
 	if (perf_tool__process_synth_event(args->tool, event, args->machine, args->process) != 0)
@@ -2231,20 +2231,20 @@ int perf_event__synthesize_build_id(struct perf_tool *tool, struct dso *pos, u16
 	union perf_event ev;
 	size_t len;
 
-	if (!pos->hit)
+	if (!dso__hit(pos))
 		return 0;
 
 	memset(&ev, 0, sizeof(ev));
 
-	len = pos->long_name_len + 1;
+	len = dso__long_name_len(pos) + 1;
 	len = PERF_ALIGN(len, NAME_ALIGN);
-	ev.build_id.size = min(pos->bid.size, sizeof(pos->bid.data));
-	memcpy(&ev.build_id.build_id, pos->bid.data, ev.build_id.size);
+	ev.build_id.size = min(dso__bid(pos)->size, sizeof(dso__bid(pos)->data));
+	memcpy(&ev.build_id.build_id, dso__bid(pos)->data, ev.build_id.size);
 	ev.build_id.header.type = PERF_RECORD_HEADER_BUILD_ID;
 	ev.build_id.header.misc = misc | PERF_RECORD_MISC_BUILD_ID_SIZE;
 	ev.build_id.pid = machine->pid;
 	ev.build_id.header.size = sizeof(ev.build_id) + len;
-	memcpy(&ev.build_id.filename, pos->long_name, pos->long_name_len);
+	memcpy(&ev.build_id.filename, dso__long_name(pos), dso__long_name_len(pos));
 
 	return process(tool, &ev, NULL, machine);
 }

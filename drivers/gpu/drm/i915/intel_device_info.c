@@ -25,7 +25,7 @@
 #include <linux/string_helpers.h>
 
 #include <drm/drm_print.h>
-#include <drm/i915_pciids.h>
+#include <drm/intel/i915_pciids.h>
 
 #include "gt/intel_gt_regs.h"
 #include "i915_drv.h"
@@ -70,9 +70,7 @@ static const char * const platform_names[] = {
 	PLATFORM_NAME(DG1),
 	PLATFORM_NAME(ALDERLAKE_S),
 	PLATFORM_NAME(ALDERLAKE_P),
-	PLATFORM_NAME(XEHPSDV),
 	PLATFORM_NAME(DG2),
-	PLATFORM_NAME(PONTEVECCHIO),
 	PLATFORM_NAME(METEORLAKE),
 };
 #undef PLATFORM_NAME
@@ -129,80 +127,84 @@ void intel_device_info_print(const struct intel_device_info *info,
 	drm_printf(p, "rawclk rate: %u kHz\n", runtime->rawclk_freq);
 }
 
-#undef INTEL_VGA_DEVICE
-#define INTEL_VGA_DEVICE(id, info) (id)
+#define ID(id) (id)
 
 static const u16 subplatform_ult_ids[] = {
-	INTEL_HSW_ULT_GT1_IDS(0),
-	INTEL_HSW_ULT_GT2_IDS(0),
-	INTEL_HSW_ULT_GT3_IDS(0),
-	INTEL_BDW_ULT_GT1_IDS(0),
-	INTEL_BDW_ULT_GT2_IDS(0),
-	INTEL_BDW_ULT_GT3_IDS(0),
-	INTEL_BDW_ULT_RSVD_IDS(0),
-	INTEL_SKL_ULT_GT1_IDS(0),
-	INTEL_SKL_ULT_GT2_IDS(0),
-	INTEL_SKL_ULT_GT3_IDS(0),
-	INTEL_KBL_ULT_GT1_IDS(0),
-	INTEL_KBL_ULT_GT2_IDS(0),
-	INTEL_KBL_ULT_GT3_IDS(0),
-	INTEL_CFL_U_GT2_IDS(0),
-	INTEL_CFL_U_GT3_IDS(0),
-	INTEL_WHL_U_GT1_IDS(0),
-	INTEL_WHL_U_GT2_IDS(0),
-	INTEL_WHL_U_GT3_IDS(0),
-	INTEL_CML_U_GT1_IDS(0),
-	INTEL_CML_U_GT2_IDS(0),
+	INTEL_HSW_ULT_GT1_IDS(ID),
+	INTEL_HSW_ULT_GT2_IDS(ID),
+	INTEL_HSW_ULT_GT3_IDS(ID),
+	INTEL_BDW_ULT_GT1_IDS(ID),
+	INTEL_BDW_ULT_GT2_IDS(ID),
+	INTEL_BDW_ULT_GT3_IDS(ID),
+	INTEL_BDW_ULT_RSVD_IDS(ID),
+	INTEL_SKL_ULT_GT1_IDS(ID),
+	INTEL_SKL_ULT_GT2_IDS(ID),
+	INTEL_SKL_ULT_GT3_IDS(ID),
+	INTEL_KBL_ULT_GT1_IDS(ID),
+	INTEL_KBL_ULT_GT2_IDS(ID),
+	INTEL_KBL_ULT_GT3_IDS(ID),
+	INTEL_CFL_U_GT2_IDS(ID),
+	INTEL_CFL_U_GT3_IDS(ID),
+	INTEL_WHL_U_GT1_IDS(ID),
+	INTEL_WHL_U_GT2_IDS(ID),
+	INTEL_WHL_U_GT3_IDS(ID),
+	INTEL_CML_U_GT1_IDS(ID),
+	INTEL_CML_U_GT2_IDS(ID),
 };
 
 static const u16 subplatform_ulx_ids[] = {
-	INTEL_HSW_ULX_GT1_IDS(0),
-	INTEL_HSW_ULX_GT2_IDS(0),
-	INTEL_BDW_ULX_GT1_IDS(0),
-	INTEL_BDW_ULX_GT2_IDS(0),
-	INTEL_BDW_ULX_GT3_IDS(0),
-	INTEL_BDW_ULX_RSVD_IDS(0),
-	INTEL_SKL_ULX_GT1_IDS(0),
-	INTEL_SKL_ULX_GT2_IDS(0),
-	INTEL_KBL_ULX_GT1_IDS(0),
-	INTEL_KBL_ULX_GT2_IDS(0),
-	INTEL_AML_KBL_GT2_IDS(0),
-	INTEL_AML_CFL_GT2_IDS(0),
+	INTEL_HSW_ULX_GT1_IDS(ID),
+	INTEL_HSW_ULX_GT2_IDS(ID),
+	INTEL_BDW_ULX_GT1_IDS(ID),
+	INTEL_BDW_ULX_GT2_IDS(ID),
+	INTEL_BDW_ULX_GT3_IDS(ID),
+	INTEL_BDW_ULX_RSVD_IDS(ID),
+	INTEL_SKL_ULX_GT1_IDS(ID),
+	INTEL_SKL_ULX_GT2_IDS(ID),
+	INTEL_KBL_ULX_GT1_IDS(ID),
+	INTEL_KBL_ULX_GT2_IDS(ID),
+	INTEL_AML_KBL_GT2_IDS(ID),
+	INTEL_AML_CFL_GT2_IDS(ID),
 };
 
 static const u16 subplatform_portf_ids[] = {
-	INTEL_ICL_PORT_F_IDS(0),
+	INTEL_ICL_PORT_F_IDS(ID),
 };
 
 static const u16 subplatform_uy_ids[] = {
-	INTEL_TGL_12_GT2_IDS(0),
+	INTEL_TGL_GT2_IDS(ID),
 };
 
 static const u16 subplatform_n_ids[] = {
-	INTEL_ADLN_IDS(0),
+	INTEL_ADLN_IDS(ID),
 };
 
 static const u16 subplatform_rpl_ids[] = {
-	INTEL_RPLS_IDS(0),
-	INTEL_RPLP_IDS(0),
+	INTEL_RPLS_IDS(ID),
+	INTEL_RPLU_IDS(ID),
+	INTEL_RPLP_IDS(ID),
 };
 
 static const u16 subplatform_rplu_ids[] = {
-	INTEL_RPLU_IDS(0),
+	INTEL_RPLU_IDS(ID),
 };
 
 static const u16 subplatform_g10_ids[] = {
-	INTEL_DG2_G10_IDS(0),
-	INTEL_ATS_M150_IDS(0),
+	INTEL_DG2_G10_IDS(ID),
+	INTEL_ATS_M150_IDS(ID),
 };
 
 static const u16 subplatform_g11_ids[] = {
-	INTEL_DG2_G11_IDS(0),
-	INTEL_ATS_M75_IDS(0),
+	INTEL_DG2_G11_IDS(ID),
+	INTEL_ATS_M75_IDS(ID),
 };
 
 static const u16 subplatform_g12_ids[] = {
-	INTEL_DG2_G12_IDS(0),
+	INTEL_DG2_G12_IDS(ID),
+};
+
+static const u16 subplatform_arl_ids[] = {
+	INTEL_ARL_IDS(ID),
 };
 
 static bool find_devid(u16 id, const u16 *p, unsigned int num)
@@ -262,6 +264,9 @@ static void intel_device_info_subplatform_init(struct drm_i915_private *i915)
 	} else if (find_devid(devid, subplatform_g12_ids,
 			      ARRAY_SIZE(subplatform_g12_ids))) {
 		mask = BIT(INTEL_SUBPLATFORM_G12);
+	} else if (find_devid(devid, subplatform_arl_ids,
+			      ARRAY_SIZE(subplatform_arl_ids))) {
+		mask = BIT(INTEL_SUBPLATFORM_ARL);
 	}
 
 	GEM_BUG_ON(mask & ~INTEL_SUBPLATFORM_MASK);

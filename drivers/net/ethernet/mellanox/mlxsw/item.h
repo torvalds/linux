@@ -218,6 +218,10 @@ __mlxsw_item_bit_array_offset(const struct mlxsw_item *item,
 	}
 
 	max_index = (item->size.bytes << 3) / item->element_size - 1;
+	if (WARN_ONCE(index > max_index,
+		      "name=%s,index=%u,max_index=%u\n", item->name, index,
+		      max_index))
+		index = 0;
 	be_index = max_index - index;
 	offset = be_index * item->element_size >> 3;
 	in_byte_index  = index % (BITS_PER_BYTE / item->element_size);

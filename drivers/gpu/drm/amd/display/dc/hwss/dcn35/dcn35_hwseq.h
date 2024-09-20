@@ -37,6 +37,10 @@ void dcn35_dsc_pg_control(struct dce_hwseq *hws, unsigned int dsc_inst, bool pow
 
 void dcn35_dpp_root_clock_control(struct dce_hwseq *hws, unsigned int dpp_inst, bool clock_on);
 
+void dcn35_dpstream_root_clock_control(struct dce_hwseq *hws, unsigned int dp_hpo_inst, bool clock_on);
+
+void dcn35_physymclk_root_clock_control(struct dce_hwseq *hws, unsigned int phy_inst, bool clock_on);
+
 void dcn35_enable_power_gating_plane(struct dce_hwseq *hws, bool enable);
 
 void dcn35_set_dmu_fgcg(struct dce_hwseq *hws, bool enable);
@@ -84,13 +88,15 @@ void dcn35_dsc_pg_control(
 		unsigned int dsc_inst,
 		bool power_on);
 
-void dcn35_set_idle_state(const struct dc *dc, bool allow_idle);
-uint32_t dcn35_get_idle_state(const struct dc *dc);
-
 void dcn35_set_drr(struct pipe_ctx **pipe_ctx,
 		int num_pipes, struct dc_crtc_timing_adjust adjust);
 
 void dcn35_set_static_screen_control(struct pipe_ctx **pipe_ctx,
 		int num_pipes, const struct dc_static_screen_params *params);
+
+void dcn35_set_long_vblank(struct pipe_ctx **pipe_ctx,
+		int num_pipes, uint32_t v_total_min, uint32_t v_total_max);
+
+bool dcn35_is_dp_dig_pixel_rate_div_policy(struct pipe_ctx *pipe_ctx);
 
 #endif /* __DC_HWSS_DCN35_H__ */

@@ -170,7 +170,7 @@ legacy:
 ({								\
 	typeof(x) x_ = (x);					\
 	__builtin_constant_p(x_) ?				\
-	 (int)((x_ != 0) ? (32 - __builtin_clz(x_)) : 0)	\
+	 ((x_ != 0) ? (32 - __builtin_clz(x_)) : 0)		\
 	 :							\
 	 variable_fls(x_);					\
 })

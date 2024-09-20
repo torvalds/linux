@@ -10,6 +10,7 @@
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/i2c.h>
+#include <linux/gpio/driver.h>
 #include <linux/spi/spi.h>
 #include <asm/unaligned.h>
 
@@ -26,24 +27,63 @@
 
 #define SPI_XCOMM_CMD_UPDATE_CONFIG	0x03
 #define SPI_XCOMM_CMD_WRITE		0x04
+#define SPI_XCOMM_CMD_GPIO_SET		0x05
 
 #define SPI_XCOMM_CLOCK 48000000
 
 struct spi_xcomm {
 	struct i2c_client *i2c;
 
-	uint16_t settings;
-	uint16_t chipselect;
+	struct gpio_chip gc;
+
+	u16 settings;
+	u16 chipselect;
 
 	unsigned int current_speed;
 
-	uint8_t buf[63];
+	u8 buf[63];
 };
+
+static void spi_xcomm_gpio_set_value(struct gpio_chip *chip,
+				     unsigned int offset, int val)
+{
+	struct spi_xcomm *spi_xcomm = gpiochip_get_data(chip);
+	unsigned char buf[2];
+
+	buf[0] = SPI_XCOMM_CMD_GPIO_SET;
+	buf[1] = !!val;
+
+	i2c_master_send(spi_xcomm->i2c, buf, 2);
+}
+
+static int spi_xcomm_gpio_get_direction(struct gpio_chip *chip,
+					unsigned int offset)
+{
+	return GPIO_LINE_DIRECTION_OUT;
+}
+
+static int spi_xcomm_gpio_add(struct spi_xcomm *spi_xcomm)
+{
+	struct device *dev = &spi_xcomm->i2c->dev;
+
+	if (!IS_ENABLED(CONFIG_GPIOLIB))
+		return 0;
+
+	spi_xcomm->gc.get_direction = spi_xcomm_gpio_get_direction;
+	spi_xcomm->gc.set = spi_xcomm_gpio_set_value;
+	spi_xcomm->gc.can_sleep = 1;
+	spi_xcomm->gc.base = -1;
+	spi_xcomm->gc.ngpio = 1;
+	spi_xcomm->gc.label = spi_xcomm->i2c->name;
+	spi_xcomm->gc.owner = THIS_MODULE;
+
+	return devm_gpiochip_add_data(dev, &spi_xcomm->gc, spi_xcomm);
+}
 
 static int spi_xcomm_sync_config(struct spi_xcomm *spi_xcomm, unsigned int len)
 {
-	uint16_t settings;
-	uint8_t *buf = spi_xcomm->buf;
+	u16 settings;
+	u8 *buf = spi_xcomm->buf;
 
 	settings = spi_xcomm->settings;
 	settings |= len << SPI_XCOMM_SETTINGS_LEN_OFFSET;
@@ -56,10 +96,10 @@ static int spi_xcomm_sync_config(struct spi_xcomm *spi_xcomm, unsigned int len)
 }
 
 static void spi_xcomm_chipselect(struct spi_xcomm *spi_xcomm,
-	struct spi_device *spi, int is_active)
+				 struct spi_device *spi, int is_active)
 {
 	unsigned long cs = spi_get_chipselect(spi, 0);
-	uint16_t chipselect = spi_xcomm->chipselect;
+	u16 chipselect = spi_xcomm->chipselect;
 
 	if (is_active)
 		chipselect |= BIT(cs);
@@ -70,7 +110,8 @@ static void spi_xcomm_chipselect(struct spi_xcomm *spi_xcomm,
 }
 
 static int spi_xcomm_setup_transfer(struct spi_xcomm *spi_xcomm,
-	struct spi_device *spi, struct spi_transfer *t, unsigned int *settings)
+				    struct spi_device *spi, struct spi_transfer *t,
+				    unsigned int *settings)
 {
 	if (t->len > 62)
 		return -EINVAL;
@@ -108,7 +149,7 @@ static int spi_xcomm_setup_transfer(struct spi_xcomm *spi_xcomm,
 }
 
 static int spi_xcomm_txrx_bufs(struct spi_xcomm *spi_xcomm,
-	struct spi_device *spi, struct spi_transfer *t)
+			       struct spi_device *spi, struct spi_transfer *t)
 {
 	int ret;
 
@@ -119,13 +160,13 @@ static int spi_xcomm_txrx_bufs(struct spi_xcomm *spi_xcomm,
 		ret = i2c_master_send(spi_xcomm->i2c, spi_xcomm->buf, t->len + 1);
 		if (ret < 0)
 			return ret;
-		else if (ret != t->len + 1)
+		if (ret != t->len + 1)
 			return -EIO;
 	} else if (t->rx_buf) {
 		ret = i2c_master_recv(spi_xcomm->i2c, t->rx_buf, t->len);
 		if (ret < 0)
 			return ret;
-		else if (ret != t->len)
+		if (ret != t->len)
 			return -EIO;
 	}
 
@@ -133,12 +174,12 @@ static int spi_xcomm_txrx_bufs(struct spi_xcomm *spi_xcomm,
 }
 
 static int spi_xcomm_transfer_one(struct spi_controller *host,
-	struct spi_message *msg)
+				  struct spi_message *msg)
 {
 	struct spi_xcomm *spi_xcomm = spi_controller_get_devdata(host);
 	unsigned int settings = spi_xcomm->settings;
 	struct spi_device *spi = msg->spi;
-	unsigned cs_change = 0;
+	unsigned int cs_change = 0;
 	struct spi_transfer *t;
 	bool is_first = true;
 	int status = 0;
@@ -147,7 +188,6 @@ static int spi_xcomm_transfer_one(struct spi_controller *host,
 	spi_xcomm_chipselect(spi_xcomm, spi, true);
 
 	list_for_each_entry(t, &msg->transfers, transfer_list) {
-
 		if (!t->tx_buf && !t->rx_buf && t->len) {
 			status = -EINVAL;
 			break;
@@ -208,7 +248,7 @@ static int spi_xcomm_probe(struct i2c_client *i2c)
 	struct spi_controller *host;
 	int ret;
 
-	host = spi_alloc_host(&i2c->dev, sizeof(*spi_xcomm));
+	host = devm_spi_alloc_host(&i2c->dev, sizeof(*spi_xcomm));
 	if (!host)
 		return -ENOMEM;
 
@@ -221,13 +261,12 @@ static int spi_xcomm_probe(struct i2c_client *i2c)
 	host->flags = SPI_CONTROLLER_HALF_DUPLEX;
 	host->transfer_one_message = spi_xcomm_transfer_one;
 	host->dev.of_node = i2c->dev.of_node;
-	i2c_set_clientdata(i2c, host);
 
 	ret = devm_spi_register_controller(&i2c->dev, host);
 	if (ret < 0)
-		spi_controller_put(host);
+		return ret;
 
-	return ret;
+	return spi_xcomm_gpio_add(spi_xcomm);
 }
 
 static const struct i2c_device_id spi_xcomm_ids[] = {

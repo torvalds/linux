@@ -66,6 +66,10 @@ properties:
       Should be phandle/offset pair. The phandle to the syscon node which
       encompases the GPR register, and the offset of the GPR register.
 
+  nvmem-cells: true
+
+  nvmem-cell-names: true
+
   snps,rmii_refclk_ext:
     $ref: /schemas/types.yaml#/definitions/flag
     description:

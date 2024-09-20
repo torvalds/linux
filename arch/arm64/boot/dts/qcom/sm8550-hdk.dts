@@ -940,7 +940,6 @@
 };
 
 &mdss_dp0_out {
-	remote-endpoint = <&usb_dp_qmpphy_dp_in>;
 	data-lanes = <0 1>;
 };
 
@@ -977,10 +976,6 @@
 	vdda-qref-supply = <&vreg_l1e_0p88>;
 
 	status = "okay";
-};
-
-&pcie_1_phy_aux_clk {
-	clock-frequency = <1000>;
 };
 
 &pm8550_gpios {
@@ -1111,6 +1106,7 @@
 
 		#sound-dai-cells = <0>;
 		sound-name-prefix = "SpkrLeft";
+		qcom,port-mapping = <1 2 3 7 10 13>;
 	};
 
 	/* WSA8845, Speaker South */
@@ -1128,6 +1124,7 @@
 
 		#sound-dai-cells = <0>;
 		sound-name-prefix = "SpkrRight";
+		qcom,port-mapping = <4 5 6 7 11 13>;
 	};
 };
 
@@ -1258,17 +1255,8 @@
 	status = "okay";
 };
 
-&usb_1_dwc3 {
-	dr_mode = "otg";
-	usb-role-switch;
-};
-
 &usb_1_dwc3_hs {
 	remote-endpoint = <&pmic_glink_hs_in>;
-};
-
-&usb_1_dwc3_ss {
-	remote-endpoint = <&usb_dp_qmpphy_usb_ss_in>;
 };
 
 &usb_1_hsphy {
@@ -1284,21 +1272,11 @@
 	vdda-phy-supply = <&vreg_l3e_1p2>;
 	vdda-pll-supply = <&vreg_l3f_0p88>;
 
-	orientation-switch;
-
 	status = "okay";
-};
-
-&usb_dp_qmpphy_dp_in {
-	remote-endpoint = <&mdss_dp0_out>;
 };
 
 &usb_dp_qmpphy_out {
 	remote-endpoint = <&pmic_glink_ss_in>;
-};
-
-&usb_dp_qmpphy_usb_ss_in {
-	remote-endpoint = <&usb_1_dwc3_ss>;
 };
 
 &xo_board {

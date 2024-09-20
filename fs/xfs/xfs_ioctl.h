@@ -15,34 +15,6 @@ xfs_ioc_swapext(
 	xfs_swapext_t	*sxp);
 
 extern int
-xfs_find_handle(
-	unsigned int		cmd,
-	xfs_fsop_handlereq_t	*hreq);
-
-extern int
-xfs_open_by_handle(
-	struct file		*parfilp,
-	xfs_fsop_handlereq_t	*hreq);
-
-extern int
-xfs_readlink_by_handle(
-	struct file		*parfilp,
-	xfs_fsop_handlereq_t	*hreq);
-
-int xfs_ioc_attrmulti_one(struct file *parfilp, struct inode *inode,
-		uint32_t opcode, void __user *uname, void __user *value,
-		uint32_t *len, uint32_t flags);
-int xfs_ioc_attr_list(struct xfs_inode *dp, void __user *ubuf,
-		      size_t bufsize, int flags,
-		      struct xfs_attrlist_cursor __user *ucursor);
-
-extern struct dentry *
-xfs_handle_to_dentry(
-	struct file		*parfilp,
-	void __user		*uhandle,
-	u32			hlen);
-
-extern int
 xfs_fileattr_get(
 	struct dentry		*dentry,
 	struct fileattr		*fa);

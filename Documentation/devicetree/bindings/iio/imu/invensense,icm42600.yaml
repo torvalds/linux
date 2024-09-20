@@ -32,6 +32,8 @@ properties:
       - invensense,icm42605
       - invensense,icm42622
       - invensense,icm42631
+      - invensense,icm42686
+      - invensense,icm42688
 
   reg:
     maxItems: 1

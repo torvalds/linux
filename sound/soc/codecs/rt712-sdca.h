@@ -19,6 +19,7 @@ struct  rt712_sdca_priv {
 	struct regmap *regmap;
 	struct regmap *mbq_regmap;
 	struct snd_soc_component *component;
+	struct snd_soc_component *dmic_component;
 	struct sdw_slave *slave;
 	struct sdw_bus_params params;
 	bool hw_init;
@@ -34,13 +35,31 @@ struct  rt712_sdca_priv {
 	unsigned int scp_sdca_stat1;
 	unsigned int scp_sdca_stat2;
 	unsigned int hw_id;
+	unsigned int version_id;
 	bool fu0f_dapm_mute;
 	bool fu0f_mixer_l_mute;
 	bool fu0f_mixer_r_mute;
+	bool fu1e_dapm_mute;
+	bool fu1e_mixer_mute[4];
 };
+
+struct rt712_dmic_kctrl_priv {
+	unsigned int reg_base;
+	unsigned int count;
+	unsigned int max;
+	unsigned int invert;
+};
+
+/* SDCA (Channel) */
+#define CH_01	0x01
+#define CH_02	0x02
+#define CH_03	0x03
+#define CH_04	0x04
 
 /* NID */
 #define RT712_VENDOR_REG			0x20
+#define RT712_EQ_CTRL				0x53
+#define RT712_CHARGE_PUMP			0x57
 #define RT712_VENDOR_CALI			0x58
 #define RT712_ULTRA_SOUND_DET			0x59
 #define RT712_VENDOR_IMS_DRE			0x5b
@@ -50,9 +69,13 @@ struct  rt712_sdca_priv {
 /* Index (NID:20h) */
 #define RT712_JD_PRODUCT_NUM			0x00
 #define RT712_ANALOG_BIAS_CTL3			0x04
+#define RT712_JD_CTL1				0x09
+#define RT712_IO_CTL				0x0c
 #define RT712_LDO2_3_CTL1			0x0e
 #define RT712_PARA_VERB_CTL			0x1a
 #define RT712_CC_DET1				0x24
+#define RT712_CLASSD_AMP_CTL1			0x37
+#define RT712_CLASSD_AMP_CTL6			0x3c
 #define RT712_COMBO_JACK_AUTO_CTL1		0x45
 #define RT712_COMBO_JACK_AUTO_CTL2		0x46
 #define RT712_COMBO_JACK_AUTO_CTL3		0x47
@@ -60,6 +83,9 @@ struct  rt712_sdca_priv {
 #define RT712_FSM_CTL				0x67
 #define RT712_SW_CONFIG1			0x8a
 #define RT712_SW_CONFIG2			0x8b
+
+/* Index (NID:57h) */
+#define RT712_HP_DET_CTL3			0x0c
 
 /* Index (NID:58h) */
 #define RT712_DAC_DC_CALI_CTL1			0x00
@@ -71,6 +97,7 @@ struct  rt712_sdca_priv {
 /* Index (NID:5bh) */
 #define RT712_IMS_DIGITAL_CTL1			0x00
 #define RT712_IMS_DIGITAL_CTL5			0x05
+#define RT712_SEL_VEE2_HP_CTL1			0x23
 #define RT712_HP_DETECT_RLDET_CTL1		0x29
 #define RT712_HP_DETECT_RLDET_CTL2		0x2a
 
@@ -109,6 +136,11 @@ struct  rt712_sdca_priv {
 #define RT712_UMP_HID_CTL6				0x66
 #define RT712_UMP_HID_CTL7				0x67
 #define RT712_UMP_HID_CTL8				0x68
+#define RT712_MISC_CTL_FOR_UAJ				0x72
+#define RT712_ADC0A_CS_ADC0B_FU_FLOAT_CTL		0xa2
+#define RT712_DMIC2_FU_IT_FLOAT_CTL			0xa6
+#define RT712_ADC0B_FU_CH12_FLOAT_CTL			0xb0
+#define RT712_DMIC2_FU_CH12_FLOAT_CTL			0xb1
 
 /* Parameter & Verb control 01 (0x1a)(NID:20h) */
 #define RT712_HIDDEN_REG_SW_RESET (0x1 << 14)
@@ -139,6 +171,7 @@ struct  rt712_sdca_priv {
 #define FUNC_NUM_AMP 0x04
 
 /* RT712 SDCA entity */
+#define RT712_SDCA_ENT0 0x00
 #define RT712_SDCA_ENT_HID01 0x01
 #define RT712_SDCA_ENT_GE49 0x49
 #define RT712_SDCA_ENT_USER_FU05 0x05
@@ -157,6 +190,7 @@ struct  rt712_sdca_priv {
 #define RT712_SDCA_ENT_CS1C 0x1c
 #define RT712_SDCA_ENT_CS31 0x31
 #define RT712_SDCA_ENT_OT23 0x42
+#define RT712_SDCA_ENT_IT11 0x26
 #define RT712_SDCA_ENT_IT26 0x26
 #define RT712_SDCA_ENT_IT09 0x09
 #define RT712_SDCA_ENT_PLATFORM_FU15 0x15
@@ -175,10 +209,12 @@ struct  rt712_sdca_priv {
 #define RT712_SDCA_CTL_REQ_POWER_STATE 0x01
 #define RT712_SDCA_CTL_VENDOR_DEF 0x30
 #define RT712_SDCA_CTL_FU_CH_GAIN 0x0b
+#define RT712_SDCA_CTL_FUNC_STATUS 0x10
 
-/* RT712 SDCA channel */
-#define CH_L 0x01
-#define CH_R 0x02
+/* Function_Status */
+#define FUNCTION_NEEDS_INITIALIZATION		BIT(5)
+#define FUNCTION_HAS_BEEN_RESET			BIT(6)
+#define FUNCTION_BUSY				BIT(7)
 
 /* sample frequency index */
 #define RT712_SDCA_RATE_16000HZ		0x04
@@ -191,6 +227,7 @@ struct  rt712_sdca_priv {
 enum {
 	RT712_AIF1,
 	RT712_AIF2,
+	RT712_AIF3,
 };
 
 enum rt712_sdca_jd_src {
@@ -206,6 +243,11 @@ enum rt712_sdca_hw_id {
 };
 
 #define RT712_PART_ID_713 0x713
+
+enum rt712_sdca_version {
+	RT712_VA,
+	RT712_VB,
+};
 
 int rt712_sdca_io_init(struct device *dev, struct sdw_slave *slave);
 int rt712_sdca_init(struct device *dev, struct regmap *regmap,

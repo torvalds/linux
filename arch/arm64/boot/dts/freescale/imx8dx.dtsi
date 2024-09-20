@@ -1,0 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+/*
+ * Copyright (C) 2016 Freescale Semiconductor, Inc.
+ * Copyright 2017-2020 NXP
+ */
+
+/dts-v1/;
+
+#include "imx8dxp.dtsi"
+
+&gpu_3d0 {
+	assigned-clock-rates = <372000000>, <372000000>;
+};

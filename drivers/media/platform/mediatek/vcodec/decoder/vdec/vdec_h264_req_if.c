@@ -27,7 +27,7 @@ struct mtk_h264_dec_slice_param {
 /**
  * struct vdec_h264_dec_info - decode information
  * @dpb_sz		: decoding picture buffer size
- * @resolution_changed  : resoltion change happen
+ * @resolution_changed  : flag to notify that a resolution change happened
  * @realloc_mv_buf	: flag to notify driver to re-allocate mv buffer
  * @cap_num_planes	: number planes of capture buffer
  * @bs_dma		: Input bit-stream buffer dma address
@@ -54,7 +54,7 @@ struct vdec_h264_dec_info {
  *                        by VPU.
  *                        AP-W/R : AP is writer/reader on this item
  *                        VPU-W/R: VPU is write/reader on this item
- * @pred_buf_dma : HW working predication buffer dma address (AP-W, VPU-R)
+ * @pred_buf_dma : HW working prediction buffer dma address (AP-W, VPU-R)
  * @mv_buf_dma   : HW working motion vector buffer dma address (AP-W, VPU-R)
  * @dec          : decode information (AP-R, VPU-W)
  * @pic          : picture information (AP-R, VPU-W)
@@ -74,7 +74,7 @@ struct vdec_h264_vsi {
  * struct vdec_h264_slice_inst - h264 decoder instance
  * @num_nalu : how many nalus be decoded
  * @ctx      : point to mtk_vcodec_dec_ctx
- * @pred_buf : HW working predication buffer
+ * @pred_buf : HW working prediction buffer
  * @mv_buf   : HW working motion vector buffer
  * @vpu      : VPU instance
  * @vsi_ctx  : Local VSI data for this decoding context
@@ -154,7 +154,7 @@ static int get_vdec_decode_parameters(struct vdec_h264_slice_inst *inst)
 	return 0;
 }
 
-static int allocate_predication_buf(struct vdec_h264_slice_inst *inst)
+static int allocate_prediction_buf(struct vdec_h264_slice_inst *inst)
 {
 	int err;
 
@@ -169,7 +169,7 @@ static int allocate_predication_buf(struct vdec_h264_slice_inst *inst)
 	return 0;
 }
 
-static void free_predication_buf(struct vdec_h264_slice_inst *inst)
+static void free_prediction_buf(struct vdec_h264_slice_inst *inst)
 {
 	struct mtk_vcodec_mem *mem = &inst->pred_buf;
 
@@ -292,7 +292,7 @@ static int vdec_h264_slice_init(struct mtk_vcodec_dec_ctx *ctx)
 	inst->vsi_ctx.dec.resolution_changed = true;
 	inst->vsi_ctx.dec.realloc_mv_buf = true;
 
-	err = allocate_predication_buf(inst);
+	err = allocate_prediction_buf(inst);
 	if (err)
 		goto error_deinit;
 
@@ -320,7 +320,7 @@ static void vdec_h264_slice_deinit(void *h_vdec)
 	struct vdec_h264_slice_inst *inst = h_vdec;
 
 	vpu_dec_deinit(&inst->vpu);
-	free_predication_buf(inst);
+	free_prediction_buf(inst);
 	free_mv_buf(inst);
 
 	kfree(inst);

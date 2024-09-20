@@ -26,11 +26,18 @@ struct kobj_eclass {
 	struct kobject base;
 	/** @eclass: A pointer to the hw engine class interface */
 	struct xe_hw_engine_class_intf *eclass;
+	/** @xe: A pointer to the xe device */
+	struct xe_device *xe;
 };
 
 static inline struct xe_hw_engine_class_intf *kobj_to_eclass(struct kobject *kobj)
 {
 	return container_of(kobj, struct kobj_eclass, base)->eclass;
+}
+
+static inline struct xe_device *kobj_to_xe(struct kobject *kobj)
+{
+	return container_of(kobj, struct kobj_eclass, base)->xe;
 }
 
 #endif

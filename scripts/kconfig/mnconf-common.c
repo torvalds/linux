@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
+#include <list.h>
 #include "expr.h"
-#include "list.h"
 #include "mnconf-common.h"
 
 int jump_key_char;

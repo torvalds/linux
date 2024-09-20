@@ -273,21 +273,15 @@ static int erofs_fscache_data_read_slice(struct erofs_fscache_rq *req)
 	if (map.m_flags & EROFS_MAP_META) {
 		struct erofs_buf buf = __EROFS_BUF_INITIALIZER;
 		struct iov_iter iter;
-		erofs_blk_t blknr;
-		size_t offset, size;
+		size_t size = map.m_llen;
 		void *src;
 
-		/* For tail packing layout, the offset may be non-zero. */
-		offset = erofs_blkoff(sb, map.m_pa);
-		blknr = erofs_blknr(sb, map.m_pa);
-		size = map.m_llen;
-
-		src = erofs_read_metabuf(&buf, sb, blknr, EROFS_KMAP);
+		src = erofs_read_metabuf(&buf, sb, map.m_pa, EROFS_KMAP);
 		if (IS_ERR(src))
 			return PTR_ERR(src);
 
 		iov_iter_xarray(&iter, ITER_DEST, &mapping->i_pages, pos, PAGE_SIZE);
-		if (copy_to_iter(src + offset, size, &iter) != size) {
+		if (copy_to_iter(src, size, &iter) != size) {
 			erofs_put_metabuf(&buf);
 			return -EFAULT;
 		}

@@ -292,7 +292,7 @@ static u32 i915_perf_stream_paranoid = true;
 #define OAREPORT_REASON_CTX_SWITCH     (1<<3)
 #define OAREPORT_REASON_CLK_RATIO      (1<<5)
 
-#define HAS_MI_SET_PREDICATE(i915) (GRAPHICS_VER_FULL(i915) >= IP_VER(12, 50))
+#define HAS_MI_SET_PREDICATE(i915) (GRAPHICS_VER_FULL(i915) >= IP_VER(12, 55))
 
 /* For sysctl proc_dointvec_minmax of i915_oa_max_sample_rate
  *
@@ -817,7 +817,7 @@ static int gen8_append_oa_reports(struct i915_perf_stream *stream,
 		 */
 
 		if (oa_report_ctx_invalid(stream, report) &&
-		    GRAPHICS_VER_FULL(stream->engine->i915) < IP_VER(12, 50)) {
+		    GRAPHICS_VER_FULL(stream->engine->i915) < IP_VER(12, 55)) {
 			ctx_id = INVALID_CTX_ID;
 			oa_context_id_squash(stream, report32);
 		}
@@ -1419,7 +1419,7 @@ static int gen12_get_render_context_id(struct i915_perf_stream *stream)
 
 		mask = ((1U << GEN12_GUC_SW_CTX_ID_WIDTH) - 1) <<
 			(GEN12_GUC_SW_CTX_ID_SHIFT - 32);
-	} else if (GRAPHICS_VER_FULL(stream->engine->i915) >= IP_VER(12, 50)) {
+	} else if (GRAPHICS_VER_FULL(stream->engine->i915) >= IP_VER(12, 55)) {
 		ctx_id = (XEHP_MAX_CONTEXT_HW_ID - 1) <<
 			(XEHP_SW_CTX_ID_SHIFT - 32);
 
@@ -2749,26 +2749,6 @@ oa_configure_all_contexts(struct i915_perf_stream *stream,
 }
 
 static int
-gen12_configure_all_contexts(struct i915_perf_stream *stream,
-			     const struct i915_oa_config *oa_config,
-			     struct i915_active *active)
-{
-	struct flex regs[] = {
-		{
-			GEN8_R_PWR_CLK_STATE(RENDER_RING_BASE),
-			CTX_R_PWR_CLK_STATE,
-		},
-	};
-
-	if (stream->engine->class != RENDER_CLASS)
-		return 0;
-
-	return oa_configure_all_contexts(stream,
-					 regs, ARRAY_SIZE(regs),
-					 active);
-}
-
-static int
 lrc_configure_all_contexts(struct i915_perf_stream *stream,
 			   const struct i915_oa_config *oa_config,
 			   struct i915_active *active)
@@ -2874,18 +2854,17 @@ gen12_enable_metric_set(struct i915_perf_stream *stream,
 {
 	struct drm_i915_private *i915 = stream->perf->i915;
 	struct intel_uncore *uncore = stream->uncore;
-	struct i915_oa_config *oa_config = stream->oa_config;
 	bool periodic = stream->periodic;
 	u32 period_exponent = stream->period_exponent;
 	u32 sqcnt1;
 	int ret;
 
 	/*
-	 * Wa_1508761755:xehpsdv, dg2
+	 * Wa_1508761755
 	 * EU NOA signals behave incorrectly if EU clock gating is enabled.
 	 * Disable thread stall DOP gating and EU DOP gating.
 	 */
-	if (IS_XEHPSDV(i915) || IS_DG2(i915)) {
+	if (IS_DG2(i915)) {
 		intel_gt_mcr_multicast_write(uncore->gt, GEN8_ROW_CHICKEN,
 					     _MASKED_BIT_ENABLE(STALL_DOP_GATING_DISABLE));
 		intel_uncore_write(uncore, GEN7_ROW_CHICKEN2,
@@ -2911,21 +2890,12 @@ gen12_enable_metric_set(struct i915_perf_stream *stream,
 	/*
 	 * Initialize Super Queue Internal Cnt Register
 	 * Set PMON Enable in order to collect valid metrics.
-	 * Enable byets per clock reporting in OA for XEHPSDV onward.
+	 * Enable bytes per clock reporting in OA.
 	 */
 	sqcnt1 = GEN12_SQCNT1_PMON_ENABLE |
 		 (HAS_OA_BPC_REPORTING(i915) ? GEN12_SQCNT1_OABPC : 0);
 
 	intel_uncore_rmw(uncore, GEN12_SQCNT1, 0, sqcnt1);
-
-	/*
-	 * Update all contexts prior writing the mux configurations as we need
-	 * to make sure all slices/subslices are ON before writing to NOA
-	 * registers.
-	 */
-	ret = gen12_configure_all_contexts(stream, oa_config, active);
-	if (ret)
-		return ret;
 
 	/*
 	 * For Gen12, performance counters are context
@@ -2971,18 +2941,14 @@ static void gen12_disable_metric_set(struct i915_perf_stream *stream)
 	u32 sqcnt1;
 
 	/*
-	 * Wa_1508761755:xehpsdv, dg2
-	 * Enable thread stall DOP gating and EU DOP gating.
+	 * Wa_1508761755: Enable thread stall DOP gating and EU DOP gating.
 	 */
-	if (IS_XEHPSDV(i915) || IS_DG2(i915)) {
+	if (IS_DG2(i915)) {
 		intel_gt_mcr_multicast_write(uncore->gt, GEN8_ROW_CHICKEN,
 					     _MASKED_BIT_DISABLE(STALL_DOP_GATING_DISABLE));
 		intel_uncore_write(uncore, GEN7_ROW_CHICKEN2,
 				   _MASKED_BIT_DISABLE(GEN12_DISABLE_DOP_GATING));
 	}
-
-	/* Reset all contexts' slices/subslices configurations. */
-	gen12_configure_all_contexts(stream, NULL, NULL);
 
 	/* disable the context save/restore or OAR counters */
 	if (stream->ctx)
@@ -4123,7 +4089,7 @@ static int read_properties_unlocked(struct i915_perf *perf,
 			props->hold_preemption = !!value;
 			break;
 		case DRM_I915_PERF_PROP_GLOBAL_SSEU: {
-			if (GRAPHICS_VER_FULL(perf->i915) >= IP_VER(12, 50)) {
+			if (GRAPHICS_VER_FULL(perf->i915) >= IP_VER(12, 55)) {
 				drm_dbg(&perf->i915->drm,
 					"SSEU config not supported on gfx %x\n",
 					GRAPHICS_VER_FULL(perf->i915));

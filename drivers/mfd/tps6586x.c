@@ -642,8 +642,8 @@ static SIMPLE_DEV_PM_OPS(tps6586x_pm_ops, tps6586x_i2c_suspend,
 			 tps6586x_i2c_resume);
 
 static const struct i2c_device_id tps6586x_id_table[] = {
-	{ "tps6586x", 0 },
-	{ },
+	{ "tps6586x" },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, tps6586x_id_table);
 

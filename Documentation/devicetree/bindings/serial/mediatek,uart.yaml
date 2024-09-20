@@ -37,6 +37,7 @@ properties:
               - mediatek,mt7623-uart
               - mediatek,mt7629-uart
               - mediatek,mt7986-uart
+              - mediatek,mt7988-uart
               - mediatek,mt8127-uart
               - mediatek,mt8135-uart
               - mediatek,mt8173-uart

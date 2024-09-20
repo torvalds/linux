@@ -100,6 +100,8 @@ int main(int argc, char **argv)
 		if (!devs)
 			goto err_close;
 
+		if (ynl_dump_empty(devs))
+			fprintf(stderr, "Error: no devices reported\n");
 		ynl_dump_foreach(devs, d)
 			netdev_print_device(d, 0);
 		netdev_dev_get_list_free(devs);

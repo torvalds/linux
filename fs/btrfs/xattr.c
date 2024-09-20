@@ -24,7 +24,7 @@
 #include "accessors.h"
 #include "dir-item.h"
 
-int btrfs_getxattr(struct inode *inode, const char *name,
+int btrfs_getxattr(const struct inode *inode, const char *name,
 				void *buffer, size_t size)
 {
 	struct btrfs_dir_item *di;
@@ -451,7 +451,7 @@ static int btrfs_xattr_handler_set_prop(const struct xattr_handler *handler,
 	if (IS_ERR(trans))
 		return PTR_ERR(trans);
 
-	ret = btrfs_set_prop(trans, inode, name, value, size, flags);
+	ret = btrfs_set_prop(trans, BTRFS_I(inode), name, value, size, flags);
 	if (!ret) {
 		inode_inc_iversion(inode);
 		inode_set_ctime_current(inode);
@@ -504,7 +504,7 @@ static int btrfs_initxattrs(struct inode *inode,
 	const struct xattr *xattr;
 	unsigned int nofs_flag;
 	char *name;
-	int err = 0;
+	int ret = 0;
 
 	/*
 	 * We're holding a transaction handle, so use a NOFS memory allocation
@@ -515,7 +515,7 @@ static int btrfs_initxattrs(struct inode *inode,
 		name = kmalloc(XATTR_SECURITY_PREFIX_LEN +
 			       strlen(xattr->name) + 1, GFP_KERNEL);
 		if (!name) {
-			err = -ENOMEM;
+			ret = -ENOMEM;
 			break;
 		}
 		strcpy(name, XATTR_SECURITY_PREFIX);
@@ -524,14 +524,14 @@ static int btrfs_initxattrs(struct inode *inode,
 		if (strcmp(name, XATTR_NAME_CAPS) == 0)
 			clear_bit(BTRFS_INODE_NO_CAP_XATTR, &BTRFS_I(inode)->runtime_flags);
 
-		err = btrfs_setxattr(trans, inode, name, xattr->value,
+		ret = btrfs_setxattr(trans, inode, name, xattr->value,
 				     xattr->value_len, 0);
 		kfree(name);
-		if (err < 0)
+		if (ret < 0)
 			break;
 	}
 	memalloc_nofs_restore(nofs_flag);
-	return err;
+	return ret;
 }
 
 int btrfs_xattr_security_init(struct btrfs_trans_handle *trans,

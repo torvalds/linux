@@ -594,6 +594,7 @@
 			reg-names = "nand", "nand-int-base";
 			interrupts = <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "nand_ctlrdy";
+			brcm,wp-not-connected;
 			status = "disabled";
 
 			nandcs: nand@0 {

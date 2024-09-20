@@ -150,26 +150,44 @@ fn main() {
     // `llvm-target`s are taken from `scripts/Makefile.clang`.
     if cfg.has("ARM64") {
         panic!("arm64 uses the builtin rustc aarch64-unknown-none target");
+    } else if cfg.has("RISCV") {
+        if cfg.has("64BIT") {
+            panic!("64-bit RISC-V uses the builtin rustc riscv64-unknown-none-elf target");
+        } else {
+            panic!("32-bit RISC-V is an unsupported architecture");
+        }
     } else if cfg.has("X86_64") {
         ts.push("arch", "x86_64");
         ts.push(
             "data-layout",
-            "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128",
+            "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-f80:128-n8:16:32:64-S128",
         );
-        let mut features = "-3dnow,-3dnowa,-mmx,+soft-float".to_string();
+        let mut features = "-mmx,+soft-float".to_string();
         if cfg.has("MITIGATION_RETPOLINE") {
             features += ",+retpoline-external-thunk";
         }
         ts.push("features", features);
         ts.push("llvm-target", "x86_64-linux-gnu");
         ts.push("target-pointer-width", "64");
+    } else if cfg.has("X86_32") {
+        // This only works on UML, as i386 otherwise needs regparm support in rustc
+        if !cfg.has("UML") {
+            panic!("32-bit x86 only works under UML");
+        }
+        ts.push("arch", "x86");
+        ts.push(
+            "data-layout",
+            "e-m:e-p:32:32-p270:32:32-p271:32:32-p272:64:64-i128:128-f64:32:64-f80:32-n8:16:32-S128",
+        );
+        let mut features = "-mmx,+soft-float".to_string();
+        if cfg.has("MITIGATION_RETPOLINE") {
+            features += ",+retpoline-external-thunk";
+        }
+        ts.push("features", features);
+        ts.push("llvm-target", "i386-unknown-linux-gnu");
+        ts.push("target-pointer-width", "32");
     } else if cfg.has("LOONGARCH") {
-        ts.push("arch", "loongarch64");
-        ts.push("data-layout", "e-m:e-p:64:64-i64:64-i128:128-n64-S128");
-        ts.push("features", "-f,-d");
-        ts.push("llvm-target", "loongarch64-linux-gnusf");
-        ts.push("llvm-abiname", "lp64s");
-        ts.push("target-pointer-width", "64");
+        panic!("loongarch uses the builtin rustc loongarch64-unknown-none-softfloat target");
     } else {
         panic!("Unsupported architecture");
     }

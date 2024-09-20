@@ -72,11 +72,6 @@ struct gamma_curve_sector {
 	u32 segment_width;
 };
 
-struct gamma_curve_segment {
-	u32 start;
-	u32 end;
-};
-
 static struct gamma_curve_sector sector_tbl[] = {
 	{ 0,    4,  4   },
 	{ 16,   4,  4   },

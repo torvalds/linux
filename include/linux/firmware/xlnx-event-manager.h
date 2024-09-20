@@ -1,4 +1,9 @@
 /* SPDX-License-Identifier: GPL-2.0 */
+/*
+ * Xilinx Event Management Driver
+ *
+ * Copyright (C) 2024, Advanced Micro Devices, Inc.
+ */
 
 #ifndef _FIRMWARE_XLNX_EVENT_MANAGER_H_
 #define _FIRMWARE_XLNX_EVENT_MANAGER_H_
@@ -6,6 +11,11 @@
 #include <linux/firmware/xlnx-zynqmp.h>
 
 #define CB_MAX_PAYLOAD_SIZE	(4U) /*In payload maximum 32bytes */
+
+#define EVENT_SUBSYSTEM_RESTART		(4U)
+
+#define PM_DEV_ACPU_0_0			(0x1810c0afU)
+#define PM_DEV_ACPU_0			(0x1810c003U)
 
 /************************** Exported Function *****************************/
 

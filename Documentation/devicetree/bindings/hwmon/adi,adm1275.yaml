@@ -5,7 +5,7 @@
 $id: http://devicetree.org/schemas/hwmon/adi,adm1275.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Analog Devices ADM1075/ADM127x/ADM129x digital power monitors
+title: Analog Devices ADM1075/ADM127x/ADM1281/ADM129x digital power monitors
 
 maintainers:
   - Krzysztof Kozlowski <krzk@kernel.org>
@@ -27,6 +27,7 @@ properties:
       - adi,adm1275
       - adi,adm1276
       - adi,adm1278
+      - adi,adm1281
       - adi,adm1293
       - adi,adm1294
 
@@ -91,6 +92,7 @@ allOf:
           contains:
             enum:
               - adi,adm1278
+              - adi,adm1281
               - adi,adm1293
               - adi,adm1294
     then:

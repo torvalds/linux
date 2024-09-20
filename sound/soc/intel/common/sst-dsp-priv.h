@@ -2,7 +2,7 @@
 /*
  * Intel Smart Sound Technology
  *
- * Copyright (C) 2013, Intel Corporation. All rights reserved.
+ * Copyright (C) 2013, Intel Corporation
  */
 
 #ifndef __SOUND_SOC_SST_DSP_PRIV_H

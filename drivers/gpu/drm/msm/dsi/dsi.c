@@ -120,6 +120,22 @@ static int dsi_bind(struct device *dev, struct device *master, void *data)
 	struct msm_drm_private *priv = dev_get_drvdata(master);
 	struct msm_dsi *msm_dsi = dev_get_drvdata(dev);
 
+	/*
+	 * Next bridge doesn't exist for the secondary DSI host in a bonded
+	 * pair.
+	 */
+	if (!msm_dsi_is_bonded_dsi(msm_dsi) ||
+	    msm_dsi_is_master_dsi(msm_dsi)) {
+		struct drm_bridge *ext_bridge;
+
+		ext_bridge = devm_drm_of_get_bridge(&msm_dsi->pdev->dev,
+						    msm_dsi->pdev->dev.of_node, 1, 0);
+		if (IS_ERR(ext_bridge))
+			return PTR_ERR(ext_bridge);
+
+		msm_dsi->next_bridge = ext_bridge;
+	}
+
 	priv->dsi[msm_dsi->id] = msm_dsi;
 
 	return 0;
@@ -216,7 +232,6 @@ void __exit msm_dsi_unregister(void)
 int msm_dsi_modeset_init(struct msm_dsi *msm_dsi, struct drm_device *dev,
 			 struct drm_encoder *encoder)
 {
-	struct drm_bridge *bridge;
 	int ret;
 
 	msm_dsi->dev = dev;
@@ -236,14 +251,7 @@ int msm_dsi_modeset_init(struct msm_dsi *msm_dsi, struct drm_device *dev,
 		return 0;
 	}
 
-	bridge = msm_dsi_manager_bridge_init(msm_dsi, encoder);
-	if (IS_ERR(bridge)) {
-		ret = PTR_ERR(bridge);
-		DRM_DEV_ERROR(dev->dev, "failed to create dsi bridge: %d\n", ret);
-		return ret;
-	}
-
-	ret = msm_dsi_manager_ext_bridge_init(msm_dsi->id, bridge);
+	ret = msm_dsi_manager_connector_init(msm_dsi, encoder);
 	if (ret) {
 		DRM_DEV_ERROR(dev->dev,
 			"failed to create dsi connector: %d\n", ret);

@@ -146,7 +146,8 @@ static DECLARE_WAIT_QUEUE_HEAD(balloon_wq);
 /* balloon_append: add the given page to the balloon. */
 static void balloon_append(struct page *page)
 {
-	__SetPageOffline(page);
+	if (!PageOffline(page))
+		__SetPageOffline(page);
 
 	/* Lowmem is re-populated first, so highmem pages go at list tail. */
 	if (PageHighMem(page)) {
@@ -412,7 +413,11 @@ static enum bp_state increase_reservation(unsigned long nr_pages)
 
 		xenmem_reservation_va_mapping_update(1, &page, &frame_list[i]);
 
-		/* Relinquish the page back to the allocator. */
+		/*
+		 * Relinquish the page back to the allocator. Note that
+		 * some pages, including ones added via xen_online_page(), might
+		 * not be marked reserved; free_reserved_page() will handle that.
+		 */
 		free_reserved_page(page);
 	}
 

@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: LGPL-2.1
 
 if [ $# -ne 1 ] ; then
-	linux_header_dir=tools/include/uapi/linux
+	linux_header_dir=tools/perf/trace/beauty/include/uapi/linux/
 else
 	linux_header_dir=$1
 fi

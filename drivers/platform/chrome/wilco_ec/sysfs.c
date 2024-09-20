@@ -192,7 +192,7 @@ static ssize_t usb_charge_show(struct device *dev,
 	if (ret < 0)
 		return ret;
 
-	return sprintf(buf, "%d\n", rs.val);
+	return sysfs_emit(buf, "%d\n", rs.val);
 }
 
 static ssize_t usb_charge_store(struct device *dev,

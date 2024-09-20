@@ -211,6 +211,13 @@
 		};
 	};
 
+	refclk: refclk {
+		compatible = "fixed-clock";
+		#clock-cells = <1>;
+		clock-frequency = <100000000>;
+		clock-output-names = "refclk";
+	};
+
 	pmu {
 		compatible = "arm,armv8-pmuv3";
 		interrupts = <1 12 0xff04>;
@@ -235,13 +242,6 @@
 			#address-cells = <2>;
 			#size-cells = <2>;
 			ranges;
-
-			refclk: refclk {
-				compatible = "fixed-clock";
-				#clock-cells = <1>;
-				clock-frequency = <100000000>;
-				clock-output-names = "refclk";
-			};
 
 			pmdpll: pmdpll@170000f0 {
 				compatible = "apm,xgene-pcppll-v2-clock";

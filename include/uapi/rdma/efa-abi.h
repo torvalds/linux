@@ -85,11 +85,17 @@ enum {
 	EFA_QP_DRIVER_TYPE_SRD = 0,
 };
 
+enum {
+	EFA_CREATE_QP_WITH_UNSOLICITED_WRITE_RECV = 1 << 0,
+};
+
 struct efa_ibv_create_qp {
 	__u32 comp_mask;
 	__u32 rq_ring_size; /* bytes */
 	__u32 sq_ring_size; /* bytes */
 	__u32 driver_qp_type;
+	__u16 flags;
+	__u8 reserved_90[6];
 };
 
 struct efa_ibv_create_qp_resp {
@@ -123,6 +129,7 @@ enum {
 	EFA_QUERY_DEVICE_CAPS_CQ_WITH_SGID     = 1 << 3,
 	EFA_QUERY_DEVICE_CAPS_DATA_POLLING_128 = 1 << 4,
 	EFA_QUERY_DEVICE_CAPS_RDMA_WRITE = 1 << 5,
+	EFA_QUERY_DEVICE_CAPS_UNSOLICITED_WRITE_RECV = 1 << 6,
 };
 
 struct efa_ibv_ex_query_device_resp {

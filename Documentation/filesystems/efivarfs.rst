@@ -40,4 +40,4 @@ accidentally.
 *See also:*
 
 - Documentation/admin-guide/acpi/ssdt-overlays.rst
-- Documentation/ABI/stable/sysfs-firmware-efi-vars
+- Documentation/ABI/removed/sysfs-firmware-efi-vars

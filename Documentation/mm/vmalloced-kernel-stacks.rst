@@ -22,7 +22,7 @@ Kernel stack overflows are often hard to debug and make the kernel
 susceptible to exploits. Problems could show up at a later time making
 it difficult to isolate and root-cause.
 
-Virtually-mapped kernel stacks with guard pages causes kernel stack
+Virtually mapped kernel stacks with guard pages cause kernel stack
 overflows to be caught immediately rather than causing difficult to
 diagnose corruptions.
 
@@ -57,7 +57,7 @@ enable this bool configuration option. The requirements are:
 VMAP_STACK
 ----------
 
-VMAP_STACK bool configuration option when enabled allocates virtually
+When enabled, the VMAP_STACK bool configuration option allocates virtually
 mapped task stacks. This option depends on HAVE_ARCH_VMAP_STACK.
 
 - Enable this if you want the use virtually-mapped kernel stacks
@@ -83,7 +83,7 @@ the latest code base:
 Allocation
 -----------
 
-When a new kernel thread is created, thread stack is allocated from
+When a new kernel thread is created, a thread stack is allocated from
 virtually contiguous memory pages from the page level allocator. These
 pages are mapped into contiguous kernel virtual space with PAGE_KERNEL
 protections.
@@ -103,8 +103,8 @@ with PAGE_KERNEL protections.
 - This does not address interrupt stacks - according to the original patch
 
 Thread stack allocation is initiated from clone(), fork(), vfork(),
-kernel_thread() via kernel_clone(). Leaving a few hints for searching
-the code base to understand when and how thread stack is allocated.
+kernel_thread() via kernel_clone(). These are a few hints for searching
+the code base to understand when and how a thread stack is allocated.
 
 Bulk of the code is in:
 `kernel/fork.c <https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/kernel/fork.c>`.

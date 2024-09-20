@@ -27,7 +27,7 @@ properties:
       - samsung,s2mpu02-pmic
 
   clocks:
-    $ref: ../clock/samsung,s2mps11.yaml
+    $ref: /schemas/clock/samsung,s2mps11.yaml
     description:
       Child node describing clock provider.
 
@@ -75,7 +75,7 @@ allOf:
     then:
       properties:
         regulators:
-          $ref: ../regulator/samsung,s2mps11.yaml
+          $ref: /schemas/regulator/samsung,s2mps11.yaml
         samsung,s2mps11-wrstbi-ground: false
 
   - if:
@@ -86,7 +86,7 @@ allOf:
     then:
       properties:
         regulators:
-          $ref: ../regulator/samsung,s2mps13.yaml
+          $ref: /schemas/regulator/samsung,s2mps13.yaml
         samsung,s2mps11-acokb-ground: false
 
   - if:
@@ -97,7 +97,7 @@ allOf:
     then:
       properties:
         regulators:
-          $ref: ../regulator/samsung,s2mps14.yaml
+          $ref: /schemas/regulator/samsung,s2mps14.yaml
         samsung,s2mps11-acokb-ground: false
         samsung,s2mps11-wrstbi-ground: false
 
@@ -109,7 +109,7 @@ allOf:
     then:
       properties:
         regulators:
-          $ref: ../regulator/samsung,s2mps15.yaml
+          $ref: /schemas/regulator/samsung,s2mps15.yaml
         samsung,s2mps11-acokb-ground: false
         samsung,s2mps11-wrstbi-ground: false
 
@@ -121,7 +121,7 @@ allOf:
     then:
       properties:
         regulators:
-          $ref: ../regulator/samsung,s2mpu02.yaml
+          $ref: /schemas/regulator/samsung,s2mpu02.yaml
         samsung,s2mps11-acokb-ground: false
         samsung,s2mps11-wrstbi-ground: false
 

@@ -16,11 +16,13 @@
 #ifndef _SH_CSS_INTERNAL_H_
 #define _SH_CSS_INTERNAL_H_
 
+#include <linux/build_bug.h>
+#include <linux/stdarg.h>
+
 #include <system_global.h>
 #include <math_support.h>
 #include <type_support.h>
 #include <platform_support.h>
-#include <linux/stdarg.h>
 
 #include "input_formatter.h"
 #include "input_system.h"
@@ -104,7 +106,6 @@
  */
 #define CALC_ALIGNMENT_MEMBER(x, y)	(CEIL_MUL(x, y) - x)
 #define SIZE_OF_HRT_VADDRESS		sizeof(hive_uint32)
-#define SIZE_OF_IA_CSS_PTR		sizeof(uint32_t)
 
 /* Number of SP's */
 #define NUM_OF_SPS 1
@@ -201,6 +202,8 @@ struct sh_css_ddr_address_map {
 	(SIZE_OF_HRT_VADDRESS +							\
 	(SH_CSS_MAX_STAGES * IA_CSS_NUM_MEMORIES * SIZE_OF_HRT_VADDRESS) +	\
 	(16 * SIZE_OF_HRT_VADDRESS))
+
+static_assert(sizeof(struct sh_css_ddr_address_map) == SIZE_OF_SH_CSS_DDR_ADDRESS_MAP_STRUCT);
 
 /* xmem address map allocation per pipeline */
 struct sh_css_ddr_address_map_size {
@@ -341,7 +344,14 @@ struct sh_css_sp_input_formatter_set {
 
 #define IA_CSS_MIPI_SIZE_CHECK_MAX_NOF_ENTRIES_PER_PORT (3)
 
-/* SP configuration information */
+/*
+ * SP configuration information
+ *
+ * This struct is part of the atomisp firmware ABI and is directly copied
+ * to ISP DRAM by sh_css_store_sp_group_to_ddr()
+ *
+ * Do NOT change this struct's layout or remove seemingly unused fields!
+ */
 struct sh_css_sp_config {
 	u8			no_isp_sync; /* Signal host immediately after start */
 	u8			enable_raw_pool_locking; /** Enable Raw Buffer Locking for HALv3 Support */
@@ -351,6 +361,10 @@ struct sh_css_sp_config {
 	     host (true) or when they are passed to the preview/video pipe
 	     (false). */
 
+	 /*
+	  * Note the fields below are only used on the ISP2400 not on the ISP2401,
+	  * sh_css_store_sp_group_to_ddr() skip copying these when run on the ISP2401.
+	  */
 	struct {
 		u8					a_changed;
 		u8					b_changed;
@@ -364,8 +378,9 @@ struct sh_css_sp_config {
 	prbs_cfg_t		prbs;
 	input_system_cfg_t	input_circuit;
 	u8			input_circuit_cfg_changed;
-	u32		mipi_sizes_for_check[N_CSI_PORTS][IA_CSS_MIPI_SIZE_CHECK_MAX_NOF_ENTRIES_PER_PORT];
-	u8                 enable_isys_event_queue;
+	u32			mipi_sizes_for_check[N_CSI_PORTS][IA_CSS_MIPI_SIZE_CHECK_MAX_NOF_ENTRIES_PER_PORT];
+	/* These last 2 fields are used on both the ISP2400 and the ISP2401 */
+	u8			enable_isys_event_queue;
 	u8			disable_cont_vf;
 };
 
@@ -509,7 +524,7 @@ struct sh_css_sp_pipeline {
  * of the associated pipe. Dynamic means that the data address can
  * change with every (frame) iteration of the associated pipe
  *
- * s3a and dis are now also dynamic but (stil) handled separately
+ * s3a and dis are now also dynamic but (still) handled separately
  */
 #define SH_CSS_NUM_DYNAMIC_FRAME_IDS (3)
 
@@ -597,7 +612,7 @@ struct sh_css_sp_stage {
 
 /*
  * Time: 2012-07-19, 17:40.
- * Note: Add a new data memeber "debug" in "sh_css_sp_group". This
+ * Note: Add a new data member "debug" in "sh_css_sp_group". This
  * data member is used to pass the debugging command from the
  * Host to the SP.
  *
@@ -706,6 +721,8 @@ struct sh_css_hmm_buffer {
 	SIZE_OF_IA_CSS_CLOCK_TICK_STRUCT +			\
 	CALC_ALIGNMENT_MEMBER(SIZE_OF_IA_CSS_CLOCK_TICK_STRUCT, 8))
 
+static_assert(sizeof(struct sh_css_hmm_buffer) == SIZE_OF_SH_CSS_HMM_BUFFER_STRUCT);
+
 enum sh_css_queue_type {
 	sh_css_invalid_queue_type = -1,
 	sh_css_host2sp_buffer_queue,
@@ -724,6 +741,8 @@ struct sh_css_event_irq_mask {
 
 #define SIZE_OF_SH_CSS_EVENT_IRQ_MASK_STRUCT				\
 	(2 * sizeof(uint16_t))
+
+static_assert(sizeof(struct sh_css_event_irq_mask) == SIZE_OF_SH_CSS_EVENT_IRQ_MASK_STRUCT);
 
 struct host_sp_communication {
 	/*
@@ -761,6 +780,8 @@ struct host_sp_communication {
 	(N_CSI_PORTS * NUM_MIPI_FRAMES_PER_STREAM * SIZE_OF_HRT_VADDRESS * 2) +			\
 	((3 + N_CSI_PORTS) * sizeof(uint32_t)) +						\
 	(NR_OF_PIPELINES * SIZE_OF_SH_CSS_EVENT_IRQ_MASK_STRUCT))
+
+static_assert(sizeof(struct host_sp_communication) == SIZE_OF_HOST_SP_COMMUNICATION_STRUCT);
 
 struct host_sp_queues {
 	/*
@@ -831,6 +852,8 @@ struct host_sp_queues {
 
 #define SIZE_OF_HOST_SP_QUEUES_STRUCT		\
 	(SIZE_OF_QUEUES_ELEMS + SIZE_OF_QUEUES_DESC)
+
+static_assert(sizeof(struct host_sp_queues) == SIZE_OF_HOST_SP_QUEUES_STRUCT);
 
 extern int  __printf(1, 0) (*sh_css_printf)(const char *fmt, va_list args);
 

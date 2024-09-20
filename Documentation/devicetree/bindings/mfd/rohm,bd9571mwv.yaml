@@ -67,7 +67,7 @@ properties:
     patternProperties:
       "^(vd09|vd18|vd25|vd33|dvfs)$":
         type: object
-        $ref: ../regulator/regulator.yaml#
+        $ref: /schemas/regulator/regulator.yaml#
 
         properties:
           regulator-name:

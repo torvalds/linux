@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0+
 
-#include <errno.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <string.h>
+#include <sys/prctl.h>
 
 #include "dexcr.h"
 #include "utils.h"
@@ -11,40 +11,6 @@
 static unsigned int dexcr;
 static unsigned int hdexcr;
 static unsigned int effective;
-
-struct dexcr_aspect {
-	const char *name;
-	const char *desc;
-	unsigned int index;
-};
-
-static const struct dexcr_aspect aspects[] = {
-	{
-		.name = "SBHE",
-		.desc = "Speculative branch hint enable",
-		.index = 0,
-	},
-	{
-		.name = "IBRTPD",
-		.desc = "Indirect branch recurrent target prediction disable",
-		.index = 3,
-	},
-	{
-		.name = "SRAPD",
-		.desc = "Subroutine return address prediction disable",
-		.index = 4,
-	},
-	{
-		.name = "NPHIE",
-		.desc = "Non-privileged hash instruction enable",
-		.index = 5,
-	},
-	{
-		.name = "PHIE",
-		.desc = "Privileged hash instruction enable",
-		.index = 6,
-	},
-};
 
 static void print_list(const char *list[], size_t len)
 {
@@ -60,7 +26,7 @@ static void print_dexcr(char *name, unsigned int bits)
 	const char *enabled_aspects[ARRAY_SIZE(aspects) + 1] = {NULL};
 	size_t j = 0;
 
-	printf("%s: %08x", name, bits);
+	printf("%s: 0x%08x", name, bits);
 
 	if (bits == 0) {
 		printf("\n");
@@ -103,6 +69,63 @@ static void print_aspect(const struct dexcr_aspect *aspect)
 	printf("  \t(%s)\n", aspect->desc);
 }
 
+static void print_aspect_config(const struct dexcr_aspect *aspect)
+{
+	const char *reason = NULL;
+	const char *reason_hyp = NULL;
+	const char *reason_prctl = "no prctl";
+	bool actual = effective & DEXCR_PR_BIT(aspect->index);
+	bool expected = actual;  /* Assume it's fine if we don't expect a specific set/clear value */
+
+	if (actual)
+		reason = "set by unknown";
+	else
+		reason = "cleared by unknown";
+
+	if (aspect->prctl != -1) {
+		int ctrl = pr_get_dexcr(aspect->prctl);
+
+		if (ctrl < 0) {
+			reason_prctl = "failed to read prctl";
+		} else {
+			if (ctrl & PR_PPC_DEXCR_CTRL_SET) {
+				reason_prctl = "set by prctl";
+				expected = true;
+			} else if (ctrl & PR_PPC_DEXCR_CTRL_CLEAR) {
+				reason_prctl = "cleared by prctl";
+				expected = false;
+			} else {
+				reason_prctl = "unknown prctl";
+			}
+
+			reason = reason_prctl;
+		}
+	}
+
+	if (hdexcr & DEXCR_PR_BIT(aspect->index)) {
+		reason_hyp = "set by hypervisor";
+		reason = reason_hyp;
+		expected = true;
+	} else {
+		reason_hyp = "not modified by hypervisor";
+	}
+
+	printf("%12s (%d): %-28s (%s, %s)\n",
+	       aspect->name,
+	       aspect->index,
+	       reason,
+	       reason_hyp,
+	       reason_prctl);
+
+	/*
+	 * The checks are not atomic, so this can technically trigger if the
+	 * hypervisor makes a change while we are checking each source. It's
+	 * far more likely to be a bug if we see this though.
+	 */
+	if (actual != expected)
+		printf("                : ! actual %s does not match config\n", aspect->name);
+}
+
 int main(int argc, char *argv[])
 {
 	if (!dexcr_exists()) {
@@ -113,6 +136,8 @@ int main(int argc, char *argv[])
 	dexcr = get_dexcr(DEXCR);
 	hdexcr = get_dexcr(HDEXCR);
 	effective = dexcr | hdexcr;
+
+	printf("current status:\n");
 
 	print_dexcr("    DEXCR", dexcr);
 	print_dexcr("   HDEXCR", hdexcr);
@@ -136,6 +161,12 @@ int main(int argc, char *argv[])
 		else
 			printf("ignored\n");
 	}
+	printf("\n");
+
+	printf("configuration:\n");
+	for (size_t i = 0; i < ARRAY_SIZE(aspects); i++)
+		print_aspect_config(&aspects[i]);
+	printf("\n");
 
 	return 0;
 }

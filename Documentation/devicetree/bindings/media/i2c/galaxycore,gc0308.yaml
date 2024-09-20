@@ -15,7 +15,7 @@ description: |
   They include an ISP capable of auto exposure and auto white balance.
 
 allOf:
-  - $ref: ../video-interface-devices.yaml#
+  - $ref: /schemas/media/video-interface-devices.yaml#
 
 properties:
   compatible:

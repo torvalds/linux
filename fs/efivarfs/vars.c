@@ -295,9 +295,9 @@ static bool variable_is_present(efi_char16_t *variable_name, efi_guid_t *vendor,
 	unsigned long strsize1, strsize2;
 	bool found = false;
 
-	strsize1 = ucs2_strsize(variable_name, 1024);
+	strsize1 = ucs2_strsize(variable_name, EFI_VAR_NAME_LEN);
 	list_for_each_entry_safe(entry, n, head, list) {
-		strsize2 = ucs2_strsize(entry->var.VariableName, 1024);
+		strsize2 = ucs2_strsize(entry->var.VariableName, EFI_VAR_NAME_LEN);
 		if (strsize1 == strsize2 &&
 			!memcmp(variable_name, &(entry->var.VariableName),
 				strsize2) &&
@@ -396,6 +396,7 @@ int efivar_init(int (*func)(efi_char16_t *, efi_guid_t, unsigned long, void *,
 
 	do {
 		variable_name_size = 512;
+		BUILD_BUG_ON(EFI_VAR_NAME_LEN < 512);
 
 		status = efivar_get_next_variable(&variable_name_size,
 						  variable_name,

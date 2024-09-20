@@ -710,4 +710,5 @@ struct regmap *__devm_regmap_init_spi_avmm(struct spi_device *spi,
 }
 EXPORT_SYMBOL_GPL(__devm_regmap_init_spi_avmm);
 
+MODULE_DESCRIPTION("Register map access API - SPI AVMM support");
 MODULE_LICENSE("GPL v2");

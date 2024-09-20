@@ -24,7 +24,7 @@ TRACE_EVENT(avs_dsp_core_op,
 	TP_fast_assign(
 		__entry->reg = reg;
 		__entry->mask = mask;
-		__assign_str(op, op);
+		__assign_str(op);
 		__entry->flag = flag;
 	),
 
@@ -135,7 +135,7 @@ TRACE_EVENT(avs_d0ix,
 	),
 
 	TP_fast_assign(
-		__assign_str(op, op);
+		__assign_str(op);
 		__entry->proceed = proceed;
 		__entry->header = header;
 	),

@@ -23,7 +23,7 @@
 #include <linux/usb.h>
 #include <linux/usbdevice_fs.h>
 #include <linux/usb/hcd.h>
-#include <linux/usb/onboard_hub.h>
+#include <linux/usb/onboard_dev.h>
 #include <linux/usb/otg.h>
 #include <linux/usb/quirks.h>
 #include <linux/workqueue.h>
@@ -1814,7 +1814,7 @@ static void hub_disconnect(struct usb_interface *intf)
 	if (hub->quirk_disable_autosuspend)
 		usb_autopm_put_interface(intf);
 
-	onboard_hub_destroy_pdevs(&hub->onboard_hub_devs);
+	onboard_dev_destroy_pdevs(&hub->onboard_devs);
 
 	hub_put(hub);
 }
@@ -1933,7 +1933,7 @@ static int hub_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	INIT_DELAYED_WORK(&hub->leds, led_work);
 	INIT_DELAYED_WORK(&hub->init_work, NULL);
 	INIT_WORK(&hub->events, hub_event);
-	INIT_LIST_HEAD(&hub->onboard_hub_devs);
+	INIT_LIST_HEAD(&hub->onboard_devs);
 	spin_lock_init(&hub->irq_urb_lock);
 	timer_setup(&hub->irq_urb_retry, hub_retry_irq_urb, 0);
 	usb_get_intf(intf);
@@ -1963,7 +1963,7 @@ static int hub_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	}
 
 	if (hub_configure(hub, &desc->endpoint[0].desc) >= 0) {
-		onboard_hub_create_pdevs(hdev, &hub->onboard_hub_devs);
+		onboard_dev_create_pdevs(hdev, &hub->onboard_devs);
 
 		return 0;
 	}
@@ -2207,13 +2207,12 @@ static void choose_devnum(struct usb_device *udev)
 	mutex_lock(&bus->devnum_next_mutex);
 
 	/* Try to allocate the next devnum beginning at bus->devnum_next. */
-	devnum = find_next_zero_bit(bus->devmap.devicemap, 128,
-			bus->devnum_next);
+	devnum = find_next_zero_bit(bus->devmap, 128, bus->devnum_next);
 	if (devnum >= 128)
-		devnum = find_next_zero_bit(bus->devmap.devicemap, 128, 1);
+		devnum = find_next_zero_bit(bus->devmap, 128, 1);
 	bus->devnum_next = (devnum >= 127 ? 1 : devnum + 1);
 	if (devnum < 128) {
-		set_bit(devnum, bus->devmap.devicemap);
+		set_bit(devnum, bus->devmap);
 		udev->devnum = devnum;
 	}
 	mutex_unlock(&bus->devnum_next_mutex);
@@ -2222,7 +2221,7 @@ static void choose_devnum(struct usb_device *udev)
 static void release_devnum(struct usb_device *udev)
 {
 	if (udev->devnum > 0) {
-		clear_bit(udev->devnum, udev->bus->devmap.devicemap);
+		clear_bit(udev->devnum, udev->bus->devmap);
 		udev->devnum = -1;
 	}
 }

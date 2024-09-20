@@ -155,7 +155,7 @@ static unsigned int arc_serial_tx_empty(struct uart_port *port)
  */
 static void arc_serial_tx_chars(struct uart_port *port)
 {
-	struct circ_buf *xmit = &port->state->xmit;
+	struct tty_port *tport = &port->state->port;
 	int sent = 0;
 	unsigned char ch;
 
@@ -164,9 +164,7 @@ static void arc_serial_tx_chars(struct uart_port *port)
 		port->icount.tx++;
 		port->x_char = 0;
 		sent = 1;
-	} else if (!uart_circ_empty(xmit)) {
-		ch = xmit->buf[xmit->tail];
-		uart_xmit_advance(port, 1);
+	} else if (uart_fifo_get(port, &ch)) {
 		while (!(UART_GET_STATUS(port) & TXEMPTY))
 			cpu_relax();
 		UART_SET_DATA(port, ch);
@@ -177,7 +175,7 @@ static void arc_serial_tx_chars(struct uart_port *port)
 	 * If num chars in xmit buffer are too few, ask tty layer for more.
 	 * By Hard ISR to schedule processing in software interrupt part
 	 */
-	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
+	if (kfifo_len(&tport->xmit_fifo) < WAKEUP_CHARS)
 		uart_write_wakeup(port);
 
 	if (sent)

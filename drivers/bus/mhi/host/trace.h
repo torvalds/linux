@@ -103,7 +103,7 @@ TRACE_EVENT(mhi_gen_tre,
 	),
 
 	TP_fast_assign(
-		__assign_str(name, mhi_cntrl->mhi_dev->name);
+		__assign_str(name);
 		__entry->ch_num = mhi_chan->chan;
 		__entry->wp = mhi_tre;
 		__entry->tre_ptr = mhi_tre->ptr;
@@ -131,7 +131,7 @@ TRACE_EVENT(mhi_intvec_states,
 	),
 
 	TP_fast_assign(
-		__assign_str(name, mhi_cntrl->mhi_dev->name);
+		__assign_str(name);
 		__entry->local_ee = mhi_cntrl->ee;
 		__entry->state = mhi_cntrl->dev_state;
 		__entry->dev_ee = dev_ee;
@@ -158,7 +158,7 @@ TRACE_EVENT(mhi_tryset_pm_state,
 	),
 
 	TP_fast_assign(
-		__assign_str(name, mhi_cntrl->mhi_dev->name);
+		__assign_str(name);
 		if (pm_state)
 			pm_state = __fls(pm_state);
 		__entry->pm_state = pm_state;
@@ -184,7 +184,7 @@ DECLARE_EVENT_CLASS(mhi_process_event_ring,
 	),
 
 	TP_fast_assign(
-		__assign_str(name, mhi_cntrl->mhi_dev->name);
+		__assign_str(name);
 		__entry->rp = rp;
 		__entry->ptr = rp->ptr;
 		__entry->dword0 = rp->dword[0];
@@ -226,7 +226,7 @@ DECLARE_EVENT_CLASS(mhi_update_channel_state,
 	),
 
 	TP_fast_assign(
-		__assign_str(name, mhi_cntrl->mhi_dev->name);
+		__assign_str(name);
 		__entry->ch_num = mhi_chan->chan;
 		__entry->state = state;
 		__entry->reason = reason;
@@ -265,7 +265,7 @@ TRACE_EVENT(mhi_pm_st_transition,
 	),
 
 	TP_fast_assign(
-		__assign_str(name, mhi_cntrl->mhi_dev->name);
+		__assign_str(name);
 		__entry->state = state;
 	),
 

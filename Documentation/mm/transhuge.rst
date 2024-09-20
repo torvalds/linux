@@ -116,14 +116,14 @@ pages:
     succeeds on tail pages.
 
   - map/unmap of a PMD entry for the whole THP increment/decrement
-    folio->_entire_mapcount and also increment/decrement
-    folio->_nr_pages_mapped by ENTIRELY_MAPPED when _entire_mapcount
-    goes from -1 to 0 or 0 to -1.
+    folio->_entire_mapcount, increment/decrement folio->_large_mapcount
+    and also increment/decrement folio->_nr_pages_mapped by ENTIRELY_MAPPED
+    when _entire_mapcount goes from -1 to 0 or 0 to -1.
 
   - map/unmap of individual pages with PTE entry increment/decrement
-    page->_mapcount and also increment/decrement folio->_nr_pages_mapped
-    when page->_mapcount goes from -1 to 0 or 0 to -1 as this counts
-    the number of pages mapped by PTE.
+    page->_mapcount, increment/decrement folio->_large_mapcount and also
+    increment/decrement folio->_nr_pages_mapped when page->_mapcount goes
+    from -1 to 0 or 0 to -1 as this counts the number of pages mapped by PTE.
 
 split_huge_page internally has to distribute the refcounts in the head
 page to the tail pages before clearing all PG_head/tail bits from the page

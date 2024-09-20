@@ -2726,7 +2726,7 @@ int st_lsm6dsx_probe(struct device *dev, int irq, int hw_id,
 	if (!hw)
 		return -ENOMEM;
 
-	dev_set_drvdata(dev, (void *)hw);
+	dev_set_drvdata(dev, hw);
 
 	mutex_init(&hw->fifo_lock);
 	mutex_init(&hw->conf_lock);

@@ -79,7 +79,9 @@ static int skbprio_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 	prio = min(skb->priority, max_priority);
 
 	qdisc = &q->qdiscs[prio];
-	if (sch->q.qlen < sch->limit) {
+
+	/* sch->limit can change under us from skbprio_change() */
+	if (sch->q.qlen < READ_ONCE(sch->limit)) {
 		__skb_queue_tail(qdisc, skb);
 		qdisc_qstats_backlog_inc(sch, skb);
 		q->qstats[prio].backlog += qdisc_pkt_len(skb);
@@ -172,7 +174,7 @@ static int skbprio_change(struct Qdisc *sch, struct nlattr *opt,
 	if (opt->nla_len != nla_attr_size(sizeof(*ctl)))
 		return -EINVAL;
 
-	sch->limit = ctl->limit;
+	WRITE_ONCE(sch->limit, ctl->limit);
 	return 0;
 }
 
@@ -200,7 +202,7 @@ static int skbprio_dump(struct Qdisc *sch, struct sk_buff *skb)
 {
 	struct tc_skbprio_qopt opt;
 
-	opt.limit = sch->limit;
+	opt.limit = READ_ONCE(sch->limit);
 
 	if (nla_put(skb, TCA_OPTIONS, sizeof(opt), &opt))
 		return -1;

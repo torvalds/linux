@@ -617,6 +617,15 @@ LIBBPF_API int bpf_prog_query(int target_fd, enum bpf_attach_type type,
 			      __u32 query_flags, __u32 *attach_flags,
 			      __u32 *prog_ids, __u32 *prog_cnt);
 
+struct bpf_raw_tp_opts {
+	size_t sz; /* size of this struct for forward/backward compatibility */
+	const char *tp_name;
+	__u64 cookie;
+	size_t :0;
+};
+#define bpf_raw_tp_opts__last_field cookie
+
+LIBBPF_API int bpf_raw_tracepoint_open_opts(int prog_fd, struct bpf_raw_tp_opts *opts);
 LIBBPF_API int bpf_raw_tracepoint_open(const char *name, int prog_fd);
 LIBBPF_API int bpf_task_fd_query(int pid, int fd, __u32 flags, char *buf,
 				 __u32 *buf_len, __u32 *prog_id, __u32 *fd_type,

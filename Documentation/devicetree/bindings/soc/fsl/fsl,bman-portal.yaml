@@ -1,0 +1,52 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/soc/fsl/fsl,bman-portal.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: QorIQ DPAA Queue Manager Portals
+
+maintainers:
+  - Frank Li <Frank.Li@nxp.com>
+
+description:
+  QorIQ DPAA Buffer Manager Portal
+
+  Portals are memory mapped interfaces to BMan that allow low-latency, lock-less
+  interaction by software running on processor cores, accelerators and network
+  interfaces with the BMan
+
+properties:
+  compatible:
+    oneOf:
+      - const: fsl,bman-portal
+      - items:
+          - enum:
+              - fsl,bman-portal-1.0.0
+              - fsl,ls1043a-bmap-portal
+              - fsl,ls1046a-bmap-portal
+          - const: fsl,bman-portal
+  reg:
+    items:
+      - description: the cache-enabled region of the portal
+      - description: the cache-inhibited region of the portal
+
+  interrupts:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+  - interrupts
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+
+    bman-portal@0 {
+        compatible = "fsl,bman-portal-1.0.0", "fsl,bman-portal";
+        reg = <0x0 0x4000>, <0x100000 0x1000>;
+        interrupts = <105 IRQ_TYPE_EDGE_FALLING 0 0>;
+    };

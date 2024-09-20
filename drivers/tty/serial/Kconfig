@@ -307,11 +307,14 @@ config SERIAL_TEGRA_TCU_CONSOLE
 	  If unsure, say Y.
 
 config SERIAL_MAX3100
-	tristate "MAX3100 support"
+	tristate "MAX3100/3110/3111/3222 support"
 	depends on SPI
 	select SERIAL_CORE
 	help
-	  MAX3100 chip support
+	  This selects support for an advanced UART from Maxim.
+	  Supported ICs are MAX3100, MAX3110, MAX3111, MAX3222.
+
+	  Say Y here if you want to support these ICs.
 
 config SERIAL_MAX310X
 	tristate "MAX310X support"
@@ -1020,42 +1023,32 @@ config SERIAL_SCCNXP_CONSOLE
 	help
 	  Support for console on SCCNXP serial ports.
 
-config SERIAL_SC16IS7XX_CORE
-	tristate
-
 config SERIAL_SC16IS7XX
-	tristate "SC16IS7xx serial support"
+	tristate "NXP SC16IS7xx UART support"
+	depends on SPI_MASTER || I2C
 	select SERIAL_CORE
-	depends on (SPI_MASTER && !I2C) || I2C
+	select SERIAL_SC16IS7XX_SPI if SPI_MASTER
+	select SERIAL_SC16IS7XX_I2C if I2C
 	help
-	  This selects support for SC16IS7xx serial ports.
-	  Supported ICs are SC16IS740, SC16IS741, SC16IS750, SC16IS752,
-	  SC16IS760 and SC16IS762. Select supported buses using options below.
+	  Core driver for NXP SC16IS7xx UARTs.
+	  Supported ICs are:
+
+	    SC16IS740
+	    SC16IS741
+	    SC16IS750
+	    SC16IS752
+	    SC16IS760
+	    SC16IS762
+
+	  The driver supports both I2C and SPI interfaces.
 
 config SERIAL_SC16IS7XX_I2C
-	bool "SC16IS7xx for I2C interface"
-	depends on SERIAL_SC16IS7XX
-	depends on I2C
-	select SERIAL_SC16IS7XX_CORE if SERIAL_SC16IS7XX
-	select REGMAP_I2C if I2C
-	default y
-	help
-	  Enable SC16IS7xx driver on I2C bus,
-	  If required say y, and say n to i2c if not required,
-	  Enabled by default to support oldconfig.
-	  You must select at least one bus for the driver to be built.
+	tristate
+	select REGMAP_I2C
 
 config SERIAL_SC16IS7XX_SPI
-	bool "SC16IS7xx for spi interface"
-	depends on SERIAL_SC16IS7XX
-	depends on SPI_MASTER
-	select SERIAL_SC16IS7XX_CORE if SERIAL_SC16IS7XX
-	select REGMAP_SPI if SPI_MASTER
-	help
-	  Enable SC16IS7xx driver on SPI bus,
-	  If required say y, and say n to spi if not required,
-	  This is additional support to existing driver.
-	  You must select at least one bus for the driver to be built.
+	tristate
+	select REGMAP_SPI
 
 config SERIAL_TIMBERDALE
 	tristate "Support for timberdale UART"

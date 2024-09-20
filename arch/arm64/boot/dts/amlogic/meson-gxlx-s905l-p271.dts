@@ -1,0 +1,51 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2024 Christian Hewitt <christianshewitt@gmail.com>
+ */
+
+/dts-v1/;
+
+#include "meson-gxl-s905x.dtsi"
+#include "meson-gx-p23x-q20x.dtsi"
+
+/ {
+	compatible = "amlogic,p271", "amlogic,s905l", "amlogic,meson-gxlx";
+	model = "Amlogic Meson GXLX (S905L) P271 Development Board";
+
+	memory@0 {
+		device_type = "memory";
+		reg = <0x0 0x0 0x0 0x40000000>;
+	};
+
+	sound {
+		model = "P271";
+	};
+};
+
+&apb {
+	mali: gpu@c0000 {
+		/* Mali 450-MP2 */
+		interrupts = <GIC_SPI 160 IRQ_TYPE_LEVEL_HIGH>,
+			<GIC_SPI 161 IRQ_TYPE_LEVEL_HIGH>,
+			<GIC_SPI 162 IRQ_TYPE_LEVEL_HIGH>,
+			<GIC_SPI 163 IRQ_TYPE_LEVEL_HIGH>,
+			<GIC_SPI 164 IRQ_TYPE_LEVEL_HIGH>,
+			<GIC_SPI 165 IRQ_TYPE_LEVEL_HIGH>,
+			<GIC_SPI 166 IRQ_TYPE_LEVEL_HIGH>,
+			<GIC_SPI 167 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "gp", "gpmmu", "pp", "pmu",
+			"pp0", "ppmmu0", "pp1", "ppmmu1";
+	};
+};
+
+&saradc {
+	compatible = "amlogic,meson-gxlx-saradc", "amlogic,meson-saradc";
+};
+
+&usb {
+	dr_mode = "host";
+};
+
+&vdec {
+	compatible = "amlogic,gxlx-vdec", "amlogic,gx-vdec";
+};

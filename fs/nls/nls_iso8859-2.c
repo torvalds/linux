@@ -305,4 +305,5 @@ static void __exit exit_nls_iso8859_2(void)
 module_init(init_nls_iso8859_2)
 module_exit(exit_nls_iso8859_2)
 
+MODULE_DESCRIPTION("NLS ISO 8859-2 (Latin 2; Slavic/Central European Languages)");
 MODULE_LICENSE("Dual BSD/GPL");

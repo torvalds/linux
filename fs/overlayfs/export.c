@@ -181,6 +181,10 @@ static int ovl_check_encode_origin(struct dentry *dentry)
 	struct ovl_fs *ofs = OVL_FS(dentry->d_sb);
 	bool decodable = ofs->config.nfs_export;
 
+	/* No upper layer? */
+	if (!ovl_upper_mnt(ofs))
+		return 1;
+
 	/* Lower file handle for non-upper non-decodable */
 	if (!ovl_dentry_upper(dentry) && !decodable)
 		return 1;
@@ -209,7 +213,7 @@ static int ovl_check_encode_origin(struct dentry *dentry)
 	 * ovl_connect_layer() will try to make origin's layer "connected" by
 	 * copying up a "connectable" ancestor.
 	 */
-	if (d_is_dir(dentry) && ovl_upper_mnt(ofs) && decodable)
+	if (d_is_dir(dentry) && decodable)
 		return ovl_connect_layer(dentry);
 
 	/* Lower file handle for indexed and non-upper dir/non-dir */

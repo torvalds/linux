@@ -253,5 +253,6 @@ static int __init brcm_nvram_init(void)
 subsys_initcall_sync(brcm_nvram_init);
 
 MODULE_AUTHOR("Rafał Miłecki");
+MODULE_DESCRIPTION("Broadcom I/O-mapped NVRAM support driver");
 MODULE_LICENSE("GPL");
 MODULE_DEVICE_TABLE(of, brcm_nvram_of_match_table);

@@ -49,6 +49,7 @@ struct atomisp_video_pipe {
 	struct video_device vdev;
 	enum v4l2_buf_type type;
 	struct media_pad pad;
+	struct media_pipeline pipe;
 	struct vb2_queue vb_queue;
 	/* Lock for vb_queue, when also taking isp->mutex this must be taken first! */
 	struct mutex vb_queue_mutex;
@@ -105,14 +106,6 @@ struct atomisp_pad_format {
 	struct v4l2_mbus_framefmt fmt;
 	struct v4l2_rect crop;
 	struct v4l2_rect compose;
-};
-
-/* Internal states for flash process */
-enum atomisp_flash_state {
-	ATOMISP_FLASH_IDLE,
-	ATOMISP_FLASH_REQUESTED,
-	ATOMISP_FLASH_ONGOING,
-	ATOMISP_FLASH_DONE
 };
 
 /*
@@ -220,11 +213,6 @@ struct atomisp_subdev_params {
 	int  dvs_ver_proj_bytes;
 	int  dvs_hor_proj_bytes;
 
-	/* Flash */
-	int num_flash_frames;
-	enum atomisp_flash_state flash_state;
-	enum atomisp_frame_status last_frame_status;
-
 	/* Flag to check if driver needs to update params to css */
 	bool css_update_params_needed;
 };
@@ -285,9 +273,6 @@ struct atomisp_sub_device {
 	struct list_head dis_stats;
 	struct list_head dis_stats_in_css;
 	spinlock_t dis_stats_lock;
-
-	struct ia_css_frame *vf_frame; /* TODO: needed? */
-	enum atomisp_frame_status frame_status[VIDEO_MAX_FRAME];
 
 	/* This field specifies which camera (v4l2 input) is selected. */
 	int input_curr;

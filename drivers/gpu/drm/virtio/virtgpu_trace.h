@@ -25,7 +25,7 @@ DECLARE_EVENT_CLASS(virtio_gpu_cmd,
 	TP_fast_assign(
 		       __entry->dev = vq->vdev->index;
 		       __entry->vq = vq->index;
-		       __assign_str(name, vq->name);
+		       __assign_str(name);
 		       __entry->type = le32_to_cpu(hdr->type);
 		       __entry->flags = le32_to_cpu(hdr->flags);
 		       __entry->fence_id = le64_to_cpu(hdr->fence_id);

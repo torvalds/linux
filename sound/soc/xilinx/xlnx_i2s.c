@@ -253,6 +253,7 @@ static struct platform_driver xlnx_i2s_aud_driver = {
 
 module_platform_driver(xlnx_i2s_aud_driver);
 
+MODULE_DESCRIPTION("ASoC driver for Xilinx I2S audio");
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Praveen Vuppala  <praveenv@xilinx.com>");
 MODULE_AUTHOR("Maruthi Srinivas Bayyavarapu <maruthis@xilinx.com>");

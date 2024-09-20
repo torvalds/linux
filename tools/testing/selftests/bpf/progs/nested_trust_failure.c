@@ -31,14 +31,6 @@ int BPF_PROG(test_invalid_nested_user_cpus, struct task_struct *task, u64 clone_
 	return 0;
 }
 
-SEC("tp_btf/task_newtask")
-__failure __msg("R1 must have zero offset when passed to release func or trusted arg to kfunc")
-int BPF_PROG(test_invalid_nested_offset, struct task_struct *task, u64 clone_flags)
-{
-	bpf_cpumask_first_zero(&task->cpus_mask);
-	return 0;
-}
-
 /* Although R2 is of type sk_buff but sock_common is expected, we will hit untrusted ptr first. */
 SEC("tp_btf/tcp_probe")
 __failure __msg("R2 type=untrusted_ptr_ expected=ptr_, trusted_ptr_, rcu_ptr_")

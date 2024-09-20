@@ -10,6 +10,9 @@ struct tcp_rtt_storage {
 	__u32 delivered;
 	__u32 delivered_ce;
 	__u32 icsk_retransmits;
+
+	__u32 mrtt_us;	/* args[0] */
+	__u32 srtt;	/* args[1] */
 };
 
 static void send_byte(int fd)
@@ -80,6 +83,17 @@ static int verify_sk(int map_fd, int client_fd, const char *msg, __u32 invoked,
 	if (val.icsk_retransmits != icsk_retransmits) {
 		log_err("%s: unexpected bpf_tcp_sock.icsk_retransmits %d != %d",
 			msg, val.icsk_retransmits, icsk_retransmits);
+		err++;
+	}
+
+	/* Precise values of mrtt and srtt are unavailable, just make sure they are nonzero */
+	if (val.mrtt_us == 0) {
+		log_err("%s: unexpected bpf_tcp_sock.args[0] (mrtt_us) %u == 0", msg, val.mrtt_us);
+		err++;
+	}
+
+	if (val.srtt == 0) {
+		log_err("%s: unexpected bpf_tcp_sock.args[1] (srtt) %u == 0", msg, val.srtt);
 		err++;
 	}
 

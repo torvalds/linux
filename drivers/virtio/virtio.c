@@ -82,7 +82,7 @@ static inline int virtio_id_match(const struct virtio_device *dev,
 
 /* This looks through all the IDs a driver claims to support.  If any of them
  * match, we return 1 and the kernel will call virtio_dev_probe(). */
-static int virtio_dev_match(struct device *_dv, struct device_driver *_dr)
+static int virtio_dev_match(struct device *_dv, const struct device_driver *_dr)
 {
 	unsigned int i;
 	struct virtio_device *dev = dev_to_virtio(_dv);
@@ -274,6 +274,9 @@ static int virtio_dev_probe(struct device *_d)
 	else
 		dev->features = driver_features_legacy & device_features;
 
+	/* When debugging, user may filter some features by hand. */
+	virtio_debug_device_filter_features(dev);
+
 	/* Transport features always preserved to pass to finalize_features. */
 	for (i = VIRTIO_TRANSPORT_F_START; i < VIRTIO_TRANSPORT_F_END; i++)
 		if (device_features & (1ULL << i))
@@ -302,15 +305,9 @@ static int virtio_dev_probe(struct device *_d)
 	if (err)
 		goto err;
 
-	if (dev->config->create_avq) {
-		err = dev->config->create_avq(dev);
-		if (err)
-			goto err;
-	}
-
 	err = drv->probe(dev);
 	if (err)
-		goto err_probe;
+		goto err;
 
 	/* If probe didn't do it, mark device DRIVER_OK ourselves. */
 	if (!(dev->config->get_status(dev) & VIRTIO_CONFIG_S_DRIVER_OK))
@@ -323,9 +320,6 @@ static int virtio_dev_probe(struct device *_d)
 
 	return 0;
 
-err_probe:
-	if (dev->config->destroy_avq)
-		dev->config->destroy_avq(dev);
 err:
 	virtio_add_status(dev, VIRTIO_CONFIG_S_FAILED);
 	return err;
@@ -340,9 +334,6 @@ static void virtio_dev_remove(struct device *_d)
 	virtio_config_disable(dev);
 
 	drv->remove(dev);
-
-	if (dev->config->destroy_avq)
-		dev->config->destroy_avq(dev);
 
 	/* Driver should have reset device. */
 	WARN_ON_ONCE(dev->config->get_status(dev));
@@ -465,6 +456,8 @@ int register_virtio_device(struct virtio_device *dev)
 	/* Acknowledge that we've seen the device. */
 	virtio_add_status(dev, VIRTIO_CONFIG_S_ACKNOWLEDGE);
 
+	virtio_debug_device_init(dev);
+
 	/*
 	 * device_add() causes the bus infrastructure to look for a matching
 	 * driver.
@@ -496,6 +489,7 @@ void unregister_virtio_device(struct virtio_device *dev)
 	int index = dev->index; /* save for after device release */
 
 	device_unregister(&dev->dev);
+	virtio_debug_device_exit(dev);
 	ida_free(&virtio_index_ida, index);
 }
 EXPORT_SYMBOL_GPL(unregister_virtio_device);
@@ -517,9 +511,6 @@ int virtio_device_freeze(struct virtio_device *dev)
 			return ret;
 		}
 	}
-
-	if (dev->config->destroy_avq)
-		dev->config->destroy_avq(dev);
 
 	return 0;
 }
@@ -556,16 +547,10 @@ int virtio_device_restore(struct virtio_device *dev)
 	if (ret)
 		goto err;
 
-	if (dev->config->create_avq) {
-		ret = dev->config->create_avq(dev);
-		if (ret)
-			goto err;
-	}
-
 	if (drv->restore) {
 		ret = drv->restore(dev);
 		if (ret)
-			goto err_restore;
+			goto err;
 	}
 
 	/* If restore didn't do it, mark device DRIVER_OK ourselves. */
@@ -576,9 +561,6 @@ int virtio_device_restore(struct virtio_device *dev)
 
 	return 0;
 
-err_restore:
-	if (dev->config->destroy_avq)
-		dev->config->destroy_avq(dev);
 err:
 	virtio_add_status(dev, VIRTIO_CONFIG_S_FAILED);
 	return ret;
@@ -590,15 +572,18 @@ static int virtio_init(void)
 {
 	if (bus_register(&virtio_bus) != 0)
 		panic("virtio bus registration failed");
+	virtio_debug_init();
 	return 0;
 }
 
 static void __exit virtio_exit(void)
 {
+	virtio_debug_exit();
 	bus_unregister(&virtio_bus);
 	ida_destroy(&virtio_index_ida);
 }
 core_initcall(virtio_init);
 module_exit(virtio_exit);
 
+MODULE_DESCRIPTION("Virtio core interface");
 MODULE_LICENSE("GPL");

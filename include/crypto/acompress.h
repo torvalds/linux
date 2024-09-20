@@ -56,31 +56,7 @@ struct crypto_acomp {
 	struct crypto_tfm base;
 };
 
-/*
- * struct crypto_istat_compress - statistics for compress algorithm
- * @compress_cnt:	number of compress requests
- * @compress_tlen:	total data size handled by compress requests
- * @decompress_cnt:	number of decompress requests
- * @decompress_tlen:	total data size handled by decompress requests
- * @err_cnt:		number of error for compress requests
- */
-struct crypto_istat_compress {
-	atomic64_t compress_cnt;
-	atomic64_t compress_tlen;
-	atomic64_t decompress_cnt;
-	atomic64_t decompress_tlen;
-	atomic64_t err_cnt;
-};
-
-#ifdef CONFIG_CRYPTO_STATS
-#define COMP_ALG_COMMON_STATS struct crypto_istat_compress stat;
-#else
-#define COMP_ALG_COMMON_STATS
-#endif
-
 #define COMP_ALG_COMMON {			\
-	COMP_ALG_COMMON_STATS			\
-						\
 	struct crypto_alg base;			\
 }
 struct comp_alg_common COMP_ALG_COMMON;
@@ -261,27 +237,6 @@ static inline void acomp_request_set_params(struct acomp_req *req,
 		req->flags |= CRYPTO_ACOMP_ALLOC_OUTPUT;
 }
 
-static inline struct crypto_istat_compress *comp_get_stat(
-	struct comp_alg_common *alg)
-{
-#ifdef CONFIG_CRYPTO_STATS
-	return &alg->stat;
-#else
-	return NULL;
-#endif
-}
-
-static inline int crypto_comp_errstat(struct comp_alg_common *alg, int err)
-{
-	if (!IS_ENABLED(CONFIG_CRYPTO_STATS))
-		return err;
-
-	if (err && err != -EINPROGRESS && err != -EBUSY)
-		atomic64_inc(&comp_get_stat(alg)->err_cnt);
-
-	return err;
-}
-
 /**
  * crypto_acomp_compress() -- Invoke asynchronous compress operation
  *
@@ -293,19 +248,7 @@ static inline int crypto_comp_errstat(struct comp_alg_common *alg, int err)
  */
 static inline int crypto_acomp_compress(struct acomp_req *req)
 {
-	struct crypto_acomp *tfm = crypto_acomp_reqtfm(req);
-	struct comp_alg_common *alg;
-
-	alg = crypto_comp_alg_common(tfm);
-
-	if (IS_ENABLED(CONFIG_CRYPTO_STATS)) {
-		struct crypto_istat_compress *istat = comp_get_stat(alg);
-
-		atomic64_inc(&istat->compress_cnt);
-		atomic64_add(req->slen, &istat->compress_tlen);
-	}
-
-	return crypto_comp_errstat(alg, tfm->compress(req));
+	return crypto_acomp_reqtfm(req)->compress(req);
 }
 
 /**
@@ -319,19 +262,7 @@ static inline int crypto_acomp_compress(struct acomp_req *req)
  */
 static inline int crypto_acomp_decompress(struct acomp_req *req)
 {
-	struct crypto_acomp *tfm = crypto_acomp_reqtfm(req);
-	struct comp_alg_common *alg;
-
-	alg = crypto_comp_alg_common(tfm);
-
-	if (IS_ENABLED(CONFIG_CRYPTO_STATS)) {
-		struct crypto_istat_compress *istat = comp_get_stat(alg);
-
-		atomic64_inc(&istat->decompress_cnt);
-		atomic64_add(req->slen, &istat->decompress_tlen);
-	}
-
-	return crypto_comp_errstat(alg, tfm->decompress(req));
+	return crypto_acomp_reqtfm(req)->decompress(req);
 }
 
 #endif

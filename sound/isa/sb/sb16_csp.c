@@ -1080,14 +1080,10 @@ static void snd_sb_qsound_destroy(struct snd_sb_csp * p)
 
 	card = p->chip->card;	
 	
-	if (p->qsound_switch) {
-		snd_ctl_remove(card, p->qsound_switch);
-		p->qsound_switch = NULL;
-	}
-	if (p->qsound_space) {
-		snd_ctl_remove(card, p->qsound_space);
-		p->qsound_space = NULL;
-	}
+	snd_ctl_remove(card, p->qsound_switch);
+	p->qsound_switch = NULL;
+	snd_ctl_remove(card, p->qsound_space);
+	p->qsound_space = NULL;
 
 	/* cancel pending transfer of QSound parameters */
 	spin_lock_irqsave (&p->q_lock, flags);

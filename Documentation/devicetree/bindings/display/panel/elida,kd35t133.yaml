@@ -15,7 +15,10 @@ allOf:
 properties:
   compatible:
     const: elida,kd35t133
-  reg: true
+
+  reg:
+    maxItems: 1
+
   backlight: true
   port: true
   reset-gpios: true

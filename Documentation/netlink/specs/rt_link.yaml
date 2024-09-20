@@ -50,7 +50,16 @@ definitions:
         name: dormant
       -
         name: echo
-
+  -
+    name: vlan-protocols
+    type: enum
+    entries:
+      -
+        name: 8021q
+        value: 33024
+      -
+        name: 8021ad
+        value: 34984
   -
     name: rtgenmsg
     type: struct
@@ -729,7 +738,171 @@ definitions:
       -
         name: filter-mask
         type: u32
-
+  -
+    name: ifla-vlan-flags
+    type: struct
+    members:
+      -
+        name: flags
+        type: u32
+        enum: vlan-flags
+        enum-as-flags: true
+      -
+        name: mask
+        type: u32
+        display-hint: hex
+  -
+    name: vlan-flags
+    type: flags
+    entries:
+      - reorder-hdr
+      - gvrp
+      - loose-binding
+      - mvrp
+      - bridge-binding
+  -
+    name: ifla-vlan-qos-mapping
+    type: struct
+    members:
+      -
+        name: from
+        type: u32
+      -
+        name: to
+        type: u32
+  -
+    name: ifla-vf-mac
+    type: struct
+    members:
+      -
+        name: vf
+        type: u32
+      -
+        name: mac
+        type: binary
+        len: 32
+  -
+    name: ifla-vf-vlan
+    type: struct
+    members:
+      -
+        name: vf
+        type: u32
+      -
+        name: vlan
+        type: u32
+      -
+        name: qos
+        type: u32
+  -
+    name: ifla-vf-tx-rate
+    type: struct
+    members:
+      -
+        name: vf
+        type: u32
+      -
+        name: rate
+        type: u32
+  -
+    name: ifla-vf-spoofchk
+    type: struct
+    members:
+      -
+        name: vf
+        type: u32
+      -
+        name: setting
+        type: u32
+  -
+    name: ifla-vf-link-state
+    type: struct
+    members:
+      -
+        name: vf
+        type: u32
+      -
+        name: link-state
+        type: u32
+        enum: ifla-vf-link-state-enum
+  -
+    name: ifla-vf-link-state-enum
+    type: enum
+    entries:
+      - auto
+      - enable
+      - disable
+  -
+    name: ifla-vf-rate
+    type: struct
+    members:
+      -
+        name: vf
+        type: u32
+      -
+        name: min-tx-rate
+        type: u32
+      -
+        name: max-tx-rate
+        type: u32
+  -
+    name: ifla-vf-rss-query-en
+    type: struct
+    members:
+      -
+        name: vf
+        type: u32
+      -
+        name: setting
+        type: u32
+  -
+    name: ifla-vf-trust
+    type: struct
+    members:
+      -
+        name: vf
+        type: u32
+      -
+        name: setting
+        type: u32
+  -
+    name: ifla-vf-guid
+    type: struct
+    members:
+      -
+        name: vf
+        type: u32
+      -
+        name: guid
+        type: u64
+  -
+    name: ifla-vf-vlan-info
+    type: struct
+    members:
+      -
+        name: vf
+        type: u32
+      -
+        name: vlan
+        type: u32
+      -
+        name: qos
+        type: u32
+      -
+        name: vlan-proto
+        type: u32
+  -
+    name: rtext-filter
+    type: flags
+    entries:
+      - vf
+      - brvlan
+      - brvlan-compressed
+      - skip-stats
+      - mrp
+      - cfm-config
+      - cfm-status
+      - mst
 
 attribute-sets:
   -
@@ -807,7 +980,7 @@ attribute-sets:
       -
         name: vfinfo-list
         type: nest
-        nested-attributes: vfinfo-attrs
+        nested-attributes: vfinfo-list-attrs
       -
         name: stats64
         type: binary
@@ -833,6 +1006,8 @@ attribute-sets:
       -
         name: ext-mask
         type: u32
+        enum: rtext-filter
+        enum-as-flags: true
       -
         name: promiscuity
         type: u32
@@ -965,8 +1140,106 @@ attribute-sets:
         value: 45
         nested-attributes: mctp-attrs
   -
+    name: vfinfo-list-attrs
+    attributes:
+      -
+        name: info
+        type: nest
+        nested-attributes: vfinfo-attrs
+        multi-attr: true
+  -
     name: vfinfo-attrs
-    attributes: []
+    attributes:
+      -
+        name: mac
+        type: binary
+        struct: ifla-vf-mac
+      -
+        name: vlan
+        type: binary
+        struct: ifla-vf-vlan
+      -
+        name: tx-rate
+        type: binary
+        struct: ifla-vf-tx-rate
+      -
+        name: spoofchk
+        type: binary
+        struct: ifla-vf-spoofchk
+      -
+        name: link-state
+        type: binary
+        struct: ifla-vf-link-state
+      -
+        name: rate
+        type: binary
+        struct: ifla-vf-rate
+      -
+        name: rss-query-en
+        type: binary
+        struct: ifla-vf-rss-query-en
+      -
+        name: stats
+        type: nest
+        nested-attributes: vf-stats-attrs
+      -
+        name: trust
+        type: binary
+        struct: ifla-vf-trust
+      -
+        name: ib-node-guid
+        type: binary
+        struct: ifla-vf-guid
+      -
+        name: ib-port-guid
+        type: binary
+        struct: ifla-vf-guid
+      -
+        name: vlan-list
+        type: nest
+        nested-attributes: vf-vlan-attrs
+      -
+        name: broadcast
+        type: binary
+  -
+    name: vf-stats-attrs
+    attributes:
+      -
+        name: rx-packets
+        type: u64
+        value: 0
+      -
+        name: tx-packets
+        type: u64
+      -
+        name: rx-bytes
+        type: u64
+      -
+        name: tx-bytes
+        type: u64
+      -
+        name: broadcast
+        type: u64
+      -
+        name: multicast
+        type: u64
+      -
+        name: pad
+        type: pad
+      -
+        name: rx-dropped
+        type: u64
+      -
+        name: tx-dropped
+        type: u64
+  -
+    name: vf-vlan-attrs
+    attributes:
+      -
+        name: info
+        type: binary
+        struct: ifla-vf-vlan-info
+        multi-attr: true
   -
     name: vf-ports-attrs
     attributes: []
@@ -995,6 +1268,165 @@ attribute-sets:
         type: sub-message
         sub-message: linkinfo-member-data-msg
         selector: slave-kind
+  -
+    name: linkinfo-bond-attrs
+    name-prefix: ifla-bond-
+    attributes:
+      -
+        name: mode
+        type: u8
+      -
+        name: active-slave
+        type: u32
+      -
+        name: miimon
+        type: u32
+      -
+        name: updelay
+        type: u32
+      -
+        name: downdelay
+        type: u32
+      -
+        name: use-carrier
+        type: u8
+      -
+        name: arp-interval
+        type: u32
+      -
+        name: arp-ip-target
+        type: indexed-array
+        sub-type: u32
+        byte-order: big-endian
+        display-hint: ipv4
+      -
+        name: arp-validate
+        type: u32
+      -
+        name: arp-all-targets
+        type: u32
+      -
+        name: primary
+        type: u32
+      -
+        name: primary-reselect
+        type: u8
+      -
+        name: fail-over-mac
+        type: u8
+      -
+        name: xmit-hash-policy
+        type: u8
+      -
+        name: resend-igmp
+        type: u32
+      -
+        name: num-peer-notif
+        type: u8
+      -
+        name: all-slaves-active
+        type: u8
+      -
+        name: min-links
+        type: u32
+      -
+        name: lp-interval
+        type: u32
+      -
+        name: packets-per-slave
+        type: u32
+      -
+        name: ad-lacp-rate
+        type: u8
+      -
+        name: ad-select
+        type: u8
+      -
+        name: ad-info
+        type: nest
+        nested-attributes: bond-ad-info-attrs
+      -
+        name: ad-actor-sys-prio
+        type: u16
+      -
+        name: ad-user-port-key
+        type: u16
+      -
+        name: ad-actor-system
+        type: binary
+        display-hint: mac
+      -
+        name: tlb-dynamic-lb
+        type: u8
+      -
+        name: peer-notif-delay
+        type: u32
+      -
+        name: ad-lacp-active
+        type: u8
+      -
+        name: missed-max
+        type: u8
+      -
+        name: ns-ip6-target
+        type: indexed-array
+        sub-type: binary
+        display-hint: ipv6
+      -
+        name: coupled-control
+        type: u8
+  -
+    name: bond-ad-info-attrs
+    name-prefix: ifla-bond-ad-info-
+    attributes:
+      -
+        name: aggregator
+        type: u16
+      -
+        name: num-ports
+        type: u16
+      -
+        name: actor-key
+        type: u16
+      -
+        name: partner-key
+        type: u16
+      -
+        name: partner-mac
+        type: binary
+        display-hint: mac
+  -
+    name: bond-slave-attrs
+    name-prefix: ifla-bond-slave-
+    attributes:
+      -
+        name: state
+        type: u8
+      -
+        name: mii-status
+        type: u8
+      -
+        name: link-failure-count
+        type: u32
+      -
+        name: perm-hwaddr
+        type: binary
+        display-hint: mac
+      -
+        name: queue-id
+        type: u16
+      -
+        name: ad-aggregator-id
+        type: u16
+      -
+        name: ad-actor-oper-port-state
+        type: u8
+      -
+        name: ad-partner-oper-port-state
+        type: u16
+      -
+        name: prio
+        type: u32
   -
     name: linkinfo-bridge-attrs
     name-prefix: ifla-br-
@@ -1514,6 +1946,39 @@ attribute-sets:
         name: num-disabled-queues
         type: u32
   -
+    name: linkinfo-vlan-attrs
+    name-prefix: ifla-vlan-
+    attributes:
+      -
+        name: id
+        type: u16
+      -
+        name: flag
+        type: binary
+        struct: ifla-vlan-flags
+      -
+        name: egress-qos
+        type: nest
+        nested-attributes: ifla-vlan-qos
+      -
+        name: ingress-qos
+        type: nest
+        nested-attributes: ifla-vlan-qos
+      -
+        name: protocol
+        type: u16
+        enum: vlan-protocols
+        byte-order: big-endian
+  -
+    name: ifla-vlan-qos
+    name-prefix: ifla-vlan-qos
+    attributes:
+      -
+        name: mapping
+        type: binary
+        multi-attr: true
+        struct: ifla-vlan-qos-mapping
+  -
     name: linkinfo-vrf-attrs
     name-prefix: ifla-vrf-
     attributes:
@@ -1623,7 +2088,8 @@ attribute-sets:
         type: binary
       -
         name: hw-s-info
-        type: array-nest
+        type: indexed-array
+        sub-type: nest
         nested-attributes: hw-s-info-one
       -
         name: l3-stats
@@ -1649,6 +2115,9 @@ sub-messages:
     name: linkinfo-data-msg
     formats:
       -
+        value: bond
+        attribute-set: linkinfo-bond-attrs
+      -
         value: bridge
         attribute-set: linkinfo-bridge-attrs
       -
@@ -1673,6 +2142,9 @@ sub-messages:
         value: tun
         attribute-set: linkinfo-tun-attrs
       -
+        value: vlan
+        attribute-set: linkinfo-vlan-attrs
+      -
         value: vrf
         attribute-set: linkinfo-vrf-attrs
   -
@@ -1683,6 +2155,7 @@ sub-messages:
         attribute-set: linkinfo-brport-attrs
       -
         value: bond
+        attribute-set: bond-slave-attrs
 
 operations:
   enum-model: directional

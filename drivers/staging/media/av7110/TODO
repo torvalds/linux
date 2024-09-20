@@ -1,3 +1,0 @@
-- This driver is too old and relies on a different API.
-  Drop it from Kernel on a couple of versions.
-- Cleanup patches for the drivers here won't be accepted.

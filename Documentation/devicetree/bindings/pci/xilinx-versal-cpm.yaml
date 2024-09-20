@@ -10,7 +10,7 @@ maintainers:
   - Bharat Kumar Gogada <bharat.kumar.gogada@amd.com>
 
 allOf:
-  - $ref: /schemas/pci/pci-bus.yaml#
+  - $ref: /schemas/pci/pci-host-bridge.yaml#
 
 properties:
   compatible:
@@ -48,13 +48,16 @@ properties:
   interrupt-controller:
     description: Interrupt controller node for handling legacy PCI interrupts.
     type: object
+    additionalProperties: false
+
     properties:
       "#address-cells":
         const: 0
+
       "#interrupt-cells":
         const: 1
-      "interrupt-controller": true
-    additionalProperties: false
+
+      interrupt-controller: true
 
 required:
   - reg
@@ -89,7 +92,7 @@ examples:
                                        <0 0 0 3 &pcie_intc_0 2>,
                                        <0 0 0 4 &pcie_intc_0 3>;
                        bus-range = <0x00 0xff>;
-                       ranges = <0x02000000 0x0 0xe0000000 0x0 0xe0000000 0x0 0x10000000>,
+                       ranges = <0x02000000 0x0 0xe0010000 0x0 0xe0010000 0x0 0x10000000>,
                                 <0x43000000 0x80 0x00000000 0x80 0x00000000 0x0 0x80000000>;
                        msi-map = <0x0 &its_gic 0x0 0x10000>;
                        reg = <0x0 0xfca10000 0x0 0x1000>,

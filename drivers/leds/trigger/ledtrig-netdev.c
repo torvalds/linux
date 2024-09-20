@@ -724,8 +724,6 @@ static void netdev_trig_deactivate(struct led_classdev *led_cdev)
 
 	cancel_delayed_work_sync(&trigger_data->work);
 
-	led_set_brightness(led_cdev, LED_OFF);
-
 	dev_put(trigger_data->net_dev);
 
 	kfree(trigger_data);

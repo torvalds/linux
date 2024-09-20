@@ -1007,15 +1007,14 @@ static const struct lan9303_mib_desc lan9303_mib[] = {
 static void lan9303_get_strings(struct dsa_switch *ds, int port,
 				u32 stringset, uint8_t *data)
 {
+	u8 *buf = data;
 	unsigned int u;
 
 	if (stringset != ETH_SS_STATS)
 		return;
 
-	for (u = 0; u < ARRAY_SIZE(lan9303_mib); u++) {
-		strncpy(data + u * ETH_GSTRING_LEN, lan9303_mib[u].name,
-			ETH_GSTRING_LEN);
-	}
+	for (u = 0; u < ARRAY_SIZE(lan9303_mib); u++)
+		ethtool_puts(&buf, lan9303_mib[u].name);
 }
 
 static void lan9303_get_ethtool_stats(struct dsa_switch *ds, int port,
@@ -1048,31 +1047,31 @@ static int lan9303_get_sset_count(struct dsa_switch *ds, int port, int sset)
 	return ARRAY_SIZE(lan9303_mib);
 }
 
-static int lan9303_phy_read(struct dsa_switch *ds, int phy, int regnum)
+static int lan9303_phy_read(struct dsa_switch *ds, int port, int regnum)
 {
 	struct lan9303 *chip = ds->priv;
 	int phy_base = chip->phy_addr_base;
 
-	if (phy == phy_base)
+	if (port == 0)
 		return lan9303_virt_phy_reg_read(chip, regnum);
-	if (phy > phy_base + 2)
+	if (port > 2)
 		return -ENODEV;
 
-	return chip->ops->phy_read(chip, phy, regnum);
+	return chip->ops->phy_read(chip, phy_base + port, regnum);
 }
 
-static int lan9303_phy_write(struct dsa_switch *ds, int phy, int regnum,
+static int lan9303_phy_write(struct dsa_switch *ds, int port, int regnum,
 			     u16 val)
 {
 	struct lan9303 *chip = ds->priv;
 	int phy_base = chip->phy_addr_base;
 
-	if (phy == phy_base)
+	if (port == 0)
 		return lan9303_virt_phy_reg_write(chip, regnum, val);
-	if (phy > phy_base + 2)
+	if (port > 2)
 		return -ENODEV;
 
-	return chip->ops->phy_write(chip, phy, regnum, val);
+	return chip->ops->phy_write(chip, phy_base + port, regnum, val);
 }
 
 static int lan9303_port_enable(struct dsa_switch *ds, int port,
@@ -1100,7 +1099,7 @@ static void lan9303_port_disable(struct dsa_switch *ds, int port)
 	vlan_vid_del(dsa_port_to_conduit(dp), htons(ETH_P_8021Q), port);
 
 	lan9303_disable_processing_port(chip, port);
-	lan9303_phy_write(ds, chip->phy_addr_base + port, MII_BMCR, BMCR_PDOWN);
+	lan9303_phy_write(ds, port, MII_BMCR, BMCR_PDOWN);
 }
 
 static int lan9303_port_bridge_join(struct dsa_switch *ds, int port,
@@ -1293,14 +1292,29 @@ static void lan9303_phylink_get_caps(struct dsa_switch *ds, int port,
 	}
 }
 
-static void lan9303_phylink_mac_link_up(struct dsa_switch *ds, int port,
+static void lan9303_phylink_mac_config(struct phylink_config *config,
+				       unsigned int mode,
+				       const struct phylink_link_state *state)
+{
+}
+
+static void lan9303_phylink_mac_link_down(struct phylink_config *config,
+					  unsigned int mode,
+					  phy_interface_t interface)
+{
+}
+
+static void lan9303_phylink_mac_link_up(struct phylink_config *config,
+					struct phy_device *phydev,
 					unsigned int mode,
 					phy_interface_t interface,
-					struct phy_device *phydev, int speed,
-					int duplex, bool tx_pause,
+					int speed, int duplex, bool tx_pause,
 					bool rx_pause)
 {
-	struct lan9303 *chip = ds->priv;
+	struct dsa_port *dp = dsa_phylink_to_port(config);
+	struct lan9303 *chip = dp->ds->priv;
+	struct dsa_switch *ds = dp->ds;
+	int port = dp->index;
 	u32 ctl;
 	u32 reg;
 
@@ -1330,6 +1344,12 @@ static void lan9303_phylink_mac_link_up(struct dsa_switch *ds, int port,
 	regmap_write(chip->regmap, flow_ctl_reg[port], reg);
 }
 
+static const struct phylink_mac_ops lan9303_phylink_mac_ops = {
+	.mac_config	= lan9303_phylink_mac_config,
+	.mac_link_down	= lan9303_phylink_mac_link_down,
+	.mac_link_up	= lan9303_phylink_mac_link_up,
+};
+
 static const struct dsa_switch_ops lan9303_switch_ops = {
 	.get_tag_protocol	= lan9303_get_tag_protocol,
 	.setup			= lan9303_setup,
@@ -1337,7 +1357,6 @@ static const struct dsa_switch_ops lan9303_switch_ops = {
 	.phy_read		= lan9303_phy_read,
 	.phy_write		= lan9303_phy_write,
 	.phylink_get_caps	= lan9303_phylink_get_caps,
-	.phylink_mac_link_up	= lan9303_phylink_mac_link_up,
 	.get_ethtool_stats	= lan9303_get_ethtool_stats,
 	.get_sset_count		= lan9303_get_sset_count,
 	.port_enable		= lan9303_port_enable,
@@ -1355,8 +1374,6 @@ static const struct dsa_switch_ops lan9303_switch_ops = {
 
 static int lan9303_register_switch(struct lan9303 *chip)
 {
-	int base;
-
 	chip->ds = devm_kzalloc(chip->dev, sizeof(*chip->ds), GFP_KERNEL);
 	if (!chip->ds)
 		return -ENOMEM;
@@ -1365,8 +1382,8 @@ static int lan9303_register_switch(struct lan9303 *chip)
 	chip->ds->num_ports = LAN9303_NUM_PORTS;
 	chip->ds->priv = chip;
 	chip->ds->ops = &lan9303_switch_ops;
-	base = chip->phy_addr_base;
-	chip->ds->phys_mii_mask = GENMASK(LAN9303_NUM_PORTS - 1 + base, base);
+	chip->ds->phylink_mac_ops = &lan9303_phylink_mac_ops;
+	chip->ds->phys_mii_mask = GENMASK(LAN9303_NUM_PORTS - 1, 0);
 
 	return dsa_register_switch(chip->ds);
 }

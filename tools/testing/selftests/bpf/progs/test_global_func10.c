@@ -4,6 +4,10 @@
 #include <bpf/bpf_helpers.h>
 #include "bpf_misc.h"
 
+#if !defined(__clang__)
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+#endif
+
 struct Small {
 	long x;
 };

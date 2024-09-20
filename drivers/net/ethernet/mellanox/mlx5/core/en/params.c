@@ -6,6 +6,7 @@
 #include "en/port.h"
 #include "en_accel/en_accel.h"
 #include "en_accel/ipsec.h"
+#include <linux/dim.h>
 #include <net/page_pool/types.h>
 #include <net/xdp_sock_drv.h>
 
@@ -513,77 +514,6 @@ int mlx5e_validate_params(struct mlx5_core_dev *mdev, struct mlx5e_params *param
 	return 0;
 }
 
-static struct dim_cq_moder mlx5e_get_def_tx_moderation(u8 cq_period_mode)
-{
-	struct dim_cq_moder moder = {};
-
-	moder.cq_period_mode = cq_period_mode;
-	moder.pkts = MLX5E_PARAMS_DEFAULT_TX_CQ_MODERATION_PKTS;
-	moder.usec = MLX5E_PARAMS_DEFAULT_TX_CQ_MODERATION_USEC;
-	if (cq_period_mode == MLX5_CQ_PERIOD_MODE_START_FROM_CQE)
-		moder.usec = MLX5E_PARAMS_DEFAULT_TX_CQ_MODERATION_USEC_FROM_CQE;
-
-	return moder;
-}
-
-static struct dim_cq_moder mlx5e_get_def_rx_moderation(u8 cq_period_mode)
-{
-	struct dim_cq_moder moder = {};
-
-	moder.cq_period_mode = cq_period_mode;
-	moder.pkts = MLX5E_PARAMS_DEFAULT_RX_CQ_MODERATION_PKTS;
-	moder.usec = MLX5E_PARAMS_DEFAULT_RX_CQ_MODERATION_USEC;
-	if (cq_period_mode == MLX5_CQ_PERIOD_MODE_START_FROM_CQE)
-		moder.usec = MLX5E_PARAMS_DEFAULT_RX_CQ_MODERATION_USEC_FROM_CQE;
-
-	return moder;
-}
-
-static u8 mlx5_to_net_dim_cq_period_mode(u8 cq_period_mode)
-{
-	return cq_period_mode == MLX5_CQ_PERIOD_MODE_START_FROM_CQE ?
-		DIM_CQ_PERIOD_MODE_START_FROM_CQE :
-		DIM_CQ_PERIOD_MODE_START_FROM_EQE;
-}
-
-void mlx5e_reset_tx_moderation(struct mlx5e_params *params, u8 cq_period_mode)
-{
-	if (params->tx_dim_enabled) {
-		u8 dim_period_mode = mlx5_to_net_dim_cq_period_mode(cq_period_mode);
-
-		params->tx_cq_moderation = net_dim_get_def_tx_moderation(dim_period_mode);
-	} else {
-		params->tx_cq_moderation = mlx5e_get_def_tx_moderation(cq_period_mode);
-	}
-}
-
-void mlx5e_reset_rx_moderation(struct mlx5e_params *params, u8 cq_period_mode)
-{
-	if (params->rx_dim_enabled) {
-		u8 dim_period_mode = mlx5_to_net_dim_cq_period_mode(cq_period_mode);
-
-		params->rx_cq_moderation = net_dim_get_def_rx_moderation(dim_period_mode);
-	} else {
-		params->rx_cq_moderation = mlx5e_get_def_rx_moderation(cq_period_mode);
-	}
-}
-
-void mlx5e_set_tx_cq_mode_params(struct mlx5e_params *params, u8 cq_period_mode)
-{
-	mlx5e_reset_tx_moderation(params, cq_period_mode);
-	MLX5E_SET_PFLAG(params, MLX5E_PFLAG_TX_CQE_BASED_MODER,
-			params->tx_cq_moderation.cq_period_mode ==
-				MLX5_CQ_PERIOD_MODE_START_FROM_CQE);
-}
-
-void mlx5e_set_rx_cq_mode_params(struct mlx5e_params *params, u8 cq_period_mode)
-{
-	mlx5e_reset_rx_moderation(params, cq_period_mode);
-	MLX5E_SET_PFLAG(params, MLX5E_PFLAG_RX_CQE_BASED_MODER,
-			params->rx_cq_moderation.cq_period_mode ==
-				MLX5_CQ_PERIOD_MODE_START_FROM_CQE);
-}
-
 bool slow_pci_heuristic(struct mlx5_core_dev *mdev)
 {
 	u32 link_speed = 0;
@@ -998,7 +928,7 @@ int mlx5e_build_rq_param(struct mlx5_core_dev *mdev,
 			MLX5_SET(wq, wq, log_headers_entry_size,
 				 mlx5e_shampo_get_log_hd_entry_size(mdev, params));
 			MLX5_SET(rqc, rqc, reservation_timeout,
-				 params->packet_merge.timeout);
+				 mlx5e_choose_lro_timeout(mdev, MLX5E_DEFAULT_SHAMPO_TIMEOUT));
 			MLX5_SET(rqc, rqc, shampo_match_criteria_type,
 				 params->packet_merge.shampo.match_criteria_type);
 			MLX5_SET(rqc, rqc, shampo_no_match_alignment_granularity,
@@ -1141,20 +1071,34 @@ static u32 mlx5e_shampo_icosq_sz(struct mlx5_core_dev *mdev,
 				 struct mlx5e_params *params,
 				 struct mlx5e_rq_param *rq_param)
 {
-	int max_num_of_umr_per_wqe, max_hd_per_wqe, max_klm_per_umr, rest;
+	int max_num_of_umr_per_wqe, max_hd_per_wqe, max_ksm_per_umr, rest;
 	void *wqc = MLX5_ADDR_OF(rqc, rq_param->rqc, wq);
 	int wq_size = BIT(MLX5_GET(wq, wqc, log_wq_sz));
 	u32 wqebbs;
 
-	max_klm_per_umr = MLX5E_MAX_KLM_PER_WQE(mdev);
+	max_ksm_per_umr = MLX5E_MAX_KSM_PER_WQE(mdev);
 	max_hd_per_wqe = mlx5e_shampo_hd_per_wqe(mdev, params, rq_param);
-	max_num_of_umr_per_wqe = max_hd_per_wqe / max_klm_per_umr;
-	rest = max_hd_per_wqe % max_klm_per_umr;
-	wqebbs = MLX5E_KLM_UMR_WQEBBS(max_klm_per_umr) * max_num_of_umr_per_wqe;
+	max_num_of_umr_per_wqe = max_hd_per_wqe / max_ksm_per_umr;
+	rest = max_hd_per_wqe % max_ksm_per_umr;
+	wqebbs = MLX5E_KSM_UMR_WQEBBS(max_ksm_per_umr) * max_num_of_umr_per_wqe;
 	if (rest)
-		wqebbs += MLX5E_KLM_UMR_WQEBBS(rest);
+		wqebbs += MLX5E_KSM_UMR_WQEBBS(rest);
 	wqebbs *= wq_size;
 	return wqebbs;
+}
+
+#define MLX5E_LRO_TIMEOUT_ARR_SIZE                      4
+
+u32 mlx5e_choose_lro_timeout(struct mlx5_core_dev *mdev, u32 wanted_timeout)
+{
+	int i;
+
+	/* The supported periods are organized in ascending order */
+	for (i = 0; i < MLX5E_LRO_TIMEOUT_ARR_SIZE - 1; i++)
+		if (MLX5_CAP_ETH(mdev, lro_timer_supported_periods[i]) >= wanted_timeout)
+			break;
+
+	return MLX5_CAP_ETH(mdev, lro_timer_supported_periods[i]);
 }
 
 static u32 mlx5e_mpwrq_total_umr_wqebbs(struct mlx5_core_dev *mdev,

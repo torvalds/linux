@@ -647,6 +647,10 @@ void _memset_c_io(volatile void __iomem *to, unsigned long c, long count)
 
 EXPORT_SYMBOL(_memset_c_io);
 
+#if IS_ENABLED(CONFIG_VGA_CONSOLE) || IS_ENABLED(CONFIG_MDA_CONSOLE)
+
+#include <asm/vga.h>
+
 /* A version of memcpy used by the vga console routines to move data around
    arbitrarily between screen and main memory.  */
 
@@ -680,6 +684,21 @@ scr_memcpyw(u16 *d, const u16 *s, unsigned int count)
 }
 
 EXPORT_SYMBOL(scr_memcpyw);
+
+void scr_memmovew(u16 *d, const u16 *s, unsigned int count)
+{
+	if (d < s)
+		scr_memcpyw(d, s, count);
+	else {
+		count /= 2;
+		d += count;
+		s += count;
+		while (count--)
+			scr_writew(scr_readw(--s), --d);
+	}
+}
+EXPORT_SYMBOL(scr_memmovew);
+#endif
 
 void __iomem *ioport_map(unsigned long port, unsigned int size)
 {

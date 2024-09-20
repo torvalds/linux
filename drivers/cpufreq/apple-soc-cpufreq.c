@@ -305,7 +305,7 @@ out_iounmap:
 	return ret;
 }
 
-static int apple_soc_cpufreq_exit(struct cpufreq_policy *policy)
+static void apple_soc_cpufreq_exit(struct cpufreq_policy *policy)
 {
 	struct apple_cpu_priv *priv = policy->driver_data;
 
@@ -313,8 +313,6 @@ static int apple_soc_cpufreq_exit(struct cpufreq_policy *policy)
 	dev_pm_opp_remove_all_dynamic(priv->cpu_dev);
 	iounmap(priv->reg_base);
 	kfree(priv);
-
-	return 0;
 }
 
 static struct cpufreq_driver apple_soc_cpufreq_driver = {

@@ -74,6 +74,7 @@ struct rcu_tasks_percpu {
  * @holdouts_func: This flavor's holdout-list scan function (optional).
  * @postgp_func: This flavor's post-grace-period function (optional).
  * @call_func: This flavor's call_rcu()-equivalent function.
+ * @wait_state: Task state for synchronous grace-period waits (default TASK_UNINTERRUPTIBLE).
  * @rtpcpu: This flavor's rcu_tasks_percpu structure.
  * @percpu_enqueue_shift: Shift down CPU ID this much when enqueuing callbacks.
  * @percpu_enqueue_lim: Number of per-CPU callback queues in use for enqueuing.
@@ -107,6 +108,7 @@ struct rcu_tasks {
 	holdouts_func_t holdouts_func;
 	postgp_func_t postgp_func;
 	call_rcu_func_t call_func;
+	unsigned int wait_state;
 	struct rcu_tasks_percpu __percpu *rtpcpu;
 	int percpu_enqueue_shift;
 	int percpu_enqueue_lim;
@@ -134,6 +136,7 @@ static struct rcu_tasks rt_name =							\
 	.tasks_gp_mutex = __MUTEX_INITIALIZER(rt_name.tasks_gp_mutex),			\
 	.gp_func = gp,									\
 	.call_func = call,								\
+	.wait_state = TASK_UNINTERRUPTIBLE,						\
 	.rtpcpu = &rt_name ## __percpu,							\
 	.lazy_jiffies = DIV_ROUND_UP(HZ, 4),						\
 	.name = n,									\
@@ -147,7 +150,7 @@ static struct rcu_tasks rt_name =							\
 
 #ifdef CONFIG_TASKS_RCU
 
-/* Report delay in synchronize_srcu() completion in rcu_tasks_postscan(). */
+/* Report delay of scan exiting tasklist in rcu_tasks_postscan(). */
 static void tasks_rcu_exit_srcu_stall(struct timer_list *unused);
 static DEFINE_TIMER(tasks_rcu_exit_srcu_stall_timer, tasks_rcu_exit_srcu_stall);
 #endif
@@ -638,7 +641,7 @@ static void synchronize_rcu_tasks_generic(struct rcu_tasks *rtp)
 
 	// If the grace-period kthread is running, use it.
 	if (READ_ONCE(rtp->kthread_ptr)) {
-		wait_rcu_gp(rtp->call_func);
+		wait_rcu_gp_state(rtp->wait_state, rtp->call_func);
 		return;
 	}
 	rcu_tasks_one_gp(rtp, true);
@@ -855,7 +858,7 @@ static void rcu_tasks_wait_gp(struct rcu_tasks *rtp)
 //	not know to synchronize with this RCU Tasks grace period) have
 //	completed exiting.  The synchronize_rcu() in rcu_tasks_postgp()
 //	will take care of any tasks stuck in the non-preemptible region
-//	of do_exit() following its call to exit_tasks_rcu_stop().
+//	of do_exit() following its call to exit_tasks_rcu_finish().
 // check_all_holdout_tasks(), repeatedly until holdout list is empty:
 //	Scans the holdout list, attempting to identify a quiescent state
 //	for each task on the list.  If there is a quiescent state, the
@@ -1160,6 +1163,7 @@ static int __init rcu_spawn_tasks_kthread(void)
 	rcu_tasks.postscan_func = rcu_tasks_postscan;
 	rcu_tasks.holdouts_func = check_all_holdout_tasks;
 	rcu_tasks.postgp_func = rcu_tasks_postgp;
+	rcu_tasks.wait_state = TASK_IDLE;
 	rcu_spawn_tasks_kthread_generic(&rcu_tasks);
 	return 0;
 }
@@ -1177,6 +1181,13 @@ struct task_struct *get_rcu_tasks_gp_kthread(void)
 	return rcu_tasks.kthread_ptr;
 }
 EXPORT_SYMBOL_GPL(get_rcu_tasks_gp_kthread);
+
+void rcu_tasks_get_gp_data(int *flags, unsigned long *gp_seq)
+{
+	*flags = 0;
+	*gp_seq = rcu_seq_current(&rcu_tasks.tasks_gp_seq);
+}
+EXPORT_SYMBOL_GPL(rcu_tasks_get_gp_data);
 
 /*
  * Protect against tasklist scan blind spot while the task is exiting and
@@ -1199,8 +1210,7 @@ void exit_tasks_rcu_start(void)
 	rtpcp = this_cpu_ptr(rcu_tasks.rtpcpu);
 	t->rcu_tasks_exit_cpu = smp_processor_id();
 	raw_spin_lock_irqsave_rcu_node(rtpcp, flags);
-	if (!rtpcp->rtp_exit_list.next)
-		INIT_LIST_HEAD(&rtpcp->rtp_exit_list);
+	WARN_ON_ONCE(!rtpcp->rtp_exit_list.next);
 	list_add(&t->rcu_tasks_exit_list, &rtpcp->rtp_exit_list);
 	raw_spin_unlock_irqrestore_rcu_node(rtpcp, flags);
 	preempt_enable();
@@ -1210,7 +1220,7 @@ void exit_tasks_rcu_start(void)
  * Remove the task from the "yet another list" because do_exit() is now
  * non-preemptible, allowing synchronize_rcu() to wait beyond this point.
  */
-void exit_tasks_rcu_stop(void)
+void exit_tasks_rcu_finish(void)
 {
 	unsigned long flags;
 	struct rcu_tasks_percpu *rtpcp;
@@ -1221,22 +1231,12 @@ void exit_tasks_rcu_stop(void)
 	raw_spin_lock_irqsave_rcu_node(rtpcp, flags);
 	list_del_init(&t->rcu_tasks_exit_list);
 	raw_spin_unlock_irqrestore_rcu_node(rtpcp, flags);
-}
 
-/*
- * Contribute to protect against tasklist scan blind spot while the
- * task is exiting and may be removed from the tasklist. See
- * corresponding synchronize_srcu() for further details.
- */
-void exit_tasks_rcu_finish(void)
-{
-	exit_tasks_rcu_stop();
-	exit_tasks_rcu_finish_trace(current);
+	exit_tasks_rcu_finish_trace(t);
 }
 
 #else /* #ifdef CONFIG_TASKS_RCU */
 void exit_tasks_rcu_start(void) { }
-void exit_tasks_rcu_stop(void) { }
 void exit_tasks_rcu_finish(void) { exit_tasks_rcu_finish_trace(current); }
 #endif /* #else #ifdef CONFIG_TASKS_RCU */
 
@@ -1358,6 +1358,13 @@ struct task_struct *get_rcu_tasks_rude_gp_kthread(void)
 }
 EXPORT_SYMBOL_GPL(get_rcu_tasks_rude_gp_kthread);
 
+void rcu_tasks_rude_get_gp_data(int *flags, unsigned long *gp_seq)
+{
+	*flags = 0;
+	*gp_seq = rcu_seq_current(&rcu_tasks_rude.tasks_gp_seq);
+}
+EXPORT_SYMBOL_GPL(rcu_tasks_rude_get_gp_data);
+
 #endif /* #ifdef CONFIG_TASKS_RUDE_RCU */
 
 ////////////////////////////////////////////////////////////////////////
@@ -1457,6 +1464,7 @@ static void rcu_st_need_qs(struct task_struct *t, u8 v)
 /*
  * Do a cmpxchg() on ->trc_reader_special.b.need_qs, allowing for
  * the four-byte operand-size restriction of some platforms.
+ *
  * Returns the old value, which is often ignored.
  */
 u8 rcu_trc_cmpxchg_need_qs(struct task_struct *t, u8 old, u8 new)
@@ -1468,7 +1476,14 @@ u8 rcu_trc_cmpxchg_need_qs(struct task_struct *t, u8 old, u8 new)
 	if (trs_old.b.need_qs != old)
 		return trs_old.b.need_qs;
 	trs_new.b.need_qs = new;
-	ret.s = cmpxchg(&t->trc_reader_special.s, trs_old.s, trs_new.s);
+
+	// Although cmpxchg() appears to KCSAN to update all four bytes,
+	// only the .b.need_qs byte actually changes.
+	instrument_atomic_read_write(&t->trc_reader_special.b.need_qs,
+				     sizeof(t->trc_reader_special.b.need_qs));
+	// Avoid false-positive KCSAN failures.
+	ret.s = data_race(cmpxchg(&t->trc_reader_special.s, trs_old.s, trs_new.s));
+
 	return ret.b.need_qs;
 }
 EXPORT_SYMBOL_GPL(rcu_trc_cmpxchg_need_qs);
@@ -1732,6 +1747,16 @@ static void rcu_tasks_trace_pregp_step(struct list_head *hop)
 	// allow safe access to the hop list.
 	for_each_online_cpu(cpu) {
 		rcu_read_lock();
+		// Note that cpu_curr_snapshot() picks up the target
+		// CPU's current task while its runqueue is locked with
+		// an smp_mb__after_spinlock().  This ensures that either
+		// the grace-period kthread will see that task's read-side
+		// critical section or the task will see the updater's pre-GP
+		// accesses.  The trailing smp_mb() in cpu_curr_snapshot()
+		// does not currently play a role other than simplify
+		// that function's ordering semantics.  If these simplified
+		// ordering semantics continue to be redundant, that smp_mb()
+		// might be removed.
 		t = cpu_curr_snapshot(cpu);
 		if (rcu_tasks_trace_pertask_prep(t, true))
 			trc_add_holdout(t, hop);
@@ -1994,7 +2019,7 @@ void show_rcu_tasks_trace_gp_kthread(void)
 {
 	char buf[64];
 
-	sprintf(buf, "N%lu h:%lu/%lu/%lu",
+	snprintf(buf, sizeof(buf), "N%lu h:%lu/%lu/%lu",
 		data_race(n_trc_holdouts),
 		data_race(n_heavy_reader_ofl_updates),
 		data_race(n_heavy_reader_updates),
@@ -2009,6 +2034,13 @@ struct task_struct *get_rcu_tasks_trace_gp_kthread(void)
 	return rcu_tasks_trace.kthread_ptr;
 }
 EXPORT_SYMBOL_GPL(get_rcu_tasks_trace_gp_kthread);
+
+void rcu_tasks_trace_get_gp_data(int *flags, unsigned long *gp_seq)
+{
+	*flags = 0;
+	*gp_seq = rcu_seq_current(&rcu_tasks_trace.tasks_gp_seq);
+}
+EXPORT_SYMBOL_GPL(rcu_tasks_trace_get_gp_data);
 
 #else /* #ifdef CONFIG_TASKS_TRACE_RCU */
 static void exit_tasks_rcu_finish_trace(struct task_struct *t) { }

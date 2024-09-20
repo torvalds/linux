@@ -9,6 +9,7 @@
 
 #include <linux/linkage.h>
 #include <linux/init.h>
+#include <linux/cfi_types.h>
 #include <linux/pgtable.h>
 #include <asm/assembler.h>
 #include <asm/hwcap.h>
@@ -31,18 +32,20 @@
 /*
  * cpu_mohawk_proc_init()
  */
-ENTRY(cpu_mohawk_proc_init)
+SYM_TYPED_FUNC_START(cpu_mohawk_proc_init)
 	ret	lr
+SYM_FUNC_END(cpu_mohawk_proc_init)
 
 /*
  * cpu_mohawk_proc_fin()
  */
-ENTRY(cpu_mohawk_proc_fin)
+SYM_TYPED_FUNC_START(cpu_mohawk_proc_fin)
 	mrc	p15, 0, r0, c1, c0, 0		@ ctrl register
 	bic	r0, r0, #0x1800			@ ...iz...........
 	bic	r0, r0, #0x0006			@ .............ca.
 	mcr	p15, 0, r0, c1, c0, 0		@ disable caches
 	ret	lr
+SYM_FUNC_END(cpu_mohawk_proc_fin)
 
 /*
  * cpu_mohawk_reset(loc)
@@ -57,7 +60,7 @@ ENTRY(cpu_mohawk_proc_fin)
  */
 	.align	5
 	.pushsection	.idmap.text, "ax"
-ENTRY(cpu_mohawk_reset)
+SYM_TYPED_FUNC_START(cpu_mohawk_reset)
 	mov	ip, #0
 	mcr	p15, 0, ip, c7, c7, 0		@ invalidate I,D caches
 	mcr	p15, 0, ip, c7, c10, 4		@ drain WB
@@ -67,7 +70,7 @@ ENTRY(cpu_mohawk_reset)
 	bic	ip, ip, #0x1100			@ ...i...s........
 	mcr	p15, 0, ip, c1, c0, 0		@ ctrl register
 	ret	r0
-ENDPROC(cpu_mohawk_reset)
+SYM_FUNC_END(cpu_mohawk_reset)
 	.popsection
 
 /*
@@ -76,22 +79,23 @@ ENDPROC(cpu_mohawk_reset)
  * Called with IRQs disabled
  */
 	.align	5
-ENTRY(cpu_mohawk_do_idle)
+SYM_TYPED_FUNC_START(cpu_mohawk_do_idle)
 	mov	r0, #0
 	mcr	p15, 0, r0, c7, c10, 4		@ drain write buffer
 	mcr	p15, 0, r0, c7, c0, 4		@ wait for interrupt
 	ret	lr
+SYM_FUNC_END(cpu_mohawk_do_idle)
 
 /*
  *	flush_icache_all()
  *
  *	Unconditionally clean and invalidate the entire icache.
  */
-ENTRY(mohawk_flush_icache_all)
+SYM_TYPED_FUNC_START(mohawk_flush_icache_all)
 	mov	r0, #0
 	mcr	p15, 0, r0, c7, c5, 0		@ invalidate I cache
 	ret	lr
-ENDPROC(mohawk_flush_icache_all)
+SYM_FUNC_END(mohawk_flush_icache_all)
 
 /*
  *	flush_user_cache_all()
@@ -99,15 +103,14 @@ ENDPROC(mohawk_flush_icache_all)
  *	Clean and invalidate all cache entries in a particular
  *	address space.
  */
-ENTRY(mohawk_flush_user_cache_all)
-	/* FALLTHROUGH */
+SYM_FUNC_ALIAS(mohawk_flush_user_cache_all, mohawk_flush_kern_cache_all)
 
 /*
  *	flush_kern_cache_all()
  *
  *	Clean and invalidate the entire cache.
  */
-ENTRY(mohawk_flush_kern_cache_all)
+SYM_TYPED_FUNC_START(mohawk_flush_kern_cache_all)
 	mov	r2, #VM_EXEC
 	mov	ip, #0
 __flush_whole_cache:
@@ -116,6 +119,7 @@ __flush_whole_cache:
 	mcrne	p15, 0, ip, c7, c5, 0		@ invalidate I cache
 	mcrne	p15, 0, ip, c7, c10, 0		@ drain write buffer
 	ret	lr
+SYM_FUNC_END(mohawk_flush_kern_cache_all)
 
 /*
  *	flush_user_cache_range(start, end, flags)
@@ -129,7 +133,7 @@ __flush_whole_cache:
  *
  * (same as arm926)
  */
-ENTRY(mohawk_flush_user_cache_range)
+SYM_TYPED_FUNC_START(mohawk_flush_user_cache_range)
 	mov	ip, #0
 	sub	r3, r1, r0			@ calculate total size
 	cmp	r3, #CACHE_DLIMIT
@@ -146,6 +150,7 @@ ENTRY(mohawk_flush_user_cache_range)
 	tst	r2, #VM_EXEC
 	mcrne	p15, 0, ip, c7, c10, 4		@ drain WB
 	ret	lr
+SYM_FUNC_END(mohawk_flush_user_cache_range)
 
 /*
  *	coherent_kern_range(start, end)
@@ -157,8 +162,11 @@ ENTRY(mohawk_flush_user_cache_range)
  *	- start	- virtual start address
  *	- end	- virtual end address
  */
-ENTRY(mohawk_coherent_kern_range)
-	/* FALLTHROUGH */
+SYM_TYPED_FUNC_START(mohawk_coherent_kern_range)
+#ifdef CONFIG_CFI_CLANG /* Fallthrough if !CFI */
+	b	mohawk_coherent_user_range
+#endif
+SYM_FUNC_END(mohawk_coherent_kern_range)
 
 /*
  *	coherent_user_range(start, end)
@@ -172,7 +180,7 @@ ENTRY(mohawk_coherent_kern_range)
  *
  * (same as arm926)
  */
-ENTRY(mohawk_coherent_user_range)
+SYM_TYPED_FUNC_START(mohawk_coherent_user_range)
 	bic	r0, r0, #CACHE_DLINESIZE - 1
 1:	mcr	p15, 0, r0, c7, c10, 1		@ clean D entry
 	mcr	p15, 0, r0, c7, c5, 1		@ invalidate I entry
@@ -182,6 +190,7 @@ ENTRY(mohawk_coherent_user_range)
 	mcr	p15, 0, r0, c7, c10, 4		@ drain WB
 	mov	r0, #0
 	ret	lr
+SYM_FUNC_END(mohawk_coherent_user_range)
 
 /*
  *	flush_kern_dcache_area(void *addr, size_t size)
@@ -192,7 +201,7 @@ ENTRY(mohawk_coherent_user_range)
  *	- addr	- kernel address
  *	- size	- region size
  */
-ENTRY(mohawk_flush_kern_dcache_area)
+SYM_TYPED_FUNC_START(mohawk_flush_kern_dcache_area)
 	add	r1, r0, r1
 1:	mcr	p15, 0, r0, c7, c14, 1		@ clean+invalidate D entry
 	add	r0, r0, #CACHE_DLINESIZE
@@ -202,6 +211,7 @@ ENTRY(mohawk_flush_kern_dcache_area)
 	mcr	p15, 0, r0, c7, c5, 0		@ invalidate I cache
 	mcr	p15, 0, r0, c7, c10, 4		@ drain WB
 	ret	lr
+SYM_FUNC_END(mohawk_flush_kern_dcache_area)
 
 /*
  *	dma_inv_range(start, end)
@@ -256,7 +266,7 @@ mohawk_dma_clean_range:
  *	- start	- virtual start address
  *	- end	- virtual end address
  */
-ENTRY(mohawk_dma_flush_range)
+SYM_TYPED_FUNC_START(mohawk_dma_flush_range)
 	bic	r0, r0, #CACHE_DLINESIZE - 1
 1:
 	mcr	p15, 0, r0, c7, c14, 1		@ clean+invalidate D entry
@@ -265,6 +275,7 @@ ENTRY(mohawk_dma_flush_range)
 	blo	1b
 	mcr	p15, 0, r0, c7, c10, 4		@ drain WB
 	ret	lr
+SYM_FUNC_END(mohawk_dma_flush_range)
 
 /*
  *	dma_map_area(start, size, dir)
@@ -272,13 +283,13 @@ ENTRY(mohawk_dma_flush_range)
  *	- size	- size of region
  *	- dir	- DMA direction
  */
-ENTRY(mohawk_dma_map_area)
+SYM_TYPED_FUNC_START(mohawk_dma_map_area)
 	add	r1, r1, r0
 	cmp	r2, #DMA_TO_DEVICE
 	beq	mohawk_dma_clean_range
 	bcs	mohawk_dma_inv_range
 	b	mohawk_dma_flush_range
-ENDPROC(mohawk_dma_map_area)
+SYM_FUNC_END(mohawk_dma_map_area)
 
 /*
  *	dma_unmap_area(start, size, dir)
@@ -286,23 +297,18 @@ ENDPROC(mohawk_dma_map_area)
  *	- size	- size of region
  *	- dir	- DMA direction
  */
-ENTRY(mohawk_dma_unmap_area)
+SYM_TYPED_FUNC_START(mohawk_dma_unmap_area)
 	ret	lr
-ENDPROC(mohawk_dma_unmap_area)
+SYM_FUNC_END(mohawk_dma_unmap_area)
 
-	.globl	mohawk_flush_kern_cache_louis
-	.equ	mohawk_flush_kern_cache_louis, mohawk_flush_kern_cache_all
-
-	@ define struct cpu_cache_fns (see <asm/cacheflush.h> and proc-macros.S)
-	define_cache_functions mohawk
-
-ENTRY(cpu_mohawk_dcache_clean_area)
+SYM_TYPED_FUNC_START(cpu_mohawk_dcache_clean_area)
 1:	mcr	p15, 0, r0, c7, c10, 1		@ clean D entry
 	add	r0, r0, #CACHE_DLINESIZE
 	subs	r1, r1, #CACHE_DLINESIZE
 	bhi	1b
 	mcr	p15, 0, r0, c7, c10, 4		@ drain WB
 	ret	lr
+SYM_FUNC_END(cpu_mohawk_dcache_clean_area)
 
 /*
  * cpu_mohawk_switch_mm(pgd)
@@ -312,7 +318,7 @@ ENTRY(cpu_mohawk_dcache_clean_area)
  * pgd: new page tables
  */
 	.align	5
-ENTRY(cpu_mohawk_switch_mm)
+SYM_TYPED_FUNC_START(cpu_mohawk_switch_mm)
 	mov	ip, #0
 	mcr	p15, 0, ip, c7, c14, 0		@ clean & invalidate all D cache
 	mcr	p15, 0, ip, c7, c5, 0		@ invalidate I cache
@@ -321,6 +327,7 @@ ENTRY(cpu_mohawk_switch_mm)
 	mcr	p15, 0, r0, c2, c0, 0		@ load page table pointer
 	mcr	p15, 0, ip, c8, c7, 0		@ invalidate I & D TLBs
 	ret	lr
+SYM_FUNC_END(cpu_mohawk_switch_mm)
 
 /*
  * cpu_mohawk_set_pte_ext(ptep, pte, ext)
@@ -328,7 +335,7 @@ ENTRY(cpu_mohawk_switch_mm)
  * Set a PTE and flush it out
  */
 	.align	5
-ENTRY(cpu_mohawk_set_pte_ext)
+SYM_TYPED_FUNC_START(cpu_mohawk_set_pte_ext)
 #ifdef CONFIG_MMU
 	armv3_set_pte_ext
 	mov	r0, r0
@@ -336,11 +343,12 @@ ENTRY(cpu_mohawk_set_pte_ext)
 	mcr	p15, 0, r0, c7, c10, 4		@ drain WB
 	ret	lr
 #endif
+SYM_FUNC_END(cpu_mohawk_set_pte_ext)
 
 .globl	cpu_mohawk_suspend_size
 .equ	cpu_mohawk_suspend_size, 4 * 6
 #ifdef CONFIG_ARM_CPU_SUSPEND
-ENTRY(cpu_mohawk_do_suspend)
+SYM_TYPED_FUNC_START(cpu_mohawk_do_suspend)
 	stmfd	sp!, {r4 - r9, lr}
 	mrc	p14, 0, r4, c6, c0, 0	@ clock configuration, for turbo mode
 	mrc	p15, 0, r5, c15, c1, 0	@ CP access reg
@@ -351,9 +359,9 @@ ENTRY(cpu_mohawk_do_suspend)
 	bic	r4, r4, #2		@ clear frequency change bit
 	stmia	r0, {r4 - r9}		@ store cp regs
 	ldmia	sp!, {r4 - r9, pc}
-ENDPROC(cpu_mohawk_do_suspend)
+SYM_FUNC_END(cpu_mohawk_do_suspend)
 
-ENTRY(cpu_mohawk_do_resume)
+SYM_TYPED_FUNC_START(cpu_mohawk_do_resume)
 	ldmia	r0, {r4 - r9}		@ load cp regs
 	mov	ip, #0
 	mcr	p15, 0, ip, c7, c7, 0	@ invalidate I & D caches, BTB
@@ -369,7 +377,7 @@ ENTRY(cpu_mohawk_do_resume)
 	mcr	p15, 0, r8, c1, c0, 1	@ auxiliary control reg
 	mov	r0, r9			@ control register
 	b	cpu_resume_mmu
-ENDPROC(cpu_mohawk_do_resume)
+SYM_FUNC_END(cpu_mohawk_do_resume)
 #endif
 
 	.type	__mohawk_setup, #function

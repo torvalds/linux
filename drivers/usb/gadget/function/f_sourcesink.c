@@ -1284,4 +1284,5 @@ static void __exit sslb_modexit(void)
 module_init(sslb_modinit);
 module_exit(sslb_modexit);
 
+MODULE_DESCRIPTION("USB peripheral source/sink configuration driver");
 MODULE_LICENSE("GPL");

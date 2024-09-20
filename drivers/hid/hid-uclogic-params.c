@@ -884,6 +884,9 @@ static int uclogic_params_huion_init(struct uclogic_params *params,
 		goto cleanup;
 	}
 
+	/* The firmware is used in userspace as unique identifier */
+	strscpy(hdev->uniq, ver_ptr, sizeof(hdev->uniq));
+
 	/* If this is a transition firmware */
 	if (strcmp(ver_ptr, transition_ver) == 0) {
 		hid_dbg(hdev,

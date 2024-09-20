@@ -925,25 +925,8 @@ static const struct dc_debug_options debug_defaults_drv = {
 	},
 
 	.seamless_boot_odm_combine = true,
+	.enable_legacy_fast_update = true,
 	.using_dml2 = false,
-};
-
-static const struct dc_debug_options debug_defaults_diags = {
-	.disable_dmcu = true,
-	.force_abm_enable = false,
-	.timing_trace = true,
-	.clock_trace = true,
-	.disable_dpp_power_gate = true,
-	.disable_hubp_power_gate = true,
-	.disable_clock_gate = true,
-	.disable_pplib_clock_request = true,
-	.disable_pplib_wm_range = true,
-	.disable_stutter = false,
-	.scl_reset_length10 = true,
-	.dwb_fi_phase = -1, // -1 = disable
-	.dmub_command_table = true,
-	.enable_tri_buf = true,
-	.use_max_lb = true
 };
 
 static const struct dc_panel_config panel_config_defaults = {
@@ -1384,6 +1367,8 @@ static struct hpo_dp_link_encoder *dcn31_hpo_dp_link_encoder_create(
 
 	/* allocate HPO link encoder */
 	hpo_dp_enc31 = kzalloc(sizeof(struct dcn31_hpo_dp_link_encoder), GFP_KERNEL);
+	if (!hpo_dp_enc31)
+		return NULL; /* out of memory */
 
 	hpo_dp_link_encoder31_construct(hpo_dp_enc31, ctx, inst,
 					&hpo_dp_link_enc_regs[inst],
@@ -1675,8 +1660,8 @@ static struct clock_source *dcn31_clock_source_create(
 		return &clk_src->base;
 	}
 
-	BREAK_TO_DEBUGGER();
 	kfree(clk_src);
+	BREAK_TO_DEBUGGER();
 	return NULL;
 }
 
@@ -1710,25 +1695,6 @@ static void dcn314_get_panel_config_defaults(struct dc_panel_config *panel_confi
 	*panel_config = panel_config_defaults;
 }
 
-static bool filter_modes_for_single_channel_workaround(struct dc *dc,
-		struct dc_state *context)
-{
-	// Filter 2K@240Hz+8K@24fps above combination timing if memory only has single dimm LPDDR
-	if (dc->clk_mgr->bw_params->vram_type == 34 &&
-	    dc->clk_mgr->bw_params->num_channels < 2 &&
-	    context->stream_count > 1) {
-		int total_phy_pix_clk = 0;
-
-		for (int i = 0; i < context->stream_count; i++)
-			if (context->res_ctx.pipe_ctx[i].stream)
-				total_phy_pix_clk += context->res_ctx.pipe_ctx[i].stream->phy_pix_clk;
-
-		if (total_phy_pix_clk >= (1148928+826260)) //2K@240Hz+8K@24fps
-			return true;
-	}
-	return false;
-}
-
 bool dcn314_validate_bandwidth(struct dc *dc,
 		struct dc_state *context,
 		bool fast_validate)
@@ -1744,7 +1710,7 @@ bool dcn314_validate_bandwidth(struct dc *dc,
 
 	BW_VAL_TRACE_COUNT();
 
-	if (filter_modes_for_single_channel_workaround(dc, context))
+	if (!pipes)
 		goto validate_fail;
 
 	DC_FP_START();
@@ -1833,8 +1799,8 @@ static struct clock_source *dcn30_clock_source_create(
 		return &clk_src->base;
 	}
 
-	BREAK_TO_DEBUGGER();
 	kfree(clk_src);
+	BREAK_TO_DEBUGGER();
 	return NULL;
 }
 
@@ -1938,8 +1904,6 @@ static bool dcn314_resource_construct(
 
 	if (dc->ctx->dce_environment == DCE_ENV_PRODUCTION_DRV)
 		dc->debug = debug_defaults_drv;
-	else
-		dc->debug = debug_defaults_diags;
 
 	/* Disable pipe power gating */
 	dc->debug.disable_dpp_power_gate = true;

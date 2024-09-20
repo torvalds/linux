@@ -327,7 +327,7 @@ static DEFINE_SIMPLE_DEV_PM_OPS(isl29125_pm_ops, isl29125_suspend,
 				isl29125_resume);
 
 static const struct i2c_device_id isl29125_id[] = {
-	{ "isl29125", 0 },
+	{ "isl29125" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, isl29125_id);

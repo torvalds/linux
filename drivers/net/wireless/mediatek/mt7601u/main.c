@@ -28,7 +28,7 @@ out:
 	return ret;
 }
 
-static void mt7601u_stop(struct ieee80211_hw *hw)
+static void mt7601u_stop(struct ieee80211_hw *hw, bool suspend)
 {
 	struct mt7601u_dev *dev = hw->priv;
 

@@ -513,7 +513,7 @@ JIT compiler
 ------------
 
 The Linux kernel has a built-in BPF JIT compiler for x86_64, SPARC,
-PowerPC, ARM, ARM64, MIPS, RISC-V and s390 and can be enabled through
+PowerPC, ARM, ARM64, MIPS, RISC-V, s390, and ARC and can be enabled through
 CONFIG_BPF_JIT. The JIT compiler is transparently invoked for each
 attached filter from user space or for internal kernel users if it has
 been previously enabled by root::
@@ -650,7 +650,7 @@ before a conversion to the new layout is being done behind the scenes!
 
 Currently, the classic BPF format is being used for JITing on most
 32-bit architectures, whereas x86-64, aarch64, s390x, powerpc64,
-sparc64, arm32, riscv64, riscv32, loongarch64 perform JIT compilation
+sparc64, arm32, riscv64, riscv32, loongarch64, arc perform JIT compilation
 from eBPF instruction set.
 
 Testing

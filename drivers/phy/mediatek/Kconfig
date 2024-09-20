@@ -13,6 +13,17 @@ config PHY_MTK_PCIE
 	  callback for PCIe GEN3 port, it supports software efuse
 	  initialization.
 
+config PHY_MTK_XFI_TPHY
+	tristate "MediaTek 10GE SerDes XFI T-PHY driver"
+	depends on ARCH_MEDIATEK || COMPILE_TEST
+	depends on OF
+	select GENERIC_PHY
+	help
+	  Say 'Y' here to add support for MediaTek XFI T-PHY driver.
+	  The driver provides access to the Ethernet SerDes T-PHY supporting
+	  1GE and 2.5GE modes via the LynxI PCS, and 5GE and 10GE modes
+	  via the USXGMII PCS found in MediaTek SoCs with 10G Ethernet.
+
 config PHY_MTK_TPHY
 	tristate "MediaTek T-PHY Driver"
 	depends on ARCH_MEDIATEK || COMPILE_TEST

@@ -2301,5 +2301,6 @@ static void __exit tcm_exit(void)
 }
 module_exit(tcm_exit);
 
+MODULE_DESCRIPTION("Target based USB-Gadget");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Sebastian Andrzej Siewior");

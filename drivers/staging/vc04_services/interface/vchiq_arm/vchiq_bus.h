@@ -9,8 +9,11 @@
 #include <linux/device.h>
 #include <linux/mod_devicetable.h>
 
+struct vchiq_drv_mgmt;
+
 struct vchiq_device {
 	struct device dev;
+	struct vchiq_drv_mgmt *drv_mgmt;
 };
 
 struct vchiq_driver {

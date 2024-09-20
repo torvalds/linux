@@ -6822,6 +6822,8 @@
 #define VM_L2_PROTECTION_FAULT_STATUS__VMID__SHIFT                                                            0x14
 #define VM_L2_PROTECTION_FAULT_STATUS__VF__SHIFT                                                              0x18
 #define VM_L2_PROTECTION_FAULT_STATUS__VFID__SHIFT                                                            0x19
+#define VM_L2_PROTECTION_FAULT_STATUS__UCE__SHIFT                                                             0x1d
+#define VM_L2_PROTECTION_FAULT_STATUS__FED__SHIFT                                                             0x1e
 #define VM_L2_PROTECTION_FAULT_STATUS__MORE_FAULTS_MASK                                                       0x00000001L
 #define VM_L2_PROTECTION_FAULT_STATUS__WALKER_ERROR_MASK                                                      0x0000000EL
 #define VM_L2_PROTECTION_FAULT_STATUS__PERMISSION_FAULTS_MASK                                                 0x000000F0L
@@ -6832,6 +6834,8 @@
 #define VM_L2_PROTECTION_FAULT_STATUS__VMID_MASK                                                              0x00F00000L
 #define VM_L2_PROTECTION_FAULT_STATUS__VF_MASK                                                                0x01000000L
 #define VM_L2_PROTECTION_FAULT_STATUS__VFID_MASK                                                              0x1E000000L
+#define VM_L2_PROTECTION_FAULT_STATUS__UCE_MASK                                                               0x20000000L
+#define VM_L2_PROTECTION_FAULT_STATUS__FED_MASK                                                               0x40000000L
 //VM_L2_PROTECTION_FAULT_ADDR_LO32
 #define VM_L2_PROTECTION_FAULT_ADDR_LO32__LOGICAL_PAGE_ADDR_LO32__SHIFT                                       0x0
 #define VM_L2_PROTECTION_FAULT_ADDR_LO32__LOGICAL_PAGE_ADDR_LO32_MASK                                         0xFFFFFFFFL

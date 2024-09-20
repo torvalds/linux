@@ -792,7 +792,7 @@ static void tas6424_i2c_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id tas6424_i2c_ids[] = {
-	{ "tas6424", 0 },
+	{ "tas6424" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, tas6424_i2c_ids);

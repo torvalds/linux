@@ -43,6 +43,7 @@
 #include <drm/drm_file.h>
 #include <drm/drm_managed.h>
 #include <drm/drm_mode_object.h>
+#include <drm/drm_panic.h>
 #include <drm/drm_print.h>
 #include <drm/drm_privacy_screen_machine.h>
 
@@ -345,7 +346,7 @@ void drm_minor_release(struct drm_minor *minor)
  *		if (ret)
  *			return ret;
  *
- *		drm_fbdev_generic_setup(drm, 32);
+ *		drm_fbdev_{...}_setup(drm, 32);
  *
  *		return 0;
  *	}
@@ -638,6 +639,7 @@ static int drm_dev_init(struct drm_device *dev,
 	mutex_init(&dev->filelist_mutex);
 	mutex_init(&dev->clientlist_mutex);
 	mutex_init(&dev->master_mutex);
+	raw_spin_lock_init(&dev->mode_config.panic_lock);
 
 	ret = drmm_add_action_or_reset(dev, drm_dev_init_release, NULL);
 	if (ret)
@@ -943,10 +945,11 @@ int drm_dev_register(struct drm_device *dev, unsigned long flags)
 		if (ret)
 			goto err_unload;
 	}
+	drm_panic_register(dev);
 
-	DRM_INFO("Initialized %s %d.%d.%d %s for %s on minor %d\n",
+	DRM_INFO("Initialized %s %d.%d.%d for %s on minor %d\n",
 		 driver->name, driver->major, driver->minor,
-		 driver->patchlevel, driver->date,
+		 driver->patchlevel,
 		 dev->dev ? dev_name(dev->dev) : "virtual device",
 		 dev->primary ? dev->primary->index : dev->accel->index);
 
@@ -986,6 +989,8 @@ EXPORT_SYMBOL(drm_dev_register);
 void drm_dev_unregister(struct drm_device *dev)
 {
 	dev->registered = false;
+
+	drm_panic_unregister(dev);
 
 	drm_client_dev_unregister(dev);
 

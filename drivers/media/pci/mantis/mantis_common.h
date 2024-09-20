@@ -125,7 +125,7 @@ struct mantis_pci {
 	__le32			*risc_cpu;
 	dma_addr_t		risc_dma;
 
-	struct tasklet_struct	tasklet;
+	struct work_struct	bh_work;
 	spinlock_t		intmask_lock;
 
 	struct i2c_adapter	adapter;

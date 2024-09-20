@@ -23,7 +23,7 @@ TRACE_EVENT(devfreq_frequency,
 	),
 
 	TP_fast_assign(
-		__assign_str(dev_name, dev_name(&devfreq->dev));
+		__assign_str(dev_name);
 		__entry->freq = freq;
 		__entry->prev_freq = prev_freq;
 		__entry->busy_time = devfreq->last_status.busy_time;
@@ -54,7 +54,7 @@ TRACE_EVENT(devfreq_monitor,
 		__entry->busy_time = devfreq->last_status.busy_time;
 		__entry->total_time = devfreq->last_status.total_time;
 		__entry->polling_ms = devfreq->profile->polling_ms;
-		__assign_str(dev_name, dev_name(&devfreq->dev));
+		__assign_str(dev_name);
 	),
 
 	TP_printk("dev_name=%-30s freq=%-12lu polling_ms=%-3u load=%-2lu",

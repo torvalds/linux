@@ -85,7 +85,7 @@ enum mlx5_sqp_t {
 };
 
 enum {
-	MLX5_MAX_PORTS	= 4,
+	MLX5_MAX_PORTS	= 8,
 };
 
 enum {
@@ -766,6 +766,12 @@ struct mlx5_hca_cap {
 	u32 max[MLX5_UN_SZ_DW(hca_cap_union)];
 };
 
+enum mlx5_wc_state {
+	MLX5_WC_STATE_UNINITIALIZED,
+	MLX5_WC_STATE_UNSUPPORTED,
+	MLX5_WC_STATE_SUPPORTED,
+};
+
 struct mlx5_core_dev {
 	struct device *device;
 	enum mlx5_coredev_type coredev_type;
@@ -824,6 +830,9 @@ struct mlx5_core_dev {
 #endif
 	u64 num_ipsec_offloads;
 	struct mlx5_sd          *sd;
+	enum mlx5_wc_state wc_state;
+	/* sync write combining state */
+	struct mutex wc_state_lock;
 };
 
 struct mlx5_db {
@@ -862,6 +871,7 @@ struct mlx5_cmd_work_ent {
 	void		       *context;
 	int			idx;
 	struct completion	handling;
+	struct completion	slotted;
 	struct completion	done;
 	struct mlx5_cmd        *cmd;
 	struct work_struct	work;
@@ -907,6 +917,7 @@ struct mlx5_hca_vport_context {
 	u16			qkey_violation_counter;
 	u16			pkey_violation_counter;
 	bool			grh_required;
+	u8			num_plane;
 };
 
 #define STRUCT_FIELD(header, field) \
@@ -1375,10 +1386,5 @@ enum {
 	MLX5_OCTWORD = 16,
 };
 
-struct msi_map mlx5_msix_alloc(struct mlx5_core_dev *dev,
-			       irqreturn_t (*handler)(int, void *),
-			       const struct irq_affinity_desc *affdesc,
-			       const char *name);
-void mlx5_msix_free(struct mlx5_core_dev *dev, struct msi_map map);
-
+bool mlx5_wc_support_get(struct mlx5_core_dev *mdev);
 #endif /* MLX5_DRIVER_H */

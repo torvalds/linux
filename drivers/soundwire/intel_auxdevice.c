@@ -47,6 +47,7 @@ struct wake_capable_part {
 };
 
 static struct wake_capable_part wake_capable_list[] = {
+	{0x01fa, 0x4243},
 	{0x025d, 0x5682},
 	{0x025d, 0x700},
 	{0x025d, 0x711},
@@ -122,6 +123,7 @@ static void generic_new_peripheral_assigned(struct sdw_bus *bus,
 static int sdw_master_read_intel_prop(struct sdw_bus *bus)
 {
 	struct sdw_master_prop *prop = &bus->prop;
+	struct sdw_intel_prop *intel_prop;
 	struct fwnode_handle *link;
 	char name[32];
 	u32 quirk_mask;
@@ -153,13 +155,88 @@ static int sdw_master_read_intel_prop(struct sdw_bus *bus)
 	prop->quirks = SDW_MASTER_QUIRKS_CLEAR_INITIAL_CLASH |
 		SDW_MASTER_QUIRKS_CLEAR_INITIAL_PARITY;
 
+	intel_prop = devm_kzalloc(bus->dev, sizeof(*intel_prop), GFP_KERNEL);
+	if (!intel_prop) {
+		fwnode_handle_put(link);
+		return -ENOMEM;
+	}
+
+	/* initialize with hardware defaults, in case the properties are not found */
+	intel_prop->clde = 0x0;
+	intel_prop->doaise2 = 0x0;
+	intel_prop->dodse2 = 0x0;
+	intel_prop->clds = 0x0;
+	intel_prop->clss = 0x0;
+	intel_prop->doaise = 0x1;
+	intel_prop->doais = 0x3;
+	intel_prop->dodse  = 0x0;
+	intel_prop->dods  = 0x1;
+
+	fwnode_property_read_u16(link,
+				 "intel-sdw-clde",
+				 &intel_prop->clde);
+	fwnode_property_read_u16(link,
+				 "intel-sdw-doaise2",
+				 &intel_prop->doaise2);
+	fwnode_property_read_u16(link,
+				 "intel-sdw-dodse2",
+				 &intel_prop->dodse2);
+	fwnode_property_read_u16(link,
+				 "intel-sdw-clds",
+				 &intel_prop->clds);
+	fwnode_property_read_u16(link,
+				 "intel-sdw-clss",
+				 &intel_prop->clss);
+	fwnode_property_read_u16(link,
+				 "intel-sdw-doaise",
+				 &intel_prop->doaise);
+	fwnode_property_read_u16(link,
+				 "intel-sdw-doais",
+				 &intel_prop->doais);
+	fwnode_property_read_u16(link,
+				 "intel-sdw-dodse",
+				 &intel_prop->dodse);
+	fwnode_property_read_u16(link,
+				 "intel-sdw-dods",
+				 &intel_prop->dods);
+	bus->vendor_specific_prop = intel_prop;
+
+	dev_dbg(bus->dev, "doaise %#x doais %#x dodse %#x dods %#x\n",
+		intel_prop->doaise,
+		intel_prop->doais,
+		intel_prop->dodse,
+		intel_prop->dods);
+
+	fwnode_handle_put(link);
+
 	return 0;
 }
 
 static int intel_prop_read(struct sdw_bus *bus)
 {
+	struct sdw_master_prop *prop;
+
 	/* Initialize with default handler to read all DisCo properties */
 	sdw_master_read_prop(bus);
+
+	/*
+	 * Only one bus frequency is supported so far, filter
+	 * frequencies reported in the DSDT
+	 */
+	prop = &bus->prop;
+	if (prop->clk_freq && prop->num_clk_freq > 1) {
+		unsigned int default_bus_frequency;
+
+		default_bus_frequency =
+			prop->default_frame_rate *
+			prop->default_row *
+			prop->default_col /
+			SDW_DOUBLE_RATE_FACTOR;
+
+		prop->num_clk_freq = 1;
+		prop->clk_freq[0] = default_bus_frequency;
+		prop->max_clk_freq = default_bus_frequency;
+	}
 
 	/* read Intel-specific properties */
 	sdw_master_read_intel_prop(bus);
@@ -440,7 +517,7 @@ int intel_link_process_wakeen_event(struct auxiliary_device *auxdev)
  * PM calls
  */
 
-static int intel_resume_child_device(struct device *dev, void *data)
+int intel_resume_child_device(struct device *dev, void *data)
 {
 	int ret;
 	struct sdw_slave *slave = dev_to_sdw_dev(dev);
@@ -454,9 +531,9 @@ static int intel_resume_child_device(struct device *dev, void *data)
 		return 0;
 	}
 
-	ret = pm_request_resume(dev);
+	ret = pm_runtime_resume(dev);
 	if (ret < 0) {
-		dev_err(dev, "%s: pm_request_resume failed: %d\n", __func__, ret);
+		dev_err(dev, "%s: pm_runtime_resume failed: %d\n", __func__, ret);
 		return ret;
 	}
 
@@ -499,9 +576,9 @@ static int __maybe_unused intel_pm_prepare(struct device *dev)
 		 * first resume the device for this link. This will also by construction
 		 * resume the PCI parent device.
 		 */
-		ret = pm_request_resume(dev);
+		ret = pm_runtime_resume(dev);
 		if (ret < 0) {
-			dev_err(dev, "%s: pm_request_resume failed: %d\n", __func__, ret);
+			dev_err(dev, "%s: pm_runtime_resume failed: %d\n", __func__, ret);
 			return 0;
 		}
 

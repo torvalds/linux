@@ -2357,6 +2357,7 @@ section.
 #. `Sched Flavor (Historical)`_
 #. `Sleepable RCU`_
 #. `Tasks RCU`_
+#. `Tasks Trace RCU`_
 
 Bottom-Half Flavor (Historical)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -2610,6 +2611,16 @@ critical sections that are delimited by voluntary context switches, that
 is, calls to schedule(), cond_resched(), and
 synchronize_rcu_tasks(). In addition, transitions to and from
 userspace execution also delimit tasks-RCU read-side critical sections.
+Idle tasks are ignored by Tasks RCU, and Tasks Rude RCU may be used to
+interact with them.
+
+Note well that involuntary context switches are *not* Tasks-RCU quiescent
+states.  After all, in preemptible kernels, a task executing code in a
+trampoline might be preempted.  In this case, the Tasks-RCU grace period
+clearly cannot end until that task resumes and its execution leaves that
+trampoline.  This means, among other things, that cond_resched() does
+not provide a Tasks RCU quiescent state.  (Instead, use rcu_softirq_qs()
+from softirq or rcu_tasks_classic_qs() otherwise.)
 
 The tasks-RCU API is quite compact, consisting only of
 call_rcu_tasks(), synchronize_rcu_tasks(), and
@@ -2631,6 +2642,11 @@ forcing a workqueue to be scheduled on each online CPU, hence the "Rude"
 moniker.  And this operation is considered to be quite rude by real-time
 workloads that don't want their ``nohz_full`` CPUs receiving IPIs and
 by battery-powered systems that don't want their idle CPUs to be awakened.
+
+Once kernel entry/exit and deep-idle functions have been properly tagged
+``noinstr``, Tasks RCU can start paying attention to idle tasks (except
+those that are idle from RCU's perspective) and then Tasks Rude RCU can
+be removed from the kernel.
 
 The tasks-rude-RCU API is also reader-marking-free and thus quite compact,
 consisting of call_rcu_tasks_rude(), synchronize_rcu_tasks_rude(),

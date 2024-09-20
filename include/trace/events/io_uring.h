@@ -164,7 +164,7 @@ TRACE_EVENT(io_uring_queue_async_work,
 		__entry->work		= &req->work;
 		__entry->rw		= rw;
 
-		__assign_str(op_str, io_uring_get_opcode(req->opcode));
+		__assign_str(op_str);
 	),
 
 	TP_printk("ring %p, request %p, user_data 0x%llx, opcode %s, flags 0x%llx, %s queue, work %p",
@@ -202,7 +202,7 @@ TRACE_EVENT(io_uring_defer,
 		__entry->data	= req->cqe.user_data;
 		__entry->opcode	= req->opcode;
 
-		__assign_str(op_str, io_uring_get_opcode(req->opcode));
+		__assign_str(op_str);
 	),
 
 	TP_printk("ring %p, request %p, user_data 0x%llx, opcode %s",
@@ -303,7 +303,7 @@ TRACE_EVENT(io_uring_fail_link,
 		__entry->opcode		= req->opcode;
 		__entry->link		= link;
 
-		__assign_str(op_str, io_uring_get_opcode(req->opcode));
+		__assign_str(op_str);
 	),
 
 	TP_printk("ring %p, request %p, user_data 0x%llx, opcode %s, link %p",
@@ -392,7 +392,7 @@ TRACE_EVENT(io_uring_submit_req,
 		__entry->flags		= (__force unsigned long long) req->flags;
 		__entry->sq_thread	= req->ctx->flags & IORING_SETUP_SQPOLL;
 
-		__assign_str(op_str, io_uring_get_opcode(req->opcode));
+		__assign_str(op_str);
 	),
 
 	TP_printk("ring %p, req %p, user_data 0x%llx, opcode %s, flags 0x%llx, "
@@ -436,7 +436,7 @@ TRACE_EVENT(io_uring_poll_arm,
 		__entry->mask		= mask;
 		__entry->events		= events;
 
-		__assign_str(op_str, io_uring_get_opcode(req->opcode));
+		__assign_str(op_str);
 	),
 
 	TP_printk("ring %p, req %p, user_data 0x%llx, opcode %s, mask 0x%x, events 0x%x",
@@ -475,7 +475,7 @@ TRACE_EVENT(io_uring_task_add,
 		__entry->opcode		= req->opcode;
 		__entry->mask		= mask;
 
-		__assign_str(op_str, io_uring_get_opcode(req->opcode));
+		__assign_str(op_str);
 	),
 
 	TP_printk("ring %p, req %p, user_data 0x%llx, opcode %s, mask %x",
@@ -538,7 +538,7 @@ TRACE_EVENT(io_uring_req_failed,
 		__entry->addr3		= sqe->addr3;
 		__entry->error		= error;
 
-		__assign_str(op_str, io_uring_get_opcode(sqe->opcode));
+		__assign_str(op_str);
 	),
 
 	TP_printk("ring %p, req %p, user_data 0x%llx, "

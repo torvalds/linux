@@ -475,9 +475,54 @@ static bool tmigr_check_lonely(struct tmigr_group *group)
 	return bitmap_weight(&active, BIT_CNT) <= 1;
 }
 
-typedef bool (*up_f)(struct tmigr_group *, struct tmigr_group *, void *);
+/**
+ * struct tmigr_walk - data required for walking the hierarchy
+ * @nextexp:		Next CPU event expiry information which is handed into
+ *			the timer migration code by the timer code
+ *			(get_next_timer_interrupt())
+ * @firstexp:		Contains the first event expiry information when
+ *			hierarchy is completely idle.  When CPU itself was the
+ *			last going idle, information makes sure, that CPU will
+ *			be back in time. When using this value in the remote
+ *			expiry case, firstexp is stored in the per CPU tmigr_cpu
+ *			struct of CPU which expires remote timers. It is updated
+ *			in top level group only. Be aware, there could occur a
+ *			new top level of the hierarchy between the 'top level
+ *			call' in tmigr_update_events() and the check for the
+ *			parent group in walk_groups(). Then @firstexp might
+ *			contain a value != KTIME_MAX even if it was not the
+ *			final top level. This is not a problem, as the worst
+ *			outcome is a CPU which might wake up a little early.
+ * @evt:		Pointer to tmigr_event which needs to be queued (of idle
+ *			child group)
+ * @childmask:		groupmask of child group
+ * @remote:		Is set, when the new timer path is executed in
+ *			tmigr_handle_remote_cpu()
+ * @basej:		timer base in jiffies
+ * @now:		timer base monotonic
+ * @check:		is set if there is the need to handle remote timers;
+ *			required in tmigr_requires_handle_remote() only
+ * @tmc_active:		this flag indicates, whether the CPU which triggers
+ *			the hierarchy walk is !idle in the timer migration
+ *			hierarchy. When the CPU is idle and the whole hierarchy is
+ *			idle, only the first event of the top level has to be
+ *			considered.
+ */
+struct tmigr_walk {
+	u64			nextexp;
+	u64			firstexp;
+	struct tmigr_event	*evt;
+	u8			childmask;
+	bool			remote;
+	unsigned long		basej;
+	u64			now;
+	bool			check;
+	bool			tmc_active;
+};
 
-static void __walk_groups(up_f up, void *data,
+typedef bool (*up_f)(struct tmigr_group *, struct tmigr_group *, struct tmigr_walk *);
+
+static void __walk_groups(up_f up, struct tmigr_walk *data,
 			  struct tmigr_cpu *tmc)
 {
 	struct tmigr_group *child = NULL, *group = tmc->tmgroup;
@@ -490,63 +535,16 @@ static void __walk_groups(up_f up, void *data,
 
 		child = group;
 		group = group->parent;
+		data->childmask = child->groupmask;
 	} while (group);
 }
 
-static void walk_groups(up_f up, void *data, struct tmigr_cpu *tmc)
+static void walk_groups(up_f up, struct tmigr_walk *data, struct tmigr_cpu *tmc)
 {
 	lockdep_assert_held(&tmc->lock);
 
 	__walk_groups(up, data, tmc);
 }
-
-/**
- * struct tmigr_walk - data required for walking the hierarchy
- * @nextexp:		Next CPU event expiry information which is handed into
- *			the timer migration code by the timer code
- *			(get_next_timer_interrupt())
- * @firstexp:		Contains the first event expiry information when last
- *			active CPU of hierarchy is on the way to idle to make
- *			sure CPU will be back in time.
- * @evt:		Pointer to tmigr_event which needs to be queued (of idle
- *			child group)
- * @childmask:		childmask of child group
- * @remote:		Is set, when the new timer path is executed in
- *			tmigr_handle_remote_cpu()
- */
-struct tmigr_walk {
-	u64			nextexp;
-	u64			firstexp;
-	struct tmigr_event	*evt;
-	u8			childmask;
-	bool			remote;
-};
-
-/**
- * struct tmigr_remote_data - data required for remote expiry hierarchy walk
- * @basej:		timer base in jiffies
- * @now:		timer base monotonic
- * @firstexp:		returns expiry of the first timer in the idle timer
- *			migration hierarchy to make sure the timer is handled in
- *			time; it is stored in the per CPU tmigr_cpu struct of
- *			CPU which expires remote timers
- * @childmask:		childmask of child group
- * @check:		is set if there is the need to handle remote timers;
- *			required in tmigr_requires_handle_remote() only
- * @tmc_active:		this flag indicates, whether the CPU which triggers
- *			the hierarchy walk is !idle in the timer migration
- *			hierarchy. When the CPU is idle and the whole hierarchy is
- *			idle, only the first event of the top level has to be
- *			considered.
- */
-struct tmigr_remote_data {
-	unsigned long	basej;
-	u64		now;
-	u64		firstexp;
-	u8		childmask;
-	bool		check;
-	bool		tmc_active;
-};
 
 /*
  * Returns the next event of the timerqueue @group->events
@@ -618,10 +616,9 @@ static u64 tmigr_next_groupevt_expires(struct tmigr_group *group)
 
 static bool tmigr_active_up(struct tmigr_group *group,
 			    struct tmigr_group *child,
-			    void *ptr)
+			    struct tmigr_walk *data)
 {
 	union tmigr_state curstate, newstate;
-	struct tmigr_walk *data = ptr;
 	bool walk_done;
 	u8 childmask;
 
@@ -649,8 +646,7 @@ static bool tmigr_active_up(struct tmigr_group *group,
 
 	} while (!atomic_try_cmpxchg(&group->migr_state, &curstate.state, newstate.state));
 
-	if ((walk_done == false) && group->parent)
-		data->childmask = group->childmask;
+	trace_tmigr_group_set_cpu_active(group, newstate, childmask);
 
 	/*
 	 * The group is active (again). The group event might be still queued
@@ -666,8 +662,6 @@ static bool tmigr_active_up(struct tmigr_group *group,
 	 */
 	group->groupevt.ignore = true;
 
-	trace_tmigr_group_set_cpu_active(group, newstate, childmask);
-
 	return walk_done;
 }
 
@@ -675,7 +669,7 @@ static void __tmigr_cpu_activate(struct tmigr_cpu *tmc)
 {
 	struct tmigr_walk data;
 
-	data.childmask = tmc->childmask;
+	data.childmask = tmc->groupmask;
 
 	trace_tmigr_cpu_active(tmc);
 
@@ -860,10 +854,8 @@ unlock:
 
 static bool tmigr_new_timer_up(struct tmigr_group *group,
 			       struct tmigr_group *child,
-			       void *ptr)
+			       struct tmigr_walk *data)
 {
-	struct tmigr_walk *data = ptr;
-
 	return tmigr_update_events(group, child, data);
 }
 
@@ -995,9 +987,8 @@ unlock:
 
 static bool tmigr_handle_remote_up(struct tmigr_group *group,
 				   struct tmigr_group *child,
-				   void *ptr)
+				   struct tmigr_walk *data)
 {
-	struct tmigr_remote_data *data = ptr;
 	struct tmigr_event *evt;
 	unsigned long jif;
 	u8 childmask;
@@ -1034,12 +1025,10 @@ again:
 	}
 
 	/*
-	 * Update of childmask for the next level and keep track of the expiry
-	 * of the first event that needs to be handled (group->next_expiry was
-	 * updated by tmigr_next_expired_groupevt(), next was set by
-	 * tmigr_handle_remote_cpu()).
+	 * Keep track of the expiry of the first event that needs to be handled
+	 * (group->next_expiry was updated by tmigr_next_expired_groupevt(),
+	 * next was set by tmigr_handle_remote_cpu()).
 	 */
-	data->childmask = group->childmask;
 	data->firstexp = group->next_expiry;
 
 	raw_spin_unlock_irq(&group->lock);
@@ -1055,12 +1044,12 @@ again:
 void tmigr_handle_remote(void)
 {
 	struct tmigr_cpu *tmc = this_cpu_ptr(&tmigr_cpu);
-	struct tmigr_remote_data data;
+	struct tmigr_walk data;
 
 	if (tmigr_is_not_available(tmc))
 		return;
 
-	data.childmask = tmc->childmask;
+	data.childmask = tmc->groupmask;
 	data.firstexp = KTIME_MAX;
 
 	/*
@@ -1068,7 +1057,7 @@ void tmigr_handle_remote(void)
 	 * in tmigr_handle_remote_up() anyway. Keep this check to speed up the
 	 * return when nothing has to be done.
 	 */
-	if (!tmigr_check_migrator(tmc->tmgroup, tmc->childmask)) {
+	if (!tmigr_check_migrator(tmc->tmgroup, tmc->groupmask)) {
 		/*
 		 * If this CPU was an idle migrator, make sure to clear its wakeup
 		 * value so it won't chase timers that have already expired elsewhere.
@@ -1097,9 +1086,8 @@ void tmigr_handle_remote(void)
 
 static bool tmigr_requires_handle_remote_up(struct tmigr_group *group,
 					    struct tmigr_group *child,
-					    void *ptr)
+					    struct tmigr_walk *data)
 {
-	struct tmigr_remote_data *data = ptr;
 	u8 childmask;
 
 	childmask = data->childmask;
@@ -1118,7 +1106,7 @@ static bool tmigr_requires_handle_remote_up(struct tmigr_group *group,
 	 * group before reading the next_expiry value.
 	 */
 	if (group->parent && !data->tmc_active)
-		goto out;
+		return false;
 
 	/*
 	 * The lock is required on 32bit architectures to read the variable
@@ -1143,9 +1131,6 @@ static bool tmigr_requires_handle_remote_up(struct tmigr_group *group,
 		raw_spin_unlock(&group->lock);
 	}
 
-out:
-	/* Update of childmask for the next level */
-	data->childmask = group->childmask;
 	return false;
 }
 
@@ -1157,7 +1142,7 @@ out:
 bool tmigr_requires_handle_remote(void)
 {
 	struct tmigr_cpu *tmc = this_cpu_ptr(&tmigr_cpu);
-	struct tmigr_remote_data data;
+	struct tmigr_walk data;
 	unsigned long jif;
 	bool ret = false;
 
@@ -1165,7 +1150,7 @@ bool tmigr_requires_handle_remote(void)
 		return ret;
 
 	data.now = get_jiffies_update(&jif);
-	data.childmask = tmc->childmask;
+	data.childmask = tmc->groupmask;
 	data.firstexp = KTIME_MAX;
 	data.tmc_active = !tmc->idle;
 	data.check = false;
@@ -1230,14 +1215,13 @@ u64 tmigr_cpu_new_timer(u64 nextexp)
 		if (nextexp != tmc->cpuevt.nextevt.expires ||
 		    tmc->cpuevt.ignore) {
 			ret = tmigr_new_timer(tmc, nextexp);
+			/*
+			 * Make sure the reevaluation of timers in idle path
+			 * will not miss an event.
+			 */
+			WRITE_ONCE(tmc->wakeup, ret);
 		}
 	}
-	/*
-	 * Make sure the reevaluation of timers in idle path will not miss an
-	 * event.
-	 */
-	WRITE_ONCE(tmc->wakeup, ret);
-
 	trace_tmigr_cpu_new_timer_idle(tmc, nextexp);
 	raw_spin_unlock(&tmc->lock);
 	return ret;
@@ -1245,10 +1229,9 @@ u64 tmigr_cpu_new_timer(u64 nextexp)
 
 static bool tmigr_inactive_up(struct tmigr_group *group,
 			      struct tmigr_group *child,
-			      void *ptr)
+			      struct tmigr_walk *data)
 {
 	union tmigr_state curstate, newstate, childstate;
-	struct tmigr_walk *data = ptr;
 	bool walk_done;
 	u8 childmask;
 
@@ -1299,9 +1282,10 @@ static bool tmigr_inactive_up(struct tmigr_group *group,
 
 		WARN_ON_ONCE((newstate.migrator != TMIGR_NONE) && !(newstate.active));
 
-		if (atomic_try_cmpxchg(&group->migr_state, &curstate.state,
-				       newstate.state))
+		if (atomic_try_cmpxchg(&group->migr_state, &curstate.state, newstate.state)) {
+			trace_tmigr_group_set_cpu_inactive(group, newstate, childmask);
 			break;
+		}
 
 		/*
 		 * The memory barrier is paired with the cmpxchg() in
@@ -1317,22 +1301,6 @@ static bool tmigr_inactive_up(struct tmigr_group *group,
 	/* Event Handling */
 	tmigr_update_events(group, child, data);
 
-	if (group->parent && (walk_done == false))
-		data->childmask = group->childmask;
-
-	/*
-	 * data->firstexp was set by tmigr_update_events() and contains the
-	 * expiry of the first global event which needs to be handled. It
-	 * differs from KTIME_MAX if:
-	 * - group is the top level group and
-	 * - group is idle (which means CPU was the last active CPU in the
-	 *   hierarchy) and
-	 * - there is a pending event in the hierarchy
-	 */
-	WARN_ON_ONCE(data->firstexp != KTIME_MAX && group->parent);
-
-	trace_tmigr_group_set_cpu_inactive(group, newstate, childmask);
-
 	return walk_done;
 }
 
@@ -1341,7 +1309,7 @@ static u64 __tmigr_cpu_deactivate(struct tmigr_cpu *tmc, u64 nextexp)
 	struct tmigr_walk data = { .nextexp = nextexp,
 				   .firstexp = KTIME_MAX,
 				   .evt = &tmc->cpuevt,
-				   .childmask = tmc->childmask };
+				   .childmask = tmc->groupmask };
 
 	/*
 	 * If nextexp is KTIME_MAX, the CPU event will be ignored because the
@@ -1400,7 +1368,7 @@ u64 tmigr_cpu_deactivate(u64 nextexp)
  *			  the only one in the level 0 group; and if it is the
  *			  only one in level 0 group, but there are more than a
  *			  single group active on the way to top level)
- * * nextevt		- when CPU is offline and has to handle timer on his own
+ * * nextevt		- when CPU is offline and has to handle timer on its own
  *			  or when on the way to top in every group only a single
  *			  child is active but @nextevt is before the lowest
  *			  next_expiry encountered while walking up to top level.
@@ -1419,7 +1387,7 @@ u64 tmigr_quick_check(u64 nextevt)
 	if (WARN_ON_ONCE(tmc->idle))
 		return nextevt;
 
-	if (!tmigr_check_migrator_and_lonely(tmc->tmgroup, tmc->childmask))
+	if (!tmigr_check_migrator_and_lonely(tmc->tmgroup, tmc->groupmask))
 		return KTIME_MAX;
 
 	do {
@@ -1440,6 +1408,66 @@ u64 tmigr_quick_check(u64 nextevt)
 	} while (group);
 
 	return KTIME_MAX;
+}
+
+/*
+ * tmigr_trigger_active() - trigger a CPU to become active again
+ *
+ * This function is executed on a CPU which is part of cpu_online_mask, when the
+ * last active CPU in the hierarchy is offlining. With this, it is ensured that
+ * the other CPU is active and takes over the migrator duty.
+ */
+static long tmigr_trigger_active(void *unused)
+{
+	struct tmigr_cpu *tmc = this_cpu_ptr(&tmigr_cpu);
+
+	WARN_ON_ONCE(!tmc->online || tmc->idle);
+
+	return 0;
+}
+
+static int tmigr_cpu_offline(unsigned int cpu)
+{
+	struct tmigr_cpu *tmc = this_cpu_ptr(&tmigr_cpu);
+	int migrator;
+	u64 firstexp;
+
+	raw_spin_lock_irq(&tmc->lock);
+	tmc->online = false;
+	WRITE_ONCE(tmc->wakeup, KTIME_MAX);
+
+	/*
+	 * CPU has to handle the local events on his own, when on the way to
+	 * offline; Therefore nextevt value is set to KTIME_MAX
+	 */
+	firstexp = __tmigr_cpu_deactivate(tmc, KTIME_MAX);
+	trace_tmigr_cpu_offline(tmc);
+	raw_spin_unlock_irq(&tmc->lock);
+
+	if (firstexp != KTIME_MAX) {
+		migrator = cpumask_any_but(cpu_online_mask, cpu);
+		work_on_cpu(migrator, tmigr_trigger_active, NULL);
+	}
+
+	return 0;
+}
+
+static int tmigr_cpu_online(unsigned int cpu)
+{
+	struct tmigr_cpu *tmc = this_cpu_ptr(&tmigr_cpu);
+
+	/* Check whether CPU data was successfully initialized */
+	if (WARN_ON_ONCE(!tmc->tmgroup))
+		return -EINVAL;
+
+	raw_spin_lock_irq(&tmc->lock);
+	trace_tmigr_cpu_online(tmc);
+	tmc->idle = timer_base_is_idle();
+	if (!tmc->idle)
+		__tmigr_cpu_activate(tmc);
+	tmc->online = true;
+	raw_spin_unlock_irq(&tmc->lock);
+	return 0;
 }
 
 static void tmigr_init_group(struct tmigr_group *group, unsigned int lvl,
@@ -1514,20 +1542,24 @@ static struct tmigr_group *tmigr_get_group(unsigned int cpu, int node,
 }
 
 static void tmigr_connect_child_parent(struct tmigr_group *child,
-				       struct tmigr_group *parent)
+				       struct tmigr_group *parent,
+				       bool activate)
 {
-	union tmigr_state childstate;
+	struct tmigr_walk data;
 
 	raw_spin_lock_irq(&child->lock);
 	raw_spin_lock_nested(&parent->lock, SINGLE_DEPTH_NESTING);
 
 	child->parent = parent;
-	child->childmask = BIT(parent->num_children++);
+	child->groupmask = BIT(parent->num_children++);
 
 	raw_spin_unlock(&parent->lock);
 	raw_spin_unlock_irq(&child->lock);
 
 	trace_tmigr_connect_child_parent(child);
+
+	if (!activate)
+		return;
 
 	/*
 	 * To prevent inconsistent states, active children need to be active in
@@ -1544,21 +1576,24 @@ static void tmigr_connect_child_parent(struct tmigr_group *child,
 	 *   child to the new parent. So tmigr_connect_child_parent() is
 	 *   executed with the formerly top level group (child) and the newly
 	 *   created group (parent).
+	 *
+	 * * It is ensured that the child is active, as this setup path is
+	 *   executed in hotplug prepare callback. This is exectued by an
+	 *   already connected and !idle CPU. Even if all other CPUs go idle,
+	 *   the CPU executing the setup will be responsible up to current top
+	 *   level group. And the next time it goes inactive, it will release
+	 *   the new childmask and parent to subsequent walkers through this
+	 *   @child. Therefore propagate active state unconditionally.
 	 */
-	childstate.state = atomic_read(&child->migr_state);
-	if (childstate.migrator != TMIGR_NONE) {
-		struct tmigr_walk data;
+	data.childmask = child->groupmask;
 
-		data.childmask = child->childmask;
-
-		/*
-		 * There is only one new level per time. When connecting the
-		 * child and the parent and set the child active when the parent
-		 * is inactive, the parent needs to be the uppermost
-		 * level. Otherwise there went something wrong!
-		 */
-		WARN_ON(!tmigr_active_up(parent, child, &data) && parent->parent);
-	}
+	/*
+	 * There is only one new level per time (which is protected by
+	 * tmigr_mutex). When connecting the child and the parent and set the
+	 * child active when the parent is inactive, the parent needs to be the
+	 * uppermost level. Otherwise there went something wrong!
+	 */
+	WARN_ON(!tmigr_active_up(parent, child, &data) && parent->parent);
 }
 
 static int tmigr_setup_groups(unsigned int cpu, unsigned int node)
@@ -1611,12 +1646,12 @@ static int tmigr_setup_groups(unsigned int cpu, unsigned int node)
 		 * Update tmc -> group / child -> group connection
 		 */
 		if (i == 0) {
-			struct tmigr_cpu *tmc = this_cpu_ptr(&tmigr_cpu);
+			struct tmigr_cpu *tmc = per_cpu_ptr(&tmigr_cpu, cpu);
 
 			raw_spin_lock_irq(&group->lock);
 
 			tmc->tmgroup = group;
-			tmc->childmask = BIT(group->num_children++);
+			tmc->groupmask = BIT(group->num_children++);
 
 			raw_spin_unlock_irq(&group->lock);
 
@@ -1626,7 +1661,8 @@ static int tmigr_setup_groups(unsigned int cpu, unsigned int node)
 			continue;
 		} else {
 			child = stack[i - 1];
-			tmigr_connect_child_parent(child, group);
+			/* Will be activated at online time */
+			tmigr_connect_child_parent(child, group, false);
 		}
 
 		/* check if uppermost level was newly created */
@@ -1637,12 +1673,21 @@ static int tmigr_setup_groups(unsigned int cpu, unsigned int node)
 
 		lvllist = &tmigr_level_list[top];
 		if (group->num_children == 1 && list_is_singular(lvllist)) {
+			/*
+			 * The target CPU must never do the prepare work, except
+			 * on early boot when the boot CPU is the target. Otherwise
+			 * it may spuriously activate the old top level group inside
+			 * the new one (nevertheless whether old top level group is
+			 * active or not) and/or release an uninitialized childmask.
+			 */
+			WARN_ON_ONCE(cpu == raw_smp_processor_id());
+
 			lvllist = &tmigr_level_list[top - 1];
 			list_for_each_entry(child, lvllist, list) {
 				if (child->parent)
 					continue;
 
-				tmigr_connect_child_parent(child, group);
+				tmigr_connect_child_parent(child, group, true);
 			}
 		}
 	}
@@ -1664,80 +1709,31 @@ static int tmigr_add_cpu(unsigned int cpu)
 	return ret;
 }
 
-static int tmigr_cpu_online(unsigned int cpu)
+static int tmigr_cpu_prepare(unsigned int cpu)
 {
-	struct tmigr_cpu *tmc = this_cpu_ptr(&tmigr_cpu);
-	int ret;
+	struct tmigr_cpu *tmc = per_cpu_ptr(&tmigr_cpu, cpu);
+	int ret = 0;
 
-	/* First online attempt? Initialize CPU data */
-	if (!tmc->tmgroup) {
-		raw_spin_lock_init(&tmc->lock);
+	/* Not first online attempt? */
+	if (tmc->tmgroup)
+		return ret;
 
-		ret = tmigr_add_cpu(cpu);
-		if (ret < 0)
-			return ret;
-
-		if (tmc->childmask == 0)
-			return -EINVAL;
-
-		timerqueue_init(&tmc->cpuevt.nextevt);
-		tmc->cpuevt.nextevt.expires = KTIME_MAX;
-		tmc->cpuevt.ignore = true;
-		tmc->cpuevt.cpu = cpu;
-
-		tmc->remote = false;
-		WRITE_ONCE(tmc->wakeup, KTIME_MAX);
-	}
-	raw_spin_lock_irq(&tmc->lock);
-	trace_tmigr_cpu_online(tmc);
-	tmc->idle = timer_base_is_idle();
-	if (!tmc->idle)
-		__tmigr_cpu_activate(tmc);
-	tmc->online = true;
-	raw_spin_unlock_irq(&tmc->lock);
-	return 0;
-}
-
-/*
- * tmigr_trigger_active() - trigger a CPU to become active again
- *
- * This function is executed on a CPU which is part of cpu_online_mask, when the
- * last active CPU in the hierarchy is offlining. With this, it is ensured that
- * the other CPU is active and takes over the migrator duty.
- */
-static long tmigr_trigger_active(void *unused)
-{
-	struct tmigr_cpu *tmc = this_cpu_ptr(&tmigr_cpu);
-
-	WARN_ON_ONCE(!tmc->online || tmc->idle);
-
-	return 0;
-}
-
-static int tmigr_cpu_offline(unsigned int cpu)
-{
-	struct tmigr_cpu *tmc = this_cpu_ptr(&tmigr_cpu);
-	int migrator;
-	u64 firstexp;
-
-	raw_spin_lock_irq(&tmc->lock);
-	tmc->online = false;
+	raw_spin_lock_init(&tmc->lock);
+	timerqueue_init(&tmc->cpuevt.nextevt);
+	tmc->cpuevt.nextevt.expires = KTIME_MAX;
+	tmc->cpuevt.ignore = true;
+	tmc->cpuevt.cpu = cpu;
+	tmc->remote = false;
 	WRITE_ONCE(tmc->wakeup, KTIME_MAX);
 
-	/*
-	 * CPU has to handle the local events on his own, when on the way to
-	 * offline; Therefore nextevt value is set to KTIME_MAX
-	 */
-	firstexp = __tmigr_cpu_deactivate(tmc, KTIME_MAX);
-	trace_tmigr_cpu_offline(tmc);
-	raw_spin_unlock_irq(&tmc->lock);
+	ret = tmigr_add_cpu(cpu);
+	if (ret < 0)
+		return ret;
 
-	if (firstexp != KTIME_MAX) {
-		migrator = cpumask_any_but(cpu_online_mask, cpu);
-		work_on_cpu(migrator, tmigr_trigger_active, NULL);
-	}
+	if (tmc->groupmask == 0)
+		return -EINVAL;
 
-	return 0;
+	return ret;
 }
 
 static int __init tmigr_init(void)
@@ -1796,6 +1792,11 @@ static int __init tmigr_init(void)
 		tmigr_hierarchy_levels, TMIGR_CHILDREN_PER_GROUP,
 		tmigr_crossnode_level);
 
+	ret = cpuhp_setup_state(CPUHP_TMIGR_PREPARE, "tmigr:prepare",
+				tmigr_cpu_prepare, NULL);
+	if (ret)
+		goto err;
+
 	ret = cpuhp_setup_state(CPUHP_AP_TMIGR_ONLINE, "tmigr:online",
 				tmigr_cpu_online, tmigr_cpu_offline);
 	if (ret)
@@ -1807,4 +1808,4 @@ err:
 	pr_err("Timer migration setup failed\n");
 	return ret;
 }
-late_initcall(tmigr_init);
+early_initcall(tmigr_init);

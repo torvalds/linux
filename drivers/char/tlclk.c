@@ -47,6 +47,7 @@
 #include <linux/uaccess.h>
 
 MODULE_AUTHOR("Sebastien Bouchard <sebastien.bouchard@ca.kontron.com>");
+MODULE_DESCRIPTION("Telecom Clock driver for Intel NetStructure(tm) MPCBL0010");
 MODULE_LICENSE("GPL");
 
 /*Hardware Reset of the PLL */

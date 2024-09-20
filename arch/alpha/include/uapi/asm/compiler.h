@@ -95,24 +95,6 @@
 #define __kernel_ldwu(mem)	(mem)
 #define __kernel_stb(val,mem)	((mem) = (val))
 #define __kernel_stw(val,mem)	((mem) = (val))
-#else
-#define __kernel_ldbu(mem)				\
-  ({ unsigned char __kir;				\
-     __asm__(".arch ev56;				\
-	      ldbu %0,%1" : "=r"(__kir) : "m"(mem));	\
-     __kir; })
-#define __kernel_ldwu(mem)				\
-  ({ unsigned short __kir;				\
-     __asm__(".arch ev56;				\
-	      ldwu %0,%1" : "=r"(__kir) : "m"(mem));	\
-     __kir; })
-#define __kernel_stb(val,mem)				\
-  __asm__(".arch ev56;					\
-	   stb %1,%0" : "=m"(mem) : "r"(val))
-#define __kernel_stw(val,mem)				\
-  __asm__(".arch ev56;					\
-	   stw %1,%0" : "=m"(mem) : "r"(val))
 #endif
-
 
 #endif /* _UAPI__ALPHA_COMPILER_H */

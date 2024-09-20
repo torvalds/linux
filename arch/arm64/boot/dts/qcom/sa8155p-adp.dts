@@ -283,7 +283,7 @@
 
 		vreg_l13c_2p96: ldo13 {
 			regulator-name = "vreg_l13c_2p96";
-			regulator-min-microvolt = <2504000>;
+			regulator-min-microvolt = <1800000>;
 			regulator-max-microvolt = <2960000>;
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
 		};

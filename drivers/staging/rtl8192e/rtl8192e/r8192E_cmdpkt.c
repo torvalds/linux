@@ -11,7 +11,6 @@
 bool rtl92e_send_cmd_pkt(struct net_device *dev, u32 type, const void *data,
 			 u32 len)
 {
-	bool				rt_status = true;
 	struct r8192_priv *priv = rtllib_priv(dev);
 	u16				frag_length = 0, frag_offset = 0;
 	struct sk_buff		*skb;
@@ -37,10 +36,8 @@ bool rtl92e_send_cmd_pkt(struct net_device *dev, u32 type, const void *data,
 		else
 			skb = dev_alloc_skb(frag_length + 4);
 
-		if (!skb) {
-			rt_status = false;
-			goto Failed;
-		}
+		if (!skb)
+			return false;
 
 		memcpy((unsigned char *)(skb->cb), &dev, sizeof(dev));
 		tcb_desc = (struct cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
@@ -77,6 +74,6 @@ bool rtl92e_send_cmd_pkt(struct net_device *dev, u32 type, const void *data,
 	} while (frag_offset < len);
 
 	rtl92e_writeb(dev, TP_POLL, TP_POLL_CQ);
-Failed:
-	return rt_status;
+
+	return true;
 }

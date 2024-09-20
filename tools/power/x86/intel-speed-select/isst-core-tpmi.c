@@ -194,8 +194,14 @@ static int tpmi_get_ctdp_control(struct isst_id *id, int config_index,
 	if (!(info.level_mask & level_mask))
 		return -1;
 
-	ctdp_level->fact_support = info.sst_tf_support;
-	ctdp_level->pbf_support = info.sst_bf_support;
+	if (api_version() > 2) {
+		ctdp_level->fact_support = info.sst_tf_support & BIT(config_index);
+		ctdp_level->pbf_support = info.sst_bf_support & BIT(config_index);
+	} else {
+		ctdp_level->fact_support = info.sst_tf_support;
+		ctdp_level->pbf_support = info.sst_bf_support;
+	}
+
 	ctdp_level->fact_enabled = !!(info.feature_state & BIT(1));
 	ctdp_level->pbf_enabled = !!(info.feature_state & BIT(0));
 

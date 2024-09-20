@@ -11,6 +11,7 @@
 #include <linux/netdevice.h>
 #include <linux/ieee80211.h>
 #include <linux/nl80211.h>
+#include <linux/mod_devicetable.h>
 #include "iwl-csr.h"
 #include "iwl-drv.h"
 
@@ -240,7 +241,7 @@ enum iwl_cfg_trans_ltr_delay {
 };
 
 /**
- * struct iwl_cfg_trans - information needed to start the trans
+ * struct iwl_cfg_trans_params - information needed to start the trans
  *
  * These values are specific to the device ID and do not change when
  * multiple configs are used for a single device ID.  They values are
@@ -257,6 +258,7 @@ enum iwl_cfg_trans_ltr_delay {
  * @mq_rx_supported: multi-queue rx support
  * @integrated: discrete or integrated
  * @low_latency_xtal: use the low latency xtal if supported
+ * @bisr_workaround: BISR hardware workaround (for 22260 series devices)
  * @ltr_delay: LTR delay parameter, &enum iwl_cfg_trans_ltr_delay.
  * @imr_enabled: use the IMR if supported.
  */
@@ -421,6 +423,7 @@ struct iwl_cfg {
 #define IWL_CFG_MAC_TYPE_SC		0x48
 #define IWL_CFG_MAC_TYPE_SC2		0x49
 #define IWL_CFG_MAC_TYPE_SC2F		0x4A
+#define IWL_CFG_MAC_TYPE_BZ_W		0x4B
 
 #define IWL_CFG_RF_TYPE_TH		0x105
 #define IWL_CFG_RF_TYPE_TH1		0x108
@@ -429,8 +432,6 @@ struct iwl_cfg {
 #define IWL_CFG_RF_TYPE_HR2		0x10A
 #define IWL_CFG_RF_TYPE_HR1		0x10C
 #define IWL_CFG_RF_TYPE_GF		0x10D
-#define IWL_CFG_RF_TYPE_MR		0x110
-#define IWL_CFG_RF_TYPE_MS		0x111
 #define IWL_CFG_RF_TYPE_FM		0x112
 #define IWL_CFG_RF_TYPE_WH		0x113
 
@@ -484,6 +485,7 @@ const struct iwl_dev_info *
 iwl_pci_find_dev_info(u16 device, u16 subsystem_device,
 		      u16 mac_type, u8 mac_step, u16 rf_type, u8 cdb,
 		      u8 jacket, u8 rf_id, u8 no_160, u8 cores, u8 rf_step);
+extern const struct pci_device_id iwl_hw_card_ids[];
 #endif
 
 /*
@@ -541,6 +543,8 @@ extern const char iwl_ax221_name[];
 extern const char iwl_ax231_name[];
 extern const char iwl_ax411_name[];
 extern const char iwl_bz_name[];
+extern const char iwl_fm_name[];
+extern const char iwl_gl_name[];
 extern const char iwl_mtp_name[];
 extern const char iwl_sc_name[];
 extern const char iwl_sc2_name[];

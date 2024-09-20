@@ -78,4 +78,5 @@ static struct platform_driver apple_efuses_driver = {
 module_platform_driver(apple_efuses_driver);
 
 MODULE_AUTHOR("Sven Peter <sven@svenpeter.dev>");
+MODULE_DESCRIPTION("Apple SoC eFuse driver");
 MODULE_LICENSE("GPL");

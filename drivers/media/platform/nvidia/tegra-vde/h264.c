@@ -19,11 +19,6 @@
 #define FLAG_B_FRAME		0x1
 #define FLAG_REFERENCE		0x2
 
-struct tegra_vde_h264_frame {
-	unsigned int frame_num;
-	unsigned int flags;
-};
-
 struct tegra_vde_h264_decoder_ctx {
 	unsigned int dpb_frames_nb;
 	unsigned int dpb_ref_frames_with_earlier_poc_nb;
@@ -633,7 +628,9 @@ static int tegra_vde_decode_end(struct tegra_vde *vde)
 
 	timeout = wait_for_completion_interruptible_timeout(
 			&vde->decode_completion, msecs_to_jiffies(1000));
-	if (timeout == 0) {
+	if (timeout < 0) {
+		ret = timeout;
+	} else if (timeout == 0) {
 		bsev_ptr = tegra_vde_readl(vde, vde->bsev, 0x10);
 		macroblocks_nb = tegra_vde_readl(vde, vde->sxe, 0xC8) & 0x1FFF;
 		read_bytes = bsev_ptr ? bsev_ptr - vde->bitstream_data_addr : 0;
@@ -642,8 +639,6 @@ static int tegra_vde_decode_end(struct tegra_vde *vde)
 			read_bytes, macroblocks_nb);
 
 		ret = -EIO;
-	} else if (timeout < 0) {
-		ret = timeout;
 	} else {
 		ret = 0;
 	}

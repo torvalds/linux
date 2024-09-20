@@ -95,16 +95,16 @@ static int rpcif_spi_mem_dirmap_create(struct spi_mem_dirmap_desc *desc)
 		spi_controller_get_devdata(desc->mem->spi->controller);
 
 	if (desc->info.offset + desc->info.length > U32_MAX)
-		return -ENOTSUPP;
+		return -EINVAL;
 
 	if (!rpcif_spi_mem_supports_op(desc->mem, &desc->info.op_tmpl))
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 
-	if (!rpc->dirmap && desc->info.op_tmpl.data.dir == SPI_MEM_DATA_IN)
-		return -ENOTSUPP;
+	if (!rpc->dirmap)
+		return -EOPNOTSUPP;
 
-	if (desc->info.op_tmpl.data.dir == SPI_MEM_DATA_OUT)
-		return -ENOTSUPP;
+	if (desc->info.op_tmpl.data.dir != SPI_MEM_DATA_IN)
+		return -EOPNOTSUPP;
 
 	return 0;
 }

@@ -9,6 +9,7 @@
 #define _SELFTESTS_POWERPC_DEXCR_DEXCR_H
 
 #include <stdbool.h>
+#include <sys/prctl.h>
 #include <sys/types.h>
 
 #include "reg.h"
@@ -26,7 +27,63 @@
 #define PPC_RAW_HASHCHK(b, i, a) \
 	str(.long (0x7C0005E4 | PPC_RAW_HASH_ARGS(b, i, a));)
 
+struct dexcr_aspect {
+	const char *name;	/* Short display name */
+	const char *opt;	/* Option name for chdexcr */
+	const char *desc;	/* Expanded aspect meaning */
+	unsigned int index;	/* Aspect bit index in DEXCR */
+	unsigned long prctl;	/* 'which' value for get/set prctl */
+};
+
+static const struct dexcr_aspect aspects[] = {
+	{
+		.name = "SBHE",
+		.opt = "sbhe",
+		.desc = "Speculative branch hint enable",
+		.index = 0,
+		.prctl = PR_PPC_DEXCR_SBHE,
+	},
+	{
+		.name = "IBRTPD",
+		.opt = "ibrtpd",
+		.desc = "Indirect branch recurrent target prediction disable",
+		.index = 3,
+		.prctl = PR_PPC_DEXCR_IBRTPD,
+	},
+	{
+		.name = "SRAPD",
+		.opt = "srapd",
+		.desc = "Subroutine return address prediction disable",
+		.index = 4,
+		.prctl = PR_PPC_DEXCR_SRAPD,
+	},
+	{
+		.name = "NPHIE",
+		.opt = "nphie",
+		.desc = "Non-privileged hash instruction enable",
+		.index = 5,
+		.prctl = PR_PPC_DEXCR_NPHIE,
+	},
+	{
+		.name = "PHIE",
+		.opt = "phie",
+		.desc = "Privileged hash instruction enable",
+		.index = 6,
+		.prctl = -1,
+	},
+};
+
 bool dexcr_exists(void);
+
+bool pr_dexcr_aspect_supported(unsigned long which);
+
+bool pr_dexcr_aspect_editable(unsigned long which);
+
+int pr_get_dexcr(unsigned long pr_aspect);
+
+int pr_set_dexcr(unsigned long pr_aspect, unsigned long ctrl);
+
+unsigned int pr_which_to_aspect(unsigned long which);
 
 bool hashchk_triggers(void);
 

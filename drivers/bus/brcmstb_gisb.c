@@ -410,6 +410,7 @@ static const struct of_device_id brcmstb_gisb_arb_of_match[] = {
 	{ .compatible = "brcm,bcm74165-gisb-arb", .data = gisb_offsets_bcm74165 },
 	{ },
 };
+MODULE_DEVICE_TABLE(of, brcmstb_gisb_arb_of_match);
 
 static int __init brcmstb_gisb_arb_probe(struct platform_device *pdev)
 {

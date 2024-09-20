@@ -149,7 +149,7 @@ struct agp_bridge_driver alpha_core_agp_driver = {
 
 struct agp_bridge_data *alpha_bridge;
 
-int __init
+static int __init
 alpha_core_agp_setup(void)
 {
 	alpha_agp_info *agp = alpha_mv.agp_info();
@@ -217,4 +217,5 @@ module_init(agp_alpha_core_init);
 module_exit(agp_alpha_core_cleanup);
 
 MODULE_AUTHOR("Jeff Wiedemeier <Jeff.Wiedemeier@hp.com>");
+MODULE_DESCRIPTION("Alpha AGP support");
 MODULE_LICENSE("GPL and additional rights");

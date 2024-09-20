@@ -852,7 +852,7 @@
 			clock-names = "wdog_clk", "apb_pclk";
 		};
 
-		tsensor: tsensor@0,f7030700 {
+		tsensor: tsensor@f7030700 {
 			compatible = "hisilicon,tsensor";
 			reg = <0x0 0xf7030700 0x0 0x1000>;
 			interrupts = <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>;

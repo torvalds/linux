@@ -158,6 +158,26 @@ struct rapl_if_priv {
 	void *rpi;
 };
 
+#ifdef CONFIG_PERF_EVENTS
+/**
+ * struct rapl_package_pmu_data: Per package data for PMU support
+ * @scale:		Scale of 2^-32 Joules for each energy counter increase.
+ * @lock:		Lock to protect n_active and active_list.
+ * @n_active:		Number of active events.
+ * @active_list:	List of active events.
+ * @timer_interval:	Maximum timer expiration time before counter overflow.
+ * @hrtimer:		Periodically update the counter to prevent overflow.
+ */
+struct rapl_package_pmu_data {
+	u64 scale[RAPL_DOMAIN_MAX];
+	raw_spinlock_t lock;
+	int n_active;
+	struct list_head active_list;
+	ktime_t timer_interval;
+	struct hrtimer hrtimer;
+};
+#endif
+
 /* maximum rapl package domain name: package-%d-die-%d */
 #define PACKAGE_DOMAIN_NAME_LENGTH 30
 
@@ -176,6 +196,10 @@ struct rapl_package {
 	struct cpumask cpumask;
 	char name[PACKAGE_DOMAIN_NAME_LENGTH];
 	struct rapl_if_priv *priv;
+#ifdef CONFIG_PERF_EVENTS
+	bool has_pmu;
+	struct rapl_package_pmu_data pmu_data;
+#endif
 };
 
 struct rapl_package *rapl_find_package_domain_cpuslocked(int id, struct rapl_if_priv *priv,
@@ -187,5 +211,13 @@ void rapl_remove_package_cpuslocked(struct rapl_package *rp);
 struct rapl_package *rapl_find_package_domain(int id, struct rapl_if_priv *priv, bool id_is_cpu);
 struct rapl_package *rapl_add_package(int id, struct rapl_if_priv *priv, bool id_is_cpu);
 void rapl_remove_package(struct rapl_package *rp);
+
+#ifdef CONFIG_PERF_EVENTS
+int rapl_package_add_pmu(struct rapl_package *rp);
+void rapl_package_remove_pmu(struct rapl_package *rp);
+#else
+static inline int rapl_package_add_pmu(struct rapl_package *rp) { return 0; }
+static inline void rapl_package_remove_pmu(struct rapl_package *rp) { }
+#endif
 
 #endif /* __INTEL_RAPL_H__ */

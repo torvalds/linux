@@ -67,6 +67,7 @@
 #include <linux/time_namespace.h>
 #include <linux/user_events.h>
 #include <linux/rseq.h>
+#include <linux/ksm.h>
 
 #include <linux/uaccess.h>
 #include <asm/mmu_context.h>
@@ -268,6 +269,14 @@ static int __bprm_mm_init(struct linux_binprm *bprm)
 	}
 
 	/*
+	 * Need to be called with mmap write lock
+	 * held, to avoid race with ksmd.
+	 */
+	err = ksm_execve(mm);
+	if (err)
+		goto err_ksm;
+
+	/*
 	 * Place the stack at the largest stack address the architecture
 	 * supports. Later, we'll move this to an appropriate place. We don't
 	 * use STACK_TOP because that can depend on attributes which aren't
@@ -288,6 +297,8 @@ static int __bprm_mm_init(struct linux_binprm *bprm)
 	bprm->p = vma->vm_end - sizeof(void *);
 	return 0;
 err:
+	ksm_exit(mm);
+err_ksm:
 	mmap_write_unlock(mm);
 err_free:
 	bprm->vma = NULL;
@@ -475,6 +486,35 @@ static int count_strings_kernel(const char *const *argv)
 	return i;
 }
 
+static inline int bprm_set_stack_limit(struct linux_binprm *bprm,
+				       unsigned long limit)
+{
+#ifdef CONFIG_MMU
+	/* Avoid a pathological bprm->p. */
+	if (bprm->p < limit)
+		return -E2BIG;
+	bprm->argmin = bprm->p - limit;
+#endif
+	return 0;
+}
+static inline bool bprm_hit_stack_limit(struct linux_binprm *bprm)
+{
+#ifdef CONFIG_MMU
+	return bprm->p < bprm->argmin;
+#else
+	return false;
+#endif
+}
+
+/*
+ * Calculate bprm->argmin from:
+ * - _STK_LIM
+ * - ARG_MAX
+ * - bprm->rlim_stack.rlim_cur
+ * - bprm->argc
+ * - bprm->envc
+ * - bprm->p
+ */
 static int bprm_stack_limits(struct linux_binprm *bprm)
 {
 	unsigned long limit, ptr_size;
@@ -494,6 +534,9 @@ static int bprm_stack_limits(struct linux_binprm *bprm)
 	 * of argument strings even with small stacks
 	 */
 	limit = max_t(unsigned long, limit, ARG_MAX);
+	/* Reject totally pathological counts. */
+	if (bprm->argc < 0 || bprm->envc < 0)
+		return -E2BIG;
 	/*
 	 * We must account for the size of all the argv and envp pointers to
 	 * the argv and envp strings, since they will also take up space in
@@ -507,13 +550,14 @@ static int bprm_stack_limits(struct linux_binprm *bprm)
 	 * argc can never be 0, to keep them from walking envp by accident.
 	 * See do_execveat_common().
 	 */
-	ptr_size = (max(bprm->argc, 1) + bprm->envc) * sizeof(void *);
+	if (check_add_overflow(max(bprm->argc, 1), bprm->envc, &ptr_size) ||
+	    check_mul_overflow(ptr_size, sizeof(void *), &ptr_size))
+		return -E2BIG;
 	if (limit <= ptr_size)
 		return -E2BIG;
 	limit -= ptr_size;
 
-	bprm->argmin = bprm->p - limit;
-	return 0;
+	return bprm_set_stack_limit(bprm, limit);
 }
 
 /*
@@ -551,10 +595,8 @@ static int copy_strings(int argc, struct user_arg_ptr argv,
 		pos = bprm->p;
 		str += len;
 		bprm->p -= len;
-#ifdef CONFIG_MMU
-		if (bprm->p < bprm->argmin)
+		if (bprm_hit_stack_limit(bprm))
 			goto out;
-#endif
 
 		while (len > 0) {
 			int offset, bytes_to_copy;
@@ -629,7 +671,7 @@ int copy_string_kernel(const char *arg, struct linux_binprm *bprm)
 	/* We're going to work our way backwards. */
 	arg += len;
 	bprm->p -= len;
-	if (IS_ENABLED(CONFIG_MMU) && bprm->p < bprm->argmin)
+	if (bprm_hit_stack_limit(bprm))
 		return -E2BIG;
 
 	while (len > 0) {
@@ -941,10 +983,6 @@ static struct file *do_open_execat(int fd, struct filename *name, int flags)
 			 path_noexec(&file->f_path)))
 		goto exit;
 
-	err = deny_write_access(file);
-	if (err)
-		goto exit;
-
 out:
 	return file;
 
@@ -960,8 +998,7 @@ exit:
  *
  * Returns ERR_PTR on failure or allocated struct file on success.
  *
- * As this is a wrapper for the internal do_open_execat(), callers
- * must call allow_write_access() before fput() on release. Also see
+ * As this is a wrapper for the internal do_open_execat(). Also see
  * do_close_execat().
  */
 struct file *open_exec(const char *name)
@@ -1268,6 +1305,14 @@ int begin_new_exec(struct linux_binprm * bprm)
 		return retval;
 
 	/*
+	 * This tracepoint marks the point before flushing the old exec where
+	 * the current task is still unchanged, but errors are fatal (point of
+	 * no return). The later "sched_process_exec" tracepoint is called after
+	 * the current task has successfully switched to the new exec.
+	 */
+	trace_sched_prepare_exec(current, bprm);
+
+	/*
 	 * Ensure all future errors are fatal.
 	 */
 	bprm->point_of_no_return = true;
@@ -1505,10 +1550,8 @@ static int prepare_bprm_creds(struct linux_binprm *bprm)
 /* Matches do_open_execat() */
 static void do_close_execat(struct file *file)
 {
-	if (!file)
-		return;
-	allow_write_access(file);
-	fput(file);
+	if (file)
+		fput(file);
 }
 
 static void free_bprm(struct linux_binprm *bprm)
@@ -1649,6 +1692,7 @@ static void bprm_fill_uid(struct linux_binprm *bprm, struct file *file)
 	unsigned int mode;
 	vfsuid_t vfsuid;
 	vfsgid_t vfsgid;
+	int err;
 
 	if (!mnt_may_suid(file->f_path.mnt))
 		return;
@@ -1665,11 +1709,16 @@ static void bprm_fill_uid(struct linux_binprm *bprm, struct file *file)
 	/* Be careful if suid/sgid is set */
 	inode_lock(inode);
 
-	/* reload atomically mode/uid/gid now that lock held */
+	/* Atomically reload and check mode/uid/gid now that lock held. */
 	mode = inode->i_mode;
 	vfsuid = i_uid_into_vfsuid(idmap, inode);
 	vfsgid = i_gid_into_vfsgid(idmap, inode);
+	err = inode_permission(idmap, inode, MAY_EXEC);
 	inode_unlock(inode);
+
+	/* Did the exec bit vanish out from under us? Give up. */
+	if (err)
+		return;
 
 	/* We ignore suid/sgid if there are no mappings for them in the ns */
 	if (!vfsuid_has_mapping(bprm->cred->user_ns, vfsuid) ||
@@ -1827,7 +1876,6 @@ static int exec_binprm(struct linux_binprm *bprm)
 		bprm->file = bprm->interpreter;
 		bprm->interpreter = NULL;
 
-		allow_write_access(exec);
 		if (unlikely(bprm->have_execfd)) {
 			if (bprm->executable) {
 				fput(exec);
@@ -2162,7 +2210,7 @@ COMPAT_SYSCALL_DEFINE5(execveat, int, fd,
 
 #ifdef CONFIG_SYSCTL
 
-static int proc_dointvec_minmax_coredump(struct ctl_table *table, int write,
+static int proc_dointvec_minmax_coredump(const struct ctl_table *table, int write,
 		void *buffer, size_t *lenp, loff_t *ppos)
 {
 	int error = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
@@ -2192,3 +2240,7 @@ static int __init init_fs_exec_sysctls(void)
 
 fs_initcall(init_fs_exec_sysctls);
 #endif /* CONFIG_SYSCTL */
+
+#ifdef CONFIG_EXEC_KUNIT_TEST
+#include "tests/exec_kunit.c"
+#endif

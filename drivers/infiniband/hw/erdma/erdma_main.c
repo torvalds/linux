@@ -178,16 +178,26 @@ static int erdma_device_init(struct erdma_dev *dev, struct pci_dev *pdev)
 	if (!dev->resp_pool)
 		return -ENOMEM;
 
+	dev->db_pool = dma_pool_create("erdma_db_pool", &pdev->dev,
+				       ERDMA_DB_SIZE, ERDMA_DB_SIZE, 0);
+	if (!dev->db_pool) {
+		ret = -ENOMEM;
+		goto destroy_resp_pool;
+	}
+
 	ret = dma_set_mask_and_coherent(&pdev->dev,
 					DMA_BIT_MASK(ERDMA_PCI_WIDTH));
 	if (ret)
-		goto destroy_pool;
+		goto destroy_db_pool;
 
 	dma_set_max_seg_size(&pdev->dev, UINT_MAX);
 
 	return 0;
 
-destroy_pool:
+destroy_db_pool:
+	dma_pool_destroy(dev->db_pool);
+
+destroy_resp_pool:
 	dma_pool_destroy(dev->resp_pool);
 
 	return ret;
@@ -195,6 +205,7 @@ destroy_pool:
 
 static void erdma_device_uninit(struct erdma_dev *dev)
 {
+	dma_pool_destroy(dev->db_pool);
 	dma_pool_destroy(dev->resp_pool);
 }
 

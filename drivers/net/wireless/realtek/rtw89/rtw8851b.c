@@ -105,6 +105,10 @@ static const u32 rtw8851b_c2h_regs[RTW89_C2HREG_MAX] = {
 	R_AX_C2HREG_DATA3
 };
 
+static const u32 rtw8851b_wow_wakeup_regs[RTW89_WOW_REASON_NUM] = {
+	R_AX_C2HREG_DATA3 + 3, R_AX_C2HREG_DATA3 + 3,
+};
+
 static const struct rtw89_page_regs rtw8851b_page_regs = {
 	.hci_fc_ctrl	= R_AX_HCI_FC_CTRL,
 	.ch_page_ctrl	= R_AX_CH_PAGE_CTRL,
@@ -2320,6 +2324,7 @@ static int rtw8851b_mac_disable_bb_rf(struct rtw89_dev *rtwdev)
 	u8 wl_rfc_s1;
 	int ret;
 
+	rtw89_write32_clr(rtwdev, R_AX_WLRF_CTRL, B_AX_AFC_AFEDIG);
 	rtw89_write8_clr(rtwdev, R_AX_SYS_FUNC_EN,
 			 B_AX_FEN_BBRSTB | B_AX_FEN_BB_GLB_RSTN);
 
@@ -2446,7 +2451,9 @@ const struct rtw89_chip_info rtw8851b_chip_info = {
 	.dig_table		= NULL,
 	.dig_regs		= &rtw8851b_dig_regs,
 	.tssi_dbw_table		= NULL,
+	.support_macid_num	= RTW89_MAX_MAC_ID_NUM,
 	.support_chanctx_num	= 0,
+	.support_rnr		= false,
 	.support_bands		= BIT(NL80211_BAND_2GHZ) |
 				  BIT(NL80211_BAND_5GHZ),
 	.support_bandwidths	= BIT(NL80211_CHAN_WIDTH_20) |
@@ -2506,7 +2513,7 @@ const struct rtw89_chip_info rtw8851b_chip_info = {
 	.c2h_counter_reg	= {R_AX_UDM1 + 1, B_AX_UDM1_HALMAC_C2H_ENQ_CNT_MASK >> 8},
 	.c2h_regs		= rtw8851b_c2h_regs,
 	.page_regs		= &rtw8851b_page_regs,
-	.wow_reason_reg		= R_AX_C2HREG_DATA3 + 3,
+	.wow_reason_reg		= rtw8851b_wow_wakeup_regs,
 	.cfo_src_fd		= true,
 	.cfo_hw_comp		= true,
 	.dcfo_comp		= &rtw8851b_dcfo_comp,

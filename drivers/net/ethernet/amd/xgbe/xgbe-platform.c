@@ -538,7 +538,6 @@ static const struct xgbe_version_data xgbe_v1 = {
 	.tx_tstamp_workaround		= 1,
 };
 
-#ifdef CONFIG_ACPI
 static const struct acpi_device_id xgbe_acpi_match[] = {
 	{ .id = "AMDI8001",
 	  .driver_data = (kernel_ulong_t)&xgbe_v1 },
@@ -546,9 +545,7 @@ static const struct acpi_device_id xgbe_acpi_match[] = {
 };
 
 MODULE_DEVICE_TABLE(acpi, xgbe_acpi_match);
-#endif
 
-#ifdef CONFIG_OF
 static const struct of_device_id xgbe_of_match[] = {
 	{ .compatible = "amd,xgbe-seattle-v1a",
 	  .data = &xgbe_v1 },
@@ -556,7 +553,6 @@ static const struct of_device_id xgbe_of_match[] = {
 };
 
 MODULE_DEVICE_TABLE(of, xgbe_of_match);
-#endif
 
 static SIMPLE_DEV_PM_OPS(xgbe_platform_pm_ops,
 			 xgbe_platform_suspend, xgbe_platform_resume);
@@ -564,12 +560,8 @@ static SIMPLE_DEV_PM_OPS(xgbe_platform_pm_ops,
 static struct platform_driver xgbe_driver = {
 	.driver = {
 		.name = XGBE_DRV_NAME,
-#ifdef CONFIG_ACPI
 		.acpi_match_table = xgbe_acpi_match,
-#endif
-#ifdef CONFIG_OF
 		.of_match_table = xgbe_of_match,
-#endif
 		.pm = &xgbe_platform_pm_ops,
 	},
 	.probe = xgbe_platform_probe,

@@ -44,33 +44,14 @@
 
 #define DO_DEFAULT_RTC			.rtc_port = 0x70
 
-#define DO_EV4_MMU							\
-	.max_asn =			EV4_MAX_ASN,			\
-	.mv_switch_mm =			ev4_switch_mm,			\
-	.mv_activate_mm =		ev4_activate_mm,		\
-	.mv_flush_tlb_current =		ev4_flush_tlb_current,		\
-	.mv_flush_tlb_current_page =	ev4_flush_tlb_current_page
-
 #define DO_EV5_MMU							\
-	.max_asn =			EV5_MAX_ASN,			\
-	.mv_switch_mm =			ev5_switch_mm,			\
-	.mv_activate_mm =		ev5_activate_mm,		\
-	.mv_flush_tlb_current =		ev5_flush_tlb_current,		\
-	.mv_flush_tlb_current_page =	ev5_flush_tlb_current_page
+	.max_asn =			EV5_MAX_ASN			\
 
 #define DO_EV6_MMU							\
-	.max_asn =			EV6_MAX_ASN,			\
-	.mv_switch_mm =			ev5_switch_mm,			\
-	.mv_activate_mm =		ev5_activate_mm,		\
-	.mv_flush_tlb_current =		ev5_flush_tlb_current,		\
-	.mv_flush_tlb_current_page =	ev5_flush_tlb_current_page
+	.max_asn =			EV6_MAX_ASN			\
 
 #define DO_EV7_MMU							\
-	.max_asn =			EV6_MAX_ASN,			\
-	.mv_switch_mm =			ev5_switch_mm,			\
-	.mv_activate_mm =		ev5_activate_mm,		\
-	.mv_flush_tlb_current =		ev5_flush_tlb_current,		\
-	.mv_flush_tlb_current_page =	ev5_flush_tlb_current_page
+	.max_asn =			EV6_MAX_ASN			\
 
 #define IO_LITE(UP,low)							\
 	.hae_register =		(unsigned long *) CAT(UP,_HAE_ADDRESS),	\

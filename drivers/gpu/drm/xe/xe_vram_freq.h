@@ -8,6 +8,6 @@
 
 struct xe_tile;
 
-void xe_vram_freq_sysfs_init(struct xe_tile *tile);
+int xe_vram_freq_sysfs_init(struct xe_tile *tile);
 
 #endif /* _XE_VRAM_FREQ_H_ */

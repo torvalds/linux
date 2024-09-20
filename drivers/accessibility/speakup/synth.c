@@ -217,10 +217,95 @@ void synth_write(const char *_buf, size_t count)
 	synth_start();
 }
 
+/* Consume one utf-8 character from buf (that contains up to count bytes),
+ * returns the unicode codepoint if valid, -1 otherwise.
+ * In all cases, returns the number of consumed bytes in *consumed,
+ * and the minimum number of bytes that would be needed for the next character
+ * in *want.
+ */
+s32 synth_utf8_get(const char *buf, size_t count, size_t *consumed, size_t *want)
+{
+	unsigned char c = buf[0];
+	int nbytes = 8 - fls(c ^ 0xff);
+	u32 value;
+	size_t i;
+
+	switch (nbytes) {
+	case 8: /* 0xff */
+	case 7: /* 0xfe */
+	case 1: /* 0x80 */
+		/* Invalid, drop */
+		*consumed = 1;
+		*want = 1;
+		return -1;
+
+	case 0:
+		/* ASCII, take as such */
+		*consumed = 1;
+		*want = 1;
+		return c;
+
+	default:
+		/* 2..6-byte UTF-8 */
+
+		if (count < nbytes) {
+			/* We don't have it all */
+			*consumed = 0;
+			*want = nbytes;
+			return -1;
+		}
+
+		/* First byte */
+		value = c & ((1u << (7 - nbytes)) - 1);
+
+		/* Other bytes */
+		for (i = 1; i < nbytes; i++) {
+			c = buf[i];
+			if ((c & 0xc0) != 0x80)	{
+				/* Invalid, drop the head */
+				*consumed = i;
+				*want = 1;
+				return -1;
+			}
+			value = (value << 6) | (c & 0x3f);
+		}
+
+		*consumed = nbytes;
+		*want = 1;
+		return value;
+	}
+}
+
+void synth_writeu(const char *buf, size_t count)
+{
+	size_t i, consumed, want;
+
+	/* Convert to u16 */
+	for (i = 0; i < count; i++) {
+		s32 value;
+
+		value = synth_utf8_get(buf + i, count - i, &consumed, &want);
+		if (value == -1) {
+			/* Invalid or incomplete */
+
+			if (want > count - i)
+				/* We don't have it all, stop */
+				count = i;
+
+			continue;
+		}
+
+		if (value < 0x10000)
+			synth_buffer_add(value);
+	}
+
+	synth_start();
+}
+
 void synth_printf(const char *fmt, ...)
 {
 	va_list args;
-	unsigned char buf[160], *p;
+	unsigned char buf[160];
 	int r;
 
 	va_start(args, fmt);
@@ -229,10 +314,7 @@ void synth_printf(const char *fmt, ...)
 	if (r > sizeof(buf) - 1)
 		r = sizeof(buf) - 1;
 
-	p = buf;
-	while (r--)
-		synth_buffer_add(*p++);
-	synth_start();
+	synth_writeu(buf, r);
 }
 EXPORT_SYMBOL_GPL(synth_printf);
 

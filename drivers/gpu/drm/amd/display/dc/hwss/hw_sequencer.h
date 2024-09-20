@@ -141,6 +141,17 @@ struct subvp_save_surf_addr {
 	uint8_t subvp_index;
 };
 
+struct wait_for_dcc_meta_propagation_params {
+	const struct dc *dc;
+	const struct pipe_ctx *top_pipe_to_program;
+};
+
+struct fams2_global_control_lock_fast_params {
+	struct dc *dc;
+	bool is_required;
+	bool lock;
+};
+
 union block_sequence_params {
 	struct update_plane_addr_params update_plane_addr_params;
 	struct subvp_pipe_control_lock_fast_params subvp_pipe_control_lock_fast_params;
@@ -159,6 +170,8 @@ union block_sequence_params {
 	struct set_output_csc_params set_output_csc_params;
 	struct set_ocsc_default_params set_ocsc_default_params;
 	struct subvp_save_surf_addr subvp_save_surf_addr;
+	struct wait_for_dcc_meta_propagation_params wait_for_dcc_meta_propagation_params;
+	struct fams2_global_control_lock_fast_params fams2_global_control_lock_fast_params;
 };
 
 enum block_sequence_func {
@@ -179,6 +192,9 @@ enum block_sequence_func {
 	MPC_SET_OUTPUT_CSC,
 	MPC_SET_OCSC_DEFAULT,
 	DMUB_SUBVP_SAVE_SURF_ADDR,
+	HUBP_WAIT_FOR_DCC_META_PROP,
+	DMUB_FAMS2_GLOBAL_CONTROL_LOCK_FAST,
+
 };
 
 struct block_sequence {
@@ -295,6 +311,7 @@ struct hw_sequencer_funcs {
 	void (*program_output_csc)(struct dc *dc, struct pipe_ctx *pipe_ctx,
 			enum dc_color_space colorspace,
 			uint16_t *matrix, int opp_id);
+	void (*trigger_3dlut_dma_load)(struct dc *dc, struct pipe_ctx *pipe_ctx);
 
 	/* VM Related */
 	int (*init_sys_ctx)(struct dce_hwseq *hws,
@@ -329,6 +346,9 @@ struct hw_sequencer_funcs {
 			struct dc_state *context);
 	void (*exit_optimized_pwr_state)(const struct dc *dc,
 			struct dc_state *context);
+	void (*calculate_pix_rate_divider)(struct dc *dc,
+			struct dc_state *context,
+			const struct dc_stream_state *stream);
 
 	/* Audio Related */
 	void (*enable_audio_stream)(struct pipe_ctx *pipe_ctx);
@@ -377,7 +397,10 @@ struct hw_sequencer_funcs {
 	/* Idle Optimization Related */
 	bool (*apply_idle_power_optimizations)(struct dc *dc, bool enable);
 
-	bool (*does_plane_fit_in_mall)(struct dc *dc, struct dc_plane_state *plane,
+	bool (*does_plane_fit_in_mall)(struct dc *dc,
+			unsigned int pitch,
+			unsigned int height,
+			enum surface_pixel_format format,
 			struct dc_cursor_attributes *cursor_attr);
 	void (*commit_subvp_config)(struct dc *dc, struct dc_state *context);
 	void (*enable_phantom_streams)(struct dc *dc, struct dc_state *context);
@@ -424,11 +447,19 @@ struct hw_sequencer_funcs {
 		struct pg_block_update *update_state);
 	void (*root_clock_control)(struct dc *dc,
 		struct pg_block_update *update_state, bool power_on);
-	void (*set_idle_state)(const struct dc *dc, bool allow_idle);
-	uint32_t (*get_idle_state)(const struct dc *dc);
 	bool (*is_pipe_topology_transition_seamless)(struct dc *dc,
 			const struct dc_state *cur_ctx,
 			const struct dc_state *new_ctx);
+	void (*wait_for_dcc_meta_propagation)(const struct dc *dc,
+		const struct pipe_ctx *top_pipe_to_program);
+	void (*fams2_global_control_lock)(struct dc *dc,
+			struct dc_state *context,
+			bool lock);
+	void (*fams2_update_config)(struct dc *dc,
+			struct dc_state *context,
+			bool enable);
+	void (*fams2_global_control_lock_fast)(union block_sequence_params *params);
+	void (*set_long_vtotal)(struct pipe_ctx **pipe_ctx, int num_pipes, uint32_t v_total_min, uint32_t v_total_max);
 };
 
 void color_space_to_black_color(
@@ -461,6 +492,12 @@ void get_subvp_visual_confirm_color(
 	struct pipe_ctx *pipe_ctx,
 	struct tg_color *color);
 
+void get_fams2_visual_confirm_color(
+	struct dc *dc,
+	struct dc_state *context,
+	struct pipe_ctx *pipe_ctx,
+	struct tg_color *color);
+
 void get_mclk_switch_visual_confirm_color(
 		struct pipe_ctx *pipe_ctx,
 		struct tg_color *color);
@@ -478,9 +515,10 @@ void hwss_build_fast_sequence(struct dc *dc,
 		struct dc_dmub_cmd *dc_dmub_cmd,
 		unsigned int dmub_cmd_count,
 		struct block_sequence block_sequence[],
-		int *num_steps,
+		unsigned int *num_steps,
 		struct pipe_ctx *pipe_ctx,
-		struct dc_stream_status *stream_status);
+		struct dc_stream_status *stream_status,
+		struct dc_state *context);
 
 void hwss_send_dmcub_cmd(union block_sequence_params *params);
 

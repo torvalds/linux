@@ -233,7 +233,7 @@ static int hih6130_probe(struct i2c_client *client)
 
 /* Device ID table */
 static const struct i2c_device_id hih6130_id[] = {
-	{ "hih6130", 0 },
+	{ "hih6130" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, hih6130_id);

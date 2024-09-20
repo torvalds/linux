@@ -60,14 +60,14 @@
 		cache-sets = <1024>;
 	};
 
-	refclk100mhz: refclk100mhz {
+	refclk100mhz: clock-100000000 {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
 		clock-frequency = <100000000>;
 		clock-output-names = "apb_pclk";
 	};
 
-	smbclk: refclk24mhzx2 {
+	smbclk: clock-48000000 {
 		/* Reference 24MHz clock x 2 */
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
@@ -83,7 +83,7 @@
 			     <GIC_PPI 10 (GIC_CPU_MASK_SIMPLE(1) | IRQ_TYPE_LEVEL_LOW)>;
 	};
 
-	uartclk: uartclk {
+	uartclk: clock-50000000 {
 		/* UART clock - 50MHz */
 		compatible = "fixed-clock";
 		#clock-cells = <0>;

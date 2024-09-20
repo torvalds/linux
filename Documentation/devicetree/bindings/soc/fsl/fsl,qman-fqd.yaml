@@ -1,0 +1,69 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/soc/fsl/fsl,qman-fqd.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: QMan Private Memory Nodes
+
+maintainers:
+  - Frank Li <Frank.Li@nxp.com>
+
+description: |
+  QMan requires two contiguous range of physical memory used for the backing store
+  for QMan Frame Queue Descriptor (FQD) and Packed Frame Descriptor Record (PFDR).
+  This memory is reserved/allocated as a node under the /reserved-memory node.
+
+  BMan requires a contiguous range of physical memory used for the backing store
+  for BMan Free Buffer Proxy Records (FBPR). This memory is reserved/allocated as
+  a node under the /reserved-memory node.
+
+  The QMan FQD memory node must be named "qman-fqd"
+  The QMan PFDR memory node must be named "qman-pfdr"
+  The BMan FBPR memory node must be named "bman-fbpr"
+
+  The following constraints are relevant to the FQD and PFDR private memory:
+    - The size must be 2^(size + 1), with size = 11..29. That is 4 KiB to
+      1 GiB
+    - The alignment must be a muliptle of the memory size
+
+  The size of the FQD and PFDP must be chosen by observing the hardware features
+  configured via the Reset Configuration Word (RCW) and that are relevant to a
+  specific board (e.g. number of MAC(s) pinned-out, number of offline/host command
+  FMan ports, etc.). The size configured in the DT must reflect the hardware
+  capabilities and not the specific needs of an application
+
+  For additional details about reserved memory regions see
+  reserved-memory/reserved-memory.yaml in dtschema project.
+
+properties:
+  $nodename:
+    pattern: '^(qman-fqd|qman-pfdr|bman-fbpr)+$'
+
+  compatible:
+    enum:
+      - fsl,qman-fqd
+      - fsl,qman-pfdr
+      - fsl,bman-fbpr
+
+required:
+  - compatible
+
+allOf:
+  - $ref: reserved-memory.yaml
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    reserved-memory {
+        #address-cells = <2>;
+        #size-cells = <2>;
+
+        qman-fqd {
+            compatible = "shared-dma-pool";
+            size = <0 0x400000>;
+            alignment = <0 0x400000>;
+            no-map;
+        };
+    };

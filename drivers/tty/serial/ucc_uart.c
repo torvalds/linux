@@ -334,7 +334,7 @@ static int qe_uart_tx_pump(struct uart_qe_port *qe_port)
 	unsigned char *p;
 	unsigned int count;
 	struct uart_port *port = &qe_port->port;
-	struct circ_buf *xmit = &port->state->xmit;
+	struct tty_port *tport = &port->state->port;
 
 	/* Handle xon/xoff */
 	if (port->x_char) {
@@ -358,7 +358,7 @@ static int qe_uart_tx_pump(struct uart_qe_port *qe_port)
 		return 1;
 	}
 
-	if (uart_circ_empty(xmit) || uart_tx_stopped(port)) {
+	if (kfifo_is_empty(&tport->xmit_fifo) || uart_tx_stopped(port)) {
 		qe_uart_stop_tx(port);
 		return 0;
 	}
@@ -366,16 +366,10 @@ static int qe_uart_tx_pump(struct uart_qe_port *qe_port)
 	/* Pick next descriptor and fill from buffer */
 	bdp = qe_port->tx_cur;
 
-	while (!(ioread16be(&bdp->status) & BD_SC_READY) && !uart_circ_empty(xmit)) {
-		count = 0;
+	while (!(ioread16be(&bdp->status) & BD_SC_READY) &&
+	       !kfifo_is_empty(&tport->xmit_fifo)) {
 		p = qe2cpu_addr(ioread32be(&bdp->buf), qe_port);
-		while (count < qe_port->tx_fifosize) {
-			*p++ = xmit->buf[xmit->tail];
-			uart_xmit_advance(port, 1);
-			count++;
-			if (uart_circ_empty(xmit))
-				break;
-		}
+		count =	uart_fifo_out(port, p, qe_port->tx_fifosize);
 
 		iowrite16be(count, &bdp->length);
 		qe_setbits_be16(&bdp->status, BD_SC_READY);
@@ -388,10 +382,10 @@ static int qe_uart_tx_pump(struct uart_qe_port *qe_port)
 	}
 	qe_port->tx_cur = bdp;
 
-	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
+	if (kfifo_len(&tport->xmit_fifo) < WAKEUP_CHARS)
 		uart_write_wakeup(port);
 
-	if (uart_circ_empty(xmit)) {
+	if (kfifo_is_empty(&tport->xmit_fifo)) {
 		/* The kernel buffer is empty, so turn off TX interrupts.  We
 		   don't need to be told when the QE is finished transmitting
 		   the data. */

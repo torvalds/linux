@@ -522,7 +522,7 @@ static int ntfs_extend_mft(struct ntfs_sb_info *sbi)
 	ni->mi.dirty = true;
 
 	/* Step 2: Resize $MFT::BITMAP. */
-	new_bitmap_bytes = bitmap_size(new_mft_total);
+	new_bitmap_bytes = ntfs3_bitmap_size(new_mft_total);
 
 	err = attr_set_size(ni, ATTR_BITMAP, NULL, 0, &sbi->mft.bitmap.run,
 			    new_bitmap_bytes, &new_bitmap_bytes, true, NULL);
@@ -2650,8 +2650,8 @@ int ntfs_set_label(struct ntfs_sb_info *sbi, u8 *label, int len)
 {
 	int err;
 	struct ATTRIB *attr;
+	u32 uni_bytes;
 	struct ntfs_inode *ni = sbi->volume.ni;
-	const u8 max_ulen = 0x80; /* TODO: use attrdef to get maximum length */
 	/* Allocate PATH_MAX bytes. */
 	struct cpu_str *uni = __getname();
 
@@ -2663,7 +2663,8 @@ int ntfs_set_label(struct ntfs_sb_info *sbi, u8 *label, int len)
 	if (err < 0)
 		goto out;
 
-	if (uni->len > max_ulen) {
+	uni_bytes = uni->len * sizeof(u16);
+	if (uni_bytes > NTFS_LABEL_MAX_LENGTH * sizeof(u16)) {
 		ntfs_warn(sbi->sb, "new label is too long");
 		err = -EFBIG;
 		goto out;
@@ -2674,13 +2675,13 @@ int ntfs_set_label(struct ntfs_sb_info *sbi, u8 *label, int len)
 	/* Ignore any errors. */
 	ni_remove_attr(ni, ATTR_LABEL, NULL, 0, false, NULL);
 
-	err = ni_insert_resident(ni, uni->len * sizeof(u16), ATTR_LABEL, NULL,
-				 0, &attr, NULL, NULL);
+	err = ni_insert_resident(ni, uni_bytes, ATTR_LABEL, NULL, 0, &attr,
+				 NULL, NULL);
 	if (err < 0)
 		goto unlock_out;
 
 	/* write new label in on-disk struct. */
-	memcpy(resident_data(attr), uni->name, uni->len * sizeof(u16));
+	memcpy(resident_data(attr), uni->name, uni_bytes);
 
 	/* update cached value of current label. */
 	if (len >= ARRAY_SIZE(sbi->volume.label))

@@ -116,8 +116,8 @@ examples:
 
             bluetooth {
                 compatible = "qcom,wcnss-bt";
-                /* BD address 00:11:22:33:44:55 */
-                local-bd-address = [ 55 44 33 22 11 00 ];
+                /* Updated by boot firmware (little-endian order) */
+                local-bd-address = [ 00 00 00 00 00 00 ];
             };
 
             wifi {

@@ -145,15 +145,12 @@ struct tty_operations;
  * @count: count of open processes, reaching zero cancels all the work for
  *	   this tty and drops a @kref too (but does not free this tty)
  * @winsize: size of the terminal "window" (cf. @winsize_mutex)
- * @flow: flow settings grouped together, see also @flow.unused
+ * @flow: flow settings grouped together
  * @flow.lock: lock for @flow members
  * @flow.stopped: tty stopped/started by stop_tty()/start_tty()
  * @flow.tco_stopped: tty stopped/started by %TCOOFF/%TCOON ioctls (it has
  *		      precedence over @flow.stopped)
- * @flow.unused: alignment for Alpha, so that no members other than @flow.* are
- *		 modified by the same 64b word store. The @flow's __aligned is
- *		 there for the very same reason.
- * @ctrl: control settings grouped together, see also @ctrl.unused
+ * @ctrl: control settings grouped together
  * @ctrl.lock: lock for @ctrl members
  * @ctrl.pgrp: process group of this tty (setpgrp(2))
  * @ctrl.session: session of this tty (setsid(2)). Writes are protected by both
@@ -161,7 +158,6 @@ struct tty_operations;
  *		  them.
  * @ctrl.pktstatus: packet mode status (bitwise OR of %TIOCPKT_ constants)
  * @ctrl.packet: packet mode enabled
- * @ctrl.unused: alignment for Alpha, see @flow.unused for explanation
  * @hw_stopped: not controlled by the tty layer, under @driver's control for CTS
  *		handling
  * @receive_room: bytes permitted to feed to @ldisc without any being lost
@@ -216,8 +212,7 @@ struct tty_struct {
 		spinlock_t lock;
 		bool stopped;
 		bool tco_stopped;
-		unsigned long unused[0];
-	} __aligned(sizeof(unsigned long)) flow;
+	} flow;
 
 	struct {
 		struct pid *pgrp;
@@ -225,8 +220,7 @@ struct tty_struct {
 		spinlock_t lock;
 		unsigned char pktstatus;
 		bool packet;
-		unsigned long unused[0];
-	} __aligned(sizeof(unsigned long)) ctrl;
+	} ctrl;
 
 	bool hw_stopped;
 	bool closing;

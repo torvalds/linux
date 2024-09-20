@@ -1897,7 +1897,7 @@ void dr_ste_v1_build_flex_parser_tnl_geneve_init(struct mlx5dr_ste_build *sb,
 
 static int dr_ste_v1_build_tnl_header_0_1_tag(struct mlx5dr_match_param *value,
 					      struct mlx5dr_ste_build *sb,
-					      uint8_t *tag)
+					      u8 *tag)
 {
 	struct mlx5dr_match_misc5 *misc5 = &value->misc5;
 
@@ -2129,7 +2129,7 @@ dr_ste_v1_build_flex_parser_tnl_geneve_tlv_opt_init(struct mlx5dr_ste_build *sb,
 static int
 dr_ste_v1_build_flex_parser_tnl_geneve_tlv_opt_exist_tag(struct mlx5dr_match_param *value,
 							 struct mlx5dr_ste_build *sb,
-							 uint8_t *tag)
+							 u8 *tag)
 {
 	u8 parser_id = sb->caps->flex_parser_id_geneve_tlv_option_0;
 	struct mlx5dr_match_misc *misc = &value->misc;

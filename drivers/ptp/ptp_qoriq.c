@@ -648,14 +648,13 @@ no_memory:
 	return err;
 }
 
-static int ptp_qoriq_remove(struct platform_device *dev)
+static void ptp_qoriq_remove(struct platform_device *dev)
 {
 	struct ptp_qoriq *ptp_qoriq = platform_get_drvdata(dev);
 
 	ptp_qoriq_free(ptp_qoriq);
 	release_resource(ptp_qoriq->rsrc);
 	kfree(ptp_qoriq);
-	return 0;
 }
 
 static const struct of_device_id match_table[] = {
@@ -671,7 +670,7 @@ static struct platform_driver ptp_qoriq_driver = {
 		.of_match_table	= match_table,
 	},
 	.probe       = ptp_qoriq_probe,
-	.remove      = ptp_qoriq_remove,
+	.remove_new  = ptp_qoriq_remove,
 };
 
 module_platform_driver(ptp_qoriq_driver);

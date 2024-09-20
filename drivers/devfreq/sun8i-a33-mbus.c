@@ -458,7 +458,7 @@ err_disable_bus:
 	return dev_err_probe(dev, ret, err);
 }
 
-static int sun8i_a33_mbus_remove(struct platform_device *pdev)
+static void sun8i_a33_mbus_remove(struct platform_device *pdev)
 {
 	struct sun8i_a33_mbus *priv = platform_get_drvdata(pdev);
 	unsigned long initial_freq = priv->profile.initial_freq;
@@ -475,8 +475,6 @@ static int sun8i_a33_mbus_remove(struct platform_device *pdev)
 	clk_rate_exclusive_put(priv->clk_mbus);
 	clk_rate_exclusive_put(priv->clk_dram);
 	clk_disable_unprepare(priv->clk_bus);
-
-	return 0;
 }
 
 static const struct sun8i_a33_mbus_variant sun50i_a64_mbus = {
@@ -497,7 +495,7 @@ static SIMPLE_DEV_PM_OPS(sun8i_a33_mbus_pm_ops,
 
 static struct platform_driver sun8i_a33_mbus_driver = {
 	.probe	= sun8i_a33_mbus_probe,
-	.remove	= sun8i_a33_mbus_remove,
+	.remove_new = sun8i_a33_mbus_remove,
 	.driver	= {
 		.name		= "sun8i-a33-mbus",
 		.of_match_table	= sun8i_a33_mbus_of_match,

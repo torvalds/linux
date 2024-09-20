@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 /*
  * Copyright (c) 2018-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2022, 2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 #include <linux/skbuff.h>
 #include <linux/ctype.h>
@@ -244,6 +244,11 @@ static void ath12k_htc_suspend_complete(struct ath12k_base *ab, bool ack)
 	complete(&ab->htc_suspend);
 }
 
+static void ath12k_htc_wakeup_from_suspend(struct ath12k_base *ab)
+{
+	ath12k_dbg(ab, ATH12K_DBG_BOOT, "boot wakeup from suspend is received\n");
+}
+
 void ath12k_htc_rx_completion_handler(struct ath12k_base *ab,
 				      struct sk_buff *skb)
 {
@@ -349,6 +354,7 @@ void ath12k_htc_rx_completion_handler(struct ath12k_base *ab,
 			ath12k_htc_suspend_complete(ab, false);
 			break;
 		case ATH12K_HTC_MSG_WAKEUP_FROM_SUSPEND_ID:
+			ath12k_htc_wakeup_from_suspend(ab);
 			break;
 		default:
 			ath12k_warn(ab, "ignoring unsolicited htc ep0 event %u\n",
@@ -358,7 +364,7 @@ void ath12k_htc_rx_completion_handler(struct ath12k_base *ab,
 		goto out;
 	}
 
-	ath12k_dbg(ab, ATH12K_DBG_HTC, "htc rx completion ep %d skb %pK\n",
+	ath12k_dbg(ab, ATH12K_DBG_HTC, "htc rx completion ep %d skb %p\n",
 		   eid, skb);
 	ep->ep_ops.ep_rx_complete(ab, skb);
 

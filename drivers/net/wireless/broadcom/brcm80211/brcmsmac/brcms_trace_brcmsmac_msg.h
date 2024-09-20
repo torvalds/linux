@@ -71,7 +71,7 @@ TRACE_EVENT(brcms_dbg,
 	),
 	TP_fast_assign(
 		__entry->level = level;
-		__assign_str(func, func);
+		__assign_str(func);
 		__assign_vstr(msg, vaf->fmt, vaf->va);
 	),
 	TP_printk("%s: %s", __get_str(func), __get_str(msg))

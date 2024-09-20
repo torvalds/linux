@@ -29,7 +29,7 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_icl_machines[] = {
 	},
 	{
 		.id = "10EC5682",
-		.drv_name = "sof_rt5682",
+		.drv_name = "icl_rt5682_def",
 		.sof_tplg_filename = "sof-icl-rt5682.tplg",
 	},
 	{

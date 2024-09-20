@@ -118,18 +118,20 @@ void mqd_symmetrically_map_cu_mask(struct mqd_manager *mm,
 	 * attention grabbing.
 	 */
 	if (gfx_info->max_shader_engines > KFD_MAX_NUM_SE) {
-		pr_err("Exceeded KFD_MAX_NUM_SE, chip reports %d\n",
-		       gfx_info->max_shader_engines);
+		dev_err(mm->dev->adev->dev,
+			"Exceeded KFD_MAX_NUM_SE, chip reports %d\n",
+			gfx_info->max_shader_engines);
 		return;
 	}
 	if (gfx_info->max_sh_per_se > KFD_MAX_NUM_SH_PER_SE) {
-		pr_err("Exceeded KFD_MAX_NUM_SH, chip reports %d\n",
+		dev_err(mm->dev->adev->dev,
+			"Exceeded KFD_MAX_NUM_SH, chip reports %d\n",
 			gfx_info->max_sh_per_se * gfx_info->max_shader_engines);
 		return;
 	}
 
 	cu_bitmap_sh_mul = (KFD_GC_VERSION(mm->dev) >= IP_VERSION(11, 0, 0) &&
-			    KFD_GC_VERSION(mm->dev) < IP_VERSION(12, 0, 0)) ? 2 : 1;
+			    KFD_GC_VERSION(mm->dev) < IP_VERSION(13, 0, 0)) ? 2 : 1;
 
 	/* Count active CUs per SH.
 	 *
@@ -289,4 +291,22 @@ uint64_t kfd_mqd_stride(struct mqd_manager *mm,
 			struct queue_properties *q)
 {
 	return mm->mqd_size;
+}
+
+bool kfd_check_hiq_mqd_doorbell_id(struct kfd_node *node, uint32_t doorbell_id,
+				   uint32_t inst)
+{
+	if (doorbell_id) {
+		struct device *dev = node->adev->dev;
+
+		if (node->adev->xcp_mgr && node->adev->xcp_mgr->num_xcps > 0)
+			dev_err(dev, "XCC %d: Queue preemption failed for queue with doorbell_id: %x\n",
+							inst, doorbell_id);
+		else
+			dev_err(dev, "Queue preemption failed for queue with doorbell_id: %x\n",
+							doorbell_id);
+		return true;
+	}
+
+	return false;
 }

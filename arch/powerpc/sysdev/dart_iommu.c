@@ -24,7 +24,6 @@
 #include <linux/suspend.h>
 #include <linux/memblock.h>
 #include <linux/gfp.h>
-#include <linux/kmemleak.h>
 #include <linux/of_address.h>
 #include <asm/io.h>
 #include <asm/iommu.h>
@@ -242,9 +241,6 @@ static void __init allocate_dart(void)
 					NUMA_NO_NODE);
 	if (!dart_tablebase)
 		panic("Failed to allocate 16MB below 2GB for DART table\n");
-
-	/* There is no point scanning the DART space for leaks*/
-	kmemleak_no_scan((void *)dart_tablebase);
 
 	/* Allocate a spare page to map all invalid DART pages. We need to do
 	 * that to work around what looks like a problem with the HT bridge

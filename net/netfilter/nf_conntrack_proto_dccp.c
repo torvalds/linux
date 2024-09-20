@@ -525,7 +525,7 @@ int nf_conntrack_dccp_packet(struct nf_conn *ct, struct sk_buff *skb,
 
 	dh = skb_header_pointer(skb, dataoff, sizeof(*dh), &_dh.dh);
 	if (!dh)
-		return NF_DROP;
+		return -NF_ACCEPT;
 
 	if (dccp_error(dh, skb, dataoff, state))
 		return -NF_ACCEPT;
@@ -533,7 +533,7 @@ int nf_conntrack_dccp_packet(struct nf_conn *ct, struct sk_buff *skb,
 	/* pull again, including possible 48 bit sequences and subtype header */
 	dh = dccp_header_pointer(skb, dataoff, dh, &_dh);
 	if (!dh)
-		return NF_DROP;
+		return -NF_ACCEPT;
 
 	type = dh->dccph_type;
 	if (!nf_ct_is_confirmed(ct) && !dccp_new(ct, skb, dh, state))

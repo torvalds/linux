@@ -1,0 +1,19 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Copyright (c) 2024 Linumiz
+ * Author: Parthiban <parthiban@linumiz.com>
+ */
+
+/dts-v1/;
+#include "imx6ull.dtsi"
+#include "imx6ull-seeed-npi.dtsi"
+#include "imx6ull-seeed-npi-dev-board.dtsi"
+
+/ {
+	model = "Seeed NPi iMX6ULL Dev Board with NAND";
+	compatible = "seeed,imx6ull-seeed-npi-emmc", "seeed,imx6ull-seeed-npi", "fsl,imx6ull";
+};
+
+&usdhc2 {
+	status = "okay";
+};

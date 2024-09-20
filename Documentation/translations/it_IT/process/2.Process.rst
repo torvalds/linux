@@ -462,9 +462,12 @@ linux-kernel:
   di far domande.  Molti sviluppatori possono divenire impazienti con le
   persone che chiaramente non hanno svolto i propri compiti a casa.
 
-- Evitate il *top-posting* (cioè la pratica di mettere la vostra risposta sopra
-  alla frase alla quale state rispondendo).  Ciò renderebbe la vostra risposta
-  difficile da leggere e genera scarsa impressione.
+- Rispondete sotto alla porzione di righe citate, così da dare un contesto alle
+  vostre risposte, e quindi renderle più leggibili (in altre parole, evitate di
+  rispondere in cima, ovvero prima del testo citato). Per maggiori dettagli
+  leggete :ref:`Documentation/translations/it_IT/process/submitting-patches.rst
+  <it_interleaved_replies>`.
+
 
 - Chiedete nella lista di discussione corretta.  Linux-kernel può essere un
   punto di incontro generale, ma non è il miglior posto dove trovare

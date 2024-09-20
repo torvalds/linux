@@ -234,9 +234,11 @@ struct fib6_result {
 	for (rt = (w)->leaf; rt;					\
 	     rt = rcu_dereference_protected(rt->fib6_next, 1))
 
-static inline struct inet6_dev *ip6_dst_idev(struct dst_entry *dst)
+#define dst_rt6_info(_ptr) container_of_const(_ptr, struct rt6_info, dst)
+
+static inline struct inet6_dev *ip6_dst_idev(const struct dst_entry *dst)
 {
-	return ((struct rt6_info *)dst)->rt6i_idev;
+	return dst_rt6_info(dst)->rt6i_idev;
 }
 
 static inline bool fib6_requires_src(const struct fib6_info *rt)
@@ -338,7 +340,7 @@ static inline void fib6_info_release(struct fib6_info *f6i)
 {
 	if (f6i && refcount_dec_and_test(&f6i->fib6_ref)) {
 		DEBUG_NET_WARN_ON_ONCE(!hlist_unhashed(&f6i->gc_link));
-		call_rcu(&f6i->rcu, fib6_info_destroy_rcu);
+		call_rcu_hurry(&f6i->rcu, fib6_info_destroy_rcu);
 	}
 }
 

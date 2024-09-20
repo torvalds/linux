@@ -56,7 +56,7 @@ EXPORT_SYMBOL(tc_unregister_driver);
  * system is in its list of supported devices.  Returns the matching
  * tc_device_id structure or %NULL if there is no match.
  */
-static const struct tc_device_id *tc_match_device(struct tc_driver *tdrv,
+static const struct tc_device_id *tc_match_device(const struct tc_driver *tdrv,
 						  struct tc_dev *tdev)
 {
 	const struct tc_device_id *id = tdrv->id_table;
@@ -82,10 +82,10 @@ static const struct tc_device_id *tc_match_device(struct tc_driver *tdrv,
  * system is in its list of supported devices.  Returns 1 if there
  * is a match or 0 otherwise.
  */
-static int tc_bus_match(struct device *dev, struct device_driver *drv)
+static int tc_bus_match(struct device *dev, const struct device_driver *drv)
 {
 	struct tc_dev *tdev = to_tc_dev(dev);
-	struct tc_driver *tdrv = to_tc_driver(drv);
+	const struct tc_driver *tdrv = to_tc_driver(drv);
 	const struct tc_device_id *id;
 
 	id = tc_match_device(tdrv, tdev);

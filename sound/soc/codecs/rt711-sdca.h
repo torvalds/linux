@@ -33,6 +33,7 @@ struct  rt711_sdca_priv {
 	int hw_ver;
 	bool fu0f_dapm_mute, fu0f_mixer_l_mute, fu0f_mixer_r_mute;
 	bool fu1e_dapm_mute, fu1e_mixer_l_mute, fu1e_mixer_r_mute;
+	unsigned int ge_mode_override;
 };
 
 /* NID */

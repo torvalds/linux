@@ -35,18 +35,20 @@
 
 static int spitz_last_ac_status;
 
-static struct gpio spitz_charger_gpios[] = {
-	{ SPITZ_GPIO_KEY_INT,	GPIOF_IN, "Keyboard Interrupt" },
-	{ SPITZ_GPIO_SYNC,	GPIOF_IN, "Sync" },
-	{ SPITZ_GPIO_AC_IN,     GPIOF_IN, "Charger Detection" },
-	{ SPITZ_GPIO_ADC_TEMP_ON, GPIOF_OUT_INIT_LOW, "ADC Temp On" },
-	{ SPITZ_GPIO_JK_B,	  GPIOF_OUT_INIT_LOW, "JK B" },
-	{ SPITZ_GPIO_CHRG_ON,	  GPIOF_OUT_INIT_LOW, "Charger On" },
-};
-
 static void spitz_charger_init(void)
 {
-	gpio_request_array(ARRAY_AND_SIZE(spitz_charger_gpios));
+	gpio_request(SPITZ_GPIO_KEY_INT, "Keyboard Interrupt");
+	gpio_direction_input(SPITZ_GPIO_KEY_INT);
+	gpio_request(SPITZ_GPIO_SYNC, "Sync");
+	gpio_direction_input(SPITZ_GPIO_SYNC);
+	gpio_request(SPITZ_GPIO_AC_IN, "Charger Detection");
+	gpio_direction_input(SPITZ_GPIO_AC_IN);
+	gpio_request(SPITZ_GPIO_ADC_TEMP_ON, "ADC Temp On");
+	gpio_direction_output(SPITZ_GPIO_ADC_TEMP_ON, 0);
+	gpio_request(SPITZ_GPIO_JK_B, "JK B");
+	gpio_direction_output(SPITZ_GPIO_JK_B, 0);
+	gpio_request(SPITZ_GPIO_CHRG_ON, "Charger On");
+	gpio_direction_output(SPITZ_GPIO_CHRG_ON, 0);
 }
 
 static void spitz_measure_temp(int on)

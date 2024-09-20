@@ -61,6 +61,8 @@ properties:
   iommus:
     maxItems: 1
 
+  dma-coherent: true
+
   phys: true
 
   phy-names:

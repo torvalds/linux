@@ -16,6 +16,23 @@ config DRM_I915_WERROR
 
 	  If in doubt, say "N".
 
+config DRM_I915_REPLAY_GPU_HANGS_API
+	bool "Enable GPU hang replay userspace API"
+	depends on DRM_I915
+	depends on EXPERT
+	default n
+	help
+	  Choose this option if you want to enable special and unstable
+	  userspace API used for replaying GPU hangs on a running system.
+
+	  This API is intended to be used by userspace graphics stack developers
+	  and provides no stability guarantees.
+
+	  The API needs to be activated at boot time using the
+	  enable_debug_only_api module parameter.
+
+	  If in doubt, say "N".
+
 config DRM_I915_DEBUG
 	bool "Enable additional driver debugging"
 	depends on DRM_I915
@@ -27,8 +44,8 @@ config DRM_I915_DEBUG
 	select REF_TRACKER
 	select STACKDEPOT
 	select STACKTRACE
-	select DRM_DP_AUX_CHARDEV
-	select DRM_DISPLAY_DEBUG_DP_TUNNEL_STATE if DRM_I915_DP_TUNNEL
+	select DRM_DISPLAY_DP_AUX_CHARDEV
+	select DRM_DISPLAY_DP_TUNNEL_STATE_DEBUG if DRM_I915_DP_TUNNEL
 	select X86_MSR # used by igt/pm_rpm
 	select DRM_VGEM # used by igt/prime_vgem (dmabuf interop checks)
 	select DRM_DEBUG_MM if DRM=y

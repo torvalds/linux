@@ -141,7 +141,7 @@ static int pli1209bc_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id pli1209bc_id[] = {
-	{"pli1209bc", 0},
+	{"pli1209bc"},
 	{}
 };
 

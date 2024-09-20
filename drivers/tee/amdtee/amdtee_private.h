@@ -9,7 +9,7 @@
 
 #include <linux/mutex.h>
 #include <linux/spinlock.h>
-#include <linux/tee_drv.h>
+#include <linux/tee_core.h>
 #include <linux/kref.h>
 #include <linux/types.h>
 #include "amdtee_if.h"

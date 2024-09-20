@@ -281,15 +281,13 @@ err_free:
 	return rc;
 }
 
-static int ipmi_powernv_remove(struct platform_device *pdev)
+static void ipmi_powernv_remove(struct platform_device *pdev)
 {
 	struct ipmi_smi_powernv *smi = dev_get_drvdata(&pdev->dev);
 
 	ipmi_unregister_smi(smi->intf);
 	free_irq(smi->irq, smi);
 	irq_dispose_mapping(smi->irq);
-
-	return 0;
 }
 
 static const struct of_device_id ipmi_powernv_match[] = {
@@ -304,7 +302,7 @@ static struct platform_driver powernv_ipmi_driver = {
 		.of_match_table	= ipmi_powernv_match,
 	},
 	.probe	= ipmi_powernv_probe,
-	.remove	= ipmi_powernv_remove,
+	.remove_new = ipmi_powernv_remove,
 };
 
 

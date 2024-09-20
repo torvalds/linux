@@ -778,7 +778,7 @@ xrep_abt_build_new_trees(
 
 	error = xrep_bnobt_sort_records(ra);
 	if (error)
-		return error;
+		goto err_levels;
 
 	/* Load the free space by block number tree. */
 	ra->array_cur = XFARRAY_CURSOR_INIT;

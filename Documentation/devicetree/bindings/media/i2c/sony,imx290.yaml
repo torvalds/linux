@@ -23,6 +23,9 @@ description: |-
   is treated the same as this as it was the original compatible string.
   imx290llr is the mono version of the sensor.
 
+allOf:
+  - $ref: /schemas/media/video-interface-devices.yaml#
+
 properties:
   compatible:
     oneOf:
@@ -101,7 +104,7 @@ required:
   - vdddo-supply
   - port
 
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |

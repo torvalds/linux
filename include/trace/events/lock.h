@@ -37,7 +37,7 @@ TRACE_EVENT(lock_acquire,
 
 	TP_fast_assign(
 		__entry->flags = (trylock ? 1 : 0) | (read ? 2 : 0);
-		__assign_str(name, lock->name);
+		__assign_str(name);
 		__entry->lockdep_addr = lock;
 	),
 
@@ -59,7 +59,7 @@ DECLARE_EVENT_CLASS(lock,
 	),
 
 	TP_fast_assign(
-		__assign_str(name, lock->name);
+		__assign_str(name);
 		__entry->lockdep_addr = lock;
 	),
 

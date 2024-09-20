@@ -267,7 +267,7 @@ static inline bool nexthop_get(struct nexthop *nh)
 static inline void nexthop_put(struct nexthop *nh)
 {
 	if (refcount_dec_and_test(&nh->refcnt))
-		call_rcu(&nh->rcu, nexthop_free_rcu);
+		call_rcu_hurry(&nh->rcu, nexthop_free_rcu);
 }
 
 static inline bool nexthop_cmp(const struct nexthop *nh1,

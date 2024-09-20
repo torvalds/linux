@@ -1,179 +1,181 @@
 include $(srctree)/tools/scripts/Makefile.include
 include $(srctree)/tools/scripts/utilities.mak
 
-perf-y += arm64-frame-pointer-unwind-support.o
-perf-y += addr_location.o
-perf-y += annotate.o
-perf-y += block-info.o
-perf-y += block-range.o
-perf-y += build-id.o
-perf-y += cacheline.o
-perf-y += config.o
-perf-y += copyfile.o
-perf-y += ctype.o
-perf-y += db-export.o
-perf-y += env.o
-perf-y += event.o
-perf-y += evlist.o
-perf-y += sideband_evlist.o
-perf-y += evsel.o
-perf-y += evsel_fprintf.o
-perf-y += perf_event_attr_fprintf.o
-perf-y += evswitch.o
-perf-y += find_bit.o
-perf-y += get_current_dir_name.o
-perf-y += levenshtein.o
-perf-y += mmap.o
-perf-y += memswap.o
-perf-y += parse-events.o
-perf-y += print-events.o
-perf-y += tracepoint.o
-perf-y += perf_regs.o
-perf-y += perf-regs-arch/
-perf-y += path.o
-perf-y += print_binary.o
-perf-y += print_insn.o
-perf-y += rlimit.o
-perf-y += argv_split.o
-perf-y += rbtree.o
-perf-y += libstring.o
-perf-y += bitmap.o
-perf-y += hweight.o
-perf-y += smt.o
-perf-y += strbuf.o
-perf-y += string.o
-perf-y += strlist.o
-perf-y += strfilter.o
-perf-y += top.o
-perf-y += usage.o
-perf-y += dso.o
-perf-y += dsos.o
-perf-y += symbol.o
-perf-y += symbol_fprintf.o
-perf-y += map_symbol.o
-perf-y += color.o
-perf-y += color_config.o
-perf-y += metricgroup.o
-perf-y += header.o
-perf-y += callchain.o
-perf-y += values.o
-perf-y += debug.o
-perf-y += fncache.o
-perf-y += machine.o
-perf-y += map.o
-perf-y += maps.o
-perf-y += pstack.o
-perf-y += session.o
-perf-y += sample-raw.o
-perf-y += s390-sample-raw.o
-perf-y += amd-sample-raw.o
-perf-$(CONFIG_TRACE) += syscalltbl.o
-perf-y += ordered-events.o
-perf-y += namespaces.o
-perf-y += comm.o
-perf-y += thread.o
-perf-y += threads.o
-perf-y += thread_map.o
-perf-y += parse-events-flex.o
-perf-y += parse-events-bison.o
-perf-y += pmu.o
-perf-y += pmus.o
-perf-y += pmu-flex.o
-perf-y += pmu-bison.o
-perf-y += svghelper.o
-perf-$(CONFIG_LIBTRACEEVENT) += trace-event-info.o
-perf-y += trace-event-scripting.o
-perf-$(CONFIG_LIBTRACEEVENT) += trace-event.o
-perf-$(CONFIG_LIBTRACEEVENT) += trace-event-parse.o
-perf-$(CONFIG_LIBTRACEEVENT) += trace-event-read.o
-perf-y += sort.o
-perf-y += hist.o
-perf-y += util.o
-perf-y += cpumap.o
-perf-y += affinity.o
-perf-y += cputopo.o
-perf-y += cgroup.o
-perf-y += target.o
-perf-y += rblist.o
-perf-y += intlist.o
-perf-y += vdso.o
-perf-y += counts.o
-perf-y += stat.o
-perf-y += stat-shadow.o
-perf-y += stat-display.o
-perf-y += perf_api_probe.o
-perf-y += record.o
-perf-y += srcline.o
-perf-y += srccode.o
-perf-y += synthetic-events.o
-perf-y += data.o
-perf-y += tsc.o
-perf-y += cloexec.o
-perf-y += call-path.o
-perf-y += rwsem.o
-perf-y += thread-stack.o
-perf-y += spark.o
-perf-y += topdown.o
-perf-y += iostat.o
-perf-y += stream.o
-perf-$(CONFIG_AUXTRACE) += auxtrace.o
-perf-$(CONFIG_AUXTRACE) += intel-pt-decoder/
-perf-$(CONFIG_AUXTRACE) += intel-pt.o
-perf-$(CONFIG_AUXTRACE) += intel-bts.o
-perf-$(CONFIG_AUXTRACE) += arm-spe.o
-perf-$(CONFIG_AUXTRACE) += arm-spe-decoder/
-perf-$(CONFIG_AUXTRACE) += hisi-ptt.o
-perf-$(CONFIG_AUXTRACE) += hisi-ptt-decoder/
-perf-$(CONFIG_AUXTRACE) += s390-cpumsf.o
+perf-util-y += arm64-frame-pointer-unwind-support.o
+perf-util-y += addr_location.o
+perf-util-y += annotate.o
+perf-util-y += block-info.o
+perf-util-y += block-range.o
+perf-util-y += build-id.o
+perf-util-y += cacheline.o
+perf-util-y += config.o
+perf-util-y += copyfile.o
+perf-util-y += ctype.o
+perf-util-y += db-export.o
+perf-util-y += disasm.o
+perf-util-y += env.o
+perf-util-y += event.o
+perf-util-y += evlist.o
+perf-util-y += sideband_evlist.o
+perf-util-y += evsel.o
+perf-util-y += evsel_fprintf.o
+perf-util-y += perf_event_attr_fprintf.o
+perf-util-y += evswitch.o
+perf-util-y += find_bit.o
+perf-util-y += get_current_dir_name.o
+perf-util-y += levenshtein.o
+perf-util-y += mmap.o
+perf-util-y += memswap.o
+perf-util-y += parse-events.o
+perf-util-y += print-events.o
+perf-util-y += tracepoint.o
+perf-util-y += perf_regs.o
+perf-util-y += perf-regs-arch/
+perf-util-y += path.o
+perf-util-y += print_binary.o
+perf-util-y += print_insn.o
+perf-util-y += rlimit.o
+perf-util-y += argv_split.o
+perf-util-y += rbtree.o
+perf-util-y += libstring.o
+perf-util-y += bitmap.o
+perf-util-y += hweight.o
+perf-util-y += smt.o
+perf-util-y += strbuf.o
+perf-util-y += string.o
+perf-util-y += strlist.o
+perf-util-y += strfilter.o
+perf-util-y += top.o
+perf-util-y += usage.o
+perf-util-y += dso.o
+perf-util-y += dsos.o
+perf-util-y += symbol.o
+perf-util-y += symbol_fprintf.o
+perf-util-y += map_symbol.o
+perf-util-y += color.o
+perf-util-y += color_config.o
+perf-util-y += metricgroup.o
+perf-util-y += header.o
+perf-util-y += callchain.o
+perf-util-y += values.o
+perf-util-y += debug.o
+perf-util-y += fncache.o
+perf-util-y += machine.o
+perf-util-y += map.o
+perf-util-y += maps.o
+perf-util-y += pstack.o
+perf-util-y += session.o
+perf-util-y += sample-raw.o
+perf-util-y += s390-sample-raw.o
+perf-util-y += amd-sample-raw.o
+perf-util-$(CONFIG_TRACE) += syscalltbl.o
+perf-util-y += ordered-events.o
+perf-util-y += namespaces.o
+perf-util-y += comm.o
+perf-util-y += thread.o
+perf-util-y += threads.o
+perf-util-y += thread_map.o
+perf-util-y += parse-events-flex.o
+perf-util-y += parse-events-bison.o
+perf-util-y += pmu.o
+perf-util-y += pmus.o
+perf-util-y += pmu-flex.o
+perf-util-y += pmu-bison.o
+perf-util-y += svghelper.o
+perf-util-$(CONFIG_LIBTRACEEVENT) += trace-event-info.o
+perf-util-y += trace-event-scripting.o
+perf-util-$(CONFIG_LIBTRACEEVENT) += trace-event.o
+perf-util-$(CONFIG_LIBTRACEEVENT) += trace-event-parse.o
+perf-util-$(CONFIG_LIBTRACEEVENT) += trace-event-read.o
+perf-util-y += sort.o
+perf-util-y += hist.o
+perf-util-y += util.o
+perf-util-y += cpumap.o
+perf-util-y += affinity.o
+perf-util-y += cputopo.o
+perf-util-y += cgroup.o
+perf-util-y += target.o
+perf-util-y += rblist.o
+perf-util-y += intlist.o
+perf-util-y += vdso.o
+perf-util-y += counts.o
+perf-util-y += stat.o
+perf-util-y += stat-shadow.o
+perf-util-y += stat-display.o
+perf-util-y += perf_api_probe.o
+perf-util-y += record.o
+perf-util-y += srcline.o
+perf-util-y += srccode.o
+perf-util-y += synthetic-events.o
+perf-util-y += data.o
+perf-util-y += tsc.o
+perf-util-y += cloexec.o
+perf-util-y += call-path.o
+perf-util-y += rwsem.o
+perf-util-y += thread-stack.o
+perf-util-y += spark.o
+perf-util-y += topdown.o
+perf-util-y += iostat.o
+perf-util-y += stream.o
+perf-util-$(CONFIG_AUXTRACE) += auxtrace.o
+perf-util-$(CONFIG_AUXTRACE) += intel-pt-decoder/
+perf-util-$(CONFIG_AUXTRACE) += intel-pt.o
+perf-util-$(CONFIG_AUXTRACE) += intel-bts.o
+perf-util-$(CONFIG_AUXTRACE) += arm-spe.o
+perf-util-$(CONFIG_AUXTRACE) += arm-spe-decoder/
+perf-util-$(CONFIG_AUXTRACE) += hisi-ptt.o
+perf-util-$(CONFIG_AUXTRACE) += hisi-ptt-decoder/
+perf-util-$(CONFIG_AUXTRACE) += s390-cpumsf.o
 
 ifdef CONFIG_LIBOPENCSD
-perf-$(CONFIG_AUXTRACE) += cs-etm.o
-perf-$(CONFIG_AUXTRACE) += cs-etm-decoder/
+perf-util-$(CONFIG_AUXTRACE) += cs-etm.o
+perf-util-$(CONFIG_AUXTRACE) += cs-etm-decoder/
 endif
-perf-$(CONFIG_AUXTRACE) += cs-etm-base.o
+perf-util-$(CONFIG_AUXTRACE) += cs-etm-base.o
 
-perf-y += parse-branch-options.o
-perf-y += dump-insn.o
-perf-y += parse-regs-options.o
-perf-y += parse-sublevel-options.o
-perf-y += term.o
-perf-y += help-unknown-cmd.o
-perf-y += dlfilter.o
-perf-y += mem-events.o
-perf-y += vsprintf.o
-perf-y += units.o
-perf-y += time-utils.o
-perf-y += expr-flex.o
-perf-y += expr-bison.o
-perf-y += expr.o
-perf-y += branch.o
-perf-y += mem2node.o
-perf-y += clockid.o
-perf-y += list_sort.o
-perf-y += mutex.o
-perf-y += sharded_mutex.o
+perf-util-y += parse-branch-options.o
+perf-util-y += dump-insn.o
+perf-util-y += parse-regs-options.o
+perf-util-y += parse-sublevel-options.o
+perf-util-y += term.o
+perf-util-y += help-unknown-cmd.o
+perf-util-y += dlfilter.o
+perf-util-y += mem-events.o
+perf-util-y += mem-info.o
+perf-util-y += vsprintf.o
+perf-util-y += units.o
+perf-util-y += time-utils.o
+perf-util-y += expr-flex.o
+perf-util-y += expr-bison.o
+perf-util-y += expr.o
+perf-util-y += branch.o
+perf-util-y += mem2node.o
+perf-util-y += clockid.o
+perf-util-y += list_sort.o
+perf-util-y += mutex.o
+perf-util-y += sharded_mutex.o
 
-perf-$(CONFIG_LIBBPF) += bpf_map.o
-perf-$(CONFIG_PERF_BPF_SKEL) += bpf_counter.o
-perf-$(CONFIG_PERF_BPF_SKEL) += bpf_counter_cgroup.o
-perf-$(CONFIG_PERF_BPF_SKEL) += bpf_ftrace.o
-perf-$(CONFIG_PERF_BPF_SKEL) += bpf_off_cpu.o
-perf-$(CONFIG_PERF_BPF_SKEL) += bpf-filter.o
-perf-$(CONFIG_PERF_BPF_SKEL) += bpf-filter-flex.o
-perf-$(CONFIG_PERF_BPF_SKEL) += bpf-filter-bison.o
+perf-util-$(CONFIG_LIBBPF) += bpf_map.o
+perf-util-$(CONFIG_PERF_BPF_SKEL) += bpf_counter.o
+perf-util-$(CONFIG_PERF_BPF_SKEL) += bpf_counter_cgroup.o
+perf-util-$(CONFIG_PERF_BPF_SKEL) += bpf_ftrace.o
+perf-util-$(CONFIG_PERF_BPF_SKEL) += bpf_off_cpu.o
+perf-util-$(CONFIG_PERF_BPF_SKEL) += bpf-filter.o
+perf-util-$(CONFIG_PERF_BPF_SKEL) += bpf-filter-flex.o
+perf-util-$(CONFIG_PERF_BPF_SKEL) += bpf-filter-bison.o
 
 ifeq ($(CONFIG_LIBTRACEEVENT),y)
-  perf-$(CONFIG_PERF_BPF_SKEL) += bpf_lock_contention.o
+  perf-util-$(CONFIG_PERF_BPF_SKEL) += bpf_lock_contention.o
 endif
 
 ifeq ($(CONFIG_LIBTRACEEVENT),y)
-  perf-$(CONFIG_PERF_BPF_SKEL) += bpf_kwork.o
-  perf-$(CONFIG_PERF_BPF_SKEL) += bpf_kwork_top.o
+  perf-util-$(CONFIG_PERF_BPF_SKEL) += bpf_kwork.o
+  perf-util-$(CONFIG_PERF_BPF_SKEL) += bpf_kwork_top.o
 endif
 
-perf-$(CONFIG_LIBELF) += symbol-elf.o
-perf-$(CONFIG_LIBELF) += probe-file.o
-perf-$(CONFIG_LIBELF) += probe-event.o
+perf-util-$(CONFIG_LIBELF) += symbol-elf.o
+perf-util-$(CONFIG_LIBELF) += probe-file.o
+perf-util-$(CONFIG_LIBELF) += probe-event.o
 
 ifdef CONFIG_LIBBPF_DYNAMIC
   hashmap := 1
@@ -183,60 +185,60 @@ ifndef CONFIG_LIBBPF
 endif
 
 ifdef hashmap
-perf-y += hashmap.o
+perf-util-y += hashmap.o
 endif
 
 ifndef CONFIG_LIBELF
-perf-y += symbol-minimal.o
+perf-util-y += symbol-minimal.o
 endif
 
 ifndef CONFIG_SETNS
-perf-y += setns.o
+perf-util-y += setns.o
 endif
 
-perf-$(CONFIG_DWARF) += probe-finder.o
-perf-$(CONFIG_DWARF) += dwarf-aux.o
-perf-$(CONFIG_DWARF) += dwarf-regs.o
-perf-$(CONFIG_DWARF) += debuginfo.o
-perf-$(CONFIG_DWARF) += annotate-data.o
+perf-util-$(CONFIG_DWARF) += probe-finder.o
+perf-util-$(CONFIG_DWARF) += dwarf-aux.o
+perf-util-$(CONFIG_DWARF) += dwarf-regs.o
+perf-util-$(CONFIG_DWARF) += debuginfo.o
+perf-util-$(CONFIG_DWARF) += annotate-data.o
 
-perf-$(CONFIG_LIBDW_DWARF_UNWIND) += unwind-libdw.o
-perf-$(CONFIG_LOCAL_LIBUNWIND)    += unwind-libunwind-local.o
-perf-$(CONFIG_LIBUNWIND)          += unwind-libunwind.o
-perf-$(CONFIG_LIBUNWIND_X86)      += libunwind/x86_32.o
-perf-$(CONFIG_LIBUNWIND_AARCH64)  += libunwind/arm64.o
+perf-util-$(CONFIG_LIBDW_DWARF_UNWIND) += unwind-libdw.o
+perf-util-$(CONFIG_LOCAL_LIBUNWIND)    += unwind-libunwind-local.o
+perf-util-$(CONFIG_LIBUNWIND)          += unwind-libunwind.o
+perf-util-$(CONFIG_LIBUNWIND_X86)      += libunwind/x86_32.o
+perf-util-$(CONFIG_LIBUNWIND_AARCH64)  += libunwind/arm64.o
 
 ifeq ($(CONFIG_LIBTRACEEVENT),y)
-  perf-$(CONFIG_LIBBABELTRACE) += data-convert-bt.o
+  perf-util-$(CONFIG_LIBBABELTRACE) += data-convert-bt.o
 endif
 
-perf-y += data-convert-json.o
+perf-util-y += data-convert-json.o
 
-perf-y += scripting-engines/
+perf-util-y += scripting-engines/
 
-perf-$(CONFIG_ZLIB) += zlib.o
-perf-$(CONFIG_LZMA) += lzma.o
-perf-$(CONFIG_ZSTD) += zstd.o
+perf-util-$(CONFIG_ZLIB) += zlib.o
+perf-util-$(CONFIG_LZMA) += lzma.o
+perf-util-$(CONFIG_ZSTD) += zstd.o
 
-perf-$(CONFIG_LIBCAP) += cap.o
+perf-util-$(CONFIG_LIBCAP) += cap.o
 
-perf-$(CONFIG_CXX_DEMANGLE) += demangle-cxx.o
-perf-y += demangle-ocaml.o
-perf-y += demangle-java.o
-perf-y += demangle-rust.o
+perf-util-$(CONFIG_CXX_DEMANGLE) += demangle-cxx.o
+perf-util-y += demangle-ocaml.o
+perf-util-y += demangle-java.o
+perf-util-y += demangle-rust.o
 
 ifdef CONFIG_JITDUMP
-perf-$(CONFIG_LIBELF) += jitdump.o
-perf-$(CONFIG_LIBELF) += genelf.o
-perf-$(CONFIG_DWARF) += genelf_debug.o
+perf-util-$(CONFIG_LIBELF) += jitdump.o
+perf-util-$(CONFIG_LIBELF) += genelf.o
+perf-util-$(CONFIG_DWARF) += genelf_debug.o
 endif
 
-perf-y += perf-hooks.o
+perf-util-y += perf-hooks.o
 
-perf-$(CONFIG_LIBBPF) += bpf-event.o
-perf-$(CONFIG_LIBBPF) += bpf-utils.o
+perf-util-$(CONFIG_LIBBPF) += bpf-event.o
+perf-util-$(CONFIG_LIBBPF) += bpf-utils.o
 
-perf-$(CONFIG_LIBPFM4) += pfm.o
+perf-util-$(CONFIG_LIBPFM4) += pfm.o
 
 CFLAGS_config.o   += -DETC_PERFCONFIG="BUILD_STR($(ETC_PERFCONFIG_SQ))"
 
@@ -388,3 +390,17 @@ $(OUTPUT)util/vsprintf.o: ../lib/vsprintf.c FORCE
 $(OUTPUT)util/list_sort.o: ../lib/list_sort.c FORCE
 	$(call rule_mkdir)
 	$(call if_changed_dep,cc_o_c)
+
+ifdef SHELLCHECK
+  SHELL_TESTS := generate-cmdlist.sh
+  TEST_LOGS := $(SHELL_TESTS:%=%.shellcheck_log)
+else
+  SHELL_TESTS :=
+  TEST_LOGS :=
+endif
+
+$(OUTPUT)%.shellcheck_log: %
+	$(call rule_mkdir)
+	$(Q)$(call echo-cmd,test)shellcheck -a -S warning "$<" > $@ || (cat $@ && rm $@ && false)
+
+perf-util-y += $(TEST_LOGS)

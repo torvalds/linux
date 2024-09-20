@@ -657,7 +657,7 @@ Documentation/translations/zh_CN/doc-guide/index.rst 和 scripts/kernel-doc 。
 請注意，您還可以使用 ``clang-format`` 工具幫助您處理這些規則，快速自動重新格
 式化部分代碼，並審閱整個文件以發現代碼風格錯誤、打字錯誤和可能的改進。它還可
 以方便地排序 ``#include`` ，對齊變量/宏，重排文本和其他類似任務。
-詳見 Documentation/process/clang-format.rst 。
+詳見 Documentation/dev-tools/clang-format.rst 。
 
 
 10) Kconfig 配置文件

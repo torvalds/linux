@@ -33,6 +33,7 @@ enum {
 struct i3c_master_controller;
 struct i3c_bus;
 struct i3c_device;
+extern const struct bus_type i3c_bus_type;
 
 /**
  * struct i3c_i2c_dev_desc - Common part of the I3C/I2C device descriptor

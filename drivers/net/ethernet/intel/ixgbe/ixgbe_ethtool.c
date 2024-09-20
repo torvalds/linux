@@ -3170,7 +3170,7 @@ static int ixgbe_set_rxfh(struct net_device *netdev,
 }
 
 static int ixgbe_get_ts_info(struct net_device *dev,
-			     struct ethtool_ts_info *info)
+			     struct kernel_ethtool_ts_info *info)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(dev);
 

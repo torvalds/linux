@@ -5,6 +5,7 @@
 #include "backpointers.h"
 #include "btree_gc.h"
 #include "btree_node_scan.h"
+#include "disk_accounting.h"
 #include "ec.h"
 #include "fsck.h"
 #include "inode.h"
@@ -25,11 +26,6 @@ const char * const bch2_recovery_passes[] = {
 #undef x
 	NULL
 };
-
-static int bch2_check_allocations(struct bch_fs *c)
-{
-	return bch2_gc(c, true, false);
-}
 
 static int bch2_set_may_go_rw(struct bch_fs *c)
 {
@@ -197,6 +193,8 @@ int bch2_run_online_recovery_passes(struct bch_fs *c)
 {
 	int ret = 0;
 
+	down_read(&c->state_lock);
+
 	for (unsigned i = 0; i < ARRAY_SIZE(recovery_pass_fns); i++) {
 		struct recovery_pass_fn *p = recovery_pass_fns + i;
 
@@ -211,6 +209,8 @@ int bch2_run_online_recovery_passes(struct bch_fs *c)
 		if (ret)
 			break;
 	}
+
+	up_read(&c->state_lock);
 
 	return ret;
 }
@@ -227,7 +227,8 @@ int bch2_run_recovery_passes(struct bch_fs *c)
 		if (should_run_recovery_pass(c, c->curr_recovery_pass)) {
 			unsigned pass = c->curr_recovery_pass;
 
-			ret = bch2_run_recovery_pass(c, c->curr_recovery_pass);
+			ret =   bch2_run_recovery_pass(c, c->curr_recovery_pass) ?:
+				bch2_journal_flush(&c->journal);
 			if (bch2_err_matches(ret, BCH_ERR_restart_recovery) ||
 			    (ret && c->curr_recovery_pass < pass))
 				continue;

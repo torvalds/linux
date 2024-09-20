@@ -2961,7 +2961,7 @@ static int selinux_inode_init_security_anon(struct inode *inode,
 					    const struct qstr *name,
 					    const struct inode *context_inode)
 {
-	const struct task_security_struct *tsec = selinux_cred(current_cred());
+	u32 sid = current_sid();
 	struct common_audit_data ad;
 	struct inode_security_struct *isec;
 	int rc;
@@ -2990,7 +2990,7 @@ static int selinux_inode_init_security_anon(struct inode *inode,
 	} else {
 		isec->sclass = SECCLASS_ANON_INODE;
 		rc = security_transition_sid(
-			tsec->sid, tsec->sid,
+			sid, sid,
 			isec->sclass, name, &isec->sid);
 		if (rc)
 			return rc;
@@ -3005,7 +3005,7 @@ static int selinux_inode_init_security_anon(struct inode *inode,
 	ad.type = LSM_AUDIT_DATA_ANONINODE;
 	ad.u.anonclass = name ? (const char *)name->name : "?";
 
-	return avc_has_perm(tsec->sid,
+	return avc_has_perm(sid,
 			    isec->sid,
 			    isec->sclass,
 			    FILE__CREATE,
@@ -3063,14 +3063,12 @@ static int selinux_inode_readlink(struct dentry *dentry)
 static int selinux_inode_follow_link(struct dentry *dentry, struct inode *inode,
 				     bool rcu)
 {
-	const struct cred *cred = current_cred();
 	struct common_audit_data ad;
 	struct inode_security_struct *isec;
-	u32 sid;
+	u32 sid = current_sid();
 
 	ad.type = LSM_AUDIT_DATA_DENTRY;
 	ad.u.dentry = dentry;
-	sid = cred_sid(cred);
 	isec = inode_security_rcu(inode, rcu);
 	if (IS_ERR(isec))
 		return PTR_ERR(isec);
@@ -3094,12 +3092,11 @@ static noinline int audit_inode_permission(struct inode *inode,
 
 static int selinux_inode_permission(struct inode *inode, int mask)
 {
-	const struct cred *cred = current_cred();
 	u32 perms;
 	bool from_access;
 	bool no_block = mask & MAY_NOT_BLOCK;
 	struct inode_security_struct *isec;
-	u32 sid;
+	u32 sid = current_sid();
 	struct av_decision avd;
 	int rc, rc2;
 	u32 audited, denied;
@@ -3116,7 +3113,6 @@ static int selinux_inode_permission(struct inode *inode, int mask)
 
 	perms = file_mask_to_av(inode->i_mode, mask);
 
-	sid = cred_sid(cred);
 	isec = inode_security_rcu(inode, no_block);
 	if (IS_ERR(isec))
 		return PTR_ERR(isec);
@@ -3181,6 +3177,23 @@ static bool has_cap_mac_admin(bool audit)
 	return true;
 }
 
+/**
+ * selinux_inode_xattr_skipcap - Skip the xattr capability checks?
+ * @name: name of the xattr
+ *
+ * Returns 1 to indicate that SELinux "owns" the access control rights to xattrs
+ * named @name; the LSM layer should avoid enforcing any traditional
+ * capability based access controls on this xattr.  Returns 0 to indicate that
+ * SELinux does not "own" the access control rights to xattrs named @name and is
+ * deferring to the LSM layer for further access controls, including capability
+ * based controls.
+ */
+static int selinux_inode_xattr_skipcap(const char *name)
+{
+	/* require capability check if not a selinux xattr */
+	return !strcmp(name, XATTR_NAME_SELINUX);
+}
+
 static int selinux_inode_setxattr(struct mnt_idmap *idmap,
 				  struct dentry *dentry, const char *name,
 				  const void *value, size_t size, int flags)
@@ -3192,15 +3205,9 @@ static int selinux_inode_setxattr(struct mnt_idmap *idmap,
 	u32 newsid, sid = current_sid();
 	int rc = 0;
 
-	if (strcmp(name, XATTR_NAME_SELINUX)) {
-		rc = cap_inode_setxattr(dentry, name, value, size, flags);
-		if (rc)
-			return rc;
-
-		/* Not an attribute we recognize, so just check the
-		   ordinary setattr permission. */
+	/* if not a selinux xattr, only check the ordinary setattr perm */
+	if (strcmp(name, XATTR_NAME_SELINUX))
 		return dentry_has_perm(current_cred(), dentry, FILE__SETATTR);
-	}
 
 	if (!selinux_initialized())
 		return (inode_owner_or_capable(idmap, inode) ? 0 : -EPERM);
@@ -3349,15 +3356,9 @@ static int selinux_inode_listxattr(struct dentry *dentry)
 static int selinux_inode_removexattr(struct mnt_idmap *idmap,
 				     struct dentry *dentry, const char *name)
 {
-	if (strcmp(name, XATTR_NAME_SELINUX)) {
-		int rc = cap_inode_removexattr(idmap, dentry, name);
-		if (rc)
-			return rc;
-
-		/* Not an attribute we recognize, so just check the
-		   ordinary setattr permission. */
+	/* if not a selinux xattr, only check the ordinary setattr perm */
+	if (strcmp(name, XATTR_NAME_SELINUX))
 		return dentry_has_perm(current_cred(), dentry, FILE__SETATTR);
-	}
 
 	if (!selinux_initialized())
 		return 0;
@@ -3530,7 +3531,7 @@ static int selinux_inode_copy_up(struct dentry *src, struct cred **new)
 	return 0;
 }
 
-static int selinux_inode_copy_up_xattr(const char *name)
+static int selinux_inode_copy_up_xattr(struct dentry *dentry, const char *name)
 {
 	/* The copy_up hook above sets the initial context on an inode, but we
 	 * don't then want to overwrite it by blindly copying all the lower
@@ -3851,7 +3852,17 @@ static int selinux_file_mprotect(struct vm_area_struct *vma,
 	if (default_noexec &&
 	    (prot & PROT_EXEC) && !(vma->vm_flags & VM_EXEC)) {
 		int rc = 0;
-		if (vma_is_initial_heap(vma)) {
+		/*
+		 * We don't use the vma_is_initial_heap() helper as it has
+		 * a history of problems and is currently broken on systems
+		 * where there is no heap, e.g. brk == start_brk.  Before
+		 * replacing the conditional below with vma_is_initial_heap(),
+		 * or something similar, please ensure that the logic is the
+		 * same as what we have below or you have tested every possible
+		 * corner case you can think to test.
+		 */
+		if (vma->vm_start >= vma->vm_mm->start_brk &&
+		    vma->vm_end <= vma->vm_mm->brk) {
 			rc = avc_has_perm(sid, sid, SECCLASS_PROCESS,
 					  PROCESS__EXECHEAP, NULL);
 		} else if (!vma->vm_file && (vma_is_initial_stack(vma) ||
@@ -5564,13 +5575,7 @@ static void selinux_inet_conn_established(struct sock *sk, struct sk_buff *skb)
 
 static int selinux_secmark_relabel_packet(u32 sid)
 {
-	const struct task_security_struct *tsec;
-	u32 tsid;
-
-	tsec = selinux_cred(current_cred());
-	tsid = tsec->sid;
-
-	return avc_has_perm(tsid, sid, SECCLASS_PACKET, PACKET__RELABELTO,
+	return avc_has_perm(current_sid(), sid, SECCLASS_PACKET, PACKET__RELABELTO,
 			    NULL);
 }
 
@@ -6348,55 +6353,55 @@ static void selinux_d_instantiate(struct dentry *dentry, struct inode *inode)
 static int selinux_lsm_getattr(unsigned int attr, struct task_struct *p,
 			       char **value)
 {
-	const struct task_security_struct *__tsec;
-	u32 sid;
+	const struct task_security_struct *tsec;
 	int error;
-	unsigned len;
+	u32 sid;
+	u32 len;
 
 	rcu_read_lock();
-	__tsec = selinux_cred(__task_cred(p));
-
-	if (current != p) {
-		error = avc_has_perm(current_sid(), __tsec->sid,
+	tsec = selinux_cred(__task_cred(p));
+	if (p != current) {
+		error = avc_has_perm(current_sid(), tsec->sid,
 				     SECCLASS_PROCESS, PROCESS__GETATTR, NULL);
 		if (error)
-			goto bad;
+			goto err_unlock;
 	}
-
 	switch (attr) {
 	case LSM_ATTR_CURRENT:
-		sid = __tsec->sid;
+		sid = tsec->sid;
 		break;
 	case LSM_ATTR_PREV:
-		sid = __tsec->osid;
+		sid = tsec->osid;
 		break;
 	case LSM_ATTR_EXEC:
-		sid = __tsec->exec_sid;
+		sid = tsec->exec_sid;
 		break;
 	case LSM_ATTR_FSCREATE:
-		sid = __tsec->create_sid;
+		sid = tsec->create_sid;
 		break;
 	case LSM_ATTR_KEYCREATE:
-		sid = __tsec->keycreate_sid;
+		sid = tsec->keycreate_sid;
 		break;
 	case LSM_ATTR_SOCKCREATE:
-		sid = __tsec->sockcreate_sid;
+		sid = tsec->sockcreate_sid;
 		break;
 	default:
 		error = -EOPNOTSUPP;
-		goto bad;
+		goto err_unlock;
 	}
 	rcu_read_unlock();
 
-	if (!sid)
+	if (sid == SECSID_NULL) {
+		*value = NULL;
 		return 0;
+	}
 
 	error = security_sid_to_context(sid, value, &len);
 	if (error)
 		return error;
 	return len;
 
-bad:
+err_unlock:
 	rcu_read_unlock();
 	return error;
 }
@@ -6655,8 +6660,8 @@ static int selinux_inode_notifysecctx(struct inode *inode, void *ctx, u32 ctxlen
  */
 static int selinux_inode_setsecctx(struct dentry *dentry, void *ctx, u32 ctxlen)
 {
-	return __vfs_setxattr_noperm(&nop_mnt_idmap, dentry, XATTR_NAME_SELINUX,
-				     ctx, ctxlen, 0);
+	return __vfs_setxattr_locked(&nop_mnt_idmap, dentry, XATTR_NAME_SELINUX,
+				     ctx, ctxlen, 0, NULL);
 }
 
 static int selinux_inode_getsecctx(struct inode *inode, void **ctx, u32 *ctxlen)
@@ -7185,6 +7190,7 @@ static struct security_hook_list selinux_hooks[] __ro_after_init = {
 	LSM_HOOK_INIT(inode_permission, selinux_inode_permission),
 	LSM_HOOK_INIT(inode_setattr, selinux_inode_setattr),
 	LSM_HOOK_INIT(inode_getattr, selinux_inode_getattr),
+	LSM_HOOK_INIT(inode_xattr_skipcap, selinux_inode_xattr_skipcap),
 	LSM_HOOK_INIT(inode_setxattr, selinux_inode_setxattr),
 	LSM_HOOK_INIT(inode_post_setxattr, selinux_inode_post_setxattr),
 	LSM_HOOK_INIT(inode_getxattr, selinux_inode_getxattr),

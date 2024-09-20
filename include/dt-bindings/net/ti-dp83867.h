@@ -1,10 +1,10 @@
-/* SPDX-License-Identifier: GPL-2.0-only */
+/* SPDX-License-Identifier: GPL-2.0-only OR MIT */
 /*
  * Device Tree constants for the Texas Instruments DP83867 PHY
  *
  * Author: Dan Murphy <dmurphy@ti.com>
  *
- * Copyright:   (C) 2015 Texas Instruments, Inc.
+ * Copyright (C) 2015-2024 Texas Instruments Incorporated - https://www.ti.com/
  */
 
 #ifndef _DT_BINDINGS_TI_DP83867_H

@@ -91,16 +91,18 @@ struct cdev_record {
  *
  * @timestamp: the trip crossing timestamp
  * @duration: total time when the zone temperature was above the trip point
+ * @trip_temp: trip temperature at mitigation start
+ * @trip_hyst: trip hysteresis at mitigation start
  * @count: the number of times the zone temperature was above the trip point
- * @max: maximum recorded temperature above the trip point
  * @min: minimum recorded temperature above the trip point
  * @avg: average temperature above the trip point
  */
 struct trip_stats {
 	ktime_t timestamp;
 	ktime_t duration;
+	int trip_temp;
+	int trip_hyst;
 	int count;
-	int max;
 	int min;
 	int avg;
 };
@@ -118,12 +120,14 @@ struct trip_stats {
  * @timestamp: first trip point crossed the way up
  * @duration: total duration of the mitigation episode
  * @node: a list element to be added to the list of tz events
+ * @max_temp: maximum zone temperature during this episode
  * @trip_stats: per trip point statistics, flexible array
  */
 struct tz_episode {
 	ktime_t timestamp;
 	ktime_t duration;
 	struct list_head node;
+	int max_temp;
 	struct trip_stats trip_stats[];
 };
 
@@ -174,11 +178,11 @@ struct thermal_debugfs {
 void thermal_debug_init(void)
 {
 	d_root = debugfs_create_dir("thermal", NULL);
-	if (!d_root)
+	if (IS_ERR(d_root))
 		return;
 
 	d_cdev = debugfs_create_dir("cooling_devices", d_root);
-	if (!d_cdev)
+	if (IS_ERR(d_cdev))
 		return;
 
 	d_tz = debugfs_create_dir("thermal_zones", d_root);
@@ -198,7 +202,7 @@ static struct thermal_debugfs *thermal_debugfs_add_id(struct dentry *d, int id)
 	snprintf(ids, IDSLENGTH, "%d", id);
 
 	thermal_dbg->d_top = debugfs_create_dir(ids, d);
-	if (!thermal_dbg->d_top) {
+	if (IS_ERR(thermal_dbg->d_top)) {
 		kfree(thermal_dbg);
 		return NULL;
 	}
@@ -435,6 +439,14 @@ void thermal_debug_cdev_state_update(const struct thermal_cooling_device *cdev,
 	}
 
 	cdev_dbg->current_state = new_state;
+
+	/*
+	 * Create a record for the new state if it is not there, so its
+	 * duration will be printed by cdev_dt_seq_show() as expected if it
+	 * runs before the next state transition.
+	 */
+	thermal_debugfs_cdev_record_get(thermal_dbg, cdev_dbg->durations, new_state);
+
 	transition = (old_state << 16) | new_state;
 
 	/*
@@ -460,8 +472,9 @@ void thermal_debug_cdev_state_update(const struct thermal_cooling_device *cdev,
  * Allocates a cooling device object for debug, initializes the
  * statistics and create the entries in sysfs.
  * @cdev: a pointer to a cooling device
+ * @state: current state of the cooling device
  */
-void thermal_debug_cdev_add(struct thermal_cooling_device *cdev)
+void thermal_debug_cdev_add(struct thermal_cooling_device *cdev, int state)
 {
 	struct thermal_debugfs *thermal_dbg;
 	struct cdev_debugfs *cdev_dbg;
@@ -478,8 +491,15 @@ void thermal_debug_cdev_add(struct thermal_cooling_device *cdev)
 		INIT_LIST_HEAD(&cdev_dbg->durations[i]);
 	}
 
-	cdev_dbg->current_state = 0;
+	cdev_dbg->current_state = state;
 	cdev_dbg->timestamp = ktime_get();
+
+	/*
+	 * Create a record for the initial cooling device state, so its
+	 * duration will be printed by cdev_dt_seq_show() as expected if it
+	 * runs before the first state transition.
+	 */
+	thermal_debugfs_cdev_record_get(thermal_dbg, cdev_dbg->durations, state);
 
 	debugfs_create_file("trans_table", 0400, thermal_dbg->d_top,
 			    thermal_dbg, &tt_fops);
@@ -540,10 +560,12 @@ static struct tz_episode *thermal_debugfs_tz_event_alloc(struct thermal_zone_dev
 
 	INIT_LIST_HEAD(&tze->node);
 	tze->timestamp = now;
+	tze->duration = KTIME_MIN;
+	tze->max_temp = INT_MIN;
 
 	for (i = 0; i < tz->num_trips; i++) {
+		tze->trip_stats[i].trip_temp = THERMAL_TEMP_INVALID;
 		tze->trip_stats[i].min = INT_MAX;
-		tze->trip_stats[i].max = INT_MIN;
 	}
 
 	return tze;
@@ -552,19 +574,19 @@ static struct tz_episode *thermal_debugfs_tz_event_alloc(struct thermal_zone_dev
 void thermal_debug_tz_trip_up(struct thermal_zone_device *tz,
 			      const struct thermal_trip *trip)
 {
-	struct tz_episode *tze;
-	struct tz_debugfs *tz_dbg;
 	struct thermal_debugfs *thermal_dbg = tz->debugfs;
-	int temperature = tz->temperature;
 	int trip_id = thermal_zone_trip_id(tz, trip);
 	ktime_t now = ktime_get();
+	struct trip_stats *trip_stats;
+	struct tz_debugfs *tz_dbg;
+	struct tz_episode *tze;
 
 	if (!thermal_dbg)
 		return;
 
-	mutex_lock(&thermal_dbg->lock);
-
 	tz_dbg = &thermal_dbg->tz_dbg;
+
+	mutex_lock(&thermal_dbg->lock);
 
 	/*
 	 * The mitigation is starting. A mitigation can contain
@@ -623,34 +645,41 @@ void thermal_debug_tz_trip_up(struct thermal_zone_device *tz,
 	tz_dbg->trips_crossed[tz_dbg->nr_trips++] = trip_id;
 
 	tze = list_first_entry(&tz_dbg->tz_episodes, struct tz_episode, node);
-	tze->trip_stats[trip_id].timestamp = now;
-	tze->trip_stats[trip_id].max = max(tze->trip_stats[trip_id].max, temperature);
-	tze->trip_stats[trip_id].min = min(tze->trip_stats[trip_id].min, temperature);
-	tze->trip_stats[trip_id].count++;
-	tze->trip_stats[trip_id].avg = tze->trip_stats[trip_id].avg +
-		(temperature - tze->trip_stats[trip_id].avg) /
-		tze->trip_stats[trip_id].count;
+	trip_stats = &tze->trip_stats[trip_id];
+	trip_stats->trip_temp = trip->temperature;
+	trip_stats->trip_hyst = trip->hysteresis;
+	trip_stats->timestamp = now;
 
 unlock:
 	mutex_unlock(&thermal_dbg->lock);
+}
+
+static void tz_episode_close_trip(struct tz_episode *tze, int trip_id, ktime_t now)
+{
+	struct trip_stats *trip_stats = &tze->trip_stats[trip_id];
+	ktime_t delta = ktime_sub(now, trip_stats->timestamp);
+
+	trip_stats->duration = ktime_add(delta, trip_stats->duration);
+	/* Mark the end of mitigation for this trip point. */
+	trip_stats->timestamp = KTIME_MAX;
 }
 
 void thermal_debug_tz_trip_down(struct thermal_zone_device *tz,
 				const struct thermal_trip *trip)
 {
 	struct thermal_debugfs *thermal_dbg = tz->debugfs;
+	int trip_id = thermal_zone_trip_id(tz, trip);
+	ktime_t now = ktime_get();
 	struct tz_episode *tze;
 	struct tz_debugfs *tz_dbg;
-	ktime_t delta, now = ktime_get();
-	int trip_id = thermal_zone_trip_id(tz, trip);
 	int i;
 
 	if (!thermal_dbg)
 		return;
 
-	mutex_lock(&thermal_dbg->lock);
-
 	tz_dbg = &thermal_dbg->tz_dbg;
+
+	mutex_lock(&thermal_dbg->lock);
 
 	/*
 	 * The temperature crosses the way down but there was not
@@ -677,10 +706,7 @@ void thermal_debug_tz_trip_down(struct thermal_zone_device *tz,
 
 	tze = list_first_entry(&tz_dbg->tz_episodes, struct tz_episode, node);
 
-	delta = ktime_sub(now, tze->trip_stats[trip_id].timestamp);
-
-	tze->trip_stats[trip_id].duration =
-		ktime_add(delta, tze->trip_stats[trip_id].duration);
+	tz_episode_close_trip(tze, trip_id, now);
 
 	/*
 	 * This event closes the mitigation as we are crossing the
@@ -693,32 +719,35 @@ out:
 	mutex_unlock(&thermal_dbg->lock);
 }
 
-void thermal_debug_update_temp(struct thermal_zone_device *tz)
+void thermal_debug_update_trip_stats(struct thermal_zone_device *tz)
 {
 	struct thermal_debugfs *thermal_dbg = tz->debugfs;
-	struct tz_episode *tze;
 	struct tz_debugfs *tz_dbg;
-	int trip_id, i;
+	struct tz_episode *tze;
+	int i;
 
 	if (!thermal_dbg)
 		return;
 
-	mutex_lock(&thermal_dbg->lock);
-
 	tz_dbg = &thermal_dbg->tz_dbg;
+
+	mutex_lock(&thermal_dbg->lock);
 
 	if (!tz_dbg->nr_trips)
 		goto out;
 
+	tze = list_first_entry(&tz_dbg->tz_episodes, struct tz_episode, node);
+
+	if (tz->temperature > tze->max_temp)
+		tze->max_temp = tz->temperature;
+
 	for (i = 0; i < tz_dbg->nr_trips; i++) {
-		trip_id = tz_dbg->trips_crossed[i];
-		tze = list_first_entry(&tz_dbg->tz_episodes, struct tz_episode, node);
-		tze->trip_stats[trip_id].count++;
-		tze->trip_stats[trip_id].max = max(tze->trip_stats[trip_id].max, tz->temperature);
-		tze->trip_stats[trip_id].min = min(tze->trip_stats[trip_id].min, tz->temperature);
-		tze->trip_stats[trip_id].avg = tze->trip_stats[trip_id].avg +
-			(tz->temperature - tze->trip_stats[trip_id].avg) /
-			tze->trip_stats[trip_id].count;
+		int trip_id = tz_dbg->trips_crossed[i];
+		struct trip_stats *trip_stats = &tze->trip_stats[trip_id];
+
+		trip_stats->min = min(trip_stats->min, tz->temperature);
+		trip_stats->avg += (tz->temperature - trip_stats->avg) /
+					++trip_stats->count;
 	}
 out:
 	mutex_unlock(&thermal_dbg->lock);
@@ -753,20 +782,32 @@ static int tze_seq_show(struct seq_file *s, void *v)
 {
 	struct thermal_debugfs *thermal_dbg = s->private;
 	struct thermal_zone_device *tz = thermal_dbg->tz_dbg.tz;
-	struct thermal_trip *trip;
+	struct thermal_trip_desc *td;
 	struct tz_episode *tze;
-	const char *type;
+	u64 duration_ms;
 	int trip_id;
+	char c;
 
 	tze = list_entry((struct list_head *)v, struct tz_episode, node);
 
-	seq_printf(s, ",-Mitigation at %lluus, duration=%llums\n",
-		   ktime_to_us(tze->timestamp),
-		   ktime_to_ms(tze->duration));
+	if (tze->duration == KTIME_MIN) {
+		/* Mitigation in progress. */
+		duration_ms = ktime_to_ms(ktime_sub(ktime_get(), tze->timestamp));
+		c = '>';
+	} else {
+		duration_ms = ktime_to_ms(tze->duration);
+		c = '=';
+	}
 
-	seq_printf(s, "| trip |     type | temp(°mC) | hyst(°mC) |  duration  |  avg(°mC) |  min(°mC) |  max(°mC) |\n");
+	seq_printf(s, ",-Mitigation at %llums, duration%c%llums, max. temp=%dm°C\n",
+		   ktime_to_ms(tze->timestamp), c, duration_ms, tze->max_temp);
 
-	for_each_trip(tz, trip) {
+	seq_printf(s, "| trip |     type | temp(m°C) | hyst(m°C) | duration(ms) |  avg(m°C) |  min(m°C) |\n");
+
+	for_each_trip_desc(tz, td) {
+		const struct thermal_trip *trip = &td->trip;
+		struct trip_stats *trip_stats;
+
 		/*
 		 * There is no possible mitigation happening at the
 		 * critical trip point, so the stats will be always
@@ -775,24 +816,34 @@ static int tze_seq_show(struct seq_file *s, void *v)
 		if (trip->type == THERMAL_TRIP_CRITICAL)
 			continue;
 
-		if (trip->type == THERMAL_TRIP_PASSIVE)
-			type = "passive";
-		else if (trip->type == THERMAL_TRIP_ACTIVE)
-			type = "active";
-		else
-			type = "hot";
-
 		trip_id = thermal_zone_trip_id(tz, trip);
+		trip_stats = &tze->trip_stats[trip_id];
 
-		seq_printf(s, "| %*d | %*s | %*d | %*d | %*lld | %*d | %*d | %*d |\n",
+		/* Skip trips without any stats. */
+		if (trip_stats->trip_temp == THERMAL_TEMP_INVALID)
+			continue;
+
+		if (trip_stats->timestamp != KTIME_MAX) {
+			/* Mitigation in progress. */
+			ktime_t delta = ktime_sub(ktime_get(),
+						  trip_stats->timestamp);
+
+			delta = ktime_add(delta, trip_stats->duration);
+			duration_ms = ktime_to_ms(delta);
+			c = '>';
+		} else {
+			duration_ms = ktime_to_ms(trip_stats->duration);
+			c = ' ';
+		}
+
+		seq_printf(s, "| %*d | %*s | %*d | %*d | %c%*lld | %*d | %*d |\n",
 			   4 , trip_id,
-			   8, type,
-			   9, trip->temperature,
-			   9, trip->hysteresis,
-			   10, ktime_to_ms(tze->trip_stats[trip_id].duration),
-			   9, tze->trip_stats[trip_id].avg,
-			   9, tze->trip_stats[trip_id].min,
-			   9, tze->trip_stats[trip_id].max);
+			   8, thermal_trip_type_name(trip->type),
+			   9, trip_stats->trip_temp,
+			   9, trip_stats->trip_hyst,
+			   c, 11, duration_ms,
+			   9, trip_stats->avg,
+			   9, trip_stats->min);
 	}
 
 	return 0;
@@ -868,4 +919,40 @@ void thermal_debug_tz_remove(struct thermal_zone_device *tz)
 
 	thermal_debugfs_remove_id(thermal_dbg);
 	kfree(trips_crossed);
+}
+
+void thermal_debug_tz_resume(struct thermal_zone_device *tz)
+{
+	struct thermal_debugfs *thermal_dbg = tz->debugfs;
+	ktime_t now = ktime_get();
+	struct tz_debugfs *tz_dbg;
+	struct tz_episode *tze;
+	int i;
+
+	if (!thermal_dbg)
+		return;
+
+	mutex_lock(&thermal_dbg->lock);
+
+	tz_dbg = &thermal_dbg->tz_dbg;
+
+	if (!tz_dbg->nr_trips)
+		goto out;
+
+	/*
+	 * A mitigation episode was in progress before the preceding system
+	 * suspend transition, so close it because the zone handling is starting
+	 * over from scratch.
+	 */
+	tze = list_first_entry(&tz_dbg->tz_episodes, struct tz_episode, node);
+
+	for (i = 0; i < tz_dbg->nr_trips; i++)
+		tz_episode_close_trip(tze, tz_dbg->trips_crossed[i], now);
+
+	tze->duration = ktime_sub(now, tze->timestamp);
+
+	tz_dbg->nr_trips = 0;
+
+out:
+	mutex_unlock(&thermal_dbg->lock);
 }

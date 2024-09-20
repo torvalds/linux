@@ -15,7 +15,7 @@
 #include <sys/ioctl.h>
 #include <sys/stat.h>
 #include <math.h>
-#include <asm/unistd.h>
+#include <asm-generic/unistd.h>
 #include <pthread.h>
 #include <sys/resource.h>
 #include <assert.h>
@@ -1484,7 +1484,7 @@ int main(int argc, char *argv[])
 	ksft_print_header();
 
 	if (init_uffd())
-		return ksft_exit_pass();
+		ksft_exit_pass();
 
 	ksft_set_plan(115);
 
@@ -1567,8 +1567,10 @@ int main(int argc, char *argv[])
 	/* 7. File Hugetlb testing */
 	mem_size = 2*1024*1024;
 	fd = memfd_create("uffd-test", MFD_HUGETLB | MFD_NOEXEC_SEAL);
+	if (fd < 0)
+		ksft_exit_fail_msg("uffd-test creation failed %d %s\n", errno, strerror(errno));
 	mem = mmap(NULL, mem_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-	if (mem) {
+	if (mem != MAP_FAILED) {
 		wp_init(mem, mem_size);
 		wp_addr_range(mem, mem_size);
 
@@ -1660,5 +1662,5 @@ int main(int argc, char *argv[])
 	userfaultfd_tests();
 
 	close(pagemap_fd);
-	return ksft_exit_pass();
+	ksft_exit_pass();
 }

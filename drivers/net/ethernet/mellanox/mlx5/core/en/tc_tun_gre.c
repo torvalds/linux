@@ -31,12 +31,16 @@ static int mlx5e_gen_ip_tunnel_header_gretap(char buf[],
 	const struct ip_tunnel_key *tun_key  = &e->tun_info->key;
 	struct gre_base_hdr *greh = (struct gre_base_hdr *)(buf);
 	__be32 tun_id = tunnel_id_to_key32(tun_key->tun_id);
+	IP_TUNNEL_DECLARE_FLAGS(unsupp) = { };
 	int hdr_len;
 
 	*ip_proto = IPPROTO_GRE;
 
 	/* the HW does not calculate GRE csum or sequences */
-	if (tun_key->tun_flags & (TUNNEL_CSUM | TUNNEL_SEQ))
+	__set_bit(IP_TUNNEL_CSUM_BIT, unsupp);
+	__set_bit(IP_TUNNEL_SEQ_BIT, unsupp);
+
+	if (ip_tunnel_flags_intersect(tun_key->tun_flags, unsupp))
 		return -EOPNOTSUPP;
 
 	greh->protocol = htons(ETH_P_TEB);
@@ -44,7 +48,7 @@ static int mlx5e_gen_ip_tunnel_header_gretap(char buf[],
 	/* GRE key */
 	hdr_len	= mlx5e_tc_tun_calc_hlen_gretap(e);
 	greh->flags = gre_tnl_flags_to_gre_flags(tun_key->tun_flags);
-	if (tun_key->tun_flags & TUNNEL_KEY) {
+	if (test_bit(IP_TUNNEL_KEY_BIT, tun_key->tun_flags)) {
 		__be32 *ptr = (__be32 *)(((u8 *)greh) + hdr_len - 4);
 		*ptr = tun_id;
 	}

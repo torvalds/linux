@@ -26,7 +26,7 @@
  *
  * The caller must hold any appropriate locks.
  */
-static ssize_t netfs_unbuffered_read_iter_locked(struct kiocb *iocb, struct iov_iter *iter)
+ssize_t netfs_unbuffered_read_iter_locked(struct kiocb *iocb, struct iov_iter *iter)
 {
 	struct netfs_io_request *rreq;
 	ssize_t ret;
@@ -98,6 +98,7 @@ out:
 		iov_iter_revert(iter, orig_count - iov_iter_count(iter));
 	return ret;
 }
+EXPORT_SYMBOL(netfs_unbuffered_read_iter_locked);
 
 /**
  * netfs_unbuffered_read_iter - Perform an unbuffered or direct I/O read

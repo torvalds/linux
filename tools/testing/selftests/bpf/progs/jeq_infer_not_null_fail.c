@@ -4,6 +4,10 @@
 #include <bpf/bpf_helpers.h>
 #include "bpf_misc.h"
 
+#ifndef __clang__
+#pragma GCC diagnostic ignored "-Warray-bounds"
+#endif
+
 char _license[] SEC("license") = "GPL";
 
 struct {

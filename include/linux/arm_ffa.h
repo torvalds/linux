@@ -126,6 +126,7 @@
 /* FFA Bus/Device/Driver related */
 struct ffa_device {
 	u32 id;
+	u32 properties;
 	int vm_id;
 	bool mode_32bit;
 	uuid_t uuid;
@@ -148,7 +149,7 @@ struct ffa_driver {
 	struct device_driver driver;
 };
 
-#define to_ffa_driver(d) container_of(d, struct ffa_driver, driver)
+#define to_ffa_driver(d) container_of_const(d, struct ffa_driver, driver)
 
 static inline void ffa_dev_set_drvdata(struct ffa_device *fdev, void *data)
 {
@@ -211,6 +212,9 @@ bool ffa_device_is_valid(struct ffa_device *ffa_dev) { return false; }
 
 extern const struct bus_type ffa_bus_type;
 
+/* The FF-A 1.0 partition structure lacks the uuid[4] */
+#define FFA_1_0_PARTITON_INFO_SZ	(8)
+
 /* FFA transport related */
 struct ffa_partition_info {
 	u16 id;
@@ -221,11 +225,28 @@ struct ffa_partition_info {
 #define FFA_PARTITION_DIRECT_SEND	BIT(1)
 /* partition can send and receive indirect messages. */
 #define FFA_PARTITION_INDIRECT_MSG	BIT(2)
+/* partition can receive notifications */
+#define FFA_PARTITION_NOTIFICATION_RECV	BIT(3)
 /* partition runs in the AArch64 execution state. */
 #define FFA_PARTITION_AARCH64_EXEC	BIT(8)
 	u32 properties;
 	u32 uuid[4];
 };
+
+static inline
+bool ffa_partition_check_property(struct ffa_device *dev, u32 property)
+{
+	return dev->properties & property;
+}
+
+#define ffa_partition_supports_notify_recv(dev)	\
+	ffa_partition_check_property(dev, FFA_PARTITION_NOTIFICATION_RECV)
+
+#define ffa_partition_supports_indirect_msg(dev)	\
+	ffa_partition_check_property(dev, FFA_PARTITION_INDIRECT_MSG)
+
+#define ffa_partition_supports_direct_recv(dev)	\
+	ffa_partition_check_property(dev, FFA_PARTITION_DIRECT_RECV)
 
 /* For use with FFA_MSG_SEND_DIRECT_{REQ,RESP} which pass data via registers */
 struct ffa_send_direct_data {
@@ -234,6 +255,14 @@ struct ffa_send_direct_data {
 	unsigned long data2; /* w5/x5 */
 	unsigned long data3; /* w6/x6 */
 	unsigned long data4; /* w7/x7 */
+};
+
+struct ffa_indirect_msg_hdr {
+	u32 flags;
+	u32 res0;
+	u32 offset;
+	u32 send_recv_id;
+	u32 size;
 };
 
 struct ffa_mem_region_addr_range {
@@ -396,6 +425,7 @@ struct ffa_msg_ops {
 	void (*mode_32bit_set)(struct ffa_device *dev);
 	int (*sync_send_receive)(struct ffa_device *dev,
 				 struct ffa_send_direct_data *data);
+	int (*indirect_send)(struct ffa_device *dev, void *buf, size_t sz);
 };
 
 struct ffa_mem_ops {

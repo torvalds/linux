@@ -35,9 +35,10 @@ struct buckets_in_flight {
 };
 
 static const struct rhashtable_params bch_move_bucket_params = {
-	.head_offset	= offsetof(struct move_bucket_in_flight, hash),
-	.key_offset	= offsetof(struct move_bucket_in_flight, bucket.k),
-	.key_len	= sizeof(struct move_bucket_key),
+	.head_offset		= offsetof(struct move_bucket_in_flight, hash),
+	.key_offset		= offsetof(struct move_bucket_in_flight, bucket.k),
+	.key_len		= sizeof(struct move_bucket_key),
+	.automatic_shrinking	= true,
 };
 
 static struct move_bucket_in_flight *
@@ -84,7 +85,7 @@ static int bch2_bucket_is_movable(struct btree_trans *trans,
 		return 0;
 
 	k = bch2_bkey_get_iter(trans, &iter, BTREE_ID_alloc,
-			       b->k.bucket, BTREE_ITER_CACHED);
+			       b->k.bucket, BTREE_ITER_cached);
 	ret = bkey_err(k);
 	if (ret)
 		return ret;
@@ -157,6 +158,8 @@ static int bch2_copygc_get_buckets(struct moving_context *ctxt,
 
 	if (bch2_fs_fatal_err_on(ret, c, "%s: from bch2_btree_write_buffer_tryflush()", bch2_err_str(ret)))
 		return ret;
+
+	bch2_trans_begin(trans);
 
 	ret = for_each_btree_key_upto(trans, iter, BTREE_ID_lru,
 				  lru_pos(BCH_LRU_FRAGMENTATION_START, 0, 0),
@@ -287,18 +290,23 @@ unsigned long bch2_copygc_wait_amount(struct bch_fs *c)
 
 void bch2_copygc_wait_to_text(struct printbuf *out, struct bch_fs *c)
 {
-	prt_printf(out, "Currently waiting for:     ");
+	printbuf_tabstop_push(out, 32);
+	prt_printf(out, "running:\t%u\n",		c->copygc_running);
+	prt_printf(out, "copygc_wait:\t%llu\n",		c->copygc_wait);
+	prt_printf(out, "copygc_wait_at:\t%llu\n",	c->copygc_wait_at);
+
+	prt_printf(out, "Currently waiting for:\t");
 	prt_human_readable_u64(out, max(0LL, c->copygc_wait -
 					atomic64_read(&c->io_clock[WRITE].now)) << 9);
 	prt_newline(out);
 
-	prt_printf(out, "Currently waiting since:   ");
+	prt_printf(out, "Currently waiting since:\t");
 	prt_human_readable_u64(out, max(0LL,
 					atomic64_read(&c->io_clock[WRITE].now) -
 					c->copygc_wait_at) << 9);
 	prt_newline(out);
 
-	prt_printf(out, "Currently calculated wait: ");
+	prt_printf(out, "Currently calculated wait:\t");
 	prt_human_readable_u64(out, bch2_copygc_wait_amount(c));
 	prt_newline(out);
 }
@@ -375,7 +383,7 @@ static int bch2_copygc_thread(void *arg)
 			if (min_member_capacity == U64_MAX)
 				min_member_capacity = 128 * 2048;
 
-			bch2_trans_unlock_long(ctxt.trans);
+			move_buckets_wait(&ctxt, buckets, true);
 			bch2_kthread_io_clock_wait(clock, last + (min_member_capacity >> 6),
 					MAX_SCHEDULE_TIMEOUT);
 		}

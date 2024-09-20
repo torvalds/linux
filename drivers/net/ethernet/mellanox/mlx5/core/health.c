@@ -248,6 +248,10 @@ recover_from_sw_reset:
 	do {
 		if (mlx5_get_nic_state(dev) == MLX5_INITIAL_SEG_NIC_INTERFACE_DISABLED)
 			break;
+		if (pci_channel_offline(dev->pdev)) {
+			mlx5_core_err(dev, "PCI channel offline, stop waiting for NIC IFC\n");
+			goto unlock;
+		}
 
 		msleep(20);
 	} while (!time_after(jiffies, end));
@@ -316,6 +320,10 @@ int mlx5_health_wait_pci_up(struct mlx5_core_dev *dev)
 		if (test_bit(MLX5_BREAK_FW_WAIT, &dev->intf_state)) {
 			mlx5_core_warn(dev, "device is being removed, stop waiting for PCI\n");
 			return -ENODEV;
+		}
+		if (pci_channel_offline(dev->pdev)) {
+			mlx5_core_err(dev, "PCI channel offline, stop waiting for PCI\n");
+			return -EACCES;
 		}
 		msleep(100);
 	}

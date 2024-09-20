@@ -4,7 +4,7 @@
  */
 
 #include <linux/err.h>
-#include <drm/i915_hdcp_interface.h>
+#include <drm/intel/i915_hdcp_interface.h>
 
 #include "i915_drv.h"
 #include "intel_hdcp_gsc_message.h"

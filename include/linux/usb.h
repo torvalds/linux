@@ -440,11 +440,6 @@ int __usb_get_extra_descriptor(char *buffer, unsigned size,
 
 /* ----------------------------------------------------------------------- */
 
-/* USB device number allocation bitmap */
-struct usb_devmap {
-	unsigned long devicemap[128 / (8*sizeof(unsigned long))];
-};
-
 /*
  * Allocated per bus (tree of devices) we have:
  */
@@ -472,7 +467,7 @@ struct usb_bus {
 					 * round-robin allocation */
 	struct mutex devnum_next_mutex; /* devnum_next mutex */
 
-	struct usb_devmap devmap;	/* device address allocation map */
+	DECLARE_BITMAP(devmap, 128);	/* USB device number allocation bitmap */
 	struct usb_device *root_hub;	/* Root hub */
 	struct usb_bus *hs_companion;	/* Companion EHCI bus, if any */
 
@@ -1176,6 +1171,7 @@ extern ssize_t usb_show_dynids(struct usb_dynids *dynids, char *buf);
  *	post_reset method is called.
  * @post_reset: Called by usb_reset_device() after the device
  *	has been reset
+ * @shutdown: Called at shut-down time to quiesce the device.
  * @id_table: USB drivers use ID table to support hotplugging.
  *	Export this with MODULE_DEVICE_TABLE(usb,...).  This must be set
  *	or your driver's probe function will never get called.
@@ -1226,6 +1222,8 @@ struct usb_driver {
 
 	int (*pre_reset)(struct usb_interface *intf);
 	int (*post_reset)(struct usb_interface *intf);
+
+	void (*shutdown)(struct usb_interface *intf);
 
 	const struct usb_device_id *id_table;
 	const struct attribute_group **dev_groups;

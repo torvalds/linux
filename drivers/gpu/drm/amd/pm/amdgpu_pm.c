@@ -38,6 +38,8 @@
 #define MAX_NUM_OF_FEATURES_PER_SUBSET		8
 #define MAX_NUM_OF_SUBSETS			8
 
+#define DEVICE_ATTR_IS(_name)		(attr_id == device_attr_id__##_name)
+
 struct od_attribute {
 	struct kobj_attribute	attribute;
 	struct list_head	entry;
@@ -1582,6 +1584,30 @@ static ssize_t amdgpu_get_mem_busy_percent(struct device *dev,
 }
 
 /**
+ * DOC: vcn_busy_percent
+ *
+ * The amdgpu driver provides a sysfs API for reading how busy the VCN
+ * is as a percentage.  The file vcn_busy_percent is used for this.
+ * The SMU firmware computes a percentage of load based on the
+ * aggregate activity level in the IP cores.
+ */
+static ssize_t amdgpu_get_vcn_busy_percent(struct device *dev,
+						  struct device_attribute *attr,
+						  char *buf)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = drm_to_adev(ddev);
+	unsigned int value;
+	int r;
+
+	r = amdgpu_hwmon_get_sensor_generic(adev, AMDGPU_PP_SENSOR_VCN_LOAD, &value);
+	if (r)
+		return r;
+
+	return sysfs_emit(buf, "%d\n", value);
+}
+
+/**
  * DOC: pcie_bw
  *
  * The amdgpu driver provides a sysfs API for estimating how much data
@@ -2047,7 +2073,8 @@ static int pp_od_clk_voltage_attr_update(struct amdgpu_device *adev, struct amdg
 	}
 
 	/* Enable pp_od_clk_voltage node for gc 9.4.3 SRIOV/BM support */
-	if (gc_ver == IP_VERSION(9, 4, 3)) {
+	if (gc_ver == IP_VERSION(9, 4, 3) ||
+	    gc_ver == IP_VERSION(9, 4, 4)) {
 		if (amdgpu_sriov_vf(adev) && !amdgpu_sriov_is_pp_one_vf(adev))
 			*states = ATTR_STATE_UNSUPPORTED;
 		return 0;
@@ -2091,52 +2118,222 @@ static int pp_dpm_dcefclk_attr_update(struct amdgpu_device *adev, struct amdgpu_
 	return 0;
 }
 
-/* Following items will be read out to indicate current plpd policy:
- *  - -1: none
- *  - 0: disallow
- *  - 1: default
- *  - 2: optimized
- */
-static ssize_t amdgpu_get_xgmi_plpd_policy(struct device *dev,
-					   struct device_attribute *attr,
-					   char *buf)
+static int pp_dpm_clk_default_attr_update(struct amdgpu_device *adev, struct amdgpu_device_attr *attr,
+					  uint32_t mask, enum amdgpu_device_attr_states *states)
 {
-	struct drm_device *ddev = dev_get_drvdata(dev);
-	struct amdgpu_device *adev = drm_to_adev(ddev);
-	char *mode_desc = "none";
-	int mode;
+	struct device_attribute *dev_attr = &attr->dev_attr;
+	enum amdgpu_device_attr_id attr_id = attr->attr_id;
+	uint32_t mp1_ver = amdgpu_ip_version(adev, MP1_HWIP, 0);
+	uint32_t gc_ver = amdgpu_ip_version(adev, GC_HWIP, 0);
 
-	if (amdgpu_in_reset(adev))
-		return -EPERM;
-	if (adev->in_suspend && !adev->in_runpm)
-		return -EPERM;
+	*states = ATTR_STATE_SUPPORTED;
 
-	mode = amdgpu_dpm_get_xgmi_plpd_mode(adev, &mode_desc);
+	if (!(attr->flags & mask)) {
+		*states = ATTR_STATE_UNSUPPORTED;
+		return 0;
+	}
 
-	return sysfs_emit(buf, "%d: %s\n", mode, mode_desc);
+	if (DEVICE_ATTR_IS(pp_dpm_socclk)) {
+		if (gc_ver < IP_VERSION(9, 0, 0))
+			*states = ATTR_STATE_UNSUPPORTED;
+	} else if (DEVICE_ATTR_IS(pp_dpm_fclk)) {
+		if (mp1_ver < IP_VERSION(10, 0, 0))
+			*states = ATTR_STATE_UNSUPPORTED;
+	} else if (DEVICE_ATTR_IS(pp_dpm_vclk)) {
+		if (!(gc_ver == IP_VERSION(10, 3, 1) ||
+		      gc_ver == IP_VERSION(10, 3, 3) ||
+		      gc_ver == IP_VERSION(10, 3, 6) ||
+		      gc_ver == IP_VERSION(10, 3, 7) ||
+		      gc_ver == IP_VERSION(10, 3, 0) ||
+		      gc_ver == IP_VERSION(10, 1, 2) ||
+		      gc_ver == IP_VERSION(11, 0, 0) ||
+		      gc_ver == IP_VERSION(11, 0, 1) ||
+		      gc_ver == IP_VERSION(11, 0, 4) ||
+		      gc_ver == IP_VERSION(11, 5, 0) ||
+		      gc_ver == IP_VERSION(11, 0, 2) ||
+		      gc_ver == IP_VERSION(11, 0, 3) ||
+		      gc_ver == IP_VERSION(9, 4, 3) ||
+		      gc_ver == IP_VERSION(9, 4, 4)))
+			*states = ATTR_STATE_UNSUPPORTED;
+	} else if (DEVICE_ATTR_IS(pp_dpm_vclk1)) {
+		if (!((gc_ver == IP_VERSION(10, 3, 1) ||
+		       gc_ver == IP_VERSION(10, 3, 0) ||
+		       gc_ver == IP_VERSION(11, 0, 2) ||
+		       gc_ver == IP_VERSION(11, 0, 3)) && adev->vcn.num_vcn_inst >= 2))
+			*states = ATTR_STATE_UNSUPPORTED;
+	} else if (DEVICE_ATTR_IS(pp_dpm_dclk)) {
+		if (!(gc_ver == IP_VERSION(10, 3, 1) ||
+		      gc_ver == IP_VERSION(10, 3, 3) ||
+		      gc_ver == IP_VERSION(10, 3, 6) ||
+		      gc_ver == IP_VERSION(10, 3, 7) ||
+		      gc_ver == IP_VERSION(10, 3, 0) ||
+		      gc_ver == IP_VERSION(10, 1, 2) ||
+		      gc_ver == IP_VERSION(11, 0, 0) ||
+		      gc_ver == IP_VERSION(11, 0, 1) ||
+		      gc_ver == IP_VERSION(11, 0, 4) ||
+		      gc_ver == IP_VERSION(11, 5, 0) ||
+		      gc_ver == IP_VERSION(11, 0, 2) ||
+		      gc_ver == IP_VERSION(11, 0, 3) ||
+		      gc_ver == IP_VERSION(9, 4, 3) ||
+		      gc_ver == IP_VERSION(9, 4, 4)))
+			*states = ATTR_STATE_UNSUPPORTED;
+	} else if (DEVICE_ATTR_IS(pp_dpm_dclk1)) {
+		if (!((gc_ver == IP_VERSION(10, 3, 1) ||
+		       gc_ver == IP_VERSION(10, 3, 0) ||
+		       gc_ver == IP_VERSION(11, 0, 2) ||
+		       gc_ver == IP_VERSION(11, 0, 3)) && adev->vcn.num_vcn_inst >= 2))
+			*states = ATTR_STATE_UNSUPPORTED;
+	} else if (DEVICE_ATTR_IS(pp_dpm_pcie)) {
+		if (gc_ver == IP_VERSION(9, 4, 2) ||
+		    gc_ver == IP_VERSION(9, 4, 3) ||
+		    gc_ver == IP_VERSION(9, 4, 4))
+			*states = ATTR_STATE_UNSUPPORTED;
+	}
+
+	switch (gc_ver) {
+	case IP_VERSION(9, 4, 1):
+	case IP_VERSION(9, 4, 2):
+		/* the Mi series card does not support standalone mclk/socclk/fclk level setting */
+		if (DEVICE_ATTR_IS(pp_dpm_mclk) ||
+		    DEVICE_ATTR_IS(pp_dpm_socclk) ||
+		    DEVICE_ATTR_IS(pp_dpm_fclk)) {
+			dev_attr->attr.mode &= ~S_IWUGO;
+			dev_attr->store = NULL;
+		}
+		break;
+	default:
+		break;
+	}
+
+	/* setting should not be allowed from VF if not in one VF mode */
+	if (amdgpu_sriov_vf(adev) && amdgpu_sriov_is_pp_one_vf(adev)) {
+		dev_attr->attr.mode &= ~S_IWUGO;
+		dev_attr->store = NULL;
+	}
+
+	return 0;
 }
 
-/* Following argument value is expected from user to change plpd policy
- *  - arg 0: disallow plpd
- *  - arg 1: default policy
- *  - arg 2: optimized policy
+/* pm policy attributes */
+struct amdgpu_pm_policy_attr {
+	struct device_attribute dev_attr;
+	enum pp_pm_policy id;
+};
+
+/**
+ * DOC: pm_policy
+ *
+ * Certain SOCs can support different power policies to optimize application
+ * performance. However, this policy is provided only at SOC level and not at a
+ * per-process level. This is useful especially when entire SOC is utilized for
+ * dedicated workload.
+ *
+ * The amdgpu driver provides a sysfs API for selecting the policy. Presently,
+ * only two types of policies are supported through this interface.
+ *
+ *  Pstate Policy Selection - This is to select different Pstate profiles which
+ *  decides clock/throttling preferences.
+ *
+ *  XGMI PLPD Policy Selection - When multiple devices are connected over XGMI,
+ *  this helps to select policy to be applied for per link power down.
+ *
+ * The list of available policies and policy levels vary between SOCs. They can
+ * be viewed under pm_policy node directory. If SOC doesn't support any policy,
+ * this node won't be available. The different policies supported will be
+ * available as separate nodes under pm_policy.
+ *
+ *	cat /sys/bus/pci/devices/.../pm_policy/<policy_type>
+ *
+ * Reading the policy file shows the different levels supported. The level which
+ * is applied presently is denoted by * (asterisk). E.g.,
+ *
+ * .. code-block:: console
+ *
+ *	cat /sys/bus/pci/devices/.../pm_policy/soc_pstate
+ *	0 : soc_pstate_default
+ *	1 : soc_pstate_0
+ *	2 : soc_pstate_1*
+ *	3 : soc_pstate_2
+ *
+ *	cat /sys/bus/pci/devices/.../pm_policy/xgmi_plpd
+ *	0 : plpd_disallow
+ *	1 : plpd_default
+ *	2 : plpd_optimized*
+ *
+ * To apply a specific policy
+ *
+ * "echo  <level> > /sys/bus/pci/devices/.../pm_policy/<policy_type>"
+ *
+ * For the levels listed in the example above, to select "plpd_optimized" for
+ * XGMI and "soc_pstate_2" for soc pstate policy -
+ *
+ * .. code-block:: console
+ *
+ *	echo "2" > /sys/bus/pci/devices/.../pm_policy/xgmi_plpd
+ *	echo "3" > /sys/bus/pci/devices/.../pm_policy/soc_pstate
+ *
  */
-static ssize_t amdgpu_set_xgmi_plpd_policy(struct device *dev,
-					   struct device_attribute *attr,
-					   const char *buf, size_t count)
+static ssize_t amdgpu_get_pm_policy_attr(struct device *dev,
+					 struct device_attribute *attr,
+					 char *buf)
 {
 	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct amdgpu_device *adev = drm_to_adev(ddev);
-	int mode, ret;
+	struct amdgpu_pm_policy_attr *policy_attr;
+
+	policy_attr =
+		container_of(attr, struct amdgpu_pm_policy_attr, dev_attr);
 
 	if (amdgpu_in_reset(adev))
 		return -EPERM;
 	if (adev->in_suspend && !adev->in_runpm)
 		return -EPERM;
 
-	ret = kstrtos32(buf, 0, &mode);
-	if (ret)
+	return amdgpu_dpm_get_pm_policy_info(adev, policy_attr->id, buf);
+}
+
+static ssize_t amdgpu_set_pm_policy_attr(struct device *dev,
+					 struct device_attribute *attr,
+					 const char *buf, size_t count)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = drm_to_adev(ddev);
+	struct amdgpu_pm_policy_attr *policy_attr;
+	int ret, num_params = 0;
+	char delimiter[] = " \n\t";
+	char tmp_buf[128];
+	char *tmp, *param;
+	long val;
+
+	if (amdgpu_in_reset(adev))
+		return -EPERM;
+	if (adev->in_suspend && !adev->in_runpm)
+		return -EPERM;
+
+	count = min(count, sizeof(tmp_buf));
+	memcpy(tmp_buf, buf, count);
+	tmp_buf[count - 1] = '\0';
+	tmp = tmp_buf;
+
+	tmp = skip_spaces(tmp);
+	while ((param = strsep(&tmp, delimiter))) {
+		if (!strlen(param)) {
+			tmp = skip_spaces(tmp);
+			continue;
+		}
+		ret = kstrtol(param, 0, &val);
+		if (ret)
+			return -EINVAL;
+		num_params++;
+		if (num_params > 1)
+			return -EINVAL;
+	}
+
+	if (num_params != 1)
 		return -EINVAL;
+
+	policy_attr =
+		container_of(attr, struct amdgpu_pm_policy_attr, dev_attr);
 
 	ret = pm_runtime_get_sync(ddev->dev);
 	if (ret < 0) {
@@ -2144,7 +2341,7 @@ static ssize_t amdgpu_set_xgmi_plpd_policy(struct device *dev,
 		return ret;
 	}
 
-	ret = amdgpu_dpm_set_xgmi_plpd_mode(adev, mode);
+	ret = amdgpu_dpm_set_pm_policy(adev, policy_attr->id, val);
 
 	pm_runtime_mark_last_busy(ddev->dev);
 	pm_runtime_put_autosuspend(ddev->dev);
@@ -2155,6 +2352,48 @@ static ssize_t amdgpu_set_xgmi_plpd_policy(struct device *dev,
 	return count;
 }
 
+#define AMDGPU_PM_POLICY_ATTR(_name, _id)                                  \
+	static struct amdgpu_pm_policy_attr pm_policy_attr_##_name = {     \
+		.dev_attr = __ATTR(_name, 0644, amdgpu_get_pm_policy_attr, \
+				   amdgpu_set_pm_policy_attr),             \
+		.id = PP_PM_POLICY_##_id,                                  \
+	};
+
+#define AMDGPU_PM_POLICY_ATTR_VAR(_name) pm_policy_attr_##_name.dev_attr.attr
+
+AMDGPU_PM_POLICY_ATTR(soc_pstate, SOC_PSTATE)
+AMDGPU_PM_POLICY_ATTR(xgmi_plpd, XGMI_PLPD)
+
+static struct attribute *pm_policy_attrs[] = {
+	&AMDGPU_PM_POLICY_ATTR_VAR(soc_pstate),
+	&AMDGPU_PM_POLICY_ATTR_VAR(xgmi_plpd),
+	NULL
+};
+
+static umode_t amdgpu_pm_policy_attr_visible(struct kobject *kobj,
+					     struct attribute *attr, int n)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = drm_to_adev(ddev);
+	struct amdgpu_pm_policy_attr *policy_attr;
+
+	policy_attr =
+		container_of(attr, struct amdgpu_pm_policy_attr, dev_attr.attr);
+
+	if (amdgpu_dpm_get_pm_policy_info(adev, policy_attr->id, NULL) ==
+	    -ENOENT)
+		return 0;
+
+	return attr->mode;
+}
+
+const struct attribute_group amdgpu_pm_policy_attr_group = {
+	.name = "pm_policy",
+	.attrs = pm_policy_attrs,
+	.is_visible = amdgpu_pm_policy_attr_visible,
+};
+
 static struct amdgpu_device_attr amdgpu_device_attrs[] = {
 	AMDGPU_DEVICE_ATTR_RW(power_dpm_state,				ATTR_FLAG_BASIC|ATTR_FLAG_ONEVF),
 	AMDGPU_DEVICE_ATTR_RW(power_dpm_force_performance_level,	ATTR_FLAG_BASIC|ATTR_FLAG_ONEVF),
@@ -2162,17 +2401,26 @@ static struct amdgpu_device_attr amdgpu_device_attrs[] = {
 	AMDGPU_DEVICE_ATTR_RO(pp_cur_state,				ATTR_FLAG_BASIC|ATTR_FLAG_ONEVF),
 	AMDGPU_DEVICE_ATTR_RW(pp_force_state,				ATTR_FLAG_BASIC|ATTR_FLAG_ONEVF),
 	AMDGPU_DEVICE_ATTR_RW(pp_table,					ATTR_FLAG_BASIC|ATTR_FLAG_ONEVF),
-	AMDGPU_DEVICE_ATTR_RW(pp_dpm_sclk,				ATTR_FLAG_BASIC|ATTR_FLAG_ONEVF),
-	AMDGPU_DEVICE_ATTR_RW(pp_dpm_mclk,				ATTR_FLAG_BASIC|ATTR_FLAG_ONEVF),
-	AMDGPU_DEVICE_ATTR_RW(pp_dpm_socclk,				ATTR_FLAG_BASIC|ATTR_FLAG_ONEVF),
-	AMDGPU_DEVICE_ATTR_RW(pp_dpm_fclk,				ATTR_FLAG_BASIC|ATTR_FLAG_ONEVF),
-	AMDGPU_DEVICE_ATTR_RW(pp_dpm_vclk,				ATTR_FLAG_BASIC|ATTR_FLAG_ONEVF),
-	AMDGPU_DEVICE_ATTR_RW(pp_dpm_vclk1,				ATTR_FLAG_BASIC|ATTR_FLAG_ONEVF),
-	AMDGPU_DEVICE_ATTR_RW(pp_dpm_dclk,				ATTR_FLAG_BASIC|ATTR_FLAG_ONEVF),
-	AMDGPU_DEVICE_ATTR_RW(pp_dpm_dclk1,				ATTR_FLAG_BASIC|ATTR_FLAG_ONEVF),
+	AMDGPU_DEVICE_ATTR_RW(pp_dpm_sclk,				ATTR_FLAG_BASIC|ATTR_FLAG_ONEVF,
+			      .attr_update = pp_dpm_clk_default_attr_update),
+	AMDGPU_DEVICE_ATTR_RW(pp_dpm_mclk,				ATTR_FLAG_BASIC|ATTR_FLAG_ONEVF,
+			      .attr_update = pp_dpm_clk_default_attr_update),
+	AMDGPU_DEVICE_ATTR_RW(pp_dpm_socclk,				ATTR_FLAG_BASIC|ATTR_FLAG_ONEVF,
+			      .attr_update = pp_dpm_clk_default_attr_update),
+	AMDGPU_DEVICE_ATTR_RW(pp_dpm_fclk,				ATTR_FLAG_BASIC|ATTR_FLAG_ONEVF,
+			      .attr_update = pp_dpm_clk_default_attr_update),
+	AMDGPU_DEVICE_ATTR_RW(pp_dpm_vclk,				ATTR_FLAG_BASIC|ATTR_FLAG_ONEVF,
+			      .attr_update = pp_dpm_clk_default_attr_update),
+	AMDGPU_DEVICE_ATTR_RW(pp_dpm_vclk1,				ATTR_FLAG_BASIC|ATTR_FLAG_ONEVF,
+			      .attr_update = pp_dpm_clk_default_attr_update),
+	AMDGPU_DEVICE_ATTR_RW(pp_dpm_dclk,				ATTR_FLAG_BASIC|ATTR_FLAG_ONEVF,
+			      .attr_update = pp_dpm_clk_default_attr_update),
+	AMDGPU_DEVICE_ATTR_RW(pp_dpm_dclk1,				ATTR_FLAG_BASIC|ATTR_FLAG_ONEVF,
+			      .attr_update = pp_dpm_clk_default_attr_update),
 	AMDGPU_DEVICE_ATTR_RW(pp_dpm_dcefclk,				ATTR_FLAG_BASIC|ATTR_FLAG_ONEVF,
 			      .attr_update = pp_dpm_dcefclk_attr_update),
-	AMDGPU_DEVICE_ATTR_RW(pp_dpm_pcie,				ATTR_FLAG_BASIC|ATTR_FLAG_ONEVF),
+	AMDGPU_DEVICE_ATTR_RW(pp_dpm_pcie,				ATTR_FLAG_BASIC|ATTR_FLAG_ONEVF,
+			      .attr_update = pp_dpm_clk_default_attr_update),
 	AMDGPU_DEVICE_ATTR_RW(pp_sclk_od,				ATTR_FLAG_BASIC),
 	AMDGPU_DEVICE_ATTR_RW(pp_mclk_od,				ATTR_FLAG_BASIC),
 	AMDGPU_DEVICE_ATTR_RW(pp_power_profile_mode,			ATTR_FLAG_BASIC|ATTR_FLAG_ONEVF),
@@ -2180,6 +2428,7 @@ static struct amdgpu_device_attr amdgpu_device_attrs[] = {
 			      .attr_update = pp_od_clk_voltage_attr_update),
 	AMDGPU_DEVICE_ATTR_RO(gpu_busy_percent,				ATTR_FLAG_BASIC|ATTR_FLAG_ONEVF),
 	AMDGPU_DEVICE_ATTR_RO(mem_busy_percent,				ATTR_FLAG_BASIC|ATTR_FLAG_ONEVF),
+	AMDGPU_DEVICE_ATTR_RO(vcn_busy_percent,				ATTR_FLAG_BASIC|ATTR_FLAG_ONEVF),
 	AMDGPU_DEVICE_ATTR_RO(pcie_bw,					ATTR_FLAG_BASIC),
 	AMDGPU_DEVICE_ATTR_RW(pp_features,				ATTR_FLAG_BASIC|ATTR_FLAG_ONEVF),
 	AMDGPU_DEVICE_ATTR_RO(unique_id,				ATTR_FLAG_BASIC|ATTR_FLAG_ONEVF),
@@ -2192,7 +2441,6 @@ static struct amdgpu_device_attr amdgpu_device_attrs[] = {
 			      .attr_update = ss_power_attr_update),
 	AMDGPU_DEVICE_ATTR_RW(smartshift_bias,				ATTR_FLAG_BASIC,
 			      .attr_update = ss_bias_attr_update),
-	AMDGPU_DEVICE_ATTR_RW(xgmi_plpd_policy,				ATTR_FLAG_BASIC),
 	AMDGPU_DEVICE_ATTR_RO(pm_metrics,				ATTR_FLAG_BASIC,
 			      .attr_update = amdgpu_pm_metrics_attr_update),
 };
@@ -2201,27 +2449,27 @@ static int default_attr_update(struct amdgpu_device *adev, struct amdgpu_device_
 			       uint32_t mask, enum amdgpu_device_attr_states *states)
 {
 	struct device_attribute *dev_attr = &attr->dev_attr;
-	uint32_t mp1_ver = amdgpu_ip_version(adev, MP1_HWIP, 0);
+	enum amdgpu_device_attr_id attr_id = attr->attr_id;
 	uint32_t gc_ver = amdgpu_ip_version(adev, GC_HWIP, 0);
-	const char *attr_name = dev_attr->attr.name;
 
 	if (!(attr->flags & mask)) {
 		*states = ATTR_STATE_UNSUPPORTED;
 		return 0;
 	}
 
-#define DEVICE_ATTR_IS(_name)	(!strcmp(attr_name, #_name))
-
-	if (DEVICE_ATTR_IS(pp_dpm_socclk)) {
-		if (gc_ver < IP_VERSION(9, 0, 0))
-			*states = ATTR_STATE_UNSUPPORTED;
-	} else if (DEVICE_ATTR_IS(pp_dpm_fclk)) {
-		if (mp1_ver < IP_VERSION(10, 0, 0))
-			*states = ATTR_STATE_UNSUPPORTED;
-	} else if (DEVICE_ATTR_IS(mem_busy_percent)) {
+	if (DEVICE_ATTR_IS(mem_busy_percent)) {
 		if ((adev->flags & AMD_IS_APU &&
 		     gc_ver != IP_VERSION(9, 4, 3)) ||
 		    gc_ver == IP_VERSION(9, 0, 1))
+			*states = ATTR_STATE_UNSUPPORTED;
+	} else if (DEVICE_ATTR_IS(vcn_busy_percent)) {
+		if (!(gc_ver == IP_VERSION(10, 3, 1) ||
+			  gc_ver == IP_VERSION(10, 3, 3) ||
+			  gc_ver == IP_VERSION(10, 3, 6) ||
+			  gc_ver == IP_VERSION(10, 3, 7) ||
+			  gc_ver == IP_VERSION(11, 0, 1) ||
+			  gc_ver == IP_VERSION(11, 0, 4) ||
+			  gc_ver == IP_VERSION(11, 5, 0)))
 			*states = ATTR_STATE_UNSUPPORTED;
 	} else if (DEVICE_ATTR_IS(pcie_bw)) {
 		/* PCIe Perf counters won't work on APU nodes */
@@ -2235,6 +2483,7 @@ static int default_attr_update(struct amdgpu_device *adev, struct amdgpu_device_
 		case IP_VERSION(9, 4, 1):
 		case IP_VERSION(9, 4, 2):
 		case IP_VERSION(9, 4, 3):
+		case IP_VERSION(9, 4, 4):
 		case IP_VERSION(10, 3, 0):
 		case IP_VERSION(11, 0, 0):
 		case IP_VERSION(11, 0, 1):
@@ -2253,44 +2502,11 @@ static int default_attr_update(struct amdgpu_device *adev, struct amdgpu_device_
 	} else if (DEVICE_ATTR_IS(gpu_metrics)) {
 		if (gc_ver < IP_VERSION(9, 1, 0))
 			*states = ATTR_STATE_UNSUPPORTED;
-	} else if (DEVICE_ATTR_IS(pp_dpm_vclk)) {
-		if (!(gc_ver == IP_VERSION(10, 3, 1) ||
-		      gc_ver == IP_VERSION(10, 3, 0) ||
-		      gc_ver == IP_VERSION(10, 1, 2) ||
-		      gc_ver == IP_VERSION(11, 0, 0) ||
-		      gc_ver == IP_VERSION(11, 0, 2) ||
-		      gc_ver == IP_VERSION(11, 0, 3) ||
-		      gc_ver == IP_VERSION(9, 4, 3)))
-			*states = ATTR_STATE_UNSUPPORTED;
-	} else if (DEVICE_ATTR_IS(pp_dpm_vclk1)) {
-		if (!((gc_ver == IP_VERSION(10, 3, 1) ||
-			   gc_ver == IP_VERSION(10, 3, 0) ||
-			   gc_ver == IP_VERSION(11, 0, 2) ||
-			   gc_ver == IP_VERSION(11, 0, 3)) && adev->vcn.num_vcn_inst >= 2))
-			*states = ATTR_STATE_UNSUPPORTED;
-	} else if (DEVICE_ATTR_IS(pp_dpm_dclk)) {
-		if (!(gc_ver == IP_VERSION(10, 3, 1) ||
-		      gc_ver == IP_VERSION(10, 3, 0) ||
-		      gc_ver == IP_VERSION(10, 1, 2) ||
-		      gc_ver == IP_VERSION(11, 0, 0) ||
-		      gc_ver == IP_VERSION(11, 0, 2) ||
-		      gc_ver == IP_VERSION(11, 0, 3) ||
-		      gc_ver == IP_VERSION(9, 4, 3)))
-			*states = ATTR_STATE_UNSUPPORTED;
-	} else if (DEVICE_ATTR_IS(pp_dpm_dclk1)) {
-		if (!((gc_ver == IP_VERSION(10, 3, 1) ||
-			   gc_ver == IP_VERSION(10, 3, 0) ||
-			   gc_ver == IP_VERSION(11, 0, 2) ||
-			   gc_ver == IP_VERSION(11, 0, 3)) && adev->vcn.num_vcn_inst >= 2))
-			*states = ATTR_STATE_UNSUPPORTED;
 	} else if (DEVICE_ATTR_IS(pp_power_profile_mode)) {
 		if (amdgpu_dpm_get_power_profile_mode(adev, NULL) == -EOPNOTSUPP)
 			*states = ATTR_STATE_UNSUPPORTED;
 		else if ((gc_ver == IP_VERSION(10, 3, 0) ||
 			  gc_ver == IP_VERSION(11, 0, 3)) && amdgpu_sriov_vf(adev))
-			*states = ATTR_STATE_UNSUPPORTED;
-	} else if (DEVICE_ATTR_IS(xgmi_plpd_policy)) {
-		if (amdgpu_dpm_get_xgmi_plpd_mode(adev, NULL) == XGMI_PLPD_NONE)
 			*states = ATTR_STATE_UNSUPPORTED;
 	} else if (DEVICE_ATTR_IS(pp_mclk_od)) {
 		if (amdgpu_dpm_get_mclk_od(adev) == -EOPNOTSUPP)
@@ -2304,23 +2520,9 @@ static int default_attr_update(struct amdgpu_device *adev, struct amdgpu_device_
 		if (amdgpu_dpm_get_apu_thermal_limit(adev, &limit) ==
 		    -EOPNOTSUPP)
 			*states = ATTR_STATE_UNSUPPORTED;
-	} else if (DEVICE_ATTR_IS(pp_dpm_pcie)) {
-		if (gc_ver == IP_VERSION(9, 4, 2) ||
-		    gc_ver == IP_VERSION(9, 4, 3))
-			*states = ATTR_STATE_UNSUPPORTED;
 	}
 
 	switch (gc_ver) {
-	case IP_VERSION(9, 4, 1):
-	case IP_VERSION(9, 4, 2):
-		/* the Mi series card does not support standalone mclk/socclk/fclk level setting */
-		if (DEVICE_ATTR_IS(pp_dpm_mclk) ||
-		    DEVICE_ATTR_IS(pp_dpm_socclk) ||
-		    DEVICE_ATTR_IS(pp_dpm_fclk)) {
-			dev_attr->attr.mode &= ~S_IWUGO;
-			dev_attr->store = NULL;
-		}
-		break;
 	case IP_VERSION(10, 3, 0):
 		if (DEVICE_ATTR_IS(power_dpm_force_performance_level) &&
 		    amdgpu_sriov_vf(adev)) {
@@ -2331,14 +2533,6 @@ static int default_attr_update(struct amdgpu_device *adev, struct amdgpu_device_
 	default:
 		break;
 	}
-
-	/* setting should not be allowed from VF if not in one VF mode */
-	if (amdgpu_sriov_vf(adev) && !amdgpu_sriov_is_pp_one_vf(adev)) {
-		dev_attr->attr.mode &= ~S_IWUGO;
-		dev_attr->store = NULL;
-	}
-
-#undef DEVICE_ATTR_IS
 
 	return 0;
 }
@@ -3432,7 +3626,7 @@ static umode_t hwmon_attributes_visible(struct kobject *kobj,
 
 	/* Skip crit temp on APU */
 	if ((((adev->flags & AMD_IS_APU) && (adev->family >= AMDGPU_FAMILY_CZ)) ||
-	    (gc_ver == IP_VERSION(9, 4, 3))) &&
+	    (gc_ver == IP_VERSION(9, 4, 3) || gc_ver == IP_VERSION(9, 4, 4))) &&
 	    (attr == &sensor_dev_attr_temp1_crit.dev_attr.attr ||
 	     attr == &sensor_dev_attr_temp1_crit_hyst.dev_attr.attr))
 		return 0;
@@ -3468,7 +3662,7 @@ static umode_t hwmon_attributes_visible(struct kobject *kobj,
 	/* not implemented yet for APUs other than GC 10.3.1 (vangogh) and 9.4.3 */
 	if (((adev->family == AMDGPU_FAMILY_SI) ||
 	     ((adev->flags & AMD_IS_APU) && (gc_ver != IP_VERSION(10, 3, 1)) &&
-	      (gc_ver != IP_VERSION(9, 4, 3)))) &&
+	      (gc_ver != IP_VERSION(9, 4, 3) && gc_ver != IP_VERSION(9, 4, 4)))) &&
 	    (attr == &sensor_dev_attr_power1_cap_max.dev_attr.attr ||
 	     attr == &sensor_dev_attr_power1_cap_min.dev_attr.attr ||
 	     attr == &sensor_dev_attr_power1_cap.dev_attr.attr ||
@@ -3506,13 +3700,16 @@ static umode_t hwmon_attributes_visible(struct kobject *kobj,
 
 	if ((adev->family == AMDGPU_FAMILY_SI ||	/* not implemented yet */
 	     adev->family == AMDGPU_FAMILY_KV ||	/* not implemented yet */
-	     (gc_ver == IP_VERSION(9, 4, 3))) &&
+	     (gc_ver == IP_VERSION(9, 4, 3) ||
+	      gc_ver == IP_VERSION(9, 4, 4))) &&
 	    (attr == &sensor_dev_attr_in0_input.dev_attr.attr ||
 	     attr == &sensor_dev_attr_in0_label.dev_attr.attr))
 		return 0;
 
 	/* only APUs other than gc 9,4,3 have vddnb */
-	if ((!(adev->flags & AMD_IS_APU) || (gc_ver == IP_VERSION(9, 4, 3))) &&
+	if ((!(adev->flags & AMD_IS_APU) ||
+	     (gc_ver == IP_VERSION(9, 4, 3) ||
+	      gc_ver == IP_VERSION(9, 4, 4))) &&
 	    (attr == &sensor_dev_attr_in1_input.dev_attr.attr ||
 	     attr == &sensor_dev_attr_in1_label.dev_attr.attr))
 		return 0;
@@ -3524,7 +3721,7 @@ static umode_t hwmon_attributes_visible(struct kobject *kobj,
 		return 0;
 
 	if (((adev->flags & AMD_IS_APU) || gc_ver < IP_VERSION(9, 0, 0)) &&
-	    (gc_ver != IP_VERSION(9, 4, 3)) &&
+	    (gc_ver != IP_VERSION(9, 4, 3) && gc_ver != IP_VERSION(9, 4, 4)) &&
 	    (attr == &sensor_dev_attr_temp2_input.dev_attr.attr ||
 	     attr == &sensor_dev_attr_temp2_label.dev_attr.attr ||
 	     attr == &sensor_dev_attr_temp2_crit.dev_attr.attr ||
@@ -3534,7 +3731,8 @@ static umode_t hwmon_attributes_visible(struct kobject *kobj,
 		return 0;
 
 	/* hotspot temperature for gc 9,4,3*/
-	if (gc_ver == IP_VERSION(9, 4, 3)) {
+	if (gc_ver == IP_VERSION(9, 4, 3) ||
+	    gc_ver == IP_VERSION(9, 4, 4)) {
 		if (attr == &sensor_dev_attr_temp1_input.dev_attr.attr ||
 		    attr == &sensor_dev_attr_temp1_emergency.dev_attr.attr ||
 		    attr == &sensor_dev_attr_temp1_label.dev_attr.attr)
@@ -4295,8 +4493,8 @@ int amdgpu_pm_sysfs_init(struct amdgpu_device *adev)
 	/* under multi-vf mode, the hwmon attributes are all not supported */
 	if (mode != SRIOV_VF_MODE_MULTI_VF) {
 		adev->pm.int_hwmon_dev = hwmon_device_register_with_groups(adev->dev,
-														DRIVER_NAME, adev,
-														hwmon_groups);
+									DRIVER_NAME, adev,
+									hwmon_groups);
 		if (IS_ERR(adev->pm.int_hwmon_dev)) {
 			ret = PTR_ERR(adev->pm.int_hwmon_dev);
 			dev_err(adev->dev, "Unable to register hwmon device: %d\n", ret);
@@ -4329,6 +4527,16 @@ int amdgpu_pm_sysfs_init(struct amdgpu_device *adev)
 		ret = amdgpu_od_set_init(adev);
 		if (ret)
 			goto err_out1;
+	} else if (adev->pm.pp_feature & PP_OVERDRIVE_MASK) {
+		dev_info(adev->dev, "overdrive feature is not supported\n");
+	}
+
+	if (amdgpu_dpm_get_pm_policy_info(adev, PP_PM_POLICY_NONE, NULL) !=
+	    -EOPNOTSUPP) {
+		ret = devm_device_add_group(adev->dev,
+					    &amdgpu_pm_policy_attr_group);
+		if (ret)
+			goto err_out0;
 	}
 
 	adev->pm.sysfs_initialized = true;
@@ -4436,6 +4644,9 @@ static int amdgpu_debugfs_pm_info_pp(struct seq_file *m, struct amdgpu_device *a
 	/* MEM Load */
 	if (!amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_MEM_LOAD, (void *)&value, &size))
 		seq_printf(m, "MEM Load: %u %%\n", value);
+	/* VCN Load */
+	if (!amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_VCN_LOAD, (void *)&value, &size))
+		seq_printf(m, "VCN Load: %u %%\n", value);
 
 	seq_printf(m, "\n");
 

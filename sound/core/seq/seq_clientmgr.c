@@ -537,6 +537,9 @@ static struct snd_seq_client *get_event_dest_client(struct snd_seq_event *event,
 		return NULL;
 	if (! dest->accept_input)
 		goto __not_avail;
+	if (snd_seq_ev_is_ump(event))
+		return dest; /* ok - no filter checks */
+
 	if ((dest->filter & SNDRV_SEQ_FILTER_USE_EVENT) &&
 	    ! test_bit(event->type, dest->event_filter))
 		goto __not_avail;
@@ -1718,6 +1721,8 @@ static int snd_seq_ioctl_get_queue_tempo(struct snd_seq_client *client,
 	tempo->ppq = tmr->ppq;
 	tempo->skew_value = tmr->skew;
 	tempo->skew_base = tmr->skew_base;
+	if (client->user_pversion >= SNDRV_PROTOCOL_VERSION(1, 0, 4))
+		tempo->tempo_base = tmr->tempo_base;
 	queuefree(queue);
 
 	return 0;
@@ -1739,6 +1744,8 @@ static int snd_seq_ioctl_set_queue_tempo(struct snd_seq_client *client,
 	struct snd_seq_queue_tempo *tempo = arg;
 	int result;
 
+	if (client->user_pversion < SNDRV_PROTOCOL_VERSION(1, 0, 4))
+		tempo->tempo_base = 0;
 	result = snd_seq_set_queue_tempo(client->number, tempo);
 	return result < 0 ? result : 0;
 }

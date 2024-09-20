@@ -55,14 +55,6 @@ struct gs_reg_fmt {
 	struct v4l2_dv_timings format;
 };
 
-struct gs_reg_fmt_custom {
-	u16 reg_value;
-	__u32 width;
-	__u32 height;
-	__u64 pixelclock;
-	__u32 interlaced;
-};
-
 static const struct spi_device_id gs_id[] = {
 	{ "gs1662", 0 },
 	{ }
@@ -259,11 +251,14 @@ static inline struct gs *to_gs(struct v4l2_subdev *sd)
 	return container_of(sd, struct gs, sd);
 }
 
-static int gs_s_dv_timings(struct v4l2_subdev *sd,
-		    struct v4l2_dv_timings *timings)
+static int gs_s_dv_timings(struct v4l2_subdev *sd, unsigned int pad,
+			   struct v4l2_dv_timings *timings)
 {
 	struct gs *gs = to_gs(sd);
 	int reg_value;
+
+	if (pad != 0)
+		return -EINVAL;
 
 	reg_value = get_register_timings(timings);
 	if (reg_value == 0x0)
@@ -273,22 +268,28 @@ static int gs_s_dv_timings(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int gs_g_dv_timings(struct v4l2_subdev *sd,
-		    struct v4l2_dv_timings *timings)
+static int gs_g_dv_timings(struct v4l2_subdev *sd, unsigned int pad,
+			   struct v4l2_dv_timings *timings)
 {
 	struct gs *gs = to_gs(sd);
+
+	if (pad != 0)
+		return -EINVAL;
 
 	*timings = gs->current_timings;
 	return 0;
 }
 
-static int gs_query_dv_timings(struct v4l2_subdev *sd,
-			struct v4l2_dv_timings *timings)
+static int gs_query_dv_timings(struct v4l2_subdev *sd, unsigned int pad,
+			       struct v4l2_dv_timings *timings)
 {
 	struct gs *gs = to_gs(sd);
 	struct v4l2_dv_timings fmt;
 	u16 reg_value, i;
 	int ret;
+
+	if (pad != 0)
+		return -EINVAL;
 
 	if (gs->enabled)
 		return -EBUSY;
@@ -410,14 +411,14 @@ static const struct v4l2_subdev_core_ops gs_core_ops = {
 };
 
 static const struct v4l2_subdev_video_ops gs_video_ops = {
-	.s_dv_timings = gs_s_dv_timings,
-	.g_dv_timings = gs_g_dv_timings,
 	.s_stream = gs_s_stream,
 	.g_input_status = gs_g_input_status,
-	.query_dv_timings = gs_query_dv_timings,
 };
 
 static const struct v4l2_subdev_pad_ops gs_pad_ops = {
+	.s_dv_timings = gs_s_dv_timings,
+	.g_dv_timings = gs_g_dv_timings,
+	.query_dv_timings = gs_query_dv_timings,
 	.enum_dv_timings = gs_enum_dv_timings,
 	.dv_timings_cap = gs_dv_timings_cap,
 };

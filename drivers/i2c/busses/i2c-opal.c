@@ -70,8 +70,8 @@ exit:
 	return rc;
 }
 
-static int i2c_opal_master_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs,
-				int num)
+static int i2c_opal_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs,
+			 int num)
 {
 	unsigned long opal_id = (unsigned long)adap->algo_data;
 	struct opal_i2c_request req;
@@ -179,9 +179,9 @@ static u32 i2c_opal_func(struct i2c_adapter *adapter)
 }
 
 static const struct i2c_algorithm i2c_opal_algo = {
-	.master_xfer	= i2c_opal_master_xfer,
-	.smbus_xfer	= i2c_opal_smbus_xfer,
-	.functionality	= i2c_opal_func,
+	.xfer = i2c_opal_xfer,
+	.smbus_xfer = i2c_opal_smbus_xfer,
+	.functionality = i2c_opal_func,
 };
 
 /*

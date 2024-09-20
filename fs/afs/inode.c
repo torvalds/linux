@@ -512,7 +512,7 @@ static int afs_iget5_set_root(struct inode *inode, void *opaque)
 	struct afs_vnode *vnode = AFS_FS_I(inode);
 
 	vnode->volume		= as->volume;
-	vnode->fid.vid		= as->volume->vid,
+	vnode->fid.vid		= as->volume->vid;
 	vnode->fid.vnode	= 1;
 	vnode->fid.unique	= 1;
 	inode->i_ino		= 1;
@@ -545,7 +545,7 @@ struct inode *afs_root_iget(struct super_block *sb, struct key *key)
 	BUG_ON(!(inode->i_state & I_NEW));
 
 	vnode = AFS_FS_I(inode);
-	vnode->cb_v_check = atomic_read(&as->volume->cb_v_break),
+	vnode->cb_v_check = atomic_read(&as->volume->cb_v_break);
 	afs_set_netfs_context(vnode);
 
 	op = afs_alloc_operation(key, as->volume);
@@ -648,6 +648,7 @@ void afs_evict_inode(struct inode *inode)
 
 	ASSERTCMP(inode->i_ino, ==, vnode->fid.vnode);
 
+	netfs_wait_for_outstanding_io(inode);
 	truncate_inode_pages_final(&inode->i_data);
 
 	afs_set_cache_aux(vnode, &aux);
@@ -694,13 +695,18 @@ static void afs_setattr_edit_file(struct afs_operation *op)
 {
 	struct afs_vnode_param *vp = &op->file[0];
 	struct afs_vnode *vnode = vp->vnode;
+	struct inode *inode = &vnode->netfs.inode;
 
 	if (op->setattr.attr->ia_valid & ATTR_SIZE) {
 		loff_t size = op->setattr.attr->ia_size;
-		loff_t i_size = op->setattr.old_i_size;
+		loff_t old = op->setattr.old_i_size;
 
-		if (size != i_size) {
-			truncate_setsize(&vnode->netfs.inode, size);
+		/* Note: inode->i_size was updated by afs_apply_status() inside
+		 * the I/O and callback locks.
+		 */
+
+		if (size != old) {
+			truncate_pagecache(inode, size);
 			netfs_resize_file(&vnode->netfs, size, true);
 			fscache_resize_cookie(afs_vnode_cache(vnode), size);
 		}

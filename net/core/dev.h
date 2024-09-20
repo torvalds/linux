@@ -4,11 +4,9 @@
 
 #include <linux/types.h>
 #include <linux/rwsem.h>
+#include <linux/netdevice.h>
 
 struct net;
-struct net_device;
-struct netdev_bpf;
-struct netdev_phys_item_id;
 struct netlink_ext_ack;
 struct cpumask;
 
@@ -38,7 +36,6 @@ int dev_addr_init(struct net_device *dev);
 void dev_addr_check(struct net_device *dev);
 
 /* sysctls not referred to from outside net/core/ */
-extern unsigned int	sysctl_skb_defer_max;
 extern int		netdev_unregister_timeout_secs;
 extern int		weight_p;
 extern int		dev_weight_rx_bias;
@@ -150,4 +147,45 @@ static inline void xdp_do_check_flushed(struct napi_struct *napi) { }
 #endif
 
 struct napi_struct *napi_by_id(unsigned int napi_id);
+void kick_defer_list_purge(struct softnet_data *sd, unsigned int cpu);
+
+#define XMIT_RECURSION_LIMIT	8
+
+#ifndef CONFIG_PREEMPT_RT
+static inline bool dev_xmit_recursion(void)
+{
+	return unlikely(__this_cpu_read(softnet_data.xmit.recursion) >
+			XMIT_RECURSION_LIMIT);
+}
+
+static inline void dev_xmit_recursion_inc(void)
+{
+	__this_cpu_inc(softnet_data.xmit.recursion);
+}
+
+static inline void dev_xmit_recursion_dec(void)
+{
+	__this_cpu_dec(softnet_data.xmit.recursion);
+}
+#else
+static inline bool dev_xmit_recursion(void)
+{
+	return unlikely(current->net_xmit.recursion > XMIT_RECURSION_LIMIT);
+}
+
+static inline void dev_xmit_recursion_inc(void)
+{
+	current->net_xmit.recursion++;
+}
+
+static inline void dev_xmit_recursion_dec(void)
+{
+	current->net_xmit.recursion--;
+}
+#endif
+
+int dev_set_hwtstamp_phylib(struct net_device *dev,
+			    struct kernel_hwtstamp_config *cfg,
+			    struct netlink_ext_ack *extack);
+
 #endif

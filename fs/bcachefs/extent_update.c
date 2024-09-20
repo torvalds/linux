@@ -72,7 +72,7 @@ static int count_iters_for_insert(struct btree_trans *trans,
 
 		for_each_btree_key_norestart(trans, iter,
 				   BTREE_ID_reflink, POS(0, idx + offset),
-				   BTREE_ITER_SLOTS, r_k, ret2) {
+				   BTREE_ITER_slots, r_k, ret2) {
 			if (bkey_ge(bkey_start_pos(r_k.k), POS(0, idx + sectors)))
 				break;
 

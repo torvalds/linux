@@ -274,29 +274,6 @@ void __init udbg_init_44x_as1(void)
 
 #endif /* CONFIG_PPC_EARLY_DEBUG_44x */
 
-#ifdef CONFIG_PPC_EARLY_DEBUG_40x
-
-static u8 udbg_uart_in_40x(unsigned int reg)
-{
-	return real_readb((void __iomem *)CONFIG_PPC_EARLY_DEBUG_40x_PHYSADDR
-			  + reg);
-}
-
-static void udbg_uart_out_40x(unsigned int reg, u8 val)
-{
-	real_writeb(val, (void __iomem *)CONFIG_PPC_EARLY_DEBUG_40x_PHYSADDR
-		    + reg);
-}
-
-void __init udbg_init_40x_realmode(void)
-{
-	udbg_uart_in = udbg_uart_in_40x;
-	udbg_uart_out = udbg_uart_out_40x;
-	udbg_use_uart();
-}
-
-#endif /* CONFIG_PPC_EARLY_DEBUG_40x */
-
 #ifdef CONFIG_PPC_EARLY_DEBUG_16550
 
 static void __iomem *udbg_uart_early_addr;

@@ -61,9 +61,8 @@ intel_dp_aux_wait_done(struct intel_dp *intel_dp)
 	u32 status;
 	int ret;
 
-	ret = __intel_de_wait_for_register(i915, ch_ctl,
-					   DP_AUX_CH_CTL_SEND_BUSY, 0,
-					   2, timeout_ms, &status);
+	ret = intel_de_wait_custom(i915, ch_ctl, DP_AUX_CH_CTL_SEND_BUSY, 0,
+				   2, timeout_ms, &status);
 
 	if (ret == -ETIMEDOUT)
 		drm_err(&i915->drm,
@@ -143,9 +142,15 @@ static int intel_dp_aux_sync_len(void)
 	return precharge + preamble;
 }
 
-static int intel_dp_aux_fw_sync_len(void)
+int intel_dp_aux_fw_sync_len(void)
 {
-	int precharge = 10; /* 10-16 */
+	/*
+	 * We faced some glitches on Dell Precision 5490 MTL laptop with panel:
+	 * "Manufacturer: AUO, Model: 63898" when using HW default 18. Using 20
+	 * is fixing these problems with the panel. It is still within range
+	 * mentioned in eDP specification.
+	 */
+	int precharge = 12; /* 10-16 */
 	int preamble = 8;
 
 	return precharge + preamble;

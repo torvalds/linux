@@ -214,7 +214,7 @@ Non usate inutilmente le graffe dove una singola espressione è sufficiente.
 
 e
 
-.. code-block:: none
+.. code-block:: c
 
 	if (condition)
 		do_this();
@@ -652,7 +652,7 @@ Quindi, potete sbarazzarvi di GNU emacs, o riconfigurarlo con valori più
 sensati.  Per fare quest'ultima cosa, potete appiccicare il codice che
 segue nel vostro file .emacs:
 
-.. code-block:: none
+.. code-block:: elisp
 
   (defun c-lineup-arglist-tabs-only (ignored)
     "Line up argument lists by tabs, not spaces"
@@ -728,6 +728,10 @@ il testo e altre cose simili.
 Per maggiori dettagli, consultate il file
 :ref:`Documentation/translations/it_IT/process/clang-format.rst <it_clangformat>`.
 
+Se utilizzate un programma compatibile con EditorConfig, allora alcune
+configurazioni basilari come l'indentazione e la fine delle righe verranno
+applicate automaticamente. Per maggiori informazioni consultate la pagina:
+https://editorconfig.org/
 
 10) File di configurazione Kconfig
 ----------------------------------
@@ -898,7 +902,9 @@ usare per assicurarvi che i messaggi vengano associati correttamente ai
 dispositivi e ai driver, e che siano etichettati correttamente:  dev_err(),
 dev_warn(), dev_info(), e così via.  Per messaggi che non sono associati ad
 alcun dispositivo, <linux/printk.h> definisce pr_info(), pr_warn(), pr_err(),
-eccetera.
+eccetera. Quando tutto funziona correttamente, non dovrebbero esserci stampe,
+per cui preferite dev_dbg/pr_debug a meno che non sia qualcosa di sbagliato
+da segnalare.
 
 Tirar fuori un buon messaggio di debug può essere una vera sfida; e quando
 l'avete può essere d'enorme aiuto per risolvere problemi da remoto.

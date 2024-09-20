@@ -49,7 +49,7 @@ static int slirp_tramp(char **argv, int fd)
 static int slirp_open(void *data)
 {
 	struct slirp_data *pri = data;
-	int fds[2], pid, err;
+	int fds[2], err;
 
 	err = os_pipe(fds, 1, 1);
 	if (err)
@@ -60,7 +60,6 @@ static int slirp_open(void *data)
 		printk(UM_KERN_ERR "slirp_tramp failed - errno = %d\n", -err);
 		goto out;
 	}
-	pid = err;
 
 	pri->slave = fds[1];
 	pri->slip.pos = 0;

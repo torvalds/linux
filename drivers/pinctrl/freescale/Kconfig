@@ -7,6 +7,17 @@ config PINCTRL_IMX
 	select PINCONF
 	select REGMAP
 
+config PINCTRL_IMX_SCMI
+	tristate "i.MX95 pinctrl driver using SCMI protocol interface"
+	depends on ARM_SCMI_PROTOCOL && OF || COMPILE_TEST
+	select PINMUX
+	select GENERIC_PINCONF
+	select GENERIC_PINCTRL_GROUPS
+	select GENERIC_PINMUX_FUNCTIONS
+	help
+	  i.MX95 SCMI firmware provides pinctrl protocol. This driver
+	  utilizes the SCMI interface to do pinctrl configuration.
+
 config PINCTRL_IMX_SCU
 	tristate
 	depends on IMX_SCU
@@ -183,6 +194,13 @@ config PINCTRL_IMXRT1050
 	select PINCTRL_IMX
 	help
 	  Say Y here to enable the imxrt1050 pinctrl driver
+
+config PINCTRL_IMX91
+	tristate "IMX91 pinctrl driver"
+	depends on ARCH_MXC
+	select PINCTRL_IMX
+	help
+	  Say Y here to enable the imx91 pinctrl driver
 
 config PINCTRL_IMX93
 	tristate "IMX93 pinctrl driver"

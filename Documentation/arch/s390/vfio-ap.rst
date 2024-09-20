@@ -380,6 +380,36 @@ matrix device.
     control_domains:
       A read-only file for displaying the control domain numbers assigned to the
       vfio_ap mediated device.
+    ap_config:
+      A read/write file that, when written to, allows all three of the
+      vfio_ap mediated device's ap matrix masks to be replaced in one shot.
+      Three masks are given, one for adapters, one for domains, and one for
+      control domains. If the given state cannot be set then no changes are
+      made to the vfio-ap mediated device.
+
+      The format of the data written to ap_config is as follows:
+      {amask},{dmask},{cmask}\n
+
+      \n is a newline character.
+
+      amask, dmask, and cmask are masks identifying which adapters, domains,
+      and control domains should be assigned to the mediated device.
+
+      The format of a mask is as follows:
+      0xNN..NN
+
+      Where NN..NN is 64 hexadecimal characters representing a 256-bit value.
+      The leftmost (highest order) bit represents adapter/domain 0.
+
+      For an example set of masks that represent your mdev's current
+      configuration, simply cat ap_config.
+
+      Setting an adapter or domain number greater than the maximum allowed for
+      the system will result in an error.
+
+      This attribute is intended to be used by automation. End users would be
+      better served using the respective assign/unassign attributes for
+      adapters, domains, and control domains.
 
 * functions:
 
@@ -550,7 +580,7 @@ These are the steps:
    following Kconfig elements selected:
    * IOMMU_SUPPORT
    * S390
-   * ZCRYPT
+   * AP
    * VFIO
    * KVM
 

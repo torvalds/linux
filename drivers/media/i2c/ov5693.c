@@ -141,7 +141,6 @@ struct ov5693_device {
 
 	struct gpio_desc *reset;
 	struct gpio_desc *powerdown;
-	struct gpio_desc *privacy_led;
 	struct regulator_bulk_data supplies[OV5693_NUM_SUPPLIES];
 	struct clk *xvclk;
 
@@ -657,7 +656,6 @@ static int ov5693_sensor_init(struct ov5693_device *ov5693)
 
 static void ov5693_sensor_powerdown(struct ov5693_device *ov5693)
 {
-	gpiod_set_value_cansleep(ov5693->privacy_led, 0);
 	gpiod_set_value_cansleep(ov5693->reset, 1);
 	gpiod_set_value_cansleep(ov5693->powerdown, 1);
 
@@ -687,7 +685,6 @@ static int ov5693_sensor_powerup(struct ov5693_device *ov5693)
 
 	gpiod_set_value_cansleep(ov5693->powerdown, 0);
 	gpiod_set_value_cansleep(ov5693->reset, 0);
-	gpiod_set_value_cansleep(ov5693->privacy_led, 1);
 
 	usleep_range(5000, 7500);
 
@@ -1199,13 +1196,6 @@ static int ov5693_configure_gpios(struct ov5693_device *ov5693)
 	if (IS_ERR(ov5693->powerdown)) {
 		dev_err(ov5693->dev, "Error fetching powerdown GPIO\n");
 		return PTR_ERR(ov5693->powerdown);
-	}
-
-	ov5693->privacy_led = devm_gpiod_get_optional(ov5693->dev, "privacy-led",
-						      GPIOD_OUT_LOW);
-	if (IS_ERR(ov5693->privacy_led)) {
-		dev_err(ov5693->dev, "Error fetching privacy-led GPIO\n");
-		return PTR_ERR(ov5693->privacy_led);
 	}
 
 	return 0;

@@ -13,7 +13,7 @@
 #include <linux/moduleparam.h>
 #include <linux/init.h>
 
-#if defined(CONFIG_ALPHA_JENSEN) || defined(CONFIG_EISA_VLB_PRIMING)
+#if defined(CONFIG_EISA_VLB_PRIMING)
 #define EISA_FORCE_PROBE_DEFAULT 1
 #else
 #define EISA_FORCE_PROBE_DEFAULT 0

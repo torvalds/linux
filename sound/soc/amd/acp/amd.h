@@ -138,6 +138,9 @@ struct acp_chip_info {
 	void __iomem *base;	/* ACP memory PCI base */
 	struct platform_device *chip_pdev;
 	unsigned int flag;	/* Distinguish b/w Legacy or Only PDM */
+	bool is_pdm_dev;	/* flag set to true when ACP PDM controller exists */
+	bool is_pdm_config;	/* flag set to true when PDM configuration is selected from BIOS */
+	bool is_i2s_config;	/* flag set to true when I2S configuration is selected from BIOS */
 };
 
 struct acp_stream {
@@ -159,8 +162,6 @@ struct acp_resource {
 	int irqp_used;
 	bool soc_mclk;
 	u32 irq_reg_offset;
-	u32 i2s_pin_cfg_offset;
-	int i2s_mode;
 	u64 scratch_reg_offset;
 	u64 sram_pte_offset;
 };
@@ -172,6 +173,7 @@ struct acp_dev_data {
 	unsigned int i2s_irq;
 
 	bool tdm_mode;
+	bool is_i2s_config;
 	/* SOC specific dais */
 	struct snd_soc_dai_driver *dai_driver;
 	int num_dai;
@@ -212,6 +214,11 @@ enum acp_config {
 	ACP_CONFIG_13,
 	ACP_CONFIG_14,
 	ACP_CONFIG_15,
+	ACP_CONFIG_16,
+	ACP_CONFIG_17,
+	ACP_CONFIG_18,
+	ACP_CONFIG_19,
+	ACP_CONFIG_20,
 };
 
 extern const struct snd_soc_dai_ops asoc_acp_cpu_dai_ops;
@@ -240,7 +247,7 @@ void restore_acp_pdm_params(struct snd_pcm_substream *substream,
 int restore_acp_i2s_params(struct snd_pcm_substream *substream,
 			   struct acp_dev_data *adata, struct acp_stream *stream);
 
-int check_acp_pdm(struct pci_dev *pci, struct acp_chip_info *chip);
+void check_acp_config(struct pci_dev *pci, struct acp_chip_info *chip);
 
 static inline u64 acp_get_byte_count(struct acp_dev_data *adata, int dai_id, int direction)
 {

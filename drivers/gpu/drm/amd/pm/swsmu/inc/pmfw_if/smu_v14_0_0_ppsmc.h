@@ -106,8 +106,8 @@
 #define PPSMC_MSG_DisableLSdma                  0x35 ///< Disable LSDMA
 #define PPSMC_MSG_SetSoftMaxVpe                 0x36 ///<
 #define PPSMC_MSG_SetSoftMinVpe                 0x37 ///<
-#define PPSMC_MSG_AllocMALLCache                0x38 ///< Allocating MALL Cache
-#define PPSMC_MSG_ReleaseMALLCache              0x39 ///< Releasing MALL Cache
+#define PPSMC_MSG_MALLPowerController           0x38 ///< Set MALL control
+#define PPSMC_MSG_MALLPowerState                0x39 ///< Enter/Exit MALL PG
 #define PPSMC_Message_Count                     0x3A ///< Total number of PPSMC messages
 /** @}*/
 

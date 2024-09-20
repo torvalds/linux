@@ -1136,7 +1136,7 @@ static struct sdio_driver ks7010_sdio_driver = {
 	.remove = ks7010_sdio_remove,
 };
 
-module_driver(ks7010_sdio_driver, sdio_register_driver, sdio_unregister_driver);
+module_sdio_driver(ks7010_sdio_driver);
 MODULE_AUTHOR("Sang Engineering, Qi-Hardware, KeyStream");
 MODULE_DESCRIPTION("Driver for KeyStream KS7010 based SDIO cards");
 MODULE_LICENSE("GPL v2");

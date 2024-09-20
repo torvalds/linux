@@ -94,9 +94,6 @@
 
 static const struct atmdev_ops   fore200e_ops;
 
-static LIST_HEAD(fore200e_boards);
-
-
 MODULE_AUTHOR("Christophe Lizzi - credits to Uwe Dannowski and Heikki Vatiainen");
 MODULE_DESCRIPTION("FORE Systems 200E-series ATM driver - version " FORE200E_VERSION);
 

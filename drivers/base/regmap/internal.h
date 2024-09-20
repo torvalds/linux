@@ -326,20 +326,22 @@ struct regmap_ram_data {
  * Create a test register map with data stored in RAM, not intended
  * for practical use.
  */
-struct regmap *__regmap_init_ram(const struct regmap_config *config,
+struct regmap *__regmap_init_ram(struct device *dev,
+				 const struct regmap_config *config,
 				 struct regmap_ram_data *data,
 				 struct lock_class_key *lock_key,
 				 const char *lock_name);
 
-#define regmap_init_ram(config, data)					\
-	__regmap_lockdep_wrapper(__regmap_init_ram, #config, config, data)
+#define regmap_init_ram(dev, config, data)					\
+	__regmap_lockdep_wrapper(__regmap_init_ram, #dev, dev, config, data)
 
-struct regmap *__regmap_init_raw_ram(const struct regmap_config *config,
+struct regmap *__regmap_init_raw_ram(struct device *dev,
+				     const struct regmap_config *config,
 				     struct regmap_ram_data *data,
 				     struct lock_class_key *lock_key,
 				     const char *lock_name);
 
-#define regmap_init_raw_ram(config, data)				\
-	__regmap_lockdep_wrapper(__regmap_init_raw_ram, #config, config, data)
+#define regmap_init_raw_ram(dev, config, data)				\
+	__regmap_lockdep_wrapper(__regmap_init_raw_ram, #dev, dev, config, data)
 
 #endif

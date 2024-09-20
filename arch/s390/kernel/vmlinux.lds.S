@@ -39,7 +39,7 @@ PHDRS {
 
 SECTIONS
 {
-	. = 0x100000;
+	. = TEXT_OFFSET;
 	.text : {
 		_stext = .;		/* Start of text section */
 		_text = .;		/* Text and read-only data */
@@ -59,14 +59,6 @@ SECTIONS
 	} :text = 0x0700
 
 	RO_DATA(PAGE_SIZE)
-	.data.rel.ro : {
-		*(.data.rel.ro .data.rel.ro.*)
-	}
-	.got : {
-		__got_start = .;
-		*(.got)
-		__got_end = .;
-	}
 
 	. = ALIGN(PAGE_SIZE);
 	_sdata = .;		/* Start of data section */
@@ -79,6 +71,15 @@ SECTIONS
 	} :data
 	. = ALIGN(PAGE_SIZE);
 	__end_ro_after_init = .;
+
+	.data.rel.ro : {
+		*(.data.rel.ro .data.rel.ro.*)
+	}
+	.got : {
+		__got_start = .;
+		*(.got)
+		__got_end = .;
+	}
 
 	RW_DATA(0x100, PAGE_SIZE, THREAD_SIZE)
 	.data.rel : {
@@ -183,39 +184,17 @@ SECTIONS
 	.amode31.data : {
 		*(.amode31.data)
 	}
-	. = ALIGN(PAGE_SIZE);
+	. = _samode31 + AMODE31_SIZE;
 	_eamode31 = .;
 
 	/* early.c uses stsi, which requires page aligned data. */
 	. = ALIGN(PAGE_SIZE);
 	INIT_DATA_SECTION(0x100)
 
-	PERCPU_SECTION(0x100)
+	RUNTIME_CONST(shift, d_hash_shift)
+	RUNTIME_CONST(ptr, dentry_hashtable)
 
-#ifdef CONFIG_PIE_BUILD
-	.dynsym ALIGN(8) : {
-		__dynsym_start = .;
-		*(.dynsym)
-		__dynsym_end = .;
-	}
-	.rela.dyn ALIGN(8) : {
-		__rela_dyn_start = .;
-		*(.rela*)
-		__rela_dyn_end = .;
-	}
-	.dynamic ALIGN(8) : {
-		*(.dynamic)
-	}
-	.dynstr ALIGN(8) : {
-		*(.dynstr)
-	}
-#endif
-	.hash ALIGN(8) : {
-		*(.hash)
-	}
-	.gnu.hash ALIGN(8) : {
-		*(.gnu.hash)
-	}
+	PERCPU_SECTION(0x100)
 
 	. = ALIGN(PAGE_SIZE);
 	__init_end = .;		/* freed after init ends here */
@@ -230,7 +209,6 @@ SECTIONS
 	 * it should match struct vmlinux_info
 	 */
 	.vmlinux.info 0 (INFO) : {
-		QUAD(_stext)					/* default_lma */
 		QUAD(startup_continue)				/* entry */
 		QUAD(__bss_start - _stext)			/* image_size */
 		QUAD(__bss_stop - __bss_start)			/* bss_size */
@@ -239,18 +217,14 @@ SECTIONS
 		QUAD(__boot_data_preserved_start)		/* bootdata_preserved_off */
 		QUAD(__boot_data_preserved_end -
 		     __boot_data_preserved_start)		/* bootdata_preserved_size */
-#ifdef CONFIG_PIE_BUILD
-		QUAD(__dynsym_start)				/* dynsym_start */
-		QUAD(__rela_dyn_start)				/* rela_dyn_start */
-		QUAD(__rela_dyn_end)				/* rela_dyn_end */
-#else
 		QUAD(__got_start)				/* got_start */
 		QUAD(__got_end)					/* got_end */
-#endif
 		QUAD(_eamode31 - _samode31)			/* amode31_size */
 		QUAD(init_mm)
 		QUAD(swapper_pg_dir)
 		QUAD(invalid_pg_dir)
+		QUAD(__alt_instructions)
+		QUAD(__alt_instructions_end)
 #ifdef CONFIG_KASAN
 		QUAD(kasan_early_shadow_page)
 		QUAD(kasan_early_shadow_pte)
@@ -282,12 +256,10 @@ SECTIONS
 		*(.plt) *(.plt.*) *(.iplt) *(.igot .igot.plt)
 	}
 	ASSERT(SIZEOF(.plt) == 0, "Unexpected run-time procedure linkages detected!")
-#ifndef CONFIG_PIE_BUILD
 	.rela.dyn : {
 		*(.rela.*) *(.rela_*)
 	}
 	ASSERT(SIZEOF(.rela.dyn) == 0, "Unexpected run-time relocations (.rela) detected!")
-#endif
 
 	/* Sections to be discarded */
 	DISCARDS

@@ -341,6 +341,27 @@ failure:
 	return 1; /* Failure: don't filter */
 }
 
+SEC("tp/syscalls/sys_enter_nanosleep")
+int sys_enter_nanosleep(struct syscall_enter_args *args)
+{
+	struct augmented_args_payload *augmented_args = augmented_args_payload();
+	const void *req_arg = (const void *)args->args[0];
+	unsigned int len = sizeof(augmented_args->args);
+	__u32 size = sizeof(struct timespec64);
+
+        if (augmented_args == NULL)
+		goto failure;
+
+	if (size > sizeof(augmented_args->__data))
+                goto failure;
+
+	bpf_probe_read_user(&augmented_args->__data, size, req_arg);
+
+	return augmented__output(args, augmented_args, len + size);
+failure:
+	return 1; /* Failure: don't filter */
+}
+
 static pid_t getpid(void)
 {
 	return bpf_get_current_pid_tgid();

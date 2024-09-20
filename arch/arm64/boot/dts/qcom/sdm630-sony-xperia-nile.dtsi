@@ -90,6 +90,8 @@
 
 	gpio-keys {
 		compatible = "gpio-keys";
+		pinctrl-0 = <&gpio_keys_default>;
+		pinctrl-names = "default";
 
 		key-camera-focus {
 			label = "Camera Focus";
@@ -643,6 +645,13 @@
 		function = "gpio";
 		drive-strength = <8>;
 		bias-disable;
+	};
+
+	gpio_keys_default: gpio-keys-default-state {
+		pins = "gpio64", "gpio113";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-pull-up;
 	};
 
 	imx300_vana_default: imx300-vana-default-state {

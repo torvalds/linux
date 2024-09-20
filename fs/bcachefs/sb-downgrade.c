@@ -54,9 +54,67 @@
 	  BCH_FSCK_ERR_subvol_children_not_set)			\
 	x(mi_btree_bitmap,					\
 	  BIT_ULL(BCH_RECOVERY_PASS_check_allocations),		\
-	  BCH_FSCK_ERR_btree_bitmap_not_marked)
+	  BCH_FSCK_ERR_btree_bitmap_not_marked)			\
+	x(disk_accounting_v2,					\
+	  BIT_ULL(BCH_RECOVERY_PASS_check_allocations),		\
+	  BCH_FSCK_ERR_bkey_version_in_future,			\
+	  BCH_FSCK_ERR_dev_usage_buckets_wrong,			\
+	  BCH_FSCK_ERR_dev_usage_sectors_wrong,			\
+	  BCH_FSCK_ERR_dev_usage_fragmented_wrong,		\
+	  BCH_FSCK_ERR_accounting_mismatch)			\
+	x(disk_accounting_v3,					\
+	  BIT_ULL(BCH_RECOVERY_PASS_check_allocations),		\
+	  BCH_FSCK_ERR_bkey_version_in_future,			\
+	  BCH_FSCK_ERR_dev_usage_buckets_wrong,			\
+	  BCH_FSCK_ERR_dev_usage_sectors_wrong,			\
+	  BCH_FSCK_ERR_dev_usage_fragmented_wrong,		\
+	  BCH_FSCK_ERR_accounting_mismatch,			\
+	  BCH_FSCK_ERR_accounting_key_replicas_nr_devs_0,	\
+	  BCH_FSCK_ERR_accounting_key_replicas_nr_required_bad,	\
+	  BCH_FSCK_ERR_accounting_key_replicas_devs_unsorted,	\
+	  BCH_FSCK_ERR_accounting_key_junk_at_end)		\
+	x(disk_accounting_inum,					\
+	  BIT_ULL(BCH_RECOVERY_PASS_check_allocations),		\
+	  BCH_FSCK_ERR_accounting_mismatch)			\
+	x(rebalance_work_acct_fix,				\
+	  BIT_ULL(BCH_RECOVERY_PASS_check_allocations),		\
+	  BCH_FSCK_ERR_accounting_mismatch)
 
-#define DOWNGRADE_TABLE()
+#define DOWNGRADE_TABLE()					\
+	x(bucket_stripe_sectors,				\
+	  0)							\
+	x(disk_accounting_v2,					\
+	  BIT_ULL(BCH_RECOVERY_PASS_check_allocations),		\
+	  BCH_FSCK_ERR_dev_usage_buckets_wrong,			\
+	  BCH_FSCK_ERR_dev_usage_sectors_wrong,			\
+	  BCH_FSCK_ERR_dev_usage_fragmented_wrong,		\
+	  BCH_FSCK_ERR_fs_usage_hidden_wrong,			\
+	  BCH_FSCK_ERR_fs_usage_btree_wrong,			\
+	  BCH_FSCK_ERR_fs_usage_data_wrong,			\
+	  BCH_FSCK_ERR_fs_usage_cached_wrong,			\
+	  BCH_FSCK_ERR_fs_usage_reserved_wrong,			\
+	  BCH_FSCK_ERR_fs_usage_nr_inodes_wrong,		\
+	  BCH_FSCK_ERR_fs_usage_persistent_reserved_wrong,	\
+	  BCH_FSCK_ERR_fs_usage_replicas_wrong,			\
+	  BCH_FSCK_ERR_bkey_version_in_future)			\
+	x(disk_accounting_v3,					\
+	  BIT_ULL(BCH_RECOVERY_PASS_check_allocations),		\
+	  BCH_FSCK_ERR_dev_usage_buckets_wrong,			\
+	  BCH_FSCK_ERR_dev_usage_sectors_wrong,			\
+	  BCH_FSCK_ERR_dev_usage_fragmented_wrong,		\
+	  BCH_FSCK_ERR_fs_usage_hidden_wrong,			\
+	  BCH_FSCK_ERR_fs_usage_btree_wrong,			\
+	  BCH_FSCK_ERR_fs_usage_data_wrong,			\
+	  BCH_FSCK_ERR_fs_usage_cached_wrong,			\
+	  BCH_FSCK_ERR_fs_usage_reserved_wrong,			\
+	  BCH_FSCK_ERR_fs_usage_nr_inodes_wrong,		\
+	  BCH_FSCK_ERR_fs_usage_persistent_reserved_wrong,	\
+	  BCH_FSCK_ERR_fs_usage_replicas_wrong,			\
+	  BCH_FSCK_ERR_accounting_replicas_not_marked,		\
+	  BCH_FSCK_ERR_bkey_version_in_future)			\
+	x(rebalance_work_acct_fix,				\
+	  BIT_ULL(BCH_RECOVERY_PASS_check_allocations),		\
+	  BCH_FSCK_ERR_accounting_mismatch)
 
 struct upgrade_downgrade_entry {
 	u64		recovery_passes;
@@ -80,6 +138,37 @@ UPGRADE_TABLE()
 #undef x
 };
 
+static int have_stripes(struct bch_fs *c)
+{
+	return !btree_node_fake(c->btree_roots_known[BTREE_ID_stripes].b);
+}
+
+int bch2_sb_set_upgrade_extra(struct bch_fs *c)
+{
+	unsigned old_version = c->sb.version_upgrade_complete ?: c->sb.version;
+	unsigned new_version = c->sb.version;
+	bool write_sb = false;
+	int ret = 0;
+
+	mutex_lock(&c->sb_lock);
+	struct bch_sb_field_ext *ext = bch2_sb_field_get(c->disk_sb.sb, ext);
+
+	if (old_version <  bcachefs_metadata_version_bucket_stripe_sectors &&
+	    new_version >= bcachefs_metadata_version_bucket_stripe_sectors &&
+	    (ret = have_stripes(c) > 0)) {
+		__set_bit_le64(BCH_RECOVERY_PASS_STABLE_check_allocations, ext->recovery_passes_required);
+		__set_bit_le64(BCH_FSCK_ERR_alloc_key_dirty_sectors_wrong, ext->errors_silent);
+		__set_bit_le64(BCH_FSCK_ERR_alloc_key_stripe_sectors_wrong, ext->errors_silent);
+		write_sb = true;
+	}
+
+	if (write_sb)
+		bch2_write_super(c);
+	mutex_unlock(&c->sb_lock);
+
+	return ret < 0 ? ret : 0;
+}
+
 void bch2_sb_set_upgrade(struct bch_fs *c,
 			 unsigned old_version,
 			 unsigned new_version)
@@ -101,16 +190,12 @@ void bch2_sb_set_upgrade(struct bch_fs *c,
 			ext->recovery_passes_required[0] |=
 				cpu_to_le64(bch2_recovery_passes_to_stable(passes));
 
-			for (const u16 *e = i->errors;
-			     e < i->errors + i->nr_errors;
-			     e++) {
-				__set_bit(*e, c->sb.errors_silent);
-				ext->errors_silent[*e / 64] |= cpu_to_le64(BIT_ULL(*e % 64));
-			}
+			for (const u16 *e = i->errors; e < i->errors + i->nr_errors; e++)
+				__set_bit_le64(*e, ext->errors_silent);
 		}
 }
 
-#define x(ver, passes, ...) static const u16 downgrade_ver_##errors[] = { __VA_ARGS__ };
+#define x(ver, passes, ...) static const u16 downgrade_##ver##_errors[] = { __VA_ARGS__ };
 DOWNGRADE_TABLE()
 #undef x
 
@@ -125,6 +210,37 @@ DOWNGRADE_TABLE()
 #undef x
 };
 
+static int downgrade_table_extra(struct bch_fs *c, darray_char *table)
+{
+	struct bch_sb_field_downgrade_entry *dst = (void *) &darray_top(*table);
+	unsigned bytes = sizeof(*dst) + sizeof(dst->errors[0]) * le16_to_cpu(dst->nr_errors);
+	int ret = 0;
+
+	unsigned nr_errors = le16_to_cpu(dst->nr_errors);
+
+	switch (le16_to_cpu(dst->version)) {
+	case bcachefs_metadata_version_bucket_stripe_sectors:
+		if (have_stripes(c)) {
+			bytes += sizeof(dst->errors[0]) * 2;
+
+			ret = darray_make_room(table, bytes);
+			if (ret)
+				return ret;
+
+			/* open coded __set_bit_le64, as dst is packed and
+			 * dst->recovery_passes is misaligned */
+			unsigned b = BCH_RECOVERY_PASS_STABLE_check_allocations;
+			dst->recovery_passes[b / 64] |= cpu_to_le64(BIT_ULL(b % 64));
+
+			dst->errors[nr_errors++] = cpu_to_le16(BCH_FSCK_ERR_alloc_key_dirty_sectors_wrong);
+		}
+		break;
+	}
+
+	dst->nr_errors = cpu_to_le16(nr_errors);
+	return ret;
+}
+
 static inline const struct bch_sb_field_downgrade_entry *
 downgrade_entry_next_c(const struct bch_sb_field_downgrade_entry *e)
 {
@@ -134,15 +250,32 @@ downgrade_entry_next_c(const struct bch_sb_field_downgrade_entry *e)
 #define for_each_downgrade_entry(_d, _i)						\
 	for (const struct bch_sb_field_downgrade_entry *_i = (_d)->entries;		\
 	     (void *) _i	< vstruct_end(&(_d)->field) &&				\
-	     (void *) &_i->errors[0] < vstruct_end(&(_d)->field);			\
+	     (void *) &_i->errors[0] <= vstruct_end(&(_d)->field) &&			\
+	     (void *) downgrade_entry_next_c(_i) <= vstruct_end(&(_d)->field);		\
 	     _i = downgrade_entry_next_c(_i))
 
 static int bch2_sb_downgrade_validate(struct bch_sb *sb, struct bch_sb_field *f,
-				      struct printbuf *err)
+				      enum bch_validate_flags flags, struct printbuf *err)
 {
 	struct bch_sb_field_downgrade *e = field_to_type(f, downgrade);
 
-	for_each_downgrade_entry(e, i) {
+	for (const struct bch_sb_field_downgrade_entry *i = e->entries;
+	     (void *) i	< vstruct_end(&e->field);
+	     i = downgrade_entry_next_c(i)) {
+		/*
+		 * Careful: sb_field_downgrade_entry is only 2 byte aligned, but
+		 * section sizes are 8 byte aligned - an empty entry spanning
+		 * the end of the section is allowed (and ignored):
+		 */
+		if ((void *) &i->errors[0] > vstruct_end(&e->field))
+			break;
+
+		if (flags & BCH_VALIDATE_write &&
+		    (void *) downgrade_entry_next_c(i) > vstruct_end(&e->field)) {
+			prt_printf(err, "downgrade entry overruns end of superblock section");
+			return -BCH_ERR_invalid_sb_downgrade;
+		}
+
 		if (BCH_VERSION_MAJOR(le16_to_cpu(i->version)) !=
 		    BCH_VERSION_MAJOR(le16_to_cpu(sb->version))) {
 			prt_printf(err, "downgrade entry with mismatched major version (%u != %u)",
@@ -164,19 +297,16 @@ static void bch2_sb_downgrade_to_text(struct printbuf *out, struct bch_sb *sb,
 		printbuf_tabstop_push(out, 16);
 
 	for_each_downgrade_entry(e, i) {
-		prt_str(out, "version:");
-		prt_tab(out);
+		prt_str(out, "version:\t");
 		bch2_version_to_text(out, le16_to_cpu(i->version));
 		prt_newline(out);
 
-		prt_str(out, "recovery passes:");
-		prt_tab(out);
+		prt_str(out, "recovery passes:\t");
 		prt_bitflags(out, bch2_recovery_passes,
 			     bch2_recovery_passes_from_stable(le64_to_cpu(i->recovery_passes[0])));
 		prt_newline(out);
 
-		prt_str(out, "errors:");
-		prt_tab(out);
+		prt_str(out, "errors:\t");
 		bool first = true;
 		for (unsigned j = 0; j < le16_to_cpu(i->nr_errors); j++) {
 			if (!first)
@@ -196,6 +326,9 @@ const struct bch_sb_field_ops bch_sb_field_ops_downgrade = {
 
 int bch2_sb_downgrade_update(struct bch_fs *c)
 {
+	if (!test_bit(BCH_FS_btree_running, &c->flags))
+		return 0;
+
 	darray_char table = {};
 	int ret = 0;
 
@@ -214,13 +347,20 @@ int bch2_sb_downgrade_update(struct bch_fs *c)
 
 		dst = (void *) &darray_top(table);
 		dst->version = cpu_to_le16(src->version);
-		dst->recovery_passes[0]	= cpu_to_le64(src->recovery_passes);
+		dst->recovery_passes[0]	= cpu_to_le64(bch2_recovery_passes_to_stable(src->recovery_passes));
 		dst->recovery_passes[1]	= 0;
 		dst->nr_errors		= cpu_to_le16(src->nr_errors);
 		for (unsigned i = 0; i < src->nr_errors; i++)
 			dst->errors[i] = cpu_to_le16(src->errors[i]);
 
-		table.nr += bytes;
+		downgrade_table_extra(c, &table);
+
+		if (!dst->recovery_passes[0] &&
+		    !dst->recovery_passes[1] &&
+		    !dst->nr_errors)
+			continue;
+
+		table.nr += sizeof(*dst) + sizeof(dst->errors[0]) * le16_to_cpu(dst->nr_errors);
 	}
 
 	struct bch_sb_field_downgrade *d = bch2_sb_field_get(c->disk_sb.sb, downgrade);

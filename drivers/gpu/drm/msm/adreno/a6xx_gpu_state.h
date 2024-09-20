@@ -397,7 +397,7 @@ struct a6xx_indexed_registers {
 	u32 (*count_fn)(struct msm_gpu *gpu);
 };
 
-static struct a6xx_indexed_registers a6xx_indexed_reglist[] = {
+static const struct a6xx_indexed_registers a6xx_indexed_reglist[] = {
 	{ "CP_SQE_STAT", REG_A6XX_CP_SQE_STAT_ADDR,
 		REG_A6XX_CP_SQE_STAT_DATA, 0x33, NULL },
 	{ "CP_DRAW_STATE", REG_A6XX_CP_DRAW_STATE_ADDR,
@@ -408,7 +408,7 @@ static struct a6xx_indexed_registers a6xx_indexed_reglist[] = {
 		REG_A6XX_CP_ROQ_DBG_DATA, 0, a6xx_get_cp_roq_size},
 };
 
-static struct a6xx_indexed_registers a7xx_indexed_reglist[] = {
+static const struct a6xx_indexed_registers a7xx_indexed_reglist[] = {
 	{ "CP_SQE_STAT", REG_A6XX_CP_SQE_STAT_ADDR,
 		REG_A6XX_CP_SQE_STAT_DATA, 0x33, NULL },
 	{ "CP_DRAW_STATE", REG_A6XX_CP_DRAW_STATE_ADDR,
@@ -433,12 +433,12 @@ static struct a6xx_indexed_registers a7xx_indexed_reglist[] = {
 		REG_A6XX_CP_ROQ_DBG_DATA, 0, a7xx_get_cp_roq_size },
 };
 
-static struct a6xx_indexed_registers a6xx_cp_mempool_indexed = {
+static const struct a6xx_indexed_registers a6xx_cp_mempool_indexed = {
 	"CP_MEMPOOL", REG_A6XX_CP_MEM_POOL_DBG_ADDR,
 		REG_A6XX_CP_MEM_POOL_DBG_DATA, 0x2060, NULL,
 };
 
-static struct a6xx_indexed_registers a7xx_cp_bv_mempool_indexed[] = {
+static const struct a6xx_indexed_registers a7xx_cp_bv_mempool_indexed[] = {
 	{ "CP_MEMPOOL", REG_A6XX_CP_MEM_POOL_DBG_ADDR,
 		REG_A6XX_CP_MEM_POOL_DBG_DATA, 0x2100, NULL },
 	{ "CP_BV_MEMPOOL", REG_A7XX_CP_BV_MEM_POOL_DBG_ADDR,
@@ -517,9 +517,9 @@ static const struct a6xx_debugbus_block a650_debugbus_blocks[] = {
 	DEBUGBUS(A6XX_DBGBUS_SPTP_5, 0x100),
 };
 
-static const struct a6xx_debugbus_block a7xx_gbif_debugbus_blocks[] = {
-	DEBUGBUS(A7XX_DBGBUS_GBIF_CX, 0x100),
-	DEBUGBUS(A7XX_DBGBUS_GBIF_GX, 0x100),
+static const u32 a7xx_gbif_debugbus_blocks[] = {
+	A7XX_DBGBUS_GBIF_CX,
+	A7XX_DBGBUS_GBIF_GX,
 };
 
 static const struct a6xx_debugbus_block a7xx_cx_debugbus_blocks[] = {

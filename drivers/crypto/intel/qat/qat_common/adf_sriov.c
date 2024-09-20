@@ -26,10 +26,12 @@ static void adf_iov_send_resp(struct work_struct *work)
 	u32 vf_nr = vf_info->vf_nr;
 	bool ret;
 
+	mutex_lock(&vf_info->pfvf_mig_lock);
 	ret = adf_recv_and_handle_vf2pf_msg(accel_dev, vf_nr);
 	if (ret)
 		/* re-enable interrupt on PF from this VF */
 		adf_enable_vf2pf_interrupts(accel_dev, 1 << vf_nr);
+	mutex_unlock(&vf_info->pfvf_mig_lock);
 
 	kfree(pf2vf_resp);
 }
@@ -62,6 +64,7 @@ static int adf_enable_sriov(struct adf_accel_dev *accel_dev)
 		vf_info->vf_nr = i;
 
 		mutex_init(&vf_info->pf2vf_lock);
+		mutex_init(&vf_info->pfvf_mig_lock);
 		ratelimit_state_init(&vf_info->vf2pf_ratelimit,
 				     ADF_VF2PF_RATELIMIT_INTERVAL,
 				     ADF_VF2PF_RATELIMIT_BURST);
@@ -138,8 +141,10 @@ void adf_disable_sriov(struct adf_accel_dev *accel_dev)
 	if (hw_data->configure_iov_threads)
 		hw_data->configure_iov_threads(accel_dev, false);
 
-	for (i = 0, vf = accel_dev->pf.vf_info; i < totalvfs; i++, vf++)
+	for (i = 0, vf = accel_dev->pf.vf_info; i < totalvfs; i++, vf++) {
 		mutex_destroy(&vf->pf2vf_lock);
+		mutex_destroy(&vf->pfvf_mig_lock);
+	}
 
 	if (!test_bit(ADF_STATUS_RESTARTING, &accel_dev->status)) {
 		kfree(accel_dev->pf.vf_info);

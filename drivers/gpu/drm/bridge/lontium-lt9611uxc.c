@@ -266,10 +266,8 @@ static struct mipi_dsi_device *lt9611uxc_attach_dsi(struct lt9611uxc *lt9611uxc,
 	int ret;
 
 	host = of_find_mipi_dsi_host_by_node(dsi_node);
-	if (!host) {
-		dev_err(dev, "failed to find dsi host\n");
-		return ERR_PTR(-EPROBE_DEFER);
-	}
+	if (!host)
+		return ERR_PTR(dev_err_probe(dev, -EPROBE_DEFER, "failed to find dsi host\n"));
 
 	dsi = devm_mipi_dsi_device_register_full(dev, host, &info);
 	if (IS_ERR(dsi)) {
@@ -338,11 +336,6 @@ static const struct drm_connector_funcs lt9611uxc_bridge_connector_funcs = {
 static int lt9611uxc_connector_init(struct drm_bridge *bridge, struct lt9611uxc *lt9611uxc)
 {
 	int ret;
-
-	if (!bridge->encoder) {
-		DRM_ERROR("Parent encoder object not found");
-		return -ENODEV;
-	}
 
 	lt9611uxc->connector.polled = DRM_CONNECTOR_POLL_HPD;
 
@@ -1023,6 +1016,7 @@ static struct i2c_driver lt9611uxc_driver = {
 module_i2c_driver(lt9611uxc_driver);
 
 MODULE_AUTHOR("Dmitry Baryshkov <dmitry.baryshkov@linaro.org>");
+MODULE_DESCRIPTION("Lontium LT9611UXC DSI/HDMI bridge driver");
 MODULE_LICENSE("GPL v2");
 
 MODULE_FIRMWARE(FW_FILE);

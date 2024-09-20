@@ -44,12 +44,6 @@
 
 #include "qib.h"
 
-/*
- * The size has to be longer than this string, so we can append
- * board/chip information to it in the init code.
- */
-const char ib_qib_version[] = QIB_DRIVER_VERSION "\n";
-
 DEFINE_MUTEX(qib_mutex);	/* general driver use */
 
 unsigned qib_ibmtu;

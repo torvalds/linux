@@ -2,18 +2,13 @@
 #ifndef _ASM_S390_FTRACE_H
 #define _ASM_S390_FTRACE_H
 
-#define HAVE_FUNCTION_GRAPH_RET_ADDR_PTR
 #define ARCH_SUPPORTS_FTRACE_OPS 1
 #define MCOUNT_INSN_SIZE	6
 
 #ifndef __ASSEMBLY__
 
-#ifdef CONFIG_CC_IS_CLANG
-/* https://llvm.org/pr41424 */
-#define ftrace_return_address(n) 0UL
-#else
-#define ftrace_return_address(n) __builtin_return_address(n)
-#endif
+unsigned long return_address(unsigned int n);
+#define ftrace_return_address(n) return_address(n)
 
 void ftrace_caller(void);
 

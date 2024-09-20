@@ -728,23 +728,9 @@ static int vmlogrdr_register_device(struct vmlogrdr_priv_t *priv)
 	struct device *dev;
 	int ret;
 
-	dev = kzalloc(sizeof(struct device), GFP_KERNEL);
-	if (dev) {
-		dev_set_name(dev, "%s", priv->internal_name);
-		dev->bus = &iucv_bus;
-		dev->parent = iucv_root;
-		dev->driver = &vmlogrdr_driver;
-		dev->groups = vmlogrdr_attr_groups;
-		dev_set_drvdata(dev, priv);
-		/*
-		 * The release function could be called after the
-		 * module has been unloaded. It's _only_ task is to
-		 * free the struct. Therefore, we specify kfree()
-		 * directly here. (Probably a little bit obfuscating
-		 * but legitime ...).
-		 */
-		dev->release = (void (*)(struct device *))kfree;
-	} else
+	dev = iucv_alloc_device(vmlogrdr_attr_groups, &vmlogrdr_driver,
+				priv, priv->internal_name);
+	if (!dev)
 		return -ENOMEM;
 	ret = device_register(dev);
 	if (ret) {

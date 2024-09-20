@@ -763,4 +763,5 @@ module_init(cn10k_ddr_pmu_init);
 module_exit(cn10k_ddr_pmu_exit);
 
 MODULE_AUTHOR("Bharat Bhushan <bbhushan2@marvell.com>");
+MODULE_DESCRIPTION("Marvell CN10K DRAM Subsystem (DSS) Performance Monitor Driver");
 MODULE_LICENSE("GPL v2");

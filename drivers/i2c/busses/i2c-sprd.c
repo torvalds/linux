@@ -283,8 +283,8 @@ static int sprd_i2c_handle_msg(struct i2c_adapter *i2c_adap,
 	return i2c_dev->err;
 }
 
-static int sprd_i2c_master_xfer(struct i2c_adapter *i2c_adap,
-				struct i2c_msg *msgs, int num)
+static int sprd_i2c_xfer(struct i2c_adapter *i2c_adap,
+			 struct i2c_msg *msgs, int num)
 {
 	struct sprd_i2c *i2c_dev = i2c_adap->algo_data;
 	int im, ret;
@@ -314,7 +314,7 @@ static u32 sprd_i2c_func(struct i2c_adapter *adap)
 }
 
 static const struct i2c_algorithm sprd_i2c_algo = {
-	.master_xfer = sprd_i2c_master_xfer,
+	.xfer = sprd_i2c_xfer,
 	.functionality = sprd_i2c_func,
 };
 
@@ -378,12 +378,12 @@ static irqreturn_t sprd_i2c_isr_thread(int irq, void *dev_id)
 		i2c_tran = i2c_dev->count;
 
 	/*
-	 * If we got one ACK from slave when writing data, and we did not
+	 * If we got one ACK from target when writing data, and we did not
 	 * finish this transmission (i2c_tran is not zero), then we should
 	 * continue to write data.
 	 *
 	 * For reading data, ack is always true, if i2c_tran is not 0 which
-	 * means we still need to contine to read data from slave.
+	 * means we still need to contine to read data from target.
 	 */
 	if (i2c_tran && ack) {
 		sprd_i2c_data_transfer(i2c_dev);
@@ -393,7 +393,7 @@ static irqreturn_t sprd_i2c_isr_thread(int irq, void *dev_id)
 	i2c_dev->err = 0;
 
 	/*
-	 * If we did not get one ACK from slave when writing data, we should
+	 * If we did not get one ACK from target when writing data, we should
 	 * return -EIO to notify users.
 	 */
 	if (!ack)
@@ -422,7 +422,7 @@ static irqreturn_t sprd_i2c_isr(int irq, void *dev_id)
 		i2c_tran = i2c_dev->count;
 
 	/*
-	 * If we did not get one ACK from slave when writing data, then we
+	 * If we did not get one ACK from target when writing data, then we
 	 * should finish this transmission since we got some errors.
 	 *
 	 * When writing data, if i2c_tran == 0 which means we have writen
@@ -653,5 +653,5 @@ static struct platform_driver sprd_i2c_driver = {
 
 module_platform_driver(sprd_i2c_driver);
 
-MODULE_DESCRIPTION("Spreadtrum I2C master controller driver");
+MODULE_DESCRIPTION("Spreadtrum I2C controller driver");
 MODULE_LICENSE("GPL v2");

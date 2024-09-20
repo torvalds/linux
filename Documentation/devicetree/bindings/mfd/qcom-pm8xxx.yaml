@@ -19,6 +19,7 @@ properties:
       - enum:
           - qcom,pm8058
           - qcom,pm8821
+          - qcom,pm8901
           - qcom,pm8921
       - items:
           - enum:

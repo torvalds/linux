@@ -8,11 +8,13 @@
 import libevdev
 import os
 import pytest
+import shutil
+import subprocess
 import time
 
 import logging
 
-from hidtools.device.base_device import BaseDevice, EvdevMatch, SysfsFile
+from .base_device import BaseDevice, EvdevMatch, SysfsFile
 from pathlib import Path
 from typing import Final, List, Tuple
 
@@ -157,6 +159,17 @@ class BaseTestCase:
         # for example ("playstation", "hid-playstation")
         kernel_modules: List[Tuple[str, str]] = []
 
+        # List of in kernel HID-BPF object files to load
+        # before starting the test
+        # Any existing pre-loaded HID-BPF module will be removed
+        # before the ones in this list will be manually loaded.
+        # Each Element is a tuple '(hid_bpf_object, rdesc_fixup_present)',
+        # for example '("xppen-ArtistPro16Gen2.bpf.o", True)'
+        # If 'rdesc_fixup_present' is True, the test needs to wait
+        # for one unbind and rebind before it can be sure the kernel is
+        # ready
+        hid_bpfs: List[Tuple[str, bool]] = []
+
         def assertInputEventsIn(self, expected_events, effective_events):
             effective_events = effective_events.copy()
             for ev in expected_events:
@@ -211,8 +224,6 @@ class BaseTestCase:
                 # we don't know beforehand the name of the module from modinfo
                 sysfs_path = Path("/sys/module") / kernel_module.replace("-", "_")
             if not sysfs_path.exists():
-                import subprocess
-
                 ret = subprocess.run(["/usr/sbin/modprobe", kernel_module])
                 if ret.returncode != 0:
                     pytest.skip(
@@ -224,6 +235,64 @@ class BaseTestCase:
             for kernel_driver, kernel_module in self.kernel_modules:
                 self._load_kernel_module(kernel_driver, kernel_module)
             yield
+
+        def load_hid_bpfs(self):
+            script_dir = Path(os.path.dirname(os.path.realpath(__file__)))
+            root_dir = (script_dir / "../../../../..").resolve()
+            bpf_dir = root_dir / "drivers/hid/bpf/progs"
+
+            udev_hid_bpf = shutil.which("udev-hid-bpf")
+            if not udev_hid_bpf:
+                pytest.skip("udev-hid-bpf not found in $PATH, skipping")
+
+            wait = False
+            for _, rdesc_fixup in self.hid_bpfs:
+                if rdesc_fixup:
+                    wait = True
+
+            for hid_bpf, _ in self.hid_bpfs:
+                # We need to start `udev-hid-bpf` in the background
+                # and dispatch uhid events in case the kernel needs
+                # to fetch features on the device
+                process = subprocess.Popen(
+                    [
+                        "udev-hid-bpf",
+                        "--verbose",
+                        "add",
+                        str(self.uhdev.sys_path),
+                        str(bpf_dir / hid_bpf),
+                    ],
+                )
+                while process.poll() is None:
+                    self.uhdev.dispatch(1)
+
+                if process.poll() != 0:
+                    pytest.fail(
+                        f"Couldn't insert hid-bpf program '{hid_bpf}', marking the test as failed"
+                    )
+
+            if wait:
+                # the HID-BPF program exports a rdesc fixup, so it needs to be
+                # unbound by the kernel and then rebound.
+                # Ensure we get the bound event exactly 2 times (one for the normal
+                # uhid loading, and then the reload from HID-BPF)
+                now = time.time()
+                while self.uhdev.kernel_ready_count < 2 and time.time() - now < 2:
+                    self.uhdev.dispatch(1)
+
+                if self.uhdev.kernel_ready_count < 2:
+                    pytest.fail(
+                        f"Couldn't insert hid-bpf programs, marking the test as failed"
+                    )
+
+        def unload_hid_bpfs(self):
+            ret = subprocess.run(
+                ["udev-hid-bpf", "--verbose", "remove", str(self.uhdev.sys_path)],
+            )
+            if ret.returncode != 0:
+                pytest.fail(
+                    f"Couldn't unload hid-bpf programs, marking the test as failed"
+                )
 
         @pytest.fixture()
         def new_uhdev(self, load_kernel_module):
@@ -248,12 +317,18 @@ class BaseTestCase:
                         now = time.time()
                         while not self.uhdev.is_ready() and time.time() - now < 5:
                             self.uhdev.dispatch(1)
+
+                        if self.hid_bpfs:
+                            self.load_hid_bpfs()
+
                         if self.uhdev.get_evdev() is None:
                             logger.warning(
                                 f"available list of input nodes: (default application is '{self.uhdev.application}')"
                             )
                             logger.warning(self.uhdev.input_nodes)
                         yield
+                        if self.hid_bpfs:
+                            self.unload_hid_bpfs()
                         self.uhdev = None
             except PermissionError:
                 pytest.skip("Insufficient permissions, run me as root")
@@ -313,8 +388,6 @@ class HIDTestUdevRule(object):
             self.reload_udev_rules()
 
     def reload_udev_rules(self):
-        import subprocess
-
         subprocess.run("udevadm control --reload-rules".split())
         subprocess.run("systemd-hwdb update".split())
 
@@ -330,10 +403,11 @@ class HIDTestUdevRule(object):
             delete=False,
         ) as f:
             f.write(
-                'KERNELS=="*input*", ATTRS{name}=="*uhid test *", ENV{LIBINPUT_IGNORE_DEVICE}="1"\n'
-            )
-            f.write(
-                'KERNELS=="*input*", ATTRS{name}=="*uhid test * System Multi Axis", ENV{ID_INPUT_TOUCHSCREEN}="", ENV{ID_INPUT_SYSTEM_MULTIAXIS}="1"\n'
+                """
+KERNELS=="*input*", ATTRS{name}=="*uhid test *", ENV{LIBINPUT_IGNORE_DEVICE}="1"
+KERNELS=="*hid*", ENV{HID_NAME}=="*uhid test *", ENV{HID_BPF_IGNORE_DEVICE}="1"
+KERNELS=="*input*", ATTRS{name}=="*uhid test * System Multi Axis", ENV{ID_INPUT_TOUCHSCREEN}="", ENV{ID_INPUT_SYSTEM_MULTIAXIS}="1"
+"""
             )
             self.rulesfile = f
 

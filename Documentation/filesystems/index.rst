@@ -34,6 +34,7 @@ algorithms work.
    seq_file
    sharedsubtree
    idmappings
+   iomap/index
 
    automount-support
 
@@ -50,6 +51,7 @@ filesystem implementations.
 .. toctree::
    :maxdepth: 2
 
+   buffer
    journalling
    fscrypt
    fsverity

@@ -79,7 +79,7 @@ static void mt7663u_copy(struct mt76_dev *dev, u32 offset,
 	mutex_unlock(&usb->usb_ctrl_mtx);
 }
 
-static void mt7663u_stop(struct ieee80211_hw *hw)
+static void mt7663u_stop(struct ieee80211_hw *hw, bool suspend)
 {
 	struct mt7615_phy *phy = mt7615_hw_phy(hw);
 	struct mt7615_dev *dev = hw->priv;

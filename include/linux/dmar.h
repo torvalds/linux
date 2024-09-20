@@ -117,7 +117,7 @@ extern int dmar_remove_dev_scope(struct dmar_pci_notify_info *info,
 				 int count);
 /* Intel IOMMU detection */
 void detect_intel_iommu(void);
-extern int enable_drhd_fault_handling(void);
+extern int enable_drhd_fault_handling(unsigned int cpu);
 extern int dmar_device_add(acpi_handle handle);
 extern int dmar_device_remove(acpi_handle handle);
 

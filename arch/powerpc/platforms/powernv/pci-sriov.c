@@ -238,7 +238,7 @@ void pnv_pci_ioda_fixup_iov(struct pci_dev *pdev)
 	} else if (pdev->is_physfn) {
 		/*
 		 * For PFs adjust their allocated IOV resources to match what
-		 * the PHB can support using it's M64 BAR table.
+		 * the PHB can support using its M64 BAR table.
 		 */
 		pnv_pci_ioda_fixup_iov_resources(pdev);
 	}
@@ -658,7 +658,7 @@ static void pnv_ioda_setup_vf_PE(struct pci_dev *pdev, u16 num_vfs)
 		list_add_tail(&pe->list, &phb->ioda.pe_list);
 		mutex_unlock(&phb->ioda.pe_list_mutex);
 
-		/* associate this pe to it's pdn */
+		/* associate this pe to its pdn */
 		list_for_each_entry(vf_pdn, &pdn->parent->child_list, list) {
 			if (vf_pdn->busno == vf_bus &&
 			    vf_pdn->devfn == vf_devfn) {

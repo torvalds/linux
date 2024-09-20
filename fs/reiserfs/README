@@ -102,19 +102,9 @@ that start on a node aligned boundary (there are reasons to want to node
 align files), and he invented and implemented indirect items and
 unformatted nodes as the solution.
 
-Konstantin Shvachko, with the help of the Russian version of a VC,
-tried to put me in a position where I was forced into giving control
-of the project to him.  (Fortunately, as the person paying the money
-for all salaries from my dayjob I owned all copyrights, and you can't
-really force takeovers of sole proprietorships.)  This was something
-curious, because he never really understood the value of our project,
-why we should do what we do, or why innovation was possible in
-general, but he was sure that he ought to be controlling it.  Every
-innovation had to be forced past him while he was with us.  He added
-two years to the time required to complete reiserfs, and was a net
-loss for me.  Mikhail Gilula was a brilliant innovator who also left
-in a destructive way that erased the value of his contributions, and
-that he was shown much generosity just makes it more painful.
+Konstantin Shvachko was taking part in the early days.
+
+Mikhail Gilula was a brilliant innovator that has shown much generosity.
 
 Grigory Zaigralin was an extremely effective system administrator for
 our group.

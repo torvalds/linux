@@ -2,12 +2,12 @@
 /*
  * Intel Skylake I2S Machine Driver
  *
- * Copyright (C) 2014-2015, Intel Corporation. All rights reserved.
+ * Copyright (C) 2014-2015, Intel Corporation
  *
  * Modified from:
  *   Intel Broadwell Wildcatpoint SST Audio
  *
- *   Copyright (C) 2013, Intel Corporation. All rights reserved.
+ *   Copyright (C) 2013, Intel Corporation
  */
 
 #include <linux/module.h>
@@ -523,6 +523,7 @@ static struct snd_soc_card skylake_rt286 = {
 	.dapm_routes = skylake_rt286_map,
 	.num_dapm_routes = ARRAY_SIZE(skylake_rt286_map),
 	.fully_routed = true,
+	.disable_route_checks = true,
 	.late_probe = skylake_card_late_probe,
 };
 

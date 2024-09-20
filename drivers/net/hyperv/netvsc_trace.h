@@ -51,7 +51,7 @@ DECLARE_EVENT_CLASS(rndis_msg_class,
 	       __field(	 u32,  msg_len	   )
        ),
        TP_fast_assign(
-	       __assign_str(name, ndev->name);
+	       __assign_str(name);
 	       __entry->queue	 = q;
 	       __entry->req_id	 = msg->msg.init_req.req_id;
 	       __entry->msg_type = msg->ndis_msg_type;
@@ -121,7 +121,7 @@ TRACE_EVENT(nvsp_send,
 		__field(  u32,	msg_type    )
 	),
 	TP_fast_assign(
-		__assign_str(name, ndev->name);
+		__assign_str(name);
 		__entry->msg_type = msg->hdr.msg_type;
 	),
 	TP_printk("dev=%s type=%s",
@@ -142,7 +142,7 @@ TRACE_EVENT(nvsp_send_pkt,
 		__field(  u32,	section_size  )
 	),
 	TP_fast_assign(
-		__assign_str(name, ndev->name);
+		__assign_str(name);
 		__entry->qid = chan->offermsg.offer.sub_channel_index;
 		__entry->channel_type = rpkt->channel_type;
 		__entry->section_index = rpkt->send_buf_section_index;
@@ -165,7 +165,7 @@ TRACE_EVENT(nvsp_recv,
 		__field(  u32,	msg_type    )
 	),
 	TP_fast_assign(
-		__assign_str(name, ndev->name);
+		__assign_str(name);
 		__entry->qid = chan->offermsg.offer.sub_channel_index;
 		__entry->msg_type = msg->hdr.msg_type;
 	),

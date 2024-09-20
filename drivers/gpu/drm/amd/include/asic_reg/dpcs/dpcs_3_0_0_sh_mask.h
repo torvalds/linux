@@ -70,7 +70,9 @@
 //DPCSTX0_DPCSTX_PLL_UPDATE_DATA
 #define DPCSTX0_DPCSTX_PLL_UPDATE_DATA__DPCS_PLL_UPDATE_DATA__SHIFT                                           0x0
 #define DPCSTX0_DPCSTX_PLL_UPDATE_DATA__DPCS_PLL_UPDATE_DATA_MASK                                             0xFFFFFFFFL
-
+//DPCSTX0_DPCSTX_DEBUG_CONFIG
+#define DPCSTX0_DPCSTX_DEBUG_CONFIG__DPCS_DBG_CBUS_DIS__SHIFT                                                 0xe
+#define DPCSTX0_DPCSTX_DEBUG_CONFIG__DPCS_DBG_CBUS_DIS_MASK                                                   0x00004000L
 
 // addressBlock: dpcssys_dpcs0_rdpcstx0_dispdec
 //RDPCSTX0_RDPCSTX_CNTL

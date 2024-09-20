@@ -81,6 +81,7 @@ static struct platform_driver simatic_ipc_batt_driver = {
 
 module_platform_driver(simatic_ipc_batt_driver);
 
+MODULE_DESCRIPTION("CMOS Battery monitoring for Simatic IPCs based on Nuvoton GPIO");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:" KBUILD_MODNAME);
 MODULE_SOFTDEP("pre: simatic-ipc-batt gpio_f7188x platform:elkhartlake-pinctrl platform:alderlake-pinctrl");

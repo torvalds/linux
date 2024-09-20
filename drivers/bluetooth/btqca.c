@@ -13,8 +13,6 @@
 
 #include "btqca.h"
 
-#define VERSION "0.1"
-
 int qca_read_soc_version(struct hci_dev *hdev, struct qca_btsoc_version *ver,
 			 enum qca_btsoc_type soc_type)
 {
@@ -55,11 +53,6 @@ int qca_read_soc_version(struct hci_dev *hdev, struct qca_btsoc_version *ver,
 	}
 
 	edl = (struct edl_event_hdr *)(skb->data);
-	if (!edl) {
-		bt_dev_err(hdev, "QCA TLV with no header");
-		err = -EILSEQ;
-		goto out;
-	}
 
 	if (edl->cresp != EDL_CMD_REQ_RES_EVT ||
 	    edl->rtype != rtype) {
@@ -121,11 +114,6 @@ static int qca_read_fw_build_info(struct hci_dev *hdev)
 	}
 
 	edl = (struct edl_event_hdr *)(skb->data);
-	if (!edl) {
-		bt_dev_err(hdev, "QCA read fw build info with no header");
-		err = -EILSEQ;
-		goto out;
-	}
 
 	if (edl->cresp != EDL_CMD_REQ_RES_EVT ||
 	    edl->rtype != EDL_GET_BUILD_INFO_CMD) {
@@ -148,8 +136,10 @@ static int qca_read_fw_build_info(struct hci_dev *hdev)
 	}
 
 	build_label = kstrndup(&edl->data[1], build_lbl_len, GFP_KERNEL);
-	if (!build_label)
+	if (!build_label) {
+		err = -ENOMEM;
 		goto out;
+	}
 
 	hci_set_fw_info(hdev, "%s", build_label);
 
@@ -183,11 +173,6 @@ static int qca_send_patch_config_cmd(struct hci_dev *hdev)
 	}
 
 	edl = (struct edl_event_hdr *)(skb->data);
-	if (!edl) {
-		bt_dev_err(hdev, "QCA Patch config with no header");
-		err = -EILSEQ;
-		goto out;
-	}
 
 	if (edl->cresp != EDL_PATCH_CONFIG_RES_EVT || edl->rtype != EDL_PATCH_CONFIG_CMD) {
 		bt_dev_err(hdev, "QCA Wrong packet received %d %d", edl->cresp,
@@ -502,11 +487,6 @@ static int qca_tlv_send_segment(struct hci_dev *hdev, int seg_size,
 	}
 
 	edl = (struct edl_event_hdr *)(skb->data);
-	if (!edl) {
-		bt_dev_err(hdev, "TLV with no header");
-		err = -EILSEQ;
-		goto out;
-	}
 
 	if (edl->cresp != EDL_CMD_REQ_RES_EVT || edl->rtype != rtype) {
 		bt_dev_err(hdev, "QCA TLV with error stat 0x%x rtype 0x%x",
@@ -737,6 +717,19 @@ static void qca_generate_hsp_nvm_name(char *fwname, size_t max_size,
 		snprintf(fwname, max_size, "qca/hpnv%02x%s.%x", rom_ver, variant, bid);
 }
 
+static inline void qca_get_nvm_name_generic(struct qca_fw_config *cfg,
+					    const char *stem, u8 rom_ver, u16 bid)
+{
+	if (bid == 0x0)
+		snprintf(cfg->fwname, sizeof(cfg->fwname), "qca/%snv%02x.bin", stem, rom_ver);
+	else if (bid & 0xff00)
+		snprintf(cfg->fwname, sizeof(cfg->fwname),
+			 "qca/%snv%02x.b%x", stem, rom_ver, bid);
+	else
+		snprintf(cfg->fwname, sizeof(cfg->fwname),
+			 "qca/%snv%02x.b%02x", stem, rom_ver, bid);
+}
+
 int qca_uart_setup(struct hci_dev *hdev, uint8_t baudrate,
 		   enum qca_btsoc_type soc_type, struct qca_btsoc_version ver,
 		   const char *firmware_name)
@@ -817,7 +810,7 @@ int qca_uart_setup(struct hci_dev *hdev, uint8_t baudrate,
 	/* Give the controller some time to get ready to receive the NVM */
 	msleep(10);
 
-	if (soc_type == QCA_QCA2066)
+	if (soc_type == QCA_QCA2066 || soc_type == QCA_WCN7850)
 		qca_read_fw_board_id(hdev, &boardid);
 
 	/* Download NVM configuration */
@@ -859,8 +852,7 @@ int qca_uart_setup(struct hci_dev *hdev, uint8_t baudrate,
 				 "qca/hpnv%02x.bin", rom_ver);
 			break;
 		case QCA_WCN7850:
-			snprintf(config.fwname, sizeof(config.fwname),
-				 "qca/hmtnv%02x.bin", rom_ver);
+			qca_get_nvm_name_generic(&config, "hmt", rom_ver, boardid);
 			break;
 
 		default:
@@ -961,6 +953,5 @@ EXPORT_SYMBOL_GPL(qca_set_bdaddr);
 
 
 MODULE_AUTHOR("Ben Young Tae Kim <ytkim@qca.qualcomm.com>");
-MODULE_DESCRIPTION("Bluetooth support for Qualcomm Atheros family ver " VERSION);
-MODULE_VERSION(VERSION);
+MODULE_DESCRIPTION("Bluetooth support for Qualcomm Atheros family");
 MODULE_LICENSE("GPL");

@@ -63,7 +63,7 @@
 	 * Explicitly define the sdio device, so that we can add an ethernet
 	 * alias for it (which e.g. makes u-boot set a mac-address).
 	 */
-	rtl8189ftv: sdio_wifi@1 {
+	rtl8189ftv: wifi@1 {
 		reg = <1>;
 	};
 };

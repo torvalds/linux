@@ -32,6 +32,7 @@ properties:
               - qcom,sm6125-dsi-ctrl
               - qcom,sm6350-dsi-ctrl
               - qcom,sm6375-dsi-ctrl
+              - qcom,sm7150-dsi-ctrl
               - qcom,sm8150-dsi-ctrl
               - qcom,sm8250-dsi-ctrl
               - qcom,sm8350-dsi-ctrl
@@ -161,6 +162,22 @@ properties:
                 minItems: 1
                 items:
                   enum: [ 0, 1, 2, 3 ]
+
+              qcom,te-source:
+                $ref: /schemas/types.yaml#/definitions/string
+                description:
+                  Specifies the source of vsync signal from the panel used for
+                  tearing elimination.
+                default: mdp_vsync_p
+                enum:
+                  - mdp_vsync_p
+                  - mdp_vsync_s
+                  - mdp_vsync_e
+                  - timer0
+                  - timer1
+                  - timer2
+                  - timer3
+                  - timer4
 
     required:
       - port@0
@@ -332,6 +349,7 @@ allOf:
             enum:
               - qcom,sc7180-dsi-ctrl
               - qcom,sc7280-dsi-ctrl
+              - qcom,sm7150-dsi-ctrl
               - qcom,sm8150-dsi-ctrl
               - qcom,sm8250-dsi-ctrl
               - qcom,sm8350-dsi-ctrl
@@ -452,6 +470,7 @@ examples:
                           dsi0_out: endpoint {
                                    remote-endpoint = <&sn65dsi86_in>;
                                    data-lanes = <0 1 2 3>;
+                                   qcom,te-source = "mdp_vsync_e";
                           };
                   };
            };

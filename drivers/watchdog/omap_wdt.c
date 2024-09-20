@@ -370,5 +370,6 @@ static struct platform_driver omap_wdt_driver = {
 module_platform_driver(omap_wdt_driver);
 
 MODULE_AUTHOR("George G. Davis");
+MODULE_DESCRIPTION("Driver for the TI OMAP 16xx/24xx/34xx 32KHz (non-secure) watchdog");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:omap_wdt");

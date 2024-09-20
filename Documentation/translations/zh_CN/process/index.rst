@@ -48,6 +48,7 @@ TODOLIST:
    :maxdepth: 1
 
    embargoed-hardware-issues
+   cve
 
 TODOLIST:
 
@@ -63,6 +64,7 @@ TODOLIST:
    management-style
    stable-kernel-rules
    submit-checklist
+   researcher-guidelines
 
 TODOLIST:
 
@@ -70,7 +72,6 @@ TODOLIST:
 * kernel-docs
 * deprecated
 * maintainers
-* researcher-guidelines
 * contribution-maturity-model
 
 

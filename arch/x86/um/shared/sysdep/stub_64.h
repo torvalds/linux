@@ -6,6 +6,7 @@
 #ifndef __SYSDEP_STUB_H
 #define __SYSDEP_STUB_H
 
+#include <stddef.h>
 #include <sysdep/ptrace_user.h>
 #include <generated/asm-offsets.h>
 #include <linux/stddef.h>
@@ -79,35 +80,25 @@ static __always_inline long stub_syscall5(long syscall, long arg1, long arg2,
 	return ret;
 }
 
+static __always_inline long stub_syscall6(long syscall, long arg1, long arg2,
+					  long arg3, long arg4, long arg5,
+					  long arg6)
+{
+	long ret;
+
+	__asm__ volatile ("movq %5,%%r10 ; movq %6,%%r8 ; movq %7,%%r9 ; "
+		__syscall
+		: "=a" (ret)
+		: "0" (syscall), "D" (arg1), "S" (arg2), "d" (arg3),
+		  "g" (arg4), "g" (arg5), "g" (arg6)
+		: __syscall_clobber, "r10", "r8", "r9");
+
+	return ret;
+}
+
 static __always_inline void trap_myself(void)
 {
 	__asm("int3");
-}
-
-static __always_inline void remap_stack_and_trap(void)
-{
-	__asm__ volatile (
-		"movq %0,%%rax ;"
-		"movq %%rsp,%%rdi ;"
-		"andq %1,%%rdi ;"
-		"movq %2,%%r10 ;"
-		"movq %%rdi,%%r8 ; addq %3,%%r8 ; movq (%%r8),%%r8 ;"
-		"movq %%rdi,%%r9 ; addq %4,%%r9 ; movq (%%r9),%%r9 ;"
-		__syscall ";"
-		"movq %%rsp,%%rdi ; andq %1,%%rdi ;"
-		"addq %5,%%rdi ; movq %%rax, (%%rdi) ;"
-		"int3"
-		: :
-		"g" (STUB_MMAP_NR),
-		"g" (~(STUB_DATA_PAGES * UM_KERN_PAGE_SIZE - 1)),
-		"g" (MAP_FIXED | MAP_SHARED),
-		"g" (UML_STUB_FIELD_FD),
-		"g" (UML_STUB_FIELD_OFFSET),
-		"g" (UML_STUB_FIELD_CHILD_ERR),
-		"S" (STUB_DATA_PAGES * UM_KERN_PAGE_SIZE),
-		"d" (PROT_READ | PROT_WRITE)
-		:
-		__syscall_clobber, "r10", "r8", "r9");
 }
 
 static __always_inline void *get_stub_data(void)

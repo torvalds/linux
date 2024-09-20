@@ -125,6 +125,8 @@ vmalloc_load:
 tlb_huge_update_load:
 #ifdef CONFIG_SMP
 	ll.d		ra, t1, 0
+#else
+	rotri.d		ra, ra, 64 - (_PAGE_HUGE_SHIFT + 1)
 #endif
 	andi		t0, ra, _PAGE_PRESENT
 	beqz		t0, nopage_tlb_load
@@ -135,7 +137,6 @@ tlb_huge_update_load:
 	beqz		t0, tlb_huge_update_load
 	ori		t0, ra, _PAGE_VALID
 #else
-	rotri.d		ra, ra, 64 - (_PAGE_HUGE_SHIFT + 1)
 	ori		t0, ra, _PAGE_VALID
 	st.d		t0, t1, 0
 #endif
@@ -281,6 +282,8 @@ vmalloc_store:
 tlb_huge_update_store:
 #ifdef CONFIG_SMP
 	ll.d		ra, t1, 0
+#else
+	rotri.d		ra, ra, 64 - (_PAGE_HUGE_SHIFT + 1)
 #endif
 	andi		t0, ra, _PAGE_PRESENT | _PAGE_WRITE
 	xori		t0, t0, _PAGE_PRESENT | _PAGE_WRITE
@@ -292,7 +295,6 @@ tlb_huge_update_store:
 	beqz		t0, tlb_huge_update_store
 	ori		t0, ra, (_PAGE_VALID | _PAGE_DIRTY | _PAGE_MODIFIED)
 #else
-	rotri.d		ra, ra, 64 - (_PAGE_HUGE_SHIFT + 1)
 	ori		t0, ra, (_PAGE_VALID | _PAGE_DIRTY | _PAGE_MODIFIED)
 	st.d		t0, t1, 0
 #endif
@@ -438,6 +440,8 @@ vmalloc_modify:
 tlb_huge_update_modify:
 #ifdef CONFIG_SMP
 	ll.d		ra, t1, 0
+#else
+	rotri.d		ra, ra, 64 - (_PAGE_HUGE_SHIFT + 1)
 #endif
 	andi		t0, ra, _PAGE_WRITE
 	beqz		t0, nopage_tlb_modify
@@ -448,7 +452,6 @@ tlb_huge_update_modify:
 	beqz		t0, tlb_huge_update_modify
 	ori		t0, ra, (_PAGE_VALID | _PAGE_DIRTY | _PAGE_MODIFIED)
 #else
-	rotri.d		ra, ra, 64 - (_PAGE_HUGE_SHIFT + 1)
 	ori		t0, ra, (_PAGE_VALID | _PAGE_DIRTY | _PAGE_MODIFIED)
 	st.d		t0, t1, 0
 #endif

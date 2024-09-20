@@ -21,9 +21,11 @@ properties:
   compatible:
     const: nec,nl8048hl11
 
+  reg:
+    maxItems: 1
+
   label: true
   port: true
-  reg: true
   reset-gpios: true
 
   spi-max-frequency:

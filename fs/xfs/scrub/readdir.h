@@ -16,4 +16,7 @@ int xchk_dir_walk(struct xfs_scrub *sc, struct xfs_inode *dp,
 int xchk_dir_lookup(struct xfs_scrub *sc, struct xfs_inode *dp,
 		const struct xfs_name *name, xfs_ino_t *ino);
 
+int xchk_dir_trylock_for_pptrs(struct xfs_scrub *sc, struct xfs_inode *ip,
+		unsigned int *lockmode);
+
 #endif /* __XFS_SCRUB_READDIR_H__ */

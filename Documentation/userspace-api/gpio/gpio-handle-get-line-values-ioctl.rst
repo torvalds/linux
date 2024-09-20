@@ -36,6 +36,13 @@ Description
 
 Get the values of all requested lines.
 
+The values returned are logical, indicating if the line is active or inactive.
+The ``GPIOHANDLE_REQUEST_ACTIVE_LOW`` flag controls the mapping between physical
+values (high/low) and logical values (active/inactive).
+If ``GPIOHANDLE_REQUEST_ACTIVE_LOW`` is not set then high is active and
+low is inactive. If ``GPIOHANDLE_REQUEST_ACTIVE_LOW`` is set then low is active
+and high is inactive.
+
 The values of both input and output lines may be read.
 
 For output lines, the value returned is driver and configuration dependent and

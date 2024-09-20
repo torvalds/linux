@@ -124,6 +124,9 @@ static int ksz9477_flower_parse_key(struct ksz_device *dev, int port,
 		return -EOPNOTSUPP;
 	}
 
+	if (flow_rule_match_has_control_flags(rule, extack))
+		return -EOPNOTSUPP;
+
 	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_BASIC) ||
 	    flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ETH_ADDRS)) {
 		ret = ksz9477_flower_parse_key_l2(dev, port, extack, rule,

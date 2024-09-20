@@ -18,7 +18,7 @@
 
 enum testunit_cmds {
 	TU_CMD_READ_BYTES = 1,	/* save 0 for ABORT, RESET or similar */
-	TU_CMD_HOST_NOTIFY,
+	TU_CMD_SMBUS_HOST_NOTIFY,
 	TU_CMD_SMBUS_BLOCK_PROC_CALL,
 	TU_NUM_CMDS
 };
@@ -60,7 +60,7 @@ static void i2c_slave_testunit_work(struct work_struct *work)
 		msg.len = tu->regs[TU_REG_DATAH];
 		break;
 
-	case TU_CMD_HOST_NOTIFY:
+	case TU_CMD_SMBUS_HOST_NOTIFY:
 		msg.addr = 0x08;
 		msg.flags = 0;
 		msg.len = 3;
@@ -118,9 +118,19 @@ static int i2c_slave_testunit_slave_cb(struct i2c_client *client,
 			queue_delayed_work(system_long_wq, &tu->worker,
 					   msecs_to_jiffies(10 * tu->regs[TU_REG_DELAY]));
 		}
-		fallthrough;
+
+		/*
+		 * Reset reg_idx to avoid that work gets queued again in case of
+		 * STOP after a following read message. But do not clear TU regs
+		 * here because we still need them in the workqueue!
+		 */
+		tu->reg_idx = 0;
+		break;
 
 	case I2C_SLAVE_WRITE_REQUESTED:
+		if (test_bit(TU_FLAG_IN_PROCESS, &tu->flags))
+			return -EBUSY;
+
 		memset(tu->regs, 0, TU_NUM_REGS);
 		tu->reg_idx = 0;
 		break;
@@ -162,7 +172,7 @@ static void i2c_slave_testunit_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id i2c_slave_testunit_id[] = {
-	{ "slave-testunit", 0 },
+	{ "slave-testunit" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, i2c_slave_testunit_id);

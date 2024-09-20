@@ -17,13 +17,16 @@
 #include <sys/wait.h>
 #include <sys/time.h>
 #include <sys/resource.h>
+#include <asm/ldt.h>
 #include <asm/unistd.h>
 #include <init.h>
 #include <os.h>
+#include <kern_util.h>
 #include <mem_user.h>
 #include <ptrace_user.h>
 #include <registers.h>
 #include <skas.h>
+#include "internal.h"
 
 static void ptrace_child(void)
 {
@@ -220,8 +223,6 @@ static void __init check_ptrace(void)
 	os_info("OK\n");
 	check_sysemu();
 }
-
-extern void check_tmpexec(void);
 
 static void __init check_coredump_limit(void)
 {

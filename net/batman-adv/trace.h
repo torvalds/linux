@@ -40,8 +40,8 @@ TRACE_EVENT(batadv_dbg,
 	    ),
 
 	    TP_fast_assign(
-		    __assign_str(device, bat_priv->soft_iface->name);
-		    __assign_str(driver, KBUILD_MODNAME);
+		    __assign_str(device);
+		    __assign_str(driver);
 		    __assign_vstr(msg, vaf->fmt, vaf->va);
 	    ),
 

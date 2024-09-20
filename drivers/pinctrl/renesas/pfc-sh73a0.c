@@ -4024,7 +4024,7 @@ static const struct pinmux_irq pinmux_irqs[] = {
 
 static void sh73a0_vccq_mc0_endisable(struct regulator_dev *reg, bool enable)
 {
-	struct sh_pfc *pfc = reg->reg_data;
+	struct sh_pfc *pfc = rdev_get_drvdata(reg);
 	void __iomem *addr = pfc->windows[1].virt + 4;
 	unsigned long flags;
 	u32 value;
@@ -4057,7 +4057,7 @@ static int sh73a0_vccq_mc0_disable(struct regulator_dev *reg)
 
 static int sh73a0_vccq_mc0_is_enabled(struct regulator_dev *reg)
 {
-	struct sh_pfc *pfc = reg->reg_data;
+	struct sh_pfc *pfc = rdev_get_drvdata(reg);
 	void __iomem *addr = pfc->windows[1].virt + 4;
 	unsigned long flags;
 	u32 value;

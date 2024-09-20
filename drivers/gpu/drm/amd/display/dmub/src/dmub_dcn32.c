@@ -478,6 +478,8 @@ void dmub_dcn32_get_diagnostic_data(struct dmub_srv *dmub, struct dmub_diagnosti
 	diag_data->is_cw6_enabled = is_cw6_enabled;
 
 	diag_data->gpint_datain0 = REG_READ(DMCUB_GPINT_DATAIN0);
+
+	diag_data->timeout_info = dmub->debug;
 }
 void dmub_dcn32_configure_dmub_in_system_memory(struct dmub_srv *dmub)
 {

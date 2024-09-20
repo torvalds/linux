@@ -4,21 +4,22 @@
 
 #include <linux/rbtree.h>
 #include <linux/types.h>
-#include "evsel.h"
+#include "callchain.h"
 #include "color.h"
 #include "events_stats.h"
+#include "evsel.h"
+#include "map_symbol.h"
 #include "mutex.h"
+#include "sample.h"
+#include "spark.h"
+#include "stat.h"
 
-struct hist_entry;
-struct hist_entry_ops;
 struct addr_location;
-struct map_symbol;
 struct mem_info;
 struct kvm_info;
 struct branch_info;
 struct branch_stack;
 struct block_info;
-struct symbol;
 struct ui_progress;
 
 enum hist_filter {
@@ -131,24 +132,182 @@ struct hist_entry_iter {
 	int total;
 	int curr;
 
-	bool hide_unresolved;
-
 	struct evsel *evsel;
 	struct perf_sample *sample;
 	struct hist_entry *he;
 	struct symbol *parent;
-	void *priv;
+
+	struct mem_info *mi;
+	struct branch_info *bi;
+	struct hist_entry **he_cache;
 
 	const struct hist_iter_ops *ops;
 	/* user-defined callback function (optional) */
 	int (*add_entry_cb)(struct hist_entry_iter *iter,
 			    struct addr_location *al, bool single, void *arg);
+	bool hide_unresolved;
 };
 
 extern const struct hist_iter_ops hist_iter_normal;
 extern const struct hist_iter_ops hist_iter_branch;
 extern const struct hist_iter_ops hist_iter_mem;
 extern const struct hist_iter_ops hist_iter_cumulative;
+
+struct res_sample {
+	u64 time;
+	int cpu;
+	int tid;
+};
+
+struct he_stat {
+	u64			period;
+	u64			period_sys;
+	u64			period_us;
+	u64			period_guest_sys;
+	u64			period_guest_us;
+	u64			weight1;
+	u64			weight2;
+	u64			weight3;
+	u32			nr_events;
+};
+
+struct namespace_id {
+	u64			dev;
+	u64			ino;
+};
+
+struct hist_entry_diff {
+	bool	computed;
+	union {
+		/* PERF_HPP__DELTA */
+		double	period_ratio_delta;
+
+		/* PERF_HPP__RATIO */
+		double	period_ratio;
+
+		/* HISTC_WEIGHTED_DIFF */
+		s64	wdiff;
+
+		/* PERF_HPP_DIFF__CYCLES */
+		s64	cycles;
+	};
+	struct stats	stats;
+	unsigned long	svals[NUM_SPARKS];
+};
+
+struct hist_entry_ops {
+	void	*(*new)(size_t size);
+	void	(*free)(void *ptr);
+};
+
+/**
+ * struct hist_entry - histogram entry
+ *
+ * @row_offset - offset from the first callchain expanded to appear on screen
+ * @nr_rows - rows expanded in callchain, recalculated on folding/unfolding
+ */
+struct hist_entry {
+	struct rb_node		rb_node_in;
+	struct rb_node		rb_node;
+	union {
+		struct list_head node;
+		struct list_head head;
+	} pairs;
+	struct he_stat		stat;
+	struct he_stat		*stat_acc;
+	struct map_symbol	ms;
+	struct thread		*thread;
+	struct comm		*comm;
+	struct namespace_id	cgroup_id;
+	u64			cgroup;
+	u64			ip;
+	u64			transaction;
+	s32			socket;
+	s32			cpu;
+	u64			code_page_size;
+	u64			weight;
+	u64			ins_lat;
+	u64			p_stage_cyc;
+	u8			cpumode;
+	u8			depth;
+	int			mem_type_off;
+	struct simd_flags	simd_flags;
+
+	/* We are added by hists__add_dummy_entry. */
+	bool			dummy;
+	bool			leaf;
+
+	char			level;
+	u8			filtered;
+
+	u16			callchain_size;
+	union {
+		/*
+		 * Since perf diff only supports the stdio output, TUI
+		 * fields are only accessed from perf report (or perf
+		 * top).  So make it a union to reduce memory usage.
+		 */
+		struct hist_entry_diff	diff;
+		struct /* for TUI */ {
+			u16	row_offset;
+			u16	nr_rows;
+			bool	init_have_children;
+			bool	unfolded;
+			bool	has_children;
+			bool	has_no_entry;
+		};
+	};
+	char			*srcline;
+	char			*srcfile;
+	struct symbol		*parent;
+	struct branch_info	*branch_info;
+	long			time;
+	struct hists		*hists;
+	struct mem_info		*mem_info;
+	struct block_info	*block_info;
+	struct kvm_info		*kvm_info;
+	void			*raw_data;
+	u32			raw_size;
+	int			num_res;
+	struct res_sample	*res_samples;
+	void			*trace_output;
+	struct perf_hpp_list	*hpp_list;
+	struct hist_entry	*parent_he;
+	struct hist_entry_ops	*ops;
+	struct annotated_data_type *mem_type;
+	union {
+		/* this is for hierarchical entry structure */
+		struct {
+			struct rb_root_cached	hroot_in;
+			struct rb_root_cached   hroot_out;
+		};				/* non-leaf entries */
+		struct rb_root	sorted_chain;	/* leaf entry has callchains */
+	};
+	struct callchain_root	callchain[0]; /* must be last member */
+};
+
+static __pure inline bool hist_entry__has_callchains(struct hist_entry *he)
+{
+	return he->callchain_size != 0;
+}
+
+static inline bool hist_entry__has_pairs(struct hist_entry *he)
+{
+	return !list_empty(&he->pairs.node);
+}
+
+static inline struct hist_entry *hist_entry__next_pair(struct hist_entry *he)
+{
+	if (hist_entry__has_pairs(he))
+		return list_entry(he->pairs.node.next, struct hist_entry, pairs.node);
+	return NULL;
+}
+
+static inline void hist_entry__add_pair(struct hist_entry *pair,
+					struct hist_entry *he)
+{
+	list_add_tail(&pair->pairs.node, &he->pairs.head);
+}
 
 struct hist_entry *hists__add_entry(struct hists *hists,
 				    struct addr_location *al,
@@ -186,6 +345,8 @@ int hist_entry__sort_snprintf(struct hist_entry *he, char *bf, size_t size,
 			      struct hists *hists);
 int hist_entry__snprintf_alignment(struct hist_entry *he, struct perf_hpp *hpp,
 				   struct perf_hpp_fmt *fmt, int printed);
+int hist_entry__sym_snprintf(struct hist_entry *he, char *bf, size_t size,
+			     unsigned int width);
 void hist_entry__delete(struct hist_entry *he);
 
 typedef int (*hists__resort_cb_t)(struct hist_entry *he, void *arg);
@@ -214,8 +375,7 @@ void hists__inc_nr_lost_samples(struct hists *hists, u32 lost);
 size_t hists__fprintf(struct hists *hists, bool show_header, int max_rows,
 		      int max_cols, float min_pcnt, FILE *fp,
 		      bool ignore_callchains);
-size_t evlist__fprintf_nr_events(struct evlist *evlist, FILE *fp,
-				 bool skip_empty);
+size_t evlist__fprintf_nr_events(struct evlist *evlist, FILE *fp);
 
 void hists__filter_by_dso(struct hists *hists);
 void hists__filter_by_thread(struct hists *hists);
@@ -237,6 +397,20 @@ void hists__calc_col_len(struct hists *hists, struct hist_entry *he);
 void hists__match(struct hists *leader, struct hists *other);
 int hists__link(struct hists *leader, struct hists *other);
 int hists__unlink(struct hists *hists);
+
+static inline float hist_entry__get_percent_limit(struct hist_entry *he)
+{
+	u64 period = he->stat.period;
+	u64 total_period = hists__total_period(he->hists);
+
+	if (unlikely(total_period == 0))
+		return 0;
+
+	if (symbol_conf.cumulate_callchain)
+		period = he->stat_acc->period;
+
+	return period * 100.0 / total_period;
+}
 
 struct hists_evsel {
 	struct evsel evsel;
@@ -377,6 +551,9 @@ enum {
 	PERF_HPP__OVERHEAD_ACC,
 	PERF_HPP__SAMPLES,
 	PERF_HPP__PERIOD,
+	PERF_HPP__WEIGHT1,
+	PERF_HPP__WEIGHT2,
+	PERF_HPP__WEIGHT3,
 
 	PERF_HPP__MAX_INDEX
 };
@@ -423,16 +600,24 @@ void perf_hpp__reset_sort_width(struct perf_hpp_fmt *fmt, struct hists *hists);
 void perf_hpp__set_user_width(const char *width_list_str);
 void hists__reset_column_width(struct hists *hists);
 
+enum perf_hpp_fmt_type {
+	PERF_HPP_FMT_TYPE__RAW,
+	PERF_HPP_FMT_TYPE__PERCENT,
+	PERF_HPP_FMT_TYPE__AVERAGE,
+};
+
 typedef u64 (*hpp_field_fn)(struct hist_entry *he);
 typedef int (*hpp_callback_fn)(struct perf_hpp *hpp, bool front);
 typedef int (*hpp_snprint_fn)(struct perf_hpp *hpp, const char *fmt, ...);
 
 int hpp__fmt(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
 	     struct hist_entry *he, hpp_field_fn get_field,
-	     const char *fmtstr, hpp_snprint_fn print_fn, bool fmt_percent);
+	     const char *fmtstr, hpp_snprint_fn print_fn,
+	     enum perf_hpp_fmt_type fmtype);
 int hpp__fmt_acc(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
 		 struct hist_entry *he, hpp_field_fn get_field,
-		 const char *fmtstr, hpp_snprint_fn print_fn, bool fmt_percent);
+		 const char *fmtstr, hpp_snprint_fn print_fn,
+		 enum perf_hpp_fmt_type fmtype);
 
 static inline void advance_hpp(struct perf_hpp *hpp, int inc)
 {
@@ -460,15 +645,20 @@ struct hist_browser_timer {
 	int refresh;
 };
 
-struct res_sample;
-
 enum rstype {
 	A_NORMAL,
 	A_ASM,
 	A_SOURCE
 };
 
-struct block_hist;
+struct block_hist {
+	struct hists		block_hists;
+	struct perf_hpp_list	block_list;
+	struct perf_hpp_fmt	block_fmt;
+	int			block_idx;
+	bool			valid;
+	struct hist_entry	he;
+};
 
 #ifdef HAVE_SLANG_SUPPORT
 #include "../ui/keysyms.h"

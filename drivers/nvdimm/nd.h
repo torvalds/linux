@@ -489,7 +489,6 @@ enum nd_async_mode {
 	ND_ASYNC,
 };
 
-int nd_integrity_init(struct gendisk *disk, unsigned long meta_size);
 void wait_nvdimm_bus_probe_idle(struct device *dev);
 void nd_device_register(struct device *dev);
 void nd_device_unregister(struct device *dev, enum nd_async_mode mode);

@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-only
 
-ccflags-y := -I$(srctree)/$(src) -I$(srctree)/$(src)/indexer
+ccflags-y := -I$(src) -I$(src)/indexer
 
 obj-$(CONFIG_DM_VDO) += dm-vdo.o
 

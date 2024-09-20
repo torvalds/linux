@@ -32,16 +32,8 @@ static int nfs_symlink_filler(struct file *file, struct folio *folio)
 	int error;
 
 	error = NFS_PROTO(inode)->readlink(inode, &folio->page, 0, PAGE_SIZE);
-	if (error < 0)
-		goto error;
-	folio_mark_uptodate(folio);
-	folio_unlock(folio);
-	return 0;
-
-error:
-	folio_set_error(folio);
-	folio_unlock(folio);
-	return -EIO;
+	folio_end_read(folio, error == 0);
+	return error;
 }
 
 static const char *nfs_get_link(struct dentry *dentry,

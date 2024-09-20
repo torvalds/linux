@@ -50,7 +50,8 @@ enum xe_uc_fw_status {
 	XE_UC_FIRMWARE_LOADABLE, /* all fw-required objects are ready */
 	XE_UC_FIRMWARE_LOAD_FAIL, /* failed to xfer or init/auth the fw */
 	XE_UC_FIRMWARE_TRANSFERRED, /* dma xfer done */
-	XE_UC_FIRMWARE_RUNNING /* init/auth done */
+	XE_UC_FIRMWARE_RUNNING, /* init/auth done */
+	XE_UC_FIRMWARE_PRELOADED, /* preloaded by the PF driver */
 };
 
 enum xe_uc_fw_type {

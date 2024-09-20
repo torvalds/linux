@@ -18,6 +18,7 @@
 
 #include <asm/page.h>
 #include <asm/rtas.h>
+#include <asm/setup.h>
 #include <asm/fadump.h>
 #include <asm/fadump-internal.h>
 
@@ -29,9 +30,6 @@ static const struct rtas_fadump_mem_struct *fdm_active;
 static void rtas_fadump_update_config(struct fw_dump *fadump_conf,
 				      const struct rtas_fadump_mem_struct *fdm)
 {
-	fadump_conf->boot_mem_dest_addr =
-		be64_to_cpu(fdm->rmr_region.destination_address);
-
 	fadump_conf->fadumphdr_addr = (fadump_conf->boot_mem_dest_addr +
 				       fadump_conf->boot_memory_size);
 }
@@ -43,20 +41,56 @@ static void rtas_fadump_update_config(struct fw_dump *fadump_conf,
 static void __init rtas_fadump_get_config(struct fw_dump *fadump_conf,
 				   const struct rtas_fadump_mem_struct *fdm)
 {
-	fadump_conf->boot_mem_addr[0] =
-		be64_to_cpu(fdm->rmr_region.source_address);
-	fadump_conf->boot_mem_sz[0] = be64_to_cpu(fdm->rmr_region.source_len);
-	fadump_conf->boot_memory_size = fadump_conf->boot_mem_sz[0];
+	unsigned long base, size, last_end, hole_size;
 
-	fadump_conf->boot_mem_top = fadump_conf->boot_memory_size;
-	fadump_conf->boot_mem_regs_cnt = 1;
+	last_end = 0;
+	hole_size = 0;
+	fadump_conf->boot_memory_size = 0;
+	fadump_conf->boot_mem_regs_cnt = 0;
+	pr_debug("Boot memory regions:\n");
+	for (int i = 0; i < be16_to_cpu(fdm->header.dump_num_sections); i++) {
+		int type = be16_to_cpu(fdm->rgn[i].source_data_type);
+		u64 addr;
 
-	/*
-	 * Start address of reserve dump area (permanent reservation) for
-	 * re-registering FADump after dump capture.
-	 */
-	fadump_conf->reserve_dump_area_start =
-		be64_to_cpu(fdm->cpu_state_data.destination_address);
+		switch (type) {
+		case RTAS_FADUMP_CPU_STATE_DATA:
+			addr = be64_to_cpu(fdm->rgn[i].destination_address);
+
+			fadump_conf->cpu_state_dest_vaddr = (u64)__va(addr);
+			/*
+			 * Start address of reserve dump area (permanent reservation) for
+			 * re-registering FADump after dump capture.
+			 */
+			fadump_conf->reserve_dump_area_start = addr;
+			break;
+		case RTAS_FADUMP_HPTE_REGION:
+			/* Not processed currently. */
+			break;
+		case RTAS_FADUMP_REAL_MODE_REGION:
+			base = be64_to_cpu(fdm->rgn[i].source_address);
+			size = be64_to_cpu(fdm->rgn[i].source_len);
+			pr_debug("\t[%03d] base: 0x%lx, size: 0x%lx\n", i, base, size);
+			if (!base) {
+				fadump_conf->boot_mem_dest_addr =
+					be64_to_cpu(fdm->rgn[i].destination_address);
+			}
+
+			fadump_conf->boot_mem_addr[fadump_conf->boot_mem_regs_cnt] = base;
+			fadump_conf->boot_mem_sz[fadump_conf->boot_mem_regs_cnt] = size;
+			fadump_conf->boot_memory_size += size;
+			hole_size += (base - last_end);
+			last_end = base + size;
+			fadump_conf->boot_mem_regs_cnt++;
+			break;
+		case RTAS_FADUMP_PARAM_AREA:
+			fadump_conf->param_area = be64_to_cpu(fdm->rgn[i].destination_address);
+			break;
+		default:
+			pr_warn("Section type %d unsupported on this kernel. Ignoring!\n", type);
+			break;
+		}
+	}
+	fadump_conf->boot_mem_top = fadump_conf->boot_memory_size + hole_size;
 
 	rtas_fadump_update_config(fadump_conf, fdm);
 }
@@ -64,16 +98,15 @@ static void __init rtas_fadump_get_config(struct fw_dump *fadump_conf,
 static u64 rtas_fadump_init_mem_struct(struct fw_dump *fadump_conf)
 {
 	u64 addr = fadump_conf->reserve_dump_area_start;
+	u16 sec_cnt = 0;
 
 	memset(&fdm, 0, sizeof(struct rtas_fadump_mem_struct));
 	addr = addr & PAGE_MASK;
 
 	fdm.header.dump_format_version = cpu_to_be32(0x00000001);
-	fdm.header.dump_num_sections = cpu_to_be16(3);
 	fdm.header.dump_status_flag = 0;
 	fdm.header.offset_first_dump_section =
-		cpu_to_be32((u32)offsetof(struct rtas_fadump_mem_struct,
-					  cpu_state_data));
+		cpu_to_be32((u32)offsetof(struct rtas_fadump_mem_struct, rgn));
 
 	/*
 	 * Fields for disk dump option.
@@ -89,25 +122,22 @@ static u64 rtas_fadump_init_mem_struct(struct fw_dump *fadump_conf)
 
 	/* Kernel dump sections */
 	/* cpu state data section. */
-	fdm.cpu_state_data.request_flag =
-		cpu_to_be32(RTAS_FADUMP_REQUEST_FLAG);
-	fdm.cpu_state_data.source_data_type =
-		cpu_to_be16(RTAS_FADUMP_CPU_STATE_DATA);
-	fdm.cpu_state_data.source_address = 0;
-	fdm.cpu_state_data.source_len =
-		cpu_to_be64(fadump_conf->cpu_state_data_size);
-	fdm.cpu_state_data.destination_address = cpu_to_be64(addr);
+	fdm.rgn[sec_cnt].request_flag = cpu_to_be32(RTAS_FADUMP_REQUEST_FLAG);
+	fdm.rgn[sec_cnt].source_data_type = cpu_to_be16(RTAS_FADUMP_CPU_STATE_DATA);
+	fdm.rgn[sec_cnt].source_address = 0;
+	fdm.rgn[sec_cnt].source_len = cpu_to_be64(fadump_conf->cpu_state_data_size);
+	fdm.rgn[sec_cnt].destination_address = cpu_to_be64(addr);
 	addr += fadump_conf->cpu_state_data_size;
+	sec_cnt++;
 
 	/* hpte region section */
-	fdm.hpte_region.request_flag = cpu_to_be32(RTAS_FADUMP_REQUEST_FLAG);
-	fdm.hpte_region.source_data_type =
-		cpu_to_be16(RTAS_FADUMP_HPTE_REGION);
-	fdm.hpte_region.source_address = 0;
-	fdm.hpte_region.source_len =
-		cpu_to_be64(fadump_conf->hpte_region_size);
-	fdm.hpte_region.destination_address = cpu_to_be64(addr);
+	fdm.rgn[sec_cnt].request_flag = cpu_to_be32(RTAS_FADUMP_REQUEST_FLAG);
+	fdm.rgn[sec_cnt].source_data_type = cpu_to_be16(RTAS_FADUMP_HPTE_REGION);
+	fdm.rgn[sec_cnt].source_address = 0;
+	fdm.rgn[sec_cnt].source_len = cpu_to_be64(fadump_conf->hpte_region_size);
+	fdm.rgn[sec_cnt].destination_address = cpu_to_be64(addr);
 	addr += fadump_conf->hpte_region_size;
+	sec_cnt++;
 
 	/*
 	 * Align boot memory area destination address to page boundary to
@@ -115,14 +145,29 @@ static u64 rtas_fadump_init_mem_struct(struct fw_dump *fadump_conf)
 	 */
 	addr = PAGE_ALIGN(addr);
 
-	/* RMA region section */
-	fdm.rmr_region.request_flag = cpu_to_be32(RTAS_FADUMP_REQUEST_FLAG);
-	fdm.rmr_region.source_data_type =
-		cpu_to_be16(RTAS_FADUMP_REAL_MODE_REGION);
-	fdm.rmr_region.source_address = cpu_to_be64(0);
-	fdm.rmr_region.source_len = cpu_to_be64(fadump_conf->boot_memory_size);
-	fdm.rmr_region.destination_address = cpu_to_be64(addr);
-	addr += fadump_conf->boot_memory_size;
+	/* First boot memory region destination address */
+	fadump_conf->boot_mem_dest_addr = addr;
+	for (int i = 0; i < fadump_conf->boot_mem_regs_cnt; i++) {
+		/* Boot memory regions */
+		fdm.rgn[sec_cnt].request_flag = cpu_to_be32(RTAS_FADUMP_REQUEST_FLAG);
+		fdm.rgn[sec_cnt].source_data_type = cpu_to_be16(RTAS_FADUMP_REAL_MODE_REGION);
+		fdm.rgn[sec_cnt].source_address = cpu_to_be64(fadump_conf->boot_mem_addr[i]);
+		fdm.rgn[sec_cnt].source_len = cpu_to_be64(fadump_conf->boot_mem_sz[i]);
+		fdm.rgn[sec_cnt].destination_address = cpu_to_be64(addr);
+		addr += fadump_conf->boot_mem_sz[i];
+		sec_cnt++;
+	}
+
+	/* Parameters area */
+	if (fadump_conf->param_area) {
+		fdm.rgn[sec_cnt].request_flag = cpu_to_be32(RTAS_FADUMP_REQUEST_FLAG);
+		fdm.rgn[sec_cnt].source_data_type = cpu_to_be16(RTAS_FADUMP_PARAM_AREA);
+		fdm.rgn[sec_cnt].source_address = cpu_to_be64(fadump_conf->param_area);
+		fdm.rgn[sec_cnt].source_len = cpu_to_be64(COMMAND_LINE_SIZE);
+		fdm.rgn[sec_cnt].destination_address = cpu_to_be64(fadump_conf->param_area);
+		sec_cnt++;
+	}
+	fdm.header.dump_num_sections = cpu_to_be16(sec_cnt);
 
 	rtas_fadump_update_config(fadump_conf, &fdm);
 
@@ -136,14 +181,21 @@ static u64 rtas_fadump_get_bootmem_min(void)
 
 static int rtas_fadump_register(struct fw_dump *fadump_conf)
 {
-	unsigned int wait_time;
+	unsigned int wait_time, fdm_size;
 	int rc, err = -EIO;
+
+	/*
+	 * Platform requires the exact size of the Dump Memory Structure.
+	 * Avoid including any unused rgns in the calculation, as this
+	 * could result in a parameter error (-3) from the platform.
+	 */
+	fdm_size = sizeof(struct rtas_fadump_section_header);
+	fdm_size += be16_to_cpu(fdm.header.dump_num_sections) * sizeof(struct rtas_fadump_section);
 
 	/* TODO: Add upper time limit for the delay */
 	do {
 		rc =  rtas_call(fadump_conf->ibm_configure_kernel_dump, 3, 1,
-				NULL, FADUMP_REGISTER, &fdm,
-				sizeof(struct rtas_fadump_mem_struct));
+				NULL, FADUMP_REGISTER, &fdm, fdm_size);
 
 		wait_time = rtas_busy_delay_time(rc);
 		if (wait_time)
@@ -161,9 +213,7 @@ static int rtas_fadump_register(struct fw_dump *fadump_conf)
 		pr_err("Failed to register. Hardware Error(%d).\n", rc);
 		break;
 	case -3:
-		if (!is_fadump_boot_mem_contiguous())
-			pr_err("Can't have holes in boot memory area.\n");
-		else if (!is_fadump_reserved_mem_contiguous())
+		if (!is_fadump_reserved_mem_contiguous())
 			pr_err("Can't have holes in reserved memory area.\n");
 
 		pr_err("Failed to register. Parameter Error(%d).\n", rc);
@@ -316,11 +366,9 @@ static int __init rtas_fadump_build_cpu_notes(struct fw_dump *fadump_conf)
 	u32 num_cpus, *note_buf;
 	int i, rc = 0, cpu = 0;
 	struct pt_regs regs;
-	unsigned long addr;
 	void *vaddr;
 
-	addr = be64_to_cpu(fdm_active->cpu_state_data.destination_address);
-	vaddr = __va(addr);
+	vaddr = (void *)fadump_conf->cpu_state_dest_vaddr;
 
 	reg_header = vaddr;
 	if (be64_to_cpu(reg_header->magic_number) !=
@@ -375,11 +423,8 @@ static int __init rtas_fadump_build_cpu_notes(struct fw_dump *fadump_conf)
 	}
 	final_note(note_buf);
 
-	if (fdh) {
-		pr_debug("Updating elfcore header (%llx) with cpu notes\n",
-			 fdh->elfcorehdr_addr);
-		fadump_update_elfcore_header(__va(fdh->elfcorehdr_addr));
-	}
+	pr_debug("Updating elfcore header (%llx) with cpu notes\n", fadump_conf->elfcorehdr_addr);
+	fadump_update_elfcore_header((char *)fadump_conf->elfcorehdr_addr);
 	return 0;
 
 error_out:
@@ -389,57 +434,66 @@ error_out:
 }
 
 /*
- * Validate and process the dump data stored by firmware before exporting
- * it through '/proc/vmcore'.
+ * Validate and process the dump data stored by the firmware, and update
+ * the CPU notes of elfcorehdr.
  */
 static int __init rtas_fadump_process(struct fw_dump *fadump_conf)
 {
-	struct fadump_crash_info_header *fdh;
-	int rc = 0;
-
 	if (!fdm_active || !fadump_conf->fadumphdr_addr)
 		return -EINVAL;
 
 	/* Check if the dump data is valid. */
-	if ((be16_to_cpu(fdm_active->header.dump_status_flag) ==
-			RTAS_FADUMP_ERROR_FLAG) ||
-			(fdm_active->cpu_state_data.error_flags != 0) ||
-			(fdm_active->rmr_region.error_flags != 0)) {
-		pr_err("Dump taken by platform is not valid\n");
-		return -EINVAL;
+	for (int i = 0; i < be16_to_cpu(fdm_active->header.dump_num_sections); i++) {
+		int type = be16_to_cpu(fdm_active->rgn[i].source_data_type);
+		int rc = 0;
+
+		switch (type) {
+		case RTAS_FADUMP_CPU_STATE_DATA:
+		case RTAS_FADUMP_HPTE_REGION:
+		case RTAS_FADUMP_REAL_MODE_REGION:
+			if (fdm_active->rgn[i].error_flags != 0) {
+				pr_err("Dump taken by platform is not valid (%d)\n", i);
+				rc = -EINVAL;
+			}
+			if (fdm_active->rgn[i].bytes_dumped != fdm_active->rgn[i].source_len) {
+				pr_err("Dump taken by platform is incomplete (%d)\n", i);
+				rc = -EINVAL;
+			}
+			if (rc) {
+				pr_warn("Region type: %u src addr: 0x%llx dest addr: 0x%llx\n",
+					be16_to_cpu(fdm_active->rgn[i].source_data_type),
+					be64_to_cpu(fdm_active->rgn[i].source_address),
+					be64_to_cpu(fdm_active->rgn[i].destination_address));
+				return rc;
+			}
+			break;
+		case RTAS_FADUMP_PARAM_AREA:
+			if (fdm_active->rgn[i].bytes_dumped != fdm_active->rgn[i].source_len ||
+			    fdm_active->rgn[i].error_flags != 0) {
+				pr_warn("Failed to process additional parameters! Proceeding anyway..\n");
+				fadump_conf->param_area = 0;
+			}
+			break;
+		default:
+			/*
+			 * If the first/crashed kernel added a new region type that the
+			 * second/fadump kernel doesn't recognize, skip it and process
+			 * assuming backward compatibility.
+			 */
+			pr_warn("Unknown region found: type: %u src addr: 0x%llx dest addr: 0x%llx\n",
+				be16_to_cpu(fdm_active->rgn[i].source_data_type),
+				be64_to_cpu(fdm_active->rgn[i].source_address),
+				be64_to_cpu(fdm_active->rgn[i].destination_address));
+			break;
+		}
 	}
-	if ((fdm_active->rmr_region.bytes_dumped !=
-			fdm_active->rmr_region.source_len) ||
-			!fdm_active->cpu_state_data.bytes_dumped) {
-		pr_err("Dump taken by platform is incomplete\n");
-		return -EINVAL;
-	}
 
-	/* Validate the fadump crash info header */
-	fdh = __va(fadump_conf->fadumphdr_addr);
-	if (fdh->magic_number != FADUMP_CRASH_INFO_MAGIC) {
-		pr_err("Crash info header is not valid.\n");
-		return -EINVAL;
-	}
-
-	rc = rtas_fadump_build_cpu_notes(fadump_conf);
-	if (rc)
-		return rc;
-
-	/*
-	 * We are done validating dump info and elfcore header is now ready
-	 * to be exported. set elfcorehdr_addr so that vmcore module will
-	 * export the elfcore header through '/proc/vmcore'.
-	 */
-	elfcorehdr_addr = fdh->elfcorehdr_addr;
-
-	return 0;
+	return rtas_fadump_build_cpu_notes(fadump_conf);
 }
 
 static void rtas_fadump_region_show(struct fw_dump *fadump_conf,
 				    struct seq_file *m)
 {
-	const struct rtas_fadump_section *cpu_data_section;
 	const struct rtas_fadump_mem_struct *fdm_ptr;
 
 	if (fdm_active)
@@ -447,27 +501,49 @@ static void rtas_fadump_region_show(struct fw_dump *fadump_conf,
 	else
 		fdm_ptr = &fdm;
 
-	cpu_data_section = &(fdm_ptr->cpu_state_data);
-	seq_printf(m, "CPU :[%#016llx-%#016llx] %#llx bytes, Dumped: %#llx\n",
-		   be64_to_cpu(cpu_data_section->destination_address),
-		   be64_to_cpu(cpu_data_section->destination_address) +
-		   be64_to_cpu(cpu_data_section->source_len) - 1,
-		   be64_to_cpu(cpu_data_section->source_len),
-		   be64_to_cpu(cpu_data_section->bytes_dumped));
 
-	seq_printf(m, "HPTE:[%#016llx-%#016llx] %#llx bytes, Dumped: %#llx\n",
-		   be64_to_cpu(fdm_ptr->hpte_region.destination_address),
-		   be64_to_cpu(fdm_ptr->hpte_region.destination_address) +
-		   be64_to_cpu(fdm_ptr->hpte_region.source_len) - 1,
-		   be64_to_cpu(fdm_ptr->hpte_region.source_len),
-		   be64_to_cpu(fdm_ptr->hpte_region.bytes_dumped));
+	for (int i = 0; i < be16_to_cpu(fdm_ptr->header.dump_num_sections); i++) {
+		int type = be16_to_cpu(fdm_ptr->rgn[i].source_data_type);
 
-	seq_printf(m, "DUMP: Src: %#016llx, Dest: %#016llx, ",
-		   be64_to_cpu(fdm_ptr->rmr_region.source_address),
-		   be64_to_cpu(fdm_ptr->rmr_region.destination_address));
-	seq_printf(m, "Size: %#llx, Dumped: %#llx bytes\n",
-		   be64_to_cpu(fdm_ptr->rmr_region.source_len),
-		   be64_to_cpu(fdm_ptr->rmr_region.bytes_dumped));
+		switch (type) {
+		case RTAS_FADUMP_CPU_STATE_DATA:
+			seq_printf(m, "CPU :[%#016llx-%#016llx] %#llx bytes, Dumped: %#llx\n",
+				   be64_to_cpu(fdm_ptr->rgn[i].destination_address),
+				   be64_to_cpu(fdm_ptr->rgn[i].destination_address) +
+				   be64_to_cpu(fdm_ptr->rgn[i].source_len) - 1,
+				   be64_to_cpu(fdm_ptr->rgn[i].source_len),
+				   be64_to_cpu(fdm_ptr->rgn[i].bytes_dumped));
+			break;
+		case RTAS_FADUMP_HPTE_REGION:
+			seq_printf(m, "HPTE:[%#016llx-%#016llx] %#llx bytes, Dumped: %#llx\n",
+				   be64_to_cpu(fdm_ptr->rgn[i].destination_address),
+				   be64_to_cpu(fdm_ptr->rgn[i].destination_address) +
+				   be64_to_cpu(fdm_ptr->rgn[i].source_len) - 1,
+				   be64_to_cpu(fdm_ptr->rgn[i].source_len),
+				   be64_to_cpu(fdm_ptr->rgn[i].bytes_dumped));
+			break;
+		case RTAS_FADUMP_REAL_MODE_REGION:
+			seq_printf(m, "DUMP: Src: %#016llx, Dest: %#016llx, ",
+				   be64_to_cpu(fdm_ptr->rgn[i].source_address),
+				   be64_to_cpu(fdm_ptr->rgn[i].destination_address));
+			seq_printf(m, "Size: %#llx, Dumped: %#llx bytes\n",
+				   be64_to_cpu(fdm_ptr->rgn[i].source_len),
+				   be64_to_cpu(fdm_ptr->rgn[i].bytes_dumped));
+			break;
+		case RTAS_FADUMP_PARAM_AREA:
+			seq_printf(m, "\n[%#016llx-%#016llx]: cmdline append: '%s'\n",
+				   be64_to_cpu(fdm_ptr->rgn[i].destination_address),
+				   be64_to_cpu(fdm_ptr->rgn[i].destination_address) +
+				   be64_to_cpu(fdm_ptr->rgn[i].source_len) - 1,
+				   (char *)__va(be64_to_cpu(fdm_ptr->rgn[i].destination_address)));
+			break;
+		default:
+			seq_printf(m, "Unknown region type %d : Src: %#016llx, Dest: %#016llx, ",
+				   type, be64_to_cpu(fdm_ptr->rgn[i].source_address),
+				   be64_to_cpu(fdm_ptr->rgn[i].destination_address));
+			break;
+		}
+	}
 
 	/* Dump is active. Show preserved area start address. */
 	if (fdm_active) {
@@ -483,6 +559,20 @@ static void rtas_fadump_trigger(struct fadump_crash_info_header *fdh,
 	rtas_os_term((char *)msg);
 }
 
+/* FADUMP_MAX_MEM_REGS or lower */
+static int rtas_fadump_max_boot_mem_rgns(void)
+{
+	/*
+	 * Version 1 of Kernel Assisted Dump Memory Structure (PAPR) supports 10 sections.
+	 * With one each section taken for CPU state data & HPTE respectively, 8 sections
+	 * can be used for boot memory regions.
+	 *
+	 * If new region(s) is(are) defined, maximum boot memory regions will decrease
+	 * proportionally.
+	 */
+	return RTAS_FADUMP_MAX_BOOT_MEM_REGS;
+}
+
 static struct fadump_ops rtas_fadump_ops = {
 	.fadump_init_mem_struct		= rtas_fadump_init_mem_struct,
 	.fadump_get_bootmem_min		= rtas_fadump_get_bootmem_min,
@@ -492,6 +582,7 @@ static struct fadump_ops rtas_fadump_ops = {
 	.fadump_process			= rtas_fadump_process,
 	.fadump_region_show		= rtas_fadump_region_show,
 	.fadump_trigger			= rtas_fadump_trigger,
+	.fadump_max_boot_mem_rgns	= rtas_fadump_max_boot_mem_rgns,
 };
 
 void __init rtas_fadump_dt_scan(struct fw_dump *fadump_conf, u64 node)
@@ -508,9 +599,10 @@ void __init rtas_fadump_dt_scan(struct fw_dump *fadump_conf, u64 node)
 	if (!token)
 		return;
 
-	fadump_conf->ibm_configure_kernel_dump = be32_to_cpu(*token);
-	fadump_conf->ops		= &rtas_fadump_ops;
-	fadump_conf->fadump_supported	= 1;
+	fadump_conf->ibm_configure_kernel_dump	= be32_to_cpu(*token);
+	fadump_conf->ops			= &rtas_fadump_ops;
+	fadump_conf->fadump_supported		= 1;
+	fadump_conf->param_area_supported	= 1;
 
 	/* Firmware supports 64-bit value for size, align it to pagesize. */
 	fadump_conf->max_copy_size = ALIGN_DOWN(U64_MAX, PAGE_SIZE);

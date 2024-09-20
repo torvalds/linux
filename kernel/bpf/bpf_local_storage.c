@@ -318,7 +318,7 @@ static bool check_storage_bpf_ma(struct bpf_local_storage *local_storage,
 	 *
 	 * If the local_storage->list is already empty, the caller will not
 	 * care about the bpf_ma value also because the caller is not
-	 * responsibile to free the local_storage.
+	 * responsible to free the local_storage.
 	 */
 
 	if (storage_smap)
@@ -782,8 +782,8 @@ bpf_local_storage_map_alloc(union bpf_attr *attr,
 	nbuckets = max_t(u32, 2, nbuckets);
 	smap->bucket_log = ilog2(nbuckets);
 
-	smap->buckets = bpf_map_kvcalloc(&smap->map, sizeof(*smap->buckets),
-					 nbuckets, GFP_USER | __GFP_NOWARN);
+	smap->buckets = bpf_map_kvcalloc(&smap->map, nbuckets,
+					 sizeof(*smap->buckets), GFP_USER | __GFP_NOWARN);
 	if (!smap->buckets) {
 		err = -ENOMEM;
 		goto free_smap;

@@ -9,5 +9,6 @@
 
 / {
 	model = "Google kenzo sku17 board";
+	chassis-type = "laptop";
 	compatible = "google,juniper-sku17", "google,juniper", "mediatek,mt8183";
 };

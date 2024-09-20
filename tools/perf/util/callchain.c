@@ -606,7 +606,7 @@ fill_node(struct callchain_node *node, struct callchain_cursor *cursor)
 					call->brtype_stat = zalloc(sizeof(*call->brtype_stat));
 					if (!call->brtype_stat) {
 						perror("not enough memory for the code path branch statistics");
-						free(call->brtype_stat);
+						zfree(&call->brtype_stat);
 						return -ENOMEM;
 					}
 				}
@@ -1141,7 +1141,7 @@ int hist_entry__append_callchain(struct hist_entry *he, struct perf_sample *samp
 int fill_callchain_info(struct addr_location *al, struct callchain_cursor_node *node,
 			bool hide_unresolved)
 {
-	struct machine *machine = maps__machine(node->ms.maps);
+	struct machine *machine = node->ms.maps ? maps__machine(node->ms.maps) : NULL;
 
 	maps__put(al->maps);
 	al->maps = maps__get(node->ms.maps);
@@ -1205,7 +1205,7 @@ char *callchain_list__sym_name(struct callchain_list *cl,
 	if (show_dso)
 		scnprintf(bf + printed, bfsize - printed, " %s",
 			  cl->ms.map ?
-			  map__dso(cl->ms.map)->short_name :
+			  dso__short_name(map__dso(cl->ms.map)) :
 			  "unknown");
 
 	return bf;

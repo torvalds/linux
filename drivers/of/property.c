@@ -40,15 +40,12 @@
  */
 bool of_graph_is_present(const struct device_node *node)
 {
-	struct device_node *ports, *port;
+	struct device_node *ports __free(device_node) = of_get_child_by_name(node, "ports");
 
-	ports = of_get_child_by_name(node, "ports");
 	if (ports)
 		node = ports;
 
-	port = of_get_child_by_name(node, "port");
-	of_node_put(ports);
-	of_node_put(port);
+	struct device_node *port __free(device_node) = of_get_child_by_name(node, "port");
 
 	return !!port;
 }
@@ -579,7 +576,8 @@ EXPORT_SYMBOL_GPL(of_prop_next_string);
 int of_graph_parse_endpoint(const struct device_node *node,
 			    struct of_endpoint *endpoint)
 {
-	struct device_node *port_node = of_get_parent(node);
+	struct device_node *port_node __free(device_node) =
+			    of_get_parent(node);
 
 	WARN_ONCE(!port_node, "%s(): endpoint %pOF has no parent node\n",
 		  __func__, node);
@@ -593,8 +591,6 @@ int of_graph_parse_endpoint(const struct device_node *node,
 	 */
 	of_property_read_u32(port_node, "reg", &endpoint->port);
 	of_property_read_u32(node, "reg", &endpoint->id);
-
-	of_node_put(port_node);
 
 	return 0;
 }
@@ -610,25 +606,22 @@ EXPORT_SYMBOL(of_graph_parse_endpoint);
  */
 struct device_node *of_graph_get_port_by_id(struct device_node *parent, u32 id)
 {
-	struct device_node *node, *port;
+	struct device_node *node __free(device_node) = of_get_child_by_name(parent, "ports");
 
-	node = of_get_child_by_name(parent, "ports");
 	if (node)
 		parent = node;
 
-	for_each_child_of_node(parent, port) {
+	for_each_child_of_node_scoped(parent, port) {
 		u32 port_id = 0;
 
 		if (!of_node_name_eq(port, "port"))
 			continue;
 		of_property_read_u32(port, "reg", &port_id);
 		if (id == port_id)
-			break;
+			return_ptr(port);
 	}
 
-	of_node_put(node);
-
-	return port;
+	return NULL;
 }
 EXPORT_SYMBOL(of_graph_get_port_by_id);
 
@@ -655,15 +648,13 @@ struct device_node *of_graph_get_next_endpoint(const struct device_node *parent,
 	 * parent port node.
 	 */
 	if (!prev) {
-		struct device_node *node;
+		struct device_node *node __free(device_node) =
+			of_get_child_by_name(parent, "ports");
 
-		node = of_get_child_by_name(parent, "ports");
 		if (node)
 			parent = node;
 
 		port = of_get_child_by_name(parent, "port");
-		of_node_put(node);
-
 		if (!port) {
 			pr_debug("graph: no port node found in %pOF\n", parent);
 			return NULL;
@@ -1052,14 +1043,12 @@ static int of_fwnode_graph_parse_endpoint(const struct fwnode_handle *fwnode,
 					  struct fwnode_endpoint *endpoint)
 {
 	const struct device_node *node = to_of_node(fwnode);
-	struct device_node *port_node = of_get_parent(node);
+	struct device_node *port_node __free(device_node) = of_get_parent(node);
 
 	endpoint->local_fwnode = fwnode;
 
 	of_property_read_u32(port_node, "reg", &endpoint->port);
 	of_property_read_u32(node, "reg", &endpoint->id);
-
-	of_node_put(port_node);
 
 	return 0;
 }
@@ -1252,6 +1241,9 @@ DEFINE_SIMPLE_PROP(backlight, "backlight", NULL)
 DEFINE_SIMPLE_PROP(panel, "panel", NULL)
 DEFINE_SIMPLE_PROP(msi_parent, "msi-parent", "#msi-cells")
 DEFINE_SIMPLE_PROP(post_init_providers, "post-init-providers", NULL)
+DEFINE_SIMPLE_PROP(access_controllers, "access-controllers", "#access-controller-cells")
+DEFINE_SIMPLE_PROP(pses, "pses", "#pse-cells")
+DEFINE_SIMPLE_PROP(power_supplies, "power-supplies", NULL)
 DEFINE_SUFFIX_PROP(regulators, "-supply", NULL)
 DEFINE_SUFFIX_PROP(gpio, "-gpio", "#gpio-cells")
 
@@ -1311,6 +1303,47 @@ static struct device_node *parse_interrupts(struct device_node *np,
 	return of_irq_parse_one(np, index, &sup_args) ? NULL : sup_args.np;
 }
 
+static struct device_node *parse_interrupt_map(struct device_node *np,
+					       const char *prop_name, int index)
+{
+	const __be32 *imap, *imap_end;
+	struct of_phandle_args sup_args;
+	u32 addrcells, intcells;
+	int imaplen;
+
+	if (!IS_ENABLED(CONFIG_OF_IRQ))
+		return NULL;
+
+	if (strcmp(prop_name, "interrupt-map"))
+		return NULL;
+
+	if (of_property_read_u32(np, "#interrupt-cells", &intcells))
+		return NULL;
+	addrcells = of_bus_n_addr_cells(np);
+
+	imap = of_get_property(np, "interrupt-map", &imaplen);
+	imaplen /= sizeof(*imap);
+	if (!imap)
+		return NULL;
+
+	imap_end = imap + imaplen;
+
+	for (int i = 0; imap + addrcells + intcells + 1 < imap_end; i++) {
+		imap += addrcells + intcells;
+
+		imap = of_irq_parse_imap_parent(imap, imap_end - imap, &sup_args);
+		if (!imap)
+			return NULL;
+
+		if (i == index)
+			return sup_args.np;
+
+		of_node_put(sup_args.np);
+	}
+
+	return NULL;
+}
+
 static struct device_node *parse_remote_endpoint(struct device_node *np,
 						 const char *prop_name,
 						 int index)
@@ -1357,8 +1390,12 @@ static const struct supplier_bindings of_supplier_bindings[] = {
 	{ .parse_prop = parse_backlight, },
 	{ .parse_prop = parse_panel, },
 	{ .parse_prop = parse_msi_parent, },
+	{ .parse_prop = parse_pses, },
+	{ .parse_prop = parse_power_supplies, },
 	{ .parse_prop = parse_gpio_compat, },
 	{ .parse_prop = parse_interrupts, },
+	{ .parse_prop = parse_interrupt_map, },
+	{ .parse_prop = parse_access_controllers, },
 	{ .parse_prop = parse_regulators, },
 	{ .parse_prop = parse_gpio, },
 	{ .parse_prop = parse_gpios, },

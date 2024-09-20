@@ -37,7 +37,7 @@ struct tcp_transport {
 	unsigned int			nr_iov;
 };
 
-static struct ksmbd_transport_ops ksmbd_tcp_transport_ops;
+static const struct ksmbd_transport_ops ksmbd_tcp_transport_ops;
 
 static void tcp_stop_kthread(struct task_struct *kthread);
 static struct interface *alloc_iface(char *ifname);
@@ -649,7 +649,7 @@ int ksmbd_tcp_set_interfaces(char *ifc_list, int ifc_list_sz)
 	return 0;
 }
 
-static struct ksmbd_transport_ops ksmbd_tcp_transport_ops = {
+static const struct ksmbd_transport_ops ksmbd_tcp_transport_ops = {
 	.read		= ksmbd_tcp_read,
 	.writev		= ksmbd_tcp_writev,
 	.disconnect	= ksmbd_tcp_disconnect,

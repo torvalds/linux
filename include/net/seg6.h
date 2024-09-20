@@ -52,10 +52,17 @@ static inline struct seg6_pernet_data *seg6_pernet(struct net *net)
 
 extern int seg6_init(void);
 extern void seg6_exit(void);
+#ifdef CONFIG_IPV6_SEG6_LWTUNNEL
 extern int seg6_iptunnel_init(void);
 extern void seg6_iptunnel_exit(void);
 extern int seg6_local_init(void);
 extern void seg6_local_exit(void);
+#else
+static inline int seg6_iptunnel_init(void) { return 0; }
+static inline void seg6_iptunnel_exit(void) {}
+static inline int seg6_local_init(void) { return 0; }
+static inline void seg6_local_exit(void) {}
+#endif
 
 extern bool seg6_validate_srh(struct ipv6_sr_hdr *srh, int len, bool reduced);
 extern struct ipv6_sr_hdr *seg6_get_srh(struct sk_buff *skb, int flags);

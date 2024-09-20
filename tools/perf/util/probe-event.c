@@ -11,6 +11,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <libgen.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -158,8 +159,8 @@ static int kernel_get_module_map_cb(struct map *map, void *data)
 {
 	struct kernel_get_module_map_cb_args *args = data;
 	struct dso *dso = map__dso(map);
-	const char *short_name = dso->short_name; /* short_name is "[module]" */
-	u16 short_name_len =  dso->short_name_len;
+	const char *short_name = dso__short_name(dso);
+	u16 short_name_len =  dso__short_name_len(dso);
 
 	if (strncmp(short_name + 1, args->module, short_name_len - 2) == 0 &&
 	    args->module[short_name_len - 2] == '\0') {
@@ -201,10 +202,9 @@ struct map *get_target_map(const char *target, struct nsinfo *nsi, bool user)
 		map = dso__new_map(target);
 		dso = map ? map__dso(map) : NULL;
 		if (dso) {
-			mutex_lock(&dso->lock);
-			nsinfo__put(dso->nsinfo);
-			dso->nsinfo = nsinfo__get(nsi);
-			mutex_unlock(&dso->lock);
+			mutex_lock(dso__lock(dso));
+			dso__set_nsinfo(dso, nsinfo__get(nsi));
+			mutex_unlock(dso__lock(dso));
 		}
 		return map;
 	} else {
@@ -235,7 +235,7 @@ static int convert_exec_to_group(const char *exec, char **result)
 		}
 	}
 
-	ret = e_snprintf(buf, 64, "%s_%s", PERFPROBE_GROUP, ptr1);
+	ret = e_snprintf(buf, sizeof(buf), "%s_%s", PERFPROBE_GROUP, ptr1);
 	if (ret < 0)
 		goto out;
 
@@ -367,11 +367,11 @@ static int kernel_get_module_dso(const char *module, struct dso **pdso)
 
 	map = machine__kernel_map(host_machine);
 	dso = map__dso(map);
-	if (!dso->has_build_id)
+	if (!dso__has_build_id(dso))
 		dso__read_running_kernel_build_id(dso, host_machine);
 
 	vmlinux_name = symbol_conf.vmlinux_name;
-	dso->load_errno = 0;
+	*dso__load_errno(dso) = 0;
 	if (vmlinux_name)
 		ret = dso__load_vmlinux(dso, map, vmlinux_name, false);
 	else
@@ -498,7 +498,7 @@ static struct debuginfo *open_from_debuginfod(struct dso *dso, struct nsinfo *ns
 	if (!c)
 		return NULL;
 
-	build_id__sprintf(&dso->bid, sbuild_id);
+	build_id__sprintf(dso__bid(dso), sbuild_id);
 	fd = debuginfod_find_debuginfo(c, (const unsigned char *)sbuild_id,
 					0, &path);
 	if (fd >= 0)
@@ -541,7 +541,7 @@ static struct debuginfo *open_debuginfo(const char *module, struct nsinfo *nsi,
 	if (!module || !strchr(module, '/')) {
 		err = kernel_get_module_dso(module, &dso);
 		if (err < 0) {
-			if (!dso || dso->load_errno == 0) {
+			if (!dso || *dso__load_errno(dso) == 0) {
 				if (!str_error_r(-err, reason, STRERR_BUFSIZE))
 					strcpy(reason, "(unknown)");
 			} else
@@ -558,7 +558,7 @@ static struct debuginfo *open_debuginfo(const char *module, struct nsinfo *nsi,
 			}
 			return NULL;
 		}
-		path = dso->long_name;
+		path = dso__long_name(dso);
 	}
 	nsinfo__mountns_enter(nsi, &nsc);
 	ret = debuginfo__new(path);
@@ -2757,7 +2757,7 @@ static int get_new_event_name(char *buf, size_t len, const char *base,
 	/* Try no suffix number */
 	ret = e_snprintf(buf, len, "%s%s", nbase, ret_event ? "__return" : "");
 	if (ret < 0) {
-		pr_debug("snprintf() failed: %d\n", ret);
+		pr_warning("snprintf() failed: %d; the event name nbase='%s' is too long\n", ret, nbase);
 		goto out;
 	}
 	if (!strlist__has_entry(namelist, buf))
@@ -2866,7 +2866,7 @@ static int probe_trace_event__set_name(struct probe_trace_event *tev,
 		group = PERFPROBE_GROUP;
 
 	/* Get an unused new event name */
-	ret = get_new_event_name(buf, 64, event, namelist,
+	ret = get_new_event_name(buf, sizeof(buf), event, namelist,
 				 tev->point.retprobe, allow_suffix);
 	if (ret < 0)
 		return ret;
@@ -3794,8 +3794,8 @@ int show_available_funcs(const char *target, struct nsinfo *nsi,
 	/* Show all (filtered) symbols */
 	setup_pager();
 
-	for (size_t i = 0; i < dso->symbol_names_len; i++) {
-		struct symbol *pos = dso->symbol_names[i];
+	for (size_t i = 0; i < dso__symbol_names_len(dso); i++) {
+		struct symbol *pos = dso__symbol_names(dso)[i];
 
 		if (strfilter__compare(_filter, pos->name))
 			printf("%s\n", pos->name);

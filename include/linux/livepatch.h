@@ -18,9 +18,9 @@
 #if IS_ENABLED(CONFIG_LIVEPATCH)
 
 /* task patch states */
-#define KLP_UNDEFINED	-1
-#define KLP_UNPATCHED	 0
-#define KLP_PATCHED	 1
+#define KLP_TRANSITION_IDLE		-1
+#define KLP_TRANSITION_UNPATCHED	 0
+#define KLP_TRANSITION_PATCHED		 1
 
 /**
  * struct klp_func - function structure for live patching

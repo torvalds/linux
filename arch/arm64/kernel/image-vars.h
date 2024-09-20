@@ -105,11 +105,6 @@ KVM_NVHE_ALIAS(__hyp_stub_vectors);
 KVM_NVHE_ALIAS(vgic_v2_cpuif_trap);
 KVM_NVHE_ALIAS(vgic_v3_cpuif_trap);
 
-#ifdef CONFIG_ARM64_PSEUDO_NMI
-/* Static key checked in GIC_PRIO_IRQOFF. */
-KVM_NVHE_ALIAS(gic_nonsecure_priorities);
-#endif
-
 /* EL2 exception handling */
 KVM_NVHE_ALIAS(__start___kvm_ex_table);
 KVM_NVHE_ALIAS(__stop___kvm_ex_table);

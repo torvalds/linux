@@ -23,6 +23,79 @@
 /* Register addresses are offset when sent over SoundWire */
 #define CS35L56_SDW_ADDR_OFFSET		0x8000
 
+/* Cirrus bus bridge registers */
+#define CS35L56_SDW_MEM_ACCESS_STATUS	0xd0
+#define CS35L56_SDW_MEM_READ_DATA	0xd8
+
+#define CS35L56_SDW_LAST_LATE		BIT(3)
+#define CS35L56_SDW_CMD_IN_PROGRESS	BIT(2)
+#define CS35L56_SDW_RDATA_RDY		BIT(0)
+
+#define CS35L56_LATE_READ_POLL_US	10
+#define CS35L56_LATE_READ_TIMEOUT_US	1000
+
+static int cs35l56_sdw_poll_mem_status(struct sdw_slave *peripheral,
+				       unsigned int mask,
+				       unsigned int match)
+{
+	int ret, val;
+
+	ret = read_poll_timeout(sdw_read_no_pm, val,
+				(val < 0) || ((val & mask) == match),
+				CS35L56_LATE_READ_POLL_US, CS35L56_LATE_READ_TIMEOUT_US,
+				false, peripheral, CS35L56_SDW_MEM_ACCESS_STATUS);
+	if (ret < 0)
+		return ret;
+
+	if (val < 0)
+		return val;
+
+	return 0;
+}
+
+static int cs35l56_sdw_slow_read(struct sdw_slave *peripheral, unsigned int reg,
+				 u8 *buf, size_t val_size)
+{
+	int ret, i;
+
+	reg += CS35L56_SDW_ADDR_OFFSET;
+
+	for (i = 0; i < val_size; i += sizeof(u32)) {
+		/* Poll for bus bridge idle */
+		ret = cs35l56_sdw_poll_mem_status(peripheral,
+						  CS35L56_SDW_CMD_IN_PROGRESS,
+						  0);
+		if (ret < 0) {
+			dev_err(&peripheral->dev, "!CMD_IN_PROGRESS fail: %d\n", ret);
+			return ret;
+		}
+
+		/* Reading LSByte triggers read of register to holding buffer */
+		sdw_read_no_pm(peripheral, reg + i);
+
+		/* Wait for data available */
+		ret = cs35l56_sdw_poll_mem_status(peripheral,
+						  CS35L56_SDW_RDATA_RDY,
+						  CS35L56_SDW_RDATA_RDY);
+		if (ret < 0) {
+			dev_err(&peripheral->dev, "RDATA_RDY fail: %d\n", ret);
+			return ret;
+		}
+
+		/* Read data from buffer */
+		ret = sdw_nread_no_pm(peripheral, CS35L56_SDW_MEM_READ_DATA,
+				      sizeof(u32), &buf[i]);
+		if (ret) {
+			dev_err(&peripheral->dev, "Late read @%#x failed: %d\n", reg + i, ret);
+			return ret;
+		}
+
+		swab32s((u32 *)&buf[i]);
+	}
+
+	return 0;
+}
+
 static int cs35l56_sdw_read_one(struct sdw_slave *peripheral, unsigned int reg, void *buf)
 {
 	int ret;
@@ -48,6 +121,10 @@ static int cs35l56_sdw_read(void *context, const void *reg_buf,
 	int ret;
 
 	reg = le32_to_cpu(*(const __le32 *)reg_buf);
+
+	if (cs35l56_is_otp_register(reg))
+		return cs35l56_sdw_slow_read(peripheral, reg, buf8, val_size);
+
 	reg += CS35L56_SDW_ADDR_OFFSET;
 
 	if (val_size == 4)
@@ -271,7 +348,6 @@ static int cs35l56_sdw_read_prop(struct sdw_slave *peripheral)
 	prop->source_ports = BIT(CS35L56_SDW1_CAPTURE_PORT);
 	prop->sink_ports = BIT(CS35L56_SDW1_PLAYBACK_PORT);
 	prop->paging_support = true;
-	prop->clk_stop_mode1 = false;
 	prop->quirks = SDW_SLAVE_QUIRKS_INVALID_INITIAL_PARITY;
 	prop->scp_int1_mask = SDW_SCP_INT1_BUS_CLASH | SDW_SCP_INT1_PARITY | SDW_SCP_INT1_IMPL_DEF;
 
@@ -317,79 +393,6 @@ static int cs35l56_sdw_update_status(struct sdw_slave *peripheral,
 	return 0;
 }
 
-static int cs35l56_a1_kick_divider(struct cs35l56_private *cs35l56,
-				   struct sdw_slave *peripheral)
-{
-	unsigned int curr_scale_reg, next_scale_reg;
-	int curr_scale, next_scale, ret;
-
-	if (!cs35l56->base.init_done)
-		return 0;
-
-	if (peripheral->bus->params.curr_bank) {
-		curr_scale_reg = SDW_SCP_BUSCLOCK_SCALE_B1;
-		next_scale_reg = SDW_SCP_BUSCLOCK_SCALE_B0;
-	} else {
-		curr_scale_reg = SDW_SCP_BUSCLOCK_SCALE_B0;
-		next_scale_reg = SDW_SCP_BUSCLOCK_SCALE_B1;
-	}
-
-	/*
-	 * Current clock scale value must be different to new value.
-	 * Modify current to guarantee this. If next still has the dummy
-	 * value we wrote when it was current, the core code has not set
-	 * a new scale so restore its original good value
-	 */
-	curr_scale = sdw_read_no_pm(peripheral, curr_scale_reg);
-	if (curr_scale < 0) {
-		dev_err(cs35l56->base.dev, "Failed to read current clock scale: %d\n", curr_scale);
-		return curr_scale;
-	}
-
-	next_scale = sdw_read_no_pm(peripheral, next_scale_reg);
-	if (next_scale < 0) {
-		dev_err(cs35l56->base.dev, "Failed to read next clock scale: %d\n", next_scale);
-		return next_scale;
-	}
-
-	if (next_scale == CS35L56_SDW_INVALID_BUS_SCALE) {
-		next_scale = cs35l56->old_sdw_clock_scale;
-		ret = sdw_write_no_pm(peripheral, next_scale_reg, next_scale);
-		if (ret < 0) {
-			dev_err(cs35l56->base.dev, "Failed to modify current clock scale: %d\n",
-				ret);
-			return ret;
-		}
-	}
-
-	cs35l56->old_sdw_clock_scale = curr_scale;
-	ret = sdw_write_no_pm(peripheral, curr_scale_reg, CS35L56_SDW_INVALID_BUS_SCALE);
-	if (ret < 0) {
-		dev_err(cs35l56->base.dev, "Failed to modify current clock scale: %d\n", ret);
-		return ret;
-	}
-
-	dev_dbg(cs35l56->base.dev, "Next bus scale: %#x\n", next_scale);
-
-	return 0;
-}
-
-static int cs35l56_sdw_bus_config(struct sdw_slave *peripheral,
-				  struct sdw_bus_params *params)
-{
-	struct cs35l56_private *cs35l56 = dev_get_drvdata(&peripheral->dev);
-	int sclk;
-
-	sclk = params->curr_dr_freq / 2;
-	dev_dbg(cs35l56->base.dev, "%s: sclk=%u c=%u r=%u\n",
-		__func__, sclk, params->col, params->row);
-
-	if ((cs35l56->base.type == 0x56) && (cs35l56->base.rev < 0xb0))
-		return cs35l56_a1_kick_divider(cs35l56, peripheral);
-
-	return 0;
-}
-
 static int __maybe_unused cs35l56_sdw_clk_stop(struct sdw_slave *peripheral,
 					       enum sdw_clk_stop_mode mode,
 					       enum sdw_clk_stop_type type)
@@ -405,7 +408,6 @@ static const struct sdw_slave_ops cs35l56_sdw_ops = {
 	.read_prop = cs35l56_sdw_read_prop,
 	.interrupt_callback = cs35l56_sdw_interrupt,
 	.update_status = cs35l56_sdw_update_status,
-	.bus_config = cs35l56_sdw_bus_config,
 #ifdef DEBUG
 	.clk_stop = cs35l56_sdw_clk_stop,
 #endif

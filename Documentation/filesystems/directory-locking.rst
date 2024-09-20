@@ -44,7 +44,7 @@ For our purposes all operations fall in 6 classes:
 	* decide which of the source and target need to be locked.
 	  The source needs to be locked if it's a non-directory, target - if it's
 	  a non-directory or about to be removed.
-	* take the locks that need to be taken (exlusive), in inode pointer order
+	* take the locks that need to be taken (exclusive), in inode pointer order
 	  if need to take both (that can happen only when both source and target
 	  are non-directories - the source because it wouldn't need to be locked
 	  otherwise and the target because mixing directory and non-directory is
@@ -234,7 +234,7 @@ among the children, in some order.  But that is also impossible, since
 neither of the children is a descendent of another.
 
 That concludes the proof, since the set of operations with the
-properties requiered for a minimal deadlock can not exist.
+properties required for a minimal deadlock can not exist.
 
 Note that the check for having a common ancestor in cross-directory
 rename is crucial - without it a deadlock would be possible.  Indeed,

@@ -13,8 +13,10 @@
 #include <uapi/linux/io_uring.h>
 
 #include "io_uring.h"
+#include "alloc_cache.h"
 #include "openclose.h"
 #include "rsrc.h"
+#include "memmap.h"
 
 struct io_rsrc_update {
 	struct file			*file;
@@ -83,31 +85,6 @@ static int io_account_mem(struct io_ring_ctx *ctx, unsigned long nr_pages)
 	return 0;
 }
 
-static int io_copy_iov(struct io_ring_ctx *ctx, struct iovec *dst,
-		       void __user *arg, unsigned index)
-{
-	struct iovec __user *src;
-
-#ifdef CONFIG_COMPAT
-	if (ctx->compat) {
-		struct compat_iovec __user *ciovs;
-		struct compat_iovec ciov;
-
-		ciovs = (struct compat_iovec __user *) arg;
-		if (copy_from_user(&ciov, &ciovs[index], sizeof(ciov)))
-			return -EFAULT;
-
-		dst->iov_base = u64_to_user_ptr((u64)ciov.iov_base);
-		dst->iov_len = ciov.iov_len;
-		return 0;
-	}
-#endif
-	src = (struct iovec __user *) arg;
-	if (copy_from_user(dst, &src[index], sizeof(*dst)))
-		return -EFAULT;
-	return 0;
-}
-
 static int io_buffer_validate(struct iovec *iov)
 {
 	unsigned long tmp, acct_len = iov->iov_len + (PAGE_SIZE - 1);
@@ -169,7 +146,7 @@ static void io_rsrc_put_work(struct io_rsrc_node *node)
 
 void io_rsrc_node_destroy(struct io_ring_ctx *ctx, struct io_rsrc_node *node)
 {
-	if (!io_alloc_cache_put(&ctx->rsrc_node_cache, &node->cache))
+	if (!io_alloc_cache_put(&ctx->rsrc_node_cache, node))
 		kfree(node);
 }
 
@@ -197,12 +174,9 @@ void io_rsrc_node_ref_zero(struct io_rsrc_node *node)
 struct io_rsrc_node *io_rsrc_node_alloc(struct io_ring_ctx *ctx)
 {
 	struct io_rsrc_node *ref_node;
-	struct io_cache_entry *entry;
 
-	entry = io_alloc_cache_get(&ctx->rsrc_node_cache);
-	if (entry) {
-		ref_node = container_of(entry, struct io_rsrc_node, cache);
-	} else {
+	ref_node = io_alloc_cache_get(&ctx->rsrc_node_cache);
+	if (!ref_node) {
 		ref_node = kzalloc(sizeof(*ref_node), GFP_KERNEL);
 		if (!ref_node)
 			return NULL;
@@ -250,6 +224,7 @@ __cold static int io_rsrc_ref_quiesce(struct io_rsrc_data *data,
 
 		ret = io_run_task_work_sig(ctx);
 		if (ret < 0) {
+			finish_wait(&ctx->rsrc_quiesce_wq, &we);
 			mutex_lock(&ctx->uring_lock);
 			if (list_empty(&ctx->rsrc_ref_list))
 				ret = 0;
@@ -257,7 +232,6 @@ __cold static int io_rsrc_ref_quiesce(struct io_rsrc_data *data,
 		}
 
 		schedule();
-		__set_current_state(TASK_RUNNING);
 		mutex_lock(&ctx->uring_lock);
 		ret = 0;
 	} while (!list_empty(&ctx->rsrc_ref_list));
@@ -421,8 +395,10 @@ static int __io_sqe_buffers_update(struct io_ring_ctx *ctx,
 				   unsigned int nr_args)
 {
 	u64 __user *tags = u64_to_user_ptr(up->tags);
-	struct iovec iov, __user *iovs = u64_to_user_ptr(up->data);
+	struct iovec fast_iov, *iov;
 	struct page *last_hpage = NULL;
+	struct iovec __user *uvec;
+	u64 user_data = up->data;
 	__u32 done;
 	int i, err;
 
@@ -435,21 +411,24 @@ static int __io_sqe_buffers_update(struct io_ring_ctx *ctx,
 		struct io_mapped_ubuf *imu;
 		u64 tag = 0;
 
-		err = io_copy_iov(ctx, &iov, iovs, done);
-		if (err)
+		uvec = u64_to_user_ptr(user_data);
+		iov = iovec_from_user(uvec, 1, 1, &fast_iov, ctx->compat);
+		if (IS_ERR(iov)) {
+			err = PTR_ERR(iov);
 			break;
+		}
 		if (tags && copy_from_user(&tag, &tags[done], sizeof(tag))) {
 			err = -EFAULT;
 			break;
 		}
-		err = io_buffer_validate(&iov);
+		err = io_buffer_validate(iov);
 		if (err)
 			break;
-		if (!iov.iov_base && tag) {
+		if (!iov->iov_base && tag) {
 			err = -EINVAL;
 			break;
 		}
-		err = io_sqe_buffer_register(ctx, &iov, &imu, &last_hpage);
+		err = io_sqe_buffer_register(ctx, iov, &imu, &last_hpage);
 		if (err)
 			break;
 
@@ -466,6 +445,10 @@ static int __io_sqe_buffers_update(struct io_ring_ctx *ctx,
 
 		ctx->user_bufs[i] = imu;
 		*io_get_tag_slot(ctx->buf_data, i) = tag;
+		if (ctx->compat)
+			user_data += sizeof(struct compat_iovec);
+		else
+			user_data += sizeof(struct iovec);
 	}
 	return done ? done : err;
 }
@@ -872,42 +855,6 @@ static int io_buffer_account_pin(struct io_ring_ctx *ctx, struct page **pages,
 	return ret;
 }
 
-struct page **io_pin_pages(unsigned long ubuf, unsigned long len, int *npages)
-{
-	unsigned long start, end, nr_pages;
-	struct page **pages = NULL;
-	int ret;
-
-	end = (ubuf + len + PAGE_SIZE - 1) >> PAGE_SHIFT;
-	start = ubuf >> PAGE_SHIFT;
-	nr_pages = end - start;
-	WARN_ON(!nr_pages);
-
-	pages = kvmalloc_array(nr_pages, sizeof(struct page *), GFP_KERNEL);
-	if (!pages)
-		return ERR_PTR(-ENOMEM);
-
-	mmap_read_lock(current->mm);
-	ret = pin_user_pages(ubuf, nr_pages, FOLL_WRITE | FOLL_LONGTERM, pages);
-	mmap_read_unlock(current->mm);
-
-	/* success, mapped all pages */
-	if (ret == nr_pages) {
-		*npages = nr_pages;
-		return pages;
-	}
-
-	/* partial map, or didn't map anything */
-	if (ret >= 0) {
-		/* if we did partial map, release any pages we did get */
-		if (ret)
-			unpin_user_pages(pages, ret);
-		ret = -EFAULT;
-	}
-	kvfree(pages);
-	return ERR_PTR(ret);
-}
-
 static int io_sqe_buffer_register(struct io_ring_ctx *ctx, struct iovec *iov,
 				  struct io_mapped_ubuf **pimu,
 				  struct page **last_hpage)
@@ -1007,8 +954,9 @@ int io_sqe_buffers_register(struct io_ring_ctx *ctx, void __user *arg,
 {
 	struct page *last_hpage = NULL;
 	struct io_rsrc_data *data;
+	struct iovec fast_iov, *iov = &fast_iov;
+	const struct iovec __user *uvec;
 	int i, ret;
-	struct iovec iov;
 
 	BUILD_BUG_ON(IORING_MAX_REG_BUFFERS >= (1u << 16));
 
@@ -1025,24 +973,32 @@ int io_sqe_buffers_register(struct io_ring_ctx *ctx, void __user *arg,
 		return ret;
 	}
 
+	if (!arg)
+		memset(iov, 0, sizeof(*iov));
+
 	for (i = 0; i < nr_args; i++, ctx->nr_user_bufs++) {
 		if (arg) {
-			ret = io_copy_iov(ctx, &iov, arg, i);
+			uvec = (struct iovec __user *) arg;
+			iov = iovec_from_user(uvec, 1, 1, &fast_iov, ctx->compat);
+			if (IS_ERR(iov)) {
+				ret = PTR_ERR(iov);
+				break;
+			}
+			ret = io_buffer_validate(iov);
 			if (ret)
 				break;
-			ret = io_buffer_validate(&iov);
-			if (ret)
-				break;
-		} else {
-			memset(&iov, 0, sizeof(iov));
+			if (ctx->compat)
+				arg += sizeof(struct compat_iovec);
+			else
+				arg += sizeof(struct iovec);
 		}
 
-		if (!iov.iov_base && *io_get_tag_slot(data, i)) {
+		if (!iov->iov_base && *io_get_tag_slot(data, i)) {
 			ret = -EINVAL;
 			break;
 		}
 
-		ret = io_sqe_buffer_register(ctx, &iov, &ctx->user_bufs[i],
+		ret = io_sqe_buffer_register(ctx, iov, &ctx->user_bufs[i],
 					     &last_hpage);
 		if (ret)
 			break;
@@ -1104,7 +1060,6 @@ int io_import_fixed(int ddir, struct iov_iter *iter,
 			 * branch doesn't expect non PAGE_SIZE'd chunks.
 			 */
 			iter->bvec = bvec;
-			iter->nr_segs = bvec->bv_len;
 			iter->count -= offset;
 			iter->iov_offset = offset;
 		} else {

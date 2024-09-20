@@ -20,7 +20,14 @@
 #define DEFAULT_MDIO_FREQ	2500000 /* 2.5 MHz */
 #define DEFAULT_HOST_CLOCK	150000000 /* 150 MHz */
 
-/* Wait till MDIO interface is ready to accept a new transaction.*/
+/**
+ * axienet_mdio_wait_until_ready - MDIO wait function
+ * @lp:	Pointer to axienet local data structure.
+ *
+ * Return :	0 on success, Negative value on errors
+ *
+ * Wait till MDIO interface is ready to accept a new transaction.
+ */
 static int axienet_mdio_wait_until_ready(struct axienet_local *lp)
 {
 	u32 val;
@@ -30,14 +37,24 @@ static int axienet_mdio_wait_until_ready(struct axienet_local *lp)
 				  1, 20000);
 }
 
-/* Enable the MDIO MDC. Called prior to a read/write operation */
+/**
+ * axienet_mdio_mdc_enable - MDIO MDC enable function
+ * @lp:	Pointer to axienet local data structure.
+ *
+ * Enable the MDIO MDC. Called prior to a read/write operation
+ */
 static void axienet_mdio_mdc_enable(struct axienet_local *lp)
 {
 	axienet_iow(lp, XAE_MDIO_MC_OFFSET,
 		    ((u32)lp->mii_clk_div | XAE_MDIO_MC_MDIOEN_MASK));
 }
 
-/* Disable the MDIO MDC. Called after a read/write operation*/
+/**
+ * axienet_mdio_mdc_disable - MDIO MDC disable function
+ * @lp:	Pointer to axienet local data structure.
+ *
+ * Disable the MDIO MDC. Called after a read/write operation
+ */
 static void axienet_mdio_mdc_disable(struct axienet_local *lp)
 {
 	u32 mc_reg;

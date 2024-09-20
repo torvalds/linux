@@ -200,7 +200,8 @@ static void *xas_start(struct xa_state *xas)
 	return entry;
 }
 
-static void *xas_descend(struct xa_state *xas, struct xa_node *node)
+static __always_inline void *xas_descend(struct xa_state *xas,
+					struct xa_node *node)
 {
 	unsigned int offset = get_offset(xas->xa_index, node);
 	void *entry = xa_entry(xas->xa, node, offset);
@@ -1765,6 +1766,36 @@ unlock:
 EXPORT_SYMBOL(xa_store_range);
 
 /**
+ * xas_get_order() - Get the order of an entry.
+ * @xas: XArray operation state.
+ *
+ * Called after xas_load, the xas should not be in an error state.
+ *
+ * Return: A number between 0 and 63 indicating the order of the entry.
+ */
+int xas_get_order(struct xa_state *xas)
+{
+	int order = 0;
+
+	if (!xas->xa_node)
+		return 0;
+
+	for (;;) {
+		unsigned int slot = xas->xa_offset + (1 << order);
+
+		if (slot >= XA_CHUNK_SIZE)
+			break;
+		if (!xa_is_sibling(xa_entry(xas->xa, xas->xa_node, slot)))
+			break;
+		order++;
+	}
+
+	order += xas->xa_node->shift;
+	return order;
+}
+EXPORT_SYMBOL_GPL(xas_get_order);
+
+/**
  * xa_get_order() - Get the order of an entry.
  * @xa: XArray.
  * @index: Index of the entry.
@@ -1774,30 +1805,13 @@ EXPORT_SYMBOL(xa_store_range);
 int xa_get_order(struct xarray *xa, unsigned long index)
 {
 	XA_STATE(xas, xa, index);
-	void *entry;
 	int order = 0;
+	void *entry;
 
 	rcu_read_lock();
 	entry = xas_load(&xas);
-
-	if (!entry)
-		goto unlock;
-
-	if (!xas.xa_node)
-		goto unlock;
-
-	for (;;) {
-		unsigned int slot = xas.xa_offset + (1 << order);
-
-		if (slot >= XA_CHUNK_SIZE)
-			break;
-		if (!xa_is_sibling(xas.xa_node->slots[slot]))
-			break;
-		order++;
-	}
-
-	order += xas.xa_node->shift;
-unlock:
+	if (entry)
+		order = xas_get_order(&xas);
 	rcu_read_unlock();
 
 	return order;

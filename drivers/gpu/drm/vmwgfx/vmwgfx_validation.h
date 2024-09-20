@@ -52,10 +52,6 @@
  * buffer objects
  * @mem_size_left: Free memory left in the last page in @page_list
  * @page_address: Kernel virtual address of the last page in @page_list
- * @vm: A pointer to the memory reservation interface or NULL if no
- * memory reservation is needed.
- * @vm_size_left: Amount of reserved memory that so far has not been allocated.
- * @total_mem: Amount of reserved memory.
  */
 struct vmw_validation_context {
 	struct vmw_sw_context *sw_context;
@@ -68,9 +64,6 @@ struct vmw_validation_context {
 	unsigned int merge_dups;
 	unsigned int mem_size_left;
 	u8 *page_address;
-	struct vmw_validation_mem *vm;
-	size_t vm_size_left;
-	size_t total_mem;
 };
 
 struct vmw_bo;

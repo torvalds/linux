@@ -13,7 +13,7 @@
 	model = "Olimex A20-SOM204-EVB-eMMC";
 	compatible = "olimex,a20-olimex-som204-evb-emmc", "allwinner,sun7i-a20";
 
-	mmc2_pwrseq: mmc2_pwrseq {
+	mmc2_pwrseq: pwrseq-1 {
 		compatible = "mmc-pwrseq-emmc";
 		reset-gpios = <&pio 2 16 GPIO_ACTIVE_LOW>;
 	};

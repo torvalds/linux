@@ -29,25 +29,6 @@ static inline struct lskcipher_alg *__crypto_lskcipher_alg(
 	return container_of(alg, struct lskcipher_alg, co.base);
 }
 
-static inline struct crypto_istat_cipher *lskcipher_get_stat(
-	struct lskcipher_alg *alg)
-{
-	return skcipher_get_stat_common(&alg->co);
-}
-
-static inline int crypto_lskcipher_errstat(struct lskcipher_alg *alg, int err)
-{
-	struct crypto_istat_cipher *istat = lskcipher_get_stat(alg);
-
-	if (!IS_ENABLED(CONFIG_CRYPTO_STATS))
-		return err;
-
-	if (err)
-		atomic64_inc(&istat->err_cnt);
-
-	return err;
-}
-
 static int lskcipher_setkey_unaligned(struct crypto_lskcipher *tfm,
 				      const u8 *key, unsigned int keylen)
 {
@@ -147,33 +128,19 @@ static int crypto_lskcipher_crypt(struct crypto_lskcipher *tfm, const u8 *src,
 					       u32 flags))
 {
 	unsigned long alignmask = crypto_lskcipher_alignmask(tfm);
-	struct lskcipher_alg *alg = crypto_lskcipher_alg(tfm);
-	int ret;
 
 	if (((unsigned long)src | (unsigned long)dst | (unsigned long)iv) &
-	    alignmask) {
-		ret = crypto_lskcipher_crypt_unaligned(tfm, src, dst, len, iv,
-						       crypt);
-		goto out;
-	}
+	    alignmask)
+		return crypto_lskcipher_crypt_unaligned(tfm, src, dst, len, iv,
+							crypt);
 
-	ret = crypt(tfm, src, dst, len, iv, CRYPTO_LSKCIPHER_FLAG_FINAL);
-
-out:
-	return crypto_lskcipher_errstat(alg, ret);
+	return crypt(tfm, src, dst, len, iv, CRYPTO_LSKCIPHER_FLAG_FINAL);
 }
 
 int crypto_lskcipher_encrypt(struct crypto_lskcipher *tfm, const u8 *src,
 			     u8 *dst, unsigned len, u8 *iv)
 {
 	struct lskcipher_alg *alg = crypto_lskcipher_alg(tfm);
-
-	if (IS_ENABLED(CONFIG_CRYPTO_STATS)) {
-		struct crypto_istat_cipher *istat = lskcipher_get_stat(alg);
-
-		atomic64_inc(&istat->encrypt_cnt);
-		atomic64_add(len, &istat->encrypt_tlen);
-	}
 
 	return crypto_lskcipher_crypt(tfm, src, dst, len, iv, alg->encrypt);
 }
@@ -183,13 +150,6 @@ int crypto_lskcipher_decrypt(struct crypto_lskcipher *tfm, const u8 *src,
 			     u8 *dst, unsigned len, u8 *iv)
 {
 	struct lskcipher_alg *alg = crypto_lskcipher_alg(tfm);
-
-	if (IS_ENABLED(CONFIG_CRYPTO_STATS)) {
-		struct crypto_istat_cipher *istat = lskcipher_get_stat(alg);
-
-		atomic64_inc(&istat->decrypt_cnt);
-		atomic64_add(len, &istat->decrypt_tlen);
-	}
 
 	return crypto_lskcipher_crypt(tfm, src, dst, len, iv, alg->decrypt);
 }
@@ -320,28 +280,6 @@ static int __maybe_unused crypto_lskcipher_report(
 		       sizeof(rblkcipher), &rblkcipher);
 }
 
-static int __maybe_unused crypto_lskcipher_report_stat(
-	struct sk_buff *skb, struct crypto_alg *alg)
-{
-	struct lskcipher_alg *skcipher = __crypto_lskcipher_alg(alg);
-	struct crypto_istat_cipher *istat;
-	struct crypto_stat_cipher rcipher;
-
-	istat = lskcipher_get_stat(skcipher);
-
-	memset(&rcipher, 0, sizeof(rcipher));
-
-	strscpy(rcipher.type, "cipher", sizeof(rcipher.type));
-
-	rcipher.stat_encrypt_cnt = atomic64_read(&istat->encrypt_cnt);
-	rcipher.stat_encrypt_tlen = atomic64_read(&istat->encrypt_tlen);
-	rcipher.stat_decrypt_cnt =  atomic64_read(&istat->decrypt_cnt);
-	rcipher.stat_decrypt_tlen = atomic64_read(&istat->decrypt_tlen);
-	rcipher.stat_err_cnt =  atomic64_read(&istat->err_cnt);
-
-	return nla_put(skb, CRYPTOCFGA_STAT_CIPHER, sizeof(rcipher), &rcipher);
-}
-
 static const struct crypto_type crypto_lskcipher_type = {
 	.extsize = crypto_alg_extsize,
 	.init_tfm = crypto_lskcipher_init_tfm,
@@ -351,9 +289,6 @@ static const struct crypto_type crypto_lskcipher_type = {
 #endif
 #if IS_ENABLED(CONFIG_CRYPTO_USER)
 	.report = crypto_lskcipher_report,
-#endif
-#ifdef CONFIG_CRYPTO_STATS
-	.report_stat = crypto_lskcipher_report_stat,
 #endif
 	.maskclear = ~CRYPTO_ALG_TYPE_MASK,
 	.maskset = CRYPTO_ALG_TYPE_MASK,

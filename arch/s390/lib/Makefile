@@ -23,4 +23,4 @@ obj-$(CONFIG_S390_MODULES_SANITY_TEST_HELPERS) += test_modules_helpers.o
 
 lib-$(CONFIG_FUNCTION_ERROR_INJECTION) += error-inject.o
 
-obj-$(CONFIG_EXPOLINE_EXTERN) += expoline/
+obj-$(CONFIG_EXPOLINE_EXTERN) += expoline.o

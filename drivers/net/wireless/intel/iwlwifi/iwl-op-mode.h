@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2005-2014, 2018-2021 Intel Corporation
+ * Copyright (C) 2005-2014, 2018-2021, 2024 Intel Corporation
  * Copyright (C) 2013-2014 Intel Mobile Communications GmbH
  * Copyright (C) 2015 Intel Deutschland GmbH
  */
@@ -85,6 +85,10 @@ struct iwl_cfg;
  *	May sleep
  * @wimax_active: invoked when WiMax becomes active. May sleep
  * @time_point: called when transport layer wants to collect debug data
+ * @device_powered_off: called upon resume from hibernation but not only.
+ *	Op_mode needs to reset its internal state because the device did not
+ *	survive the system state transition. The firmware is no longer running,
+ *	etc...
  */
 struct iwl_op_mode_ops {
 	struct iwl_op_mode *(*start)(struct iwl_trans *trans,
@@ -107,6 +111,7 @@ struct iwl_op_mode_ops {
 	void (*time_point)(struct iwl_op_mode *op_mode,
 			   enum iwl_fw_ini_time_point tp_id,
 			   union iwl_dbg_tlv_tp_data *tp_data);
+	void (*device_powered_off)(struct iwl_op_mode *op_mode);
 };
 
 int iwl_opmode_register(const char *name, const struct iwl_op_mode_ops *ops);
@@ -185,7 +190,8 @@ static inline void iwl_op_mode_cmd_queue_full(struct iwl_op_mode *op_mode)
 static inline void iwl_op_mode_nic_config(struct iwl_op_mode *op_mode)
 {
 	might_sleep();
-	op_mode->ops->nic_config(op_mode);
+	if (op_mode->ops->nic_config)
+		op_mode->ops->nic_config(op_mode);
 }
 
 static inline void iwl_op_mode_wimax_active(struct iwl_op_mode *op_mode)
@@ -201,6 +207,13 @@ static inline void iwl_op_mode_time_point(struct iwl_op_mode *op_mode,
 	if (!op_mode || !op_mode->ops || !op_mode->ops->time_point)
 		return;
 	op_mode->ops->time_point(op_mode, tp_id, tp_data);
+}
+
+static inline void iwl_op_mode_device_powered_off(struct iwl_op_mode *op_mode)
+{
+	if (!op_mode || !op_mode->ops || !op_mode->ops->device_powered_off)
+		return;
+	op_mode->ops->device_powered_off(op_mode);
 }
 
 #endif /* __iwl_op_mode_h__ */

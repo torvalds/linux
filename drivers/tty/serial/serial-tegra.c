@@ -484,18 +484,18 @@ static void tegra_uart_release_port(struct uart_port *u)
 
 static void tegra_uart_fill_tx_fifo(struct tegra_uart_port *tup, int max_bytes)
 {
-	struct circ_buf *xmit = &tup->uport.state->xmit;
+	unsigned char ch;
 	int i;
 
 	for (i = 0; i < max_bytes; i++) {
-		BUG_ON(uart_circ_empty(xmit));
 		if (tup->cdata->tx_fifo_full_status) {
 			unsigned long lsr = tegra_uart_read(tup, UART_LSR);
 			if ((lsr & TEGRA_UART_LSR_TXFIFO_FULL))
 				break;
 		}
-		tegra_uart_write(tup, xmit->buf[xmit->tail], UART_TX);
-		uart_xmit_advance(&tup->uport, 1);
+		if (WARN_ON_ONCE(!uart_fifo_get(&tup->uport, &ch)))
+			break;
+		tegra_uart_write(tup, ch, UART_TX);
 	}
 }
 
@@ -514,7 +514,7 @@ static void tegra_uart_start_pio_tx(struct tegra_uart_port *tup,
 static void tegra_uart_tx_dma_complete(void *args)
 {
 	struct tegra_uart_port *tup = args;
-	struct circ_buf *xmit = &tup->uport.state->xmit;
+	struct tty_port *tport = &tup->uport.state->port;
 	struct dma_tx_state state;
 	unsigned long flags;
 	unsigned int count;
@@ -525,7 +525,7 @@ static void tegra_uart_tx_dma_complete(void *args)
 	uart_port_lock_irqsave(&tup->uport, &flags);
 	uart_xmit_advance(&tup->uport, count);
 	tup->tx_in_progress = 0;
-	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
+	if (kfifo_len(&tport->xmit_fifo) < WAKEUP_CHARS)
 		uart_write_wakeup(&tup->uport);
 	tegra_uart_start_next_tx(tup);
 	uart_port_unlock_irqrestore(&tup->uport, flags);
@@ -534,11 +534,14 @@ static void tegra_uart_tx_dma_complete(void *args)
 static int tegra_uart_start_tx_dma(struct tegra_uart_port *tup,
 		unsigned long count)
 {
-	struct circ_buf *xmit = &tup->uport.state->xmit;
+	struct tty_port *tport = &tup->uport.state->port;
 	dma_addr_t tx_phys_addr;
+	unsigned int tail;
 
 	tup->tx_bytes = count & ~(0xF);
-	tx_phys_addr = tup->tx_dma_buf_phys + xmit->tail;
+	WARN_ON_ONCE(kfifo_out_linear(&tport->xmit_fifo, &tail,
+			UART_XMIT_SIZE) < count);
+	tx_phys_addr = tup->tx_dma_buf_phys + tail;
 
 	dma_sync_single_for_device(tup->uport.dev, tx_phys_addr,
 				   tup->tx_bytes, DMA_TO_DEVICE);
@@ -562,17 +565,20 @@ static int tegra_uart_start_tx_dma(struct tegra_uart_port *tup,
 
 static void tegra_uart_start_next_tx(struct tegra_uart_port *tup)
 {
+	struct tty_port *tport = &tup->uport.state->port;
+	unsigned char *tail_ptr;
 	unsigned long tail;
-	unsigned long count;
-	struct circ_buf *xmit = &tup->uport.state->xmit;
+	unsigned int count;
 
 	if (!tup->current_baud)
 		return;
 
-	tail = (unsigned long)&xmit->buf[xmit->tail];
-	count = CIRC_CNT_TO_END(xmit->head, xmit->tail, UART_XMIT_SIZE);
+	count = kfifo_out_linear_ptr(&tport->xmit_fifo, &tail_ptr,
+			UART_XMIT_SIZE);
 	if (!count)
 		return;
+
+	tail = (unsigned long)tail_ptr;
 
 	if (tup->use_tx_pio || count < TEGRA_UART_MIN_DMA)
 		tegra_uart_start_pio_tx(tup, count);
@@ -586,9 +592,9 @@ static void tegra_uart_start_next_tx(struct tegra_uart_port *tup)
 static void tegra_uart_start_tx(struct uart_port *u)
 {
 	struct tegra_uart_port *tup = to_tegra_uport(u);
-	struct circ_buf *xmit = &u->state->xmit;
+	struct tty_port *tport = &u->state->port;
 
-	if (!uart_circ_empty(xmit) && !tup->tx_in_progress)
+	if (!kfifo_is_empty(&tport->xmit_fifo) && !tup->tx_in_progress)
 		tegra_uart_start_next_tx(tup);
 }
 
@@ -628,11 +634,11 @@ static void tegra_uart_stop_tx(struct uart_port *u)
 
 static void tegra_uart_handle_tx_pio(struct tegra_uart_port *tup)
 {
-	struct circ_buf *xmit = &tup->uport.state->xmit;
+	struct tty_port *tport = &tup->uport.state->port;
 
 	tegra_uart_fill_tx_fifo(tup, tup->tx_bytes);
 	tup->tx_in_progress = 0;
-	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
+	if (kfifo_len(&tport->xmit_fifo) < WAKEUP_CHARS)
 		uart_write_wakeup(&tup->uport);
 	tegra_uart_start_next_tx(tup);
 }
@@ -1169,15 +1175,14 @@ static int tegra_uart_dma_channel_allocate(struct tegra_uart_port *tup,
 		tup->rx_dma_buf_virt = dma_buf;
 		tup->rx_dma_buf_phys = dma_phys;
 	} else {
+		dma_buf = tup->uport.state->port.xmit_buf;
 		dma_phys = dma_map_single(tup->uport.dev,
-			tup->uport.state->xmit.buf, UART_XMIT_SIZE,
-			DMA_TO_DEVICE);
+			dma_buf, UART_XMIT_SIZE, DMA_TO_DEVICE);
 		if (dma_mapping_error(tup->uport.dev, dma_phys)) {
 			dev_err(tup->uport.dev, "dma_map_single tx failed\n");
 			dma_release_channel(dma_chan);
 			return -ENOMEM;
 		}
-		dma_buf = tup->uport.state->xmit.buf;
 		dma_sconfig.dst_addr = tup->uport.mapbase;
 		dma_sconfig.dst_addr_width = DMA_SLAVE_BUSWIDTH_1_BYTE;
 		dma_sconfig.dst_maxburst = 16;

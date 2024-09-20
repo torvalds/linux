@@ -14,6 +14,7 @@
  *
  */
 #include <linux/gpio.h>
+#include <linux/gpio/machine.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/delay.h>
@@ -254,37 +255,64 @@ error_fail:
 static struct gpio_led dns323ab_leds[] = {
 	{
 		.name = "power:blue",
-		.gpio = DNS323_GPIO_LED_POWER2,
 		.default_trigger = "default-on",
 	}, {
 		.name = "right:amber",
-		.gpio = DNS323_GPIO_LED_RIGHT_AMBER,
-		.active_low = 1,
 	}, {
 		.name = "left:amber",
-		.gpio = DNS323_GPIO_LED_LEFT_AMBER,
-		.active_low = 1,
 	},
 };
 
+static struct gpiod_lookup_table dns323a1_leds_gpio_table = {
+	.dev_id = "leds-gpio",
+	.table = {
+		GPIO_LOOKUP_IDX("orion_gpio0", DNS323_GPIO_LED_POWER2, NULL,
+				0, GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP_IDX("orion_gpio0", DNS323_GPIO_LED_RIGHT_AMBER, NULL,
+				1, GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP_IDX("orion_gpio0", DNS323_GPIO_LED_LEFT_AMBER, NULL,
+				2, GPIO_ACTIVE_LOW),
+		{ },
+	},
+};
+
+/* B1 is the same but power LED is active high */
+static struct gpiod_lookup_table dns323b1_leds_gpio_table = {
+	.dev_id = "leds-gpio",
+	.table = {
+		GPIO_LOOKUP_IDX("orion_gpio0", DNS323_GPIO_LED_POWER2, NULL,
+				0, GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP_IDX("orion_gpio0", DNS323_GPIO_LED_RIGHT_AMBER, NULL,
+				1, GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP_IDX("orion_gpio0", DNS323_GPIO_LED_LEFT_AMBER, NULL,
+				2, GPIO_ACTIVE_LOW),
+		{ },
+	},
+};
 
 static struct gpio_led dns323c_leds[] = {
 	{
 		.name = "power:blue",
-		.gpio = DNS323C_GPIO_LED_POWER,
 		.default_trigger = "timer",
-		.active_low = 1,
 	}, {
 		.name = "right:amber",
-		.gpio = DNS323C_GPIO_LED_RIGHT_AMBER,
-		.active_low = 1,
 	}, {
 		.name = "left:amber",
-		.gpio = DNS323C_GPIO_LED_LEFT_AMBER,
-		.active_low = 1,
 	},
 };
 
+static struct gpiod_lookup_table dns323c_leds_gpio_table = {
+	.dev_id = "leds-gpio",
+	.table = {
+		GPIO_LOOKUP_IDX("orion_gpio0", DNS323C_GPIO_LED_POWER, NULL,
+				0, GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP_IDX("orion_gpio0", DNS323C_GPIO_LED_RIGHT_AMBER, NULL,
+				1, GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP_IDX("orion_gpio0", DNS323C_GPIO_LED_LEFT_AMBER, NULL,
+				2, GPIO_ACTIVE_LOW),
+		{ },
+	},
+};
 
 static struct gpio_led_platform_data dns323ab_led_data = {
 	.num_leds	= ARRAY_SIZE(dns323ab_leds),
@@ -621,16 +649,21 @@ static void __init dns323_init(void)
 		/* The 5181 power LED is active low and requires
 		 * DNS323_GPIO_LED_POWER1 to also be low.
 		 */
-		 dns323ab_leds[0].active_low = 1;
-		 gpio_request(DNS323_GPIO_LED_POWER1, "Power Led Enable");
-		 gpio_direction_output(DNS323_GPIO_LED_POWER1, 0);
-		fallthrough;
+		gpiod_add_lookup_table(&dns323a1_leds_gpio_table);
+		gpio_request(DNS323_GPIO_LED_POWER1, "Power Led Enable");
+		gpio_direction_output(DNS323_GPIO_LED_POWER1, 0);
+		i2c_register_board_info(0, dns323ab_i2c_devices,
+					ARRAY_SIZE(dns323ab_i2c_devices));
+
+		break;
 	case DNS323_REV_B1:
+		gpiod_add_lookup_table(&dns323b1_leds_gpio_table);
 		i2c_register_board_info(0, dns323ab_i2c_devices,
 				ARRAY_SIZE(dns323ab_i2c_devices));
 		break;
 	case DNS323_REV_C1:
 		/* Hookup LEDs & Buttons */
+		gpiod_add_lookup_table(&dns323c_leds_gpio_table);
 		dns323_gpio_leds.dev.platform_data = &dns323c_led_data;
 		dns323_button_device.dev.platform_data = &dns323c_button_data;
 

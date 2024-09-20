@@ -5,8 +5,10 @@
  * Copyright 2012 Stefan Roese <sr@denx.de>
  */
 
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/interrupt.h>
 #include <linux/device.h>
 #include <linux/kernel.h>
@@ -15,8 +17,6 @@
 #include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/completion.h>
-#include <linux/of.h>
-#include <linux/of_address.h>
 
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
@@ -70,7 +70,7 @@ struct adc_regs_spear6xx {
 };
 
 struct spear_adc_state {
-	struct device_node *np;
+	struct device *dev;
 	struct adc_regs_spear3xx __iomem *adc_base_spear3xx;
 	struct adc_regs_spear6xx __iomem *adc_base_spear6xx;
 	struct clk *clk;
@@ -123,7 +123,7 @@ static void spear_adc_set_ctrl(struct spear_adc_state *st, int n,
 
 static u32 spear_adc_get_average(struct spear_adc_state *st)
 {
-	if (of_device_is_compatible(st->np, "st,spear600-adc")) {
+	if (device_is_compatible(st->dev, "st,spear600-adc")) {
 		return __raw_readl(&st->adc_base_spear6xx->average.msb) &
 			SPEAR_ADC_DATA_MASK;
 	} else {
@@ -134,7 +134,7 @@ static u32 spear_adc_get_average(struct spear_adc_state *st)
 
 static void spear_adc_set_scanrate(struct spear_adc_state *st, u32 rate)
 {
-	if (of_device_is_compatible(st->np, "st,spear600-adc")) {
+	if (device_is_compatible(st->dev, "st,spear600-adc")) {
 		__raw_writel(SPEAR600_ADC_SCAN_RATE_LO(rate),
 			     &st->adc_base_spear6xx->scan_rate_lo);
 		__raw_writel(SPEAR600_ADC_SCAN_RATE_HI(rate),
@@ -266,7 +266,6 @@ static const struct iio_info spear_adc_info = {
 
 static int spear_adc_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
 	struct device *dev = &pdev->dev;
 	struct spear_adc_state *st;
 	struct iio_dev *indio_dev = NULL;
@@ -279,10 +278,9 @@ static int spear_adc_probe(struct platform_device *pdev)
 				     "failed allocating iio device\n");
 
 	st = iio_priv(indio_dev);
+	st->dev = dev;
 
 	mutex_init(&st->lock);
-
-	st->np = np;
 
 	/*
 	 * SPEAr600 has a different register layout than other SPEAr SoC's
@@ -310,8 +308,7 @@ static int spear_adc_probe(struct platform_device *pdev)
 	if (ret < 0)
 		return dev_err_probe(dev, ret, "failed requesting interrupt\n");
 
-	if (of_property_read_u32(np, "sampling-frequency",
-				 &st->sampling_freq))
+	if (device_property_read_u32(dev, "sampling-frequency", &st->sampling_freq))
 		return dev_err_probe(dev, -EINVAL,
 				     "sampling-frequency missing in DT\n");
 
@@ -319,13 +316,13 @@ static int spear_adc_probe(struct platform_device *pdev)
 	 * Optional avg_samples defaults to 0, resulting in single data
 	 * conversion
 	 */
-	of_property_read_u32(np, "average-samples", &st->avg_samples);
+	device_property_read_u32(dev, "average-samples", &st->avg_samples);
 
 	/*
 	 * Optional vref_external defaults to 0, resulting in internal vref
 	 * selection
 	 */
-	of_property_read_u32(np, "vref-external", &st->vref_external);
+	device_property_read_u32(dev, "vref-external", &st->vref_external);
 
 	spear_adc_configure(st);
 
@@ -346,19 +343,17 @@ static int spear_adc_probe(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_OF
 static const struct of_device_id spear_adc_dt_ids[] = {
 	{ .compatible = "st,spear600-adc", },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, spear_adc_dt_ids);
-#endif
 
 static struct platform_driver spear_adc_driver = {
 	.probe		= spear_adc_probe,
 	.driver		= {
 		.name	= SPEAR_ADC_MOD_NAME,
-		.of_match_table = of_match_ptr(spear_adc_dt_ids),
+		.of_match_table = spear_adc_dt_ids,
 	},
 };
 

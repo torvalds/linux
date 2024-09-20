@@ -131,7 +131,7 @@ void clock_comparator_work(void)
 {
 	struct clock_event_device *cd;
 
-	S390_lowcore.clock_comparator = clock_comparator_max;
+	get_lowcore()->clock_comparator = clock_comparator_max;
 	cd = this_cpu_ptr(&comparators);
 	cd->event_handler(cd);
 }
@@ -139,8 +139,8 @@ void clock_comparator_work(void)
 static int s390_next_event(unsigned long delta,
 			   struct clock_event_device *evt)
 {
-	S390_lowcore.clock_comparator = get_tod_clock() + delta;
-	set_clock_comparator(S390_lowcore.clock_comparator);
+	get_lowcore()->clock_comparator = get_tod_clock() + delta;
+	set_clock_comparator(get_lowcore()->clock_comparator);
 	return 0;
 }
 
@@ -153,8 +153,8 @@ void init_cpu_timer(void)
 	struct clock_event_device *cd;
 	int cpu;
 
-	S390_lowcore.clock_comparator = clock_comparator_max;
-	set_clock_comparator(S390_lowcore.clock_comparator);
+	get_lowcore()->clock_comparator = clock_comparator_max;
+	set_clock_comparator(get_lowcore()->clock_comparator);
 
 	cpu = smp_processor_id();
 	cd = &per_cpu(comparators, cpu);
@@ -184,8 +184,8 @@ static void clock_comparator_interrupt(struct ext_code ext_code,
 				       unsigned long param64)
 {
 	inc_irq_stat(IRQEXT_CLK);
-	if (S390_lowcore.clock_comparator == clock_comparator_max)
-		set_clock_comparator(S390_lowcore.clock_comparator);
+	if (get_lowcore()->clock_comparator == clock_comparator_max)
+		set_clock_comparator(get_lowcore()->clock_comparator);
 }
 
 static void stp_timing_alert(struct stp_irq_parm *);
@@ -408,12 +408,12 @@ static void clock_sync_global(long delta)
 static void clock_sync_local(long delta)
 {
 	/* Add the delta to the clock comparator. */
-	if (S390_lowcore.clock_comparator != clock_comparator_max) {
-		S390_lowcore.clock_comparator += delta;
-		set_clock_comparator(S390_lowcore.clock_comparator);
+	if (get_lowcore()->clock_comparator != clock_comparator_max) {
+		get_lowcore()->clock_comparator += delta;
+		set_clock_comparator(get_lowcore()->clock_comparator);
 	}
 	/* Adjust the last_update_clock time-stamp. */
-	S390_lowcore.last_update_clock += delta;
+	get_lowcore()->last_update_clock += delta;
 }
 
 /* Single threaded workqueue used for stp sync events */

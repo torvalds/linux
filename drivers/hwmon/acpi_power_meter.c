@@ -883,6 +883,22 @@ static int acpi_power_meter_add(struct acpi_device *device)
 	strcpy(acpi_device_class(device), ACPI_POWER_METER_CLASS);
 	device->driver_data = resource;
 
+#if IS_REACHABLE(CONFIG_ACPI_IPMI)
+	/*
+	 * On Dell systems several methods of acpi_power_meter access
+	 * variables in IPMI region, so wait until IPMI space handler is
+	 * installed by acpi_ipmi and also wait until SMI is selected to make
+	 * the space handler fully functional.
+	 */
+	if (dmi_match(DMI_SYS_VENDOR, "Dell Inc.")) {
+		struct acpi_device *ipi_device = acpi_dev_get_first_match_dev("IPI0001", NULL, -1);
+
+		if (ipi_device && acpi_wait_for_acpi_ipmi())
+				dev_warn(&device->dev, "Waiting for ACPI IPMI timeout");
+		acpi_dev_put(ipi_device);
+	}
+#endif
+
 	res = read_capabilities(resource);
 	if (res)
 		goto exit_free;

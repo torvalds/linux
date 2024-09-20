@@ -61,10 +61,7 @@ struct inode *btrfs_new_test_inode(void)
 		return NULL;
 
 	inode->i_mode = S_IFREG;
-	inode->i_ino = BTRFS_FIRST_FREE_OBJECTID;
-	BTRFS_I(inode)->location.type = BTRFS_INODE_ITEM_KEY;
-	BTRFS_I(inode)->location.objectid = BTRFS_FIRST_FREE_OBJECTID;
-	BTRFS_I(inode)->location.offset = 0;
+	btrfs_set_inode_number(BTRFS_I(inode), BTRFS_FIRST_FREE_OBJECTID);
 	inode_init_owner(&nop_mnt_idmap, inode, NULL, S_IFREG);
 
 	return inode;
@@ -160,8 +157,7 @@ void btrfs_free_dummy_fs_info(struct btrfs_fs_info *fs_info)
 	if (!fs_info)
 		return;
 
-	if (WARN_ON(!test_bit(BTRFS_FS_STATE_DUMMY_FS_INFO,
-			      &fs_info->fs_state)))
+	if (WARN_ON(!btrfs_is_testing(fs_info)))
 		return;
 
 	test_mnt->mnt_sb->s_fs_info = NULL;

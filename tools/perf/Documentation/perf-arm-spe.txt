@@ -116,6 +116,15 @@ Depending on CPU model, the kernel may need to be booted with page table isolati
 (kpti=off). If KPTI needs to be disabled, this will fail with a console message "profiling buffer
 inaccessible. Try passing 'kpti=off' on the kernel command line".
 
+For the full criteria that determine whether KPTI needs to be forced off or not, see function
+unmap_kernel_at_el0() in the kernel sources. Common cases where it's not required
+are on the CPUs in kpti_safe_list, or on Arm v8.5+ where FEAT_E0PD is mandatory.
+
+The SPE interrupt must also be described by the firmware. If the module is loaded and KPTI is
+disabled (or isn't required to be disabled) but the SPE PMU still doesn't show in
+/sys/bus/event_source/devices/, then it's possible that the SPE interrupt isn't described by
+ACPI or DT. In this case no warning will be printed by the driver.
+
 Capturing SPE with perf command-line tools
 ------------------------------------------
 
@@ -199,7 +208,8 @@ Common errors
 
  - "Cannot find PMU `arm_spe'. Missing kernel support?"
 
-   Module not built or loaded, KPTI not disabled (see above), or running on a VM
+   Module not built or loaded, KPTI not disabled, interrupt not described by firmware,
+   or running on a VM. See 'Kernel Requirements' above.
 
  - "Arm SPE CONTEXT packets not found in the traces."
 

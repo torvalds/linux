@@ -27,7 +27,7 @@ DECLARE_EVENT_CLASS(rnbd_srv_link_class,
 
 	TP_fast_assign(
 		__entry->qdepth = srv->queue_depth;
-		__assign_str(sessname, srv->sessname);
+		__assign_str(sessname);
 	),
 
 	TP_printk("sessname: %s qdepth: %d",
@@ -85,7 +85,7 @@ TRACE_EVENT(process_rdma,
 	),
 
 	TP_fast_assign(
-		__assign_str(sessname, srv->sessname);
+		__assign_str(sessname);
 		__entry->dir = id->dir;
 		__entry->ver = srv->ver;
 		__entry->device_id = le32_to_cpu(msg->device_id);
@@ -130,7 +130,7 @@ TRACE_EVENT(process_msg_sess_info,
 		__entry->proto_ver = srv->ver;
 		__entry->clt_ver = msg->ver;
 		__entry->srv_ver = RNBD_PROTO_VER_MAJOR;
-		__assign_str(sessname, srv->sessname);
+		__assign_str(sessname);
 	),
 
 	TP_printk("Session %s using proto-ver %d (clt-ver: %d, srv-ver: %d)",
@@ -165,8 +165,8 @@ TRACE_EVENT(process_msg_open,
 
 	TP_fast_assign(
 		__entry->access_mode = msg->access_mode;
-		__assign_str(sessname, srv->sessname);
-		__assign_str(dev_name, msg->dev_name);
+		__assign_str(sessname);
+		__assign_str(dev_name);
 	),
 
 	TP_printk("Open message received: session='%s' path='%s' access_mode=%s",
@@ -189,7 +189,7 @@ TRACE_EVENT(process_msg_close,
 
 	TP_fast_assign(
 		__entry->device_id = le32_to_cpu(msg->device_id);
-		__assign_str(sessname, srv->sessname);
+		__assign_str(sessname);
 	),
 
 	TP_printk("Close message received: session='%s' device id='%d'",

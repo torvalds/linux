@@ -517,12 +517,15 @@ static int nct3018y_probe(struct i2c_client *client)
 	if (nct3018y->part_num < 0) {
 		dev_dbg(&client->dev, "Failed to read NCT3018Y_REG_PART.\n");
 		return nct3018y->part_num;
-	} else if (nct3018y->part_num == NCT3018Y_REG_PART_NCT3018Y) {
-		flags = NCT3018Y_BIT_HF;
-		err = i2c_smbus_write_byte_data(client, NCT3018Y_REG_CTRL, flags);
-		if (err < 0) {
-			dev_dbg(&client->dev, "Unable to write NCT3018Y_REG_CTRL.\n");
-			return err;
+	} else {
+		nct3018y->part_num &= 0x03; /* Part number is corresponding to bit 0 and 1 */
+		if (nct3018y->part_num == NCT3018Y_REG_PART_NCT3018Y) {
+			flags = NCT3018Y_BIT_HF;
+			err = i2c_smbus_write_byte_data(client, NCT3018Y_REG_CTRL, flags);
+			if (err < 0) {
+				dev_dbg(&client->dev, "Unable to write NCT3018Y_REG_CTRL.\n");
+				return err;
+			}
 		}
 	}
 
@@ -564,7 +567,7 @@ static int nct3018y_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id nct3018y_id[] = {
-	{ "nct3018y", 0 },
+	{ "nct3018y" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, nct3018y_id);

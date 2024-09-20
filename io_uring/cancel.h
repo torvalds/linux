@@ -27,10 +27,10 @@ bool io_cancel_req_match(struct io_kiocb *req, struct io_cancel_data *cd);
 
 static inline bool io_cancel_match_sequence(struct io_kiocb *req, int sequence)
 {
-	if ((req->flags & REQ_F_CANCEL_SEQ) && sequence == req->work.cancel_seq)
+	if (req->cancel_seq_set && sequence == req->work.cancel_seq)
 		return true;
 
-	req->flags |= REQ_F_CANCEL_SEQ;
+	req->cancel_seq_set = true;
 	req->work.cancel_seq = sequence;
 	return false;
 }

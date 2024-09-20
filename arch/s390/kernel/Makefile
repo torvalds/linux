@@ -11,6 +11,8 @@ CFLAGS_REMOVE_ftrace.o		= $(CC_FLAGS_FTRACE)
 # Do not trace early setup code
 CFLAGS_REMOVE_early.o		= $(CC_FLAGS_FTRACE)
 CFLAGS_REMOVE_rethook.o		= $(CC_FLAGS_FTRACE)
+CFLAGS_REMOVE_stacktrace.o	= $(CC_FLAGS_FTRACE)
+CFLAGS_REMOVE_unwind_bc.o	= $(CC_FLAGS_FTRACE)
 
 endif
 
@@ -41,7 +43,7 @@ obj-y	+= sysinfo.o lgr.o os_info.o ctlreg.o
 obj-y	+= runtime_instr.o cache.o fpu.o dumpstack.o guarded_storage.o sthyi.o
 obj-y	+= entry.o reipl.o kdebugfs.o alternative.o
 obj-y	+= nospec-branch.o ipl_vmparm.o machine_kexec_reloc.o unwind_bc.o
-obj-y	+= smp.o text_amode31.o stacktrace.o abs_lowcore.o facility.o
+obj-y	+= smp.o text_amode31.o stacktrace.o abs_lowcore.o facility.o uv.o
 
 extra-y				+= vmlinux.lds
 
@@ -57,7 +59,6 @@ obj-$(CONFIG_COMPAT)		+= compat_linux.o compat_signal.o
 obj-$(CONFIG_COMPAT)		+= $(compat-obj-y)
 obj-$(CONFIG_EARLY_PRINTK)	+= early_printk.o
 obj-$(CONFIG_KPROBES)		+= kprobes.o
-obj-$(CONFIG_KPROBES)		+= kprobes_insn_page.o
 obj-$(CONFIG_KPROBES)		+= mcount.o
 obj-$(CONFIG_RETHOOK)		+= rethook.o
 obj-$(CONFIG_FUNCTION_TRACER)	+= ftrace.o
@@ -79,7 +80,6 @@ obj-$(CONFIG_PERF_EVENTS)	+= perf_cpum_cf_events.o perf_regs.o
 obj-$(CONFIG_PERF_EVENTS)	+= perf_pai_crypto.o perf_pai_ext.o
 
 obj-$(CONFIG_TRACEPOINTS)	+= trace.o
-obj-$(findstring y, $(CONFIG_PROTECTED_VIRTUALIZATION_GUEST) $(CONFIG_PGSTE))	+= uv.o
 
 # vdso
 obj-y				+= vdso64/

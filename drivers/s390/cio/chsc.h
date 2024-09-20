@@ -22,6 +22,11 @@ struct cmg_entry {
 	u32 values[NR_MEASUREMENT_ENTRIES];
 };
 
+#define NR_EXT_MEASUREMENT_ENTRIES 16
+struct cmg_ext_entry {
+	u32 values[NR_EXT_MEASUREMENT_ENTRIES];
+};
+
 struct channel_path_desc_fmt1 {
 	u8 flags;
 	u8 lsn;

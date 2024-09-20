@@ -24,18 +24,18 @@ snd-pcm-$(CONFIG_SND_PCM_IEC958) += pcm_iec958.o
 CFLAGS_pcm_lib.o := -I$(src)
 CFLAGS_pcm_native.o := -I$(src)
 
-snd-pcm-dmaengine-objs := pcm_dmaengine.o
+snd-pcm-dmaengine-y := pcm_dmaengine.o
 
-snd-ctl-led-objs  := control_led.o
-snd-rawmidi-objs  := rawmidi.o
-snd-ump-objs      := ump.o
+snd-ctl-led-y  := control_led.o
+snd-rawmidi-y  := rawmidi.o
+snd-ump-y      := ump.o
 snd-ump-$(CONFIG_SND_UMP_LEGACY_RAWMIDI) += ump_convert.o
-snd-timer-objs    := timer.o
-snd-hrtimer-objs  := hrtimer.o
-snd-hwdep-objs    := hwdep.o
-snd-seq-device-objs := seq_device.o
+snd-timer-y    := timer.o
+snd-hrtimer-y  := hrtimer.o
+snd-hwdep-y    := hwdep.o
+snd-seq-device-y := seq_device.o
 
-snd-compress-objs := compress_offload.o
+snd-compress-y := compress_offload.o
 
 obj-$(CONFIG_SND) 		+= snd.o
 obj-$(CONFIG_SND_CTL_LED)	+= snd-ctl-led.o

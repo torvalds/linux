@@ -82,7 +82,7 @@ struct phy_stat {
 
 union recvstat {
 	struct recv_stat recv_stat;
-	unsigned int value[RXDESC_SIZE>>2];
+	unsigned int value[RXDESC_SIZE >> 2];
 };
 
 struct recv_buf {

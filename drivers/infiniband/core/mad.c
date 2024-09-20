@@ -2983,9 +2983,12 @@ static int ib_mad_port_open(struct ib_device *device,
 		if (ret)
 			goto error6;
 	}
-	ret = create_mad_qp(&port_priv->qp_info[1], IB_QPT_GSI);
-	if (ret)
-		goto error7;
+
+	if (rdma_cap_ib_cm(device, port_num)) {
+		ret = create_mad_qp(&port_priv->qp_info[1], IB_QPT_GSI);
+		if (ret)
+			goto error7;
+	}
 
 	snprintf(name, sizeof(name), "ib_mad%u", port_num);
 	port_priv->wq = alloc_ordered_workqueue(name, WQ_MEM_RECLAIM);

@@ -47,6 +47,8 @@
 
 #define DM_MSG_PREFIX "crypt"
 
+static DEFINE_IDA(workqueue_ida);
+
 /*
  * context holding the current state of a multi-part conversion
  */
@@ -137,9 +139,9 @@ struct iv_elephant_private {
  * and encrypts / decrypts at the same time.
  */
 enum flags { DM_CRYPT_SUSPENDED, DM_CRYPT_KEY_VALID,
-	     DM_CRYPT_SAME_CPU, DM_CRYPT_NO_OFFLOAD,
-	     DM_CRYPT_NO_READ_WORKQUEUE, DM_CRYPT_NO_WRITE_WORKQUEUE,
-	     DM_CRYPT_WRITE_INLINE };
+	     DM_CRYPT_SAME_CPU, DM_CRYPT_HIGH_PRIORITY,
+	     DM_CRYPT_NO_OFFLOAD, DM_CRYPT_NO_READ_WORKQUEUE,
+	     DM_CRYPT_NO_WRITE_WORKQUEUE, DM_CRYPT_WRITE_INLINE };
 
 enum cipher_flags {
 	CRYPT_MODE_INTEGRITY_AEAD,	/* Use authenticated mode for cipher */
@@ -184,6 +186,7 @@ struct crypt_config {
 		struct crypto_aead **tfms_aead;
 	} cipher_tfm;
 	unsigned int tfms_count;
+	int workqueue_id;
 	unsigned long cipher_flags;
 
 	/*
@@ -211,7 +214,8 @@ struct crypt_config {
 
 	unsigned int integrity_tag_size;
 	unsigned int integrity_iv_size;
-	unsigned int on_disk_tag_size;
+	unsigned int used_tag_size;
+	unsigned int tuple_size;
 
 	/*
 	 * pool for per bio private data, crypto requests,
@@ -238,6 +242,31 @@ static unsigned int dm_crypt_clients_n;
 static volatile unsigned long dm_crypt_pages_per_client;
 #define DM_CRYPT_MEMORY_PERCENT			2
 #define DM_CRYPT_MIN_PAGES_PER_CLIENT		(BIO_MAX_VECS * 16)
+#define DM_CRYPT_DEFAULT_MAX_READ_SIZE		131072
+#define DM_CRYPT_DEFAULT_MAX_WRITE_SIZE		131072
+
+static unsigned int max_read_size = 0;
+module_param(max_read_size, uint, 0644);
+MODULE_PARM_DESC(max_read_size, "Maximum size of a read request");
+static unsigned int max_write_size = 0;
+module_param(max_write_size, uint, 0644);
+MODULE_PARM_DESC(max_write_size, "Maximum size of a write request");
+static unsigned get_max_request_size(struct crypt_config *cc, bool wrt)
+{
+	unsigned val, sector_align;
+	val = !wrt ? READ_ONCE(max_read_size) : READ_ONCE(max_write_size);
+	if (likely(!val))
+		val = !wrt ? DM_CRYPT_DEFAULT_MAX_READ_SIZE : DM_CRYPT_DEFAULT_MAX_WRITE_SIZE;
+	if (wrt || cc->used_tag_size) {
+		if (unlikely(val > BIO_MAX_VECS << PAGE_SHIFT))
+			val = BIO_MAX_VECS << PAGE_SHIFT;
+	}
+	sector_align = max(bdev_logical_block_size(cc->dev->bdev), (unsigned)cc->sector_size);
+	val = round_down(val, sector_align);
+	if (unlikely(!val))
+		val = sector_align;
+	return val >> SECTOR_SHIFT;
+}
 
 static void crypt_endio(struct bio *clone);
 static void kcryptd_queue_crypt(struct dm_crypt_io *io);
@@ -1148,14 +1177,14 @@ static int dm_crypt_integrity_io_alloc(struct dm_crypt_io *io, struct bio *bio)
 	unsigned int tag_len;
 	int ret;
 
-	if (!bio_sectors(bio) || !io->cc->on_disk_tag_size)
+	if (!bio_sectors(bio) || !io->cc->tuple_size)
 		return 0;
 
 	bip = bio_integrity_alloc(bio, GFP_NOIO, 1);
 	if (IS_ERR(bip))
 		return PTR_ERR(bip);
 
-	tag_len = io->cc->on_disk_tag_size * (bio_sectors(bio) >> io->cc->sector_shift);
+	tag_len = io->cc->tuple_size * (bio_sectors(bio) >> io->cc->sector_shift);
 
 	bip->bip_iter.bi_sector = io->cc->start + io->sector;
 
@@ -1173,24 +1202,24 @@ static int crypt_integrity_ctr(struct crypt_config *cc, struct dm_target *ti)
 	struct blk_integrity *bi = blk_get_integrity(cc->dev->bdev->bd_disk);
 	struct mapped_device *md = dm_table_get_md(ti->table);
 
-	/* From now we require underlying device with our integrity profile */
-	if (!bi || strcasecmp(bi->profile->name, "DM-DIF-EXT-TAG")) {
+	/* We require an underlying device with non-PI metadata */
+	if (!bi || bi->csum_type != BLK_INTEGRITY_CSUM_NONE) {
 		ti->error = "Integrity profile not supported.";
 		return -EINVAL;
 	}
 
-	if (bi->tag_size != cc->on_disk_tag_size ||
-	    bi->tuple_size != cc->on_disk_tag_size) {
+	if (bi->tuple_size < cc->used_tag_size) {
 		ti->error = "Integrity profile tag size mismatch.";
 		return -EINVAL;
 	}
+	cc->tuple_size = bi->tuple_size;
 	if (1 << bi->interval_exp != cc->sector_size) {
 		ti->error = "Integrity profile sector size mismatch.";
 		return -EINVAL;
 	}
 
 	if (crypt_integrity_aead(cc)) {
-		cc->integrity_tag_size = cc->on_disk_tag_size - cc->integrity_iv_size;
+		cc->integrity_tag_size = cc->used_tag_size - cc->integrity_iv_size;
 		DMDEBUG("%s: Integrity AEAD, tag size %u, IV size %u.", dm_device_name(md),
 		       cc->integrity_tag_size, cc->integrity_iv_size);
 
@@ -1202,7 +1231,7 @@ static int crypt_integrity_ctr(struct crypt_config *cc, struct dm_target *ti)
 		DMDEBUG("%s: Additional per-sector space %u bytes for IV.", dm_device_name(md),
 		       cc->integrity_iv_size);
 
-	if ((cc->integrity_tag_size + cc->integrity_iv_size) != bi->tag_size) {
+	if ((cc->integrity_tag_size + cc->integrity_iv_size) > cc->tuple_size) {
 		ti->error = "Not enough space for integrity tag in the profile.";
 		return -EINVAL;
 	}
@@ -1281,7 +1310,7 @@ static void *tag_from_dmreq(struct crypt_config *cc,
 	struct dm_crypt_io *io = container_of(ctx, struct dm_crypt_io, ctx);
 
 	return &io->integrity_metadata[*org_tag_of_dmreq(cc, dmreq) *
-		cc->on_disk_tag_size];
+		cc->tuple_size];
 }
 
 static void *iv_tag_from_dmreq(struct crypt_config *cc,
@@ -1362,9 +1391,9 @@ static int crypt_convert_block_aead(struct crypt_config *cc,
 		aead_request_set_crypt(req, dmreq->sg_in, dmreq->sg_out,
 				       cc->sector_size, iv);
 		r = crypto_aead_encrypt(req);
-		if (cc->integrity_tag_size + cc->integrity_iv_size != cc->on_disk_tag_size)
+		if (cc->integrity_tag_size + cc->integrity_iv_size != cc->tuple_size)
 			memset(tag + cc->integrity_tag_size + cc->integrity_iv_size, 0,
-			       cc->on_disk_tag_size - (cc->integrity_tag_size + cc->integrity_iv_size));
+			       cc->tuple_size - (cc->integrity_tag_size + cc->integrity_iv_size));
 	} else {
 		aead_request_set_crypt(req, dmreq->sg_in, dmreq->sg_out,
 				       cc->sector_size + cc->integrity_tag_size, iv);
@@ -1653,8 +1682,8 @@ static void crypt_free_buffer_pages(struct crypt_config *cc, struct bio *clone);
 
 /*
  * Generate a new unfragmented bio with the given size
- * This should never violate the device limitations (but only because
- * max_segment_size is being constrained to PAGE_SIZE).
+ * This should never violate the device limitations (but if it did then block
+ * core should split the bio as needed).
  *
  * This function may be called concurrently. If we allocate from the mempool
  * concurrently, there is a possibility of deadlock. For example, if we have
@@ -1794,7 +1823,7 @@ static void crypt_dec_pending(struct dm_crypt_io *io)
 		return;
 
 	if (likely(!io->ctx.aead_recheck) && unlikely(io->ctx.aead_failed) &&
-	    cc->on_disk_tag_size && bio_data_dir(base_bio) == READ) {
+	    cc->used_tag_size && bio_data_dir(base_bio) == READ) {
 		io->ctx.aead_recheck = true;
 		io->ctx.aead_failed = false;
 		io->error = 0;
@@ -2771,6 +2800,9 @@ static void crypt_dtr(struct dm_target *ti)
 	if (cc->crypt_queue)
 		destroy_workqueue(cc->crypt_queue);
 
+	if (cc->workqueue_id)
+		ida_free(&workqueue_ida, cc->workqueue_id);
+
 	crypt_free_tfms(cc);
 
 	bioset_exit(&cc->bs);
@@ -3134,7 +3166,7 @@ static int crypt_ctr_optional(struct dm_target *ti, unsigned int argc, char **ar
 	struct crypt_config *cc = ti->private;
 	struct dm_arg_set as;
 	static const struct dm_arg _args[] = {
-		{0, 8, "Invalid number of feature args"},
+		{0, 9, "Invalid number of feature args"},
 	};
 	unsigned int opt_params, val;
 	const char *opt_string, *sval;
@@ -3161,6 +3193,8 @@ static int crypt_ctr_optional(struct dm_target *ti, unsigned int argc, char **ar
 
 		else if (!strcasecmp(opt_string, "same_cpu_crypt"))
 			set_bit(DM_CRYPT_SAME_CPU, &cc->flags);
+		else if (!strcasecmp(opt_string, "high_priority"))
+			set_bit(DM_CRYPT_HIGH_PRIORITY, &cc->flags);
 
 		else if (!strcasecmp(opt_string, "submit_from_crypt_cpus"))
 			set_bit(DM_CRYPT_NO_OFFLOAD, &cc->flags);
@@ -3173,7 +3207,7 @@ static int crypt_ctr_optional(struct dm_target *ti, unsigned int argc, char **ar
 				ti->error = "Invalid integrity arguments";
 				return -EINVAL;
 			}
-			cc->on_disk_tag_size = val;
+			cc->used_tag_size = val;
 			sval = strchr(opt_string + strlen("integrity:"), ':') + 1;
 			if (!strcasecmp(sval, "aead")) {
 				set_bit(CRYPT_MODE_INTEGRITY_AEAD, &cc->cipher_flags);
@@ -3230,8 +3264,9 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 {
 	struct crypt_config *cc;
 	const char *devname = dm_table_device_name(ti->table);
-	int key_size;
+	int key_size, wq_id;
 	unsigned int align_mask;
+	unsigned int common_wq_flags;
 	unsigned long long tmpll;
 	int ret;
 	size_t iv_size_padding, additional_req_size;
@@ -3384,12 +3419,12 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		if (ret)
 			goto bad;
 
-		cc->tag_pool_max_sectors = POOL_ENTRY_SIZE / cc->on_disk_tag_size;
+		cc->tag_pool_max_sectors = POOL_ENTRY_SIZE / cc->tuple_size;
 		if (!cc->tag_pool_max_sectors)
 			cc->tag_pool_max_sectors = 1;
 
 		ret = mempool_init_kmalloc_pool(&cc->tag_pool, MIN_IOS,
-			cc->tag_pool_max_sectors * cc->on_disk_tag_size);
+			cc->tag_pool_max_sectors * cc->tuple_size);
 		if (ret) {
 			ti->error = "Cannot allocate integrity tags mempool";
 			goto bad;
@@ -3398,20 +3433,38 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		cc->tag_pool_max_sectors <<= cc->sector_shift;
 	}
 
+	wq_id = ida_alloc_min(&workqueue_ida, 1, GFP_KERNEL);
+	if (wq_id < 0) {
+		ti->error = "Couldn't get workqueue id";
+		ret = wq_id;
+		goto bad;
+	}
+	cc->workqueue_id = wq_id;
+
 	ret = -ENOMEM;
-	cc->io_queue = alloc_workqueue("kcryptd_io/%s", WQ_MEM_RECLAIM, 1, devname);
+	common_wq_flags = WQ_MEM_RECLAIM | WQ_SYSFS;
+	if (test_bit(DM_CRYPT_HIGH_PRIORITY, &cc->flags))
+		common_wq_flags |= WQ_HIGHPRI;
+
+	cc->io_queue = alloc_workqueue("kcryptd_io-%s-%d", common_wq_flags, 1, devname, wq_id);
 	if (!cc->io_queue) {
 		ti->error = "Couldn't create kcryptd io queue";
 		goto bad;
 	}
 
-	if (test_bit(DM_CRYPT_SAME_CPU, &cc->flags))
-		cc->crypt_queue = alloc_workqueue("kcryptd/%s", WQ_CPU_INTENSIVE | WQ_MEM_RECLAIM,
-						  1, devname);
-	else
-		cc->crypt_queue = alloc_workqueue("kcryptd/%s",
-						  WQ_CPU_INTENSIVE | WQ_MEM_RECLAIM | WQ_UNBOUND,
-						  num_online_cpus(), devname);
+	if (test_bit(DM_CRYPT_SAME_CPU, &cc->flags)) {
+		cc->crypt_queue = alloc_workqueue("kcryptd-%s-%d",
+						  common_wq_flags | WQ_CPU_INTENSIVE,
+						  1, devname, wq_id);
+	} else {
+		/*
+		 * While crypt_queue is certainly CPU intensive, the use of
+		 * WQ_CPU_INTENSIVE is meaningless with WQ_UNBOUND.
+		 */
+		cc->crypt_queue = alloc_workqueue("kcryptd-%s-%d",
+						  common_wq_flags | WQ_UNBOUND,
+						  num_online_cpus(), devname, wq_id);
+	}
 	if (!cc->crypt_queue) {
 		ti->error = "Couldn't create kcryptd queue";
 		goto bad;
@@ -3427,6 +3480,8 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		ti->error = "Couldn't spawn write thread";
 		goto bad;
 	}
+	if (test_bit(DM_CRYPT_HIGH_PRIORITY, &cc->flags))
+		set_user_nice(cc->write_thread, MIN_NICE);
 
 	ti->num_flush_bios = 1;
 	ti->limit_swap_bios = true;
@@ -3445,6 +3500,7 @@ static int crypt_map(struct dm_target *ti, struct bio *bio)
 {
 	struct dm_crypt_io *io;
 	struct crypt_config *cc = ti->private;
+	unsigned max_sectors;
 
 	/*
 	 * If bio is REQ_PREFLUSH or REQ_OP_DISCARD, just bypass crypt queues.
@@ -3463,9 +3519,9 @@ static int crypt_map(struct dm_target *ti, struct bio *bio)
 	/*
 	 * Check if bio is too large, split as needed.
 	 */
-	if (unlikely(bio->bi_iter.bi_size > (BIO_MAX_VECS << PAGE_SHIFT)) &&
-	    (bio_data_dir(bio) == WRITE || cc->on_disk_tag_size))
-		dm_accept_partial_bio(bio, ((BIO_MAX_VECS << PAGE_SHIFT) >> SECTOR_SHIFT));
+	max_sectors = get_max_request_size(cc, bio_data_dir(bio) == WRITE);
+	if (unlikely(bio_sectors(bio) > max_sectors))
+		dm_accept_partial_bio(bio, max_sectors);
 
 	/*
 	 * Ensure that bio is a multiple of internal sector encryption size
@@ -3480,8 +3536,8 @@ static int crypt_map(struct dm_target *ti, struct bio *bio)
 	io = dm_per_bio_data(bio, cc->per_bio_data_size);
 	crypt_io_init(io, cc, bio, dm_target_offset(ti, bio->bi_iter.bi_sector));
 
-	if (cc->on_disk_tag_size) {
-		unsigned int tag_len = cc->on_disk_tag_size * (bio_sectors(bio) >> cc->sector_shift);
+	if (cc->tuple_size) {
+		unsigned int tag_len = cc->tuple_size * (bio_sectors(bio) >> cc->sector_shift);
 
 		if (unlikely(tag_len > KMALLOC_MAX_SIZE))
 			io->integrity_metadata = NULL;
@@ -3547,12 +3603,13 @@ static void crypt_status(struct dm_target *ti, status_type_t type,
 
 		num_feature_args += !!ti->num_discard_bios;
 		num_feature_args += test_bit(DM_CRYPT_SAME_CPU, &cc->flags);
+		num_feature_args += test_bit(DM_CRYPT_HIGH_PRIORITY, &cc->flags);
 		num_feature_args += test_bit(DM_CRYPT_NO_OFFLOAD, &cc->flags);
 		num_feature_args += test_bit(DM_CRYPT_NO_READ_WORKQUEUE, &cc->flags);
 		num_feature_args += test_bit(DM_CRYPT_NO_WRITE_WORKQUEUE, &cc->flags);
 		num_feature_args += cc->sector_size != (1 << SECTOR_SHIFT);
 		num_feature_args += test_bit(CRYPT_IV_LARGE_SECTORS, &cc->cipher_flags);
-		if (cc->on_disk_tag_size)
+		if (cc->used_tag_size)
 			num_feature_args++;
 		if (num_feature_args) {
 			DMEMIT(" %d", num_feature_args);
@@ -3560,14 +3617,16 @@ static void crypt_status(struct dm_target *ti, status_type_t type,
 				DMEMIT(" allow_discards");
 			if (test_bit(DM_CRYPT_SAME_CPU, &cc->flags))
 				DMEMIT(" same_cpu_crypt");
+			if (test_bit(DM_CRYPT_HIGH_PRIORITY, &cc->flags))
+				DMEMIT(" high_priority");
 			if (test_bit(DM_CRYPT_NO_OFFLOAD, &cc->flags))
 				DMEMIT(" submit_from_crypt_cpus");
 			if (test_bit(DM_CRYPT_NO_READ_WORKQUEUE, &cc->flags))
 				DMEMIT(" no_read_workqueue");
 			if (test_bit(DM_CRYPT_NO_WRITE_WORKQUEUE, &cc->flags))
 				DMEMIT(" no_write_workqueue");
-			if (cc->on_disk_tag_size)
-				DMEMIT(" integrity:%u:%s", cc->on_disk_tag_size, cc->cipher_auth);
+			if (cc->used_tag_size)
+				DMEMIT(" integrity:%u:%s", cc->used_tag_size, cc->cipher_auth);
 			if (cc->sector_size != (1 << SECTOR_SHIFT))
 				DMEMIT(" sector_size:%d", cc->sector_size);
 			if (test_bit(CRYPT_IV_LARGE_SECTORS, &cc->cipher_flags))
@@ -3579,6 +3638,7 @@ static void crypt_status(struct dm_target *ti, status_type_t type,
 		DMEMIT_TARGET_NAME_VERSION(ti->type);
 		DMEMIT(",allow_discards=%c", ti->num_discard_bios ? 'y' : 'n');
 		DMEMIT(",same_cpu_crypt=%c", test_bit(DM_CRYPT_SAME_CPU, &cc->flags) ? 'y' : 'n');
+		DMEMIT(",high_priority=%c", test_bit(DM_CRYPT_HIGH_PRIORITY, &cc->flags) ? 'y' : 'n');
 		DMEMIT(",submit_from_crypt_cpus=%c", test_bit(DM_CRYPT_NO_OFFLOAD, &cc->flags) ?
 		       'y' : 'n');
 		DMEMIT(",no_read_workqueue=%c", test_bit(DM_CRYPT_NO_READ_WORKQUEUE, &cc->flags) ?
@@ -3588,9 +3648,9 @@ static void crypt_status(struct dm_target *ti, status_type_t type,
 		DMEMIT(",iv_large_sectors=%c", test_bit(CRYPT_IV_LARGE_SECTORS, &cc->cipher_flags) ?
 		       'y' : 'n');
 
-		if (cc->on_disk_tag_size)
+		if (cc->used_tag_size)
 			DMEMIT(",integrity_tag_size=%u,cipher_auth=%s",
-			       cc->on_disk_tag_size, cc->cipher_auth);
+			       cc->used_tag_size, cc->cipher_auth);
 		if (cc->sector_size != (1 << SECTOR_SHIFT))
 			DMEMIT(",sector_size=%d", cc->sector_size);
 		if (cc->cipher_string)
@@ -3688,14 +3748,6 @@ static void crypt_io_hints(struct dm_target *ti, struct queue_limits *limits)
 {
 	struct crypt_config *cc = ti->private;
 
-	/*
-	 * Unfortunate constraint that is required to avoid the potential
-	 * for exceeding underlying device's max_segments limits -- due to
-	 * crypt_alloc_buffer() possibly allocating pages for the encryption
-	 * bio that are not as physically contiguous as the original bio.
-	 */
-	limits->max_segment_size = PAGE_SIZE;
-
 	limits->logical_block_size =
 		max_t(unsigned int, limits->logical_block_size, cc->sector_size);
 	limits->physical_block_size =
@@ -3706,7 +3758,7 @@ static void crypt_io_hints(struct dm_target *ti, struct queue_limits *limits)
 
 static struct target_type crypt_target = {
 	.name   = "crypt",
-	.version = {1, 25, 0},
+	.version = {1, 27, 0},
 	.module = THIS_MODULE,
 	.ctr    = crypt_ctr,
 	.dtr    = crypt_dtr,

@@ -237,7 +237,6 @@ enum gp2ap020a00f_thresh_val_id {
 };
 
 struct gp2ap020a00f_data {
-	const struct gp2ap020a00f_platform_data *pdata;
 	struct i2c_client *client;
 	struct mutex lock;
 	char *buffer;
@@ -1592,7 +1591,7 @@ static void gp2ap020a00f_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id gp2ap020a00f_id[] = {
-	{ GP2A_I2C_NAME, 0 },
+	{ GP2A_I2C_NAME },
 	{ }
 };
 

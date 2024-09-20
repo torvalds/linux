@@ -319,7 +319,7 @@ void rtllib_wx_sync_scan_wq(void *data)
 	if (ieee->ht_info->current_ht_support && ieee->ht_info->enable_ht &&
 	    ieee->ht_info->cur_bw_40mhz) {
 		b40M = 1;
-		chan_offset = ieee->ht_info->CurSTAExtChnlOffset;
+		chan_offset = ieee->ht_info->cur_sta_ext_chnl_offset;
 		bandwidth = (enum ht_channel_width)ieee->ht_info->cur_bw_40mhz;
 		ieee->set_bw_mode_handler(ieee->dev, HT_CHANNEL_WIDTH_20,
 				       HT_EXTCHNL_OFFSET_NO_EXT);

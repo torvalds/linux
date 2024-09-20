@@ -220,7 +220,7 @@ static int pps_gpio_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int pps_gpio_remove(struct platform_device *pdev)
+static void pps_gpio_remove(struct platform_device *pdev)
 {
 	struct pps_gpio_device_data *data = platform_get_drvdata(pdev);
 
@@ -229,7 +229,6 @@ static int pps_gpio_remove(struct platform_device *pdev)
 	/* reset echo pin in any case */
 	gpiod_set_value(data->echo_pin, 0);
 	dev_info(&pdev->dev, "removed IRQ %d as PPS source\n", data->irq);
-	return 0;
 }
 
 static const struct of_device_id pps_gpio_dt_ids[] = {
@@ -240,7 +239,7 @@ MODULE_DEVICE_TABLE(of, pps_gpio_dt_ids);
 
 static struct platform_driver pps_gpio_driver = {
 	.probe		= pps_gpio_probe,
-	.remove		= pps_gpio_remove,
+	.remove_new	= pps_gpio_remove,
 	.driver		= {
 		.name	= PPS_GPIO_NAME,
 		.of_match_table	= pps_gpio_dt_ids,

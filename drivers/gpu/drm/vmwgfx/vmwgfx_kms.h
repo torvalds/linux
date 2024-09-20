@@ -1,7 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 OR MIT */
 /**************************************************************************
  *
- * Copyright 2009-2023 VMware, Inc., Palo Alto, CA., USA
+ * Copyright (c) 2009-2024 Broadcom. All Rights Reserved. The term
+ * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
@@ -217,24 +218,12 @@ struct vmw_kms_dirty {
 struct vmw_framebuffer {
 	struct drm_framebuffer base;
 	bool bo;
-	uint32_t user_handle;
-};
-
-/*
- * Clip rectangle
- */
-struct vmw_clip_rect {
-	int x1, x2, y1, y2;
 };
 
 struct vmw_framebuffer_surface {
 	struct vmw_framebuffer base;
-	struct vmw_surface *surface;
-	struct vmw_bo *buffer;
-	struct list_head head;
-	bool is_bo_proxy;  /* true if this is proxy surface for DMA buf */
+	struct vmw_user_object uo;
 };
-
 
 struct vmw_framebuffer_bo {
 	struct vmw_framebuffer base;
@@ -287,8 +276,7 @@ struct vmw_cursor_plane_state {
  */
 struct vmw_plane_state {
 	struct drm_plane_state base;
-	struct vmw_surface *surf;
-	struct vmw_bo *bo;
+	struct vmw_user_object uo;
 
 	int content_fb_type;
 	unsigned long bo_size;
@@ -359,7 +347,6 @@ struct vmw_display_unit {
 	struct vmw_cursor_plane cursor;
 
 	struct vmw_surface *cursor_surface;
-	struct vmw_bo *cursor_bo;
 	size_t cursor_age;
 
 	int cursor_x;
@@ -387,11 +374,25 @@ struct vmw_display_unit {
 	bool is_implicit;
 	int set_gui_x;
 	int set_gui_y;
-};
 
-struct vmw_validation_ctx {
-	struct vmw_resource *res;
-	struct vmw_bo *buf;
+	struct {
+		struct work_struct crc_generator_work;
+		struct hrtimer timer;
+		ktime_t period_ns;
+
+		/* protects concurrent access to the vblank handler */
+		atomic_t atomic_lock;
+		/* protected by @atomic_lock */
+		bool crc_enabled;
+		struct vmw_surface *surface;
+
+		/* protects concurrent access to the crc worker */
+		spinlock_t crc_state_lock;
+		/* protected by @crc_state_lock */
+		bool crc_pending;
+		u64 frame_start;
+		u64 frame_end;
+	} vkms;
 };
 
 #define vmw_crtc_to_du(x) \
@@ -403,6 +404,7 @@ struct vmw_validation_ctx {
 /*
  * Shared display unit functions - vmwgfx_kms.c
  */
+void vmw_du_init(struct vmw_display_unit *du);
 void vmw_du_cleanup(struct vmw_display_unit *du);
 void vmw_du_crtc_save(struct drm_crtc *crtc);
 void vmw_du_crtc_restore(struct drm_crtc *crtc);
@@ -453,9 +455,7 @@ int vmw_kms_readback(struct vmw_private *dev_priv,
 		     uint32_t num_clips);
 struct vmw_framebuffer *
 vmw_kms_new_framebuffer(struct vmw_private *dev_priv,
-			struct vmw_bo *bo,
-			struct vmw_surface *surface,
-			bool only_2d,
+			struct vmw_user_object *uo,
 			const struct drm_mode_fb_cmd2 *mode_cmd);
 void vmw_guess_mode_timing(struct drm_display_mode *mode);
 void vmw_kms_update_implicit_fb(struct vmw_private *dev_priv);
@@ -482,14 +482,11 @@ void vmw_du_plane_reset(struct drm_plane *plane);
 struct drm_plane_state *vmw_du_plane_duplicate_state(struct drm_plane *plane);
 void vmw_du_plane_destroy_state(struct drm_plane *plane,
 				struct drm_plane_state *state);
-void vmw_du_plane_unpin_surf(struct vmw_plane_state *vps,
-			     bool unreference);
+void vmw_du_plane_unpin_surf(struct vmw_plane_state *vps);
 
 int vmw_du_crtc_atomic_check(struct drm_crtc *crtc,
 			     struct drm_atomic_state *state);
 void vmw_du_crtc_atomic_begin(struct drm_crtc *crtc,
-			      struct drm_atomic_state *state);
-void vmw_du_crtc_atomic_flush(struct drm_crtc *crtc,
 			      struct drm_atomic_state *state);
 void vmw_du_crtc_reset(struct drm_crtc *crtc);
 struct drm_crtc_state *vmw_du_crtc_duplicate_state(struct drm_crtc *crtc);

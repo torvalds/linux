@@ -16,9 +16,9 @@
 #include <linux/poll.h>
 
 #define to_rpmsg_device(d) container_of(d, struct rpmsg_device, dev)
-#define to_rpmsg_driver(d) container_of(d, struct rpmsg_driver, drv)
+#define to_rpmsg_driver(d) container_of_const(d, struct rpmsg_driver, drv)
 
-extern struct class *rpmsg_class;
+extern const struct class rpmsg_class;
 
 /**
  * struct rpmsg_device_ops - indirection table for the rpmsg_device operations

@@ -14,6 +14,7 @@
 #include <asm/mach/map.h>
 #include <asm/mmu_context.h>
 #include <asm/ptrace.h>
+#include <asm/uaccess.h>
 
 #ifdef CONFIG_EFI
 void efi_init(void);
@@ -24,6 +25,18 @@ int efi_set_mapping_permissions(struct mm_struct *mm, efi_memory_desc_t *md, boo
 
 #define arch_efi_call_virt_setup()	efi_virtmap_load()
 #define arch_efi_call_virt_teardown()	efi_virtmap_unload()
+
+#ifdef CONFIG_CPU_TTBR0_PAN
+#undef arch_efi_call_virt
+#define arch_efi_call_virt(p, f, args...) ({				\
+	unsigned int flags = uaccess_save_and_enable();			\
+	efi_status_t res = _Generic((p)->f(args),			\
+			efi_status_t:	(p)->f(args),			\
+			default:	((p)->f(args), EFI_ABORTED));	\
+	uaccess_restore(flags);						\
+	res;								\
+})
+#endif
 
 #define ARCH_EFI_IRQ_FLAGS_MASK \
 	(PSR_J_BIT | PSR_E_BIT | PSR_A_BIT | PSR_I_BIT | PSR_F_BIT | \

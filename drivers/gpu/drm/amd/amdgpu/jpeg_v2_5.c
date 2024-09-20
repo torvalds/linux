@@ -196,8 +196,6 @@ static int jpeg_v2_5_hw_init(void *handle)
 			return r;
 	}
 
-	DRM_INFO("JPEG decode initialized successfully.\n");
-
 	return 0;
 }
 
@@ -632,6 +630,8 @@ static const struct amd_ip_funcs jpeg_v2_5_ip_funcs = {
 	.post_soft_reset = NULL,
 	.set_clockgating_state = jpeg_v2_5_set_clockgating_state,
 	.set_powergating_state = jpeg_v2_5_set_powergating_state,
+	.dump_ip_state = NULL,
+	.print_ip_state = NULL,
 };
 
 static const struct amd_ip_funcs jpeg_v2_6_ip_funcs = {
@@ -652,6 +652,8 @@ static const struct amd_ip_funcs jpeg_v2_6_ip_funcs = {
 	.post_soft_reset = NULL,
 	.set_clockgating_state = jpeg_v2_5_set_clockgating_state,
 	.set_powergating_state = jpeg_v2_5_set_powergating_state,
+	.dump_ip_state = NULL,
+	.print_ip_state = NULL,
 };
 
 static const struct amdgpu_ring_funcs jpeg_v2_5_dec_ring_vm_funcs = {
@@ -724,7 +726,6 @@ static void jpeg_v2_5_set_dec_ring_funcs(struct amdgpu_device *adev)
 		else  /* CHIP_ALDEBARAN */
 			adev->jpeg.inst[i].ring_dec->funcs = &jpeg_v2_6_dec_ring_vm_funcs;
 		adev->jpeg.inst[i].ring_dec->me = i;
-		DRM_INFO("JPEG(%d) JPEG decode is enabled in VM mode\n", i);
 	}
 }
 

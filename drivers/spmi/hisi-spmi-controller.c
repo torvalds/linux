@@ -300,7 +300,6 @@ static int spmi_controller_probe(struct platform_device *pdev)
 
 	spin_lock_init(&spmi_controller->lock);
 
-	ctrl->nr = spmi_controller->channel;
 	ctrl->dev.parent = pdev->dev.parent;
 	ctrl->dev.of_node = of_node_get(pdev->dev.of_node);
 
@@ -345,6 +344,7 @@ static void __exit spmi_controller_exit(void)
 }
 module_exit(spmi_controller_exit);
 
+MODULE_DESCRIPTION("Hisilicon 3670 SPMI Controller driver");
 MODULE_LICENSE("GPL v2");
 MODULE_VERSION("1.0");
 MODULE_ALIAS("platform:spmi_controller");

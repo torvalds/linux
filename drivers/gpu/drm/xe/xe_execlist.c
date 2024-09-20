@@ -9,7 +9,6 @@
 
 #include "instructions/xe_mi_commands.h"
 #include "regs/xe_engine_regs.h"
-#include "regs/xe_gpu_commands.h"
 #include "regs/xe_gt_regs.h"
 #include "regs/xe_lrc_layout.h"
 #include "xe_assert.h"
@@ -110,7 +109,7 @@ static void __xe_execlist_port_start(struct xe_execlist_port *port,
 			port->last_ctx_id = 1;
 	}
 
-	__start_lrc(port->hwe, exl->q->lrc, port->last_ctx_id);
+	__start_lrc(port->hwe, exl->q->lrc[0], port->last_ctx_id);
 	port->running_exl = exl;
 	exl->has_run = true;
 }
@@ -124,14 +123,14 @@ static void __xe_execlist_port_idle(struct xe_execlist_port *port)
 	if (!port->running_exl)
 		return;
 
-	xe_lrc_write_ring(&port->hwe->kernel_lrc, noop, sizeof(noop));
-	__start_lrc(port->hwe, &port->hwe->kernel_lrc, 0);
+	xe_lrc_write_ring(port->hwe->kernel_lrc, noop, sizeof(noop));
+	__start_lrc(port->hwe, port->hwe->kernel_lrc, 0);
 	port->running_exl = NULL;
 }
 
 static bool xe_execlist_is_idle(struct xe_execlist_exec_queue *exl)
 {
-	struct xe_lrc *lrc = exl->q->lrc;
+	struct xe_lrc *lrc = exl->q->lrc[0];
 
 	return lrc->ring.tail == lrc->ring.old_tail;
 }
@@ -307,6 +306,7 @@ static void execlist_job_free(struct drm_sched_job *drm_job)
 {
 	struct xe_sched_job *job = to_xe_sched_job(drm_job);
 
+	xe_exec_queue_update_run_ticks(job->q);
 	xe_sched_job_put(job);
 }
 
@@ -333,7 +333,7 @@ static int execlist_exec_queue_init(struct xe_exec_queue *q)
 	exl->q = q;
 
 	err = drm_sched_init(&exl->sched, &drm_sched_ops, NULL, 1,
-			     q->lrc[0].ring.size / MAX_JOB_SIZE_BYTES,
+			     q->lrc[0]->ring.size / MAX_JOB_SIZE_BYTES,
 			     XE_SCHED_HANG_LIMIT, XE_SCHED_JOB_TIMEOUT,
 			     NULL, NULL, q->hwe->name,
 			     gt_to_xe(q->gt)->drm.dev);

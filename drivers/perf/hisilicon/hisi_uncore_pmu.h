@@ -33,7 +33,7 @@
 	})[0].attr.attr)
 
 #define HISI_PMU_FORMAT_ATTR(_name, _config)		\
-	HISI_PMU_ATTR(_name, hisi_format_sysfs_show, (void *)_config)
+	HISI_PMU_ATTR(_name, device_show_string, _config)
 #define HISI_PMU_EVENT_ATTR(_name, _config)		\
 	HISI_PMU_ATTR(_name, hisi_event_sysfs_show, (unsigned long)_config)
 
@@ -122,8 +122,6 @@ void hisi_uncore_pmu_enable(struct pmu *pmu);
 void hisi_uncore_pmu_disable(struct pmu *pmu);
 ssize_t hisi_event_sysfs_show(struct device *dev,
 			      struct device_attribute *attr, char *buf);
-ssize_t hisi_format_sysfs_show(struct device *dev,
-			       struct device_attribute *attr, char *buf);
 ssize_t hisi_cpumask_sysfs_show(struct device *dev,
 				struct device_attribute *attr, char *buf);
 int hisi_uncore_pmu_online_cpu(unsigned int cpu, struct hlist_node *node);

@@ -157,6 +157,18 @@ https://commonmark.org/help/
 
 	https://doc.rust-lang.org/rustdoc/how-to-write-documentation.html
 
+此外，内核支持通过在链接目标前添加 ``srctree/`` 来创建相对于源代码树的链接。例如:
+
+.. code-block:: rust
+
+       //! C header: [`include/linux/printk.h`](srctree/include/linux/printk.h)
+
+或者:
+
+.. code-block:: rust
+
+       /// [`struct mutex`]: srctree/include/linux/mutex.h
+
 
 命名
 ----

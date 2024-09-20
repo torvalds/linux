@@ -74,7 +74,7 @@
 		pinctrl-1 = <&lcd_pins_sleep>;
 
 		display-timings {
-			320x240 {
+			timing-320x240 {
 				hactive         = <320>;
 				vactive         = <240>;
 				hback-porch     = <68>;

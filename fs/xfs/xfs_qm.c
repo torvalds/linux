@@ -793,12 +793,15 @@ xfs_qm_qino_alloc(
 		return error;
 
 	if (need_alloc) {
+		struct xfs_icreate_args	args = {
+			.mode		= S_IFREG,
+			.flags		= XFS_ICREATE_UNLINKABLE,
+		};
 		xfs_ino_t	ino;
 
 		error = xfs_dialloc(&tp, 0, S_IFREG, &ino);
 		if (!error)
-			error = xfs_init_new_inode(&nop_mnt_idmap, tp, NULL, ino,
-					S_IFREG, 1, 0, 0, false, ipp);
+			error = xfs_icreate(tp, ino, &args, ipp);
 		if (error) {
 			xfs_trans_cancel(tp);
 			return error;
@@ -836,8 +839,10 @@ xfs_qm_qino_alloc(
 		ASSERT(xfs_is_shutdown(mp));
 		xfs_alert(mp, "%s failed (error %d)!", __func__, error);
 	}
-	if (need_alloc)
+	if (need_alloc) {
+		xfs_iunlock(*ipp, XFS_ILOCK_EXCL);
 		xfs_finish_inode_setup(*ipp);
+	}
 	return error;
 }
 

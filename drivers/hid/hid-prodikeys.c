@@ -862,4 +862,5 @@ static struct hid_driver pk_driver = {
 };
 module_hid_driver(pk_driver);
 
+MODULE_DESCRIPTION("HID driver for the Prodikeys PC-MIDI Keyboard");
 MODULE_LICENSE("GPL");

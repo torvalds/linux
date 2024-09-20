@@ -2050,6 +2050,7 @@ static int __perf_session__process_pipe_events(struct perf_session *session)
 {
 	struct ordered_events *oe = &session->ordered_events;
 	struct perf_tool *tool = session->tool;
+	struct ui_progress prog;
 	union perf_event *event;
 	uint32_t size, cur_size = 0;
 	void *buf = NULL;
@@ -2057,8 +2058,20 @@ static int __perf_session__process_pipe_events(struct perf_session *session)
 	u64 head;
 	ssize_t err;
 	void *p;
+	bool update_prog = false;
 
 	perf_tool__fill_defaults(tool);
+
+	/*
+	 * If it's from a file saving pipe data (by redirection), it would have
+	 * a file name other than "-".  Then we can get the total size and show
+	 * the progress.
+	 */
+	if (strcmp(session->data->path, "-") && session->data->file.size) {
+		ui_progress__init_size(&prog, session->data->file.size,
+				       "Processing events...");
+		update_prog = true;
+	}
 
 	head = 0;
 	cur_size = sizeof(union perf_event);
@@ -2131,6 +2144,9 @@ more:
 	if (err)
 		goto out_err;
 
+	if (update_prog)
+		ui_progress__update(&prog, size);
+
 	if (!session_done())
 		goto more;
 done:
@@ -2144,6 +2160,8 @@ done:
 	err = perf_session__flush_thread_stacks(session);
 out_err:
 	free(buf);
+	if (update_prog)
+		ui_progress__finish();
 	if (!tool->no_warn)
 		perf_session__warn_about_errors(session);
 	ordered_events__free(&session->ordered_events);
@@ -2523,7 +2541,7 @@ static int __perf_session__process_dir_events(struct perf_session *session)
 
 	perf_tool__fill_defaults(tool);
 
-	ui_progress__init_size(&prog, total_size, "Sorting events...");
+	ui_progress__init_size(&prog, total_size, "Processing events...");
 
 	nr_readers = 1;
 	for (i = 0; i < data->dir.nr; i++) {
@@ -2696,8 +2714,7 @@ size_t perf_session__fprintf_dsos_buildid(struct perf_session *session, FILE *fp
 	return machines__fprintf_dsos_buildid(&session->machines, fp, skip, parm);
 }
 
-size_t perf_session__fprintf_nr_events(struct perf_session *session, FILE *fp,
-				       bool skip_empty)
+size_t perf_session__fprintf_nr_events(struct perf_session *session, FILE *fp)
 {
 	size_t ret;
 	const char *msg = "";
@@ -2707,7 +2724,7 @@ size_t perf_session__fprintf_nr_events(struct perf_session *session, FILE *fp,
 
 	ret = fprintf(fp, "\nAggregated stats:%s\n", msg);
 
-	ret += events_stats__fprintf(&session->evlist->stats, fp, skip_empty);
+	ret += events_stats__fprintf(&session->evlist->stats, fp);
 	return ret;
 }
 
@@ -2749,6 +2766,7 @@ int perf_session__cpu_bitmap(struct perf_session *session,
 	int i, err = -1;
 	struct perf_cpu_map *map;
 	int nr_cpus = min(session->header.env.nr_cpus_avail, MAX_NR_CPUS);
+	struct perf_cpu cpu;
 
 	for (i = 0; i < PERF_TYPE_MAX; ++i) {
 		struct evsel *evsel;
@@ -2770,9 +2788,7 @@ int perf_session__cpu_bitmap(struct perf_session *session,
 		return -1;
 	}
 
-	for (i = 0; i < perf_cpu_map__nr(map); i++) {
-		struct perf_cpu cpu = perf_cpu_map__cpu(map, i);
-
+	perf_cpu_map__for_each_cpu(cpu, i, map) {
 		if (cpu.cpu >= nr_cpus) {
 			pr_err("Requested CPU %d too large. "
 			       "Consider raising MAX_NR_CPUS\n", cpu.cpu);
@@ -2915,5 +2931,26 @@ int perf_event__process_id_index(struct perf_session *session,
 		if (ret)
 			return ret;
 	}
+	return 0;
+}
+
+int perf_session__dsos_hit_all(struct perf_session *session)
+{
+	struct rb_node *nd;
+	int err;
+
+	err = machine__hit_all_dsos(&session->machines.host);
+	if (err)
+		return err;
+
+	for (nd = rb_first_cached(&session->machines.guests); nd;
+	     nd = rb_next(nd)) {
+		struct machine *pos = rb_entry(nd, struct machine, rb_node);
+
+		err = machine__hit_all_dsos(pos);
+		if (err)
+			return err;
+	}
+
 	return 0;
 }

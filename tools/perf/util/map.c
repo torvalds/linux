@@ -168,7 +168,7 @@ struct map *map__new(struct machine *machine, u64 start, u64 len,
 		if (dso == NULL)
 			goto out_delete;
 
-		assert(!dso->kernel);
+		assert(!dso__kernel(dso));
 		map__init(result, start, start + len, pgoff, dso);
 
 		if (anon || no_dso) {
@@ -182,10 +182,9 @@ struct map *map__new(struct machine *machine, u64 start, u64 len,
 			if (!(prot & PROT_EXEC))
 				dso__set_loaded(dso);
 		}
-		mutex_lock(&dso->lock);
-		nsinfo__put(dso->nsinfo);
-		dso->nsinfo = nsi;
-		mutex_unlock(&dso->lock);
+		mutex_lock(dso__lock(dso));
+		dso__set_nsinfo(dso, nsi);
+		mutex_unlock(dso__lock(dso));
 
 		if (build_id__is_defined(bid)) {
 			dso__set_build_id(dso, bid);
@@ -196,13 +195,12 @@ struct map *map__new(struct machine *machine, u64 start, u64 len,
 			 * reading the header will have the build ID set and all future mmaps will
 			 * have it missing.
 			 */
-			down_read(&machine->dsos.lock);
-			header_bid_dso = __dsos__find(&machine->dsos, filename, false);
-			up_read(&machine->dsos.lock);
-			if (header_bid_dso && header_bid_dso->header_build_id) {
-				dso__set_build_id(dso, &header_bid_dso->bid);
-				dso->header_build_id = 1;
+			header_bid_dso = dsos__find(&machine->dsos, filename, false);
+			if (header_bid_dso && dso__header_build_id(header_bid_dso)) {
+				dso__set_build_id(dso, dso__bid(header_bid_dso));
+				dso__set_header_build_id(dso, 1);
 			}
+			dso__put(header_bid_dso);
 		}
 		dso__put(dso);
 	}
@@ -223,7 +221,7 @@ struct map *map__new2(u64 start, struct dso *dso)
 	struct map *result;
 	RC_STRUCT(map) *map;
 
-	map = calloc(1, sizeof(*map) + (dso->kernel ? sizeof(struct kmap) : 0));
+	map = calloc(1, sizeof(*map) + (dso__kernel(dso) ? sizeof(struct kmap) : 0));
 	if (ADD_RC_CHK(result, map)) {
 		/*
 		 * ->end will be filled after we load all the symbols
@@ -236,7 +234,7 @@ struct map *map__new2(u64 start, struct dso *dso)
 
 bool __map__is_kernel(const struct map *map)
 {
-	if (!map__dso(map)->kernel)
+	if (!dso__kernel(map__dso(map)))
 		return false;
 	return machine__kernel_map(maps__machine(map__kmaps((struct map *)map))) == map;
 }
@@ -253,7 +251,7 @@ bool __map__is_bpf_prog(const struct map *map)
 	const char *name;
 	struct dso *dso = map__dso(map);
 
-	if (dso->binary_type == DSO_BINARY_TYPE__BPF_PROG_INFO)
+	if (dso__binary_type(dso) == DSO_BINARY_TYPE__BPF_PROG_INFO)
 		return true;
 
 	/*
@@ -261,7 +259,7 @@ bool __map__is_bpf_prog(const struct map *map)
 	 * type of DSO_BINARY_TYPE__BPF_PROG_INFO. In such cases, we can
 	 * guess the type based on name.
 	 */
-	name = dso->short_name;
+	name = dso__short_name(dso);
 	return name && (strstr(name, "bpf_prog_") == name);
 }
 
@@ -270,7 +268,7 @@ bool __map__is_bpf_image(const struct map *map)
 	const char *name;
 	struct dso *dso = map__dso(map);
 
-	if (dso->binary_type == DSO_BINARY_TYPE__BPF_IMAGE)
+	if (dso__binary_type(dso) == DSO_BINARY_TYPE__BPF_IMAGE)
 		return true;
 
 	/*
@@ -278,7 +276,7 @@ bool __map__is_bpf_image(const struct map *map)
 	 * type of DSO_BINARY_TYPE__BPF_IMAGE. In such cases, we can
 	 * guess the type based on name.
 	 */
-	name = dso->short_name;
+	name = dso__short_name(dso);
 	return name && is_bpf_image(name);
 }
 
@@ -286,7 +284,7 @@ bool __map__is_ool(const struct map *map)
 {
 	const struct dso *dso = map__dso(map);
 
-	return dso && dso->binary_type == DSO_BINARY_TYPE__OOL;
+	return dso && dso__binary_type(dso) == DSO_BINARY_TYPE__OOL;
 }
 
 bool map__has_symbols(const struct map *map)
@@ -317,7 +315,7 @@ void map__put(struct map *map)
 void map__fixup_start(struct map *map)
 {
 	struct dso *dso = map__dso(map);
-	struct rb_root_cached *symbols = &dso->symbols;
+	struct rb_root_cached *symbols = dso__symbols(dso);
 	struct rb_node *nd = rb_first_cached(symbols);
 
 	if (nd != NULL) {
@@ -330,7 +328,7 @@ void map__fixup_start(struct map *map)
 void map__fixup_end(struct map *map)
 {
 	struct dso *dso = map__dso(map);
-	struct rb_root_cached *symbols = &dso->symbols;
+	struct rb_root_cached *symbols = dso__symbols(dso);
 	struct rb_node *nd = rb_last(&symbols->rb_root);
 
 	if (nd != NULL) {
@@ -344,7 +342,7 @@ void map__fixup_end(struct map *map)
 int map__load(struct map *map)
 {
 	struct dso *dso = map__dso(map);
-	const char *name = dso->long_name;
+	const char *name = dso__long_name(dso);
 	int nr;
 
 	if (dso__loaded(dso))
@@ -352,10 +350,10 @@ int map__load(struct map *map)
 
 	nr = dso__load(dso, map);
 	if (nr < 0) {
-		if (dso->has_build_id) {
+		if (dso__has_build_id(dso)) {
 			char sbuild_id[SBUILD_ID_SIZE];
 
-			build_id__sprintf(&dso->bid, sbuild_id);
+			build_id__sprintf(dso__bid(dso), sbuild_id);
 			pr_debug("%s with build id %s not found", name, sbuild_id);
 		} else
 			pr_debug("Failed to open %s", name);
@@ -417,7 +415,7 @@ struct map *map__clone(struct map *from)
 	size_t size = sizeof(RC_STRUCT(map));
 	struct dso *dso = map__dso(from);
 
-	if (dso && dso->kernel)
+	if (dso && dso__kernel(dso))
 		size += sizeof(struct kmap);
 
 	map = memdup(RC_CHK_ACCESS(from), size);
@@ -434,14 +432,14 @@ size_t map__fprintf(struct map *map, FILE *fp)
 	const struct dso *dso = map__dso(map);
 
 	return fprintf(fp, " %" PRIx64 "-%" PRIx64 " %" PRIx64 " %s\n",
-		       map__start(map), map__end(map), map__pgoff(map), dso->name);
+		       map__start(map), map__end(map), map__pgoff(map), dso__name(dso));
 }
 
 static bool prefer_dso_long_name(const struct dso *dso, bool print_off)
 {
-	return dso->long_name &&
+	return dso__long_name(dso) &&
 	       (symbol_conf.show_kernel_path ||
-		(print_off && (dso->name[0] == '[' || dso__is_kcore(dso))));
+		(print_off && (dso__name(dso)[0] == '[' || dso__is_kcore(dso))));
 }
 
 static size_t __map__fprintf_dsoname(struct map *map, bool print_off, FILE *fp)
@@ -452,9 +450,9 @@ static size_t __map__fprintf_dsoname(struct map *map, bool print_off, FILE *fp)
 
 	if (dso) {
 		if (prefer_dso_long_name(dso, print_off))
-			dsoname = dso->long_name;
+			dsoname = dso__long_name(dso);
 		else
-			dsoname = dso->name;
+			dsoname = dso__name(dso);
 	}
 
 	if (symbol_conf.pad_output_len_dso) {
@@ -547,14 +545,14 @@ u64 map__rip_2objdump(struct map *map, u64 rip)
 		}
 	}
 
-	if (!dso->adjust_symbols)
+	if (!dso__adjust_symbols(dso))
 		return rip;
 
-	if (dso->rel)
+	if (dso__rel(dso))
 		return rip - map__pgoff(map);
 
-	if (dso->kernel == DSO_SPACE__USER)
-		return rip + dso->text_offset;
+	if (dso__kernel(dso) == DSO_SPACE__USER)
+		return rip + dso__text_offset(dso);
 
 	return map__unmap_ip(map, rip) - map__reloc(map);
 }
@@ -575,16 +573,33 @@ u64 map__objdump_2mem(struct map *map, u64 ip)
 {
 	const struct dso *dso = map__dso(map);
 
-	if (!dso->adjust_symbols)
+	if (!dso__adjust_symbols(dso))
 		return map__unmap_ip(map, ip);
 
-	if (dso->rel)
+	if (dso__rel(dso))
 		return map__unmap_ip(map, ip + map__pgoff(map));
 
-	if (dso->kernel == DSO_SPACE__USER)
-		return map__unmap_ip(map, ip - dso->text_offset);
+	if (dso__kernel(dso) == DSO_SPACE__USER)
+		return map__unmap_ip(map, ip - dso__text_offset(dso));
 
 	return ip + map__reloc(map);
+}
+
+/* convert objdump address to relative address.  (To be removed) */
+u64 map__objdump_2rip(struct map *map, u64 ip)
+{
+	const struct dso *dso = map__dso(map);
+
+	if (!dso__adjust_symbols(dso))
+		return ip;
+
+	if (dso__rel(dso))
+		return ip + map__pgoff(map);
+
+	if (dso__kernel(dso) == DSO_SPACE__USER)
+		return ip - dso__text_offset(dso);
+
+	return map__map_ip(map, ip + map__reloc(map));
 }
 
 bool map__contains_symbol(const struct map *map, const struct symbol *sym)
@@ -598,7 +613,7 @@ struct kmap *__map__kmap(struct map *map)
 {
 	const struct dso *dso = map__dso(map);
 
-	if (!dso || !dso->kernel)
+	if (!dso || !dso__kernel(dso))
 		return NULL;
 	return (struct kmap *)(&RC_CHK_ACCESS(map)[1]);
 }

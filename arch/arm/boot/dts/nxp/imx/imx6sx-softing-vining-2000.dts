@@ -46,19 +46,19 @@
 		led-1 {
 			label = "red";
 			max-brightness = <255>;
-			pwms = <&pwm6 0 50000>;
+			pwms = <&pwm6 0 50000 0>;
 		};
 
 		led-2 {
 			label = "green";
 			max-brightness = <255>;
-			pwms = <&pwm2 0 50000>;
+			pwms = <&pwm2 0 50000 0>;
 		};
 
 		led-3 {
 			label = "blue";
 			max-brightness = <255>;
-			pwms = <&pwm1 0 50000>;
+			pwms = <&pwm1 0 50000 0>;
 		};
 	};
 };
@@ -505,24 +505,18 @@
 };
 
 &pwm1 {
-	#pwm-cells = <2>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_pwm1>;
-	status = "okay";
 };
 
 &pwm2 {
-	#pwm-cells = <2>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_pwm2>;
-	status = "okay";
 };
 
 &pwm6 {
-	#pwm-cells = <2>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_pwm6>;
-	status = "okay";
 };
 
 &reg_arm {

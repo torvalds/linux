@@ -123,6 +123,7 @@ struct utp_upiu_query {
  * @idn: a value that indicates the particular type of data B-1
  * @index: Index to further identify data B-2
  * @selector: Index to further identify data B-3
+ * @osf3: spec field B-4
  * @osf4: spec field B-5
  * @osf5: spec field B 6,7
  * @osf6: spec field DW 8,9
@@ -138,12 +139,13 @@ struct utp_upiu_query_v4_0 {
 	__be16 osf5;
 	__be32 osf6;
 	__be32 osf7;
+	/* private: */
 	__be32 reserved;
 };
 
 /**
  * struct utp_upiu_cmd - Command UPIU structure
- * @data_transfer_len: Data Transfer Length DW-3
+ * @exp_data_transfer_len: Data Transfer Length DW-3
  * @cdb: Command Descriptor Block CDB DW-4 to DW-7
  */
 struct utp_upiu_cmd {

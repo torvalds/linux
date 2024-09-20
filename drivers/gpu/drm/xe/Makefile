@@ -3,36 +3,13 @@
 # Makefile for the drm device driver.  This driver provides support for the
 # Direct Rendering Infrastructure (DRI) in XFree86 4.1.0 and higher.
 
-# Unconditionally enable W=1 warnings locally
-# --- begin copy-paste W=1 warnings from scripts/Makefile.extrawarn
-subdir-ccflags-y += -Wextra -Wunused -Wno-unused-parameter
-subdir-ccflags-y += -Wmissing-declarations
-subdir-ccflags-y += $(call cc-option, -Wrestrict)
-subdir-ccflags-y += -Wmissing-format-attribute
-subdir-ccflags-y += -Wmissing-prototypes
-subdir-ccflags-y += -Wold-style-definition
-subdir-ccflags-y += -Wmissing-include-dirs
-subdir-ccflags-y += $(call cc-option, -Wunused-but-set-variable)
-subdir-ccflags-y += $(call cc-option, -Wunused-const-variable)
-subdir-ccflags-y += $(call cc-option, -Wpacked-not-aligned)
-subdir-ccflags-y += $(call cc-option, -Wformat-overflow)
+# Enable W=1 warnings not enabled in drm subsystem Makefile
 subdir-ccflags-y += $(call cc-option, -Wformat-truncation)
-subdir-ccflags-y += $(call cc-option, -Wstringop-truncation)
-# The following turn off the warnings enabled by -Wextra
-ifeq ($(findstring 2, $(KBUILD_EXTRA_WARN)),)
-subdir-ccflags-y += -Wno-missing-field-initializers
-subdir-ccflags-y += -Wno-type-limits
-subdir-ccflags-y += -Wno-shift-negative-value
-endif
-ifeq ($(findstring 3, $(KBUILD_EXTRA_WARN)),)
-subdir-ccflags-y += -Wno-sign-compare
-endif
-# --- end copy-paste
 
 # Enable -Werror in CI and development
 subdir-ccflags-$(CONFIG_DRM_XE_WERROR) += -Werror
 
-subdir-ccflags-y += -I$(obj) -I$(srctree)/$(src)
+subdir-ccflags-y += -I$(obj) -I$(src)
 
 # generated sources
 hostprogs := xe_gen_wa_oob
@@ -43,13 +20,19 @@ quiet_cmd_wa_oob = GEN     $(notdir $(generated_oob))
       cmd_wa_oob = mkdir -p $(@D); $^ $(generated_oob)
 
 $(obj)/generated/%_wa_oob.c $(obj)/generated/%_wa_oob.h: $(obj)/xe_gen_wa_oob \
-		 $(srctree)/$(src)/xe_wa_oob.rules
+		 $(src)/xe_wa_oob.rules
 	$(call cmd,wa_oob)
 
 uses_generated_oob := \
+	$(obj)/xe_ggtt.o \
+	$(obj)/xe_device.o \
 	$(obj)/xe_gsc.o \
+	$(obj)/xe_gt.o \
 	$(obj)/xe_guc.o \
+	$(obj)/xe_guc_ads.o \
+	$(obj)/xe_guc_pc.o \
 	$(obj)/xe_migrate.o \
+	$(obj)/xe_pat.o \
 	$(obj)/xe_ring_ops.o \
 	$(obj)/xe_vm.o \
 	$(obj)/xe_wa.o \
@@ -88,7 +71,7 @@ xe-y += xe_bb.o \
 	xe_gt_mcr.o \
 	xe_gt_pagefault.o \
 	xe_gt_sysfs.o \
-	xe_gt_throttle_sysfs.o \
+	xe_gt_throttle.o \
 	xe_gt_tlb_invalidation.o \
 	xe_gt_topology.o \
 	xe_guc.o \
@@ -97,6 +80,8 @@ xe-y += xe_bb.o \
 	xe_guc_db_mgr.o \
 	xe_guc_debugfs.o \
 	xe_guc_hwconfig.o \
+	xe_guc_id_mgr.o \
+	xe_guc_klv_helpers.o \
 	xe_guc_log.o \
 	xe_guc_pc.o \
 	xe_guc_submit.o \
@@ -112,6 +97,8 @@ xe-y += xe_bb.o \
 	xe_mmio.o \
 	xe_mocs.o \
 	xe_module.o \
+	xe_oa.o \
+	xe_observation.o \
 	xe_pat.o \
 	xe_pci.o \
 	xe_pcode.o \
@@ -132,6 +119,8 @@ xe-y += xe_bb.o \
 	xe_tile.o \
 	xe_tile_sysfs.o \
 	xe_trace.o \
+	xe_trace_bo.o \
+	xe_trace_guc.o \
 	xe_ttm_sys_mgr.o \
 	xe_ttm_stolen_mgr.o \
 	xe_ttm_vram_mgr.o \
@@ -140,24 +129,38 @@ xe-y += xe_bb.o \
 	xe_uc_debugfs.o \
 	xe_uc_fw.o \
 	xe_vm.o \
+	xe_vram.o \
 	xe_vram_freq.o \
 	xe_wait_user_fence.o \
 	xe_wa.o \
 	xe_wopcm.o
+
+xe-$(CONFIG_HMM_MIRROR) += xe_hmm.o
 
 # graphics hardware monitoring (HWMON) support
 xe-$(CONFIG_HWMON) += xe_hwmon.o
 
 # graphics virtualization (SR-IOV) support
 xe-y += \
+	xe_gt_sriov_vf.o \
+	xe_gt_sriov_vf_debugfs.o \
 	xe_guc_relay.o \
 	xe_memirq.o \
 	xe_sriov.o
 
 xe-$(CONFIG_PCI_IOV) += \
+	xe_gt_sriov_pf.o \
+	xe_gt_sriov_pf_config.o \
+	xe_gt_sriov_pf_control.o \
+	xe_gt_sriov_pf_debugfs.o \
+	xe_gt_sriov_pf_monitor.o \
+	xe_gt_sriov_pf_policy.o \
+	xe_gt_sriov_pf_service.o \
 	xe_lmtt.o \
 	xe_lmtt_2l.o \
-	xe_lmtt_ml.o
+	xe_lmtt_ml.o \
+	xe_pci_sriov.o \
+	xe_sriov_pf.o
 
 # include helpers for tests even when XE is built-in
 ifdef CONFIG_DRM_XE_KUNIT_TEST
@@ -166,14 +169,11 @@ endif
 
 # i915 Display compat #defines and #includes
 subdir-ccflags-$(CONFIG_DRM_XE_DISPLAY) += \
-	-I$(srctree)/$(src)/display/ext \
-	-I$(srctree)/$(src)/compat-i915-headers \
+	-I$(src)/display/ext \
+	-I$(src)/compat-i915-headers \
 	-I$(srctree)/drivers/gpu/drm/i915/display/ \
 	-Ddrm_i915_gem_object=xe_bo \
 	-Ddrm_i915_private=xe_device
-
-CFLAGS_i915-display/intel_fbdev.o = -Wno-override-init
-CFLAGS_i915-display/intel_display_device.o = -Wno-override-init
 
 # Rule to build SOC code shared with i915
 $(obj)/i915-soc/%.o: $(srctree)/drivers/gpu/drm/i915/soc/%.c FORCE
@@ -197,7 +197,8 @@ xe-$(CONFIG_DRM_XE_DISPLAY) += \
 	display/xe_dsb_buffer.o \
 	display/xe_fb_pin.o \
 	display/xe_hdcp_gsc.o \
-	display/xe_plane_initial.o
+	display/xe_plane_initial.o \
+	display/xe_tdf.o
 
 # SOC code shared with i915
 xe-$(CONFIG_DRM_XE_DISPLAY) += \
@@ -207,6 +208,7 @@ xe-$(CONFIG_DRM_XE_DISPLAY) += \
 # Display code shared with i915
 xe-$(CONFIG_DRM_XE_DISPLAY) += \
 	i915-display/icl_dsi.o \
+	i915-display/intel_alpm.o \
 	i915-display/intel_atomic.o \
 	i915-display/intel_atomic_plane.o \
 	i915-display/intel_audio.o \
@@ -249,6 +251,7 @@ xe-$(CONFIG_DRM_XE_DISPLAY) += \
 	i915-display/intel_dsi.o \
 	i915-display/intel_dsi_dcs_backlight.o \
 	i915-display/intel_dsi_vbt.o \
+	i915-display/intel_encoder.o \
 	i915-display/intel_fb.o \
 	i915-display/intel_fbc.o \
 	i915-display/intel_fdi.o \
@@ -257,6 +260,7 @@ xe-$(CONFIG_DRM_XE_DISPLAY) += \
 	i915-display/intel_global_state.o \
 	i915-display/intel_gmbus.o \
 	i915-display/intel_hdcp.o \
+	i915-display/intel_hdcp_gsc_message.o \
 	i915-display/intel_hdmi.o \
 	i915-display/intel_hotplug.o \
 	i915-display/intel_hotplug_irq.o \
@@ -278,6 +282,7 @@ xe-$(CONFIG_DRM_XE_DISPLAY) += \
 	i915-display/intel_vdsc.o \
 	i915-display/intel_vga.o \
 	i915-display/intel_vrr.o \
+	i915-display/intel_dmc_wl.o \
 	i915-display/intel_wm.o \
 	i915-display/skl_scaler.o \
 	i915-display/skl_universal_plane.o \
@@ -310,7 +315,7 @@ ifneq ($(CONFIG_DRM_XE_DISPLAY),y)
 endif
 
 always-$(CONFIG_DRM_XE_WERROR) += \
-	$(patsubst %.h,%.hdrtest, $(shell cd $(srctree)/$(src) && find * -name '*.h' $(hdrtest_find_args)))
+	$(patsubst %.h,%.hdrtest, $(shell cd $(src) && find * -name '*.h' $(hdrtest_find_args)))
 
 quiet_cmd_hdrtest = HDRTEST $(patsubst %.hdrtest,%.h,$@)
       cmd_hdrtest = $(CC) -DHDRTEST $(filter-out $(CFLAGS_GCOV), $(c_flags)) -S -o /dev/null -x c /dev/null -include $<; touch $@

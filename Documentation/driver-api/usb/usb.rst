@@ -422,7 +422,7 @@ USBDEVFS_CONNECTINFO
 
 USBDEVFS_GET_SPEED
     Returns the speed of the device. The speed is returned as a
-    nummerical value in accordance with enum usb_device_speed
+    numerical value in accordance with enum usb_device_speed
 
     File modification time is not updated by this request.
 

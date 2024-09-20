@@ -565,14 +565,17 @@ static inline void *offset_ptr(struct snd_emu10k1 *emu, int page, int offset)
 }
 
 /*
- * bzero(blk + offset, size)
+ * memset(blk + offset, value, size)
  */
-int snd_emu10k1_synth_bzero(struct snd_emu10k1 *emu, struct snd_util_memblk *blk,
-			    int offset, int size)
+int snd_emu10k1_synth_memset(struct snd_emu10k1 *emu, struct snd_util_memblk *blk,
+			     int offset, int size, u8 value)
 {
 	int page, nextofs, end_offset, temp, temp1;
 	void *ptr;
 	struct snd_emu10k1_memblk *p = (struct snd_emu10k1_memblk *)blk;
+
+	if (snd_BUG_ON(offset + size > p->mem.size))
+		return -EFAULT;
 
 	offset += blk->offset & (PAGE_SIZE - 1);
 	end_offset = offset + size;
@@ -585,24 +588,54 @@ int snd_emu10k1_synth_bzero(struct snd_emu10k1 *emu, struct snd_util_memblk *blk
 			temp = temp1;
 		ptr = offset_ptr(emu, page + p->first_page, offset);
 		if (ptr)
-			memset(ptr, 0, temp);
+			memset(ptr, value, temp);
 		offset = nextofs;
 		page++;
 	} while (offset < end_offset);
 	return 0;
 }
 
-EXPORT_SYMBOL(snd_emu10k1_synth_bzero);
+EXPORT_SYMBOL(snd_emu10k1_synth_memset);
+
+// Note that the value is assumed to be suitably repetitive.
+static void xor_range(void *ptr, int size, u32 value)
+{
+	if ((long)ptr & 1) {
+		*(u8 *)ptr ^= (u8)value;
+		ptr++;
+		size--;
+	}
+	if (size > 1 && ((long)ptr & 2)) {
+		*(u16 *)ptr ^= (u16)value;
+		ptr += 2;
+		size -= 2;
+	}
+	while (size > 3) {
+		*(u32 *)ptr ^= value;
+		ptr += 4;
+		size -= 4;
+	}
+	if (size > 1) {
+		*(u16 *)ptr ^= (u16)value;
+		ptr += 2;
+		size -= 2;
+	}
+	if (size > 0)
+		*(u8 *)ptr ^= (u8)value;
+}
 
 /*
- * copy_from_user(blk + offset, data, size)
+ * copy_from_user(blk + offset, data, size) ^ xor
  */
 int snd_emu10k1_synth_copy_from_user(struct snd_emu10k1 *emu, struct snd_util_memblk *blk,
-				     int offset, const char __user *data, int size)
+				     int offset, const char __user *data, int size, u32 xor)
 {
 	int page, nextofs, end_offset, temp, temp1;
 	void *ptr;
 	struct snd_emu10k1_memblk *p = (struct snd_emu10k1_memblk *)blk;
+
+	if (snd_BUG_ON(offset + size > p->mem.size))
+		return -EFAULT;
 
 	offset += blk->offset & (PAGE_SIZE - 1);
 	end_offset = offset + size;
@@ -614,8 +647,12 @@ int snd_emu10k1_synth_copy_from_user(struct snd_emu10k1 *emu, struct snd_util_me
 		if (temp1 < temp)
 			temp = temp1;
 		ptr = offset_ptr(emu, page + p->first_page, offset);
-		if (ptr && copy_from_user(ptr, data, temp))
-			return -EFAULT;
+		if (ptr) {
+			if (copy_from_user(ptr, data, temp))
+				return -EFAULT;
+			if (xor)
+				xor_range(ptr, temp, xor);
+		}
 		offset = nextofs;
 		data += temp;
 		page++;

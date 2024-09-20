@@ -25,3 +25,7 @@
 
         Specify the minimum delta between two time reads to be considered noise.
         The default threshold is *5 us*.
+
+**-t**, **--trace** \[*file*]
+
+        Save the stopped trace to [*file|osnoise_trace.txt*].

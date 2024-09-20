@@ -28,7 +28,7 @@ DECLARE_EVENT_CLASS(mv88e6xxx_atu_violation,
 	),
 
 	TP_fast_assign(
-		__assign_str(name, dev_name(dev));
+		__assign_str(name);
 		__entry->spid = spid;
 		__entry->portvec = portvec;
 		memcpy(__entry->addr, addr, ETH_ALEN);
@@ -68,7 +68,7 @@ DECLARE_EVENT_CLASS(mv88e6xxx_vtu_violation,
 	),
 
 	TP_fast_assign(
-		__assign_str(name, dev_name(dev));
+		__assign_str(name);
 		__entry->spid = spid;
 		__entry->vid = vid;
 	),

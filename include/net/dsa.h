@@ -24,9 +24,6 @@
 
 struct dsa_8021q_context;
 struct tc_action;
-struct phy_device;
-struct fixed_phy_status;
-struct phylink_link_state;
 
 #define DSA_TAG_PROTO_NONE_VALUE		0
 #define DSA_TAG_PROTO_BRCM_VALUE		1
@@ -56,6 +53,7 @@ struct phylink_link_state;
 #define DSA_TAG_PROTO_RTL8_4T_VALUE		25
 #define DSA_TAG_PROTO_RZN1_A5PSW_VALUE		26
 #define DSA_TAG_PROTO_LAN937X_VALUE		27
+#define DSA_TAG_PROTO_VSC73XX_8021Q_VALUE	28
 
 enum dsa_tag_protocol {
 	DSA_TAG_PROTO_NONE		= DSA_TAG_PROTO_NONE_VALUE,
@@ -86,6 +84,7 @@ enum dsa_tag_protocol {
 	DSA_TAG_PROTO_RTL8_4T		= DSA_TAG_PROTO_RTL8_4T_VALUE,
 	DSA_TAG_PROTO_RZN1_A5PSW	= DSA_TAG_PROTO_RZN1_A5PSW_VALUE,
 	DSA_TAG_PROTO_LAN937X		= DSA_TAG_PROTO_LAN937X_VALUE,
+	DSA_TAG_PROTO_VSC73XX_8021Q	= DSA_TAG_PROTO_VSC73XX_8021Q_VALUE,
 };
 
 struct dsa_switch;
@@ -327,6 +326,12 @@ struct dsa_port {
 	};
 };
 
+static inline struct dsa_port *
+dsa_phylink_to_port(struct phylink_config *config)
+{
+	return container_of(config, struct dsa_port, pl_config);
+}
+
 /* TODO: ideally DSA ports would have a single dp->link_dp member,
  * and no dst->rtable nor this struct dsa_link would be needed,
  * but this would require some more complex tree walking,
@@ -398,14 +403,18 @@ struct dsa_switch {
 	 */
 	u32			configure_vlan_while_not_filtering:1;
 
-	/* If the switch driver always programs the CPU port as egress tagged
-	 * despite the VLAN configuration indicating otherwise, then setting
-	 * @untag_bridge_pvid will force the DSA receive path to pop the
-	 * bridge's default_pvid VLAN tagged frames to offer a consistent
-	 * behavior between a vlan_filtering=0 and vlan_filtering=1 bridge
-	 * device.
+	/* Pop the default_pvid of VLAN-unaware bridge ports from tagged frames.
+	 * DEPRECATED: Do NOT set this field in new drivers. Instead look at
+	 * the dsa_software_vlan_untag() comments.
 	 */
 	u32			untag_bridge_pvid:1;
+	/* Pop the default_pvid of VLAN-aware bridge ports from tagged frames.
+	 * Useful if the switch cannot preserve the VLAN tag as seen on the
+	 * wire for user port ingress, and chooses to send all frames as
+	 * VLAN-tagged to the CPU, including those which were originally
+	 * untagged.
+	 */
+	u32			untag_vlan_aware_bridge_pvid:1;
 
 	/* Let DSA manage the FDB entries towards the
 	 * CPU, based on the software bridge database.
@@ -430,6 +439,11 @@ struct dsa_switch {
 	 */
 	u32			fdb_isolation:1;
 
+	/* Drivers that have global DSCP mapping settings must set this to
+	 * true to automatically apply the settings to all ports.
+	 */
+	u32			dscp_prio_mapping_is_global:1;
+
 	/* Listener for switch fabric events */
 	struct notifier_block	nb;
 
@@ -450,6 +464,11 @@ struct dsa_switch {
 	 * The switch operations.
 	 */
 	const struct dsa_switch_ops	*ops;
+
+	/*
+	 * Allow a DSA switch driver to override the phylink MAC ops
+	 */
+	const struct phylink_mac_ops	*phylink_mac_ops;
 
 	/*
 	 * User mii_bus and devices for the individual ports.
@@ -576,6 +595,10 @@ static inline bool dsa_is_user_port(struct dsa_switch *ds, int p)
 
 #define dsa_switch_for_each_user_port(_dp, _ds) \
 	dsa_switch_for_each_port((_dp), (_ds)) \
+		if (dsa_port_is_user((_dp)))
+
+#define dsa_switch_for_each_user_port_continue_reverse(_dp, _ds) \
+	dsa_switch_for_each_port_continue_reverse((_dp), (_ds)) \
 		if (dsa_port_is_user((_dp)))
 
 #define dsa_switch_for_each_cpu_port(_dp, _ds) \
@@ -858,14 +881,6 @@ struct dsa_switch_ops {
 			     int regnum, u16 val);
 
 	/*
-	 * Link state adjustment (called from libphy)
-	 */
-	void	(*adjust_link)(struct dsa_switch *ds, int port,
-				struct phy_device *phydev);
-	void	(*fixed_link_update)(struct dsa_switch *ds, int port,
-				struct fixed_phy_status *st);
-
-	/*
 	 * PHYLINK integration
 	 */
 	void	(*phylink_get_caps)(struct dsa_switch *ds, int port,
@@ -873,15 +888,9 @@ struct dsa_switch_ops {
 	struct phylink_pcs *(*phylink_mac_select_pcs)(struct dsa_switch *ds,
 						      int port,
 						      phy_interface_t iface);
-	int	(*phylink_mac_prepare)(struct dsa_switch *ds, int port,
-				       unsigned int mode,
-				       phy_interface_t interface);
 	void	(*phylink_mac_config)(struct dsa_switch *ds, int port,
 				      unsigned int mode,
 				      const struct phylink_link_state *state);
-	int	(*phylink_mac_finish)(struct dsa_switch *ds, int port,
-				      unsigned int mode,
-				      phy_interface_t interface);
 	void	(*phylink_mac_link_down)(struct dsa_switch *ds, int port,
 					 unsigned int mode,
 					 phy_interface_t interface);
@@ -931,7 +940,7 @@ struct dsa_switch_ops {
 	 * ethtool timestamp info
 	 */
 	int	(*get_ts_info)(struct dsa_switch *ds, int port,
-			       struct ethtool_ts_info *ts);
+			       struct kernel_ethtool_ts_info *ts);
 
 	/*
 	 * ethtool MAC merge layer
@@ -955,6 +964,10 @@ struct dsa_switch_ops {
 				      u8 prio);
 	int	(*port_del_dscp_prio)(struct dsa_switch *ds, int port, u8 dscp,
 				      u8 prio);
+	int	(*port_set_apptrust)(struct dsa_switch *ds, int port,
+				     const u8 *sel, int nsel);
+	int	(*port_get_apptrust)(struct dsa_switch *ds, int port, u8 *sel,
+				     int *nsel);
 
 	/*
 	 * Suspend and resume
@@ -1247,7 +1260,8 @@ struct dsa_switch_ops {
 int dsa_devlink_param_get(struct devlink *dl, u32 id,
 			  struct devlink_param_gset_ctx *ctx);
 int dsa_devlink_param_set(struct devlink *dl, u32 id,
-			  struct devlink_param_gset_ctx *ctx);
+			  struct devlink_param_gset_ctx *ctx,
+			  struct netlink_ext_ack *extack);
 int dsa_devlink_params_register(struct dsa_switch *ds,
 				const struct devlink_param *params,
 				size_t params_count);

@@ -815,8 +815,6 @@
 			phy-mode = "rgmii";
 			rx-internal-delay-ps = <0>;
 			tx-internal-delay-ps = <0>;
-			#address-cells = <1>;
-			#size-cells = <0>;
 			status = "disabled";
 		};
 
@@ -862,8 +860,6 @@
 			phy-mode = "rgmii";
 			rx-internal-delay-ps = <0>;
 			tx-internal-delay-ps = <0>;
-			#address-cells = <1>;
-			#size-cells = <0>;
 			status = "disabled";
 		};
 
@@ -909,8 +905,6 @@
 			phy-mode = "rgmii";
 			rx-internal-delay-ps = <0>;
 			tx-internal-delay-ps = <0>;
-			#address-cells = <1>;
-			#size-cells = <0>;
 			status = "disabled";
 		};
 
@@ -1724,18 +1718,6 @@
 		};
 
 		rcar_sound: sound@ec5a0000 {
-			/*
-			 * #sound-dai-cells is required
-			 *
-			 * Single DAI : #sound-dai-cells = <0>;	<&rcar_sound>;
-			 * Multi  DAI : #sound-dai-cells = <1>;	<&rcar_sound N>;
-			 */
-			/*
-			 * #clock-cells is required
-			 *
-			 * clkout		: #clock-cells = <0>;	<&rcar_sound>;
-			 * audio_clkout0/1/2/3	: #clock-cells = <1>;	<&rcar_sound N>;
-			 */
 			compatible = "renesas,rcar_sound-r8a779g0", "renesas,rcar_sound-gen4";
 			reg = <0 0xec5a0000 0 0x020>,
 			      <0 0xec540000 0 0x1000>,
@@ -1745,6 +1727,11 @@
 
 			clocks = <&cpg CPG_MOD 2926>, <&cpg CPG_MOD 2927>, <&audio_clkin>;
 			clock-names = "ssiu.0", "ssi.0", "clkin";
+			/* #clock-cells is fixed */
+			#clock-cells = <0>;
+			/* #sound-dai-cells is fixed */
+			#sound-dai-cells = <0>;
+
 			power-domains = <&sysc R8A779G0_PD_ALWAYS_ON>;
 			resets = <&cpg 2926>, <&cpg 2927>;
 			reset-names = "ssiu.0", "ssi.0";
@@ -2359,6 +2346,9 @@
 		interrupts-extended = <&gic GIC_PPI 13 IRQ_TYPE_LEVEL_LOW>,
 				      <&gic GIC_PPI 14 IRQ_TYPE_LEVEL_LOW>,
 				      <&gic GIC_PPI 11 IRQ_TYPE_LEVEL_LOW>,
-				      <&gic GIC_PPI 10 IRQ_TYPE_LEVEL_LOW>;
+				      <&gic GIC_PPI 10 IRQ_TYPE_LEVEL_LOW>,
+				      <&gic GIC_PPI 12 IRQ_TYPE_LEVEL_LOW>;
+		interrupt-names = "sec-phys", "phys", "virt", "hyp-phys",
+				  "hyp-virt";
 	};
 };

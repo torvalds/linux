@@ -33,16 +33,6 @@ struct fdtable {
 	struct rcu_head rcu;
 };
 
-static inline bool close_on_exec(unsigned int fd, const struct fdtable *fdt)
-{
-	return test_bit(fd, fdt->close_on_exec);
-}
-
-static inline bool fd_is_open(unsigned int fd, const struct fdtable *fdt)
-{
-	return test_bit(fd, fdt->open_fds);
-}
-
 /*
  * Open file table structure
  */
@@ -106,6 +96,11 @@ static inline struct file *files_lookup_fd_locked(struct files_struct *files, un
 struct file *lookup_fdget_rcu(unsigned int fd);
 struct file *task_lookup_fdget_rcu(struct task_struct *task, unsigned int fd);
 struct file *task_lookup_next_fdget_rcu(struct task_struct *task, unsigned int *fd);
+
+static inline bool close_on_exec(unsigned int fd, const struct files_struct *files)
+{
+	return test_bit(fd, files_fdtable(files)->close_on_exec);
+}
 
 struct task_struct;
 

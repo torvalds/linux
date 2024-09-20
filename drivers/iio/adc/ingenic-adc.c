@@ -920,4 +920,5 @@ static struct platform_driver ingenic_adc_driver = {
 	.probe = ingenic_adc_probe,
 };
 module_platform_driver(ingenic_adc_driver);
+MODULE_DESCRIPTION("ADC driver for the Ingenic JZ47xx SoCs");
 MODULE_LICENSE("GPL v2");

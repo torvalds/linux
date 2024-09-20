@@ -67,7 +67,9 @@ enum {
 
 /* Controller capability masks */
 enum {
-	MASK_TRANSFER_REQUESTS_SLOTS		= 0x0000001F,
+	MASK_TRANSFER_REQUESTS_SLOTS_SDB	= 0x0000001F,
+	MASK_TRANSFER_REQUESTS_SLOTS_MCQ	= 0x000000FF,
+	MASK_NUMBER_OUTSTANDING_RTT		= 0x0000FF00,
 	MASK_TASK_MANAGEMENT_REQUEST_SLOTS	= 0x00070000,
 	MASK_EHSLUTRD_SUPPORTED			= 0x00400000,
 	MASK_AUTO_HIBERN8_SUPPORT		= 0x00800000,
@@ -75,6 +77,7 @@ enum {
 	MASK_OUT_OF_ORDER_DATA_DELIVERY_SUPPORT	= 0x02000000,
 	MASK_UIC_DME_TEST_MODE_SUPPORT		= 0x04000000,
 	MASK_CRYPTO_SUPPORT			= 0x10000000,
+	MASK_LSDB_SUPPORT			= 0x20000000,
 	MASK_MCQ_SUPPORT			= 0x40000000,
 };
 
@@ -355,12 +358,8 @@ enum {
 
 /* Interrupt disable masks */
 enum {
-	/* Interrupt disable mask for UFSHCI v1.0 */
-	INTERRUPT_MASK_ALL_VER_10	= 0x30FFF,
-	INTERRUPT_MASK_RW_VER_10	= 0x30000,
-
 	/* Interrupt disable mask for UFSHCI v1.1 */
-	INTERRUPT_MASK_ALL_VER_11	= 0x31FFF,
+	INTERRUPT_MASK_ALL_VER_11       = 0x31FFF,
 
 	/* Interrupt disable mask for UFSHCI v2.1 */
 	INTERRUPT_MASK_ALL_VER_21	= 0x71FFF,
@@ -424,13 +423,6 @@ union ufs_crypto_cfg_entry {
 /*
  * Request Descriptor Definitions
  */
-
-/* Transfer request command type */
-enum {
-	UTP_CMD_TYPE_SCSI		= 0x0,
-	UTP_CMD_TYPE_UFS		= 0x1,
-	UTP_CMD_TYPE_DEV_MANAGE		= 0x2,
-};
 
 /* To accommodate UFS2.0 required Command type */
 enum {

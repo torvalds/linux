@@ -591,7 +591,6 @@ static int at91_do_twi_transfer(struct at91_twi_dev *dev)
 					      dev->adapter.timeout);
 	if (time_left == 0) {
 		dev->transfer_status |= at91_twi_read(dev, AT91_TWI_SR);
-		dev_err(dev->dev, "controller timed out\n");
 		at91_init_twi_bus(dev);
 		ret = -ETIMEDOUT;
 		goto error;

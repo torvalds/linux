@@ -10,7 +10,7 @@ maintainers:
   - Thippeswamy Havalige <thippeswamy.havalige@amd.com>
 
 allOf:
-  - $ref: /schemas/pci/pci-bus.yaml#
+  - $ref: /schemas/pci/pci-host-bridge.yaml#
   - $ref: /schemas/interrupt-controller/msi-controller.yaml#
 
 properties:
@@ -84,7 +84,7 @@ properties:
       "#interrupt-cells":
         const: 1
 
-      "interrupt-controller": true
+      interrupt-controller: true
 
     required:
       - "#address-cells"

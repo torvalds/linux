@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2021-2023 Intel Corporation
+ * Copyright (C) 2021-2024 Intel Corporation
  */
 
 #ifndef __iwl_mei_h__
@@ -456,8 +456,11 @@ void iwl_mei_device_state(bool up);
 /**
  * iwl_mei_pldr_req() - must be called before loading the fw
  *
- * Return: 0 if the PLDR flow was successful and the fw can be loaded, negative
- *	value otherwise.
+ * Requests from the ME that it releases its potential bus access to
+ * the WiFi NIC so that the device can safely undergo product reset.
+ *
+ * Return: 0 if the request was successful and the device can be
+ *	reset, a negative error value otherwise
  */
 int iwl_mei_pldr_req(void);
 
@@ -488,7 +491,7 @@ static inline void iwl_mei_set_nic_info(const u8 *mac_address, const u8 *nvm_add
 static inline void iwl_mei_set_country_code(u16 mcc)
 {}
 
-static inline void iwl_mei_set_power_limit(__le16 *power_limit)
+static inline void iwl_mei_set_power_limit(const __le16 *power_limit)
 {}
 
 static inline int iwl_mei_register(void *priv,

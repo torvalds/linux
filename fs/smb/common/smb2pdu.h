@@ -917,6 +917,40 @@ struct smb2_query_directory_rsp {
 	__u8   Buffer[];
 } __packed;
 
+/* DeviceType Flags */
+#define FILE_DEVICE_CD_ROM              0x00000002
+#define FILE_DEVICE_CD_ROM_FILE_SYSTEM  0x00000003
+#define FILE_DEVICE_DFS                 0x00000006
+#define FILE_DEVICE_DISK                0x00000007
+#define FILE_DEVICE_DISK_FILE_SYSTEM    0x00000008
+#define FILE_DEVICE_FILE_SYSTEM         0x00000009
+#define FILE_DEVICE_NAMED_PIPE          0x00000011
+#define FILE_DEVICE_NETWORK             0x00000012
+#define FILE_DEVICE_NETWORK_FILE_SYSTEM 0x00000014
+#define FILE_DEVICE_NULL                0x00000015
+#define FILE_DEVICE_PARALLEL_PORT       0x00000016
+#define FILE_DEVICE_PRINTER             0x00000018
+#define FILE_DEVICE_SERIAL_PORT         0x0000001b
+#define FILE_DEVICE_STREAMS             0x0000001e
+#define FILE_DEVICE_TAPE                0x0000001f
+#define FILE_DEVICE_TAPE_FILE_SYSTEM    0x00000020
+#define FILE_DEVICE_VIRTUAL_DISK        0x00000024
+#define FILE_DEVICE_NETWORK_REDIRECTOR  0x00000028
+
+/* Device Characteristics */
+#define FILE_REMOVABLE_MEDIA			0x00000001
+#define FILE_READ_ONLY_DEVICE			0x00000002
+#define FILE_FLOPPY_DISKETTE			0x00000004
+#define FILE_WRITE_ONCE_MEDIA			0x00000008
+#define FILE_REMOTE_DEVICE			0x00000010
+#define FILE_DEVICE_IS_MOUNTED			0x00000020
+#define FILE_VIRTUAL_VOLUME			0x00000040
+#define FILE_DEVICE_SECURE_OPEN			0x00000100
+#define FILE_CHARACTERISTIC_TS_DEVICE		0x00001000
+#define FILE_CHARACTERISTIC_WEBDAV_DEVICE	0x00002000
+#define FILE_PORTABLE_DEVICE			0x00004000
+#define FILE_DEVICE_ALLOW_APPCONTAINER_TRAVERSAL 0x00020000
+
 /*
  * Maximum number of iovs we need for a set-info request.
  * The largest one is rename/hardlink
@@ -1171,14 +1205,19 @@ struct smb2_server_client_notification {
 #define SMB2_CREATE_FLAG_REPARSEPOINT 0x01
 
 struct create_context {
-	__le32 Next;
-	__le16 NameOffset;
-	__le16 NameLength;
-	__le16 Reserved;
-	__le16 DataOffset;
-	__le32 DataLength;
+	/* New members must be added within the struct_group() macro below. */
+	__struct_group(create_context_hdr, hdr, __packed,
+		__le32 Next;
+		__le16 NameOffset;
+		__le16 NameLength;
+		__le16 Reserved;
+		__le16 DataOffset;
+		__le32 DataLength;
+	);
 	__u8 Buffer[];
 } __packed;
+static_assert(offsetof(struct create_context, Buffer) == sizeof(struct create_context_hdr),
+	      "struct member likely outside of __struct_group()");
 
 struct smb2_create_req {
 	struct smb2_hdr hdr;
@@ -1222,7 +1261,7 @@ struct smb2_create_rsp {
 } __packed;
 
 struct create_posix {
-	struct create_context ccontext;
+	struct create_context_hdr ccontext;
 	__u8    Name[16];
 	__le32  Mode;
 	__u32   Reserved;
@@ -1230,7 +1269,7 @@ struct create_posix {
 
 /* See MS-SMB2 2.2.13.2.3 and MS-SMB2 2.2.13.2.4 */
 struct create_durable {
-	struct create_context ccontext;
+	struct create_context_hdr ccontext;
 	__u8   Name[8];
 	union {
 		__u8  Reserved[16];
@@ -1243,14 +1282,14 @@ struct create_durable {
 
 /* See MS-SMB2 2.2.13.2.5 */
 struct create_mxac_req {
-	struct create_context ccontext;
+	struct create_context_hdr ccontext;
 	__u8   Name[8];
 	__le64 Timestamp;
 } __packed;
 
 /* See MS-SMB2 2.2.14.2.5 */
 struct create_mxac_rsp {
-	struct create_context ccontext;
+	struct create_context_hdr ccontext;
 	__u8   Name[8];
 	__le32 QueryStatus;
 	__le32 MaximalAccess;
@@ -1286,13 +1325,13 @@ struct lease_context_v2 {
 } __packed;
 
 struct create_lease {
-	struct create_context ccontext;
+	struct create_context_hdr ccontext;
 	__u8   Name[8];
 	struct lease_context lcontext;
 } __packed;
 
 struct create_lease_v2 {
-	struct create_context ccontext;
+	struct create_context_hdr ccontext;
 	__u8   Name[8];
 	struct lease_context_v2 lcontext;
 	__u8   Pad[4];
@@ -1300,7 +1339,7 @@ struct create_lease_v2 {
 
 /* See MS-SMB2 2.2.14.2.9 */
 struct create_disk_id_rsp {
-	struct create_context ccontext;
+	struct create_context_hdr ccontext;
 	__u8   Name[8];
 	__le64 DiskFileId;
 	__le64 VolumeId;
@@ -1309,7 +1348,7 @@ struct create_disk_id_rsp {
 
 /* See MS-SMB2 2.2.13.2.13 */
 struct create_app_inst_id {
-	struct create_context ccontext;
+	struct create_context_hdr ccontext;
 	__u8 Name[16];
 	__le32 StructureSize; /* Must be 20 */
 	__u16 Reserved;
@@ -1318,7 +1357,7 @@ struct create_app_inst_id {
 
 /* See MS-SMB2 2.2.13.2.15 */
 struct create_app_inst_id_vers {
-	struct create_context ccontext;
+	struct create_context_hdr ccontext;
 	__u8 Name[16];
 	__le32 StructureSize; /* Must be 24 */
 	__u16 Reserved;

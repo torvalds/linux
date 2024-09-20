@@ -287,25 +287,42 @@ static int cvt_legacy_system_to_ump(struct ump_cvt_to_ump *cvt,
 	return 4;
 }
 
-static void fill_rpn(struct ump_cvt_to_ump_bank *cc,
-		     union snd_ump_midi2_msg *midi2)
+static void reset_rpn(struct ump_cvt_to_ump_bank *cc)
 {
+	cc->rpn_set = 0;
+	cc->nrpn_set = 0;
+	cc->cc_rpn_msb = cc->cc_rpn_lsb = 0;
+	cc->cc_data_msb = cc->cc_data_lsb = 0;
+	cc->cc_data_msb_set = cc->cc_data_lsb_set = 0;
+}
+
+static int fill_rpn(struct ump_cvt_to_ump_bank *cc,
+		    union snd_ump_midi2_msg *midi2,
+		    bool flush)
+{
+	if (!(cc->cc_data_lsb_set || cc->cc_data_msb_set))
+		return 0; // skip
+	/* when not flushing, wait for complete data set */
+	if (!flush && (!cc->cc_data_lsb_set || !cc->cc_data_msb_set))
+		return 0; // skip
+
 	if (cc->rpn_set) {
 		midi2->rpn.status = UMP_MSG_STATUS_RPN;
 		midi2->rpn.bank = cc->cc_rpn_msb;
 		midi2->rpn.index = cc->cc_rpn_lsb;
-		cc->rpn_set = 0;
-		cc->cc_rpn_msb = cc->cc_rpn_lsb = 0;
-	} else {
+	} else if (cc->nrpn_set) {
 		midi2->rpn.status = UMP_MSG_STATUS_NRPN;
 		midi2->rpn.bank = cc->cc_nrpn_msb;
 		midi2->rpn.index = cc->cc_nrpn_lsb;
-		cc->nrpn_set = 0;
-		cc->cc_nrpn_msb = cc->cc_nrpn_lsb = 0;
+	} else {
+		return 0; // skip
 	}
+
 	midi2->rpn.data = upscale_14_to_32bit((cc->cc_data_msb << 7) |
 					      cc->cc_data_lsb);
-	cc->cc_data_msb = cc->cc_data_lsb = 0;
+
+	reset_rpn(cc);
+	return 1;
 }
 
 /* convert to a MIDI 1.0 Channel Voice message */
@@ -318,6 +335,7 @@ static int cvt_legacy_cmd_to_ump(struct ump_cvt_to_ump *cvt,
 	struct ump_cvt_to_ump_bank *cc;
 	union snd_ump_midi2_msg *midi2 = (union snd_ump_midi2_msg *)data;
 	unsigned char status, channel;
+	int ret;
 
 	BUILD_BUG_ON(sizeof(union snd_ump_midi1_msg) != 4);
 	BUILD_BUG_ON(sizeof(union snd_ump_midi2_msg) != 8);
@@ -358,24 +376,33 @@ static int cvt_legacy_cmd_to_ump(struct ump_cvt_to_ump *cvt,
 	case UMP_MSG_STATUS_CC:
 		switch (buf[1]) {
 		case UMP_CC_RPN_MSB:
+			ret = fill_rpn(cc, midi2, true);
 			cc->rpn_set = 1;
 			cc->cc_rpn_msb = buf[2];
-			return 0; // skip
+			if (cc->cc_rpn_msb == 0x7f && cc->cc_rpn_lsb == 0x7f)
+				reset_rpn(cc);
+			return ret;
 		case UMP_CC_RPN_LSB:
+			ret = fill_rpn(cc, midi2, true);
 			cc->rpn_set = 1;
 			cc->cc_rpn_lsb = buf[2];
-			return 0; // skip
+			if (cc->cc_rpn_msb == 0x7f && cc->cc_rpn_lsb == 0x7f)
+				reset_rpn(cc);
+			return ret;
 		case UMP_CC_NRPN_MSB:
+			ret = fill_rpn(cc, midi2, true);
 			cc->nrpn_set = 1;
 			cc->cc_nrpn_msb = buf[2];
-			return 0; // skip
+			return ret;
 		case UMP_CC_NRPN_LSB:
+			ret = fill_rpn(cc, midi2, true);
 			cc->nrpn_set = 1;
 			cc->cc_nrpn_lsb = buf[2];
-			return 0; // skip
+			return ret;
 		case UMP_CC_DATA:
+			cc->cc_data_msb_set = 1;
 			cc->cc_data_msb = buf[2];
-			return 0; // skip
+			return fill_rpn(cc, midi2, false);
 		case UMP_CC_BANK_SELECT:
 			cc->bank_set = 1;
 			cc->cc_bank_msb = buf[2];
@@ -385,12 +412,9 @@ static int cvt_legacy_cmd_to_ump(struct ump_cvt_to_ump *cvt,
 			cc->cc_bank_lsb = buf[2];
 			return 0; // skip
 		case UMP_CC_DATA_LSB:
+			cc->cc_data_lsb_set = 1;
 			cc->cc_data_lsb = buf[2];
-			if (cc->rpn_set || cc->nrpn_set)
-				fill_rpn(cc, midi2);
-			else
-				return 0; // skip
-			break;
+			return fill_rpn(cc, midi2, false);
 		default:
 			midi2->cc.index = buf[1];
 			midi2->cc.data = upscale_7_to_32bit(buf[2]);
@@ -404,7 +428,6 @@ static int cvt_legacy_cmd_to_ump(struct ump_cvt_to_ump *cvt,
 			midi2->pg.bank_msb = cc->cc_bank_msb;
 			midi2->pg.bank_lsb = cc->cc_bank_lsb;
 			cc->bank_set = 0;
-			cc->cc_bank_msb = cc->cc_bank_lsb = 0;
 		}
 		break;
 	case UMP_MSG_STATUS_CHANNEL_PRESSURE:

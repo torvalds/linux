@@ -419,4 +419,5 @@ static void __exit mon_exit(void)
 module_init(mon_init);
 module_exit(mon_exit);
 
+MODULE_DESCRIPTION("USB Monitor");
 MODULE_LICENSE("GPL");

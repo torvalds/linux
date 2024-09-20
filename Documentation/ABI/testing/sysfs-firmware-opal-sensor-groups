@@ -1,6 +1,6 @@
 What:		/sys/firmware/opal/sensor_groups
 Date:		August 2017
-Contact:	Linux for PowerPC mailing list <linuxppc-dev@ozlabs.org>
+Contact:	Linux for PowerPC mailing list <linuxppc-dev@lists.ozlabs.org>
 Description:	Sensor groups directory for POWER9 powernv servers
 
 		Each folder in this directory contains a sensor group
@@ -11,7 +11,7 @@ Description:	Sensor groups directory for POWER9 powernv servers
 
 What:		/sys/firmware/opal/sensor_groups/<sensor_group_name>/clear
 Date:		August 2017
-Contact:	Linux for PowerPC mailing list <linuxppc-dev@ozlabs.org>
+Contact:	Linux for PowerPC mailing list <linuxppc-dev@lists.ozlabs.org>
 Description:	Sysfs file to clear the min-max of all the sensors
 		belonging to the group.
 

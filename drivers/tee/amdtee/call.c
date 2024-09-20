@@ -5,7 +5,7 @@
 
 #include <linux/device.h>
 #include <linux/tee.h>
-#include <linux/tee_drv.h>
+#include <linux/tee_core.h>
 #include <linux/psp-tee.h>
 #include <linux/slab.h>
 #include <linux/psp.h>

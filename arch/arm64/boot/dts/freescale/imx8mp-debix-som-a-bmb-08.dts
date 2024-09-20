@@ -144,7 +144,6 @@
 	pinctrl-0 = <&pinctrl_eqos>;
 	nvmem-cells = <&ethmac1>;
 	nvmem-cell-names = "mac-address";
-	phy-supply = <&reg_baseboard_vdd3v3>;
 	phy-handle = <&ethphy0>;
 	phy-mode = "rgmii-id";
 	status = "okay";

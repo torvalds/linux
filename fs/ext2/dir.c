@@ -175,7 +175,6 @@ Eend:
 			(unsigned long) le32_to_cpu(p->inode));
 	}
 fail:
-	folio_set_error(folio);
 	return false;
 }
 

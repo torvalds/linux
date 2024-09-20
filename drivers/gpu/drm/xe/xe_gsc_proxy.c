@@ -9,12 +9,13 @@
 #include <linux/delay.h>
 
 #include <drm/drm_managed.h>
-#include <drm/i915_component.h>
-#include <drm/i915_gsc_proxy_mei_interface.h>
+#include <drm/intel/i915_component.h>
+#include <drm/intel/i915_gsc_proxy_mei_interface.h>
 
 #include "abi/gsc_proxy_commands_abi.h"
 #include "regs/xe_gsc_regs.h"
 #include "xe_bo.h"
+#include "xe_force_wake.h"
 #include "xe_gsc.h"
 #include "xe_gsc_submit.h"
 #include "xe_gt.h"
@@ -66,7 +67,7 @@ static inline struct xe_device *kdev_to_xe(struct device *kdev)
 	return dev_get_drvdata(kdev);
 }
 
-static bool gsc_proxy_init_done(struct xe_gsc *gsc)
+bool xe_gsc_proxy_init_done(struct xe_gsc *gsc)
 {
 	struct xe_gt *gt = gsc_to_gt(gsc);
 	u32 fwsts1 = xe_mmio_read32(gt, HECI_FWSTS1(MTL_GSC_HECI1_BASE));
@@ -403,7 +404,6 @@ static int proxy_channel_alloc(struct xe_gsc *gsc)
 	struct xe_device *xe = gt_to_xe(gt);
 	struct xe_bo *bo;
 	void *csme;
-	int err;
 
 	csme = kzalloc(GSC_PROXY_CHANNEL_SIZE, GFP_KERNEL);
 	if (!csme)
@@ -411,8 +411,8 @@ static int proxy_channel_alloc(struct xe_gsc *gsc)
 
 	bo = xe_bo_create_pin_map(xe, tile, NULL, GSC_PROXY_CHANNEL_SIZE,
 				  ttm_bo_type_kernel,
-				  XE_BO_CREATE_SYSTEM_BIT |
-				  XE_BO_CREATE_GGTT_BIT);
+				  XE_BO_FLAG_SYSTEM |
+				  XE_BO_FLAG_GGTT);
 	if (IS_ERR(bo)) {
 		kfree(csme);
 		return PTR_ERR(bo);
@@ -424,11 +424,7 @@ static int proxy_channel_alloc(struct xe_gsc *gsc)
 	gsc->proxy.to_csme = csme;
 	gsc->proxy.from_csme = csme + GSC_PROXY_BUFFER_SIZE;
 
-	err = drmm_add_action_or_reset(&xe->drm, proxy_channel_free, gsc);
-	if (err)
-		return err;
-
-	return 0;
+	return drmm_add_action_or_reset(&xe->drm, proxy_channel_free, gsc);
 }
 
 /**
@@ -528,7 +524,7 @@ int xe_gsc_proxy_start(struct xe_gsc *gsc)
 	if (err)
 		return err;
 
-	if (!gsc_proxy_init_done(gsc)) {
+	if (!xe_gsc_proxy_init_done(gsc)) {
 		xe_gt_err(gsc_to_gt(gsc), "GSC FW reports proxy init not completed\n");
 		return -EIO;
 	}

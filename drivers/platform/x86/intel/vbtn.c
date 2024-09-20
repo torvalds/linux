@@ -7,11 +7,13 @@
  */
 
 #include <linux/acpi.h>
+#include <linux/cleanup.h>
 #include <linux/dmi.h>
 #include <linux/input.h>
 #include <linux/input/sparse-keymap.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/mutex.h>
 #include <linux/platform_device.h>
 #include <linux/suspend.h>
 #include "../dual_accel_detect.h"
@@ -24,6 +26,7 @@
 
 #define VGBS_TABLET_MODE_FLAGS (VGBS_TABLET_MODE_FLAG | VGBS_TABLET_MODE_FLAG_ALT)
 
+MODULE_DESCRIPTION("Intel Virtual Button driver");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("AceLan Kao");
 
@@ -65,6 +68,7 @@ static const struct key_entry intel_vbtn_switchmap[] = {
 };
 
 struct intel_vbtn_priv {
+	struct mutex mutex; /* Avoid notify_handler() racing with itself */
 	struct input_dev *buttons_dev;
 	struct input_dev *switches_dev;
 	bool dual_accel;
@@ -154,9 +158,12 @@ static void notify_handler(acpi_handle handle, u32 event, void *context)
 	bool autorelease;
 	int ret;
 
+	guard(mutex)(&priv->mutex);
+
 	if ((ke = sparse_keymap_entry_from_scancode(priv->buttons_dev, event))) {
 		if (!priv->has_buttons) {
-			dev_warn(&device->dev, "Warning: received a button event on a device without buttons, please report this.\n");
+			dev_warn(&device->dev, "Warning: received 0x%02x button event on a device without buttons, please report this.\n",
+				 event);
 			return;
 		}
 		input_dev = priv->buttons_dev;
@@ -287,6 +294,10 @@ static int intel_vbtn_probe(struct platform_device *device)
 	if (!priv)
 		return -ENOMEM;
 	dev_set_drvdata(&device->dev, priv);
+
+	err = devm_mutex_init(&device->dev, &priv->mutex);
+	if (err)
+		return err;
 
 	priv->dual_accel = dual_accel;
 	priv->has_buttons = has_buttons;

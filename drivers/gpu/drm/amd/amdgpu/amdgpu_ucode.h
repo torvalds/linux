@@ -125,6 +125,7 @@ enum psp_fw_type {
 	PSP_FW_TYPE_PSP_INTF_DRV,
 	PSP_FW_TYPE_PSP_DBG_DRV,
 	PSP_FW_TYPE_PSP_RAS_DRV,
+	PSP_FW_TYPE_PSP_IPKEYMGR_DRV,
 	PSP_FW_TYPE_MAX_INDEX,
 };
 
@@ -345,6 +346,14 @@ struct umsch_mm_firmware_header_v1_0 {
 	uint32_t umsch_mm_data_start_addr_hi;
 };
 
+/* version_major=3, version_minor=0 */
+struct sdma_firmware_header_v3_0 {
+    struct common_firmware_header header;
+    uint32_t ucode_feature_version;
+    uint32_t ucode_offset_bytes;
+    uint32_t ucode_size_bytes;
+};
+
 /* gpu info payload */
 struct gpu_info_firmware_v1_0 {
 	uint32_t gc_num_se;
@@ -430,6 +439,7 @@ union amdgpu_firmware_header {
 	struct sdma_firmware_header_v1_0 sdma;
 	struct sdma_firmware_header_v1_1 sdma_v1_1;
 	struct sdma_firmware_header_v2_0 sdma_v2_0;
+	struct sdma_firmware_header_v3_0 sdma_v3_0;
 	struct gpu_info_firmware_header_v1_0 gpu_info;
 	struct dmcu_firmware_header_v1_0 dmcu;
 	struct dmcub_firmware_header_v1_0 dmcub;
@@ -454,6 +464,7 @@ enum AMDGPU_UCODE_ID {
 	AMDGPU_UCODE_ID_SDMA7,
 	AMDGPU_UCODE_ID_SDMA_UCODE_TH0,
 	AMDGPU_UCODE_ID_SDMA_UCODE_TH1,
+	AMDGPU_UCODE_ID_SDMA_RS64,
 	AMDGPU_UCODE_ID_CP_CE,
 	AMDGPU_UCODE_ID_CP_PFP,
 	AMDGPU_UCODE_ID_CP_ME,
@@ -512,6 +523,7 @@ enum AMDGPU_UCODE_ID {
 	AMDGPU_UCODE_ID_UMSCH_MM_CMD_BUFFER,
 	AMDGPU_UCODE_ID_P2S_TABLE,
 	AMDGPU_UCODE_ID_JPEG_RAM,
+	AMDGPU_UCODE_ID_ISP,
 	AMDGPU_UCODE_ID_MAXIMUM,
 };
 
@@ -582,8 +594,9 @@ void amdgpu_ucode_print_rlc_hdr(const struct common_firmware_header *hdr);
 void amdgpu_ucode_print_sdma_hdr(const struct common_firmware_header *hdr);
 void amdgpu_ucode_print_psp_hdr(const struct common_firmware_header *hdr);
 void amdgpu_ucode_print_gpu_info_hdr(const struct common_firmware_header *hdr);
+__printf(3, 4)
 int amdgpu_ucode_request(struct amdgpu_device *adev, const struct firmware **fw,
-			 const char *fw_name);
+			 const char *fmt, ...);
 void amdgpu_ucode_release(const struct firmware **fw);
 bool amdgpu_ucode_hdr_version(union amdgpu_firmware_header *hdr,
 				uint16_t hdr_major, uint16_t hdr_minor);

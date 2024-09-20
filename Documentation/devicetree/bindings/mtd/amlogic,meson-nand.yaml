@@ -64,11 +64,29 @@ patternProperties:
         items:
           maximum: 0
 
+      amlogic,boot-pages:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        description:
+          Number of pages starting from offset 0, where a special ECC
+          configuration must be used because it is accessed by the ROM
+          code. This ECC configuration uses 384 bytes data blocks.
+          Also scrambling mode is enabled for such pages.
+
+      amlogic,boot-page-step:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        description:
+          Interval between pages, accessed by the ROM code. For example
+          we have 8 pages [0, 7]. Pages 0,2,4,6 are accessed by the
+          ROM code, so this field will be 2 (e.g. every 2nd page). Rest
+          of pages - 1,3,5,7 are read/written without this mode.
+
     unevaluatedProperties: false
 
     dependencies:
       nand-ecc-strength: [nand-ecc-step-size]
       nand-ecc-step-size: [nand-ecc-strength]
+      amlogic,boot-pages: [nand-is-boot-medium, "amlogic,boot-page-step"]
+      amlogic,boot-page-step: [nand-is-boot-medium, "amlogic,boot-pages"]
 
 
 required:

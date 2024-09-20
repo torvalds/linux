@@ -13,7 +13,6 @@
 
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_cache.h>
 #include <drm/drm_damage_helper.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_format_helper.h>
@@ -21,8 +20,10 @@
 #include <drm/drm_framebuffer.h>
 #include <drm/drm_gem_atomic_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
+#include <drm/drm_panic.h>
 #include <drm/drm_print.h>
 
+#include "mgag200_ddc.h"
 #include "mgag200_drv.h"
 
 /*
@@ -110,12 +111,12 @@ static inline void mga_wait_vsync(struct mga_device *mdev)
 	unsigned int status = 0;
 
 	do {
-		status = RREG32(MGAREG_Status);
+		status = RREG32(MGAREG_STATUS);
 	} while ((status & 0x08) && time_before(jiffies, timeout));
 	timeout = jiffies + HZ/10;
 	status = 0;
 	do {
-		status = RREG32(MGAREG_Status);
+		status = RREG32(MGAREG_STATUS);
 	} while (!(status & 0x08) && time_before(jiffies, timeout));
 }
 
@@ -124,7 +125,7 @@ static inline void mga_wait_busy(struct mga_device *mdev)
 	unsigned long timeout = jiffies + HZ;
 	unsigned int status = 0;
 	do {
-		status = RREG8(MGAREG_Status + 2);
+		status = RREG8(MGAREG_STATUS + 2);
 	} while ((status & 0x01) && time_before(jiffies, timeout));
 }
 
@@ -437,13 +438,6 @@ static void mgag200_handle_damage(struct mga_device *mdev, const struct iosys_ma
 
 	iosys_map_incr(&dst, drm_fb_clip_offset(fb->pitches[0], fb->format, clip));
 	drm_fb_memcpy(&dst, fb->pitches, vmap, fb, clip);
-
-	/* Flushing the cache greatly improves latency on x86_64 */
-#if defined(CONFIG_DRM_MGAG200_IOBURST_WORKAROUND)
-	if (!vmap->is_iomem)
-		drm_clflush_virt_range(vmap->vaddr + clip->y1 * fb->pitches[0],
-				       drm_rect_height(clip) * fb->pitches[0]);
-#endif
 }
 
 /*
@@ -544,6 +538,23 @@ void mgag200_primary_plane_helper_atomic_disable(struct drm_plane *plane,
 	seq1 |= MGAREG_SEQ1_SCROFF;
 	WREG_SEQ(0x01, seq1);
 	msleep(20);
+}
+
+int mgag200_primary_plane_helper_get_scanout_buffer(struct drm_plane *plane,
+						    struct drm_scanout_buffer *sb)
+{
+	struct mga_device *mdev = to_mga_device(plane->dev);
+	struct iosys_map map = IOSYS_MAP_INIT_VADDR_IOMEM(mdev->vram);
+
+	if (plane->state && plane->state->fb) {
+		sb->format = plane->state->fb->format;
+		sb->width = plane->state->fb->width;
+		sb->height = plane->state->fb->height;
+		sb->pitch[0] = plane->state->fb->pitches[0];
+		sb->map[0] = map;
+		return 0;
+	}
+	return -ENODEV;
 }
 
 /*
@@ -716,32 +727,6 @@ void mgag200_crtc_atomic_destroy_state(struct drm_crtc *crtc, struct drm_crtc_st
 
 	__drm_atomic_helper_crtc_destroy_state(&mgag200_crtc_state->base);
 	kfree(mgag200_crtc_state);
-}
-
-/*
- * Connector
- */
-
-int mgag200_vga_connector_helper_get_modes(struct drm_connector *connector)
-{
-	struct mga_device *mdev = to_mga_device(connector->dev);
-	const struct drm_edid *drm_edid;
-	int count;
-
-	/*
-	 * Protect access to I/O registers from concurrent modesetting
-	 * by acquiring the I/O-register lock.
-	 */
-	mutex_lock(&mdev->rmmio_lock);
-
-	drm_edid = drm_edid_read(connector);
-	drm_edid_connector_update(connector, drm_edid);
-	count = drm_edid_connector_add_modes(connector);
-	drm_edid_free(drm_edid);
-
-	mutex_unlock(&mdev->rmmio_lock);
-
-	return count;
 }
 
 /*

@@ -1233,7 +1233,7 @@ static int pm860x_resume(struct device *dev)
 static DEFINE_SIMPLE_DEV_PM_OPS(pm860x_pm_ops, pm860x_suspend, pm860x_resume);
 
 static const struct i2c_device_id pm860x_id_table[] = {
-	{ "88PM860x", 0 },
+	{ "88PM860x" },
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, pm860x_id_table);

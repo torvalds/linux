@@ -1,0 +1,56 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/crypto/ti,omap-sham.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: OMAP SoC SHA crypto Module
+
+maintainers:
+  - Animesh Agarwal <animeshagarwal28@gmail.com>
+
+properties:
+  compatible:
+    enum:
+      - ti,omap2-sham
+      - ti,omap4-sham
+      - ti,omap5-sham
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  dmas:
+    maxItems: 1
+
+  dma-names:
+    const: rx
+
+  ti,hwmods:
+    description: Name of the hwmod associated with the SHAM module
+    $ref: /schemas/types.yaml#/definitions/string
+    enum: [sham]
+
+dependencies:
+  dmas: [dma-names]
+
+additionalProperties: false
+
+required:
+  - compatible
+  - ti,hwmods
+  - reg
+  - interrupts
+
+examples:
+  - |
+    sham@53100000 {
+        compatible = "ti,omap4-sham";
+        ti,hwmods = "sham";
+        reg = <0x53100000 0x200>;
+        interrupts = <109>;
+        dmas = <&edma 36>;
+        dma-names = "rx";
+    };

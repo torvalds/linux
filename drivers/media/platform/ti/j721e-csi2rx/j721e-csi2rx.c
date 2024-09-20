@@ -786,15 +786,14 @@ static void ti_csi2rx_buffer_queue(struct vb2_buffer *vb)
 			dev_warn(csi->dev,
 				 "Failed to drain DMA. Next frame might be bogus\n");
 
+		spin_lock_irqsave(&dma->lock, flags);
 		ret = ti_csi2rx_start_dma(csi, buf);
 		if (ret) {
-			dev_err(csi->dev, "Failed to start DMA: %d\n", ret);
-			spin_lock_irqsave(&dma->lock, flags);
 			vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_ERROR);
 			dma->state = TI_CSI2RX_DMA_IDLE;
 			spin_unlock_irqrestore(&dma->lock, flags);
+			dev_err(csi->dev, "Failed to start DMA: %d\n", ret);
 		} else {
-			spin_lock_irqsave(&dma->lock, flags);
 			list_add_tail(&buf->list, &dma->submitted);
 			spin_unlock_irqrestore(&dma->lock, flags);
 		}

@@ -183,25 +183,6 @@ void bch2_journal_super_entries_add_common(struct bch_fs *c,
 					   struct jset_entry **end,
 					   u64 journal_seq)
 {
-	percpu_down_read(&c->mark_lock);
-
-	if (!journal_seq) {
-		for (unsigned i = 0; i < ARRAY_SIZE(c->usage); i++)
-			bch2_fs_usage_acc_to_base(c, i);
-	} else {
-		bch2_fs_usage_acc_to_base(c, journal_seq & JOURNAL_BUF_MASK);
-	}
-
-	{
-		struct jset_entry_usage *u =
-			container_of(jset_entry_init(end, sizeof(*u)),
-				     struct jset_entry_usage, entry);
-
-		u->entry.type	= BCH_JSET_ENTRY_usage;
-		u->entry.btree_id = BCH_FS_USAGE_inodes;
-		u->v		= cpu_to_le64(c->usage_base->b.nr_inodes);
-	}
-
 	{
 		struct jset_entry_usage *u =
 			container_of(jset_entry_init(end, sizeof(*u)),
@@ -211,49 +192,6 @@ void bch2_journal_super_entries_add_common(struct bch_fs *c,
 		u->entry.btree_id = BCH_FS_USAGE_key_version;
 		u->v		= cpu_to_le64(atomic64_read(&c->key_version));
 	}
-
-	for (unsigned i = 0; i < BCH_REPLICAS_MAX; i++) {
-		struct jset_entry_usage *u =
-			container_of(jset_entry_init(end, sizeof(*u)),
-				     struct jset_entry_usage, entry);
-
-		u->entry.type	= BCH_JSET_ENTRY_usage;
-		u->entry.btree_id = BCH_FS_USAGE_reserved;
-		u->entry.level	= i;
-		u->v		= cpu_to_le64(c->usage_base->persistent_reserved[i]);
-	}
-
-	for (unsigned i = 0; i < c->replicas.nr; i++) {
-		struct bch_replicas_entry_v1 *e =
-			cpu_replicas_entry(&c->replicas, i);
-		struct jset_entry_data_usage *u =
-			container_of(jset_entry_init(end, sizeof(*u) + e->nr_devs),
-				     struct jset_entry_data_usage, entry);
-
-		u->entry.type	= BCH_JSET_ENTRY_data_usage;
-		u->v		= cpu_to_le64(c->usage_base->replicas[i]);
-		unsafe_memcpy(&u->r, e, replicas_entry_bytes(e),
-			      "embedded variable length struct");
-	}
-
-	for_each_member_device(c, ca) {
-		unsigned b = sizeof(struct jset_entry_dev_usage) +
-			sizeof(struct jset_entry_dev_usage_type) * BCH_DATA_NR;
-		struct jset_entry_dev_usage *u =
-			container_of(jset_entry_init(end, b),
-				     struct jset_entry_dev_usage, entry);
-
-		u->entry.type = BCH_JSET_ENTRY_dev_usage;
-		u->dev = cpu_to_le32(ca->dev_idx);
-
-		for (unsigned i = 0; i < BCH_DATA_NR; i++) {
-			u->d[i].buckets = cpu_to_le64(ca->usage_base->d[i].buckets);
-			u->d[i].sectors	= cpu_to_le64(ca->usage_base->d[i].sectors);
-			u->d[i].fragmented = cpu_to_le64(ca->usage_base->d[i].fragmented);
-		}
-	}
-
-	percpu_up_read(&c->mark_lock);
 
 	for (unsigned i = 0; i < 2; i++) {
 		struct jset_entry_clock *clock =
@@ -266,9 +204,8 @@ void bch2_journal_super_entries_add_common(struct bch_fs *c,
 	}
 }
 
-static int bch2_sb_clean_validate(struct bch_sb *sb,
-				  struct bch_sb_field *f,
-				  struct printbuf *err)
+static int bch2_sb_clean_validate(struct bch_sb *sb, struct bch_sb_field *f,
+				  enum bch_validate_flags flags, struct printbuf *err)
 {
 	struct bch_sb_field_clean *clean = field_to_type(f, clean);
 
@@ -283,7 +220,7 @@ static int bch2_sb_clean_validate(struct bch_sb *sb,
 	     entry = vstruct_next(entry)) {
 		if ((void *) vstruct_next(entry) > vstruct_end(&clean->field)) {
 			prt_str(err, "entry type ");
-			bch2_prt_jset_entry_type(err, le16_to_cpu(entry->type));
+			bch2_prt_jset_entry_type(err, entry->type);
 			prt_str(err, " overruns end of section");
 			return -BCH_ERR_invalid_sb_clean;
 		}
@@ -298,10 +235,8 @@ static void bch2_sb_clean_to_text(struct printbuf *out, struct bch_sb *sb,
 	struct bch_sb_field_clean *clean = field_to_type(f, clean);
 	struct jset_entry *entry;
 
-	prt_printf(out, "flags:          %x",	le32_to_cpu(clean->flags));
-	prt_newline(out);
-	prt_printf(out, "journal_seq:    %llu",	le64_to_cpu(clean->journal_seq));
-	prt_newline(out);
+	prt_printf(out, "flags:          %x\n",		le32_to_cpu(clean->flags));
+	prt_printf(out, "journal_seq:    %llu\n",	le64_to_cpu(clean->journal_seq));
 
 	for (entry = clean->start;
 	     entry != vstruct_end(&clean->field);
@@ -391,6 +326,8 @@ void bch2_fs_mark_clean(struct bch_fs *c)
 		bch_err(c, "error writing marking filesystem clean: validate error");
 		goto out;
 	}
+
+	bch2_journal_pos_from_member_info_set(c);
 
 	bch2_write_super(c);
 out:

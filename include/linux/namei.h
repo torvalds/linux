@@ -44,18 +44,13 @@ enum {LAST_NORM, LAST_ROOT, LAST_DOT, LAST_DOTDOT};
 #define LOOKUP_BENEATH		0x080000 /* No escaping from starting point. */
 #define LOOKUP_IN_ROOT		0x100000 /* Treat dirfd as fs root. */
 #define LOOKUP_CACHED		0x200000 /* Only do cached lookup */
+#define LOOKUP_LINKAT_EMPTY	0x400000 /* Linkat request with empty path. */
 /* LOOKUP_* flags which do scope-related checks based on the dirfd. */
 #define LOOKUP_IS_SCOPED (LOOKUP_BENEATH | LOOKUP_IN_ROOT)
 
 extern int path_pts(struct path *path);
 
-extern int user_path_at_empty(int, const char __user *, unsigned, struct path *, int *empty);
-
-static inline int user_path_at(int dfd, const char __user *name, unsigned flags,
-		 struct path *path)
-{
-	return user_path_at_empty(dfd, name, flags, path, NULL);
-}
+extern int user_path_at(int, const char __user *, unsigned, struct path *);
 
 struct dentry *lookup_one_qstr_excl(const struct qstr *name,
 				    struct dentry *base,

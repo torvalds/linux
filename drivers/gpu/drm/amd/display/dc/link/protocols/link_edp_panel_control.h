@@ -51,7 +51,7 @@ bool edp_setup_psr(struct dc_link *link,
 		struct psr_context *psr_context);
 bool edp_set_sink_vtotal_in_psr_active(const struct dc_link *link,
        uint16_t psr_vtotal_idle, uint16_t psr_vtotal_su);
-void edp_get_psr_residency(const struct dc_link *link, uint32_t *residency);
+void edp_get_psr_residency(const struct dc_link *link, uint32_t *residency, enum psr_residency_mode mode);
 bool edp_set_replay_allow_active(struct dc_link *dc_link, const bool *enable,
 	bool wait, bool force_static, const unsigned int *power_opts);
 bool edp_setup_replay(struct dc_link *link,
@@ -61,7 +61,7 @@ bool edp_send_replay_cmd(struct dc_link *link,
 			union dmub_replay_cmd_set *cmd_data);
 bool edp_set_coasting_vtotal(struct dc_link *link, uint32_t coasting_vtotal);
 bool edp_replay_residency(const struct dc_link *link,
-	unsigned int *residency, const bool is_start, const bool is_alpm);
+	unsigned int *residency, const bool is_start, const enum pr_residency_mode mode);
 bool edp_get_replay_state(const struct dc_link *link, uint64_t *state);
 bool edp_set_replay_power_opt_and_coasting_vtotal(struct dc_link *link,
 	const unsigned int *power_opts, uint32_t coasting_vtotal);
@@ -76,4 +76,6 @@ bool edp_receiver_ready_T9(struct dc_link *link);
 bool edp_receiver_ready_T7(struct dc_link *link);
 bool edp_power_alpm_dpcd_enable(struct dc_link *link, bool enable);
 void edp_set_panel_power(struct dc_link *link, bool powerOn);
+void edp_set_panel_assr(struct dc_link *link, struct pipe_ctx *pipe_ctx,
+		enum dp_panel_mode *panel_mode, bool enable);
 #endif /* __DC_LINK_EDP_POWER_CONTROL_H__ */

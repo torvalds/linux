@@ -118,7 +118,7 @@ int xe_exec_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 	u64 addresses[XE_HW_ENGINE_MAX_INSTANCE];
 	struct drm_gpuvm_exec vm_exec = {.extra.fn = xe_exec_fn};
 	struct drm_exec *exec = &vm_exec.exec;
-	u32 i, num_syncs = 0, num_ufence = 0;
+	u32 i, num_syncs, num_ufence = 0;
 	struct xe_sched_job *job;
 	struct xe_vm *vm;
 	bool write_locked, skip_retry = false;
@@ -141,7 +141,7 @@ int xe_exec_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 			 q->width != args->num_batch_buffer))
 		return -EINVAL;
 
-	if (XE_IOCTL_DBG(xe, q->flags & EXEC_QUEUE_FLAG_BANNED)) {
+	if (XE_IOCTL_DBG(xe, q->ops->reset_status(q))) {
 		err = -ECANCELED;
 		goto err_exec_queue;
 	}
@@ -156,15 +156,15 @@ int xe_exec_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 
 	vm = q->vm;
 
-	for (i = 0; i < args->num_syncs; i++) {
-		err = xe_sync_entry_parse(xe, xef, &syncs[num_syncs++],
-					  &syncs_user[i], SYNC_PARSE_FLAG_EXEC |
+	for (num_syncs = 0; num_syncs < args->num_syncs; num_syncs++) {
+		err = xe_sync_entry_parse(xe, xef, &syncs[num_syncs],
+					  &syncs_user[num_syncs], SYNC_PARSE_FLAG_EXEC |
 					  (xe_vm_in_lr_mode(vm) ?
 					   SYNC_PARSE_FLAG_LR_MODE : 0));
 		if (err)
 			goto err_syncs;
 
-		if (xe_sync_is_ufence(&syncs[i]))
+		if (xe_sync_is_ufence(&syncs[num_syncs]))
 			num_ufence++;
 	}
 
@@ -216,7 +216,7 @@ retry:
 				goto err_unlock_list;
 			}
 			for (i = 0; i < num_syncs; i++)
-				xe_sync_entry_signal(&syncs[i], NULL, fence);
+				xe_sync_entry_signal(&syncs[i], fence);
 			xe_exec_queue_last_fence_set(q, vm, fence);
 			dma_fence_put(fence);
 		}
@@ -259,9 +259,9 @@ retry:
 
 	/* Wait behind rebinds */
 	if (!xe_vm_in_lr_mode(vm)) {
-		err = drm_sched_job_add_resv_dependencies(&job->drm,
-							  xe_vm_resv(vm),
-							  DMA_RESV_USAGE_KERNEL);
+		err = xe_sched_job_add_deps(job,
+					    xe_vm_resv(vm),
+					    DMA_RESV_USAGE_KERNEL);
 		if (err)
 			goto err_put_job;
 	}
@@ -294,9 +294,10 @@ retry:
 		drm_gpuvm_resv_add_fence(&vm->gpuvm, exec, &job->drm.s_fence->finished,
 					 DMA_RESV_USAGE_BOOKKEEP, DMA_RESV_USAGE_WRITE);
 
-	for (i = 0; i < num_syncs; i++)
-		xe_sync_entry_signal(&syncs[i], job,
-				     &job->drm.s_fence->finished);
+	for (i = 0; i < num_syncs; i++) {
+		xe_sync_entry_signal(&syncs[i], &job->drm.s_fence->finished);
+		xe_sched_job_init_user_fence(job, &syncs[i]);
+	}
 
 	if (xe_exec_queue_is_lr(q))
 		q->ring_ops->emit_job(job);
@@ -320,15 +321,12 @@ err_put_job:
 err_exec:
 	drm_exec_fini(exec);
 err_unlock_list:
-	if (write_locked)
-		up_write(&vm->lock);
-	else
-		up_read(&vm->lock);
+	up_read(&vm->lock);
 	if (err == -EAGAIN && !skip_retry)
 		goto retry;
 err_syncs:
-	for (i = 0; i < num_syncs; i++)
-		xe_sync_entry_cleanup(&syncs[i]);
+	while (num_syncs--)
+		xe_sync_entry_cleanup(&syncs[num_syncs]);
 	kfree(syncs);
 err_exec_queue:
 	xe_exec_queue_put(q);

@@ -11,7 +11,7 @@ echo 1 > events/tests/enable
 echo > trace
 cat trace > /dev/null
 
-function streq() {
+streq() {
 	test $1 = $2
 }
 

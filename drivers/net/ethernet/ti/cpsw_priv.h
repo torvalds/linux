@@ -510,6 +510,6 @@ int cpsw_set_ringparam(struct net_device *ndev,
 int cpsw_set_channels_common(struct net_device *ndev,
 			     struct ethtool_channels *chs,
 			     cpdma_handler_fn rx_handler);
-int cpsw_get_ts_info(struct net_device *ndev, struct ethtool_ts_info *info);
+int cpsw_get_ts_info(struct net_device *ndev, struct kernel_ethtool_ts_info *info);
 
 #endif /* DRIVERS_NET_ETHERNET_TI_CPSW_PRIV_H_ */

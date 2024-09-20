@@ -213,7 +213,7 @@ out:
 static int dc_i2c_xfer_msg(struct dc_i2c *i2c, struct i2c_msg *msg, int first,
 			   int last)
 {
-	unsigned long timeout = msecs_to_jiffies(TIMEOUT_MS);
+	unsigned long time_left = msecs_to_jiffies(TIMEOUT_MS);
 	unsigned long flags;
 
 	spin_lock_irqsave(&i2c->lock, flags);
@@ -227,9 +227,9 @@ static int dc_i2c_xfer_msg(struct dc_i2c *i2c, struct i2c_msg *msg, int first,
 	dc_i2c_start_msg(i2c, first);
 	spin_unlock_irqrestore(&i2c->lock, flags);
 
-	timeout = wait_for_completion_timeout(&i2c->done, timeout);
+	time_left = wait_for_completion_timeout(&i2c->done, time_left);
 	dc_i2c_set_irq(i2c, 0);
-	if (timeout == 0) {
+	if (time_left == 0) {
 		i2c->state = STATE_IDLE;
 		return -ETIMEDOUT;
 	}
@@ -281,8 +281,8 @@ static u32 dc_i2c_func(struct i2c_adapter *adap)
 }
 
 static const struct i2c_algorithm dc_i2c_algorithm = {
-	.master_xfer	= dc_i2c_xfer,
-	.functionality	= dc_i2c_func,
+	.xfer = dc_i2c_xfer,
+	.functionality = dc_i2c_func,
 };
 
 static int dc_i2c_probe(struct platform_device *pdev)
@@ -372,5 +372,5 @@ static struct platform_driver dc_i2c_driver = {
 module_platform_driver(dc_i2c_driver);
 
 MODULE_AUTHOR("Baruch Siach <baruch@tkos.co.il>");
-MODULE_DESCRIPTION("Conexant Digicolor I2C master driver");
+MODULE_DESCRIPTION("Conexant Digicolor I2C controller driver");
 MODULE_LICENSE("GPL v2");

@@ -33,8 +33,10 @@
 #include "resource.h"
 #include "link_enc_cfg.h"
 
+#if defined(CONFIG_DRM_AMD_DC_FP)
 #include "dml2/dml2_wrapper.h"
 #include "dml2/dml2_internal_types.h"
+#endif
 
 #define DC_LOGGER \
 	dc->ctx->logger
@@ -188,20 +190,32 @@ static void init_state(struct dc *dc, struct dc_state *state)
 }
 
 /* Public dc_state functions */
-struct dc_state *dc_state_create(struct dc *dc)
+struct dc_state *dc_state_create(struct dc *dc, struct dc_state_create_params *params)
 {
-	struct dc_state *state = kvzalloc(sizeof(struct dc_state),
-			GFP_KERNEL);
+	struct dc_state *state;
+#ifdef CONFIG_DRM_AMD_DC_FP
+	struct dml2_configuration_options *dml2_opt = &dc->dml2_tmp;
+
+	memcpy(dml2_opt, &dc->dml2_options, sizeof(dc->dml2_options));
+#endif
+
+	state = kvzalloc(sizeof(struct dc_state), GFP_KERNEL);
 
 	if (!state)
 		return NULL;
 
 	init_state(dc, state);
 	dc_state_construct(dc, state);
+	state->power_source = params ? params->power_source : DC_POWER_SOURCE_AC;
 
 #ifdef CONFIG_DRM_AMD_DC_FP
-	if (dc->debug.using_dml2)
-		dml2_create(dc, &dc->dml2_options, &state->bw_ctx.dml2);
+	if (dc->debug.using_dml2) {
+		dml2_opt->use_clock_dc_limits = false;
+		dml2_create(dc, dml2_opt, &state->bw_ctx.dml2);
+
+		dml2_opt->use_clock_dc_limits = true;
+		dml2_create(dc, dml2_opt, &state->bw_ctx.dml2_dc_power_source);
+	}
 #endif
 
 	kref_init(&state->refcount);
@@ -214,6 +228,7 @@ void dc_state_copy(struct dc_state *dst_state, struct dc_state *src_state)
 	struct kref refcount = dst_state->refcount;
 #ifdef CONFIG_DRM_AMD_DC_FP
 	struct dml2_context *dst_dml2 = dst_state->bw_ctx.dml2;
+	struct dml2_context *dst_dml2_dc_power_source = dst_state->bw_ctx.dml2_dc_power_source;
 #endif
 
 	dc_state_copy_internal(dst_state, src_state);
@@ -222,6 +237,10 @@ void dc_state_copy(struct dc_state *dst_state, struct dc_state *src_state)
 	dst_state->bw_ctx.dml2 = dst_dml2;
 	if (src_state->bw_ctx.dml2)
 		dml2_copy(dst_state->bw_ctx.dml2, src_state->bw_ctx.dml2);
+
+	dst_state->bw_ctx.dml2_dc_power_source = dst_dml2_dc_power_source;
+	if (src_state->bw_ctx.dml2_dc_power_source)
+		dml2_copy(dst_state->bw_ctx.dml2_dc_power_source, src_state->bw_ctx.dml2_dc_power_source);
 #endif
 
 	/* context refcount should not be overridden */
@@ -242,6 +261,12 @@ struct dc_state *dc_state_create_copy(struct dc_state *src_state)
 #ifdef CONFIG_DRM_AMD_DC_FP
 	if (src_state->bw_ctx.dml2 &&
 			!dml2_create_copy(&new_state->bw_ctx.dml2, src_state->bw_ctx.dml2)) {
+		dc_state_release(new_state);
+		return NULL;
+	}
+
+	if (src_state->bw_ctx.dml2_dc_power_source &&
+			!dml2_create_copy(&new_state->bw_ctx.dml2_dc_power_source, src_state->bw_ctx.dml2_dc_power_source)) {
 		dc_state_release(new_state);
 		return NULL;
 	}
@@ -310,7 +335,6 @@ void dc_state_destruct(struct dc_state *state)
 	memset(state->dc_dmub_cmd, 0, sizeof(state->dc_dmub_cmd));
 	state->dmub_cmd_count = 0;
 	memset(&state->perf_params, 0, sizeof(state->perf_params));
-	memset(&state->scratch, 0, sizeof(state->scratch));
 }
 
 void dc_state_retain(struct dc_state *state)
@@ -327,6 +351,9 @@ static void dc_state_free(struct kref *kref)
 #ifdef CONFIG_DRM_AMD_DC_FP
 	dml2_destroy(state->bw_ctx.dml2);
 	state->bw_ctx.dml2 = 0;
+
+	dml2_destroy(state->bw_ctx.dml2_dc_power_source);
+	state->bw_ctx.dml2_dc_power_source = 0;
 #endif
 
 	kvfree(state);
@@ -341,7 +368,7 @@ void dc_state_release(struct dc_state *state)
  * dc_state_add_stream() - Add a new dc_stream_state to a dc_state.
  */
 enum dc_status dc_state_add_stream(
-		struct dc *dc,
+		const struct dc *dc,
 		struct dc_state *state,
 		struct dc_stream_state *stream)
 {
@@ -370,7 +397,7 @@ enum dc_status dc_state_add_stream(
  * dc_state_remove_stream() - Remove a stream from a dc_state.
  */
 enum dc_status dc_state_remove_stream(
-		struct dc *dc,
+		const struct dc *dc,
 		struct dc_state *state,
 		struct dc_stream_state *stream)
 {
@@ -415,6 +442,19 @@ enum dc_status dc_state_remove_stream(
 	return DC_OK;
 }
 
+static void remove_mpc_combine_for_stream(const struct dc *dc,
+		struct dc_state *new_ctx,
+		const struct dc_state *cur_ctx,
+		struct dc_stream_status *status)
+{
+	int i;
+
+	for (i = 0; i < status->plane_count; i++)
+		resource_update_pipes_for_plane_with_slice_count(
+				new_ctx, cur_ctx, dc->res_pool,
+				status->plane_states[i], 1);
+}
+
 bool dc_state_add_plane(
 		const struct dc *dc,
 		struct dc_stream_state *stream,
@@ -425,8 +465,12 @@ bool dc_state_add_plane(
 	struct pipe_ctx *otg_master_pipe;
 	struct dc_stream_status *stream_status = NULL;
 	bool added = false;
+	int odm_slice_count;
+	int i;
 
 	stream_status = dc_state_get_stream_status(state, stream);
+	otg_master_pipe = resource_get_otg_master_for_stream(
+			&state->res_ctx, stream);
 	if (stream_status == NULL) {
 		dm_error("Existing stream not found; failed to attach surface!\n");
 		goto out;
@@ -434,22 +478,39 @@ bool dc_state_add_plane(
 		dm_error("Surface: can not attach plane_state %p! Maximum is: %d\n",
 				plane_state, MAX_SURFACE_NUM);
 		goto out;
+	} else if (!otg_master_pipe) {
+		goto out;
 	}
 
-	if (stream_status->plane_count == 0 && dc->config.enable_windowed_mpo_odm)
-		/* ODM combine could prevent us from supporting more planes
-		 * we will reset ODM slice count back to 1 when all planes have
-		 * been removed to maximize the amount of planes supported when
-		 * new planes are added.
-		 */
-		resource_update_pipes_for_stream_with_slice_count(
-				state, dc->current_state, dc->res_pool, stream, 1);
+	added = resource_append_dpp_pipes_for_plane_composition(state,
+			dc->current_state, pool, otg_master_pipe, plane_state);
 
-	otg_master_pipe = resource_get_otg_master_for_stream(
-			&state->res_ctx, stream);
-	if (otg_master_pipe)
+	if (!added) {
+		/* try to remove MPC combine to free up pipes */
+		for (i = 0; i < state->stream_count; i++)
+			remove_mpc_combine_for_stream(dc, state,
+					dc->current_state,
+					&state->stream_status[i]);
 		added = resource_append_dpp_pipes_for_plane_composition(state,
-				dc->current_state, pool, otg_master_pipe, plane_state);
+					dc->current_state, pool,
+					otg_master_pipe, plane_state);
+	}
+
+	if (!added) {
+		/* try to decrease ODM slice count gradually to free up pipes */
+		odm_slice_count = resource_get_odm_slice_count(otg_master_pipe);
+		for (i = odm_slice_count - 1; i > 0; i--) {
+			resource_update_pipes_for_stream_with_slice_count(state,
+					dc->current_state, dc->res_pool, stream,
+					i);
+			added = resource_append_dpp_pipes_for_plane_composition(
+					state,
+					dc->current_state, pool,
+					otg_master_pipe, plane_state);
+			if (added)
+				break;
+		}
+	}
 
 	if (added) {
 		stream_status->plane_states[stream_status->plane_count] =
@@ -508,15 +569,6 @@ bool dc_state_remove_plane(
 		stream_status->plane_states[i] = stream_status->plane_states[i + 1];
 
 	stream_status->plane_states[stream_status->plane_count] = NULL;
-
-	if (stream_status->plane_count == 0 && dc->config.enable_windowed_mpo_odm)
-		/* ODM combine could prevent us from supporting more planes
-		 * we will reset ODM slice count back to 1 when all planes have
-		 * been removed to maximize the amount of planes supported when
-		 * new planes are added.
-		 */
-		resource_update_pipes_for_stream_with_slice_count(
-				state, dc->current_state, dc->res_pool, stream, 1);
 
 	return true;
 }
@@ -595,7 +647,7 @@ bool dc_state_add_all_planes_for_stream(
  */
 struct dc_stream_status *dc_state_get_stream_status(
 		struct dc_state *state,
-		struct dc_stream_state *stream)
+		const struct dc_stream_state *stream)
 {
 	uint8_t i;
 
@@ -689,7 +741,7 @@ void dc_state_release_phantom_stream(const struct dc *dc,
 	dc_stream_release(phantom_stream);
 }
 
-struct dc_plane_state *dc_state_create_phantom_plane(struct dc *dc,
+struct dc_plane_state *dc_state_create_phantom_plane(const struct dc *dc,
 		struct dc_state *state,
 		struct dc_plane_state *main_plane)
 {
@@ -725,7 +777,7 @@ void dc_state_release_phantom_plane(const struct dc *dc,
 }
 
 /* add phantom streams to context and generate correct meta inside dc_state */
-enum dc_status dc_state_add_phantom_stream(struct dc *dc,
+enum dc_status dc_state_add_phantom_stream(const struct dc *dc,
 		struct dc_state *state,
 		struct dc_stream_state *phantom_stream,
 		struct dc_stream_state *main_stream)
@@ -742,27 +794,35 @@ enum dc_status dc_state_add_phantom_stream(struct dc *dc,
 
 	/* setup subvp meta */
 	main_stream_status = dc_state_get_stream_status(state, main_stream);
+	if (main_stream_status) {
+		main_stream_status->mall_stream_config.type = SUBVP_MAIN;
+		main_stream_status->mall_stream_config.paired_stream = phantom_stream;
+	}
+
 	phantom_stream_status = dc_state_get_stream_status(state, phantom_stream);
-	phantom_stream_status->mall_stream_config.type = SUBVP_PHANTOM;
-	phantom_stream_status->mall_stream_config.paired_stream = main_stream;
-	main_stream_status->mall_stream_config.type = SUBVP_MAIN;
-	main_stream_status->mall_stream_config.paired_stream = phantom_stream;
+	if (phantom_stream_status) {
+		phantom_stream_status->mall_stream_config.type = SUBVP_PHANTOM;
+		phantom_stream_status->mall_stream_config.paired_stream = main_stream;
+	}
 
 	return res;
 }
 
-enum dc_status dc_state_remove_phantom_stream(struct dc *dc,
+enum dc_status dc_state_remove_phantom_stream(const struct dc *dc,
 		struct dc_state *state,
 		struct dc_stream_state *phantom_stream)
 {
-	struct dc_stream_status *main_stream_status;
+	struct dc_stream_status *main_stream_status = NULL;
 	struct dc_stream_status *phantom_stream_status;
 
 	/* reset subvp meta */
 	phantom_stream_status = dc_state_get_stream_status(state, phantom_stream);
-	main_stream_status = dc_state_get_stream_status(state, phantom_stream_status->mall_stream_config.paired_stream);
-	phantom_stream_status->mall_stream_config.type = SUBVP_NONE;
-	phantom_stream_status->mall_stream_config.paired_stream = NULL;
+	if (phantom_stream_status) {
+		main_stream_status = dc_state_get_stream_status(state, phantom_stream_status->mall_stream_config.paired_stream);
+		phantom_stream_status->mall_stream_config.type = SUBVP_NONE;
+		phantom_stream_status->mall_stream_config.paired_stream = NULL;
+	}
+
 	if (main_stream_status) {
 		main_stream_status->mall_stream_config.type = SUBVP_NONE;
 		main_stream_status->mall_stream_config.paired_stream = NULL;
@@ -845,7 +905,7 @@ bool dc_state_add_all_phantom_planes_for_stream(
 }
 
 bool dc_state_remove_phantom_streams_and_planes(
-	struct dc *dc,
+	const struct dc *dc,
 	struct dc_state *state)
 {
 	int i;
@@ -867,7 +927,7 @@ bool dc_state_remove_phantom_streams_and_planes(
 }
 
 void dc_state_release_phantom_streams_and_planes(
-		struct dc *dc,
+		const struct dc *dc,
 		struct dc_state *state)
 {
 	int i;
@@ -877,4 +937,34 @@ void dc_state_release_phantom_streams_and_planes(
 
 	for (i = 0; i < state->phantom_plane_count; i++)
 		dc_state_release_phantom_plane(dc, state, state->phantom_planes[i]);
+}
+
+struct dc_stream_state *dc_state_get_stream_from_id(const struct dc_state *state, unsigned int id)
+{
+	struct dc_stream_state *stream = NULL;
+	int i;
+
+	for (i = 0; i < state->stream_count; i++) {
+		if (state->streams[i] && state->streams[i]->stream_id == id) {
+			stream = state->streams[i];
+			break;
+		}
+	}
+
+	return stream;
+}
+
+bool dc_state_is_fams2_in_use(
+		const struct dc *dc,
+		const struct dc_state *state)
+{
+	bool is_fams2_in_use = false;
+
+	if (state)
+		is_fams2_in_use |= state->bw_ctx.bw.dcn.fams2_stream_count > 0;
+
+	if (dc->current_state)
+		is_fams2_in_use |= dc->current_state->bw_ctx.bw.dcn.fams2_stream_count > 0;
+
+	return is_fams2_in_use;
 }

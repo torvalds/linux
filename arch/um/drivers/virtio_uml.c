@@ -1014,8 +1014,8 @@ error_kzalloc:
 }
 
 static int vu_find_vqs(struct virtio_device *vdev, unsigned nvqs,
-		       struct virtqueue *vqs[], vq_callback_t *callbacks[],
-		       const char * const names[], const bool *ctx,
+		       struct virtqueue *vqs[],
+		       struct virtqueue_info vqs_info[],
 		       struct irq_affinity *desc)
 {
 	struct virtio_uml_device *vu_dev = to_virtio_uml_device(vdev);
@@ -1031,13 +1031,15 @@ static int vu_find_vqs(struct virtio_device *vdev, unsigned nvqs,
 		return rc;
 
 	for (i = 0; i < nvqs; ++i) {
-		if (!names[i]) {
+		struct virtqueue_info *vqi = &vqs_info[i];
+
+		if (!vqi->name) {
 			vqs[i] = NULL;
 			continue;
 		}
 
-		vqs[i] = vu_setup_vq(vdev, queue_idx++, callbacks[i], names[i],
-				     ctx ? ctx[i] : false);
+		vqs[i] = vu_setup_vq(vdev, queue_idx++, vqi->callback,
+				     vqi->name, vqi->ctx);
 		if (IS_ERR(vqs[i])) {
 			rc = PTR_ERR(vqs[i]);
 			goto error_setup;
@@ -1241,12 +1243,11 @@ error_free:
 	return rc;
 }
 
-static int virtio_uml_remove(struct platform_device *pdev)
+static void virtio_uml_remove(struct platform_device *pdev)
 {
 	struct virtio_uml_device *vu_dev = platform_get_drvdata(pdev);
 
 	unregister_virtio_device(&vu_dev->vdev);
-	return 0;
 }
 
 /* Command line device list */
@@ -1445,7 +1446,7 @@ static int virtio_uml_resume(struct platform_device *pdev)
 
 static struct platform_driver virtio_uml_driver = {
 	.probe = virtio_uml_probe,
-	.remove = virtio_uml_remove,
+	.remove_new = virtio_uml_remove,
 	.driver = {
 		.name = "virtio-uml",
 		.of_match_table = virtio_uml_match,

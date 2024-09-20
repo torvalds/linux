@@ -14,17 +14,13 @@
 
 #define CODEC_NAME_SIZE	8
 
-static const struct snd_soc_dapm_widget sof_widgets[] = {
-	SND_SOC_DAPM_SPK("Speakers", NULL),
-};
-
-int cs_spk_rtd_init(struct snd_soc_pcm_runtime *rtd)
+int cs_spk_rtd_init(struct snd_soc_pcm_runtime *rtd, struct snd_soc_dai *dai)
 {
 	const char *dai_name = rtd->dai_link->codecs->dai_name;
 	struct snd_soc_card *card = rtd->card;
 	char codec_name[CODEC_NAME_SIZE];
 	char widget_name[16];
-	struct snd_soc_dapm_route route = { "Speakers", NULL, widget_name };
+	struct snd_soc_dapm_route route = { "Speaker", NULL, widget_name };
 	struct snd_soc_dai *codec_dai;
 	int i, ret;
 
@@ -34,13 +30,6 @@ int cs_spk_rtd_init(struct snd_soc_pcm_runtime *rtd)
 					  card->components, codec_name);
 	if (!card->components)
 		return -ENOMEM;
-
-	ret = snd_soc_dapm_new_controls(&card->dapm, sof_widgets,
-					ARRAY_SIZE(sof_widgets));
-	if (ret) {
-		dev_err(card->dev, "widgets addition failed: %d\n", ret);
-		return ret;
-	}
 
 	for_each_rtd_codec_dais(rtd, i, codec_dai) {
 		if (!strstr(codec_dai->name, "cs35l56"))
@@ -57,7 +46,6 @@ int cs_spk_rtd_init(struct snd_soc_pcm_runtime *rtd)
 }
 
 int sof_sdw_cs_amp_init(struct snd_soc_card *card,
-			const struct snd_soc_acpi_link_adr *link,
 			struct snd_soc_dai_link *dai_links,
 			struct sof_sdw_codec_info *info,
 			bool playback)

@@ -56,38 +56,20 @@ unsigned long notrace __xchg8(char x, volatile char *ptr)
 }
 
 
-u64 notrace __cmpxchg_u64(volatile u64 *ptr, u64 old, u64 new)
-{
-	unsigned long flags;
-	u64 prev;
+#define CMPXCHG(T)						\
+	T notrace __cmpxchg_##T(volatile T *ptr, T old, T new)	\
+	{							\
+		unsigned long flags;				\
+		T prev;						\
+								\
+		_atomic_spin_lock_irqsave(ptr, flags);		\
+		if ((prev = *ptr) == old)			\
+			*ptr = new;				\
+		_atomic_spin_unlock_irqrestore(ptr, flags);	\
+		return prev;					\
+	}
 
-	_atomic_spin_lock_irqsave(ptr, flags);
-	if ((prev = *ptr) == old)
-		*ptr = new;
-	_atomic_spin_unlock_irqrestore(ptr, flags);
-	return prev;
-}
-
-unsigned long notrace __cmpxchg_u32(volatile unsigned int *ptr, unsigned int old, unsigned int new)
-{
-	unsigned long flags;
-	unsigned int prev;
-
-	_atomic_spin_lock_irqsave(ptr, flags);
-	if ((prev = *ptr) == old)
-		*ptr = new;
-	_atomic_spin_unlock_irqrestore(ptr, flags);
-	return (unsigned long)prev;
-}
-
-u8 notrace __cmpxchg_u8(volatile u8 *ptr, u8 old, u8 new)
-{
-	unsigned long flags;
-	u8 prev;
-
-	_atomic_spin_lock_irqsave(ptr, flags);
-	if ((prev = *ptr) == old)
-		*ptr = new;
-	_atomic_spin_unlock_irqrestore(ptr, flags);
-	return prev;
-}
+CMPXCHG(u64)
+CMPXCHG(u32)
+CMPXCHG(u16)
+CMPXCHG(u8)

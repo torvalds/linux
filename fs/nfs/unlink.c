@@ -232,6 +232,8 @@ nfs_complete_unlink(struct dentry *dentry, struct inode *inode)
 	dentry->d_fsdata = NULL;
 	spin_unlock(&dentry->d_lock);
 
+	NFS_PROTO(inode)->return_delegation(inode);
+
 	if (NFS_STALE(inode) || !nfs_call_unlink(dentry, inode, data))
 		nfs_free_unlinkdata(data);
 }

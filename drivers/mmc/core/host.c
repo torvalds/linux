@@ -13,7 +13,6 @@
 #include <linux/err.h>
 #include <linux/idr.h>
 #include <linux/of.h>
-#include <linux/of_gpio.h>
 #include <linux/pagemap.h>
 #include <linux/pm_wakeup.h>
 #include <linux/export.h>

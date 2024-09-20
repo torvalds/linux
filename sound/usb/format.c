@@ -82,13 +82,13 @@ static u64 parse_audio_format_i_type(struct snd_usb_audio *chip,
 	fp->fmt_bits = sample_width;
 
 	if ((pcm_formats == 0) &&
-	    (format == 0 || format == (1 << UAC_FORMAT_TYPE_I_UNDEFINED))) {
+	    (format == 0 || format == BIT(UAC_FORMAT_TYPE_I_UNDEFINED))) {
 		/* some devices don't define this correctly... */
 		usb_audio_info(chip, "%u:%d : format type 0 is detected, processed as PCM\n",
 			fp->iface, fp->altsetting);
-		format = 1 << UAC_FORMAT_TYPE_I_PCM;
+		format = BIT(UAC_FORMAT_TYPE_I_PCM);
 	}
-	if (format & (1 << UAC_FORMAT_TYPE_I_PCM)) {
+	if (format & BIT(UAC_FORMAT_TYPE_I_PCM)) {
 		if (((chip->usb_id == USB_ID(0x0582, 0x0016)) ||
 		     /* Edirol SD-90 */
 		     (chip->usb_id == USB_ID(0x0582, 0x000c))) &&
@@ -128,7 +128,7 @@ static u64 parse_audio_format_i_type(struct snd_usb_audio *chip,
 			break;
 		}
 	}
-	if (format & (1 << UAC_FORMAT_TYPE_I_PCM8)) {
+	if (format & BIT(UAC_FORMAT_TYPE_I_PCM8)) {
 		/* Dallas DS4201 workaround: it advertises U8 format, but really
 		   supports S8. */
 		if (chip->usb_id == USB_ID(0x04fa, 0x4201))
@@ -136,15 +136,12 @@ static u64 parse_audio_format_i_type(struct snd_usb_audio *chip,
 		else
 			pcm_formats |= SNDRV_PCM_FMTBIT_U8;
 	}
-	if (format & (1 << UAC_FORMAT_TYPE_I_IEEE_FLOAT)) {
+	if (format & BIT(UAC_FORMAT_TYPE_I_IEEE_FLOAT))
 		pcm_formats |= SNDRV_PCM_FMTBIT_FLOAT_LE;
-	}
-	if (format & (1 << UAC_FORMAT_TYPE_I_ALAW)) {
+	if (format & BIT(UAC_FORMAT_TYPE_I_ALAW))
 		pcm_formats |= SNDRV_PCM_FMTBIT_A_LAW;
-	}
-	if (format & (1 << UAC_FORMAT_TYPE_I_MULAW)) {
+	if (format & BIT(UAC_FORMAT_TYPE_I_MULAW))
 		pcm_formats |= SNDRV_PCM_FMTBIT_MU_LAW;
-	}
 	if (format & ~0x3f) {
 		usb_audio_info(chip,
 			 "%u:%d : unsupported format bits %#llx\n",

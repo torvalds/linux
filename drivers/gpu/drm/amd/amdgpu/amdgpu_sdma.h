@@ -60,6 +60,10 @@ struct amdgpu_sdma_instance {
 	struct amdgpu_ring	page;
 	bool			burst_nop;
 	uint32_t		aid_id;
+
+	struct amdgpu_bo	*sdma_fw_obj;
+	uint64_t		sdma_fw_gpu_addr;
+	uint32_t		*sdma_fw_ptr;
 };
 
 enum amdgpu_sdma_ras_memory_id {
@@ -132,7 +136,7 @@ struct amdgpu_buffer_funcs {
 				 uint64_t dst_offset,
 				 /* number of byte to transfer */
 				 uint32_t byte_count,
-				 bool tmz);
+				 uint32_t copy_flags);
 
 	/* maximum bytes in a single operation */
 	uint32_t	fill_max_bytes;

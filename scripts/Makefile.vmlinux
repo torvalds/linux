@@ -18,9 +18,6 @@ quiet_cmd_cc_o_c = CC      $@
 	$(call if_changed_dep,cc_o_c)
 
 ifdef CONFIG_MODULES
-KASAN_SANITIZE_.vmlinux.export.o := n
-KCSAN_SANITIZE_.vmlinux.export.o := n
-GCOV_PROFILE_.vmlinux.export.o := n
 targets += .vmlinux.export.o
 vmlinux: .vmlinux.export.o
 endif
@@ -36,7 +33,7 @@ targets += vmlinux
 vmlinux: scripts/link-vmlinux.sh vmlinux.o $(KBUILD_LDS) FORCE
 	+$(call if_changed_dep,link_vmlinux)
 
-# Add FORCE to the prequisites of a target to force it to be always rebuilt.
+# Add FORCE to the prerequisites of a target to force it to be always rebuilt.
 # ---------------------------------------------------------------------------
 
 PHONY += FORCE

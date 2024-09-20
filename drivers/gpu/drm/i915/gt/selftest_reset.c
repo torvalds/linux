@@ -281,7 +281,7 @@ static int igt_atomic_reset(void *arg)
 		awake = reset_prepare(gt);
 		p->critical_section_begin();
 
-		err = __intel_gt_reset(gt, ALL_ENGINES);
+		err = intel_gt_reset_all_engines(gt);
 
 		p->critical_section_end();
 		reset_finish(gt, awake);

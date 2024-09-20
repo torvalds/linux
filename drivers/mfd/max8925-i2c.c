@@ -127,8 +127,8 @@ EXPORT_SYMBOL(max8925_set_bits);
 
 
 static const struct i2c_device_id max8925_id_table[] = {
-	{ "max8925", 0 },
-	{ },
+	{ "max8925" },
+	{ }
 };
 
 static int max8925_dt_init(struct device_node *np, struct device *dev,

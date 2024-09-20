@@ -43,8 +43,6 @@
 
 #include "assert_support.h"
 
-#define IMPLIES(a, b)           (!(a) || (b))   /* A => B */
-
 static struct ia_css_binary_xinfo *all_binaries; /* ISP binaries only (no SP) */
 static struct ia_css_binary_xinfo
 	*binary_infos[IA_CSS_BINARY_NUM_MODES] = { NULL, };

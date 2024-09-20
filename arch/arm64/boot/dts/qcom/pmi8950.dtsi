@@ -84,6 +84,14 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
+		pmi8950_pwm: pwm@b000 {
+			compatible = "qcom,pmi8950-pwm";
+			reg = <0xb000 0x100>;
+			#pwm-cells = <2>;
+
+			status = "disabled";
+		};
+
 		pmi8950_wled: leds@d800 {
 			compatible = "qcom,pmi8950-wled";
 			reg = <0xd800>, <0xd900>;

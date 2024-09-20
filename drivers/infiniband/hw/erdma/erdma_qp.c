@@ -492,7 +492,7 @@ static void kick_sq_db(struct erdma_qp *qp, u16 pi)
 	u64 db_data = FIELD_PREP(ERDMA_SQE_HDR_QPN_MASK, QP_ID(qp)) |
 		      FIELD_PREP(ERDMA_SQE_HDR_WQEBB_INDEX_MASK, pi);
 
-	*(u64 *)qp->kern_qp.sq_db_info = db_data;
+	*(u64 *)qp->kern_qp.sq_dbrec = db_data;
 	writeq(db_data, qp->kern_qp.hw_sq_db);
 }
 
@@ -557,7 +557,7 @@ static int erdma_post_recv_one(struct erdma_qp *qp,
 		return -EINVAL;
 	}
 
-	*(u64 *)qp->kern_qp.rq_db_info = *(u64 *)rqe;
+	*(u64 *)qp->kern_qp.rq_dbrec = *(u64 *)rqe;
 	writeq(*(u64 *)rqe, qp->kern_qp.hw_rq_db);
 
 	qp->kern_qp.rwr_tbl[qp->kern_qp.rq_pi & (qp->attrs.rq_size - 1)] =

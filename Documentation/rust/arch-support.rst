@@ -17,7 +17,8 @@ Architecture   Level of support  Constraints
 =============  ================  ==============================================
 ``arm64``      Maintained        Little Endian only.
 ``loongarch``  Maintained        \-
-``um``         Maintained        ``x86_64`` only.
+``riscv``      Maintained        ``riscv64`` only.
+``um``         Maintained        \-
 ``x86``        Maintained        ``x86_64`` only.
 =============  ================  ==============================================
 

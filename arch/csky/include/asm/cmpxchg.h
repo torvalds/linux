@@ -6,6 +6,7 @@
 #ifdef CONFIG_SMP
 #include <linux/bug.h>
 #include <asm/barrier.h>
+#include <linux/cmpxchg-emu.h>
 
 #define __xchg_relaxed(new, ptr, size)				\
 ({								\
@@ -61,6 +62,9 @@
 	__typeof__(old) __old = (old);				\
 	__typeof__(*(ptr)) __ret;				\
 	switch (size) {						\
+	case 1:							\
+		__ret = (__typeof__(*(ptr)))cmpxchg_emu_u8((volatile u8 *)__ptr, (uintptr_t)__old, (uintptr_t)__new); \
+		break;						\
 	case 4:							\
 		asm volatile (					\
 		"1:	ldex.w		%0, (%3) \n"		\
@@ -91,6 +95,9 @@
 	__typeof__(old) __old = (old);				\
 	__typeof__(*(ptr)) __ret;				\
 	switch (size) {						\
+	case 1:							\
+		__ret = (__typeof__(*(ptr)))cmpxchg_emu_u8((volatile u8 *)__ptr, (uintptr_t)__old, (uintptr_t)__new); \
+		break;						\
 	case 4:							\
 		asm volatile (					\
 		"1:	ldex.w		%0, (%3) \n"		\
@@ -122,6 +129,9 @@
 	__typeof__(old) __old = (old);				\
 	__typeof__(*(ptr)) __ret;				\
 	switch (size) {						\
+	case 1:							\
+		__ret = (__typeof__(*(ptr)))cmpxchg_emu_u8((volatile u8 *)__ptr, (uintptr_t)__old, (uintptr_t)__new); \
+		break;						\
 	case 4:							\
 		asm volatile (					\
 		RELEASE_FENCE					\

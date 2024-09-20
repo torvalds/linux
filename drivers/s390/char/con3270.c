@@ -2185,6 +2185,7 @@ con3270_init(void)
 console_initcall(con3270_init);
 #endif
 
+MODULE_DESCRIPTION("IBM/3270 Driver - tty functions");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_CHARDEV_MAJOR(IBM_TTY3270_MAJOR);
 

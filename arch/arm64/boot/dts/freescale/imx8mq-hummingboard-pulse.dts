@@ -42,7 +42,7 @@
 	status = "okay";
 
 	typec_ptn5100: usb-typec@50 {
-		compatible = "nxp,ptn5110";
+		compatible = "nxp,ptn5110", "tcpci";
 		reg = <0x50>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_typec>;

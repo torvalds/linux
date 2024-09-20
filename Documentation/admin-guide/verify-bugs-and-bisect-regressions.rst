@@ -23,7 +23,7 @@ mistakes occasionally made even by experienced developers.
    up in the reference section, then jump back to where you left off.
 ..
    Find the latest rendered version of this text here:
-   https://docs.kernel.org/admin-guide/verify-bugs-and-bisect-regressions.rst.html
+   https://docs.kernel.org/admin-guide/verify-bugs-and-bisect-regressions.html
 
 The essence of the process (aka 'TL;DR')
 ========================================

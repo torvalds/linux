@@ -5,6 +5,7 @@
  * Copyright 2020 Google LLC.
  */
 
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/notifier.h>
 #include <linux/platform_data/cros_ec_commands.h>
@@ -367,16 +368,22 @@ static int __maybe_unused cros_pchg_resume(struct device *dev)
 
 static SIMPLE_DEV_PM_OPS(cros_pchg_pm_ops, NULL, cros_pchg_resume);
 
+static const struct platform_device_id cros_pchg_id[] = {
+	{ DRV_NAME, 0 },
+	{}
+};
+MODULE_DEVICE_TABLE(platform, cros_pchg_id);
+
 static struct platform_driver cros_pchg_driver = {
 	.driver = {
 		.name = DRV_NAME,
 		.pm = &cros_pchg_pm_ops,
 	},
-	.probe = cros_pchg_probe
+	.probe = cros_pchg_probe,
+	.id_table = cros_pchg_id,
 };
 
 module_platform_driver(cros_pchg_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("ChromeOS EC peripheral device charger");
-MODULE_ALIAS("platform:" DRV_NAME);

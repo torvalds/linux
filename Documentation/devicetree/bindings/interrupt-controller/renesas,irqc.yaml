@@ -39,6 +39,7 @@ properties:
           - renesas,intc-ex-r8a779a0    # R-Car V3U
           - renesas,intc-ex-r8a779f0    # R-Car S4-8
           - renesas,intc-ex-r8a779g0    # R-Car V4H
+          - renesas,intc-ex-r8a779h0    # R-Car V4M
       - const: renesas,irqc
 
   '#interrupt-cells':

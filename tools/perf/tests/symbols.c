@@ -81,7 +81,7 @@ static int create_map(struct test_info *ti, char *filename, struct map **map_p)
 	 * If 'filename' matches a current kernel module, must use a kernel
 	 * map. Find the one that already exists.
 	 */
-	if (dso && dso->kernel) {
+	if (dso && dso__kernel(dso) != DSO_SPACE__USER) {
 		*map_p = find_module_map(ti->machine, dso);
 		dso__put(dso);
 		if (!*map_p) {
@@ -116,7 +116,7 @@ static int test_dso(struct dso *dso)
 	if (verbose > 1)
 		dso__fprintf(dso, stderr);
 
-	for (nd = rb_first_cached(&dso->symbols); nd; nd = rb_next(nd)) {
+	for (nd = rb_first_cached(dso__symbols(dso)); nd; nd = rb_next(nd)) {
 		struct symbol *sym = rb_entry(nd, struct symbol, rb_node);
 
 		if (sym->type != STT_FUNC && sym->type != STT_GNU_IFUNC)
@@ -145,7 +145,7 @@ static int subdivided_dso_cb(struct dso *dso, struct machine *machine __maybe_un
 {
 	struct dso *text_dso = d;
 
-	if (dso != text_dso && strstarts(dso->short_name, text_dso->short_name))
+	if (dso != text_dso && strstarts(dso__short_name(dso), dso__short_name(text_dso)))
 		if (test_dso(dso) != TEST_OK)
 			return -1;
 
@@ -190,7 +190,7 @@ static int test_file(struct test_info *ti, char *filename)
 	ret = test_dso(dso);
 
 	/* Module dso is split into many dsos by section */
-	if (ret == TEST_OK && dso->kernel)
+	if (ret == TEST_OK && dso__kernel(dso) != DSO_SPACE__USER)
 		ret = process_subdivided_dso(ti->machine, dso);
 out_put:
 	map__put(map);

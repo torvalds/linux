@@ -12,10 +12,15 @@ struct btree_iter;
 
 void bch2_recalc_btree_reserve(struct bch_fs *);
 
+void bch2_btree_node_to_freelist(struct bch_fs *, struct btree *);
+
 void bch2_btree_node_hash_remove(struct btree_cache *, struct btree *);
 int __bch2_btree_node_hash_insert(struct btree_cache *, struct btree *);
 int bch2_btree_node_hash_insert(struct btree_cache *, struct btree *,
 				unsigned, enum btree_id);
+
+void bch2_btree_node_update_key_early(struct btree_trans *, enum btree_id, unsigned,
+				      struct bkey_s_c, struct bkey_i *);
 
 void bch2_btree_cache_cannibalize_unlock(struct btree_trans *);
 int bch2_btree_cache_cannibalize_lock(struct btree_trans *, struct closure *);
@@ -129,8 +134,10 @@ static inline struct btree *btree_node_root(struct bch_fs *c, struct btree *b)
 }
 
 const char *bch2_btree_id_str(enum btree_id);
+void bch2_btree_id_to_text(struct printbuf *, enum btree_id);
+
 void bch2_btree_pos_to_text(struct printbuf *, struct bch_fs *, const struct btree *);
 void bch2_btree_node_to_text(struct printbuf *, struct bch_fs *, const struct btree *);
-void bch2_btree_cache_to_text(struct printbuf *, const struct bch_fs *);
+void bch2_btree_cache_to_text(struct printbuf *, const struct btree_cache *);
 
 #endif /* _BCACHEFS_BTREE_CACHE_H */

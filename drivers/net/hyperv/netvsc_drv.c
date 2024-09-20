@@ -1233,14 +1233,14 @@ static int netvsc_change_mtu(struct net_device *ndev, int mtu)
 	if (ret)
 		goto rollback_vf;
 
-	ndev->mtu = mtu;
+	WRITE_ONCE(ndev->mtu, mtu);
 
 	ret = netvsc_attach(ndev, device_info);
 	if (!ret)
 		goto out;
 
 	/* Attempt rollback to original MTU */
-	ndev->mtu = orig_mtu;
+	WRITE_ONCE(ndev->mtu, orig_mtu);
 
 	if (netvsc_attach(ndev, device_info))
 		netdev_err(ndev, "restoring mtu failed\n");

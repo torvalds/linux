@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
-if ARCH_STI
+if ARCH_STI || COMPILE_TEST
 
 config STIH407_RESET
-	bool
+	bool "STIH407 Reset Driver" if COMPILE_TEST
 
 endif

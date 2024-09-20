@@ -1853,7 +1853,7 @@ static void calculate_bandwidth(
 	/*compute total time to request one chunk from each active display pipe*/
 	for (i = 0; i <= maximum_number_of_surfaces - 1; i++) {
 		if (data->enable[i]) {
-			data->chunk_request_time = bw_add(data->chunk_request_time, (bw_div((bw_div(bw_int_to_fixed(pixels_per_chunk * data->bytes_per_pixel[i]), data->useful_bytes_per_request[i])), bw_min2(sclk[data->sclk_level], bw_div(data->dispclk, bw_int_to_fixed(2))))));
+			data->chunk_request_time = bw_add(data->chunk_request_time, (bw_div((bw_div(bw_int_to_fixed(pixels_per_chunk * (int64_t)data->bytes_per_pixel[i]), data->useful_bytes_per_request[i])), bw_min2(sclk[data->sclk_level], bw_div(data->dispclk, bw_int_to_fixed(2))))));
 		}
 	}
 	/*compute total time to request cursor data*/

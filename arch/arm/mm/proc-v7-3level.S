@@ -42,7 +42,7 @@
  * Set the translation table base pointer to be pgd_phys (physical address of
  * the new TTB).
  */
-ENTRY(cpu_v7_switch_mm)
+SYM_TYPED_FUNC_START(cpu_v7_switch_mm)
 #ifdef CONFIG_MMU
 	mmid	r2, r2
 	asid	r2, r2
@@ -51,7 +51,7 @@ ENTRY(cpu_v7_switch_mm)
 	isb
 #endif
 	ret	lr
-ENDPROC(cpu_v7_switch_mm)
+SYM_FUNC_END(cpu_v7_switch_mm)
 
 #ifdef __ARMEB__
 #define rl r3
@@ -68,7 +68,7 @@ ENDPROC(cpu_v7_switch_mm)
  * - ptep - pointer to level 3 translation table entry
  * - pte - PTE value to store (64-bit in r2 and r3)
  */
-ENTRY(cpu_v7_set_pte_ext)
+SYM_TYPED_FUNC_START(cpu_v7_set_pte_ext)
 #ifdef CONFIG_MMU
 	tst	rl, #L_PTE_VALID
 	beq	1f
@@ -87,7 +87,7 @@ ENTRY(cpu_v7_set_pte_ext)
 	ALT_UP (mcr	p15, 0, r0, c7, c10, 1)		@ flush_pte
 #endif
 	ret	lr
-ENDPROC(cpu_v7_set_pte_ext)
+SYM_FUNC_END(cpu_v7_set_pte_ext)
 
 	/*
 	 * Memory region attributes for LPAE (defined in pgtable-3level.h):

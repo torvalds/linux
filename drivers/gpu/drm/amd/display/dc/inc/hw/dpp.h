@@ -147,16 +147,28 @@ struct cnv_color_keyer_params {
 	int color_keyer_blue_high;
 };
 
-/* new for dcn2: set the 8bit alpha values based on the 2 bit alpha
- *ALPHA_2BIT_LUT. ALPHA_2BIT_LUT0   default: 0b00000000
- *ALPHA_2BIT_LUT. ALPHA_2BIT_LUT1   default: 0b01010101
- *ALPHA_2BIT_LUT. ALPHA_2BIT_LUT2   default: 0b10101010
- *ALPHA_2BIT_LUT. ALPHA_2BIT_LUT3   default: 0b11111111
+/**
+ * struct cnv_alpha_2bit_lut - Set the 8bit alpha values based on the 2 bit alpha
  */
 struct cnv_alpha_2bit_lut {
+	/**
+	* @lut0: ALPHA_2BIT_LUT. ALPHA_2BIT_LUT0. Default: 0b00000000
+	*/
 	int lut0;
+
+	/**
+	 * @lut1: ALPHA_2BIT_LUT. ALPHA_2BIT_LUT1. Default: 0b01010101
+	 */
 	int lut1;
+
+	/**
+	 * @lut2: ALPHA_2BIT_LUT. ALPHA_2BIT_LUT2. Default: 0b10101010
+	 */
 	int lut2;
+
+	/**
+	 * @lut3: ALPHA_2BIT_LUT. ALPHA_2BIT_LUT3. Default: 0b11111111
+	 */
 	int lut3;
 };
 
@@ -322,13 +334,17 @@ struct dpp_funcs {
 			const struct pwl_params *params);
 	bool (*dpp_program_3dlut)(
 			struct dpp *dpp,
-			struct tetrahedral_params *params);
+			const struct tetrahedral_params *params);
 	void (*dpp_cnv_set_alpha_keyer)(
 			struct dpp *dpp_base,
 			struct cnv_color_keyer_params *color_keyer);
 
 	void (*dpp_get_gamut_remap)(struct dpp *dpp_base,
 				    struct dpp_grph_csc_adjustment *adjust);
+	void (*set_cursor_matrix)(
+		struct dpp *dpp_base,
+		enum dc_color_space color_space,
+		struct dc_csc_transform cursor_csc_color_matrix);
 };
 
 

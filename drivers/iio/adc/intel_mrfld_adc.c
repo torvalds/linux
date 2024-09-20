@@ -75,14 +75,14 @@ static int mrfld_adc_single_conv(struct iio_dev *indio_dev,
 	struct mrfld_adc *adc = iio_priv(indio_dev);
 	struct regmap *regmap = adc->regmap;
 	unsigned int req;
-	long timeout;
+	long time_left;
 	__be16 value;
 	int ret;
 
 	reinit_completion(&adc->completion);
 
-	regmap_update_bits(regmap, BCOVE_MADCIRQ, BCOVE_ADCIRQ_ALL, 0);
-	regmap_update_bits(regmap, BCOVE_MIRQLVL1, BCOVE_LVL1_ADC, 0);
+	regmap_clear_bits(regmap, BCOVE_MADCIRQ, BCOVE_ADCIRQ_ALL);
+	regmap_clear_bits(regmap, BCOVE_MIRQLVL1, BCOVE_LVL1_ADC);
 
 	ret = regmap_read_poll_timeout(regmap, BCOVE_GPADCREQ, req,
 				       !(req & BCOVE_GPADCREQ_BUSY),
@@ -95,13 +95,13 @@ static int mrfld_adc_single_conv(struct iio_dev *indio_dev,
 	if (ret)
 		goto done;
 
-	timeout = wait_for_completion_interruptible_timeout(&adc->completion,
-							    BCOVE_ADC_TIMEOUT);
-	if (timeout < 0) {
-		ret = timeout;
+	time_left = wait_for_completion_interruptible_timeout(&adc->completion,
+							      BCOVE_ADC_TIMEOUT);
+	if (time_left < 0) {
+		ret = time_left;
 		goto done;
 	}
-	if (timeout == 0) {
+	if (time_left == 0) {
 		ret = -ETIMEDOUT;
 		goto done;
 	}

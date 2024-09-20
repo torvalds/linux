@@ -1,7 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 OR MIT */
 /**************************************************************************
  *
- * Copyright 2009-2023 VMware, Inc., Palo Alto, CA., USA
+ * Copyright (c) 2009-2024 Broadcom. All Rights Reserved. The term
+ * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
@@ -117,24 +118,7 @@ struct vmwgfx_hash_item {
 	unsigned long key;
 };
 
-
-/**
- * struct vmw_validate_buffer - Carries validation info about buffers.
- *
- * @base: Validation info for TTM.
- * @hash: Hash entry for quick lookup of the TTM buffer object.
- *
- * This structure contains also driver private validation info
- * on top of the info needed by TTM.
- */
-struct vmw_validate_buffer {
-	struct ttm_validate_buffer base;
-	struct vmwgfx_hash_item hash;
-	bool validate_as_mob;
-};
-
 struct vmw_res_func;
-
 
 /**
  * struct vmw-resource - base class for hardware resources
@@ -445,15 +429,6 @@ struct vmw_sw_context{
 struct vmw_legacy_display;
 struct vmw_overlay;
 
-struct vmw_vga_topology_state {
-	uint32_t width;
-	uint32_t height;
-	uint32_t primary;
-	uint32_t pos_x;
-	uint32_t pos_y;
-};
-
-
 /*
  * struct vmw_otable - Guest Memory OBject table metadata
  *
@@ -501,7 +476,6 @@ struct vmw_private {
 	struct drm_device drm;
 	struct ttm_device bdev;
 
-	struct drm_vma_offset_manager vma_manager;
 	u32 pci_id;
 	resource_size_t io_start;
 	resource_size_t vram_start;
@@ -641,6 +615,9 @@ struct vmw_private {
 	DECLARE_BITMAP(irqthread_pending, VMW_IRQTHREAD_MAX);
 
 	uint32 *devcaps;
+
+	bool vkms_enabled;
+	struct workqueue_struct *crc_workq;
 
 	/*
 	 * mksGuestStat instance-descriptor and pid arrays
@@ -787,6 +764,26 @@ extern int vmw_gmr_bind(struct vmw_private *dev_priv,
 extern void vmw_gmr_unbind(struct vmw_private *dev_priv, int gmr_id);
 
 /**
+ * User handles
+ */
+struct vmw_user_object {
+	struct vmw_surface *surface;
+	struct vmw_bo *buffer;
+};
+
+int vmw_user_object_lookup(struct vmw_private *dev_priv, struct drm_file *filp,
+			   u32 handle, struct vmw_user_object *uo);
+struct vmw_user_object *vmw_user_object_ref(struct vmw_user_object *uo);
+void vmw_user_object_unref(struct vmw_user_object *uo);
+bool vmw_user_object_is_null(struct vmw_user_object *uo);
+struct vmw_surface *vmw_user_object_surface(struct vmw_user_object *uo);
+struct vmw_bo *vmw_user_object_buffer(struct vmw_user_object *uo);
+void *vmw_user_object_map(struct vmw_user_object *uo);
+void *vmw_user_object_map_size(struct vmw_user_object *uo, size_t size);
+void vmw_user_object_unmap(struct vmw_user_object *uo);
+bool vmw_user_object_is_mapped(struct vmw_user_object *uo);
+
+/**
  * Resource utilities - vmwgfx_resource.c
  */
 struct vmw_user_resource_conv;
@@ -800,11 +797,6 @@ extern int vmw_resource_validate(struct vmw_resource *res, bool intr,
 extern int vmw_resource_reserve(struct vmw_resource *res, bool interruptible,
 				bool no_backup);
 extern bool vmw_resource_needs_backup(const struct vmw_resource *res);
-extern int vmw_user_lookup_handle(struct vmw_private *dev_priv,
-				  struct drm_file *filp,
-				  uint32_t handle,
-				  struct vmw_surface **out_surf,
-				  struct vmw_bo **out_buf);
 extern int vmw_user_resource_lookup_handle(
 	struct vmw_private *dev_priv,
 	struct ttm_object_file *tfile,
@@ -836,6 +828,7 @@ void vmw_resource_mob_attach(struct vmw_resource *res);
 void vmw_resource_mob_detach(struct vmw_resource *res);
 void vmw_resource_dirty_update(struct vmw_resource *res, pgoff_t start,
 			       pgoff_t end);
+int vmw_resource_clean(struct vmw_resource *res);
 int vmw_resources_clean(struct vmw_bo *vbo, pgoff_t start,
 			pgoff_t end, pgoff_t *num_prefault);
 
@@ -1066,9 +1059,6 @@ void vmw_kms_cursor_snoop(struct vmw_surface *srf,
 int vmw_kms_write_svga(struct vmw_private *vmw_priv,
 		       unsigned width, unsigned height, unsigned pitch,
 		       unsigned bpp, unsigned depth);
-bool vmw_kms_validate_mode_vram(struct vmw_private *dev_priv,
-				uint32_t pitch,
-				uint32_t height);
 int vmw_kms_present(struct vmw_private *dev_priv,
 		    struct drm_file *file_priv,
 		    struct vmw_framebuffer *vfb,
@@ -1083,9 +1073,6 @@ int vmw_kms_suspend(struct drm_device *dev);
 int vmw_kms_resume(struct drm_device *dev);
 void vmw_kms_lost_device(struct drm_device *dev);
 
-int vmw_dumb_create(struct drm_file *file_priv,
-		    struct drm_device *dev,
-		    struct drm_mode_create_dumb *args);
 extern int vmw_resource_pin(struct vmw_resource *res, bool interruptible);
 extern void vmw_resource_unpin(struct vmw_resource *res);
 extern enum vmw_res_type vmw_res_type(const struct vmw_resource *res);
@@ -1202,6 +1189,15 @@ extern int vmw_gb_surface_reference_ext_ioctl(struct drm_device *dev,
 int vmw_gb_surface_define(struct vmw_private *dev_priv,
 			  const struct vmw_surface_metadata *req,
 			  struct vmw_surface **srf_out);
+struct vmw_surface *vmw_lookup_surface_for_buffer(struct vmw_private *vmw,
+						  struct vmw_bo *bo,
+						  u32 handle);
+u32 vmw_lookup_surface_handle_for_buffer(struct vmw_private *vmw,
+					 struct vmw_bo *bo,
+					 u32 handle);
+int vmw_dumb_create(struct drm_file *file_priv,
+		    struct drm_device *dev,
+		    struct drm_mode_create_dumb *args);
 
 /*
  * Shader management - vmwgfx_shader.c
@@ -1357,9 +1353,9 @@ void vmw_diff_memcpy(struct vmw_diff_cpy *diff, u8 *dest, const u8 *src,
 
 void vmw_memcpy(struct vmw_diff_cpy *diff, u8 *dest, const u8 *src, size_t n);
 
-int vmw_bo_cpu_blit(struct ttm_buffer_object *dst,
+int vmw_bo_cpu_blit(struct vmw_bo *dst,
 		    u32 dst_offset, u32 dst_stride,
-		    struct ttm_buffer_object *src,
+		    struct vmw_bo *src,
 		    u32 src_offset, u32 src_stride,
 		    u32 w, u32 h,
 		    struct vmw_diff_cpy *diff);

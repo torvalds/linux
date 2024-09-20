@@ -65,7 +65,7 @@ static void vdpa_dev_remove(struct device *d)
 		drv->remove(vdev);
 }
 
-static int vdpa_dev_match(struct device *dev, struct device_driver *drv)
+static int vdpa_dev_match(struct device *dev, const struct device_driver *drv)
 {
 	struct vdpa_device *vdev = dev_to_vdpa(dev);
 
@@ -98,7 +98,7 @@ static ssize_t driver_override_show(struct device *dev,
 	ssize_t len;
 
 	device_lock(dev);
-	len = snprintf(buf, PAGE_SIZE, "%s\n", vdev->driver_override);
+	len = sysfs_emit(buf, "%s\n", vdev->driver_override);
 	device_unlock(dev);
 
 	return len;
@@ -1538,4 +1538,5 @@ core_initcall(vdpa_init);
 module_exit(vdpa_exit);
 
 MODULE_AUTHOR("Jason Wang <jasowang@redhat.com>");
+MODULE_DESCRIPTION("vDPA bus");
 MODULE_LICENSE("GPL v2");

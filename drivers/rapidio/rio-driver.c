@@ -186,10 +186,10 @@ EXPORT_SYMBOL_GPL(rio_attach_device);
  *  there is a matching &struct rio_device_id or 0 if there is
  *  no match.
  */
-static int rio_match_bus(struct device *dev, struct device_driver *drv)
+static int rio_match_bus(struct device *dev, const struct device_driver *drv)
 {
 	struct rio_dev *rdev = to_rio_dev(dev);
-	struct rio_driver *rdrv = to_rio_driver(drv);
+	const struct rio_driver *rdrv = to_rio_driver(drv);
 	const struct rio_device_id *id = rdrv->id_table;
 	const struct rio_device_id *found_id;
 

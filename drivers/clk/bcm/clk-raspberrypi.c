@@ -371,8 +371,8 @@ static int raspberrypi_discover_clocks(struct raspberrypi_clk *rpi,
 			if (IS_ERR(hw))
 				return PTR_ERR(hw);
 
-			data->hws[clks->id] = hw;
 			data->num = clks->id + 1;
+			data->hws[clks->id] = hw;
 		}
 
 		clks++;

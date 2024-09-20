@@ -116,6 +116,9 @@
 	x(ENOENT,			ENOENT_dev_idx_not_found)		\
 	x(ENOTEMPTY,			ENOTEMPTY_dir_not_empty)		\
 	x(ENOTEMPTY,			ENOTEMPTY_subvol_not_empty)		\
+	x(EEXIST,			EEXIST_str_hash_set)			\
+	x(EEXIST,			EEXIST_discard_in_flight_add)		\
+	x(EEXIST,			EEXIST_subvolume_create)		\
 	x(0,				open_buckets_empty)			\
 	x(0,				freelist_empty)				\
 	x(BCH_ERR_freelist_empty,	no_buckets_found)			\
@@ -163,6 +166,7 @@
 	x(0,				journal_reclaim_would_deadlock)		\
 	x(EINVAL,			fsck)					\
 	x(BCH_ERR_fsck,			fsck_fix)				\
+	x(BCH_ERR_fsck,			fsck_delete_bkey)			\
 	x(BCH_ERR_fsck,			fsck_ignore)				\
 	x(BCH_ERR_fsck,			fsck_errors_not_fixed)			\
 	x(BCH_ERR_fsck,			fsck_repair_unimplemented)		\
@@ -253,8 +257,8 @@
 	x(BCH_ERR_nopromote,		nopromote_in_flight)			\
 	x(BCH_ERR_nopromote,		nopromote_no_writes)			\
 	x(BCH_ERR_nopromote,		nopromote_enomem)			\
-	x(0,				need_inode_lock)			\
-	x(0,				invalid_snapshot_node)
+	x(0,				invalid_snapshot_node)			\
+	x(0,				option_needs_open_fs)
 
 enum bch_errcode {
 	BCH_ERR_START		= 2048,

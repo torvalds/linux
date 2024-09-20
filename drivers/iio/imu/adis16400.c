@@ -497,41 +497,38 @@ static int adis16400_write_raw(struct iio_dev *indio_dev,
 	struct iio_chan_spec const *chan, int val, int val2, long info)
 {
 	struct adis16400_state *st = iio_priv(indio_dev);
-	int ret, sps;
+	int sps;
 
 	switch (info) {
 	case IIO_CHAN_INFO_CALIBBIAS:
-		ret = adis_write_reg_16(&st->adis,
-				adis16400_addresses[chan->scan_index], val);
-		return ret;
+		return adis_write_reg_16(&st->adis,
+					 adis16400_addresses[chan->scan_index],
+					 val);
 	case IIO_CHAN_INFO_LOW_PASS_FILTER_3DB_FREQUENCY:
 		/*
 		 * Need to cache values so we can update if the frequency
 		 * changes.
 		 */
-		adis_dev_lock(&st->adis);
-		st->filt_int = val;
-		/* Work out update to current value */
-		sps = st->variant->get_freq(st);
-		if (sps < 0) {
-			adis_dev_unlock(&st->adis);
-			return sps;
-		}
+		adis_dev_auto_scoped_lock(&st->adis) {
+			st->filt_int = val;
+			/* Work out update to current value */
+			sps = st->variant->get_freq(st);
+			if (sps < 0)
+				return sps;
 
-		ret = __adis16400_set_filter(indio_dev, sps,
-			val * 1000 + val2 / 1000);
-		adis_dev_unlock(&st->adis);
-		return ret;
+			return __adis16400_set_filter(indio_dev, sps,
+						      val * 1000 + val2 / 1000);
+		}
+		unreachable();
 	case IIO_CHAN_INFO_SAMP_FREQ:
 		sps = val * 1000 + val2 / 1000;
 
 		if (sps <= 0)
 			return -EINVAL;
 
-		adis_dev_lock(&st->adis);
-		ret = st->variant->set_freq(st, sps);
-		adis_dev_unlock(&st->adis);
-		return ret;
+		adis_dev_auto_scoped_lock(&st->adis)
+			return st->variant->set_freq(st, sps);
+		unreachable();
 	default:
 		return -EINVAL;
 	}
@@ -596,29 +593,30 @@ static int adis16400_read_raw(struct iio_dev *indio_dev,
 		*val = st->variant->temp_offset;
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_LOW_PASS_FILTER_3DB_FREQUENCY:
-		adis_dev_lock(&st->adis);
-		/* Need both the number of taps and the sampling frequency */
-		ret = __adis_read_reg_16(&st->adis,
-						ADIS16400_SENS_AVG,
-						&val16);
-		if (ret) {
-			adis_dev_unlock(&st->adis);
-			return ret;
+		adis_dev_auto_scoped_lock(&st->adis) {
+			/*
+			 * Need both the number of taps and the sampling
+			 * frequency
+			 */
+			ret = __adis_read_reg_16(&st->adis, ADIS16400_SENS_AVG,
+						 &val16);
+			if (ret)
+				return ret;
+
+			ret = st->variant->get_freq(st);
+			if (ret)
+				return ret;
 		}
-		ret = st->variant->get_freq(st);
-		adis_dev_unlock(&st->adis);
-		if (ret)
-			return ret;
 		ret /= adis16400_3db_divisors[val16 & 0x07];
 		*val = ret / 1000;
 		*val2 = (ret % 1000) * 1000;
 		return IIO_VAL_INT_PLUS_MICRO;
 	case IIO_CHAN_INFO_SAMP_FREQ:
-		adis_dev_lock(&st->adis);
-		ret = st->variant->get_freq(st);
-		adis_dev_unlock(&st->adis);
-		if (ret)
-			return ret;
+		adis_dev_auto_scoped_lock(&st->adis) {
+			ret = st->variant->get_freq(st);
+			if (ret)
+				return ret;
+		}
 		*val = ret / 1000;
 		*val2 = (ret % 1000) * 1000;
 		return IIO_VAL_INT_PLUS_MICRO;

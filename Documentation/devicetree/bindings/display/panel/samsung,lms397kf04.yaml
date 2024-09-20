@@ -20,7 +20,8 @@ properties:
   compatible:
     const: samsung,lms397kf04
 
-  reg: true
+  reg:
+    maxItems: 1
 
   reset-gpios: true
 

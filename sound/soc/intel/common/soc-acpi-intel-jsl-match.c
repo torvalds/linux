@@ -52,14 +52,14 @@ static const struct snd_soc_acpi_codecs rt5682_rt5682s_hp = {
 struct snd_soc_acpi_mach snd_soc_acpi_intel_jsl_machines[] = {
 	{
 		.id = "DLGS7219",
-		.drv_name = "jsl_mx98373_da7219",
+		.drv_name = "jsl_da7219_def",
 		.machine_quirk = snd_soc_acpi_codec_list,
 		.quirk_data = &mx98373_spk,
 		.sof_tplg_filename = "sof-jsl-da7219.tplg",
 	},
 	{
 		.id = "DLGS7219",
-		.drv_name = "jsl_mx98360_da7219",
+		.drv_name = "jsl_da7219_def",
 		.machine_quirk = snd_soc_acpi_codec_list,
 		.quirk_data = &mx98360a_spk,
 		.sof_tplg_filename = "sof-jsl-da7219-mx98360a.tplg",

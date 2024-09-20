@@ -88,7 +88,7 @@
 		regulator-max-microvolt = <5000000>;
 	};
 
-	wifi_pwrseq: wifi_pwrseq {
+	wifi_pwrseq: pwrseq {
 		compatible = "mmc-pwrseq-simple";
 		reset-gpios = <&r_pio 0 6 GPIO_ACTIVE_LOW>; /* PL06 */
 		clocks = <&rtc CLK_OSC32K_FANOUT>;

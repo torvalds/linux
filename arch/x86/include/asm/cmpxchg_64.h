@@ -20,6 +20,12 @@
 	arch_try_cmpxchg((ptr), (po), (n));				\
 })
 
+#define arch_try_cmpxchg64_local(ptr, po, n)				\
+({									\
+	BUILD_BUG_ON(sizeof(*(ptr)) != 8);				\
+	arch_try_cmpxchg_local((ptr), (po), (n));			\
+})
+
 union __u128_halves {
 	u128 full;
 	struct {
@@ -62,7 +68,7 @@ static __always_inline u128 arch_cmpxchg128_local(volatile u128 *ptr, u128 old, 
 	asm volatile(_lock "cmpxchg16b %[ptr]"				\
 		     CC_SET(e)						\
 		     : CC_OUT(e) (ret),					\
-		       [ptr] "+m" (*ptr),				\
+		       [ptr] "+m" (*(_ptr)),				\
 		       "+a" (o.low), "+d" (o.high)			\
 		     : "b" (n.low), "c" (n.high)			\
 		     : "memory");					\

@@ -81,7 +81,7 @@ Only one event clock flag, ``GPIO_V2_LINE_FLAG_EVENT_CLOCK_xxx``, may be set.
 If none are set then the event clock defaults to ``CLOCK_MONOTONIC``.
 The ``GPIO_V2_LINE_FLAG_EVENT_CLOCK_HTE`` flag requires supporting hardware
 and a kernel with ``CONFIG_HTE`` set.  Requesting HTE from a device that
-doesn't support it is an error (**EOPNOTSUP**).
+doesn't support it is an error (**EOPNOTSUPP**).
 
 The :c:type:`debounce_period_us<gpio_v2_line_attribute>` attribute may only
 be applied to lines with ``GPIO_V2_LINE_FLAG_INPUT`` set. When set, debounce

@@ -6,9 +6,9 @@
 #include "bset.h"
 #include "extents.h"
 
-typedef int (*sort_cmp_fn)(struct btree *,
-			   struct bkey_packed *,
-			   struct bkey_packed *);
+typedef int (*sort_cmp_fn)(const struct btree *,
+			   const struct bkey_packed *,
+			   const struct bkey_packed *);
 
 static inline bool sort_iter_end(struct sort_iter *iter)
 {
@@ -70,9 +70,9 @@ static inline struct bkey_packed *sort_iter_next(struct sort_iter *iter,
 /*
  * If keys compare equal, compare by pointer order:
  */
-static inline int key_sort_fix_overlapping_cmp(struct btree *b,
-					       struct bkey_packed *l,
-					       struct bkey_packed *r)
+static inline int key_sort_fix_overlapping_cmp(const struct btree *b,
+					       const struct bkey_packed *l,
+					       const struct bkey_packed *r)
 {
 	return bch2_bkey_cmp_packed(b, l, r) ?:
 		cmp_int((unsigned long) l, (unsigned long) r);
@@ -154,46 +154,59 @@ bch2_sort_repack(struct bset *dst, struct btree *src,
 	return nr;
 }
 
-static inline int sort_keys_cmp(struct btree *b,
-				struct bkey_packed *l,
-				struct bkey_packed *r)
+static inline int keep_unwritten_whiteouts_cmp(const struct btree *b,
+				const struct bkey_packed *l,
+				const struct bkey_packed *r)
 {
 	return bch2_bkey_cmp_packed_inlined(b, l, r) ?:
 		(int) bkey_deleted(r) - (int) bkey_deleted(l) ?:
-		(int) l->needs_whiteout - (int) r->needs_whiteout;
+		(long) l - (long) r;
 }
 
-unsigned bch2_sort_keys(struct bkey_packed *dst,
-			struct sort_iter *iter,
-			bool filter_whiteouts)
+#include "btree_update_interior.h"
+
+/*
+ * For sorting in the btree node write path: whiteouts not in the unwritten
+ * whiteouts area are dropped, whiteouts in the unwritten whiteouts area are
+ * dropped if overwritten by real keys:
+ */
+unsigned bch2_sort_keys_keep_unwritten_whiteouts(struct bkey_packed *dst, struct sort_iter *iter)
 {
-	const struct bkey_format *f = &iter->b->format;
 	struct bkey_packed *in, *next, *out = dst;
 
-	sort_iter_sort(iter, sort_keys_cmp);
+	sort_iter_sort(iter, keep_unwritten_whiteouts_cmp);
 
-	while ((in = sort_iter_next(iter, sort_keys_cmp))) {
-		bool needs_whiteout = false;
-
-		if (bkey_deleted(in) &&
-		    (filter_whiteouts || !in->needs_whiteout))
+	while ((in = sort_iter_next(iter, keep_unwritten_whiteouts_cmp))) {
+		if (bkey_deleted(in) && in < unwritten_whiteouts_start(iter->b))
 			continue;
 
-		while ((next = sort_iter_peek(iter)) &&
-		       !bch2_bkey_cmp_packed_inlined(iter->b, in, next)) {
-			BUG_ON(in->needs_whiteout &&
-			       next->needs_whiteout);
-			needs_whiteout |= in->needs_whiteout;
-			in = sort_iter_next(iter, sort_keys_cmp);
-		}
+		if ((next = sort_iter_peek(iter)) &&
+		    !bch2_bkey_cmp_packed_inlined(iter->b, in, next))
+			continue;
 
-		if (bkey_deleted(in)) {
-			memcpy_u64s_small(out, in, bkeyp_key_u64s(f, in));
-			set_bkeyp_val_u64s(f, out, 0);
-		} else {
-			bkey_p_copy(out, in);
-		}
-		out->needs_whiteout |= needs_whiteout;
+		bkey_p_copy(out, in);
+		out = bkey_p_next(out);
+	}
+
+	return (u64 *) out - (u64 *) dst;
+}
+
+/*
+ * Main sort routine for compacting a btree node in memory: we always drop
+ * whiteouts because any whiteouts that need to be written are in the unwritten
+ * whiteouts area:
+ */
+unsigned bch2_sort_keys(struct bkey_packed *dst, struct sort_iter *iter)
+{
+	struct bkey_packed *in, *out = dst;
+
+	sort_iter_sort(iter, bch2_bkey_cmp_packed_inlined);
+
+	while ((in = sort_iter_next(iter, bch2_bkey_cmp_packed_inlined))) {
+		if (bkey_deleted(in))
+			continue;
+
+		bkey_p_copy(out, in);
 		out = bkey_p_next(out);
 	}
 

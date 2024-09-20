@@ -28,7 +28,7 @@ DECLARE_EVENT_CLASS(devres,
 		__field(size_t, size)
 	),
 	TP_fast_assign(
-		__assign_str(devname, dev_name(dev));
+		__assign_str(devname);
 		__entry->op = op;
 		__entry->node = node;
 		__entry->name = name;

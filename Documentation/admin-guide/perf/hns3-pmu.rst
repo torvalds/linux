@@ -16,7 +16,7 @@ HNS3 PMU driver
 
 The HNS3 PMU driver registers a perf PMU with the name of its sicl id.::
 
-  /sys/devices/hns3_pmu_sicl_<sicl_id>
+  /sys/bus/event_source/devices/hns3_pmu_sicl_<sicl_id>
 
 PMU driver provides description of available events, filter modes, format,
 identifier and cpumask in sysfs.
@@ -40,9 +40,9 @@ device.
 
 Example usage of checking event code and subevent code::
 
-  $# cat /sys/devices/hns3_pmu_sicl_0/events/dly_tx_normal_to_mac_time
+  $# cat /sys/bus/event_source/devices/hns3_pmu_sicl_0/events/dly_tx_normal_to_mac_time
   config=0x00204
-  $# cat /sys/devices/hns3_pmu_sicl_0/events/dly_tx_normal_to_mac_packet_num
+  $# cat /sys/bus/event_source/devices/hns3_pmu_sicl_0/events/dly_tx_normal_to_mac_packet_num
   config=0x10204
 
 Each performance statistic has a pair of events to get two values to
@@ -60,7 +60,7 @@ computation to calculate real performance data is:::
 
 Example usage of checking supported filter mode::
 
-  $# cat /sys/devices/hns3_pmu_sicl_0/filtermode/bw_ssu_rpu_byte_num
+  $# cat /sys/bus/event_source/devices/hns3_pmu_sicl_0/filtermode/bw_ssu_rpu_byte_num
   filter mode supported: global/port/port-tc/func/func-queue/
 
 Example usage of perf::

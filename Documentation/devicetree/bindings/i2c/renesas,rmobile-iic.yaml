@@ -134,16 +134,16 @@ examples:
     #include <dt-bindings/power/r8a7790-sysc.h>
 
     iic0: i2c@e6500000 {
-            compatible = "renesas,iic-r8a7790", "renesas,rcar-gen2-iic",
-                         "renesas,rmobile-iic";
-            reg = <0xe6500000 0x425>;
-            interrupts = <GIC_SPI 174 IRQ_TYPE_LEVEL_HIGH>;
-            clocks = <&cpg CPG_MOD 318>;
-            clock-frequency = <400000>;
-            dmas = <&dmac0 0x61>, <&dmac0 0x62>, <&dmac1 0x61>, <&dmac1 0x62>;
-            dma-names = "tx", "rx", "tx", "rx";
-            power-domains = <&sysc R8A7790_PD_ALWAYS_ON>;
-            resets = <&cpg 318>;
-            #address-cells = <1>;
-            #size-cells = <0>;
+        compatible = "renesas,iic-r8a7790", "renesas,rcar-gen2-iic",
+                     "renesas,rmobile-iic";
+        reg = <0xe6500000 0x425>;
+        interrupts = <GIC_SPI 174 IRQ_TYPE_LEVEL_HIGH>;
+        clocks = <&cpg CPG_MOD 318>;
+        clock-frequency = <400000>;
+        dmas = <&dmac0 0x61>, <&dmac0 0x62>, <&dmac1 0x61>, <&dmac1 0x62>;
+        dma-names = "tx", "rx", "tx", "rx";
+        power-domains = <&sysc R8A7790_PD_ALWAYS_ON>;
+        resets = <&cpg 318>;
+        #address-cells = <1>;
+        #size-cells = <0>;
     };

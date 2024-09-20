@@ -275,8 +275,8 @@ enum {
 };
 
 static const struct fs_parameter_spec efivarfs_parameters[] = {
-	fsparam_u32("uid", Opt_uid),
-	fsparam_u32("gid", Opt_gid),
+	fsparam_uid("uid", Opt_uid),
+	fsparam_gid("gid", Opt_gid),
 	{},
 };
 
@@ -293,14 +293,10 @@ static int efivarfs_parse_param(struct fs_context *fc, struct fs_parameter *para
 
 	switch (opt) {
 	case Opt_uid:
-		opts->uid = make_kuid(current_user_ns(), result.uint_32);
-		if (!uid_valid(opts->uid))
-			return -EINVAL;
+		opts->uid = result.uid;
 		break;
 	case Opt_gid:
-		opts->gid = make_kgid(current_user_ns(), result.uint_32);
-		if (!gid_valid(opts->gid))
-			return -EINVAL;
+		opts->gid = result.gid;
 		break;
 	default:
 		return -EINVAL;

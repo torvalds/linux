@@ -8,8 +8,8 @@
 #define SELFTEST_KVM_GIC_PRIVATE_H
 
 struct gic_common_ops {
-	void (*gic_init)(unsigned int nr_cpus, void *dist_base);
-	void (*gic_cpu_init)(unsigned int cpu, void *redist_base);
+	void (*gic_init)(unsigned int nr_cpus);
+	void (*gic_cpu_init)(unsigned int cpu);
 	void (*gic_irq_enable)(unsigned int intid);
 	void (*gic_irq_disable)(unsigned int intid);
 	uint64_t (*gic_read_iar)(void);

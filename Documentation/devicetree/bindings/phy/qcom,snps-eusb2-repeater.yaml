@@ -20,7 +20,9 @@ properties:
           - enum:
               - qcom,pm7550ba-eusb2-repeater
           - const: qcom,pm8550b-eusb2-repeater
-      - const: qcom,pm8550b-eusb2-repeater
+      - enum:
+          - qcom,pm8550b-eusb2-repeater
+          - qcom,smb2360-eusb2-repeater
 
   reg:
     maxItems: 1

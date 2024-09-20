@@ -542,12 +542,9 @@ static int read_i2c(struct nmk_i2c_dev *priv, u16 flags)
 
 	xfer_done = nmk_i2c_wait_xfer_done(priv);
 
-	if (!xfer_done) {
-		/* Controller timed out */
-		dev_err(&priv->adev->dev, "read from slave 0x%x timed out\n",
-			priv->cli.slave_adr);
+	if (!xfer_done)
 		status = -ETIMEDOUT;
-	}
+
 	return status;
 }
 
@@ -1194,7 +1191,6 @@ MODULE_DEVICE_TABLE(amba, nmk_i2c_ids);
 
 static struct amba_driver nmk_i2c_driver = {
 	.drv = {
-		.owner = THIS_MODULE,
 		.name = DRIVER_NAME,
 		.pm = pm_ptr(&nmk_i2c_pm),
 	},

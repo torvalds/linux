@@ -151,7 +151,7 @@ out:
 
 static enum mod_hdcp_status poll_l_prime_available(struct mod_hdcp *hdcp)
 {
-	enum mod_hdcp_status status;
+	enum mod_hdcp_status status = MOD_HDCP_STATUS_FAILURE;
 	uint8_t size;
 	uint16_t max_wait = 20; // units of ms
 	uint16_t num_polls = 5;

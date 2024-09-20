@@ -201,6 +201,37 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
+		i2c@0 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x0>;
+
+			/* Atmel AT24C512C-XHD­B: 64 KB EEPROM */
+			eeprom@50 {
+				compatible = "atmel,24c512";
+				reg = <0x50>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+			};
+
+			/* AT24C04C 512-byte DDR4 SPD EEPROM */
+			/* Documentation says 0x51, but must be even and i2cdetect says 0x52 */
+			eeprom@52 {
+				compatible = "atmel,24c04";
+				reg = <0x52>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+			};
+
+			/* Atmel AT24C02C-XHM­B: 256-byte EEPROM */
+			eeprom@57 {
+				compatible = "atmel,24c02";
+				reg = <0x57>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+			};
+		};
+
 		i2c@1 {
 			#address-cells = <1>;
 			#size-cells = <0>;

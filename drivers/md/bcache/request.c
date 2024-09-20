@@ -369,9 +369,23 @@ static bool check_should_bypass(struct cached_dev *dc, struct bio *bio)
 	struct io *i;
 
 	if (test_bit(BCACHE_DEV_DETACHING, &dc->disk.flags) ||
-	    c->gc_stats.in_use > CUTOFF_CACHE_ADD ||
 	    (bio_op(bio) == REQ_OP_DISCARD))
 		goto skip;
+
+	if (c->gc_stats.in_use > CUTOFF_CACHE_ADD) {
+		/*
+		 * If cached buckets are all clean now, 'true' will be
+		 * returned and all requests will bypass the cache device.
+		 * Then c->sectors_to_gc has no chance to be negative, and
+		 * gc thread won't wake up and caching won't work forever.
+		 * Here call force_wake_up_gc() to avoid such aftermath.
+		 */
+		if (BDEV_STATE(&dc->sb) == BDEV_STATE_CLEAN &&
+		    c->gc_mark_valid)
+			force_wake_up_gc(c);
+
+		goto skip;
+	}
 
 	if (mode == CACHE_MODE_NONE ||
 	    (mode == CACHE_MODE_WRITEAROUND &&

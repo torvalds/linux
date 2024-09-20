@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 #include <linux/acpi.h>
+#include <linux/array_size.h>
 #include <linux/bitmap.h>
 #include <linux/cleanup.h>
 #include <linux/compat.h>
@@ -17,6 +18,7 @@
 #include <linux/list.h>
 #include <linux/lockdep.h>
 #include <linux/module.h>
+#include <linux/nospec.h>
 #include <linux/of.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/seq_file.h>
@@ -53,7 +55,7 @@ static DEFINE_IDA(gpio_ida);
 static dev_t gpio_devt;
 #define GPIO_DEV_MAX 256 /* 256 GPIO chip devices supported */
 
-static int gpio_bus_match(struct device *dev, struct device_driver *drv)
+static int gpio_bus_match(struct device *dev, const struct device_driver *drv)
 {
 	struct fwnode_handle *fwnode = dev_fwnode(dev);
 
@@ -88,6 +90,9 @@ DEFINE_STATIC_SRCU(gpio_devices_srcu);
 static DEFINE_MUTEX(gpio_machine_hogs_mutex);
 static LIST_HEAD(gpio_machine_hogs);
 
+const char *const gpio_suffixes[] = { "gpios", "gpio" };
+const size_t gpio_suffix_count = ARRAY_SIZE(gpio_suffixes);
+
 static void gpiochip_free_hogs(struct gpio_chip *gc);
 static int gpiochip_add_irqchip(struct gpio_chip *gc,
 				struct lock_class_key *lock_key,
@@ -105,15 +110,15 @@ const char *gpiod_get_label(struct gpio_desc *desc)
 	unsigned long flags;
 
 	flags = READ_ONCE(desc->flags);
-	if (test_bit(FLAG_USED_AS_IRQ, &flags) &&
-	    !test_bit(FLAG_REQUESTED, &flags))
-		return "interrupt";
-
-	if (!test_bit(FLAG_REQUESTED, &flags))
-		return NULL;
 
 	label = srcu_dereference_check(desc->label, &desc->gdev->desc_srcu,
 				srcu_read_lock_held(&desc->gdev->desc_srcu));
+
+	if (test_bit(FLAG_USED_AS_IRQ, &flags))
+		return label->str ?: "interrupt";
+
+	if (!test_bit(FLAG_REQUESTED, &flags))
+		return NULL;
 
 	return label->str;
 }
@@ -164,9 +169,6 @@ struct gpio_desc *gpio_to_desc(unsigned gpio)
 		}
 	}
 
-	if (!gpio_is_valid(gpio))
-		pr_warn("invalid GPIO %d\n", gpio);
-
 	return NULL;
 }
 EXPORT_SYMBOL_GPL(gpio_to_desc);
@@ -177,7 +179,6 @@ struct gpio_desc *gpiochip_get_desc(struct gpio_chip *gc,
 {
 	return gpio_device_get_desc(gc->gpiodev, hwnum);
 }
-EXPORT_SYMBOL_GPL(gpiochip_get_desc);
 
 /**
  * gpio_device_get_desc() - get the GPIO descriptor corresponding to the given
@@ -201,7 +202,7 @@ gpio_device_get_desc(struct gpio_device *gdev, unsigned int hwnum)
 	if (hwnum >= gdev->ngpio)
 		return ERR_PTR(-EINVAL);
 
-	return &gdev->descs[hwnum];
+	return &gdev->descs[array_index_nospec(hwnum, gdev->ngpio)];
 }
 EXPORT_SYMBOL_GPL(gpio_device_get_desc);
 
@@ -311,10 +312,10 @@ struct gpio_chip *gpio_device_get_chip(struct gpio_device *gdev)
 EXPORT_SYMBOL_GPL(gpio_device_get_chip);
 
 /* dynamic allocation of GPIOs, e.g. on a hotplugged device */
-static int gpiochip_find_base_unlocked(int ngpio)
+static int gpiochip_find_base_unlocked(u16 ngpio)
 {
+	unsigned int base = GPIO_DYNAMIC_BASE;
 	struct gpio_device *gdev;
-	int base = GPIO_DYNAMIC_BASE;
 
 	list_for_each_entry_srcu(gdev, &gpio_devices, list,
 				 lockdep_is_held(&gpio_devices_lock)) {
@@ -325,9 +326,11 @@ static int gpiochip_find_base_unlocked(int ngpio)
 		base = gdev->base + gdev->ngpio;
 		if (base < GPIO_DYNAMIC_BASE)
 			base = GPIO_DYNAMIC_BASE;
+		if (base > GPIO_DYNAMIC_MAX - ngpio)
+			break;
 	}
 
-	if (gpio_is_valid(base)) {
+	if (base <= GPIO_DYNAMIC_MAX - ngpio) {
 		pr_debug("%s: found new base at %d\n", __func__, base);
 		return base;
 	} else {
@@ -379,7 +382,10 @@ int gpiod_get_direction(struct gpio_desc *desc)
 	if (ret < 0)
 		return ret;
 
-	/* GPIOF_DIR_IN or other positive, otherwise GPIOF_DIR_OUT */
+	/*
+	 * GPIO_LINE_DIRECTION_IN or other positive,
+	 * otherwise GPIO_LINE_DIRECTION_OUT.
+	 */
 	if (ret > 0)
 		ret = 1;
 
@@ -483,7 +489,7 @@ static struct gpio_desc *gpio_name_to_desc(const char * const name)
  *   1. Non-unique names are still accepted,
  *   2. Name collisions within the same GPIO chip are not reported.
  */
-static int gpiochip_set_desc_names(struct gpio_chip *gc)
+static void gpiochip_set_desc_names(struct gpio_chip *gc)
 {
 	struct gpio_device *gdev = gc->gpiodev;
 	int i;
@@ -502,8 +508,6 @@ static int gpiochip_set_desc_names(struct gpio_chip *gc)
 	/* Then add all names to the GPIO descriptors */
 	for (i = 0; i != gc->ngpio; ++i)
 		gdev->descs[i].name = gc->names[i];
-
-	return 0;
 }
 
 /*
@@ -760,7 +764,7 @@ static int gpiochip_setup_dev(struct gpio_device *gdev)
 	if (ret)
 		goto err_remove_device;
 
-	dev_dbg(&gdev->dev, "registered GPIOs %d to %d on %s\n", gdev->base,
+	dev_dbg(&gdev->dev, "registered GPIOs %u to %u on %s\n", gdev->base,
 		gdev->base + gdev->ngpio - 1, gdev->label);
 
 	return 0;
@@ -997,11 +1001,9 @@ int gpiochip_add_data_with_key(struct gpio_chip *gc, void *data,
 	INIT_LIST_HEAD(&gdev->pin_ranges);
 #endif
 
-	if (gc->names) {
-		ret = gpiochip_set_desc_names(gc);
-		if (ret)
-			goto err_cleanup_desc_srcu;
-	}
+	if (gc->names)
+		gpiochip_set_desc_names(gc);
+
 	ret = gpiochip_set_names(gc);
 	if (ret)
 		goto err_cleanup_desc_srcu;
@@ -4254,7 +4256,7 @@ struct gpio_desc *gpiod_find_and_request(struct device *consumer,
 	ret = gpiod_configure_flags(desc, con_id, lookupflags, flags);
 	if (ret < 0) {
 		gpiod_put(desc);
-		dev_dbg(consumer, "setup of GPIO %s failed\n", name);
+		dev_err(consumer, "setup of GPIO %s failed: %d\n", name, ret);
 		return ERR_PTR(ret);
 	}
 
@@ -4796,20 +4798,20 @@ static void gpiolib_dbg_show(struct seq_file *s, struct gpio_device *gdev)
 
 	for_each_gpio_desc(gc, desc) {
 		guard(srcu)(&desc->gdev->desc_srcu);
-		if (test_bit(FLAG_REQUESTED, &desc->flags)) {
+		is_irq = test_bit(FLAG_USED_AS_IRQ, &desc->flags);
+		if (is_irq || test_bit(FLAG_REQUESTED, &desc->flags)) {
 			gpiod_get_direction(desc);
 			is_out = test_bit(FLAG_IS_OUT, &desc->flags);
 			value = gpio_chip_get_value(gc, desc);
-			is_irq = test_bit(FLAG_USED_AS_IRQ, &desc->flags);
 			active_low = test_bit(FLAG_ACTIVE_LOW, &desc->flags);
-			seq_printf(s, " gpio-%-3d (%-20.20s|%-20.20s) %s %s %s%s\n",
+			seq_printf(s, " gpio-%-3u (%-20.20s|%-20.20s) %s %s %s%s\n",
 				   gpio, desc->name ?: "", gpiod_get_label(desc),
 				   is_out ? "out" : "in ",
 				   value >= 0 ? (value ? "hi" : "lo") : "?  ",
 				   is_irq ? "IRQ " : "",
 				   active_low ? "ACTIVE LOW" : "");
 		} else if (desc->name) {
-			seq_printf(s, " gpio-%-3d (%-20.20s)\n", gpio, desc->name);
+			seq_printf(s, " gpio-%-3u (%-20.20s)\n", gpio, desc->name);
 		}
 
 		gpio++;
@@ -4881,7 +4883,7 @@ static int gpiolib_seq_show(struct seq_file *s, void *v)
 		return 0;
 	}
 
-	seq_printf(s, "%s%s: GPIOs %d-%d", priv->newline ? "\n" : "",
+	seq_printf(s, "%s%s: GPIOs %u-%u", priv->newline ? "\n" : "",
 		   dev_name(&gdev->dev),
 		   gdev->base, gdev->base + gdev->ngpio - 1);
 	parent = gc->parent;

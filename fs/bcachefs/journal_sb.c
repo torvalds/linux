@@ -16,9 +16,8 @@ static int u64_cmp(const void *_l, const void *_r)
 	return cmp_int(*l, *r);
 }
 
-static int bch2_sb_journal_validate(struct bch_sb *sb,
-				    struct bch_sb_field *f,
-				    struct printbuf *err)
+static int bch2_sb_journal_validate(struct bch_sb *sb, struct bch_sb_field *f,
+				enum bch_validate_flags flags, struct printbuf *err)
 {
 	struct bch_sb_field_journal *journal = field_to_type(f, journal);
 	struct bch_member m = bch2_sb_member_get(sb, sb->dev_idx);
@@ -99,13 +98,13 @@ static int u64_range_cmp(const void *_l, const void *_r)
 	return cmp_int(l->start, r->start);
 }
 
-static int bch2_sb_journal_v2_validate(struct bch_sb *sb,
-				    struct bch_sb_field *f,
-				    struct printbuf *err)
+static int bch2_sb_journal_v2_validate(struct bch_sb *sb, struct bch_sb_field *f,
+				enum bch_validate_flags flags, struct printbuf *err)
 {
 	struct bch_sb_field_journal_v2 *journal = field_to_type(f, journal_v2);
 	struct bch_member m = bch2_sb_member_get(sb, sb->dev_idx);
 	int ret = -BCH_ERR_invalid_sb_journal;
+	u64 sum = 0;
 	unsigned nr;
 	unsigned i;
 	struct u64_range *b;
@@ -121,6 +120,15 @@ static int bch2_sb_journal_v2_validate(struct bch_sb *sb,
 	for (i = 0; i < nr; i++) {
 		b[i].start = le64_to_cpu(journal->d[i].start);
 		b[i].end = b[i].start + le64_to_cpu(journal->d[i].nr);
+
+		if (b[i].end <= b[i].start) {
+			prt_printf(err, "journal buckets entry with bad nr: %llu+%llu",
+				   le64_to_cpu(journal->d[i].start),
+				   le64_to_cpu(journal->d[i].nr));
+			goto err;
+		}
+
+		sum += le64_to_cpu(journal->d[i].nr);
 	}
 
 	sort(b, nr, sizeof(*b), u64_range_cmp, NULL);
@@ -148,6 +156,11 @@ static int bch2_sb_journal_v2_validate(struct bch_sb *sb,
 			       b[i].start, b[i].end, b[i + 1].start, b[i + 1].end);
 			goto err;
 		}
+	}
+
+	if (sum > UINT_MAX) {
+		prt_printf(err, "too many journal buckets: %llu > %u", sum, UINT_MAX);
+		goto err;
 	}
 
 	ret = 0;

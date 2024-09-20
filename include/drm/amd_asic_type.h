@@ -22,6 +22,9 @@
 
 #ifndef __AMD_ASIC_TYPE_H__
 #define __AMD_ASIC_TYPE_H__
+
+#include <linux/types.h>
+
 /*
  * Supported ASIC types
  */

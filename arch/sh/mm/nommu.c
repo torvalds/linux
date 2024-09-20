@@ -10,6 +10,8 @@
 #include <linux/init.h>
 #include <linux/string.h>
 #include <linux/mm.h>
+
+#include <asm/cacheflush.h>
 #include <asm/tlbflush.h>
 #include <asm/page.h>
 #include <linux/uaccess.h>

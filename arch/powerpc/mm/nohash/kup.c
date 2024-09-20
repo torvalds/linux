@@ -15,8 +15,6 @@
 void setup_kuap(bool disabled)
 {
 	if (disabled) {
-		if (IS_ENABLED(CONFIG_40x))
-			disable_kuep = true;
 		if (smp_processor_id() == boot_cpuid)
 			cur_cpu_spec->mmu_features &= ~MMU_FTR_KUAP;
 		return;

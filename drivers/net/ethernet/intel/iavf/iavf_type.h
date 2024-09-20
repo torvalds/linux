@@ -10,8 +10,6 @@
 #include "iavf_adminq.h"
 #include "iavf_devids.h"
 
-#define IAVF_RXQ_CTX_DBUFF_SHIFT 7
-
 /* IAVF_MASK is a macro used on 32 bit registers */
 #define IAVF_MASK(mask, shift) ((u32)(mask) << (shift))
 
@@ -326,94 +324,6 @@ enum iavf_rx_desc_error_l3l4e_fcoe_masks {
 
 #define IAVF_RXD_QW1_PTYPE_SHIFT	30
 #define IAVF_RXD_QW1_PTYPE_MASK		(0xFFULL << IAVF_RXD_QW1_PTYPE_SHIFT)
-
-/* Packet type non-ip values */
-enum iavf_rx_l2_ptype {
-	IAVF_RX_PTYPE_L2_RESERVED			= 0,
-	IAVF_RX_PTYPE_L2_MAC_PAY2			= 1,
-	IAVF_RX_PTYPE_L2_TIMESYNC_PAY2			= 2,
-	IAVF_RX_PTYPE_L2_FIP_PAY2			= 3,
-	IAVF_RX_PTYPE_L2_OUI_PAY2			= 4,
-	IAVF_RX_PTYPE_L2_MACCNTRL_PAY2			= 5,
-	IAVF_RX_PTYPE_L2_LLDP_PAY2			= 6,
-	IAVF_RX_PTYPE_L2_ECP_PAY2			= 7,
-	IAVF_RX_PTYPE_L2_EVB_PAY2			= 8,
-	IAVF_RX_PTYPE_L2_QCN_PAY2			= 9,
-	IAVF_RX_PTYPE_L2_EAPOL_PAY2			= 10,
-	IAVF_RX_PTYPE_L2_ARP				= 11,
-	IAVF_RX_PTYPE_L2_FCOE_PAY3			= 12,
-	IAVF_RX_PTYPE_L2_FCOE_FCDATA_PAY3		= 13,
-	IAVF_RX_PTYPE_L2_FCOE_FCRDY_PAY3		= 14,
-	IAVF_RX_PTYPE_L2_FCOE_FCRSP_PAY3		= 15,
-	IAVF_RX_PTYPE_L2_FCOE_FCOTHER_PA		= 16,
-	IAVF_RX_PTYPE_L2_FCOE_VFT_PAY3			= 17,
-	IAVF_RX_PTYPE_L2_FCOE_VFT_FCDATA		= 18,
-	IAVF_RX_PTYPE_L2_FCOE_VFT_FCRDY			= 19,
-	IAVF_RX_PTYPE_L2_FCOE_VFT_FCRSP			= 20,
-	IAVF_RX_PTYPE_L2_FCOE_VFT_FCOTHER		= 21,
-	IAVF_RX_PTYPE_GRENAT4_MAC_PAY3			= 58,
-	IAVF_RX_PTYPE_GRENAT4_MACVLAN_IPV6_ICMP_PAY4	= 87,
-	IAVF_RX_PTYPE_GRENAT6_MAC_PAY3			= 124,
-	IAVF_RX_PTYPE_GRENAT6_MACVLAN_IPV6_ICMP_PAY4	= 153
-};
-
-struct iavf_rx_ptype_decoded {
-	u32 known:1;
-	u32 outer_ip:1;
-	u32 outer_ip_ver:1;
-	u32 outer_frag:1;
-	u32 tunnel_type:3;
-	u32 tunnel_end_prot:2;
-	u32 tunnel_end_frag:1;
-	u32 inner_prot:4;
-	u32 payload_layer:3;
-};
-
-enum iavf_rx_ptype_outer_ip {
-	IAVF_RX_PTYPE_OUTER_L2	= 0,
-	IAVF_RX_PTYPE_OUTER_IP	= 1
-};
-
-enum iavf_rx_ptype_outer_ip_ver {
-	IAVF_RX_PTYPE_OUTER_NONE	= 0,
-	IAVF_RX_PTYPE_OUTER_IPV4	= 0,
-	IAVF_RX_PTYPE_OUTER_IPV6	= 1
-};
-
-enum iavf_rx_ptype_outer_fragmented {
-	IAVF_RX_PTYPE_NOT_FRAG	= 0,
-	IAVF_RX_PTYPE_FRAG	= 1
-};
-
-enum iavf_rx_ptype_tunnel_type {
-	IAVF_RX_PTYPE_TUNNEL_NONE		= 0,
-	IAVF_RX_PTYPE_TUNNEL_IP_IP		= 1,
-	IAVF_RX_PTYPE_TUNNEL_IP_GRENAT		= 2,
-	IAVF_RX_PTYPE_TUNNEL_IP_GRENAT_MAC	= 3,
-	IAVF_RX_PTYPE_TUNNEL_IP_GRENAT_MAC_VLAN	= 4,
-};
-
-enum iavf_rx_ptype_tunnel_end_prot {
-	IAVF_RX_PTYPE_TUNNEL_END_NONE	= 0,
-	IAVF_RX_PTYPE_TUNNEL_END_IPV4	= 1,
-	IAVF_RX_PTYPE_TUNNEL_END_IPV6	= 2,
-};
-
-enum iavf_rx_ptype_inner_prot {
-	IAVF_RX_PTYPE_INNER_PROT_NONE		= 0,
-	IAVF_RX_PTYPE_INNER_PROT_UDP		= 1,
-	IAVF_RX_PTYPE_INNER_PROT_TCP		= 2,
-	IAVF_RX_PTYPE_INNER_PROT_SCTP		= 3,
-	IAVF_RX_PTYPE_INNER_PROT_ICMP		= 4,
-	IAVF_RX_PTYPE_INNER_PROT_TIMESYNC	= 5
-};
-
-enum iavf_rx_ptype_payload_layer {
-	IAVF_RX_PTYPE_PAYLOAD_LAYER_NONE	= 0,
-	IAVF_RX_PTYPE_PAYLOAD_LAYER_PAY2	= 1,
-	IAVF_RX_PTYPE_PAYLOAD_LAYER_PAY3	= 2,
-	IAVF_RX_PTYPE_PAYLOAD_LAYER_PAY4	= 3,
-};
 
 #define IAVF_RXD_QW1_LENGTH_PBUF_SHIFT	38
 #define IAVF_RXD_QW1_LENGTH_PBUF_MASK	(0x3FFFULL << \

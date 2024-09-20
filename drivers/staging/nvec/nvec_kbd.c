@@ -148,15 +148,16 @@ static int nvec_kbd_probe(struct platform_device *pdev)
 	nvec_register_notifier(nvec, &keys_dev.notifier, 0);
 
 	/* Enable keyboard */
-	nvec_write_async(nvec, enable_kbd, 2);
+	nvec_write_sync(nvec, enable_kbd, 2, NULL);
 
 	/* configures wake on special keys */
-	nvec_write_async(nvec, cnfg_wake, 4);
+	nvec_write_sync(nvec, cnfg_wake, 4, NULL);
+
 	/* enable wake key reporting */
-	nvec_write_async(nvec, cnfg_wake_key_reporting, 3);
+	nvec_write_sync(nvec, cnfg_wake_key_reporting, 3, NULL);
 
 	/* Disable caps lock LED */
-	nvec_write_async(nvec, clear_leds, sizeof(clear_leds));
+	nvec_write_sync(nvec, clear_leds, sizeof(clear_leds), NULL);
 
 	return 0;
 }

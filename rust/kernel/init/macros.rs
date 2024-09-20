@@ -250,7 +250,7 @@
 //!                     // error type is `Infallible`) we will need to drop this field if there
 //!                     // is an error later. This `DropGuard` will drop the field when it gets
 //!                     // dropped and has not yet been forgotten.
-//!                     let t = unsafe {
+//!                     let __t_guard = unsafe {
 //!                         ::pinned_init::__internal::DropGuard::new(::core::addr_of_mut!((*slot).t))
 //!                     };
 //!                     // Expansion of `x: 0,`:
@@ -261,14 +261,14 @@
 //!                         unsafe { ::core::ptr::write(::core::addr_of_mut!((*slot).x), x) };
 //!                     }
 //!                     // We again create a `DropGuard`.
-//!                     let x = unsafe {
+//!                     let __x_guard = unsafe {
 //!                         ::kernel::init::__internal::DropGuard::new(::core::addr_of_mut!((*slot).x))
 //!                     };
 //!                     // Since initialization has successfully completed, we can now forget
 //!                     // the guards. This is not `mem::forget`, since we only have
 //!                     // `&DropGuard`.
-//!                     ::core::mem::forget(x);
-//!                     ::core::mem::forget(t);
+//!                     ::core::mem::forget(__x_guard);
+//!                     ::core::mem::forget(__t_guard);
 //!                     // Here we use the type checker to ensure that every field has been
 //!                     // initialized exactly once, since this is `if false` it will never get
 //!                     // executed, but still type-checked.
@@ -461,16 +461,16 @@
 //!             {
 //!                 unsafe { ::core::ptr::write(::core::addr_of_mut!((*slot).a), a) };
 //!             }
-//!             let a = unsafe {
+//!             let __a_guard = unsafe {
 //!                 ::kernel::init::__internal::DropGuard::new(::core::addr_of_mut!((*slot).a))
 //!             };
 //!             let init = Bar::new(36);
 //!             unsafe { data.b(::core::addr_of_mut!((*slot).b), b)? };
-//!             let b = unsafe {
+//!             let __b_guard = unsafe {
 //!                 ::kernel::init::__internal::DropGuard::new(::core::addr_of_mut!((*slot).b))
 //!             };
-//!             ::core::mem::forget(b);
-//!             ::core::mem::forget(a);
+//!             ::core::mem::forget(__b_guard);
+//!             ::core::mem::forget(__a_guard);
 //!             #[allow(unreachable_code, clippy::diverging_sub_expression)]
 //!             let _ = || {
 //!                 unsafe {
@@ -538,6 +538,7 @@ macro_rules! __pin_data {
         ),
         @impl_generics($($impl_generics:tt)*),
         @ty_generics($($ty_generics:tt)*),
+        @decl_generics($($decl_generics:tt)*),
         @body({ $($fields:tt)* }),
     ) => {
         // We now use token munching to iterate through all of the fields. While doing this we
@@ -560,6 +561,9 @@ macro_rules! __pin_data {
             @impl_generics($($impl_generics)*),
             // The 'ty generics', the generics that will need to be specified on the impl blocks.
             @ty_generics($($ty_generics)*),
+            // The 'decl generics', the generics that need to be specified on the struct
+            // definition.
+            @decl_generics($($decl_generics)*),
             // The where clause of any impl block and the declaration.
             @where($($($whr)*)?),
             // The remaining fields tokens that need to be processed.
@@ -585,6 +589,7 @@ macro_rules! __pin_data {
         @name($name:ident),
         @impl_generics($($impl_generics:tt)*),
         @ty_generics($($ty_generics:tt)*),
+        @decl_generics($($decl_generics:tt)*),
         @where($($whr:tt)*),
         // We found a PhantomPinned field, this should generally be pinned!
         @fields_munch($field:ident : $($($(::)?core::)?marker::)?PhantomPinned, $($rest:tt)*),
@@ -607,6 +612,7 @@ macro_rules! __pin_data {
             @name($name),
             @impl_generics($($impl_generics)*),
             @ty_generics($($ty_generics)*),
+            @decl_generics($($decl_generics)*),
             @where($($whr)*),
             @fields_munch($($rest)*),
             @pinned($($pinned)* $($accum)* $field: ::core::marker::PhantomPinned,),
@@ -623,6 +629,7 @@ macro_rules! __pin_data {
         @name($name:ident),
         @impl_generics($($impl_generics:tt)*),
         @ty_generics($($ty_generics:tt)*),
+        @decl_generics($($decl_generics:tt)*),
         @where($($whr:tt)*),
         // We reached the field declaration.
         @fields_munch($field:ident : $type:ty, $($rest:tt)*),
@@ -640,6 +647,7 @@ macro_rules! __pin_data {
             @name($name),
             @impl_generics($($impl_generics)*),
             @ty_generics($($ty_generics)*),
+            @decl_generics($($decl_generics)*),
             @where($($whr)*),
             @fields_munch($($rest)*),
             @pinned($($pinned)* $($accum)* $field: $type,),
@@ -656,6 +664,7 @@ macro_rules! __pin_data {
         @name($name:ident),
         @impl_generics($($impl_generics:tt)*),
         @ty_generics($($ty_generics:tt)*),
+        @decl_generics($($decl_generics:tt)*),
         @where($($whr:tt)*),
         // We reached the field declaration.
         @fields_munch($field:ident : $type:ty, $($rest:tt)*),
@@ -673,6 +682,7 @@ macro_rules! __pin_data {
             @name($name),
             @impl_generics($($impl_generics)*),
             @ty_generics($($ty_generics)*),
+            @decl_generics($($decl_generics)*),
             @where($($whr)*),
             @fields_munch($($rest)*),
             @pinned($($pinned)*),
@@ -689,6 +699,7 @@ macro_rules! __pin_data {
         @name($name:ident),
         @impl_generics($($impl_generics:tt)*),
         @ty_generics($($ty_generics:tt)*),
+        @decl_generics($($decl_generics:tt)*),
         @where($($whr:tt)*),
         // We found the `#[pin]` attr.
         @fields_munch(#[pin] $($rest:tt)*),
@@ -705,6 +716,7 @@ macro_rules! __pin_data {
             @name($name),
             @impl_generics($($impl_generics)*),
             @ty_generics($($ty_generics)*),
+            @decl_generics($($decl_generics)*),
             @where($($whr)*),
             @fields_munch($($rest)*),
             // We do not include `#[pin]` in the list of attributes, since it is not actually an
@@ -724,6 +736,7 @@ macro_rules! __pin_data {
         @name($name:ident),
         @impl_generics($($impl_generics:tt)*),
         @ty_generics($($ty_generics:tt)*),
+        @decl_generics($($decl_generics:tt)*),
         @where($($whr:tt)*),
         // We reached the field declaration with visibility, for simplicity we only munch the
         // visibility and put it into `$accum`.
@@ -741,6 +754,7 @@ macro_rules! __pin_data {
             @name($name),
             @impl_generics($($impl_generics)*),
             @ty_generics($($ty_generics)*),
+            @decl_generics($($decl_generics)*),
             @where($($whr)*),
             @fields_munch($field $($rest)*),
             @pinned($($pinned)*),
@@ -757,6 +771,7 @@ macro_rules! __pin_data {
         @name($name:ident),
         @impl_generics($($impl_generics:tt)*),
         @ty_generics($($ty_generics:tt)*),
+        @decl_generics($($decl_generics:tt)*),
         @where($($whr:tt)*),
         // Some other attribute, just put it into `$accum`.
         @fields_munch(#[$($attr:tt)*] $($rest:tt)*),
@@ -773,6 +788,7 @@ macro_rules! __pin_data {
             @name($name),
             @impl_generics($($impl_generics)*),
             @ty_generics($($ty_generics)*),
+            @decl_generics($($decl_generics)*),
             @where($($whr)*),
             @fields_munch($($rest)*),
             @pinned($($pinned)*),
@@ -789,6 +805,7 @@ macro_rules! __pin_data {
         @name($name:ident),
         @impl_generics($($impl_generics:tt)*),
         @ty_generics($($ty_generics:tt)*),
+        @decl_generics($($decl_generics:tt)*),
         @where($($whr:tt)*),
         // We reached the end of the fields, plus an optional additional comma, since we added one
         // before and the user is also allowed to put a trailing comma.
@@ -802,7 +819,7 @@ macro_rules! __pin_data {
     ) => {
         // Declare the struct with all fields in the correct order.
         $($struct_attrs)*
-        $vis struct $name <$($impl_generics)*>
+        $vis struct $name <$($decl_generics)*>
         where $($whr)*
         {
             $($fields)*
@@ -1192,14 +1209,14 @@ macro_rules! __init_internal {
         // We use `paste!` to create new hygiene for `$field`.
         ::kernel::macros::paste! {
             // SAFETY: We forget the guard later when initialization has succeeded.
-            let [<$field>] = unsafe {
+            let [< __ $field _guard >] = unsafe {
                 $crate::init::__internal::DropGuard::new(::core::ptr::addr_of_mut!((*$slot).$field))
             };
 
             $crate::__init_internal!(init_slot($use_data):
                 @data($data),
                 @slot($slot),
-                @guards([<$field>], $($guards,)*),
+                @guards([< __ $field _guard >], $($guards,)*),
                 @munch_fields($($rest)*),
             );
         }
@@ -1223,14 +1240,14 @@ macro_rules! __init_internal {
         // We use `paste!` to create new hygiene for `$field`.
         ::kernel::macros::paste! {
             // SAFETY: We forget the guard later when initialization has succeeded.
-            let [<$field>] = unsafe {
+            let [< __ $field _guard >] = unsafe {
                 $crate::init::__internal::DropGuard::new(::core::ptr::addr_of_mut!((*$slot).$field))
             };
 
             $crate::__init_internal!(init_slot():
                 @data($data),
                 @slot($slot),
-                @guards([<$field>], $($guards,)*),
+                @guards([< __ $field _guard >], $($guards,)*),
                 @munch_fields($($rest)*),
             );
         }
@@ -1255,14 +1272,14 @@ macro_rules! __init_internal {
         // We use `paste!` to create new hygiene for `$field`.
         ::kernel::macros::paste! {
             // SAFETY: We forget the guard later when initialization has succeeded.
-            let [<$field>] = unsafe {
+            let [< __ $field _guard >] = unsafe {
                 $crate::init::__internal::DropGuard::new(::core::ptr::addr_of_mut!((*$slot).$field))
             };
 
             $crate::__init_internal!(init_slot($($use_data)?):
                 @data($data),
                 @slot($slot),
-                @guards([<$field>], $($guards,)*),
+                @guards([< __ $field _guard >], $($guards,)*),
                 @munch_fields($($rest)*),
             );
         }

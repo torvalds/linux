@@ -662,6 +662,8 @@ static unsigned int bch_root_usage(struct cache_set *c)
 	struct btree *b;
 	struct btree_iter iter;
 
+	min_heap_init(&iter.heap, NULL, MAX_BSETS);
+
 	goto lock_root;
 
 	do {

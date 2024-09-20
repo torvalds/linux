@@ -358,7 +358,7 @@ DECLARE_EVENT_CLASS(/* msg */
 	),
 	TP_fast_assign(/* assign */
 		__entry->qpn = qp ? qp->ibqp.qp_num : 0;
-		__assign_str(msg, msg);
+		__assign_str(msg);
 		__entry->more = more;
 	),
 	TP_printk(/* print */
@@ -651,7 +651,7 @@ DECLARE_EVENT_CLASS(/* tid_node */
 	TP_fast_assign(/* assign */
 		DD_DEV_ASSIGN(dd_from_ibdev(qp->ibqp.device));
 		__entry->qpn = qp->ibqp.qp_num;
-		__assign_str(msg, msg);
+		__assign_str(msg);
 		__entry->index = index;
 		__entry->base = base;
 		__entry->map = map;

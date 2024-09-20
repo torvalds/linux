@@ -20,7 +20,6 @@
 #include "panfrost_job.h"
 #include "panfrost_gpu.h"
 #include "panfrost_perfcnt.h"
-#include "panfrost_debugfs.h"
 
 static bool unstable_ioctls;
 module_param_unsafe(unstable_ioctls, bool, 0600);
@@ -551,10 +550,12 @@ static void panfrost_gpu_show_fdinfo(struct panfrost_device *pfdev,
 	BUILD_BUG_ON(ARRAY_SIZE(engine_names) != NUM_JOB_SLOTS);
 
 	for (i = 0; i < NUM_JOB_SLOTS - 1; i++) {
-		drm_printf(p, "drm-engine-%s:\t%llu ns\n",
-			   engine_names[i], panfrost_priv->engine_usage.elapsed_ns[i]);
-		drm_printf(p, "drm-cycles-%s:\t%llu\n",
-			   engine_names[i], panfrost_priv->engine_usage.cycles[i]);
+		if (pfdev->profile_mode) {
+			drm_printf(p, "drm-engine-%s:\t%llu ns\n",
+				   engine_names[i], panfrost_priv->engine_usage.elapsed_ns[i]);
+			drm_printf(p, "drm-cycles-%s:\t%llu\n",
+				   engine_names[i], panfrost_priv->engine_usage.cycles[i]);
+		}
 		drm_printf(p, "drm-maxfreq-%s:\t%lu Hz\n",
 			   engine_names[i], pfdev->pfdevfreq.fast_rate);
 		drm_printf(p, "drm-curfreq-%s:\t%lu Hz\n",
@@ -600,10 +601,6 @@ static const struct drm_driver panfrost_drm_driver = {
 
 	.gem_create_object	= panfrost_gem_create_object,
 	.gem_prime_import_sg_table = panfrost_gem_prime_import_sg_table,
-
-#ifdef CONFIG_DEBUG_FS
-	.debugfs_init		= panfrost_debugfs_init,
-#endif
 };
 
 static int panfrost_probe(struct platform_device *pdev)
@@ -692,6 +689,40 @@ static void panfrost_remove(struct platform_device *pdev)
 	drm_dev_put(ddev);
 }
 
+static ssize_t profiling_show(struct device *dev,
+			      struct device_attribute *attr, char *buf)
+{
+	struct panfrost_device *pfdev = dev_get_drvdata(dev);
+
+	return sysfs_emit(buf, "%d\n", pfdev->profile_mode);
+}
+
+static ssize_t profiling_store(struct device *dev,
+			       struct device_attribute *attr,
+			       const char *buf, size_t len)
+{
+	struct panfrost_device *pfdev = dev_get_drvdata(dev);
+	bool value;
+	int err;
+
+	err = kstrtobool(buf, &value);
+	if (err)
+		return err;
+
+	pfdev->profile_mode = value;
+
+	return len;
+}
+
+static DEVICE_ATTR_RW(profiling);
+
+static struct attribute *panfrost_attrs[] = {
+	&dev_attr_profiling.attr,
+	NULL,
+};
+
+ATTRIBUTE_GROUPS(panfrost);
+
 /*
  * The OPP core wants the supply names to be NULL terminated, but we need the
  * correct num_supplies value for regulator core. Hence, we NULL terminate here
@@ -746,6 +777,15 @@ static const struct panfrost_compatible mediatek_mt8186_data = {
 	.pm_features = BIT(GPU_PM_CLK_DIS) | BIT(GPU_PM_VREG_OFF),
 };
 
+/* MT8188 uses the same power domains and power supplies as MT8183 */
+static const struct panfrost_compatible mediatek_mt8188_data = {
+	.num_supplies = ARRAY_SIZE(mediatek_mt8183_b_supplies) - 1,
+	.supply_names = mediatek_mt8183_b_supplies,
+	.num_pm_domains = ARRAY_SIZE(mediatek_mt8183_pm_domains),
+	.pm_domain_names = mediatek_mt8183_pm_domains,
+	.pm_features = BIT(GPU_PM_CLK_DIS) | BIT(GPU_PM_VREG_OFF),
+};
+
 static const char * const mediatek_mt8192_supplies[] = { "mali", NULL };
 static const char * const mediatek_mt8192_pm_domains[] = { "core0", "core1", "core2",
 							   "core3", "core4" };
@@ -777,6 +817,7 @@ static const struct of_device_id dt_match[] = {
 	{ .compatible = "mediatek,mt8183-mali", .data = &mediatek_mt8183_data },
 	{ .compatible = "mediatek,mt8183b-mali", .data = &mediatek_mt8183_b_data },
 	{ .compatible = "mediatek,mt8186-mali", .data = &mediatek_mt8186_data },
+	{ .compatible = "mediatek,mt8188-mali", .data = &mediatek_mt8188_data },
 	{ .compatible = "mediatek,mt8192-mali", .data = &mediatek_mt8192_data },
 	{}
 };
@@ -789,6 +830,7 @@ static struct platform_driver panfrost_driver = {
 		.name	= "panfrost",
 		.pm	= pm_ptr(&panfrost_pm_ops),
 		.of_match_table = dt_match,
+		.dev_groups = panfrost_groups,
 	},
 };
 module_platform_driver(panfrost_driver);
@@ -796,3 +838,4 @@ module_platform_driver(panfrost_driver);
 MODULE_AUTHOR("Panfrost Project Developers");
 MODULE_DESCRIPTION("Panfrost DRM Driver");
 MODULE_LICENSE("GPL v2");
+MODULE_SOFTDEP("pre: governor_simpleondemand");

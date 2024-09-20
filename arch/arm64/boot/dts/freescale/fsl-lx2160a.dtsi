@@ -449,7 +449,7 @@
 	};
 
 	thermal-zones {
-		cluster6-7 {
+		cluster6-7-thermal {
 			polling-delay-passive = <1000>;
 			polling-delay = <5000>;
 			thermal-sensors = <&tmu 0>;
@@ -492,7 +492,7 @@
 			};
 		};
 
-		ddr-cluster5 {
+		ddr-ctrl5-thermal {
 			polling-delay-passive = <1000>;
 			polling-delay = <5000>;
 			thermal-sensors = <&tmu 1>;
@@ -512,7 +512,7 @@
 			};
 		};
 
-		wriop {
+		wriop-thermal {
 			polling-delay-passive = <1000>;
 			polling-delay = <5000>;
 			thermal-sensors = <&tmu 2>;
@@ -532,7 +532,7 @@
 			};
 		};
 
-		dce-qbman-hsio2 {
+		dce-thermal {
 			polling-delay-passive = <1000>;
 			polling-delay = <5000>;
 			thermal-sensors = <&tmu 3>;
@@ -552,7 +552,7 @@
 			};
 		};
 
-		ccn-dpaa-tbu {
+		ccn-thermal {
 			polling-delay-passive = <1000>;
 			polling-delay = <5000>;
 			thermal-sensors = <&tmu 4>;
@@ -572,7 +572,7 @@
 			};
 		};
 
-		cluster4-hsio3 {
+		cluster4-thermal {
 			polling-delay-passive = <1000>;
 			polling-delay = <5000>;
 			thermal-sensors = <&tmu 5>;
@@ -592,7 +592,7 @@
 			};
 		};
 
-		cluster2-3 {
+		cluster2-3-thermal {
 			polling-delay-passive = <1000>;
 			polling-delay = <5000>;
 			thermal-sensors = <&tmu 6>;
@@ -745,10 +745,13 @@
 			#size-cells = <0>;
 			reg = <0x0 0x2000000 0x0 0x10000>;
 			interrupts = <GIC_SPI 34 IRQ_TYPE_LEVEL_HIGH>;
-			clock-names = "i2c";
+			clock-names = "ipg";
 			clocks = <&clockgen QORIQ_CLK_PLATFORM_PLL
 					    QORIQ_CLK_PLL_DIV(16)>;
-			scl-gpios = <&gpio2 15 GPIO_ACTIVE_HIGH>;
+			pinctrl-names = "default", "gpio";
+			pinctrl-0 = <&i2c0_scl>;
+			pinctrl-1 = <&i2c0_scl_gpio>;
+			scl-gpios = <&gpio0 3 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 			status = "disabled";
 		};
 
@@ -758,9 +761,13 @@
 			#size-cells = <0>;
 			reg = <0x0 0x2010000 0x0 0x10000>;
 			interrupts = <GIC_SPI 34 IRQ_TYPE_LEVEL_HIGH>;
-			clock-names = "i2c";
+			clock-names = "ipg";
 			clocks = <&clockgen QORIQ_CLK_PLATFORM_PLL
 					    QORIQ_CLK_PLL_DIV(16)>;
+			pinctrl-names = "default", "gpio";
+			pinctrl-0 = <&i2c1_scl>;
+			pinctrl-1 = <&i2c1_scl_gpio>;
+			scl-gpios = <&gpio0 31 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 			status = "disabled";
 		};
 
@@ -770,9 +777,13 @@
 			#size-cells = <0>;
 			reg = <0x0 0x2020000 0x0 0x10000>;
 			interrupts = <GIC_SPI 35 IRQ_TYPE_LEVEL_HIGH>;
-			clock-names = "i2c";
+			clock-names = "ipg";
 			clocks = <&clockgen QORIQ_CLK_PLATFORM_PLL
 					    QORIQ_CLK_PLL_DIV(16)>;
+			pinctrl-names = "default", "gpio";
+			pinctrl-0 = <&i2c2_scl>;
+			pinctrl-1 = <&i2c2_scl_gpio>;
+			scl-gpios = <&gpio0 29 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 			status = "disabled";
 		};
 
@@ -782,9 +793,13 @@
 			#size-cells = <0>;
 			reg = <0x0 0x2030000 0x0 0x10000>;
 			interrupts = <GIC_SPI 35 IRQ_TYPE_LEVEL_HIGH>;
-			clock-names = "i2c";
+			clock-names = "ipg";
 			clocks = <&clockgen QORIQ_CLK_PLATFORM_PLL
 					    QORIQ_CLK_PLL_DIV(16)>;
+			pinctrl-names = "default", "gpio";
+			pinctrl-0 = <&i2c3_scl>;
+			pinctrl-1 = <&i2c3_scl_gpio>;
+			scl-gpios = <&gpio0 27 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 			status = "disabled";
 		};
 
@@ -794,10 +809,13 @@
 			#size-cells = <0>;
 			reg = <0x0 0x2040000 0x0 0x10000>;
 			interrupts = <GIC_SPI 74 IRQ_TYPE_LEVEL_HIGH>;
-			clock-names = "i2c";
+			clock-names = "ipg";
 			clocks = <&clockgen QORIQ_CLK_PLATFORM_PLL
 					    QORIQ_CLK_PLL_DIV(16)>;
-			scl-gpios = <&gpio2 16 GPIO_ACTIVE_HIGH>;
+			pinctrl-names = "default", "gpio";
+			pinctrl-0 = <&i2c4_scl>;
+			pinctrl-1 = <&i2c4_scl_gpio>;
+			scl-gpios = <&gpio0 25 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 			status = "disabled";
 		};
 
@@ -807,9 +825,13 @@
 			#size-cells = <0>;
 			reg = <0x0 0x2050000 0x0 0x10000>;
 			interrupts = <GIC_SPI 74 IRQ_TYPE_LEVEL_HIGH>;
-			clock-names = "i2c";
+			clock-names = "ipg";
 			clocks = <&clockgen QORIQ_CLK_PLATFORM_PLL
 					    QORIQ_CLK_PLL_DIV(16)>;
+			pinctrl-names = "default", "gpio";
+			pinctrl-0 = <&i2c5_scl>;
+			pinctrl-1 = <&i2c5_scl_gpio>;
+			scl-gpios = <&gpio0 23 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 			status = "disabled";
 		};
 
@@ -819,9 +841,13 @@
 			#size-cells = <0>;
 			reg = <0x0 0x2060000 0x0 0x10000>;
 			interrupts = <GIC_SPI 75 IRQ_TYPE_LEVEL_HIGH>;
-			clock-names = "i2c";
+			clock-names = "ipg";
 			clocks = <&clockgen QORIQ_CLK_PLATFORM_PLL
 					    QORIQ_CLK_PLL_DIV(16)>;
+			pinctrl-names = "default", "gpio";
+			pinctrl-0 = <&i2c6_scl>;
+			pinctrl-1 = <&i2c6_scl_gpio>;
+			scl-gpios = <&gpio1 16 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 			status = "disabled";
 		};
 
@@ -831,9 +857,13 @@
 			#size-cells = <0>;
 			reg = <0x0 0x2070000 0x0 0x10000>;
 			interrupts = <GIC_SPI 75 IRQ_TYPE_LEVEL_HIGH>;
-			clock-names = "i2c";
+			clock-names = "ipg";
 			clocks = <&clockgen QORIQ_CLK_PLATFORM_PLL
 					    QORIQ_CLK_PLL_DIV(16)>;
+			pinctrl-names = "default", "gpio";
+			pinctrl-0 = <&i2c7_scl>;
+			pinctrl-1 = <&i2c7_scl_gpio>;
+			scl-gpios = <&gpio1 18 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 			status = "disabled";
 		};
 
@@ -895,10 +925,10 @@
 			status = "disabled";
 		};
 
-		esdhc0: esdhc@2140000 {
-			compatible = "fsl,esdhc";
+		esdhc0: mmc@2140000 {
+			compatible = "fsl,ls2080a-esdhc", "fsl,esdhc";
 			reg = <0x0 0x2140000 0x0 0x10000>;
-			interrupts = <0 28 0x4>; /* Level high type */
+			interrupts = <GIC_SPI 28 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&clockgen QORIQ_CLK_PLATFORM_PLL
 					    QORIQ_CLK_PLL_DIV(2)>;
 			dma-coherent;
@@ -909,10 +939,10 @@
 			status = "disabled";
 		};
 
-		esdhc1: esdhc@2150000 {
-			compatible = "fsl,esdhc";
+		esdhc1: mmc@2150000 {
+			compatible = "fsl,ls2080a-esdhc", "fsl,esdhc";
 			reg = <0x0 0x2150000 0x0 0x10000>;
-			interrupts = <0 63 0x4>; /* Level high type */
+			interrupts = <GIC_SPI 63 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&clockgen QORIQ_CLK_PLATFORM_PLL
 					    QORIQ_CLK_PLL_DIV(2)>;
 			dma-coherent;
@@ -997,7 +1027,7 @@
 		};
 
 		gpio0: gpio@2300000 {
-			compatible = "fsl,qoriq-gpio";
+			compatible = "fsl,ls2080a-gpio", "fsl,qoriq-gpio";
 			reg = <0x0 0x2300000 0x0 0x10000>;
 			interrupts = <GIC_SPI 36 IRQ_TYPE_LEVEL_HIGH>;
 			gpio-controller;
@@ -1008,7 +1038,7 @@
 		};
 
 		gpio1: gpio@2310000 {
-			compatible = "fsl,qoriq-gpio";
+			compatible = "fsl,ls2080a-gpio", "fsl,qoriq-gpio";
 			reg = <0x0 0x2310000 0x0 0x10000>;
 			interrupts = <GIC_SPI 36 IRQ_TYPE_LEVEL_HIGH>;
 			gpio-controller;
@@ -1019,7 +1049,7 @@
 		};
 
 		gpio2: gpio@2320000 {
-			compatible = "fsl,qoriq-gpio";
+			compatible = "fsl,ls2080a-gpio", "fsl,qoriq-gpio";
 			reg = <0x0 0x2320000 0x0 0x10000>;
 			interrupts = <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>;
 			gpio-controller;
@@ -1030,7 +1060,7 @@
 		};
 
 		gpio3: gpio@2330000 {
-			compatible = "fsl,qoriq-gpio";
+			compatible = "fsl,ls2080a-gpio", "fsl,qoriq-gpio";
 			reg = <0x0 0x2330000 0x0 0x10000>;
 			interrupts = <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>;
 			gpio-controller;
@@ -1055,7 +1085,7 @@
 			little-endian;
 		};
 
-		ftm_alarm0: timer@2800000 {
+		ftm_alarm0: rtc@2800000 {
 			compatible = "fsl,lx2160a-ftm-alarm";
 			reg = <0x0 0x2800000 0x0 0x10000>;
 			fsl,rcpm-wakeup = <&rcpm 0x0 0x0 0x0 0x0 0x4000 0x0 0x0>;
@@ -1666,6 +1696,80 @@
 
 			pcs18: ethernet-phy@0 {
 				reg = <0>;
+			};
+		};
+
+		pinmux_i2crv: pinmux@70010012c {
+			compatible = "pinctrl-single";
+			reg = <0x00000007 0x0010012c 0x0 0xc>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			pinctrl-single,bit-per-mux;
+			pinctrl-single,register-width = <32>;
+			pinctrl-single,function-mask = <0x7>;
+
+			i2c1_scl: i2c1-scl-pins {
+				pinctrl-single,bits = <0x0 0 0x7>;
+			};
+
+			i2c1_scl_gpio: i2c1-scl-gpio-pins {
+				pinctrl-single,bits = <0x0 0x1 0x7>;
+			};
+
+			i2c2_scl: i2c2-scl-pins {
+				pinctrl-single,bits = <0x0 0 (0x7 << 3)>;
+			};
+
+			i2c2_scl_gpio: i2c2-scl-gpio-pins {
+				pinctrl-single,bits = <0x0 (0x1 << 3) (0x7 << 3)>;
+			};
+
+			i2c3_scl: i2c3-scl-pins {
+				pinctrl-single,bits = <0x0 0 (0x7 << 6)>;
+			};
+
+			i2c3_scl_gpio: i2c3-scl-gpio-pins {
+				pinctrl-single,bits = <0x0 (0x1 << 6) (0x7 << 6)>;
+			};
+
+			i2c4_scl: i2c4-scl-pins {
+				pinctrl-single,bits = <0x0 0 (0x7 << 9)>;
+			};
+
+			i2c4_scl_gpio: i2c4-scl-gpio-pins {
+				pinctrl-single,bits = <0x0 (0x1 << 9) (0x7 << 9)>;
+			};
+
+			i2c5_scl: i2c5-scl-pins {
+				pinctrl-single,bits = <0x0 0 (0x7 << 12)>;
+			};
+
+			i2c5_scl_gpio: i2c5-scl-gpio-pins {
+				pinctrl-single,bits = <0x0 (0x1 << 12) (0x7 << 12)>;
+			};
+
+			i2c6_scl: i2c6-scl-pins {
+				pinctrl-single,bits = <0x4 0x2 0x7>;
+			};
+
+			i2c6_scl_gpio: i2c6-scl-gpio-pins {
+				pinctrl-single,bits = <0x4 0x1 0x7>;
+			};
+
+			i2c7_scl: i2c7-scl-pins {
+				pinctrl-single,bits = <0x4 0x2 0x7>;
+			};
+
+			i2c7_scl_gpio: i2c7-scl-gpio-pins {
+				pinctrl-single,bits = <0x4 0x1 0x7>;
+			};
+
+			i2c0_scl: i2c0-scl-pins {
+				pinctrl-single,bits = <0x8 0 (0x7 << 10)>;
+			};
+
+			i2c0_scl_gpio: i2c0-scl-gpio-pins {
+				pinctrl-single,bits = <0x8 (0x1 << 10) (0x7 << 10)>;
 			};
 		};
 

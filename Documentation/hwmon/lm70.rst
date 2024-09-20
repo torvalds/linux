@@ -5,7 +5,7 @@ Supported chips:
 
   * National Semiconductor LM70
 
-    Datasheet: http://www.national.com/pf/LM/LM70.html
+    Datasheet: https://www.ti.com/product/LM70
 
   * Texas Instruments TMP121/TMP123
 

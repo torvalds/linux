@@ -150,6 +150,7 @@ enum amd_pp_sensors {
 	AMDGPU_PP_SENSOR_VCN_POWER_STATE,
 	AMDGPU_PP_SENSOR_PEAK_PSTATE_SCLK,
 	AMDGPU_PP_SENSOR_PEAK_PSTATE_MCLK,
+	AMDGPU_PP_SENSOR_VCN_LOAD,
 };
 
 enum amd_pp_task {
@@ -271,6 +272,23 @@ enum pp_xgmi_plpd_mode {
 	XGMI_PLPD_OPTIMIZED,
 	XGMI_PLPD_COUNT,
 };
+
+enum pp_pm_policy {
+	PP_PM_POLICY_NONE = -1,
+	PP_PM_POLICY_SOC_PSTATE = 0,
+	PP_PM_POLICY_XGMI_PLPD,
+	PP_PM_POLICY_NUM,
+};
+
+enum pp_policy_soc_pstate {
+	SOC_PSTATE_DEFAULT = 0,
+	SOC_PSTATE_0,
+	SOC_PSTATE_1,
+	SOC_PSTATE_2,
+	SOC_PSTAT_COUNT,
+};
+
+#define PP_POLICY_MAX_LEVELS 5
 
 #define PP_GROUP_MASK        0xF0000000
 #define PP_GROUP_SHIFT       28
@@ -420,7 +438,7 @@ struct amd_pm_funcs {
 	int (*set_hard_min_dcefclk_by_freq)(void *handle, uint32_t clock);
 	int (*set_hard_min_fclk_by_freq)(void *handle, uint32_t clock);
 	int (*set_min_deep_sleep_dcefclk)(void *handle, uint32_t clock);
-	bool (*get_asic_baco_capability)(void *handle);
+	int (*get_asic_baco_capability)(void *handle);
 	int (*get_asic_baco_state)(void *handle, int *state);
 	int (*set_asic_baco_state)(void *handle, int state);
 	int (*get_ppfeature_status)(void *handle, char *buf);

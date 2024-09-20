@@ -858,7 +858,7 @@ be misspelled d_alloc_anon().
 
 **mandatory**
 
-[should've been added in 2016] stale comment in finish_open() nonwithstanding,
+[should've been added in 2016] stale comment in finish_open() notwithstanding,
 failure exits in ->atomic_open() instances should *NOT* fput() the file,
 no matter what.  Everything is handled by the caller.
 
@@ -989,7 +989,7 @@ This mechanism would only work for a single device so the block layer couldn't
 find the owning superblock of any additional devices.
 
 In the old mechanism reusing or creating a superblock for a racing mount(2) and
-umount(2) relied on the file_system_type as the holder. This was severly
+umount(2) relied on the file_system_type as the holder. This was severely
 underdocumented however:
 
 (1) Any concurrent mounter that managed to grab an active reference on an
@@ -1134,3 +1134,10 @@ superblock of the main block device, i.e., the one stored in sb->s_bdev. Block
 device freezing now works for any block device owned by a given superblock, not
 just the main block device. The get_active_super() helper and bd_fsfreeze_sb
 pointer are gone.
+
+---
+
+**mandatory**
+
+set_blocksize() takes opened struct file instead of struct block_device now
+and it *must* be opened exclusive.

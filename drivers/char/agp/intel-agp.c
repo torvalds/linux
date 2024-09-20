@@ -12,7 +12,7 @@
 #include <asm/smp.h>
 #include "agp.h"
 #include "intel-agp.h"
-#include <drm/intel-gtt.h>
+#include <drm/intel/intel-gtt.h>
 
 static int intel_fetch_size(void)
 {
@@ -920,4 +920,5 @@ module_init(agp_intel_init);
 module_exit(agp_intel_cleanup);
 
 MODULE_AUTHOR("Dave Jones, Various @Intel");
+MODULE_DESCRIPTION("Intel AGPGART routines");
 MODULE_LICENSE("GPL and additional rights");

@@ -32,16 +32,13 @@ https://github.com/osandov/drgn.
   rescued  The number of work items executed by the rescuer.
 """
 
-import sys
 import signal
-import os
 import re
 import time
 import json
 
 import drgn
-from drgn.helpers.linux.list import list_for_each_entry,list_empty
-from drgn.helpers.linux.cpumask import for_each_possible_cpu
+from drgn.helpers.linux.list import list_for_each_entry
 
 import argparse
 parser = argparse.ArgumentParser(description=desc,
@@ -53,10 +50,6 @@ parser.add_argument('-i', '--interval', metavar='SECS', type=float, default=1,
 parser.add_argument('-j', '--json', action='store_true',
                     help='Output in json')
 args = parser.parse_args()
-
-def err(s):
-    print(s, file=sys.stderr, flush=True)
-    sys.exit(1)
 
 workqueues              = prog['workqueues']
 

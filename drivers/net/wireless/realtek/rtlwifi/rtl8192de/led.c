@@ -3,7 +3,7 @@
 
 #include "../wifi.h"
 #include "../pci.h"
-#include "reg.h"
+#include "../rtl8192d/reg.h"
 #include "led.h"
 
 void rtl92de_sw_led_on(struct ieee80211_hw *hw, enum rtl_led_pin pin)

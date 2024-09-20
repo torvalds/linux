@@ -32,14 +32,14 @@ int parse_events_option_new_evlist(const struct option *opt, const char *str, in
 __attribute__((nonnull(1, 2, 4)))
 int __parse_events(struct evlist *evlist, const char *str, const char *pmu_filter,
 		   struct parse_events_error *error, struct perf_pmu *fake_pmu,
-		   bool warn_if_reordered);
+		   bool warn_if_reordered, bool fake_tp);
 
 __attribute__((nonnull(1, 2, 3)))
 static inline int parse_events(struct evlist *evlist, const char *str,
 			       struct parse_events_error *err)
 {
 	return __parse_events(evlist, str, /*pmu_filter=*/NULL, err, /*fake_pmu=*/NULL,
-			      /*warn_if_reordered=*/true);
+			      /*warn_if_reordered=*/true, /*fake_tp=*/false);
 }
 
 int parse_event(struct evlist *evlist, const char *str);
@@ -152,6 +152,8 @@ struct parse_events_state {
 	int			   stoken;
 	/* Special fake PMU marker for testing. */
 	struct perf_pmu		  *fake_pmu;
+	/* Skip actual tracepoint processing for testing. */
+	bool			   fake_tp;
 	/* If non-null, when wildcard matching only match the given PMU. */
 	const char		  *pmu_filter;
 	/* Should PE_LEGACY_NAME tokens be generated for config terms? */
@@ -178,7 +180,7 @@ int parse_events_term__term(struct parse_events_term **term,
 			    enum parse_events__term_type term_rhs,
 			    void *loc_term, void *loc_val);
 int parse_events_term__clone(struct parse_events_term **new,
-			     struct parse_events_term *term);
+			     const struct parse_events_term *term);
 void parse_events_term__delete(struct parse_events_term *term);
 
 void parse_events_terms__delete(struct parse_events_terms *terms);
@@ -186,33 +188,49 @@ void parse_events_terms__init(struct parse_events_terms *terms);
 void parse_events_terms__exit(struct parse_events_terms *terms);
 int parse_events_terms(struct parse_events_terms *terms, const char *str, FILE *input);
 int parse_events_terms__to_strbuf(const struct parse_events_terms *terms, struct strbuf *sb);
-int parse_events__modifier_event(struct list_head *list, char *str, bool add);
-int parse_events__modifier_group(struct list_head *list, char *event_mod);
-int parse_events_name(struct list_head *list, const char *name);
-int parse_events_add_tracepoint(struct list_head *list, int *idx,
+
+struct parse_events_modifier {
+	u8 precise;	/* Number of repeated 'p' for precision. */
+	bool precise_max : 1;	/* 'P' */
+	bool non_idle : 1;	/* 'I' */
+	bool sample_read : 1;	/* 'S' */
+	bool pinned : 1;	/* 'D' */
+	bool exclusive : 1;	/* 'e' */
+	bool weak : 1;		/* 'W' */
+	bool bpf : 1;		/* 'b' */
+	bool user : 1;		/* 'u' */
+	bool kernel : 1;	/* 'k' */
+	bool hypervisor : 1;	/* 'h' */
+	bool guest : 1;		/* 'G' */
+	bool host : 1;		/* 'H' */
+};
+
+int parse_events__modifier_event(struct parse_events_state *parse_state, void *loc,
+				 struct list_head *list, struct parse_events_modifier mod);
+int parse_events__modifier_group(struct parse_events_state *parse_state, void *loc,
+				 struct list_head *list, struct parse_events_modifier mod);
+int parse_events__set_default_name(struct list_head *list, char *name);
+int parse_events_add_tracepoint(struct parse_events_state *parse_state,
+				struct list_head *list,
 				const char *sys, const char *event,
 				struct parse_events_error *error,
 				struct parse_events_terms *head_config, void *loc);
 int parse_events_add_numeric(struct parse_events_state *parse_state,
 			     struct list_head *list,
 			     u32 type, u64 config,
-			     struct parse_events_terms *head_config,
+			     const struct parse_events_terms *head_config,
 			     bool wildcard);
 int parse_events_add_tool(struct parse_events_state *parse_state,
 			  struct list_head *list,
 			  int tool_event);
 int parse_events_add_cache(struct list_head *list, int *idx, const char *name,
 			   struct parse_events_state *parse_state,
-			   struct parse_events_terms *head_config);
+			   struct parse_events_terms *parsed_terms);
 int parse_events__decode_legacy_cache(const char *name, int pmu_type, __u64 *config);
 int parse_events_add_breakpoint(struct parse_events_state *parse_state,
 				struct list_head *list,
 				u64 addr, char *type, u64 len,
 				struct parse_events_terms *head_config);
-int parse_events_add_pmu(struct parse_events_state *parse_state,
-			 struct list_head *list, const char *name,
-			 const struct parse_events_terms *const_parsed_terms,
-			bool auto_merge_stats, void *loc);
 
 struct evsel *parse_events__add_event(int idx, struct perf_event_attr *attr,
 				      const char *name, const char *metric_id,
@@ -223,18 +241,20 @@ int parse_events_multi_pmu_add(struct parse_events_state *parse_state,
 			       const struct parse_events_terms *const_parsed_terms,
 			       struct list_head **listp, void *loc);
 
+int parse_events_multi_pmu_add_or_add_pmu(struct parse_events_state *parse_state,
+					const char *event_or_pmu,
+					const struct parse_events_terms *const_parsed_terms,
+					struct list_head **listp,
+					void *loc_);
+
 void parse_events__set_leader(char *name, struct list_head *list);
-void parse_events_update_lists(struct list_head *list_event,
-			       struct list_head *list_all);
-void parse_events_evlist_error(struct parse_events_state *parse_state,
-			       int idx, const char *str);
 
 struct event_symbol {
 	const char	*symbol;
 	const char	*alias;
 };
-extern struct event_symbol event_symbols_hw[];
-extern struct event_symbol event_symbols_sw[];
+extern const struct event_symbol event_symbols_hw[];
+extern const struct event_symbol event_symbols_sw[];
 
 char *parse_events_formats_error_string(char *additional_terms);
 

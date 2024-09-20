@@ -340,7 +340,7 @@ int mt792x_poll_rx(struct napi_struct *napi, int budget)
 	struct mt792x_dev *dev;
 	int done;
 
-	dev = container_of(napi->dev, struct mt792x_dev, mt76.napi_dev);
+	dev = mt76_priv(napi->dev);
 
 	if (!mt76_connac_pm_ref(&dev->mphy, &dev->pm)) {
 		napi_complete(napi);

@@ -81,7 +81,7 @@ TRACE_EVENT(brcms_macintstatus,
 		__field(u32, mask)
 	),
 	TP_fast_assign(
-		__assign_str(dev, dev_name(dev));
+		__assign_str(dev);
 		__entry->in_isr = in_isr;
 		__entry->macintstatus = macintstatus;
 		__entry->mask = mask;

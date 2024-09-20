@@ -135,8 +135,6 @@ typedef __u32			xfs_nlink_t;
  */
 #define __this_address	({ __label__ __here; __here: barrier(); &&__here; })
 
-#define XFS_PROJID_DEFAULT	0
-
 #define howmany(x, y)	(((x)+((y)-1))/(y))
 
 static inline void delay(long ticks)
@@ -196,6 +194,11 @@ static inline uint64_t howmany_64(uint64_t x, uint32_t y)
 	x += y - 1;
 	do_div(x, y);
 	return x;
+}
+
+static inline bool isaligned_64(uint64_t x, uint32_t y)
+{
+	return do_div(x, y) == 0;
 }
 
 /* If @b is a power of 2, return log2(b).  Else return -1. */

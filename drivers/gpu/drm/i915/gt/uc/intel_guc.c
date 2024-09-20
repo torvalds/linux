@@ -286,13 +286,18 @@ static u32 guc_ctl_wa_flags(struct intel_guc *guc)
 
 	/* Wa_22012773006:gen11,gen12 < XeHP */
 	if (GRAPHICS_VER(gt->i915) >= 11 &&
-	    GRAPHICS_VER_FULL(gt->i915) < IP_VER(12, 50))
+	    GRAPHICS_VER_FULL(gt->i915) < IP_VER(12, 55))
 		flags |= GUC_WA_POLLCS;
 
 	/* Wa_14014475959 */
 	if (IS_GFX_GT_IP_STEP(gt, IP_VER(12, 70), STEP_A0, STEP_B0) ||
 	    IS_DG2(gt->i915))
 		flags |= GUC_WA_HOLD_CCS_SWITCHOUT;
+
+	/* Wa_16019325821 */
+	/* Wa_14019159160 */
+	if (IS_GFX_GT_IP_RANGE(gt, IP_VER(12, 70), IP_VER(12, 71)))
+		flags |= GUC_WA_RCS_CCS_SWITCHOUT;
 
 	/*
 	 * Wa_14012197797
@@ -315,15 +320,12 @@ static u32 guc_ctl_wa_flags(struct intel_guc *guc)
 	if (IS_DG2_G11(gt->i915))
 		flags |= GUC_WA_CONTEXT_ISOLATION;
 
-	/* Wa_16015675438 */
-	if (!RCS_MASK(gt))
-		flags |= GUC_WA_RCS_REGS_IN_CCS_REGS_LIST;
-
-	/* Wa_14018913170 */
-	if (GUC_FIRMWARE_VER(guc) >= MAKE_GUC_VER(70, 7, 0)) {
-		if (IS_DG2(gt->i915) || IS_METEORLAKE(gt->i915) || IS_PONTEVECCHIO(gt->i915))
-			flags |= GUC_WA_ENABLE_TSC_CHECK_ON_RC6;
-	}
+	/*
+	 * Wa_14018913170: Applicable to all platforms supported by i915 so
+	 * don't bother testing for all X/Y/Z platforms explicitly.
+	 */
+	if (GUC_FIRMWARE_VER(guc) >= MAKE_GUC_VER(70, 7, 0))
+		flags |= GUC_WA_ENABLE_TSC_CHECK_ON_RC6;
 
 	return flags;
 }

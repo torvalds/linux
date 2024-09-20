@@ -243,7 +243,8 @@ Description:
 		less measurements. Units after application of scale and offset
 		are milli degrees Celsius.
 
-What:		/sys/bus/iio/devices/iio:deviceX/in_tempX_input
+What:		/sys/bus/iio/devices/iio:deviceX/in_tempY_input
+What:		/sys/bus/iio/devices/iio:deviceX/in_temp_input
 KernelVersion:	2.6.38
 Contact:	linux-iio@vger.kernel.org
 Description:

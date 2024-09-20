@@ -12,6 +12,8 @@ struct drm_i915_private;
 struct intel_crtc;
 struct intel_initial_plane_config;
 struct intel_plane_state;
+struct skl_ddb_entry;
+struct skl_wm_level;
 
 enum pipe;
 enum plane_id;

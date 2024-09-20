@@ -146,7 +146,8 @@ static irqreturn_t uart_clps711x_int_tx(int irq, void *dev_id)
 {
 	struct uart_port *port = dev_id;
 	struct clps711x_port *s = dev_get_drvdata(port->dev);
-	struct circ_buf *xmit = &port->state->xmit;
+	struct tty_port *tport = &port->state->port;
+	unsigned char c;
 
 	if (port->x_char) {
 		writew(port->x_char, port->membase + UARTDR_OFFSET);
@@ -155,7 +156,7 @@ static irqreturn_t uart_clps711x_int_tx(int irq, void *dev_id)
 		return IRQ_HANDLED;
 	}
 
-	if (uart_circ_empty(xmit) || uart_tx_stopped(port)) {
+	if (kfifo_is_empty(&tport->xmit_fifo) || uart_tx_stopped(port)) {
 		if (s->tx_enabled) {
 			disable_irq_nosync(port->irq);
 			s->tx_enabled = 0;
@@ -163,18 +164,17 @@ static irqreturn_t uart_clps711x_int_tx(int irq, void *dev_id)
 		return IRQ_HANDLED;
 	}
 
-	while (!uart_circ_empty(xmit)) {
+	while (uart_fifo_get(port, &c)) {
 		u32 sysflg = 0;
 
-		writew(xmit->buf[xmit->tail], port->membase + UARTDR_OFFSET);
-		uart_xmit_advance(port, 1);
+		writew(c, port->membase + UARTDR_OFFSET);
 
 		regmap_read(s->syscon, SYSFLG_OFFSET, &sysflg);
 		if (sysflg & SYSFLG_UTXFF)
 			break;
 	}
 
-	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
+	if (kfifo_len(&tport->xmit_fifo) < WAKEUP_CHARS)
 		uart_write_wakeup(port);
 
 	return IRQ_HANDLED;

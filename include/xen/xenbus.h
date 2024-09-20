@@ -124,10 +124,7 @@ struct xenbus_driver {
 	void (*reclaim_memory)(struct xenbus_device *dev);
 };
 
-static inline struct xenbus_driver *to_xenbus_driver(struct device_driver *drv)
-{
-	return container_of(drv, struct xenbus_driver, driver);
-}
+#define to_xenbus_driver(__drv)	container_of_const(__drv, struct xenbus_driver, driver)
 
 int __must_check __xenbus_register_frontend(struct xenbus_driver *drv,
 					    struct module *owner,

@@ -4,9 +4,6 @@
  * kvm_arch_hardware_disable is called and it attempts to unregister the user
  * return notifiers.
  */
-
-#define _GNU_SOURCE
-
 #include <fcntl.h>
 #include <pthread.h>
 #include <semaphore.h>

@@ -4,7 +4,7 @@
 #
 # Simple script to generate a debian/ directory for a Linux kernel.
 
-set -e
+set -eu
 
 is_enabled() {
 	grep -q "^$1=y" include/config/auto.conf
@@ -19,7 +19,7 @@ if_enabled_echo() {
 }
 
 set_debarch() {
-	if [ -n "$KBUILD_DEBARCH" ] ; then
+	if [ "${KBUILD_DEBARCH:+set}" ]; then
 		debarch="$KBUILD_DEBARCH"
 		return
 	fi
@@ -125,32 +125,34 @@ gen_source ()
 rm -rf debian
 mkdir debian
 
-email=${DEBEMAIL-$EMAIL}
-
-# use email string directly if it contains <email>
-if echo "${email}" | grep -q '<.*>'; then
-	maintainer=${email}
+user=${KBUILD_BUILD_USER:-$(id -nu)}
+name=${DEBFULLNAME:-${user}}
+if [ "${DEBEMAIL:+set}" ]; then
+	email=${DEBEMAIL}
 else
-	# or construct the maintainer string
-	user=${KBUILD_BUILD_USER-$(id -nu)}
-	name=${DEBFULLNAME-${user}}
-	if [ -z "${email}" ]; then
-		buildhost=${KBUILD_BUILD_HOST-$(hostname -f 2>/dev/null || hostname)}
-		email="${user}@${buildhost}"
-	fi
-	maintainer="${name} <${email}>"
+	buildhost=${KBUILD_BUILD_HOST:-$(hostname -f 2>/dev/null || hostname)}
+	email="${user}@${buildhost}"
 fi
+maintainer="${name} <${email}>"
 
-if [ "$1" = --need-source ]; then
-	gen_source
-fi
+while [ $# -gt 0 ]; do
+	case "$1" in
+	--need-source)
+		gen_source
+		shift
+		;;
+	*)
+		break
+		;;
+	esac
+done
 
 # Some variables and settings used throughout the script
 version=$KERNELRELEASE
-if [ -n "$KDEB_PKGVERSION" ]; then
+if [ "${KDEB_PKGVERSION:+set}" ]; then
 	packageversion=$KDEB_PKGVERSION
 else
-	packageversion=$(${srctree}/scripts/setlocalversion --no-local ${srctree})-$($srctree/init/build-version)
+	packageversion=$(${srctree}/scripts/setlocalversion --no-local ${srctree})-$($srctree/scripts/build-version)
 fi
 sourcename=${KDEB_SOURCENAME:-linux-upstream}
 
@@ -164,7 +166,7 @@ debarch=
 set_debarch
 
 # Try to determine distribution
-if [ -n "$KDEB_CHANGELOG_DIST" ]; then
+if [ "${KDEB_CHANGELOG_DIST:+set}" ]; then
         distribution=$KDEB_CHANGELOG_DIST
 # In some cases lsb_release returns the codename as n/a, which breaks dpkg-parsechangelog
 elif distribution=$(lsb_release -cs 2>/dev/null) && [ -n "$distribution" ] && [ "$distribution" != "n/a" ]; then

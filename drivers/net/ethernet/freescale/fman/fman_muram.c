@@ -12,7 +12,6 @@
 struct muram_info {
 	struct gen_pool *pool;
 	void __iomem *vbase;
-	size_t size;
 	phys_addr_t pbase;
 };
 

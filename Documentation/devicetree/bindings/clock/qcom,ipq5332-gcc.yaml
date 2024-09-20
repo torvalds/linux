@@ -30,6 +30,8 @@ properties:
       - description: PCIE 2lane x1 PHY pipe clock source (For second lane)
       - description: USB PCIE wrapper pipe clock source
 
+  '#power-domain-cells': false
+
 required:
   - compatible
   - clocks
@@ -47,7 +49,6 @@ examples:
                <&pcie_2lane_phy_pipe_clk_x1>,
                <&usb_pcie_wrapper_pipe_clk>;
       #clock-cells = <1>;
-      #power-domain-cells = <1>;
       #reset-cells = <1>;
     };
 ...

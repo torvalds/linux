@@ -15,6 +15,7 @@ description: |
 
 allOf:
   - $ref: ../bridge/synopsys,dw-hdmi.yaml#
+  - $ref: /schemas/sound/dai-common.yaml#
 
 properties:
   compatible:
@@ -69,14 +70,6 @@ properties:
           - vpll
           - ref
 
-  ddc-i2c-bus:
-    $ref: /schemas/types.yaml#/definitions/phandle
-    description:
-      The HDMI DDC bus can be connected to either a system I2C master or the
-      functionally-reduced I2C master contained in the DWC HDMI. When connected
-      to a system I2C master this property contains a phandle to that I2C
-      master controller.
-
   phys:
     maxItems: 1
     description: The HDMI PHY
@@ -124,6 +117,9 @@ properties:
     description:
       phandle to the GRF to mux vopl/vopb.
 
+  "#sound-dai-cells":
+    const: 0
+
 required:
   - compatible
   - reg
@@ -153,6 +149,7 @@ examples:
         ddc-i2c-bus = <&i2c5>;
         power-domains = <&power RK3288_PD_VIO>;
         rockchip,grf = <&grf>;
+        #sound-dai-cells = <0>;
 
         ports {
             #address-cells = <1>;

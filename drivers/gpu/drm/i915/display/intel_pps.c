@@ -119,7 +119,7 @@ vlv_power_sequencer_kick(struct intel_dp *intel_dp)
 	else
 		DP |= DP_PIPE_SEL(pipe);
 
-	pll_enabled = intel_de_read(dev_priv, DPLL(pipe)) & DPLL_VCO_ENABLE;
+	pll_enabled = intel_de_read(dev_priv, DPLL(dev_priv, pipe)) & DPLL_VCO_ENABLE;
 
 	/*
 	 * The DPLL for the pipe must be enabled for this to work.
@@ -272,12 +272,12 @@ typedef bool (*pps_check)(struct drm_i915_private *dev_priv, int pps_idx);
 
 static bool pps_has_pp_on(struct drm_i915_private *dev_priv, int pps_idx)
 {
-	return intel_de_read(dev_priv, PP_STATUS(pps_idx)) & PP_ON;
+	return intel_de_read(dev_priv, PP_STATUS(dev_priv, pps_idx)) & PP_ON;
 }
 
 static bool pps_has_vdd_on(struct drm_i915_private *dev_priv, int pps_idx)
 {
-	return intel_de_read(dev_priv, PP_CONTROL(pps_idx)) & EDP_FORCE_VDD;
+	return intel_de_read(dev_priv, PP_CONTROL(dev_priv, pps_idx)) & EDP_FORCE_VDD;
 }
 
 static bool pps_any(struct drm_i915_private *dev_priv, int pps_idx)
@@ -292,7 +292,7 @@ vlv_initial_pps_pipe(struct drm_i915_private *dev_priv,
 	enum pipe pipe;
 
 	for (pipe = PIPE_A; pipe <= PIPE_B; pipe++) {
-		u32 port_sel = intel_de_read(dev_priv, PP_ON_DELAYS(pipe)) &
+		u32 port_sel = intel_de_read(dev_priv, PP_ON_DELAYS(dev_priv, pipe)) &
 			PANEL_PORT_SELECT_MASK;
 
 		if (port_sel != PANEL_PORT_SELECT_VLV(port))
@@ -349,6 +349,9 @@ static int intel_num_pps(struct drm_i915_private *i915)
 		return 2;
 
 	if (IS_GEMINILAKE(i915) || IS_BROXTON(i915))
+		return 2;
+
+	if (INTEL_PCH_TYPE(i915) >= PCH_MTL)
 		return 2;
 
 	if (INTEL_PCH_TYPE(i915) >= PCH_DG1)
@@ -491,17 +494,17 @@ static void intel_pps_get_registers(struct intel_dp *intel_dp,
 	else
 		pps_idx = intel_dp->pps.pps_idx;
 
-	regs->pp_ctrl = PP_CONTROL(pps_idx);
-	regs->pp_stat = PP_STATUS(pps_idx);
-	regs->pp_on = PP_ON_DELAYS(pps_idx);
-	regs->pp_off = PP_OFF_DELAYS(pps_idx);
+	regs->pp_ctrl = PP_CONTROL(dev_priv, pps_idx);
+	regs->pp_stat = PP_STATUS(dev_priv, pps_idx);
+	regs->pp_on = PP_ON_DELAYS(dev_priv, pps_idx);
+	regs->pp_off = PP_OFF_DELAYS(dev_priv, pps_idx);
 
 	/* Cycle delay moved from PP_DIVISOR to PP_CONTROL */
 	if (IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv) ||
 	    INTEL_PCH_TYPE(dev_priv) >= PCH_CNP)
 		regs->pp_div = INVALID_MMIO_REG;
 	else
-		regs->pp_div = PP_DIVISOR(pps_idx);
+		regs->pp_div = PP_DIVISOR(dev_priv, pps_idx);
 }
 
 static i915_reg_t
@@ -605,8 +608,7 @@ static void wait_panel_status(struct intel_dp *intel_dp,
 		    intel_de_read(dev_priv, pp_stat_reg),
 		    intel_de_read(dev_priv, pp_ctrl_reg));
 
-	if (intel_de_wait_for_register(dev_priv, pp_stat_reg,
-				       mask, value, 5000))
+	if (intel_de_wait(dev_priv, pp_stat_reg, mask, value, 5000))
 		drm_err(&dev_priv->drm,
 			"[ENCODER:%d:%s] %s panel status timeout: PP_STATUS: 0x%08x PP_CONTROL: 0x%08x\n",
 			dig_port->base.base.base.id, dig_port->base.base.name,
@@ -1112,7 +1114,7 @@ static void vlv_detach_power_sequencer(struct intel_dp *intel_dp)
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 	struct drm_i915_private *dev_priv = to_i915(dig_port->base.base.dev);
 	enum pipe pipe = intel_dp->pps.pps_pipe;
-	i915_reg_t pp_on_reg = PP_ON_DELAYS(pipe);
+	i915_reg_t pp_on_reg = PP_ON_DELAYS(dev_priv, pipe);
 
 	drm_WARN_ON(&dev_priv->drm, intel_dp->pps.active_pipe != INVALID_PIPE);
 
@@ -1351,7 +1353,7 @@ static void pps_init_delays_bios(struct intel_dp *intel_dp,
 static void pps_init_delays_vbt(struct intel_dp *intel_dp,
 				struct edp_power_seq *vbt)
 {
-	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
+	struct intel_display *display = to_intel_display(intel_dp);
 	struct intel_connector *connector = intel_dp->attached_connector;
 
 	*vbt = connector->panel.vbt.edp.pps;
@@ -1364,9 +1366,9 @@ static void pps_init_delays_vbt(struct intel_dp *intel_dp,
 	 * just fails to power back on. Increasing the delay to 800ms
 	 * seems sufficient to avoid this problem.
 	 */
-	if (intel_has_quirk(dev_priv, QUIRK_INCREASE_T12_DELAY)) {
+	if (intel_has_quirk(display, QUIRK_INCREASE_T12_DELAY)) {
 		vbt->t11_t12 = max_t(u16, vbt->t11_t12, 1300 * 10);
-		drm_dbg_kms(&dev_priv->drm,
+		drm_dbg_kms(display->drm,
 			    "Increasing T12 panel delay as per the quirk to %d\n",
 			    vbt->t11_t12);
 	}
@@ -1657,7 +1659,7 @@ void intel_pps_unlock_regs_wa(struct drm_i915_private *dev_priv)
 	pps_num = intel_num_pps(dev_priv);
 
 	for (pps_idx = 0; pps_idx < pps_num; pps_idx++)
-		intel_de_rmw(dev_priv, PP_CONTROL(pps_idx),
+		intel_de_rmw(dev_priv, PP_CONTROL(dev_priv, pps_idx),
 			     PANEL_UNLOCK_MASK, PANEL_UNLOCK_REGS);
 }
 
@@ -1669,6 +1671,37 @@ void intel_pps_setup(struct drm_i915_private *i915)
 		i915->display.pps.mmio_base = VLV_PPS_BASE;
 	else
 		i915->display.pps.mmio_base = PPS_BASE;
+}
+
+static int intel_pps_show(struct seq_file *m, void *data)
+{
+	struct intel_connector *connector = m->private;
+	struct intel_dp *intel_dp = intel_attached_dp(connector);
+
+	if (connector->base.status != connector_status_connected)
+		return -ENODEV;
+
+	seq_printf(m, "Panel power up delay: %d\n",
+		   intel_dp->pps.panel_power_up_delay);
+	seq_printf(m, "Panel power down delay: %d\n",
+		   intel_dp->pps.panel_power_down_delay);
+	seq_printf(m, "Backlight on delay: %d\n",
+		   intel_dp->pps.backlight_on_delay);
+	seq_printf(m, "Backlight off delay: %d\n",
+		   intel_dp->pps.backlight_off_delay);
+
+	return 0;
+}
+DEFINE_SHOW_ATTRIBUTE(intel_pps);
+
+void intel_pps_connector_debugfs_add(struct intel_connector *connector)
+{
+	struct dentry *root = connector->base.debugfs_entry;
+	int connector_type = connector->base.connector_type;
+
+	if (connector_type == DRM_MODE_CONNECTOR_eDP)
+		debugfs_create_file("i915_panel_timings", 0444, root,
+				    connector, &intel_pps_fops);
 }
 
 void assert_pps_unlocked(struct drm_i915_private *dev_priv, enum pipe pipe)
@@ -1684,8 +1717,8 @@ void assert_pps_unlocked(struct drm_i915_private *dev_priv, enum pipe pipe)
 	if (HAS_PCH_SPLIT(dev_priv)) {
 		u32 port_sel;
 
-		pp_reg = PP_CONTROL(0);
-		port_sel = intel_de_read(dev_priv, PP_ON_DELAYS(0)) & PANEL_PORT_SELECT_MASK;
+		pp_reg = PP_CONTROL(dev_priv, 0);
+		port_sel = intel_de_read(dev_priv, PP_ON_DELAYS(dev_priv, 0)) & PANEL_PORT_SELECT_MASK;
 
 		switch (port_sel) {
 		case PANEL_PORT_SELECT_LVDS:
@@ -1706,13 +1739,13 @@ void assert_pps_unlocked(struct drm_i915_private *dev_priv, enum pipe pipe)
 		}
 	} else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
 		/* presumably write lock depends on pipe, not port select */
-		pp_reg = PP_CONTROL(pipe);
+		pp_reg = PP_CONTROL(dev_priv, pipe);
 		panel_pipe = pipe;
 	} else {
 		u32 port_sel;
 
-		pp_reg = PP_CONTROL(0);
-		port_sel = intel_de_read(dev_priv, PP_ON_DELAYS(0)) & PANEL_PORT_SELECT_MASK;
+		pp_reg = PP_CONTROL(dev_priv, 0);
+		port_sel = intel_de_read(dev_priv, PP_ON_DELAYS(dev_priv, 0)) & PANEL_PORT_SELECT_MASK;
 
 		drm_WARN_ON(&dev_priv->drm,
 			    port_sel != PANEL_PORT_SELECT_LVDS);

@@ -243,7 +243,7 @@ int devm_regmap_init_encx24j600(struct device *dev,
 
 /* MAIPG */
 /* value of the high byte is given by the reserved bits,
- * value of the low byte is recomended setting of the
+ * value of the low byte is recommended setting of the
  * IPG parameter.
  */
 #define MAIPGH_VAL 0x0C

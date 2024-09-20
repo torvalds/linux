@@ -292,10 +292,6 @@ int pkcs7_sig_note_pkey_algo(void *context, size_t hdrlen,
 		ctx->sinfo->sig->pkey_algo = "ecdsa";
 		ctx->sinfo->sig->encoding = "x962";
 		break;
-	case OID_SM2_with_SM3:
-		ctx->sinfo->sig->pkey_algo = "sm2";
-		ctx->sinfo->sig->encoding = "raw";
-		break;
 	case OID_gost2012PKey256:
 	case OID_gost2012PKey512:
 		ctx->sinfo->sig->pkey_algo = "ecrdsa";

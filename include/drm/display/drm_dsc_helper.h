@@ -17,6 +17,8 @@ enum drm_dsc_params_type {
 	DRM_DSC_1_2_420,
 };
 
+struct drm_printer;
+
 void drm_dsc_dp_pps_header_init(struct dp_sdp_header *pps_header);
 int drm_dsc_dp_rc_buffer_size(u8 rc_buffer_block_size, u8 rc_buffer_size);
 void drm_dsc_pps_payload_pack(struct drm_dsc_picture_parameter_set *pps_sdp,
@@ -28,6 +30,7 @@ int drm_dsc_compute_rc_parameters(struct drm_dsc_config *vdsc_cfg);
 u8 drm_dsc_initial_scale_value(const struct drm_dsc_config *dsc);
 u32 drm_dsc_flatness_det_thresh(const struct drm_dsc_config *dsc);
 u32 drm_dsc_get_bpp_int(const struct drm_dsc_config *vdsc_cfg);
+void drm_dsc_dump_config(struct drm_printer *p, int indent, const struct drm_dsc_config *cfg);
 
 #endif /* _DRM_DSC_HELPER_H_ */
 

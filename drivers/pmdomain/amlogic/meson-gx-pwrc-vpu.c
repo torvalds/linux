@@ -376,4 +376,5 @@ static struct platform_driver meson_gx_pwrc_vpu_driver = {
 	},
 };
 module_platform_driver(meson_gx_pwrc_vpu_driver);
+MODULE_DESCRIPTION("Amlogic Meson GX Power Domains driver");
 MODULE_LICENSE("GPL v2");

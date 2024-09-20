@@ -93,12 +93,11 @@ struct drm_i915_gem_timeline_fence {
  * Multiple VA mappings can be created to the same section of the object
  * (aliasing).
  *
- * The @start, @offset and @length must be 4K page aligned. However the DG2
- * and XEHPSDV has 64K page size for device local memory and has compact page
- * table. On those platforms, for binding device local-memory objects, the
- * @start, @offset and @length must be 64K aligned. Also, UMDs should not mix
- * the local memory 64K page and the system memory 4K page bindings in the same
- * 2M range.
+ * The @start, @offset and @length must be 4K page aligned. However the DG2 has
+ * 64K page size for device local memory and has compact page table. On that
+ * platform, for binding device local-memory objects, the @start, @offset and
+ * @length must be 64K aligned. Also, UMDs should not mix the local memory 64K
+ * page and the system memory 4K page bindings in the same 2M range.
  *
  * Error code -EINVAL will be returned if @start, @offset and @length are not
  * properly aligned. In version 1 (See I915_PARAM_VM_BIND_VERSION), error code

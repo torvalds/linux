@@ -122,7 +122,7 @@ struct kioctx {
 	unsigned long		mmap_base;
 	unsigned long		mmap_size;
 
-	struct page		**ring_pages;
+	struct folio		**ring_folios;
 	long			nr_pages;
 
 	struct rcu_work		free_rwork;	/* see free_ioctx() */
@@ -160,7 +160,7 @@ struct kioctx {
 		spinlock_t	completion_lock;
 	} ____cacheline_aligned_in_smp;
 
-	struct page		*internal_pages[AIO_RING_PAGES];
+	struct folio		*internal_folios[AIO_RING_PAGES];
 	struct file		*aio_ring_file;
 
 	unsigned		id;
@@ -334,19 +334,20 @@ static void aio_free_ring(struct kioctx *ctx)
 	put_aio_ring_file(ctx);
 
 	for (i = 0; i < ctx->nr_pages; i++) {
-		struct page *page;
-		pr_debug("pid(%d) [%d] page->count=%d\n", current->pid, i,
-				page_count(ctx->ring_pages[i]));
-		page = ctx->ring_pages[i];
-		if (!page)
+		struct folio *folio = ctx->ring_folios[i];
+
+		if (!folio)
 			continue;
-		ctx->ring_pages[i] = NULL;
-		put_page(page);
+
+		pr_debug("pid(%d) [%d] folio->count=%d\n", current->pid, i,
+			 folio_ref_count(folio));
+		ctx->ring_folios[i] = NULL;
+		folio_put(folio);
 	}
 
-	if (ctx->ring_pages && ctx->ring_pages != ctx->internal_pages) {
-		kfree(ctx->ring_pages);
-		ctx->ring_pages = NULL;
+	if (ctx->ring_folios && ctx->ring_folios != ctx->internal_folios) {
+		kfree(ctx->ring_folios);
+		ctx->ring_folios = NULL;
 	}
 }
 
@@ -409,17 +410,7 @@ static int aio_migrate_folio(struct address_space *mapping, struct folio *dst,
 	struct kioctx *ctx;
 	unsigned long flags;
 	pgoff_t idx;
-	int rc;
-
-	/*
-	 * We cannot support the _NO_COPY case here, because copy needs to
-	 * happen under the ctx->completion_lock. That does not work with the
-	 * migration workflow of MIGRATE_SYNC_NO_COPY.
-	 */
-	if (mode == MIGRATE_SYNC_NO_COPY)
-		return -EINVAL;
-
-	rc = 0;
+	int rc = 0;
 
 	/* mapping->i_private_lock here protects against the kioctx teardown.  */
 	spin_lock(&mapping->i_private_lock);
@@ -441,7 +432,7 @@ static int aio_migrate_folio(struct address_space *mapping, struct folio *dst,
 	idx = src->index;
 	if (idx < (pgoff_t)ctx->nr_pages) {
 		/* Make sure the old folio hasn't already been changed */
-		if (ctx->ring_pages[idx] != &src->page)
+		if (ctx->ring_folios[idx] != src)
 			rc = -EAGAIN;
 	} else
 		rc = -EINVAL;
@@ -464,9 +455,10 @@ static int aio_migrate_folio(struct address_space *mapping, struct folio *dst,
 	 * events from being lost.
 	 */
 	spin_lock_irqsave(&ctx->completion_lock, flags);
-	folio_migrate_copy(dst, src);
-	BUG_ON(ctx->ring_pages[idx] != &src->page);
-	ctx->ring_pages[idx] = &dst->page;
+	folio_copy(dst, src);
+	folio_migrate_flags(dst, src);
+	BUG_ON(ctx->ring_folios[idx] != src);
+	ctx->ring_folios[idx] = dst;
 	spin_unlock_irqrestore(&ctx->completion_lock, flags);
 
 	/* The old folio is no longer accessible. */
@@ -516,28 +508,30 @@ static int aio_setup_ring(struct kioctx *ctx, unsigned int nr_events)
 	nr_events = (PAGE_SIZE * nr_pages - sizeof(struct aio_ring))
 			/ sizeof(struct io_event);
 
-	ctx->ring_pages = ctx->internal_pages;
+	ctx->ring_folios = ctx->internal_folios;
 	if (nr_pages > AIO_RING_PAGES) {
-		ctx->ring_pages = kcalloc(nr_pages, sizeof(struct page *),
-					  GFP_KERNEL);
-		if (!ctx->ring_pages) {
+		ctx->ring_folios = kcalloc(nr_pages, sizeof(struct folio *),
+					   GFP_KERNEL);
+		if (!ctx->ring_folios) {
 			put_aio_ring_file(ctx);
 			return -ENOMEM;
 		}
 	}
 
 	for (i = 0; i < nr_pages; i++) {
-		struct page *page;
-		page = find_or_create_page(file->f_mapping,
-					   i, GFP_USER | __GFP_ZERO);
-		if (!page)
-			break;
-		pr_debug("pid(%d) page[%d]->count=%d\n",
-			 current->pid, i, page_count(page));
-		SetPageUptodate(page);
-		unlock_page(page);
+		struct folio *folio;
 
-		ctx->ring_pages[i] = page;
+		folio = __filemap_get_folio(file->f_mapping, i,
+					    FGP_LOCK | FGP_ACCESSED | FGP_CREAT,
+					    GFP_USER | __GFP_ZERO);
+		if (IS_ERR(folio))
+			break;
+
+		pr_debug("pid(%d) [%d] folio->count=%d\n", current->pid, i,
+			 folio_ref_count(folio));
+		folio_end_read(folio, true);
+
+		ctx->ring_folios[i] = folio;
 	}
 	ctx->nr_pages = i;
 
@@ -570,7 +564,7 @@ static int aio_setup_ring(struct kioctx *ctx, unsigned int nr_events)
 	ctx->user_id = ctx->mmap_base;
 	ctx->nr_events = nr_events; /* trusted copy */
 
-	ring = page_address(ctx->ring_pages[0]);
+	ring = folio_address(ctx->ring_folios[0]);
 	ring->nr = nr_events;	/* user copy */
 	ring->id = ~0U;
 	ring->head = ring->tail = 0;
@@ -578,7 +572,7 @@ static int aio_setup_ring(struct kioctx *ctx, unsigned int nr_events)
 	ring->compat_features = AIO_RING_COMPAT_FEATURES;
 	ring->incompat_features = AIO_RING_INCOMPAT_FEATURES;
 	ring->header_length = sizeof(struct aio_ring);
-	flush_dcache_page(ctx->ring_pages[0]);
+	flush_dcache_folio(ctx->ring_folios[0]);
 
 	return 0;
 }
@@ -689,9 +683,9 @@ static int ioctx_add_table(struct kioctx *ctx, struct mm_struct *mm)
 
 					/* While kioctx setup is in progress,
 					 * we are protected from page migration
-					 * changes ring_pages by ->ring_lock.
+					 * changes ring_folios by ->ring_lock.
 					 */
-					ring = page_address(ctx->ring_pages[0]);
+					ring = folio_address(ctx->ring_folios[0]);
 					ring->id = ctx->id;
 					return 0;
 				}
@@ -1033,7 +1027,7 @@ static void user_refill_reqs_available(struct kioctx *ctx)
 		 * against ctx->completed_events below will make sure we do the
 		 * safe/right thing.
 		 */
-		ring = page_address(ctx->ring_pages[0]);
+		ring = folio_address(ctx->ring_folios[0]);
 		head = ring->head;
 
 		refill_reqs_available(ctx, head, ctx->tail);
@@ -1145,12 +1139,12 @@ static void aio_complete(struct aio_kiocb *iocb)
 	if (++tail >= ctx->nr_events)
 		tail = 0;
 
-	ev_page = page_address(ctx->ring_pages[pos / AIO_EVENTS_PER_PAGE]);
+	ev_page = folio_address(ctx->ring_folios[pos / AIO_EVENTS_PER_PAGE]);
 	event = ev_page + pos % AIO_EVENTS_PER_PAGE;
 
 	*event = iocb->ki_res;
 
-	flush_dcache_page(ctx->ring_pages[pos / AIO_EVENTS_PER_PAGE]);
+	flush_dcache_folio(ctx->ring_folios[pos / AIO_EVENTS_PER_PAGE]);
 
 	pr_debug("%p[%u]: %p: %p %Lx %Lx %Lx\n", ctx, tail, iocb,
 		 (void __user *)(unsigned long)iocb->ki_res.obj,
@@ -1163,10 +1157,10 @@ static void aio_complete(struct aio_kiocb *iocb)
 
 	ctx->tail = tail;
 
-	ring = page_address(ctx->ring_pages[0]);
+	ring = folio_address(ctx->ring_folios[0]);
 	head = ring->head;
 	ring->tail = tail;
-	flush_dcache_page(ctx->ring_pages[0]);
+	flush_dcache_folio(ctx->ring_folios[0]);
 
 	ctx->completed_events++;
 	if (ctx->completed_events > 1)
@@ -1238,8 +1232,8 @@ static long aio_read_events_ring(struct kioctx *ctx,
 	sched_annotate_sleep();
 	mutex_lock(&ctx->ring_lock);
 
-	/* Access to ->ring_pages here is protected by ctx->ring_lock. */
-	ring = page_address(ctx->ring_pages[0]);
+	/* Access to ->ring_folios here is protected by ctx->ring_lock. */
+	ring = folio_address(ctx->ring_folios[0]);
 	head = ring->head;
 	tail = ring->tail;
 
@@ -1260,20 +1254,20 @@ static long aio_read_events_ring(struct kioctx *ctx,
 	while (ret < nr) {
 		long avail;
 		struct io_event *ev;
-		struct page *page;
+		struct folio *folio;
 
 		avail = (head <= tail ?  tail : ctx->nr_events) - head;
 		if (head == tail)
 			break;
 
 		pos = head + AIO_EVENTS_OFFSET;
-		page = ctx->ring_pages[pos / AIO_EVENTS_PER_PAGE];
+		folio = ctx->ring_folios[pos / AIO_EVENTS_PER_PAGE];
 		pos %= AIO_EVENTS_PER_PAGE;
 
 		avail = min(avail, nr - ret);
 		avail = min_t(long, avail, AIO_EVENTS_PER_PAGE - pos);
 
-		ev = page_address(page);
+		ev = folio_address(folio);
 		copy_ret = copy_to_user(event + ret, ev + pos,
 					sizeof(*ev) * avail);
 
@@ -1287,9 +1281,9 @@ static long aio_read_events_ring(struct kioctx *ctx,
 		head %= ctx->nr_events;
 	}
 
-	ring = page_address(ctx->ring_pages[0]);
+	ring = folio_address(ctx->ring_folios[0]);
 	ring->head = head;
-	flush_dcache_page(ctx->ring_pages[0]);
+	flush_dcache_folio(ctx->ring_folios[0]);
 
 	pr_debug("%li  h%u t%u\n", ret, head, tail);
 out:
@@ -1513,7 +1507,7 @@ static void aio_complete_rw(struct kiocb *kiocb, long res)
 	iocb_put(iocb);
 }
 
-static int aio_prep_rw(struct kiocb *req, const struct iocb *iocb)
+static int aio_prep_rw(struct kiocb *req, const struct iocb *iocb, int rw_type)
 {
 	int ret;
 
@@ -1539,7 +1533,7 @@ static int aio_prep_rw(struct kiocb *req, const struct iocb *iocb)
 	} else
 		req->ki_ioprio = get_current_ioprio();
 
-	ret = kiocb_set_rw_flags(req, iocb->aio_rw_flags);
+	ret = kiocb_set_rw_flags(req, iocb->aio_rw_flags, rw_type);
 	if (unlikely(ret))
 		return ret;
 
@@ -1591,7 +1585,7 @@ static int aio_read(struct kiocb *req, const struct iocb *iocb,
 	struct file *file;
 	int ret;
 
-	ret = aio_prep_rw(req, iocb);
+	ret = aio_prep_rw(req, iocb, READ);
 	if (ret)
 		return ret;
 	file = req->ki_filp;
@@ -1605,7 +1599,7 @@ static int aio_read(struct kiocb *req, const struct iocb *iocb,
 		return ret;
 	ret = rw_verify_area(READ, file, &req->ki_pos, iov_iter_count(&iter));
 	if (!ret)
-		aio_rw_done(req, call_read_iter(file, req, &iter));
+		aio_rw_done(req, file->f_op->read_iter(req, &iter));
 	kfree(iovec);
 	return ret;
 }
@@ -1618,7 +1612,7 @@ static int aio_write(struct kiocb *req, const struct iocb *iocb,
 	struct file *file;
 	int ret;
 
-	ret = aio_prep_rw(req, iocb);
+	ret = aio_prep_rw(req, iocb, WRITE);
 	if (ret)
 		return ret;
 	file = req->ki_filp;
@@ -1636,7 +1630,7 @@ static int aio_write(struct kiocb *req, const struct iocb *iocb,
 		if (S_ISREG(file_inode(file)->i_mode))
 			kiocb_start_write(req);
 		req->ki_flags |= IOCB_WRITE;
-		aio_rw_done(req, call_write_iter(file, req, &iter));
+		aio_rw_done(req, file->f_op->write_iter(req, &iter));
 	}
 	kfree(iovec);
 	return ret;

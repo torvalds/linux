@@ -154,14 +154,6 @@ static struct hv_util_service util_vss = {
 	.util_deinit = hv_vss_deinit,
 };
 
-static struct hv_util_service util_fcopy = {
-	.util_cb = hv_fcopy_onchannelcallback,
-	.util_init = hv_fcopy_init,
-	.util_pre_suspend = hv_fcopy_pre_suspend,
-	.util_pre_resume = hv_fcopy_pre_resume,
-	.util_deinit = hv_fcopy_deinit,
-};
-
 static void perform_shutdown(struct work_struct *dummy)
 {
 	orderly_poweroff(true);
@@ -699,10 +691,6 @@ static const struct hv_vmbus_device_id id_table[] = {
 	/* VSS GUID */
 	{ HV_VSS_GUID,
 	  .driver_data = (unsigned long)&util_vss
-	},
-	/* File copy GUID */
-	{ HV_FCOPY_GUID,
-	  .driver_data = (unsigned long)&util_fcopy
 	},
 	{ },
 };

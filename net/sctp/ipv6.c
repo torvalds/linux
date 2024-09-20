@@ -415,7 +415,7 @@ out:
 	if (!IS_ERR_OR_NULL(dst)) {
 		struct rt6_info *rt;
 
-		rt = (struct rt6_info *)dst;
+		rt = dst_rt6_info(dst);
 		t->dst_cookie = rt6_get_cookie(rt);
 		pr_debug("rt6_dst:%pI6/%d rt6_src:%pI6\n",
 			 &rt->rt6i_dst.addr, rt->rt6i_dst.plen,

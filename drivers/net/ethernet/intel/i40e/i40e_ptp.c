@@ -1472,7 +1472,8 @@ void i40e_ptp_restore_hw_time(struct i40e_pf *pf)
  **/
 void i40e_ptp_init(struct i40e_pf *pf)
 {
-	struct net_device *netdev = pf->vsi[pf->lan_vsi]->netdev;
+	struct i40e_vsi *vsi = i40e_pf_get_main_vsi(pf);
+	struct net_device *netdev = vsi->netdev;
 	struct i40e_hw *hw = &pf->hw;
 	u32 pf_id;
 	long err;
@@ -1536,6 +1537,7 @@ void i40e_ptp_init(struct i40e_pf *pf)
  **/
 void i40e_ptp_stop(struct i40e_pf *pf)
 {
+	struct i40e_vsi *main_vsi = i40e_pf_get_main_vsi(pf);
 	struct i40e_hw *hw = &pf->hw;
 	u32 regval;
 
@@ -1555,7 +1557,7 @@ void i40e_ptp_stop(struct i40e_pf *pf)
 		ptp_clock_unregister(pf->ptp_clock);
 		pf->ptp_clock = NULL;
 		dev_info(&pf->pdev->dev, "%s: removed PHC on %s\n", __func__,
-			 pf->vsi[pf->lan_vsi]->netdev->name);
+			 main_vsi->netdev->name);
 	}
 
 	if (i40e_is_ptp_pin_dev(&pf->hw)) {

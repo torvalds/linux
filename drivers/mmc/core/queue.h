@@ -94,7 +94,8 @@ struct mmc_queue {
 	struct work_struct	complete_work;
 };
 
-struct gendisk *mmc_init_queue(struct mmc_queue *mq, struct mmc_card *card);
+struct gendisk *mmc_init_queue(struct mmc_queue *mq, struct mmc_card *card,
+		unsigned int features);
 extern void mmc_cleanup_queue(struct mmc_queue *);
 extern void mmc_queue_suspend(struct mmc_queue *);
 extern void mmc_queue_resume(struct mmc_queue *);

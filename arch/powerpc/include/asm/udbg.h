@@ -44,7 +44,6 @@ void __init udbg_init_rtas_panel(void);
 void __init udbg_init_rtas_console(void);
 void __init udbg_init_btext(void);
 void __init udbg_init_44x_as1(void);
-void __init udbg_init_40x_realmode(void);
 void __init udbg_init_cpm(void);
 void __init udbg_init_usbgecko(void);
 void __init udbg_init_memcons(void);

@@ -227,13 +227,13 @@ static int sprd_tx_buf_remap(struct uart_port *port)
 {
 	struct sprd_uart_port *sp =
 		container_of(port, struct sprd_uart_port, port);
-	struct circ_buf *xmit = &port->state->xmit;
+	struct tty_port *tport = &port->state->port;
+	unsigned char *tail;
 
-	sp->tx_dma.trans_len =
-		CIRC_CNT_TO_END(xmit->head, xmit->tail, UART_XMIT_SIZE);
+	sp->tx_dma.trans_len = kfifo_out_linear_ptr(&tport->xmit_fifo, &tail,
+			UART_XMIT_SIZE);
 
-	sp->tx_dma.phys_addr = dma_map_single(port->dev,
-					      (void *)&(xmit->buf[xmit->tail]),
+	sp->tx_dma.phys_addr = dma_map_single(port->dev, tail,
 					      sp->tx_dma.trans_len,
 					      DMA_TO_DEVICE);
 	return dma_mapping_error(port->dev, sp->tx_dma.phys_addr);
@@ -244,7 +244,7 @@ static void sprd_complete_tx_dma(void *data)
 	struct uart_port *port = (struct uart_port *)data;
 	struct sprd_uart_port *sp =
 		container_of(port, struct sprd_uart_port, port);
-	struct circ_buf *xmit = &port->state->xmit;
+	struct tty_port *tport = &port->state->port;
 	unsigned long flags;
 
 	uart_port_lock_irqsave(port, &flags);
@@ -253,10 +253,10 @@ static void sprd_complete_tx_dma(void *data)
 
 	uart_xmit_advance(port, sp->tx_dma.trans_len);
 
-	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
+	if (kfifo_len(&tport->xmit_fifo) < WAKEUP_CHARS)
 		uart_write_wakeup(port);
 
-	if (uart_circ_empty(xmit) || sprd_tx_buf_remap(port) ||
+	if (kfifo_is_empty(&tport->xmit_fifo) || sprd_tx_buf_remap(port) ||
 	    sprd_tx_dma_config(port))
 		sp->tx_dma.trans_len = 0;
 
@@ -319,7 +319,7 @@ static void sprd_start_tx_dma(struct uart_port *port)
 {
 	struct sprd_uart_port *sp =
 		container_of(port, struct sprd_uart_port, port);
-	struct circ_buf *xmit = &port->state->xmit;
+	struct tty_port *tport = &port->state->port;
 
 	if (port->x_char) {
 		serial_out(port, SPRD_TXD, port->x_char);
@@ -328,7 +328,7 @@ static void sprd_start_tx_dma(struct uart_port *port)
 		return;
 	}
 
-	if (uart_circ_empty(xmit) || uart_tx_stopped(port)) {
+	if (kfifo_is_empty(&tport->xmit_fifo) || uart_tx_stopped(port)) {
 		sprd_stop_tx_dma(port);
 		return;
 	}

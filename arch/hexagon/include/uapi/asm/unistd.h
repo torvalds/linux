@@ -27,14 +27,7 @@
  *  See also:  syscalltab.c
  */
 
-#define sys_mmap2 sys_mmap_pgoff
-#define __ARCH_WANT_RENAMEAT
-#define __ARCH_WANT_STAT64
-#define __ARCH_WANT_SET_GET_RLIMIT
-#define __ARCH_WANT_SYS_EXECVE
-#define __ARCH_WANT_SYS_CLONE
-#define __ARCH_WANT_SYS_VFORK
-#define __ARCH_WANT_SYS_FORK
-#define __ARCH_WANT_TIME32_SYSCALLS
+#include <asm/unistd_32.h>
 
-#include <asm-generic/unistd.h>
+#define __NR_sync_file_range2 84
+#undef __NR_sync_file_range

@@ -577,7 +577,7 @@ static int xgbe_set_rxfh(struct net_device *netdev,
 }
 
 static int xgbe_get_ts_info(struct net_device *netdev,
-			    struct ethtool_ts_info *ts_info)
+			    struct kernel_ethtool_ts_info *ts_info)
 {
 	struct xgbe_prv_data *pdata = netdev_priv(netdev);
 

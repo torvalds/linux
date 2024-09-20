@@ -39,13 +39,12 @@ static LIST_HEAD(scsi_dev_info_list);
 static char scsi_dev_flags[256];
 
 /*
- * scsi_static_device_list: deprecated list of devices that require
- * settings that differ from the default, includes black-listed (broken)
- * devices. The entries here are added to the tail of scsi_dev_info_list
- * via scsi_dev_info_list_init.
+ * scsi_static_device_list: list of devices that require settings that differ
+ * from the default, includes black-listed (broken) devices. The entries here
+ * are added to the tail of scsi_dev_info_list via scsi_dev_info_list_init.
  *
- * Do not add to this list, use the command line or proc interface to add
- * to the scsi_dev_info_list. This table will eventually go away.
+ * If possible, set the BLIST_* flags from inside a SCSI LLD rather than
+ * adding an entry to this list.
  */
 static struct {
 	char *vendor;
@@ -293,14 +292,16 @@ static void scsi_strcpy_devinfo(char *name, char *to, size_t to_length,
 	size_t from_length;
 
 	from_length = strlen(from);
-	/* This zero-pads the destination */
-	strncpy(to, from, to_length);
-	if (from_length < to_length && !compatible) {
-		/*
-		 * space pad the string if it is short.
-		 */
-		memset(&to[from_length], ' ', to_length - from_length);
-	}
+
+	/*
+	 * null pad and null terminate if compatible
+	 * otherwise space pad
+	 */
+	if (compatible)
+		strscpy_pad(to, from, to_length);
+	else
+		memcpy_and_pad(to, to_length, from, from_length, ' ');
+
 	if (from_length > to_length)
 		 printk(KERN_WARNING "%s: %s string '%s' is too long\n",
 			__func__, name, from);

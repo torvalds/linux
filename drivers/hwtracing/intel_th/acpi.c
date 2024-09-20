@@ -60,18 +60,16 @@ static int intel_th_acpi_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int intel_th_acpi_remove(struct platform_device *pdev)
+static void intel_th_acpi_remove(struct platform_device *pdev)
 {
 	struct intel_th *th = platform_get_drvdata(pdev);
 
 	intel_th_free(th);
-
-	return 0;
 }
 
 static struct platform_driver intel_th_acpi_driver = {
 	.probe		= intel_th_acpi_probe,
-	.remove		= intel_th_acpi_remove,
+	.remove_new	= intel_th_acpi_remove,
 	.driver		= {
 		.name			= DRIVER_NAME,
 		.acpi_match_table	= intel_th_acpi_ids,

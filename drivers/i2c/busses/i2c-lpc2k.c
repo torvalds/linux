@@ -50,7 +50,7 @@
 
 /*
  * 26 possible I2C status codes, but codes applicable only
- * to master are listed here and used in this driver
+ * to controller mode are listed here and used in this driver
  */
 enum {
 	M_BUS_ERROR		= 0x00,
@@ -157,7 +157,7 @@ static void i2c_lpc2k_pump_msg(struct lpc2k_i2c *i2c)
 		break;
 
 	case MR_ADDR_R_ACK:
-		/* Receive first byte from slave */
+		/* Receive first byte from target */
 		if (i2c->msg->len == 1) {
 			/* Last byte, return NACK */
 			writel(LPC24XX_AA, i2c->base + LPC24XX_I2CONCLR);
@@ -196,7 +196,7 @@ static void i2c_lpc2k_pump_msg(struct lpc2k_i2c *i2c)
 		}
 
 		/*
-		 * One pre-last data input, send NACK to tell the slave that
+		 * One pre-last data input, send NACK to tell the target that
 		 * this is going to be the last data byte to be transferred.
 		 */
 		if (i2c->msg_idx >= i2c->msg->len - 2) {
@@ -338,8 +338,8 @@ static u32 i2c_lpc2k_functionality(struct i2c_adapter *adap)
 }
 
 static const struct i2c_algorithm i2c_lpc2k_algorithm = {
-	.master_xfer	= i2c_lpc2k_xfer,
-	.functionality	= i2c_lpc2k_functionality,
+	.xfer = i2c_lpc2k_xfer,
+	.functionality = i2c_lpc2k_functionality,
 };
 
 static int i2c_lpc2k_probe(struct platform_device *pdev)

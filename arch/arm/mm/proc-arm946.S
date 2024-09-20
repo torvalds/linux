@@ -8,6 +8,7 @@
  */
 #include <linux/linkage.h>
 #include <linux/init.h>
+#include <linux/cfi_types.h>
 #include <linux/pgtable.h>
 #include <asm/assembler.h>
 #include <asm/hwcap.h>
@@ -32,19 +33,24 @@
  *
  * These are not required.
  */
-ENTRY(cpu_arm946_proc_init)
-ENTRY(cpu_arm946_switch_mm)
+SYM_TYPED_FUNC_START(cpu_arm946_proc_init)
 	ret	lr
+SYM_FUNC_END(cpu_arm946_proc_init)
+
+SYM_TYPED_FUNC_START(cpu_arm946_switch_mm)
+	ret	lr
+SYM_FUNC_END(cpu_arm946_switch_mm)
 
 /*
  * cpu_arm946_proc_fin()
  */
-ENTRY(cpu_arm946_proc_fin)
+SYM_TYPED_FUNC_START(cpu_arm946_proc_fin)
 	mrc	p15, 0, r0, c1, c0, 0		@ ctrl register
 	bic	r0, r0, #0x00001000		@ i-cache
 	bic	r0, r0, #0x00000004		@ d-cache
 	mcr	p15, 0, r0, c1, c0, 0		@ disable caches
 	ret	lr
+SYM_FUNC_END(cpu_arm946_proc_fin)
 
 /*
  * cpu_arm946_reset(loc)
@@ -52,7 +58,7 @@ ENTRY(cpu_arm946_proc_fin)
  * Notes   : This sets up everything for a reset
  */
 	.pushsection	.idmap.text, "ax"
-ENTRY(cpu_arm946_reset)
+SYM_TYPED_FUNC_START(cpu_arm946_reset)
 	mov	ip, #0
 	mcr	p15, 0, ip, c7, c5, 0		@ flush I cache
 	mcr	p15, 0, ip, c7, c6, 0		@ flush D cache
@@ -62,40 +68,40 @@ ENTRY(cpu_arm946_reset)
 	bic	ip, ip, #0x00001000		@ i-cache
 	mcr	p15, 0, ip, c1, c0, 0		@ ctrl register
 	ret	r0
-ENDPROC(cpu_arm946_reset)
+SYM_FUNC_END(cpu_arm946_reset)
 	.popsection
 
 /*
  * cpu_arm946_do_idle()
  */
 	.align	5
-ENTRY(cpu_arm946_do_idle)
+SYM_TYPED_FUNC_START(cpu_arm946_do_idle)
 	mcr	p15, 0, r0, c7, c0, 4		@ Wait for interrupt
 	ret	lr
+SYM_FUNC_END(cpu_arm946_do_idle)
 
 /*
  *	flush_icache_all()
  *
  *	Unconditionally clean and invalidate the entire icache.
  */
-ENTRY(arm946_flush_icache_all)
+SYM_TYPED_FUNC_START(arm946_flush_icache_all)
 	mov	r0, #0
 	mcr	p15, 0, r0, c7, c5, 0		@ invalidate I cache
 	ret	lr
-ENDPROC(arm946_flush_icache_all)
+SYM_FUNC_END(arm946_flush_icache_all)
 
 /*
  *	flush_user_cache_all()
  */
-ENTRY(arm946_flush_user_cache_all)
-	/* FALLTHROUGH */
+SYM_FUNC_ALIAS(arm946_flush_user_cache_all, arm946_flush_kern_cache_all)
 
 /*
  *	flush_kern_cache_all()
  *
  *	Clean and invalidate the entire cache.
  */
-ENTRY(arm946_flush_kern_cache_all)
+SYM_TYPED_FUNC_START(arm946_flush_kern_cache_all)
 	mov	r2, #VM_EXEC
 	mov	ip, #0
 __flush_whole_cache:
@@ -114,6 +120,7 @@ __flush_whole_cache:
 	mcrne	p15, 0, ip, c7, c5, 0		@ flush I cache
 	mcrne	p15, 0, ip, c7, c10, 4		@ drain WB
 	ret	lr
+SYM_FUNC_END(arm946_flush_kern_cache_all)
 
 /*
  *	flush_user_cache_range(start, end, flags)
@@ -126,7 +133,7 @@ __flush_whole_cache:
  *	- flags	- vm_flags describing address space
  * (same as arm926)
  */
-ENTRY(arm946_flush_user_cache_range)
+SYM_TYPED_FUNC_START(arm946_flush_user_cache_range)
 	mov	ip, #0
 	sub	r3, r1, r0			@ calculate total size
 	cmp	r3, #CACHE_DLIMIT
@@ -153,6 +160,7 @@ ENTRY(arm946_flush_user_cache_range)
 	tst	r2, #VM_EXEC
 	mcrne	p15, 0, ip, c7, c10, 4		@ drain WB
 	ret	lr
+SYM_FUNC_END(arm946_flush_user_cache_range)
 
 /*
  *	coherent_kern_range(start, end)
@@ -164,8 +172,11 @@ ENTRY(arm946_flush_user_cache_range)
  *	- start	- virtual start address
  *	- end	- virtual end address
  */
-ENTRY(arm946_coherent_kern_range)
-	/* FALLTHROUGH */
+SYM_TYPED_FUNC_START(arm946_coherent_kern_range)
+#ifdef CONFIG_CFI_CLANG /* Fallthrough if !CFI */
+	b	arm946_coherent_user_range
+#endif
+SYM_FUNC_END(arm946_coherent_kern_range)
 
 /*
  *	coherent_user_range(start, end)
@@ -178,7 +189,7 @@ ENTRY(arm946_coherent_kern_range)
  *	- end	- virtual end address
  * (same as arm926)
  */
-ENTRY(arm946_coherent_user_range)
+SYM_TYPED_FUNC_START(arm946_coherent_user_range)
 	bic	r0, r0, #CACHE_DLINESIZE - 1
 1:	mcr	p15, 0, r0, c7, c10, 1		@ clean D entry
 	mcr	p15, 0, r0, c7, c5, 1		@ invalidate I entry
@@ -188,6 +199,7 @@ ENTRY(arm946_coherent_user_range)
 	mcr	p15, 0, r0, c7, c10, 4		@ drain WB
 	mov	r0, #0
 	ret	lr
+SYM_FUNC_END(arm946_coherent_user_range)
 
 /*
  *	flush_kern_dcache_area(void *addr, size_t size)
@@ -199,7 +211,7 @@ ENTRY(arm946_coherent_user_range)
  *	- size	- region size
  * (same as arm926)
  */
-ENTRY(arm946_flush_kern_dcache_area)
+SYM_TYPED_FUNC_START(arm946_flush_kern_dcache_area)
 	add	r1, r0, r1
 1:	mcr	p15, 0, r0, c7, c14, 1		@ clean+invalidate D entry
 	add	r0, r0, #CACHE_DLINESIZE
@@ -209,6 +221,7 @@ ENTRY(arm946_flush_kern_dcache_area)
 	mcr	p15, 0, r0, c7, c5, 0		@ invalidate I cache
 	mcr	p15, 0, r0, c7, c10, 4		@ drain WB
 	ret	lr
+SYM_FUNC_END(arm946_flush_kern_dcache_area)
 
 /*
  *	dma_inv_range(start, end)
@@ -268,7 +281,7 @@ arm946_dma_clean_range:
  *
  * (same as arm926)
  */
-ENTRY(arm946_dma_flush_range)
+SYM_TYPED_FUNC_START(arm946_dma_flush_range)
 	bic	r0, r0, #CACHE_DLINESIZE - 1
 1:
 #ifndef CONFIG_CPU_DCACHE_WRITETHROUGH
@@ -281,6 +294,7 @@ ENTRY(arm946_dma_flush_range)
 	blo	1b
 	mcr	p15, 0, r0, c7, c10, 4		@ drain WB
 	ret	lr
+SYM_FUNC_END(arm946_dma_flush_range)
 
 /*
  *	dma_map_area(start, size, dir)
@@ -288,13 +302,13 @@ ENTRY(arm946_dma_flush_range)
  *	- size	- size of region
  *	- dir	- DMA direction
  */
-ENTRY(arm946_dma_map_area)
+SYM_TYPED_FUNC_START(arm946_dma_map_area)
 	add	r1, r1, r0
 	cmp	r2, #DMA_TO_DEVICE
 	beq	arm946_dma_clean_range
 	bcs	arm946_dma_inv_range
 	b	arm946_dma_flush_range
-ENDPROC(arm946_dma_map_area)
+SYM_FUNC_END(arm946_dma_map_area)
 
 /*
  *	dma_unmap_area(start, size, dir)
@@ -302,17 +316,11 @@ ENDPROC(arm946_dma_map_area)
  *	- size	- size of region
  *	- dir	- DMA direction
  */
-ENTRY(arm946_dma_unmap_area)
+SYM_TYPED_FUNC_START(arm946_dma_unmap_area)
 	ret	lr
-ENDPROC(arm946_dma_unmap_area)
+SYM_FUNC_END(arm946_dma_unmap_area)
 
-	.globl	arm946_flush_kern_cache_louis
-	.equ	arm946_flush_kern_cache_louis, arm946_flush_kern_cache_all
-
-	@ define struct cpu_cache_fns (see <asm/cacheflush.h> and proc-macros.S)
-	define_cache_functions arm946
-
-ENTRY(cpu_arm946_dcache_clean_area)
+SYM_TYPED_FUNC_START(cpu_arm946_dcache_clean_area)
 #ifndef CONFIG_CPU_DCACHE_WRITETHROUGH
 1:	mcr	p15, 0, r0, c7, c10, 1		@ clean D entry
 	add	r0, r0, #CACHE_DLINESIZE
@@ -321,6 +329,7 @@ ENTRY(cpu_arm946_dcache_clean_area)
 #endif
 	mcr	p15, 0, r0, c7, c10, 4		@ drain WB
 	ret	lr
+SYM_FUNC_END(cpu_arm946_dcache_clean_area)
 
 	.type	__arm946_setup, #function
 __arm946_setup:

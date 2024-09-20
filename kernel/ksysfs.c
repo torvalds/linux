@@ -92,7 +92,14 @@ static ssize_t profiling_store(struct kobject *kobj,
 				   const char *buf, size_t count)
 {
 	int ret;
+	static DEFINE_MUTEX(lock);
 
+	/*
+	 * We need serialization, for profile_setup() initializes prof_on
+	 * value and profile_init() must not reallocate prof_buffer after
+	 * once allocated.
+	 */
+	guard(mutex)(&lock);
 	if (prof_on)
 		return -EEXIST;
 	/*
@@ -228,8 +235,8 @@ KERNEL_ATTR_RW(rcu_normal);
 /*
  * Make /sys/kernel/notes give the raw contents of our kernel .notes section.
  */
-extern const void __start_notes __weak;
-extern const void __stop_notes __weak;
+extern const void __start_notes;
+extern const void __stop_notes;
 #define	notes_size (&__stop_notes - &__start_notes)
 
 static ssize_t notes_read(struct file *filp, struct kobject *kobj,

@@ -215,7 +215,7 @@ efi_status_t efivar_set_variable_locked(efi_char16_t *name, efi_guid_t *vendor,
 
 	if (data_size > 0) {
 		status = check_var_size(nonblocking, attr,
-					data_size + ucs2_strsize(name, 1024));
+					data_size + ucs2_strsize(name, EFI_VAR_NAME_LEN));
 		if (status != EFI_SUCCESS)
 			return status;
 	}

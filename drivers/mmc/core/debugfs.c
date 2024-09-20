@@ -351,11 +351,11 @@ void mmc_add_host_debugfs(struct mmc_host *host)
 	root = debugfs_create_dir(mmc_hostname(host), NULL);
 	host->debugfs_root = root;
 
-	debugfs_create_file("ios", S_IRUSR, root, host, &mmc_ios_fops);
+	debugfs_create_file("ios", 0400, root, host, &mmc_ios_fops);
 	debugfs_create_file("caps", 0600, root, &host->caps, &mmc_caps_fops);
 	debugfs_create_file("caps2", 0600, root, &host->caps2,
 			    &mmc_caps2_fops);
-	debugfs_create_file_unsafe("clock", S_IRUSR | S_IWUSR, root, host,
+	debugfs_create_file_unsafe("clock", 0600, root, host,
 				   &mmc_clock_fops);
 
 	debugfs_create_file_unsafe("err_state", 0600, root, host,
@@ -388,7 +388,8 @@ void mmc_add_card_debugfs(struct mmc_card *card)
 	root = debugfs_create_dir(mmc_card_id(card), host->debugfs_root);
 	card->debugfs_root = root;
 
-	debugfs_create_x32("state", S_IRUSR, root, &card->state);
+	debugfs_create_x32("state", 0400, root, &card->state);
+	debugfs_create_x32("quirks", 0400, root, &card->quirks);
 }
 
 void mmc_remove_card_debugfs(struct mmc_card *card)

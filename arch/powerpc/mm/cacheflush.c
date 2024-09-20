@@ -78,7 +78,7 @@ EXPORT_SYMBOL(flush_icache_range);
 
 #ifdef CONFIG_HIGHMEM
 /**
- * flush_dcache_icache_phys() - Flush a page by it's physical address
+ * flush_dcache_icache_phys() - Flush a page by its physical address
  * @physaddr: the physical address of the page
  */
 static void flush_dcache_icache_phys(unsigned long physaddr)

@@ -181,8 +181,6 @@ static int jpeg_v4_0_hw_init(void *handle)
 			return r;
 	}
 
-	DRM_DEV_INFO(adev->dev, "JPEG decode initialized successfully.\n");
-
 	return 0;
 }
 
@@ -719,6 +717,8 @@ static const struct amd_ip_funcs jpeg_v4_0_ip_funcs = {
 	.post_soft_reset = NULL,
 	.set_clockgating_state = jpeg_v4_0_set_clockgating_state,
 	.set_powergating_state = jpeg_v4_0_set_powergating_state,
+	.dump_ip_state = NULL,
+	.print_ip_state = NULL,
 };
 
 static const struct amdgpu_ring_funcs jpeg_v4_0_dec_ring_vm_funcs = {
@@ -753,7 +753,6 @@ static const struct amdgpu_ring_funcs jpeg_v4_0_dec_ring_vm_funcs = {
 static void jpeg_v4_0_set_dec_ring_funcs(struct amdgpu_device *adev)
 {
 	adev->jpeg.inst->ring_dec->funcs = &jpeg_v4_0_dec_ring_vm_funcs;
-	DRM_DEV_INFO(adev->dev, "JPEG decode is enabled in VM mode\n");
 }
 
 static const struct amdgpu_irq_src_funcs jpeg_v4_0_irq_funcs = {

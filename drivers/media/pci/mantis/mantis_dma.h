@@ -13,6 +13,6 @@ extern int mantis_dma_init(struct mantis_pci *mantis);
 extern int mantis_dma_exit(struct mantis_pci *mantis);
 extern void mantis_dma_start(struct mantis_pci *mantis);
 extern void mantis_dma_stop(struct mantis_pci *mantis);
-extern void mantis_dma_xfer(struct tasklet_struct *t);
+extern void mantis_dma_xfer(struct work_struct *t);
 
 #endif /* __MANTIS_DMA_H */

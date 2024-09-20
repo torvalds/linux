@@ -62,6 +62,9 @@
 #include "dcn20/dcn20_vmid.h"
 #include "dce/dce_panel_cntl.h"
 
+#include "dcn20/dcn20_dwb.h"
+#include "dcn20/dcn20_mmhubbub.h"
+
 #include "navi10_ip_offset.h"
 
 #include "dcn/dcn_2_0_0_offset.h"
@@ -70,9 +73,6 @@
 #include "dpcs/dpcs_2_0_0_sh_mask.h"
 
 #include "nbio/nbio_2_3_offset.h"
-
-#include "dcn20/dcn20_dwb.h"
-#include "dcn20/dcn20_mmhubbub.h"
 
 #include "mmhub/mmhub_2_0_0_offset.h"
 #include "mmhub/mmhub_2_0_0_sh_mask.h"
@@ -83,11 +83,10 @@
 #include "dce/dce_aux.h"
 #include "dce/dce_i2c.h"
 #include "vm_helper.h"
+
 #include "link_enc_cfg.h"
-
-#include "amdgpu_socbb.h"
-
 #include "link.h"
+
 #define DC_LOGGER_INIT(logger)
 
 #ifndef mmDP0_DP_DPHY_INTERNAL_CTRL
@@ -1252,7 +1251,7 @@ static void get_pixel_clock_parameters(
 
 	if (opp_cnt == 4)
 		pixel_clk_params->requested_pix_clk_100hz /= 4;
-	else if (optc2_is_two_pixels_per_containter(&stream->timing) || opp_cnt == 2)
+	else if (pipe_ctx->stream_res.tg->funcs->is_two_pixels_per_container(&stream->timing) || opp_cnt == 2)
 		pixel_clk_params->requested_pix_clk_100hz /= 2;
 	else if (hws->funcs.is_dp_dig_pixel_rate_div_policy) {
 		if (hws->funcs.is_dp_dig_pixel_rate_div_policy(pipe_ctx))
@@ -1262,6 +1261,15 @@ static void get_pixel_clock_parameters(
 	if (stream->timing.timing_3d_format == TIMING_3D_FORMAT_HW_FRAME_PACKING)
 		pixel_clk_params->requested_pix_clk_100hz *= 2;
 
+	if ((pipe_ctx->stream_res.tg->funcs->is_two_pixels_per_container &&
+			pipe_ctx->stream_res.tg->funcs->is_two_pixels_per_container(&pipe_ctx->stream->timing)) ||
+			(hws->funcs.is_dp_dig_pixel_rate_div_policy &&
+			hws->funcs.is_dp_dig_pixel_rate_div_policy(pipe_ctx)) ||
+			opp_cnt > 1) {
+		pixel_clk_params->dio_se_pix_per_cycle = 2;
+	} else {
+		pixel_clk_params->dio_se_pix_per_cycle = 1;
+	}
 }
 
 static void build_clamping_params(struct dc_stream_state *stream)
@@ -1282,8 +1290,13 @@ void dcn20_build_pipe_pix_clk_params(struct pipe_ctx *pipe_ctx)
 
 static enum dc_status build_pipe_hw_param(struct pipe_ctx *pipe_ctx)
 {
+	struct resource_pool *pool = pipe_ctx->stream->ctx->dc->res_pool;
 
-	dcn20_build_pipe_pix_clk_params(pipe_ctx);
+	if (pool->funcs->build_pipe_pix_clk_params) {
+		pool->funcs->build_pipe_pix_clk_params(pipe_ctx);
+	} else {
+		dcn20_build_pipe_pix_clk_params(pipe_ctx);
+	}
 
 	pipe_ctx->stream->clamping.pixel_encoding = pipe_ctx->stream->timing.pixel_encoding;
 
@@ -1599,7 +1612,7 @@ unsigned int dcn20_calc_max_scaled_time(
 	if (time_per_byte == 0)
 		time_per_byte = 1;
 
-	small_free_entry  = (total_y_free_entry > total_c_free_entry) ? total_c_free_entry : total_y_free_entry;
+	small_free_entry  = total_c_free_entry;
 	max_free_entry    = (mode == PACKED_444) ? total_y_free_entry + total_c_free_entry : small_free_entry;
 	buf_lh_capability = max_free_entry*time_per_byte*32/16; /* there is 4bit fraction */
 	max_scaled_time   = buf_lh_capability - urgent_watermark;
@@ -1653,8 +1666,6 @@ void dcn20_set_mcif_arb_params(
 			if (dwb_pipe >= MAX_DWB_PIPES)
 				return;
 		}
-		if (dwb_pipe >= MAX_DWB_PIPES)
-			return;
 	}
 }
 
@@ -2189,10 +2200,11 @@ bool dcn20_get_dcc_compression_cap(const struct dc *dc,
 		const struct dc_dcc_surface_param *input,
 		struct dc_surface_dcc_cap *output)
 {
-	return dc->res_pool->hubbub->funcs->get_dcc_compression_cap(
-			dc->res_pool->hubbub,
-			input,
-			output);
+	if (dc->res_pool->hubbub->funcs->get_dcc_compression_cap)
+		return dc->res_pool->hubbub->funcs->get_dcc_compression_cap(
+			dc->res_pool->hubbub, input, output);
+
+	return false;
 }
 
 static void dcn20_destroy_resource_pool(struct resource_pool **pool)
@@ -2336,7 +2348,6 @@ static struct _vcs_dpi_soc_bounding_box_st *get_asic_rev_soc_bb(
 static struct _vcs_dpi_ip_params_st *get_asic_rev_ip_params(
 	uint32_t hw_internal_rev)
 {
-	/* NV14 */
 	if (ASICREV_IS_NAVI14_M(hw_internal_rev))
 		return &dcn2_0_nv14_ip;
 
@@ -2618,7 +2629,7 @@ static bool dcn20_resource_construct(
 		ranges.writer_wm_sets[0].max_drain_clk_mhz = PP_SMU_WM_SET_RANGE_CLK_UNCONSTRAINED_MAX;
 
 		/* Notify PP Lib/SMU which Watermarks to use for which clock ranges */
-		if (pool->base.pp_smu->nv_funcs.set_wm_ranges)
+		if (pool->base.pp_smu && pool->base.pp_smu->nv_funcs.set_wm_ranges)
 			pool->base.pp_smu->nv_funcs.set_wm_ranges(&pool->base.pp_smu->nv_funcs.pp_smu, &ranges);
 	}
 

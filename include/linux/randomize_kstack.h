@@ -32,13 +32,19 @@ DECLARE_PER_CPU(u32, kstack_offset);
 #endif
 
 /*
- * Use, at most, 10 bits of entropy. We explicitly cap this to keep the
- * "VLA" from being unbounded (see above). 10 bits leaves enough room for
- * per-arch offset masks to reduce entropy (by removing higher bits, since
- * high entropy may overly constrain usable stack space), and for
- * compiler/arch-specific stack alignment to remove the lower bits.
+ * Use, at most, 6 bits of entropy (on 64-bit; 8 on 32-bit). This cap is
+ * to keep the "VLA" from being unbounded (see above). Additionally clear
+ * the bottom 4 bits (on 64-bit systems, 2 for 32-bit), since stack
+ * alignment will always be at least word size. This makes the compiler
+ * code gen better when it is applying the actual per-arch alignment to
+ * the final offset. The resulting randomness is reasonable without overly
+ * constraining usable stack space.
  */
-#define KSTACK_OFFSET_MAX(x)	((x) & 0x3FF)
+#ifdef CONFIG_64BIT
+#define KSTACK_OFFSET_MAX(x)	((x) & 0b1111110000)
+#else
+#define KSTACK_OFFSET_MAX(x)	((x) & 0b1111111100)
+#endif
 
 /**
  * add_random_kstack_offset - Increase stack utilization by previously

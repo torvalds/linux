@@ -252,9 +252,8 @@ static void aca_free_rcu(struct rcu_head *h)
 
 static void aca_put(struct ifacaddr6 *ac)
 {
-	if (refcount_dec_and_test(&ac->aca_refcnt)) {
-		call_rcu(&ac->rcu, aca_free_rcu);
-	}
+	if (refcount_dec_and_test(&ac->aca_refcnt))
+		call_rcu_hurry(&ac->rcu, aca_free_rcu);
 }
 
 static struct ifacaddr6 *aca_alloc(struct fib6_info *f6i,

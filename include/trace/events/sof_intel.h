@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright(c) 2022 Intel Corporation. All rights reserved.
+ * Copyright(c) 2022 Intel Corporation
  *
  * Author: Noah Klayman <noah.klayman@intel.com>
  */
@@ -22,8 +22,8 @@ TRACE_EVENT(sof_intel_hda_irq,
 		__string(source, source)
 	),
 	TP_fast_assign(
-		__assign_str(device_name, dev_name(sdev->dev));
-		__assign_str(source, source);
+		__assign_str(device_name);
+		__assign_str(source);
 	),
 	TP_printk("device_name=%s source=%s",
 		  __get_str(device_name), __get_str(source))
@@ -38,7 +38,7 @@ DECLARE_EVENT_CLASS(sof_intel_ipc_firmware_template,
 		__field(u32, msg_ext)
 	),
 	TP_fast_assign(
-		__assign_str(device_name, dev_name(sdev->dev));
+		__assign_str(device_name);
 		__entry->msg = msg;
 		__entry->msg_ext = msg_ext;
 	),
@@ -64,7 +64,7 @@ TRACE_EVENT(sof_intel_D0I3C_updated,
 		__field(u8, reg)
 	),
 	TP_fast_assign(
-		__assign_str(device_name, dev_name(sdev->dev));
+		__assign_str(device_name);
 		__entry->reg = reg;
 	),
 	TP_printk("device_name=%s register=%#x",
@@ -79,7 +79,7 @@ TRACE_EVENT(sof_intel_hda_irq_ipc_check,
 		__field(u32, irq_status)
 	),
 	TP_fast_assign(
-		__assign_str(device_name, dev_name(sdev->dev));
+		__assign_str(device_name);
 		__entry->irq_status = irq_status;
 	),
 	TP_printk("device_name=%s irq_status=%#x",
@@ -100,7 +100,7 @@ TRACE_EVENT(sof_intel_hda_dsp_pcm,
 		__field(unsigned long, pos)
 	),
 	TP_fast_assign(
-		__assign_str(device_name, dev_name(sdev->dev));
+		__assign_str(device_name);
 		__entry->hstream_index = hstream->index;
 		__entry->substream = substream->stream;
 		__entry->pos = pos;
@@ -119,7 +119,7 @@ TRACE_EVENT(sof_intel_hda_dsp_stream_status,
 		__field(u32, status)
 	),
 	TP_fast_assign(
-		__assign_str(device_name, dev_name(dev));
+		__assign_str(device_name);
 		__entry->stream = s->index;
 		__entry->status = status;
 	),
@@ -135,7 +135,7 @@ TRACE_EVENT(sof_intel_hda_dsp_check_stream_irq,
 		__field(u32, status)
 	),
 	TP_fast_assign(
-		__assign_str(device_name, dev_name(sdev->dev));
+		__assign_str(device_name);
 		__entry->status = status;
 	),
 	TP_printk("device_name=%s status=%#x",

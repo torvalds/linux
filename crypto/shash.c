@@ -16,18 +16,6 @@
 
 #include "hash.h"
 
-static inline struct crypto_istat_hash *shash_get_stat(struct shash_alg *alg)
-{
-	return hash_get_stat(&alg->halg);
-}
-
-static inline int crypto_shash_errstat(struct shash_alg *alg, int err)
-{
-	if (IS_ENABLED(CONFIG_CRYPTO_STATS) && err)
-		atomic64_inc(&shash_get_stat(alg)->err_cnt);
-	return err;
-}
-
 int shash_no_setkey(struct crypto_shash *tfm, const u8 *key,
 		    unsigned int keylen)
 {
@@ -61,29 +49,13 @@ EXPORT_SYMBOL_GPL(crypto_shash_setkey);
 int crypto_shash_update(struct shash_desc *desc, const u8 *data,
 			unsigned int len)
 {
-	struct shash_alg *shash = crypto_shash_alg(desc->tfm);
-	int err;
-
-	if (IS_ENABLED(CONFIG_CRYPTO_STATS))
-		atomic64_add(len, &shash_get_stat(shash)->hash_tlen);
-
-	err = shash->update(desc, data, len);
-
-	return crypto_shash_errstat(shash, err);
+	return crypto_shash_alg(desc->tfm)->update(desc, data, len);
 }
 EXPORT_SYMBOL_GPL(crypto_shash_update);
 
 int crypto_shash_final(struct shash_desc *desc, u8 *out)
 {
-	struct shash_alg *shash = crypto_shash_alg(desc->tfm);
-	int err;
-
-	if (IS_ENABLED(CONFIG_CRYPTO_STATS))
-		atomic64_inc(&shash_get_stat(shash)->hash_cnt);
-
-	err = shash->final(desc, out);
-
-	return crypto_shash_errstat(shash, err);
+	return crypto_shash_alg(desc->tfm)->final(desc, out);
 }
 EXPORT_SYMBOL_GPL(crypto_shash_final);
 
@@ -99,20 +71,7 @@ static int shash_default_finup(struct shash_desc *desc, const u8 *data,
 int crypto_shash_finup(struct shash_desc *desc, const u8 *data,
 		       unsigned int len, u8 *out)
 {
-	struct crypto_shash *tfm = desc->tfm;
-	struct shash_alg *shash = crypto_shash_alg(tfm);
-	int err;
-
-	if (IS_ENABLED(CONFIG_CRYPTO_STATS)) {
-		struct crypto_istat_hash *istat = shash_get_stat(shash);
-
-		atomic64_inc(&istat->hash_cnt);
-		atomic64_add(len, &istat->hash_tlen);
-	}
-
-	err = shash->finup(desc, data, len, out);
-
-	return crypto_shash_errstat(shash, err);
+	return crypto_shash_alg(desc->tfm)->finup(desc, data, len, out);
 }
 EXPORT_SYMBOL_GPL(crypto_shash_finup);
 
@@ -129,22 +88,11 @@ int crypto_shash_digest(struct shash_desc *desc, const u8 *data,
 			unsigned int len, u8 *out)
 {
 	struct crypto_shash *tfm = desc->tfm;
-	struct shash_alg *shash = crypto_shash_alg(tfm);
-	int err;
-
-	if (IS_ENABLED(CONFIG_CRYPTO_STATS)) {
-		struct crypto_istat_hash *istat = shash_get_stat(shash);
-
-		atomic64_inc(&istat->hash_cnt);
-		atomic64_add(len, &istat->hash_tlen);
-	}
 
 	if (crypto_shash_get_flags(tfm) & CRYPTO_TFM_NEED_KEY)
-		err = -ENOKEY;
-	else
-		err = shash->digest(desc, data, len, out);
+		return -ENOKEY;
 
-	return crypto_shash_errstat(shash, err);
+	return crypto_shash_alg(tfm)->digest(desc, data, len, out);
 }
 EXPORT_SYMBOL_GPL(crypto_shash_digest);
 
@@ -265,12 +213,6 @@ static void crypto_shash_show(struct seq_file *m, struct crypto_alg *alg)
 	seq_printf(m, "digestsize   : %u\n", salg->digestsize);
 }
 
-static int __maybe_unused crypto_shash_report_stat(
-	struct sk_buff *skb, struct crypto_alg *alg)
-{
-	return crypto_hash_report_stat(skb, alg, "shash");
-}
-
 const struct crypto_type crypto_shash_type = {
 	.extsize = crypto_alg_extsize,
 	.init_tfm = crypto_shash_init_tfm,
@@ -280,9 +222,6 @@ const struct crypto_type crypto_shash_type = {
 #endif
 #if IS_ENABLED(CONFIG_CRYPTO_USER)
 	.report = crypto_shash_report,
-#endif
-#ifdef CONFIG_CRYPTO_STATS
-	.report_stat = crypto_shash_report_stat,
 #endif
 	.maskclear = ~CRYPTO_ALG_TYPE_MASK,
 	.maskset = CRYPTO_ALG_TYPE_MASK,
@@ -350,7 +289,6 @@ EXPORT_SYMBOL_GPL(crypto_clone_shash);
 
 int hash_prepare_alg(struct hash_alg_common *alg)
 {
-	struct crypto_istat_hash *istat = hash_get_stat(alg);
 	struct crypto_alg *base = &alg->base;
 
 	if (alg->digestsize > HASH_MAX_DIGESTSIZE)
@@ -361,9 +299,6 @@ int hash_prepare_alg(struct hash_alg_common *alg)
 		return -EINVAL;
 
 	base->cra_flags &= ~CRYPTO_ALG_TYPE_MASK;
-
-	if (IS_ENABLED(CONFIG_CRYPTO_STATS))
-		memset(istat, 0, sizeof(*istat));
 
 	return 0;
 }

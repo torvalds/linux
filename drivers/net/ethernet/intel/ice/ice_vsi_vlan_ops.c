@@ -72,7 +72,6 @@ void ice_vsi_init_vlan_ops(struct ice_vsi *vsi)
 
 	switch (vsi->type) {
 	case ICE_VSI_PF:
-	case ICE_VSI_SWITCHDEV_CTRL:
 		ice_pf_vsi_init_vlan_ops(vsi);
 		break;
 	case ICE_VSI_VF:

@@ -284,7 +284,7 @@ static void ntb_memcpy_rx(struct ntb_queue_entry *entry, void *offset);
 
 
 static int ntb_transport_bus_match(struct device *dev,
-				   struct device_driver *drv)
+				   const struct device_driver *drv)
 {
 	return !strncmp(dev_name(dev), drv->name, strlen(drv->name));
 }

@@ -92,5 +92,6 @@ static void __exit pci_stub_exit(void)
 module_init(pci_stub_init);
 module_exit(pci_stub_exit);
 
+MODULE_DESCRIPTION("VM device assignment stub driver");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Chris Wright <chrisw@sous-sol.org>");

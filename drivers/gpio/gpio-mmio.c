@@ -619,8 +619,6 @@ int bgpio_init(struct gpio_chip *gc, struct device *dev,
 	ret = gpiochip_get_ngpios(gc, dev);
 	if (ret)
 		gc->ngpio = gc->bgpio_bits;
-	else
-		gc->bgpio_bits = roundup_pow_of_two(round_up(gc->ngpio, 8));
 
 	ret = bgpio_setup_io(gc, dat, set, clr, flags);
 	if (ret)

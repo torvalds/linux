@@ -93,6 +93,8 @@ struct dcn_otg_state {
 	uint32_t vertical_interrupt1_line;
 	uint32_t vertical_interrupt2_en;
 	uint32_t vertical_interrupt2_line;
+	uint32_t otg_master_update_lock;
+	uint32_t otg_double_buffer_control;
 };
 
 void optc1_read_otg_state(struct optc *optc1, struct dcn_otg_state *s);
@@ -210,10 +212,10 @@ bool optc1_get_crc(struct timing_generator *optc,
 		   uint32_t *g_y,
 		   uint32_t *b_cb);
 
-bool optc1_is_two_pixels_per_containter(const struct dc_crtc_timing *timing);
-
 void optc1_set_vtg_params(struct timing_generator *optc,
 			  const struct dc_crtc_timing *dc_crtc_timing,
 			  bool program_fp2);
+
+bool optc1_is_two_pixels_per_container(const struct dc_crtc_timing *timing);
 
 #endif

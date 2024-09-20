@@ -3,7 +3,7 @@
 // This file is provided under a dual BSD/GPLv2 license.  When using or
 // redistributing this file, you may do so under either license.
 //
-// Copyright(c) 2022 Intel Corporation. All rights reserved.
+// Copyright(c) 2022 Intel Corporation
 
 #include <linux/firmware.h>
 #include <sound/sof/ext_manifest4.h>
@@ -79,6 +79,14 @@ static ssize_t sof_ipc4_fw_parse_ext_man(struct snd_sof_dev *sdev,
 		 fw_header->hotfix_version, fw_header->build_version);
 	dev_dbg(sdev->dev, "Header length: %u, module count: %u\n",
 		fw_header->len, fw_header->num_module_entries);
+
+	/* copy the fw_version of basefw into debugfs at first boot */
+	if (fw == sdev->basefw.fw) {
+		sdev->fw_version.major = fw_header->major_version;
+		sdev->fw_version.minor = fw_header->minor_version;
+		sdev->fw_version.micro = fw_header->hotfix_version;
+		sdev->fw_version.build = fw_header->build_version;
+	}
 
 	fw_lib->modules = devm_kmalloc_array(sdev->dev, fw_header->num_module_entries,
 					     sizeof(*fw_module), GFP_KERNEL);

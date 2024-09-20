@@ -25,7 +25,7 @@ TRACE_EVENT(br_fdb_add,
 	),
 
 	TP_fast_assign(
-		__assign_str(dev, dev->name);
+		__assign_str(dev);
 		memcpy(__entry->addr, addr, ETH_ALEN);
 		__entry->vid = vid;
 		__entry->nlh_flags = nlh_flags;
@@ -54,8 +54,8 @@ TRACE_EVENT(br_fdb_external_learn_add,
 	),
 
 	TP_fast_assign(
-		__assign_str(br_dev, br->dev->name);
-		__assign_str(dev, p ? p->dev->name : "null");
+		__assign_str(br_dev);
+		__assign_str(dev);
 		memcpy(__entry->addr, addr, ETH_ALEN);
 		__entry->vid = vid;
 	),
@@ -80,8 +80,8 @@ TRACE_EVENT(fdb_delete,
 	),
 
 	TP_fast_assign(
-		__assign_str(br_dev, br->dev->name);
-		__assign_str(dev, f->dst ? f->dst->dev->name : "null");
+		__assign_str(br_dev);
+		__assign_str(dev);
 		memcpy(__entry->addr, f->key.addr.addr, ETH_ALEN);
 		__entry->vid = f->key.vlan_id;
 	),
@@ -108,8 +108,8 @@ TRACE_EVENT(br_fdb_update,
 	),
 
 	TP_fast_assign(
-		__assign_str(br_dev, br->dev->name);
-		__assign_str(dev, source->dev->name);
+		__assign_str(br_dev);
+		__assign_str(dev);
 		memcpy(__entry->addr, addr, ETH_ALEN);
 		__entry->vid = vid;
 		__entry->flags = flags;
@@ -141,7 +141,7 @@ TRACE_EVENT(br_mdb_full,
 	TP_fast_assign(
 		struct in6_addr *in6;
 
-		__assign_str(dev, dev->name);
+		__assign_str(dev);
 		__entry->vid = group->vid;
 
 		if (!group->proto) {

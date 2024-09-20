@@ -410,7 +410,20 @@ LIBBPF_1.3.0 {
 
 LIBBPF_1.4.0 {
 	global:
+		bpf_program__attach_raw_tracepoint_opts;
+		bpf_raw_tracepoint_open_opts;
 		bpf_token_create;
 		btf__new_split;
 		btf_ext__raw_data;
 } LIBBPF_1.3.0;
+
+LIBBPF_1.5.0 {
+	global:
+		btf__distill_base;
+		btf__relocate;
+		bpf_map__autoattach;
+		bpf_map__set_autoattach;
+		bpf_program__attach_sockmap;
+		ring__consume_n;
+		ring_buffer__consume_n;
+} LIBBPF_1.4.0;

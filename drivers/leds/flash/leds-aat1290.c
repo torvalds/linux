@@ -77,8 +77,6 @@ struct aat1290_led {
 	int *mm_current_scale;
 	/* device mode */
 	bool movie_mode;
-	/* brightness cache */
-	unsigned int torch_brightness;
 };
 
 static struct aat1290_led *fled_cdev_to_led(

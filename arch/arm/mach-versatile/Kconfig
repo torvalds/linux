@@ -278,15 +278,6 @@ config ARCH_VEXPRESS_CORTEX_A5_A9_ERRATA
 	  build a working kernel, you must also enable relevant core
 	  tile support or Flattened Device Tree based support options.
 
-config ARCH_VEXPRESS_DCSCB
-	bool "Dual Cluster System Control Block (DCSCB) support"
-	depends on MCPM
-	select ARM_CCI400_PORT_CTRL
-	help
-	  Support for the Dual Cluster System Configuration Block (DCSCB).
-	  This is needed to provide CPU and cluster power management
-	  on RTSM implementing big.LITTLE.
-
 config ARCH_VEXPRESS_SPC
 	bool "Versatile Express Serial Power Controller (SPC)"
 	select PM_OPP

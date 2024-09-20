@@ -8,7 +8,6 @@ title: The TI AM654x/J721E Common Platform Time Sync (CPTS) module
 
 maintainers:
   - Siddharth Vadapalli <s-vadapalli@ti.com>
-  - Ravi Gunasekaran <r-gunasekaran@ti.com>
   - Roger Quadros <rogerq@kernel.org>
 
 description: |+

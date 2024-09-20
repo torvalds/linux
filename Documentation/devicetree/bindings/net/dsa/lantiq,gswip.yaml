@@ -1,0 +1,202 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/net/dsa/lantiq,gswip.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Lantiq GSWIP Ethernet switches
+
+allOf:
+  - $ref: dsa.yaml#/$defs/ethernet-ports
+
+maintainers:
+  - Hauke Mehrtens <hauke@hauke-m.de>
+
+properties:
+  compatible:
+    enum:
+      - lantiq,xrx200-gswip
+      - lantiq,xrx300-gswip
+      - lantiq,xrx330-gswip
+
+  reg:
+    minItems: 3
+    maxItems: 3
+
+  reg-names:
+    items:
+      - const: switch
+      - const: mdio
+      - const: mii
+
+  mdio:
+    $ref: /schemas/net/mdio.yaml#
+    unevaluatedProperties: false
+
+    properties:
+      compatible:
+        const: lantiq,xrx200-mdio
+
+    required:
+      - compatible
+
+  gphy-fw:
+    type: object
+    properties:
+      '#address-cells':
+        const: 1
+
+      '#size-cells':
+        const: 0
+
+      compatible:
+        items:
+          - enum:
+              - lantiq,xrx200-gphy-fw
+              - lantiq,xrx300-gphy-fw
+              - lantiq,xrx330-gphy-fw
+          - const: lantiq,gphy-fw
+
+      lantiq,rcu:
+        $ref: /schemas/types.yaml#/definitions/phandle
+        description: phandle to the RCU syscon
+
+    patternProperties:
+      "^gphy@[0-9a-f]{1,2}$":
+        type: object
+
+        additionalProperties: false
+
+        properties:
+          reg:
+            minimum: 0
+            maximum: 255
+            description:
+              Offset of the GPHY firmware register in the RCU register range
+
+          resets:
+            items:
+              - description: GPHY reset line
+
+          reset-names:
+            items:
+              - const: gphy
+
+        required:
+          - reg
+
+    required:
+      - compatible
+      - lantiq,rcu
+
+    additionalProperties: false
+
+required:
+  - compatible
+  - reg
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    switch@e108000 {
+            compatible = "lantiq,xrx200-gswip";
+            reg = <0xe108000 0x3100>,  /* switch */
+                  <0xe10b100 0xd8>,    /* mdio */
+                  <0xe10b1d8 0x130>;   /* mii */
+            dsa,member = <0 0>;
+
+            ports {
+                    #address-cells = <1>;
+                    #size-cells = <0>;
+
+                    port@0 {
+                            reg = <0>;
+                            label = "lan3";
+                            phy-mode = "rgmii";
+                            phy-handle = <&phy0>;
+                    };
+
+                    port@1 {
+                            reg = <1>;
+                            label = "lan4";
+                            phy-mode = "rgmii";
+                            phy-handle = <&phy1>;
+                    };
+
+                    port@2 {
+                            reg = <2>;
+                            label = "lan2";
+                            phy-mode = "internal";
+                            phy-handle = <&phy11>;
+                    };
+
+                    port@4 {
+                            reg = <4>;
+                            label = "lan1";
+                            phy-mode = "internal";
+                            phy-handle = <&phy13>;
+                    };
+
+                    port@5 {
+                            reg = <5>;
+                            label = "wan";
+                            phy-mode = "rgmii";
+                            phy-handle = <&phy5>;
+                    };
+
+                    port@6 {
+                            reg = <0x6>;
+                            phy-mode = "internal";
+                            ethernet = <&eth0>;
+
+                            fixed-link {
+                                    speed = <1000>;
+                                    full-duplex;
+                            };
+                    };
+            };
+
+            mdio {
+                    #address-cells = <1>;
+                    #size-cells = <0>;
+                    compatible = "lantiq,xrx200-mdio";
+
+                    phy0: ethernet-phy@0 {
+                            reg = <0x0>;
+                    };
+                    phy1: ethernet-phy@1 {
+                            reg = <0x1>;
+                    };
+                    phy5: ethernet-phy@5 {
+                            reg = <0x5>;
+                    };
+                    phy11: ethernet-phy@11 {
+                            reg = <0x11>;
+                    };
+                    phy13: ethernet-phy@13 {
+                            reg = <0x13>;
+                    };
+            };
+
+            gphy-fw {
+                    #address-cells = <1>;
+                    #size-cells = <0>;
+                    compatible = "lantiq,xrx200-gphy-fw", "lantiq,gphy-fw";
+                    lantiq,rcu = <&rcu0>;
+
+                    gphy@20 {
+                            reg = <0x20>;
+
+                            resets = <&reset0 31 30>;
+                            reset-names = "gphy";
+                    };
+
+                    gphy@68 {
+                            reg = <0x68>;
+
+                            resets = <&reset0 29 28>;
+                            reset-names = "gphy";
+                    };
+            };
+    };

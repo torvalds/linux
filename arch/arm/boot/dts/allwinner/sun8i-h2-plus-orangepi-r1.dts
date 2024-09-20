@@ -43,11 +43,12 @@
 /* Orange Pi R1 is based on Orange Pi Zero design */
 #include "sun8i-h2-plus-orangepi-zero.dts"
 
+/delete-node/ &reg_vcc_wifi;
+
 / {
 	model = "Xunlong Orange Pi R1";
 	compatible = "xunlong,orangepi-r1", "allwinner,sun8i-h2-plus";
 
-	/delete-node/ reg_vcc_wifi;
 
 	/*
 	 * Ths pin of this regulator is the same with the Wi-Fi extra
@@ -89,7 +90,7 @@
 	vmmc-supply = <&reg_vcc3v3>;
 	vqmmc-supply = <&reg_vcc3v3>;
 
-	rtl8189etv: sdio_wifi@1 {
+	rtl8189etv: wifi@1 {
 		reg = <1>;
 	};
 };

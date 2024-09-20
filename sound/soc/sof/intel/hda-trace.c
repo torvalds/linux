@@ -3,7 +3,7 @@
 // This file is provided under a dual BSD/GPLv2 license.  When using or
 // redistributing this file, you may do so under either license.
 //
-// Copyright(c) 2018 Intel Corporation. All rights reserved.
+// Copyright(c) 2018 Intel Corporation
 //
 // Authors: Liam Girdwood <liam.r.girdwood@linux.intel.com>
 //	    Ranjani Sridharan <ranjani.sridharan@linux.intel.com>
@@ -68,6 +68,7 @@ int hda_dsp_trace_init(struct snd_sof_dev *sdev, struct snd_dma_buffer *dmab,
 
 	return ret;
 }
+EXPORT_SYMBOL_NS(hda_dsp_trace_init, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 int hda_dsp_trace_release(struct snd_sof_dev *sdev)
 {
@@ -86,6 +87,7 @@ int hda_dsp_trace_release(struct snd_sof_dev *sdev)
 	dev_dbg(sdev->dev, "DMA trace stream is not opened!\n");
 	return -ENODEV;
 }
+EXPORT_SYMBOL_NS(hda_dsp_trace_release, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 int hda_dsp_trace_trigger(struct snd_sof_dev *sdev, int cmd)
 {
@@ -93,3 +95,4 @@ int hda_dsp_trace_trigger(struct snd_sof_dev *sdev, int cmd)
 
 	return hda_dsp_stream_trigger(sdev, hda->dtrace_stream, cmd);
 }
+EXPORT_SYMBOL_NS(hda_dsp_trace_trigger, SND_SOC_SOF_INTEL_HDA_COMMON);

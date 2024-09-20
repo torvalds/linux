@@ -23,6 +23,8 @@ properties:
       - fsl,imx8qm-mqs
       - fsl,imx8qxp-mqs
       - fsl,imx93-mqs
+      - fsl,imx95-aonmix-mqs
+      - fsl,imx95-netcmix-mqs
 
   clocks:
     minItems: 1

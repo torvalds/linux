@@ -117,6 +117,35 @@ static bool is_supervision_frame(struct hsr_priv *hsr, struct sk_buff *skb)
 	return true;
 }
 
+static bool is_proxy_supervision_frame(struct hsr_priv *hsr,
+				       struct sk_buff *skb)
+{
+	struct hsr_sup_payload *payload;
+	struct ethhdr *eth_hdr;
+	u16 total_length = 0;
+
+	eth_hdr = (struct ethhdr *)skb_mac_header(skb);
+
+	/* Get the HSR protocol revision. */
+	if (eth_hdr->h_proto == htons(ETH_P_HSR))
+		total_length = sizeof(struct hsrv1_ethhdr_sp);
+	else
+		total_length = sizeof(struct hsrv0_ethhdr_sp);
+
+	if (!pskb_may_pull(skb, total_length + sizeof(struct hsr_sup_payload)))
+		return false;
+
+	skb_pull(skb, total_length);
+	payload = (struct hsr_sup_payload *)skb->data;
+	skb_push(skb, total_length);
+
+	/* For RedBox (HSR-SAN) check if we have received the supervision
+	 * frame with MAC addresses from own ProxyNodeTable.
+	 */
+	return hsr_is_node_in_db(&hsr->proxy_node_db,
+				 payload->macaddress_A);
+}
+
 static struct sk_buff *create_stripped_skb_hsr(struct sk_buff *skb_in,
 					       struct hsr_frame_info *frame)
 {
@@ -377,21 +406,78 @@ static int hsr_xmit(struct sk_buff *skb, struct hsr_port *port,
 		 */
 		ether_addr_copy(eth_hdr(skb)->h_source, port->dev->dev_addr);
 	}
+
+	/* When HSR node is used as RedBox - the frame received from HSR ring
+	 * requires source MAC address (SA) replacement to one which can be
+	 * recognized by SAN devices (otherwise, frames are dropped by switch)
+	 */
+	if (port->type == HSR_PT_INTERLINK)
+		ether_addr_copy(eth_hdr(skb)->h_source,
+				port->hsr->macaddress_redbox);
+
 	return dev_queue_xmit(skb);
 }
 
 bool prp_drop_frame(struct hsr_frame_info *frame, struct hsr_port *port)
 {
 	return ((frame->port_rcv->type == HSR_PT_SLAVE_A &&
-		 port->type ==  HSR_PT_SLAVE_B) ||
+		 port->type == HSR_PT_SLAVE_B) ||
 		(frame->port_rcv->type == HSR_PT_SLAVE_B &&
-		 port->type ==  HSR_PT_SLAVE_A));
+		 port->type == HSR_PT_SLAVE_A));
 }
 
 bool hsr_drop_frame(struct hsr_frame_info *frame, struct hsr_port *port)
 {
+	struct sk_buff *skb;
+
 	if (port->dev->features & NETIF_F_HW_HSR_FWD)
 		return prp_drop_frame(frame, port);
+
+	/* RedBox specific frames dropping policies
+	 *
+	 * Do not send HSR supervisory frames to SAN devices
+	 */
+	if (frame->is_supervision && port->type == HSR_PT_INTERLINK)
+		return true;
+
+	/* Do not forward to other HSR port (A or B) unicast frames which
+	 * are addressed to interlink port (and are in the ProxyNodeTable).
+	 */
+	skb = frame->skb_hsr;
+	if (skb && prp_drop_frame(frame, port) &&
+	    is_unicast_ether_addr(eth_hdr(skb)->h_dest) &&
+	    hsr_is_node_in_db(&port->hsr->proxy_node_db,
+			      eth_hdr(skb)->h_dest)) {
+		return true;
+	}
+
+	/* Do not forward to port C (Interlink) frames from nodes A and B
+	 * if DA is in NodeTable.
+	 */
+	if ((frame->port_rcv->type == HSR_PT_SLAVE_A ||
+	     frame->port_rcv->type == HSR_PT_SLAVE_B) &&
+	    port->type == HSR_PT_INTERLINK) {
+		skb = frame->skb_hsr;
+		if (skb && is_unicast_ether_addr(eth_hdr(skb)->h_dest) &&
+		    hsr_is_node_in_db(&port->hsr->node_db,
+				      eth_hdr(skb)->h_dest)) {
+			return true;
+		}
+	}
+
+	/* Do not forward to port A and B unicast frames received on the
+	 * interlink port if it is addressed to one of nodes registered in
+	 * the ProxyNodeTable.
+	 */
+	if ((port->type == HSR_PT_SLAVE_A || port->type == HSR_PT_SLAVE_B) &&
+	    frame->port_rcv->type == HSR_PT_INTERLINK) {
+		skb = frame->skb_std;
+		if (skb && is_unicast_ether_addr(eth_hdr(skb)->h_dest) &&
+		    hsr_is_node_in_db(&port->hsr->proxy_node_db,
+				      eth_hdr(skb)->h_dest)) {
+			return true;
+		}
+	}
 
 	return false;
 }
@@ -442,19 +528,21 @@ static void hsr_forward_do(struct hsr_frame_info *frame)
 					   frame->sequence_nr))
 			continue;
 
-		if (frame->is_supervision && port->type == HSR_PT_MASTER) {
+		if (frame->is_supervision && port->type == HSR_PT_MASTER &&
+		    !frame->is_proxy_supervision) {
 			hsr_handle_sup_frame(frame);
 			continue;
 		}
 
 		/* Check if frame is to be dropped. Eg. for PRP no forward
-		 * between ports.
+		 * between ports, or sending HSR supervision to RedBox.
 		 */
 		if (hsr->proto_ops->drop_frame &&
 		    hsr->proto_ops->drop_frame(frame, port))
 			continue;
 
-		if (port->type != HSR_PT_MASTER)
+		if (port->type == HSR_PT_SLAVE_A ||
+		    port->type == HSR_PT_SLAVE_B)
 			skb = hsr->proto_ops->create_tagged_frame(frame, port);
 		else
 			skb = hsr->proto_ops->get_untagged_frame(frame, port);
@@ -469,7 +557,9 @@ static void hsr_forward_do(struct hsr_frame_info *frame)
 			hsr_deliver_master(skb, port->dev, frame->node_src);
 		} else {
 			if (!hsr_xmit(skb, port, frame))
-				sent = true;
+				if (port->type == HSR_PT_SLAVE_A ||
+				    port->type == HSR_PT_SLAVE_B)
+					sent = true;
 		}
 	}
 }
@@ -503,10 +593,12 @@ static void handle_std_frame(struct sk_buff *skb,
 	frame->skb_prp = NULL;
 	frame->skb_std = skb;
 
-	if (port->type != HSR_PT_MASTER) {
+	if (port->type != HSR_PT_MASTER)
 		frame->is_from_san = true;
-	} else {
-		/* Sequence nr for the master node */
+
+	if (port->type == HSR_PT_MASTER ||
+	    port->type == HSR_PT_INTERLINK) {
+		/* Sequence nr for the master/interlink node */
 		lockdep_assert_held(&hsr->seqnr_lock);
 		frame->sequence_nr = hsr->sequence_nr;
 		hsr->sequence_nr++;
@@ -564,6 +656,7 @@ static int fill_frame_info(struct hsr_frame_info *frame,
 {
 	struct hsr_priv *hsr = port->hsr;
 	struct hsr_vlan_ethhdr *vlan_hdr;
+	struct list_head *n_db;
 	struct ethhdr *ethhdr;
 	__be16 proto;
 	int ret;
@@ -574,9 +667,16 @@ static int fill_frame_info(struct hsr_frame_info *frame,
 
 	memset(frame, 0, sizeof(*frame));
 	frame->is_supervision = is_supervision_frame(port->hsr, skb);
-	frame->node_src = hsr_get_node(port, &hsr->node_db, skb,
-				       frame->is_supervision,
-				       port->type);
+	if (frame->is_supervision && hsr->redbox)
+		frame->is_proxy_supervision =
+			is_proxy_supervision_frame(port->hsr, skb);
+
+	n_db = &hsr->node_db;
+	if (port->type == HSR_PT_INTERLINK)
+		n_db = &hsr->proxy_node_db;
+
+	frame->node_src = hsr_get_node(port, n_db, skb,
+				       frame->is_supervision, port->type);
 	if (!frame->node_src)
 		return -1; /* Unknown node and !is_supervision, or no mem */
 
@@ -621,7 +721,7 @@ void hsr_forward_skb(struct sk_buff *skb, struct hsr_port *port)
 	/* Gets called for ingress frames as well as egress from master port.
 	 * So check and increment stats for master port only here.
 	 */
-	if (port->type == HSR_PT_MASTER) {
+	if (port->type == HSR_PT_MASTER || port->type == HSR_PT_INTERLINK) {
 		port->dev->stats.tx_packets++;
 		port->dev->stats.tx_bytes += skb->len;
 	}

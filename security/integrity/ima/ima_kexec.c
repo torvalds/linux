@@ -30,6 +30,7 @@ static int ima_dump_measurement_list(unsigned long *buffer_size, void **buffer,
 		goto out;
 	}
 
+	file.file = NULL;
 	file.size = segment_size;
 	file.read_pos = 0;
 	file.count = sizeof(khdr);	/* reserved space */

@@ -3457,7 +3457,7 @@ static int tscs454_i2c_probe(struct i2c_client *i2c)
 }
 
 static const struct i2c_device_id tscs454_i2c_id[] = {
-	{ "tscs454", 0 },
+	{ "tscs454" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, tscs454_i2c_id);

@@ -28,23 +28,28 @@ static int ecdh_set_secret(struct crypto_kpp *tfm, const void *buf,
 {
 	struct ecdh_ctx *ctx = ecdh_get_ctx(tfm);
 	struct ecdh params;
+	int ret = 0;
 
 	if (crypto_ecdh_decode_key(buf, len, &params) < 0 ||
 	    params.key_size > sizeof(u64) * ctx->ndigits)
 		return -EINVAL;
 
+	memset(ctx->private_key, 0, sizeof(ctx->private_key));
+
 	if (!params.key || !params.key_size)
 		return ecc_gen_privkey(ctx->curve_id, ctx->ndigits,
 				       ctx->private_key);
 
-	memcpy(ctx->private_key, params.key, params.key_size);
+	ecc_digits_from_bytes(params.key, params.key_size,
+			      ctx->private_key, ctx->ndigits);
 
 	if (ecc_is_key_valid(ctx->curve_id, ctx->ndigits,
 			     ctx->private_key, params.key_size) < 0) {
 		memzero_explicit(ctx->private_key, params.key_size);
-		return -EINVAL;
+		ret = -EINVAL;
 	}
-	return 0;
+
+	return ret;
 }
 
 static int ecdh_compute_value(struct kpp_request *req)

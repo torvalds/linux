@@ -28,6 +28,7 @@ config UNWINDER_PROLOGUE
 
 config UNWINDER_ORC
 	bool "ORC unwinder"
+	depends on HAVE_OBJTOOL
 	select OBJTOOL
 	help
 	  This option enables the ORC (Oops Rewind Capability) unwinder for

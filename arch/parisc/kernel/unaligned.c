@@ -104,6 +104,7 @@
 #define ERR_NOTHANDLED	-1
 
 int unaligned_enabled __read_mostly = 1;
+int no_unaligned_warning __read_mostly;
 
 static int emulate_ldh(struct pt_regs *regs, int toreg)
 {
@@ -399,6 +400,7 @@ void handle_unaligned(struct pt_regs *regs)
 	} else {
 		static DEFINE_RATELIMIT_STATE(kernel_ratelimit, 5 * HZ, 5);
 		if (!(current->thread.flags & PARISC_UAC_NOPRINT) &&
+			!no_unaligned_warning &&
 			__ratelimit(&kernel_ratelimit))
 			pr_warn("Kernel: unaligned access to " RFMT " in %pS "
 					"(iir " RFMT ")\n",

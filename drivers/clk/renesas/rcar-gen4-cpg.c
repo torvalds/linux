@@ -466,7 +466,5 @@ int __init rcar_gen4_cpg_init(const struct rcar_gen4_cpg_pll_config *config,
 	cpg_clk_extalr = clk_extalr;
 	cpg_mode = mode;
 
-	spin_lock_init(&cpg_lock);
-
 	return 0;
 }

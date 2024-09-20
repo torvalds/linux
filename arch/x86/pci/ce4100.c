@@ -35,12 +35,6 @@ struct sim_dev_reg {
 	struct sim_reg sim_reg;
 };
 
-struct sim_reg_op {
-	void (*init)(struct sim_dev_reg *reg);
-	void (*read)(struct sim_dev_reg *reg, u32 value);
-	void (*write)(struct sim_dev_reg *reg, u32 value);
-};
-
 #define MB (1024 * 1024)
 #define KB (1024)
 #define SIZE_TO_MASK(size) (~(size - 1))

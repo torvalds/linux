@@ -403,7 +403,7 @@ int sun8i_ce_hash_run(struct crypto_engine *engine, void *breq)
 
 	len = areq->nbytes;
 	for_each_sg(areq->src, sg, nr_sgs, i) {
-		cet->t_src[i].addr = cpu_to_le32(sg_dma_address(sg));
+		cet->t_src[i].addr = desc_addr_val_le32(ce, sg_dma_address(sg));
 		todo = min(len, sg_dma_len(sg));
 		cet->t_src[i].len = cpu_to_le32(todo / 4);
 		len -= todo;
@@ -414,7 +414,7 @@ int sun8i_ce_hash_run(struct crypto_engine *engine, void *breq)
 		goto theend;
 	}
 	addr_res = dma_map_single(ce->dev, result, digestsize, DMA_FROM_DEVICE);
-	cet->t_dst[0].addr = cpu_to_le32(addr_res);
+	cet->t_dst[0].addr = desc_addr_val_le32(ce, addr_res);
 	cet->t_dst[0].len = cpu_to_le32(digestsize / 4);
 	if (dma_mapping_error(ce->dev, addr_res)) {
 		dev_err(ce->dev, "DMA map dest\n");
@@ -445,7 +445,7 @@ int sun8i_ce_hash_run(struct crypto_engine *engine, void *breq)
 	}
 
 	addr_pad = dma_map_single(ce->dev, buf, j * 4, DMA_TO_DEVICE);
-	cet->t_src[i].addr = cpu_to_le32(addr_pad);
+	cet->t_src[i].addr = desc_addr_val_le32(ce, addr_pad);
 	cet->t_src[i].len = cpu_to_le32(j);
 	if (dma_mapping_error(ce->dev, addr_pad)) {
 		dev_err(ce->dev, "DMA error on padding SG\n");

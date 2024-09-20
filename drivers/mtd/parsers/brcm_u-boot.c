@@ -81,4 +81,5 @@ static struct mtd_part_parser brcm_u_boot_mtd_parser = {
 };
 module_mtd_part_parser(brcm_u_boot_mtd_parser);
 
+MODULE_DESCRIPTION("Broadcom's U-Boot partition parser");
 MODULE_LICENSE("GPL");

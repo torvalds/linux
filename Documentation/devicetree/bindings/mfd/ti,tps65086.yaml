@@ -49,7 +49,7 @@ properties:
     patternProperties:
       "^buck[1-6]$":
         type: object
-        $ref: ../regulator/regulator.yaml
+        $ref: /schemas/regulator/regulator.yaml
 
         properties:
           regulator-name: true
@@ -72,7 +72,7 @@ properties:
 
       "^(ldoa[1-3]|swa1|swb[1-2]|vtt)$":
         type: object
-        $ref: ../regulator/regulator.yaml
+        $ref: /schemas/regulator/regulator.yaml
 
         properties:
           regulator-name: true

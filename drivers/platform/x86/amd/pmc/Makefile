@@ -6,3 +6,4 @@
 
 amd-pmc-objs := pmc.o pmc-quirks.o
 obj-$(CONFIG_AMD_PMC) += amd-pmc.o
+amd-pmc-$(CONFIG_AMD_MP2_STB) += mp2_stb.o

@@ -41,6 +41,20 @@ static int validate_tl_data(struct adf_tl_hw_data *tl_data)
 	return 0;
 }
 
+static int validate_tl_slice_counters(struct icp_qat_fw_init_admin_slice_cnt *slice_count,
+				      u8 max_slices_per_type)
+{
+	u8 *sl_counter = (u8 *)slice_count;
+	int i;
+
+	for (i = 0; i < ADF_TL_SL_CNT_COUNT; i++) {
+		if (sl_counter[i] > max_slices_per_type)
+			return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int adf_tl_alloc_mem(struct adf_accel_dev *accel_dev)
 {
 	struct adf_tl_hw_data *tl_data = &GET_TL_DATA(accel_dev);
@@ -211,6 +225,13 @@ int adf_tl_run(struct adf_accel_dev *accel_dev, int state)
 				      &telemetry->slice_cnt);
 	if (ret) {
 		dev_err(dev, "failed to start telemetry\n");
+		return ret;
+	}
+
+	ret = validate_tl_slice_counters(&telemetry->slice_cnt, tl_data->max_sl_cnt);
+	if (ret) {
+		dev_err(dev, "invalid value returned by FW\n");
+		adf_send_admin_tl_stop(accel_dev);
 		return ret;
 	}
 

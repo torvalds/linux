@@ -31,7 +31,7 @@ TRACE_EVENT(musb_log,
 		__vstring(msg, vaf->fmt, vaf->va)
 	),
 	TP_fast_assign(
-		__assign_str(name, dev_name(musb->controller));
+		__assign_str(name);
 		__assign_vstr(msg, vaf->fmt, vaf->va);
 	),
 	TP_printk("%s: %s", __get_str(name), __get_str(msg))
@@ -46,9 +46,9 @@ TRACE_EVENT(musb_state,
 		__string(desc, desc)
 	),
 	TP_fast_assign(
-		__assign_str(name, dev_name(musb->controller));
+		__assign_str(name);
 		__entry->devctl = devctl;
-		__assign_str(desc, desc);
+		__assign_str(desc);
 	),
 	TP_printk("%s: devctl: %02x %s", __get_str(name), __entry->devctl,
 		  __get_str(desc))
@@ -160,7 +160,7 @@ TRACE_EVENT(musb_isr,
 		__field(u16, int_rx)
 	),
 	TP_fast_assign(
-		__assign_str(name, dev_name(musb->controller));
+		__assign_str(name);
 		__entry->int_usb = musb->int_usb;
 		__entry->int_tx = musb->int_tx;
 		__entry->int_rx = musb->int_rx;
@@ -184,7 +184,7 @@ DECLARE_EVENT_CLASS(musb_urb,
 		__field(u32, actual_len)
 	),
 	TP_fast_assign(
-		__assign_str(name, dev_name(musb->controller));
+		__assign_str(name);
 		__entry->urb = urb;
 		__entry->pipe = urb->pipe;
 		__entry->status = urb->status;
@@ -325,7 +325,7 @@ DECLARE_EVENT_CLASS(musb_cppi41,
 	),
 	TP_fast_assign(
 		__entry->ch = ch;
-		__assign_str(name, dev_name(ch->hw_ep->musb->controller));
+		__assign_str(name);
 		__entry->hwep = ch->hw_ep->epnum;
 		__entry->port = ch->port_num;
 		__entry->is_tx = ch->is_tx;

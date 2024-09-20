@@ -112,6 +112,13 @@
 		interrupts = <1 9 0xf04>;	/* GIC Maintenence IRQ */
 	};
 
+	refclk: refclk {
+		compatible = "fixed-clock";
+		#clock-cells = <1>;
+		clock-frequency = <100000000>;
+		clock-output-names = "refclk";
+	};
+
 	timer {
 		compatible = "arm,armv8-timer";
 		interrupts = <1 0 0xff08>,	/* Secure Phys IRQ */
@@ -122,7 +129,7 @@
 	};
 
 	pmu {
-		compatible = "apm,potenza-pmu", "arm,armv8-pmuv3";
+		compatible = "apm,potenza-pmu";
 		interrupts = <1 12 0xff04>;
 	};
 
@@ -137,12 +144,6 @@
 			#address-cells = <2>;
 			#size-cells = <2>;
 			ranges;
-			refclk: refclk {
-				compatible = "fixed-clock";
-				#clock-cells = <1>;
-				clock-frequency = <100000000>;
-				clock-output-names = "refclk";
-			};
 
 			pcppll: pcppll@17000100 {
 				compatible = "apm,xgene-pcppll-clock";
