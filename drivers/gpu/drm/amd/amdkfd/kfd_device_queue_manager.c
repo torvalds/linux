@@ -3542,15 +3542,19 @@ int debug_refresh_runlist(struct device_queue_manager *dqm)
 
 bool kfd_dqm_is_queue_in_process(struct device_queue_manager *dqm,
 				 struct qcm_process_device *qpd,
-				 int doorbell_off)
+				 int doorbell_off, u32 *queue_format)
 {
 	struct queue *q;
 	bool r = false;
+
+	if (!queue_format)
+		return r;
 
 	dqm_lock(dqm);
 
 	list_for_each_entry(q, &qpd->queues_list, list) {
 		if (q->properties.doorbell_off == doorbell_off) {
+			*queue_format = q->properties.format;
 			r = true;
 			goto out;
 		}

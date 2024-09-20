@@ -963,14 +963,14 @@ static void get_wave_count(struct amdgpu_device *adev, int queue_idx,
 	 */
 	pipe_idx = queue_idx / adev->gfx.mec.num_queue_per_pipe;
 	queue_slot = queue_idx % adev->gfx.mec.num_queue_per_pipe;
-	soc15_grbm_select(adev, 1, pipe_idx, queue_slot, 0, inst);
-	reg_val = RREG32_SOC15_IP(GC, SOC15_REG_OFFSET(GC, inst,
+	soc15_grbm_select(adev, 1, pipe_idx, queue_slot, 0, GET_INST(GC, inst));
+	reg_val = RREG32_SOC15_IP(GC, SOC15_REG_OFFSET(GC, GET_INST(GC, inst),
 				  mmSPI_CSQ_WF_ACTIVE_COUNT_0) + queue_slot);
 	wave_cnt = reg_val & SPI_CSQ_WF_ACTIVE_COUNT_0__COUNT_MASK;
 	if (wave_cnt != 0) {
 		queue_cnt->wave_cnt += wave_cnt;
 		queue_cnt->doorbell_off =
-			(RREG32_SOC15(GC, inst, mmCP_HQD_PQ_DOORBELL_CONTROL) &
+			(RREG32_SOC15(GC, GET_INST(GC, inst), mmCP_HQD_PQ_DOORBELL_CONTROL) &
 			 CP_HQD_PQ_DOORBELL_CONTROL__DOORBELL_OFFSET_MASK) >>
 			 CP_HQD_PQ_DOORBELL_CONTROL__DOORBELL_OFFSET__SHIFT;
 	}
@@ -1033,7 +1033,7 @@ void kgd_gfx_v9_get_cu_occupancy(struct amdgpu_device *adev,
 	DECLARE_BITMAP(cp_queue_bitmap, AMDGPU_MAX_QUEUES);
 
 	lock_spi_csq_mutexes(adev);
-	soc15_grbm_select(adev, 1, 0, 0, 0, inst);
+	soc15_grbm_select(adev, 1, 0, 0, 0, GET_INST(GC, inst));
 
 	/*
 	 * Iterate through the shader engines and arrays of the device
@@ -1046,7 +1046,7 @@ void kgd_gfx_v9_get_cu_occupancy(struct amdgpu_device *adev,
 	se_cnt = adev->gfx.config.max_shader_engines;
 	for (se_idx = 0; se_idx < se_cnt; se_idx++) {
 		amdgpu_gfx_select_se_sh(adev, se_idx, 0, 0xffffffff, inst);
-		queue_map = RREG32_SOC15(GC, inst, mmSPI_CSQ_WF_ACTIVE_STATUS);
+		queue_map = RREG32_SOC15(GC, GET_INST(GC, inst), mmSPI_CSQ_WF_ACTIVE_STATUS);
 
 		/*
 		 * Assumption: queue map encodes following schema: four
@@ -1071,7 +1071,7 @@ void kgd_gfx_v9_get_cu_occupancy(struct amdgpu_device *adev,
 	}
 
 	amdgpu_gfx_select_se_sh(adev, 0xffffffff, 0xffffffff, 0xffffffff, inst);
-	soc15_grbm_select(adev, 0, 0, 0, 0, inst);
+	soc15_grbm_select(adev, 0, 0, 0, 0, GET_INST(GC, inst));
 	unlock_spi_csq_mutexes(adev);
 
 	/* Update the output parameters and return */
