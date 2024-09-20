@@ -2661,6 +2661,29 @@ static enum surface_update_type det_surface_update(const struct dc *dc,
 	return overall_type;
 }
 
+/* May need to flip the desktop plane in cases where MPO plane receives a flip but desktop plane doesn't
+ * while both planes are flip_immediate
+ */
+static void force_immediate_gsl_plane_flip(struct dc *dc, struct dc_surface_update *updates, int surface_count)
+{
+	bool has_flip_immediate_plane = false;
+	int i;
+
+	for (i = 0; i < surface_count; i++) {
+		if (updates[i].surface->flip_immediate) {
+			has_flip_immediate_plane = true;
+			break;
+		}
+	}
+
+	if (has_flip_immediate_plane && surface_count > 1) {
+		for (i = 0; i < surface_count; i++) {
+			if (updates[i].surface->flip_immediate)
+				updates[i].surface->update_flags.bits.addr_update = 1;
+		}
+	}
+}
+
 static enum surface_update_type check_update_surfaces_for_stream(
 		struct dc *dc,
 		struct dc_surface_update *updates,
@@ -3177,6 +3200,11 @@ static bool update_planes_and_stream_state(struct dc *dc,
 	context = dc->current_state;
 	update_type = dc_check_update_surfaces_for_stream(
 			dc, srf_updates, surface_count, stream_update, stream_status);
+	/* It is possible to receive a flip for one plane while there are multiple flip_immediate planes in the same stream.
+	 * E.g. Desktop and MPO plane are flip_immediate but only the MPO plane received a flip
+	 * Force the other flip_immediate planes to flip so GSL doesn't wait for a flip that won't come.
+	 */
+	force_immediate_gsl_plane_flip(dc, srf_updates, surface_count);
 	if (update_type == UPDATE_TYPE_FULL)
 		backup_planes_and_stream_state(&dc->scratch.current_state, stream);
 
@@ -4807,6 +4835,11 @@ static bool update_planes_and_stream_v1(struct dc *dc,
 
 	update_type = dc_check_update_surfaces_for_stream(
 				dc, srf_updates, surface_count, stream_update, stream_status);
+	/* It is possible to receive a flip for one plane while there are multiple flip_immediate planes in the same stream.
+	 * E.g. Desktop and MPO plane are flip_immediate but only the MPO plane received a flip
+	 * Force the other flip_immediate planes to flip so GSL doesn't wait for a flip that won't come.
+	 */
+	force_immediate_gsl_plane_flip(dc, srf_updates, surface_count);
 
 	if (update_type >= UPDATE_TYPE_FULL) {
 
