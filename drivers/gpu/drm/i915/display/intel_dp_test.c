@@ -514,15 +514,14 @@ static ssize_t i915_displayport_test_active_write(struct file *file,
 						  const char __user *ubuf,
 						  size_t len, loff_t *offp)
 {
+	struct seq_file *m = file->private_data;
+	struct intel_display *display = m->private;
 	char *input_buffer;
 	int status = 0;
-	struct drm_device *dev;
 	struct drm_connector *connector;
 	struct drm_connector_list_iter conn_iter;
 	struct intel_dp *intel_dp;
 	int val = 0;
-
-	dev = ((struct seq_file *)file->private_data)->private;
 
 	if (len == 0)
 		return 0;
@@ -531,9 +530,9 @@ static ssize_t i915_displayport_test_active_write(struct file *file,
 	if (IS_ERR(input_buffer))
 		return PTR_ERR(input_buffer);
 
-	drm_dbg(dev, "Copied %d bytes from user\n", (unsigned int)len);
+	drm_dbg_kms(display->drm, "Copied %d bytes from user\n", (unsigned int)len);
 
-	drm_connector_list_iter_begin(dev, &conn_iter);
+	drm_connector_list_iter_begin(display->drm, &conn_iter);
 	drm_for_each_connector_iter(connector, &conn_iter) {
 		struct intel_encoder *encoder;
 
@@ -550,7 +549,7 @@ static ssize_t i915_displayport_test_active_write(struct file *file,
 			status = kstrtoint(input_buffer, 10, &val);
 			if (status < 0)
 				break;
-			drm_dbg(dev, "Got %d for test active\n", val);
+			drm_dbg_kms(display->drm, "Got %d for test active\n", val);
 			/* To prevent erroneous activation of the compliance
 			 * testing code, only accept an actual value of 1 here
 			 */
@@ -571,12 +570,12 @@ static ssize_t i915_displayport_test_active_write(struct file *file,
 
 static int i915_displayport_test_active_show(struct seq_file *m, void *data)
 {
-	struct drm_i915_private *dev_priv = m->private;
+	struct intel_display *display = m->private;
 	struct drm_connector *connector;
 	struct drm_connector_list_iter conn_iter;
 	struct intel_dp *intel_dp;
 
-	drm_connector_list_iter_begin(&dev_priv->drm, &conn_iter);
+	drm_connector_list_iter_begin(display->drm, &conn_iter);
 	drm_for_each_connector_iter(connector, &conn_iter) {
 		struct intel_encoder *encoder;
 
@@ -621,12 +620,12 @@ static const struct file_operations i915_displayport_test_active_fops = {
 
 static int i915_displayport_test_data_show(struct seq_file *m, void *data)
 {
-	struct drm_i915_private *dev_priv = m->private;
+	struct intel_display *display = m->private;
 	struct drm_connector *connector;
 	struct drm_connector_list_iter conn_iter;
 	struct intel_dp *intel_dp;
 
-	drm_connector_list_iter_begin(&dev_priv->drm, &conn_iter);
+	drm_connector_list_iter_begin(display->drm, &conn_iter);
 	drm_for_each_connector_iter(connector, &conn_iter) {
 		struct intel_encoder *encoder;
 
@@ -675,12 +674,12 @@ DEFINE_SHOW_ATTRIBUTE(i915_displayport_test_data);
 
 static int i915_displayport_test_type_show(struct seq_file *m, void *data)
 {
-	struct drm_i915_private *dev_priv = m->private;
+	struct intel_display *display = m->private;
 	struct drm_connector *connector;
 	struct drm_connector_list_iter conn_iter;
 	struct intel_dp *intel_dp;
 
-	drm_connector_list_iter_begin(&dev_priv->drm, &conn_iter);
+	drm_connector_list_iter_begin(display->drm, &conn_iter);
 	drm_for_each_connector_iter(connector, &conn_iter) {
 		struct intel_encoder *encoder;
 
@@ -723,7 +722,7 @@ void intel_dp_test_debugfs_register(struct intel_display *display)
 		debugfs_create_file(intel_display_debugfs_files[i].name,
 				    0644,
 				    minor->debugfs_root,
-				    to_i915(minor->dev),
+				    display,
 				    intel_display_debugfs_files[i].fops);
 	}
 }
