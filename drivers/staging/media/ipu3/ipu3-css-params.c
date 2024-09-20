@@ -2626,7 +2626,7 @@ int imgu_css_cfg_acc(struct imgu_css *css, unsigned int pipe,
 		return -EINVAL;
 
 	acc->awb.config.grid.height_per_slice =
-		IMGU_ABI_AWB_MAX_CELLS_PER_SET / acc->awb.config.grid.width,
+		IMGU_ABI_AWB_MAX_CELLS_PER_SET / acc->awb.config.grid.width;
 	imgu_css_grid_end_calc(&acc->awb.config.grid);
 
 	for (i = 0; i < stripes; i++)
