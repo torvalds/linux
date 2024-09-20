@@ -57,6 +57,7 @@ def define_neo_la():
         "drivers/iio/adc/qcom-spmi-adc5.ko",
         "drivers/iio/adc/qcom-vadc-common.ko",
         "drivers/input/misc/pm8941-pwrkey.ko",
+        "drivers/interconnect/icc-test.ko",
         "drivers/interconnect/qcom/icc-bcm-voter.ko",
         "drivers/interconnect/qcom/icc-debug.ko",
         "drivers/interconnect/qcom/icc-rpmh.ko",
