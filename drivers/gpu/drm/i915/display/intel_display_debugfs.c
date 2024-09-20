@@ -866,26 +866,13 @@ static const struct drm_info_list intel_display_debugfs_list[] = {
 	{"i915_lpsp_status", i915_lpsp_status, 0},
 };
 
-static const struct {
-	const char *name;
-	const struct file_operations *fops;
-} intel_display_debugfs_files[] = {
-	{"i915_fifo_underrun_reset", &i915_fifo_underrun_reset_ops},
-};
-
 void intel_display_debugfs_register(struct drm_i915_private *i915)
 {
 	struct intel_display *display = &i915->display;
 	struct drm_minor *minor = i915->drm.primary;
-	int i;
 
-	for (i = 0; i < ARRAY_SIZE(intel_display_debugfs_files); i++) {
-		debugfs_create_file(intel_display_debugfs_files[i].name,
-				    0644,
-				    minor->debugfs_root,
-				    to_i915(minor->dev),
-				    intel_display_debugfs_files[i].fops);
-	}
+	debugfs_create_file("i915_fifo_underrun_reset", 0644, minor->debugfs_root,
+			    to_i915(minor->dev), &i915_fifo_underrun_reset_ops);
 
 	drm_debugfs_create_files(intel_display_debugfs_list,
 				 ARRAY_SIZE(intel_display_debugfs_list),
