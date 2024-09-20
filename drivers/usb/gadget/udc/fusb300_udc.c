@@ -1297,7 +1297,7 @@ static void init_controller(struct fusb300 *fusb300)
 	reg |= val;
 	iowrite32(reg, fusb300->reg + FUSB300_OFFSET_HSCR);
 
-	/*set u1 u2 timmer*/
+	/*set u1 u2 timer*/
 	fusb300_set_u2_timeout(fusb300, 0xff);
 	fusb300_set_u1_timeout(fusb300, 0xff);
 

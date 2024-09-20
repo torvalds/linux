@@ -2097,7 +2097,7 @@ static irqreturn_t net2272_irq(int irq, void *_dev)
 	}
 	/* check dma interrupts */
 #endif
-	/* Platform/devcice interrupt handler */
+	/* Platform/device interrupt handler */
 #if !defined(PLX_PCI_RDK)
 	net2272_handle_stat1_irqs(dev, net2272_read(dev, IRQSTAT1));
 	net2272_handle_stat0_irqs(dev, net2272_read(dev, IRQSTAT0));
