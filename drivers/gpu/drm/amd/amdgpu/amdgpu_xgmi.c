@@ -801,6 +801,23 @@ int amdgpu_xgmi_get_num_links(struct amdgpu_device *adev,
 	return	-EINVAL;
 }
 
+bool amdgpu_xgmi_get_is_sharing_enabled(struct amdgpu_device *adev,
+					struct amdgpu_device *peer_adev)
+{
+	struct psp_xgmi_topology_info *top = &adev->psp.xgmi_context.top_info;
+	int i;
+
+	/* Sharing should always be enabled for non-SRIOV. */
+	if (!amdgpu_sriov_vf(adev))
+		return true;
+
+	for (i = 0 ; i < top->num_nodes; ++i)
+		if (top->nodes[i].node_id == peer_adev->gmc.xgmi.node_id)
+			return !!top->nodes[i].is_sharing_enabled;
+
+	return false;
+}
+
 /*
  * Devices that support extended data require the entire hive to initialize with
  * the shared memory buffer flag set.
