@@ -643,6 +643,8 @@ static bool execute_synaptics_rc_command(struct drm_dp_aux *aux,
 		// write rc data
 		memmove(rc_data, data, length);
 		ret = drm_dp_dpcd_write(aux, SYNAPTICS_RC_DATA, rc_data, sizeof(rc_data));
+		if (ret < 0)
+			goto err;
 	}
 
 	// write rc offset
@@ -651,20 +653,21 @@ static bool execute_synaptics_rc_command(struct drm_dp_aux *aux,
 	rc_offset[2] = (unsigned char) (offset >> 16) & 0xFF;
 	rc_offset[3] = (unsigned char) (offset >> 24) & 0xFF;
 	ret = drm_dp_dpcd_write(aux, SYNAPTICS_RC_OFFSET, rc_offset, sizeof(rc_offset));
+	if (ret < 0)
+		goto err;
 
 	// write rc length
 	rc_length[0] = (unsigned char) length & 0xFF;
 	rc_length[1] = (unsigned char) (length >> 8) & 0xFF;
 	ret = drm_dp_dpcd_write(aux, SYNAPTICS_RC_LENGTH, rc_length, sizeof(rc_length));
+	if (ret < 0)
+		goto err;
 
 	// write rc cmd
 	rc_cmd = cmd | 0x80;
 	ret = drm_dp_dpcd_write(aux, SYNAPTICS_RC_COMMAND, &rc_cmd, sizeof(rc_cmd));
-
-	if (ret < 0) {
-		DRM_ERROR("%s: write cmd ..., err = %d\n",  __func__, ret);
-		return false;
-	}
+	if (ret < 0)
+		goto err;
 
 	// poll until active is 0
 	for (i = 0; i < 10; i++) {
@@ -687,6 +690,10 @@ static bool execute_synaptics_rc_command(struct drm_dp_aux *aux,
 	drm_dbg_dp(aux->drm_dev, "success = %d\n", success);
 
 	return success;
+
+err:
+	DRM_ERROR("%s: write cmd ..., err = %d\n",  __func__, ret);
+	return false;
 }
 
 static void apply_synaptics_fifo_reset_wa(struct drm_dp_aux *aux)
