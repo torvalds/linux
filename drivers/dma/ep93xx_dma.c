@@ -1395,7 +1395,7 @@ static struct ep93xx_dma_engine *ep93xx_dma_of_probe(struct platform_device *pde
 		edmac->chan.device = dma_dev;
 		edmac->regs = devm_platform_ioremap_resource(pdev, i);
 		if (IS_ERR(edmac->regs))
-			return edmac->regs;
+			return ERR_CAST(edmac->regs);
 
 		edmac->irq = fwnode_irq_get(dev_fwnode(dev), i);
 		if (edmac->irq < 0)
