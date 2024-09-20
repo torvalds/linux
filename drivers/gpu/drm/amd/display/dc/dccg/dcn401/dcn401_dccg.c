@@ -580,9 +580,6 @@ static void dccg401_set_dpstreamclk(
 		int otg_inst,
 		int dp_hpo_inst)
 {
-	/* set the dtbclk_p source */
-	dccg401_set_dtbclk_p_src(dccg, src, otg_inst);
-
 	/* enabled to select one of the DTBCLKs for pipe */
 	if (src == REFCLK)
 		dccg401_disable_dpstreamclk(dccg, dp_hpo_inst);

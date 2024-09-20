@@ -112,7 +112,7 @@ static const struct hwseq_private_funcs dcn401_private_funcs = {
 	.power_down = dce110_power_down,
 	.enable_display_power_gating = dcn10_dummy_display_power_gating,
 	.blank_pixel_data = dcn20_blank_pixel_data,
-	.reset_hw_ctx_wrap = dcn20_reset_hw_ctx_wrap,
+	.reset_hw_ctx_wrap = dcn401_reset_hw_ctx_wrap,
 	.enable_stream_timing = dcn401_enable_stream_timing,
 	.edp_backlight_control = dce110_edp_backlight_control,
 	.setup_vupdate_interrupt = dcn20_setup_vupdate_interrupt,
@@ -137,7 +137,7 @@ static const struct hwseq_private_funcs dcn401_private_funcs = {
 	.update_mall_sel = dcn32_update_mall_sel,
 	.calculate_dccg_k1_k2_values = NULL,
 	.apply_single_controller_ctx_to_hw = dce110_apply_single_controller_ctx_to_hw,
-	.reset_back_end_for_pipe = dcn20_reset_back_end_for_pipe,
+	.reset_back_end_for_pipe = dcn401_reset_back_end_for_pipe,
 	.populate_mcm_luts = NULL,
 };
 
