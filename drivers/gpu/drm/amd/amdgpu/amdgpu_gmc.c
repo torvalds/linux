@@ -1249,12 +1249,15 @@ int amdgpu_gmc_get_nps_memranges(struct amdgpu_device *adev,
 	struct amdgpu_gmc_memrange *ranges;
 	int range_cnt, ret, i, j;
 	uint32_t nps_type;
+	bool refresh;
 
 	if (!mem_ranges)
 		return -EINVAL;
 
+	refresh = (adev->init_lvl->level != AMDGPU_INIT_LEVEL_MINIMAL_XGMI) &&
+		  (adev->gmc.reset_flags & AMDGPU_GMC_INIT_RESET_NPS);
 	ret = amdgpu_discovery_get_nps_info(adev, &nps_type, &ranges,
-					    &range_cnt, false);
+					    &range_cnt, refresh);
 
 	if (ret)
 		return ret;
@@ -1379,4 +1382,12 @@ out:
 		dev_info(
 			adev->dev,
 			"NPS mode change request done, reload driver to complete the change\n");
+}
+
+bool amdgpu_gmc_need_reset_on_init(struct amdgpu_device *adev)
+{
+	if (adev->gmc.gmc_funcs->need_reset_on_init)
+		return adev->gmc.gmc_funcs->need_reset_on_init(adev);
+
+	return false;
 }
