@@ -1615,132 +1615,6 @@ static bool pwm_ops_check(const struct pwm_chip *chip)
 	return true;
 }
 
-/**
- * __pwmchip_add() - register a new PWM chip
- * @chip: the PWM chip to add
- * @owner: reference to the module providing the chip.
- *
- * Register a new PWM chip. @owner is supposed to be THIS_MODULE, use the
- * pwmchip_add wrapper to do this right.
- *
- * Returns: 0 on success or a negative error code on failure.
- */
-int __pwmchip_add(struct pwm_chip *chip, struct module *owner)
-{
-	int ret;
-
-	if (!chip || !pwmchip_parent(chip) || !chip->ops || !chip->npwm)
-		return -EINVAL;
-
-	/*
-	 * a struct pwm_chip must be allocated using (devm_)pwmchip_alloc,
-	 * otherwise the embedded struct device might disappear too early
-	 * resulting in memory corruption.
-	 * Catch drivers that were not converted appropriately.
-	 */
-	if (!chip->uses_pwmchip_alloc)
-		return -EINVAL;
-
-	if (!pwm_ops_check(chip))
-		return -EINVAL;
-
-	chip->owner = owner;
-
-	if (chip->atomic)
-		spin_lock_init(&chip->atomic_lock);
-	else
-		mutex_init(&chip->nonatomic_lock);
-
-	guard(mutex)(&pwm_lock);
-
-	ret = idr_alloc(&pwm_chips, chip, 0, 0, GFP_KERNEL);
-	if (ret < 0)
-		return ret;
-
-	chip->id = ret;
-
-	dev_set_name(&chip->dev, "pwmchip%u", chip->id);
-
-	if (IS_ENABLED(CONFIG_OF))
-		of_pwmchip_add(chip);
-
-	scoped_guard(pwmchip, chip)
-		chip->operational = true;
-
-	ret = device_add(&chip->dev);
-	if (ret)
-		goto err_device_add;
-
-	return 0;
-
-err_device_add:
-	scoped_guard(pwmchip, chip)
-		chip->operational = false;
-
-	if (IS_ENABLED(CONFIG_OF))
-		of_pwmchip_remove(chip);
-
-	idr_remove(&pwm_chips, chip->id);
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(__pwmchip_add);
-
-/**
- * pwmchip_remove() - remove a PWM chip
- * @chip: the PWM chip to remove
- *
- * Removes a PWM chip.
- */
-void pwmchip_remove(struct pwm_chip *chip)
-{
-	pwmchip_sysfs_unexport(chip);
-
-	scoped_guard(mutex, &pwm_lock) {
-		unsigned int i;
-
-		scoped_guard(pwmchip, chip)
-			chip->operational = false;
-
-		for (i = 0; i < chip->npwm; ++i) {
-			struct pwm_device *pwm = &chip->pwms[i];
-
-			if (test_and_clear_bit(PWMF_REQUESTED, &pwm->flags)) {
-				dev_warn(&chip->dev, "Freeing requested PWM #%u\n", i);
-				if (pwm->chip->ops->free)
-					pwm->chip->ops->free(pwm->chip, pwm);
-			}
-		}
-
-		if (IS_ENABLED(CONFIG_OF))
-			of_pwmchip_remove(chip);
-
-		idr_remove(&pwm_chips, chip->id);
-	}
-
-	device_del(&chip->dev);
-}
-EXPORT_SYMBOL_GPL(pwmchip_remove);
-
-static void devm_pwmchip_remove(void *data)
-{
-	struct pwm_chip *chip = data;
-
-	pwmchip_remove(chip);
-}
-
-int __devm_pwmchip_add(struct device *dev, struct pwm_chip *chip, struct module *owner)
-{
-	int ret;
-
-	ret = __pwmchip_add(chip, owner);
-	if (ret)
-		return ret;
-
-	return devm_add_action_or_reset(dev, devm_pwmchip_remove, chip);
-}
-EXPORT_SYMBOL_GPL(__devm_pwmchip_add);
-
 static struct device_link *pwm_device_link_add(struct device *dev,
 					       struct pwm_device *pwm)
 {
@@ -1917,36 +1791,6 @@ static struct pwm_device *acpi_pwm_get(const struct fwnode_handle *fwnode)
 
 static DEFINE_MUTEX(pwm_lookup_lock);
 static LIST_HEAD(pwm_lookup_list);
-
-/**
- * pwm_add_table() - register PWM device consumers
- * @table: array of consumers to register
- * @num: number of consumers in table
- */
-void pwm_add_table(struct pwm_lookup *table, size_t num)
-{
-	guard(mutex)(&pwm_lookup_lock);
-
-	while (num--) {
-		list_add_tail(&table->list, &pwm_lookup_list);
-		table++;
-	}
-}
-
-/**
- * pwm_remove_table() - unregister PWM device consumers
- * @table: array of consumers to unregister
- * @num: number of consumers in table
- */
-void pwm_remove_table(struct pwm_lookup *table, size_t num)
-{
-	guard(mutex)(&pwm_lookup_lock);
-
-	while (num--) {
-		list_del(&table->list);
-		table++;
-	}
-}
 
 /**
  * pwm_get() - look up and request a PWM device
@@ -2173,6 +2017,162 @@ struct pwm_device *devm_fwnode_pwm_get(struct device *dev,
 	return pwm;
 }
 EXPORT_SYMBOL_GPL(devm_fwnode_pwm_get);
+
+/**
+ * __pwmchip_add() - register a new PWM chip
+ * @chip: the PWM chip to add
+ * @owner: reference to the module providing the chip.
+ *
+ * Register a new PWM chip. @owner is supposed to be THIS_MODULE, use the
+ * pwmchip_add wrapper to do this right.
+ *
+ * Returns: 0 on success or a negative error code on failure.
+ */
+int __pwmchip_add(struct pwm_chip *chip, struct module *owner)
+{
+	int ret;
+
+	if (!chip || !pwmchip_parent(chip) || !chip->ops || !chip->npwm)
+		return -EINVAL;
+
+	/*
+	 * a struct pwm_chip must be allocated using (devm_)pwmchip_alloc,
+	 * otherwise the embedded struct device might disappear too early
+	 * resulting in memory corruption.
+	 * Catch drivers that were not converted appropriately.
+	 */
+	if (!chip->uses_pwmchip_alloc)
+		return -EINVAL;
+
+	if (!pwm_ops_check(chip))
+		return -EINVAL;
+
+	chip->owner = owner;
+
+	if (chip->atomic)
+		spin_lock_init(&chip->atomic_lock);
+	else
+		mutex_init(&chip->nonatomic_lock);
+
+	guard(mutex)(&pwm_lock);
+
+	ret = idr_alloc(&pwm_chips, chip, 0, 0, GFP_KERNEL);
+	if (ret < 0)
+		return ret;
+
+	chip->id = ret;
+
+	dev_set_name(&chip->dev, "pwmchip%u", chip->id);
+
+	if (IS_ENABLED(CONFIG_OF))
+		of_pwmchip_add(chip);
+
+	scoped_guard(pwmchip, chip)
+		chip->operational = true;
+
+	ret = device_add(&chip->dev);
+	if (ret)
+		goto err_device_add;
+
+	return 0;
+
+err_device_add:
+	scoped_guard(pwmchip, chip)
+		chip->operational = false;
+
+	if (IS_ENABLED(CONFIG_OF))
+		of_pwmchip_remove(chip);
+
+	idr_remove(&pwm_chips, chip->id);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(__pwmchip_add);
+
+/**
+ * pwmchip_remove() - remove a PWM chip
+ * @chip: the PWM chip to remove
+ *
+ * Removes a PWM chip.
+ */
+void pwmchip_remove(struct pwm_chip *chip)
+{
+	pwmchip_sysfs_unexport(chip);
+
+	scoped_guard(mutex, &pwm_lock) {
+		unsigned int i;
+
+		scoped_guard(pwmchip, chip)
+			chip->operational = false;
+
+		for (i = 0; i < chip->npwm; ++i) {
+			struct pwm_device *pwm = &chip->pwms[i];
+
+			if (test_and_clear_bit(PWMF_REQUESTED, &pwm->flags)) {
+				dev_warn(&chip->dev, "Freeing requested PWM #%u\n", i);
+				if (pwm->chip->ops->free)
+					pwm->chip->ops->free(pwm->chip, pwm);
+			}
+		}
+
+		if (IS_ENABLED(CONFIG_OF))
+			of_pwmchip_remove(chip);
+
+		idr_remove(&pwm_chips, chip->id);
+	}
+
+	device_del(&chip->dev);
+}
+EXPORT_SYMBOL_GPL(pwmchip_remove);
+
+static void devm_pwmchip_remove(void *data)
+{
+	struct pwm_chip *chip = data;
+
+	pwmchip_remove(chip);
+}
+
+int __devm_pwmchip_add(struct device *dev, struct pwm_chip *chip, struct module *owner)
+{
+	int ret;
+
+	ret = __pwmchip_add(chip, owner);
+	if (ret)
+		return ret;
+
+	return devm_add_action_or_reset(dev, devm_pwmchip_remove, chip);
+}
+EXPORT_SYMBOL_GPL(__devm_pwmchip_add);
+
+/**
+ * pwm_add_table() - register PWM device consumers
+ * @table: array of consumers to register
+ * @num: number of consumers in table
+ */
+void pwm_add_table(struct pwm_lookup *table, size_t num)
+{
+	guard(mutex)(&pwm_lookup_lock);
+
+	while (num--) {
+		list_add_tail(&table->list, &pwm_lookup_list);
+		table++;
+	}
+}
+
+/**
+ * pwm_remove_table() - unregister PWM device consumers
+ * @table: array of consumers to unregister
+ * @num: number of consumers in table
+ */
+void pwm_remove_table(struct pwm_lookup *table, size_t num)
+{
+	guard(mutex)(&pwm_lookup_lock);
+
+	while (num--) {
+		list_del(&table->list);
+		table++;
+	}
+}
 
 static void pwm_dbg_show(struct pwm_chip *chip, struct seq_file *s)
 {
