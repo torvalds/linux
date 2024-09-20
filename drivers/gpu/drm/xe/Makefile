@@ -220,6 +220,7 @@ xe-$(CONFIG_DRM_XE_DISPLAY) += \
 	i915-display/intel_dp_hdcp.o \
 	i915-display/intel_dp_link_training.o \
 	i915-display/intel_dp_mst.o \
+	i915-display/intel_dp_test.o \
 	i915-display/intel_dpll.o \
 	i915-display/intel_dpll_mgr.o \
 	i915-display/intel_dpt_common.o \
