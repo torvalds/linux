@@ -231,7 +231,7 @@ int vfs_fstat(int fd, struct kstat *stat)
 	return error;
 }
 
-int getname_statx_lookup_flags(int flags)
+static int statx_lookup_flags(int flags)
 {
 	int lookup_flags = 0;
 
@@ -239,8 +239,6 @@ int getname_statx_lookup_flags(int flags)
 		lookup_flags |= LOOKUP_FOLLOW;
 	if (!(flags & AT_NO_AUTOMOUNT))
 		lookup_flags |= LOOKUP_AUTOMOUNT;
-	if (flags & AT_EMPTY_PATH)
-		lookup_flags |= LOOKUP_EMPTY;
 
 	return lookup_flags;
 }
@@ -301,7 +299,7 @@ static int vfs_statx(int dfd, struct filename *filename, int flags,
 	      struct kstat *stat, u32 request_mask)
 {
 	struct path path;
-	unsigned int lookup_flags = getname_statx_lookup_flags(flags);
+	unsigned int lookup_flags = statx_lookup_flags(flags);
 	int error;
 
 	if (flags & ~(AT_SYMLINK_NOFOLLOW | AT_NO_AUTOMOUNT | AT_EMPTY_PATH |
