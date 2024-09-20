@@ -177,7 +177,7 @@ static struct clk_hw_onecell_data sun9i_a80_de_hw_clks = {
 	.num	= CLK_NUMBER,
 };
 
-static struct ccu_reset_map sun9i_a80_de_resets[] = {
+static const struct ccu_reset_map sun9i_a80_de_resets[] = {
 	[RST_FE0]	= { 0x0c, BIT(0) },
 	[RST_FE1]	= { 0x0c, BIT(1) },
 	[RST_FE2]	= { 0x0c, BIT(2) },

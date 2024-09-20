@@ -1108,7 +1108,7 @@ static struct clk_hw_onecell_data sun9i_a80_hw_clks = {
 	.num	= CLK_NUMBER,
 };
 
-static struct ccu_reset_map sun9i_a80_ccu_resets[] = {
+static const struct ccu_reset_map sun9i_a80_ccu_resets[] = {
 	/* AHB0 reset controls */
 	[RST_BUS_FD]		= { 0x5a0, BIT(0) },
 	[RST_BUS_VE]		= { 0x5a0, BIT(1) },

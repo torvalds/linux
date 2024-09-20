@@ -477,7 +477,7 @@ static struct clk_hw_onecell_data suniv_hw_clks = {
 	.num	= CLK_NUMBER,
 };
 
-static struct ccu_reset_map suniv_ccu_resets[] = {
+static const struct ccu_reset_map suniv_ccu_resets[] = {
 	[RST_USB_PHY0]		=  { 0x0cc, BIT(0) },
 
 	[RST_BUS_DMA]		=  { 0x2c0, BIT(6) },

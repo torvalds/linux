@@ -146,7 +146,7 @@ static struct clk_hw_onecell_data sun50i_a64_de2_hw_clks = {
 	.num	= CLK_NUMBER_WITH_ROT,
 };
 
-static struct ccu_reset_map sun8i_a83t_de2_resets[] = {
+static const struct ccu_reset_map sun8i_a83t_de2_resets[] = {
 	[RST_MIXER0]	= { 0x08, BIT(0) },
 	/*
 	 * Mixer1 reset line is shared with wb, so only RST_WB is
@@ -156,7 +156,7 @@ static struct ccu_reset_map sun8i_a83t_de2_resets[] = {
 	[RST_ROT]	= { 0x08, BIT(3) },
 };
 
-static struct ccu_reset_map sun8i_h3_de2_resets[] = {
+static const struct ccu_reset_map sun8i_h3_de2_resets[] = {
 	[RST_MIXER0]	= { 0x08, BIT(0) },
 	/*
 	 * Mixer1 reset line is shared with wb, so only RST_WB is
@@ -166,14 +166,14 @@ static struct ccu_reset_map sun8i_h3_de2_resets[] = {
 	[RST_WB]	= { 0x08, BIT(2) },
 };
 
-static struct ccu_reset_map sun50i_a64_de2_resets[] = {
+static const struct ccu_reset_map sun50i_a64_de2_resets[] = {
 	[RST_MIXER0]	= { 0x08, BIT(0) },
 	[RST_MIXER1]	= { 0x08, BIT(1) },
 	[RST_WB]	= { 0x08, BIT(2) },
 	[RST_ROT]	= { 0x08, BIT(3) },
 };
 
-static struct ccu_reset_map sun50i_h5_de2_resets[] = {
+static const struct ccu_reset_map sun50i_h5_de2_resets[] = {
 	[RST_MIXER0]	= { 0x08, BIT(0) },
 	[RST_MIXER1]	= { 0x08, BIT(1) },
 	[RST_WB]	= { 0x08, BIT(2) },

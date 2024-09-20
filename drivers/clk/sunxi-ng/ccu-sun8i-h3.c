@@ -876,7 +876,7 @@ static struct clk_hw_onecell_data sun50i_h5_hw_clks = {
 	.num	= CLK_NUMBER_H5,
 };
 
-static struct ccu_reset_map sun8i_h3_ccu_resets[] = {
+static const struct ccu_reset_map sun8i_h3_ccu_resets[] = {
 	[RST_USB_PHY0]		=  { 0x0cc, BIT(0) },
 	[RST_USB_PHY1]		=  { 0x0cc, BIT(1) },
 	[RST_USB_PHY2]		=  { 0x0cc, BIT(2) },
@@ -939,7 +939,7 @@ static struct ccu_reset_map sun8i_h3_ccu_resets[] = {
 	[RST_BUS_SCR0]		=  { 0x2d8, BIT(20) },
 };
 
-static struct ccu_reset_map sun50i_h5_ccu_resets[] = {
+static const struct ccu_reset_map sun50i_h5_ccu_resets[] = {
 	[RST_USB_PHY0]		=  { 0x0cc, BIT(0) },
 	[RST_USB_PHY1]		=  { 0x0cc, BIT(1) },
 	[RST_USB_PHY2]		=  { 0x0cc, BIT(2) },

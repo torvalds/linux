@@ -1232,7 +1232,7 @@ static struct clk_hw_onecell_data sun20i_d1_hw_clks = {
 	},
 };
 
-static struct ccu_reset_map sun20i_d1_ccu_resets[] = {
+static const struct ccu_reset_map sun20i_d1_ccu_resets[] = {
 	[RST_MBUS]		= { 0x540, BIT(30) },
 	[RST_BUS_DE]		= { 0x60c, BIT(16) },
 	[RST_BUS_DI]		= { 0x62c, BIT(16) },

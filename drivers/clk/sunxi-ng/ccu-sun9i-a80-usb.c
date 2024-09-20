@@ -68,7 +68,7 @@ static struct clk_hw_onecell_data sun9i_a80_usb_hw_clks = {
 	.num	= CLK_NUMBER,
 };
 
-static struct ccu_reset_map sun9i_a80_usb_resets[] = {
+static const struct ccu_reset_map sun9i_a80_usb_resets[] = {
 	[RST_USB0_HCI]		= { 0x0, BIT(17) },
 	[RST_USB1_HCI]		= { 0x0, BIT(18) },
 	[RST_USB2_HCI]		= { 0x0, BIT(19) },
