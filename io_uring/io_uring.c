@@ -2153,7 +2153,7 @@ static inline int io_submit_sqe(struct io_ring_ctx *ctx, struct io_kiocb *req,
 	 * conditions are true (normal request), then just queue it.
 	 */
 	if (unlikely(link->head)) {
-		trace_io_uring_link(req, link->head);
+		trace_io_uring_link(req, link->last);
 		link->last->link = req;
 		link->last = req;
 
