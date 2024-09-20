@@ -1118,8 +1118,11 @@ int zynqmp_pm_pinctrl_set_config(const u32 pin, const u32 param,
 	if (pm_family_code == ZYNQMP_FAMILY_CODE &&
 	    param == PM_PINCTRL_CONFIG_TRI_STATE) {
 		ret = zynqmp_pm_feature(PM_PINCTRL_CONFIG_PARAM_SET);
-		if (ret < PM_PINCTRL_PARAM_SET_VERSION)
+		if (ret < PM_PINCTRL_PARAM_SET_VERSION) {
+			pr_warn("The requested pinctrl feature is not supported in the current firmware.\n"
+				"Expected firmware version is 2023.1 and above for this feature to work.\r\n");
 			return -EOPNOTSUPP;
+		}
 	}
 
 	return zynqmp_pm_invoke_fn(PM_PINCTRL_CONFIG_PARAM_SET, NULL, 3, pin, param, value);
