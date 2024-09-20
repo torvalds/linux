@@ -767,7 +767,7 @@ static const struct dev_pm_ops dcon_pm_ops = {
 };
 
 static const struct i2c_device_id dcon_idtable[] = {
-	{ "olpc_dcon",  0 },
+	{ "olpc_dcon" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, dcon_idtable);
