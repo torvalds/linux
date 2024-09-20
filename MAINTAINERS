@@ -1761,8 +1761,8 @@ F:	include/uapi/linux/if_arcnet.h
 ARM AND ARM64 SoC SUB-ARCHITECTURES (COMMON PARTS)
 M:	Arnd Bergmann <arnd@arndb.de>
 M:	Olof Johansson <olof@lixom.net>
-M:	soc@kernel.org
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+L:	soc@lists.linux.dev
 S:	Maintained
 P:	Documentation/process/maintainer-soc.rst
 C:	irc://irc.libera.chat/armlinux
@@ -21772,8 +21772,8 @@ F:	drivers/accessibility/speakup/
 SPEAR PLATFORM/CLOCK/PINCTRL SUPPORT
 M:	Viresh Kumar <vireshk@kernel.org>
 M:	Shiraz Hashim <shiraz.linux.kernel@gmail.com>
-M:	soc@kernel.org
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+L:	soc@lists.linux.dev
 S:	Maintained
 W:	http://www.st.com/spear
 F:	arch/arm/boot/dts/st/spear*
