@@ -191,6 +191,13 @@ config PINCTRL_QCS404
 	  This is the pinctrl, pinmux, pinconf and gpiolib driver for the
 	  TLMM block found in the Qualcomm QCS404 platform.
 
+config PINCTRL_QCS615
+	tristate "Qualcomm Technologies QCS615 pin controller driver"
+	depends on ARM64 || COMPILE_TEST
+	help
+	  This is the pinctrl, pinmux, pinconf and gpiolib driver for the
+	  TLMM block found on the Qualcomm QCS615 platform.
+
 config PINCTRL_QDF2XXX
 	tristate "Qualcomm Technologies QDF2xxx pin controller driver"
 	depends on ACPI
