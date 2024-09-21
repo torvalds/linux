@@ -47,6 +47,22 @@ static void io_eventfd_put(struct io_ev_fd *ev_fd)
 		call_rcu(&ev_fd->rcu, io_eventfd_free);
 }
 
+/*
+ * Returns true if the caller should put the ev_fd reference, false if not.
+ */
+static bool __io_eventfd_signal(struct io_ev_fd *ev_fd)
+{
+	if (eventfd_signal_allowed()) {
+		eventfd_signal_mask(ev_fd->cq_ev_fd, EPOLL_URING_WAKE);
+		return true;
+	}
+	if (!atomic_fetch_or(BIT(IO_EVENTFD_OP_SIGNAL_BIT), &ev_fd->ops)) {
+		call_rcu_hurry(&ev_fd->rcu, io_eventfd_do_signal);
+		return false;
+	}
+	return true;
+}
+
 void io_eventfd_signal(struct io_ring_ctx *ctx)
 {
 	struct io_ev_fd *ev_fd = NULL;
@@ -73,16 +89,8 @@ void io_eventfd_signal(struct io_ring_ctx *ctx)
 		return;
 	if (!refcount_inc_not_zero(&ev_fd->refs))
 		return;
-
-	if (likely(eventfd_signal_allowed())) {
-		eventfd_signal_mask(ev_fd->cq_ev_fd, EPOLL_URING_WAKE);
-	} else {
-		if (!atomic_fetch_or(BIT(IO_EVENTFD_OP_SIGNAL_BIT), &ev_fd->ops)) {
-			call_rcu_hurry(&ev_fd->rcu, io_eventfd_do_signal);
-			return;
-		}
-	}
-	io_eventfd_put(ev_fd);
+	if (__io_eventfd_signal(ev_fd))
+		io_eventfd_put(ev_fd);
 }
 
 void io_eventfd_flush_signal(struct io_ring_ctx *ctx)
