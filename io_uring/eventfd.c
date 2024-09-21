@@ -69,10 +69,10 @@ void io_eventfd_signal(struct io_ring_ctx *ctx)
 	 */
 	if (unlikely(!ev_fd))
 		return;
+	if (ev_fd->eventfd_async && !io_wq_current_is_worker())
+		return;
 	if (!refcount_inc_not_zero(&ev_fd->refs))
 		return;
-	if (ev_fd->eventfd_async && !io_wq_current_is_worker())
-		goto out;
 
 	if (likely(eventfd_signal_allowed())) {
 		eventfd_signal_mask(ev_fd->cq_ev_fd, EPOLL_URING_WAKE);
@@ -82,7 +82,6 @@ void io_eventfd_signal(struct io_ring_ctx *ctx)
 			return;
 		}
 	}
-out:
 	io_eventfd_put(ev_fd);
 }
 
