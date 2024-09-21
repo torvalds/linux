@@ -215,7 +215,7 @@ static void check_cleared_facilities(void)
 
 	for (i = 0; i < ARRAY_SIZE(als); i++) {
 		if ((stfle_fac_list[i] & als[i]) != als[i]) {
-			sclp_early_printk("Warning: The Linux kernel requires facilities cleared via command line option\n");
+			boot_printk("Warning: The Linux kernel requires facilities cleared via command line option\n");
 			print_missing_facilities();
 			break;
 		}

@@ -22,6 +22,10 @@
 #include <asm/hwctrset.h>
 #include <asm/debug.h>
 
+/* Perf PMU definitions for the counter facility */
+#define PERF_CPUM_CF_MAX_CTR		0xffffUL  /* Max ctr for ECCTR */
+#define PERF_EVENT_CPUM_CF_DIAG		0xBC000UL /* Event: Counter sets */
+
 enum cpumf_ctr_set {
 	CPUMF_CTR_SET_BASIC   = 0,    /* Basic Counter Set */
 	CPUMF_CTR_SET_USER    = 1,    /* Problem-State Counter Set */
