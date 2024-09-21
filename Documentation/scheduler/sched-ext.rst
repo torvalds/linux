@@ -83,6 +83,15 @@ The current status of the BPF scheduler can be determined as follows:
     # cat /sys/kernel/sched_ext/root/ops
     simple
 
+You can check if any BPF scheduler has ever been loaded since boot by examining
+this monotonically incrementing counter (a value of zero indicates that no BPF
+scheduler has been loaded):
+
+.. code-block:: none
+
+    # cat /sys/kernel/sched_ext/enable_seq
+    1
+
 ``tools/sched_ext/scx_show_state.py`` is a drgn script which shows more
 detailed information:
 
@@ -96,6 +105,7 @@ detailed information:
     enable_state  : enabled (2)
     bypass_depth  : 0
     nr_rejected   : 0
+    enable_seq    : 1
 
 If ``CONFIG_SCHED_DEBUG`` is set, whether a given task is on sched_ext can
 be determined as follows:
