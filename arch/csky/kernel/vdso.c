@@ -45,9 +45,16 @@ arch_initcall(vdso_init);
 int arch_setup_additional_pages(struct linux_binprm *bprm,
 	int uses_interp)
 {
+	struct vm_area_struct *vma;
 	struct mm_struct *mm = current->mm;
 	unsigned long vdso_base, vdso_len;
 	int ret;
+	static struct vm_special_mapping vdso_mapping = {
+		.name = "[vdso]",
+	};
+	static struct vm_special_mapping vvar_mapping = {
+		.name = "[vvar]",
+	};
 
 	vdso_len = (vdso_pages + 1) << PAGE_SHIFT;
 
@@ -65,22 +72,29 @@ int arch_setup_additional_pages(struct linux_binprm *bprm,
 	 */
 	mm->context.vdso = (void *)vdso_base;
 
-	ret =
-	   install_special_mapping(mm, vdso_base, vdso_pages << PAGE_SHIFT,
+	vdso_mapping.pages = vdso_pagelist;
+	vma =
+	   _install_special_mapping(mm, vdso_base, vdso_pages << PAGE_SHIFT,
 		(VM_READ | VM_EXEC | VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC),
-		vdso_pagelist);
+		&vdso_mapping);
 
-	if (unlikely(ret)) {
+	if (IS_ERR(vma)) {
+		ret = PTR_ERR(vma);
 		mm->context.vdso = NULL;
 		goto end;
 	}
 
 	vdso_base += (vdso_pages << PAGE_SHIFT);
-	ret = install_special_mapping(mm, vdso_base, PAGE_SIZE,
-		(VM_READ | VM_MAYREAD), &vdso_pagelist[vdso_pages]);
+	vvar_mapping.pages = &vdso_pagelist[vdso_pages];
+	vma = _install_special_mapping(mm, vdso_base, PAGE_SIZE,
+		(VM_READ | VM_MAYREAD), &vvar_mapping);
 
-	if (unlikely(ret))
+	if (IS_ERR(vma)) {
+		ret = PTR_ERR(vma);
 		mm->context.vdso = NULL;
+		goto end;
+	}
+	ret = 0;
 end:
 	mmap_write_unlock(mm);
 	return ret;

@@ -20,7 +20,7 @@
  *	page->index: links together all component pages of a zspage
  *		For the huge page, this is always 0, so we use this field
  *		to store handle.
- *	page->page_type: PG_zsmalloc, lower 16 bit locate the first object
+ *	page->page_type: PGTY_zsmalloc, lower 24 bits locate the first object
  *		offset in a subpage of a zspage
  *
  * Usage of struct page flags:
@@ -463,13 +463,7 @@ static inline struct page *get_first_page(struct zspage *zspage)
 	return first_page;
 }
 
-#define FIRST_OBJ_PAGE_TYPE_MASK	0xffff
-
-static inline void reset_first_obj_offset(struct page *page)
-{
-	VM_WARN_ON_ONCE(!PageZsmalloc(page));
-	page->page_type |= FIRST_OBJ_PAGE_TYPE_MASK;
-}
+#define FIRST_OBJ_PAGE_TYPE_MASK	0xffffff
 
 static inline unsigned int get_first_obj_offset(struct page *page)
 {
@@ -479,8 +473,8 @@ static inline unsigned int get_first_obj_offset(struct page *page)
 
 static inline void set_first_obj_offset(struct page *page, unsigned int offset)
 {
-	/* With 16 bit available, we can support offsets into 64 KiB pages. */
-	BUILD_BUG_ON(PAGE_SIZE > SZ_64K);
+	/* With 24 bits available, we can support offsets into 16 MiB pages. */
+	BUILD_BUG_ON(PAGE_SIZE > SZ_16M);
 	VM_WARN_ON_ONCE(!PageZsmalloc(page));
 	VM_WARN_ON_ONCE(offset & ~FIRST_OBJ_PAGE_TYPE_MASK);
 	page->page_type &= ~FIRST_OBJ_PAGE_TYPE_MASK;
@@ -819,7 +813,6 @@ static void reset_page(struct page *page)
 	ClearPagePrivate(page);
 	set_page_private(page, 0);
 	page->index = 0;
-	reset_first_obj_offset(page);
 	__ClearPageZsmalloc(page);
 }
 

@@ -246,16 +246,20 @@ static void damon_test_split_regions_of(struct kunit *test)
 static void damon_test_ops_registration(struct kunit *test)
 {
 	struct damon_ctx *c = damon_new_ctx();
-	struct damon_operations ops, bak;
+	struct damon_operations ops = {.id = DAMON_OPS_VADDR}, bak;
+	bool need_cleanup = false;
 
-	/* DAMON_OPS_{V,P}ADDR are registered on subsys_initcall */
+	/* DAMON_OPS_VADDR is registered only if CONFIG_DAMON_VADDR is set */
+	if (!damon_is_registered_ops(DAMON_OPS_VADDR)) {
+		bak.id = DAMON_OPS_VADDR;
+		KUNIT_EXPECT_EQ(test, damon_register_ops(&bak), 0);
+		need_cleanup = true;
+	}
+
+	/* DAMON_OPS_VADDR is ensured to be registered */
 	KUNIT_EXPECT_EQ(test, damon_select_ops(c, DAMON_OPS_VADDR), 0);
-	KUNIT_EXPECT_EQ(test, damon_select_ops(c, DAMON_OPS_PADDR), 0);
 
 	/* Double-registration is prohibited */
-	ops.id = DAMON_OPS_VADDR;
-	KUNIT_EXPECT_EQ(test, damon_register_ops(&ops), -EINVAL);
-	ops.id = DAMON_OPS_PADDR;
 	KUNIT_EXPECT_EQ(test, damon_register_ops(&ops), -EINVAL);
 
 	/* Unknown ops id cannot be registered */
@@ -278,6 +282,13 @@ static void damon_test_ops_registration(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, damon_register_ops(&ops), -EINVAL);
 
 	damon_destroy_ctx(c);
+
+	if (need_cleanup) {
+		mutex_lock(&damon_ops_lock);
+		damon_registered_ops[DAMON_OPS_VADDR] =
+			(struct damon_operations){};
+		mutex_unlock(&damon_ops_lock);
+	}
 }
 
 static void damon_test_set_regions(struct kunit *test)
@@ -308,6 +319,18 @@ static void damon_test_nr_accesses_to_accesses_bp(struct kunit *test)
 		.sample_interval = 10,
 		.aggr_interval = ((unsigned long)UINT_MAX + 1) * 10
 	};
+
+	/*
+	 * In some cases such as 32bit architectures where UINT_MAX is
+	 * ULONG_MAX, attrs.aggr_interval becomes zero.  Calling
+	 * damon_nr_accesses_to_accesses_bp() in the case will cause
+	 * divide-by-zero.  Such case is prohibited in normal execution since
+	 * the caution is documented on the comment for the function, and
+	 * damon_update_monitoring_results() does the check.  Skip the test in
+	 * the case.
+	 */
+	if (!attrs.aggr_interval)
+		kunit_skip(test, "aggr_interval is zero.");
 
 	KUNIT_EXPECT_EQ(test, damon_nr_accesses_to_accesses_bp(123, &attrs), 0);
 }
