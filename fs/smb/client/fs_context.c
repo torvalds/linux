@@ -334,6 +334,7 @@ cifs_parse_cache_flavor(struct fs_context *fc, char *value, struct smb3_fs_conte
 
 static const match_table_t reparse_flavor_tokens = {
 	{ Opt_reparse_default,	"default" },
+	{ Opt_reparse_none,	"none" },
 	{ Opt_reparse_nfs,	"nfs" },
 	{ Opt_reparse_wsl,	"wsl" },
 	{ Opt_reparse_err,	NULL },
@@ -347,6 +348,9 @@ static int parse_reparse_flavor(struct fs_context *fc, char *value,
 	switch (match_token(value, reparse_flavor_tokens, args)) {
 	case Opt_reparse_default:
 		ctx->reparse_type = CIFS_REPARSE_TYPE_DEFAULT;
+		break;
+	case Opt_reparse_none:
+		ctx->reparse_type = CIFS_REPARSE_TYPE_NONE;
 		break;
 	case Opt_reparse_nfs:
 		ctx->reparse_type = CIFS_REPARSE_TYPE_NFS;
@@ -1828,8 +1832,10 @@ enum cifs_symlink_type get_cifs_symlink_type(struct cifs_sb_info *cifs_sb)
 			return CIFS_SYMLINK_TYPE_SFU;
 		else if (cifs_sb->ctx->linux_ext && !cifs_sb->ctx->no_linux_ext)
 			return CIFS_SYMLINK_TYPE_UNIX;
-		else
+		else if (cifs_sb->ctx->reparse_type != CIFS_REPARSE_TYPE_NONE)
 			return CIFS_SYMLINK_TYPE_NATIVE;
+		else
+			return CIFS_SYMLINK_TYPE_NONE;
 	} else {
 		return cifs_sb->ctx->symlink_type;
 	}

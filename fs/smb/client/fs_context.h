@@ -43,6 +43,7 @@ enum {
 
 enum cifs_reparse_parm {
 	Opt_reparse_default,
+	Opt_reparse_none,
 	Opt_reparse_nfs,
 	Opt_reparse_wsl,
 	Opt_reparse_err
