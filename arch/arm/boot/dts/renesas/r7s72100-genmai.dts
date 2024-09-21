@@ -9,6 +9,7 @@
 /dts-v1/;
 #include "r7s72100.dtsi"
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
 #include <dt-bindings/pinctrl/r7s72100-pinctrl.h>
 
 / {
@@ -50,6 +51,21 @@
 				label = "user1";
 				reg = <0x04000000 0x04000000>;
 			};
+		};
+	};
+
+	keyboard {
+		compatible = "gpio-keys";
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&keyboard_pins>;
+
+		key-1 {
+			/* JP3 must be set to 1-2 (default) */
+			interrupts-extended = <&irqc 6 IRQ_TYPE_EDGE_BOTH>;
+			linux,code = <KEY_1>;
+			label = "SW6,SW7";
+			wakeup-source;
 		};
 	};
 
@@ -199,6 +215,11 @@
 	i2c2_pins: i2c2 {
 		/* RIIC2: P1_4 as SCL, P1_5 as SDA */
 		pinmux = <RZA1_PINMUX(1, 4, 1)>, <RZA1_PINMUX(1, 5, 1)>;
+	};
+
+	keyboard_pins: keyboard {
+		/* P3_1 as IRQ6 */
+		pinmux = <RZA1_PINMUX(3, 1, 3)>;
 	};
 
 	scif2_pins: serial2 {
