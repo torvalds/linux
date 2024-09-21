@@ -63,6 +63,17 @@ static bool __io_eventfd_signal(struct io_ev_fd *ev_fd)
 	return true;
 }
 
+/*
+ * Trigger if eventfd_async isn't set, or if it's set and the caller is
+ * an async worker. If ev_fd isn't valid, obviously return false.
+ */
+static bool io_eventfd_trigger(struct io_ev_fd *ev_fd)
+{
+	if (ev_fd)
+		return !ev_fd->eventfd_async || io_wq_current_is_worker();
+	return false;
+}
+
 void io_eventfd_signal(struct io_ring_ctx *ctx)
 {
 	struct io_ev_fd *ev_fd = NULL;
@@ -83,9 +94,7 @@ void io_eventfd_signal(struct io_ring_ctx *ctx)
 	 * completed between the NULL check of ctx->io_ev_fd at the start of
 	 * the function and rcu_read_lock.
 	 */
-	if (unlikely(!ev_fd))
-		return;
-	if (ev_fd->eventfd_async && !io_wq_current_is_worker())
+	if (!io_eventfd_trigger(ev_fd))
 		return;
 	if (!refcount_inc_not_zero(&ev_fd->refs))
 		return;
