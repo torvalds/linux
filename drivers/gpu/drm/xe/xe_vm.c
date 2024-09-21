@@ -1765,9 +1765,7 @@ int xe_vm_create_ioctl(struct drm_device *dev, void *data,
 	if (IS_ERR(vm))
 		return PTR_ERR(vm);
 
-	mutex_lock(&xef->vm.lock);
 	err = xa_alloc(&xef->vm.xa, &id, vm, xa_limit_32b, GFP_KERNEL);
-	mutex_unlock(&xef->vm.lock);
 	if (err)
 		goto err_close_and_put;
 
@@ -1799,9 +1797,7 @@ int xe_vm_create_ioctl(struct drm_device *dev, void *data,
 	return 0;
 
 err_free_id:
-	mutex_lock(&xef->vm.lock);
 	xa_erase(&xef->vm.xa, id);
-	mutex_unlock(&xef->vm.lock);
 err_close_and_put:
 	xe_vm_close_and_put(vm);
 
