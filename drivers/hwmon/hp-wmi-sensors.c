@@ -1637,6 +1637,8 @@ static void hp_wmi_notify(u32 value, void *context)
 		goto out_unlock;
 
 	wobj = out.pointer;
+	if (!wobj)
+		goto out_unlock;
 
 	err = populate_event_from_wobj(dev, &event, wobj);
 	if (err) {

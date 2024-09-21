@@ -22,6 +22,8 @@
 #include <linux/regmap.h>
 #include <linux/reset.h>
 
+#define DEFAULT_SYMBOL_NAMESPACE	I2C_DW
+
 #include "i2c-designware-core.h"
 
 #define AMD_TIMEOUT_MIN_US	25
@@ -64,13 +66,17 @@ static int i2c_dw_set_timings_master(struct dw_i2c_dev *dev)
 	if (!dev->ss_hcnt || !dev->ss_lcnt) {
 		ic_clk = i2c_dw_clk_rate(dev);
 		dev->ss_hcnt =
-			i2c_dw_scl_hcnt(ic_clk,
+			i2c_dw_scl_hcnt(dev,
+					DW_IC_SS_SCL_HCNT,
+					ic_clk,
 					4000,	/* tHD;STA = tHIGH = 4.0 us */
 					sda_falling_time,
 					0,	/* 0: DW default, 1: Ideal */
 					0);	/* No offset */
 		dev->ss_lcnt =
-			i2c_dw_scl_lcnt(ic_clk,
+			i2c_dw_scl_lcnt(dev,
+					DW_IC_SS_SCL_LCNT,
+					ic_clk,
 					4700,	/* tLOW = 4.7 us */
 					scl_falling_time,
 					0);	/* No offset */
@@ -94,13 +100,17 @@ static int i2c_dw_set_timings_master(struct dw_i2c_dev *dev)
 		} else {
 			ic_clk = i2c_dw_clk_rate(dev);
 			dev->fs_hcnt =
-				i2c_dw_scl_hcnt(ic_clk,
+				i2c_dw_scl_hcnt(dev,
+						DW_IC_FS_SCL_HCNT,
+						ic_clk,
 						260,	/* tHIGH = 260 ns */
 						sda_falling_time,
 						0,	/* DW default */
 						0);	/* No offset */
 			dev->fs_lcnt =
-				i2c_dw_scl_lcnt(ic_clk,
+				i2c_dw_scl_lcnt(dev,
+						DW_IC_FS_SCL_LCNT,
+						ic_clk,
 						500,	/* tLOW = 500 ns */
 						scl_falling_time,
 						0);	/* No offset */
@@ -114,13 +124,17 @@ static int i2c_dw_set_timings_master(struct dw_i2c_dev *dev)
 	if (!dev->fs_hcnt || !dev->fs_lcnt) {
 		ic_clk = i2c_dw_clk_rate(dev);
 		dev->fs_hcnt =
-			i2c_dw_scl_hcnt(ic_clk,
+			i2c_dw_scl_hcnt(dev,
+					DW_IC_FS_SCL_HCNT,
+					ic_clk,
 					600,	/* tHD;STA = tHIGH = 0.6 us */
 					sda_falling_time,
 					0,	/* 0: DW default, 1: Ideal */
 					0);	/* No offset */
 		dev->fs_lcnt =
-			i2c_dw_scl_lcnt(ic_clk,
+			i2c_dw_scl_lcnt(dev,
+					DW_IC_FS_SCL_LCNT,
+					ic_clk,
 					1300,	/* tLOW = 1.3 us */
 					scl_falling_time,
 					0);	/* No offset */
@@ -142,13 +156,17 @@ static int i2c_dw_set_timings_master(struct dw_i2c_dev *dev)
 		} else if (!dev->hs_hcnt || !dev->hs_lcnt) {
 			ic_clk = i2c_dw_clk_rate(dev);
 			dev->hs_hcnt =
-				i2c_dw_scl_hcnt(ic_clk,
+				i2c_dw_scl_hcnt(dev,
+						DW_IC_HS_SCL_HCNT,
+						ic_clk,
 						160,	/* tHIGH = 160 ns */
 						sda_falling_time,
 						0,	/* DW default */
 						0);	/* No offset */
 			dev->hs_lcnt =
-				i2c_dw_scl_lcnt(ic_clk,
+				i2c_dw_scl_lcnt(dev,
+						DW_IC_HS_SCL_LCNT,
+						ic_clk,
 						320,	/* tLOW = 320 ns */
 						scl_falling_time,
 						0);	/* No offset */
@@ -931,7 +949,6 @@ int i2c_dw_probe_master(struct dw_i2c_dev *dev)
 	init_completion(&dev->cmd_complete);
 
 	dev->init = i2c_dw_init_master;
-	dev->disable = i2c_dw_disable;
 
 	ret = i2c_dw_init_regmap(dev);
 	if (ret)
@@ -1021,3 +1038,4 @@ EXPORT_SYMBOL_GPL(i2c_dw_probe_master);
 
 MODULE_DESCRIPTION("Synopsys DesignWare I2C bus master adapter");
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS(I2C_DW_COMMON);

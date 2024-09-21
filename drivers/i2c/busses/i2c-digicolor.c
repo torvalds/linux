@@ -357,7 +357,7 @@ static void dc_i2c_remove(struct platform_device *pdev)
 
 static const struct of_device_id dc_i2c_match[] = {
 	{ .compatible = "cnxt,cx92755-i2c" },
-	{ },
+	{ }
 };
 MODULE_DEVICE_TABLE(of, dc_i2c_match);
 

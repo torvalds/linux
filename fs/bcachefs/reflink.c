@@ -29,15 +29,14 @@ static inline unsigned bkey_type_to_indirect(const struct bkey *k)
 
 /* reflink pointers */
 
-int bch2_reflink_p_invalid(struct bch_fs *c, struct bkey_s_c k,
-			   enum bch_validate_flags flags,
-			   struct printbuf *err)
+int bch2_reflink_p_validate(struct bch_fs *c, struct bkey_s_c k,
+			    enum bch_validate_flags flags)
 {
 	struct bkey_s_c_reflink_p p = bkey_s_c_to_reflink_p(k);
 	int ret = 0;
 
 	bkey_fsck_err_on(le64_to_cpu(p.v->idx) < le32_to_cpu(p.v->front_pad),
-			 c, err, reflink_p_front_pad_bad,
+			 c, reflink_p_front_pad_bad,
 			 "idx < front_pad (%llu < %u)",
 			 le64_to_cpu(p.v->idx), le32_to_cpu(p.v->front_pad));
 fsck_err:
@@ -256,11 +255,10 @@ int bch2_trigger_reflink_p(struct btree_trans *trans,
 
 /* indirect extents */
 
-int bch2_reflink_v_invalid(struct bch_fs *c, struct bkey_s_c k,
-			   enum bch_validate_flags flags,
-			   struct printbuf *err)
+int bch2_reflink_v_validate(struct bch_fs *c, struct bkey_s_c k,
+			    enum bch_validate_flags flags)
 {
-	return bch2_bkey_ptrs_invalid(c, k, flags, err);
+	return bch2_bkey_ptrs_validate(c, k, flags);
 }
 
 void bch2_reflink_v_to_text(struct printbuf *out, struct bch_fs *c,
@@ -311,9 +309,8 @@ int bch2_trigger_reflink_v(struct btree_trans *trans,
 
 /* indirect inline data */
 
-int bch2_indirect_inline_data_invalid(struct bch_fs *c, struct bkey_s_c k,
-				      enum bch_validate_flags flags,
-				      struct printbuf *err)
+int bch2_indirect_inline_data_validate(struct bch_fs *c, struct bkey_s_c k,
+				      enum bch_validate_flags flags)
 {
 	return 0;
 }

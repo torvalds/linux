@@ -26,7 +26,6 @@ static struct io_napi_entry *io_napi_hash_find(struct hlist_head *hash_list,
 	hlist_for_each_entry_rcu(e, hash_list, node) {
 		if (e->napi_id != napi_id)
 			continue;
-		e->timeout = jiffies + NAPI_TIMEOUT;
 		return e;
 	}
 
@@ -302,7 +301,7 @@ void __io_napi_busy_loop(struct io_ring_ctx *ctx, struct io_wait_queue *iowq)
 {
 	iowq->napi_prefer_busy_poll = READ_ONCE(ctx->napi_prefer_busy_poll);
 
-	if (!(ctx->flags & IORING_SETUP_SQPOLL) && ctx->napi_enabled)
+	if (!(ctx->flags & IORING_SETUP_SQPOLL))
 		io_napi_blocking_busy_loop(ctx, iowq);
 }
 

@@ -28,6 +28,7 @@
 #include <linux/btrfs.h>
 #include <linux/security.h>
 #include <linux/fs_parser.h>
+#include <linux/swap.h>
 #include "messages.h"
 #include "delayed-inode.h"
 #include "ctree.h"
@@ -2401,13 +2402,28 @@ static long btrfs_nr_cached_objects(struct super_block *sb, struct shrink_contro
 
 	trace_btrfs_extent_map_shrinker_count(fs_info, nr);
 
-	return nr;
+	/*
+	 * Only report the real number for DEBUG builds, as there are reports of
+	 * serious performance degradation caused by too frequent shrinks.
+	 */
+	if (IS_ENABLED(CONFIG_BTRFS_DEBUG))
+		return nr;
+	return 0;
 }
 
 static long btrfs_free_cached_objects(struct super_block *sb, struct shrink_control *sc)
 {
 	const long nr_to_scan = min_t(unsigned long, LONG_MAX, sc->nr_to_scan);
 	struct btrfs_fs_info *fs_info = btrfs_sb(sb);
+
+	/*
+	 * We may be called from any task trying to allocate memory and we don't
+	 * want to slow it down with scanning and dropping extent maps. It would
+	 * also cause heavy lock contention if many tasks concurrently enter
+	 * here. Therefore only allow kswapd tasks to scan and drop extent maps.
+	 */
+	if (!current_is_kswapd())
+		return 0;
 
 	return btrfs_free_extent_maps(fs_info, nr_to_scan);
 }

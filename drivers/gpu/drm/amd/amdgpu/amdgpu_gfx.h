@@ -240,6 +240,12 @@ struct amdgpu_gfx_config {
 	uint32_t gc_tcp_size_per_cu;
 	uint32_t gc_num_cu_per_sqc;
 	uint32_t gc_tcc_size;
+	uint32_t gc_tcp_cache_line_size;
+	uint32_t gc_instruction_cache_size_per_sqc;
+	uint32_t gc_instruction_cache_line_size;
+	uint32_t gc_scalar_data_cache_size_per_sqc;
+	uint32_t gc_scalar_data_cache_line_size;
+	uint32_t gc_tcc_cache_line_size;
 };
 
 struct amdgpu_cu_info {

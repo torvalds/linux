@@ -164,6 +164,7 @@ static int kvm_arm_default_max_vcpus(void)
 /**
  * kvm_arch_init_vm - initializes a VM data structure
  * @kvm:	pointer to the KVM struct
+ * @type:	kvm device type
  */
 int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 {
@@ -521,10 +522,10 @@ void kvm_arch_vcpu_unblocking(struct kvm_vcpu *vcpu)
 
 static void vcpu_set_pauth_traps(struct kvm_vcpu *vcpu)
 {
-	if (vcpu_has_ptrauth(vcpu)) {
+	if (vcpu_has_ptrauth(vcpu) && !is_protected_kvm_enabled()) {
 		/*
-		 * Either we're running running an L2 guest, and the API/APK
-		 * bits come from L1's HCR_EL2, or API/APK are both set.
+		 * Either we're running an L2 guest, and the API/APK bits come
+		 * from L1's HCR_EL2, or API/APK are both set.
 		 */
 		if (unlikely(vcpu_has_nv(vcpu) && !is_hyp_ctxt(vcpu))) {
 			u64 val;
@@ -541,16 +542,10 @@ static void vcpu_set_pauth_traps(struct kvm_vcpu *vcpu)
 		 * Save the host keys if there is any chance for the guest
 		 * to use pauth, as the entry code will reload the guest
 		 * keys in that case.
-		 * Protected mode is the exception to that rule, as the
-		 * entry into the EL2 code eagerly switch back and forth
-		 * between host and hyp keys (and kvm_hyp_ctxt is out of
-		 * reach anyway).
 		 */
-		if (is_protected_kvm_enabled())
-			return;
-
 		if (vcpu->arch.hcr_el2 & (HCR_API | HCR_APK)) {
 			struct kvm_cpu_context *ctxt;
+
 			ctxt = this_cpu_ptr_hyp_sym(kvm_hyp_ctxt);
 			ptrauth_save_keys(ctxt);
 		}
