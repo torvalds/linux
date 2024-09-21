@@ -228,3 +228,8 @@
 		spi-max-frequency = <5000000>;
 	};
 };
+
+&wdt {
+	timeout-sec = <60>;
+	status = "okay";
+};
