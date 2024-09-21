@@ -9692,6 +9692,11 @@ L:	platform-driver-x86@vger.kernel.org
 S:	Maintained
 F:	drivers/platform/x86/gpd-pocket-fan.c
 
+GPIB DRIVERS
+M:	Dave Penkler <dpenkler@gmail.com>
+S:	Maintained
+F:	drivers/staging/gpib/
+
 GPIO ACPI SUPPORT
 M:	Mika Westerberg <mika.westerberg@linux.intel.com>
 M:	Andy Shevchenko <andriy.shevchenko@linux.intel.com>
