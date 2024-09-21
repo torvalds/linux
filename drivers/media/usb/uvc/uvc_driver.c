@@ -2430,6 +2430,24 @@ static const struct uvc_device_info uvc_quirk_force_y8 = {
  * though they are compliant.
  */
 static const struct usb_device_id uvc_ids[] = {
+	/**
+	   * Fix for the problem with cameras on Acer Nitro 5 Series & Acer Aspire 3 Series.
+	   * 
+	   * Fix required for the camera here
+	   * Thanks for @Giuliano69 for providing the fix
+	  */
+	/* Quanta ACER HD User Facing 4033 - Experimental !! */
+	{ .match_flags 		= USB_DEVICE_ID_MATCH_DEVICE 
+		       		| USB_DEVICE_ID_MATCH_INT_INFO,
+	  .idVendor 		= 0x0408,
+	  .idProduct 		= 0x4033,
+	  .bInterfaceClass 	= USB_CLASS_VIDEO,
+	  .bInterfaceSubClass 	= 1,
+	  .bInterfaceProtocol 	= UVC_PC_PROTOCOL_15,
+	  .driver_info 		= (kernel_ulong_t)&(const struct uvc_device_info){
+		.uvc_version 	= 0x010a,
+	  } },
+	/* Fix end here */
 	/* Quanta ACER HD User Facing */
 	{ .match_flags		= USB_DEVICE_ID_MATCH_DEVICE
 				| USB_DEVICE_ID_MATCH_INT_INFO,
