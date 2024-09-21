@@ -379,13 +379,15 @@ config DEBUG_INFO_BTF
 	depends on !DEBUG_INFO_SPLIT && !DEBUG_INFO_REDUCED
 	depends on !GCC_PLUGIN_RANDSTRUCT || COMPILE_TEST
 	depends on BPF_SYSCALL
-	depends on !DEBUG_INFO_DWARF5 || PAHOLE_VERSION >= 121
+	depends on PAHOLE_VERSION >= 116
+	depends on DEBUG_INFO_DWARF4 || PAHOLE_VERSION >= 121
 	# pahole uses elfutils, which does not have support for Hexagon relocations
 	depends on !HEXAGON
 	help
 	  Generate deduplicated BTF type information from DWARF debug info.
-	  Turning this on expects presence of pahole tool, which will convert
-	  DWARF type info into equivalent deduplicated BTF type info.
+	  Turning this on requires pahole v1.16 or later (v1.21 or later to
+	  support DWARF 5), which will convert DWARF type info into equivalent
+	  deduplicated BTF type info.
 
 config PAHOLE_HAS_SPLIT_BTF
 	def_bool PAHOLE_VERSION >= 119

@@ -32,6 +32,13 @@ int bench_trigger_uprobe(void *ctx)
 	return 0;
 }
 
+SEC("?uprobe.multi")
+int bench_trigger_uprobe_multi(void *ctx)
+{
+	inc_counter();
+	return 0;
+}
+
 const volatile int batch_iters = 0;
 
 SEC("?raw_tp")
