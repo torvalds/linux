@@ -469,6 +469,7 @@ static u32 bch2_snapshot_tree_oldest_subvol(struct bch_fs *c, u32 snapshot_root)
 	u32 id = snapshot_root;
 	u32 subvol = 0, s;
 
+	rcu_read_lock();
 	while (id) {
 		s = snapshot_t(c, id)->subvol;
 
@@ -477,6 +478,7 @@ static u32 bch2_snapshot_tree_oldest_subvol(struct bch_fs *c, u32 snapshot_root)
 
 		id = bch2_snapshot_tree_next(c, id);
 	}
+	rcu_read_unlock();
 
 	return subvol;
 }
