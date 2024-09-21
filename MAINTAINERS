@@ -20511,6 +20511,19 @@ F:	include/linux/wait.h
 F:	include/uapi/linux/sched.h
 F:	kernel/sched/
 
+SCHEDULER - SCHED_EXT
+R:	Tejun Heo <tj@kernel.org>
+R:	David Vernet <void@manifault.com>
+L:	linux-kernel@vger.kernel.org
+S:	Maintained
+W:	https://github.com/sched-ext/scx
+T:	git://git.kernel.org/pub/scm/linux/kernel/git/tj/sched_ext.git
+F:	include/linux/sched/ext.h
+F:	kernel/sched/ext.h
+F:	kernel/sched/ext.c
+F:	tools/sched_ext/
+F:	tools/testing/selftests/sched_ext
+
 SCIOSENSE ENS160 MULTI-GAS SENSOR DRIVER
 M:	Gustavo Silva <gustavograzs@gmail.com>
 S:	Maintained
