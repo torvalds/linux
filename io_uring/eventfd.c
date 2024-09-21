@@ -41,6 +41,12 @@ static void io_eventfd_do_signal(struct rcu_head *rcu)
 		io_eventfd_free(rcu);
 }
 
+static void io_eventfd_put(struct io_ev_fd *ev_fd)
+{
+	if (refcount_dec_and_test(&ev_fd->refs))
+		call_rcu(&ev_fd->rcu, io_eventfd_free);
+}
+
 void io_eventfd_signal(struct io_ring_ctx *ctx)
 {
 	struct io_ev_fd *ev_fd = NULL;
@@ -77,8 +83,7 @@ void io_eventfd_signal(struct io_ring_ctx *ctx)
 		}
 	}
 out:
-	if (refcount_dec_and_test(&ev_fd->refs))
-		call_rcu(&ev_fd->rcu, io_eventfd_free);
+	io_eventfd_put(ev_fd);
 }
 
 void io_eventfd_flush_signal(struct io_ring_ctx *ctx)
@@ -152,8 +157,7 @@ int io_eventfd_unregister(struct io_ring_ctx *ctx)
 	if (ev_fd) {
 		ctx->has_evfd = false;
 		rcu_assign_pointer(ctx->io_ev_fd, NULL);
-		if (refcount_dec_and_test(&ev_fd->refs))
-			call_rcu(&ev_fd->rcu, io_eventfd_free);
+		io_eventfd_put(ev_fd);
 		return 0;
 	}
 
