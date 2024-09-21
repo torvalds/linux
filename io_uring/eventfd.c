@@ -47,6 +47,13 @@ static void io_eventfd_put(struct io_ev_fd *ev_fd)
 		call_rcu(&ev_fd->rcu, io_eventfd_free);
 }
 
+static void io_eventfd_release(struct io_ev_fd *ev_fd, bool put_ref)
+{
+	if (put_ref)
+		io_eventfd_put(ev_fd);
+	rcu_read_unlock();
+}
+
 /*
  * Returns true if the caller should put the ev_fd reference, false if not.
  */
@@ -74,14 +81,18 @@ static bool io_eventfd_trigger(struct io_ev_fd *ev_fd)
 	return false;
 }
 
-void io_eventfd_signal(struct io_ring_ctx *ctx)
+/*
+ * On success, returns with an ev_fd reference grabbed and the RCU read
+ * lock held.
+ */
+static struct io_ev_fd *io_eventfd_grab(struct io_ring_ctx *ctx)
 {
-	struct io_ev_fd *ev_fd = NULL;
+	struct io_ev_fd *ev_fd;
 
 	if (READ_ONCE(ctx->rings->cq_flags) & IORING_CQ_EVENTFD_DISABLED)
-		return;
+		return NULL;
 
-	guard(rcu)();
+	rcu_read_lock();
 
 	/*
 	 * rcu_dereference ctx->io_ev_fd once and use it for both for checking
@@ -90,16 +101,24 @@ void io_eventfd_signal(struct io_ring_ctx *ctx)
 	ev_fd = rcu_dereference(ctx->io_ev_fd);
 
 	/*
-	 * Check again if ev_fd exists incase an io_eventfd_unregister call
+	 * Check again if ev_fd exists in case an io_eventfd_unregister call
 	 * completed between the NULL check of ctx->io_ev_fd at the start of
 	 * the function and rcu_read_lock.
 	 */
-	if (!io_eventfd_trigger(ev_fd))
-		return;
-	if (!refcount_inc_not_zero(&ev_fd->refs))
-		return;
-	if (__io_eventfd_signal(ev_fd))
-		io_eventfd_put(ev_fd);
+	if (io_eventfd_trigger(ev_fd) && refcount_inc_not_zero(&ev_fd->refs))
+		return ev_fd;
+
+	rcu_read_unlock();
+	return NULL;
+}
+
+void io_eventfd_signal(struct io_ring_ctx *ctx)
+{
+	struct io_ev_fd *ev_fd;
+
+	ev_fd = io_eventfd_grab(ctx);
+	if (ev_fd)
+		io_eventfd_release(ev_fd, __io_eventfd_signal(ev_fd));
 }
 
 void io_eventfd_flush_signal(struct io_ring_ctx *ctx)
