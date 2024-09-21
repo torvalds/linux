@@ -18,6 +18,12 @@ xsi:schemaLocation="https://gitlab.freedesktop.org/freedreno/ rules-fd.xsd">
 		<bitfield name="INTR_HDMI" pos="8"  type="boolean"/>
 		<bitfield name="INTR_EDP"  pos="12" type="boolean"/>
 	</reg32>
+
+	<reg32 offset="0x00058" name="UBWC_DEC_HW_VERSION"/>
+
+	<reg32 offset="0x00144" name="UBWC_STATIC"/>
+	<reg32 offset="0x00150" name="UBWC_CTRL_2"/>
+	<reg32 offset="0x00154" name="UBWC_PREDICTION_MODE"/>
 </domain>
 
 </database>
