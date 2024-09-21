@@ -165,7 +165,7 @@ structure below:
      u16                 flags;
      struct block_device *bdev;
      struct dax_device   *dax_dev;
-     voidw               *inline_data;
+     void                *inline_data;
      void                *private;
      const struct iomap_folio_ops *folio_ops;
      u64                 validity_cookie;
@@ -426,7 +426,7 @@ iomap is concerned:
 
 The exact locking requirements are specific to the filesystem; for
 certain operations, some of these locks can be elided.
-All further mention of locking are *recommendations*, not mandates.
+All further mentions of locking are *recommendations*, not mandates.
 Each filesystem author must figure out the locking for themself.
 
 Bugs and Limitations
