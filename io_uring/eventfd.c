@@ -13,10 +13,12 @@
 
 struct io_ev_fd {
 	struct eventfd_ctx	*cq_ev_fd;
-	unsigned int		eventfd_async: 1;
-	struct rcu_head		rcu;
+	unsigned int		eventfd_async;
+	/* protected by ->completion_lock */
+	unsigned		last_cq_tail;
 	refcount_t		refs;
 	atomic_t		ops;
+	struct rcu_head		rcu;
 };
 
 enum {
@@ -123,25 +125,31 @@ void io_eventfd_signal(struct io_ring_ctx *ctx)
 
 void io_eventfd_flush_signal(struct io_ring_ctx *ctx)
 {
-	bool skip;
+	struct io_ev_fd *ev_fd;
 
-	spin_lock(&ctx->completion_lock);
+	ev_fd = io_eventfd_grab(ctx);
+	if (ev_fd) {
+		bool skip, put_ref = true;
 
-	/*
-	 * Eventfd should only get triggered when at least one event has been
-	 * posted. Some applications rely on the eventfd notification count
-	 * only changing IFF a new CQE has been added to the CQ ring. There's
-	 * no depedency on 1:1 relationship between how many times this
-	 * function is called (and hence the eventfd count) and number of CQEs
-	 * posted to the CQ ring.
-	 */
-	skip = ctx->cached_cq_tail == ctx->evfd_last_cq_tail;
-	ctx->evfd_last_cq_tail = ctx->cached_cq_tail;
-	spin_unlock(&ctx->completion_lock);
-	if (skip)
-		return;
+		/*
+		 * Eventfd should only get triggered when at least one event
+		 * has been posted. Some applications rely on the eventfd
+		 * notification count only changing IFF a new CQE has been
+		 * added to the CQ ring. There's no dependency on 1:1
+		 * relationship between how many times this function is called
+		 * (and hence the eventfd count) and number of CQEs posted to
+		 * the CQ ring.
+		 */
+		spin_lock(&ctx->completion_lock);
+		skip = ctx->cached_cq_tail == ev_fd->last_cq_tail;
+		ev_fd->last_cq_tail = ctx->cached_cq_tail;
+		spin_unlock(&ctx->completion_lock);
 
-	io_eventfd_signal(ctx);
+		if (!skip)
+			put_ref = __io_eventfd_signal(ev_fd);
+
+		io_eventfd_release(ev_fd, put_ref);
+	}
 }
 
 int io_eventfd_register(struct io_ring_ctx *ctx, void __user *arg,
@@ -172,7 +180,7 @@ int io_eventfd_register(struct io_ring_ctx *ctx, void __user *arg,
 	}
 
 	spin_lock(&ctx->completion_lock);
-	ctx->evfd_last_cq_tail = ctx->cached_cq_tail;
+	ev_fd->last_cq_tail = ctx->cached_cq_tail;
 	spin_unlock(&ctx->completion_lock);
 
 	ev_fd->eventfd_async = eventfd_async;
