@@ -569,6 +569,10 @@ u64 dma_get_required_mask(struct device *dev)
 
 	if (dma_alloc_direct(dev, ops))
 		return dma_direct_get_required_mask(dev);
+
+	if (use_dma_iommu(dev))
+		return DMA_BIT_MASK(32);
+
 	if (ops->get_required_mask)
 		return ops->get_required_mask(dev);
 
@@ -909,7 +913,7 @@ bool dma_addressing_limited(struct device *dev)
 			 dma_get_required_mask(dev))
 		return true;
 
-	if (unlikely(ops))
+	if (unlikely(ops) || use_dma_iommu(dev))
 		return false;
 	return !dma_direct_all_ram_mapped(dev);
 }
