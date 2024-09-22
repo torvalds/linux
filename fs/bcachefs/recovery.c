@@ -34,21 +34,52 @@
 
 #define QSTR(n) { { { .len = strlen(n) } }, .name = n }
 
-void bch2_btree_lost_data(struct bch_fs *c, enum btree_id btree)
+int bch2_btree_lost_data(struct bch_fs *c, enum btree_id btree)
 {
-	if (btree >= BTREE_ID_NR_MAX)
-		return;
-
 	u64 b = BIT_ULL(btree);
+	int ret = 0;
+
+	mutex_lock(&c->sb_lock);
 
 	if (!(c->sb.btrees_lost_data & b)) {
 		bch_err(c, "flagging btree %s lost data", bch2_btree_id_str(btree));
-
-		mutex_lock(&c->sb_lock);
 		bch2_sb_field_get(c->disk_sb.sb, ext)->btrees_lost_data |= cpu_to_le64(b);
-		bch2_write_super(c);
-		mutex_unlock(&c->sb_lock);
 	}
+
+	switch (btree) {
+	case BTREE_ID_alloc:
+		ret = bch2_run_explicit_recovery_pass_persistent_locked(c, BCH_RECOVERY_PASS_check_allocations) ?: ret;
+		ret = bch2_run_explicit_recovery_pass_persistent_locked(c, BCH_RECOVERY_PASS_check_alloc_info) ?: ret;
+		goto out;
+	case BTREE_ID_backpointers:
+		ret = bch2_run_explicit_recovery_pass_persistent_locked(c, BCH_RECOVERY_PASS_check_btree_backpointers) ?: ret;
+		ret = bch2_run_explicit_recovery_pass_persistent_locked(c, BCH_RECOVERY_PASS_check_extents_to_backpointers) ?: ret;
+		goto out;
+	case BTREE_ID_need_discard:
+		ret = bch2_run_explicit_recovery_pass_persistent_locked(c, BCH_RECOVERY_PASS_check_alloc_info) ?: ret;
+		goto out;
+	case BTREE_ID_freespace:
+		ret = bch2_run_explicit_recovery_pass_persistent_locked(c, BCH_RECOVERY_PASS_check_alloc_info) ?: ret;
+		goto out;
+	case BTREE_ID_bucket_gens:
+		ret = bch2_run_explicit_recovery_pass_persistent_locked(c, BCH_RECOVERY_PASS_check_alloc_info) ?: ret;
+		goto out;
+	case BTREE_ID_lru:
+		ret = bch2_run_explicit_recovery_pass_persistent_locked(c, BCH_RECOVERY_PASS_check_alloc_info) ?: ret;
+		goto out;
+	case BTREE_ID_accounting:
+		ret = bch2_run_explicit_recovery_pass_persistent_locked(c, BCH_RECOVERY_PASS_check_allocations) ?: ret;
+		goto out;
+	default:
+		ret = bch2_run_explicit_recovery_pass_persistent_locked(c, BCH_RECOVERY_PASS_scan_for_btree_nodes) ?: ret;
+		ret = bch2_run_explicit_recovery_pass_persistent_locked(c, BCH_RECOVERY_PASS_check_topology) ?: ret;
+		goto out;
+	}
+out:
+	bch2_write_super(c);
+	mutex_unlock(&c->sb_lock);
+
+	return ret;
 }
 
 /* for -o reconstruct_alloc: */
@@ -524,22 +555,10 @@ static int read_btree_roots(struct bch_fs *c)
 					c, btree_root_read_error,
 					"error reading btree root %s l=%u: %s",
 					bch2_btree_id_str(i), r->level, bch2_err_str(ret))) {
-			if (btree_id_is_alloc(i)) {
-				c->opts.recovery_passes |= BIT_ULL(BCH_RECOVERY_PASS_check_allocations);
-				c->opts.recovery_passes |= BIT_ULL(BCH_RECOVERY_PASS_check_alloc_info);
-				c->opts.recovery_passes |= BIT_ULL(BCH_RECOVERY_PASS_check_lrus);
-				c->opts.recovery_passes |= BIT_ULL(BCH_RECOVERY_PASS_check_extents_to_backpointers);
-				c->opts.recovery_passes |= BIT_ULL(BCH_RECOVERY_PASS_check_alloc_to_lru_refs);
-				c->sb.compat &= ~(1ULL << BCH_COMPAT_alloc_info);
+			if (btree_id_is_alloc(i))
 				r->error = 0;
-			} else if (!(c->opts.recovery_passes & BIT_ULL(BCH_RECOVERY_PASS_scan_for_btree_nodes))) {
-				bch_info(c, "will run btree node scan");
-				c->opts.recovery_passes |= BIT_ULL(BCH_RECOVERY_PASS_scan_for_btree_nodes);
-				c->opts.recovery_passes |= BIT_ULL(BCH_RECOVERY_PASS_check_topology);
-			}
 
-			ret = 0;
-			bch2_btree_lost_data(c, i);
+			ret = bch2_btree_lost_data(c, i);
 		}
 	}
 
