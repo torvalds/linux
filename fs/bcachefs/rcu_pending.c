@@ -478,7 +478,9 @@ start_gp:
 		 */
 		if (!p->cb_armed) {
 			p->cb_armed = true;
+			spin_unlock_irqrestore(&p->lock, flags);
 			__call_rcu(pending->srcu, &p->cb, rcu_pending_rcu_cb);
+			goto free_node;
 		} else {
 			__start_poll_synchronize_rcu(pending->srcu);
 		}
