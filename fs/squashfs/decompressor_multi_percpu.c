@@ -46,7 +46,7 @@ static void *squashfs_decompressor_create(struct squashfs_sb_info *msblk,
 	}
 
 	kfree(comp_opts);
-	return (__force void *) percpu;
+	return (void *)(__force unsigned long) percpu;
 
 out:
 	for_each_possible_cpu(cpu) {
@@ -61,7 +61,7 @@ out:
 static void squashfs_decompressor_destroy(struct squashfs_sb_info *msblk)
 {
 	struct squashfs_stream __percpu *percpu =
-			(struct squashfs_stream __percpu *) msblk->stream;
+			(void __percpu *)(unsigned long) msblk->stream;
 	struct squashfs_stream *stream;
 	int cpu;
 
@@ -79,7 +79,7 @@ static int squashfs_decompress(struct squashfs_sb_info *msblk, struct bio *bio,
 {
 	struct squashfs_stream *stream;
 	struct squashfs_stream __percpu *percpu =
-			(struct squashfs_stream __percpu *) msblk->stream;
+			(void __percpu *)(unsigned long) msblk->stream;
 	int res;
 
 	local_lock(&percpu->lock);

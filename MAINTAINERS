@@ -3997,7 +3997,7 @@ F:	Documentation/devicetree/bindings/iio/imu/bosch,bmi323.yaml
 F:	drivers/iio/imu/bmi323/
 
 BPF JIT for ARC
-M:	Shahab Vahedi <shahab@synopsys.com>
+M:	Shahab Vahedi <list+bpf@vahedi.org>
 L:	bpf@vger.kernel.org
 S:	Maintained
 F:	arch/arc/net/
@@ -4164,6 +4164,7 @@ F:	include/uapi/linux/btf*
 F:	include/uapi/linux/filter.h
 F:	kernel/bpf/
 F:	kernel/trace/bpf_trace.c
+F:	lib/buildid.c
 F:	lib/test_bpf.c
 F:	net/bpf/
 F:	net/core/filter.c
@@ -4284,6 +4285,7 @@ L:	bpf@vger.kernel.org
 S:	Maintained
 F:	kernel/bpf/stackmap.c
 F:	kernel/trace/bpf_trace.c
+F:	lib/buildid.c
 
 BROADCOM ASP 2.0 ETHERNET DRIVER
 M:	Justin Chen <justin.chen@broadcom.com>
@@ -8612,6 +8614,7 @@ M:	Akinobu Mita <akinobu.mita@gmail.com>
 S:	Supported
 F:	Documentation/fault-injection/
 F:	lib/fault-inject.c
+F:	tools/testing/fault-injection/
 
 FBTFT Framebuffer drivers
 L:	dri-devel@lists.freedesktop.org
@@ -20508,6 +20511,19 @@ F:	include/linux/wait.h
 F:	include/uapi/linux/sched.h
 F:	kernel/sched/
 
+SCHEDULER - SCHED_EXT
+R:	Tejun Heo <tj@kernel.org>
+R:	David Vernet <void@manifault.com>
+L:	linux-kernel@vger.kernel.org
+S:	Maintained
+W:	https://github.com/sched-ext/scx
+T:	git://git.kernel.org/pub/scm/linux/kernel/git/tj/sched_ext.git
+F:	include/linux/sched/ext.h
+F:	kernel/sched/ext.h
+F:	kernel/sched/ext.c
+F:	tools/sched_ext/
+F:	tools/testing/selftests/sched_ext
+
 SCIOSENSE ENS160 MULTI-GAS SENSOR DRIVER
 M:	Gustavo Silva <gustavograzs@gmail.com>
 S:	Maintained
@@ -24610,6 +24626,20 @@ F:	include/uapi/linux/vsockmon.h
 F:	net/vmw_vsock/
 F:	tools/testing/vsock/
 
+VMA
+M:	Andrew Morton <akpm@linux-foundation.org>
+R:	Liam R. Howlett <Liam.Howlett@oracle.com>
+R:	Vlastimil Babka <vbabka@suse.cz>
+R:	Lorenzo Stoakes <lorenzo.stoakes@oracle.com>
+L:	linux-mm@kvack.org
+S:	Maintained
+W:	https://www.linux-mm.org
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/akpm/mm
+F:	mm/vma.c
+F:	mm/vma.h
+F:	mm/vma_internal.h
+F:	tools/testing/vma/
+
 VMALLOC
 M:	Andrew Morton <akpm@linux-foundation.org>
 R:	Uladzislau Rezki <urezki@gmail.com>
@@ -25451,6 +25481,19 @@ M:	Max Filippov <jcmvbkbc@gmail.com>
 S:	Maintained
 F:	drivers/spi/spi-xtensa-xtfpga.c
 F:	sound/soc/xtensa/xtfpga-i2s.c
+
+XZ EMBEDDED
+M:	Lasse Collin <lasse.collin@tukaani.org>
+S:	Maintained
+W:	https://tukaani.org/xz/embedded.html
+B:	https://github.com/tukaani-project/xz-embedded/issues
+C:	irc://irc.libera.chat/tukaani
+F:	Documentation/staging/xz.rst
+F:	include/linux/decompress/unxz.h
+F:	include/linux/xz.h
+F:	lib/decompress_unxz.c
+F:	lib/xz/
+F:	scripts/xz_wrap.sh
 
 YAM DRIVER FOR AX.25
 M:	Jean-Paul Roubelat <jpr@f6fbb.org>

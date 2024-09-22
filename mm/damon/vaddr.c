@@ -732,4 +732,4 @@ static int __init damon_va_initcall(void)
 
 subsys_initcall(damon_va_initcall);
 
-#include "vaddr-test.h"
+#include "tests/vaddr-kunit.h"

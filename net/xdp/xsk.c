@@ -1320,14 +1320,6 @@ struct xdp_umem_reg_v1 {
 	__u32 headroom;
 };
 
-struct xdp_umem_reg_v2 {
-	__u64 addr; /* Start of packet data area */
-	__u64 len; /* Length of packet data area */
-	__u32 chunk_size;
-	__u32 headroom;
-	__u32 flags;
-};
-
 static int xsk_setsockopt(struct socket *sock, int level, int optname,
 			  sockptr_t optval, unsigned int optlen)
 {
@@ -1371,10 +1363,19 @@ static int xsk_setsockopt(struct socket *sock, int level, int optname,
 
 		if (optlen < sizeof(struct xdp_umem_reg_v1))
 			return -EINVAL;
-		else if (optlen < sizeof(struct xdp_umem_reg_v2))
-			mr_size = sizeof(struct xdp_umem_reg_v1);
 		else if (optlen < sizeof(mr))
-			mr_size = sizeof(struct xdp_umem_reg_v2);
+			mr_size = sizeof(struct xdp_umem_reg_v1);
+
+		BUILD_BUG_ON(sizeof(struct xdp_umem_reg_v1) >= sizeof(struct xdp_umem_reg));
+
+		/* Make sure the last field of the struct doesn't have
+		 * uninitialized padding. All padding has to be explicit
+		 * and has to be set to zero by the userspace to make
+		 * struct xdp_umem_reg extensible in the future.
+		 */
+		BUILD_BUG_ON(offsetof(struct xdp_umem_reg, tx_metadata_len) +
+			     sizeof_field(struct xdp_umem_reg, tx_metadata_len) !=
+			     sizeof(struct xdp_umem_reg));
 
 		if (copy_from_sockptr(&mr, optval, mr_size))
 			return -EFAULT;

@@ -853,9 +853,8 @@ static int sort_idmaps(struct uid_gid_map *map)
 	     cmp_extents_forward, NULL);
 
 	/* Only copy the memory from forward we actually need. */
-	map->reverse = kmemdup(map->forward,
-			       map->nr_extents * sizeof(struct uid_gid_extent),
-			       GFP_KERNEL);
+	map->reverse = kmemdup_array(map->forward, map->nr_extents,
+				     sizeof(struct uid_gid_extent), GFP_KERNEL);
 	if (!map->reverse)
 		return -ENOMEM;
 

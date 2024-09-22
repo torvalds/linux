@@ -105,6 +105,10 @@ static void nilfs_set_error(struct super_block *sb)
 
 /**
  * __nilfs_error() - report failure condition on a filesystem
+ * @sb:       super block instance
+ * @function: name of calling function
+ * @fmt:      format string for message to be output
+ * @...:      optional arguments to @fmt
  *
  * __nilfs_error() sets an ERROR_FS flag on the superblock as well as
  * reporting an error message.  This function should be called when
@@ -156,6 +160,7 @@ struct inode *nilfs_alloc_inode(struct super_block *sb)
 		return NULL;
 	ii->i_bh = NULL;
 	ii->i_state = 0;
+	ii->i_type = 0;
 	ii->i_cno = 0;
 	ii->i_assoc_inode = NULL;
 	ii->i_bmap = &ii->i_bmap_data;
@@ -1062,6 +1067,10 @@ nilfs_fill_super(struct super_block *sb, struct fs_context *fc)
 	err = load_nilfs(nilfs, sb);
 	if (err)
 		goto failed_nilfs;
+
+	super_set_uuid(sb, nilfs->ns_sbp[0]->s_uuid,
+		       sizeof(nilfs->ns_sbp[0]->s_uuid));
+	super_set_sysfs_name_bdev(sb);
 
 	cno = nilfs_last_cno(nilfs);
 	err = nilfs_attach_checkpoint(sb, cno, true, &fsroot);

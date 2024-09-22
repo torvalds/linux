@@ -102,6 +102,8 @@ static void list_test_list_replace(struct kunit *test)
 	/* now: [list] -> a_new -> b */
 	KUNIT_EXPECT_PTR_EQ(test, list.next, &a_new);
 	KUNIT_EXPECT_PTR_EQ(test, b.prev, &a_new);
+	KUNIT_EXPECT_PTR_EQ(test, a_new.next, &b);
+	KUNIT_EXPECT_PTR_EQ(test, a_new.prev, &list);
 }
 
 static void list_test_list_replace_init(struct kunit *test)
@@ -118,6 +120,8 @@ static void list_test_list_replace_init(struct kunit *test)
 	/* now: [list] -> a_new -> b */
 	KUNIT_EXPECT_PTR_EQ(test, list.next, &a_new);
 	KUNIT_EXPECT_PTR_EQ(test, b.prev, &a_new);
+	KUNIT_EXPECT_PTR_EQ(test, a_new.next, &b);
+	KUNIT_EXPECT_PTR_EQ(test, a_new.prev, &list);
 
 	/* check a_old is empty (initialized) */
 	KUNIT_EXPECT_TRUE(test, list_empty_careful(&a_old));
@@ -404,10 +408,13 @@ static void list_test_list_cut_position(struct kunit *test)
 
 	KUNIT_EXPECT_EQ(test, i, 2);
 
+	i = 0;
 	list_for_each(cur, &list1) {
 		KUNIT_EXPECT_PTR_EQ(test, cur, &entries[i]);
 		i++;
 	}
+
+	KUNIT_EXPECT_EQ(test, i, 1);
 }
 
 static void list_test_list_cut_before(struct kunit *test)
@@ -432,10 +439,13 @@ static void list_test_list_cut_before(struct kunit *test)
 
 	KUNIT_EXPECT_EQ(test, i, 1);
 
+	i = 0;
 	list_for_each(cur, &list1) {
 		KUNIT_EXPECT_PTR_EQ(test, cur, &entries[i]);
 		i++;
 	}
+
+	KUNIT_EXPECT_EQ(test, i, 2);
 }
 
 static void list_test_list_splice(struct kunit *test)

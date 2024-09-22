@@ -24,6 +24,7 @@
 #include <linux/mm.h>
 #include <linux/nodemask.h>
 #include <linux/node.h>
+#include <asm/hiperdispatch.h>
 #include <asm/sysinfo.h>
 
 #define PTF_HORIZONTAL	(0UL)
@@ -47,6 +48,7 @@ static int topology_mode = TOPOLOGY_MODE_UNINITIALIZED;
 static void set_topology_timer(void);
 static void topology_work_fn(struct work_struct *work);
 static struct sysinfo_15_1_x *tl_info;
+static int cpu_management;
 
 static DECLARE_WORK(topology_work, topology_work_fn);
 
@@ -144,6 +146,7 @@ static void add_cpus_to_mask(struct topology_core *tl_core,
 			cpumask_set_cpu(cpu, &book->mask);
 			cpumask_set_cpu(cpu, &socket->mask);
 			smp_cpu_set_polarization(cpu, tl_core->pp);
+			smp_cpu_set_capacity(cpu, CPU_CAPACITY_HIGH);
 		}
 	}
 }
@@ -270,6 +273,7 @@ void update_cpu_masks(void)
 			topo->drawer_id = id;
 		}
 	}
+	hd_reset_state();
 	for_each_online_cpu(cpu) {
 		topo = &cpu_topology[cpu];
 		pkg_first = cpumask_first(&topo->core_mask);
@@ -278,8 +282,10 @@ void update_cpu_masks(void)
 			for_each_cpu(sibling, &topo->core_mask) {
 				topo_sibling = &cpu_topology[sibling];
 				smt_first = cpumask_first(&topo_sibling->thread_mask);
-				if (sibling == smt_first)
+				if (sibling == smt_first) {
 					topo_package->booted_cores++;
+					hd_add_core(sibling);
+				}
 			}
 		} else {
 			topo->booted_cores = topo_package->booted_cores;
@@ -303,8 +309,10 @@ static void __arch_update_dedicated_flag(void *arg)
 static int __arch_update_cpu_topology(void)
 {
 	struct sysinfo_15_1_x *info = tl_info;
-	int rc = 0;
+	int rc, hd_status;
 
+	hd_status = 0;
+	rc = 0;
 	mutex_lock(&smp_cpu_state_mutex);
 	if (MACHINE_HAS_TOPOLOGY) {
 		rc = 1;
@@ -314,7 +322,11 @@ static int __arch_update_cpu_topology(void)
 	update_cpu_masks();
 	if (!MACHINE_HAS_TOPOLOGY)
 		topology_update_polarization_simple();
+	if (cpu_management == 1)
+		hd_status = hd_enable_hiperdispatch();
 	mutex_unlock(&smp_cpu_state_mutex);
+	if (hd_status == 0)
+		hd_disable_hiperdispatch();
 	return rc;
 }
 
@@ -374,7 +386,24 @@ void topology_expect_change(void)
 	set_topology_timer();
 }
 
-static int cpu_management;
+static int set_polarization(int polarization)
+{
+	int rc = 0;
+
+	cpus_read_lock();
+	mutex_lock(&smp_cpu_state_mutex);
+	if (cpu_management == polarization)
+		goto out;
+	rc = topology_set_cpu_management(polarization);
+	if (rc)
+		goto out;
+	cpu_management = polarization;
+	topology_expect_change();
+out:
+	mutex_unlock(&smp_cpu_state_mutex);
+	cpus_read_unlock();
+	return rc;
+}
 
 static ssize_t dispatching_show(struct device *dev,
 				struct device_attribute *attr,
@@ -400,19 +429,7 @@ static ssize_t dispatching_store(struct device *dev,
 		return -EINVAL;
 	if (val != 0 && val != 1)
 		return -EINVAL;
-	rc = 0;
-	cpus_read_lock();
-	mutex_lock(&smp_cpu_state_mutex);
-	if (cpu_management == val)
-		goto out;
-	rc = topology_set_cpu_management(val);
-	if (rc)
-		goto out;
-	cpu_management = val;
-	topology_expect_change();
-out:
-	mutex_unlock(&smp_cpu_state_mutex);
-	cpus_read_unlock();
+	rc = set_polarization(val);
 	return rc ? rc : count;
 }
 static DEVICE_ATTR_RW(dispatching);
@@ -624,11 +641,36 @@ static int topology_ctl_handler(const struct ctl_table *ctl, int write,
 	return rc;
 }
 
+static int polarization_ctl_handler(const struct ctl_table *ctl, int write,
+				    void *buffer, size_t *lenp, loff_t *ppos)
+{
+	int polarization;
+	int rc;
+	struct ctl_table ctl_entry = {
+		.procname	= ctl->procname,
+		.data		= &polarization,
+		.maxlen		= sizeof(int),
+		.extra1		= SYSCTL_ZERO,
+		.extra2		= SYSCTL_ONE,
+	};
+
+	polarization = cpu_management;
+	rc = proc_douintvec_minmax(&ctl_entry, write, buffer, lenp, ppos);
+	if (rc < 0 || !write)
+		return rc;
+	return set_polarization(polarization);
+}
+
 static struct ctl_table topology_ctl_table[] = {
 	{
 		.procname	= "topology",
 		.mode		= 0644,
 		.proc_handler	= topology_ctl_handler,
+	},
+	{
+		.procname	= "polarization",
+		.mode		= 0644,
+		.proc_handler	= polarization_ctl_handler,
 	},
 };
 
@@ -642,6 +684,8 @@ static int __init topology_init(void)
 		set_topology_timer();
 	else
 		topology_update_polarization_simple();
+	if (IS_ENABLED(CONFIG_SCHED_TOPOLOGY_VERTICAL))
+		set_polarization(1);
 	register_sysctl("s390", topology_ctl_table);
 
 	dev_root = bus_get_dev_root(&cpu_subsys);

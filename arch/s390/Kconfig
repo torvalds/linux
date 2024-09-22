@@ -514,6 +514,26 @@ config SCHED_TOPOLOGY
 	  making when dealing with machines that have multi-threading,
 	  multiple cores or multiple books.
 
+config SCHED_TOPOLOGY_VERTICAL
+	def_bool y
+	bool "Use vertical CPU polarization by default"
+	depends on SCHED_TOPOLOGY
+	help
+	  Use vertical CPU polarization by default if available.
+	  The default CPU polarization is horizontal.
+
+config HIPERDISPATCH_ON
+	def_bool y
+	bool "Use hiperdispatch on vertical polarization by default"
+	depends on SCHED_TOPOLOGY
+	depends on PROC_SYSCTL
+	help
+	  Hiperdispatch aims to improve the CPU scheduler's decision
+	  making when using vertical polarization by adjusting CPU
+	  capacities dynamically. Set this option to use hiperdispatch
+	  on vertical polarization by default. This can be overwritten
+	  by sysctl's s390.hiperdispatch attribute later on.
+
 source "kernel/Kconfig.hz"
 
 config CERT_STORE
@@ -558,17 +578,13 @@ config EXPOLINE
 	  If unsure, say N.
 
 config EXPOLINE_EXTERN
-	def_bool y if EXPOLINE
-	depends on EXPOLINE
-	depends on CC_IS_GCC && GCC_VERSION >= 110200
-	depends on $(success,$(srctree)/arch/s390/tools/gcc-thunk-extern.sh $(CC))
-	prompt "Generate expolines as extern functions."
+	def_bool EXPOLINE && CC_IS_GCC && GCC_VERSION >= 110200 && \
+		 $(success,$(srctree)/arch/s390/tools/gcc-thunk-extern.sh $(CC))
 	help
-	  This option is required for some tooling like kpatch. The kernel is
-	  compiled with -mindirect-branch=thunk-extern and requires a newer
-	  compiler.
-
-	  If unsure, say N.
+	  Generate expolines as external functions if the compiler supports it.
+	  This option is required for some tooling like kpatch, if expolines
+	  are enabled. The kernel is compiled with
+	  -mindirect-branch=thunk-extern, which requires a newer compiler.
 
 choice
 	prompt "Expoline default"
