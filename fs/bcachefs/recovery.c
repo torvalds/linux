@@ -862,6 +862,9 @@ use_clean:
 
 	clear_bit(BCH_FS_fsck_running, &c->flags);
 
+	/* in case we don't run journal replay, i.e. norecovery mode */
+	set_bit(BCH_FS_accounting_replay_done, &c->flags);
+
 	/* fsync if we fixed errors */
 	if (test_bit(BCH_FS_errors_fixed, &c->flags) &&
 	    bch2_write_ref_tryget(c, BCH_WRITE_REF_fsync)) {
