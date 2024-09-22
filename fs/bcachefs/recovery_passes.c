@@ -106,6 +106,9 @@ int bch2_run_explicit_recovery_pass(struct bch_fs *c,
 	if (c->opts.recovery_passes & BIT_ULL(pass))
 		return 0;
 
+	if (c->curr_recovery_pass == ARRAY_SIZE(recovery_pass_fns))
+		return -BCH_ERR_not_in_recovery;
+
 	bch_info(c, "running explicit recovery pass %s (%u), currently at %s (%u)",
 		 bch2_recovery_passes[pass], pass,
 		 bch2_recovery_passes[c->curr_recovery_pass], c->curr_recovery_pass);
