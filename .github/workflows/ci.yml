@@ -75,7 +75,7 @@ jobs:
 
       - name: Checkout
         if: runner.os == 'Linux'
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
       - name: Install pip dependencies
         run: pip install yamlish junit-xml
       - name: Install openvpn
@@ -103,7 +103,7 @@ jobs:
           git -c protocol.version=2 fetch --no-tags --prune --progress --depth=10 origin +${GITHUB_SHA}:refs/remotes/origin/${BRANCH}
           git checkout --progress --force -B $BRANCH refs/remotes/origin/$BRANCH
 
-      - uses: actions/cache@v2
+      - uses: actions/cache@v4
         with:
           path: ${{ env.CCACHE_DIR }}
           key: ${{ runner.os }}-ccache-build-${{ github.sha }}
@@ -154,7 +154,7 @@ jobs:
       - name: Tests
         run: mkdir /tmp/junit && make -C tools/lkl run-tests tests="--junit-dir /tmp/junit"
       - name: Save test results
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         if: success() || failure()
         with:
           name: test-results-${{ matrix.displayTargetName }}
@@ -167,7 +167,7 @@ jobs:
       - name: Checkout
         with:
           fetch-depth: 0
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
       - name: Install pip dependencies
         run: sudo pip install ply GitPython
       - name: Check coding style
