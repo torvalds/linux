@@ -1060,6 +1060,7 @@ struct bch_fs {
 	u64			recovery_passes_complete;
 	/* never rewinds version of curr_recovery_pass */
 	enum bch_recovery_pass	recovery_pass_done;
+	spinlock_t		recovery_pass_lock;
 	struct semaphore	online_fsck_mutex;
 
 	/* DEBUG JUNK */

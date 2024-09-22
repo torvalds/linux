@@ -766,6 +766,7 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 
 	refcount_set(&c->ro_ref, 1);
 	init_waitqueue_head(&c->ro_ref_wait);
+	spin_lock_init(&c->recovery_pass_lock);
 	sema_init(&c->online_fsck_mutex, 1);
 
 	init_rwsem(&c->gc_lock);
