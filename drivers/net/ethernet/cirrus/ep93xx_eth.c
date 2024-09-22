@@ -771,6 +771,7 @@ static int ep93xx_eth_probe(struct platform_device *pdev)
 	struct resource *mem;
 	void __iomem *base_addr;
 	struct device_node *np;
+	u8 addr[ETH_ALEN];
 	u32 phy_id;
 	int irq;
 	int err;
@@ -802,7 +803,8 @@ static int ep93xx_eth_probe(struct platform_device *pdev)
 		goto err_out;
 	}
 
-	eth_hw_addr_set(dev, base_addr + 0x50);
+	memcpy_fromio(addr, base_addr + 0x50, ETH_ALEN);
+	eth_hw_addr_set(dev, addr);
 	dev->ethtool_ops = &ep93xx_ethtool_ops;
 	dev->netdev_ops = &ep93xx_netdev_ops;
 	dev->features |= NETIF_F_SG | NETIF_F_HW_CSUM;
