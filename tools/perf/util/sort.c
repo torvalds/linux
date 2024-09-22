@@ -2312,7 +2312,7 @@ static int hist_entry__typeoff_snprintf(struct hist_entry *he, char *bf,
 				 he->mem_type_off, true);
 	buf[4095] = '\0';
 
-	return repsep_snprintf(bf, size, "%s %+d (%s)", he_type->self.type_name,
+	return repsep_snprintf(bf, size, "%s +%#x (%s)", he_type->self.type_name,
 			       he->mem_type_off, buf);
 }
 
@@ -2324,6 +2324,57 @@ struct sort_entry sort_type_offset = {
 	.se_init	= sort__type_init,
 	.se_snprintf	= hist_entry__typeoff_snprintf,
 	.se_width_idx	= HISTC_TYPE_OFFSET,
+};
+
+/* --sort typecln */
+
+/* TODO: use actual value in the system */
+#define TYPE_CACHELINE_SIZE  64
+
+static int64_t
+sort__typecln_sort(struct hist_entry *left, struct hist_entry *right)
+{
+	struct annotated_data_type *left_type = left->mem_type;
+	struct annotated_data_type *right_type = right->mem_type;
+	int64_t left_cln, right_cln;
+	int64_t ret;
+
+	if (!left_type) {
+		sort__type_init(left);
+		left_type = left->mem_type;
+	}
+
+	if (!right_type) {
+		sort__type_init(right);
+		right_type = right->mem_type;
+	}
+
+	ret = strcmp(left_type->self.type_name, right_type->self.type_name);
+	if (ret)
+		return ret;
+
+	left_cln = left->mem_type_off / TYPE_CACHELINE_SIZE;
+	right_cln = right->mem_type_off / TYPE_CACHELINE_SIZE;
+	return left_cln - right_cln;
+}
+
+static int hist_entry__typecln_snprintf(struct hist_entry *he, char *bf,
+				     size_t size, unsigned int width __maybe_unused)
+{
+	struct annotated_data_type *he_type = he->mem_type;
+
+	return repsep_snprintf(bf, size, "%s: cache-line %d", he_type->self.type_name,
+			       he->mem_type_off / TYPE_CACHELINE_SIZE);
+}
+
+struct sort_entry sort_type_cacheline = {
+	.se_header	= "Data Type Cacheline",
+	.se_cmp		= sort__type_cmp,
+	.se_collapse	= sort__typecln_sort,
+	.se_sort	= sort__typecln_sort,
+	.se_init	= sort__type_init,
+	.se_snprintf	= hist_entry__typecln_snprintf,
+	.se_width_idx	= HISTC_TYPE_CACHELINE,
 };
 
 
@@ -2384,6 +2435,7 @@ static struct sort_dimension common_sort_dimensions[] = {
 	DIM(SORT_ANNOTATE_DATA_TYPE, "type", sort_type),
 	DIM(SORT_ANNOTATE_DATA_TYPE_OFFSET, "typeoff", sort_type_offset),
 	DIM(SORT_SYM_OFFSET, "symoff", sort_sym_offset),
+	DIM(SORT_ANNOTATE_DATA_TYPE_CACHELINE, "typecln", sort_type_cacheline),
 };
 
 #undef DIM
@@ -3960,7 +4012,7 @@ static void add_hpp_sort_string(struct strbuf *sb, struct hpp_dimension *s, int 
 		add_key(sb, s[i].name, llen);
 }
 
-char *sort_help(const char *prefix)
+char *sort_help(const char *prefix, enum sort_mode mode)
 {
 	struct strbuf sb;
 	char *s;
@@ -3972,10 +4024,12 @@ char *sort_help(const char *prefix)
 			    ARRAY_SIZE(hpp_sort_dimensions), &len);
 	add_sort_string(&sb, common_sort_dimensions,
 			    ARRAY_SIZE(common_sort_dimensions), &len);
-	add_sort_string(&sb, bstack_sort_dimensions,
-			    ARRAY_SIZE(bstack_sort_dimensions), &len);
-	add_sort_string(&sb, memory_sort_dimensions,
-			    ARRAY_SIZE(memory_sort_dimensions), &len);
+	if (mode == SORT_MODE__NORMAL || mode == SORT_MODE__BRANCH)
+		add_sort_string(&sb, bstack_sort_dimensions,
+				ARRAY_SIZE(bstack_sort_dimensions), &len);
+	if (mode == SORT_MODE__NORMAL || mode == SORT_MODE__MEMORY)
+		add_sort_string(&sb, memory_sort_dimensions,
+				ARRAY_SIZE(memory_sort_dimensions), &len);
 	s = strbuf_detach(&sb, NULL);
 	strbuf_release(&sb);
 	return s;

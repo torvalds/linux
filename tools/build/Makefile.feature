@@ -100,7 +100,6 @@ FEATURE_TESTS_EXTRA :=                  \
          libunwind-debug-frame-aarch64  \
          cxx                            \
          llvm                           \
-         llvm-version                   \
          clang                          \
          libbpf                         \
          libbpf-btf__load_from_kernel_by_id \
@@ -136,6 +135,7 @@ FEATURE_DISPLAY ?=              \
          libunwind              \
          libdw-dwarf-unwind     \
          libcapstone            \
+         llvm-perf              \
          zlib                   \
          lzma                   \
          get_cpuid              \
