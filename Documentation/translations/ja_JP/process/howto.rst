@@ -361,7 +361,7 @@ https://patchwork.kernel.org/ でリストされています。
 全サブシステムツリーからほぼ毎日プルされてできる特別なテスト用のリポジ
 トリが存在します-
 
-       https://git.kernel.org/?p=linux/kernel/git/next/linux-next.git
+       https://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git
 
 このやり方によって、linux-next は次のマージ機会でどんなものがメイン
 ラインにマージされるか、おおまかな展望を提供します。
@@ -401,12 +401,12 @@ https://bugzilla.kernel.org でバグ報告を調べようとする人もいる�
 は Linux kernel メーリングリストに参加しています。このリストの登録/脱
 退の方法については以下を参照してください-
 
-	http://vger.kernel.org/vger-lists.html#linux-kernel
+	https://subspace.kernel.org/subscribing.html
 
 このメーリングリストのアーカイブは web 上の多数の場所に存在します。こ
 れらのアーカイブを探すにはサーチエンジンを使いましょう。例えば-
 
-	https://lore.kernel.org/lkml/
+	https://lore.kernel.org/linux-kernel/
 
 リストに投稿する前にすでにその話題がアーカイブに存在するかどうかを検索
 することを是非やってください。多数の事がすでに詳細に渡って議論されてお
@@ -419,13 +419,13 @@ MAINTAINERS ファイルにリストがありますので参照してくださ�
 多くのリストは kernel.org でホストされています。これらの情報は以下にあ
 ります -
 
-	http://vger.kernel.org/vger-lists.html
+	https://subspace.kernel.org
 
 メーリングリストを使う場合、良い行動習慣に従うようにしましょう。少し安っ
 ぽいが、以下の URL は上のリスト(や他のリスト)で会話する場合のシンプル
 なガイドラインを示しています -
 
-	http://www.albion.com/netiquette/
+	https://subspace.kernel.org/etiquette.html
 
 もし複数の人があなたのメールに返事をした場合、CC: で受ける人のリストは
 だいぶ多くなるでしょう。正当な理由がない限り、CC: リストから誰かを削除
