@@ -1195,6 +1195,10 @@ int bch2_btree_node_read_done(struct bch_fs *c, struct bch_dev *ca,
 	set_btree_bset(b, b->set, &b->data->keys);
 
 	b->nr = bch2_key_sort_fix_overlapping(c, &sorted->keys, iter);
+	memset((uint8_t *)(sorted + 1) + b->nr.live_u64s * sizeof(u64), 0,
+			btree_buf_bytes(b) -
+			sizeof(struct btree_node) -
+			b->nr.live_u64s * sizeof(u64));
 
 	u64s = le16_to_cpu(sorted->keys.u64s);
 	*sorted = *b->data;
