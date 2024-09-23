@@ -87,16 +87,6 @@ int amdgpu_gfx_me_queue_to_bit(struct amdgpu_device *adev,
 	return bit;
 }
 
-void amdgpu_gfx_bit_to_me_queue(struct amdgpu_device *adev, int bit,
-				int *me, int *pipe, int *queue)
-{
-	*queue = bit % adev->gfx.me.num_queue_per_pipe;
-	*pipe = (bit / adev->gfx.me.num_queue_per_pipe)
-		% adev->gfx.me.num_pipe_per_me;
-	*me = (bit / adev->gfx.me.num_queue_per_pipe)
-		/ adev->gfx.me.num_pipe_per_me;
-}
-
 bool amdgpu_gfx_is_me_queue_enabled(struct amdgpu_device *adev,
 				    int me, int pipe, int queue)
 {
