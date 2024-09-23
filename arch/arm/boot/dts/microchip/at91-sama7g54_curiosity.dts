@@ -186,6 +186,37 @@
 		i2c-digital-filter-width-ns = <35>;
 		status = "okay";
 
+		power-monitor@1f {
+			compatible = "microchip,pac1934";
+			reg = <0x1f>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			channel@1 {
+				reg = <0x1>;
+				shunt-resistor-micro-ohms = <47000>;
+				label = "VDD3V3";
+			};
+
+			channel@2 {
+				reg = <0x2>;
+				shunt-resistor-micro-ohms = <47000>;
+				label = "VDDIODDR";
+			};
+
+			channel@3 {
+				reg = <0x3>;
+				shunt-resistor-micro-ohms = <47000>;
+				label = "VDDCORE";
+			};
+
+			channel@4 {
+				reg = <0x4>;
+				shunt-resistor-micro-ohms = <47000>;
+				label = "VDDCPU";
+			};
+		};
+
 		eeprom@51 {
 			compatible = "atmel,24c02";
 			reg = <0x51>;
