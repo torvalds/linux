@@ -533,7 +533,7 @@ static const struct pinconf_ops rtd_pinconf_ops = {
 	.pin_config_group_set = rtd_pin_config_group_set,
 };
 
-static struct regmap_config rtd_pinctrl_regmap_config = {
+static const struct regmap_config rtd_pinctrl_regmap_config = {
 	.reg_bits = 32,
 	.val_bits = 32,
 	.reg_stride = 4,
