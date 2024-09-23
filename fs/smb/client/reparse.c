@@ -535,9 +535,76 @@ static int parse_reparse_posix(struct reparse_posix_data *buf,
 	return 0;
 }
 
+int smb2_parse_native_symlink(char **target, const char *buf, unsigned int len,
+			      bool unicode, bool relative,
+			      const char *full_path,
+			      struct cifs_sb_info *cifs_sb)
+{
+	char sep = CIFS_DIR_SEP(cifs_sb);
+	char *linux_target = NULL;
+	char *smb_target = NULL;
+	int levels;
+	int rc;
+	int i;
+
+	smb_target = cifs_strndup_from_utf16(buf, len, unicode, cifs_sb->local_nls);
+	if (!smb_target) {
+		rc = -ENOMEM;
+		goto out;
+	}
+
+	if (smb_target[0] == sep && relative) {
+		/*
+		 * This is a relative SMB symlink from the top of the share,
+		 * which is the top level directory of the Linux mount point.
+		 * Linux does not support such relative symlinks, so convert
+		 * it to the relative symlink from the current directory.
+		 * full_path is the SMB path to the symlink (from which is
+		 * extracted current directory) and smb_target is the SMB path
+		 * where symlink points, therefore full_path must always be on
+		 * the SMB share.
+		 */
+		int smb_target_len = strlen(smb_target)+1;
+		levels = 0;
+		for (i = 1; full_path[i]; i++) { /* i=1 to skip leading sep */
+			if (full_path[i] == sep)
+				levels++;
+		}
+		linux_target = kmalloc(levels*3 + smb_target_len, GFP_KERNEL);
+		if (!linux_target) {
+			rc = -ENOMEM;
+			goto out;
+		}
+		for (i = 0; i < levels; i++) {
+			linux_target[i*3 + 0] = '.';
+			linux_target[i*3 + 1] = '.';
+			linux_target[i*3 + 2] = sep;
+		}
+		memcpy(linux_target + levels*3, smb_target+1, smb_target_len); /* +1 to skip leading sep */
+	} else {
+		linux_target = smb_target;
+		smb_target = NULL;
+	}
+
+	if (sep == '\\')
+		convert_delimiter(linux_target, '/');
+
+	rc = 0;
+	*target = linux_target;
+
+	cifs_dbg(FYI, "%s: symlink target: %s\n", __func__, *target);
+
+out:
+	if (rc != 0)
+		kfree(linux_target);
+	kfree(smb_target);
+	return rc;
+}
+
 static int parse_reparse_symlink(struct reparse_symlink_data_buffer *sym,
 				 u32 plen, bool unicode,
 				 struct cifs_sb_info *cifs_sb,
+				 const char *full_path,
 				 struct cifs_open_info_data *data)
 {
 	unsigned int len;
@@ -552,20 +619,18 @@ static int parse_reparse_symlink(struct reparse_symlink_data_buffer *sym,
 		return -EIO;
 	}
 
-	data->symlink_target = cifs_strndup_from_utf16(sym->PathBuffer + offs,
-						       len, unicode,
-						       cifs_sb->local_nls);
-	if (!data->symlink_target)
-		return -ENOMEM;
-
-	convert_delimiter(data->symlink_target, '/');
-	cifs_dbg(FYI, "%s: target path: %s\n", __func__, data->symlink_target);
-
-	return 0;
+	return smb2_parse_native_symlink(&data->symlink_target,
+					 sym->PathBuffer + offs,
+					 len,
+					 unicode,
+					 le32_to_cpu(sym->Flags) & SYMLINK_FLAG_RELATIVE,
+					 full_path,
+					 cifs_sb);
 }
 
 int parse_reparse_point(struct reparse_data_buffer *buf,
 			u32 plen, struct cifs_sb_info *cifs_sb,
+			const char *full_path,
 			bool unicode, struct cifs_open_info_data *data)
 {
 	struct cifs_tcon *tcon = cifs_sb_master_tcon(cifs_sb);
@@ -580,7 +645,7 @@ int parse_reparse_point(struct reparse_data_buffer *buf,
 	case IO_REPARSE_TAG_SYMLINK:
 		return parse_reparse_symlink(
 			(struct reparse_symlink_data_buffer *)buf,
-			plen, unicode, cifs_sb, data);
+			plen, unicode, cifs_sb, full_path, data);
 	case IO_REPARSE_TAG_LX_SYMLINK:
 	case IO_REPARSE_TAG_AF_UNIX:
 	case IO_REPARSE_TAG_LX_FIFO:
@@ -596,6 +661,7 @@ int parse_reparse_point(struct reparse_data_buffer *buf,
 }
 
 int smb2_parse_reparse_point(struct cifs_sb_info *cifs_sb,
+			     const char *full_path,
 			     struct kvec *rsp_iov,
 			     struct cifs_open_info_data *data)
 {
@@ -605,7 +671,7 @@ int smb2_parse_reparse_point(struct cifs_sb_info *cifs_sb,
 
 	buf = (struct reparse_data_buffer *)((u8 *)io +
 					     le32_to_cpu(io->OutputOffset));
-	return parse_reparse_point(buf, plen, cifs_sb, true, data);
+	return parse_reparse_point(buf, plen, cifs_sb, full_path, true, data);
 }
 
 static void wsl_to_fattr(struct cifs_open_info_data *data,
