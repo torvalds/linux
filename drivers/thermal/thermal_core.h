@@ -13,6 +13,7 @@
 #include <linux/thermal.h>
 
 #include "thermal_netlink.h"
+#include "thermal_thresholds.h"
 #include "thermal_debugfs.h"
 
 struct thermal_attr {
@@ -139,6 +140,7 @@ struct thermal_zone_device {
 #ifdef CONFIG_THERMAL_DEBUGFS
 	struct thermal_debugfs *debugfs;
 #endif
+	struct list_head user_thresholds;
 	struct thermal_trip_desc trips[] __counted_by(num_trips);
 };
 
