@@ -1061,6 +1061,10 @@ static void mtp_hpd_irq_setup(struct drm_i915_private *i915)
 	enabled_irqs = intel_hpd_enabled_irqs(i915, i915->display.hotplug.pch_hpd);
 	hotplug_irqs = intel_hpd_hotplug_irqs(i915, i915->display.hotplug.pch_hpd);
 
+	/*
+	 * Use 250us here to align with the DP1.4a(Table 3-4) spec as to what the
+	 * SHPD_FILTER_CNT value should be.
+	 */
 	intel_de_write(i915, SHPD_FILTER_CNT, SHPD_FILTER_CNT_250);
 
 	mtp_hpd_invert(i915);
