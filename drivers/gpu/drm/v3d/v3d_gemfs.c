@@ -20,6 +20,10 @@ void v3d_gemfs_init(struct v3d_dev *v3d)
 	if (!IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE))
 		goto err;
 
+	/* The user doesn't want to enable Super Pages */
+	if (!super_pages)
+		goto err;
+
 	type = get_fs_type("tmpfs");
 	if (!type)
 		goto err;

@@ -539,6 +539,7 @@ void v3d_invalidate_caches(struct v3d_dev *v3d);
 void v3d_clean_caches(struct v3d_dev *v3d);
 
 /* v3d_gemfs.c */
+extern bool super_pages;
 void v3d_gemfs_init(struct v3d_dev *v3d);
 void v3d_gemfs_fini(struct v3d_dev *v3d);
 
