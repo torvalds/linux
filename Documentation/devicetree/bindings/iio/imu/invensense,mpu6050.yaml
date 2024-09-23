@@ -36,6 +36,11 @@ properties:
       - items:
           - const: invensense,icm20608d
           - const: invensense,icm20608
+      - items:
+          - enum:
+              - invensense,iam20680hp
+              - invensense,iam20680ht
+          - const: invensense,iam20680
 
   reg:
     maxItems: 1
