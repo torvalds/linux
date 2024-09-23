@@ -1420,7 +1420,7 @@ static int arm_smmu_alloc_cd_tables(struct arm_smmu_master *master)
 		cd_table->s1fmt = STRTAB_STE_0_S1FMT_LINEAR;
 		cd_table->linear.num_ents = max_contexts;
 
-		l1size = max_contexts * sizeof(struct arm_smmu_cd),
+		l1size = max_contexts * sizeof(struct arm_smmu_cd);
 		cd_table->linear.table = dma_alloc_coherent(smmu->dev, l1size,
 							    &cd_table->cdtab_dma,
 							    GFP_KERNEL);
