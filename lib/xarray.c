@@ -366,7 +366,7 @@ static void *xas_alloc(struct xa_state *xas, unsigned int shift)
 		return NULL;
 
 	if (node) {
-		xas->xa_alloc = NULL;
+		xas->xa_alloc = rcu_dereference_raw(node->parent);
 	} else {
 		gfp_t gfp = GFP_NOWAIT | __GFP_NOWARN;
 
