@@ -11,6 +11,17 @@ maintainers:
 
 allOf:
   - $ref: dma-controller.yaml#
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: fsl,imx8qxp-dma-apbh
+    then:
+      required:
+        - power-domains
+    else:
+      properties:
+        power-domains: false
 
 properties:
   compatible:
@@ -20,6 +31,7 @@ properties:
               - fsl,imx6q-dma-apbh
               - fsl,imx6sx-dma-apbh
               - fsl,imx7d-dma-apbh
+              - fsl,imx8qxp-dma-apbh
           - const: fsl,imx28-dma-apbh
       - enum:
           - fsl,imx23-dma-apbh
@@ -41,6 +53,9 @@ properties:
 
   dma-channels:
     enum: [4, 8, 16]
+
+  power-domains:
+    maxItems: 1
 
 required:
   - compatible
