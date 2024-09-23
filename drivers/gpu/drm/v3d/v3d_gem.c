@@ -291,8 +291,9 @@ v3d_gem_init(struct drm_device *dev)
 	ret = v3d_sched_init(v3d);
 	if (ret) {
 		drm_mm_takedown(&v3d->mm);
-		dma_free_coherent(v3d->drm.dev, 4096 * 1024, (void *)v3d->pt,
+		dma_free_coherent(v3d->drm.dev, pt_size, (void *)v3d->pt,
 				  v3d->pt_paddr);
+		return ret;
 	}
 
 	return 0;
