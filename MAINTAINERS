@@ -13636,7 +13636,7 @@ S:	Maintained
 F:	Documentation/devicetree/bindings/mfd/marvell,88pm886-a1.yaml
 F:	drivers/input/misc/88pm886-onkey.c
 F:	drivers/mfd/88pm886.c
-F:	drivers/regulators/88pm886-regulator.c
+F:	drivers/regulator/88pm886-regulator.c
 F:	include/linux/mfd/88pm886.h
 
 MARVELL ARMADA 3700 PHY DRIVERS

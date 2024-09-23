@@ -135,7 +135,7 @@ static int sprd_pmic_spi_read(void *context,
 	return 0;
 }
 
-static struct regmap_bus sprd_pmic_regmap = {
+static const struct regmap_bus sprd_pmic_regmap = {
 	.write = sprd_pmic_spi_write,
 	.read = sprd_pmic_spi_read,
 	.reg_format_endian_default = REGMAP_ENDIAN_NATIVE,
