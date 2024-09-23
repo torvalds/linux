@@ -213,6 +213,8 @@ void btrfs_cleanup_defrag_inodes(struct btrfs_fs_info *fs_info)
 					     &fs_info->defrag_inodes, rb_node)
 		kmem_cache_free(btrfs_inode_defrag_cachep, defrag);
 
+	fs_info->defrag_inodes = RB_ROOT;
+
 	spin_unlock(&fs_info->defrag_inodes_lock);
 }
 
