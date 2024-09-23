@@ -1618,6 +1618,16 @@ config REGULATOR_RPMH
 	  control allows for voting on regulator state between multiple
 	  processors within the SoC.
 
+config REGULATOR_CPR
+        bool "RBCPR regulator driver for APC"
+        depends on OF && QCOM_SCM
+        help
+          Compile in RBCPR (RapidBridge Core Power Reduction) driver to support
+          corner vote for APC power rail. The driver takes PTE process voltage
+          suggestions in efuse as initial settings. It converts corner vote
+          to voltage value before writing to a voltage regulator API, such as
+          that provided by spm-regulator driver.
+
 config REGULATOR_RPM_SMD
 	tristate "RPM SMD regulator driver"
 	depends on OF
