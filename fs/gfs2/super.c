@@ -1272,9 +1272,9 @@ static enum evict_behavior gfs2_upgrade_iopen_glock(struct inode *inode)
 	 * exclusive access to the iopen glock here.
 	 *
 	 * Otherwise, the other nodes holding the lock will be notified about
-	 * our locking request.  If they do not have the inode open, they are
-	 * expected to evict the cached inode and release the lock, allowing us
-	 * to proceed.
+	 * our locking request (see iopen_go_callback()).  If they do not have
+	 * the inode open, they are expected to evict the cached inode and
+	 * release the lock, allowing us to proceed.
 	 *
 	 * Otherwise, if they cannot evict the inode, they are expected to poke
 	 * the inode glock (note: not the iopen glock).  We will notice that
