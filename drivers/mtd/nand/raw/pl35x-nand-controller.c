@@ -187,7 +187,7 @@ static const struct mtd_ooblayout_ops pl35x_ecc_ooblayout16_ops = {
 	.free = pl35x_ecc_ooblayout16_free,
 };
 
-/* Generic flash bbt decriptors */
+/* Generic flash bbt descriptors */
 static u8 bbt_pattern[] = { 'B', 'b', 't', '0' };
 static u8 mirror_pattern[] = { '1', 't', 'b', 'B' };
 
