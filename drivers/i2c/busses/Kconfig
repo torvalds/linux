@@ -98,6 +98,7 @@ config I2C_AMD_MP2
 config I2C_AMD_ASF
 	tristate "AMD ASF I2C Controller Support"
 	depends on I2C_PIIX4
+	select I2C_SLAVE
 	help
 	  This option enables support for the AMD ASF (Alert Standard Format)
 	  I2C controller. The AMD ASF controller is an SMBus controller with
