@@ -712,7 +712,7 @@ static DEFINE_NOIRQ_DEV_PM_OPS(j721e_pcie_pm_ops,
 
 static struct platform_driver j721e_pcie_driver = {
 	.probe  = j721e_pcie_probe,
-	.remove_new = j721e_pcie_remove,
+	.remove = j721e_pcie_remove,
 	.driver = {
 		.name	= "j721e-pcie",
 		.of_match_table = of_j721e_pcie_match,

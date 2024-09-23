@@ -443,7 +443,7 @@ static const struct of_device_id of_intel_pcie_match[] = {
 
 static struct platform_driver intel_pcie_driver = {
 	.probe = intel_pcie_probe,
-	.remove_new = intel_pcie_remove,
+	.remove = intel_pcie_remove,
 	.driver = {
 		.name = "intel-gw-pcie",
 		.of_match_table = of_intel_pcie_match,

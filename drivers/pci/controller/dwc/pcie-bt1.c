@@ -632,7 +632,7 @@ MODULE_DEVICE_TABLE(of, bt1_pcie_of_match);
 
 static struct platform_driver bt1_pcie_driver = {
 	.probe = bt1_pcie_probe,
-	.remove_new = bt1_pcie_remove,
+	.remove = bt1_pcie_remove,
 	.driver = {
 		.name	= "bt1-pcie",
 		.of_match_table = bt1_pcie_of_match,

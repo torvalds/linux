@@ -916,6 +916,6 @@ static struct platform_driver nwl_pcie_driver = {
 		.of_match_table = nwl_pcie_of_match,
 	},
 	.probe = nwl_pcie_probe,
-	.remove_new = nwl_pcie_remove,
+	.remove = nwl_pcie_remove,
 };
 builtin_platform_driver(nwl_pcie_driver);
