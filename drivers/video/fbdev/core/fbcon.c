@@ -363,6 +363,16 @@ static int get_color(struct vc_data *vc, struct fb_info *info,
 	return color;
 }
 
+static int get_fg_color(struct vc_data *vc, struct fb_info *info, u16 c)
+{
+	return get_color(vc, info, c, 1);
+}
+
+static int get_bg_color(struct vc_data *vc, struct fb_info *info, u16 c)
+{
+	return get_color(vc, info, c, 0);
+}
+
 static void fb_flashcursor(struct work_struct *work)
 {
 	struct fbcon_ops *ops = container_of(work, struct fbcon_ops, cursor_work.work);
@@ -394,8 +404,9 @@ static void fb_flashcursor(struct work_struct *work)
 
 	c = scr_readw((u16 *) vc->vc_pos);
 	enable = ops->cursor_flash && !ops->cursor_state.enable;
-	ops->cursor(vc, info, enable, get_color(vc, info, c, 1),
-		    get_color(vc, info, c, 0));
+	ops->cursor(vc, info, enable,
+		    get_fg_color(vc, info, c),
+		    get_bg_color(vc, info, c));
 	console_unlock();
 
 	queue_delayed_work(system_power_efficient_wq, &ops->cursor_work,
@@ -1312,8 +1323,8 @@ static void fbcon_putcs(struct vc_data *vc, const u16 *s, unsigned int count,
 
 	if (fbcon_is_active(vc, info))
 		ops->putcs(vc, info, s, count, real_y(p, ypos), xpos,
-			   get_color(vc, info, scr_readw(s), 1),
-			   get_color(vc, info, scr_readw(s), 0));
+			   get_fg_color(vc, info, scr_readw(s)),
+			   get_bg_color(vc, info, scr_readw(s)));
 }
 
 static void fbcon_clear_margins(struct vc_data *vc, int bottom_only)
@@ -1346,8 +1357,9 @@ static void fbcon_cursor(struct vc_data *vc, bool enable)
 	if (!ops->cursor)
 		return;
 
-	ops->cursor(vc, info, enable, get_color(vc, info, c, 1),
-		    get_color(vc, info, c, 0));
+	ops->cursor(vc, info, enable,
+		    get_fg_color(vc, info, c),
+		    get_bg_color(vc, info, c));
 }
 
 static int scrollback_phys_max = 0;
