@@ -67,6 +67,25 @@ struct panthor_irq {
 };
 
 /**
+ * enum panthor_device_profiling_mode - Profiling state
+ */
+enum panthor_device_profiling_flags {
+	/** @PANTHOR_DEVICE_PROFILING_DISABLED: Profiling is disabled. */
+	PANTHOR_DEVICE_PROFILING_DISABLED = 0,
+
+	/** @PANTHOR_DEVICE_PROFILING_CYCLES: Sampling job cycles. */
+	PANTHOR_DEVICE_PROFILING_CYCLES = BIT(0),
+
+	/** @PANTHOR_DEVICE_PROFILING_TIMESTAMP: Sampling job timestamp. */
+	PANTHOR_DEVICE_PROFILING_TIMESTAMP = BIT(1),
+
+	/** @PANTHOR_DEVICE_PROFILING_ALL: Sampling everything. */
+	PANTHOR_DEVICE_PROFILING_ALL =
+	PANTHOR_DEVICE_PROFILING_CYCLES |
+	PANTHOR_DEVICE_PROFILING_TIMESTAMP,
+};
+
+/**
  * struct panthor_device - Panthor device
  */
 struct panthor_device {
@@ -162,6 +181,9 @@ struct panthor_device {
 		 */
 		struct page *dummy_latest_flush;
 	} pm;
+
+	/** @profile_mask: User-set profiling flags for job accounting. */
+	u32 profile_mask;
 };
 
 /**
