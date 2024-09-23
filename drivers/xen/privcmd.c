@@ -959,12 +959,12 @@ static int privcmd_irqfd_assign(struct privcmd_irqfd *irqfd)
 	INIT_WORK(&kirqfd->shutdown, irqfd_shutdown);
 
 	f = fdget(irqfd->fd);
-	if (!f.file) {
+	if (!fd_file(f)) {
 		ret = -EBADF;
 		goto error_kfree;
 	}
 
-	kirqfd->eventfd = eventfd_ctx_fileget(f.file);
+	kirqfd->eventfd = eventfd_ctx_fileget(fd_file(f));
 	if (IS_ERR(kirqfd->eventfd)) {
 		ret = PTR_ERR(kirqfd->eventfd);
 		goto error_fd_put;
@@ -995,7 +995,7 @@ static int privcmd_irqfd_assign(struct privcmd_irqfd *irqfd)
 	 * Check if there was an event already pending on the eventfd before we
 	 * registered, and trigger it as if we didn't miss it.
 	 */
-	events = vfs_poll(f.file, &kirqfd->pt);
+	events = vfs_poll(fd_file(f), &kirqfd->pt);
 	if (events & EPOLLIN)
 		irqfd_inject(kirqfd);
 
@@ -1345,12 +1345,12 @@ static int privcmd_ioeventfd_assign(struct privcmd_ioeventfd *ioeventfd)
 		return -ENOMEM;
 
 	f = fdget(ioeventfd->event_fd);
-	if (!f.file) {
+	if (!fd_file(f)) {
 		ret = -EBADF;
 		goto error_kfree;
 	}
 
-	kioeventfd->eventfd = eventfd_ctx_fileget(f.file);
+	kioeventfd->eventfd = eventfd_ctx_fileget(fd_file(f));
 	fdput(f);
 
 	if (IS_ERR(kioeventfd->eventfd)) {

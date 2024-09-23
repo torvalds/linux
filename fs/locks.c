@@ -2157,15 +2157,15 @@ SYSCALL_DEFINE2(flock, unsigned int, fd, unsigned int, cmd)
 
 	error = -EBADF;
 	f = fdget(fd);
-	if (!f.file)
+	if (!fd_file(f))
 		return error;
 
-	if (type != F_UNLCK && !(f.file->f_mode & (FMODE_READ | FMODE_WRITE)))
+	if (type != F_UNLCK && !(fd_file(f)->f_mode & (FMODE_READ | FMODE_WRITE)))
 		goto out_putf;
 
-	flock_make_lock(f.file, &fl, type);
+	flock_make_lock(fd_file(f), &fl, type);
 
-	error = security_file_lock(f.file, fl.c.flc_type);
+	error = security_file_lock(fd_file(f), fl.c.flc_type);
 	if (error)
 		goto out_putf;
 
@@ -2173,12 +2173,12 @@ SYSCALL_DEFINE2(flock, unsigned int, fd, unsigned int, cmd)
 	if (can_sleep)
 		fl.c.flc_flags |= FL_SLEEP;
 
-	if (f.file->f_op->flock)
-		error = f.file->f_op->flock(f.file,
+	if (fd_file(f)->f_op->flock)
+		error = fd_file(f)->f_op->flock(fd_file(f),
 					    (can_sleep) ? F_SETLKW : F_SETLK,
 					    &fl);
 	else
-		error = locks_lock_file_wait(f.file, &fl);
+		error = locks_lock_file_wait(fd_file(f), &fl);
 
 	locks_release_private(&fl);
  out_putf:

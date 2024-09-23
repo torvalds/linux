@@ -2329,15 +2329,15 @@ static long fuse_dev_ioctl_clone(struct file *file, __u32 __user *argp)
 		return -EFAULT;
 
 	f = fdget(oldfd);
-	if (!f.file)
+	if (!fd_file(f))
 		return -EINVAL;
 
 	/*
 	 * Check against file->f_op because CUSE
 	 * uses the same ioctl handler.
 	 */
-	if (f.file->f_op == file->f_op)
-		fud = fuse_get_dev(f.file);
+	if (fd_file(f)->f_op == file->f_op)
+		fud = fuse_get_dev(fd_file(f));
 
 	res = -EINVAL;
 	if (fud) {

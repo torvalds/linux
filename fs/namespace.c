@@ -4134,14 +4134,14 @@ SYSCALL_DEFINE3(fsmount, int, fs_fd, unsigned int, flags,
 	}
 
 	f = fdget(fs_fd);
-	if (!f.file)
+	if (!fd_file(f))
 		return -EBADF;
 
 	ret = -EINVAL;
-	if (f.file->f_op != &fscontext_fops)
+	if (fd_file(f)->f_op != &fscontext_fops)
 		goto err_fsfd;
 
-	fc = f.file->private_data;
+	fc = fd_file(f)->private_data;
 
 	ret = mutex_lock_interruptible(&fc->uapi_mutex);
 	if (ret < 0)
@@ -4684,15 +4684,15 @@ static int build_mount_idmapped(const struct mount_attr *attr, size_t usize,
 		return -EINVAL;
 
 	f = fdget(attr->userns_fd);
-	if (!f.file)
+	if (!fd_file(f))
 		return -EBADF;
 
-	if (!proc_ns_file(f.file)) {
+	if (!proc_ns_file(fd_file(f))) {
 		err = -EINVAL;
 		goto out_fput;
 	}
 
-	ns = get_proc_ns(file_inode(f.file));
+	ns = get_proc_ns(file_inode(fd_file(f)));
 	if (ns->ops->type != CLONE_NEWUSER) {
 		err = -EINVAL;
 		goto out_fput;
@@ -5292,13 +5292,13 @@ static struct mnt_namespace *grab_requested_mnt_ns(const struct mnt_id_req *kreq
 		struct ns_common *ns;
 
 		CLASS(fd, f)(kreq->spare);
-		if (!f.file)
+		if (fd_empty(f))
 			return ERR_PTR(-EBADF);
 
-		if (!proc_ns_file(f.file))
+		if (!proc_ns_file(fd_file(f)))
 			return ERR_PTR(-EINVAL);
 
-		ns = get_proc_ns(file_inode(f.file));
+		ns = get_proc_ns(file_inode(fd_file(f)));
 		if (ns->ops->type != CLONE_NEWNS)
 			return ERR_PTR(-EINVAL);
 

@@ -837,7 +837,7 @@ static int bpf_map_release(struct inode *inode, struct file *filp)
 
 static fmode_t map_get_sys_perms(struct bpf_map *map, struct fd f)
 {
-	fmode_t mode = f.file->f_mode;
+	fmode_t mode = fd_file(f)->f_mode;
 
 	/* Our file permissions may have been overridden by global
 	 * map permissions facing syscall side.
@@ -1430,14 +1430,14 @@ put_token:
  */
 struct bpf_map *__bpf_map_get(struct fd f)
 {
-	if (!f.file)
+	if (!fd_file(f))
 		return ERR_PTR(-EBADF);
-	if (f.file->f_op != &bpf_map_fops) {
+	if (fd_file(f)->f_op != &bpf_map_fops) {
 		fdput(f);
 		return ERR_PTR(-EINVAL);
 	}
 
-	return f.file->private_data;
+	return fd_file(f)->private_data;
 }
 
 void bpf_map_inc(struct bpf_map *map)
@@ -1658,7 +1658,7 @@ static int map_update_elem(union bpf_attr *attr, bpfptr_t uattr)
 		goto free_key;
 	}
 
-	err = bpf_map_update_value(map, f.file, key, value, attr->flags);
+	err = bpf_map_update_value(map, fd_file(f), key, value, attr->flags);
 	if (!err)
 		maybe_wait_bpf_programs(map);
 
@@ -2416,14 +2416,14 @@ int bpf_prog_new_fd(struct bpf_prog *prog)
 
 static struct bpf_prog *____bpf_prog_get(struct fd f)
 {
-	if (!f.file)
+	if (!fd_file(f))
 		return ERR_PTR(-EBADF);
-	if (f.file->f_op != &bpf_prog_fops) {
+	if (fd_file(f)->f_op != &bpf_prog_fops) {
 		fdput(f);
 		return ERR_PTR(-EINVAL);
 	}
 
-	return f.file->private_data;
+	return fd_file(f)->private_data;
 }
 
 void bpf_prog_add(struct bpf_prog *prog, int i)
@@ -3266,14 +3266,14 @@ struct bpf_link *bpf_link_get_from_fd(u32 ufd)
 	struct fd f = fdget(ufd);
 	struct bpf_link *link;
 
-	if (!f.file)
+	if (!fd_file(f))
 		return ERR_PTR(-EBADF);
-	if (f.file->f_op != &bpf_link_fops && f.file->f_op != &bpf_link_fops_poll) {
+	if (fd_file(f)->f_op != &bpf_link_fops && fd_file(f)->f_op != &bpf_link_fops_poll) {
 		fdput(f);
 		return ERR_PTR(-EINVAL);
 	}
 
-	link = f.file->private_data;
+	link = fd_file(f)->private_data;
 	bpf_link_inc(link);
 	fdput(f);
 
@@ -4989,19 +4989,19 @@ static int bpf_obj_get_info_by_fd(const union bpf_attr *attr,
 		return -EINVAL;
 
 	f = fdget(ufd);
-	if (!f.file)
+	if (!fd_file(f))
 		return -EBADFD;
 
-	if (f.file->f_op == &bpf_prog_fops)
-		err = bpf_prog_get_info_by_fd(f.file, f.file->private_data, attr,
+	if (fd_file(f)->f_op == &bpf_prog_fops)
+		err = bpf_prog_get_info_by_fd(fd_file(f), fd_file(f)->private_data, attr,
 					      uattr);
-	else if (f.file->f_op == &bpf_map_fops)
-		err = bpf_map_get_info_by_fd(f.file, f.file->private_data, attr,
+	else if (fd_file(f)->f_op == &bpf_map_fops)
+		err = bpf_map_get_info_by_fd(fd_file(f), fd_file(f)->private_data, attr,
 					     uattr);
-	else if (f.file->f_op == &btf_fops)
-		err = bpf_btf_get_info_by_fd(f.file, f.file->private_data, attr, uattr);
-	else if (f.file->f_op == &bpf_link_fops || f.file->f_op == &bpf_link_fops_poll)
-		err = bpf_link_get_info_by_fd(f.file, f.file->private_data,
+	else if (fd_file(f)->f_op == &btf_fops)
+		err = bpf_btf_get_info_by_fd(fd_file(f), fd_file(f)->private_data, attr, uattr);
+	else if (fd_file(f)->f_op == &bpf_link_fops || fd_file(f)->f_op == &bpf_link_fops_poll)
+		err = bpf_link_get_info_by_fd(fd_file(f), fd_file(f)->private_data,
 					      attr, uattr);
 	else
 		err = -EINVAL;
@@ -5222,7 +5222,7 @@ static int bpf_map_do_batch(const union bpf_attr *attr,
 	else if (cmd == BPF_MAP_LOOKUP_AND_DELETE_BATCH)
 		BPF_DO_BATCH(map->ops->map_lookup_and_delete_batch, map, attr, uattr);
 	else if (cmd == BPF_MAP_UPDATE_BATCH)
-		BPF_DO_BATCH(map->ops->map_update_batch, map, f.file, attr, uattr);
+		BPF_DO_BATCH(map->ops->map_update_batch, map, fd_file(f), attr, uattr);
 	else
 		BPF_DO_BATCH(map->ops->map_delete_batch, map, attr, uattr);
 err_put:

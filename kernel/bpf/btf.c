@@ -7715,15 +7715,15 @@ struct btf *btf_get_by_fd(int fd)
 
 	f = fdget(fd);
 
-	if (!f.file)
+	if (!fd_file(f))
 		return ERR_PTR(-EBADF);
 
-	if (f.file->f_op != &btf_fops) {
+	if (fd_file(f)->f_op != &btf_fops) {
 		fdput(f);
 		return ERR_PTR(-EINVAL);
 	}
 
-	btf = f.file->private_data;
+	btf = fd_file(f)->private_data;
 	refcount_inc(&btf->refcnt);
 	fdput(f);
 

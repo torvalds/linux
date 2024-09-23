@@ -238,19 +238,19 @@ static struct landlock_ruleset *get_ruleset_from_fd(const int fd,
 	struct landlock_ruleset *ruleset;
 
 	ruleset_f = fdget(fd);
-	if (!ruleset_f.file)
+	if (!fd_file(ruleset_f))
 		return ERR_PTR(-EBADF);
 
 	/* Checks FD type and access right. */
-	if (ruleset_f.file->f_op != &ruleset_fops) {
+	if (fd_file(ruleset_f)->f_op != &ruleset_fops) {
 		ruleset = ERR_PTR(-EBADFD);
 		goto out_fdput;
 	}
-	if (!(ruleset_f.file->f_mode & mode)) {
+	if (!(fd_file(ruleset_f)->f_mode & mode)) {
 		ruleset = ERR_PTR(-EPERM);
 		goto out_fdput;
 	}
-	ruleset = ruleset_f.file->private_data;
+	ruleset = fd_file(ruleset_f)->private_data;
 	if (WARN_ON_ONCE(ruleset->num_layers != 1)) {
 		ruleset = ERR_PTR(-EINVAL);
 		goto out_fdput;
@@ -277,22 +277,22 @@ static int get_path_from_fd(const s32 fd, struct path *const path)
 
 	/* Handles O_PATH. */
 	f = fdget_raw(fd);
-	if (!f.file)
+	if (!fd_file(f))
 		return -EBADF;
 	/*
 	 * Forbids ruleset FDs, internal filesystems (e.g. nsfs), including
 	 * pseudo filesystems that will never be mountable (e.g. sockfs,
 	 * pipefs).
 	 */
-	if ((f.file->f_op == &ruleset_fops) ||
-	    (f.file->f_path.mnt->mnt_flags & MNT_INTERNAL) ||
-	    (f.file->f_path.dentry->d_sb->s_flags & SB_NOUSER) ||
-	    d_is_negative(f.file->f_path.dentry) ||
-	    IS_PRIVATE(d_backing_inode(f.file->f_path.dentry))) {
+	if ((fd_file(f)->f_op == &ruleset_fops) ||
+	    (fd_file(f)->f_path.mnt->mnt_flags & MNT_INTERNAL) ||
+	    (fd_file(f)->f_path.dentry->d_sb->s_flags & SB_NOUSER) ||
+	    d_is_negative(fd_file(f)->f_path.dentry) ||
+	    IS_PRIVATE(d_backing_inode(fd_file(f)->f_path.dentry))) {
 		err = -EBADFD;
 		goto out_fdput;
 	}
-	*path = f.file->f_path;
+	*path = fd_file(f)->f_path;
 	path_get(path);
 
 out_fdput:
