@@ -669,7 +669,7 @@ MODULE_DEVICE_TABLE(of, of_match_clk_mt8516);
 
 static struct platform_driver clk_mt8516_drv = {
 	.probe = mtk_clk_simple_probe,
-	.remove_new = mtk_clk_simple_remove,
+	.remove = mtk_clk_simple_remove,
 	.driver = {
 		.name = "clk-mt8516",
 		.of_match_table = of_match_clk_mt8516,
