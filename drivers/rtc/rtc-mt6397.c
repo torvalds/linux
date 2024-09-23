@@ -75,6 +75,7 @@ static int __mtk_rtc_read_time(struct mt6397_rtc *rtc,
 	tm->tm_min = data[RTC_OFFSET_MIN];
 	tm->tm_hour = data[RTC_OFFSET_HOUR];
 	tm->tm_mday = data[RTC_OFFSET_DOM];
+	tm->tm_wday = data[RTC_OFFSET_DOW];
 	tm->tm_mon = data[RTC_OFFSET_MTH] & RTC_TC_MTH_MASK;
 	tm->tm_year = data[RTC_OFFSET_YEAR];
 
@@ -86,9 +87,8 @@ exit:
 
 static int mtk_rtc_read_time(struct device *dev, struct rtc_time *tm)
 {
-	time64_t time;
 	struct mt6397_rtc *rtc = dev_get_drvdata(dev);
-	int days, sec, ret;
+	int sec, ret;
 
 	do {
 		ret = __mtk_rtc_read_time(rtc, tm, &sec);
@@ -96,15 +96,9 @@ static int mtk_rtc_read_time(struct device *dev, struct rtc_time *tm)
 			goto exit;
 	} while (sec < tm->tm_sec);
 
-	/* HW register start mon from one, but tm_mon start from zero. */
+	/* HW register start mon/wday from one, but tm_mon/tm_wday start from zero. */
 	tm->tm_mon--;
-	time = rtc_tm_to_time64(tm);
-
-	/* rtc_tm_to_time64 covert Gregorian date to seconds since
-	 * 01-01-1970 00:00:00, and this date is Thursday.
-	 */
-	days = div_s64(time, 86400);
-	tm->tm_wday = (days + 4) % 7;
+	tm->tm_wday--;
 
 exit:
 	return ret;
@@ -117,11 +111,13 @@ static int mtk_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	u16 data[RTC_OFFSET_COUNT];
 
 	tm->tm_mon++;
+	tm->tm_wday++;
 
 	data[RTC_OFFSET_SEC] = tm->tm_sec;
 	data[RTC_OFFSET_MIN] = tm->tm_min;
 	data[RTC_OFFSET_HOUR] = tm->tm_hour;
 	data[RTC_OFFSET_DOM] = tm->tm_mday;
+	data[RTC_OFFSET_DOW] = tm->tm_wday;
 	data[RTC_OFFSET_MTH] = tm->tm_mon;
 	data[RTC_OFFSET_YEAR] = tm->tm_year;
 
