@@ -1784,6 +1784,7 @@ static int bch2_propagate_key_to_snapshot_leaf(struct btree_trans *trans,
 	new->k.p.snapshot = leaf_id;
 	ret = bch2_trans_update(trans, &iter, new, 0);
 out:
+	bch2_set_btree_iter_dontneed(&iter);
 	bch2_trans_iter_exit(trans, &iter);
 	return ret;
 }
