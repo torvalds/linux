@@ -53,10 +53,15 @@ static const struct regmap_config axi_pwmgen_regmap_config = {
 	.max_register = 0xFC,
 };
 
+static struct axi_pwmgen_ddata *axi_pwmgen_ddata_from_chip(struct pwm_chip *chip)
+{
+	return pwmchip_get_drvdata(chip);
+}
+
 static int axi_pwmgen_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 			    const struct pwm_state *state)
 {
-	struct axi_pwmgen_ddata *ddata = pwmchip_get_drvdata(chip);
+	struct axi_pwmgen_ddata *ddata = axi_pwmgen_ddata_from_chip(chip);
 	unsigned int ch = pwm->hwpwm;
 	struct regmap *regmap = ddata->regmap;
 	u64 period_cnt, duty_cnt;
@@ -100,7 +105,7 @@ static int axi_pwmgen_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 static int axi_pwmgen_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
 				struct pwm_state *state)
 {
-	struct axi_pwmgen_ddata *ddata = pwmchip_get_drvdata(chip);
+	struct axi_pwmgen_ddata *ddata = axi_pwmgen_ddata_from_chip(chip);
 	struct regmap *regmap = ddata->regmap;
 	unsigned int ch = pwm->hwpwm;
 	u32 cnt;
