@@ -28,7 +28,7 @@
 #define V3D_PTE_WRITEABLE BIT(29)
 #define V3D_PTE_VALID BIT(28)
 
-static int v3d_mmu_flush_all(struct v3d_dev *v3d)
+int v3d_mmu_flush_all(struct v3d_dev *v3d)
 {
 	int ret;
 
