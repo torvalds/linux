@@ -9,6 +9,9 @@
 #include <linux/kthread.h>
 #include <linux/slab.h>
 
+/* Lock for GC. */
+DEFINE_SRCU(tomoyo_ss);
+
 /**
  * tomoyo_memory_free - Free memory for elements.
  *
