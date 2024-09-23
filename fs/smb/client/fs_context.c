@@ -185,6 +185,7 @@ const struct fs_parameter_spec smb3_fs_parameters[] = {
 	fsparam_string("cache", Opt_cache),
 	fsparam_string("reparse", Opt_reparse),
 	fsparam_string("upcall_target", Opt_upcalltarget),
+	fsparam_string("symlinkroot", Opt_symlinkroot),
 
 	/* Arguments that should be ignored */
 	fsparam_flag("guest", Opt_ignore),
@@ -386,6 +387,7 @@ smb3_fs_context_dup(struct smb3_fs_context *new_ctx, struct smb3_fs_context *ctx
 	new_ctx->iocharset = NULL;
 	new_ctx->leaf_fullpath = NULL;
 	new_ctx->dns_dom = NULL;
+	new_ctx->symlinkroot = NULL;
 	/*
 	 * Make sure to stay in sync with smb3_cleanup_fs_context_contents()
 	 */
@@ -401,6 +403,7 @@ smb3_fs_context_dup(struct smb3_fs_context *new_ctx, struct smb3_fs_context *ctx
 	DUP_CTX_STR(iocharset);
 	DUP_CTX_STR(leaf_fullpath);
 	DUP_CTX_STR(dns_dom);
+	DUP_CTX_STR(symlinkroot);
 
 	return 0;
 }
@@ -1727,6 +1730,16 @@ static int smb3_fs_context_parse_param(struct fs_context *fc,
 		if (parse_reparse_flavor(fc, param->string, ctx))
 			goto cifs_parse_mount_err;
 		break;
+	case Opt_symlinkroot:
+		if (param->string[0] != '/') {
+			cifs_errorf(fc, "symlinkroot mount options must be absolute path\n");
+			goto cifs_parse_mount_err;
+		}
+		kfree(ctx->symlinkroot);
+		ctx->symlinkroot = kstrdup(param->string, GFP_KERNEL);
+		if (!ctx->symlinkroot)
+			goto cifs_parse_mount_err;
+		break;
 	}
 	/* case Opt_ignore: - is ignored as expected ... */
 
@@ -1734,6 +1747,13 @@ static int smb3_fs_context_parse_param(struct fs_context *fc,
 		cifs_errorf(fc, "multiuser mount option not supported with upcalltarget set as 'mount'\n");
 		goto cifs_parse_mount_err;
 	}
+
+	/*
+	 * By default resolve all native absolute symlinks relative to "/mnt/".
+	 * Same default has drvfs driver running in WSL for resolving SMB shares.
+	 */
+	if (!ctx->symlinkroot)
+		ctx->symlinkroot = kstrdup("/mnt/", GFP_KERNEL);
 
 	return 0;
 
@@ -1867,6 +1887,8 @@ smb3_cleanup_fs_context_contents(struct smb3_fs_context *ctx)
 	ctx->leaf_fullpath = NULL;
 	kfree(ctx->dns_dom);
 	ctx->dns_dom = NULL;
+	kfree(ctx->symlinkroot);
+	ctx->symlinkroot = NULL;
 }
 
 void

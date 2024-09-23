@@ -25,34 +25,129 @@ int smb2_create_reparse_symlink(const unsigned int xid, struct inode *inode,
 				const char *full_path, const char *symname)
 {
 	struct reparse_symlink_data_buffer *buf = NULL;
-	struct cifs_open_info_data data;
+	struct cifs_open_info_data data = {};
 	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
 	struct inode *new;
 	struct kvec iov;
-	__le16 *path;
+	__le16 *path = NULL;
 	bool directory;
-	char *sym, sep = CIFS_DIR_SEP(cifs_sb);
-	u16 len, plen;
+	char *symlink_target = NULL;
+	char *sym = NULL;
+	char sep = CIFS_DIR_SEP(cifs_sb);
+	u16 len, plen, poff, slen;
 	int rc = 0;
 
 	if (strlen(symname) > REPARSE_SYM_PATH_MAX)
 		return -ENAMETOOLONG;
 
-	sym = kstrdup(symname, GFP_KERNEL);
-	if (!sym)
-		return -ENOMEM;
+	symlink_target = kstrdup(symname, GFP_KERNEL);
+	if (!symlink_target) {
+		rc = -ENOMEM;
+		goto out;
+	}
 
 	data = (struct cifs_open_info_data) {
 		.reparse_point = true,
 		.reparse = { .tag = IO_REPARSE_TAG_SYMLINK, },
-		.symlink_target = sym,
+		.symlink_target = symlink_target,
 	};
 
-	convert_delimiter(sym, sep);
+	if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_POSIX_PATHS) && symname[0] == '/') {
+		/*
+		 * This is a request to create an absolute symlink on the server
+		 * which does not support POSIX paths, and expects symlink in
+		 * NT-style path. So convert absolute Linux symlink target path
+		 * to the absolute NT-style path. Root of the NT-style path for
+		 * symlinks is specified in "symlinkroot" mount option. This will
+		 * ensure compatibility of this symlink stored in absolute form
+		 * on the SMB server.
+		 */
+		if (!strstarts(symname, cifs_sb->ctx->symlinkroot)) {
+			/*
+			 * If the absolute Linux symlink target path is not
+			 * inside "symlinkroot" location then there is no way
+			 * to convert such Linux symlink to NT-style path.
+			 */
+			cifs_dbg(VFS,
+				 "absolute symlink '%s' cannot be converted to NT format "
+				 "because it is outside of symlinkroot='%s'\n",
+				 symname, cifs_sb->ctx->symlinkroot);
+			rc = -EINVAL;
+			goto out;
+		}
+		len = strlen(cifs_sb->ctx->symlinkroot);
+		if (cifs_sb->ctx->symlinkroot[len-1] != '/')
+			len++;
+		if (symname[len] >= 'a' && symname[len] <= 'z' &&
+		    (symname[len+1] == '/' || symname[len+1] == '\0')) {
+			/*
+			 * Symlink points to Linux target /symlinkroot/x/path/...
+			 * where 'x' is the lowercase local Windows drive.
+			 * NT-style path for 'x' has common form \??\X:\path\...
+			 * with uppercase local Windows drive.
+			 */
+			int common_path_len = strlen(symname+len+1)+1;
+			sym = kzalloc(6+common_path_len, GFP_KERNEL);
+			if (!sym) {
+				rc = -ENOMEM;
+				goto out;
+			}
+			memcpy(sym, "\\??\\", 4);
+			sym[4] = symname[len] - ('a'-'A');
+			sym[5] = ':';
+			memcpy(sym+6, symname+len+1, common_path_len);
+		} else {
+			/* Unhandled absolute symlink. Report an error. */
+			cifs_dbg(
+				 VFS,
+				 "absolute symlink '%s' cannot be converted to NT format "
+				 "because it points to unknown target\n",
+				 symname);
+			rc = -EINVAL;
+			goto out;
+		}
+	} else {
+		/*
+		 * This is request to either create an absolute symlink on
+		 * server which expects POSIX paths or it is an request to
+		 * create a relative symlink from the current directory.
+		 * These paths have same format as relative SMB symlinks,
+		 * so no conversion is needed. So just take symname as-is.
+		 */
+		sym = kstrdup(symname, GFP_KERNEL);
+		if (!sym) {
+			rc = -ENOMEM;
+			goto out;
+		}
+	}
+
+	if (sep == '\\')
+		convert_delimiter(sym, sep);
+
+	/*
+	 * For absolute NT symlinks it is required to pass also leading
+	 * backslash and to not mangle NT object prefix "\\??\\" and not to
+	 * mangle colon in drive letter. But cifs_convert_path_to_utf16()
+	 * removes leading backslash and replaces '?' and ':'. So temporary
+	 * mask these characters in NT object prefix by '_' and then change
+	 * them back.
+	 */
+	if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_POSIX_PATHS) && symname[0] == '/')
+		sym[0] = sym[1] = sym[2] = sym[5] = '_';
+
 	path = cifs_convert_path_to_utf16(sym, cifs_sb);
 	if (!path) {
 		rc = -ENOMEM;
 		goto out;
+	}
+
+	if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_POSIX_PATHS) && symname[0] == '/') {
+		sym[0] = '\\';
+		sym[1] = sym[2] = '?';
+		sym[5] = ':';
+		path[0] = cpu_to_le16('\\');
+		path[1] = path[2] = cpu_to_le16('?');
+		path[5] = cpu_to_le16(':');
 	}
 
 	/*
@@ -67,8 +162,18 @@ int smb2_create_reparse_symlink(const unsigned int xid, struct inode *inode,
 	if (rc < 0)
 		goto out;
 
-	plen = 2 * UniStrnlen((wchar_t *)path, REPARSE_SYM_PATH_MAX);
-	len = sizeof(*buf) + plen * 2;
+	slen = 2 * UniStrnlen((wchar_t *)path, REPARSE_SYM_PATH_MAX);
+	poff = 0;
+	plen = slen;
+	if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_POSIX_PATHS) && symname[0] == '/') {
+		/*
+		 * For absolute NT symlinks skip leading "\\??\\" in PrintName as
+		 * PrintName is user visible location in DOS/Win32 format (not in NT format).
+		 */
+		poff = 4;
+		plen -= 2 * poff;
+	}
+	len = sizeof(*buf) + plen + slen;
 	buf = kzalloc(len, GFP_KERNEL);
 	if (!buf) {
 		rc = -ENOMEM;
@@ -77,17 +182,17 @@ int smb2_create_reparse_symlink(const unsigned int xid, struct inode *inode,
 
 	buf->ReparseTag = cpu_to_le32(IO_REPARSE_TAG_SYMLINK);
 	buf->ReparseDataLength = cpu_to_le16(len - sizeof(struct reparse_data_buffer));
+
 	buf->SubstituteNameOffset = cpu_to_le16(plen);
-	buf->SubstituteNameLength = cpu_to_le16(plen);
-	memcpy(&buf->PathBuffer[plen], path, plen);
+	buf->SubstituteNameLength = cpu_to_le16(slen);
+	memcpy(&buf->PathBuffer[plen], path, slen);
+
 	buf->PrintNameOffset = 0;
 	buf->PrintNameLength = cpu_to_le16(plen);
-	memcpy(buf->PathBuffer, path, plen);
-	buf->Flags = cpu_to_le32(*symname != '/' ? SYMLINK_FLAG_RELATIVE : 0);
-	if (*sym != sep)
-		buf->Flags = cpu_to_le32(SYMLINK_FLAG_RELATIVE);
+	memcpy(buf->PathBuffer, path+poff, plen);
 
-	convert_delimiter(sym, '/');
+	buf->Flags = cpu_to_le32(*symname != '/' ? SYMLINK_FLAG_RELATIVE : 0);
+
 	iov.iov_base = buf;
 	iov.iov_len = len;
 	new = smb2_get_reparse_inode(&data, inode->i_sb, xid,
@@ -98,6 +203,7 @@ int smb2_create_reparse_symlink(const unsigned int xid, struct inode *inode,
 	else
 		rc = PTR_ERR(new);
 out:
+	kfree(sym);
 	kfree(path);
 	cifs_free_open_info(&data);
 	kfree(buf);
@@ -543,6 +649,9 @@ int smb2_parse_native_symlink(char **target, const char *buf, unsigned int len,
 	char sep = CIFS_DIR_SEP(cifs_sb);
 	char *linux_target = NULL;
 	char *smb_target = NULL;
+	int symlinkroot_len;
+	int abs_path_len;
+	char *abs_path;
 	int levels;
 	int rc;
 	int i;
@@ -570,7 +679,123 @@ int smb2_parse_native_symlink(char **target, const char *buf, unsigned int len,
 		goto out;
 	}
 
-	if (smb_target[0] == sep && relative) {
+	if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_POSIX_PATHS) && !relative) {
+		/*
+		 * This is an absolute symlink from the server which does not
+		 * support POSIX paths, so the symlink is in NT-style path.
+		 * So convert it to absolute Linux symlink target path. Root of
+		 * the NT-style path for symlinks is specified in "symlinkroot"
+		 * mount option.
+		 *
+		 * Root of the DOS and Win32 paths is at NT path \??\
+		 * It means that DOS/Win32 path C:\folder\file.txt is
+		 * NT path \??\C:\folder\file.txt
+		 *
+		 * NT systems have some well-known object symlinks in their NT
+		 * hierarchy, which is needed to take into account when resolving
+		 * other symlinks. Most commonly used symlink paths are:
+		 * \?? -> \GLOBAL??
+		 * \DosDevices -> \??
+		 * \GLOBAL??\GLOBALROOT -> \
+		 * \GLOBAL??\Global -> \GLOBAL??
+		 * \GLOBAL??\NUL -> \Device\Null
+		 * \GLOBAL??\UNC -> \Device\Mup
+		 * \GLOBAL??\PhysicalDrive0 -> \Device\Harddisk0\DR0 (for each harddisk)
+		 * \GLOBAL??\A: -> \Device\Floppy0 (if A: is the first floppy)
+		 * \GLOBAL??\C: -> \Device\HarddiskVolume1 (if C: is the first harddisk)
+		 * \GLOBAL??\D: -> \Device\CdRom0 (if D: is first cdrom)
+		 * \SystemRoot -> \Device\Harddisk0\Partition1\WINDOWS (or where is NT system installed)
+		 * \Volume{...} -> \Device\HarddiskVolume1 (where ... is system generated guid)
+		 *
+		 * In most common cases, absolute NT symlinks points to path on
+		 * DOS/Win32 drive letter, system-specific Volume or on UNC share.
+		 * Here are few examples of commonly used absolute NT symlinks
+		 * created by mklink.exe tool:
+		 * \??\C:\folder\file.txt
+		 * \??\\C:\folder\file.txt
+		 * \??\UNC\server\share\file.txt
+		 * \??\\UNC\server\share\file.txt
+		 * \??\Volume{b75e2c83-0000-0000-0000-602f00000000}\folder\file.txt
+		 *
+		 * It means that the most common path prefix \??\ is also NT path
+		 * symlink (to \GLOBAL??). It is less common that second path
+		 * separator is double backslash, but it is valid.
+		 *
+		 * Volume guid is randomly generated by the target system and so
+		 * only the target system knows the mapping between guid and the
+		 * hardisk number. Over SMB it is not possible to resolve this
+		 * mapping, therefore symlinks pointing to target location of
+		 * volume guids are totally unusable over SMB.
+		 *
+		 * For now parse only symlink paths available for DOS and Win32.
+		 * Those are paths with \??\ prefix or paths which points to \??\
+		 * via other NT symlink (\DosDevices\, \GLOBAL??\, ...).
+		 */
+		abs_path = smb_target;
+globalroot:
+		if (strstarts(abs_path, "\\??\\"))
+			abs_path += sizeof("\\??\\")-1;
+		else if (strstarts(abs_path, "\\DosDevices\\"))
+			abs_path += sizeof("\\DosDevices\\")-1;
+		else if (strstarts(abs_path, "\\GLOBAL??\\"))
+			abs_path += sizeof("\\GLOBAL??\\")-1;
+		else {
+			/* Unhandled absolute symlink, points outside of DOS/Win32 */
+			cifs_dbg(VFS,
+				 "absolute symlink '%s' cannot be converted from NT format "
+				 "because points to unknown target\n",
+				 smb_target);
+			rc = -EIO;
+			goto out;
+		}
+
+		/* Sometimes path separator after \?? is double backslash */
+		if (abs_path[0] == '\\')
+			abs_path++;
+
+		while (strstarts(abs_path, "Global\\"))
+			abs_path += sizeof("Global\\")-1;
+
+		if (strstarts(abs_path, "GLOBALROOT\\")) {
+			/* Label globalroot requires path with leading '\\', so do not trim '\\' */
+			abs_path += sizeof("GLOBALROOT")-1;
+			goto globalroot;
+		}
+
+		/* For now parse only paths to drive letters */
+		if (((abs_path[0] >= 'A' && abs_path[0] <= 'Z') ||
+		     (abs_path[0] >= 'a' && abs_path[0] <= 'z')) &&
+		    abs_path[1] == ':' &&
+		    (abs_path[2] == '\\' || abs_path[2] == '\0')) {
+			/* Convert drive letter to lowercase and drop colon */
+			char drive_letter = abs_path[0];
+			if (drive_letter >= 'A' && drive_letter <= 'Z')
+				drive_letter += 'a'-'A';
+			abs_path++;
+			abs_path[0] = drive_letter;
+		} else {
+			/* Unhandled absolute symlink. Report an error. */
+			cifs_dbg(VFS,
+				 "absolute symlink '%s' cannot be converted from NT format "
+				 "because points to unknown target\n",
+				 smb_target);
+			rc = -EIO;
+			goto out;
+		}
+
+		abs_path_len = strlen(abs_path)+1;
+		symlinkroot_len = strlen(cifs_sb->ctx->symlinkroot);
+		if (cifs_sb->ctx->symlinkroot[symlinkroot_len-1] == '/')
+			symlinkroot_len--;
+		linux_target = kmalloc(symlinkroot_len + 1 + abs_path_len, GFP_KERNEL);
+		if (!linux_target) {
+			rc = -ENOMEM;
+			goto out;
+		}
+		memcpy(linux_target, cifs_sb->ctx->symlinkroot, symlinkroot_len);
+		linux_target[symlinkroot_len] = '/';
+		memcpy(linux_target + symlinkroot_len + 1, abs_path, abs_path_len);
+	} else if (smb_target[0] == sep && relative) {
 		/*
 		 * This is a relative SMB symlink from the top of the share,
 		 * which is the top level directory of the Linux mount point.
@@ -599,6 +824,12 @@ int smb2_parse_native_symlink(char **target, const char *buf, unsigned int len,
 		}
 		memcpy(linux_target + levels*3, smb_target+1, smb_target_len); /* +1 to skip leading sep */
 	} else {
+		/*
+		 * This is either an absolute symlink in POSIX-style format
+		 * or relative SMB symlink from the current directory.
+		 * These paths have same format as Linux symlinks, so no
+		 * conversion is needed.
+		 */
 		linux_target = smb_target;
 		smb_target = NULL;
 	}
