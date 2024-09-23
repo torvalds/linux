@@ -106,7 +106,7 @@ static struct svc_program	nfsd_acl_program = {
 
 #endif /* defined(CONFIG_NFSD_V2_ACL) || defined(CONFIG_NFSD_V3_ACL) */
 
-static const struct svc_version *nfsd_version[] = {
+static const struct svc_version *nfsd_version[NFSD_MAXVERS+1] = {
 #if defined(CONFIG_NFSD_V2)
 	[2] = &nfsd_version2,
 #endif
@@ -116,15 +116,12 @@ static const struct svc_version *nfsd_version[] = {
 #endif
 };
 
-#define NFSD_MINVERS    	2
-#define NFSD_NRVERS		ARRAY_SIZE(nfsd_version)
-
 struct svc_program		nfsd_program = {
 #if defined(CONFIG_NFSD_V2_ACL) || defined(CONFIG_NFSD_V3_ACL)
 	.pg_next		= &nfsd_acl_program,
 #endif
 	.pg_prog		= NFS_PROGRAM,		/* program number */
-	.pg_nvers		= NFSD_NRVERS,		/* nr of entries in nfsd_version */
+	.pg_nvers		= NFSD_MAXVERS+1,	/* nr of entries in nfsd_version */
 	.pg_vers		= nfsd_version,		/* version table */
 	.pg_name		= "nfsd",		/* program name */
 	.pg_class		= "nfsd",		/* authentication class */
@@ -135,78 +132,24 @@ struct svc_program		nfsd_program = {
 
 bool nfsd_support_version(int vers)
 {
-	if (vers >= NFSD_MINVERS && vers < NFSD_NRVERS)
+	if (vers >= NFSD_MINVERS && vers <= NFSD_MAXVERS)
 		return nfsd_version[vers] != NULL;
 	return false;
 }
 
-static bool *
-nfsd_alloc_versions(void)
-{
-	bool *vers = kmalloc_array(NFSD_NRVERS, sizeof(bool), GFP_KERNEL);
-	unsigned i;
-
-	if (vers) {
-		/* All compiled versions are enabled by default */
-		for (i = 0; i < NFSD_NRVERS; i++)
-			vers[i] = nfsd_support_version(i);
-	}
-	return vers;
-}
-
-static bool *
-nfsd_alloc_minorversions(void)
-{
-	bool *vers = kmalloc_array(NFSD_SUPPORTED_MINOR_VERSION + 1,
-			sizeof(bool), GFP_KERNEL);
-	unsigned i;
-
-	if (vers) {
-		/* All minor versions are enabled by default */
-		for (i = 0; i <= NFSD_SUPPORTED_MINOR_VERSION; i++)
-			vers[i] = nfsd_support_version(4);
-	}
-	return vers;
-}
-
-void
-nfsd_netns_free_versions(struct nfsd_net *nn)
-{
-	kfree(nn->nfsd_versions);
-	kfree(nn->nfsd4_minorversions);
-	nn->nfsd_versions = NULL;
-	nn->nfsd4_minorversions = NULL;
-}
-
-static void
-nfsd_netns_init_versions(struct nfsd_net *nn)
-{
-	if (!nn->nfsd_versions) {
-		nn->nfsd_versions = nfsd_alloc_versions();
-		nn->nfsd4_minorversions = nfsd_alloc_minorversions();
-		if (!nn->nfsd_versions || !nn->nfsd4_minorversions)
-			nfsd_netns_free_versions(nn);
-	}
-}
-
 int nfsd_vers(struct nfsd_net *nn, int vers, enum vers_op change)
 {
-	if (vers < NFSD_MINVERS || vers >= NFSD_NRVERS)
+	if (vers < NFSD_MINVERS || vers > NFSD_MAXVERS)
 		return 0;
 	switch(change) {
 	case NFSD_SET:
-		if (nn->nfsd_versions)
-			nn->nfsd_versions[vers] = nfsd_support_version(vers);
+		nn->nfsd_versions[vers] = nfsd_support_version(vers);
 		break;
 	case NFSD_CLEAR:
-		nfsd_netns_init_versions(nn);
-		if (nn->nfsd_versions)
-			nn->nfsd_versions[vers] = false;
+		nn->nfsd_versions[vers] = false;
 		break;
 	case NFSD_TEST:
-		if (nn->nfsd_versions)
-			return nn->nfsd_versions[vers];
-		fallthrough;
+		return nn->nfsd_versions[vers];
 	case NFSD_AVAIL:
 		return nfsd_support_version(vers);
 	}
@@ -233,23 +176,16 @@ int nfsd_minorversion(struct nfsd_net *nn, u32 minorversion, enum vers_op change
 
 	switch(change) {
 	case NFSD_SET:
-		if (nn->nfsd4_minorversions) {
-			nfsd_vers(nn, 4, NFSD_SET);
-			nn->nfsd4_minorversions[minorversion] =
-				nfsd_vers(nn, 4, NFSD_TEST);
-		}
+		nfsd_vers(nn, 4, NFSD_SET);
+		nn->nfsd4_minorversions[minorversion] =
+			nfsd_vers(nn, 4, NFSD_TEST);
 		break;
 	case NFSD_CLEAR:
-		nfsd_netns_init_versions(nn);
-		if (nn->nfsd4_minorversions) {
-			nn->nfsd4_minorversions[minorversion] = false;
-			nfsd_adjust_nfsd_versions4(nn);
-		}
+		nn->nfsd4_minorversions[minorversion] = false;
+		nfsd_adjust_nfsd_versions4(nn);
 		break;
 	case NFSD_TEST:
-		if (nn->nfsd4_minorversions)
-			return nn->nfsd4_minorversions[minorversion];
-		return nfsd_vers(nn, 4, NFSD_TEST);
+		return nn->nfsd4_minorversions[minorversion];
 	case NFSD_AVAIL:
 		return minorversion <= NFSD_SUPPORTED_MINOR_VERSION &&
 			nfsd_vers(nn, 4, NFSD_AVAIL);
@@ -568,11 +504,11 @@ void nfsd_reset_versions(struct nfsd_net *nn)
 {
 	int i;
 
-	for (i = 0; i < NFSD_NRVERS; i++)
+	for (i = 0; i <= NFSD_MAXVERS; i++)
 		if (nfsd_vers(nn, i, NFSD_TEST))
 			return;
 
-	for (i = 0; i < NFSD_NRVERS; i++)
+	for (i = 0; i <= NFSD_MAXVERS; i++)
 		if (i != 4)
 			nfsd_vers(nn, i, NFSD_SET);
 		else {
@@ -642,9 +578,11 @@ void nfsd_shutdown_threads(struct net *net)
 	mutex_unlock(&nfsd_mutex);
 }
 
-bool i_am_nfsd(void)
+struct svc_rqst *nfsd_current_rqst(void)
 {
-	return kthread_func(current) == nfsd;
+	if (kthread_func(current) == nfsd)
+		return kthread_data(current);
+	return NULL;
 }
 
 int nfsd_create_serv(struct net *net)
@@ -705,7 +643,7 @@ int nfsd_get_nrthreads(int n, int *nthreads, struct net *net)
 
 	if (serv)
 		for (i = 0; i < serv->sv_nrpools && i < n; i++)
-			nthreads[i] = atomic_read(&serv->sv_pools[i].sp_nrthreads);
+			nthreads[i] = serv->sv_pools[i].sp_nrthreads;
 	return 0;
 }
 
@@ -905,17 +843,17 @@ nfsd_init_request(struct svc_rqst *rqstp,
 	if (likely(nfsd_vers(nn, rqstp->rq_vers, NFSD_TEST)))
 		return svc_generic_init_request(rqstp, progp, ret);
 
-	ret->mismatch.lovers = NFSD_NRVERS;
-	for (i = NFSD_MINVERS; i < NFSD_NRVERS; i++) {
+	ret->mismatch.lovers = NFSD_MAXVERS + 1;
+	for (i = NFSD_MINVERS; i <= NFSD_MAXVERS; i++) {
 		if (nfsd_vers(nn, i, NFSD_TEST)) {
 			ret->mismatch.lovers = i;
 			break;
 		}
 	}
-	if (ret->mismatch.lovers == NFSD_NRVERS)
+	if (ret->mismatch.lovers > NFSD_MAXVERS)
 		return rpc_prog_unavail;
 	ret->mismatch.hivers = NFSD_MINVERS;
-	for (i = NFSD_NRVERS - 1; i >= NFSD_MINVERS; i--) {
+	for (i = NFSD_MAXVERS; i >= NFSD_MINVERS; i--) {
 		if (nfsd_vers(nn, i, NFSD_TEST)) {
 			ret->mismatch.hivers = i;
 			break;
@@ -937,11 +875,9 @@ nfsd(void *vrqstp)
 
 	/* At this point, the thread shares current->fs
 	 * with the init process. We need to create files with the
-	 * umask as defined by the client instead of init's umask. */
-	if (unshare_fs_struct() < 0) {
-		printk("Unable to start nfsd thread: out of memory\n");
-		goto out;
-	}
+	 * umask as defined by the client instead of init's umask.
+	 */
+	svc_thread_init_status(rqstp, unshare_fs_struct());
 
 	current->fs->umask = 0;
 
@@ -963,7 +899,6 @@ nfsd(void *vrqstp)
 
 	atomic_dec(&nfsd_th_cnt);
 
-out:
 	/* Release the thread */
 	svc_exit_thread(rqstp);
 	return 0;
@@ -1083,11 +1018,4 @@ bool nfssvc_decode_voidarg(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 bool nfssvc_encode_voidres(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 {
 	return true;
-}
-
-int nfsd_pool_stats_open(struct inode *inode, struct file *file)
-{
-	struct nfsd_net *nn = net_generic(inode->i_sb->s_fs_info, nfsd_net_id);
-
-	return svc_pool_stats_open(&nn->nfsd_info, file);
 }

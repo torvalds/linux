@@ -62,8 +62,7 @@ static int nfsd_acceptable(void *expv, struct dentry *dentry)
  * the write call).
  */
 static inline __be32
-nfsd_mode_check(struct svc_rqst *rqstp, struct dentry *dentry,
-		umode_t requested)
+nfsd_mode_check(struct dentry *dentry, umode_t requested)
 {
 	umode_t mode = d_inode(dentry)->i_mode & S_IFMT;
 
@@ -76,17 +75,16 @@ nfsd_mode_check(struct svc_rqst *rqstp, struct dentry *dentry,
 		}
 		return nfs_ok;
 	}
-	/*
-	 * v4 has an error more specific than err_notdir which we should
-	 * return in preference to err_notdir:
-	 */
-	if (rqstp->rq_vers == 4 && mode == S_IFLNK)
+	if (mode == S_IFLNK) {
+		if (requested == S_IFDIR)
+			return nfserr_symlink_not_dir;
 		return nfserr_symlink;
+	}
 	if (requested == S_IFDIR)
 		return nfserr_notdir;
 	if (mode == S_IFDIR)
 		return nfserr_isdir;
-	return nfserr_inval;
+	return nfserr_wrong_type;
 }
 
 static bool nfsd_originating_port_ok(struct svc_rqst *rqstp, int flags)
@@ -102,7 +100,7 @@ static bool nfsd_originating_port_ok(struct svc_rqst *rqstp, int flags)
 static __be32 nfsd_setuser_and_check_port(struct svc_rqst *rqstp,
 					  struct svc_export *exp)
 {
-	int flags = nfsexp_flags(rqstp, exp);
+	int flags = nfsexp_flags(&rqstp->rq_cred, exp);
 
 	/* Check if the request originated from a secure port. */
 	if (!nfsd_originating_port_ok(rqstp, flags)) {
@@ -113,22 +111,14 @@ static __be32 nfsd_setuser_and_check_port(struct svc_rqst *rqstp,
 	}
 
 	/* Set user creds for this exportpoint */
-	return nfserrno(nfsd_setuser(rqstp, exp));
+	return nfserrno(nfsd_setuser(&rqstp->rq_cred, exp));
 }
 
-static inline __be32 check_pseudo_root(struct svc_rqst *rqstp,
-	struct dentry *dentry, struct svc_export *exp)
+static inline __be32 check_pseudo_root(struct dentry *dentry,
+				       struct svc_export *exp)
 {
 	if (!(exp->ex_flags & NFSEXP_V4ROOT))
 		return nfs_ok;
-	/*
-	 * v2/v3 clients have no need for the V4ROOT export--they use
-	 * the mount protocl instead; also, further V4ROOT checks may be
-	 * in v4-specific code, in which case v2/v3 clients could bypass
-	 * them.
-	 */
-	if (!nfsd_v4client(rqstp))
-		return nfserr_stale;
 	/*
 	 * We're exposing only the directories and symlinks that have to be
 	 * traversed on the way to real exports:
@@ -162,10 +152,8 @@ static __be32 nfsd_set_fh_dentry(struct svc_rqst *rqstp, struct svc_fh *fhp)
 	int len;
 	__be32 error;
 
-	error = nfserr_stale;
-	if (rqstp->rq_vers > 2)
-		error = nfserr_badhandle;
-	if (rqstp->rq_vers == 4 && fh->fh_size == 0)
+	error = nfserr_badhandle;
+	if (fh->fh_size == 0)
 		return nfserr_nofilehandle;
 
 	if (fh->fh_version != 1)
@@ -195,7 +183,9 @@ static __be32 nfsd_set_fh_dentry(struct svc_rqst *rqstp, struct svc_fh *fhp)
 	data_left -= len;
 	if (data_left < 0)
 		return error;
-	exp = rqst_exp_find(rqstp, fh->fh_fsid_type, fh->fh_fsid);
+	exp = rqst_exp_find(&rqstp->rq_chandle, SVC_NET(rqstp),
+			    rqstp->rq_client, rqstp->rq_gssclient,
+			    fh->fh_fsid_type, fh->fh_fsid);
 	fid = (struct fid *)(fh->fh_fsid + len);
 
 	error = nfserr_stale;
@@ -237,9 +227,7 @@ static __be32 nfsd_set_fh_dentry(struct svc_rqst *rqstp, struct svc_fh *fhp)
 	/*
 	 * Look up the dentry using the NFS file handle.
 	 */
-	error = nfserr_stale;
-	if (rqstp->rq_vers > 2)
-		error = nfserr_badhandle;
+	error = nfserr_badhandle;
 
 	fileid_type = fh->fh_fileid_type;
 
@@ -282,13 +270,21 @@ static __be32 nfsd_set_fh_dentry(struct svc_rqst *rqstp, struct svc_fh *fhp)
 	case 4:
 		if (dentry->d_sb->s_export_op->flags & EXPORT_OP_NOATOMIC_ATTR)
 			fhp->fh_no_atomic_attr = true;
+		fhp->fh_64bit_cookies = true;
 		break;
 	case 3:
 		if (dentry->d_sb->s_export_op->flags & EXPORT_OP_NOWCC)
 			fhp->fh_no_wcc = true;
+		fhp->fh_64bit_cookies = true;
+		if (exp->ex_flags & NFSEXP_V4ROOT)
+			goto out;
 		break;
 	case 2:
 		fhp->fh_no_wcc = true;
+		if (EX_WGATHER(exp))
+			fhp->fh_use_wgather = true;
+		if (exp->ex_flags & NFSEXP_V4ROOT)
+			goto out;
 	}
 
 	return 0;
@@ -358,7 +354,7 @@ fh_verify(struct svc_rqst *rqstp, struct svc_fh *fhp, umode_t type, int access)
 	 *	  (for example, if different id-squashing options are in
 	 *	  effect on the new filesystem).
 	 */
-	error = check_pseudo_root(rqstp, dentry, exp);
+	error = check_pseudo_root(dentry, exp);
 	if (error)
 		goto out;
 
@@ -366,7 +362,7 @@ fh_verify(struct svc_rqst *rqstp, struct svc_fh *fhp, umode_t type, int access)
 	if (error)
 		goto out;
 
-	error = nfsd_mode_check(rqstp, dentry, type);
+	error = nfsd_mode_check(dentry, type);
 	if (error)
 		goto out;
 
@@ -392,7 +388,7 @@ fh_verify(struct svc_rqst *rqstp, struct svc_fh *fhp, umode_t type, int access)
 
 skip_pseudoflavor_check:
 	/* Finally, check access permissions. */
-	error = nfsd_permission(rqstp, exp, dentry, access);
+	error = nfsd_permission(&rqstp->rq_cred, exp, dentry, access);
 out:
 	trace_nfsd_fh_verify_err(rqstp, fhp, type, access, error);
 	if (error == nfserr_stale)

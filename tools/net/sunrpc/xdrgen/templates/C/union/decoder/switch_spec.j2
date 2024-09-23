@@ -1,0 +1,7 @@
+{# SPDX-License-Identifier: GPL-2.0 #}
+{% if annotate %}
+	/* discriminant {{ name }} */
+{% endif %}
+	if (!xdrgen_decode_{{ type }}(xdr, &ptr->{{ name }}))
+		return false;
+	switch (ptr->{{ name }}) {
