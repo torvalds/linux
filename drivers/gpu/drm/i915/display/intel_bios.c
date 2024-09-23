@@ -3053,11 +3053,16 @@ static struct vbt_header *firmware_get_vbt(struct intel_display *display,
 	return vbt;
 }
 
-static u32 intel_spi_read(struct intel_uncore *uncore, u32 offset)
+static u32 intel_spi_read32(struct intel_uncore *uncore, u32 offset)
 {
 	intel_uncore_write(uncore, PRIMARY_SPI_ADDRESS, offset);
 
 	return intel_uncore_read(uncore, PRIMARY_SPI_TRIGGER);
+}
+
+static u16 intel_spi_read16(struct intel_uncore *uncore, u32 offset)
+{
+	return intel_spi_read32(uncore, offset) & 0xffff;
 }
 
 static struct vbt_header *spi_oprom_get_vbt(struct intel_display *display,
@@ -3078,7 +3083,7 @@ static struct vbt_header *spi_oprom_get_vbt(struct intel_display *display,
 	oprom_offset &= OROM_OFFSET_MASK;
 
 	for (count = 0; count < oprom_size; count += 4) {
-		data = intel_spi_read(&i915->uncore, oprom_offset + count);
+		data = intel_spi_read32(&i915->uncore, oprom_offset + count);
 		if (data == *((const u32 *)"$VBT")) {
 			found = oprom_offset + count;
 			break;
@@ -3094,9 +3099,8 @@ static struct vbt_header *spi_oprom_get_vbt(struct intel_display *display,
 	}
 
 	/* Get VBT size and allocate space for the VBT */
-	vbt_size = intel_spi_read(&i915->uncore,
-				  found + offsetof(struct vbt_header, vbt_size));
-	vbt_size &= 0xffff;
+	vbt_size = intel_spi_read16(&i915->uncore,
+				    found + offsetof(struct vbt_header, vbt_size));
 
 	if (vbt_size > oprom_size - count) {
 		drm_dbg_kms(display->drm,
@@ -3109,7 +3113,7 @@ static struct vbt_header *spi_oprom_get_vbt(struct intel_display *display,
 		goto err_not_found;
 
 	for (count = 0; count < vbt_size; count += 4)
-		*(vbt + store++) = intel_spi_read(&i915->uncore, found + count);
+		*(vbt + store++) = intel_spi_read32(&i915->uncore, found + count);
 
 	if (!intel_bios_is_valid_vbt(display, vbt, vbt_size))
 		goto err_free_vbt;
