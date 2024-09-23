@@ -938,8 +938,7 @@ bool edp_setup_replay(struct dc_link *link, const struct dc_stream_state *stream
 	struct replay_context replay_context = { 0 };
 	unsigned int lineTimeInNs = 0;
 
-
-	union replay_enable_and_configuration replay_config;
+	union replay_enable_and_configuration replay_config = { 0 };
 
 	union dpcd_alpm_configuration alpm_config;
 
