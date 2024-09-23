@@ -846,6 +846,7 @@ struct btusb_data {
 
 	int (*suspend)(struct hci_dev *hdev);
 	int (*resume)(struct hci_dev *hdev);
+	int (*disconnect)(struct hci_dev *hdev);
 
 	int oob_wake_irq;   /* irq for out-of-band wake-on-bt */
 	unsigned cmd_timeout_cnt;
@@ -4015,6 +4016,9 @@ static void btusb_disconnect(struct usb_interface *intf)
 
 	if (data->diag)
 		usb_set_intfdata(data->diag, NULL);
+
+	if (data->disconnect)
+		data->disconnect(hdev);
 
 	hci_unregister_dev(hdev);
 
