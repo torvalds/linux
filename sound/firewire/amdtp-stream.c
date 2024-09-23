@@ -615,6 +615,22 @@ static void update_pcm_pointers(struct amdtp_stream *s,
 		// The program in user process should periodically check the status of intermediate
 		// buffer associated to PCM substream to process PCM frames in the buffer, instead
 		// of receiving notification of period elapsed by poll wait.
+		//
+		// Use another work item for period elapsed event to prevent the following AB/BA
+		// deadlock:
+		//
+		//             thread 1                            thread 2
+		// =================================   =================================
+		//       A.work item (process)                pcm ioctl (process)
+		//                 v                                   v
+		//       process_rx_packets()                  B.PCM stream lock
+		//       process_tx_packets()                          v
+		//                 v                        callbacks in snd_pcm_ops
+		//       update_pcm_pointers()                         v
+		//         snd_pcm_elapsed()           fw_iso_context_flush_completions()
+		//  snd_pcm_stream_lock_irqsave()             disable_work_sync()
+		//                 v                                   v
+		//     wait until release of B                wait until A exits
 		if (!pcm->runtime->no_period_wakeup)
 			queue_work(system_highpri_wq, &s->period_work);
 	}
@@ -1055,8 +1071,15 @@ static void generate_rx_packet_descs(struct amdtp_stream *s, struct pkt_desc *de
 
 static inline void cancel_stream(struct amdtp_stream *s)
 {
+	struct work_struct *work = current_work();
+
 	s->packet_index = -1;
-	if (in_softirq())
+
+	// Detect work items for any isochronous context. The work item for pcm_period_work()
+	// should be avoided since the call of snd_pcm_period_elapsed() can reach via
+	// snd_pcm_ops.pointer() under acquiring PCM stream(group) lock and causes dead lock at
+	// snd_pcm_stop_xrun().
+	if (work && work != &s->period_work)
 		amdtp_stream_pcm_abort(s);
 	WRITE_ONCE(s->pcm_buffer_pointer, SNDRV_PCM_POS_XRUN);
 }
@@ -1856,12 +1879,9 @@ unsigned long amdtp_domain_stream_pcm_pointer(struct amdtp_domain *d,
 	struct amdtp_stream *irq_target = d->irq_target;
 
 	if (irq_target && amdtp_stream_running(irq_target)) {
-		// use wq to prevent AB/BA deadlock competition for
-		// substream lock:
-		// fw_iso_context_flush_completions() acquires
-		// lock by ohci_flush_iso_completions(),
-		// amdtp-stream process_rx_packets() attempts to
-		// acquire same lock by snd_pcm_elapsed()
+		// The work item to call snd_pcm_period_elapsed() can reach here by the call of
+		// snd_pcm_ops.pointer(), however less packets would be available then. Therefore
+		// the following call is just for user process contexts.
 		if (current_work() != &s->period_work)
 			fw_iso_context_flush_completions(irq_target->context);
 	}

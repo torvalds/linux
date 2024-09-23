@@ -168,7 +168,6 @@ static size_t required_space(struct fw_descriptor *desc)
 int fw_core_add_descriptor(struct fw_descriptor *desc)
 {
 	size_t i;
-	int ret;
 
 	/*
 	 * Check descriptor is valid; the length of all blocks in the
@@ -182,29 +181,25 @@ int fw_core_add_descriptor(struct fw_descriptor *desc)
 	if (i != desc->length)
 		return -EINVAL;
 
-	mutex_lock(&card_mutex);
+	guard(mutex)(&card_mutex);
 
-	if (config_rom_length + required_space(desc) > 256) {
-		ret = -EBUSY;
-	} else {
-		list_add_tail(&desc->link, &descriptor_list);
-		config_rom_length += required_space(desc);
+	if (config_rom_length + required_space(desc) > 256)
+		return -EBUSY;
+
+	list_add_tail(&desc->link, &descriptor_list);
+	config_rom_length += required_space(desc);
+	descriptor_count++;
+	if (desc->immediate > 0)
 		descriptor_count++;
-		if (desc->immediate > 0)
-			descriptor_count++;
-		update_config_roms();
-		ret = 0;
-	}
+	update_config_roms();
 
-	mutex_unlock(&card_mutex);
-
-	return ret;
+	return 0;
 }
 EXPORT_SYMBOL(fw_core_add_descriptor);
 
 void fw_core_remove_descriptor(struct fw_descriptor *desc)
 {
-	mutex_lock(&card_mutex);
+	guard(mutex)(&card_mutex);
 
 	list_del(&desc->link);
 	config_rom_length -= required_space(desc);
@@ -212,8 +207,6 @@ void fw_core_remove_descriptor(struct fw_descriptor *desc)
 	if (desc->immediate > 0)
 		descriptor_count--;
 	update_config_roms();
-
-	mutex_unlock(&card_mutex);
 }
 EXPORT_SYMBOL(fw_core_remove_descriptor);
 
@@ -381,11 +374,11 @@ static void bm_work(struct work_struct *work)
 
 		bm_id = be32_to_cpu(transaction_data[0]);
 
-		spin_lock_irq(&card->lock);
-		if (rcode == RCODE_COMPLETE && generation == card->generation)
-			card->bm_node_id =
-			    bm_id == 0x3f ? local_id : 0xffc0 | bm_id;
-		spin_unlock_irq(&card->lock);
+		scoped_guard(spinlock_irq, &card->lock) {
+			if (rcode == RCODE_COMPLETE && generation == card->generation)
+				card->bm_node_id =
+				    bm_id == 0x3f ? local_id : 0xffc0 | bm_id;
+		}
 
 		if (rcode == RCODE_COMPLETE && bm_id != 0x3f) {
 			/* Somebody else is BM.  Only act as IRM. */
@@ -578,25 +571,47 @@ void fw_card_initialize(struct fw_card *card,
 }
 EXPORT_SYMBOL(fw_card_initialize);
 
-int fw_card_add(struct fw_card *card,
-		u32 max_receive, u32 link_speed, u64 guid)
+int fw_card_add(struct fw_card *card, u32 max_receive, u32 link_speed, u64 guid,
+		unsigned int supported_isoc_contexts)
 {
+	struct workqueue_struct *isoc_wq;
 	int ret;
+
+	// This workqueue should be:
+	//  * != WQ_BH			Sleepable.
+	//  * == WQ_UNBOUND		Any core can process data for isoc context. The
+	//				implementation of unit protocol could consumes the core
+	//				longer somehow.
+	//  * != WQ_MEM_RECLAIM		Not used for any backend of block device.
+	//  * == WQ_FREEZABLE		Isochronous communication is at regular interval in real
+	//				time, thus should be drained if possible at freeze phase.
+	//  * == WQ_HIGHPRI		High priority to process semi-realtime timestamped data.
+	//  * == WQ_SYSFS		Parameters are available via sysfs.
+	//  * max_active == n_it + n_ir	A hardIRQ could notify events for multiple isochronous
+	//				contexts if they are scheduled to the same cycle.
+	isoc_wq = alloc_workqueue("firewire-isoc-card%u",
+				  WQ_UNBOUND | WQ_FREEZABLE | WQ_HIGHPRI | WQ_SYSFS,
+				  supported_isoc_contexts, card->index);
+	if (!isoc_wq)
+		return -ENOMEM;
 
 	card->max_receive = max_receive;
 	card->link_speed = link_speed;
 	card->guid = guid;
 
-	mutex_lock(&card_mutex);
+	guard(mutex)(&card_mutex);
 
 	generate_config_rom(card, tmp_config_rom);
 	ret = card->driver->enable(card, tmp_config_rom, config_rom_length);
-	if (ret == 0)
-		list_add_tail(&card->link, &card_list);
+	if (ret < 0) {
+		destroy_workqueue(isoc_wq);
+		return ret;
+	}
 
-	mutex_unlock(&card_mutex);
+	card->isoc_wq = isoc_wq;
+	list_add_tail(&card->link, &card_list);
 
-	return ret;
+	return 0;
 }
 EXPORT_SYMBOL(fw_card_add);
 
@@ -714,28 +729,30 @@ EXPORT_SYMBOL_GPL(fw_card_release);
 void fw_core_remove_card(struct fw_card *card)
 {
 	struct fw_card_driver dummy_driver = dummy_driver_template;
-	unsigned long flags;
+
+	might_sleep();
 
 	card->driver->update_phy_reg(card, 4,
 				     PHY_LINK_ACTIVE | PHY_CONTENDER, 0);
 	fw_schedule_bus_reset(card, false, true);
 
-	mutex_lock(&card_mutex);
-	list_del_init(&card->link);
-	mutex_unlock(&card_mutex);
+	scoped_guard(mutex, &card_mutex)
+		list_del_init(&card->link);
 
 	/* Switch off most of the card driver interface. */
 	dummy_driver.free_iso_context	= card->driver->free_iso_context;
 	dummy_driver.stop_iso		= card->driver->stop_iso;
 	card->driver = &dummy_driver;
+	drain_workqueue(card->isoc_wq);
 
-	spin_lock_irqsave(&card->lock, flags);
-	fw_destroy_nodes(card);
-	spin_unlock_irqrestore(&card->lock, flags);
+	scoped_guard(spinlock_irqsave, &card->lock)
+		fw_destroy_nodes(card);
 
 	/* Wait for all users, especially device workqueue jobs, to finish. */
 	fw_card_put(card);
 	wait_for_completion(&card->done);
+
+	destroy_workqueue(card->isoc_wq);
 
 	WARN_ON(!list_empty(&card->transaction_list));
 }
