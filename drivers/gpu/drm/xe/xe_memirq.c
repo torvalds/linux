@@ -5,8 +5,8 @@
 
 #include <drm/drm_managed.h>
 
-#include "regs/xe_gt_regs.h"
 #include "regs/xe_guc_regs.h"
+#include "regs/xe_irq_regs.h"
 #include "regs/xe_regs.h"
 
 #include "xe_assert.h"

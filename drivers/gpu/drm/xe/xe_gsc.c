@@ -34,6 +34,7 @@
 #include "instructions/xe_gsc_commands.h"
 #include "regs/xe_gsc_regs.h"
 #include "regs/xe_gt_regs.h"
+#include "regs/xe_irq_regs.h"
 
 static struct xe_gt *
 gsc_to_gt(struct xe_gsc *gsc)

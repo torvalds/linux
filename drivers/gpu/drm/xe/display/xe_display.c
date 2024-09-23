@@ -4,7 +4,7 @@
  */
 
 #include "xe_display.h"
-#include "regs/xe_regs.h"
+#include "regs/xe_irq_regs.h"
 
 #include <linux/fb.h>
 
