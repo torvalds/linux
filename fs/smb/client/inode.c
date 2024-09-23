@@ -1216,6 +1216,11 @@ static int reparse_info_to_fattr(struct cifs_open_info_data *data,
 							      full_path,
 							      iov, data);
 		}
+
+		if (data->reparse.tag == IO_REPARSE_TAG_SYMLINK && !rc) {
+			bool directory = le32_to_cpu(data->fi.Attributes) & ATTR_DIRECTORY;
+			rc = smb2_fix_symlink_target_type(&data->symlink_target, directory, cifs_sb);
+		}
 		break;
 	}
 
