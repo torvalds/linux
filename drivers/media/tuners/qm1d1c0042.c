@@ -434,7 +434,7 @@ static void qm1d1c0042_remove(struct i2c_client *client)
 
 
 static const struct i2c_device_id qm1d1c0042_id[] = {
-	{"qm1d1c0042", 0},
+	{ "qm1d1c0042" },
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, qm1d1c0042_id);
