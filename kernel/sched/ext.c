@@ -4469,8 +4469,9 @@ static void scx_ops_disable_workfn(struct kthread_work *work)
 
 		if (ei->msg[0] != '\0')
 			pr_err("sched_ext: %s: %s\n", scx_ops.name, ei->msg);
-
+#ifdef CONFIG_STACKTRACE
 		stack_trace_print(ei->bt, ei->bt_len, 2);
+#endif
 	} else {
 		pr_info("sched_ext: BPF scheduler \"%s\" disabled (%s)\n",
 			scx_ops.name, ei->reason);
@@ -4847,10 +4848,10 @@ static __printf(3, 4) void scx_ops_exit_kind(enum scx_exit_kind kind,
 		return;
 
 	ei->exit_code = exit_code;
-
+#ifdef CONFIG_STACKTRACE
 	if (kind >= SCX_EXIT_ERROR)
 		ei->bt_len = stack_trace_save(ei->bt, SCX_EXIT_BT_LEN, 1);
-
+#endif
 	va_start(args, fmt);
 	vscnprintf(ei->msg, SCX_EXIT_MSG_LEN, fmt, args);
 	va_end(args);
