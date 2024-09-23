@@ -1055,17 +1055,8 @@ void dm_helpers_free_gpu_mem(
 		void *pvMem)
 {
 	struct amdgpu_device *adev = ctx->driver_context;
-	struct dal_allocation *da;
 
-	/* walk the da list in DM */
-	list_for_each_entry(da, &adev->dm.da_list, list) {
-		if (pvMem == da->cpu_ptr) {
-			amdgpu_bo_free_kernel(&da->bo, &da->gpu_addr, &da->cpu_ptr);
-			list_del(&da->list);
-			kfree(da);
-			break;
-		}
-	}
+	dm_free_gpu_mem(adev, type, pvMem);
 }
 
 bool dm_helpers_dmub_outbox_interrupt_control(struct dc_context *ctx, bool enable)

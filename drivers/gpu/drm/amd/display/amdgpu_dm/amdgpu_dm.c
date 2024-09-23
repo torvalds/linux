@@ -1696,6 +1696,26 @@ dm_allocate_gpu_mem(
 	return da->cpu_ptr;
 }
 
+void
+dm_free_gpu_mem(
+		struct amdgpu_device *adev,
+		enum dc_gpu_mem_alloc_type type,
+		void *pvMem)
+{
+	struct dal_allocation *da;
+
+	/* walk the da list in DM */
+	list_for_each_entry(da, &adev->dm.da_list, list) {
+		if (pvMem == da->cpu_ptr) {
+			amdgpu_bo_free_kernel(&da->bo, &da->gpu_addr, &da->cpu_ptr);
+			list_del(&da->list);
+			kfree(da);
+			break;
+		}
+	}
+
+}
+
 static enum dmub_status
 dm_dmub_send_vbios_gpint_command(struct amdgpu_device *adev,
 				 enum dmub_gpint_command command_code,
@@ -1762,16 +1782,20 @@ static struct dml2_soc_bb *dm_dmub_get_vbios_bounding_box(struct amdgpu_device *
 		/* Send the chunk */
 		ret = dm_dmub_send_vbios_gpint_command(adev, send_addrs[i], chunk, 30000);
 		if (ret != DMUB_STATUS_OK)
-			/* No need to free bb here since it shall be done in dm_sw_fini() */
-			return NULL;
+			goto free_bb;
 	}
 
 	/* Now ask DMUB to copy the bb */
 	ret = dm_dmub_send_vbios_gpint_command(adev, DMUB_GPINT__BB_COPY, 1, 200000);
 	if (ret != DMUB_STATUS_OK)
-		return NULL;
+		goto free_bb;
 
 	return bb;
+
+free_bb:
+	dm_free_gpu_mem(adev, DC_MEM_ALLOC_TYPE_GART, (void *) bb);
+	return NULL;
+
 }
 
 static enum dmub_ips_disable_type dm_get_default_ips_mode(
@@ -2541,11 +2565,11 @@ static int dm_sw_fini(void *handle)
 			amdgpu_bo_free_kernel(&da->bo, &da->gpu_addr, &da->cpu_ptr);
 			list_del(&da->list);
 			kfree(da);
+			adev->dm.bb_from_dmub = NULL;
 			break;
 		}
 	}
 
-	adev->dm.bb_from_dmub = NULL;
 
 	kfree(adev->dm.dmub_fb_info);
 	adev->dm.dmub_fb_info = NULL;
