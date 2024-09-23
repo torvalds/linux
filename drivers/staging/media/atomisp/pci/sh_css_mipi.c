@@ -169,7 +169,7 @@ ia_css_mipi_frame_calculate_size(const unsigned int width,
 	/* ceil(words_per_odd_line/8); mem_word = 32 bytes, 8 words */
 	mem_words_for_first_line = (words_for_first_line + 7) >> 3;
 	mem_words_per_even_line  = (words_per_even_line + 7) >> 3;
-	mem_words_for_EOF        = 1; /* last line consisit of the optional (EOL) and EOF */
+	mem_words_for_EOF        = 1; /* last line consist of the optional (EOL) and EOF */
 
 	mem_words = ((embedded_data_size_words + 7) >> 3) +
 	mem_words_for_first_line +

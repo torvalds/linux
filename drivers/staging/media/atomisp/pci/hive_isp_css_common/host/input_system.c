@@ -406,7 +406,7 @@ input_system_err_t input_system_configuration_reset(void)
 	config.unallocated_ib_mem_words			 = IB_CAPACITY_IN_WORDS;
 	//config.acq_allocated_ib_mem_words		 = 0;
 
-	// Set the start of the session cofiguration.
+	/* Set the start of the session configuration. */
 	config.session_flags = INPUT_SYSTEM_CFG_FLAG_REQUIRED;
 
 	return INPUT_SYSTEM_ERR_NO_ERROR;
