@@ -10,6 +10,7 @@ def define_neo_la():
         "drivers/bus/mhi/devices/mhi_dev_dtr.ko",
         "drivers/bus/mhi/devices/mhi_dev_uci.ko",
         "drivers/bus/mhi/host/mhi.ko",
+        "drivers/char/rdbg.ko",
         "drivers/clk/qcom/camcc-neo.ko",
         "drivers/clk/qcom/clk-dummy.ko",
         "drivers/clk/qcom/clk-qcom.ko",
