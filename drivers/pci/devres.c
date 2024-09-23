@@ -730,7 +730,7 @@ EXPORT_SYMBOL(pcim_iounmap);
  * Mapping and region will get automatically released on driver detach. If
  * desired, release manually only with pcim_iounmap_region().
  */
-static void __iomem *pcim_iomap_region(struct pci_dev *pdev, int bar,
+void __iomem *pcim_iomap_region(struct pci_dev *pdev, int bar,
 				       const char *name)
 {
 	int ret;
@@ -763,6 +763,7 @@ err_region:
 
 	return IOMEM_ERR_PTR(ret);
 }
+EXPORT_SYMBOL(pcim_iomap_region);
 
 /**
  * pcim_iounmap_region - Unmap and release a PCI BAR
@@ -785,7 +786,7 @@ static void pcim_iounmap_region(struct pci_dev *pdev, int bar)
 }
 
 /**
- * pcim_iomap_regions - Request and iomap PCI BARs
+ * pcim_iomap_regions - Request and iomap PCI BARs (DEPRECATED)
  * @pdev: PCI device to map IO resources for
  * @mask: Mask of BARs to request and iomap
  * @name: Name associated with the requests
@@ -793,6 +794,9 @@ static void pcim_iounmap_region(struct pci_dev *pdev, int bar)
  * Returns: 0 on success, negative error code on failure.
  *
  * Request and iomap regions specified by @mask.
+ *
+ * This function is DEPRECATED. Do not use it in new code.
+ * Use pcim_iomap_region() instead.
  */
 int pcim_iomap_regions(struct pci_dev *pdev, int mask, const char *name)
 {
@@ -865,6 +869,7 @@ int pcim_request_region(struct pci_dev *pdev, int bar, const char *name)
 {
 	return _pcim_request_region(pdev, bar, name, 0);
 }
+EXPORT_SYMBOL(pcim_request_region);
 
 /**
  * pcim_request_region_exclusive - Request a PCI BAR exclusively
