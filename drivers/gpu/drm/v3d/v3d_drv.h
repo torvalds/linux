@@ -137,6 +137,11 @@ struct v3d_dev {
 	struct drm_mm mm;
 	spinlock_t mm_lock;
 
+	/*
+	 * tmpfs instance used for shmem backed objects
+	 */
+	struct vfsmount *gemfs;
+
 	struct work_struct overflow_mem_work;
 
 	struct v3d_bin_job *bin_job;
@@ -533,6 +538,10 @@ void v3d_gem_destroy(struct drm_device *dev);
 void v3d_reset(struct v3d_dev *v3d);
 void v3d_invalidate_caches(struct v3d_dev *v3d);
 void v3d_clean_caches(struct v3d_dev *v3d);
+
+/* v3d_gemfs.c */
+void v3d_gemfs_init(struct v3d_dev *v3d);
+void v3d_gemfs_fini(struct v3d_dev *v3d);
 
 /* v3d_submit.c */
 void v3d_job_cleanup(struct v3d_job *job);
