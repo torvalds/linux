@@ -1407,16 +1407,44 @@ struct xa_state {
 			order - (order % XA_CHUNK_SHIFT),	\
 			(1U << (order % XA_CHUNK_SHIFT)) - 1)
 
+/**
+ * xas_invalid() - Is the xas in a retry or error state?
+ * @xas: XArray operation state.
+ *
+ * Return: %true if the xas cannot be used for operations.
+ */
+static inline bool xas_invalid(const struct xa_state *xas)
+{
+	return (unsigned long)xas->xa_node & 3;
+}
+
+/**
+ * xas_valid() - Is the xas a valid cursor into the array?
+ * @xas: XArray operation state.
+ *
+ * Return: %true if the xas can be used for operations.
+ */
+static inline bool xas_valid(const struct xa_state *xas)
+{
+	return !xas_invalid(xas);
+}
+
+static inline struct xa_state *XAS_INVALID(struct xa_state *xas)
+{
+	XA_NODE_BUG_ON(xas->xa_node, xas_valid(xas));
+	return xas;
+}
+
 #define xas_marked(xas, mark)	xa_marked((xas)->xa, (mark))
-#define xas_trylock(xas)	xa_trylock((xas)->xa)
-#define xas_lock(xas)		xa_lock((xas)->xa)
+#define xas_trylock(xas)	xa_trylock(XAS_INVALID(xas)->xa)
+#define xas_lock(xas)		xa_lock(XAS_INVALID(xas)->xa)
 #define xas_unlock(xas)		xa_unlock((xas)->xa)
-#define xas_lock_bh(xas)	xa_lock_bh((xas)->xa)
+#define xas_lock_bh(xas)	xa_lock_bh(XAS_INVALID(xas)->xa)
 #define xas_unlock_bh(xas)	xa_unlock_bh((xas)->xa)
-#define xas_lock_irq(xas)	xa_lock_irq((xas)->xa)
+#define xas_lock_irq(xas)	xa_lock_irq(XAS_INVALID(xas)->xa)
 #define xas_unlock_irq(xas)	xa_unlock_irq((xas)->xa)
 #define xas_lock_irqsave(xas, flags) \
-				xa_lock_irqsave((xas)->xa, flags)
+				xa_lock_irqsave(XAS_INVALID(xas)->xa, flags)
 #define xas_unlock_irqrestore(xas, flags) \
 				xa_unlock_irqrestore((xas)->xa, flags)
 
@@ -1443,28 +1471,6 @@ static inline int xas_error(const struct xa_state *xas)
 static inline void xas_set_err(struct xa_state *xas, long err)
 {
 	xas->xa_node = XA_ERROR(err);
-}
-
-/**
- * xas_invalid() - Is the xas in a retry or error state?
- * @xas: XArray operation state.
- *
- * Return: %true if the xas cannot be used for operations.
- */
-static inline bool xas_invalid(const struct xa_state *xas)
-{
-	return (unsigned long)xas->xa_node & 3;
-}
-
-/**
- * xas_valid() - Is the xas a valid cursor into the array?
- * @xas: XArray operation state.
- *
- * Return: %true if the xas can be used for operations.
- */
-static inline bool xas_valid(const struct xa_state *xas)
-{
-	return !xas_invalid(xas);
 }
 
 /**
