@@ -513,6 +513,8 @@ int bch2_check_topology(struct bch_fs *c)
 	struct bpos pulled_from_scan = POS_MIN;
 	int ret = 0;
 
+	bch2_trans_srcu_unlock(trans);
+
 	for (unsigned i = 0; i < btree_id_nr_alive(c) && !ret; i++) {
 		struct btree_root *r = bch2_btree_id_root(c, i);
 		bool reconstructed_root = false;
