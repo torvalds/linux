@@ -501,19 +501,21 @@ static inline void flush_tlb_range(struct vm_area_struct *vma,
 
 static inline void flush_tlb_kernel_range(unsigned long start, unsigned long end)
 {
-	unsigned long addr;
+	const unsigned long stride = PAGE_SIZE;
+	unsigned long pages;
 
-	if ((end - start) > (MAX_DVM_OPS * PAGE_SIZE)) {
+	start = round_down(start, stride);
+	end = round_up(end, stride);
+	pages = (end - start) >> PAGE_SHIFT;
+
+	if (__flush_tlb_range_limit_excess(start, end, pages, stride)) {
 		flush_tlb_all();
 		return;
 	}
 
-	start = __TLBI_VADDR(start, 0);
-	end = __TLBI_VADDR(end, 0);
-
 	dsb(ishst);
-	for (addr = start; addr < end; addr += 1 << (PAGE_SHIFT - 12))
-		__tlbi(vaale1is, addr);
+	__flush_tlb_range_op(vaale1is, start, pages, stride, 0,
+			     TLBI_TTL_UNKNOWN, false, lpa2_is_enabled());
 	dsb(ish);
 	isb();
 }
