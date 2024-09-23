@@ -721,7 +721,7 @@ static const struct i2c_algorithm geni_i2c_algo = {
 static const struct acpi_device_id geni_i2c_acpi_match[] = {
 	{ "QCOM0220"},
 	{ "QCOM0411" },
-	{ },
+	{ }
 };
 MODULE_DEVICE_TABLE(acpi, geni_i2c_acpi_match);
 #endif
@@ -984,21 +984,24 @@ static int __maybe_unused geni_i2c_runtime_resume(struct device *dev)
 		return ret;
 
 	ret = clk_prepare_enable(gi2c->core_clk);
-	if (ret) {
-		geni_icc_disable(&gi2c->se);
-		return ret;
-	}
+	if (ret)
+		goto out_icc_disable;
 
 	ret = geni_se_resources_on(&gi2c->se);
-	if (ret) {
-		clk_disable_unprepare(gi2c->core_clk);
-		geni_icc_disable(&gi2c->se);
-		return ret;
-	}
+	if (ret)
+		goto out_clk_disable;
 
 	enable_irq(gi2c->irq);
 	gi2c->suspended = 0;
+
 	return 0;
+
+out_clk_disable:
+	clk_disable_unprepare(gi2c->core_clk);
+out_icc_disable:
+	geni_icc_disable(&gi2c->se);
+
+	return ret;
 }
 
 static int __maybe_unused geni_i2c_suspend_noirq(struct device *dev)
