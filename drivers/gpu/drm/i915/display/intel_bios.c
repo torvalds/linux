@@ -33,12 +33,12 @@
 #include <drm/drm_edid.h>
 #include <drm/drm_fixed.h>
 
+#include "soc/intel_rom.h"
+
 #include "i915_drv.h"
-#include "i915_reg.h"
 #include "intel_display.h"
 #include "intel_display_types.h"
 #include "intel_gmbus.h"
-#include "intel_uncore.h"
 
 #define _INTEL_BIOS_PRIVATE
 #include "intel_vbt_defs.h"
@@ -3056,152 +3056,59 @@ static struct vbt_header *firmware_get_vbt(struct intel_display *display,
 	return vbt;
 }
 
-static u32 intel_spi_read32(struct intel_uncore *uncore, u32 offset)
-{
-	intel_uncore_write(uncore, PRIMARY_SPI_ADDRESS, offset);
-
-	return intel_uncore_read(uncore, PRIMARY_SPI_TRIGGER);
-}
-
-static u16 intel_spi_read16(struct intel_uncore *uncore, u32 offset)
-{
-	return intel_spi_read32(uncore, offset) & 0xffff;
-}
-
-static struct vbt_header *spi_oprom_get_vbt(struct intel_display *display,
-					    size_t *size)
-{
-	struct drm_i915_private *i915 = to_i915(display->drm);
-	u32 count, data, found, store = 0;
-	u32 static_region, oprom_offset;
-	u32 oprom_size = 0x200000;
-	u16 vbt_size;
-	u32 *vbt;
-
-	static_region = intel_uncore_read(&i915->uncore, SPI_STATIC_REGIONS);
-	static_region &= OPTIONROM_SPI_REGIONID_MASK;
-	intel_uncore_write(&i915->uncore, PRIMARY_SPI_REGIONID, static_region);
-
-	oprom_offset = intel_uncore_read(&i915->uncore, OROM_OFFSET);
-	oprom_offset &= OROM_OFFSET_MASK;
-
-	BUILD_BUG_ON(vbt_signature_len != sizeof(vbt_signature) - 1);
-	BUILD_BUG_ON(vbt_signature_len != sizeof(u32));
-
-	for (count = 0; count < oprom_size; count += 4) {
-		data = intel_spi_read32(&i915->uncore, oprom_offset + count);
-		if (data == *((const u32 *)vbt_signature)) {
-			found = oprom_offset + count;
-			break;
-		}
-	}
-
-	if (count >= oprom_size)
-		goto err_not_found;
-
-	if (sizeof(struct vbt_header) > oprom_size - count) {
-		drm_dbg_kms(display->drm, "VBT header incomplete\n");
-		goto err_not_found;
-	}
-
-	/* Get VBT size and allocate space for the VBT */
-	vbt_size = intel_spi_read16(&i915->uncore,
-				    found + offsetof(struct vbt_header, vbt_size));
-
-	if (vbt_size > oprom_size - count) {
-		drm_dbg_kms(display->drm,
-			    "VBT incomplete (vbt_size overflows)\n");
-		goto err_not_found;
-	}
-
-	vbt = kzalloc(round_up(vbt_size, 4), GFP_KERNEL);
-	if (!vbt)
-		goto err_not_found;
-
-	for (count = 0; count < vbt_size; count += 4)
-		*(vbt + store++) = intel_spi_read32(&i915->uncore, found + count);
-
-	if (!intel_bios_is_valid_vbt(display, vbt, vbt_size))
-		goto err_free_vbt;
-
-	drm_dbg_kms(display->drm, "Found valid VBT in SPI flash\n");
-
-	if (size)
-		*size = vbt_size;
-
-	return (struct vbt_header *)vbt;
-
-err_free_vbt:
-	kfree(vbt);
-err_not_found:
-	return NULL;
-}
-
 static struct vbt_header *oprom_get_vbt(struct intel_display *display,
-					size_t *sizep)
+					struct intel_rom *rom,
+					size_t *size, const char *type)
 {
-	struct pci_dev *pdev = to_pci_dev(display->drm->dev);
-	void __iomem *p = NULL, *oprom;
 	struct vbt_header *vbt;
-	u16 vbt_size;
-	size_t i, size;
+	size_t vbt_size;
+	loff_t offset;
 
-	oprom = pci_map_rom(pdev, &size);
-	if (!oprom)
+	if (!rom)
 		return NULL;
 
 	BUILD_BUG_ON(vbt_signature_len != sizeof(vbt_signature) - 1);
 	BUILD_BUG_ON(vbt_signature_len != sizeof(u32));
 
-	/* Scour memory looking for the VBT signature. */
-	for (i = 0; i + 4 < size; i += 4) {
-		if (ioread32(oprom + i) != *((const u32 *)vbt_signature))
-			continue;
+	offset = intel_rom_find(rom, *(const u32 *)vbt_signature);
+	if (offset < 0)
+		goto err_free_rom;
 
-		p = oprom + i;
-		size -= i;
-		break;
-	}
-
-	if (!p)
-		goto err_unmap_oprom;
-
-	if (sizeof(struct vbt_header) > size) {
+	if (sizeof(struct vbt_header) > intel_rom_size(rom) - offset) {
 		drm_dbg_kms(display->drm, "VBT header incomplete\n");
-		goto err_unmap_oprom;
+		goto err_free_rom;
 	}
 
-	vbt_size = ioread16(p + offsetof(struct vbt_header, vbt_size));
-	if (vbt_size > size) {
-		drm_dbg_kms(display->drm,
-			    "VBT incomplete (vbt_size overflows)\n");
-		goto err_unmap_oprom;
+	BUILD_BUG_ON(sizeof(vbt->vbt_size) != sizeof(u16));
+
+	vbt_size = intel_rom_read16(rom, offset + offsetof(struct vbt_header, vbt_size));
+	if (vbt_size > intel_rom_size(rom) - offset) {
+		drm_dbg_kms(display->drm, "VBT incomplete (vbt_size overflows)\n");
+		goto err_free_rom;
 	}
 
-	/* The rest will be validated by intel_bios_is_valid_vbt() */
-	vbt = kmalloc(round_up(vbt_size, 4), GFP_KERNEL);
+	vbt = kzalloc(round_up(vbt_size, 4), GFP_KERNEL);
 	if (!vbt)
-		goto err_unmap_oprom;
+		goto err_free_rom;
 
-	memcpy_fromio(vbt, p, vbt_size);
+	intel_rom_read_block(rom, vbt, offset, vbt_size);
 
 	if (!intel_bios_is_valid_vbt(display, vbt, vbt_size))
 		goto err_free_vbt;
 
-	pci_unmap_rom(pdev, oprom);
+	drm_dbg_kms(display->drm, "Found valid VBT in %s\n", type);
 
-	if (sizep)
-		*sizep = vbt_size;
+	if (size)
+		*size = vbt_size;
 
-	drm_dbg_kms(display->drm, "Found valid VBT in PCI ROM\n");
+	intel_rom_free(rom);
 
 	return vbt;
 
 err_free_vbt:
 	kfree(vbt);
-err_unmap_oprom:
-	pci_unmap_rom(pdev, oprom);
-
+err_free_rom:
+	intel_rom_free(rom);
 	return NULL;
 }
 
@@ -3223,11 +3130,11 @@ static const struct vbt_header *intel_bios_get_vbt(struct intel_display *display
 	 */
 	if (!vbt && IS_DGFX(i915))
 		with_intel_runtime_pm(&i915->runtime_pm, wakeref)
-			vbt = spi_oprom_get_vbt(display, sizep);
+			vbt = oprom_get_vbt(display, intel_rom_spi(i915), sizep, "SPI flash");
 
 	if (!vbt)
 		with_intel_runtime_pm(&i915->runtime_pm, wakeref)
-			vbt = oprom_get_vbt(display, sizep);
+			vbt = oprom_get_vbt(display, intel_rom_pci(i915), sizep, "PCI ROM");
 
 	return vbt;
 }

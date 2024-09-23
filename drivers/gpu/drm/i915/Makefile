@@ -51,7 +51,8 @@ i915-y += \
 i915-y += \
 	soc/intel_dram.o \
 	soc/intel_gmch.o \
-	soc/intel_pch.o
+	soc/intel_pch.o \
+	soc/intel_rom.o
 
 # core library code
 i915-y += \
