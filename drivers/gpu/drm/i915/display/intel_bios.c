@@ -1706,8 +1706,8 @@ parse_mipi_config(struct intel_display *display,
 		return;
 	}
 
-	drm_dbg(display->drm, "Found MIPI Config block, panel index = %d\n",
-		panel_type);
+	drm_dbg_kms(display->drm, "Found MIPI Config block, panel index = %d\n",
+		    panel_type);
 
 	/*
 	 * get hold of the correct configuration block and pps data as per
@@ -2067,8 +2067,8 @@ parse_mipi_sequence(struct intel_display *display,
 		return;
 	}
 
-	drm_dbg(display->drm, "Found MIPI sequence block v%u\n",
-		sequence->version);
+	drm_dbg_kms(display->drm, "Found MIPI sequence block v%u\n",
+		    sequence->version);
 
 	seq_data = find_panel_sequence_block(display, sequence, panel_type, &seq_size);
 	if (!seq_data)
@@ -2114,7 +2114,7 @@ parse_mipi_sequence(struct intel_display *display,
 
 	fixup_mipi_sequences(display, panel);
 
-	drm_dbg(display->drm, "MIPI related VBT parsing complete\n");
+	drm_dbg_kms(display->drm, "MIPI related VBT parsing complete\n");
 	return;
 
 err:
@@ -2771,9 +2771,9 @@ static bool child_device_size_valid(struct intel_display *display, int size)
 	expected_size = child_device_expected_size(display->vbt.version);
 	if (expected_size < 0) {
 		expected_size = sizeof(struct child_device_config);
-		drm_dbg(display->drm,
-			"Expected child device config size for VBT version %u not known; assuming %d\n",
-			display->vbt.version, expected_size);
+		drm_dbg_kms(display->drm,
+			    "Expected child device config size for VBT version %u not known; assuming %d\n",
+			    display->vbt.version, expected_size);
 	}
 
 	/* Flag an error for unexpected size, but continue anyway. */
@@ -3143,14 +3143,14 @@ static struct vbt_header *oprom_get_vbt(struct intel_display *display,
 		goto err_unmap_oprom;
 
 	if (sizeof(struct vbt_header) > size) {
-		drm_dbg(display->drm, "VBT header incomplete\n");
+		drm_dbg_kms(display->drm, "VBT header incomplete\n");
 		goto err_unmap_oprom;
 	}
 
 	vbt_size = ioread16(p + offsetof(struct vbt_header, vbt_size));
 	if (vbt_size > size) {
-		drm_dbg(display->drm,
-			"VBT incomplete (vbt_size overflows)\n");
+		drm_dbg_kms(display->drm,
+			    "VBT incomplete (vbt_size overflows)\n");
 		goto err_unmap_oprom;
 	}
 
