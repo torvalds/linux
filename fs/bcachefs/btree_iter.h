@@ -23,6 +23,7 @@ static inline void __btree_path_get(struct btree_trans *trans, struct btree_path
 {
 	unsigned idx = path - trans->paths;
 
+	EBUG_ON(idx >= trans->nr_paths);
 	EBUG_ON(!test_bit(idx, trans->paths_allocated));
 	if (unlikely(path->ref == U8_MAX)) {
 		bch2_dump_trans_paths_updates(trans);
@@ -36,6 +37,7 @@ static inline void __btree_path_get(struct btree_trans *trans, struct btree_path
 
 static inline bool __btree_path_put(struct btree_trans *trans, struct btree_path *path, bool intent)
 {
+	EBUG_ON(path - trans->paths >= trans->nr_paths);
 	EBUG_ON(!test_bit(path - trans->paths, trans->paths_allocated));
 	EBUG_ON(!path->ref);
 	EBUG_ON(!path->intent_ref && intent);
