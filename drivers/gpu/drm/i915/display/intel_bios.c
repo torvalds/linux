@@ -3166,7 +3166,7 @@ static struct vbt_header *oprom_get_vbt(struct intel_display *display,
 	}
 
 	/* The rest will be validated by intel_bios_is_valid_vbt() */
-	vbt = kmalloc(vbt_size, GFP_KERNEL);
+	vbt = kmalloc(round_up(vbt_size, 4), GFP_KERNEL);
 	if (!vbt)
 		goto err_unmap_oprom;
 
