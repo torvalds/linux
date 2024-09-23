@@ -11,6 +11,7 @@
 
 #include <linux/bitops.h>
 #include <linux/device.h>
+#include <linux/devm-helpers.h>
 #include <linux/errno.h>
 #include <linux/gfp_types.h>
 #include <linux/i2c.h>
@@ -33,20 +34,89 @@
 #define ASF_CLK_EN	17
 
 /* ASF address offsets */
+#define ASFINDEX	(0x07 + piix4_smba)
 #define ASFLISADDR	(0x09 + piix4_smba)
 #define ASFSTA		(0x0A + piix4_smba)
 #define ASFSLVSTA	(0x0D + piix4_smba)
+#define ASFDATARWPTR	(0x11 + piix4_smba)
+#define ASFSETDATARDPTR	(0x12 + piix4_smba)
 #define ASFDATABNKSEL	(0x13 + piix4_smba)
 #define ASFSLVEN	(0x15 + piix4_smba)
 
 #define ASF_BLOCK_MAX_BYTES	72
+#define ASF_ERROR_STATUS	GENMASK(3, 1)
 
 struct amd_asf_dev {
 	struct i2c_adapter adap;
 	struct i2c_client *target;
+	struct delayed_work work_buf;
 	struct sb800_mmio_cfg mmio_cfg;
 	struct resource *port_addr;
 };
+
+static void amd_asf_process_target(struct work_struct *work)
+{
+	struct amd_asf_dev *dev = container_of(work, struct amd_asf_dev, work_buf.work);
+	unsigned short piix4_smba = dev->port_addr->start;
+	u8 data[ASF_BLOCK_MAX_BYTES];
+	u8 bank, reg, cmd;
+	u8 len, idx, val;
+
+	/* Read target status register */
+	reg = inb_p(ASFSLVSTA);
+
+	/* Check if no error bits are set in target status register */
+	if (reg & ASF_ERROR_STATUS) {
+		/* Set bank as full */
+		cmd = 0;
+		reg |= GENMASK(3, 2);
+		outb_p(reg, ASFDATABNKSEL);
+	} else {
+		/* Read data bank */
+		reg = inb_p(ASFDATABNKSEL);
+		bank = (reg & BIT(3)) ? 1 : 0;
+
+		/* Set read data bank */
+		if (bank) {
+			reg |= BIT(4);
+			reg &= ~BIT(3);
+		} else {
+			reg &= ~BIT(4);
+			reg &= ~BIT(2);
+		}
+
+		/* Read command register */
+		outb_p(reg, ASFDATABNKSEL);
+		cmd = inb_p(ASFINDEX);
+		len = inb_p(ASFDATARWPTR);
+		for (idx = 0; idx < len; idx++)
+			data[idx] = inb_p(ASFINDEX);
+
+		/* Clear data bank status */
+		if (bank) {
+			reg |= BIT(3);
+			outb_p(reg, ASFDATABNKSEL);
+		} else {
+			reg |= BIT(2);
+			outb_p(reg, ASFDATABNKSEL);
+		}
+	}
+
+	outb_p(0, ASFSETDATARDPTR);
+	if (cmd & BIT(0))
+		return;
+
+	/*
+	 * Although i2c_slave_event() returns an appropriate error code, we
+	 * don't check it here because we're operating in the workqueue context.
+	 */
+	i2c_slave_event(dev->target, I2C_SLAVE_WRITE_REQUESTED, &val);
+	for (idx = 0; idx < len; idx++) {
+		val = data[idx];
+		i2c_slave_event(dev->target, I2C_SLAVE_WRITE_RECEIVED, &val);
+	}
+	i2c_slave_event(dev->target, I2C_SLAVE_STOP, &val);
+}
 
 static void amd_asf_update_ioport_target(unsigned short piix4_smba, u8 bit,
 					 unsigned long offset, bool set)
@@ -207,10 +277,29 @@ static const struct i2c_algorithm amd_asf_smbus_algorithm = {
 	.functionality = amd_asf_func,
 };
 
+static irqreturn_t amd_asf_irq_handler(int irq, void *ptr)
+{
+	struct amd_asf_dev *dev = ptr;
+	unsigned short piix4_smba = dev->port_addr->start;
+	u8 target_int = inb_p(ASFSTA);
+
+	if (target_int & BIT(6)) {
+		/* Target Interrupt */
+		outb_p(target_int | BIT(6), ASFSTA);
+		schedule_delayed_work(&dev->work_buf, HZ);
+	} else {
+		/* Controller Interrupt */
+		amd_asf_update_ioport_target(piix4_smba, ASF_SLV_INTR, SMBHSTSTS, true);
+	}
+
+	return IRQ_HANDLED;
+}
+
 static int amd_asf_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct amd_asf_dev *asf_dev;
+	int ret, irq;
 
 	asf_dev = devm_kzalloc(dev, sizeof(*asf_dev), GFP_KERNEL);
 	if (!asf_dev)
@@ -220,6 +309,18 @@ static int amd_asf_probe(struct platform_device *pdev)
 	asf_dev->port_addr = platform_get_resource(pdev, IORESOURCE_IO, 0);
 	if (!asf_dev->port_addr)
 		return dev_err_probe(dev, -EINVAL, "missing IO resources\n");
+
+	ret = devm_delayed_work_autocancel(dev, &asf_dev->work_buf, amd_asf_process_target);
+	if (ret)
+		return dev_err_probe(dev, ret, "failed to create work queue\n");
+
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0)
+		return dev_err_probe(dev, irq, "missing IRQ resources\n");
+
+	ret = devm_request_irq(dev, irq, amd_asf_irq_handler, IRQF_SHARED, "amd_asf", asf_dev);
+	if (ret)
+		return dev_err_probe(dev, ret, "Unable to request irq: %d for use\n", irq);
 
 	asf_dev->adap.owner = THIS_MODULE;
 	asf_dev->adap.algo = &amd_asf_smbus_algorithm;
