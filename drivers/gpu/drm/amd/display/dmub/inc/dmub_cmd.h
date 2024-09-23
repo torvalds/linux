@@ -1401,9 +1401,10 @@ enum dmub_out_cmd_type {
 /* DMUB_CMD__DPIA command sub-types. */
 enum dmub_cmd_dpia_type {
 	DMUB_CMD__DPIA_DIG1_DPIA_CONTROL = 0,
-	DMUB_CMD__DPIA_SET_CONFIG_ACCESS = 1,
+	DMUB_CMD__DPIA_SET_CONFIG_ACCESS = 1, // will be replaced by DPIA_SET_CONFIG_REQUEST
 	DMUB_CMD__DPIA_MST_ALLOC_SLOTS = 2,
 	DMUB_CMD__DPIA_SET_TPS_NOTIFICATION = 3,
+	DMUB_CMD__DPIA_SET_CONFIG_REQUEST = 4,
 };
 
 /* DMUB_OUT_CMD__DPIA_NOTIFICATION command types. */
@@ -2192,7 +2193,7 @@ struct dmub_rb_cmd_dig1_dpia_control {
 };
 
 /**
- * SET_CONFIG Command Payload
+ * SET_CONFIG Command Payload (deprecated)
  */
 struct set_config_cmd_payload {
 	uint8_t msg_type; /* set config message type */
@@ -2200,7 +2201,7 @@ struct set_config_cmd_payload {
 };
 
 /**
- * Data passed from driver to FW in a DMUB_CMD__DPIA_SET_CONFIG_ACCESS command.
+ * Data passed from driver to FW in a DMUB_CMD__DPIA_SET_CONFIG_ACCESS command. (deprecated)
  */
 struct dmub_cmd_set_config_control_data {
 	struct set_config_cmd_payload cmd_pkt;
@@ -2209,11 +2210,30 @@ struct dmub_cmd_set_config_control_data {
 };
 
 /**
+ * SET_CONFIG Request Command Payload
+ */
+struct set_config_request_cmd_payload {
+	uint8_t instance; /* DPIA instance */
+	uint8_t immed_status; /* Immediate status returned in case of error */
+	uint8_t msg_type; /* set config message type */
+	uint8_t reserved;
+	uint32_t msg_data; /* set config message data */
+};
+
+/**
  * DMUB command structure for SET_CONFIG command.
  */
 struct dmub_rb_cmd_set_config_access {
 	struct dmub_cmd_header header; /* header */
 	struct dmub_cmd_set_config_control_data set_config_control; /* set config data */
+};
+
+/**
+ * DMUB command structure for SET_CONFIG request command.
+ */
+struct dmub_rb_cmd_set_config_request {
+	struct dmub_cmd_header header; /* header */
+	struct set_config_request_cmd_payload payload; /* set config request payload */
 };
 
 /**
@@ -4411,9 +4431,37 @@ struct dmub_cmd_abm_set_backlight_data {
 	uint8_t panel_mask;
 
 	/**
+	 * Backlight control type.
+	 * Value 0 is PWM backlight control.
+	 * Value 1 is VAUX backlight control.
+	 * Value 2 is AMD DPCD AUX backlight control.
+	 */
+	uint8_t backlight_control_type;
+
+	/**
 	 * Explicit padding to 4 byte boundary.
 	 */
-	uint8_t pad[2];
+	uint8_t pad[1];
+
+	/**
+	 * Minimum luminance in nits.
+	 */
+	uint32_t min_luminance;
+
+	/**
+	 * Maximum luminance in nits.
+	 */
+	uint32_t max_luminance;
+
+	/**
+	 * Minimum backlight in pwm.
+	 */
+	uint32_t min_backlight_pwm;
+
+	/**
+	 * Maximum backlight in pwm.
+	 */
+	uint32_t max_backlight_pwm;
 };
 
 /**
@@ -5413,7 +5461,11 @@ union dmub_rb_cmd {
 	/**
 	 * Definition of a DMUB_CMD__DPIA_SET_CONFIG_ACCESS command.
 	 */
-	struct dmub_rb_cmd_set_config_access set_config_access;
+	struct dmub_rb_cmd_set_config_access set_config_access; // (deprecated)
+	/**
+	 * Definition of a DMUB_CMD__DPIA_SET_CONFIG_ACCESS command.
+	 */
+	struct dmub_rb_cmd_set_config_request set_config_request;
 	/**
 	 * Definition of a DMUB_CMD__DPIA_MST_ALLOC_SLOTS command.
 	 */
