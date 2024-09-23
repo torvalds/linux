@@ -3088,10 +3088,21 @@ static struct vbt_header *spi_oprom_get_vbt(struct intel_display *display,
 	if (count >= oprom_size)
 		goto err_not_found;
 
+	if (sizeof(struct vbt_header) > oprom_size - count) {
+		drm_dbg_kms(display->drm, "VBT header incomplete\n");
+		goto err_not_found;
+	}
+
 	/* Get VBT size and allocate space for the VBT */
 	vbt_size = intel_spi_read(&i915->uncore,
 				  found + offsetof(struct vbt_header, vbt_size));
 	vbt_size &= 0xffff;
+
+	if (vbt_size > oprom_size - count) {
+		drm_dbg_kms(display->drm,
+			    "VBT incomplete (vbt_size overflows)\n");
+		goto err_not_found;
+	}
 
 	vbt = kzalloc(round_up(vbt_size, 4), GFP_KERNEL);
 	if (!vbt)
