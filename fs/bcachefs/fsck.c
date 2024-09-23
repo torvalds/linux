@@ -1758,6 +1758,7 @@ static int check_dirent_inode_dirent(struct btree_trans *trans,
 {
 	struct bch_fs *c = trans->c;
 	struct printbuf buf = PRINTBUF;
+	struct btree_iter bp_iter = { NULL };
 	int ret = 0;
 
 	if (inode_points_to_dirent(target, d))
@@ -1770,7 +1771,7 @@ static int check_dirent_inode_dirent(struct btree_trans *trans,
 		       prt_printf(&buf, "\n  "),
 		       bch2_inode_unpacked_to_text(&buf, target),
 		       buf.buf)))
-		goto out_noiter;
+		goto err;
 
 	if (!target->bi_dir &&
 	    !target->bi_dir_offset) {
@@ -1779,7 +1780,6 @@ static int check_dirent_inode_dirent(struct btree_trans *trans,
 		return __bch2_fsck_write_inode(trans, target, target_snapshot);
 	}
 
-	struct btree_iter bp_iter = { NULL };
 	struct bkey_s_c_dirent bp_dirent = dirent_get_by_pos(trans, &bp_iter,
 			      SPOS(target->bi_dir, target->bi_dir_offset, target_snapshot));
 	ret = bkey_err(bp_dirent);
@@ -1840,7 +1840,6 @@ out:
 err:
 fsck_err:
 	bch2_trans_iter_exit(trans, &bp_iter);
-out_noiter:
 	printbuf_exit(&buf);
 	bch_err_fn(c, ret);
 	return ret;
