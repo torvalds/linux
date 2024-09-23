@@ -2245,9 +2245,14 @@ static inline u16 ata_xlat_cdl_limit(u8 *buf)
 static unsigned int ata_msense_control_spgt2(struct ata_device *dev, u8 *buf,
 					     u8 spg)
 {
-	u8 *b, *cdl = dev->cdl->desc_log_buf, *desc;
+	u8 *b, *cdl, *desc;
 	u32 policy;
 	int i;
+
+	if (!(dev->flags & ATA_DFLAG_CDL) || !dev->cdl)
+		return 0;
+
+	cdl = dev->cdl->desc_log_buf;
 
 	/*
 	 * Fill the subpage. The first four bytes of the T2A/T2B mode pages
