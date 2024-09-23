@@ -20,6 +20,7 @@ struct platform_device;
 struct reset_control;
 
 #define V3D_MMU_PAGE_SHIFT 12
+#define V3D_PAGE_FACTOR (PAGE_SIZE >> V3D_MMU_PAGE_SHIFT)
 
 #define V3D_MAX_QUEUES (V3D_CPU + 1)
 

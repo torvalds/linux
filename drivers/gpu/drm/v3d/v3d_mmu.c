@@ -25,8 +25,15 @@
  * superpage bit set.
  */
 #define V3D_PTE_SUPERPAGE BIT(31)
+#define V3D_PTE_BIGPAGE BIT(30)
 #define V3D_PTE_WRITEABLE BIT(29)
 #define V3D_PTE_VALID BIT(28)
+
+static bool v3d_mmu_is_aligned(u32 page, u32 page_address, size_t alignment)
+{
+	return IS_ALIGNED(page, alignment >> V3D_MMU_PAGE_SHIFT) &&
+		IS_ALIGNED(page_address, alignment >> V3D_MMU_PAGE_SHIFT);
+}
 
 int v3d_mmu_flush_all(struct v3d_dev *v3d)
 {
@@ -78,19 +85,40 @@ void v3d_mmu_insert_ptes(struct v3d_bo *bo)
 	struct drm_gem_shmem_object *shmem_obj = &bo->base;
 	struct v3d_dev *v3d = to_v3d_dev(shmem_obj->base.dev);
 	u32 page = bo->node.start;
-	u32 page_prot = V3D_PTE_WRITEABLE | V3D_PTE_VALID;
-	struct sg_dma_page_iter dma_iter;
+	struct scatterlist *sgl;
+	unsigned int count;
 
-	for_each_sgtable_dma_page(shmem_obj->sgt, &dma_iter, 0) {
-		dma_addr_t dma_addr = sg_page_iter_dma_address(&dma_iter);
-		u32 page_address = dma_addr >> V3D_MMU_PAGE_SHIFT;
-		u32 pte = page_prot | page_address;
-		u32 i;
+	for_each_sgtable_dma_sg(shmem_obj->sgt, sgl, count) {
+		dma_addr_t dma_addr = sg_dma_address(sgl);
+		u32 pfn = dma_addr >> V3D_MMU_PAGE_SHIFT;
+		unsigned int len = sg_dma_len(sgl);
 
-		BUG_ON(page_address + (PAGE_SIZE >> V3D_MMU_PAGE_SHIFT) >=
-		       BIT(24));
-		for (i = 0; i < PAGE_SIZE >> V3D_MMU_PAGE_SHIFT; i++)
-			v3d->pt[page++] = pte + i;
+		while (len > 0) {
+			u32 page_prot = V3D_PTE_WRITEABLE | V3D_PTE_VALID;
+			u32 page_address = page_prot | pfn;
+			unsigned int i, page_size;
+
+			BUG_ON(pfn + V3D_PAGE_FACTOR >= BIT(24));
+
+			if (len >= SZ_1M &&
+			    v3d_mmu_is_aligned(page, page_address, SZ_1M)) {
+				page_size = SZ_1M;
+				page_address |= V3D_PTE_SUPERPAGE;
+			} else if (len >= SZ_64K &&
+				   v3d_mmu_is_aligned(page, page_address, SZ_64K)) {
+				page_size = SZ_64K;
+				page_address |= V3D_PTE_BIGPAGE;
+			} else {
+				page_size = SZ_4K;
+			}
+
+			for (i = 0; i < page_size >> V3D_MMU_PAGE_SHIFT; i++) {
+				v3d->pt[page++] = page_address + i;
+				pfn++;
+			}
+
+			len -= page_size;
+		}
 	}
 
 	WARN_ON_ONCE(page - bo->node.start !=
