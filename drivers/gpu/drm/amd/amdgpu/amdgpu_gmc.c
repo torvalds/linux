@@ -1065,18 +1065,6 @@ uint64_t amdgpu_gmc_vram_pa(struct amdgpu_device *adev, struct amdgpu_bo *bo)
 	return amdgpu_gmc_vram_mc2pa(adev, amdgpu_bo_gpu_offset(bo));
 }
 
-/**
- * amdgpu_gmc_vram_cpu_pa - calculate vram buffer object's physical address
- * from CPU's view
- *
- * @adev: amdgpu_device pointer
- * @bo: amdgpu buffer object
- */
-uint64_t amdgpu_gmc_vram_cpu_pa(struct amdgpu_device *adev, struct amdgpu_bo *bo)
-{
-	return amdgpu_bo_gpu_offset(bo) - adev->gmc.vram_start + adev->gmc.aper_base;
-}
-
 int amdgpu_gmc_vram_checking(struct amdgpu_device *adev)
 {
 	struct amdgpu_bo *vram_bo = NULL;
