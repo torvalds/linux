@@ -36,4 +36,9 @@ struct sb800_mmio_cfg {
 	bool use_mmio;
 };
 
+int piix4_sb800_port_sel(u8 port, struct sb800_mmio_cfg *mmio_cfg);
+int piix4_transaction(struct i2c_adapter *piix4_adapter, unsigned short piix4_smba);
+int piix4_sb800_region_request(struct device *dev, struct sb800_mmio_cfg *mmio_cfg);
+void piix4_sb800_region_release(struct device *dev, struct sb800_mmio_cfg *mmio_cfg);
+
 #endif /* I2C_PIIX4_H */
