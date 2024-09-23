@@ -88,8 +88,7 @@ regmap-spmi.ko
 proxy-consumer.ko
 bq256xx_charger.ko
 gh_virt_wdt.ko
-crypto-qti-common.ko
-crypto-qti-hwkm.ko
+crypto-qti.ko
 hwkm.ko
 tmecom-intf.ko
 qti-fixed-regulator.ko
