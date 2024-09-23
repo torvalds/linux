@@ -2519,8 +2519,6 @@ static void ufshcd_parse_pm_levels(struct ufs_hba *hba)
 		ufshcd_is_valid_pm_lvl(spm_lvl))
 		hba->spm_lvl = spm_lvl;
 	host->is_dt_pm_level_read = true;
-
-	host->spm_lvl_default = hba->spm_lvl;
 }
 
 static void ufs_qcom_override_pa_tx_hsg1_sync_len(struct ufs_hba *hba)
@@ -3240,6 +3238,7 @@ static void ufs_qcom_parse_pm_level(struct ufs_hba *hba)
 {
 	struct device *dev = hba->dev;
 	struct device_node *np = dev->of_node;
+	struct ufs_qcom_host *host = ufshcd_get_variant(hba);
 
 	if (np) {
 		if (of_property_read_u32(np, "rpm-level",
@@ -3248,6 +3247,9 @@ static void ufs_qcom_parse_pm_level(struct ufs_hba *hba)
 		if (of_property_read_u32(np, "spm-level",
 					 &hba->spm_lvl))
 			hba->spm_lvl = -1;
+
+		if (of_property_read_bool(np, "set-ds-spm-level"))
+			host->set_ds_spm_level = true;
 	}
 }
 
@@ -6141,38 +6143,51 @@ static int ufs_qcom_suspend_prepare(struct device *dev)
 	hba = dev_get_drvdata(dev);
 	host = ufshcd_get_variant(hba);
 
-	/* For deep sleep, set spm level to lvl 5 because all
-	 * regulators is turned off in DS. For other senerios
-	 * like s2idle, retain the default spm level.
+	host->spm_lvl_prev = hba->spm_lvl;
+
+	/*
+	 * For deep sleep, if "set_ds_spm_level" flag is true, set the
+	 * spm level to lvl 5 because all regulators is turned off in DS.
+	 * For other scenarios like s2idle, retain the default spm level.
 	 */
 	switch (host->ufs_pm_mode) {
 	case UFS_QCOM_SYSFS_NONE:
-		if (pm_suspend_target_state == PM_SUSPEND_MEM)
+		if (host->set_ds_spm_level && (pm_suspend_target_state == PM_SUSPEND_MEM))
 			hba->spm_lvl = UFS_PM_LVL_5;
-		else
-			hba->spm_lvl = host->spm_lvl_default;
-		break;
-	case UFS_QCOM_SYSFS_S2R:
-		hba->spm_lvl = host->spm_lvl_default;
 		break;
 	case UFS_QCOM_SYSFS_DEEPSLEEP:
-		hba->spm_lvl = UFS_PM_LVL_5;
+		if (host->set_ds_spm_level)
+			hba->spm_lvl = UFS_PM_LVL_5;
 		break;
+	case UFS_QCOM_SYSFS_S2R:
 	default:
 		break;
 	}
 
-	dev_info(dev, "spm level is set to %d\n", hba->spm_lvl);
+	if (hba->spm_lvl != host->spm_lvl_prev)
+		dev_info(dev, "spm level is changed from %d to %d\n",
+			host->spm_lvl_prev, hba->spm_lvl);
 
 	return ufshcd_suspend_prepare(dev);
 }
 
 static void ufs_qcom_resume_complete(struct device *dev)
 {
+	struct ufs_hba *hba;
+	struct ufs_qcom_host *host;
+
 	if (!is_bootdevice_ufs) {
 		dev_info(dev, "UFS is not boot dev.\n");
 		return;
 	}
+
+	hba = dev_get_drvdata(dev);
+	host = ufshcd_get_variant(hba);
+
+	if (host->set_ds_spm_level)
+		hba->spm_lvl = host->spm_lvl_prev;
+
+	host->ufs_pm_mode = UFS_QCOM_SYSFS_NONE;
 
 	return ufshcd_resume_complete(dev);
 }
