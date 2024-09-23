@@ -175,7 +175,7 @@ errors in our thinking by running our code and seeing what happens. If your
 time is being wasted because your tools are bad or too slow - don't accept it,
 fix it.
 
-Put effort into your documentation, commmit messages, and code comments - but
+Put effort into your documentation, commit messages, and code comments - but
 don't go overboard. A good commit message is wonderful - but if the information
 was important enough to go in a commit message, ask yourself if it would be
 even better as a code comment.

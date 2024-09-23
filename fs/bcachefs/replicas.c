@@ -123,7 +123,7 @@ static void extent_to_replicas(struct bkey_s_c k,
 			continue;
 
 		if (!p.has_ec)
-			r->devs[r->nr_devs++] = p.ptr.dev;
+			replicas_entry_add_dev(r, p.ptr.dev);
 		else
 			r->nr_required = 0;
 	}
@@ -140,7 +140,7 @@ static void stripe_to_replicas(struct bkey_s_c k,
 	for (ptr = s.v->ptrs;
 	     ptr < s.v->ptrs + s.v->nr_blocks;
 	     ptr++)
-		r->devs[r->nr_devs++] = ptr->dev;
+		replicas_entry_add_dev(r, ptr->dev);
 }
 
 void bch2_bkey_to_replicas(struct bch_replicas_entry_v1 *e,
@@ -181,7 +181,7 @@ void bch2_devlist_to_replicas(struct bch_replicas_entry_v1 *e,
 	e->nr_required	= 1;
 
 	darray_for_each(devs, i)
-		e->devs[e->nr_devs++] = *i;
+		replicas_entry_add_dev(e, *i);
 
 	bch2_replicas_entry_sort(e);
 }
@@ -795,12 +795,12 @@ bool bch2_have_enough_devs(struct bch_fs *c, struct bch_devs_mask devs,
 		for (unsigned i = 0; i < e->nr_devs; i++) {
 			nr_online += test_bit(e->devs[i], devs.d);
 
-			struct bch_dev *ca = bch2_dev_rcu(c, e->devs[i]);
+			struct bch_dev *ca = bch2_dev_rcu_noerror(c, e->devs[i]);
 			nr_failed += !ca || ca->mi.state == BCH_MEMBER_STATE_failed;
 		}
 		rcu_read_unlock();
 
-		if (nr_failed == e->nr_devs)
+		if (nr_online + nr_failed == e->nr_devs)
 			continue;
 
 		if (nr_online < e->nr_required)

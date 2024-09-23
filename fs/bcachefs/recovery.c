@@ -97,7 +97,7 @@ static void bch2_reconstruct_alloc(struct bch_fs *c)
 	bch2_write_super(c);
 	mutex_unlock(&c->sb_lock);
 
-	c->recovery_passes_explicit |= bch2_recovery_passes_from_stable(le64_to_cpu(ext->recovery_passes_required[0]));
+	c->opts.recovery_passes |= bch2_recovery_passes_from_stable(le64_to_cpu(ext->recovery_passes_required[0]));
 
 
 	bch2_shoot_down_journal_keys(c, BTREE_ID_alloc,
@@ -525,17 +525,17 @@ static int read_btree_roots(struct bch_fs *c)
 					"error reading btree root %s l=%u: %s",
 					bch2_btree_id_str(i), r->level, bch2_err_str(ret))) {
 			if (btree_id_is_alloc(i)) {
-				c->recovery_passes_explicit |= BIT_ULL(BCH_RECOVERY_PASS_check_allocations);
-				c->recovery_passes_explicit |= BIT_ULL(BCH_RECOVERY_PASS_check_alloc_info);
-				c->recovery_passes_explicit |= BIT_ULL(BCH_RECOVERY_PASS_check_lrus);
-				c->recovery_passes_explicit |= BIT_ULL(BCH_RECOVERY_PASS_check_extents_to_backpointers);
-				c->recovery_passes_explicit |= BIT_ULL(BCH_RECOVERY_PASS_check_alloc_to_lru_refs);
+				c->opts.recovery_passes |= BIT_ULL(BCH_RECOVERY_PASS_check_allocations);
+				c->opts.recovery_passes |= BIT_ULL(BCH_RECOVERY_PASS_check_alloc_info);
+				c->opts.recovery_passes |= BIT_ULL(BCH_RECOVERY_PASS_check_lrus);
+				c->opts.recovery_passes |= BIT_ULL(BCH_RECOVERY_PASS_check_extents_to_backpointers);
+				c->opts.recovery_passes |= BIT_ULL(BCH_RECOVERY_PASS_check_alloc_to_lru_refs);
 				c->sb.compat &= ~(1ULL << BCH_COMPAT_alloc_info);
 				r->error = 0;
-			} else if (!(c->recovery_passes_explicit & BIT_ULL(BCH_RECOVERY_PASS_scan_for_btree_nodes))) {
+			} else if (!(c->opts.recovery_passes & BIT_ULL(BCH_RECOVERY_PASS_scan_for_btree_nodes))) {
 				bch_info(c, "will run btree node scan");
-				c->recovery_passes_explicit |= BIT_ULL(BCH_RECOVERY_PASS_scan_for_btree_nodes);
-				c->recovery_passes_explicit |= BIT_ULL(BCH_RECOVERY_PASS_check_topology);
+				c->opts.recovery_passes |= BIT_ULL(BCH_RECOVERY_PASS_scan_for_btree_nodes);
+				c->opts.recovery_passes |= BIT_ULL(BCH_RECOVERY_PASS_check_topology);
 			}
 
 			ret = 0;
@@ -706,14 +706,14 @@ int bch2_fs_recovery(struct bch_fs *c)
 	if (check_version_upgrade(c))
 		write_sb = true;
 
-	c->recovery_passes_explicit |= bch2_recovery_passes_from_stable(le64_to_cpu(ext->recovery_passes_required[0]));
+	c->opts.recovery_passes |= bch2_recovery_passes_from_stable(le64_to_cpu(ext->recovery_passes_required[0]));
 
 	if (write_sb)
 		bch2_write_super(c);
 	mutex_unlock(&c->sb_lock);
 
 	if (c->opts.fsck && IS_ENABLED(CONFIG_BCACHEFS_DEBUG))
-		c->recovery_passes_explicit |= BIT_ULL(BCH_RECOVERY_PASS_check_topology);
+		c->opts.recovery_passes |= BIT_ULL(BCH_RECOVERY_PASS_check_topology);
 
 	if (c->opts.fsck)
 		set_bit(BCH_FS_fsck_running, &c->flags);

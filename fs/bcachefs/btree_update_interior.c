@@ -16,6 +16,7 @@
 #include "clock.h"
 #include "error.h"
 #include "extents.h"
+#include "io_write.h"
 #include "journal.h"
 #include "journal_reclaim.h"
 #include "keylist.h"
@@ -145,7 +146,7 @@ fsck_err:
 	printbuf_exit(&buf);
 	return ret;
 topology_repair:
-	if ((c->recovery_passes_explicit & BIT_ULL(BCH_RECOVERY_PASS_check_topology)) &&
+	if ((c->opts.recovery_passes & BIT_ULL(BCH_RECOVERY_PASS_check_topology)) &&
 	    c->curr_recovery_pass > BCH_RECOVERY_PASS_check_topology) {
 		bch2_inconsistent_error(c);
 		ret = -BCH_ERR_btree_need_topology_repair;
@@ -250,8 +251,13 @@ static void bch2_btree_node_free_inmem(struct btree_trans *trans,
 	unsigned i, level = b->c.level;
 
 	bch2_btree_node_lock_write_nofail(trans, path, &b->c);
+
+	mutex_lock(&c->btree_cache.lock);
 	bch2_btree_node_hash_remove(&c->btree_cache, b);
+	mutex_unlock(&c->btree_cache.lock);
+
 	__btree_node_free(trans, b);
+
 	six_unlock_write(&b->c.lock);
 	mark_btree_node_locked_noreset(path, level, BTREE_NODE_INTENT_LOCKED);
 
@@ -283,7 +289,6 @@ static void bch2_btree_node_free_never_used(struct btree_update *as,
 	clear_btree_node_need_write(b);
 
 	mutex_lock(&c->btree_cache.lock);
-	list_del_init(&b->list);
 	bch2_btree_node_hash_remove(&c->btree_cache, b);
 	mutex_unlock(&c->btree_cache.lock);
 
@@ -732,6 +737,18 @@ static void btree_update_nodes_written(struct btree_update *as)
 			     "%s", bch2_err_str(ret));
 err:
 	/*
+	 * Ensure transaction is unlocked before using btree_node_lock_nopath()
+	 * (the use of which is always suspect, we need to work on removing this
+	 * in the future)
+	 *
+	 * It should be, but bch2_path_get_unlocked_mut() -> bch2_path_get()
+	 * calls bch2_path_upgrade(), before we call path_make_mut(), so we may
+	 * rarely end up with a locked path besides the one we have here:
+	 */
+	bch2_trans_unlock(trans);
+	bch2_trans_begin(trans);
+
+	/*
 	 * We have to be careful because another thread might be getting ready
 	 * to free as->b and calling btree_update_reparent() on us - we'll
 	 * recheck under btree_update_lock below:
@@ -750,18 +767,6 @@ err:
 		 * we're in journal error state:
 		 */
 
-		/*
-		 * Ensure transaction is unlocked before using
-		 * btree_node_lock_nopath() (the use of which is always suspect,
-		 * we need to work on removing this in the future)
-		 *
-		 * It should be, but bch2_path_get_unlocked_mut() -> bch2_path_get()
-		 * calls bch2_path_upgrade(), before we call path_make_mut(), so
-		 * we may rarely end up with a locked path besides the one we
-		 * have here:
-		 */
-		bch2_trans_unlock(trans);
-		bch2_trans_begin(trans);
 		btree_path_idx_t path_idx = bch2_path_get_unlocked_mut(trans,
 						as->btree_id, b->c.level, b->key.k.p);
 		struct btree_path *path = trans->paths + path_idx;
@@ -1899,7 +1904,7 @@ static void __btree_increase_depth(struct btree_update *as, struct btree_trans *
 	six_unlock_intent(&n->c.lock);
 
 	mutex_lock(&c->btree_cache.lock);
-	list_add_tail(&b->list, &c->btree_cache.live);
+	list_add_tail(&b->list, &c->btree_cache.live[btree_node_pinned(b)].list);
 	mutex_unlock(&c->btree_cache.lock);
 
 	bch2_trans_verify_locks(trans);
@@ -1981,7 +1986,7 @@ int __bch2_foreground_maybe_merge(struct btree_trans *trans,
 	if (ret)
 		goto err;
 
-	btree_path_set_should_be_locked(trans->paths + sib_path);
+	btree_path_set_should_be_locked(trans, trans->paths + sib_path);
 
 	m = trans->paths[sib_path].l[level].b;
 
