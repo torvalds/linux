@@ -71,6 +71,8 @@ properties:
                   - mediatek,mt6366-rtc
               - const: mediatek,mt6358-rtc
 
+      start-year: true
+
     required:
       - compatible
 
