@@ -80,15 +80,6 @@ void gfs2_remove_from_ail(struct gfs2_bufdata *bd)
 	brelse(bd->bd_bh);
 }
 
-static int __gfs2_writepage(struct folio *folio, struct writeback_control *wbc,
-		       void *data)
-{
-	struct address_space *mapping = data;
-	int ret = mapping->a_ops->writepage(&folio->page, wbc);
-	mapping_set_error(mapping, ret);
-	return ret;
-}
-
 /**
  * gfs2_ail1_start_one - Start I/O on a transaction
  * @sdp: The superblock
@@ -140,7 +131,7 @@ __acquires(&sdp->sd_ail_lock)
 		if (!mapping)
 			continue;
 		spin_unlock(&sdp->sd_ail_lock);
-		ret = write_cache_pages(mapping, wbc, __gfs2_writepage, mapping);
+		ret = mapping->a_ops->writepages(mapping, wbc);
 		if (need_resched()) {
 			blk_finish_plug(plug);
 			cond_resched();
@@ -149,6 +140,7 @@ __acquires(&sdp->sd_ail_lock)
 		spin_lock(&sdp->sd_ail_lock);
 		if (ret == -ENODATA) /* if a jdata write into a new hole */
 			ret = 0; /* ignore it */
+		mapping_set_error(mapping, ret);
 		if (ret || wbc->nr_to_write <= 0)
 			break;
 		return -EBUSY;
