@@ -622,6 +622,16 @@ const struct mpm_pin mpm_holi_gic_chip_data[] = {
 	{-1},
 };
 
+const struct mpm_pin mpm_mdm9607_gic_chip_data[] = {
+	{2, 184}, /* tsens_upper_lower_int */
+	{49, 140}, /* usb1_hs_async_wakeup_irq */
+	{51, 142}, /* usb2_hs_async_wakeup_irq */
+	{53, 72}, /* mdss_irq */
+	{58, 134}, /* usb_hs_irq */
+	{62, 190}, /* ee0_apps_hlos_spmi_periph_irq */
+	{-1},
+};
+
 static const struct of_device_id mpm_gic_chip_data_table[] = {
 	{
 		.compatible = "qcom,mpm-blair",
@@ -634,6 +644,10 @@ static const struct of_device_id mpm_gic_chip_data_table[] = {
 	{
 		.compatible = "qcom,mpm-pitti",
 		.data = mpm_pitti_gic_chip_data,
+	},
+	{
+		.compatible = "qcom,mpm-gic-mdm9607",
+		.data = mpm_mdm9607_gic_chip_data,
 	},
 	{}
 };
