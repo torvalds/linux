@@ -28,6 +28,7 @@
 #include "kbuf.h"
 #include "napi.h"
 #include "eventfd.h"
+#include "msg_ring.h"
 
 #define IORING_MAX_RESTRICTIONS	(IORING_RESTRICTION_LAST + \
 				 IORING_REGISTER_LAST + IORING_OP_LAST)
@@ -588,6 +589,32 @@ struct file *io_uring_register_get_file(unsigned int fd, bool registered)
 	return ERR_PTR(-EOPNOTSUPP);
 }
 
+/*
+ * "blind" registration opcodes are ones where there's no ring given, and
+ * hence the source fd must be -1.
+ */
+static int io_uring_register_blind(unsigned int opcode, void __user *arg,
+				   unsigned int nr_args)
+{
+	switch (opcode) {
+	case IORING_REGISTER_SEND_MSG_RING: {
+		struct io_uring_sqe sqe;
+
+		if (!arg || nr_args != 1)
+			return -EINVAL;
+		if (copy_from_user(&sqe, arg, sizeof(sqe)))
+			return -EFAULT;
+		/* no flags supported */
+		if (sqe.flags)
+			return -EINVAL;
+		if (sqe.opcode == IORING_OP_MSG_RING)
+			return io_uring_sync_msg_ring(&sqe);
+		}
+	}
+
+	return -EINVAL;
+}
+
 SYSCALL_DEFINE4(io_uring_register, unsigned int, fd, unsigned int, opcode,
 		void __user *, arg, unsigned int, nr_args)
 {
@@ -601,6 +628,9 @@ SYSCALL_DEFINE4(io_uring_register, unsigned int, fd, unsigned int, opcode,
 
 	if (opcode >= IORING_REGISTER_LAST)
 		return -EINVAL;
+
+	if (fd == -1)
+		return io_uring_register_blind(opcode, arg, nr_args);
 
 	file = io_uring_register_get_file(fd, use_registered_ring);
 	if (IS_ERR(file))

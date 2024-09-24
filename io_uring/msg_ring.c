@@ -331,6 +331,35 @@ done:
 	return IOU_OK;
 }
 
+int io_uring_sync_msg_ring(struct io_uring_sqe *sqe)
+{
+	struct io_msg io_msg = { };
+	struct fd f;
+	int ret;
+
+	ret = __io_msg_ring_prep(&io_msg, sqe);
+	if (unlikely(ret))
+		return ret;
+
+	/*
+	 * Only data sending supported, not IORING_MSG_SEND_FD as that one
+	 * doesn't make sense without a source ring to send files from.
+	 */
+	if (io_msg.cmd != IORING_MSG_DATA)
+		return -EINVAL;
+
+	ret = -EBADF;
+	f = fdget(sqe->fd);
+	if (fd_file(f)) {
+		ret = -EBADFD;
+		if (io_is_uring_fops(fd_file(f)))
+			ret = __io_msg_ring_data(fd_file(f)->private_data,
+						 &io_msg, IO_URING_F_UNLOCKED);
+		fdput(f);
+	}
+	return ret;
+}
+
 void io_msg_cache_free(const void *entry)
 {
 	struct io_kiocb *req = (struct io_kiocb *) entry;
