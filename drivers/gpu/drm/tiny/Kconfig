@@ -3,6 +3,7 @@
 config DRM_ARCPGU
 	tristate "ARC PGU"
 	depends on DRM && OF
+	select DRM_CLIENT_SELECTION
 	select DRM_GEM_DMA_HELPER
 	select DRM_KMS_HELPER
 	help
