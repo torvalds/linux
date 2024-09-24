@@ -3841,8 +3841,6 @@
 			#clock-cells = <1>;
 			#reset-cells = <1>;
 			#power-domain-cells = <1>;
-
-			status = "disabled";
 		};
 
 		usb_1_hsphy: phy@88e3000 {
