@@ -11198,10 +11198,17 @@ F:	Documentation/devicetree/bindings/serio/
 F:	Documentation/input/
 F:	drivers/input/
 F:	include/dt-bindings/input/
+F:	include/linux/gameport.h
+F:	include/linux/i8042.h
 F:	include/linux/input.h
 F:	include/linux/input/
+F:	include/linux/libps2.h
+F:	include/linux/serio.h
+F:	include/uapi/linux/gameport.h
 F:	include/uapi/linux/input-event-codes.h
 F:	include/uapi/linux/input.h
+F:	include/uapi/linux/serio.h
+F:	include/uapi/linux/uinput.h
 
 INPUT MULTITOUCH (MT) PROTOCOL
 M:	Henrik Rydberg <rydberg@bitmath.org>
@@ -25532,7 +25539,6 @@ F:	tools/net/ynl/
 
 YEALINK PHONE DRIVER
 M:	Henk Vergonet <Henk.Vergonet@gmail.com>
-L:	usbb2k-api-dev@nongnu.org
 S:	Maintained
 F:	Documentation/input/devices/yealink.rst
 F:	drivers/input/misc/yealink.*

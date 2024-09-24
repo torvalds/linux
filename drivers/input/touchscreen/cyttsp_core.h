@@ -122,7 +122,6 @@ struct cyttsp {
 	enum cyttsp_state state;
 	bool suspended;
 
-	struct regulator_bulk_data regulators[2];
 	struct gpio_desc *reset_gpio;
 	bool use_hndshk;
 	u8 act_dist;
@@ -137,10 +136,6 @@ struct cyttsp {
 struct cyttsp *cyttsp_probe(const struct cyttsp_bus_ops *bus_ops,
 			    struct device *dev, int irq, size_t xfer_buf_size);
 
-int cyttsp_i2c_write_block_data(struct device *dev, u8 *xfer_buf, u16 addr,
-		u8 length, const void *values);
-int cyttsp_i2c_read_block_data(struct device *dev, u8 *xfer_buf, u16 addr,
-		u8 length, void *values);
 extern const struct dev_pm_ops cyttsp_pm_ops;
 
 #endif /* __CYTTSP_CORE_H__ */

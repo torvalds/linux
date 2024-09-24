@@ -470,7 +470,7 @@ static const struct hynitron_ts_chip_data cst3xx_data = {
 };
 
 static const struct i2c_device_id hyn_tpd_id[] = {
-	{ .name = "hynitron_ts", 0 },
+	{ .name = "hynitron_ts" },
 	{ /* sentinel */ },
 };
 MODULE_DEVICE_TABLE(i2c, hyn_tpd_id);

@@ -990,8 +990,8 @@ static int __init copy_keymap(void)
 	for (key = keymap; key->type != KE_END; key++)
 		length++;
 
-	new_keymap = kmemdup(keymap, length * sizeof(struct key_entry),
-			     GFP_KERNEL);
+	new_keymap = kmemdup_array(keymap, length, sizeof(struct key_entry),
+				   GFP_KERNEL);
 	if (!new_keymap)
 		return -ENOMEM;
 
