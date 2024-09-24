@@ -290,9 +290,15 @@ static void guc_submit_wedged_fini(void *arg)
 	struct xe_exec_queue *q;
 	unsigned long index;
 
-	xa_for_each(&guc->submission_state.exec_queue_lookup, index, q)
-		if (exec_queue_wedged(q))
+	mutex_lock(&guc->submission_state.lock);
+	xa_for_each(&guc->submission_state.exec_queue_lookup, index, q) {
+		if (exec_queue_wedged(q)) {
+			mutex_unlock(&guc->submission_state.lock);
 			xe_exec_queue_put(q);
+			mutex_lock(&guc->submission_state.lock);
+		}
+	}
+	mutex_unlock(&guc->submission_state.lock);
 }
 
 static const struct xe_exec_queue_ops guc_exec_queue_ops;
