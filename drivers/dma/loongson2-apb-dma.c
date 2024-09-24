@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Driver for the Loongson LS2X APB DMA Controller
+ * Driver for the Loongson-2 APB DMA Controller
  *
  * Copyright (C) 2017-2023 Loongson Corporation
  */
@@ -700,6 +700,6 @@ static struct platform_driver ls2x_dmac_driver = {
 };
 module_platform_driver(ls2x_dmac_driver);
 
-MODULE_DESCRIPTION("Loongson LS2X APB DMA Controller driver");
+MODULE_DESCRIPTION("Loongson-2 APB DMA Controller driver");
 MODULE_AUTHOR("Loongson Technology Corporation Limited");
 MODULE_LICENSE("GPL");
