@@ -1,0 +1,9 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+config CONFIG_L1SS_RESOURCES_HANDLING
+	bool "L1SS sleep resource handling"
+	help
+		Enables set of APIs which updates system resource
+		voting and unvoting while exiting and entering into
+		L1SS sleep after MHI state machine moved to
+		M2 autonomous.
