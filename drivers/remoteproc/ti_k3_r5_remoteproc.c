@@ -1001,12 +1001,11 @@ static int k3_r5_reserved_mem_init(struct k3_r5_rproc *kproc)
 		}
 
 		rmem = of_reserved_mem_lookup(rmem_np);
+		of_node_put(rmem_np);
 		if (!rmem) {
-			of_node_put(rmem_np);
 			ret = -EINVAL;
 			goto unmap_rmem;
 		}
-		of_node_put(rmem_np);
 
 		kproc->rmem[i].bus_addr = rmem->base;
 		/*
