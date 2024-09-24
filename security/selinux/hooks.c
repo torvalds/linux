@@ -6735,7 +6735,7 @@ static int selinux_key_getsecurity(struct key *key, char **_buffer)
 #ifdef CONFIG_KEY_NOTIFICATIONS
 static int selinux_watch_key(struct key *key)
 {
-	struct key_security_struct *ksec = key->security;
+	struct key_security_struct *ksec = selinux_key(key);
 	u32 sid = current_sid();
 
 	return avc_has_perm(sid, ksec->sid, SECCLASS_KEY, KEY__VIEW, NULL);

@@ -286,6 +286,7 @@ static void ipe_parser_widestring_test(struct kunit *test)
 static struct kunit_case ipe_parser_test_cases[] = {
 	KUNIT_CASE_PARAM(ipe_parser_unsigned_test, ipe_policies_gen_params),
 	KUNIT_CASE(ipe_parser_widestring_test),
+	{ }
 };
 
 static struct kunit_suite ipe_parser_test_suite = {
