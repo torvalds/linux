@@ -82,6 +82,7 @@ struct bnxt_qplib_db_pacing_data {
 	u32 fifo_room_mask;
 	u32 fifo_room_shift;
 	u32 grc_reg_offset;
+	u32 dev_err_state;
 };
 
 #define BNXT_QPLIB_DBR_PF_DB_OFFSET     0x10000
@@ -563,6 +564,16 @@ static inline bool _is_host_msn_table(u16 dev_cap_ext_flags2)
 static inline u8 bnxt_qplib_dbr_pacing_en(struct bnxt_qplib_chip_ctx *cctx)
 {
 	return cctx->modes.dbr_pacing;
+}
+
+static inline bool _is_alloc_mr_unified(u16 dev_cap_flags)
+{
+	return dev_cap_flags & CREQ_QUERY_FUNC_RESP_SB_MR_REGISTER_ALLOC;
+}
+
+static inline bool _is_relaxed_ordering_supported(u16 dev_cap_ext_flags2)
+{
+	return dev_cap_ext_flags2 & CREQ_QUERY_FUNC_RESP_SB_MEMORY_REGION_RO_SUPPORTED;
 }
 
 #endif /* __BNXT_QPLIB_RES_H__ */

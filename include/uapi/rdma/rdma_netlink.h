@@ -15,6 +15,7 @@ enum {
 enum {
 	RDMA_NL_GROUP_IWPM = 2,
 	RDMA_NL_GROUP_LS,
+	RDMA_NL_GROUP_NOTIFY,
 	RDMA_NL_NUM_GROUPS
 };
 
@@ -305,6 +306,8 @@ enum rdma_nldev_command {
 
 	RDMA_NLDEV_CMD_DELDEV,
 
+	RDMA_NLDEV_CMD_MONITOR,
+
 	RDMA_NLDEV_NUM_OPS
 };
 
@@ -574,6 +577,9 @@ enum rdma_nldev_attr {
 
 	RDMA_NLDEV_ATTR_NAME_ASSIGN_TYPE,	/* u8 */
 
+	RDMA_NLDEV_ATTR_EVENT_TYPE,		/* u8 */
+
+	RDMA_NLDEV_SYS_ATTR_MONITOR_MODE,	/* u8 */
 	/*
 	 * Always the end
 	 */
@@ -622,6 +628,16 @@ enum rdma_nl_dev_type {
 enum rdma_nl_name_assign_type {
 	RDMA_NAME_ASSIGN_TYPE_UNKNOWN = 0,
 	RDMA_NAME_ASSIGN_TYPE_USER = 1, /* Provided by user-space */
+};
+
+/*
+ * Supported rdma monitoring event types.
+ */
+enum rdma_nl_notify_event_type {
+	RDMA_REGISTER_EVENT,
+	RDMA_UNREGISTER_EVENT,
+	RDMA_NETDEV_ATTACH_EVENT,
+	RDMA_NETDEV_DETACH_EVENT,
 };
 
 #endif /* _UAPI_RDMA_NETLINK_H */

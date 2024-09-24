@@ -54,6 +54,10 @@ enum mlx5_ib_uapi_flow_action_packet_reformat_type {
 	MLX5_IB_UAPI_FLOW_ACTION_PACKET_REFORMAT_TYPE_L2_TO_L3_TUNNEL = 0x3,
 };
 
+enum mlx5_ib_uapi_reg_dmabuf_flags {
+	MLX5_IB_UAPI_REG_DMABUF_ACCESS_DATA_DIRECT = 1 << 0,
+};
+
 struct mlx5_ib_uapi_devx_async_cmd_hdr {
 	__aligned_u64	wr_id;
 	__u8		out_data[];

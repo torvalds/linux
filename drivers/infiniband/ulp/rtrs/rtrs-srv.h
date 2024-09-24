@@ -132,6 +132,8 @@ struct rtrs_srv_ib_ctx {
 extern const struct class rtrs_dev_class;
 
 void close_path(struct rtrs_srv_path *srv_path);
+void rtrs_srv_ib_event_handler(struct ib_event_handler *handler,
+			       struct ib_event *ibevent);
 
 static inline void rtrs_srv_update_rdma_stats(struct rtrs_srv_stats *s,
 					      size_t size, int d)
