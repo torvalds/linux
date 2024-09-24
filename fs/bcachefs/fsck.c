@@ -631,6 +631,7 @@ struct inode_walker_entry {
 
 struct inode_walker {
 	bool				first_this_inode;
+	bool				have_inodes;
 	bool				recalculate_sums;
 	struct bpos			last_pos;
 
@@ -668,6 +669,12 @@ static int get_inodes_all_snapshots(struct btree_trans *trans,
 	struct bkey_s_c k;
 	int ret;
 
+	/*
+	 * We no longer have inodes for w->last_pos; clear this to avoid
+	 * screwing up check_i_sectors/check_subdir_count if we take a
+	 * transaction restart here:
+	 */
+	w->have_inodes = false;
 	w->recalculate_sums = false;
 	w->inodes.nr = 0;
 
@@ -685,6 +692,7 @@ static int get_inodes_all_snapshots(struct btree_trans *trans,
 		return ret;
 
 	w->first_this_inode = true;
+	w->have_inodes = true;
 	return 0;
 }
 
@@ -1551,10 +1559,10 @@ static int check_extent(struct btree_trans *trans, struct btree_iter *iter,
 			struct bkey_s_c k,
 			struct inode_walker *inode,
 			struct snapshots_seen *s,
-			struct extent_ends *extent_ends)
+			struct extent_ends *extent_ends,
+			struct disk_reservation *res)
 {
 	struct bch_fs *c = trans->c;
-	struct inode_walker_entry *i;
 	struct printbuf buf = PRINTBUF;
 	int ret = 0;
 
@@ -1564,7 +1572,7 @@ static int check_extent(struct btree_trans *trans, struct btree_iter *iter,
 		goto out;
 	}
 
-	if (inode->last_pos.inode != k.k->p.inode) {
+	if (inode->last_pos.inode != k.k->p.inode && inode->have_inodes) {
 		ret = check_i_sectors(trans, inode);
 		if (ret)
 			goto err;
@@ -1574,12 +1582,12 @@ static int check_extent(struct btree_trans *trans, struct btree_iter *iter,
 	if (ret)
 		goto err;
 
-	i = walk_inode(trans, inode, k);
-	ret = PTR_ERR_OR_ZERO(i);
+	struct inode_walker_entry *extent_i = walk_inode(trans, inode, k);
+	ret = PTR_ERR_OR_ZERO(extent_i);
 	if (ret)
 		goto err;
 
-	ret = check_key_has_inode(trans, iter, inode, i, k);
+	ret = check_key_has_inode(trans, iter, inode, extent_i, k);
 	if (ret)
 		goto err;
 
@@ -1588,24 +1596,19 @@ static int check_extent(struct btree_trans *trans, struct btree_iter *iter,
 						&inode->recalculate_sums);
 		if (ret)
 			goto err;
-	}
 
-	/*
-	 * Check inodes in reverse order, from oldest snapshots to newest,
-	 * starting from the inode that matches this extent's snapshot. If we
-	 * didn't have one, iterate over all inodes:
-	 */
-	if (!i)
-		i = &darray_last(inode->inodes);
+		/*
+		 * Check inodes in reverse order, from oldest snapshots to
+		 * newest, starting from the inode that matches this extent's
+		 * snapshot. If we didn't have one, iterate over all inodes:
+		 */
+		for (struct inode_walker_entry *i = extent_i ?: &darray_last(inode->inodes);
+		     inode->inodes.data && i >= inode->inodes.data;
+		     --i) {
+			if (i->snapshot > k.k->p.snapshot ||
+			    !key_visible_in_snapshot(c, s, i->snapshot, k.k->p.snapshot))
+				continue;
 
-	for (;
-	     inode->inodes.data && i >= inode->inodes.data;
-	     --i) {
-		if (i->snapshot > k.k->p.snapshot ||
-		    !key_visible_in_snapshot(c, s, i->snapshot, k.k->p.snapshot))
-			continue;
-
-		if (k.k->type != KEY_TYPE_whiteout) {
 			if (fsck_err_on(!(i->inode.bi_flags & BCH_INODE_i_size_dirty) &&
 					k.k->p.offset > round_up(i->inode.bi_size, block_bytes(c)) >> 9 &&
 					!bkey_extent_is_reservation(k),
@@ -1625,10 +1628,24 @@ static int check_extent(struct btree_trans *trans, struct btree_iter *iter,
 					goto err;
 
 				iter->k.type = KEY_TYPE_whiteout;
+				break;
 			}
+		}
+	}
 
-			if (bkey_extent_is_allocation(k.k))
-				i->count += k.k->size;
+	ret = bch2_trans_commit(trans, res, NULL, BCH_TRANS_COMMIT_no_enospc);
+	if (ret)
+		goto err;
+
+	if (bkey_extent_is_allocation(k.k)) {
+		for (struct inode_walker_entry *i = extent_i ?: &darray_last(inode->inodes);
+		     inode->inodes.data && i >= inode->inodes.data;
+		     --i) {
+			if (i->snapshot > k.k->p.snapshot ||
+			    !key_visible_in_snapshot(c, s, i->snapshot, k.k->p.snapshot))
+				continue;
+
+			i->count += k.k->size;
 		}
 	}
 
@@ -1660,13 +1677,11 @@ int bch2_check_extents(struct bch_fs *c)
 	extent_ends_init(&extent_ends);
 
 	int ret = bch2_trans_run(c,
-		for_each_btree_key_commit(trans, iter, BTREE_ID_extents,
+		for_each_btree_key(trans, iter, BTREE_ID_extents,
 				POS(BCACHEFS_ROOT_INO, 0),
-				BTREE_ITER_prefetch|BTREE_ITER_all_snapshots, k,
-				&res, NULL,
-				BCH_TRANS_COMMIT_no_enospc, ({
+				BTREE_ITER_prefetch|BTREE_ITER_all_snapshots, k, ({
 			bch2_disk_reservation_put(c, &res);
-			check_extent(trans, &iter, k, &w, &s, &extent_ends) ?:
+			check_extent(trans, &iter, k, &w, &s, &extent_ends, &res) ?:
 			check_extent_overbig(trans, &iter, k);
 		})) ?:
 		check_i_sectors_notnested(trans, &w));
@@ -2068,7 +2083,7 @@ static int check_dirent(struct btree_trans *trans, struct btree_iter *iter,
 	if (k.k->type == KEY_TYPE_whiteout)
 		goto out;
 
-	if (dir->last_pos.inode != k.k->p.inode) {
+	if (dir->last_pos.inode != k.k->p.inode && dir->have_inodes) {
 		ret = check_subdir_count(trans, dir);
 		if (ret)
 			goto err;
@@ -2130,11 +2145,15 @@ static int check_dirent(struct btree_trans *trans, struct btree_iter *iter,
 			if (ret)
 				goto err;
 		}
-
-		if (d.v->d_type == DT_DIR)
-			for_each_visible_inode(c, s, dir, d.k->p.snapshot, i)
-				i->count++;
 	}
+
+	ret = bch2_trans_commit(trans, NULL, NULL, BCH_TRANS_COMMIT_no_enospc);
+	if (ret)
+		goto err;
+
+	if (d.v->d_type == DT_DIR)
+		for_each_visible_inode(c, s, dir, d.k->p.snapshot, i)
+			i->count++;
 out:
 err:
 fsck_err:
@@ -2157,12 +2176,9 @@ int bch2_check_dirents(struct bch_fs *c)
 	snapshots_seen_init(&s);
 
 	int ret = bch2_trans_run(c,
-		for_each_btree_key_commit(trans, iter, BTREE_ID_dirents,
+		for_each_btree_key(trans, iter, BTREE_ID_dirents,
 				POS(BCACHEFS_ROOT_INO, 0),
-				BTREE_ITER_prefetch|BTREE_ITER_all_snapshots,
-				k,
-				NULL, NULL,
-				BCH_TRANS_COMMIT_no_enospc,
+				BTREE_ITER_prefetch|BTREE_ITER_all_snapshots, k,
 			check_dirent(trans, &iter, k, &hash_info, &dir, &target, &s)) ?:
 		check_subdir_count_notnested(trans, &dir));
 
