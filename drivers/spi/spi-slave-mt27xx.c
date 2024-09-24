@@ -455,14 +455,12 @@ static int mtk_spi_slave_probe(struct platform_device *pdev)
 	pm_runtime_enable(&pdev->dev);
 
 	ret = devm_spi_register_controller(&pdev->dev, ctlr);
+	clk_disable_unprepare(mdata->spi_clk);
 	if (ret) {
 		dev_err(&pdev->dev,
 			"failed to register slave controller(%d)\n", ret);
-		clk_disable_unprepare(mdata->spi_clk);
 		goto err_disable_runtime_pm;
 	}
-
-	clk_disable_unprepare(mdata->spi_clk);
 
 	return 0;
 
