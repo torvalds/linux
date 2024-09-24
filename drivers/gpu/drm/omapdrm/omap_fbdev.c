@@ -6,6 +6,7 @@
 
 #include <linux/fb.h>
 
+#include <drm/drm_client_setup.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_fb_helper.h>
@@ -124,8 +125,32 @@ static const struct fb_ops omap_fb_ops = {
 	.fb_destroy	= omap_fbdev_fb_destroy,
 };
 
-static int omap_fbdev_create(struct drm_fb_helper *helper,
-		struct drm_fb_helper_surface_size *sizes)
+static int omap_fbdev_dirty(struct drm_fb_helper *helper, struct drm_clip_rect *clip)
+{
+	if (!(clip->x1 < clip->x2 && clip->y1 < clip->y2))
+		return 0;
+
+	if (helper->fb->funcs->dirty)
+		return helper->fb->funcs->dirty(helper->fb, NULL, 0, 0, clip, 1);
+
+	return 0;
+}
+
+static const struct drm_fb_helper_funcs omap_fbdev_helper_funcs = {
+	.fb_dirty = omap_fbdev_dirty,
+};
+
+static struct drm_fb_helper *get_fb(struct fb_info *fbi)
+{
+	if (!fbi || strcmp(fbi->fix.id, MODULE_NAME)) {
+		/* these are not the fb's you're looking for */
+		return NULL;
+	}
+	return fbi->par;
+}
+
+int omap_fbdev_driver_fbdev_probe(struct drm_fb_helper *helper,
+				  struct drm_fb_helper_surface_size *sizes)
 {
 	struct drm_device *dev = helper->dev;
 	struct omap_drm_private *priv = dev->dev_private;
@@ -207,6 +232,7 @@ static int omap_fbdev_create(struct drm_fb_helper *helper,
 
 	DBG("fbi=%p, dev=%p", fbi, dev);
 
+	helper->funcs = &omap_fbdev_helper_funcs;
 	helper->fb = fb;
 
 	fbi->fbops = &omap_fb_ops;
@@ -253,94 +279,10 @@ fail:
 	return ret;
 }
 
-static int omap_fbdev_dirty(struct drm_fb_helper *helper, struct drm_clip_rect *clip)
-{
-	if (!(clip->x1 < clip->x2 && clip->y1 < clip->y2))
-		return 0;
-
-	if (helper->fb->funcs->dirty)
-		return helper->fb->funcs->dirty(helper->fb, NULL, 0, 0, clip, 1);
-
-	return 0;
-}
-
-static const struct drm_fb_helper_funcs omap_fb_helper_funcs = {
-	.fb_probe = omap_fbdev_create,
-	.fb_dirty = omap_fbdev_dirty,
-};
-
-static struct drm_fb_helper *get_fb(struct fb_info *fbi)
-{
-	if (!fbi || strcmp(fbi->fix.id, MODULE_NAME)) {
-		/* these are not the fb's you're looking for */
-		return NULL;
-	}
-	return fbi->par;
-}
-
-/*
- * struct drm_client
- */
-
-static void omap_fbdev_client_unregister(struct drm_client_dev *client)
-{
-	struct drm_fb_helper *fb_helper = drm_fb_helper_from_client(client);
-
-	if (fb_helper->info) {
-		drm_fb_helper_unregister_info(fb_helper);
-	} else {
-		drm_client_release(&fb_helper->client);
-		drm_fb_helper_unprepare(fb_helper);
-		kfree(fb_helper);
-	}
-}
-
-static int omap_fbdev_client_restore(struct drm_client_dev *client)
-{
-	drm_fb_helper_lastclose(client->dev);
-
-	return 0;
-}
-
-static int omap_fbdev_client_hotplug(struct drm_client_dev *client)
-{
-	struct drm_fb_helper *fb_helper = drm_fb_helper_from_client(client);
-	struct drm_device *dev = client->dev;
-	int ret;
-
-	if (dev->fb_helper)
-		return drm_fb_helper_hotplug_event(dev->fb_helper);
-
-	ret = drm_fb_helper_init(dev, fb_helper);
-	if (ret)
-		goto err_drm_err;
-
-	ret = drm_fb_helper_initial_config(fb_helper);
-	if (ret)
-		goto err_drm_fb_helper_fini;
-
-	return 0;
-
-err_drm_fb_helper_fini:
-	drm_fb_helper_fini(fb_helper);
-err_drm_err:
-	drm_err(dev, "Failed to setup fbdev emulation (ret=%d)\n", ret);
-	return ret;
-}
-
-static const struct drm_client_funcs omap_fbdev_client_funcs = {
-	.owner		= THIS_MODULE,
-	.unregister	= omap_fbdev_client_unregister,
-	.restore	= omap_fbdev_client_restore,
-	.hotplug	= omap_fbdev_client_hotplug,
-};
-
 void omap_fbdev_setup(struct drm_device *dev)
 {
 	struct omap_drm_private *priv = dev->dev_private;
 	struct omap_fbdev *fbdev;
-	struct drm_fb_helper *helper;
-	int ret;
 
 	drm_WARN(dev, !dev->registered, "Device has not been registered.\n");
 	drm_WARN(dev, dev->fb_helper, "fb_helper is already set!\n");
@@ -353,20 +295,5 @@ void omap_fbdev_setup(struct drm_device *dev)
 
 	priv->fbdev = fbdev;
 
-	helper = kzalloc(sizeof(*helper), GFP_KERNEL);
-	if (!helper)
-		return;
-	drm_fb_helper_prepare(dev, helper, 32, &omap_fb_helper_funcs);
-
-	ret = drm_client_init(dev, &helper->client, "fbdev", &omap_fbdev_client_funcs);
-	if (ret)
-		goto err_drm_client_init;
-
-	drm_client_register(&helper->client);
-
-	return;
-
-err_drm_client_init:
-	drm_fb_helper_unprepare(helper);
-	kfree(helper);
+	drm_client_setup(dev, NULL);
 }
