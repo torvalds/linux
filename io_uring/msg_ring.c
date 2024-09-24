@@ -116,14 +116,13 @@ static struct io_kiocb *io_msg_get_kiocb(struct io_ring_ctx *ctx)
 	return kmem_cache_alloc(req_cachep, GFP_KERNEL | __GFP_NOWARN | __GFP_ZERO);
 }
 
-static int io_msg_data_remote(struct io_kiocb *req)
+static int io_msg_data_remote(struct io_ring_ctx *target_ctx,
+			      struct io_msg *msg)
 {
-	struct io_ring_ctx *target_ctx = req->file->private_data;
-	struct io_msg *msg = io_kiocb_to_cmd(req, struct io_msg);
 	struct io_kiocb *target;
 	u32 flags = 0;
 
-	target = io_msg_get_kiocb(req->ctx);
+	target = io_msg_get_kiocb(target_ctx);
 	if (unlikely(!target))
 		return -ENOMEM;
 
@@ -134,10 +133,9 @@ static int io_msg_data_remote(struct io_kiocb *req)
 					msg->user_data);
 }
 
-static int io_msg_ring_data(struct io_kiocb *req, unsigned int issue_flags)
+static int __io_msg_ring_data(struct io_ring_ctx *target_ctx,
+			      struct io_msg *msg, unsigned int issue_flags)
 {
-	struct io_ring_ctx *target_ctx = req->file->private_data;
-	struct io_msg *msg = io_kiocb_to_cmd(req, struct io_msg);
 	u32 flags = 0;
 	int ret;
 
@@ -149,7 +147,7 @@ static int io_msg_ring_data(struct io_kiocb *req, unsigned int issue_flags)
 		return -EBADFD;
 
 	if (io_msg_need_remote(target_ctx))
-		return io_msg_data_remote(req);
+		return io_msg_data_remote(target_ctx, msg);
 
 	if (msg->flags & IORING_MSG_RING_FLAGS_PASS)
 		flags = msg->cqe_flags;
@@ -164,6 +162,14 @@ static int io_msg_ring_data(struct io_kiocb *req, unsigned int issue_flags)
 	if (target_ctx->flags & IORING_SETUP_IOPOLL)
 		io_double_unlock_ctx(target_ctx);
 	return ret;
+}
+
+static int io_msg_ring_data(struct io_kiocb *req, unsigned int issue_flags)
+{
+	struct io_ring_ctx *target_ctx = req->file->private_data;
+	struct io_msg *msg = io_kiocb_to_cmd(req, struct io_msg);
+
+	return __io_msg_ring_data(target_ctx, msg, issue_flags);
 }
 
 static struct file *io_msg_grab_file(struct io_kiocb *req, unsigned int issue_flags)
@@ -271,10 +277,8 @@ static int io_msg_send_fd(struct io_kiocb *req, unsigned int issue_flags)
 	return io_msg_install_complete(req, issue_flags);
 }
 
-int io_msg_ring_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
+static int __io_msg_ring_prep(struct io_msg *msg, const struct io_uring_sqe *sqe)
 {
-	struct io_msg *msg = io_kiocb_to_cmd(req, struct io_msg);
-
 	if (unlikely(sqe->buf_index || sqe->personality))
 		return -EINVAL;
 
@@ -289,6 +293,11 @@ int io_msg_ring_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 		return -EINVAL;
 
 	return 0;
+}
+
+int io_msg_ring_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
+{
+	return __io_msg_ring_prep(io_kiocb_to_cmd(req, struct io_msg), sqe);
 }
 
 int io_msg_ring(struct io_kiocb *req, unsigned int issue_flags)
