@@ -693,6 +693,9 @@ struct fec_enet_private {
 
 	struct {
 		int pps_enable;
+		u64 ns_sys, ns_phc;
+		u32 at_corr;
+		u8 at_inc_corr;
 	} ptp_saved_state;
 
 	u64 ethtool_stats[];
