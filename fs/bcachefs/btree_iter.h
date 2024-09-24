@@ -341,21 +341,20 @@ static inline void bch2_trans_verify_not_unlocked(struct btree_trans *trans)
 }
 
 __always_inline
-static int btree_trans_restart_nounlock(struct btree_trans *trans, int err)
+static int btree_trans_restart_ip(struct btree_trans *trans, int err, unsigned long ip)
 {
 	BUG_ON(err <= 0);
 	BUG_ON(!bch2_err_matches(-err, BCH_ERR_transaction_restart));
 
 	trans->restarted = err;
-	trans->last_restarted_ip = _THIS_IP_;
+	trans->last_restarted_ip = ip;
 	return -err;
 }
 
 __always_inline
 static int btree_trans_restart(struct btree_trans *trans, int err)
 {
-	btree_trans_restart_nounlock(trans, err);
-	return -err;
+	return btree_trans_restart_ip(trans, err, _THIS_IP_);
 }
 
 bool bch2_btree_node_upgrade(struct btree_trans *,

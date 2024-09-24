@@ -624,7 +624,7 @@ bch2_trans_commit_write_locked(struct btree_trans *trans, unsigned flags,
 
 	if (race_fault()) {
 		trace_and_count(c, trans_restart_fault_inject, trans, trace_ip);
-		return btree_trans_restart_nounlock(trans, BCH_ERR_transaction_restart_fault_inject);
+		return btree_trans_restart(trans, BCH_ERR_transaction_restart_fault_inject);
 	}
 
 	/*
