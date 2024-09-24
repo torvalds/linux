@@ -28,6 +28,7 @@
 #include <signal.h>
 #include <stdlib.h>
 #include <pthread.h>
+#include <include/vdso/time64.h>
 #include "../kselftest.h"
 
 #define CLOCK_REALTIME			0
@@ -45,7 +46,6 @@
 #define NR_CLOCKIDS			12
 
 
-#define NSEC_PER_SEC 1000000000ULL
 #define UNREASONABLE_LAT (NSEC_PER_SEC * 5) /* hopefully we resume in 5 secs */
 
 #define SUSPEND_SECS 15

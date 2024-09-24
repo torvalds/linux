@@ -28,10 +28,10 @@
 #include <sys/timex.h>
 #include <string.h>
 #include <signal.h>
+#include <include/vdso/time64.h>
 #include "../kselftest.h"
 
 #define CALLS_PER_LOOP 64
-#define NSEC_PER_SEC 1000000000ULL
 
 #define CLOCK_REALTIME			0
 #define CLOCK_MONOTONIC			1
