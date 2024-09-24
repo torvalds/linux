@@ -42,3 +42,6 @@
  tcp_sync_mss
  netdev_get_name
  tcp_send_active_reset
+ tcp_done
+ udp4_lib_lookup
+ udp6_lib_lookup
