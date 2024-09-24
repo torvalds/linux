@@ -1,0 +1,101 @@
+/*
+ *
+ * (C) COPYRIGHT 2023 Arm Limited.
+ *
+ * This program is free software and is provided to you under the terms of the
+ * GNU General Public License version 2 as published by the Free Software
+ * Foundation, and any use by you of this program is subject to the terms
+ * of such GNU licence.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, you can access it online at
+ * http://www.gnu.org/licenses/gpl-2.0.html.
+ *
+ * SPDX-License-Identifier: GPL-2.0-only
+ *
+ */
+
+Arm(R) Ethos(TM)-N78 Neural Processing Unit
+
+This binding file describes the device tree layout for the Ethos-N NPU. It describes the properties
+required for Carveout and SMMU configuration. For more details please see README.md in the root
+of the driver stack.
+
+Required properties:
+    - compatible: Must be "ethosn"
+
+    - reg: Memory address range for each Ethos-N core. Each range should be 1MB in size.
+
+    - interrupts: Interrupt list for the error, job, and debug interrupts.
+                  This can either be individual interrupt lines or combined into a single line.
+
+        - Multiple lines: Error interrupt uses a positive-polarity, level-sensitive line.
+                          Job interrupt uses a positive-polarity, edge-sensitive line.
+                          Debug interrupt uses a positive-polarity, edge-sensitive line.
+
+        - Single line:    Each interrupt uses a shared positive-polarity, level-sensitive line.
+                          This is the configuration the examples use.
+
+    - interrupt-names: List of interrupt names. Must contain "err", "job", and "debug" in the
+                       same order as the interrupts list.
+
+Required sub-nodes. For each Ethos-N core add a sub-node with the following properties:
+    - compatible: Must be "ethosn-core"
+
+Required for Carveout:
+    - memory-region: phandle for a reserved memory area accessible via DMA:
+        - Memory area must begin on a 512MB alligned address
+        - Size of the memory area must be a power-of-two between 4MB and 512MB
+        - See Memory limitations in README.md for details and
+          juno-r2-ethosn.dtsi for an example
+
+Sub-nodes required for SMMU:
+
+    For each Ethos-N core sub-node, add a main allocator sub-node with the following proporties and memory sub-nodes:
+        These sub-nodes are used as containers for IOMMU ids used for the firmware code and stack.
+        See juno-r2-ethosn-smmu.dts for examples.
+
+        - compatible: Must be "ethosn-main_allocator"
+
+        - firmware: Sub-node that must be named "firmware" with the following proporties:
+            - compatible: Must be "ethosn-memory"
+            - iommus: Single IOMMU id, must be unique among all IOMMU ids used.
+
+        - working_data: Sub-node that must be named "working_data" with the following proporties:
+            - compatible: Must be "ethosn-memory"
+            - iommus: Single IOMMU id, must be unique among all IOMMU ids used.
+
+    Add any number of asset allocator sub-nodes to the main ethosn node with the following proporties and memory sub-nodes:
+        These sub-nodes are used as containers for IOMMU ids used for inference data.
+        The number of concurrent processes using the Ethos-N NPU is limited to the number of asset allocators.
+        See juno-r2-asset-allocs.dtsi for examples.
+
+        - compatible: Must be "ethosn-asset_allocator"
+
+        - command_stream: Sub-node that must be named "command_stream" with the following proporties:
+            - compatible: Must be "ethosn-memory"
+            - iommus: Single IOMMU id, must be unique among all IOMMU ids used.
+
+        - weight_data: Sub-node that must be named "weight_data" with the following proporties:
+            - compatible: Must be "ethosn-memory"
+            - iommus: Single IOMMU id, must be unique among all IOMMU ids used.
+
+        - buffer_data: Sub-node that must be named "buffer_data" with the following proporties:
+            - compatible: Must be "ethosn-memory"
+            - iommus: Single IOMMU id, must be unique among all IOMMU ids used.
+
+        - intermediate_data: Sub-node that must be named "intermediate_data" with the following proporties:
+            - compatible: Must be "ethosn-memory"
+            - iommus: Single IOMMU id, must be unique among all IOMMU ids used.
+
+For examples, see the following files (and included dtsi files) in this directory:
+    - juno-r2-ethosn.dts
+    - juno-r2-ethosn-smmu.dts
+    - juno-r2-ethosn-dual-core.dts
+    - juno-r2-ethosn-single-smmu-dual-core.dts
+    - juno-r2-ethosn-dual-device.dts

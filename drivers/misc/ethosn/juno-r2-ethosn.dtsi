@@ -1,0 +1,61 @@
+/*
+ *
+ * (C) COPYRIGHT 2020-2021 Arm Limited.
+ *
+ * This program is free software and is provided to you under the terms of the
+ * GNU General Public License version 2 as published by the Free Software
+ * Foundation, and any use by you of this program is subject to the terms
+ * of such GNU licence.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, you can access it online at
+ * http://www.gnu.org/licenses/gpl-2.0.html.
+ *
+ * SPDX-License-Identifier: GPL-2.0-only
+ *
+ */
+
+/ {
+
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		/* 'ethosn_reserved' must be page aligned (page size = 0x1000) */
+		ethosn_reserved: ethosn_reserved@a0000000 {
+			compatible = "shared-dma-pool";
+			reg = <0 0xa0000000 0 0x20000000>;
+			status = "disabled";
+			no-map;
+		};
+	};
+
+	ethosn0: ethosn@6f300000 {
+		compatible = "ethosn";
+		status = "disabled";
+		/* The Juno FPGA integration combines all of the Ethos-N's interrupts
+		 * into a single level-sensitive interrupt line. */
+		interrupts = <0 168 4>, <0 168 4>, <0 168 4>;
+		interrupt-names = "err", "job", "debug";
+		#address-cells = <0x0>;
+		#size-cells = <0x0>;
+	};
+
+	ethosn1: ethosn@6d000000 {
+		compatible = "ethosn";
+		status = "disabled";
+		/* The Juno FPGA integration combines all of the Ethos-N's interrupts
+		 * into a single level-sensitive interrupt line. */
+		interrupts = <0 168 4>, <0 168 4>, <0 168 4>;
+		interrupt-names = "err", "job", "debug";
+		#address-cells = <0x0>;
+		#size-cells = <0x0>;
+	};
+
+};
