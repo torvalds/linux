@@ -295,6 +295,7 @@ static void fuse_dev_queue_req(struct fuse_iqueue *fiq, struct fuse_req *req)
 	} else {
 		spin_unlock(&fiq->lock);
 		req->out.h.error = -ENOTCONN;
+		clear_bit(FR_PENDING, &req->flags);
 		fuse_request_end(req);
 	}
 }
