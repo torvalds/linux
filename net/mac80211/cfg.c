@@ -3046,6 +3046,7 @@ static int ieee80211_set_tx_power(struct wiphy *wiphy,
 	enum nl80211_tx_power_setting txp_type = type;
 	bool update_txp_type = false;
 	bool has_monitor = false;
+	int old_power = local->user_power_level;
 
 	lockdep_assert_wiphy(local->hw.wiphy);
 
@@ -3127,6 +3128,10 @@ static int ieee80211_set_tx_power(struct wiphy *wiphy,
 			ieee80211_recalc_txpower(sdata, update_txp_type);
 		}
 	}
+
+	if (local->emulate_chanctx &&
+	    (old_power != local->user_power_level))
+		ieee80211_hw_conf_chan(local);
 
 	return 0;
 }
