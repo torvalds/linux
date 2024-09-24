@@ -450,7 +450,7 @@ struct line {
 	 * The flags for the active edge detector configuration.
 	 *
 	 * edflags is set by linereq_create(), linereq_free(), and
-	 * linereq_set_config_unlocked(), which are themselves mutually
+	 * linereq_set_config(), which are themselves mutually
 	 * exclusive, and is accessed by edge_irq_thread(),
 	 * process_hw_ts_thread() and debounce_work_func(),
 	 * which can all live with a slightly stale value.
