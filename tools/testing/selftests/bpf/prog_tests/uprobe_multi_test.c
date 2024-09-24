@@ -836,10 +836,10 @@ uprobe_consumer_test(struct uprobe_multi_consumers *skel,
 	return 0;
 }
 
-static void consumer_test(struct uprobe_multi_consumers *skel,
-			  unsigned long before, unsigned long after)
+static int consumer_test(struct uprobe_multi_consumers *skel,
+			 unsigned long before, unsigned long after)
 {
-	int err, idx;
+	int err, idx, ret = -1;
 
 	printf("consumer_test before %lu after %lu\n", before, after);
 
@@ -881,13 +881,17 @@ static void consumer_test(struct uprobe_multi_consumers *skel,
 			fmt = "idx 2/3: uretprobe";
 		}
 
-		ASSERT_EQ(skel->bss->uprobe_result[idx], val, fmt);
+		if (!ASSERT_EQ(skel->bss->uprobe_result[idx], val, fmt))
+			goto cleanup;
 		skel->bss->uprobe_result[idx] = 0;
 	}
+
+	ret = 0;
 
 cleanup:
 	for (idx = 0; idx < 4; idx++)
 		uprobe_detach(skel, idx);
+	return ret;
 }
 
 static void test_consumers(void)
@@ -939,9 +943,11 @@ static void test_consumers(void)
 
 	for (before = 0; before < 16; before++) {
 		for (after = 0; after < 16; after++)
-			consumer_test(skel, before, after);
+			if (consumer_test(skel, before, after))
+				goto out;
 	}
 
+out:
 	uprobe_multi_consumers__destroy(skel);
 }
 
