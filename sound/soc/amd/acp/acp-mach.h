@@ -79,7 +79,6 @@ struct acp_card_drvdata {
 	unsigned int bt_codec_id;
 	unsigned int dmic_codec_id;
 	unsigned int dai_fmt;
-	unsigned int platform;
 	unsigned int acp_rev;
 	struct clk *wclk;
 	struct clk *bclk;

@@ -57,7 +57,6 @@ static struct acp_card_drvdata es83xx_rn_data = {
 	.dmic_cpu_id = DMIC,
 	.hs_codec_id = ES83XX,
 	.dmic_codec_id = DMIC,
-	.platform = RENOIR,
 };
 
 static struct acp_card_drvdata max_nau8825_data = {
@@ -68,7 +67,6 @@ static struct acp_card_drvdata max_nau8825_data = {
 	.amp_codec_id = MAX98360A,
 	.dmic_codec_id = DMIC,
 	.soc_mclk = true,
-	.platform = REMBRANDT,
 	.tdm_mode = false,
 };
 
@@ -80,7 +78,6 @@ static struct acp_card_drvdata rt5682s_rt1019_rmb_data = {
 	.amp_codec_id = RT1019,
 	.dmic_codec_id = DMIC,
 	.soc_mclk = true,
-	.platform = REMBRANDT,
 	.tdm_mode = false,
 };
 
