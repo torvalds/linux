@@ -469,7 +469,7 @@ int btrfs_read_qgroup_config(struct btrfs_fs_info *fs_info)
 			/*
 			 * If a qgroup exists for a subvolume ID, it is possible
 			 * that subvolume has been deleted, in which case
-			 * re-using that ID would lead to incorrect accounting.
+			 * reusing that ID would lead to incorrect accounting.
 			 *
 			 * Ensure that we skip any such subvol ids.
 			 *

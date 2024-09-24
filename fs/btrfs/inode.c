@@ -5987,7 +5987,7 @@ again:
 	 * offset.  This means that new entries created during readdir
 	 * are *guaranteed* to be seen in the future by that readdir.
 	 * This has broken buggy programs which operate on names as
-	 * they're returned by readdir.  Until we re-use freed offsets
+	 * they're returned by readdir.  Until we reuse freed offsets
 	 * we have this hack to stop new entries from being returned
 	 * under the assumption that they'll never reach this huge
 	 * offset.

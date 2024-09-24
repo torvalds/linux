@@ -1326,9 +1326,9 @@ long btrfs_free_extent_maps(struct btrfs_fs_info *fs_info, long nr_to_scan)
 	 * not possible to know which task made more progress because we can
 	 * cycle back to the first root and first inode if it's not the first
 	 * time the shrinker ran, see the above logic. Also a task that started
-	 * later may finish ealier than another task and made less progress. So
+	 * later may finish earlier than another task and made less progress. So
 	 * make this simple and update to the progress of the last task that
-	 * finished, with the occasional possiblity of having two consecutive
+	 * finished, with the occasional possibility of having two consecutive
 	 * runs of the shrinker process the same inodes.
 	 */
 	spin_lock(&fs_info->extent_map_shrinker_lock);

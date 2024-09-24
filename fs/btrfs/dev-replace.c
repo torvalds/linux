@@ -45,7 +45,7 @@
  *
  * - Copy existing extents
  *
- *   This happens by re-using scrub facility, as scrub also iterates through
+ *   This happens by reusing scrub facility, as scrub also iterates through
  *   existing extents from commit root.
  *
  *   Location:		scrub_write_block_to_dev_replace() from

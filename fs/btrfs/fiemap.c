@@ -186,7 +186,7 @@ static int emit_fiemap_extent(struct fiemap_extent_info *fieinfo,
 			 * we have in the cache is the last delalloc range we
 			 * found while the file extent item we found can be
 			 * either for a whole delalloc range we previously
-			 * emmitted or only a part of that range.
+			 * emitted or only a part of that range.
 			 *
 			 * We have two cases here:
 			 *
@@ -194,13 +194,13 @@ static int emit_fiemap_extent(struct fiemap_extent_info *fieinfo,
 			 *    cached extent's end. In this case just ignore the
 			 *    current file extent item because we don't want to
 			 *    overlap with previous ranges that may have been
-			 *    emmitted already;
+			 *    emitted already;
 			 *
 			 * 2) The file extent item starts behind the currently
 			 *    cached extent but its end offset goes beyond the
 			 *    end offset of the cached extent. We don't want to
 			 *    overlap with a previous range that may have been
-			 *    emmitted already, so we emit the currently cached
+			 *    emitted already, so we emit the currently cached
 			 *    extent and then partially store the current file
 			 *    extent item's range in the cache, for the subrange
 			 *    going the cached extent's end to the end of the

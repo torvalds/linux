@@ -2797,7 +2797,7 @@ next:
 		 * uncompressed data size, because the compression is only done
 		 * when writeback triggered and we don't know how much space we
 		 * are actually going to need, so we reserve the uncompressed
-		 * size because the data may be uncompressible in the worst case.
+		 * size because the data may be incompressible in the worst case.
 		 */
 		if (ret == 0) {
 			bool used;

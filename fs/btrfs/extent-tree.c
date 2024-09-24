@@ -3144,7 +3144,7 @@ static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
 				break;
 			}
 
-			/* Quick path didn't find the EXTEMT/METADATA_ITEM */
+			/* Quick path didn't find the EXTENT/METADATA_ITEM */
 			if (path->slots[0] - extent_slot > 5)
 				break;
 			extent_slot--;
