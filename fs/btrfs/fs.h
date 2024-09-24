@@ -878,12 +878,9 @@ struct btrfs_fs_info {
 #endif
 };
 
-#define page_to_inode(_page)	(BTRFS_I(_Generic((_page),			\
-					  struct page *: (_page))->mapping->host))
 #define folio_to_inode(_folio)	(BTRFS_I(_Generic((_folio),			\
 					  struct folio *: (_folio))->mapping->host))
 
-#define page_to_fs_info(_page)	 (page_to_inode(_page)->root->fs_info)
 #define folio_to_fs_info(_folio) (folio_to_inode(_folio)->root->fs_info)
 
 #define inode_to_fs_info(_inode) (BTRFS_I(_Generic((_inode),			\
