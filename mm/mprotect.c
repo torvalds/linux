@@ -633,7 +633,7 @@ success:
 	 * held in write mode.
 	 */
 	vma_start_write(vma);
-	vm_flags_reset(vma, vma_pad_fixup_flags(vma, newflags));
+	vm_flags_reset(vma, newflags);
 	/*
 	 * We want to check manually if we can change individual PTEs writable
 	 * if we can't do that automatically for all PTEs in a mapping. For

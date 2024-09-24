@@ -459,7 +459,7 @@ success:
 	if ((newflags & VM_LOCKED) && (oldflags & VM_LOCKED)) {
 		/* No work to do, and mlocking twice would be wrong */
 		vma_start_write(vma);
-		vm_flags_reset(vma, vma_pad_fixup_flags(vma, newflags));
+		vm_flags_reset(vma, newflags);
 	} else {
 		mlock_vma_pages_range(vma, start, end, newflags);
 	}
