@@ -2522,7 +2522,7 @@ static void hidpp_ff_work_handler(struct work_struct *w)
 			/* regular effect destroyed */
 			data->effect_ids[wd->params[0]-1] = -1;
 		else if (wd->effect_id >= HIDPP_FF_EFFECTID_AUTOCENTER)
-			/* autocenter spring destoyed */
+			/* autocenter spring destroyed */
 			data->slot_autocenter = 0;
 		break;
 	case HIDPP_FF_SET_GLOBAL_GAINS:

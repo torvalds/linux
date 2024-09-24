@@ -946,7 +946,7 @@ hid_sensor_register_platform_device(struct platform_device *pdev,
 
 	memcpy(real_usage, match->luid, 4);
 
-	/* usage id are all lowcase */
+	/* usage id are all lowercase */
 	for (c = real_usage; *c != '\0'; c++)
 		*c = tolower(*c);
 
