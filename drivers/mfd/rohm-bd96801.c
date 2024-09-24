@@ -194,7 +194,7 @@ static const struct regmap_config bd96801_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 	.volatile_table = &volatile_regs,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 
 static int bd96801_i2c_probe(struct i2c_client *i2c)
