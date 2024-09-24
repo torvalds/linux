@@ -126,6 +126,7 @@ static int acp_asoc_probe(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = NULL;
 	struct device *dev = &pdev->dev;
+	struct snd_soc_acpi_mach *mach = dev_get_platdata(&pdev->dev);
 	const struct dmi_system_id *dmi_id;
 	struct acp_card_drvdata *acp_card_drvdata;
 	int ret;
@@ -173,6 +174,7 @@ static int acp_asoc_probe(struct platform_device *pdev)
 	if (!strcmp(pdev->name, "acp-pdm-mach"))
 		acp_card_drvdata->platform =  *((int *)dev->platform_data);
 
+	acp_card_drvdata->acp_rev = mach->mach_params.subsystem_rev;
 	dmi_id = dmi_first_match(acp_quirk_table);
 	if (dmi_id && dmi_id->driver_data)
 		acp_card_drvdata->tdm_mode = dmi_id->driver_data;

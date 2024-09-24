@@ -18,6 +18,8 @@
 #include <linux/module.h>
 #include <sound/soc.h>
 
+#include "acp_common.h"
+
 #define TDM_CHANNELS	8
 
 #define ACP_OPS(priv, cb)	((priv)->ops.cb)
@@ -78,6 +80,7 @@ struct acp_card_drvdata {
 	unsigned int dmic_codec_id;
 	unsigned int dai_fmt;
 	unsigned int platform;
+	unsigned int acp_rev;
 	struct clk *wclk;
 	struct clk *bclk;
 	struct acp_mach_ops ops;
