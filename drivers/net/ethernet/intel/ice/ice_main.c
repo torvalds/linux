@@ -4767,14 +4767,12 @@ int ice_init_dev(struct ice_pf *pf)
 	ice_init_feature_support(pf);
 
 	err = ice_init_ddp_config(hw, pf);
-	if (err)
-		return err;
 
 	/* if ice_init_ddp_config fails, ICE_FLAG_ADV_FEATURES bit won't be
 	 * set in pf->state, which will cause ice_is_safe_mode to return
 	 * true
 	 */
-	if (ice_is_safe_mode(pf)) {
+	if (err || ice_is_safe_mode(pf)) {
 		/* we already got function/device capabilities but these don't
 		 * reflect what the driver needs to do in safe mode. Instead of
 		 * adding conditional logic everywhere to ignore these
