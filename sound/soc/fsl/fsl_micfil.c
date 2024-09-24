@@ -955,7 +955,7 @@ static const struct regmap_config fsl_micfil_regmap_config = {
 	.readable_reg = fsl_micfil_readable_reg,
 	.volatile_reg = fsl_micfil_volatile_reg,
 	.writeable_reg = fsl_micfil_writeable_reg,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 
 /* END OF REGMAP */
