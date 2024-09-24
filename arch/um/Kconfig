@@ -94,7 +94,7 @@ config MAY_HAVE_RUNTIME_DEPS
 
 config STATIC_LINK
 	bool "Force a static link"
-	depends on CC_CAN_LINK_STATIC_NO_RUNTIME_DEPS || !MAY_HAVE_RUNTIME_DEPS
+	depends on !MAY_HAVE_RUNTIME_DEPS
 	help
 	  This option gives you the ability to force a static link of UML.
 	  Normally, UML is linked as a shared binary.  This is inconvenient for
