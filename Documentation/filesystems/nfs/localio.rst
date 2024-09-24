@@ -39,30 +39,30 @@ The performance advantage realized from LOCALIO's ability to bypass
 using XDR and RPC for reads, writes and commits can be extreme, e.g.:
 
 fio for 20 secs with directio, qd of 8, 16 libaio threads:
-- With LOCALIO:
-  4K read:    IOPS=979k,  BW=3825MiB/s (4011MB/s)(74.7GiB/20002msec)
-  4K write:   IOPS=165k,  BW=646MiB/s  (678MB/s)(12.6GiB/20002msec)
-  128K read:  IOPS=402k,  BW=49.1GiB/s (52.7GB/s)(982GiB/20002msec)
-  128K write: IOPS=11.5k, BW=1433MiB/s (1503MB/s)(28.0GiB/20004msec)
+  - With LOCALIO:
+    4K read:    IOPS=979k,  BW=3825MiB/s (4011MB/s)(74.7GiB/20002msec)
+    4K write:   IOPS=165k,  BW=646MiB/s  (678MB/s)(12.6GiB/20002msec)
+    128K read:  IOPS=402k,  BW=49.1GiB/s (52.7GB/s)(982GiB/20002msec)
+    128K write: IOPS=11.5k, BW=1433MiB/s (1503MB/s)(28.0GiB/20004msec)
 
-- Without LOCALIO:
-  4K read:    IOPS=79.2k, BW=309MiB/s  (324MB/s)(6188MiB/20003msec)
-  4K write:   IOPS=59.8k, BW=234MiB/s  (245MB/s)(4671MiB/20002msec)
-  128K read:  IOPS=33.9k, BW=4234MiB/s (4440MB/s)(82.7GiB/20004msec)
-  128K write: IOPS=11.5k, BW=1434MiB/s (1504MB/s)(28.0GiB/20011msec)
+  - Without LOCALIO:
+    4K read:    IOPS=79.2k, BW=309MiB/s  (324MB/s)(6188MiB/20003msec)
+    4K write:   IOPS=59.8k, BW=234MiB/s  (245MB/s)(4671MiB/20002msec)
+    128K read:  IOPS=33.9k, BW=4234MiB/s (4440MB/s)(82.7GiB/20004msec)
+    128K write: IOPS=11.5k, BW=1434MiB/s (1504MB/s)(28.0GiB/20011msec)
 
 fio for 20 secs with directio, qd of 8, 1 libaio thread:
-- With LOCALIO:
-  4K read:    IOPS=230k,  BW=898MiB/s  (941MB/s)(17.5GiB/20001msec)
-  4K write:   IOPS=22.6k, BW=88.3MiB/s (92.6MB/s)(1766MiB/20001msec)
-  128K read:  IOPS=38.8k, BW=4855MiB/s (5091MB/s)(94.8GiB/20001msec)
-  128K write: IOPS=11.4k, BW=1428MiB/s (1497MB/s)(27.9GiB/20001msec)
+  - With LOCALIO:
+    4K read:    IOPS=230k,  BW=898MiB/s  (941MB/s)(17.5GiB/20001msec)
+    4K write:   IOPS=22.6k, BW=88.3MiB/s (92.6MB/s)(1766MiB/20001msec)
+    128K read:  IOPS=38.8k, BW=4855MiB/s (5091MB/s)(94.8GiB/20001msec)
+    128K write: IOPS=11.4k, BW=1428MiB/s (1497MB/s)(27.9GiB/20001msec)
 
-- Without LOCALIO:
-  4K read:    IOPS=77.1k, BW=301MiB/s  (316MB/s)(6022MiB/20001msec)
-  4K write:   IOPS=32.8k, BW=128MiB/s  (135MB/s)(2566MiB/20001msec)
-  128K read:  IOPS=24.4k, BW=3050MiB/s (3198MB/s)(59.6GiB/20001msec)
-  128K write: IOPS=11.4k, BW=1430MiB/s (1500MB/s)(27.9GiB/20001msec)
+  - Without LOCALIO:
+    4K read:    IOPS=77.1k, BW=301MiB/s  (316MB/s)(6022MiB/20001msec)
+    4K write:   IOPS=32.8k, BW=128MiB/s  (135MB/s)(2566MiB/20001msec)
+    128K read:  IOPS=24.4k, BW=3050MiB/s (3198MB/s)(59.6GiB/20001msec)
+    128K write: IOPS=11.4k, BW=1430MiB/s (1500MB/s)(27.9GiB/20001msec)
 
 FAQ
 ===
@@ -174,21 +174,21 @@ The RPC program number for the NFS_LOCALIO_PROGRAM is 400122 (as assigned
 by IANA, see https://www.iana.org/assignments/rpc-program-numbers/ ):
 Linux Kernel Organization       400122  nfslocalio
 
-The LOCALIO protocol spec in rpcgen syntax is:
+The LOCALIO protocol spec in rpcgen syntax is::
 
-/* raw RFC 9562 UUID */
-#define UUID_SIZE 16
-typedef u8 uuid_t<UUID_SIZE>;
+  /* raw RFC 9562 UUID */
+  #define UUID_SIZE 16
+  typedef u8 uuid_t<UUID_SIZE>;
 
-program NFS_LOCALIO_PROGRAM {
-    version LOCALIO_V1 {
-        void
-            NULL(void) = 0;
+  program NFS_LOCALIO_PROGRAM {
+      version LOCALIO_V1 {
+          void
+              NULL(void) = 0;
 
-        void
-            UUID_IS_LOCAL(uuid_t) = 1;
-    } = 1;
-} = 400122;
+          void
+              UUID_IS_LOCAL(uuid_t) = 1;
+      } = 1;
+  } = 400122;
 
 LOCALIO uses the same transport connection as NFS traffic. As such,
 LOCALIO is not registered with rpcbind.
