@@ -36,6 +36,7 @@
 #include "ttm_object.h"
 
 #include <drm/drm_aperture.h>
+#include <drm/drm_client_setup.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_fbdev_ttm.h>
 #include <drm/drm_gem_ttm_helper.h>
@@ -1628,6 +1629,8 @@ static const struct drm_driver driver = {
 	.prime_handle_to_fd = vmw_prime_handle_to_fd,
 	.gem_prime_import_sg_table = vmw_prime_import_sg_table,
 
+	DRM_FBDEV_TTM_DRIVER_OPS,
+
 	.fops = &vmwgfx_driver_fops,
 	.name = VMWGFX_DRIVER_NAME,
 	.desc = VMWGFX_DRIVER_DESC,
@@ -1679,7 +1682,7 @@ static int vmw_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	vmw_fifo_resource_inc(vmw);
 	vmw_svga_enable(vmw);
-	drm_fbdev_ttm_setup(&vmw->drm,  0);
+	drm_client_setup(&vmw->drm, NULL);
 
 	vmw_debugfs_gem_init(vmw);
 	vmw_debugfs_resource_managers_init(vmw);
