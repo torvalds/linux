@@ -127,6 +127,7 @@ i2c-thunderx-objs := i2c-octeon-core.o i2c-thunderx-pcidrv.o
 obj-$(CONFIG_I2C_THUNDERX)	+= i2c-thunderx.o
 obj-$(CONFIG_I2C_XILINX)	+= i2c-xiic.o
 obj-$(CONFIG_I2C_XLP9XX)	+= i2c-xlp9xx.o
+obj-$(CONFIG_I2C_MSM_V2)        += i2c-msm-v2.o
 obj-$(CONFIG_I2C_RCAR)		+= i2c-rcar.o
 
 # External I2C/SMBus adapter drivers
