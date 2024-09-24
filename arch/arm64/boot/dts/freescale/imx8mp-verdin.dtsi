@@ -320,7 +320,7 @@
 	pinctrl-0 = <&pinctrl_fec>;
 	pinctrl-1 = <&pinctrl_fec_sleep>;
 
-	mdio {
+	verdin_eth2_mdio: mdio {
 		#address-cells = <1>;
 		#size-cells = <0>;
 
@@ -591,11 +591,12 @@
 		vs-supply = <&reg_vdd_1v8>;
 	};
 
-	adc@49 {
+	verdin_som_adc: adc@49 {
 		compatible = "ti,ads1015";
 		reg = <0x49>;
 		#address-cells = <1>;
 		#size-cells = <0>;
+		#io-channel-cells = <1>;
 
 		/* Verdin I2C_1 (ADC_4 - ADC_3) */
 		channel@0 {
