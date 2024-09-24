@@ -156,3 +156,63 @@ int set_memory_rw(unsigned long addr, int numpages)
 
 	return __set_memory(addr, numpages, __pgprot(_PAGE_WRITE | _PAGE_DIRTY), __pgprot(0));
 }
+
+bool kernel_page_present(struct page *page)
+{
+	pgd_t *pgd;
+	p4d_t *p4d;
+	pud_t *pud;
+	pmd_t *pmd;
+	pte_t *pte;
+	unsigned long addr = (unsigned long)page_address(page);
+
+	if (addr < vm_map_base)
+		return true;
+
+	pgd = pgd_offset_k(addr);
+	if (pgd_none(pgdp_get(pgd)))
+		return false;
+	if (pgd_leaf(pgdp_get(pgd)))
+		return true;
+
+	p4d = p4d_offset(pgd, addr);
+	if (p4d_none(p4dp_get(p4d)))
+		return false;
+	if (p4d_leaf(p4dp_get(p4d)))
+		return true;
+
+	pud = pud_offset(p4d, addr);
+	if (pud_none(pudp_get(pud)))
+		return false;
+	if (pud_leaf(pudp_get(pud)))
+		return true;
+
+	pmd = pmd_offset(pud, addr);
+	if (pmd_none(pmdp_get(pmd)))
+		return false;
+	if (pmd_leaf(pmdp_get(pmd)))
+		return true;
+
+	pte = pte_offset_kernel(pmd, addr);
+	return pte_present(ptep_get(pte));
+}
+
+int set_direct_map_default_noflush(struct page *page)
+{
+	unsigned long addr = (unsigned long)page_address(page);
+
+	if (addr < vm_map_base)
+		return 0;
+
+	return __set_memory(addr, 1, PAGE_KERNEL, __pgprot(0));
+}
+
+int set_direct_map_invalid_noflush(struct page *page)
+{
+	unsigned long addr = (unsigned long)page_address(page);
+
+	if (addr < vm_map_base)
+		return 0;
+
+	return __set_memory(addr, 1, __pgprot(0), __pgprot(_PAGE_PRESENT | _PAGE_VALID));
+}
