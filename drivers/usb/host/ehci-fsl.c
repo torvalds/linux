@@ -706,7 +706,7 @@ static void fsl_ehci_drv_remove(struct platform_device *pdev)
 
 static struct platform_driver ehci_fsl_driver = {
 	.probe = fsl_ehci_drv_probe,
-	.remove_new = fsl_ehci_drv_remove,
+	.remove = fsl_ehci_drv_remove,
 	.shutdown = usb_hcd_platform_shutdown,
 	.driver = {
 		.name = DRV_NAME,

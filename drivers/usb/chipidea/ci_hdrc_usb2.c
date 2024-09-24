@@ -116,7 +116,7 @@ static void ci_hdrc_usb2_remove(struct platform_device *pdev)
 
 static struct platform_driver ci_hdrc_usb2_driver = {
 	.probe	= ci_hdrc_usb2_probe,
-	.remove_new = ci_hdrc_usb2_remove,
+	.remove = ci_hdrc_usb2_remove,
 	.driver	= {
 		.name		= "chipidea-usb2",
 		.of_match_table	= ci_hdrc_usb2_of_match,

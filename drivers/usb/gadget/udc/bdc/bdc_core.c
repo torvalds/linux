@@ -648,7 +648,7 @@ static struct platform_driver bdc_driver = {
 		.of_match_table	= bdc_of_match,
 	},
 	.probe		= bdc_probe,
-	.remove_new	= bdc_remove,
+	.remove		= bdc_remove,
 };
 
 module_platform_driver(bdc_driver);

@@ -987,7 +987,7 @@ MODULE_DEVICE_TABLE(platform, ab8500_usb_devtype);
 
 static struct platform_driver ab8500_usb_driver = {
 	.probe		= ab8500_usb_probe,
-	.remove_new	= ab8500_usb_remove,
+	.remove		= ab8500_usb_remove,
 	.id_table	= ab8500_usb_devtype,
 	.driver		= {
 		.name	= "abx5x0-usb",

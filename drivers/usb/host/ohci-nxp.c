@@ -254,7 +254,7 @@ static struct platform_driver ohci_hcd_nxp_driver = {
 		.of_match_table = of_match_ptr(ohci_hcd_nxp_match),
 	},
 	.probe = ohci_hcd_nxp_probe,
-	.remove_new = ohci_hcd_nxp_remove,
+	.remove = ohci_hcd_nxp_remove,
 };
 
 static int __init ohci_nxp_init(void)

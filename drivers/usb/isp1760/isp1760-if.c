@@ -263,7 +263,7 @@ MODULE_DEVICE_TABLE(of, isp1760_of_match);
 
 static struct platform_driver isp1760_plat_driver = {
 	.probe	= isp1760_plat_probe,
-	.remove_new = isp1760_plat_remove,
+	.remove = isp1760_plat_remove,
 	.driver	= {
 		.name	= "isp1760",
 		.of_match_table = of_match_ptr(isp1760_of_match),

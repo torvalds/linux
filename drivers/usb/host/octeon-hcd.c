@@ -3711,8 +3711,8 @@ static struct platform_driver octeon_usb_driver = {
 		.name		= "octeon-hcd",
 		.of_match_table = octeon_usb_match,
 	},
-	.probe      = octeon_usb_probe,
-	.remove_new = octeon_usb_remove,
+	.probe = octeon_usb_probe,
+	.remove = octeon_usb_remove,
 };
 
 static int __init octeon_usb_driver_init(void)

@@ -2953,7 +2953,7 @@ static struct platform_driver musb_driver = {
 		.dev_groups	= musb_groups,
 	},
 	.probe		= musb_probe,
-	.remove_new	= musb_remove,
+	.remove		= musb_remove,
 };
 
 module_platform_driver(musb_driver);

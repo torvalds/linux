@@ -143,7 +143,7 @@ MODULE_DEVICE_TABLE(of, spear_ehci_id_table);
 
 static struct platform_driver spear_ehci_hcd_driver = {
 	.probe		= spear_ehci_hcd_drv_probe,
-	.remove_new	= spear_ehci_hcd_drv_remove,
+	.remove		= spear_ehci_hcd_drv_remove,
 	.shutdown	= usb_hcd_platform_shutdown,
 	.driver		= {
 		.name = "spear-ehci",

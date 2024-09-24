@@ -320,7 +320,7 @@ static struct platform_driver ucsi_acpi_platform_driver = {
 		.acpi_match_table = ACPI_PTR(ucsi_acpi_match),
 	},
 	.probe = ucsi_acpi_probe,
-	.remove_new = ucsi_acpi_remove,
+	.remove = ucsi_acpi_remove,
 };
 
 module_platform_driver(ucsi_acpi_platform_driver);

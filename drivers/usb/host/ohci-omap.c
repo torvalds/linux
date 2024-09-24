@@ -390,7 +390,7 @@ static int ohci_omap_resume(struct platform_device *dev)
  */
 static struct platform_driver ohci_hcd_omap_driver = {
 	.probe		= ohci_hcd_omap_probe,
-	.remove_new	= ohci_hcd_omap_remove,
+	.remove		= ohci_hcd_omap_remove,
 	.shutdown	= usb_hcd_platform_shutdown,
 #ifdef	CONFIG_PM
 	.suspend	= ohci_omap_suspend,

@@ -2685,7 +2685,7 @@ net2272_plat_remove(struct platform_device *pdev)
 
 static struct platform_driver net2272_plat_driver = {
 	.probe   = net2272_plat_probe,
-	.remove_new = net2272_plat_remove,
+	.remove = net2272_plat_remove,
 	.driver  = {
 		.name  = driver_name,
 	},
