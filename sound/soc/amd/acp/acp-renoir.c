@@ -186,6 +186,7 @@ static int renoir_audio_probe(struct platform_device *pdev)
 	adata->num_dai = ARRAY_SIZE(acp_renoir_dai);
 	adata->rsrc = &rsrc;
 	adata->platform = RENOIR;
+	adata->acp_rev = chip->acp_rev;
 	adata->flag = chip->flag;
 
 	adata->machines = snd_soc_acpi_amd_acp_machines;

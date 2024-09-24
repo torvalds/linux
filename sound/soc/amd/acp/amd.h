@@ -177,6 +177,7 @@ struct acp_dev_data {
 	struct device *dev;
 	void __iomem *acp_base;
 	unsigned int i2s_irq;
+	unsigned int acp_rev;	/* ACP Revision id */
 
 	bool tdm_mode;
 	bool is_i2s_config;
