@@ -1426,10 +1426,12 @@ struct cpucp_monitor_dump {
  *
  * HL_PASSTHROUGHT_VERSIONS	- Fetch all firmware versions.
  * HL_GET_ERR_COUNTERS_CMD	- Command to get error counters
+ * HL_GET_P_STATE		- get performance state
  */
 enum hl_passthrough_type {
 	HL_PASSTHROUGH_VERSIONS,
 	HL_GET_ERR_COUNTERS_CMD,
+	HL_GET_P_STATE,
 };
 
 #endif /* CPUCP_IF_H */
