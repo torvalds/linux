@@ -1,0 +1,58 @@
+/*
+ *
+ * (C) COPYRIGHT 2020-2022 Arm Limited.
+ *
+ * This program is free software and is provided to you under the terms of the
+ * GNU General Public License version 2 as published by the Free Software
+ * Foundation, and any use by you of this program is subject to the terms
+ * of such GNU licence.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, you can access it online at
+ * http://www.gnu.org/licenses/gpl-2.0.html.
+ *
+ * SPDX-License-Identifier: GPL-2.0-only
+ *
+ */
+
+/include/ "juno-r2-ethosn.dtsi"
+/include/ "juno-r2-smmu.dtsi"
+/include/ "juno-r2-asset-allocs.dtsi"
+
+/*
+ * Note:- The smmu stream id defined in ethosn needs to be a unique value amongst
+ * all the stream ids for the various devices attached to the same smmu.
+ */
+&smmu_ethosn0 {
+	status = "okay";
+};
+
+&ethosn0 {
+	reg = <0 0x6f300000 0 0x00100000>;
+	status = "okay";
+
+	core0 {
+		compatible = "ethosn-core";
+		status = "okay";
+
+		main_allocator {
+			compatible = "ethosn-main_allocator";
+			status = "okay";
+
+			firmware {
+				compatible = "ethosn-memory";
+				iommus = <&smmu_ethosn0 0>;
+			};
+
+			working_data {
+				compatible = "ethosn-memory";
+				iommus = <&smmu_ethosn0 1>;
+			};
+		};
+	};
+};

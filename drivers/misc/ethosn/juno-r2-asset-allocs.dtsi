@@ -1,0 +1,529 @@
+/*
+ *
+ * (C) COPYRIGHT 2022 Arm Limited.
+ *
+ * This program is free software and is provided to you under the terms of the
+ * GNU General Public License version 2 as published by the Free Software
+ * Foundation, and any use by you of this program is subject to the terms
+ * of such GNU licence.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, you can access it online at
+ * http://www.gnu.org/licenses/gpl-2.0.html.
+ *
+ * SPDX-License-Identifier: GPL-2.0-only
+ *
+ */
+
+ /*
+ * Note:- Include for adding multiple asset allocators to smmu use cases, the
+ * number of asset allocators added is implementor defined.
+ */
+&ethosn0 {
+	asset_allocator0 {
+		compatible = "ethosn-asset_allocator";
+		status = "okay";
+
+		command_stream {
+			compatible = "ethosn-memory";
+			iommus = <&smmu_ethosn0 4>;
+		};
+
+		weight_data {
+			compatible = "ethosn-memory";
+			iommus = <&smmu_ethosn0 5>;
+		};
+
+		buffer_data {
+			compatible = "ethosn-memory";
+			iommus = <&smmu_ethosn0 6>;
+		};
+
+		intermediate_data {
+			compatible = "ethosn-memory";
+			iommus = <&smmu_ethosn0 7>;
+		};
+	};
+
+	asset_allocator1 {
+		compatible = "ethosn-asset_allocator";
+		status = "okay";
+
+		command_stream {
+			compatible = "ethosn-memory";
+			iommus = <&smmu_ethosn0 8>;
+		};
+
+		weight_data {
+			compatible = "ethosn-memory";
+			iommus = <&smmu_ethosn0 9>;
+		};
+
+		buffer_data {
+			compatible = "ethosn-memory";
+			iommus = <&smmu_ethosn0 10>;
+		};
+
+		intermediate_data {
+			compatible = "ethosn-memory";
+			iommus = <&smmu_ethosn0 11>;
+		};
+	};
+
+	asset_allocator2 {
+		compatible = "ethosn-asset_allocator";
+		status = "okay";
+
+		command_stream {
+			compatible = "ethosn-memory";
+			iommus = <&smmu_ethosn0 12>;
+		};
+
+		weight_data {
+			compatible = "ethosn-memory";
+			iommus = <&smmu_ethosn0 13>;
+		};
+
+		buffer_data {
+			compatible = "ethosn-memory";
+			iommus = <&smmu_ethosn0 14>;
+		};
+
+		intermediate_data {
+			compatible = "ethosn-memory";
+			iommus = <&smmu_ethosn0 15>;
+		};
+	};
+
+	asset_allocator3 {
+		compatible = "ethosn-asset_allocator";
+		status = "okay";
+
+		command_stream {
+			compatible = "ethosn-memory";
+			iommus = <&smmu_ethosn0 16>;
+		};
+
+		weight_data {
+			compatible = "ethosn-memory";
+			iommus = <&smmu_ethosn0 17>;
+		};
+
+		buffer_data {
+			compatible = "ethosn-memory";
+			iommus = <&smmu_ethosn0 18>;
+		};
+
+		intermediate_data {
+			compatible = "ethosn-memory";
+			iommus = <&smmu_ethosn0 19>;
+		};
+	};
+
+	asset_allocator4 {
+		compatible = "ethosn-asset_allocator";
+		status = "okay";
+
+		command_stream {
+			compatible = "ethosn-memory";
+			iommus = <&smmu_ethosn0 20>;
+		};
+
+		weight_data {
+			compatible = "ethosn-memory";
+			iommus = <&smmu_ethosn0 21>;
+		};
+
+		buffer_data {
+			compatible = "ethosn-memory";
+			iommus = <&smmu_ethosn0 22>;
+		};
+
+		intermediate_data {
+			compatible = "ethosn-memory";
+			iommus = <&smmu_ethosn0 23>;
+		};
+	};
+
+	asset_allocator5 {
+		compatible = "ethosn-asset_allocator";
+		status = "okay";
+
+		command_stream {
+			compatible = "ethosn-memory";
+			iommus = <&smmu_ethosn0 24>;
+		};
+
+		weight_data {
+			compatible = "ethosn-memory";
+			iommus = <&smmu_ethosn0 25>;
+		};
+
+		buffer_data {
+			compatible = "ethosn-memory";
+			iommus = <&smmu_ethosn0 26>;
+		};
+
+		intermediate_data {
+			compatible = "ethosn-memory";
+			iommus = <&smmu_ethosn0 27>;
+		};
+	};
+
+	asset_allocator6 {
+		compatible = "ethosn-asset_allocator";
+		status = "okay";
+
+		command_stream {
+			compatible = "ethosn-memory";
+			iommus = <&smmu_ethosn0 28>;
+		};
+
+		weight_data {
+			compatible = "ethosn-memory";
+			iommus = <&smmu_ethosn0 29>;
+		};
+
+		buffer_data {
+			compatible = "ethosn-memory";
+			iommus = <&smmu_ethosn0 30>;
+		};
+
+		intermediate_data {
+			compatible = "ethosn-memory";
+			iommus = <&smmu_ethosn0 31>;
+		};
+	};
+
+	asset_allocator7 {
+		compatible = "ethosn-asset_allocator";
+		status = "okay";
+
+		command_stream {
+			compatible = "ethosn-memory";
+			iommus = <&smmu_ethosn0 32>;
+		};
+
+		weight_data {
+			compatible = "ethosn-memory";
+			iommus = <&smmu_ethosn0 33>;
+		};
+
+		buffer_data {
+			compatible = "ethosn-memory";
+			iommus = <&smmu_ethosn0 34>;
+		};
+
+		intermediate_data {
+			compatible = "ethosn-memory";
+			iommus = <&smmu_ethosn0 35>;
+		};
+	};
+
+	asset_allocator8 {
+		compatible = "ethosn-asset_allocator";
+		status = "okay";
+
+		command_stream {
+			compatible = "ethosn-memory";
+			iommus = <&smmu_ethosn0 36>;
+		};
+
+		weight_data {
+			compatible = "ethosn-memory";
+			iommus = <&smmu_ethosn0 37>;
+		};
+
+		buffer_data {
+			compatible = "ethosn-memory";
+			iommus = <&smmu_ethosn0 38>;
+		};
+
+		intermediate_data {
+			compatible = "ethosn-memory";
+			iommus = <&smmu_ethosn0 39>;
+		};
+	};
+
+	asset_allocator9 {
+		compatible = "ethosn-asset_allocator";
+		status = "okay";
+
+		command_stream {
+			compatible = "ethosn-memory";
+			iommus = <&smmu_ethosn0 40>;
+		};
+
+		weight_data {
+			compatible = "ethosn-memory";
+			iommus = <&smmu_ethosn0 41>;
+		};
+
+		buffer_data {
+			compatible = "ethosn-memory";
+			iommus = <&smmu_ethosn0 42>;
+		};
+
+		intermediate_data {
+			compatible = "ethosn-memory";
+			iommus = <&smmu_ethosn0 43>;
+		};
+	};
+};
+
+&ethosn1 {
+	asset_allocator0 {
+		compatible = "ethosn-asset_allocator";
+		status = "okay";
+
+		command_stream {
+			compatible = "ethosn-memory";
+			iommus = <&smmu_ethosn1 4>;
+		};
+
+		weight_data {
+			compatible = "ethosn-memory";
+			iommus = <&smmu_ethosn1 5>;
+		};
+
+		buffer_data {
+			compatible = "ethosn-memory";
+			iommus = <&smmu_ethosn1 6>;
+		};
+
+		intermediate_data {
+			compatible = "ethosn-memory";
+			iommus = <&smmu_ethosn1 7>;
+		};
+	};
+
+	asset_allocator1 {
+		compatible = "ethosn-asset_allocator";
+		status = "okay";
+
+		command_stream {
+			compatible = "ethosn-memory";
+			iommus = <&smmu_ethosn1 8>;
+		};
+
+		weight_data {
+			compatible = "ethosn-memory";
+			iommus = <&smmu_ethosn1 9>;
+		};
+
+		buffer_data {
+			compatible = "ethosn-memory";
+			iommus = <&smmu_ethosn1 10>;
+		};
+
+		intermediate_data {
+			compatible = "ethosn-memory";
+			iommus = <&smmu_ethosn1 11>;
+		};
+	};
+
+	asset_allocator2 {
+		compatible = "ethosn-asset_allocator";
+		status = "okay";
+
+		command_stream {
+			compatible = "ethosn-memory";
+			iommus = <&smmu_ethosn1 12>;
+		};
+
+		weight_data {
+			compatible = "ethosn-memory";
+			iommus = <&smmu_ethosn1 13>;
+		};
+
+		buffer_data {
+			compatible = "ethosn-memory";
+			iommus = <&smmu_ethosn1 14>;
+		};
+
+		intermediate_data {
+			compatible = "ethosn-memory";
+			iommus = <&smmu_ethosn1 15>;
+		};
+	};
+
+	asset_allocator3 {
+		compatible = "ethosn-asset_allocator";
+		status = "okay";
+
+		command_stream {
+			compatible = "ethosn-memory";
+			iommus = <&smmu_ethosn1 16>;
+		};
+
+		weight_data {
+			compatible = "ethosn-memory";
+			iommus = <&smmu_ethosn1 17>;
+		};
+
+		buffer_data {
+			compatible = "ethosn-memory";
+			iommus = <&smmu_ethosn1 18>;
+		};
+
+		intermediate_data {
+			compatible = "ethosn-memory";
+			iommus = <&smmu_ethosn1 19>;
+		};
+	};
+
+	asset_allocator4 {
+		compatible = "ethosn-asset_allocator";
+		status = "okay";
+
+		command_stream {
+			compatible = "ethosn-memory";
+			iommus = <&smmu_ethosn1 20>;
+		};
+
+		weight_data {
+			compatible = "ethosn-memory";
+			iommus = <&smmu_ethosn1 21>;
+		};
+
+		buffer_data {
+			compatible = "ethosn-memory";
+			iommus = <&smmu_ethosn1 22>;
+		};
+
+		intermediate_data {
+			compatible = "ethosn-memory";
+			iommus = <&smmu_ethosn1 23>;
+		};
+	};
+
+	asset_allocator5 {
+		compatible = "ethosn-asset_allocator";
+		status = "okay";
+
+		command_stream {
+			compatible = "ethosn-memory";
+			iommus = <&smmu_ethosn1 24>;
+		};
+
+		weight_data {
+			compatible = "ethosn-memory";
+			iommus = <&smmu_ethosn1 25>;
+		};
+
+		buffer_data {
+			compatible = "ethosn-memory";
+			iommus = <&smmu_ethosn1 26>;
+		};
+
+		intermediate_data {
+			compatible = "ethosn-memory";
+			iommus = <&smmu_ethosn1 27>;
+		};
+	};
+
+	asset_allocator6 {
+		compatible = "ethosn-asset_allocator";
+		status = "okay";
+
+		command_stream {
+			compatible = "ethosn-memory";
+			iommus = <&smmu_ethosn1 28>;
+		};
+
+		weight_data {
+			compatible = "ethosn-memory";
+			iommus = <&smmu_ethosn1 29>;
+		};
+
+		buffer_data {
+			compatible = "ethosn-memory";
+			iommus = <&smmu_ethosn1 30>;
+		};
+
+		intermediate_data {
+			compatible = "ethosn-memory";
+			iommus = <&smmu_ethosn1 31>;
+		};
+	};
+
+	asset_allocator7 {
+		compatible = "ethosn-asset_allocator";
+		status = "okay";
+
+		command_stream {
+			compatible = "ethosn-memory";
+			iommus = <&smmu_ethosn1 32>;
+		};
+
+		weight_data {
+			compatible = "ethosn-memory";
+			iommus = <&smmu_ethosn1 33>;
+		};
+
+		buffer_data {
+			compatible = "ethosn-memory";
+			iommus = <&smmu_ethosn1 34>;
+		};
+
+		intermediate_data {
+			compatible = "ethosn-memory";
+			iommus = <&smmu_ethosn1 35>;
+		};
+	};
+
+	asset_allocator8 {
+		compatible = "ethosn-asset_allocator";
+		status = "okay";
+
+		command_stream {
+			compatible = "ethosn-memory";
+			iommus = <&smmu_ethosn1 36>;
+		};
+
+		weight_data {
+			compatible = "ethosn-memory";
+			iommus = <&smmu_ethosn1 37>;
+		};
+
+		buffer_data {
+			compatible = "ethosn-memory";
+			iommus = <&smmu_ethosn1 38>;
+		};
+
+		intermediate_data {
+			compatible = "ethosn-memory";
+			iommus = <&smmu_ethosn1 39>;
+		};
+	};
+
+	asset_allocator9 {
+		compatible = "ethosn-asset_allocator";
+		status = "okay";
+
+		command_stream {
+			compatible = "ethosn-memory";
+			iommus = <&smmu_ethosn1 40>;
+		};
+
+		weight_data {
+			compatible = "ethosn-memory";
+			iommus = <&smmu_ethosn1 41>;
+		};
+
+		buffer_data {
+			compatible = "ethosn-memory";
+			iommus = <&smmu_ethosn1 42>;
+		};
+
+		intermediate_data {
+			compatible = "ethosn-memory";
+			iommus = <&smmu_ethosn1 43>;
+		};
+	};
+};

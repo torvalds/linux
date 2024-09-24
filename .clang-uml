@@ -1,0 +1,95 @@
+compilation_database_dir: ./build
+output_directory: ./build/puml
+add_compile_flags:
+  - -Wno-duplicate-decl-specifier
+  - -Wno-gnu-variable-sized-type-not-at-end
+  - -Wno-unknown-warning-option
+  - -fparse-all-comments
+remove_compile_flags:
+  - '-mpreferred-stack-boundary=3'
+  - '-mindirect-branch=thunk-extern'
+  - '-mindirect-branch-register'
+  - '-fno-allow-store-data-races'
+  - '-fconserve-stack'
+  - '-falign-jumps=1'
+  - '-mrecord-mcount'
+  - '-fsanitize=bounds-strict'
+  - '-mabi=lp64'
+  - '-ftrivial-auto-var-init=zero'
+diagrams:
+  ethosn_init_sequence_diagram:
+    type: sequence
+    title: ethosn_init() sequence diagram
+    glob:
+      - drivers/misc/ethosn/*.c
+      - drivers/misc/ethosn/*.h
+      - drivers/misc/ethosn/uapi/*.h
+    generate_condition_statements: true
+    generate_return_types: true
+    combine_free_functions_into_file_participants: true
+    include:
+      paths:
+        - drivers/misc/ethosn/
+        - drivers/misc/ethosn/uapi/
+        - include/linux/
+    exclude:
+      elements:
+        - 'ethosn_major_cleanup()'
+      paths:
+        - include/linux/printk.h
+        - include/linux/fs.h
+        - include/linux/device/class.h
+    from:
+      - function: 'ethosn_init()'
+  ethosn_device_core_class:
+    type: class
+    title: struct ethosn_device_core diagram
+    glob:
+      - drivers/misc/ethosn/*.c
+      - drivers/misc/ethosn/*.h
+      - drivers/misc/ethosn/uapi/*.h
+    comment_parser: clang
+    include:
+      context:
+        - ethosn_device
+        - ethosn_core
+      paths:
+        - drivers/misc/ethosn/
+        - drivers/misc/ethosn/uapi/
+  ethosn_write_message_sequence_diagram:
+    type: sequence
+    title: ethosn_write_message() sequence diagram
+    glob:
+      - drivers/misc/ethosn/*.c
+      - drivers/misc/ethosn/*.h
+      - drivers/misc/ethosn/uapi/*.h
+    generate_condition_statements: true
+    fold_repeated_activities: true
+    generate_return_types: true
+    combine_free_functions_into_file_participants: true
+    include:
+      paths:
+        - drivers/misc/ethosn/
+        - drivers/misc/ethosn/uapi/
+    exclude:
+      elements:
+        - 'ethosn_queue_get_free_space(const struct ethosn_queue *)'
+    from:
+      - function: 'ethosn_write_message(struct ethosn_core *,enum ethosn_message_type,void *,size_t)'
+  ethosn_queue_write_sequence_diagram:
+    type: sequence
+    title: ethosn_queue_write() sequence diagram
+    glob:
+      - drivers/misc/ethosn/*.c
+      - drivers/misc/ethosn/*.h
+      - drivers/misc/ethosn/uapi/*.h
+    generate_condition_statements: true
+    fold_repeated_activities: true
+    generate_return_types: true
+    combine_free_functions_into_file_participants: true
+    include:
+      paths:
+        - drivers/misc/ethosn/
+        - drivers/misc/ethosn/uapi/
+    from:
+      - function: 'ethosn_queue_write(struct ethosn_queue *,const uint8_t *const *,const uint32_t *,uint32_t,uint32_t *)'

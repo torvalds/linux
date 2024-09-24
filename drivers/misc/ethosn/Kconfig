@@ -1,0 +1,6 @@
+config ETHOSN
+    tristate "Ethos-N driver support"
+    default m
+    help
+      This enables support for the Ethos-N driver.
+      Select 'm' to build as a loadable module, or 'y' to compile it statically into the kernel.
