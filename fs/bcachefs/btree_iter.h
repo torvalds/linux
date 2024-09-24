@@ -355,6 +355,18 @@ static int btree_trans_restart(struct btree_trans *trans, int err)
 	return btree_trans_restart_ip(trans, err, _THIS_IP_);
 }
 
+static inline int trans_maybe_inject_restart(struct btree_trans *trans, unsigned long ip)
+{
+#ifdef CONFIG_BCACHEFS_INJECT_TRANSACTION_RESTARTS
+	if (!(ktime_get_ns() & ~(~0ULL << min(63, (10 + trans->restart_count_this_trans))))) {
+		trace_and_count(trans->c, trans_restart_injected, trans, ip);
+		return btree_trans_restart_ip(trans,
+					BCH_ERR_transaction_restart_fault_inject, ip);
+	}
+#endif
+	return 0;
+}
+
 bool bch2_btree_node_upgrade(struct btree_trans *,
 			     struct btree_path *, unsigned);
 
