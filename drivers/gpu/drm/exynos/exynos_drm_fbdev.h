@@ -11,12 +11,17 @@
 #ifndef _EXYNOS_DRM_FBDEV_H_
 #define _EXYNOS_DRM_FBDEV_H_
 
-#ifdef CONFIG_DRM_FBDEV_EMULATION
-void exynos_drm_fbdev_setup(struct drm_device *dev);
+struct drm_fb_helper;
+struct drm_fb_helper_surface_size;
+
+#if defined(CONFIG_DRM_FBDEV_EMULATION)
+int exynos_drm_fbdev_driver_fbdev_probe(struct drm_fb_helper *fbh,
+					struct drm_fb_helper_surface_size *sizes);
+#define EXYNOS_DRM_FBDEV_DRIVER_OPS \
+	.fbdev_probe = exynos_drm_fbdev_driver_fbdev_probe
 #else
-static inline void exynos_drm_fbdev_setup(struct drm_device *dev)
-{
-}
+#define EXYNOS_DRM_FBDEV_DRIVER_OPS \
+	.fbdev_probe = NULL
 #endif
 
 #endif
