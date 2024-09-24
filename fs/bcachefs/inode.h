@@ -97,10 +97,26 @@ struct bkey_i *bch2_inode_to_v3(struct btree_trans *, struct bkey_i *);
 
 void bch2_inode_unpacked_to_text(struct printbuf *, struct bch_inode_unpacked *);
 
-int bch2_inode_peek_nowarn(struct btree_trans *, struct btree_iter *,
-		    struct bch_inode_unpacked *, subvol_inum, unsigned);
-int bch2_inode_peek(struct btree_trans *, struct btree_iter *,
-		    struct bch_inode_unpacked *, subvol_inum, unsigned);
+int __bch2_inode_peek(struct btree_trans *, struct btree_iter *,
+		      struct bch_inode_unpacked *, subvol_inum, unsigned, bool);
+
+static inline int bch2_inode_peek_nowarn(struct btree_trans *trans,
+					 struct btree_iter *iter,
+					 struct bch_inode_unpacked *inode,
+					 subvol_inum inum, unsigned flags)
+{
+	return __bch2_inode_peek(trans, iter, inode, inum, flags, false);
+}
+
+static inline int bch2_inode_peek(struct btree_trans *trans,
+				  struct btree_iter *iter,
+				  struct bch_inode_unpacked *inode,
+				  subvol_inum inum, unsigned flags)
+{
+	return __bch2_inode_peek(trans, iter, inode, inum, flags, true);
+	int ret = bch2_inode_peek_nowarn(trans, iter, inode, inum, flags);
+	return ret;
+}
 
 int bch2_inode_write_flags(struct btree_trans *, struct btree_iter *,
 		     struct bch_inode_unpacked *, enum btree_iter_update_trigger_flags);

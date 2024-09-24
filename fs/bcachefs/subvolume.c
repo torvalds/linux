@@ -332,8 +332,8 @@ int bch2_snapshot_get_subvol(struct btree_trans *trans, u32 snapshot,
 		bch2_subvolume_get(trans, le32_to_cpu(snap.subvol), true, 0, subvol);
 }
 
-int bch2_subvolume_get_snapshot(struct btree_trans *trans, u32 subvolid,
-				u32 *snapid)
+int __bch2_subvolume_get_snapshot(struct btree_trans *trans, u32 subvolid,
+				  u32 *snapid, bool warn)
 {
 	struct btree_iter iter;
 	struct bkey_s_c_subvolume subvol;
@@ -344,13 +344,20 @@ int bch2_subvolume_get_snapshot(struct btree_trans *trans, u32 subvolid,
 					  BTREE_ITER_cached|BTREE_ITER_with_updates,
 					  subvolume);
 	ret = bkey_err(subvol);
-	bch2_fs_inconsistent_on(bch2_err_matches(ret, ENOENT), trans->c,
+
+	bch2_fs_inconsistent_on(warn && bch2_err_matches(ret, ENOENT), trans->c,
 				"missing subvolume %u", subvolid);
 
 	if (likely(!ret))
 		*snapid = le32_to_cpu(subvol.v->snapshot);
 	bch2_trans_iter_exit(trans, &iter);
 	return ret;
+}
+
+int bch2_subvolume_get_snapshot(struct btree_trans *trans, u32 subvolid,
+				u32 *snapid)
+{
+	return __bch2_subvolume_get_snapshot(trans, subvolid, snapid, true);
 }
 
 static int bch2_subvolume_reparent(struct btree_trans *trans,
