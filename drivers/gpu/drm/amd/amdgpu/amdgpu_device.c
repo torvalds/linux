@@ -5358,7 +5358,7 @@ int amdgpu_device_pre_asic_reset(struct amdgpu_device *adev,
 			for (i = 0; i < tmp_adev->num_ip_blocks; i++)
 				if (tmp_adev->ip_blocks[i].version->funcs->dump_ip_state)
 					tmp_adev->ip_blocks[i].version->funcs
-						->dump_ip_state((void *)tmp_adev);
+						->dump_ip_state((void *)&tmp_adev->ip_blocks[i]);
 			dev_info(tmp_adev->dev, "Dumping IP State Completed\n");
 		}
 

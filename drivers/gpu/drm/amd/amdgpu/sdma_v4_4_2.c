@@ -1878,9 +1878,9 @@ static void sdma_v4_4_2_print_ip_state(void *handle, struct drm_printer *p)
 	}
 }
 
-static void sdma_v4_4_2_dump_ip_state(void *handle)
+static void sdma_v4_4_2_dump_ip_state(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	int i, j;
 	uint32_t instance_offset;
 	uint32_t reg_count = ARRAY_SIZE(sdma_reg_list_4_4_2);

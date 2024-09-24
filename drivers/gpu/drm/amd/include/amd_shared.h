@@ -375,6 +375,8 @@ enum amd_dpm_forced_level;
  * making calls to hooks from each IP block. This list is ordered to ensure
  * that the driver initializes the IP blocks in a safe sequence.
  */
+struct amdgpu_ip_block;
+
 struct amd_ip_funcs {
 	char *name;
 	int (*early_init)(void *handle);
@@ -399,7 +401,7 @@ struct amd_ip_funcs {
 	int (*set_powergating_state)(void *handle,
 				     enum amd_powergating_state state);
 	void (*get_clockgating_state)(void *handle, u64 *flags);
-	void (*dump_ip_state)(void *handle);
+	void (*dump_ip_state)(struct amdgpu_ip_block *ip_block);
 	void (*print_ip_state)(void *handle, struct drm_printer *p);
 };
 
