@@ -2140,7 +2140,7 @@ int btrfs_qgroup_trace_extent(struct btrfs_trans_handle *trans, u64 bytenr,
 {
 	struct btrfs_fs_info *fs_info = trans->fs_info;
 	struct btrfs_qgroup_extent_record *record;
-	struct btrfs_delayed_ref_root *delayed_refs;
+	struct btrfs_delayed_ref_root *delayed_refs = &trans->transaction->delayed_refs;
 	const unsigned long index = (bytenr >> fs_info->sectorsize_bits);
 	int ret;
 
@@ -2150,12 +2150,11 @@ int btrfs_qgroup_trace_extent(struct btrfs_trans_handle *trans, u64 bytenr,
 	if (!record)
 		return -ENOMEM;
 
-	if (xa_reserve(&trans->transaction->delayed_refs.dirty_extents, index, GFP_NOFS)) {
+	if (xa_reserve(&delayed_refs->dirty_extents, index, GFP_NOFS)) {
 		kfree(record);
 		return -ENOMEM;
 	}
 
-	delayed_refs = &trans->transaction->delayed_refs;
 	record->num_bytes = num_bytes;
 	record->old_roots = NULL;
 
