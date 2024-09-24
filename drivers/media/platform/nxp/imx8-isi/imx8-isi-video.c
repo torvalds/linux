@@ -861,6 +861,7 @@ int mxc_isi_video_buffer_prepare(struct mxc_isi_dev *isi, struct vb2_buffer *vb2
 				 const struct mxc_isi_format_info *info,
 				 const struct v4l2_pix_format_mplane *pix)
 {
+	struct vb2_v4l2_buffer *v4l2_buf = to_vb2_v4l2_buffer(vb2);
 	unsigned int i;
 
 	for (i = 0; i < info->mem_planes; i++) {
@@ -874,6 +875,8 @@ int mxc_isi_video_buffer_prepare(struct mxc_isi_dev *isi, struct vb2_buffer *vb2
 
 		vb2_set_plane_payload(vb2, i, size);
 	}
+
+	v4l2_buf->field = pix->field;
 
 	return 0;
 }
