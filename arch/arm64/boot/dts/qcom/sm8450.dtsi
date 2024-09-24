@@ -3435,7 +3435,6 @@
 			#clock-cells = <1>;
 			#reset-cells = <1>;
 			#power-domain-cells = <1>;
-			status = "disabled";
 		};
 
 		pdc: interrupt-controller@b220000 {
