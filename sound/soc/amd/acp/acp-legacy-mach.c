@@ -172,9 +172,10 @@ static int acp_asoc_probe(struct platform_device *pdev)
 		goto out;
 	}
 	if (!strcmp(pdev->name, "acp-pdm-mach"))
-		acp_card_drvdata->platform =  *((int *)dev->platform_data);
+		acp_card_drvdata->acp_rev =  *((int *)dev->platform_data);
+	else
+		acp_card_drvdata->acp_rev = mach->mach_params.subsystem_rev;
 
-	acp_card_drvdata->acp_rev = mach->mach_params.subsystem_rev;
 	dmi_id = dmi_first_match(acp_quirk_table);
 	if (dmi_id && dmi_id->driver_data)
 		acp_card_drvdata->tdm_mode = dmi_id->driver_data;
