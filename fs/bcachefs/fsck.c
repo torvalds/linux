@@ -626,7 +626,6 @@ static int ref_visible2(struct bch_fs *c,
 struct inode_walker_entry {
 	struct bch_inode_unpacked inode;
 	u32			snapshot;
-	bool			seen_this_pos;
 	u64			count;
 };
 
@@ -740,9 +739,6 @@ static struct inode_walker_entry *walk_inode(struct btree_trans *trans,
 		int ret = get_inodes_all_snapshots(trans, w, k.k->p.inode);
 		if (ret)
 			return ERR_PTR(ret);
-	} else if (bkey_cmp(w->last_pos, k.k->p)) {
-		darray_for_each(w->inodes, i)
-			i->seen_this_pos = false;
 	}
 
 	w->last_pos = k.k->p;
@@ -1634,8 +1630,6 @@ static int check_extent(struct btree_trans *trans, struct btree_iter *iter,
 			if (bkey_extent_is_allocation(k.k))
 				i->count += k.k->size;
 		}
-
-		i->seen_this_pos = true;
 	}
 
 	if (k.k->type != KEY_TYPE_whiteout) {
