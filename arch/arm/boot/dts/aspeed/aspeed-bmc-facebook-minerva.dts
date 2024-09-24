@@ -213,54 +213,8 @@
 		#size-cells = <0>;
 		i2c-mux-idle-disconnect;
 
-		imux16: i2c@0 {
-			#address-cells = <1>;
-			#size-cells = <0>;
-			reg = <0>;
-
-			eeprom@50 {
-				compatible = "atmel,24c128";
-				reg = <0x50>;
-			};
-
-			pwm@5e{
-				compatible = "max31790";
-				reg = <0x5e>;
-				#address-cells = <1>;
-				#size-cells = <0>;
-			};
-
-			power-sensor@40 {
-				compatible = "ti,ina238";
-				reg = <0x40>;
-				shunt-resistor = <1000>;
-			};
-
-			power-sensor@41 {
-				compatible = "ti,ina238";
-				reg = <0x41>;
-				shunt-resistor = <1000>;
-			};
-
-			power-sensor@44 {
-				compatible = "ti,ina238";
-				reg = <0x44>;
-				shunt-resistor = <1000>;
-			};
-
-			power-sensor@45 {
-				compatible = "ti,ina238";
-				reg = <0x45>;
-				shunt-resistor = <1000>;
-			};
-
-			temperature-sensor@4b {
-				compatible = "ti,tmp75";
-				reg = <0x4b>;
-			};
-		};
-
-		imux17: i2c@1 {
+		// FCB 1
+		imux16: i2c@1 {
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <1>;
@@ -306,11 +260,11 @@
 				reg = <0x4b>;
 			};
 		};
-
-		imux18: i2c@2 {
+		// FCB 2
+		imux17: i2c@0 {
 			#address-cells = <1>;
 			#size-cells = <0>;
-			reg = <2>;
+			reg = <0>;
 
 			eeprom@50 {
 				compatible = "atmel,24c128";
@@ -353,8 +307,8 @@
 				reg = <0x4b>;
 			};
 		};
-
-		imux19: i2c@3 {
+		// FCB 3
+		imux18: i2c@3 {
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <3>;
@@ -400,8 +354,55 @@
 				reg = <0x4b>;
 			};
 		};
+		// FCB 4
+		imux19: i2c@2 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <2>;
 
-		imux20: i2c@5 {
+			eeprom@50 {
+				compatible = "atmel,24c128";
+				reg = <0x50>;
+			};
+
+			pwm@5e{
+				compatible = "max31790";
+				reg = <0x5e>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+			};
+
+			power-sensor@40 {
+				compatible = "ti,ina238";
+				reg = <0x40>;
+				shunt-resistor = <1000>;
+			};
+
+			power-sensor@41 {
+				compatible = "ti,ina238";
+				reg = <0x41>;
+				shunt-resistor = <1000>;
+			};
+
+			power-sensor@44 {
+				compatible = "ti,ina238";
+				reg = <0x44>;
+				shunt-resistor = <1000>;
+			};
+
+			power-sensor@45 {
+				compatible = "ti,ina238";
+				reg = <0x45>;
+				shunt-resistor = <1000>;
+			};
+
+			temperature-sensor@4b {
+				compatible = "ti,tmp75";
+				reg = <0x4b>;
+			};
+		};
+		// FCB 5
+		imux20: i2c@4 {
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <4>;
@@ -446,8 +447,8 @@
 				reg = <0x4b>;
 			};
 		};
-
-		imux21: i2c@4 {
+		// FCB 6
+		imux21: i2c@5 {
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <5>;
