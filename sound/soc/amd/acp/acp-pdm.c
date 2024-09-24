@@ -47,7 +47,7 @@ static int acp_dmic_prepare(struct snd_pcm_substream *substream,
 	size_dmic = frames_to_bytes(substream->runtime,
 			substream->runtime->buffer_size);
 
-	if (chip->acp_rev >= ACP70_DEV)
+	if (chip->acp_rev >= ACP70_PCI_ID)
 		physical_addr = ACP7x_DMIC_MEM_WINDOW_START;
 	else
 		physical_addr = stream->reg_offset + MEM_WINDOW_START;

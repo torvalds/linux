@@ -175,8 +175,8 @@ static int acp_acp70_audio_probe(struct platform_device *pdev)
 	}
 
 	switch (chip->acp_rev) {
-	case ACP70_DEV:
-	case ACP71_DEV:
+	case ACP70_PCI_ID:
+	case ACP71_PCI_ID:
 		break;
 	default:
 		dev_err(&pdev->dev, "Un-supported ACP Revision %d\n", chip->acp_rev);
@@ -209,7 +209,7 @@ static int acp_acp70_audio_probe(struct platform_device *pdev)
 	adata->num_dai = ARRAY_SIZE(acp70_dai);
 	adata->rsrc = &rsrc;
 	adata->machines = snd_soc_acpi_amd_acp70_acp_machines;
-	if (chip->acp_rev == ACP70_DEV)
+	if (chip->acp_rev == ACP70_PCI_ID)
 		adata->platform = ACP70;
 	else
 		adata->platform = ACP71;

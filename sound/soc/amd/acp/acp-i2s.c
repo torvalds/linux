@@ -59,9 +59,9 @@ static inline void acp_set_i2s_clk(struct acp_dev_data *adata, int dai_id)
 		val |= BIT(1);
 
 	switch (chip->acp_rev) {
-	case ACP63_DEV:
-	case ACP70_DEV:
-	case ACP71_DEV:
+	case ACP63_PCI_ID:
+	case ACP70_PCI_ID:
+	case ACP71_PCI_ID:
 		val |= FIELD_PREP(ACP63_LRCLK_DIV_FIELD, adata->lrclk_div);
 		val |= FIELD_PREP(ACP63_BCLK_DIV_FIELD, adata->bclk_div);
 		break;
@@ -121,8 +121,8 @@ static int acp_i2s_set_tdm_slot(struct snd_soc_dai *dai, u32 tx_mask, u32 rx_mas
 	}
 
 	switch (chip->acp_rev) {
-	case ACP3X_DEV:
-	case ACP6X_DEV:
+	case ACP_RN_PCI_ID:
+	case ACP_RMB_PCI_ID:
 		switch (slots) {
 		case 1 ... 7:
 			no_of_slots = slots;
@@ -135,9 +135,9 @@ static int acp_i2s_set_tdm_slot(struct snd_soc_dai *dai, u32 tx_mask, u32 rx_mas
 			return -EINVAL;
 		}
 		break;
-	case ACP63_DEV:
-	case ACP70_DEV:
-	case ACP71_DEV:
+	case ACP63_PCI_ID:
+	case ACP70_PCI_ID:
+	case ACP71_PCI_ID:
 		switch (slots) {
 		case 1 ... 31:
 			no_of_slots = slots;
@@ -160,8 +160,8 @@ static int acp_i2s_set_tdm_slot(struct snd_soc_dai *dai, u32 tx_mask, u32 rx_mas
 	spin_lock_irq(&adata->acp_lock);
 	list_for_each_entry(stream, &adata->stream_list, list) {
 		switch (chip->acp_rev) {
-		case ACP3X_DEV:
-		case ACP6X_DEV:
+		case ACP_RN_PCI_ID:
+		case ACP_RMB_PCI_ID:
 			if (tx_mask && stream->dir == SNDRV_PCM_STREAM_PLAYBACK)
 				adata->tdm_tx_fmt[stream->dai_id - 1] =
 					FRM_LEN | (slots << 15) | (slot_len << 18);
@@ -169,9 +169,9 @@ static int acp_i2s_set_tdm_slot(struct snd_soc_dai *dai, u32 tx_mask, u32 rx_mas
 				adata->tdm_rx_fmt[stream->dai_id - 1] =
 					FRM_LEN | (slots << 15) | (slot_len << 18);
 			break;
-		case ACP63_DEV:
-		case ACP70_DEV:
-		case ACP71_DEV:
+		case ACP63_PCI_ID:
+		case ACP70_PCI_ID:
+		case ACP71_PCI_ID:
 			if (tx_mask && stream->dir == SNDRV_PCM_STREAM_PLAYBACK)
 				adata->tdm_tx_fmt[stream->dai_id - 1] =
 						FRM_LEN | (slots << 13) | (slot_len << 18);
@@ -534,7 +534,7 @@ static int acp_i2s_prepare(struct snd_pcm_substream *substream, struct snd_soc_d
 			reg_fifo_addr =	ACP_I2S_TX_FIFOADDR(adata);
 			reg_fifo_size = ACP_I2S_TX_FIFOSIZE(adata);
 
-			if (chip->acp_rev >= ACP70_DEV)
+			if (chip->acp_rev >= ACP70_PCI_ID)
 				phy_addr = ACP7x_I2S_SP_TX_MEM_WINDOW_START;
 			else
 				phy_addr = I2S_SP_TX_MEM_WINDOW_START + stream->reg_offset;
@@ -546,7 +546,7 @@ static int acp_i2s_prepare(struct snd_pcm_substream *substream, struct snd_soc_d
 			reg_fifo_addr = ACP_I2S_RX_FIFOADDR(adata);
 			reg_fifo_size = ACP_I2S_RX_FIFOSIZE(adata);
 
-			if (chip->acp_rev >= ACP70_DEV)
+			if (chip->acp_rev >= ACP70_PCI_ID)
 				phy_addr = ACP7x_I2S_SP_RX_MEM_WINDOW_START;
 			else
 				phy_addr = I2S_SP_RX_MEM_WINDOW_START + stream->reg_offset;
@@ -561,7 +561,7 @@ static int acp_i2s_prepare(struct snd_pcm_substream *substream, struct snd_soc_d
 			reg_fifo_addr = ACP_BT_TX_FIFOADDR(adata);
 			reg_fifo_size = ACP_BT_TX_FIFOSIZE(adata);
 
-			if (chip->acp_rev >= ACP70_DEV)
+			if (chip->acp_rev >= ACP70_PCI_ID)
 				phy_addr = ACP7x_I2S_BT_TX_MEM_WINDOW_START;
 			else
 				phy_addr = I2S_BT_TX_MEM_WINDOW_START + stream->reg_offset;
@@ -573,7 +573,7 @@ static int acp_i2s_prepare(struct snd_pcm_substream *substream, struct snd_soc_d
 			reg_fifo_addr = ACP_BT_RX_FIFOADDR(adata);
 			reg_fifo_size = ACP_BT_RX_FIFOSIZE(adata);
 
-			if (chip->acp_rev >= ACP70_DEV)
+			if (chip->acp_rev >= ACP70_PCI_ID)
 				phy_addr = ACP7x_I2S_BT_RX_MEM_WINDOW_START;
 			else
 				phy_addr = I2S_BT_TX_MEM_WINDOW_START + stream->reg_offset;
@@ -588,7 +588,7 @@ static int acp_i2s_prepare(struct snd_pcm_substream *substream, struct snd_soc_d
 			reg_fifo_addr = ACP_HS_TX_FIFOADDR;
 			reg_fifo_size = ACP_HS_TX_FIFOSIZE;
 
-			if (chip->acp_rev >= ACP70_DEV)
+			if (chip->acp_rev >= ACP70_PCI_ID)
 				phy_addr = ACP7x_I2S_HS_TX_MEM_WINDOW_START;
 			else
 				phy_addr = I2S_HS_TX_MEM_WINDOW_START + stream->reg_offset;
@@ -600,7 +600,7 @@ static int acp_i2s_prepare(struct snd_pcm_substream *substream, struct snd_soc_d
 			reg_fifo_addr = ACP_HS_RX_FIFOADDR;
 			reg_fifo_size = ACP_HS_RX_FIFOSIZE;
 
-			if (chip->acp_rev >= ACP70_DEV)
+			if (chip->acp_rev >= ACP70_PCI_ID)
 				phy_addr = ACP7x_I2S_HS_RX_MEM_WINDOW_START;
 			else
 				phy_addr = I2S_HS_RX_MEM_WINDOW_START + stream->reg_offset;

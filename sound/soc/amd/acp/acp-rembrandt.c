@@ -197,7 +197,7 @@ static int rembrandt_audio_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	if (chip->acp_rev != ACP6X_DEV) {
+	if (chip->acp_rev != ACP_RMB_PCI_ID) {
 		dev_err(&pdev->dev, "Un-supported ACP Revision %d\n", chip->acp_rev);
 		return -ENODEV;
 	}
