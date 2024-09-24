@@ -868,6 +868,7 @@ static int libbpf_print_fn(enum libbpf_print_level level,
 
 		va_copy(args2, args);
 		vfprintf(libbpf_capture_stream, format, args2);
+		va_end(args2);
 	}
 
 	if (env.verbosity < VERBOSE_VERY && level == LIBBPF_DEBUG)
