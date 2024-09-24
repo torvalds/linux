@@ -6,7 +6,7 @@ config EP93XX_SOC
 	bool "Cirrus EP93xx chips SoC"
 	select SOC_BUS
 	select AUXILIARY_BUS
-	default y if !EP93XX_SOC_COMMON
+	default y
 	help
 	  Enable support SoC for Cirrus EP93xx chips.
 
