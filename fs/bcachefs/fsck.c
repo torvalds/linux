@@ -21,6 +21,49 @@
 #include <linux/bsearch.h>
 #include <linux/dcache.h> /* struct qstr */
 
+static bool inode_points_to_dirent(struct bch_inode_unpacked *inode,
+				   struct bkey_s_c_dirent d)
+{
+	return  inode->bi_dir		== d.k->p.inode &&
+		inode->bi_dir_offset	== d.k->p.offset;
+}
+
+static bool dirent_points_to_inode_nowarn(struct bkey_s_c_dirent d,
+				   struct bch_inode_unpacked *inode)
+{
+	if (d.v->d_type == DT_SUBVOL
+	    ? le32_to_cpu(d.v->d_child_subvol)	== inode->bi_subvol
+	    : le64_to_cpu(d.v->d_inum)		== inode->bi_inum)
+		return 0;
+	return -BCH_ERR_ENOENT_dirent_doesnt_match_inode;
+}
+
+static void dirent_inode_mismatch_msg(struct printbuf *out,
+				      struct bch_fs *c,
+				      struct bkey_s_c_dirent dirent,
+				      struct bch_inode_unpacked *inode)
+{
+	prt_str(out, "inode points to dirent that does not point back:");
+	prt_newline(out);
+	bch2_bkey_val_to_text(out, c, dirent.s_c);
+	prt_newline(out);
+	bch2_inode_unpacked_to_text(out, inode);
+}
+
+static int dirent_points_to_inode(struct bch_fs *c,
+				  struct bkey_s_c_dirent dirent,
+				  struct bch_inode_unpacked *inode)
+{
+	int ret = dirent_points_to_inode_nowarn(dirent, inode);
+	if (ret) {
+		struct printbuf buf = PRINTBUF;
+		dirent_inode_mismatch_msg(&buf, c, dirent, inode);
+		bch_warn(c, "%s", buf.buf);
+		printbuf_exit(&buf);
+	}
+	return ret;
+}
+
 /*
  * XXX: this is handling transaction restarts without returning
  * -BCH_ERR_transaction_restart_nested, this is not how we do things anymore:
@@ -371,7 +414,8 @@ static int reattach_subvol(struct btree_trans *trans, struct bkey_s_c_subvolume 
 		return ret;
 
 	ret = remove_backpointer(trans, &inode);
-	bch_err_msg(c, ret, "removing dirent");
+	if (!bch2_err_matches(ret, ENOENT))
+		bch_err_msg(c, ret, "removing dirent");
 	if (ret)
 		return ret;
 
@@ -900,21 +944,6 @@ static struct bkey_s_c_dirent inode_get_dirent(struct btree_trans *trans,
 	return dirent_get_by_pos(trans, iter, SPOS(inode->bi_dir, inode->bi_dir_offset, *snapshot));
 }
 
-static bool inode_points_to_dirent(struct bch_inode_unpacked *inode,
-				   struct bkey_s_c_dirent d)
-{
-	return  inode->bi_dir		== d.k->p.inode &&
-		inode->bi_dir_offset	== d.k->p.offset;
-}
-
-static bool dirent_points_to_inode(struct bkey_s_c_dirent d,
-				   struct bch_inode_unpacked *inode)
-{
-	return d.v->d_type == DT_SUBVOL
-		? le32_to_cpu(d.v->d_child_subvol)	== inode->bi_subvol
-		: le64_to_cpu(d.v->d_inum)		== inode->bi_inum;
-}
-
 static int check_inode_deleted_list(struct btree_trans *trans, struct bpos p)
 {
 	struct btree_iter iter;
@@ -924,13 +953,14 @@ static int check_inode_deleted_list(struct btree_trans *trans, struct bpos p)
 	return ret;
 }
 
-static int check_inode_dirent_inode(struct btree_trans *trans, struct bkey_s_c inode_k,
+static int check_inode_dirent_inode(struct btree_trans *trans,
 				    struct bch_inode_unpacked *inode,
-				    u32 inode_snapshot, bool *write_inode)
+				    bool *write_inode)
 {
 	struct bch_fs *c = trans->c;
 	struct printbuf buf = PRINTBUF;
 
+	u32 inode_snapshot = inode->bi_snapshot;
 	struct btree_iter dirent_iter = {};
 	struct bkey_s_c_dirent d = inode_get_dirent(trans, &dirent_iter, inode, &inode_snapshot);
 	int ret = bkey_err(d);
@@ -940,13 +970,13 @@ static int check_inode_dirent_inode(struct btree_trans *trans, struct bkey_s_c i
 	if (fsck_err_on(ret,
 			trans, inode_points_to_missing_dirent,
 			"inode points to missing dirent\n%s",
-			(bch2_bkey_val_to_text(&buf, c, inode_k), buf.buf)) ||
-	    fsck_err_on(!ret && !dirent_points_to_inode(d, inode),
+			(bch2_inode_unpacked_to_text(&buf, inode), buf.buf)) ||
+	    fsck_err_on(!ret && dirent_points_to_inode_nowarn(d, inode),
 			trans, inode_points_to_wrong_dirent,
-			"inode points to dirent that does not point back:\n%s",
-			(bch2_bkey_val_to_text(&buf, c, inode_k),
-			 prt_newline(&buf),
-			 bch2_bkey_val_to_text(&buf, c, d.s_c), buf.buf))) {
+			"%s",
+			(printbuf_reset(&buf),
+			 dirent_inode_mismatch_msg(&buf, c, d, inode),
+			 buf.buf))) {
 		/*
 		 * We just clear the backpointer fields for now. If we find a
 		 * dirent that points to this inode in check_dirents(), we'll
@@ -1145,7 +1175,7 @@ static int check_inode(struct btree_trans *trans,
 	}
 
 	if (u.bi_dir || u.bi_dir_offset) {
-		ret = check_inode_dirent_inode(trans, k, &u, k.k->p.snapshot, &do_update);
+		ret = check_inode_dirent_inode(trans, &u, &do_update);
 		if (ret)
 			goto err;
 	}
@@ -2474,10 +2504,8 @@ static int check_path(struct btree_trans *trans, pathbuf *p, struct bkey_s_c ino
 		if (ret && !bch2_err_matches(ret, ENOENT))
 			break;
 
-		if (!ret && !dirent_points_to_inode(d, &inode)) {
+		if (!ret && (ret = dirent_points_to_inode(c, d, &inode)))
 			bch2_trans_iter_exit(trans, &dirent_iter);
-			ret = -BCH_ERR_ENOENT_dirent_doesnt_match_inode;
-		}
 
 		if (bch2_err_matches(ret, ENOENT)) {
 			ret = 0;
