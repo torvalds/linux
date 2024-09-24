@@ -125,6 +125,7 @@ int acp_machine_select(struct acp_dev_data *adata)
 			dev_err(adata->dev, "warning: No matching ASoC machine driver found\n");
 			return -EINVAL;
 		}
+		mach->mach_params.subsystem_rev = adata->acp_rev;
 		adata->mach_dev = platform_device_register_data(adata->dev, mach->drv_name,
 								PLATFORM_DEVID_NONE, mach, size);
 	}
