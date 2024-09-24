@@ -29,7 +29,7 @@ int bch2_filemap_get_contig_folios_d(struct address_space *mapping,
 			break;
 
 		f = __filemap_get_folio(mapping, pos >> PAGE_SHIFT, fgp_flags, gfp);
-		if (IS_ERR_OR_NULL(f))
+		if (IS_ERR(f))
 			break;
 
 		BUG_ON(fs->nr && folio_pos(f) != pos);
