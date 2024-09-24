@@ -389,14 +389,17 @@ static int reattach_inode(struct btree_trans *trans,
 static int remove_backpointer(struct btree_trans *trans,
 			      struct bch_inode_unpacked *inode)
 {
-	struct btree_iter iter;
-	struct bkey_s_c_dirent d;
-	int ret;
+	if (!inode->bi_dir)
+		return 0;
 
-	d = bch2_bkey_get_iter_typed(trans, &iter, BTREE_ID_dirents,
-				     POS(inode->bi_dir, inode->bi_dir_offset), 0,
+	struct bch_fs *c = trans->c;
+	struct btree_iter iter;
+	struct bkey_s_c_dirent d =
+		bch2_bkey_get_iter_typed(trans, &iter, BTREE_ID_dirents,
+				     SPOS(inode->bi_dir, inode->bi_dir_offset, inode->bi_snapshot), 0,
 				     dirent);
-	ret =   bkey_err(d) ?:
+	int ret =   bkey_err(d) ?:
+		dirent_points_to_inode(c, d, inode) ?:
 		__remove_dirent(trans, d.k->p);
 	bch2_trans_iter_exit(trans, &iter);
 	return ret;
