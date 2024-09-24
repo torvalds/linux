@@ -217,7 +217,7 @@ int qcom_icc_rpm_set(struct icc_node *src, struct icc_node *dst)
 						sum_avg);
 
 					if (ret) {
-						pr_err("qcom_icc_rpm_smd_send_msg slv %s error %d\n",
+						pr_err("qcom_icc_rpm_smd_send_msg slv %d error %d\n",
 							qn->slv_rpm_id, ret);
 						return ret;
 					}

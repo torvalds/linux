@@ -389,3 +389,15 @@ config INTERCONNECT_QCOM_MONACO_AUTO
 	  on monaco_auto-based platforms. The interconnect provider collects and
 	  aggregates the consumer bandwidth requests to satisfy constraints
 	  placed on Network-on-Chip performance states.
+
+config INTERCONNECT_QCOM_MDM9X07
+	tristate "MDM9X07 interconnect driver"
+	depends on INTERCONNECT_QCOM
+	depends on MSM_RPM_SMD
+	select INTERCONNECT_QCOM_RPM
+	select INTERCONNECT_QCOM_QOS
+	help
+	  This is a driver for the Qualcomm Technologies, Inc. Network-on-Chip
+	  on mdm9x07-based platforms. The interconnect provider collects and
+	  aggregates the consumer bandwidth requests to satisfy constraints
+	  placed on Network-on-Chip performance states.
