@@ -271,7 +271,7 @@ enum bch_fsck_flags {
 	x(subvol_children_not_set,				256,	0)		\
 	x(subvol_children_bad,					257,	0)		\
 	x(subvol_loop,						258,	0)		\
-	x(subvol_unreachable,					259,	0)		\
+	x(subvol_unreachable,					259,	FSCK_AUTOFIX)	\
 	x(btree_node_bkey_bad_u64s,				260,	0)		\
 	x(btree_node_topology_empty_interior_node,		261,	0)		\
 	x(btree_ptr_v2_min_key_bad,				262,	0)		\

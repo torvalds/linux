@@ -2371,22 +2371,6 @@ static bool darray_u32_has(darray_u32 *d, u32 v)
 	return false;
 }
 
-/*
- * We've checked that inode backpointers point to valid dirents; here, it's
- * sufficient to check that the subvolume root has a dirent:
- */
-static int subvol_has_dirent(struct btree_trans *trans, struct bkey_s_c_subvolume s)
-{
-	struct bch_inode_unpacked inode;
-	int ret = bch2_inode_find_by_inum_trans(trans,
-				(subvol_inum) { s.k->p.offset, le64_to_cpu(s.v->inode) },
-				&inode);
-	if (ret)
-		return ret;
-
-	return inode.bi_dir != 0;
-}
-
 static int check_subvol_path(struct btree_trans *trans, struct btree_iter *iter, struct bkey_s_c k)
 {
 	struct bch_fs *c = trans->c;
@@ -2405,14 +2389,24 @@ static int check_subvol_path(struct btree_trans *trans, struct btree_iter *iter,
 
 		struct bkey_s_c_subvolume s = bkey_s_c_to_subvolume(k);
 
-		ret = subvol_has_dirent(trans, s);
-		if (ret < 0)
+		struct bch_inode_unpacked subvol_root;
+		ret = bch2_inode_find_by_inum_trans(trans,
+					(subvol_inum) { s.k->p.offset, le64_to_cpu(s.v->inode) },
+					&subvol_root);
+		if (ret)
 			break;
 
-		if (fsck_err_on(!ret,
+		/*
+		 * We've checked that inode backpointers point to valid dirents;
+		 * here, it's sufficient to check that the subvolume root has a
+		 * dirent:
+		 */
+		if (fsck_err_on(!subvol_root.bi_dir,
 				trans, subvol_unreachable,
 				"unreachable subvolume %s",
 				(bch2_bkey_val_to_text(&buf, c, s.s_c),
+				 prt_newline(&buf),
+				 bch2_inode_unpacked_to_text(&buf, &subvol_root),
 				 buf.buf))) {
 			ret = reattach_subvol(trans, s);
 			break;
