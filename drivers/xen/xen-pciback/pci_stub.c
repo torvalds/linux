@@ -21,6 +21,9 @@
 #include <xen/events.h>
 #include <xen/pci.h>
 #include <xen/xen.h>
+#ifdef CONFIG_XEN_ACPI
+#include <xen/acpi.h>
+#endif
 #include <asm/xen/hypervisor.h>
 #include <xen/interface/physdev.h>
 #include "pciback.h"
@@ -367,6 +370,9 @@ static int pcistub_match(struct pci_dev *dev)
 static int pcistub_init_device(struct pci_dev *dev)
 {
 	struct xen_pcibk_dev_data *dev_data;
+#ifdef CONFIG_XEN_ACPI
+	int gsi, trigger, polarity;
+#endif
 	int err = 0;
 
 	dev_dbg(&dev->dev, "initializing...\n");
@@ -435,6 +441,20 @@ static int pcistub_init_device(struct pci_dev *dev)
 			goto config_release;
 		pci_restore_state(dev);
 	}
+
+#ifdef CONFIG_XEN_ACPI
+	if (xen_initial_domain() && xen_pvh_domain()) {
+		err = xen_acpi_get_gsi_info(dev, &gsi, &trigger, &polarity);
+		if (err) {
+			dev_err(&dev->dev, "Fail to get gsi info!\n");
+			goto config_release;
+		}
+		err = xen_pvh_setup_gsi(gsi, trigger, polarity);
+		if (err)
+			goto config_release;
+	}
+#endif
+
 	/* Now disable the device (this also ensures some private device
 	 * data is setup before we export)
 	 */
