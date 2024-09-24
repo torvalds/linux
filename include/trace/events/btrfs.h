@@ -1706,9 +1706,10 @@ DEFINE_EVENT(btrfs__qgroup_rsv_data, btrfs_qgroup_release_data,
 
 DECLARE_EVENT_CLASS(btrfs_qgroup_extent,
 	TP_PROTO(const struct btrfs_fs_info *fs_info,
-		 const struct btrfs_qgroup_extent_record *rec),
+		 const struct btrfs_qgroup_extent_record *rec,
+		 u64 bytenr),
 
-	TP_ARGS(fs_info, rec),
+	TP_ARGS(fs_info, rec, bytenr),
 
 	TP_STRUCT__entry_btrfs(
 		__field(	u64,  bytenr		)
@@ -1716,7 +1717,7 @@ DECLARE_EVENT_CLASS(btrfs_qgroup_extent,
 	),
 
 	TP_fast_assign_btrfs(fs_info,
-		__entry->bytenr		= rec->bytenr;
+		__entry->bytenr		= bytenr;
 		__entry->num_bytes	= rec->num_bytes;
 	),
 
@@ -1727,17 +1728,19 @@ DECLARE_EVENT_CLASS(btrfs_qgroup_extent,
 DEFINE_EVENT(btrfs_qgroup_extent, btrfs_qgroup_account_extents,
 
 	TP_PROTO(const struct btrfs_fs_info *fs_info,
-		 const struct btrfs_qgroup_extent_record *rec),
+		 const struct btrfs_qgroup_extent_record *rec,
+		 u64 bytenr),
 
-	TP_ARGS(fs_info, rec)
+	TP_ARGS(fs_info, rec, bytenr)
 );
 
 DEFINE_EVENT(btrfs_qgroup_extent, btrfs_qgroup_trace_extent,
 
 	TP_PROTO(const struct btrfs_fs_info *fs_info,
-		 const struct btrfs_qgroup_extent_record *rec),
+		 const struct btrfs_qgroup_extent_record *rec,
+		 u64 bytenr),
 
-	TP_ARGS(fs_info, rec)
+	TP_ARGS(fs_info, rec, bytenr)
 );
 
 TRACE_EVENT(qgroup_num_dirty_extents,

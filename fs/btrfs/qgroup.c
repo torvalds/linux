@@ -2001,27 +2001,28 @@ out:
  * Return <0 for insertion failure, caller can free @record safely.
  */
 int btrfs_qgroup_trace_extent_nolock(struct btrfs_fs_info *fs_info,
-				struct btrfs_delayed_ref_root *delayed_refs,
-				struct btrfs_qgroup_extent_record *record)
+				     struct btrfs_delayed_ref_root *delayed_refs,
+				     struct btrfs_qgroup_extent_record *record,
+				     u64 bytenr)
 {
 	struct btrfs_qgroup_extent_record *existing, *ret;
-	const unsigned long index = (record->bytenr >> fs_info->sectorsize_bits);
+	const unsigned long index = (bytenr >> fs_info->sectorsize_bits);
 
 	if (!btrfs_qgroup_full_accounting(fs_info))
 		return 1;
 
 #if BITS_PER_LONG == 32
-	if (record->bytenr >= MAX_LFS_FILESIZE) {
+	if (bytenr >= MAX_LFS_FILESIZE) {
 		btrfs_err_rl(fs_info,
 "qgroup record for extent at %llu is beyond 32bit page cache and xarray index limit",
-			     record->bytenr);
+			     bytenr);
 		btrfs_err_32bit_limit(fs_info);
 		return -EOVERFLOW;
 	}
 #endif
 
 	lockdep_assert_held(&delayed_refs->lock);
-	trace_btrfs_qgroup_trace_extent(fs_info, record);
+	trace_btrfs_qgroup_trace_extent(fs_info, record, bytenr);
 
 	xa_lock(&delayed_refs->dirty_extents);
 	existing = xa_load(&delayed_refs->dirty_extents, index);
@@ -2066,7 +2067,8 @@ int btrfs_qgroup_trace_extent_nolock(struct btrfs_fs_info *fs_info,
  * transaction committing, but not now as qgroup accounting will be wrong again.
  */
 int btrfs_qgroup_trace_extent_post(struct btrfs_trans_handle *trans,
-				   struct btrfs_qgroup_extent_record *qrecord)
+				   struct btrfs_qgroup_extent_record *qrecord,
+				   u64 bytenr)
 {
 	struct btrfs_backref_walk_ctx ctx = { 0 };
 	int ret;
@@ -2097,7 +2099,7 @@ int btrfs_qgroup_trace_extent_post(struct btrfs_trans_handle *trans,
 	if (trans->fs_info->qgroup_flags & BTRFS_QGROUP_RUNTIME_FLAG_NO_ACCOUNTING)
 		return 0;
 
-	ctx.bytenr = qrecord->bytenr;
+	ctx.bytenr = bytenr;
 	ctx.fs_info = trans->fs_info;
 
 	ret = btrfs_find_all_roots(&ctx, true);
@@ -2154,12 +2156,11 @@ int btrfs_qgroup_trace_extent(struct btrfs_trans_handle *trans, u64 bytenr,
 	}
 
 	delayed_refs = &trans->transaction->delayed_refs;
-	record->bytenr = bytenr;
 	record->num_bytes = num_bytes;
 	record->old_roots = NULL;
 
 	spin_lock(&delayed_refs->lock);
-	ret = btrfs_qgroup_trace_extent_nolock(fs_info, delayed_refs, record);
+	ret = btrfs_qgroup_trace_extent_nolock(fs_info, delayed_refs, record, bytenr);
 	spin_unlock(&delayed_refs->lock);
 	if (ret) {
 		/* Clean up if insertion fails or item exists. */
@@ -2167,7 +2168,7 @@ int btrfs_qgroup_trace_extent(struct btrfs_trans_handle *trans, u64 bytenr,
 		kfree(record);
 		return 0;
 	}
-	return btrfs_qgroup_trace_extent_post(trans, record);
+	return btrfs_qgroup_trace_extent_post(trans, record, bytenr);
 }
 
 /*
@@ -3043,14 +3044,16 @@ int btrfs_qgroup_account_extents(struct btrfs_trans_handle *trans)
 	delayed_refs = &trans->transaction->delayed_refs;
 	qgroup_to_skip = delayed_refs->qgroup_to_skip;
 	xa_for_each(&delayed_refs->dirty_extents, index, record) {
+		const u64 bytenr = (((u64)index) << fs_info->sectorsize_bits);
+
 		num_dirty_extents++;
-		trace_btrfs_qgroup_account_extents(fs_info, record);
+		trace_btrfs_qgroup_account_extents(fs_info, record, bytenr);
 
 		if (!ret && !(fs_info->qgroup_flags &
 			      BTRFS_QGROUP_RUNTIME_FLAG_NO_ACCOUNTING)) {
 			struct btrfs_backref_walk_ctx ctx = { 0 };
 
-			ctx.bytenr = record->bytenr;
+			ctx.bytenr = bytenr;
 			ctx.fs_info = fs_info;
 
 			/*
@@ -3092,7 +3095,7 @@ int btrfs_qgroup_account_extents(struct btrfs_trans_handle *trans)
 				ulist_del(record->old_roots, qgroup_to_skip,
 					  0);
 			}
-			ret = btrfs_qgroup_account_extent(trans, record->bytenr,
+			ret = btrfs_qgroup_account_extent(trans, bytenr,
 							  record->num_bytes,
 							  record->old_roots,
 							  new_roots);

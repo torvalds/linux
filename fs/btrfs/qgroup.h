@@ -127,7 +127,12 @@ struct btrfs_inode;
  * Record a dirty extent, and info qgroup to update quota on it
  */
 struct btrfs_qgroup_extent_record {
-	u64 bytenr;
+	/*
+	 * The bytenr of the extent is given by its index in the dirty_extents
+	 * xarray of struct btrfs_delayed_ref_root left shifted by
+	 * fs_info->sectorsize_bits.
+	 */
+
 	u64 num_bytes;
 
 	/*
@@ -345,9 +350,11 @@ void btrfs_free_qgroup_config(struct btrfs_fs_info *fs_info);
 int btrfs_qgroup_trace_extent_nolock(
 		struct btrfs_fs_info *fs_info,
 		struct btrfs_delayed_ref_root *delayed_refs,
-		struct btrfs_qgroup_extent_record *record);
+		struct btrfs_qgroup_extent_record *record,
+		u64 bytenr);
 int btrfs_qgroup_trace_extent_post(struct btrfs_trans_handle *trans,
-				   struct btrfs_qgroup_extent_record *qrecord);
+				   struct btrfs_qgroup_extent_record *qrecord,
+				   u64 bytenr);
 int btrfs_qgroup_trace_extent(struct btrfs_trans_handle *trans, u64 bytenr,
 			      u64 num_bytes);
 int btrfs_qgroup_trace_leaf_items(struct btrfs_trans_handle *trans,
