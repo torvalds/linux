@@ -2982,7 +2982,7 @@ error:
 	return retval;
 }
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 static int emac_pm_runtime_suspend(struct device *device)
 {
 	return emac_pm_suspend(device, true);
@@ -3001,7 +3001,7 @@ static int emac_pm_runtime_idle(struct device *device)
 #define emac_pm_runtime_suspend NULL
 #define emac_pm_runtime_resume	NULL
 #define emac_pm_runtime_idle	NULL
-#endif /* CONFIG_PM_RUNTIME */
+#endif /* CONFIG_PM */
 
 #ifdef CONFIG_PM_SLEEP
 static int emac_pm_sys_suspend(struct device *device)
