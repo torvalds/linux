@@ -109,7 +109,7 @@ static void kfence_print_stack(struct seq_file *seq, const struct kfence_metadat
 	const struct kfence_track *track = show_alloc ? &meta->alloc_track : &meta->free_track;
 	u64 ts_sec = track->ts_nsec;
 	unsigned long rem_nsec = do_div(ts_sec, NSEC_PER_SEC);
-	u64 interval_nsec = local_clock() - meta->alloc_track.ts_nsec;
+	u64 interval_nsec = local_clock() - track->ts_nsec;
 	unsigned long rem_interval_nsec = do_div(interval_nsec, NSEC_PER_SEC);
 
 	/* Timestamp matches printk timestamp format. */
