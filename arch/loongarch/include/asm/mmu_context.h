@@ -49,12 +49,12 @@ static inline void enter_lazy_tlb(struct mm_struct *mm, struct task_struct *tsk)
 
 /* Normal, classic get_new_mmu_context */
 static inline void
-get_new_mmu_context(struct mm_struct *mm, unsigned long cpu)
+get_new_mmu_context(struct mm_struct *mm, unsigned long cpu, bool *need_flush)
 {
 	u64 asid = asid_cache(cpu);
 
 	if (!((++asid) & cpu_asid_mask(&cpu_data[cpu])))
-		local_flush_tlb_user();	/* start new asid cycle */
+		*need_flush = true;	/* start new asid cycle */
 
 	cpu_context(cpu, mm) = asid_cache(cpu) = asid;
 }
@@ -74,21 +74,34 @@ init_new_context(struct task_struct *tsk, struct mm_struct *mm)
 	return 0;
 }
 
+static inline void atomic_update_pgd_asid(unsigned long asid, unsigned long pgdl)
+{
+	__asm__ __volatile__(
+	"csrwr %[pgdl_val], %[pgdl_reg] \n\t"
+	"csrwr %[asid_val], %[asid_reg] \n\t"
+	: [asid_val] "+r" (asid), [pgdl_val] "+r" (pgdl)
+	: [asid_reg] "i" (LOONGARCH_CSR_ASID), [pgdl_reg] "i" (LOONGARCH_CSR_PGDL)
+	: "memory"
+	);
+}
+
 static inline void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
 				      struct task_struct *tsk)
 {
+	bool need_flush = false;
 	unsigned int cpu = smp_processor_id();
 
 	/* Check if our ASID is of an older version and thus invalid */
 	if (!asid_valid(next, cpu))
-		get_new_mmu_context(next, cpu);
-
-	write_csr_asid(cpu_asid(cpu, next));
+		get_new_mmu_context(next, cpu, &need_flush);
 
 	if (next != &init_mm)
-		csr_write64((unsigned long)next->pgd, LOONGARCH_CSR_PGDL);
+		atomic_update_pgd_asid(cpu_asid(cpu, next), (unsigned long)next->pgd);
 	else
-		csr_write64((unsigned long)invalid_pg_dir, LOONGARCH_CSR_PGDL);
+		atomic_update_pgd_asid(cpu_asid(cpu, next), (unsigned long)invalid_pg_dir);
+
+	if (need_flush)
+		local_flush_tlb_user(); /* Flush tlb after update ASID */
 
 	/*
 	 * Mark current->active_mm as not "active" anymore.
@@ -135,9 +148,15 @@ drop_mmu_context(struct mm_struct *mm, unsigned int cpu)
 	asid = read_csr_asid() & cpu_asid_mask(&current_cpu_data);
 
 	if (asid == cpu_asid(cpu, mm)) {
+		bool need_flush = false;
+
 		if (!current->mm || (current->mm == mm)) {
-			get_new_mmu_context(mm, cpu);
+			get_new_mmu_context(mm, cpu, &need_flush);
+
 			write_csr_asid(cpu_asid(cpu, mm));
+			if (need_flush)
+				local_flush_tlb_user(); /* Flush tlb after update ASID */
+
 			goto out;
 		}
 	}
