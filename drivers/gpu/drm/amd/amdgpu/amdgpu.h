@@ -391,6 +391,7 @@ struct amdgpu_ip_block_version {
 struct amdgpu_ip_block {
 	struct amdgpu_ip_block_status status;
 	const struct amdgpu_ip_block_version *version;
+	struct amdgpu_device *adev;
 };
 
 int amdgpu_device_ip_block_version_cmp(struct amdgpu_device *adev,
