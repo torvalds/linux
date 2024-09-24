@@ -722,7 +722,6 @@ static void kdesc_empty_pool(struct knav_pool *pool)
 		if (!desc) {
 			dev_dbg(pool->kdev->dev,
 				"couldn't unmap desc, continuing\n");
-			continue;
 		}
 	}
 	WARN_ON(i != pool->num_desc);
