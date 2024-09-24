@@ -353,7 +353,9 @@ int bch2_sb_downgrade_update(struct bch_fs *c)
 		for (unsigned i = 0; i < src->nr_errors; i++)
 			dst->errors[i] = cpu_to_le16(src->errors[i]);
 
-		downgrade_table_extra(c, &table);
+		ret = downgrade_table_extra(c, &table);
+		if (ret)
+			goto out;
 
 		if (!dst->recovery_passes[0] &&
 		    !dst->recovery_passes[1] &&
