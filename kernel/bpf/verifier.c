@@ -18920,6 +18920,53 @@ static bool bpf_map_is_cgroup_storage(struct bpf_map *map)
 		map->map_type == BPF_MAP_TYPE_PERCPU_CGROUP_STORAGE);
 }
 
+/* Add map behind fd to used maps list, if it's not already there, and return
+ * its index. Also set *reused to true if this map was already in the list of
+ * used maps.
+ * Returns <0 on error, or >= 0 index, on success.
+ */
+static int add_used_map_from_fd(struct bpf_verifier_env *env, int fd, bool *reused)
+{
+	CLASS(fd, f)(fd);
+	struct bpf_map *map;
+	int i;
+
+	map = __bpf_map_get(f);
+	if (IS_ERR(map)) {
+		verbose(env, "fd %d is not pointing to valid bpf_map\n", fd);
+		return PTR_ERR(map);
+	}
+
+	/* check whether we recorded this map already */
+	for (i = 0; i < env->used_map_cnt; i++) {
+		if (env->used_maps[i] == map) {
+			*reused = true;
+			return i;
+		}
+	}
+
+	if (env->used_map_cnt >= MAX_USED_MAPS) {
+		verbose(env, "The total number of maps per program has reached the limit of %u\n",
+			MAX_USED_MAPS);
+		return -E2BIG;
+	}
+
+	if (env->prog->sleepable)
+		atomic64_inc(&map->sleepable_refcnt);
+
+	/* hold the map. If the program is rejected by verifier,
+	 * the map will be released by release_maps() or it
+	 * will be used by the valid program until it's unloaded
+	 * and all maps are released in bpf_free_used_maps()
+	 */
+	bpf_map_inc(map);
+
+	*reused = false;
+	env->used_maps[env->used_map_cnt++] = map;
+
+	return env->used_map_cnt - 1;
+}
+
 /* find and rewrite pseudo imm in ld_imm64 instructions:
  *
  * 1. if it accesses map FD, replace it with actual map pointer.
@@ -18931,7 +18978,7 @@ static int resolve_pseudo_ldimm64(struct bpf_verifier_env *env)
 {
 	struct bpf_insn *insn = env->prog->insnsi;
 	int insn_cnt = env->prog->len;
-	int i, j, err;
+	int i, err;
 
 	err = bpf_prog_calc_tag(env->prog);
 	if (err)
@@ -18948,9 +18995,10 @@ static int resolve_pseudo_ldimm64(struct bpf_verifier_env *env)
 		if (insn[0].code == (BPF_LD | BPF_IMM | BPF_DW)) {
 			struct bpf_insn_aux_data *aux;
 			struct bpf_map *map;
-			struct fd f;
+			int map_idx;
 			u64 addr;
 			u32 fd;
+			bool reused;
 
 			if (i == insn_cnt - 1 || insn[1].code != 0 ||
 			    insn[1].dst_reg != 0 || insn[1].src_reg != 0 ||
@@ -19011,20 +19059,18 @@ static int resolve_pseudo_ldimm64(struct bpf_verifier_env *env)
 				break;
 			}
 
-			f = fdget(fd);
-			map = __bpf_map_get(f);
-			if (IS_ERR(map)) {
-				verbose(env, "fd %d is not pointing to valid bpf_map\n", fd);
-				return PTR_ERR(map);
-			}
-
-			err = check_map_prog_compatibility(env, map, env->prog);
-			if (err) {
-				fdput(f);
-				return err;
-			}
+			map_idx = add_used_map_from_fd(env, fd, &reused);
+			if (map_idx < 0)
+				return map_idx;
+			map = env->used_maps[map_idx];
 
 			aux = &env->insn_aux_data[i];
+			aux->map_index = map_idx;
+
+			err = check_map_prog_compatibility(env, map, env->prog);
+			if (err)
+				return err;
+
 			if (insn[0].src_reg == BPF_PSEUDO_MAP_FD ||
 			    insn[0].src_reg == BPF_PSEUDO_MAP_IDX) {
 				addr = (unsigned long)map;
@@ -19033,13 +19079,11 @@ static int resolve_pseudo_ldimm64(struct bpf_verifier_env *env)
 
 				if (off >= BPF_MAX_VAR_OFF) {
 					verbose(env, "direct value offset of %u is not allowed\n", off);
-					fdput(f);
 					return -EINVAL;
 				}
 
 				if (!map->ops->map_direct_value_addr) {
 					verbose(env, "no direct value access support for this map type\n");
-					fdput(f);
 					return -EINVAL;
 				}
 
@@ -19047,7 +19091,6 @@ static int resolve_pseudo_ldimm64(struct bpf_verifier_env *env)
 				if (err) {
 					verbose(env, "invalid access to map value pointer, value_size=%u off=%u\n",
 						map->value_size, off);
-					fdput(f);
 					return err;
 				}
 
@@ -19058,70 +19101,39 @@ static int resolve_pseudo_ldimm64(struct bpf_verifier_env *env)
 			insn[0].imm = (u32)addr;
 			insn[1].imm = addr >> 32;
 
-			/* check whether we recorded this map already */
-			for (j = 0; j < env->used_map_cnt; j++) {
-				if (env->used_maps[j] == map) {
-					aux->map_index = j;
-					fdput(f);
-					goto next_insn;
-				}
-			}
-
-			if (env->used_map_cnt >= MAX_USED_MAPS) {
-				verbose(env, "The total number of maps per program has reached the limit of %u\n",
-					MAX_USED_MAPS);
-				fdput(f);
-				return -E2BIG;
-			}
-
-			if (env->prog->sleepable)
-				atomic64_inc(&map->sleepable_refcnt);
-			/* hold the map. If the program is rejected by verifier,
-			 * the map will be released by release_maps() or it
-			 * will be used by the valid program until it's unloaded
-			 * and all maps are released in bpf_free_used_maps()
-			 */
-			bpf_map_inc(map);
-
-			aux->map_index = env->used_map_cnt;
-			env->used_maps[env->used_map_cnt++] = map;
+			/* proceed with extra checks only if its newly added used map */
+			if (reused)
+				goto next_insn;
 
 			if (bpf_map_is_cgroup_storage(map) &&
 			    bpf_cgroup_storage_assign(env->prog->aux, map)) {
 				verbose(env, "only one cgroup storage of each type is allowed\n");
-				fdput(f);
 				return -EBUSY;
 			}
 			if (map->map_type == BPF_MAP_TYPE_ARENA) {
 				if (env->prog->aux->arena) {
 					verbose(env, "Only one arena per program\n");
-					fdput(f);
 					return -EBUSY;
 				}
 				if (!env->allow_ptr_leaks || !env->bpf_capable) {
 					verbose(env, "CAP_BPF and CAP_PERFMON are required to use arena\n");
-					fdput(f);
 					return -EPERM;
 				}
 				if (!env->prog->jit_requested) {
 					verbose(env, "JIT is required to use arena\n");
-					fdput(f);
 					return -EOPNOTSUPP;
 				}
 				if (!bpf_jit_supports_arena()) {
 					verbose(env, "JIT doesn't support arena\n");
-					fdput(f);
 					return -EOPNOTSUPP;
 				}
 				env->prog->aux->arena = (void *)map;
 				if (!bpf_arena_get_user_vm_start(env->prog->aux->arena)) {
 					verbose(env, "arena's user address must be set via map_extra or mmap()\n");
-					fdput(f);
 					return -EINVAL;
 				}
 			}
 
-			fdput(f);
 next_insn:
 			insn++;
 			i++;

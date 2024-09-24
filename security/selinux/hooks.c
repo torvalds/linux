@@ -6933,7 +6933,7 @@ static void selinux_bpf_prog_free(struct bpf_prog *prog)
 }
 
 static int selinux_bpf_token_create(struct bpf_token *token, union bpf_attr *attr,
-				    struct path *path)
+				    const struct path *path)
 {
 	struct bpf_security_struct *bpfsec;
 
