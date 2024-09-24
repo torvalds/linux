@@ -2070,10 +2070,14 @@ int btrfs_qgroup_trace_extent_post(struct btrfs_trans_handle *trans,
 				   struct btrfs_qgroup_extent_record *qrecord,
 				   u64 bytenr)
 {
-	struct btrfs_backref_walk_ctx ctx = { 0 };
+	struct btrfs_fs_info *fs_info = trans->fs_info;
+	struct btrfs_backref_walk_ctx ctx = {
+		.bytenr = bytenr,
+		.fs_info = fs_info,
+	};
 	int ret;
 
-	if (!btrfs_qgroup_full_accounting(trans->fs_info))
+	if (!btrfs_qgroup_full_accounting(fs_info))
 		return 0;
 	/*
 	 * We are always called in a context where we are already holding a
@@ -2096,16 +2100,13 @@ int btrfs_qgroup_trace_extent_post(struct btrfs_trans_handle *trans,
 	 */
 	ASSERT(trans != NULL);
 
-	if (trans->fs_info->qgroup_flags & BTRFS_QGROUP_RUNTIME_FLAG_NO_ACCOUNTING)
+	if (fs_info->qgroup_flags & BTRFS_QGROUP_RUNTIME_FLAG_NO_ACCOUNTING)
 		return 0;
-
-	ctx.bytenr = bytenr;
-	ctx.fs_info = trans->fs_info;
 
 	ret = btrfs_find_all_roots(&ctx, true);
 	if (ret < 0) {
-		qgroup_mark_inconsistent(trans->fs_info);
-		btrfs_warn(trans->fs_info,
+		qgroup_mark_inconsistent(fs_info);
+		btrfs_warn(fs_info,
 "error accounting new delayed refs extent (err code: %d), quota inconsistent",
 			ret);
 		return 0;
