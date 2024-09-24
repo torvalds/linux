@@ -875,6 +875,13 @@ static atomic_long_t scx_nr_rejected = ATOMIC_LONG_INIT(0);
 static atomic_long_t scx_hotplug_seq = ATOMIC_LONG_INIT(0);
 
 /*
+ * A monotically increasing sequence number that is incremented every time a
+ * scheduler is enabled. This can be used by to check if any custom sched_ext
+ * scheduler has ever been used in the system.
+ */
+static atomic_long_t scx_enable_seq = ATOMIC_LONG_INIT(0);
+
+/*
  * The maximum amount of time in jiffies that a task may be runnable without
  * being scheduled on a CPU. If this timeout is exceeded, it will trigger
  * scx_ops_error().
@@ -4154,11 +4161,19 @@ static ssize_t scx_attr_hotplug_seq_show(struct kobject *kobj,
 }
 SCX_ATTR(hotplug_seq);
 
+static ssize_t scx_attr_enable_seq_show(struct kobject *kobj,
+					struct kobj_attribute *ka, char *buf)
+{
+	return sysfs_emit(buf, "%ld\n", atomic_long_read(&scx_enable_seq));
+}
+SCX_ATTR(enable_seq);
+
 static struct attribute *scx_global_attrs[] = {
 	&scx_attr_state.attr,
 	&scx_attr_switch_all.attr,
 	&scx_attr_nr_rejected.attr,
 	&scx_attr_hotplug_seq.attr,
+	&scx_attr_enable_seq.attr,
 	NULL,
 };
 
@@ -4469,8 +4484,9 @@ static void scx_ops_disable_workfn(struct kthread_work *work)
 
 		if (ei->msg[0] != '\0')
 			pr_err("sched_ext: %s: %s\n", scx_ops.name, ei->msg);
-
+#ifdef CONFIG_STACKTRACE
 		stack_trace_print(ei->bt, ei->bt_len, 2);
+#endif
 	} else {
 		pr_info("sched_ext: BPF scheduler \"%s\" disabled (%s)\n",
 			scx_ops.name, ei->reason);
@@ -4847,10 +4863,10 @@ static __printf(3, 4) void scx_ops_exit_kind(enum scx_exit_kind kind,
 		return;
 
 	ei->exit_code = exit_code;
-
+#ifdef CONFIG_STACKTRACE
 	if (kind >= SCX_EXIT_ERROR)
 		ei->bt_len = stack_trace_save(ei->bt, SCX_EXIT_BT_LEN, 1);
-
+#endif
 	va_start(args, fmt);
 	vscnprintf(ei->msg, SCX_EXIT_MSG_LEN, fmt, args);
 	va_end(args);
@@ -5175,6 +5191,8 @@ static int scx_ops_enable(struct sched_ext_ops *ops, struct bpf_link *link)
 		scx_ops.name, scx_switched_all() ? "" : " (partial)");
 	kobject_uevent(scx_root_kobj, KOBJ_ADD);
 	mutex_unlock(&scx_ops_enable_mutex);
+
+	atomic_long_inc(&scx_enable_seq);
 
 	return 0;
 
