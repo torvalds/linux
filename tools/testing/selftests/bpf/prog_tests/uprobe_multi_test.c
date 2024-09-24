@@ -869,21 +869,14 @@ static void consumer_test(struct uprobe_multi_consumers *skel,
 			fmt = "prog 0/1: uprobe";
 		} else {
 			/*
-			 * uprobe return is tricky ;-)
-			 *
 			 * to trigger uretprobe consumer, the uretprobe needs to be installed,
 			 * which means one of the 'return' uprobes was alive when probe was hit:
 			 *
 			 *   idxs: 2/3 uprobe return in 'installed' mask
-			 *
-			 * in addition if 'after' state removes everything that was installed in
-			 * 'before' state, then uprobe kernel object goes away and return uprobe
-			 * is not installed and we won't hit it even if it's in 'after' state.
 			 */
 			unsigned long had_uretprobes  = before & 0b1100; /* is uretprobe installed */
-			unsigned long probe_preserved = before & after;  /* did uprobe go away */
 
-			if (had_uretprobes && probe_preserved && test_bit(idx, after))
+			if (had_uretprobes && test_bit(idx, after))
 				val++;
 			fmt = "idx 2/3: uretprobe";
 		}
