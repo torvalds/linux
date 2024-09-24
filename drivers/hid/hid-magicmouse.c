@@ -907,8 +907,8 @@ static void magicmouse_remove(struct hid_device *hdev)
 	hid_hw_stop(hdev);
 }
 
-static __u8 *magicmouse_report_fixup(struct hid_device *hdev, __u8 *rdesc,
-				     unsigned int *rsize)
+static const __u8 *magicmouse_report_fixup(struct hid_device *hdev, __u8 *rdesc,
+					   unsigned int *rsize)
 {
 	/*
 	 * Change the usage from:
@@ -968,4 +968,5 @@ static struct hid_driver magicmouse_driver = {
 };
 module_hid_driver(magicmouse_driver);
 
+MODULE_DESCRIPTION("Apple \"Magic\" Wireless Mouse driver");
 MODULE_LICENSE("GPL");

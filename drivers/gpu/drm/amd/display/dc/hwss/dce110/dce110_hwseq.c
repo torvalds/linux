@@ -298,10 +298,7 @@ dce110_set_input_transfer_func(struct dc *dc, struct pipe_ctx *pipe_ctx,
 			dce_use_lut(plane_state->format))
 		ipp->funcs->ipp_program_input_lut(ipp, &plane_state->gamma_correction);
 
-	if (tf == NULL) {
-		/* Default case if no input transfer function specified */
-		ipp->funcs->ipp_set_degamma(ipp, IPP_DEGAMMA_MODE_HW_sRGB);
-	} else if (tf->type == TF_TYPE_PREDEFINED) {
+	if (tf->type == TF_TYPE_PREDEFINED) {
 		switch (tf->tf) {
 		case TRANSFER_FUNCTION_SRGB:
 			ipp->funcs->ipp_set_degamma(ipp, IPP_DEGAMMA_MODE_HW_sRGB);
@@ -745,12 +742,10 @@ void dce110_edp_wait_for_hpd_ready(
 		return;
 	}
 
-	if (link != NULL) {
-		if (link->panel_config.pps.extra_t3_ms > 0) {
-			int extra_t3_in_ms = link->panel_config.pps.extra_t3_ms;
+	if (link->panel_config.pps.extra_t3_ms > 0) {
+		int extra_t3_in_ms = link->panel_config.pps.extra_t3_ms;
 
-			msleep(extra_t3_in_ms);
-		}
+		msleep(extra_t3_in_ms);
 	}
 
 	dal_gpio_open(hpd, GPIO_MODE_INTERRUPT);
@@ -954,7 +949,7 @@ void dce110_edp_backlight_control(
 {
 	struct dc_context *ctx = link->ctx;
 	struct bp_transmitter_control cntl = { 0 };
-	uint8_t pwrseq_instance;
+	uint8_t pwrseq_instance = 0;
 	unsigned int pre_T11_delay = OLED_PRE_T11_DELAY;
 	unsigned int post_T7_delay = OLED_POST_T7_DELAY;
 
@@ -1007,7 +1002,8 @@ void dce110_edp_backlight_control(
 	 */
 	/* dc_service_sleep_in_milliseconds(50); */
 		/*edp 1.2*/
-	pwrseq_instance = link->panel_cntl->pwrseq_inst;
+	if (link->panel_cntl)
+		pwrseq_instance = link->panel_cntl->pwrseq_inst;
 
 	if (cntl.action == TRANSMITTER_CONTROL_BACKLIGHT_ON) {
 		if (!link->dc->config.edp_no_power_sequencing)
@@ -1236,18 +1232,19 @@ void dce110_blank_stream(struct pipe_ctx *pipe_ctx)
 			 * has changed or they enter protection state and hang.
 			 */
 			msleep(60);
-		} else if (pipe_ctx->stream->signal == SIGNAL_TYPE_EDP) {
-			if (!link->dc->config.edp_no_power_sequencing) {
-				/*
-				 * Sometimes, DP receiver chip power-controlled externally by an
-				 * Embedded Controller could be treated and used as eDP,
-				 * if it drives mobile display. In this case,
-				 * we shouldn't be doing power-sequencing, hence we can skip
-				 * waiting for T9-ready.
-				 */
-				link->dc->link_srv->edp_receiver_ready_T9(link);
-			}
 		}
+	}
+
+	if (pipe_ctx->stream->signal == SIGNAL_TYPE_EDP &&
+	    !link->dc->config.edp_no_power_sequencing) {
+			/*
+			 * Sometimes, DP receiver chip power-controlled externally by an
+			 * Embedded Controller could be treated and used as eDP,
+			 * if it drives mobile display. In this case,
+			 * we shouldn't be doing power-sequencing, hence we can skip
+			 * waiting for T9-ready.
+			 */
+		link->dc->link_srv->edp_receiver_ready_T9(link);
 	}
 
 }
@@ -1310,13 +1307,65 @@ static void populate_audio_dp_link_info(
 
 	dp_link_info->link_bandwidth_kbps = dc_fixpt_floor(link_bw_kbps);
 
-	/* HW minimum for 128b/132b HBlank is 4 frame symbols.
-	 * TODO: Plumb the actual programmed HBlank min symbol width to here.
+	/* Calculates hblank_min_symbol_width for 128b/132b
+	 * Corresponding HBLANK_MIN_SYMBOL_WIDTH register is calculated as:
+	 *   floor(h_blank * bits_per_pixel / 128)
 	 */
-	if (dp_link_info->encoding == DP_128b_132b_ENCODING)
-		dp_link_info->hblank_min_symbol_width = 4;
-	else
+	if (dp_link_info->encoding == DP_128b_132b_ENCODING) {
+		struct dc_crtc_timing *crtc_timing = &pipe_ctx->stream->timing;
+
+		uint32_t h_active = crtc_timing->h_addressable + crtc_timing->h_border_left
+				+ crtc_timing->h_border_right;
+		uint32_t h_blank = crtc_timing->h_total - h_active;
+
+		uint32_t bpp;
+
+		if (crtc_timing->flags.DSC) {
+			bpp = crtc_timing->dsc_cfg.bits_per_pixel;
+		} else {
+			/* When the timing is using DSC, dsc_cfg.bits_per_pixel is in 16th bits.
+			 * The bpp in this path is scaled to 16th bits so the final calculation
+			 * is correct for both cases.
+			 */
+			bpp = 16;
+			switch (crtc_timing->display_color_depth) {
+			case COLOR_DEPTH_666:
+				bpp *= 18;
+				break;
+			case COLOR_DEPTH_888:
+				bpp *= 24;
+				break;
+			case COLOR_DEPTH_101010:
+				bpp *= 30;
+				break;
+			case COLOR_DEPTH_121212:
+				bpp *= 36;
+				break;
+			default:
+				bpp = 0;
+				break;
+			}
+
+			switch (crtc_timing->pixel_encoding) {
+			case PIXEL_ENCODING_YCBCR422:
+				bpp = bpp * 2 / 3;
+				break;
+			case PIXEL_ENCODING_YCBCR420:
+				bpp /= 2;
+				break;
+			default:
+				break;
+			}
+		}
+
+		/* Min symbol width = floor(h_blank * (bpp/16) / 128) */
+		dp_link_info->hblank_min_symbol_width = dc_fixpt_floor(
+				dc_fixpt_div(dc_fixpt_from_int(h_blank * bpp),
+						dc_fixpt_from_int(128 / 16)));
+
+	} else {
 		dp_link_info->hblank_min_symbol_width = 0;
+	}
 }
 
 static void build_audio_output(
@@ -1502,6 +1551,7 @@ static enum dc_status dce110_enable_stream_timing(
 				0,
 				0,
 				0,
+				0,
 				pipe_ctx->stream->signal,
 				true);
 	}
@@ -1550,6 +1600,11 @@ enum dc_status dce110_apply_single_controller_ctx_to_hw(
 				&audio_output.crtc_info,
 				&pipe_ctx->stream->audio_info,
 				&audio_output.dp_link_info);
+
+		if (dc->config.disable_hbr_audio_dp2)
+			if (pipe_ctx->stream_res.audio->funcs->az_disable_hbr_audio &&
+					dc->link_srv->dp_is_128b_132b_signal(pipe_ctx))
+				pipe_ctx->stream_res.audio->funcs->az_disable_hbr_audio(pipe_ctx->stream_res.audio);
 	}
 
 	/* make sure no pipes syncd to the pipe being enabled */
@@ -1782,6 +1837,7 @@ void dce110_enable_accelerated_mode(struct dc *dc, struct dc_state *context)
 	struct dc_stream_state *edp_streams[MAX_NUM_EDP];
 	struct dc_link *edp_link_with_sink = NULL;
 	struct dc_link *edp_link = NULL;
+	struct pipe_ctx *pipe_ctx = NULL;
 	struct dce_hwseq *hws = dc->hwseq;
 	int edp_with_sink_num;
 	int edp_num;
@@ -1790,6 +1846,7 @@ void dce110_enable_accelerated_mode(struct dc *dc, struct dc_state *context)
 	bool can_apply_edp_fast_boot = false;
 	bool can_apply_seamless_boot = false;
 	bool keep_edp_vdd_on = false;
+	struct dc_bios *dcb = dc->ctx->dc_bios;
 	DC_LOGGER_INIT();
 
 
@@ -1818,9 +1875,26 @@ void dce110_enable_accelerated_mode(struct dc *dc, struct dc_state *context)
 				can_apply_edp_fast_boot = dc_validate_boot_timing(dc,
 					edp_stream->sink, &edp_stream->timing);
 				edp_stream->apply_edp_fast_boot_optimization = can_apply_edp_fast_boot;
-				if (can_apply_edp_fast_boot)
-					DC_LOG_EVENT_LINK_TRAINING("eDP fast boot disabled to optimize link rate\n");
+				if (can_apply_edp_fast_boot) {
+					DC_LOG_EVENT_LINK_TRAINING("eDP fast boot Enable\n");
 
+					// Vbios & Driver support different pixel rate div policy.
+					pipe_ctx = resource_get_otg_master_for_stream(&context->res_ctx, edp_stream);
+					if (pipe_ctx &&
+						hws->funcs.is_dp_dig_pixel_rate_div_policy &&
+						hws->funcs.is_dp_dig_pixel_rate_div_policy(pipe_ctx)) {
+						// Get Vbios div factor from register
+						dc->res_pool->dccg->funcs->get_pixel_rate_div(
+							dc->res_pool->dccg,
+							pipe_ctx->stream_res.tg->inst,
+							&pipe_ctx->pixel_rate_divider.div_factor1,
+							&pipe_ctx->pixel_rate_divider.div_factor2);
+
+						// VBios doesn't support pixel rate div, so force it.
+						// If VBios supports it, we check it from reigster or other flags.
+						pipe_ctx->stream_res.pix_clk_params.dio_se_pix_per_cycle = 1;
+					}
+				}
 				break;
 			}
 		}
@@ -1849,13 +1923,15 @@ void dce110_enable_accelerated_mode(struct dc *dc, struct dc_state *context)
 			hws->funcs.edp_backlight_control(edp_link_with_sink, false);
 		}
 		/*resume from S3, no vbios posting, no need to power down again*/
-		clk_mgr_exit_optimized_pwr_state(dc, dc->clk_mgr);
+		if (dcb && dcb->funcs && !dcb->funcs->is_accelerated_mode(dcb))
+			clk_mgr_exit_optimized_pwr_state(dc, dc->clk_mgr);
 
 		power_down_all_hw_blocks(dc);
 		disable_vga_and_power_gate_all_controllers(dc);
 		if (edp_link_with_sink && !keep_edp_vdd_on)
 			dc->hwss.edp_power_control(edp_link_with_sink, false);
-		clk_mgr_optimize_pwr_state(dc, dc->clk_mgr);
+		if (dcb && dcb->funcs && !dcb->funcs->is_accelerated_mode(dcb))
+			clk_mgr_optimize_pwr_state(dc, dc->clk_mgr);
 	}
 	bios_set_scratch_acc_mode_change(dc->ctx->dc_bios, 1);
 }
@@ -2275,19 +2351,6 @@ static void dce110_setup_audio_dto(
 	}
 }
 
-static bool dce110_is_hpo_enabled(struct dc_state *context)
-{
-	int i;
-
-	for (i = 0; i < MAX_HPO_DP2_ENCODERS; i++) {
-		if (context->res_ctx.is_hpo_dp_stream_enc_acquired[i]) {
-			return true;
-		}
-	}
-
-	return false;
-}
-
 enum dc_status dce110_apply_ctx_to_hw(
 		struct dc *dc,
 		struct dc_state *context)
@@ -2296,8 +2359,8 @@ enum dc_status dce110_apply_ctx_to_hw(
 	struct dc_bios *dcb = dc->ctx->dc_bios;
 	enum dc_status status;
 	int i;
-	bool was_hpo_enabled = dce110_is_hpo_enabled(dc->current_state);
-	bool is_hpo_enabled = dce110_is_hpo_enabled(context);
+	bool was_hpo_acquired = resource_is_hpo_acquired(dc->current_state);
+	bool is_hpo_acquired = resource_is_hpo_acquired(context);
 
 	/* reset syncd pipes from disabled pipes */
 	if (dc->config.use_pipe_ctx_sync_logic)
@@ -2340,8 +2403,8 @@ enum dc_status dce110_apply_ctx_to_hw(
 
 	dce110_setup_audio_dto(dc, context);
 
-	if (dc->hwseq->funcs.setup_hpo_hw_control && was_hpo_enabled != is_hpo_enabled) {
-		dc->hwseq->funcs.setup_hpo_hw_control(dc->hwseq, is_hpo_enabled);
+	if (dc->hwseq->funcs.setup_hpo_hw_control && was_hpo_acquired != is_hpo_acquired) {
+		dc->hwseq->funcs.setup_hpo_hw_control(dc->hwseq, is_hpo_acquired);
 	}
 
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
@@ -2373,7 +2436,7 @@ enum dc_status dce110_apply_ctx_to_hw(
 
 #ifdef CONFIG_DRM_AMD_DC_FP
 		if (hws->funcs.resync_fifo_dccg_dio)
-			hws->funcs.resync_fifo_dccg_dio(hws, dc, context);
+			hws->funcs.resync_fifo_dccg_dio(hws, dc, context, i);
 #endif
 	}
 
@@ -3247,7 +3310,6 @@ static const struct hw_sequencer_funcs dce110_funcs = {
 
 static const struct hwseq_private_funcs dce110_private_funcs = {
 	.init_pipes = init_pipes,
-	.update_plane_addr = update_plane_addr,
 	.set_input_transfer_func = dce110_set_input_transfer_func,
 	.set_output_transfer_func = dce110_set_output_transfer_func,
 	.power_down = dce110_power_down,

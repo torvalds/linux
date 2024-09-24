@@ -81,22 +81,24 @@ config CC_CAN_LINK_STATIC
 	default $(success,$(srctree)/scripts/cc-can-link.sh $(CC) $(CLANG_FLAGS) $(USERCFLAGS) $(USERLDFLAGS) $(m64-flag) -static) if 64BIT
 	default $(success,$(srctree)/scripts/cc-can-link.sh $(CC) $(CLANG_FLAGS) $(USERCFLAGS) $(USERLDFLAGS) $(m32-flag) -static)
 
+# Fixed in GCC 14, 13.3, 12.4 and 11.5
+# https://gcc.gnu.org/bugzilla/show_bug.cgi?id=113921
+config GCC_ASM_GOTO_OUTPUT_BROKEN
+	bool
+	depends on CC_IS_GCC
+	default y if GCC_VERSION < 110500
+	default y if GCC_VERSION >= 120000 && GCC_VERSION < 120400
+	default y if GCC_VERSION >= 130000 && GCC_VERSION < 130300
+
 config CC_HAS_ASM_GOTO_OUTPUT
-	def_bool $(success,echo 'int foo(int x) { asm goto ("": "=r"(x) ::: bar); return x; bar: return 0; }' | $(CC) -x c - -c -o /dev/null)
+	def_bool y
+	depends on !GCC_ASM_GOTO_OUTPUT_BROKEN
+	depends on $(success,echo 'int foo(int x) { asm goto ("": "=r"(x) ::: bar); return x; bar: return 0; }' | $(CC) -x c - -c -o /dev/null)
 
 config CC_HAS_ASM_GOTO_TIED_OUTPUT
 	depends on CC_HAS_ASM_GOTO_OUTPUT
 	# Detect buggy gcc and clang, fixed in gcc-11 clang-14.
 	def_bool $(success,echo 'int foo(int *x) { asm goto (".long (%l[bar]) - .": "+m"(*x) ::: bar); return *x; bar: return 0; }' | $CC -x c - -c -o /dev/null)
-
-config GCC_ASM_GOTO_OUTPUT_WORKAROUND
-	bool
-	depends on CC_IS_GCC && CC_HAS_ASM_GOTO_OUTPUT
-	# Fixed in GCC 14, 13.3, 12.4 and 11.5
-	# https://gcc.gnu.org/bugzilla/show_bug.cgi?id=113921
-	default y if GCC_VERSION < 110500
-	default y if GCC_VERSION >= 120000 && GCC_VERSION < 120400
-	default y if GCC_VERSION >= 130000 && GCC_VERSION < 130300
 
 config TOOLS_SUPPORT_RELR
 	def_bool $(success,env "CC=$(CC)" "LD=$(LD)" "NM=$(NM)" "OBJCOPY=$(OBJCOPY)" $(srctree)/scripts/tools-support-relr.sh)
@@ -308,8 +310,9 @@ config KERNEL_XZ
 	  BCJ filters which can improve compression ratio of executable
 	  code. The size of the kernel is about 30% smaller with XZ in
 	  comparison to gzip. On architectures for which there is a BCJ
-	  filter (i386, x86_64, ARM, IA-64, PowerPC, and SPARC), XZ
-	  will create a few percent smaller kernel than plain LZMA.
+	  filter (i386, x86_64, ARM, ARM64, RISC-V, big endian PowerPC,
+	  and SPARC), XZ will create a few percent smaller kernel than
+	  plain LZMA.
 
 	  The speed is about the same as with LZMA: The decompression
 	  speed of XZ is better than that of bzip2 but worse than gzip
@@ -969,10 +972,22 @@ config MEMCG
 	help
 	  Provides control over the memory footprint of tasks in a cgroup.
 
-config MEMCG_KMEM
-	bool
+config MEMCG_V1
+	bool "Legacy cgroup v1 memory controller"
 	depends on MEMCG
-	default y
+	default n
+	help
+	  Legacy cgroup v1 memory controller which has been deprecated by
+	  cgroup v2 implementation. The v1 is there for legacy applications
+	  which haven't migrated to the new cgroup v2 interface yet. If you
+	  do not have any such application then you are completely fine leaving
+	  this option disabled.
+
+	  Please note that feature set of the legacy memory controller is likely
+	  going to shrink due to deprecation process. New deployments with v1
+	  controller are highly discouraged.
+
+	  Say N if unsure.
 
 config BLK_CGROUP
 	bool "IO controller"
@@ -1010,9 +1025,13 @@ menuconfig CGROUP_SCHED
 	  tasks.
 
 if CGROUP_SCHED
+config GROUP_SCHED_WEIGHT
+	def_bool n
+
 config FAIR_GROUP_SCHED
 	bool "Group scheduling for SCHED_OTHER"
 	depends on CGROUP_SCHED
+	select GROUP_SCHED_WEIGHT
 	default CGROUP_SCHED
 
 config CFS_BANDWIDTH
@@ -1036,6 +1055,12 @@ config RT_GROUP_SCHED
 	  schedule realtime tasks for non-root users until you allocate
 	  realtime bandwidth for them.
 	  See Documentation/scheduler/sched-rt-group.rst for more information.
+
+config EXT_GROUP_SCHED
+	bool
+	depends on SCHED_CLASS_EXT && CGROUP_SCHED
+	select GROUP_SCHED_WEIGHT
+	default y
 
 endif #CGROUP_SCHED
 
@@ -1126,6 +1151,19 @@ config CPUSETS
 	  allow dynamically partitioning a system into sets of CPUs and
 	  Memory Nodes and assigning tasks to run only within those sets.
 	  This is primarily useful on large SMP or NUMA systems.
+
+	  Say N if unsure.
+
+config CPUSETS_V1
+	bool "Legacy cgroup v1 cpusets controller"
+	depends on CPUSETS
+	default n
+	help
+	  Legacy cgroup v1 cpusets controller which has been deprecated by
+	  cgroup v2 implementation. The v1 is there for legacy applications
+	  which haven't migrated to the new cgroup v2 interface yet. If you
+	  do not have any such application then you are completely fine leaving
+	  this option disabled.
 
 	  Say N if unsure.
 
@@ -1673,6 +1711,19 @@ config IO_URING
 	  applications to submit and complete IO through submission and
 	  completion rings that are shared between the kernel and application.
 
+config GCOV_PROFILE_URING
+	bool "Enable GCOV profiling on the io_uring subsystem"
+	depends on GCOV_KERNEL
+	help
+	  Enable GCOV profiling on the io_uring subsystem, to facilitate
+	  code coverage testing.
+
+	  If unsure, say N.
+
+	  Note that this will have a negative impact on the performance of
+	  the io_uring subsystem, hence this should only be enabled for
+	  specific test purposes.
+
 config ADVISE_SYSCALLS
 	bool "Enable madvise/fadvise syscalls" if EXPERT
 	default y
@@ -1789,24 +1840,6 @@ config KALLSYMS_ABSOLUTE_PERCPU
 	depends on KALLSYMS
 	default X86_64 && SMP
 
-config KALLSYMS_BASE_RELATIVE
-	bool
-	depends on KALLSYMS
-	default y
-	help
-	  Instead of emitting them as absolute values in the native word size,
-	  emit the symbol references in the kallsyms table as 32-bit entries,
-	  each containing a relative value in the range [base, base + U32_MAX]
-	  or, when KALLSYMS_ABSOLUTE_PERCPU is in effect, each containing either
-	  an absolute value in the range [0, S32_MAX] or a relative value in the
-	  range [base, base + S32_MAX], where base is the lowest relative symbol
-	  address encountered in the image.
-
-	  On 64-bit builds, this reduces the size of the address table by 50%,
-	  but more importantly, it results in entries whose values are build
-	  time constants, and no relocation pass is required at runtime to fix
-	  up the entries based on the runtime load address of the kernel.
-
 # end of the "standard kernel features (expert users)" menu
 
 config ARCH_HAS_MEMBARRIER_CALLBACKS
@@ -1906,6 +1939,7 @@ config RUST
 	depends on !MODVERSIONS
 	depends on !GCC_PLUGINS
 	depends on !RANDSTRUCT
+	depends on !SHADOW_CALL_STACK
 	depends on !DEBUG_INFO_BTF || PAHOLE_HAS_LANG_EXCLUDE
 	help
 	  Enables Rust support in the kernel.
@@ -1923,12 +1957,15 @@ config RUST
 config RUSTC_VERSION_TEXT
 	string
 	depends on RUST
-	default $(shell,command -v $(RUSTC) >/dev/null 2>&1 && $(RUSTC) --version || echo n)
+	default "$(shell,$(RUSTC) --version 2>/dev/null)"
 
 config BINDGEN_VERSION_TEXT
 	string
 	depends on RUST
-	default $(shell,command -v $(BINDGEN) >/dev/null 2>&1 && $(BINDGEN) --version || echo n)
+	# The dummy parameter `workaround-for-0.69.0` is required to support 0.69.0
+	# (https://github.com/rust-lang/rust-bindgen/pull/2678). It can be removed when
+	# the minimum version is upgraded past that (0.69.1 already fixed the issue).
+	default "$(shell,$(BINDGEN) --version workaround-for-0.69.0 2>/dev/null)"
 
 #
 # Place an empty function call at each tracepoint site. Can be

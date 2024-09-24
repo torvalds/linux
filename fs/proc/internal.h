@@ -13,6 +13,7 @@
 #include <linux/binfmts.h>
 #include <linux/sched/coredump.h>
 #include <linux/sched/task.h>
+#include <linux/mm.h>
 
 struct ctl_table_header;
 struct mempolicy;
@@ -141,6 +142,37 @@ unsigned name_to_int(const struct qstr *qstr);
 
 /* Worst case buffer size needed for holding an integer. */
 #define PROC_NUMBUF 13
+
+/**
+ * folio_precise_page_mapcount() - Number of mappings of this folio page.
+ * @folio: The folio.
+ * @page: The page.
+ *
+ * The number of present user page table entries that reference this page
+ * as tracked via the RMAP: either referenced directly (PTE) or as part of
+ * a larger area that covers this page (e.g., PMD).
+ *
+ * Use this function only for the calculation of existing statistics
+ * (USS, PSS, mapcount_max) and for debugging purposes (/proc/kpagecount).
+ *
+ * Do not add new users.
+ *
+ * Returns: The number of mappings of this folio page. 0 for
+ * folios that are not mapped to user space or are not tracked via the RMAP
+ * (e.g., shared zeropage).
+ */
+static inline int folio_precise_page_mapcount(struct folio *folio,
+		struct page *page)
+{
+	int mapcount = atomic_read(&page->_mapcount) + 1;
+
+	if (page_mapcount_is_type(mapcount))
+		mapcount = 0;
+	if (folio_test_large(folio))
+		mapcount += folio_entire_mapcount(folio);
+
+	return mapcount;
+}
 
 /*
  * array.c
@@ -315,4 +347,17 @@ static inline void pde_force_lookup(struct proc_dir_entry *pde)
 {
 	/* /proc/net/ entries can be changed under us by setns(CLONE_NEWNET) */
 	pde->proc_dops = &proc_net_dentry_ops;
+}
+
+/*
+ * Add a new procfs dentry that can't serve as a mountpoint. That should
+ * encompass anything that is ephemeral and can just disappear while the
+ * process is still around.
+ */
+static inline struct dentry *proc_splice_unmountable(struct inode *inode,
+		struct dentry *dentry, const struct dentry_operations *d_ops)
+{
+	d_set_d_op(dentry, d_ops);
+	dont_mount(dentry);
+	return d_splice_alias(inode, dentry);
 }

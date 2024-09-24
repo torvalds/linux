@@ -194,5 +194,6 @@ static struct platform_driver pwm_imx1_driver = {
 };
 module_platform_driver(pwm_imx1_driver);
 
+MODULE_DESCRIPTION("i.MX1 and i.MX21 Pulse Width Modulator driver");
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Sascha Hauer <s.hauer@pengutronix.de>");

@@ -98,7 +98,6 @@ enum svc_auth_status svc_authenticate(struct svc_rqst *rqstp)
 	rqstp->rq_authop = aops;
 	return aops->accept(rqstp);
 }
-EXPORT_SYMBOL_GPL(svc_authenticate);
 
 /**
  * svc_set_client - Assign an appropriate 'auth_domain' as the client

@@ -12,7 +12,7 @@
 #include <net/ipv6.h>
 
 #include "iwl-trans.h"
-#include "iwl-eeprom-parse.h"
+#include "iwl-nvm-utils.h"
 #include "mvm.h"
 #include "sta.h"
 #include "time-sync.h"
@@ -802,10 +802,30 @@ int iwl_mvm_tx_skb_non_sta(struct iwl_mvm *mvm, struct sk_buff *skb)
 	if (info.control.vif) {
 		struct iwl_mvm_vif *mvmvif =
 			iwl_mvm_vif_from_mac80211(info.control.vif);
+		bool p2p_aux = iwl_mvm_has_p2p_over_aux(mvm);
 
-		if (info.control.vif->type == NL80211_IFTYPE_P2P_DEVICE ||
-		    info.control.vif->type == NL80211_IFTYPE_AP ||
-		    info.control.vif->type == NL80211_IFTYPE_ADHOC) {
+		if ((info.control.vif->type == NL80211_IFTYPE_P2P_DEVICE &&
+		     p2p_aux) ||
+		    (info.control.vif->type == NL80211_IFTYPE_STATION &&
+		     offchannel)) {
+			/*
+			 * IWL_MVM_OFFCHANNEL_QUEUE is used for ROC packets
+			 * that can be used in 2 different types of vifs, P2P
+			 * Device and STATION.
+			 * P2P Device uses the offchannel queue.
+			 * STATION (HS2.0) uses the auxiliary context of the FW,
+			 * and hence needs to be sent on the aux queue.
+			 * If P2P_DEV_OVER_AUX is supported (p2p_aux = true)
+			 * also P2P Device uses the aux queue.
+			 */
+			sta_id = mvm->aux_sta.sta_id;
+			queue = mvm->aux_queue;
+			if (WARN_ON(queue == IWL_MVM_INVALID_QUEUE))
+				return -1;
+		} else if (info.control.vif->type ==
+			   NL80211_IFTYPE_P2P_DEVICE ||
+			   info.control.vif->type == NL80211_IFTYPE_AP ||
+			   info.control.vif->type == NL80211_IFTYPE_ADHOC) {
 			u32 link_id = u32_get_bits(info.control.flags,
 						   IEEE80211_TX_CTRL_MLO_LINK);
 			struct iwl_mvm_vif_link_info *link;
@@ -831,18 +851,6 @@ int iwl_mvm_tx_skb_non_sta(struct iwl_mvm *mvm, struct sk_buff *skb)
 		} else if (info.control.vif->type == NL80211_IFTYPE_MONITOR) {
 			queue = mvm->snif_queue;
 			sta_id = mvm->snif_sta.sta_id;
-		} else if (info.control.vif->type == NL80211_IFTYPE_STATION &&
-			   offchannel) {
-			/*
-			 * IWL_MVM_OFFCHANNEL_QUEUE is used for ROC packets
-			 * that can be used in 2 different types of vifs, P2P &
-			 * STATION.
-			 * P2P uses the offchannel queue.
-			 * STATION (HS2.0) uses the auxiliary context of the FW,
-			 * and hence needs to be sent on the aux queue.
-			 */
-			sta_id = mvm->aux_sta.sta_id;
-			queue = mvm->aux_queue;
 		}
 	}
 
@@ -1195,14 +1203,14 @@ static int iwl_mvm_tx_mpdu(struct iwl_mvm *mvm, struct sk_buff *skb,
 	bool is_ampdu = false;
 	int hdrlen;
 
+	if (WARN_ON_ONCE(!sta))
+		return -1;
+
 	mvmsta = iwl_mvm_sta_from_mac80211(sta);
 	fc = hdr->frame_control;
 	hdrlen = ieee80211_hdrlen(fc);
 
 	if (IWL_MVM_NON_TRANSMITTING_AP && ieee80211_is_probe_resp(fc))
-		return -1;
-
-	if (WARN_ON_ONCE(!mvmsta))
 		return -1;
 
 	if (WARN_ON_ONCE(mvmsta->deflink.sta_id == IWL_MVM_INVALID_STA))
@@ -1335,7 +1343,7 @@ drop:
 int iwl_mvm_tx_skb_sta(struct iwl_mvm *mvm, struct sk_buff *skb,
 		       struct ieee80211_sta *sta)
 {
-	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
+	struct iwl_mvm_sta *mvmsta;
 	struct ieee80211_tx_info info;
 	struct sk_buff_head mpdus_skbs;
 	struct ieee80211_vif *vif;
@@ -1344,8 +1352,10 @@ int iwl_mvm_tx_skb_sta(struct iwl_mvm *mvm, struct sk_buff *skb,
 	struct sk_buff *orig_skb = skb;
 	const u8 *addr3;
 
-	if (WARN_ON_ONCE(!mvmsta))
+	if (WARN_ON_ONCE(!sta))
 		return -1;
+
+	mvmsta = iwl_mvm_sta_from_mac80211(sta);
 
 	if (WARN_ON_ONCE(mvmsta->deflink.sta_id == IWL_MVM_INVALID_STA))
 		return -1;
@@ -1670,7 +1680,7 @@ static void iwl_mvm_tx_status_check_trigger(struct iwl_mvm *mvm,
  * For 22000-series and lower, this is just 12 bits. For later, 16 bits.
  */
 static inline u32 iwl_mvm_get_scd_ssn(struct iwl_mvm *mvm,
-				      struct iwl_mvm_tx_resp *tx_resp)
+				      struct iwl_tx_resp *tx_resp)
 {
 	u32 val = le32_to_cpup((__le32 *)iwl_mvm_get_agg_status(mvm, tx_resp) +
 			       tx_resp->frame_count);
@@ -1686,8 +1696,8 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 	struct ieee80211_sta *sta;
 	u16 sequence = le16_to_cpu(pkt->hdr.sequence);
 	int txq_id = SEQ_TO_QUEUE(sequence);
-	/* struct iwl_mvm_tx_resp_v3 is almost the same */
-	struct iwl_mvm_tx_resp *tx_resp = (void *)pkt->data;
+	/* struct iwl_tx_resp_v3 is almost the same */
+	struct iwl_tx_resp *tx_resp = (void *)pkt->data;
 	int sta_id = IWL_MVM_TX_RES_GET_RA(tx_resp->ra_tid);
 	int tid = IWL_MVM_TX_RES_GET_TID(tx_resp->ra_tid);
 	struct agg_tx_status *agg_status =
@@ -1944,7 +1954,7 @@ static const char *iwl_get_agg_tx_status(u16 status)
 static void iwl_mvm_rx_tx_cmd_agg_dbg(struct iwl_mvm *mvm,
 				      struct iwl_rx_packet *pkt)
 {
-	struct iwl_mvm_tx_resp *tx_resp = (void *)pkt->data;
+	struct iwl_tx_resp *tx_resp = (void *)pkt->data;
 	struct agg_tx_status *frame_status =
 		iwl_mvm_get_agg_status(mvm, tx_resp);
 	int i;
@@ -1978,7 +1988,7 @@ static void iwl_mvm_rx_tx_cmd_agg_dbg(struct iwl_mvm *mvm,
 static void iwl_mvm_rx_tx_cmd_agg(struct iwl_mvm *mvm,
 				  struct iwl_rx_packet *pkt)
 {
-	struct iwl_mvm_tx_resp *tx_resp = (void *)pkt->data;
+	struct iwl_tx_resp *tx_resp = (void *)pkt->data;
 	int sta_id = IWL_MVM_TX_RES_GET_RA(tx_resp->ra_tid);
 	int tid = IWL_MVM_TX_RES_GET_TID(tx_resp->ra_tid);
 	u16 sequence = le16_to_cpu(pkt->hdr.sequence);
@@ -2019,7 +2029,7 @@ static void iwl_mvm_rx_tx_cmd_agg(struct iwl_mvm *mvm,
 void iwl_mvm_rx_tx_cmd(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
-	struct iwl_mvm_tx_resp *tx_resp = (void *)pkt->data;
+	struct iwl_tx_resp *tx_resp = (void *)pkt->data;
 
 	if (tx_resp->frame_count == 1)
 		iwl_mvm_rx_tx_cmd_single(mvm, pkt);

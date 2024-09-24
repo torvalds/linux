@@ -223,6 +223,7 @@ struct mlx5_vport {
 
 	u16 vport;
 	bool                    enabled;
+	bool max_eqs_set;
 	enum mlx5_eswitch_vport_event enabled_events;
 	int index;
 	struct mlx5_devlink_port *dl_port;
@@ -579,6 +580,8 @@ int mlx5_devlink_port_fn_max_io_eqs_get(struct devlink_port *port,
 int mlx5_devlink_port_fn_max_io_eqs_set(struct devlink_port *port,
 					u32 max_io_eqs,
 					struct netlink_ext_ack *extack);
+int mlx5_devlink_port_fn_max_io_eqs_set_sf_default(struct devlink_port *port,
+						   struct netlink_ext_ack *extack);
 
 void *mlx5_eswitch_get_uplink_priv(struct mlx5_eswitch *esw, u8 rep_type);
 
@@ -884,9 +887,6 @@ int mlx5_esw_ipsec_vf_packet_offload_set(struct mlx5_eswitch *esw, struct mlx5_v
 					 bool enable);
 int mlx5_esw_ipsec_vf_packet_offload_supported(struct mlx5_core_dev *dev,
 					       u16 vport_num);
-void mlx5_esw_vport_ipsec_offload_enable(struct mlx5_eswitch *esw);
-void mlx5_esw_vport_ipsec_offload_disable(struct mlx5_eswitch *esw);
-
 #else  /* CONFIG_MLX5_ESWITCH */
 /* eswitch API stubs */
 static inline int  mlx5_eswitch_init(struct mlx5_core_dev *dev) { return 0; }

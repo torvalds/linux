@@ -75,6 +75,7 @@
 #include <linux/memremap.h>
 #include <linux/userfaultfd_k.h>
 #include <linux/mm_inline.h>
+#include <linux/oom.h>
 
 #include <asm/tlbflush.h>
 
@@ -870,6 +871,20 @@ static bool folio_referenced_one(struct folio *folio,
 			continue;
 		}
 
+		/*
+		 * Skip the non-shared swapbacked folio mapped solely by
+		 * the exiting or OOM-reaped process. This avoids redundant
+		 * swap-out followed by an immediate unmap.
+		 */
+		if ((!atomic_read(&vma->vm_mm->mm_users) ||
+		    check_stable_address_space(vma->vm_mm)) &&
+		    folio_test_anon(folio) && folio_test_swapbacked(folio) &&
+		    !folio_likely_mapped_shared(folio)) {
+			pra->referenced = -1;
+			page_vma_mapped_walk_done(&pvmw);
+			return false;
+		}
+
 		if (pvmw.pte) {
 			if (lru_gen_enabled() &&
 			    pte_young(ptep_get(pvmw.pte))) {
@@ -1143,25 +1158,25 @@ static __always_inline unsigned int __folio_add_rmap(struct folio *folio,
 {
 	atomic_t *mapped = &folio->_nr_pages_mapped;
 	const int orig_nr_pages = nr_pages;
-	int first, nr = 0;
+	int first = 0, nr = 0;
 
 	__folio_rmap_sanity_checks(folio, page, nr_pages, level);
 
 	switch (level) {
 	case RMAP_LEVEL_PTE:
 		if (!folio_test_large(folio)) {
-			nr = atomic_inc_and_test(&page->_mapcount);
+			nr = atomic_inc_and_test(&folio->_mapcount);
 			break;
 		}
 
 		do {
-			first = atomic_inc_and_test(&page->_mapcount);
-			if (first) {
-				first = atomic_inc_return_relaxed(mapped);
-				if (first < ENTIRELY_MAPPED)
-					nr++;
-			}
+			first += atomic_inc_and_test(&page->_mapcount);
 		} while (page++, --nr_pages > 0);
+
+		if (first &&
+		    atomic_add_return_relaxed(first, mapped) < ENTIRELY_MAPPED)
+			nr = first;
+
 		atomic_add(orig_nr_pages, &folio->_large_mapcount);
 		break;
 	case RMAP_LEVEL_PMD:
@@ -1269,33 +1284,42 @@ static void __page_check_anon_rmap(struct folio *folio, struct page *page,
 		       page);
 }
 
+static void __folio_mod_stat(struct folio *folio, int nr, int nr_pmdmapped)
+{
+	int idx;
+
+	if (nr) {
+		idx = folio_test_anon(folio) ? NR_ANON_MAPPED : NR_FILE_MAPPED;
+		__lruvec_stat_mod_folio(folio, idx, nr);
+	}
+	if (nr_pmdmapped) {
+		if (folio_test_anon(folio)) {
+			idx = NR_ANON_THPS;
+			__lruvec_stat_mod_folio(folio, idx, nr_pmdmapped);
+		} else {
+			/* NR_*_PMDMAPPED are not maintained per-memcg */
+			idx = folio_test_swapbacked(folio) ?
+				NR_SHMEM_PMDMAPPED : NR_FILE_PMDMAPPED;
+			__mod_node_page_state(folio_pgdat(folio), idx,
+					      nr_pmdmapped);
+		}
+	}
+}
+
 static __always_inline void __folio_add_anon_rmap(struct folio *folio,
 		struct page *page, int nr_pages, struct vm_area_struct *vma,
 		unsigned long address, rmap_t flags, enum rmap_level level)
 {
 	int i, nr, nr_pmdmapped = 0;
 
-	nr = __folio_add_rmap(folio, page, nr_pages, level, &nr_pmdmapped);
-	if (nr_pmdmapped)
-		__lruvec_stat_mod_folio(folio, NR_ANON_THPS, nr_pmdmapped);
-	if (nr)
-		__lruvec_stat_mod_folio(folio, NR_ANON_MAPPED, nr);
+	VM_WARN_ON_FOLIO(!folio_test_anon(folio), folio);
 
-	if (unlikely(!folio_test_anon(folio))) {
-		VM_WARN_ON_FOLIO(!folio_test_locked(folio), folio);
-		/*
-		 * For a PTE-mapped large folio, we only know that the single
-		 * PTE is exclusive. Further, __folio_set_anon() might not get
-		 * folio->index right when not given the address of the head
-		 * page.
-		 */
-		VM_WARN_ON_FOLIO(folio_test_large(folio) &&
-				 level != RMAP_LEVEL_PMD, folio);
-		__folio_set_anon(folio, vma, address,
-				 !!(flags & RMAP_EXCLUSIVE));
-	} else if (likely(!folio_test_ksm(folio))) {
+	nr = __folio_add_rmap(folio, page, nr_pages, level, &nr_pmdmapped);
+
+	if (likely(!folio_test_ksm(folio)))
 		__page_check_anon_rmap(folio, page, vma, address);
-	}
+
+	__folio_mod_stat(folio, nr, nr_pmdmapped);
 
 	if (flags & RMAP_EXCLUSIVE) {
 		switch (level) {
@@ -1381,29 +1405,41 @@ void folio_add_anon_rmap_pmd(struct folio *folio, struct page *page,
  * @folio:	The folio to add the mapping to.
  * @vma:	the vm area in which the mapping is added
  * @address:	the user virtual address mapped
+ * @flags:	The rmap flags
  *
  * Like folio_add_anon_rmap_*() but must only be called on *new* folios.
  * This means the inc-and-test can be bypassed.
- * The folio does not have to be locked.
+ * The folio doesn't necessarily need to be locked while it's exclusive
+ * unless two threads map it concurrently. However, the folio must be
+ * locked if it's shared.
  *
- * If the folio is pmd-mappable, it is accounted as a THP.  As the folio
- * is new, it's assumed to be mapped exclusively by a single process.
+ * If the folio is pmd-mappable, it is accounted as a THP.
  */
 void folio_add_new_anon_rmap(struct folio *folio, struct vm_area_struct *vma,
-		unsigned long address)
+		unsigned long address, rmap_t flags)
 {
-	int nr = folio_nr_pages(folio);
+	const int nr = folio_nr_pages(folio);
+	const bool exclusive = flags & RMAP_EXCLUSIVE;
+	int nr_pmdmapped = 0;
 
 	VM_WARN_ON_FOLIO(folio_test_hugetlb(folio), folio);
+	VM_WARN_ON_FOLIO(!exclusive && !folio_test_locked(folio), folio);
 	VM_BUG_ON_VMA(address < vma->vm_start ||
 			address + (nr << PAGE_SHIFT) > vma->vm_end, vma);
-	__folio_set_swapbacked(folio);
-	__folio_set_anon(folio, vma, address, true);
+
+	/*
+	 * VM_DROPPABLE mappings don't swap; instead they're just dropped when
+	 * under memory pressure.
+	 */
+	if (!folio_test_swapbacked(folio) && !(vma->vm_flags & VM_DROPPABLE))
+		__folio_set_swapbacked(folio);
+	__folio_set_anon(folio, vma, address, exclusive);
 
 	if (likely(!folio_test_large(folio))) {
 		/* increment count (starts at -1) */
 		atomic_set(&folio->_mapcount, 0);
-		SetPageAnonExclusive(&folio->page);
+		if (exclusive)
+			SetPageAnonExclusive(&folio->page);
 	} else if (!folio_test_pmd_mappable(folio)) {
 		int i;
 
@@ -1412,7 +1448,8 @@ void folio_add_new_anon_rmap(struct folio *folio, struct vm_area_struct *vma,
 
 			/* increment count (starts at -1) */
 			atomic_set(&page->_mapcount, 0);
-			SetPageAnonExclusive(page);
+			if (exclusive)
+				SetPageAnonExclusive(page);
 		}
 
 		/* increment count (starts at -1) */
@@ -1424,28 +1461,25 @@ void folio_add_new_anon_rmap(struct folio *folio, struct vm_area_struct *vma,
 		/* increment count (starts at -1) */
 		atomic_set(&folio->_large_mapcount, 0);
 		atomic_set(&folio->_nr_pages_mapped, ENTIRELY_MAPPED);
-		SetPageAnonExclusive(&folio->page);
-		__lruvec_stat_mod_folio(folio, NR_ANON_THPS, nr);
+		if (exclusive)
+			SetPageAnonExclusive(&folio->page);
+		nr_pmdmapped = nr;
 	}
 
-	__lruvec_stat_mod_folio(folio, NR_ANON_MAPPED, nr);
+	__folio_mod_stat(folio, nr, nr_pmdmapped);
+	mod_mthp_stat(folio_order(folio), MTHP_STAT_NR_ANON, 1);
 }
 
 static __always_inline void __folio_add_file_rmap(struct folio *folio,
 		struct page *page, int nr_pages, struct vm_area_struct *vma,
 		enum rmap_level level)
 {
-	pg_data_t *pgdat = folio_pgdat(folio);
 	int nr, nr_pmdmapped = 0;
 
 	VM_WARN_ON_FOLIO(folio_test_anon(folio), folio);
 
 	nr = __folio_add_rmap(folio, page, nr_pages, level, &nr_pmdmapped);
-	if (nr_pmdmapped)
-		__mod_node_page_state(pgdat, folio_test_swapbacked(folio) ?
-			NR_SHMEM_PMDMAPPED : NR_FILE_PMDMAPPED, nr_pmdmapped);
-	if (nr)
-		__lruvec_stat_mod_folio(folio, NR_FILE_MAPPED, nr);
+	__folio_mod_stat(folio, nr, nr_pmdmapped);
 
 	/* See comments in folio_add_anon_rmap_*() */
 	if (!folio_test_large(folio))
@@ -1494,29 +1528,26 @@ static __always_inline void __folio_remove_rmap(struct folio *folio,
 		enum rmap_level level)
 {
 	atomic_t *mapped = &folio->_nr_pages_mapped;
-	pg_data_t *pgdat = folio_pgdat(folio);
-	int last, nr = 0, nr_pmdmapped = 0;
+	int last = 0, nr = 0, nr_pmdmapped = 0;
 	bool partially_mapped = false;
-	enum node_stat_item idx;
 
 	__folio_rmap_sanity_checks(folio, page, nr_pages, level);
 
 	switch (level) {
 	case RMAP_LEVEL_PTE:
 		if (!folio_test_large(folio)) {
-			nr = atomic_add_negative(-1, &page->_mapcount);
+			nr = atomic_add_negative(-1, &folio->_mapcount);
 			break;
 		}
 
 		atomic_sub(nr_pages, &folio->_large_mapcount);
 		do {
-			last = atomic_add_negative(-1, &page->_mapcount);
-			if (last) {
-				last = atomic_dec_return_relaxed(mapped);
-				if (last < ENTIRELY_MAPPED)
-					nr++;
-			}
+			last += atomic_add_negative(-1, &page->_mapcount);
 		} while (page++, --nr_pages > 0);
+
+		if (last &&
+		    atomic_sub_return_relaxed(last, mapped) < ENTIRELY_MAPPED)
+			nr = last;
 
 		partially_mapped = nr && atomic_read(mapped);
 		break;
@@ -1537,35 +1568,21 @@ static __always_inline void __folio_remove_rmap(struct folio *folio,
 			}
 		}
 
-		partially_mapped = nr < nr_pmdmapped;
+		partially_mapped = nr && nr < nr_pmdmapped;
 		break;
 	}
 
-	if (nr_pmdmapped) {
-		/* NR_{FILE/SHMEM}_PMDMAPPED are not maintained per-memcg */
-		if (folio_test_anon(folio))
-			__lruvec_stat_mod_folio(folio, NR_ANON_THPS, -nr_pmdmapped);
-		else
-			__mod_node_page_state(pgdat,
-					folio_test_swapbacked(folio) ?
-					NR_SHMEM_PMDMAPPED : NR_FILE_PMDMAPPED,
-					-nr_pmdmapped);
-	}
-	if (nr) {
-		idx = folio_test_anon(folio) ? NR_ANON_MAPPED : NR_FILE_MAPPED;
-		__lruvec_stat_mod_folio(folio, idx, -nr);
+	/*
+	 * Queue anon large folio for deferred split if at least one page of
+	 * the folio is unmapped and at least one page is still mapped.
+	 *
+	 * Check partially_mapped first to ensure it is a large folio.
+	 */
+	if (partially_mapped && folio_test_anon(folio) &&
+	    !folio_test_partially_mapped(folio))
+		deferred_split_folio(folio, true);
 
-		/*
-		 * Queue anon large folio for deferred split if at least one
-		 * page of the folio is unmapped and at least one page
-		 * is still mapped.
-		 *
-		 * Check partially_mapped first to ensure it is a large folio.
-		 */
-		if (folio_test_anon(folio) && partially_mapped &&
-		    list_empty(&folio->_deferred_list))
-			deferred_split_folio(folio);
-	}
+	__folio_mod_stat(folio, -nr, -nr_pmdmapped);
 
 	/*
 	 * It would be tidy to reset folio_test_anon mapping when fully
@@ -1640,9 +1657,6 @@ static bool try_to_unmap_one(struct folio *folio, struct vm_area_struct *vma,
 	if (flags & TTU_SYNC)
 		pvmw.flags = PVMW_SYNC;
 
-	if (flags & TTU_SPLIT_HUGE_PMD)
-		split_huge_pmd_address(vma, address, false, folio);
-
 	/*
 	 * For THP, we have to assume the worse case ie pmd for invalidation.
 	 * For hugetlb, it could be much worse if we need to do pud
@@ -1668,9 +1682,6 @@ static bool try_to_unmap_one(struct folio *folio, struct vm_area_struct *vma,
 	mmu_notifier_invalidate_range_start(&range);
 
 	while (page_vma_mapped_walk(&pvmw)) {
-		/* Unexpected PMD-mapped THP? */
-		VM_BUG_ON_FOLIO(!pvmw.pte, folio);
-
 		/*
 		 * If the folio is in an mlock()d vma, we must not swap it out.
 		 */
@@ -1679,10 +1690,29 @@ static bool try_to_unmap_one(struct folio *folio, struct vm_area_struct *vma,
 			/* Restore the mlock which got missed */
 			if (!folio_test_large(folio))
 				mlock_vma_folio(folio, vma);
-			page_vma_mapped_walk_done(&pvmw);
-			ret = false;
-			break;
+			goto walk_abort;
 		}
+
+		if (!pvmw.pte) {
+			if (unmap_huge_pmd_locked(vma, pvmw.address, pvmw.pmd,
+						  folio))
+				goto walk_done;
+
+			if (flags & TTU_SPLIT_HUGE_PMD) {
+				/*
+				 * We temporarily have to drop the PTL and
+				 * restart so we can process the PTE-mapped THP.
+				 */
+				split_huge_pmd_locked(vma, pvmw.address,
+						      pvmw.pmd, false, folio);
+				flags &= ~TTU_SPLIT_HUGE_PMD;
+				page_vma_mapped_walk_restart(&pvmw);
+				continue;
+			}
+		}
+
+		/* Unexpected PMD-mapped THP? */
+		VM_BUG_ON_FOLIO(!pvmw.pte, folio);
 
 		pfn = pte_pfn(ptep_get(pvmw.pte));
 		subpage = folio_page(folio, pfn - folio_pfn(folio));
@@ -1719,11 +1749,8 @@ static bool try_to_unmap_one(struct folio *folio, struct vm_area_struct *vma,
 			 */
 			if (!anon) {
 				VM_BUG_ON(!(flags & TTU_RMAP_LOCKED));
-				if (!hugetlb_vma_trylock_write(vma)) {
-					page_vma_mapped_walk_done(&pvmw);
-					ret = false;
-					break;
-				}
+				if (!hugetlb_vma_trylock_write(vma))
+					goto walk_abort;
 				if (huge_pmd_unshare(mm, vma, address, pvmw.pte)) {
 					hugetlb_vma_unlock_write(vma);
 					flush_tlb_range(vma,
@@ -1738,8 +1765,7 @@ static bool try_to_unmap_one(struct folio *folio, struct vm_area_struct *vma,
 					 * actual page and drop map count
 					 * to zero.
 					 */
-					page_vma_mapped_walk_done(&pvmw);
-					break;
+					goto walk_done;
 				}
 				hugetlb_vma_unlock_write(vma);
 			}
@@ -1811,9 +1837,7 @@ static bool try_to_unmap_one(struct folio *folio, struct vm_area_struct *vma,
 			if (unlikely(folio_test_swapbacked(folio) !=
 					folio_test_swapcache(folio))) {
 				WARN_ON_ONCE(1);
-				ret = false;
-				page_vma_mapped_walk_done(&pvmw);
-				break;
+				goto walk_abort;
 			}
 
 			/* MADV_FREE page check */
@@ -1841,7 +1865,13 @@ static bool try_to_unmap_one(struct folio *folio, struct vm_area_struct *vma,
 				 * plus the rmap(s) (dropped by discard:).
 				 */
 				if (ref_count == 1 + map_count &&
-				    !folio_test_dirty(folio)) {
+				    (!folio_test_dirty(folio) ||
+				     /*
+				      * Unlike MADV_FREE mappings, VM_DROPPABLE
+				      * ones can be dropped even if they've
+				      * been dirtied.
+				      */
+				     (vma->vm_flags & VM_DROPPABLE))) {
 					dec_mm_counter(mm, MM_ANONPAGES);
 					goto discard;
 				}
@@ -1851,24 +1881,23 @@ static bool try_to_unmap_one(struct folio *folio, struct vm_area_struct *vma,
 				 * discarded. Remap the page to page table.
 				 */
 				set_pte_at(mm, address, pvmw.pte, pteval);
-				folio_set_swapbacked(folio);
-				ret = false;
-				page_vma_mapped_walk_done(&pvmw);
-				break;
+				/*
+				 * Unlike MADV_FREE mappings, VM_DROPPABLE ones
+				 * never get swap backed on failure to drop.
+				 */
+				if (!(vma->vm_flags & VM_DROPPABLE))
+					folio_set_swapbacked(folio);
+				goto walk_abort;
 			}
 
 			if (swap_duplicate(entry) < 0) {
 				set_pte_at(mm, address, pvmw.pte, pteval);
-				ret = false;
-				page_vma_mapped_walk_done(&pvmw);
-				break;
+				goto walk_abort;
 			}
 			if (arch_unmap_one(mm, vma, address, pteval) < 0) {
 				swap_free(entry);
 				set_pte_at(mm, address, pvmw.pte, pteval);
-				ret = false;
-				page_vma_mapped_walk_done(&pvmw);
-				break;
+				goto walk_abort;
 			}
 
 			/* See folio_try_share_anon_rmap(): clear PTE first. */
@@ -1876,9 +1905,7 @@ static bool try_to_unmap_one(struct folio *folio, struct vm_area_struct *vma,
 			    folio_try_share_anon_rmap_pte(folio, subpage)) {
 				swap_free(entry);
 				set_pte_at(mm, address, pvmw.pte, pteval);
-				ret = false;
-				page_vma_mapped_walk_done(&pvmw);
-				break;
+				goto walk_abort;
 			}
 			if (list_empty(&mm->mmlist)) {
 				spin_lock(&mmlist_lock);
@@ -1918,6 +1945,12 @@ discard:
 		if (vma->vm_flags & VM_LOCKED)
 			mlock_drain_local();
 		folio_put(folio);
+		continue;
+walk_abort:
+		ret = false;
+walk_done:
+		page_vma_mapped_walk_done(&pvmw);
+		break;
 	}
 
 	mmu_notifier_invalidate_range_end(&range);

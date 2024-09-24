@@ -698,35 +698,45 @@ static int elevator_change(struct request_queue *q, const char *elevator_name)
 		return 0;
 
 	e = elevator_find_get(q, elevator_name);
-	if (!e) {
-		request_module("%s-iosched", elevator_name);
-		e = elevator_find_get(q, elevator_name);
-		if (!e)
-			return -EINVAL;
-	}
+	if (!e)
+		return -EINVAL;
 	ret = elevator_switch(q, e);
 	elevator_put(e);
 	return ret;
 }
 
-ssize_t elv_iosched_store(struct request_queue *q, const char *buf,
+int elv_iosched_load_module(struct gendisk *disk, const char *buf,
+			    size_t count)
+{
+	char elevator_name[ELV_NAME_MAX];
+
+	if (!elv_support_iosched(disk->queue))
+		return -EOPNOTSUPP;
+
+	strscpy(elevator_name, buf, sizeof(elevator_name));
+
+	return request_module("%s-iosched", strstrip(elevator_name));
+}
+
+ssize_t elv_iosched_store(struct gendisk *disk, const char *buf,
 			  size_t count)
 {
 	char elevator_name[ELV_NAME_MAX];
 	int ret;
 
-	if (!elv_support_iosched(q))
+	if (!elv_support_iosched(disk->queue))
 		return count;
 
 	strscpy(elevator_name, buf, sizeof(elevator_name));
-	ret = elevator_change(q, strstrip(elevator_name));
+	ret = elevator_change(disk->queue, strstrip(elevator_name));
 	if (!ret)
 		return count;
 	return ret;
 }
 
-ssize_t elv_iosched_show(struct request_queue *q, char *name)
+ssize_t elv_iosched_show(struct gendisk *disk, char *name)
 {
+	struct request_queue *q = disk->queue;
 	struct elevator_queue *eq = q->elevator;
 	struct elevator_type *cur = NULL, *e;
 	int len = 0;

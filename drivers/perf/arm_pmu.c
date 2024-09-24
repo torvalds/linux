@@ -522,7 +522,7 @@ static void armpmu_enable(struct pmu *pmu)
 {
 	struct arm_pmu *armpmu = to_arm_pmu(pmu);
 	struct pmu_hw_events *hw_events = this_cpu_ptr(armpmu->hw_events);
-	bool enabled = !bitmap_empty(hw_events->used_mask, armpmu->num_events);
+	bool enabled = !bitmap_empty(hw_events->used_mask, ARMPMU_MAX_HWEVENTS);
 
 	/* For task-bound events we may be called on other CPUs */
 	if (!cpumask_test_cpu(smp_processor_id(), &armpmu->supported_cpus))
@@ -742,7 +742,7 @@ static void cpu_pm_pmu_setup(struct arm_pmu *armpmu, unsigned long cmd)
 	struct perf_event *event;
 	int idx;
 
-	for (idx = 0; idx < armpmu->num_events; idx++) {
+	for_each_set_bit(idx, armpmu->cntr_mask, ARMPMU_MAX_HWEVENTS) {
 		event = hw_events->events[idx];
 		if (!event)
 			continue;
@@ -772,7 +772,7 @@ static int cpu_pm_pmu_notify(struct notifier_block *b, unsigned long cmd,
 {
 	struct arm_pmu *armpmu = container_of(b, struct arm_pmu, cpu_pm_nb);
 	struct pmu_hw_events *hw_events = this_cpu_ptr(armpmu->hw_events);
-	bool enabled = !bitmap_empty(hw_events->used_mask, armpmu->num_events);
+	bool enabled = !bitmap_empty(hw_events->used_mask, ARMPMU_MAX_HWEVENTS);
 
 	if (!cpumask_test_cpu(smp_processor_id(), &armpmu->supported_cpus))
 		return NOTIFY_DONE;
@@ -924,8 +924,9 @@ int armpmu_register(struct arm_pmu *pmu)
 	if (ret)
 		goto out_destroy;
 
-	pr_info("enabled with %s PMU driver, %d counters available%s\n",
-		pmu->name, pmu->num_events,
+	pr_info("enabled with %s PMU driver, %d (%*pb) counters available%s\n",
+		pmu->name, bitmap_weight(pmu->cntr_mask, ARMPMU_MAX_HWEVENTS),
+		ARMPMU_MAX_HWEVENTS, &pmu->cntr_mask,
 		has_nmi ? ", using NMIs" : "");
 
 	kvm_host_pmu_init(pmu);

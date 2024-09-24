@@ -195,6 +195,11 @@ static int rga_buf_start_streaming(struct vb2_queue *q, unsigned int count)
 		return ret;
 	}
 
+	if (V4L2_TYPE_IS_OUTPUT(q->type))
+		ctx->osequence = 0;
+	else
+		ctx->csequence = 0;
+
 	return 0;
 }
 

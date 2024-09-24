@@ -162,8 +162,8 @@ static const struct cci_reg_sequence imx219_common_regs[] = {
 	{ IMX219_REG_MODE_SELECT, 0x00 },	/* Mode Select */
 
 	/* To Access Addresses 3000-5fff, send the following commands */
-	{ CCI_REG8(0x30eb), 0x0c },
 	{ CCI_REG8(0x30eb), 0x05 },
+	{ CCI_REG8(0x30eb), 0x0c },
 	{ CCI_REG8(0x300a), 0xff },
 	{ CCI_REG8(0x300b), 0xff },
 	{ CCI_REG8(0x30eb), 0x05 },

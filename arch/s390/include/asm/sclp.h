@@ -72,6 +72,7 @@ struct sclp_info {
 	unsigned char has_core_type : 1;
 	unsigned char has_sprp : 1;
 	unsigned char has_hvs : 1;
+	unsigned char has_wti : 1;
 	unsigned char has_esca : 1;
 	unsigned char has_sief2 : 1;
 	unsigned char has_64bscao : 1;
@@ -84,6 +85,7 @@ struct sclp_info {
 	unsigned char has_ibs : 1;
 	unsigned char has_skey : 1;
 	unsigned char has_kss : 1;
+	unsigned char has_diag204_bif : 1;
 	unsigned char has_gisaf : 1;
 	unsigned char has_diag318 : 1;
 	unsigned char has_diag320 : 1;

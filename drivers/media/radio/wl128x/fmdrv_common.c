@@ -9,7 +9,7 @@
  *     one Channel-8 command to be sent to the chip).
  *  2) Sending each Channel-8 command to the chip and reading
  *     response back over Shared Transport.
- *  3) Managing TX and RX Queues and Tasklets.
+ *  3) Managing TX and RX Queues and BH bh Works.
  *  4) Handling FM Interrupt packet and taking appropriate action.
  *  5) Loading FM firmware to the chip (common, FM TX, and FM RX
  *     firmware files based on mode selection)
@@ -244,10 +244,10 @@ void fmc_update_region_info(struct fmdev *fmdev, u8 region_to_set)
 }
 
 /*
- * FM common sub-module will schedule this tasklet whenever it receives
+ * FM common sub-module will queue this bh work whenever it receives
  * FM packet from ST driver.
  */
-static void recv_tasklet(struct tasklet_struct *t)
+static void recv_bh_work(struct work_struct *t)
 {
 	struct fmdev *fmdev;
 	struct fm_irq *irq_info;
@@ -256,7 +256,7 @@ static void recv_tasklet(struct tasklet_struct *t)
 	u8 num_fm_hci_cmds;
 	unsigned long flags;
 
-	fmdev = from_tasklet(fmdev, t, tx_task);
+	fmdev = from_work(fmdev, t, tx_bh_work);
 	irq_info = &fmdev->irq_info;
 	/* Process all packets in the RX queue */
 	while ((skb = skb_dequeue(&fmdev->rx_q))) {
@@ -322,22 +322,22 @@ static void recv_tasklet(struct tasklet_struct *t)
 
 		/*
 		 * Check flow control field. If Num_FM_HCI_Commands field is
-		 * not zero, schedule FM TX tasklet.
+		 * not zero, queue FM TX bh work.
 		 */
 		if (num_fm_hci_cmds && atomic_read(&fmdev->tx_cnt))
 			if (!skb_queue_empty(&fmdev->tx_q))
-				tasklet_schedule(&fmdev->tx_task);
+				queue_work(system_bh_wq, &fmdev->tx_bh_work);
 	}
 }
 
-/* FM send tasklet: is scheduled when FM packet has to be sent to chip */
-static void send_tasklet(struct tasklet_struct *t)
+/* FM send_bh_work: is scheduled when FM packet has to be sent to chip */
+static void send_bh_work(struct work_struct *t)
 {
 	struct fmdev *fmdev;
 	struct sk_buff *skb;
 	int len;
 
-	fmdev = from_tasklet(fmdev, t, tx_task);
+	fmdev = from_work(fmdev, t, tx_bh_work);
 
 	if (!atomic_read(&fmdev->tx_cnt))
 		return;
@@ -366,7 +366,7 @@ static void send_tasklet(struct tasklet_struct *t)
 	if (len < 0) {
 		kfree_skb(skb);
 		fmdev->resp_comp = NULL;
-		fmerr("TX tasklet failed to send skb(%p)\n", skb);
+		fmerr("TX bh work failed to send skb(%p)\n", skb);
 		atomic_set(&fmdev->tx_cnt, 1);
 	} else {
 		fmdev->last_tx_jiffies = jiffies;
@@ -374,7 +374,7 @@ static void send_tasklet(struct tasklet_struct *t)
 }
 
 /*
- * Queues FM Channel-8 packet to FM TX queue and schedules FM TX tasklet for
+ * Queues FM Channel-8 packet to FM TX queue and schedules FM TX bh work for
  * transmission
  */
 static int fm_send_cmd(struct fmdev *fmdev, u8 fm_op, u16 type,	void *payload,
@@ -440,7 +440,7 @@ static int fm_send_cmd(struct fmdev *fmdev, u8 fm_op, u16 type,	void *payload,
 
 	fm_cb(skb)->completion = wait_completion;
 	skb_queue_tail(&fmdev->tx_q, skb);
-	tasklet_schedule(&fmdev->tx_task);
+	queue_work(system_bh_wq, &fmdev->tx_bh_work);
 
 	return 0;
 }
@@ -462,7 +462,7 @@ int fmc_send_cmd(struct fmdev *fmdev, u8 fm_op, u16 type, void *payload,
 
 	if (!wait_for_completion_timeout(&fmdev->maintask_comp,
 					 FM_DRV_TX_TIMEOUT)) {
-		fmerr("Timeout(%d sec),didn't get regcompletion signal from RX tasklet\n",
+		fmerr("Timeout(%d sec),didn't get regcompletion signal from RX bh work\n",
 			   jiffies_to_msecs(FM_DRV_TX_TIMEOUT) / 1000);
 		return -ETIMEDOUT;
 	}
@@ -1455,7 +1455,7 @@ static long fm_st_receive(void *arg, struct sk_buff *skb)
 
 	memcpy(skb_push(skb, 1), &skb->cb[0], 1);
 	skb_queue_tail(&fmdev->rx_q, skb);
-	tasklet_schedule(&fmdev->rx_task);
+	queue_work(system_bh_wq, &fmdev->rx_bh_work);
 
 	return 0;
 }
@@ -1537,13 +1537,13 @@ int fmc_prepare(struct fmdev *fmdev)
 	spin_lock_init(&fmdev->rds_buff_lock);
 	spin_lock_init(&fmdev->resp_skb_lock);
 
-	/* Initialize TX queue and TX tasklet */
+	/* Initialize TX queue and TX bh work */
 	skb_queue_head_init(&fmdev->tx_q);
-	tasklet_setup(&fmdev->tx_task, send_tasklet);
+	INIT_WORK(&fmdev->tx_bh_work, send_bh_work);
 
-	/* Initialize RX Queue and RX tasklet */
+	/* Initialize RX Queue and RX bh work */
 	skb_queue_head_init(&fmdev->rx_q);
-	tasklet_setup(&fmdev->rx_task, recv_tasklet);
+	INIT_WORK(&fmdev->rx_bh_work, recv_bh_work);
 
 	fmdev->irq_info.stage = 0;
 	atomic_set(&fmdev->tx_cnt, 1);
@@ -1589,8 +1589,8 @@ int fmc_release(struct fmdev *fmdev)
 	/* Service pending read */
 	wake_up_interruptible(&fmdev->rx.rds.read_queue);
 
-	tasklet_kill(&fmdev->tx_task);
-	tasklet_kill(&fmdev->rx_task);
+	cancel_work_sync(&fmdev->tx_bh_work);
+	cancel_work_sync(&fmdev->rx_bh_work);
 
 	skb_queue_purge(&fmdev->tx_q);
 	skb_queue_purge(&fmdev->rx_q);

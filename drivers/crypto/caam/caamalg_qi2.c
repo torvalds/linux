@@ -4990,13 +4990,29 @@ err_dma_map:
 	return err;
 }
 
+static void free_dpaa2_pcpu_netdev(struct dpaa2_caam_priv *priv, const cpumask_t *cpus)
+{
+	struct dpaa2_caam_priv_per_cpu *ppriv;
+	int i;
+
+	for_each_cpu(i, cpus) {
+		ppriv = per_cpu_ptr(priv->ppriv, i);
+		free_netdev(ppriv->net_dev);
+	}
+}
+
 static int __cold dpaa2_dpseci_setup(struct fsl_mc_device *ls_dev)
 {
 	struct device *dev = &ls_dev->dev;
 	struct dpaa2_caam_priv *priv;
 	struct dpaa2_caam_priv_per_cpu *ppriv;
+	cpumask_var_t clean_mask;
 	int err, cpu;
 	u8 i;
+
+	err = -ENOMEM;
+	if (!zalloc_cpumask_var(&clean_mask, GFP_KERNEL))
+		goto err_cpumask;
 
 	priv = dev_get_drvdata(dev);
 
@@ -5096,20 +5112,32 @@ static int __cold dpaa2_dpseci_setup(struct fsl_mc_device *ls_dev)
 			priv->rx_queue_attr[j].fqid,
 			priv->tx_queue_attr[j].fqid);
 
-		ppriv->net_dev.dev = *dev;
-		INIT_LIST_HEAD(&ppriv->net_dev.napi_list);
-		netif_napi_add_tx_weight(&ppriv->net_dev, &ppriv->napi,
+		ppriv->net_dev = alloc_netdev_dummy(0);
+		if (!ppriv->net_dev) {
+			err = -ENOMEM;
+			goto err_alloc_netdev;
+		}
+		cpumask_set_cpu(cpu, clean_mask);
+		ppriv->net_dev->dev = *dev;
+
+		netif_napi_add_tx_weight(ppriv->net_dev, &ppriv->napi,
 					 dpaa2_dpseci_poll,
 					 DPAA2_CAAM_NAPI_WEIGHT);
 	}
 
-	return 0;
+	err = 0;
+	goto free_cpumask;
 
+err_alloc_netdev:
+	free_dpaa2_pcpu_netdev(priv, clean_mask);
 err_get_rx_queue:
 	dpaa2_dpseci_congestion_free(priv);
 err_get_vers:
 	dpseci_close(priv->mc_io, 0, ls_dev->mc_handle);
 err_open:
+free_cpumask:
+	free_cpumask_var(clean_mask);
+err_cpumask:
 	return err;
 }
 
@@ -5153,6 +5181,7 @@ static int __cold dpaa2_dpseci_disable(struct dpaa2_caam_priv *priv)
 		ppriv = per_cpu_ptr(priv->ppriv, i);
 		napi_disable(&ppriv->napi);
 		netif_napi_del(&ppriv->napi);
+		free_netdev(ppriv->net_dev);
 	}
 
 	return 0;

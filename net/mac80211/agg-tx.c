@@ -74,20 +74,7 @@ static void ieee80211_send_addba_request(struct ieee80211_sub_if_data *sdata,
 		return;
 
 	skb_reserve(skb, local->hw.extra_tx_headroom);
-	mgmt = skb_put_zero(skb, 24);
-	memcpy(mgmt->da, da, ETH_ALEN);
-	memcpy(mgmt->sa, sdata->vif.addr, ETH_ALEN);
-	if (sdata->vif.type == NL80211_IFTYPE_AP ||
-	    sdata->vif.type == NL80211_IFTYPE_AP_VLAN ||
-	    sdata->vif.type == NL80211_IFTYPE_MESH_POINT)
-		memcpy(mgmt->bssid, sdata->vif.addr, ETH_ALEN);
-	else if (sdata->vif.type == NL80211_IFTYPE_STATION)
-		memcpy(mgmt->bssid, sdata->vif.cfg.ap_addr, ETH_ALEN);
-	else if (sdata->vif.type == NL80211_IFTYPE_ADHOC)
-		memcpy(mgmt->bssid, sdata->u.ibss.bssid, ETH_ALEN);
-
-	mgmt->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
-					  IEEE80211_STYPE_ACTION);
+	mgmt = ieee80211_mgmt_ba(skb, da, sdata);
 
 	skb_put(skb, 1 + sizeof(mgmt->u.action.u.addba_req));
 
@@ -616,7 +603,9 @@ int ieee80211_start_tx_ba_session(struct ieee80211_sta *pubsta, u16 tid,
 		return -EINVAL;
 
 	if (!pubsta->deflink.ht_cap.ht_supported &&
-	    sta->sdata->vif.bss_conf.chanreq.oper.chan->band != NL80211_BAND_6GHZ)
+	    !pubsta->deflink.vht_cap.vht_supported &&
+	    !pubsta->deflink.he_cap.has_he &&
+	    !pubsta->deflink.eht_cap.has_eht)
 		return -EINVAL;
 
 	if (WARN_ON_ONCE(!local->ops->ampdu_action))

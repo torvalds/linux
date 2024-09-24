@@ -69,7 +69,7 @@ vram_d3cold_threshold_store(struct device *dev, struct device_attribute *attr,
 
 static DEVICE_ATTR_RW(vram_d3cold_threshold);
 
-static void xe_device_sysfs_fini(struct drm_device *drm, void *arg)
+static void xe_device_sysfs_fini(void *arg)
 {
 	struct xe_device *xe = arg;
 
@@ -85,5 +85,5 @@ int xe_device_sysfs_init(struct xe_device *xe)
 	if (ret)
 		return ret;
 
-	return drmm_add_action_or_reset(&xe->drm, xe_device_sysfs_fini, xe);
+	return devm_add_action_or_reset(dev, xe_device_sysfs_fini, xe);
 }

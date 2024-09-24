@@ -17,13 +17,44 @@
 #include <linux/iversion.h>
 #include "affs.h"
 
+struct affs_dir_data {
+	unsigned long ino;
+	u64 cookie;
+};
+
 static int affs_readdir(struct file *, struct dir_context *);
 
+static loff_t affs_dir_llseek(struct file *file, loff_t offset, int whence)
+{
+	struct affs_dir_data *data = file->private_data;
+
+	return generic_llseek_cookie(file, offset, whence, &data->cookie);
+}
+
+static int affs_dir_open(struct inode *inode, struct file *file)
+{
+	struct affs_dir_data	*data;
+
+	data = kzalloc(sizeof(struct affs_dir_data), GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
+	file->private_data = data;
+	return 0;
+}
+
+static int affs_dir_release(struct inode *inode, struct file *file)
+{
+	kfree(file->private_data);
+	return 0;
+}
+
 const struct file_operations affs_dir_operations = {
+	.open		= affs_dir_open,
 	.read		= generic_read_dir,
-	.llseek		= generic_file_llseek,
+	.llseek		= affs_dir_llseek,
 	.iterate_shared	= affs_readdir,
 	.fsync		= affs_file_fsync,
+	.release	= affs_dir_release,
 };
 
 /*
@@ -45,6 +76,7 @@ static int
 affs_readdir(struct file *file, struct dir_context *ctx)
 {
 	struct inode		*inode = file_inode(file);
+	struct affs_dir_data	*data = file->private_data;
 	struct super_block	*sb = inode->i_sb;
 	struct buffer_head	*dir_bh = NULL;
 	struct buffer_head	*fh_bh = NULL;
@@ -59,7 +91,7 @@ affs_readdir(struct file *file, struct dir_context *ctx)
 	pr_debug("%s(ino=%lu,f_pos=%llx)\n", __func__, inode->i_ino, ctx->pos);
 
 	if (ctx->pos < 2) {
-		file->private_data = (void *)0;
+		data->ino = 0;
 		if (!dir_emit_dots(file, ctx))
 			return 0;
 	}
@@ -80,8 +112,8 @@ affs_readdir(struct file *file, struct dir_context *ctx)
 	/* If the directory hasn't changed since the last call to readdir(),
 	 * we can jump directly to where we left off.
 	 */
-	ino = (u32)(long)file->private_data;
-	if (ino && inode_eq_iversion(inode, file->f_version)) {
+	ino = data->ino;
+	if (ino && inode_eq_iversion(inode, data->cookie)) {
 		pr_debug("readdir() left off=%d\n", ino);
 		goto inside;
 	}
@@ -131,8 +163,8 @@ inside:
 		} while (ino);
 	}
 done:
-	file->f_version = inode_query_iversion(inode);
-	file->private_data = (void *)(long)ino;
+	data->cookie = inode_query_iversion(inode);
+	data->ino = ino;
 	affs_brelse(fh_bh);
 
 out_brelse_dir:

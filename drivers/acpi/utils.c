@@ -277,15 +277,25 @@ acpi_evaluate_integer(acpi_handle handle,
 
 EXPORT_SYMBOL(acpi_evaluate_integer);
 
-int acpi_get_local_address(acpi_handle handle, u32 *addr)
+int acpi_get_local_u64_address(acpi_handle handle, u64 *addr)
 {
-	unsigned long long adr;
 	acpi_status status;
 
-	status = acpi_evaluate_integer(handle, METHOD_NAME__ADR, NULL, &adr);
+	status = acpi_evaluate_integer(handle, METHOD_NAME__ADR, NULL, addr);
 	if (ACPI_FAILURE(status))
 		return -ENODATA;
+	return 0;
+}
+EXPORT_SYMBOL(acpi_get_local_u64_address);
 
+int acpi_get_local_address(acpi_handle handle, u32 *addr)
+{
+	u64 adr;
+	int ret;
+
+	ret = acpi_get_local_u64_address(handle, &adr);
+	if (ret < 0)
+		return ret;
 	*addr = (u32)adr;
 	return 0;
 }
@@ -791,7 +801,8 @@ acpi_evaluate_dsm(acpi_handle handle, const guid_t *guid, u64 rev, u64 func,
 
 	if (ret != AE_NOT_FOUND)
 		acpi_handle_warn(handle,
-				 "failed to evaluate _DSM %pUb (0x%x)\n", guid, ret);
+				 "failed to evaluate _DSM %pUb rev:%lld func:%lld (0x%x)\n",
+				 guid, rev, func, ret);
 
 	return NULL;
 }

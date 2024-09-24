@@ -324,12 +324,8 @@ xfs_bmap_update_get_group(
 	struct xfs_mount	*mp,
 	struct xfs_bmap_intent	*bi)
 {
-	xfs_agnumber_t		agno;
-
 	if (xfs_ifork_is_realtime(bi->bi_owner, bi->bi_whichfork))
 		return;
-
-	agno = XFS_FSB_TO_AGNO(mp, bi->bi_bmap.br_startblock);
 
 	/*
 	 * Bump the intent count on behalf of the deferred rmap and refcount
@@ -338,7 +334,7 @@ xfs_bmap_update_get_group(
 	 * intent drops the intent count, ensuring that the intent count
 	 * remains nonzero across the transaction roll.
 	 */
-	bi->bi_pag = xfs_perag_intent_get(mp, agno);
+	bi->bi_pag = xfs_perag_intent_get(mp, bi->bi_bmap.br_startblock);
 }
 
 /* Add this deferred BUI to the transaction. */
@@ -350,6 +346,17 @@ xfs_bmap_defer_add(
 	trace_xfs_bmap_defer(bi);
 
 	xfs_bmap_update_get_group(tp->t_mountp, bi);
+
+	/*
+	 * Ensure the deferred mapping is pre-recorded in i_delayed_blks.
+	 *
+	 * Otherwise stat can report zero blocks for an inode that actually has
+	 * data when the entire mapping is in the process of being overwritten
+	 * using the out of place write path. This is undone in xfs_bmapi_remap
+	 * after it has incremented di_nblocks for a successful operation.
+	 */
+	if (bi->bi_type == XFS_BMAP_MAP)
+		bi->bi_owner->i_delayed_blks += bi->bi_bmap.br_blockcount;
 	xfs_defer_add(tp, &bi->bi_list, &xfs_bmap_update_defer_type);
 }
 
@@ -370,6 +377,9 @@ xfs_bmap_update_cancel_item(
 	struct list_head		*item)
 {
 	struct xfs_bmap_intent		*bi = bi_entry(item);
+
+	if (bi->bi_type == XFS_BMAP_MAP)
+		bi->bi_owner->i_delayed_blks -= bi->bi_bmap.br_blockcount;
 
 	xfs_bmap_update_put_group(bi);
 	kmem_cache_free(xfs_bmap_intent_cache, bi);
@@ -468,6 +478,9 @@ xfs_bui_recover_work(
 	bi->bi_owner = *ipp;
 	xfs_bmap_update_get_group(mp, bi);
 
+	/* see xfs_bmap_defer_add for details */
+	if (bi->bi_type == XFS_BMAP_MAP)
+		bi->bi_owner->i_delayed_blks += bi->bi_bmap.br_blockcount;
 	xfs_defer_add_item(dfp, &bi->bi_list);
 	return bi;
 }

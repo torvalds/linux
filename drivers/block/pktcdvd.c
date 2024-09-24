@@ -498,8 +498,6 @@ static void pkt_debugfs_dev_new(struct pktcdvd_device *pd)
 	if (!pkt_debugfs_root)
 		return;
 	pd->dfs_d_root = debugfs_create_dir(pd->disk->disk_name, pkt_debugfs_root);
-	if (!pd->dfs_d_root)
-		return;
 
 	pd->dfs_f_info = debugfs_create_file("info", 0444, pd->dfs_d_root,
 					     pd, &pkt_seq_fops);
@@ -2622,6 +2620,7 @@ static int pkt_setup_dev(dev_t dev, dev_t* pkt_dev)
 	struct queue_limits lim = {
 		.max_hw_sectors		= PACKET_MAX_SECTORS,
 		.logical_block_size	= CD_FRAMESIZE,
+		.features		= BLK_FEAT_ROTATIONAL,
 	};
 	int idx;
 	int ret = -ENOMEM;

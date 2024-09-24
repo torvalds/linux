@@ -846,14 +846,6 @@ struct drm_color_ctm {
 	__u64 matrix[9];
 };
 
-struct drm_color_ctm_3x4 {
-	/*
-	 * Conversion matrix with 3x4 dimensions in S31.32 sign-magnitude
-	 * (not two's complement!) format.
-	 */
-	__u64 matrix[12];
-};
-
 struct drm_color_lut {
 	/*
 	 * Values are mapped linearly to 0.0 - 1.0 range, with 0x0 == 0.0 and
@@ -867,6 +859,8 @@ struct drm_color_lut {
 
 /**
  * struct drm_plane_size_hint - Plane size hints
+ * @width: The width of the plane in pixel
+ * @height: The height of the plane in pixel
  *
  * The plane SIZE_HINTS property blob contains an
  * array of struct drm_plane_size_hint.

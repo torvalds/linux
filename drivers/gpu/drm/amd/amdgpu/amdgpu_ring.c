@@ -144,8 +144,10 @@ void amdgpu_ring_commit(struct amdgpu_ring *ring)
 	/* We pad to match fetch size */
 	count = ring->funcs->align_mask + 1 -
 		(ring->wptr & ring->funcs->align_mask);
-	count %= ring->funcs->align_mask + 1;
-	ring->funcs->insert_nop(ring, count);
+	count &= ring->funcs->align_mask;
+
+	if (count != 0)
+		ring->funcs->insert_nop(ring, count);
 
 	mb();
 	amdgpu_ring_set_wptr(ring);
@@ -212,6 +214,8 @@ int amdgpu_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring,
 	 */
 	if (ring->funcs->type == AMDGPU_RING_TYPE_KIQ)
 		sched_hw_submission = max(sched_hw_submission, 256);
+	if (ring->funcs->type == AMDGPU_RING_TYPE_MES)
+		sched_hw_submission = 8;
 	else if (ring == &adev->sdma.instance[0].page)
 		sched_hw_submission = 256;
 
@@ -352,7 +356,7 @@ int amdgpu_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring,
 	ring->max_dw = max_dw;
 	ring->hw_prio = hw_prio;
 
-	if (!ring->no_scheduler) {
+	if (!ring->no_scheduler && ring->funcs->type < AMDGPU_HW_IP_NUM) {
 		hw_ip = ring->funcs->type;
 		num_sched = &adev->gpu_sched[hw_ip][hw_prio].num_scheds;
 		adev->gpu_sched[hw_ip][hw_prio].sched[(*num_sched)++] =
@@ -473,8 +477,9 @@ static ssize_t amdgpu_debugfs_ring_read(struct file *f, char __user *buf,
 					size_t size, loff_t *pos)
 {
 	struct amdgpu_ring *ring = file_inode(f)->i_private;
-	int r, i;
 	uint32_t value, result, early[3];
+	loff_t i;
+	int r;
 
 	if (*pos & 3 || size & 3)
 		return -EINVAL;

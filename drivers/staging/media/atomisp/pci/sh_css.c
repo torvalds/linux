@@ -66,8 +66,8 @@
 #include "sp.h"			/* cnd_sp_irq_enable() */
 #include "isp.h"		/* cnd_isp_irq_enable, ISP_VEC_NELEMS */
 #include "gp_device.h"		/* gp_device_reg_store() */
-#define __INLINE_GPIO__
-#include "gpio.h"
+#include <gpio_global.h>
+#include <gpio_private.h>
 #include "timed_ctrl.h"
 #include "ia_css_inputfifo.h"
 #define WITH_PC_MONITORING  0
@@ -1345,46 +1345,8 @@ ia_css_init(struct device *dev, const struct ia_css_env *env,
 {
 	int err;
 	ia_css_spctrl_cfg spctrl_cfg;
-
 	void (*flush_func)(struct ia_css_acc_fw *fw);
 	hrt_data select, enable;
-
-	/*
-	 * The C99 standard does not specify the exact object representation of structs;
-	 * the representation is compiler dependent.
-	 *
-	 * The structs that are communicated between host and SP/ISP should have the
-	 * exact same object representation. The compiler that is used to compile the
-	 * firmware is hivecc.
-	 *
-	 * To check if a different compiler, used to compile a host application, uses
-	 * another object representation, macros are defined specifying the size of
-	 * the structs as expected by the firmware.
-	 *
-	 * A host application shall verify that a sizeof( ) of the struct is equal to
-	 * the SIZE_OF_XXX macro of the corresponding struct. If they are not
-	 * equal, functionality will break.
-	 */
-
-	/* Check struct sh_css_ddr_address_map */
-	COMPILATION_ERROR_IF(sizeof(struct sh_css_ddr_address_map)		!= SIZE_OF_SH_CSS_DDR_ADDRESS_MAP_STRUCT);
-	/* Check struct host_sp_queues */
-	COMPILATION_ERROR_IF(sizeof(struct host_sp_queues)			!= SIZE_OF_HOST_SP_QUEUES_STRUCT);
-	COMPILATION_ERROR_IF(sizeof(struct ia_css_circbuf_desc_s)		!= SIZE_OF_IA_CSS_CIRCBUF_DESC_S_STRUCT);
-	COMPILATION_ERROR_IF(sizeof(struct ia_css_circbuf_elem_s)		!= SIZE_OF_IA_CSS_CIRCBUF_ELEM_S_STRUCT);
-
-	/* Check struct host_sp_communication */
-	COMPILATION_ERROR_IF(sizeof(struct host_sp_communication)		!= SIZE_OF_HOST_SP_COMMUNICATION_STRUCT);
-	COMPILATION_ERROR_IF(sizeof(struct sh_css_event_irq_mask)		!= SIZE_OF_SH_CSS_EVENT_IRQ_MASK_STRUCT);
-
-	/* Check struct sh_css_hmm_buffer */
-	COMPILATION_ERROR_IF(sizeof(struct sh_css_hmm_buffer)			!= SIZE_OF_SH_CSS_HMM_BUFFER_STRUCT);
-	COMPILATION_ERROR_IF(sizeof(struct ia_css_isp_3a_statistics)		!= SIZE_OF_IA_CSS_ISP_3A_STATISTICS_STRUCT);
-	COMPILATION_ERROR_IF(sizeof(struct ia_css_isp_dvs_statistics)		!= SIZE_OF_IA_CSS_ISP_DVS_STATISTICS_STRUCT);
-	COMPILATION_ERROR_IF(sizeof(struct ia_css_metadata)			!= SIZE_OF_IA_CSS_METADATA_STRUCT);
-
-	/* Check struct ia_css_init_dmem_cfg */
-	COMPILATION_ERROR_IF(sizeof(struct ia_css_sp_init_dmem_cfg)		!= SIZE_OF_IA_CSS_SP_INIT_DMEM_CFG_STRUCT);
 
 	if (!env)
 		return -EINVAL;
@@ -1401,10 +1363,8 @@ ia_css_init(struct device *dev, const struct ia_css_env *env,
 
 	ia_css_device_access_init(&env->hw_access_env);
 
-	select = gpio_reg_load(GPIO0_ID, _gpio_block_reg_do_select)
-	& (~GPIO_FLASH_PIN_MASK);
-	enable = gpio_reg_load(GPIO0_ID, _gpio_block_reg_do_e)
-	| GPIO_FLASH_PIN_MASK;
+	select = gpio_reg_load(GPIO0_ID, _gpio_block_reg_do_select) & ~GPIO_FLASH_PIN_MASK;
+	enable = gpio_reg_load(GPIO0_ID, _gpio_block_reg_do_e) | GPIO_FLASH_PIN_MASK;
 	sh_css_mmu_set_page_table_base_index(mmu_l1_base);
 
 	my_css_save.mmu_base = mmu_l1_base;
@@ -5866,20 +5826,19 @@ need_yuv_scaler_stage(const struct ia_css_pipe *pipe)
  * Later, merge this with ia_css_pipe_create_cas_scaler_desc
  */
 static int ia_css_pipe_create_cas_scaler_desc_single_output(
-	    struct ia_css_frame_info *cas_scaler_in_info,
-	    struct ia_css_frame_info *cas_scaler_out_info,
-	    struct ia_css_frame_info *cas_scaler_vf_info,
+	    struct ia_css_frame_info *in_info,
+	    struct ia_css_frame_info *out_info,
+	    struct ia_css_frame_info *vf_info,
 	    struct ia_css_cas_binary_descr *descr)
 {
 	unsigned int i;
 	unsigned int hor_ds_factor = 0, ver_ds_factor = 0;
 	int err = 0;
 	struct ia_css_frame_info tmp_in_info;
-
 	unsigned int max_scale_factor_per_stage = MAX_PREFERRED_YUV_DS_PER_STEP;
 
-	assert(cas_scaler_in_info);
-	assert(cas_scaler_out_info);
+	assert(in_info);
+	assert(out_info);
 
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE,
 			    "ia_css_pipe_create_cas_scaler_desc() enter:\n");
@@ -5887,10 +5846,8 @@ static int ia_css_pipe_create_cas_scaler_desc_single_output(
 	/* We assume that this function is used only for single output port case. */
 	descr->num_output_stage = 1;
 
-	hor_ds_factor = CEIL_DIV(cas_scaler_in_info->res.width,
-				 cas_scaler_out_info->res.width);
-	ver_ds_factor = CEIL_DIV(cas_scaler_in_info->res.height,
-				 cas_scaler_out_info->res.height);
+	hor_ds_factor = CEIL_DIV(in_info->res.width, out_info->res.width);
+	ver_ds_factor = CEIL_DIV(in_info->res.height, out_info->res.height);
 	/* use the same horizontal and vertical downscaling factor for simplicity */
 	assert(hor_ds_factor == ver_ds_factor);
 
@@ -5935,30 +5892,29 @@ static int ia_css_pipe_create_cas_scaler_desc_single_output(
 		goto ERR;
 	}
 
-	tmp_in_info = *cas_scaler_in_info;
+	tmp_in_info = *in_info;
 	for (i = 0; i < descr->num_stage; i++) {
 		descr->in_info[i] = tmp_in_info;
-		if ((tmp_in_info.res.width / max_scale_factor_per_stage) <=
-		    cas_scaler_out_info->res.width) {
+		if ((tmp_in_info.res.width / max_scale_factor_per_stage) <= out_info->res.width) {
 			descr->is_output_stage[i] = true;
 			if ((descr->num_output_stage > 1) && (i != (descr->num_stage - 1))) {
-				descr->internal_out_info[i].res.width = cas_scaler_out_info->res.width;
-				descr->internal_out_info[i].res.height = cas_scaler_out_info->res.height;
-				descr->internal_out_info[i].padded_width = cas_scaler_out_info->padded_width;
+				descr->internal_out_info[i].res.width = out_info->res.width;
+				descr->internal_out_info[i].res.height = out_info->res.height;
+				descr->internal_out_info[i].padded_width = out_info->padded_width;
 				descr->internal_out_info[i].format = IA_CSS_FRAME_FORMAT_YUV420;
 			} else {
 				assert(i == (descr->num_stage - 1));
 				descr->internal_out_info[i].res.width = 0;
 				descr->internal_out_info[i].res.height = 0;
 			}
-			descr->out_info[i].res.width = cas_scaler_out_info->res.width;
-			descr->out_info[i].res.height = cas_scaler_out_info->res.height;
-			descr->out_info[i].padded_width = cas_scaler_out_info->padded_width;
-			descr->out_info[i].format = cas_scaler_out_info->format;
-			if (cas_scaler_vf_info) {
-				descr->vf_info[i].res.width = cas_scaler_vf_info->res.width;
-				descr->vf_info[i].res.height = cas_scaler_vf_info->res.height;
-				descr->vf_info[i].padded_width = cas_scaler_vf_info->padded_width;
+			descr->out_info[i].res.width = out_info->res.width;
+			descr->out_info[i].res.height = out_info->res.height;
+			descr->out_info[i].padded_width = out_info->padded_width;
+			descr->out_info[i].format = out_info->format;
+			if (vf_info) {
+				descr->vf_info[i].res.width = vf_info->res.width;
+				descr->vf_info[i].res.height = vf_info->res.height;
+				descr->vf_info[i].padded_width = vf_info->padded_width;
 				ia_css_frame_info_set_format(&descr->vf_info[i], IA_CSS_FRAME_FORMAT_YUV_LINE);
 			} else {
 				descr->vf_info[i].res.width = 0;

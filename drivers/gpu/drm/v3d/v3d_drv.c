@@ -94,6 +94,9 @@ static int v3d_get_param_ioctl(struct drm_device *dev, void *data,
 	case DRM_V3D_PARAM_SUPPORTS_CPU_QUEUE:
 		args->value = 1;
 		return 0;
+	case DRM_V3D_PARAM_MAX_PERF_COUNTERS:
+		args->value = v3d->perfmon_info.max_counters;
+		return 0;
 	default:
 		DRM_DEBUG("Unknown parameter %d\n", args->param);
 		return -EINVAL;
@@ -181,6 +184,8 @@ static void v3d_show_fdinfo(struct drm_printer *p, struct drm_file *file)
 		drm_printf(p, "v3d-jobs-%s: \t%llu jobs\n",
 			   v3d_queue_to_string(queue), jobs_completed);
 	}
+
+	drm_show_memory_stats(p, file);
 }
 
 static const struct file_operations v3d_drm_fops = {
@@ -208,6 +213,7 @@ static const struct drm_ioctl_desc v3d_drm_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(V3D_PERFMON_DESTROY, v3d_perfmon_destroy_ioctl, DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(V3D_PERFMON_GET_VALUES, v3d_perfmon_get_values_ioctl, DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(V3D_SUBMIT_CPU, v3d_submit_cpu_ioctl, DRM_RENDER_ALLOW | DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(V3D_PERFMON_GET_COUNTER, v3d_perfmon_get_counter_ioctl, DRM_RENDER_ALLOW),
 };
 
 static const struct drm_driver v3d_drm_driver = {
@@ -261,7 +267,7 @@ static int v3d_platform_drm_probe(struct platform_device *pdev)
 	struct v3d_dev *v3d;
 	int ret;
 	u32 mmu_debug;
-	u32 ident1;
+	u32 ident1, ident3;
 	u64 mask;
 
 	v3d = devm_drm_dev_alloc(dev, &v3d_drm_driver, struct v3d_dev, drm);
@@ -293,6 +299,11 @@ static int v3d_platform_drm_probe(struct platform_device *pdev)
 		    V3D_GET_FIELD(ident1, V3D_HUB_IDENT1_REV));
 	v3d->cores = V3D_GET_FIELD(ident1, V3D_HUB_IDENT1_NCORES);
 	WARN_ON(v3d->cores > 1); /* multicore not yet implemented */
+
+	ident3 = V3D_READ(V3D_HUB_IDENT3);
+	v3d->rev = V3D_GET_FIELD(ident3, V3D_HUB_IDENT3_IPREV);
+
+	v3d_perfmon_init(v3d);
 
 	v3d->reset = devm_reset_control_get_exclusive(dev, NULL);
 	if (IS_ERR(v3d->reset)) {

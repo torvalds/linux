@@ -3,7 +3,7 @@
 #define _LINUX_STOP_MACHINE
 
 #include <linux/cpu.h>
-#include <linux/cpumask.h>
+#include <linux/cpumask_types.h>
 #include <linux/smp.h>
 #include <linux/list.h>
 

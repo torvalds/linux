@@ -112,7 +112,7 @@ static int get_ac_property(struct power_supply *psy,
 	return 0;
 }
 
-static enum power_supply_property ac_props[] = {
+static const enum power_supply_property ac_props[] = {
 	POWER_SUPPLY_PROP_ONLINE,
 };
 
@@ -213,8 +213,8 @@ static int acpi_ac_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	ac->device = adev;
-	strcpy(acpi_device_name(adev), ACPI_AC_DEVICE_NAME);
-	strcpy(acpi_device_class(adev), ACPI_AC_CLASS);
+	strscpy(acpi_device_name(adev), ACPI_AC_DEVICE_NAME);
+	strscpy(acpi_device_class(adev), ACPI_AC_CLASS);
 
 	platform_set_drvdata(pdev, ac);
 

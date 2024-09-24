@@ -69,11 +69,13 @@ MODULE_DEVICE_TABLE(of, of_match_clk_mt2712_bdp);
 
 static struct platform_driver clk_mt2712_bdp_drv = {
 	.probe = mtk_clk_simple_probe,
-	.remove_new = mtk_clk_simple_remove,
+	.remove = mtk_clk_simple_remove,
 	.driver = {
 		.name = "clk-mt2712-bdp",
 		.of_match_table = of_match_clk_mt2712_bdp,
 	},
 };
 module_platform_driver(clk_mt2712_bdp_drv);
+
+MODULE_DESCRIPTION("MediaTek MT2712 BDP clocks driver");
 MODULE_LICENSE("GPL");

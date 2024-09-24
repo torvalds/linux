@@ -118,7 +118,7 @@ static int stinger_connect(struct serio *serio, struct serio_driver *drv)
 	struct input_dev *input_dev;
 	int err = -ENOMEM;
 
-	stinger = kmalloc(sizeof(struct stinger), GFP_KERNEL);
+	stinger = kmalloc(sizeof(*stinger), GFP_KERNEL);
 	input_dev = input_allocate_device();
 	if (!stinger || !input_dev)
 		goto fail1;

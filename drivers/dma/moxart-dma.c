@@ -148,11 +148,6 @@ struct moxart_dmadev {
 	unsigned int			irq;
 };
 
-struct moxart_filter_data {
-	struct moxart_dmadev		*mdc;
-	struct of_phandle_args		*dma_spec;
-};
-
 static const unsigned int es_bytes[] = {
 	[MOXART_DMA_DATA_TYPE_S8] = 1,
 	[MOXART_DMA_DATA_TYPE_S16] = 2,

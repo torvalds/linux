@@ -15,7 +15,7 @@
 #if defined(__x86_64__)
 
 struct perf_event__synthesize_extra_kmaps_cb_args {
-	struct perf_tool *tool;
+	const struct perf_tool *tool;
 	perf_event__handler_t process;
 	struct machine *machine;
 	union perf_event *event;
@@ -65,7 +65,7 @@ static int perf_event__synthesize_extra_kmaps_cb(struct map *map, void *data)
 	return 0;
 }
 
-int perf_event__synthesize_extra_kmaps(struct perf_tool *tool,
+int perf_event__synthesize_extra_kmaps(const struct perf_tool *tool,
 				       perf_event__handler_t process,
 				       struct machine *machine)
 {

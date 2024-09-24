@@ -794,7 +794,7 @@ int dpaa2_phc_index = -1;
 EXPORT_SYMBOL(dpaa2_phc_index);
 
 static int dpaa2_eth_get_ts_info(struct net_device *dev,
-				 struct ethtool_ts_info *info)
+				 struct kernel_ethtool_ts_info *info)
 {
 	if (!dpaa2_ptp)
 		return ethtool_op_get_ts_info(dev, info);

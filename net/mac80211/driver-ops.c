@@ -33,7 +33,7 @@ int drv_start(struct ieee80211_local *local)
 	return ret;
 }
 
-void drv_stop(struct ieee80211_local *local)
+void drv_stop(struct ieee80211_local *local, bool suspend)
 {
 	might_sleep();
 	lockdep_assert_wiphy(local->hw.wiphy);
@@ -41,8 +41,8 @@ void drv_stop(struct ieee80211_local *local)
 	if (WARN_ON(!local->started))
 		return;
 
-	trace_drv_stop(local);
-	local->ops->stop(&local->hw);
+	trace_drv_stop(local, suspend);
+	local->ops->stop(&local->hw, suspend);
 	trace_drv_return_void(local);
 
 	/* sync away all work on the tasklet before clearing started */

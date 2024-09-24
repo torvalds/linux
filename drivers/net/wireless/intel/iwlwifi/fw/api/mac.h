@@ -16,7 +16,7 @@
 #define NUM_MAC_INDEX		(NUM_MAC_INDEX_DRIVER + 1)
 #define NUM_MAC_INDEX_CDB	(NUM_MAC_INDEX_DRIVER + 2)
 
-#define IWL_MVM_STATION_COUNT_MAX	16
+#define IWL_STATION_COUNT_MAX	16
 #define IWL_MVM_INVALID_STA		0xFF
 
 enum iwl_ac {
@@ -310,6 +310,13 @@ struct iwl_ac_qos {
  * @filter_flags: combination of &enum iwl_mac_filter_flags
  * @qos_flags: from &enum iwl_mac_qos_flags
  * @ac: one iwl_mac_qos configuration for each AC
+ * @ap: AP specific config data, see &struct iwl_mac_data_ap
+ * @go: GO specific config data, see &struct iwl_mac_data_go
+ * @sta: BSS client specific config data, see &struct iwl_mac_data_sta
+ * @p2p_sta: P2P client specific config data, see &struct iwl_mac_data_p2p_sta
+ * @p2p_dev: P2P-device specific config data, see &struct iwl_mac_data_p2p_dev
+ * @pibss: Pseudo-IBSS specific data, unused; see struct iwl_mac_data_pibss
+ * @ibss: IBSS specific config data, see &struct iwl_mac_data_ibss
  */
 struct iwl_mac_ctx_cmd {
 	/* COMMON_INDEX_HDR_API_S_VER_1 */
@@ -371,7 +378,7 @@ struct iwl_missed_beacons_notif_ver_3 {
 } __packed; /* MISSED_BEACON_NTFY_API_S_VER_3 */
 
 /**
- * struct iwl_missed_beacons_notif - information on missed beacons
+ * struct iwl_missed_beacons_notif_v4 - information on missed beacons
  * ( MISSED_BEACONS_NOTIFICATION = 0xa2 )
  * @link_id: fw link ID
  * @consec_missed_beacons_since_last_rx: number of consecutive missed
@@ -380,7 +387,7 @@ struct iwl_missed_beacons_notif_ver_3 {
  * @num_expected_beacons: number of expected beacons
  * @num_recvd_beacons: number of received beacons
  */
-struct iwl_missed_beacons_notif {
+struct iwl_missed_beacons_notif_v4 {
 	__le32 link_id;
 	__le32 consec_missed_beacons_since_last_rx;
 	__le32 consec_missed_beacons;

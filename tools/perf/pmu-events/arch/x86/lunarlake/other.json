@@ -1,6 +1,7 @@
 [
     {
         "BriefDescription": "Counts cacheable demand data reads Catch all value for any response types - this includes response types not define in the OCR.  If this is set all other response types will be ignored",
+        "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xB7",
         "EventName": "OCR.DEMAND_DATA_RD.ANY_RESPONSE",
         "MSRIndex": "0x1a6,0x1a7",
@@ -11,6 +12,7 @@
     },
     {
         "BriefDescription": "Counts demand data reads that have any type of response.",
+        "Counter": "0,1,2,3",
         "EventCode": "0x2A,0x2B",
         "EventName": "OCR.DEMAND_DATA_RD.ANY_RESPONSE",
         "MSRIndex": "0x1a6,0x1a7",
@@ -21,6 +23,7 @@
     },
     {
         "BriefDescription": "Counts cacheable demand data reads were supplied by DRAM.",
+        "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xB7",
         "EventName": "OCR.DEMAND_DATA_RD.DRAM",
         "MSRIndex": "0x1a6,0x1a7",
@@ -31,6 +34,7 @@
     },
     {
         "BriefDescription": "Counts demand data reads that were supplied by DRAM.",
+        "Counter": "0,1,2,3",
         "EventCode": "0x2A,0x2B",
         "EventName": "OCR.DEMAND_DATA_RD.DRAM",
         "MSRIndex": "0x1a6,0x1a7",
@@ -41,6 +45,7 @@
     },
     {
         "BriefDescription": "Counts demand reads for ownership, including SWPREFETCHW which is an RFO Catch all value for any response types - this includes response types not define in the OCR.  If this is set all other response types will be ignored",
+        "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xB7",
         "EventName": "OCR.DEMAND_RFO.ANY_RESPONSE",
         "MSRIndex": "0x1a6,0x1a7",
@@ -51,6 +56,7 @@
     },
     {
         "BriefDescription": "Counts demand read for ownership (RFO) requests and software prefetches for exclusive ownership (PREFETCHW) that have any type of response.",
+        "Counter": "0,1,2,3",
         "EventCode": "0x2A,0x2B",
         "EventName": "OCR.DEMAND_RFO.ANY_RESPONSE",
         "MSRIndex": "0x1a6,0x1a7",

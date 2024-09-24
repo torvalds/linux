@@ -129,13 +129,15 @@ struct ishtp_hw_ops {
  * ISHTP device instance. It allows for the storage of data that is unique to
  * a particular driver or hardware variant.
  *
- * @fw_filename: The firmware filename associated with a specific hardware
+ * @fw_generation: The generation name associated with a specific hardware
  *               variant of the Intel Integrated Sensor Hub (ISH). This allows
  *               the driver to load the correct firmware based on the device's
- *               hardware variant.
+ *               hardware variant. For example, "lnlm" for the Lunar Lake-M
+ *               platform. The generation name must not exceed 8 characters
+ *               in length.
  */
 struct ishtp_driver_data {
-	char *fw_filename;
+	char *fw_generation;
 };
 
 /**

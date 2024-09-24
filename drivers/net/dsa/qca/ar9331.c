@@ -1021,7 +1021,7 @@ static const struct regmap_config ar9331_mdio_regmap_config = {
 	.cache_type = REGCACHE_MAPLE,
 };
 
-static struct regmap_bus ar9331_sw_bus = {
+static const struct regmap_bus ar9331_sw_bus = {
 	.reg_format_endian_default = REGMAP_ENDIAN_NATIVE,
 	.val_format_endian_default = REGMAP_ENDIAN_NATIVE,
 	.read = ar9331_mdio_read,

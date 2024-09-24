@@ -8,6 +8,8 @@
 #include <linux/delay.h>
 #include <linux/of_device.h>
 #include <linux/firmware/qcom/qcom_scm.h>
+#include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 
 #include "arm-smmu.h"
 #include "arm-smmu-qcom.h"
@@ -281,6 +283,20 @@ static int qcom_smmu_cfg_probe(struct arm_smmu_device *smmu)
 	int i;
 
 	/*
+	 * MSM8998 LPASS SMMU reports 13 context banks, but accessing
+	 * the last context bank crashes the system.
+	 */
+	if (of_device_is_compatible(smmu->dev->of_node, "qcom,msm8998-smmu-v2") &&
+	    smmu->num_context_banks == 13) {
+		smmu->num_context_banks = 12;
+	} else if (of_device_is_compatible(smmu->dev->of_node, "qcom,sdm630-smmu-v2")) {
+		if (smmu->num_context_banks == 21) /* SDM630 / SDM660 A2NOC SMMU */
+			smmu->num_context_banks = 7;
+		else if (smmu->num_context_banks == 14) /* SDM630 / SDM660 LPASS SMMU */
+			smmu->num_context_banks = 13;
+	}
+
+	/*
 	 * Some platforms support more than the Arm SMMU architected maximum of
 	 * 128 stream matching groups. For unknown reasons, the additional
 	 * groups don't exhibit the same behavior as the architected registers,
@@ -332,6 +348,19 @@ static int qcom_smmu_cfg_probe(struct arm_smmu_device *smmu)
 			smmu->s2crs[i].cbndx = 0xff;
 		}
 	}
+
+	return 0;
+}
+
+static int qcom_adreno_smmuv2_cfg_probe(struct arm_smmu_device *smmu)
+{
+	/* Support for 16K pages is advertised on some SoCs, but it doesn't seem to work */
+	smmu->features &= ~ARM_SMMU_FEAT_FMT_AARCH64_16K;
+
+	/* TZ protects several last context banks, hide them from Linux */
+	if (of_device_is_compatible(smmu->dev->of_node, "qcom,sdm630-smmu-v2") &&
+	    smmu->num_context_banks == 5)
+		smmu->num_context_banks = 2;
 
 	return 0;
 }
@@ -434,6 +463,7 @@ static const struct arm_smmu_impl sdm845_smmu_500_impl = {
 
 static const struct arm_smmu_impl qcom_adreno_smmu_v2_impl = {
 	.init_context = qcom_adreno_smmu_init_context,
+	.cfg_probe = qcom_adreno_smmuv2_cfg_probe,
 	.def_domain_type = qcom_smmu_def_domain_type,
 	.alloc_context_bank = qcom_adreno_smmu_alloc_context_bank,
 	.write_sctlr = qcom_adreno_smmu_write_sctlr,
@@ -469,7 +499,8 @@ static struct arm_smmu_device *qcom_smmu_create(struct arm_smmu_device *smmu,
 
 	/* Check to make sure qcom_scm has finished probing */
 	if (!qcom_scm_is_available())
-		return ERR_PTR(-EPROBE_DEFER);
+		return ERR_PTR(dev_err_probe(smmu->dev, -EPROBE_DEFER,
+			"qcom_scm not ready\n"));
 
 	qsmmu = devm_krealloc(smmu->dev, smmu, sizeof(*qsmmu), GFP_KERNEL);
 	if (!qsmmu)
@@ -561,10 +592,47 @@ static struct acpi_platform_list qcom_acpi_platlist[] = {
 };
 #endif
 
+static int qcom_smmu_tbu_probe(struct platform_device *pdev)
+{
+	struct device *dev = &pdev->dev;
+	int ret;
+
+	if (IS_ENABLED(CONFIG_ARM_SMMU_QCOM_DEBUG)) {
+		ret = qcom_tbu_probe(pdev);
+		if (ret)
+			return ret;
+	}
+
+	if (dev->pm_domain) {
+		pm_runtime_set_active(dev);
+		pm_runtime_enable(dev);
+	}
+
+	return 0;
+}
+
+static const struct of_device_id qcom_smmu_tbu_of_match[] = {
+	{ .compatible = "qcom,sc7280-tbu" },
+	{ .compatible = "qcom,sdm845-tbu" },
+	{ }
+};
+
+static struct platform_driver qcom_smmu_tbu_driver = {
+	.driver = {
+		.name           = "qcom_tbu",
+		.of_match_table = qcom_smmu_tbu_of_match,
+	},
+	.probe = qcom_smmu_tbu_probe,
+};
+
 struct arm_smmu_device *qcom_smmu_impl_init(struct arm_smmu_device *smmu)
 {
 	const struct device_node *np = smmu->dev->of_node;
 	const struct of_device_id *match;
+	static u8 tbu_registered;
+
+	if (!tbu_registered++)
+		platform_driver_register(&qcom_smmu_tbu_driver);
 
 #ifdef CONFIG_ACPI
 	if (np == NULL) {

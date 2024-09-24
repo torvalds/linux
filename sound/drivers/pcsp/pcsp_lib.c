@@ -12,6 +12,7 @@
 #include <linux/moduleparam.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
+#include <sound/core.h>
 #include <sound/pcm.h>
 #include "pcsp.h"
 
@@ -105,8 +106,8 @@ static void pcsp_pointer_update(struct snd_pcsp *chip)
 	periods_elapsed = chip->playback_ptr - chip->period_ptr;
 	if (periods_elapsed < 0) {
 #if PCSP_DEBUG
-		printk(KERN_INFO "PCSP: buffer_bytes mod period_bytes != 0 ? "
-			"(%zi %zi %zi)\n",
+		dev_dbg(chip->card->dev,
+			"PCSP: buffer_bytes mod period_bytes != 0 ? (%zi %zi %zi)\n",
 			chip->playback_ptr, period_bytes, buffer_bytes);
 #endif
 		periods_elapsed += buffer_bytes;
@@ -136,7 +137,7 @@ enum hrtimer_restart pcsp_do_timer(struct hrtimer *handle)
 	pointer_update = !chip->thalf;
 	ns = pcsp_timer_update(chip);
 	if (!ns) {
-		printk(KERN_WARNING "PCSP: unexpected stop\n");
+		dev_warn(chip->card->dev, "PCSP: unexpected stop\n");
 		return HRTIMER_NORESTART;
 	}
 
@@ -151,10 +152,10 @@ enum hrtimer_restart pcsp_do_timer(struct hrtimer *handle)
 static int pcsp_start_playing(struct snd_pcsp *chip)
 {
 #if PCSP_DEBUG
-	printk(KERN_INFO "PCSP: start_playing called\n");
+	dev_dbg(chip->card->dev, "PCSP: start_playing called\n");
 #endif
 	if (atomic_read(&chip->timer_active)) {
-		printk(KERN_ERR "PCSP: Timer already active\n");
+		dev_err(chip->card->dev, "PCSP: Timer already active\n");
 		return -EIO;
 	}
 
@@ -172,7 +173,7 @@ static int pcsp_start_playing(struct snd_pcsp *chip)
 static void pcsp_stop_playing(struct snd_pcsp *chip)
 {
 #if PCSP_DEBUG
-	printk(KERN_INFO "PCSP: stop_playing called\n");
+	dev_dbg(chip->card->dev, "PCSP: stop_playing called\n");
 #endif
 	if (!atomic_read(&chip->timer_active))
 		return;
@@ -201,7 +202,7 @@ static int snd_pcsp_playback_close(struct snd_pcm_substream *substream)
 {
 	struct snd_pcsp *chip = snd_pcm_substream_chip(substream);
 #if PCSP_DEBUG
-	printk(KERN_INFO "PCSP: close called\n");
+	dev_dbg(chip->card->dev, "PCSP: close called\n");
 #endif
 	pcsp_sync_stop(chip);
 	chip->playback_substream = NULL;
@@ -220,7 +221,7 @@ static int snd_pcsp_playback_hw_free(struct snd_pcm_substream *substream)
 {
 	struct snd_pcsp *chip = snd_pcm_substream_chip(substream);
 #if PCSP_DEBUG
-	printk(KERN_INFO "PCSP: hw_free called\n");
+	dev_dbg(chip->card->dev, "PCSP: hw_free called\n");
 #endif
 	pcsp_sync_stop(chip);
 	return 0;
@@ -236,14 +237,13 @@ static int snd_pcsp_playback_prepare(struct snd_pcm_substream *substream)
 		snd_pcm_format_physical_width(substream->runtime->format) >> 3;
 	chip->is_signed = snd_pcm_format_signed(substream->runtime->format);
 #if PCSP_DEBUG
-	printk(KERN_INFO "PCSP: prepare called, "
-			"size=%zi psize=%zi f=%zi f1=%i fsize=%i\n",
-			snd_pcm_lib_buffer_bytes(substream),
-			snd_pcm_lib_period_bytes(substream),
-			snd_pcm_lib_buffer_bytes(substream) /
-			snd_pcm_lib_period_bytes(substream),
-			substream->runtime->periods,
-			chip->fmt_size);
+	dev_dbg(chip->card->dev, "PCSP: prepare called, size=%zi psize=%zi f=%zi f1=%i fsize=%i\n",
+		snd_pcm_lib_buffer_bytes(substream),
+		snd_pcm_lib_period_bytes(substream),
+		snd_pcm_lib_buffer_bytes(substream) /
+		snd_pcm_lib_period_bytes(substream),
+		substream->runtime->periods,
+		chip->fmt_size);
 #endif
 	return 0;
 }
@@ -252,7 +252,7 @@ static int snd_pcsp_trigger(struct snd_pcm_substream *substream, int cmd)
 {
 	struct snd_pcsp *chip = snd_pcm_substream_chip(substream);
 #if PCSP_DEBUG
-	printk(KERN_INFO "PCSP: trigger called\n");
+	dev_dbg(chip->card->dev, "PCSP: trigger called\n");
 #endif
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
@@ -306,10 +306,10 @@ static int snd_pcsp_playback_open(struct snd_pcm_substream *substream)
 	struct snd_pcsp *chip = snd_pcm_substream_chip(substream);
 	struct snd_pcm_runtime *runtime = substream->runtime;
 #if PCSP_DEBUG
-	printk(KERN_INFO "PCSP: open called\n");
+	dev_dbg(chip->card->dev, "PCSP: open called\n");
 #endif
 	if (atomic_read(&chip->timer_active)) {
-		printk(KERN_ERR "PCSP: still active!!\n");
+		dev_err(chip->card->dev, "PCSP: still active!!\n");
 		return -EBUSY;
 	}
 	runtime->hw = snd_pcsp_playback;

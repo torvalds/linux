@@ -172,6 +172,7 @@ struct timing_generator_funcs {
 							int vstartup_start,
 							int vupdate_offset,
 							int vupdate_width,
+							int pstate_keepout,
 							const enum signal_type signal,
 							bool use_vbios
 	);
@@ -256,7 +257,8 @@ struct timing_generator_funcs {
 			int vready_offset,
 			int vstartup_start,
 			int vupdate_offset,
-			int vupdate_width);
+			int vupdate_width,
+			int pstate_keepout);
 	void (*enable_optc_clock)(struct timing_generator *tg, bool enable);
 	void (*program_stereo)(struct timing_generator *tg,
 		const struct dc_crtc_timing *timing, struct crtc_stereo_flags *flags);
@@ -276,6 +278,7 @@ struct timing_generator_funcs {
 			uint32_t *num_of_input_segments,
 			uint32_t *seg0_src_sel,
 			uint32_t *seg1_src_sel);
+	bool (*is_two_pixels_per_container)(const struct dc_crtc_timing *timing);
 
 	/**
 	 * Configure CRCs for the given timing generator. Return false if TG is
@@ -312,7 +315,7 @@ struct timing_generator_funcs {
 	 * OPP(s) and turn on/off ODM memory.
 	 */
 	void (*set_odm_combine)(struct timing_generator *optc, int *opp_id, int opp_cnt,
-			struct dc_crtc_timing *timing);
+			int segment_width, int last_segment_width);
 	void (*get_odm_combine_segments)(struct timing_generator *tg, int *odm_segments);
 	void (*set_h_timing_div_manual_mode)(struct timing_generator *optc, bool manual_mode);
 	void (*set_gsl)(struct timing_generator *optc, const struct gsl_params *params);
@@ -339,6 +342,7 @@ struct timing_generator_funcs {
 	void (*wait_drr_doublebuffer_pending_clear)(struct timing_generator *tg);
 	void (*set_long_vtotal)(struct timing_generator *optc, const struct long_vtotal_params *params);
 	void (*wait_odm_doublebuffer_pending_clear)(struct timing_generator *tg);
+	bool (*get_double_buffer_pending)(struct timing_generator *tg);
 };
 
 #endif

@@ -93,6 +93,7 @@ struct snd_pcm_ops {
 #define SNDRV_PCM_IOCTL1_CHANNEL_INFO	2
 /* 3 is absent slot. */
 #define SNDRV_PCM_IOCTL1_FIFO_SIZE	4
+#define SNDRV_PCM_IOCTL1_SYNC_ID	5
 
 #define SNDRV_PCM_TRIGGER_STOP		0
 #define SNDRV_PCM_TRIGGER_START		1
@@ -122,6 +123,10 @@ struct snd_pcm_ops {
 #define SNDRV_PCM_RATE_384000		(1U<<14)	/* 384000Hz */
 #define SNDRV_PCM_RATE_705600		(1U<<15)	/* 705600Hz */
 #define SNDRV_PCM_RATE_768000		(1U<<16)	/* 768000Hz */
+/* extended rates since 6.12 */
+#define SNDRV_PCM_RATE_12000		(1U<<17)	/* 12000Hz */
+#define SNDRV_PCM_RATE_24000		(1U<<18)	/* 24000Hz */
+#define SNDRV_PCM_RATE_128000		(1U<<19)	/* 128000Hz */
 
 #define SNDRV_PCM_RATE_CONTINUOUS	(1U<<30)	/* continuous range */
 #define SNDRV_PCM_RATE_KNOT		(1U<<31)	/* supports more non-continuous rates */
@@ -401,7 +406,7 @@ struct snd_pcm_runtime {
 	snd_pcm_uframes_t silence_start; /* starting pointer to silence area */
 	snd_pcm_uframes_t silence_filled; /* already filled part of silence area */
 
-	union snd_pcm_sync_id sync;	/* hardware synchronization ID */
+	bool std_sync_id;		/* hardware synchronization - standard per card ID */
 
 	/* -- mmap -- */
 	struct snd_pcm_mmap_status *status;
@@ -497,6 +502,9 @@ struct snd_pcm_substream {
 	/* misc flags */
 	unsigned int hw_opened: 1;
 	unsigned int managed_buffer_alloc:1;
+#ifdef CONFIG_SND_PCM_XRUN_DEBUG
+	unsigned int xrun_counter; /* number of times xrun happens */
+#endif /* CONFIG_SND_PCM_XRUN_DEBUG */
 };
 
 #define SUBSTREAM_BUSY(substream) ((substream)->ref_count > 0)
@@ -1155,7 +1163,18 @@ int snd_pcm_format_set_silence(snd_pcm_format_t format, void *buf, unsigned int 
 
 void snd_pcm_set_ops(struct snd_pcm * pcm, int direction,
 		     const struct snd_pcm_ops *ops);
-void snd_pcm_set_sync(struct snd_pcm_substream *substream);
+void snd_pcm_set_sync_per_card(struct snd_pcm_substream *substream, struct snd_pcm_hw_params *params,
+			       const unsigned char *id, unsigned int len);
+/**
+ * snd_pcm_set_sync - set the PCM sync id
+ * @substream: the pcm substream
+ *
+ * Use the default PCM sync identifier for the specific card.
+ */
+static inline void snd_pcm_set_sync(struct snd_pcm_substream *substream)
+{
+	substream->runtime->std_sync_id = true;
+}
 int snd_pcm_lib_ioctl(struct snd_pcm_substream *substream,
 		      unsigned int cmd, void *arg);                      
 void snd_pcm_period_elapsed_under_stream_lock(struct snd_pcm_substream *substream);
@@ -1341,48 +1360,6 @@ snd_pcm_set_fixed_buffer_all(struct snd_pcm *pcm, int type,
 			     struct device *data, size_t size)
 {
 	return snd_pcm_set_managed_buffer_all(pcm, type, data, size, 0);
-}
-
-int _snd_pcm_lib_alloc_vmalloc_buffer(struct snd_pcm_substream *substream,
-				      size_t size, gfp_t gfp_flags);
-int snd_pcm_lib_free_vmalloc_buffer(struct snd_pcm_substream *substream);
-struct page *snd_pcm_lib_get_vmalloc_page(struct snd_pcm_substream *substream,
-					  unsigned long offset);
-/**
- * snd_pcm_lib_alloc_vmalloc_buffer - allocate virtual DMA buffer
- * @substream: the substream to allocate the buffer to
- * @size: the requested buffer size, in bytes
- *
- * Allocates the PCM substream buffer using vmalloc(), i.e., the memory is
- * contiguous in kernel virtual space, but not in physical memory.  Use this
- * if the buffer is accessed by kernel code but not by device DMA.
- *
- * Return: 1 if the buffer was changed, 0 if not changed, or a negative error
- * code.
- */
-static inline int snd_pcm_lib_alloc_vmalloc_buffer
-			(struct snd_pcm_substream *substream, size_t size)
-{
-	return _snd_pcm_lib_alloc_vmalloc_buffer(substream, size,
-						 GFP_KERNEL | __GFP_HIGHMEM | __GFP_ZERO);
-}
-
-/**
- * snd_pcm_lib_alloc_vmalloc_32_buffer - allocate 32-bit-addressable buffer
- * @substream: the substream to allocate the buffer to
- * @size: the requested buffer size, in bytes
- *
- * This function works like snd_pcm_lib_alloc_vmalloc_buffer(), but uses
- * vmalloc_32(), i.e., the pages are allocated from 32-bit-addressable memory.
- *
- * Return: 1 if the buffer was changed, 0 if not changed, or a negative error
- * code.
- */
-static inline int snd_pcm_lib_alloc_vmalloc_32_buffer
-			(struct snd_pcm_substream *substream, size_t size)
-{
-	return _snd_pcm_lib_alloc_vmalloc_buffer(substream, size,
-						 GFP_KERNEL | GFP_DMA32 | __GFP_ZERO);
 }
 
 #define snd_pcm_get_dma_buf(substream) ((substream)->runtime->dma_buffer_p)

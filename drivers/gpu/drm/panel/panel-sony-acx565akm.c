@@ -342,7 +342,7 @@ static const struct backlight_ops acx565akm_bl_ops = {
 static int acx565akm_backlight_init(struct acx565akm_panel *lcd)
 {
 	struct backlight_properties props = {
-		.power = FB_BLANK_UNBLANK,
+		.power = BACKLIGHT_POWER_ON,
 		.type = BACKLIGHT_RAW,
 	};
 	int ret;
@@ -454,9 +454,6 @@ static int acx565akm_power_on(struct acx565akm_panel *lcd)
 
 static void acx565akm_power_off(struct acx565akm_panel *lcd)
 {
-	if (!lcd->enabled)
-		return;
-
 	acx565akm_set_display_state(lcd, 0);
 	acx565akm_set_sleep_mode(lcd, 1);
 	lcd->enabled = false;
@@ -655,9 +652,6 @@ static void acx565akm_remove(struct spi_device *spi)
 
 	if (lcd->has_bc)
 		acx565akm_backlight_cleanup(lcd);
-
-	drm_panel_disable(&lcd->panel);
-	drm_panel_unprepare(&lcd->panel);
 }
 
 static const struct of_device_id acx565akm_of_match[] = {

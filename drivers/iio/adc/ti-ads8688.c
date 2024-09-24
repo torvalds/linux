@@ -65,7 +65,6 @@ struct ads8688_state {
 	struct mutex			lock;
 	const struct ads8688_chip_info	*chip_info;
 	struct spi_device		*spi;
-	struct regulator		*reg;
 	unsigned int			vref_mv;
 	enum ads8688_range		range[8];
 	union {
@@ -423,27 +422,15 @@ static int ads8688_probe(struct spi_device *spi)
 
 	st = iio_priv(indio_dev);
 
-	st->reg = devm_regulator_get_optional(&spi->dev, "vref");
-	if (!IS_ERR(st->reg)) {
-		ret = regulator_enable(st->reg);
-		if (ret)
-			return ret;
+	ret = devm_regulator_get_enable_read_voltage(&spi->dev, "vref");
+	if (ret < 0 && ret != -ENODEV)
+		return ret;
 
-		ret = regulator_get_voltage(st->reg);
-		if (ret < 0)
-			goto err_regulator_disable;
-
-		st->vref_mv = ret / 1000;
-	} else {
-		/* Use internal reference */
-		st->vref_mv = ADS8688_VREF_MV;
-	}
+	st->vref_mv = ret == -ENODEV ? ADS8688_VREF_MV : ret / 1000;
 
 	st->chip_info =	&ads8688_chip_info_tbl[spi_get_device_id(spi)->driver_data];
 
 	spi->mode = SPI_MODE_1;
-
-	spi_set_drvdata(spi, indio_dev);
 
 	st->spi = spi;
 
@@ -457,38 +444,13 @@ static int ads8688_probe(struct spi_device *spi)
 
 	mutex_init(&st->lock);
 
-	ret = iio_triggered_buffer_setup(indio_dev, NULL, ads8688_trigger_handler, NULL);
-	if (ret < 0) {
-		dev_err(&spi->dev, "iio triggered buffer setup failed\n");
-		goto err_regulator_disable;
-	}
+	ret = devm_iio_triggered_buffer_setup(&spi->dev, indio_dev, NULL,
+					      ads8688_trigger_handler, NULL);
+	if (ret < 0)
+		return dev_err_probe(&spi->dev, ret,
+				     "iio triggered buffer setup failed\n");
 
-	ret = iio_device_register(indio_dev);
-	if (ret)
-		goto err_buffer_cleanup;
-
-	return 0;
-
-err_buffer_cleanup:
-	iio_triggered_buffer_cleanup(indio_dev);
-
-err_regulator_disable:
-	if (!IS_ERR(st->reg))
-		regulator_disable(st->reg);
-
-	return ret;
-}
-
-static void ads8688_remove(struct spi_device *spi)
-{
-	struct iio_dev *indio_dev = spi_get_drvdata(spi);
-	struct ads8688_state *st = iio_priv(indio_dev);
-
-	iio_device_unregister(indio_dev);
-	iio_triggered_buffer_cleanup(indio_dev);
-
-	if (!IS_ERR(st->reg))
-		regulator_disable(st->reg);
+	return devm_iio_device_register(&spi->dev, indio_dev);
 }
 
 static const struct spi_device_id ads8688_id[] = {
@@ -511,7 +473,6 @@ static struct spi_driver ads8688_driver = {
 		.of_match_table = ads8688_of_match,
 	},
 	.probe		= ads8688_probe,
-	.remove		= ads8688_remove,
 	.id_table	= ads8688_id,
 };
 module_spi_driver(ads8688_driver);

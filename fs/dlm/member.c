@@ -366,6 +366,8 @@ int dlm_is_member(struct dlm_ls *ls, int nodeid)
 
 int dlm_is_removed(struct dlm_ls *ls, int nodeid)
 {
+	WARN_ON_ONCE(!nodeid || nodeid == -1);
+
 	if (find_memb(&ls->ls_nodes_gone, nodeid))
 		return 1;
 	return 0;
@@ -642,7 +644,7 @@ int dlm_ls_stop(struct dlm_ls *ls)
 	set_bit(LSFL_RECOVER_STOP, &ls->ls_flags);
 	new = test_and_clear_bit(LSFL_RUNNING, &ls->ls_flags);
 	if (new)
-		timer_delete_sync(&ls->ls_timer);
+		timer_delete_sync(&ls->ls_scan_timer);
 	ls->ls_recover_seq++;
 
 	/* activate requestqueue and stop processing */

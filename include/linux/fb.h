@@ -225,6 +225,7 @@ struct fb_deferred_io {
 	struct mutex lock; /* mutex that protects the pageref list */
 	struct list_head pagereflist; /* list of pagerefs for touched pages */
 	/* callback */
+	struct page *(*get_page)(struct fb_info *info, unsigned long offset);
 	void (*deferred_io)(struct fb_info *info, struct list_head *pagelist);
 };
 #endif
@@ -509,6 +510,7 @@ struct fb_info {
 	void *par;
 
 	bool skip_vt_switch; /* no VT switch on suspend/resume required */
+	bool skip_panic; /* Do not write to the fb after a panic */
 };
 
 /* This will go away
@@ -600,6 +602,7 @@ extern ssize_t fb_sys_write(struct fb_info *info, const char __user *buf,
 /* fbmem.c */
 extern int register_framebuffer(struct fb_info *fb_info);
 extern void unregister_framebuffer(struct fb_info *fb_info);
+extern int devm_register_framebuffer(struct device *dev, struct fb_info *fb_info);
 extern char* fb_get_buffer_offset(struct fb_info *info, struct fb_pixmap *buf, u32 size);
 extern void fb_pad_unaligned_buffer(u8 *dst, u32 d_pitch, u8 *src, u32 idx,
 				u32 height, u32 shift_high, u32 shift_low, u32 mod);

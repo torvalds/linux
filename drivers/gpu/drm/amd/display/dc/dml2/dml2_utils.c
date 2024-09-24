@@ -161,14 +161,6 @@ bool is_dp2p0_output_encoder(const struct pipe_ctx *pipe_ctx)
 	/* If this assert is hit then we have a link encoder dynamic management issue */
 	ASSERT(pipe_ctx->stream_res.hpo_dp_stream_enc ? pipe_ctx->link_res.hpo_dp_link_enc != NULL : true);
 
-	/* Count MST hubs once by treating only 1st remote sink in topology as an encoder */
-	if (pipe_ctx->stream->link && pipe_ctx->stream->link->remote_sinks[0]) {
-		return (pipe_ctx->stream_res.hpo_dp_stream_enc &&
-			pipe_ctx->link_res.hpo_dp_link_enc &&
-			dc_is_dp_signal(pipe_ctx->stream->signal) &&
-			(pipe_ctx->stream->link->remote_sinks[0]->sink_id == pipe_ctx->stream->sink->sink_id));
-	}
-
 	return (pipe_ctx->stream_res.hpo_dp_stream_enc &&
 		pipe_ctx->link_res.hpo_dp_link_enc &&
 		dc_is_dp_signal(pipe_ctx->stream->signal));
@@ -288,27 +280,18 @@ void dml2_calculate_rq_and_dlg_params(const struct dc *dc, struct dc_state *cont
 {
 	unsigned int dc_pipe_ctx_index, dml_pipe_idx, plane_id;
 	enum mall_stream_type pipe_mall_type;
-	bool unbounded_req_enabled = false;
 	struct dml2_calculate_rq_and_dlg_params_scratch *s = &in_ctx->v20.scratch.calculate_rq_and_dlg_params_scratch;
 
 	context->bw_ctx.bw.dcn.clk.dcfclk_deep_sleep_khz = (unsigned int)in_ctx->v20.dml_core_ctx.mp.DCFCLKDeepSleep * 1000;
 	context->bw_ctx.bw.dcn.clk.dppclk_khz = 0;
 
-	if (in_ctx->v20.dml_core_ctx.ms.support.FCLKChangeSupport[in_ctx->v20.scratch.mode_support_params.out_lowest_state_idx] == dml_fclock_change_unsupported)
+	if (in_ctx->v20.dml_core_ctx.ms.support.FCLKChangeSupport[0] == dml_fclock_change_unsupported)
 		context->bw_ctx.bw.dcn.clk.fclk_p_state_change_support = false;
 	else
 		context->bw_ctx.bw.dcn.clk.fclk_p_state_change_support = true;
 
 	if (context->bw_ctx.bw.dcn.clk.dispclk_khz < dc->debug.min_disp_clk_khz)
 		context->bw_ctx.bw.dcn.clk.dispclk_khz = dc->debug.min_disp_clk_khz;
-
-	unbounded_req_enabled = in_ctx->v20.dml_core_ctx.ms.UnboundedRequestEnabledThisState;
-
-	if (unbounded_req_enabled && pipe_cnt > 1) {
-		// Unbounded requesting should not ever be used when more than 1 pipe is enabled.
-		//ASSERT(false);
-		unbounded_req_enabled = false;
-	}
 
 	context->bw_ctx.bw.dcn.compbuf_size_kb = in_ctx->v20.dml_core_ctx.ip.config_return_buffer_size_in_kbytes;
 
@@ -344,7 +327,8 @@ void dml2_calculate_rq_and_dlg_params(const struct dc *dc, struct dc_state *cont
 			context->res_ctx.pipe_ctx[dc_pipe_ctx_index].unbounded_req = false;
 		} else {
 			context->res_ctx.pipe_ctx[dc_pipe_ctx_index].det_buffer_size_kb = dml_get_det_buffer_size_kbytes(&context->bw_ctx.dml2->v20.dml_core_ctx, dml_pipe_idx);
-			context->res_ctx.pipe_ctx[dc_pipe_ctx_index].unbounded_req = unbounded_req_enabled;
+			// Unbounded requesting should not ever be used when more than 1 pipe is enabled.
+			context->res_ctx.pipe_ctx[dc_pipe_ctx_index].unbounded_req = in_ctx->v20.dml_core_ctx.ms.UnboundedRequestEnabledThisState;
 		}
 
 		context->bw_ctx.bw.dcn.compbuf_size_kb -= context->res_ctx.pipe_ctx[dc_pipe_ctx_index].det_buffer_size_kb;
@@ -429,7 +413,7 @@ unsigned int dml2_calc_max_scaled_time(
 
 void dml2_extract_writeback_wm(struct dc_state *context, struct display_mode_lib_st *dml_core_ctx)
 {
-	int i, j = 0;;
+	int i, j = 0;
 	struct mcif_arb_params *wb_arb_params = NULL;
 	struct dcn_bw_writeback *bw_writeback = NULL;
 	enum mmhubbub_wbif_mode wbif_mode = PACKED_444_FP16; /*for now*/

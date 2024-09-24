@@ -2312,26 +2312,6 @@ static void rtw89_mac_dump_qta_lost_be(struct rtw89_dev *rtwdev)
 	dump_err_status_dispatcher_be(rtwdev);
 }
 
-static int rtw89_mac_cpu_io_rx(struct rtw89_dev *rtwdev, bool wow_enable)
-{
-	struct rtw89_mac_h2c_info h2c_info = {};
-	struct rtw89_mac_c2h_info c2h_info = {};
-	u32 ret;
-
-	h2c_info.id = RTW89_FWCMD_H2CREG_FUNC_WOW_CPUIO_RX_CTRL;
-	h2c_info.content_len = sizeof(h2c_info.u.hdr);
-	h2c_info.u.hdr.w0 = u32_encode_bits(wow_enable, RTW89_H2CREG_WOW_CPUIO_RX_CTRL_EN);
-
-	ret = rtw89_fw_msg_reg(rtwdev, &h2c_info, &c2h_info);
-	if (ret)
-		return ret;
-
-	if (c2h_info.id != RTW89_FWCMD_C2HREG_FUNC_WOW_CPUIO_RX_ACK)
-		ret = -EINVAL;
-
-	return ret;
-}
-
 static int rtw89_wow_config_mac_be(struct rtw89_dev *rtwdev, bool enable_wow)
 {
 	if (enable_wow) {
@@ -2619,6 +2599,7 @@ const struct rtw89_mac_gen_def rtw89_mac_gen_be = {
 	.is_txq_empty = mac_is_txq_empty_be,
 
 	.add_chan_list = rtw89_hw_scan_add_chan_list_be,
+	.add_chan_list_pno = rtw89_pno_scan_add_chan_list_be,
 	.scan_offload = rtw89_fw_h2c_scan_offload_be,
 
 	.wow_config_mac = rtw89_wow_config_mac_be,

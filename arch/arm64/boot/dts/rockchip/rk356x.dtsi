@@ -195,32 +195,32 @@
 
 		opp-200000000 {
 			opp-hz = /bits/ 64 <200000000>;
-			opp-microvolt = <825000>;
+			opp-microvolt = <850000 850000 1000000>;
 		};
 
 		opp-300000000 {
 			opp-hz = /bits/ 64 <300000000>;
-			opp-microvolt = <825000>;
+			opp-microvolt = <850000 850000 1000000>;
 		};
 
 		opp-400000000 {
 			opp-hz = /bits/ 64 <400000000>;
-			opp-microvolt = <825000>;
+			opp-microvolt = <850000 850000 1000000>;
 		};
 
 		opp-600000000 {
 			opp-hz = /bits/ 64 <600000000>;
-			opp-microvolt = <825000>;
+			opp-microvolt = <900000 900000 1000000>;
 		};
 
 		opp-700000000 {
 			opp-hz = /bits/ 64 <700000000>;
-			opp-microvolt = <900000>;
+			opp-microvolt = <950000 950000 1000000>;
 		};
 
 		opp-800000000 {
 			opp-hz = /bits/ 64 <800000000>;
-			opp-microvolt = <1000000>;
+			opp-microvolt = <1000000 1000000 1000000>;
 		};
 	};
 
@@ -790,6 +790,7 @@
 		clocks = <&cru ACLK_VOP>, <&cru HCLK_VOP>;
 		clock-names = "aclk", "iface";
 		#iommu-cells = <0>;
+		power-domains = <&power RK3568_PD_VO>;
 		status = "disabled";
 	};
 
@@ -1109,6 +1110,15 @@
 			 <&cru ACLK_EMMC>, <&cru BCLK_EMMC>,
 			 <&cru TCLK_EMMC>;
 		clock-names = "core", "bus", "axi", "block", "timer";
+		status = "disabled";
+	};
+
+	rng: rng@fe388000 {
+		compatible = "rockchip,rk3568-rng";
+		reg = <0x0 0xfe388000 0x0 0x4000>;
+		clocks = <&cru CLK_TRNG_NS>, <&cru HCLK_TRNG_NS>;
+		clock-names = "core", "ahb";
+		resets = <&cru SRST_TRNG_NS>;
 		status = "disabled";
 	};
 
@@ -1591,10 +1601,9 @@
 			 <&cru SRST_TSADCPHY>;
 		rockchip,grf = <&grf>;
 		rockchip,hw-tshut-temp = <95000>;
-		pinctrl-names = "init", "default", "sleep";
-		pinctrl-0 = <&tsadc_pin>;
-		pinctrl-1 = <&tsadc_shutorg>;
-		pinctrl-2 = <&tsadc_pin>;
+		pinctrl-names = "default", "sleep";
+		pinctrl-0 = <&tsadc_shutorg>;
+		pinctrl-1 = <&tsadc_pin>;
 		#thermal-sensor-cells = <1>;
 		status = "disabled";
 	};

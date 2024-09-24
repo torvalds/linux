@@ -175,6 +175,7 @@ struct drm_printer {
 	void (*printfn)(struct drm_printer *p, struct va_format *vaf);
 	void (*puts)(struct drm_printer *p, const char *str);
 	void *arg;
+	const void *origin;
 	const char *prefix;
 	enum drm_debug_category category;
 };
@@ -220,7 +221,8 @@ drm_vprintf(struct drm_printer *p, const char *fmt, va_list *va)
 
 /**
  * struct drm_print_iterator - local struct used with drm_printer_coredump
- * @data: Pointer to the devcoredump output buffer
+ * @data: Pointer to the devcoredump output buffer, can be NULL if using
+ * drm_printer_coredump to determine size of devcoredump
  * @start: The offset within the buffer to start writing
  * @remain: The number of bytes to write for this iteration
  */
@@ -264,6 +266,57 @@ struct drm_print_iterator {
  *		dev_coredumpm(dev, THIS_MODULE, data, 0, GFP_KERNEL,
  *			coredump_read, ...)
  *	}
+ *
+ * The above example has a time complexity of O(N^2), where N is the size of the
+ * devcoredump. This is acceptable for small devcoredumps but scales poorly for
+ * larger ones.
+ *
+ * Another use case for drm_coredump_printer is to capture the devcoredump into
+ * a saved buffer before the dev_coredump() callback. This involves two passes:
+ * one to determine the size of the devcoredump and another to print it to a
+ * buffer. Then, in dev_coredump(), copy from the saved buffer into the
+ * devcoredump read buffer.
+ *
+ * For example::
+ *
+ *	char *devcoredump_saved_buffer;
+ *
+ *	ssize_t __coredump_print(char *buffer, ssize_t count, ...)
+ *	{
+ *		struct drm_print_iterator iter;
+ *		struct drm_printer p;
+ *
+ *		iter.data = buffer;
+ *		iter.start = 0;
+ *		iter.remain = count;
+ *
+ *		p = drm_coredump_printer(&iter);
+ *
+ *		drm_printf(p, "foo=%d\n", foo);
+ *		...
+ *		return count - iter.remain;
+ *	}
+ *
+ *	void coredump_print(...)
+ *	{
+ *		ssize_t count;
+ *
+ *		count = __coredump_print(NULL, INT_MAX, ...);
+ *		devcoredump_saved_buffer = kvmalloc(count, GFP_KERNEL);
+ *		__coredump_print(devcoredump_saved_buffer, count, ...);
+ *	}
+ *
+ *	void coredump_read(char *buffer, loff_t offset, size_t count,
+ *			   void *data, size_t datalen)
+ *	{
+ *		...
+ *		memcpy(buffer, devcoredump_saved_buffer + offset, count);
+ *		...
+ *	}
+ *
+ * The above example has a time complexity of O(N*2), where N is the size of the
+ * devcoredump. This scales better than the previous example for larger
+ * devcoredumps.
  *
  * RETURNS:
  * The &drm_printer object
@@ -332,6 +385,7 @@ static inline struct drm_printer drm_dbg_printer(struct drm_device *drm,
 	struct drm_printer p = {
 		.printfn = __drm_printfn_dbg,
 		.arg = drm,
+		.origin = (const void *)_THIS_IP_, /* it's fine as we will be inlined */
 		.prefix = prefix,
 		.category = category,
 	};
@@ -527,17 +581,15 @@ void __drm_dev_dbg(struct _ddebug *desc, const struct device *dev,
  * Prefer drm_device based logging over device or prink based logging.
  */
 
-__printf(3, 4)
-void ___drm_dbg(struct _ddebug *desc, enum drm_debug_category category, const char *format, ...);
 __printf(1, 2)
 void __drm_err(const char *format, ...);
 
 #if !defined(CONFIG_DRM_USE_DYNAMIC_DEBUG)
-#define __drm_dbg(cat, fmt, ...)		___drm_dbg(NULL, cat, fmt, ##__VA_ARGS__)
+#define __drm_dbg(cat, fmt, ...)	__drm_dev_dbg(NULL, NULL, cat, fmt, ##__VA_ARGS__)
 #else
 #define __drm_dbg(cat, fmt, ...)					\
-	_dynamic_func_call_cls(cat, fmt, ___drm_dbg,			\
-			       cat, fmt, ##__VA_ARGS__)
+	_dynamic_func_call_cls(cat, fmt, __drm_dev_dbg,			\
+			       NULL, cat, fmt, ##__VA_ARGS__)
 #endif
 
 /* Macros to make printk easier */
@@ -632,12 +684,12 @@ void __drm_err(const char *format, ...);
 
 /* Helper for struct drm_device based WARNs */
 #define drm_WARN(drm, condition, format, arg...)			\
-	WARN(condition, "%s %s: " format,				\
+	WARN(condition, "%s %s: [drm] " format,				\
 			dev_driver_string((drm)->dev),			\
 			dev_name((drm)->dev), ## arg)
 
 #define drm_WARN_ONCE(drm, condition, format, arg...)			\
-	WARN_ONCE(condition, "%s %s: " format,				\
+	WARN_ONCE(condition, "%s %s: [drm] " format,			\
 			dev_driver_string((drm)->dev),			\
 			dev_name((drm)->dev), ## arg)
 

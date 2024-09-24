@@ -3,13 +3,19 @@ config VIDEO_INTEL_IPU6
 	depends on ACPI || COMPILE_TEST
 	depends on VIDEO_DEV
 	depends on X86 && X86_64 && HAS_DMA
-	select DMA_OPS
+	depends on IPU_BRIDGE || !IPU_BRIDGE
+	#
+	# This driver incorrectly tries to override the dma_ops.  It should
+	# never have done that, but for now keep it working on architectures
+	# that use dma ops
+	#
+	depends on ARCH_HAS_DMA_OPS
+	select AUXILIARY_BUS
 	select IOMMU_IOVA
 	select VIDEO_V4L2_SUBDEV_API
 	select MEDIA_CONTROLLER
 	select VIDEOBUF2_DMA_CONTIG
 	select V4L2_FWNODE
-	select IPU_BRIDGE
 	help
 	  This is the 6th Gen Intel Image Processing Unit, found in Intel SoCs
 	  and used for capturing images and video from camera sensors.

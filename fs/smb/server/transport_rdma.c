@@ -21,7 +21,7 @@
 #include "glob.h"
 #include "connection.h"
 #include "smb_common.h"
-#include "smbstatus.h"
+#include "../common/smb2status.h"
 #include "transport_rdma.h"
 
 #define SMB_DIRECT_PORT_IWARP		5445
@@ -164,7 +164,7 @@ enum {
 	SMB_DIRECT_MSG_DATA_TRANSFER
 };
 
-static struct ksmbd_transport_ops ksmbd_smb_direct_transport_ops;
+static const struct ksmbd_transport_ops ksmbd_smb_direct_transport_ops;
 
 struct smb_direct_send_ctx {
 	struct list_head	msg_list;
@@ -2292,7 +2292,7 @@ out:
 	return rdma_capable;
 }
 
-static struct ksmbd_transport_ops ksmbd_smb_direct_transport_ops = {
+static const struct ksmbd_transport_ops ksmbd_smb_direct_transport_ops = {
 	.prepare	= smb_direct_prepare,
 	.disconnect	= smb_direct_disconnect,
 	.shutdown	= smb_direct_shutdown,

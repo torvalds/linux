@@ -74,7 +74,7 @@ static int mlx5i_set_ringparam(struct net_device *dev,
 {
 	struct mlx5e_priv *priv = mlx5i_epriv(dev);
 
-	return mlx5e_ethtool_set_ringparam(priv, param);
+	return mlx5e_ethtool_set_ringparam(priv, param, extack);
 }
 
 static void mlx5i_get_ringparam(struct net_device *dev,
@@ -132,11 +132,11 @@ static int mlx5i_get_coalesce(struct net_device *netdev,
 {
 	struct mlx5e_priv *priv = mlx5i_epriv(netdev);
 
-	return mlx5e_ethtool_get_coalesce(priv, coal, kernel_coal);
+	return mlx5e_ethtool_get_coalesce(priv, coal, kernel_coal, extack);
 }
 
 static int mlx5i_get_ts_info(struct net_device *netdev,
-			     struct ethtool_ts_info *info)
+			     struct kernel_ethtool_ts_info *info)
 {
 	struct mlx5e_priv *priv = mlx5i_epriv(netdev);
 
@@ -215,7 +215,7 @@ static int mlx5i_get_link_ksettings(struct net_device *netdev,
 	int speed, ret;
 
 	ret = mlx5_query_ib_port_oper(mdev, &ib_link_width_oper, &ib_proto_oper,
-				      1);
+				      1, 0);
 	if (ret)
 		return ret;
 

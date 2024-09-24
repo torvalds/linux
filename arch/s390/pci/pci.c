@@ -587,7 +587,6 @@ int pcibios_device_add(struct pci_dev *pdev)
 	if (pdev->is_physfn)
 		pdev->no_vf_scan = 1;
 
-	pdev->dev.groups = zpci_attr_groups;
 	zpci_map_resources(pdev);
 
 	for (i = 0; i < PCI_STD_NUM_BARS; i++) {
@@ -1064,7 +1063,7 @@ char * __init pcibios_setup(char *str)
 		return NULL;
 	}
 	if (!strcmp(str, "nomio")) {
-		S390_lowcore.machine_flags &= ~MACHINE_FLAG_PCI_MIO;
+		get_lowcore()->machine_flags &= ~MACHINE_FLAG_PCI_MIO;
 		return NULL;
 	}
 	if (!strcmp(str, "force_floating")) {

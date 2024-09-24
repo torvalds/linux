@@ -29,10 +29,11 @@ bcachefs-y		:=	\
 	clock.o			\
 	compress.o		\
 	darray.o		\
+	data_update.o		\
 	debug.o			\
 	dirent.o		\
+	disk_accounting.o	\
 	disk_groups.o		\
-	data_update.o		\
 	ec.o			\
 	errcode.o		\
 	error.o			\
@@ -68,6 +69,7 @@ bcachefs-y		:=	\
 	printbuf.o		\
 	quota.o			\
 	rebalance.o		\
+	rcu_pending.o		\
 	recovery.o		\
 	recovery_passes.o	\
 	reflink.o		\

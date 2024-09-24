@@ -352,7 +352,7 @@ checkSMB(char *buf, unsigned int total_read, struct TCP_Server_Info *server)
 				 * on simple responses (wct, bcc both zero)
 				 * in particular have seen this on
 				 * ulogoffX and FindClose. This leaves
-				 * one byte of bcc potentially unitialized
+				 * one byte of bcc potentially uninitialized
 				 */
 				/* zero rest of bcc */
 				tmp[sizeof(struct smb_hdr)+1] = 0;
@@ -751,12 +751,11 @@ cifs_close_deferred_file(struct cifsInodeInfo *cifs_inode)
 {
 	struct cifsFileInfo *cfile = NULL;
 	struct file_list *tmp_list, *tmp_next_list;
-	struct list_head file_head;
+	LIST_HEAD(file_head);
 
 	if (cifs_inode == NULL)
 		return;
 
-	INIT_LIST_HEAD(&file_head);
 	spin_lock(&cifs_inode->open_file_lock);
 	list_for_each_entry(cfile, &cifs_inode->openFileList, flist) {
 		if (delayed_work_pending(&cfile->deferred)) {
@@ -787,9 +786,8 @@ cifs_close_all_deferred_files(struct cifs_tcon *tcon)
 {
 	struct cifsFileInfo *cfile;
 	struct file_list *tmp_list, *tmp_next_list;
-	struct list_head file_head;
+	LIST_HEAD(file_head);
 
-	INIT_LIST_HEAD(&file_head);
 	spin_lock(&tcon->open_file_lock);
 	list_for_each_entry(cfile, &tcon->openFileList, tlist) {
 		if (delayed_work_pending(&cfile->deferred)) {
@@ -819,11 +817,10 @@ cifs_close_deferred_file_under_dentry(struct cifs_tcon *tcon, const char *path)
 {
 	struct cifsFileInfo *cfile;
 	struct file_list *tmp_list, *tmp_next_list;
-	struct list_head file_head;
 	void *page;
 	const char *full_path;
+	LIST_HEAD(file_head);
 
-	INIT_LIST_HEAD(&file_head);
 	page = alloc_dentry_path();
 	spin_lock(&tcon->open_file_lock);
 	list_for_each_entry(cfile, &tcon->openFileList, tlist) {
@@ -993,60 +990,6 @@ parse_DFS_referrals_exit:
 		*num_of_nodes = 0;
 	}
 	return rc;
-}
-
-struct cifs_aio_ctx *
-cifs_aio_ctx_alloc(void)
-{
-	struct cifs_aio_ctx *ctx;
-
-	/*
-	 * Must use kzalloc to initialize ctx->bv to NULL and ctx->direct_io
-	 * to false so that we know when we have to unreference pages within
-	 * cifs_aio_ctx_release()
-	 */
-	ctx = kzalloc(sizeof(struct cifs_aio_ctx), GFP_KERNEL);
-	if (!ctx)
-		return NULL;
-
-	INIT_LIST_HEAD(&ctx->list);
-	mutex_init(&ctx->aio_mutex);
-	init_completion(&ctx->done);
-	kref_init(&ctx->refcount);
-	return ctx;
-}
-
-void
-cifs_aio_ctx_release(struct kref *refcount)
-{
-	struct cifs_aio_ctx *ctx = container_of(refcount,
-					struct cifs_aio_ctx, refcount);
-
-	cifsFileInfo_put(ctx->cfile);
-
-	/*
-	 * ctx->bv is only set if setup_aio_ctx_iter() was call successfuly
-	 * which means that iov_iter_extract_pages() was a success and thus
-	 * that we may have references or pins on pages that we need to
-	 * release.
-	 */
-	if (ctx->bv) {
-		if (ctx->should_dirty || ctx->bv_need_unpin) {
-			unsigned int i;
-
-			for (i = 0; i < ctx->nr_pinned_pages; i++) {
-				struct page *page = ctx->bv[i].bv_page;
-
-				if (ctx->should_dirty)
-					set_page_dirty(page);
-				if (ctx->bv_need_unpin)
-					unpin_user_page(page);
-			}
-		}
-		kvfree(ctx->bv);
-	}
-
-	kfree(ctx);
 }
 
 /**
@@ -1288,6 +1231,7 @@ int cifs_inval_name_dfs_link_error(const unsigned int xid,
 				   const char *full_path,
 				   bool *islink)
 {
+	struct TCP_Server_Info *server = tcon->ses->server;
 	struct cifs_ses *ses = tcon->ses;
 	size_t len;
 	char *path;
@@ -1304,12 +1248,12 @@ int cifs_inval_name_dfs_link_error(const unsigned int xid,
 	    !is_tcon_dfs(tcon))
 		return 0;
 
-	spin_lock(&tcon->tc_lock);
-	if (!tcon->origin_fullpath) {
-		spin_unlock(&tcon->tc_lock);
+	spin_lock(&server->srv_lock);
+	if (!server->leaf_fullpath) {
+		spin_unlock(&server->srv_lock);
 		return 0;
 	}
-	spin_unlock(&tcon->tc_lock);
+	spin_unlock(&server->srv_lock);
 
 	/*
 	 * Slow path - tcon is DFS and @full_path has prefix path, so attempt

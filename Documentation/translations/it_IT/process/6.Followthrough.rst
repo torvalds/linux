@@ -60,6 +60,13 @@ resa molto più facile se tenete presente alcuni dettagli:
    stanno lavorando per la creazione del miglior kernel possibile; non
    stanno cercando di creare un disagio ad aziende concorrenti.
 
+  - Preparatevi a richieste apparentemente sciocche di modifiche allo stile di
+    codifica e a richieste di trasferire parte del vostro codice in parti
+    condivise del kernel. Uno dei compiti dei manutentori è quello di mantenere
+    lo aspetto del codice. A volte questo significa che l'ingegnoso stratagemma
+    nel vostro driver per aggirare un problema deve diventare una caratteristica
+    generalizzata del kernel pronta per essere riutilizzata.
+
 Quello che si sta cercando di dire è che, quando i revisori vi inviano degli
 appunti dovete fare attenzione alle osservazioni tecniche che vi stanno
 facendo.  Non lasciate che il loro modo di esprimersi o il vostro orgoglio

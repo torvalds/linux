@@ -129,6 +129,7 @@
 #define EDCCA_HL_DIFF_NORMAL 8
 #define RSSI_UNIT_CONVER 110
 #define EDCCA_UNIT_CONVER 128
+#define EDCCA_PWROFST_DEFAULT 18
 
 enum rtw89_phy_c2h_ra_func {
 	RTW89_PHY_C2H_FUNC_STS_RPT,
@@ -714,6 +715,19 @@ enum rtw89_phy_gain_band_be rtw89_subband_to_gain_band_be(enum rtw89_subband sub
 	}
 }
 
+struct rtw89_rfk_chan_desc {
+	/* desc is valid iff ch is non-zero */
+	u8 ch;
+
+	/* To avoid us from extending old chip code every time, each new
+	 * field must be defined along with a bool flag in positivte way.
+	 */
+	bool has_band;
+	u8 band;
+	bool has_bw;
+	u8 bw;
+};
+
 enum rtw89_rfk_flag {
 	RTW89_RFK_F_WRF = 0,
 	RTW89_RFK_F_WM = 1,
@@ -880,7 +894,7 @@ void rtw89_phy_set_txpwr_limit_ru(struct rtw89_dev *rtwdev,
 
 void rtw89_phy_ra_assoc(struct rtw89_dev *rtwdev, struct ieee80211_sta *sta);
 void rtw89_phy_ra_update(struct rtw89_dev *rtwdev);
-void rtw89_phy_ra_updata_sta(struct rtw89_dev *rtwdev, struct ieee80211_sta *sta,
+void rtw89_phy_ra_update_sta(struct rtw89_dev *rtwdev, struct ieee80211_sta *sta,
 			     u32 changed);
 void rtw89_phy_rate_pattern_vif(struct rtw89_dev *rtwdev,
 				struct ieee80211_vif *vif,
@@ -893,22 +907,28 @@ int rtw89_phy_rfk_pre_ntfy_and_wait(struct rtw89_dev *rtwdev,
 				    unsigned int ms);
 int rtw89_phy_rfk_tssi_and_wait(struct rtw89_dev *rtwdev,
 				enum rtw89_phy_idx phy_idx,
+				const struct rtw89_chan *chan,
 				enum rtw89_tssi_mode tssi_mode,
 				unsigned int ms);
 int rtw89_phy_rfk_iqk_and_wait(struct rtw89_dev *rtwdev,
 			       enum rtw89_phy_idx phy_idx,
+			       const struct rtw89_chan *chan,
 			       unsigned int ms);
 int rtw89_phy_rfk_dpk_and_wait(struct rtw89_dev *rtwdev,
 			       enum rtw89_phy_idx phy_idx,
+			       const struct rtw89_chan *chan,
 			       unsigned int ms);
 int rtw89_phy_rfk_txgapk_and_wait(struct rtw89_dev *rtwdev,
 				  enum rtw89_phy_idx phy_idx,
+				  const struct rtw89_chan *chan,
 				  unsigned int ms);
 int rtw89_phy_rfk_dack_and_wait(struct rtw89_dev *rtwdev,
 				enum rtw89_phy_idx phy_idx,
+				const struct rtw89_chan *chan,
 				unsigned int ms);
 int rtw89_phy_rfk_rxdck_and_wait(struct rtw89_dev *rtwdev,
 				 enum rtw89_phy_idx phy_idx,
+				 const struct rtw89_chan *chan,
 				 unsigned int ms);
 void rtw89_phy_rfk_tssi_fill_fwcmd_efuse_to_de(struct rtw89_dev *rtwdev,
 					       enum rtw89_phy_idx phy,
@@ -949,5 +969,8 @@ enum rtw89_rf_path_bit rtw89_phy_get_kpath(struct rtw89_dev *rtwdev,
 					   enum rtw89_phy_idx phy_idx);
 enum rtw89_rf_path rtw89_phy_get_syn_sel(struct rtw89_dev *rtwdev,
 					 enum rtw89_phy_idx phy_idx);
+u8 rtw89_rfk_chan_lookup(struct rtw89_dev *rtwdev,
+			 const struct rtw89_rfk_chan_desc *desc, u8 desc_nr,
+			 const struct rtw89_chan *target_chan);
 
 #endif

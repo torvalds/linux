@@ -72,7 +72,7 @@
 #include <net/sock.h>
 #include <net/net_namespace.h>
 
-MODULE_DESCRIPTION("PF_CAN isotp 15765-2:2016 protocol");
+MODULE_DESCRIPTION("PF_CAN ISO 15765-2 transport protocol");
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_AUTHOR("Oliver Hartkopp <socketcan@hartkopp.net>");
 MODULE_ALIAS("can-proto-6");
@@ -83,10 +83,11 @@ MODULE_ALIAS("can-proto-6");
 			 (CAN_EFF_MASK | CAN_EFF_FLAG | CAN_RTR_FLAG) : \
 			 (CAN_SFF_MASK | CAN_EFF_FLAG | CAN_RTR_FLAG))
 
-/* ISO 15765-2:2016 supports more than 4095 byte per ISO PDU as the FF_DL can
- * take full 32 bit values (4 Gbyte). We would need some good concept to handle
- * this between user space and kernel space. For now set the static buffer to
- * something about 8 kbyte to be able to test this new functionality.
+/* Since ISO 15765-2:2016 the CAN isotp protocol supports more than 4095
+ * byte per ISO PDU as the FF_DL can take full 32 bit values (4 Gbyte).
+ * We would need some good concept to handle this between user space and
+ * kernel space. For now set the static buffer to something about 8 kbyte
+ * to be able to test this new functionality.
  */
 #define DEFAULT_MAX_PDU_SIZE 8300
 

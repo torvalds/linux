@@ -166,6 +166,7 @@ static const struct of_device_id blocklist[] __initconst = {
 	{ .compatible = "qcom,sm6350", },
 	{ .compatible = "qcom,sm6375", },
 	{ .compatible = "qcom,sm7225", },
+	{ .compatible = "qcom,sm7325", },
 	{ .compatible = "qcom,sm8150", },
 	{ .compatible = "qcom,sm8250", },
 	{ .compatible = "qcom,sm8350", },
@@ -233,4 +234,5 @@ create_pdev:
 			       sizeof(struct cpufreq_dt_platform_data)));
 }
 core_initcall(cpufreq_dt_platdev_init);
+MODULE_DESCRIPTION("Generic DT based cpufreq platdev driver");
 MODULE_LICENSE("GPL");

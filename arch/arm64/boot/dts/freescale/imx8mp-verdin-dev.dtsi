@@ -4,6 +4,18 @@
  */
 
 / {
+	native-hdmi-connector {
+		compatible = "hdmi-connector";
+		label = "X37";
+		type = "a";
+
+		port {
+			native_hdmi_connector_in: endpoint {
+				remote-endpoint = <&hdmi_tx_out>;
+			};
+		};
+	};
+
 	reg_eth2phy: regulator-eth2phy {
 		compatible = "regulator-fixed";
 		enable-active-high;
@@ -50,6 +62,11 @@
 			sound-dai = <&sai1>;
 		};
 	};
+};
+
+/* Verdin HDMI_1 Audio */
+&aud2htx {
+	status = "okay";
 };
 
 &backlight {
@@ -103,6 +120,27 @@
 	vcc-supply = <&reg_1p8v>;
 };
 
+/* Verdin HDMI_1 */
+&hdmi_pvi {
+	status = "okay";
+};
+
+&hdmi_tx {
+	status = "okay";
+
+	ports {
+		port@1 {
+			hdmi_tx_out: endpoint {
+				remote-endpoint = <&native_hdmi_connector_in>;
+			};
+		};
+	};
+};
+
+&hdmi_tx_phy {
+	status = "okay";
+};
+
 /* Current measurement into module VCC */
 &hwmon {
 	status = "okay";
@@ -141,6 +179,10 @@
 	status = "okay";
 };
 
+&lcdif3 {
+	status = "okay";
+};
+
 /* Verdin PCIE_1 */
 &pcie {
 	status = "okay";
@@ -175,6 +217,11 @@
 	assigned-clock-parents = <&clk IMX8MP_AUDIO_PLL1_OUT>;
 	assigned-clock-rates = <24576000>;
 	fsl,sai-mclk-direction-output;
+	status = "okay";
+};
+
+/* Verdin HDMI_1 Audio */
+&sound_hdmi {
 	status = "okay";
 };
 

@@ -52,6 +52,7 @@ static const struct diag_desc diag_map[NR_DIAG_STAT] = {
 	[DIAG_STAT_X308] = { .code = 0x308, .name = "List-Directed IPL" },
 	[DIAG_STAT_X318] = { .code = 0x318, .name = "CP Name and Version Codes" },
 	[DIAG_STAT_X320] = { .code = 0x320, .name = "Certificate Store" },
+	[DIAG_STAT_X49C] = { .code = 0x49c, .name = "Warning-Track Interruption" },
 	[DIAG_STAT_X500] = { .code = 0x500, .name = "Virtio Service" },
 };
 
@@ -185,6 +186,8 @@ int diag14(unsigned long rx, unsigned long ry1, unsigned long subcode)
 }
 EXPORT_SYMBOL(diag14);
 
+#define DIAG204_BUSY_RC 8
+
 static inline int __diag204(unsigned long *subcode, unsigned long size, void *addr)
 {
 	union register_pair rp = { .even = *subcode, .odd = size };
@@ -215,16 +218,18 @@ int diag204(unsigned long subcode, unsigned long size, void *addr)
 {
 	if (addr) {
 		if (WARN_ON_ONCE(!is_vmalloc_addr(addr)))
-			return -1;
+			return -EINVAL;
 		if (WARN_ON_ONCE(!IS_ALIGNED((unsigned long)addr, PAGE_SIZE)))
-			return -1;
+			return -EINVAL;
 	}
 	if ((subcode & DIAG204_SUBCODE_MASK) == DIAG204_SUBC_STIB4)
 		addr = (void *)pfn_to_phys(vmalloc_to_pfn(addr));
 	diag_stat_inc(DIAG_STAT_X204);
 	size = __diag204(&subcode, size, addr);
-	if (subcode)
-		return -1;
+	if (subcode == DIAG204_BUSY_RC)
+		return -EBUSY;
+	else if (subcode)
+		return -EOPNOTSUPP;
 	return size;
 }
 EXPORT_SYMBOL(diag204);
@@ -278,12 +283,14 @@ int diag224(void *ptr)
 	int rc = -EOPNOTSUPP;
 
 	diag_stat_inc(DIAG_STAT_X224);
-	asm volatile(
-		"	diag	%1,%2,0x224\n"
-		"0:	lhi	%0,0x0\n"
+	asm volatile("\n"
+		"	diag	%[type],%[addr],0x224\n"
+		"0:	lhi	%[rc],0\n"
 		"1:\n"
 		EX_TABLE(0b,1b)
-		: "+d" (rc) :"d" (0), "d" (addr) : "memory");
+		: [rc] "+d" (rc)
+		, "=m" (*(struct { char buf[PAGE_SIZE]; } *)ptr)
+		: [type] "d" (0), [addr] "d" (addr));
 	return rc;
 }
 EXPORT_SYMBOL(diag224);
@@ -297,3 +304,19 @@ int diag26c(void *req, void *resp, enum diag26c_sc subcode)
 	return diag_amode31_ops.diag26c(virt_to_phys(req), virt_to_phys(resp), subcode);
 }
 EXPORT_SYMBOL(diag26c);
+
+int diag49c(unsigned long subcode)
+{
+	int rc;
+
+	diag_stat_inc(DIAG_STAT_X49C);
+	asm volatile(
+		"	diag	%[subcode],0,0x49c\n"
+		"	ipm	%[rc]\n"
+		"	srl	%[rc],28\n"
+		: [rc] "=d" (rc)
+		: [subcode] "d" (subcode)
+		: "cc");
+	return rc;
+}
+EXPORT_SYMBOL(diag49c);

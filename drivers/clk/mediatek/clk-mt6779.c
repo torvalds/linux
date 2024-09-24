@@ -1305,7 +1305,7 @@ MODULE_DEVICE_TABLE(of, of_match_clk_mt6779);
 
 static struct platform_driver clk_mt6779_infra_drv  = {
 	.probe = mtk_clk_simple_probe,
-	.remove_new = mtk_clk_simple_remove,
+	.remove = mtk_clk_simple_remove,
 	.driver = {
 		.name = "clk-mt6779-infra",
 		.of_match_table = of_match_clk_mt6779_infra,
@@ -1330,4 +1330,6 @@ static int __init clk_mt6779_init(void)
 }
 
 arch_initcall(clk_mt6779_init);
+
+MODULE_DESCRIPTION("MediaTek MT6779 main clocks driver");
 MODULE_LICENSE("GPL");

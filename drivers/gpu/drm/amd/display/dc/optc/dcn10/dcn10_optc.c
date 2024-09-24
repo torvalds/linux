@@ -65,7 +65,8 @@ void optc1_program_global_sync(
 		int vready_offset,
 		int vstartup_start,
 		int vupdate_offset,
-		int vupdate_width)
+		int vupdate_width,
+		int pstate_keepout)
 {
 	struct optc *optc1 = DCN10TG_FROM_TG(optc);
 
@@ -73,6 +74,7 @@ void optc1_program_global_sync(
 	optc1->vstartup_start = vstartup_start;
 	optc1->vupdate_offset = vupdate_offset;
 	optc1->vupdate_width = vupdate_width;
+	optc1->pstate_keepout = pstate_keepout;
 
 	if (optc1->vstartup_start == 0) {
 		BREAK_TO_DEBUGGER();
@@ -146,6 +148,7 @@ void optc1_setup_vertical_interrupt2(
  * @vstartup_start: Vstartup period.
  * @vupdate_offset: Vupdate starting position.
  * @vupdate_width: Vupdate duration.
+ * @pstate_keepout: determines low power mode timing during refresh
  * @signal: DC signal types.
  * @use_vbios: to program timings from BIOS command table.
  *
@@ -157,6 +160,7 @@ void optc1_program_timing(
 	int vstartup_start,
 	int vupdate_offset,
 	int vupdate_width,
+	int pstate_keepout,
 	const enum signal_type signal,
 	bool use_vbios)
 {
@@ -177,6 +181,7 @@ void optc1_program_timing(
 	optc1->vstartup_start = vstartup_start;
 	optc1->vupdate_offset = vupdate_offset;
 	optc1->vupdate_width = vupdate_width;
+	optc1->pstate_keepout = pstate_keepout;
 	patched_crtc_timing = *dc_crtc_timing;
 	apply_front_porch_workaround(&patched_crtc_timing);
 	optc1->orginal_patched_timing = patched_crtc_timing;
@@ -282,7 +287,8 @@ void optc1_program_timing(
 			vready_offset,
 			vstartup_start,
 			vupdate_offset,
-			vupdate_width);
+			vupdate_width,
+			pstate_keepout);
 
 	optc->funcs->set_vtg_params(optc, dc_crtc_timing, true);
 
@@ -297,7 +303,7 @@ void optc1_program_timing(
 	 * of stereo handled in explicit call
 	 */
 
-	if (optc1_is_two_pixels_per_containter(&patched_crtc_timing) || optc1->opp_count == 2)
+	if (optc->funcs->is_two_pixels_per_container(&patched_crtc_timing) || optc1->opp_count == 2)
 		h_div = H_TIMING_DIV_BY2;
 
 	if (REG(OPTC_DATA_FORMAT_CONTROL) && optc1->tg_mask->OPTC_DATA_FORMAT != 0) {
@@ -945,19 +951,10 @@ void optc1_set_drr(
 				OTG_FORCE_LOCK_ON_EVENT, 0,
 				OTG_SET_V_TOTAL_MIN_MASK_EN, 0,
 				OTG_SET_V_TOTAL_MIN_MASK, 0);
-
-		// Setup manual flow control for EOF via TRIG_A
-		optc->funcs->setup_manual_trigger(optc);
-
-	} else {
-		REG_UPDATE_4(OTG_V_TOTAL_CONTROL,
-				OTG_SET_V_TOTAL_MIN_MASK, 0,
-				OTG_V_TOTAL_MIN_SEL, 0,
-				OTG_V_TOTAL_MAX_SEL, 0,
-				OTG_FORCE_LOCK_ON_EVENT, 0);
-
-		optc->funcs->set_vtotal_min_max(optc, 0, 0);
 	}
+
+	// Setup manual flow control for EOF via TRIG_A
+	optc->funcs->setup_manual_trigger(optc);
 }
 
 void optc1_set_vtotal_min_max(struct timing_generator *optc, int vtotal_min, int vtotal_max)
@@ -1423,8 +1420,8 @@ bool optc1_get_otg_active_size(struct timing_generator *optc,
 			OTG_H_BLANK_START, &h_blank_start,
 			OTG_H_BLANK_END, &h_blank_end);
 
-	*otg_active_width = v_blank_start - v_blank_end;
-	*otg_active_height = h_blank_start - h_blank_end;
+	*otg_active_width = h_blank_start - h_blank_end;
+	*otg_active_height = v_blank_start - v_blank_end;
 	return true;
 }
 
@@ -1548,6 +1545,27 @@ bool optc1_get_crc(struct timing_generator *optc,
 	return true;
 }
 
+/* "Container" vs. "pixel" is a concept within HW blocks, mostly those closer to the back-end. It works like this:
+ *
+ * - In most of the formats (RGB or YCbCr 4:4:4, 4:2:2 uncompressed and DSC 4:2:2 Simple) pixel rate is the same as
+ *   container rate.
+ *
+ * - In 4:2:0 (DSC or uncompressed) there are two pixels per container, hence the target container rate has to be
+ *   halved to maintain the correct pixel rate.
+ *
+ * - Unlike 4:2:2 uncompressed, DSC 4:2:2 Native also has two pixels per container (this happens when DSC is applied
+ *   to it) and has to be treated the same as 4:2:0, i.e. target containter rate has to be halved in this case as well.
+ *
+ */
+bool optc1_is_two_pixels_per_container(const struct dc_crtc_timing *timing)
+{
+	bool two_pix = timing->pixel_encoding == PIXEL_ENCODING_YCBCR420;
+
+	two_pix = two_pix || (timing->flags.DSC && timing->pixel_encoding == PIXEL_ENCODING_YCBCR422
+			&& !timing->dsc_cfg.ycbcr422_simple);
+	return two_pix;
+}
+
 static const struct timing_generator_funcs dcn10_tg_funcs = {
 		.validate_timing = optc1_validate_timing,
 		.program_timing = optc1_program_timing,
@@ -1594,6 +1612,7 @@ static const struct timing_generator_funcs dcn10_tg_funcs = {
 		.program_manual_trigger = optc1_program_manual_trigger,
 		.setup_manual_trigger = optc1_setup_manual_trigger,
 		.get_hw_timing = optc1_get_hw_timing,
+		.is_two_pixels_per_container = optc1_is_two_pixels_per_container,
 };
 
 void dcn10_timing_generator_init(struct optc *optc1)
@@ -1609,25 +1628,3 @@ void dcn10_timing_generator_init(struct optc *optc1)
 	optc1->min_h_sync_width = 4;
 	optc1->min_v_sync_width = 1;
 }
-
-/* "Containter" vs. "pixel" is a concept within HW blocks, mostly those closer to the back-end. It works like this:
- *
- * - In most of the formats (RGB or YCbCr 4:4:4, 4:2:2 uncompressed and DSC 4:2:2 Simple) pixel rate is the same as
- *   containter rate.
- *
- * - In 4:2:0 (DSC or uncompressed) there are two pixels per container, hence the target container rate has to be
- *   halved to maintain the correct pixel rate.
- *
- * - Unlike 4:2:2 uncompressed, DSC 4:2:2 Native also has two pixels per container (this happens when DSC is applied
- *   to it) and has to be treated the same as 4:2:0, i.e. target containter rate has to be halved in this case as well.
- *
- */
-bool optc1_is_two_pixels_per_containter(const struct dc_crtc_timing *timing)
-{
-	bool two_pix = timing->pixel_encoding == PIXEL_ENCODING_YCBCR420;
-
-	two_pix = two_pix || (timing->flags.DSC && timing->pixel_encoding == PIXEL_ENCODING_YCBCR422
-			&& !timing->dsc_cfg.ycbcr422_simple);
-	return two_pix;
-}
-

@@ -244,6 +244,9 @@ void closure_debug_destroy(struct closure *cl)
 {
 	unsigned long flags;
 
+	if (cl->magic == CLOSURE_MAGIC_STACK)
+		return;
+
 	BUG_ON(cl->magic != CLOSURE_MAGIC_ALIVE);
 	cl->magic = CLOSURE_MAGIC_DEAD;
 
@@ -275,7 +278,7 @@ static int debug_show(struct seq_file *f, void *data)
 			seq_printf(f, " W %pS\n",
 				   (void *) cl->waiting_on);
 
-		seq_puts(f, "\n");
+		seq_putc(f, '\n');
 	}
 
 	spin_unlock_irq(&closure_list_lock);

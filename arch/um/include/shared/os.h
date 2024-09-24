@@ -163,8 +163,10 @@ extern int os_set_fd_block(int fd, int blocking);
 extern int os_accept_connection(int fd);
 extern int os_create_unix_socket(const char *file, int len, int close_on_exec);
 extern int os_shutdown_socket(int fd, int r, int w);
+extern int os_dup_file(int fd);
 extern void os_close_file(int fd);
-extern int os_rcv_fd(int fd, int *helper_pid_out);
+ssize_t os_rcv_fd_msg(int fd, int *fds, unsigned int n_fds,
+		      void *data, size_t data_len);
 extern int os_connect_socket(const char *name);
 extern int os_file_type(char *file);
 extern int os_file_mode(const char *file, struct openflags *mode_out);
@@ -179,6 +181,8 @@ extern int os_eventfd(unsigned int initval, int flags);
 extern int os_sendmsg_fds(int fd, const void *buf, unsigned int len,
 			  const int *fds, unsigned int fds_num);
 int os_poll(unsigned int n, const int *fds);
+void *os_mmap_rw_shared(int fd, size_t size);
+void *os_mremap_rw_shared(void *old_addr, size_t old_size, size_t new_size);
 
 /* start_up.c */
 extern void os_early_checks(void);
@@ -190,6 +194,9 @@ extern void get_host_cpu_features(
 
 /* mem.c */
 extern int create_mem_file(unsigned long long len);
+
+/* tlb.c */
+extern void report_enomem(void);
 
 /* process.c */
 extern unsigned long os_process_pc(int pid);
@@ -268,24 +275,20 @@ extern long long os_persistent_clock_emulation(void);
 extern long long os_nsecs(void);
 
 /* skas/mem.c */
-extern long run_syscall_stub(struct mm_id * mm_idp,
-			     int syscall, unsigned long *args, long expected,
-			     void **addr, int done);
-extern long syscall_stub_data(struct mm_id * mm_idp,
-			      unsigned long *data, int data_count,
-			      void **addr, void **stub_addr);
-extern int map(struct mm_id * mm_idp, unsigned long virt,
-	       unsigned long len, int prot, int phys_fd,
-	       unsigned long long offset, int done, void **data);
-extern int unmap(struct mm_id * mm_idp, unsigned long addr, unsigned long len,
-		 int done, void **data);
-extern int protect(struct mm_id * mm_idp, unsigned long addr,
-		   unsigned long len, unsigned int prot, int done, void **data);
+int syscall_stub_flush(struct mm_id *mm_idp);
+struct stub_syscall *syscall_stub_alloc(struct mm_id *mm_idp);
+void syscall_stub_dump_error(struct mm_id *mm_idp);
+
+int map(struct mm_id *mm_idp, unsigned long virt,
+	unsigned long len, int prot, int phys_fd,
+	unsigned long long offset);
+int unmap(struct mm_id *mm_idp, unsigned long addr, unsigned long len);
+int protect(struct mm_id *mm_idp, unsigned long addr,
+	    unsigned long len, unsigned int prot);
 
 /* skas/process.c */
 extern int is_skas_winch(int pid, int fd, void *data);
 extern int start_userspace(unsigned long stub_stack);
-extern int copy_context_skas0(unsigned long stack, int pid);
 extern void userspace(struct uml_pt_regs *regs, unsigned long *aux_fp_regs);
 extern void new_thread(void *stack, jmp_buf *buf, void (*handler)(void));
 extern void switch_threads(jmp_buf *me, jmp_buf *you);

@@ -16,7 +16,7 @@ maintainers:
 description:
   This binding extends the data mapping defined in lvds-data-mapping.yaml.
   It supports reversing the bit order on the formats defined there in order
-  to accomodate for even more specialized data formats, since a variety of
+  to accommodate for even more specialized data formats, since a variety of
   data formats and layouts is used to drive LVDS displays.
 
 properties:

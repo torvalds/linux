@@ -8,9 +8,9 @@
 //
 
 #include <linux/crc32.h>
+#include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
 #include <linux/firmware.h>
-#include <linux/of_gpio.h>
 #include <linux/regmap.h>
 #include <sound/soc.h>
 #include "aw88399.h"
@@ -1892,7 +1892,7 @@ static int aw88399_i2c_probe(struct i2c_client *i2c)
 }
 
 static const struct i2c_device_id aw88399_i2c_id[] = {
-	{ AW88399_I2C_NAME, 0 },
+	{ AW88399_I2C_NAME },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, aw88399_i2c_id);

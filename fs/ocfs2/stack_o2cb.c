@@ -404,7 +404,7 @@ static int o2cb_cluster_this_node(struct ocfs2_cluster_connection *conn,
 	return 0;
 }
 
-static struct ocfs2_stack_operations o2cb_stack_ops = {
+static const struct ocfs2_stack_operations o2cb_stack_ops = {
 	.connect	= o2cb_cluster_connect,
 	.disconnect	= o2cb_cluster_disconnect,
 	.this_node	= o2cb_cluster_this_node,

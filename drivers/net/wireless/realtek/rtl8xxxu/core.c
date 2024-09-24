@@ -6679,7 +6679,6 @@ static void rtl8xxxu_switch_ports(struct rtl8xxxu_priv *priv)
 	u8 macid[ETH_ALEN], bssid[ETH_ALEN], macid_1[ETH_ALEN], bssid_1[ETH_ALEN];
 	u8 msr, bcn_ctrl, bcn_ctrl_1, atimwnd[2], atimwnd_1[2];
 	struct rtl8xxxu_vif *rtlvif;
-	struct ieee80211_vif *vif;
 	u8 tsftr[8], tsftr_1[8];
 	int i;
 
@@ -6744,10 +6743,7 @@ static void rtl8xxxu_switch_ports(struct rtl8xxxu_priv *priv)
 	/* write bcn ctl */
 	rtl8xxxu_write8(priv, REG_BEACON_CTRL, bcn_ctrl_1);
 	rtl8xxxu_write8(priv, REG_BEACON_CTRL_1, bcn_ctrl);
-
-	vif = priv->vifs[0];
-	priv->vifs[0] = priv->vifs[1];
-	priv->vifs[1] = vif;
+	swap(priv->vifs[0], priv->vifs[1]);
 
 	/* priv->vifs[0] is NULL here, based on how this function is currently
 	 * called from rtl8xxxu_add_interface().
@@ -7521,7 +7517,7 @@ error_out:
 	return ret;
 }
 
-static void rtl8xxxu_stop(struct ieee80211_hw *hw)
+static void rtl8xxxu_stop(struct ieee80211_hw *hw, bool suspend)
 {
 	struct rtl8xxxu_priv *priv = hw->priv;
 	unsigned long flags;
@@ -8113,6 +8109,12 @@ static const struct usb_device_id dev_table[] = {
 {USB_DEVICE_AND_INTERFACE_INFO(USB_VENDOR_ID_REALTEK, 0x8178, 0xff, 0xff, 0xff),
 	.driver_info = (unsigned long)&rtl8192cu_fops},
 {USB_DEVICE_AND_INTERFACE_INFO(USB_VENDOR_ID_REALTEK, 0x817f, 0xff, 0xff, 0xff),
+	.driver_info = (unsigned long)&rtl8192cu_fops},
+{USB_DEVICE_AND_INTERFACE_INFO(USB_VENDOR_ID_REALTEK, 0x819a, 0xff, 0xff, 0xff),
+	.driver_info = (unsigned long)&rtl8192cu_fops},
+{USB_DEVICE_AND_INTERFACE_INFO(USB_VENDOR_ID_REALTEK, 0x8754, 0xff, 0xff, 0xff),
+	.driver_info = (unsigned long)&rtl8192cu_fops},
+{USB_DEVICE_AND_INTERFACE_INFO(USB_VENDOR_ID_REALTEK, 0x817c, 0xff, 0xff, 0xff),
 	.driver_info = (unsigned long)&rtl8192cu_fops},
 /* Tested by Larry Finger */
 {USB_DEVICE_AND_INTERFACE_INFO(0x7392, 0x7811, 0xff, 0xff, 0xff),

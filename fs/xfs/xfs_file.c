@@ -213,29 +213,18 @@ xfs_ilock_iocb_for_write(
 	if (ret)
 		return ret;
 
-	if (*lock_mode == XFS_IOLOCK_EXCL)
-		return 0;
-	if (!xfs_iflags_test(ip, XFS_IREMAPPING))
-		return 0;
+	/*
+	 * If a reflink remap is in progress we always need to take the iolock
+	 * exclusively to wait for it to finish.
+	 */
+	if (*lock_mode == XFS_IOLOCK_SHARED &&
+	    xfs_iflags_test(ip, XFS_IREMAPPING)) {
+		xfs_iunlock(ip, *lock_mode);
+		*lock_mode = XFS_IOLOCK_EXCL;
+		return xfs_ilock_iocb(iocb, *lock_mode);
+	}
 
-	xfs_iunlock(ip, *lock_mode);
-	*lock_mode = XFS_IOLOCK_EXCL;
-	return xfs_ilock_iocb(iocb, *lock_mode);
-}
-
-static unsigned int
-xfs_ilock_for_write_fault(
-	struct xfs_inode	*ip)
-{
-	/* get a shared lock if no remapping in progress */
-	xfs_ilock(ip, XFS_MMAPLOCK_SHARED);
-	if (!xfs_iflags_test(ip, XFS_IREMAPPING))
-		return XFS_MMAPLOCK_SHARED;
-
-	/* wait for remapping to complete */
-	xfs_iunlock(ip, XFS_MMAPLOCK_SHARED);
-	xfs_ilock(ip, XFS_MMAPLOCK_EXCL);
-	return XFS_MMAPLOCK_EXCL;
+	return 0;
 }
 
 STATIC ssize_t
@@ -771,7 +760,7 @@ write_retry:
 
 	trace_xfs_file_buffered_write(iocb, from);
 	ret = iomap_file_buffered_write(iocb, from,
-			&xfs_buffered_write_iomap_ops);
+			&xfs_buffered_write_iomap_ops, NULL);
 
 	/*
 	 * If we hit a space limit, try to free up some lingering preallocated
@@ -863,6 +852,192 @@ static inline bool xfs_file_sync_writes(struct file *filp)
 	return false;
 }
 
+static int
+xfs_falloc_newsize(
+	struct file		*file,
+	int			mode,
+	loff_t			offset,
+	loff_t			len,
+	loff_t			*new_size)
+{
+	struct inode		*inode = file_inode(file);
+
+	if ((mode & FALLOC_FL_KEEP_SIZE) || offset + len <= i_size_read(inode))
+		return 0;
+	*new_size = offset + len;
+	return inode_newsize_ok(inode, *new_size);
+}
+
+static int
+xfs_falloc_setsize(
+	struct file		*file,
+	loff_t			new_size)
+{
+	struct iattr iattr = {
+		.ia_valid	= ATTR_SIZE,
+		.ia_size	= new_size,
+	};
+
+	if (!new_size)
+		return 0;
+	return xfs_vn_setattr_size(file_mnt_idmap(file), file_dentry(file),
+			&iattr);
+}
+
+static int
+xfs_falloc_collapse_range(
+	struct file		*file,
+	loff_t			offset,
+	loff_t			len)
+{
+	struct inode		*inode = file_inode(file);
+	loff_t			new_size = i_size_read(inode) - len;
+	int			error;
+
+	if (!xfs_is_falloc_aligned(XFS_I(inode), offset, len))
+		return -EINVAL;
+
+	/*
+	 * There is no need to overlap collapse range with EOF, in which case it
+	 * is effectively a truncate operation
+	 */
+	if (offset + len >= i_size_read(inode))
+		return -EINVAL;
+
+	error = xfs_collapse_file_space(XFS_I(inode), offset, len);
+	if (error)
+		return error;
+	return xfs_falloc_setsize(file, new_size);
+}
+
+static int
+xfs_falloc_insert_range(
+	struct file		*file,
+	loff_t			offset,
+	loff_t			len)
+{
+	struct inode		*inode = file_inode(file);
+	loff_t			isize = i_size_read(inode);
+	int			error;
+
+	if (!xfs_is_falloc_aligned(XFS_I(inode), offset, len))
+		return -EINVAL;
+
+	/*
+	 * New inode size must not exceed ->s_maxbytes, accounting for
+	 * possible signed overflow.
+	 */
+	if (inode->i_sb->s_maxbytes - isize < len)
+		return -EFBIG;
+
+	/* Offset should be less than i_size */
+	if (offset >= isize)
+		return -EINVAL;
+
+	error = xfs_falloc_setsize(file, isize + len);
+	if (error)
+		return error;
+
+	/*
+	 * Perform hole insertion now that the file size has been updated so
+	 * that if we crash during the operation we don't leave shifted extents
+	 * past EOF and hence losing access to the data that is contained within
+	 * them.
+	 */
+	return xfs_insert_file_space(XFS_I(inode), offset, len);
+}
+
+/*
+ * Punch a hole and prealloc the range.  We use a hole punch rather than
+ * unwritten extent conversion for two reasons:
+ *
+ *   1.) Hole punch handles partial block zeroing for us.
+ *   2.) If prealloc returns ENOSPC, the file range is still zero-valued by
+ *	 virtue of the hole punch.
+ */
+static int
+xfs_falloc_zero_range(
+	struct file		*file,
+	int			mode,
+	loff_t			offset,
+	loff_t			len)
+{
+	struct inode		*inode = file_inode(file);
+	unsigned int		blksize = i_blocksize(inode);
+	loff_t			new_size = 0;
+	int			error;
+
+	trace_xfs_zero_file_space(XFS_I(inode));
+
+	error = xfs_falloc_newsize(file, mode, offset, len, &new_size);
+	if (error)
+		return error;
+
+	error = xfs_free_file_space(XFS_I(inode), offset, len);
+	if (error)
+		return error;
+
+	len = round_up(offset + len, blksize) - round_down(offset, blksize);
+	offset = round_down(offset, blksize);
+	error = xfs_alloc_file_space(XFS_I(inode), offset, len);
+	if (error)
+		return error;
+	return xfs_falloc_setsize(file, new_size);
+}
+
+static int
+xfs_falloc_unshare_range(
+	struct file		*file,
+	int			mode,
+	loff_t			offset,
+	loff_t			len)
+{
+	struct inode		*inode = file_inode(file);
+	loff_t			new_size = 0;
+	int			error;
+
+	error = xfs_falloc_newsize(file, mode, offset, len, &new_size);
+	if (error)
+		return error;
+
+	error = xfs_reflink_unshare(XFS_I(inode), offset, len);
+	if (error)
+		return error;
+
+	error = xfs_alloc_file_space(XFS_I(inode), offset, len);
+	if (error)
+		return error;
+	return xfs_falloc_setsize(file, new_size);
+}
+
+static int
+xfs_falloc_allocate_range(
+	struct file		*file,
+	int			mode,
+	loff_t			offset,
+	loff_t			len)
+{
+	struct inode		*inode = file_inode(file);
+	loff_t			new_size = 0;
+	int			error;
+
+	/*
+	 * If always_cow mode we can't use preallocations and thus should not
+	 * create them.
+	 */
+	if (xfs_is_always_cow_inode(XFS_I(inode)))
+		return -EOPNOTSUPP;
+
+	error = xfs_falloc_newsize(file, mode, offset, len, &new_size);
+	if (error)
+		return error;
+
+	error = xfs_alloc_file_space(XFS_I(inode), offset, len);
+	if (error)
+		return error;
+	return xfs_falloc_setsize(file, new_size);
+}
+
 #define	XFS_FALLOC_FL_SUPPORTED						\
 		(FALLOC_FL_KEEP_SIZE | FALLOC_FL_PUNCH_HOLE |		\
 		 FALLOC_FL_COLLAPSE_RANGE | FALLOC_FL_ZERO_RANGE |	\
@@ -879,8 +1054,6 @@ xfs_file_fallocate(
 	struct xfs_inode	*ip = XFS_I(inode);
 	long			error;
 	uint			iolock = XFS_IOLOCK_EXCL | XFS_MMAPLOCK_EXCL;
-	loff_t			new_size = 0;
-	bool			do_file_insert = false;
 
 	if (!S_ISREG(inode->i_mode))
 		return -EINVAL;
@@ -901,156 +1074,35 @@ xfs_file_fallocate(
 	 */
 	inode_dio_wait(inode);
 
-	/*
-	 * Now AIO and DIO has drained we flush and (if necessary) invalidate
-	 * the cached range over the first operation we are about to run.
-	 *
-	 * We care about zero and collapse here because they both run a hole
-	 * punch over the range first. Because that can zero data, and the range
-	 * of invalidation for the shift operations is much larger, we still do
-	 * the required flush for collapse in xfs_prepare_shift().
-	 *
-	 * Insert has the same range requirements as collapse, and we extend the
-	 * file first which can zero data. Hence insert has the same
-	 * flush/invalidate requirements as collapse and so they are both
-	 * handled at the right time by xfs_prepare_shift().
-	 */
-	if (mode & (FALLOC_FL_PUNCH_HOLE | FALLOC_FL_ZERO_RANGE |
-		    FALLOC_FL_COLLAPSE_RANGE)) {
-		error = xfs_flush_unmap_range(ip, offset, len);
-		if (error)
-			goto out_unlock;
-	}
-
 	error = file_modified(file);
 	if (error)
 		goto out_unlock;
 
-	if (mode & FALLOC_FL_PUNCH_HOLE) {
+	switch (mode & FALLOC_FL_MODE_MASK) {
+	case FALLOC_FL_PUNCH_HOLE:
 		error = xfs_free_file_space(ip, offset, len);
-		if (error)
-			goto out_unlock;
-	} else if (mode & FALLOC_FL_COLLAPSE_RANGE) {
-		if (!xfs_is_falloc_aligned(ip, offset, len)) {
-			error = -EINVAL;
-			goto out_unlock;
-		}
-
-		/*
-		 * There is no need to overlap collapse range with EOF,
-		 * in which case it is effectively a truncate operation
-		 */
-		if (offset + len >= i_size_read(inode)) {
-			error = -EINVAL;
-			goto out_unlock;
-		}
-
-		new_size = i_size_read(inode) - len;
-
-		error = xfs_collapse_file_space(ip, offset, len);
-		if (error)
-			goto out_unlock;
-	} else if (mode & FALLOC_FL_INSERT_RANGE) {
-		loff_t		isize = i_size_read(inode);
-
-		if (!xfs_is_falloc_aligned(ip, offset, len)) {
-			error = -EINVAL;
-			goto out_unlock;
-		}
-
-		/*
-		 * New inode size must not exceed ->s_maxbytes, accounting for
-		 * possible signed overflow.
-		 */
-		if (inode->i_sb->s_maxbytes - isize < len) {
-			error = -EFBIG;
-			goto out_unlock;
-		}
-		new_size = isize + len;
-
-		/* Offset should be less than i_size */
-		if (offset >= isize) {
-			error = -EINVAL;
-			goto out_unlock;
-		}
-		do_file_insert = true;
-	} else {
-		if (!(mode & FALLOC_FL_KEEP_SIZE) &&
-		    offset + len > i_size_read(inode)) {
-			new_size = offset + len;
-			error = inode_newsize_ok(inode, new_size);
-			if (error)
-				goto out_unlock;
-		}
-
-		if (mode & FALLOC_FL_ZERO_RANGE) {
-			/*
-			 * Punch a hole and prealloc the range.  We use a hole
-			 * punch rather than unwritten extent conversion for two
-			 * reasons:
-			 *
-			 *   1.) Hole punch handles partial block zeroing for us.
-			 *   2.) If prealloc returns ENOSPC, the file range is
-			 *       still zero-valued by virtue of the hole punch.
-			 */
-			unsigned int blksize = i_blocksize(inode);
-
-			trace_xfs_zero_file_space(ip);
-
-			error = xfs_free_file_space(ip, offset, len);
-			if (error)
-				goto out_unlock;
-
-			len = round_up(offset + len, blksize) -
-			      round_down(offset, blksize);
-			offset = round_down(offset, blksize);
-		} else if (mode & FALLOC_FL_UNSHARE_RANGE) {
-			error = xfs_reflink_unshare(ip, offset, len);
-			if (error)
-				goto out_unlock;
-		} else {
-			/*
-			 * If always_cow mode we can't use preallocations and
-			 * thus should not create them.
-			 */
-			if (xfs_is_always_cow_inode(ip)) {
-				error = -EOPNOTSUPP;
-				goto out_unlock;
-			}
-		}
-
-		if (!xfs_is_always_cow_inode(ip)) {
-			error = xfs_alloc_file_space(ip, offset, len);
-			if (error)
-				goto out_unlock;
-		}
+		break;
+	case FALLOC_FL_COLLAPSE_RANGE:
+		error = xfs_falloc_collapse_range(file, offset, len);
+		break;
+	case FALLOC_FL_INSERT_RANGE:
+		error = xfs_falloc_insert_range(file, offset, len);
+		break;
+	case FALLOC_FL_ZERO_RANGE:
+		error = xfs_falloc_zero_range(file, mode, offset, len);
+		break;
+	case FALLOC_FL_UNSHARE_RANGE:
+		error = xfs_falloc_unshare_range(file, mode, offset, len);
+		break;
+	case FALLOC_FL_ALLOCATE_RANGE:
+		error = xfs_falloc_allocate_range(file, mode, offset, len);
+		break;
+	default:
+		error = -EOPNOTSUPP;
+		break;
 	}
 
-	/* Change file size if needed */
-	if (new_size) {
-		struct iattr iattr;
-
-		iattr.ia_valid = ATTR_SIZE;
-		iattr.ia_size = new_size;
-		error = xfs_vn_setattr_size(file_mnt_idmap(file),
-					    file_dentry(file), &iattr);
-		if (error)
-			goto out_unlock;
-	}
-
-	/*
-	 * Perform hole insertion now that the file size has been
-	 * updated so that if we crash during the operation we don't
-	 * leave shifted extents past EOF and hence losing access to
-	 * the data that is contained within them.
-	 */
-	if (do_file_insert) {
-		error = xfs_insert_file_space(ip, offset, len);
-		if (error)
-			goto out_unlock;
-	}
-
-	if (xfs_file_sync_writes(file))
+	if (!error && xfs_file_sync_writes(file))
 		error = xfs_log_force_inode(ip);
 
 out_unlock:
@@ -1186,12 +1238,78 @@ xfs_dir_open(
 	return error;
 }
 
+/*
+ * Don't bother propagating errors.  We're just doing cleanup, and the caller
+ * ignores the return value anyway.
+ */
 STATIC int
 xfs_file_release(
-	struct inode	*inode,
-	struct file	*filp)
+	struct inode		*inode,
+	struct file		*file)
 {
-	return xfs_release(XFS_I(inode));
+	struct xfs_inode	*ip = XFS_I(inode);
+	struct xfs_mount	*mp = ip->i_mount;
+
+	/*
+	 * If this is a read-only mount or the file system has been shut down,
+	 * don't generate I/O.
+	 */
+	if (xfs_is_readonly(mp) || xfs_is_shutdown(mp))
+		return 0;
+
+	/*
+	 * If we previously truncated this file and removed old data in the
+	 * process, we want to initiate "early" writeout on the last close.
+	 * This is an attempt to combat the notorious NULL files problem which
+	 * is particularly noticeable from a truncate down, buffered (re-)write
+	 * (delalloc), followed by a crash.  What we are effectively doing here
+	 * is significantly reducing the time window where we'd otherwise be
+	 * exposed to that problem.
+	 */
+	if (xfs_iflags_test_and_clear(ip, XFS_ITRUNCATED)) {
+		xfs_iflags_clear(ip, XFS_EOFBLOCKS_RELEASED);
+		if (ip->i_delayed_blks > 0)
+			filemap_flush(inode->i_mapping);
+	}
+
+	/*
+	 * XFS aggressively preallocates post-EOF space to generate contiguous
+	 * allocations for writers that append to the end of the file.
+	 *
+	 * To support workloads that close and reopen the file frequently, these
+	 * preallocations usually persist after a close unless it is the first
+	 * close for the inode.  This is a tradeoff to generate tightly packed
+	 * data layouts for unpacking tarballs or similar archives that write
+	 * one file after another without going back to it while keeping the
+	 * preallocation for files that have recurring open/write/close cycles.
+	 *
+	 * This heuristic is skipped for inodes with the append-only flag as
+	 * that flag is rather pointless for inodes written only once.
+	 *
+	 * There is no point in freeing blocks here for open but unlinked files
+	 * as they will be taken care of by the inactivation path soon.
+	 *
+	 * When releasing a read-only context, don't flush data or trim post-EOF
+	 * blocks.  This avoids open/read/close workloads from removing EOF
+	 * blocks that other writers depend upon to reduce fragmentation.
+	 *
+	 * If we can't get the iolock just skip truncating the blocks past EOF
+	 * because we could deadlock with the mmap_lock otherwise. We'll get
+	 * another chance to drop them once the last reference to the inode is
+	 * dropped, so we'll never leak blocks permanently.
+	 */
+	if (inode->i_nlink &&
+	    (file->f_mode & FMODE_WRITE) &&
+	    !(ip->i_diflags & XFS_DIFLAG_APPEND) &&
+	    !xfs_iflags_test(ip, XFS_EOFBLOCKS_RELEASED) &&
+	    xfs_ilock_nowait(ip, XFS_IOLOCK_EXCL)) {
+		if (xfs_can_free_eofblocks(ip) &&
+		    !xfs_iflags_test_and_set(ip, XFS_EOFBLOCKS_RELEASED))
+			xfs_free_eofblocks(ip);
+		xfs_iunlock(ip, XFS_IOLOCK_EXCL);
+	}
+
+	return 0;
 }
 
 STATIC int
@@ -1247,31 +1365,77 @@ xfs_file_llseek(
 	return vfs_setpos(file, offset, inode->i_sb->s_maxbytes);
 }
 
-#ifdef CONFIG_FS_DAX
 static inline vm_fault_t
-xfs_dax_fault(
+xfs_dax_fault_locked(
 	struct vm_fault		*vmf,
 	unsigned int		order,
-	bool			write_fault,
-	pfn_t			*pfn)
+	bool			write_fault)
 {
-	return dax_iomap_fault(vmf, order, pfn, NULL,
+	vm_fault_t		ret;
+	pfn_t			pfn;
+
+	if (!IS_ENABLED(CONFIG_FS_DAX)) {
+		ASSERT(0);
+		return VM_FAULT_SIGBUS;
+	}
+	ret = dax_iomap_fault(vmf, order, &pfn, NULL,
 			(write_fault && !vmf->cow_page) ?
 				&xfs_dax_write_iomap_ops :
 				&xfs_read_iomap_ops);
+	if (ret & VM_FAULT_NEEDDSYNC)
+		ret = dax_finish_sync_fault(vmf, order, pfn);
+	return ret;
 }
-#else
-static inline vm_fault_t
-xfs_dax_fault(
+
+static vm_fault_t
+xfs_dax_read_fault(
 	struct vm_fault		*vmf,
-	unsigned int		order,
-	bool			write_fault,
-	pfn_t			*pfn)
+	unsigned int		order)
 {
-	ASSERT(0);
-	return VM_FAULT_SIGBUS;
+	struct xfs_inode	*ip = XFS_I(file_inode(vmf->vma->vm_file));
+	vm_fault_t		ret;
+
+	xfs_ilock(ip, XFS_MMAPLOCK_SHARED);
+	ret = xfs_dax_fault_locked(vmf, order, false);
+	xfs_iunlock(ip, XFS_MMAPLOCK_SHARED);
+
+	return ret;
 }
-#endif
+
+static vm_fault_t
+xfs_write_fault(
+	struct vm_fault		*vmf,
+	unsigned int		order)
+{
+	struct inode		*inode = file_inode(vmf->vma->vm_file);
+	struct xfs_inode	*ip = XFS_I(inode);
+	unsigned int		lock_mode = XFS_MMAPLOCK_SHARED;
+	vm_fault_t		ret;
+
+	sb_start_pagefault(inode->i_sb);
+	file_update_time(vmf->vma->vm_file);
+
+	/*
+	 * Normally we only need the shared mmaplock, but if a reflink remap is
+	 * in progress we take the exclusive lock to wait for the remap to
+	 * finish before taking a write fault.
+	 */
+	xfs_ilock(ip, XFS_MMAPLOCK_SHARED);
+	if (xfs_iflags_test(ip, XFS_IREMAPPING)) {
+		xfs_iunlock(ip, XFS_MMAPLOCK_SHARED);
+		xfs_ilock(ip, XFS_MMAPLOCK_EXCL);
+		lock_mode = XFS_MMAPLOCK_EXCL;
+	}
+
+	if (IS_DAX(inode))
+		ret = xfs_dax_fault_locked(vmf, order, true);
+	else
+		ret = iomap_page_mkwrite(vmf, &xfs_page_mkwrite_iomap_ops);
+	xfs_iunlock(ip, lock_mode);
+
+	sb_end_pagefault(inode->i_sb);
+	return ret;
+}
 
 /*
  * Locking for serialisation of IO during page faults. This results in a lock
@@ -1290,38 +1454,14 @@ __xfs_filemap_fault(
 	bool			write_fault)
 {
 	struct inode		*inode = file_inode(vmf->vma->vm_file);
-	struct xfs_inode	*ip = XFS_I(inode);
-	vm_fault_t		ret;
-	unsigned int		lock_mode = 0;
 
-	trace_xfs_filemap_fault(ip, order, write_fault);
-
-	if (write_fault) {
-		sb_start_pagefault(inode->i_sb);
-		file_update_time(vmf->vma->vm_file);
-	}
-
-	if (IS_DAX(inode) || write_fault)
-		lock_mode = xfs_ilock_for_write_fault(XFS_I(inode));
-
-	if (IS_DAX(inode)) {
-		pfn_t pfn;
-
-		ret = xfs_dax_fault(vmf, order, write_fault, &pfn);
-		if (ret & VM_FAULT_NEEDDSYNC)
-			ret = dax_finish_sync_fault(vmf, order, pfn);
-	} else if (write_fault) {
-		ret = iomap_page_mkwrite(vmf, &xfs_page_mkwrite_iomap_ops);
-	} else {
-		ret = filemap_fault(vmf);
-	}
-
-	if (lock_mode)
-		xfs_iunlock(XFS_I(inode), lock_mode);
+	trace_xfs_filemap_fault(XFS_I(inode), order, write_fault);
 
 	if (write_fault)
-		sb_end_pagefault(inode->i_sb);
-	return ret;
+		return xfs_write_fault(vmf, order);
+	if (IS_DAX(inode))
+		return xfs_dax_read_fault(vmf, order);
+	return filemap_fault(vmf);
 }
 
 static inline bool

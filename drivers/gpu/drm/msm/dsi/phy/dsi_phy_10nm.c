@@ -187,20 +187,20 @@ static void dsi_pll_ssc_commit(struct dsi_pll_10nm *pll, struct dsi_pll_config *
 	if (config->enable_ssc) {
 		pr_debug("SSC is enabled\n");
 
-		dsi_phy_write(base + REG_DSI_10nm_PHY_PLL_SSC_STEPSIZE_LOW_1,
-			      config->ssc_stepsize & 0xff);
-		dsi_phy_write(base + REG_DSI_10nm_PHY_PLL_SSC_STEPSIZE_HIGH_1,
-			      config->ssc_stepsize >> 8);
-		dsi_phy_write(base + REG_DSI_10nm_PHY_PLL_SSC_DIV_PER_LOW_1,
-			      config->ssc_div_per & 0xff);
-		dsi_phy_write(base + REG_DSI_10nm_PHY_PLL_SSC_DIV_PER_HIGH_1,
-			      config->ssc_div_per >> 8);
-		dsi_phy_write(base + REG_DSI_10nm_PHY_PLL_SSC_DIV_ADJPER_LOW_1,
-			      config->ssc_adj_per & 0xff);
-		dsi_phy_write(base + REG_DSI_10nm_PHY_PLL_SSC_DIV_ADJPER_HIGH_1,
-			      config->ssc_adj_per >> 8);
-		dsi_phy_write(base + REG_DSI_10nm_PHY_PLL_SSC_CONTROL,
-			      SSC_EN | (config->ssc_center ? SSC_CENTER : 0));
+		writel(config->ssc_stepsize & 0xff,
+		       base + REG_DSI_10nm_PHY_PLL_SSC_STEPSIZE_LOW_1);
+		writel(config->ssc_stepsize >> 8,
+		       base + REG_DSI_10nm_PHY_PLL_SSC_STEPSIZE_HIGH_1);
+		writel(config->ssc_div_per & 0xff,
+		       base + REG_DSI_10nm_PHY_PLL_SSC_DIV_PER_LOW_1);
+		writel(config->ssc_div_per >> 8,
+		       base + REG_DSI_10nm_PHY_PLL_SSC_DIV_PER_HIGH_1);
+		writel(config->ssc_adj_per & 0xff,
+		       base + REG_DSI_10nm_PHY_PLL_SSC_DIV_ADJPER_LOW_1);
+		writel(config->ssc_adj_per >> 8,
+		       base + REG_DSI_10nm_PHY_PLL_SSC_DIV_ADJPER_HIGH_1);
+		writel(SSC_EN | (config->ssc_center ? SSC_CENTER : 0),
+		       base + REG_DSI_10nm_PHY_PLL_SSC_CONTROL);
 	}
 }
 
@@ -208,49 +208,43 @@ static void dsi_pll_config_hzindep_reg(struct dsi_pll_10nm *pll)
 {
 	void __iomem *base = pll->phy->pll_base;
 
-	dsi_phy_write(base + REG_DSI_10nm_PHY_PLL_ANALOG_CONTROLS_ONE, 0x80);
-	dsi_phy_write(base + REG_DSI_10nm_PHY_PLL_ANALOG_CONTROLS_TWO, 0x03);
-	dsi_phy_write(base + REG_DSI_10nm_PHY_PLL_ANALOG_CONTROLS_THREE, 0x00);
-	dsi_phy_write(base + REG_DSI_10nm_PHY_PLL_DSM_DIVIDER, 0x00);
-	dsi_phy_write(base + REG_DSI_10nm_PHY_PLL_FEEDBACK_DIVIDER, 0x4e);
-	dsi_phy_write(base + REG_DSI_10nm_PHY_PLL_CALIBRATION_SETTINGS, 0x40);
-	dsi_phy_write(base + REG_DSI_10nm_PHY_PLL_BAND_SEL_CAL_SETTINGS_THREE,
-		      0xba);
-	dsi_phy_write(base + REG_DSI_10nm_PHY_PLL_FREQ_DETECT_SETTINGS_ONE,
-		      0x0c);
-	dsi_phy_write(base + REG_DSI_10nm_PHY_PLL_OUTDIV, 0x00);
-	dsi_phy_write(base + REG_DSI_10nm_PHY_PLL_CORE_OVERRIDE, 0x00);
-	dsi_phy_write(base + REG_DSI_10nm_PHY_PLL_PLL_DIGITAL_TIMERS_TWO,
-		      0x08);
-	dsi_phy_write(base + REG_DSI_10nm_PHY_PLL_PLL_PROP_GAIN_RATE_1, 0x08);
-	dsi_phy_write(base + REG_DSI_10nm_PHY_PLL_PLL_BAND_SET_RATE_1, 0xc0);
-	dsi_phy_write(base + REG_DSI_10nm_PHY_PLL_PLL_INT_GAIN_IFILT_BAND_1,
-		      0xfa);
-	dsi_phy_write(base + REG_DSI_10nm_PHY_PLL_PLL_FL_INT_GAIN_PFILT_BAND_1,
-		      0x4c);
-	dsi_phy_write(base + REG_DSI_10nm_PHY_PLL_PLL_LOCK_OVERRIDE, 0x80);
-	dsi_phy_write(base + REG_DSI_10nm_PHY_PLL_PFILT, 0x29);
-	dsi_phy_write(base + REG_DSI_10nm_PHY_PLL_IFILT, 0x3f);
+	writel(0x80, base + REG_DSI_10nm_PHY_PLL_ANALOG_CONTROLS_ONE);
+	writel(0x03, base + REG_DSI_10nm_PHY_PLL_ANALOG_CONTROLS_TWO);
+	writel(0x00, base + REG_DSI_10nm_PHY_PLL_ANALOG_CONTROLS_THREE);
+	writel(0x00, base + REG_DSI_10nm_PHY_PLL_DSM_DIVIDER);
+	writel(0x4e, base + REG_DSI_10nm_PHY_PLL_FEEDBACK_DIVIDER);
+	writel(0x40, base + REG_DSI_10nm_PHY_PLL_CALIBRATION_SETTINGS);
+	writel(0xba, base + REG_DSI_10nm_PHY_PLL_BAND_SEL_CAL_SETTINGS_THREE);
+	writel(0x0c, base + REG_DSI_10nm_PHY_PLL_FREQ_DETECT_SETTINGS_ONE);
+	writel(0x00, base + REG_DSI_10nm_PHY_PLL_OUTDIV);
+	writel(0x00, base + REG_DSI_10nm_PHY_PLL_CORE_OVERRIDE);
+	writel(0x08, base + REG_DSI_10nm_PHY_PLL_PLL_DIGITAL_TIMERS_TWO);
+	writel(0x08, base + REG_DSI_10nm_PHY_PLL_PLL_PROP_GAIN_RATE_1);
+	writel(0xc0, base + REG_DSI_10nm_PHY_PLL_PLL_BAND_SET_RATE_1);
+	writel(0xfa, base + REG_DSI_10nm_PHY_PLL_PLL_INT_GAIN_IFILT_BAND_1);
+	writel(0x4c, base + REG_DSI_10nm_PHY_PLL_PLL_FL_INT_GAIN_PFILT_BAND_1);
+	writel(0x80, base + REG_DSI_10nm_PHY_PLL_PLL_LOCK_OVERRIDE);
+	writel(0x29, base + REG_DSI_10nm_PHY_PLL_PFILT);
+	writel(0x3f, base + REG_DSI_10nm_PHY_PLL_IFILT);
 }
 
 static void dsi_pll_commit(struct dsi_pll_10nm *pll, struct dsi_pll_config *config)
 {
 	void __iomem *base = pll->phy->pll_base;
 
-	dsi_phy_write(base + REG_DSI_10nm_PHY_PLL_CORE_INPUT_OVERRIDE, 0x12);
-	dsi_phy_write(base + REG_DSI_10nm_PHY_PLL_DECIMAL_DIV_START_1,
-		      config->decimal_div_start);
-	dsi_phy_write(base + REG_DSI_10nm_PHY_PLL_FRAC_DIV_START_LOW_1,
-		      config->frac_div_start & 0xff);
-	dsi_phy_write(base + REG_DSI_10nm_PHY_PLL_FRAC_DIV_START_MID_1,
-		      (config->frac_div_start & 0xff00) >> 8);
-	dsi_phy_write(base + REG_DSI_10nm_PHY_PLL_FRAC_DIV_START_HIGH_1,
-		      (config->frac_div_start & 0x30000) >> 16);
-	dsi_phy_write(base + REG_DSI_10nm_PHY_PLL_PLL_LOCKDET_RATE_1, 64);
-	dsi_phy_write(base + REG_DSI_10nm_PHY_PLL_PLL_LOCK_DELAY, 0x06);
-	dsi_phy_write(base + REG_DSI_10nm_PHY_PLL_CMODE, 0x10);
-	dsi_phy_write(base + REG_DSI_10nm_PHY_PLL_CLOCK_INVERTERS,
-		      config->pll_clock_inverters);
+	writel(0x12, base + REG_DSI_10nm_PHY_PLL_CORE_INPUT_OVERRIDE);
+	writel(config->decimal_div_start,
+	       base + REG_DSI_10nm_PHY_PLL_DECIMAL_DIV_START_1);
+	writel(config->frac_div_start & 0xff,
+	       base + REG_DSI_10nm_PHY_PLL_FRAC_DIV_START_LOW_1);
+	writel((config->frac_div_start & 0xff00) >> 8,
+	       base + REG_DSI_10nm_PHY_PLL_FRAC_DIV_START_MID_1);
+	writel((config->frac_div_start & 0x30000) >> 16,
+	       base + REG_DSI_10nm_PHY_PLL_FRAC_DIV_START_HIGH_1);
+	writel(64, base + REG_DSI_10nm_PHY_PLL_PLL_LOCKDET_RATE_1);
+	writel(0x06, base + REG_DSI_10nm_PHY_PLL_PLL_LOCK_DELAY);
+	writel(0x10, base + REG_DSI_10nm_PHY_PLL_CMODE);
+	writel(config->pll_clock_inverters, base + REG_DSI_10nm_PHY_PLL_CLOCK_INVERTERS);
 }
 
 static int dsi_pll_10nm_vco_set_rate(struct clk_hw *hw, unsigned long rate,
@@ -305,21 +299,19 @@ static int dsi_pll_10nm_lock_status(struct dsi_pll_10nm *pll)
 
 static void dsi_pll_disable_pll_bias(struct dsi_pll_10nm *pll)
 {
-	u32 data = dsi_phy_read(pll->phy->base + REG_DSI_10nm_PHY_CMN_CTRL_0);
+	u32 data = readl(pll->phy->base + REG_DSI_10nm_PHY_CMN_CTRL_0);
 
-	dsi_phy_write(pll->phy->pll_base + REG_DSI_10nm_PHY_PLL_SYSTEM_MUXES, 0);
-	dsi_phy_write(pll->phy->base + REG_DSI_10nm_PHY_CMN_CTRL_0,
-		      data & ~BIT(5));
+	writel(0, pll->phy->pll_base + REG_DSI_10nm_PHY_PLL_SYSTEM_MUXES);
+	writel(data & ~BIT(5), pll->phy->base + REG_DSI_10nm_PHY_CMN_CTRL_0);
 	ndelay(250);
 }
 
 static void dsi_pll_enable_pll_bias(struct dsi_pll_10nm *pll)
 {
-	u32 data = dsi_phy_read(pll->phy->base + REG_DSI_10nm_PHY_CMN_CTRL_0);
+	u32 data = readl(pll->phy->base + REG_DSI_10nm_PHY_CMN_CTRL_0);
 
-	dsi_phy_write(pll->phy->base + REG_DSI_10nm_PHY_CMN_CTRL_0,
-		      data | BIT(5));
-	dsi_phy_write(pll->phy->pll_base + REG_DSI_10nm_PHY_PLL_SYSTEM_MUXES, 0xc0);
+	writel(data | BIT(5), pll->phy->base + REG_DSI_10nm_PHY_CMN_CTRL_0);
+	writel(0xc0, pll->phy->pll_base + REG_DSI_10nm_PHY_PLL_SYSTEM_MUXES);
 	ndelay(250);
 }
 
@@ -327,18 +319,16 @@ static void dsi_pll_disable_global_clk(struct dsi_pll_10nm *pll)
 {
 	u32 data;
 
-	data = dsi_phy_read(pll->phy->base + REG_DSI_10nm_PHY_CMN_CLK_CFG1);
-	dsi_phy_write(pll->phy->base + REG_DSI_10nm_PHY_CMN_CLK_CFG1,
-		      data & ~BIT(5));
+	data = readl(pll->phy->base + REG_DSI_10nm_PHY_CMN_CLK_CFG1);
+	writel(data & ~BIT(5), pll->phy->base + REG_DSI_10nm_PHY_CMN_CLK_CFG1);
 }
 
 static void dsi_pll_enable_global_clk(struct dsi_pll_10nm *pll)
 {
 	u32 data;
 
-	data = dsi_phy_read(pll->phy->base + REG_DSI_10nm_PHY_CMN_CLK_CFG1);
-	dsi_phy_write(pll->phy->base + REG_DSI_10nm_PHY_CMN_CLK_CFG1,
-		      data | BIT(5));
+	data = readl(pll->phy->base + REG_DSI_10nm_PHY_CMN_CLK_CFG1);
+	writel(data | BIT(5), pll->phy->base + REG_DSI_10nm_PHY_CMN_CLK_CFG1);
 }
 
 static int dsi_pll_10nm_vco_prepare(struct clk_hw *hw)
@@ -358,8 +348,7 @@ static int dsi_pll_10nm_vco_prepare(struct clk_hw *hw)
 	}
 
 	/* Start PLL */
-	dsi_phy_write(pll_10nm->phy->base + REG_DSI_10nm_PHY_CMN_PLL_CNTRL,
-		      0x01);
+	writel(0x01, pll_10nm->phy->base + REG_DSI_10nm_PHY_CMN_PLL_CNTRL);
 
 	/*
 	 * ensure all PLL configurations are written prior to checking
@@ -380,11 +369,9 @@ static int dsi_pll_10nm_vco_prepare(struct clk_hw *hw)
 	if (pll_10nm->slave)
 		dsi_pll_enable_global_clk(pll_10nm->slave);
 
-	dsi_phy_write(pll_10nm->phy->base + REG_DSI_10nm_PHY_CMN_RBUF_CTRL,
-		      0x01);
+	writel(0x01, pll_10nm->phy->base + REG_DSI_10nm_PHY_CMN_RBUF_CTRL);
 	if (pll_10nm->slave)
-		dsi_phy_write(pll_10nm->slave->phy->base +
-			      REG_DSI_10nm_PHY_CMN_RBUF_CTRL, 0x01);
+		writel(0x01, pll_10nm->slave->phy->base + REG_DSI_10nm_PHY_CMN_RBUF_CTRL);
 
 error:
 	return rc;
@@ -392,7 +379,7 @@ error:
 
 static void dsi_pll_disable_sub(struct dsi_pll_10nm *pll)
 {
-	dsi_phy_write(pll->phy->base + REG_DSI_10nm_PHY_CMN_RBUF_CTRL, 0);
+	writel(0, pll->phy->base + REG_DSI_10nm_PHY_CMN_RBUF_CTRL);
 	dsi_pll_disable_pll_bias(pll);
 }
 
@@ -406,7 +393,7 @@ static void dsi_pll_10nm_vco_unprepare(struct clk_hw *hw)
 	 * powering down the PLL
 	 */
 	dsi_pll_disable_global_clk(pll_10nm);
-	dsi_phy_write(pll_10nm->phy->base + REG_DSI_10nm_PHY_CMN_PLL_CNTRL, 0);
+	writel(0, pll_10nm->phy->base + REG_DSI_10nm_PHY_CMN_PLL_CNTRL);
 	dsi_pll_disable_sub(pll_10nm);
 	if (pll_10nm->slave) {
 		dsi_pll_disable_global_clk(pll_10nm->slave);
@@ -429,13 +416,13 @@ static unsigned long dsi_pll_10nm_vco_recalc_rate(struct clk_hw *hw,
 	u32 dec;
 	u64 pll_freq, tmp64;
 
-	dec = dsi_phy_read(base + REG_DSI_10nm_PHY_PLL_DECIMAL_DIV_START_1);
+	dec = readl(base + REG_DSI_10nm_PHY_PLL_DECIMAL_DIV_START_1);
 	dec &= 0xff;
 
-	frac = dsi_phy_read(base + REG_DSI_10nm_PHY_PLL_FRAC_DIV_START_LOW_1);
-	frac |= ((dsi_phy_read(base + REG_DSI_10nm_PHY_PLL_FRAC_DIV_START_MID_1) &
+	frac = readl(base + REG_DSI_10nm_PHY_PLL_FRAC_DIV_START_LOW_1);
+	frac |= ((readl(base + REG_DSI_10nm_PHY_PLL_FRAC_DIV_START_MID_1) &
 		  0xff) << 8);
-	frac |= ((dsi_phy_read(base + REG_DSI_10nm_PHY_PLL_FRAC_DIV_START_HIGH_1) &
+	frac |= ((readl(base + REG_DSI_10nm_PHY_PLL_FRAC_DIV_START_HIGH_1) &
 		  0x3) << 16);
 
 	/*
@@ -488,15 +475,15 @@ static void dsi_10nm_pll_save_state(struct msm_dsi_phy *phy)
 	void __iomem *phy_base = pll_10nm->phy->base;
 	u32 cmn_clk_cfg0, cmn_clk_cfg1;
 
-	cached->pll_out_div = dsi_phy_read(pll_10nm->phy->pll_base +
+	cached->pll_out_div = readl(pll_10nm->phy->pll_base +
 			REG_DSI_10nm_PHY_PLL_PLL_OUTDIV_RATE);
 	cached->pll_out_div &= 0x3;
 
-	cmn_clk_cfg0 = dsi_phy_read(phy_base + REG_DSI_10nm_PHY_CMN_CLK_CFG0);
+	cmn_clk_cfg0 = readl(phy_base + REG_DSI_10nm_PHY_CMN_CLK_CFG0);
 	cached->bit_clk_div = cmn_clk_cfg0 & 0xf;
 	cached->pix_clk_div = (cmn_clk_cfg0 & 0xf0) >> 4;
 
-	cmn_clk_cfg1 = dsi_phy_read(phy_base + REG_DSI_10nm_PHY_CMN_CLK_CFG1);
+	cmn_clk_cfg1 = readl(phy_base + REG_DSI_10nm_PHY_CMN_CLK_CFG1);
 	cached->pll_mux = cmn_clk_cfg1 & 0x3;
 
 	DBG("DSI PLL%d outdiv %x bit_clk_div %x pix_clk_div %x pll_mux %x",
@@ -512,18 +499,18 @@ static int dsi_10nm_pll_restore_state(struct msm_dsi_phy *phy)
 	u32 val;
 	int ret;
 
-	val = dsi_phy_read(pll_10nm->phy->pll_base + REG_DSI_10nm_PHY_PLL_PLL_OUTDIV_RATE);
+	val = readl(pll_10nm->phy->pll_base + REG_DSI_10nm_PHY_PLL_PLL_OUTDIV_RATE);
 	val &= ~0x3;
 	val |= cached->pll_out_div;
-	dsi_phy_write(pll_10nm->phy->pll_base + REG_DSI_10nm_PHY_PLL_PLL_OUTDIV_RATE, val);
+	writel(val, pll_10nm->phy->pll_base + REG_DSI_10nm_PHY_PLL_PLL_OUTDIV_RATE);
 
-	dsi_phy_write(phy_base + REG_DSI_10nm_PHY_CMN_CLK_CFG0,
-		      cached->bit_clk_div | (cached->pix_clk_div << 4));
+	writel(cached->bit_clk_div | (cached->pix_clk_div << 4),
+	       phy_base + REG_DSI_10nm_PHY_CMN_CLK_CFG0);
 
-	val = dsi_phy_read(phy_base + REG_DSI_10nm_PHY_CMN_CLK_CFG1);
+	val = readl(phy_base + REG_DSI_10nm_PHY_CMN_CLK_CFG1);
 	val &= ~0x3;
 	val |= cached->pll_mux;
-	dsi_phy_write(phy_base + REG_DSI_10nm_PHY_CMN_CLK_CFG1, val);
+	writel(val, phy_base + REG_DSI_10nm_PHY_CMN_CLK_CFG1);
 
 	ret = dsi_pll_10nm_vco_set_rate(phy->vco_hw,
 			pll_10nm->vco_current_rate,
@@ -561,7 +548,7 @@ static int dsi_10nm_set_usecase(struct msm_dsi_phy *phy)
 	}
 
 	/* set PLL src */
-	dsi_phy_write(base + REG_DSI_10nm_PHY_CMN_CLK_CFG1, (data << 2));
+	writel(data << 2, base + REG_DSI_10nm_PHY_CMN_CLK_CFG1);
 
 	return 0;
 }
@@ -724,7 +711,7 @@ static int dsi_phy_hw_v3_0_is_pll_on(struct msm_dsi_phy *phy)
 	void __iomem *base = phy->base;
 	u32 data = 0;
 
-	data = dsi_phy_read(base + REG_DSI_10nm_PHY_CMN_PLL_CNTRL);
+	data = readl(base + REG_DSI_10nm_PHY_CMN_PLL_CNTRL);
 	mb(); /* make sure read happened */
 
 	return (data & BIT(0));
@@ -740,11 +727,9 @@ static void dsi_phy_hw_v3_0_config_lpcdrx(struct msm_dsi_phy *phy, bool enable)
 	 * corresponding to the logical data lane 0
 	 */
 	if (enable)
-		dsi_phy_write(lane_base +
-			      REG_DSI_10nm_PHY_LN_LPRX_CTRL(phy_lane_0), 0x3);
+		writel(0x3, lane_base + REG_DSI_10nm_PHY_LN_LPRX_CTRL(phy_lane_0));
 	else
-		dsi_phy_write(lane_base +
-			      REG_DSI_10nm_PHY_LN_LPRX_CTRL(phy_lane_0), 0);
+		writel(0, lane_base + REG_DSI_10nm_PHY_LN_LPRX_CTRL(phy_lane_0));
 }
 
 static void dsi_phy_hw_v3_0_lane_settings(struct msm_dsi_phy *phy)
@@ -759,43 +744,40 @@ static void dsi_phy_hw_v3_0_lane_settings(struct msm_dsi_phy *phy)
 
 	/* Strength ctrl settings */
 	for (i = 0; i < 5; i++) {
-		dsi_phy_write(lane_base + REG_DSI_10nm_PHY_LN_LPTX_STR_CTRL(i),
-			      0x55);
+		writel(0x55, lane_base + REG_DSI_10nm_PHY_LN_LPTX_STR_CTRL(i));
 		/*
 		 * Disable LPRX and CDRX for all lanes. And later on, it will
 		 * be only enabled for the physical data lane corresponding
 		 * to the logical data lane 0
 		 */
-		dsi_phy_write(lane_base + REG_DSI_10nm_PHY_LN_LPRX_CTRL(i), 0);
-		dsi_phy_write(lane_base + REG_DSI_10nm_PHY_LN_PIN_SWAP(i), 0x0);
-		dsi_phy_write(lane_base + REG_DSI_10nm_PHY_LN_HSTX_STR_CTRL(i),
-			      0x88);
+		writel(0, lane_base + REG_DSI_10nm_PHY_LN_LPRX_CTRL(i));
+		writel(0x0, lane_base + REG_DSI_10nm_PHY_LN_PIN_SWAP(i));
+		writel(0x88, lane_base + REG_DSI_10nm_PHY_LN_HSTX_STR_CTRL(i));
 	}
 
 	dsi_phy_hw_v3_0_config_lpcdrx(phy, true);
 
 	/* other settings */
 	for (i = 0; i < 5; i++) {
-		dsi_phy_write(lane_base + REG_DSI_10nm_PHY_LN_CFG0(i), 0x0);
-		dsi_phy_write(lane_base + REG_DSI_10nm_PHY_LN_CFG1(i), 0x0);
-		dsi_phy_write(lane_base + REG_DSI_10nm_PHY_LN_CFG2(i), 0x0);
-		dsi_phy_write(lane_base + REG_DSI_10nm_PHY_LN_CFG3(i),
-			      i == 4 ? 0x80 : 0x0);
+		writel(0, lane_base + REG_DSI_10nm_PHY_LN_CFG0(i));
+		writel(0, lane_base + REG_DSI_10nm_PHY_LN_CFG1(i));
+		writel(0, lane_base + REG_DSI_10nm_PHY_LN_CFG2(i));
+		writel(i == 4 ? 0x80 : 0x0, lane_base + REG_DSI_10nm_PHY_LN_CFG3(i));
 
 		/* platform specific dsi phy drive strength adjustment */
-		dsi_phy_write(lane_base + REG_DSI_10nm_PHY_LN_OFFSET_TOP_CTRL(i),
-				tuning_cfg->rescode_offset_top[i]);
-		dsi_phy_write(lane_base + REG_DSI_10nm_PHY_LN_OFFSET_BOT_CTRL(i),
-				tuning_cfg->rescode_offset_bot[i]);
+		writel(tuning_cfg->rescode_offset_top[i],
+		       lane_base + REG_DSI_10nm_PHY_LN_OFFSET_TOP_CTRL(i));
+		writel(tuning_cfg->rescode_offset_bot[i],
+		       lane_base + REG_DSI_10nm_PHY_LN_OFFSET_BOT_CTRL(i));
 
-		dsi_phy_write(lane_base + REG_DSI_10nm_PHY_LN_TX_DCTRL(i),
-			      tx_dctrl[i]);
+		writel(tx_dctrl[i],
+		       lane_base + REG_DSI_10nm_PHY_LN_TX_DCTRL(i));
 	}
 
 	if (!(phy->cfg->quirks & DSI_PHY_10NM_QUIRK_OLD_TIMINGS)) {
 		/* Toggle BIT 0 to release freeze I/0 */
-		dsi_phy_write(lane_base + REG_DSI_10nm_PHY_LN_TX_DCTRL(3), 0x05);
-		dsi_phy_write(lane_base + REG_DSI_10nm_PHY_LN_TX_DCTRL(3), 0x04);
+		writel(0x05, lane_base + REG_DSI_10nm_PHY_LN_TX_DCTRL(3));
+		writel(0x04, lane_base + REG_DSI_10nm_PHY_LN_TX_DCTRL(3));
 	}
 }
 
@@ -833,64 +815,51 @@ static int dsi_10nm_phy_enable(struct msm_dsi_phy *phy,
 
 	/* de-assert digital and pll power down */
 	data = BIT(6) | BIT(5);
-	dsi_phy_write(base + REG_DSI_10nm_PHY_CMN_CTRL_0, data);
+	writel(data, base + REG_DSI_10nm_PHY_CMN_CTRL_0);
 
 	/* Assert PLL core reset */
-	dsi_phy_write(base + REG_DSI_10nm_PHY_CMN_PLL_CNTRL, 0x00);
+	writel(0x00, base + REG_DSI_10nm_PHY_CMN_PLL_CNTRL);
 
 	/* turn off resync FIFO */
-	dsi_phy_write(base + REG_DSI_10nm_PHY_CMN_RBUF_CTRL, 0x00);
+	writel(0x00, base + REG_DSI_10nm_PHY_CMN_RBUF_CTRL);
 
 	/* Select MS1 byte-clk */
-	dsi_phy_write(base + REG_DSI_10nm_PHY_CMN_GLBL_CTRL, 0x10);
+	writel(0x10, base + REG_DSI_10nm_PHY_CMN_GLBL_CTRL);
 
 	/* Enable LDO with platform specific drive level/amplitude adjustment */
-	dsi_phy_write(base + REG_DSI_10nm_PHY_CMN_VREG_CTRL,
-		      tuning_cfg->vreg_ctrl);
+	writel(tuning_cfg->vreg_ctrl, base + REG_DSI_10nm_PHY_CMN_VREG_CTRL);
 
 	/* Configure PHY lane swap (TODO: we need to calculate this) */
-	dsi_phy_write(base + REG_DSI_10nm_PHY_CMN_LANE_CFG0, 0x21);
-	dsi_phy_write(base + REG_DSI_10nm_PHY_CMN_LANE_CFG1, 0x84);
+	writel(0x21, base + REG_DSI_10nm_PHY_CMN_LANE_CFG0);
+	writel(0x84, base + REG_DSI_10nm_PHY_CMN_LANE_CFG1);
 
 	/* DSI PHY timings */
-	dsi_phy_write(base + REG_DSI_10nm_PHY_CMN_TIMING_CTRL_0,
-		      timing->hs_halfbyte_en);
-	dsi_phy_write(base + REG_DSI_10nm_PHY_CMN_TIMING_CTRL_1,
-		      timing->clk_zero);
-	dsi_phy_write(base + REG_DSI_10nm_PHY_CMN_TIMING_CTRL_2,
-		      timing->clk_prepare);
-	dsi_phy_write(base + REG_DSI_10nm_PHY_CMN_TIMING_CTRL_3,
-		      timing->clk_trail);
-	dsi_phy_write(base + REG_DSI_10nm_PHY_CMN_TIMING_CTRL_4,
-		      timing->hs_exit);
-	dsi_phy_write(base + REG_DSI_10nm_PHY_CMN_TIMING_CTRL_5,
-		      timing->hs_zero);
-	dsi_phy_write(base + REG_DSI_10nm_PHY_CMN_TIMING_CTRL_6,
-		      timing->hs_prepare);
-	dsi_phy_write(base + REG_DSI_10nm_PHY_CMN_TIMING_CTRL_7,
-		      timing->hs_trail);
-	dsi_phy_write(base + REG_DSI_10nm_PHY_CMN_TIMING_CTRL_8,
-		      timing->hs_rqst);
-	dsi_phy_write(base + REG_DSI_10nm_PHY_CMN_TIMING_CTRL_9,
-		      timing->ta_go | (timing->ta_sure << 3));
-	dsi_phy_write(base + REG_DSI_10nm_PHY_CMN_TIMING_CTRL_10,
-		      timing->ta_get);
-	dsi_phy_write(base + REG_DSI_10nm_PHY_CMN_TIMING_CTRL_11,
-		      0x00);
+	writel(timing->hs_halfbyte_en, base + REG_DSI_10nm_PHY_CMN_TIMING_CTRL_0);
+	writel(timing->clk_zero, base + REG_DSI_10nm_PHY_CMN_TIMING_CTRL_1);
+	writel(timing->clk_prepare, base + REG_DSI_10nm_PHY_CMN_TIMING_CTRL_2);
+	writel(timing->clk_trail, base + REG_DSI_10nm_PHY_CMN_TIMING_CTRL_3);
+	writel(timing->hs_exit, base + REG_DSI_10nm_PHY_CMN_TIMING_CTRL_4);
+	writel(timing->hs_zero, base + REG_DSI_10nm_PHY_CMN_TIMING_CTRL_5);
+	writel(timing->hs_prepare, base + REG_DSI_10nm_PHY_CMN_TIMING_CTRL_6);
+	writel(timing->hs_trail, base + REG_DSI_10nm_PHY_CMN_TIMING_CTRL_7);
+	writel(timing->hs_rqst, base + REG_DSI_10nm_PHY_CMN_TIMING_CTRL_8);
+	writel(timing->ta_go | (timing->ta_sure << 3), base + REG_DSI_10nm_PHY_CMN_TIMING_CTRL_9);
+	writel(timing->ta_get, base + REG_DSI_10nm_PHY_CMN_TIMING_CTRL_10);
+	writel(0x00, base + REG_DSI_10nm_PHY_CMN_TIMING_CTRL_11);
 
 	/* Remove power down from all blocks */
-	dsi_phy_write(base + REG_DSI_10nm_PHY_CMN_CTRL_0, 0x7f);
+	writel(0x7f, base + REG_DSI_10nm_PHY_CMN_CTRL_0);
 
 	/* power up lanes */
-	data = dsi_phy_read(base + REG_DSI_10nm_PHY_CMN_CTRL_0);
+	data = readl(base + REG_DSI_10nm_PHY_CMN_CTRL_0);
 
 	/* TODO: only power up lanes that are used */
 	data |= 0x1F;
-	dsi_phy_write(base + REG_DSI_10nm_PHY_CMN_CTRL_0, data);
-	dsi_phy_write(base + REG_DSI_10nm_PHY_CMN_LANE_CTRL0, 0x1F);
+	writel(data, base + REG_DSI_10nm_PHY_CMN_CTRL_0);
+	writel(0x1F, base + REG_DSI_10nm_PHY_CMN_LANE_CTRL0);
 
 	/* Select full-rate mode */
-	dsi_phy_write(base + REG_DSI_10nm_PHY_CMN_CTRL_2, 0x40);
+	writel(0x40, base + REG_DSI_10nm_PHY_CMN_CTRL_2);
 
 	ret = dsi_10nm_set_usecase(phy);
 	if (ret) {
@@ -918,15 +887,15 @@ static void dsi_10nm_phy_disable(struct msm_dsi_phy *phy)
 		pr_warn("Turning OFF PHY while PLL is on\n");
 
 	dsi_phy_hw_v3_0_config_lpcdrx(phy, false);
-	data = dsi_phy_read(base + REG_DSI_10nm_PHY_CMN_CTRL_0);
+	data = readl(base + REG_DSI_10nm_PHY_CMN_CTRL_0);
 
 	/* disable all lanes */
 	data &= ~0x1F;
-	dsi_phy_write(base + REG_DSI_10nm_PHY_CMN_CTRL_0, data);
-	dsi_phy_write(base + REG_DSI_10nm_PHY_CMN_LANE_CTRL0, 0);
+	writel(data, base + REG_DSI_10nm_PHY_CMN_CTRL_0);
+	writel(0, base + REG_DSI_10nm_PHY_CMN_LANE_CTRL0);
 
 	/* Turn off all PHY blocks */
-	dsi_phy_write(base + REG_DSI_10nm_PHY_CMN_CTRL_0, 0x00);
+	writel(0x00, base + REG_DSI_10nm_PHY_CMN_CTRL_0);
 	/* make sure phy is turned off */
 	wmb();
 

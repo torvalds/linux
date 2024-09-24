@@ -119,9 +119,11 @@ static int sys_get_curr_temp(struct thermal_zone_device *tzd, int *temp)
 }
 
 static int
-sys_set_trip_temp(struct thermal_zone_device *tzd, int trip, int temp)
+sys_set_trip_temp(struct thermal_zone_device *tzd,
+		  const struct thermal_trip *trip, int temp)
 {
 	struct zone_device *zonedev = thermal_zone_device_priv(tzd);
+	unsigned int trip_index = THERMAL_TRIP_PRIV_TO_INT(trip->priv);
 	u32 l, h, mask, shift, intr;
 	int tj_max, val, ret;
 
@@ -132,7 +134,7 @@ sys_set_trip_temp(struct thermal_zone_device *tzd, int trip, int temp)
 
 	val = (tj_max - temp)/1000;
 
-	if (trip >= MAX_NUMBER_OF_TRIPS || val < 0 || val > 0x7f)
+	if (trip_index >= MAX_NUMBER_OF_TRIPS || val < 0 || val > 0x7f)
 		return -EINVAL;
 
 	ret = rdmsr_on_cpu(zonedev->cpu, MSR_IA32_PACKAGE_THERM_INTERRUPT,
@@ -140,7 +142,7 @@ sys_set_trip_temp(struct thermal_zone_device *tzd, int trip, int temp)
 	if (ret < 0)
 		return ret;
 
-	if (trip) {
+	if (trip_index) {
 		mask = THERM_MASK_THRESHOLD1;
 		shift = THERM_SHIFT_THRESHOLD1;
 		intr = THERM_INT_THRESHOLD1_ENABLE;
@@ -296,6 +298,7 @@ static int pkg_temp_thermal_trips_init(int cpu, int tj_max,
 
 		trips[i].type = THERMAL_TRIP_PASSIVE;
 		trips[i].flags |= THERMAL_TRIP_FLAG_RW_TEMP;
+		trips[i].priv = THERMAL_INT_TO_TRIP_PRIV(i);
 
 		pr_debug("%s: cpu=%d, trip=%d, temp=%d\n",
 			 __func__, cpu, i, trips[i].temperature);

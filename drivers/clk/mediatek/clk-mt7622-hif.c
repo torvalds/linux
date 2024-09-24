@@ -91,11 +91,13 @@ MODULE_DEVICE_TABLE(of, of_match_clk_mt7622_hif);
 
 static struct platform_driver clk_mt7622_hif_drv = {
 	.probe = mtk_clk_simple_probe,
-	.remove_new = mtk_clk_simple_remove,
+	.remove = mtk_clk_simple_remove,
 	.driver = {
 		.name = "clk-mt7622-hif",
 		.of_match_table = of_match_clk_mt7622_hif,
 	},
 };
 module_platform_driver(clk_mt7622_hif_drv);
+
+MODULE_DESCRIPTION("MediaTek MT7622 HIF clocks driver");
 MODULE_LICENSE("GPL");

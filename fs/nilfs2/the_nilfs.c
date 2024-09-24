@@ -12,7 +12,6 @@
 #include <linux/slab.h>
 #include <linux/blkdev.h>
 #include <linux/backing-dev.h>
-#include <linux/random.h>
 #include <linux/log2.h>
 #include <linux/crc32.h>
 #include "nilfs.h"
@@ -69,7 +68,6 @@ struct the_nilfs *alloc_nilfs(struct super_block *sb)
 	INIT_LIST_HEAD(&nilfs->ns_dirty_files);
 	INIT_LIST_HEAD(&nilfs->ns_gc_inodes);
 	spin_lock_init(&nilfs->ns_inode_lock);
-	spin_lock_init(&nilfs->ns_next_gen_lock);
 	spin_lock_init(&nilfs->ns_last_segment_lock);
 	nilfs->ns_cptree = RB_ROOT;
 	spin_lock_init(&nilfs->ns_cptree_lock);
@@ -452,6 +450,12 @@ static int nilfs_store_disk_layout(struct the_nilfs *nilfs,
 	}
 
 	nilfs->ns_first_ino = le32_to_cpu(sbp->s_first_ino);
+	if (nilfs->ns_first_ino < NILFS_USER_INO) {
+		nilfs_err(nilfs->ns_sb,
+			  "too small lower limit for non-reserved inode numbers: %u",
+			  nilfs->ns_first_ino);
+		return -EINVAL;
+	}
 
 	nilfs->ns_blocks_per_segment = le32_to_cpu(sbp->s_blocks_per_segment);
 	if (nilfs->ns_blocks_per_segment < NILFS_SEG_MIN_BLOCKS) {
@@ -747,9 +751,6 @@ int init_nilfs(struct the_nilfs *nilfs, struct super_block *sb)
 	}
 	nilfs->ns_blocksize_bits = sb->s_blocksize_bits;
 	nilfs->ns_blocksize = blocksize;
-
-	get_random_bytes(&nilfs->ns_next_generation,
-			 sizeof(nilfs->ns_next_generation));
 
 	err = nilfs_store_disk_layout(nilfs, sbp);
 	if (err)

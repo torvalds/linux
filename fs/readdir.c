@@ -22,8 +22,6 @@
 #include <linux/compat.h>
 #include <linux/uaccess.h>
 
-#include <asm/unaligned.h>
-
 /*
  * Some filesystems were never converted to '->iterate_shared()'
  * and their directory iterators want the inode lock held for
@@ -72,7 +70,7 @@ int wrap_directory_iterator(struct file *file,
 EXPORT_SYMBOL(wrap_directory_iterator);
 
 /*
- * Note the "unsafe_put_user() semantics: we goto a
+ * Note the "unsafe_put_user()" semantics: we goto a
  * label for errors.
  */
 #define unsafe_copy_dirent_name(_dst, _src, _len, label) do {	\
@@ -227,10 +225,10 @@ SYSCALL_DEFINE3(old_readdir, unsigned int, fd,
 		.dirent = dirent
 	};
 
-	if (!f.file)
+	if (!fd_file(f))
 		return -EBADF;
 
-	error = iterate_dir(f.file, &buf.ctx);
+	error = iterate_dir(fd_file(f), &buf.ctx);
 	if (buf.result)
 		error = buf.result;
 
@@ -320,10 +318,10 @@ SYSCALL_DEFINE3(getdents, unsigned int, fd,
 	int error;
 
 	f = fdget_pos(fd);
-	if (!f.file)
+	if (!fd_file(f))
 		return -EBADF;
 
-	error = iterate_dir(f.file, &buf.ctx);
+	error = iterate_dir(fd_file(f), &buf.ctx);
 	if (error >= 0)
 		error = buf.error;
 	if (buf.prev_reclen) {
@@ -403,10 +401,10 @@ SYSCALL_DEFINE3(getdents64, unsigned int, fd,
 	int error;
 
 	f = fdget_pos(fd);
-	if (!f.file)
+	if (!fd_file(f))
 		return -EBADF;
 
-	error = iterate_dir(f.file, &buf.ctx);
+	error = iterate_dir(fd_file(f), &buf.ctx);
 	if (error >= 0)
 		error = buf.error;
 	if (buf.prev_reclen) {
@@ -485,10 +483,10 @@ COMPAT_SYSCALL_DEFINE3(old_readdir, unsigned int, fd,
 		.dirent = dirent
 	};
 
-	if (!f.file)
+	if (!fd_file(f))
 		return -EBADF;
 
-	error = iterate_dir(f.file, &buf.ctx);
+	error = iterate_dir(fd_file(f), &buf.ctx);
 	if (buf.result)
 		error = buf.result;
 
@@ -571,10 +569,10 @@ COMPAT_SYSCALL_DEFINE3(getdents, unsigned int, fd,
 	int error;
 
 	f = fdget_pos(fd);
-	if (!f.file)
+	if (!fd_file(f))
 		return -EBADF;
 
-	error = iterate_dir(f.file, &buf.ctx);
+	error = iterate_dir(fd_file(f), &buf.ctx);
 	if (error >= 0)
 		error = buf.error;
 	if (buf.prev_reclen) {

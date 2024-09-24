@@ -327,7 +327,7 @@ static int k3_dsp_rproc_start(struct rproc *rproc)
 		goto put_mbox;
 	}
 
-	dev_err(dev, "booting DSP core using boot addr = 0x%x\n", boot_addr);
+	dev_dbg(dev, "booting DSP core using boot addr = 0x%x\n", boot_addr);
 	ret = ti_sci_proc_set_config(kproc->tsp, boot_addr, 0, 0);
 	if (ret)
 		goto put_mbox;

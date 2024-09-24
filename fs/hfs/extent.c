@@ -487,15 +487,15 @@ void hfs_file_truncate(struct inode *inode)
 	if (inode->i_size > HFS_I(inode)->phys_size) {
 		struct address_space *mapping = inode->i_mapping;
 		void *fsdata = NULL;
-		struct page *page;
+		struct folio *folio;
 
 		/* XXX: Can use generic_cont_expand? */
 		size = inode->i_size - 1;
-		res = hfs_write_begin(NULL, mapping, size + 1, 0, &page,
+		res = hfs_write_begin(NULL, mapping, size + 1, 0, &folio,
 				&fsdata);
 		if (!res) {
 			res = generic_write_end(NULL, mapping, size + 1, 0, 0,
-					page, fsdata);
+					folio, fsdata);
 		}
 		if (res)
 			inode->i_size = HFS_I(inode)->phys_size;

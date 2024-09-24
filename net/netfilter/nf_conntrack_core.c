@@ -1090,7 +1090,7 @@ static int nf_ct_resolve_clash_harder(struct sk_buff *skb, u32 repl_idx)
  * A conntrack entry can be inserted to the connection tracking table
  * if there is no existing entry with an identical tuple.
  *
- * If there is one, @skb (and the assocated, unconfirmed conntrack) has
+ * If there is one, @skb (and the associated, unconfirmed conntrack) has
  * to be dropped.  In case @skb is retransmitted, next conntrack lookup
  * will find the already-existing entry.
  *
@@ -1722,7 +1722,7 @@ init_conntrack(struct net *net, struct nf_conn *tmpl,
 	ct = __nf_conntrack_alloc(net, zone, tuple, &repl_tuple, GFP_ATOMIC,
 				  hash);
 	if (IS_ERR(ct))
-		return (struct nf_conntrack_tuple_hash *)ct;
+		return ERR_CAST(ct);
 
 	if (!nf_ct_add_synproxy(ct, tmpl)) {
 		nf_conntrack_free(ct);

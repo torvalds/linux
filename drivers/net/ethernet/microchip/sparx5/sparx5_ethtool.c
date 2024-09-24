@@ -1183,7 +1183,7 @@ static void sparx5_config_port_stats(struct sparx5 *sparx5, int portno)
 }
 
 static int sparx5_get_ts_info(struct net_device *dev,
-			      struct ethtool_ts_info *info)
+			      struct kernel_ethtool_ts_info *info)
 {
 	struct sparx5_port *port = netdev_priv(dev);
 	struct sparx5 *sparx5 = port->sparx5;
@@ -1194,16 +1194,13 @@ static int sparx5_get_ts_info(struct net_device *dev,
 
 	phc = &sparx5->phc[SPARX5_PHC_PORT];
 
-	info->phc_index = phc->clock ? ptp_clock_index(phc->clock) : -1;
-	if (info->phc_index == -1) {
-		info->so_timestamping |= SOF_TIMESTAMPING_TX_SOFTWARE |
-					 SOF_TIMESTAMPING_RX_SOFTWARE |
-					 SOF_TIMESTAMPING_SOFTWARE;
+	if (phc->clock) {
+		info->phc_index = ptp_clock_index(phc->clock);
+	} else {
+		info->so_timestamping |= SOF_TIMESTAMPING_TX_SOFTWARE;
 		return 0;
 	}
 	info->so_timestamping |= SOF_TIMESTAMPING_TX_SOFTWARE |
-				 SOF_TIMESTAMPING_RX_SOFTWARE |
-				 SOF_TIMESTAMPING_SOFTWARE |
 				 SOF_TIMESTAMPING_TX_HARDWARE |
 				 SOF_TIMESTAMPING_RX_HARDWARE |
 				 SOF_TIMESTAMPING_RAW_HARDWARE;

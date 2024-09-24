@@ -430,6 +430,18 @@
 		#gpio-cells = <2>;
 		gpio-line-names = "LED1","LED2","LED3","LED4","LED5","LED6","LED7","LED8";
 	};
+
+	/* SoC power supply temperature */
+	tmp100@48 {
+		compatible = "ti,tmp100";
+		reg = <0x48>;
+	};
+
+	/* DDR power supply temperature */
+	tmp100@49 {
+		compatible = "ti,tmp100";
+		reg = <0x49>;
+	};
 };
 
 /* mcu_gpio0 and mcu_gpio_intr are reserved for mcu firmware usage */
@@ -515,16 +527,19 @@
 &cpsw3g {
 	pinctrl-names = "default";
 	pinctrl-0 = <&rgmii1_pins_default>, <&rgmii2_pins_default>;
+	status = "okay";
 };
 
 &cpsw_port1 {
 	phy-mode = "rgmii-rxid";
 	phy-handle = <&cpsw3g_phy0>;
+	status = "okay";
 };
 
 &cpsw_port2 {
 	phy-mode = "rgmii-rxid";
 	phy-handle = <&cpsw3g_phy1>;
+	status = "okay";
 };
 
 &cpsw3g_mdio {

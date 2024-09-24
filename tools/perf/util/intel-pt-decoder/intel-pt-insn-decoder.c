@@ -92,6 +92,15 @@ static void intel_pt_insn_decoder(struct insn *insn,
 		op = INTEL_PT_OP_JCC;
 		branch = INTEL_PT_BR_CONDITIONAL;
 		break;
+	case 0xa1:
+		if (insn_is_rex2(insn)) { /* jmpabs */
+			intel_pt_insn->op = INTEL_PT_OP_JMP;
+			/* jmpabs causes a TIP packet like an indirect branch */
+			intel_pt_insn->branch = INTEL_PT_BR_INDIRECT;
+			intel_pt_insn->length = insn->length;
+			return;
+		}
+		break;
 	case 0xc2: /* near ret */
 	case 0xc3: /* near ret */
 	case 0xca: /* far ret */
@@ -200,12 +209,13 @@ int intel_pt_get_insn(const unsigned char *buf, size_t len, int x86_64,
 	return 0;
 }
 
-int arch_is_branch(const unsigned char *buf, size_t len, int x86_64)
+int arch_is_uncond_branch(const unsigned char *buf, size_t len, int x86_64)
 {
 	struct intel_pt_insn in;
 	if (intel_pt_get_insn(buf, len, x86_64, &in) < 0)
 		return -1;
-	return in.branch != INTEL_PT_BR_NO_BRANCH;
+	return in.branch == INTEL_PT_BR_UNCONDITIONAL ||
+	       in.branch == INTEL_PT_BR_INDIRECT;
 }
 
 const char *dump_insn(struct perf_insn *x, uint64_t ip __maybe_unused,

@@ -1,24 +1,24 @@
-perf-y += header.o
-perf-y += tsc.o
-perf-y += pmu.o
-perf-$(CONFIG_LIBTRACEEVENT) += kvm-stat.o
-perf-y += perf_regs.o
-perf-y += topdown.o
-perf-y += machine.o
-perf-y += event.o
-perf-y += evlist.o
-perf-y += mem-events.o
-perf-y += evsel.o
-perf-y += iostat.o
-perf-y += env.o
+perf-util-y += header.o
+perf-util-y += tsc.o
+perf-util-y += pmu.o
+perf-util-$(CONFIG_LIBTRACEEVENT) += kvm-stat.o
+perf-util-y += perf_regs.o
+perf-util-y += topdown.o
+perf-util-y += machine.o
+perf-util-y += event.o
+perf-util-y += evlist.o
+perf-util-y += mem-events.o
+perf-util-y += evsel.o
+perf-util-y += iostat.o
+perf-util-y += env.o
 
-perf-$(CONFIG_DWARF) += dwarf-regs.o
-perf-$(CONFIG_BPF_PROLOGUE) += dwarf-regs.o
+perf-util-$(CONFIG_DWARF) += dwarf-regs.o
+perf-util-$(CONFIG_BPF_PROLOGUE) += dwarf-regs.o
 
-perf-$(CONFIG_LOCAL_LIBUNWIND)    += unwind-libunwind.o
-perf-$(CONFIG_LIBDW_DWARF_UNWIND) += unwind-libdw.o
+perf-util-$(CONFIG_LOCAL_LIBUNWIND)    += unwind-libunwind.o
+perf-util-$(CONFIG_LIBDW_DWARF_UNWIND) += unwind-libdw.o
 
-perf-$(CONFIG_AUXTRACE) += auxtrace.o
-perf-$(CONFIG_AUXTRACE) += archinsn.o
-perf-$(CONFIG_AUXTRACE) += intel-pt.o
-perf-$(CONFIG_AUXTRACE) += intel-bts.o
+perf-util-$(CONFIG_AUXTRACE) += auxtrace.o
+perf-util-$(CONFIG_AUXTRACE) += archinsn.o
+perf-util-$(CONFIG_AUXTRACE) += intel-pt.o
+perf-util-$(CONFIG_AUXTRACE) += intel-bts.o

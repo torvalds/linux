@@ -37,6 +37,13 @@ config FW_LOADER_DEBUG
 	  SHA256 checksums to the kernel log for each firmware file that is
 	  loaded.
 
+config RUST_FW_LOADER_ABSTRACTIONS
+	bool "Rust Firmware Loader abstractions"
+	depends on RUST
+	depends on FW_LOADER=y
+	help
+	  This enables the Rust abstractions for the firmware loader API.
+
 if FW_LOADER
 
 config FW_LOADER_PAGED_BUF

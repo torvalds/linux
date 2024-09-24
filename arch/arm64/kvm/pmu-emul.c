@@ -14,7 +14,6 @@
 #include <asm/kvm_emulate.h>
 #include <kvm/arm_pmu.h>
 #include <kvm/arm_vgic.h>
-#include <asm/arm_pmuv3.h>
 
 #define PERF_ATTR_CFG1_COUNTER_64BIT	BIT(0)
 
@@ -54,7 +53,7 @@ static u32 __kvm_pmu_event_mask(unsigned int pmuver)
 
 static u32 kvm_pmu_event_mask(struct kvm *kvm)
 {
-	u64 dfr0 = IDREG(kvm, SYS_ID_AA64DFR0_EL1);
+	u64 dfr0 = kvm_read_vm_id_reg(kvm, SYS_ID_AA64DFR0_EL1);
 	u8 pmuver = SYS_FIELD_GET(ID_AA64DFR0_EL1, PMUVer, dfr0);
 
 	return __kvm_pmu_event_mask(pmuver);
@@ -234,7 +233,7 @@ void kvm_pmu_vcpu_init(struct kvm_vcpu *vcpu)
 	int i;
 	struct kvm_pmu *pmu = &vcpu->arch.pmu;
 
-	for (i = 0; i < ARMV8_PMU_MAX_COUNTERS; i++)
+	for (i = 0; i < KVM_ARMV8_PMU_MAX_COUNTERS; i++)
 		pmu->pmc[i].idx = i;
 }
 
@@ -261,7 +260,7 @@ void kvm_pmu_vcpu_destroy(struct kvm_vcpu *vcpu)
 {
 	int i;
 
-	for (i = 0; i < ARMV8_PMU_MAX_COUNTERS; i++)
+	for (i = 0; i < KVM_ARMV8_PMU_MAX_COUNTERS; i++)
 		kvm_pmu_release_perf_event(kvm_vcpu_idx_to_pmc(vcpu, i));
 	irq_work_sync(&vcpu->arch.pmu.overflow_work);
 }
@@ -292,7 +291,7 @@ void kvm_pmu_enable_counter_mask(struct kvm_vcpu *vcpu, u64 val)
 	if (!(kvm_vcpu_read_pmcr(vcpu) & ARMV8_PMU_PMCR_E) || !val)
 		return;
 
-	for (i = 0; i < ARMV8_PMU_MAX_COUNTERS; i++) {
+	for (i = 0; i < KVM_ARMV8_PMU_MAX_COUNTERS; i++) {
 		struct kvm_pmc *pmc;
 
 		if (!(val & BIT(i)))
@@ -324,7 +323,7 @@ void kvm_pmu_disable_counter_mask(struct kvm_vcpu *vcpu, u64 val)
 	if (!kvm_vcpu_has_pmu(vcpu) || !val)
 		return;
 
-	for (i = 0; i < ARMV8_PMU_MAX_COUNTERS; i++) {
+	for (i = 0; i < KVM_ARMV8_PMU_MAX_COUNTERS; i++) {
 		struct kvm_pmc *pmc;
 
 		if (!(val & BIT(i)))
@@ -911,10 +910,10 @@ u8 kvm_arm_pmu_get_max_counters(struct kvm *kvm)
 	struct arm_pmu *arm_pmu = kvm->arch.arm_pmu;
 
 	/*
-	 * The arm_pmu->num_events considers the cycle counter as well.
-	 * Ignore that and return only the general-purpose counters.
+	 * The arm_pmu->cntr_mask considers the fixed counter(s) as well.
+	 * Ignore those and return only the general-purpose counters.
 	 */
-	return arm_pmu->num_events - 1;
+	return bitmap_weight(arm_pmu->cntr_mask, ARMV8_PMU_MAX_GENERAL_COUNTERS);
 }
 
 static void kvm_arm_set_pmu(struct kvm *kvm, struct arm_pmu *arm_pmu)

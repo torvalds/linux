@@ -149,7 +149,7 @@ struct iwl_scan_offload_profile_cfg_data {
 } __packed;
 
 /**
- * struct iwl_scan_offload_profile_cfg
+ * struct iwl_scan_offload_profile_cfg_v1 - scan offload profile config
  * @profiles:	profiles to search for match
  * @data:	the rest of the data for profile_cfg
  */
@@ -423,7 +423,7 @@ struct iwl_lmac_scan_complete_notif {
 } __packed;
 
 /**
- * struct iwl_scan_offload_complete - PERIODIC_SCAN_COMPLETE_NTF_API_S_VER_2
+ * struct iwl_periodic_scan_complete - PERIODIC_SCAN_COMPLETE_NTF_API_S_VER_2
  * @last_schedule_line: last schedule line executed (fast or regular)
  * @last_schedule_iteration: last scan iteration executed before scan abort
  * @status: &enum iwl_scan_offload_complete_status
@@ -443,10 +443,10 @@ struct iwl_periodic_scan_complete {
 /* UMAC Scan API */
 
 /* The maximum of either of these cannot exceed 8, because we use an
- * 8-bit mask (see IWL_MVM_SCAN_MASK in mvm.h).
+ * 8-bit mask (see enum iwl_scan_status).
  */
-#define IWL_MVM_MAX_UMAC_SCANS 4
-#define IWL_MVM_MAX_LMAC_SCANS 1
+#define IWL_MAX_UMAC_SCANS 4
+#define IWL_MAX_LMAC_SCANS 1
 
 enum scan_config_flags {
 	SCAN_CONFIG_FLAG_ACTIVATE			= BIT(0),
@@ -731,39 +731,46 @@ enum iwl_umac_scan_general_params_flags2 {
  * struct iwl_scan_channel_cfg_umac
  * @flags:		bitmap - 0-19:	directed scan to i'th ssid.
  * @channel_num:	channel number 1-13 etc.
- * @band:		band of channel: 0 for 2GHz, 1 for 5GHz
- * @iter_count:		repetition count for the channel.
- * @iter_interval:	interval between two scan iterations on one channel.
+ * @v1:			command version 1
+ * @v1.iter_count:	repetition count for the channel.
+ * @v1.iter_interval:	interval between two scan iterations on one channel.
+ * @v2:			command versions 2-4
+ * @v2.band:		band of channel: 0 for 2GHz, 1 for 5GHz
+ * @v2.iter_count:	repetition count for the channel.
+ * @v2.iter_interval:	interval between two scan iterations on one channel.
+ * @v5:			command versions 5 and up
+ * @v5.iter_count:	repetition count for the channel.
+ * @v5.iter_interval:	interval between two scan iterations on one channel.
+ * @v5.psd_20:		highest PSD value for all APs known so far
+ *			on this channel.
  */
 struct  iwl_scan_channel_cfg_umac {
 #define IWL_CHAN_CFG_FLAGS_BAND_POS 30
 	__le32 flags;
+	u8 channel_num;
 
 	/* All versions are of the same size, so use a union without adjusting
 	 * the command size later
 	 */
 	union {
 		struct {
-			u8 channel_num;
 			u8 iter_count;
 			__le16 iter_interval;
-		} v1;  /* SCAN_CHANNEL_CONFIG_API_S_VER_1 */
+		} __packed v1;  /* SCAN_CHANNEL_CONFIG_API_S_VER_1 */
 		struct {
-			u8 channel_num;
 			u8 band;
 			u8 iter_count;
 			u8 iter_interval;
-		 } v2; /* SCAN_CHANNEL_CONFIG_API_S_VER_2
-			* SCAN_CHANNEL_CONFIG_API_S_VER_3
-			* SCAN_CHANNEL_CONFIG_API_S_VER_4
-			*/
+		} __packed v2; /* SCAN_CHANNEL_CONFIG_API_S_VER_2
+				* SCAN_CHANNEL_CONFIG_API_S_VER_3
+				* SCAN_CHANNEL_CONFIG_API_S_VER_4
+				*/
 		struct {
-			u8 channel_num;
 			u8 psd_20;
 			u8 iter_count;
 			u8 iter_interval;
-		} v5;  /* SCAN_CHANNEL_CONFIG_API_S_VER_5 */
-	};
+		} __packed v5;  /* SCAN_CHANNEL_CONFIG_API_S_VER_5 */
+	} __packed;
 } __packed;
 
 /**
@@ -789,7 +796,7 @@ struct iwl_scan_req_umac_tail_v1 {
 } __packed;
 
 /**
- * struct iwl_scan_req_umac_tail - the rest of the UMAC scan request command
+ * struct iwl_scan_req_umac_tail_v2 - the rest of the UMAC scan request command
  *      parameters following channels configuration array.
  * @schedule: two scheduling plans.
  * @delay: delay in TUs before starting the first scan iteration
@@ -1085,7 +1092,7 @@ struct iwl_scan_req_params_v12 {
 } __packed; /* SCAN_REQUEST_PARAMS_API_S_VER_12 */
 
 /**
- * struct iwl_scan_req_params_v16
+ * struct iwl_scan_req_params_v17 - scan request parameters (v17)
  * @general_params: &struct iwl_scan_general_params_v11
  * @channel_params: &struct iwl_scan_channel_params_v7
  * @periodic_params: &struct iwl_scan_periodic_parms_v1
@@ -1111,7 +1118,7 @@ struct iwl_scan_req_umac_v12 {
 } __packed; /* SCAN_REQUEST_CMD_UMAC_API_S_VER_12 */
 
 /**
- * struct iwl_scan_req_umac_v16
+ * struct iwl_scan_req_umac_v17 - scan request command (v17)
  * @uid: scan id, &enum iwl_umac_scan_uid_offsets
  * @ooc_priority: out of channel priority - &enum iwl_scan_priority
  * @scan_params: scan parameters
@@ -1131,6 +1138,19 @@ struct iwl_umac_scan_abort {
 	__le32 uid;
 	__le32 flags;
 } __packed; /* SCAN_ABORT_CMD_UMAC_API_S_VER_1 */
+
+/**
+ * enum iwl_umac_scan_abort_status
+ *
+ * @IWL_UMAC_SCAN_ABORT_STATUS_SUCCESS: scan was successfully aborted
+ * @IWL_UMAC_SCAN_ABORT_STATUS_IN_PROGRESS: scan abort is in progress
+ * @IWL_UMAC_SCAN_ABORT_STATUS_NOT_FOUND: nothing to abort
+ */
+enum iwl_umac_scan_abort_status {
+	IWL_UMAC_SCAN_ABORT_STATUS_SUCCESS = 0,
+	IWL_UMAC_SCAN_ABORT_STATUS_IN_PROGRESS,
+	IWL_UMAC_SCAN_ABORT_STATUS_NOT_FOUND,
+};
 
 /**
  * struct iwl_umac_scan_complete

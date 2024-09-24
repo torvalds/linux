@@ -1356,8 +1356,7 @@ static int iso_sock_recvmsg(struct socket *sock, struct msghdr *msg,
 		lock_sock(sk);
 		switch (sk->sk_state) {
 		case BT_CONNECT2:
-			if (pi->conn->hcon &&
-			    test_bit(HCI_CONN_PA_SYNC, &pi->conn->hcon->flags)) {
+			if (test_bit(BT_SK_PA_SYNC, &pi->flags)) {
 				iso_conn_big_sync(sk);
 				sk->sk_state = BT_LISTEN;
 			} else {
@@ -1720,11 +1719,6 @@ static void iso_sock_ready(struct sock *sk)
 	sk->sk_state_change(sk);
 	release_sock(sk);
 }
-
-struct iso_list_data {
-	struct hci_conn *hcon;
-	int count;
-};
 
 static bool iso_match_big(struct sock *sk, void *data)
 {

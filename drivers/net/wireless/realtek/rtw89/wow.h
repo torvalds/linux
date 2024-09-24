@@ -35,6 +35,17 @@ enum rtw89_wake_reason {
 	RTW89_WOW_RSN_RX_NLO = 0x55,
 };
 
+enum rtw89_fw_alg {
+	RTW89_WOW_FW_ALG_WEP40 = 0x1,
+	RTW89_WOW_FW_ALG_WEP104 = 0x2,
+	RTW89_WOW_FW_ALG_TKIP = 0x3,
+	RTW89_WOW_FW_ALG_CCMP = 0x6,
+	RTW89_WOW_FW_ALG_CCMP_256 = 0x7,
+	RTW89_WOW_FW_ALG_GCMP = 0x8,
+	RTW89_WOW_FW_ALG_GCMP_256 = 0x9,
+	RTW89_WOW_FW_ALG_AES_CMAC = 0xa,
+};
+
 struct rtw89_cipher_suite {
 	u8 oui[3];
 	u8 type;
@@ -64,7 +75,49 @@ struct rtw89_set_key_info_iter_data {
 	bool error;
 };
 
+static inline int rtw89_wow_get_sec_hdr_len(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_wow_param *rtw_wow = &rtwdev->wow;
+
+	if (!(rtwdev->chip->chip_id == RTL8852A || rtw89_is_rtl885xb(rtwdev)))
+		return 0;
+
+	switch (rtw_wow->ptk_alg) {
+	case RTW89_WOW_FW_ALG_WEP40:
+		return 4;
+	case RTW89_WOW_FW_ALG_TKIP:
+	case RTW89_WOW_FW_ALG_CCMP:
+	case RTW89_WOW_FW_ALG_GCMP_256:
+		return 8;
+	default:
+		return 0;
+	}
+}
+
 #ifdef CONFIG_PM
+static inline bool rtw89_wow_mgd_linked(struct rtw89_dev *rtwdev)
+{
+	struct ieee80211_vif *wow_vif = rtwdev->wow.wow_vif;
+	struct rtw89_vif *rtwvif = (struct rtw89_vif *)wow_vif->drv_priv;
+
+	return rtwvif->net_type == RTW89_NET_TYPE_INFRA;
+}
+
+static inline bool rtw89_wow_no_link(struct rtw89_dev *rtwdev)
+{
+	struct ieee80211_vif *wow_vif = rtwdev->wow.wow_vif;
+	struct rtw89_vif *rtwvif = (struct rtw89_vif *)wow_vif->drv_priv;
+
+	return rtwvif->net_type == RTW89_NET_TYPE_NO_LINK;
+}
+
+static inline bool rtw_wow_has_mgd_features(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_wow_param *rtw_wow = &rtwdev->wow;
+
+	return !bitmap_empty(rtw_wow->flags, RTW89_WOW_FLAG_NUM);
+}
+
 int rtw89_wow_suspend(struct rtw89_dev *rtwdev, struct cfg80211_wowlan *wowlan);
 int rtw89_wow_resume(struct rtw89_dev *rtwdev);
 void rtw89_wow_parse_akm(struct rtw89_dev *rtwdev, struct sk_buff *skb);

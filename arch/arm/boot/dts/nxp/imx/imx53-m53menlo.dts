@@ -64,6 +64,7 @@
 				reg = <0>;
 
 				lvds_decoder_in: endpoint {
+					data-mapping = "jeida-18";
 					remote-endpoint = <&lvds0_out>;
 				};
 			};

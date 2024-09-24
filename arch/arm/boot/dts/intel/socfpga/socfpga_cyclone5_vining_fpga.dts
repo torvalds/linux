@@ -130,8 +130,8 @@
 		#gpio-cells = <2>;
 	};
 
-	temp: lm75@48 {
-		compatible = "lm75";
+	temp: temperature-sensor@48 {
+		compatible = "national,lm75";
 		reg = <0x48>;
 	};
 

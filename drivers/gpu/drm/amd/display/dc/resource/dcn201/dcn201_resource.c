@@ -795,10 +795,12 @@ static struct link_encoder *dcn201_link_encoder_create(
 {
 	struct dcn20_link_encoder *enc20 =
 		kzalloc(sizeof(struct dcn20_link_encoder), GFP_ATOMIC);
-	struct dcn10_link_encoder *enc10 = &enc20->enc10;
+	struct dcn10_link_encoder *enc10;
 
 	if (!enc20)
 		return NULL;
+
+	enc10 = &enc20->enc10;
 
 	dcn201_link_encoder_construct(enc20,
 			enc_init_data,
@@ -1005,8 +1007,10 @@ static struct pipe_ctx *dcn201_acquire_free_pipe_for_layer(
 	struct pipe_ctx *head_pipe = resource_get_otg_master_for_stream(res_ctx, opp_head_pipe->stream);
 	struct pipe_ctx *idle_pipe = resource_find_free_secondary_pipe_legacy(res_ctx, pool, head_pipe);
 
-	if (!head_pipe)
+	if (!head_pipe) {
 		ASSERT(0);
+		return NULL;
+	}
 
 	if (!idle_pipe)
 		return NULL;

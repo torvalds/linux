@@ -22,6 +22,8 @@
 #include <linux/percpu.h>
 #include <linux/notifier.h>
 #include <linux/refcount.h>
+#include <linux/ip.h>
+#include <linux/in_route.h>
 
 struct fib_config {
 	u8			fc_dst_len;
@@ -173,6 +175,7 @@ struct fib_result {
 	unsigned char		type;
 	unsigned char		scope;
 	u32			tclassid;
+	dscp_t			dscp;
 	struct fib_nh_common	*nhc;
 	struct fib_info		*fi;
 	struct fib_table	*table;
@@ -433,6 +436,11 @@ static inline bool fib4_rules_early_flow_dissect(struct net *net,
 
 #endif /* CONFIG_IP_MULTIPLE_TABLES */
 
+static inline bool fib_dscp_masked_match(dscp_t dscp, const struct flowi4 *fl4)
+{
+	return dscp == inet_dsfield_to_dscp(RT_TOS(fl4->flowi4_tos));
+}
+
 /* Exported by fib_frontend.c */
 extern const struct nla_policy rtm_ipv4_policy[];
 void ip_fib_init(void);
@@ -520,7 +528,35 @@ void fib_nhc_update_mtu(struct fib_nh_common *nhc, u32 new, u32 orig);
 #ifdef CONFIG_IP_ROUTE_MULTIPATH
 int fib_multipath_hash(const struct net *net, const struct flowi4 *fl4,
 		       const struct sk_buff *skb, struct flow_keys *flkeys);
+
+static void
+fib_multipath_hash_construct_key(siphash_key_t *key, u32 mp_seed)
+{
+	u64 mp_seed_64 = mp_seed;
+
+	key->key[0] = (mp_seed_64 << 32) | mp_seed_64;
+	key->key[1] = key->key[0];
+}
+
+static inline u32 fib_multipath_hash_from_keys(const struct net *net,
+					       struct flow_keys *keys)
+{
+	siphash_aligned_key_t hash_key;
+	u32 mp_seed;
+
+	mp_seed = READ_ONCE(net->ipv4.sysctl_fib_multipath_hash_seed).mp_seed;
+	fib_multipath_hash_construct_key(&hash_key, mp_seed);
+
+	return flow_hash_from_keys_seed(keys, &hash_key);
+}
+#else
+static inline u32 fib_multipath_hash_from_keys(const struct net *net,
+					       struct flow_keys *keys)
+{
+	return flow_hash_from_keys(keys);
+}
 #endif
+
 int fib_check_nh(struct net *net, struct fib_nh *nh, u32 table, u8 scope,
 		 struct netlink_ext_ack *extack);
 void fib_select_multipath(struct fib_result *res, int hash);

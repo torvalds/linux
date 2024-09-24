@@ -910,7 +910,18 @@ static int __sev_do_cmd_locked(int cmd, void *data, int *psp_ret)
 
 	sev->int_rcvd = 0;
 
-	reg = FIELD_PREP(SEV_CMDRESP_CMD, cmd) | SEV_CMDRESP_IOC;
+	reg = FIELD_PREP(SEV_CMDRESP_CMD, cmd);
+
+	/*
+	 * If invoked during panic handling, local interrupts are disabled so
+	 * the PSP command completion interrupt can't be used.
+	 * sev_wait_cmd_ioc() already checks for interrupts disabled and
+	 * polls for PSP command completion.  Ensure we do not request an
+	 * interrupt from the PSP if irqs disabled.
+	 */
+	if (!irqs_disabled())
+		reg |= SEV_CMDRESP_IOC;
+
 	iowrite32(reg, sev->io_regs + sev->vdata->cmdresp_reg);
 
 	/* wait for command completion */
@@ -1629,8 +1640,6 @@ static int sev_update_firmware(struct device *dev)
 
 	if (ret)
 		dev_dbg(dev, "Failed to update SEV firmware: %#x\n", error);
-	else
-		dev_info(dev, "SEV firmware update successful\n");
 
 	__free_pages(p, order);
 
@@ -1642,9 +1651,15 @@ fw_err:
 
 static int __sev_snp_shutdown_locked(int *error, bool panic)
 {
-	struct sev_device *sev = psp_master->sev_data;
+	struct psp_device *psp = psp_master;
+	struct sev_device *sev;
 	struct sev_data_snp_shutdown_ex data;
 	int ret;
+
+	if (!psp || !psp->sev_data)
+		return 0;
+
+	sev = psp->sev_data;
 
 	if (!sev->snp_initialized)
 		return 0;
@@ -2027,6 +2042,39 @@ static int sev_ioctl_do_snp_set_config(struct sev_issue_cmd *argp, bool writable
 	return __sev_do_cmd_locked(SEV_CMD_SNP_CONFIG, &config, &argp->error);
 }
 
+static int sev_ioctl_do_snp_vlek_load(struct sev_issue_cmd *argp, bool writable)
+{
+	struct sev_device *sev = psp_master->sev_data;
+	struct sev_user_data_snp_vlek_load input;
+	void *blob;
+	int ret;
+
+	if (!sev->snp_initialized || !argp->data)
+		return -EINVAL;
+
+	if (!writable)
+		return -EPERM;
+
+	if (copy_from_user(&input, u64_to_user_ptr(argp->data), sizeof(input)))
+		return -EFAULT;
+
+	if (input.len != sizeof(input) || input.vlek_wrapped_version != 0)
+		return -EINVAL;
+
+	blob = psp_copy_user_blob(input.vlek_wrapped_address,
+				  sizeof(struct sev_user_data_snp_wrapped_vlek_hashstick));
+	if (IS_ERR(blob))
+		return PTR_ERR(blob);
+
+	input.vlek_wrapped_address = __psp_pa(blob);
+
+	ret = __sev_do_cmd_locked(SEV_CMD_SNP_VLEK_LOAD, &input, &argp->error);
+
+	kfree(blob);
+
+	return ret;
+}
+
 static long sev_ioctl(struct file *file, unsigned int ioctl, unsigned long arg)
 {
 	void __user *argp = (void __user *)arg;
@@ -2086,6 +2134,9 @@ static long sev_ioctl(struct file *file, unsigned int ioctl, unsigned long arg)
 		break;
 	case SNP_SET_CONFIG:
 		ret = sev_ioctl_do_snp_set_config(&input, writable);
+		break;
+	case SNP_VLEK_LOAD:
+		ret = sev_ioctl_do_snp_vlek_load(&input, writable);
 		break;
 	default:
 		ret = -EINVAL;
@@ -2340,6 +2391,7 @@ void sev_pci_init(void)
 {
 	struct sev_device *sev = psp_master->sev_data;
 	struct sev_platform_init_args args = {0};
+	u8 api_major, api_minor, build;
 	int rc;
 
 	if (!sev)
@@ -2350,8 +2402,18 @@ void sev_pci_init(void)
 	if (sev_get_api_version())
 		goto err;
 
+	api_major = sev->api_major;
+	api_minor = sev->api_minor;
+	build     = sev->build;
+
 	if (sev_update_firmware(sev->dev) == 0)
 		sev_get_api_version();
+
+	if (api_major != sev->api_major || api_minor != sev->api_minor ||
+	    build != sev->build)
+		dev_info(sev->dev, "SEV firmware updated from %d.%d.%d to %d.%d.%d\n",
+			 api_major, api_minor, build,
+			 sev->api_major, sev->api_minor, sev->build);
 
 	/* Initialize the platform */
 	args.probe = true;
@@ -2368,6 +2430,8 @@ void sev_pci_init(void)
 	return;
 
 err:
+	sev_dev_destroy(psp_master);
+
 	psp_master->sev_data = NULL;
 }
 

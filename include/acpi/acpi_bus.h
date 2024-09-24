@@ -134,6 +134,7 @@ struct acpi_scan_handler {
 	bool (*match)(const char *idstr, const struct acpi_device_id **matchid);
 	int (*attach)(struct acpi_device *dev, const struct acpi_device_id *id);
 	void (*detach)(struct acpi_device *dev);
+	void (*post_eject)(struct acpi_device *dev);
 	void (*bind)(struct device *phys_dev);
 	void (*unbind)(struct device *phys_dev);
 	struct acpi_hotplug_profile hotplug;
@@ -227,10 +228,12 @@ struct acpi_device_dir {
 
 /* Plug and Play */
 
+#define MAX_ACPI_DEVICE_NAME_LEN	40
+#define MAX_ACPI_CLASS_NAME_LEN		20
 typedef char acpi_bus_id[8];
 typedef u64 acpi_bus_address;
-typedef char acpi_device_name[40];
-typedef char acpi_device_class[20];
+typedef char acpi_device_name[MAX_ACPI_DEVICE_NAME_LEN];
+typedef char acpi_device_class[MAX_ACPI_CLASS_NAME_LEN];
 
 struct acpi_hardware_id {
 	struct list_head list;
@@ -254,7 +257,6 @@ struct acpi_device_pnp {
 	struct list_head ids;		/* _HID and _CIDs */
 	acpi_device_name device_name;	/* Driver-determined */
 	acpi_device_class device_class;	/*        "          */
-	union acpi_object *str_obj;	/* unicode string for _STR method */
 };
 
 #define acpi_device_bid(d)	((d)->pnp.bus_id)
@@ -562,7 +564,7 @@ static inline void *acpi_driver_data(struct acpi_device *d)
 }
 
 #define to_acpi_device(d)	container_of(d, struct acpi_device, dev)
-#define to_acpi_driver(d)	container_of(d, struct acpi_driver, drv)
+#define to_acpi_driver(d)	container_of_const(d, struct acpi_driver, drv)
 
 static inline struct acpi_device *acpi_dev_parent(struct acpi_device *adev)
 {
@@ -736,8 +738,7 @@ struct iommu_ops;
 bool acpi_dma_supported(const struct acpi_device *adev);
 enum dev_dma_attr acpi_get_dma_attr(struct acpi_device *adev);
 int acpi_iommu_fwspec_init(struct device *dev, u32 id,
-			   struct fwnode_handle *fwnode,
-			   const struct iommu_ops *ops);
+			   struct fwnode_handle *fwnode);
 int acpi_dma_get_range(struct device *dev, const struct bus_dma_region **map);
 int acpi_dma_configure_id(struct device *dev, enum dev_dma_attr attr,
 			   const u32 *input_id);
@@ -993,6 +994,8 @@ static inline void acpi_put_acpi_dev(struct acpi_device *adev)
 
 int acpi_wait_for_acpi_ipmi(void);
 
+int acpi_scan_add_dep(acpi_handle handle, struct acpi_handle_list *dep_devices);
+u32 arch_acpi_add_auto_dep(acpi_handle handle);
 #else	/* CONFIG_ACPI */
 
 static inline int register_acpi_bus_type(void *bus) { return 0; }

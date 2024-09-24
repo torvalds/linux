@@ -2,7 +2,7 @@
 /*
  * Copyright (c) 2017-2022 Linaro Ltd
  * Copyright (c) 2010-2012, The Linux Foundation. All rights reserved.
- * Copyright (c) 2023, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2023-2024, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 #include <linux/bits.h>
 #include <linux/bitfield.h>
@@ -254,6 +254,9 @@ static int lpg_clear_pbs_trigger(struct lpg *lpg, unsigned int lut_mask)
 	u8 val = 0;
 	int rc;
 
+	if (!lpg->lpg_chan_sdam)
+		return 0;
+
 	lpg->pbs_en_bitmap &= (~lut_mask);
 	if (!lpg->pbs_en_bitmap) {
 		rc = nvmem_device_write(lpg->lpg_chan_sdam, SDAM_REG_PBS_SEQ_EN, 1, &val);
@@ -275,6 +278,9 @@ static int lpg_set_pbs_trigger(struct lpg *lpg, unsigned int lut_mask)
 {
 	u8 val = PBS_SW_TRIG_BIT;
 	int rc;
+
+	if (!lpg->lpg_chan_sdam)
+		return 0;
 
 	if (!lpg->pbs_en_bitmap) {
 		rc = nvmem_device_write(lpg->lpg_chan_sdam, SDAM_REG_PBS_SEQ_EN, 1, &val);
@@ -1362,7 +1368,6 @@ static int lpg_add_led(struct lpg *lpg, struct device_node *np)
 {
 	struct led_init_data init_data = {};
 	struct led_classdev *cdev;
-	struct device_node *child;
 	struct mc_subled *info;
 	struct lpg_led *led;
 	const char *state;
@@ -1393,12 +1398,10 @@ static int lpg_add_led(struct lpg *lpg, struct device_node *np)
 		if (!info)
 			return -ENOMEM;
 		i = 0;
-		for_each_available_child_of_node(np, child) {
+		for_each_available_child_of_node_scoped(np, child) {
 			ret = lpg_parse_channel(lpg, child, &led->channels[i]);
-			if (ret < 0) {
-				of_node_put(child);
+			if (ret < 0)
 				return ret;
-			}
 
 			info[i].color_index = led->channels[i]->color;
 			info[i].intensity = 0;
@@ -1594,7 +1597,6 @@ static int lpg_init_sdam(struct lpg *lpg)
 
 static int lpg_probe(struct platform_device *pdev)
 {
-	struct device_node *np;
 	struct lpg *lpg;
 	int ret;
 	int i;
@@ -1634,12 +1636,10 @@ static int lpg_probe(struct platform_device *pdev)
 	if (ret < 0)
 		return ret;
 
-	for_each_available_child_of_node(pdev->dev.of_node, np) {
+	for_each_available_child_of_node_scoped(pdev->dev.of_node, np) {
 		ret = lpg_add_led(lpg, np);
-		if (ret) {
-			of_node_put(np);
+		if (ret)
 			return ret;
-		}
 	}
 
 	for (i = 0; i < lpg->num_channels; i++)

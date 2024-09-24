@@ -72,8 +72,6 @@
 #define TM_DEBUG(x...) do { } while(0)
 #endif
 
-extern unsigned long _get_SP(void);
-
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
 /*
  * Are we running in "Suspend disabled" mode? If so we have to block any
@@ -1573,7 +1571,7 @@ static void __show_regs(struct pt_regs *regs)
 	if (trap == INTERRUPT_MACHINE_CHECK ||
 	    trap == INTERRUPT_DATA_STORAGE ||
 	    trap == INTERRUPT_ALIGNMENT) {
-		if (IS_ENABLED(CONFIG_4xx) || IS_ENABLED(CONFIG_BOOKE))
+		if (IS_ENABLED(CONFIG_BOOKE))
 			pr_cont("DEAR: "REG" ESR: "REG" ", regs->dear, regs->esr);
 		else
 			pr_cont("DAR: "REG" DSISR: %08lx ", regs->dar, regs->dsisr);
@@ -1875,7 +1873,7 @@ int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 #if defined(CONFIG_PPC_BOOK3S_32) && defined(CONFIG_PPC_KUAP)
 	p->thread.kuap = KUAP_NONE;
 #endif
-#if defined(CONFIG_BOOKE_OR_40x) && defined(CONFIG_PPC_KUAP)
+#if defined(CONFIG_BOOKE) && defined(CONFIG_PPC_KUAP)
 	p->thread.pid = MMU_NO_CONTEXT;
 #endif
 
@@ -2177,10 +2175,10 @@ static inline int valid_irq_stack(unsigned long sp, struct task_struct *p,
 	return 0;
 }
 
+#ifdef CONFIG_PPC64
 static inline int valid_emergency_stack(unsigned long sp, struct task_struct *p,
 					unsigned long nbytes)
 {
-#ifdef CONFIG_PPC64
 	unsigned long stack_page;
 	unsigned long cpu = task_cpu(p);
 
@@ -2208,10 +2206,26 @@ static inline int valid_emergency_stack(unsigned long sp, struct task_struct *p,
 	if (sp >= stack_page && sp <= stack_page + THREAD_SIZE - nbytes)
 		return 1;
 # endif
-#endif
 
 	return 0;
 }
+#else
+static inline int valid_emergency_stack(unsigned long sp, struct task_struct *p,
+					unsigned long nbytes)
+{
+	unsigned long stack_page;
+	unsigned long cpu = task_cpu(p);
+
+	if (!IS_ENABLED(CONFIG_VMAP_STACK))
+		return 0;
+
+	stack_page = (unsigned long)emergency_ctx[cpu] - THREAD_SIZE;
+	if (sp >= stack_page && sp <= stack_page + THREAD_SIZE - nbytes)
+		return 1;
+
+	return 0;
+}
+#endif
 
 /*
  * validate the stack frame of a particular minimum size, used for when we are

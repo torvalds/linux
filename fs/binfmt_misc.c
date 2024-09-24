@@ -247,13 +247,10 @@ static int load_misc_binary(struct linux_binprm *bprm)
 	if (retval < 0)
 		goto ret;
 
-	if (fmt->flags & MISC_FMT_OPEN_FILE) {
+	if (fmt->flags & MISC_FMT_OPEN_FILE)
 		interp_file = file_clone_open(fmt->interp_file);
-		if (!IS_ERR(interp_file))
-			deny_write_access(interp_file);
-	} else {
+	else
 		interp_file = open_exec(fmt->interpreter);
-	}
 	retval = PTR_ERR(interp_file);
 	if (IS_ERR(interp_file))
 		goto ret;
@@ -1086,4 +1083,5 @@ static void __exit exit_misc_binfmt(void)
 
 core_initcall(init_misc_binfmt);
 module_exit(exit_misc_binfmt);
+MODULE_DESCRIPTION("Kernel support for miscellaneous binaries");
 MODULE_LICENSE("GPL");

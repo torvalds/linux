@@ -89,7 +89,8 @@ iwl_pcie_ctxt_info_dbg_enable(struct iwl_trans *trans,
 		}
 		break;
 	default:
-		IWL_ERR(trans, "WRT: Invalid buffer destination\n");
+		IWL_DEBUG_FW(trans, "WRT: Invalid buffer destination (%d)\n",
+			     le32_to_cpu(fw_mon_cfg->buf_location));
 	}
 out:
 	if (dbg_flags)
@@ -216,7 +217,7 @@ int iwl_pcie_ctxt_info_gen3_init(struct iwl_trans *trans,
 	ctxt_info_gen3->cr_tail_idx_arr_base_addr =
 		cpu_to_le64(trans_pcie->prph_info_dma_addr + 3 * PAGE_SIZE / 4);
 	ctxt_info_gen3->mtr_base_addr =
-		cpu_to_le64(trans->txqs.txq[trans->txqs.cmd.q_id]->dma_addr);
+		cpu_to_le64(trans_pcie->txqs.txq[trans_pcie->txqs.cmd.q_id]->dma_addr);
 	ctxt_info_gen3->mcr_base_addr =
 		cpu_to_le64(trans_pcie->rxq->used_bd_dma);
 	ctxt_info_gen3->mtr_size =

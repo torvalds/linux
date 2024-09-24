@@ -328,9 +328,18 @@ TRACE_EVENT(drv_set_wakeup,
 	TP_printk(LOCAL_PR_FMT " enabled:%d", LOCAL_PR_ARG, __entry->enabled)
 );
 
-DEFINE_EVENT(local_only_evt, drv_stop,
-	TP_PROTO(struct ieee80211_local *local),
-	TP_ARGS(local)
+TRACE_EVENT(drv_stop,
+	TP_PROTO(struct ieee80211_local *local, bool suspend),
+	TP_ARGS(local, suspend),
+	TP_STRUCT__entry(
+		LOCAL_ENTRY
+		__field(bool, suspend)
+	),
+	TP_fast_assign(
+		LOCAL_ASSIGN;
+		__entry->suspend = suspend;
+	),
+	TP_printk(LOCAL_PR_FMT " suspend:%d", LOCAL_PR_ARG, __entry->suspend)
 );
 
 DEFINE_EVENT(local_sdata_addr_evt, drv_add_interface,

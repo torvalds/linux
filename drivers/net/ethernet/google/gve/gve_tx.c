@@ -158,15 +158,16 @@ static int gve_clean_xdp_done(struct gve_priv *priv, struct gve_tx_ring *tx,
 			      u32 to_do)
 {
 	struct gve_tx_buffer_state *info;
-	u32 clean_end = tx->done + to_do;
 	u64 pkts = 0, bytes = 0;
 	size_t space_freed = 0;
 	u32 xsk_complete = 0;
 	u32 idx;
+	int i;
 
-	for (; tx->done < clean_end; tx->done++) {
+	for (i = 0; i < to_do; i++) {
 		idx = tx->done & tx->mask;
 		info = &tx->info[idx];
+		tx->done++;
 
 		if (unlikely(!info->xdp.size))
 			continue;

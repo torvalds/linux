@@ -2885,7 +2885,7 @@ err:
 	return -ENODEV;
 }
 
-static int set_max_user_events_sysctl(struct ctl_table *table, int write,
+static int set_max_user_events_sysctl(const struct ctl_table *table, int write,
 				      void *buffer, size_t *lenp, loff_t *ppos)
 {
 	int ret;

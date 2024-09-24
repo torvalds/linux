@@ -21,7 +21,7 @@ config ARCH_PROC_KCORE_TEXT
 	def_bool y
 
 config GENERIC_HWEIGHT
-	def_bool y
+	def_bool !HAVE_MARCH_Z196_FEATURES
 
 config GENERIC_BUG
 	def_bool y if BUG
@@ -70,6 +70,7 @@ config S390
 	select ARCH_HAS_DEBUG_VM_PGTABLE
 	select ARCH_HAS_DEBUG_WX
 	select ARCH_HAS_DEVMEM_IS_ALLOWED
+	select ARCH_HAS_DMA_OPS if PCI
 	select ARCH_HAS_ELF_RANDOMIZE
 	select ARCH_HAS_FORCE_DMA_UNENCRYPTED
 	select ARCH_HAS_FORTIFY_SOURCE
@@ -137,11 +138,11 @@ config S390
 	select BUILDTIME_TABLE_SORT
 	select CLONE_BACKWARDS2
 	select DCACHE_WORD_ACCESS if !KMSAN
-	select DMA_OPS if PCI
 	select DYNAMIC_FTRACE if FUNCTION_TRACER
 	select FUNCTION_ALIGNMENT_8B if CC_IS_GCC
 	select FUNCTION_ALIGNMENT_16B if !CC_IS_GCC
 	select GENERIC_ALLOCATOR
+	select GENERIC_CPU_DEVICES
 	select GENERIC_CPU_AUTOPROBE
 	select GENERIC_CPU_VULNERABILITIES
 	select GENERIC_ENTRY
@@ -158,6 +159,7 @@ config S390
 	select HAVE_ARCH_KASAN
 	select HAVE_ARCH_KASAN_VMALLOC
 	select HAVE_ARCH_KCSAN
+	select HAVE_ARCH_KMSAN
 	select HAVE_ARCH_KFENCE
 	select HAVE_ARCH_RANDOMIZE_KSTACK_OFFSET
 	select HAVE_ARCH_SECCOMP_FILTER
@@ -241,6 +243,7 @@ config S390
 	select TRACE_IRQFLAGS_SUPPORT
 	select TTY
 	select USER_STACKTRACE_SUPPORT
+	select VDSO_GETRANDOM
 	select VIRT_CPU_ACCOUNTING
 	select ZONE_DMA
 	# Note: keep the above list sorted alphabetically
@@ -511,6 +514,26 @@ config SCHED_TOPOLOGY
 	  making when dealing with machines that have multi-threading,
 	  multiple cores or multiple books.
 
+config SCHED_TOPOLOGY_VERTICAL
+	def_bool y
+	bool "Use vertical CPU polarization by default"
+	depends on SCHED_TOPOLOGY
+	help
+	  Use vertical CPU polarization by default if available.
+	  The default CPU polarization is horizontal.
+
+config HIPERDISPATCH_ON
+	def_bool y
+	bool "Use hiperdispatch on vertical polarization by default"
+	depends on SCHED_TOPOLOGY
+	depends on PROC_SYSCTL
+	help
+	  Hiperdispatch aims to improve the CPU scheduler's decision
+	  making when using vertical polarization by adjusting CPU
+	  capacities dynamically. Set this option to use hiperdispatch
+	  on vertical polarization by default. This can be overwritten
+	  by sysctl's s390.hiperdispatch attribute later on.
+
 source "kernel/Kconfig.hz"
 
 config CERT_STORE
@@ -555,17 +578,13 @@ config EXPOLINE
 	  If unsure, say N.
 
 config EXPOLINE_EXTERN
-	def_bool y if EXPOLINE
-	depends on EXPOLINE
-	depends on CC_IS_GCC && GCC_VERSION >= 110200
-	depends on $(success,$(srctree)/arch/s390/tools/gcc-thunk-extern.sh $(CC))
-	prompt "Generate expolines as extern functions."
+	def_bool EXPOLINE && CC_IS_GCC && GCC_VERSION >= 110200 && \
+		 $(success,$(srctree)/arch/s390/tools/gcc-thunk-extern.sh $(CC))
 	help
-	  This option is required for some tooling like kpatch. The kernel is
-	  compiled with -mindirect-branch=thunk-extern and requires a newer
-	  compiler.
-
-	  If unsure, say N.
+	  Generate expolines as external functions if the compiler supports it.
+	  This option is required for some tooling like kpatch, if expolines
+	  are enabled. The kernel is compiled with
+	  -mindirect-branch=thunk-extern, which requires a newer compiler.
 
 choice
 	prompt "Expoline default"
@@ -601,6 +620,19 @@ config RANDOMIZE_BASE
 	  this randomizes the address at which the kernel image is loaded,
 	  as a security feature that deters exploit attempts relying on
 	  knowledge of the location of kernel internals.
+
+config RANDOMIZE_IDENTITY_BASE
+	bool "Randomize the address of the identity mapping base"
+	depends on RANDOMIZE_BASE
+	default DEBUG_VM
+	help
+	  The identity mapping base address is pinned to zero by default.
+	  Allow randomization of that base to expose otherwise missed
+	  notion of physical and virtual addresses of data structures.
+	  That does not have any impact on the base address at which the
+	  kernel image is loaded.
+
+	  If unsure, say N
 
 config KERNEL_IMAGE_BASE
 	hex "Kernel image base address"
@@ -796,17 +828,6 @@ config HAVE_PNETID
 	default (SMC || CCWGROUP)
 
 menu "Virtualization"
-
-config PROTECTED_VIRTUALIZATION_GUEST
-	def_bool n
-	prompt "Protected virtualization guest support"
-	help
-	  Select this option, if you want to be able to run this
-	  kernel as a protected virtualization KVM guest.
-	  Protected virtualization capable machines have a mini hypervisor
-	  located at machine level (an ultravisor). With help of the
-	  Ultravisor, KVM will be able to run "protected" VMs, special
-	  VMs whose memory and management data are unavailable to KVM.
 
 config PFAULT
 	def_bool y

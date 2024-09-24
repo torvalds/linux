@@ -47,11 +47,13 @@ MODULE_DEVICE_TABLE(of, of_match_clk_mt2712_img);
 
 static struct platform_driver clk_mt2712_img_drv = {
 	.probe = mtk_clk_simple_probe,
-	.remove_new = mtk_clk_simple_remove,
+	.remove = mtk_clk_simple_remove,
 	.driver = {
 		.name = "clk-mt2712-img",
 		.of_match_table = of_match_clk_mt2712_img,
 	},
 };
 module_platform_driver(clk_mt2712_img_drv);
+
+MODULE_DESCRIPTION("MediaTek MT2712 imgsys clocks driver");
 MODULE_LICENSE("GPL");

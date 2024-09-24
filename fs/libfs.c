@@ -450,6 +450,14 @@ void simple_offset_destroy(struct offset_ctx *octx)
 	mtree_destroy(&octx->mt);
 }
 
+static int offset_dir_open(struct inode *inode, struct file *file)
+{
+	struct offset_ctx *ctx = inode->i_op->get_offset_ctx(inode);
+
+	file->private_data = (void *)ctx->next_offset;
+	return 0;
+}
+
 /**
  * offset_dir_llseek - Advance the read position of a directory descriptor
  * @file: an open directory whose position is to be updated
@@ -463,6 +471,9 @@ void simple_offset_destroy(struct offset_ctx *octx)
  */
 static loff_t offset_dir_llseek(struct file *file, loff_t offset, int whence)
 {
+	struct inode *inode = file->f_inode;
+	struct offset_ctx *ctx = inode->i_op->get_offset_ctx(inode);
+
 	switch (whence) {
 	case SEEK_CUR:
 		offset += file->f_pos;
@@ -476,7 +487,8 @@ static loff_t offset_dir_llseek(struct file *file, loff_t offset, int whence)
 	}
 
 	/* In this case, ->private_data is protected by f_pos_lock */
-	file->private_data = NULL;
+	if (!offset)
+		file->private_data = (void *)ctx->next_offset;
 	return vfs_setpos(file, offset, LONG_MAX);
 }
 
@@ -507,7 +519,7 @@ static bool offset_dir_emit(struct dir_context *ctx, struct dentry *dentry)
 			  inode->i_ino, fs_umode_to_dtype(inode->i_mode));
 }
 
-static void *offset_iterate_dir(struct inode *inode, struct dir_context *ctx)
+static void offset_iterate_dir(struct inode *inode, struct dir_context *ctx, long last_index)
 {
 	struct offset_ctx *octx = inode->i_op->get_offset_ctx(inode);
 	struct dentry *dentry;
@@ -515,17 +527,21 @@ static void *offset_iterate_dir(struct inode *inode, struct dir_context *ctx)
 	while (true) {
 		dentry = offset_find_next(octx, ctx->pos);
 		if (!dentry)
-			return ERR_PTR(-ENOENT);
+			return;
+
+		if (dentry2offset(dentry) >= last_index) {
+			dput(dentry);
+			return;
+		}
 
 		if (!offset_dir_emit(ctx, dentry)) {
 			dput(dentry);
-			break;
+			return;
 		}
 
 		ctx->pos = dentry2offset(dentry) + 1;
 		dput(dentry);
 	}
-	return NULL;
 }
 
 /**
@@ -552,22 +568,19 @@ static void *offset_iterate_dir(struct inode *inode, struct dir_context *ctx)
 static int offset_readdir(struct file *file, struct dir_context *ctx)
 {
 	struct dentry *dir = file->f_path.dentry;
+	long last_index = (long)file->private_data;
 
 	lockdep_assert_held(&d_inode(dir)->i_rwsem);
 
 	if (!dir_emit_dots(file, ctx))
 		return 0;
 
-	/* In this case, ->private_data is protected by f_pos_lock */
-	if (ctx->pos == DIR_OFFSET_MIN)
-		file->private_data = NULL;
-	else if (file->private_data == ERR_PTR(-ENOENT))
-		return 0;
-	file->private_data = offset_iterate_dir(d_inode(dir), ctx);
+	offset_iterate_dir(d_inode(dir), ctx, last_index);
 	return 0;
 }
 
 const struct file_operations simple_offset_dir_operations = {
+	.open		= offset_dir_open,
 	.llseek		= offset_dir_llseek,
 	.iterate_shared	= offset_readdir,
 	.read		= generic_read_dir,
@@ -901,7 +914,7 @@ static int simple_read_folio(struct file *file, struct folio *folio)
 
 int simple_write_begin(struct file *file, struct address_space *mapping,
 			loff_t pos, unsigned len,
-			struct page **pagep, void **fsdata)
+			struct folio **foliop, void **fsdata)
 {
 	struct folio *folio;
 
@@ -910,7 +923,7 @@ int simple_write_begin(struct file *file, struct address_space *mapping,
 	if (IS_ERR(folio))
 		return PTR_ERR(folio);
 
-	*pagep = &folio->page;
+	*foliop = folio;
 
 	if (!folio_test_uptodate(folio) && (len != folio_size(folio))) {
 		size_t from = offset_in_folio(folio, pos);
@@ -929,11 +942,11 @@ EXPORT_SYMBOL(simple_write_begin);
  * @pos: 		"
  * @len: 		"
  * @copied: 		"
- * @page: 		"
+ * @folio: 		"
  * @fsdata: 		"
  *
- * simple_write_end does the minimum needed for updating a page after writing is
- * done. It has the same API signature as the .write_end of
+ * simple_write_end does the minimum needed for updating a folio after
+ * writing is done. It has the same API signature as the .write_end of
  * address_space_operations vector. So it can just be set onto .write_end for
  * FSes that don't need any other processing. i_mutex is assumed to be held.
  * Block based filesystems should use generic_write_end().
@@ -946,9 +959,8 @@ EXPORT_SYMBOL(simple_write_begin);
  */
 static int simple_write_end(struct file *file, struct address_space *mapping,
 			loff_t pos, unsigned len, unsigned copied,
-			struct page *page, void *fsdata)
+			struct folio *folio, void *fsdata)
 {
-	struct folio *folio = page_folio(page);
 	struct inode *inode = folio->mapping->host;
 	loff_t last_pos = pos + copied;
 
@@ -1854,6 +1866,80 @@ static const struct dentry_operations generic_ci_dentry_ops = {
 	.d_revalidate = fscrypt_d_revalidate,
 #endif
 };
+
+/**
+ * generic_ci_match() - Match a name (case-insensitively) with a dirent.
+ * This is a filesystem helper for comparison with directory entries.
+ * generic_ci_d_compare should be used in VFS' ->d_compare instead.
+ *
+ * @parent: Inode of the parent of the dirent under comparison
+ * @name: name under lookup.
+ * @folded_name: Optional pre-folded name under lookup
+ * @de_name: Dirent name.
+ * @de_name_len: dirent name length.
+ *
+ * Test whether a case-insensitive directory entry matches the filename
+ * being searched.  If @folded_name is provided, it is used instead of
+ * recalculating the casefold of @name.
+ *
+ * Return: > 0 if the directory entry matches, 0 if it doesn't match, or
+ * < 0 on error.
+ */
+int generic_ci_match(const struct inode *parent,
+		     const struct qstr *name,
+		     const struct qstr *folded_name,
+		     const u8 *de_name, u32 de_name_len)
+{
+	const struct super_block *sb = parent->i_sb;
+	const struct unicode_map *um = sb->s_encoding;
+	struct fscrypt_str decrypted_name = FSTR_INIT(NULL, de_name_len);
+	struct qstr dirent = QSTR_INIT(de_name, de_name_len);
+	int res = 0;
+
+	if (IS_ENCRYPTED(parent)) {
+		const struct fscrypt_str encrypted_name =
+			FSTR_INIT((u8 *) de_name, de_name_len);
+
+		if (WARN_ON_ONCE(!fscrypt_has_encryption_key(parent)))
+			return -EINVAL;
+
+		decrypted_name.name = kmalloc(de_name_len, GFP_KERNEL);
+		if (!decrypted_name.name)
+			return -ENOMEM;
+		res = fscrypt_fname_disk_to_usr(parent, 0, 0, &encrypted_name,
+						&decrypted_name);
+		if (res < 0) {
+			kfree(decrypted_name.name);
+			return res;
+		}
+		dirent.name = decrypted_name.name;
+		dirent.len = decrypted_name.len;
+	}
+
+	/*
+	 * Attempt a case-sensitive match first. It is cheaper and
+	 * should cover most lookups, including all the sane
+	 * applications that expect a case-sensitive filesystem.
+	 */
+
+	if (dirent.len == name->len &&
+	    !memcmp(name->name, dirent.name, dirent.len))
+		goto out;
+
+	if (folded_name->name)
+		res = utf8_strncasecmp_folded(um, folded_name, &dirent);
+	else
+		res = utf8_strncasecmp(um, name, &dirent);
+
+out:
+	kfree(decrypted_name.name);
+	if (res < 0 && sb_has_strict_encoding(sb)) {
+		pr_err_ratelimited("Directory contains filename that is invalid UTF-8");
+		return 0;
+	}
+	return !res;
+}
+EXPORT_SYMBOL(generic_ci_match);
 #endif
 
 #ifdef CONFIG_FS_ENCRYPTION
@@ -1916,13 +2002,19 @@ bool inode_maybe_inc_iversion(struct inode *inode, bool force)
 	 * information, but the legacy inode_inc_iversion code used a spinlock
 	 * to serialize increments.
 	 *
-	 * Here, we add full memory barriers to ensure that any de-facto
-	 * ordering with other info is preserved.
+	 * We add a full memory barrier to ensure that any de facto ordering
+	 * with other state is preserved (either implicitly coming from cmpxchg
+	 * or explicitly from smp_mb if we don't know upfront if we will execute
+	 * the former).
 	 *
-	 * This barrier pairs with the barrier in inode_query_iversion()
+	 * These barriers pair with inode_query_iversion().
 	 */
-	smp_mb();
 	cur = inode_peek_iversion_raw(inode);
+	if (!force && !(cur & I_VERSION_QUERIED)) {
+		smp_mb();
+		cur = inode_peek_iversion_raw(inode);
+	}
+
 	do {
 		/* If flag is clear then we needn't do anything */
 		if (!force && !(cur & I_VERSION_QUERIED))
@@ -1951,20 +2043,22 @@ EXPORT_SYMBOL(inode_maybe_inc_iversion);
 u64 inode_query_iversion(struct inode *inode)
 {
 	u64 cur, new;
+	bool fenced = false;
 
+	/*
+	 * Memory barriers (implicit in cmpxchg, explicit in smp_mb) pair with
+	 * inode_maybe_inc_iversion(), see that routine for more details.
+	 */
 	cur = inode_peek_iversion_raw(inode);
 	do {
 		/* If flag is already set, then no need to swap */
 		if (cur & I_VERSION_QUERIED) {
-			/*
-			 * This barrier (and the implicit barrier in the
-			 * cmpxchg below) pairs with the barrier in
-			 * inode_maybe_inc_iversion().
-			 */
-			smp_mb();
+			if (!fenced)
+				smp_mb();
 			break;
 		}
 
+		fenced = true;
 		new = cur | I_VERSION_QUERIED;
 	} while (!atomic64_try_cmpxchg(&inode->i_version, &cur, new));
 	return cur >> I_VERSION_QUERIED_SHIFT;
@@ -2030,12 +2124,12 @@ struct timespec64 simple_inode_init_ts(struct inode *inode)
 }
 EXPORT_SYMBOL(simple_inode_init_ts);
 
-static inline struct dentry *get_stashed_dentry(struct dentry *stashed)
+static inline struct dentry *get_stashed_dentry(struct dentry **stashed)
 {
 	struct dentry *dentry;
 
 	guard(rcu)();
-	dentry = READ_ONCE(stashed);
+	dentry = rcu_dereference(*stashed);
 	if (!dentry)
 		return NULL;
 	if (!lockref_get_not_dead(&dentry->d_lockref))
@@ -2132,7 +2226,7 @@ int path_from_stashed(struct dentry **stashed, struct vfsmount *mnt, void *data,
 	const struct stashed_operations *sops = mnt->mnt_sb->s_fs_info;
 
 	/* See if dentry can be reused. */
-	path->dentry = get_stashed_dentry(*stashed);
+	path->dentry = get_stashed_dentry(stashed);
 	if (path->dentry) {
 		sops->put_data(data);
 		goto out_path;

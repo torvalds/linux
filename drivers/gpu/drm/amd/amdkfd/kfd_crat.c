@@ -1434,7 +1434,8 @@ static int kfd_fill_gpu_cache_info_from_gfx_config(struct kfd_dev *kdev,
 		pcache_info[i].flags = (CRAT_CACHE_FLAGS_ENABLED |
 					CRAT_CACHE_FLAGS_DATA_CACHE |
 					CRAT_CACHE_FLAGS_SIMD_CACHE);
-		pcache_info[0].num_cu_shared = adev->gfx.config.gc_num_tcp_per_wpg / 2;
+		pcache_info[i].num_cu_shared = adev->gfx.config.gc_num_tcp_per_wpg / 2;
+		pcache_info[i].cache_line_size = adev->gfx.config.gc_tcp_cache_line_size;
 		i++;
 	}
 	/* Scalar L1 Instruction Cache per SQC */
@@ -1446,6 +1447,7 @@ static int kfd_fill_gpu_cache_info_from_gfx_config(struct kfd_dev *kdev,
 					CRAT_CACHE_FLAGS_INST_CACHE |
 					CRAT_CACHE_FLAGS_SIMD_CACHE);
 		pcache_info[i].num_cu_shared = adev->gfx.config.gc_num_sqc_per_wgp * 2;
+		pcache_info[i].cache_line_size = adev->gfx.config.gc_instruction_cache_line_size;
 		i++;
 	}
 	/* Scalar L1 Data Cache per SQC */
@@ -1456,6 +1458,7 @@ static int kfd_fill_gpu_cache_info_from_gfx_config(struct kfd_dev *kdev,
 					CRAT_CACHE_FLAGS_DATA_CACHE |
 					CRAT_CACHE_FLAGS_SIMD_CACHE);
 		pcache_info[i].num_cu_shared = adev->gfx.config.gc_num_sqc_per_wgp * 2;
+		pcache_info[i].cache_line_size = adev->gfx.config.gc_scalar_data_cache_line_size;
 		i++;
 	}
 	/* GL1 Data Cache per SA */
@@ -1468,6 +1471,7 @@ static int kfd_fill_gpu_cache_info_from_gfx_config(struct kfd_dev *kdev,
 					CRAT_CACHE_FLAGS_DATA_CACHE |
 					CRAT_CACHE_FLAGS_SIMD_CACHE);
 		pcache_info[i].num_cu_shared = adev->gfx.config.max_cu_per_sh;
+		pcache_info[i].cache_line_size = 0;
 		i++;
 	}
 	/* L2 Data Cache per GPU (Total Tex Cache) */
@@ -1478,6 +1482,7 @@ static int kfd_fill_gpu_cache_info_from_gfx_config(struct kfd_dev *kdev,
 					CRAT_CACHE_FLAGS_DATA_CACHE |
 					CRAT_CACHE_FLAGS_SIMD_CACHE);
 		pcache_info[i].num_cu_shared = adev->gfx.config.max_cu_per_sh;
+		pcache_info[i].cache_line_size = adev->gfx.config.gc_tcc_cache_line_size;
 		i++;
 	}
 	/* L3 Data Cache per GPU */
@@ -1488,6 +1493,7 @@ static int kfd_fill_gpu_cache_info_from_gfx_config(struct kfd_dev *kdev,
 					CRAT_CACHE_FLAGS_DATA_CACHE |
 					CRAT_CACHE_FLAGS_SIMD_CACHE);
 		pcache_info[i].num_cu_shared = adev->gfx.config.max_cu_per_sh;
+		pcache_info[i].cache_line_size = 0;
 		i++;
 	}
 	return i;
@@ -1614,6 +1620,7 @@ int kfd_get_gpu_cache_info(struct kfd_node *kdev, struct kfd_gpu_cache_info **pc
 			num_of_cache_types = ARRAY_SIZE(aldebaran_cache_info);
 			break;
 		case IP_VERSION(9, 4, 3):
+		case IP_VERSION(9, 4, 4):
 			num_of_cache_types =
 				kfd_fill_gpu_cache_info_from_gfx_config_v2(kdev->kfd,
 									*pcache_info);
@@ -1677,6 +1684,9 @@ int kfd_get_gpu_cache_info(struct kfd_node *kdev, struct kfd_gpu_cache_info **pc
 		case IP_VERSION(11, 0, 4):
 		case IP_VERSION(11, 5, 0):
 		case IP_VERSION(11, 5, 1):
+		case IP_VERSION(11, 5, 2):
+		case IP_VERSION(12, 0, 0):
+		case IP_VERSION(12, 0, 1):
 			num_of_cache_types =
 				kfd_fill_gpu_cache_info_from_gfx_config(kdev->kfd, *pcache_info);
 			break;
@@ -2210,9 +2220,6 @@ static int kfd_create_vcrat_image_gpu(void *pcrat_image,
 	 * Modify length and total_entries as subunits are added.
 	 */
 	avail_size -= sizeof(struct crat_header);
-	if (avail_size < 0)
-		return -ENOMEM;
-
 	memset(crat_table, 0, sizeof(struct crat_header));
 
 	memcpy(&crat_table->signature, CRAT_SIGNATURE,
@@ -2226,9 +2233,6 @@ static int kfd_create_vcrat_image_gpu(void *pcrat_image,
 	 * First fill in the sub type header and then sub type data
 	 */
 	avail_size -= sizeof(struct crat_subtype_computeunit);
-	if (avail_size < 0)
-		return -ENOMEM;
-
 	sub_type_hdr = (struct crat_subtype_generic *)(crat_table + 1);
 	memset(sub_type_hdr, 0, sizeof(struct crat_subtype_computeunit));
 

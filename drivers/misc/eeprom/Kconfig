@@ -109,6 +109,8 @@ config EEPROM_IDT_89HPESX
 config EEPROM_EE1004
 	tristate "SPD EEPROMs on DDR4 memory modules"
 	depends on I2C && SYSFS
+	select NVMEM
+	select NVMEM_SYSFS
 	help
 	  Enable this driver to get read support to SPD EEPROMs following
 	  the JEDEC EE1004 standard. These are typically found on DDR4

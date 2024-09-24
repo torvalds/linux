@@ -78,6 +78,7 @@ Code  Seq#    Include File                                           Comments
 0x03  all    linux/hdreg.h
 0x04  D2-DC  linux/umsdos_fs.h                                       Dead since 2.6.11, but don't reuse these.
 0x06  all    linux/lp.h
+0x07  9F-D0  linux/vmw_vmci_defs.h, uapi/linux/vm_sockets.h
 0x09  all    linux/raid/md_u.h
 0x10  00-0F  drivers/char/s390/vmcp.h
 0x10  10-1F  arch/s390/include/uapi/sclp_ctl.h
@@ -97,6 +98,8 @@ Code  Seq#    Include File                                           Comments
 '%'   00-0F  include/uapi/linux/stm.h                                System Trace Module subsystem
                                                                      <mailto:alexander.shishkin@linux.intel.com>
 '&'   00-07  drivers/firewire/nosy-user.h
+'*'   00-1F  uapi/linux/user_events.h                                User Events Subsystem
+                                                                     <mailto:linux-trace-kernel@vger.kernel.org>
 '1'   00-1F  linux/timepps.h                                         PPS kit from Ulrich Windl
                                                                      <ftp://ftp.de.kernel.org/pub/linux/daemons/ntp/PPS/>
 '2'   01-04  linux/i2o.h
@@ -186,6 +189,7 @@ Code  Seq#    Include File                                           Comments
 'Q'   all    linux/soundcard.h
 'R'   00-1F  linux/random.h                                          conflict!
 'R'   01     linux/rfkill.h                                          conflict!
+'R'   20-2F  linux/trace_mmap.h
 'R'   C0-DF  net/bluetooth/rfcomm.h
 'R'   E0     uapi/linux/fsl_mc.h
 'S'   all    linux/cdrom.h                                           conflict!
@@ -289,6 +293,7 @@ Code  Seq#    Include File                                           Comments
 't'   80-8F  linux/isdn_ppp.h
 't'   90-91  linux/toshiba.h                                         toshiba and toshiba_acpi SMM
 'u'   00-1F  linux/smb_fs.h                                          gone
+'u'   00-2F  linux/ublk_cmd.h                                        conflict!
 'u'   20-3F  linux/uvcvideo.h                                        USB video class host driver
 'u'   40-4f  linux/udmabuf.h                                         userspace dma-buf misc device
 'v'   00-1F  linux/ext2_fs.h                                         conflict!
@@ -362,6 +367,7 @@ Code  Seq#    Include File                                           Comments
 0xB6  all    linux/fpga-dfl.h
 0xB7  all    uapi/linux/remoteproc_cdev.h                            <mailto:linux-remoteproc@vger.kernel.org>
 0xB7  all    uapi/linux/nsfs.h                                       <mailto:Andrei Vagin <avagin@openvz.org>>
+0xB8  01-02  uapi/misc/mrvl_cn10k_dpi.h                              Marvell CN10K DPI driver
 0xC0  00-0F  linux/usb/iowarrior.h
 0xCA  00-0F  uapi/misc/cxl.h
 0xCA  10-2F  uapi/misc/ocxl.h

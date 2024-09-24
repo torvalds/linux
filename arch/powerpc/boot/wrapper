@@ -337,7 +337,7 @@ ps3)
     make_space=n
     pie=
     ;;
-ep88xc|ep405|ep8248e)
+ep88xc|ep8248e)
     platformo="$object/fixed-head.o $object/$platform.o"
     binary=y
     ;;
@@ -463,26 +463,6 @@ uboot)
     rm -f "$ofile"
     ${MKIMAGE} -A ppc -O linux -T kernel -C $uboot_comp -a $membase -e $membase \
 	$uboot_version -d "$vmz" "$ofile"
-    if [ -z "$cacheit" ]; then
-	rm -f "$vmz"
-    fi
-    exit 0
-    ;;
-uboot-obs600)
-    rm -f "$ofile"
-    # obs600 wants a multi image with an initrd, so we need to put a fake
-    # one in even when building a "normal" image.
-    if [ -n "$initrd" ]; then
-	real_rd="$initrd"
-    else
-	real_rd=`mktemp`
-	echo "\0" >>"$real_rd"
-    fi
-    ${MKIMAGE} -A ppc -O linux -T multi -C gzip -a $membase -e $membase \
-	$uboot_version -d "$vmz":"$real_rd":"$dtb" "$ofile"
-    if [ -z "$initrd" ]; then
-	rm -f "$real_rd"
-    fi
     if [ -z "$cacheit" ]; then
 	rm -f "$vmz"
     fi

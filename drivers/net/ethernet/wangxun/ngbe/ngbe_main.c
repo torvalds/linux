@@ -387,6 +387,7 @@ err_dis_phy:
 err_free_irq:
 	wx_free_irq(wx);
 err_free_resources:
+	wx_free_isb_resources(wx);
 	wx_free_resources(wx);
 	return err;
 }
@@ -408,6 +409,7 @@ static int ngbe_close(struct net_device *netdev)
 
 	ngbe_down(wx);
 	wx_free_irq(wx);
+	wx_free_isb_resources(wx);
 	wx_free_resources(wx);
 	phylink_disconnect_phy(wx->phylink);
 	wx_control_hw(wx, false);
@@ -650,7 +652,7 @@ static int ngbe_probe(struct pci_dev *pdev,
 	if (wx->wol_hw_supported)
 		wx->wol = NGBE_PSR_WKUP_CTL_MAG;
 
-	netdev->wol_enabled = !!(wx->wol);
+	netdev->ethtool->wol_enabled = !!(wx->wol);
 	wr32(wx, NGBE_PSR_WKUP_CTL, wx->wol);
 	device_set_wakeup_enable(&pdev->dev, wx->wol);
 

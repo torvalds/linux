@@ -320,7 +320,7 @@ static int powermate_probe(struct usb_interface *intf, const struct usb_device_i
 		0, interface->desc.bInterfaceNumber, NULL, 0,
 		USB_CTRL_SET_TIMEOUT);
 
-	pm = kzalloc(sizeof(struct powermate_device), GFP_KERNEL);
+	pm = kzalloc(sizeof(*pm), GFP_KERNEL);
 	input_dev = input_allocate_device();
 	if (!pm || !input_dev)
 		goto fail1;

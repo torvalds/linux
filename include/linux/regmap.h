@@ -1237,6 +1237,8 @@ int regmap_noinc_read(struct regmap *map, unsigned int reg,
 		      void *val, size_t val_len);
 int regmap_bulk_read(struct regmap *map, unsigned int reg, void *val,
 		     size_t val_count);
+int regmap_multi_reg_read(struct regmap *map, unsigned int *reg, void *val,
+			  size_t val_count);
 int regmap_update_bits_base(struct regmap *map, unsigned int reg,
 			    unsigned int mask, unsigned int val,
 			    bool *change, bool async, bool force);
@@ -1519,6 +1521,9 @@ struct regmap_irq_chip_data;
  * struct regmap_irq_chip - Description of a generic regmap irq_chip.
  *
  * @name:        Descriptive name for IRQ controller.
+ * @domain_suffix: Name suffix to be appended to end of IRQ domain name. Needed
+ *		   when multiple regmap-IRQ controllers are created from same
+ *		   device.
  *
  * @main_status: Base main status register address. For chips which have
  *		 interrupts arranged in separate sub-irq blocks with own IRQ
@@ -1604,10 +1609,11 @@ struct regmap_irq_chip_data;
  */
 struct regmap_irq_chip {
 	const char *name;
+	const char *domain_suffix;
 
 	unsigned int main_status;
 	unsigned int num_main_status_bits;
-	struct regmap_irq_sub_irq_map *sub_reg_offsets;
+	const struct regmap_irq_sub_irq_map *sub_reg_offsets;
 	int num_main_regs;
 
 	unsigned int status_base;

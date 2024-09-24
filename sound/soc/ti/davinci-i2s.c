@@ -920,7 +920,7 @@ MODULE_DEVICE_TABLE(of, davinci_i2s_match);
 
 static struct platform_driver davinci_mcbsp_driver = {
 	.probe		= davinci_i2s_probe,
-	.remove_new	= davinci_i2s_remove,
+	.remove		= davinci_i2s_remove,
 	.driver		= {
 		.name	= "davinci-mcbsp",
 		.of_match_table = of_match_ptr(davinci_i2s_match),

@@ -47,7 +47,7 @@ static int of_pmem_region_probe(struct platform_device *pdev)
 	}
 	platform_set_drvdata(pdev, priv);
 
-	is_volatile = !!of_find_property(np, "volatile", NULL);
+	is_volatile = of_property_read_bool(np, "volatile");
 	dev_dbg(&pdev->dev, "Registering %s regions from %pOF\n",
 			is_volatile ? "volatile" : "non-volatile",  np);
 
@@ -84,14 +84,12 @@ static int of_pmem_region_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int of_pmem_region_remove(struct platform_device *pdev)
+static void of_pmem_region_remove(struct platform_device *pdev)
 {
 	struct of_pmem_private *priv = platform_get_drvdata(pdev);
 
 	nvdimm_bus_unregister(priv->bus);
 	kfree(priv);
-
-	return 0;
 }
 
 static const struct of_device_id of_pmem_region_match[] = {
@@ -102,7 +100,7 @@ static const struct of_device_id of_pmem_region_match[] = {
 
 static struct platform_driver of_pmem_region_driver = {
 	.probe = of_pmem_region_probe,
-	.remove = of_pmem_region_remove,
+	.remove_new = of_pmem_region_remove,
 	.driver = {
 		.name = "of_pmem",
 		.of_match_table = of_pmem_region_match,
@@ -111,5 +109,6 @@ static struct platform_driver of_pmem_region_driver = {
 
 module_platform_driver(of_pmem_region_driver);
 MODULE_DEVICE_TABLE(of, of_pmem_region_match);
+MODULE_DESCRIPTION("NVDIMM Device Tree support");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("IBM Corporation");

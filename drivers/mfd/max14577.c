@@ -143,6 +143,7 @@ static const struct of_device_id max14577_dt_match[] = {
 	},
 	{},
 };
+MODULE_DEVICE_TABLE(of, max14577_dt_match);
 
 static bool max14577_muic_volatile_reg(struct device *dev, unsigned int reg)
 {
@@ -397,7 +398,7 @@ static int max14577_i2c_probe(struct i2c_client *i2c)
 		return ret;
 	}
 
-	max14577->dev_type = (enum maxim_device_type)i2c_get_match_data(i2c);
+	max14577->dev_type = (kernel_ulong_t)i2c_get_match_data(i2c);
 
 	max14577_print_dev_type(max14577);
 

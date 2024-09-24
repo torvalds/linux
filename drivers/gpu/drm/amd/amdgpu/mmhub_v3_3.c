@@ -33,6 +33,10 @@
 #define regMMVM_L2_CNTL3_DEFAULT				0x80100007
 #define regMMVM_L2_CNTL4_DEFAULT				0x000000c1
 #define regMMVM_L2_CNTL5_DEFAULT				0x00003fe0
+#define regDAGB0_L1TLB_REG_RW_3_3                   0x00a4
+#define regDAGB0_L1TLB_REG_RW_3_3_BASE_IDX          1
+#define regDAGB1_L1TLB_REG_RW_3_3                   0x0163
+#define regDAGB1_L1TLB_REG_RW_3_3_BASE_IDX          1
 
 static const char *mmhub_client_ids_v3_3[][2] = {
 	[0][0] = "VMC",
@@ -359,6 +363,49 @@ static void mmhub_v3_3_program_invalidation(struct amdgpu_device *adev)
 	}
 }
 
+static void mmhub_v3_3_init_saw_regs(struct amdgpu_device *adev)
+{
+	uint64_t pt_base = amdgpu_gmc_pd_addr(adev->gart.bo);
+	uint32_t tmp;
+
+	/* Program page table base, gart start, gart end */
+	WREG32_SOC15(MMHUB, 0, regMMVM_L2_SAW_CONTEXT0_PAGE_TABLE_BASE_ADDR_LO32,
+			lower_32_bits(pt_base >> 12));
+	WREG32_SOC15(MMHUB, 0, regMMVM_L2_SAW_CONTEXT0_PAGE_TABLE_BASE_ADDR_HI32,
+			upper_32_bits(pt_base >> 12));
+
+	WREG32_SOC15(MMHUB, 0, regMMVM_L2_SAW_CONTEXT0_PAGE_TABLE_START_ADDR_LO32,
+		     (u32)(adev->gmc.gart_start >> 12));
+	WREG32_SOC15(MMHUB, 0, regMMVM_L2_SAW_CONTEXT0_PAGE_TABLE_START_ADDR_HI32,
+		     (u32)(adev->gmc.gart_start >> 44));
+
+	WREG32_SOC15(MMHUB, 0, regMMVM_L2_SAW_CONTEXT0_PAGE_TABLE_END_ADDR_LO32,
+		     (u32)(adev->gmc.gart_end >> 12));
+	WREG32_SOC15(MMHUB, 0, regMMVM_L2_SAW_CONTEXT0_PAGE_TABLE_END_ADDR_HI32,
+		     (u32)(adev->gmc.gart_end >> 44));
+
+	tmp = RREG32_SOC15(MMHUB, 0, regMMVM_L2_SAW_CONTEXT0_CNTL);
+	tmp = REG_SET_FIELD(tmp, MMVM_L2_SAW_CONTEXT0_CNTL, ENABLE_CONTEXT, 1);
+	tmp = REG_SET_FIELD(tmp, MMVM_L2_SAW_CONTEXT0_CNTL, PAGE_TABLE_DEPTH, 0);
+	WREG32_SOC15(MMHUB, 0, regMMVM_L2_SAW_CONTEXT0_CNTL, tmp);
+
+	/* Disable all contexts except context 0 */
+	tmp = 0xfffe;
+	WREG32_SOC15(MMHUB, 0, regMMVM_L2_SAW_CONTEXTS_DISABLE, tmp);
+
+	/* Program saw cntl4 */
+	tmp = RREG32_SOC15(MMHUB, 0, regMMVM_L2_SAW_CNTL4);
+	tmp = REG_SET_FIELD(tmp, MMVM_L2_SAW_CNTL4, VMC_TAP_CONTEXT0_PDE_REQUEST_SNOOP, 1);
+	tmp = REG_SET_FIELD(tmp, MMVM_L2_SAW_CNTL4, VMC_TAP_CONTEXT0_PTE_REQUEST_SNOOP, 1);
+	WREG32_SOC15(MMHUB, 0, regMMVM_L2_SAW_CNTL4, tmp);
+}
+
+static void mmhub_v3_3_enable_tls(struct amdgpu_device *adev)
+{
+	WREG32_SOC15(MMHUB, 0, regDAGB0_L1TLB_REG_RW_3_3, 0);
+	WREG32_SOC15(MMHUB, 0, regDAGB1_L1TLB_REG_RW_3_3, 3);
+}
+
 static int mmhub_v3_3_gart_enable(struct amdgpu_device *adev)
 {
 	/* GART Enable. */
@@ -371,6 +418,12 @@ static int mmhub_v3_3_gart_enable(struct amdgpu_device *adev)
 	mmhub_v3_3_disable_identity_aperture(adev);
 	mmhub_v3_3_setup_vmid_config(adev);
 	mmhub_v3_3_program_invalidation(adev);
+
+	/* standalone alone walker init */
+	mmhub_v3_3_init_saw_regs(adev);
+
+	/* enable mmhub tls */
+	mmhub_v3_3_enable_tls(adev);
 
 	return 0;
 }
@@ -560,7 +613,7 @@ static int mmhub_v3_3_set_clockgating(struct amdgpu_device *adev,
 
 static void mmhub_v3_3_get_clockgating(struct amdgpu_device *adev, u64 *flags)
 {
-	int data;
+	u32 data;
 
 	if (amdgpu_sriov_vf(adev))
 		*flags = 0;

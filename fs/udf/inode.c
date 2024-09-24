@@ -246,14 +246,14 @@ static void udf_readahead(struct readahead_control *rac)
 
 static int udf_write_begin(struct file *file, struct address_space *mapping,
 			   loff_t pos, unsigned len,
-			   struct page **pagep, void **fsdata)
+			   struct folio **foliop, void **fsdata)
 {
 	struct udf_inode_info *iinfo = UDF_I(file_inode(file));
 	struct folio *folio;
 	int ret;
 
 	if (iinfo->i_alloc_type != ICBTAG_FLAG_AD_IN_ICB) {
-		ret = block_write_begin(mapping, pos, len, pagep,
+		ret = block_write_begin(mapping, pos, len, foliop,
 					udf_get_block);
 		if (unlikely(ret))
 			udf_write_failed(mapping, pos + len);
@@ -265,7 +265,7 @@ static int udf_write_begin(struct file *file, struct address_space *mapping,
 			mapping_gfp_mask(mapping));
 	if (IS_ERR(folio))
 		return PTR_ERR(folio);
-	*pagep = &folio->page;
+	*foliop = folio;
 	if (!folio_test_uptodate(folio))
 		udf_adinicb_read_folio(folio);
 	return 0;
@@ -273,16 +273,14 @@ static int udf_write_begin(struct file *file, struct address_space *mapping,
 
 static int udf_write_end(struct file *file, struct address_space *mapping,
 			 loff_t pos, unsigned len, unsigned copied,
-			 struct page *page, void *fsdata)
+			 struct folio *folio, void *fsdata)
 {
 	struct inode *inode = file_inode(file);
-	struct folio *folio;
 	loff_t last_pos;
 
 	if (UDF_I(inode)->i_alloc_type != ICBTAG_FLAG_AD_IN_ICB)
-		return generic_write_end(file, mapping, pos, len, copied, page,
+		return generic_write_end(file, mapping, pos, len, copied, folio,
 					 fsdata);
-	folio = page_folio(page);
 	last_pos = pos + copied;
 	if (last_pos > inode->i_size)
 		i_size_write(inode, last_pos);
@@ -1247,10 +1245,7 @@ int udf_setsize(struct inode *inode, loff_t newsize)
 	if (!(S_ISREG(inode->i_mode) || S_ISDIR(inode->i_mode) ||
 	      S_ISLNK(inode->i_mode)))
 		return -EINVAL;
-	if (IS_APPEND(inode) || IS_IMMUTABLE(inode))
-		return -EPERM;
 
-	filemap_invalidate_lock(inode->i_mapping);
 	iinfo = UDF_I(inode);
 	if (newsize > inode->i_size) {
 		if (iinfo->i_alloc_type == ICBTAG_FLAG_AD_IN_ICB) {
@@ -1263,11 +1258,11 @@ int udf_setsize(struct inode *inode, loff_t newsize)
 			}
 			err = udf_expand_file_adinicb(inode);
 			if (err)
-				goto out_unlock;
+				return err;
 		}
 		err = udf_extend_file(inode, newsize);
 		if (err)
-			goto out_unlock;
+			return err;
 set_size:
 		truncate_setsize(inode, newsize);
 	} else {
@@ -1285,14 +1280,14 @@ set_size:
 		err = block_truncate_page(inode->i_mapping, newsize,
 					  udf_get_block);
 		if (err)
-			goto out_unlock;
+			return err;
 		truncate_setsize(inode, newsize);
 		down_write(&iinfo->i_data_sem);
 		udf_clear_extent_cache(inode);
 		err = udf_truncate_extents(inode);
 		up_write(&iinfo->i_data_sem);
 		if (err)
-			goto out_unlock;
+			return err;
 	}
 update_time:
 	inode_set_mtime_to_ts(inode, inode_set_ctime_current(inode));
@@ -1300,8 +1295,6 @@ update_time:
 		udf_sync_inode(inode);
 	else
 		mark_inode_dirty(inode);
-out_unlock:
-	filemap_invalidate_unlock(inode->i_mapping);
 	return err;
 }
 

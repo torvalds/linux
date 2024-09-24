@@ -47,8 +47,6 @@ static inline void pgtable_free(void *table, unsigned index_size)
 	}
 }
 
-#define get_hugepd_cache_index(x)  (x)
-
 static inline void pgtable_free_tlb(struct mmu_gather *tlb,
 				    void *table, int shift)
 {

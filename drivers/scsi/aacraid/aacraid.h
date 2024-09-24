@@ -322,7 +322,7 @@ struct aac_ciss_phys_luns_resp {
 		u8	level3[2];
 		u8	level2[2];
 		u8	node_ident[16];	/* phys. node identifier */
-	} lun[1];			/* List of phys. devices */
+	} lun[];			/* List of phys. devices */
 };
 
 /*
@@ -507,32 +507,27 @@ struct sge_ieee1212 {
 
 struct sgmap {
 	__le32		count;
-	struct sgentry	sg[1];
+	struct sgentry	sg[];
 };
 
 struct user_sgmap {
 	u32		count;
-	struct user_sgentry	sg[1];
+	struct user_sgentry	sg[];
 };
 
 struct sgmap64 {
 	__le32		count;
-	struct sgentry64 sg[1];
+	struct sgentry64 sg[];
 };
 
 struct user_sgmap64 {
 	u32		count;
-	struct user_sgentry64 sg[1];
+	struct user_sgentry64 sg[];
 };
 
 struct sgmapraw {
 	__le32		  count;
-	struct sgentryraw sg[1];
-};
-
-struct user_sgmapraw {
-	u32		  count;
-	struct user_sgentryraw sg[1];
+	struct sgentryraw sg[];
 };
 
 struct creation_info
@@ -873,7 +868,7 @@ union aac_init
 			__le16	element_count;
 			__le16	comp_thresh;
 			__le16	unused;
-		} rrq[1];		/* up to 64 RRQ addresses */
+		} rrq[] __counted_by_le(rr_queue_count); /* up to 64 RRQ addresses */
 	} r8;
 };
 
@@ -2029,8 +2024,8 @@ struct aac_srb_reply
 };
 
 struct aac_srb_unit {
-	struct aac_srb		srb;
 	struct aac_srb_reply	srb_reply;
+	struct aac_srb		srb;
 };
 
 /*

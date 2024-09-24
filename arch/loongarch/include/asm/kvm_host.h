@@ -26,15 +26,19 @@
 
 #define KVM_MAX_VCPUS			256
 #define KVM_MAX_CPUCFG_REGS		21
-/* memory slots that does not exposed to userspace */
-#define KVM_PRIVATE_MEM_SLOTS		0
 
 #define KVM_HALT_POLL_NS_DEFAULT	500000
+#define KVM_REQ_TLB_FLUSH_GPA		KVM_ARCH_REQ(0)
+#define KVM_REQ_STEAL_UPDATE		KVM_ARCH_REQ(1)
+#define KVM_REQ_PMU			KVM_ARCH_REQ(2)
 
 #define KVM_GUESTDBG_SW_BP_MASK		\
 	(KVM_GUESTDBG_ENABLE | KVM_GUESTDBG_USE_SW_BP)
 #define KVM_GUESTDBG_VALID_MASK		\
 	(KVM_GUESTDBG_ENABLE | KVM_GUESTDBG_USE_SW_BP | KVM_GUESTDBG_SINGLESTEP)
+
+#define KVM_DIRTY_LOG_MANUAL_CAPS	\
+	(KVM_DIRTY_LOG_MANUAL_PROTECT_ENABLE | KVM_DIRTY_LOG_INITIALLY_SET)
 
 struct kvm_vm_stat {
 	struct kvm_vm_stat_generic generic;
@@ -57,9 +61,13 @@ struct kvm_arch_memory_slot {
 	unsigned long flags;
 };
 
+#define HOST_MAX_PMNUM			16
 struct kvm_context {
 	unsigned long vpid_cache;
 	struct kvm_vcpu *last_vcpu;
+	/* Host PMU CSR */
+	u64 perf_ctrl[HOST_MAX_PMNUM];
+	u64 perf_cntr[HOST_MAX_PMNUM];
 };
 
 struct kvm_world_switch {
@@ -104,6 +112,8 @@ struct kvm_arch {
 	unsigned int  root_level;
 	spinlock_t    phyid_map_lock;
 	struct kvm_phyid_map  *phyid_map;
+	/* Enabled PV features */
+	unsigned long pv_features;
 
 	s64 time_offset;
 	struct kvm_context __percpu *vmcs;
@@ -130,8 +140,15 @@ enum emulation_result {
 #define KVM_LARCH_FPU		(0x1 << 0)
 #define KVM_LARCH_LSX		(0x1 << 1)
 #define KVM_LARCH_LASX		(0x1 << 2)
-#define KVM_LARCH_SWCSR_LATEST	(0x1 << 3)
-#define KVM_LARCH_HWCSR_USABLE	(0x1 << 4)
+#define KVM_LARCH_LBT		(0x1 << 3)
+#define KVM_LARCH_PMU		(0x1 << 4)
+#define KVM_LARCH_SWCSR_LATEST	(0x1 << 5)
+#define KVM_LARCH_HWCSR_USABLE	(0x1 << 6)
+
+#define LOONGARCH_PV_FEAT_UPDATED	BIT_ULL(63)
+#define LOONGARCH_PV_FEAT_MASK		(BIT(KVM_FEATURE_IPI) |		\
+					 BIT(KVM_FEATURE_STEAL_TIME) |	\
+					 BIT(KVM_FEATURE_VIRT_EXTIOI))
 
 struct kvm_vcpu_arch {
 	/*
@@ -165,9 +182,13 @@ struct kvm_vcpu_arch {
 
 	/* FPU state */
 	struct loongarch_fpu fpu FPU_ALIGN;
+	struct loongarch_lbt lbt;
 
 	/* CSR state */
 	struct loongarch_csrs *csr;
+
+	/* Guest max PMU CSR id */
+	int max_pmu_csrid;
 
 	/* GPR used as IO source/target */
 	u32 io_gpr;
@@ -190,6 +211,7 @@ struct kvm_vcpu_arch {
 
 	/* vcpu's vpid */
 	u64 vpid;
+	gpa_t flush_gpa;
 
 	/* Frequency of stable timer in Hz */
 	u64 timer_mhz;
@@ -201,6 +223,13 @@ struct kvm_vcpu_arch {
 	struct kvm_mp_state mp_state;
 	/* cpucfg */
 	u32 cpucfg[KVM_MAX_CPUCFG_REGS];
+
+	/* paravirt steal time */
+	struct {
+		u64 guest_addr;
+		u64 last_steal;
+		struct gfn_to_hva_cache cache;
+	} st;
 };
 
 static inline unsigned long readl_sw_gcsr(struct loongarch_csrs *csr, int reg)
@@ -226,6 +255,21 @@ static inline bool kvm_guest_has_lsx(struct kvm_vcpu_arch *arch)
 static inline bool kvm_guest_has_lasx(struct kvm_vcpu_arch *arch)
 {
 	return arch->cpucfg[2] & CPUCFG2_LASX;
+}
+
+static inline bool kvm_guest_has_lbt(struct kvm_vcpu_arch *arch)
+{
+	return arch->cpucfg[2] & (CPUCFG2_X86BT | CPUCFG2_ARMBT | CPUCFG2_MIPSBT);
+}
+
+static inline bool kvm_guest_has_pmu(struct kvm_vcpu_arch *arch)
+{
+	return arch->cpucfg[6] & CPUCFG6_PMP;
+}
+
+static inline int kvm_get_pmu_num(struct kvm_vcpu_arch *arch)
+{
+	return (arch->cpucfg[6] & CPUCFG6_PMNUM) >> CPUCFG6_PMNUM_SHIFT;
 }
 
 /* Debug: dump vcpu state */
@@ -261,7 +305,6 @@ static inline bool kvm_is_ifetch_fault(struct kvm_vcpu_arch *arch)
 static inline void kvm_arch_hardware_unsetup(void) {}
 static inline void kvm_arch_sync_events(struct kvm *kvm) {}
 static inline void kvm_arch_memslots_updated(struct kvm *kvm, u64 gen) {}
-static inline void kvm_arch_sched_in(struct kvm_vcpu *vcpu, int cpu) {}
 static inline void kvm_arch_vcpu_blocking(struct kvm_vcpu *vcpu) {}
 static inline void kvm_arch_vcpu_unblocking(struct kvm_vcpu *vcpu) {}
 static inline void kvm_arch_vcpu_block_finish(struct kvm_vcpu *vcpu) {}

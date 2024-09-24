@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # perf annotate basic tests
 # SPDX-License-Identifier: GPL-2.0
 
@@ -15,18 +15,20 @@ skip_test_missing_symbol ${testsym}
 
 err=0
 perfdata=$(mktemp /tmp/__perf_test.perf.data.XXXXX)
+perfout=$(mktemp /tmp/__perf_test.perf.out.XXXXX)
 testprog="perf test -w noploop"
 # disassembly format: "percent : offset: instruction (operands ...)"
 disasm_regex="[0-9]*\.[0-9]* *: *\w*: *\w*"
 
 cleanup() {
-  rm -rf "${perfdata}"
+  rm -rf "${perfdata}" "${perfout}"
   rm -rf "${perfdata}".old
 
   trap - EXIT TERM INT
 }
 
 trap_cleanup() {
+  echo "Unexpected signal in ${FUNCNAME[1]}"
   cleanup
   exit 1
 }
@@ -41,8 +43,11 @@ test_basic() {
     return
   fi
 
+  # Generate the annotated output file
+  perf annotate -i "${perfdata}" --stdio 2> /dev/null > "${perfout}"
+
   # check if it has the target symbol
-  if ! perf annotate -i "${perfdata}" 2> /dev/null | grep "${testsym}"
+  if ! grep "${testsym}" "${perfout}"
   then
     echo "Basic annotate [Failed: missing target symbol]"
     err=1
@@ -50,7 +55,7 @@ test_basic() {
   fi
 
   # check if it has the disassembly lines
-  if ! perf annotate -i "${perfdata}" 2> /dev/null | grep "${disasm_regex}"
+  if ! grep "${disasm_regex}" "${perfout}"
   then
     echo "Basic annotate [Failed: missing disasm output from default disassembler]"
     err=1

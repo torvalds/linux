@@ -17,6 +17,7 @@
 #include <linux/fault-inject.h>
 #include <linux/hrtimer.h>
 #include <linux/interrupt.h>
+#include <linux/workqueue.h>
 
 enum dw_mci_state {
 	STATE_IDLE = 0,
@@ -89,12 +90,12 @@ struct dw_mci_dma_slave {
  * @stop_cmdr: Value to be loaded into CMDR when the stop command is
  *	to be sent.
  * @dir_status: Direction of current transfer.
- * @tasklet: Tasklet running the request state machine.
+ * @bh_work: Work running the request state machine.
  * @pending_events: Bitmask of events flagged by the interrupt handler
- *	to be processed by the tasklet.
+ *	to be processed by bh work.
  * @completed_events: Bitmask of events which the state machine has
  *	processed.
- * @state: Tasklet state.
+ * @state: BH work state.
  * @queue: List of slots waiting for access to the controller.
  * @bus_hz: The rate of @mck in Hz. This forms the basis for MMC bus
  *	rate and timeout calculations.
@@ -194,7 +195,7 @@ struct dw_mci {
 	u32			data_status;
 	u32			stop_cmdr;
 	u32			dir_status;
-	struct tasklet_struct	tasklet;
+	struct work_struct	bh_work;
 	unsigned long		pending_events;
 	unsigned long		completed_events;
 	enum dw_mci_state	state;
@@ -565,6 +566,7 @@ struct dw_mci_slot {
  * @execute_tuning: implementation specific tuning procedure.
  * @set_data_timeout: implementation specific timeout.
  * @get_drto_clks: implementation specific cycle count for data read timeout.
+ * @hw_reset: implementation specific HW reset.
  *
  * Provide controller implementation specific extensions. The usage of this
  * data structure is fully optional and usage of each member in this structure
@@ -585,5 +587,6 @@ struct dw_mci_drv_data {
 	void		(*set_data_timeout)(struct dw_mci *host,
 					  unsigned int timeout_ns);
 	u32		(*get_drto_clks)(struct dw_mci *host);
+	void		(*hw_reset)(struct dw_mci *host);
 };
 #endif /* _DW_MMC_H_ */

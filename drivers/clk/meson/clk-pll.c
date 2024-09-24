@@ -289,25 +289,6 @@ static int meson_clk_pll_wait_lock(struct clk_hw *hw)
 	return -ETIMEDOUT;
 }
 
-static int meson_clk_pll_init(struct clk_hw *hw)
-{
-	struct clk_regmap *clk = to_clk_regmap(hw);
-	struct meson_clk_pll_data *pll = meson_clk_pll_data(clk);
-
-	if (pll->init_count) {
-		if (MESON_PARM_APPLICABLE(&pll->rst))
-			meson_parm_write(clk->map, &pll->rst, 1);
-
-		regmap_multi_reg_write(clk->map, pll->init_regs,
-				       pll->init_count);
-
-		if (MESON_PARM_APPLICABLE(&pll->rst))
-			meson_parm_write(clk->map, &pll->rst, 0);
-	}
-
-	return 0;
-}
-
 static int meson_clk_pll_is_enabled(struct clk_hw *hw)
 {
 	struct clk_regmap *clk = to_clk_regmap(hw);
@@ -322,6 +303,33 @@ static int meson_clk_pll_is_enabled(struct clk_hw *hw)
 		return 0;
 
 	return 1;
+}
+
+static int meson_clk_pll_init(struct clk_hw *hw)
+{
+	struct clk_regmap *clk = to_clk_regmap(hw);
+	struct meson_clk_pll_data *pll = meson_clk_pll_data(clk);
+
+	/*
+	 * Keep the clock running, which was already initialized and enabled
+	 * from the bootloader stage, to avoid any glitches.
+	 */
+	if ((pll->flags & CLK_MESON_PLL_NOINIT_ENABLED) &&
+	    meson_clk_pll_is_enabled(hw))
+		return 0;
+
+	if (pll->init_count) {
+		if (MESON_PARM_APPLICABLE(&pll->rst))
+			meson_parm_write(clk->map, &pll->rst, 1);
+
+		regmap_multi_reg_write(clk->map, pll->init_regs,
+				       pll->init_count);
+
+		if (MESON_PARM_APPLICABLE(&pll->rst))
+			meson_parm_write(clk->map, &pll->rst, 0);
+	}
+
+	return 0;
 }
 
 static int meson_clk_pcie_pll_enable(struct clk_hw *hw)
@@ -464,7 +472,7 @@ const struct clk_ops meson_clk_pcie_pll_ops = {
 	.enable		= meson_clk_pcie_pll_enable,
 	.disable	= meson_clk_pll_disable
 };
-EXPORT_SYMBOL_GPL(meson_clk_pcie_pll_ops);
+EXPORT_SYMBOL_NS_GPL(meson_clk_pcie_pll_ops, CLK_MESON);
 
 const struct clk_ops meson_clk_pll_ops = {
 	.init		= meson_clk_pll_init,
@@ -475,15 +483,16 @@ const struct clk_ops meson_clk_pll_ops = {
 	.enable		= meson_clk_pll_enable,
 	.disable	= meson_clk_pll_disable
 };
-EXPORT_SYMBOL_GPL(meson_clk_pll_ops);
+EXPORT_SYMBOL_NS_GPL(meson_clk_pll_ops, CLK_MESON);
 
 const struct clk_ops meson_clk_pll_ro_ops = {
 	.recalc_rate	= meson_clk_pll_recalc_rate,
 	.is_enabled	= meson_clk_pll_is_enabled,
 };
-EXPORT_SYMBOL_GPL(meson_clk_pll_ro_ops);
+EXPORT_SYMBOL_NS_GPL(meson_clk_pll_ro_ops, CLK_MESON);
 
 MODULE_DESCRIPTION("Amlogic PLL driver");
 MODULE_AUTHOR("Carlo Caione <carlo@endlessm.com>");
 MODULE_AUTHOR("Jerome Brunet <jbrunet@baylibre.com>");
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS(CLK_MESON);

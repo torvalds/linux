@@ -179,7 +179,7 @@ ssize_t bch2_read_iter(struct kiocb *iocb, struct iov_iter *iter)
 	struct bch_inode_info *inode = file_bch_inode(file);
 	struct address_space *mapping = file->f_mapping;
 	size_t count = iov_iter_count(iter);
-	ssize_t ret;
+	ssize_t ret = 0;
 
 	if (!count)
 		return 0; /* skip atime */
@@ -205,7 +205,7 @@ ssize_t bch2_read_iter(struct kiocb *iocb, struct iov_iter *iter)
 			iocb->ki_pos += ret;
 	} else {
 		bch2_pagecache_add_get(inode);
-		ret = generic_file_read_iter(iocb, iter);
+		ret = filemap_read(iocb, iter, ret);
 		bch2_pagecache_add_put(inode);
 	}
 out:
@@ -500,7 +500,7 @@ static __always_inline long bch2_dio_write_loop(struct dio_write *dio)
 		dio->op.target		= dio->op.opts.foreground_target;
 		dio->op.write_point	= writepoint_hashed((unsigned long) current);
 		dio->op.nr_replicas	= dio->op.opts.data_replicas;
-		dio->op.subvol		= inode->ei_subvol;
+		dio->op.subvol		= inode->ei_inum.subvol;
 		dio->op.pos		= POS(inode->v.i_ino, (u64) req->ki_pos >> 9);
 		dio->op.devs_need_flush	= &inode->ei_devs_need_flush;
 

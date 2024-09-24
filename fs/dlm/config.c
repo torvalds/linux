@@ -672,7 +672,7 @@ static ssize_t comm_addr_store(struct config_item *item, const char *buf,
 
 	memcpy(addr, buf, len);
 
-	rv = dlm_midcomms_addr(cm->nodeid, addr, len);
+	rv = dlm_midcomms_addr(cm->nodeid, addr);
 	if (rv) {
 		kfree(addr);
 		return rv;
@@ -928,7 +928,7 @@ int dlm_comm_seq(int nodeid, uint32_t *seq)
 
 int dlm_our_nodeid(void)
 {
-	return local_comm ? local_comm->nodeid : 0;
+	return local_comm->nodeid;
 }
 
 /* num 0 is first addr, num 1 is second addr */

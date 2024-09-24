@@ -945,7 +945,7 @@ struct scmi_device {
 	struct scmi_handle *handle;
 };
 
-#define to_scmi_dev(d) container_of(d, struct scmi_device, dev)
+#define to_scmi_dev(d) container_of_const(d, struct scmi_device, dev)
 
 struct scmi_device_id {
 	u8 protocol_id;

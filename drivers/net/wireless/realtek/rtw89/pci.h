@@ -724,6 +724,11 @@
 #define B_AX_CH11_BUSY			BIT(1)
 #define B_AX_CH10_BUSY			BIT(0)
 
+#define R_AX_WP_ADDR_H_SEL0_3 0x1334
+#define R_AX_WP_ADDR_H_SEL4_7 0x1338
+#define R_AX_WP_ADDR_H_SEL8_11 0x133C
+#define R_AX_WP_ADDR_H_SEL12_15 0x1340
+
 #define R_BE_HAXI_DMA_STOP1 0xB010
 #define B_BE_STOP_WPDMA BIT(31)
 #define B_BE_STOP_CH14 BIT(14)
@@ -822,6 +827,11 @@
 #define R_BE_RXQ0_RXBD_DESA_H_V1 0xB304
 #define R_BE_RPQ0_RXBD_DESA_L_V1 0xB308
 #define R_BE_RPQ0_RXBD_DESA_H_V1 0xB30C
+
+#define R_BE_WP_ADDR_H_SEL0_3_V1 0xB420
+#define R_BE_WP_ADDR_H_SEL4_7_V1 0xB424
+#define R_BE_WP_ADDR_H_SEL8_11_V1 0xB428
+#define R_BE_WP_ADDR_H_SEL12_15_V1 0xB42C
 
 /* Configure */
 #define R_AX_PCIE_INIT_CFG2		0x1004
@@ -1055,6 +1065,7 @@
 #define RTW89_PCIE_TIMER_CTRL		0x0718
 #define RTW89_PCIE_BIT_L1SUB		BIT(5)
 #define RTW89_PCIE_L1_CTRL		0x0719
+#define RTW89_PCIE_BIT_EN_64BITS	BIT(5)
 #define RTW89_PCIE_BIT_CLK		BIT(4)
 #define RTW89_PCIE_BIT_L1		BIT(3)
 #define RTW89_PCIE_CLK_CTRL		0x0725
@@ -1304,6 +1315,7 @@ struct rtw89_pci_info {
 	u32 rpwm_addr;
 	u32 cpwm_addr;
 	u32 mit_addr;
+	u32 wp_sel_addr;
 	u32 tx_dma_ch_mask;
 	const struct rtw89_pci_bd_idx_addr *bd_idx_addr_low_power;
 	const struct rtw89_pci_ch_dma_addr_set *dma_addr_set;
@@ -1330,11 +1342,11 @@ struct rtw89_pci_rx_info {
 	u32 fs:1, ls:1, tag:13, len:14;
 };
 
-#define RTW89_PCI_TXBD_OPTION_LS	BIT(14)
-
 struct rtw89_pci_tx_bd_32 {
 	__le16 length;
-	__le16 option;
+	__le16 opt;
+#define RTW89_PCI_TXBD_OPT_LS		BIT(14)
+#define RTW89_PCI_TXBD_OPT_DMA_HI	GENMASK(13, 6)
 	__le32 dma;
 } __packed;
 
@@ -1349,7 +1361,7 @@ struct rtw89_pci_tx_wp_info {
 
 #define RTW89_PCI_ADDR_MSDU_LS		BIT(15)
 #define RTW89_PCI_ADDR_LS		BIT(14)
-#define RTW89_PCI_ADDR_HIGH(a)		(((a) << 6) & GENMASK(13, 6))
+#define RTW89_PCI_ADDR_HIGH_MASK	GENMASK(13, 6)
 #define RTW89_PCI_ADDR_NUM(x)		((x) & GENMASK(5, 0))
 
 struct rtw89_pci_tx_addr_info_32 {
@@ -1386,7 +1398,8 @@ struct rtw89_pci_rpp_fmt {
 
 struct rtw89_pci_rx_bd_32 {
 	__le16 buf_size;
-	__le16 rsvd;
+	__le16 opt;
+#define RTW89_PCI_RXBD_OPT_DMA_HI	GENMASK(13, 6)
 	__le32 dma;
 } __packed;
 
@@ -1475,6 +1488,7 @@ struct rtw89_pci {
 	bool running;
 	bool low_power;
 	bool under_recovery;
+	bool enable_dac;
 	struct rtw89_pci_tx_ring tx_rings[RTW89_TXCH_NUM];
 	struct rtw89_pci_rx_ring rx_rings[RTW89_RXCH_NUM];
 	struct sk_buff_head h2c_queue;

@@ -397,7 +397,7 @@ static int sof_rt5682_hw_params(struct snd_pcm_substream *substream,
 	return ret;
 }
 
-static struct snd_soc_ops sof_rt5682_ops = {
+static const struct snd_soc_ops sof_rt5682_ops = {
 	.hw_params = sof_rt5682_hw_params,
 };
 
@@ -869,6 +869,13 @@ static const struct platform_device_id board_ids[] = {
 					SOF_SSP_PORT_AMP(1) |
 					SOF_SSP_PORT_BT_OFFLOAD(2) |
 					SOF_BT_OFFLOAD_PRESENT),
+	},
+	{
+		.name = "arl_rt5682_c1_h02",
+		.driver_data = (kernel_ulong_t)(SOF_RT5682_MCLK_EN |
+					SOF_SSP_PORT_CODEC(1) |
+					/* SSP 0 and SSP 2 are used for HDMI IN */
+					SOF_SSP_MASK_HDMI_CAPTURE(0x5)),
 	},
 	{ }
 };

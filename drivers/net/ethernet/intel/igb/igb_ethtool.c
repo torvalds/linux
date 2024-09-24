@@ -2381,21 +2381,17 @@ static void igb_get_strings(struct net_device *netdev, u32 stringset, u8 *data)
 }
 
 static int igb_get_ts_info(struct net_device *dev,
-			   struct ethtool_ts_info *info)
+			   struct kernel_ethtool_ts_info *info)
 {
 	struct igb_adapter *adapter = netdev_priv(dev);
 
 	if (adapter->ptp_clock)
 		info->phc_index = ptp_clock_index(adapter->ptp_clock);
-	else
-		info->phc_index = -1;
 
 	switch (adapter->hw.mac.type) {
 	case e1000_82575:
 		info->so_timestamping =
-			SOF_TIMESTAMPING_TX_SOFTWARE |
-			SOF_TIMESTAMPING_RX_SOFTWARE |
-			SOF_TIMESTAMPING_SOFTWARE;
+			SOF_TIMESTAMPING_TX_SOFTWARE;
 		return 0;
 	case e1000_82576:
 	case e1000_82580:
@@ -2405,8 +2401,6 @@ static int igb_get_ts_info(struct net_device *dev,
 	case e1000_i211:
 		info->so_timestamping =
 			SOF_TIMESTAMPING_TX_SOFTWARE |
-			SOF_TIMESTAMPING_RX_SOFTWARE |
-			SOF_TIMESTAMPING_SOFTWARE |
 			SOF_TIMESTAMPING_TX_HARDWARE |
 			SOF_TIMESTAMPING_RX_HARDWARE |
 			SOF_TIMESTAMPING_RAW_HARDWARE;

@@ -8,7 +8,7 @@
 #define __LINUX_IRQCHIP_IRQ_PARTITION_PERCPU_H
 
 #include <linux/fwnode.h>
-#include <linux/cpumask.h>
+#include <linux/cpumask_types.h>
 #include <linux/irqdomain.h>
 
 struct partition_affinity {

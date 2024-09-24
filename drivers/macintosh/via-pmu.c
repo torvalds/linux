@@ -2334,7 +2334,7 @@ static const struct platform_suspend_ops pmu_pm_ops = {
 	.valid = pmu_sleep_valid,
 };
 
-static int register_pmu_pm_ops(void)
+static int __init register_pmu_pm_ops(void)
 {
 	if (pmu_kind == PMU_OHARE_BASED)
 		powerbook_sleep_init_3400();

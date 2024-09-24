@@ -59,6 +59,7 @@ struct dc_stream_status {
 	struct dc_plane_state *plane_states[MAX_SURFACE_NUM];
 	bool is_abm_supported;
 	struct mall_stream_config mall_stream_config;
+	bool fpo_in_use;
 };
 
 enum hubp_dmdata_mode {
@@ -141,6 +142,7 @@ union stream_update_flags {
 		uint32_t mst_bw : 1;
 		uint32_t crtc_timing_adjust : 1;
 		uint32_t fams_changed : 1;
+		uint32_t scaler_sharpener : 1;
 	} bits;
 
 	uint32_t raw;
@@ -158,6 +160,24 @@ struct test_pattern {
 
 struct dc_stream_debug_options {
 	char force_odm_combine_segments;
+	/*
+	 * When force_odm_combine_segments is non zero, allow dc to
+	 * temporarily transition to ODM bypass when minimal transition state
+	 * is required to prevent visual glitches showing on the screen
+	 */
+	char allow_transition_for_forced_odm;
+};
+
+#define LUMINANCE_DATA_TABLE_SIZE 10
+
+struct luminance_data {
+	bool is_valid;
+	int refresh_rate_hz[LUMINANCE_DATA_TABLE_SIZE];
+	int luminance_millinits[LUMINANCE_DATA_TABLE_SIZE];
+	int flicker_criteria_milli_nits_GAMING;
+	int flicker_criteria_milli_nits_STATIC;
+	int nominal_refresh_rate;
+	int dm_max_decrease_from_nominal;
 };
 
 struct dc_stream_state {
@@ -247,6 +267,8 @@ struct dc_stream_state {
 
 	struct dc_cursor_attributes cursor_attributes;
 	struct dc_cursor_position cursor_position;
+	bool hw_cursor_req;
+
 	uint32_t sdr_white_level; // for boosting (SDR) cursor in HDR mode
 
 	/* from stream struct */
@@ -284,8 +306,10 @@ struct dc_stream_state {
 
 	bool has_non_synchronizable_pclk;
 	bool vblank_synchronized;
-	bool fpo_in_use;
 	bool is_phantom;
+
+	struct luminance_data lumin_data;
+	bool scaler_sharpener_update;
 };
 
 #define ABM_LEVEL_IMMEDIATE_DISABLE 255
@@ -327,6 +351,11 @@ struct dc_stream_update {
 
 	struct test_pattern *pending_test_pattern;
 	struct dc_crtc_timing_adjust *crtc_timing_adjust;
+
+	struct dc_cursor_attributes *cursor_attributes;
+	struct dc_cursor_position *cursor_position;
+	bool *hw_cursor_req;
+	bool *scaler_sharpener_update;
 };
 
 bool dc_is_stream_unchanged(
@@ -466,11 +495,28 @@ struct dc_stream_status *dc_stream_get_status(
  * Cursor interfaces - To manages the cursor within a stream
  ******************************************************************************/
 /* TODO: Deprecated once we switch to dc_set_cursor_position */
+
+void program_cursor_attributes(
+	struct dc *dc,
+	struct dc_stream_state *stream);
+
+void program_cursor_position(
+	struct dc *dc,
+	struct dc_stream_state *stream);
+
 bool dc_stream_set_cursor_attributes(
 	struct dc_stream_state *stream,
 	const struct dc_cursor_attributes *attributes);
 
+bool dc_stream_program_cursor_attributes(
+	struct dc_stream_state *stream,
+	const struct dc_cursor_attributes *attributes);
+
 bool dc_stream_set_cursor_position(
+	struct dc_stream_state *stream,
+	const struct dc_cursor_position *position);
+
+bool dc_stream_program_cursor_position(
 	struct dc_stream_state *stream,
 	const struct dc_cursor_position *position);
 

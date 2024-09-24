@@ -38,6 +38,7 @@
 #include "u_midi.h"
 
 MODULE_AUTHOR("Ben Williamson");
+MODULE_DESCRIPTION("USB MIDI class function driver");
 MODULE_LICENSE("GPL v2");
 
 static const char f_midi_shortname[] = "f_midi";

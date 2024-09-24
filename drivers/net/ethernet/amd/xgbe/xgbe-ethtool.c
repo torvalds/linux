@@ -577,21 +577,17 @@ static int xgbe_set_rxfh(struct net_device *netdev,
 }
 
 static int xgbe_get_ts_info(struct net_device *netdev,
-			    struct ethtool_ts_info *ts_info)
+			    struct kernel_ethtool_ts_info *ts_info)
 {
 	struct xgbe_prv_data *pdata = netdev_priv(netdev);
 
 	ts_info->so_timestamping = SOF_TIMESTAMPING_TX_SOFTWARE |
-				   SOF_TIMESTAMPING_RX_SOFTWARE |
-				   SOF_TIMESTAMPING_SOFTWARE |
 				   SOF_TIMESTAMPING_TX_HARDWARE |
 				   SOF_TIMESTAMPING_RX_HARDWARE |
 				   SOF_TIMESTAMPING_RAW_HARDWARE;
 
 	if (pdata->ptp_clock)
 		ts_info->phc_index = ptp_clock_index(pdata->ptp_clock);
-	else
-		ts_info->phc_index = -1;
 
 	ts_info->tx_types = (1 << HWTSTAMP_TX_OFF) | (1 << HWTSTAMP_TX_ON);
 	ts_info->rx_filters = (1 << HWTSTAMP_FILTER_NONE) |

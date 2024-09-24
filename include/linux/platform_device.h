@@ -237,15 +237,14 @@ struct platform_driver {
 	int (*probe)(struct platform_device *);
 
 	/*
-	 * Traditionally the remove callback returned an int which however is
-	 * ignored by the driver core. This led to wrong expectations by driver
-	 * authors who thought returning an error code was a valid error
-	 * handling strategy. To convert to a callback returning void, new
-	 * drivers should implement .remove_new() until the conversion it done
-	 * that eventually makes .remove() return void.
+	 * .remove_new() is a relic from a prototype conversion of .remove().
+	 * New drivers are supposed to implement .remove(). Once all drivers are
+	 * converted to not use .remove_new any more, it will be dropped.
 	 */
-	int (*remove)(struct platform_device *);
-	void (*remove_new)(struct platform_device *);
+	union {
+		void (*remove)(struct platform_device *);
+		void (*remove_new)(struct platform_device *);
+	};
 
 	void (*shutdown)(struct platform_device *);
 	int (*suspend)(struct platform_device *, pm_message_t state);

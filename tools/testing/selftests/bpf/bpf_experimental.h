@@ -163,7 +163,7 @@ struct bpf_iter_task_vma;
 
 extern int bpf_iter_task_vma_new(struct bpf_iter_task_vma *it,
 				 struct task_struct *task,
-				 unsigned long addr) __ksym;
+				 __u64 addr) __ksym;
 extern struct vm_area_struct *bpf_iter_task_vma_next(struct bpf_iter_task_vma *it) __ksym;
 extern void bpf_iter_task_vma_destroy(struct bpf_iter_task_vma *it) __ksym;
 
@@ -194,6 +194,32 @@ extern void bpf_iter_task_vma_destroy(struct bpf_iter_task_vma *it) __ksym;
  *	An exception with the specified 'cookie' value.
  */
 extern void bpf_throw(u64 cookie) __ksym;
+
+/* Description
+ *	Acquire a reference on the exe_file member field belonging to the
+ *	mm_struct that is nested within the supplied task_struct. The supplied
+ *	task_struct must be trusted/referenced.
+ * Returns
+ *	A referenced file pointer pointing to the exe_file member field of the
+ *	mm_struct nested in the supplied task_struct, or NULL.
+ */
+extern struct file *bpf_get_task_exe_file(struct task_struct *task) __ksym;
+
+/* Description
+ *	Release a reference on the supplied file. The supplied file must be
+ *	acquired.
+ */
+extern void bpf_put_file(struct file *file) __ksym;
+
+/* Description
+ *	Resolve a pathname for the supplied path and store it in the supplied
+ *	buffer. The supplied path must be trusted/referenced.
+ * Returns
+ *	A positive integer corresponding to the length of the resolved pathname,
+ *	including the NULL termination character, stored in the supplied
+ *	buffer. On error, a negative integer is returned.
+ */
+extern int bpf_path_d_path(struct path *path, char *buf, size_t buf__sz) __ksym;
 
 /* This macro must be used to mark the exception callback corresponding to the
  * main program. For example:
@@ -351,6 +377,7 @@ l_true:												\
 	l_continue:;					\
 	})
 #else
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
 #define can_loop					\
 	({ __label__ l_break, l_continue;		\
 	bool ret = true;				\
@@ -376,6 +403,33 @@ l_true:												\
 	l_break: break;					\
 	l_continue:;					\
 	})
+#else
+#define can_loop					\
+	({ __label__ l_break, l_continue;		\
+	bool ret = true;				\
+	asm volatile goto("1:.byte 0xe5;		\
+		      .byte 0;				\
+		      .long (((%l[l_break] - 1b - 8) / 8) & 0xffff) << 16;	\
+		      .short 0"				\
+		      :::: l_break);			\
+	goto l_continue;				\
+	l_break: ret = false;				\
+	l_continue:;					\
+	ret;						\
+	})
+
+#define cond_break					\
+	({ __label__ l_break, l_continue;		\
+	asm volatile goto("1:.byte 0xe5;		\
+		      .byte 0;				\
+		      .long (((%l[l_break] - 1b - 8) / 8) & 0xffff) << 16;	\
+		      .short 0"				\
+		      :::: l_break);			\
+	goto l_continue;				\
+	l_break: break;					\
+	l_continue:;					\
+	})
+#endif
 #endif
 
 #ifndef bpf_nop_mov
@@ -524,7 +578,7 @@ extern void bpf_iter_css_destroy(struct bpf_iter_css *it) __weak __ksym;
 extern int bpf_wq_init(struct bpf_wq *wq, void *p__map, unsigned int flags) __weak __ksym;
 extern int bpf_wq_start(struct bpf_wq *wq, unsigned int flags) __weak __ksym;
 extern int bpf_wq_set_callback_impl(struct bpf_wq *wq,
-		int (callback_fn)(void *map, int *key, struct bpf_wq *wq),
+		int (callback_fn)(void *map, int *key, void *value),
 		unsigned int flags__k, void *aux__ign) __ksym;
 #define bpf_wq_set_callback(timer, cb, flags) \
 	bpf_wq_set_callback_impl(timer, cb, flags, NULL)

@@ -25,9 +25,8 @@ drivers/net (i.e. hardware specific drivers) in the Linux source tree.
 Note that some subsystems (e.g. wireless drivers) which have a high
 volume of traffic have their own specific mailing lists and trees.
 
-The netdev list is managed (like many other Linux mailing lists) through
-VGER (http://vger.kernel.org/) with archives available at
-https://lore.kernel.org/netdev/
+Like many other Linux mailing lists, the netdev list is hosted at
+kernel.org with archives available at https://lore.kernel.org/netdev/.
 
 Aside from subsystems like those mentioned above, all network-related
 Linux development (i.e. RFC, review, comments, etc.) takes place on
@@ -356,23 +355,6 @@ just do it. As a result, a sequence of smaller series gets merged quicker and
 with better review coverage. Re-posting large series also increases the mailing
 list traffic.
 
-Multi-line comments
-~~~~~~~~~~~~~~~~~~~
-
-Comment style convention is slightly different for networking and most of
-the tree.  Instead of this::
-
-  /*
-   * foobar blah blah blah
-   * another line of text
-   */
-
-it is requested that you make it look like this::
-
-  /* foobar blah blah blah
-   * another line of text
-   */
-
 Local variable ordering ("reverse xmas tree", "RCS")
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -392,6 +374,22 @@ Format precedence
 When working in existing code which uses nonstandard formatting make
 your code follow the most recent guidelines, so that eventually all code
 in the domain of netdev is in the preferred format.
+
+Using device-managed and cleanup.h constructs
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Netdev remains skeptical about promises of all "auto-cleanup" APIs,
+including even ``devm_`` helpers, historically. They are not the preferred
+style of implementation, merely an acceptable one.
+
+Use of ``guard()`` is discouraged within any function longer than 20 lines,
+``scoped_guard()`` is considered more readable. Using normal lock/unlock is
+still (weakly) preferred.
+
+Low level cleanup constructs (such as ``__free()``) can be used when building
+APIs and helpers, especially scoped iterators. However, direct use of
+``__free()`` within networking core and drivers is discouraged.
+Similar guidance applies to declaring variables mid-function.
 
 Resending after review
 ~~~~~~~~~~~~~~~~~~~~~~

@@ -410,9 +410,10 @@ void dpp1_cm_program_regamma_lut(struct dpp *dpp_base,
 		REG_SET(CM_RGAM_LUT_DATA, 0, CM_RGAM_LUT_DATA, rgb[i].delta_red_reg);
 		REG_SET(CM_RGAM_LUT_DATA, 0, CM_RGAM_LUT_DATA, rgb[i].delta_green_reg);
 		REG_SET(CM_RGAM_LUT_DATA, 0, CM_RGAM_LUT_DATA, rgb[i].delta_blue_reg);
-
 	}
 
+	REG_SEQ_SUBMIT();
+	REG_SEQ_WAIT_DONE();
 }
 
 void dpp1_cm_configure_regamma_lut(
@@ -683,9 +684,6 @@ void dpp1_set_degamma(
 		BREAK_TO_DEBUGGER();
 		break;
 	}
-
-	REG_SEQ_SUBMIT();
-	REG_SEQ_WAIT_DONE();
 }
 
 void dpp1_degamma_ram_select(

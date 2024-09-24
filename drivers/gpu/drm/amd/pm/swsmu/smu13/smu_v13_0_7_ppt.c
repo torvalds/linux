@@ -2378,7 +2378,7 @@ static int smu_v13_0_7_get_power_profile_mode(struct smu_context *smu, char *buf
 
 	size += sysfs_emit_at(buf, size, "                              ");
 	for (i = 0; i <= PP_SMC_POWER_PROFILE_WINDOW3D; i++)
-		size += sysfs_emit_at(buf, size, "%-14s%s", amdgpu_pp_profile_name[i],
+		size += sysfs_emit_at(buf, size, "%d %-14s%s", i, amdgpu_pp_profile_name[i],
 			(i == smu->power_profile_mode) ? "* " : "  ");
 
 	size += sysfs_emit_at(buf, size, "\n");
@@ -2408,7 +2408,7 @@ static int smu_v13_0_7_get_power_profile_mode(struct smu_context *smu, char *buf
 do {													\
 	size += sysfs_emit_at(buf, size, "%-30s", #field);						\
 	for (j = 0; j <= PP_SMC_POWER_PROFILE_WINDOW3D; j++)						\
-		size += sysfs_emit_at(buf, size, "%-16d", activity_monitor_external[j].DpmActivityMonitorCoeffInt.field);		\
+		size += sysfs_emit_at(buf, size, "%-18d", activity_monitor_external[j].DpmActivityMonitorCoeffInt.field);		\
 	size += sysfs_emit_at(buf, size, "\n");								\
 } while (0)
 
@@ -2450,6 +2450,8 @@ static int smu_v13_0_7_set_power_profile_mode(struct smu_context *smu, long *inp
 	}
 
 	if (smu->power_profile_mode == PP_SMC_POWER_PROFILE_CUSTOM) {
+		if (size != 8)
+			return -EINVAL;
 
 		ret = smu_cmn_update_table(smu,
 				       SMU_TABLE_ACTIVITY_MONITOR_COEFF, WORKLOAD_PPLIB_CUSTOM_BIT,
@@ -2478,6 +2480,8 @@ static int smu_v13_0_7_set_power_profile_mode(struct smu_context *smu, long *inp
 			activity_monitor->Fclk_MinActiveFreq = input[6];
 			activity_monitor->Fclk_BoosterFreq = input[7];
 			break;
+		default:
+			return -EINVAL;
 		}
 
 		ret = smu_cmn_update_table(smu,
@@ -2495,8 +2499,10 @@ static int smu_v13_0_7_set_power_profile_mode(struct smu_context *smu, long *inp
 						       smu->power_profile_mode);
 	if (workload_type < 0)
 		return -EINVAL;
-	smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_SetWorkloadMask,
+	ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_SetWorkloadMask,
 				    1 << workload_type, NULL);
+	if (ret)
+		dev_err(smu->adev->dev, "[%s] Failed to set work load mask!", __func__);
 
 	return ret;
 }

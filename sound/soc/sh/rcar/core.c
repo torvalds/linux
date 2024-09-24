@@ -660,23 +660,6 @@ static struct rsnd_dai *rsnd_dai_to_rdai(struct snd_soc_dai *dai)
 	return rsnd_rdai_get(priv, dai->id);
 }
 
-/*
- *	rsnd_soc_dai functions
- */
-void rsnd_dai_period_elapsed(struct rsnd_dai_stream *io)
-{
-	struct snd_pcm_substream *substream = io->substream;
-
-	/*
-	 * this function should be called...
-	 *
-	 * - if rsnd_dai_pointer_update() returns true
-	 * - without spin lock
-	 */
-
-	snd_pcm_period_elapsed(substream);
-}
-
 static void rsnd_dai_stream_init(struct rsnd_dai_stream *io,
 				struct snd_pcm_substream *substream)
 {
@@ -1061,7 +1044,7 @@ static int rsnd_soc_dai_prepare(struct snd_pcm_substream *substream,
 	return rsnd_dai_call(prepare, io, priv);
 }
 
-static u64 rsnd_soc_dai_formats[] = {
+static const u64 rsnd_soc_dai_formats[] = {
 	/*
 	 * 1st Priority
 	 *
@@ -2104,7 +2087,7 @@ static struct platform_driver rsnd_driver = {
 		.of_match_table = rsnd_of_match,
 	},
 	.probe		= rsnd_probe,
-	.remove_new	= rsnd_remove,
+	.remove		= rsnd_remove,
 };
 module_platform_driver(rsnd_driver);
 

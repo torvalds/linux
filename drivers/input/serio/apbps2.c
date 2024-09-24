@@ -165,7 +165,7 @@ static int apbps2_of_probe(struct platform_device *ofdev)
 	/* Set reload register to core freq in kHz/10 */
 	iowrite32be(freq_hz / 10000, &priv->regs->reload);
 
-	priv->io = kzalloc(sizeof(struct serio), GFP_KERNEL);
+	priv->io = kzalloc(sizeof(*priv->io), GFP_KERNEL);
 	if (!priv->io)
 		return -ENOMEM;
 

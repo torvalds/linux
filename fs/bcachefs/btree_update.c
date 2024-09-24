@@ -374,7 +374,7 @@ static noinline int flush_new_cached_update(struct btree_trans *trans,
 	i->key_cache_already_flushed = true;
 	i->flags |= BTREE_TRIGGER_norun;
 
-	btree_path_set_should_be_locked(btree_path);
+	btree_path_set_should_be_locked(trans, btree_path);
 	ret = bch2_trans_update_by_path(trans, path_idx, i->k, flags, ip);
 out:
 	bch2_path_put(trans, path_idx, true);
@@ -422,7 +422,9 @@ bch2_trans_update_by_path(struct btree_trans *trans, btree_path_idx_t path_idx,
 			break;
 	}
 
-	if (!cmp && i < trans->updates + trans->nr_updates) {
+	bool overwrite = !cmp && i < trans->updates + trans->nr_updates;
+
+	if (overwrite) {
 		EBUG_ON(i->insert_trigger_run || i->overwrite_trigger_run);
 
 		bch2_path_put(trans, i->path, true);
@@ -449,7 +451,9 @@ bch2_trans_update_by_path(struct btree_trans *trans, btree_path_idx_t path_idx,
 		}
 	}
 
-	__btree_path_get(trans->paths + i->path, true);
+	__btree_path_get(trans, trans->paths + i->path, true);
+
+	trace_update_by_path(trans, path, i, overwrite);
 
 	/*
 	 * If a key is present in the key cache, it must also exist in the
@@ -498,7 +502,7 @@ static noinline int bch2_trans_update_get_key_cache(struct btree_trans *trans,
 			return btree_trans_restart(trans, BCH_ERR_transaction_restart_key_cache_raced);
 		}
 
-		btree_path_set_should_be_locked(trans->paths + iter->key_cache_path);
+		btree_path_set_should_be_locked(trans, trans->paths + iter->key_cache_path);
 	}
 
 	return 0;
@@ -656,14 +660,16 @@ int bch2_btree_insert_trans(struct btree_trans *trans, enum btree_id id,
  * @disk_res:		must be non-NULL whenever inserting or potentially
  *			splitting data extents
  * @flags:		transaction commit flags
+ * @iter_flags:		btree iter update trigger flags
  *
  * Returns:		0 on success, error code on failure
  */
 int bch2_btree_insert(struct bch_fs *c, enum btree_id id, struct bkey_i *k,
-		      struct disk_reservation *disk_res, int flags)
+		      struct disk_reservation *disk_res, int flags,
+		      enum btree_iter_update_trigger_flags iter_flags)
 {
 	return bch2_trans_do(c, disk_res, NULL, flags,
-			     bch2_btree_insert_trans(trans, id, k, 0));
+			     bch2_btree_insert_trans(trans, id, k, iter_flags));
 }
 
 int bch2_btree_delete_extent_at(struct btree_trans *trans, struct btree_iter *iter,

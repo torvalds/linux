@@ -1817,7 +1817,7 @@ static int edid_block_tag(const void *_block)
 
 static bool edid_block_is_zero(const void *edid)
 {
-	return !memchr_inv(edid, 0, EDID_LENGTH);
+	return mem_is_zero(edid, EDID_LENGTH);
 }
 
 static bool drm_edid_eq(const struct drm_edid *drm_edid,
@@ -1966,22 +1966,14 @@ static void edid_block_dump(const char *level, const void *block, int block_num)
 		       block, EDID_LENGTH, false);
 }
 
-/**
- * drm_edid_block_valid - Sanity check the EDID block (base or extension)
- * @_block: pointer to raw EDID block
- * @block_num: type of block to validate (0 for base, extension otherwise)
- * @print_bad_edid: if true, dump bad EDID blocks to the console
- * @edid_corrupt: if true, the header or checksum is invalid
- *
+/*
  * Validate a base or extension EDID block and optionally dump bad blocks to
  * the console.
- *
- * Return: True if the block is valid, false otherwise.
  */
-bool drm_edid_block_valid(u8 *_block, int block_num, bool print_bad_edid,
-			  bool *edid_corrupt)
+static bool drm_edid_block_valid(void *_block, int block_num, bool print_bad_edid,
+				 bool *edid_corrupt)
 {
-	struct edid *block = (struct edid *)_block;
+	struct edid *block = _block;
 	enum edid_block_status status;
 	bool is_base_block = block_num == 0;
 	bool valid;
@@ -2024,7 +2016,6 @@ bool drm_edid_block_valid(u8 *_block, int block_num, bool print_bad_edid,
 
 	return valid;
 }
-EXPORT_SYMBOL(drm_edid_block_valid);
 
 /**
  * drm_edid_is_valid - sanity check EDID data
@@ -2463,34 +2454,6 @@ fail:
 	kfree(edid);
 	return NULL;
 }
-
-/**
- * drm_do_get_edid - get EDID data using a custom EDID block read function
- * @connector: connector we're probing
- * @read_block: EDID block read function
- * @context: private data passed to the block read function
- *
- * When the I2C adapter connected to the DDC bus is hidden behind a device that
- * exposes a different interface to read EDID blocks this function can be used
- * to get EDID data using a custom block read function.
- *
- * As in the general case the DDC bus is accessible by the kernel at the I2C
- * level, drivers must make all reasonable efforts to expose it as an I2C
- * adapter and use drm_get_edid() instead of abusing this function.
- *
- * The EDID may be overridden using debugfs override_edid or firmware EDID
- * (drm_edid_load_firmware() and drm.edid_firmware parameter), in this priority
- * order. Having either of them bypasses actual EDID reads.
- *
- * Return: Pointer to valid EDID or NULL if we couldn't find any.
- */
-struct edid *drm_do_get_edid(struct drm_connector *connector,
-			     read_block_fn read_block,
-			     void *context)
-{
-	return _drm_do_get_edid(connector, read_block, context, NULL);
-}
-EXPORT_SYMBOL_GPL(drm_do_get_edid);
 
 /**
  * drm_edid_raw - Get a pointer to the raw EDID data.
@@ -6657,6 +6620,11 @@ static void update_displayid_info(struct drm_connector *connector,
 
 	displayid_iter_edid_begin(drm_edid, &iter);
 	displayid_iter_for_each(block, &iter) {
+		drm_dbg_kms(connector->dev,
+			    "[CONNECTOR:%d:%s] DisplayID extension version 0x%02x, primary use 0x%02x\n",
+			    connector->base.id, connector->name,
+			    displayid_version(&iter),
+			    displayid_primary_use(&iter));
 		if (displayid_version(&iter) == DISPLAY_ID_STRUCTURE_VER_20 &&
 		    (displayid_primary_use(&iter) == PRIMARY_USE_HEAD_MOUNTED_VR ||
 		     displayid_primary_use(&iter) == PRIMARY_USE_HEAD_MOUNTED_AR))
@@ -6966,6 +6934,39 @@ static int _drm_edid_connector_property_update(struct drm_connector *connector,
 	}
 
 out:
+	return ret;
+}
+
+/* For sysfs edid show implementation */
+ssize_t drm_edid_connector_property_show(struct drm_connector *connector,
+					 char *buf, loff_t off, size_t count)
+{
+	const void *edid;
+	size_t size;
+	ssize_t ret = 0;
+
+	mutex_lock(&connector->dev->mode_config.mutex);
+
+	if (!connector->edid_blob_ptr)
+		goto unlock;
+
+	edid = connector->edid_blob_ptr->data;
+	size = connector->edid_blob_ptr->length;
+	if (!edid)
+		goto unlock;
+
+	if (off >= size)
+		goto unlock;
+
+	if (off + count > size)
+		count = size - off;
+
+	memcpy(buf, edid + off, count);
+
+	ret = count;
+unlock:
+	mutex_unlock(&connector->dev->mode_config.mutex);
+
 	return ret;
 }
 

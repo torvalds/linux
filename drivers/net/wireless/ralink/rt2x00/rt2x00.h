@@ -335,16 +335,6 @@ struct link {
 	struct delayed_work watchdog_work;
 	unsigned int watchdog_interval;
 	unsigned int watchdog;
-
-	/*
-	 * Work structure for scheduling periodic AGC adjustments.
-	 */
-	struct delayed_work agc_work;
-
-	/*
-	 * Work structure for scheduling periodic VCO calibration.
-	 */
-	struct delayed_work vco_work;
 };
 
 enum rt2x00_delayed_flags {
@@ -1460,7 +1450,7 @@ void rt2x00mac_tx(struct ieee80211_hw *hw,
 		  struct ieee80211_tx_control *control,
 		  struct sk_buff *skb);
 int rt2x00mac_start(struct ieee80211_hw *hw);
-void rt2x00mac_stop(struct ieee80211_hw *hw);
+void rt2x00mac_stop(struct ieee80211_hw *hw, bool suspend);
 void rt2x00mac_reconfig_complete(struct ieee80211_hw *hw,
 				 enum ieee80211_reconfig_type reconfig_type);
 int rt2x00mac_add_interface(struct ieee80211_hw *hw,

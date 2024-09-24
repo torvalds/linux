@@ -25,7 +25,6 @@
 #include <linux/pagemap.h>
 #include <linux/sched/mm.h>
 #include <linux/sched/task.h>
-#include <linux/fdtable.h>
 #include <drm/ttm/ttm_tt.h>
 
 #include <drm/drm_exec.h>
@@ -172,6 +171,8 @@ int amdgpu_amdkfd_reserve_mem_limit(struct amdgpu_device *adev,
 {
 	uint64_t reserved_for_pt =
 		ESTIMATE_PT_SIZE(amdgpu_amdkfd_total_mem_size);
+	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
+	uint64_t reserved_for_ras = (con ? con->reserved_pages_in_bytes : 0);
 	size_t system_mem_needed, ttm_mem_needed, vram_needed;
 	int ret = 0;
 	uint64_t vram_size = 0;
@@ -220,7 +221,7 @@ int amdgpu_amdkfd_reserve_mem_limit(struct amdgpu_device *adev,
 	    (kfd_mem_limit.ttm_mem_used + ttm_mem_needed >
 	     kfd_mem_limit.max_ttm_mem_limit) ||
 	    (adev && xcp_id >= 0 && adev->kfd.vram_used[xcp_id] + vram_needed >
-	     vram_size - reserved_for_pt - atomic64_read(&adev->vram_pin_size))) {
+	     vram_size - reserved_for_pt - reserved_for_ras - atomic64_read(&adev->vram_pin_size))) {
 		ret = -ENOMEM;
 		goto release;
 	}
@@ -414,6 +415,10 @@ static int amdgpu_amdkfd_bo_validate(struct amdgpu_bo *bo, uint32_t domain,
 	if (WARN(amdgpu_ttm_tt_get_usermm(bo->tbo.ttm),
 		 "Called with userptr BO"))
 		return -EINVAL;
+
+	/* bo has been pinned, not need validate it */
+	if (bo->tbo.pin_count)
+		return 0;
 
 	amdgpu_bo_placement_from_domain(bo, domain);
 
@@ -812,18 +817,13 @@ static int kfd_mem_export_dmabuf(struct kgd_mem *mem)
 	if (!mem->dmabuf) {
 		struct amdgpu_device *bo_adev;
 		struct dma_buf *dmabuf;
-		int r, fd;
 
 		bo_adev = amdgpu_ttm_adev(mem->bo->tbo.bdev);
-		r = drm_gem_prime_handle_to_fd(&bo_adev->ddev, bo_adev->kfd.client.file,
+		dmabuf = drm_gem_prime_handle_to_dmabuf(&bo_adev->ddev, bo_adev->kfd.client.file,
 					       mem->gem_handle,
 			mem->alloc_flags & KFD_IOC_ALLOC_MEM_FLAGS_WRITABLE ?
-					       DRM_RDWR : 0, &fd);
-		if (r)
-			return r;
-		dmabuf = dma_buf_get(fd);
-		close_fd(fd);
-		if (WARN_ON_ONCE(IS_ERR(dmabuf)))
+					       DRM_RDWR : 0);
+		if (IS_ERR(dmabuf))
 			return PTR_ERR(dmabuf);
 		mem->dmabuf = dmabuf;
 	}
@@ -1088,7 +1088,10 @@ static int init_user_pages(struct kgd_mem *mem, uint64_t user_addr,
 
 	ret = amdgpu_ttm_tt_get_user_pages(bo, bo->tbo.ttm->pages, &range);
 	if (ret) {
-		pr_err("%s: Failed to get user pages: %d\n", __func__, ret);
+		if (ret == -EAGAIN)
+			pr_debug("Failed to get user pages, try again\n");
+		else
+			pr_err("%s: Failed to get user pages: %d\n", __func__, ret);
 		goto unregister_out;
 	}
 
@@ -1243,7 +1246,7 @@ static int unreserve_bo_and_vms(struct bo_vm_reservation_context *ctx,
 	return ret;
 }
 
-static void unmap_bo_from_gpuvm(struct kgd_mem *mem,
+static int unmap_bo_from_gpuvm(struct kgd_mem *mem,
 				struct kfd_mem_attachment *entry,
 				struct amdgpu_sync *sync)
 {
@@ -1251,11 +1254,18 @@ static void unmap_bo_from_gpuvm(struct kgd_mem *mem,
 	struct amdgpu_device *adev = entry->adev;
 	struct amdgpu_vm *vm = bo_va->base.vm;
 
+	if (bo_va->queue_refcount) {
+		pr_debug("bo_va->queue_refcount %d\n", bo_va->queue_refcount);
+		return -EBUSY;
+	}
+
 	amdgpu_vm_bo_unmap(adev, bo_va, entry->va);
 
 	amdgpu_vm_clear_freed(adev, vm, &bo_va->last_pt_update);
 
 	amdgpu_sync_fence(sync, bo_va->last_pt_update);
+
+	return 0;
 }
 
 static int update_gpuvm_pte(struct kgd_mem *mem,
@@ -1472,13 +1482,30 @@ static int amdgpu_amdkfd_gpuvm_pin_bo(struct amdgpu_bo *bo, u32 domain)
 	if (unlikely(ret))
 		return ret;
 
+	if (bo->flags & AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS) {
+		/*
+		 * If bo is not contiguous on VRAM, move to system memory first to ensure
+		 * we can get contiguous VRAM space after evicting other BOs.
+		 */
+		if (!(bo->tbo.resource->placement & TTM_PL_FLAG_CONTIGUOUS)) {
+			struct ttm_operation_ctx ctx = { true, false };
+
+			amdgpu_bo_placement_from_domain(bo, AMDGPU_GEM_DOMAIN_GTT);
+			ret = ttm_bo_validate(&bo->tbo, &bo->placement, &ctx);
+			if (unlikely(ret)) {
+				pr_debug("validate bo 0x%p to GTT failed %d\n", &bo->tbo, ret);
+				goto out;
+			}
+		}
+	}
+
 	ret = amdgpu_bo_pin_restricted(bo, domain, 0, 0);
 	if (ret)
 		pr_err("Error in Pinning BO to domain: %d\n", domain);
 
 	amdgpu_bo_sync_wait(bo, AMDGPU_FENCE_OWNER_KFD, false);
+out:
 	amdgpu_bo_unreserve(bo);
-
 	return ret;
 }
 
@@ -1649,6 +1676,8 @@ size_t amdgpu_amdkfd_get_available_memory(struct amdgpu_device *adev,
 {
 	uint64_t reserved_for_pt =
 		ESTIMATE_PT_SIZE(amdgpu_amdkfd_total_mem_size);
+	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
+	uint64_t reserved_for_ras = (con ? con->reserved_pages_in_bytes : 0);
 	ssize_t available;
 	uint64_t vram_available, system_mem_available, ttm_mem_available;
 
@@ -1656,7 +1685,8 @@ size_t amdgpu_amdkfd_get_available_memory(struct amdgpu_device *adev,
 	vram_available = KFD_XCP_MEMORY_SIZE(adev, xcp_id)
 		- adev->kfd.vram_used_aligned[xcp_id]
 		- atomic64_read(&adev->vram_pin_size)
-		- reserved_for_pt;
+		- reserved_for_pt
+		- reserved_for_ras;
 
 	if (adev->flags & AMD_IS_APU) {
 		system_mem_available = no_system_mem_limit ?
@@ -1714,6 +1744,10 @@ int amdgpu_amdkfd_gpuvm_alloc_memory_of_gpu(
 			alloc_flags = AMDGPU_GEM_CREATE_VRAM_WIPE_ON_RELEASE;
 			alloc_flags |= (flags & KFD_IOC_ALLOC_MEM_FLAGS_PUBLIC) ?
 			AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED : 0;
+
+			/* For contiguous VRAM allocation */
+			if (flags & KFD_IOC_ALLOC_MEM_FLAGS_CONTIGUOUS)
+				alloc_flags |= AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS;
 		}
 		xcp_id = fpriv->xcp_id == AMDGPU_XCP_NO_PARTITION ?
 					0 : fpriv->xcp_id;
@@ -2158,7 +2192,10 @@ int amdgpu_amdkfd_gpuvm_unmap_memory_from_gpu(
 		pr_debug("\t unmap VA 0x%llx - 0x%llx from entry %p\n",
 			 entry->va, entry->va + bo_size, entry);
 
-		unmap_bo_from_gpuvm(mem, entry, ctx.sync);
+		ret = unmap_bo_from_gpuvm(mem, entry, ctx.sync);
+		if (ret)
+			goto unreserve_out;
+
 		entry->is_mapped = false;
 
 		mem->mapped_to_gpu_memory--;
@@ -2193,11 +2230,12 @@ int amdgpu_amdkfd_gpuvm_sync_memory(
 /**
  * amdgpu_amdkfd_map_gtt_bo_to_gart - Map BO to GART and increment reference count
  * @bo: Buffer object to be mapped
+ * @bo_gart: Return bo reference
  *
  * Before return, bo reference count is incremented. To release the reference and unpin/
  * unmap the BO, call amdgpu_amdkfd_free_gtt_mem.
  */
-int amdgpu_amdkfd_map_gtt_bo_to_gart(struct amdgpu_bo *bo)
+int amdgpu_amdkfd_map_gtt_bo_to_gart(struct amdgpu_bo *bo, struct amdgpu_bo **bo_gart)
 {
 	int ret;
 
@@ -2224,7 +2262,7 @@ int amdgpu_amdkfd_map_gtt_bo_to_gart(struct amdgpu_bo *bo)
 
 	amdgpu_bo_unreserve(bo);
 
-	bo = amdgpu_bo_ref(bo);
+	*bo_gart = amdgpu_bo_ref(bo);
 
 	return 0;
 
@@ -2712,7 +2750,7 @@ static int confirm_valid_user_pages_locked(struct amdkfd_process_info *process_i
 
 		/* keep mem without hmm range at userptr_inval_list */
 		if (!mem->range)
-			 continue;
+			continue;
 
 		/* Only check mem with hmm range associated */
 		valid = amdgpu_ttm_tt_get_user_pages_done(
@@ -2957,9 +2995,6 @@ int amdgpu_amdkfd_gpuvm_restore_process_bos(void *info, struct dma_fence __rcu *
 			if (!attachment->is_mapped)
 				continue;
 
-			if (attachment->bo_va->base.bo->tbo.pin_count)
-				continue;
-
 			kfd_mem_dmaunmap_attachment(mem, attachment);
 			ret = update_gpuvm_pte(mem, attachment, &sync_obj);
 			if (ret) {
@@ -3170,12 +3205,13 @@ int amdgpu_amdkfd_get_tile_config(struct amdgpu_device *adev,
 	return 0;
 }
 
-bool amdgpu_amdkfd_bo_mapped_to_dev(struct amdgpu_device *adev, struct kgd_mem *mem)
+bool amdgpu_amdkfd_bo_mapped_to_dev(void *drm_priv, struct kgd_mem *mem)
 {
+	struct amdgpu_vm *vm = drm_priv_to_vm(drm_priv);
 	struct kfd_mem_attachment *entry;
 
 	list_for_each_entry(entry, &mem->attachments, list) {
-		if (entry->is_mapped && entry->adev == adev)
+		if (entry->is_mapped && entry->bo_va->base.vm == vm)
 			return true;
 	}
 	return false;

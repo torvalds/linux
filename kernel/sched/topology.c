@@ -285,7 +285,7 @@ void rebuild_sched_domains_energy(void)
 }
 
 #ifdef CONFIG_PROC_SYSCTL
-static int sched_energy_aware_handler(struct ctl_table *table, int write,
+static int sched_energy_aware_handler(const struct ctl_table *table, int write,
 		void *buffer, size_t *lenp, loff_t *ppos)
 {
 	int ret, state;
@@ -501,7 +501,7 @@ void rq_attach_root(struct rq *rq, struct root_domain *rd)
 		cpumask_clear_cpu(rq->cpu, old_rd->span);
 
 		/*
-		 * If we dont want to free the old_rd yet then
+		 * If we don't want to free the old_rd yet then
 		 * set old_rd to NULL to skip the freeing later
 		 * in this function:
 		 */
@@ -515,6 +515,14 @@ void rq_attach_root(struct rq *rq, struct root_domain *rd)
 	cpumask_set_cpu(rq->cpu, rd->span);
 	if (cpumask_test_cpu(rq->cpu, cpu_active_mask))
 		set_rq_online(rq);
+
+	/*
+	 * Because the rq is not a task, dl_add_task_root_domain() did not
+	 * move the fair server bw to the rd if it already started.
+	 * Add it now.
+	 */
+	if (rq->fair_server.dl_server)
+		__dl_server_attach_root(&rq->fair_server, rq);
 
 	rq_unlock_irqrestore(rq, &rf);
 
@@ -1176,7 +1184,7 @@ fail:
  * uniquely identify each group (for a given domain):
  *
  *  - The first is the balance_cpu (see should_we_balance() and the
- *    load-balance blub in fair.c); for each group we only want 1 CPU to
+ *    load-balance blurb in fair.c); for each group we only want 1 CPU to
  *    continue balancing at a higher domain.
  *
  *  - The second is the sched_group_capacity; we want all identical groups
@@ -1388,7 +1396,7 @@ static inline void asym_cpu_capacity_update_data(int cpu)
 
 	/*
 	 * Search if capacity already exits. If not, track which the entry
-	 * where we should insert to keep the list ordered descendingly.
+	 * where we should insert to keep the list ordered descending.
 	 */
 	list_for_each_entry(entry, &asym_cap_list, link) {
 		if (capacity == entry->capacity)
@@ -1853,7 +1861,7 @@ void sched_init_numa(int offline_node)
 	struct cpumask ***masks;
 
 	/*
-	 * O(nr_nodes^2) deduplicating selection sort -- in order to find the
+	 * O(nr_nodes^2) de-duplicating selection sort -- in order to find the
 	 * unique distances in the node_distance() table.
 	 */
 	distance_map = bitmap_alloc(NR_DISTANCE_VALUES, GFP_KERNEL);
@@ -2750,7 +2758,7 @@ match2:
 	}
 
 #if defined(CONFIG_ENERGY_MODEL) && defined(CONFIG_CPU_FREQ_GOV_SCHEDUTIL)
-	/* Build perf. domains: */
+	/* Build perf domains: */
 	for (i = 0; i < ndoms_new; i++) {
 		for (j = 0; j < n && !sched_energy_update; j++) {
 			if (cpumask_equal(doms_new[i], doms_cur[j]) &&
@@ -2759,7 +2767,7 @@ match2:
 				goto match3;
 			}
 		}
-		/* No match - add perf. domains for a new rd */
+		/* No match - add perf domains for a new rd */
 		has_eas |= build_perf_domains(doms_new[i]);
 match3:
 		;

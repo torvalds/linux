@@ -157,6 +157,7 @@ int svc_print_xprts(char *buf, int maxlen)
  */
 void svc_xprt_deferred_close(struct svc_xprt *xprt)
 {
+	trace_svc_xprt_close(xprt);
 	if (!test_and_set_bit(XPT_CLOSE, &xprt->xpt_flags))
 		svc_xprt_enqueue(xprt);
 }
@@ -903,15 +904,6 @@ void svc_recv(struct svc_rqst *rqstp)
 #endif
 }
 EXPORT_SYMBOL_GPL(svc_recv);
-
-/*
- * Drop request
- */
-void svc_drop(struct svc_rqst *rqstp)
-{
-	trace_svc_drop(rqstp);
-}
-EXPORT_SYMBOL_GPL(svc_drop);
 
 /**
  * svc_send - Return reply to client

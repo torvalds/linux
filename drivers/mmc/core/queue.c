@@ -344,10 +344,12 @@ static const struct blk_mq_ops mmc_mq_ops = {
 };
 
 static struct gendisk *mmc_alloc_disk(struct mmc_queue *mq,
-		struct mmc_card *card)
+		struct mmc_card *card, unsigned int features)
 {
 	struct mmc_host *host = card->host;
-	struct queue_limits lim = { };
+	struct queue_limits lim = {
+		.features		= features,
+	};
 	struct gendisk *disk;
 
 	if (mmc_can_erase(card))
@@ -376,17 +378,15 @@ static struct gendisk *mmc_alloc_disk(struct mmc_queue *mq,
 		lim.max_segments = host->max_segs;
 	}
 
+	if (mmc_host_is_spi(host) && host->use_spi_crc)
+		lim.features |= BLK_FEAT_STABLE_WRITES;
+
 	disk = blk_mq_alloc_disk(&mq->tag_set, &lim, mq);
 	if (IS_ERR(disk))
 		return disk;
 	mq->queue = disk->queue;
 
-	if (mmc_host_is_spi(host) && host->use_spi_crc)
-		blk_queue_flag_set(QUEUE_FLAG_STABLE_WRITES, mq->queue);
 	blk_queue_rq_timeout(mq->queue, 60 * HZ);
-
-	blk_queue_flag_set(QUEUE_FLAG_NONROT, mq->queue);
-	blk_queue_flag_clear(QUEUE_FLAG_ADD_RANDOM, mq->queue);
 
 	dma_set_max_seg_size(mmc_dev(host), queue_max_segment_size(mq->queue));
 
@@ -413,10 +413,12 @@ static inline bool mmc_merge_capable(struct mmc_host *host)
  * mmc_init_queue - initialise a queue structure.
  * @mq: mmc queue
  * @card: mmc card to attach this queue
+ * @features: block layer features (BLK_FEAT_*)
  *
  * Initialise a MMC card request queue.
  */
-struct gendisk *mmc_init_queue(struct mmc_queue *mq, struct mmc_card *card)
+struct gendisk *mmc_init_queue(struct mmc_queue *mq, struct mmc_card *card,
+		unsigned int features)
 {
 	struct mmc_host *host = card->host;
 	struct gendisk *disk;
@@ -460,7 +462,7 @@ struct gendisk *mmc_init_queue(struct mmc_queue *mq, struct mmc_card *card)
 		return ERR_PTR(ret);
 		
 
-	disk = mmc_alloc_disk(mq, card);
+	disk = mmc_alloc_disk(mq, card, features);
 	if (IS_ERR(disk))
 		blk_mq_free_tag_set(&mq->tag_set);
 	return disk;

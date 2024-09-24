@@ -1949,7 +1949,7 @@ static const struct of_device_id imx274_of_id_table[] = {
 MODULE_DEVICE_TABLE(of, imx274_of_id_table);
 
 static const struct i2c_device_id imx274_id[] = {
-	{ "IMX274", 0 },
+	{ "IMX274" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, imx274_id);

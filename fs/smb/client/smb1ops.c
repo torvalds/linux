@@ -108,7 +108,7 @@ cifs_find_mid(struct TCP_Server_Info *server, char *buffer)
 
 static void
 cifs_add_credits(struct TCP_Server_Info *server,
-		 const struct cifs_credits *credits, const int optype)
+		 struct cifs_credits *credits, const int optype)
 {
 	spin_lock(&server->req_lock);
 	server->credits += credits->value;
@@ -1078,7 +1078,7 @@ cifs_make_node(unsigned int xid, struct inode *inode,
 	/*
 	 * Check if mounted with mount parm 'sfu' mount parm.
 	 * SFU emulation should work with all servers, but only
-	 * supports block and char device (no socket & fifo),
+	 * supports block and char device, socket & fifo,
 	 * and was used by default in earlier versions of Windows
 	 */
 	if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_UNX_EMUL))

@@ -189,27 +189,49 @@ the software port.
 
    * - `rx[i]_gro_packets`
      - Number of received packets processed using hardware-accelerated GRO. The
-       number of hardware GRO offloaded packets received on ring i.
+       number of hardware GRO offloaded packets received on ring i. Only true GRO
+       packets are counted: only packets that are in an SKB with a GRO count > 1.
      - Acceleration
 
    * - `rx[i]_gro_bytes`
      - Number of received bytes processed using hardware-accelerated GRO. The
-       number of hardware GRO offloaded bytes received on ring i.
+       number of hardware GRO offloaded bytes received on ring i. Only true GRO
+       packets are counted: only packets that are in an SKB with a GRO count > 1.
      - Acceleration
 
    * - `rx[i]_gro_skbs`
-     - The number of receive SKBs constructed while performing
-       hardware-accelerated GRO.
-     - Informative
-
-   * - `rx[i]_gro_match_packets`
-     - Number of received packets processed using hardware-accelerated GRO that
-       met the flow table match criteria.
+     - The number of GRO SKBs constructed from hardware-accelerated GRO. Only SKBs
+       with a GRO count > 1 are counted.
      - Informative
 
    * - `rx[i]_gro_large_hds`
      - Number of receive packets using hardware-accelerated GRO that have large
        headers that require additional memory to be allocated.
+     - Informative
+
+   * - `rx[i]_hds_nodata_packets`
+     - Number of header only packets in header/data split mode [#accel]_.
+     - Informative
+
+   * - `rx[i]_hds_nodata_bytes`
+     - Number of bytes for header only packets in header/data split mode
+       [#accel]_.
+     - Informative
+
+   * - `rx[i]_hds_nosplit_packets`
+     - Number of packets that were not split in header/data split mode. A
+       packet will not get split when the hardware does not support its
+       protocol splitting. An example such a protocol is ICMPv4/v6. Currently
+       TCP and UDP with IPv4/IPv6 are supported for header/data split
+       [#accel]_.
+     - Informative
+
+   * - `rx[i]_hds_nosplit_bytes`
+     - Number of bytes for packets that were not split in header/data split
+       mode. A packet will not get split when the hardware does not support its
+       protocol splitting. An example such a protocol is ICMPv4/v6. Currently
+       TCP and UDP with IPv4/IPv6 are supported for header/data split
+       [#accel]_.
      - Informative
 
    * - `rx[i]_lro_packets`

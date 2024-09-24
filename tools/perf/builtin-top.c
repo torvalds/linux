@@ -191,7 +191,7 @@ static void ui__warn_map_erange(struct map *map, struct symbol *sym, u64 ip)
 	if (use_browser <= 0)
 		sleep(5);
 
-	map__set_erange_warned(map, true);
+	map__set_erange_warned(map);
 }
 
 static void perf_top__record_precise_ip(struct perf_top *top,
@@ -735,12 +735,12 @@ static int hist_iter__top_callback(struct hist_entry_iter *iter,
 		perf_top__record_precise_ip(top, iter->he, iter->sample, evsel, al->addr);
 
 	hist__account_cycles(iter->sample->branch_stack, al, iter->sample,
-		     !(top->record_opts.branch_stack & PERF_SAMPLE_BRANCH_ANY),
-		     NULL);
+			     !(top->record_opts.branch_stack & PERF_SAMPLE_BRANCH_ANY),
+			     NULL, evsel);
 	return 0;
 }
 
-static void perf_event__process_sample(struct perf_tool *tool,
+static void perf_event__process_sample(const struct perf_tool *tool,
 				       const union perf_event *event,
 				       struct evsel *evsel,
 				       struct perf_sample *sample,
@@ -1053,6 +1053,13 @@ try_again:
 			ui__error("%s\n", msg);
 			goto out_err;
 		}
+	}
+
+	if (evlist__apply_filters(evlist, &counter, &opts->target)) {
+		pr_err("failed to set filter \"%s\" on event %s with %d (%s)\n",
+			counter->filter ?: "BPF", evsel__name(counter), errno,
+			str_error_r(errno, msg, sizeof(msg)));
+		goto out_err;
 	}
 
 	if (evlist__mmap(evlist, opts->mmap_pages) < 0) {
@@ -1462,6 +1469,8 @@ int cmd_top(int argc, const char **argv)
 	OPT_CALLBACK('e', "event", &parse_events_option_args, "event",
 		     "event selector. use 'perf list' to list available events",
 		     parse_events_option),
+	OPT_CALLBACK(0, "filter", &top.evlist, "filter",
+		     "event filter", parse_filter),
 	OPT_U64('c', "count", &opts->user_interval, "event period to sample"),
 	OPT_STRING('p', "pid", &target->pid, "pid",
 		    "profile events on existing process id"),

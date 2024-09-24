@@ -24,7 +24,7 @@
 static int kvm_emu_cpucfg(struct kvm_vcpu *vcpu, larch_inst inst)
 {
 	int rd, rj;
-	unsigned int index;
+	unsigned int index, ret;
 
 	if (inst.reg2_format.opcode != cpucfg_op)
 		return EMULATE_FAIL;
@@ -50,7 +50,8 @@ static int kvm_emu_cpucfg(struct kvm_vcpu *vcpu, larch_inst inst)
 		vcpu->arch.gprs[rd] = *(unsigned int *)KVM_SIGNATURE;
 		break;
 	case CPUCFG_KVM_FEATURE:
-		vcpu->arch.gprs[rd] = KVM_FEATURE_IPI;
+		ret = vcpu->kvm->arch.pv_features & LOONGARCH_PV_FEAT_MASK;
+		vcpu->arch.gprs[rd] = ret;
 		break;
 	default:
 		vcpu->arch.gprs[rd] = 0;
@@ -123,6 +124,14 @@ static int kvm_handle_csr(struct kvm_vcpu *vcpu, larch_inst inst)
 	rd = inst.reg2csr_format.rd;
 	rj = inst.reg2csr_format.rj;
 	csrid = inst.reg2csr_format.csr;
+
+	if (csrid >= LOONGARCH_CSR_PERFCTRL0 && csrid <= vcpu->arch.max_pmu_csrid) {
+		if (kvm_guest_has_pmu(&vcpu->arch)) {
+			vcpu->arch.pc -= 4;
+			kvm_make_request(KVM_REQ_PMU, vcpu);
+			return EMULATE_DONE;
+		}
+	}
 
 	/* Process CSR ops */
 	switch (rj) {
@@ -687,6 +696,31 @@ static int kvm_handle_fpu_disabled(struct kvm_vcpu *vcpu)
 	return RESUME_GUEST;
 }
 
+static long kvm_save_notify(struct kvm_vcpu *vcpu)
+{
+	unsigned long id, data;
+
+	id   = kvm_read_reg(vcpu, LOONGARCH_GPR_A1);
+	data = kvm_read_reg(vcpu, LOONGARCH_GPR_A2);
+	switch (id) {
+	case BIT(KVM_FEATURE_STEAL_TIME):
+		if (data & ~(KVM_STEAL_PHYS_MASK | KVM_STEAL_PHYS_VALID))
+			return KVM_HCALL_INVALID_PARAMETER;
+
+		vcpu->arch.st.guest_addr = data;
+		if (!(data & KVM_STEAL_PHYS_VALID))
+			return 0;
+
+		vcpu->arch.st.last_steal = current->sched_info.run_delay;
+		kvm_make_request(KVM_REQ_STEAL_UPDATE, vcpu);
+		return 0;
+	default:
+		return KVM_HCALL_INVALID_CODE;
+	};
+
+	return KVM_HCALL_INVALID_CODE;
+};
+
 /*
  * kvm_handle_lsx_disabled() - Guest used LSX while disabled in root.
  * @vcpu:      Virtual CPU context.
@@ -712,6 +746,14 @@ static int kvm_handle_lsx_disabled(struct kvm_vcpu *vcpu)
 static int kvm_handle_lasx_disabled(struct kvm_vcpu *vcpu)
 {
 	if (kvm_own_lasx(vcpu))
+		kvm_queue_exception(vcpu, EXCCODE_INE, 0);
+
+	return RESUME_GUEST;
+}
+
+static int kvm_handle_lbt_disabled(struct kvm_vcpu *vcpu)
+{
+	if (kvm_own_lbt(vcpu))
 		kvm_queue_exception(vcpu, EXCCODE_INE, 0);
 
 	return RESUME_GUEST;
@@ -750,16 +792,21 @@ static int kvm_send_pv_ipi(struct kvm_vcpu *vcpu)
  */
 static void kvm_handle_service(struct kvm_vcpu *vcpu)
 {
+	long ret = KVM_HCALL_INVALID_CODE;
 	unsigned long func = kvm_read_reg(vcpu, LOONGARCH_GPR_A0);
-	long ret;
 
 	switch (func) {
 	case KVM_HCALL_FUNC_IPI:
-		kvm_send_pv_ipi(vcpu);
-		ret = KVM_HCALL_SUCCESS;
+		if (kvm_guest_has_pv_feature(vcpu, KVM_FEATURE_IPI)) {
+			kvm_send_pv_ipi(vcpu);
+			ret = KVM_HCALL_SUCCESS;
+		}
+		break;
+	case KVM_HCALL_FUNC_NOTIFY:
+		if (kvm_guest_has_pv_feature(vcpu, KVM_FEATURE_STEAL_TIME))
+			ret = kvm_save_notify(vcpu);
 		break;
 	default:
-		ret = KVM_HCALL_INVALID_CODE;
 		break;
 	}
 
@@ -831,6 +878,7 @@ static exit_handle_fn kvm_fault_tables[EXCCODE_INT_START] = {
 	[EXCCODE_FPDIS]			= kvm_handle_fpu_disabled,
 	[EXCCODE_LSXDIS]		= kvm_handle_lsx_disabled,
 	[EXCCODE_LASXDIS]		= kvm_handle_lasx_disabled,
+	[EXCCODE_BTDIS]			= kvm_handle_lbt_disabled,
 	[EXCCODE_GSPR]			= kvm_handle_gspr,
 	[EXCCODE_HVC]			= kvm_handle_hypercall,
 };

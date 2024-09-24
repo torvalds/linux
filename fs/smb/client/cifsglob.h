@@ -202,10 +202,10 @@ struct cifs_cred {
 	int gid;
 	int mode;
 	int cecount;
-	struct cifs_sid osid;
-	struct cifs_sid gsid;
+	struct smb_sid osid;
+	struct smb_sid gsid;
 	struct cifs_ntace *ntaces;
-	struct cifs_ace *aces;
+	struct smb_ace *aces;
 };
 
 struct cifs_open_info_data {
@@ -231,8 +231,8 @@ struct cifs_open_info_data {
 		unsigned int	eas_len;
 	} wsl;
 	char *symlink_target;
-	struct cifs_sid posix_owner;
-	struct cifs_sid posix_group;
+	struct smb_sid posix_owner;
+	struct smb_sid posix_group;
 	union {
 		struct smb2_file_all_info fi;
 		struct smb311_posix_qinfo posix_fi;
@@ -254,9 +254,8 @@ struct cifs_open_info_data {
 struct smb_rqst {
 	struct kvec	*rq_iov;	/* array of kvecs */
 	unsigned int	rq_nvec;	/* number of kvecs in array */
-	size_t		rq_iter_size;	/* Amount of data in ->rq_iter */
 	struct iov_iter	rq_iter;	/* Data iterator */
-	struct xarray	rq_buffer;	/* Page buffer for encryption */
+	struct folio_queue *rq_buffer;	/* Buffer for encryption */
 };
 
 struct mid_q_entry;
@@ -290,7 +289,7 @@ struct smb_version_operations {
 	int (*check_receive)(struct mid_q_entry *, struct TCP_Server_Info *,
 			     bool);
 	void (*add_credits)(struct TCP_Server_Info *server,
-			    const struct cifs_credits *credits,
+			    struct cifs_credits *credits,
 			    const int optype);
 	void (*set_credits)(struct TCP_Server_Info *, const int);
 	int * (*get_credits_field)(struct TCP_Server_Info *, const int);
@@ -345,7 +344,7 @@ struct smb_version_operations {
 	/* connect to a server share */
 	int (*tree_connect)(const unsigned int, struct cifs_ses *, const char *,
 			    struct cifs_tcon *, const struct nls_table *);
-	/* close tree connecion */
+	/* close tree connection */
 	int (*tree_disconnect)(const unsigned int, struct cifs_tcon *);
 	/* get DFS referrals */
 	int (*get_dfs_refer)(const unsigned int, struct cifs_ses *,
@@ -537,12 +536,12 @@ struct smb_version_operations {
 	int (*set_EA)(const unsigned int, struct cifs_tcon *, const char *,
 			const char *, const void *, const __u16,
 			const struct nls_table *, struct cifs_sb_info *);
-	struct cifs_ntsd * (*get_acl)(struct cifs_sb_info *, struct inode *,
-			const char *, u32 *, u32);
-	struct cifs_ntsd * (*get_acl_by_fid)(struct cifs_sb_info *,
-			const struct cifs_fid *, u32 *, u32);
-	int (*set_acl)(struct cifs_ntsd *, __u32, struct inode *, const char *,
-			int);
+	struct smb_ntsd * (*get_acl)(struct cifs_sb_info *cifssb, struct inode *ino,
+			const char *patch, u32 *plen, u32 info);
+	struct smb_ntsd * (*get_acl_by_fid)(struct cifs_sb_info *cifssmb,
+			const struct cifs_fid *pfid, u32 *plen, u32 info);
+	int (*set_acl)(struct smb_ntsd *pntsd, __u32 len, struct inode *ino, const char *path,
+			int flag);
 	/* writepages retry size */
 	unsigned int (*wp_retry_size)(struct inode *);
 	/* get mtu credits */
@@ -550,13 +549,13 @@ struct smb_version_operations {
 				size_t *, struct cifs_credits *);
 	/* adjust previously taken mtu credits to request size */
 	int (*adjust_credits)(struct TCP_Server_Info *server,
-			      struct cifs_credits *credits,
-			      const unsigned int payload_size);
+			      struct cifs_io_subrequest *subreq,
+			      unsigned int /*enum smb3_rw_credits_trace*/ trace);
 	/* check if we need to issue closedir */
 	bool (*dir_needs_close)(struct cifsFileInfo *);
 	long (*fallocate)(struct file *, struct cifs_tcon *, int, loff_t,
 			  loff_t);
-	/* init transform request - used for encryption for now */
+	/* init transform (compress/encrypt) request */
 	int (*init_transform_rq)(struct TCP_Server_Info *, int num_rqst,
 				 struct smb_rqst *, struct smb_rqst *);
 	int (*is_transform_hdr)(void *buf);
@@ -816,7 +815,7 @@ struct TCP_Server_Info {
 	 * Protected by @refpath_lock and @srv_lock.  The @refpath_lock is
 	 * mostly used for not requiring a copy of @leaf_fullpath when getting
 	 * cached or new DFS referrals (which might also sleep during I/O).
-	 * While @srv_lock is held for making string and NULL comparions against
+	 * While @srv_lock is held for making string and NULL comparisons against
 	 * both fields as in mount(2) and cache refresh.
 	 *
 	 * format: \\HOST\SHARE[\OPTIONAL PATH]
@@ -848,6 +847,9 @@ static inline void cifs_server_unlock(struct TCP_Server_Info *server)
 struct cifs_credits {
 	unsigned int value;
 	unsigned int instance;
+	unsigned int in_flight_check;
+	unsigned int rreq_debug_id;
+	unsigned int rreq_debug_index;
 };
 
 static inline unsigned int
@@ -873,7 +875,7 @@ has_credits(struct TCP_Server_Info *server, int *credits, int num_credits)
 }
 
 static inline void
-add_credits(struct TCP_Server_Info *server, const struct cifs_credits *credits,
+add_credits(struct TCP_Server_Info *server, struct cifs_credits *credits,
 	    const int optype)
 {
 	server->ops->add_credits(server, credits, optype);
@@ -897,11 +899,11 @@ set_credits(struct TCP_Server_Info *server, const int val)
 }
 
 static inline int
-adjust_credits(struct TCP_Server_Info *server, struct cifs_credits *credits,
-	       const unsigned int payload_size)
+adjust_credits(struct TCP_Server_Info *server, struct cifs_io_subrequest *subreq,
+	       unsigned int /* enum smb3_rw_credits_trace */ trace)
 {
 	return server->ops->adjust_credits ?
-		server->ops->adjust_credits(server, credits, payload_size) : 0;
+		server->ops->adjust_credits(server, subreq, trace) : 0;
 }
 
 static inline __le64
@@ -1468,29 +1470,6 @@ struct cifs_io_parms {
 	struct TCP_Server_Info *server;
 };
 
-struct cifs_aio_ctx {
-	struct kref		refcount;
-	struct list_head	list;
-	struct mutex		aio_mutex;
-	struct completion	done;
-	struct iov_iter		iter;
-	struct kiocb		*iocb;
-	struct cifsFileInfo	*cfile;
-	struct bio_vec		*bv;
-	loff_t			pos;
-	unsigned int		nr_pinned_pages;
-	ssize_t			rc;
-	unsigned int		len;
-	unsigned int		total_len;
-	unsigned int		bv_need_unpin;	/* If ->bv[] needs unpinning */
-	bool			should_dirty;
-	/*
-	 * Indicates if this aio_ctx is for direct_io,
-	 * If yes, iter is a copy of the user passed iov_iter
-	 */
-	bool			direct_io;
-};
-
 struct cifs_io_request {
 	struct netfs_io_request		rreq;
 	struct cifsFileInfo		*cfile;
@@ -1570,7 +1549,6 @@ struct cifsInodeInfo {
 #define CIFS_INO_DELETE_PENDING		  (3) /* delete pending on server */
 #define CIFS_INO_INVALID_MAPPING	  (4) /* pagecache is invalid */
 #define CIFS_INO_LOCK			  (5) /* lock bit for synchronization */
-#define CIFS_INO_MODIFIED_ATTR            (6) /* Indicate change in mtime/ctime */
 #define CIFS_INO_CLOSE_ON_LOCK            (7) /* Not to defer the close when lock is set */
 	unsigned long flags;
 	spinlock_t writers_lock;
@@ -1896,12 +1874,13 @@ static inline bool is_replayable_error(int error)
 #define   CIFS_HAS_CREDITS        0x0400 /* already has credits */
 #define   CIFS_TRANSFORM_REQ      0x0800 /* transform request before sending */
 #define   CIFS_NO_SRV_RSP         0x1000 /* there is no server response */
+#define   CIFS_COMPRESS_REQ       0x4000 /* compress request before sending */
 
 /* Security Flags: indicate type of session setup needed */
 #define   CIFSSEC_MAY_SIGN	0x00001
 #define   CIFSSEC_MAY_NTLMV2	0x00004
 #define   CIFSSEC_MAY_KRB5	0x00008
-#define   CIFSSEC_MAY_SEAL	0x00040 /* not supported yet */
+#define   CIFSSEC_MAY_SEAL	0x00040
 #define   CIFSSEC_MAY_NTLMSSP	0x00080 /* raw ntlmssp with ntlmv2 */
 
 #define   CIFSSEC_MUST_SIGN	0x01001
@@ -1911,15 +1890,15 @@ require use of the stronger protocol */
 #define   CIFSSEC_MUST_NTLMV2	0x04004
 #define   CIFSSEC_MUST_KRB5	0x08008
 #ifdef CONFIG_CIFS_UPCALL
-#define   CIFSSEC_MASK          0x8F08F /* flags supported if no weak allowed */
+#define   CIFSSEC_MASK          0xCF0CF /* flags supported if no weak allowed */
 #else
-#define	  CIFSSEC_MASK          0x87087 /* flags supported if no weak allowed */
+#define	  CIFSSEC_MASK          0xC70C7 /* flags supported if no weak allowed */
 #endif /* UPCALL */
-#define   CIFSSEC_MUST_SEAL	0x40040 /* not supported yet */
+#define   CIFSSEC_MUST_SEAL	0x40040
 #define   CIFSSEC_MUST_NTLMSSP	0x80080 /* raw ntlmssp with ntlmv2 */
 
-#define   CIFSSEC_DEF (CIFSSEC_MAY_SIGN | CIFSSEC_MAY_NTLMV2 | CIFSSEC_MAY_NTLMSSP)
-#define   CIFSSEC_MAX (CIFSSEC_MUST_NTLMV2)
+#define   CIFSSEC_DEF (CIFSSEC_MAY_SIGN | CIFSSEC_MAY_NTLMV2 | CIFSSEC_MAY_NTLMSSP | CIFSSEC_MAY_SEAL)
+#define   CIFSSEC_MAX (CIFSSEC_MAY_SIGN | CIFSSEC_MUST_KRB5 | CIFSSEC_MAY_SEAL)
 #define   CIFSSEC_AUTH_MASK (CIFSSEC_MAY_NTLMV2 | CIFSSEC_MAY_KRB5 | CIFSSEC_MAY_NTLMSSP)
 /*
  *****************************************************************
@@ -2007,7 +1986,6 @@ require use of the stronger protocol */
  * cifsFileInfo->file_info_lock	cifsFileInfo->count		cifs_new_fileinfo
  *				->invalidHandle			initiate_cifs_search
  *				->oplock_break_cancelled
- * cifs_aio_ctx->aio_mutex		cifs_aio_ctx			cifs_aio_ctx_alloc
  ****************************************************************************/
 
 #ifdef DECLARE_GLOBALS_HERE
@@ -2038,9 +2016,9 @@ extern spinlock_t		cifs_tcp_ses_lock;
 /*
  * Global transaction id (XID) information
  */
-extern unsigned int GlobalCurrentXid;	/* protected by GlobalMid_Sem */
-extern unsigned int GlobalTotalActiveXid; /* prot by GlobalMid_Sem */
-extern unsigned int GlobalMaxActiveXid;	/* prot by GlobalMid_Sem */
+extern unsigned int GlobalCurrentXid;	/* protected by GlobalMid_Lock */
+extern unsigned int GlobalTotalActiveXid; /* prot by GlobalMid_Lock */
+extern unsigned int GlobalMaxActiveXid;	/* prot by GlobalMid_Lock */
 extern spinlock_t GlobalMid_Lock; /* protects above & list operations on midQ entries */
 
 /*

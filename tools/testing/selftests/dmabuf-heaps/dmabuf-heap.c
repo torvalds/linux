@@ -29,8 +29,10 @@ static int check_vgem(int fd)
 	version.name = name;
 
 	ret = ioctl(fd, DRM_IOCTL_VERSION, &version);
-	if (ret)
+	if (ret || version.name_len != 4)
 		return 0;
+
+	name[4] = '\0';
 
 	return !strcmp(name, "vgem");
 }

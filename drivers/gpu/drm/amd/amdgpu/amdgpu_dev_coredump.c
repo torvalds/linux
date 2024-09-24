@@ -28,8 +28,8 @@
 #include "atom.h"
 
 #ifndef CONFIG_DEV_COREDUMP
-void amdgpu_coredump(struct amdgpu_device *adev, bool vram_lost,
-		     struct amdgpu_reset_context *reset_context)
+void amdgpu_coredump(struct amdgpu_device *adev, bool skip_vram_check,
+		     bool vram_lost, struct amdgpu_job *job)
 {
 }
 #else
@@ -203,7 +203,7 @@ amdgpu_devcoredump_read(char *buffer, loff_t offset, size_t count,
 	struct amdgpu_coredump_info *coredump = data;
 	struct drm_print_iterator iter;
 	struct amdgpu_vm_fault_info *fault_info;
-	int i, ver;
+	int ver;
 
 	iter.data = buffer;
 	iter.offset = 0;
@@ -224,12 +224,29 @@ amdgpu_devcoredump_read(char *buffer, loff_t offset, size_t count,
 			   coredump->reset_task_info.process_name,
 			   coredump->reset_task_info.pid);
 
-	/* GPU IP's information of the SOC */
-	drm_printf(&p, "\nIP Information\n");
+	/* SOC Information */
+	drm_printf(&p, "\nSOC Information\n");
+	drm_printf(&p, "SOC Device id: %d\n", coredump->adev->pdev->device);
+	drm_printf(&p, "SOC PCI Revision id: %d\n", coredump->adev->pdev->revision);
 	drm_printf(&p, "SOC Family: %d\n", coredump->adev->family);
 	drm_printf(&p, "SOC Revision id: %d\n", coredump->adev->rev_id);
 	drm_printf(&p, "SOC External Revision id: %d\n", coredump->adev->external_rev_id);
 
+	/* Memory Information */
+	drm_printf(&p, "\nSOC Memory Information\n");
+	drm_printf(&p, "real vram size: %llu\n", coredump->adev->gmc.real_vram_size);
+	drm_printf(&p, "visible vram size: %llu\n", coredump->adev->gmc.visible_vram_size);
+	drm_printf(&p, "gtt size: %llu\n", coredump->adev->mman.gtt_mgr.manager.size);
+
+	/* GDS Config */
+	drm_printf(&p, "\nGDS Config\n");
+	drm_printf(&p, "gds: total size: %d\n", coredump->adev->gds.gds_size);
+	drm_printf(&p, "gds: compute partition size: %d\n", coredump->adev->gds.gds_size);
+	drm_printf(&p, "gds: gws per compute partition: %d\n", coredump->adev->gds.gws_size);
+	drm_printf(&p, "gds: os per compute partition: %d\n", coredump->adev->gds.oa_size);
+
+	/* HWIP Version Information */
+	drm_printf(&p, "\nHW IP Version Information\n");
 	for (int i = 1; i < MAX_HWIP; i++) {
 		for (int j = 0; j < HWIP_MAX_INSTANCE; j++) {
 			ver = coredump->adev->ip_versions[i][j];
@@ -298,16 +315,10 @@ amdgpu_devcoredump_read(char *buffer, loff_t offset, size_t count,
 		}
 	}
 
-	if (coredump->reset_vram_lost)
+	if (coredump->skip_vram_check)
+		drm_printf(&p, "VRAM lost check is skipped!\n");
+	else if (coredump->reset_vram_lost)
 		drm_printf(&p, "VRAM is lost due to GPU reset!\n");
-	if (coredump->adev->reset_info.num_regs) {
-		drm_printf(&p, "AMDGPU register dumps:\nOffset:     Value:\n");
-
-		for (i = 0; i < coredump->adev->reset_info.num_regs; i++)
-			drm_printf(&p, "0x%08x: 0x%08x\n",
-				   coredump->adev->reset_info.reset_dump_reg_list[i],
-				   coredump->adev->reset_info.reset_dump_reg_value[i]);
-	}
 
 	return count - iter.remain;
 }
@@ -317,12 +328,11 @@ static void amdgpu_devcoredump_free(void *data)
 	kfree(data);
 }
 
-void amdgpu_coredump(struct amdgpu_device *adev, bool vram_lost,
-		     struct amdgpu_reset_context *reset_context)
+void amdgpu_coredump(struct amdgpu_device *adev, bool skip_vram_check,
+		     bool vram_lost, struct amdgpu_job *job)
 {
-	struct amdgpu_coredump_info *coredump;
 	struct drm_device *dev = adev_to_drm(adev);
-	struct amdgpu_job *job = reset_context->job;
+	struct amdgpu_coredump_info *coredump;
 	struct drm_sched_job *s_job;
 
 	coredump = kzalloc(sizeof(*coredump), GFP_NOWAIT);
@@ -332,11 +342,12 @@ void amdgpu_coredump(struct amdgpu_device *adev, bool vram_lost,
 		return;
 	}
 
+	coredump->skip_vram_check = skip_vram_check;
 	coredump->reset_vram_lost = vram_lost;
 
-	if (reset_context->job && reset_context->job->vm) {
+	if (job && job->vm) {
+		struct amdgpu_vm *vm = job->vm;
 		struct amdgpu_task_info *ti;
-		struct amdgpu_vm *vm = reset_context->job->vm;
 
 		ti = amdgpu_vm_get_task_info_vm(vm);
 		if (ti) {

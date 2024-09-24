@@ -53,6 +53,9 @@
 
 #ifdef CONFIG_DEV_COREDUMP
 
+/* 1 hour timeout */
+#define XE_COREDUMP_TIMEOUT_JIFFIES (60 * 60 * HZ)
+
 static struct xe_device *coredump_to_xe(const struct xe_devcoredump *coredump)
 {
 	return container_of(coredump, struct xe_device, devcoredump);
@@ -63,22 +66,9 @@ static struct xe_guc *exec_queue_to_guc(struct xe_exec_queue *q)
 	return &q->gt->uc.guc;
 }
 
-static void xe_devcoredump_deferred_snap_work(struct work_struct *work)
+static ssize_t __xe_devcoredump_read(char *buffer, size_t count,
+				     struct xe_devcoredump *coredump)
 {
-	struct xe_devcoredump_snapshot *ss = container_of(work, typeof(*ss), work);
-
-	/* keep going if fw fails as we still want to save the memory and SW data */
-	if (xe_force_wake_get(gt_to_fw(ss->gt), XE_FORCEWAKE_ALL))
-		xe_gt_info(ss->gt, "failed to get forcewake for coredump capture\n");
-	xe_vm_snapshot_capture_delayed(ss->vm);
-	xe_guc_exec_queue_snapshot_capture_delayed(ss->ge);
-	xe_force_wake_put(gt_to_fw(ss->gt), XE_FORCEWAKE_ALL);
-}
-
-static ssize_t xe_devcoredump_read(char *buffer, loff_t offset,
-				   size_t count, void *data, size_t datalen)
-{
-	struct xe_devcoredump *coredump = data;
 	struct xe_device *xe;
 	struct xe_devcoredump_snapshot *ss;
 	struct drm_printer p;
@@ -86,18 +76,11 @@ static ssize_t xe_devcoredump_read(char *buffer, loff_t offset,
 	struct timespec64 ts;
 	int i;
 
-	if (!coredump)
-		return -ENODEV;
-
 	xe = coredump_to_xe(coredump);
 	ss = &coredump->snapshot;
 
-	/* Ensure delayed work is captured before continuing */
-	flush_work(&ss->work);
-
 	iter.data = buffer;
-	iter.offset = 0;
-	iter.start = offset;
+	iter.start = 0;
 	iter.remain = count;
 
 	p = drm_coredump_printer(&iter);
@@ -110,6 +93,7 @@ static ssize_t xe_devcoredump_read(char *buffer, loff_t offset,
 	drm_printf(&p, "Snapshot time: %lld.%09ld\n", ts.tv_sec, ts.tv_nsec);
 	ts = ktime_to_timespec64(ss->boot_time);
 	drm_printf(&p, "Uptime: %lld.%09ld\n", ts.tv_sec, ts.tv_nsec);
+	drm_printf(&p, "Process: %s\n", ss->process_name);
 	xe_device_snapshot_print(xe, &p);
 
 	drm_printf(&p, "\n**** GuC CT ****\n");
@@ -130,10 +114,83 @@ static ssize_t xe_devcoredump_read(char *buffer, loff_t offset,
 	return count - iter.remain;
 }
 
+static void xe_devcoredump_snapshot_free(struct xe_devcoredump_snapshot *ss)
+{
+	int i;
+
+	xe_guc_ct_snapshot_free(ss->ct);
+	ss->ct = NULL;
+
+	xe_guc_exec_queue_snapshot_free(ss->ge);
+	ss->ge = NULL;
+
+	xe_sched_job_snapshot_free(ss->job);
+	ss->job = NULL;
+
+	for (i = 0; i < XE_NUM_HW_ENGINES; i++)
+		if (ss->hwe[i]) {
+			xe_hw_engine_snapshot_free(ss->hwe[i]);
+			ss->hwe[i] = NULL;
+		}
+
+	xe_vm_snapshot_free(ss->vm);
+	ss->vm = NULL;
+}
+
+static void xe_devcoredump_deferred_snap_work(struct work_struct *work)
+{
+	struct xe_devcoredump_snapshot *ss = container_of(work, typeof(*ss), work);
+	struct xe_devcoredump *coredump = container_of(ss, typeof(*coredump), snapshot);
+
+	/* keep going if fw fails as we still want to save the memory and SW data */
+	if (xe_force_wake_get(gt_to_fw(ss->gt), XE_FORCEWAKE_ALL))
+		xe_gt_info(ss->gt, "failed to get forcewake for coredump capture\n");
+	xe_vm_snapshot_capture_delayed(ss->vm);
+	xe_guc_exec_queue_snapshot_capture_delayed(ss->ge);
+	xe_force_wake_put(gt_to_fw(ss->gt), XE_FORCEWAKE_ALL);
+
+	/* Calculate devcoredump size */
+	ss->read.size = __xe_devcoredump_read(NULL, INT_MAX, coredump);
+
+	ss->read.buffer = kvmalloc(ss->read.size, GFP_USER);
+	if (!ss->read.buffer)
+		return;
+
+	__xe_devcoredump_read(ss->read.buffer, ss->read.size, coredump);
+	xe_devcoredump_snapshot_free(ss);
+}
+
+static ssize_t xe_devcoredump_read(char *buffer, loff_t offset,
+				   size_t count, void *data, size_t datalen)
+{
+	struct xe_devcoredump *coredump = data;
+	struct xe_devcoredump_snapshot *ss;
+	ssize_t byte_copied;
+
+	if (!coredump)
+		return -ENODEV;
+
+	ss = &coredump->snapshot;
+
+	/* Ensure delayed work is captured before continuing */
+	flush_work(&ss->work);
+
+	if (!ss->read.buffer)
+		return -ENODEV;
+
+	if (offset >= ss->read.size)
+		return 0;
+
+	byte_copied = count < ss->read.size - offset ? count :
+		ss->read.size - offset;
+	memcpy(buffer, ss->read.buffer + offset, byte_copied);
+
+	return byte_copied;
+}
+
 static void xe_devcoredump_free(void *data)
 {
 	struct xe_devcoredump *coredump = data;
-	int i;
 
 	/* Our device is gone. Nothing to do... */
 	if (!data || !coredump_to_xe(coredump))
@@ -141,13 +198,8 @@ static void xe_devcoredump_free(void *data)
 
 	cancel_work_sync(&coredump->snapshot.work);
 
-	xe_guc_ct_snapshot_free(coredump->snapshot.ct);
-	xe_guc_exec_queue_snapshot_free(coredump->snapshot.ge);
-	xe_sched_job_snapshot_free(coredump->snapshot.job);
-	for (i = 0; i < XE_NUM_HW_ENGINES; i++)
-		if (coredump->snapshot.hwe[i])
-			xe_hw_engine_snapshot_free(coredump->snapshot.hwe[i]);
-	xe_vm_snapshot_free(coredump->snapshot.vm);
+	xe_devcoredump_snapshot_free(&coredump->snapshot);
+	kvfree(coredump->snapshot.read.buffer);
 
 	/* To prevent stale data on next snapshot, clear everything */
 	memset(&coredump->snapshot, 0, sizeof(coredump->snapshot));
@@ -166,11 +218,17 @@ static void devcoredump_snapshot(struct xe_devcoredump *coredump,
 	enum xe_hw_engine_id id;
 	u32 adj_logical_mask = q->logical_mask;
 	u32 width_mask = (0x1 << q->width) - 1;
+	const char *process_name = "no process";
+
 	int i;
 	bool cookie;
 
 	ss->snapshot_time = ktime_get_real();
 	ss->boot_time = ktime_get_boottime();
+
+	if (q->vm && q->vm->xef)
+		process_name = q->vm->xef->process_name;
+	strscpy(ss->process_name, process_name);
 
 	ss->gt = q->gt;
 	INIT_WORK(&ss->work, xe_devcoredump_deferred_snap_work);
@@ -234,17 +292,21 @@ void xe_devcoredump(struct xe_sched_job *job)
 	drm_info(&xe->drm, "Check your /sys/class/drm/card%d/device/devcoredump/data\n",
 		 xe->drm.primary->index);
 
-	dev_coredumpm(xe->drm.dev, THIS_MODULE, coredump, 0, GFP_KERNEL,
-		      xe_devcoredump_read, xe_devcoredump_free);
+	dev_coredumpm_timeout(xe->drm.dev, THIS_MODULE, coredump, 0, GFP_KERNEL,
+			      xe_devcoredump_read, xe_devcoredump_free,
+			      XE_COREDUMP_TIMEOUT_JIFFIES);
 }
 
-static void xe_driver_devcoredump_fini(struct drm_device *drm, void *arg)
+static void xe_driver_devcoredump_fini(void *arg)
 {
+	struct drm_device *drm = arg;
+
 	dev_coredump_put(drm->dev);
 }
 
 int xe_devcoredump_init(struct xe_device *xe)
 {
-	return drmm_add_action_or_reset(&xe->drm, xe_driver_devcoredump_fini, xe);
+	return devm_add_action_or_reset(xe->drm.dev, xe_driver_devcoredump_fini, &xe->drm);
 }
+
 #endif

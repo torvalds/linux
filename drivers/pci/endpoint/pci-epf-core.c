@@ -488,10 +488,10 @@ pci_epf_match_id(const struct pci_epf_device_id *id, const struct pci_epf *epf)
 	return NULL;
 }
 
-static int pci_epf_device_match(struct device *dev, struct device_driver *drv)
+static int pci_epf_device_match(struct device *dev, const struct device_driver *drv)
 {
 	struct pci_epf *epf = to_pci_epf(dev);
-	struct pci_epf_driver *driver = to_pci_epf_driver(drv);
+	const struct pci_epf_driver *driver = to_pci_epf_driver(drv);
 
 	if (driver->id_table)
 		return !!pci_epf_match_id(driver->id_table, epf);

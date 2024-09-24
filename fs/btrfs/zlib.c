@@ -18,7 +18,10 @@
 #include <linux/pagemap.h>
 #include <linux/bio.h>
 #include <linux/refcount.h>
+#include "btrfs_inode.h"
 #include "compression.h"
+#include "fs.h"
+#include "subpage.h"
 
 /* workspace buffer size for s390 zlib hardware support */
 #define ZLIB_DFLTCC_BUF_SIZE    (4 * PAGE_SIZE)
@@ -107,13 +110,19 @@ int zlib_compress_folios(struct list_head *ws, struct address_space *mapping,
 	unsigned long len = *total_out;
 	unsigned long nr_dest_folios = *out_folios;
 	const unsigned long max_out = nr_dest_folios * PAGE_SIZE;
+	const u64 orig_end = start + len;
 
 	*out_folios = 0;
 	*total_out = 0;
 	*total_in = 0;
 
-	if (Z_OK != zlib_deflateInit(&workspace->strm, workspace->level)) {
-		pr_warn("BTRFS: deflateInit failed\n");
+	ret = zlib_deflateInit(&workspace->strm, workspace->level);
+	if (unlikely(ret != Z_OK)) {
+		struct btrfs_inode *inode = BTRFS_I(mapping->host);
+
+		btrfs_err(inode->root->fs_info,
+	"zlib compression init failed, error %d root %llu inode %llu offset %llu",
+			  ret, btrfs_root_id(inode->root), btrfs_ino(inode), start);
 		ret = -EIO;
 		goto out;
 	}
@@ -147,6 +156,10 @@ int zlib_compress_folios(struct list_head *ws, struct address_space *mapping,
 			if (in_buf_folios > 1) {
 				int i;
 
+				/* S390 hardware acceleration path, not subpage. */
+				ASSERT(!btrfs_is_subpage(
+						inode_to_fs_info(mapping->host),
+						mapping));
 				for (i = 0; i < in_buf_folios; i++) {
 					if (data_in) {
 						kunmap_local(data_in);
@@ -161,9 +174,14 @@ int zlib_compress_folios(struct list_head *ws, struct address_space *mapping,
 					copy_page(workspace->buf + i * PAGE_SIZE,
 						  data_in);
 					start += PAGE_SIZE;
+					workspace->strm.avail_in =
+						(in_buf_folios << PAGE_SHIFT);
 				}
 				workspace->strm.next_in = workspace->buf;
 			} else {
+				unsigned int pg_off;
+				unsigned int cur_len;
+
 				if (data_in) {
 					kunmap_local(data_in);
 					folio_put(in_folio);
@@ -173,18 +191,23 @@ int zlib_compress_folios(struct list_head *ws, struct address_space *mapping,
 						start, &in_folio);
 				if (ret < 0)
 					goto out;
-				data_in = kmap_local_folio(in_folio, 0);
+				pg_off = offset_in_page(start);
+				cur_len = btrfs_calc_input_length(orig_end, start);
+				data_in = kmap_local_folio(in_folio, pg_off);
 				start += PAGE_SIZE;
 				workspace->strm.next_in = data_in;
+				workspace->strm.avail_in = cur_len;
 			}
-			workspace->strm.avail_in = min(bytes_left,
-						       (unsigned long) workspace->buf_size);
 		}
 
 		ret = zlib_deflate(&workspace->strm, Z_SYNC_FLUSH);
-		if (ret != Z_OK) {
-			pr_debug("BTRFS: deflate in loop returned %d\n",
-			       ret);
+		if (unlikely(ret != Z_OK)) {
+			struct btrfs_inode *inode = BTRFS_I(mapping->host);
+
+			btrfs_warn(inode->root->fs_info,
+		"zlib compression failed, error %d root %llu inode %llu offset %llu",
+				   ret, btrfs_root_id(inode->root), btrfs_ino(inode),
+				   start);
 			zlib_deflateEnd(&workspace->strm);
 			ret = -EIO;
 			goto out;
@@ -307,9 +330,14 @@ int zlib_decompress_bio(struct list_head *ws, struct compressed_bio *cb)
 		workspace->strm.avail_in -= 2;
 	}
 
-	if (Z_OK != zlib_inflateInit2(&workspace->strm, wbits)) {
-		pr_warn("BTRFS: inflateInit failed\n");
+	ret = zlib_inflateInit2(&workspace->strm, wbits);
+	if (unlikely(ret != Z_OK)) {
+		struct btrfs_inode *inode = cb->bbio.inode;
+
 		kunmap_local(data_in);
+		btrfs_err(inode->root->fs_info,
+	"zlib decompression init failed, error %d root %llu inode %llu offset %llu",
+			  ret, btrfs_root_id(inode->root), btrfs_ino(inode), cb->start);
 		return -EIO;
 	}
 	while (workspace->strm.total_in < srclen) {
@@ -348,10 +376,15 @@ int zlib_decompress_bio(struct list_head *ws, struct compressed_bio *cb)
 			workspace->strm.avail_in = min(tmp, PAGE_SIZE);
 		}
 	}
-	if (ret != Z_STREAM_END)
+	if (unlikely(ret != Z_STREAM_END)) {
+		btrfs_err(cb->bbio.inode->root->fs_info,
+		"zlib decompression failed, error %d root %llu inode %llu offset %llu",
+			  ret, btrfs_root_id(cb->bbio.inode->root),
+			  btrfs_ino(cb->bbio.inode), cb->start);
 		ret = -EIO;
-	else
+	} else {
 		ret = 0;
+	}
 done:
 	zlib_inflateEnd(&workspace->strm);
 	if (data_in)
@@ -360,7 +393,7 @@ done:
 }
 
 int zlib_decompress(struct list_head *ws, const u8 *data_in,
-		struct page *dest_page, unsigned long dest_pgoff, size_t srclen,
+		struct folio *dest_folio, unsigned long dest_pgoff, size_t srclen,
 		size_t destlen)
 {
 	struct workspace *workspace = list_entry(ws, struct workspace, list);
@@ -386,8 +419,14 @@ int zlib_decompress(struct list_head *ws, const u8 *data_in,
 		workspace->strm.avail_in -= 2;
 	}
 
-	if (Z_OK != zlib_inflateInit2(&workspace->strm, wbits)) {
-		pr_warn("BTRFS: inflateInit failed\n");
+	ret = zlib_inflateInit2(&workspace->strm, wbits);
+	if (unlikely(ret != Z_OK)) {
+		struct btrfs_inode *inode = folio_to_inode(dest_folio);
+
+		btrfs_err(inode->root->fs_info,
+		"zlib decompression init failed, error %d root %llu inode %llu offset %llu",
+			  ret, btrfs_root_id(inode->root), btrfs_ino(inode),
+			  folio_pos(dest_folio));
 		return -EIO;
 	}
 
@@ -400,12 +439,16 @@ int zlib_decompress(struct list_head *ws, const u8 *data_in,
 	if (ret != Z_STREAM_END)
 		goto out;
 
-	memcpy_to_page(dest_page, dest_pgoff, workspace->buf, to_copy);
+	memcpy_to_folio(dest_folio, dest_pgoff, workspace->buf, to_copy);
 
 out:
 	if (unlikely(to_copy != destlen)) {
-		pr_warn_ratelimited("BTRFS: inflate failed, decompressed=%lu expected=%zu\n",
-					to_copy, destlen);
+		struct btrfs_inode *inode = folio_to_inode(dest_folio);
+
+		btrfs_err(inode->root->fs_info,
+"zlib decompression failed, error %d root %llu inode %llu offset %llu decompressed %lu expected %zu",
+			  ret, btrfs_root_id(inode->root), btrfs_ino(inode),
+			  folio_pos(dest_folio), to_copy, destlen);
 		ret = -EIO;
 	} else {
 		ret = 0;
@@ -414,7 +457,7 @@ out:
 	zlib_inflateEnd(&workspace->strm);
 
 	if (unlikely(to_copy < destlen))
-		memzero_page(dest_page, dest_pgoff + to_copy, destlen - to_copy);
+		folio_zero_range(dest_folio, dest_pgoff + to_copy, destlen - to_copy);
 	return ret;
 }
 

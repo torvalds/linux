@@ -17,7 +17,6 @@
 #include <linux/string.h>
 
 #define SDW_LINK_TYPE		4 /* from Intel ACPI documentation */
-#define SDW_MAX_LINKS		4
 
 static int ctrl_link_mask;
 module_param_named(sdw_link_mask, ctrl_link_mask, int, 0444);
@@ -87,9 +86,9 @@ sdw_intel_scan_controller(struct sdw_intel_acpi_info *info)
 	}
 
 	/* Check count is within bounds */
-	if (count > SDW_MAX_LINKS) {
+	if (count > SDW_INTEL_MAX_LINKS) {
 		dev_err(&adev->dev, "Link count %d exceeds max %d\n",
-			count, SDW_MAX_LINKS);
+			count, SDW_INTEL_MAX_LINKS);
 		return -EINVAL;
 	}
 
@@ -125,11 +124,11 @@ static acpi_status sdw_intel_acpi_cb(acpi_handle handle, u32 level,
 				     void *cdata, void **return_value)
 {
 	struct sdw_intel_acpi_info *info = cdata;
-	acpi_status status;
 	u64 adr;
+	int ret;
 
-	status = acpi_evaluate_integer(handle, METHOD_NAME__ADR, NULL, &adr);
-	if (ACPI_FAILURE(status))
+	ret = acpi_get_local_u64_address(handle, &adr);
+	if (ret < 0)
 		return AE_OK; /* keep going */
 
 	if (!acpi_fetch_acpi_dev(handle)) {

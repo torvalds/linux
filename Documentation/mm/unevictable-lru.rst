@@ -80,7 +80,7 @@ on an additional LRU list for a few reasons:
  (2) We want to be able to migrate unevictable folios between nodes for memory
      defragmentation, workload management and memory hotplug.  The Linux kernel
      can only migrate folios that it can successfully isolate from the LRU
-     lists (or "Movable" pages: outside of consideration here).  If we were to
+     lists (or "Movable" folios: outside of consideration here).  If we were to
      maintain folios elsewhere than on an LRU-like list, where they can be
      detected by folio_isolate_lru(), we would prevent their migration.
 
@@ -191,13 +191,13 @@ have become evictable again (via munlock() for example) and have been "rescued"
 from the unevictable list.  However, there may be situations where we decide,
 for the sake of expediency, to leave an unevictable folio on one of the regular
 active/inactive LRU lists for vmscan to deal with.  vmscan checks for such
-folios in all of the shrink_{active|inactive|page}_list() functions and will
+folios in all of the shrink_{active|inactive|folio}_list() functions and will
 "cull" such folios that it encounters: that is, it diverts those folios to the
 unevictable list for the memory cgroup and node being scanned.
 
 There may be situations where a folio is mapped into a VM_LOCKED VMA,
 but the folio does not have the mlocked flag set.  Such folios will make
-it all the way to shrink_active_list() or shrink_page_list() where they
+it all the way to shrink_active_list() or shrink_folio_list() where they
 will be detected when vmscan walks the reverse map in folio_referenced()
 or try_to_unmap().  The folio is culled to the unevictable list when it
 is released by the shrinker.
@@ -230,7 +230,7 @@ In Nick's patch, he used one of the struct page LRU list link fields as a count
 of VM_LOCKED VMAs that map the page (Rik van Riel had the same idea three years
 earlier).  But this use of the link field for a count prevented the management
 of the pages on an LRU list, and thus mlocked pages were not migratable as
-isolate_lru_page() could not detect them, and the LRU list link field was not
+folio_isolate_lru() could not detect them, and the LRU list link field was not
 available to the migration subsystem.
 
 Nick resolved this by putting mlocked pages back on the LRU list before
@@ -253,8 +253,8 @@ Basic Management
 
 mlocked pages - pages mapped into a VM_LOCKED VMA - are a class of unevictable
 pages.  When such a page has been "noticed" by the memory management subsystem,
-the page is marked with the PG_mlocked flag.  This can be manipulated using the
-PageMlocked() functions.
+the folio is marked with the PG_mlocked flag.  This can be manipulated using
+folio_set_mlocked() and folio_clear_mlocked() functions.
 
 A PG_mlocked page will be placed on the unevictable list when it is added to
 the LRU.  Such pages can be "noticed" by memory management in several places:
@@ -269,7 +269,7 @@ the LRU.  Such pages can be "noticed" by memory management in several places:
 
  (4) in the fault path and when a VM_LOCKED stack segment is expanded; or
 
- (5) as mentioned above, in vmscan:shrink_page_list() when attempting to
+ (5) as mentioned above, in vmscan:shrink_folio_list() when attempting to
      reclaim a page in a VM_LOCKED VMA by folio_referenced() or try_to_unmap().
 
 mlocked pages become unlocked and rescued from the unevictable list when:
@@ -548,12 +548,12 @@ Some examples of these unevictable pages on the LRU lists are:
  (3) pages still mapped into VM_LOCKED VMAs, which should be marked mlocked,
      but events left mlock_count too low, so they were munlocked too early.
 
-vmscan's shrink_inactive_list() and shrink_page_list() also divert obviously
+vmscan's shrink_inactive_list() and shrink_folio_list() also divert obviously
 unevictable pages found on the inactive lists to the appropriate memory cgroup
 and node unevictable list.
 
 rmap's folio_referenced_one(), called via vmscan's shrink_active_list() or
-shrink_page_list(), and rmap's try_to_unmap_one() called via shrink_page_list(),
+shrink_folio_list(), and rmap's try_to_unmap_one() called via shrink_folio_list(),
 check for (3) pages still mapped into VM_LOCKED VMAs, and call mlock_vma_folio()
 to correct them.  Such pages are culled to the unevictable list when released
 by the shrinker.

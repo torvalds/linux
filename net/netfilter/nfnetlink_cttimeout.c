@@ -366,8 +366,7 @@ static int cttimeout_default_set(struct sk_buff *skb,
 	__u8 l4num;
 	int ret;
 
-	if (!cda[CTA_TIMEOUT_L3PROTO] ||
-	    !cda[CTA_TIMEOUT_L4PROTO] ||
+	if (!cda[CTA_TIMEOUT_L4PROTO] ||
 	    !cda[CTA_TIMEOUT_DATA])
 		return -EINVAL;
 

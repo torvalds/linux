@@ -19,7 +19,7 @@ description:
 
 properties:
   $nodename:
-    pattern: "^mdio(@.*)?"
+    pattern: '^mdio(-(bus|external))?(@.+|-([0-9]+))?$'
 
   "#address-cells":
     const: 1

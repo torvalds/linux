@@ -4,8 +4,11 @@
 
 #include <linux/device.h>
 #include <linux/err.h>
+#include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/of.h>
+
+MODULE_IMPORT_NS(PWM);
 
 struct pwm_chip;
 
@@ -249,9 +252,7 @@ struct pwm_capture {
  * @free: optional hook for freeing a PWM
  * @capture: capture and report PWM signal
  * @apply: atomically apply a new PWM config
- * @get_state: get the current PWM state. This function is only
- *	       called once per PWM device when the PWM chip is
- *	       registered.
+ * @get_state: get the current PWM state.
  */
 struct pwm_ops {
 	int (*request)(struct pwm_chip *chip, struct pwm_device *pwm);
@@ -393,9 +394,6 @@ static inline bool pwm_might_sleep(struct pwm_device *pwm)
 }
 
 /* PWM provider APIs */
-int pwm_capture(struct pwm_device *pwm, struct pwm_capture *result,
-		unsigned long timeout);
-
 void pwmchip_put(struct pwm_chip *chip);
 struct pwm_chip *pwmchip_alloc(struct device *parent, unsigned int npwm, size_t sizeof_priv);
 struct pwm_chip *devm_pwmchip_alloc(struct device *parent, unsigned int npwm, size_t sizeof_priv);
@@ -406,10 +404,6 @@ void pwmchip_remove(struct pwm_chip *chip);
 
 int __devm_pwmchip_add(struct device *dev, struct pwm_chip *chip, struct module *owner);
 #define devm_pwmchip_add(dev, chip) __devm_pwmchip_add(dev, chip, THIS_MODULE)
-
-struct pwm_device *pwm_request_from_chip(struct pwm_chip *chip,
-					 unsigned int index,
-					 const char *label);
 
 struct pwm_device *of_pwm_xlate_with_flags(struct pwm_chip *chip,
 		const struct of_phandle_args *args);
@@ -465,13 +459,6 @@ static inline void pwm_disable(struct pwm_device *pwm)
 	might_sleep();
 }
 
-static inline int pwm_capture(struct pwm_device *pwm,
-			      struct pwm_capture *result,
-			      unsigned long timeout)
-{
-	return -EINVAL;
-}
-
 static inline void pwmchip_put(struct pwm_chip *chip)
 {
 }
@@ -503,14 +490,6 @@ static inline int pwmchip_remove(struct pwm_chip *chip)
 static inline int devm_pwmchip_add(struct device *dev, struct pwm_chip *chip)
 {
 	return -EINVAL;
-}
-
-static inline struct pwm_device *pwm_request_from_chip(struct pwm_chip *chip,
-						       unsigned int index,
-						       const char *label)
-{
-	might_sleep();
-	return ERR_PTR(-ENODEV);
 }
 
 static inline struct pwm_device *pwm_get(struct device *dev,
@@ -572,13 +551,6 @@ static inline void pwm_apply_args(struct pwm_device *pwm)
 	state.usage_power = false;
 
 	pwm_apply_might_sleep(pwm, &state);
-}
-
-/* only for backwards-compatibility, new code should not use this */
-static inline int pwm_apply_state(struct pwm_device *pwm,
-				  const struct pwm_state *state)
-{
-	return pwm_apply_might_sleep(pwm, state);
 }
 
 struct pwm_lookup {

@@ -94,6 +94,7 @@ static void __exit dax_pmem_exit(void)
 }
 module_exit(dax_pmem_exit);
 
+MODULE_DESCRIPTION("PMEM DAX: direct access to persistent memory");
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Intel Corporation");
 MODULE_ALIAS_ND_DEVICE(ND_DEVICE_DAX_PMEM);

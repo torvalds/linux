@@ -714,7 +714,7 @@ err2:
 err1:
 	mlx5_cmd_allowed_opcode(dev, CMD_ALLOWED_OPCODE_ALL);
 	mlx5_eq_notifier_unregister(dev, &table->cq_err_nb);
-	mlx5_ctrl_irq_release(table->ctrl_irq);
+	mlx5_ctrl_irq_release(dev, table->ctrl_irq);
 	return err;
 }
 
@@ -730,7 +730,7 @@ static void destroy_async_eqs(struct mlx5_core_dev *dev)
 	cleanup_async_eq(dev, &table->cmd_eq, "cmd");
 	mlx5_cmd_allowed_opcode(dev, CMD_ALLOWED_OPCODE_ALL);
 	mlx5_eq_notifier_unregister(dev, &table->cq_err_nb);
-	mlx5_ctrl_irq_release(table->ctrl_irq);
+	mlx5_ctrl_irq_release(dev, table->ctrl_irq);
 }
 
 struct mlx5_eq *mlx5_get_async_eq(struct mlx5_core_dev *dev)
@@ -835,28 +835,9 @@ static void comp_irq_release_pci(struct mlx5_core_dev *dev, u16 vecidx)
 	mlx5_irq_release_vector(irq);
 }
 
-static int mlx5_cpumask_default_spread(int numa_node, int index)
+static int mlx5_cpumask_default_spread(struct mlx5_core_dev *dev, int index)
 {
-	const struct cpumask *prev = cpu_none_mask;
-	const struct cpumask *mask;
-	int found_cpu = 0;
-	int i = 0;
-	int cpu;
-
-	rcu_read_lock();
-	for_each_numa_hop_mask(mask, numa_node) {
-		for_each_cpu_andnot(cpu, mask, prev) {
-			if (i++ == index) {
-				found_cpu = cpu;
-				goto spread_done;
-			}
-		}
-		prev = mask;
-	}
-
-spread_done:
-	rcu_read_unlock();
-	return found_cpu;
+	return cpumask_local_spread(index, dev->priv.numa_node);
 }
 
 static struct cpu_rmap *mlx5_eq_table_get_pci_rmap(struct mlx5_core_dev *dev)
@@ -880,7 +861,7 @@ static int comp_irq_request_pci(struct mlx5_core_dev *dev, u16 vecidx)
 	int cpu;
 
 	rmap = mlx5_eq_table_get_pci_rmap(dev);
-	cpu = mlx5_cpumask_default_spread(dev->priv.numa_node, vecidx);
+	cpu = mlx5_cpumask_default_spread(dev, vecidx);
 	irq = mlx5_irq_request_vector(dev, cpu, vecidx, &rmap);
 	if (IS_ERR(irq))
 		return PTR_ERR(irq);
@@ -915,10 +896,10 @@ static int comp_irq_request_sf(struct mlx5_core_dev *dev, u16 vecidx)
 	if (!mlx5_irq_pool_is_sf_pool(pool))
 		return comp_irq_request_pci(dev, vecidx);
 
-	af_desc.is_managed = 1;
+	af_desc.is_managed = false;
 	cpumask_copy(&af_desc.mask, cpu_online_mask);
 	cpumask_andnot(&af_desc.mask, &af_desc.mask, &table->used_cpus);
-	irq = mlx5_irq_affinity_request(pool, &af_desc);
+	irq = mlx5_irq_affinity_request(dev, pool, &af_desc);
 	if (IS_ERR(irq))
 		return PTR_ERR(irq);
 
@@ -1145,7 +1126,7 @@ int mlx5_comp_vector_get_cpu(struct mlx5_core_dev *dev, int vector)
 	if (mask)
 		cpu = cpumask_first(mask);
 	else
-		cpu = mlx5_cpumask_default_spread(dev->priv.numa_node, vector);
+		cpu = mlx5_cpumask_default_spread(dev, vector);
 
 	return cpu;
 }
@@ -1187,7 +1168,6 @@ static int get_num_eqs(struct mlx5_core_dev *dev)
 {
 	struct mlx5_eq_table *eq_table = dev->priv.eq_table;
 	int max_dev_eqs;
-	int max_eqs_sf;
 	int num_eqs;
 
 	/* If ethernet is disabled we use just a single completion vector to
@@ -1197,14 +1177,16 @@ static int get_num_eqs(struct mlx5_core_dev *dev)
 	if (!mlx5_core_is_eth_enabled(dev) && mlx5_eth_supported(dev))
 		return 1;
 
-	max_dev_eqs = MLX5_CAP_GEN(dev, max_num_eqs) ?
-		      MLX5_CAP_GEN(dev, max_num_eqs) :
-		      1 << MLX5_CAP_GEN(dev, log_max_eq);
+	max_dev_eqs = mlx5_max_eq_cap_get(dev);
 
 	num_eqs = min_t(int, mlx5_irq_table_get_num_comp(eq_table->irq_table),
 			max_dev_eqs - MLX5_MAX_ASYNC_EQS);
 	if (mlx5_core_is_sf(dev)) {
-		max_eqs_sf = min_t(int, MLX5_COMP_EQS_PER_SF,
+		int max_eqs_sf = MLX5_CAP_GEN_2(dev, sf_eq_usage) ?
+				 MLX5_CAP_GEN_2(dev, max_num_eqs_24b) :
+				 MLX5_COMP_EQS_PER_SF;
+
+		max_eqs_sf = min_t(int, max_eqs_sf,
 				   mlx5_irq_table_get_sfs_vec(eq_table->irq_table));
 		num_eqs = min_t(int, num_eqs, max_eqs_sf);
 	}

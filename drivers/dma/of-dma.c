@@ -26,7 +26,7 @@ static DEFINE_MUTEX(of_dma_lock);
  *
  * Finds a DMA controller with matching device node and number for dma cells
  * in a list of registered DMA controllers. If a match is found a valid pointer
- * to the DMA data stored is retuned. A NULL pointer is returned if no match is
+ * to the DMA data stored is returned. A NULL pointer is returned if no match is
  * found.
  */
 static struct of_dma *of_dma_find_controller(const struct of_phandle_args *dma_spec)
@@ -342,7 +342,7 @@ EXPORT_SYMBOL_GPL(of_dma_simple_xlate);
  *
  * This function can be used as the of xlate callback for DMA driver which wants
  * to match the channel based on the channel id. When using this xlate function
- * the #dma-cells propety of the DMA controller dt node needs to be set to 1.
+ * the #dma-cells property of the DMA controller dt node needs to be set to 1.
  * The data parameter of of_dma_controller_register must be a pointer to the
  * dma_device struct the function should match upon.
  *

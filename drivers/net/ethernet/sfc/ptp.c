@@ -884,7 +884,7 @@ static void efx_ptp_read_timeset(MCDI_DECLARE_STRUCT_PTR(data),
 	timeset->host_start = MCDI_DWORD(data, PTP_OUT_SYNCHRONIZE_HOSTSTART);
 	timeset->major = MCDI_DWORD(data, PTP_OUT_SYNCHRONIZE_MAJOR);
 	timeset->minor = MCDI_DWORD(data, PTP_OUT_SYNCHRONIZE_MINOR);
-	timeset->host_end = MCDI_DWORD(data, PTP_OUT_SYNCHRONIZE_HOSTEND),
+	timeset->host_end = MCDI_DWORD(data, PTP_OUT_SYNCHRONIZE_HOSTEND);
 	timeset->wait = MCDI_DWORD(data, PTP_OUT_SYNCHRONIZE_WAITNS);
 
 	/* Ignore seconds */
@@ -1864,7 +1864,7 @@ static int efx_ptp_ts_init(struct efx_nic *efx, struct kernel_hwtstamp_config *i
 	return 0;
 }
 
-void efx_ptp_get_ts_info(struct efx_nic *efx, struct ethtool_ts_info *ts_info)
+void efx_ptp_get_ts_info(struct efx_nic *efx, struct kernel_ethtool_ts_info *ts_info)
 {
 	struct efx_ptp_data *ptp = efx->ptp_data;
 	struct efx_nic *primary = efx->primary;

@@ -20,12 +20,6 @@ struct user_struct;
 struct mmu_gather;
 struct node;
 
-#ifndef CONFIG_ARCH_HAS_HUGEPD
-typedef struct { unsigned long pd; } hugepd_t;
-#define is_hugepd(hugepd) (0)
-#define __hugepd(x) ((hugepd_t) { (x) })
-#endif
-
 void free_huge_folio(struct folio *folio);
 
 #ifdef CONFIG_HUGETLB_PAGE
@@ -133,9 +127,6 @@ int move_hugetlb_page_tables(struct vm_area_struct *vma,
 			     unsigned long len);
 int copy_hugetlb_page_range(struct mm_struct *, struct mm_struct *,
 			    struct vm_area_struct *, struct vm_area_struct *);
-struct page *hugetlb_follow_page_mask(struct vm_area_struct *vma,
-				      unsigned long address, unsigned int flags,
-				      unsigned int *page_mask);
 void unmap_hugepage_range(struct vm_area_struct *,
 			  unsigned long, unsigned long, struct page *,
 			  zap_flags_t);
@@ -616,47 +607,35 @@ static __always_inline						\
 bool folio_test_hugetlb_##flname(struct folio *folio)		\
 	{	void *private = &folio->private;		\
 		return test_bit(HPG_##flname, private);		\
-	}							\
-static inline int HPage##uname(struct page *page)		\
-	{ return test_bit(HPG_##flname, &(page->private)); }
+	}
 
 #define SETHPAGEFLAG(uname, flname)				\
 static __always_inline						\
 void folio_set_hugetlb_##flname(struct folio *folio)		\
 	{	void *private = &folio->private;		\
 		set_bit(HPG_##flname, private);			\
-	}							\
-static inline void SetHPage##uname(struct page *page)		\
-	{ set_bit(HPG_##flname, &(page->private)); }
+	}
 
 #define CLEARHPAGEFLAG(uname, flname)				\
 static __always_inline						\
 void folio_clear_hugetlb_##flname(struct folio *folio)		\
 	{	void *private = &folio->private;		\
 		clear_bit(HPG_##flname, private);		\
-	}							\
-static inline void ClearHPage##uname(struct page *page)		\
-	{ clear_bit(HPG_##flname, &(page->private)); }
+	}
 #else
 #define TESTHPAGEFLAG(uname, flname)				\
 static inline bool						\
 folio_test_hugetlb_##flname(struct folio *folio)		\
-	{ return 0; }						\
-static inline int HPage##uname(struct page *page)		\
 	{ return 0; }
 
 #define SETHPAGEFLAG(uname, flname)				\
 static inline void						\
 folio_set_hugetlb_##flname(struct folio *folio) 		\
-	{ }							\
-static inline void SetHPage##uname(struct page *page)		\
 	{ }
 
 #define CLEARHPAGEFLAG(uname, flname)				\
 static inline void						\
 folio_clear_hugetlb_##flname(struct folio *folio)		\
-	{ }							\
-static inline void ClearHPage##uname(struct page *page)		\
 	{ }
 #endif
 
@@ -681,6 +660,7 @@ HPAGEFLAG(RawHwpUnreliable, raw_hwp_unreliable)
 /* Defines one hugetlb page size */
 struct hstate {
 	struct mutex resize_lock;
+	struct lock_class_key resize_key;
 	int next_nid_to_alloc;
 	int next_nid_to_free;
 	unsigned int order;
@@ -698,11 +678,6 @@ struct hstate {
 	unsigned int nr_huge_pages_node[MAX_NUMNODES];
 	unsigned int free_huge_pages_node[MAX_NUMNODES];
 	unsigned int surplus_huge_pages_node[MAX_NUMNODES];
-#ifdef CONFIG_CGROUP_HUGETLB
-	/* cgroup control files */
-	struct cftype cgroup_files_dfl[8];
-	struct cftype cgroup_files_legacy[10];
-#endif
 	char name[HSTATE_NAME_LEN];
 };
 
@@ -921,10 +896,11 @@ static inline bool hugepage_movable_supported(struct hstate *h)
 /* Movability of hugepages depends on migration support. */
 static inline gfp_t htlb_alloc_mask(struct hstate *h)
 {
-	if (hugepage_movable_supported(h))
-		return GFP_HIGHUSER_MOVABLE;
-	else
-		return GFP_HIGHUSER;
+	gfp_t gfp = __GFP_COMP | __GFP_NOWARN;
+
+	gfp |= hugepage_movable_supported(h) ? GFP_HIGHUSER_MOVABLE : GFP_HIGHUSER;
+
+	return gfp;
 }
 
 static inline gfp_t htlb_modify_alloc_mask(struct hstate *h, gfp_t gfp_mask)
@@ -966,10 +942,37 @@ static inline bool htlb_allow_alloc_fallback(int reason)
 static inline spinlock_t *huge_pte_lockptr(struct hstate *h,
 					   struct mm_struct *mm, pte_t *pte)
 {
-	if (huge_page_size(h) == PMD_SIZE)
+	const unsigned long size = huge_page_size(h);
+
+	VM_WARN_ON(size == PAGE_SIZE);
+
+	/*
+	 * hugetlb must use the exact same PT locks as core-mm page table
+	 * walkers would. When modifying a PTE table, hugetlb must take the
+	 * PTE PT lock, when modifying a PMD table, hugetlb must take the PMD
+	 * PT lock etc.
+	 *
+	 * The expectation is that any hugetlb folio smaller than a PMD is
+	 * always mapped into a single PTE table and that any hugetlb folio
+	 * smaller than a PUD (but at least as big as a PMD) is always mapped
+	 * into a single PMD table.
+	 *
+	 * If that does not hold for an architecture, then that architecture
+	 * must disable split PT locks such that all *_lockptr() functions
+	 * will give us the same result: the per-MM PT lock.
+	 *
+	 * Note that with e.g., CONFIG_PGTABLE_LEVELS=2 where
+	 * PGDIR_SIZE==P4D_SIZE==PUD_SIZE==PMD_SIZE, we'd use pud_lockptr()
+	 * and core-mm would use pmd_lockptr(). However, in such configurations
+	 * split PMD locks are disabled -- they don't make sense on a single
+	 * PGDIR page table -- and the end result is the same.
+	 */
+	if (size >= PUD_SIZE)
+		return pud_lockptr(mm, (pud_t *) pte);
+	else if (size >= PMD_SIZE || IS_ENABLED(CONFIG_HIGHPTE))
 		return pmd_lockptr(mm, (pmd_t *) pte);
-	VM_BUG_ON(huge_page_size(h) == PAGE_SIZE);
-	return &mm->page_table_lock;
+	/* pte_alloc_huge() only applies with !CONFIG_HIGHPTE */
+	return ptep_lockptr(mm, pte);
 }
 
 #ifndef hugepages_supported
@@ -1246,7 +1249,7 @@ static inline __init void hugetlb_cma_reserve(int order)
 }
 #endif
 
-#ifdef CONFIG_ARCH_WANT_HUGE_PMD_SHARE
+#ifdef CONFIG_HUGETLB_PMD_PAGE_TABLE_SHARING
 static inline bool hugetlb_pmd_shared(pte_t *pte)
 {
 	return page_count(virt_to_page(pte)) > 1;
@@ -1282,8 +1285,7 @@ bool __vma_private_lock(struct vm_area_struct *vma);
 static inline pte_t *
 hugetlb_walk(struct vm_area_struct *vma, unsigned long addr, unsigned long sz)
 {
-#if defined(CONFIG_HUGETLB_PAGE) && \
-	defined(CONFIG_ARCH_WANT_HUGE_PMD_SHARE) && defined(CONFIG_LOCKDEP)
+#if defined(CONFIG_HUGETLB_PMD_PAGE_TABLE_SHARING) && defined(CONFIG_LOCKDEP)
 	struct hugetlb_vma_lock *vma_lock = vma->vm_private_data;
 
 	/*

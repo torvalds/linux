@@ -27,64 +27,10 @@
 #include "cancel.h"
 #include "kbuf.h"
 #include "napi.h"
+#include "eventfd.h"
 
 #define IORING_MAX_RESTRICTIONS	(IORING_RESTRICTION_LAST + \
 				 IORING_REGISTER_LAST + IORING_OP_LAST)
-
-static int io_eventfd_register(struct io_ring_ctx *ctx, void __user *arg,
-			       unsigned int eventfd_async)
-{
-	struct io_ev_fd *ev_fd;
-	__s32 __user *fds = arg;
-	int fd;
-
-	ev_fd = rcu_dereference_protected(ctx->io_ev_fd,
-					lockdep_is_held(&ctx->uring_lock));
-	if (ev_fd)
-		return -EBUSY;
-
-	if (copy_from_user(&fd, fds, sizeof(*fds)))
-		return -EFAULT;
-
-	ev_fd = kmalloc(sizeof(*ev_fd), GFP_KERNEL);
-	if (!ev_fd)
-		return -ENOMEM;
-
-	ev_fd->cq_ev_fd = eventfd_ctx_fdget(fd);
-	if (IS_ERR(ev_fd->cq_ev_fd)) {
-		int ret = PTR_ERR(ev_fd->cq_ev_fd);
-		kfree(ev_fd);
-		return ret;
-	}
-
-	spin_lock(&ctx->completion_lock);
-	ctx->evfd_last_cq_tail = ctx->cached_cq_tail;
-	spin_unlock(&ctx->completion_lock);
-
-	ev_fd->eventfd_async = eventfd_async;
-	ctx->has_evfd = true;
-	rcu_assign_pointer(ctx->io_ev_fd, ev_fd);
-	atomic_set(&ev_fd->refs, 1);
-	atomic_set(&ev_fd->ops, 0);
-	return 0;
-}
-
-int io_eventfd_unregister(struct io_ring_ctx *ctx)
-{
-	struct io_ev_fd *ev_fd;
-
-	ev_fd = rcu_dereference_protected(ctx->io_ev_fd,
-					lockdep_is_held(&ctx->uring_lock));
-	if (ev_fd) {
-		ctx->has_evfd = false;
-		rcu_assign_pointer(ctx->io_ev_fd, NULL);
-		if (!atomic_fetch_or(BIT(IO_EVENTFD_OP_FREE_BIT), &ev_fd->ops))
-			call_rcu(&ev_fd->rcu, io_eventfd_ops);
-		return 0;
-	}
-
-	return -ENXIO;
-}
 
 static __cold int io_probe(struct io_ring_ctx *ctx, void __user *arg,
 			   unsigned nr_args)
@@ -93,9 +39,10 @@ static __cold int io_probe(struct io_ring_ctx *ctx, void __user *arg,
 	size_t size;
 	int i, ret;
 
+	if (nr_args > IORING_OP_LAST)
+		nr_args = IORING_OP_LAST;
+
 	size = struct_size(p, ops, nr_args);
-	if (size == SIZE_MAX)
-		return -EOVERFLOW;
 	p = kzalloc(size, GFP_KERNEL);
 	if (!p)
 		return -ENOMEM;
@@ -108,12 +55,10 @@ static __cold int io_probe(struct io_ring_ctx *ctx, void __user *arg,
 		goto out;
 
 	p->last_op = IORING_OP_LAST - 1;
-	if (nr_args > IORING_OP_LAST)
-		nr_args = IORING_OP_LAST;
 
 	for (i = 0; i < nr_args; i++) {
 		p->ops[i].op = i;
-		if (!io_issue_defs[i].not_supported)
+		if (io_uring_op_supported(i))
 			p->ops[i].flags = IO_URING_OP_SUPPORTED;
 	}
 	p->ops_len = i;
@@ -390,6 +335,31 @@ err:
 	return ret;
 }
 
+static int io_register_clock(struct io_ring_ctx *ctx,
+			     struct io_uring_clock_register __user *arg)
+{
+	struct io_uring_clock_register reg;
+
+	if (copy_from_user(&reg, arg, sizeof(reg)))
+		return -EFAULT;
+	if (memchr_inv(&reg.__resv, 0, sizeof(reg.__resv)))
+		return -EINVAL;
+
+	switch (reg.clockid) {
+	case CLOCK_MONOTONIC:
+		ctx->clock_offset = 0;
+		break;
+	case CLOCK_BOOTTIME:
+		ctx->clock_offset = TK_OFFS_BOOT;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	ctx->clockid = reg.clockid;
+	return 0;
+}
+
 static int __io_uring_register(struct io_ring_ctx *ctx, unsigned opcode,
 			       void __user *arg, unsigned nr_args)
 	__releases(ctx->uring_lock)
@@ -566,12 +536,56 @@ static int __io_uring_register(struct io_ring_ctx *ctx, unsigned opcode,
 			break;
 		ret = io_unregister_napi(ctx, arg);
 		break;
+	case IORING_REGISTER_CLOCK:
+		ret = -EINVAL;
+		if (!arg || nr_args)
+			break;
+		ret = io_register_clock(ctx, arg);
+		break;
+	case IORING_REGISTER_COPY_BUFFERS:
+		ret = -EINVAL;
+		if (!arg || nr_args != 1)
+			break;
+		ret = io_register_copy_buffers(ctx, arg);
+		break;
 	default:
 		ret = -EINVAL;
 		break;
 	}
 
 	return ret;
+}
+
+/*
+ * Given an 'fd' value, return the ctx associated with if. If 'registered' is
+ * true, then the registered index is used. Otherwise, the normal fd table.
+ * Caller must call fput() on the returned file, unless it's an ERR_PTR.
+ */
+struct file *io_uring_register_get_file(int fd, bool registered)
+{
+	struct file *file;
+
+	if (registered) {
+		/*
+		 * Ring fd has been registered via IORING_REGISTER_RING_FDS, we
+		 * need only dereference our task private array to find it.
+		 */
+		struct io_uring_task *tctx = current->io_uring;
+
+		if (unlikely(!tctx || fd >= IO_RINGFD_REG_MAX))
+			return ERR_PTR(-EINVAL);
+		fd = array_index_nospec(fd, IO_RINGFD_REG_MAX);
+		file = tctx->registered_rings[fd];
+	} else {
+		file = fget(fd);
+	}
+
+	if (unlikely(!file))
+		return ERR_PTR(-EBADF);
+	if (io_is_uring_fops(file))
+		return file;
+	fput(file);
+	return ERR_PTR(-EOPNOTSUPP);
 }
 
 SYSCALL_DEFINE4(io_uring_register, unsigned int, fd, unsigned int, opcode,
@@ -588,35 +602,15 @@ SYSCALL_DEFINE4(io_uring_register, unsigned int, fd, unsigned int, opcode,
 	if (opcode >= IORING_REGISTER_LAST)
 		return -EINVAL;
 
-	if (use_registered_ring) {
-		/*
-		 * Ring fd has been registered via IORING_REGISTER_RING_FDS, we
-		 * need only dereference our task private array to find it.
-		 */
-		struct io_uring_task *tctx = current->io_uring;
-
-		if (unlikely(!tctx || fd >= IO_RINGFD_REG_MAX))
-			return -EINVAL;
-		fd = array_index_nospec(fd, IO_RINGFD_REG_MAX);
-		file = tctx->registered_rings[fd];
-		if (unlikely(!file))
-			return -EBADF;
-	} else {
-		file = fget(fd);
-		if (unlikely(!file))
-			return -EBADF;
-		ret = -EOPNOTSUPP;
-		if (!io_is_uring_fops(file))
-			goto out_fput;
-	}
-
+	file = io_uring_register_get_file(fd, use_registered_ring);
+	if (IS_ERR(file))
+		return PTR_ERR(file);
 	ctx = file->private_data;
 
 	mutex_lock(&ctx->uring_lock);
 	ret = __io_uring_register(ctx, opcode, arg, nr_args);
 	mutex_unlock(&ctx->uring_lock);
 	trace_io_uring_register(ctx, opcode, ctx->nr_user_files, ctx->nr_user_bufs, ret);
-out_fput:
 	if (!use_registered_ring)
 		fput(file);
 	return ret;

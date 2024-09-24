@@ -1324,7 +1324,7 @@ static struct miscdevice vchiq_miscdev = {
  *	vchiq_register_chrdev - Register the char driver for vchiq
  *				and create the necessary class and
  *				device files in userspace.
- *	@parent		The parent of the char device.
+ *	@parent:	The parent of the char device.
  *
  *	Returns 0 on success else returns the error code.
  */

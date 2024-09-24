@@ -1509,7 +1509,7 @@ static const struct of_device_id papr_scm_match[] = {
 
 static struct platform_driver papr_scm_driver = {
 	.probe = papr_scm_probe,
-	.remove_new = papr_scm_remove,
+	.remove = papr_scm_remove,
 	.driver = {
 		.name = "papr_scm",
 		.of_match_table = papr_scm_match,
@@ -1536,5 +1536,6 @@ static void __exit papr_scm_exit(void)
 module_exit(papr_scm_exit);
 
 MODULE_DEVICE_TABLE(of, papr_scm_match);
+MODULE_DESCRIPTION("PAPR Storage Class Memory interface driver");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("IBM Corporation");

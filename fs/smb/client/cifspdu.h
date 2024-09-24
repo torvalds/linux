@@ -2573,12 +2573,6 @@ typedef struct {
 } __attribute__((packed)) FIND_FILE_STANDARD_INFO; /* level 0x1 FF resp data */
 
 
-struct win_dev {
-	unsigned char type[8]; /* IntxCHR or IntxBLK or LnxFIFO or LnxSOCK */
-	__le64 major;
-	__le64 minor;
-} __attribute__((packed));
-
 struct fea {
 	unsigned char EA_flags;
 	__u8 name_len;

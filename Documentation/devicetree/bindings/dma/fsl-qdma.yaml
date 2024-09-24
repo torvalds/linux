@@ -1,0 +1,135 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/dma/fsl-qdma.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: NXP Layerscape SoC qDMA Controller
+
+maintainers:
+  - Frank Li <Frank.Li@nxp.com>
+
+properties:
+  compatible:
+    oneOf:
+      - const: fsl,ls1021a-qdma
+      - items:
+          - enum:
+              - fsl,ls1028a-qdma
+              - fsl,ls1043a-qdma
+              - fsl,ls1046a-qdma
+          - const: fsl,ls1021a-qdma
+
+  reg:
+    items:
+      - description: Controller regs
+      - description: Status regs
+      - description: Block regs
+
+  interrupts:
+    minItems: 2
+    maxItems: 5
+
+  interrupt-names:
+    minItems: 2
+    items:
+      - const: qdma-error
+      - const: qdma-queue0
+      - const: qdma-queue1
+      - const: qdma-queue2
+      - const: qdma-queue3
+
+  dma-channels:
+    minimum: 1
+    maximum: 64
+
+  fsl,dma-queues:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: Should contain number of queues supported.
+    minimum: 1
+    maximum: 4
+
+  block-number:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: the virtual block number
+
+  block-offset:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: the offset of different virtual block
+
+  status-sizes:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: status queue size of per virtual block
+
+  queue-sizes:
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    description:
+      command queue size of per virtual block, the size number
+      based on queues
+
+  big-endian:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description:
+      If present registers and hardware scatter/gather descriptors
+      of the qDMA are implemented in big endian mode, otherwise in little
+      mode.
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - interrupt-names
+  - fsl,dma-queues
+  - block-number
+  - block-offset
+  - status-sizes
+  - queue-sizes
+
+allOf:
+  - $ref: dma-controller.yaml#
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - fsl,ls1028a-qdma
+              - fsl,ls1043a-qdma
+              - fsl,ls1046a-qdma
+    then:
+      properties:
+        interrupts:
+          minItems: 5
+        interrupt-names:
+          minItems: 5
+    else:
+      properties:
+        interrupts:
+          maxItems: 3
+        interrupt-names:
+          maxItems: 3
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+    dma-controller@8390000 {
+        compatible = "fsl,ls1021a-qdma";
+        reg = <0x8388000 0x1000>, /* Controller regs */
+              <0x8389000 0x1000>, /* Status regs */
+              <0x838a000 0x2000>; /* Block regs */
+        interrupts = <GIC_SPI 185 IRQ_TYPE_LEVEL_HIGH>,
+                     <GIC_SPI 76 IRQ_TYPE_LEVEL_HIGH>,
+                     <GIC_SPI 77 IRQ_TYPE_LEVEL_HIGH>;
+        interrupt-names = "qdma-error", "qdma-queue0", "qdma-queue1";
+        #dma-cells = <1>;
+        dma-channels = <8>;
+        block-number = <2>;
+        block-offset = <0x1000>;
+        status-sizes = <64>;
+        queue-sizes = <64 64>;
+        big-endian;
+        fsl,dma-queues = <2>;
+    };
+

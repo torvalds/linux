@@ -332,7 +332,6 @@ static int journal_validate_key(struct bch_fs *c,
 {
 	int write = flags & BCH_VALIDATE_write;
 	void *next = vstruct_next(entry);
-	struct printbuf buf = PRINTBUF;
 	int ret = 0;
 
 	if (journal_entry_err_on(!k->k.u64s,
@@ -368,34 +367,21 @@ static int journal_validate_key(struct bch_fs *c,
 		bch2_bkey_compat(level, btree_id, version, big_endian,
 				 write, NULL, bkey_to_packed(k));
 
-	if (bch2_bkey_invalid(c, bkey_i_to_s_c(k),
-			      __btree_node_type(level, btree_id), write, &buf)) {
-		printbuf_reset(&buf);
-		journal_entry_err_msg(&buf, version, jset, entry);
-		prt_newline(&buf);
-		printbuf_indent_add(&buf, 2);
-
-		bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(k));
-		prt_newline(&buf);
-		bch2_bkey_invalid(c, bkey_i_to_s_c(k),
-				  __btree_node_type(level, btree_id), write, &buf);
-
-		mustfix_fsck_err(c, journal_entry_bkey_invalid,
-				 "%s", buf.buf);
-
+	ret = bch2_bkey_validate(c, bkey_i_to_s_c(k),
+				 __btree_node_type(level, btree_id), write);
+	if (ret == -BCH_ERR_fsck_delete_bkey) {
 		le16_add_cpu(&entry->u64s, -((u16) k->k.u64s));
 		memmove(k, bkey_next(k), next - (void *) bkey_next(k));
 		journal_entry_null_range(vstruct_next(entry), next);
-
-		printbuf_exit(&buf);
 		return FSCK_DELETED_KEY;
 	}
+	if (ret)
+		goto fsck_err;
 
 	if (write)
 		bch2_bkey_compat(level, btree_id, version, big_endian,
 				 write, NULL, bkey_to_packed(k));
 fsck_err:
-	printbuf_exit(&buf);
 	return ret;
 }
 
@@ -415,6 +401,8 @@ static int journal_entry_btree_keys_validate(struct bch_fs *c,
 					       flags|BCH_VALIDATE_journal);
 		if (ret == FSCK_DELETED_KEY)
 			continue;
+		else if (ret)
+			return ret;
 
 		k = bkey_next(k);
 	}
@@ -722,13 +710,16 @@ static void journal_entry_dev_usage_to_text(struct printbuf *out, struct bch_fs 
 
 	prt_printf(out, "dev=%u", le32_to_cpu(u->dev));
 
+	printbuf_indent_add(out, 2);
 	for (i = 0; i < nr_types; i++) {
+		prt_newline(out);
 		bch2_prt_data_type(out, i);
 		prt_printf(out, ": buckets=%llu sectors=%llu fragmented=%llu",
 		       le64_to_cpu(u->d[i].buckets),
 		       le64_to_cpu(u->d[i].sectors),
 		       le64_to_cpu(u->d[i].fragmented));
 	}
+	printbuf_indent_sub(out, 2);
 }
 
 static int journal_entry_log_validate(struct bch_fs *c,
@@ -1362,6 +1353,7 @@ int bch2_journal_read(struct bch_fs *c,
 	genradix_for_each(&c->journal_entries, radix_iter, _i) {
 		struct bch_replicas_padded replicas = {
 			.e.data_type = BCH_DATA_journal,
+			.e.nr_devs = 0,
 			.e.nr_required = 1,
 		};
 
@@ -1388,7 +1380,7 @@ int bch2_journal_read(struct bch_fs *c,
 			goto err;
 
 		darray_for_each(i->ptrs, ptr)
-			replicas.e.devs[replicas.e.nr_devs++] = ptr->dev;
+			replicas_entry_add_dev(&replicas.e, ptr->dev);
 
 		bch2_replicas_entry_sort(&replicas.e);
 
@@ -1583,7 +1575,7 @@ static CLOSURE_CALLBACK(journal_write_done)
 	struct bch_fs *c = container_of(j, struct bch_fs, journal);
 	struct bch_replicas_padded replicas;
 	union journal_res_state old, new;
-	u64 v, seq = le64_to_cpu(w->data->seq);
+	u64 seq = le64_to_cpu(w->data->seq);
 	int err = 0;
 
 	bch2_time_stats_update(!JSET_NO_FLUSH(w->data)
@@ -1642,14 +1634,15 @@ static CLOSURE_CALLBACK(journal_write_done)
 		if (j->watermark != BCH_WATERMARK_stripe)
 			journal_reclaim_kick(&c->journal);
 
-		v = atomic64_read(&j->reservations.counter);
+		old.v = atomic64_read(&j->reservations.counter);
 		do {
-			old.v = new.v = v;
+			new.v = old.v;
 			BUG_ON(journal_state_count(new, new.unwritten_idx));
 			BUG_ON(new.unwritten_idx != (seq & JOURNAL_BUF_MASK));
 
 			new.unwritten_idx++;
-		} while ((v = atomic64_cmpxchg(&j->reservations.counter, old.v, new.v)) != old.v);
+		} while (!atomic64_try_cmpxchg(&j->reservations.counter,
+					       &old.v, new.v));
 
 		closure_wake_up(&w->wait);
 		completed = true;
@@ -1762,11 +1755,13 @@ static CLOSURE_CALLBACK(journal_write_preflush)
 
 	if (j->seq_ondisk + 1 != le64_to_cpu(w->data->seq)) {
 		spin_lock(&j->lock);
-		closure_wait(&j->async_wait, cl);
+		if (j->seq_ondisk + 1 != le64_to_cpu(w->data->seq)) {
+			closure_wait(&j->async_wait, cl);
+			spin_unlock(&j->lock);
+			continue_at(cl, journal_write_preflush, j->wq);
+			return;
+		}
 		spin_unlock(&j->lock);
-
-		continue_at(cl, journal_write_preflush, j->wq);
-		return;
 	}
 
 	if (w->separate_flush) {
@@ -1854,8 +1849,14 @@ static int bch2_journal_write_prep(struct journal *j, struct journal_buf *w)
 		}
 	}
 
-	if (wb.wb)
-		bch2_journal_keys_to_write_buffer_end(c, &wb);
+	if (wb.wb) {
+		ret = bch2_journal_keys_to_write_buffer_end(c, &wb);
+		if (ret) {
+			bch2_fs_fatal_error(c, "error flushing journal keys to btree write buffer: %s",
+					    bch2_err_str(ret));
+			return ret;
+		}
+	}
 
 	spin_lock(&c->journal.lock);
 	w->need_flush_to_write_buffer = false;
@@ -1950,7 +1951,8 @@ static int bch2_journal_write_pick_flush(struct journal *j, struct journal_buf *
 	if (error ||
 	    w->noflush ||
 	    (!w->must_flush &&
-	     (jiffies - j->last_flush_write) < msecs_to_jiffies(c->opts.journal_flush_delay) &&
+	     time_before(jiffies, j->last_flush_write +
+		 msecs_to_jiffies(c->opts.journal_flush_delay)) &&
 	     test_bit(JOURNAL_may_skip_flush, &j->flags))) {
 		w->noflush = true;
 		SET_JSET_NO_FLUSH(w->data, true);
@@ -2020,8 +2022,9 @@ CLOSURE_CALLBACK(bch2_journal_write)
 		struct printbuf buf = PRINTBUF;
 		buf.atomic++;
 
-		prt_printf(&buf, bch2_fmt(c, "Unable to allocate journal write: %s"),
-			   bch2_err_str(ret));
+		prt_printf(&buf, bch2_fmt(c, "Unable to allocate journal write at seq %llu: %s"),
+					  le64_to_cpu(w->data->seq),
+					  bch2_err_str(ret));
 		__bch2_journal_debug_to_text(&buf, j);
 		spin_unlock(&j->lock);
 		bch2_print_string_as_lines(KERN_ERR, buf.buf);

@@ -308,6 +308,7 @@ int eeh_pe_reset(struct eeh_pe *pe, int option, bool include_passed);
 int eeh_pe_configure(struct eeh_pe *pe);
 int eeh_pe_inject_err(struct eeh_pe *pe, int type, int func,
 		      unsigned long addr, unsigned long mask);
+int eeh_pe_inject_mmio_error(struct pci_dev *pdev);
 
 /**
  * EEH_POSSIBLE_ERROR() -- test for possible MMIO failure.

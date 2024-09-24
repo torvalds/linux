@@ -18,15 +18,17 @@ unsigned int ext4_count_free(char *bitmap, unsigned int numchars)
 
 int ext4_inode_bitmap_csum_verify(struct super_block *sb,
 				  struct ext4_group_desc *gdp,
-				  struct buffer_head *bh, int sz)
+				  struct buffer_head *bh)
 {
 	__u32 hi;
 	__u32 provided, calculated;
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
+	int sz;
 
 	if (!ext4_has_metadata_csum(sb))
 		return 1;
 
+	sz = EXT4_INODES_PER_GROUP(sb) >> 3;
 	provided = le16_to_cpu(gdp->bg_inode_bitmap_csum_lo);
 	calculated = ext4_chksum(sbi, sbi->s_csum_seed, (__u8 *)bh->b_data, sz);
 	if (sbi->s_desc_size >= EXT4_BG_INODE_BITMAP_CSUM_HI_END) {
@@ -40,14 +42,16 @@ int ext4_inode_bitmap_csum_verify(struct super_block *sb,
 
 void ext4_inode_bitmap_csum_set(struct super_block *sb,
 				struct ext4_group_desc *gdp,
-				struct buffer_head *bh, int sz)
+				struct buffer_head *bh)
 {
 	__u32 csum;
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
+	int sz;
 
 	if (!ext4_has_metadata_csum(sb))
 		return;
 
+	sz = EXT4_INODES_PER_GROUP(sb) >> 3;
 	csum = ext4_chksum(sbi, sbi->s_csum_seed, (__u8 *)bh->b_data, sz);
 	gdp->bg_inode_bitmap_csum_lo = cpu_to_le16(csum & 0xFFFF);
 	if (sbi->s_desc_size >= EXT4_BG_INODE_BITMAP_CSUM_HI_END)

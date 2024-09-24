@@ -764,8 +764,8 @@ EXPORT_SYMBOL_GPL(stmmac_get_platform_resources);
  * Description: Call the platform's init callback (if any) and propagate
  * the return value.
  */
-int stmmac_pltfr_init(struct platform_device *pdev,
-		      struct plat_stmmacenet_data *plat)
+static int stmmac_pltfr_init(struct platform_device *pdev,
+			     struct plat_stmmacenet_data *plat)
 {
 	int ret = 0;
 
@@ -774,7 +774,6 @@ int stmmac_pltfr_init(struct platform_device *pdev,
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(stmmac_pltfr_init);
 
 /**
  * stmmac_pltfr_exit
@@ -782,13 +781,12 @@ EXPORT_SYMBOL_GPL(stmmac_pltfr_init);
  * @plat: driver data platform structure
  * Description: Call the platform's exit callback (if any).
  */
-void stmmac_pltfr_exit(struct platform_device *pdev,
-		       struct plat_stmmacenet_data *plat)
+static void stmmac_pltfr_exit(struct platform_device *pdev,
+			      struct plat_stmmacenet_data *plat)
 {
 	if (plat->exit)
 		plat->exit(pdev, plat->bsp_priv);
 }
-EXPORT_SYMBOL_GPL(stmmac_pltfr_exit);
 
 /**
  * stmmac_pltfr_probe

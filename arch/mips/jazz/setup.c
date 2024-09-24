@@ -23,8 +23,6 @@
 #include <asm/reboot.h>
 #include <asm/tlbmisc.h>
 
-extern asmlinkage void jazz_handle_int(void);
-
 extern void jazz_machine_restart(char *command);
 
 static struct resource jazz_io_resources[] = {

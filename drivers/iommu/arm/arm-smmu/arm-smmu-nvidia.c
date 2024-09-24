@@ -200,7 +200,7 @@ static irqreturn_t nvidia_smmu_context_fault_bank(int irq,
 	void __iomem *cb_base = nvidia_smmu_page(smmu, inst, smmu->numpage + idx);
 
 	fsr = readl_relaxed(cb_base + ARM_SMMU_CB_FSR);
-	if (!(fsr & ARM_SMMU_FSR_FAULT))
+	if (!(fsr & ARM_SMMU_CB_FSR_FAULT))
 		return IRQ_NONE;
 
 	fsynr = readl_relaxed(cb_base + ARM_SMMU_CB_FSYNR0);
@@ -277,7 +277,7 @@ static int nvidia_smmu_init_context(struct arm_smmu_domain *smmu_domain,
 	 */
 	if (of_device_is_compatible(np, "nvidia,tegra234-smmu") ||
 	    of_device_is_compatible(np, "nvidia,tegra194-smmu")) {
-		smmu->pgsize_bitmap = PAGE_SIZE;
+		smmu->pgsize_bitmap &= GENMASK(PAGE_SHIFT, 0);
 		pgtbl_cfg->pgsize_bitmap = smmu->pgsize_bitmap;
 	}
 

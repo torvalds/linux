@@ -20,7 +20,7 @@ void memblock_free_pages(struct page *page, unsigned long pfn,
 {
 }
 
-static inline void accept_memory(phys_addr_t start, phys_addr_t end)
+static inline void accept_memory(phys_addr_t start, unsigned long size)
 {
 }
 

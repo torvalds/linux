@@ -228,8 +228,11 @@ bool dcn30_set_blend_lut(
 	if (plane_state->blend_tf.type == TF_TYPE_HWPWL)
 		blend_lut = &plane_state->blend_tf.pwl;
 	else if (plane_state->blend_tf.type == TF_TYPE_DISTRIBUTED_POINTS) {
-		cm3_helper_translate_curve_to_hw_format(
+		result = cm3_helper_translate_curve_to_hw_format(
 				&plane_state->blend_tf, &dpp_base->regamma_params, false);
+		if (!result)
+			return result;
+
 		blend_lut = &dpp_base->regamma_params;
 	}
 	result = dpp_base->funcs->dpp_program_blnd_lut(dpp_base, blend_lut);
@@ -395,7 +398,11 @@ bool dcn30_set_output_transfer_func(struct dc *dc,
 		}
 	}
 
-	mpc->funcs->set_output_gamma(mpc, mpcc_id, params);
+	if (mpc->funcs->set_output_gamma)
+		mpc->funcs->set_output_gamma(mpc, mpcc_id, params);
+	else
+		DC_LOG_ERROR("%s: set_output_gamma function pointer is NULL.\n", __func__);
+
 	return ret;
 }
 
@@ -622,7 +629,7 @@ void dcn30_init_hw(struct dc *dc)
 	uint32_t backlight = MAX_BACKLIGHT_LEVEL;
 	uint32_t user_level = MAX_BACKLIGHT_LEVEL;
 
-	if (dc->clk_mgr && dc->clk_mgr->funcs->init_clocks)
+	if (dc->clk_mgr && dc->clk_mgr->funcs && dc->clk_mgr->funcs->init_clocks)
 		dc->clk_mgr->funcs->init_clocks(dc->clk_mgr);
 
 	// Initialize the dccg
@@ -656,7 +663,7 @@ void dcn30_init_hw(struct dc *dc)
 		res_pool->ref_clocks.xtalin_clock_inKhz =
 				dc->ctx->dc_bios->fw_info.pll_info.crystal_frequency;
 
-		if (res_pool->dccg && res_pool->hubbub) {
+		if (res_pool->hubbub) {
 
 			(res_pool->dccg->funcs->get_dccg_ref_freq)(res_pool->dccg,
 					dc->ctx->dc_bios->fw_info.pll_info.crystal_frequency,
@@ -728,10 +735,10 @@ void dcn30_init_hw(struct dc *dc)
 		if (edp_link && edp_link->link_enc->funcs->is_dig_enabled &&
 				edp_link->link_enc->funcs->is_dig_enabled(edp_link->link_enc) &&
 				dc->hwss.edp_backlight_control &&
-				dc->hwss.power_down &&
+				hws->funcs.power_down &&
 				dc->hwss.edp_power_control) {
 			dc->hwss.edp_backlight_control(edp_link, false);
-			dc->hwss.power_down(dc);
+			hws->funcs.power_down(dc);
 			dc->hwss.edp_power_control(edp_link, false);
 		} else {
 			for (i = 0; i < dc->link_count; i++) {
@@ -739,8 +746,8 @@ void dcn30_init_hw(struct dc *dc)
 
 				if (link->link_enc->funcs->is_dig_enabled &&
 						link->link_enc->funcs->is_dig_enabled(link->link_enc) &&
-						dc->hwss.power_down) {
-					dc->hwss.power_down(dc);
+						hws->funcs.power_down) {
+					hws->funcs.power_down(dc);
 					break;
 				}
 
@@ -783,11 +790,12 @@ void dcn30_init_hw(struct dc *dc)
 	if (!dcb->funcs->is_accelerated_mode(dcb) && dc->res_pool->hubbub->funcs->init_watermarks)
 		dc->res_pool->hubbub->funcs->init_watermarks(dc->res_pool->hubbub);
 
-	if (dc->clk_mgr->funcs->notify_wm_ranges)
+	if (dc->clk_mgr && dc->clk_mgr->funcs && dc->clk_mgr->funcs->notify_wm_ranges)
 		dc->clk_mgr->funcs->notify_wm_ranges(dc->clk_mgr);
 
 	//if softmax is enabled then hardmax will be set by a different call
-	if (dc->clk_mgr->funcs->set_hard_max_memclk && !dc->clk_mgr->dc_mode_softmax_enabled)
+	if (dc->clk_mgr && dc->clk_mgr->funcs && dc->clk_mgr->funcs->set_hard_max_memclk &&
+	    !dc->clk_mgr->dc_mode_softmax_enabled)
 		dc->clk_mgr->funcs->set_hard_max_memclk(dc->clk_mgr);
 
 	if (dc->res_pool->hubbub->funcs->force_pstate_change_control)
@@ -919,6 +927,9 @@ bool dcn30_apply_idle_power_optimizations(struct dc *dc, bool enable)
 			stream = dc->current_state->streams[0];
 			plane = (stream ? dc->current_state->stream_status[0].plane_states[0] : NULL);
 
+			if (!stream || !plane)
+				return false;
+
 			if (stream && plane) {
 				cursor_cache_enable = stream->cursor_position.enable &&
 						plane->address.grph.cursor_cache_addr.quad_part;
@@ -1038,7 +1049,7 @@ bool dcn30_apply_idle_power_optimizations(struct dc *dc, bool enable)
 
 					/* Use copied cursor, and it's okay to not switch back */
 					cursor_attr.address.quad_part = cmd.mall.cursor_copy_dst.quad_part;
-					dc_stream_set_cursor_attributes(stream, &cursor_attr);
+					dc_stream_program_cursor_attributes(stream, &cursor_attr);
 				}
 
 				/* Enable MALL */

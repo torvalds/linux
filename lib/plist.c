@@ -47,8 +47,8 @@ static void plist_check_list(struct list_head *top)
 
 	plist_check_prev_next(top, prev, next);
 	while (next != top) {
-		prev = next;
-		next = prev->next;
+		WRITE_ONCE(prev, next);
+		WRITE_ONCE(next, prev->next);
 		plist_check_prev_next(top, prev, next);
 	}
 }
@@ -72,7 +72,7 @@ static void plist_check_head(struct plist_head *head)
  */
 void plist_add(struct plist_node *node, struct plist_head *head)
 {
-	struct plist_node *first, *iter, *prev = NULL;
+	struct plist_node *first, *iter, *prev = NULL, *last, *reverse_iter;
 	struct list_head *node_next = &head->node_list;
 
 	plist_check_head(head);
@@ -83,15 +83,25 @@ void plist_add(struct plist_node *node, struct plist_head *head)
 		goto ins_node;
 
 	first = iter = plist_first(head);
+	last = reverse_iter = list_entry(first->prio_list.prev, struct plist_node, prio_list);
 
 	do {
 		if (node->prio < iter->prio) {
 			node_next = &iter->node_list;
 			break;
+		} else if (node->prio >= reverse_iter->prio) {
+			prev = reverse_iter;
+			iter = list_entry(reverse_iter->prio_list.next,
+				struct plist_node, prio_list);
+			if (likely(reverse_iter != last))
+				node_next = &iter->node_list;
+			break;
 		}
 
 		prev = iter;
 		iter = list_entry(iter->prio_list.next,
+				struct plist_node, prio_list);
+		reverse_iter = list_entry(reverse_iter->prio_list.prev,
 				struct plist_node, prio_list);
 	} while (iter != first);
 
@@ -255,6 +265,32 @@ static int  __init plist_test(void)
 	}
 
 	printk(KERN_DEBUG "end plist test\n");
+
+	/* Worst case test for plist_add() */
+	unsigned int test_data[241];
+
+	for (i = 0; i < ARRAY_SIZE(test_data); i++)
+		test_data[i] = i;
+
+	ktime_t start, end, time_elapsed = 0;
+
+	plist_head_init(&test_head);
+
+	for (i = 0; i < ARRAY_SIZE(test_node); i++) {
+		plist_node_init(test_node + i, 0);
+		test_node[i].prio = test_data[i];
+	}
+
+	for (i = 0; i < ARRAY_SIZE(test_node); i++) {
+		if (plist_node_empty(test_node + i)) {
+			start = ktime_get();
+			plist_add(test_node + i, &test_head);
+			end = ktime_get();
+			time_elapsed += (end - start);
+		}
+	}
+
+	pr_debug("plist_add worst case test time elapsed %lld\n", time_elapsed);
 	return 0;
 }
 

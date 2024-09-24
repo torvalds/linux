@@ -58,7 +58,7 @@ struct inet_timewait_sock {
 #define tw_dr			__tw_common.skc_tw_dr
 
 	__u32			tw_mark;
-	volatile unsigned char	tw_substate;
+	unsigned char		tw_substate;
 	unsigned char		tw_rcv_wscale;
 
 	/* Socket demultiplex comparisons on incoming packets. */
@@ -93,16 +93,13 @@ struct inet_timewait_sock *inet_twsk_alloc(const struct sock *sk,
 					   struct inet_timewait_death_row *dr,
 					   const int state);
 
-void inet_twsk_hashdance(struct inet_timewait_sock *tw, struct sock *sk,
-			 struct inet_hashinfo *hashinfo);
+void inet_twsk_hashdance_schedule(struct inet_timewait_sock *tw,
+				  struct sock *sk,
+				  struct inet_hashinfo *hashinfo,
+				  int timeo);
 
 void __inet_twsk_schedule(struct inet_timewait_sock *tw, int timeo,
 			  bool rearm);
-
-static inline void inet_twsk_schedule(struct inet_timewait_sock *tw, int timeo)
-{
-	__inet_twsk_schedule(tw, timeo, false);
-}
 
 static inline void inet_twsk_reschedule(struct inet_timewait_sock *tw, int timeo)
 {

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for the TAOS evaluation modules
- * These devices include an I2C master which can be controlled over the
+ * These devices include an I2C controller which can be controlled over the
  * serial port.
  *
  * Copyright (C) 2007 Jean Delvare <jdelvare@suse.de>

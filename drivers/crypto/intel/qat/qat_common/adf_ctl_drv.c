@@ -31,19 +31,22 @@ static const struct file_operations adf_ctl_ops = {
 	.compat_ioctl = compat_ptr_ioctl,
 };
 
+static const struct class adf_ctl_class = {
+	.name = DEVICE_NAME,
+};
+
 struct adf_ctl_drv_info {
 	unsigned int major;
 	struct cdev drv_cdev;
-	struct class *drv_class;
 };
 
 static struct adf_ctl_drv_info adf_ctl_drv;
 
 static void adf_chr_drv_destroy(void)
 {
-	device_destroy(adf_ctl_drv.drv_class, MKDEV(adf_ctl_drv.major, 0));
+	device_destroy(&adf_ctl_class, MKDEV(adf_ctl_drv.major, 0));
 	cdev_del(&adf_ctl_drv.drv_cdev);
-	class_destroy(adf_ctl_drv.drv_class);
+	class_unregister(&adf_ctl_class);
 	unregister_chrdev_region(MKDEV(adf_ctl_drv.major, 0), 1);
 }
 
@@ -51,17 +54,17 @@ static int adf_chr_drv_create(void)
 {
 	dev_t dev_id;
 	struct device *drv_device;
+	int ret;
 
 	if (alloc_chrdev_region(&dev_id, 0, 1, DEVICE_NAME)) {
 		pr_err("QAT: unable to allocate chrdev region\n");
 		return -EFAULT;
 	}
 
-	adf_ctl_drv.drv_class = class_create(DEVICE_NAME);
-	if (IS_ERR(adf_ctl_drv.drv_class)) {
-		pr_err("QAT: class_create failed for adf_ctl\n");
+	ret = class_register(&adf_ctl_class);
+	if (ret)
 		goto err_chrdev_unreg;
-	}
+
 	adf_ctl_drv.major = MAJOR(dev_id);
 	cdev_init(&adf_ctl_drv.drv_cdev, &adf_ctl_ops);
 	if (cdev_add(&adf_ctl_drv.drv_cdev, dev_id, 1)) {
@@ -69,7 +72,7 @@ static int adf_chr_drv_create(void)
 		goto err_class_destr;
 	}
 
-	drv_device = device_create(adf_ctl_drv.drv_class, NULL,
+	drv_device = device_create(&adf_ctl_class, NULL,
 				   MKDEV(adf_ctl_drv.major, 0),
 				   NULL, DEVICE_NAME);
 	if (IS_ERR(drv_device)) {
@@ -80,7 +83,7 @@ static int adf_chr_drv_create(void)
 err_cdev_del:
 	cdev_del(&adf_ctl_drv.drv_cdev);
 err_class_destr:
-	class_destroy(adf_ctl_drv.drv_class);
+	class_unregister(&adf_ctl_class);
 err_chrdev_unreg:
 	unregister_chrdev_region(dev_id, 1);
 	return -EFAULT;
@@ -244,7 +247,7 @@ static void adf_ctl_stop_devices(u32 id)
 			if (!accel_dev->is_vf)
 				continue;
 
-			adf_dev_down(accel_dev, false);
+			adf_dev_down(accel_dev);
 		}
 	}
 
@@ -253,7 +256,7 @@ static void adf_ctl_stop_devices(u32 id)
 			if (!adf_dev_started(accel_dev))
 				continue;
 
-			adf_dev_down(accel_dev, false);
+			adf_dev_down(accel_dev);
 		}
 	}
 }
@@ -316,7 +319,7 @@ static int adf_ctl_ioctl_dev_start(struct file *fp, unsigned int cmd,
 	if (ret) {
 		dev_err(&GET_DEV(accel_dev), "Failed to start qat_dev%d\n",
 			ctl_data->device_id);
-		adf_dev_down(accel_dev, false);
+		adf_dev_down(accel_dev);
 	}
 out:
 	kfree(ctl_data);

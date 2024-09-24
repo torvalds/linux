@@ -80,11 +80,13 @@ MODULE_DEVICE_TABLE(of, of_match_clk_mt8186_vdec);
 
 static struct platform_driver clk_mt8186_vdec_drv = {
 	.probe = mtk_clk_simple_probe,
-	.remove_new = mtk_clk_simple_remove,
+	.remove = mtk_clk_simple_remove,
 	.driver = {
 		.name = "clk-mt8186-vdec",
 		.of_match_table = of_match_clk_mt8186_vdec,
 	},
 };
 module_platform_driver(clk_mt8186_vdec_drv);
+
+MODULE_DESCRIPTION("MediaTek MT8186 Video Decoders clocks driver");
 MODULE_LICENSE("GPL");

@@ -33,15 +33,12 @@ properties:
             # Acbel fsg032 power supply
           - acbel,fsg032
             # SMBus/I2C Digital Temperature Sensor in 6-Pin SOT with SMBus Alert and Over Temperature Pin
-          - ad,ad7414
+          - ad,ad7414  # Deprecated, use adi,ad7414
+          - adi,ad7414
             # ADM9240: Complete System Hardware Monitor for uProcessor-Based Systems
           - ad,adm9240
             # AD5110 - Nonvolatile Digital Potentiometer
           - adi,ad5110
-            # Analog Devices ADP5585 Keypad Decoder and I/O Expansion
-          - adi,adp5585
-            # Analog Devices ADP5585 Keypad Decoder and I/O Expansion with support for Row5
-          - adi,adp5585-02
             # Analog Devices ADP5589 Keypad Decoder and I/O Expansion
           - adi,adp5589
             # Analog Devices LT7182S Dual Channel 6A, 20V PolyPhase Step-Down Silent Switcher
@@ -50,8 +47,6 @@ properties:
           - ams,iaq-core
             # Temperature monitoring of Astera Labs PT5161L PCIe retimer
           - asteralabs,pt5161l
-            # i2c serial eeprom (24cxx)
-          - at,24c08
             # i2c h/w elliptic curve crypto module
           - atmel,atecc508a
             # ATSHA204 - i2c h/w symmetric crypto module
@@ -74,14 +69,10 @@ properties:
           - dallas,ds1631
             # Total-Elapsed-Time Recorder with Alarm
           - dallas,ds1682
-            # Tiny Digital Thermometer and Thermostat
-          - dallas,ds1775
             # CPU Peripheral Monitor
           - dallas,ds1780
             # CPU Supervisor with Nonvolatile Memory and Programmable I/O
           - dallas,ds4510
-            # Digital Thermometer and Thermostat
-          - dallas,ds75
             # Delta AHE-50DC Open19 power shelf fan control module
           - delta,ahe50dc-fan
             # Delta Electronics DPS-650-AB power supply
@@ -110,6 +101,8 @@ properties:
           - domintech,dmard09
             # DMARD10: 3-axis Accelerometer
           - domintech,dmard10
+            # Elgin SPI-controlled LCD
+          - elgin,jg10309-01
             # MMA7660FC: 3-Axis Orientation/Motion Detection Sensor
           - fsl,mma7660
             # MMA8450Q: Xtrinsic Low-power, 3-axis Xtrinsic Accelerometer
@@ -164,10 +157,14 @@ properties:
           - isil,isl29030
             # Intersil ISL68137 Digital Output Configurable PWM Controller
           - isil,isl68137
+            # Intersil ISL69260 PMBus Voltage Regulator
+          - isil,isl69260
             # Intersil ISL69269 PMBus Voltage Regulator
           - isil,isl69269
             # Intersil ISL76682 Ambient Light Sensor
           - isil,isl76682
+            # JEDEC JESD300 (SPD5118) Hub and Serial Presence Detect
+          - jedec,spd5118
             # Linear Technology LTC2488
           - lineartechnology,ltc2488
             # 5 Bit Programmable, Pulse-Width Modulator
@@ -180,8 +177,6 @@ properties:
           - maxim,ds1803-100
             # 10 kOhm digital potentiometer with I2C interface
           - maxim,ds3502
-            # Low-Power, 4-/12-Channel, 2-Wire Serial, 12-Bit ADCs
-          - maxim,max1237
             # Temperature Sensor, I2C interface
           - maxim,max1619
             # 3-Channel Remote Temperature Sensor
@@ -196,8 +191,6 @@ properties:
           - maxim,max5484
             # PECI-to-I2C translator for PECI-to-SMBus/I2C protocol conversion
           - maxim,max6621
-            # 9-Bit/12-Bit Temperature Sensors with I²C-Compatible Serial Interface
-          - maxim,max6625
             # mCube 3-axis 8-bit digital accelerometer
           - mcube,mc3230
             # Measurement Specialities I2C temperature and humidity sensor
@@ -286,14 +279,22 @@ properties:
           - mps,mp2857
             # Monolithic Power Systems Inc. multi-phase controller mp2888
           - mps,mp2888
+            # Monolithic Power Systems Inc. multi-phase controller mp2891
+          - mps,mp2891
             # Monolithic Power Systems Inc. multi-phase controller mp2971
           - mps,mp2971
             # Monolithic Power Systems Inc. multi-phase controller mp2973
           - mps,mp2973
             # Monolithic Power Systems Inc. multi-phase controller mp2975
           - mps,mp2975
+            # Monolithic Power Systems Inc. multi-phase controller mp2993
+          - mps,mp2993
+            # Monolithic Power Systems Inc. multi-phase hot-swap controller mp5920
+          - mps,mp5920
             # Monolithic Power Systems Inc. multi-phase hot-swap controller mp5990
           - mps,mp5990
+            # Monolithic Power Systems Inc. digital step-down converter mp9941
+          - mps,mp9941
             # Monolithic Power Systems Inc. synchronous step-down converter mpq8785
           - mps,mpq8785
             # Temperature sensor with integrated fan control
@@ -318,7 +319,9 @@ properties:
           - renesas,hs3001
             # Renesas ISL29501 time-of-flight sensor
           - renesas,isl29501
-            # Rohm DH2228FV
+            # Rohm BH2228FV 8 channel DAC
+          - rohm,bh2228fv
+            # Rohm DH2228FV - This device does not exist, use rohm,bh2228fv instead.
           - rohm,dh2228fv
             # S524AD0XF1 (128K/256K-bit Serial EEPROM for Low Power)
           - samsung,24ad0xd1
@@ -352,8 +355,8 @@ properties:
           - skyworks,sky81452
             # SparkFun Qwiic Joystick (COM-15168) with i2c interface
           - sparkfun,qwiic-joystick
-            # i2c serial eeprom (24cxx)
-          - st,24c256
+            # Sierra Wireless mangOH Green SPI IoT interface
+          - swir,mangoh-iotport-spi
             # Ambient Light Sensor with SMBUS/Two Wire Serial Interface
           - taos,tsl2550
             # Temperature Monitoring and Fan Control
@@ -383,8 +386,6 @@ properties:
           - ti,tmp121
           - ti,tmp122
           - ti,tmp125
-            # Digital Temperature Sensor
-          - ti,tmp275
             # TI DC-DC converter on PMBus
           - ti,tps40400
             # TI Dual channel DCAP+ multiphase controller TPS53676 with AVSBus
@@ -398,6 +399,7 @@ properties:
           - ti,tps544b25
           - ti,tps544c20
           - ti,tps544c25
+          - ti,tps546d24
             # I2C Touch-Screen Controller
           - ti,tsc2003
             # Vicor Corporation Digital Supervisor

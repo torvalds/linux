@@ -897,7 +897,6 @@ static int bcache_device_init(struct bcache_device *d, unsigned int block_size,
 		sector_t sectors, struct block_device *cached_bdev,
 		const struct block_device_operations *ops)
 {
-	struct request_queue *q;
 	const size_t max_stripes = min_t(size_t, INT_MAX,
 					 SIZE_MAX / sizeof(atomic_t));
 	struct queue_limits lim = {
@@ -909,6 +908,7 @@ static int bcache_device_init(struct bcache_device *d, unsigned int block_size,
 		.io_min			= block_size,
 		.logical_block_size	= block_size,
 		.physical_block_size	= block_size,
+		.features		= BLK_FEAT_WRITE_CACHE | BLK_FEAT_FUA,
 	};
 	uint64_t n;
 	int idx;
@@ -974,13 +974,6 @@ static int bcache_device_init(struct bcache_device *d, unsigned int block_size,
 	d->disk->minors		= BCACHE_MINORS;
 	d->disk->fops		= ops;
 	d->disk->private_data	= d;
-
-	q = d->disk->queue;
-
-	blk_queue_flag_set(QUEUE_FLAG_NONROT, d->disk->queue);
-
-	blk_queue_write_cache(q, true, true);
-
 	return 0;
 
 out_bioset_exit:
@@ -1423,8 +1416,8 @@ static int cached_dev_init(struct cached_dev *dc, unsigned int block_size)
 	}
 
 	if (bdev_io_opt(dc->bdev))
-		dc->partial_stripes_expensive =
-			q->limits.raid_partial_stripes_expensive;
+		dc->partial_stripes_expensive = !!(q->limits.features &
+			BLK_FEAT_RAID_PARTIAL_STRIPES_EXPENSIVE);
 
 	ret = bcache_device_init(&dc->disk, block_size,
 			 bdev_nr_sectors(dc->bdev) - dc->sb.data_offset,
@@ -1914,8 +1907,7 @@ struct cache_set *bch_cache_set_alloc(struct cache_sb *sb)
 	INIT_LIST_HEAD(&c->btree_cache_freed);
 	INIT_LIST_HEAD(&c->data_buckets);
 
-	iter_size = sizeof(struct btree_iter) +
-		    ((meta_bucket_pages(sb) * PAGE_SECTORS) / sb->block_size) *
+	iter_size = ((meta_bucket_pages(sb) * PAGE_SECTORS) / sb->block_size) *
 			    sizeof(struct btree_iter_set);
 
 	c->devices = kcalloc(c->nr_uuids, sizeof(void *), GFP_KERNEL);

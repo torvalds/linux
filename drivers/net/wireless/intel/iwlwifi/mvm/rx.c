@@ -557,12 +557,10 @@ struct iwl_mvm_stat_data_all_macs {
 };
 
 static void iwl_mvm_update_link_sig(struct ieee80211_vif *vif, int sig,
-				    struct iwl_mvm_vif_link_info *link_info)
+				    struct iwl_mvm_vif_link_info *link_info,
+				    struct ieee80211_bss_conf *bss_conf)
 {
 	struct iwl_mvm *mvm = iwl_mvm_vif_from_mac80211(vif)->mvm;
-	struct ieee80211_bss_conf *bss_conf =
-		iwl_mvm_rcu_fw_link_id_to_link_conf(mvm, link_info->fw_link_id,
-						    false);
 	int thold = bss_conf->cqm_rssi_thold;
 	int hyst = bss_conf->cqm_rssi_hyst;
 	int last_event;
@@ -670,7 +668,7 @@ static void iwl_mvm_stat_iterator(void *_data, u8 *mac,
 			mvmvif->deflink.beacon_stats.num_beacons;
 
 	/* This is used in pre-MLO API so use deflink */
-	iwl_mvm_update_link_sig(vif, sig, &mvmvif->deflink);
+	iwl_mvm_update_link_sig(vif, sig, &mvmvif->deflink, &vif->bss_conf);
 }
 
 static void iwl_mvm_stat_iterator_all_macs(void *_data, u8 *mac,
@@ -705,7 +703,7 @@ static void iwl_mvm_stat_iterator_all_macs(void *_data, u8 *mac,
 	sig = -le32_to_cpu(mac_stats->beacon_filter_average_energy);
 
 	/* This is used in pre-MLO API so use deflink */
-	iwl_mvm_update_link_sig(vif, sig, &mvmvif->deflink);
+	iwl_mvm_update_link_sig(vif, sig, &mvmvif->deflink, &vif->bss_conf);
 }
 
 static inline void
@@ -740,8 +738,8 @@ static void iwl_mvm_stats_energy_iter(void *_data,
 	u8 *energy = _data;
 	u32 sta_id = mvmsta->deflink.sta_id;
 
-	if (WARN_ONCE(sta_id >= IWL_MVM_STATION_COUNT_MAX, "sta_id %d >= %d",
-		      sta_id, IWL_MVM_STATION_COUNT_MAX))
+	if (WARN_ONCE(sta_id >= IWL_STATION_COUNT_MAX, "sta_id %d >= %d",
+		      sta_id, IWL_STATION_COUNT_MAX))
 		return;
 
 	if (energy[sta_id])
@@ -921,7 +919,8 @@ iwl_mvm_stat_iterator_all_links(struct iwl_mvm *mvm,
 				mvmvif->link[link_id]->beacon_stats.num_beacons;
 
 		sig = -le32_to_cpu(link_stats->beacon_filter_average_energy);
-		iwl_mvm_update_link_sig(bss_conf->vif, sig, link_info);
+		iwl_mvm_update_link_sig(bss_conf->vif, sig, link_info,
+					bss_conf);
 
 		if (WARN_ONCE(mvmvif->id >= MAC_INDEX_AUX,
 			      "invalid mvmvif id: %d", mvmvif->id))
@@ -967,7 +966,7 @@ static void iwl_mvm_update_esr_mode_tpt(struct iwl_mvm *mvm)
 
 	lockdep_assert_held(&mvm->mutex);
 
-	if (!bss_vif)
+	if (IS_ERR_OR_NULL(bss_vif))
 		return;
 
 	mvmvif = iwl_mvm_vif_from_mac80211(bss_vif);
@@ -992,7 +991,7 @@ static void iwl_mvm_update_esr_mode_tpt(struct iwl_mvm *mvm)
 		spin_lock_bh(&mvmsta->mpdu_counters[q].lock);
 
 		/* The link IDs that doesn't exist will contain 0 */
-		for (int link = 0; link < IWL_MVM_FW_MAX_LINK_ID; link++) {
+		for (int link = 0; link < IWL_FW_MAX_LINK_ID; link++) {
 			total_tx += mvmsta->mpdu_counters[q].per_link[link].tx;
 			total_rx += mvmsta->mpdu_counters[q].per_link[link].rx;
 		}
@@ -1010,6 +1009,9 @@ static void iwl_mvm_update_esr_mode_tpt(struct iwl_mvm *mvm)
 		spin_unlock_bh(&mvmsta->mpdu_counters[q].lock);
 	}
 
+	IWL_DEBUG_INFO(mvm, "total Tx MPDUs: %ld. total Rx MPDUs: %ld\n",
+		       total_tx, total_rx);
+
 	/* If we don't have enough MPDUs - exit EMLSR */
 	if (total_tx < IWL_MVM_ENTER_ESR_TPT_THRESH &&
 	    total_rx < IWL_MVM_ENTER_ESR_TPT_THRESH) {
@@ -1017,6 +1019,9 @@ static void iwl_mvm_update_esr_mode_tpt(struct iwl_mvm *mvm)
 				  iwl_mvm_get_primary_link(bss_vif));
 		return;
 	}
+
+	IWL_DEBUG_INFO(mvm, "Secondary Link %d: Tx MPDUs: %ld. Rx MPDUs: %ld\n",
+		       sec_link, sec_link_tx, sec_link_rx);
 
 	/* Calculate the percentage of the secondary link TX/RX */
 	sec_link_tx_perc = total_tx ? sec_link_tx * 100 / total_tx : 0;
@@ -1037,7 +1042,7 @@ static void iwl_mvm_update_esr_mode_tpt(struct iwl_mvm *mvm)
 void iwl_mvm_handle_rx_system_oper_stats(struct iwl_mvm *mvm,
 					 struct iwl_rx_cmd_buffer *rxb)
 {
-	u8 average_energy[IWL_MVM_STATION_COUNT_MAX];
+	u8 average_energy[IWL_STATION_COUNT_MAX];
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_system_statistics_notif_oper *stats;
 	int i;
@@ -1096,7 +1101,7 @@ static void
 iwl_mvm_handle_rx_statistics_tlv(struct iwl_mvm *mvm,
 				 struct iwl_rx_packet *pkt)
 {
-	u8 average_energy[IWL_MVM_STATION_COUNT_MAX];
+	u8 average_energy[IWL_STATION_COUNT_MAX];
 	__le32 air_time[MAC_INDEX_AUX];
 	__le32 rx_bytes[MAC_INDEX_AUX];
 	__le32 flags = 0;

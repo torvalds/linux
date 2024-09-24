@@ -9,6 +9,7 @@
 
 / {
 	model = "Google fennel sku6 board";
+	chassis-type = "convertible";
 	compatible = "google,fennel-sku6", "google,fennel", "mediatek,mt8183";
 };
 

@@ -327,10 +327,10 @@ static inline int journal_res_get_fast(struct journal *j,
 				       unsigned flags)
 {
 	union journal_res_state old, new;
-	u64 v = atomic64_read(&j->reservations.counter);
 
+	old.v = atomic64_read(&j->reservations.counter);
 	do {
-		old.v = new.v = v;
+		new.v = old.v;
 
 		/*
 		 * Check if there is still room in the current journal
@@ -356,8 +356,8 @@ static inline int journal_res_get_fast(struct journal *j,
 
 		if (flags & JOURNAL_RES_GET_CHECK)
 			return 1;
-	} while ((v = atomic64_cmpxchg(&j->reservations.counter,
-				       old.v, new.v)) != old.v);
+	} while (!atomic64_try_cmpxchg(&j->reservations.counter,
+				       &old.v, new.v));
 
 	res->ref	= true;
 	res->idx	= old.idx;
@@ -433,7 +433,7 @@ bool bch2_journal_seq_pins_to_text(struct printbuf *, struct journal *, u64 *);
 
 int bch2_set_nr_journal_buckets(struct bch_fs *, struct bch_dev *,
 				unsigned nr);
-int bch2_dev_journal_alloc(struct bch_dev *);
+int bch2_dev_journal_alloc(struct bch_dev *, bool);
 int bch2_fs_journal_alloc(struct bch_fs *);
 
 void bch2_dev_journal_stop(struct journal *, struct bch_dev *);

@@ -511,7 +511,7 @@ asmlinkage __visible void *extract_kernel(void *rmode, unsigned char *output)
 
 	if (init_unaccepted_memory()) {
 		debug_putstr("Accepting memory... ");
-		accept_memory(__pa(output), __pa(output) + needed_size);
+		accept_memory(__pa(output), needed_size);
 	}
 
 	entry_offset = decompress_kernel(output, virt_addr, error);
@@ -530,9 +530,4 @@ asmlinkage __visible void *extract_kernel(void *rmode, unsigned char *output)
 	}
 
 	return output + entry_offset;
-}
-
-void __fortify_panic(const u8 reason, size_t avail, size_t size)
-{
-	error("detected buffer overflow");
 }

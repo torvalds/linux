@@ -165,7 +165,7 @@ static vm_fault_t cma_heap_vm_fault(struct vm_fault *vmf)
 	struct vm_area_struct *vma = vmf->vma;
 	struct cma_heap_buffer *buffer = vma->vm_private_data;
 
-	if (vmf->pgoff > buffer->pagecount)
+	if (vmf->pgoff >= buffer->pagecount)
 		return VM_FAULT_SIGBUS;
 
 	return vmf_insert_pfn(vma, vmf->address, page_to_pfn(buffer->pages[vmf->pgoff]));
@@ -274,8 +274,8 @@ static const struct dma_buf_ops cma_heap_buf_ops = {
 
 static struct dma_buf *cma_heap_allocate(struct dma_heap *heap,
 					 unsigned long len,
-					 unsigned long fd_flags,
-					 unsigned long heap_flags)
+					 u32 fd_flags,
+					 u64 heap_flags)
 {
 	struct cma_heap *cma_heap = dma_heap_get_drvdata(heap);
 	struct cma_heap_buffer *buffer;

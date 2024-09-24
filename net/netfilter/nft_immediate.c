@@ -221,7 +221,7 @@ static void nft_immediate_destroy(const struct nft_ctx *ctx,
 			list_del(&rule->list);
 			nf_tables_rule_destroy(&chain_ctx, rule);
 		}
-		nf_tables_chain_destroy(&chain_ctx);
+		nf_tables_chain_destroy(chain);
 		break;
 	default:
 		break;
@@ -244,8 +244,7 @@ nla_put_failure:
 }
 
 static int nft_immediate_validate(const struct nft_ctx *ctx,
-				  const struct nft_expr *expr,
-				  const struct nft_data **d)
+				  const struct nft_expr *expr)
 {
 	const struct nft_immediate_expr *priv = nft_expr_priv(expr);
 	struct nft_ctx *pctx = (struct nft_ctx *)ctx;

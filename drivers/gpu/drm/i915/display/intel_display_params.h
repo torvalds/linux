@@ -9,7 +9,7 @@
 #include <linux/types.h>
 
 struct drm_printer;
-struct drm_i915_private;
+struct intel_display;
 
 /*
  * Invoke param, a function-like macro, for each intel display param, with
@@ -31,6 +31,7 @@ struct drm_i915_private;
 	param(int, vbt_sdvo_panel_type, -1, 0400) \
 	param(int, enable_dc, -1, 0400) \
 	param(bool, enable_dpt, true, 0400) \
+	param(bool, enable_dsb, true, 0600) \
 	param(bool, enable_sagv, true, 0600) \
 	param(int, disable_power_well, -1, 0400) \
 	param(bool, enable_ips, true, 0600) \
@@ -55,7 +56,7 @@ struct intel_display_params {
 };
 #undef MEMBER
 
-void intel_display_params_dump(struct drm_i915_private *i915,
+void intel_display_params_dump(struct intel_display *display,
 			       struct drm_printer *p);
 void intel_display_params_copy(struct intel_display_params *dest);
 void intel_display_params_free(struct intel_display_params *params);

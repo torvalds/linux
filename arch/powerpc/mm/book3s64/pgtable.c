@@ -176,6 +176,17 @@ pmd_t pmdp_invalidate(struct vm_area_struct *vma, unsigned long address,
 	return __pmd(old_pmd);
 }
 
+pud_t pudp_invalidate(struct vm_area_struct *vma, unsigned long address,
+		      pud_t *pudp)
+{
+	unsigned long old_pud;
+
+	VM_WARN_ON_ONCE(!pud_present(*pudp));
+	old_pud = pud_hugepage_update(vma->vm_mm, address, pudp, _PAGE_PRESENT, _PAGE_INVALID);
+	flush_pud_tlb_range(vma, address, address + HPAGE_PUD_SIZE);
+	return __pud(old_pud);
+}
+
 pmd_t pmdp_huge_get_and_clear_full(struct vm_area_struct *vma,
 				   unsigned long addr, pmd_t *pmdp, int full)
 {
@@ -258,6 +269,15 @@ pmd_t pmd_modify(pmd_t pmd, pgprot_t newprot)
 	pmdv = pmd_val(pmd);
 	pmdv &= _HPAGE_CHG_MASK;
 	return pmd_set_protbits(__pmd(pmdv), newprot);
+}
+
+pud_t pud_modify(pud_t pud, pgprot_t newprot)
+{
+	unsigned long pudv;
+
+	pudv = pud_val(pud);
+	pudv &= _HPAGE_CHG_MASK;
+	return pud_set_protbits(__pud(pudv), newprot);
 }
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
 
@@ -461,18 +481,6 @@ static inline void pgtable_free(void *table, int index)
 	case PUD_INDEX:
 		__pud_free(table);
 		break;
-#if defined(CONFIG_PPC_4K_PAGES) && defined(CONFIG_HUGETLB_PAGE)
-		/* 16M hugepd directory at pud level */
-	case HTLB_16M_INDEX:
-		BUILD_BUG_ON(H_16M_CACHE_INDEX <= 0);
-		kmem_cache_free(PGT_CACHE(H_16M_CACHE_INDEX), table);
-		break;
-		/* 16G hugepd directory at the pgd level */
-	case HTLB_16G_INDEX:
-		BUILD_BUG_ON(H_16G_CACHE_INDEX <= 0);
-		kmem_cache_free(PGT_CACHE(H_16G_CACHE_INDEX), table);
-		break;
-#endif
 		/* We don't free pgd table via RCU callback */
 	default:
 		BUG();

@@ -231,7 +231,7 @@ struct dpu_crtc_state {
 	container_of(x, struct dpu_crtc_state, base)
 
 /**
- * dpu_crtc_frame_pending - retun the number of pending frames
+ * dpu_crtc_frame_pending - return the number of pending frames
  * @crtc: Pointer to drm crtc object
  */
 static inline int dpu_crtc_frame_pending(struct drm_crtc *crtc)
@@ -299,5 +299,7 @@ static inline enum dpu_crtc_client_type dpu_crtc_get_client_type(
 {
 	return crtc && crtc->state ? RT_CLIENT : NRT_CLIENT;
 }
+
+void dpu_crtc_frame_event_cb(struct drm_crtc *crtc, u32 event);
 
 #endif /* _DPU_CRTC_H_ */

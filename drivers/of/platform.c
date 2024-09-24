@@ -338,7 +338,6 @@ static int of_platform_bus_create(struct device_node *bus,
 				  struct device *parent, bool strict)
 {
 	const struct of_dev_auxdata *auxdata;
-	struct device_node *child;
 	struct platform_device *dev;
 	const char *bus_id = NULL;
 	void *platform_data = NULL;
@@ -382,13 +381,11 @@ static int of_platform_bus_create(struct device_node *bus,
 	if (!dev || !of_match_node(matches, bus))
 		return 0;
 
-	for_each_child_of_node(bus, child) {
+	for_each_child_of_node_scoped(bus, child) {
 		pr_debug("   create child: %pOF\n", child);
 		rc = of_platform_bus_create(child, matches, lookup, &dev->dev, strict);
-		if (rc) {
-			of_node_put(child);
+		if (rc)
 			break;
-		}
 	}
 	of_node_set_flag(bus, OF_POPULATED_BUS);
 	return rc;
@@ -459,7 +456,6 @@ int of_platform_populate(struct device_node *root,
 			const struct of_dev_auxdata *lookup,
 			struct device *parent)
 {
-	struct device_node *child;
 	int rc = 0;
 
 	root = root ? of_node_get(root) : of_find_node_by_path("/");
@@ -470,12 +466,10 @@ int of_platform_populate(struct device_node *root,
 	pr_debug(" starting at: %pOF\n", root);
 
 	device_links_supplier_sync_state_pause();
-	for_each_child_of_node(root, child) {
+	for_each_child_of_node_scoped(root, child) {
 		rc = of_platform_bus_create(child, matches, lookup, parent, true);
-		if (rc) {
-			of_node_put(child);
+		if (rc)
 			break;
-		}
 	}
 	device_links_supplier_sync_state_resume();
 
@@ -592,7 +586,7 @@ static int __init of_platform_default_populate_init(void)
 			 * This can happen for example on DT systems that do EFI
 			 * booting and may provide a GOP handle to the EFI stub.
 			 */
-			sysfb_disable();
+			sysfb_disable(NULL);
 			of_platform_device_create(node, NULL, NULL);
 			of_node_put(node);
 		}
@@ -732,11 +726,14 @@ static int of_platform_notify(struct notifier_block *nb,
 	struct of_reconfig_data *rd = arg;
 	struct platform_device *pdev_parent, *pdev;
 	bool children_left;
+	struct device_node *parent;
 
 	switch (of_reconfig_get_state_change(action, rd)) {
 	case OF_RECONFIG_CHANGE_ADD:
-		/* verify that the parent is a bus */
-		if (!of_node_check_flag(rd->dn->parent, OF_POPULATED_BUS))
+		parent = rd->dn->parent;
+		/* verify that the parent is a bus (or the root node) */
+		if (!of_node_is_root(parent) &&
+		    !of_node_check_flag(parent, OF_POPULATED_BUS))
 			return NOTIFY_OK;	/* not for us */
 
 		/* already populated? (driver using of_populate manually) */
@@ -749,7 +746,7 @@ static int of_platform_notify(struct notifier_block *nb,
 		 */
 		rd->dn->fwnode.flags &= ~FWNODE_FLAG_NOT_DEVICE;
 		/* pdev_parent may be NULL when no bus platform device */
-		pdev_parent = of_find_device_by_node(rd->dn->parent);
+		pdev_parent = of_find_device_by_node(parent);
 		pdev = of_platform_device_create(rd->dn, NULL,
 				pdev_parent ? &pdev_parent->dev : NULL);
 		platform_device_put(pdev_parent);

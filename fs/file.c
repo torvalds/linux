@@ -46,27 +46,23 @@ static void free_fdtable_rcu(struct rcu_head *rcu)
 #define BITBIT_NR(nr)	BITS_TO_LONGS(BITS_TO_LONGS(nr))
 #define BITBIT_SIZE(nr)	(BITBIT_NR(nr) * sizeof(long))
 
+#define fdt_words(fdt) ((fdt)->max_fds / BITS_PER_LONG) // words in ->open_fds
 /*
  * Copy 'count' fd bits from the old table to the new table and clear the extra
  * space if any.  This does not copy the file pointers.  Called with the files
  * spinlock held for write.
  */
-static void copy_fd_bitmaps(struct fdtable *nfdt, struct fdtable *ofdt,
-			    unsigned int count)
+static inline void copy_fd_bitmaps(struct fdtable *nfdt, struct fdtable *ofdt,
+			    unsigned int copy_words)
 {
-	unsigned int cpy, set;
+	unsigned int nwords = fdt_words(nfdt);
 
-	cpy = count / BITS_PER_BYTE;
-	set = (nfdt->max_fds - count) / BITS_PER_BYTE;
-	memcpy(nfdt->open_fds, ofdt->open_fds, cpy);
-	memset((char *)nfdt->open_fds + cpy, 0, set);
-	memcpy(nfdt->close_on_exec, ofdt->close_on_exec, cpy);
-	memset((char *)nfdt->close_on_exec + cpy, 0, set);
-
-	cpy = BITBIT_SIZE(count);
-	set = BITBIT_SIZE(nfdt->max_fds) - cpy;
-	memcpy(nfdt->full_fds_bits, ofdt->full_fds_bits, cpy);
-	memset((char *)nfdt->full_fds_bits + cpy, 0, set);
+	bitmap_copy_and_extend(nfdt->open_fds, ofdt->open_fds,
+			copy_words * BITS_PER_LONG, nwords * BITS_PER_LONG);
+	bitmap_copy_and_extend(nfdt->close_on_exec, ofdt->close_on_exec,
+			copy_words * BITS_PER_LONG, nwords * BITS_PER_LONG);
+	bitmap_copy_and_extend(nfdt->full_fds_bits, ofdt->full_fds_bits,
+			copy_words, nwords);
 }
 
 /*
@@ -84,7 +80,7 @@ static void copy_fdtable(struct fdtable *nfdt, struct fdtable *ofdt)
 	memcpy(nfdt->fd, ofdt->fd, cpy);
 	memset((char *)nfdt->fd + cpy, 0, set);
 
-	copy_fd_bitmaps(nfdt, ofdt, ofdt->max_fds);
+	copy_fd_bitmaps(nfdt, ofdt, fdt_words(ofdt));
 }
 
 /*
@@ -379,7 +375,7 @@ struct files_struct *dup_fd(struct files_struct *oldf, unsigned int max_fds, int
 		open_files = sane_fdtable_size(old_fdt, max_fds);
 	}
 
-	copy_fd_bitmaps(new_fdt, old_fdt, open_files);
+	copy_fd_bitmaps(new_fdt, old_fdt, open_files / BITS_PER_LONG);
 
 	old_fds = old_fdt->fd;
 	new_fds = new_fdt->fd;
@@ -676,7 +672,7 @@ int close_fd(unsigned fd)
 
 	return filp_close(file, files);
 }
-EXPORT_SYMBOL(close_fd); /* for ksys_close() */
+EXPORT_SYMBOL(close_fd);
 
 /**
  * last_fd - return last valid index into fd table
@@ -1128,7 +1124,7 @@ EXPORT_SYMBOL(task_lookup_next_fdget_rcu);
  * The fput_needed flag returned by fget_light should be passed to the
  * corresponding fput_light.
  */
-static unsigned long __fget_light(unsigned int fd, fmode_t mask)
+static inline struct fd __fget_light(unsigned int fd, fmode_t mask)
 {
 	struct files_struct *files = current->files;
 	struct file *file;
@@ -1145,22 +1141,22 @@ static unsigned long __fget_light(unsigned int fd, fmode_t mask)
 	if (likely(atomic_read_acquire(&files->count) == 1)) {
 		file = files_lookup_fd_raw(files, fd);
 		if (!file || unlikely(file->f_mode & mask))
-			return 0;
-		return (unsigned long)file;
+			return EMPTY_FD;
+		return BORROWED_FD(file);
 	} else {
 		file = __fget_files(files, fd, mask);
 		if (!file)
-			return 0;
-		return FDPUT_FPUT | (unsigned long)file;
+			return EMPTY_FD;
+		return CLONED_FD(file);
 	}
 }
-unsigned long __fdget(unsigned int fd)
+struct fd fdget(unsigned int fd)
 {
 	return __fget_light(fd, FMODE_PATH);
 }
-EXPORT_SYMBOL(__fdget);
+EXPORT_SYMBOL(fdget);
 
-unsigned long __fdget_raw(unsigned int fd)
+struct fd fdget_raw(unsigned int fd)
 {
 	return __fget_light(fd, 0);
 }
@@ -1181,16 +1177,16 @@ static inline bool file_needs_f_pos_lock(struct file *file)
 		(file_count(file) > 1 || file->f_op->iterate_shared);
 }
 
-unsigned long __fdget_pos(unsigned int fd)
+struct fd fdget_pos(unsigned int fd)
 {
-	unsigned long v = __fdget(fd);
-	struct file *file = (struct file *)(v & ~3);
+	struct fd f = fdget(fd);
+	struct file *file = fd_file(f);
 
 	if (file && file_needs_f_pos_lock(file)) {
-		v |= FDPUT_POS_UNLOCK;
+		f.word |= FDPUT_POS_UNLOCK;
 		mutex_lock(&file->f_pos_lock);
 	}
-	return v;
+	return f;
 }
 
 void __f_unlock_pos(struct file *f)
@@ -1248,6 +1244,7 @@ __releases(&files->file_lock)
 	 * tables and this condition does not arise without those.
 	 */
 	fdt = files_fdtable(files);
+	fd = array_index_nospec(fd, fdt->max_fds);
 	tofree = fdt->fd[fd];
 	if (!tofree && fd_is_open(fd, fdt))
 		goto Ebusy;

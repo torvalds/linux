@@ -86,7 +86,6 @@ struct cap11xx_priv {
 	struct device *dev;
 	struct input_dev *idev;
 	const struct cap11xx_hw_model *model;
-	u8 id;
 
 	struct cap11xx_led *leds;
 	int num_leds;
@@ -104,27 +103,10 @@ struct cap11xx_hw_model {
 	u8 product_id;
 	unsigned int num_channels;
 	unsigned int num_leds;
-	bool no_gain;
-};
-
-enum {
-	CAP1106,
-	CAP1126,
-	CAP1188,
-	CAP1203,
-	CAP1206,
-	CAP1293,
-	CAP1298
-};
-
-static const struct cap11xx_hw_model cap11xx_devices[] = {
-	[CAP1106] = { .product_id = 0x55, .num_channels = 6, .num_leds = 0, .no_gain = false },
-	[CAP1126] = { .product_id = 0x53, .num_channels = 6, .num_leds = 2, .no_gain = false },
-	[CAP1188] = { .product_id = 0x50, .num_channels = 8, .num_leds = 8, .no_gain = false },
-	[CAP1203] = { .product_id = 0x6d, .num_channels = 3, .num_leds = 0, .no_gain = true },
-	[CAP1206] = { .product_id = 0x67, .num_channels = 6, .num_leds = 0, .no_gain = true },
-	[CAP1293] = { .product_id = 0x6f, .num_channels = 3, .num_leds = 0, .no_gain = false },
-	[CAP1298] = { .product_id = 0x71, .num_channels = 8, .num_leds = 0, .no_gain = false },
+	bool has_gain;
+	bool has_irq_config;
+	bool has_sensitivity_control;
+	bool has_signal_guard;
 };
 
 static const struct reg_default cap11xx_reg_defaults[] = {
@@ -224,7 +206,7 @@ static int cap11xx_init_keys(struct cap11xx_priv *priv)
 	}
 
 	if (!of_property_read_u32(node, "microchip,sensor-gain", &u32_val)) {
-		if (priv->model->no_gain) {
+		if (!priv->model->has_gain) {
 			dev_warn(dev,
 				 "This model doesn't support 'sensor-gain'\n");
 		} else if (is_power_of_2(u32_val) && u32_val <= 8) {
@@ -243,9 +225,7 @@ static int cap11xx_init_keys(struct cap11xx_priv *priv)
 	}
 
 	if (of_property_read_bool(node, "microchip,irq-active-high")) {
-		if (priv->id == CAP1106 ||
-		    priv->id == CAP1126 ||
-		    priv->id == CAP1188) {
+		if (priv->model->has_irq_config) {
 			error = regmap_update_bits(priv->regmap,
 						   CAP11XX_REG_CONFIG2,
 						   CAP11XX_REG_CONFIG2_ALT_POL,
@@ -296,7 +276,7 @@ static int cap11xx_init_keys(struct cap11xx_priv *priv)
 	if (!of_property_read_u32_array(node, "microchip,calib-sensitivity",
 					priv->calib_sensitivities,
 					priv->model->num_channels)) {
-		if (priv->id == CAP1293 || priv->id == CAP1298) {
+		if (priv->model->has_sensitivity_control) {
 			for (i = 0; i < priv->model->num_channels; i++) {
 				if (!is_power_of_2(priv->calib_sensitivities[i]) ||
 				    priv->calib_sensitivities[i] > 4) {
@@ -311,7 +291,7 @@ static int cap11xx_init_keys(struct cap11xx_priv *priv)
 			if (error)
 				return error;
 
-			if (priv->id == CAP1298) {
+			if (priv->model->num_channels > 4) {
 				error = cap11xx_write_calib_sens_config_2(priv);
 				if (error)
 					return error;
@@ -333,7 +313,7 @@ static int cap11xx_init_keys(struct cap11xx_priv *priv)
 	}
 
 	if (priv->signal_guard_inputs_mask) {
-		if (priv->id == CAP1293 || priv->id == CAP1298) {
+		if (priv->model->has_signal_guard) {
 			error = regmap_write(priv->regmap,
 					     CAP11XX_REG_SIGNAL_GUARD_ENABLE,
 					     priv->signal_guard_inputs_mask);
@@ -508,20 +488,16 @@ static int cap11xx_init_leds(struct device *dev,
 
 static int cap11xx_i2c_probe(struct i2c_client *i2c_client)
 {
-	const struct i2c_device_id *id = i2c_client_get_device_id(i2c_client);
+	const struct i2c_device_id *id;
+	const struct cap11xx_hw_model *cap;
 	struct device *dev = &i2c_client->dev;
 	struct cap11xx_priv *priv;
-	const struct cap11xx_hw_model *cap;
 	int i, error;
 	unsigned int val, rev;
 
-	if (id->driver_data >= ARRAY_SIZE(cap11xx_devices)) {
-		dev_err(dev, "Invalid device ID %lu\n", id->driver_data);
-		return -EINVAL;
-	}
-
-	cap = &cap11xx_devices[id->driver_data];
-	if (!cap || !cap->num_channels) {
+	id = i2c_client_get_device_id(i2c_client);
+	cap = i2c_get_match_data(i2c_client);
+	if (!id || !cap || !cap->num_channels) {
 		dev_err(dev, "Invalid device configuration\n");
 		return -EINVAL;
 	}
@@ -566,7 +542,6 @@ static int cap11xx_i2c_probe(struct i2c_client *i2c_client)
 			 id->name, rev);
 
 	priv->model = cap;
-	priv->id = id->driver_data;
 
 	dev_info(dev, "CAP11XX device detected, model %s, revision 0x%02x\n",
 		 id->name, rev);
@@ -627,27 +602,67 @@ static int cap11xx_i2c_probe(struct i2c_client *i2c_client)
 	return 0;
 }
 
+static const struct cap11xx_hw_model cap1106_model = {
+	.product_id = 0x55, .num_channels = 6, .num_leds = 0,
+	.has_gain = true,
+	.has_irq_config = true,
+};
+
+static const struct cap11xx_hw_model cap1126_model = {
+	.product_id = 0x53, .num_channels = 6, .num_leds = 2,
+	.has_gain = true,
+	.has_irq_config = true,
+};
+
+static const struct cap11xx_hw_model cap1188_model = {
+	.product_id = 0x50, .num_channels = 8, .num_leds = 8,
+	.has_gain = true,
+	.has_irq_config = true,
+};
+
+static const struct cap11xx_hw_model cap1203_model = {
+	.product_id = 0x6d, .num_channels = 3, .num_leds = 0,
+};
+
+static const struct cap11xx_hw_model cap1206_model = {
+	.product_id = 0x67, .num_channels = 6, .num_leds = 0,
+};
+
+static const struct cap11xx_hw_model cap1293_model = {
+	.product_id = 0x6f, .num_channels = 3, .num_leds = 0,
+	.has_gain = true,
+	.has_sensitivity_control = true,
+	.has_signal_guard = true,
+};
+
+static const struct cap11xx_hw_model cap1298_model = {
+	.product_id = 0x71, .num_channels = 8, .num_leds = 0,
+	.has_gain = true,
+	.has_sensitivity_control = true,
+	.has_signal_guard = true,
+};
+
 static const struct of_device_id cap11xx_dt_ids[] = {
-	{ .compatible = "microchip,cap1106", },
-	{ .compatible = "microchip,cap1126", },
-	{ .compatible = "microchip,cap1188", },
-	{ .compatible = "microchip,cap1203", },
-	{ .compatible = "microchip,cap1206", },
-	{ .compatible = "microchip,cap1293", },
-	{ .compatible = "microchip,cap1298", },
-	{}
+	{ .compatible = "microchip,cap1106", .data = &cap1106_model },
+	{ .compatible = "microchip,cap1126", .data = &cap1126_model },
+	{ .compatible = "microchip,cap1188", .data = &cap1188_model },
+	{ .compatible = "microchip,cap1203", .data = &cap1203_model },
+	{ .compatible = "microchip,cap1206", .data = &cap1206_model },
+	{ .compatible = "microchip,cap1293", .data = &cap1293_model },
+	{ .compatible = "microchip,cap1298", .data = &cap1298_model },
+	{ }
 };
 MODULE_DEVICE_TABLE(of, cap11xx_dt_ids);
 
 static const struct i2c_device_id cap11xx_i2c_ids[] = {
-	{ "cap1106", CAP1106 },
-	{ "cap1126", CAP1126 },
-	{ "cap1188", CAP1188 },
-	{ "cap1203", CAP1203 },
-	{ "cap1206", CAP1206 },
-	{ "cap1293", CAP1293 },
-	{ "cap1298", CAP1298 },
-	{}
+	{ "cap1106", (kernel_ulong_t)&cap1106_model },
+	{ "cap1126", (kernel_ulong_t)&cap1126_model },
+	{ "cap1188", (kernel_ulong_t)&cap1188_model },
+	{ "cap1203", (kernel_ulong_t)&cap1203_model },
+	{ "cap1206", (kernel_ulong_t)&cap1206_model },
+	{ "cap1293", (kernel_ulong_t)&cap1293_model },
+	{ "cap1298", (kernel_ulong_t)&cap1298_model },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, cap11xx_i2c_ids);
 

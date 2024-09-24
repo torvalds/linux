@@ -991,7 +991,6 @@ void irq_init_desc(unsigned int irq);
  * @ack:	Ack register offset to reg_base
  * @eoi:	Eoi register offset to reg_base
  * @type:	Type configuration register offset to reg_base
- * @polarity:	Polarity configuration register offset to reg_base
  */
 struct irq_chip_regs {
 	unsigned long		enable;
@@ -1000,7 +999,6 @@ struct irq_chip_regs {
 	unsigned long		ack;
 	unsigned long		eoi;
 	unsigned long		type;
-	unsigned long		polarity;
 };
 
 /**
@@ -1040,8 +1038,6 @@ struct irq_chip_type {
  * @irq_base:		Interrupt base nr for this chip
  * @irq_cnt:		Number of interrupts handled by this chip
  * @mask_cache:		Cached mask register shared between all chip types
- * @type_cache:		Cached type register
- * @polarity_cache:	Cached polarity register
  * @wake_enabled:	Interrupt can wakeup from suspend
  * @wake_active:	Interrupt is marked as an wakeup from suspend source
  * @num_ct:		Number of available irq_chip_type instances (usually 1)
@@ -1068,8 +1064,6 @@ struct irq_chip_generic {
 	unsigned int		irq_base;
 	unsigned int		irq_cnt;
 	u32			mask_cache;
-	u32			type_cache;
-	u32			polarity_cache;
 	u32			wake_enabled;
 	u32			wake_active;
 	unsigned int		num_ct;
@@ -1106,6 +1100,7 @@ enum irq_gc_flags {
  * @irq_flags_to_set:	IRQ* flags to set on irq setup
  * @irq_flags_to_clear:	IRQ* flags to clear on irq setup
  * @gc_flags:		Generic chip specific setup flags
+ * @exit:		Function called on each chip when they are destroyed.
  * @gc:			Array of pointers to generic interrupt chips
  */
 struct irq_domain_chip_generic {
@@ -1114,7 +1109,35 @@ struct irq_domain_chip_generic {
 	unsigned int		irq_flags_to_clear;
 	unsigned int		irq_flags_to_set;
 	enum irq_gc_flags	gc_flags;
+	void			(*exit)(struct irq_chip_generic *gc);
 	struct irq_chip_generic	*gc[];
+};
+
+/**
+ * struct irq_domain_chip_generic_info - Generic chip information structure
+ * @name:		Name of the generic interrupt chip
+ * @handler:		Interrupt handler used by the generic interrupt chip
+ * @irqs_per_chip:	Number of interrupts each chip handles (max 32)
+ * @num_ct:		Number of irq_chip_type instances associated with each
+ *			chip
+ * @irq_flags_to_clear:	IRQ_* bits to clear in the mapping function
+ * @irq_flags_to_set:	IRQ_* bits to set in the mapping function
+ * @gc_flags:		Generic chip specific setup flags
+ * @init:		Function called on each chip when they are created.
+ *			Allow to do some additional chip initialisation.
+ * @exit:		Function called on each chip when they are destroyed.
+ *			Allow to do some chip cleanup operation.
+ */
+struct irq_domain_chip_generic_info {
+	const char		*name;
+	irq_flow_handler_t	handler;
+	unsigned int		irqs_per_chip;
+	unsigned int		num_ct;
+	unsigned int		irq_flags_to_clear;
+	unsigned int		irq_flags_to_set;
+	enum irq_gc_flags	gc_flags;
+	int			(*init)(struct irq_chip_generic *gc);
+	void			(*exit)(struct irq_chip_generic *gc);
 };
 
 /* Generic chip callback functions */
@@ -1152,6 +1175,20 @@ int devm_irq_setup_generic_chip(struct device *dev, struct irq_chip_generic *gc,
 				unsigned int clr, unsigned int set);
 
 struct irq_chip_generic *irq_get_domain_generic_chip(struct irq_domain *d, unsigned int hw_irq);
+
+#ifdef CONFIG_GENERIC_IRQ_CHIP
+int irq_domain_alloc_generic_chips(struct irq_domain *d,
+				   const struct irq_domain_chip_generic_info *info);
+void irq_domain_remove_generic_chips(struct irq_domain *d);
+#else
+static inline int
+irq_domain_alloc_generic_chips(struct irq_domain *d,
+			       const struct irq_domain_chip_generic_info *info)
+{
+	return -EINVAL;
+}
+static inline void irq_domain_remove_generic_chips(struct irq_domain *d) { }
+#endif /* CONFIG_GENERIC_IRQ_CHIP */
 
 int __irq_alloc_domain_generic_chips(struct irq_domain *d, int irqs_per_chip,
 				     int num_ct, const char *name,

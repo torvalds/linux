@@ -10,12 +10,6 @@
 #include <linux/swap.h>
 #include "internal.h"
 
-struct address_space *page_mapping(struct page *page)
-{
-	return folio_mapping(page_folio(page));
-}
-EXPORT_SYMBOL(page_mapping);
-
 void unlock_page(struct page *page)
 {
 	return folio_unlock(page_folio(page));
@@ -98,15 +92,3 @@ struct page *grab_cache_page_write_begin(struct address_space *mapping,
 			mapping_gfp_mask(mapping));
 }
 EXPORT_SYMBOL(grab_cache_page_write_begin);
-
-bool isolate_lru_page(struct page *page)
-{
-	if (WARN_RATELIMIT(PageTail(page), "trying to isolate tail page"))
-		return false;
-	return folio_isolate_lru((struct folio *)page);
-}
-
-void putback_lru_page(struct page *page)
-{
-	folio_putback_lru(page_folio(page));
-}

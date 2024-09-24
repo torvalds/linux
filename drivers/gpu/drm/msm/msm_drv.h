@@ -33,12 +33,8 @@
 #include <drm/msm_drm.h>
 #include <drm/drm_gem.h>
 
-#ifdef CONFIG_FAULT_INJECTION
 extern struct fault_attr fail_gem_alloc;
 extern struct fault_attr fail_gem_iova;
-#else
-#  define should_fail(attr, size) 0
-#endif
 
 struct msm_kms;
 struct msm_gpu;
@@ -128,6 +124,11 @@ struct msm_drm_private {
 	struct msm_perf_state *perf;
 
 	/**
+	 * total_mem: Total/global amount of memory backing GEM objects.
+	 */
+	atomic64_t total_mem;
+
+	/**
 	 * List of all GEM objects (mainly for debugfs, protected by obj_lock
 	 * (acquire before per GEM object lock)
 	 */
@@ -210,8 +211,6 @@ struct msm_drm_private {
 	struct notifier_block vmap_notifier;
 	struct shrinker *shrinker;
 
-	struct drm_atomic_state *pm_state;
-
 	/**
 	 * hangcheck_period: For hang detection, in ms
 	 *
@@ -249,8 +248,6 @@ void msm_atomic_destroy_pending_timer(struct msm_pending_timer *timer);
 void msm_atomic_commit_tail(struct drm_atomic_state *state);
 int msm_atomic_check(struct drm_device *dev, struct drm_atomic_state *state);
 struct drm_atomic_state *msm_atomic_state_alloc(struct drm_device *dev);
-void msm_atomic_state_clear(struct drm_atomic_state *state);
-void msm_atomic_state_free(struct drm_atomic_state *state);
 
 int msm_crtc_enable_vblank(struct drm_crtc *crtc);
 void msm_crtc_disable_vblank(struct drm_crtc *crtc);
@@ -330,6 +327,7 @@ bool msm_dsi_is_bonded_dsi(struct msm_dsi *msm_dsi);
 bool msm_dsi_is_master_dsi(struct msm_dsi *msm_dsi);
 bool msm_dsi_wide_bus_enabled(struct msm_dsi *msm_dsi);
 struct drm_dsc_config *msm_dsi_get_dsc_config(struct msm_dsi *msm_dsi);
+const char *msm_dsi_get_te_source(struct msm_dsi *msm_dsi);
 #else
 static inline void __init msm_dsi_register(void)
 {
@@ -364,6 +362,11 @@ static inline bool msm_dsi_wide_bus_enabled(struct msm_dsi *msm_dsi)
 }
 
 static inline struct drm_dsc_config *msm_dsi_get_dsc_config(struct msm_dsi *msm_dsi)
+{
+	return NULL;
+}
+
+static inline const char *msm_dsi_get_te_source(struct msm_dsi *msm_dsi)
 {
 	return NULL;
 }

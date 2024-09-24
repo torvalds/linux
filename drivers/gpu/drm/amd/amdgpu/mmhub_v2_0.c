@@ -671,7 +671,7 @@ static int mmhub_v2_0_set_clockgating(struct amdgpu_device *adev,
 
 static void mmhub_v2_0_get_clockgating(struct amdgpu_device *adev, u64 *flags)
 {
-	int data, data1;
+	u32 data, data1;
 
 	if (amdgpu_sriov_vf(adev))
 		*flags = 0;

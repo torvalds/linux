@@ -716,8 +716,7 @@ static int abx500_dt_add_map_configs(struct pinctrl_map **map,
 	if (*num_maps == *reserved_maps)
 		return -ENOSPC;
 
-	dup_configs = kmemdup(configs, num_configs * sizeof(*dup_configs),
-			      GFP_KERNEL);
+	dup_configs = kmemdup_array(configs, num_configs, sizeof(*dup_configs), GFP_KERNEL);
 	if (!dup_configs)
 		return -ENOMEM;
 
@@ -811,19 +810,17 @@ static int abx500_dt_node_to_map(struct pinctrl_dev *pctldev,
 				 struct pinctrl_map **map, unsigned *num_maps)
 {
 	unsigned reserved_maps;
-	struct device_node *np;
 	int ret;
 
 	reserved_maps = 0;
 	*map = NULL;
 	*num_maps = 0;
 
-	for_each_child_of_node(np_config, np) {
+	for_each_child_of_node_scoped(np_config, np) {
 		ret = abx500_dt_subnode_to_map(pctldev, np, map,
 				&reserved_maps, num_maps);
 		if (ret < 0) {
 			pinctrl_utils_free_map(pctldev, *map, *num_maps);
-			of_node_put(np);
 			return ret;
 		}
 	}

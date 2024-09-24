@@ -6,6 +6,7 @@
 #include <linux/dma-direction.h>
 #include <linux/ptr_ring.h>
 #include <linux/types.h>
+#include <net/netmem.h>
 
 #define PP_FLAG_DMA_MAP		BIT(0) /* Should page_pool do the DMA
 					* map/unmap
@@ -19,8 +20,18 @@
 					* device driver responsibility
 					*/
 #define PP_FLAG_SYSTEM_POOL	BIT(2) /* Global system page_pool */
+
+/* Allow unreadable (net_iov backed) netmem in this page_pool. Drivers setting
+ * this must be able to support unreadable netmem, where netmem_address() would
+ * return NULL. This flag should not be set for header page_pools.
+ *
+ * If the driver sets PP_FLAG_ALLOW_UNREADABLE_NETMEM, it should also set
+ * page_pool_params.slow.queue_idx.
+ */
+#define PP_FLAG_ALLOW_UNREADABLE_NETMEM BIT(3)
+
 #define PP_FLAG_ALL		(PP_FLAG_DMA_MAP | PP_FLAG_DMA_SYNC_DEV | \
-				 PP_FLAG_SYSTEM_POOL)
+				 PP_FLAG_SYSTEM_POOL | PP_FLAG_ALLOW_UNREADABLE_NETMEM)
 
 /*
  * Fast allocation side cache array/stack
@@ -40,7 +51,7 @@
 #define PP_ALLOC_CACHE_REFILL	64
 struct pp_alloc_cache {
 	u32 count;
-	struct page *cache[PP_ALLOC_CACHE_SIZE];
+	netmem_ref cache[PP_ALLOC_CACHE_SIZE];
 };
 
 /**
@@ -56,7 +67,9 @@ struct pp_alloc_cache {
  * @offset:	DMA sync address offset for PP_FLAG_DMA_SYNC_DEV
  * @slow:	params with slowpath access only (initialization and Netlink)
  * @netdev:	netdev this pool will serve (leave as NULL if none or multiple)
- * @flags:	PP_FLAG_DMA_MAP, PP_FLAG_DMA_SYNC_DEV, PP_FLAG_SYSTEM_POOL
+ * @queue_idx:	queue idx this page_pool is being created for.
+ * @flags:	PP_FLAG_DMA_MAP, PP_FLAG_DMA_SYNC_DEV, PP_FLAG_SYSTEM_POOL,
+ *		PP_FLAG_ALLOW_UNREADABLE_NETMEM.
  */
 struct page_pool_params {
 	struct_group_tagged(page_pool_params_fast, fast,
@@ -71,9 +84,10 @@ struct page_pool_params {
 	);
 	struct_group_tagged(page_pool_params_slow, slow,
 		struct net_device *netdev;
+		unsigned int queue_idx;
 		unsigned int	flags;
 /* private: used by test code only */
-		void (*init_callback)(struct page *page, void *arg);
+		void (*init_callback)(netmem_ref netmem, void *arg);
 		void *init_arg;
 	);
 };
@@ -128,6 +142,20 @@ struct page_pool_stats {
 };
 #endif
 
+/* The whole frag API block must stay within one cacheline. On 32-bit systems,
+ * sizeof(long) == sizeof(int), so that the block size is ``3 * sizeof(long)``.
+ * On 64-bit systems, the actual size is ``2 * sizeof(long) + sizeof(int)``.
+ * The closest pow-2 to both of them is ``4 * sizeof(long)``, so just use that
+ * one for simplicity.
+ * Having it aligned to a cacheline boundary may be excessive and doesn't bring
+ * any good.
+ */
+#define PAGE_POOL_FRAG_GROUP_ALIGN	(4 * sizeof(long))
+
+struct pp_memory_provider_params {
+	void *mp_priv;
+};
+
 struct page_pool {
 	struct page_pool_params_fast p;
 
@@ -141,19 +169,11 @@ struct page_pool {
 	bool system:1;			/* This is a global percpu pool */
 #endif
 
-	/* The following block must stay within one cacheline. On 32-bit
-	 * systems, sizeof(long) == sizeof(int), so that the block size is
-	 * ``3 * sizeof(long)``. On 64-bit systems, the actual size is
-	 * ``2 * sizeof(long) + sizeof(int)``. The closest pow-2 to both of
-	 * them is ``4 * sizeof(long)``, so just use that one for simplicity.
-	 * Having it aligned to a cacheline boundary may be excessive and
-	 * doesn't bring any good.
-	 */
-	__cacheline_group_begin(frag) __aligned(4 * sizeof(long));
+	__cacheline_group_begin_aligned(frag, PAGE_POOL_FRAG_GROUP_ALIGN);
 	long frag_users;
-	struct page *frag_page;
+	netmem_ref frag_page;
 	unsigned int frag_offset;
-	__cacheline_group_end(frag);
+	__cacheline_group_end_aligned(frag, PAGE_POOL_FRAG_GROUP_ALIGN);
 
 	struct delayed_work release_dw;
 	void (*disconnect)(void *pool);
@@ -194,6 +214,8 @@ struct page_pool {
 	 */
 	struct ptr_ring ring;
 
+	void *mp_priv;
+
 #ifdef CONFIG_PAGE_POOL_STATS
 	/* recycle stats are per-cpu to avoid locking */
 	struct page_pool_recycle_stats __percpu *recycle_stats;
@@ -220,8 +242,12 @@ struct page_pool {
 };
 
 struct page *page_pool_alloc_pages(struct page_pool *pool, gfp_t gfp);
+netmem_ref page_pool_alloc_netmem(struct page_pool *pool, gfp_t gfp);
 struct page *page_pool_alloc_frag(struct page_pool *pool, unsigned int *offset,
 				  unsigned int size, gfp_t gfp);
+netmem_ref page_pool_alloc_frag_netmem(struct page_pool *pool,
+				       unsigned int *offset, unsigned int size,
+				       gfp_t gfp);
 struct page_pool *page_pool_create(const struct page_pool_params *params);
 struct page_pool *page_pool_create_percpu(const struct page_pool_params *params,
 					  int cpuid);
@@ -229,6 +255,7 @@ struct page_pool *page_pool_create_percpu(const struct page_pool_params *params,
 struct xdp_mem_info;
 
 #ifdef CONFIG_PAGE_POOL
+void page_pool_disable_direct_recycling(struct page_pool *pool);
 void page_pool_destroy(struct page_pool *pool);
 void page_pool_use_xdp_mem(struct page_pool *pool, void (*disconnect)(void *),
 			   const struct xdp_mem_info *mem);
@@ -251,6 +278,9 @@ static inline void page_pool_put_page_bulk(struct page_pool *pool, void **data,
 }
 #endif
 
+void page_pool_put_unrefed_netmem(struct page_pool *pool, netmem_ref netmem,
+				  unsigned int dma_sync_size,
+				  bool allow_direct);
 void page_pool_put_unrefed_page(struct page_pool *pool, struct page *page,
 				unsigned int dma_sync_size,
 				bool allow_direct);

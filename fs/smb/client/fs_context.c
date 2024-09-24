@@ -128,12 +128,14 @@ const struct fs_parameter_spec smb3_fs_parameters[] = {
 	fsparam_flag("compress", Opt_compress),
 	fsparam_flag("witness", Opt_witness),
 
+	/* Mount options which take uid or gid */
+	fsparam_uid("backupuid", Opt_backupuid),
+	fsparam_gid("backupgid", Opt_backupgid),
+	fsparam_uid("uid", Opt_uid),
+	fsparam_uid("cruid", Opt_cruid),
+	fsparam_gid("gid", Opt_gid),
+
 	/* Mount options which take numeric value */
-	fsparam_u32("backupuid", Opt_backupuid),
-	fsparam_u32("backupgid", Opt_backupgid),
-	fsparam_u32("uid", Opt_uid),
-	fsparam_u32("cruid", Opt_cruid),
-	fsparam_u32("gid", Opt_gid),
 	fsparam_u32("file_mode", Opt_file_mode),
 	fsparam_u32("dirmode", Opt_dirmode),
 	fsparam_u32("dir_mode", Opt_dirmode),
@@ -951,8 +953,6 @@ static int smb3_fs_context_parse_param(struct fs_context *fc,
 	int i, opt;
 	bool is_smb3 = !strcmp(fc->fs_type->name, "smb3");
 	bool skip_parsing = false;
-	kuid_t uid;
-	kgid_t gid;
 
 	cifs_dbg(FYI, "CIFS: parsing cifs mount option '%s'\n", param->key);
 
@@ -978,9 +978,12 @@ static int smb3_fs_context_parse_param(struct fs_context *fc,
 
 	switch (opt) {
 	case Opt_compress:
+		if (!IS_ENABLED(CONFIG_CIFS_COMPRESSION)) {
+			cifs_errorf(fc, "CONFIG_CIFS_COMPRESSION kernel config option is unset\n");
+			goto cifs_parse_mount_err;
+		}
 		ctx->compress = true;
-		cifs_dbg(VFS,
-			"SMB3 compression support is experimental\n");
+		cifs_dbg(VFS, "SMB3 compression support is experimental\n");
 		break;
 	case Opt_nodfs:
 		ctx->nodfs = 1;
@@ -1083,38 +1086,23 @@ static int smb3_fs_context_parse_param(struct fs_context *fc,
 		}
 		break;
 	case Opt_uid:
-		uid = make_kuid(current_user_ns(), result.uint_32);
-		if (!uid_valid(uid))
-			goto cifs_parse_mount_err;
-		ctx->linux_uid = uid;
+		ctx->linux_uid = result.uid;
 		ctx->uid_specified = true;
 		break;
 	case Opt_cruid:
-		uid = make_kuid(current_user_ns(), result.uint_32);
-		if (!uid_valid(uid))
-			goto cifs_parse_mount_err;
-		ctx->cred_uid = uid;
+		ctx->cred_uid = result.uid;
 		ctx->cruid_specified = true;
 		break;
 	case Opt_backupuid:
-		uid = make_kuid(current_user_ns(), result.uint_32);
-		if (!uid_valid(uid))
-			goto cifs_parse_mount_err;
-		ctx->backupuid = uid;
+		ctx->backupuid = result.uid;
 		ctx->backupuid_specified = true;
 		break;
 	case Opt_backupgid:
-		gid = make_kgid(current_user_ns(), result.uint_32);
-		if (!gid_valid(gid))
-			goto cifs_parse_mount_err;
-		ctx->backupgid = gid;
+		ctx->backupgid = result.gid;
 		ctx->backupgid_specified = true;
 		break;
 	case Opt_gid:
-		gid = make_kgid(current_user_ns(), result.uint_32);
-		if (!gid_valid(gid))
-			goto cifs_parse_mount_err;
-		ctx->linux_gid = gid;
+		ctx->linux_gid = result.gid;
 		ctx->gid_specified = true;
 		break;
 	case Opt_port:
@@ -1911,14 +1899,17 @@ void smb3_update_mnt_flags(struct cifs_sb_info *cifs_sb)
 	if (ctx->mfsymlinks) {
 		if (ctx->sfu_emul) {
 			/*
-			 * Our SFU ("Services for Unix" emulation does not allow
-			 * creating symlinks but does allow reading existing SFU
-			 * symlinks (it does allow both creating and reading SFU
-			 * style mknod and FIFOs though). When "mfsymlinks" and
+			 * Our SFU ("Services for Unix") emulation allows now
+			 * creating new and reading existing SFU symlinks.
+			 * Older Linux kernel versions were not able to neither
+			 * read existing nor create new SFU symlinks. But
+			 * creating and reading SFU style mknod and FIFOs was
+			 * supported for long time. When "mfsymlinks" and
 			 * "sfu" are both enabled at the same time, it allows
 			 * reading both types of symlinks, but will only create
 			 * them with mfsymlinks format. This allows better
-			 * Apple compatibility (probably better for Samba too)
+			 * Apple compatibility, compatibility with older Linux
+			 * kernel clients (probably better for Samba too)
 			 * while still recognizing old Windows style symlinks.
 			 */
 			cifs_dbg(VFS, "mount options mfsymlinks and sfu both enabled\n");

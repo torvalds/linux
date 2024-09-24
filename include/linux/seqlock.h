@@ -157,7 +157,7 @@ __seqprop_##lockname##_const_ptr(const seqcount_##lockname##_t *s)	\
 static __always_inline unsigned						\
 __seqprop_##lockname##_sequence(const seqcount_##lockname##_t *s)	\
 {									\
-	unsigned seq = READ_ONCE(s->seqcount.sequence);			\
+	unsigned seq = smp_load_acquire(&s->seqcount.sequence);		\
 									\
 	if (!IS_ENABLED(CONFIG_PREEMPT_RT))				\
 		return seq;						\
@@ -170,7 +170,7 @@ __seqprop_##lockname##_sequence(const seqcount_##lockname##_t *s)	\
 		 * Re-read the sequence counter since the (possibly	\
 		 * preempted) writer made progress.			\
 		 */							\
-		seq = READ_ONCE(s->seqcount.sequence);			\
+		seq = smp_load_acquire(&s->seqcount.sequence);		\
 	}								\
 									\
 	return seq;							\
@@ -208,7 +208,7 @@ static inline const seqcount_t *__seqprop_const_ptr(const seqcount_t *s)
 
 static inline unsigned __seqprop_sequence(const seqcount_t *s)
 {
-	return READ_ONCE(s->sequence);
+	return smp_load_acquire(&s->sequence);
 }
 
 static inline bool __seqprop_preemptible(const seqcount_t *s)
@@ -263,16 +263,8 @@ SEQCOUNT_LOCKNAME(mutex,        struct mutex,    true,     mutex)
 #define seqprop_assert(s)		__seqprop(s, assert)(s)
 
 /**
- * __read_seqcount_begin() - begin a seqcount_t read section w/o barrier
+ * __read_seqcount_begin() - begin a seqcount_t read section
  * @s: Pointer to seqcount_t or any of the seqcount_LOCKNAME_t variants
- *
- * __read_seqcount_begin is like read_seqcount_begin, but has no smp_rmb()
- * barrier. Callers should ensure that smp_rmb() or equivalent ordering is
- * provided before actually loading any of the variables that are to be
- * protected in this critical section.
- *
- * Use carefully, only in critical code, and comment how the barrier is
- * provided.
  *
  * Return: count to be passed to read_seqcount_retry()
  */
@@ -293,13 +285,7 @@ SEQCOUNT_LOCKNAME(mutex,        struct mutex,    true,     mutex)
  *
  * Return: count to be passed to read_seqcount_retry()
  */
-#define raw_read_seqcount_begin(s)					\
-({									\
-	unsigned _seq = __read_seqcount_begin(s);			\
-									\
-	smp_rmb();							\
-	_seq;								\
-})
+#define raw_read_seqcount_begin(s) __read_seqcount_begin(s)
 
 /**
  * read_seqcount_begin() - begin a seqcount_t read critical section
@@ -328,7 +314,6 @@ SEQCOUNT_LOCKNAME(mutex,        struct mutex,    true,     mutex)
 ({									\
 	unsigned __seq = seqprop_sequence(s);				\
 									\
-	smp_rmb();							\
 	kcsan_atomic_next(KCSAN_SEQLOCK_REGION_MAX);			\
 	__seq;								\
 })

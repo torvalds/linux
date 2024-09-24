@@ -161,16 +161,16 @@ static inline unsigned long local_tick_disable(void)
 {
 	unsigned long old;
 
-	old = S390_lowcore.clock_comparator;
-	S390_lowcore.clock_comparator = clock_comparator_max;
-	set_clock_comparator(S390_lowcore.clock_comparator);
+	old = get_lowcore()->clock_comparator;
+	get_lowcore()->clock_comparator = clock_comparator_max;
+	set_clock_comparator(get_lowcore()->clock_comparator);
 	return old;
 }
 
 static inline void local_tick_enable(unsigned long comp)
 {
-	S390_lowcore.clock_comparator = comp;
-	set_clock_comparator(S390_lowcore.clock_comparator);
+	get_lowcore()->clock_comparator = comp;
+	set_clock_comparator(get_lowcore()->clock_comparator);
 }
 
 #define CLOCK_TICK_RATE		1193180 /* Underlying HZ */

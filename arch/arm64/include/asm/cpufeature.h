@@ -588,14 +588,14 @@ static inline bool id_aa64pfr0_32bit_el1(u64 pfr0)
 {
 	u32 val = cpuid_feature_extract_unsigned_field(pfr0, ID_AA64PFR0_EL1_EL1_SHIFT);
 
-	return val == ID_AA64PFR0_EL1_ELx_32BIT_64BIT;
+	return val == ID_AA64PFR0_EL1_EL1_AARCH32;
 }
 
 static inline bool id_aa64pfr0_32bit_el0(u64 pfr0)
 {
 	u32 val = cpuid_feature_extract_unsigned_field(pfr0, ID_AA64PFR0_EL1_EL0_SHIFT);
 
-	return val == ID_AA64PFR0_EL1_ELx_32BIT_64BIT;
+	return val == ID_AA64PFR0_EL1_EL0_AARCH32;
 }
 
 static inline bool id_aa64pfr0_sve(u64 pfr0)
@@ -830,6 +830,12 @@ static inline bool system_supports_tlb_range(void)
 static inline bool system_supports_lpa2(void)
 {
 	return cpus_have_final_cap(ARM64_HAS_LPA2);
+}
+
+static inline bool system_supports_poe(void)
+{
+	return IS_ENABLED(CONFIG_ARM64_POE) &&
+		alternative_has_cap_unlikely(ARM64_HAS_S1POE);
 }
 
 int do_emulate_mrs(struct pt_regs *regs, u32 sys_reg, u32 rt);

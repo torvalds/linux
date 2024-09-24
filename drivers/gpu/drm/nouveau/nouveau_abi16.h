@@ -30,16 +30,16 @@ struct nouveau_abi16_chan {
 };
 
 struct nouveau_abi16 {
-	struct nvif_device device;
+	struct nouveau_cli *cli;
 	struct list_head channels;
-	u64 handles;
+	struct list_head objects;
 };
 
 struct nouveau_abi16 *nouveau_abi16_get(struct drm_file *);
 int  nouveau_abi16_put(struct nouveau_abi16 *, int);
 void nouveau_abi16_fini(struct nouveau_abi16 *);
 s32  nouveau_abi16_swclass(struct nouveau_drm *);
-int  nouveau_abi16_usif(struct drm_file *, void *data, u32 size);
+int nouveau_abi16_ioctl(struct drm_file *, void __user *user, u32 size);
 
 #define NOUVEAU_GEM_DOMAIN_VRAM      (1 << 1)
 #define NOUVEAU_GEM_DOMAIN_GART      (1 << 2)

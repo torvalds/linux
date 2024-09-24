@@ -174,11 +174,6 @@ static int snd_p16v_pcm_open_playback_channel(struct snd_pcm_substream *substrea
 	if (err < 0)
                 return err;
 
-	runtime->sync.id32[0] = substream->pcm->card->number;
-	runtime->sync.id32[1] = 'P';
-	runtime->sync.id32[2] = 16;
-	runtime->sync.id32[3] = 'V';
-
 	return 0;
 }
 
@@ -224,6 +219,17 @@ static int snd_p16v_pcm_open_capture(struct snd_pcm_substream *substream)
 {
 	// Only using channel 0 for now, but the card has 2 channels.
 	return snd_p16v_pcm_open_capture_channel(substream, 0);
+}
+
+static int snd_p16v_pcm_ioctl_playback(struct snd_pcm_substream *substream,
+				       unsigned int cmd, void *arg)
+{
+	if (cmd == SNDRV_PCM_IOCTL1_SYNC_ID) {
+		static const unsigned char id[4] = { 'P', '1', '6', 'V' };
+		snd_pcm_set_sync_per_card(substream, arg, id, 4);
+		return 0;
+	}
+	return snd_pcm_lib_ioctl(substream, cmd, arg);
 }
 
 /* prepare playback callback */
@@ -531,6 +537,7 @@ snd_p16v_pcm_pointer_capture(struct snd_pcm_substream *substream)
 static const struct snd_pcm_ops snd_p16v_playback_front_ops = {
 	.open =        snd_p16v_pcm_open_playback_front,
 	.close =       snd_p16v_pcm_close_playback,
+	.ioctl =       snd_p16v_pcm_ioctl_playback,
 	.prepare =     snd_p16v_pcm_prepare_playback,
 	.trigger =     snd_p16v_pcm_trigger_playback,
 	.pointer =     snd_p16v_pcm_pointer_playback,

@@ -28,6 +28,8 @@
 #include "amdgpu.h"
 #include "amdgpu_ucode.h"
 
+#define AMDGPU_UCODE_NAME_MAX		(128)
+
 static void amdgpu_ucode_print_common_hdr(const struct common_firmware_header *hdr)
 {
 	DRM_DEBUG("size_bytes: %u\n", le32_to_cpu(hdr->size_bytes));
@@ -323,6 +325,12 @@ void amdgpu_ucode_print_sdma_hdr(const struct common_firmware_header *hdr)
 		DRM_DEBUG("ctl_ucode_offset: %u\n", le32_to_cpu(sdma_hdr->ctl_ucode_offset));
 		DRM_DEBUG("ctl_jt_offset: %u\n", le32_to_cpu(sdma_hdr->ctl_jt_offset));
 		DRM_DEBUG("ctl_jt_size: %u\n", le32_to_cpu(sdma_hdr->ctl_jt_size));
+	} else if (version_major == 3) {
+		const struct sdma_firmware_header_v3_0 *sdma_hdr =
+			container_of(hdr, struct sdma_firmware_header_v3_0, header);
+
+		DRM_DEBUG("ucode_reversion: %u\n",
+			  le32_to_cpu(sdma_hdr->ucode_feature_version));
 	} else {
 		DRM_ERROR("Unknown SDMA ucode version: %u.%u\n",
 			  version_major, version_minor);
@@ -682,6 +690,32 @@ const char *amdgpu_ucode_name(enum AMDGPU_UCODE_ID ucode_id)
 		return "UMSCH_MM_CMD_BUFFER";
 	case AMDGPU_UCODE_ID_JPEG_RAM:
 		return "JPEG";
+	case AMDGPU_UCODE_ID_SDMA_RS64:
+		return "RS64_SDMA";
+	case AMDGPU_UCODE_ID_CP_RS64_PFP:
+		return "RS64_PFP";
+	case AMDGPU_UCODE_ID_CP_RS64_ME:
+		return "RS64_ME";
+	case AMDGPU_UCODE_ID_CP_RS64_MEC:
+		return "RS64_MEC";
+	case AMDGPU_UCODE_ID_CP_RS64_PFP_P0_STACK:
+		return "RS64_PFP_P0_STACK";
+	case AMDGPU_UCODE_ID_CP_RS64_PFP_P1_STACK:
+		return "RS64_PFP_P1_STACK";
+	case AMDGPU_UCODE_ID_CP_RS64_ME_P0_STACK:
+		return "RS64_ME_P0_STACK";
+	case AMDGPU_UCODE_ID_CP_RS64_ME_P1_STACK:
+		return "RS64_ME_P1_STACK";
+	case AMDGPU_UCODE_ID_CP_RS64_MEC_P0_STACK:
+		return "RS64_MEC_P0_STACK";
+	case AMDGPU_UCODE_ID_CP_RS64_MEC_P1_STACK:
+		return "RS64_MEC_P1_STACK";
+	case AMDGPU_UCODE_ID_CP_RS64_MEC_P2_STACK:
+		return "RS64_MEC_P2_STACK";
+	case AMDGPU_UCODE_ID_CP_RS64_MEC_P3_STACK:
+		return "RS64_MEC_P3_STACK";
+	case AMDGPU_UCODE_ID_ISP:
+		return "ISP";
 	default:
 		return "UNKNOWN UCODE";
 	}
@@ -791,6 +825,7 @@ static int amdgpu_ucode_init_single_fw(struct amdgpu_device *adev,
 	const struct dmcub_firmware_header_v1_0 *dmcub_hdr = NULL;
 	const struct mes_firmware_header_v1_0 *mes_hdr = NULL;
 	const struct sdma_firmware_header_v2_0 *sdma_hdr = NULL;
+	const struct sdma_firmware_header_v3_0 *sdmav3_hdr = NULL;
 	const struct imu_firmware_header_v1_0 *imu_hdr = NULL;
 	const struct vpe_firmware_header_v1_0 *vpe_hdr = NULL;
 	const struct umsch_mm_firmware_header_v1_0 *umsch_mm_hdr = NULL;
@@ -812,6 +847,7 @@ static int amdgpu_ucode_init_single_fw(struct amdgpu_device *adev,
 	dmcub_hdr = (const struct dmcub_firmware_header_v1_0 *)ucode->fw->data;
 	mes_hdr = (const struct mes_firmware_header_v1_0 *)ucode->fw->data;
 	sdma_hdr = (const struct sdma_firmware_header_v2_0 *)ucode->fw->data;
+	sdmav3_hdr = (const struct sdma_firmware_header_v3_0 *)ucode->fw->data;
 	imu_hdr = (const struct imu_firmware_header_v1_0 *)ucode->fw->data;
 	vpe_hdr = (const struct vpe_firmware_header_v1_0 *)ucode->fw->data;
 	umsch_mm_hdr = (const struct umsch_mm_firmware_header_v1_0 *)ucode->fw->data;
@@ -827,6 +863,11 @@ static int amdgpu_ucode_init_single_fw(struct amdgpu_device *adev,
 			ucode->ucode_size = le32_to_cpu(sdma_hdr->ctl_ucode_size_bytes);
 			ucode_addr = (u8 *)ucode->fw->data +
 				le32_to_cpu(sdma_hdr->ctl_ucode_offset);
+			break;
+		case AMDGPU_UCODE_ID_SDMA_RS64:
+			ucode->ucode_size = le32_to_cpu(sdmav3_hdr->ucode_size_bytes);
+			ucode_addr = (u8 *)ucode->fw->data +
+				le32_to_cpu(sdmav3_hdr->header.ucode_array_offset_bytes);
 			break;
 		case AMDGPU_UCODE_ID_CP_MEC1:
 		case AMDGPU_UCODE_ID_CP_MEC2:
@@ -1374,6 +1415,9 @@ void amdgpu_ucode_ip_version_decode(struct amdgpu_device *adev, int block_type, 
 	case VPE_HWIP:
 		ip_name = "vpe";
 		break;
+	case ISP_HWIP:
+		ip_name = "isp";
+		break;
 	default:
 		BUG();
 	}
@@ -1390,28 +1434,40 @@ void amdgpu_ucode_ip_version_decode(struct amdgpu_device *adev, int block_type, 
  *
  * @adev: amdgpu device
  * @fw: pointer to load firmware to
- * @fw_name: firmware to load
+ * @fmt: firmware name format string
+ * @...: variable arguments
  *
  * This is a helper that will use request_firmware and amdgpu_ucode_validate
  * to load and run basic validation on firmware. If the load fails, remap
  * the error code to -ENODEV, so that early_init functions will fail to load.
  */
 int amdgpu_ucode_request(struct amdgpu_device *adev, const struct firmware **fw,
-			 const char *fw_name)
+			 const char *fmt, ...)
 {
-	int err = request_firmware(fw, fw_name, adev->dev);
+	char fname[AMDGPU_UCODE_NAME_MAX];
+	va_list ap;
+	int r;
 
-	if (err)
+	va_start(ap, fmt);
+	r = vsnprintf(fname, sizeof(fname), fmt, ap);
+	va_end(ap);
+	if (r == sizeof(fname)) {
+		dev_warn(adev->dev, "amdgpu firmware name buffer overflow\n");
+		return -EOVERFLOW;
+	}
+
+	r = request_firmware(fw, fname, adev->dev);
+	if (r)
 		return -ENODEV;
 
-	err = amdgpu_ucode_validate(*fw);
-	if (err) {
-		dev_dbg(adev->dev, "\"%s\" failed to validate\n", fw_name);
+	r = amdgpu_ucode_validate(*fw);
+	if (r) {
+		dev_dbg(adev->dev, "\"%s\" failed to validate\n", fname);
 		release_firmware(*fw);
 		*fw = NULL;
 	}
 
-	return err;
+	return r;
 }
 
 /*

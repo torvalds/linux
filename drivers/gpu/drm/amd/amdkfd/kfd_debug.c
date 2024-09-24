@@ -25,6 +25,7 @@
 #include "kfd_topology.h"
 #include <linux/file.h>
 #include <uapi/linux/kfd_ioctl.h>
+#include <uapi/linux/kfd_sysfs.h>
 
 #define MAX_WATCH_ADDRESSES	4
 
@@ -103,7 +104,8 @@ void debug_event_write_work_handler(struct work_struct *work)
 			struct kfd_process,
 			debug_event_workarea);
 
-	kernel_write(process->dbg_ev_file, &write_data, 1, &pos);
+	if (process->debug_trap_enabled && process->dbg_ev_file)
+		kernel_write(process->dbg_ev_file, &write_data, 1, &pos);
 }
 
 /* update process/device/queue exception status, write to descriptor
@@ -363,47 +365,47 @@ static int kfd_dbg_get_dev_watch_id(struct kfd_process_device *pdd, int *watch_i
 
 	*watch_id = KFD_DEBUGGER_INVALID_WATCH_POINT_ID;
 
-	spin_lock(&pdd->dev->kfd->watch_points_lock);
+	spin_lock(&pdd->dev->watch_points_lock);
 
 	for (i = 0; i < MAX_WATCH_ADDRESSES; i++) {
 		/* device watchpoint in use so skip */
-		if ((pdd->dev->kfd->alloc_watch_ids >> i) & 0x1)
+		if ((pdd->dev->alloc_watch_ids >> i) & 0x1)
 			continue;
 
 		pdd->alloc_watch_ids |= 0x1 << i;
-		pdd->dev->kfd->alloc_watch_ids |= 0x1 << i;
+		pdd->dev->alloc_watch_ids |= 0x1 << i;
 		*watch_id = i;
-		spin_unlock(&pdd->dev->kfd->watch_points_lock);
+		spin_unlock(&pdd->dev->watch_points_lock);
 		return 0;
 	}
 
-	spin_unlock(&pdd->dev->kfd->watch_points_lock);
+	spin_unlock(&pdd->dev->watch_points_lock);
 
 	return -ENOMEM;
 }
 
 static void kfd_dbg_clear_dev_watch_id(struct kfd_process_device *pdd, int watch_id)
 {
-	spin_lock(&pdd->dev->kfd->watch_points_lock);
+	spin_lock(&pdd->dev->watch_points_lock);
 
 	/* process owns device watch point so safe to clear */
 	if ((pdd->alloc_watch_ids >> watch_id) & 0x1) {
 		pdd->alloc_watch_ids &= ~(0x1 << watch_id);
-		pdd->dev->kfd->alloc_watch_ids &= ~(0x1 << watch_id);
+		pdd->dev->alloc_watch_ids &= ~(0x1 << watch_id);
 	}
 
-	spin_unlock(&pdd->dev->kfd->watch_points_lock);
+	spin_unlock(&pdd->dev->watch_points_lock);
 }
 
 static bool kfd_dbg_owns_dev_watch_id(struct kfd_process_device *pdd, int watch_id)
 {
 	bool owns_watch_id = false;
 
-	spin_lock(&pdd->dev->kfd->watch_points_lock);
+	spin_lock(&pdd->dev->watch_points_lock);
 	owns_watch_id = watch_id < MAX_WATCH_ADDRESSES &&
 			((pdd->alloc_watch_ids >> watch_id) & 0x1);
 
-	spin_unlock(&pdd->dev->kfd->watch_points_lock);
+	spin_unlock(&pdd->dev->watch_points_lock);
 
 	return owns_watch_id;
 }
@@ -497,14 +499,24 @@ int kfd_dbg_trap_set_flags(struct kfd_process *target, uint32_t *flags)
 	int i, r = 0, rewind_count = 0;
 
 	for (i = 0; i < target->n_pdds; i++) {
-		if (!kfd_dbg_is_per_vmid_supported(target->pdds[i]->dev) &&
+		struct kfd_topology_device *topo_dev =
+				kfd_topology_device_by_id(target->pdds[i]->dev->id);
+		uint32_t caps = topo_dev->node_props.capability;
+
+		if (!(caps & HSA_CAP_TRAP_DEBUG_PRECISE_MEMORY_OPERATIONS_SUPPORTED) &&
 			(*flags & KFD_DBG_TRAP_FLAG_SINGLE_MEM_OP)) {
+			*flags = prev_flags;
+			return -EACCES;
+		}
+
+		if (!(caps & HSA_CAP_TRAP_DEBUG_PRECISE_ALU_OPERATIONS_SUPPORTED) &&
+		    (*flags & KFD_DBG_TRAP_FLAG_SINGLE_ALU_OP)) {
 			*flags = prev_flags;
 			return -EACCES;
 		}
 	}
 
-	target->dbg_flags = *flags & KFD_DBG_TRAP_FLAG_SINGLE_MEM_OP;
+	target->dbg_flags = *flags;
 	*flags = prev_flags;
 	for (i = 0; i < target->n_pdds; i++) {
 		struct kfd_process_device *pdd = target->pdds[i];
@@ -645,6 +657,7 @@ int kfd_dbg_trap_disable(struct kfd_process *target)
 	else if (target->runtime_info.runtime_state != DEBUG_RUNTIME_STATE_DISABLED)
 		target->runtime_info.runtime_state = DEBUG_RUNTIME_STATE_ENABLED;
 
+	cancel_work_sync(&target->debug_event_workarea);
 	fput(target->dbg_ev_file);
 	target->dbg_ev_file = NULL;
 

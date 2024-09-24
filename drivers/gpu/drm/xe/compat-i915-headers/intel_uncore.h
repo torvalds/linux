@@ -17,6 +17,13 @@ static inline struct xe_gt *__compat_uncore_to_gt(struct intel_uncore *uncore)
 	return xe_root_mmio_gt(xe);
 }
 
+static inline struct xe_tile *__compat_uncore_to_tile(struct intel_uncore *uncore)
+{
+	struct xe_device *xe = container_of(uncore, struct xe_device, uncore);
+
+	return xe_device_get_root_tile(xe);
+}
+
 static inline u32 intel_uncore_read(struct intel_uncore *uncore,
 				    i915_reg_t i915_reg)
 {
@@ -171,5 +178,10 @@ static inline void __iomem *intel_uncore_regs(struct intel_uncore *uncore)
 	readl(base + i915_mmio_reg_offset(reg))
 #define raw_reg_write(base, reg, value) \
 	writel(value, base + i915_mmio_reg_offset(reg))
+
+#define intel_uncore_forcewake_get(x, y) do { } while (0)
+#define intel_uncore_forcewake_put(x, y) do { } while (0)
+
+#define intel_uncore_arm_unclaimed_mmio_detection(x) do { } while (0)
 
 #endif /* __INTEL_UNCORE_H__ */

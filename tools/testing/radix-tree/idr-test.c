@@ -424,6 +424,7 @@ void idr_checks(void)
 #define module_init(x)
 #define module_exit(x)
 #define MODULE_AUTHOR(x)
+#define MODULE_DESCRIPTION(X)
 #define MODULE_LICENSE(x)
 #define dump_stack()    assert(0)
 void ida_dump(struct ida *);

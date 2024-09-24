@@ -175,6 +175,14 @@ static const struct fsl_rpmsg_soc_data imx93_data = {
 		   SNDRV_PCM_FMTBIT_S32_LE,
 };
 
+static const struct fsl_rpmsg_soc_data imx95_data = {
+	.rates = SNDRV_PCM_RATE_16000 | SNDRV_PCM_RATE_32000 |
+		 SNDRV_PCM_RATE_44100 | SNDRV_PCM_RATE_48000 |
+		 SNDRV_PCM_RATE_88200 | SNDRV_PCM_RATE_96000,
+	.formats = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE |
+		   SNDRV_PCM_FMTBIT_S32_LE,
+};
+
 static const struct of_device_id fsl_rpmsg_ids[] = {
 	{ .compatible = "fsl,imx7ulp-rpmsg-audio", .data = &imx7ulp_data},
 	{ .compatible = "fsl,imx8mm-rpmsg-audio", .data = &imx8mm_data},
@@ -182,6 +190,7 @@ static const struct of_device_id fsl_rpmsg_ids[] = {
 	{ .compatible = "fsl,imx8mp-rpmsg-audio", .data = &imx8mp_data},
 	{ .compatible = "fsl,imx8ulp-rpmsg-audio", .data = &imx7ulp_data},
 	{ .compatible = "fsl,imx93-rpmsg-audio", .data = &imx93_data},
+	{ .compatible = "fsl,imx95-rpmsg-audio", .data = &imx95_data},
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, fsl_rpmsg_ids);
@@ -277,7 +286,6 @@ static void fsl_rpmsg_remove(struct platform_device *pdev)
 		platform_device_unregister(rpmsg->card_pdev);
 }
 
-#ifdef CONFIG_PM
 static int fsl_rpmsg_runtime_resume(struct device *dev)
 {
 	struct fsl_rpmsg *rpmsg = dev_get_drvdata(dev);
@@ -312,20 +320,18 @@ static int fsl_rpmsg_runtime_suspend(struct device *dev)
 
 	return 0;
 }
-#endif
 
 static const struct dev_pm_ops fsl_rpmsg_pm_ops = {
-	SET_RUNTIME_PM_OPS(fsl_rpmsg_runtime_suspend,
-			   fsl_rpmsg_runtime_resume,
-			   NULL)
+	RUNTIME_PM_OPS(fsl_rpmsg_runtime_suspend, fsl_rpmsg_runtime_resume,
+		       NULL)
 };
 
 static struct platform_driver fsl_rpmsg_driver = {
 	.probe  = fsl_rpmsg_probe,
-	.remove_new = fsl_rpmsg_remove,
+	.remove = fsl_rpmsg_remove,
 	.driver = {
 		.name = "fsl_rpmsg",
-		.pm = &fsl_rpmsg_pm_ops,
+		.pm = pm_ptr(&fsl_rpmsg_pm_ops),
 		.of_match_table = fsl_rpmsg_ids,
 	},
 };

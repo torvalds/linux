@@ -208,7 +208,7 @@ static const struct regmap_access_table qt1050_writeable_table = {
 	.n_yes_ranges = ARRAY_SIZE(qt1050_writeable_ranges),
 };
 
-static struct regmap_config qt1050_regmap_config = {
+static const struct regmap_config qt1050_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 	.max_register = QT1050_RES_CAL,
@@ -226,7 +226,12 @@ static bool qt1050_identify(struct qt1050_priv *ts)
 	int err;
 
 	/* Read Chip ID */
-	regmap_read(ts->regmap, QT1050_CHIP_ID, &val);
+	err = regmap_read(ts->regmap, QT1050_CHIP_ID, &val);
+	if (err) {
+		dev_err(&ts->client->dev, "Failed to read chip ID: %d\n", err);
+		return false;
+	}
+
 	if (val != QT1050_CHIP_ID_VER) {
 		dev_err(&ts->client->dev, "ID %d not supported\n", val);
 		return false;

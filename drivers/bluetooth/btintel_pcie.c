@@ -46,6 +46,7 @@ MODULE_DEVICE_TABLE(pci, btintel_pcie_table);
 #define BTINTEL_PCIE_HCI_ACL_PKT	0x00000002
 #define BTINTEL_PCIE_HCI_SCO_PKT	0x00000003
 #define BTINTEL_PCIE_HCI_EVT_PKT	0x00000004
+#define BTINTEL_PCIE_HCI_ISO_PKT	0x00000005
 
 static inline void ipc_print_ia_ring(struct hci_dev *hdev, struct ia *ia,
 				     u16 queue_num)
@@ -382,7 +383,7 @@ static int btintel_pcie_recv_frame(struct btintel_pcie_data *data,
 
 	/* The first 4 bytes indicates the Intel PCIe specific packet type */
 	pdata = skb_pull_data(skb, BTINTEL_PCIE_HCI_TYPE_LEN);
-	if (!data) {
+	if (!pdata) {
 		bt_dev_err(hdev, "Corrupted packet received");
 		ret = -EILSEQ;
 		goto exit_error;
@@ -423,6 +424,18 @@ static int btintel_pcie_recv_frame(struct btintel_pcie_data *data,
 			goto exit_error;
 		}
 		break;
+
+	case BTINTEL_PCIE_HCI_ISO_PKT:
+		if (skb->len >= HCI_ISO_HDR_SIZE) {
+			plen = HCI_ISO_HDR_SIZE + __le16_to_cpu(hci_iso_hdr(skb)->dlen);
+			pkt_type = HCI_ISODATA_PKT;
+		} else {
+			bt_dev_err(hdev, "ISO packet is too short");
+			ret = -EILSEQ;
+			goto exit_error;
+		}
+		break;
+
 	default:
 		bt_dev_err(hdev, "Invalid packet type received: 0x%4.4x",
 			   pcie_pkt_type);
@@ -797,7 +810,6 @@ static int btintel_pcie_setup_txq_bufs(struct btintel_pcie_data *data,
 		kfree(txq->bufs);
 		return -ENOMEM;
 	}
-	memset(txq->buf_v_addr, 0, txq->count * BTINTEL_PCIE_BUFFER_SIZE);
 
 	/* Setup the allocated DMA buffer to bufs. Each data_buf should
 	 * have virtual address and physical address
@@ -842,7 +854,6 @@ static int btintel_pcie_setup_rxq_bufs(struct btintel_pcie_data *data,
 		kfree(rxq->bufs);
 		return -ENOMEM;
 	}
-	memset(rxq->buf_v_addr, 0, rxq->count * BTINTEL_PCIE_BUFFER_SIZE);
 
 	/* Setup the allocated DMA buffer to bufs. Each data_buf should
 	 * have virtual address and physical address
@@ -1084,6 +1095,9 @@ static int btintel_pcie_send_frame(struct hci_dev *hdev,
 		type = BTINTEL_PCIE_HCI_SCO_PKT;
 		hdev->stat.sco_tx++;
 		break;
+	case HCI_ISODATA_PKT:
+		type = BTINTEL_PCIE_HCI_ISO_PKT;
+		break;
 	default:
 		bt_dev_err(hdev, "Unknown HCI packet type");
 		return -EILSEQ;
@@ -1182,9 +1196,6 @@ static int btintel_pcie_setup(struct hci_dev *hdev)
 		 */
 		set_bit(HCI_QUIRK_WIDEBAND_SPEECH_SUPPORTED, &hdev->quirks);
 
-		/* Apply LE States quirk from solar onwards */
-		set_bit(HCI_QUIRK_VALID_LE_STATES, &hdev->quirks);
-
 		/* Setup MSFT Extension support */
 		btintel_set_msft_opcode(hdev,
 					INTEL_HW_VARIANT(ver_tlv.cnvi_bt));
@@ -1197,9 +1208,11 @@ static int btintel_pcie_setup(struct hci_dev *hdev)
 		bt_dev_err(hdev, "Unsupported Intel hw variant (%u)",
 			   INTEL_HW_VARIANT(ver_tlv.cnvi_bt));
 		err = -EINVAL;
+		goto exit_error;
 		break;
 	}
 
+	btintel_print_fseq_info(hdev);
 exit_error:
 	kfree_skb(skb);
 
@@ -1211,7 +1224,7 @@ static int btintel_pcie_setup_hdev(struct btintel_pcie_data *data)
 	int err;
 	struct hci_dev *hdev;
 
-	hdev = hci_alloc_dev();
+	hdev = hci_alloc_dev_priv(sizeof(struct btintel_data));
 	if (!hdev)
 		return -ENOMEM;
 
@@ -1327,6 +1340,12 @@ static void btintel_pcie_remove(struct pci_dev *pdev)
 	data = pci_get_drvdata(pdev);
 
 	btintel_pcie_reset_bt(data);
+	for (int i = 0; i < data->alloc_vecs; i++) {
+		struct msix_entry *msix_entry;
+
+		msix_entry = &data->msix_entries[i];
+		free_irq(msix_entry->vector, msix_entry);
+	}
 
 	pci_free_irq_vectors(pdev);
 

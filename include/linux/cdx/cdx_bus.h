@@ -211,7 +211,7 @@ struct cdx_driver {
 };
 
 #define to_cdx_driver(_drv) \
-	container_of(_drv, struct cdx_driver, driver)
+	container_of_const(_drv, struct cdx_driver, driver)
 
 /* Macro to avoid include chaining to get THIS_MODULE */
 #define cdx_driver_register(drv) \

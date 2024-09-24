@@ -7,6 +7,7 @@
  * Authors: Paul E. McKenney <paulmck@linux.ibm.com>
  */
 
+#include <linux/console.h>
 #include <linux/lockdep.h>
 
 static void rcu_exp_handler(void *unused);
@@ -265,7 +266,12 @@ static bool sync_exp_work_done(unsigned long s)
 {
 	if (rcu_exp_gp_seq_done(s)) {
 		trace_rcu_exp_grace_period(rcu_state.name, s, TPS("done"));
-		smp_mb(); /* Ensure test happens before caller kfree(). */
+		/*
+		 * Order GP completion with preceding accesses. Order also GP
+		 * completion with post GP update side accesses. Pairs with
+		 * rcu_seq_end().
+		 */
+		smp_mb();
 		return true;
 	}
 	return false;
@@ -357,11 +363,25 @@ static void __sync_rcu_exp_select_node_cpus(struct rcu_exp_work *rewp)
 		    !(rnp->qsmaskinitnext & mask)) {
 			mask_ofl_test |= mask;
 		} else {
-			snap = rcu_dynticks_snap(cpu);
-			if (rcu_dynticks_in_eqs(snap))
+			/*
+			 * Full ordering between remote CPU's post idle accesses
+			 * and updater's accesses prior to current GP (and also
+			 * the started GP sequence number) is enforced by
+			 * rcu_seq_start() implicit barrier, relayed by kworkers
+			 * locking and even further by smp_mb__after_unlock_lock()
+			 * barriers chained all the way throughout the rnp locking
+			 * tree since sync_exp_reset_tree() and up to the current
+			 * leaf rnp locking.
+			 *
+			 * Ordering between remote CPU's pre idle accesses and
+			 * post grace period updater's accesses is enforced by the
+			 * below acquire semantic.
+			 */
+			snap = ct_rcu_watching_cpu_acquire(cpu);
+			if (rcu_watching_snap_in_eqs(snap))
 				mask_ofl_test |= mask;
 			else
-				rdp->exp_dynticks_snap = snap;
+				rdp->exp_watching_snap = snap;
 		}
 	}
 	mask_ofl_ipi = rnp->expmask & ~mask_ofl_test;
@@ -381,7 +401,7 @@ static void __sync_rcu_exp_select_node_cpus(struct rcu_exp_work *rewp)
 		unsigned long mask = rdp->grpmask;
 
 retry_ipi:
-		if (rcu_dynticks_in_eqs_since(rdp, rdp->exp_dynticks_snap)) {
+		if (rcu_watching_snap_stopped_since(rdp, rdp->exp_watching_snap)) {
 			mask_ofl_test |= mask;
 			continue;
 		}
@@ -524,6 +544,67 @@ static bool synchronize_rcu_expedited_wait_once(long tlimit)
 }
 
 /*
+ * Print out an expedited RCU CPU stall warning message.
+ */
+static void synchronize_rcu_expedited_stall(unsigned long jiffies_start, unsigned long j)
+{
+	int cpu;
+	unsigned long mask;
+	int ndetected;
+	struct rcu_node *rnp;
+	struct rcu_node *rnp_root = rcu_get_root();
+
+	if (READ_ONCE(csd_lock_suppress_rcu_stall) && csd_lock_is_stuck()) {
+		pr_err("INFO: %s detected expedited stalls, but suppressed full report due to a stuck CSD-lock.\n", rcu_state.name);
+		return;
+	}
+	pr_err("INFO: %s detected expedited stalls on CPUs/tasks: {", rcu_state.name);
+	ndetected = 0;
+	rcu_for_each_leaf_node(rnp) {
+		ndetected += rcu_print_task_exp_stall(rnp);
+		for_each_leaf_node_possible_cpu(rnp, cpu) {
+			struct rcu_data *rdp;
+
+			mask = leaf_node_cpu_bit(rnp, cpu);
+			if (!(READ_ONCE(rnp->expmask) & mask))
+				continue;
+			ndetected++;
+			rdp = per_cpu_ptr(&rcu_data, cpu);
+			pr_cont(" %d-%c%c%c%c", cpu,
+				"O."[!!cpu_online(cpu)],
+				"o."[!!(rdp->grpmask & rnp->expmaskinit)],
+				"N."[!!(rdp->grpmask & rnp->expmaskinitnext)],
+				"D."[!!data_race(rdp->cpu_no_qs.b.exp)]);
+		}
+	}
+	pr_cont(" } %lu jiffies s: %lu root: %#lx/%c\n",
+		j - jiffies_start, rcu_state.expedited_sequence, data_race(rnp_root->expmask),
+		".T"[!!data_race(rnp_root->exp_tasks)]);
+	if (ndetected) {
+		pr_err("blocking rcu_node structures (internal RCU debug):");
+		rcu_for_each_node_breadth_first(rnp) {
+			if (rnp == rnp_root)
+				continue; /* printed unconditionally */
+			if (sync_rcu_exp_done_unlocked(rnp))
+				continue;
+			pr_cont(" l=%u:%d-%d:%#lx/%c",
+				rnp->level, rnp->grplo, rnp->grphi, data_race(rnp->expmask),
+				".T"[!!data_race(rnp->exp_tasks)]);
+		}
+		pr_cont("\n");
+	}
+	rcu_for_each_leaf_node(rnp) {
+		for_each_leaf_node_possible_cpu(rnp, cpu) {
+			mask = leaf_node_cpu_bit(rnp, cpu);
+			if (!(READ_ONCE(rnp->expmask) & mask))
+				continue;
+			dump_cpu_task(cpu);
+		}
+		rcu_exp_print_detail_task_stall_rnp(rnp);
+	}
+}
+
+/*
  * Wait for the expedited grace period to elapse, issuing any needed
  * RCU CPU stall warnings along the way.
  */
@@ -534,10 +615,8 @@ static void synchronize_rcu_expedited_wait(void)
 	unsigned long jiffies_stall;
 	unsigned long jiffies_start;
 	unsigned long mask;
-	int ndetected;
 	struct rcu_data *rdp;
 	struct rcu_node *rnp;
-	struct rcu_node *rnp_root = rcu_get_root();
 	unsigned long flags;
 
 	trace_rcu_exp_grace_period(rcu_state.name, rcu_exp_gp_seq_endval(), TPS("startwait"));
@@ -571,59 +650,17 @@ static void synchronize_rcu_expedited_wait(void)
 			return;
 		if (rcu_stall_is_suppressed())
 			continue;
+
+		nbcon_cpu_emergency_enter();
+
 		j = jiffies;
 		rcu_stall_notifier_call_chain(RCU_STALL_NOTIFY_EXP, (void *)(j - jiffies_start));
 		trace_rcu_stall_warning(rcu_state.name, TPS("ExpeditedStall"));
-		pr_err("INFO: %s detected expedited stalls on CPUs/tasks: {",
-		       rcu_state.name);
-		ndetected = 0;
-		rcu_for_each_leaf_node(rnp) {
-			ndetected += rcu_print_task_exp_stall(rnp);
-			for_each_leaf_node_possible_cpu(rnp, cpu) {
-				struct rcu_data *rdp;
-
-				mask = leaf_node_cpu_bit(rnp, cpu);
-				if (!(READ_ONCE(rnp->expmask) & mask))
-					continue;
-				ndetected++;
-				rdp = per_cpu_ptr(&rcu_data, cpu);
-				pr_cont(" %d-%c%c%c%c", cpu,
-					"O."[!!cpu_online(cpu)],
-					"o."[!!(rdp->grpmask & rnp->expmaskinit)],
-					"N."[!!(rdp->grpmask & rnp->expmaskinitnext)],
-					"D."[!!data_race(rdp->cpu_no_qs.b.exp)]);
-			}
-		}
-		pr_cont(" } %lu jiffies s: %lu root: %#lx/%c\n",
-			j - jiffies_start, rcu_state.expedited_sequence,
-			data_race(rnp_root->expmask),
-			".T"[!!data_race(rnp_root->exp_tasks)]);
-		if (ndetected) {
-			pr_err("blocking rcu_node structures (internal RCU debug):");
-			rcu_for_each_node_breadth_first(rnp) {
-				if (rnp == rnp_root)
-					continue; /* printed unconditionally */
-				if (sync_rcu_exp_done_unlocked(rnp))
-					continue;
-				pr_cont(" l=%u:%d-%d:%#lx/%c",
-					rnp->level, rnp->grplo, rnp->grphi,
-					data_race(rnp->expmask),
-					".T"[!!data_race(rnp->exp_tasks)]);
-			}
-			pr_cont("\n");
-		}
-		rcu_for_each_leaf_node(rnp) {
-			for_each_leaf_node_possible_cpu(rnp, cpu) {
-				mask = leaf_node_cpu_bit(rnp, cpu);
-				if (!(READ_ONCE(rnp->expmask) & mask))
-					continue;
-				preempt_disable(); // For smp_processor_id() in dump_cpu_task().
-				dump_cpu_task(cpu);
-				preempt_enable();
-			}
-			rcu_exp_print_detail_task_stall_rnp(rnp);
-		}
+		synchronize_rcu_expedited_stall(jiffies_start, j);
 		jiffies_stall = 3 * rcu_exp_jiffies_till_stall_check() + 3;
+
+		nbcon_cpu_emergency_exit();
+
 		panic_on_rcu_stall();
 	}
 }
@@ -953,7 +990,6 @@ void synchronize_rcu_expedited(void)
 	rnp = rcu_get_root();
 	wait_event(rnp->exp_wq[rcu_seq_ctr(s) & 0x3],
 		   sync_exp_work_done(s));
-	smp_mb(); /* Work actions happen before return. */
 
 	/* Let the next expedited grace period start. */
 	mutex_unlock(&rcu_state.exp_mutex);

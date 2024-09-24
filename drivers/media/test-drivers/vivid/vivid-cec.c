@@ -23,7 +23,7 @@ struct xfer_on_bus {
 static bool find_dest_adap(struct vivid_dev *dev,
 			   struct cec_adapter *adap, u8 dest)
 {
-	unsigned int i;
+	unsigned int i, j;
 
 	if (dest >= 0xf)
 		return false;
@@ -33,12 +33,29 @@ static bool find_dest_adap(struct vivid_dev *dev,
 	    cec_has_log_addr(dev->cec_rx_adap, dest))
 		return true;
 
-	for (i = 0; i < MAX_OUTPUTS && dev->cec_tx_adap[i]; i++) {
-		if (adap == dev->cec_tx_adap[i])
+	for (i = 0, j = 0; i < dev->num_inputs; i++) {
+		unsigned int menu_idx =
+			dev->input_is_connected_to_output[i];
+
+		if (dev->input_type[i] != HDMI)
 			continue;
-		if (!dev->cec_tx_adap[i]->is_configured)
+		j++;
+		if (menu_idx < FIXED_MENU_ITEMS)
 			continue;
-		if (cec_has_log_addr(dev->cec_tx_adap[i], dest))
+
+		struct vivid_dev *dev_tx = vivid_ctrl_hdmi_to_output_instance[menu_idx];
+		unsigned int output = vivid_ctrl_hdmi_to_output_index[menu_idx];
+
+		if (!dev_tx)
+			continue;
+
+		unsigned int hdmi_output = dev_tx->output_to_iface_index[output];
+
+		if (adap == dev_tx->cec_tx_adap[hdmi_output])
+			continue;
+		if (!dev_tx->cec_tx_adap[hdmi_output]->is_configured)
+			continue;
+		if (cec_has_log_addr(dev_tx->cec_tx_adap[hdmi_output], dest))
 			return true;
 	}
 	return false;
@@ -96,7 +113,7 @@ static void adjust_sfts(struct vivid_dev *dev)
 int vivid_cec_bus_thread(void *_dev)
 {
 	u32 last_sft;
-	unsigned int i;
+	unsigned int i, j;
 	unsigned int dest;
 	ktime_t start, end;
 	s64 delta_us, retry_us;
@@ -193,9 +210,27 @@ int vivid_cec_bus_thread(void *_dev)
 		if (first_status == CEC_TX_STATUS_OK) {
 			if (xfers_on_bus[first_idx].adap != dev->cec_rx_adap)
 				cec_received_msg(dev->cec_rx_adap, &first_msg);
-			for (i = 0; i < MAX_OUTPUTS && dev->cec_tx_adap[i]; i++)
-				if (xfers_on_bus[first_idx].adap != dev->cec_tx_adap[i])
-					cec_received_msg(dev->cec_tx_adap[i], &first_msg);
+			for (i = 0, j = 0; i < dev->num_inputs; i++) {
+				unsigned int menu_idx =
+					dev->input_is_connected_to_output[i];
+
+				if (dev->input_type[i] != HDMI)
+					continue;
+				j++;
+				if (menu_idx < FIXED_MENU_ITEMS)
+					continue;
+
+				struct vivid_dev *dev_tx = vivid_ctrl_hdmi_to_output_instance[menu_idx];
+				unsigned int output = vivid_ctrl_hdmi_to_output_index[menu_idx];
+
+				if (!dev_tx)
+					continue;
+
+				unsigned int hdmi_output = dev_tx->output_to_iface_index[output];
+
+				if (xfers_on_bus[first_idx].adap != dev_tx->cec_tx_adap[hdmi_output])
+					cec_received_msg(dev_tx->cec_tx_adap[hdmi_output], &first_msg);
+			}
 		}
 		end = ktime_get();
 		/*
@@ -242,21 +277,36 @@ static int vivid_cec_adap_transmit(struct cec_adapter *adap, u8 attempts,
 				   u32 signal_free_time, struct cec_msg *msg)
 {
 	struct vivid_dev *dev = cec_get_drvdata(adap);
+	struct vivid_dev *dev_rx = dev;
 	u8 idx = cec_msg_initiator(msg);
+	u8 output = 0;
 
-	spin_lock(&dev->cec_xfers_slock);
-	dev->xfers[idx].adap = adap;
-	memcpy(dev->xfers[idx].msg, msg->msg, CEC_MAX_MSG_SIZE);
-	dev->xfers[idx].len = msg->len;
-	dev->xfers[idx].sft = CEC_SIGNAL_FREE_TIME_RETRY;
-	if (signal_free_time > CEC_SIGNAL_FREE_TIME_RETRY) {
-		if (idx == dev->last_initiator)
-			dev->xfers[idx].sft = CEC_SIGNAL_FREE_TIME_NEXT_XFER;
-		else
-			dev->xfers[idx].sft = CEC_SIGNAL_FREE_TIME_NEW_INITIATOR;
+	if (dev->cec_rx_adap != adap) {
+		int i;
+
+		for (i = 0; i < dev->num_hdmi_outputs; i++)
+			if (dev->cec_tx_adap[i] == adap)
+				break;
+		if (i == dev->num_hdmi_outputs)
+			return -ENONET;
+		output = dev->hdmi_index_to_output_index[i];
+		dev_rx = dev->output_to_input_instance[output];
+		if (!dev_rx)
+			return -ENONET;
 	}
-	spin_unlock(&dev->cec_xfers_slock);
-	wake_up_interruptible(&dev->kthread_waitq_cec);
+	spin_lock(&dev_rx->cec_xfers_slock);
+	dev_rx->xfers[idx].adap = adap;
+	memcpy(dev_rx->xfers[idx].msg, msg->msg, CEC_MAX_MSG_SIZE);
+	dev_rx->xfers[idx].len = msg->len;
+	dev_rx->xfers[idx].sft = CEC_SIGNAL_FREE_TIME_RETRY;
+	if (signal_free_time > CEC_SIGNAL_FREE_TIME_RETRY) {
+		if (idx == dev_rx->last_initiator)
+			dev_rx->xfers[idx].sft = CEC_SIGNAL_FREE_TIME_NEXT_XFER;
+		else
+			dev_rx->xfers[idx].sft = CEC_SIGNAL_FREE_TIME_NEW_INITIATOR;
+	}
+	spin_unlock(&dev_rx->cec_xfers_slock);
+	wake_up_interruptible(&dev_rx->kthread_waitq_cec);
 
 	return 0;
 }
@@ -266,15 +316,16 @@ static int vivid_received(struct cec_adapter *adap, struct cec_msg *msg)
 	struct vivid_dev *dev = cec_get_drvdata(adap);
 	struct cec_msg reply;
 	u8 dest = cec_msg_destination(msg);
-	u8 disp_ctl;
-	char osd[14];
 
 	if (cec_msg_is_broadcast(msg))
 		dest = adap->log_addrs.log_addr[0];
 	cec_msg_init(&reply, dest, cec_msg_initiator(msg));
 
 	switch (cec_msg_opcode(msg)) {
-	case CEC_MSG_SET_OSD_STRING:
+	case CEC_MSG_SET_OSD_STRING: {
+		u8 disp_ctl;
+		char osd[14];
+
 		if (!cec_is_sink(adap))
 			return -ENOMSG;
 		cec_ops_set_osd_string(msg, &disp_ctl, osd);
@@ -298,6 +349,47 @@ static int vivid_received(struct cec_adapter *adap, struct cec_msg *msg)
 			break;
 		}
 		break;
+	}
+	case CEC_MSG_VENDOR_COMMAND_WITH_ID: {
+		u32 vendor_id;
+		u8 size;
+		const u8 *vendor_cmd;
+
+		/*
+		 * If we receive <Vendor Command With ID> with our vendor ID
+		 * and with a payload of size 1, and the payload value is odd,
+		 * then we reply with the same message, but with the payload
+		 * byte incremented by 1.
+		 *
+		 * If the size is 1 and the payload value is even, then we
+		 * ignore the message.
+		 *
+		 * The reason we reply to odd instead of even payload values
+		 * is that it allows for testing of the corner case where the
+		 * reply value is 0 (0xff + 1 % 256).
+		 *
+		 * For other sizes we Feature Abort.
+		 *
+		 * This is added for the specific purpose of testing the
+		 * CEC_MSG_FL_REPLY_VENDOR_ID flag using vivid.
+		 */
+		cec_ops_vendor_command_with_id(msg, &vendor_id, &size, &vendor_cmd);
+		if (vendor_id != adap->log_addrs.vendor_id)
+			break;
+		if (size == 1) {
+			// Ignore even op values
+			if (!(vendor_cmd[0] & 1))
+				break;
+			reply.len = msg->len;
+			memcpy(reply.msg + 1, msg->msg + 1, msg->len - 1);
+			reply.msg[msg->len - 1]++;
+		} else {
+			cec_msg_feature_abort(&reply, cec_msg_opcode(msg),
+					      CEC_OP_ABORT_INVALID_OP);
+		}
+		cec_transmit_msg(adap, &reply, false);
+		break;
+	}
 	default:
 		return -ENOMSG;
 	}

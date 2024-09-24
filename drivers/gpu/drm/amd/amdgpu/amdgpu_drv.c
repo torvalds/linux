@@ -24,7 +24,7 @@
 
 #include <drm/amdgpu_drm.h>
 #include <drm/drm_drv.h>
-#include <drm/drm_fbdev_generic.h>
+#include <drm/drm_fbdev_ttm.h>
 #include <drm/drm_gem.h>
 #include <drm/drm_managed.h>
 #include <drm/drm_pciids.h>
@@ -116,9 +116,10 @@
  * - 3.55.0 - Add AMDGPU_INFO_GPUVM_FAULT query
  * - 3.56.0 - Update IB start address and size alignment for decode and encode
  * - 3.57.0 - Compute tunneling on GFX10+
+ * - 3.58.0 - Add GFX12 DCC support
  */
 #define KMS_DRIVER_MAJOR	3
-#define KMS_DRIVER_MINOR	57
+#define KMS_DRIVER_MINOR	58
 #define KMS_DRIVER_PATCHLEVEL	0
 
 /*
@@ -129,6 +130,8 @@ enum AMDGPU_DEBUG_MASK {
 	AMDGPU_DEBUG_LARGEBAR = BIT(1),
 	AMDGPU_DEBUG_DISABLE_GPU_SOFT_RECOVERY = BIT(2),
 	AMDGPU_DEBUG_USE_VRAM_FW_BUF = BIT(3),
+	AMDGPU_DEBUG_ENABLE_RAS_ACA = BIT(4),
+	AMDGPU_DEBUG_ENABLE_EXP_RESETS = BIT(5),
 };
 
 unsigned int amdgpu_vram_limit = UINT_MAX;
@@ -166,6 +169,16 @@ uint amdgpu_sdma_phase_quantum = 32;
 char *amdgpu_disable_cu;
 char *amdgpu_virtual_display;
 bool enforce_isolation;
+
+/* Specifies the default granularity for SVM, used in buffer
+ * migration and restoration of backing memory when handling
+ * recoverable page faults.
+ *
+ * The value is given as log(numPages(buffer)); for a 2 MiB
+ * buffer it computes to be 9
+ */
+uint amdgpu_svm_default_granularity = 9;
+
 /*
  * OverDrive(bit 14) disabled by default
  * GFX DCS(bit 19) disabled by default
@@ -197,6 +210,7 @@ int amdgpu_discovery = -1;
 int amdgpu_mes;
 int amdgpu_mes_log_enable = 0;
 int amdgpu_mes_kiq;
+int amdgpu_uni_mes = 1;
 int amdgpu_noretry = -1;
 int amdgpu_force_asic_type = -1;
 int amdgpu_tmz = -1; /* auto */
@@ -214,6 +228,7 @@ uint amdgpu_debug_mask;
 int amdgpu_agp = -1; /* auto */
 int amdgpu_wbrf = -1;
 int amdgpu_damage_clips = -1; /* auto */
+int amdgpu_umsch_mm_fwlog;
 
 static void amdgpu_drv_delayed_reset_work_handler(struct work_struct *work);
 
@@ -314,6 +329,13 @@ module_param_named(pcie_gen2, amdgpu_pcie_gen2, int, 0444);
  */
 MODULE_PARM_DESC(msi, "MSI support (1 = enable, 0 = disable, -1 = auto)");
 module_param_named(msi, amdgpu_msi, int, 0444);
+
+/**
+ * DOC: svm_default_granularity (uint)
+ * Used in buffer migration and handling of recoverable page faults
+ */
+MODULE_PARM_DESC(svm_default_granularity, "SVM's default granularity in log(2^Pages), default 9 = 2^9 = 2 MiB");
+module_param_named(svm_default_granularity, amdgpu_svm_default_granularity, uint, 0644);
 
 /**
  * DOC: lockup_timeout (string)
@@ -687,6 +709,15 @@ MODULE_PARM_DESC(mes_kiq,
 module_param_named(mes_kiq, amdgpu_mes_kiq, int, 0444);
 
 /**
+ * DOC: uni_mes (int)
+ * Enable Unified Micro Engine Scheduler. This is a new engine pipe for unified scheduler.
+ * (0 = disabled (default), 1 = enabled)
+ */
+MODULE_PARM_DESC(uni_mes,
+	"Enable Unified Micro Engine Scheduler (0 = disabled, 1 = enabled(default)");
+module_param_named(uni_mes, amdgpu_uni_mes, int, 0444);
+
+/**
  * DOC: noretry (int)
  * Disable XNACK retry in the SQ by default on GFXv9 hardware. On ASICs that
  * do not support per-process XNACK this also disables retry page faults.
@@ -964,6 +995,13 @@ module_param_named(sg_display, amdgpu_sg_display, int, 0444);
 MODULE_PARM_DESC(umsch_mm,
 	"Enable Multi Media User Mode Scheduler (0 = disabled (default), 1 = enabled)");
 module_param_named(umsch_mm, amdgpu_umsch_mm, int, 0444);
+
+/**
+ * DOC: umsch_mm_fwlog (int)
+ * Enable umschfw log output for debugging, the default is disabled.
+ */
+MODULE_PARM_DESC(umsch_mm_fwlog, "Enable umschfw log(0 = disable (default value), 1 = enable)");
+module_param_named(umsch_mm_fwlog, amdgpu_umsch_mm_fwlog, int, 0444);
 
 /**
  * DOC: smu_pptable_id (int)
@@ -2174,6 +2212,16 @@ static void amdgpu_init_debug_options(struct amdgpu_device *adev)
 		pr_info("debug: place fw in vram for frontdoor loading\n");
 		adev->debug_use_vram_fw_buf = true;
 	}
+
+	if (amdgpu_debug_mask & AMDGPU_DEBUG_ENABLE_RAS_ACA) {
+		pr_info("debug: enable RAS ACA\n");
+		adev->debug_enable_ras_aca = true;
+	}
+
+	if (amdgpu_debug_mask & AMDGPU_DEBUG_ENABLE_EXP_RESETS) {
+		pr_info("debug: enable experimental reset features\n");
+		adev->debug_exp_resets = true;
+	}
 }
 
 static unsigned long amdgpu_fix_asic_type(struct pci_dev *pdev, unsigned long flags)
@@ -2318,9 +2366,9 @@ retry_init:
 	    !list_empty(&adev_to_drm(adev)->mode_config.connector_list)) {
 		/* select 8 bpp console on low vram cards */
 		if (adev->gmc.real_vram_size <= (32*1024*1024))
-			drm_fbdev_generic_setup(adev_to_drm(adev), 8);
+			drm_fbdev_ttm_setup(adev_to_drm(adev), 8);
 		else
-			drm_fbdev_generic_setup(adev_to_drm(adev), 32);
+			drm_fbdev_ttm_setup(adev_to_drm(adev), 32);
 	}
 
 	ret = amdgpu_debugfs_init(adev);
@@ -2883,6 +2931,7 @@ static const struct file_operations amdgpu_driver_kms_fops = {
 #ifdef CONFIG_PROC_FS
 	.show_fdinfo = drm_show_fdinfo,
 #endif
+	.fop_flags = FOP_UNSIGNED_OFFSET,
 };
 
 int amdgpu_file_to_fpriv(struct file *filp, struct amdgpu_fpriv **fpriv)
@@ -2928,7 +2977,6 @@ static const struct drm_driver amdgpu_kms_driver = {
 	    DRIVER_SYNCOBJ_TIMELINE,
 	.open = amdgpu_driver_open_kms,
 	.postclose = amdgpu_driver_postclose_kms,
-	.lastclose = amdgpu_driver_lastclose_kms,
 	.ioctls = amdgpu_ioctls_kms,
 	.num_ioctls = ARRAY_SIZE(amdgpu_ioctls_kms),
 	.dumb_create = amdgpu_mode_dumb_create,
@@ -2955,7 +3003,6 @@ const struct drm_driver amdgpu_partition_driver = {
 	    DRIVER_SYNCOBJ_TIMELINE,
 	.open = amdgpu_driver_open_kms,
 	.postclose = amdgpu_driver_postclose_kms,
-	.lastclose = amdgpu_driver_lastclose_kms,
 	.ioctls = amdgpu_ioctls_kms,
 	.num_ioctls = ARRAY_SIZE(amdgpu_ioctls_kms),
 	.dumb_create = amdgpu_mode_dumb_create,

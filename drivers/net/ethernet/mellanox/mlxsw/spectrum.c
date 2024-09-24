@@ -405,29 +405,12 @@ static int mlxsw_sp_port_dev_addr_init(struct mlxsw_sp_port *mlxsw_sp_port)
 					  mlxsw_sp_port->dev->dev_addr);
 }
 
-static int mlxsw_sp_port_max_mtu_get(struct mlxsw_sp_port *mlxsw_sp_port, int *p_max_mtu)
-{
-	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
-	char pmtu_pl[MLXSW_REG_PMTU_LEN];
-	int err;
-
-	mlxsw_reg_pmtu_pack(pmtu_pl, mlxsw_sp_port->local_port, 0);
-	err = mlxsw_reg_query(mlxsw_sp->core, MLXSW_REG(pmtu), pmtu_pl);
-	if (err)
-		return err;
-
-	*p_max_mtu = mlxsw_reg_pmtu_max_mtu_get(pmtu_pl);
-	return 0;
-}
-
 static int mlxsw_sp_port_mtu_set(struct mlxsw_sp_port *mlxsw_sp_port, u16 mtu)
 {
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
 	char pmtu_pl[MLXSW_REG_PMTU_LEN];
 
-	mtu += MLXSW_TXHDR_LEN + ETH_HLEN;
-	if (mtu > mlxsw_sp_port->max_mtu)
-		return -EINVAL;
+	mtu += MLXSW_PORT_ETH_FRAME_HDR;
 
 	mlxsw_reg_pmtu_pack(pmtu_pl, mlxsw_sp_port->local_port, mtu);
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(pmtu), pmtu_pl);
@@ -1693,12 +1676,14 @@ static int mlxsw_sp_port_create(struct mlxsw_sp *mlxsw_sp, u16 local_port,
 
 	netif_carrier_off(dev);
 
-	dev->features |= NETIF_F_NETNS_LOCAL | NETIF_F_LLTX | NETIF_F_SG |
-			 NETIF_F_HW_VLAN_CTAG_FILTER | NETIF_F_HW_TC;
+	dev->features |= NETIF_F_SG | NETIF_F_HW_VLAN_CTAG_FILTER |
+			 NETIF_F_HW_TC;
 	dev->hw_features |= NETIF_F_HW_TC | NETIF_F_LOOPBACK;
+	dev->lltx = true;
+	dev->netns_local = true;
 
-	dev->min_mtu = 0;
-	dev->max_mtu = ETH_MAX_MTU;
+	dev->min_mtu = ETH_MIN_MTU;
+	dev->max_mtu = MLXSW_PORT_MAX_MTU - MLXSW_PORT_ETH_FRAME_HDR;
 
 	/* Each packet needs to have a Tx header (metadata) on top all other
 	 * headers.
@@ -1725,13 +1710,6 @@ static int mlxsw_sp_port_create(struct mlxsw_sp *mlxsw_sp, u16 local_port,
 		dev_err(mlxsw_sp->bus_info->dev, "Port %d: Failed to get maximum speed\n",
 			mlxsw_sp_port->local_port);
 		goto err_max_speed_get;
-	}
-
-	err = mlxsw_sp_port_max_mtu_get(mlxsw_sp_port, &mlxsw_sp_port->max_mtu);
-	if (err) {
-		dev_err(mlxsw_sp->bus_info->dev, "Port %d: Failed to get maximum MTU\n",
-			mlxsw_sp_port->local_port);
-		goto err_port_max_mtu_get;
 	}
 
 	err = mlxsw_sp_port_mtu_set(mlxsw_sp_port, ETH_DATA_LEN);
@@ -1877,7 +1855,6 @@ err_port_ets_init:
 err_port_buffers_init:
 err_port_admin_status_set:
 err_port_mtu_set:
-err_port_max_mtu_get:
 err_max_speed_get:
 err_port_speed_by_width_set:
 err_port_system_port_mapping_set:
@@ -2809,7 +2786,9 @@ static const struct mlxsw_sp_ptp_ops mlxsw_sp1_ptp_ops = {
 	.hwtstamp_get	= mlxsw_sp1_ptp_hwtstamp_get,
 	.hwtstamp_set	= mlxsw_sp1_ptp_hwtstamp_set,
 	.shaper_work	= mlxsw_sp1_ptp_shaper_work,
+#if IS_REACHABLE(CONFIG_PTP_1588_CLOCK)
 	.get_ts_info	= mlxsw_sp1_ptp_get_ts_info,
+#endif
 	.get_stats_count = mlxsw_sp1_get_stats_count,
 	.get_stats_strings = mlxsw_sp1_get_stats_strings,
 	.get_stats	= mlxsw_sp1_get_stats,
@@ -2826,7 +2805,9 @@ static const struct mlxsw_sp_ptp_ops mlxsw_sp2_ptp_ops = {
 	.hwtstamp_get	= mlxsw_sp2_ptp_hwtstamp_get,
 	.hwtstamp_set	= mlxsw_sp2_ptp_hwtstamp_set,
 	.shaper_work	= mlxsw_sp2_ptp_shaper_work,
+#if IS_REACHABLE(CONFIG_PTP_1588_CLOCK)
 	.get_ts_info	= mlxsw_sp2_ptp_get_ts_info,
+#endif
 	.get_stats_count = mlxsw_sp2_get_stats_count,
 	.get_stats_strings = mlxsw_sp2_get_stats_strings,
 	.get_stats	= mlxsw_sp2_get_stats,
@@ -2843,7 +2824,9 @@ static const struct mlxsw_sp_ptp_ops mlxsw_sp4_ptp_ops = {
 	.hwtstamp_get	= mlxsw_sp2_ptp_hwtstamp_get,
 	.hwtstamp_set	= mlxsw_sp2_ptp_hwtstamp_set,
 	.shaper_work	= mlxsw_sp2_ptp_shaper_work,
+#if IS_REACHABLE(CONFIG_PTP_1588_CLOCK)
 	.get_ts_info	= mlxsw_sp2_ptp_get_ts_info,
+#endif
 	.get_stats_count = mlxsw_sp2_get_stats_count,
 	.get_stats_strings = mlxsw_sp2_get_stats_strings,
 	.get_stats	= mlxsw_sp2_get_stats,

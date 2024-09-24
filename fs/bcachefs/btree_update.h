@@ -29,6 +29,7 @@ void bch2_btree_insert_key_leaf(struct btree_trans *, struct btree_path *,
 			"pin journal entry referred to by trans->journal_res.seq")	\
 	x(journal_reclaim, "operation required for journal reclaim; may return error"	\
 			"instead of deadlocking if BCH_WATERMARK_reclaim not specified")\
+	x(skip_accounting_apply, "we're in journal replay - accounting updates have already been applied")
 
 enum __bch_trans_commit_flags {
 	/* First bits for bch_watermark: */
@@ -56,8 +57,9 @@ int bch2_btree_insert_nonextent(struct btree_trans *, enum btree_id,
 
 int bch2_btree_insert_trans(struct btree_trans *, enum btree_id, struct bkey_i *,
 			enum btree_iter_update_trigger_flags);
-int bch2_btree_insert(struct bch_fs *, enum btree_id, struct bkey_i *,
-		     struct disk_reservation *, int flags);
+int bch2_btree_insert(struct bch_fs *, enum btree_id, struct bkey_i *, struct
+		disk_reservation *, int flags, enum
+		btree_iter_update_trigger_flags iter_flags);
 
 int bch2_btree_delete_range_trans(struct btree_trans *, enum btree_id,
 				  struct bpos, struct bpos, unsigned, u64 *);
@@ -130,7 +132,19 @@ static inline int __must_check bch2_trans_update_buffered(struct btree_trans *tr
 					    enum btree_id btree,
 					    struct bkey_i *k)
 {
-	if (unlikely(trans->journal_replay_not_finished))
+	/*
+	 * Most updates skip the btree write buffer until journal replay is
+	 * finished because synchronization with journal replay relies on having
+	 * a btree node locked - if we're overwriting a key in the journal that
+	 * journal replay hasn't yet replayed, we have to mark it as
+	 * overwritten.
+	 *
+	 * But accounting updates don't overwrite, they're deltas, and they have
+	 * to be flushed to the btree strictly in order for journal replay to be
+	 * able to tell which updates need to be applied:
+	 */
+	if (k->k.type != KEY_TYPE_accounting &&
+	    unlikely(trans->journal_replay_not_finished))
 		return bch2_btree_insert_clone_trans(trans, btree, k);
 
 	struct jset_entry *e = bch2_trans_jset_entry_alloc(trans, jset_u64s(k->k.u64s));
@@ -178,14 +192,6 @@ static inline int bch2_trans_commit(struct btree_trans *trans,
 	nested_lockrestart_do(_trans, _do ?: bch2_trans_commit(_trans, (_disk_res),\
 					(_journal_seq), (_flags)))
 
-#define bch2_trans_run(_c, _do)						\
-({									\
-	struct btree_trans *trans = bch2_trans_get(_c);			\
-	int _ret = (_do);						\
-	bch2_trans_put(trans);						\
-	_ret;								\
-})
-
 #define bch2_trans_do(_c, _disk_res, _journal_seq, _flags, _do)		\
 	bch2_trans_run(_c, commit_do(trans, _disk_res, _journal_seq, _flags, _do))
 
@@ -203,14 +209,6 @@ static inline void bch2_trans_reset_updates(struct btree_trans *trans)
 	trans->journal_entries_u64s	= 0;
 	trans->hooks			= NULL;
 	trans->extra_disk_res		= 0;
-
-	if (trans->fs_usage_deltas) {
-		trans->fs_usage_deltas->used = 0;
-		memset((void *) trans->fs_usage_deltas +
-		       offsetof(struct replicas_delta_list, memset_start), 0,
-		       (void *) &trans->fs_usage_deltas->memset_end -
-		       (void *) &trans->fs_usage_deltas->memset_start);
-	}
 }
 
 static inline struct bkey_i *__bch2_bkey_make_mut_noupdate(struct btree_trans *trans, struct bkey_s_c k,

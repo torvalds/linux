@@ -23,6 +23,7 @@
 #include <skas.h>
 #include <sysdep/stub.h>
 #include <linux/threads.h>
+#include <timetravel.h>
 #include "../internal.h"
 
 int is_skas_winch(int pid, int fd, void *data)
@@ -253,7 +254,6 @@ static int userspace_tramp(void *stack)
 }
 
 int userspace_pid[NR_CPUS];
-int kill_userspace_mm[NR_CPUS];
 
 /**
  * start_userspace() - prepare a new userspace process
@@ -345,8 +345,20 @@ void userspace(struct uml_pt_regs *regs, unsigned long *aux_fp_regs)
 	interrupt_end();
 
 	while (1) {
-		if (kill_userspace_mm[0])
+		time_travel_print_bc_msg();
+
+		current_mm_sync();
+
+		/* Flush out any pending syscalls */
+		err = syscall_stub_flush(current_mm_id());
+		if (err) {
+			if (err == -ENOMEM)
+				report_enomem();
+
+			printk(UM_KERN_ERR "%s - Error flushing stub syscalls: %d",
+				__func__, -err);
 			fatal_sigsegv();
+		}
 
 		/*
 		 * This can legitimately fail if the process loads a
@@ -459,113 +471,6 @@ void userspace(struct uml_pt_regs *regs, unsigned long *aux_fp_regs)
 				PT_SYSCALL_NR(regs->gp) = -1;
 		}
 	}
-}
-
-static unsigned long thread_regs[MAX_REG_NR];
-static unsigned long thread_fp_regs[FP_SIZE];
-
-static int __init init_thread_regs(void)
-{
-	get_safe_registers(thread_regs, thread_fp_regs);
-	/* Set parent's instruction pointer to start of clone-stub */
-	thread_regs[REGS_IP_INDEX] = STUB_CODE +
-				(unsigned long) stub_clone_handler -
-				(unsigned long) __syscall_stub_start;
-	thread_regs[REGS_SP_INDEX] = STUB_DATA + STUB_DATA_PAGES * UM_KERN_PAGE_SIZE -
-		sizeof(void *);
-#ifdef __SIGNAL_FRAMESIZE
-	thread_regs[REGS_SP_INDEX] -= __SIGNAL_FRAMESIZE;
-#endif
-	return 0;
-}
-
-__initcall(init_thread_regs);
-
-int copy_context_skas0(unsigned long new_stack, int pid)
-{
-	int err;
-	unsigned long current_stack = current_stub_stack();
-	struct stub_data *data = (struct stub_data *) current_stack;
-	struct stub_data *child_data = (struct stub_data *) new_stack;
-	unsigned long long new_offset;
-	int new_fd = phys_mapping(uml_to_phys((void *)new_stack), &new_offset);
-
-	/*
-	 * prepare offset and fd of child's stack as argument for parent's
-	 * and child's mmap2 calls
-	 */
-	*data = ((struct stub_data) {
-		.offset	= MMAP_OFFSET(new_offset),
-		.fd     = new_fd,
-		.parent_err = -ESRCH,
-		.child_err = 0,
-	});
-
-	*child_data = ((struct stub_data) {
-		.child_err = -ESRCH,
-	});
-
-	err = ptrace_setregs(pid, thread_regs);
-	if (err < 0) {
-		err = -errno;
-		printk(UM_KERN_ERR "%s : PTRACE_SETREGS failed, pid = %d, errno = %d\n",
-		      __func__, pid, -err);
-		return err;
-	}
-
-	err = put_fp_registers(pid, thread_fp_regs);
-	if (err < 0) {
-		printk(UM_KERN_ERR "%s : put_fp_registers failed, pid = %d, err = %d\n",
-		       __func__, pid, err);
-		return err;
-	}
-
-	/*
-	 * Wait, until parent has finished its work: read child's pid from
-	 * parent's stack, and check, if bad result.
-	 */
-	err = ptrace(PTRACE_CONT, pid, 0, 0);
-	if (err) {
-		err = -errno;
-		printk(UM_KERN_ERR "Failed to continue new process, pid = %d, errno = %d\n",
-		       pid, errno);
-		return err;
-	}
-
-	wait_stub_done(pid);
-
-	pid = data->parent_err;
-	if (pid < 0) {
-		printk(UM_KERN_ERR "%s - stub-parent reports error %d\n",
-		      __func__, -pid);
-		return pid;
-	}
-
-	/*
-	 * Wait, until child has finished too: read child's result from
-	 * child's stack and check it.
-	 */
-	wait_stub_done(pid);
-	if (child_data->child_err != STUB_DATA) {
-		printk(UM_KERN_ERR "%s - stub-child %d reports error %ld\n",
-		       __func__, pid, data->child_err);
-		err = data->child_err;
-		goto out_kill;
-	}
-
-	if (ptrace(PTRACE_SETOPTIONS, pid, NULL,
-		   (void *)PTRACE_O_TRACESYSGOOD) < 0) {
-		err = -errno;
-		printk(UM_KERN_ERR "%s : PTRACE_SETOPTIONS failed, errno = %d\n",
-		       __func__, errno);
-		goto out_kill;
-	}
-
-	return pid;
-
- out_kill:
-	os_kill_ptraced_process(pid, 1);
-	return err;
 }
 
 void new_thread(void *stack, jmp_buf *buf, void (*handler)(void))
@@ -684,5 +589,4 @@ void reboot_skas(void)
 void __switch_mm(struct mm_id *mm_idp)
 {
 	userspace_pid[0] = mm_idp->u.pid;
-	kill_userspace_mm[0] = mm_idp->kill;
 }

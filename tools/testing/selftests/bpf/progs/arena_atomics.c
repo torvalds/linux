@@ -4,6 +4,7 @@
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
 #include <stdbool.h>
+#include <stdatomic.h>
 #include "bpf_arena_common.h"
 
 struct {
@@ -25,20 +26,13 @@ bool skip_tests = true;
 
 __u32 pid = 0;
 
-#undef __arena
-#if defined(__BPF_FEATURE_ADDR_SPACE_CAST)
-#define __arena __attribute__((address_space(1)))
-#else
-#define __arena SEC(".addr_space.1")
-#endif
-
-__u64 __arena add64_value = 1;
-__u64 __arena add64_result = 0;
-__u32 __arena add32_value = 1;
-__u32 __arena add32_result = 0;
-__u64 __arena add_stack_value_copy = 0;
-__u64 __arena add_stack_result = 0;
-__u64 __arena add_noreturn_value = 1;
+__u64 __arena_global add64_value = 1;
+__u64 __arena_global add64_result = 0;
+__u32 __arena_global add32_value = 1;
+__u32 __arena_global add32_result = 0;
+__u64 __arena_global add_stack_value_copy = 0;
+__u64 __arena_global add_stack_result = 0;
+__u64 __arena_global add_noreturn_value = 1;
 
 SEC("raw_tp/sys_enter")
 int add(const void *ctx)
@@ -58,13 +52,13 @@ int add(const void *ctx)
 	return 0;
 }
 
-__s64 __arena sub64_value = 1;
-__s64 __arena sub64_result = 0;
-__s32 __arena sub32_value = 1;
-__s32 __arena sub32_result = 0;
-__s64 __arena sub_stack_value_copy = 0;
-__s64 __arena sub_stack_result = 0;
-__s64 __arena sub_noreturn_value = 1;
+__s64 __arena_global sub64_value = 1;
+__s64 __arena_global sub64_result = 0;
+__s32 __arena_global sub32_value = 1;
+__s32 __arena_global sub32_result = 0;
+__s64 __arena_global sub_stack_value_copy = 0;
+__s64 __arena_global sub_stack_result = 0;
+__s64 __arena_global sub_noreturn_value = 1;
 
 SEC("raw_tp/sys_enter")
 int sub(const void *ctx)
@@ -84,8 +78,13 @@ int sub(const void *ctx)
 	return 0;
 }
 
-__u64 __arena and64_value = (0x110ull << 32);
-__u32 __arena and32_value = 0x110;
+#ifdef __BPF_FEATURE_ATOMIC_MEM_ORDERING
+_Atomic __u64 __arena_global and64_value = (0x110ull << 32);
+_Atomic __u32 __arena_global and32_value = 0x110;
+#else
+__u64 __arena_global and64_value = (0x110ull << 32);
+__u32 __arena_global and32_value = 0x110;
+#endif
 
 SEC("raw_tp/sys_enter")
 int and(const void *ctx)
@@ -93,16 +92,25 @@ int and(const void *ctx)
 	if (pid != (bpf_get_current_pid_tgid() >> 32))
 		return 0;
 #ifdef ENABLE_ATOMICS_TESTS
-
+#ifdef __BPF_FEATURE_ATOMIC_MEM_ORDERING
+	__c11_atomic_fetch_and(&and64_value, 0x011ull << 32, memory_order_relaxed);
+	__c11_atomic_fetch_and(&and32_value, 0x011, memory_order_relaxed);
+#else
 	__sync_fetch_and_and(&and64_value, 0x011ull << 32);
 	__sync_fetch_and_and(&and32_value, 0x011);
+#endif
 #endif
 
 	return 0;
 }
 
-__u32 __arena or32_value = 0x110;
-__u64 __arena or64_value = (0x110ull << 32);
+#ifdef __BPF_FEATURE_ATOMIC_MEM_ORDERING
+_Atomic __u32 __arena_global or32_value = 0x110;
+_Atomic __u64 __arena_global or64_value = (0x110ull << 32);
+#else
+__u32 __arena_global or32_value = 0x110;
+__u64 __arena_global or64_value = (0x110ull << 32);
+#endif
 
 SEC("raw_tp/sys_enter")
 int or(const void *ctx)
@@ -110,15 +118,25 @@ int or(const void *ctx)
 	if (pid != (bpf_get_current_pid_tgid() >> 32))
 		return 0;
 #ifdef ENABLE_ATOMICS_TESTS
+#ifdef __BPF_FEATURE_ATOMIC_MEM_ORDERING
+	__c11_atomic_fetch_or(&or64_value, 0x011ull << 32, memory_order_relaxed);
+	__c11_atomic_fetch_or(&or32_value, 0x011, memory_order_relaxed);
+#else
 	__sync_fetch_and_or(&or64_value, 0x011ull << 32);
 	__sync_fetch_and_or(&or32_value, 0x011);
+#endif
 #endif
 
 	return 0;
 }
 
-__u64 __arena xor64_value = (0x110ull << 32);
-__u32 __arena xor32_value = 0x110;
+#ifdef __BPF_FEATURE_ATOMIC_MEM_ORDERING
+_Atomic __u64 __arena_global xor64_value = (0x110ull << 32);
+_Atomic __u32 __arena_global xor32_value = 0x110;
+#else
+__u64 __arena_global xor64_value = (0x110ull << 32);
+__u32 __arena_global xor32_value = 0x110;
+#endif
 
 SEC("raw_tp/sys_enter")
 int xor(const void *ctx)
@@ -126,19 +144,24 @@ int xor(const void *ctx)
 	if (pid != (bpf_get_current_pid_tgid() >> 32))
 		return 0;
 #ifdef ENABLE_ATOMICS_TESTS
+#ifdef __BPF_FEATURE_ATOMIC_MEM_ORDERING
+	__c11_atomic_fetch_xor(&xor64_value, 0x011ull << 32, memory_order_relaxed);
+	__c11_atomic_fetch_xor(&xor32_value, 0x011, memory_order_relaxed);
+#else
 	__sync_fetch_and_xor(&xor64_value, 0x011ull << 32);
 	__sync_fetch_and_xor(&xor32_value, 0x011);
+#endif
 #endif
 
 	return 0;
 }
 
-__u32 __arena cmpxchg32_value = 1;
-__u32 __arena cmpxchg32_result_fail = 0;
-__u32 __arena cmpxchg32_result_succeed = 0;
-__u64 __arena cmpxchg64_value = 1;
-__u64 __arena cmpxchg64_result_fail = 0;
-__u64 __arena cmpxchg64_result_succeed = 0;
+__u32 __arena_global cmpxchg32_value = 1;
+__u32 __arena_global cmpxchg32_result_fail = 0;
+__u32 __arena_global cmpxchg32_result_succeed = 0;
+__u64 __arena_global cmpxchg64_value = 1;
+__u64 __arena_global cmpxchg64_result_fail = 0;
+__u64 __arena_global cmpxchg64_result_succeed = 0;
 
 SEC("raw_tp/sys_enter")
 int cmpxchg(const void *ctx)
@@ -156,10 +179,10 @@ int cmpxchg(const void *ctx)
 	return 0;
 }
 
-__u64 __arena xchg64_value = 1;
-__u64 __arena xchg64_result = 0;
-__u32 __arena xchg32_value = 1;
-__u32 __arena xchg32_result = 0;
+__u64 __arena_global xchg64_value = 1;
+__u64 __arena_global xchg64_result = 0;
+__u32 __arena_global xchg32_value = 1;
+__u32 __arena_global xchg32_result = 0;
 
 SEC("raw_tp/sys_enter")
 int xchg(const void *ctx)
@@ -176,3 +199,79 @@ int xchg(const void *ctx)
 
 	return 0;
 }
+
+__u64 __arena_global uaf_sink;
+volatile __u64 __arena_global uaf_recovery_fails;
+
+SEC("syscall")
+int uaf(const void *ctx)
+{
+	if (pid != (bpf_get_current_pid_tgid() >> 32))
+		return 0;
+#if defined(ENABLE_ATOMICS_TESTS) && !defined(__TARGET_ARCH_arm64) && \
+    !defined(__TARGET_ARCH_x86)
+	__u32 __arena *page32;
+	__u64 __arena *page64;
+	void __arena *page;
+
+	page = bpf_arena_alloc_pages(&arena, NULL, 1, NUMA_NO_NODE, 0);
+	bpf_arena_free_pages(&arena, page, 1);
+	uaf_recovery_fails = 24;
+
+	page32 = (__u32 __arena *)page;
+	uaf_sink += __sync_fetch_and_add(page32, 1);
+	uaf_recovery_fails -= 1;
+	__sync_add_and_fetch(page32, 1);
+	uaf_recovery_fails -= 1;
+	uaf_sink += __sync_fetch_and_sub(page32, 1);
+	uaf_recovery_fails -= 1;
+	__sync_sub_and_fetch(page32, 1);
+	uaf_recovery_fails -= 1;
+	uaf_sink += __sync_fetch_and_and(page32, 1);
+	uaf_recovery_fails -= 1;
+	__sync_and_and_fetch(page32, 1);
+	uaf_recovery_fails -= 1;
+	uaf_sink += __sync_fetch_and_or(page32, 1);
+	uaf_recovery_fails -= 1;
+	__sync_or_and_fetch(page32, 1);
+	uaf_recovery_fails -= 1;
+	uaf_sink += __sync_fetch_and_xor(page32, 1);
+	uaf_recovery_fails -= 1;
+	__sync_xor_and_fetch(page32, 1);
+	uaf_recovery_fails -= 1;
+	uaf_sink += __sync_val_compare_and_swap(page32, 0, 1);
+	uaf_recovery_fails -= 1;
+	uaf_sink += __sync_lock_test_and_set(page32, 1);
+	uaf_recovery_fails -= 1;
+
+	page64 = (__u64 __arena *)page;
+	uaf_sink += __sync_fetch_and_add(page64, 1);
+	uaf_recovery_fails -= 1;
+	__sync_add_and_fetch(page64, 1);
+	uaf_recovery_fails -= 1;
+	uaf_sink += __sync_fetch_and_sub(page64, 1);
+	uaf_recovery_fails -= 1;
+	__sync_sub_and_fetch(page64, 1);
+	uaf_recovery_fails -= 1;
+	uaf_sink += __sync_fetch_and_and(page64, 1);
+	uaf_recovery_fails -= 1;
+	__sync_and_and_fetch(page64, 1);
+	uaf_recovery_fails -= 1;
+	uaf_sink += __sync_fetch_and_or(page64, 1);
+	uaf_recovery_fails -= 1;
+	__sync_or_and_fetch(page64, 1);
+	uaf_recovery_fails -= 1;
+	uaf_sink += __sync_fetch_and_xor(page64, 1);
+	uaf_recovery_fails -= 1;
+	__sync_xor_and_fetch(page64, 1);
+	uaf_recovery_fails -= 1;
+	uaf_sink += __sync_val_compare_and_swap(page64, 0, 1);
+	uaf_recovery_fails -= 1;
+	uaf_sink += __sync_lock_test_and_set(page64, 1);
+	uaf_recovery_fails -= 1;
+#endif
+
+	return 0;
+}
+
+char _license[] SEC("license") = "GPL";

@@ -94,8 +94,11 @@ struct amdgpu_mem_stats;
 #define AMDGPU_VM_NORETRY_FLAGS_TF (AMDGPU_PTE_VALID | AMDGPU_PTE_SYSTEM | \
 				   AMDGPU_PTE_PRT)
 /* For GFX9 */
-#define AMDGPU_PTE_MTYPE_VG10(a)	((uint64_t)(a) << 57)
-#define AMDGPU_PTE_MTYPE_VG10_MASK	AMDGPU_PTE_MTYPE_VG10(3ULL)
+#define AMDGPU_PTE_MTYPE_VG10_SHIFT(mtype)	((uint64_t)(mtype) << 57)
+#define AMDGPU_PTE_MTYPE_VG10_MASK	AMDGPU_PTE_MTYPE_VG10_SHIFT(3ULL)
+#define AMDGPU_PTE_MTYPE_VG10(flags, mtype)			\
+	(((uint64_t)(flags) & (~AMDGPU_PTE_MTYPE_VG10_MASK)) |	\
+	  AMDGPU_PTE_MTYPE_VG10_SHIFT(mtype))
 
 #define AMDGPU_MTYPE_NC 0
 #define AMDGPU_MTYPE_CC 2
@@ -108,8 +111,34 @@ struct amdgpu_mem_stats;
                                 | AMDGPU_PTE_MTYPE_VG10(AMDGPU_MTYPE_CC))
 
 /* gfx10 */
-#define AMDGPU_PTE_MTYPE_NV10(a)       ((uint64_t)(a) << 48)
-#define AMDGPU_PTE_MTYPE_NV10_MASK     AMDGPU_PTE_MTYPE_NV10(7ULL)
+#define AMDGPU_PTE_MTYPE_NV10_SHIFT(mtype)	((uint64_t)(mtype) << 48)
+#define AMDGPU_PTE_MTYPE_NV10_MASK     AMDGPU_PTE_MTYPE_NV10_SHIFT(7ULL)
+#define AMDGPU_PTE_MTYPE_NV10(flags, mtype)			\
+	(((uint64_t)(flags) & (~AMDGPU_PTE_MTYPE_NV10_MASK)) |	\
+	  AMDGPU_PTE_MTYPE_NV10_SHIFT(mtype))
+
+/* gfx12 */
+#define AMDGPU_PTE_PRT_GFX12		(1ULL << 56)
+#define AMDGPU_PTE_PRT_FLAG(adev)	\
+	((amdgpu_ip_version((adev), GC_HWIP, 0) >= IP_VERSION(12, 0, 0)) ? AMDGPU_PTE_PRT_GFX12 : AMDGPU_PTE_PRT)
+
+#define AMDGPU_PTE_MTYPE_GFX12_SHIFT(mtype)	((uint64_t)(mtype) << 54)
+#define AMDGPU_PTE_MTYPE_GFX12_MASK	AMDGPU_PTE_MTYPE_GFX12_SHIFT(3ULL)
+#define AMDGPU_PTE_MTYPE_GFX12(flags, mtype)				\
+	(((uint64_t)(flags) & (~AMDGPU_PTE_MTYPE_GFX12_MASK)) |	\
+	  AMDGPU_PTE_MTYPE_GFX12_SHIFT(mtype))
+
+#define AMDGPU_PTE_DCC			(1ULL << 58)
+#define AMDGPU_PTE_IS_PTE		(1ULL << 63)
+
+/* PDE Block Fragment Size for gfx v12 */
+#define AMDGPU_PDE_BFS_GFX12(a)		((uint64_t)((a) & 0x1fULL) << 58)
+#define AMDGPU_PDE_BFS_FLAG(adev, a)	\
+	((amdgpu_ip_version((adev), GC_HWIP, 0) >= IP_VERSION(12, 0, 0)) ? AMDGPU_PDE_BFS_GFX12(a) : AMDGPU_PDE_BFS(a))
+/* PDE is handled as PTE for gfx v12 */
+#define AMDGPU_PDE_PTE_GFX12		(1ULL << 63)
+#define AMDGPU_PDE_PTE_FLAG(adev)	\
+	((amdgpu_ip_version((adev), GC_HWIP, 0) >= IP_VERSION(12, 0, 0)) ? AMDGPU_PDE_PTE_GFX12 : AMDGPU_PDE_PTE)
 
 /* How to program VM fault handling */
 #define AMDGPU_VM_FAULT_STOP_NEVER	0
@@ -275,8 +304,8 @@ struct amdgpu_vm_update_params {
 
 struct amdgpu_vm_update_funcs {
 	int (*map_table)(struct amdgpu_bo_vm *bo);
-	int (*prepare)(struct amdgpu_vm_update_params *p, struct dma_resv *resv,
-		       enum amdgpu_sync_mode sync_mode);
+	int (*prepare)(struct amdgpu_vm_update_params *p,
+		       struct amdgpu_sync *sync);
 	int (*update)(struct amdgpu_vm_update_params *p,
 		      struct amdgpu_bo_vm *bo, uint64_t pe, uint64_t addr,
 		      unsigned count, uint32_t incr, uint64_t flags);
@@ -476,9 +505,10 @@ int amdgpu_vm_flush_compute_tlb(struct amdgpu_device *adev,
 void amdgpu_vm_bo_base_init(struct amdgpu_vm_bo_base *base,
 			    struct amdgpu_vm *vm, struct amdgpu_bo *bo);
 int amdgpu_vm_update_range(struct amdgpu_device *adev, struct amdgpu_vm *vm,
-			   bool immediate, bool unlocked, bool flush_tlb, bool allow_override,
-			   struct dma_resv *resv, uint64_t start, uint64_t last,
-			   uint64_t flags, uint64_t offset, uint64_t vram_base,
+			   bool immediate, bool unlocked, bool flush_tlb,
+			   bool allow_override, struct amdgpu_sync *sync,
+			   uint64_t start, uint64_t last, uint64_t flags,
+			   uint64_t offset, uint64_t vram_base,
 			   struct ttm_resource *res, dma_addr_t *pages_addr,
 			   struct dma_fence **fence);
 int amdgpu_vm_bo_update(struct amdgpu_device *adev,
@@ -529,7 +559,7 @@ amdgpu_vm_get_task_info_vm(struct amdgpu_vm *vm);
 void amdgpu_vm_put_task_info(struct amdgpu_task_info *task_info);
 
 bool amdgpu_vm_handle_fault(struct amdgpu_device *adev, u32 pasid,
-			    u32 vmid, u32 node_id, uint64_t addr,
+			    u32 vmid, u32 node_id, uint64_t addr, uint64_t ts,
 			    bool write_fault);
 
 void amdgpu_vm_set_task_info(struct amdgpu_vm *vm);
@@ -560,6 +590,8 @@ void amdgpu_debugfs_vm_bo_info(struct amdgpu_vm *vm, struct seq_file *m);
 #endif
 
 int amdgpu_vm_pt_map_tables(struct amdgpu_device *adev, struct amdgpu_vm *vm);
+
+bool amdgpu_vm_is_bo_always_valid(struct amdgpu_vm *vm, struct amdgpu_bo *bo);
 
 /**
  * amdgpu_vm_tlb_seq - return tlb flush sequence number

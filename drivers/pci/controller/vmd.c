@@ -204,22 +204,11 @@ static void vmd_irq_disable(struct irq_data *data)
 	raw_spin_unlock_irqrestore(&list_lock, flags);
 }
 
-/*
- * XXX: Stubbed until we develop acceptable way to not create conflicts with
- * other devices sharing the same vector.
- */
-static int vmd_irq_set_affinity(struct irq_data *data,
-				const struct cpumask *dest, bool force)
-{
-	return -EINVAL;
-}
-
 static struct irq_chip vmd_msi_controller = {
 	.name			= "VMD-MSI",
 	.irq_enable		= vmd_irq_enable,
 	.irq_disable		= vmd_irq_disable,
 	.irq_compose_msi_msg	= vmd_compose_msi_msg,
-	.irq_set_affinity	= vmd_irq_set_affinity,
 };
 
 static irq_hw_number_t vmd_get_hwirq(struct msi_domain_info *info,
@@ -326,7 +315,7 @@ static struct msi_domain_ops vmd_msi_domain_ops = {
 
 static struct msi_domain_info vmd_msi_domain_info = {
 	.flags		= MSI_FLAG_USE_DEF_DOM_OPS | MSI_FLAG_USE_DEF_CHIP_OPS |
-			  MSI_FLAG_PCI_MSIX,
+			  MSI_FLAG_NO_AFFINITY | MSI_FLAG_PCI_MSIX,
 	.ops		= &vmd_msi_domain_ops,
 	.chip		= &vmd_msi_controller,
 };
@@ -925,6 +914,9 @@ static int vmd_enable_domain(struct vmd_dev *vmd, unsigned long features)
 		dev_set_msi_domain(&vmd->bus->dev,
 				   dev_get_msi_domain(&vmd->dev->dev));
 
+	WARN(sysfs_create_link(&vmd->dev->dev.kobj, &vmd->bus->dev.kobj,
+			       "domain"), "Can't create symlink to domain\n");
+
 	vmd_acpi_begin();
 
 	pci_scan_child_bus(vmd->bus);
@@ -964,9 +956,6 @@ static int vmd_enable_domain(struct vmd_dev *vmd, unsigned long features)
 	pci_bus_add_devices(vmd->bus);
 
 	vmd_acpi_end();
-
-	WARN(sysfs_create_link(&vmd->dev->dev.kobj, &vmd->bus->dev.kobj,
-			       "domain"), "Can't create symlink to domain\n");
 	return 0;
 }
 
@@ -1042,8 +1031,8 @@ static void vmd_remove(struct pci_dev *dev)
 {
 	struct vmd_dev *vmd = pci_get_drvdata(dev);
 
-	sysfs_remove_link(&vmd->dev->dev.kobj, "domain");
 	pci_stop_root_bus(vmd->bus);
+	sysfs_remove_link(&vmd->dev->dev.kobj, "domain");
 	pci_remove_root_bus(vmd->bus);
 	vmd_cleanup_srcu(vmd);
 	vmd_detach_resources(vmd);
@@ -1053,9 +1042,9 @@ static void vmd_remove(struct pci_dev *dev)
 
 static void vmd_shutdown(struct pci_dev *dev)
 {
-        struct vmd_dev *vmd = pci_get_drvdata(dev);
+	struct vmd_dev *vmd = pci_get_drvdata(dev);
 
-        vmd_remove_irq_domain(vmd);
+	vmd_remove_irq_domain(vmd);
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -1128,5 +1117,6 @@ static struct pci_driver vmd_drv = {
 module_pci_driver(vmd_drv);
 
 MODULE_AUTHOR("Intel Corporation");
+MODULE_DESCRIPTION("Volume Management Device driver");
 MODULE_LICENSE("GPL v2");
 MODULE_VERSION("0.6");

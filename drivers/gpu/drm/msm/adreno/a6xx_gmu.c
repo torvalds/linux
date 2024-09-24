@@ -423,6 +423,20 @@ static int a6xx_gmu_gfx_rail_on(struct a6xx_gmu *gmu)
 	return a6xx_gmu_set_oob(gmu, GMU_OOB_BOOT_SLUMBER);
 }
 
+static void a6xx_gemnoc_workaround(struct a6xx_gmu *gmu)
+{
+	struct a6xx_gpu *a6xx_gpu = container_of(gmu, struct a6xx_gpu, gmu);
+	struct adreno_gpu *adreno_gpu = &a6xx_gpu->base;
+
+	/*
+	 * GEMNoC can power collapse whilst the GPU is being powered down, resulting
+	 * in the power down sequence not being fully executed. That in turn can
+	 * prevent CX_GDSC from collapsing. Assert Qactive to avoid this.
+	 */
+	if (adreno_is_a621(adreno_gpu) || adreno_is_7c3(adreno_gpu))
+		gmu_write(gmu, REG_A6XX_GMU_AO_AHB_FENCE_CTRL, BIT(0));
+}
+
 /* Let the GMU know that we are about to go into slumber */
 static int a6xx_gmu_notify_slumber(struct a6xx_gmu *gmu)
 {
@@ -456,6 +470,8 @@ static int a6xx_gmu_notify_slumber(struct a6xx_gmu *gmu)
 	}
 
 out:
+	a6xx_gemnoc_workaround(gmu);
+
 	/* Put fence into allow mode */
 	gmu_write(gmu, REG_A6XX_GMU_AO_AHB_FENCE_CTRL, 0);
 	return ret;
@@ -466,9 +482,7 @@ static int a6xx_rpmh_start(struct a6xx_gmu *gmu)
 	int ret;
 	u32 val;
 
-	gmu_write(gmu, REG_A6XX_GMU_RSCC_CONTROL_REQ, 1 << 1);
-	/* Wait for the register to finish posting */
-	wmb();
+	gmu_write(gmu, REG_A6XX_GMU_RSCC_CONTROL_REQ, BIT(1));
 
 	ret = gmu_poll_timeout(gmu, REG_A6XX_GMU_RSCC_CONTROL_ACK, val,
 		val & (1 << 1), 100, 10000);
@@ -527,8 +541,7 @@ static void a6xx_gmu_rpmh_init(struct a6xx_gmu *gmu)
 	if (IS_ERR(pdcptr))
 		goto err;
 
-	if (adreno_is_a650(adreno_gpu) ||
-	    adreno_is_a660_family(adreno_gpu) ||
+	if (adreno_is_a650_family(adreno_gpu) ||
 	    adreno_is_a7xx(adreno_gpu))
 		pdc_in_aop = true;
 	else if (adreno_is_a618(adreno_gpu) || adreno_is_a640_family(adreno_gpu))
@@ -769,8 +782,9 @@ static int a6xx_gmu_fw_start(struct a6xx_gmu *gmu, unsigned int state)
 {
 	struct a6xx_gpu *a6xx_gpu = container_of(gmu, struct a6xx_gpu, gmu);
 	struct adreno_gpu *adreno_gpu = &a6xx_gpu->base;
+	const struct a6xx_info *a6xx_info = adreno_gpu->info->a6xx;
 	u32 fence_range_lower, fence_range_upper;
-	u32 chipid, chipid_min = 0;
+	u32 chipid = 0;
 	int ret;
 
 	/* Vote veto for FAL10 */
@@ -830,27 +844,8 @@ static int a6xx_gmu_fw_start(struct a6xx_gmu *gmu, unsigned int state)
 	 */
 	gmu_write(gmu, REG_A6XX_GMU_CM3_CFG, 0x4052);
 
-	/* NOTE: A730 may also fall in this if-condition with a future GMU fw update. */
-	if (adreno_is_a7xx(adreno_gpu) && !adreno_is_a730(adreno_gpu)) {
-		/* A7xx GPUs have obfuscated chip IDs. Use constant maj = 7 */
-		chipid = FIELD_PREP(GENMASK(31, 24), 0x7);
-
-		/*
-		 * The min part has a 1-1 mapping for each GPU SKU.
-		 * This chipid that the GMU expects corresponds to the "GENX_Y_Z" naming,
-		 * where X = major, Y = minor, Z = patchlevel, e.g. GEN7_2_1 for prod A740.
-		 */
-		if (adreno_is_a740(adreno_gpu))
-			chipid_min = 2;
-		else if (adreno_is_a750(adreno_gpu))
-			chipid_min = 9;
-		else
-			return -EINVAL;
-
-		chipid |= FIELD_PREP(GENMASK(23, 16), chipid_min);
-
-		/* Get the patchid (which may vary) from the device tree */
-		chipid |= FIELD_PREP(GENMASK(15, 8), adreno_patchid(adreno_gpu));
+	if (a6xx_info->gmu_chipid) {
+		chipid = a6xx_info->gmu_chipid;
 	} else {
 		/*
 		 * Note that the GMU has a slightly different layout for
@@ -965,6 +960,8 @@ static void a6xx_gmu_force_off(struct a6xx_gmu *gmu)
 
 	/* Force off SPTP in case the GMU is managing it */
 	a6xx_sptprac_disable(gmu);
+
+	a6xx_gemnoc_workaround(gmu);
 
 	/* Make sure there are no outstanding RPMh votes */
 	a6xx_gmu_rpmh_off(gmu);
@@ -1329,7 +1326,13 @@ static int a6xx_gmu_rpmh_arc_votes_init(struct device *dev, u32 *votes,
 	if (!pri_count)
 		return -EINVAL;
 
-	sec = cmd_db_read_aux_data("mx.lvl", &sec_count);
+	/*
+	 * Some targets have a separate gfx mxc rail. So try to read that first and then fall back
+	 * to regular mx rail if it is missing
+	 */
+	sec = cmd_db_read_aux_data("gmxc.lvl", &sec_count);
+	if (IS_ERR(sec) && sec != ERR_PTR(-EPROBE_DEFER))
+		sec = cmd_db_read_aux_data("mx.lvl", &sec_count);
 	if (IS_ERR(sec))
 		return PTR_ERR(sec);
 

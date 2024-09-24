@@ -22,6 +22,7 @@
 #define AST_IO_VGAER_VGA_ENABLE		BIT(0)
 
 #define AST_IO_VGASRI			(0x44)
+#define AST_IO_VGASR1_SD		BIT(5)
 #define AST_IO_VGADRR			(0x47)
 #define AST_IO_VGADWR			(0x48)
 #define AST_IO_VGAPDR		        (0x49)
@@ -31,8 +32,16 @@
 #define AST_IO_VGACR80_PASSWORD		(0xa8)
 #define AST_IO_VGACRA1_VGAIO_DISABLED	BIT(1)
 #define AST_IO_VGACRA1_MMIO_ENABLED	BIT(2)
+#define AST_IO_VGACRB6_HSYNC_OFF	BIT(0)
+#define AST_IO_VGACRB6_VSYNC_OFF	BIT(1)
 #define AST_IO_VGACRCB_HWC_16BPP	BIT(0) /* set: ARGB4444, cleared: 2bpp palette */
 #define AST_IO_VGACRCB_HWC_ENABLED	BIT(1)
+
+#define AST_IO_VGACRD1_MCU_FW_EXECUTING	BIT(5)
+#define AST_IO_VGACRD7_EDID_VALID_FLAG	BIT(0)
+#define AST_IO_VGACRDC_LINK_SUCCESS	BIT(0)
+#define AST_IO_VGACRDF_HPD		BIT(0)
+#define AST_IO_VGACRE5_EDID_READ_DONE	BIT(0)
 
 #define AST_IO_VGAIR1_R			(0x5A)
 #define AST_IO_VGAIR1_VREFRESH		BIT(3)
@@ -64,35 +73,12 @@
 #define AST_DP_VIDEO_ENABLE		BIT(0)
 
 /*
- * CRD1[b5]: DP MCU FW is executing
- * CRDC[b0]: DP link success
- * CRDF[b0]: DP HPD
- * CRE5[b0]: Host reading EDID process is done
- */
-#define ASTDP_MCU_FW_EXECUTING		BIT(5)
-#define ASTDP_LINK_SUCCESS		BIT(0)
-#define ASTDP_HPD			BIT(0)
-#define ASTDP_HOST_EDID_READ_DONE	BIT(0)
-#define ASTDP_HOST_EDID_READ_DONE_MASK	GENMASK(0, 0)
-
-/*
- * CRB8[b1]: Enable VSYNC off
- * CRB8[b0]: Enable HSYNC off
- */
-#define AST_DPMS_VSYNC_OFF		BIT(1)
-#define AST_DPMS_HSYNC_OFF		BIT(0)
-
-/*
  * CRDF[b4]: Mirror of AST_DP_VIDEO_ENABLE
  * Precondition:	A. ~AST_DP_PHY_SLEEP  &&
  *			B. DP_HPD &&
  *			C. DP_LINK_SUCCESS
  */
 #define ASTDP_MIRROR_VIDEO_ENABLE	BIT(4)
-
-#define ASTDP_EDID_READ_POINTER_MASK	GENMASK(7, 0)
-#define ASTDP_EDID_VALID_FLAG_MASK	GENMASK(0, 0)
-#define ASTDP_EDID_READ_DATA_MASK	GENMASK(7, 0)
 
 /*
  * ASTDP setmode registers:

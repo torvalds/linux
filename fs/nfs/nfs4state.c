@@ -1863,6 +1863,7 @@ static void nfs4_state_end_reclaim_reboot(struct nfs_client *clp)
 
 	if (!nfs4_state_clear_reclaim_reboot(clp))
 		return;
+	pnfs_destroy_all_layouts(clp);
 	ops = clp->cl_mvops->reboot_recovery_ops;
 	cred = nfs4_get_clid_cred(clp);
 	err = nfs4_reclaim_complete(clp, ops, cred);
@@ -2068,7 +2069,6 @@ static int nfs4_establish_lease(struct nfs_client *clp)
 	put_cred(cred);
 	if (status != 0)
 		return status;
-	pnfs_destroy_all_layouts(clp);
 	return 0;
 }
 
@@ -2680,6 +2680,8 @@ static void nfs4_state_manager(struct nfs_client *clp)
 			section = "reclaim reboot";
 			status = nfs4_do_reclaim(clp,
 				clp->cl_mvops->reboot_recovery_ops);
+			if (status == 0)
+				status = pnfs_layout_handle_reboot(clp);
 			if (status == -EAGAIN)
 				continue;
 			if (status < 0)

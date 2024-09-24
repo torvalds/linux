@@ -44,15 +44,17 @@ static void __init sclp_early_facilities_detect(void)
 	sclp.has_ibs = !!(sccb->fac117 & 0x20);
 	sclp.has_gisaf = !!(sccb->fac118 & 0x08);
 	sclp.has_hvs = !!(sccb->fac119 & 0x80);
+	sclp.has_wti = !!(sccb->fac119 & 0x40);
 	sclp.has_kss = !!(sccb->fac98 & 0x01);
 	sclp.has_aisii = !!(sccb->fac118 & 0x40);
 	sclp.has_aeni = !!(sccb->fac118 & 0x20);
 	sclp.has_aisi = !!(sccb->fac118 & 0x10);
 	sclp.has_zpci_lsi = !!(sccb->fac118 & 0x01);
 	if (sccb->fac85 & 0x02)
-		S390_lowcore.machine_flags |= MACHINE_FLAG_ESOP;
+		get_lowcore()->machine_flags |= MACHINE_FLAG_ESOP;
 	if (sccb->fac91 & 0x40)
-		S390_lowcore.machine_flags |= MACHINE_FLAG_TLB_GUEST;
+		get_lowcore()->machine_flags |= MACHINE_FLAG_TLB_GUEST;
+	sclp.has_diag204_bif = !!(sccb->fac98 & 0x80);
 	if (sccb->cpuoff > 134) {
 		sclp.has_diag318 = !!(sccb->byte_134 & 0x80);
 		sclp.has_diag320 = !!(sccb->byte_134 & 0x04);

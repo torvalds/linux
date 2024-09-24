@@ -6,8 +6,6 @@
 #ifndef _XE_REG_SR_
 #define _XE_REG_SR_
 
-#include "xe_reg_sr_types.h"
-
 /*
  * Reg save/restore bookkeeping
  */
@@ -15,6 +13,8 @@
 struct xe_device;
 struct xe_gt;
 struct xe_hw_engine;
+struct xe_reg_sr;
+struct xe_reg_sr_entry;
 struct drm_printer;
 
 int xe_reg_sr_init(struct xe_reg_sr *sr, const char *name, struct xe_device *xe);

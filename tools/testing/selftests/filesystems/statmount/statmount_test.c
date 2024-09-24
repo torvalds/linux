@@ -4,17 +4,15 @@
 
 #include <assert.h>
 #include <stddef.h>
-#include <stdint.h>
 #include <sched.h>
 #include <fcntl.h>
 #include <sys/param.h>
 #include <sys/mount.h>
 #include <sys/stat.h>
 #include <sys/statfs.h>
-#include <linux/mount.h>
 #include <linux/stat.h>
-#include <asm/unistd.h>
 
+#include "statmount.h"
 #include "../../kselftest.h"
 
 static const char *const known_fs[] = {
@@ -36,18 +34,6 @@ static const char *const known_fs[] = {
 	"ufs", "v7", "vboxsf", "vfat", "virtiofs", "vxfs", "xenfs", "xfs",
 	"zonefs", NULL };
 
-static int statmount(uint64_t mnt_id, uint64_t mask, struct statmount *buf,
-		     size_t bufsize, unsigned int flags)
-{
-	struct mnt_id_req req = {
-		.size = MNT_ID_REQ_SIZE_VER0,
-		.mnt_id = mnt_id,
-		.param = mask,
-	};
-
-	return syscall(__NR_statmount, &req, buf, bufsize, flags);
-}
-
 static struct statmount *statmount_alloc(uint64_t mnt_id, uint64_t mask, unsigned int flags)
 {
 	size_t bufsize = 1 << 15;
@@ -56,7 +42,7 @@ static struct statmount *statmount_alloc(uint64_t mnt_id, uint64_t mask, unsigne
 	int ret;
 
 	for (;;) {
-		ret = statmount(mnt_id, mask, tmp, bufsize, flags);
+		ret = statmount(mnt_id, 0, mask, tmp, bufsize, flags);
 		if (ret != -1)
 			break;
 		if (tofree)
@@ -121,7 +107,7 @@ static char root_mntpoint[] = "/tmp/statmount_test_root.XXXXXX";
 static int orig_root;
 static uint64_t root_id, parent_id;
 static uint32_t old_root_id, old_parent_id;
-
+static FILE *f_mountinfo;
 
 static void cleanup_namespace(void)
 {
@@ -146,7 +132,7 @@ static void setup_namespace(void)
 	uid_t uid = getuid();
 	gid_t gid = getgid();
 
-	ret = unshare(CLONE_NEWNS|CLONE_NEWUSER);
+	ret = unshare(CLONE_NEWNS|CLONE_NEWUSER|CLONE_NEWPID);
 	if (ret == -1)
 		ksft_exit_fail_msg("unsharing mountns and userns: %s\n",
 				   strerror(errno));
@@ -156,6 +142,11 @@ static void setup_namespace(void)
 	write_file("/proc/self/setgroups", "deny");
 	sprintf(buf, "0 %d 1", gid);
 	write_file("/proc/self/gid_map", buf);
+
+	f_mountinfo = fopen("/proc/self/mountinfo", "re");
+	if (!f_mountinfo)
+		ksft_exit_fail_msg("failed to open mountinfo: %s\n",
+				   strerror(errno));
 
 	ret = mount("", "/", NULL, MS_REC|MS_PRIVATE, NULL);
 	if (ret == -1)
@@ -216,25 +207,13 @@ static int setup_mount_tree(int log2_num)
 	return 0;
 }
 
-static ssize_t listmount(uint64_t mnt_id, uint64_t last_mnt_id,
-			 uint64_t list[], size_t num, unsigned int flags)
-{
-	struct mnt_id_req req = {
-		.size = MNT_ID_REQ_SIZE_VER0,
-		.mnt_id = mnt_id,
-		.param = last_mnt_id,
-	};
-
-	return syscall(__NR_listmount, &req, list, num, flags);
-}
-
 static void test_listmount_empty_root(void)
 {
 	ssize_t res;
 	const unsigned int size = 32;
 	uint64_t list[size];
 
-	res = listmount(LSMT_ROOT, 0, list, size, 0);
+	res = listmount(LSMT_ROOT, 0, 0, list, size, 0);
 	if (res == -1) {
 		ksft_test_result_fail("listmount: %s\n", strerror(errno));
 		return;
@@ -259,7 +238,7 @@ static void test_statmount_zero_mask(void)
 	struct statmount sm;
 	int ret;
 
-	ret = statmount(root_id, 0, &sm, sizeof(sm), 0);
+	ret = statmount(root_id, 0, 0, &sm, sizeof(sm), 0);
 	if (ret == -1) {
 		ksft_test_result_fail("statmount zero mask: %s\n",
 				      strerror(errno));
@@ -285,7 +264,7 @@ static void test_statmount_mnt_basic(void)
 	int ret;
 	uint64_t mask = STATMOUNT_MNT_BASIC;
 
-	ret = statmount(root_id, mask, &sm, sizeof(sm), 0);
+	ret = statmount(root_id, 0, mask, &sm, sizeof(sm), 0);
 	if (ret == -1) {
 		ksft_test_result_fail("statmount mnt basic: %s\n",
 				      strerror(errno));
@@ -345,7 +324,7 @@ static void test_statmount_sb_basic(void)
 	struct statx sx;
 	struct statfs sf;
 
-	ret = statmount(root_id, mask, &sm, sizeof(sm), 0);
+	ret = statmount(root_id, 0, mask, &sm, sizeof(sm), 0);
 	if (ret == -1) {
 		ksft_test_result_fail("statmount sb basic: %s\n",
 				      strerror(errno));
@@ -470,6 +449,88 @@ static void test_statmount_fs_type(void)
 	free(sm);
 }
 
+static void test_statmount_mnt_opts(void)
+{
+	struct statmount *sm;
+	const char *statmount_opts;
+	char *line = NULL;
+	size_t len = 0;
+
+	sm = statmount_alloc(root_id, STATMOUNT_MNT_BASIC | STATMOUNT_MNT_OPTS,
+			     0);
+	if (!sm) {
+		ksft_test_result_fail("statmount mnt opts: %s\n",
+				      strerror(errno));
+		return;
+	}
+
+	while (getline(&line, &len, f_mountinfo) != -1) {
+		int i;
+		char *p, *p2;
+		unsigned int old_mnt_id;
+
+		old_mnt_id = atoi(line);
+		if (old_mnt_id != sm->mnt_id_old)
+			continue;
+
+		for (p = line, i = 0; p && i < 5; i++)
+			p = strchr(p + 1, ' ');
+		if (!p)
+			continue;
+
+		p2 = strchr(p + 1, ' ');
+		if (!p2)
+			continue;
+		*p2 = '\0';
+		p = strchr(p2 + 1, '-');
+		if (!p)
+			continue;
+		for (p++, i = 0; p && i < 2; i++)
+			p = strchr(p + 1, ' ');
+		if (!p)
+			continue;
+		p++;
+
+		/* skip generic superblock options */
+		if (strncmp(p, "ro", 2) == 0)
+			p += 2;
+		else if (strncmp(p, "rw", 2) == 0)
+			p += 2;
+		if (*p == ',')
+			p++;
+		if (strncmp(p, "sync", 4) == 0)
+			p += 4;
+		if (*p == ',')
+			p++;
+		if (strncmp(p, "dirsync", 7) == 0)
+			p += 7;
+		if (*p == ',')
+			p++;
+		if (strncmp(p, "lazytime", 8) == 0)
+			p += 8;
+		if (*p == ',')
+			p++;
+		p2 = strrchr(p, '\n');
+		if (p2)
+			*p2 = '\0';
+
+		statmount_opts = sm->str + sm->mnt_opts;
+		if (strcmp(statmount_opts, p) != 0)
+			ksft_test_result_fail(
+				"unexpected mount options: '%s' != '%s'\n",
+				statmount_opts, p);
+		else
+			ksft_test_result_pass("statmount mount options\n");
+		free(sm);
+		free(line);
+		return;
+	}
+
+	ksft_test_result_fail("didnt't find mount entry\n");
+	free(sm);
+	free(line);
+}
+
 static void test_statmount_string(uint64_t mask, size_t off, const char *name)
 {
 	struct statmount *sm;
@@ -506,14 +567,14 @@ static void test_statmount_string(uint64_t mask, size_t off, const char *name)
 	exactsize = sm->size;
 	shortsize = sizeof(*sm) + i;
 
-	ret = statmount(root_id, mask, sm, exactsize, 0);
+	ret = statmount(root_id, 0, mask, sm, exactsize, 0);
 	if (ret == -1) {
 		ksft_test_result_fail("statmount exact size: %s\n",
 				      strerror(errno));
 		goto out;
 	}
 	errno = 0;
-	ret = statmount(root_id, mask, sm, shortsize, 0);
+	ret = statmount(root_id, 0, mask, sm, shortsize, 0);
 	if (ret != -1 || errno != EOVERFLOW) {
 		ksft_test_result_fail("should have failed with EOVERFLOW: %s\n",
 				      strerror(errno));
@@ -541,7 +602,7 @@ static void test_listmount_tree(void)
 	if (res == -1)
 		return;
 
-	num = res = listmount(LSMT_ROOT, 0, list, size, 0);
+	num = res = listmount(LSMT_ROOT, 0, 0, list, size, 0);
 	if (res == -1) {
 		ksft_test_result_fail("listmount: %s\n", strerror(errno));
 		return;
@@ -553,7 +614,7 @@ static void test_listmount_tree(void)
 	}
 
 	for (i = 0; i < size - step;) {
-		res = listmount(LSMT_ROOT, i ? list2[i - 1] : 0, list2 + i, step, 0);
+		res = listmount(LSMT_ROOT, 0, i ? list2[i - 1] : 0, list2 + i, step, 0);
 		if (res == -1)
 			ksft_test_result_fail("short listmount: %s\n",
 					      strerror(errno));
@@ -585,18 +646,18 @@ int main(void)
 	int ret;
 	uint64_t all_mask = STATMOUNT_SB_BASIC | STATMOUNT_MNT_BASIC |
 		STATMOUNT_PROPAGATE_FROM | STATMOUNT_MNT_ROOT |
-		STATMOUNT_MNT_POINT | STATMOUNT_FS_TYPE;
+		STATMOUNT_MNT_POINT | STATMOUNT_FS_TYPE | STATMOUNT_MNT_NS_ID;
 
 	ksft_print_header();
 
-	ret = statmount(0, 0, NULL, 0, 0);
+	ret = statmount(0, 0, 0, NULL, 0, 0);
 	assert(ret == -1);
 	if (errno == ENOSYS)
 		ksft_exit_skip("statmount() syscall not supported\n");
 
 	setup_namespace();
 
-	ksft_set_plan(14);
+	ksft_set_plan(15);
 	test_listmount_empty_root();
 	test_statmount_zero_mask();
 	test_statmount_mnt_basic();
@@ -604,6 +665,7 @@ int main(void)
 	test_statmount_mnt_root();
 	test_statmount_mnt_point();
 	test_statmount_fs_type();
+	test_statmount_mnt_opts();
 	test_statmount_string(STATMOUNT_MNT_ROOT, str_off(mnt_root), "mount root");
 	test_statmount_string(STATMOUNT_MNT_POINT, str_off(mnt_point), "mount point");
 	test_statmount_string(STATMOUNT_FS_TYPE, str_off(fs_type), "fs type");

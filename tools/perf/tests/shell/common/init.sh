@@ -26,8 +26,8 @@ print_results()
 	PERF_RETVAL="$1"; shift
 	CHECK_RETVAL="$1"; shift
 	FAILURE_REASON=""
-	TASK_COMMENT="$@"
-	if [ $PERF_RETVAL -eq 0 -a $CHECK_RETVAL -eq 0 ]; then
+	TASK_COMMENT="$*"
+	if [ $PERF_RETVAL -eq 0 ] && [ $CHECK_RETVAL -eq 0 ]; then
 		_echo "$MPASS-- [ PASS ] --$MEND $TEST_NAME :: $THIS_TEST_NAME :: $TASK_COMMENT"
 		return 0
 	else
@@ -56,7 +56,7 @@ print_overall_results()
 
 print_testcase_skipped()
 {
-	TASK_COMMENT="$@"
+	TASK_COMMENT="$*"
 	_echo "$MSKIP-- [ SKIP ] --$MEND $TEST_NAME :: $THIS_TEST_NAME :: $TASK_COMMENT :: testcase skipped"
 	return 0
 }
@@ -69,7 +69,7 @@ print_overall_skipped()
 
 print_warning()
 {
-	WARN_COMMENT="$@"
+	WARN_COMMENT="$*"
 	_echo "$MWARN-- [ WARN ] --$MEND $TEST_NAME :: $THIS_TEST_NAME :: $WARN_COMMENT"
 	return 0
 }
@@ -114,4 +114,27 @@ detect_amd()
 	# 0 = is AMD
 	# 1 = is not AMD or unknown
 	grep "vendor_id" < /proc/cpuinfo | grep -q "AMD"
+}
+
+# base probe utility
+check_kprobes_available()
+{
+	test -e /sys/kernel/debug/tracing/kprobe_events
+}
+
+check_uprobes_available()
+{
+	test -e /sys/kernel/debug/tracing/uprobe_events
+}
+
+clear_all_probes()
+{
+	echo 0 > /sys/kernel/debug/tracing/events/enable
+	check_kprobes_available && echo > /sys/kernel/debug/tracing/kprobe_events
+	check_uprobes_available && echo > /sys/kernel/debug/tracing/uprobe_events
+}
+
+check_sdt_support()
+{
+	$CMD_PERF list sdt | grep sdt > /dev/null 2> /dev/null
 }

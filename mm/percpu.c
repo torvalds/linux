@@ -1619,7 +1619,7 @@ static struct pcpu_chunk *pcpu_chunk_addr_search(void *addr)
 	return pcpu_get_page_chunk(pcpu_addr_to_page(addr));
 }
 
-#ifdef CONFIG_MEMCG_KMEM
+#ifdef CONFIG_MEMCG
 static bool pcpu_memcg_pre_alloc_hook(size_t size, gfp_t gfp,
 				      struct obj_cgroup **objcgp)
 {
@@ -1681,7 +1681,7 @@ static void pcpu_memcg_free_hook(struct pcpu_chunk *chunk, int off, size_t size)
 	obj_cgroup_put(objcg);
 }
 
-#else /* CONFIG_MEMCG_KMEM */
+#else /* CONFIG_MEMCG */
 static bool
 pcpu_memcg_pre_alloc_hook(size_t size, gfp_t gfp, struct obj_cgroup **objcgp)
 {
@@ -1697,7 +1697,7 @@ static void pcpu_memcg_post_alloc_hook(struct obj_cgroup *objcg,
 static void pcpu_memcg_free_hook(struct pcpu_chunk *chunk, int off, size_t size)
 {
 }
-#endif /* CONFIG_MEMCG_KMEM */
+#endif /* CONFIG_MEMCG */
 
 #ifdef CONFIG_MEM_ALLOC_PROFILING
 static void pcpu_alloc_tag_alloc_hook(struct pcpu_chunk *chunk, int off,
@@ -2214,37 +2214,6 @@ static void pcpu_balance_workfn(struct work_struct *work)
 
 	spin_unlock_irq(&pcpu_lock);
 	mutex_unlock(&pcpu_alloc_mutex);
-}
-
-/**
- * pcpu_alloc_size - the size of the dynamic percpu area
- * @ptr: pointer to the dynamic percpu area
- *
- * Returns the size of the @ptr allocation.  This is undefined for statically
- * defined percpu variables as there is no corresponding chunk->bound_map.
- *
- * RETURNS:
- * The size of the dynamic percpu area.
- *
- * CONTEXT:
- * Can be called from atomic context.
- */
-size_t pcpu_alloc_size(void __percpu *ptr)
-{
-	struct pcpu_chunk *chunk;
-	unsigned long bit_off, end;
-	void *addr;
-
-	if (!ptr)
-		return 0;
-
-	addr = __pcpu_ptr_to_addr(ptr);
-	/* No pcpu_lock here: ptr has not been freed, so chunk is still alive */
-	chunk = pcpu_chunk_addr_search(addr);
-	bit_off = (addr - chunk->base_addr) / PCPU_MIN_ALLOC_SIZE;
-	end = find_next_bit(chunk->bound_map, pcpu_chunk_map_bits(chunk),
-			    bit_off + 1);
-	return (end - bit_off) * PCPU_MIN_ALLOC_SIZE;
 }
 
 /**

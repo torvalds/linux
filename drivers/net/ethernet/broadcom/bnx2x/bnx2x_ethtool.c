@@ -3634,22 +3634,18 @@ static int bnx2x_set_channels(struct net_device *dev,
 }
 
 static int bnx2x_get_ts_info(struct net_device *dev,
-			     struct ethtool_ts_info *info)
+			     struct kernel_ethtool_ts_info *info)
 {
 	struct bnx2x *bp = netdev_priv(dev);
 
 	if (bp->flags & PTP_SUPPORTED) {
 		info->so_timestamping = SOF_TIMESTAMPING_TX_SOFTWARE |
-					SOF_TIMESTAMPING_RX_SOFTWARE |
-					SOF_TIMESTAMPING_SOFTWARE |
 					SOF_TIMESTAMPING_TX_HARDWARE |
 					SOF_TIMESTAMPING_RX_HARDWARE |
 					SOF_TIMESTAMPING_RAW_HARDWARE;
 
 		if (bp->ptp_clock)
 			info->phc_index = ptp_clock_index(bp->ptp_clock);
-		else
-			info->phc_index = -1;
 
 		info->rx_filters = (1 << HWTSTAMP_FILTER_NONE) |
 				   (1 << HWTSTAMP_FILTER_PTP_V1_L4_EVENT) |

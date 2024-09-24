@@ -6,6 +6,7 @@
 #include <linux/rtnetlink.h>
 #include <linux/ptp_clock_kernel.h>
 
+#include "netlink.h"
 #include "common.h"
 
 const char netdev_features_strings[NETDEV_FEATURE_COUNT][ETH_GSTRING_LEN] = {
@@ -24,8 +25,6 @@ const char netdev_features_strings[NETDEV_FEATURE_COUNT][ETH_GSTRING_LEN] = {
 	[NETIF_F_HW_VLAN_STAG_FILTER_BIT] = "rx-vlan-stag-filter",
 	[NETIF_F_VLAN_CHALLENGED_BIT] =  "vlan-challenged",
 	[NETIF_F_GSO_BIT] =              "tx-generic-segmentation",
-	[NETIF_F_LLTX_BIT] =             "tx-lockless",
-	[NETIF_F_NETNS_LOCAL_BIT] =      "netns-local",
 	[NETIF_F_GRO_BIT] =              "rx-gro",
 	[NETIF_F_GRO_HW_BIT] =           "rx-gro-hw",
 	[NETIF_F_LRO_BIT] =              "rx-lro",
@@ -51,7 +50,6 @@ const char netdev_features_strings[NETDEV_FEATURE_COUNT][ETH_GSTRING_LEN] = {
 
 	[NETIF_F_FCOE_CRC_BIT] =         "tx-checksum-fcoe-crc",
 	[NETIF_F_SCTP_CRC_BIT] =        "tx-checksum-sctp",
-	[NETIF_F_FCOE_MTU_BIT] =         "fcoe-mtu",
 	[NETIF_F_NTUPLE_BIT] =           "rx-ntuple-filter",
 	[NETIF_F_RXHASH_BIT] =           "rx-hashing",
 	[NETIF_F_RXCSUM_BIT] =           "rx-checksum",
@@ -211,6 +209,7 @@ const char link_mode_names[][ETH_GSTRING_LEN] = {
 	__DEFINE_LINK_MODE_NAME(10, T1S, Full),
 	__DEFINE_LINK_MODE_NAME(10, T1S, Half),
 	__DEFINE_LINK_MODE_NAME(10, T1S_P2MP, Half),
+	__DEFINE_LINK_MODE_NAME(10, T1BRR, Full),
 };
 static_assert(ARRAY_SIZE(link_mode_names) == __ETHTOOL_LINK_MODE_MASK_NBITS);
 
@@ -251,6 +250,7 @@ static_assert(ARRAY_SIZE(link_mode_names) == __ETHTOOL_LINK_MODE_MASK_NBITS);
 #define __LINK_MODE_LANES_T1S_P2MP	1
 #define __LINK_MODE_LANES_VR8		8
 #define __LINK_MODE_LANES_DR8_2		8
+#define __LINK_MODE_LANES_T1BRR		1
 
 #define __DEFINE_LINK_MODE_PARAMS(_speed, _type, _duplex)	\
 	[ETHTOOL_LINK_MODE(_speed, _type, _duplex)] = {		\
@@ -374,6 +374,7 @@ const struct link_mode_info link_mode_params[] = {
 	__DEFINE_LINK_MODE_PARAMS(10, T1S, Full),
 	__DEFINE_LINK_MODE_PARAMS(10, T1S, Half),
 	__DEFINE_LINK_MODE_PARAMS(10, T1S_P2MP, Half),
+	__DEFINE_LINK_MODE_PARAMS(10, T1BRR, Full),
 };
 static_assert(ARRAY_SIZE(link_mode_params) == __ETHTOOL_LINK_MODE_MASK_NBITS);
 
@@ -426,6 +427,7 @@ const char sof_timestamping_names[][ETH_GSTRING_LEN] = {
 	[const_ilog2(SOF_TIMESTAMPING_OPT_TX_SWHW)]  = "option-tx-swhw",
 	[const_ilog2(SOF_TIMESTAMPING_BIND_PHC)]     = "bind-phc",
 	[const_ilog2(SOF_TIMESTAMPING_OPT_ID_TCP)]   = "option-id-tcp",
+	[const_ilog2(SOF_TIMESTAMPING_OPT_RX_FILTER)] = "option-rx-filter",
 };
 static_assert(ARRAY_SIZE(sof_timestamping_names) == __SOF_TIMESTAMPING_CNT);
 
@@ -536,7 +538,7 @@ static int ethtool_get_rxnfc_rule_count(struct net_device *dev)
 	return info.rule_cnt;
 }
 
-int ethtool_get_max_rxnfc_channel(struct net_device *dev, u64 *max)
+static int ethtool_get_max_rxnfc_channel(struct net_device *dev, u64 *max)
 {
 	const struct ethtool_ops *ops = dev->ethtool_ops;
 	struct ethtool_rxnfc *info;
@@ -587,40 +589,106 @@ err_free_info:
 	return err;
 }
 
-int ethtool_get_max_rxfh_channel(struct net_device *dev, u32 *max)
+static u32 ethtool_get_max_rss_ctx_channel(struct net_device *dev)
+{
+	struct ethtool_rxfh_context *ctx;
+	unsigned long context;
+	u32 max_ring = 0;
+
+	mutex_lock(&dev->ethtool->rss_lock);
+	xa_for_each(&dev->ethtool->rss_ctx, context, ctx) {
+		u32 i, *tbl;
+
+		tbl = ethtool_rxfh_context_indir(ctx);
+		for (i = 0; i < ctx->indir_size; i++)
+			max_ring = max(max_ring, tbl[i]);
+	}
+	mutex_unlock(&dev->ethtool->rss_lock);
+
+	return max_ring;
+}
+
+static u32 ethtool_get_max_rxfh_channel(struct net_device *dev)
 {
 	struct ethtool_rxfh_param rxfh = {};
-	u32 dev_size, current_max = 0;
+	u32 dev_size, current_max;
 	int ret;
+
+	/* While we do track whether RSS context has an indirection
+	 * table explicitly set by the user, no driver looks at that bit.
+	 * Assume drivers won't auto-regenerate the additional tables,
+	 * to be safe.
+	 */
+	current_max = ethtool_get_max_rss_ctx_channel(dev);
+
+	if (!netif_is_rxfh_configured(dev))
+		return current_max;
 
 	if (!dev->ethtool_ops->get_rxfh_indir_size ||
 	    !dev->ethtool_ops->get_rxfh)
-		return -EOPNOTSUPP;
+		return current_max;
 	dev_size = dev->ethtool_ops->get_rxfh_indir_size(dev);
 	if (dev_size == 0)
-		return -EOPNOTSUPP;
+		return current_max;
 
 	rxfh.indir = kcalloc(dev_size, sizeof(rxfh.indir[0]), GFP_USER);
 	if (!rxfh.indir)
-		return -ENOMEM;
+		return U32_MAX;
 
 	ret = dev->ethtool_ops->get_rxfh(dev, &rxfh);
-	if (ret)
-		goto out;
+	if (ret) {
+		current_max = U32_MAX;
+		goto out_free;
+	}
 
 	while (dev_size--)
 		current_max = max(current_max, rxfh.indir[dev_size]);
 
-	*max = current_max;
-
-out:
+out_free:
 	kfree(rxfh.indir);
-	return ret;
+	return current_max;
+}
+
+int ethtool_check_max_channel(struct net_device *dev,
+			      struct ethtool_channels channels,
+			      struct genl_info *info)
+{
+	u64 max_rxnfc_in_use;
+	u32 max_rxfh_in_use;
+	int max_mp_in_use;
+
+	/* ensure the new Rx count fits within the configured Rx flow
+	 * indirection table/rxnfc settings
+	 */
+	if (ethtool_get_max_rxnfc_channel(dev, &max_rxnfc_in_use))
+		max_rxnfc_in_use = 0;
+	max_rxfh_in_use = ethtool_get_max_rxfh_channel(dev);
+	if (channels.combined_count + channels.rx_count <= max_rxfh_in_use) {
+		if (info)
+			GENL_SET_ERR_MSG_FMT(info, "requested channel counts are too low for existing indirection table (%d)", max_rxfh_in_use);
+		return -EINVAL;
+	}
+	if (channels.combined_count + channels.rx_count <= max_rxnfc_in_use) {
+		if (info)
+			GENL_SET_ERR_MSG(info, "requested channel counts are too low for existing ntuple filter settings");
+		return -EINVAL;
+	}
+
+	max_mp_in_use = dev_get_min_mp_channel_count(dev);
+	if (channels.combined_count + channels.rx_count <= max_mp_in_use) {
+		if (info)
+			GENL_SET_ERR_MSG_FMT(info, "requested channel counts are too low for existing memory provider setting (%d)", max_mp_in_use);
+		return -EINVAL;
+	}
+
+	return 0;
 }
 
 int ethtool_check_ops(const struct ethtool_ops *ops)
 {
 	if (WARN_ON(ops->set_coalesce && !ops->supported_coalesce_params))
+		return -EINVAL;
+	if (WARN_ON(ops->rxfh_max_num_contexts == 1))
 		return -EINVAL;
 	/* NOTE: sufficiently insane drivers may swap ethtool_ops at runtime,
 	 * the fact that ops are checked at registration time does not
@@ -629,29 +697,30 @@ int ethtool_check_ops(const struct ethtool_ops *ops)
 	return 0;
 }
 
-int __ethtool_get_ts_info(struct net_device *dev, struct ethtool_ts_info *info)
+int __ethtool_get_ts_info(struct net_device *dev, struct kernel_ethtool_ts_info *info)
 {
 	const struct ethtool_ops *ops = dev->ethtool_ops;
 	struct phy_device *phydev = dev->phydev;
+	int err = 0;
 
 	memset(info, 0, sizeof(*info));
 	info->cmd = ETHTOOL_GET_TS_INFO;
-
-	if (phy_has_tsinfo(phydev))
-		return phy_ts_info(phydev, info);
-	if (ops->get_ts_info)
-		return ops->get_ts_info(dev, info);
-
-	info->so_timestamping = SOF_TIMESTAMPING_RX_SOFTWARE |
-				SOF_TIMESTAMPING_SOFTWARE;
 	info->phc_index = -1;
 
-	return 0;
+	if (phy_is_default_hwtstamp(phydev) && phy_has_tsinfo(phydev))
+		err = phy_ts_info(phydev, info);
+	else if (ops->get_ts_info)
+		err = ops->get_ts_info(dev, info);
+
+	info->so_timestamping |= SOF_TIMESTAMPING_RX_SOFTWARE |
+				 SOF_TIMESTAMPING_SOFTWARE;
+
+	return err;
 }
 
 int ethtool_get_phc_vclocks(struct net_device *dev, int **vclock_index)
 {
-	struct ethtool_ts_info info = { };
+	struct kernel_ethtool_ts_info info = { };
 	int num = 0;
 
 	if (!__ethtool_get_ts_info(dev, &info))
@@ -661,7 +730,7 @@ int ethtool_get_phc_vclocks(struct net_device *dev, int **vclock_index)
 }
 EXPORT_SYMBOL(ethtool_get_phc_vclocks);
 
-int ethtool_get_ts_info_by_layer(struct net_device *dev, struct ethtool_ts_info *info)
+int ethtool_get_ts_info_by_layer(struct net_device *dev, struct kernel_ethtool_ts_info *info)
 {
 	return __ethtool_get_ts_info(dev, info);
 }
@@ -712,3 +781,17 @@ ethtool_forced_speed_maps_init(struct ethtool_forced_speed_map *maps, u32 size)
 	}
 }
 EXPORT_SYMBOL_GPL(ethtool_forced_speed_maps_init);
+
+void ethtool_rxfh_context_lost(struct net_device *dev, u32 context_id)
+{
+	struct ethtool_rxfh_context *ctx;
+
+	WARN_ONCE(!rtnl_is_locked() &&
+		  !lockdep_is_held_type(&dev->ethtool->rss_lock, -1),
+		  "RSS context lock assertion failed\n");
+
+	netdev_err(dev, "device error, RSS context %d lost\n", context_id);
+	ctx = xa_erase(&dev->ethtool->rss_ctx, context_id);
+	kfree(ctx);
+}
+EXPORT_SYMBOL(ethtool_rxfh_context_lost);

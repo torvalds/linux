@@ -151,9 +151,10 @@ static int mt7921u_probe(struct usb_interface *usb_intf,
 		.rx_skb = mt7921_queue_rx_skb,
 		.rx_check = mt7921_rx_check,
 		.sta_add = mt7921_mac_sta_add,
-		.sta_assoc = mt7921_mac_sta_assoc,
+		.sta_event = mt7921_mac_sta_event,
 		.sta_remove = mt7921_mac_sta_remove,
 		.update_survey = mt792x_update_channel,
+		.set_channel = mt7921_set_channel,
 	};
 	static const struct mt792x_hif_ops hif_ops = {
 		.mcu_init = mt7921u_mcu_init,

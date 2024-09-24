@@ -471,13 +471,9 @@ int xfrm_input(struct sk_buff *skb, int nexthdr, __be32 spi, int encap_type)
 	struct xfrm_offload *xo = xfrm_offload(skb);
 	struct sec_path *sp;
 
-	if (encap_type < 0 || (xo && xo->flags & XFRM_GRO)) {
+	if (encap_type < 0 || (xo && (xo->flags & XFRM_GRO || encap_type == 0 ||
+				      encap_type == UDP_ENCAP_ESPINUDP))) {
 		x = xfrm_input_state(skb);
-
-		if (unlikely(x->dir && x->dir != XFRM_SA_DIR_IN)) {
-			XFRM_INC_STATS(net, LINUX_MIB_XFRMINSTATEDIRERROR);
-			goto drop;
-		}
 
 		if (unlikely(x->km.state != XFRM_STATE_VALID)) {
 			if (x->km.state == XFRM_STATE_ACQ)
@@ -585,8 +581,11 @@ int xfrm_input(struct sk_buff *skb, int nexthdr, __be32 spi, int encap_type)
 		}
 
 		if (unlikely(x->dir && x->dir != XFRM_SA_DIR_IN)) {
+			secpath_reset(skb);
 			XFRM_INC_STATS(net, LINUX_MIB_XFRMINSTATEDIRERROR);
+			xfrm_audit_state_notfound(skb, family, spi, seq);
 			xfrm_state_put(x);
+			x = NULL;
 			goto drop;
 		}
 

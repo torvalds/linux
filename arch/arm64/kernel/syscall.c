@@ -14,6 +14,7 @@
 #include <asm/syscall.h>
 #include <asm/thread_info.h>
 #include <asm/unistd.h>
+#include <asm/unistd_compat_32.h>
 
 long compat_arm_syscall(struct pt_regs *regs, int scno);
 long sys_ni_syscall(void);
@@ -153,7 +154,7 @@ void do_el0_svc(struct pt_regs *regs)
 #ifdef CONFIG_COMPAT
 void do_el0_svc_compat(struct pt_regs *regs)
 {
-	el0_svc_common(regs, regs->regs[7], __NR_compat_syscalls,
+	el0_svc_common(regs, regs->regs[7], __NR_compat32_syscalls,
 		       compat_sys_call_table);
 }
 #endif

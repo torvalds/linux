@@ -134,6 +134,9 @@ void xe_irq_enable_hwe(struct xe_gt *gt)
 	u32 gsc_mask = 0;
 	u32 heci_mask = 0;
 
+	if (IS_SRIOV_VF(xe) && xe_device_has_memirq(xe))
+		return;
+
 	if (xe_device_uc_enabled(xe)) {
 		irqs = GT_RENDER_USER_INTERRUPT |
 			GT_RENDER_PIPECTL_NOTIFY_INTERRUPT;
@@ -456,6 +459,8 @@ static irqreturn_t dg1_irq_handler(int irq, void *arg)
 		 * the primary tile.
 		 */
 		if (id == 0) {
+			if (HAS_HECI_CSCFI(xe))
+				xe_heci_csc_irq_handler(xe, master_ctl);
 			xe_display_irq_handler(xe, master_ctl);
 			gu_misc_iir = gu_misc_irq_ack(xe, master_ctl);
 		}
@@ -663,7 +668,7 @@ static irq_handler_t xe_irq_handler(struct xe_device *xe)
 		return xelp_irq_handler;
 }
 
-static void irq_uninstall(struct drm_device *drm, void *arg)
+static void irq_uninstall(void *arg)
 {
 	struct xe_device *xe = arg;
 	struct pci_dev *pdev = to_pci_dev(xe->drm.dev);
@@ -723,7 +728,7 @@ int xe_irq_install(struct xe_device *xe)
 
 	xe_irq_postinstall(xe);
 
-	err = drmm_add_action_or_reset(&xe->drm, irq_uninstall, xe);
+	err = devm_add_action_or_reset(xe->drm.dev, irq_uninstall, xe);
 	if (err)
 		goto free_irq_handler;
 
@@ -733,11 +738,6 @@ free_irq_handler:
 	free_irq(irq, xe);
 
 	return err;
-}
-
-void xe_irq_shutdown(struct xe_device *xe)
-{
-	irq_uninstall(&xe->drm, xe);
 }
 
 void xe_irq_suspend(struct xe_device *xe)

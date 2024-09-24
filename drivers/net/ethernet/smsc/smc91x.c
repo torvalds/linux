@@ -1574,11 +1574,7 @@ smc_ethtool_set_link_ksettings(struct net_device *dev,
 		    (cmd->base.port != PORT_TP && cmd->base.port != PORT_AUI))
 			return -EINVAL;
 
-//		lp->port = cmd->base.port;
 		lp->ctl_rfduplx = cmd->base.duplex == DUPLEX_FULL;
-
-//		if (netif_running(dev))
-//			smc_set_port(dev);
 
 		ret = 0;
 	}
@@ -2359,7 +2355,7 @@ static int smc_drv_probe(struct platform_device *pdev)
 	 * the resource supplies a trigger, override the irqflags with
 	 * the trigger flags from the resource.
 	 */
-	irq_resflags = irqd_get_trigger_type(irq_get_irq_data(ndev->irq));
+	irq_resflags = irq_get_trigger_type(ndev->irq);
 	if (irq_flags == -1 || irq_resflags & IRQF_TRIGGER_MASK)
 		irq_flags = irq_resflags & IRQF_TRIGGER_MASK;
 

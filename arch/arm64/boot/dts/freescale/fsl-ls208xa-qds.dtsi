@@ -43,7 +43,7 @@
 		  0x2 0x0 0x5 0x30000000 0x00010000
 		  0x3 0x0 0x5 0x20000000 0x00010000>;
 
-	nor@0,0 {
+	flash@0,0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		compatible = "cfi-flash";
@@ -64,7 +64,7 @@
 		reg = <3 0 0x1000>;
 		ranges = <0 3 0 0x1000>;
 
-		mdio-mux-emi1@54 {
+		mdio-mux@54 {
 			compatible = "mdio-mux-mmioreg", "mdio-mux";
 			mdio-parent-bus = <&emdio1>;
 			reg = <0x54 1>;		/* BRDCFG4 */

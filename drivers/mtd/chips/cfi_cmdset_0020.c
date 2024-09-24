@@ -1399,4 +1399,5 @@ static void cfi_staa_destroy(struct mtd_info *mtd)
 	kfree(cfi);
 }
 
+MODULE_DESCRIPTION("MTD chip driver for ST Advanced Architecture Command Set (ID 0x0020)");
 MODULE_LICENSE("GPL");

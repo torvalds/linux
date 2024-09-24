@@ -516,4 +516,5 @@ static struct greybus_driver gb_hid_driver = {
 };
 module_greybus_driver(gb_hid_driver);
 
+MODULE_DESCRIPTION("HID class driver for the Greybus");
 MODULE_LICENSE("GPL v2");

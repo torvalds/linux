@@ -500,7 +500,7 @@ static unsigned long long dmatest_persec(s64 runtime, unsigned int val)
 
 	per_sec *= val;
 	per_sec = INT_TO_FIXPT(per_sec);
-	do_div(per_sec, runtime);
+	do_div(per_sec, (u32)runtime);
 
 	return per_sec;
 }
@@ -1372,4 +1372,5 @@ static void __exit dmatest_exit(void)
 module_exit(dmatest_exit);
 
 MODULE_AUTHOR("Haavard Skinnemoen (Atmel)");
+MODULE_DESCRIPTION("DMA Engine test module");
 MODULE_LICENSE("GPL v2");

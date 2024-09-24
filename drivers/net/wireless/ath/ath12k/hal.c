@@ -1969,14 +1969,15 @@ u32 ath12k_hal_ce_dst_status_get_length(struct hal_ce_srng_dst_status_desc *desc
 }
 
 void ath12k_hal_set_link_desc_addr(struct hal_wbm_link_desc *desc, u32 cookie,
-				   dma_addr_t paddr)
+				   dma_addr_t paddr,
+				   enum hal_rx_buf_return_buf_manager rbm)
 {
 	desc->buf_addr_info.info0 = le32_encode_bits((paddr & HAL_ADDR_LSB_REG_MASK),
 						     BUFFER_ADDR_INFO0_ADDR);
 	desc->buf_addr_info.info1 =
 			le32_encode_bits(((u64)paddr >> HAL_ADDR_MSB_REG_SHIFT),
 					 BUFFER_ADDR_INFO1_ADDR) |
-			le32_encode_bits(1, BUFFER_ADDR_INFO1_RET_BUF_MGR) |
+			le32_encode_bits(rbm, BUFFER_ADDR_INFO1_RET_BUF_MGR) |
 			le32_encode_bits(cookie, BUFFER_ADDR_INFO1_SW_COOKIE);
 }
 

@@ -136,16 +136,22 @@
 			     <GIC_PPI 10 IRQ_TYPE_LEVEL_HIGH>; /* Hipervisor PPI */
 	};
 
-	pmu {
-		compatible = "arm,armv8-pmuv3";
+	pmu-a55 {
+		compatible = "arm,cortex-a55-pmu";
 		interrupts = <GIC_SPI 112 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 113 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 114 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 115 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 116 IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI 117 IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI 118 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 117 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-affinity = <&CPU0>, <&CPU1>, <&CPU2>, <&CPU3>, <&CPU4>, <&CPU5>;
+	};
+
+	pmu-a75 {
+		compatible = "arm,cortex-a75-pmu";
+		interrupts = <GIC_SPI 118 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 119 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-affinity = <&CPU6>, <&CPU7>;
 	};
 
 	soc: soc {
@@ -843,9 +849,9 @@
 				compatible = "sprd,sdhci-r11";
 				reg = <0x1100000 0x1000>;
 				interrupts = <GIC_SPI 19 IRQ_TYPE_LEVEL_HIGH>;
-				clock-names = "sdio", "enable";
 				clocks = <&ap_clk CLK_SDIO0_2X>,
 					 <&apapb_gate CLK_SDIO0_EB>;
+				clock-names = "sdio", "enable";
 				assigned-clocks = <&ap_clk CLK_SDIO0_2X>;
 				assigned-clock-parents = <&pll1 CLK_RPLL>;
 				status = "disabled";
@@ -855,9 +861,9 @@
 				compatible = "sprd,sdhci-r11";
 				reg = <0x1400000 0x1000>;
 				interrupts = <GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>;
-				clock-names = "sdio", "enable";
 				clocks = <&ap_clk CLK_EMMC_2X>,
 					 <&apapb_gate CLK_EMMC_EB>;
+				clock-names = "sdio", "enable";
 				assigned-clocks = <&ap_clk CLK_EMMC_2X>;
 				assigned-clock-parents = <&pll1 CLK_RPLL>;
 				status = "disabled";

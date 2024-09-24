@@ -439,7 +439,7 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 }
 
 /* preload SMP state for boot cpu */
-void smp_prepare_boot_cpu(void)
+void __init smp_prepare_boot_cpu(void)
 {
 	if (mp_ops->prepare_boot_cpu)
 		mp_ops->prepare_boot_cpu();
@@ -461,8 +461,6 @@ int __cpu_up(unsigned int cpu, struct task_struct *tidle)
 		pr_crit("CPU%u: failed to start\n", cpu);
 		return -EIO;
 	}
-
-	synchronise_count_master(cpu);
 
 	/* Wait for CPU to finish startup & mark itself online before return */
 	wait_for_completion(&cpu_running);

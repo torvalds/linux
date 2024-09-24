@@ -192,7 +192,9 @@ int bch2_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 {
 	struct bch_inode_info *inode = file_bch_inode(file);
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
-	int ret;
+	int ret, err;
+
+	trace_bch2_fsync(file, datasync);
 
 	ret = file_write_and_wait_range(file, start, end);
 	if (ret)
@@ -205,6 +207,11 @@ out:
 	ret = bch2_err_class(ret);
 	if (ret == -EROFS)
 		ret = -EIO;
+
+	err = file_check_and_advance_wb_err(file);
+	if (!ret)
+		ret = err;
+
 	return ret;
 }
 
@@ -214,30 +221,11 @@ static inline int range_has_data(struct bch_fs *c, u32 subvol,
 				 struct bpos start,
 				 struct bpos end)
 {
-	struct btree_trans *trans = bch2_trans_get(c);
-	struct btree_iter iter;
-	struct bkey_s_c k;
-	int ret = 0;
-retry:
-	bch2_trans_begin(trans);
-
-	ret = bch2_subvolume_get_snapshot(trans, subvol, &start.snapshot);
-	if (ret)
-		goto err;
-
-	for_each_btree_key_upto_norestart(trans, iter, BTREE_ID_extents, start, end, 0, k, ret)
-		if (bkey_extent_is_data(k.k) && !bkey_extent_is_unwritten(k)) {
-			ret = 1;
-			break;
-		}
-	start = iter.pos;
-	bch2_trans_iter_exit(trans, &iter);
-err:
-	if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
-		goto retry;
-
-	bch2_trans_put(trans);
-	return ret;
+	return bch2_trans_run(c,
+		for_each_btree_key_in_subvolume_upto(trans, iter, BTREE_ID_extents, start, end,
+						    subvol, 0, k, ({
+			bkey_extent_is_data(k.k) && !bkey_extent_is_unwritten(k);
+		})));
 }
 
 static int __bch2_truncate_folio(struct bch_inode_info *inode,
@@ -260,7 +248,7 @@ static int __bch2_truncate_folio(struct bch_inode_info *inode,
 		 * XXX: we're doing two index lookups when we end up reading the
 		 * folio
 		 */
-		ret = range_has_data(c, inode->ei_subvol,
+		ret = range_has_data(c, inode->ei_inum.subvol,
 				POS(inode->v.i_ino, (index << PAGE_SECTORS_SHIFT)),
 				POS(inode->v.i_ino, (index << PAGE_SECTORS_SHIFT) + PAGE_SECTORS));
 		if (ret <= 0)
@@ -508,7 +496,7 @@ static int inode_update_times_fn(struct btree_trans *trans,
 	return 0;
 }
 
-static long bchfs_fpunch(struct bch_inode_info *inode, loff_t offset, loff_t len)
+static noinline long bchfs_fpunch(struct bch_inode_info *inode, loff_t offset, loff_t len)
 {
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
 	u64 end		= offset + len;
@@ -547,7 +535,7 @@ err:
 	return ret;
 }
 
-static long bchfs_fcollapse_finsert(struct bch_inode_info *inode,
+static noinline long bchfs_fcollapse_finsert(struct bch_inode_info *inode,
 				   loff_t offset, loff_t len,
 				   bool insert)
 {
@@ -583,7 +571,7 @@ static long bchfs_fcollapse_finsert(struct bch_inode_info *inode,
 	return ret;
 }
 
-static int __bchfs_fallocate(struct bch_inode_info *inode, int mode,
+static noinline int __bchfs_fallocate(struct bch_inode_info *inode, int mode,
 			     u64 start_sector, u64 end_sector)
 {
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
@@ -611,7 +599,7 @@ static int __bchfs_fallocate(struct bch_inode_info *inode, int mode,
 		bch2_trans_begin(trans);
 
 		ret = bch2_subvolume_get_snapshot(trans,
-					inode->ei_subvol, &snapshot);
+					inode->ei_inum.subvol, &snapshot);
 		if (ret)
 			goto bkey_err;
 
@@ -704,7 +692,7 @@ bkey_err:
 	return ret;
 }
 
-static long bchfs_fallocate(struct bch_inode_info *inode, int mode,
+static noinline long bchfs_fallocate(struct bch_inode_info *inode, int mode,
 			    loff_t offset, loff_t len)
 {
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
@@ -806,41 +794,23 @@ static int quota_reserve_range(struct bch_inode_info *inode,
 			       u64 start, u64 end)
 {
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
-	struct btree_trans *trans = bch2_trans_get(c);
-	struct btree_iter iter;
-	struct bkey_s_c k;
-	u32 snapshot;
 	u64 sectors = end - start;
-	u64 pos = start;
-	int ret;
-retry:
-	bch2_trans_begin(trans);
 
-	ret = bch2_subvolume_get_snapshot(trans, inode->ei_subvol, &snapshot);
-	if (ret)
-		goto err;
+	int ret = bch2_trans_run(c,
+		for_each_btree_key_in_subvolume_upto(trans, iter,
+				BTREE_ID_extents,
+				POS(inode->v.i_ino, start),
+				POS(inode->v.i_ino, end - 1),
+				inode->ei_inum.subvol, 0, k, ({
+			if (bkey_extent_is_allocation(k.k)) {
+				u64 s = min(end, k.k->p.offset) -
+					max(start, bkey_start_offset(k.k));
+				BUG_ON(s > sectors);
+				sectors -= s;
+			}
 
-	bch2_trans_iter_init(trans, &iter, BTREE_ID_extents,
-			     SPOS(inode->v.i_ino, pos, snapshot), 0);
-
-	while (!(ret = btree_trans_too_many_iters(trans)) &&
-	       (k = bch2_btree_iter_peek_upto(&iter, POS(inode->v.i_ino, end - 1))).k &&
-	       !(ret = bkey_err(k))) {
-		if (bkey_extent_is_allocation(k.k)) {
-			u64 s = min(end, k.k->p.offset) -
-				max(start, bkey_start_offset(k.k));
-			BUG_ON(s > sectors);
-			sectors -= s;
-		}
-		bch2_btree_iter_advance(&iter);
-	}
-	pos = iter.pos.offset;
-	bch2_trans_iter_exit(trans, &iter);
-err:
-	if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
-		goto retry;
-
-	bch2_trans_put(trans);
+			0;
+		})));
 
 	return ret ?: bch2_quota_reservation_add(c, inode, res, sectors, true);
 }
@@ -859,9 +829,6 @@ loff_t bch2_remap_file_range(struct file *file_src, loff_t pos_src,
 
 	if (remap_flags & ~(REMAP_FILE_DEDUP|REMAP_FILE_ADVISORY))
 		return -EINVAL;
-
-	if (remap_flags & REMAP_FILE_DEDUP)
-		return -EOPNOTSUPP;
 
 	if ((pos_src & (block_bytes(c) - 1)) ||
 	    (pos_dst & (block_bytes(c) - 1)))
@@ -895,7 +862,8 @@ loff_t bch2_remap_file_range(struct file *file_src, loff_t pos_src,
 	if (ret)
 		goto err;
 
-	file_update_time(file_dst);
+	if (!(remap_flags & REMAP_FILE_DEDUP))
+		file_update_time(file_dst);
 
 	bch2_mark_pagecache_unallocated(src, pos_src >> 9,
 				   (pos_src + aligned_len) >> 9);
@@ -937,42 +905,25 @@ static loff_t bch2_seek_data(struct file *file, u64 offset)
 {
 	struct bch_inode_info *inode = file_bch_inode(file);
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
-	struct btree_trans *trans;
-	struct btree_iter iter;
-	struct bkey_s_c k;
 	subvol_inum inum = inode_inum(inode);
 	u64 isize, next_data = MAX_LFS_FILESIZE;
-	u32 snapshot;
-	int ret;
 
 	isize = i_size_read(&inode->v);
 	if (offset >= isize)
 		return -ENXIO;
 
-	trans = bch2_trans_get(c);
-retry:
-	bch2_trans_begin(trans);
-
-	ret = bch2_subvolume_get_snapshot(trans, inum.subvol, &snapshot);
-	if (ret)
-		goto err;
-
-	for_each_btree_key_upto_norestart(trans, iter, BTREE_ID_extents,
-			   SPOS(inode->v.i_ino, offset >> 9, snapshot),
-			   POS(inode->v.i_ino, U64_MAX),
-			   0, k, ret) {
-		if (bkey_extent_is_data(k.k)) {
-			next_data = max(offset, bkey_start_offset(k.k) << 9);
-			break;
-		} else if (k.k->p.offset >> 9 > isize)
-			break;
-	}
-	bch2_trans_iter_exit(trans, &iter);
-err:
-	if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
-		goto retry;
-
-	bch2_trans_put(trans);
+	int ret = bch2_trans_run(c,
+		for_each_btree_key_in_subvolume_upto(trans, iter, BTREE_ID_extents,
+				   POS(inode->v.i_ino, offset >> 9),
+				   POS(inode->v.i_ino, U64_MAX),
+				   inum.subvol, 0, k, ({
+			if (bkey_extent_is_data(k.k)) {
+				next_data = max(offset, bkey_start_offset(k.k) << 9);
+				break;
+			} else if (k.k->p.offset >> 9 > isize)
+				break;
+			0;
+		})));
 	if (ret)
 		return ret;
 
@@ -990,50 +941,34 @@ static loff_t bch2_seek_hole(struct file *file, u64 offset)
 {
 	struct bch_inode_info *inode = file_bch_inode(file);
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
-	struct btree_trans *trans;
-	struct btree_iter iter;
-	struct bkey_s_c k;
 	subvol_inum inum = inode_inum(inode);
 	u64 isize, next_hole = MAX_LFS_FILESIZE;
-	u32 snapshot;
-	int ret;
 
 	isize = i_size_read(&inode->v);
 	if (offset >= isize)
 		return -ENXIO;
 
-	trans = bch2_trans_get(c);
-retry:
-	bch2_trans_begin(trans);
-
-	ret = bch2_subvolume_get_snapshot(trans, inum.subvol, &snapshot);
-	if (ret)
-		goto err;
-
-	for_each_btree_key_norestart(trans, iter, BTREE_ID_extents,
-			   SPOS(inode->v.i_ino, offset >> 9, snapshot),
-			   BTREE_ITER_slots, k, ret) {
-		if (k.k->p.inode != inode->v.i_ino) {
-			next_hole = bch2_seek_pagecache_hole(&inode->v,
-					offset, MAX_LFS_FILESIZE, 0, false);
-			break;
-		} else if (!bkey_extent_is_data(k.k)) {
-			next_hole = bch2_seek_pagecache_hole(&inode->v,
-					max(offset, bkey_start_offset(k.k) << 9),
-					k.k->p.offset << 9, 0, false);
-
-			if (next_hole < k.k->p.offset << 9)
+	int ret = bch2_trans_run(c,
+		for_each_btree_key_in_subvolume_upto(trans, iter, BTREE_ID_extents,
+				   POS(inode->v.i_ino, offset >> 9),
+				   POS(inode->v.i_ino, U64_MAX),
+				   inum.subvol, BTREE_ITER_slots, k, ({
+			if (k.k->p.inode != inode->v.i_ino) {
+				next_hole = bch2_seek_pagecache_hole(&inode->v,
+						offset, MAX_LFS_FILESIZE, 0, false);
 				break;
-		} else {
-			offset = max(offset, bkey_start_offset(k.k) << 9);
-		}
-	}
-	bch2_trans_iter_exit(trans, &iter);
-err:
-	if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
-		goto retry;
+			} else if (!bkey_extent_is_data(k.k)) {
+				next_hole = bch2_seek_pagecache_hole(&inode->v,
+						max(offset, bkey_start_offset(k.k) << 9),
+						k.k->p.offset << 9, 0, false);
 
-	bch2_trans_put(trans);
+				if (next_hole < k.k->p.offset << 9)
+					break;
+			} else {
+				offset = max(offset, bkey_start_offset(k.k) << 9);
+			}
+			0;
+		})));
 	if (ret)
 		return ret;
 

@@ -39,11 +39,15 @@ struct io_wait_queue {
 	struct wait_queue_entry wq;
 	struct io_ring_ctx *ctx;
 	unsigned cq_tail;
+	unsigned cq_min_tail;
 	unsigned nr_timeouts;
+	int hit_timeout;
+	ktime_t min_timeout;
 	ktime_t timeout;
+	struct hrtimer t;
 
 #ifdef CONFIG_NET_RX_BUSY_POLL
-	unsigned int napi_busy_poll_to;
+	ktime_t napi_busy_poll_dt;
 	bool napi_prefer_busy_poll;
 #endif
 };
@@ -65,6 +69,7 @@ bool io_cqe_cache_refill(struct io_ring_ctx *ctx, bool overflow);
 int io_run_task_work_sig(struct io_ring_ctx *ctx);
 void io_req_defer_failed(struct io_kiocb *req, s32 res);
 bool io_post_aux_cqe(struct io_ring_ctx *ctx, u64 user_data, s32 res, u32 cflags);
+void io_add_aux_cqe(struct io_ring_ctx *ctx, u64 user_data, s32 res, u32 cflags);
 bool io_req_post_cqe(struct io_kiocb *req, s32 res, u32 cflags);
 void __io_commit_cqring_flush(struct io_ring_ctx *ctx);
 
@@ -73,6 +78,8 @@ struct file *io_file_get_fixed(struct io_kiocb *req, int fd,
 			       unsigned issue_flags);
 
 void __io_req_task_work_add(struct io_kiocb *req, unsigned flags);
+void io_req_task_work_add_remote(struct io_kiocb *req, struct io_ring_ctx *ctx,
+				 unsigned flags);
 bool io_alloc_async_data(struct io_kiocb *req);
 void io_req_task_queue(struct io_kiocb *req);
 void io_req_task_complete(struct io_kiocb *req, struct io_tw_state *ts);
@@ -87,6 +94,7 @@ int io_uring_alloc_task_context(struct task_struct *task,
 
 int io_ring_add_registered_file(struct io_uring_task *tctx, struct file *file,
 				     int start, int end);
+void io_req_queue_iowq(struct io_kiocb *req);
 
 int io_poll_issue(struct io_kiocb *req, struct io_tw_state *ts);
 int io_submit_sqes(struct io_ring_ctx *ctx, unsigned int nr);
@@ -104,12 +112,6 @@ bool __io_alloc_req_refill(struct io_ring_ctx *ctx);
 bool io_match_task_safe(struct io_kiocb *head, struct task_struct *task,
 			bool cancel_all);
 
-enum {
-	IO_EVENTFD_OP_SIGNAL_BIT,
-	IO_EVENTFD_OP_FREE_BIT,
-};
-
-void io_eventfd_ops(struct rcu_head *rcu);
 void io_activate_pollwq(struct io_ring_ctx *ctx);
 
 static inline void io_lockdep_assert_cq_locked(struct io_ring_ctx *ctx)
@@ -438,6 +440,14 @@ static inline bool io_file_can_poll(struct io_kiocb *req)
 		return true;
 	}
 	return false;
+}
+
+static inline ktime_t io_get_time(struct io_ring_ctx *ctx)
+{
+	if (ctx->clockid == CLOCK_MONOTONIC)
+		return ktime_get();
+
+	return ktime_get_with_offset(ctx->clock_offset);
 }
 
 enum {

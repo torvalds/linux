@@ -19,7 +19,6 @@ if VIRTUALIZATION
 
 config KVM
 	tristate "Kernel-based Virtual Machine (KVM) support"
-	depends on HIGH_RES_TIMERS
 	depends on X86_LOCAL_APIC
 	select KVM_COMMON
 	select KVM_GENERIC_MMU_NOTIFIER
@@ -44,6 +43,7 @@ config KVM
 	select KVM_VFIO
 	select HAVE_KVM_PM_NOTIFIER if PM
 	select KVM_GENERIC_HARDWARE_ENABLING
+	select KVM_GENERIC_PRE_FAULT_MEMORY
 	select KVM_WERROR if WERROR
 	help
 	  Support hosting fully virtualized guest machines using hardware
@@ -139,9 +139,14 @@ config KVM_AMD_SEV
 	depends on KVM_AMD && X86_64
 	depends on CRYPTO_DEV_SP_PSP && !(KVM_AMD=y && CRYPTO_DEV_CCP_DD=m)
 	select ARCH_HAS_CC_PLATFORM
+	select KVM_GENERIC_PRIVATE_MEM
+	select HAVE_KVM_ARCH_GMEM_PREPARE
+	select HAVE_KVM_ARCH_GMEM_INVALIDATE
 	help
-	  Provides support for launching Encrypted VMs (SEV) and Encrypted VMs
-	  with Encrypted State (SEV-ES) on AMD processors.
+	  Provides support for launching encrypted VMs which use Secure
+	  Encrypted Virtualization (SEV), Secure Encrypted Virtualization with
+	  Encrypted State (SEV-ES), and Secure Encrypted Virtualization with
+	  Secure Nested Paging (SEV-SNP) technologies on AMD processors.
 
 config KVM_SMM
 	bool "System Management Mode emulation"

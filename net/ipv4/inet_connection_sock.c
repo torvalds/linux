@@ -236,7 +236,7 @@ static bool inet_bhash2_conflict(const struct sock *sk,
 
 #define sk_for_each_bound_bhash(__sk, __tb2, __tb)			\
 	hlist_for_each_entry(__tb2, &(__tb)->bhash2, bhash_node)	\
-		sk_for_each_bound(sk2, &(__tb2)->owners)
+		sk_for_each_bound((__sk), &(__tb2)->owners)
 
 /* This should be called only when the tb and tb2 hashbuckets' locks are held */
 static int inet_csk_bind_conflict(const struct sock *sk,
@@ -714,6 +714,7 @@ struct sock *inet_csk_accept(struct sock *sk, struct proto_accept_arg *arg)
 out:
 	release_sock(sk);
 	if (newsk && mem_cgroup_sockets_enabled) {
+		gfp_t gfp = GFP_KERNEL | __GFP_NOFAIL;
 		int amt = 0;
 
 		/* atomically get the memory usage, set and charge the
@@ -731,8 +732,8 @@ out:
 		}
 
 		if (amt)
-			mem_cgroup_charge_skmem(newsk->sk_memcg, amt,
-						GFP_KERNEL | __GFP_NOFAIL);
+			mem_cgroup_charge_skmem(newsk->sk_memcg, amt, gfp);
+		kmem_cache_charge(newsk, gfp);
 
 		release_sock(newsk);
 	}
@@ -910,6 +911,64 @@ int inet_rtx_syn_ack(const struct sock *parent, struct request_sock *req)
 	return err;
 }
 EXPORT_SYMBOL(inet_rtx_syn_ack);
+
+static struct request_sock *
+reqsk_alloc_noprof(const struct request_sock_ops *ops, struct sock *sk_listener,
+		   bool attach_listener)
+{
+	struct request_sock *req;
+
+	req = kmem_cache_alloc_noprof(ops->slab, GFP_ATOMIC | __GFP_NOWARN);
+	if (!req)
+		return NULL;
+	req->rsk_listener = NULL;
+	if (attach_listener) {
+		if (unlikely(!refcount_inc_not_zero(&sk_listener->sk_refcnt))) {
+			kmem_cache_free(ops->slab, req);
+			return NULL;
+		}
+		req->rsk_listener = sk_listener;
+	}
+	req->rsk_ops = ops;
+	req_to_sk(req)->sk_prot = sk_listener->sk_prot;
+	sk_node_init(&req_to_sk(req)->sk_node);
+	sk_tx_queue_clear(req_to_sk(req));
+	req->saved_syn = NULL;
+	req->syncookie = 0;
+	req->timeout = 0;
+	req->num_timeout = 0;
+	req->num_retrans = 0;
+	req->sk = NULL;
+	refcount_set(&req->rsk_refcnt, 0);
+
+	return req;
+}
+#define reqsk_alloc(...)	alloc_hooks(reqsk_alloc_noprof(__VA_ARGS__))
+
+struct request_sock *inet_reqsk_alloc(const struct request_sock_ops *ops,
+				      struct sock *sk_listener,
+				      bool attach_listener)
+{
+	struct request_sock *req = reqsk_alloc(ops, sk_listener,
+					       attach_listener);
+
+	if (req) {
+		struct inet_request_sock *ireq = inet_rsk(req);
+
+		ireq->ireq_opt = NULL;
+#if IS_ENABLED(CONFIG_IPV6)
+		ireq->pktopts = NULL;
+#endif
+		atomic64_set(&ireq->ir_cookie, 0);
+		ireq->ireq_state = TCP_NEW_SYN_RECV;
+		write_pnet(&ireq->ireq_net, sock_net(sk_listener));
+		ireq->ireq_family = sk_listener->sk_family;
+		req->timeout = TCP_TIMEOUT_INIT;
+	}
+
+	return req;
+}
+EXPORT_SYMBOL(inet_reqsk_alloc);
 
 static struct request_sock *inet_reqsk_clone(struct request_sock *req,
 					     struct sock *sk)

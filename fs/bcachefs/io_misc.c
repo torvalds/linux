@@ -125,8 +125,8 @@ err_noprint:
 	bch2_bkey_buf_exit(&old, c);
 
 	if (closure_nr_remaining(&cl) != 1) {
-		bch2_trans_unlock(trans);
-		closure_sync(&cl);
+		bch2_trans_unlock_long(trans);
+		bch2_wait_on_allocator(c, &cl);
 	}
 
 	return ret;

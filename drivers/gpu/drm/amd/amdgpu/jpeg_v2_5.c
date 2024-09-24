@@ -196,8 +196,6 @@ static int jpeg_v2_5_hw_init(void *handle)
 			return r;
 	}
 
-	DRM_INFO("JPEG decode initialized successfully.\n");
-
 	return 0;
 }
 
@@ -664,6 +662,7 @@ static const struct amdgpu_ring_funcs jpeg_v2_5_dec_ring_vm_funcs = {
 	.get_rptr = jpeg_v2_5_dec_ring_get_rptr,
 	.get_wptr = jpeg_v2_5_dec_ring_get_wptr,
 	.set_wptr = jpeg_v2_5_dec_ring_set_wptr,
+	.parse_cs = jpeg_v2_dec_ring_parse_cs,
 	.emit_frame_size =
 		SOC15_FLUSH_GPU_TLB_NUM_WREG * 6 +
 		SOC15_FLUSH_GPU_TLB_NUM_REG_WAIT * 8 +
@@ -693,6 +692,7 @@ static const struct amdgpu_ring_funcs jpeg_v2_6_dec_ring_vm_funcs = {
 	.get_rptr = jpeg_v2_5_dec_ring_get_rptr,
 	.get_wptr = jpeg_v2_5_dec_ring_get_wptr,
 	.set_wptr = jpeg_v2_5_dec_ring_set_wptr,
+	.parse_cs = jpeg_v2_dec_ring_parse_cs,
 	.emit_frame_size =
 		SOC15_FLUSH_GPU_TLB_NUM_WREG * 6 +
 		SOC15_FLUSH_GPU_TLB_NUM_REG_WAIT * 8 +
@@ -728,7 +728,6 @@ static void jpeg_v2_5_set_dec_ring_funcs(struct amdgpu_device *adev)
 		else  /* CHIP_ALDEBARAN */
 			adev->jpeg.inst[i].ring_dec->funcs = &jpeg_v2_6_dec_ring_vm_funcs;
 		adev->jpeg.inst[i].ring_dec->me = i;
-		DRM_INFO("JPEG(%d) JPEG decode is enabled in VM mode\n", i);
 	}
 }
 

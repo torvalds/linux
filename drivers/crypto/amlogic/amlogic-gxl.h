@@ -150,8 +150,6 @@ struct meson_alg_template {
 #endif
 };
 
-int meson_enqueue(struct crypto_async_request *areq, u32 type);
-
 int meson_aes_setkey(struct crypto_skcipher *tfm, const u8 *key,
 		     unsigned int keylen);
 int meson_cipher_init(struct crypto_tfm *tfm);

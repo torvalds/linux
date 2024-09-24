@@ -287,7 +287,7 @@ EXPORT_SYMBOL_GPL(gmap_remove);
  */
 void gmap_enable(struct gmap *gmap)
 {
-	S390_lowcore.gmap = (unsigned long) gmap;
+	get_lowcore()->gmap = (unsigned long)gmap;
 }
 EXPORT_SYMBOL_GPL(gmap_enable);
 
@@ -297,7 +297,7 @@ EXPORT_SYMBOL_GPL(gmap_enable);
  */
 void gmap_disable(struct gmap *gmap)
 {
-	S390_lowcore.gmap = 0UL;
+	get_lowcore()->gmap = 0UL;
 }
 EXPORT_SYMBOL_GPL(gmap_disable);
 
@@ -308,7 +308,7 @@ EXPORT_SYMBOL_GPL(gmap_disable);
  */
 struct gmap *gmap_get_enabled(void)
 {
-	return (struct gmap *) S390_lowcore.gmap;
+	return (struct gmap *)get_lowcore()->gmap;
 }
 EXPORT_SYMBOL_GPL(gmap_get_enabled);
 
@@ -2733,7 +2733,7 @@ static int __s390_enable_skey_hugetlb(pte_t *pte, unsigned long addr,
 {
 	pmd_t *pmd = (pmd_t *)pte;
 	unsigned long start, end;
-	struct page *page = pmd_page(*pmd);
+	struct folio *folio = page_folio(pmd_page(*pmd));
 
 	/*
 	 * The write check makes sure we do not set a key on shared
@@ -2748,7 +2748,7 @@ static int __s390_enable_skey_hugetlb(pte_t *pte, unsigned long addr,
 	start = pmd_val(*pmd) & HPAGE_MASK;
 	end = start + HPAGE_SIZE;
 	__storage_key_init_range(start, end);
-	set_bit(PG_arch_1, &page->flags);
+	set_bit(PG_arch_1, &folio->flags);
 	cond_resched();
 	return 0;
 }
@@ -2841,13 +2841,15 @@ static const struct mm_walk_ops gather_pages_ops = {
  */
 void s390_uv_destroy_pfns(unsigned long count, unsigned long *pfns)
 {
+	struct folio *folio;
 	unsigned long i;
 
 	for (i = 0; i < count; i++) {
+		folio = pfn_folio(pfns[i]);
 		/* we always have an extra reference */
-		uv_destroy_owned_page(pfn_to_phys(pfns[i]));
+		uv_destroy_folio(folio);
 		/* get rid of the extra reference */
-		put_page(pfn_to_page(pfns[i]));
+		folio_put(folio);
 		cond_resched();
 	}
 }

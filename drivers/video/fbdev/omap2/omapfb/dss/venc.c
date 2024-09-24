@@ -903,9 +903,7 @@ static int venc_runtime_resume(struct device *dev)
 	if (r < 0)
 		return r;
 
-	clk_prepare_enable(venc.tv_dac_clk);
-
-	return 0;
+	return clk_prepare_enable(venc.tv_dac_clk);
 }
 
 static const struct dev_pm_ops venc_pm_ops = {

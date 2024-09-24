@@ -127,7 +127,7 @@ static enum hrtimer_restart idle_inject_timer_fn(struct hrtimer *timer)
 	struct idle_inject_device *ii_dev =
 		container_of(timer, struct idle_inject_device, timer);
 
-	if (!ii_dev->update || (ii_dev->update && ii_dev->update()))
+	if (!ii_dev->update || ii_dev->update())
 		idle_inject_wakeup(ii_dev);
 
 	duration_us = READ_ONCE(ii_dev->run_duration_us);

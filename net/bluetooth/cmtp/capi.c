@@ -248,18 +248,10 @@ static void cmtp_recv_interopmsg(struct cmtp_session *session, struct sk_buff *s
 			break;
 
 		case CAPI_FUNCTION_GET_MANUFACTURER:
-			if (skb->len < CAPI_MSG_BASELEN + 15)
-				break;
-
-			if (!info && ctrl) {
-				int len = min_t(uint, CAPI_MANUFACTURER_LEN,
-						skb->data[CAPI_MSG_BASELEN + 14]);
-
-				memset(ctrl->manu, 0, CAPI_MANUFACTURER_LEN);
-				strncpy(ctrl->manu,
-					skb->data + CAPI_MSG_BASELEN + 15, len);
-			}
-
+			if (!info && ctrl && skb->len > CAPI_MSG_BASELEN + 14)
+				strscpy_pad(ctrl->manu,
+					    skb->data + CAPI_MSG_BASELEN + 15,
+					    skb->data[CAPI_MSG_BASELEN + 14]);
 			break;
 
 		case CAPI_FUNCTION_GET_VERSION:
@@ -276,18 +268,10 @@ static void cmtp_recv_interopmsg(struct cmtp_session *session, struct sk_buff *s
 			break;
 
 		case CAPI_FUNCTION_GET_SERIAL_NUMBER:
-			if (skb->len < CAPI_MSG_BASELEN + 17)
-				break;
-
-			if (!info && ctrl) {
-				int len = min_t(uint, CAPI_SERIAL_LEN,
-						skb->data[CAPI_MSG_BASELEN + 16]);
-
-				memset(ctrl->serial, 0, CAPI_SERIAL_LEN);
-				strncpy(ctrl->serial,
-					skb->data + CAPI_MSG_BASELEN + 17, len);
-			}
-
+			if (!info && ctrl && skb->len > CAPI_MSG_BASELEN + 16)
+				strscpy_pad(ctrl->serial,
+					    skb->data + CAPI_MSG_BASELEN + 17,
+					    skb->data[CAPI_MSG_BASELEN + 16]);
 			break;
 		}
 

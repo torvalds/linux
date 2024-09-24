@@ -88,7 +88,6 @@ CONTENTS
 
  (*) The effects of the cpu cache.
 
-     - Cache coherency.
      - Cache coherency vs DMA.
      - Cache coherency vs MMIO.
 
@@ -676,8 +675,6 @@ for example.  See rcu_assign_pointer() and rcu_dereference() in
 include/linux/rcupdate.h.  This permits the current target of an RCU'd
 pointer to be replaced with a new modified target, without the replacement
 target appearing to be incompletely initialised.
-
-See also the subsection on "Cache Coherency" for a more thorough example.
 
 
 CONTROL DEPENDENCIES

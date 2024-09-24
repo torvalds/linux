@@ -441,6 +441,10 @@ typedef void (*hci_req_complete_t)(struct hci_dev *hdev, u8 status, u16 opcode);
 typedef void (*hci_req_complete_skb_t)(struct hci_dev *hdev, u8 status,
 				       u16 opcode, struct sk_buff *skb);
 
+void hci_req_cmd_complete(struct hci_dev *hdev, u16 opcode, u8 status,
+			  hci_req_complete_t *req_complete,
+			  hci_req_complete_skb_t *req_complete_skb);
+
 #define HCI_REQ_START	BIT(0)
 #define HCI_REQ_SKB	BIT(1)
 

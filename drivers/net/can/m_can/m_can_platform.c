@@ -68,7 +68,7 @@ static int iomap_write_fifo(struct m_can_classdev *cdev, int offset,
 	return 0;
 }
 
-static struct m_can_ops m_can_plat_ops = {
+static const struct m_can_ops m_can_plat_ops = {
 	.read_reg = iomap_read_reg,
 	.write_reg = iomap_write_reg,
 	.write_fifo = iomap_write_fifo,
@@ -231,7 +231,7 @@ static struct platform_driver m_can_plat_driver = {
 		.pm     = &m_can_pmops,
 	},
 	.probe = m_can_plat_probe,
-	.remove_new = m_can_plat_remove,
+	.remove = m_can_plat_remove,
 };
 
 module_platform_driver(m_can_plat_driver);

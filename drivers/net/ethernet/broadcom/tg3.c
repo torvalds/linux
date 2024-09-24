@@ -6141,13 +6141,11 @@ static void tg3_refclk_write(struct tg3 *tp, u64 newval)
 
 static inline void tg3_full_lock(struct tg3 *tp, int irq_sync);
 static inline void tg3_full_unlock(struct tg3 *tp);
-static int tg3_get_ts_info(struct net_device *dev, struct ethtool_ts_info *info)
+static int tg3_get_ts_info(struct net_device *dev, struct kernel_ethtool_ts_info *info)
 {
 	struct tg3 *tp = netdev_priv(dev);
 
-	info->so_timestamping = SOF_TIMESTAMPING_TX_SOFTWARE |
-				SOF_TIMESTAMPING_RX_SOFTWARE |
-				SOF_TIMESTAMPING_SOFTWARE;
+	info->so_timestamping = SOF_TIMESTAMPING_TX_SOFTWARE;
 
 	if (tg3_flag(tp, PTP_CAPABLE)) {
 		info->so_timestamping |= SOF_TIMESTAMPING_TX_HARDWARE |
@@ -6157,8 +6155,6 @@ static int tg3_get_ts_info(struct net_device *dev, struct ethtool_ts_info *info)
 
 	if (tp->ptp_clock)
 		info->phc_index = ptp_clock_index(tp->ptp_clock);
-	else
-		info->phc_index = -1;
 
 	info->tx_types = (1 << HWTSTAMP_TX_OFF) | (1 << HWTSTAMP_TX_ON);
 

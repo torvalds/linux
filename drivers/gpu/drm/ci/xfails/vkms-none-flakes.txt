@@ -1,0 +1,90 @@
+# Board Name: vkms
+# Bug Report: https://lore.kernel.org/dri-devel/61ed26af-062c-443c-9df2-d1ee319f3fb0@collabora.com/T/#u
+# Failure Rate: 50
+# IGT Version: 1.28-g0df7b9b97
+# Linux Version: 6.9.0-rc7
+kms_cursor_legacy@long-nonblocking-modeset-vs-cursor-atomic
+
+# Board Name: vkms
+# Bug Report: https://lore.kernel.org/dri-devel/61ed26af-062c-443c-9df2-d1ee319f3fb0@collabora.com/T/#u
+# Failure Rate: 50
+# IGT Version: 1.28-g0df7b9b97
+# Linux Version: 6.9.0-rc7
+kms_flip@basic-flip-vs-wf_vblank
+
+# Board Name: vkms
+# Bug Report: https://lore.kernel.org/dri-devel/61ed26af-062c-443c-9df2-d1ee319f3fb0@collabora.com/T/#u
+# Failure Rate: 50
+# IGT Version: 1.28-g0df7b9b97
+# Linux Version: 6.9.0-rc7
+kms_flip@flip-vs-expired-vblank-interruptible
+
+# Board Name: vkms
+# Bug Report: https://lore.kernel.org/dri-devel/61ed26af-062c-443c-9df2-d1ee319f3fb0@collabora.com/T/#u
+# Failure Rate: 50
+# IGT Version: 1.28-g0df7b9b97
+# Linux Version: 6.9.0-rc7
+kms_flip@flip-vs-wf_vblank-interruptible
+
+# Board Name: vkms
+# Bug Report: https://lore.kernel.org/dri-devel/61ed26af-062c-443c-9df2-d1ee319f3fb0@collabora.com/T/#u
+# Failure Rate: 50
+# IGT Version: 1.28-g0df7b9b97
+# Linux Version: 6.9.0-rc7
+kms_flip@plain-flip-fb-recreate-interruptible
+
+# Board Name: vkms
+# Bug Report: https://lore.kernel.org/dri-devel/61ed26af-062c-443c-9df2-d1ee319f3fb0@collabora.com/T/#u
+# Failure Rate: 50
+# IGT Version: 1.28-g0df7b9b97
+# Linux Version: 6.9.0-rc7
+kms_flip@plain-flip-ts-check
+
+# Board Name: vkms
+# Bug Report: https://lore.kernel.org/dri-devel/61ed26af-062c-443c-9df2-d1ee319f3fb0@collabora.com/T/#u
+# Failure Rate: 50
+# IGT Version: 1.28-g0df7b9b97
+# Linux Version: 6.9.0-rc7
+kms_flip@plain-flip-ts-check-interruptible
+
+# Board Name: vkms
+# Bug Report: https://lore.kernel.org/dri-devel/61ed26af-062c-443c-9df2-d1ee319f3fb0@collabora.com/T/#u
+# Failure Rate: 50
+# IGT Version: 1.28-g0df7b9b97
+# Linux Version: 6.9.0-rc7
+kms_flip@flip-vs-absolute-wf_vblank
+
+# Board Name: vkms
+# Bug Report: https://lore.kernel.org/dri-devel/61ed26af-062c-443c-9df2-d1ee319f3fb0@collabora.com/T/#u
+# Failure Rate: 50
+# IGT Version: 1.28-g0df7b9b97
+# Linux Version: 6.9.0-rc7
+kms_flip@flip-vs-absolute-wf_vblank-interruptible
+
+# Board Name: vkms
+# Bug Report: https://lore.kernel.org/dri-devel/61ed26af-062c-443c-9df2-d1ee319f3fb0@collabora.com/T/#u
+# Failure Rate: 50
+# IGT Version: 1.28-g0df7b9b97
+# Linux Version: 6.9.0-rc7
+kms_flip@flip-vs-blocking-wf-vblank
+
+# Board Name: vkms
+# Bug Report: https://lore.kernel.org/dri-devel/61ed26af-062c-443c-9df2-d1ee319f3fb0@collabora.com/T/#u
+# Failure Rate: 50
+# IGT Version: 1.28-gf13702b8e
+# Linux Version: 6.10.0-rc5
+kms_cursor_legacy@flip-vs-cursor-varying-size
+
+# Board Name: vkms
+# Bug Report: https://lore.kernel.org/dri-devel/61ed26af-062c-443c-9df2-d1ee319f3fb0@collabora.com/T/#u
+# Failure Rate: 50
+# IGT Version: 1.28-gf13702b8e
+# Linux Version: 6.10.0-rc5
+kms_flip@flip-vs-expired-vblank
+
+# Board Name: vkms
+# Bug Report: https://lore.kernel.org/dri-devel/61ed26af-062c-443c-9df2-d1ee319f3fb0@collabora.com/T/#u
+# Failure Rate: 50
+# IGT Version: 1.28-gf13702b8e
+# Linux Version: 6.10.0-rc5
+kms_pipe_crc_basic@nonblocking-crc-frame-sequence

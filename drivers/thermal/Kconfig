@@ -40,6 +40,15 @@ config THERMAL_DEBUGFS
 	  Say Y to allow the thermal subsystem to collect diagnostic
 	  information that can be accessed via debugfs.
 
+config THERMAL_CORE_TESTING
+	tristate "Thermal core testing facility"
+	depends on DEBUG_FS
+	help
+	  Say Y to add a debugfs-based thermal core testing facility.
+	  It allows test thermal zones to be created and populated
+	  with trip points in order to exercise the thermal core
+	  functionality in a controlled way.
+
 config THERMAL_EMERGENCY_POWEROFF_DELAY_MS
 	int "Emergency poweroff delay in milli-seconds"
 	default 0
@@ -343,32 +352,6 @@ config ROCKCHIP_THERMAL
 	  trip point. Cpufreq is used as the cooling device and will throttle
 	  CPUs when the Temperature crosses the passive trip point.
 
-config RCAR_THERMAL
-	tristate "Renesas R-Car thermal driver"
-	depends on ARCH_RENESAS || COMPILE_TEST
-	depends on HAS_IOMEM
-	help
-	  Enable this to plug the R-Car thermal sensor driver into the Linux
-	  thermal framework.
-
-config RCAR_GEN3_THERMAL
-	tristate "Renesas R-Car Gen3 and RZ/G2 thermal driver"
-	depends on ARCH_RENESAS || COMPILE_TEST
-	depends on HAS_IOMEM
-	depends on OF
-	help
-	  Enable this to plug the R-Car Gen3 or RZ/G2 thermal sensor driver into
-	  the Linux thermal framework.
-
-config RZG2L_THERMAL
-	tristate "Renesas RZ/G2L thermal driver"
-	depends on ARCH_RENESAS || COMPILE_TEST
-	depends on HAS_IOMEM
-	depends on OF
-	help
-	  Enable this to plug the RZ/G2L thermal sensor driver into the Linux
-	  thermal framework.
-
 config KIRKWOOD_THERMAL
 	tristate "Temperature sensor on Marvell Kirkwood SoCs"
 	depends on MACH_KIRKWOOD || COMPILE_TEST
@@ -455,9 +438,11 @@ source "drivers/thermal/samsung/Kconfig"
 endmenu
 
 menu "STMicroelectronics thermal drivers"
-depends on (ARCH_STI || ARCH_STM32) && OF
+depends on (ARCH_STI || ARCH_STM32) && THERMAL_OF
 source "drivers/thermal/st/Kconfig"
 endmenu
+
+source "drivers/thermal/renesas/Kconfig"
 
 source "drivers/thermal/tegra/Kconfig"
 

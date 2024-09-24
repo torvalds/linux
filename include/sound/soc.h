@@ -534,10 +534,10 @@ static inline int snd_soc_set_dmi_name(struct snd_soc_card *card,
 
 /* Utility functions to get clock rates from various things */
 int snd_soc_calc_frame_size(int sample_size, int channels, int tdm_slots);
-int snd_soc_params_to_frame_size(struct snd_pcm_hw_params *params);
+int snd_soc_params_to_frame_size(const struct snd_pcm_hw_params *params);
 int snd_soc_calc_bclk(int fs, int sample_size, int channels, int tdm_slots);
-int snd_soc_params_to_bclk(struct snd_pcm_hw_params *parms);
-int snd_soc_tdm_params_to_bclk(struct snd_pcm_hw_params *params,
+int snd_soc_params_to_bclk(const struct snd_pcm_hw_params *parms);
+int snd_soc_tdm_params_to_bclk(const struct snd_pcm_hw_params *params,
 			       int tdm_width, int tdm_slots, int slot_multiple);
 
 /* set runtime hw params */
@@ -675,7 +675,7 @@ struct snd_soc_dai_link_component {
 	const char *name;
 	struct device_node *of_node;
 	const char *dai_name;
-	struct of_phandle_args *dai_args;
+	const struct of_phandle_args *dai_args;
 };
 
 /*
@@ -815,6 +815,7 @@ struct snd_soc_dai_link {
 	/* This DAI link can route to other DAI links at runtime (Frontend)*/
 	unsigned int dynamic:1;
 
+	/* REMOVE ME */
 	/* DPCM capture and Playback support */
 	unsigned int dpcm_capture:1;
 	unsigned int dpcm_playback:1;
@@ -837,7 +838,8 @@ struct snd_soc_dai_link {
 #endif
 };
 
-static inline int snd_soc_link_num_ch_map(struct snd_soc_dai_link *link) {
+static inline int snd_soc_link_num_ch_map(const struct snd_soc_dai_link *link)
+{
 	return max(link->num_cpus, link->num_codecs);
 }
 
@@ -1205,11 +1207,11 @@ struct snd_soc_pcm_runtime {
 	/* bit field */
 	unsigned int pop_wait:1;
 	unsigned int fe_compr:1; /* for Dynamic PCM */
+	unsigned int initialized:1;
 
-	bool initialized;
-
+	/* CPU/Codec/Platform */
 	int num_components;
-	struct snd_soc_component *components[]; /* CPU/Codec/Platform */
+	struct snd_soc_component *components[] __counted_by(num_components);
 };
 
 /* see soc_new_pcm_runtime()  */
@@ -1299,7 +1301,7 @@ struct soc_enum {
 #endif
 };
 
-static inline bool snd_soc_volsw_is_stereo(struct soc_mixer_control *mc)
+static inline bool snd_soc_volsw_is_stereo(const struct soc_mixer_control *mc)
 {
 	if (mc->reg == mc->rreg && mc->shift == mc->rshift)
 		return false;
@@ -1311,7 +1313,7 @@ static inline bool snd_soc_volsw_is_stereo(struct soc_mixer_control *mc)
 	return true;
 }
 
-static inline unsigned int snd_soc_enum_val_to_item(struct soc_enum *e,
+static inline unsigned int snd_soc_enum_val_to_item(const struct soc_enum *e,
 	unsigned int val)
 {
 	unsigned int i;
@@ -1326,7 +1328,7 @@ static inline unsigned int snd_soc_enum_val_to_item(struct soc_enum *e,
 	return 0;
 }
 
-static inline unsigned int snd_soc_enum_item_to_val(struct soc_enum *e,
+static inline unsigned int snd_soc_enum_item_to_val(const struct soc_enum *e,
 	unsigned int item)
 {
 	if (!e->values)
@@ -1401,7 +1403,7 @@ unsigned int snd_soc_daifmt_parse_clock_provider_raw(struct device_node *np,
 	snd_soc_daifmt_clock_provider_from_bitmap(			\
 		snd_soc_daifmt_parse_clock_provider_as_bitmap(np, prefix))
 
-int snd_soc_get_stream_cpu(struct snd_soc_dai_link *dai_link, int stream);
+int snd_soc_get_stream_cpu(const struct snd_soc_dai_link *dai_link, int stream);
 int snd_soc_get_dlc(const struct of_phandle_args *args,
 		    struct snd_soc_dai_link_component *dlc);
 int snd_soc_of_get_dlc(struct device_node *of_node,

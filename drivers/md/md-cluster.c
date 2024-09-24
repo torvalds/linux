@@ -15,6 +15,7 @@
 
 #define LVB_SIZE	64
 #define NEW_DEV_TIMEOUT 5000
+#define WAIT_DLM_LOCK_TIMEOUT (30 * HZ)
 
 struct dlm_lock_resource {
 	dlm_lockspace_t *ls;
@@ -56,6 +57,7 @@ struct resync_info {
 #define		MD_CLUSTER_ALREADY_IN_CLUSTER		6
 #define		MD_CLUSTER_PENDING_RECV_EVENT		7
 #define 	MD_CLUSTER_HOLDING_MUTEX_FOR_RECVD		8
+#define		MD_CLUSTER_WAITING_FOR_SYNC		9
 
 struct md_cluster_info {
 	struct mddev *mddev; /* the md device which md_cluster_info belongs to */
@@ -91,6 +93,7 @@ struct md_cluster_info {
 	sector_t sync_hi;
 };
 
+/* For compatibility, add the new msg_type at the end. */
 enum msg_type {
 	METADATA_UPDATED = 0,
 	RESYNCING,
@@ -100,6 +103,7 @@ enum msg_type {
 	BITMAP_NEEDS_SYNC,
 	CHANGE_CAPACITY,
 	BITMAP_RESIZE,
+	RESYNCING_START,
 };
 
 struct cluster_msg {
@@ -130,8 +134,13 @@ static int dlm_lock_sync(struct dlm_lock_resource *res, int mode)
 			0, sync_ast, res, res->bast);
 	if (ret)
 		return ret;
-	wait_event(res->sync_locking, res->sync_locking_done);
+	ret = wait_event_timeout(res->sync_locking, res->sync_locking_done,
+				WAIT_DLM_LOCK_TIMEOUT);
 	res->sync_locking_done = false;
+	if (!ret) {
+		pr_err("locking DLM '%s' timeout!\n", res->name);
+		return -EBUSY;
+	}
 	if (res->lksb.sb_status == 0)
 		res->mode = mode;
 	return res->lksb.sb_status;
@@ -308,7 +317,7 @@ static void recover_bitmaps(struct md_thread *thread)
 					str, ret);
 			goto clear_bit;
 		}
-		ret = md_bitmap_copy_from_slot(mddev, slot, &lo, &hi, true);
+		ret = mddev->bitmap_ops->copy_from_slot(mddev, slot, &lo, &hi, true);
 		if (ret) {
 			pr_err("md-cluster: Could not copy data from bitmap %d\n", slot);
 			goto clear_bit;
@@ -455,6 +464,7 @@ static void process_suspend_info(struct mddev *mddev,
 		clear_bit(MD_RESYNCING_REMOTE, &mddev->recovery);
 		remove_suspend_info(mddev, slot);
 		set_bit(MD_RECOVERY_NEEDED, &mddev->recovery);
+		clear_bit(MD_CLUSTER_WAITING_FOR_SYNC, &cinfo->state);
 		md_wakeup_thread(mddev->thread);
 		return;
 	}
@@ -487,8 +497,8 @@ static void process_suspend_info(struct mddev *mddev,
 	 * we don't want to trigger lots of WARN.
 	 */
 	if (sb && !(le32_to_cpu(sb->feature_map) & MD_FEATURE_RESHAPE_ACTIVE))
-		md_bitmap_sync_with_cluster(mddev, cinfo->sync_low,
-					    cinfo->sync_hi, lo, hi);
+		mddev->bitmap_ops->sync_with_cluster(mddev, cinfo->sync_low,
+						     cinfo->sync_hi, lo, hi);
 	cinfo->sync_low = lo;
 	cinfo->sync_hi = hi;
 
@@ -525,6 +535,7 @@ static int process_add_new_disk(struct mddev *mddev, struct cluster_msg *cmsg)
 		res = -1;
 	}
 	clear_bit(MD_CLUSTER_WAITING_FOR_NEWDISK, &cinfo->state);
+	set_bit(MD_CLUSTER_WAITING_FOR_SYNC, &cinfo->state);
 	return res;
 }
 
@@ -593,6 +604,9 @@ static int process_recvd_msg(struct mddev *mddev, struct cluster_msg *msg)
 	case CHANGE_CAPACITY:
 		set_capacity_and_notify(mddev->gendisk, mddev->array_sectors);
 		break;
+	case RESYNCING_START:
+		clear_bit(MD_CLUSTER_WAITING_FOR_SYNC, &mddev->cluster_info->state);
+		break;
 	case RESYNCING:
 		set_bit(MD_RESYNCING_REMOTE, &mddev->recovery);
 		process_suspend_info(mddev, le32_to_cpu(msg->slot),
@@ -614,8 +628,9 @@ static int process_recvd_msg(struct mddev *mddev, struct cluster_msg *msg)
 		break;
 	case BITMAP_RESIZE:
 		if (le64_to_cpu(msg->high) != mddev->pers->size(mddev, 0, 0))
-			ret = md_bitmap_resize(mddev->bitmap,
-					    le64_to_cpu(msg->high), 0, 0);
+			ret = mddev->bitmap_ops->resize(mddev,
+							le64_to_cpu(msg->high),
+							0, false);
 		break;
 	default:
 		ret = -1;
@@ -743,7 +758,7 @@ static void unlock_comm(struct md_cluster_info *cinfo)
  */
 static int __sendmsg(struct md_cluster_info *cinfo, struct cluster_msg *cmsg)
 {
-	int error;
+	int error, unlock_error;
 	int slot = cinfo->slot_number - 1;
 
 	cmsg->slot = cpu_to_le32(slot);
@@ -751,7 +766,7 @@ static int __sendmsg(struct md_cluster_info *cinfo, struct cluster_msg *cmsg)
 	error = dlm_lock_sync(cinfo->message_lockres, DLM_LOCK_EX);
 	if (error) {
 		pr_err("md-cluster: failed to get EX on MESSAGE (%d)\n", error);
-		goto failed_message;
+		return error;
 	}
 
 	memcpy(cinfo->message_lockres->lksb.sb_lvbptr, (void *)cmsg,
@@ -781,14 +796,10 @@ static int __sendmsg(struct md_cluster_info *cinfo, struct cluster_msg *cmsg)
 	}
 
 failed_ack:
-	error = dlm_unlock_sync(cinfo->message_lockres);
-	if (unlikely(error != 0)) {
+	while ((unlock_error = dlm_unlock_sync(cinfo->message_lockres)))
 		pr_err("md-cluster: failed convert to NL on MESSAGE(%d)\n",
-			error);
-		/* in case the message can't be released due to some reason */
-		goto failed_ack;
-	}
-failed_message:
+			unlock_error);
+
 	return error;
 }
 
@@ -846,7 +857,7 @@ static int gather_all_resync_info(struct mddev *mddev, int total_slots)
 		}
 
 		/* Read the disk bitmap sb and check if it needs recovery */
-		ret = md_bitmap_copy_from_slot(mddev, i, &lo, &hi, false);
+		ret = mddev->bitmap_ops->copy_from_slot(mddev, i, &lo, &hi, false);
 		if (ret) {
 			pr_warn("md-cluster: Could not gather bitmaps from slot %d", i);
 			lockres_free(bm_lockres);
@@ -887,7 +898,7 @@ static int join(struct mddev *mddev, int nodes)
 	memset(str, 0, 64);
 	sprintf(str, "%pU", mddev->uuid);
 	ret = dlm_new_lockspace(str, mddev->bitmap_info.cluster_name,
-				0, LVB_SIZE, &md_ls_ops, mddev,
+				DLM_LSFL_SOFTIRQ, LVB_SIZE, &md_ls_ops, mddev,
 				&ops_rv, &cinfo->lockspace);
 	if (ret)
 		goto err;
@@ -1133,13 +1144,16 @@ static int update_bitmap_size(struct mddev *mddev, sector_t size)
 
 static int resize_bitmaps(struct mddev *mddev, sector_t newsize, sector_t oldsize)
 {
-	struct bitmap_counts *counts;
-	char str[64];
-	struct dlm_lock_resource *bm_lockres;
-	struct bitmap *bitmap = mddev->bitmap;
-	unsigned long my_pages = bitmap->counts.pages;
+	void *bitmap = mddev->bitmap;
+	struct md_bitmap_stats stats;
+	unsigned long my_pages;
 	int i, rv;
 
+	rv = mddev->bitmap_ops->get_stats(bitmap, &stats);
+	if (rv)
+		return rv;
+
+	my_pages = stats.pages;
 	/*
 	 * We need to ensure all the nodes can grow to a larger
 	 * bitmap size before make the reshaping.
@@ -1149,17 +1163,22 @@ static int resize_bitmaps(struct mddev *mddev, sector_t newsize, sector_t oldsiz
 		return rv;
 
 	for (i = 0; i < mddev->bitmap_info.nodes; i++) {
+		struct dlm_lock_resource *bm_lockres;
+		char str[64];
+
 		if (i == md_cluster_ops->slot_number(mddev))
 			continue;
 
-		bitmap = get_bitmap_from_slot(mddev, i);
+		bitmap = mddev->bitmap_ops->get_from_slot(mddev, i);
 		if (IS_ERR(bitmap)) {
 			pr_err("can't get bitmap from slot %d\n", i);
 			bitmap = NULL;
 			goto out;
 		}
-		counts = &bitmap->counts;
 
+		rv = mddev->bitmap_ops->get_stats(bitmap, &stats);
+		if (rv)
+			goto out;
 		/*
 		 * If we can hold the bitmap lock of one node then
 		 * the slot is not occupied, update the pages.
@@ -1173,21 +1192,21 @@ static int resize_bitmaps(struct mddev *mddev, sector_t newsize, sector_t oldsiz
 		bm_lockres->flags |= DLM_LKF_NOQUEUE;
 		rv = dlm_lock_sync(bm_lockres, DLM_LOCK_PW);
 		if (!rv)
-			counts->pages = my_pages;
+			mddev->bitmap_ops->set_pages(bitmap, my_pages);
 		lockres_free(bm_lockres);
 
-		if (my_pages != counts->pages)
+		if (my_pages != stats.pages)
 			/*
 			 * Let's revert the bitmap size if one node
 			 * can't resize bitmap
 			 */
 			goto out;
-		md_bitmap_free(bitmap);
+		mddev->bitmap_ops->free(bitmap);
 	}
 
 	return 0;
 out:
-	md_bitmap_free(bitmap);
+	mddev->bitmap_ops->free(bitmap);
 	update_bitmap_size(mddev, oldsize);
 	return -1;
 }
@@ -1197,24 +1216,27 @@ out:
  */
 static int cluster_check_sync_size(struct mddev *mddev)
 {
-	int i, rv;
-	bitmap_super_t *sb;
-	unsigned long my_sync_size, sync_size = 0;
-	int node_num = mddev->bitmap_info.nodes;
 	int current_slot = md_cluster_ops->slot_number(mddev);
-	struct bitmap *bitmap = mddev->bitmap;
-	char str[64];
+	int node_num = mddev->bitmap_info.nodes;
 	struct dlm_lock_resource *bm_lockres;
+	struct md_bitmap_stats stats;
+	void *bitmap = mddev->bitmap;
+	unsigned long sync_size = 0;
+	unsigned long my_sync_size;
+	char str[64];
+	int i, rv;
 
-	sb = kmap_atomic(bitmap->storage.sb_page);
-	my_sync_size = sb->sync_size;
-	kunmap_atomic(sb);
+	rv = mddev->bitmap_ops->get_stats(bitmap, &stats);
+	if (rv)
+		return rv;
+
+	my_sync_size = stats.sync_size;
 
 	for (i = 0; i < node_num; i++) {
 		if (i == current_slot)
 			continue;
 
-		bitmap = get_bitmap_from_slot(mddev, i);
+		bitmap = mddev->bitmap_ops->get_from_slot(mddev, i);
 		if (IS_ERR(bitmap)) {
 			pr_err("can't get bitmap from slot %d\n", i);
 			return -1;
@@ -1228,25 +1250,28 @@ static int cluster_check_sync_size(struct mddev *mddev)
 		bm_lockres = lockres_init(mddev, str, NULL, 1);
 		if (!bm_lockres) {
 			pr_err("md-cluster: Cannot initialize %s\n", str);
-			md_bitmap_free(bitmap);
+			mddev->bitmap_ops->free(bitmap);
 			return -1;
 		}
 		bm_lockres->flags |= DLM_LKF_NOQUEUE;
 		rv = dlm_lock_sync(bm_lockres, DLM_LOCK_PW);
 		if (!rv)
-			md_bitmap_update_sb(bitmap);
+			mddev->bitmap_ops->update_sb(bitmap);
 		lockres_free(bm_lockres);
 
-		sb = kmap_atomic(bitmap->storage.sb_page);
-		if (sync_size == 0)
-			sync_size = sb->sync_size;
-		else if (sync_size != sb->sync_size) {
-			kunmap_atomic(sb);
-			md_bitmap_free(bitmap);
+		rv = mddev->bitmap_ops->get_stats(bitmap, &stats);
+		if (rv) {
+			mddev->bitmap_ops->free(bitmap);
+			return rv;
+		}
+
+		if (sync_size == 0) {
+			sync_size = stats.sync_size;
+		} else if (sync_size != stats.sync_size) {
+			mddev->bitmap_ops->free(bitmap);
 			return -1;
 		}
-		kunmap_atomic(sb);
-		md_bitmap_free(bitmap);
+		mddev->bitmap_ops->free(bitmap);
 	}
 
 	return (my_sync_size == sync_size) ? 0 : -1;
@@ -1341,6 +1366,23 @@ static void resync_info_get(struct mddev *mddev, sector_t *lo, sector_t *hi)
 	*lo = cinfo->suspend_lo;
 	*hi = cinfo->suspend_hi;
 	spin_unlock_irq(&cinfo->suspend_lock);
+}
+
+static int resync_status_get(struct mddev *mddev)
+{
+	struct md_cluster_info *cinfo = mddev->cluster_info;
+
+	return test_bit(MD_CLUSTER_WAITING_FOR_SYNC, &cinfo->state);
+}
+
+static int resync_start_notify(struct mddev *mddev)
+{
+	struct md_cluster_info *cinfo = mddev->cluster_info;
+	struct cluster_msg cmsg = {0};
+
+	cmsg.type = cpu_to_le32(RESYNCING_START);
+
+	return sendmsg(cinfo, &cmsg, 0);
 }
 
 static int resync_info_update(struct mddev *mddev, sector_t lo, sector_t hi)
@@ -1558,7 +1600,7 @@ static int gather_bitmaps(struct md_rdev *rdev)
 	for (sn = 0; sn < mddev->bitmap_info.nodes; sn++) {
 		if (sn == (cinfo->slot_number - 1))
 			continue;
-		err = md_bitmap_copy_from_slot(mddev, sn, &lo, &hi, false);
+		err = mddev->bitmap_ops->copy_from_slot(mddev, sn, &lo, &hi, false);
 		if (err) {
 			pr_warn("md-cluster: Could not gather bitmaps from slot %d", sn);
 			goto out;
@@ -1570,13 +1612,15 @@ out:
 	return err;
 }
 
-static struct md_cluster_operations cluster_ops = {
+static const struct md_cluster_operations cluster_ops = {
 	.join   = join,
 	.leave  = leave,
 	.slot_number = slot_number,
 	.resync_start = resync_start,
 	.resync_finish = resync_finish,
 	.resync_info_update = resync_info_update,
+	.resync_start_notify = resync_start_notify,
+	.resync_status_get = resync_status_get,
 	.resync_info_get = resync_info_get,
 	.metadata_update_start = metadata_update_start,
 	.metadata_update_finish = metadata_update_finish,

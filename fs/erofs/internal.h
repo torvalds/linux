@@ -49,7 +49,7 @@ typedef u32 erofs_blk_t;
 struct erofs_device_info {
 	char *path;
 	struct erofs_fscache *fscache;
-	struct file *bdev_file;
+	struct file *file;
 	struct dax_device *dax_dev;
 	u64 dax_part_off;
 
@@ -130,6 +130,7 @@ struct erofs_sb_info {
 
 	struct erofs_sb_lz4_info lz4;
 #endif	/* CONFIG_EROFS_FS_ZIP */
+	struct file *fdev;
 	struct inode *packed_inode;
 	struct erofs_dev_context *devs;
 	struct dax_device *dax_dev;
@@ -190,9 +191,15 @@ struct erofs_sb_info {
 #define set_opt(opt, option)	((opt)->mount_opt |= EROFS_MOUNT_##option)
 #define test_opt(opt, option)	((opt)->mount_opt & EROFS_MOUNT_##option)
 
+static inline bool erofs_is_fileio_mode(struct erofs_sb_info *sbi)
+{
+	return IS_ENABLED(CONFIG_EROFS_FS_BACKED_BY_FILE) && sbi->fdev;
+}
+
 static inline bool erofs_is_fscache_mode(struct super_block *sb)
 {
-	return IS_ENABLED(CONFIG_EROFS_FS_ONDEMAND) && !sb->s_bdev;
+	return IS_ENABLED(CONFIG_EROFS_FS_ONDEMAND) &&
+			!erofs_is_fileio_mode(EROFS_SB(sb)) && !sb->s_bdev;
 }
 
 enum {
@@ -220,7 +227,7 @@ struct erofs_buf {
 };
 #define __EROFS_BUF_INITIALIZER	((struct erofs_buf){ .page = NULL })
 
-#define erofs_blknr(sb, addr)	((addr) >> (sb)->s_blocksize_bits)
+#define erofs_blknr(sb, addr)	((erofs_blk_t)((addr) >> (sb)->s_blocksize_bits))
 #define erofs_blkoff(sb, addr)	((addr) & ((sb)->s_blocksize - 1))
 #define erofs_pos(sb, blk)	((erofs_off_t)(blk) << (sb)->s_blocksize_bits)
 #define erofs_iblks(i)	(round_up((i)->i_size, i_blocksize(i)) >> (i)->i_blkbits)
@@ -312,17 +319,13 @@ static inline unsigned int erofs_inode_datalayout(unsigned int ifmt)
 	return (ifmt >> EROFS_I_DATALAYOUT_BIT) & EROFS_I_DATALAYOUT_MASK;
 }
 
-/*
- * Different from grab_cache_page_nowait(), reclaiming is never triggered
- * when allocating new pages.
- */
-static inline
-struct page *erofs_grab_cache_page_nowait(struct address_space *mapping,
-					  pgoff_t index)
+/* reclaiming is never triggered when allocating new folios. */
+static inline struct folio *erofs_grab_folio_nowait(struct address_space *as,
+						    pgoff_t index)
 {
-	return pagecache_get_page(mapping, index,
+	return __filemap_get_folio(as, index,
 			FGP_LOCK|FGP_CREAT|FGP_NOFS|FGP_NOWAIT,
-			readahead_gfp_mask(mapping) & ~__GFP_RECLAIM);
+			readahead_gfp_mask(as) & ~__GFP_RECLAIM);
 }
 
 /* Has a disk mapping */
@@ -369,6 +372,7 @@ struct erofs_map_dev {
 	struct erofs_fscache *m_fscache;
 	struct block_device *m_bdev;
 	struct dax_device *m_daxdev;
+	struct file *m_fp;
 	u64 m_dax_part_off;
 
 	erofs_off_t m_pa;
@@ -377,7 +381,8 @@ struct erofs_map_dev {
 
 extern const struct super_operations erofs_sops;
 
-extern const struct address_space_operations erofs_raw_access_aops;
+extern const struct address_space_operations erofs_aops;
+extern const struct address_space_operations erofs_fileio_aops;
 extern const struct address_space_operations z_erofs_aops;
 extern const struct address_space_operations erofs_fscache_access_aops;
 
@@ -408,6 +413,9 @@ int erofs_map_dev(struct super_block *sb, struct erofs_map_dev *dev);
 int erofs_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 		 u64 start, u64 len);
 int erofs_map_blocks(struct inode *inode, struct erofs_map_blocks *map);
+void erofs_onlinefolio_init(struct folio *folio);
+void erofs_onlinefolio_split(struct folio *folio);
+void erofs_onlinefolio_end(struct folio *folio, int err);
 struct inode *erofs_iget(struct super_block *sb, erofs_nid_t nid);
 int erofs_getattr(struct mnt_idmap *idmap, const struct path *path,
 		  struct kstat *stat, u32 request_mask,
@@ -458,8 +466,8 @@ void erofs_shrinker_register(struct super_block *sb);
 void erofs_shrinker_unregister(struct super_block *sb);
 int __init erofs_init_shrinker(void);
 void erofs_exit_shrinker(void);
-int __init z_erofs_init_zip_subsystem(void);
-void z_erofs_exit_zip_subsystem(void);
+int __init z_erofs_init_subsystem(void);
+void z_erofs_exit_subsystem(void);
 int erofs_try_to_free_all_cached_folios(struct erofs_sb_info *sbi,
 					struct erofs_workgroup *egrp);
 int z_erofs_map_blocks_iter(struct inode *inode, struct erofs_map_blocks *map,
@@ -476,36 +484,18 @@ static inline void erofs_shrinker_register(struct super_block *sb) {}
 static inline void erofs_shrinker_unregister(struct super_block *sb) {}
 static inline int erofs_init_shrinker(void) { return 0; }
 static inline void erofs_exit_shrinker(void) {}
-static inline int z_erofs_init_zip_subsystem(void) { return 0; }
-static inline void z_erofs_exit_zip_subsystem(void) {}
-static inline int z_erofs_gbuf_init(void) { return 0; }
-static inline void z_erofs_gbuf_exit(void) {}
+static inline int z_erofs_init_subsystem(void) { return 0; }
+static inline void z_erofs_exit_subsystem(void) {}
 static inline int erofs_init_managed_cache(struct super_block *sb) { return 0; }
 #endif	/* !CONFIG_EROFS_FS_ZIP */
 
-#ifdef CONFIG_EROFS_FS_ZIP_LZMA
-int __init z_erofs_lzma_init(void);
-void z_erofs_lzma_exit(void);
+#ifdef CONFIG_EROFS_FS_BACKED_BY_FILE
+struct bio *erofs_fileio_bio_alloc(struct erofs_map_dev *mdev);
+void erofs_fileio_submit_bio(struct bio *bio);
 #else
-static inline int z_erofs_lzma_init(void) { return 0; }
-static inline int z_erofs_lzma_exit(void) { return 0; }
-#endif	/* !CONFIG_EROFS_FS_ZIP_LZMA */
-
-#ifdef CONFIG_EROFS_FS_ZIP_DEFLATE
-int __init z_erofs_deflate_init(void);
-void z_erofs_deflate_exit(void);
-#else
-static inline int z_erofs_deflate_init(void) { return 0; }
-static inline int z_erofs_deflate_exit(void) { return 0; }
-#endif	/* !CONFIG_EROFS_FS_ZIP_DEFLATE */
-
-#ifdef CONFIG_EROFS_FS_ZIP_ZSTD
-int __init z_erofs_zstd_init(void);
-void z_erofs_zstd_exit(void);
-#else
-static inline int z_erofs_zstd_init(void) { return 0; }
-static inline int z_erofs_zstd_exit(void) { return 0; }
-#endif	/* !CONFIG_EROFS_FS_ZIP_ZSTD */
+static inline struct bio *erofs_fileio_bio_alloc(struct erofs_map_dev *mdev) { return NULL; }
+static inline void erofs_fileio_submit_bio(struct bio *bio) {}
+#endif
 
 #ifdef CONFIG_EROFS_FS_ONDEMAND
 int erofs_fscache_register_fs(struct super_block *sb);

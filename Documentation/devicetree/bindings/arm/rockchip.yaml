@@ -96,6 +96,13 @@ properties:
           - const: coolpi,pi-cm5
           - const: rockchip,rk3588
 
+      - description: Cool Pi CM5 GenBook
+        items:
+          - enum:
+              - coolpi,pi-cm5-genbook
+          - const: coolpi,pi-cm5
+          - const: rockchip,rk3588
+
       - description: Cool Pi 4 Model B
         items:
           - const: coolpi,pi-4b
@@ -146,6 +153,12 @@ properties:
         items:
           - const: engicam,px30-core-edimm2.2
           - const: engicam,px30-core
+          - const: rockchip,px30
+
+      - description: Firefly Core-PX30-JD4 on MB-JD4-PX30 baseboard
+        items:
+          - const: firefly,px30-jd4-core-mb
+          - const: firefly,px30-jd4-core
           - const: rockchip,px30
 
       - description: Firefly Firefly-RK3288
@@ -216,6 +229,7 @@ properties:
               - friendlyarm,nanopi-r2c
               - friendlyarm,nanopi-r2c-plus
               - friendlyarm,nanopi-r2s
+              - friendlyarm,nanopi-r2s-plus
           - const: rockchip,rk3328
 
       - description: FriendlyElec NanoPi4 series boards
@@ -243,10 +257,24 @@ properties:
               - friendlyarm,nanopi-r6s
           - const: rockchip,rk3588s
 
-      - description: FriendlyElec NanoPC T6
+      - description: FriendlyElec NanoPC T6 series boards
         items:
-          - const: friendlyarm,nanopc-t6
+          - enum:
+              - friendlyarm,nanopc-t6
+              - friendlyarm,nanopc-t6-lts
           - const: rockchip,rk3588
+
+      - description: FriendlyElec CM3588-based boards
+        items:
+          - enum:
+              - friendlyarm,cm3588-nas
+          - const: friendlyarm,cm3588
+          - const: rockchip,rk3588
+
+      - description: GameForce Ace
+        items:
+          - const: gameforce,ace
+          - const: rockchip,rk3588s
 
       - description: GameForce Chi
         items:
@@ -574,8 +602,18 @@ properties:
 
       - description: Hardkernel Odroid M1
         items:
-          - const: rockchip,rk3568-odroid-m1
+          - const: hardkernel,odroid-m1
           - const: rockchip,rk3568
+
+      - description: Hardkernel Odroid M1S
+        items:
+          - const: hardkernel,odroid-m1s
+          - const: rockchip,rk3566
+
+      - description: Hardkernel Odroid M2
+        items:
+          - const: hardkernel,odroid-m2
+          - const: rockchip,rk3588s
 
       - description: Hugsun X99 TV Box
         items:
@@ -615,6 +653,11 @@ properties:
           - const: leez,p710
           - const: rockchip,rk3399
 
+      - description: LCKFB Taishan Pi RK3566
+        items:
+          - const: lckfb,tspi-rk3566
+          - const: rockchip,rk3566
+
       - description: Lunzn FastRhino R66S / R68S
         items:
           - enum:
@@ -626,6 +669,11 @@ properties:
         items:
           - const: mqmaker,miqi
           - const: rockchip,rk3288
+
+      - description: Neardi LBA3368
+        items:
+          - const: neardi,lba3368
+          - const: rockchip,rk3368
 
       - description: Netxeon R89 board
         items:
@@ -799,10 +847,20 @@ properties:
           - const: radxa,rock3a
           - const: rockchip,rk3568
 
+      - description: Radxa ROCK 3B
+        items:
+          - const: radxa,rock-3b
+          - const: rockchip,rk3568
+
       - description: Radxa ROCK 3C
         items:
           - const: radxa,rock-3c
           - const: rockchip,rk3566
+
+      - description: Radxa ROCK 5 ITX
+        items:
+          - const: radxa,rock-5-itx
+          - const: rockchip,rk3588
 
       - description: Radxa ROCK 5A
         items:
@@ -813,6 +871,18 @@ properties:
         items:
           - const: radxa,rock-5b
           - const: rockchip,rk3588
+
+      - description: Radxa ROCK S0
+        items:
+          - const: radxa,rock-s0
+          - const: rockchip,rk3308
+
+      - description: Radxa ZERO 3W/3E
+        items:
+          - enum:
+              - radxa,zero-3e
+              - radxa,zero-3w
+          - const: rockchip,rk3566
 
       - description: Rikomagic MK808 v1
         items:
@@ -958,6 +1028,14 @@ properties:
         items:
           - const: wolfvision,rk3568-pf5
           - const: rockchip,rk3568
+
+      - description: Xunlong Orange Pi 3B
+        items:
+          - enum:
+              - xunlong,orangepi-3b-v1.1
+              - xunlong,orangepi-3b-v2.1
+          - const: xunlong,orangepi-3b
+          - const: rockchip,rk3566
 
       - description: Xunlong Orange Pi 5 Plus
         items:

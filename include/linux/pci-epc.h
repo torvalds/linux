@@ -128,6 +128,7 @@ struct pci_epc_mem {
  * @group: configfs group representing the PCI EPC device
  * @lock: mutex to protect pci_epc ops
  * @function_num_map: bitmap to manage physical function number
+ * @domain_nr: PCI domain number of the endpoint controller
  * @init_complete: flag to indicate whether the EPC initialization is complete
  *                 or not
  */
@@ -145,10 +146,12 @@ struct pci_epc {
 	/* mutex to protect against concurrent access of EP controller */
 	struct mutex			lock;
 	unsigned long			function_num_map;
+	int				domain_nr;
 	bool				init_complete;
 };
 
 /**
+ * enum pci_epc_bar_type - configurability of endpoint BAR
  * @BAR_PROGRAMMABLE: The BAR mask can be configured by the EPC.
  * @BAR_FIXED: The BAR mask is fixed by the hardware.
  * @BAR_RESERVED: The BAR should not be touched by an EPF driver.
@@ -197,6 +200,8 @@ struct pci_epc_features {
 
 #define to_pci_epc(device) container_of((device), struct pci_epc, dev)
 
+#ifdef CONFIG_PCI_ENDPOINT
+
 #define pci_epc_create(dev, ops)    \
 		__pci_epc_create((dev), (ops), THIS_MODULE)
 #define devm_pci_epc_create(dev, ops)    \
@@ -226,7 +231,8 @@ void pci_epc_linkup(struct pci_epc *epc);
 void pci_epc_linkdown(struct pci_epc *epc);
 void pci_epc_init_notify(struct pci_epc *epc);
 void pci_epc_notify_pending_init(struct pci_epc *epc, struct pci_epf *epf);
-void pci_epc_bme_notify(struct pci_epc *epc);
+void pci_epc_deinit_notify(struct pci_epc *epc);
+void pci_epc_bus_master_enable_notify(struct pci_epc *epc);
 void pci_epc_remove_epf(struct pci_epc *epc, struct pci_epf *epf,
 			enum pci_epc_interface_type type);
 int pci_epc_write_header(struct pci_epc *epc, u8 func_no, u8 vfunc_no,
@@ -272,4 +278,14 @@ void __iomem *pci_epc_mem_alloc_addr(struct pci_epc *epc,
 				     phys_addr_t *phys_addr, size_t size);
 void pci_epc_mem_free_addr(struct pci_epc *epc, phys_addr_t phys_addr,
 			   void __iomem *virt_addr, size_t size);
+
+#else
+static inline void pci_epc_init_notify(struct pci_epc *epc)
+{
+}
+
+static inline void pci_epc_deinit_notify(struct pci_epc *epc)
+{
+}
+#endif /* CONFIG_PCI_ENDPOINT */
 #endif /* __LINUX_PCI_EPC_H */

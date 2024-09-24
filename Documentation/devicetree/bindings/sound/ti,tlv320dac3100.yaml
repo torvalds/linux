@@ -1,0 +1,127 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/sound/ti,tlv320dac3100.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Texas Instruments - tlv320aic31xx Codec module
+
+maintainers:
+  - Shenghao Ding <shenghao-ding@ti.com>
+
+description: |
+  CODEC output pins:
+    * HPL
+    * HPR
+    * SPL, devices with stereo speaker amp
+    * SPR, devices with stereo speaker amp
+    * SPK, devices with mono speaker amp
+    * MICBIAS
+
+  CODEC input pins:
+    * MIC1LP, devices with ADC
+    * MIC1RP, devices with ADC
+    * MIC1LM, devices with ADC
+    * AIN1, devices without ADC
+    * AIN2, devices without ADC
+
+  The pins can be used in referring sound node's audio-routing property.
+
+properties:
+  compatible:
+    enum:
+      - ti,tlv320aic310x # - Generic TLV320AIC31xx with mono speaker amp
+      - ti,tlv320aic311x # - Generic TLV320AIC31xx with stereo speaker amp
+      - ti,tlv320aic3100 # - TLV320AIC3100 (mono speaker amp, no MiniDSP)
+      - ti,tlv320aic3110 # - TLV320AIC3110 (stereo speaker amp, no MiniDSP)
+      - ti,tlv320aic3120 # - TLV320AIC3120 (mono speaker amp, MiniDSP)
+      - ti,tlv320aic3111 # - TLV320AIC3111 (stereo speaker amp, MiniDSP)
+      - ti,tlv320dac3100 # - TLV320DAC3100 (no ADC, mono speaker amp, no MiniDSP)
+      - ti,tlv320dac3101 # - TLV320DAC3101 (no ADC, stereo speaker amp, no MiniDSP)
+
+  reg:
+    maxItems: 1
+
+  '#sound-dai-cells':
+    const: 0
+
+  HPVDD-supply: true
+
+  SPRVDD-supply: true
+
+  SPLVDD-supply: true
+
+  AVDD-supply: true
+
+  IOVDD-supply: true
+
+  DVDD-supply: true
+
+  reset-gpios:
+    description: GPIO specification for the active low RESET input.
+
+  ai31xx-micbias-vg:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    default: 1
+    enum: [1, 2, 3]
+    description: |
+      MicBias Voltage setting
+        1 or MICBIAS_2_0V - MICBIAS output is powered to 2.0V
+        2 or MICBIAS_2_5V - MICBIAS output is powered to 2.5V
+        3 or MICBIAS_AVDD - MICBIAS output is connected to AVDD
+
+  ai31xx-ocmv:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [0, 1, 2, 3]
+    description: |
+      output common-mode voltage setting
+        0 - 1.35V,
+        1 - 1.5V,
+        2 - 1.65V,
+        3 - 1.8V
+
+  gpio-reset:
+    description: gpio pin number used for codec reset
+    deprecated: true
+
+
+required:
+  - compatible
+  - reg
+  - HPVDD-supply
+  - SPRVDD-supply
+  - SPLVDD-supply
+  - AVDD-supply
+  - IOVDD-supply
+  - DVDD-supply
+
+allOf:
+  - $ref: dai-common.yaml#
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+    #include <dt-bindings/sound/tlv320aic31xx.h>
+
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        sound@18 {
+            compatible = "ti,tlv320aic311x";
+            reg = <0x18>;
+
+            ai31xx-micbias-vg = <MICBIAS_2_0V>;
+            reset-gpios = <&gpio1 17 GPIO_ACTIVE_LOW>;
+
+            HPVDD-supply = <&regulator>;
+            SPRVDD-supply = <&regulator>;
+            SPLVDD-supply = <&regulator>;
+            AVDD-supply = <&regulator>;
+            IOVDD-supply = <&regulator>;
+            DVDD-supply = <&regulator>;
+       };
+    };
+

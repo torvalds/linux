@@ -497,8 +497,12 @@ static size_t iwl_get_lari_config_cmd_size(u8 cmd_ver)
 	size_t cmd_size;
 
 	switch (cmd_ver) {
-	case 10:
+	case 12:
+	case 11:
 		cmd_size = sizeof(struct iwl_lari_config_change_cmd);
+		break;
+	case 10:
+		cmd_size = sizeof(struct iwl_lari_config_change_cmd_v10);
 		break;
 	case 9:
 	case 8:
@@ -560,6 +564,9 @@ int iwl_fill_lari_config(struct iwl_fw_runtime *fwrt,
 	if (!ret) {
 		if (cmd_ver < 8)
 			value &= ~ACTIVATE_5G2_IN_WW_MASK;
+		if (cmd_ver < 12)
+			value &= CHAN_STATE_ACTIVE_BITMAP_CMD_V11;
+
 		cmd->chan_state_active_bitmap = cpu_to_le32(value);
 	}
 
@@ -580,6 +587,10 @@ int iwl_fill_lari_config(struct iwl_fw_runtime *fwrt,
 	if (!ret)
 		cmd->oem_320mhz_allow_bitmap = cpu_to_le32(value);
 
+	ret = iwl_bios_get_dsm(fwrt, DSM_FUNC_ENABLE_11BE, &value);
+	if (!ret)
+		cmd->oem_11be_allow_bitmap = cpu_to_le32(value);
+
 	if (cmd->config_bitmap ||
 	    cmd->oem_uhb_allow_bitmap ||
 	    cmd->oem_11ax_allow_bitmap ||
@@ -587,7 +598,8 @@ int iwl_fill_lari_config(struct iwl_fw_runtime *fwrt,
 	    cmd->chan_state_active_bitmap ||
 	    cmd->force_disable_channels_bitmap ||
 	    cmd->edt_bitmap ||
-	    cmd->oem_320mhz_allow_bitmap) {
+	    cmd->oem_320mhz_allow_bitmap ||
+	    cmd->oem_11be_allow_bitmap) {
 		IWL_DEBUG_RADIO(fwrt,
 				"sending LARI_CONFIG_CHANGE, config_bitmap=0x%x, oem_11ax_allow_bitmap=0x%x\n",
 				le32_to_cpu(cmd->config_bitmap),
@@ -605,6 +617,9 @@ int iwl_fill_lari_config(struct iwl_fw_runtime *fwrt,
 				"sending LARI_CONFIG_CHANGE, edt_bitmap=0x%x, oem_320mhz_allow_bitmap=0x%x\n",
 				le32_to_cpu(cmd->edt_bitmap),
 				le32_to_cpu(cmd->oem_320mhz_allow_bitmap));
+		IWL_DEBUG_RADIO(fwrt,
+				"sending LARI_CONFIG_CHANGE, oem_11be_allow_bitmap=0x%x\n",
+				le32_to_cpu(cmd->oem_11be_allow_bitmap));
 	} else {
 		return 1;
 	}
@@ -619,3 +634,19 @@ int iwl_bios_get_dsm(struct iwl_fw_runtime *fwrt, enum iwl_dsm_funcs func,
 	GET_BIOS_TABLE(dsm, fwrt, func, value);
 }
 IWL_EXPORT_SYMBOL(iwl_bios_get_dsm);
+
+bool iwl_puncturing_is_allowed_in_bios(u32 puncturing, u16 mcc)
+{
+	/* Some kind of regulatory mess means we need to currently disallow
+	 * puncturing in the US and Canada unless enabled in BIOS.
+	 */
+	switch (mcc) {
+	case IWL_MCC_US:
+		return puncturing & IWL_UEFI_CNV_PUNCTURING_USA_EN_MSK;
+	case IWL_MCC_CANADA:
+		return puncturing & IWL_UEFI_CNV_PUNCTURING_CANADA_EN_MSK;
+	default:
+		return true;
+	}
+}
+IWL_EXPORT_SYMBOL(iwl_puncturing_is_allowed_in_bios);

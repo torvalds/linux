@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /******************************************************************************
  *
- * Copyright(c) 2003 - 2014, 2018 - 2022  Intel Corporation. All rights reserved.
+ * Copyright(c) 2003 - 2014, 2018 - 2022 Intel Corporation. All rights reserved.
+ * Copyright(c) 2024 Intel Corporation. All rights reserved.
  * Copyright(c) 2015 Intel Deutschland GmbH
  *
  * Portions of this file are derived from the ipw3945 project, as well
@@ -25,8 +26,7 @@
 
 #include <asm/div64.h>
 
-#include "iwl-eeprom-read.h"
-#include "iwl-eeprom-parse.h"
+#include "iwl-nvm-utils.h"
 #include "iwl-io.h"
 #include "iwl-trans.h"
 #include "iwl-op-mode.h"
@@ -1324,8 +1324,6 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 		pr_err("Unsupported amsdu_size: %d\n",
 		       iwlwifi_mod_params.amsdu_size);
 	}
-
-	trans_cfg.cmd_q_wdg_timeout = IWL_WATCHDOG_DISABLED;
 
 	trans_cfg.command_groups = iwl_dvm_groups;
 	trans_cfg.command_groups_size = ARRAY_SIZE(iwl_dvm_groups);

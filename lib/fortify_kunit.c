@@ -234,8 +234,6 @@ static void fortify_test_alloc_size_##allocator##_dynamic(struct kunit *test) \
 	checker(expected_size,						\
 		kmalloc_array_node(alloc_size, 1, gfp, NUMA_NO_NODE),	\
 		kfree(p));						\
-	checker(expected_size, __kmalloc(alloc_size, gfp),		\
-		kfree(p));						\
 									\
 	orig = kmalloc(alloc_size, gfp);				\
 	KUNIT_EXPECT_TRUE(test, orig != NULL);				\
@@ -308,8 +306,7 @@ DEFINE_ALLOC_SIZE_TEST_PAIR(vmalloc)
 	orig = kvmalloc(prev_size, gfp);				\
 	KUNIT_EXPECT_TRUE(test, orig != NULL);				\
 	checker(((expected_pages) * PAGE_SIZE) * 2,			\
-		kvrealloc(orig, prev_size,				\
-			  ((alloc_pages) * PAGE_SIZE) * 2, gfp),	\
+		kvrealloc(orig, ((alloc_pages) * PAGE_SIZE) * 2, gfp),	\
 		kvfree(p));						\
 } while (0)
 DEFINE_ALLOC_SIZE_TEST_PAIR(kvmalloc)
@@ -910,10 +907,9 @@ static void fortify_test_##memfunc(struct kunit *test)		\
 	memfunc(zero.buf, srcB, 0 + unconst);			\
 	KUNIT_EXPECT_EQ(test, fortify_read_overflows, 0);	\
 	KUNIT_EXPECT_EQ(test, fortify_write_overflows, 0);	\
-	/* We currently explicitly ignore zero-sized dests. */	\
 	memfunc(zero.buf, srcB, 1 + unconst);			\
 	KUNIT_EXPECT_EQ(test, fortify_read_overflows, 0);	\
-	KUNIT_EXPECT_EQ(test, fortify_write_overflows, 0);	\
+	KUNIT_EXPECT_EQ(test, fortify_write_overflows, 1);	\
 }
 __fortify_test(memcpy)
 __fortify_test(memmove)
@@ -1096,4 +1092,5 @@ static struct kunit_suite fortify_test_suite = {
 
 kunit_test_suite(fortify_test_suite);
 
+MODULE_DESCRIPTION("Runtime test cases for CONFIG_FORTIFY_SOURCE");
 MODULE_LICENSE("GPL");

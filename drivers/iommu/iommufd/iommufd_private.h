@@ -11,6 +11,7 @@
 #include <linux/iommu.h>
 #include <linux/iova_bitmap.h>
 #include <uapi/linux/iommufd.h>
+#include "../iommu-priv.h"
 
 struct iommu_domain;
 struct iommu_group;
@@ -128,6 +129,7 @@ enum iommufd_object_type {
 	IOMMUFD_OBJ_HWPT_NESTED,
 	IOMMUFD_OBJ_IOAS,
 	IOMMUFD_OBJ_ACCESS,
+	IOMMUFD_OBJ_FAULT,
 #ifdef CONFIG_IOMMUFD_TEST
 	IOMMUFD_OBJ_SELFTEST,
 #endif
@@ -292,6 +294,7 @@ int iommufd_check_iova_range(struct io_pagetable *iopt,
 struct iommufd_hw_pagetable {
 	struct iommufd_object obj;
 	struct iommu_domain *domain;
+	struct iommufd_fault *fault;
 };
 
 struct iommufd_hwpt_paging {
@@ -395,6 +398,9 @@ struct iommufd_device {
 	/* always the physical device */
 	struct device *dev;
 	bool enforce_cache_coherency;
+	/* protect iopf_enabled counter */
+	struct mutex iopf_lock;
+	unsigned int iopf_enabled;
 };
 
 static inline struct iommufd_device *
@@ -425,6 +431,80 @@ void iopt_remove_access(struct io_pagetable *iopt,
 			struct iommufd_access *access,
 			u32 iopt_access_list_id);
 void iommufd_access_destroy_object(struct iommufd_object *obj);
+
+/*
+ * An iommufd_fault object represents an interface to deliver I/O page faults
+ * to the user space. These objects are created/destroyed by the user space and
+ * associated with hardware page table objects during page-table allocation.
+ */
+struct iommufd_fault {
+	struct iommufd_object obj;
+	struct iommufd_ctx *ictx;
+	struct file *filep;
+
+	/* The lists of outstanding faults protected by below mutex. */
+	struct mutex mutex;
+	struct list_head deliver;
+	struct xarray response;
+
+	struct wait_queue_head wait_queue;
+};
+
+struct iommufd_attach_handle {
+	struct iommu_attach_handle handle;
+	struct iommufd_device *idev;
+};
+
+/* Convert an iommu attach handle to iommufd handle. */
+#define to_iommufd_handle(hdl)	container_of(hdl, struct iommufd_attach_handle, handle)
+
+static inline struct iommufd_fault *
+iommufd_get_fault(struct iommufd_ucmd *ucmd, u32 id)
+{
+	return container_of(iommufd_get_object(ucmd->ictx, id,
+					       IOMMUFD_OBJ_FAULT),
+			    struct iommufd_fault, obj);
+}
+
+int iommufd_fault_alloc(struct iommufd_ucmd *ucmd);
+void iommufd_fault_destroy(struct iommufd_object *obj);
+int iommufd_fault_iopf_handler(struct iopf_group *group);
+
+int iommufd_fault_domain_attach_dev(struct iommufd_hw_pagetable *hwpt,
+				    struct iommufd_device *idev);
+void iommufd_fault_domain_detach_dev(struct iommufd_hw_pagetable *hwpt,
+				     struct iommufd_device *idev);
+int iommufd_fault_domain_replace_dev(struct iommufd_device *idev,
+				     struct iommufd_hw_pagetable *hwpt,
+				     struct iommufd_hw_pagetable *old);
+
+static inline int iommufd_hwpt_attach_device(struct iommufd_hw_pagetable *hwpt,
+					     struct iommufd_device *idev)
+{
+	if (hwpt->fault)
+		return iommufd_fault_domain_attach_dev(hwpt, idev);
+
+	return iommu_attach_group(hwpt->domain, idev->igroup->group);
+}
+
+static inline void iommufd_hwpt_detach_device(struct iommufd_hw_pagetable *hwpt,
+					      struct iommufd_device *idev)
+{
+	if (hwpt->fault)
+		iommufd_fault_domain_detach_dev(hwpt, idev);
+
+	iommu_detach_group(hwpt->domain, idev->igroup->group);
+}
+
+static inline int iommufd_hwpt_replace_device(struct iommufd_device *idev,
+					      struct iommufd_hw_pagetable *hwpt,
+					      struct iommufd_hw_pagetable *old)
+{
+	if (old->fault || hwpt->fault)
+		return iommufd_fault_domain_replace_dev(idev, hwpt, old);
+
+	return iommu_group_replace_domain(idev->igroup->group, hwpt->domain);
+}
 
 #ifdef CONFIG_IOMMUFD_TEST
 int iommufd_test(struct iommufd_ucmd *ucmd);

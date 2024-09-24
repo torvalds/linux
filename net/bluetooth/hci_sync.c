@@ -12,7 +12,6 @@
 #include <net/bluetooth/hci_core.h>
 #include <net/bluetooth/mgmt.h>
 
-#include "hci_request.h"
 #include "hci_codec.h"
 #include "hci_debugfs.h"
 #include "smp.h"
@@ -49,9 +48,8 @@ static void hci_cmd_sync_complete(struct hci_dev *hdev, u8 result, u16 opcode,
 	wake_up_interruptible(&hdev->req_wait_q);
 }
 
-static struct sk_buff *hci_cmd_sync_alloc(struct hci_dev *hdev, u16 opcode,
-					  u32 plen, const void *param,
-					  struct sock *sk)
+struct sk_buff *hci_cmd_sync_alloc(struct hci_dev *hdev, u16 opcode, u32 plen,
+				   const void *param, struct sock *sk)
 {
 	int len = HCI_COMMAND_HDR_SIZE + plen;
 	struct hci_command_hdr *hdr;
@@ -114,7 +112,7 @@ static void hci_cmd_sync_add(struct hci_request *req, u16 opcode, u32 plen,
 	skb_queue_tail(&req->cmd_q, skb);
 }
 
-static int hci_cmd_sync_run(struct hci_request *req)
+static int hci_req_sync_run(struct hci_request *req)
 {
 	struct hci_dev *hdev = req->hdev;
 	struct sk_buff *skb;
@@ -147,6 +145,13 @@ static int hci_cmd_sync_run(struct hci_request *req)
 	return 0;
 }
 
+static void hci_request_init(struct hci_request *req, struct hci_dev *hdev)
+{
+	skb_queue_head_init(&req->cmd_q);
+	req->hdev = hdev;
+	req->err = 0;
+}
+
 /* This function requires the caller holds hdev->req_lock. */
 struct sk_buff *__hci_cmd_sync_sk(struct hci_dev *hdev, u16 opcode, u32 plen,
 				  const void *param, u8 event, u32 timeout,
@@ -158,13 +163,13 @@ struct sk_buff *__hci_cmd_sync_sk(struct hci_dev *hdev, u16 opcode, u32 plen,
 
 	bt_dev_dbg(hdev, "Opcode 0x%4.4x", opcode);
 
-	hci_req_init(&req, hdev);
+	hci_request_init(&req, hdev);
 
 	hci_cmd_sync_add(&req, opcode, plen, param, event, sk);
 
 	hdev->req_status = HCI_REQ_PEND;
 
-	err = hci_cmd_sync_run(&req);
+	err = hci_req_sync_run(&req);
 	if (err < 0)
 		return ERR_PTR(err);
 
@@ -280,6 +285,19 @@ int __hci_cmd_sync_status(struct hci_dev *hdev, u16 opcode, u32 plen,
 }
 EXPORT_SYMBOL(__hci_cmd_sync_status);
 
+int hci_cmd_sync_status(struct hci_dev *hdev, u16 opcode, u32 plen,
+			const void *param, u32 timeout)
+{
+	int err;
+
+	hci_req_sync_lock(hdev);
+	err = __hci_cmd_sync_status(hdev, opcode, plen, param, timeout);
+	hci_req_sync_unlock(hdev);
+
+	return err;
+}
+EXPORT_SYMBOL(hci_cmd_sync_status);
+
 static void hci_cmd_sync_work(struct work_struct *work)
 {
 	struct hci_dev *hdev = container_of(work, struct hci_dev, cmd_sync_work);
@@ -334,10 +352,9 @@ static int scan_disable_sync(struct hci_dev *hdev, void *data)
 	return hci_scan_disable_sync(hdev);
 }
 
-static int hci_inquiry_sync(struct hci_dev *hdev, u8 length);
 static int interleaved_inquiry_sync(struct hci_dev *hdev, void *data)
 {
-	return hci_inquiry_sync(hdev, DISCOV_INTERLEAVED_INQUIRY_LEN);
+	return hci_inquiry_sync(hdev, DISCOV_INTERLEAVED_INQUIRY_LEN, 0);
 }
 
 static void le_scan_disable(struct work_struct *work)
@@ -357,8 +374,6 @@ static void le_scan_disable(struct work_struct *work)
 		bt_dev_err(hdev, "failed to disable LE scan: %d", status);
 		goto _return;
 	}
-
-	hdev->discovery.scan_start = 0;
 
 	/* If we were running LE only scan, change discovery state. If
 	 * we were running both LE and BR/EDR inquiry simultaneously,
@@ -557,6 +572,53 @@ unlock:
 	hci_dev_unlock(hdev);
 }
 
+static bool is_interleave_scanning(struct hci_dev *hdev)
+{
+	return hdev->interleave_scan_state != INTERLEAVE_SCAN_NONE;
+}
+
+static int hci_passive_scan_sync(struct hci_dev *hdev);
+
+static void interleave_scan_work(struct work_struct *work)
+{
+	struct hci_dev *hdev = container_of(work, struct hci_dev,
+					    interleave_scan.work);
+	unsigned long timeout;
+
+	if (hdev->interleave_scan_state == INTERLEAVE_SCAN_ALLOWLIST) {
+		timeout = msecs_to_jiffies(hdev->advmon_allowlist_duration);
+	} else if (hdev->interleave_scan_state == INTERLEAVE_SCAN_NO_FILTER) {
+		timeout = msecs_to_jiffies(hdev->advmon_no_filter_duration);
+	} else {
+		bt_dev_err(hdev, "unexpected error");
+		return;
+	}
+
+	hci_passive_scan_sync(hdev);
+
+	hci_dev_lock(hdev);
+
+	switch (hdev->interleave_scan_state) {
+	case INTERLEAVE_SCAN_ALLOWLIST:
+		bt_dev_dbg(hdev, "next state: allowlist");
+		hdev->interleave_scan_state = INTERLEAVE_SCAN_NO_FILTER;
+		break;
+	case INTERLEAVE_SCAN_NO_FILTER:
+		bt_dev_dbg(hdev, "next state: no filter");
+		hdev->interleave_scan_state = INTERLEAVE_SCAN_ALLOWLIST;
+		break;
+	case INTERLEAVE_SCAN_NONE:
+		bt_dev_err(hdev, "unexpected error");
+	}
+
+	hci_dev_unlock(hdev);
+
+	/* Don't continue interleaving if it was canceled */
+	if (is_interleave_scanning(hdev))
+		queue_delayed_work(hdev->req_workqueue,
+				   &hdev->interleave_scan, timeout);
+}
+
 void hci_cmd_sync_init(struct hci_dev *hdev)
 {
 	INIT_WORK(&hdev->cmd_sync_work, hci_cmd_sync_work);
@@ -568,6 +630,7 @@ void hci_cmd_sync_init(struct hci_dev *hdev)
 	INIT_WORK(&hdev->reenable_adv_work, reenable_adv);
 	INIT_DELAYED_WORK(&hdev->le_scan_disable, le_scan_disable);
 	INIT_DELAYED_WORK(&hdev->adv_instance_expire, adv_timeout_expire);
+	INIT_DELAYED_WORK(&hdev->interleave_scan, interleave_scan_work);
 }
 
 static void _hci_cmd_sync_cancel_entry(struct hci_dev *hdev,
@@ -718,6 +781,44 @@ int hci_cmd_sync_queue_once(struct hci_dev *hdev, hci_cmd_sync_work_func_t func,
 	return hci_cmd_sync_queue(hdev, func, data, destroy);
 }
 EXPORT_SYMBOL(hci_cmd_sync_queue_once);
+
+/* Run HCI command:
+ *
+ * - hdev must be running
+ * - if on cmd_sync_work then run immediately otherwise queue
+ */
+int hci_cmd_sync_run(struct hci_dev *hdev, hci_cmd_sync_work_func_t func,
+		     void *data, hci_cmd_sync_work_destroy_t destroy)
+{
+	/* Only queue command if hdev is running which means it had been opened
+	 * and is either on init phase or is already up.
+	 */
+	if (!test_bit(HCI_RUNNING, &hdev->flags))
+		return -ENETDOWN;
+
+	/* If on cmd_sync_work then run immediately otherwise queue */
+	if (current_work() == &hdev->cmd_sync_work)
+		return func(hdev, data);
+
+	return hci_cmd_sync_submit(hdev, func, data, destroy);
+}
+EXPORT_SYMBOL(hci_cmd_sync_run);
+
+/* Run HCI command entry once:
+ *
+ * - Lookup if an entry already exist and only if it doesn't creates a new entry
+ *   and run it.
+ * - if on cmd_sync_work then run immediately otherwise queue
+ */
+int hci_cmd_sync_run_once(struct hci_dev *hdev, hci_cmd_sync_work_func_t func,
+			  void *data, hci_cmd_sync_work_destroy_t destroy)
+{
+	if (hci_cmd_sync_lookup_entry(hdev, func, data, destroy))
+		return 0;
+
+	return hci_cmd_sync_run(hdev, func, data, destroy);
+}
+EXPORT_SYMBOL(hci_cmd_sync_run_once);
 
 /* Lookup HCI command entry:
  *
@@ -2101,11 +2202,6 @@ static void hci_start_interleave_scan(struct hci_dev *hdev)
 			   &hdev->interleave_scan, 0);
 }
 
-static bool is_interleave_scanning(struct hci_dev *hdev)
-{
-	return hdev->interleave_scan_state != INTERLEAVE_SCAN_NONE;
-}
-
 static void cancel_interleave_scan(struct hci_dev *hdev)
 {
 	bt_dev_dbg(hdev, "cancelling interleave scan");
@@ -2918,6 +3014,27 @@ static int hci_passive_scan_sync(struct hci_dev *hdev)
 	 */
 	filter_policy = hci_update_accept_list_sync(hdev);
 
+	/* If suspended and filter_policy set to 0x00 (no acceptlist) then
+	 * passive scanning cannot be started since that would require the host
+	 * to be woken up to process the reports.
+	 */
+	if (hdev->suspended && !filter_policy) {
+		/* Check if accept list is empty then there is no need to scan
+		 * while suspended.
+		 */
+		if (list_empty(&hdev->le_accept_list))
+			return 0;
+
+		/* If there are devices is the accept_list that means some
+		 * devices could not be programmed which in non-suspended case
+		 * means filter_policy needs to be set to 0x00 so the host needs
+		 * to filter, but since this is treating suspended case we
+		 * can ignore device needing host to filter to allow devices in
+		 * the acceptlist to be able to wakeup the system.
+		 */
+		filter_policy = 0x01;
+	}
+
 	/* When the controller is using random resolvable addresses and
 	 * with that having LE privacy enabled, then controllers with
 	 * Extended Scanner Filter Policies support can now enable support
@@ -2940,6 +3057,20 @@ static int hci_passive_scan_sync(struct hci_dev *hdev)
 	} else if (hci_is_adv_monitoring(hdev)) {
 		window = hdev->le_scan_window_adv_monitor;
 		interval = hdev->le_scan_int_adv_monitor;
+
+		/* Disable duplicates filter when scanning for advertisement
+		 * monitor for the following reasons.
+		 *
+		 * For HW pattern filtering (ex. MSFT), Realtek and Qualcomm
+		 * controllers ignore RSSI_Sampling_Period when the duplicates
+		 * filter is enabled.
+		 *
+		 * For SW pattern filtering, when we're not doing interleaved
+		 * scanning, it is necessary to disable duplicates filter,
+		 * otherwise hosts can only receive one advertisement and it's
+		 * impossible to know if a peer is still in range.
+		 */
+		filter_dups = LE_SCAN_FILTER_DUP_DISABLE;
 	} else {
 		window = hdev->le_scan_window;
 		interval = hdev->le_scan_interval;
@@ -5004,7 +5135,9 @@ int hci_dev_close_sync(struct hci_dev *hdev)
 	cancel_delayed_work(&hdev->ncmd_timer);
 	cancel_delayed_work(&hdev->le_scan_disable);
 
-	hci_request_cancel_all(hdev);
+	hci_cmd_sync_cancel_sync(hdev, ENODEV);
+
+	cancel_interleave_scan(hdev);
 
 	if (hdev->adv_instance_timeout) {
 		cancel_delayed_work_sync(&hdev->adv_instance_expire);
@@ -5247,7 +5380,10 @@ int hci_stop_discovery_sync(struct hci_dev *hdev)
 		if (!e)
 			return 0;
 
-		return hci_remote_name_cancel_sync(hdev, &e->data.bdaddr);
+		/* Ignore cancel errors since it should interfere with stopping
+		 * of the discovery.
+		 */
+		hci_remote_name_cancel_sync(hdev, &e->data.bdaddr);
 	}
 
 	return 0;
@@ -5651,7 +5787,7 @@ int hci_update_connectable_sync(struct hci_dev *hdev)
 	return hci_update_passive_scan_sync(hdev);
 }
 
-static int hci_inquiry_sync(struct hci_dev *hdev, u8 length)
+int hci_inquiry_sync(struct hci_dev *hdev, u8 length, u8 num_rsp)
 {
 	const u8 giac[3] = { 0x33, 0x8b, 0x9e };
 	const u8 liac[3] = { 0x00, 0x8b, 0x9e };
@@ -5674,6 +5810,7 @@ static int hci_inquiry_sync(struct hci_dev *hdev, u8 length)
 		memcpy(&cp.lap, giac, sizeof(cp.lap));
 
 	cp.length = length;
+	cp.num_rsp = num_rsp;
 
 	return __hci_cmd_sync_status(hdev, HCI_OP_INQUIRY,
 				     sizeof(cp), &cp, HCI_CMD_TIMEOUT);
@@ -5760,7 +5897,7 @@ static int hci_start_interleaved_discovery_sync(struct hci_dev *hdev)
 	if (err)
 		return err;
 
-	return hci_inquiry_sync(hdev, DISCOV_BREDR_INQUIRY_LEN);
+	return hci_inquiry_sync(hdev, DISCOV_BREDR_INQUIRY_LEN, 0);
 }
 
 int hci_start_discovery_sync(struct hci_dev *hdev)
@@ -5772,7 +5909,7 @@ int hci_start_discovery_sync(struct hci_dev *hdev)
 
 	switch (hdev->discovery.type) {
 	case DISCOV_TYPE_BREDR:
-		return hci_inquiry_sync(hdev, DISCOV_BREDR_INQUIRY_LEN);
+		return hci_inquiry_sync(hdev, DISCOV_BREDR_INQUIRY_LEN, 0);
 	case DISCOV_TYPE_INTERLEAVED:
 		/* When running simultaneous discovery, the LE scanning time
 		 * should occupy the whole discovery time sine BR/EDR inquiry
@@ -5842,7 +5979,6 @@ static int hci_pause_discovery_sync(struct hci_dev *hdev)
 		return err;
 
 	hdev->discovery_paused = true;
-	hdev->discovery_old_state = old_state;
 	hci_discovery_set_state(hdev, DISCOVERY_STOPPED);
 
 	return 0;
@@ -6710,4 +6846,22 @@ int hci_cancel_connect_sync(struct hci_dev *hdev, struct hci_conn *conn)
 	}
 
 	return -ENOENT;
+}
+
+int hci_le_conn_update_sync(struct hci_dev *hdev, struct hci_conn *conn,
+			    struct hci_conn_params *params)
+{
+	struct hci_cp_le_conn_update cp;
+
+	memset(&cp, 0, sizeof(cp));
+	cp.handle		= cpu_to_le16(conn->handle);
+	cp.conn_interval_min	= cpu_to_le16(params->conn_min_interval);
+	cp.conn_interval_max	= cpu_to_le16(params->conn_max_interval);
+	cp.conn_latency		= cpu_to_le16(params->conn_latency);
+	cp.supervision_timeout	= cpu_to_le16(params->supervision_timeout);
+	cp.min_ce_len		= cpu_to_le16(0x0000);
+	cp.max_ce_len		= cpu_to_le16(0x0000);
+
+	return __hci_cmd_sync_status(hdev, HCI_OP_LE_CONN_UPDATE,
+				     sizeof(cp), &cp, HCI_CMD_TIMEOUT);
 }

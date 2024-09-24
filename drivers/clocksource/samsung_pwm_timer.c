@@ -418,8 +418,6 @@ void __init samsung_pwm_clocksource_init(void __iomem *base,
 static int __init samsung_pwm_alloc(struct device_node *np,
 				    const struct samsung_pwm_variant *variant)
 {
-	struct property *prop;
-	const __be32 *cur;
 	u32 val;
 	int i, ret;
 
@@ -427,7 +425,7 @@ static int __init samsung_pwm_alloc(struct device_node *np,
 	for (i = 0; i < SAMSUNG_PWM_NUM; ++i)
 		pwm.irq[i] = irq_of_parse_and_map(np, i);
 
-	of_property_for_each_u32(np, "samsung,pwm-outputs", prop, cur, val) {
+	of_property_for_each_u32(np, "samsung,pwm-outputs", val) {
 		if (val >= SAMSUNG_PWM_NUM) {
 			pr_warn("%s: invalid channel index in samsung,pwm-outputs property\n", __func__);
 			continue;

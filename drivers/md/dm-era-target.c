@@ -196,7 +196,7 @@ struct superblock_disk {
  * Superblock validation
  *--------------------------------------------------------------
  */
-static void sb_prepare_for_write(struct dm_block_validator *v,
+static void sb_prepare_for_write(const struct dm_block_validator *v,
 				 struct dm_block *b,
 				 size_t sb_block_size)
 {
@@ -221,7 +221,7 @@ static int check_metadata_version(struct superblock_disk *disk)
 	return 0;
 }
 
-static int sb_check(struct dm_block_validator *v,
+static int sb_check(const struct dm_block_validator *v,
 		    struct dm_block *b,
 		    size_t sb_block_size)
 {
@@ -254,7 +254,7 @@ static int sb_check(struct dm_block_validator *v,
 	return check_metadata_version(disk);
 }
 
-static struct dm_block_validator sb_validator = {
+static const struct dm_block_validator sb_validator = {
 	.name = "superblock",
 	.prepare_for_write = sb_prepare_for_write,
 	.check = sb_check
@@ -1733,8 +1733,8 @@ static void era_io_hints(struct dm_target *ti, struct queue_limits *limits)
 	 */
 	if (io_opt_sectors < era->sectors_per_block ||
 	    do_div(io_opt_sectors, era->sectors_per_block)) {
-		blk_limits_io_min(limits, 0);
-		blk_limits_io_opt(limits, era->sectors_per_block << SECTOR_SHIFT);
+		limits->io_min = 0;
+		limits->io_opt = era->sectors_per_block << SECTOR_SHIFT;
 	}
 }
 

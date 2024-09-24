@@ -26,6 +26,8 @@
 
 #include <linux/uaccess.h>
 
+#include <kunit/visibility.h>
+
 #include "internal.h"
 #include "swap.h"
 
@@ -198,6 +200,16 @@ char *kmemdup_nul(const char *s, size_t len, gfp_t gfp)
 }
 EXPORT_SYMBOL(kmemdup_nul);
 
+static kmem_buckets *user_buckets __ro_after_init;
+
+static int __init init_user_buckets(void)
+{
+	user_buckets = kmem_buckets_create("memdup_user", 0, 0, INT_MAX, NULL);
+
+	return 0;
+}
+subsys_initcall(init_user_buckets);
+
 /**
  * memdup_user - duplicate memory region from user space
  *
@@ -211,7 +223,7 @@ void *memdup_user(const void __user *src, size_t len)
 {
 	void *p;
 
-	p = kmalloc_track_caller(len, GFP_USER | __GFP_NOWARN);
+	p = kmem_buckets_alloc_track_caller(user_buckets, len, GFP_USER | __GFP_NOWARN);
 	if (!p)
 		return ERR_PTR(-ENOMEM);
 
@@ -237,7 +249,7 @@ void *vmemdup_user(const void __user *src, size_t len)
 {
 	void *p;
 
-	p = kvmalloc(len, GFP_USER);
+	p = kmem_buckets_valloc(user_buckets, len, GFP_USER);
 	if (!p)
 		return ERR_PTR(-ENOMEM);
 
@@ -451,7 +463,7 @@ static unsigned long mmap_base(unsigned long rnd, struct rlimit *rlim_stack)
 	if (gap + pad > gap)
 		gap += pad;
 
-	if (gap < MIN_GAP)
+	if (gap < MIN_GAP && MIN_GAP < MAX_GAP)
 		gap = MIN_GAP;
 	else if (gap > MAX_GAP)
 		gap = MAX_GAP;
@@ -481,6 +493,9 @@ void arch_pick_mmap_layout(struct mm_struct *mm, struct rlimit *rlim_stack)
 	mm->mmap_base = TASK_UNMAPPED_BASE;
 	clear_bit(MMF_TOPDOWN, &mm->flags);
 }
+#endif
+#ifdef CONFIG_MMU
+EXPORT_SYMBOL_IF_KUNIT(arch_pick_mmap_layout);
 #endif
 
 /**
@@ -593,10 +608,33 @@ unsigned long vm_mmap(struct file *file, unsigned long addr,
 }
 EXPORT_SYMBOL(vm_mmap);
 
+static gfp_t kmalloc_gfp_adjust(gfp_t flags, size_t size)
+{
+	/*
+	 * We want to attempt a large physically contiguous block first because
+	 * it is less likely to fragment multiple larger blocks and therefore
+	 * contribute to a long term fragmentation less than vmalloc fallback.
+	 * However make sure that larger requests are not too disruptive - no
+	 * OOM killer and no allocation failure warnings as we have a fallback.
+	 */
+	if (size > PAGE_SIZE) {
+		flags |= __GFP_NOWARN;
+
+		if (!(flags & __GFP_RETRY_MAYFAIL))
+			flags |= __GFP_NORETRY;
+
+		/* nofail semantic is implemented by the vmalloc fallback */
+		flags &= ~__GFP_NOFAIL;
+	}
+
+	return flags;
+}
+
 /**
- * kvmalloc_node - attempt to allocate physically contiguous memory, but upon
+ * __kvmalloc_node - attempt to allocate physically contiguous memory, but upon
  * failure, fall back to non-contiguous (vmalloc) allocation.
  * @size: size of the request.
+ * @b: which set of kmalloc buckets to allocate from.
  * @flags: gfp mask for the allocation - must be compatible (superset) with GFP_KERNEL.
  * @node: numa node to allocate from
  *
@@ -609,34 +647,17 @@ EXPORT_SYMBOL(vm_mmap);
  *
  * Return: pointer to the allocated memory of %NULL in case of failure
  */
-void *kvmalloc_node_noprof(size_t size, gfp_t flags, int node)
+void *__kvmalloc_node_noprof(DECL_BUCKET_PARAMS(size, b), gfp_t flags, int node)
 {
-	gfp_t kmalloc_flags = flags;
 	void *ret;
-
-	/*
-	 * We want to attempt a large physically contiguous block first because
-	 * it is less likely to fragment multiple larger blocks and therefore
-	 * contribute to a long term fragmentation less than vmalloc fallback.
-	 * However make sure that larger requests are not too disruptive - no
-	 * OOM killer and no allocation failure warnings as we have a fallback.
-	 */
-	if (size > PAGE_SIZE) {
-		kmalloc_flags |= __GFP_NOWARN;
-
-		if (!(kmalloc_flags & __GFP_RETRY_MAYFAIL))
-			kmalloc_flags |= __GFP_NORETRY;
-
-		/* nofail semantic is implemented by the vmalloc fallback */
-		kmalloc_flags &= ~__GFP_NOFAIL;
-	}
-
-	ret = kmalloc_node_noprof(size, kmalloc_flags, node);
 
 	/*
 	 * It doesn't really make sense to fallback to vmalloc for sub page
 	 * requests
 	 */
+	ret = __kmalloc_node_noprof(PASS_BUCKET_PARAMS(size, b),
+				    kmalloc_gfp_adjust(flags, size),
+				    node);
 	if (ret || size <= PAGE_SIZE)
 		return ret;
 
@@ -660,7 +681,7 @@ void *kvmalloc_node_noprof(size_t size, gfp_t flags, int node)
 			flags, PAGE_KERNEL, VM_ALLOW_HUGE_VMAP,
 			node, __builtin_return_address(0));
 }
-EXPORT_SYMBOL(kvmalloc_node_noprof);
+EXPORT_SYMBOL(__kvmalloc_node_noprof);
 
 /**
  * kvfree() - Free memory.
@@ -699,18 +720,53 @@ void kvfree_sensitive(const void *addr, size_t len)
 }
 EXPORT_SYMBOL(kvfree_sensitive);
 
-void *kvrealloc_noprof(const void *p, size_t oldsize, size_t newsize, gfp_t flags)
+/**
+ * kvrealloc - reallocate memory; contents remain unchanged
+ * @p: object to reallocate memory for
+ * @size: the size to reallocate
+ * @flags: the flags for the page level allocator
+ *
+ * If @p is %NULL, kvrealloc() behaves exactly like kvmalloc(). If @size is 0
+ * and @p is not a %NULL pointer, the object pointed to is freed.
+ *
+ * If __GFP_ZERO logic is requested, callers must ensure that, starting with the
+ * initial memory allocation, every subsequent call to this API for the same
+ * memory allocation is flagged with __GFP_ZERO. Otherwise, it is possible that
+ * __GFP_ZERO is not fully honored by this API.
+ *
+ * In any case, the contents of the object pointed to are preserved up to the
+ * lesser of the new and old sizes.
+ *
+ * This function must not be called concurrently with itself or kvfree() for the
+ * same memory allocation.
+ *
+ * Return: pointer to the allocated memory or %NULL in case of error
+ */
+void *kvrealloc_noprof(const void *p, size_t size, gfp_t flags)
 {
-	void *newp;
+	void *n;
 
-	if (oldsize >= newsize)
-		return (void *)p;
-	newp = kvmalloc_noprof(newsize, flags);
-	if (!newp)
-		return NULL;
-	memcpy(newp, p, oldsize);
-	kvfree(p);
-	return newp;
+	if (is_vmalloc_addr(p))
+		return vrealloc_noprof(p, size, flags);
+
+	n = krealloc_noprof(p, size, kmalloc_gfp_adjust(flags, size));
+	if (!n) {
+		/* We failed to krealloc(), fall back to kvmalloc(). */
+		n = kvmalloc_noprof(size, flags);
+		if (!n)
+			return NULL;
+
+		if (p) {
+			/* We already know that `p` is not a vmalloc address. */
+			kasan_disable_current();
+			memcpy(n, kasan_reset_tag(p), ksize(p));
+			kasan_enable_current();
+
+			kfree(p);
+		}
+	}
+
+	return n;
 }
 EXPORT_SYMBOL(kvrealloc_noprof);
 
@@ -828,6 +884,23 @@ void folio_copy(struct folio *dst, struct folio *src)
 }
 EXPORT_SYMBOL(folio_copy);
 
+int folio_mc_copy(struct folio *dst, struct folio *src)
+{
+	long nr = folio_nr_pages(src);
+	long i = 0;
+
+	for (;;) {
+		if (copy_mc_highpage(folio_page(dst, i), folio_page(src, i)))
+			return -EHWPOISON;
+		if (++i == nr)
+			break;
+		cond_resched();
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(folio_mc_copy);
+
 int sysctl_overcommit_memory __read_mostly = OVERCOMMIT_GUESS;
 int sysctl_overcommit_ratio __read_mostly = 50;
 unsigned long sysctl_overcommit_kbytes __read_mostly;
@@ -835,7 +908,7 @@ int sysctl_max_map_count __read_mostly = DEFAULT_MAX_MAP_COUNT;
 unsigned long sysctl_user_reserve_kbytes __read_mostly = 1UL << 17; /* 128MB */
 unsigned long sysctl_admin_reserve_kbytes __read_mostly = 1UL << 13; /* 8MB */
 
-int overcommit_ratio_handler(struct ctl_table *table, int write, void *buffer,
+int overcommit_ratio_handler(const struct ctl_table *table, int write, void *buffer,
 		size_t *lenp, loff_t *ppos)
 {
 	int ret;
@@ -851,7 +924,7 @@ static void sync_overcommit_as(struct work_struct *dummy)
 	percpu_counter_sync(&vm_committed_as);
 }
 
-int overcommit_policy_handler(struct ctl_table *table, int write, void *buffer,
+int overcommit_policy_handler(const struct ctl_table *table, int write, void *buffer,
 		size_t *lenp, loff_t *ppos)
 {
 	struct ctl_table t;
@@ -887,7 +960,7 @@ int overcommit_policy_handler(struct ctl_table *table, int write, void *buffer,
 	return ret;
 }
 
-int overcommit_kbytes_handler(struct ctl_table *table, int write, void *buffer,
+int overcommit_kbytes_handler(const struct ctl_table *table, int write, void *buffer,
 		size_t *lenp, loff_t *ppos)
 {
 	int ret;

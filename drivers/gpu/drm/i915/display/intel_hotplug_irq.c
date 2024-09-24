@@ -186,7 +186,8 @@ void i915_hotplug_interrupt_update_locked(struct drm_i915_private *dev_priv,
 	lockdep_assert_held(&dev_priv->irq_lock);
 	drm_WARN_ON(&dev_priv->drm, bits & ~mask);
 
-	intel_uncore_rmw(&dev_priv->uncore, PORT_HOTPLUG_EN, mask, bits);
+	intel_uncore_rmw(&dev_priv->uncore, PORT_HOTPLUG_EN(dev_priv), mask,
+			 bits);
 }
 
 /**
@@ -434,24 +435,28 @@ u32 i9xx_hpd_irq_ack(struct drm_i915_private *dev_priv)
 	 * bits can itself generate a new hotplug interrupt :(
 	 */
 	for (i = 0; i < 10; i++) {
-		u32 tmp = intel_uncore_read(&dev_priv->uncore, PORT_HOTPLUG_STAT) & hotplug_status_mask;
+		u32 tmp = intel_uncore_read(&dev_priv->uncore,
+					    PORT_HOTPLUG_STAT(dev_priv)) & hotplug_status_mask;
 
 		if (tmp == 0)
 			return hotplug_status;
 
 		hotplug_status |= tmp;
-		intel_uncore_write(&dev_priv->uncore, PORT_HOTPLUG_STAT, hotplug_status);
+		intel_uncore_write(&dev_priv->uncore,
+				   PORT_HOTPLUG_STAT(dev_priv),
+				   hotplug_status);
 	}
 
 	drm_WARN_ONCE(&dev_priv->drm, 1,
 		      "PORT_HOTPLUG_STAT did not clear (0x%08x)\n",
-		      intel_uncore_read(&dev_priv->uncore, PORT_HOTPLUG_STAT));
+		      intel_uncore_read(&dev_priv->uncore, PORT_HOTPLUG_STAT(dev_priv)));
 
 	return hotplug_status;
 }
 
 void i9xx_hpd_irq_handler(struct drm_i915_private *dev_priv, u32 hotplug_status)
 {
+	struct intel_display *display = &dev_priv->display;
 	u32 pin_mask = 0, long_mask = 0;
 	u32 hotplug_trigger;
 
@@ -473,7 +478,7 @@ void i9xx_hpd_irq_handler(struct drm_i915_private *dev_priv, u32 hotplug_status)
 	if ((IS_G4X(dev_priv) ||
 	     IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) &&
 	    hotplug_status & DP_AUX_CHANNEL_MASK_INT_STATUS_G4X)
-		intel_dp_aux_irq_handler(dev_priv);
+		intel_dp_aux_irq_handler(display);
 }
 
 void ibx_hpd_irq_handler(struct drm_i915_private *dev_priv, u32 hotplug_trigger)
@@ -509,6 +514,7 @@ void ibx_hpd_irq_handler(struct drm_i915_private *dev_priv, u32 hotplug_trigger)
 
 void xelpdp_pica_irq_handler(struct drm_i915_private *i915, u32 iir)
 {
+	struct intel_display *display = &i915->display;
 	enum hpd_pin pin;
 	u32 hotplug_trigger = iir & (XELPDP_DP_ALT_HOTPLUG_MASK | XELPDP_TBT_HOTPLUG_MASK);
 	u32 trigger_aux = iir & XELPDP_AUX_TC_MASK;
@@ -541,7 +547,7 @@ void xelpdp_pica_irq_handler(struct drm_i915_private *i915, u32 iir)
 	}
 
 	if (trigger_aux)
-		intel_dp_aux_irq_handler(i915);
+		intel_dp_aux_irq_handler(display);
 
 	if (!pin_mask && !trigger_aux)
 		drm_err(&i915->drm,

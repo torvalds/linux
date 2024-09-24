@@ -19,7 +19,7 @@
 #include "mei_dev.h"
 #include "client.h"
 
-#define to_mei_cl_driver(d) container_of(d, struct mei_cl_driver, driver)
+#define to_mei_cl_driver(d) container_of_const(d, struct mei_cl_driver, driver)
 
 /**
  * __mei_cl_send - internal client send (write)
@@ -1124,7 +1124,7 @@ struct mei_cl_device_id *mei_cl_device_find(const struct mei_cl_device *cldev,
  *
  * Return:  1 if matching device was found 0 otherwise
  */
-static int mei_cl_device_match(struct device *dev, struct device_driver *drv)
+static int mei_cl_device_match(struct device *dev, const struct device_driver *drv)
 {
 	const struct mei_cl_device *cldev = to_mei_cl_device(dev);
 	const struct mei_cl_driver *cldrv = to_mei_cl_driver(drv);

@@ -17,19 +17,21 @@ int main(void)
 	static int tbi_enabled = 0;
 	unsigned long tag = 0;
 	struct utsname *ptr;
-	int err;
+
+	ksft_print_header();
+	ksft_set_plan(1);
 
 	if (prctl(PR_SET_TAGGED_ADDR_CTRL, PR_TAGGED_ADDR_ENABLE, 0, 0, 0) == 0)
 		tbi_enabled = 1;
 	ptr = (struct utsname *)malloc(sizeof(*ptr));
 	if (!ptr)
-		ksft_exit_fail_msg("Failed to allocate utsname buffer\n");
+		ksft_exit_fail_perror("Failed to allocate utsname buffer");
 
 	if (tbi_enabled)
 		tag = 0x42;
 	ptr = (struct utsname *)SET_TAG(ptr, tag);
-	err = uname(ptr);
+	ksft_test_result(!uname(ptr), "Syscall successful with tagged address\n");
 	free(ptr);
 
-	return err;
+	ksft_finished();
 }

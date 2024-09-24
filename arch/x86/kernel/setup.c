@@ -164,7 +164,8 @@ unsigned long saved_video_mode;
 
 static char __initdata command_line[COMMAND_LINE_SIZE];
 #ifdef CONFIG_CMDLINE_BOOL
-static char __initdata builtin_cmdline[COMMAND_LINE_SIZE] = CONFIG_CMDLINE;
+char builtin_cmdline[COMMAND_LINE_SIZE] = CONFIG_CMDLINE;
+bool builtin_cmdline_added __ro_after_init;
 #endif
 
 #if defined(CONFIG_EDD) || defined(CONFIG_EDD_MODULE)
@@ -765,6 +766,7 @@ void __init setup_arch(char **cmdline_p)
 		strscpy(boot_command_line, builtin_cmdline, COMMAND_LINE_SIZE);
 	}
 #endif
+	builtin_cmdline_added = true;
 #endif
 
 	strscpy(command_line, boot_command_line, COMMAND_LINE_SIZE);
@@ -995,7 +997,6 @@ void __init setup_arch(char **cmdline_p)
 	mem_encrypt_setup_arch();
 	cc_random_init();
 
-	efi_fake_memmap();
 	efi_find_mirror();
 	efi_esrt_init();
 	efi_mokvar_table_init();
@@ -1038,7 +1039,12 @@ void __init setup_arch(char **cmdline_p)
 
 	init_mem_mapping();
 
-	idt_setup_early_pf();
+	/*
+	 * init_mem_mapping() relies on the early IDT page fault handling.
+	 * Now either enable FRED or install the real page fault handler
+	 * for 64-bit in the IDT.
+	 */
+	cpu_init_replace_early_idt();
 
 	/*
 	 * Update mmu_cr4_features (and, indirectly, trampoline_cr4_features)

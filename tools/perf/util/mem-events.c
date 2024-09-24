@@ -8,6 +8,7 @@
 #include <unistd.h>
 #include <api/fs/fs.h>
 #include <linux/kernel.h>
+#include "cpumap.h"
 #include "map_symbol.h"
 #include "mem-events.h"
 #include "mem-info.h"
@@ -27,6 +28,8 @@ struct perf_mem_event perf_mem_events[PERF_MEM_EVENTS__MAX] = {
 	E(NULL,			NULL,				NULL,		false,	0),
 };
 #undef E
+
+bool perf_mem_record[PERF_MEM_EVENTS__MAX] = { 0 };
 
 static char mem_loads_name[100];
 static char mem_stores_name[100];
@@ -86,7 +89,7 @@ static const char *perf_pmu__mem_events_name(int i, struct perf_pmu *pmu)
 		return NULL;
 
 	e = &pmu->mem_events[i];
-	if (!e)
+	if (!e || !e->name)
 		return NULL;
 
 	if (i == PERF_MEM_EVENTS__LOAD || i == PERF_MEM_EVENTS__LOAD_STORE) {
@@ -162,7 +165,7 @@ int perf_pmu__mem_events_parse(struct perf_pmu *pmu, const char *str)
 				continue;
 
 			if (strstr(e->tag, tok))
-				e->record = found = true;
+				perf_mem_record[j] = found = true;
 		}
 
 		tok = strtok_r(NULL, ",", &saveptr);
@@ -191,7 +194,7 @@ static bool perf_pmu__mem_events_supported(const char *mnt, struct perf_pmu *pmu
 	return !stat(path, &st);
 }
 
-int perf_pmu__mem_events_init(struct perf_pmu *pmu)
+static int __perf_pmu__mem_events_init(struct perf_pmu *pmu)
 {
 	const char *mnt = sysfs__mount();
 	bool found = false;
@@ -218,6 +221,18 @@ int perf_pmu__mem_events_init(struct perf_pmu *pmu)
 	return found ? 0 : -ENOENT;
 }
 
+int perf_pmu__mem_events_init(void)
+{
+	struct perf_pmu *pmu = NULL;
+
+	while ((pmu = perf_pmus__scan_mem(pmu)) != NULL) {
+		if (__perf_pmu__mem_events_init(pmu))
+			return -ENOENT;
+	}
+
+	return 0;
+}
+
 void perf_pmu__mem_events_list(struct perf_pmu *pmu)
 {
 	int j;
@@ -242,12 +257,13 @@ int perf_mem_events__record_args(const char **rec_argv, int *argv_nr)
 	int i = *argv_nr;
 	const char *s;
 	char *copy;
+	struct perf_cpu_map *cpu_map = NULL;
 
 	while ((pmu = perf_pmus__scan_mem(pmu)) != NULL) {
 		for (int j = 0; j < PERF_MEM_EVENTS__MAX; j++) {
 			e = perf_pmu__mem_events_ptr(pmu, j);
 
-			if (!e->record)
+			if (!perf_mem_record[j])
 				continue;
 
 			if (!e->supported) {
@@ -266,7 +282,19 @@ int perf_mem_events__record_args(const char **rec_argv, int *argv_nr)
 
 			rec_argv[i++] = "-e";
 			rec_argv[i++] = copy;
+
+			cpu_map = perf_cpu_map__merge(cpu_map, pmu->cpus);
 		}
+	}
+
+	if (cpu_map) {
+		if (!perf_cpu_map__equal(cpu_map, cpu_map__online())) {
+			char buf[200];
+
+			cpu_map__snprint(cpu_map, buf, sizeof(buf));
+			pr_warning("Memory events are enabled on a subset of CPUs: %s\n", buf);
+		}
+		perf_cpu_map__put(cpu_map);
 	}
 
 	*argv_nr = i;

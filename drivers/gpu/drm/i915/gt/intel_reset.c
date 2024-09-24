@@ -1013,6 +1013,15 @@ static void __intel_gt_set_wedged(struct intel_gt *gt)
 	GT_TRACE(gt, "end\n");
 }
 
+static void set_wedged_work(struct work_struct *w)
+{
+	struct intel_gt *gt = container_of(w, struct intel_gt, wedge);
+	intel_wakeref_t wf;
+
+	with_intel_runtime_pm(gt->uncore->rpm, wf)
+		__intel_gt_set_wedged(gt);
+}
+
 void intel_gt_set_wedged(struct intel_gt *gt)
 {
 	intel_wakeref_t wakeref;
@@ -1025,7 +1034,7 @@ void intel_gt_set_wedged(struct intel_gt *gt)
 
 	if (GEM_SHOW_DEBUG()) {
 		struct drm_printer p = drm_dbg_printer(&gt->i915->drm,
-						       DRM_UT_DRIVER, __func__);
+						       DRM_UT_DRIVER, NULL);
 		struct intel_engine_cs *engine;
 		enum intel_engine_id id;
 
@@ -1614,6 +1623,7 @@ void intel_gt_init_reset(struct intel_gt *gt)
 	init_waitqueue_head(&gt->reset.queue);
 	mutex_init(&gt->reset.mutex);
 	init_srcu_struct(&gt->reset.backoff_srcu);
+	INIT_WORK(&gt->wedge, set_wedged_work);
 
 	/*
 	 * While undesirable to wait inside the shrinker, complain anyway.
@@ -1640,7 +1650,7 @@ static void intel_wedge_me(struct work_struct *work)
 	struct intel_wedge_me *w = container_of(work, typeof(*w), work.work);
 
 	gt_err(w->gt, "%s timed out, cancelling all in-flight rendering.\n", w->name);
-	intel_gt_set_wedged(w->gt);
+	set_wedged_work(&w->gt->wedge);
 }
 
 void __intel_init_wedge(struct intel_wedge_me *w,

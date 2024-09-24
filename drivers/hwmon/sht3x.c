@@ -882,15 +882,6 @@ static const struct hwmon_chip_info sht3x_chip_info = {
 	.info = sht3x_channel_info,
 };
 
-/* device ID table */
-static const struct i2c_device_id sht3x_ids[] = {
-	{"sht3x", sht3x},
-	{"sts3x", sts3x},
-	{}
-};
-
-MODULE_DEVICE_TABLE(i2c, sht3x_ids);
-
 static int sht3x_probe(struct i2c_client *client)
 {
 	int ret;
@@ -920,7 +911,7 @@ static int sht3x_probe(struct i2c_client *client)
 	data->mode = 0;
 	data->last_update = jiffies - msecs_to_jiffies(3000);
 	data->client = client;
-	data->chip_id = i2c_match_id(sht3x_ids, client)->driver_data;
+	data->chip_id = (uintptr_t)i2c_get_match_data(client);
 	crc8_populate_msb(sht3x_crc8_table, SHT3X_CRC8_POLYNOMIAL);
 
 	sht3x_select_command(data);
@@ -962,6 +953,15 @@ static int sht3x_probe(struct i2c_client *client)
 
 	return PTR_ERR_OR_ZERO(hwmon_dev);
 }
+
+/* device ID table */
+static const struct i2c_device_id sht3x_ids[] = {
+	{"sht3x", sht3x},
+	{"sts3x", sts3x},
+	{}
+};
+
+MODULE_DEVICE_TABLE(i2c, sht3x_ids);
 
 static struct i2c_driver sht3x_i2c_driver = {
 	.driver.name = "sht3x",

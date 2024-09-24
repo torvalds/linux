@@ -83,7 +83,6 @@ struct bpf_dtab {
 	u32 n_buckets;
 };
 
-static DEFINE_PER_CPU(struct list_head, dev_flush_list);
 static DEFINE_SPINLOCK(dev_map_lock);
 static LIST_HEAD(dev_map_list);
 
@@ -107,7 +106,7 @@ static inline struct hlist_head *dev_map_index_hash(struct bpf_dtab *dtab,
 	return &dtab->dev_index_head[idx & (dtab->n_buckets - 1)];
 }
 
-static int dev_map_init_map(struct bpf_dtab *dtab, union bpf_attr *attr)
+static int dev_map_alloc_check(union bpf_attr *attr)
 {
 	u32 valsize = attr->value_size;
 
@@ -121,23 +120,28 @@ static int dev_map_init_map(struct bpf_dtab *dtab, union bpf_attr *attr)
 	    attr->map_flags & ~DEV_CREATE_FLAG_MASK)
 		return -EINVAL;
 
+	if (attr->map_type == BPF_MAP_TYPE_DEVMAP_HASH) {
+		/* Hash table size must be power of 2; roundup_pow_of_two()
+		 * can overflow into UB on 32-bit arches
+		 */
+		if (attr->max_entries > 1UL << 31)
+			return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int dev_map_init_map(struct bpf_dtab *dtab, union bpf_attr *attr)
+{
 	/* Lookup returns a pointer straight to dev->ifindex, so make sure the
 	 * verifier prevents writes from the BPF side
 	 */
 	attr->map_flags |= BPF_F_RDONLY_PROG;
-
-
 	bpf_map_init_from_attr(&dtab->map, attr);
 
 	if (attr->map_type == BPF_MAP_TYPE_DEVMAP_HASH) {
-		/* hash table size must be power of 2; roundup_pow_of_two() can
-		 * overflow into UB on 32-bit arches, so check that first
-		 */
-		if (dtab->map.max_entries > 1UL << 31)
-			return -EINVAL;
-
+		/* Hash table size must be power of 2 */
 		dtab->n_buckets = roundup_pow_of_two(dtab->map.max_entries);
-
 		dtab->dev_index_head = dev_map_create_hash(dtab->n_buckets,
 							   dtab->map.numa_node);
 		if (!dtab->dev_index_head)
@@ -196,7 +200,14 @@ static void dev_map_free(struct bpf_map *map)
 	list_del_rcu(&dtab->list);
 	spin_unlock(&dev_map_lock);
 
-	bpf_clear_redirect_map(map);
+	/* bpf_redirect_info->map is assigned in __bpf_xdp_redirect_map()
+	 * during NAPI callback and cleared after the XDP redirect. There is no
+	 * explicit RCU read section which protects bpf_redirect_info->map but
+	 * local_bh_disable() also marks the beginning an RCU section. This
+	 * makes the complete softirq callback RCU protected. Thus after
+	 * following synchronize_rcu() there no bpf_redirect_info->map == map
+	 * assignment.
+	 */
 	synchronize_rcu();
 
 	/* Make sure prior __dev_map_entry_free() have completed. */
@@ -406,9 +417,8 @@ out:
  * driver before returning from its napi->poll() routine. See the comment above
  * xdp_do_flush() in filter.c.
  */
-void __dev_flush(void)
+void __dev_flush(struct list_head *flush_list)
 {
-	struct list_head *flush_list = this_cpu_ptr(&dev_flush_list);
 	struct xdp_dev_bulk_queue *bq, *tmp;
 
 	list_for_each_entry_safe(bq, tmp, flush_list, flush_node) {
@@ -418,16 +428,6 @@ void __dev_flush(void)
 		__list_del_clearprev(&bq->flush_node);
 	}
 }
-
-#ifdef CONFIG_DEBUG_NET
-bool dev_check_flush(void)
-{
-	if (list_empty(this_cpu_ptr(&dev_flush_list)))
-		return false;
-	__dev_flush();
-	return true;
-}
-#endif
 
 /* Elements are kept alive by RCU; either by rcu_read_lock() (from syscall) or
  * by local_bh_disable() (from XDP calls inside NAPI). The
@@ -453,7 +453,6 @@ static void *__dev_map_lookup_elem(struct bpf_map *map, u32 key)
 static void bq_enqueue(struct net_device *dev, struct xdp_frame *xdpf,
 		       struct net_device *dev_rx, struct bpf_prog *xdp_prog)
 {
-	struct list_head *flush_list = this_cpu_ptr(&dev_flush_list);
 	struct xdp_dev_bulk_queue *bq = this_cpu_ptr(dev->xdp_bulkq);
 
 	if (unlikely(bq->count == DEV_MAP_BULK_SIZE))
@@ -467,6 +466,8 @@ static void bq_enqueue(struct net_device *dev, struct xdp_frame *xdpf,
 	 * are only ever modified together.
 	 */
 	if (!bq->dev_rx) {
+		struct list_head *flush_list = bpf_net_ctx_get_dev_flush_list();
+
 		bq->dev_rx = dev_rx;
 		bq->xdp_prog = xdp_prog;
 		list_add(&bq->flush_node, flush_list);
@@ -1040,6 +1041,7 @@ static u64 dev_map_mem_usage(const struct bpf_map *map)
 BTF_ID_LIST_SINGLE(dev_map_btf_ids, struct, bpf_dtab)
 const struct bpf_map_ops dev_map_ops = {
 	.map_meta_equal = bpf_map_meta_equal,
+	.map_alloc_check = dev_map_alloc_check,
 	.map_alloc = dev_map_alloc,
 	.map_free = dev_map_free,
 	.map_get_next_key = dev_map_get_next_key,
@@ -1054,6 +1056,7 @@ const struct bpf_map_ops dev_map_ops = {
 
 const struct bpf_map_ops dev_map_hash_ops = {
 	.map_meta_equal = bpf_map_meta_equal,
+	.map_alloc_check = dev_map_alloc_check,
 	.map_alloc = dev_map_alloc,
 	.map_free = dev_map_free,
 	.map_get_next_key = dev_map_hash_get_next_key,
@@ -1153,15 +1156,11 @@ static struct notifier_block dev_map_notifier = {
 
 static int __init dev_map_init(void)
 {
-	int cpu;
-
 	/* Assure tracepoint shadow struct _bpf_dtab_netdev is in sync */
 	BUILD_BUG_ON(offsetof(struct bpf_dtab_netdev, dev) !=
 		     offsetof(struct _bpf_dtab_netdev, dev));
 	register_netdevice_notifier(&dev_map_notifier);
 
-	for_each_possible_cpu(cpu)
-		INIT_LIST_HEAD(&per_cpu(dev_flush_list, cpu));
 	return 0;
 }
 

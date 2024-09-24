@@ -78,7 +78,7 @@ properties:
       we use nvidia,adjust-baud-rates.
 
       As an example, consider there is deviation observed in TX for baud rates as listed below. 0
-      to 9600 has 1% deviation 9600 to 115200 2% deviation. This slight deviation is expcted and
+      to 9600 has 1% deviation 9600 to 115200 2% deviation. This slight deviation is expected and
       Tegra UART is expected to handle it. Due to the issue stated above, baud rate on Tegra UART
       should be set equal to or above deviation observed for avoiding frame errors. Property
       should be set like this:

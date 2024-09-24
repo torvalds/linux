@@ -9,7 +9,7 @@
 #include "sun50i-a64-pinetab.dts"
 
 / {
-	model = "PineTab, Early Adopter's version";
+	model = "Pine64 PineTab Early Adopter";
 	compatible = "pine64,pinetab-early-adopter", "allwinner,sun50i-a64";
 };
 

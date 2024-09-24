@@ -51,6 +51,7 @@
 #include <linux/debugfs.h>
 #include <linux/delay.h>
 #include <linux/intel_tpmi.h>
+#include <linux/intel_vsec.h>
 #include <linux/io.h>
 #include <linux/iopoll.h>
 #include <linux/module.h>
@@ -58,8 +59,6 @@
 #include <linux/security.h>
 #include <linux/sizes.h>
 #include <linux/string_helpers.h>
-
-#include "vsec.h"
 
 /**
  * struct intel_tpmi_pfs_entry - TPMI PM Feature Structure (PFS) entry
@@ -357,6 +356,15 @@ int tpmi_get_feature_status(struct auxiliary_device *auxdev,
 }
 EXPORT_SYMBOL_NS_GPL(tpmi_get_feature_status, INTEL_TPMI);
 
+struct dentry *tpmi_get_debugfs_dir(struct auxiliary_device *auxdev)
+{
+	struct intel_vsec_device *intel_vsec_dev = dev_to_ivdev(auxdev->dev.parent);
+	struct intel_tpmi_info *tpmi_info = auxiliary_get_drvdata(&intel_vsec_dev->auxdev);
+
+	return tpmi_info->dbgfs_dir;
+}
+EXPORT_SYMBOL_NS_GPL(tpmi_get_debugfs_dir, INTEL_TPMI);
+
 static int tpmi_pfs_dbg_show(struct seq_file *s, void *unused)
 {
 	struct intel_tpmi_info *tpmi_info = s->private;
@@ -577,6 +585,8 @@ static const char *intel_tpmi_name(enum intel_tpmi_id id)
 		return "uncore";
 	case TPMI_ID_SST:
 		return "sst";
+	case TPMI_ID_PLR:
+		return "plr";
 	default:
 		return NULL;
 	}

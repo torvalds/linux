@@ -7,19 +7,19 @@ Detailed Usages
 DAMON provides below interfaces for different users.
 
 - *DAMON user space tool.*
-  `This <https://github.com/awslabs/damo>`_ is for privileged people such as
+  `This <https://github.com/damonitor/damo>`_ is for privileged people such as
   system administrators who want a just-working human-friendly interface.
   Using this, users can use the DAMON’s major features in a human-friendly way.
   It may not be highly tuned for special cases, though.  For more detail,
   please refer to its `usage document
-  <https://github.com/awslabs/damo/blob/next/USAGE.md>`_.
+  <https://github.com/damonitor/damo/blob/next/USAGE.md>`_.
 - *sysfs interface.*
   :ref:`This <sysfs_interface>` is for privileged user space programmers who
   want more optimized use of DAMON.  Using this, users can use DAMON’s major
   features by reading from and writing to special sysfs files.  Therefore,
   you can write and use your personalized DAMON sysfs wrapper programs that
   reads/writes the sysfs files instead of you.  The `DAMON user space tool
-  <https://github.com/awslabs/damo>`_ is one example of such programs.
+  <https://github.com/damonitor/damo>`_ is one example of such programs.
 - *Kernel Space Programming Interface.*
   :doc:`This </mm/damon/api>` is for kernel space programmers.  Using this,
   users can utilize every feature of DAMON most flexibly and efficiently by
@@ -78,7 +78,7 @@ comma (",").
     │ │ │ │ │ │ │ │ ...
     │ │ │ │ │ │ ...
     │ │ │ │ │ :ref:`schemes <sysfs_schemes>`/nr_schemes
-    │ │ │ │ │ │ :ref:`0 <sysfs_scheme>`/action,apply_interval_us
+    │ │ │ │ │ │ :ref:`0 <sysfs_scheme>`/action,target_nid,apply_interval_us
     │ │ │ │ │ │ │ :ref:`access_pattern <sysfs_access_pattern>`/
     │ │ │ │ │ │ │ │ sz/min,max
     │ │ │ │ │ │ │ │ nr_accesses/min,max
@@ -289,13 +289,17 @@ schemes/<N>/
 ------------
 
 In each scheme directory, five directories (``access_pattern``, ``quotas``,
-``watermarks``, ``filters``, ``stats``, and ``tried_regions``) and two files
-(``action`` and ``apply_interval``) exist.
+``watermarks``, ``filters``, ``stats``, and ``tried_regions``) and three files
+(``action``, ``target_nid`` and ``apply_interval``) exist.
 
 The ``action`` file is for setting and getting the scheme's :ref:`action
 <damon_design_damos_action>`.  The keywords that can be written to and read
 from the file and their meaning are same to those of the list on
 :ref:`design doc <damon_design_damos_action>`.
+
+The ``target_nid`` file is for setting the migration target node, which is
+only meaningful when the ``action`` is either ``migrate_hot`` or
+``migrate_cold``.
 
 The ``apply_interval_us`` file is for setting and getting the scheme's
 :ref:`apply_interval <damon_design_damos>` in microseconds.
@@ -539,7 +543,7 @@ memory rate becomes larger than 60%, or lower than 30%". ::
     # echo 300 > watermarks/low
 
 Please note that it's highly recommended to use user space tools like `damo
-<https://github.com/awslabs/damo>`_ rather than manually reading and writing
+<https://github.com/damonitor/damo>`_ rather than manually reading and writing
 the files as above.  Above is only for an example.
 
 .. _tracepoint:

@@ -571,7 +571,7 @@ static int int3400_thermal_probe(struct platform_device *pdev)
 	if (!adev)
 		return -ENODEV;
 
-	priv = kzalloc(sizeof(struct int3400_thermal_priv), GFP_KERNEL);
+	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 

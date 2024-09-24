@@ -37,7 +37,7 @@ struct tcp_transport {
 	unsigned int			nr_iov;
 };
 
-static struct ksmbd_transport_ops ksmbd_tcp_transport_ops;
+static const struct ksmbd_transport_ops ksmbd_tcp_transport_ops;
 
 static void tcp_stop_kthread(struct task_struct *kthread);
 static struct interface *alloc_iface(char *ifname);
@@ -624,8 +624,10 @@ int ksmbd_tcp_set_interfaces(char *ifc_list, int ifc_list_sz)
 		for_each_netdev(&init_net, netdev) {
 			if (netif_is_bridge_port(netdev))
 				continue;
-			if (!alloc_iface(kstrdup(netdev->name, GFP_KERNEL)))
+			if (!alloc_iface(kstrdup(netdev->name, GFP_KERNEL))) {
+				rtnl_unlock();
 				return -ENOMEM;
+			}
 		}
 		rtnl_unlock();
 		bind_additional_ifaces = 1;
@@ -649,7 +651,7 @@ int ksmbd_tcp_set_interfaces(char *ifc_list, int ifc_list_sz)
 	return 0;
 }
 
-static struct ksmbd_transport_ops ksmbd_tcp_transport_ops = {
+static const struct ksmbd_transport_ops ksmbd_tcp_transport_ops = {
 	.read		= ksmbd_tcp_read,
 	.writev		= ksmbd_tcp_writev,
 	.disconnect	= ksmbd_tcp_disconnect,

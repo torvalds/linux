@@ -62,17 +62,10 @@ struct nv50_chan {
 struct nv50_dmac {
 	struct nv50_chan base;
 
-	struct nvif_push _push;
-	struct nvif_push *push;
-	u32 *ptr;
+	struct nvif_push push;
 
 	struct nvif_object sync;
 	struct nvif_object vram;
-
-	/* Protects against concurrent pushbuf access to this channel, lock is
-	 * grabbed by evo_wait (if the pushbuf reservation is successful) and
-	 * dropped again by evo_kick. */
-	struct mutex lock;
 
 	u32 cur;
 	u32 put;
@@ -95,7 +88,7 @@ struct nv50_outp_atom {
 	} set, clr;
 };
 
-int nv50_dmac_create(struct nvif_device *device, struct nvif_object *disp,
+int nv50_dmac_create(struct nouveau_drm *,
 		     const s32 *oclass, u8 head, void *data, u32 size,
 		     s64 syncbuf, struct nv50_dmac *dmac);
 void nv50_dmac_destroy(struct nv50_dmac *);
@@ -107,9 +100,6 @@ void nv50_dmac_destroy(struct nv50_dmac *);
  * return anyway.
  */
 struct nouveau_encoder *nv50_real_outp(struct drm_encoder *encoder);
-
-u32 *evo_wait(struct nv50_dmac *, int nr);
-void evo_kick(u32 *, struct nv50_dmac *);
 
 extern const u64 disp50xx_modifiers[];
 extern const u64 disp90xx_modifiers[];

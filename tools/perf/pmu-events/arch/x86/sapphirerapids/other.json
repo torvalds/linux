@@ -1,6 +1,7 @@
 [
     {
         "BriefDescription": "ASSISTS.PAGE_FAULT",
+        "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xc1",
         "EventName": "ASSISTS.PAGE_FAULT",
         "SampleAfterValue": "1000003",
@@ -8,6 +9,7 @@
     },
     {
         "BriefDescription": "Counts the cycles where the AMX (Advance Matrix Extension) unit is busy performing an operation.",
+        "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xb7",
         "EventName": "EXE.AMX_BUSY",
         "SampleAfterValue": "2000003",
@@ -15,6 +17,7 @@
     },
     {
         "BriefDescription": "Counts demand instruction fetches and L1 instruction cache prefetches that have any type of response.",
+        "Counter": "0,1,2,3",
         "EventCode": "0x2A,0x2B",
         "EventName": "OCR.DEMAND_CODE_RD.ANY_RESPONSE",
         "MSRIndex": "0x1a6,0x1a7",
@@ -24,6 +27,7 @@
     },
     {
         "BriefDescription": "Counts demand instruction fetches and L1 instruction cache prefetches that were supplied by DRAM.",
+        "Counter": "0,1,2,3",
         "EventCode": "0x2A,0x2B",
         "EventName": "OCR.DEMAND_CODE_RD.DRAM",
         "MSRIndex": "0x1a6,0x1a7",
@@ -33,6 +37,7 @@
     },
     {
         "BriefDescription": "Counts demand instruction fetches and L1 instruction cache prefetches that were supplied by DRAM attached to this socket, unless in Sub NUMA Cluster(SNC) Mode.  In SNC Mode counts only those DRAM accesses that are controlled by the close SNC Cluster.",
+        "Counter": "0,1,2,3",
         "EventCode": "0x2A,0x2B",
         "EventName": "OCR.DEMAND_CODE_RD.LOCAL_DRAM",
         "MSRIndex": "0x1a6,0x1a7",
@@ -42,6 +47,7 @@
     },
     {
         "BriefDescription": "Counts demand instruction fetches and L1 instruction cache prefetches that were supplied by DRAM on a distant memory controller of this socket when the system is in SNC (sub-NUMA cluster) mode.",
+        "Counter": "0,1,2,3",
         "EventCode": "0x2A,0x2B",
         "EventName": "OCR.DEMAND_CODE_RD.SNC_DRAM",
         "MSRIndex": "0x1a6,0x1a7",
@@ -51,6 +57,7 @@
     },
     {
         "BriefDescription": "Counts demand data reads that have any type of response.",
+        "Counter": "0,1,2,3",
         "EventCode": "0x2A,0x2B",
         "EventName": "OCR.DEMAND_DATA_RD.ANY_RESPONSE",
         "MSRIndex": "0x1a6,0x1a7",
@@ -60,6 +67,7 @@
     },
     {
         "BriefDescription": "Counts demand data reads that were supplied by DRAM.",
+        "Counter": "0,1,2,3",
         "EventCode": "0x2A,0x2B",
         "EventName": "OCR.DEMAND_DATA_RD.DRAM",
         "MSRIndex": "0x1a6,0x1a7",
@@ -69,6 +77,7 @@
     },
     {
         "BriefDescription": "Counts demand data reads that were supplied by DRAM attached to this socket, unless in Sub NUMA Cluster(SNC) Mode.  In SNC Mode counts only those DRAM accesses that are controlled by the close SNC Cluster.",
+        "Counter": "0,1,2,3",
         "EventCode": "0x2A,0x2B",
         "EventName": "OCR.DEMAND_DATA_RD.LOCAL_DRAM",
         "MSRIndex": "0x1a6,0x1a7",
@@ -78,6 +87,7 @@
     },
     {
         "BriefDescription": "Counts demand data reads that were supplied by PMM attached to this socket, whether or not in Sub NUMA Cluster(SNC) Mode.  In SNC Mode counts PMM accesses that are controlled by the close or distant SNC Cluster.",
+        "Counter": "0,1,2,3",
         "EventCode": "0x2A,0x2B",
         "EventName": "OCR.DEMAND_DATA_RD.LOCAL_SOCKET_PMM",
         "MSRIndex": "0x1a6,0x1a7",
@@ -87,6 +97,7 @@
     },
     {
         "BriefDescription": "Counts demand data reads that were supplied by PMM.",
+        "Counter": "0,1,2,3",
         "EventCode": "0x2A,0x2B",
         "EventName": "OCR.DEMAND_DATA_RD.PMM",
         "MSRIndex": "0x1a6,0x1a7",
@@ -96,6 +107,7 @@
     },
     {
         "BriefDescription": "Counts demand data reads that were supplied by DRAM attached to another socket.",
+        "Counter": "0,1,2,3",
         "EventCode": "0x2A,0x2B",
         "EventName": "OCR.DEMAND_DATA_RD.REMOTE_DRAM",
         "MSRIndex": "0x1a6,0x1a7",
@@ -105,6 +117,7 @@
     },
     {
         "BriefDescription": "Counts demand data reads that were supplied by PMM attached to another socket.",
+        "Counter": "0,1,2,3",
         "EventCode": "0x2A,0x2B",
         "EventName": "OCR.DEMAND_DATA_RD.REMOTE_PMM",
         "MSRIndex": "0x1a6,0x1a7",
@@ -114,6 +127,7 @@
     },
     {
         "BriefDescription": "Counts demand data reads that were supplied by DRAM on a distant memory controller of this socket when the system is in SNC (sub-NUMA cluster) mode.",
+        "Counter": "0,1,2,3",
         "EventCode": "0x2A,0x2B",
         "EventName": "OCR.DEMAND_DATA_RD.SNC_DRAM",
         "MSRIndex": "0x1a6,0x1a7",
@@ -123,6 +137,7 @@
     },
     {
         "BriefDescription": "Counts demand reads for ownership (RFO) requests and software prefetches for exclusive ownership (PREFETCHW) that have any type of response.",
+        "Counter": "0,1,2,3",
         "EventCode": "0x2A,0x2B",
         "EventName": "OCR.DEMAND_RFO.ANY_RESPONSE",
         "MSRIndex": "0x1a6,0x1a7",
@@ -132,6 +147,7 @@
     },
     {
         "BriefDescription": "Counts demand reads for ownership (RFO) requests and software prefetches for exclusive ownership (PREFETCHW) that were supplied by DRAM.",
+        "Counter": "0,1,2,3",
         "EventCode": "0x2A,0x2B",
         "EventName": "OCR.DEMAND_RFO.DRAM",
         "MSRIndex": "0x1a6,0x1a7",
@@ -141,6 +157,7 @@
     },
     {
         "BriefDescription": "Counts demand reads for ownership (RFO) requests and software prefetches for exclusive ownership (PREFETCHW) that were supplied by DRAM attached to this socket, unless in Sub NUMA Cluster(SNC) Mode.  In SNC Mode counts only those DRAM accesses that are controlled by the close SNC Cluster.",
+        "Counter": "0,1,2,3",
         "EventCode": "0x2A,0x2B",
         "EventName": "OCR.DEMAND_RFO.LOCAL_DRAM",
         "MSRIndex": "0x1a6,0x1a7",
@@ -150,6 +167,7 @@
     },
     {
         "BriefDescription": "Counts demand reads for ownership (RFO) requests and software prefetches for exclusive ownership (PREFETCHW) that were supplied by DRAM on a distant memory controller of this socket when the system is in SNC (sub-NUMA cluster) mode.",
+        "Counter": "0,1,2,3",
         "EventCode": "0x2A,0x2B",
         "EventName": "OCR.DEMAND_RFO.SNC_DRAM",
         "MSRIndex": "0x1a6,0x1a7",
@@ -159,6 +177,7 @@
     },
     {
         "BriefDescription": "Counts data load hardware prefetch requests to the L1 data cache that have any type of response.",
+        "Counter": "0,1,2,3",
         "EventCode": "0x2A,0x2B",
         "EventName": "OCR.HWPF_L1D.ANY_RESPONSE",
         "MSRIndex": "0x1a6,0x1a7",
@@ -168,6 +187,7 @@
     },
     {
         "BriefDescription": "Counts hardware prefetches (which bring data to L2) that have any type of response.",
+        "Counter": "0,1,2,3",
         "EventCode": "0x2A,0x2B",
         "EventName": "OCR.HWPF_L2.ANY_RESPONSE",
         "MSRIndex": "0x1a6,0x1a7",
@@ -177,6 +197,7 @@
     },
     {
         "BriefDescription": "Counts hardware prefetches to the L3 only that have any type of response.",
+        "Counter": "0,1,2,3",
         "EventCode": "0x2A,0x2B",
         "EventName": "OCR.HWPF_L3.ANY_RESPONSE",
         "MSRIndex": "0x1a6,0x1a7",
@@ -186,6 +207,7 @@
     },
     {
         "BriefDescription": "Counts hardware prefetches to the L3 only that were not supplied by the local socket's L1, L2, or L3 caches and the cacheline was homed in a remote socket.",
+        "Counter": "0,1,2,3",
         "EventCode": "0x2A,0x2B",
         "EventName": "OCR.HWPF_L3.REMOTE",
         "MSRIndex": "0x1a6,0x1a7",
@@ -195,6 +217,7 @@
     },
     {
         "BriefDescription": "Counts writebacks of modified cachelines and streaming stores that have any type of response.",
+        "Counter": "0,1,2,3",
         "EventCode": "0x2A,0x2B",
         "EventName": "OCR.MODIFIED_WRITE.ANY_RESPONSE",
         "MSRIndex": "0x1a6,0x1a7",
@@ -204,6 +227,7 @@
     },
     {
         "BriefDescription": "Counts all (cacheable) data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that have any type of response.",
+        "Counter": "0,1,2,3",
         "EventCode": "0x2A,0x2B",
         "EventName": "OCR.READS_TO_CORE.ANY_RESPONSE",
         "MSRIndex": "0x1a6,0x1a7",
@@ -213,6 +237,7 @@
     },
     {
         "BriefDescription": "Counts all (cacheable) data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that were supplied by DRAM.",
+        "Counter": "0,1,2,3",
         "EventCode": "0x2A,0x2B",
         "EventName": "OCR.READS_TO_CORE.DRAM",
         "MSRIndex": "0x1a6,0x1a7",
@@ -222,6 +247,7 @@
     },
     {
         "BriefDescription": "Counts all (cacheable) data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that were supplied by DRAM attached to this socket, unless in Sub NUMA Cluster(SNC) Mode.  In SNC Mode counts only those DRAM accesses that are controlled by the close SNC Cluster.",
+        "Counter": "0,1,2,3",
         "EventCode": "0x2A,0x2B",
         "EventName": "OCR.READS_TO_CORE.LOCAL_DRAM",
         "MSRIndex": "0x1a6,0x1a7",
@@ -231,6 +257,7 @@
     },
     {
         "BriefDescription": "Counts all (cacheable) data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that were supplied by DRAM attached to this socket, whether or not in Sub NUMA Cluster(SNC) Mode.  In SNC Mode counts DRAM accesses that are controlled by the close or distant SNC Cluster.",
+        "Counter": "0,1,2,3",
         "EventCode": "0x2A,0x2B",
         "EventName": "OCR.READS_TO_CORE.LOCAL_SOCKET_DRAM",
         "MSRIndex": "0x1a6,0x1a7",
@@ -240,6 +267,7 @@
     },
     {
         "BriefDescription": "Counts all (cacheable) data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that were supplied by PMM attached to this socket, whether or not in Sub NUMA Cluster(SNC) Mode.  In SNC Mode counts PMM accesses that are controlled by the close or distant SNC Cluster.",
+        "Counter": "0,1,2,3",
         "EventCode": "0x2A,0x2B",
         "EventName": "OCR.READS_TO_CORE.LOCAL_SOCKET_PMM",
         "MSRIndex": "0x1a6,0x1a7",
@@ -249,6 +277,7 @@
     },
     {
         "BriefDescription": "Counts all (cacheable) data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that were not supplied by the local socket's L1, L2, or L3 caches and were supplied by a remote socket.",
+        "Counter": "0,1,2,3",
         "EventCode": "0x2A,0x2B",
         "EventName": "OCR.READS_TO_CORE.REMOTE",
         "MSRIndex": "0x1a6,0x1a7",
@@ -258,6 +287,7 @@
     },
     {
         "BriefDescription": "Counts all (cacheable) data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that were supplied by DRAM attached to another socket.",
+        "Counter": "0,1,2,3",
         "EventCode": "0x2A,0x2B",
         "EventName": "OCR.READS_TO_CORE.REMOTE_DRAM",
         "MSRIndex": "0x1a6,0x1a7",
@@ -267,6 +297,7 @@
     },
     {
         "BriefDescription": "Counts all (cacheable) data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that were supplied by DRAM or PMM attached to another socket.",
+        "Counter": "0,1,2,3",
         "EventCode": "0x2A,0x2B",
         "EventName": "OCR.READS_TO_CORE.REMOTE_MEMORY",
         "MSRIndex": "0x1a6,0x1a7",
@@ -276,6 +307,7 @@
     },
     {
         "BriefDescription": "Counts all (cacheable) data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that were supplied by PMM attached to another socket.",
+        "Counter": "0,1,2,3",
         "EventCode": "0x2A,0x2B",
         "EventName": "OCR.READS_TO_CORE.REMOTE_PMM",
         "MSRIndex": "0x1a6,0x1a7",
@@ -285,6 +317,7 @@
     },
     {
         "BriefDescription": "Counts all (cacheable) data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that were supplied by DRAM on a distant memory controller of this socket when the system is in SNC (sub-NUMA cluster) mode.",
+        "Counter": "0,1,2,3",
         "EventCode": "0x2A,0x2B",
         "EventName": "OCR.READS_TO_CORE.SNC_DRAM",
         "MSRIndex": "0x1a6,0x1a7",
@@ -294,6 +327,7 @@
     },
     {
         "BriefDescription": "Counts streaming stores that have any type of response.",
+        "Counter": "0,1,2,3",
         "EventCode": "0x2A,0x2B",
         "EventName": "OCR.STREAMING_WR.ANY_RESPONSE",
         "MSRIndex": "0x1a6,0x1a7",
@@ -303,6 +337,7 @@
     },
     {
         "BriefDescription": "Counts Demand RFOs, ItoM's, PREFECTHW's, Hardware RFO Prefetches to the L1/L2 and Streaming stores that likely resulted in a store to Memory (DRAM or PMM)",
+        "Counter": "0,1,2,3",
         "EventCode": "0x2A,0x2B",
         "EventName": "OCR.WRITE_ESTIMATE.MEMORY",
         "MSRIndex": "0x1a6,0x1a7",
@@ -312,6 +347,7 @@
     },
     {
         "BriefDescription": "Cycles when Reservation Station (RS) is empty for the thread.",
+        "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xa5",
         "EventName": "RS.EMPTY",
         "PublicDescription": "Counts cycles during which the reservation station (RS) is empty for this logical processor. This is usually caused when the front-end pipeline runs into starvation periods (e.g. branch mispredictions or i-cache misses)",
@@ -320,6 +356,7 @@
     },
     {
         "BriefDescription": "Counts end of periods where the Reservation Station (RS) was empty.",
+        "Counter": "0,1,2,3,4,5,6,7",
         "CounterMask": "1",
         "EdgeDetect": "1",
         "EventCode": "0xa5",
@@ -330,7 +367,16 @@
         "UMask": "0x7"
     },
     {
+        "BriefDescription": "Cycles when Reservation Station (RS) is empty due to a resource in the back-end",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xa5",
+        "EventName": "RS.EMPTY_RESOURCE",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x1"
+    },
+    {
         "BriefDescription": "This event is deprecated. Refer to new event RS.EMPTY_COUNT",
+        "Counter": "0,1,2,3,4,5,6,7",
         "CounterMask": "1",
         "Deprecated": "1",
         "EdgeDetect": "1",
@@ -342,6 +388,7 @@
     },
     {
         "BriefDescription": "This event is deprecated. Refer to new event RS.EMPTY",
+        "Counter": "0,1,2,3,4,5,6,7",
         "Deprecated": "1",
         "EventCode": "0xa5",
         "EventName": "RS_EMPTY.CYCLES",
@@ -350,6 +397,7 @@
     },
     {
         "BriefDescription": "Cycles the uncore cannot take further requests",
+        "Counter": "0,1,2,3",
         "CounterMask": "1",
         "EventCode": "0x2d",
         "EventName": "XQ.FULL_CYCLES",

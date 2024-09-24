@@ -26,7 +26,7 @@
 #include "sdio_cis.h"
 #include "sdio_bus.h"
 
-#define to_sdio_driver(d)	container_of(d, struct sdio_driver, drv)
+#define to_sdio_driver(d)	container_of_const(d, struct sdio_driver, drv)
 
 /* show configuration fields */
 #define sdio_config_attr(field, format_string, args...)			\
@@ -91,7 +91,7 @@ static const struct sdio_device_id *sdio_match_one(struct sdio_func *func,
 }
 
 static const struct sdio_device_id *sdio_match_device(struct sdio_func *func,
-	struct sdio_driver *sdrv)
+	const struct sdio_driver *sdrv)
 {
 	const struct sdio_device_id *ids;
 
@@ -108,10 +108,10 @@ static const struct sdio_device_id *sdio_match_device(struct sdio_func *func,
 	return NULL;
 }
 
-static int sdio_bus_match(struct device *dev, struct device_driver *drv)
+static int sdio_bus_match(struct device *dev, const struct device_driver *drv)
 {
 	struct sdio_func *func = dev_to_sdio_func(dev);
-	struct sdio_driver *sdrv = to_sdio_driver(drv);
+	const struct sdio_driver *sdrv = to_sdio_driver(drv);
 
 	if (sdio_match_device(func, sdrv))
 		return 1;
@@ -129,7 +129,7 @@ sdio_bus_uevent(const struct device *dev, struct kobj_uevent_env *env)
 			"SDIO_CLASS=%02X", func->class))
 		return -ENOMEM;
 
-	if (add_uevent_var(env, 
+	if (add_uevent_var(env,
 			"SDIO_ID=%04X:%04X", func->vendor, func->device))
 		return -ENOMEM;
 

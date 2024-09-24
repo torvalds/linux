@@ -38,7 +38,7 @@ config PCIE_CADENCE_PLAT_EP
 	select PCIE_CADENCE_EP
 	select PCIE_CADENCE_PLAT
 	help
-	  Say Y here if you want to support the Cadence PCIe  platform controller in
+	  Say Y here if you want to support the Cadence PCIe platform controller in
 	  endpoint mode. This PCIe controller may be embedded into many
 	  different vendors SoCs.
 

@@ -954,7 +954,7 @@ static u32 otx2_get_link(struct net_device *netdev)
 }
 
 static int otx2_get_ts_info(struct net_device *netdev,
-			    struct ethtool_ts_info *info)
+			    struct kernel_ethtool_ts_info *info)
 {
 	struct otx2_nic *pfvf = netdev_priv(netdev);
 
@@ -962,8 +962,6 @@ static int otx2_get_ts_info(struct net_device *netdev,
 		return ethtool_op_get_ts_info(netdev, info);
 
 	info->so_timestamping = SOF_TIMESTAMPING_TX_SOFTWARE |
-				SOF_TIMESTAMPING_RX_SOFTWARE |
-				SOF_TIMESTAMPING_SOFTWARE |
 				SOF_TIMESTAMPING_TX_HARDWARE |
 				SOF_TIMESTAMPING_RX_HARDWARE |
 				SOF_TIMESTAMPING_RAW_HARDWARE;

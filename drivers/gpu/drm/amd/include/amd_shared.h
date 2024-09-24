@@ -61,7 +61,7 @@ enum amd_apu_flags {
 * acquires the list of IP blocks for the GPU in use on initialization.
 * It can then operate on this list to perform standard driver operations
 * such as: init, fini, suspend, resume, etc.
-* 
+*
 *
 * IP block implementations are named using the following convention:
 * <functionality>_v<version> (E.g.: gfx_v6_0).
@@ -86,6 +86,7 @@ enum amd_apu_flags {
 * @AMD_IP_BLOCK_TYPE_JPEG: JPEG Engine
 * @AMD_IP_BLOCK_TYPE_VPE: Video Processing Engine
 * @AMD_IP_BLOCK_TYPE_UMSCH_MM: User Mode Schduler for Multimedia
+* @AMD_IP_BLOCK_TYPE_ISP: Image Signal Processor
 * @AMD_IP_BLOCK_TYPE_NUM: Total number of IP block types
 */
 enum amd_ip_block_type {
@@ -105,6 +106,7 @@ enum amd_ip_block_type {
 	AMD_IP_BLOCK_TYPE_JPEG,
 	AMD_IP_BLOCK_TYPE_VPE,
 	AMD_IP_BLOCK_TYPE_UMSCH_MM,
+	AMD_IP_BLOCK_TYPE_ISP,
 	AMD_IP_BLOCK_TYPE_NUM,
 };
 
@@ -249,19 +251,92 @@ enum DC_FEATURE_MASK {
 	DC_REPLAY_MASK = (1 << 9), //0x200, disabled by default for dcn < 3.1.4
 };
 
+/**
+ * enum DC_DEBUG_MASK - Bits that are useful for debugging the Display Core IP
+ */
 enum DC_DEBUG_MASK {
+	/**
+	 * @DC_DISABLE_PIPE_SPLIT: If set, disable pipe-splitting
+	 */
 	DC_DISABLE_PIPE_SPLIT = 0x1,
+
+	/**
+	 * @DC_DISABLE_STUTTER: If set, disable memory stutter mode
+	 */
 	DC_DISABLE_STUTTER = 0x2,
+
+	/**
+	 * @DC_DISABLE_DSC: If set, disable display stream compression
+	 */
 	DC_DISABLE_DSC = 0x4,
+
+	/**
+	 * @DC_DISABLE_CLOCK_GATING: If set, disable clock gating optimizations
+	 */
 	DC_DISABLE_CLOCK_GATING = 0x8,
+
+	/**
+	 * @DC_DISABLE_PSR: If set, disable Panel self refresh v1 and PSR-SU
+	 */
 	DC_DISABLE_PSR = 0x10,
+
+	/**
+	 * @DC_FORCE_SUBVP_MCLK_SWITCH: If set, force mclk switch in subvp, even
+	 * if mclk switch in vblank is possible
+	 */
 	DC_FORCE_SUBVP_MCLK_SWITCH = 0x20,
+
+	/**
+	 * @DC_DISABLE_MPO: If set, disable multi-plane offloading
+	 */
 	DC_DISABLE_MPO = 0x40,
+
+	/**
+	 * @DC_ENABLE_DPIA_TRACE: If set, enable trace logging for DPIA
+	 */
 	DC_ENABLE_DPIA_TRACE = 0x80,
+
+	/**
+	 * @DC_ENABLE_DML2: If set, force usage of DML2, even if the DCN version
+	 * does not default to it.
+	 */
 	DC_ENABLE_DML2 = 0x100,
+
+	/**
+	 * @DC_DISABLE_PSR_SU: If set, disable PSR SU
+	 */
 	DC_DISABLE_PSR_SU = 0x200,
+
+	/**
+	 * @DC_DISABLE_REPLAY: If set, disable Panel Replay
+	 */
 	DC_DISABLE_REPLAY = 0x400,
+
+	/**
+	 * @DC_DISABLE_IPS: If set, disable all Idle Power States, all the time.
+	 * If more than one IPS debug bit is set, the lowest bit takes
+	 * precedence. For example, if DC_FORCE_IPS_ENABLE and
+	 * DC_DISABLE_IPS_DYNAMIC are set, then DC_DISABLE_IPS_DYNAMIC takes
+	 * precedence.
+	 */
 	DC_DISABLE_IPS = 0x800,
+
+	/**
+	 * @DC_DISABLE_IPS_DYNAMIC: If set, disable all IPS, all the time,
+	 * *except* when driver goes into suspend.
+	 */
+	DC_DISABLE_IPS_DYNAMIC = 0x1000,
+
+	/**
+	 * @DC_DISABLE_IPS2_DYNAMIC: If set, disable IPS2 (IPS1 allowed) if
+	 * there is an enabled display. Otherwise, enable all IPS.
+	 */
+	DC_DISABLE_IPS2_DYNAMIC = 0x2000,
+
+	/**
+	 * @DC_FORCE_IPS_ENABLE: If set, force enable all IPS, all the time.
+	 */
+	DC_FORCE_IPS_ENABLE = 0x4000,
 };
 
 enum amd_dpm_forced_level;
@@ -291,6 +366,8 @@ enum amd_dpm_forced_level;
  * @set_clockgating_state: enable/disable cg for the IP block
  * @set_powergating_state: enable/disable pg for the IP block
  * @get_clockgating_state: get current clockgating status
+ * @dump_ip_state: dump the IP state of the ASIC during a gpu hang
+ * @print_ip_state: print the IP state in devcoredump for each IP of the ASIC
  *
  * These hooks provide an interface for controlling the operational state
  * of IP blocks. After acquiring a list of IP blocks for the GPU in use,

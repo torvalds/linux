@@ -1046,8 +1046,7 @@ static void ina2xx_remove(struct i2c_client *client)
 	iio_device_unregister(indio_dev);
 
 	/* Powerdown */
-	ret = regmap_update_bits(chip->regmap, INA2XX_CONFIG,
-				 INA2XX_MODE_MASK, 0);
+	ret = regmap_clear_bits(chip->regmap, INA2XX_CONFIG, INA2XX_MODE_MASK);
 	if (ret)
 		dev_warn(&client->dev, "Failed to power down device (%pe)\n",
 			 ERR_PTR(ret));

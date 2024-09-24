@@ -170,6 +170,12 @@ static inline int for_each_rdev_check_rtnl(void)
 	if (for_each_rdev_check_rtnl()) {} else				\
 		list_for_each_entry(rdev, &cfg80211_rdev_list, list)
 
+enum bss_source_type {
+	BSS_SOURCE_DIRECT = 0,
+	BSS_SOURCE_MBSSID,
+	BSS_SOURCE_STA_PROFILE,
+};
+
 struct cfg80211_internal_bss {
 	struct list_head list;
 	struct list_head hidden_list;
@@ -190,6 +196,8 @@ struct cfg80211_internal_bss {
 	 * when the beacon/probe was received.
 	 */
 	u8 parent_bssid[ETH_ALEN] __aligned(2);
+
+	enum bss_source_type bss_source;
 
 	/* must be last because of priv member */
 	struct cfg80211_bss pub;
@@ -494,7 +502,8 @@ bool cfg80211_wdev_on_sub_chan(struct wireless_dev *wdev,
 			       bool primary_only);
 bool _cfg80211_chandef_usable(struct wiphy *wiphy,
 			      const struct cfg80211_chan_def *chandef,
-			      u32 prohibited_flags, bool monitor);
+			      u32 prohibited_flags,
+			      u32 permitting_flags);
 
 static inline unsigned int elapsed_jiffies_msecs(unsigned long start)
 {
@@ -532,6 +541,10 @@ struct cfg80211_internal_bss *
 cfg80211_bss_update(struct cfg80211_registered_device *rdev,
 		    struct cfg80211_internal_bss *tmp,
 		    bool signal_valid, unsigned long ts);
+
+enum ieee80211_ap_reg_power
+cfg80211_get_6ghz_power_type(const u8 *elems, size_t elems_len);
+
 #ifdef CONFIG_CFG80211_DEVELOPER_WARNINGS
 #define CFG80211_DEV_WARN_ON(cond)	WARN_ON(cond)
 #else

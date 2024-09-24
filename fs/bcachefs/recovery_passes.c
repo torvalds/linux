@@ -5,6 +5,7 @@
 #include "backpointers.h"
 #include "btree_gc.h"
 #include "btree_node_scan.h"
+#include "disk_accounting.h"
 #include "ec.h"
 #include "fsck.h"
 #include "inode.h"
@@ -39,7 +40,7 @@ static int bch2_set_may_go_rw(struct bch_fs *c)
 
 	set_bit(BCH_FS_may_go_rw, &c->flags);
 
-	if (keys->nr || c->opts.fsck || !c->sb.clean || c->recovery_passes_explicit)
+	if (keys->nr || c->opts.fsck || !c->sb.clean || c->opts.recovery_passes)
 		return bch2_fs_read_write_early(c);
 	return 0;
 }
@@ -96,14 +97,14 @@ u64 bch2_recovery_passes_from_stable(u64 v)
 int bch2_run_explicit_recovery_pass(struct bch_fs *c,
 				    enum bch_recovery_pass pass)
 {
-	if (c->recovery_passes_explicit & BIT_ULL(pass))
+	if (c->opts.recovery_passes & BIT_ULL(pass))
 		return 0;
 
 	bch_info(c, "running explicit recovery pass %s (%u), currently at %s (%u)",
 		 bch2_recovery_passes[pass], pass,
 		 bch2_recovery_passes[c->curr_recovery_pass], c->curr_recovery_pass);
 
-	c->recovery_passes_explicit |= BIT_ULL(pass);
+	c->opts.recovery_passes |= BIT_ULL(pass);
 
 	if (c->curr_recovery_pass >= pass) {
 		c->curr_recovery_pass = pass;
@@ -160,7 +161,9 @@ static bool should_run_recovery_pass(struct bch_fs *c, enum bch_recovery_pass pa
 {
 	struct recovery_pass_fn *p = recovery_pass_fns + pass;
 
-	if (c->recovery_passes_explicit & BIT_ULL(pass))
+	if (c->opts.recovery_passes_exclude & BIT_ULL(pass))
+		return false;
+	if (c->opts.recovery_passes & BIT_ULL(pass))
 		return true;
 	if ((p->when & PASS_FSCK) && c->opts.fsck)
 		return true;
@@ -192,6 +195,8 @@ int bch2_run_online_recovery_passes(struct bch_fs *c)
 {
 	int ret = 0;
 
+	down_read(&c->state_lock);
+
 	for (unsigned i = 0; i < ARRAY_SIZE(recovery_pass_fns); i++) {
 		struct recovery_pass_fn *p = recovery_pass_fns + i;
 
@@ -206,6 +211,8 @@ int bch2_run_online_recovery_passes(struct bch_fs *c)
 		if (ret)
 			break;
 	}
+
+	up_read(&c->state_lock);
 
 	return ret;
 }

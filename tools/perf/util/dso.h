@@ -280,6 +280,16 @@ static inline void dso__set_annotate_warned(struct dso *dso)
 	RC_CHK_ACCESS(dso)->annotate_warned = 1;
 }
 
+static inline bool dso__auxtrace_warned(const struct dso *dso)
+{
+	return RC_CHK_ACCESS(dso)->auxtrace_warned;
+}
+
+static inline void dso__set_auxtrace_warned(struct dso *dso)
+{
+	RC_CHK_ACCESS(dso)->auxtrace_warned = 1;
+}
+
 static inline struct auxtrace_cache *dso__auxtrace_cache(struct dso *dso)
 {
 	return RC_CHK_ACCESS(dso)->auxtrace_cache;
@@ -592,6 +602,11 @@ static inline void dso__set_symsrc_filename(struct dso *dso, char *val)
 	RC_CHK_ACCESS(dso)->symsrc_filename = val;
 }
 
+static inline void dso__free_symsrc_filename(struct dso *dso)
+{
+	zfree(&RC_CHK_ACCESS(dso)->symsrc_filename);
+}
+
 static inline enum dso_binary_type dso__symtab_type(const struct dso *dso)
 {
 	return RC_CHK_ACCESS(dso)->symtab_type;
@@ -625,14 +640,14 @@ static inline void dso__set_text_offset(struct dso *dso, u64 val)
 int dso_id__cmp(const struct dso_id *a, const struct dso_id *b);
 bool dso_id__empty(const struct dso_id *id);
 
-struct dso *dso__new_id(const char *name, struct dso_id *id);
+struct dso *dso__new_id(const char *name, const struct dso_id *id);
 struct dso *dso__new(const char *name);
 void dso__delete(struct dso *dso);
 
 int dso__cmp_id(struct dso *a, struct dso *b);
 void dso__set_short_name(struct dso *dso, const char *name, bool name_allocated);
 void dso__set_long_name(struct dso *dso, const char *name, bool name_allocated);
-void __dso__inject_id(struct dso *dso, struct dso_id *id);
+void __dso__inject_id(struct dso *dso, const struct dso_id *id);
 
 int dso__name_len(const struct dso *dso);
 
@@ -808,5 +823,9 @@ void reset_fd_limit(void);
 
 u64 dso__find_global_type(struct dso *dso, u64 addr);
 u64 dso__findnew_global_type(struct dso *dso, u64 addr, u64 offset);
+
+/* Check if dso name is of format "/tmp/perf-%d.map" */
+bool perf_pid_map_tid(const char *dso_name, int *tid);
+bool is_perf_pid_map_name(const char *dso_name);
 
 #endif /* __PERF_DSO */

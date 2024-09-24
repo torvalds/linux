@@ -80,6 +80,11 @@ struct sendmsg_args {
 	int msglen;
 };
 
+struct bpf_testmod_ctx {
+	struct callback_head	rcu;
+	refcount_t		usage;
+};
+
 struct prog_test_ref_kfunc *
 bpf_kfunc_call_test_acquire(unsigned long *scalar_ptr) __ksym;
 void bpf_kfunc_call_test_release(struct prog_test_ref_kfunc *p) __ksym;
@@ -133,5 +138,25 @@ int bpf_kfunc_call_kernel_sendmsg(struct sendmsg_args *args) __ksym;
 int bpf_kfunc_call_sock_sendmsg(struct sendmsg_args *args) __ksym;
 int bpf_kfunc_call_kernel_getsockname(struct addr_args *args) __ksym;
 int bpf_kfunc_call_kernel_getpeername(struct addr_args *args) __ksym;
+
+void bpf_kfunc_dynptr_test(struct bpf_dynptr *ptr, struct bpf_dynptr *ptr__nullable) __ksym;
+
+struct bpf_testmod_ctx *bpf_testmod_ctx_create(int *err) __ksym;
+void bpf_testmod_ctx_release(struct bpf_testmod_ctx *ctx) __ksym;
+
+struct sk_buff *bpf_kfunc_nested_acquire_nonzero_offset_test(struct sk_buff_head *ptr) __ksym;
+struct sk_buff *bpf_kfunc_nested_acquire_zero_offset_test(struct sock_common *ptr) __ksym;
+void bpf_kfunc_nested_release_test(struct sk_buff *ptr) __ksym;
+
+struct st_ops_args;
+int bpf_kfunc_st_ops_test_prologue(struct st_ops_args *args) __ksym;
+int bpf_kfunc_st_ops_test_epilogue(struct st_ops_args *args) __ksym;
+int bpf_kfunc_st_ops_test_pro_epilogue(struct st_ops_args *args) __ksym;
+int bpf_kfunc_st_ops_inc10(struct st_ops_args *args) __ksym;
+
+void bpf_kfunc_trusted_vma_test(struct vm_area_struct *ptr) __ksym;
+void bpf_kfunc_trusted_task_test(struct task_struct *ptr) __ksym;
+void bpf_kfunc_trusted_num_test(int *ptr) __ksym;
+void bpf_kfunc_rcu_task_test(struct task_struct *ptr) __ksym;
 
 #endif /* _BPF_TESTMOD_KFUNC_H */

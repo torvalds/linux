@@ -17,13 +17,13 @@ static int touch_cap_queue_setup(struct vb2_queue *vq, unsigned int *nbuffers,
 	unsigned int size = f->sizeimage;
 
 	if (*nplanes) {
-		if (sizes[0] < size)
+		if (*nplanes != 1)
 			return -EINVAL;
-	} else {
-		sizes[0] = size;
+		return sizes[0] < size ? -EINVAL : 0;
 	}
 
 	*nplanes = 1;
+	sizes[0] = size;
 	return 0;
 }
 

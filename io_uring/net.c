@@ -51,6 +51,16 @@ struct io_connect {
 	bool				seen_econnaborted;
 };
 
+struct io_bind {
+	struct file			*file;
+	int				addr_len;
+};
+
+struct io_listen {
+	struct file			*file;
+	int				backlog;
+};
+
 struct io_sr_msg {
 	struct file			*file;
 	union {
@@ -424,8 +434,6 @@ int io_sendmsg_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 		sr->buf_group = req->buf_index;
 		req->buf_list = NULL;
 	}
-	if (req->flags & REQ_F_BUFFER_SELECT && sr->len)
-		return -EINVAL;
 
 #ifdef CONFIG_COMPAT
 	if (req->ctx->compat)
@@ -489,11 +497,11 @@ static inline bool io_send_finish(struct io_kiocb *req, int *ret,
 	unsigned int cflags;
 
 	if (!(sr->flags & IORING_RECVSEND_BUNDLE)) {
-		cflags = io_put_kbuf(req, issue_flags);
+		cflags = io_put_kbuf(req, *ret, issue_flags);
 		goto finish;
 	}
 
-	cflags = io_put_kbufs(req, io_bundle_nbufs(kmsg, *ret), issue_flags);
+	cflags = io_put_kbufs(req, *ret, io_bundle_nbufs(kmsg, *ret), issue_flags);
 
 	if (bundle_finished || req->flags & REQ_F_BL_EMPTY)
 		goto finish;
@@ -589,30 +597,41 @@ retry_bundle:
 	if (io_do_buffer_select(req)) {
 		struct buf_sel_arg arg = {
 			.iovs = &kmsg->fast_iov,
-			.max_len = INT_MAX,
+			.max_len = min_not_zero(sr->len, INT_MAX),
 			.nr_iovs = 1,
-			.mode = KBUF_MODE_EXPAND,
 		};
 
 		if (kmsg->free_iov) {
 			arg.nr_iovs = kmsg->free_iov_nr;
 			arg.iovs = kmsg->free_iov;
-			arg.mode |= KBUF_MODE_FREE;
+			arg.mode = KBUF_MODE_FREE;
 		}
 
 		if (!(sr->flags & IORING_RECVSEND_BUNDLE))
 			arg.nr_iovs = 1;
+		else
+			arg.mode |= KBUF_MODE_EXPAND;
 
 		ret = io_buffers_select(req, &arg, issue_flags);
 		if (unlikely(ret < 0))
 			return ret;
 
-		sr->len = arg.out_len;
-		iov_iter_init(&kmsg->msg.msg_iter, ITER_SOURCE, arg.iovs, ret,
-				arg.out_len);
 		if (arg.iovs != &kmsg->fast_iov && arg.iovs != kmsg->free_iov) {
 			kmsg->free_iov_nr = ret;
 			kmsg->free_iov = arg.iovs;
+			req->flags |= REQ_F_NEED_CLEANUP;
+		}
+		sr->len = arg.out_len;
+
+		if (ret == 1) {
+			sr->buf = arg.iovs[0].iov_base;
+			ret = import_ubuf(ITER_SOURCE, sr->buf, sr->len,
+						&kmsg->msg.msg_iter);
+			if (unlikely(ret))
+				return ret;
+		} else {
+			iov_iter_init(&kmsg->msg.msg_iter, ITER_SOURCE,
+					arg.iovs, ret, arg.out_len);
 		}
 	}
 
@@ -817,20 +836,20 @@ static inline bool io_recv_finish(struct io_kiocb *req, int *ret,
 				  bool mshot_finished, unsigned issue_flags)
 {
 	struct io_sr_msg *sr = io_kiocb_to_cmd(req, struct io_sr_msg);
-	unsigned int cflags;
-
-	if (sr->flags & IORING_RECVSEND_BUNDLE)
-		cflags = io_put_kbufs(req, io_bundle_nbufs(kmsg, *ret),
-				      issue_flags);
-	else
-		cflags = io_put_kbuf(req, issue_flags);
+	unsigned int cflags = 0;
 
 	if (kmsg->msg.msg_inq > 0)
 		cflags |= IORING_CQE_F_SOCK_NONEMPTY;
 
-	/* bundle with no more immediate buffers, we're done */
-	if (sr->flags & IORING_RECVSEND_BUNDLE && req->flags & REQ_F_BL_EMPTY)
-		goto finish;
+	if (sr->flags & IORING_RECVSEND_BUNDLE) {
+		cflags |= io_put_kbufs(req, *ret, io_bundle_nbufs(kmsg, *ret),
+				      issue_flags);
+		/* bundle with no more immediate buffers, we're done */
+		if (req->flags & REQ_F_BL_EMPTY)
+			goto finish;
+	} else {
+		cflags |= io_put_kbuf(req, *ret, issue_flags);
+	}
 
 	/*
 	 * Fill CQE for this receive and see if we should keep trying to
@@ -1084,6 +1103,7 @@ static int io_recv_buf_select(struct io_kiocb *req, struct io_async_msghdr *kmsg
 		if (arg.iovs != &kmsg->fast_iov && arg.iovs != kmsg->free_iov) {
 			kmsg->free_iov_nr = ret;
 			kmsg->free_iov = arg.iovs;
+			req->flags |= REQ_F_NEED_CLEANUP;
 		}
 	} else {
 		void __user *buf;
@@ -1127,15 +1147,17 @@ int io_recv(struct io_kiocb *req, unsigned int issue_flags)
 		flags |= MSG_DONTWAIT;
 
 retry_multishot:
-	kmsg->msg.msg_inq = -1;
-	kmsg->msg.msg_flags = 0;
-
 	if (io_do_buffer_select(req)) {
 		ret = io_recv_buf_select(req, kmsg, &len, issue_flags);
-		if (unlikely(ret))
+		if (unlikely(ret)) {
+			kmsg->msg.msg_inq = -1;
 			goto out_free;
+		}
 		sr->buf = NULL;
 	}
+
+	kmsg->msg.msg_flags = 0;
+	kmsg->msg.msg_inq = -1;
 
 	if (flags & MSG_WAITALL)
 		min_ret = iov_iter_count(&kmsg->msg.msg_iter);
@@ -1265,14 +1287,14 @@ int io_send_zc_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	return io_sendmsg_prep_setup(req, req->opcode == IORING_OP_SENDMSG_ZC);
 }
 
-static int io_sg_from_iter_iovec(struct sock *sk, struct sk_buff *skb,
+static int io_sg_from_iter_iovec(struct sk_buff *skb,
 				 struct iov_iter *from, size_t length)
 {
 	skb_zcopy_downgrade_managed(skb);
-	return __zerocopy_sg_from_iter(NULL, sk, skb, from, length);
+	return zerocopy_fill_skb_from_iter(skb, from, length);
 }
 
-static int io_sg_from_iter(struct sock *sk, struct sk_buff *skb,
+static int io_sg_from_iter(struct sk_buff *skb,
 			   struct iov_iter *from, size_t length)
 {
 	struct skb_shared_info *shinfo = skb_shinfo(skb);
@@ -1285,7 +1307,7 @@ static int io_sg_from_iter(struct sock *sk, struct sk_buff *skb,
 	if (!frag)
 		shinfo->flags |= SKBFL_MANAGED_FRAG_REFS;
 	else if (unlikely(!skb_zcopy_managed(skb)))
-		return __zerocopy_sg_from_iter(NULL, sk, skb, from, length);
+		return zerocopy_fill_skb_from_iter(skb, from, length);
 
 	bi.bi_size = min(from->count, length);
 	bi.bi_bvec_done = from->iov_offset;
@@ -1312,14 +1334,6 @@ static int io_sg_from_iter(struct sock *sk, struct sk_buff *skb,
 	skb->data_len += copied;
 	skb->len += copied;
 	skb->truesize += truesize;
-
-	if (sk && sk->sk_type == SOCK_STREAM) {
-		sk_wmem_queued_add(sk, truesize);
-		if (!skb_zcopy_pure(skb))
-			sk_mem_charge(sk, truesize);
-	} else {
-		refcount_add(truesize, &skb->sk->sk_wmem_alloc);
-	}
 	return ret;
 }
 
@@ -1713,6 +1727,70 @@ out:
 	io_req_msg_cleanup(req, issue_flags);
 	io_req_set_res(req, ret, 0);
 	return IOU_OK;
+}
+
+int io_bind_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
+{
+	struct io_bind *bind = io_kiocb_to_cmd(req, struct io_bind);
+	struct sockaddr __user *uaddr;
+	struct io_async_msghdr *io;
+
+	if (sqe->len || sqe->buf_index || sqe->rw_flags || sqe->splice_fd_in)
+		return -EINVAL;
+
+	uaddr = u64_to_user_ptr(READ_ONCE(sqe->addr));
+	bind->addr_len =  READ_ONCE(sqe->addr2);
+
+	io = io_msg_alloc_async(req);
+	if (unlikely(!io))
+		return -ENOMEM;
+	return move_addr_to_kernel(uaddr, bind->addr_len, &io->addr);
+}
+
+int io_bind(struct io_kiocb *req, unsigned int issue_flags)
+{
+	struct io_bind *bind = io_kiocb_to_cmd(req, struct io_bind);
+	struct io_async_msghdr *io = req->async_data;
+	struct socket *sock;
+	int ret;
+
+	sock = sock_from_file(req->file);
+	if (unlikely(!sock))
+		return -ENOTSOCK;
+
+	ret = __sys_bind_socket(sock, &io->addr, bind->addr_len);
+	if (ret < 0)
+		req_set_fail(req);
+	io_req_set_res(req, ret, 0);
+	return 0;
+}
+
+int io_listen_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
+{
+	struct io_listen *listen = io_kiocb_to_cmd(req, struct io_listen);
+
+	if (sqe->addr || sqe->buf_index || sqe->rw_flags || sqe->splice_fd_in || sqe->addr2)
+		return -EINVAL;
+
+	listen->backlog = READ_ONCE(sqe->len);
+	return 0;
+}
+
+int io_listen(struct io_kiocb *req, unsigned int issue_flags)
+{
+	struct io_listen *listen = io_kiocb_to_cmd(req, struct io_listen);
+	struct socket *sock;
+	int ret;
+
+	sock = sock_from_file(req->file);
+	if (unlikely(!sock))
+		return -ENOTSOCK;
+
+	ret = __sys_listen_socket(sock, listen->backlog);
+	if (ret < 0)
+		req_set_fail(req);
+	io_req_set_res(req, ret, 0);
+	return 0;
 }
 
 void io_netmsg_cache_free(const void *entry)

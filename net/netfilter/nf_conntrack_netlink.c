@@ -1579,9 +1579,6 @@ static int ctnetlink_flush_conntrack(struct net *net,
 	};
 
 	if (ctnetlink_needs_filter(family, cda)) {
-		if (cda[CTA_FILTER])
-			return -EOPNOTSUPP;
-
 		filter = ctnetlink_alloc_filter(cda, family);
 		if (IS_ERR(filter))
 			return PTR_ERR(filter);
@@ -1610,14 +1607,14 @@ static int ctnetlink_del_conntrack(struct sk_buff *skb,
 	if (err < 0)
 		return err;
 
-	if (cda[CTA_TUPLE_ORIG])
+	if (cda[CTA_TUPLE_ORIG] && !cda[CTA_FILTER])
 		err = ctnetlink_parse_tuple(cda, &tuple, CTA_TUPLE_ORIG,
 					    family, &zone);
-	else if (cda[CTA_TUPLE_REPLY])
+	else if (cda[CTA_TUPLE_REPLY] && !cda[CTA_FILTER])
 		err = ctnetlink_parse_tuple(cda, &tuple, CTA_TUPLE_REPLY,
 					    family, &zone);
 	else {
-		u_int8_t u3 = info->nfmsg->version ? family : AF_UNSPEC;
+		u8 u3 = info->nfmsg->version || cda[CTA_FILTER] ? family : AF_UNSPEC;
 
 		return ctnetlink_flush_conntrack(info->net, cda,
 						 NETLINK_CB(skb).portid,
@@ -3420,7 +3417,8 @@ static int ctnetlink_del_expect(struct sk_buff *skb,
 
 		if (cda[CTA_EXPECT_ID]) {
 			__be32 id = nla_get_be32(cda[CTA_EXPECT_ID]);
-			if (ntohl(id) != (u32)(unsigned long)exp) {
+
+			if (id != nf_expect_get_id(exp)) {
 				nf_ct_expect_put(exp);
 				return -ENOENT;
 			}

@@ -1003,7 +1003,8 @@ out_free_interp:
 	if (elf_read_implies_exec(*elf_ex, executable_stack))
 		current->personality |= READ_IMPLIES_EXEC;
 
-	if (!(current->personality & ADDR_NO_RANDOMIZE) && randomize_va_space)
+	const int snapshot_randomize_va_space = READ_ONCE(randomize_va_space);
+	if (!(current->personality & ADDR_NO_RANDOMIZE) && snapshot_randomize_va_space)
 		current->flags |= PF_RANDOMIZE;
 
 	setup_new_exec(bprm);
@@ -1061,47 +1062,7 @@ out_free_interp:
 			 * Header for ET_DYN binaries to calculate the
 			 * randomization (load_bias) for all the LOAD
 			 * Program Headers.
-			 *
-			 * There are effectively two types of ET_DYN
-			 * binaries: programs (i.e. PIE: ET_DYN with INTERP)
-			 * and loaders (ET_DYN without INTERP, since they
-			 * _are_ the ELF interpreter). The loaders must
-			 * be loaded away from programs since the program
-			 * may otherwise collide with the loader (especially
-			 * for ET_EXEC which does not have a randomized
-			 * position). For example to handle invocations of
-			 * "./ld.so someprog" to test out a new version of
-			 * the loader, the subsequent program that the
-			 * loader loads must avoid the loader itself, so
-			 * they cannot share the same load range. Sufficient
-			 * room for the brk must be allocated with the
-			 * loader as well, since brk must be available with
-			 * the loader.
-			 *
-			 * Therefore, programs are loaded offset from
-			 * ELF_ET_DYN_BASE and loaders are loaded into the
-			 * independently randomized mmap region (0 load_bias
-			 * without MAP_FIXED nor MAP_FIXED_NOREPLACE).
 			 */
-			if (interpreter) {
-				load_bias = ELF_ET_DYN_BASE;
-				if (current->flags & PF_RANDOMIZE)
-					load_bias += arch_mmap_rnd();
-				alignment = maximum_alignment(elf_phdata, elf_ex->e_phnum);
-				if (alignment)
-					load_bias &= ~(alignment - 1);
-				elf_flags |= MAP_FIXED_NOREPLACE;
-			} else
-				load_bias = 0;
-
-			/*
-			 * Since load_bias is used for all subsequent loading
-			 * calculations, we must lower it by the first vaddr
-			 * so that the remaining calculations based on the
-			 * ELF vaddrs will be correctly offset. The result
-			 * is then page aligned.
-			 */
-			load_bias = ELF_PAGESTART(load_bias - vaddr);
 
 			/*
 			 * Calculate the entire size of the ELF mapping
@@ -1127,6 +1088,80 @@ out_free_interp:
 				retval = -EINVAL;
 				goto out_free_dentry;
 			}
+
+			/* Calculate any requested alignment. */
+			alignment = maximum_alignment(elf_phdata, elf_ex->e_phnum);
+
+			/*
+			 * There are effectively two types of ET_DYN
+			 * binaries: programs (i.e. PIE: ET_DYN with PT_INTERP)
+			 * and loaders (ET_DYN without PT_INTERP, since they
+			 * _are_ the ELF interpreter). The loaders must
+			 * be loaded away from programs since the program
+			 * may otherwise collide with the loader (especially
+			 * for ET_EXEC which does not have a randomized
+			 * position). For example to handle invocations of
+			 * "./ld.so someprog" to test out a new version of
+			 * the loader, the subsequent program that the
+			 * loader loads must avoid the loader itself, so
+			 * they cannot share the same load range. Sufficient
+			 * room for the brk must be allocated with the
+			 * loader as well, since brk must be available with
+			 * the loader.
+			 *
+			 * Therefore, programs are loaded offset from
+			 * ELF_ET_DYN_BASE and loaders are loaded into the
+			 * independently randomized mmap region (0 load_bias
+			 * without MAP_FIXED nor MAP_FIXED_NOREPLACE).
+			 */
+			if (interpreter) {
+				/* On ET_DYN with PT_INTERP, we do the ASLR. */
+				load_bias = ELF_ET_DYN_BASE;
+				if (current->flags & PF_RANDOMIZE)
+					load_bias += arch_mmap_rnd();
+				/* Adjust alignment as requested. */
+				if (alignment)
+					load_bias &= ~(alignment - 1);
+				elf_flags |= MAP_FIXED_NOREPLACE;
+			} else {
+				/*
+				 * For ET_DYN without PT_INTERP, we rely on
+				 * the architectures's (potentially ASLR) mmap
+				 * base address (via a load_bias of 0).
+				 *
+				 * When a large alignment is requested, we
+				 * must do the allocation at address "0" right
+				 * now to discover where things will load so
+				 * that we can adjust the resulting alignment.
+				 * In this case (load_bias != 0), we can use
+				 * MAP_FIXED_NOREPLACE to make sure the mapping
+				 * doesn't collide with anything.
+				 */
+				if (alignment > ELF_MIN_ALIGN) {
+					load_bias = elf_load(bprm->file, 0, elf_ppnt,
+							     elf_prot, elf_flags, total_size);
+					if (BAD_ADDR(load_bias)) {
+						retval = IS_ERR_VALUE(load_bias) ?
+							 PTR_ERR((void*)load_bias) : -EINVAL;
+						goto out_free_dentry;
+					}
+					vm_munmap(load_bias, total_size);
+					/* Adjust alignment as requested. */
+					if (alignment)
+						load_bias &= ~(alignment - 1);
+					elf_flags |= MAP_FIXED_NOREPLACE;
+				} else
+					load_bias = 0;
+			}
+
+			/*
+			 * Since load_bias is used for all subsequent loading
+			 * calculations, we must lower it by the first vaddr
+			 * so that the remaining calculations based on the
+			 * ELF vaddrs will be correctly offset. The result
+			 * is then page aligned.
+			 */
+			load_bias = ELF_PAGESTART(load_bias - vaddr);
 		}
 
 		error = elf_load(bprm->file, load_bias + vaddr, elf_ppnt,
@@ -1216,7 +1251,6 @@ out_free_interp:
 		}
 		reloc_func_desc = interp_load_addr;
 
-		allow_write_access(interpreter);
 		fput(interpreter);
 
 		kfree(interp_elf_ex);
@@ -1251,7 +1285,7 @@ out_free_interp:
 	mm->end_data = end_data;
 	mm->start_stack = bprm->p;
 
-	if ((current->flags & PF_RANDOMIZE) && (randomize_va_space > 1)) {
+	if ((current->flags & PF_RANDOMIZE) && (snapshot_randomize_va_space > 1)) {
 		/*
 		 * For architectures with ELF randomization, when executing
 		 * a loader directly (i.e. no interpreter listed in ELF
@@ -1280,6 +1314,11 @@ out_free_interp:
 		   emulate the SVr4 behavior. Sigh. */
 		error = vm_mmap(NULL, 0, PAGE_SIZE, PROT_READ | PROT_EXEC,
 				MAP_FIXED | MAP_PRIVATE, 0);
+
+		retval = do_mseal(0, PAGE_SIZE, 0);
+		if (retval)
+			pr_warn_ratelimited("pid=%d, couldn't seal address 0, ret=%d.\n",
+					    task_pid_nr(current), retval);
 	}
 
 	regs = current_pt_regs();
@@ -1308,7 +1347,6 @@ out_free_dentry:
 	kfree(interp_elf_ex);
 	kfree(interp_elf_phdata);
 out_free_file:
-	allow_write_access(interpreter);
 	if (interpreter)
 		fput(interpreter);
 out_free_ph:
@@ -1994,8 +2032,10 @@ static int elf_core_dump(struct coredump_params *cprm)
 	 * Collect all the non-memory information about the process for the
 	 * notes.  This also sets up the file header.
 	 */
-	if (!fill_note_info(&elf, e_phnum, &info, cprm))
+	if (!fill_note_info(&elf, e_phnum, &info, cprm)) {
+		coredump_report_failure("Error collecting note info");
 		goto end_coredump;
+	}
 
 	has_dumped = 1;
 
@@ -2006,12 +2046,14 @@ static int elf_core_dump(struct coredump_params *cprm)
 	{
 		size_t sz = info.size;
 
-		/* For cell spufs */
+		/* For cell spufs and x86 xstate */
 		sz += elf_coredump_extra_notes_size();
 
 		phdr4note = kmalloc(sizeof(*phdr4note), GFP_KERNEL);
-		if (!phdr4note)
+		if (!phdr4note) {
+			coredump_report_failure("Error allocating program headers note entry");
 			goto end_coredump;
+		}
 
 		fill_elf_note_phdr(phdr4note, sz, offset);
 		offset += sz;
@@ -2025,18 +2067,24 @@ static int elf_core_dump(struct coredump_params *cprm)
 
 	if (e_phnum == PN_XNUM) {
 		shdr4extnum = kmalloc(sizeof(*shdr4extnum), GFP_KERNEL);
-		if (!shdr4extnum)
+		if (!shdr4extnum) {
+			coredump_report_failure("Error allocating extra program headers");
 			goto end_coredump;
+		}
 		fill_extnum_info(&elf, shdr4extnum, e_shoff, segs);
 	}
 
 	offset = dataoff;
 
-	if (!dump_emit(cprm, &elf, sizeof(elf)))
+	if (!dump_emit(cprm, &elf, sizeof(elf))) {
+		coredump_report_failure("Error emitting the ELF headers");
 		goto end_coredump;
+	}
 
-	if (!dump_emit(cprm, phdr4note, sizeof(*phdr4note)))
+	if (!dump_emit(cprm, phdr4note, sizeof(*phdr4note))) {
+		coredump_report_failure("Error emitting the program header for notes");
 		goto end_coredump;
+	}
 
 	/* Write program headers for segments dump */
 	for (i = 0; i < cprm->vma_count; i++) {
@@ -2059,20 +2107,28 @@ static int elf_core_dump(struct coredump_params *cprm)
 			phdr.p_flags |= PF_X;
 		phdr.p_align = ELF_EXEC_PAGESIZE;
 
-		if (!dump_emit(cprm, &phdr, sizeof(phdr)))
+		if (!dump_emit(cprm, &phdr, sizeof(phdr))) {
+			coredump_report_failure("Error emitting program headers");
 			goto end_coredump;
+		}
 	}
 
-	if (!elf_core_write_extra_phdrs(cprm, offset))
+	if (!elf_core_write_extra_phdrs(cprm, offset)) {
+		coredump_report_failure("Error writing out extra program headers");
 		goto end_coredump;
+	}
 
 	/* write out the notes section */
-	if (!write_note_info(&info, cprm))
+	if (!write_note_info(&info, cprm)) {
+		coredump_report_failure("Error writing out notes");
 		goto end_coredump;
+	}
 
-	/* For cell spufs */
-	if (elf_coredump_extra_notes_write(cprm))
+	/* For cell spufs and x86 xstate */
+	if (elf_coredump_extra_notes_write(cprm)) {
+		coredump_report_failure("Error writing out extra notes");
 		goto end_coredump;
+	}
 
 	/* Align to page */
 	dump_skip_to(cprm, dataoff);
@@ -2080,16 +2136,22 @@ static int elf_core_dump(struct coredump_params *cprm)
 	for (i = 0; i < cprm->vma_count; i++) {
 		struct core_vma_metadata *meta = cprm->vma_meta + i;
 
-		if (!dump_user_range(cprm, meta->start, meta->dump_size))
+		if (!dump_user_range(cprm, meta->start, meta->dump_size)) {
+			coredump_report_failure("Error writing out the process memory");
 			goto end_coredump;
+		}
 	}
 
-	if (!elf_core_write_extra_data(cprm))
+	if (!elf_core_write_extra_data(cprm)) {
+		coredump_report_failure("Error writing out extra data");
 		goto end_coredump;
+	}
 
 	if (e_phnum == PN_XNUM) {
-		if (!dump_emit(cprm, shdr4extnum, sizeof(*shdr4extnum)))
+		if (!dump_emit(cprm, shdr4extnum, sizeof(*shdr4extnum))) {
+			coredump_report_failure("Error emitting extra program headers");
 			goto end_coredump;
+		}
 	}
 
 end_coredump:
@@ -2117,5 +2179,5 @@ core_initcall(init_elf_binfmt);
 module_exit(exit_elf_binfmt);
 
 #ifdef CONFIG_BINFMT_ELF_KUNIT_TEST
-#include "binfmt_elf_test.c"
+#include "tests/binfmt_elf_kunit.c"
 #endif

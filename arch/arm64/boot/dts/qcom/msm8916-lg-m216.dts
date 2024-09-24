@@ -1,0 +1,251 @@
+// SPDX-License-Identifier: GPL-2.0-only
+
+/dts-v1/;
+
+#include "msm8916-pm8916.dtsi"
+#include "msm8916-modem-qdsp6.dtsi"
+
+#include <dt-bindings/gpio/gpio.h>
+
+/ {
+	model = "LG K10 (K420n)";
+	compatible = "lg,m216", "qcom,msm8916";
+	chassis-type = "handset";
+
+	aliases {
+		mmc0 = &sdhc_1; /* eMMC */
+		mmc1 = &sdhc_2; /* SD card */
+		serial0 = &blsp_uart2;
+	};
+
+	chosen {
+		stdout-path = "serial0";
+	};
+
+	battery: battery {
+		compatible = "simple-battery";
+		voltage-min-design-microvolt = <3300000>;
+		voltage-max-design-microvolt = <4350000>;
+		energy-full-design-microwatt-hours = <8800000>;
+		charge-full-design-microamp-hours = <2300000>;
+
+		ocv-capacity-celsius = <25>;
+		ocv-capacity-table-0 = <4342000 100>, <4266000 95>, <4206000 90>,
+			<4148000 85>, <4094000 80>, <4046000 75>, <3994000 70>,
+			<3956000 65>, <3916000 60>, <3866000 55>, <3831000 50>,
+			<3808000 45>, <3789000 40>, <3776000 35>, <3769000 30>,
+			<3760000 25>, <3740000 20>, <3712000 16>, <3684000 13>,
+			<3676000 11>, <3674000 10>, <3672000 9>, <3669000 8>,
+			<3665000 7>, <3660000 6>, <3643000 5>, <3602000 4>,
+			<3542000 3>, <3458000 2>, <3326000 1>, <3000000 0>;
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+
+		pinctrl-0 = <&gpio_keys_default>;
+		pinctrl-names = "default";
+
+		label = "GPIO Buttons";
+
+		volume-up-button {
+			label = "Volume Up";
+			gpios = <&tlmm 107 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_VOLUMEUP>;
+		};
+
+		volume-down-button {
+			label = "Volume Down";
+			gpios = <&tlmm 108 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_VOLUMEDOWN>;
+		};
+	};
+};
+
+&blsp_i2c2 {
+	status = "okay";
+
+	accelerometer@11 {
+		compatible = "bosch,bmc150_accel";
+		reg = <0x11>;
+
+		interrupts-extended = <&tlmm 115 IRQ_TYPE_EDGE_RISING>;
+
+		mount-matrix =	 "0", "1", "0",
+				"-1", "0", "0",
+				 "0", "0", "1";
+
+		vdd-supply = <&pm8916_l17>;
+		vddio-supply = <&pm8916_l6>;
+
+		pinctrl-0 = <&accel_int_default>;
+		pinctrl-names = "default";
+	};
+
+	magnetometer@13 {
+		compatible = "bosch,bmc150_magn";
+		reg = <0x13>;
+
+		interrupts-extended = <&tlmm 69 IRQ_TYPE_EDGE_RISING>;
+
+		vdd-supply = <&pm8916_l17>;
+		vddio-supply = <&pm8916_l6>;
+
+		pinctrl-0 = <&magn_int_default>;
+		pinctrl-names = "default";
+	};
+};
+
+&blsp_i2c5 {
+	status = "okay";
+
+	touchscreen@34 {
+		compatible = "melfas,mip4_ts";
+		reg = <0x34>;
+
+		interrupts-extended = <&tlmm 13 IRQ_TYPE_EDGE_FALLING>;
+		ce-gpios = <&tlmm 12 GPIO_ACTIVE_HIGH>;
+
+		pinctrl-0 = <&touchscreen_default>;
+		pinctrl-names = "default";
+	};
+};
+
+&blsp_uart2 {
+	status = "okay";
+};
+
+&mpss_mem {
+	reg = <0x0 0x86800000 0x0 0x4a00000>;
+};
+
+&pm8916_bms {
+	monitored-battery = <&battery>;
+	power-supplies = <&pm8916_charger>;
+
+	status = "okay";
+};
+
+&pm8916_charger {
+	qcom,fast-charge-safe-current = <700000>;
+	qcom,fast-charge-safe-voltage = <4300000>;
+
+	monitored-battery = <&battery>;
+	status = "okay";
+};
+
+&pm8916_codec {
+	qcom,micbias1-ext-cap;
+	qcom,micbias-lvl = <2800>;
+	qcom,mbhc-vthreshold-low = <75 100 120 180 500>;
+	qcom,mbhc-vthreshold-high = <75 100 120 180 500>;
+	qcom,hphl-jack-type-normally-open;
+};
+
+&pm8916_rpm_regulators {
+	pm8916_l17: l17 {
+		regulator-min-microvolt = <2850000>;
+		regulator-max-microvolt = <2850000>;
+	};
+};
+
+&pm8916_vib {
+	status = "okay";
+};
+
+&sdhc_1 {
+	status = "okay";
+};
+
+&sdhc_2 {
+	pinctrl-0 = <&sdc2_default &sdc2_cd_default>;
+	pinctrl-1 = <&sdc2_sleep &sdc2_cd_default>;
+	pinctrl-names = "default", "sleep";
+
+	cd-gpios = <&tlmm 38 GPIO_ACTIVE_LOW>;
+
+	status = "okay";
+};
+
+&sound {
+	audio-routing =
+		"AMIC1", "MIC BIAS External1",
+		"AMIC2", "MIC BIAS Internal2",
+		"AMIC3", "MIC BIAS External1";
+};
+
+&usb {
+	dr_mode = "peripheral";
+	extcon = <&pm8916_charger>;
+	status = "okay";
+};
+
+&usb_hs_phy {
+	extcon = <&pm8916_charger>;
+};
+
+&venus {
+	status = "okay";
+};
+
+&venus_mem {
+	status = "okay";
+};
+
+&wcnss {
+	status = "okay";
+};
+
+&wcnss_iris {
+	compatible = "qcom,wcn3620";
+};
+
+&wcnss_mem {
+	status = "okay";
+};
+
+&tlmm {
+	accel_int_default: accel-int-default-state {
+		pins = "gpio115";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+	};
+
+	gpio_keys_default: gpio-keys-default-state {
+		pins = "gpio107", "gpio108";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-pull-up;
+	};
+
+	magn_int_default: magn-int-default-state {
+		pins = "gpio69";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+	};
+
+	sdc2_cd_default: sdc2-cd-default-state {
+		pins = "gpio38";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+	};
+
+	touchscreen_default: touchscreen-default-state {
+		touchscreen-pins {
+			pins = "gpio13";
+			function = "gpio";
+			drive-strength = <2>;
+			bias-pull-up;
+		};
+
+		ce-pins {
+			pins = "gpio12";
+			function = "gpio";
+			drive-strength = <2>;
+			bias-disable;
+		};
+	};
+};

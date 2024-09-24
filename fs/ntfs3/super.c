@@ -259,8 +259,8 @@ enum Opt {
 
 // clang-format off
 static const struct fs_parameter_spec ntfs_fs_parameters[] = {
-	fsparam_u32("uid",			Opt_uid),
-	fsparam_u32("gid",			Opt_gid),
+	fsparam_uid("uid",			Opt_uid),
+	fsparam_gid("gid",			Opt_gid),
 	fsparam_u32oct("umask",			Opt_umask),
 	fsparam_u32oct("dmask",			Opt_dmask),
 	fsparam_u32oct("fmask",			Opt_fmask),
@@ -275,7 +275,7 @@ static const struct fs_parameter_spec ntfs_fs_parameters[] = {
 	fsparam_flag_no("acl",			Opt_acl),
 	fsparam_string("iocharset",		Opt_iocharset),
 	fsparam_flag_no("prealloc",		Opt_prealloc),
-	fsparam_flag_no("nocase",		Opt_nocase),
+	fsparam_flag_no("case",		Opt_nocase),
 	{}
 };
 // clang-format on
@@ -319,14 +319,10 @@ static int ntfs_fs_parse_param(struct fs_context *fc,
 
 	switch (opt) {
 	case Opt_uid:
-		opts->fs_uid = make_kuid(current_user_ns(), result.uint_32);
-		if (!uid_valid(opts->fs_uid))
-			return invalf(fc, "ntfs3: Invalid value for uid.");
+		opts->fs_uid = result.uid;
 		break;
 	case Opt_gid:
-		opts->fs_gid = make_kgid(current_user_ns(), result.uint_32);
-		if (!gid_valid(opts->fs_gid))
-			return invalf(fc, "ntfs3: Invalid value for gid.");
+		opts->fs_gid = result.gid;
 		break;
 	case Opt_umask:
 		if (result.uint_32 & ~07777)
@@ -468,7 +464,7 @@ static int ntfs3_volinfo(struct seq_file *m, void *o)
 	struct super_block *sb = m->private;
 	struct ntfs_sb_info *sbi = sb->s_fs_info;
 
-	seq_printf(m, "ntfs%d.%d\n%u\n%zu\n\%zu\n%zu\n%s\n%s\n",
+	seq_printf(m, "ntfs%d.%d\n%u\n%zu\n%zu\n%zu\n%s\n%s\n",
 		   sbi->volume.major_ver, sbi->volume.minor_ver,
 		   sbi->cluster_size, sbi->used.bitmap.nbits,
 		   sbi->mft.bitmap.nbits,
@@ -1163,7 +1159,7 @@ static int ntfs_fill_super(struct super_block *sb, struct fs_context *fc)
 	CLST vcn, lcn, len;
 	struct ATTRIB *attr;
 	const struct VOLUME_INFO *info;
-	u32 idx, done, bytes;
+	u32 done, bytes;
 	struct ATTR_DEF_ENTRY *t;
 	u16 *shared;
 	struct MFT_REF ref;
@@ -1205,7 +1201,7 @@ static int ntfs_fill_super(struct super_block *sb, struct fs_context *fc)
 
 	/*
 	 * Load $Volume. This should be done before $LogFile
-	 * 'cause 'sbi->volume.ni' is used 'ntfs_set_state'.
+	 * 'cause 'sbi->volume.ni' is used in 'ntfs_set_state'.
 	 */
 	ref.low = cpu_to_le32(MFT_REC_VOL);
 	ref.seq = cpu_to_le16(MFT_REC_VOL);
@@ -1435,31 +1431,22 @@ static int ntfs_fill_super(struct super_block *sb, struct fs_context *fc)
 		goto put_inode_out;
 	}
 
-	for (done = idx = 0; done < bytes; done += PAGE_SIZE, idx++) {
-		unsigned long tail = bytes - done;
-		struct page *page = ntfs_map_page(inode->i_mapping, idx);
+	/* Read the entire file. */
+	err = inode_read_data(inode, sbi->def_table, bytes);
+	if (err) {
+		ntfs_err(sb, "Failed to read $AttrDef (%d).", err);
+		goto put_inode_out;
+	}
 
-		if (IS_ERR(page)) {
-			err = PTR_ERR(page);
-			ntfs_err(sb, "Failed to read $AttrDef (%d).", err);
-			goto put_inode_out;
-		}
-		memcpy(Add2Ptr(t, done), page_address(page),
-		       min(PAGE_SIZE, tail));
-		ntfs_unmap_page(page);
-
-		if (!idx && ATTR_STD != t->type) {
-			ntfs_err(sb, "$AttrDef is corrupted.");
-			err = -EINVAL;
-			goto put_inode_out;
-		}
+	if (ATTR_STD != t->type) {
+		ntfs_err(sb, "$AttrDef is corrupted.");
+		err = -EINVAL;
+		goto put_inode_out;
 	}
 
 	t += 1;
 	sbi->def_entries = 1;
 	done = sizeof(struct ATTR_DEF_ENTRY);
-	sbi->reparse.max_size = MAXIMUM_REPARSE_DATA_BUFFER_SIZE;
-	sbi->ea_max_size = 0x10000; /* default formatter value */
 
 	while (done + sizeof(struct ATTR_DEF_ENTRY) <= bytes) {
 		u32 t32 = le32_to_cpu(t->type);
@@ -1495,27 +1482,22 @@ static int ntfs_fill_super(struct super_block *sb, struct fs_context *fc)
 		goto put_inode_out;
 	}
 
-	for (idx = 0; idx < (0x10000 * sizeof(short) >> PAGE_SHIFT); idx++) {
-		const __le16 *src;
-		u16 *dst = Add2Ptr(sbi->upcase, idx << PAGE_SHIFT);
-		struct page *page = ntfs_map_page(inode->i_mapping, idx);
-
-		if (IS_ERR(page)) {
-			err = PTR_ERR(page);
-			ntfs_err(sb, "Failed to read $UpCase (%d).", err);
-			goto put_inode_out;
-		}
-
-		src = page_address(page);
+	/* Read the entire file. */
+	err = inode_read_data(inode, sbi->upcase, 0x10000 * sizeof(short));
+	if (err) {
+		ntfs_err(sb, "Failed to read $UpCase (%d).", err);
+		goto put_inode_out;
+	}
 
 #ifdef __BIG_ENDIAN
-		for (i = 0; i < PAGE_SIZE / sizeof(u16); i++)
+	{
+		const __le16 *src = sbi->upcase;
+		u16 *dst = sbi->upcase;
+
+		for (i = 0; i < 0x10000; i++)
 			*dst++ = le16_to_cpu(*src++);
-#else
-		memcpy(dst, src, PAGE_SIZE);
-#endif
-		ntfs_unmap_page(page);
 	}
+#endif
 
 	shared = ntfs_set_shared(sbi->upcase, 0x10000 * sizeof(short));
 	if (shared && sbi->upcase != shared) {
@@ -1851,9 +1833,7 @@ bool is_legacy_ntfs(struct super_block *sb)
 #else
 static inline void register_as_ntfs_legacy(void) {}
 static inline void unregister_as_ntfs_legacy(void) {}
-bool is_legacy_ntfs(struct super_block *sb) { return false; }
 #endif
-
 
 // clang-format on
 
@@ -1880,8 +1860,7 @@ static int __init init_ntfs_fs(void)
 
 	ntfs_inode_cachep = kmem_cache_create(
 		"ntfs_inode_cache", sizeof(struct ntfs_inode), 0,
-		(SLAB_RECLAIM_ACCOUNT | SLAB_ACCOUNT),
-		init_once);
+		(SLAB_RECLAIM_ACCOUNT | SLAB_ACCOUNT), init_once);
 	if (!ntfs_inode_cachep) {
 		err = -ENOMEM;
 		goto out1;

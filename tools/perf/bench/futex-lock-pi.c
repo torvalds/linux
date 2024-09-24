@@ -122,7 +122,7 @@ static void create_threads(struct worker *w, struct perf_cpu_map *cpu)
 {
 	cpu_set_t *cpuset;
 	unsigned int i;
-	int nrcpus =  perf_cpu_map__nr(cpu);
+	int nrcpus =  cpu__max_cpu().cpu;
 	size_t size;
 
 	threads_starting = params.nthreads;

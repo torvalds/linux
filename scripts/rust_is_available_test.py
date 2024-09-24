@@ -54,18 +54,34 @@ else:
 """)
 
     @classmethod
-    def generate_bindgen(cls, version_stdout, libclang_stderr):
+    def generate_bindgen(cls, version_stdout, libclang_stderr, version_0_66_patched=False):
+        if libclang_stderr is None:
+            libclang_case = f"raise SystemExit({cls.bindgen_default_bindgen_libclang_failure_exit_code})"
+        else:
+            libclang_case = f"print({repr(libclang_stderr)}, file=sys.stderr)"
+
+        if version_0_66_patched:
+            version_0_66_case = "pass"
+        else:
+            version_0_66_case = "raise SystemExit(1)"
+
         return cls.generate_executable(f"""#!/usr/bin/env python3
 import sys
 if "rust_is_available_bindgen_libclang.h" in " ".join(sys.argv):
-    print({repr(libclang_stderr)}, file=sys.stderr)
+    {libclang_case}
+elif "rust_is_available_bindgen_0_66.h" in " ".join(sys.argv):
+    {version_0_66_case}
 else:
     print({repr(version_stdout)})
 """)
 
     @classmethod
-    def generate_bindgen_version(cls, stdout):
-        return cls.generate_bindgen(stdout, cls.bindgen_default_bindgen_libclang_stderr)
+    def generate_bindgen_version(cls, stdout, version_0_66_patched=False):
+        return cls.generate_bindgen(stdout, cls.bindgen_default_bindgen_libclang_stderr, version_0_66_patched)
+
+    @classmethod
+    def generate_bindgen_libclang_failure(cls):
+        return cls.generate_bindgen(cls.bindgen_default_bindgen_version_stdout, None)
 
     @classmethod
     def generate_bindgen_libclang(cls, stderr):
@@ -89,6 +105,7 @@ else:
         cls.rust_default_sysroot = subprocess.check_output(("rustc", "--print", "sysroot")).decode().strip()
 
         cls.bindgen_default_bindgen_version_stdout = f"bindgen {cls.bindgen_default_version}"
+        cls.bindgen_default_bindgen_libclang_failure_exit_code = 42
         cls.bindgen_default_bindgen_libclang_stderr = f"scripts/rust_is_available_bindgen_libclang.h:2:9: warning: clang version {cls.llvm_default_version} [-W#pragma-messages], err: false"
 
         cls.default_rustc = cls.generate_rustc(f"rustc {cls.rustc_default_version}")
@@ -193,11 +210,6 @@ else:
         result = self.run_script(self.Expected.FAILURE, { "RUSTC": rustc })
         self.assertIn(f"Rust compiler '{rustc}' is too old.", result.stderr)
 
-    def test_rustc_new_version(self):
-        rustc = self.generate_rustc("rustc 1.999.0 (a8314ef7d 2099-06-27)")
-        result = self.run_script(self.Expected.SUCCESS_WITH_WARNINGS, { "RUSTC": rustc })
-        self.assertIn(f"Rust compiler '{rustc}' is too new. This may or may not work.", result.stderr)
-
     def test_bindgen_nonexecutable(self):
         result = self.run_script(self.Expected.FAILURE, { "BINDGEN": self.nonexecutable })
         self.assertIn(f"Running '{self.nonexecutable}' to check the Rust bindings generator version failed with", result.stderr)
@@ -226,21 +238,24 @@ else:
         result = self.run_script(self.Expected.FAILURE, { "BINDGEN": bindgen })
         self.assertIn(f"Rust bindings generator '{bindgen}' is too old.", result.stderr)
 
-    def test_bindgen_new_version(self):
-        bindgen = self.generate_bindgen_version("bindgen 0.999.0")
-        result = self.run_script(self.Expected.SUCCESS_WITH_WARNINGS, { "BINDGEN": bindgen })
-        self.assertIn(f"Rust bindings generator '{bindgen}' is too new. This may or may not work.", result.stderr)
+    def test_bindgen_bad_version_0_66_0_and_0_66_1(self):
+        for version in ("0.66.0", "0.66.1"):
+            with self.subTest(version=version):
+                bindgen = self.generate_bindgen_version(f"bindgen {version}")
+                result = self.run_script(self.Expected.SUCCESS_WITH_WARNINGS, { "BINDGEN": bindgen })
+                self.assertIn(f"Rust bindings generator '{bindgen}' versions 0.66.0 and 0.66.1 may not", result.stderr)
+
+    def test_bindgen_bad_version_0_66_0_and_0_66_1_patched(self):
+        for version in ("0.66.0", "0.66.1"):
+            with self.subTest(version=version):
+                bindgen = self.generate_bindgen_version(f"bindgen {version}", True)
+                result = self.run_script(self.Expected.SUCCESS, { "BINDGEN": bindgen })
 
     def test_bindgen_libclang_failure(self):
-        for env in (
-            { "LLVM_CONFIG_PATH": self.missing },
-            { "LIBCLANG_PATH": self.missing },
-            { "CLANG_PATH": self.missing },
-        ):
-            with self.subTest(env=env):
-                result = self.run_script(self.Expected.FAILURE, env | { "PATH": os.environ["PATH"], "BINDGEN": "bindgen" })
-                self.assertIn("Running 'bindgen' to check the libclang version (used by the Rust", result.stderr)
-                self.assertIn("bindings generator) failed with code ", result.stderr)
+        bindgen = self.generate_bindgen_libclang_failure()
+        result = self.run_script(self.Expected.FAILURE, { "BINDGEN": bindgen })
+        self.assertIn(f"Running '{bindgen}' to check the libclang version (used by the Rust", result.stderr)
+        self.assertIn(f"bindings generator) failed with code {self.bindgen_default_bindgen_libclang_failure_exit_code}. This may be caused by", result.stderr)
 
     def test_bindgen_libclang_unexpected_version(self):
         bindgen = self.generate_bindgen_libclang("scripts/rust_is_available_bindgen_libclang.h:2:9: warning: clang version unexpected [-W#pragma-messages], err: false")

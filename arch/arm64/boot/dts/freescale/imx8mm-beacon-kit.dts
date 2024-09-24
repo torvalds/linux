@@ -62,8 +62,8 @@
 		compatible = "adi,adv7535";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_hdmi_bridge>;
-		reg = <0x3d>, <0x3c>, <0x3e>, <0x3f>;
-		reg-names = "main", "cec", "edid", "packet";
+		reg = <0x3d>, <0x3e>, <0x3c>, <0x3f>;
+		reg-names = "main", "edid", "cec", "packet";
 		adi,dsi-lanes = <4>;
 		avdd-supply = <&reg_hdmi>;
 		a2vdd-supply = <&reg_hdmi>;

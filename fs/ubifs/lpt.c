@@ -1918,6 +1918,7 @@ out_err:
  * @pnode: where to keep a pnode
  * @cnode: where to keep a cnode
  * @in_tree: is the node in the tree in memory
+ * @ptr: union of node pointers
  * @ptr.nnode: pointer to the nnode (if it is an nnode) which may be here or in
  * the tree
  * @ptr.pnode: ditto for pnode

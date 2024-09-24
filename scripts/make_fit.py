@@ -22,6 +22,11 @@ the entire FIT.
 Use -c to compress the data, using bzip2, gzip, lz4, lzma, lzo and
 zstd algorithms.
 
+Use -D to decompose "composite" DTBs into their base components and
+deduplicate the resulting base DTBs and DTB overlays. This requires the
+DTBs to be sourced from the kernel build directory, as the implementation
+looks at the .cmd files produced by the kernel build.
+
 The resulting FIT can be booted by bootloaders which support FIT, such
 as U-Boot, Linuxboot, Tianocore, etc.
 
@@ -64,6 +69,8 @@ def parse_args():
           help='Specifies the architecture')
     parser.add_argument('-c', '--compress', type=str, default='none',
           help='Specifies the compression')
+    parser.add_argument('-D', '--decompose-dtbs', action='store_true',
+          help='Decompose composite DTBs into base DTB and overlays')
     parser.add_argument('-E', '--external', action='store_true',
           help='Convert the FIT to use external data')
     parser.add_argument('-n', '--name', type=str, required=True,
@@ -140,12 +147,12 @@ def finish_fit(fsw, entries):
     fsw.end_node()
     seq = 0
     with fsw.add_node('configurations'):
-        for model, compat in entries:
+        for model, compat, files in entries:
             seq += 1
             with fsw.add_node(f'conf-{seq}'):
                 fsw.property('compatible', bytes(compat))
                 fsw.property_string('description', model)
-                fsw.property_string('fdt', f'fdt-{seq}')
+                fsw.property('fdt', bytes(''.join(f'fdt-{x}\x00' for x in files), "ascii"))
                 fsw.property_string('kernel', 'kernel')
     fsw.end_node()
 
@@ -193,21 +200,9 @@ def output_dtb(fsw, seq, fname, arch, compress):
         fname (str): Filename containing the DTB
         arch: FIT architecture, e.g. 'arm64'
         compress (str): Compressed algorithm, e.g. 'gzip'
-
-    Returns:
-        tuple:
-            str: Model name
-            bytes: Compatible stringlist
     """
     with fsw.add_node(f'fdt-{seq}'):
-        # Get the compatible / model information
-        with open(fname, 'rb') as inf:
-            data = inf.read()
-        fdt = libfdt.FdtRo(data)
-        model = fdt.getprop(0, 'model').as_str()
-        compat = fdt.getprop(0, 'compatible')
-
-        fsw.property_string('description', model)
+        fsw.property_string('description', os.path.basename(fname))
         fsw.property_string('type', 'flat_dt')
         fsw.property_string('arch', arch)
         fsw.property_string('compression', compress)
@@ -215,8 +210,44 @@ def output_dtb(fsw, seq, fname, arch, compress):
         with open(fname, 'rb') as inf:
             compressed = compress_data(inf, compress)
         fsw.property('data', compressed)
-    return model, compat
 
+
+def process_dtb(fname, args):
+    """Process an input DTB, decomposing it if requested and is possible
+
+    Args:
+        fname (str): Filename containing the DTB
+        args (Namespace): Program arguments
+    Returns:
+        tuple:
+            str: Model name string
+            str: Root compatible string
+            files: list of filenames corresponding to the DTB
+    """
+    # Get the compatible / model information
+    with open(fname, 'rb') as inf:
+        data = inf.read()
+    fdt = libfdt.FdtRo(data)
+    model = fdt.getprop(0, 'model').as_str()
+    compat = fdt.getprop(0, 'compatible')
+
+    if args.decompose_dtbs:
+        # Check if the DTB needs to be decomposed
+        path, basename = os.path.split(fname)
+        cmd_fname = os.path.join(path, f'.{basename}.cmd')
+        with open(cmd_fname, 'r', encoding='ascii') as inf:
+            cmd = inf.read()
+
+        if 'scripts/dtc/fdtoverlay' in cmd:
+            # This depends on the structure of the composite DTB command
+            files = cmd.split()
+            files = files[files.index('-i') + 1:]
+        else:
+            files = [fname]
+    else:
+        files = [fname]
+
+    return (model, compat, files)
 
 def build_fit(args):
     """Build the FIT from the provided files and arguments
@@ -235,6 +266,7 @@ def build_fit(args):
     fsw = libfdt.FdtSw()
     setup_fit(fsw, args.name)
     entries = []
+    fdts = {}
 
     # Handle the kernel
     with open(args.kernel, 'rb') as inf:
@@ -243,12 +275,22 @@ def build_fit(args):
     write_kernel(fsw, comp_data, args)
 
     for fname in args.dtbs:
-        # Ignore overlay (.dtbo) files
-        if os.path.splitext(fname)[1] == '.dtb':
-            seq += 1
-            size += os.path.getsize(fname)
-            model, compat = output_dtb(fsw, seq, fname, args.arch, args.compress)
-            entries.append([model, compat])
+        # Ignore non-DTB (*.dtb) files
+        if os.path.splitext(fname)[1] != '.dtb':
+            continue
+
+        (model, compat, files) = process_dtb(fname, args)
+
+        for fn in files:
+            if fn not in fdts:
+                seq += 1
+                size += os.path.getsize(fn)
+                output_dtb(fsw, seq, fn, args.arch, args.compress)
+                fdts[fn] = seq
+
+        files_seq = [fdts[fn] for fn in files]
+
+        entries.append([model, compat, files_seq])
 
     finish_fit(fsw, entries)
 

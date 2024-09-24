@@ -21,7 +21,6 @@
 #include "xfs_attr.h"
 #include "xfs_ioctl.h"
 #include "xfs_parent.h"
-#include "xfs_da_btree.h"
 #include "xfs_handle.h"
 #include "xfs_health.h"
 #include "xfs_icache.h"
@@ -86,16 +85,16 @@ xfs_find_handle(
 	int			hsize;
 	xfs_handle_t		handle;
 	struct inode		*inode;
-	struct fd		f = {NULL};
+	struct fd		f = EMPTY_FD;
 	struct path		path;
 	int			error;
 	struct xfs_inode	*ip;
 
 	if (cmd == XFS_IOC_FD_TO_HANDLE) {
 		f = fdget(hreq->fd);
-		if (!f.file)
+		if (!fd_file(f))
 			return -EBADF;
-		inode = file_inode(f.file);
+		inode = file_inode(fd_file(f));
 	} else {
 		error = user_path_at(AT_FDCWD, hreq->path, 0, &path);
 		if (error)

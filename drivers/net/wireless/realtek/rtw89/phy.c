@@ -2,6 +2,7 @@
 /* Copyright(c) 2019-2020  Realtek Corporation
  */
 
+#include "chan.h"
 #include "coex.h"
 #include "debug.h"
 #include "fw.h"
@@ -301,7 +302,7 @@ static void rtw89_phy_ra_sta_update(struct rtw89_dev *rtwdev,
 	struct rtw89_phy_rate_pattern *rate_pattern = &rtwvif->rate_pattern;
 	struct rtw89_ra_info *ra = &rtwsta->ra;
 	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev,
-						       rtwvif->sub_entity_idx);
+						       rtwvif->chanctx_idx);
 	struct ieee80211_vif *vif = rtwvif_to_vif(rtwsta->rtwvif);
 	const u64 *high_rate_masks = rtw89_ra_mask_ht_rates;
 	u8 rssi = ewma_rssi_read(&rtwsta->avg_rssi);
@@ -340,8 +341,11 @@ static void rtw89_phy_ra_sta_update(struct rtw89_dev *rtwdev,
 
 		mode |= RTW89_RA_MODE_VHT;
 		csi_mode = RTW89_RA_RPT_MODE_VHT;
-		/* MCS9, MCS8, MCS7 */
-		ra_mask |= get_mcs_ra_mask(mcs_map, 9, 1);
+		/* MCS9 (non-20MHz), MCS8, MCS7 */
+		if (sta->deflink.bandwidth == IEEE80211_STA_RX_BW_20)
+			ra_mask |= get_mcs_ra_mask(mcs_map, 8, 1);
+		else
+			ra_mask |= get_mcs_ra_mask(mcs_map, 9, 1);
 		high_rate_masks = rtw89_ra_mask_vht_rates;
 		if (sta->deflink.vht_cap.cap & IEEE80211_VHT_CAP_RXSTBC_MASK)
 			stbc_en = 1;
@@ -352,8 +356,8 @@ static void rtw89_phy_ra_sta_update(struct rtw89_dev *rtwdev,
 		csi_mode = RTW89_RA_RPT_MODE_HT;
 		ra_mask |= ((u64)sta->deflink.ht_cap.mcs.rx_mask[3] << 48) |
 			   ((u64)sta->deflink.ht_cap.mcs.rx_mask[2] << 36) |
-			   (sta->deflink.ht_cap.mcs.rx_mask[1] << 24) |
-			   (sta->deflink.ht_cap.mcs.rx_mask[0] << 12);
+			   ((u64)sta->deflink.ht_cap.mcs.rx_mask[1] << 24) |
+			   ((u64)sta->deflink.ht_cap.mcs.rx_mask[0] << 12);
 		high_rate_masks = rtw89_ra_mask_ht_rates;
 		if (sta->deflink.ht_cap.cap & IEEE80211_HT_CAP_RX_STBC)
 			stbc_en = 1;
@@ -461,7 +465,7 @@ static void rtw89_phy_ra_sta_update(struct rtw89_dev *rtwdev,
 	ra->csi_mode = csi_mode;
 }
 
-void rtw89_phy_ra_updata_sta(struct rtw89_dev *rtwdev, struct ieee80211_sta *sta,
+void rtw89_phy_ra_update_sta(struct rtw89_dev *rtwdev, struct ieee80211_sta *sta,
 			     u32 changed)
 {
 	struct rtw89_sta *rtwsta = (struct rtw89_sta *)sta->drv_priv;
@@ -527,7 +531,7 @@ void rtw89_phy_rate_pattern_vif(struct rtw89_dev *rtwdev,
 	struct rtw89_vif *rtwvif = (struct rtw89_vif *)vif->drv_priv;
 	struct rtw89_phy_rate_pattern next_pattern = {0};
 	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev,
-						       rtwvif->sub_entity_idx);
+						       rtwvif->chanctx_idx);
 	static const u16 hw_rate_he[][RTW89_CHIP_GEN_NUM] = {
 		RTW89_HW_RATE_BY_CHIP_GEN(HE_NSS1_MCS0),
 		RTW89_HW_RATE_BY_CHIP_GEN(HE_NSS2_MCS0),
@@ -609,17 +613,17 @@ out:
 	rtw89_debug(rtwdev, RTW89_DBG_RA, "unset rate pattern\n");
 }
 
-static void rtw89_phy_ra_updata_sta_iter(void *data, struct ieee80211_sta *sta)
+static void rtw89_phy_ra_update_sta_iter(void *data, struct ieee80211_sta *sta)
 {
 	struct rtw89_dev *rtwdev = (struct rtw89_dev *)data;
 
-	rtw89_phy_ra_updata_sta(rtwdev, sta, IEEE80211_RC_SUPP_RATES_CHANGED);
+	rtw89_phy_ra_update_sta(rtwdev, sta, IEEE80211_RC_SUPP_RATES_CHANGED);
 }
 
 void rtw89_phy_ra_update(struct rtw89_dev *rtwdev)
 {
 	ieee80211_iterate_stations_atomic(rtwdev->hw,
-					  rtw89_phy_ra_updata_sta_iter,
+					  rtw89_phy_ra_update_sta_iter,
 					  rtwdev);
 }
 
@@ -1676,7 +1680,7 @@ static void rtw89_phy_preinit_rf_nctl_ax(struct rtw89_dev *rtwdev)
 	rtw89_phy_write32_set(rtwdev, R_P0_PATH_RST, 0x8000000);
 	if (chip->chip_id != RTL8851B)
 		rtw89_phy_write32_set(rtwdev, R_P1_PATH_RST, 0x8000000);
-	if (chip->chip_id == RTL8852B)
+	if (chip->chip_id == RTL8852B || chip->chip_id == RTL8852BT)
 		rtw89_phy_write32_set(rtwdev, R_IOQ_IQK_DPK, 0x2);
 
 	/* check 0x8080 */
@@ -1847,6 +1851,36 @@ static s8 rtw89_phy_txpwr_rf_to_mac(struct rtw89_dev *rtwdev, s8 txpwr_rf)
 	return txpwr_rf >> (chip->txpwr_factor_rf - chip->txpwr_factor_mac);
 }
 
+static s8 rtw89_phy_txpwr_dbm_to_mac(struct rtw89_dev *rtwdev, s8 dbm)
+{
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+
+	return clamp_t(s16, dbm << chip->txpwr_factor_mac, -64, 63);
+}
+
+static s8 rtw89_phy_txpwr_dbm_without_tolerance(s8 dbm)
+{
+	const u8 tssi_deviation_point = 0;
+	const u8 tssi_max_deviation = 2;
+
+	if (dbm <= tssi_deviation_point)
+		dbm -= tssi_max_deviation;
+
+	return dbm;
+}
+
+static s8 rtw89_phy_get_tpe_constraint(struct rtw89_dev *rtwdev, u8 band)
+{
+	struct rtw89_regulatory_info *regulatory = &rtwdev->regulatory;
+	const struct rtw89_reg_6ghz_tpe *tpe = &regulatory->reg_6ghz_tpe;
+	s8 cstr = S8_MAX;
+
+	if (band == RTW89_BAND_6G && tpe->valid)
+		cstr = rtw89_phy_txpwr_dbm_without_tolerance(tpe->constraint);
+
+	return rtw89_phy_txpwr_dbm_to_mac(rtwdev, cstr);
+}
+
 s8 rtw89_phy_read_txpwr_byrate(struct rtw89_dev *rtwdev, u8 band, u8 bw,
 			       const struct rtw89_rate_desc *rate_desc)
 {
@@ -1921,6 +1955,7 @@ s8 rtw89_phy_read_txpwr_limit(struct rtw89_dev *rtwdev, u8 band,
 	u8 regd = rtw89_regd_get(rtwdev, band);
 	u8 reg6 = regulatory->reg_6ghz_power;
 	s8 lmt = 0, sar;
+	s8 cstr;
 
 	switch (band) {
 	case RTW89_BAND_2G:
@@ -1953,8 +1988,9 @@ s8 rtw89_phy_read_txpwr_limit(struct rtw89_dev *rtwdev, u8 band,
 
 	lmt = rtw89_phy_txpwr_rf_to_mac(rtwdev, lmt);
 	sar = rtw89_query_sar(rtwdev, freq);
+	cstr = rtw89_phy_get_tpe_constraint(rtwdev, band);
 
-	return min(lmt, sar);
+	return min3(lmt, sar, cstr);
 }
 EXPORT_SYMBOL(rtw89_phy_read_txpwr_limit);
 
@@ -2178,6 +2214,7 @@ s8 rtw89_phy_read_txpwr_limit_ru(struct rtw89_dev *rtwdev, u8 band,
 	u8 regd = rtw89_regd_get(rtwdev, band);
 	u8 reg6 = regulatory->reg_6ghz_power;
 	s8 lmt_ru = 0, sar;
+	s8 cstr;
 
 	switch (band) {
 	case RTW89_BAND_2G:
@@ -2210,8 +2247,9 @@ s8 rtw89_phy_read_txpwr_limit_ru(struct rtw89_dev *rtwdev, u8 band,
 
 	lmt_ru = rtw89_phy_txpwr_rf_to_mac(rtwdev, lmt_ru);
 	sar = rtw89_query_sar(rtwdev, freq);
+	cstr = rtw89_phy_get_tpe_constraint(rtwdev, band);
 
-	return min(lmt_ru, sar);
+	return min3(lmt_ru, sar, cstr);
 }
 
 static void
@@ -3046,6 +3084,7 @@ EXPORT_SYMBOL(rtw89_phy_rfk_pre_ntfy_and_wait);
 
 int rtw89_phy_rfk_tssi_and_wait(struct rtw89_dev *rtwdev,
 				enum rtw89_phy_idx phy_idx,
+				const struct rtw89_chan *chan,
 				enum rtw89_tssi_mode tssi_mode,
 				unsigned int ms)
 {
@@ -3053,7 +3092,7 @@ int rtw89_phy_rfk_tssi_and_wait(struct rtw89_dev *rtwdev,
 
 	rtw89_phy_rfk_report_prep(rtwdev);
 
-	ret = rtw89_fw_h2c_rf_tssi(rtwdev, phy_idx, tssi_mode);
+	ret = rtw89_fw_h2c_rf_tssi(rtwdev, phy_idx, chan, tssi_mode);
 	if (ret)
 		return ret;
 
@@ -3063,13 +3102,14 @@ EXPORT_SYMBOL(rtw89_phy_rfk_tssi_and_wait);
 
 int rtw89_phy_rfk_iqk_and_wait(struct rtw89_dev *rtwdev,
 			       enum rtw89_phy_idx phy_idx,
+			       const struct rtw89_chan *chan,
 			       unsigned int ms)
 {
 	int ret;
 
 	rtw89_phy_rfk_report_prep(rtwdev);
 
-	ret = rtw89_fw_h2c_rf_iqk(rtwdev, phy_idx);
+	ret = rtw89_fw_h2c_rf_iqk(rtwdev, phy_idx, chan);
 	if (ret)
 		return ret;
 
@@ -3079,13 +3119,14 @@ EXPORT_SYMBOL(rtw89_phy_rfk_iqk_and_wait);
 
 int rtw89_phy_rfk_dpk_and_wait(struct rtw89_dev *rtwdev,
 			       enum rtw89_phy_idx phy_idx,
+			       const struct rtw89_chan *chan,
 			       unsigned int ms)
 {
 	int ret;
 
 	rtw89_phy_rfk_report_prep(rtwdev);
 
-	ret = rtw89_fw_h2c_rf_dpk(rtwdev, phy_idx);
+	ret = rtw89_fw_h2c_rf_dpk(rtwdev, phy_idx, chan);
 	if (ret)
 		return ret;
 
@@ -3095,13 +3136,14 @@ EXPORT_SYMBOL(rtw89_phy_rfk_dpk_and_wait);
 
 int rtw89_phy_rfk_txgapk_and_wait(struct rtw89_dev *rtwdev,
 				  enum rtw89_phy_idx phy_idx,
+				  const struct rtw89_chan *chan,
 				  unsigned int ms)
 {
 	int ret;
 
 	rtw89_phy_rfk_report_prep(rtwdev);
 
-	ret = rtw89_fw_h2c_rf_txgapk(rtwdev, phy_idx);
+	ret = rtw89_fw_h2c_rf_txgapk(rtwdev, phy_idx, chan);
 	if (ret)
 		return ret;
 
@@ -3111,13 +3153,14 @@ EXPORT_SYMBOL(rtw89_phy_rfk_txgapk_and_wait);
 
 int rtw89_phy_rfk_dack_and_wait(struct rtw89_dev *rtwdev,
 				enum rtw89_phy_idx phy_idx,
+				const struct rtw89_chan *chan,
 				unsigned int ms)
 {
 	int ret;
 
 	rtw89_phy_rfk_report_prep(rtwdev);
 
-	ret = rtw89_fw_h2c_rf_dack(rtwdev, phy_idx);
+	ret = rtw89_fw_h2c_rf_dack(rtwdev, phy_idx, chan);
 	if (ret)
 		return ret;
 
@@ -3127,13 +3170,14 @@ EXPORT_SYMBOL(rtw89_phy_rfk_dack_and_wait);
 
 int rtw89_phy_rfk_rxdck_and_wait(struct rtw89_dev *rtwdev,
 				 enum rtw89_phy_idx phy_idx,
+				 const struct rtw89_chan *chan,
 				 unsigned int ms)
 {
 	int ret;
 
 	rtw89_phy_rfk_report_prep(rtwdev);
 
-	ret = rtw89_fw_h2c_rf_rxdck(rtwdev, phy_idx);
+	ret = rtw89_fw_h2c_rf_rxdck(rtwdev, phy_idx, chan);
 	if (ret)
 		return ret;
 
@@ -4250,7 +4294,7 @@ void rtw89_phy_ul_tb_assoc(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif)
 {
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev,
-						       rtwvif->sub_entity_idx);
+						       rtwvif->chanctx_idx);
 	struct rtw89_phy_ul_tb_info *ul_tb_info = &rtwdev->ul_tb_info;
 
 	if (!chip->ul_tb_waveform_ctrl)
@@ -5332,7 +5376,7 @@ static void rtw89_phy_dig_update_rssi_info(struct rtw89_dev *rtwdev)
 static void rtw89_phy_dig_update_para(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_dig_info *dig = &rtwdev->dig;
-	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, RTW89_SUB_ENTITY_0);
+	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, RTW89_CHANCTX_0);
 	bool is_linked = rtwdev->total_sta_assoc > 0;
 	const u16 *fa_th_src = NULL;
 
@@ -5357,7 +5401,7 @@ static void rtw89_phy_dig_update_para(struct rtw89_dev *rtwdev)
 	memcpy(dig->igi_rssi_th, igi_rssi_th, sizeof(dig->igi_rssi_th));
 }
 
-static const u8 pd_low_th_offset = 20, dynamic_igi_min = 0x20;
+static const u8 pd_low_th_offset = 16, dynamic_igi_min = 0x20;
 static const u8 igi_max_performance_mode = 0x5a;
 static const u8 dynamic_pd_threshold_max;
 
@@ -5576,7 +5620,7 @@ static void rtw89_phy_dig_config_igi(struct rtw89_dev *rtwdev)
 static void rtw89_phy_dig_dyn_pd_th(struct rtw89_dev *rtwdev, u8 rssi,
 				    bool enable)
 {
-	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, RTW89_SUB_ENTITY_0);
+	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, RTW89_CHANCTX_0);
 	const struct rtw89_dig_regs *dig_regs = rtwdev->chip->dig_regs;
 	enum rtw89_bandwidth cbw = chan->band_width;
 	struct rtw89_dig_info *dig = &rtwdev->dig;
@@ -5655,38 +5699,47 @@ void rtw89_phy_dig_reset(struct rtw89_dev *rtwdev)
 }
 
 #define IGI_RSSI_MIN 10
+#define ABS_IGI_MIN 0xc
 void rtw89_phy_dig(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_dig_info *dig = &rtwdev->dig;
 	bool is_linked = rtwdev->total_sta_assoc > 0;
+	u8 igi_min;
 
 	if (unlikely(dig->bypass_dig)) {
 		dig->bypass_dig = false;
 		return;
 	}
 
+	rtw89_phy_dig_update_rssi_info(rtwdev);
+
 	if (!dig->is_linked_pre && is_linked) {
 		rtw89_debug(rtwdev, RTW89_DBG_DIG, "First connected\n");
 		rtw89_phy_dig_update_para(rtwdev);
+		dig->igi_fa_rssi = dig->igi_rssi;
 	} else if (dig->is_linked_pre && !is_linked) {
 		rtw89_debug(rtwdev, RTW89_DBG_DIG, "First disconnected\n");
 		rtw89_phy_dig_update_para(rtwdev);
+		dig->igi_fa_rssi = dig->igi_rssi;
 	}
 	dig->is_linked_pre = is_linked;
 
 	rtw89_phy_dig_igi_offset_by_env(rtwdev);
-	rtw89_phy_dig_update_rssi_info(rtwdev);
 
-	dig->dyn_igi_min = (dig->igi_rssi > IGI_RSSI_MIN) ?
-			    dig->igi_rssi - IGI_RSSI_MIN : 0;
-	dig->dyn_igi_max = dig->dyn_igi_min + IGI_OFFSET_MAX;
-	dig->igi_fa_rssi = dig->dyn_igi_min + dig->fa_rssi_ofst;
+	igi_min = max_t(int, dig->igi_rssi - IGI_RSSI_MIN, 0);
+	dig->dyn_igi_max = min(igi_min + IGI_OFFSET_MAX, igi_max_performance_mode);
+	dig->dyn_igi_min = max(igi_min, ABS_IGI_MIN);
 
-	dig->igi_fa_rssi = clamp(dig->igi_fa_rssi, dig->dyn_igi_min,
-				 dig->dyn_igi_max);
+	if (dig->dyn_igi_max >= dig->dyn_igi_min) {
+		dig->igi_fa_rssi += dig->fa_rssi_ofst;
+		dig->igi_fa_rssi = clamp(dig->igi_fa_rssi, dig->dyn_igi_min,
+					 dig->dyn_igi_max);
+	} else {
+		dig->igi_fa_rssi = dig->dyn_igi_max;
+	}
 
 	rtw89_debug(rtwdev, RTW89_DBG_DIG,
-		    "rssi=%03d, dyn(max,min)=(%d,%d), final_rssi=%d\n",
+		    "rssi=%03d, dyn_joint(max,min)=(%d,%d), final_rssi=%d\n",
 		    dig->igi_rssi, dig->dyn_igi_max, dig->dyn_igi_min,
 		    dig->igi_fa_rssi);
 
@@ -5968,6 +6021,74 @@ void rtw89_phy_set_bss_color(struct rtw89_dev *rtwdev, struct ieee80211_vif *vif
 	rtw89_phy_write32_idx(rtwdev, chip->bss_clr_map_reg, B_BSS_CLR_MAP_STAID,
 			      vif->cfg.aid, phy_idx);
 }
+
+static bool rfk_chan_validate_desc(const struct rtw89_rfk_chan_desc *desc)
+{
+	return desc->ch != 0;
+}
+
+static bool rfk_chan_is_equivalent(const struct rtw89_rfk_chan_desc *desc,
+				   const struct rtw89_chan *chan)
+{
+	if (!rfk_chan_validate_desc(desc))
+		return false;
+
+	if (desc->ch != chan->channel)
+		return false;
+
+	if (desc->has_band && desc->band != chan->band_type)
+		return false;
+
+	if (desc->has_bw && desc->bw != chan->band_width)
+		return false;
+
+	return true;
+}
+
+struct rfk_chan_iter_data {
+	const struct rtw89_rfk_chan_desc desc;
+	unsigned int found;
+};
+
+static int rfk_chan_iter_search(const struct rtw89_chan *chan, void *data)
+{
+	struct rfk_chan_iter_data *iter_data = data;
+
+	if (rfk_chan_is_equivalent(&iter_data->desc, chan))
+		iter_data->found++;
+
+	return 0;
+}
+
+u8 rtw89_rfk_chan_lookup(struct rtw89_dev *rtwdev,
+			 const struct rtw89_rfk_chan_desc *desc, u8 desc_nr,
+			 const struct rtw89_chan *target_chan)
+{
+	int sel = -1;
+	u8 i;
+
+	for (i = 0; i < desc_nr; i++) {
+		struct rfk_chan_iter_data iter_data = {
+			.desc = desc[i],
+		};
+
+		if (rfk_chan_is_equivalent(&desc[i], target_chan))
+			return i;
+
+		rtw89_iterate_entity_chan(rtwdev, rfk_chan_iter_search, &iter_data);
+		if (!iter_data.found && sel == -1)
+			sel = i;
+	}
+
+	if (sel == -1) {
+		rtw89_debug(rtwdev, RTW89_DBG_RFK,
+			    "no idle rfk entry; force replace the first\n");
+		sel = 0;
+	}
+
+	return sel;
+}
+EXPORT_SYMBOL(rtw89_rfk_chan_lookup);
 
 static void
 _rfk_write_rf(struct rtw89_dev *rtwdev, const struct rtw89_reg5_def *def)

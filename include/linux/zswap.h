@@ -13,17 +13,15 @@ extern atomic_t zswap_stored_pages;
 
 struct zswap_lruvec_state {
 	/*
-	 * Number of pages in zswap that should be protected from the shrinker.
-	 * This number is an estimate of the following counts:
+	 * Number of swapped in pages from disk, i.e not found in the zswap pool.
 	 *
-	 * a) Recent page faults.
-	 * b) Recent insertion to the zswap LRU. This includes new zswap stores,
-	 *    as well as recent zswap LRU rotations.
-	 *
-	 * These pages are likely to be warm, and might incur IO if the are written
-	 * to swap.
+	 * This is consumed and subtracted from the lru size in
+	 * zswap_shrinker_count() to penalize past overshrinking that led to disk
+	 * swapins. The idea is that had we considered this many more pages in the
+	 * LRU active/protected and not written them back, we would not have had to
+	 * swapped them in.
 	 */
-	atomic_long_t nr_zswap_protected;
+	atomic_long_t nr_disk_swapins;
 };
 
 unsigned long zswap_total_pages(void);
@@ -35,7 +33,8 @@ void zswap_swapoff(int type);
 void zswap_memcg_offline_cleanup(struct mem_cgroup *memcg);
 void zswap_lruvec_state_init(struct lruvec *lruvec);
 void zswap_folio_swapin(struct folio *folio);
-bool is_zswap_enabled(void);
+bool zswap_is_enabled(void);
+bool zswap_never_enabled(void);
 #else
 
 struct zswap_lruvec_state {};
@@ -60,9 +59,14 @@ static inline void zswap_memcg_offline_cleanup(struct mem_cgroup *memcg) {}
 static inline void zswap_lruvec_state_init(struct lruvec *lruvec) {}
 static inline void zswap_folio_swapin(struct folio *folio) {}
 
-static inline bool is_zswap_enabled(void)
+static inline bool zswap_is_enabled(void)
 {
 	return false;
+}
+
+static inline bool zswap_never_enabled(void)
+{
+	return true;
 }
 
 #endif

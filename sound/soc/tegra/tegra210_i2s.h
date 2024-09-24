@@ -112,6 +112,8 @@ struct tegra210_i2s {
 	struct clk *clk_i2s;
 	struct clk *clk_sync_input;
 	struct regmap *regmap;
+	int client_sample_format;
+	unsigned int client_channels;
 	unsigned int stereo_to_mono[I2S_PATHS];
 	unsigned int mono_to_stereo[I2S_PATHS];
 	unsigned int dai_fmt;

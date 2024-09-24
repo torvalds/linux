@@ -273,6 +273,12 @@ void arm64_force_sig_fault(int signo, int code, unsigned long far,
 		force_sig_fault(signo, code, (void __user *)far);
 }
 
+void arm64_force_sig_fault_pkey(unsigned long far, const char *str, int pkey)
+{
+	arm64_show_signal(SIGSEGV, str);
+	force_sig_pkuerr((void __user *)far, pkey);
+}
+
 void arm64_force_sig_mceerr(int code, unsigned long far, short lsb,
 			    const char *str)
 {
@@ -601,18 +607,26 @@ static void ctr_read_handler(unsigned long esr, struct pt_regs *regs)
 
 static void cntvct_read_handler(unsigned long esr, struct pt_regs *regs)
 {
-	int rt = ESR_ELx_SYS64_ISS_RT(esr);
+	if (test_thread_flag(TIF_TSC_SIGSEGV)) {
+		force_sig(SIGSEGV);
+	} else {
+		int rt = ESR_ELx_SYS64_ISS_RT(esr);
 
-	pt_regs_write_reg(regs, rt, arch_timer_read_counter());
-	arm64_skip_faulting_instruction(regs, AARCH64_INSN_SIZE);
+		pt_regs_write_reg(regs, rt, arch_timer_read_counter());
+		arm64_skip_faulting_instruction(regs, AARCH64_INSN_SIZE);
+	}
 }
 
 static void cntfrq_read_handler(unsigned long esr, struct pt_regs *regs)
 {
-	int rt = ESR_ELx_SYS64_ISS_RT(esr);
+	if (test_thread_flag(TIF_TSC_SIGSEGV)) {
+		force_sig(SIGSEGV);
+	} else {
+		int rt = ESR_ELx_SYS64_ISS_RT(esr);
 
-	pt_regs_write_reg(regs, rt, arch_timer_get_rate());
-	arm64_skip_faulting_instruction(regs, AARCH64_INSN_SIZE);
+		pt_regs_write_reg(regs, rt, arch_timer_get_rate());
+		arm64_skip_faulting_instruction(regs, AARCH64_INSN_SIZE);
+	}
 }
 
 static void mrs_handler(unsigned long esr, struct pt_regs *regs)
@@ -1105,8 +1119,6 @@ static struct break_hook ubsan_break_hook = {
 };
 #endif
 
-#define esr_comment(esr) ((esr) & ESR_ELx_BRK64_ISS_COMMENT_MASK)
-
 /*
  * Initial handler for AArch64 BRK exceptions
  * This handler only used until debug_traps_init().
@@ -1115,15 +1127,15 @@ int __init early_brk64(unsigned long addr, unsigned long esr,
 		struct pt_regs *regs)
 {
 #ifdef CONFIG_CFI_CLANG
-	if ((esr_comment(esr) & ~CFI_BRK_IMM_MASK) == CFI_BRK_IMM_BASE)
+	if (esr_is_cfi_brk(esr))
 		return cfi_handler(regs, esr) != DBG_HOOK_HANDLED;
 #endif
 #ifdef CONFIG_KASAN_SW_TAGS
-	if ((esr_comment(esr) & ~KASAN_BRK_MASK) == KASAN_BRK_IMM)
+	if ((esr_brk_comment(esr) & ~KASAN_BRK_MASK) == KASAN_BRK_IMM)
 		return kasan_handler(regs, esr) != DBG_HOOK_HANDLED;
 #endif
 #ifdef CONFIG_UBSAN_TRAP
-	if ((esr_comment(esr) & ~UBSAN_BRK_MASK) == UBSAN_BRK_IMM)
+	if ((esr_brk_comment(esr) & ~UBSAN_BRK_MASK) == UBSAN_BRK_IMM)
 		return ubsan_handler(regs, esr) != DBG_HOOK_HANDLED;
 #endif
 	return bug_handler(regs, esr) != DBG_HOOK_HANDLED;

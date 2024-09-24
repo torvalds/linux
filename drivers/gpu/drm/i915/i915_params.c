@@ -64,8 +64,7 @@ struct i915_params i915_modparams __read_mostly = {
  */
 
 i915_param_named(modeset, int, 0400,
-	"Use kernel modesetting [KMS] (0=disable, "
-	"1=on, -1=force vga console preference [default])");
+	"Deprecated. Use the 'nomodeset' kernel parameter instead.");
 
 i915_param_named_unsafe(reset, uint, 0400,
 	"Attempt GPU resets (0=disabled, 1=full gpu reset, 2=engine reset [default])");
@@ -130,6 +129,11 @@ i915_param_named_unsafe(lmem_size, uint, 0400,
 			"Set the lmem size(in MiB) for each region. (default: 0, all memory)");
 i915_param_named_unsafe(lmem_bar_size, uint, 0400,
 			"Set the lmem bar size(in MiB).");
+
+#if IS_ENABLED(CONFIG_DRM_I915_REPLAY_GPU_HANGS_API)
+i915_param_named(enable_debug_only_api, bool, 0400,
+		 "Enable support for unstable debug only userspace API. (default:false)");
+#endif
 
 static void _param_print_bool(struct drm_printer *p, const char *name,
 			      bool val)

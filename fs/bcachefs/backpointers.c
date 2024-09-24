@@ -9,6 +9,7 @@
 #include "btree_update_interior.h"
 #include "btree_write_buffer.h"
 #include "checksum.h"
+#include "disk_accounting.h"
 #include "error.h"
 
 #include <linux/mm.h>
@@ -47,14 +48,13 @@ static bool extent_matches_bp(struct bch_fs *c,
 	return false;
 }
 
-int bch2_backpointer_invalid(struct bch_fs *c, struct bkey_s_c k,
-			     enum bch_validate_flags flags,
-			     struct printbuf *err)
+int bch2_backpointer_validate(struct bch_fs *c, struct bkey_s_c k,
+			      enum bch_validate_flags flags)
 {
 	struct bkey_s_c_backpointer bp = bkey_s_c_to_backpointer(k);
 
 	rcu_read_lock();
-	struct bch_dev *ca = bch2_dev_rcu(c, bp.k->p.inode);
+	struct bch_dev *ca = bch2_dev_rcu_noerror(c, bp.k->p.inode);
 	if (!ca) {
 		/* these will be caught by fsck */
 		rcu_read_unlock();
@@ -68,8 +68,7 @@ int bch2_backpointer_invalid(struct bch_fs *c, struct bkey_s_c k,
 
 	bkey_fsck_err_on((bp.v->bucket_offset >> MAX_EXTENT_COMPRESS_RATIO_SHIFT) >= ca->mi.bucket_size ||
 			 !bpos_eq(bp.k->p, bp_pos),
-			 c, err,
-			 backpointer_bucket_offset_wrong,
+			 c, backpointer_bucket_offset_wrong,
 			 "backpointer bucket_offset wrong");
 fsck_err:
 	return ret;
@@ -89,7 +88,7 @@ void bch2_backpointer_to_text(struct printbuf *out, const struct bch_backpointer
 void bch2_backpointer_k_to_text(struct printbuf *out, struct bch_fs *c, struct bkey_s_c k)
 {
 	rcu_read_lock();
-	struct bch_dev *ca = bch2_dev_rcu(c, k.k->p.inode);
+	struct bch_dev *ca = bch2_dev_rcu_noerror(c, k.k->p.inode);
 	if (ca) {
 		struct bpos bucket = bp_pos_to_bucket(ca, k.k->p);
 		rcu_read_unlock();
@@ -395,7 +394,7 @@ static int bch2_check_btree_backpointer(struct btree_trans *trans, struct btree_
 
 	struct bpos bucket;
 	if (!bp_pos_to_bucket_nodev_noerror(c, k.k->p, &bucket)) {
-		if (fsck_err(c, backpointer_to_missing_device,
+		if (fsck_err(trans, backpointer_to_missing_device,
 			     "backpointer for missing device:\n%s",
 			     (bch2_bkey_val_to_text(&buf, c, k), buf.buf)))
 			ret = bch2_btree_delete_at(trans, bp_iter, 0);
@@ -407,8 +406,8 @@ static int bch2_check_btree_backpointer(struct btree_trans *trans, struct btree_
 	if (ret)
 		goto out;
 
-	if (fsck_err_on(alloc_k.k->type != KEY_TYPE_alloc_v4, c,
-			backpointer_to_missing_alloc,
+	if (fsck_err_on(alloc_k.k->type != KEY_TYPE_alloc_v4,
+			trans, backpointer_to_missing_alloc,
 			"backpointer for nonexistent alloc key: %llu:%llu:0\n%s",
 			alloc_iter.pos.inode, alloc_iter.pos.offset,
 			(bch2_bkey_val_to_text(&buf, c, k), buf.buf))) {
@@ -432,13 +431,6 @@ int bch2_check_btree_backpointers(struct bch_fs *c)
 		  bch2_check_btree_backpointer(trans, &iter, k)));
 	bch_err_fn(c, ret);
 	return ret;
-}
-
-static inline bool bkey_and_val_eq(struct bkey_s_c l, struct bkey_s_c r)
-{
-	return bpos_eq(l.k->p, r.k->p) &&
-		bkey_bytes(l.k) == bkey_bytes(r.k) &&
-		!memcmp(l.v, r.v, bkey_val_bytes(l.k));
 }
 
 struct extents_to_bp_state {
@@ -512,7 +504,7 @@ found:
 	struct nonce nonce = extent_nonce(extent.k->version, p.crc);
 	struct bch_csum csum = bch2_checksum(c, p.crc.csum_type, nonce, data_buf, bytes);
 	if (fsck_err_on(bch2_crc_cmp(csum, p.crc.csum),
-			c, dup_backpointer_to_bad_csum_extent,
+			trans, dup_backpointer_to_bad_csum_extent,
 			"%s", buf.buf))
 		ret = drop_dev_and_update(trans, btree, extent, dev) ?: 1;
 fsck_err:
@@ -536,10 +528,7 @@ static int check_bp_exists(struct btree_trans *trans,
 	struct btree_iter other_extent_iter = {};
 	struct printbuf buf = PRINTBUF;
 	struct bkey_s_c bp_k;
-	struct bkey_buf tmp;
 	int ret = 0;
-
-	bch2_bkey_buf_init(&tmp);
 
 	struct bch_dev *ca = bch2_dev_bucket_tryget(c, bucket);
 	if (!ca) {
@@ -565,22 +554,9 @@ static int check_bp_exists(struct btree_trans *trans,
 
 	if (bp_k.k->type != KEY_TYPE_backpointer ||
 	    memcmp(bkey_s_c_to_backpointer(bp_k).v, &bp, sizeof(bp))) {
-		bch2_bkey_buf_reassemble(&tmp, c, orig_k);
-
-		if (!bkey_and_val_eq(orig_k, bkey_i_to_s_c(s->last_flushed.k))) {
-			if (bp.level) {
-				bch2_trans_unlock(trans);
-				bch2_btree_interior_updates_flush(c);
-			}
-
-			ret = bch2_btree_write_buffer_flush_sync(trans);
-			if (ret)
-				goto err;
-
-			bch2_bkey_buf_copy(&s->last_flushed, c, tmp.k);
-			ret = -BCH_ERR_transaction_restart_write_buffer_flush;
-			goto out;
-		}
+		ret = bch2_btree_write_buffer_maybe_flush(trans, orig_k, &s->last_flushed);
+		if (ret)
+			goto err;
 
 		goto check_existing_bp;
 	}
@@ -589,7 +565,6 @@ err:
 fsck_err:
 	bch2_trans_iter_exit(trans, &other_extent_iter);
 	bch2_trans_iter_exit(trans, &bp_iter);
-	bch2_bkey_buf_exit(&tmp, c);
 	bch2_dev_put(ca);
 	printbuf_exit(&buf);
 	return ret;
@@ -671,7 +646,7 @@ missing:
 	prt_printf(&buf, "\n  want:  ");
 	bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(&n_bp_k.k_i));
 
-	if (fsck_err(c, ptr_to_missing_backpointer, "%s", buf.buf))
+	if (fsck_err(trans, ptr_to_missing_backpointer, "%s", buf.buf))
 		ret = bch2_bucket_backpointer_mod(trans, ca, bucket, bp, orig_k, true);
 
 	goto out;
@@ -697,7 +672,7 @@ static int check_extent_to_backpointers(struct btree_trans *trans,
 			continue;
 
 		rcu_read_lock();
-		struct bch_dev *ca = bch2_dev_rcu(c, p.ptr.dev);
+		struct bch_dev *ca = bch2_dev_rcu_noerror(c, p.ptr.dev);
 		if (ca)
 			bch2_extent_ptr_to_bp(c, ca, btree, level, k, p, entry, &bucket_pos, &bp);
 		rcu_read_unlock();
@@ -776,46 +751,114 @@ static int bch2_get_btree_in_memory_pos(struct btree_trans *trans,
 	s64 mem_may_pin = mem_may_pin_bytes(c);
 	int ret = 0;
 
+	bch2_btree_cache_unpin(c);
+
 	btree_interior_mask |= btree_leaf_mask;
 
-	c->btree_cache.pinned_nodes_leaf_mask		= btree_leaf_mask;
-	c->btree_cache.pinned_nodes_interior_mask	= btree_interior_mask;
+	c->btree_cache.pinned_nodes_mask[0]		= btree_leaf_mask;
+	c->btree_cache.pinned_nodes_mask[1]		= btree_interior_mask;
 	c->btree_cache.pinned_nodes_start		= start;
 	c->btree_cache.pinned_nodes_end			= *end = BBPOS_MAX;
 
 	for (enum btree_id btree = start.btree;
 	     btree < BTREE_ID_NR && !ret;
 	     btree++) {
-		unsigned depth = ((1U << btree) & btree_leaf_mask) ? 0 : 1;
-		struct btree_iter iter;
-		struct btree *b;
+		unsigned depth = (BIT_ULL(btree) & btree_leaf_mask) ? 0 : 1;
 
-		if (!((1U << btree) & btree_leaf_mask) &&
-		    !((1U << btree) & btree_interior_mask))
+		if (!(BIT_ULL(btree) & btree_leaf_mask) &&
+		    !(BIT_ULL(btree) & btree_interior_mask))
 			continue;
 
-		__for_each_btree_node(trans, iter, btree,
+		ret = __for_each_btree_node(trans, iter, btree,
 				      btree == start.btree ? start.pos : POS_MIN,
-				      0, depth, BTREE_ITER_prefetch, b, ret) {
+				      0, depth, BTREE_ITER_prefetch, b, ({
 			mem_may_pin -= btree_buf_bytes(b);
 			if (mem_may_pin <= 0) {
 				c->btree_cache.pinned_nodes_end = *end =
 					BBPOS(btree, b->key.k.p);
-				bch2_trans_iter_exit(trans, &iter);
-				return 0;
+				break;
 			}
-		}
-		bch2_trans_iter_exit(trans, &iter);
+			bch2_node_pin(c, b);
+			0;
+		}));
 	}
 
 	return ret;
+}
+
+struct progress_indicator_state {
+	unsigned long		next_print;
+	u64			nodes_seen;
+	u64			nodes_total;
+	struct btree		*last_node;
+};
+
+static inline void progress_init(struct progress_indicator_state *s,
+				 struct bch_fs *c,
+				 u64 btree_id_mask)
+{
+	memset(s, 0, sizeof(*s));
+
+	s->next_print = jiffies + HZ * 10;
+
+	for (unsigned i = 0; i < BTREE_ID_NR; i++) {
+		if (!(btree_id_mask & BIT_ULL(i)))
+			continue;
+
+		struct disk_accounting_pos acc = {
+			.type		= BCH_DISK_ACCOUNTING_btree,
+			.btree.id	= i,
+		};
+
+		u64 v;
+		bch2_accounting_mem_read(c, disk_accounting_pos_to_bpos(&acc), &v, 1);
+		s->nodes_total += div64_ul(v, btree_sectors(c));
+	}
+}
+
+static inline bool progress_update_p(struct progress_indicator_state *s)
+{
+	bool ret = time_after_eq(jiffies, s->next_print);
+
+	if (ret)
+		s->next_print = jiffies + HZ * 10;
+	return ret;
+}
+
+static void progress_update_iter(struct btree_trans *trans,
+				 struct progress_indicator_state *s,
+				 struct btree_iter *iter,
+				 const char *msg)
+{
+	struct bch_fs *c = trans->c;
+	struct btree *b = path_l(btree_iter_path(trans, iter))->b;
+
+	s->nodes_seen += b != s->last_node;
+	s->last_node = b;
+
+	if (progress_update_p(s)) {
+		struct printbuf buf = PRINTBUF;
+		unsigned percent = s->nodes_total
+			? div64_u64(s->nodes_seen * 100, s->nodes_total)
+			: 0;
+
+		prt_printf(&buf, "%s: %d%%, done %llu/%llu nodes, at ",
+			   msg, percent, s->nodes_seen, s->nodes_total);
+		bch2_bbpos_to_text(&buf, BBPOS(iter->btree_id, iter->pos));
+
+		bch_info(c, "%s", buf.buf);
+		printbuf_exit(&buf);
+	}
 }
 
 static int bch2_check_extents_to_backpointers_pass(struct btree_trans *trans,
 						   struct extents_to_bp_state *s)
 {
 	struct bch_fs *c = trans->c;
+	struct progress_indicator_state progress;
 	int ret = 0;
+
+	progress_init(&progress, trans->c, BIT_ULL(BTREE_ID_extents)|BIT_ULL(BTREE_ID_reflink));
 
 	for (enum btree_id btree_id = 0;
 	     btree_id < btree_id_nr_alive(c);
@@ -834,6 +877,7 @@ static int bch2_check_extents_to_backpointers_pass(struct btree_trans *trans,
 						  BTREE_ITER_prefetch);
 
 			ret = for_each_btree_key_continue(trans, iter, 0, k, ({
+				progress_update_iter(trans, &progress, &iter, "extents_to_backpointers");
 				check_extent_to_backpointers(trans, s, btree_id, level, k) ?:
 				bch2_trans_commit(trans, NULL, NULL, BCH_TRANS_COMMIT_no_enospc);
 			}));
@@ -894,8 +938,7 @@ int bch2_check_extents_to_backpointers(struct bch_fs *c)
 	bch2_trans_put(trans);
 	bch2_bkey_buf_exit(&s.last_flushed, c);
 
-	c->btree_cache.pinned_nodes_leaf_mask = 0;
-	c->btree_cache.pinned_nodes_interior_mask = 0;
+	bch2_btree_cache_unpin(c);
 
 	bch_err_fn(c, ret);
 	return ret;
@@ -905,7 +948,7 @@ static int check_one_backpointer(struct btree_trans *trans,
 				 struct bbpos start,
 				 struct bbpos end,
 				 struct bkey_s_c_backpointer bp,
-				 struct bpos *last_flushed_pos)
+				 struct bkey_buf *last_flushed)
 {
 	struct bch_fs *c = trans->c;
 	struct btree_iter iter;
@@ -925,20 +968,18 @@ static int check_one_backpointer(struct btree_trans *trans,
 	if (ret)
 		return ret;
 
-	if (!k.k && !bpos_eq(*last_flushed_pos, bp.k->p)) {
-		*last_flushed_pos = bp.k->p;
-		ret = bch2_btree_write_buffer_flush_sync(trans) ?:
-			-BCH_ERR_transaction_restart_write_buffer_flush;
-		goto out;
-	}
+	if (!k.k) {
+		ret = bch2_btree_write_buffer_maybe_flush(trans, bp.s_c, last_flushed);
+		if (ret)
+			goto out;
 
-	if (fsck_err_on(!k.k, c,
-			backpointer_to_missing_ptr,
-			"backpointer for missing %s\n  %s",
-			bp.v->level ? "btree node" : "extent",
-			(bch2_bkey_val_to_text(&buf, c, bp.s_c), buf.buf))) {
-		ret = bch2_btree_delete_at_buffered(trans, BTREE_ID_backpointers, bp.k->p);
-		goto out;
+		if (fsck_err(trans, backpointer_to_missing_ptr,
+			     "backpointer for missing %s\n  %s",
+			     bp.v->level ? "btree node" : "extent",
+			     (bch2_bkey_val_to_text(&buf, c, bp.s_c), buf.buf))) {
+			ret = bch2_btree_delete_at_buffered(trans, BTREE_ID_backpointers, bp.k->p);
+			goto out;
+		}
 	}
 out:
 fsck_err:
@@ -951,14 +992,25 @@ static int bch2_check_backpointers_to_extents_pass(struct btree_trans *trans,
 						   struct bbpos start,
 						   struct bbpos end)
 {
-	struct bpos last_flushed_pos = SPOS_MAX;
+	struct bch_fs *c = trans->c;
+	struct bkey_buf last_flushed;
+	struct progress_indicator_state progress;
 
-	return for_each_btree_key_commit(trans, iter, BTREE_ID_backpointers,
+	bch2_bkey_buf_init(&last_flushed);
+	bkey_init(&last_flushed.k->k);
+	progress_init(&progress, trans->c, BIT_ULL(BTREE_ID_backpointers));
+
+	int ret = for_each_btree_key_commit(trans, iter, BTREE_ID_backpointers,
 				  POS_MIN, BTREE_ITER_prefetch, k,
-				  NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
-		check_one_backpointer(trans, start, end,
-				      bkey_s_c_to_backpointer(k),
-				      &last_flushed_pos));
+				  NULL, NULL, BCH_TRANS_COMMIT_no_enospc, ({
+			progress_update_iter(trans, &progress, &iter, "backpointers_to_extents");
+			check_one_backpointer(trans, start, end,
+					      bkey_s_c_to_backpointer(k),
+					      &last_flushed);
+	}));
+
+	bch2_bkey_buf_exit(&last_flushed, c);
+	return ret;
 }
 
 int bch2_check_backpointers_to_extents(struct bch_fs *c)
@@ -969,8 +1021,8 @@ int bch2_check_backpointers_to_extents(struct bch_fs *c)
 
 	while (1) {
 		ret = bch2_get_btree_in_memory_pos(trans,
-						   (1U << BTREE_ID_extents)|
-						   (1U << BTREE_ID_reflink),
+						   BIT_ULL(BTREE_ID_extents)|
+						   BIT_ULL(BTREE_ID_reflink),
 						   ~0,
 						   start, &end);
 		if (ret)
@@ -1002,8 +1054,7 @@ int bch2_check_backpointers_to_extents(struct bch_fs *c)
 	}
 	bch2_trans_put(trans);
 
-	c->btree_cache.pinned_nodes_leaf_mask = 0;
-	c->btree_cache.pinned_nodes_interior_mask = 0;
+	bch2_btree_cache_unpin(c);
 
 	bch_err_fn(c, ret);
 	return ret;

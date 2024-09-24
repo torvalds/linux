@@ -110,7 +110,7 @@ static int dnotify_handle_event(struct fsnotify_mark *inode_mark, u32 mask,
 			prev = &dn->dn_next;
 			continue;
 		}
-		fown = &dn->dn_filp->f_owner;
+		fown = file_f_owner(dn->dn_filp);
 		send_sigio(fown, dn->dn_fd, POLL_MSG);
 		if (dn->dn_mask & FS_DN_MULTISHOT)
 			prev = &dn->dn_next;
@@ -315,6 +315,10 @@ int fcntl_dirnotify(int fd, struct file *filp, unsigned int arg)
 		error = -ENOMEM;
 		goto out_err;
 	}
+
+	error = file_f_owner_allocate(filp);
+	if (error)
+		goto out_err;
 
 	/* set up the new_fsn_mark and new_dn_mark */
 	new_fsn_mark = &new_dn_mark->fsn_mark;

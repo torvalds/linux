@@ -1774,6 +1774,7 @@ static int vendor_mac_passthru_addr_read(struct r8152 *tp, struct sockaddr *sa)
 		goto amacout;
 	}
 	memcpy(sa->sa_data, buf, 6);
+	tp->netdev->addr_assign_type = NET_ADDR_STOLEN;
 	netif_info(tp, probe, tp->netdev,
 		   "Using pass-thru MAC addr %pM\n", sa->sa_data);
 
@@ -5177,14 +5178,23 @@ static void rtl8152_fw_mac_apply(struct r8152 *tp, struct fw_mac *mac)
 	data = (u8 *)mac;
 	data += __le16_to_cpu(mac->fw_offset);
 
-	generic_ocp_write(tp, __le16_to_cpu(mac->fw_reg), 0xff, length, data,
-			  type);
+	if (generic_ocp_write(tp, __le16_to_cpu(mac->fw_reg), 0xff, length,
+			      data, type) < 0) {
+		dev_err(&tp->intf->dev, "Write %s fw fail\n",
+			type ? "PLA" : "USB");
+		return;
+	}
 
 	ocp_write_word(tp, type, __le16_to_cpu(mac->bp_ba_addr),
 		       __le16_to_cpu(mac->bp_ba_value));
 
-	generic_ocp_write(tp, __le16_to_cpu(mac->bp_start), BYTE_EN_DWORD,
-			  __le16_to_cpu(mac->bp_num) << 1, mac->bp, type);
+	if (generic_ocp_write(tp, __le16_to_cpu(mac->bp_start), BYTE_EN_DWORD,
+			      ALIGN(__le16_to_cpu(mac->bp_num) << 1, 4),
+			      mac->bp, type) < 0) {
+		dev_err(&tp->intf->dev, "Write %s bp fail\n",
+			type ? "PLA" : "USB");
+		return;
+	}
 
 	bp_en_addr = __le16_to_cpu(mac->bp_en_addr);
 	if (bp_en_addr)
@@ -8554,6 +8564,19 @@ static int rtl8152_system_resume(struct r8152 *tp)
 		usb_submit_urb(tp->intr_urb, GFP_NOIO);
 	}
 
+	/* If the device is RTL8152_INACCESSIBLE here then we should do a
+	 * reset. This is important because the usb_lock_device_for_reset()
+	 * that happens as a result of usb_queue_reset_device() will silently
+	 * fail if the device was suspended or if too much time passed.
+	 *
+	 * NOTE: The device is locked here so we can directly do the reset.
+	 * We don't need usb_lock_device_for_reset() because that's just a
+	 * wrapper over device_lock() and device_resume() (which calls us)
+	 * does that for us.
+	 */
+	if (test_bit(RTL8152_INACCESSIBLE, &tp->flags))
+		usb_reset_device(tp->udev);
+
 	return 0;
 }
 
@@ -8633,6 +8656,13 @@ static int rtl8152_system_suspend(struct r8152 *tp)
 		napi_enable(napi);
 		tasklet_enable(&tp->tx_tl);
 	}
+
+	/* If we're inaccessible here then some of the work that we did to
+	 * get the adapter ready for suspend didn't work. Queue up a wakeup
+	 * event so we can try again.
+	 */
+	if (test_bit(RTL8152_INACCESSIBLE, &tp->flags))
+		pm_wakeup_event(&tp->udev->dev, 0);
 
 	return 0;
 }

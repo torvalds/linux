@@ -6,6 +6,7 @@
  */
 
 #include <linux/moduleparam.h>
+#include <linux/debugfs.h>
 #include "nvme.h"
 
 static DECLARE_FAULT_ATTR(fail_default_attr);
@@ -75,7 +76,7 @@ void nvme_should_fail(struct request *req)
 		/* inject status code and DNR bit */
 		status = fault_inject->status;
 		if (fault_inject->dont_retry)
-			status |= NVME_SC_DNR;
+			status |= NVME_STATUS_DNR;
 		nvme_req(req)->status =	status;
 	}
 }

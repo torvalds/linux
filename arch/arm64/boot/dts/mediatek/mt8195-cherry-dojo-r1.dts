@@ -1,0 +1,119 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+/*
+ * Copyright (C) 2022 MediaTek Inc.
+ */
+/dts-v1/;
+#include "mt8195-cherry.dtsi"
+
+/ {
+	model = "HP Dojo (sku 1, 3, 5, 7) board";
+	chassis-type = "convertible";
+	compatible = "google,dojo-sku7", "google,dojo-sku5",
+		     "google,dojo-sku3", "google,dojo-sku1",
+		     "google,dojo", "mediatek,mt8195";
+};
+
+&audio_codec {
+	compatible = "realtek,rt5682s";
+	realtek,amic-delay-ms = <250>;
+};
+
+&i2c2 {
+	spk_r_amp: amplifier@38 {
+		compatible = "maxim,max98390";
+		reg = <0x38>;
+		reset-gpios = <&pio 100 GPIO_ACTIVE_LOW>;
+		sound-name-prefix = "Right";
+		#sound-dai-cells = <0>;
+	};
+
+	spk_l_amp: amplifier@39 {
+		compatible = "maxim,max98390";
+		reg = <0x39>;
+		sound-name-prefix = "Left";
+		#sound-dai-cells = <0>;
+	};
+};
+
+&i2c4 {
+	touchscreen@15 {
+		compatible = "hid-over-i2c";
+		reg = <0x15>;
+		hid-descr-addr = <0x0001>;
+		interrupts-extended = <&pio 92 IRQ_TYPE_LEVEL_LOW>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&touchscreen_pins>;
+		post-power-on-delay-ms = <10>;
+		vdd-supply = <&pp3300_s3>;
+	};
+};
+
+&keyboard_controller {
+	linux,keymap = <
+		CROS_STD_MAIN_KEYMAP
+
+		MATRIX_KEY(0x00, 0x02, KEY_BACK)
+		MATRIX_KEY(0x03, 0x02, KEY_REFRESH)
+		MATRIX_KEY(0x02, 0x02, KEY_ZOOM)
+		MATRIX_KEY(0x01, 0x02, KEY_SCALE)
+		MATRIX_KEY(0x03, 0x04, KEY_SYSRQ)
+		MATRIX_KEY(0x02, 0x04, KEY_BRIGHTNESSDOWN)
+		MATRIX_KEY(0x01, 0x04, KEY_BRIGHTNESSUP)
+		MATRIX_KEY(0x02, 0x09, KEY_KBDILLUMTOGGLE)
+		MATRIX_KEY(0x01, 0x09, KEY_PLAYPAUSE)
+		MATRIX_KEY(0x00, 0x04, KEY_MICMUTE)
+		MATRIX_KEY(0x00, 0x01, KEY_MUTE)
+		MATRIX_KEY(0x01, 0x05, KEY_VOLUMEDOWN)
+		MATRIX_KEY(0x03, 0x05, KEY_VOLUMEUP)
+	>;
+};
+
+&pcie0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pcie0_pins_default>;
+	status = "okay";
+};
+
+&pciephy {
+	status = "okay";
+};
+
+&pio_default {
+	pins-low-power-hdmi-disable {
+		pinmux = <PINMUX_GPIO31__FUNC_GPIO31>,
+			 <PINMUX_GPIO32__FUNC_GPIO32>,
+			 <PINMUX_GPIO33__FUNC_GPIO33>;
+		input-enable;
+		bias-pull-down;
+	};
+
+	pins-low-power-hdmi-rsel-disable {
+		pinmux = <PINMUX_GPIO34__FUNC_GPIO34>,
+			 <PINMUX_GPIO35__FUNC_GPIO35>;
+		input-enable;
+		bias-pull-down = <75000>;
+	};
+};
+
+&sound {
+	compatible = "mediatek,mt8195_mt6359_max98390_rt5682";
+	model = "m8195_m98390_5682s";
+
+	audio-routing =
+		"Headphone", "HPOL",
+		"Headphone", "HPOR",
+		"IN1P", "Headset Mic",
+		"Right Spk", "Right BE_OUT",
+		"Left Spk", "Left BE_OUT";
+
+	spk-playback-dai-link {
+		codec {
+			sound-dai = <&spk_r_amp>, <&spk_l_amp>;
+		};
+	};
+};
+
+&spk_amplifier {
+	/* Disable RT1019P, not present on Dojo */
+	status = "disabled";
+};

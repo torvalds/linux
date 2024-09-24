@@ -32,139 +32,251 @@
 
 #define SCALER_RATIO_MAX 16
 
-struct vfe_format {
-	u32 code;
-	u8 bpp;
+static const struct camss_format_info formats_rdi_8x16[] = {
+	{ MEDIA_BUS_FMT_UYVY8_1X16, 8, V4L2_PIX_FMT_UYVY, 1,
+	  PER_PLANE_DATA(0, 1, 1, 1, 1, 16) },
+	{ MEDIA_BUS_FMT_VYUY8_1X16, 8, V4L2_PIX_FMT_VYUY, 1,
+	  PER_PLANE_DATA(0, 1, 1, 1, 1, 16) },
+	{ MEDIA_BUS_FMT_YUYV8_1X16, 8, V4L2_PIX_FMT_YUYV, 1,
+	  PER_PLANE_DATA(0, 1, 1, 1, 1, 16) },
+	{ MEDIA_BUS_FMT_YVYU8_1X16, 8, V4L2_PIX_FMT_YVYU, 1,
+	  PER_PLANE_DATA(0, 1, 1, 1, 1, 16) },
+	{ MEDIA_BUS_FMT_SBGGR8_1X8, 8, V4L2_PIX_FMT_SBGGR8, 1,
+	  PER_PLANE_DATA(0, 1, 1, 1, 1, 8) },
+	{ MEDIA_BUS_FMT_SGBRG8_1X8, 8, V4L2_PIX_FMT_SGBRG8, 1,
+	  PER_PLANE_DATA(0, 1, 1, 1, 1, 8) },
+	{ MEDIA_BUS_FMT_SGRBG8_1X8, 8, V4L2_PIX_FMT_SGRBG8, 1,
+	  PER_PLANE_DATA(0, 1, 1, 1, 1, 8) },
+	{ MEDIA_BUS_FMT_SRGGB8_1X8, 8, V4L2_PIX_FMT_SRGGB8, 1,
+	  PER_PLANE_DATA(0, 1, 1, 1, 1, 8) },
+	{ MEDIA_BUS_FMT_SBGGR10_1X10, 10, V4L2_PIX_FMT_SBGGR10P, 1,
+	  PER_PLANE_DATA(0, 1, 1, 1, 1, 10) },
+	{ MEDIA_BUS_FMT_SGBRG10_1X10, 10, V4L2_PIX_FMT_SGBRG10P, 1,
+	  PER_PLANE_DATA(0, 1, 1, 1, 1, 10) },
+	{ MEDIA_BUS_FMT_SGRBG10_1X10, 10, V4L2_PIX_FMT_SGRBG10P, 1,
+	  PER_PLANE_DATA(0, 1, 1, 1, 1, 10) },
+	{ MEDIA_BUS_FMT_SRGGB10_1X10, 10, V4L2_PIX_FMT_SRGGB10P, 1,
+	  PER_PLANE_DATA(0, 1, 1, 1, 1, 10) },
+	{ MEDIA_BUS_FMT_SBGGR12_1X12, 12, V4L2_PIX_FMT_SBGGR12P, 1,
+	  PER_PLANE_DATA(0, 1, 1, 1, 1, 12) },
+	{ MEDIA_BUS_FMT_SGBRG12_1X12, 12, V4L2_PIX_FMT_SGBRG12P, 1,
+	  PER_PLANE_DATA(0, 1, 1, 1, 1, 12) },
+	{ MEDIA_BUS_FMT_SGRBG12_1X12, 12, V4L2_PIX_FMT_SGRBG12P, 1,
+	  PER_PLANE_DATA(0, 1, 1, 1, 1, 12) },
+	{ MEDIA_BUS_FMT_SRGGB12_1X12, 12, V4L2_PIX_FMT_SRGGB12P, 1,
+	  PER_PLANE_DATA(0, 1, 1, 1, 1, 12) },
+	{ MEDIA_BUS_FMT_Y10_1X10, 10, V4L2_PIX_FMT_Y10P, 1,
+	  PER_PLANE_DATA(0, 1, 1, 1, 1, 10) },
 };
 
-static const struct vfe_format formats_rdi_8x16[] = {
-	{ MEDIA_BUS_FMT_UYVY8_1X16, 8 },
-	{ MEDIA_BUS_FMT_VYUY8_1X16, 8 },
-	{ MEDIA_BUS_FMT_YUYV8_1X16, 8 },
-	{ MEDIA_BUS_FMT_YVYU8_1X16, 8 },
-	{ MEDIA_BUS_FMT_SBGGR8_1X8, 8 },
-	{ MEDIA_BUS_FMT_SGBRG8_1X8, 8 },
-	{ MEDIA_BUS_FMT_SGRBG8_1X8, 8 },
-	{ MEDIA_BUS_FMT_SRGGB8_1X8, 8 },
-	{ MEDIA_BUS_FMT_SBGGR10_1X10, 10 },
-	{ MEDIA_BUS_FMT_SGBRG10_1X10, 10 },
-	{ MEDIA_BUS_FMT_SGRBG10_1X10, 10 },
-	{ MEDIA_BUS_FMT_SRGGB10_1X10, 10 },
-	{ MEDIA_BUS_FMT_SBGGR12_1X12, 12 },
-	{ MEDIA_BUS_FMT_SGBRG12_1X12, 12 },
-	{ MEDIA_BUS_FMT_SGRBG12_1X12, 12 },
-	{ MEDIA_BUS_FMT_SRGGB12_1X12, 12 },
-	{ MEDIA_BUS_FMT_Y10_1X10, 10 },
+static const struct camss_format_info formats_rdi_8x96[] = {
+	{ MEDIA_BUS_FMT_UYVY8_1X16, 8, V4L2_PIX_FMT_UYVY, 1,
+	  PER_PLANE_DATA(0, 1, 1, 1, 1, 16) },
+	{ MEDIA_BUS_FMT_VYUY8_1X16, 8, V4L2_PIX_FMT_VYUY, 1,
+	  PER_PLANE_DATA(0, 1, 1, 1, 1, 16) },
+	{ MEDIA_BUS_FMT_YUYV8_1X16, 8, V4L2_PIX_FMT_YUYV, 1,
+	  PER_PLANE_DATA(0, 1, 1, 1, 1, 16) },
+	{ MEDIA_BUS_FMT_YVYU8_1X16, 8, V4L2_PIX_FMT_YVYU, 1,
+	  PER_PLANE_DATA(0, 1, 1, 1, 1, 16) },
+	{ MEDIA_BUS_FMT_SBGGR8_1X8, 8, V4L2_PIX_FMT_SBGGR8, 1,
+	  PER_PLANE_DATA(0, 1, 1, 1, 1, 8) },
+	{ MEDIA_BUS_FMT_SGBRG8_1X8, 8, V4L2_PIX_FMT_SGBRG8, 1,
+	  PER_PLANE_DATA(0, 1, 1, 1, 1, 8) },
+	{ MEDIA_BUS_FMT_SGRBG8_1X8, 8, V4L2_PIX_FMT_SGRBG8, 1,
+	  PER_PLANE_DATA(0, 1, 1, 1, 1, 8) },
+	{ MEDIA_BUS_FMT_SRGGB8_1X8, 8, V4L2_PIX_FMT_SRGGB8, 1,
+	  PER_PLANE_DATA(0, 1, 1, 1, 1, 8) },
+	{ MEDIA_BUS_FMT_SBGGR10_1X10, 10, V4L2_PIX_FMT_SBGGR10P, 1,
+	  PER_PLANE_DATA(0, 1, 1, 1, 1, 10) },
+	{ MEDIA_BUS_FMT_SGBRG10_1X10, 10, V4L2_PIX_FMT_SGBRG10P, 1,
+	  PER_PLANE_DATA(0, 1, 1, 1, 1, 10) },
+	{ MEDIA_BUS_FMT_SGRBG10_1X10, 10, V4L2_PIX_FMT_SGRBG10P, 1,
+	  PER_PLANE_DATA(0, 1, 1, 1, 1, 10) },
+	{ MEDIA_BUS_FMT_SRGGB10_1X10, 10, V4L2_PIX_FMT_SRGGB10P, 1,
+	  PER_PLANE_DATA(0, 1, 1, 1, 1, 10) },
+	{ MEDIA_BUS_FMT_SBGGR10_2X8_PADHI_LE, 16, V4L2_PIX_FMT_SBGGR10, 1,
+	  PER_PLANE_DATA(0, 1, 1, 1, 1, 16) },
+	{ MEDIA_BUS_FMT_SBGGR12_1X12, 12, V4L2_PIX_FMT_SBGGR12P, 1,
+	  PER_PLANE_DATA(0, 1, 1, 1, 1, 12) },
+	{ MEDIA_BUS_FMT_SGBRG12_1X12, 12, V4L2_PIX_FMT_SGBRG12P, 1,
+	  PER_PLANE_DATA(0, 1, 1, 1, 1, 12) },
+	{ MEDIA_BUS_FMT_SGRBG12_1X12, 12, V4L2_PIX_FMT_SGRBG12P, 1,
+	  PER_PLANE_DATA(0, 1, 1, 1, 1, 12) },
+	{ MEDIA_BUS_FMT_SRGGB12_1X12, 12, V4L2_PIX_FMT_SRGGB12P, 1,
+	  PER_PLANE_DATA(0, 1, 1, 1, 1, 12) },
+	{ MEDIA_BUS_FMT_SBGGR14_1X14, 14, V4L2_PIX_FMT_SBGGR14P, 1,
+	  PER_PLANE_DATA(0, 1, 1, 1, 1, 14) },
+	{ MEDIA_BUS_FMT_SGBRG14_1X14, 14, V4L2_PIX_FMT_SGBRG14P, 1,
+	  PER_PLANE_DATA(0, 1, 1, 1, 1, 14) },
+	{ MEDIA_BUS_FMT_SGRBG14_1X14, 14, V4L2_PIX_FMT_SGRBG14P, 1,
+	  PER_PLANE_DATA(0, 1, 1, 1, 1, 14) },
+	{ MEDIA_BUS_FMT_SRGGB14_1X14, 14, V4L2_PIX_FMT_SRGGB14P, 1,
+	  PER_PLANE_DATA(0, 1, 1, 1, 1, 14) },
+	{ MEDIA_BUS_FMT_Y10_1X10, 10, V4L2_PIX_FMT_Y10P, 1,
+	  PER_PLANE_DATA(0, 1, 1, 1, 1, 10) },
+	{ MEDIA_BUS_FMT_Y10_2X8_PADHI_LE, 16, V4L2_PIX_FMT_Y10, 1,
+	  PER_PLANE_DATA(0, 1, 1, 1, 1, 16) },
 };
 
-static const struct vfe_format formats_pix_8x16[] = {
-	{ MEDIA_BUS_FMT_UYVY8_1X16, 8 },
-	{ MEDIA_BUS_FMT_VYUY8_1X16, 8 },
-	{ MEDIA_BUS_FMT_YUYV8_1X16, 8 },
-	{ MEDIA_BUS_FMT_YVYU8_1X16, 8 },
+static const struct camss_format_info formats_rdi_845[] = {
+	{ MEDIA_BUS_FMT_UYVY8_1X16, 8, V4L2_PIX_FMT_UYVY, 1,
+	  PER_PLANE_DATA(0, 1, 1, 1, 1, 16) },
+	{ MEDIA_BUS_FMT_VYUY8_1X16, 8, V4L2_PIX_FMT_VYUY, 1,
+	  PER_PLANE_DATA(0, 1, 1, 1, 1, 16) },
+	{ MEDIA_BUS_FMT_YUYV8_1X16, 8, V4L2_PIX_FMT_YUYV, 1,
+	  PER_PLANE_DATA(0, 1, 1, 1, 1, 16) },
+	{ MEDIA_BUS_FMT_YVYU8_1X16, 8, V4L2_PIX_FMT_YVYU, 1,
+	  PER_PLANE_DATA(0, 1, 1, 1, 1, 16) },
+	{ MEDIA_BUS_FMT_SBGGR8_1X8, 8, V4L2_PIX_FMT_SBGGR8, 1,
+	  PER_PLANE_DATA(0, 1, 1, 1, 1, 8) },
+	{ MEDIA_BUS_FMT_SGBRG8_1X8, 8, V4L2_PIX_FMT_SGBRG8, 1,
+	  PER_PLANE_DATA(0, 1, 1, 1, 1, 8) },
+	{ MEDIA_BUS_FMT_SGRBG8_1X8, 8, V4L2_PIX_FMT_SGRBG8, 1,
+	  PER_PLANE_DATA(0, 1, 1, 1, 1, 8) },
+	{ MEDIA_BUS_FMT_SRGGB8_1X8, 8, V4L2_PIX_FMT_SRGGB8, 1,
+	  PER_PLANE_DATA(0, 1, 1, 1, 1, 8) },
+	{ MEDIA_BUS_FMT_SBGGR10_1X10, 10, V4L2_PIX_FMT_SBGGR10P, 1,
+	  PER_PLANE_DATA(0, 1, 1, 1, 1, 10) },
+	{ MEDIA_BUS_FMT_SGBRG10_1X10, 10, V4L2_PIX_FMT_SGBRG10P, 1,
+	  PER_PLANE_DATA(0, 1, 1, 1, 1, 10) },
+	{ MEDIA_BUS_FMT_SGRBG10_1X10, 10, V4L2_PIX_FMT_SGRBG10P, 1,
+	  PER_PLANE_DATA(0, 1, 1, 1, 1, 10) },
+	{ MEDIA_BUS_FMT_SRGGB10_1X10, 10, V4L2_PIX_FMT_SRGGB10P, 1,
+	  PER_PLANE_DATA(0, 1, 1, 1, 1, 10) },
+	{ MEDIA_BUS_FMT_SBGGR10_2X8_PADHI_LE, 16, V4L2_PIX_FMT_SBGGR10, 1,
+	  PER_PLANE_DATA(0, 1, 1, 1, 1, 16) },
+	{ MEDIA_BUS_FMT_SBGGR12_1X12, 12, V4L2_PIX_FMT_SBGGR12P, 1,
+	  PER_PLANE_DATA(0, 1, 1, 1, 1, 12) },
+	{ MEDIA_BUS_FMT_SGBRG12_1X12, 12, V4L2_PIX_FMT_SGBRG12P, 1,
+	  PER_PLANE_DATA(0, 1, 1, 1, 1, 12) },
+	{ MEDIA_BUS_FMT_SGRBG12_1X12, 12, V4L2_PIX_FMT_SGRBG12P, 1,
+	  PER_PLANE_DATA(0, 1, 1, 1, 1, 12) },
+	{ MEDIA_BUS_FMT_SRGGB12_1X12, 12, V4L2_PIX_FMT_SRGGB12P, 1,
+	  PER_PLANE_DATA(0, 1, 1, 1, 1, 12) },
+	{ MEDIA_BUS_FMT_SBGGR14_1X14, 14, V4L2_PIX_FMT_SBGGR14P, 1,
+	  PER_PLANE_DATA(0, 1, 1, 1, 1, 14) },
+	{ MEDIA_BUS_FMT_SGBRG14_1X14, 14, V4L2_PIX_FMT_SGBRG14P, 1,
+	  PER_PLANE_DATA(0, 1, 1, 1, 1, 14) },
+	{ MEDIA_BUS_FMT_SGRBG14_1X14, 14, V4L2_PIX_FMT_SGRBG14P, 1,
+	  PER_PLANE_DATA(0, 1, 1, 1, 1, 14) },
+	{ MEDIA_BUS_FMT_SRGGB14_1X14, 14, V4L2_PIX_FMT_SRGGB14P, 1,
+	  PER_PLANE_DATA(0, 1, 1, 1, 1, 14) },
+	{ MEDIA_BUS_FMT_Y8_1X8, 8, V4L2_PIX_FMT_GREY, 1,
+	  PER_PLANE_DATA(0, 1, 1, 1, 1, 8) },
+	{ MEDIA_BUS_FMT_Y10_1X10, 10, V4L2_PIX_FMT_Y10P, 1,
+	  PER_PLANE_DATA(0, 1, 1, 1, 1, 10) },
+	{ MEDIA_BUS_FMT_Y10_2X8_PADHI_LE, 16, V4L2_PIX_FMT_Y10, 1,
+	  PER_PLANE_DATA(0, 1, 1, 1, 1, 16) },
 };
 
-static const struct vfe_format formats_rdi_8x96[] = {
-	{ MEDIA_BUS_FMT_UYVY8_1X16, 8 },
-	{ MEDIA_BUS_FMT_VYUY8_1X16, 8 },
-	{ MEDIA_BUS_FMT_YUYV8_1X16, 8 },
-	{ MEDIA_BUS_FMT_YVYU8_1X16, 8 },
-	{ MEDIA_BUS_FMT_SBGGR8_1X8, 8 },
-	{ MEDIA_BUS_FMT_SGBRG8_1X8, 8 },
-	{ MEDIA_BUS_FMT_SGRBG8_1X8, 8 },
-	{ MEDIA_BUS_FMT_SRGGB8_1X8, 8 },
-	{ MEDIA_BUS_FMT_SBGGR10_1X10, 10 },
-	{ MEDIA_BUS_FMT_SGBRG10_1X10, 10 },
-	{ MEDIA_BUS_FMT_SGRBG10_1X10, 10 },
-	{ MEDIA_BUS_FMT_SRGGB10_1X10, 10 },
-	{ MEDIA_BUS_FMT_SBGGR10_2X8_PADHI_LE, 16 },
-	{ MEDIA_BUS_FMT_SBGGR12_1X12, 12 },
-	{ MEDIA_BUS_FMT_SGBRG12_1X12, 12 },
-	{ MEDIA_BUS_FMT_SGRBG12_1X12, 12 },
-	{ MEDIA_BUS_FMT_SRGGB12_1X12, 12 },
-	{ MEDIA_BUS_FMT_SBGGR14_1X14, 14 },
-	{ MEDIA_BUS_FMT_SGBRG14_1X14, 14 },
-	{ MEDIA_BUS_FMT_SGRBG14_1X14, 14 },
-	{ MEDIA_BUS_FMT_SRGGB14_1X14, 14 },
-	{ MEDIA_BUS_FMT_Y10_1X10, 10 },
-	{ MEDIA_BUS_FMT_Y10_2X8_PADHI_LE, 16 },
+static const struct camss_format_info formats_pix_8x16[] = {
+	{ MEDIA_BUS_FMT_YUYV8_1_5X8, 8, V4L2_PIX_FMT_NV12, 1,
+	  PER_PLANE_DATA(0, 1, 1, 2, 3, 8) },
+	{ MEDIA_BUS_FMT_YVYU8_1_5X8, 8, V4L2_PIX_FMT_NV12, 1,
+	  PER_PLANE_DATA(0, 1, 1, 2, 3, 8) },
+	{ MEDIA_BUS_FMT_UYVY8_1_5X8, 8, V4L2_PIX_FMT_NV12, 1,
+	  PER_PLANE_DATA(0, 1, 1, 2, 3, 8) },
+	{ MEDIA_BUS_FMT_VYUY8_1_5X8, 8, V4L2_PIX_FMT_NV12, 1,
+	  PER_PLANE_DATA(0, 1, 1, 2, 3, 8) },
+	{ MEDIA_BUS_FMT_YUYV8_1_5X8, 8, V4L2_PIX_FMT_NV21, 1,
+	  PER_PLANE_DATA(0, 1, 1, 2, 3, 8) },
+	{ MEDIA_BUS_FMT_YVYU8_1_5X8, 8, V4L2_PIX_FMT_NV21, 1,
+	  PER_PLANE_DATA(0, 1, 1, 2, 3, 8) },
+	{ MEDIA_BUS_FMT_UYVY8_1_5X8, 8, V4L2_PIX_FMT_NV21, 1,
+	  PER_PLANE_DATA(0, 1, 1, 2, 3, 8) },
+	{ MEDIA_BUS_FMT_VYUY8_1_5X8, 8, V4L2_PIX_FMT_NV21, 1,
+	  PER_PLANE_DATA(0, 1, 1, 2, 3, 8) },
+	{ MEDIA_BUS_FMT_YUYV8_1X16, 8, V4L2_PIX_FMT_NV16, 1,
+	  PER_PLANE_DATA(0, 1, 1, 1, 2, 8) },
+	{ MEDIA_BUS_FMT_YVYU8_1X16, 8, V4L2_PIX_FMT_NV16, 1,
+	  PER_PLANE_DATA(0, 1, 1, 1, 2, 8) },
+	{ MEDIA_BUS_FMT_UYVY8_1X16, 8, V4L2_PIX_FMT_NV16, 1,
+	  PER_PLANE_DATA(0, 1, 1, 1, 2, 8) },
+	{ MEDIA_BUS_FMT_VYUY8_1X16, 8, V4L2_PIX_FMT_NV16, 1,
+	  PER_PLANE_DATA(0, 1, 1, 1, 2, 8) },
+	{ MEDIA_BUS_FMT_YUYV8_1X16, 8, V4L2_PIX_FMT_NV61, 1,
+	  PER_PLANE_DATA(0, 1, 1, 1, 2, 8) },
+	{ MEDIA_BUS_FMT_YVYU8_1X16, 8, V4L2_PIX_FMT_NV61, 1,
+	  PER_PLANE_DATA(0, 1, 1, 1, 2, 8) },
+	{ MEDIA_BUS_FMT_UYVY8_1X16, 8, V4L2_PIX_FMT_NV61, 1,
+	  PER_PLANE_DATA(0, 1, 1, 1, 2, 8) },
+	{ MEDIA_BUS_FMT_VYUY8_1X16, 8, V4L2_PIX_FMT_NV61, 1,
+	  PER_PLANE_DATA(0, 1, 1, 1, 2, 8) },
 };
 
-static const struct vfe_format formats_pix_8x96[] = {
-	{ MEDIA_BUS_FMT_UYVY8_1X16, 8 },
-	{ MEDIA_BUS_FMT_VYUY8_1X16, 8 },
-	{ MEDIA_BUS_FMT_YUYV8_1X16, 8 },
-	{ MEDIA_BUS_FMT_YVYU8_1X16, 8 },
+static const struct camss_format_info formats_pix_8x96[] = {
+	{ MEDIA_BUS_FMT_YUYV8_1_5X8, 8, V4L2_PIX_FMT_NV12, 1,
+	  PER_PLANE_DATA(0, 1, 1, 2, 3, 8) },
+	{ MEDIA_BUS_FMT_YVYU8_1_5X8, 8, V4L2_PIX_FMT_NV12, 1,
+	  PER_PLANE_DATA(0, 1, 1, 2, 3, 8) },
+	{ MEDIA_BUS_FMT_UYVY8_1_5X8, 8, V4L2_PIX_FMT_NV12, 1,
+	  PER_PLANE_DATA(0, 1, 1, 2, 3, 8) },
+	{ MEDIA_BUS_FMT_VYUY8_1_5X8, 8, V4L2_PIX_FMT_NV12, 1,
+	  PER_PLANE_DATA(0, 1, 1, 2, 3, 8) },
+	{ MEDIA_BUS_FMT_YUYV8_1_5X8, 8, V4L2_PIX_FMT_NV21, 1,
+	  PER_PLANE_DATA(0, 1, 1, 2, 3, 8) },
+	{ MEDIA_BUS_FMT_YVYU8_1_5X8, 8, V4L2_PIX_FMT_NV21, 1,
+	  PER_PLANE_DATA(0, 1, 1, 2, 3, 8) },
+	{ MEDIA_BUS_FMT_UYVY8_1_5X8, 8, V4L2_PIX_FMT_NV21, 1,
+	  PER_PLANE_DATA(0, 1, 1, 2, 3, 8) },
+	{ MEDIA_BUS_FMT_VYUY8_1_5X8, 8, V4L2_PIX_FMT_NV21, 1,
+	  PER_PLANE_DATA(0, 1, 1, 2, 3, 8) },
+	{ MEDIA_BUS_FMT_YUYV8_1X16, 8, V4L2_PIX_FMT_NV16, 1,
+	  PER_PLANE_DATA(0, 1, 1, 1, 2, 8) },
+	{ MEDIA_BUS_FMT_YVYU8_1X16, 8, V4L2_PIX_FMT_NV16, 1,
+	  PER_PLANE_DATA(0, 1, 1, 1, 2, 8) },
+	{ MEDIA_BUS_FMT_UYVY8_1X16, 8, V4L2_PIX_FMT_NV16, 1,
+	  PER_PLANE_DATA(0, 1, 1, 1, 2, 8) },
+	{ MEDIA_BUS_FMT_VYUY8_1X16, 8, V4L2_PIX_FMT_NV16, 1,
+	  PER_PLANE_DATA(0, 1, 1, 1, 2, 8) },
+	{ MEDIA_BUS_FMT_YUYV8_1X16, 8, V4L2_PIX_FMT_NV61, 1,
+	  PER_PLANE_DATA(0, 1, 1, 1, 2, 8) },
+	{ MEDIA_BUS_FMT_YVYU8_1X16, 8, V4L2_PIX_FMT_NV61, 1,
+	  PER_PLANE_DATA(0, 1, 1, 1, 2, 8) },
+	{ MEDIA_BUS_FMT_UYVY8_1X16, 8, V4L2_PIX_FMT_NV61, 1,
+	  PER_PLANE_DATA(0, 1, 1, 1, 2, 8) },
+	{ MEDIA_BUS_FMT_VYUY8_1X16, 8, V4L2_PIX_FMT_NV61, 1,
+	  PER_PLANE_DATA(0, 1, 1, 1, 2, 8) },
+	{ MEDIA_BUS_FMT_UYVY8_1X16, 8, V4L2_PIX_FMT_UYVY, 1,
+	  PER_PLANE_DATA(0, 1, 1, 1, 1, 16) },
+	{ MEDIA_BUS_FMT_VYUY8_1X16, 8, V4L2_PIX_FMT_VYUY, 1,
+	  PER_PLANE_DATA(0, 1, 1, 1, 1, 16) },
+	{ MEDIA_BUS_FMT_YUYV8_1X16, 8, V4L2_PIX_FMT_YUYV, 1,
+	  PER_PLANE_DATA(0, 1, 1, 1, 1, 16) },
+	{ MEDIA_BUS_FMT_YVYU8_1X16, 8, V4L2_PIX_FMT_YVYU, 1,
+	  PER_PLANE_DATA(0, 1, 1, 1, 1, 16) },
 };
 
-static const struct vfe_format formats_rdi_845[] = {
-	{ MEDIA_BUS_FMT_UYVY8_1X16, 8 },
-	{ MEDIA_BUS_FMT_VYUY8_1X16, 8 },
-	{ MEDIA_BUS_FMT_YUYV8_1X16, 8 },
-	{ MEDIA_BUS_FMT_YVYU8_1X16, 8 },
-	{ MEDIA_BUS_FMT_SBGGR8_1X8, 8 },
-	{ MEDIA_BUS_FMT_SGBRG8_1X8, 8 },
-	{ MEDIA_BUS_FMT_SGRBG8_1X8, 8 },
-	{ MEDIA_BUS_FMT_SRGGB8_1X8, 8 },
-	{ MEDIA_BUS_FMT_SBGGR10_1X10, 10 },
-	{ MEDIA_BUS_FMT_SGBRG10_1X10, 10 },
-	{ MEDIA_BUS_FMT_SGRBG10_1X10, 10 },
-	{ MEDIA_BUS_FMT_SRGGB10_1X10, 10 },
-	{ MEDIA_BUS_FMT_SBGGR10_2X8_PADHI_LE, 16 },
-	{ MEDIA_BUS_FMT_SBGGR12_1X12, 12 },
-	{ MEDIA_BUS_FMT_SGBRG12_1X12, 12 },
-	{ MEDIA_BUS_FMT_SGRBG12_1X12, 12 },
-	{ MEDIA_BUS_FMT_SRGGB12_1X12, 12 },
-	{ MEDIA_BUS_FMT_SBGGR14_1X14, 14 },
-	{ MEDIA_BUS_FMT_SGBRG14_1X14, 14 },
-	{ MEDIA_BUS_FMT_SGRBG14_1X14, 14 },
-	{ MEDIA_BUS_FMT_SRGGB14_1X14, 14 },
-	{ MEDIA_BUS_FMT_Y8_1X8, 8 },
-	{ MEDIA_BUS_FMT_Y10_1X10, 10 },
-	{ MEDIA_BUS_FMT_Y10_2X8_PADHI_LE, 16 },
+const struct camss_formats vfe_formats_rdi_8x16 = {
+	.nformats = ARRAY_SIZE(formats_rdi_8x16),
+	.formats = formats_rdi_8x16
 };
 
-/*
- * vfe_get_bpp - map media bus format to bits per pixel
- * @formats: supported media bus formats array
- * @nformats: size of @formats array
- * @code: media bus format code
- *
- * Return number of bits per pixel
- */
-static u8 vfe_get_bpp(const struct vfe_format *formats,
-		      unsigned int nformats, u32 code)
-{
-	unsigned int i;
+const struct camss_formats vfe_formats_pix_8x16 = {
+	.nformats = ARRAY_SIZE(formats_pix_8x16),
+	.formats = formats_pix_8x16
+};
 
-	for (i = 0; i < nformats; i++)
-		if (code == formats[i].code)
-			return formats[i].bpp;
+const struct camss_formats vfe_formats_rdi_8x96 = {
+	.nformats = ARRAY_SIZE(formats_rdi_8x96),
+	.formats = formats_rdi_8x96
+};
 
-	WARN(1, "Unknown format\n");
+const struct camss_formats vfe_formats_pix_8x96 = {
+	.nformats = ARRAY_SIZE(formats_pix_8x96),
+	.formats = formats_pix_8x96
+};
 
-	return formats[0].bpp;
-}
+const struct camss_formats vfe_formats_rdi_845 = {
+	.nformats = ARRAY_SIZE(formats_rdi_845),
+	.formats = formats_rdi_845
+};
 
-static u32 vfe_find_code(u32 *code, unsigned int n_code,
-			 unsigned int index, u32 req_code)
-{
-	int i;
-
-	if (!req_code && (index >= n_code))
-		return 0;
-
-	for (i = 0; i < n_code; i++)
-		if (req_code) {
-			if (req_code == code[i])
-				return req_code;
-		} else {
-			if (i == index)
-				return code[i];
-		}
-
-	return code[0];
-}
+/* TODO: Replace with pix formats */
+const struct camss_formats vfe_formats_pix_845 = {
+	.nformats = ARRAY_SIZE(formats_rdi_845),
+	.formats = formats_rdi_845
+};
 
 static u32 vfe_src_pad_code(struct vfe_line *line, u32 sink_code,
 			    unsigned int index, u32 src_req_code)
@@ -181,8 +293,8 @@ static u32 vfe_src_pad_code(struct vfe_line *line, u32 sink_code,
 				MEDIA_BUS_FMT_YUYV8_1_5X8,
 			};
 
-			return vfe_find_code(src_code, ARRAY_SIZE(src_code),
-					     index, src_req_code);
+			return camss_format_find_code(src_code, ARRAY_SIZE(src_code),
+						      index, src_req_code);
 		}
 		case MEDIA_BUS_FMT_YVYU8_1X16:
 		{
@@ -191,8 +303,8 @@ static u32 vfe_src_pad_code(struct vfe_line *line, u32 sink_code,
 				MEDIA_BUS_FMT_YVYU8_1_5X8,
 			};
 
-			return vfe_find_code(src_code, ARRAY_SIZE(src_code),
-					     index, src_req_code);
+			return camss_format_find_code(src_code, ARRAY_SIZE(src_code),
+						      index, src_req_code);
 		}
 		case MEDIA_BUS_FMT_UYVY8_1X16:
 		{
@@ -201,8 +313,8 @@ static u32 vfe_src_pad_code(struct vfe_line *line, u32 sink_code,
 				MEDIA_BUS_FMT_UYVY8_1_5X8,
 			};
 
-			return vfe_find_code(src_code, ARRAY_SIZE(src_code),
-					     index, src_req_code);
+			return camss_format_find_code(src_code, ARRAY_SIZE(src_code),
+						      index, src_req_code);
 		}
 		case MEDIA_BUS_FMT_VYUY8_1X16:
 		{
@@ -211,8 +323,8 @@ static u32 vfe_src_pad_code(struct vfe_line *line, u32 sink_code,
 				MEDIA_BUS_FMT_VYUY8_1_5X8,
 			};
 
-			return vfe_find_code(src_code, ARRAY_SIZE(src_code),
-					     index, src_req_code);
+			return camss_format_find_code(src_code, ARRAY_SIZE(src_code),
+						      index, src_req_code);
 		}
 		default:
 			if (index > 0)
@@ -237,8 +349,8 @@ static u32 vfe_src_pad_code(struct vfe_line *line, u32 sink_code,
 				MEDIA_BUS_FMT_YUYV8_1_5X8,
 			};
 
-			return vfe_find_code(src_code, ARRAY_SIZE(src_code),
-					     index, src_req_code);
+			return camss_format_find_code(src_code, ARRAY_SIZE(src_code),
+						      index, src_req_code);
 		}
 		case MEDIA_BUS_FMT_YVYU8_1X16:
 		{
@@ -250,8 +362,8 @@ static u32 vfe_src_pad_code(struct vfe_line *line, u32 sink_code,
 				MEDIA_BUS_FMT_YVYU8_1_5X8,
 			};
 
-			return vfe_find_code(src_code, ARRAY_SIZE(src_code),
-					     index, src_req_code);
+			return camss_format_find_code(src_code, ARRAY_SIZE(src_code),
+						      index, src_req_code);
 		}
 		case MEDIA_BUS_FMT_UYVY8_1X16:
 		{
@@ -263,8 +375,8 @@ static u32 vfe_src_pad_code(struct vfe_line *line, u32 sink_code,
 				MEDIA_BUS_FMT_UYVY8_1_5X8,
 			};
 
-			return vfe_find_code(src_code, ARRAY_SIZE(src_code),
-					     index, src_req_code);
+			return camss_format_find_code(src_code, ARRAY_SIZE(src_code),
+						      index, src_req_code);
 		}
 		case MEDIA_BUS_FMT_VYUY8_1X16:
 		{
@@ -276,8 +388,8 @@ static u32 vfe_src_pad_code(struct vfe_line *line, u32 sink_code,
 				MEDIA_BUS_FMT_VYUY8_1_5X8,
 			};
 
-			return vfe_find_code(src_code, ARRAY_SIZE(src_code),
-					     index, src_req_code);
+			return camss_format_find_code(src_code, ARRAY_SIZE(src_code),
+						      index, src_req_code);
 		}
 		default:
 			if (index > 0)
@@ -296,7 +408,7 @@ int vfe_reset(struct vfe_device *vfe)
 
 	reinit_completion(&vfe->reset_complete);
 
-	vfe->ops->global_reset(vfe);
+	vfe->res->hw_ops->global_reset(vfe);
 
 	time = wait_for_completion_timeout(&vfe->reset_complete,
 		msecs_to_jiffies(VFE_RESET_TIMEOUT_MS));
@@ -312,7 +424,7 @@ static void vfe_init_outputs(struct vfe_device *vfe)
 {
 	int i;
 
-	for (i = 0; i < vfe->line_num; i++) {
+	for (i = 0; i < vfe->res->line_num; i++) {
 		struct vfe_output *output = &vfe->line[i].output;
 
 		output->state = VFE_OUTPUT_OFF;
@@ -421,7 +533,7 @@ static int vfe_disable_output(struct vfe_line *line)
 
 	spin_lock_irqsave(&vfe->output_lock, flags);
 	for (i = 0; i < output->wm_num; i++)
-		vfe->ops->vfe_wm_stop(vfe, output->wm_idx[i]);
+		vfe->res->hw_ops->vfe_wm_stop(vfe, output->wm_idx[i]);
 	output->gen2.active_num = 0;
 	spin_unlock_irqrestore(&vfe->output_lock, flags);
 
@@ -537,7 +649,7 @@ static int vfe_set_clock_rates(struct vfe_device *vfe)
 	int i, j;
 	int ret;
 
-	for (i = VFE_LINE_RDI0; i < vfe->line_num; i++) {
+	for (i = VFE_LINE_RDI0; i < vfe->res->line_num; i++) {
 		ret = camss_get_pixel_clock(&vfe->line[i].subdev.entity,
 					    &pixel_clock[i]);
 		if (ret)
@@ -551,7 +663,7 @@ static int vfe_set_clock_rates(struct vfe_device *vfe)
 			u64 min_rate = 0;
 			long rate;
 
-			for (j = VFE_LINE_RDI0; j < vfe->line_num; j++) {
+			for (j = VFE_LINE_RDI0; j < vfe->res->line_num; j++) {
 				u32 tmp;
 				u8 bpp;
 
@@ -560,9 +672,9 @@ static int vfe_set_clock_rates(struct vfe_device *vfe)
 				} else {
 					struct vfe_line *l = &vfe->line[j];
 
-					bpp = vfe_get_bpp(l->formats,
-						l->nformats,
-						l->fmt[MSM_VFE_PAD_SINK].code);
+					bpp = camss_format_get_bpp(l->formats,
+								   l->nformats,
+								   l->fmt[MSM_VFE_PAD_SINK].code);
 					tmp = pixel_clock[j] * bpp / 64;
 				}
 
@@ -618,7 +730,7 @@ static int vfe_check_clock_rates(struct vfe_device *vfe)
 	int i, j;
 	int ret;
 
-	for (i = VFE_LINE_RDI0; i < vfe->line_num; i++) {
+	for (i = VFE_LINE_RDI0; i < vfe->res->line_num; i++) {
 		ret = camss_get_pixel_clock(&vfe->line[i].subdev.entity,
 					    &pixel_clock[i]);
 		if (ret)
@@ -632,7 +744,7 @@ static int vfe_check_clock_rates(struct vfe_device *vfe)
 			u64 min_rate = 0;
 			unsigned long rate;
 
-			for (j = VFE_LINE_RDI0; j < vfe->line_num; j++) {
+			for (j = VFE_LINE_RDI0; j < vfe->res->line_num; j++) {
 				u32 tmp;
 				u8 bpp;
 
@@ -641,9 +753,9 @@ static int vfe_check_clock_rates(struct vfe_device *vfe)
 				} else {
 					struct vfe_line *l = &vfe->line[j];
 
-					bpp = vfe_get_bpp(l->formats,
-						l->nformats,
-						l->fmt[MSM_VFE_PAD_SINK].code);
+					bpp = camss_format_get_bpp(l->formats,
+								   l->nformats,
+								   l->fmt[MSM_VFE_PAD_SINK].code);
 					tmp = pixel_clock[j] * bpp / 64;
 				}
 
@@ -675,7 +787,7 @@ int vfe_get(struct vfe_device *vfe)
 	mutex_lock(&vfe->power_lock);
 
 	if (vfe->power_count == 0) {
-		ret = vfe->ops->pm_domain_on(vfe);
+		ret = vfe->res->hw_ops->pm_domain_on(vfe);
 		if (ret < 0)
 			goto error_pm_domain;
 
@@ -700,7 +812,7 @@ int vfe_get(struct vfe_device *vfe)
 
 		vfe_init_outputs(vfe);
 
-		vfe->ops->hw_version(vfe);
+		vfe->res->hw_ops->hw_version(vfe);
 	} else {
 		ret = vfe_check_clock_rates(vfe);
 		if (ret < 0)
@@ -718,7 +830,7 @@ error_reset:
 error_pm_runtime_get:
 	pm_runtime_put_sync(vfe->camss->dev);
 error_domain_off:
-	vfe->ops->pm_domain_off(vfe);
+	vfe->res->hw_ops->pm_domain_off(vfe);
 
 error_pm_domain:
 	mutex_unlock(&vfe->power_lock);
@@ -740,11 +852,11 @@ void vfe_put(struct vfe_device *vfe)
 	} else if (vfe->power_count == 1) {
 		if (vfe->was_streaming) {
 			vfe->was_streaming = 0;
-			vfe->ops->vfe_halt(vfe);
+			vfe->res->hw_ops->vfe_halt(vfe);
 		}
 		camss_disable_clocks(vfe->nclocks, vfe->clock);
 		pm_runtime_put_sync(vfe->camss->dev);
-		vfe->ops->pm_domain_off(vfe);
+		vfe->res->hw_ops->pm_domain_off(vfe);
 	}
 
 	vfe->power_count--;
@@ -834,12 +946,12 @@ static int vfe_set_stream(struct v4l2_subdev *sd, int enable)
 
 	if (enable) {
 		line->output.state = VFE_OUTPUT_RESERVED;
-		ret = vfe->ops->vfe_enable(line);
+		ret = vfe->res->hw_ops->vfe_enable(line);
 		if (ret < 0)
 			dev_err(vfe->camss->dev,
 				"Failed to enable vfe outputs\n");
 	} else {
-		ret = vfe->ops->vfe_disable(line);
+		ret = vfe->res->hw_ops->vfe_disable(line);
 		if (ret < 0)
 			dev_err(vfe->camss->dev,
 				"Failed to disable vfe outputs\n");
@@ -1376,23 +1488,24 @@ int msm_vfe_subdev_init(struct camss *camss, struct vfe_device *vfe,
 	int i, j;
 	int ret;
 
-	vfe->ops = res->ops;
-
-	if (!res->line_num)
+	if (!res->vfe.line_num)
 		return -EINVAL;
+
+	vfe->res = &res->vfe;
+	vfe->res->hw_ops->subdev_init(dev, vfe);
 
 	/* Power domain */
 
-	if (res->pd_name) {
+	if (res->vfe.pd_name) {
 		vfe->genpd = dev_pm_domain_attach_by_name(camss->dev,
-							  res->pd_name);
+							  res->vfe.pd_name);
 		if (IS_ERR(vfe->genpd)) {
 			ret = PTR_ERR(vfe->genpd);
 			return ret;
 		}
 	}
 
-	if (!vfe->genpd && res->has_pd) {
+	if (!vfe->genpd && res->vfe.has_pd) {
 		/*
 		 * Legacy magic index.
 		 * Requires
@@ -1408,9 +1521,6 @@ int msm_vfe_subdev_init(struct camss *camss, struct vfe_device *vfe,
 		if (IS_ERR(vfe->genpd))
 			return PTR_ERR(vfe->genpd);
 	}
-
-	vfe->line_num = res->line_num;
-	vfe->ops->subdev_init(dev, vfe);
 
 	/* Memory */
 
@@ -1429,7 +1539,7 @@ int msm_vfe_subdev_init(struct camss *camss, struct vfe_device *vfe,
 	vfe->irq = ret;
 	snprintf(vfe->irq_name, sizeof(vfe->irq_name), "%s_%s%d",
 		 dev_name(dev), MSM_VFE_NAME, id);
-	ret = devm_request_irq(dev, vfe->irq, vfe->ops->isr,
+	ret = devm_request_irq(dev, vfe->irq, vfe->res->hw_ops->isr,
 			       IRQF_TRIGGER_RISING, vfe->irq_name, vfe);
 	if (ret < 0) {
 		dev_err(dev, "request_irq failed: %d\n", ret);
@@ -1488,7 +1598,7 @@ int msm_vfe_subdev_init(struct camss *camss, struct vfe_device *vfe,
 	vfe->id = id;
 	vfe->reg_update = 0;
 
-	for (i = VFE_LINE_RDI0; i < vfe->line_num; i++) {
+	for (i = VFE_LINE_RDI0; i < vfe->res->line_num; i++) {
 		struct vfe_line *l = &vfe->line[i];
 
 		l->video_out.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
@@ -1497,32 +1607,12 @@ int msm_vfe_subdev_init(struct camss *camss, struct vfe_device *vfe,
 		init_completion(&l->output.sof);
 		init_completion(&l->output.reg_update);
 
-		switch (camss->res->version) {
-		case CAMSS_8x16:
-			if (i == VFE_LINE_PIX) {
-				l->formats = formats_pix_8x16;
-				l->nformats = ARRAY_SIZE(formats_pix_8x16);
-			} else {
-				l->formats = formats_rdi_8x16;
-				l->nformats = ARRAY_SIZE(formats_rdi_8x16);
-			}
-			break;
-		case CAMSS_8x96:
-		case CAMSS_660:
-			if (i == VFE_LINE_PIX) {
-				l->formats = formats_pix_8x96;
-				l->nformats = ARRAY_SIZE(formats_pix_8x96);
-			} else {
-				l->formats = formats_rdi_8x96;
-				l->nformats = ARRAY_SIZE(formats_rdi_8x96);
-			}
-			break;
-		case CAMSS_845:
-		case CAMSS_8250:
-		case CAMSS_8280XP:
-			l->formats = formats_rdi_845;
-			l->nformats = ARRAY_SIZE(formats_rdi_845);
-			break;
+		if (i == VFE_LINE_PIX) {
+			l->nformats = res->vfe.formats_pix->nformats;
+			l->formats = res->vfe.formats_pix->formats;
+		} else {
+			l->nformats = res->vfe.formats_rdi->nformats;
+			l->formats = res->vfe.formats_rdi->formats;
 		}
 	}
 
@@ -1636,7 +1726,7 @@ int msm_vfe_register_entities(struct vfe_device *vfe,
 	int ret;
 	int i;
 
-	for (i = 0; i < vfe->line_num; i++) {
+	for (i = 0; i < vfe->res->line_num; i++) {
 		char name[32];
 
 		sd = &vfe->line[i].subdev;
@@ -1686,10 +1776,13 @@ int msm_vfe_register_entities(struct vfe_device *vfe,
 			video_out->bpl_alignment = 16;
 			video_out->line_based = 1;
 		}
+
+		video_out->nformats = vfe->line[i].nformats;
+		video_out->formats = vfe->line[i].formats;
+
 		snprintf(name, ARRAY_SIZE(name), "%s%d_%s%d",
 			 MSM_VFE_NAME, vfe->id, "video", i);
-		ret = msm_video_register(video_out, v4l2_dev, name,
-					 i == VFE_LINE_PIX ? 1 : 0);
+		ret = msm_video_register(video_out, v4l2_dev, name);
 		if (ret < 0) {
 			dev_err(dev, "Failed to register video node: %d\n",
 				ret);
@@ -1743,7 +1836,7 @@ void msm_vfe_unregister_entities(struct vfe_device *vfe)
 	mutex_destroy(&vfe->power_lock);
 	mutex_destroy(&vfe->stream_lock);
 
-	for (i = 0; i < vfe->line_num; i++) {
+	for (i = 0; i < vfe->res->line_num; i++) {
 		struct v4l2_subdev *sd = &vfe->line[i].subdev;
 		struct camss_video *video_out = &vfe->line[i].video_out;
 
@@ -1755,5 +1848,5 @@ void msm_vfe_unregister_entities(struct vfe_device *vfe)
 
 bool vfe_is_lite(struct vfe_device *vfe)
 {
-	return vfe->camss->res->vfe_res[vfe->id].is_lite;
+	return vfe->camss->res->vfe_res[vfe->id].vfe.is_lite;
 }

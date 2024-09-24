@@ -110,13 +110,19 @@ fbdev Helper Functions Reference
 .. kernel-doc:: drivers/gpu/drm/drm_fb_helper.c
    :doc: fbdev helpers
 
+.. kernel-doc:: drivers/gpu/drm/drm_fbdev_dma.c
+   :export:
+
+.. kernel-doc:: drivers/gpu/drm/drm_fbdev_shmem.c
+   :export:
+
+.. kernel-doc:: drivers/gpu/drm/drm_fbdev_ttm.c
+   :export:
+
 .. kernel-doc:: include/drm/drm_fb_helper.h
    :internal:
 
 .. kernel-doc:: drivers/gpu/drm/drm_fb_helper.c
-   :export:
-
-.. kernel-doc:: drivers/gpu/drm/drm_fbdev_generic.c
    :export:
 
 format Helper Functions Reference

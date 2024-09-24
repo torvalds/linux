@@ -132,7 +132,7 @@ static int magellan_connect(struct serio *serio, struct serio_driver *drv)
 	int err = -ENOMEM;
 	int i;
 
-	magellan = kzalloc(sizeof(struct magellan), GFP_KERNEL);
+	magellan = kzalloc(sizeof(*magellan), GFP_KERNEL);
 	input_dev = input_allocate_device();
 	if (!magellan || !input_dev)
 		goto fail1;

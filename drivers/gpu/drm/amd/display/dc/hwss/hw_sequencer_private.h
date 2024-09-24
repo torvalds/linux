@@ -76,8 +76,6 @@ struct hwseq_private_funcs {
 	void (*enable_stream_gating)(struct dc *dc, struct pipe_ctx *pipe_ctx);
 	void (*init_pipes)(struct dc *dc, struct dc_state *context);
 	void (*reset_hw_ctx_wrap)(struct dc *dc, struct dc_state *context);
-	void (*update_plane_addr)(const struct dc *dc,
-			struct pipe_ctx *pipe_ctx);
 	void (*plane_atomic_disconnect)(struct dc *dc,
 			struct dc_state *state,
 			struct pipe_ctx *pipe_ctx);
@@ -124,6 +122,10 @@ struct hwseq_private_funcs {
 			struct dce_hwseq *hws,
 			unsigned int dpp_inst,
 			bool clock_on);
+	void (*physymclk_root_clock_control)(
+			struct dce_hwseq *hws,
+			unsigned int phy_inst,
+			bool clock_on);
 	void (*dpp_pg_control)(struct dce_hwseq *hws,
 			unsigned int dpp_inst,
 			bool power_on);
@@ -165,9 +167,9 @@ struct hwseq_private_funcs {
 	unsigned int (*calculate_dccg_k1_k2_values)(struct pipe_ctx *pipe_ctx,
 			unsigned int *k1_div,
 			unsigned int *k2_div);
-	void (*set_pixels_per_cycle)(struct pipe_ctx *pipe_ctx);
 	void (*resync_fifo_dccg_dio)(struct dce_hwseq *hws, struct dc *dc,
-			struct dc_state *context);
+			struct dc_state *context,
+			unsigned int current_pipe_idx);
 	enum dc_status (*apply_single_controller_ctx_to_hw)(
 			struct pipe_ctx *pipe_ctx,
 			struct dc_state *context,
@@ -176,6 +178,10 @@ struct hwseq_private_funcs {
 	void (*reset_back_end_for_pipe)(struct dc *dc,
 			struct pipe_ctx *pipe_ctx,
 			struct dc_state *context);
+	void (*populate_mcm_luts)(struct dc *dc,
+			struct pipe_ctx *pipe_ctx,
+			struct dc_cm2_func_luts mcm_luts,
+			bool lut_bank_a);
 };
 
 struct dce_hwseq {

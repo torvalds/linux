@@ -1088,6 +1088,7 @@ static u32 rtw_pci_rx_napi(struct rtw_dev *rtwdev, struct rtw_pci *rtwpci,
 			/* remove rx_desc */
 			skb_pull(new, pkt_offset);
 
+			rtw_update_rx_freq_for_invalid(rtwdev, new, &rx_status, &pkt_stat);
 			rtw_rx_stats(rtwdev, pkt_stat.vif, new);
 			memcpy(new->cb, &rx_status, sizeof(rx_status));
 			ieee80211_rx_napi(rtwdev->hw, NULL, new, napi);
@@ -1600,6 +1601,7 @@ static struct rtw_hci_ops rtw_pci_ops = {
 	.deep_ps = rtw_pci_deep_ps,
 	.link_ps = rtw_pci_link_ps,
 	.interface_cfg = rtw_pci_interface_cfg,
+	.dynamic_rx_agg = NULL,
 
 	.read8 = rtw_pci_read8,
 	.read16 = rtw_pci_read16,
@@ -1682,12 +1684,16 @@ static int rtw_pci_napi_poll(struct napi_struct *napi, int budget)
 	return work_done;
 }
 
-static void rtw_pci_napi_init(struct rtw_dev *rtwdev)
+static int rtw_pci_napi_init(struct rtw_dev *rtwdev)
 {
 	struct rtw_pci *rtwpci = (struct rtw_pci *)rtwdev->priv;
 
-	init_dummy_netdev(&rtwpci->netdev);
-	netif_napi_add(&rtwpci->netdev, &rtwpci->napi, rtw_pci_napi_poll);
+	rtwpci->netdev = alloc_netdev_dummy(0);
+	if (!rtwpci->netdev)
+		return -ENOMEM;
+
+	netif_napi_add(rtwpci->netdev, &rtwpci->napi, rtw_pci_napi_poll);
+	return 0;
 }
 
 static void rtw_pci_napi_deinit(struct rtw_dev *rtwdev)
@@ -1696,6 +1702,7 @@ static void rtw_pci_napi_deinit(struct rtw_dev *rtwdev)
 
 	rtw_pci_napi_stop(rtwdev);
 	netif_napi_del(&rtwpci->napi);
+	free_netdev(rtwpci->netdev);
 }
 
 int rtw_pci_probe(struct pci_dev *pdev,
@@ -1745,7 +1752,11 @@ int rtw_pci_probe(struct pci_dev *pdev,
 		goto err_pci_declaim;
 	}
 
-	rtw_pci_napi_init(rtwdev);
+	ret = rtw_pci_napi_init(rtwdev);
+	if (ret) {
+		rtw_err(rtwdev, "failed to setup NAPI\n");
+		goto err_pci_declaim;
+	}
 
 	ret = rtw_chip_info_setup(rtwdev);
 	if (ret) {

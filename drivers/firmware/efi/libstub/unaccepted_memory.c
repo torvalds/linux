@@ -29,7 +29,7 @@ efi_status_t allocate_unaccepted_bitmap(__u32 nr_desc,
 		efi_memory_desc_t *d;
 		unsigned long m = (unsigned long)map->map;
 
-		d = efi_early_memdesc_ptr(m, map->desc_size, i);
+		d = efi_memdesc_ptr(m, map->desc_size, i);
 		if (d->type != EFI_UNACCEPTED_MEMORY)
 			continue;
 
@@ -177,9 +177,10 @@ void process_unaccepted_memory(u64 start, u64 end)
 		   start / unit_size, (end - start) / unit_size);
 }
 
-void accept_memory(phys_addr_t start, phys_addr_t end)
+void accept_memory(phys_addr_t start, unsigned long size)
 {
 	unsigned long range_start, range_end;
+	phys_addr_t end = start + size;
 	unsigned long bitmap_size;
 	u64 unit_size;
 

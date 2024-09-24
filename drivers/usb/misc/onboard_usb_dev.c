@@ -454,15 +454,17 @@ static struct onboard_dev *_find_onboard_dev(struct device *dev)
 	return onboard_dev;
 }
 
+static bool onboard_dev_usbdev_match(struct usb_device *udev)
+{
+	/* Onboard devices using this driver must have a device tree node */
+	return !!udev->dev.of_node;
+}
+
 static int onboard_dev_usbdev_probe(struct usb_device *udev)
 {
 	struct device *dev = &udev->dev;
 	struct onboard_dev *onboard_dev;
 	int err;
-
-	/* ignore supported devices without device tree node */
-	if (!dev->of_node)
-		return -ENODEV;
 
 	onboard_dev = _find_onboard_dev(dev);
 	if (IS_ERR(onboard_dev))
@@ -513,6 +515,7 @@ MODULE_DEVICE_TABLE(usb, onboard_dev_id_table);
 
 static struct usb_device_driver onboard_dev_usbdev_driver = {
 	.name = "onboard-usb-dev",
+	.match = onboard_dev_usbdev_match,
 	.probe = onboard_dev_usbdev_probe,
 	.disconnect = onboard_dev_usbdev_disconnect,
 	.generic_subclass = 1,

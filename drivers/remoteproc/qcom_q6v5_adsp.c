@@ -112,6 +112,7 @@ struct qcom_adsp {
 	struct dev_pm_domain_list *pd_list;
 
 	struct qcom_rproc_glink glink_subdev;
+	struct qcom_rproc_pdm pdm_subdev;
 	struct qcom_rproc_ssr ssr_subdev;
 	struct qcom_sysmon *sysmon;
 
@@ -726,6 +727,7 @@ static int adsp_probe(struct platform_device *pdev)
 		goto disable_pm;
 
 	qcom_add_glink_subdev(rproc, &adsp->glink_subdev, desc->ssr_name);
+	qcom_add_pdm_subdev(rproc, &adsp->pdm_subdev);
 	qcom_add_ssr_subdev(rproc, &adsp->ssr_subdev, desc->ssr_name);
 	adsp->sysmon = qcom_add_sysmon_subdev(rproc,
 					      desc->sysmon_name,
@@ -755,6 +757,7 @@ static void adsp_remove(struct platform_device *pdev)
 
 	qcom_q6v5_deinit(&adsp->q6v5);
 	qcom_remove_glink_subdev(adsp->rproc, &adsp->glink_subdev);
+	qcom_remove_pdm_subdev(adsp->rproc, &adsp->pdm_subdev);
 	qcom_remove_sysmon_subdev(adsp->sysmon);
 	qcom_remove_ssr_subdev(adsp->rproc, &adsp->ssr_subdev);
 	qcom_rproc_pds_detach(adsp);

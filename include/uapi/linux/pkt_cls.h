@@ -246,16 +246,19 @@ struct tc_u32_key {
 };
 
 struct tc_u32_sel {
-	unsigned char		flags;
-	unsigned char		offshift;
-	unsigned char		nkeys;
+	/* New members MUST be added within the __struct_group() macro below. */
+	__struct_group(tc_u32_sel_hdr, hdr, /* no attrs */,
+		unsigned char		flags;
+		unsigned char		offshift;
+		unsigned char		nkeys;
 
-	__be16			offmask;
-	__u16			off;
-	short			offoff;
+		__be16			offmask;
+		__u16			off;
+		short			offoff;
 
-	short			hoff;
-	__be32			hmask;
+		short			hoff;
+		__be32			hmask;
+	);
 	struct tc_u32_key	keys[];
 };
 
@@ -554,6 +557,9 @@ enum {
 	TCA_FLOWER_KEY_SPI,		/* be32 */
 	TCA_FLOWER_KEY_SPI_MASK,	/* be32 */
 
+	TCA_FLOWER_KEY_ENC_FLAGS,	/* be32 */
+	TCA_FLOWER_KEY_ENC_FLAGS_MASK,	/* be32 */
+
 	__TCA_FLOWER_MAX,
 };
 
@@ -674,7 +680,14 @@ enum {
 enum {
 	TCA_FLOWER_KEY_FLAGS_IS_FRAGMENT = (1 << 0),
 	TCA_FLOWER_KEY_FLAGS_FRAG_IS_FIRST = (1 << 1),
+	TCA_FLOWER_KEY_FLAGS_TUNNEL_CSUM = (1 << 2),
+	TCA_FLOWER_KEY_FLAGS_TUNNEL_DONT_FRAGMENT = (1 << 3),
+	TCA_FLOWER_KEY_FLAGS_TUNNEL_OAM = (1 << 4),
+	TCA_FLOWER_KEY_FLAGS_TUNNEL_CRIT_OPT = (1 << 5),
+	__TCA_FLOWER_KEY_FLAGS_MAX,
 };
+
+#define TCA_FLOWER_KEY_FLAGS_MAX (__TCA_FLOWER_KEY_FLAGS_MAX - 1)
 
 enum {
 	TCA_FLOWER_KEY_CFM_OPT_UNSPEC,

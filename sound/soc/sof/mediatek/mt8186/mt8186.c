@@ -82,7 +82,7 @@ static void mt8186_dsp_handle_request(struct mtk_adsp_ipc *ipc)
 	}
 }
 
-static struct mtk_adsp_ipc_ops dsp_ops = {
+static const struct mtk_adsp_ipc_ops dsp_ops = {
 	.handle_reply		= mt8186_dsp_handle_reply,
 	.handle_request		= mt8186_dsp_handle_request,
 };
@@ -656,7 +656,7 @@ MODULE_DEVICE_TABLE(of, sof_of_mt8186_ids);
 /* DT driver definition */
 static struct platform_driver snd_sof_of_mt8186_driver = {
 	.probe = sof_of_probe,
-	.remove_new = sof_of_remove,
+	.remove = sof_of_remove,
 	.shutdown = sof_of_shutdown,
 	.driver = {
 	.name = "sof-audio-of-mt8186",

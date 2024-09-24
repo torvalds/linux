@@ -94,6 +94,8 @@ static enum dc_psr_state convert_psr_state(uint32_t raw_state)
 		state = PSR_STATE_HWLOCK_MGR;
 	else if (raw_state == 0x61)
 		state = PSR_STATE_POLLVUPDATE;
+	else if (raw_state == 0x62)
+		state = PSR_STATE_RELEASE_HWLOCK_MGR_FULL_FRAME;
 	else
 		state = PSR_STATE_INVALID;
 
@@ -363,6 +365,7 @@ static bool dmub_psr_copy_settings(struct dmub_psr *dmub,
 	copy_settings_data->debug.bitfields.visual_confirm	= dc->dc->debug.visual_confirm == VISUAL_CONFIRM_PSR;
 	copy_settings_data->debug.bitfields.use_hw_lock_mgr		= 1;
 	copy_settings_data->debug.bitfields.force_full_frame_update	= 0;
+	copy_settings_data->debug.bitfields.enable_ips_visual_confirm = dc->dc->debug.enable_ips_visual_confirm;
 
 	if (psr_context->su_granularity_required == 0)
 		copy_settings_data->su_y_granularity = 0;
@@ -445,9 +448,12 @@ static void dmub_psr_force_static(struct dmub_psr *dmub, uint8_t panel_inst)
 /*
  * Get PSR residency from firmware.
  */
-static void dmub_psr_get_residency(struct dmub_psr *dmub, uint32_t *residency, uint8_t panel_inst)
+static void dmub_psr_get_residency(struct dmub_psr *dmub, uint32_t *residency,
+	uint8_t panel_inst, enum psr_residency_mode mode)
 {
 	uint16_t param = (uint16_t)(panel_inst << 8);
+
+	param |= mode;
 
 	/* Send gpint command and wait for ack */
 	dc_wake_and_execute_gpint(dmub->ctx, DMUB_GPINT__PSR_RESIDENCY, param, residency,

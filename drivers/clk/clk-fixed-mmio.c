@@ -91,7 +91,7 @@ static struct platform_driver of_fixed_mmio_clk_driver = {
 		.of_match_table = of_fixed_mmio_clk_ids,
 	},
 	.probe = of_fixed_mmio_clk_probe,
-	.remove_new = of_fixed_mmio_clk_remove,
+	.remove = of_fixed_mmio_clk_remove,
 };
 module_platform_driver(of_fixed_mmio_clk_driver);
 

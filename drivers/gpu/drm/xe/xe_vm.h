@@ -6,6 +6,7 @@
 #ifndef _XE_VM_H_
 #define _XE_VM_H_
 
+#include "xe_assert.h"
 #include "xe_bo_types.h"
 #include "xe_macros.h"
 #include "xe_map.h"
@@ -208,6 +209,8 @@ int __xe_vm_userptr_needs_repin(struct xe_vm *vm);
 int xe_vm_userptr_check_repin(struct xe_vm *vm);
 
 int xe_vm_rebind(struct xe_vm *vm, bool rebind_worker);
+struct dma_fence *xe_vma_rebind(struct xe_vm *vm, struct xe_vma *vma,
+				u8 tile_mask);
 
 int xe_vm_invalidate_vma(struct xe_vma *vma);
 
@@ -240,8 +243,6 @@ int xe_vma_userptr_check_repin(struct xe_userptr_vma *uvma);
 
 bool xe_vm_validate_should_retry(struct drm_exec *exec, int err, ktime_t *end);
 
-int xe_analyze_vm(struct drm_printer *p, struct xe_vm *vm, int gt_id);
-
 int xe_vm_lock_vma(struct drm_exec *exec, struct xe_vma *vma);
 
 int xe_vm_validate_rebind(struct xe_vm *vm, struct drm_exec *exec,
@@ -257,6 +258,8 @@ static inline struct dma_resv *xe_vm_resv(struct xe_vm *vm)
 {
 	return drm_gpuvm_resv(&vm->gpuvm);
 }
+
+void xe_vm_kill(struct xe_vm *vm, bool unlocked);
 
 /**
  * xe_vm_assert_held(vm) - Assert that the vm's reservation object is held.

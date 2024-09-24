@@ -89,16 +89,7 @@ static inline bool rcu_segcblist_is_enabled(struct rcu_segcblist *rsclp)
 static inline bool rcu_segcblist_is_offloaded(struct rcu_segcblist *rsclp)
 {
 	if (IS_ENABLED(CONFIG_RCU_NOCB_CPU) &&
-	    rcu_segcblist_test_flags(rsclp, SEGCBLIST_LOCKING))
-		return true;
-
-	return false;
-}
-
-static inline bool rcu_segcblist_completely_offloaded(struct rcu_segcblist *rsclp)
-{
-	if (IS_ENABLED(CONFIG_RCU_NOCB_CPU) &&
-	    !rcu_segcblist_test_flags(rsclp, SEGCBLIST_RCU_CORE))
+	    rcu_segcblist_test_flags(rsclp, SEGCBLIST_OFFLOADED))
 		return true;
 
 	return false;

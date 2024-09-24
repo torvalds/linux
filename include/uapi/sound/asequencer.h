@@ -10,7 +10,7 @@
 #include <sound/asound.h>
 
 /** version of the sequencer */
-#define SNDRV_SEQ_VERSION SNDRV_PROTOCOL_VERSION(1, 0, 3)
+#define SNDRV_SEQ_VERSION SNDRV_PROTOCOL_VERSION(1, 0, 4)
 
 /**
  * definition of sequencer event types
@@ -461,6 +461,8 @@ struct snd_seq_remove_events {
 #define SNDRV_SEQ_PORT_FLG_TIMESTAMP	(1<<1)
 #define SNDRV_SEQ_PORT_FLG_TIME_REAL	(1<<2)
 
+#define SNDRV_SEQ_PORT_FLG_IS_MIDI1	(1<<3)	/* Keep MIDI 1.0 protocol */
+
 /* port direction */
 #define SNDRV_SEQ_PORT_DIR_UNKNOWN	0
 #define SNDRV_SEQ_PORT_DIR_INPUT	1
@@ -523,11 +525,12 @@ struct snd_seq_queue_status {
 /* queue tempo */
 struct snd_seq_queue_tempo {
 	int queue;			/* sequencer queue */
-	unsigned int tempo;		/* current tempo, us/tick */
+	unsigned int tempo;		/* current tempo, us/tick (or different time-base below) */
 	int ppq;			/* time resolution, ticks/quarter */
 	unsigned int skew_value;	/* queue skew */
 	unsigned int skew_base;		/* queue skew base */
-	char reserved[24];		/* for the future */
+	unsigned short tempo_base;	/* tempo base in nsec unit; either 10 or 1000 */
+	char reserved[22];		/* for the future */
 };
 
 

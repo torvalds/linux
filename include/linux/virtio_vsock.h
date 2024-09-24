@@ -133,6 +133,7 @@ struct virtio_vsock_sock {
 	u32 tx_cnt;
 	u32 peer_fwd_cnt;
 	u32 peer_buf_alloc;
+	size_t bytes_unsent;
 
 	/* Protected by rx_lock */
 	u32 fwd_cnt;
@@ -192,6 +193,11 @@ virtio_transport_seqpacket_dequeue(struct vsock_sock *vsk,
 s64 virtio_transport_stream_has_data(struct vsock_sock *vsk);
 s64 virtio_transport_stream_has_space(struct vsock_sock *vsk);
 u32 virtio_transport_seqpacket_has_data(struct vsock_sock *vsk);
+
+ssize_t virtio_transport_unsent_bytes(struct vsock_sock *vsk);
+
+void virtio_transport_consume_skb_sent(struct sk_buff *skb,
+				       bool consume);
 
 int virtio_transport_do_socket_init(struct vsock_sock *vsk,
 				 struct vsock_sock *psk);

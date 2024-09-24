@@ -205,6 +205,7 @@
 #include <linux/zstd.h>
 
 #include "bcachefs_format.h"
+#include "disk_accounting_types.h"
 #include "errcode.h"
 #include "fifo.h"
 #include "nocow_locking_types.h"
@@ -265,6 +266,8 @@ do {									\
 #endif
 
 #define bch2_fmt(_c, fmt)		bch2_log_msg(_c, fmt "\n")
+
+void bch2_print_str(struct bch_fs *, const char *);
 
 __printf(2, 3)
 void bch2_print_opts(struct bch_opts *, const char *, ...);
@@ -444,6 +447,7 @@ BCH_DEBUG_PARAMS_DEBUG()
 	x(blocked_journal_low_on_space)		\
 	x(blocked_journal_low_on_pin)		\
 	x(blocked_journal_max_in_flight)	\
+	x(blocked_key_cache_flush)		\
 	x(blocked_allocate)			\
 	x(blocked_allocate_open_bucket)		\
 	x(blocked_write_buffer_full)		\
@@ -535,18 +539,16 @@ struct bch_dev {
 	/*
 	 * Buckets:
 	 * Per-bucket arrays are protected by c->mark_lock, bucket_lock and
-	 * gc_lock, for device resize - holding any is sufficient for access:
-	 * Or rcu_read_lock(), but only for dev_ptr_stale():
+	 * gc_gens_lock, for device resize - holding any is sufficient for
+	 * access: Or rcu_read_lock(), but only for dev_ptr_stale():
 	 */
-	struct bucket_array __rcu *buckets_gc;
+	GENRADIX(struct bucket)	buckets_gc;
 	struct bucket_gens __rcu *bucket_gens;
 	u8			*oldest_gen;
 	unsigned long		*buckets_nouse;
 	struct rw_semaphore	bucket_lock;
 
-	struct bch_dev_usage		*usage_base;
-	struct bch_dev_usage __percpu	*usage[JOURNAL_BUF_NR];
-	struct bch_dev_usage __percpu	*usage_gc;
+	struct bch_dev_usage __percpu	*usage;
 
 	/* Allocator: */
 	u64			new_fs_bucket_idx;
@@ -592,6 +594,8 @@ struct bch_dev {
 #define BCH_FS_FLAGS()			\
 	x(new_fs)			\
 	x(started)			\
+	x(btree_running)		\
+	x(accounting_replay_done)	\
 	x(may_go_rw)			\
 	x(rw)				\
 	x(was_rw)			\
@@ -670,8 +674,6 @@ struct btree_trans_buf {
 	struct btree_trans	*trans;
 };
 
-#define REPLICAS_DELTA_LIST_MAX	(1U << 16)
-
 #define BCACHEFS_ROOT_SUBVOL_INUM					\
 	((subvol_inum) { BCACHEFS_ROOT_SUBVOL,	BCACHEFS_ROOT_INO })
 
@@ -741,15 +743,14 @@ struct bch_fs {
 
 	struct bch_dev __rcu	*devs[BCH_SB_MEMBERS_MAX];
 
+	struct bch_accounting_mem accounting;
+
 	struct bch_replicas_cpu replicas;
 	struct bch_replicas_cpu replicas_gc;
 	struct mutex		replicas_gc_lock;
-	mempool_t		replicas_delta_pool;
 
 	struct journal_entry_res btree_root_journal_res;
-	struct journal_entry_res replicas_journal_res;
 	struct journal_entry_res clock_journal_res;
-	struct journal_entry_res dev_usage_journal_res;
 
 	struct bch_disk_groups_cpu __rcu *disk_groups;
 
@@ -870,8 +871,10 @@ struct bch_fs {
 
 	/* ALLOCATION */
 	struct bch_devs_mask	rw_devs[BCH_DATA_NR];
+	unsigned long		rw_devs_change_count;
 
 	u64			capacity; /* sectors */
+	u64			reserved; /* sectors */
 
 	/*
 	 * When capacity _decreases_ (due to a disk being removed), we
@@ -889,14 +892,10 @@ struct bch_fs {
 	struct percpu_rw_semaphore	mark_lock;
 
 	seqcount_t			usage_lock;
-	struct bch_fs_usage		*usage_base;
-	struct bch_fs_usage __percpu	*usage[JOURNAL_BUF_NR];
-	struct bch_fs_usage __percpu	*usage_gc;
+	struct bch_fs_usage_base __percpu *usage;
 	u64 __percpu		*online_reserved;
 
-	/* single element mempool: */
-	struct mutex		usage_scratch_lock;
-	struct bch_fs_usage_online *usage_scratch;
+	unsigned long		allocator_last_stuck;
 
 	struct io_clock		io_clock[2];
 
@@ -1025,6 +1024,7 @@ struct bch_fs {
 	/* fs.c */
 	struct list_head	vfs_inodes_list;
 	struct mutex		vfs_inodes_lock;
+	struct rhashtable	vfs_inodes_table;
 
 	/* VFS IO PATH - fs-io.c */
 	struct bio_set		writepage_bioset;
@@ -1046,8 +1046,6 @@ struct bch_fs {
 	 * for signaling to the toplevel code which pass we want to run now.
 	 */
 	enum bch_recovery_pass	curr_recovery_pass;
-	/* bitmap of explicitly enabled recovery passes: */
-	u64			recovery_passes_explicit;
 	/* bitmask of recovery passes that we actually ran */
 	u64			recovery_passes_complete;
 	/* never rewinds version of curr_recovery_pass */
@@ -1087,7 +1085,6 @@ struct bch_fs {
 	u64 __percpu		*counters;
 
 	unsigned		copy_gc_enabled:1;
-	bool			promote_whole_extents;
 
 	struct bch2_time_stats	times[BCH_TIME_STAT_NR];
 
@@ -1197,12 +1194,15 @@ static inline bool btree_id_cached(const struct bch_fs *c, enum btree_id btree)
 static inline struct timespec64 bch2_time_to_timespec(const struct bch_fs *c, s64 time)
 {
 	struct timespec64 t;
+	s64 sec;
 	s32 rem;
 
 	time += c->sb.time_base_lo;
 
-	t.tv_sec = div_s64_rem(time, c->sb.time_units_per_sec, &rem);
-	t.tv_nsec = rem * c->sb.nsec_per_time_unit;
+	sec = div_s64_rem(time, c->sb.time_units_per_sec, &rem);
+
+	set_normalized_timespec64(&t, sec, rem * (s64)c->sb.nsec_per_time_unit);
+
 	return t;
 }
 

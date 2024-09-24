@@ -590,6 +590,7 @@ enum dc_psr_state {
 	PSR_STATE5c,
 	PSR_STATE_HWLOCK_MGR,
 	PSR_STATE_POLLVUPDATE,
+	PSR_STATE_RELEASE_HWLOCK_MGR_FULL_FRAME,
 	PSR_STATE_INVALID = 0xFF
 };
 
@@ -1035,6 +1036,8 @@ enum replay_FW_Message_type {
 	Replay_Set_Timing_Sync_Supported,
 	Replay_Set_Residency_Frameupdate_Timer,
 	Replay_Set_Pseudo_VTotal,
+	Replay_Disabled_Adaptive_Sync_SDP,
+	Replay_Set_General_Cmd,
 };
 
 union replay_error_status {
@@ -1045,6 +1048,23 @@ union replay_error_status {
 		unsigned char RESERVED                  :5;
 	} bits;
 	unsigned char raw;
+};
+
+union replay_low_refresh_rate_enable_options {
+	struct {
+	//BIT[0-3]: Replay Low Hz Support control
+		unsigned int ENABLE_LOW_RR_SUPPORT          :1;
+		unsigned int RESERVED_1_3                   :3;
+	//BIT[4-15]: Replay Low Hz Enable Scenarios
+		unsigned int ENABLE_STATIC_SCREEN           :1;
+		unsigned int ENABLE_FULL_SCREEN_VIDEO       :1;
+		unsigned int ENABLE_GENERAL_UI              :1;
+		unsigned int RESERVED_7_15                  :9;
+	//BIT[16-31]: Replay Low Hz Enable Check
+		unsigned int ENABLE_STATIC_FLICKER_CHECK    :1;
+		unsigned int RESERVED_17_31                 :15;
+	} bits;
+	unsigned int raw;
 };
 
 struct replay_config {
@@ -1070,6 +1090,8 @@ struct replay_config {
 	bool replay_support_fast_resync_in_ultra_sleep_mode;
 	/* Replay error status */
 	union replay_error_status replay_error_status;
+	/* Replay Low Hz enable Options */
+	union replay_low_refresh_rate_enable_options low_rr_enable_options;
 };
 
 /* Replay feature flags*/
@@ -1090,8 +1112,10 @@ struct replay_settings {
 	uint32_t coasting_vtotal;
 	/* Coasting vtotal table */
 	uint32_t coasting_vtotal_table[PR_COASTING_TYPE_NUM];
+	/* Defer Update Coasting vtotal table */
+	uint32_t defer_update_coasting_vtotal_table[PR_COASTING_TYPE_NUM];
 	/* Maximum link off frame count */
-	enum replay_link_off_frame_count_level link_off_frame_count_level;
+	uint32_t link_off_frame_count;
 	/* Replay pseudo vtotal for abm + ips on full screen video which can improve ips residency */
 	uint16_t abm_with_ips_on_full_screen_video_pseudo_vtotal;
 	/* Replay last pseudo vtotal set to DMUB */
@@ -1170,6 +1194,83 @@ enum dc_hpd_enable_select {
 	HPD_EN_FOR_ALL_EDP = 0,
 	HPD_EN_FOR_PRIMARY_EDP_ONLY,
 	HPD_EN_FOR_SECONDARY_EDP_ONLY,
+};
+
+enum dc_cm2_shaper_3dlut_setting {
+	DC_CM2_SHAPER_3DLUT_SETTING_BYPASS_ALL,
+	DC_CM2_SHAPER_3DLUT_SETTING_ENABLE_SHAPER,
+	/* Bypassing Shaper will always bypass 3DLUT */
+	DC_CM2_SHAPER_3DLUT_SETTING_ENABLE_SHAPER_3DLUT
+};
+
+enum dc_cm2_gpu_mem_layout {
+	DC_CM2_GPU_MEM_LAYOUT_3D_SWIZZLE_LINEAR_RGB,
+	DC_CM2_GPU_MEM_LAYOUT_3D_SWIZZLE_LINEAR_BGR,
+	DC_CM2_GPU_MEM_LAYOUT_1D_PACKED_LINEAR
+};
+
+enum dc_cm2_gpu_mem_pixel_component_order {
+	DC_CM2_GPU_MEM_PIXEL_COMPONENT_ORDER_RGBA,
+};
+
+enum dc_cm2_gpu_mem_format {
+	DC_CM2_GPU_MEM_FORMAT_16161616_UNORM_12MSB,
+	DC_CM2_GPU_MEM_FORMAT_16161616_UNORM_12LSB,
+	DC_CM2_GPU_MEM_FORMAT_16161616_FLOAT_FP1_5_10
+};
+
+struct dc_cm2_gpu_mem_format_parameters {
+	enum dc_cm2_gpu_mem_format format;
+	union {
+		struct {
+			/* bias & scale for float only */
+			uint16_t bias;
+			uint16_t scale;
+		} float_params;
+	};
+};
+
+enum dc_cm2_gpu_mem_size {
+	DC_CM2_GPU_MEM_SIZE_171717,
+	DC_CM2_GPU_MEM_SIZE_TRANSFORMED
+};
+
+struct dc_cm2_gpu_mem_parameters {
+	struct dc_plane_address addr;
+	enum dc_cm2_gpu_mem_layout layout;
+	struct dc_cm2_gpu_mem_format_parameters format_params;
+	enum dc_cm2_gpu_mem_pixel_component_order component_order;
+	enum dc_cm2_gpu_mem_size  size;
+};
+
+enum dc_cm2_transfer_func_source {
+	DC_CM2_TRANSFER_FUNC_SOURCE_SYSMEM,
+	DC_CM2_TRANSFER_FUNC_SOURCE_VIDMEM
+};
+
+struct dc_cm2_component_settings {
+	enum dc_cm2_shaper_3dlut_setting shaper_3dlut_setting;
+	bool lut1d_enable;
+};
+
+/*
+ * All pointers in this struct must remain valid for as long as the 3DLUTs are used
+ */
+struct dc_cm2_func_luts {
+	const struct dc_transfer_func *shaper;
+	struct {
+		enum dc_cm2_transfer_func_source lut3d_src;
+		union {
+			const struct dc_3dlut *lut3d_func;
+			struct dc_cm2_gpu_mem_parameters gpu_mem_params;
+		};
+	} lut3d_data;
+	const struct dc_transfer_func *lut1d_func;
+};
+
+struct dc_cm2_parameters {
+	struct dc_cm2_component_settings component_settings;
+	struct dc_cm2_func_luts cm2_luts;
 };
 
 enum mall_stream_type {

@@ -1534,7 +1534,7 @@ nouveau_uvmm_bind_job_cleanup(struct nouveau_job *job)
 	nouveau_uvmm_bind_job_put(bind_job);
 }
 
-static struct nouveau_job_ops nouveau_bind_job_ops = {
+static const struct nouveau_job_ops nouveau_bind_job_ops = {
 	.submit = nouveau_uvmm_bind_job_submit,
 	.armed_submit = nouveau_uvmm_bind_job_armed_submit,
 	.run = nouveau_uvmm_bind_job_run,
@@ -1803,6 +1803,7 @@ nouveau_uvmm_bo_validate(struct drm_gpuvm_bo *vm_bo, struct drm_exec *exec)
 {
 	struct nouveau_bo *nvbo = nouveau_gem_object(vm_bo->obj);
 
+	nouveau_bo_placement_set(nvbo, nvbo->valid_domains, 0);
 	return nouveau_bo_validate(nvbo, true, false);
 }
 

@@ -179,6 +179,12 @@ static void mt7925_init_work(struct work_struct *work)
 	mt76_set_stream_caps(&dev->mphy, true);
 	mt7925_set_stream_he_eht_caps(&dev->phy);
 
+	ret = mt7925_init_mlo_caps(&dev->phy);
+	if (ret) {
+		dev_err(dev->mt76.dev, "MLO init failed\n");
+		return;
+	}
+
 	ret = mt76_register_device(&dev->mt76, true, mt76_rates,
 				   ARRAY_SIZE(mt76_rates));
 	if (ret) {

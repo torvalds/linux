@@ -2,8 +2,10 @@
 
 #include <net/sock.h>
 #include <linux/ethtool_netlink.h>
+#include <linux/phy_link_topology.h>
 #include <linux/pm_runtime.h>
 #include "netlink.h"
+#include "module_fw.h"
 
 static struct genl_family ethtool_genl_family;
 
@@ -29,6 +31,53 @@ const struct nla_policy ethnl_header_policy_stats[] = {
 	[ETHTOOL_A_HEADER_FLAGS]	= NLA_POLICY_MASK(NLA_U32,
 							  ETHTOOL_FLAGS_STATS),
 };
+
+const struct nla_policy ethnl_header_policy_phy[] = {
+	[ETHTOOL_A_HEADER_DEV_INDEX]	= { .type = NLA_U32 },
+	[ETHTOOL_A_HEADER_DEV_NAME]	= { .type = NLA_NUL_STRING,
+					    .len = ALTIFNAMSIZ - 1 },
+	[ETHTOOL_A_HEADER_FLAGS]	= NLA_POLICY_MASK(NLA_U32,
+							  ETHTOOL_FLAGS_BASIC),
+	[ETHTOOL_A_HEADER_PHY_INDEX]		= NLA_POLICY_MIN(NLA_U32, 1),
+};
+
+const struct nla_policy ethnl_header_policy_phy_stats[] = {
+	[ETHTOOL_A_HEADER_DEV_INDEX]	= { .type = NLA_U32 },
+	[ETHTOOL_A_HEADER_DEV_NAME]	= { .type = NLA_NUL_STRING,
+					    .len = ALTIFNAMSIZ - 1 },
+	[ETHTOOL_A_HEADER_FLAGS]	= NLA_POLICY_MASK(NLA_U32,
+							  ETHTOOL_FLAGS_STATS),
+	[ETHTOOL_A_HEADER_PHY_INDEX]		= NLA_POLICY_MIN(NLA_U32, 1),
+};
+
+int ethnl_sock_priv_set(struct sk_buff *skb, struct net_device *dev, u32 portid,
+			enum ethnl_sock_type type)
+{
+	struct ethnl_sock_priv *sk_priv;
+
+	sk_priv = genl_sk_priv_get(&ethtool_genl_family, NETLINK_CB(skb).sk);
+	if (IS_ERR(sk_priv))
+		return PTR_ERR(sk_priv);
+
+	sk_priv->dev = dev;
+	sk_priv->portid = portid;
+	sk_priv->type = type;
+
+	return 0;
+}
+
+static void ethnl_sock_priv_destroy(void *priv)
+{
+	struct ethnl_sock_priv *sk_priv = priv;
+
+	switch (sk_priv->type) {
+	case ETHTOOL_SOCK_TYPE_MODULE_FW_FLASH:
+		ethnl_module_fw_flash_sock_destroy(sk_priv);
+		break;
+	default:
+		break;
+	}
+}
 
 int ethnl_ops_begin(struct net_device *dev)
 {
@@ -89,7 +138,7 @@ int ethnl_parse_header_dev_get(struct ethnl_req_info *req_info,
 			       const struct nlattr *header, struct net *net,
 			       struct netlink_ext_ack *extack, bool require_dev)
 {
-	struct nlattr *tb[ARRAY_SIZE(ethnl_header_policy)];
+	struct nlattr *tb[ARRAY_SIZE(ethnl_header_policy_phy)];
 	const struct nlattr *devname_attr;
 	struct net_device *dev = NULL;
 	u32 flags = 0;
@@ -104,7 +153,7 @@ int ethnl_parse_header_dev_get(struct ethnl_req_info *req_info,
 	/* No validation here, command policy should have a nested policy set
 	 * for the header, therefore validation should have already been done.
 	 */
-	ret = nla_parse_nested(tb, ARRAY_SIZE(ethnl_header_policy) - 1, header,
+	ret = nla_parse_nested(tb, ARRAY_SIZE(ethnl_header_policy_phy) - 1, header,
 			       NULL, extack);
 	if (ret < 0)
 		return ret;
@@ -145,9 +194,43 @@ int ethnl_parse_header_dev_get(struct ethnl_req_info *req_info,
 		return -EINVAL;
 	}
 
+	if (tb[ETHTOOL_A_HEADER_PHY_INDEX]) {
+		if (dev) {
+			req_info->phy_index = nla_get_u32(tb[ETHTOOL_A_HEADER_PHY_INDEX]);
+		} else {
+			NL_SET_ERR_MSG_ATTR(extack, header,
+					    "phy_index set without a netdev");
+			return -EINVAL;
+		}
+	}
+
 	req_info->dev = dev;
 	req_info->flags = flags;
 	return 0;
+}
+
+struct phy_device *ethnl_req_get_phydev(const struct ethnl_req_info *req_info,
+					const struct nlattr *header,
+					struct netlink_ext_ack *extack)
+{
+	struct phy_device *phydev;
+
+	ASSERT_RTNL();
+
+	if (!req_info->dev)
+		return NULL;
+
+	if (!req_info->phy_index)
+		return req_info->dev->phydev;
+
+	phydev = phy_link_topo_get_phy(req_info->dev, req_info->phy_index);
+	if (!phydev) {
+		NL_SET_ERR_MSG_ATTR(extack, header,
+				    "no phy matching phyindex");
+		return ERR_PTR(-ENODEV);
+	}
+
+	return phydev;
 }
 
 /**
@@ -237,6 +320,11 @@ void *ethnl_bcastmsg_put(struct sk_buff *skb, u8 cmd)
 {
 	return genlmsg_put(skb, 0, ++ethnl_bcast_seq, &ethtool_genl_family, 0,
 			   cmd);
+}
+
+void *ethnl_unicast_put(struct sk_buff *skb, u32 portid, u32 seq, u8 cmd)
+{
+	return genlmsg_put(skb, portid, seq, &ethtool_genl_family, 0, cmd);
 }
 
 int ethnl_multicast(struct sk_buff *skb, struct net_device *dev)
@@ -760,10 +848,22 @@ static void ethnl_notify_features(struct netdev_notifier_info *info)
 static int ethnl_netdev_event(struct notifier_block *this, unsigned long event,
 			      void *ptr)
 {
+	struct netdev_notifier_info *info = ptr;
+	struct netlink_ext_ack *extack;
+	struct net_device *dev;
+
+	dev = netdev_notifier_info_to_dev(info);
+	extack = netdev_notifier_info_to_extack(info);
+
 	switch (event) {
 	case NETDEV_FEAT_CHANGE:
 		ethnl_notify_features(ptr);
 		break;
+	case NETDEV_PRE_UP:
+		if (dev->ethtool->module_fw_flash_in_progress) {
+			NL_SET_ERR_MSG(extack, "Can't set port up while flashing module firmware");
+			return NOTIFY_BAD;
+		}
 	}
 
 	return NOTIFY_DONE;
@@ -1081,6 +1181,8 @@ static const struct genl_ops ethtool_genl_ops[] = {
 	{
 		.cmd	= ETHTOOL_MSG_RSS_GET,
 		.doit	= ethnl_default_doit,
+		.start	= ethnl_rss_dump_start,
+		.dumpit	= ethnl_rss_dumpit,
 		.policy = ethnl_rss_get_policy,
 		.maxattr = ARRAY_SIZE(ethnl_rss_get_policy) - 1,
 	},
@@ -1125,6 +1227,22 @@ static const struct genl_ops ethtool_genl_ops[] = {
 		.policy = ethnl_mm_set_policy,
 		.maxattr = ARRAY_SIZE(ethnl_mm_set_policy) - 1,
 	},
+	{
+		.cmd	= ETHTOOL_MSG_MODULE_FW_FLASH_ACT,
+		.flags	= GENL_UNS_ADMIN_PERM,
+		.doit	= ethnl_act_module_fw_flash,
+		.policy	= ethnl_module_fw_flash_act_policy,
+		.maxattr = ARRAY_SIZE(ethnl_module_fw_flash_act_policy) - 1,
+	},
+	{
+		.cmd	= ETHTOOL_MSG_PHY_GET,
+		.doit	= ethnl_phy_doit,
+		.start	= ethnl_phy_start,
+		.dumpit	= ethnl_phy_dumpit,
+		.done	= ethnl_phy_done,
+		.policy = ethnl_phy_get_policy,
+		.maxattr = ARRAY_SIZE(ethnl_phy_get_policy) - 1,
+	},
 };
 
 static const struct genl_multicast_group ethtool_nl_mcgrps[] = {
@@ -1141,6 +1259,8 @@ static struct genl_family ethtool_genl_family __ro_after_init = {
 	.resv_start_op	= ETHTOOL_MSG_MODULE_GET + 1,
 	.mcgrps		= ethtool_nl_mcgrps,
 	.n_mcgrps	= ARRAY_SIZE(ethtool_nl_mcgrps),
+	.sock_priv_size		= sizeof(struct ethnl_sock_priv),
+	.sock_priv_destroy	= ethnl_sock_priv_destroy,
 };
 
 /* module setup */

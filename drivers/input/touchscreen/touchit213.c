@@ -139,7 +139,7 @@ static int touchit213_connect(struct serio *serio, struct serio_driver *drv)
 	struct input_dev *input_dev;
 	int err;
 
-	touchit213 = kzalloc(sizeof(struct touchit213), GFP_KERNEL);
+	touchit213 = kzalloc(sizeof(*touchit213), GFP_KERNEL);
 	input_dev = input_allocate_device();
 	if (!touchit213 || !input_dev) {
 		err = -ENOMEM;

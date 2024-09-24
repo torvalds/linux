@@ -740,8 +740,8 @@ static const struct fs_parameter_spec fuse_fs_parameters[] = {
 	fsparam_string	("source",		OPT_SOURCE),
 	fsparam_u32	("fd",			OPT_FD),
 	fsparam_u32oct	("rootmode",		OPT_ROOTMODE),
-	fsparam_u32	("user_id",		OPT_USER_ID),
-	fsparam_u32	("group_id",		OPT_GROUP_ID),
+	fsparam_uid	("user_id",		OPT_USER_ID),
+	fsparam_gid	("group_id",		OPT_GROUP_ID),
 	fsparam_flag	("default_permissions",	OPT_DEFAULT_PERMISSIONS),
 	fsparam_flag	("allow_other",		OPT_ALLOW_OTHER),
 	fsparam_u32	("max_read",		OPT_MAX_READ),
@@ -755,6 +755,8 @@ static int fuse_parse_param(struct fs_context *fsc, struct fs_parameter *param)
 	struct fs_parse_result result;
 	struct fuse_fs_context *ctx = fsc->fs_private;
 	int opt;
+	kuid_t kuid;
+	kgid_t kgid;
 
 	if (fsc->purpose == FS_CONTEXT_FOR_RECONFIGURE) {
 		/*
@@ -799,16 +801,26 @@ static int fuse_parse_param(struct fs_context *fsc, struct fs_parameter *param)
 		break;
 
 	case OPT_USER_ID:
-		ctx->user_id = make_kuid(fsc->user_ns, result.uint_32);
-		if (!uid_valid(ctx->user_id))
+		kuid = result.uid;
+		/*
+		 * The requested uid must be representable in the
+		 * filesystem's idmapping.
+		 */
+		if (!kuid_has_mapping(fsc->user_ns, kuid))
 			return invalfc(fsc, "Invalid user_id");
+		ctx->user_id = kuid;
 		ctx->user_id_present = true;
 		break;
 
 	case OPT_GROUP_ID:
-		ctx->group_id = make_kgid(fsc->user_ns, result.uint_32);
-		if (!gid_valid(ctx->group_id))
+		kgid = result.gid;
+		/*
+		 * The requested gid must be representable in the
+		 * filesystem's idmapping.
+		 */
+		if (!kgid_has_mapping(fsc->user_ns, kgid))
 			return invalfc(fsc, "Invalid group_id");
+		ctx->group_id = kgid;
 		ctx->group_id_present = true;
 		break;
 
@@ -1320,11 +1332,16 @@ static void process_init_reply(struct fuse_mount *fm, struct fuse_args *args,
 			 * on a stacked fs (e.g. overlayfs) themselves and with
 			 * max_stack_depth == 1, FUSE fs can be stacked as the
 			 * underlying fs of a stacked fs (e.g. overlayfs).
+			 *
+			 * Also don't allow the combination of FUSE_PASSTHROUGH
+			 * and FUSE_WRITEBACK_CACHE, current design doesn't handle
+			 * them together.
 			 */
 			if (IS_ENABLED(CONFIG_FUSE_PASSTHROUGH) &&
 			    (flags & FUSE_PASSTHROUGH) &&
 			    arg->max_stack_depth > 0 &&
-			    arg->max_stack_depth <= FILESYSTEM_MAX_STACK_DEPTH) {
+			    arg->max_stack_depth <= FILESYSTEM_MAX_STACK_DEPTH &&
+			    !(flags & FUSE_WRITEBACK_CACHE))  {
 				fc->passthrough = 1;
 				fc->max_stack_depth = arg->max_stack_depth;
 				fm->sb->s_stack_depth = arg->max_stack_depth;

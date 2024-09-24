@@ -414,6 +414,11 @@ void sk_psock_stop_verdict(struct sock *sk, struct sk_psock *psock);
 int sk_psock_msg_verdict(struct sock *sk, struct sk_psock *psock,
 			 struct sk_msg *msg);
 
+/*
+ * This specialized allocator has to be a macro for its allocations to be
+ * accounted separately (to have a separate alloc_tag). The typecast is
+ * intentional to enforce typesafety.
+ */
 #define sk_psock_init_link()	\
 		((struct sk_psock_link *)kzalloc(sizeof(struct sk_psock_link),	\
 						 GFP_ATOMIC | __GFP_NOWARN))

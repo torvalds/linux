@@ -3,7 +3,7 @@
 #include <linux/mman.h>
 #include <sys/mman.h>
 #include <stdint.h>
-#include <unistd.h>
+#include <asm-generic/unistd.h>
 #include <string.h>
 #include <sys/time.h>
 #include <sys/resource.h>
@@ -17,54 +17,7 @@
 #include <sys/ioctl.h>
 #include <sys/vfs.h>
 #include <sys/stat.h>
-
-/*
- * need those definition for manually build using gcc.
- * gcc -I ../../../../usr/include   -DDEBUG -O3  -DDEBUG -O3 mseal_test.c -o mseal_test
- */
-#ifndef PKEY_DISABLE_ACCESS
-# define PKEY_DISABLE_ACCESS    0x1
-#endif
-
-#ifndef PKEY_DISABLE_WRITE
-# define PKEY_DISABLE_WRITE     0x2
-#endif
-
-#ifndef PKEY_BITS_PER_PKEY
-#define PKEY_BITS_PER_PKEY      2
-#endif
-
-#ifndef PKEY_MASK
-#define PKEY_MASK       (PKEY_DISABLE_ACCESS | PKEY_DISABLE_WRITE)
-#endif
-
-#define FAIL_TEST_IF_FALSE(c) do {\
-		if (!(c)) {\
-			ksft_test_result_fail("%s, line:%d\n", __func__, __LINE__);\
-			goto test_end;\
-		} \
-	} \
-	while (0)
-
-#define SKIP_TEST_IF_FALSE(c) do {\
-		if (!(c)) {\
-			ksft_test_result_skip("%s, line:%d\n", __func__, __LINE__);\
-			goto test_end;\
-		} \
-	} \
-	while (0)
-
-
-#define TEST_END_CHECK() {\
-		ksft_test_result_pass("%s\n", __func__);\
-		return;\
-test_end:\
-		return;\
-}
-
-#ifndef u64
-#define u64 unsigned long long
-#endif
+#include "mseal_helpers.h"
 
 static unsigned long get_vma_size(void *addr, int *prot)
 {
@@ -128,17 +81,6 @@ static int sys_mprotect_pkey(void *ptr, size_t size, unsigned long orig_prot,
 	return sret;
 }
 
-static void *sys_mmap(void *addr, unsigned long len, unsigned long prot,
-	unsigned long flags, unsigned long fd, unsigned long offset)
-{
-	void *sret;
-
-	errno = 0;
-	sret = (void *) syscall(__NR_mmap, addr, len, prot,
-		flags, fd, offset);
-	return sret;
-}
-
 static int sys_munmap(void *ptr, size_t size)
 {
 	int sret;
@@ -154,6 +96,16 @@ static int sys_madvise(void *start, size_t len, int types)
 
 	errno = 0;
 	sret = syscall(__NR_madvise, start, len, types);
+	return sret;
+}
+
+static void *sys_mremap(void *addr, size_t old_len, size_t new_len,
+	unsigned long flags, void *new_addr)
+{
+	void *sret;
+
+	errno = 0;
+	sret = (void *) syscall(__NR_mremap, addr, old_len, new_len, flags, new_addr);
 	return sret;
 }
 
@@ -219,7 +171,7 @@ static void setup_single_address(int size, void **ptrOut)
 {
 	void *ptr;
 
-	ptr = sys_mmap(NULL, size, PROT_READ, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+	ptr = mmap(NULL, size, PROT_READ, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
 	*ptrOut = ptr;
 }
 
@@ -228,7 +180,7 @@ static void setup_single_address_rw(int size, void **ptrOut)
 	void *ptr;
 	unsigned long mapflags = MAP_ANONYMOUS | MAP_PRIVATE;
 
-	ptr = sys_mmap(NULL, size, PROT_READ | PROT_WRITE, mapflags, -1, 0);
+	ptr = mmap(NULL, size, PROT_READ | PROT_WRITE, mapflags, -1, 0);
 	*ptrOut = ptr;
 }
 
@@ -252,7 +204,7 @@ bool seal_support(void)
 	void *ptr;
 	unsigned long page_size = getpagesize();
 
-	ptr = sys_mmap(NULL, page_size, PROT_READ, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+	ptr = mmap(NULL, page_size, PROT_READ, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
 	if (ptr == (void *) -1)
 		return false;
 
@@ -287,7 +239,7 @@ static void test_seal_addseal(void)
 	ret = sys_mseal(ptr, size);
 	FAIL_TEST_IF_FALSE(!ret);
 
-	TEST_END_CHECK();
+	REPORT_TEST_PASS();
 }
 
 static void test_seal_unmapped_start(void)
@@ -315,7 +267,7 @@ static void test_seal_unmapped_start(void)
 	ret = sys_mseal(ptr + 2 * page_size, 2 * page_size);
 	FAIL_TEST_IF_FALSE(!ret);
 
-	TEST_END_CHECK();
+	REPORT_TEST_PASS();
 }
 
 static void test_seal_unmapped_middle(void)
@@ -347,7 +299,7 @@ static void test_seal_unmapped_middle(void)
 	ret = sys_mseal(ptr + 3 * page_size, page_size);
 	FAIL_TEST_IF_FALSE(!ret);
 
-	TEST_END_CHECK();
+	REPORT_TEST_PASS();
 }
 
 static void test_seal_unmapped_end(void)
@@ -376,7 +328,7 @@ static void test_seal_unmapped_end(void)
 	ret = sys_mseal(ptr, 2 * page_size);
 	FAIL_TEST_IF_FALSE(!ret);
 
-	TEST_END_CHECK();
+	REPORT_TEST_PASS();
 }
 
 static void test_seal_multiple_vmas(void)
@@ -407,7 +359,7 @@ static void test_seal_multiple_vmas(void)
 	ret = sys_mseal(ptr, size);
 	FAIL_TEST_IF_FALSE(!ret);
 
-	TEST_END_CHECK();
+	REPORT_TEST_PASS();
 }
 
 static void test_seal_split_start(void)
@@ -432,7 +384,7 @@ static void test_seal_split_start(void)
 	ret = sys_mseal(ptr + page_size, 3 * page_size);
 	FAIL_TEST_IF_FALSE(!ret);
 
-	TEST_END_CHECK();
+	REPORT_TEST_PASS();
 }
 
 static void test_seal_split_end(void)
@@ -457,7 +409,7 @@ static void test_seal_split_end(void)
 	ret = sys_mseal(ptr, 3 * page_size);
 	FAIL_TEST_IF_FALSE(!ret);
 
-	TEST_END_CHECK();
+	REPORT_TEST_PASS();
 }
 
 static void test_seal_invalid_input(void)
@@ -492,7 +444,7 @@ static void test_seal_invalid_input(void)
 	ret = sys_mseal(ptr - page_size, 5 * page_size);
 	FAIL_TEST_IF_FALSE(ret < 0);
 
-	TEST_END_CHECK();
+	REPORT_TEST_PASS();
 }
 
 static void test_seal_zero_length(void)
@@ -516,7 +468,7 @@ static void test_seal_zero_length(void)
 	ret = sys_mprotect(ptr, size, PROT_READ | PROT_WRITE);
 	FAIL_TEST_IF_FALSE(!ret);
 
-	TEST_END_CHECK();
+	REPORT_TEST_PASS();
 }
 
 static void test_seal_zero_address(void)
@@ -528,8 +480,8 @@ static void test_seal_zero_address(void)
 	int prot;
 
 	/* use mmap to change protection. */
-	ptr = sys_mmap(0, size, PROT_NONE,
-			MAP_ANONYMOUS | MAP_PRIVATE | MAP_FIXED, -1, 0);
+	ptr = mmap(0, size, PROT_NONE,
+		   MAP_ANONYMOUS | MAP_PRIVATE | MAP_FIXED, -1, 0);
 	FAIL_TEST_IF_FALSE(ptr == 0);
 
 	size = get_vma_size(ptr, &prot);
@@ -542,7 +494,7 @@ static void test_seal_zero_address(void)
 	ret = sys_mprotect(ptr, size, PROT_READ | PROT_WRITE);
 	FAIL_TEST_IF_FALSE(ret);
 
-	TEST_END_CHECK();
+	REPORT_TEST_PASS();
 }
 
 static void test_seal_twice(void)
@@ -562,7 +514,7 @@ static void test_seal_twice(void)
 	ret = sys_mseal(ptr, size);
 	FAIL_TEST_IF_FALSE(!ret);
 
-	TEST_END_CHECK();
+	REPORT_TEST_PASS();
 }
 
 static void test_seal_mprotect(bool seal)
@@ -586,7 +538,7 @@ static void test_seal_mprotect(bool seal)
 	else
 		FAIL_TEST_IF_FALSE(!ret);
 
-	TEST_END_CHECK();
+	REPORT_TEST_PASS();
 }
 
 static void test_seal_start_mprotect(bool seal)
@@ -616,7 +568,7 @@ static void test_seal_start_mprotect(bool seal)
 			PROT_READ | PROT_WRITE);
 	FAIL_TEST_IF_FALSE(!ret);
 
-	TEST_END_CHECK();
+	REPORT_TEST_PASS();
 }
 
 static void test_seal_end_mprotect(bool seal)
@@ -646,7 +598,7 @@ static void test_seal_end_mprotect(bool seal)
 	else
 		FAIL_TEST_IF_FALSE(!ret);
 
-	TEST_END_CHECK();
+	REPORT_TEST_PASS();
 }
 
 static void test_seal_mprotect_unalign_len(bool seal)
@@ -675,7 +627,7 @@ static void test_seal_mprotect_unalign_len(bool seal)
 			PROT_READ | PROT_WRITE);
 	FAIL_TEST_IF_FALSE(!ret);
 
-	TEST_END_CHECK();
+	REPORT_TEST_PASS();
 }
 
 static void test_seal_mprotect_unalign_len_variant_2(bool seal)
@@ -703,7 +655,7 @@ static void test_seal_mprotect_unalign_len_variant_2(bool seal)
 			PROT_READ | PROT_WRITE);
 	FAIL_TEST_IF_FALSE(!ret);
 
-	TEST_END_CHECK();
+	REPORT_TEST_PASS();
 }
 
 static void test_seal_mprotect_two_vma(bool seal)
@@ -738,7 +690,7 @@ static void test_seal_mprotect_two_vma(bool seal)
 	else
 		FAIL_TEST_IF_FALSE(!ret);
 
-	TEST_END_CHECK();
+	REPORT_TEST_PASS();
 }
 
 static void test_seal_mprotect_two_vma_with_split(bool seal)
@@ -785,7 +737,7 @@ static void test_seal_mprotect_two_vma_with_split(bool seal)
 			PROT_READ | PROT_WRITE);
 	FAIL_TEST_IF_FALSE(!ret);
 
-	TEST_END_CHECK();
+	REPORT_TEST_PASS();
 }
 
 static void test_seal_mprotect_partial_mprotect(bool seal)
@@ -811,8 +763,44 @@ static void test_seal_mprotect_partial_mprotect(bool seal)
 	else
 		FAIL_TEST_IF_FALSE(!ret);
 
-	TEST_END_CHECK();
+	REPORT_TEST_PASS();
 }
+
+static void test_seal_mprotect_partial_mprotect_tail(bool seal)
+{
+	void *ptr;
+	unsigned long page_size = getpagesize();
+	unsigned long size = 2 * page_size;
+	int ret;
+	int prot;
+
+	/*
+	 * Check if a partial mseal (that results in two vmas) works correctly.
+	 * It might mprotect the first, but it'll never touch the second (msealed) vma.
+	 */
+
+	setup_single_address(size, &ptr);
+	FAIL_TEST_IF_FALSE(ptr != (void *)-1);
+
+	if (seal) {
+		ret = sys_mseal(ptr + page_size, page_size);
+		FAIL_TEST_IF_FALSE(!ret);
+	}
+
+	ret = sys_mprotect(ptr, size, PROT_EXEC);
+	if (seal)
+		FAIL_TEST_IF_FALSE(ret < 0);
+	else
+		FAIL_TEST_IF_FALSE(!ret);
+
+	if (seal) {
+		FAIL_TEST_IF_FALSE(get_vma_size(ptr + page_size, &prot) > 0);
+		FAIL_TEST_IF_FALSE(prot == 0x4);
+	}
+
+	REPORT_TEST_PASS();
+}
+
 
 static void test_seal_mprotect_two_vma_with_gap(bool seal)
 {
@@ -854,7 +842,7 @@ static void test_seal_mprotect_two_vma_with_gap(bool seal)
 	ret = sys_mprotect(ptr + 3 * page_size, page_size, PROT_READ);
 	FAIL_TEST_IF_FALSE(ret == 0);
 
-	TEST_END_CHECK();
+	REPORT_TEST_PASS();
 }
 
 static void test_seal_mprotect_split(bool seal)
@@ -891,7 +879,7 @@ static void test_seal_mprotect_split(bool seal)
 	else
 		FAIL_TEST_IF_FALSE(!ret);
 
-	TEST_END_CHECK();
+	REPORT_TEST_PASS();
 }
 
 static void test_seal_mprotect_merge(bool seal)
@@ -925,7 +913,7 @@ static void test_seal_mprotect_merge(bool seal)
 	ret = sys_mprotect(ptr + 2 * page_size, 2 * page_size, PROT_READ);
 	FAIL_TEST_IF_FALSE(ret == 0);
 
-	TEST_END_CHECK();
+	REPORT_TEST_PASS();
 }
 
 static void test_seal_munmap(bool seal)
@@ -950,7 +938,7 @@ static void test_seal_munmap(bool seal)
 	else
 		FAIL_TEST_IF_FALSE(!ret);
 
-	TEST_END_CHECK();
+	REPORT_TEST_PASS();
 }
 
 /*
@@ -990,7 +978,7 @@ static void test_seal_munmap_two_vma(bool seal)
 	else
 		FAIL_TEST_IF_FALSE(!ret);
 
-	TEST_END_CHECK();
+	REPORT_TEST_PASS();
 }
 
 /*
@@ -1028,7 +1016,37 @@ static void test_seal_munmap_vma_with_gap(bool seal)
 	ret = sys_munmap(ptr, size);
 	FAIL_TEST_IF_FALSE(!ret);
 
-	TEST_END_CHECK();
+	REPORT_TEST_PASS();
+}
+
+static void test_seal_munmap_partial_across_vmas(bool seal)
+{
+	void *ptr;
+	unsigned long page_size = getpagesize();
+	unsigned long size = 2 * page_size;
+	int ret;
+	int prot;
+
+	setup_single_address(size, &ptr);
+	FAIL_TEST_IF_FALSE(ptr != (void *)-1);
+
+	if (seal) {
+		ret = sys_mseal(ptr + page_size, page_size);
+		FAIL_TEST_IF_FALSE(!ret);
+	}
+
+	ret = sys_munmap(ptr, size);
+	if (seal)
+		FAIL_TEST_IF_FALSE(ret < 0);
+	else
+		FAIL_TEST_IF_FALSE(!ret);
+
+	if (seal) {
+		FAIL_TEST_IF_FALSE(get_vma_size(ptr + page_size, &prot) > 0);
+		FAIL_TEST_IF_FALSE(prot == 0x4);
+	}
+
+	REPORT_TEST_PASS();
 }
 
 static void test_munmap_start_freed(bool seal)
@@ -1068,7 +1086,7 @@ static void test_munmap_start_freed(bool seal)
 		FAIL_TEST_IF_FALSE(size == 0);
 	}
 
-	TEST_END_CHECK();
+	REPORT_TEST_PASS();
 }
 
 static void test_munmap_end_freed(bool seal)
@@ -1098,7 +1116,7 @@ static void test_munmap_end_freed(bool seal)
 	else
 		FAIL_TEST_IF_FALSE(!ret);
 
-	TEST_END_CHECK();
+	REPORT_TEST_PASS();
 }
 
 static void test_munmap_middle_freed(bool seal)
@@ -1142,7 +1160,7 @@ static void test_munmap_middle_freed(bool seal)
 		FAIL_TEST_IF_FALSE(size == 0);
 	}
 
-	TEST_END_CHECK();
+	REPORT_TEST_PASS();
 }
 
 static void test_seal_mremap_shrink(bool seal)
@@ -1162,16 +1180,16 @@ static void test_seal_mremap_shrink(bool seal)
 	}
 
 	/* shrink from 4 pages to 2 pages. */
-	ret2 = mremap(ptr, size, 2 * page_size, 0, 0);
+	ret2 = sys_mremap(ptr, size, 2 * page_size, 0, 0);
 	if (seal) {
-		FAIL_TEST_IF_FALSE(ret2 == MAP_FAILED);
+		FAIL_TEST_IF_FALSE(ret2 == (void *) MAP_FAILED);
 		FAIL_TEST_IF_FALSE(errno == EPERM);
 	} else {
-		FAIL_TEST_IF_FALSE(ret2 != MAP_FAILED);
+		FAIL_TEST_IF_FALSE(ret2 != (void *) MAP_FAILED);
 
 	}
 
-	TEST_END_CHECK();
+	REPORT_TEST_PASS();
 }
 
 static void test_seal_mremap_expand(bool seal)
@@ -1194,7 +1212,7 @@ static void test_seal_mremap_expand(bool seal)
 	}
 
 	/* expand from 2 page to 4 pages. */
-	ret2 = mremap(ptr, 2 * page_size, 4 * page_size, 0, 0);
+	ret2 = sys_mremap(ptr, 2 * page_size, 4 * page_size, 0, 0);
 	if (seal) {
 		FAIL_TEST_IF_FALSE(ret2 == MAP_FAILED);
 		FAIL_TEST_IF_FALSE(errno == EPERM);
@@ -1203,7 +1221,7 @@ static void test_seal_mremap_expand(bool seal)
 
 	}
 
-	TEST_END_CHECK();
+	REPORT_TEST_PASS();
 }
 
 static void test_seal_mremap_move(bool seal)
@@ -1227,7 +1245,7 @@ static void test_seal_mremap_move(bool seal)
 	}
 
 	/* move from ptr to fixed address. */
-	ret2 = mremap(ptr, size, size, MREMAP_MAYMOVE | MREMAP_FIXED, newPtr);
+	ret2 = sys_mremap(ptr, size, size, MREMAP_MAYMOVE | MREMAP_FIXED, newPtr);
 	if (seal) {
 		FAIL_TEST_IF_FALSE(ret2 == MAP_FAILED);
 		FAIL_TEST_IF_FALSE(errno == EPERM);
@@ -1236,7 +1254,7 @@ static void test_seal_mremap_move(bool seal)
 
 	}
 
-	TEST_END_CHECK();
+	REPORT_TEST_PASS();
 }
 
 static void test_seal_mmap_overwrite_prot(bool seal)
@@ -1256,15 +1274,15 @@ static void test_seal_mmap_overwrite_prot(bool seal)
 	}
 
 	/* use mmap to change protection. */
-	ret2 = sys_mmap(ptr, size, PROT_NONE,
-			MAP_ANONYMOUS | MAP_PRIVATE | MAP_FIXED, -1, 0);
+	ret2 = mmap(ptr, size, PROT_NONE,
+		    MAP_ANONYMOUS | MAP_PRIVATE | MAP_FIXED, -1, 0);
 	if (seal) {
 		FAIL_TEST_IF_FALSE(ret2 == MAP_FAILED);
 		FAIL_TEST_IF_FALSE(errno == EPERM);
 	} else
 		FAIL_TEST_IF_FALSE(ret2 == ptr);
 
-	TEST_END_CHECK();
+	REPORT_TEST_PASS();
 }
 
 static void test_seal_mmap_expand(bool seal)
@@ -1287,15 +1305,15 @@ static void test_seal_mmap_expand(bool seal)
 	}
 
 	/* use mmap to expand. */
-	ret2 = sys_mmap(ptr, size, PROT_READ,
-			MAP_ANONYMOUS | MAP_PRIVATE | MAP_FIXED, -1, 0);
+	ret2 = mmap(ptr, size, PROT_READ,
+		    MAP_ANONYMOUS | MAP_PRIVATE | MAP_FIXED, -1, 0);
 	if (seal) {
 		FAIL_TEST_IF_FALSE(ret2 == MAP_FAILED);
 		FAIL_TEST_IF_FALSE(errno == EPERM);
 	} else
 		FAIL_TEST_IF_FALSE(ret2 == ptr);
 
-	TEST_END_CHECK();
+	REPORT_TEST_PASS();
 }
 
 static void test_seal_mmap_shrink(bool seal)
@@ -1315,15 +1333,15 @@ static void test_seal_mmap_shrink(bool seal)
 	}
 
 	/* use mmap to shrink. */
-	ret2 = sys_mmap(ptr, 8 * page_size, PROT_READ,
-			MAP_ANONYMOUS | MAP_PRIVATE | MAP_FIXED, -1, 0);
+	ret2 = mmap(ptr, 8 * page_size, PROT_READ,
+		    MAP_ANONYMOUS | MAP_PRIVATE | MAP_FIXED, -1, 0);
 	if (seal) {
 		FAIL_TEST_IF_FALSE(ret2 == MAP_FAILED);
 		FAIL_TEST_IF_FALSE(errno == EPERM);
 	} else
 		FAIL_TEST_IF_FALSE(ret2 == ptr);
 
-	TEST_END_CHECK();
+	REPORT_TEST_PASS();
 }
 
 static void test_seal_mremap_shrink_fixed(bool seal)
@@ -1346,7 +1364,7 @@ static void test_seal_mremap_shrink_fixed(bool seal)
 	}
 
 	/* mremap to move and shrink to fixed address */
-	ret2 = mremap(ptr, size, 2 * page_size, MREMAP_MAYMOVE | MREMAP_FIXED,
+	ret2 = sys_mremap(ptr, size, 2 * page_size, MREMAP_MAYMOVE | MREMAP_FIXED,
 			newAddr);
 	if (seal) {
 		FAIL_TEST_IF_FALSE(ret2 == MAP_FAILED);
@@ -1354,7 +1372,7 @@ static void test_seal_mremap_shrink_fixed(bool seal)
 	} else
 		FAIL_TEST_IF_FALSE(ret2 == newAddr);
 
-	TEST_END_CHECK();
+	REPORT_TEST_PASS();
 }
 
 static void test_seal_mremap_expand_fixed(bool seal)
@@ -1377,7 +1395,7 @@ static void test_seal_mremap_expand_fixed(bool seal)
 	}
 
 	/* mremap to move and expand to fixed address */
-	ret2 = mremap(ptr, page_size, size, MREMAP_MAYMOVE | MREMAP_FIXED,
+	ret2 = sys_mremap(ptr, page_size, size, MREMAP_MAYMOVE | MREMAP_FIXED,
 			newAddr);
 	if (seal) {
 		FAIL_TEST_IF_FALSE(ret2 == MAP_FAILED);
@@ -1385,7 +1403,7 @@ static void test_seal_mremap_expand_fixed(bool seal)
 	} else
 		FAIL_TEST_IF_FALSE(ret2 == newAddr);
 
-	TEST_END_CHECK();
+	REPORT_TEST_PASS();
 }
 
 static void test_seal_mremap_move_fixed(bool seal)
@@ -1408,14 +1426,14 @@ static void test_seal_mremap_move_fixed(bool seal)
 	}
 
 	/* mremap to move to fixed address */
-	ret2 = mremap(ptr, size, size, MREMAP_MAYMOVE | MREMAP_FIXED, newAddr);
+	ret2 = sys_mremap(ptr, size, size, MREMAP_MAYMOVE | MREMAP_FIXED, newAddr);
 	if (seal) {
 		FAIL_TEST_IF_FALSE(ret2 == MAP_FAILED);
 		FAIL_TEST_IF_FALSE(errno == EPERM);
 	} else
 		FAIL_TEST_IF_FALSE(ret2 == newAddr);
 
-	TEST_END_CHECK();
+	REPORT_TEST_PASS();
 }
 
 static void test_seal_mremap_move_fixed_zero(bool seal)
@@ -1437,17 +1455,16 @@ static void test_seal_mremap_move_fixed_zero(bool seal)
 	/*
 	 * MREMAP_FIXED can move the mapping to zero address
 	 */
-	ret2 = mremap(ptr, size, 2 * page_size, MREMAP_MAYMOVE | MREMAP_FIXED,
+	ret2 = sys_mremap(ptr, size, 2 * page_size, MREMAP_MAYMOVE | MREMAP_FIXED,
 			0);
 	if (seal) {
 		FAIL_TEST_IF_FALSE(ret2 == MAP_FAILED);
 		FAIL_TEST_IF_FALSE(errno == EPERM);
 	} else {
 		FAIL_TEST_IF_FALSE(ret2 == 0);
-
 	}
 
-	TEST_END_CHECK();
+	REPORT_TEST_PASS();
 }
 
 static void test_seal_mremap_move_dontunmap(bool seal)
@@ -1467,21 +1484,21 @@ static void test_seal_mremap_move_dontunmap(bool seal)
 	}
 
 	/* mremap to move, and don't unmap src addr. */
-	ret2 = mremap(ptr, size, size, MREMAP_MAYMOVE | MREMAP_DONTUNMAP, 0);
+	ret2 = sys_mremap(ptr, size, size, MREMAP_MAYMOVE | MREMAP_DONTUNMAP, 0);
 	if (seal) {
 		FAIL_TEST_IF_FALSE(ret2 == MAP_FAILED);
 		FAIL_TEST_IF_FALSE(errno == EPERM);
 	} else {
+		/* kernel will allocate a new address */
 		FAIL_TEST_IF_FALSE(ret2 != MAP_FAILED);
-
 	}
 
-	TEST_END_CHECK();
+	REPORT_TEST_PASS();
 }
 
 static void test_seal_mremap_move_dontunmap_anyaddr(bool seal)
 {
-	void *ptr;
+	void *ptr, *ptr2;
 	unsigned long page_size = getpagesize();
 	unsigned long size = 4 * page_size;
 	int ret;
@@ -1496,23 +1513,29 @@ static void test_seal_mremap_move_dontunmap_anyaddr(bool seal)
 	}
 
 	/*
-	 * The 0xdeaddead should not have effect on dest addr
-	 * when MREMAP_DONTUNMAP is set.
+	 * The new address is any address that not allocated.
+	 * use allocate/free to similate that.
 	 */
-	ret2 = mremap(ptr, size, size, MREMAP_MAYMOVE | MREMAP_DONTUNMAP,
-			0xdeaddead);
+	setup_single_address(size, &ptr2);
+	FAIL_TEST_IF_FALSE(ptr2 != (void *)-1);
+	ret = sys_munmap(ptr2, size);
+	FAIL_TEST_IF_FALSE(!ret);
+
+	/*
+	 * remap to any address.
+	 */
+	ret2 = sys_mremap(ptr, size, size, MREMAP_MAYMOVE | MREMAP_DONTUNMAP,
+			(void *) ptr2);
 	if (seal) {
 		FAIL_TEST_IF_FALSE(ret2 == MAP_FAILED);
 		FAIL_TEST_IF_FALSE(errno == EPERM);
 	} else {
-		FAIL_TEST_IF_FALSE(ret2 != MAP_FAILED);
-		FAIL_TEST_IF_FALSE((long)ret2 != 0xdeaddead);
-
+		/* remap success and return ptr2 */
+		FAIL_TEST_IF_FALSE(ret2 ==  ptr2);
 	}
 
-	TEST_END_CHECK();
+	REPORT_TEST_PASS();
 }
-
 
 static void test_seal_merge_and_split(void)
 {
@@ -1603,7 +1626,7 @@ static void test_seal_merge_and_split(void)
 	FAIL_TEST_IF_FALSE(size ==  22 * page_size);
 	FAIL_TEST_IF_FALSE(prot == 0x4);
 
-	TEST_END_CHECK();
+	REPORT_TEST_PASS();
 }
 
 static void test_seal_discard_ro_anon_on_rw(bool seal)
@@ -1632,7 +1655,7 @@ static void test_seal_discard_ro_anon_on_rw(bool seal)
 	else
 		FAIL_TEST_IF_FALSE(!ret);
 
-	TEST_END_CHECK();
+	REPORT_TEST_PASS();
 }
 
 static void test_seal_discard_ro_anon_on_pkey(bool seal)
@@ -1679,7 +1702,7 @@ static void test_seal_discard_ro_anon_on_pkey(bool seal)
 	else
 		FAIL_TEST_IF_FALSE(!ret);
 
-	TEST_END_CHECK();
+	REPORT_TEST_PASS();
 }
 
 static void test_seal_discard_ro_anon_on_filebacked(bool seal)
@@ -1697,7 +1720,7 @@ static void test_seal_discard_ro_anon_on_filebacked(bool seal)
 	ret = fallocate(fd, 0, 0, size);
 	FAIL_TEST_IF_FALSE(!ret);
 
-	ptr = sys_mmap(NULL, size, PROT_READ, mapflags, fd, 0);
+	ptr = mmap(NULL, size, PROT_READ, mapflags, fd, 0);
 	FAIL_TEST_IF_FALSE(ptr != MAP_FAILED);
 
 	if (seal) {
@@ -1716,7 +1739,7 @@ static void test_seal_discard_ro_anon_on_filebacked(bool seal)
 		FAIL_TEST_IF_FALSE(!ret);
 	close(fd);
 
-	TEST_END_CHECK();
+	REPORT_TEST_PASS();
 }
 
 static void test_seal_discard_ro_anon_on_shared(bool seal)
@@ -1727,7 +1750,7 @@ static void test_seal_discard_ro_anon_on_shared(bool seal)
 	int ret;
 	unsigned long mapflags = MAP_ANONYMOUS | MAP_SHARED;
 
-	ptr = sys_mmap(NULL, size, PROT_READ, mapflags, -1, 0);
+	ptr = mmap(NULL, size, PROT_READ, mapflags, -1, 0);
 	FAIL_TEST_IF_FALSE(ptr != (void *)-1);
 
 	if (seal) {
@@ -1745,7 +1768,7 @@ static void test_seal_discard_ro_anon_on_shared(bool seal)
 	else
 		FAIL_TEST_IF_FALSE(!ret);
 
-	TEST_END_CHECK();
+	REPORT_TEST_PASS();
 }
 
 static void test_seal_discard_ro_anon(bool seal)
@@ -1775,7 +1798,70 @@ static void test_seal_discard_ro_anon(bool seal)
 	else
 		FAIL_TEST_IF_FALSE(!ret);
 
-	TEST_END_CHECK();
+	REPORT_TEST_PASS();
+}
+
+static void test_seal_discard_across_vmas(bool seal)
+{
+	void *ptr;
+	unsigned long page_size = getpagesize();
+	unsigned long size = 2 * page_size;
+	int ret;
+
+	setup_single_address(size, &ptr);
+	FAIL_TEST_IF_FALSE(ptr != (void *)-1);
+
+	if (seal) {
+		ret = seal_single_address(ptr + page_size, page_size);
+		FAIL_TEST_IF_FALSE(!ret);
+	}
+
+	ret = sys_madvise(ptr, size, MADV_DONTNEED);
+	if (seal)
+		FAIL_TEST_IF_FALSE(ret < 0);
+	else
+		FAIL_TEST_IF_FALSE(!ret);
+
+	ret = sys_munmap(ptr, size);
+	if (seal)
+		FAIL_TEST_IF_FALSE(ret < 0);
+	else
+		FAIL_TEST_IF_FALSE(!ret);
+
+	REPORT_TEST_PASS();
+}
+
+
+static void test_seal_madvise_nodiscard(bool seal)
+{
+	void *ptr;
+	unsigned long page_size = getpagesize();
+	unsigned long size = 4 * page_size;
+	int ret;
+
+	setup_single_address(size, &ptr);
+	FAIL_TEST_IF_FALSE(ptr != (void *)-1);
+
+	if (seal) {
+		ret = seal_single_address(ptr, size);
+		FAIL_TEST_IF_FALSE(!ret);
+	}
+
+	/*
+	 * Test a random madvise flag like MADV_RANDOM that does not touch page
+	 * contents (and thus should work for msealed VMAs). RANDOM also happens to
+	 * share bits with other discard-ish flags like REMOVE.
+	 */
+	ret = sys_madvise(ptr, size, MADV_RANDOM);
+	FAIL_TEST_IF_FALSE(!ret);
+
+	ret = sys_munmap(ptr, size);
+	if (seal)
+		FAIL_TEST_IF_FALSE(ret < 0);
+	else
+		FAIL_TEST_IF_FALSE(!ret);
+
+	REPORT_TEST_PASS();
 }
 
 int main(int argc, char **argv)
@@ -1790,7 +1876,7 @@ int main(int argc, char **argv)
 	if (!pkey_supported())
 		ksft_print_msg("PKEY not supported\n");
 
-	ksft_set_plan(80);
+	ksft_set_plan(88);
 
 	test_seal_addseal();
 	test_seal_unmapped_start();
@@ -1836,12 +1922,17 @@ int main(int argc, char **argv)
 	test_seal_mprotect_split(false);
 	test_seal_mprotect_split(true);
 
+	test_seal_mprotect_partial_mprotect_tail(false);
+	test_seal_mprotect_partial_mprotect_tail(true);
+
 	test_seal_munmap(false);
 	test_seal_munmap(true);
 	test_seal_munmap_two_vma(false);
 	test_seal_munmap_two_vma(true);
 	test_seal_munmap_vma_with_gap(false);
 	test_seal_munmap_vma_with_gap(true);
+	test_seal_munmap_partial_across_vmas(false);
+	test_seal_munmap_partial_across_vmas(true);
 
 	test_munmap_start_freed(false);
 	test_munmap_start_freed(true);
@@ -1869,8 +1960,12 @@ int main(int argc, char **argv)
 	test_seal_mremap_move_fixed_zero(true);
 	test_seal_mremap_move_dontunmap_anyaddr(false);
 	test_seal_mremap_move_dontunmap_anyaddr(true);
+	test_seal_madvise_nodiscard(false);
+	test_seal_madvise_nodiscard(true);
 	test_seal_discard_ro_anon(false);
 	test_seal_discard_ro_anon(true);
+	test_seal_discard_across_vmas(false);
+	test_seal_discard_across_vmas(true);
 	test_seal_discard_ro_anon_on_rw(false);
 	test_seal_discard_ro_anon_on_rw(true);
 	test_seal_discard_ro_anon_on_shared(false);

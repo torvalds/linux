@@ -9,7 +9,7 @@
 #include <dt-bindings/gpio/gpio.h>
 
 / {
-	model = "Pine64";
+	model = "Pine64 PINE A64";
 	compatible = "pine64,pine64", "allwinner,sun50i-a64";
 
 	aliases {

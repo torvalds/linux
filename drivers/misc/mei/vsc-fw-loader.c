@@ -204,7 +204,7 @@ struct vsc_img_frag {
 
 /**
  * struct vsc_fw_loader - represent vsc firmware loader
- * @dev: device used to request fimware
+ * @dev: device used to request firmware
  * @tp: transport layer used with the firmware loader
  * @csi: CSI image
  * @ace: ACE image

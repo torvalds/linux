@@ -141,7 +141,7 @@ __dcache_find_get_entry(struct dentry *parent, u64 idx,
 	if (ptr_pos >= i_size_read(dir))
 		return NULL;
 
-	if (!cache_ctl->page || ptr_pgoff != page_index(cache_ctl->page)) {
+	if (!cache_ctl->page || ptr_pgoff != cache_ctl->page->index) {
 		ceph_readdir_cache_release(cache_ctl);
 		cache_ctl->page = find_lock_page(&dir->i_data, ptr_pgoff);
 		if (!cache_ctl->page) {
@@ -707,7 +707,6 @@ static loff_t ceph_dir_llseek(struct file *file, loff_t offset, int whence)
 
 		if (offset != file->f_pos) {
 			file->f_pos = offset;
-			file->f_version = 0;
 			dfi->file_info.flags &= ~CEPH_F_ATEND;
 		}
 		retval = offset;
@@ -1589,7 +1588,7 @@ void __ceph_dentry_dir_lease_touch(struct ceph_dentry_info *di)
 	}
 
 	spin_lock(&mdsc->dentry_list_lock);
-	__dentry_dir_lease_touch(mdsc, di),
+	__dentry_dir_lease_touch(mdsc, di);
 	spin_unlock(&mdsc->dentry_list_lock);
 }
 

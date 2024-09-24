@@ -251,7 +251,9 @@ performance supported in `AMD CPPC Performance Capability <perf_cap_>`_).
 In some ASICs, the highest CPPC performance is not the one in the ``_CPC``
 table, so we need to expose it to sysfs. If boost is not active, but
 still supported, this maximum frequency will be larger than the one in
-``cpuinfo``.
+``cpuinfo``. On systems that support preferred core, the driver will have
+different values for some cores than others and this will reflect the values
+advertised by the platform at bootup.
 This attribute is read-only.
 
 ``amd_pstate_lowest_nonlinear_freq``
@@ -261,6 +263,17 @@ in percent of the maximum supported CPPC performance level. (Please see the
 lowest non-linear performance in `AMD CPPC Performance Capability
 <perf_cap_>`_.)
 This attribute is read-only.
+
+``amd_pstate_hw_prefcore``
+
+Whether the platform supports the preferred core feature and it has been
+enabled. This attribute is read-only.
+
+``amd_pstate_prefcore_ranking``
+
+The performance ranking of the core. This number doesn't have any unit, but
+larger numbers are preferred at the time of reading. This can change at
+runtime based on platform conditions. This attribute is read-only.
 
 ``energy_performance_available_preferences``
 
@@ -280,6 +293,22 @@ Please get all support profiles list from
 integer values defined between 0 to 255 when EPP feature is enabled by platform
 firmware, if EPP feature is disabled, driver will ignore the written value
 This attribute is read-write.
+
+``boost``
+The `boost` sysfs attribute provides control over the CPU core
+performance boost, allowing users to manage the maximum frequency limitation
+of the CPU. This attribute can be used to enable or disable the boost feature
+on individual CPUs.
+
+When the boost feature is enabled, the CPU can dynamically increase its frequency
+beyond the base frequency, providing enhanced performance for demanding workloads.
+On the other hand, disabling the boost feature restricts the CPU to operate at the
+base frequency, which may be desirable in certain scenarios to prioritize power
+efficiency or manage temperature.
+
+To manipulate the `boost` attribute, users can write a value of `0` to disable the
+boost or `1` to enable it, for the respective CPU using the sysfs path
+`/sys/devices/system/cpu/cpuX/cpufreq/boost`, where `X` represents the CPU number.
 
 Other performance and frequency values can be read back from
 ``/sys/devices/system/cpu/cpuX/acpi_cppc/``, see :ref:`cppc_sysfs`.
@@ -406,7 +435,7 @@ control its functionality at the system level.  They are located in the
 ``/sys/devices/system/cpu/amd_pstate/`` directory and affect all CPUs.
 
 ``status``
-	Operation mode of the driver: "active", "passive" or "disable".
+	Operation mode of the driver: "active", "passive", "guided" or "disable".
 
 	"active"
 		The driver is functional and in the ``active mode``

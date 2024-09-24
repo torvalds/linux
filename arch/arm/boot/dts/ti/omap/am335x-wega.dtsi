@@ -14,7 +14,7 @@
 		simple-audio-card,format = "i2s";
 		simple-audio-card,bitclock-master = <&sound_iface_main>;
 		simple-audio-card,frame-master = <&sound_iface_main>;
-		simple-audio-card,mclk-fs = <32>;
+		simple-audio-card,mclk-fs = <512>;
 		simple-audio-card,widgets =
 					"Line", "Line In",
 					"Line", "Line Out",
@@ -27,13 +27,12 @@
 					"LINE1L", "Line In",
 					"LINE1R", "Line In";
 
-		simple-audio-card,cpu {
+		sound_iface_main: simple-audio-card,cpu {
 			sound-dai = <&mcasp0>;
 		};
 
-		sound_iface_main: simple-audio-card,codec {
+		simple-audio-card,codec {
 			sound-dai = <&tlv320aic3007>;
-			clocks = <&mcasp0_fck>;
 		};
 
 	};

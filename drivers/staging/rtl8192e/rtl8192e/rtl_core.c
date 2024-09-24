@@ -951,10 +951,10 @@ static void _rtl92e_watchdog_wq_cb(void *data)
 		return;
 
 	if (priv->rtllib->link_state >= MAC80211_LINKED) {
-		if (priv->rtllib->CntAfterLink < 2)
-			priv->rtllib->CntAfterLink++;
+		if (priv->rtllib->cnt_after_link < 2)
+			priv->rtllib->cnt_after_link++;
 	} else {
-		priv->rtllib->CntAfterLink = 0;
+		priv->rtllib->cnt_after_link = 0;
 	}
 
 	rtl92e_dm_watchdog(dev);

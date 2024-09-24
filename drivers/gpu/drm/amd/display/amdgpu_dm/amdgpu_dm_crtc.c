@@ -35,6 +35,9 @@
 #include "amdgpu_dm_trace.h"
 #include "amdgpu_dm_debugfs.h"
 
+#define HPD_DETECTION_PERIOD_uS 5000000
+#define HPD_DETECTION_TIME_uS 1000
+
 void amdgpu_dm_crtc_handle_vblank(struct amdgpu_crtc *acrtc)
 {
 	struct drm_crtc *crtc = &acrtc->base;
@@ -146,9 +149,93 @@ static void amdgpu_dm_crtc_set_panel_sr_feature(
 		struct amdgpu_dm_connector *aconn =
 			(struct amdgpu_dm_connector *) vblank_work->stream->dm_stream_context;
 
-		if (!aconn->disallow_edp_enter_psr)
+		if (!aconn->disallow_edp_enter_psr) {
+			struct amdgpu_display_manager *dm = vblank_work->dm;
+
 			amdgpu_dm_psr_enable(vblank_work->stream);
+			if (dm->idle_workqueue &&
+			    dm->dc->idle_optimizations_allowed &&
+			    dm->idle_workqueue->enable &&
+			    !dm->idle_workqueue->running)
+				schedule_work(&dm->idle_workqueue->work);
+		}
 	}
+}
+
+bool amdgpu_dm_is_headless(struct amdgpu_device *adev)
+{
+	struct drm_connector *connector;
+	struct drm_connector_list_iter iter;
+	struct drm_device *dev;
+	bool is_headless = true;
+
+	if (adev == NULL)
+		return true;
+
+	dev = adev->dm.ddev;
+
+	drm_connector_list_iter_begin(dev, &iter);
+	drm_for_each_connector_iter(connector, &iter) {
+
+		if (connector->connector_type == DRM_MODE_CONNECTOR_WRITEBACK)
+			continue;
+
+		if (connector->status == connector_status_connected) {
+			is_headless = false;
+			break;
+		}
+	}
+	drm_connector_list_iter_end(&iter);
+	return is_headless;
+}
+
+static void amdgpu_dm_idle_worker(struct work_struct *work)
+{
+	struct idle_workqueue *idle_work;
+
+	idle_work = container_of(work, struct idle_workqueue, work);
+	idle_work->dm->idle_workqueue->running = true;
+
+	while (idle_work->enable) {
+		fsleep(HPD_DETECTION_PERIOD_uS);
+		mutex_lock(&idle_work->dm->dc_lock);
+		if (!idle_work->dm->dc->idle_optimizations_allowed) {
+			mutex_unlock(&idle_work->dm->dc_lock);
+			break;
+		}
+		dc_allow_idle_optimizations(idle_work->dm->dc, false);
+
+		mutex_unlock(&idle_work->dm->dc_lock);
+		fsleep(HPD_DETECTION_TIME_uS);
+		mutex_lock(&idle_work->dm->dc_lock);
+
+		if (!amdgpu_dm_is_headless(idle_work->dm->adev) &&
+		    !amdgpu_dm_psr_is_active_allowed(idle_work->dm)) {
+			mutex_unlock(&idle_work->dm->dc_lock);
+			break;
+		}
+
+		if (idle_work->enable)
+			dc_allow_idle_optimizations(idle_work->dm->dc, true);
+		mutex_unlock(&idle_work->dm->dc_lock);
+	}
+	idle_work->dm->idle_workqueue->running = false;
+}
+
+struct idle_workqueue *idle_create_workqueue(struct amdgpu_device *adev)
+{
+	struct idle_workqueue *idle_work;
+
+	idle_work = kzalloc(sizeof(*idle_work), GFP_KERNEL);
+	if (ZERO_OR_NULL_PTR(idle_work))
+		return NULL;
+
+	idle_work->dm = &adev->dm;
+	idle_work->enable = false;
+	idle_work->running = false;
+	INIT_WORK(&idle_work->work, amdgpu_dm_idle_worker);
+
+	return idle_work;
 }
 
 static void amdgpu_dm_crtc_vblank_control_worker(struct work_struct *work)
@@ -164,9 +251,10 @@ static void amdgpu_dm_crtc_vblank_control_worker(struct work_struct *work)
 	else if (dm->active_vblank_irq_count)
 		dm->active_vblank_irq_count--;
 
-	dc_allow_idle_optimizations(dm->dc, dm->active_vblank_irq_count == 0);
-
-	DRM_DEBUG_KMS("Allow idle optimizations (MALL): %d\n", dm->active_vblank_irq_count == 0);
+	if (dm->active_vblank_irq_count > 0) {
+		DRM_DEBUG_KMS("Allow idle optimizations (MALL): false\n");
+		dc_allow_idle_optimizations(dm->dc, false);
+	}
 
 	/*
 	 * Control PSR based on vblank requirements from OS
@@ -185,6 +273,11 @@ static void amdgpu_dm_crtc_vblank_control_worker(struct work_struct *work)
 			vblank_work->stream->link->replay_settings.replay_feature_enabled);
 	}
 
+	if (dm->active_vblank_irq_count == 0) {
+		DRM_DEBUG_KMS("Allow idle optimizations (MALL): true\n");
+		dc_allow_idle_optimizations(dm->dc, true);
+	}
+
 	mutex_unlock(&dm->dc_lock);
 
 	dc_stream_release(vblank_work->stream);
@@ -199,10 +292,13 @@ static inline int amdgpu_dm_crtc_set_vblank(struct drm_crtc *crtc, bool enable)
 	struct dm_crtc_state *acrtc_state = to_dm_crtc_state(crtc->state);
 	struct amdgpu_display_manager *dm = &adev->dm;
 	struct vblank_control_work *work;
+	int irq_type;
 	int rc = 0;
 
 	if (acrtc->otg_inst == -1)
 		goto skip;
+
+	irq_type = amdgpu_display_crtc_idx_to_irq_type(adev, acrtc->crtc_id);
 
 	if (enable) {
 		/* vblank irq on -> Only need vupdate irq in vrr mode */
@@ -216,13 +312,52 @@ static inline int amdgpu_dm_crtc_set_vblank(struct drm_crtc *crtc, bool enable)
 	if (rc)
 		return rc;
 
-	rc = (enable)
-		? amdgpu_irq_get(adev, &adev->crtc_irq, acrtc->crtc_id)
-		: amdgpu_irq_put(adev, &adev->crtc_irq, acrtc->crtc_id);
+	/* crtc vblank or vstartup interrupt */
+	if (enable) {
+		rc = amdgpu_irq_get(adev, &adev->crtc_irq, irq_type);
+		drm_dbg_vbl(crtc->dev, "Get crtc_irq ret=%d\n", rc);
+	} else {
+		rc = amdgpu_irq_put(adev, &adev->crtc_irq, irq_type);
+		drm_dbg_vbl(crtc->dev, "Put crtc_irq ret=%d\n", rc);
+	}
 
 	if (rc)
 		return rc;
 
+	/*
+	 * hubp surface flip interrupt
+	 *
+	 * We have no guarantee that the frontend index maps to the same
+	 * backend index - some even map to more than one.
+	 *
+	 * TODO: Use a different interrupt or check DC itself for the mapping.
+	 */
+	if (enable) {
+		rc = amdgpu_irq_get(adev, &adev->pageflip_irq, irq_type);
+		drm_dbg_vbl(crtc->dev, "Get pageflip_irq ret=%d\n", rc);
+	} else {
+		rc = amdgpu_irq_put(adev, &adev->pageflip_irq, irq_type);
+		drm_dbg_vbl(crtc->dev, "Put pageflip_irq ret=%d\n", rc);
+	}
+
+	if (rc)
+		return rc;
+
+#if defined(CONFIG_DRM_AMD_SECURE_DISPLAY)
+	/* crtc vline0 interrupt, only available on DCN+ */
+	if (amdgpu_ip_version(adev, DCE_HWIP, 0) != 0) {
+		if (enable) {
+			rc = amdgpu_irq_get(adev, &adev->vline0_irq, irq_type);
+			drm_dbg_vbl(crtc->dev, "Get vline0_irq ret=%d\n", rc);
+		} else {
+			rc = amdgpu_irq_put(adev, &adev->vline0_irq, irq_type);
+			drm_dbg_vbl(crtc->dev, "Put vline0_irq ret=%d\n", rc);
+		}
+
+		if (rc)
+			return rc;
+	}
+#endif
 skip:
 	if (amdgpu_in_reset(adev))
 		return 0;
@@ -304,6 +439,7 @@ static struct drm_crtc_state *amdgpu_dm_crtc_duplicate_state(struct drm_crtc *cr
 	state->regamma_tf = cur->regamma_tf;
 	state->crc_skip_count = cur->crc_skip_count;
 	state->mpo_requested = cur->mpo_requested;
+	state->cursor_mode = cur->cursor_mode;
 	/* TODO Duplicate dc_stream after objects are stream object is flattened */
 
 	return &state->base;

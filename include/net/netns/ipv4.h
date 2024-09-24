@@ -40,6 +40,13 @@ struct inet_timewait_death_row {
 
 struct tcp_fastopen_context;
 
+#ifdef CONFIG_IP_ROUTE_MULTIPATH
+struct sysctl_fib_multipath_hash_seed {
+	u32 user_seed;
+	u32 mp_seed;
+};
+#endif
+
 struct netns_ipv4 {
 	/* Cacheline organization can be found documented in
 	 * Documentation/networking/net_cachelines/netns_ipv4_sysctl.rst.
@@ -115,7 +122,10 @@ struct netns_ipv4 {
 	u8 sysctl_icmp_errors_use_inbound_ifaddr;
 	int sysctl_icmp_ratelimit;
 	int sysctl_icmp_ratemask;
-
+	int sysctl_icmp_msgs_per_sec;
+	int sysctl_icmp_msgs_burst;
+	atomic_t icmp_global_credit;
+	u32 icmp_global_stamp;
 	u32 ip_rt_min_pmtu;
 	int ip_rt_mtu_expires;
 	int ip_rt_min_advmss;
@@ -170,6 +180,7 @@ struct netns_ipv4 {
 	u8 sysctl_tcp_sack;
 	u8 sysctl_tcp_window_scaling;
 	u8 sysctl_tcp_timestamps;
+	int sysctl_tcp_rto_min_us;
 	u8 sysctl_tcp_recovery;
 	u8 sysctl_tcp_thin_linear_timeouts;
 	u8 sysctl_tcp_slow_start_after_idle;
@@ -245,6 +256,7 @@ struct netns_ipv4 {
 #endif
 #endif
 #ifdef CONFIG_IP_ROUTE_MULTIPATH
+	struct sysctl_fib_multipath_hash_seed sysctl_fib_multipath_hash_seed;
 	u32 sysctl_fib_multipath_hash_fields;
 	u8 sysctl_fib_multipath_use_neigh;
 	u8 sysctl_fib_multipath_hash_policy;

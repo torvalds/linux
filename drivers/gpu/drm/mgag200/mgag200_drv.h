@@ -10,9 +10,6 @@
 #ifndef __MGAG200_DRV_H__
 #define __MGAG200_DRV_H__
 
-#include <linux/i2c-algo-bit.h>
-#include <linux/i2c.h>
-
 #include <video/vga.h>
 
 #include <drm/drm_connector.h>
@@ -182,19 +179,14 @@ struct mgag200_crtc_state {
 	const struct drm_format_info *format;
 
 	struct mgag200_pll_values pixpllc;
+
+	bool set_vidrst;
 };
 
 static inline struct mgag200_crtc_state *to_mgag200_crtc_state(struct drm_crtc_state *base)
 {
 	return container_of(base, struct mgag200_crtc_state, base);
 }
-
-struct mga_i2c_chan {
-	struct i2c_adapter adapter;
-	struct drm_device *dev;
-	struct i2c_algo_bit_data bit;
-	int data, clock;
-};
 
 enum mga_type {
 	G200_PCI,
@@ -219,8 +211,8 @@ struct mgag200_device_info {
 	 */
 	unsigned long max_mem_bandwidth;
 
-	/* HW has external source (e.g., BMC) to synchronize with */
-	bool has_vidrst:1;
+	/* Synchronize scanout with BMC */
+	bool sync_bmc:1;
 
 	struct {
 		unsigned data_bit:3;
@@ -235,13 +227,13 @@ struct mgag200_device_info {
 };
 
 #define MGAG200_DEVICE_INFO_INIT(_max_hdisplay, _max_vdisplay, _max_mem_bandwidth, \
-				 _has_vidrst, _i2c_data_bit, _i2c_clock_bit, \
+				 _sync_bmc, _i2c_data_bit, _i2c_clock_bit, \
 				 _bug_no_startadd) \
 	{ \
 		.max_hdisplay = (_max_hdisplay), \
 		.max_vdisplay = (_max_vdisplay), \
 		.max_mem_bandwidth = (_max_mem_bandwidth), \
-		.has_vidrst = (_has_vidrst), \
+		.sync_bmc = (_sync_bmc), \
 		.i2c = { \
 			.data_bit = (_i2c_data_bit), \
 			.clock_bit = (_i2c_clock_bit), \
@@ -250,18 +242,6 @@ struct mgag200_device_info {
 	}
 
 struct mgag200_device_funcs {
-	/*
-	 * Disables an external reset source (i.e., BMC) before programming
-	 * a new display mode.
-	 */
-	void (*disable_vidrst)(struct mga_device *mdev);
-
-	/*
-	 * Enables an external reset source (i.e., BMC) after programming
-	 * a new display mode.
-	 */
-	void (*enable_vidrst)(struct mga_device *mdev);
-
 	/*
 	 * Validate that the given state can be programmed into PIXPLLC. On
 	 * success, the calculated parameters should be stored in the CRTC's
@@ -293,9 +273,12 @@ struct mga_device {
 
 	struct drm_plane primary_plane;
 	struct drm_crtc crtc;
-	struct drm_encoder encoder;
-	struct mga_i2c_chan i2c;
-	struct drm_connector connector;
+	struct {
+		struct {
+			struct drm_encoder encoder;
+			struct drm_connector connector;
+		} vga;
+	} output;
 };
 
 static inline struct mga_device *to_mga_device(struct drm_device *dev)
@@ -408,17 +391,24 @@ int mgag200_crtc_helper_atomic_check(struct drm_crtc *crtc, struct drm_atomic_st
 void mgag200_crtc_helper_atomic_flush(struct drm_crtc *crtc, struct drm_atomic_state *old_state);
 void mgag200_crtc_helper_atomic_enable(struct drm_crtc *crtc, struct drm_atomic_state *old_state);
 void mgag200_crtc_helper_atomic_disable(struct drm_crtc *crtc, struct drm_atomic_state *old_state);
+bool mgag200_crtc_helper_get_scanout_position(struct drm_crtc *crtc, bool in_vblank_irq,
+					      int *vpos, int *hpos,
+					      ktime_t *stime, ktime_t *etime,
+					      const struct drm_display_mode *mode);
 
 #define MGAG200_CRTC_HELPER_FUNCS \
 	.mode_valid = mgag200_crtc_helper_mode_valid, \
 	.atomic_check = mgag200_crtc_helper_atomic_check, \
 	.atomic_flush = mgag200_crtc_helper_atomic_flush, \
 	.atomic_enable = mgag200_crtc_helper_atomic_enable, \
-	.atomic_disable = mgag200_crtc_helper_atomic_disable
+	.atomic_disable = mgag200_crtc_helper_atomic_disable, \
+	.get_scanout_position = mgag200_crtc_helper_get_scanout_position
 
 void mgag200_crtc_reset(struct drm_crtc *crtc);
 struct drm_crtc_state *mgag200_crtc_atomic_duplicate_state(struct drm_crtc *crtc);
 void mgag200_crtc_atomic_destroy_state(struct drm_crtc *crtc, struct drm_crtc_state *crtc_state);
+int mgag200_crtc_enable_vblank(struct drm_crtc *crtc);
+void mgag200_crtc_disable_vblank(struct drm_crtc *crtc);
 
 #define MGAG200_CRTC_FUNCS \
 	.reset = mgag200_crtc_reset, \
@@ -426,34 +416,26 @@ void mgag200_crtc_atomic_destroy_state(struct drm_crtc *crtc, struct drm_crtc_st
 	.set_config = drm_atomic_helper_set_config, \
 	.page_flip = drm_atomic_helper_page_flip, \
 	.atomic_duplicate_state = mgag200_crtc_atomic_duplicate_state, \
-	.atomic_destroy_state = mgag200_crtc_atomic_destroy_state
+	.atomic_destroy_state = mgag200_crtc_atomic_destroy_state, \
+	.enable_vblank = mgag200_crtc_enable_vblank, \
+	.disable_vblank = mgag200_crtc_disable_vblank, \
+	.get_vblank_timestamp = drm_crtc_vblank_helper_get_vblank_timestamp
 
-#define MGAG200_DAC_ENCODER_FUNCS \
-	.destroy = drm_encoder_cleanup
-
-int mgag200_vga_connector_helper_get_modes(struct drm_connector *connector);
-
-#define MGAG200_VGA_CONNECTOR_HELPER_FUNCS \
-	.get_modes  = mgag200_vga_connector_helper_get_modes
-
-#define MGAG200_VGA_CONNECTOR_FUNCS \
-	.reset                  = drm_atomic_helper_connector_reset, \
-	.fill_modes             = drm_helper_probe_single_connector_modes, \
-	.destroy                = drm_connector_cleanup, \
-	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state, \
-	.atomic_destroy_state   = drm_atomic_helper_connector_destroy_state
-
-void mgag200_set_mode_regs(struct mga_device *mdev, const struct drm_display_mode *mode);
+void mgag200_set_mode_regs(struct mga_device *mdev, const struct drm_display_mode *mode,
+			   bool set_vidrst);
 void mgag200_set_format_regs(struct mga_device *mdev, const struct drm_format_info *format);
 void mgag200_enable_display(struct mga_device *mdev);
 void mgag200_init_registers(struct mga_device *mdev);
 int mgag200_mode_config_init(struct mga_device *mdev, resource_size_t vram_available);
 
-				/* mgag200_bmc.c */
-void mgag200_bmc_disable_vidrst(struct mga_device *mdev);
-void mgag200_bmc_enable_vidrst(struct mga_device *mdev);
+/* mgag200_vga_bmc.c */
+int mgag200_vga_bmc_output_init(struct mga_device *mdev);
 
-				/* mgag200_i2c.c */
-int mgag200_i2c_init(struct mga_device *mdev, struct mga_i2c_chan *i2c);
+/* mgag200_vga.c */
+int mgag200_vga_output_init(struct mga_device *mdev);
+
+/* mgag200_bmc.c */
+void mgag200_bmc_stop_scanout(struct mga_device *mdev);
+void mgag200_bmc_start_scanout(struct mga_device *mdev);
 
 #endif				/* __MGAG200_DRV_H__ */

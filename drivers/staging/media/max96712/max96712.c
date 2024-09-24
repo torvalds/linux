@@ -242,21 +242,34 @@ static const struct v4l2_subdev_video_ops max96712_video_ops = {
 	.s_stream = max96712_s_stream,
 };
 
-static int max96712_get_pad_format(struct v4l2_subdev *sd,
-				   struct v4l2_subdev_state *sd_state,
-				   struct v4l2_subdev_format *format)
+static int max96712_init_state(struct v4l2_subdev *sd,
+			       struct v4l2_subdev_state *state)
 {
-	format->format.width = 1920;
-	format->format.height = 1080;
-	format->format.code = MEDIA_BUS_FMT_RGB888_1X24;
-	format->format.field = V4L2_FIELD_NONE;
+	static const struct v4l2_mbus_framefmt default_fmt = {
+		.width          = 1920,
+		.height         = 1080,
+		.code           = MEDIA_BUS_FMT_RGB888_1X24,
+		.colorspace     = V4L2_COLORSPACE_SRGB,
+		.field          = V4L2_FIELD_NONE,
+		.ycbcr_enc      = V4L2_YCBCR_ENC_DEFAULT,
+		.quantization   = V4L2_QUANTIZATION_DEFAULT,
+		.xfer_func      = V4L2_XFER_FUNC_DEFAULT,
+	};
+	struct v4l2_mbus_framefmt *fmt;
+
+	fmt = v4l2_subdev_state_get_format(state, 0);
+	*fmt = default_fmt;
 
 	return 0;
 }
 
+static const struct v4l2_subdev_internal_ops max96712_internal_ops = {
+	.init_state = max96712_init_state,
+};
+
 static const struct v4l2_subdev_pad_ops max96712_pad_ops = {
-	.get_fmt = max96712_get_pad_format,
-	.set_fmt = max96712_get_pad_format,
+	.get_fmt = v4l2_subdev_get_fmt,
+	.set_fmt = v4l2_subdev_get_fmt,
 };
 
 static const struct v4l2_subdev_ops max96712_subdev_ops = {
@@ -293,6 +306,7 @@ static int max96712_v4l2_register(struct max96712_priv *priv)
 	long pixel_rate;
 	int ret;
 
+	priv->sd.internal_ops = &max96712_internal_ops;
 	v4l2_i2c_subdev_init(&priv->sd, priv->client, &max96712_subdev_ops);
 	priv->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 	priv->sd.entity.function = MEDIA_ENT_F_VID_IF_BRIDGE;
@@ -323,6 +337,11 @@ static int max96712_v4l2_register(struct max96712_priv *priv)
 		goto error;
 
 	v4l2_set_subdevdata(&priv->sd, priv);
+
+	priv->sd.state_lock = priv->ctrl_handler.lock;
+	ret = v4l2_subdev_init_finalize(&priv->sd);
+	if (ret)
+		goto error;
 
 	ret = v4l2_async_register_subdev(&priv->sd);
 	if (ret < 0) {

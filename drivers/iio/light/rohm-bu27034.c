@@ -223,12 +223,6 @@ struct bu27034_data {
 	} scan;
 };
 
-struct bu27034_result {
-	u16 ch0;
-	u16 ch1;
-	u16 ch2;
-};
-
 static const struct regmap_range bu27034_volatile_ranges[] = {
 	{
 		.range_min = BU27034_REG_SYSTEM_CONTROL,

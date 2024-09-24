@@ -18,7 +18,7 @@
  * triggering stack protector errors themselves
  */
 
-__attribute__((weak,noreturn,section(".text.nolibc_stack_chk")))
+__attribute__((weak,used,noreturn,section(".text.nolibc_stack_chk")))
 void __stack_chk_fail(void)
 {
 	pid_t pid;
@@ -34,7 +34,7 @@ void __stack_chk_fail_local(void)
 	__stack_chk_fail();
 }
 
-__attribute__((weak,section(".data.nolibc_stack_chk")))
+__attribute__((weak,used,section(".data.nolibc_stack_chk")))
 uintptr_t __stack_chk_guard;
 
 static __no_stack_protector void __stack_chk_init(void)

@@ -575,7 +575,7 @@ MODULE_DEVICE_TABLE(of, abeoz9_dt_match);
 #endif
 
 static const struct i2c_device_id abeoz9_id[] = {
-	{ "abeoz9", 0 },
+	{ "abeoz9" },
 	{ }
 };
 

@@ -30,19 +30,32 @@ enum TRI_STATE {
 };
 
 /* Number of entries for hardware indirection table must be in power of 2 */
-#define MANA_INDIRECT_TABLE_SIZE 64
-#define MANA_INDIRECT_TABLE_MASK (MANA_INDIRECT_TABLE_SIZE - 1)
+#define MANA_INDIRECT_TABLE_MAX_SIZE 512
+#define MANA_INDIRECT_TABLE_DEF_SIZE 64
 
 /* The Toeplitz hash key's length in bytes: should be multiple of 8 */
 #define MANA_HASH_KEY_SIZE 40
 
 #define COMP_ENTRY_SIZE 64
 
-#define RX_BUFFERS_PER_QUEUE 512
+/* This Max value for RX buffers is derived from __alloc_page()'s max page
+ * allocation calculation. It allows maximum 2^(MAX_ORDER -1) pages. RX buffer
+ * size beyond this value gets rejected by __alloc_page() call.
+ */
+#define MAX_RX_BUFFERS_PER_QUEUE 8192
+#define DEF_RX_BUFFERS_PER_QUEUE 512
+#define MIN_RX_BUFFERS_PER_QUEUE 128
 
-#define MAX_SEND_BUFFERS_PER_QUEUE 256
+/* This max value for TX buffers is derived as the maximum allocatable
+ * pages supported on host per guest through testing. TX buffer size beyond
+ * this value is rejected by the hardware.
+ */
+#define MAX_TX_BUFFERS_PER_QUEUE 16384
+#define DEF_TX_BUFFERS_PER_QUEUE 256
+#define MIN_TX_BUFFERS_PER_QUEUE 128
 
-#define EQ_SIZE (8 * PAGE_SIZE)
+#define EQ_SIZE (8 * MANA_PAGE_SIZE)
+
 #define LOG2_EQ_THROTTLE 3
 
 #define MAX_PORTS_IN_MANA_DEV 256
@@ -96,6 +109,8 @@ struct mana_txq {
 	struct netdev_queue *net_txq;
 
 	atomic_t pending_sends;
+
+	bool napi_initialized;
 
 	struct mana_stats_tx stats;
 };
@@ -274,6 +289,7 @@ struct mana_cq {
 	/* NAPI data */
 	struct napi_struct napi;
 	int work_done;
+	int work_done_since_doorbell;
 	int budget;
 };
 
@@ -284,7 +300,7 @@ struct mana_recv_buf_oob {
 	void *buf_va;
 	bool from_pool; /* allocated from a page pool */
 
-	/* SGL of the buffer going to be sent has part of the work request. */
+	/* SGL of the buffer going to be sent as part of the work request. */
 	u32 num_sge;
 	struct gdma_sge sgl[MAX_RX_WQE_SGL_ENTRIES];
 
@@ -410,10 +426,11 @@ struct mana_port_context {
 	struct mana_tx_qp *tx_qp;
 
 	/* Indirection Table for RX & TX. The values are queue indexes */
-	u32 indir_table[MANA_INDIRECT_TABLE_SIZE];
+	u32 *indir_table;
+	u32 indir_table_sz;
 
 	/* Indirection table containing RxObject Handles */
-	mana_handle_t rxobj_table[MANA_INDIRECT_TABLE_SIZE];
+	mana_handle_t *rxobj_table;
 
 	/*  Hash key used by the NIC */
 	u8 hashkey[MANA_HASH_KEY_SIZE];
@@ -434,6 +451,9 @@ struct mana_port_context {
 	/* Create num_queues EQs, SQs, SQ-CQs, RQs and RQ-CQs, respectively. */
 	unsigned int max_queues;
 	unsigned int num_queues;
+
+	unsigned int rx_queue_size;
+	unsigned int tx_queue_size;
 
 	mana_handle_t port_handle;
 	mana_handle_t pf_filter_handle;
@@ -470,6 +490,8 @@ struct bpf_prog *mana_xdp_get(struct mana_port_context *apc);
 void mana_chn_setxdp(struct mana_port_context *apc, struct bpf_prog *prog);
 int mana_bpf(struct net_device *ndev, struct netdev_bpf *bpf);
 void mana_query_gf_stats(struct mana_port_context *apc);
+int mana_pre_alloc_rxbufs(struct mana_port_context *apc, int mtu, int num_queues);
+void mana_pre_dealloc_rxbufs(struct mana_port_context *apc);
 
 extern const struct ethtool_ops mana_ethtool_ops;
 
@@ -796,4 +818,6 @@ void mana_destroy_wq_obj(struct mana_port_context *apc, u32 wq_type,
 int mana_cfg_vport(struct mana_port_context *apc, u32 protection_dom_id,
 		   u32 doorbell_pg_id);
 void mana_uncfg_vport(struct mana_port_context *apc);
+
+struct net_device *mana_get_primary_netdev_rcu(struct mana_context *ac, u32 port_index);
 #endif /* _MANA_H */

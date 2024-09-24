@@ -430,10 +430,6 @@ static enum link_training_result dpia_training_cr_non_transparent(
 		retry_count++;
 	}
 
-	/* Abort link training if clock recovery failed due to HPD unplug. */
-	if (link->is_hpd_pending)
-		result = LINK_TRAINING_ABORT;
-
 	DC_LOG_HW_LINK_TRAINING(
 		"%s\n DPIA(%d) clock recovery\n -hop(%d)\n - result(%d)\n - retries(%d)\n - status(%d)\n",
 		__func__,
@@ -536,10 +532,6 @@ static enum link_training_result dpia_training_cr_transparent(
 				lt_settings->hw_lane_settings, lt_settings->dpcd_lane_settings);
 		retry_count++;
 	}
-
-	/* Abort link training if clock recovery failed due to HPD unplug. */
-	if (link->is_hpd_pending)
-		result = LINK_TRAINING_ABORT;
 
 	DC_LOG_HW_LINK_TRAINING("%s\n DPIA(%d) clock recovery\n -hop(%d)\n - result(%d)\n - retries(%d)\n",
 		__func__,
@@ -731,10 +723,6 @@ static enum link_training_result dpia_training_eq_non_transparent(
 				lt_settings->hw_lane_settings, lt_settings->dpcd_lane_settings);
 	}
 
-	/* Abort link training if equalization failed due to HPD unplug. */
-	if (link->is_hpd_pending)
-		result = LINK_TRAINING_ABORT;
-
 	DC_LOG_HW_LINK_TRAINING(
 		"%s\n DPIA(%d) equalization\n - hop(%d)\n - result(%d)\n - retries(%d)\n - status(%d)\n",
 		__func__,
@@ -821,10 +809,6 @@ static enum link_training_result dpia_training_eq_transparent(
 		dp_decide_lane_settings(lt_settings, dpcd_lane_adjust,
 				lt_settings->hw_lane_settings, lt_settings->dpcd_lane_settings);
 	}
-
-	/* Abort link training if equalization failed due to HPD unplug. */
-	if (link->is_hpd_pending)
-		result = LINK_TRAINING_ABORT;
 
 	DC_LOG_HW_LINK_TRAINING("%s\n DPIA(%d) equalization\n - hop(%d)\n - result(%d)\n - retries(%d)\n",
 		__func__,

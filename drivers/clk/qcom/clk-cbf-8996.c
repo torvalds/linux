@@ -226,7 +226,12 @@ static int qcom_msm8996_cbf_icc_register(struct platform_device *pdev, struct cl
 	struct device *dev = &pdev->dev;
 	struct clk *clk = devm_clk_hw_get_clk(dev, cbf_hw, "cbf");
 	const struct icc_clk_data data[] = {
-		{ .clk = clk, .name = "cbf", },
+		{
+			.clk = clk,
+			.name = "cbf",
+			.master_id = MASTER_CBF_M4M,
+			.slave_id = SLAVE_CBF_M4M,
+		},
 	};
 	struct icc_provider *provider;
 
@@ -341,7 +346,7 @@ MODULE_DEVICE_TABLE(of, qcom_msm8996_cbf_match_table);
 
 static struct platform_driver qcom_msm8996_cbf_driver = {
 	.probe = qcom_msm8996_cbf_probe,
-	.remove_new = qcom_msm8996_cbf_remove,
+	.remove = qcom_msm8996_cbf_remove,
 	.driver = {
 		.name = "qcom-msm8996-cbf",
 		.of_match_table = qcom_msm8996_cbf_match_table,

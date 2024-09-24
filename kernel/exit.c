@@ -277,7 +277,6 @@ repeat:
 	}
 
 	write_unlock_irq(&tasklist_lock);
-	seccomp_filter_release(p);
 	proc_flush_pid(thread_pid);
 	put_pid(thread_pid);
 	release_thread(p);
@@ -429,7 +428,7 @@ static void coredump_task_exit(struct task_struct *tsk)
 			complete(&core_state->startup);
 
 		for (;;) {
-			set_current_state(TASK_UNINTERRUPTIBLE|TASK_FREEZABLE);
+			set_current_state(TASK_IDLE|TASK_FREEZABLE);
 			if (!self.task) /* see coredump_finish() */
 				break;
 			schedule();
@@ -439,14 +438,46 @@ static void coredump_task_exit(struct task_struct *tsk)
 }
 
 #ifdef CONFIG_MEMCG
+/* drops tasklist_lock if succeeds */
+static bool __try_to_set_owner(struct task_struct *tsk, struct mm_struct *mm)
+{
+	bool ret = false;
+
+	task_lock(tsk);
+	if (likely(tsk->mm == mm)) {
+		/* tsk can't pass exit_mm/exec_mmap and exit */
+		read_unlock(&tasklist_lock);
+		WRITE_ONCE(mm->owner, tsk);
+		lru_gen_migrate_mm(mm);
+		ret = true;
+	}
+	task_unlock(tsk);
+	return ret;
+}
+
+static bool try_to_set_owner(struct task_struct *g, struct mm_struct *mm)
+{
+	struct task_struct *t;
+
+	for_each_thread(g, t) {
+		struct mm_struct *t_mm = READ_ONCE(t->mm);
+		if (t_mm == mm) {
+			if (__try_to_set_owner(t, mm))
+				return true;
+		} else if (t_mm)
+			break;
+	}
+
+	return false;
+}
+
 /*
  * A task is exiting.   If it owned this mm, find a new owner for the mm.
  */
 void mm_update_next_owner(struct mm_struct *mm)
 {
-	struct task_struct *c, *g, *p = current;
+	struct task_struct *g, *p = current;
 
-retry:
 	/*
 	 * If the exiting or execing task is not the owner, it's
 	 * someone else's problem.
@@ -467,31 +498,27 @@ retry:
 	/*
 	 * Search in the children
 	 */
-	list_for_each_entry(c, &p->children, sibling) {
-		if (c->mm == mm)
-			goto assign_new_owner;
+	list_for_each_entry(g, &p->children, sibling) {
+		if (try_to_set_owner(g, mm))
+			goto ret;
 	}
-
 	/*
 	 * Search in the siblings
 	 */
-	list_for_each_entry(c, &p->real_parent->children, sibling) {
-		if (c->mm == mm)
-			goto assign_new_owner;
+	list_for_each_entry(g, &p->real_parent->children, sibling) {
+		if (try_to_set_owner(g, mm))
+			goto ret;
 	}
-
 	/*
 	 * Search through everything else, we should not get here often.
 	 */
 	for_each_process(g) {
+		if (atomic_read(&mm->mm_users) <= 1)
+			break;
 		if (g->flags & PF_KTHREAD)
 			continue;
-		for_each_thread(g, c) {
-			if (c->mm == mm)
-				goto assign_new_owner;
-			if (c->mm)
-				break;
-		}
+		if (try_to_set_owner(g, mm))
+			goto ret;
 	}
 	read_unlock(&tasklist_lock);
 	/*
@@ -500,30 +527,9 @@ retry:
 	 * ptrace or page migration (get_task_mm()).  Mark owner as NULL.
 	 */
 	WRITE_ONCE(mm->owner, NULL);
+ ret:
 	return;
 
-assign_new_owner:
-	BUG_ON(c == p);
-	get_task_struct(c);
-	/*
-	 * The task_lock protects c->mm from changing.
-	 * We always want mm->owner->mm == mm
-	 */
-	task_lock(c);
-	/*
-	 * Delay read_unlock() till we have the task_lock()
-	 * to ensure that c does not slip away underneath us
-	 */
-	read_unlock(&tasklist_lock);
-	if (c->mm != mm) {
-		task_unlock(c);
-		put_task_struct(c);
-		goto retry;
-	}
-	WRITE_ONCE(mm->owner, c);
-	lru_gen_migrate_mm(mm);
-	task_unlock(c);
-	put_task_struct(c);
 }
 #endif /* CONFIG_MEMCG */
 
@@ -772,6 +778,62 @@ static void exit_notify(struct task_struct *tsk, int group_dead)
 }
 
 #ifdef CONFIG_DEBUG_STACK_USAGE
+unsigned long stack_not_used(struct task_struct *p)
+{
+	unsigned long *n = end_of_stack(p);
+
+	do {	/* Skip over canary */
+# ifdef CONFIG_STACK_GROWSUP
+		n--;
+# else
+		n++;
+# endif
+	} while (!*n);
+
+# ifdef CONFIG_STACK_GROWSUP
+	return (unsigned long)end_of_stack(p) - (unsigned long)n;
+# else
+	return (unsigned long)n - (unsigned long)end_of_stack(p);
+# endif
+}
+
+/* Count the maximum pages reached in kernel stacks */
+static inline void kstack_histogram(unsigned long used_stack)
+{
+#ifdef CONFIG_VM_EVENT_COUNTERS
+	if (used_stack <= 1024)
+		count_vm_event(KSTACK_1K);
+#if THREAD_SIZE > 1024
+	else if (used_stack <= 2048)
+		count_vm_event(KSTACK_2K);
+#endif
+#if THREAD_SIZE > 2048
+	else if (used_stack <= 4096)
+		count_vm_event(KSTACK_4K);
+#endif
+#if THREAD_SIZE > 4096
+	else if (used_stack <= 8192)
+		count_vm_event(KSTACK_8K);
+#endif
+#if THREAD_SIZE > 8192
+	else if (used_stack <= 16384)
+		count_vm_event(KSTACK_16K);
+#endif
+#if THREAD_SIZE > 16384
+	else if (used_stack <= 32768)
+		count_vm_event(KSTACK_32K);
+#endif
+#if THREAD_SIZE > 32768
+	else if (used_stack <= 65536)
+		count_vm_event(KSTACK_64K);
+#endif
+#if THREAD_SIZE > 65536
+	else
+		count_vm_event(KSTACK_REST);
+#endif
+#endif /* CONFIG_VM_EVENT_COUNTERS */
+}
+
 static void check_stack_usage(void)
 {
 	static DEFINE_SPINLOCK(low_water_lock);
@@ -779,6 +841,7 @@ static void check_stack_usage(void)
 	unsigned long free;
 
 	free = stack_not_used(current);
+	kstack_histogram(THREAD_SIZE - free);
 
 	if (free >= lowest_to_date)
 		return;
@@ -831,6 +894,8 @@ void __noreturn do_exit(long code)
 
 	io_uring_files_cancel();
 	exit_signals(tsk);  /* sets PF_EXITING */
+
+	seccomp_filter_release(tsk);
 
 	acct_update_integrals(tsk);
 	group_dead = atomic_dec_and_test(&tsk->signal->live);

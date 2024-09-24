@@ -28,9 +28,6 @@
 #define MVM_UCODE_ALIVE_TIMEOUT	(2 * HZ)
 #define MVM_UCODE_CALIB_TIMEOUT	(2 * HZ)
 
-#define IWL_UATS_VLP_AP_SUPPORTED BIT(29)
-#define IWL_UATS_AFC_AP_SUPPORTED BIT(30)
-
 struct iwl_mvm_alive_data {
 	bool valid;
 	u32 scd_base_addr;
@@ -408,7 +405,7 @@ static int iwl_mvm_load_ucode_wait_alive(struct iwl_mvm *mvm,
 						UREG_LMAC2_CURRENT_PC));
 		}
 
-		if (ret == -ETIMEDOUT && !mvm->pldr_sync)
+		if (ret == -ETIMEDOUT && !mvm->fw_product_reset)
 			iwl_fw_dbg_error_collect(&mvm->fwrt,
 						 FW_DBG_TRIGGER_ALIVE_TIMEOUT);
 
@@ -460,12 +457,14 @@ static int iwl_mvm_load_ucode_wait_alive(struct iwl_mvm *mvm,
 #endif
 
 	/*
+	 * For pre-MLD API (MLD API doesn't use the timestamps):
 	 * All the BSSes in the BSS table include the GP2 in the system
 	 * at the beacon Rx time, this is of course no longer relevant
 	 * since we are resetting the firmware.
 	 * Purge all the BSS table.
 	 */
-	cfg80211_bss_flush(mvm->hw->wiphy);
+	if (!mvm->mld_api_is_used)
+		cfg80211_bss_flush(mvm->hw->wiphy);
 
 	return 0;
 }
@@ -491,14 +490,8 @@ static void iwl_mvm_uats_init(struct iwl_mvm *mvm)
 		.dataflags[0] = IWL_HCMD_DFL_NOCOPY,
 	};
 
-	if (!(mvm->trans->trans_cfg->device_family >=
-	      IWL_DEVICE_FAMILY_AX210)) {
+	if (mvm->trans->trans_cfg->device_family < IWL_DEVICE_FAMILY_AX210) {
 		IWL_DEBUG_RADIO(mvm, "UATS feature is not supported\n");
-		return;
-	}
-
-	if (!mvm->fwrt.uats_enabled) {
-		IWL_DEBUG_RADIO(mvm, "UATS feature is disabled\n");
 		return;
 	}
 
@@ -513,7 +506,7 @@ static void iwl_mvm_uats_init(struct iwl_mvm *mvm)
 
 	ret = iwl_uefi_get_uats_table(mvm->trans, &mvm->fwrt);
 	if (ret < 0) {
-		IWL_ERR(mvm, "failed to read UATS table (%d)\n", ret);
+		IWL_DEBUG_FW(mvm, "failed to read UATS table (%d)\n", ret);
 		return;
 	}
 
@@ -627,8 +620,8 @@ static int iwl_run_unified_mvm_ucode(struct iwl_mvm *mvm)
 	if (mvm->trans->trans_cfg->device_family == IWL_DEVICE_FAMILY_AX210) {
 		sb_cfg = iwl_read_umac_prph(mvm->trans, SB_MODIFY_CFG_FLAG);
 		/* if needed, we'll reset this on our way out later */
-		mvm->pldr_sync = sb_cfg == SB_CFG_RESIDES_IN_ROM;
-		if (mvm->pldr_sync && iwl_mei_pldr_req())
+		mvm->fw_product_reset = sb_cfg == SB_CFG_RESIDES_IN_ROM;
+		if (mvm->fw_product_reset && iwl_mei_pldr_req())
 			return -EBUSY;
 	}
 
@@ -647,7 +640,7 @@ static int iwl_run_unified_mvm_ucode(struct iwl_mvm *mvm)
 		IWL_ERR(mvm, "Failed to start RT ucode: %d\n", ret);
 
 		/* if we needed reset then fail here, but notify and remove */
-		if (mvm->pldr_sync) {
+		if (mvm->fw_product_reset) {
 			iwl_mei_alive_notif(false);
 			iwl_trans_pcie_remove(mvm->trans, true);
 		}
@@ -686,14 +679,6 @@ static int iwl_run_unified_mvm_ucode(struct iwl_mvm *mvm)
 			goto error;
 	}
 
-	if (IWL_MVM_PARSE_NVM && !mvm->nvm_data) {
-		ret = iwl_nvm_init(mvm);
-		if (ret) {
-			IWL_ERR(mvm, "Failed to read NVM: %d\n", ret);
-			goto error;
-		}
-	}
-
 	ret = iwl_mvm_send_cmd_pdu(mvm, WIDE_ID(REGULATORY_AND_NVM_GROUP,
 						NVM_ACCESS_COMPLETE),
 				   CMD_SEND_IN_RFKILL,
@@ -718,7 +703,7 @@ static int iwl_run_unified_mvm_ucode(struct iwl_mvm *mvm)
 		return ret;
 
 	/* Read the NVM only at driver load time, no need to do this twice */
-	if (!IWL_MVM_PARSE_NVM && !mvm->nvm_data) {
+	if (!mvm->nvm_data) {
 		mvm->nvm_data = iwl_get_nvm(mvm->trans, mvm->fw,
 					    mvm->set_tx_ant, mvm->set_rx_ant);
 		if (IS_ERR(mvm->nvm_data)) {
@@ -843,7 +828,7 @@ remove_notif:
 	iwl_remove_notification(&mvm->notif_wait, &calib_wait);
 out:
 	mvm->rfkill_safe_init_done = false;
-	if (iwlmvm_mod_params.init_dbg && !mvm->nvm_data) {
+	if (!mvm->nvm_data) {
 		/* we want to debug INIT and we have no NVM - fake */
 		mvm->nvm_data = kzalloc(sizeof(struct iwl_nvm_data) +
 					sizeof(struct ieee80211_channel) +
@@ -878,7 +863,10 @@ static int iwl_mvm_config_ltr(struct iwl_mvm *mvm)
 int iwl_mvm_sar_select_profile(struct iwl_mvm *mvm, int prof_a, int prof_b)
 {
 	u32 cmd_id = REDUCE_TX_POWER_CMD;
-	struct iwl_dev_tx_power_cmd cmd = {
+	struct iwl_dev_tx_power_cmd_v3_v8 cmd = {
+		.common.set_mode = cpu_to_le32(IWL_TX_POWER_MODE_SET_CHAINS),
+	};
+	struct iwl_dev_tx_power_cmd cmd_v9_v10 = {
 		.common.set_mode = cpu_to_le32(IWL_TX_POWER_MODE_SET_CHAINS),
 	};
 	__le16 *per_chain;
@@ -886,8 +874,19 @@ int iwl_mvm_sar_select_profile(struct iwl_mvm *mvm, int prof_a, int prof_b)
 	u16 len = 0;
 	u32 n_subbands;
 	u8 cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw, cmd_id, 3);
+	void *cmd_data = &cmd;
 
-	if (cmd_ver >= 7) {
+	if (cmd_ver == 10) {
+		len = sizeof(cmd_v9_v10.v10);
+		n_subbands = IWL_NUM_SUB_BANDS_V2;
+		per_chain = &cmd_v9_v10.v10.per_chain[0][0][0];
+		cmd_v9_v10.v10.flags =
+			cpu_to_le32(mvm->fwrt.reduced_power_flags);
+	} else if (cmd_ver == 9) {
+		len = sizeof(cmd_v9_v10.v9);
+		n_subbands = IWL_NUM_SUB_BANDS_V1;
+		per_chain = &cmd_v9_v10.v9.per_chain[0][0];
+	} else if (cmd_ver >= 7) {
 		len = sizeof(cmd.v7);
 		n_subbands = IWL_NUM_SUB_BANDS_V2;
 		per_chain = cmd.v7.per_chain[0][0];
@@ -914,8 +913,13 @@ int iwl_mvm_sar_select_profile(struct iwl_mvm *mvm, int prof_a, int prof_b)
 		per_chain = cmd.v3.per_chain[0][0];
 	}
 
-	/* all structs have the same common part, add it */
+	/* all structs have the same common part, add its length */
 	len += sizeof(cmd.common);
+
+	if (cmd_ver < 9)
+		len += sizeof(cmd.per_band);
+	else
+		cmd_data = &cmd_v9_v10;
 
 	ret = iwl_sar_fill_profile(&mvm->fwrt, per_chain,
 				   IWL_NUM_CHAIN_TABLES,
@@ -928,7 +932,7 @@ int iwl_mvm_sar_select_profile(struct iwl_mvm *mvm, int prof_a, int prof_b)
 	iwl_mei_set_power_limit(per_chain);
 
 	IWL_DEBUG_RADIO(mvm, "Sending REDUCE_TX_POWER_CMD per chain\n");
-	return iwl_mvm_send_cmd_pdu(mvm, cmd_id, 0, len, &cmd);
+	return iwl_mvm_send_cmd_pdu(mvm, cmd_id, 0, len, cmd_data);
 }
 
 int iwl_mvm_get_sar_geo_profile(struct iwl_mvm *mvm)
@@ -1231,10 +1235,6 @@ static void iwl_mvm_lari_cfg(struct iwl_mvm *mvm)
 					"Failed to send LARI_CONFIG_CHANGE (%d)\n",
 					ret);
 	}
-
-	if (le32_to_cpu(cmd.oem_uhb_allow_bitmap) & IWL_UATS_VLP_AP_SUPPORTED ||
-	    le32_to_cpu(cmd.oem_uhb_allow_bitmap) & IWL_UATS_AFC_AP_SUPPORTED)
-		mvm->fwrt.uats_enabled = true;
 }
 
 void iwl_mvm_get_bios_tables(struct iwl_mvm *mvm)
@@ -1376,9 +1376,6 @@ static int iwl_mvm_load_rt_fw(struct iwl_mvm *mvm)
 
 	if (ret) {
 		IWL_ERR(mvm, "Failed to run INIT ucode: %d\n", ret);
-
-		if (iwlmvm_mod_params.init_dbg)
-			return 0;
 		return ret;
 	}
 
@@ -1415,14 +1412,14 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 	ret = iwl_mvm_load_rt_fw(mvm);
 	if (ret) {
 		IWL_ERR(mvm, "Failed to start RT ucode: %d\n", ret);
-		if (ret != -ERFKILL && !mvm->pldr_sync)
+		if (ret != -ERFKILL && !mvm->fw_product_reset)
 			iwl_fw_dbg_error_collect(&mvm->fwrt,
 						 FW_DBG_TRIGGER_DRIVER);
 		goto error;
 	}
 
 	/* FW loaded successfully */
-	mvm->pldr_sync = false;
+	mvm->fw_product_reset = false;
 
 	iwl_fw_disable_dbg_asserts(&mvm->fwrt);
 	iwl_get_shared_mem_conf(&mvm->fwrt);
@@ -1486,10 +1483,8 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 		RCU_INIT_POINTER(mvm->fw_id_to_link_sta[i], NULL);
 	}
 
-	for (i = 0; i < IWL_MVM_FW_MAX_LINK_ID + 1; i++)
+	for (i = 0; i < IWL_FW_MAX_LINK_ID + 1; i++)
 		RCU_INIT_POINTER(mvm->link_id_to_link_conf[i], NULL);
-
-	memset(&mvm->fw_link_ids_map, 0, sizeof(mvm->fw_link_ids_map));
 
 	mvm->tdls_cs.peer.sta_id = IWL_MVM_INVALID_STA;
 
@@ -1619,8 +1614,7 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 	IWL_DEBUG_INFO(mvm, "RT uCode started.\n");
 	return 0;
  error:
-	if (!iwlmvm_mod_params.init_dbg || !ret)
-		iwl_mvm_stop_device(mvm);
+	iwl_mvm_stop_device(mvm);
 	return ret;
 }
 

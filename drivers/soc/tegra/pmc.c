@@ -1438,7 +1438,7 @@ static int tegra_powergate_init(struct tegra_pmc *pmc,
 				struct device_node *parent)
 {
 	struct of_phandle_args child_args, parent_args;
-	struct device_node *np, *child;
+	struct device_node *np;
 	int err = 0;
 
 	/*
@@ -1457,12 +1457,10 @@ static int tegra_powergate_init(struct tegra_pmc *pmc,
 	if (!np)
 		return 0;
 
-	for_each_child_of_node(np, child) {
+	for_each_child_of_node_scoped(np, child) {
 		err = tegra_powergate_add(pmc, child);
-		if (err < 0) {
-			of_node_put(child);
+		if (err < 0)
 			break;
-		}
 
 		if (of_parse_phandle_with_args(child, "power-domains",
 					       "#power-domain-cells",
@@ -1474,10 +1472,8 @@ static int tegra_powergate_init(struct tegra_pmc *pmc,
 
 		err = of_genpd_add_subdomain(&parent_args, &child_args);
 		of_node_put(parent_args.np);
-		if (err) {
-			of_node_put(child);
+		if (err)
 			break;
-		}
 	}
 
 	of_node_put(np);
@@ -2891,15 +2887,11 @@ static int tegra_pmc_probe(struct platform_device *pdev)
 		pmc->aotag = base;
 		pmc->scratch = base;
 	} else {
-		res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
-						"wake");
-		pmc->wake = devm_ioremap_resource(&pdev->dev, res);
+		pmc->wake = devm_platform_ioremap_resource_byname(pdev, "wake");
 		if (IS_ERR(pmc->wake))
 			return PTR_ERR(pmc->wake);
 
-		res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
-						"aotag");
-		pmc->aotag = devm_ioremap_resource(&pdev->dev, res);
+		pmc->aotag = devm_platform_ioremap_resource_byname(pdev, "aotag");
 		if (IS_ERR(pmc->aotag))
 			return PTR_ERR(pmc->aotag);
 

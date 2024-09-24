@@ -1141,7 +1141,7 @@ int hist_entry__append_callchain(struct hist_entry *he, struct perf_sample *samp
 int fill_callchain_info(struct addr_location *al, struct callchain_cursor_node *node,
 			bool hide_unresolved)
 {
-	struct machine *machine = maps__machine(node->ms.maps);
+	struct machine *machine = node->ms.maps ? maps__machine(node->ms.maps) : NULL;
 
 	maps__put(al->maps);
 	al->maps = maps__get(node->ms.maps);
@@ -1796,4 +1796,39 @@ s64 callchain_avg_cycles(struct callchain_node *cnode)
 	}
 
 	return cycles;
+}
+
+int sample__for_each_callchain_node(struct thread *thread, struct evsel *evsel,
+				    struct perf_sample *sample, int max_stack,
+				    bool symbols, callchain_iter_fn cb, void *data)
+{
+	struct callchain_cursor *cursor = get_tls_callchain_cursor();
+	int ret;
+
+	if (!cursor)
+		return -ENOMEM;
+
+	/* Fill in the callchain. */
+	ret = __thread__resolve_callchain(thread, cursor, evsel, sample,
+					  /*parent=*/NULL, /*root_al=*/NULL,
+					  max_stack, symbols);
+	if (ret)
+		return ret;
+
+	/* Switch from writing the callchain to reading it. */
+	callchain_cursor_commit(cursor);
+
+	while (1) {
+		struct callchain_cursor_node *node = callchain_cursor_current(cursor);
+
+		if (!node)
+			break;
+
+		ret = cb(node, data);
+		if (ret)
+			return ret;
+
+		callchain_cursor_advance(cursor);
+	}
+	return 0;
 }

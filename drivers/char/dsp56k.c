@@ -530,5 +530,6 @@ static void __exit dsp56k_cleanup_driver(void)
 }
 module_exit(dsp56k_cleanup_driver);
 
+MODULE_DESCRIPTION("Atari DSP56001 Device Driver");
 MODULE_LICENSE("GPL");
 MODULE_FIRMWARE("dsp56k/bootstrap.bin");

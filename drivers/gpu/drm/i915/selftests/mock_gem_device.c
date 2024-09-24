@@ -122,7 +122,7 @@ static const struct intel_device_info mock_info = {
 	.__runtime.page_sizes = (I915_GTT_PAGE_SIZE_4K |
 				 I915_GTT_PAGE_SIZE_64K |
 				 I915_GTT_PAGE_SIZE_2M),
-	.memory_regions = REGION_SMEM,
+	.memory_regions = BIT(INTEL_REGION_SMEM),
 	.platform_engine_mask = BIT(0),
 
 	/* simply use legacy cache level for mock device */
@@ -172,7 +172,7 @@ struct drm_i915_private *mock_gem_device(void)
 		return NULL;
 	}
 
-	pci_set_drvdata(pdev, i915);
+	pci_set_drvdata(pdev, &i915->drm);
 
 	/* Device parameters start as a copy of module parameters. */
 	i915_params_copy(&i915->params, &i915_modparams);

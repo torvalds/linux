@@ -101,11 +101,13 @@ MODULE_DEVICE_TABLE(of, of_match_clk_mt8183_audio);
 
 static struct platform_driver clk_mt8183_audio_drv = {
 	.probe = clk_mt8183_audio_probe,
-	.remove_new = clk_mt8183_audio_remove,
+	.remove = clk_mt8183_audio_remove,
 	.driver = {
 		.name = "clk-mt8183-audio",
 		.of_match_table = of_match_clk_mt8183_audio,
 	},
 };
 module_platform_driver(clk_mt8183_audio_drv);
+
+MODULE_DESCRIPTION("MediaTek MT8183 audio clocks driver");
 MODULE_LICENSE("GPL");

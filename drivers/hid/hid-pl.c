@@ -219,4 +219,5 @@ static struct hid_driver pl_driver = {
 };
 module_hid_driver(pl_driver);
 
+MODULE_DESCRIPTION("Force feedback support for PantherLord/GreenAsia based devices");
 MODULE_LICENSE("GPL");

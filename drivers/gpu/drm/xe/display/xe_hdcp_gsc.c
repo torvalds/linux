@@ -4,7 +4,7 @@
  */
 
 #include <drm/drm_print.h>
-#include <drm/i915_hdcp_interface.h>
+#include <drm/intel/i915_hdcp_interface.h>
 #include <linux/delay.h>
 
 #include "abi/gsc_command_header_abi.h"
@@ -13,9 +13,9 @@
 #include "xe_bo.h"
 #include "xe_device.h"
 #include "xe_device_types.h"
+#include "xe_force_wake.h"
 #include "xe_gsc_proxy.h"
 #include "xe_gsc_submit.h"
-#include "xe_gt.h"
 #include "xe_map.h"
 #include "xe_pm.h"
 #include "xe_uc_fw.h"
@@ -39,10 +39,14 @@ bool intel_hdcp_gsc_check_status(struct xe_device *xe)
 {
 	struct xe_tile *tile = xe_device_get_root_tile(xe);
 	struct xe_gt *gt = tile->media_gt;
+	struct xe_gsc *gsc = &gt->uc.gsc;
 	bool ret = true;
 
-	if (!xe_uc_fw_is_enabled(&gt->uc.gsc.fw))
+	if (!gsc && !xe_uc_fw_is_enabled(&gsc->fw)) {
+		drm_dbg_kms(&xe->drm,
+			    "GSC Components not ready for HDCP2.x\n");
 		return false;
+	}
 
 	xe_pm_runtime_get(xe);
 	if (xe_force_wake_get(gt_to_fw(gt), XE_FW_GSC)) {
@@ -52,7 +56,7 @@ bool intel_hdcp_gsc_check_status(struct xe_device *xe)
 		goto out;
 	}
 
-	if (!xe_gsc_proxy_init_done(&gt->uc.gsc))
+	if (!xe_gsc_proxy_init_done(gsc))
 		ret = false;
 
 	xe_force_wake_put(gt_to_fw(gt), XE_FW_GSC);
@@ -159,12 +163,16 @@ void intel_hdcp_gsc_fini(struct xe_device *xe)
 {
 	struct intel_hdcp_gsc_message *hdcp_message =
 					xe->display.hdcp.hdcp_message;
+	struct i915_hdcp_arbiter *arb = xe->display.hdcp.arbiter;
 
-	if (!hdcp_message)
-		return;
+	if (hdcp_message) {
+		xe_bo_unpin_map_no_vm(hdcp_message->hdcp_bo);
+		kfree(hdcp_message);
+		xe->display.hdcp.hdcp_message = NULL;
+	}
 
-	xe_bo_unpin_map_no_vm(hdcp_message->hdcp_bo);
-	kfree(hdcp_message);
+	kfree(arb);
+	xe->display.hdcp.arbiter = NULL;
 }
 
 static int xe_gsc_send_sync(struct xe_device *xe,

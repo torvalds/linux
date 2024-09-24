@@ -404,9 +404,10 @@ static struct iommu_domain *host1x_iommu_attach(struct host1x *host)
 		if (err < 0)
 			goto put_group;
 
-		host->domain = iommu_domain_alloc(&platform_bus_type);
-		if (!host->domain) {
-			err = -ENOMEM;
+		host->domain = iommu_paging_domain_alloc(host->dev);
+		if (IS_ERR(host->domain)) {
+			err = PTR_ERR(host->domain);
+			host->domain = NULL;
 			goto put_cache;
 		}
 
@@ -677,7 +678,7 @@ destroy_cache:
 	return err;
 }
 
-static int host1x_remove(struct platform_device *pdev)
+static void host1x_remove(struct platform_device *pdev)
 {
 	struct host1x *host = platform_get_drvdata(pdev);
 
@@ -692,8 +693,6 @@ static int host1x_remove(struct platform_device *pdev)
 	host1x_channel_list_free(&host->channel_list);
 	host1x_iommu_exit(host);
 	host1x_bo_cache_destroy(&host->cache);
-
-	return 0;
 }
 
 static int __maybe_unused host1x_runtime_suspend(struct device *dev)
@@ -778,7 +777,7 @@ static struct platform_driver tegra_host1x_driver = {
 		.pm = &host1x_pm_ops,
 	},
 	.probe = host1x_probe,
-	.remove = host1x_remove,
+	.remove_new = host1x_remove,
 };
 
 static struct platform_driver * const drivers[] = {

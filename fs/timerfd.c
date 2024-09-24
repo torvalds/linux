@@ -397,9 +397,9 @@ static const struct file_operations timerfd_fops = {
 static int timerfd_fget(int fd, struct fd *p)
 {
 	struct fd f = fdget(fd);
-	if (!f.file)
+	if (!fd_file(f))
 		return -EBADF;
-	if (f.file->f_op != &timerfd_fops) {
+	if (fd_file(f)->f_op != &timerfd_fops) {
 		fdput(f);
 		return -EINVAL;
 	}
@@ -482,7 +482,7 @@ static int do_timerfd_settime(int ufd, int flags,
 	ret = timerfd_fget(ufd, &f);
 	if (ret)
 		return ret;
-	ctx = f.file->private_data;
+	ctx = fd_file(f)->private_data;
 
 	if (isalarm(ctx) && !capable(CAP_WAKE_ALARM)) {
 		fdput(f);
@@ -546,7 +546,7 @@ static int do_timerfd_gettime(int ufd, struct itimerspec64 *t)
 	int ret = timerfd_fget(ufd, &f);
 	if (ret)
 		return ret;
-	ctx = f.file->private_data;
+	ctx = fd_file(f)->private_data;
 
 	spin_lock_irq(&ctx->wqh.lock);
 	if (ctx->expired && ctx->tintv) {

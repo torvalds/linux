@@ -31,6 +31,8 @@
 #include "amdgpu_atomfirmware.h"
 #include "atom.h"
 
+#define AMDGPU_MAX_SG_SEGMENT_SIZE	(2UL << 30)
+
 struct amdgpu_vram_reservation {
 	u64 start;
 	u64 size;
@@ -454,6 +456,7 @@ static int amdgpu_vram_mgr_new(struct ttm_resource_manager *man,
 	u64 vis_usage = 0, max_bytes, min_block_size;
 	struct amdgpu_vram_mgr_resource *vres;
 	u64 size, remaining_size, lpfn, fpfn;
+	unsigned int adjust_dcc_size = 0;
 	struct drm_buddy *mm = &mgr->mm;
 	struct drm_buddy_block *block;
 	unsigned long pages_per_block;
@@ -509,7 +512,19 @@ static int amdgpu_vram_mgr_new(struct ttm_resource_manager *man,
 		/* Allocate blocks in desired range */
 		vres->flags |= DRM_BUDDY_RANGE_ALLOCATION;
 
+	if (bo->flags & AMDGPU_GEM_CREATE_GFX12_DCC &&
+	    adev->gmc.gmc_funcs->get_dcc_alignment)
+		adjust_dcc_size = amdgpu_gmc_get_dcc_alignment(adev);
+
 	remaining_size = (u64)vres->base.size;
+	if (bo->flags & AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS && adjust_dcc_size) {
+		unsigned int dcc_size;
+
+		dcc_size = roundup_pow_of_two(vres->base.size + adjust_dcc_size);
+		remaining_size = (u64)dcc_size;
+
+		vres->flags |= DRM_BUDDY_TRIM_DISABLE;
+	}
 
 	mutex_lock(&mgr->lock);
 	while (remaining_size) {
@@ -518,11 +533,12 @@ static int amdgpu_vram_mgr_new(struct ttm_resource_manager *man,
 		else
 			min_block_size = mgr->default_page_size;
 
-		/* Limit maximum size to 2GiB due to SG table limitations */
-		size = min(remaining_size, 2ULL << 30);
+		size = remaining_size;
 
-		if ((size >= (u64)pages_per_block << PAGE_SHIFT) &&
-		    !(size & (((u64)pages_per_block << PAGE_SHIFT) - 1)))
+		if (bo->flags & AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS && adjust_dcc_size)
+			min_block_size = size;
+		else if ((size >= (u64)pages_per_block << PAGE_SHIFT) &&
+			 !(size & (((u64)pages_per_block << PAGE_SHIFT) - 1)))
 			min_block_size = (u64)pages_per_block << PAGE_SHIFT;
 
 		BUG_ON(min_block_size < mm->chunk_size);
@@ -552,6 +568,22 @@ static int amdgpu_vram_mgr_new(struct ttm_resource_manager *man,
 			remaining_size -= size;
 	}
 	mutex_unlock(&mgr->lock);
+
+	if (bo->flags & AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS && adjust_dcc_size) {
+		struct drm_buddy_block *dcc_block;
+		unsigned long dcc_start;
+		u64 trim_start;
+
+		dcc_block = amdgpu_vram_mgr_first_block(&vres->blocks);
+		/* Adjust the start address for DCC buffers only */
+		dcc_start =
+			roundup((unsigned long)amdgpu_vram_mgr_block_start(dcc_block),
+				adjust_dcc_size);
+		trim_start = (u64)dcc_start;
+		drm_buddy_block_trim(mm, &trim_start,
+				     (u64)vres->base.size,
+				     &vres->blocks);
+	}
 
 	vres->base.start = 0;
 	size = max_t(u64, amdgpu_vram_mgr_blocks_size(&vres->blocks),
@@ -660,7 +692,7 @@ int amdgpu_vram_mgr_alloc_sgt(struct amdgpu_device *adev,
 	amdgpu_res_first(res, offset, length, &cursor);
 	while (cursor.remaining) {
 		num_entries++;
-		amdgpu_res_next(&cursor, cursor.size);
+		amdgpu_res_next(&cursor, min(cursor.size, AMDGPU_MAX_SG_SEGMENT_SIZE));
 	}
 
 	r = sg_alloc_table(*sgt, num_entries, GFP_KERNEL);
@@ -680,7 +712,7 @@ int amdgpu_vram_mgr_alloc_sgt(struct amdgpu_device *adev,
 	amdgpu_res_first(res, offset, length, &cursor);
 	for_each_sgtable_sg((*sgt), sg, i) {
 		phys_addr_t phys = cursor.start + adev->gmc.aper_base;
-		size_t size = cursor.size;
+		unsigned long size = min(cursor.size, AMDGPU_MAX_SG_SEGMENT_SIZE);
 		dma_addr_t addr;
 
 		addr = dma_map_resource(dev, phys, size, dir,
@@ -693,7 +725,7 @@ int amdgpu_vram_mgr_alloc_sgt(struct amdgpu_device *adev,
 		sg_dma_address(sg) = addr;
 		sg_dma_len(sg) = size;
 
-		amdgpu_res_next(&cursor, cursor.size);
+		amdgpu_res_next(&cursor, size);
 	}
 
 	return 0;

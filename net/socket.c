@@ -556,10 +556,10 @@ static struct socket *sockfd_lookup_light(int fd, int *err, int *fput_needed)
 	struct socket *sock;
 
 	*err = -EBADF;
-	if (f.file) {
-		sock = sock_from_file(f.file);
+	if (fd_file(f)) {
+		sock = sock_from_file(fd_file(f));
 		if (likely(sock)) {
-			*fput_needed = f.flags & FDPUT_FPUT;
+			*fput_needed = f.word & FDPUT_FPUT;
 			return sock;
 		}
 		*err = -ENOTSOCK;
@@ -946,11 +946,17 @@ void __sock_recv_timestamp(struct msghdr *msg, struct sock *sk,
 
 	memset(&tss, 0, sizeof(tss));
 	tsflags = READ_ONCE(sk->sk_tsflags);
-	if ((tsflags & SOF_TIMESTAMPING_SOFTWARE) &&
+	if ((tsflags & SOF_TIMESTAMPING_SOFTWARE &&
+	     (tsflags & SOF_TIMESTAMPING_RX_SOFTWARE ||
+	      skb_is_err_queue(skb) ||
+	      !(tsflags & SOF_TIMESTAMPING_OPT_RX_FILTER))) &&
 	    ktime_to_timespec64_cond(skb->tstamp, tss.ts + 0))
 		empty = 0;
 	if (shhwtstamps &&
-	    (tsflags & SOF_TIMESTAMPING_RAW_HARDWARE) &&
+	    (tsflags & SOF_TIMESTAMPING_RAW_HARDWARE &&
+	     (tsflags & SOF_TIMESTAMPING_RX_HARDWARE ||
+	      skb_is_err_queue(skb) ||
+	      !(tsflags & SOF_TIMESTAMPING_OPT_RX_FILTER))) &&
 	    !skb_is_swtx_tstamp(skb, false_tstamp)) {
 		if_index = 0;
 		if (skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP_NETDEV)
@@ -1822,6 +1828,20 @@ SYSCALL_DEFINE4(socketpair, int, family, int, type, int, protocol,
 	return __sys_socketpair(family, type, protocol, usockvec);
 }
 
+int __sys_bind_socket(struct socket *sock, struct sockaddr_storage *address,
+		      int addrlen)
+{
+	int err;
+
+	err = security_socket_bind(sock, (struct sockaddr *)address,
+				   addrlen);
+	if (!err)
+		err = READ_ONCE(sock->ops)->bind(sock,
+						 (struct sockaddr *)address,
+						 addrlen);
+	return err;
+}
+
 /*
  *	Bind a name to a socket. Nothing much to do here since it's
  *	the protocol's responsibility to handle the local address.
@@ -1839,15 +1859,8 @@ int __sys_bind(int fd, struct sockaddr __user *umyaddr, int addrlen)
 	sock = sockfd_lookup_light(fd, &err, &fput_needed);
 	if (sock) {
 		err = move_addr_to_kernel(umyaddr, addrlen, &address);
-		if (!err) {
-			err = security_socket_bind(sock,
-						   (struct sockaddr *)&address,
-						   addrlen);
-			if (!err)
-				err = READ_ONCE(sock->ops)->bind(sock,
-						      (struct sockaddr *)
-						      &address, addrlen);
-		}
+		if (!err)
+			err = __sys_bind_socket(sock, &address, addrlen);
 		fput_light(sock->file, fput_needed);
 	}
 	return err;
@@ -1863,23 +1876,28 @@ SYSCALL_DEFINE3(bind, int, fd, struct sockaddr __user *, umyaddr, int, addrlen)
  *	necessary for a listen, and if that works, we mark the socket as
  *	ready for listening.
  */
+int __sys_listen_socket(struct socket *sock, int backlog)
+{
+	int somaxconn, err;
+
+	somaxconn = READ_ONCE(sock_net(sock->sk)->core.sysctl_somaxconn);
+	if ((unsigned int)backlog > somaxconn)
+		backlog = somaxconn;
+
+	err = security_socket_listen(sock, backlog);
+	if (!err)
+		err = READ_ONCE(sock->ops)->listen(sock, backlog);
+	return err;
+}
 
 int __sys_listen(int fd, int backlog)
 {
 	struct socket *sock;
 	int err, fput_needed;
-	int somaxconn;
 
 	sock = sockfd_lookup_light(fd, &err, &fput_needed);
 	if (sock) {
-		somaxconn = READ_ONCE(sock_net(sock->sk)->core.sysctl_somaxconn);
-		if ((unsigned int)backlog > somaxconn)
-			backlog = somaxconn;
-
-		err = security_socket_listen(sock, backlog);
-		if (!err)
-			err = READ_ONCE(sock->ops)->listen(sock, backlog);
-
+		err = __sys_listen_socket(sock, backlog);
 		fput_light(sock->file, fput_needed);
 	}
 	return err;
@@ -1996,8 +2014,8 @@ int __sys_accept4(int fd, struct sockaddr __user *upeer_sockaddr,
 	struct fd f;
 
 	f = fdget(fd);
-	if (f.file) {
-		ret = __sys_accept4_file(f.file, upeer_sockaddr,
+	if (fd_file(f)) {
+		ret = __sys_accept4_file(fd_file(f), upeer_sockaddr,
 					 upeer_addrlen, flags);
 		fdput(f);
 	}
@@ -2058,12 +2076,12 @@ int __sys_connect(int fd, struct sockaddr __user *uservaddr, int addrlen)
 	struct fd f;
 
 	f = fdget(fd);
-	if (f.file) {
+	if (fd_file(f)) {
 		struct sockaddr_storage address;
 
 		ret = move_addr_to_kernel(uservaddr, addrlen, &address);
 		if (!ret)
-			ret = __sys_connect_file(f.file, &address, addrlen, 0);
+			ret = __sys_connect_file(fd_file(f), &address, addrlen, 0);
 		fdput(f);
 	}
 
@@ -2350,7 +2368,7 @@ INDIRECT_CALLABLE_DECLARE(bool tcp_bpf_bypass_getsockopt(int level,
 int do_sock_getsockopt(struct socket *sock, bool compat, int level,
 		       int optname, sockptr_t optval, sockptr_t optlen)
 {
-	int max_optlen __maybe_unused;
+	int max_optlen __maybe_unused = 0;
 	const struct proto_ops *ops;
 	int err;
 
@@ -2359,7 +2377,7 @@ int do_sock_getsockopt(struct socket *sock, bool compat, int level,
 		return err;
 
 	if (!compat)
-		max_optlen = BPF_CGROUP_GETSOCKOPT_MAX_OPTLEN(optlen);
+		copy_from_sockptr(&max_optlen, optlen, sizeof(int));
 
 	ops = READ_ONCE(sock->ops);
 	if (level == SOL_SOCKET) {

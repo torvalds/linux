@@ -12,6 +12,20 @@
 
 extern bool hang_debug;
 
+/**
+ * struct a6xx_info - a6xx specific information from device table
+ *
+ * @hwcg: hw clock gating register sequence
+ * @protect: CP_PROTECT settings
+ */
+struct a6xx_info {
+	const struct adreno_reglist *hwcg;
+	const struct adreno_protect *protect;
+	u32 gmu_chipid;
+	u32 gmu_cgc_mode;
+	u32 prim_fifo_threshold;
+};
+
 struct a6xx_gpu {
 	struct adreno_gpu base;
 

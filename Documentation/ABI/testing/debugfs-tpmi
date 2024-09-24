@@ -29,3 +29,12 @@ Example:
 echo 0,0x20,0xff > mem_write
 echo 1,64,64 > mem_write
 Users:		Debugging, any user space test suite
+
+What:		/sys/kernel/debug/tpmi-<n>/plr/domain<n>/status
+Date:		Aug 2024
+KernelVersion:	6.11
+Contact:	Tero Kristo <tero.kristo@linux.intel.com>
+Description:
+Shows the currently active Performance Limit Reasons for die level and the
+individual CPUs under the die. The contents of this file are sticky, and
+clearing all the statuses can be done by writing "0\n" to this file.

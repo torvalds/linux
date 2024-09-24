@@ -50,5 +50,5 @@ endif
 obj-$(CONFIG_BPF_PRELOAD) += preload/
 
 obj-$(CONFIG_BPF_SYSCALL) += relo_core.o
-$(obj)/relo_core.o: $(srctree)/tools/lib/bpf/relo_core.c FORCE
-	$(call if_changed_rule,cc_o_c)
+obj-$(CONFIG_BPF_SYSCALL) += btf_iter.o
+obj-$(CONFIG_BPF_SYSCALL) += btf_relocate.o

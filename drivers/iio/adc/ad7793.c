@@ -152,7 +152,6 @@ struct ad7793_chip_info {
 
 struct ad7793_state {
 	const struct ad7793_chip_info	*chip_info;
-	struct regulator		*reg;
 	u16				int_vref_mv;
 	u16				mode;
 	u16				conf;
@@ -769,11 +768,6 @@ static const struct ad7793_chip_info ad7793_chip_info_tbl[] = {
 	},
 };
 
-static void ad7793_reg_disable(void *reg)
-{
-	regulator_disable(reg);
-}
-
 static int ad7793_probe(struct spi_device *spi)
 {
 	const struct ad7793_platform_data *pdata = spi->dev.platform_data;
@@ -800,23 +794,11 @@ static int ad7793_probe(struct spi_device *spi)
 	ad_sd_init(&st->sd, indio_dev, spi, &ad7793_sigma_delta_info);
 
 	if (pdata->refsel != AD7793_REFSEL_INTERNAL) {
-		st->reg = devm_regulator_get(&spi->dev, "refin");
-		if (IS_ERR(st->reg))
-			return PTR_ERR(st->reg);
-
-		ret = regulator_enable(st->reg);
-		if (ret)
+		ret = devm_regulator_get_enable_read_voltage(&spi->dev, "refin");
+		if (ret < 0)
 			return ret;
 
-		ret = devm_add_action_or_reset(&spi->dev, ad7793_reg_disable, st->reg);
-		if (ret)
-			return ret;
-
-		vref_mv = regulator_get_voltage(st->reg);
-		if (vref_mv < 0)
-			return vref_mv;
-
-		vref_mv /= 1000;
+		vref_mv = ret / 1000;
 	} else {
 		vref_mv = 1170; /* Build-in ref */
 	}

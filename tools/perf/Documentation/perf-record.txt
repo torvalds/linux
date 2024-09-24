@@ -200,7 +200,7 @@ OPTIONS
 	  ip, id, tid, pid, cpu, time, addr, period, txn, weight, phys_addr,
 	  code_pgsz, data_pgsz, weight1, weight2, weight3, ins_lat, retire_lat,
 	  p_stage_cyc, mem_op, mem_lvl, mem_snoop, mem_remote, mem_lock,
-	  mem_dtlb, mem_blk, mem_hops
+	  mem_dtlb, mem_blk, mem_hops, uid, gid
 
 	The <operator> can be one of:
 	  ==, !=, >, >=, <, <=, &
@@ -273,10 +273,11 @@ OPTIONS
 -m::
 --mmap-pages=::
 	Number of mmap data pages (must be a power of two) or size
-	specification with appended unit character - B/K/M/G. The
-	size is rounded up to have nearest pages power of two value.
-	Also, by adding a comma, the number of mmap pages for AUX
-	area tracing can be specified.
+	specification in bytes with appended unit character - B/K/M/G.
+	The size is rounded up to the nearest power-of-two page value.
+	By adding a comma, an additional parameter with the same
+	semantics used for the normal mmap areas can be specified for
+	AUX tracing area.
 
 -g::
 	Enables call-graph (stack chain/backtrace) recording for both
@@ -311,7 +312,7 @@ OPTIONS
 	User can change the size by passing the size after comma like
 	"--call-graph dwarf,4096".
 
-	When "fp" recording is used, perf tries to save stack enties
+	When "fp" recording is used, perf tries to save stack entries
 	up to the number specified in sysctl.kernel.perf_event_max_stack
 	by default.  User can change the number by passing it after comma
 	like "--call-graph fp,32".
@@ -827,6 +828,11 @@ filtered through the mask provided by -C option.
 	Note that BPF can collect stack traces using frame pointer ("fp")
 	only, as of now.  So the applications built without the frame
 	pointer might see bogus addresses.
+
+--setup-filter=<action>::
+	Prepare BPF filter to be used by regular users.  The action should be
+	either "pin" or "unpin".  The filter can be used after it's pinned.
+
 
 include::intel-hybrid.txt[]
 

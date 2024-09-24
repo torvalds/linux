@@ -56,6 +56,8 @@ const char *die_get_decl_file(Dwarf_Die *dw_die);
 /* Get type die */
 Dwarf_Die *die_get_type(Dwarf_Die *vr_die, Dwarf_Die *die_mem);
 
+/* Get a type die, but skip qualifiers */
+Dwarf_Die *__die_get_real_type(Dwarf_Die *vr_die, Dwarf_Die *die_mem);
 /* Get a type die, but skip qualifiers and typedef */
 Dwarf_Die *die_get_real_type(Dwarf_Die *vr_die, Dwarf_Die *die_mem);
 

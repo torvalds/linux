@@ -374,6 +374,7 @@ osnoise_print_stats(struct osnoise_hist_params *params, struct osnoise_tool *too
 {
 	struct osnoise_hist_data *data = tool->data;
 	struct trace_instance *trace = &tool->trace;
+	int has_samples = 0;
 	int bucket, cpu;
 	int total;
 
@@ -402,9 +403,23 @@ osnoise_print_stats(struct osnoise_hist_params *params, struct osnoise_tool *too
 			continue;
 		}
 
+		/* There are samples above the threshold */
+		has_samples = 1;
 		trace_seq_printf(trace->seq, "\n");
 		trace_seq_do_printf(trace->seq);
 		trace_seq_reset(trace->seq);
+	}
+
+	/*
+	 * If no samples were recorded, skip calculations, print zeroed statistics
+	 * and return.
+	 */
+	if (!has_samples) {
+		trace_seq_reset(trace->seq);
+		trace_seq_printf(trace->seq, "over: 0\ncount: 0\nmin: 0\navg: 0\nmax: 0\n");
+		trace_seq_do_printf(trace->seq);
+		trace_seq_reset(trace->seq);
+		return;
 	}
 
 	if (!params->no_index)

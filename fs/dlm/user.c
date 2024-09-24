@@ -182,7 +182,7 @@ void dlm_user_add_ast(struct dlm_lkb *lkb, uint32_t flags, int mode,
 	struct dlm_user_args *ua;
 	struct dlm_user_proc *proc;
 	struct dlm_callback *cb;
-	int rv;
+	int rv, copy_lvb;
 
 	if (test_bit(DLM_DFL_ORPHAN_BIT, &lkb->lkb_dflags) ||
 	    test_bit(DLM_IFL_DEAD_BIT, &lkb->lkb_iflags))
@@ -213,28 +213,22 @@ void dlm_user_add_ast(struct dlm_lkb *lkb, uint32_t flags, int mode,
 
 	spin_lock_bh(&proc->asts_spin);
 
-	rv = dlm_queue_lkb_callback(lkb, flags, mode, status, sbflags, &cb);
-	switch (rv) {
-	case DLM_ENQUEUE_CALLBACK_NEED_SCHED:
-		cb->ua = *ua;
-		cb->lkb_lksb = &cb->ua.lksb;
-		if (cb->copy_lvb) {
-			memcpy(cb->lvbptr, ua->lksb.sb_lvbptr,
-			       DLM_USER_LVB_LEN);
-			cb->lkb_lksb->sb_lvbptr = cb->lvbptr;
-		}
+	if (!dlm_may_skip_callback(lkb, flags, mode, status, sbflags,
+				   &copy_lvb)) {
+		rv = dlm_get_cb(lkb, flags, mode, status, sbflags, &cb);
+		if (!rv) {
+			cb->copy_lvb = copy_lvb;
+			cb->ua = *ua;
+			cb->lkb_lksb = &cb->ua.lksb;
+			if (copy_lvb) {
+				memcpy(cb->lvbptr, ua->lksb.sb_lvbptr,
+				       DLM_USER_LVB_LEN);
+				cb->lkb_lksb->sb_lvbptr = cb->lvbptr;
+			}
 
-		list_add_tail(&cb->list, &proc->asts);
-		wake_up_interruptible(&proc->wait);
-		break;
-	case DLM_ENQUEUE_CALLBACK_SUCCESS:
-		break;
-	case DLM_ENQUEUE_CALLBACK_FAILURE:
-		fallthrough;
-	default:
-		spin_unlock_bh(&proc->asts_spin);
-		WARN_ON_ONCE(1);
-		goto out;
+			list_add_tail(&cb->list, &proc->asts);
+			wake_up_interruptible(&proc->wait);
+		}
 	}
 	spin_unlock_bh(&proc->asts_spin);
 
@@ -454,7 +448,7 @@ static int device_remove_lockspace(struct dlm_lspace_params *params)
 	if (params->flags & DLM_USER_LSFLG_FORCEFREE)
 		force = 2;
 
-	lockspace = ls->ls_local_handle;
+	lockspace = ls;
 	dlm_put_lockspace(ls);
 
 	/* The final dlm_release_lockspace waits for references to go to
@@ -657,7 +651,7 @@ static int device_open(struct inode *inode, struct file *file)
 		return -ENOMEM;
 	}
 
-	proc->lockspace = ls->ls_local_handle;
+	proc->lockspace = ls;
 	INIT_LIST_HEAD(&proc->asts);
 	INIT_LIST_HEAD(&proc->locks);
 	INIT_LIST_HEAD(&proc->unlocking);

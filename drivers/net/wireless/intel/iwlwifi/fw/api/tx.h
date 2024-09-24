@@ -486,7 +486,7 @@ struct agg_tx_status {
 #define IWL_MVM_TX_RES_GET_RA(_ra_tid) ((_ra_tid) >> 4)
 
 /**
- * struct iwl_mvm_tx_resp_v3 - notifies that fw is TXing a packet
+ * struct iwl_tx_resp_v3 - notifies that fw is TXing a packet
  * ( REPLY_TX = 0x1c )
  * @frame_count: 1 no aggregation, >1 aggregation
  * @bt_kill_count: num of times blocked by bluetooth (unused for agg)
@@ -517,7 +517,7 @@ struct agg_tx_status {
  * After the array of statuses comes the SSN of the SCD. Look at
  * %iwl_mvm_get_scd_ssn for more details.
  */
-struct iwl_mvm_tx_resp_v3 {
+struct iwl_tx_resp_v3 {
 	u8 frame_count;
 	u8 bt_kill_count;
 	u8 failure_rts;
@@ -543,7 +543,7 @@ struct iwl_mvm_tx_resp_v3 {
 } __packed; /* TX_RSP_API_S_VER_3 */
 
 /**
- * struct iwl_mvm_tx_resp - notifies that fw is TXing a packet
+ * struct iwl_tx_resp - notifies that fw is TXing a packet
  * ( REPLY_TX = 0x1c )
  * @frame_count: 1 no aggregation, >1 aggregation
  * @bt_kill_count: num of times blocked by bluetooth (unused for agg)
@@ -575,7 +575,7 @@ struct iwl_mvm_tx_resp_v3 {
  * After the array of statuses comes the SSN of the SCD. Look at
  * %iwl_mvm_get_scd_ssn for more details.
  */
-struct iwl_mvm_tx_resp {
+struct iwl_tx_resp {
 	u8 frame_count;
 	u8 bt_kill_count;
 	u8 failure_rts;
@@ -698,6 +698,7 @@ enum iwl_mvm_ba_resp_flags {
  * @query_frame_cnt: SCD query frame count
  * @txed: number of frames sent in the aggregation (all-TIDs)
  * @done: number of frames that were Acked by the BA (all-TIDs)
+ * @rts_retry_cnt: RTS retry count
  * @reserved: reserved (for alignment)
  * @wireless_time: Wireless-media time
  * @tx_rate: the rate the aggregation was sent at
@@ -718,7 +719,8 @@ struct iwl_mvm_compressed_ba_notif {
 	__le16 query_frame_cnt;
 	__le16 txed;
 	__le16 done;
-	__le16 reserved;
+	u8 rts_retry_cnt;
+	u8 reserved;
 	__le32 wireless_time;
 	__le32 tx_rate;
 	__le16 tfd_cnt;
@@ -821,7 +823,7 @@ struct iwl_mac_beacon_cmd {
 	     */
 
 struct iwl_beacon_notif {
-	struct iwl_mvm_tx_resp beacon_notify_hdr;
+	struct iwl_tx_resp beacon_notify_hdr;
 	__le64 tsf;
 	__le32 ibss_mgr_status;
 } __packed;
@@ -834,7 +836,7 @@ struct iwl_beacon_notif {
  * @gp2: last beacon time in gp2
  */
 struct iwl_extended_beacon_notif_v5 {
-	struct iwl_mvm_tx_resp beacon_notify_hdr;
+	struct iwl_tx_resp beacon_notify_hdr;
 	__le64 tsf;
 	__le32 ibss_mgr_status;
 	__le32 gp2;
@@ -864,7 +866,7 @@ enum iwl_dump_control {
 };
 
 /**
- * struct iwl_tx_path_flush_cmd -- queue/FIFO flush command
+ * struct iwl_tx_path_flush_cmd_v1 -- queue/FIFO flush command
  * @queues_ctl: bitmap of queues to flush
  * @flush_ctl: control flags
  * @reserved: reserved

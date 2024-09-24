@@ -190,7 +190,7 @@ static void ls_g4_pcie_reset(struct work_struct *work)
 	ls_g4_pcie_enable_interrupt(pcie);
 }
 
-static struct mobiveil_rp_ops ls_g4_pcie_rp_ops = {
+static const struct mobiveil_rp_ops ls_g4_pcie_rp_ops = {
 	.interrupt_init = ls_g4_pcie_interrupt_init,
 };
 

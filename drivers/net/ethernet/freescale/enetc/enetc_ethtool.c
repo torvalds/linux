@@ -841,7 +841,7 @@ static int enetc_set_coalesce(struct net_device *ndev,
 }
 
 static int enetc_get_ts_info(struct net_device *ndev,
-			     struct ethtool_ts_info *info)
+			     struct kernel_ethtool_ts_info *info)
 {
 	int *phc_idx;
 
@@ -849,28 +849,26 @@ static int enetc_get_ts_info(struct net_device *ndev,
 	if (phc_idx) {
 		info->phc_index = *phc_idx;
 		symbol_put(enetc_phc_index);
-	} else {
-		info->phc_index = -1;
 	}
 
-#ifdef CONFIG_FSL_ENETC_PTP_CLOCK
+	if (!IS_ENABLED(CONFIG_FSL_ENETC_PTP_CLOCK)) {
+		info->so_timestamping = SOF_TIMESTAMPING_TX_SOFTWARE;
+
+		return 0;
+	}
+
 	info->so_timestamping = SOF_TIMESTAMPING_TX_HARDWARE |
 				SOF_TIMESTAMPING_RX_HARDWARE |
 				SOF_TIMESTAMPING_RAW_HARDWARE |
-				SOF_TIMESTAMPING_TX_SOFTWARE |
-				SOF_TIMESTAMPING_RX_SOFTWARE |
-				SOF_TIMESTAMPING_SOFTWARE;
+				SOF_TIMESTAMPING_TX_SOFTWARE;
 
 	info->tx_types = (1 << HWTSTAMP_TX_OFF) |
 			 (1 << HWTSTAMP_TX_ON) |
 			 (1 << HWTSTAMP_TX_ONESTEP_SYNC);
+
 	info->rx_filters = (1 << HWTSTAMP_FILTER_NONE) |
 			   (1 << HWTSTAMP_FILTER_ALL);
-#else
-	info->so_timestamping = SOF_TIMESTAMPING_RX_SOFTWARE |
-				SOF_TIMESTAMPING_TX_SOFTWARE |
-				SOF_TIMESTAMPING_SOFTWARE;
-#endif
+
 	return 0;
 }
 

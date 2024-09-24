@@ -305,6 +305,7 @@ struct drm_i915_private {
 			INTEL_DRAM_LPDDR4,
 			INTEL_DRAM_DDR5,
 			INTEL_DRAM_LPDDR5,
+			INTEL_DRAM_GDDR,
 		} type;
 		u8 num_qgv_points;
 		u8 num_psf_gv_points;
@@ -364,12 +365,16 @@ static inline struct drm_i915_private *to_i915(const struct drm_device *dev)
 
 static inline struct drm_i915_private *kdev_to_i915(struct device *kdev)
 {
-	return dev_get_drvdata(kdev);
+	struct drm_device *drm = dev_get_drvdata(kdev);
+
+	return drm ? to_i915(drm) : NULL;
 }
 
 static inline struct drm_i915_private *pdev_to_i915(struct pci_dev *pdev)
 {
-	return pci_get_drvdata(pdev);
+	struct drm_device *drm = pci_get_drvdata(pdev);
+
+	return drm ? to_i915(drm) : NULL;
 }
 
 static inline struct intel_gt *to_gt(const struct drm_i915_private *i915)
@@ -407,14 +412,8 @@ static inline struct intel_gt *to_gt(const struct drm_i915_private *i915)
 
 #define INTEL_REVID(i915)	(to_pci_dev((i915)->drm.dev)->revision)
 
-#define INTEL_DISPLAY_STEP(__i915) (RUNTIME_INFO(__i915)->step.display_step)
 #define INTEL_GRAPHICS_STEP(__i915) (RUNTIME_INFO(__i915)->step.graphics_step)
 #define INTEL_MEDIA_STEP(__i915) (RUNTIME_INFO(__i915)->step.media_step)
-#define INTEL_BASEDIE_STEP(__i915) (RUNTIME_INFO(__i915)->step.basedie_step)
-
-#define IS_DISPLAY_STEP(__i915, since, until) \
-	(drm_WARN_ON(&(__i915)->drm, INTEL_DISPLAY_STEP(__i915) == STEP_NONE), \
-	 INTEL_DISPLAY_STEP(__i915) >= (since) && INTEL_DISPLAY_STEP(__i915) < (until))
 
 #define IS_GRAPHICS_STEP(__i915, since, until) \
 	(drm_WARN_ON(&(__i915)->drm, INTEL_GRAPHICS_STEP(__i915) == STEP_NONE), \
@@ -423,10 +422,6 @@ static inline struct intel_gt *to_gt(const struct drm_i915_private *i915)
 #define IS_MEDIA_STEP(__i915, since, until) \
 	(drm_WARN_ON(&(__i915)->drm, INTEL_MEDIA_STEP(__i915) == STEP_NONE), \
 	 INTEL_MEDIA_STEP(__i915) >= (since) && INTEL_MEDIA_STEP(__i915) < (until))
-
-#define IS_BASEDIE_STEP(__i915, since, until) \
-	(drm_WARN_ON(&(__i915)->drm, INTEL_BASEDIE_STEP(__i915) == STEP_NONE), \
-	 INTEL_BASEDIE_STEP(__i915) >= (since) && INTEL_BASEDIE_STEP(__i915) < (until))
 
 static __always_inline unsigned int
 __platform_mask_index(const struct intel_runtime_info *info,
@@ -535,8 +530,18 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
 #define IS_ALDERLAKE_P(i915) IS_PLATFORM(i915, INTEL_ALDERLAKE_P)
 #define IS_DG2(i915)	IS_PLATFORM(i915, INTEL_DG2)
 #define IS_METEORLAKE(i915) IS_PLATFORM(i915, INTEL_METEORLAKE)
-#define IS_LUNARLAKE(i915) 0
+/*
+ * Display code shared by i915 and Xe relies on macros like IS_LUNARLAKE,
+ * so we need to define these even on platforms that the i915 base driver
+ * doesn't support.  Ensure the parameter is used in the definition to
+ * avoid 'unused variable' warnings when compiling the shared display code
+ * for i915.
+ */
+#define IS_LUNARLAKE(i915) (0 && i915)
+#define IS_BATTLEMAGE(i915)  (0 && i915)
 
+#define IS_ARROWLAKE(i915) \
+	IS_SUBPLATFORM(i915, INTEL_METEORLAKE, INTEL_SUBPLATFORM_ARL)
 #define IS_DG2_G10(i915) \
 	IS_SUBPLATFORM(i915, INTEL_DG2, INTEL_SUBPLATFORM_G10)
 #define IS_DG2_G11(i915) \
@@ -669,9 +674,6 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
 	((sizes) & ~RUNTIME_INFO(i915)->page_sizes) == 0; \
 })
 
-/* Early gen2 have a totally busted CS tlb and require pinned batches. */
-#define HAS_BROKEN_CS_TLB(i915)	(IS_I830(i915) || IS_I845G(i915))
-
 #define NEEDS_RC6_CTX_CORRUPTION_WA(i915)	\
 	(IS_BROADWELL(i915) || GRAPHICS_VER(i915) == 9)
 
@@ -715,8 +717,8 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
  */
 #define HAS_64K_PAGES(i915) (INTEL_INFO(i915)->has_64k_pages)
 
-#define HAS_REGION(i915, i) (INTEL_INFO(i915)->memory_regions & (i))
-#define HAS_LMEM(i915) HAS_REGION(i915, REGION_LMEM)
+#define HAS_REGION(i915, id) (INTEL_INFO(i915)->memory_regions & BIT(id))
+#define HAS_LMEM(i915) HAS_REGION(i915, INTEL_REGION_LMEM_0)
 
 #define HAS_EXTRA_GT_LIST(i915)   (INTEL_INFO(i915)->extra_gt_list)
 

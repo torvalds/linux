@@ -53,7 +53,7 @@ static void mouse_button_fixup(struct hid_device *hdev,
 	rdesc[padding_bit + 1] = MOUSE_BUTTONS_MAX - nbuttons;
 }
 
-static __u8 *elecom_report_fixup(struct hid_device *hdev, __u8 *rdesc,
+static const __u8 *elecom_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 		unsigned int *rsize)
 {
 	switch (hdev->product) {
@@ -136,4 +136,5 @@ static struct hid_driver elecom_driver = {
 };
 module_hid_driver(elecom_driver);
 
+MODULE_DESCRIPTION("HID driver for ELECOM devices");
 MODULE_LICENSE("GPL");

@@ -27,6 +27,7 @@
 #include "soc15_int.h"
 #include "kfd_device_queue_manager.h"
 #include "kfd_smi_events.h"
+#include "amdgpu_ras.h"
 
 /*
  * GFX9 SQ Interrupts
@@ -144,9 +145,11 @@ static void event_interrupt_poison_consumption_v9(struct kfd_node *dev,
 				uint16_t pasid, uint16_t client_id)
 {
 	enum amdgpu_ras_block block = 0;
-	int old_poison;
 	uint32_t reset = 0;
 	struct kfd_process *p = kfd_lookup_process_by_pasid(pasid);
+	enum ras_event_type type = RAS_EVENT_TYPE_POISON_CONSUMPTION;
+	u64 event_id;
+	int old_poison, ret;
 
 	if (!p)
 		return;
@@ -164,7 +167,23 @@ static void event_interrupt_poison_consumption_v9(struct kfd_node *dev,
 	case SOC15_IH_CLIENTID_SE3SH:
 	case SOC15_IH_CLIENTID_UTCL2:
 		block = AMDGPU_RAS_BLOCK__GFX;
-		reset = AMDGPU_RAS_GPU_RESET_MODE2_RESET;
+		if (amdgpu_ip_version(dev->adev, GC_HWIP, 0) == IP_VERSION(9, 4, 3)) {
+			/* driver mode-2 for gfx poison is only supported by
+			 * pmfw 0x00557300 and onwards */
+			if (dev->adev->pm.fw_version < 0x00557300)
+				reset = AMDGPU_RAS_GPU_RESET_MODE1_RESET;
+			else
+				reset = AMDGPU_RAS_GPU_RESET_MODE2_RESET;
+		} else if (amdgpu_ip_version(dev->adev, GC_HWIP, 0) == IP_VERSION(9, 4, 4)) {
+			/* driver mode-2 for gfx poison is only supported by
+			 * pmfw 0x05550C00 and onwards */
+			if (dev->adev->pm.fw_version < 0x05550C00)
+				reset = AMDGPU_RAS_GPU_RESET_MODE1_RESET;
+			else
+				reset = AMDGPU_RAS_GPU_RESET_MODE2_RESET;
+		} else {
+			reset = AMDGPU_RAS_GPU_RESET_MODE2_RESET;
+		}
 		break;
 	case SOC15_IH_CLIENTID_VMC:
 	case SOC15_IH_CLIENTID_VMC1:
@@ -177,7 +196,23 @@ static void event_interrupt_poison_consumption_v9(struct kfd_node *dev,
 	case SOC15_IH_CLIENTID_SDMA3:
 	case SOC15_IH_CLIENTID_SDMA4:
 		block = AMDGPU_RAS_BLOCK__SDMA;
-		reset = AMDGPU_RAS_GPU_RESET_MODE2_RESET;
+		if (amdgpu_ip_version(dev->adev, SDMA0_HWIP, 0) == IP_VERSION(4, 4, 2)) {
+			/* driver mode-2 for gfx poison is only supported by
+			 * pmfw 0x00557300 and onwards */
+			if (dev->adev->pm.fw_version < 0x00557300)
+				reset = AMDGPU_RAS_GPU_RESET_MODE1_RESET;
+			else
+				reset = AMDGPU_RAS_GPU_RESET_MODE2_RESET;
+		} else if (amdgpu_ip_version(dev->adev, SDMA0_HWIP, 0) == IP_VERSION(4, 4, 5)) {
+			/* driver mode-2 for gfx poison is only supported by
+			 * pmfw 0x05550C00 and onwards */
+			if (dev->adev->pm.fw_version < 0x05550C00)
+				reset = AMDGPU_RAS_GPU_RESET_MODE1_RESET;
+			else
+				reset = AMDGPU_RAS_GPU_RESET_MODE2_RESET;
+		} else {
+			reset = AMDGPU_RAS_GPU_RESET_MODE2_RESET;
+		}
 		break;
 	default:
 		dev_warn(dev->adev->dev,
@@ -185,10 +220,16 @@ static void event_interrupt_poison_consumption_v9(struct kfd_node *dev,
 		return;
 	}
 
+	ret = amdgpu_ras_mark_ras_event(dev->adev, type);
+	if (ret)
+		return;
+
 	kfd_signal_poison_consumed_event(dev, pasid);
 
-	dev_warn(dev->adev->dev,
-		 "poison is consumed by client %d, kick off gpu reset flow\n", client_id);
+	event_id = amdgpu_ras_acquire_event_id(dev->adev, type);
+
+	RAS_EVENT_LOG(dev->adev, event_id,
+		      "poison is consumed by client %d, kick off gpu reset flow\n", client_id);
 
 	amdgpu_amdkfd_ras_pasid_poison_consumption_handler(dev->adev,
 		block, pasid, NULL, NULL, reset);
@@ -414,25 +455,9 @@ static void event_interrupt_wq_v9(struct kfd_node *dev,
 		   client_id == SOC15_IH_CLIENTID_UTCL2) {
 		struct kfd_vm_fault_info info = {0};
 		uint16_t ring_id = SOC15_RING_ID_FROM_IH_ENTRY(ih_ring_entry);
-		uint32_t node_id = SOC15_NODEID_FROM_IH_ENTRY(ih_ring_entry);
-		uint32_t vmid_type = SOC15_VMID_TYPE_FROM_IH_ENTRY(ih_ring_entry);
-		int hub_inst = 0;
 		struct kfd_hsa_memory_exception_data exception_data;
 
-		/* gfxhub */
-		if (!vmid_type && dev->adev->gfx.funcs->ih_node_to_logical_xcc) {
-			hub_inst = dev->adev->gfx.funcs->ih_node_to_logical_xcc(dev->adev,
-				node_id);
-			if (hub_inst < 0)
-				hub_inst = 0;
-		}
-
-		/* mmhub */
-		if (vmid_type && client_id == SOC15_IH_CLIENTID_VMC)
-			hub_inst = node_id / 4;
-
-		if (amdgpu_amdkfd_ras_query_utcl2_poison_status(dev->adev,
-					hub_inst, vmid_type)) {
+		if (source_id == SOC15_INTSRC_VMC_UTCL2_POISON) {
 			event_interrupt_poison_consumption_v9(dev, pasid, client_id);
 			return;
 		}

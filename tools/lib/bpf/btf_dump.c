@@ -304,7 +304,7 @@ int btf_dump__dump_type(struct btf_dump *d, __u32 id)
  * definition, in which case they have to be declared inline as part of field
  * type declaration; or as a top-level anonymous enum, typically used for
  * declaring global constants. It's impossible to distinguish between two
- * without knowning whether given enum type was referenced from other type:
+ * without knowing whether given enum type was referenced from other type:
  * top-level anonymous enum won't be referenced by anything, while embedded
  * one will.
  */
@@ -1559,10 +1559,12 @@ static void btf_dump_emit_type_chain(struct btf_dump *d,
 			 * Clang for BPF target generates func_proto with no
 			 * args as a func_proto with a single void arg (e.g.,
 			 * `int (*f)(void)` vs just `int (*f)()`). We are
-			 * going to pretend there are no args for such case.
+			 * going to emit valid empty args (void) syntax for
+			 * such case. Similarly and conveniently, valid
+			 * no args case can be special-cased here as well.
 			 */
-			if (vlen == 1 && p->type == 0) {
-				btf_dump_printf(d, ")");
+			if (vlen == 0 || (vlen == 1 && p->type == 0)) {
+				btf_dump_printf(d, "void)");
 				return;
 			}
 

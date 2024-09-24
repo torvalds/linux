@@ -293,7 +293,7 @@ out:
 	/* If we trim data a full sg elem before curr pointer update
 	 * copybreak and current so that any future copy operations
 	 * start at new copy location.
-	 * However trimed data that has not yet been used in a copy op
+	 * However trimmed data that has not yet been used in a copy op
 	 * does not require an update.
 	 */
 	if (!msg->sg.size) {
@@ -434,7 +434,8 @@ int sk_msg_recvmsg(struct sock *sk, struct sk_psock *psock, struct msghdr *msg,
 			page = sg_page(sge);
 			if (copied + copy > len)
 				copy = len - copied;
-			copy = copy_page_to_iter(page, sge->offset, copy, iter);
+			if (copy)
+				copy = copy_page_to_iter(page, sge->offset, copy, iter);
 			if (!copy) {
 				copied = copied ? copied : -EFAULT;
 				goto out;

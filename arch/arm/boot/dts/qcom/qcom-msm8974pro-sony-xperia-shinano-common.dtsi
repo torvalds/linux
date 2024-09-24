@@ -380,6 +380,8 @@
 		pm8941_l21: l21 {
 			regulator-min-microvolt = <2950000>;
 			regulator-max-microvolt = <2950000>;
+			regulator-system-load = <500000>;
+			regulator-allow-set-load;
 			regulator-boot-on;
 		};
 

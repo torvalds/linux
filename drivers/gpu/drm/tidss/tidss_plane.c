@@ -8,6 +8,7 @@
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_blend.h>
 #include <drm/drm_crtc.h>
+#include <drm/drm_fb_dma_helper.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_framebuffer.h>
 #include <drm/drm_gem_atomic_helper.h>
@@ -166,6 +167,14 @@ static const struct drm_plane_helper_funcs tidss_plane_helper_funcs = {
 	.atomic_disable = tidss_plane_atomic_disable,
 };
 
+static const struct drm_plane_helper_funcs tidss_primary_plane_helper_funcs = {
+	.atomic_check = tidss_plane_atomic_check,
+	.atomic_update = tidss_plane_atomic_update,
+	.atomic_enable = tidss_plane_atomic_enable,
+	.atomic_disable = tidss_plane_atomic_disable,
+	.get_scanout_buffer = drm_fb_dma_get_scanout_buffer,
+};
+
 static const struct drm_plane_funcs tidss_plane_funcs = {
 	.update_plane = drm_atomic_helper_update_plane,
 	.disable_plane = drm_atomic_helper_disable_plane,
@@ -211,7 +220,10 @@ struct tidss_plane *tidss_plane_create(struct tidss_device *tidss,
 	if (ret < 0)
 		goto err;
 
-	drm_plane_helper_add(&tplane->plane, &tidss_plane_helper_funcs);
+	if (type == DRM_PLANE_TYPE_PRIMARY)
+		drm_plane_helper_add(&tplane->plane, &tidss_primary_plane_helper_funcs);
+	else
+		drm_plane_helper_add(&tplane->plane, &tidss_plane_helper_funcs);
 
 	drm_plane_create_zpos_property(&tplane->plane, tidss->num_planes, 0,
 				       num_planes - 1);

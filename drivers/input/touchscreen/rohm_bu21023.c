@@ -643,12 +643,12 @@ static int rohm_ts_load_firmware(struct i2c_client *client,
 				 const char *firmware_name)
 {
 	struct device *dev = &client->dev;
-	const struct firmware *fw;
 	s32 status;
 	unsigned int offset, len, xfer_len;
 	unsigned int retry = 0;
 	int error, error2;
 
+	const struct firmware *fw __free(firmware) = NULL;
 	error = request_firmware(&fw, firmware_name, dev);
 	if (error) {
 		dev_err(dev, "unable to retrieve firmware %s: %d\n",
@@ -722,9 +722,30 @@ static int rohm_ts_load_firmware(struct i2c_client *client,
 out:
 	error2 = i2c_smbus_write_byte_data(client, INT_MASK, INT_ALL);
 
-	release_firmware(fw);
-
 	return error ? error : error2;
+}
+
+static int rohm_ts_update_setting(struct rohm_ts_data *ts,
+				  unsigned int setting_bit, bool on)
+{
+	int error;
+
+	scoped_cond_guard(mutex_intr, return -EINTR, &ts->input->mutex) {
+		if (on)
+			ts->setup2 |= setting_bit;
+		else
+			ts->setup2 &= ~setting_bit;
+
+		if (ts->initialized) {
+			error = i2c_smbus_write_byte_data(ts->client,
+							  COMMON_SETUP2,
+							  ts->setup2);
+			if (error)
+				return error;
+		}
+	}
+
+	return 0;
 }
 
 static ssize_t swap_xy_show(struct device *dev, struct device_attribute *attr,
@@ -733,7 +754,7 @@ static ssize_t swap_xy_show(struct device *dev, struct device_attribute *attr,
 	struct i2c_client *client = to_i2c_client(dev);
 	struct rohm_ts_data *ts = i2c_get_clientdata(client);
 
-	return sprintf(buf, "%d\n", !!(ts->setup2 & SWAP_XY));
+	return sysfs_emit(buf, "%d\n", !!(ts->setup2 & SWAP_XY));
 }
 
 static ssize_t swap_xy_store(struct device *dev, struct device_attribute *attr,
@@ -748,22 +769,8 @@ static ssize_t swap_xy_store(struct device *dev, struct device_attribute *attr,
 	if (error)
 		return error;
 
-	error = mutex_lock_interruptible(&ts->input->mutex);
-	if (error)
-		return error;
-
-	if (val)
-		ts->setup2 |= SWAP_XY;
-	else
-		ts->setup2 &= ~SWAP_XY;
-
-	if (ts->initialized)
-		error = i2c_smbus_write_byte_data(ts->client, COMMON_SETUP2,
-						  ts->setup2);
-
-	mutex_unlock(&ts->input->mutex);
-
-	return error ? error : count;
+	error = rohm_ts_update_setting(ts, SWAP_XY, val);
+	return error ?: count;
 }
 
 static ssize_t inv_x_show(struct device *dev, struct device_attribute *attr,
@@ -772,7 +779,7 @@ static ssize_t inv_x_show(struct device *dev, struct device_attribute *attr,
 	struct i2c_client *client = to_i2c_client(dev);
 	struct rohm_ts_data *ts = i2c_get_clientdata(client);
 
-	return sprintf(buf, "%d\n", !!(ts->setup2 & INV_X));
+	return sysfs_emit(buf, "%d\n", !!(ts->setup2 & INV_X));
 }
 
 static ssize_t inv_x_store(struct device *dev, struct device_attribute *attr,
@@ -787,22 +794,8 @@ static ssize_t inv_x_store(struct device *dev, struct device_attribute *attr,
 	if (error)
 		return error;
 
-	error = mutex_lock_interruptible(&ts->input->mutex);
-	if (error)
-		return error;
-
-	if (val)
-		ts->setup2 |= INV_X;
-	else
-		ts->setup2 &= ~INV_X;
-
-	if (ts->initialized)
-		error = i2c_smbus_write_byte_data(ts->client, COMMON_SETUP2,
-						  ts->setup2);
-
-	mutex_unlock(&ts->input->mutex);
-
-	return error ? error : count;
+	error = rohm_ts_update_setting(ts, INV_X, val);
+	return error ?: count;
 }
 
 static ssize_t inv_y_show(struct device *dev, struct device_attribute *attr,
@@ -811,7 +804,7 @@ static ssize_t inv_y_show(struct device *dev, struct device_attribute *attr,
 	struct i2c_client *client = to_i2c_client(dev);
 	struct rohm_ts_data *ts = i2c_get_clientdata(client);
 
-	return sprintf(buf, "%d\n", !!(ts->setup2 & INV_Y));
+	return sysfs_emit(buf, "%d\n", !!(ts->setup2 & INV_Y));
 }
 
 static ssize_t inv_y_store(struct device *dev, struct device_attribute *attr,
@@ -826,22 +819,8 @@ static ssize_t inv_y_store(struct device *dev, struct device_attribute *attr,
 	if (error)
 		return error;
 
-	error = mutex_lock_interruptible(&ts->input->mutex);
-	if (error)
-		return error;
-
-	if (val)
-		ts->setup2 |= INV_Y;
-	else
-		ts->setup2 &= ~INV_Y;
-
-	if (ts->initialized)
-		error = i2c_smbus_write_byte_data(client, COMMON_SETUP2,
-						  ts->setup2);
-
-	mutex_unlock(&ts->input->mutex);
-
-	return error ? error : count;
+	error = rohm_ts_update_setting(ts, INV_Y, val);
+	return error ?: count;
 }
 
 static DEVICE_ATTR_RW(swap_xy);
@@ -861,7 +840,7 @@ static int rohm_ts_device_init(struct i2c_client *client, u8 setup2)
 	struct device *dev = &client->dev;
 	int error;
 
-	disable_irq(client->irq);
+	guard(disable_irq)(&client->irq);
 
 	/*
 	 * Wait 200usec for reset
@@ -1036,10 +1015,10 @@ static int rohm_ts_device_init(struct i2c_client *client, u8 setup2)
 	/* controller CPU power on */
 	error = i2c_smbus_write_byte_data(client, SYSTEM,
 					  ANALOG_POWER_ON | CPU_POWER_ON);
+	if (error)
+		return error;
 
-	enable_irq(client->irq);
-
-	return error;
+	return 0;
 }
 
 static int rohm_ts_power_off(struct i2c_client *client)

@@ -49,7 +49,7 @@ static void panel_encoder_dpms(struct drm_encoder *encoder, int mode)
 
 	if (backlight) {
 		backlight->props.power = mode == DRM_MODE_DPMS_ON ?
-					 FB_BLANK_UNBLANK : FB_BLANK_POWERDOWN;
+					 BACKLIGHT_POWER_ON : BACKLIGHT_POWER_OFF;
 		backlight_update_status(backlight);
 	}
 

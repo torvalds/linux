@@ -28,9 +28,9 @@ static const struct mcb_device_id *mcb_match_id(const struct mcb_device_id *ids,
 	return NULL;
 }
 
-static int mcb_match(struct device *dev, struct device_driver *drv)
+static int mcb_match(struct device *dev, const struct device_driver *drv)
 {
-	struct mcb_driver *mdrv = to_mcb_driver(drv);
+	const struct mcb_driver *mdrv = to_mcb_driver(drv);
 	struct mcb_device *mdev = to_mcb_device(dev);
 	const struct mcb_device_id *found_id;
 

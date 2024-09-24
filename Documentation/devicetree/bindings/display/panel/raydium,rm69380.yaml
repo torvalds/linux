@@ -28,6 +28,9 @@ properties:
       to work with the indicated panel. The raydium,rm69380 compatible shall
       always be provided as a fallback.
 
+  reg:
+    maxItems: 1
+
   avdd-supply:
     description: Analog voltage rail
 
@@ -37,8 +40,6 @@ properties:
   reset-gpios:
     maxItems: 1
     description: phandle of gpio for reset line - This should be active low
-
-  reg: true
 
 required:
   - compatible

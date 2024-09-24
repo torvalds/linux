@@ -1515,7 +1515,7 @@ again:
 		       value == key);
 	}
 
-	/* Now let's delete all elemenets in parallel. */
+	/* Now let's delete all elements in parallel. */
 	data[1] = DO_DELETE;
 	run_parallel(TASKS, test_update_delete, data);
 

@@ -976,13 +976,6 @@ static struct drx_aud_data drxj_default_aud_data_g = {
 /*-----------------------------------------------------------------------------
 STRUCTURES
 ----------------------------------------------------------------------------*/
-struct drxjeq_stat {
-	u16 eq_mse;
-	u8 eq_mode;
-	u8 eq_ctrl;
-	u8 eq_stat;
-};
-
 /* HI command */
 struct drxj_hi_cmd {
 	u16 cmd;

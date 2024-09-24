@@ -218,7 +218,7 @@ static const struct platform_device_id i2c_pxa_id_table[] = {
 	{ "ce4100-i2c",		REGS_CE4100 },
 	{ "pxa910-i2c",		REGS_PXA910 },
 	{ "armada-3700-i2c",	REGS_A3700  },
-	{ },
+	{ }
 };
 MODULE_DEVICE_TABLE(platform, i2c_pxa_id_table);
 
@@ -1593,6 +1593,7 @@ static void __exit i2c_adap_pxa_exit(void)
 	platform_driver_unregister(&i2c_pxa_driver);
 }
 
+MODULE_DESCRIPTION("Intel PXA2XX I2C adapter");
 MODULE_LICENSE("GPL");
 
 subsys_initcall(i2c_adap_pxa_init);

@@ -24,7 +24,7 @@
 #include "accessors.h"
 #include "dir-item.h"
 
-int btrfs_getxattr(struct inode *inode, const char *name,
+int btrfs_getxattr(const struct inode *inode, const char *name,
 				void *buffer, size_t size)
 {
 	struct btrfs_dir_item *di;
@@ -120,7 +120,7 @@ int btrfs_setxattr(struct btrfs_trans_handle *trans, struct inode *inode,
 	 * locks the inode's i_mutex before calling setxattr or removexattr.
 	 */
 	if (flags & XATTR_REPLACE) {
-		ASSERT(inode_is_locked(inode));
+		btrfs_assert_inode_locked(BTRFS_I(inode));
 		di = btrfs_lookup_xattr(NULL, root, path,
 				btrfs_ino(BTRFS_I(inode)), name, name_len, 0);
 		if (!di)
@@ -451,7 +451,7 @@ static int btrfs_xattr_handler_set_prop(const struct xattr_handler *handler,
 	if (IS_ERR(trans))
 		return PTR_ERR(trans);
 
-	ret = btrfs_set_prop(trans, inode, name, value, size, flags);
+	ret = btrfs_set_prop(trans, BTRFS_I(inode), name, value, size, flags);
 	if (!ret) {
 		inode_inc_iversion(inode);
 		inode_set_ctime_current(inode);

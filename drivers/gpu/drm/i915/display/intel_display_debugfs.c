@@ -13,6 +13,7 @@
 #include "i915_debugfs.h"
 #include "i915_irq.h"
 #include "i915_reg.h"
+#include "intel_alpm.h"
 #include "intel_crtc.h"
 #include "intel_de.h"
 #include "intel_crtc_state_dump.h"
@@ -23,6 +24,7 @@
 #include "intel_display_types.h"
 #include "intel_dmc.h"
 #include "intel_dp.h"
+#include "intel_dp_link_training.h"
 #include "intel_dp_mst.h"
 #include "intel_drrs.h"
 #include "intel_fbc.h"
@@ -34,6 +36,7 @@
 #include "intel_pps.h"
 #include "intel_psr.h"
 #include "intel_psr_regs.h"
+#include "intel_vdsc.h"
 #include "intel_wm.h"
 
 static inline struct drm_i915_private *node_to_i915(struct drm_info_node *node)
@@ -76,7 +79,7 @@ static int i915_sr_status(struct seq_file *m, void *unused)
 	else if (IS_I915GM(dev_priv))
 		sr_enabled = intel_de_read(dev_priv, INSTPM) & INSTPM_SELF_EN;
 	else if (IS_PINEVIEW(dev_priv))
-		sr_enabled = intel_de_read(dev_priv, DSPFW3) & PINEVIEW_SELF_REFRESH_EN;
+		sr_enabled = intel_de_read(dev_priv, DSPFW3(dev_priv)) & PINEVIEW_SELF_REFRESH_EN;
 	else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
 		sr_enabled = intel_de_read(dev_priv, FW_BLC_SELF_VLV) & FW_CSPWRDWNEN;
 
@@ -490,7 +493,7 @@ static void crtc_updates_info(struct seq_file *m,
 	seq_printf(m, "%sMax update: %lluns\n",
 		   hdr, crtc->debug.vbl.max);
 	seq_printf(m, "%sAverage update: %lluns\n",
-		   hdr, div64_u64(crtc->debug.vbl.sum,  count));
+		   hdr, div64_u64(crtc->debug.vbl.sum, count));
 	seq_printf(m, "%sOverruns > %uus: %u\n",
 		   hdr, VBLANK_EVASION_TIME_US, crtc->debug.vbl.over);
 }
@@ -549,6 +552,7 @@ static void crtc_updates_add(struct intel_crtc *crtc)
 static void intel_crtc_info(struct seq_file *m, struct intel_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
+	struct drm_printer p = drm_seq_file_printer(m);
 	const struct intel_crtc_state *crtc_state =
 		to_intel_crtc_state(crtc->base.state);
 	struct intel_encoder *encoder;
@@ -574,10 +578,12 @@ static void intel_crtc_info(struct seq_file *m, struct intel_crtc *crtc)
 
 	intel_scaler_info(m, crtc);
 
-	if (crtc_state->bigjoiner_pipes)
+	if (crtc_state->joiner_pipes)
 		seq_printf(m, "\tLinked to 0x%x pipes as a %s\n",
-			   crtc_state->bigjoiner_pipes,
-			   intel_crtc_is_bigjoiner_slave(crtc_state) ? "slave" : "master");
+			   crtc_state->joiner_pipes,
+			   intel_crtc_is_joiner_secondary(crtc_state) ? "slave" : "master");
+
+	intel_vdsc_state_dump(&p, 1, crtc_state);
 
 	for_each_intel_encoder_mask(&dev_priv->drm, encoder,
 				    crtc_state->uapi.encoder_mask)
@@ -1006,7 +1012,7 @@ i915_fifo_underrun_reset_write(struct file *filp,
 			return ret;
 	}
 
-	intel_fbc_reset_underrun(dev_priv);
+	intel_fbc_reset_underrun(&dev_priv->display);
 
 	return cnt;
 }
@@ -1043,6 +1049,7 @@ static const struct {
 
 void intel_display_debugfs_register(struct drm_i915_private *i915)
 {
+	struct intel_display *display = &i915->display;
 	struct drm_minor *minor = i915->drm.primary;
 	int i;
 
@@ -1058,15 +1065,15 @@ void intel_display_debugfs_register(struct drm_i915_private *i915)
 				 ARRAY_SIZE(intel_display_debugfs_list),
 				 minor->debugfs_root, minor);
 
-	intel_bios_debugfs_register(i915);
+	intel_bios_debugfs_register(display);
 	intel_cdclk_debugfs_register(i915);
 	intel_dmc_debugfs_register(i915);
-	intel_fbc_debugfs_register(i915);
+	intel_fbc_debugfs_register(display);
 	intel_hpd_debugfs_register(i915);
-	intel_opregion_debugfs_register(i915);
-	intel_psr_debugfs_register(i915);
+	intel_opregion_debugfs_register(display);
+	intel_psr_debugfs_register(display);
 	intel_wm_debugfs_register(i915);
-	intel_display_debugfs_params(i915);
+	intel_display_debugfs_params(display);
 }
 
 static int i915_hdcp_sink_capability_show(struct seq_file *m, void *data)
@@ -1515,6 +1522,8 @@ void intel_connector_debugfs_add(struct intel_connector *connector)
 	intel_drrs_connector_debugfs_add(connector);
 	intel_pps_connector_debugfs_add(connector);
 	intel_psr_connector_debugfs_add(connector);
+	intel_alpm_lobf_debugfs_add(connector);
+	intel_dp_link_training_debugfs_add(connector);
 
 	if (connector_type == DRM_MODE_CONNECTOR_DisplayPort ||
 	    connector_type == DRM_MODE_CONNECTOR_HDMIA ||

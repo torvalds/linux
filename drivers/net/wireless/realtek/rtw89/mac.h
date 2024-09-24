@@ -421,7 +421,6 @@ enum rtw89_mac_c2h_mrc_func {
 
 enum rtw89_mac_c2h_wow_func {
 	RTW89_MAC_C2H_FUNC_AOAC_REPORT,
-	RTW89_MAC_C2H_FUNC_READ_WOW_CAM,
 
 	NUM_OF_RTW89_MAC_C2H_FUNC_WOW,
 };
@@ -466,6 +465,16 @@ enum rtw89_mac_mrc_status {
 	RTW89_MAC_MRC_START_SCH_OK = 0,
 	RTW89_MAC_MRC_STOP_SCH_OK = 1,
 	RTW89_MAC_MRC_DEL_SCH_OK = 2,
+	RTW89_MAC_MRC_EMPTY_SCH_FAIL = 16,
+	RTW89_MAC_MRC_ROLE_NOT_EXIST_FAIL = 17,
+	RTW89_MAC_MRC_DATA_NOT_FOUND_FAIL = 18,
+	RTW89_MAC_MRC_GET_NEXT_SLOT_FAIL = 19,
+	RTW89_MAC_MRC_ALT_ROLE_FAIL = 20,
+	RTW89_MAC_MRC_ADD_PSTIMER_FAIL = 21,
+	RTW89_MAC_MRC_MALLOC_FAIL = 22,
+	RTW89_MAC_MRC_SWITCH_CH_FAIL = 23,
+	RTW89_MAC_MRC_TXNULL0_FAIL = 24,
+	RTW89_MAC_MRC_PORT_FUNC_EN_FAIL = 25,
 };
 
 struct rtw89_mac_ax_coex {
@@ -875,12 +884,14 @@ struct rtw89_mac_size_set {
 	const struct rtw89_dle_size wde_size9;
 	const struct rtw89_dle_size wde_size18;
 	const struct rtw89_dle_size wde_size19;
+	const struct rtw89_dle_size wde_size23;
 	const struct rtw89_dle_size ple_size0;
 	const struct rtw89_dle_size ple_size0_v1;
 	const struct rtw89_dle_size ple_size3_v1;
 	const struct rtw89_dle_size ple_size4;
 	const struct rtw89_dle_size ple_size6;
 	const struct rtw89_dle_size ple_size8;
+	const struct rtw89_dle_size ple_size9;
 	const struct rtw89_dle_size ple_size18;
 	const struct rtw89_dle_size ple_size19;
 	const struct rtw89_wde_quota wde_qt0;
@@ -890,6 +901,7 @@ struct rtw89_mac_size_set {
 	const struct rtw89_wde_quota wde_qt7;
 	const struct rtw89_wde_quota wde_qt17;
 	const struct rtw89_wde_quota wde_qt18;
+	const struct rtw89_wde_quota wde_qt23;
 	const struct rtw89_ple_quota ple_qt0;
 	const struct rtw89_ple_quota ple_qt1;
 	const struct rtw89_ple_quota ple_qt4;
@@ -901,9 +913,12 @@ struct rtw89_mac_size_set {
 	const struct rtw89_ple_quota ple_qt45;
 	const struct rtw89_ple_quota ple_qt46;
 	const struct rtw89_ple_quota ple_qt47;
+	const struct rtw89_ple_quota ple_qt57;
 	const struct rtw89_ple_quota ple_qt58;
+	const struct rtw89_ple_quota ple_qt59;
 	const struct rtw89_ple_quota ple_qt_52a_wow;
 	const struct rtw89_ple_quota ple_qt_52b_wow;
+	const struct rtw89_ple_quota ple_qt_52bt_wow;
 	const struct rtw89_ple_quota ple_qt_51b_wow;
 	const struct rtw89_rsvd_quota ple_rsvd_qt0;
 	const struct rtw89_rsvd_quota ple_rsvd_qt1;
@@ -990,9 +1005,12 @@ struct rtw89_mac_gen_def {
 
 	int (*add_chan_list)(struct rtw89_dev *rtwdev,
 			     struct rtw89_vif *rtwvif, bool connected);
+	int (*add_chan_list_pno)(struct rtw89_dev *rtwdev,
+				 struct rtw89_vif *rtwvif);
 	int (*scan_offload)(struct rtw89_dev *rtwdev,
 			    struct rtw89_scan_option *option,
-			    struct rtw89_vif *rtwvif);
+			    struct rtw89_vif *rtwvif,
+			    bool wowlan);
 
 	int (*wow_config_mac)(struct rtw89_dev *rtwdev, bool enable_wow);
 };
@@ -1446,5 +1464,6 @@ int rtw89_mac_dle_quota_change(struct rtw89_dev *rtwdev, enum rtw89_qta_mode mod
 int rtw89_mac_get_dle_rsvd_qt_cfg(struct rtw89_dev *rtwdev,
 				  enum rtw89_mac_dle_rsvd_qt_type type,
 				  struct rtw89_mac_dle_rsvd_qt_cfg *cfg);
+int rtw89_mac_cpu_io_rx(struct rtw89_dev *rtwdev, bool wow_enable);
 
 #endif

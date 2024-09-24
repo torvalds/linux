@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: GPL-2.0
+config VIDEO_E5010_JPEG_ENC
+	tristate "Imagination E5010 JPEG Encoder Driver"
+	depends on VIDEO_DEV
+	depends on ARCH_K3 || COMPILE_TEST
+	select VIDEOBUF2_DMA_CONTIG
+	select VIDEOBUF2_VMALLOC
+	select V4L2_MEM2MEM_DEV
+	select V4L2_JPEG_HELPER
+	help
+	  This is a video4linux2 M2M driver for Imagination E5010 JPEG encoder,
+	  which supports JPEG and MJPEG baseline encoding of YUV422 and YUV420
+	  semiplanar video formats, with resolution ranging from 64x64 to 8K x 8K
+	  pixels. The module will be named as e5010_jpeg_enc.

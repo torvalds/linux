@@ -90,9 +90,9 @@ greybus_match_id(struct gb_bundle *bundle, const struct greybus_bundle_id *id)
 	return NULL;
 }
 
-static int greybus_match_device(struct device *dev, struct device_driver *drv)
+static int greybus_match_device(struct device *dev, const struct device_driver *drv)
 {
-	struct greybus_driver *driver = to_greybus_driver(drv);
+	const struct greybus_driver *driver = to_greybus_driver(drv);
 	struct gb_bundle *bundle;
 	const struct greybus_bundle_id *id;
 
@@ -375,5 +375,6 @@ static void __exit gb_exit(void)
 	tracepoint_synchronize_unregister();
 }
 module_exit(gb_exit);
+MODULE_DESCRIPTION("Greybus core driver");
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Greg Kroah-Hartman <gregkh@linuxfoundation.org>");

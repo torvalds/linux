@@ -90,9 +90,16 @@
 		timeout-ms = <5000>;
 	};
 
-	gpio-beeper {
-		compatible = "gpio-beeper";
+	gpio_pwm: pwm {
+		#pwm-cells = <3>;
+		compatible = "pwm-gpio";
 		gpios = <&gpio0 4 GPIO_ACTIVE_HIGH>;
+	};
+
+	beeper {
+		compatible = "pwm-beeper";
+		pwms = <&gpio_pwm 0 1 0>;
+		beeper-hz = <1000>;
 	};
 
 	soc {

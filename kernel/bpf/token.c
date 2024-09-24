@@ -122,10 +122,10 @@ int bpf_token_create(union bpf_attr *attr)
 	int err, fd;
 
 	f = fdget(attr->token_create.bpffs_fd);
-	if (!f.file)
+	if (!fd_file(f))
 		return -EBADF;
 
-	path = f.file->f_path;
+	path = fd_file(f)->f_path;
 	path_get(&path);
 	fdput(f);
 
@@ -235,14 +235,14 @@ struct bpf_token *bpf_token_get_from_fd(u32 ufd)
 	struct fd f = fdget(ufd);
 	struct bpf_token *token;
 
-	if (!f.file)
+	if (!fd_file(f))
 		return ERR_PTR(-EBADF);
-	if (f.file->f_op != &bpf_token_fops) {
+	if (fd_file(f)->f_op != &bpf_token_fops) {
 		fdput(f);
 		return ERR_PTR(-EINVAL);
 	}
 
-	token = f.file->private_data;
+	token = fd_file(f)->private_data;
 	bpf_token_inc(token);
 	fdput(f);
 

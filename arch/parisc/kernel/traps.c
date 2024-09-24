@@ -504,7 +504,7 @@ void notrace handle_interruption(int code, struct pt_regs *regs)
 	if (((unsigned long)regs->iaoq[0] & 3) &&
 	    ((unsigned long)regs->iasq[0] != (unsigned long)regs->sr[7])) { 
 		/* Kill the user process later */
-		regs->iaoq[0] = 0 | 3;
+		regs->iaoq[0] = 0 | PRIV_USER;
 		regs->iaoq[1] = regs->iaoq[0] + 4;
 		regs->iasq[0] = regs->iasq[1] = regs->sr[7];
 		regs->gr[0] &= ~PSW_B;

@@ -126,6 +126,81 @@ static spinlock_t bsd_socket_locks[UNIX_HASH_SIZE / 2];
  *    hash table is protected with spinlock.
  *    each socket state is protected by separate spinlock.
  */
+#ifdef CONFIG_PROVE_LOCKING
+#define cmp_ptr(l, r)	(((l) > (r)) - ((l) < (r)))
+
+static int unix_table_lock_cmp_fn(const struct lockdep_map *a,
+				  const struct lockdep_map *b)
+{
+	return cmp_ptr(a, b);
+}
+
+static int unix_state_lock_cmp_fn(const struct lockdep_map *_a,
+				  const struct lockdep_map *_b)
+{
+	const struct unix_sock *a, *b;
+
+	a = container_of(_a, struct unix_sock, lock.dep_map);
+	b = container_of(_b, struct unix_sock, lock.dep_map);
+
+	if (a->sk.sk_state == TCP_LISTEN) {
+		/* unix_stream_connect(): Before the 2nd unix_state_lock(),
+		 *
+		 *   1. a is TCP_LISTEN.
+		 *   2. b is not a.
+		 *   3. concurrent connect(b -> a) must fail.
+		 *
+		 * Except for 2. & 3., the b's state can be any possible
+		 * value due to concurrent connect() or listen().
+		 *
+		 * 2. is detected in debug_spin_lock_before(), and 3. cannot
+		 * be expressed as lock_cmp_fn.
+		 */
+		switch (b->sk.sk_state) {
+		case TCP_CLOSE:
+		case TCP_ESTABLISHED:
+		case TCP_LISTEN:
+			return -1;
+		default:
+			/* Invalid case. */
+			return 0;
+		}
+	}
+
+	/* Should never happen.  Just to be symmetric. */
+	if (b->sk.sk_state == TCP_LISTEN) {
+		switch (b->sk.sk_state) {
+		case TCP_CLOSE:
+		case TCP_ESTABLISHED:
+			return 1;
+		default:
+			return 0;
+		}
+	}
+
+	/* unix_state_double_lock(): ascending address order. */
+	return cmp_ptr(a, b);
+}
+
+static int unix_recvq_lock_cmp_fn(const struct lockdep_map *_a,
+				  const struct lockdep_map *_b)
+{
+	const struct sock *a, *b;
+
+	a = container_of(_a, struct sock, sk_receive_queue.lock.dep_map);
+	b = container_of(_b, struct sock, sk_receive_queue.lock.dep_map);
+
+	/* unix_collect_skb(): listener -> embryo order. */
+	if (a->sk_state == TCP_LISTEN && unix_sk(b)->listener == a)
+		return -1;
+
+	/* Should never happen.  Just to be symmetric. */
+	if (b->sk_state == TCP_LISTEN && unix_sk(a)->listener == b)
+		return 1;
+
+	return 0;
+}
+#endif
 
 static unsigned int unix_unbound_hash(struct sock *sk)
 {
@@ -168,7 +243,7 @@ static void unix_table_double_lock(struct net *net,
 		swap(hash1, hash2);
 
 	spin_lock(&net->unx.table.locks[hash1]);
-	spin_lock_nested(&net->unx.table.locks[hash2], SINGLE_DEPTH_NESTING);
+	spin_lock(&net->unx.table.locks[hash2]);
 }
 
 static void unix_table_double_unlock(struct net *net,
@@ -618,10 +693,7 @@ static void unix_release_sock(struct sock *sk, int embrion)
 	unix_state_unlock(sk);
 
 #if IS_ENABLED(CONFIG_AF_UNIX_OOB)
-	if (u->oob_skb) {
-		kfree_skb(u->oob_skb);
-		u->oob_skb = NULL;
-	}
+	u->oob_skb = NULL;
 #endif
 
 	wake_up_interruptible_all(&u->peer_wait);
@@ -647,8 +719,8 @@ static void unix_release_sock(struct sock *sk, int embrion)
 	while ((skb = skb_dequeue(&sk->sk_receive_queue)) != NULL) {
 		if (state == TCP_LISTEN)
 			unix_release_sock(skb->sk, 1);
+
 		/* passed fds are erased in the kfree_skb hook	      */
-		UNIXCB(skb).consumed = skb->len;
 		kfree_skb(skb);
 	}
 
@@ -676,14 +748,19 @@ static void unix_release_sock(struct sock *sk, int embrion)
 
 static void init_peercred(struct sock *sk)
 {
+	sk->sk_peer_pid = get_pid(task_tgid(current));
+	sk->sk_peer_cred = get_current_cred();
+}
+
+static void update_peercred(struct sock *sk)
+{
 	const struct cred *old_cred;
 	struct pid *old_pid;
 
 	spin_lock(&sk->sk_peer_lock);
 	old_pid = sk->sk_peer_pid;
 	old_cred = sk->sk_peer_cred;
-	sk->sk_peer_pid  = get_pid(task_tgid(current));
-	sk->sk_peer_cred = get_current_cred();
+	init_peercred(sk);
 	spin_unlock(&sk->sk_peer_lock);
 
 	put_pid(old_pid);
@@ -692,26 +769,12 @@ static void init_peercred(struct sock *sk)
 
 static void copy_peercred(struct sock *sk, struct sock *peersk)
 {
-	const struct cred *old_cred;
-	struct pid *old_pid;
+	lockdep_assert_held(&unix_sk(peersk)->lock);
 
-	if (sk < peersk) {
-		spin_lock(&sk->sk_peer_lock);
-		spin_lock_nested(&peersk->sk_peer_lock, SINGLE_DEPTH_NESTING);
-	} else {
-		spin_lock(&peersk->sk_peer_lock);
-		spin_lock_nested(&sk->sk_peer_lock, SINGLE_DEPTH_NESTING);
-	}
-	old_pid = sk->sk_peer_pid;
-	old_cred = sk->sk_peer_cred;
-	sk->sk_peer_pid  = get_pid(peersk->sk_peer_pid);
+	spin_lock(&sk->sk_peer_lock);
+	sk->sk_peer_pid = get_pid(peersk->sk_peer_pid);
 	sk->sk_peer_cred = get_cred(peersk->sk_peer_cred);
-
 	spin_unlock(&sk->sk_peer_lock);
-	spin_unlock(&peersk->sk_peer_lock);
-
-	put_pid(old_pid);
-	put_cred(old_cred);
 }
 
 static int unix_listen(struct socket *sock, int backlog)
@@ -735,7 +798,7 @@ static int unix_listen(struct socket *sock, int backlog)
 	WRITE_ONCE(sk->sk_state, TCP_LISTEN);
 
 	/* set credentials so connect can copy them */
-	init_peercred(sk);
+	update_peercred(sk);
 	err = 0;
 
 out_unlock:
@@ -972,12 +1035,15 @@ static struct sock *unix_create1(struct net *net, struct socket *sock, int kern,
 	sk->sk_write_space	= unix_write_space;
 	sk->sk_max_ack_backlog	= READ_ONCE(net->unx.sysctl_max_dgram_qlen);
 	sk->sk_destruct		= unix_sock_destructor;
+	lock_set_cmp_fn(&sk->sk_receive_queue.lock, unix_recvq_lock_cmp_fn, NULL);
+
 	u = unix_sk(sk);
 	u->listener = NULL;
 	u->vertex = NULL;
 	u->path.dentry = NULL;
 	u->path.mnt = NULL;
 	spin_lock_init(&u->lock);
+	lock_set_cmp_fn(&u->lock, unix_state_lock_cmp_fn, NULL);
 	mutex_init(&u->iolock); /* single task reading lock */
 	mutex_init(&u->bindlock); /* single task binding lock */
 	init_waitqueue_head(&u->peer_wait);
@@ -1326,11 +1392,12 @@ static void unix_state_double_lock(struct sock *sk1, struct sock *sk2)
 		unix_state_lock(sk1);
 		return;
 	}
+
 	if (sk1 > sk2)
 		swap(sk1, sk2);
 
 	unix_state_lock(sk1);
-	unix_state_lock_nested(sk2, U_LOCK_SECOND);
+	unix_state_lock(sk2);
 }
 
 static void unix_state_double_unlock(struct sock *sk1, struct sock *sk2)
@@ -1473,6 +1540,7 @@ static int unix_stream_connect(struct socket *sock, struct sockaddr *uaddr,
 	struct unix_sock *u = unix_sk(sk), *newu, *otheru;
 	struct net *net = sock_net(sk);
 	struct sk_buff *skb = NULL;
+	unsigned char state;
 	long timeo;
 	int err;
 
@@ -1523,7 +1591,6 @@ restart:
 		goto out;
 	}
 
-	/* Latch state of peer */
 	unix_state_lock(other);
 
 	/* Apparently VFS overslept socket death. Retry. */
@@ -1553,37 +1620,21 @@ restart:
 		goto restart;
 	}
 
-	/* Latch our state.
-
-	   It is tricky place. We need to grab our state lock and cannot
-	   drop lock on peer. It is dangerous because deadlock is
-	   possible. Connect to self case and simultaneous
-	   attempt to connect are eliminated by checking socket
-	   state. other is TCP_LISTEN, if sk is TCP_LISTEN we
-	   check this before attempt to grab lock.
-
-	   Well, and we have to recheck the state after socket locked.
+	/* self connect and simultaneous connect are eliminated
+	 * by rejecting TCP_LISTEN socket to avoid deadlock.
 	 */
-	switch (READ_ONCE(sk->sk_state)) {
-	case TCP_CLOSE:
-		/* This is ok... continue with connect */
-		break;
-	case TCP_ESTABLISHED:
-		/* Socket is already connected */
-		err = -EISCONN;
-		goto out_unlock;
-	default:
-		err = -EINVAL;
+	state = READ_ONCE(sk->sk_state);
+	if (unlikely(state != TCP_CLOSE)) {
+		err = state == TCP_ESTABLISHED ? -EISCONN : -EINVAL;
 		goto out_unlock;
 	}
 
-	unix_state_lock_nested(sk, U_LOCK_SECOND);
+	unix_state_lock(sk);
 
-	if (sk->sk_state != TCP_CLOSE) {
+	if (unlikely(sk->sk_state != TCP_CLOSE)) {
+		err = sk->sk_state == TCP_ESTABLISHED ? -EISCONN : -EINVAL;
 		unix_state_unlock(sk);
-		unix_state_unlock(other);
-		sock_put(other);
-		goto restart;
+		goto out_unlock;
 	}
 
 	err = security_unix_stream_connect(sk, other, newsk);
@@ -2172,13 +2223,9 @@ static int queue_oob(struct socket *sock, struct msghdr *msg, struct sock *other
 	}
 
 	maybe_add_creds(skb, sock, other);
-	skb_get(skb);
-
 	scm_stat_add(other, skb);
 
 	spin_lock(&other->sk_receive_queue.lock);
-	if (ousk->oob_skb)
-		consume_skb(ousk->oob_skb);
 	WRITE_ONCE(ousk->oob_skb, skb);
 	__skb_queue_tail(&other->sk_receive_queue, skb);
 	spin_unlock(&other->sk_receive_queue.lock);
@@ -2586,8 +2633,6 @@ static int unix_stream_recv_urg(struct unix_stream_read_state *state)
 
 	if (!(state->flags & MSG_PEEK))
 		WRITE_ONCE(u->oob_skb, NULL);
-	else
-		skb_get(oob_skb);
 
 	spin_unlock(&sk->sk_receive_queue.lock);
 	unix_state_unlock(sk);
@@ -2596,8 +2641,6 @@ static int unix_stream_recv_urg(struct unix_stream_read_state *state)
 
 	if (!(state->flags & MSG_PEEK))
 		UNIXCB(oob_skb).consumed += 1;
-
-	consume_skb(oob_skb);
 
 	mutex_unlock(&u->iolock);
 
@@ -2611,66 +2654,100 @@ static int unix_stream_recv_urg(struct unix_stream_read_state *state)
 static struct sk_buff *manage_oob(struct sk_buff *skb, struct sock *sk,
 				  int flags, int copied)
 {
+	struct sk_buff *read_skb = NULL, *unread_skb = NULL;
 	struct unix_sock *u = unix_sk(sk);
 
+	if (likely(unix_skb_len(skb) && skb != READ_ONCE(u->oob_skb)))
+		return skb;
+
+	spin_lock(&sk->sk_receive_queue.lock);
+
 	if (!unix_skb_len(skb)) {
-		struct sk_buff *unlinked_skb = NULL;
-
-		spin_lock(&sk->sk_receive_queue.lock);
-
 		if (copied && (!u->oob_skb || skb == u->oob_skb)) {
 			skb = NULL;
 		} else if (flags & MSG_PEEK) {
 			skb = skb_peek_next(skb, &sk->sk_receive_queue);
 		} else {
-			unlinked_skb = skb;
+			read_skb = skb;
 			skb = skb_peek_next(skb, &sk->sk_receive_queue);
-			__skb_unlink(unlinked_skb, &sk->sk_receive_queue);
+			__skb_unlink(read_skb, &sk->sk_receive_queue);
 		}
 
-		spin_unlock(&sk->sk_receive_queue.lock);
-
-		consume_skb(unlinked_skb);
-	} else {
-		struct sk_buff *unlinked_skb = NULL;
-
-		spin_lock(&sk->sk_receive_queue.lock);
-
-		if (skb == u->oob_skb) {
-			if (copied) {
-				skb = NULL;
-			} else if (!(flags & MSG_PEEK)) {
-				if (sock_flag(sk, SOCK_URGINLINE)) {
-					WRITE_ONCE(u->oob_skb, NULL);
-					consume_skb(skb);
-				} else {
-					__skb_unlink(skb, &sk->sk_receive_queue);
-					WRITE_ONCE(u->oob_skb, NULL);
-					unlinked_skb = skb;
-					skb = skb_peek(&sk->sk_receive_queue);
-				}
-			} else if (!sock_flag(sk, SOCK_URGINLINE)) {
-				skb = skb_peek_next(skb, &sk->sk_receive_queue);
-			}
-		}
-
-		spin_unlock(&sk->sk_receive_queue.lock);
-
-		if (unlinked_skb) {
-			WARN_ON_ONCE(skb_unref(unlinked_skb));
-			kfree_skb(unlinked_skb);
-		}
+		if (!skb)
+			goto unlock;
 	}
+
+	if (skb != u->oob_skb)
+		goto unlock;
+
+	if (copied) {
+		skb = NULL;
+	} else if (!(flags & MSG_PEEK)) {
+		WRITE_ONCE(u->oob_skb, NULL);
+
+		if (!sock_flag(sk, SOCK_URGINLINE)) {
+			__skb_unlink(skb, &sk->sk_receive_queue);
+			unread_skb = skb;
+			skb = skb_peek(&sk->sk_receive_queue);
+		}
+	} else if (!sock_flag(sk, SOCK_URGINLINE)) {
+		skb = skb_peek_next(skb, &sk->sk_receive_queue);
+	}
+
+unlock:
+	spin_unlock(&sk->sk_receive_queue.lock);
+
+	consume_skb(read_skb);
+	kfree_skb(unread_skb);
+
 	return skb;
 }
 #endif
 
 static int unix_stream_read_skb(struct sock *sk, skb_read_actor_t recv_actor)
 {
+	struct unix_sock *u = unix_sk(sk);
+	struct sk_buff *skb;
+	int err;
+
 	if (unlikely(READ_ONCE(sk->sk_state) != TCP_ESTABLISHED))
 		return -ENOTCONN;
 
-	return unix_read_skb(sk, recv_actor);
+	mutex_lock(&u->iolock);
+	skb = skb_recv_datagram(sk, MSG_DONTWAIT, &err);
+	mutex_unlock(&u->iolock);
+	if (!skb)
+		return err;
+
+#if IS_ENABLED(CONFIG_AF_UNIX_OOB)
+	if (unlikely(skb == READ_ONCE(u->oob_skb))) {
+		bool drop = false;
+
+		unix_state_lock(sk);
+
+		if (sock_flag(sk, SOCK_DEAD)) {
+			unix_state_unlock(sk);
+			kfree_skb(skb);
+			return -ECONNRESET;
+		}
+
+		spin_lock(&sk->sk_receive_queue.lock);
+		if (likely(skb == u->oob_skb)) {
+			WRITE_ONCE(u->oob_skb, NULL);
+			drop = true;
+		}
+		spin_unlock(&sk->sk_receive_queue.lock);
+
+		unix_state_unlock(sk);
+
+		if (drop) {
+			kfree_skb(skb);
+			return -EAGAIN;
+		}
+	}
+#endif
+
+	return recv_actor(sk, skb);
 }
 
 static int unix_stream_read_generic(struct unix_stream_read_state *state,
@@ -2717,9 +2794,8 @@ static int unix_stream_read_generic(struct unix_stream_read_state *state,
 	skip = max(sk_peek_offset(sk, flags), 0);
 
 	do {
-		int chunk;
-		bool drop_skb;
 		struct sk_buff *skb, *last;
+		int chunk;
 
 redo:
 		unix_state_lock(sk);
@@ -2815,11 +2891,7 @@ unlock:
 		}
 
 		chunk = min_t(unsigned int, unix_skb_len(skb) - skip, size);
-		skb_get(skb);
 		chunk = state->recv_actor(skb, skip, chunk, state);
-		drop_skb = !unix_skb_len(skb);
-		/* skb is only safe to use if !drop_skb */
-		consume_skb(skb);
 		if (chunk < 0) {
 			if (copied == 0)
 				copied = -EFAULT;
@@ -2827,18 +2899,6 @@ unlock:
 		}
 		copied += chunk;
 		size -= chunk;
-
-		if (drop_skb) {
-			/* the skb was touched by a concurrent reader;
-			 * we should not expect anything from this skb
-			 * anymore and assume it invalid - we can be
-			 * sure it was dropped from the socket queue
-			 *
-			 * let's report a short read
-			 */
-			err = 0;
-			break;
-		}
 
 		/* Mark read part of skb as used */
 		if (!(flags & MSG_PEEK)) {
@@ -3116,9 +3176,13 @@ static int unix_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 			skb = skb_peek(&sk->sk_receive_queue);
 			if (skb) {
 				struct sk_buff *oob_skb = READ_ONCE(u->oob_skb);
+				struct sk_buff *next_skb;
+
+				next_skb = skb_peek_next(skb, &sk->sk_receive_queue);
 
 				if (skb == oob_skb ||
-				    (!oob_skb && !unix_skb_len(skb)))
+				    (!unix_skb_len(skb) &&
+				     (!oob_skb || next_skb == oob_skb)))
 					answ = 1;
 			}
 
@@ -3620,6 +3684,7 @@ static int __net_init unix_net_init(struct net *net)
 
 	for (i = 0; i < UNIX_HASH_SIZE; i++) {
 		spin_lock_init(&net->unx.table.locks[i]);
+		lock_set_cmp_fn(&net->unx.table.locks[i], unix_table_lock_cmp_fn, NULL);
 		INIT_HLIST_HEAD(&net->unx.table.buckets[i]);
 	}
 

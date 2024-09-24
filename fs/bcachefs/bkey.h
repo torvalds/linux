@@ -10,9 +10,10 @@
 #include "vstructs.h"
 
 enum bch_validate_flags {
-	BCH_VALIDATE_write		= (1U << 0),
-	BCH_VALIDATE_commit		= (1U << 1),
-	BCH_VALIDATE_journal		= (1U << 2),
+	BCH_VALIDATE_write		= BIT(0),
+	BCH_VALIDATE_commit		= BIT(1),
+	BCH_VALIDATE_journal		= BIT(2),
+	BCH_VALIDATE_silent		= BIT(3),
 };
 
 #if 0
@@ -192,6 +193,13 @@ static inline struct bpos bkey_min(struct bpos l, struct bpos r)
 static inline struct bpos bkey_max(struct bpos l, struct bpos r)
 {
 	return bkey_gt(l, r) ? l : r;
+}
+
+static inline bool bkey_and_val_eq(struct bkey_s_c l, struct bkey_s_c r)
+{
+	return bpos_eq(l.k->p, r.k->p) &&
+		bkey_bytes(l.k) == bkey_bytes(r.k) &&
+		!memcmp(l.v, r.v, bkey_val_bytes(l.k));
 }
 
 void bch2_bpos_swab(struct bpos *);

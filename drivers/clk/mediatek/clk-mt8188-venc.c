@@ -45,12 +45,13 @@ MODULE_DEVICE_TABLE(of, of_match_clk_mt8188_venc1);
 
 static struct platform_driver clk_mt8188_venc1_drv = {
 	.probe = mtk_clk_simple_probe,
-	.remove_new = mtk_clk_simple_remove,
+	.remove = mtk_clk_simple_remove,
 	.driver = {
 		.name = "clk-mt8188-venc1",
 		.of_match_table = of_match_clk_mt8188_venc1,
 	},
 };
-
 module_platform_driver(clk_mt8188_venc1_drv);
+
+MODULE_DESCRIPTION("MediaTek MT8188 Video Encoders clocks driver");
 MODULE_LICENSE("GPL");

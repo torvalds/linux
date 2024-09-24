@@ -29,7 +29,6 @@
 #define WCD938X_MAX_SUPPLY		(4)
 #define WCD938X_MBHC_MAX_BUTTONS	(8)
 #define TX_ADC_MAX			(4)
-#define WCD938X_TX_MAX_SWR_PORTS	(5)
 
 #define WCD938X_RATES_MASK (SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_16000 |\
 			    SNDRV_PCM_RATE_32000 | SNDRV_PCM_RATE_48000 |\
@@ -39,8 +38,6 @@
 				 SNDRV_PCM_RATE_176400)
 #define WCD938X_FORMATS_S16_S24_LE (SNDRV_PCM_FMTBIT_S16_LE | \
 				    SNDRV_PCM_FMTBIT_S24_LE)
-/* Convert from vout ctl to micbias voltage in mV */
-#define  WCD_VOUT_CTL_TO_MICB(v)	(1000 + v * 50)
 #define SWR_CLK_RATE_0P6MHZ		(600000)
 #define SWR_CLK_RATE_1P2MHZ		(1200000)
 #define SWR_CLK_RATE_2P4MHZ		(2400000)
@@ -48,8 +45,6 @@
 #define SWR_CLK_RATE_9P6MHZ		(9600000)
 #define SWR_CLK_RATE_11P2896MHZ		(1128960)
 
-#define WCD938X_DRV_NAME "wcd938x_codec"
-#define WCD938X_VERSION_1_0		(1)
 #define EAR_RX_PATH_AUX			(1)
 
 #define ADC_MODE_VAL_HIFI		0x01
@@ -72,7 +67,6 @@
 /* Z value compared in milliOhm */
 #define WCD938X_MBHC_IS_SECOND_RAMP_REQUIRED(z) ((z > 400000) || (z < 32000))
 #define WCD938X_MBHC_ZDET_CONST         (86 * 16384)
-#define WCD938X_MBHC_MOISTURE_RREF      R_24_KOHM
 #define WCD_MBHC_HS_V_MAX           1600
 
 #define WCD938X_EAR_PA_GAIN_TLV(xname, reg, shift, max, invert, tlv_array) \
@@ -87,18 +81,6 @@
 enum {
 	WCD9380 = 0,
 	WCD9385 = 5,
-};
-
-enum {
-	TX_HDR12 = 0,
-	TX_HDR34,
-	TX_HDR_MAX,
-};
-
-enum {
-	WCD_RX1,
-	WCD_RX2,
-	WCD_RX3
 };
 
 enum {
@@ -206,7 +188,6 @@ struct wcd938x_priv {
 	bool comp1_enable;
 	bool comp2_enable;
 	bool ldoh;
-	bool bcs_dis;
 };
 
 static const SNDRV_CTL_TLVD_DECLARE_DB_MINMAX(ear_pa_gain, 600, -1800);
@@ -222,7 +203,7 @@ struct wcd938x_mbhc_zdet_param {
 	u16 btn7;
 };
 
-static struct wcd_mbhc_field wcd_mbhc_fields[WCD_MBHC_REG_FUNC_MAX] = {
+static const struct wcd_mbhc_field wcd_mbhc_fields[WCD_MBHC_REG_FUNC_MAX] = {
 	WCD_MBHC_FIELD(WCD_MBHC_L_DET_EN, WCD938X_ANA_MBHC_MECH, 0x80),
 	WCD_MBHC_FIELD(WCD_MBHC_GND_DET_EN, WCD938X_ANA_MBHC_MECH, 0x40),
 	WCD_MBHC_FIELD(WCD_MBHC_MECH_DETECTION_TYPE, WCD938X_ANA_MBHC_MECH, 0x20),
@@ -419,7 +400,7 @@ static int wcd938x_io_init(struct wcd938x_priv *wcd938x)
 
 }
 
-static int wcd938x_sdw_connect_port(struct wcd938x_sdw_ch_info *ch_info,
+static int wcd938x_sdw_connect_port(const struct wcd938x_sdw_ch_info *ch_info,
 				    struct sdw_port_config *port_config,
 				    u8 enable)
 {
@@ -1650,31 +1631,6 @@ static int wcd938x_ldoh_put(struct snd_kcontrol *kcontrol,
 	return 1;
 }
 
-static int wcd938x_bcs_get(struct snd_kcontrol *kcontrol,
-			   struct snd_ctl_elem_value *ucontrol)
-{
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
-	struct wcd938x_priv *wcd938x = snd_soc_component_get_drvdata(component);
-
-	ucontrol->value.integer.value[0] = wcd938x->bcs_dis;
-
-	return 0;
-}
-
-static int wcd938x_bcs_put(struct snd_kcontrol *kcontrol,
-			   struct snd_ctl_elem_value *ucontrol)
-{
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
-	struct wcd938x_priv *wcd938x = snd_soc_component_get_drvdata(component);
-
-	if (wcd938x->bcs_dis == ucontrol->value.integer.value[0])
-		return 0;
-
-	wcd938x->bcs_dis = ucontrol->value.integer.value[0];
-
-	return 1;
-}
-
 static const char * const tx_mode_mux_text_wcd9380[] = {
 	"ADC_INVALID", "ADC_HIFI", "ADC_LO_HIF", "ADC_NORMAL", "ADC_LP",
 };
@@ -1982,7 +1938,7 @@ static bool wcd938x_mbhc_micb_en_status(struct snd_soc_component *component, int
 	if (micb_num == MIC_BIAS_2) {
 		val = snd_soc_component_read_field(component,
 						   WCD938X_ANA_MICB2,
-						   WCD938X_ANA_MICB2_ENABLE_MASK);
+						   WCD938X_MICB_EN_MASK);
 		if (val == WCD938X_MICB_ENABLE)
 			return true;
 	}
@@ -2695,8 +2651,6 @@ static const struct snd_kcontrol_new wcd938x_snd_controls[] = {
 		       wcd938x_get_swr_port, wcd938x_set_swr_port),
 	SOC_SINGLE_EXT("LDOH Enable Switch", SND_SOC_NOPM, 0, 1, 0,
 		       wcd938x_ldoh_get, wcd938x_ldoh_put),
-	SOC_SINGLE_EXT("ADC2_BCS Disable Switch", SND_SOC_NOPM, 0, 1, 0,
-		       wcd938x_bcs_get, wcd938x_bcs_put),
 
 	SOC_SINGLE_TLV("ADC1 Volume", WCD938X_ANA_TX_CH1, 0, 20, 0, analog_gain),
 	SOC_SINGLE_TLV("ADC2 Volume", WCD938X_ANA_TX_CH2, 0, 20, 0, analog_gain),
@@ -3055,7 +3009,7 @@ static irqreturn_t wcd938x_wd_handle_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static struct irq_chip wcd_irq_chip = {
+static const struct irq_chip wcd_irq_chip = {
 	.name = "WCD938x",
 };
 
@@ -3642,7 +3596,7 @@ MODULE_DEVICE_TABLE(of, wcd938x_dt_match);
 
 static struct platform_driver wcd938x_codec_driver = {
 	.probe = wcd938x_probe,
-	.remove_new = wcd938x_remove,
+	.remove = wcd938x_remove,
 	.driver = {
 		.name = "wcd938x_codec",
 		.of_match_table = of_match_ptr(wcd938x_dt_match),

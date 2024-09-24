@@ -62,7 +62,7 @@ static vm_fault_t udf_page_mkwrite(struct vm_fault *vmf)
 		end = size & ~PAGE_MASK;
 	else
 		end = PAGE_SIZE;
-	err = __block_write_begin(&folio->page, 0, end, udf_get_block);
+	err = __block_write_begin(folio, 0, end, udf_get_block);
 	if (err) {
 		folio_unlock(folio);
 		ret = vmf_fs_error(err);
@@ -232,7 +232,9 @@ static int udf_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 
 	if ((attr->ia_valid & ATTR_SIZE) &&
 	    attr->ia_size != i_size_read(inode)) {
+		filemap_invalidate_lock(inode->i_mapping);
 		error = udf_setsize(inode, attr->ia_size);
+		filemap_invalidate_unlock(inode->i_mapping);
 		if (error)
 			return error;
 	}

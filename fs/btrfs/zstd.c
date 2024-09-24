@@ -19,6 +19,7 @@
 #include <linux/zstd.h>
 #include "misc.h"
 #include "fs.h"
+#include "btrfs_inode.h"
 #include "compression.h"
 #include "super.h"
 
@@ -388,7 +389,10 @@ int zstd_compress_folios(struct list_head *ws, struct address_space *mapping,
 	unsigned long tot_out = 0;
 	unsigned long len = *total_out;
 	const unsigned long nr_dest_folios = *out_folios;
+	const u64 orig_end = start + len;
 	unsigned long max_out = nr_dest_folios * PAGE_SIZE;
+	unsigned int pg_off;
+	unsigned int cur_len;
 	zstd_parameters params = zstd_get_btrfs_parameters(workspace->req_level,
 							   len);
 
@@ -399,8 +403,13 @@ int zstd_compress_folios(struct list_head *ws, struct address_space *mapping,
 	/* Initialize the stream */
 	stream = zstd_init_cstream(&params, len, workspace->mem,
 			workspace->size);
-	if (!stream) {
-		pr_warn("BTRFS: zstd_init_cstream failed\n");
+	if (unlikely(!stream)) {
+		struct btrfs_inode *inode = BTRFS_I(mapping->host);
+
+		btrfs_err(inode->root->fs_info,
+	"zstd compression init level %d failed, root %llu inode %llu offset %llu",
+			  workspace->req_level, btrfs_root_id(inode->root),
+			  btrfs_ino(inode), start);
 		ret = -EIO;
 		goto out;
 	}
@@ -409,9 +418,11 @@ int zstd_compress_folios(struct list_head *ws, struct address_space *mapping,
 	ret = btrfs_compress_filemap_get_folio(mapping, start, &in_folio);
 	if (ret < 0)
 		goto out;
-	workspace->in_buf.src = kmap_local_folio(in_folio, 0);
+	pg_off = offset_in_page(start);
+	cur_len = btrfs_calc_input_length(orig_end, start);
+	workspace->in_buf.src = kmap_local_folio(in_folio, pg_off);
 	workspace->in_buf.pos = 0;
-	workspace->in_buf.size = min_t(size_t, len, PAGE_SIZE);
+	workspace->in_buf.size = cur_len;
 
 	/* Allocate and map in the output buffer */
 	out_folio = btrfs_alloc_compr_folio();
@@ -429,9 +440,14 @@ int zstd_compress_folios(struct list_head *ws, struct address_space *mapping,
 
 		ret2 = zstd_compress_stream(stream, &workspace->out_buf,
 				&workspace->in_buf);
-		if (zstd_is_error(ret2)) {
-			pr_debug("BTRFS: zstd_compress_stream returned %d\n",
-					zstd_get_error_code(ret2));
+		if (unlikely(zstd_is_error(ret2))) {
+			struct btrfs_inode *inode = BTRFS_I(mapping->host);
+
+			btrfs_warn(inode->root->fs_info,
+"zstd compression level %d failed, error %d root %llu inode %llu offset %llu",
+				   workspace->req_level, zstd_get_error_code(ret2),
+				   btrfs_root_id(inode->root), btrfs_ino(inode),
+				   start);
 			ret = -EIO;
 			goto out;
 		}
@@ -483,23 +499,30 @@ int zstd_compress_folios(struct list_head *ws, struct address_space *mapping,
 			kunmap_local(workspace->in_buf.src);
 			workspace->in_buf.src = NULL;
 			folio_put(in_folio);
-			start += PAGE_SIZE;
-			len -= PAGE_SIZE;
+			start += cur_len;
+			len -= cur_len;
 			ret = btrfs_compress_filemap_get_folio(mapping, start, &in_folio);
 			if (ret < 0)
 				goto out;
-			workspace->in_buf.src = kmap_local_folio(in_folio, 0);
+			pg_off = offset_in_page(start);
+			cur_len = btrfs_calc_input_length(orig_end, start);
+			workspace->in_buf.src = kmap_local_folio(in_folio, pg_off);
 			workspace->in_buf.pos = 0;
-			workspace->in_buf.size = min_t(size_t, len, PAGE_SIZE);
+			workspace->in_buf.size = cur_len;
 		}
 	}
 	while (1) {
 		size_t ret2;
 
 		ret2 = zstd_end_stream(stream, &workspace->out_buf);
-		if (zstd_is_error(ret2)) {
-			pr_debug("BTRFS: zstd_end_stream returned %d\n",
-					zstd_get_error_code(ret2));
+		if (unlikely(zstd_is_error(ret2))) {
+			struct btrfs_inode *inode = BTRFS_I(mapping->host);
+
+			btrfs_err(inode->root->fs_info,
+"zstd compression end level %d failed, error %d root %llu inode %llu offset %llu",
+				  workspace->req_level, zstd_get_error_code(ret2),
+				  btrfs_root_id(inode->root), btrfs_ino(inode),
+				  start);
 			ret = -EIO;
 			goto out;
 		}
@@ -561,8 +584,12 @@ int zstd_decompress_bio(struct list_head *ws, struct compressed_bio *cb)
 
 	stream = zstd_init_dstream(
 			ZSTD_BTRFS_MAX_INPUT, workspace->mem, workspace->size);
-	if (!stream) {
-		pr_debug("BTRFS: zstd_init_dstream failed\n");
+	if (unlikely(!stream)) {
+		struct btrfs_inode *inode = cb->bbio.inode;
+
+		btrfs_err(inode->root->fs_info,
+		"zstd decompression init failed, root %llu inode %llu offset %llu",
+			  btrfs_root_id(inode->root), btrfs_ino(inode), cb->start);
 		ret = -EIO;
 		goto done;
 	}
@@ -580,9 +607,13 @@ int zstd_decompress_bio(struct list_head *ws, struct compressed_bio *cb)
 
 		ret2 = zstd_decompress_stream(stream, &workspace->out_buf,
 				&workspace->in_buf);
-		if (zstd_is_error(ret2)) {
-			pr_debug("BTRFS: zstd_decompress_stream returned %d\n",
-					zstd_get_error_code(ret2));
+		if (unlikely(zstd_is_error(ret2))) {
+			struct btrfs_inode *inode = cb->bbio.inode;
+
+			btrfs_err(inode->root->fs_info,
+		"zstd decompression failed, error %d root %llu inode %llu offset %llu",
+				  zstd_get_error_code(ret2), btrfs_root_id(inode->root),
+				  btrfs_ino(inode), cb->start);
 			ret = -EIO;
 			goto done;
 		}
@@ -625,11 +656,11 @@ done:
 }
 
 int zstd_decompress(struct list_head *ws, const u8 *data_in,
-		struct page *dest_page, unsigned long dest_pgoff, size_t srclen,
+		struct folio *dest_folio, unsigned long dest_pgoff, size_t srclen,
 		size_t destlen)
 {
 	struct workspace *workspace = list_entry(ws, struct workspace, list);
-	struct btrfs_fs_info *fs_info = btrfs_sb(dest_page->mapping->host->i_sb);
+	struct btrfs_fs_info *fs_info = btrfs_sb(folio_inode(dest_folio)->i_sb);
 	const u32 sectorsize = fs_info->sectorsize;
 	zstd_dstream *stream;
 	int ret = 0;
@@ -637,8 +668,14 @@ int zstd_decompress(struct list_head *ws, const u8 *data_in,
 
 	stream = zstd_init_dstream(
 			ZSTD_BTRFS_MAX_INPUT, workspace->mem, workspace->size);
-	if (!stream) {
-		pr_warn("BTRFS: zstd_init_dstream failed\n");
+	if (unlikely(!stream)) {
+		struct btrfs_inode *inode = folio_to_inode(dest_folio);
+
+		btrfs_err(inode->root->fs_info,
+		"zstd decompression init failed, root %llu inode %llu offset %llu",
+			  btrfs_root_id(inode->root), btrfs_ino(inode),
+			  folio_pos(dest_folio));
+		ret = -EIO;
 		goto finish;
 	}
 
@@ -655,18 +692,22 @@ int zstd_decompress(struct list_head *ws, const u8 *data_in,
 	 * one call should end the decompression.
 	 */
 	ret = zstd_decompress_stream(stream, &workspace->out_buf, &workspace->in_buf);
-	if (zstd_is_error(ret)) {
-		pr_warn_ratelimited("BTRFS: zstd_decompress_stream return %d\n",
-				    zstd_get_error_code(ret));
+	if (unlikely(zstd_is_error(ret))) {
+		struct btrfs_inode *inode = folio_to_inode(dest_folio);
+
+		btrfs_err(inode->root->fs_info,
+		"zstd decompression failed, error %d root %llu inode %llu offset %llu",
+			  zstd_get_error_code(ret), btrfs_root_id(inode->root),
+			  btrfs_ino(inode), folio_pos(dest_folio));
 		goto finish;
 	}
 	to_copy = workspace->out_buf.pos;
-	memcpy_to_page(dest_page, dest_pgoff, workspace->out_buf.dst, to_copy);
+	memcpy_to_folio(dest_folio, dest_pgoff, workspace->out_buf.dst, to_copy);
 finish:
 	/* Error or early end. */
 	if (unlikely(to_copy < destlen)) {
 		ret = -EIO;
-		memzero_page(dest_page, dest_pgoff + to_copy, destlen - to_copy);
+		folio_zero_range(dest_folio, dest_pgoff + to_copy, destlen - to_copy);
 	}
 	return ret;
 }

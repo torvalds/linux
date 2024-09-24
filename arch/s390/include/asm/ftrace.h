@@ -2,13 +2,27 @@
 #ifndef _ASM_S390_FTRACE_H
 #define _ASM_S390_FTRACE_H
 
-#define HAVE_FUNCTION_GRAPH_RET_ADDR_PTR
 #define ARCH_SUPPORTS_FTRACE_OPS 1
 #define MCOUNT_INSN_SIZE	6
 
 #ifndef __ASSEMBLY__
+#include <asm/stacktrace.h>
 
-unsigned long return_address(unsigned int n);
+static __always_inline unsigned long return_address(unsigned int n)
+{
+	struct stack_frame *sf;
+
+	if (!n)
+		return (unsigned long)__builtin_return_address(0);
+
+	sf = (struct stack_frame *)current_frame_address();
+	do {
+		sf = (struct stack_frame *)sf->back_chain;
+		if (!sf)
+			return 0;
+	} while (--n);
+	return sf->gprs[8];
+}
 #define ftrace_return_address(n) return_address(n)
 
 void ftrace_caller(void);

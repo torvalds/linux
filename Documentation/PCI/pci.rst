@@ -52,7 +52,7 @@ driver generally needs to perform the following initialization:
   - Enable DMA/processing engines
 
 When done using the device, and perhaps the module needs to be unloaded,
-the driver needs to take the follow steps:
+the driver needs to take the following steps:
 
   - Disable the device from generating IRQs
   - Release the IRQ (free_irq())

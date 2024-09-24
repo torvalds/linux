@@ -70,7 +70,7 @@ static void *server_thread(void *arg)
 	return (void *)(long)err;
 }
 
-static int custom_cb(int fd, const struct post_socket_opts *opts)
+static int custom_cb(int fd, void *opts)
 {
 	char buf;
 	int err;

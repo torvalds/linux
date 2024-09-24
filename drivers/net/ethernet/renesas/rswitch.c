@@ -871,13 +871,13 @@ static void rswitch_tx_free(struct net_device *ndev)
 		dma_rmb();
 		skb = gq->skbs[gq->dirty];
 		if (skb) {
+			rdev->ndev->stats.tx_packets++;
+			rdev->ndev->stats.tx_bytes += skb->len;
 			dma_unmap_single(ndev->dev.parent,
 					 gq->unmap_addrs[gq->dirty],
 					 skb->len, DMA_TO_DEVICE);
 			dev_kfree_skb_any(gq->skbs[gq->dirty]);
 			gq->skbs[gq->dirty] = NULL;
-			rdev->ndev->stats.tx_packets++;
-			rdev->ndev->stats.tx_bytes += skb->len;
 		}
 		desc->desc.die_dt = DT_EEMPTY;
 	}
@@ -1809,14 +1809,12 @@ static const struct net_device_ops rswitch_netdev_ops = {
 	.ndo_set_mac_address = eth_mac_addr,
 };
 
-static int rswitch_get_ts_info(struct net_device *ndev, struct ethtool_ts_info *info)
+static int rswitch_get_ts_info(struct net_device *ndev, struct kernel_ethtool_ts_info *info)
 {
 	struct rswitch_device *rdev = netdev_priv(ndev);
 
 	info->phc_index = ptp_clock_index(rdev->priv->ptp_priv->clock);
 	info->so_timestamping = SOF_TIMESTAMPING_TX_SOFTWARE |
-				SOF_TIMESTAMPING_RX_SOFTWARE |
-				SOF_TIMESTAMPING_SOFTWARE |
 				SOF_TIMESTAMPING_TX_HARDWARE |
 				SOF_TIMESTAMPING_RX_HARDWARE |
 				SOF_TIMESTAMPING_RAW_HARDWARE;

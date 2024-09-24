@@ -81,7 +81,7 @@
 
 #if IS_ENABLED(CONFIG_DRM_XE_DEBUG)
 #define __xe_assert_msg(xe, condition, msg, arg...) ({						\
-	(void)drm_WARN(&(xe)->drm, !(condition), "[" DRM_NAME "] Assertion `%s` failed!\n" msg,	\
+	(void)drm_WARN(&(xe)->drm, !(condition), "Assertion `%s` failed!\n" msg,		\
 		       __stringify(condition), ## arg);						\
 })
 #else
@@ -109,11 +109,11 @@
 #define xe_assert_msg(xe, condition, msg, arg...) ({						\
 	const struct xe_device *__xe = (xe);							\
 	__xe_assert_msg(__xe, condition,							\
-			"platform: %d subplatform: %d\n"					\
+			"platform: %s subplatform: %d\n"					\
 			"graphics: %s %u.%02u step %s\n"					\
 			"media: %s %u.%02u step %s\n"						\
 			msg,									\
-			__xe->info.platform, __xe->info.subplatform,				\
+			__xe->info.platform_name, __xe->info.subplatform,			\
 			__xe->info.graphics_name,						\
 			__xe->info.graphics_verx100 / 100,					\
 			__xe->info.graphics_verx100 % 100,					\

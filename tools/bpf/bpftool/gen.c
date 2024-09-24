@@ -848,28 +848,45 @@ out:
 }
 
 static void
-codegen_maps_skeleton(struct bpf_object *obj, size_t map_cnt, bool mmaped)
+codegen_maps_skeleton(struct bpf_object *obj, size_t map_cnt, bool mmaped, bool populate_links)
 {
 	struct bpf_map *map;
 	char ident[256];
-	size_t i;
+	size_t i, map_sz;
 
 	if (!map_cnt)
 		return;
 
+	/* for backward compatibility with old libbpf versions that don't
+	 * handle new BPF skeleton with new struct bpf_map_skeleton definition
+	 * that includes link field, avoid specifying new increased size,
+	 * unless we absolutely have to (i.e., if there are struct_ops maps
+	 * present)
+	 */
+	map_sz = offsetof(struct bpf_map_skeleton, link);
+	if (populate_links) {
+		bpf_object__for_each_map(map, obj) {
+			if (bpf_map__type(map) == BPF_MAP_TYPE_STRUCT_OPS) {
+				map_sz = sizeof(struct bpf_map_skeleton);
+				break;
+			}
+		}
+	}
+
 	codegen("\
 		\n\
-									\n\
+								    \n\
 			/* maps */				    \n\
 			s->map_cnt = %zu;			    \n\
-			s->map_skel_sz = sizeof(*s->maps);	    \n\
-			s->maps = (struct bpf_map_skeleton *)calloc(s->map_cnt, s->map_skel_sz);\n\
+			s->map_skel_sz = %zu;			    \n\
+			s->maps = (struct bpf_map_skeleton *)calloc(s->map_cnt,\n\
+					sizeof(*s->maps) > %zu ? sizeof(*s->maps) : %zu);\n\
 			if (!s->maps) {				    \n\
 				err = -ENOMEM;			    \n\
 				goto err;			    \n\
 			}					    \n\
 		",
-		map_cnt
+		map_cnt, map_sz, map_sz, map_sz
 	);
 	i = 0;
 	bpf_object__for_each_map(map, obj) {
@@ -878,15 +895,22 @@ codegen_maps_skeleton(struct bpf_object *obj, size_t map_cnt, bool mmaped)
 
 		codegen("\
 			\n\
-									\n\
-				s->maps[%zu].name = \"%s\";	    \n\
-				s->maps[%zu].map = &obj->maps.%s;   \n\
+								    \n\
+				map = (struct bpf_map_skeleton *)((char *)s->maps + %zu * s->map_skel_sz);\n\
+				map->name = \"%s\";		    \n\
+				map->map = &obj->maps.%s;	    \n\
 			",
-			i, bpf_map__name(map), i, ident);
+			i, bpf_map__name(map), ident);
 		/* memory-mapped internal maps */
 		if (mmaped && is_mmapable_map(map, ident, sizeof(ident))) {
-			printf("\ts->maps[%zu].mmaped = (void **)&obj->%s;\n",
-				i, ident);
+			printf("\tmap->mmaped = (void **)&obj->%s;\n", ident);
+		}
+
+		if (populate_links && bpf_map__type(map) == BPF_MAP_TYPE_STRUCT_OPS) {
+			codegen("\
+				\n\
+					map->link = &obj->links.%s; \n\
+				", ident);
 		}
 		i++;
 	}
@@ -1141,7 +1165,7 @@ static void gen_st_ops_shadow_init(struct btf *btf, struct bpf_object *obj)
 static int do_skeleton(int argc, char **argv)
 {
 	char header_guard[MAX_OBJ_NAME_LEN + sizeof("__SKEL_H__")];
-	size_t map_cnt = 0, prog_cnt = 0, file_sz, mmap_sz;
+	size_t map_cnt = 0, prog_cnt = 0, attach_map_cnt = 0, file_sz, mmap_sz;
 	DECLARE_LIBBPF_OPTS(bpf_object_open_opts, opts);
 	char obj_name[MAX_OBJ_NAME_LEN] = "", *obj_data;
 	struct bpf_object *obj = NULL;
@@ -1225,6 +1249,10 @@ static int do_skeleton(int argc, char **argv)
 			      bpf_map__name(map));
 			continue;
 		}
+
+		if (bpf_map__type(map) == BPF_MAP_TYPE_STRUCT_OPS)
+			attach_map_cnt++;
+
 		map_cnt++;
 	}
 	bpf_object__for_each_program(prog, obj) {
@@ -1259,6 +1287,8 @@ static int do_skeleton(int argc, char **argv)
 		#include <errno.h>					    \n\
 		#include <stdlib.h>					    \n\
 		#include <bpf/libbpf.h>					    \n\
+									    \n\
+		#define BPF_SKEL_SUPPORTS_MAP_AUTO_ATTACH 1		    \n\
 									    \n\
 		struct %1$s {						    \n\
 			struct bpf_object_skeleton *skeleton;		    \n\
@@ -1297,6 +1327,9 @@ static int do_skeleton(int argc, char **argv)
 				       bpf_program__name(prog));
 		}
 		printf("\t} progs;\n");
+	}
+
+	if (prog_cnt + attach_map_cnt) {
 		printf("\tstruct {\n");
 		bpf_object__for_each_program(prog, obj) {
 			if (use_loader)
@@ -1306,6 +1339,19 @@ static int do_skeleton(int argc, char **argv)
 				printf("\t\tstruct bpf_link *%s;\n",
 				       bpf_program__name(prog));
 		}
+
+		bpf_object__for_each_map(map, obj) {
+			if (!get_map_ident(map, ident, sizeof(ident)))
+				continue;
+			if (bpf_map__type(map) != BPF_MAP_TYPE_STRUCT_OPS)
+				continue;
+
+			if (use_loader)
+				printf("t\tint %s_fd;\n", ident);
+			else
+				printf("\t\tstruct bpf_link *%s;\n", ident);
+		}
+
 		printf("\t} links;\n");
 	}
 
@@ -1433,6 +1479,7 @@ static int do_skeleton(int argc, char **argv)
 		%1$s__create_skeleton(struct %1$s *obj)			    \n\
 		{							    \n\
 			struct bpf_object_skeleton *s;			    \n\
+			struct bpf_map_skeleton *map __attribute__((unused));\n\
 			int err;					    \n\
 									    \n\
 			s = (struct bpf_object_skeleton *)calloc(1, sizeof(*s));\n\
@@ -1448,7 +1495,7 @@ static int do_skeleton(int argc, char **argv)
 		obj_name
 	);
 
-	codegen_maps_skeleton(obj, map_cnt, true /*mmaped*/);
+	codegen_maps_skeleton(obj, map_cnt, true /*mmaped*/, true /*links*/);
 	codegen_progs_skeleton(obj, prog_cnt, true /*populate_links*/);
 
 	codegen("\
@@ -1723,6 +1770,7 @@ static int do_subskeleton(int argc, char **argv)
 		{							    \n\
 			struct %1$s *obj;				    \n\
 			struct bpf_object_subskeleton *s;		    \n\
+			struct bpf_map_skeleton *map __attribute__((unused));\n\
 			int err;					    \n\
 									    \n\
 			obj = (struct %1$s *)calloc(1, sizeof(*obj));	    \n\
@@ -1786,7 +1834,7 @@ static int do_subskeleton(int argc, char **argv)
 		}
 	}
 
-	codegen_maps_skeleton(obj, map_cnt, false /*mmaped*/);
+	codegen_maps_skeleton(obj, map_cnt, false /*mmaped*/, false /*links*/);
 	codegen_progs_skeleton(obj, prog_cnt, false /*links*/);
 
 	codegen("\
@@ -2379,15 +2427,6 @@ out:
 	return err;
 }
 
-static int btfgen_remap_id(__u32 *type_id, void *ctx)
-{
-	unsigned int *ids = ctx;
-
-	*type_id = ids[*type_id];
-
-	return 0;
-}
-
 /* Generate BTF from relocation information previously recorded */
 static struct btf *btfgen_get_btf(struct btfgen_info *info)
 {
@@ -2467,10 +2506,15 @@ static struct btf *btfgen_get_btf(struct btfgen_info *info)
 	/* second pass: fix up type ids */
 	for (i = 1; i < btf__type_cnt(btf_new); i++) {
 		struct btf_type *btf_type = (struct btf_type *) btf__type_by_id(btf_new, i);
+		struct btf_field_iter it;
+		__u32 *type_id;
 
-		err = btf_type_visit_type_ids(btf_type, btfgen_remap_id, ids);
+		err = btf_field_iter_init(&it, btf_type, BTF_FIELD_ITER_IDS);
 		if (err)
 			goto err_out;
+
+		while ((type_id = btf_field_iter_next(&it)))
+			*type_id = ids[*type_id];
 	}
 
 	free(ids);

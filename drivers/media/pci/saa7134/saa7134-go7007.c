@@ -516,4 +516,5 @@ static void __exit saa7134_go7007_mod_cleanup(void)
 module_init(saa7134_go7007_mod_init);
 module_exit(saa7134_go7007_mod_cleanup);
 
+MODULE_DESCRIPTION("go7007 support for saa7134 based TV cards");
 MODULE_LICENSE("GPL v2");

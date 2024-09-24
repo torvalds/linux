@@ -43,6 +43,10 @@ Default is to monitor all CPUS.
 	encoding with the layout of the event control registers as described
 	by entries in /sys/bus/event_source/devices/cpu/format/*.
 
+--filter=<filter>::
+	Event filter.  This option should follow an event selector (-e). For
+	syntax see linkperf:perf-record[1].
+
 -E <entries>::
 --entries=<entries>::
 	Display this many functions.
@@ -79,8 +83,8 @@ Default is to monitor all CPUS.
 -m <pages>::
 --mmap-pages=<pages>::
 	Number of mmap data pages (must be a power of two) or size
-	specification with appended unit character - B/K/M/G. The
-	size is rounded up to have nearest pages power of two value.
+	specification in bytes with appended unit character - B/K/M/G.
+	The size is rounded up to the nearest power-of-two page value.
 
 -p <pid>::
 --pid=<pid>::

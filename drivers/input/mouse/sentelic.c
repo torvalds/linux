@@ -1028,7 +1028,7 @@ int fsp_init(struct psmouse *psmouse)
 		     "Finger Sensing Pad, hw: %d.%d.%d, sn: %x, sw: %s\n",
 		     ver >> 4, ver & 0x0F, rev, sn, fsp_drv_ver);
 
-	psmouse->private = priv = kzalloc(sizeof(struct fsp_data), GFP_KERNEL);
+	psmouse->private = priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 

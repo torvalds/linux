@@ -15,6 +15,7 @@ if:
       contains:
         enum:
           - qcom,usb-hs-phy-apq8064
+          - qcom,usb-hs-phy-msm8660
           - qcom,usb-hs-phy-msm8960
 then:
   properties:
@@ -41,6 +42,7 @@ properties:
       - enum:
           - qcom,usb-hs-phy-apq8064
           - qcom,usb-hs-phy-msm8226
+          - qcom,usb-hs-phy-msm8660
           - qcom,usb-hs-phy-msm8916
           - qcom,usb-hs-phy-msm8960
           - qcom,usb-hs-phy-msm8974

@@ -19,8 +19,7 @@
 #include "xe_guc.h"
 #include "xe_guc_ct.h"
 #include "xe_migrate.h"
-#include "xe_pt.h"
-#include "xe_trace.h"
+#include "xe_trace_bo.h"
 #include "xe_vm.h"
 
 struct pagefault {
@@ -126,17 +125,73 @@ static int xe_pf_begin(struct drm_exec *exec, struct xe_vma *vma,
 	return 0;
 }
 
+static int handle_vma_pagefault(struct xe_tile *tile, struct pagefault *pf,
+				struct xe_vma *vma)
+{
+	struct xe_vm *vm = xe_vma_vm(vma);
+	struct drm_exec exec;
+	struct dma_fence *fence;
+	ktime_t end = 0;
+	int err;
+	bool atomic;
+
+	trace_xe_vma_pagefault(vma);
+	atomic = access_is_atomic(pf->access_type);
+
+	/* Check if VMA is valid */
+	if (vma_is_valid(tile, vma) && !atomic)
+		return 0;
+
+retry_userptr:
+	if (xe_vma_is_userptr(vma) &&
+	    xe_vma_userptr_check_repin(to_userptr_vma(vma))) {
+		struct xe_userptr_vma *uvma = to_userptr_vma(vma);
+
+		err = xe_vma_userptr_pin_pages(uvma);
+		if (err)
+			return err;
+	}
+
+	/* Lock VM and BOs dma-resv */
+	drm_exec_init(&exec, 0, 0);
+	drm_exec_until_all_locked(&exec) {
+		err = xe_pf_begin(&exec, vma, atomic, tile->id);
+		drm_exec_retry_on_contention(&exec);
+		if (xe_vm_validate_should_retry(&exec, err, &end))
+			err = -EAGAIN;
+		if (err)
+			goto unlock_dma_resv;
+
+		/* Bind VMA only to the GT that has faulted */
+		trace_xe_vma_pf_bind(vma);
+		fence = xe_vma_rebind(vm, vma, BIT(tile->id));
+		if (IS_ERR(fence)) {
+			err = PTR_ERR(fence);
+			if (xe_vm_validate_should_retry(&exec, err, &end))
+				err = -EAGAIN;
+			goto unlock_dma_resv;
+		}
+	}
+
+	dma_fence_wait(fence, false);
+	dma_fence_put(fence);
+	vma->tile_invalidated &= ~BIT(tile->id);
+
+unlock_dma_resv:
+	drm_exec_fini(&exec);
+	if (err == -EAGAIN)
+		goto retry_userptr;
+
+	return err;
+}
+
 static int handle_pagefault(struct xe_gt *gt, struct pagefault *pf)
 {
 	struct xe_device *xe = gt_to_xe(gt);
 	struct xe_tile *tile = gt_to_tile(gt);
-	struct drm_exec exec;
 	struct xe_vm *vm;
 	struct xe_vma *vma = NULL;
-	struct dma_fence *fence;
-	bool write_locked;
-	int ret = 0;
-	bool atomic;
+	int err;
 
 	/* SW isn't expected to handle TRTT faults */
 	if (pf->trva_fault)
@@ -153,100 +208,25 @@ static int handle_pagefault(struct xe_gt *gt, struct pagefault *pf)
 	if (!vm)
 		return -EINVAL;
 
-retry_userptr:
 	/*
-	 * TODO: Avoid exclusive lock if VM doesn't have userptrs, or
-	 * start out read-locked?
+	 * TODO: Change to read lock? Using write lock for simplicity.
 	 */
 	down_write(&vm->lock);
-	write_locked = true;
 	vma = lookup_vma(vm, pf->page_addr);
 	if (!vma) {
-		ret = -EINVAL;
+		err = -EINVAL;
 		goto unlock_vm;
 	}
 
-	if (!xe_vma_is_userptr(vma) ||
-	    !xe_vma_userptr_check_repin(to_userptr_vma(vma))) {
-		downgrade_write(&vm->lock);
-		write_locked = false;
-	}
+	err = handle_vma_pagefault(tile, pf, vma);
 
-	trace_xe_vma_pagefault(vma);
-
-	atomic = access_is_atomic(pf->access_type);
-
-	/* Check if VMA is valid */
-	if (vma_is_valid(tile, vma) && !atomic)
-		goto unlock_vm;
-
-	/* TODO: Validate fault */
-
-	if (xe_vma_is_userptr(vma) && write_locked) {
-		struct xe_userptr_vma *uvma = to_userptr_vma(vma);
-
-		spin_lock(&vm->userptr.invalidated_lock);
-		list_del_init(&uvma->userptr.invalidate_link);
-		spin_unlock(&vm->userptr.invalidated_lock);
-
-		ret = xe_vma_userptr_pin_pages(uvma);
-		if (ret)
-			goto unlock_vm;
-
-		downgrade_write(&vm->lock);
-		write_locked = false;
-	}
-
-	/* Lock VM and BOs dma-resv */
-	drm_exec_init(&exec, 0, 0);
-	drm_exec_until_all_locked(&exec) {
-		ret = xe_pf_begin(&exec, vma, atomic, tile->id);
-		drm_exec_retry_on_contention(&exec);
-		if (ret)
-			goto unlock_dma_resv;
-	}
-
-	/* Bind VMA only to the GT that has faulted */
-	trace_xe_vma_pf_bind(vma);
-	fence = __xe_pt_bind_vma(tile, vma, xe_tile_migrate_engine(tile), NULL, 0,
-				 vma->tile_present & BIT(tile->id));
-	if (IS_ERR(fence)) {
-		ret = PTR_ERR(fence);
-		goto unlock_dma_resv;
-	}
-
-	/*
-	 * XXX: Should we drop the lock before waiting? This only helps if doing
-	 * GPU binds which is currently only done if we have to wait for more
-	 * than 10ms on a move.
-	 */
-	dma_fence_wait(fence, false);
-	dma_fence_put(fence);
-
-	if (xe_vma_is_userptr(vma))
-		ret = xe_vma_userptr_check_repin(to_userptr_vma(vma));
-	vma->tile_invalidated &= ~BIT(tile->id);
-
-unlock_dma_resv:
-	drm_exec_fini(&exec);
 unlock_vm:
-	if (!ret)
+	if (!err)
 		vm->usm.last_fault_vma = vma;
-	if (write_locked)
-		up_write(&vm->lock);
-	else
-		up_read(&vm->lock);
-	if (ret == -EAGAIN)
-		goto retry_userptr;
-
-	if (!ret) {
-		ret = xe_gt_tlb_invalidation_vma(gt, NULL, vma);
-		if (ret >= 0)
-			ret = 0;
-	}
+	up_write(&vm->lock);
 	xe_vm_put(vm);
 
-	return ret;
+	return err;
 }
 
 static int send_pagefault_reply(struct xe_guc *guc,
@@ -307,7 +287,7 @@ static bool get_pagefault(struct pf_queue *pf_queue, struct pagefault *pf)
 			PFD_VIRTUAL_ADDR_LO_SHIFT;
 
 		pf_queue->tail = (pf_queue->tail + PF_MSG_LEN_DW) %
-			PF_QUEUE_NUM_DW;
+			pf_queue->num_dw;
 		ret = true;
 	}
 	spin_unlock_irq(&pf_queue->lock);
@@ -319,7 +299,8 @@ static bool pf_queue_full(struct pf_queue *pf_queue)
 {
 	lockdep_assert_held(&pf_queue->lock);
 
-	return CIRC_SPACE(pf_queue->head, pf_queue->tail, PF_QUEUE_NUM_DW) <=
+	return CIRC_SPACE(pf_queue->head, pf_queue->tail,
+			  pf_queue->num_dw) <=
 		PF_MSG_LEN_DW;
 }
 
@@ -332,22 +313,23 @@ int xe_guc_pagefault_handler(struct xe_guc *guc, u32 *msg, u32 len)
 	u32 asid;
 	bool full;
 
-	/*
-	 * The below logic doesn't work unless PF_QUEUE_NUM_DW % PF_MSG_LEN_DW == 0
-	 */
-	BUILD_BUG_ON(PF_QUEUE_NUM_DW % PF_MSG_LEN_DW);
-
 	if (unlikely(len != PF_MSG_LEN_DW))
 		return -EPROTO;
 
 	asid = FIELD_GET(PFD_ASID, msg[1]);
 	pf_queue = gt->usm.pf_queue + (asid % NUM_PF_QUEUE);
 
+	/*
+	 * The below logic doesn't work unless PF_QUEUE_NUM_DW % PF_MSG_LEN_DW == 0
+	 */
+	xe_gt_assert(gt, !(pf_queue->num_dw % PF_MSG_LEN_DW));
+
 	spin_lock_irqsave(&pf_queue->lock, flags);
 	full = pf_queue_full(pf_queue);
 	if (!full) {
 		memcpy(pf_queue->data + pf_queue->head, msg, len * sizeof(u32));
-		pf_queue->head = (pf_queue->head + len) % PF_QUEUE_NUM_DW;
+		pf_queue->head = (pf_queue->head + len) %
+			pf_queue->num_dw;
 		queue_work(gt->usm.pf_wq, &pf_queue->worker);
 	} else {
 		drm_warn(&xe->drm, "PF Queue full, shouldn't be possible");
@@ -402,18 +384,59 @@ static void pf_queue_work_func(struct work_struct *w)
 
 static void acc_queue_work_func(struct work_struct *w);
 
+static void pagefault_fini(void *arg)
+{
+	struct xe_gt *gt = arg;
+	struct xe_device *xe = gt_to_xe(gt);
+
+	if (!xe->info.has_usm)
+		return;
+
+	destroy_workqueue(gt->usm.acc_wq);
+	destroy_workqueue(gt->usm.pf_wq);
+}
+
+static int xe_alloc_pf_queue(struct xe_gt *gt, struct pf_queue *pf_queue)
+{
+	struct xe_device *xe = gt_to_xe(gt);
+	xe_dss_mask_t all_dss;
+	int num_dss, num_eus;
+
+	bitmap_or(all_dss, gt->fuse_topo.g_dss_mask, gt->fuse_topo.c_dss_mask,
+		  XE_MAX_DSS_FUSE_BITS);
+
+	num_dss = bitmap_weight(all_dss, XE_MAX_DSS_FUSE_BITS);
+	num_eus = bitmap_weight(gt->fuse_topo.eu_mask_per_dss,
+				XE_MAX_EU_FUSE_BITS) * num_dss;
+
+	/* user can issue separate page faults per EU and per CS */
+	pf_queue->num_dw =
+		(num_eus + XE_NUM_HW_ENGINES) * PF_MSG_LEN_DW;
+
+	pf_queue->gt = gt;
+	pf_queue->data = devm_kcalloc(xe->drm.dev, pf_queue->num_dw,
+				      sizeof(u32), GFP_KERNEL);
+	if (!pf_queue->data)
+		return -ENOMEM;
+
+	spin_lock_init(&pf_queue->lock);
+	INIT_WORK(&pf_queue->worker, pf_queue_work_func);
+
+	return 0;
+}
+
 int xe_gt_pagefault_init(struct xe_gt *gt)
 {
 	struct xe_device *xe = gt_to_xe(gt);
-	int i;
+	int i, ret = 0;
 
 	if (!xe->info.has_usm)
 		return 0;
 
 	for (i = 0; i < NUM_PF_QUEUE; ++i) {
-		gt->usm.pf_queue[i].gt = gt;
-		spin_lock_init(&gt->usm.pf_queue[i].lock);
-		INIT_WORK(&gt->usm.pf_queue[i].worker, pf_queue_work_func);
+		ret = xe_alloc_pf_queue(gt, &gt->usm.pf_queue[i]);
+		if (ret)
+			return ret;
 	}
 	for (i = 0; i < NUM_ACC_QUEUE; ++i) {
 		gt->usm.acc_queue[i].gt = gt;
@@ -429,10 +452,12 @@ int xe_gt_pagefault_init(struct xe_gt *gt)
 	gt->usm.acc_wq = alloc_workqueue("xe_gt_access_counter_work_queue",
 					 WQ_UNBOUND | WQ_HIGHPRI,
 					 NUM_ACC_QUEUE);
-	if (!gt->usm.acc_wq)
+	if (!gt->usm.acc_wq) {
+		destroy_workqueue(gt->usm.pf_wq);
 		return -ENOMEM;
+	}
 
-	return 0;
+	return devm_add_action_or_reset(xe->drm.dev, pagefault_fini, gt);
 }
 
 void xe_gt_pagefault_reset(struct xe_gt *gt)

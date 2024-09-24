@@ -178,10 +178,10 @@ ssize_t kernel_read_file_from_fd(int fd, loff_t offset, void **buf,
 	struct fd f = fdget(fd);
 	ssize_t ret = -EBADF;
 
-	if (!f.file || !(f.file->f_mode & FMODE_READ))
+	if (!fd_file(f) || !(fd_file(f)->f_mode & FMODE_READ))
 		goto out;
 
-	ret = kernel_read_file(f.file, offset, buf, buf_size, file_size, id);
+	ret = kernel_read_file(fd_file(f), offset, buf, buf_size, file_size, id);
 out:
 	fdput(f);
 	return ret;

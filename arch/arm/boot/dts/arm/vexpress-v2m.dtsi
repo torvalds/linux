@@ -351,7 +351,7 @@
 				};
 			};
 
-			v2m_fixed_3v3: fixed-regulator-0 {
+			v2m_fixed_3v3: regulator-3v3 {
 				compatible = "regulator-fixed";
 				regulator-name = "3V3";
 				regulator-min-microvolt = <3300000>;
@@ -359,21 +359,21 @@
 				regulator-always-on;
 			};
 
-			v2m_clk24mhz: clk24mhz {
+			v2m_clk24mhz: clock-24000000 {
 				compatible = "fixed-clock";
 				#clock-cells = <0>;
 				clock-frequency = <24000000>;
 				clock-output-names = "v2m:clk24mhz";
 			};
 
-			v2m_refclk1mhz: refclk1mhz {
+			v2m_refclk1mhz: clock-1000000 {
 				compatible = "fixed-clock";
 				#clock-cells = <0>;
 				clock-frequency = <1000000>;
 				clock-output-names = "v2m:refclk1mhz";
 			};
 
-			v2m_refclk32khz: refclk32khz {
+			v2m_refclk32khz: clock-32768 {
 				compatible = "fixed-clock";
 				#clock-cells = <0>;
 				clock-frequency = <32768>;
@@ -436,7 +436,7 @@
 				compatible = "arm,vexpress,config-bus";
 				arm,vexpress,config-bridge = <&v2m_sysreg>;
 
-				oscclk0 {
+				clock-controller-0 {
 					/* MCC static memory clock */
 					compatible = "arm,vexpress-osc";
 					arm,vexpress-sysreg,func = <1 0>;
@@ -445,7 +445,7 @@
 					clock-output-names = "v2m:oscclk0";
 				};
 
-				v2m_oscclk1: oscclk1 {
+				v2m_oscclk1: clock-controller-1 {
 					/* CLCD clock */
 					compatible = "arm,vexpress-osc";
 					arm,vexpress-sysreg,func = <1 1>;
@@ -454,7 +454,7 @@
 					clock-output-names = "v2m:oscclk1";
 				};
 
-				v2m_oscclk2: oscclk2 {
+				v2m_oscclk2: clock-controller-2 {
 					/* IO FPGA peripheral clock */
 					compatible = "arm,vexpress-osc";
 					arm,vexpress-sysreg,func = <1 2>;
@@ -463,7 +463,7 @@
 					clock-output-names = "v2m:oscclk2";
 				};
 
-				volt-vio {
+				regulator-vio {
 					/* Logic level voltage */
 					compatible = "arm,vexpress-volt";
 					arm,vexpress-sysreg,func = <2 0>;

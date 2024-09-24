@@ -24,6 +24,7 @@
 #include <drm/drm_managed.h>
 #include <linux/pm_runtime.h>
 
+#include "gt/intel_gt.h"
 #include "gt/intel_engine_regs.h"
 #include "gt/intel_gt_regs.h"
 
@@ -180,14 +181,16 @@ fw_domain_wait_ack_clear(const struct intel_uncore_forcewake_domain *d)
 	if (!wait_ack_clear(d, FORCEWAKE_KERNEL))
 		return;
 
-	if (fw_ack(d) == ~0)
+	if (fw_ack(d) == ~0) {
 		drm_err(&d->uncore->i915->drm,
 			"%s: MMIO unreliable (forcewake register returns 0xFFFFFFFF)!\n",
 			intel_uncore_forcewake_domain_to_str(d->id));
-	else
+		intel_gt_set_wedged_async(d->uncore->gt);
+	} else {
 		drm_err(&d->uncore->i915->drm,
 			"%s: timed out waiting for forcewake ack to clear.\n",
 			intel_uncore_forcewake_domain_to_str(d->id));
+	}
 
 	add_taint_for_CI(d->uncore->i915, TAINT_WARN); /* CI now unreliable */
 }
@@ -2614,10 +2617,17 @@ void intel_uncore_prune_engine_fw_domains(struct intel_uncore *uncore,
 static void driver_initiated_flr(struct intel_uncore *uncore)
 {
 	struct drm_i915_private *i915 = uncore->i915;
-	const unsigned int flr_timeout_ms = 3000; /* specs recommend a 3s wait */
+	unsigned int flr_timeout_ms;
 	int ret;
 
 	drm_dbg(&i915->drm, "Triggering Driver-FLR\n");
+
+	/*
+	 * The specification recommends a 3 seconds FLR reset timeout. To be
+	 * cautious, we will extend this to 9 seconds, three times the specified
+	 * timeout.
+	 */
+	flr_timeout_ms = 9000;
 
 	/*
 	 * Make sure any pending FLR requests have cleared by waiting for the

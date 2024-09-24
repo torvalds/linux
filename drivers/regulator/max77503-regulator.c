@@ -25,14 +25,6 @@
 #define MAX77503_AD_ENABLED			0x1
 #define MAX77503_AD_DISABLED		0x0
 
-struct max77503_dev {
-	struct device *dev;
-	struct device_node *of_node;
-	struct regulator_desc desc;
-	struct regulator_dev *rdev;
-	struct regmap *regmap;
-};
-
 static const struct regmap_config max77503_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,

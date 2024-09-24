@@ -15,7 +15,6 @@
 #include <linux/hrtimer.h>
 #include <linux/interrupt.h>
 #include <linux/kvm_types.h>
-#include <linux/kvm_host.h>
 #include <linux/kvm.h>
 #include <linux/seqlock.h>
 #include <linux/module.h>
@@ -427,6 +426,7 @@ struct kvm_vcpu_stat {
 	u64 instruction_io_other;
 	u64 instruction_lpsw;
 	u64 instruction_lpswe;
+	u64 instruction_lpswey;
 	u64 instruction_pfmf;
 	u64 instruction_ptff;
 	u64 instruction_sck;
@@ -1029,11 +1029,12 @@ void kvm_arch_crypto_clear_masks(struct kvm *kvm);
 void kvm_arch_crypto_set_masks(struct kvm *kvm, unsigned long *apm,
 			       unsigned long *aqm, unsigned long *adm);
 
-int __sie64a(phys_addr_t sie_block_phys, struct kvm_s390_sie_block *sie_block, u64 *rsa);
+int __sie64a(phys_addr_t sie_block_phys, struct kvm_s390_sie_block *sie_block, u64 *rsa,
+	     unsigned long gasce);
 
-static inline int sie64a(struct kvm_s390_sie_block *sie_block, u64 *rsa)
+static inline int sie64a(struct kvm_s390_sie_block *sie_block, u64 *rsa, unsigned long gasce)
 {
-	return __sie64a(virt_to_phys(sie_block), sie_block, rsa);
+	return __sie64a(virt_to_phys(sie_block), sie_block, rsa, gasce);
 }
 
 extern char sie_exit;
@@ -1045,7 +1046,6 @@ extern int kvm_s390_gisc_register(struct kvm *kvm, u32 gisc);
 extern int kvm_s390_gisc_unregister(struct kvm *kvm, u32 gisc);
 
 static inline void kvm_arch_sync_events(struct kvm *kvm) {}
-static inline void kvm_arch_sched_in(struct kvm_vcpu *vcpu, int cpu) {}
 static inline void kvm_arch_free_memslot(struct kvm *kvm,
 					 struct kvm_memory_slot *slot) {}
 static inline void kvm_arch_memslots_updated(struct kvm *kvm, u64 gen) {}

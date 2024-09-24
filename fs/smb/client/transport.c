@@ -28,6 +28,7 @@
 #include "cifs_debug.h"
 #include "smb2proto.h"
 #include "smbdirect.h"
+#include "compress.h"
 
 /* Max number of iovectors we can use off the stack when sending requests. */
 #define CIFS_MAX_IOV_SIZE 8
@@ -431,6 +432,9 @@ smb_send_rqst(struct TCP_Server_Info *server, int num_rqst,
 	struct smb_rqst *cur_rqst;
 	struct kvec *iov;
 	int rc;
+
+	if (flags & CIFS_COMPRESS_REQ)
+		return smb_compress(server, &rqst[0], __smb_send_rqst);
 
 	if (!(flags & CIFS_TRANSFORM_REQ))
 		return __smb_send_rqst(server, num_rqst, rqst);
@@ -988,10 +992,10 @@ static void
 cifs_compound_callback(struct mid_q_entry *mid)
 {
 	struct TCP_Server_Info *server = mid->server;
-	struct cifs_credits credits;
-
-	credits.value = server->ops->get_credits(mid);
-	credits.instance = server->reconnect_instance;
+	struct cifs_credits credits = {
+		.value = server->ops->get_credits(mid),
+		.instance = server->reconnect_instance,
+	};
 
 	add_credits(server, &credits, mid->optype);
 
@@ -1289,7 +1293,7 @@ compound_send_recv(const unsigned int xid, struct cifs_ses *ses,
 out:
 	/*
 	 * This will dequeue all mids. After this it is important that the
-	 * demultiplex_thread will not process any of these mids any futher.
+	 * demultiplex_thread will not process any of these mids any further.
 	 * This is prevented above by using a noop callback that will not
 	 * wake this thread except for the very last PDU.
 	 */

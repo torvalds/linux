@@ -353,7 +353,7 @@ void jbd2_journal_commit_transaction(journal_t *journal)
 	struct buffer_head *descriptor;
 	struct buffer_head **wbuf = journal->j_wbuf;
 	int bufs;
-	int flags;
+	int escape;
 	int err;
 	unsigned long long blocknr;
 	ktime_t start_time;
@@ -660,10 +660,10 @@ void jbd2_journal_commit_transaction(journal_t *journal)
 		 */
 		set_bit(BH_JWrite, &jh2bh(jh)->b_state);
 		JBUFFER_TRACE(jh, "ph3: write metadata");
-		flags = jbd2_journal_write_metadata_buffer(commit_transaction,
+		escape = jbd2_journal_write_metadata_buffer(commit_transaction,
 						jh, &wbuf[bufs], blocknr);
-		if (flags < 0) {
-			jbd2_journal_abort(journal, flags);
+		if (escape < 0) {
+			jbd2_journal_abort(journal, escape);
 			continue;
 		}
 		jbd2_file_log_bh(&io_bufs, wbuf[bufs]);
@@ -672,7 +672,7 @@ void jbd2_journal_commit_transaction(journal_t *journal)
                    buffer */
 
 		tag_flag = 0;
-		if (flags & 1)
+		if (escape)
 			tag_flag |= JBD2_FLAG_ESCAPE;
 		if (!first_tag)
 			tag_flag |= JBD2_FLAG_SAME_UUID;
@@ -766,7 +766,7 @@ start_journal_io:
 		if (first_block < journal->j_tail)
 			freed += journal->j_last - journal->j_first;
 		/* Update tail only if we free significant amount of space */
-		if (freed < jbd2_journal_get_max_txn_bufs(journal))
+		if (freed < journal->j_max_transaction_buffers)
 			update_tail = 0;
 	}
 	J_ASSERT(commit_transaction->t_state == T_COMMIT);
@@ -1107,7 +1107,7 @@ restart_loop:
 
 	commit_transaction->t_state = T_COMMIT_CALLBACK;
 	J_ASSERT(commit_transaction == journal->j_committing_transaction);
-	journal->j_commit_sequence = commit_transaction->t_tid;
+	WRITE_ONCE(journal->j_commit_sequence, commit_transaction->t_tid);
 	journal->j_committing_transaction = NULL;
 	commit_time = ktime_to_ns(ktime_sub(ktime_get(), start_time));
 

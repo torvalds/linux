@@ -452,7 +452,7 @@ static const struct sysrq_key_op sysrq_unrt_op = {
 
 static void sysrq_handle_replay_logs(u8 key)
 {
-	console_replay_all();
+	console_try_replay_all();
 }
 static struct sysrq_key_op sysrq_replay_logs_op = {
 	.handler        = sysrq_handle_replay_logs,
@@ -531,6 +531,7 @@ static const struct sysrq_key_op *sysrq_key_table[62] = {
 	NULL,				/* P */
 	NULL,				/* Q */
 	&sysrq_replay_logs_op,		/* R */
+	/* S: May be registered by sched_ext for resetting */
 	NULL,				/* S */
 	NULL,				/* T */
 	NULL,				/* U */
@@ -770,8 +771,6 @@ static void sysrq_of_get_keyreset_config(void)
 {
 	u32 key;
 	struct device_node *np;
-	struct property *prop;
-	const __be32 *p;
 
 	np = of_find_node_by_path("/chosen/linux,sysrq-reset-seq");
 	if (!np) {
@@ -782,7 +781,7 @@ static void sysrq_of_get_keyreset_config(void)
 	/* Reset in case a __weak definition was present */
 	sysrq_reset_seq_len = 0;
 
-	of_property_for_each_u32(np, "keyset", prop, p, key) {
+	of_property_for_each_u32(np, "keyset", key) {
 		if (key == KEY_RESERVED || key > KEY_MAX ||
 		    sysrq_reset_seq_len == SYSRQ_KEY_RESET_MAX)
 			break;

@@ -42,7 +42,7 @@ struct mmu_rb_handler {
 	/* Begin on a new cachline boundary here */
 	struct rb_root_cached root ____cacheline_aligned_in_smp;
 	void *ops_arg;
-	struct mmu_rb_ops *ops;
+	const struct mmu_rb_ops *ops;
 	struct list_head lru_list;
 	struct work_struct del_work;
 	struct list_head del_list;
@@ -51,7 +51,7 @@ struct mmu_rb_handler {
 };
 
 int hfi1_mmu_rb_register(void *ops_arg,
-			 struct mmu_rb_ops *ops,
+			 const struct mmu_rb_ops *ops,
 			 struct workqueue_struct *wq,
 			 struct mmu_rb_handler **handler);
 void hfi1_mmu_rb_unregister(struct mmu_rb_handler *handler);

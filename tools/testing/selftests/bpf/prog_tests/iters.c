@@ -14,6 +14,7 @@
 #include "iters_state_safety.skel.h"
 #include "iters_looping.skel.h"
 #include "iters_num.skel.h"
+#include "iters_testmod.skel.h"
 #include "iters_testmod_seq.skel.h"
 #include "iters_task_vma.skel.h"
 #include "iters_task.skel.h"
@@ -297,8 +298,10 @@ void test_iters(void)
 	RUN_TESTS(iters);
 	RUN_TESTS(iters_css_task);
 
-	if (env.has_testmod)
+	if (env.has_testmod) {
+		RUN_TESTS(iters_testmod);
 		RUN_TESTS(iters_testmod_seq);
+	}
 
 	if (test__start_subtest("num"))
 		subtest_num_iters();

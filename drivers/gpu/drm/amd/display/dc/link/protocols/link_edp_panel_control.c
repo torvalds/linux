@@ -305,16 +305,17 @@ bool edp_is_ilr_optimization_enabled(struct dc_link *link)
 	return true;
 }
 
-enum dc_link_rate get_max_link_rate_from_ilr_table(struct dc_link *link)
+enum dc_link_rate get_max_edp_link_rate(struct dc_link *link)
 {
-	enum dc_link_rate link_rate = link->reported_link_cap.link_rate;
+	enum dc_link_rate max_ilr_rate = LINK_RATE_UNKNOWN;
+	enum dc_link_rate max_non_ilr_rate = dp_get_max_link_cap(link).link_rate;
 
 	for (int i = 0; i < link->dpcd_caps.edp_supported_link_rates_count; i++) {
-		if (link_rate < link->dpcd_caps.edp_supported_link_rates[i])
-			link_rate = link->dpcd_caps.edp_supported_link_rates[i];
+		if (max_ilr_rate < link->dpcd_caps.edp_supported_link_rates[i])
+			max_ilr_rate = link->dpcd_caps.edp_supported_link_rates[i];
 	}
 
-	return link_rate;
+	return (max_ilr_rate > max_non_ilr_rate ? max_ilr_rate : max_non_ilr_rate);
 }
 
 bool edp_is_ilr_optimization_required(struct dc_link *link,
@@ -763,7 +764,7 @@ bool edp_setup_psr(struct dc_link *link,
 
 	psr_context->crtcTimingVerticalTotal = stream->timing.v_total;
 	psr_context->vsync_rate_hz = div64_u64(div64_u64((stream->
-					timing.pix_clk_100hz * 100),
+					timing.pix_clk_100hz * (u64)100),
 					stream->timing.v_total),
 					stream->timing.h_total);
 
@@ -850,7 +851,7 @@ bool edp_setup_psr(struct dc_link *link,
 
 }
 
-void edp_get_psr_residency(const struct dc_link *link, uint32_t *residency)
+void edp_get_psr_residency(const struct dc_link *link, uint32_t *residency, enum psr_residency_mode mode)
 {
 	struct dc  *dc = link->ctx->dc;
 	struct dmub_psr *psr = dc->res_pool->psr;
@@ -861,7 +862,7 @@ void edp_get_psr_residency(const struct dc_link *link, uint32_t *residency)
 
 	// PSR residency measurements only supported on DMCUB
 	if (psr != NULL && link->psr_settings.psr_feature_enabled)
-		psr->funcs->psr_get_residency(psr, residency, panel_inst);
+		psr->funcs->psr_get_residency(psr, residency, panel_inst, mode);
 	else
 		*residency = 0;
 }
@@ -1167,6 +1168,9 @@ static void edp_set_assr_enable(const struct dc *pDC, struct dc_link *link,
 	link_enc_index = link->link_enc->transmitter - TRANSMITTER_UNIPHY_A;
 
 	if (link_res->hpo_dp_link_enc) {
+		if (link->wa_flags.disable_assr_for_uhbr)
+			return;
+
 		link_enc_index = link_res->hpo_dp_link_enc->inst;
 		use_hpo_dp_link_enc = true;
 	}

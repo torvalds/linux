@@ -4009,7 +4009,7 @@ static void pmcraid_tasklet_function(unsigned long instance)
  * This routine un-registers registered interrupt handler and
  * also frees irqs/vectors.
  *
- * Retun Value
+ * Return Value
  *	None
  */
 static

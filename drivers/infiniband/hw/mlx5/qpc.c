@@ -249,7 +249,8 @@ int mlx5_qpc_create_qp(struct mlx5_ib_dev *dev, struct mlx5_core_qp *qp,
 	if (err)
 		goto err_cmd;
 
-	mlx5_debug_qp_add(dev->mdev, qp);
+	if (dev->ib_dev.type != RDMA_DEVICE_TYPE_SMI)
+		mlx5_debug_qp_add(dev->mdev, qp);
 
 	return 0;
 
@@ -307,7 +308,8 @@ int mlx5_core_destroy_qp(struct mlx5_ib_dev *dev, struct mlx5_core_qp *qp)
 {
 	u32 in[MLX5_ST_SZ_DW(destroy_qp_in)] = {};
 
-	mlx5_debug_qp_remove(dev->mdev, qp);
+	if (dev->ib_dev.type != RDMA_DEVICE_TYPE_SMI)
+		mlx5_debug_qp_remove(dev->mdev, qp);
 
 	destroy_resource_common(dev, qp);
 
@@ -504,7 +506,9 @@ int mlx5_init_qp_table(struct mlx5_ib_dev *dev)
 	spin_lock_init(&table->lock);
 	INIT_RADIX_TREE(&table->tree, GFP_ATOMIC);
 	xa_init(&table->dct_xa);
-	mlx5_qp_debugfs_init(dev->mdev);
+
+	if (dev->ib_dev.type != RDMA_DEVICE_TYPE_SMI)
+		mlx5_qp_debugfs_init(dev->mdev);
 
 	table->nb.notifier_call = rsc_event_notifier;
 	mlx5_notifier_register(dev->mdev, &table->nb);
@@ -517,7 +521,8 @@ void mlx5_cleanup_qp_table(struct mlx5_ib_dev *dev)
 	struct mlx5_qp_table *table = &dev->qp_table;
 
 	mlx5_notifier_unregister(dev->mdev, &table->nb);
-	mlx5_qp_debugfs_cleanup(dev->mdev);
+	if (dev->ib_dev.type != RDMA_DEVICE_TYPE_SMI)
+		mlx5_qp_debugfs_cleanup(dev->mdev);
 }
 
 int mlx5_core_qp_query(struct mlx5_ib_dev *dev, struct mlx5_core_qp *qp,

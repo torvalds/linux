@@ -18,6 +18,7 @@
 #include "wave5-vdi.h"
 
 enum product_id {
+	PRODUCT_ID_515,
 	PRODUCT_ID_521,
 	PRODUCT_ID_511,
 	PRODUCT_ID_517,
@@ -327,6 +328,7 @@ struct vpu_attr {
 	u32 support_backbone: 1;
 	u32 support_avc10bit_enc: 1;
 	u32 support_hevc10bit_enc: 1;
+	u32 support_hevc10bit_dec: 1;
 	u32 support_vcore_backbone: 1;
 	u32 support_vcpu_backbone: 1;
 };
@@ -761,6 +763,7 @@ struct vpu_device {
 	struct kthread_worker *worker;
 	int vpu_poll_interval;
 	int num_clks;
+	struct reset_control *resets;
 };
 
 struct vpu_instance;

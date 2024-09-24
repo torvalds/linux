@@ -674,7 +674,7 @@ static struct platform_driver tegra210_mixer_driver = {
 		.pm = &tegra210_mixer_pm_ops,
 	},
 	.probe = tegra210_mixer_platform_probe,
-	.remove_new = tegra210_mixer_platform_remove,
+	.remove = tegra210_mixer_platform_remove,
 };
 module_platform_driver(tegra210_mixer_driver);
 

@@ -535,7 +535,7 @@ static const unsigned int i2c0_sck_h_pins[]		= { GPIOH_7 };
 /* Bank H func3 */
 static const unsigned int pcieck_reqn_h_pins[]		= { GPIOH_2 };
 
-static struct meson_pmx_group t7_periphs_groups[] = {
+static const struct meson_pmx_group t7_periphs_groups[] = {
 	GPIO_GROUP(GPIOB_0),
 	GPIO_GROUP(GPIOB_1),
 	GPIO_GROUP(GPIOB_2),
@@ -1443,7 +1443,7 @@ static const char * const mic_mute_groups[] = {
 	"mic_mute_key", "mic_mute_led",
 };
 
-static struct meson_pmx_func t7_periphs_functions[] = {
+static const struct meson_pmx_func t7_periphs_functions[] = {
 	FUNCTION(gpio_periphs),
 	FUNCTION(emmc),
 	FUNCTION(nor),
@@ -1524,7 +1524,7 @@ static struct meson_pmx_func t7_periphs_functions[] = {
 	FUNCTION(mic_mute),
 };
 
-static struct meson_bank t7_periphs_banks[] = {
+static const struct meson_bank t7_periphs_banks[] = {
 	/* name  first  last  irq pullen  pull  dir  out  in  ds */
 	BANK_DS("D",      GPIOD_0,     GPIOD_12, 57, 69,
 		0x03, 0,  0x04,  0,  0x02,  0, 0x01, 0,  0x00, 0, 0x07, 0),
@@ -1552,7 +1552,7 @@ static struct meson_bank t7_periphs_banks[] = {
 		0x83, 0,  0x84,  0,  0x82, 0,  0x81,  0, 0x80, 0, 0x87, 0),
 };
 
-static struct meson_pmx_bank t7_periphs_pmx_banks[] = {
+static const struct meson_pmx_bank t7_periphs_pmx_banks[] = {
 	/*      name	    first	 last        reg  offset */
 	BANK_PMX("D",      GPIOD_0,     GPIOD_12,    0x0a,  0),
 	BANK_PMX("E",      GPIOE_0,     GPIOE_6,     0x0c,  0),
@@ -1568,12 +1568,12 @@ static struct meson_pmx_bank t7_periphs_pmx_banks[] = {
 	BANK_PMX("TEST_N", GPIO_TEST_N, GPIO_TEST_N, 0x09,  0),
 };
 
-static struct meson_axg_pmx_data t7_periphs_pmx_banks_data = {
+static const struct meson_axg_pmx_data t7_periphs_pmx_banks_data = {
 	.pmx_banks	= t7_periphs_pmx_banks,
 	.num_pmx_banks	= ARRAY_SIZE(t7_periphs_pmx_banks),
 };
 
-static struct meson_pinctrl_data t7_periphs_pinctrl_data = {
+static const struct meson_pinctrl_data t7_periphs_pinctrl_data = {
 	.name		= "periphs-banks",
 	.pins		= t7_periphs_pins,
 	.groups		= t7_periphs_groups,

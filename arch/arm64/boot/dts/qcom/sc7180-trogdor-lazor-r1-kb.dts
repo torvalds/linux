@@ -12,6 +12,6 @@
 	compatible = "google,lazor-rev1-sku2", "google,lazor-rev2-sku2", "qcom,sc7180";
 };
 
-&keyboard_backlight {
+&pwmleds {
 	status = "okay";
 };

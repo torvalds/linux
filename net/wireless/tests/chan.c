@@ -113,16 +113,16 @@ static const struct chandef_compat_case {
 		},
 	},
 	{
-		.desc = "different primary 160 MHz",
+		.desc = "different primary 320 MHz",
 		.c1 = {
 			.width = NL80211_CHAN_WIDTH_320,
 			.chan = &chan_6ghz_105,
-			.center_freq1 = 6475 + 150,
+			.center_freq1 = 6475 + 110,
 		},
 		.c2 = {
 			.width = NL80211_CHAN_WIDTH_320,
 			.chan = &chan_6ghz_105,
-			.center_freq1 = 6475 - 10,
+			.center_freq1 = 6475 - 50,
 		},
 	},
 	{
@@ -131,12 +131,12 @@ static const struct chandef_compat_case {
 		.c1 = {
 			.width = NL80211_CHAN_WIDTH_160,
 			.chan = &chan_6ghz_105,
-			.center_freq1 = 6475 + 70,
+			.center_freq1 = 6475 + 30,
 		},
 		.c2 = {
 			.width = NL80211_CHAN_WIDTH_320,
 			.chan = &chan_6ghz_105,
-			.center_freq1 = 6475 - 10,
+			.center_freq1 = 6475 - 50,
 		},
 		.compat = true,
 	},
@@ -145,12 +145,12 @@ static const struct chandef_compat_case {
 		.c1 = {
 			.width = NL80211_CHAN_WIDTH_160,
 			.chan = &chan_6ghz_105,
-			.center_freq1 = 6475 + 70,
+			.center_freq1 = 6475 + 30,
 		},
 		.c2 = {
 			.width = NL80211_CHAN_WIDTH_320,
 			.chan = &chan_6ghz_105,
-			.center_freq1 = 6475 - 10,
+			.center_freq1 = 6475 - 50,
 			.punctured = 0xf,
 		},
 		.compat = true,
@@ -160,13 +160,13 @@ static const struct chandef_compat_case {
 		.c1 = {
 			.width = NL80211_CHAN_WIDTH_160,
 			.chan = &chan_6ghz_105,
-			.center_freq1 = 6475 + 70,
+			.center_freq1 = 6475 + 30,
 			.punctured = 0xc0,
 		},
 		.c2 = {
 			.width = NL80211_CHAN_WIDTH_320,
 			.chan = &chan_6ghz_105,
-			.center_freq1 = 6475 - 10,
+			.center_freq1 = 6475 - 50,
 			.punctured = 0xc000,
 		},
 		.compat = true,
@@ -176,13 +176,13 @@ static const struct chandef_compat_case {
 		.c1 = {
 			.width = NL80211_CHAN_WIDTH_160,
 			.chan = &chan_6ghz_105,
-			.center_freq1 = 6475 + 70,
+			.center_freq1 = 6475 + 30,
 			.punctured = 0x80,
 		},
 		.c2 = {
 			.width = NL80211_CHAN_WIDTH_320,
 			.chan = &chan_6ghz_105,
-			.center_freq1 = 6475 - 10,
+			.center_freq1 = 6475 - 50,
 			.punctured = 0xc000,
 		},
 	},

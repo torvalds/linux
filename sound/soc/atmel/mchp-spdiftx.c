@@ -888,7 +888,7 @@ static void mchp_spdiftx_remove(struct platform_device *pdev)
 
 static struct platform_driver mchp_spdiftx_driver = {
 	.probe	= mchp_spdiftx_probe,
-	.remove_new = mchp_spdiftx_remove,
+	.remove = mchp_spdiftx_remove,
 	.driver	= {
 		.name	= "mchp_spdiftx",
 		.of_match_table = mchp_spdiftx_dt_ids,

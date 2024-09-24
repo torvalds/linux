@@ -20,7 +20,6 @@
 #include <linux/pagemap.h>
 #include <linux/buffer_head.h>
 #include <linux/mm_inline.h>
-#include <linux/nsproxy.h>
 #include <linux/ksm.h>
 #include <linux/rmap.h>
 #include <linux/topology.h>
@@ -35,21 +34,16 @@
 #include <linux/syscalls.h>
 #include <linux/compat.h>
 #include <linux/hugetlb.h>
-#include <linux/hugetlb_cgroup.h>
 #include <linux/gfp.h>
 #include <linux/pfn_t.h>
-#include <linux/memremap.h>
-#include <linux/userfaultfd_k.h>
-#include <linux/balloon_compaction.h>
 #include <linux/page_idle.h>
 #include <linux/page_owner.h>
 #include <linux/sched/mm.h>
 #include <linux/ptrace.h>
-#include <linux/oom.h>
 #include <linux/memory.h>
-#include <linux/random.h>
 #include <linux/sched/sysctl.h>
 #include <linux/memory-tiers.h>
+#include <linux/pagewalk.h>
 
 #include <asm/tlbflush.h>
 
@@ -177,13 +171,83 @@ void putback_movable_pages(struct list_head *l)
 	}
 }
 
+/* Must be called with an elevated refcount on the non-hugetlb folio */
+bool isolate_folio_to_list(struct folio *folio, struct list_head *list)
+{
+	bool isolated, lru;
+
+	if (folio_test_hugetlb(folio))
+		return isolate_hugetlb(folio, list);
+
+	lru = !__folio_test_movable(folio);
+	if (lru)
+		isolated = folio_isolate_lru(folio);
+	else
+		isolated = isolate_movable_page(&folio->page,
+						ISOLATE_UNEVICTABLE);
+
+	if (!isolated)
+		return false;
+
+	list_add(&folio->lru, list);
+	if (lru)
+		node_stat_add_folio(folio, NR_ISOLATED_ANON +
+				    folio_is_file_lru(folio));
+
+	return true;
+}
+
+static bool try_to_map_unused_to_zeropage(struct page_vma_mapped_walk *pvmw,
+					  struct folio *folio,
+					  unsigned long idx)
+{
+	struct page *page = folio_page(folio, idx);
+	bool contains_data;
+	pte_t newpte;
+	void *addr;
+
+	VM_BUG_ON_PAGE(PageCompound(page), page);
+	VM_BUG_ON_PAGE(!PageAnon(page), page);
+	VM_BUG_ON_PAGE(!PageLocked(page), page);
+	VM_BUG_ON_PAGE(pte_present(*pvmw->pte), page);
+
+	if (folio_test_mlocked(folio) || (pvmw->vma->vm_flags & VM_LOCKED) ||
+	    mm_forbids_zeropage(pvmw->vma->vm_mm))
+		return false;
+
+	/*
+	 * The pmd entry mapping the old thp was flushed and the pte mapping
+	 * this subpage has been non present. If the subpage is only zero-filled
+	 * then map it to the shared zeropage.
+	 */
+	addr = kmap_local_page(page);
+	contains_data = memchr_inv(addr, 0, PAGE_SIZE);
+	kunmap_local(addr);
+
+	if (contains_data)
+		return false;
+
+	newpte = pte_mkspecial(pfn_pte(my_zero_pfn(pvmw->address),
+					pvmw->vma->vm_page_prot));
+	set_pte_at(pvmw->vma->vm_mm, pvmw->address, pvmw->pte, newpte);
+
+	dec_mm_counter(pvmw->vma->vm_mm, mm_counter(folio));
+	return true;
+}
+
+struct rmap_walk_arg {
+	struct folio *folio;
+	bool map_unused_to_zeropage;
+};
+
 /*
  * Restore a potential migration pte to a working pte entry
  */
 static bool remove_migration_pte(struct folio *folio,
-		struct vm_area_struct *vma, unsigned long addr, void *old)
+		struct vm_area_struct *vma, unsigned long addr, void *arg)
 {
-	DEFINE_FOLIO_VMA_WALK(pvmw, old, vma, addr, PVMW_SYNC | PVMW_MIGRATION);
+	struct rmap_walk_arg *rmap_walk_arg = arg;
+	DEFINE_FOLIO_VMA_WALK(pvmw, rmap_walk_arg->folio, vma, addr, PVMW_SYNC | PVMW_MIGRATION);
 
 	while (page_vma_mapped_walk(&pvmw)) {
 		rmap_t rmap_flags = RMAP_NONE;
@@ -207,6 +271,9 @@ static bool remove_migration_pte(struct folio *folio,
 			continue;
 		}
 #endif
+		if (rmap_walk_arg->map_unused_to_zeropage &&
+		    try_to_map_unused_to_zeropage(&pvmw, folio, idx))
+			continue;
 
 		folio_get(folio);
 		pte = mk_pte(new, READ_ONCE(vma->vm_page_prot));
@@ -285,14 +352,21 @@ static bool remove_migration_pte(struct folio *folio,
  * Get rid of all migration entries and replace them by
  * references to the indicated page.
  */
-void remove_migration_ptes(struct folio *src, struct folio *dst, bool locked)
+void remove_migration_ptes(struct folio *src, struct folio *dst, int flags)
 {
-	struct rmap_walk_control rwc = {
-		.rmap_one = remove_migration_pte,
-		.arg = src,
+	struct rmap_walk_arg rmap_walk_arg = {
+		.folio = src,
+		.map_unused_to_zeropage = flags & RMP_USE_SHARED_ZEROPAGE,
 	};
 
-	if (locked)
+	struct rmap_walk_control rwc = {
+		.rmap_one = remove_migration_pte,
+		.arg = &rmap_walk_arg,
+	};
+
+	VM_BUG_ON_FOLIO((flags & RMP_USE_SHARED_ZEROPAGE) && (src != dst), src);
+
+	if (flags & RMP_LOCKED)
 		rmap_walk_locked(dst, &rwc);
 	else
 		rmap_walk(dst, &rwc);
@@ -338,14 +412,14 @@ out:
  *
  * This function will release the vma lock before returning.
  */
-void migration_entry_wait_huge(struct vm_area_struct *vma, pte_t *ptep)
+void migration_entry_wait_huge(struct vm_area_struct *vma, unsigned long addr, pte_t *ptep)
 {
 	spinlock_t *ptl = huge_pte_lockptr(hstate_vma(vma), vma->vm_mm, ptep);
 	pte_t pte;
 
 	hugetlb_vma_assert_locked(vma);
 	spin_lock(ptl);
-	pte = huge_ptep_get(ptep);
+	pte = huge_ptep_get(vma->vm_mm, addr, ptep);
 
 	if (unlikely(!is_hugetlb_entry_migration(pte))) {
 		spin_unlock(ptl);
@@ -393,31 +467,37 @@ static int folio_expected_refs(struct address_space *mapping,
 }
 
 /*
- * Replace the page in the mapping.
+ * Replace the folio in the mapping.
  *
  * The number of remaining references must be:
- * 1 for anonymous pages without a mapping
- * 2 for pages with a mapping
- * 3 for pages with a mapping and PagePrivate/PagePrivate2 set.
+ * 1 for anonymous folios without a mapping
+ * 2 for folios with a mapping
+ * 3 for folios with a mapping and PagePrivate/PagePrivate2 set.
  */
-int folio_migrate_mapping(struct address_space *mapping,
-		struct folio *newfolio, struct folio *folio, int extra_count)
+static int __folio_migrate_mapping(struct address_space *mapping,
+		struct folio *newfolio, struct folio *folio, int expected_count)
 {
 	XA_STATE(xas, &mapping->i_pages, folio_index(folio));
 	struct zone *oldzone, *newzone;
 	int dirty;
-	int expected_count = folio_expected_refs(mapping, folio) + extra_count;
 	long nr = folio_nr_pages(folio);
 	long entries, i;
 
 	if (!mapping) {
-		/* Anonymous page without mapping */
-		if (folio_ref_count(folio) != expected_count)
-			return -EAGAIN;
+		/* Take off deferred split queue while frozen and memcg set */
+		if (folio_test_large(folio) &&
+		    folio_test_large_rmappable(folio)) {
+			if (!folio_ref_freeze(folio, expected_count))
+				return -EAGAIN;
+			folio_undo_large_rmappable(folio);
+			folio_ref_unfreeze(folio, expected_count);
+		}
 
 		/* No turning back from here */
 		newfolio->index = folio->index;
 		newfolio->mapping = folio->mapping;
+		if (folio_test_anon(folio) && folio_test_large(folio))
+			mod_mthp_stat(folio_order(folio), MTHP_STAT_NR_ANON, 1);
 		if (folio_test_swapbacked(folio))
 			__folio_set_swapbacked(newfolio);
 
@@ -433,12 +513,17 @@ int folio_migrate_mapping(struct address_space *mapping,
 		return -EAGAIN;
 	}
 
+	/* Take off deferred split queue while frozen and memcg set */
+	folio_undo_large_rmappable(folio);
+
 	/*
 	 * Now we know that no one else is looking at the folio:
 	 * no turning back from here.
 	 */
 	newfolio->index = folio->index;
 	newfolio->mapping = folio->mapping;
+	if (folio_test_anon(folio) && folio_test_large(folio))
+		mod_mthp_stat(folio_order(folio), MTHP_STAT_NR_ANON, 1);
 	folio_ref_add(newfolio, nr); /* add cache reference */
 	if (folio_test_swapbacked(folio)) {
 		__folio_set_swapbacked(newfolio);
@@ -452,7 +537,7 @@ int folio_migrate_mapping(struct address_space *mapping,
 		entries = 1;
 	}
 
-	/* Move dirty while page refs frozen and newpage not yet exposed */
+	/* Move dirty while folio refs frozen and newfolio not yet exposed */
 	dirty = folio_test_dirty(folio);
 	if (dirty) {
 		folio_clear_dirty(folio);
@@ -466,7 +551,7 @@ int folio_migrate_mapping(struct address_space *mapping,
 	}
 
 	/*
-	 * Drop cache reference from old page by unfreezing
+	 * Drop cache reference from old folio by unfreezing
 	 * to one less reference.
 	 * We know this isn't the last reference.
 	 */
@@ -477,11 +562,11 @@ int folio_migrate_mapping(struct address_space *mapping,
 
 	/*
 	 * If moved to a different zone then also account
-	 * the page for that zone. Other VM counters will be
+	 * the folio for that zone. Other VM counters will be
 	 * taken care of when we establish references to the
-	 * new page and drop references to the old page.
+	 * new folio and drop references to the old folio.
 	 *
-	 * Note that anonymous pages are accounted for
+	 * Note that anonymous folios are accounted for
 	 * via NR_FILE_PAGES and NR_ANON_MAPPED if they
 	 * are mapped to swap space.
 	 */
@@ -521,6 +606,17 @@ int folio_migrate_mapping(struct address_space *mapping,
 
 	return MIGRATEPAGE_SUCCESS;
 }
+
+int folio_migrate_mapping(struct address_space *mapping,
+		struct folio *newfolio, struct folio *folio, int extra_count)
+{
+	int expected_count = folio_expected_refs(mapping, folio) + extra_count;
+
+	if (folio_ref_count(folio) != expected_count)
+		return -EAGAIN;
+
+	return __folio_migrate_mapping(mapping, newfolio, folio, expected_count);
+}
 EXPORT_SYMBOL(folio_migrate_mapping);
 
 /*
@@ -531,10 +627,16 @@ int migrate_huge_page_move_mapping(struct address_space *mapping,
 				   struct folio *dst, struct folio *src)
 {
 	XA_STATE(xas, &mapping->i_pages, folio_index(src));
-	int expected_count;
+	int rc, expected_count = folio_expected_refs(mapping, src);
+
+	if (folio_ref_count(src) != expected_count)
+		return -EAGAIN;
+
+	rc = folio_mc_copy(dst, src);
+	if (unlikely(rc))
+		return rc;
 
 	xas_lock_irq(&xas);
-	expected_count = folio_expected_refs(mapping, src);
 	if (!folio_ref_freeze(src, expected_count)) {
 		xas_unlock_irq(&xas);
 		return -EAGAIN;
@@ -561,8 +663,6 @@ void folio_migrate_flags(struct folio *newfolio, struct folio *folio)
 {
 	int cpupid;
 
-	if (folio_test_error(folio))
-		folio_set_error(newfolio);
 	if (folio_test_referenced(folio))
 		folio_set_referenced(newfolio);
 	if (folio_test_uptodate(folio))
@@ -616,7 +716,8 @@ void folio_migrate_flags(struct folio *newfolio, struct folio *folio)
 	folio_migrate_ksm(newfolio, folio);
 	/*
 	 * Please do not reorder this without considering how mm/ksm.c's
-	 * ksm_get_folio() depends upon ksm_migrate_page() and PageSwapCache().
+	 * ksm_get_folio() depends upon ksm_migrate_page() and the
+	 * swapcache flag.
 	 */
 	if (folio_test_swapcache(folio))
 		folio_clear_swapcache(folio);
@@ -642,38 +743,38 @@ void folio_migrate_flags(struct folio *newfolio, struct folio *folio)
 		folio_set_readahead(newfolio);
 
 	folio_copy_owner(newfolio, folio);
+	pgalloc_tag_copy(newfolio, folio);
 
 	mem_cgroup_migrate(folio, newfolio);
 }
 EXPORT_SYMBOL(folio_migrate_flags);
 
-void folio_migrate_copy(struct folio *newfolio, struct folio *folio)
-{
-	folio_copy(newfolio, folio);
-	folio_migrate_flags(newfolio, folio);
-}
-EXPORT_SYMBOL(folio_migrate_copy);
-
 /************************************************************
  *                    Migration functions
  ***********************************************************/
 
-int migrate_folio_extra(struct address_space *mapping, struct folio *dst,
-		struct folio *src, enum migrate_mode mode, int extra_count)
+static int __migrate_folio(struct address_space *mapping, struct folio *dst,
+			   struct folio *src, void *src_private,
+			   enum migrate_mode mode)
 {
-	int rc;
+	int rc, expected_count = folio_expected_refs(mapping, src);
 
-	BUG_ON(folio_test_writeback(src));	/* Writeback must be complete */
+	/* Check whether src does not have extra refs before we do more work */
+	if (folio_ref_count(src) != expected_count)
+		return -EAGAIN;
 
-	rc = folio_migrate_mapping(mapping, dst, src, extra_count);
+	rc = folio_mc_copy(dst, src);
+	if (unlikely(rc))
+		return rc;
 
+	rc = __folio_migrate_mapping(mapping, dst, src, expected_count);
 	if (rc != MIGRATEPAGE_SUCCESS)
 		return rc;
 
-	if (mode != MIGRATE_SYNC_NO_COPY)
-		folio_migrate_copy(dst, src);
-	else
-		folio_migrate_flags(dst, src);
+	if (src_private)
+		folio_attach_private(dst, folio_detach_private(src));
+
+	folio_migrate_flags(dst, src);
 	return MIGRATEPAGE_SUCCESS;
 }
 
@@ -690,9 +791,10 @@ int migrate_folio_extra(struct address_space *mapping, struct folio *dst,
  * Folios are locked upon entry and exit.
  */
 int migrate_folio(struct address_space *mapping, struct folio *dst,
-		struct folio *src, enum migrate_mode mode)
+		  struct folio *src, enum migrate_mode mode)
 {
-	return migrate_folio_extra(mapping, dst, src, mode, 0);
+	BUG_ON(folio_test_writeback(src));	/* Writeback must be complete */
+	return __migrate_folio(mapping, dst, src, NULL, mode);
 }
 EXPORT_SYMBOL(migrate_folio);
 
@@ -777,11 +879,9 @@ recheck_buffers:
 		}
 	}
 
-	rc = folio_migrate_mapping(mapping, dst, src, 0);
+	rc = filemap_migrate_folio(mapping, dst, src, mode);
 	if (rc != MIGRATEPAGE_SUCCESS)
 		goto unlock_buffers;
-
-	folio_attach_private(dst, folio_detach_private(src));
 
 	bh = head;
 	do {
@@ -789,12 +889,6 @@ recheck_buffers:
 		bh = bh->b_this_page;
 	} while (bh != head);
 
-	if (mode != MIGRATE_SYNC_NO_COPY)
-		folio_migrate_copy(dst, src);
-	else
-		folio_migrate_flags(dst, src);
-
-	rc = MIGRATEPAGE_SUCCESS;
 unlock_buffers:
 	if (check_refs)
 		spin_unlock(&mapping->i_private_lock);
@@ -854,20 +948,7 @@ EXPORT_SYMBOL_GPL(buffer_migrate_folio_norefs);
 int filemap_migrate_folio(struct address_space *mapping,
 		struct folio *dst, struct folio *src, enum migrate_mode mode)
 {
-	int ret;
-
-	ret = folio_migrate_mapping(mapping, dst, src, 0);
-	if (ret != MIGRATEPAGE_SUCCESS)
-		return ret;
-
-	if (folio_get_private(src))
-		folio_attach_private(dst, folio_detach_private(src));
-
-	if (mode != MIGRATE_SYNC_NO_COPY)
-		folio_migrate_copy(dst, src);
-	else
-		folio_migrate_flags(dst, src);
-	return MIGRATEPAGE_SUCCESS;
+	return __migrate_folio(mapping, dst, src, folio_get_private(src), mode);
 }
 EXPORT_SYMBOL_GPL(filemap_migrate_folio);
 
@@ -901,7 +982,7 @@ static int writeout(struct address_space *mapping, struct folio *folio)
 	 * At this point we know that the migration attempt cannot
 	 * be successful.
 	 */
-	remove_migration_ptes(folio, folio, false);
+	remove_migration_ptes(folio, folio, 0);
 
 	rc = mapping->a_ops->writepage(&folio->page, &wbc);
 
@@ -922,7 +1003,6 @@ static int fallback_migrate_folio(struct address_space *mapping,
 		/* Only writeback folios in full synchronous migration */
 		switch (mode) {
 		case MIGRATE_SYNC:
-		case MIGRATE_SYNC_NO_COPY:
 			break;
 		default:
 			return -EBUSY;
@@ -965,7 +1045,7 @@ static int move_to_new_folio(struct folio *dst, struct folio *src,
 
 		if (!mapping)
 			rc = migrate_folio(mapping, dst, src, mode);
-		else if (mapping_unmovable(mapping))
+		else if (mapping_inaccessible(mapping))
 			rc = -EOPNOTSUPP;
 		else if (mapping->a_ops->migrate_folio)
 			/*
@@ -1066,7 +1146,7 @@ static void migrate_folio_undo_src(struct folio *src,
 				   struct list_head *ret)
 {
 	if (page_was_mapped)
-		remove_migration_ptes(src, src, false);
+		remove_migration_ptes(src, src, 0);
 	/* Drop an anon_vma reference if we took one */
 	if (anon_vma)
 		put_anon_vma(anon_vma);
@@ -1180,7 +1260,6 @@ static int migrate_folio_unmap(new_folio_t get_new_folio,
 		 */
 		switch (mode) {
 		case MIGRATE_SYNC:
-		case MIGRATE_SYNC_NO_COPY:
 			break;
 		default:
 			rc = -EBUSY;
@@ -1305,7 +1384,7 @@ static int migrate_folio_move(free_folio_t put_new_folio, unsigned long private,
 		lru_add_drain();
 
 	if (old_page_state & PAGE_WAS_MAPPED)
-		remove_migration_ptes(src, dst, false);
+		remove_migration_ptes(src, dst, 0);
 
 out_unlock_both:
 	folio_unlock(dst);
@@ -1391,7 +1470,6 @@ static int unmap_and_move_huge_page(new_folio_t get_new_folio,
 			goto out;
 		switch (mode) {
 		case MIGRATE_SYNC:
-		case MIGRATE_SYNC_NO_COPY:
 			break;
 		default:
 			goto out;
@@ -1444,7 +1522,7 @@ static int unmap_and_move_huge_page(new_folio_t get_new_folio,
 
 	if (page_was_mapped)
 		remove_migration_ptes(src,
-			rc == MIGRATEPAGE_SUCCESS ? dst : src, false);
+			rc == MIGRATEPAGE_SUCCESS ? dst : src, 0);
 
 unlock_put_anon:
 	folio_unlock(dst);
@@ -1479,11 +1557,17 @@ out:
 	return rc;
 }
 
-static inline int try_split_folio(struct folio *folio, struct list_head *split_folios)
+static inline int try_split_folio(struct folio *folio, struct list_head *split_folios,
+				  enum migrate_mode mode)
 {
 	int rc;
 
-	folio_lock(folio);
+	if (mode == MIGRATE_ASYNC) {
+		if (!folio_trylock(folio))
+			return -EAGAIN;
+	} else {
+		folio_lock(folio);
+	}
 	rc = split_folio_to_list(folio, split_folios);
 	folio_unlock(folio);
 	if (!rc)
@@ -1676,8 +1760,9 @@ static int migrate_pages_batch(struct list_head *from,
 			 * use _deferred_list.
 			 */
 			if (nr_pages > 2 &&
-			   !list_empty(&folio->_deferred_list)) {
-				if (try_split_folio(folio, split_folios) == 0) {
+			   !list_empty(&folio->_deferred_list) &&
+			   folio_test_partially_mapped(folio)) {
+				if (!try_split_folio(folio, split_folios, mode)) {
 					nr_failed++;
 					stats->nr_thp_failed += is_thp;
 					stats->nr_thp_split += is_thp;
@@ -1699,7 +1784,7 @@ static int migrate_pages_batch(struct list_head *from,
 			if (!thp_migration_supported() && is_thp) {
 				nr_failed++;
 				stats->nr_thp_failed++;
-				if (!try_split_folio(folio, split_folios)) {
+				if (!try_split_folio(folio, split_folios, mode)) {
 					stats->nr_thp_split++;
 					stats->nr_split++;
 					continue;
@@ -1731,7 +1816,7 @@ static int migrate_pages_batch(struct list_head *from,
 				stats->nr_thp_failed += is_thp;
 				/* Large folio NUMA faulting doesn't split to retry. */
 				if (is_large && !nosplit) {
-					int ret = try_split_folio(folio, split_folios);
+					int ret = try_split_folio(folio, split_folios, mode);
 
 					if (!ret) {
 						stats->nr_thp_split += is_thp;
@@ -2105,76 +2190,66 @@ static int do_move_pages_to_node(struct list_head *pagelist, int node)
 	return err;
 }
 
-/*
- * Resolves the given address to a struct page, isolates it from the LRU and
- * puts it to the given pagelist.
- * Returns:
- *     errno - if the page cannot be found/isolated
- *     0 - when it doesn't have to be migrated because it is already on the
- *         target node
- *     1 - when it has been queued
- */
-static int add_page_for_migration(struct mm_struct *mm, const void __user *p,
-		int node, struct list_head *pagelist, bool migrate_all)
+static int __add_folio_for_migration(struct folio *folio, int node,
+		struct list_head *pagelist, bool migrate_all)
 {
-	struct vm_area_struct *vma;
-	unsigned long addr;
-	struct page *page;
-	struct folio *folio;
-	int err;
+	if (is_zero_folio(folio) || is_huge_zero_folio(folio))
+		return -EFAULT;
 
-	mmap_read_lock(mm);
-	addr = (unsigned long)untagged_addr_remote(mm, p);
-
-	err = -EFAULT;
-	vma = vma_lookup(mm, addr);
-	if (!vma || !vma_migratable(vma))
-		goto out;
-
-	/* FOLL_DUMP to ignore special (like zero) pages */
-	page = follow_page(vma, addr, FOLL_GET | FOLL_DUMP);
-
-	err = PTR_ERR(page);
-	if (IS_ERR(page))
-		goto out;
-
-	err = -ENOENT;
-	if (!page)
-		goto out;
-
-	folio = page_folio(page);
 	if (folio_is_zone_device(folio))
-		goto out_putfolio;
+		return -ENOENT;
 
-	err = 0;
 	if (folio_nid(folio) == node)
-		goto out_putfolio;
+		return 0;
 
-	err = -EACCES;
 	if (folio_likely_mapped_shared(folio) && !migrate_all)
-		goto out_putfolio;
+		return -EACCES;
 
-	err = -EBUSY;
 	if (folio_test_hugetlb(folio)) {
 		if (isolate_hugetlb(folio, pagelist))
-			err = 1;
-	} else {
-		if (!folio_isolate_lru(folio))
-			goto out_putfolio;
-
-		err = 1;
+			return 1;
+	} else if (folio_isolate_lru(folio)) {
 		list_add_tail(&folio->lru, pagelist);
 		node_stat_mod_folio(folio,
 			NR_ISOLATED_ANON + folio_is_file_lru(folio),
 			folio_nr_pages(folio));
+		return 1;
 	}
-out_putfolio:
-	/*
-	 * Either remove the duplicate refcount from folio_isolate_lru()
-	 * or drop the folio ref if it was not isolated.
-	 */
-	folio_put(folio);
-out:
+	return -EBUSY;
+}
+
+/*
+ * Resolves the given address to a struct folio, isolates it from the LRU and
+ * puts it to the given pagelist.
+ * Returns:
+ *     errno - if the folio cannot be found/isolated
+ *     0 - when it doesn't have to be migrated because it is already on the
+ *         target node
+ *     1 - when it has been queued
+ */
+static int add_folio_for_migration(struct mm_struct *mm, const void __user *p,
+		int node, struct list_head *pagelist, bool migrate_all)
+{
+	struct vm_area_struct *vma;
+	struct folio_walk fw;
+	struct folio *folio;
+	unsigned long addr;
+	int err = -EFAULT;
+
+	mmap_read_lock(mm);
+	addr = (unsigned long)untagged_addr_remote(mm, p);
+
+	vma = vma_lookup(mm, addr);
+	if (vma && vma_migratable(vma)) {
+		folio = folio_walk_start(&fw, vma, addr, FW_ZEROPAGE);
+		if (folio) {
+			err = __add_folio_for_migration(folio, node, pagelist,
+							migrate_all);
+			folio_walk_end(&fw, vma);
+		} else {
+			err = -ENOENT;
+		}
+	}
 	mmap_read_unlock(mm);
 	return err;
 }
@@ -2268,8 +2343,8 @@ static int do_pages_move(struct mm_struct *mm, nodemask_t task_nodes,
 		 * Errors in the page lookup or isolation are not fatal and we simply
 		 * report them via status
 		 */
-		err = add_page_for_migration(mm, p, current_node, &pagelist,
-					     flags & MPOL_MF_MOVE_ALL);
+		err = add_folio_for_migration(mm, p, current_node, &pagelist,
+					      flags & MPOL_MF_MOVE_ALL);
 
 		if (err > 0) {
 			/* The page is successfully queued for migration */
@@ -2325,28 +2400,26 @@ static void do_pages_stat_array(struct mm_struct *mm, unsigned long nr_pages,
 	for (i = 0; i < nr_pages; i++) {
 		unsigned long addr = (unsigned long)(*pages);
 		struct vm_area_struct *vma;
-		struct page *page;
+		struct folio_walk fw;
+		struct folio *folio;
 		int err = -EFAULT;
 
 		vma = vma_lookup(mm, addr);
 		if (!vma)
 			goto set_status;
 
-		/* FOLL_DUMP to ignore special (like zero) pages */
-		page = follow_page(vma, addr, FOLL_GET | FOLL_DUMP);
-
-		err = PTR_ERR(page);
-		if (IS_ERR(page))
-			goto set_status;
-
-		err = -ENOENT;
-		if (!page)
-			goto set_status;
-
-		if (!is_zone_device_page(page))
-			err = page_to_nid(page);
-
-		put_page(page);
+		folio = folio_walk_start(&fw, vma, addr, FW_ZEROPAGE);
+		if (folio) {
+			if (is_zero_folio(folio) || is_huge_zero_folio(folio))
+				err = -EFAULT;
+			else if (folio_is_zone_device(folio))
+				err = -ENOENT;
+			else
+				err = folio_nid(folio);
+			folio_walk_end(&fw, vma);
+		} else {
+			err = -ENOENT;
+		}
 set_status:
 		*status = err;
 
@@ -2426,25 +2499,19 @@ static struct mm_struct *find_mm_struct(pid_t pid, nodemask_t *mem_nodes)
 		return current->mm;
 	}
 
-	/* Find the mm_struct */
-	rcu_read_lock();
-	task = find_task_by_vpid(pid);
+	task = find_get_task_by_vpid(pid);
 	if (!task) {
-		rcu_read_unlock();
 		return ERR_PTR(-ESRCH);
 	}
-	get_task_struct(task);
 
 	/*
 	 * Check if this process has the right to modify the specified
 	 * process. Use the regular "ptrace_may_access()" checks.
 	 */
 	if (!ptrace_may_access(task, PTRACE_MODE_READ_REALCREDS)) {
-		rcu_read_unlock();
 		mm = ERR_PTR(-EPERM);
 		goto out;
 	}
-	rcu_read_unlock();
 
 	mm = ERR_PTR(security_task_movememory(task));
 	if (IS_ERR(mm))
@@ -2520,7 +2587,7 @@ static bool migrate_balanced_pgdat(struct pglist_data *pgdat,
 		if (!zone_watermark_ok(zone, 0,
 				       high_wmark_pages(zone) +
 				       nr_migrate_pages,
-				       ZONE_MOVABLE, 0))
+				       ZONE_MOVABLE, ALLOC_CMA))
 			continue;
 		return true;
 	}
@@ -2544,16 +2611,44 @@ static struct folio *alloc_misplaced_dst_folio(struct folio *src,
 	return __folio_alloc_node(gfp, order, nid);
 }
 
-static int numamigrate_isolate_folio(pg_data_t *pgdat, struct folio *folio)
+/*
+ * Prepare for calling migrate_misplaced_folio() by isolating the folio if
+ * permitted. Must be called with the PTL still held.
+ */
+int migrate_misplaced_folio_prepare(struct folio *folio,
+		struct vm_area_struct *vma, int node)
 {
 	int nr_pages = folio_nr_pages(folio);
+	pg_data_t *pgdat = NODE_DATA(node);
+
+	if (folio_is_file_lru(folio)) {
+		/*
+		 * Do not migrate file folios that are mapped in multiple
+		 * processes with execute permissions as they are probably
+		 * shared libraries.
+		 *
+		 * See folio_likely_mapped_shared() on possible imprecision
+		 * when we cannot easily detect if a folio is shared.
+		 */
+		if ((vma->vm_flags & VM_EXEC) &&
+		    folio_likely_mapped_shared(folio))
+			return -EACCES;
+
+		/*
+		 * Do not migrate dirty folios as not all filesystems can move
+		 * dirty folios in MIGRATE_ASYNC mode which is a waste of
+		 * cycles.
+		 */
+		if (folio_test_dirty(folio))
+			return -EAGAIN;
+	}
 
 	/* Avoid migrating to a node that is nearly full */
 	if (!migrate_balanced_pgdat(pgdat, nr_pages)) {
 		int z;
 
 		if (!(sysctl_numa_balancing_mode & NUMA_BALANCING_MEMORY_TIERING))
-			return 0;
+			return -EAGAIN;
 		for (z = pgdat->nr_zones - 1; z >= 0; z--) {
 			if (managed_zone(pgdat->node_zones + z))
 				break;
@@ -2564,90 +2659,55 @@ static int numamigrate_isolate_folio(pg_data_t *pgdat, struct folio *folio)
 		 * further.
 		 */
 		if (z < 0)
-			return 0;
+			return -EAGAIN;
 
 		wakeup_kswapd(pgdat->node_zones + z, 0,
 			      folio_order(folio), ZONE_MOVABLE);
-		return 0;
+		return -EAGAIN;
 	}
 
 	if (!folio_isolate_lru(folio))
-		return 0;
+		return -EAGAIN;
 
 	node_stat_mod_folio(folio, NR_ISOLATED_ANON + folio_is_file_lru(folio),
 			    nr_pages);
-
-	/*
-	 * Isolating the folio has taken another reference, so the
-	 * caller's reference can be safely dropped without the folio
-	 * disappearing underneath us during migration.
-	 */
-	folio_put(folio);
-	return 1;
+	return 0;
 }
 
 /*
  * Attempt to migrate a misplaced folio to the specified destination
- * node. Caller is expected to have an elevated reference count on
- * the folio that will be dropped by this function before returning.
+ * node. Caller is expected to have isolated the folio by calling
+ * migrate_misplaced_folio_prepare(), which will result in an
+ * elevated reference count on the folio. This function will un-isolate the
+ * folio, dereferencing the folio before returning.
  */
 int migrate_misplaced_folio(struct folio *folio, struct vm_area_struct *vma,
 			    int node)
 {
 	pg_data_t *pgdat = NODE_DATA(node);
-	int isolated;
 	int nr_remaining;
 	unsigned int nr_succeeded;
 	LIST_HEAD(migratepages);
-	int nr_pages = folio_nr_pages(folio);
-
-	/*
-	 * Don't migrate file folios that are mapped in multiple processes
-	 * with execute permissions as they are probably shared libraries.
-	 *
-	 * See folio_likely_mapped_shared() on possible imprecision when we
-	 * cannot easily detect if a folio is shared.
-	 */
-	if (folio_likely_mapped_shared(folio) && folio_is_file_lru(folio) &&
-	    (vma->vm_flags & VM_EXEC))
-		goto out;
-
-	/*
-	 * Also do not migrate dirty folios as not all filesystems can move
-	 * dirty folios in MIGRATE_ASYNC mode which is a waste of cycles.
-	 */
-	if (folio_is_file_lru(folio) && folio_test_dirty(folio))
-		goto out;
-
-	isolated = numamigrate_isolate_folio(pgdat, folio);
-	if (!isolated)
-		goto out;
+	struct mem_cgroup *memcg = get_mem_cgroup_from_folio(folio);
+	struct lruvec *lruvec = mem_cgroup_lruvec(memcg, pgdat);
 
 	list_add(&folio->lru, &migratepages);
 	nr_remaining = migrate_pages(&migratepages, alloc_misplaced_dst_folio,
 				     NULL, node, MIGRATE_ASYNC,
 				     MR_NUMA_MISPLACED, &nr_succeeded);
-	if (nr_remaining) {
-		if (!list_empty(&migratepages)) {
-			list_del(&folio->lru);
-			node_stat_mod_folio(folio, NR_ISOLATED_ANON +
-					folio_is_file_lru(folio), -nr_pages);
-			folio_putback_lru(folio);
-		}
-		isolated = 0;
-	}
+	if (nr_remaining && !list_empty(&migratepages))
+		putback_movable_pages(&migratepages);
 	if (nr_succeeded) {
 		count_vm_numa_events(NUMA_PAGE_MIGRATE, nr_succeeded);
-		if (!node_is_toptier(folio_nid(folio)) && node_is_toptier(node))
-			mod_node_page_state(pgdat, PGPROMOTE_SUCCESS,
-					    nr_succeeded);
+		count_memcg_events(memcg, NUMA_PAGE_MIGRATE, nr_succeeded);
+		if ((sysctl_numa_balancing_mode & NUMA_BALANCING_MEMORY_TIERING)
+		    && !node_is_toptier(folio_nid(folio))
+		    && node_is_toptier(node))
+			mod_lruvec_state(lruvec, PGPROMOTE_SUCCESS, nr_succeeded);
 	}
+	mem_cgroup_put(memcg);
 	BUG_ON(!list_empty(&migratepages));
-	return isolated;
-
-out:
-	folio_put(folio);
-	return 0;
+	return nr_remaining ? -EAGAIN : 0;
 }
 #endif /* CONFIG_NUMA_BALANCING */
 #endif /* CONFIG_NUMA */

@@ -392,7 +392,6 @@ static int bcm6328_leds_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev_of_node(&pdev->dev);
-	struct device_node *child;
 	void __iomem *mem;
 	spinlock_t *lock; /* memory lock */
 	unsigned long val, *blink_leds, *blink_delay;
@@ -435,7 +434,7 @@ static int bcm6328_leds_probe(struct platform_device *pdev)
 		val |= BCM6328_SERIAL_LED_SHIFT_DIR;
 	bcm6328_led_write(mem + BCM6328_REG_INIT, val);
 
-	for_each_available_child_of_node(np, child) {
+	for_each_available_child_of_node_scoped(np, child) {
 		int rc;
 		u32 reg;
 
@@ -454,10 +453,8 @@ static int bcm6328_leds_probe(struct platform_device *pdev)
 			rc = bcm6328_led(dev, child, reg, mem, lock,
 					 blink_leds, blink_delay);
 
-		if (rc < 0) {
-			of_node_put(child);
+		if (rc < 0)
 			return rc;
-		}
 	}
 
 	return 0;

@@ -366,7 +366,7 @@ struct page *pfn_to_online_page(unsigned long pfn)
 }
 EXPORT_SYMBOL_GPL(pfn_to_online_page);
 
-int __ref __add_pages(int nid, unsigned long pfn, unsigned long nr_pages,
+int __add_pages(int nid, unsigned long pfn, unsigned long nr_pages,
 		struct mhp_params *params)
 {
 	const unsigned long end_pfn = pfn + nr_pages;
@@ -524,7 +524,7 @@ static void update_pgdat_span(struct pglist_data *pgdat)
 	pgdat->node_spanned_pages = node_end_pfn - node_start_pfn;
 }
 
-void __ref remove_pfn_range_from_zone(struct zone *zone,
+void remove_pfn_range_from_zone(struct zone *zone,
 				      unsigned long start_pfn,
 				      unsigned long nr_pages)
 {
@@ -628,16 +628,10 @@ int restore_online_page_callback(online_page_callback_t callback)
 }
 EXPORT_SYMBOL_GPL(restore_online_page_callback);
 
+/* we are OK calling __meminit stuff here - we have CONFIG_MEMORY_HOTPLUG */
 void generic_online_page(struct page *page, unsigned int order)
 {
-	/*
-	 * Freeing the page with debug_pagealloc enabled will try to unmap it,
-	 * so we should map it first. This is better than introducing a special
-	 * case in page freeing fast path.
-	 */
-	debug_pagealloc_map_pages(page, 1 << order);
-	__free_pages_core(page, order);
-	totalram_pages_add(1UL << order);
+	__free_pages_core(page, order, MEMINIT_HOTPLUG);
 }
 EXPORT_SYMBOL_GPL(generic_online_page);
 
@@ -741,13 +735,13 @@ static inline void section_taint_zone_device(unsigned long pfn)
 /*
  * Associate the pfn range with the given zone, initializing the memmaps
  * and resizing the pgdat/zone data to span the added pages. After this
- * call, all affected pages are PG_reserved.
+ * call, all affected pages are PageOffline().
  *
  * All aligned pageblocks are initialized to the specified migratetype
  * (usually MIGRATE_MOVABLE). Besides setting the migratetype, no related
  * zone stats (e.g., nr_isolate_pageblock) are touched.
  */
-void __ref move_pfn_range_to_zone(struct zone *zone, unsigned long start_pfn,
+void move_pfn_range_to_zone(struct zone *zone, unsigned long start_pfn,
 				  unsigned long nr_pages,
 				  struct vmem_altmap *altmap, int migratetype)
 {
@@ -846,7 +840,6 @@ static bool auto_movable_can_online_movable(int nid, struct memory_group *group,
 	unsigned long kernel_early_pages, movable_pages;
 	struct auto_movable_group_stats group_stats = {};
 	struct auto_movable_stats stats = {};
-	pg_data_t *pgdat = NODE_DATA(nid);
 	struct zone *zone;
 	int i;
 
@@ -857,6 +850,8 @@ static bool auto_movable_can_online_movable(int nid, struct memory_group *group,
 			auto_movable_stats_account_zone(&stats, zone);
 	} else {
 		for (i = 0; i < MAX_NR_ZONES; i++) {
+			pg_data_t *pgdat = NODE_DATA(nid);
+
 			zone = pgdat->node_zones + i;
 			if (populated_zone(zone))
 				auto_movable_stats_account_zone(&stats, zone);
@@ -1107,8 +1102,12 @@ int mhp_init_memmap_on_memory(unsigned long pfn, unsigned long nr_pages,
 
 	move_pfn_range_to_zone(zone, pfn, nr_pages, NULL, MIGRATE_UNMOVABLE);
 
-	for (i = 0; i < nr_pages; i++)
-		SetPageVmemmapSelfHosted(pfn_to_page(pfn + i));
+	for (i = 0; i < nr_pages; i++) {
+		struct page *page = pfn_to_page(pfn + i);
+
+		__ClearPageOffline(page);
+		SetPageVmemmapSelfHosted(page);
+	}
 
 	/*
 	 * It might be that the vmemmap_pages fully span sections. If that is
@@ -1144,7 +1143,7 @@ void mhp_deinit_memmap_on_memory(unsigned long pfn, unsigned long nr_pages)
 /*
  * Must be called with mem_hotplug_lock in write mode.
  */
-int __ref online_pages(unsigned long pfn, unsigned long nr_pages,
+int online_pages(unsigned long pfn, unsigned long nr_pages,
 		       struct zone *zone, struct memory_group *group)
 {
 	unsigned long flags;
@@ -1234,7 +1233,7 @@ failed_addition:
 }
 
 /* we are OK calling __meminit stuff here - we have CONFIG_MEMORY_HOTPLUG */
-static pg_data_t __ref *hotadd_init_pgdat(int nid)
+static pg_data_t *hotadd_init_pgdat(int nid)
 {
 	struct pglist_data *pgdat;
 
@@ -1387,7 +1386,7 @@ bool mhp_supports_memmap_on_memory(void)
 }
 EXPORT_SYMBOL_GPL(mhp_supports_memmap_on_memory);
 
-static void __ref remove_memory_blocks_and_altmaps(u64 start, u64 size)
+static void remove_memory_blocks_and_altmaps(u64 start, u64 size)
 {
 	unsigned long memblock_size = memory_block_size_bytes();
 	u64 cur_start;
@@ -1474,7 +1473,7 @@ out:
  *
  * we are OK calling __meminit stuff here - we have CONFIG_MEMORY_HOTPLUG
  */
-int __ref add_memory_resource(int nid, struct resource *res, mhp_t mhp_flags)
+int add_memory_resource(int nid, struct resource *res, mhp_t mhp_flags)
 {
 	struct mhp_params params = { .pgprot = pgprot_mhp(PAGE_KERNEL) };
 	enum memblock_flags memblock_flags = MEMBLOCK_NONE;
@@ -1581,7 +1580,7 @@ error_mem_hotplug_end:
 }
 
 /* requires device_hotplug_lock, see add_memory_resource() */
-int __ref __add_memory(int nid, u64 start, u64 size, mhp_t mhp_flags)
+int __add_memory(int nid, u64 start, u64 size, mhp_t mhp_flags)
 {
 	struct resource *res;
 	int ret;
@@ -1682,7 +1681,7 @@ struct range __weak arch_get_mappable_range(void)
 
 struct range mhp_get_pluggable_range(bool need_mapping)
 {
-	const u64 max_phys = (1ULL << MAX_PHYSMEM_BITS) - 1;
+	const u64 max_phys = PHYSMEM_END;
 	struct range mhp_range;
 
 	if (need_mapping) {
@@ -1731,8 +1730,8 @@ static int scan_movable_pages(unsigned long start, unsigned long end,
 	unsigned long pfn;
 
 	for (pfn = start; pfn < end; pfn++) {
-		struct page *page, *head;
-		unsigned long skip;
+		struct page *page;
+		struct folio *folio;
 
 		if (!pfn_valid(pfn))
 			continue;
@@ -1753,7 +1752,7 @@ static int scan_movable_pages(unsigned long start, unsigned long end,
 
 		if (!PageHuge(page))
 			continue;
-		head = compound_head(page);
+		folio = page_folio(page);
 		/*
 		 * This test is racy as we hold no reference or lock.  The
 		 * hugetlb page could have been free'ed and head is no longer
@@ -1761,10 +1760,9 @@ static int scan_movable_pages(unsigned long start, unsigned long end,
 		 * cases false positives and negatives are possible.  Calling
 		 * code must deal with these scenarios.
 		 */
-		if (HPageMigratable(head))
+		if (folio_test_hugetlb_migratable(folio))
 			goto found;
-		skip = compound_nr(head) - (pfn - page_to_pfn(head));
-		pfn += skip - 1;
+		pfn |= folio_nr_pages(folio) - 1;
 	}
 	return -ENOENT;
 found:
@@ -1774,67 +1772,59 @@ found:
 
 static void do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
 {
+	struct folio *folio;
 	unsigned long pfn;
-	struct page *page, *head;
 	LIST_HEAD(source);
 	static DEFINE_RATELIMIT_STATE(migrate_rs, DEFAULT_RATELIMIT_INTERVAL,
 				      DEFAULT_RATELIMIT_BURST);
 
 	for (pfn = start_pfn; pfn < end_pfn; pfn++) {
-		struct folio *folio;
-		bool isolated;
+		struct page *page;
 
 		if (!pfn_valid(pfn))
 			continue;
 		page = pfn_to_page(pfn);
 		folio = page_folio(page);
-		head = &folio->page;
 
-		if (PageHuge(page)) {
-			pfn = page_to_pfn(head) + compound_nr(head) - 1;
-			isolate_hugetlb(folio, &source);
-			continue;
-		} else if (PageTransHuge(page))
-			pfn = page_to_pfn(head) + thp_nr_pages(page) - 1;
+		/*
+		 * No reference or lock is held on the folio, so it might
+		 * be modified concurrently (e.g. split).  As such,
+		 * folio_nr_pages() may read garbage.  This is fine as the outer
+		 * loop will revisit the split folio later.
+		 */
+		if (folio_test_large(folio))
+			pfn = folio_pfn(folio) + folio_nr_pages(folio) - 1;
 
 		/*
 		 * HWPoison pages have elevated reference counts so the migration would
 		 * fail on them. It also doesn't make any sense to migrate them in the
 		 * first place. Still try to unmap such a page in case it is still mapped
-		 * (e.g. current hwpoison implementation doesn't unmap KSM pages but keep
-		 * the unmap as the catch all safety net).
+		 * (keep the unmap as the catch all safety net).
 		 */
-		if (PageHWPoison(page)) {
+		if (folio_test_hwpoison(folio) ||
+		    (folio_test_large(folio) && folio_test_has_hwpoisoned(folio))) {
 			if (WARN_ON(folio_test_lru(folio)))
 				folio_isolate_lru(folio);
 			if (folio_mapped(folio))
-				try_to_unmap(folio, TTU_IGNORE_MLOCK);
+				unmap_poisoned_folio(folio, TTU_IGNORE_MLOCK);
 			continue;
 		}
 
-		if (!get_page_unless_zero(page))
+		if (!folio_try_get(folio))
 			continue;
-		/*
-		 * We can skip free pages. And we can deal with pages on
-		 * LRU and non-lru movable pages.
-		 */
-		if (PageLRU(page))
-			isolated = isolate_lru_page(page);
-		else
-			isolated = isolate_movable_page(page, ISOLATE_UNEVICTABLE);
-		if (isolated) {
-			list_add_tail(&page->lru, &source);
-			if (!__PageMovable(page))
-				inc_node_page_state(page, NR_ISOLATED_ANON +
-						    page_is_file_lru(page));
 
-		} else {
+		if (unlikely(page_folio(page) != folio))
+			goto put_folio;
+
+		if (!isolate_folio_to_list(folio, &source)) {
 			if (__ratelimit(&migrate_rs)) {
-				pr_warn("failed to isolate pfn %lx\n", pfn);
+				pr_warn("failed to isolate pfn %lx\n",
+					page_to_pfn(page));
 				dump_page(page, "isolation failed");
 			}
 		}
-		put_page(page);
+put_folio:
+		folio_put(folio);
 	}
 	if (!list_empty(&source)) {
 		nodemask_t nmask = node_states[N_MEMORY];
@@ -1849,7 +1839,7 @@ static void do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
 		 * We have checked that migration range is on a single zone so
 		 * we can use the nid of the first page to all the others.
 		 */
-		mtc.nid = page_to_nid(list_first_entry(&source, struct page, lru));
+		mtc.nid = folio_nid(list_first_entry(&source, struct folio, lru));
 
 		/*
 		 * try to allocate from a different node but reuse this node
@@ -1862,11 +1852,12 @@ static void do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
 		ret = migrate_pages(&source, alloc_migration_target, NULL,
 			(unsigned long)&mtc, MIGRATE_SYNC, MR_MEMORY_HOTPLUG, NULL);
 		if (ret) {
-			list_for_each_entry(page, &source, lru) {
+			list_for_each_entry(folio, &source, lru) {
 				if (__ratelimit(&migrate_rs)) {
 					pr_warn("migrating pfn %lx failed ret:%d\n",
-						page_to_pfn(page), ret);
-					dump_page(page, "migration failure");
+						folio_pfn(folio), ret);
+					dump_page(&folio->page,
+						  "migration failure");
 				}
 			}
 			putback_movable_pages(&source);
@@ -1941,11 +1932,11 @@ static int count_system_ram_pages_cb(unsigned long start_pfn,
 /*
  * Must be called with mem_hotplug_lock in write mode.
  */
-int __ref offline_pages(unsigned long start_pfn, unsigned long nr_pages,
+int offline_pages(unsigned long start_pfn, unsigned long nr_pages,
 			struct zone *zone, struct memory_group *group)
 {
 	const unsigned long end_pfn = start_pfn + nr_pages;
-	unsigned long pfn, system_ram_pages = 0;
+	unsigned long pfn, managed_pages, system_ram_pages = 0;
 	const int node = zone_to_nid(zone);
 	unsigned long flags;
 	struct memory_notify arg;
@@ -1967,9 +1958,9 @@ int __ref offline_pages(unsigned long start_pfn, unsigned long nr_pages,
 	 * Don't allow to offline memory blocks that contain holes.
 	 * Consequently, memory blocks with holes can never get onlined
 	 * via the hotplug path - online_pages() - as hotplugged memory has
-	 * no holes. This way, we e.g., don't have to worry about marking
-	 * memory holes PG_reserved, don't need pfn_valid() checks, and can
-	 * avoid using walk_system_ram_range() later.
+	 * no holes. This way, we don't have to worry about memory holes,
+	 * don't need pfn_valid() checks, and can avoid using
+	 * walk_system_ram_range() later.
 	 */
 	walk_system_ram_range(start_pfn, nr_pages, &system_ram_pages,
 			      count_system_ram_pages_cb);
@@ -2066,7 +2057,7 @@ int __ref offline_pages(unsigned long start_pfn, unsigned long nr_pages,
 	} while (ret);
 
 	/* Mark all sections offline and remove free pages from the buddy. */
-	__offline_isolated_pages(start_pfn, end_pfn);
+	managed_pages = __offline_isolated_pages(start_pfn, end_pfn);
 	pr_debug("Offlined Pages %ld\n", nr_pages);
 
 	/*
@@ -2082,7 +2073,7 @@ int __ref offline_pages(unsigned long start_pfn, unsigned long nr_pages,
 	zone_pcp_enable(zone);
 
 	/* removal success */
-	adjust_managed_page_count(pfn_to_page(start_pfn), -nr_pages);
+	adjust_managed_page_count(pfn_to_page(start_pfn), -managed_pages);
 	adjust_present_page_count(pfn_to_page(start_pfn), group, -nr_pages);
 
 	/* reinitialise watermarks and update pcp limits */
@@ -2242,7 +2233,7 @@ static int memory_blocks_have_altmaps(u64 start, u64 size)
 	return 1;
 }
 
-static int __ref try_remove_memory(u64 start, u64 size)
+static int try_remove_memory(u64 start, u64 size)
 {
 	int rc, nid = NUMA_NO_NODE;
 
@@ -2283,10 +2274,8 @@ static int __ref try_remove_memory(u64 start, u64 size)
 		remove_memory_blocks_and_altmaps(start, size);
 	}
 
-	if (IS_ENABLED(CONFIG_ARCH_KEEP_MEMBLOCK)) {
-		memblock_phys_free(start, size);
+	if (IS_ENABLED(CONFIG_ARCH_KEEP_MEMBLOCK))
 		memblock_remove(start, size);
-	}
 
 	release_mem_region_adjustable(start, size);
 

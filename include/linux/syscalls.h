@@ -870,7 +870,7 @@ asmlinkage long sys_fanotify_mark(int fanotify_fd, unsigned int flags,
 #endif
 asmlinkage long sys_name_to_handle_at(int dfd, const char __user *name,
 				      struct file_handle __user *handle,
-				      int __user *mnt_id, int flag);
+				      void __user *mnt_id, int flag);
 asmlinkage long sys_open_by_handle_at(int mountdirfd,
 				      struct file_handle __user *handle,
 				      int flags);
@@ -978,6 +978,8 @@ asmlinkage long sys_lsm_list_modules(u64 __user *ids, u32 __user *size, u32 flag
 
 /* x86 */
 asmlinkage long sys_ioperm(unsigned long from, unsigned long num, int on);
+
+asmlinkage long sys_uretprobe(void);
 
 /* pciconfig: alpha, arm, arm64, ia64, sparc */
 asmlinkage long sys_pciconfig_read(unsigned long bus, unsigned long dfn,

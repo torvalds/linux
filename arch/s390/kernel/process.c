@@ -71,10 +71,10 @@ void flush_thread(void)
 
 void arch_setup_new_exec(void)
 {
-	if (S390_lowcore.current_pid != current->pid) {
-		S390_lowcore.current_pid = current->pid;
+	if (get_lowcore()->current_pid != current->pid) {
+		get_lowcore()->current_pid = current->pid;
 		if (test_facility(40))
-			lpp(&S390_lowcore.lpp);
+			lpp(&get_lowcore()->lpp);
 	}
 }
 

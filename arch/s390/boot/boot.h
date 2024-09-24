@@ -30,6 +30,8 @@ struct vmlinux_info {
 	unsigned long init_mm_off;
 	unsigned long swapper_pg_dir_off;
 	unsigned long invalid_pg_dir_off;
+	unsigned long alt_instructions;
+	unsigned long alt_instructions_end;
 #ifdef CONFIG_KASAN
 	unsigned long kasan_early_shadow_page_off;
 	unsigned long kasan_early_shadow_pte_off;
@@ -68,7 +70,7 @@ void print_pgm_check_info(void);
 unsigned long randomize_within_range(unsigned long size, unsigned long align,
 				     unsigned long min, unsigned long max);
 void setup_vmem(unsigned long kernel_start, unsigned long kernel_end, unsigned long asce_limit);
-void __printf(1, 2) decompressor_printk(const char *fmt, ...);
+void __printf(1, 2) boot_printk(const char *fmt, ...);
 void print_stacktrace(unsigned long sp);
 void error(char *m);
 int get_random(unsigned long limit, unsigned long *value);
@@ -89,8 +91,10 @@ extern char _end[], _decompressor_end[];
 extern unsigned char _compressed_start[];
 extern unsigned char _compressed_end[];
 extern struct vmlinux_info _vmlinux_info;
+
 #define vmlinux _vmlinux_info
 
+#define __lowcore_pa(x)		((unsigned long)(x) % sizeof(struct lowcore))
 #define __abs_lowcore_pa(x)	(((unsigned long)(x) - __abs_lowcore) % sizeof(struct lowcore))
 #define __kernel_va(x)		((void *)((unsigned long)(x) - __kaslr_offset_phys + __kaslr_offset))
 #define __kernel_pa(x)		((unsigned long)(x) - __kaslr_offset + __kaslr_offset_phys)

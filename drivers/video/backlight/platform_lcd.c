@@ -143,5 +143,6 @@ static struct platform_driver platform_lcd_driver = {
 module_platform_driver(platform_lcd_driver);
 
 MODULE_AUTHOR("Ben Dooks <ben-linux@fluff.org>");
+MODULE_DESCRIPTION("Generic platform-device LCD power control interface");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("platform:platform-lcd");

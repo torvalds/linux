@@ -17,7 +17,7 @@ mlx5_core-y :=	main.o cmd.o debugfs.o fw.o eq.o uar.o pagealloc.o \
 		fs_counters.o fs_ft_pool.o rl.o lag/debugfs.o lag/lag.o dev.o events.o wq.o lib/gid.o \
 		lib/devcom.o lib/pci_vsc.o lib/dm.o lib/fs_ttc.o diag/fs_tracepoint.o \
 		diag/fw_tracer.o diag/crdump.o devlink.o diag/rsc_dump.o diag/reporter_vnic.o \
-		fw_reset.o qos.o lib/tout.o lib/aso.o
+		fw_reset.o qos.o lib/tout.o lib/aso.o wc.o
 
 #
 # Netdev basic
@@ -119,6 +119,27 @@ mlx5_core-$(CONFIG_MLX5_SW_STEERING) += steering/dr_domain.o steering/dr_table.o
 					steering/dr_action.o steering/fs_dr.o \
 					steering/dr_definer.o steering/dr_ptrn.o \
 					steering/dr_arg.o steering/dr_dbg.o lib/smfs.o
+
+#
+# HW Steering
+#
+mlx5_core-$(CONFIG_MLX5_HW_STEERING) += steering/hws/mlx5hws_cmd.o \
+					steering/hws/mlx5hws_context.o \
+					steering/hws/mlx5hws_pat_arg.o \
+					steering/hws/mlx5hws_buddy.o \
+					steering/hws/mlx5hws_pool.o \
+					steering/hws/mlx5hws_table.o \
+					steering/hws/mlx5hws_action.o \
+					steering/hws/mlx5hws_rule.o \
+					steering/hws/mlx5hws_matcher.o \
+					steering/hws/mlx5hws_send.o \
+					steering/hws/mlx5hws_definer.o \
+					steering/hws/mlx5hws_bwc.o \
+					steering/hws/mlx5hws_debug.o \
+					steering/hws/mlx5hws_vport.o \
+					steering/hws/mlx5hws_bwc_complex.o
+
+
 #
 # SF device
 #

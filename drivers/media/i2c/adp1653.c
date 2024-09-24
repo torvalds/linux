@@ -522,7 +522,7 @@ static void adp1653_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id adp1653_id_table[] = {
-	{ ADP1653_NAME, 0 },
+	{ ADP1653_NAME },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, adp1653_id_table);

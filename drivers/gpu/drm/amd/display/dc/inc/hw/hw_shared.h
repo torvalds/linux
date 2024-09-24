@@ -44,7 +44,7 @@
  */
 #define MAX_PIPES 6
 #define MAX_PHANTOM_PIPES (MAX_PIPES / 2)
-#define MAX_LINKS (MAX_PIPES * 2)
+#define MAX_LINKS (MAX_PIPES * 2 +2)
 #define MAX_DIG_LINK_ENCODERS 7
 #define MAX_DWB_PIPES	1
 #define MAX_HPO_DP2_ENCODERS	4
@@ -217,12 +217,13 @@ enum optc_dsc_mode {
 };
 
 struct dc_bias_and_scale {
-	uint16_t scale_red;
-	uint16_t bias_red;
-	uint16_t scale_green;
-	uint16_t bias_green;
-	uint16_t scale_blue;
-	uint16_t bias_blue;
+	uint32_t scale_red;
+	uint32_t bias_red;
+	uint32_t scale_green;
+	uint32_t bias_green;
+	uint32_t scale_blue;
+	uint32_t bias_blue;
+	bool bias_and_scale_valid;
 };
 
 enum test_pattern_dyn_range {

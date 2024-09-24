@@ -267,7 +267,7 @@ config SPI_CADENCE_QUADSPI
 
 config SPI_CADENCE_XSPI
 	tristate "Cadence XSPI controller"
-	depends on OF && HAS_IOMEM
+	depends on OF && HAS_IOMEM && 64BIT
 	depends on SPI_MEM
 	help
 	  Enable support for the Cadence XSPI Flash controller.
@@ -276,6 +276,12 @@ config SPI_CADENCE_XSPI
 	  Flash over up to 8-bit wide bus. Enable this option if you have a
 	  device with a Cadence XSPI controller and want to access the
 	  Flash as an MTD device.
+
+config SPI_CH341
+	tristate "CH341 USB2SPI adapter"
+	depends on SPI_MASTER && USB
+	help
+	  Enables the SPI controller on the CH341a USB to serial chip
 
 config SPI_CLPS711X
 	tristate "CLPS711X host SPI controller"

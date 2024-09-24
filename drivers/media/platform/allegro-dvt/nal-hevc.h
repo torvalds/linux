@@ -96,10 +96,11 @@ struct nal_hevc_vps {
 	unsigned int extension_data_flag;
 };
 
+#define N_HRD_PARAMS 1
 struct nal_hevc_sub_layer_hrd_parameters {
-	unsigned int bit_rate_value_minus1[1];
-	unsigned int cpb_size_value_minus1[1];
-	unsigned int cbr_flag[1];
+	unsigned int bit_rate_value_minus1[N_HRD_PARAMS];
+	unsigned int cpb_size_value_minus1[N_HRD_PARAMS];
+	unsigned int cbr_flag[N_HRD_PARAMS];
 };
 
 struct nal_hevc_hrd_parameters {

@@ -116,6 +116,7 @@ struct img_frameparam {
 
 /* Platform config indicator */
 #define MT8183 8183
+#define MT8188 8195
 #define MT8195 8195
 
 #define CFG_CHECK(plat, p_id) ((plat) == (p_id))

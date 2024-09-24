@@ -285,7 +285,7 @@ static const int refclk_driver_parent_index[] = {
 	CDNS_TORRENT_RECEIVED_REFCLK
 };
 
-static u32 cdns_torrent_refclk_driver_mux_table[] = { 1, 0 };
+static const u32 cdns_torrent_refclk_driver_mux_table[] = { 1, 0 };
 
 enum cdns_torrent_phy_type {
 	TYPE_NONE,
@@ -351,6 +351,7 @@ struct cdns_torrent_phy {
 	void __iomem *sd_base; /* SD0801 registers base */
 	u32 max_bit_rate; /* Maximum link bit rate to use (in Mbps) */
 	u32 dp_pll;
+	u32 protocol_bitmask;
 	struct reset_control *phy_rst;
 	struct reset_control *apb_rst;
 	struct device *dev;
@@ -360,6 +361,7 @@ struct cdns_torrent_phy {
 	enum cdns_torrent_ref_clk ref_clk1_rate;
 	struct cdns_torrent_inst phys[MAX_NUM_LANES];
 	int nsubnodes;
+	int already_configured;
 	const struct cdns_torrent_data *init_data;
 	struct regmap *regmap_common_cdb;
 	struct regmap *regmap_phy_pcs_common_cdb;
@@ -421,17 +423,17 @@ struct cdns_reg_pairs {
 };
 
 struct cdns_torrent_vals {
-	struct cdns_reg_pairs *reg_pairs;
+	const struct cdns_reg_pairs *reg_pairs;
 	u32 num_regs;
 };
 
 struct cdns_torrent_vals_entry {
 	u32 key;
-	struct cdns_torrent_vals *vals;
+	const struct cdns_torrent_vals *vals;
 };
 
 struct cdns_torrent_vals_table {
-	struct cdns_torrent_vals_entry *entries;
+	const struct cdns_torrent_vals_entry *entries;
 	u32 num_entries;
 };
 
@@ -453,12 +455,12 @@ struct cdns_regmap_cdb_context {
 	u8 reg_offset_shift;
 };
 
-static struct cdns_torrent_vals *cdns_torrent_get_tbl_vals(const struct cdns_torrent_vals_table *tbl,
-							   enum cdns_torrent_ref_clk refclk0,
-							   enum cdns_torrent_ref_clk refclk1,
-							   enum cdns_torrent_phy_type link0,
-							   enum cdns_torrent_phy_type link1,
-							   enum cdns_torrent_ssc_mode ssc)
+static const struct cdns_torrent_vals *cdns_torrent_get_tbl_vals(const struct cdns_torrent_vals_table *tbl,
+								 enum cdns_torrent_ref_clk refclk0,
+								 enum cdns_torrent_ref_clk refclk1,
+								 enum cdns_torrent_phy_type link0,
+								 enum cdns_torrent_phy_type link1,
+								 enum cdns_torrent_ssc_mode ssc)
 {
 	int i;
 	u32 key = CDNS_TORRENT_KEY(refclk0, refclk1, link0, link1, ssc);
@@ -1156,6 +1158,9 @@ static int cdns_torrent_dp_set_power_state(struct cdns_torrent_phy *cdns_phy,
 	ret = regmap_read_poll_timeout(regmap, PHY_PMA_XCVR_POWER_STATE_ACK,
 				       read_val, (read_val & mask) == value, 0,
 				       POLL_TIMEOUT_US);
+	if (ret)
+		return ret;
+
 	cdns_torrent_dp_write(regmap, PHY_PMA_XCVR_POWER_STATE_REQ, 0x00000000);
 	ndelay(100);
 
@@ -1594,6 +1599,9 @@ static int cdns_torrent_dp_configure(struct phy *phy,
 	struct cdns_torrent_phy *cdns_phy = dev_get_drvdata(phy->dev.parent);
 	int ret;
 
+	if (cdns_phy->already_configured)
+		return 0;
+
 	ret = cdns_torrent_dp_verify_config(inst, &opts->dp);
 	if (ret) {
 		dev_err(&phy->dev, "invalid params for phy configure\n");
@@ -1628,6 +1636,12 @@ static int cdns_torrent_phy_on(struct phy *phy)
 	struct cdns_torrent_phy *cdns_phy = dev_get_drvdata(phy->dev.parent);
 	u32 read_val;
 	int ret;
+
+	if (cdns_phy->already_configured) {
+		/* Give 5ms to 10ms delay for the PIPE clock to be stable */
+		usleep_range(5000, 10000);
+		return 0;
+	}
 
 	if (cdns_phy->nsubnodes == 1) {
 		/* Take the PHY lane group out of reset */
@@ -2293,19 +2307,22 @@ static int cdns_torrent_regmap_init(struct cdns_torrent_phy *cdns_phy)
 static int cdns_torrent_phy_init(struct phy *phy)
 {
 	struct cdns_torrent_phy *cdns_phy = dev_get_drvdata(phy->dev.parent);
+	const struct cdns_torrent_vals *cmn_vals, *tx_ln_vals, *rx_ln_vals;
 	const struct cdns_torrent_data *init_data = cdns_phy->init_data;
-	struct cdns_torrent_vals *cmn_vals, *tx_ln_vals, *rx_ln_vals;
+	const struct cdns_torrent_vals *link_cmn_vals, *xcvr_diag_vals;
 	enum cdns_torrent_ref_clk ref_clk = cdns_phy->ref_clk_rate;
-	struct cdns_torrent_vals *link_cmn_vals, *xcvr_diag_vals;
 	struct cdns_torrent_inst *inst = phy_get_drvdata(phy);
 	enum cdns_torrent_phy_type phy_type = inst->phy_type;
+	const struct cdns_torrent_vals *phy_pma_cmn_vals;
 	enum cdns_torrent_ssc_mode ssc = inst->ssc_mode;
-	struct cdns_torrent_vals *phy_pma_cmn_vals;
-	struct cdns_torrent_vals *pcs_cmn_vals;
-	struct cdns_reg_pairs *reg_pairs;
+	const struct cdns_torrent_vals *pcs_cmn_vals;
+	const struct cdns_reg_pairs *reg_pairs;
 	struct regmap *regmap;
 	u32 num_regs;
 	int i, j;
+
+	if (cdns_phy->already_configured)
+		return 0;
 
 	if (cdns_phy->nsubnodes > 1) {
 		if (phy_type == TYPE_DP)
@@ -2444,182 +2461,219 @@ static const struct phy_ops cdns_torrent_phy_ops = {
 	.owner		= THIS_MODULE,
 };
 
-static int cdns_torrent_noop_phy_on(struct phy *phy)
-{
-	/* Give 5ms to 10ms delay for the PIPE clock to be stable */
-	usleep_range(5000, 10000);
-
-	return 0;
-}
-
-static const struct phy_ops noop_ops = {
-	.power_on	= cdns_torrent_noop_phy_on,
-	.owner		= THIS_MODULE,
-};
-
 static
 int cdns_torrent_phy_configure_multilink(struct cdns_torrent_phy *cdns_phy)
 {
+	const struct cdns_torrent_vals *cmn_vals, *tx_ln_vals, *rx_ln_vals;
 	const struct cdns_torrent_data *init_data = cdns_phy->init_data;
-	struct cdns_torrent_vals *cmn_vals, *tx_ln_vals, *rx_ln_vals;
+	const struct cdns_torrent_vals *link_cmn_vals, *xcvr_diag_vals;
 	enum cdns_torrent_ref_clk ref_clk1 = cdns_phy->ref_clk1_rate;
 	enum cdns_torrent_ref_clk ref_clk = cdns_phy->ref_clk_rate;
-	struct cdns_torrent_vals *link_cmn_vals, *xcvr_diag_vals;
+	const struct cdns_torrent_vals *phy_pma_cmn_vals;
+	const struct cdns_torrent_vals *pcs_cmn_vals;
 	enum cdns_torrent_phy_type phy_t1, phy_t2;
-	struct cdns_torrent_vals *phy_pma_cmn_vals;
-	struct cdns_torrent_vals *pcs_cmn_vals;
+	const struct cdns_reg_pairs *reg_pairs;
 	int i, j, node, mlane, num_lanes, ret;
-	struct cdns_reg_pairs *reg_pairs;
+	struct device *dev = cdns_phy->dev;
 	enum cdns_torrent_ssc_mode ssc;
 	struct regmap *regmap;
-	u32 num_regs;
+	u32 num_regs, num_protocols, protocol;
 
-	/* Maximum 2 links (subnodes) are supported */
-	if (cdns_phy->nsubnodes != 2)
+	num_protocols = hweight32(cdns_phy->protocol_bitmask);
+	/* Maximum 2 protocols are supported */
+	if (num_protocols > 2) {
+		dev_err(dev, "at most 2 protocols are supported\n");
 		return -EINVAL;
+	}
 
-	phy_t1 = cdns_phy->phys[0].phy_type;
-	phy_t2 = cdns_phy->phys[1].phy_type;
 
 	/**
-	 * First configure the PHY for first link with phy_t1. Get the array
-	 * values as [phy_t1][phy_t2][ssc].
+	 * Get PHY types directly from subnodes if only 2 subnodes exist.
+	 * It is possible for phy_t1 to be the same as phy_t2 for special
+	 * configurations such as PCIe Multilink.
 	 */
-	for (node = 0; node < cdns_phy->nsubnodes; node++) {
-		if (node == 1) {
+	if (cdns_phy->nsubnodes == 2) {
+		phy_t1 = cdns_phy->phys[0].phy_type;
+		phy_t2 = cdns_phy->phys[1].phy_type;
+	} else {
+		/**
+		 * Both PHY types / protocols should be unique.
+		 * If they are the same, it should be expressed with either
+		 * a) Single-Link (1 Sub-node) - handled via PHY APIs
+		 * OR
+		 * b) Double-Link (2 Sub-nodes) - handled above
+		 */
+		if (num_protocols != 2) {
+			dev_err(dev, "incorrect representation of link\n");
+			return -EINVAL;
+		}
+
+		phy_t1 = fns(cdns_phy->protocol_bitmask, 0);
+		phy_t2 = fns(cdns_phy->protocol_bitmask, 1);
+	}
+
+	/**
+	 * Configure all links with the protocol phy_t1 first followed by
+	 * configuring all links with the protocol phy_t2.
+	 *
+	 * When phy_t1 = phy_t2, it is a single protocol and configuration
+	 * is performed with a single iteration of the protocol and multiple
+	 * iterations over the sub-nodes (links).
+	 *
+	 * When phy_t1 != phy_t2, there are two protocols and configuration
+	 * is performed by iterating over all sub-nodes matching the first
+	 * protocol and configuring them first, followed by iterating over
+	 * all sub-nodes matching the second protocol and configuring them
+	 * next.
+	 */
+	for (protocol = 0; protocol < num_protocols; protocol++) {
+		/**
+		 * For the case where num_protocols is 1,
+		 * phy_t1 = phy_t2 and the swap is unnecessary.
+		 *
+		 * Swapping phy_t1 and phy_t2 is only required when the
+		 * number of protocols is 2 and there are 2 or more links.
+		 */
+		if (protocol == 1) {
 			/**
-			 * If first link with phy_t1 is configured, then
-			 * configure the PHY for second link with phy_t2.
+			 * If first protocol with phy_t1 is configured, then
+			 * configure the PHY for second protocol with phy_t2.
 			 * Get the array values as [phy_t2][phy_t1][ssc].
 			 */
 			swap(phy_t1, phy_t2);
 			swap(ref_clk, ref_clk1);
 		}
 
-		mlane = cdns_phy->phys[node].mlane;
-		ssc = cdns_phy->phys[node].ssc_mode;
-		num_lanes = cdns_phy->phys[node].num_lanes;
+		for (node = 0; node < cdns_phy->nsubnodes; node++) {
+			if (cdns_phy->phys[node].phy_type != phy_t1)
+				continue;
 
-		/**
-		 * PHY configuration specific registers:
-		 * link_cmn_vals depend on combination of PHY types being
-		 * configured and are common for both PHY types, so array
-		 * values should be same for [phy_t1][phy_t2][ssc] and
-		 * [phy_t2][phy_t1][ssc].
-		 * xcvr_diag_vals also depend on combination of PHY types
-		 * being configured, but these can be different for particular
-		 * PHY type and are per lane.
-		 */
-		link_cmn_vals = cdns_torrent_get_tbl_vals(&init_data->link_cmn_vals_tbl,
-							  CLK_ANY, CLK_ANY,
-							  phy_t1, phy_t2, ANY_SSC);
-		if (link_cmn_vals) {
-			reg_pairs = link_cmn_vals->reg_pairs;
-			num_regs = link_cmn_vals->num_regs;
-			regmap = cdns_phy->regmap_common_cdb;
+			mlane = cdns_phy->phys[node].mlane;
+			ssc = cdns_phy->phys[node].ssc_mode;
+			num_lanes = cdns_phy->phys[node].num_lanes;
 
 			/**
-			 * First array value in link_cmn_vals must be of
-			 * PHY_PLL_CFG register
+			 * PHY configuration specific registers:
+			 * link_cmn_vals depend on combination of PHY types being
+			 * configured and are common for both PHY types, so array
+			 * values should be same for [phy_t1][phy_t2][ssc] and
+			 * [phy_t2][phy_t1][ssc].
+			 * xcvr_diag_vals also depend on combination of PHY types
+			 * being configured, but these can be different for particular
+			 * PHY type and are per lane.
 			 */
-			regmap_field_write(cdns_phy->phy_pll_cfg,
-					   reg_pairs[0].val);
+			link_cmn_vals = cdns_torrent_get_tbl_vals(&init_data->link_cmn_vals_tbl,
+								  CLK_ANY, CLK_ANY,
+								  phy_t1, phy_t2, ANY_SSC);
+			if (link_cmn_vals) {
+				reg_pairs = link_cmn_vals->reg_pairs;
+				num_regs = link_cmn_vals->num_regs;
+				regmap = cdns_phy->regmap_common_cdb;
 
-			for (i = 1; i < num_regs; i++)
-				regmap_write(regmap, reg_pairs[i].off,
-					     reg_pairs[i].val);
-		}
+				/**
+				 * First array value in link_cmn_vals must be of
+				 * PHY_PLL_CFG register
+				 */
+				regmap_field_write(cdns_phy->phy_pll_cfg,
+						   reg_pairs[0].val);
 
-		xcvr_diag_vals = cdns_torrent_get_tbl_vals(&init_data->xcvr_diag_vals_tbl,
-							   CLK_ANY, CLK_ANY,
-							   phy_t1, phy_t2, ANY_SSC);
-		if (xcvr_diag_vals) {
-			reg_pairs = xcvr_diag_vals->reg_pairs;
-			num_regs = xcvr_diag_vals->num_regs;
-			for (i = 0; i < num_lanes; i++) {
-				regmap = cdns_phy->regmap_tx_lane_cdb[i + mlane];
-				for (j = 0; j < num_regs; j++)
-					regmap_write(regmap, reg_pairs[j].off,
-						     reg_pairs[j].val);
+				for (i = 1; i < num_regs; i++)
+					regmap_write(regmap, reg_pairs[i].off,
+						     reg_pairs[i].val);
 			}
-		}
 
-		/* PHY PCS common registers configurations */
-		pcs_cmn_vals = cdns_torrent_get_tbl_vals(&init_data->pcs_cmn_vals_tbl,
-							 CLK_ANY, CLK_ANY,
-							 phy_t1, phy_t2, ANY_SSC);
-		if (pcs_cmn_vals) {
-			reg_pairs = pcs_cmn_vals->reg_pairs;
-			num_regs = pcs_cmn_vals->num_regs;
-			regmap = cdns_phy->regmap_phy_pcs_common_cdb;
-			for (i = 0; i < num_regs; i++)
-				regmap_write(regmap, reg_pairs[i].off,
-					     reg_pairs[i].val);
-		}
-
-		/* PHY PMA common registers configurations */
-		phy_pma_cmn_vals = cdns_torrent_get_tbl_vals(&init_data->phy_pma_cmn_vals_tbl,
-							     CLK_ANY, CLK_ANY,
-							     phy_t1, phy_t2, ANY_SSC);
-		if (phy_pma_cmn_vals) {
-			reg_pairs = phy_pma_cmn_vals->reg_pairs;
-			num_regs = phy_pma_cmn_vals->num_regs;
-			regmap = cdns_phy->regmap_phy_pma_common_cdb;
-			for (i = 0; i < num_regs; i++)
-				regmap_write(regmap, reg_pairs[i].off,
-					     reg_pairs[i].val);
-		}
-
-		/* PMA common registers configurations */
-		cmn_vals = cdns_torrent_get_tbl_vals(&init_data->cmn_vals_tbl,
-						     ref_clk, ref_clk1,
-						     phy_t1, phy_t2, ssc);
-		if (cmn_vals) {
-			reg_pairs = cmn_vals->reg_pairs;
-			num_regs = cmn_vals->num_regs;
-			regmap = cdns_phy->regmap_common_cdb;
-			for (i = 0; i < num_regs; i++)
-				regmap_write(regmap, reg_pairs[i].off,
-					     reg_pairs[i].val);
-		}
-
-		/* PMA TX lane registers configurations */
-		tx_ln_vals = cdns_torrent_get_tbl_vals(&init_data->tx_ln_vals_tbl,
-						       ref_clk, ref_clk1,
-						       phy_t1, phy_t2, ssc);
-		if (tx_ln_vals) {
-			reg_pairs = tx_ln_vals->reg_pairs;
-			num_regs = tx_ln_vals->num_regs;
-			for (i = 0; i < num_lanes; i++) {
-				regmap = cdns_phy->regmap_tx_lane_cdb[i + mlane];
-				for (j = 0; j < num_regs; j++)
-					regmap_write(regmap, reg_pairs[j].off,
-						     reg_pairs[j].val);
+			xcvr_diag_vals = cdns_torrent_get_tbl_vals(&init_data->xcvr_diag_vals_tbl,
+								   CLK_ANY, CLK_ANY,
+								   phy_t1, phy_t2, ANY_SSC);
+			if (xcvr_diag_vals) {
+				reg_pairs = xcvr_diag_vals->reg_pairs;
+				num_regs = xcvr_diag_vals->num_regs;
+				for (i = 0; i < num_lanes; i++) {
+					regmap = cdns_phy->regmap_tx_lane_cdb[i + mlane];
+					for (j = 0; j < num_regs; j++)
+						regmap_write(regmap, reg_pairs[j].off,
+							     reg_pairs[j].val);
+				}
 			}
-		}
 
-		/* PMA RX lane registers configurations */
-		rx_ln_vals = cdns_torrent_get_tbl_vals(&init_data->rx_ln_vals_tbl,
-						       ref_clk, ref_clk1,
-						       phy_t1, phy_t2, ssc);
-		if (rx_ln_vals) {
-			reg_pairs = rx_ln_vals->reg_pairs;
-			num_regs = rx_ln_vals->num_regs;
-			for (i = 0; i < num_lanes; i++) {
-				regmap = cdns_phy->regmap_rx_lane_cdb[i + mlane];
-				for (j = 0; j < num_regs; j++)
-					regmap_write(regmap, reg_pairs[j].off,
-						     reg_pairs[j].val);
+			/* PHY PCS common registers configurations */
+			pcs_cmn_vals = cdns_torrent_get_tbl_vals(&init_data->pcs_cmn_vals_tbl,
+								 CLK_ANY, CLK_ANY,
+								 phy_t1, phy_t2, ANY_SSC);
+			if (pcs_cmn_vals) {
+				reg_pairs = pcs_cmn_vals->reg_pairs;
+				num_regs = pcs_cmn_vals->num_regs;
+				regmap = cdns_phy->regmap_phy_pcs_common_cdb;
+				for (i = 0; i < num_regs; i++)
+					regmap_write(regmap, reg_pairs[i].off,
+						     reg_pairs[i].val);
 			}
-		}
 
-		if (phy_t1 == TYPE_DP) {
-			ret = cdns_torrent_dp_get_pll(cdns_phy, phy_t2);
-			if (ret)
-				return ret;
-		}
+			/* PHY PMA common registers configurations */
+			phy_pma_cmn_vals =
+				cdns_torrent_get_tbl_vals(&init_data->phy_pma_cmn_vals_tbl,
+							  CLK_ANY, CLK_ANY, phy_t1, phy_t2,
+							  ANY_SSC);
+			if (phy_pma_cmn_vals) {
+				reg_pairs = phy_pma_cmn_vals->reg_pairs;
+				num_regs = phy_pma_cmn_vals->num_regs;
+				regmap = cdns_phy->regmap_phy_pma_common_cdb;
+				for (i = 0; i < num_regs; i++)
+					regmap_write(regmap, reg_pairs[i].off,
+						     reg_pairs[i].val);
+			}
 
-		reset_control_deassert(cdns_phy->phys[node].lnk_rst);
+			/* PMA common registers configurations */
+			cmn_vals = cdns_torrent_get_tbl_vals(&init_data->cmn_vals_tbl,
+							     ref_clk, ref_clk1,
+							     phy_t1, phy_t2, ssc);
+			if (cmn_vals) {
+				reg_pairs = cmn_vals->reg_pairs;
+				num_regs = cmn_vals->num_regs;
+				regmap = cdns_phy->regmap_common_cdb;
+				for (i = 0; i < num_regs; i++)
+					regmap_write(regmap, reg_pairs[i].off,
+						     reg_pairs[i].val);
+			}
+
+			/* PMA TX lane registers configurations */
+			tx_ln_vals = cdns_torrent_get_tbl_vals(&init_data->tx_ln_vals_tbl,
+							       ref_clk, ref_clk1,
+							       phy_t1, phy_t2, ssc);
+			if (tx_ln_vals) {
+				reg_pairs = tx_ln_vals->reg_pairs;
+				num_regs = tx_ln_vals->num_regs;
+				for (i = 0; i < num_lanes; i++) {
+					regmap = cdns_phy->regmap_tx_lane_cdb[i + mlane];
+					for (j = 0; j < num_regs; j++)
+						regmap_write(regmap, reg_pairs[j].off,
+							     reg_pairs[j].val);
+				}
+			}
+
+			/* PMA RX lane registers configurations */
+			rx_ln_vals = cdns_torrent_get_tbl_vals(&init_data->rx_ln_vals_tbl,
+							       ref_clk, ref_clk1,
+							       phy_t1, phy_t2, ssc);
+			if (rx_ln_vals) {
+				reg_pairs = rx_ln_vals->reg_pairs;
+				num_regs = rx_ln_vals->num_regs;
+				for (i = 0; i < num_lanes; i++) {
+					regmap = cdns_phy->regmap_rx_lane_cdb[i + mlane];
+					for (j = 0; j < num_regs; j++)
+						regmap_write(regmap, reg_pairs[j].off,
+							     reg_pairs[j].val);
+				}
+			}
+
+			if (phy_t1 == TYPE_DP) {
+				ret = cdns_torrent_dp_get_pll(cdns_phy, phy_t2);
+				if (ret)
+					return ret;
+			}
+
+			reset_control_deassert(cdns_phy->phys[node].lnk_rst);
+		}
 	}
 
 	/* Take the PHY out of reset */
@@ -2678,7 +2732,7 @@ static int cdns_torrent_clk_register(struct cdns_torrent_phy *cdns_phy)
 	return 0;
 }
 
-static int cdns_torrent_reset(struct cdns_torrent_phy *cdns_phy)
+static int cdns_torrent_of_get_reset(struct cdns_torrent_phy *cdns_phy)
 {
 	struct device *dev = cdns_phy->dev;
 
@@ -2699,19 +2753,28 @@ static int cdns_torrent_reset(struct cdns_torrent_phy *cdns_phy)
 	return 0;
 }
 
+static int cdns_torrent_of_get_clk(struct cdns_torrent_phy *cdns_phy)
+{
+	/* refclk: Input reference clock for PLL0 */
+	cdns_phy->clk = devm_clk_get(cdns_phy->dev, "refclk");
+	if (IS_ERR(cdns_phy->clk))
+		return dev_err_probe(cdns_phy->dev, PTR_ERR(cdns_phy->clk),
+				     "phy ref clock not found\n");
+
+	/* refclk1: Input reference clock for PLL1 */
+	cdns_phy->clk1 = devm_clk_get_optional(cdns_phy->dev, "pll1_refclk");
+	if (IS_ERR(cdns_phy->clk1))
+		return dev_err_probe(cdns_phy->dev, PTR_ERR(cdns_phy->clk1),
+				     "phy PLL1 ref clock not found\n");
+
+	return 0;
+}
+
 static int cdns_torrent_clk(struct cdns_torrent_phy *cdns_phy)
 {
-	struct device *dev = cdns_phy->dev;
 	unsigned long ref_clk1_rate;
 	unsigned long ref_clk_rate;
 	int ret;
-
-	/* refclk: Input reference clock for PLL0 */
-	cdns_phy->clk = devm_clk_get(dev, "refclk");
-	if (IS_ERR(cdns_phy->clk)) {
-		dev_err(dev, "phy ref clock not found\n");
-		return PTR_ERR(cdns_phy->clk);
-	}
 
 	ret = clk_prepare_enable(cdns_phy->clk);
 	if (ret) {
@@ -2742,14 +2805,6 @@ static int cdns_torrent_clk(struct cdns_torrent_phy *cdns_phy)
 	default:
 		dev_err(cdns_phy->dev, "Invalid ref clock rate\n");
 		ret = -EINVAL;
-		goto disable_clk;
-	}
-
-	/* refclk1: Input reference clock for PLL1 */
-	cdns_phy->clk1 = devm_clk_get_optional(dev, "pll1_refclk");
-	if (IS_ERR(cdns_phy->clk1)) {
-		dev_err(dev, "phy PLL1 ref clock not found\n");
-		ret = PTR_ERR(cdns_phy->clk1);
 		goto disable_clk;
 	}
 
@@ -2807,7 +2862,6 @@ static int cdns_torrent_phy_probe(struct platform_device *pdev)
 	struct device_node *child;
 	int ret, subnodes, node = 0, i;
 	u32 total_num_lanes = 0;
-	int already_configured;
 	u8 init_dp_regmap = 0;
 	u32 phy_type;
 
@@ -2823,6 +2877,7 @@ static int cdns_torrent_phy_probe(struct platform_device *pdev)
 	dev_set_drvdata(dev, cdns_phy);
 	cdns_phy->dev = dev;
 	cdns_phy->init_data = data;
+	cdns_phy->protocol_bitmask = 0;
 
 	cdns_phy->sd_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(cdns_phy->sd_base))
@@ -2846,13 +2901,17 @@ static int cdns_torrent_phy_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	regmap_field_read(cdns_phy->phy_pma_cmn_ctrl_1, &already_configured);
+	ret = cdns_torrent_of_get_reset(cdns_phy);
+	if (ret)
+		goto clk_cleanup;
 
-	if (!already_configured) {
-		ret = cdns_torrent_reset(cdns_phy);
-		if (ret)
-			goto clk_cleanup;
+	ret = cdns_torrent_of_get_clk(cdns_phy);
+	if (ret)
+		goto clk_cleanup;
 
+	regmap_field_read(cdns_phy->phy_pma_cmn_ctrl_1, &cdns_phy->already_configured);
+
+	if (!cdns_phy->already_configured) {
 		ret = cdns_torrent_clk(cdns_phy);
 		if (ret)
 			goto clk_cleanup;
@@ -2932,10 +2991,7 @@ static int cdns_torrent_phy_probe(struct platform_device *pdev)
 		of_property_read_u32(child, "cdns,ssc-mode",
 				     &cdns_phy->phys[node].ssc_mode);
 
-		if (!already_configured)
-			gphy = devm_phy_create(dev, child, &cdns_torrent_phy_ops);
-		else
-			gphy = devm_phy_create(dev, child, &noop_ops);
+		gphy = devm_phy_create(dev, child, &cdns_torrent_phy_ops);
 		if (IS_ERR(gphy)) {
 			ret = PTR_ERR(gphy);
 			goto put_child;
@@ -3006,6 +3062,7 @@ static int cdns_torrent_phy_probe(struct platform_device *pdev)
 		}
 
 		cdns_phy->phys[node].phy = gphy;
+		cdns_phy->protocol_bitmask |= BIT(cdns_phy->phys[node].phy_type);
 		phy_set_drvdata(gphy, &cdns_phy->phys[node]);
 
 		node++;
@@ -3018,7 +3075,7 @@ static int cdns_torrent_phy_probe(struct platform_device *pdev)
 		goto put_lnk_rst;
 	}
 
-	if (cdns_phy->nsubnodes > 1 && !already_configured) {
+	if (cdns_phy->nsubnodes > 1 && !cdns_phy->already_configured) {
 		ret = cdns_torrent_phy_configure_multilink(cdns_phy);
 		if (ret)
 			goto put_lnk_rst;
@@ -3074,74 +3131,150 @@ static void cdns_torrent_phy_remove(struct platform_device *pdev)
 	cdns_torrent_clk_cleanup(cdns_phy);
 }
 
+/* SGMII and QSGMII link configuration */
+static const struct cdns_reg_pairs sgmii_qsgmii_link_cmn_regs[] = {
+	{0x0002, PHY_PLL_CFG}
+};
+
+static const struct cdns_reg_pairs sgmii_qsgmii_xcvr_diag_ln_regs[] = {
+	{0x0003, XCVR_DIAG_HSCLK_DIV},
+	{0x0113, XCVR_DIAG_PLLDRC_CTRL}
+};
+
+static const struct cdns_torrent_vals sgmii_qsgmii_link_cmn_vals = {
+	.reg_pairs = sgmii_qsgmii_link_cmn_regs,
+	.num_regs = ARRAY_SIZE(sgmii_qsgmii_link_cmn_regs),
+};
+
+static const struct cdns_torrent_vals sgmii_qsgmii_xcvr_diag_ln_vals = {
+	.reg_pairs = sgmii_qsgmii_xcvr_diag_ln_regs,
+	.num_regs = ARRAY_SIZE(sgmii_qsgmii_xcvr_diag_ln_regs),
+};
+
+static int cdns_torrent_phy_suspend_noirq(struct device *dev)
+{
+	struct cdns_torrent_phy *cdns_phy = dev_get_drvdata(dev);
+	int i;
+
+	reset_control_assert(cdns_phy->phy_rst);
+	reset_control_assert(cdns_phy->apb_rst);
+	for (i = 0; i < cdns_phy->nsubnodes; i++)
+		reset_control_assert(cdns_phy->phys[i].lnk_rst);
+
+	if (cdns_phy->already_configured)
+		cdns_phy->already_configured = 0;
+	else {
+		clk_disable_unprepare(cdns_phy->clk1);
+		clk_disable_unprepare(cdns_phy->clk);
+	}
+
+	return 0;
+}
+
+static int cdns_torrent_phy_resume_noirq(struct device *dev)
+{
+	struct cdns_torrent_phy *cdns_phy = dev_get_drvdata(dev);
+	int node = cdns_phy->nsubnodes;
+	int ret, i;
+
+	ret = cdns_torrent_clk(cdns_phy);
+	if (ret)
+		return ret;
+
+	/* Enable APB */
+	reset_control_deassert(cdns_phy->apb_rst);
+
+	if (cdns_phy->nsubnodes > 1) {
+		ret = cdns_torrent_phy_configure_multilink(cdns_phy);
+		if (ret)
+			goto put_lnk_rst;
+	}
+
+	return 0;
+
+put_lnk_rst:
+	for (i = 0; i < node; i++)
+		reset_control_assert(cdns_phy->phys[i].lnk_rst);
+	reset_control_assert(cdns_phy->apb_rst);
+
+	clk_disable_unprepare(cdns_phy->clk1);
+	clk_disable_unprepare(cdns_phy->clk);
+
+	return ret;
+}
+
+static DEFINE_NOIRQ_DEV_PM_OPS(cdns_torrent_phy_pm_ops,
+			       cdns_torrent_phy_suspend_noirq,
+			       cdns_torrent_phy_resume_noirq);
+
 /* USB and DP link configuration */
-static struct cdns_reg_pairs usb_dp_link_cmn_regs[] = {
+static const struct cdns_reg_pairs usb_dp_link_cmn_regs[] = {
 	{0x0002, PHY_PLL_CFG},
 	{0x8600, CMN_PDIAG_PLL0_CLK_SEL_M0}
 };
 
-static struct cdns_reg_pairs usb_dp_xcvr_diag_ln_regs[] = {
+static const struct cdns_reg_pairs usb_dp_xcvr_diag_ln_regs[] = {
 	{0x0000, XCVR_DIAG_HSCLK_SEL},
 	{0x0001, XCVR_DIAG_HSCLK_DIV},
 	{0x0041, XCVR_DIAG_PLLDRC_CTRL}
 };
 
-static struct cdns_reg_pairs dp_usb_xcvr_diag_ln_regs[] = {
+static const struct cdns_reg_pairs dp_usb_xcvr_diag_ln_regs[] = {
 	{0x0001, XCVR_DIAG_HSCLK_SEL},
 	{0x0009, XCVR_DIAG_PLLDRC_CTRL}
 };
 
-static struct cdns_torrent_vals usb_dp_link_cmn_vals = {
+static const struct cdns_torrent_vals usb_dp_link_cmn_vals = {
 	.reg_pairs = usb_dp_link_cmn_regs,
 	.num_regs = ARRAY_SIZE(usb_dp_link_cmn_regs),
 };
 
-static struct cdns_torrent_vals usb_dp_xcvr_diag_ln_vals = {
+static const struct cdns_torrent_vals usb_dp_xcvr_diag_ln_vals = {
 	.reg_pairs = usb_dp_xcvr_diag_ln_regs,
 	.num_regs = ARRAY_SIZE(usb_dp_xcvr_diag_ln_regs),
 };
 
-static struct cdns_torrent_vals dp_usb_xcvr_diag_ln_vals = {
+static const struct cdns_torrent_vals dp_usb_xcvr_diag_ln_vals = {
 	.reg_pairs = dp_usb_xcvr_diag_ln_regs,
 	.num_regs = ARRAY_SIZE(dp_usb_xcvr_diag_ln_regs),
 };
 
 /* USXGMII and SGMII/QSGMII link configuration */
-static struct cdns_reg_pairs usxgmii_sgmii_link_cmn_regs[] = {
+static const struct cdns_reg_pairs usxgmii_sgmii_link_cmn_regs[] = {
 	{0x0002, PHY_PLL_CFG},
 	{0x0400, CMN_PDIAG_PLL0_CLK_SEL_M0},
 	{0x0601, CMN_PDIAG_PLL1_CLK_SEL_M0}
 };
 
-static struct cdns_reg_pairs usxgmii_sgmii_xcvr_diag_ln_regs[] = {
+static const struct cdns_reg_pairs usxgmii_sgmii_xcvr_diag_ln_regs[] = {
 	{0x0000, XCVR_DIAG_HSCLK_SEL},
 	{0x0001, XCVR_DIAG_HSCLK_DIV},
 	{0x0001, XCVR_DIAG_PLLDRC_CTRL}
 };
 
-static struct cdns_reg_pairs sgmii_usxgmii_xcvr_diag_ln_regs[] = {
+static const struct cdns_reg_pairs sgmii_usxgmii_xcvr_diag_ln_regs[] = {
 	{0x0111, XCVR_DIAG_HSCLK_SEL},
 	{0x0103, XCVR_DIAG_HSCLK_DIV},
 	{0x0A9B, XCVR_DIAG_PLLDRC_CTRL}
 };
 
-static struct cdns_torrent_vals usxgmii_sgmii_link_cmn_vals = {
+static const struct cdns_torrent_vals usxgmii_sgmii_link_cmn_vals = {
 	.reg_pairs = usxgmii_sgmii_link_cmn_regs,
 	.num_regs = ARRAY_SIZE(usxgmii_sgmii_link_cmn_regs),
 };
 
-static struct cdns_torrent_vals usxgmii_sgmii_xcvr_diag_ln_vals = {
+static const struct cdns_torrent_vals usxgmii_sgmii_xcvr_diag_ln_vals = {
 	.reg_pairs = usxgmii_sgmii_xcvr_diag_ln_regs,
 	.num_regs = ARRAY_SIZE(usxgmii_sgmii_xcvr_diag_ln_regs),
 };
 
-static struct cdns_torrent_vals sgmii_usxgmii_xcvr_diag_ln_vals = {
+static const struct cdns_torrent_vals sgmii_usxgmii_xcvr_diag_ln_vals = {
 	.reg_pairs = sgmii_usxgmii_xcvr_diag_ln_regs,
 	.num_regs = ARRAY_SIZE(sgmii_usxgmii_xcvr_diag_ln_regs),
 };
 
 /* Multilink USXGMII, using PLL0, 156.25 MHz Ref clk, no SSC */
-static struct cdns_reg_pairs ml_usxgmii_pll0_156_25_no_ssc_cmn_regs[] = {
+static const struct cdns_reg_pairs ml_usxgmii_pll0_156_25_no_ssc_cmn_regs[] = {
 	{0x0014, CMN_PLL0_DSM_FBH_OVRD_M0},
 	{0x0005, CMN_PLL0_DSM_FBL_OVRD_M0},
 	{0x061B, CMN_PLL0_VCOCAL_INIT_TMR},
@@ -3153,13 +3286,13 @@ static struct cdns_reg_pairs ml_usxgmii_pll0_156_25_no_ssc_cmn_regs[] = {
 	{0x0138, CMN_PLL0_LOCK_PLLCNT_START}
 };
 
-static struct cdns_torrent_vals ml_usxgmii_pll0_156_25_no_ssc_cmn_vals = {
+static const struct cdns_torrent_vals ml_usxgmii_pll0_156_25_no_ssc_cmn_vals = {
 	.reg_pairs = ml_usxgmii_pll0_156_25_no_ssc_cmn_regs,
 	.num_regs = ARRAY_SIZE(ml_usxgmii_pll0_156_25_no_ssc_cmn_regs),
 };
 
 /* Multilink SGMII/QSGMII, using PLL1, 100 MHz Ref clk, no SSC */
-static struct cdns_reg_pairs ml_sgmii_pll1_100_no_ssc_cmn_regs[] = {
+static const struct cdns_reg_pairs ml_sgmii_pll1_100_no_ssc_cmn_regs[] = {
 	{0x0028, CMN_PDIAG_PLL1_CP_PADJ_M0},
 	{0x001E, CMN_PLL1_DSM_FBH_OVRD_M0},
 	{0x000C, CMN_PLL1_DSM_FBL_OVRD_M0},
@@ -3168,13 +3301,13 @@ static struct cdns_reg_pairs ml_sgmii_pll1_100_no_ssc_cmn_regs[] = {
 	{0x007F, CMN_TXPDCAL_TUNE}
 };
 
-static struct cdns_torrent_vals ml_sgmii_pll1_100_no_ssc_cmn_vals = {
+static const struct cdns_torrent_vals ml_sgmii_pll1_100_no_ssc_cmn_vals = {
 	.reg_pairs = ml_sgmii_pll1_100_no_ssc_cmn_regs,
 	.num_regs = ARRAY_SIZE(ml_sgmii_pll1_100_no_ssc_cmn_regs),
 };
 
 /* TI J7200, Multilink USXGMII, using PLL0, 156.25 MHz Ref clk, no SSC */
-static struct cdns_reg_pairs j7200_ml_usxgmii_pll0_156_25_no_ssc_cmn_regs[] = {
+static const struct cdns_reg_pairs j7200_ml_usxgmii_pll0_156_25_no_ssc_cmn_regs[] = {
 	{0x0014, CMN_SSM_BIAS_TMR},
 	{0x0028, CMN_PLLSM0_PLLPRE_TMR},
 	{0x00A4, CMN_PLLSM0_PLLLOCK_TMR},
@@ -3200,13 +3333,13 @@ static struct cdns_reg_pairs j7200_ml_usxgmii_pll0_156_25_no_ssc_cmn_regs[] = {
 	{0x0138, CMN_PLL0_LOCK_PLLCNT_START}
 };
 
-static struct cdns_torrent_vals j7200_ml_usxgmii_pll0_156_25_no_ssc_cmn_vals = {
+static const struct cdns_torrent_vals j7200_ml_usxgmii_pll0_156_25_no_ssc_cmn_vals = {
 	.reg_pairs = j7200_ml_usxgmii_pll0_156_25_no_ssc_cmn_regs,
 	.num_regs = ARRAY_SIZE(j7200_ml_usxgmii_pll0_156_25_no_ssc_cmn_regs),
 };
 
 /* TI J7200, Multilink SGMII/QSGMII, using PLL1, 100 MHz Ref clk, no SSC */
-static struct cdns_reg_pairs j7200_ml_sgmii_pll1_100_no_ssc_cmn_regs[] = {
+static const struct cdns_reg_pairs j7200_ml_sgmii_pll1_100_no_ssc_cmn_regs[] = {
 	{0x0028, CMN_PLLSM1_PLLPRE_TMR},
 	{0x00A4, CMN_PLLSM1_PLLLOCK_TMR},
 	{0x0028, CMN_PDIAG_PLL1_CP_PADJ_M0},
@@ -3217,42 +3350,42 @@ static struct cdns_reg_pairs j7200_ml_sgmii_pll1_100_no_ssc_cmn_regs[] = {
 	{0x007F, CMN_TXPDCAL_TUNE}
 };
 
-static struct cdns_torrent_vals j7200_ml_sgmii_pll1_100_no_ssc_cmn_vals = {
+static const struct cdns_torrent_vals j7200_ml_sgmii_pll1_100_no_ssc_cmn_vals = {
 	.reg_pairs = j7200_ml_sgmii_pll1_100_no_ssc_cmn_regs,
 	.num_regs = ARRAY_SIZE(j7200_ml_sgmii_pll1_100_no_ssc_cmn_regs),
 };
 
 /* PCIe and USXGMII link configuration */
-static struct cdns_reg_pairs pcie_usxgmii_link_cmn_regs[] = {
+static const struct cdns_reg_pairs pcie_usxgmii_link_cmn_regs[] = {
 	{0x0003, PHY_PLL_CFG},
 	{0x0601, CMN_PDIAG_PLL0_CLK_SEL_M0},
 	{0x0400, CMN_PDIAG_PLL0_CLK_SEL_M1},
 	{0x0400, CMN_PDIAG_PLL1_CLK_SEL_M0}
 };
 
-static struct cdns_reg_pairs pcie_usxgmii_xcvr_diag_ln_regs[] = {
+static const struct cdns_reg_pairs pcie_usxgmii_xcvr_diag_ln_regs[] = {
 	{0x0000, XCVR_DIAG_HSCLK_SEL},
 	{0x0001, XCVR_DIAG_HSCLK_DIV},
 	{0x0012, XCVR_DIAG_PLLDRC_CTRL}
 };
 
-static struct cdns_reg_pairs usxgmii_pcie_xcvr_diag_ln_regs[] = {
+static const struct cdns_reg_pairs usxgmii_pcie_xcvr_diag_ln_regs[] = {
 	{0x0011, XCVR_DIAG_HSCLK_SEL},
 	{0x0001, XCVR_DIAG_HSCLK_DIV},
 	{0x0089, XCVR_DIAG_PLLDRC_CTRL}
 };
 
-static struct cdns_torrent_vals pcie_usxgmii_link_cmn_vals = {
+static const struct cdns_torrent_vals pcie_usxgmii_link_cmn_vals = {
 	.reg_pairs = pcie_usxgmii_link_cmn_regs,
 	.num_regs = ARRAY_SIZE(pcie_usxgmii_link_cmn_regs),
 };
 
-static struct cdns_torrent_vals pcie_usxgmii_xcvr_diag_ln_vals = {
+static const struct cdns_torrent_vals pcie_usxgmii_xcvr_diag_ln_vals = {
 	.reg_pairs = pcie_usxgmii_xcvr_diag_ln_regs,
 	.num_regs = ARRAY_SIZE(pcie_usxgmii_xcvr_diag_ln_regs),
 };
 
-static struct cdns_torrent_vals usxgmii_pcie_xcvr_diag_ln_vals = {
+static const struct cdns_torrent_vals usxgmii_pcie_xcvr_diag_ln_vals = {
 	.reg_pairs = usxgmii_pcie_xcvr_diag_ln_regs,
 	.num_regs = ARRAY_SIZE(usxgmii_pcie_xcvr_diag_ln_regs),
 };
@@ -3260,7 +3393,7 @@ static struct cdns_torrent_vals usxgmii_pcie_xcvr_diag_ln_vals = {
 /*
  * Multilink USXGMII, using PLL1, 156.25 MHz Ref clk, no SSC
  */
-static struct cdns_reg_pairs ml_usxgmii_pll1_156_25_no_ssc_cmn_regs[] = {
+static const struct cdns_reg_pairs ml_usxgmii_pll1_156_25_no_ssc_cmn_regs[] = {
 	{0x0028, CMN_PDIAG_PLL1_CP_PADJ_M0},
 	{0x0014, CMN_PLL1_DSM_FBH_OVRD_M0},
 	{0x0005, CMN_PLL1_DSM_FBL_OVRD_M0},
@@ -3275,7 +3408,7 @@ static struct cdns_reg_pairs ml_usxgmii_pll1_156_25_no_ssc_cmn_regs[] = {
 	{0x007F, CMN_TXPDCAL_TUNE}
 };
 
-static struct cdns_reg_pairs ml_usxgmii_156_25_no_ssc_tx_ln_regs[] = {
+static const struct cdns_reg_pairs ml_usxgmii_156_25_no_ssc_tx_ln_regs[] = {
 	{0x00F3, TX_PSC_A0},
 	{0x04A2, TX_PSC_A2},
 	{0x04A2, TX_PSC_A3 },
@@ -3283,7 +3416,7 @@ static struct cdns_reg_pairs ml_usxgmii_156_25_no_ssc_tx_ln_regs[] = {
 	{0x0000, XCVR_DIAG_PSC_OVRD}
 };
 
-static struct cdns_reg_pairs ml_usxgmii_156_25_no_ssc_rx_ln_regs[] = {
+static const struct cdns_reg_pairs ml_usxgmii_156_25_no_ssc_rx_ln_regs[] = {
 	{0x091D, RX_PSC_A0},
 	{0x0900, RX_PSC_A2},
 	{0x0100, RX_PSC_A3},
@@ -3301,55 +3434,55 @@ static struct cdns_reg_pairs ml_usxgmii_156_25_no_ssc_rx_ln_regs[] = {
 	{0x018C, RX_CDRLF_CNFG}
 };
 
-static struct cdns_torrent_vals ml_usxgmii_pll1_156_25_no_ssc_cmn_vals = {
+static const struct cdns_torrent_vals ml_usxgmii_pll1_156_25_no_ssc_cmn_vals = {
 	.reg_pairs = ml_usxgmii_pll1_156_25_no_ssc_cmn_regs,
 	.num_regs = ARRAY_SIZE(ml_usxgmii_pll1_156_25_no_ssc_cmn_regs),
 };
 
-static struct cdns_torrent_vals ml_usxgmii_156_25_no_ssc_tx_ln_vals = {
+static const struct cdns_torrent_vals ml_usxgmii_156_25_no_ssc_tx_ln_vals = {
 	.reg_pairs = ml_usxgmii_156_25_no_ssc_tx_ln_regs,
 	.num_regs = ARRAY_SIZE(ml_usxgmii_156_25_no_ssc_tx_ln_regs),
 };
 
-static struct cdns_torrent_vals ml_usxgmii_156_25_no_ssc_rx_ln_vals = {
+static const struct cdns_torrent_vals ml_usxgmii_156_25_no_ssc_rx_ln_vals = {
 	.reg_pairs = ml_usxgmii_156_25_no_ssc_rx_ln_regs,
 	.num_regs = ARRAY_SIZE(ml_usxgmii_156_25_no_ssc_rx_ln_regs),
 };
 
 /* TI USXGMII configuration: Enable cmn_refclk_rcv_out_en */
-static struct cdns_reg_pairs ti_usxgmii_phy_pma_cmn_regs[] = {
+static const struct cdns_reg_pairs ti_usxgmii_phy_pma_cmn_regs[] = {
 	{0x0040, PHY_PMA_CMN_CTRL1},
 };
 
-static struct cdns_torrent_vals ti_usxgmii_phy_pma_cmn_vals = {
+static const struct cdns_torrent_vals ti_usxgmii_phy_pma_cmn_vals = {
 	.reg_pairs = ti_usxgmii_phy_pma_cmn_regs,
 	.num_regs = ARRAY_SIZE(ti_usxgmii_phy_pma_cmn_regs),
 };
 
 /* Single USXGMII link configuration */
-static struct cdns_reg_pairs sl_usxgmii_link_cmn_regs[] = {
+static const struct cdns_reg_pairs sl_usxgmii_link_cmn_regs[] = {
 	{0x0000, PHY_PLL_CFG},
 	{0x0400, CMN_PDIAG_PLL0_CLK_SEL_M0}
 };
 
-static struct cdns_reg_pairs sl_usxgmii_xcvr_diag_ln_regs[] = {
+static const struct cdns_reg_pairs sl_usxgmii_xcvr_diag_ln_regs[] = {
 	{0x0000, XCVR_DIAG_HSCLK_SEL},
 	{0x0001, XCVR_DIAG_HSCLK_DIV},
 	{0x0001, XCVR_DIAG_PLLDRC_CTRL}
 };
 
-static struct cdns_torrent_vals sl_usxgmii_link_cmn_vals = {
+static const struct cdns_torrent_vals sl_usxgmii_link_cmn_vals = {
 	.reg_pairs = sl_usxgmii_link_cmn_regs,
 	.num_regs = ARRAY_SIZE(sl_usxgmii_link_cmn_regs),
 };
 
-static struct cdns_torrent_vals sl_usxgmii_xcvr_diag_ln_vals = {
+static const struct cdns_torrent_vals sl_usxgmii_xcvr_diag_ln_vals = {
 	.reg_pairs = sl_usxgmii_xcvr_diag_ln_regs,
 	.num_regs = ARRAY_SIZE(sl_usxgmii_xcvr_diag_ln_regs),
 };
 
 /* Single link USXGMII, 156.25 MHz Ref clk, no SSC */
-static struct cdns_reg_pairs sl_usxgmii_156_25_no_ssc_cmn_regs[] = {
+static const struct cdns_reg_pairs sl_usxgmii_156_25_no_ssc_cmn_regs[] = {
 	{0x0014, CMN_SSM_BIAS_TMR},
 	{0x0028, CMN_PLLSM0_PLLPRE_TMR},
 	{0x00A4, CMN_PLLSM0_PLLLOCK_TMR},
@@ -3387,7 +3520,7 @@ static struct cdns_reg_pairs sl_usxgmii_156_25_no_ssc_cmn_regs[] = {
 	{0x0138, CMN_PLL1_LOCK_PLLCNT_START}
 };
 
-static struct cdns_reg_pairs usxgmii_156_25_no_ssc_tx_ln_regs[] = {
+static const struct cdns_reg_pairs usxgmii_156_25_no_ssc_tx_ln_regs[] = {
 	{0x07A2, TX_RCVDET_ST_TMR},
 	{0x00F3, TX_PSC_A0},
 	{0x04A2, TX_PSC_A2},
@@ -3396,7 +3529,7 @@ static struct cdns_reg_pairs usxgmii_156_25_no_ssc_tx_ln_regs[] = {
 	{0x0000, XCVR_DIAG_PSC_OVRD}
 };
 
-static struct cdns_reg_pairs usxgmii_156_25_no_ssc_rx_ln_regs[] = {
+static const struct cdns_reg_pairs usxgmii_156_25_no_ssc_rx_ln_regs[] = {
 	{0x0014, RX_SDCAL0_INIT_TMR},
 	{0x0062, RX_SDCAL0_ITER_TMR},
 	{0x0014, RX_SDCAL1_INIT_TMR},
@@ -3418,68 +3551,68 @@ static struct cdns_reg_pairs usxgmii_156_25_no_ssc_rx_ln_regs[] = {
 	{0x018C, RX_CDRLF_CNFG}
 };
 
-static struct cdns_torrent_vals sl_usxgmii_156_25_no_ssc_cmn_vals = {
+static const struct cdns_torrent_vals sl_usxgmii_156_25_no_ssc_cmn_vals = {
 	.reg_pairs = sl_usxgmii_156_25_no_ssc_cmn_regs,
 	.num_regs = ARRAY_SIZE(sl_usxgmii_156_25_no_ssc_cmn_regs),
 };
 
-static struct cdns_torrent_vals usxgmii_156_25_no_ssc_tx_ln_vals = {
+static const struct cdns_torrent_vals usxgmii_156_25_no_ssc_tx_ln_vals = {
 	.reg_pairs = usxgmii_156_25_no_ssc_tx_ln_regs,
 	.num_regs = ARRAY_SIZE(usxgmii_156_25_no_ssc_tx_ln_regs),
 };
 
-static struct cdns_torrent_vals usxgmii_156_25_no_ssc_rx_ln_vals = {
+static const struct cdns_torrent_vals usxgmii_156_25_no_ssc_rx_ln_vals = {
 	.reg_pairs = usxgmii_156_25_no_ssc_rx_ln_regs,
 	.num_regs = ARRAY_SIZE(usxgmii_156_25_no_ssc_rx_ln_regs),
 };
 
 /* PCIe and DP link configuration */
-static struct cdns_reg_pairs pcie_dp_link_cmn_regs[] = {
+static const struct cdns_reg_pairs pcie_dp_link_cmn_regs[] = {
 	{0x0003, PHY_PLL_CFG},
 	{0x0601, CMN_PDIAG_PLL0_CLK_SEL_M0},
 	{0x0400, CMN_PDIAG_PLL0_CLK_SEL_M1}
 };
 
-static struct cdns_reg_pairs pcie_dp_xcvr_diag_ln_regs[] = {
+static const struct cdns_reg_pairs pcie_dp_xcvr_diag_ln_regs[] = {
 	{0x0000, XCVR_DIAG_HSCLK_SEL},
 	{0x0001, XCVR_DIAG_HSCLK_DIV},
 	{0x0012, XCVR_DIAG_PLLDRC_CTRL}
 };
 
-static struct cdns_reg_pairs dp_pcie_xcvr_diag_ln_regs[] = {
+static const struct cdns_reg_pairs dp_pcie_xcvr_diag_ln_regs[] = {
 	{0x0001, XCVR_DIAG_HSCLK_SEL},
 	{0x0009, XCVR_DIAG_PLLDRC_CTRL}
 };
 
-static struct cdns_torrent_vals pcie_dp_link_cmn_vals = {
+static const struct cdns_torrent_vals pcie_dp_link_cmn_vals = {
 	.reg_pairs = pcie_dp_link_cmn_regs,
 	.num_regs = ARRAY_SIZE(pcie_dp_link_cmn_regs),
 };
 
-static struct cdns_torrent_vals pcie_dp_xcvr_diag_ln_vals = {
+static const struct cdns_torrent_vals pcie_dp_xcvr_diag_ln_vals = {
 	.reg_pairs = pcie_dp_xcvr_diag_ln_regs,
 	.num_regs = ARRAY_SIZE(pcie_dp_xcvr_diag_ln_regs),
 };
 
-static struct cdns_torrent_vals dp_pcie_xcvr_diag_ln_vals = {
+static const struct cdns_torrent_vals dp_pcie_xcvr_diag_ln_vals = {
 	.reg_pairs = dp_pcie_xcvr_diag_ln_regs,
 	.num_regs = ARRAY_SIZE(dp_pcie_xcvr_diag_ln_regs),
 };
 
 /* DP Multilink, 100 MHz Ref clk, no SSC */
-static struct cdns_reg_pairs dp_100_no_ssc_cmn_regs[] = {
+static const struct cdns_reg_pairs dp_100_no_ssc_cmn_regs[] = {
 	{0x007F, CMN_TXPUCAL_TUNE},
 	{0x007F, CMN_TXPDCAL_TUNE}
 };
 
-static struct cdns_reg_pairs dp_100_no_ssc_tx_ln_regs[] = {
+static const struct cdns_reg_pairs dp_100_no_ssc_tx_ln_regs[] = {
 	{0x00FB, TX_PSC_A0},
 	{0x04AA, TX_PSC_A2},
 	{0x04AA, TX_PSC_A3},
 	{0x000F, XCVR_DIAG_BIDI_CTRL}
 };
 
-static struct cdns_reg_pairs dp_100_no_ssc_rx_ln_regs[] = {
+static const struct cdns_reg_pairs dp_100_no_ssc_rx_ln_regs[] = {
 	{0x0000, RX_PSC_A0},
 	{0x0000, RX_PSC_A2},
 	{0x0000, RX_PSC_A3},
@@ -3489,43 +3622,43 @@ static struct cdns_reg_pairs dp_100_no_ssc_rx_ln_regs[] = {
 	{0x0000, RX_REE_PERGCSM_CTRL}
 };
 
-static struct cdns_torrent_vals dp_100_no_ssc_cmn_vals = {
+static const struct cdns_torrent_vals dp_100_no_ssc_cmn_vals = {
 	.reg_pairs = dp_100_no_ssc_cmn_regs,
 	.num_regs = ARRAY_SIZE(dp_100_no_ssc_cmn_regs),
 };
 
-static struct cdns_torrent_vals dp_100_no_ssc_tx_ln_vals = {
+static const struct cdns_torrent_vals dp_100_no_ssc_tx_ln_vals = {
 	.reg_pairs = dp_100_no_ssc_tx_ln_regs,
 	.num_regs = ARRAY_SIZE(dp_100_no_ssc_tx_ln_regs),
 };
 
-static struct cdns_torrent_vals dp_100_no_ssc_rx_ln_vals = {
+static const struct cdns_torrent_vals dp_100_no_ssc_rx_ln_vals = {
 	.reg_pairs = dp_100_no_ssc_rx_ln_regs,
 	.num_regs = ARRAY_SIZE(dp_100_no_ssc_rx_ln_regs),
 };
 
 /* Single DisplayPort(DP) link configuration */
-static struct cdns_reg_pairs sl_dp_link_cmn_regs[] = {
+static const struct cdns_reg_pairs sl_dp_link_cmn_regs[] = {
 	{0x0000, PHY_PLL_CFG},
 };
 
-static struct cdns_reg_pairs sl_dp_xcvr_diag_ln_regs[] = {
+static const struct cdns_reg_pairs sl_dp_xcvr_diag_ln_regs[] = {
 	{0x0000, XCVR_DIAG_HSCLK_SEL},
 	{0x0001, XCVR_DIAG_PLLDRC_CTRL}
 };
 
-static struct cdns_torrent_vals sl_dp_link_cmn_vals = {
+static const struct cdns_torrent_vals sl_dp_link_cmn_vals = {
 	.reg_pairs = sl_dp_link_cmn_regs,
 	.num_regs = ARRAY_SIZE(sl_dp_link_cmn_regs),
 };
 
-static struct cdns_torrent_vals sl_dp_xcvr_diag_ln_vals = {
+static const struct cdns_torrent_vals sl_dp_xcvr_diag_ln_vals = {
 	.reg_pairs = sl_dp_xcvr_diag_ln_regs,
 	.num_regs = ARRAY_SIZE(sl_dp_xcvr_diag_ln_regs),
 };
 
 /* Single DP, 19.2 MHz Ref clk, no SSC */
-static struct cdns_reg_pairs sl_dp_19_2_no_ssc_cmn_regs[] = {
+static const struct cdns_reg_pairs sl_dp_19_2_no_ssc_cmn_regs[] = {
 	{0x0014, CMN_SSM_BIAS_TMR},
 	{0x0027, CMN_PLLSM0_PLLPRE_TMR},
 	{0x00A1, CMN_PLLSM0_PLLLOCK_TMR},
@@ -3562,7 +3695,7 @@ static struct cdns_reg_pairs sl_dp_19_2_no_ssc_cmn_regs[] = {
 	{0x0003, CMN_PLL1_VCOCAL_TCTRL}
 };
 
-static struct cdns_reg_pairs sl_dp_19_2_no_ssc_tx_ln_regs[] = {
+static const struct cdns_reg_pairs sl_dp_19_2_no_ssc_tx_ln_regs[] = {
 	{0x0780, TX_RCVDET_ST_TMR},
 	{0x00FB, TX_PSC_A0},
 	{0x04AA, TX_PSC_A2},
@@ -3570,7 +3703,7 @@ static struct cdns_reg_pairs sl_dp_19_2_no_ssc_tx_ln_regs[] = {
 	{0x000F, XCVR_DIAG_BIDI_CTRL}
 };
 
-static struct cdns_reg_pairs sl_dp_19_2_no_ssc_rx_ln_regs[] = {
+static const struct cdns_reg_pairs sl_dp_19_2_no_ssc_rx_ln_regs[] = {
 	{0x0000, RX_PSC_A0},
 	{0x0000, RX_PSC_A2},
 	{0x0000, RX_PSC_A3},
@@ -3580,23 +3713,23 @@ static struct cdns_reg_pairs sl_dp_19_2_no_ssc_rx_ln_regs[] = {
 	{0x0000, RX_REE_PERGCSM_CTRL}
 };
 
-static struct cdns_torrent_vals sl_dp_19_2_no_ssc_cmn_vals = {
+static const struct cdns_torrent_vals sl_dp_19_2_no_ssc_cmn_vals = {
 	.reg_pairs = sl_dp_19_2_no_ssc_cmn_regs,
 	.num_regs = ARRAY_SIZE(sl_dp_19_2_no_ssc_cmn_regs),
 };
 
-static struct cdns_torrent_vals sl_dp_19_2_no_ssc_tx_ln_vals = {
+static const struct cdns_torrent_vals sl_dp_19_2_no_ssc_tx_ln_vals = {
 	.reg_pairs = sl_dp_19_2_no_ssc_tx_ln_regs,
 	.num_regs = ARRAY_SIZE(sl_dp_19_2_no_ssc_tx_ln_regs),
 };
 
-static struct cdns_torrent_vals sl_dp_19_2_no_ssc_rx_ln_vals = {
+static const struct cdns_torrent_vals sl_dp_19_2_no_ssc_rx_ln_vals = {
 	.reg_pairs = sl_dp_19_2_no_ssc_rx_ln_regs,
 	.num_regs = ARRAY_SIZE(sl_dp_19_2_no_ssc_rx_ln_regs),
 };
 
 /* Single DP, 25 MHz Ref clk, no SSC */
-static struct cdns_reg_pairs sl_dp_25_no_ssc_cmn_regs[] = {
+static const struct cdns_reg_pairs sl_dp_25_no_ssc_cmn_regs[] = {
 	{0x0019, CMN_SSM_BIAS_TMR},
 	{0x0032, CMN_PLLSM0_PLLPRE_TMR},
 	{0x00D1, CMN_PLLSM0_PLLLOCK_TMR},
@@ -3633,7 +3766,7 @@ static struct cdns_reg_pairs sl_dp_25_no_ssc_cmn_regs[] = {
 	{0x0003, CMN_PLL1_VCOCAL_TCTRL}
 };
 
-static struct cdns_reg_pairs sl_dp_25_no_ssc_tx_ln_regs[] = {
+static const struct cdns_reg_pairs sl_dp_25_no_ssc_tx_ln_regs[] = {
 	{0x09C4, TX_RCVDET_ST_TMR},
 	{0x00FB, TX_PSC_A0},
 	{0x04AA, TX_PSC_A2},
@@ -3641,7 +3774,7 @@ static struct cdns_reg_pairs sl_dp_25_no_ssc_tx_ln_regs[] = {
 	{0x000F, XCVR_DIAG_BIDI_CTRL}
 };
 
-static struct cdns_reg_pairs sl_dp_25_no_ssc_rx_ln_regs[] = {
+static const struct cdns_reg_pairs sl_dp_25_no_ssc_rx_ln_regs[] = {
 	{0x0000, RX_PSC_A0},
 	{0x0000, RX_PSC_A2},
 	{0x0000, RX_PSC_A3},
@@ -3651,35 +3784,35 @@ static struct cdns_reg_pairs sl_dp_25_no_ssc_rx_ln_regs[] = {
 	{0x0000, RX_REE_PERGCSM_CTRL}
 };
 
-static struct cdns_torrent_vals sl_dp_25_no_ssc_cmn_vals = {
+static const struct cdns_torrent_vals sl_dp_25_no_ssc_cmn_vals = {
 	.reg_pairs = sl_dp_25_no_ssc_cmn_regs,
 	.num_regs = ARRAY_SIZE(sl_dp_25_no_ssc_cmn_regs),
 };
 
-static struct cdns_torrent_vals sl_dp_25_no_ssc_tx_ln_vals = {
+static const struct cdns_torrent_vals sl_dp_25_no_ssc_tx_ln_vals = {
 	.reg_pairs = sl_dp_25_no_ssc_tx_ln_regs,
 	.num_regs = ARRAY_SIZE(sl_dp_25_no_ssc_tx_ln_regs),
 };
 
-static struct cdns_torrent_vals sl_dp_25_no_ssc_rx_ln_vals = {
+static const struct cdns_torrent_vals sl_dp_25_no_ssc_rx_ln_vals = {
 	.reg_pairs = sl_dp_25_no_ssc_rx_ln_regs,
 	.num_regs = ARRAY_SIZE(sl_dp_25_no_ssc_rx_ln_regs),
 };
 
 /* Single DP, 100 MHz Ref clk, no SSC */
-static struct cdns_reg_pairs sl_dp_100_no_ssc_cmn_regs[] = {
+static const struct cdns_reg_pairs sl_dp_100_no_ssc_cmn_regs[] = {
 	{0x0003, CMN_PLL0_VCOCAL_TCTRL},
 	{0x0003, CMN_PLL1_VCOCAL_TCTRL}
 };
 
-static struct cdns_reg_pairs sl_dp_100_no_ssc_tx_ln_regs[] = {
+static const struct cdns_reg_pairs sl_dp_100_no_ssc_tx_ln_regs[] = {
 	{0x00FB, TX_PSC_A0},
 	{0x04AA, TX_PSC_A2},
 	{0x04AA, TX_PSC_A3},
 	{0x000F, XCVR_DIAG_BIDI_CTRL}
 };
 
-static struct cdns_reg_pairs sl_dp_100_no_ssc_rx_ln_regs[] = {
+static const struct cdns_reg_pairs sl_dp_100_no_ssc_rx_ln_regs[] = {
 	{0x0000, RX_PSC_A0},
 	{0x0000, RX_PSC_A2},
 	{0x0000, RX_PSC_A3},
@@ -3689,92 +3822,92 @@ static struct cdns_reg_pairs sl_dp_100_no_ssc_rx_ln_regs[] = {
 	{0x0000, RX_REE_PERGCSM_CTRL}
 };
 
-static struct cdns_torrent_vals sl_dp_100_no_ssc_cmn_vals = {
+static const struct cdns_torrent_vals sl_dp_100_no_ssc_cmn_vals = {
 	.reg_pairs = sl_dp_100_no_ssc_cmn_regs,
 	.num_regs = ARRAY_SIZE(sl_dp_100_no_ssc_cmn_regs),
 };
 
-static struct cdns_torrent_vals sl_dp_100_no_ssc_tx_ln_vals = {
+static const struct cdns_torrent_vals sl_dp_100_no_ssc_tx_ln_vals = {
 	.reg_pairs = sl_dp_100_no_ssc_tx_ln_regs,
 	.num_regs = ARRAY_SIZE(sl_dp_100_no_ssc_tx_ln_regs),
 };
 
-static struct cdns_torrent_vals sl_dp_100_no_ssc_rx_ln_vals = {
+static const struct cdns_torrent_vals sl_dp_100_no_ssc_rx_ln_vals = {
 	.reg_pairs = sl_dp_100_no_ssc_rx_ln_regs,
 	.num_regs = ARRAY_SIZE(sl_dp_100_no_ssc_rx_ln_regs),
 };
 
 /* USB and SGMII/QSGMII link configuration */
-static struct cdns_reg_pairs usb_sgmii_link_cmn_regs[] = {
+static const struct cdns_reg_pairs usb_sgmii_link_cmn_regs[] = {
 	{0x0002, PHY_PLL_CFG},
 	{0x8600, CMN_PDIAG_PLL0_CLK_SEL_M0},
 	{0x0601, CMN_PDIAG_PLL1_CLK_SEL_M0}
 };
 
-static struct cdns_reg_pairs usb_sgmii_xcvr_diag_ln_regs[] = {
+static const struct cdns_reg_pairs usb_sgmii_xcvr_diag_ln_regs[] = {
 	{0x0000, XCVR_DIAG_HSCLK_SEL},
 	{0x0001, XCVR_DIAG_HSCLK_DIV},
 	{0x0041, XCVR_DIAG_PLLDRC_CTRL}
 };
 
-static struct cdns_reg_pairs sgmii_usb_xcvr_diag_ln_regs[] = {
+static const struct cdns_reg_pairs sgmii_usb_xcvr_diag_ln_regs[] = {
 	{0x0011, XCVR_DIAG_HSCLK_SEL},
 	{0x0003, XCVR_DIAG_HSCLK_DIV},
 	{0x009B, XCVR_DIAG_PLLDRC_CTRL}
 };
 
-static struct cdns_torrent_vals usb_sgmii_link_cmn_vals = {
+static const struct cdns_torrent_vals usb_sgmii_link_cmn_vals = {
 	.reg_pairs = usb_sgmii_link_cmn_regs,
 	.num_regs = ARRAY_SIZE(usb_sgmii_link_cmn_regs),
 };
 
-static struct cdns_torrent_vals usb_sgmii_xcvr_diag_ln_vals = {
+static const struct cdns_torrent_vals usb_sgmii_xcvr_diag_ln_vals = {
 	.reg_pairs = usb_sgmii_xcvr_diag_ln_regs,
 	.num_regs = ARRAY_SIZE(usb_sgmii_xcvr_diag_ln_regs),
 };
 
-static struct cdns_torrent_vals sgmii_usb_xcvr_diag_ln_vals = {
+static const struct cdns_torrent_vals sgmii_usb_xcvr_diag_ln_vals = {
 	.reg_pairs = sgmii_usb_xcvr_diag_ln_regs,
 	.num_regs = ARRAY_SIZE(sgmii_usb_xcvr_diag_ln_regs),
 };
 
 /* PCIe and USB Unique SSC link configuration */
-static struct cdns_reg_pairs pcie_usb_link_cmn_regs[] = {
+static const struct cdns_reg_pairs pcie_usb_link_cmn_regs[] = {
 	{0x0003, PHY_PLL_CFG},
 	{0x0601, CMN_PDIAG_PLL0_CLK_SEL_M0},
 	{0x0400, CMN_PDIAG_PLL0_CLK_SEL_M1},
 	{0x8600, CMN_PDIAG_PLL1_CLK_SEL_M0}
 };
 
-static struct cdns_reg_pairs pcie_usb_xcvr_diag_ln_regs[] = {
+static const struct cdns_reg_pairs pcie_usb_xcvr_diag_ln_regs[] = {
 	{0x0000, XCVR_DIAG_HSCLK_SEL},
 	{0x0001, XCVR_DIAG_HSCLK_DIV},
 	{0x0012, XCVR_DIAG_PLLDRC_CTRL}
 };
 
-static struct cdns_reg_pairs usb_pcie_xcvr_diag_ln_regs[] = {
+static const struct cdns_reg_pairs usb_pcie_xcvr_diag_ln_regs[] = {
 	{0x0011, XCVR_DIAG_HSCLK_SEL},
 	{0x0001, XCVR_DIAG_HSCLK_DIV},
 	{0x00C9, XCVR_DIAG_PLLDRC_CTRL}
 };
 
-static struct cdns_torrent_vals pcie_usb_link_cmn_vals = {
+static const struct cdns_torrent_vals pcie_usb_link_cmn_vals = {
 	.reg_pairs = pcie_usb_link_cmn_regs,
 	.num_regs = ARRAY_SIZE(pcie_usb_link_cmn_regs),
 };
 
-static struct cdns_torrent_vals pcie_usb_xcvr_diag_ln_vals = {
+static const struct cdns_torrent_vals pcie_usb_xcvr_diag_ln_vals = {
 	.reg_pairs = pcie_usb_xcvr_diag_ln_regs,
 	.num_regs = ARRAY_SIZE(pcie_usb_xcvr_diag_ln_regs),
 };
 
-static struct cdns_torrent_vals usb_pcie_xcvr_diag_ln_vals = {
+static const struct cdns_torrent_vals usb_pcie_xcvr_diag_ln_vals = {
 	.reg_pairs = usb_pcie_xcvr_diag_ln_regs,
 	.num_regs = ARRAY_SIZE(usb_pcie_xcvr_diag_ln_regs),
 };
 
 /* USB 100 MHz Ref clk, internal SSC */
-static struct cdns_reg_pairs usb_100_int_ssc_cmn_regs[] = {
+static const struct cdns_reg_pairs usb_100_int_ssc_cmn_regs[] = {
 	{0x0004, CMN_PLL0_DSM_DIAG_M0},
 	{0x0004, CMN_PLL0_DSM_DIAG_M1},
 	{0x0004, CMN_PLL1_DSM_DIAG_M0},
@@ -3827,47 +3960,47 @@ static struct cdns_reg_pairs usb_100_int_ssc_cmn_regs[] = {
 	{0x007F, CMN_TXPDCAL_TUNE}
 };
 
-static struct cdns_torrent_vals usb_100_int_ssc_cmn_vals = {
+static const struct cdns_torrent_vals usb_100_int_ssc_cmn_vals = {
 	.reg_pairs = usb_100_int_ssc_cmn_regs,
 	.num_regs = ARRAY_SIZE(usb_100_int_ssc_cmn_regs),
 };
 
 /* Single USB link configuration */
-static struct cdns_reg_pairs sl_usb_link_cmn_regs[] = {
+static const struct cdns_reg_pairs sl_usb_link_cmn_regs[] = {
 	{0x0000, PHY_PLL_CFG},
 	{0x8600, CMN_PDIAG_PLL0_CLK_SEL_M0}
 };
 
-static struct cdns_reg_pairs sl_usb_xcvr_diag_ln_regs[] = {
+static const struct cdns_reg_pairs sl_usb_xcvr_diag_ln_regs[] = {
 	{0x0000, XCVR_DIAG_HSCLK_SEL},
 	{0x0001, XCVR_DIAG_HSCLK_DIV},
 	{0x0041, XCVR_DIAG_PLLDRC_CTRL}
 };
 
-static struct cdns_torrent_vals sl_usb_link_cmn_vals = {
+static const struct cdns_torrent_vals sl_usb_link_cmn_vals = {
 	.reg_pairs = sl_usb_link_cmn_regs,
 	.num_regs = ARRAY_SIZE(sl_usb_link_cmn_regs),
 };
 
-static struct cdns_torrent_vals sl_usb_xcvr_diag_ln_vals = {
+static const struct cdns_torrent_vals sl_usb_xcvr_diag_ln_vals = {
 	.reg_pairs = sl_usb_xcvr_diag_ln_regs,
 	.num_regs = ARRAY_SIZE(sl_usb_xcvr_diag_ln_regs),
 };
 
 /* USB PHY PCS common configuration */
-static struct cdns_reg_pairs usb_phy_pcs_cmn_regs[] = {
+static const struct cdns_reg_pairs usb_phy_pcs_cmn_regs[] = {
 	{0x0A0A, PHY_PIPE_USB3_GEN2_PRE_CFG0},
 	{0x1000, PHY_PIPE_USB3_GEN2_POST_CFG0},
 	{0x0010, PHY_PIPE_USB3_GEN2_POST_CFG1}
 };
 
-static struct cdns_torrent_vals usb_phy_pcs_cmn_vals = {
+static const struct cdns_torrent_vals usb_phy_pcs_cmn_vals = {
 	.reg_pairs = usb_phy_pcs_cmn_regs,
 	.num_regs = ARRAY_SIZE(usb_phy_pcs_cmn_regs),
 };
 
 /* USB 100 MHz Ref clk, no SSC */
-static struct cdns_reg_pairs sl_usb_100_no_ssc_cmn_regs[] = {
+static const struct cdns_reg_pairs sl_usb_100_no_ssc_cmn_regs[] = {
 	{0x0028, CMN_PDIAG_PLL1_CP_PADJ_M0},
 	{0x001E, CMN_PLL1_DSM_FBH_OVRD_M0},
 	{0x000C, CMN_PLL1_DSM_FBL_OVRD_M0},
@@ -3877,19 +4010,19 @@ static struct cdns_reg_pairs sl_usb_100_no_ssc_cmn_regs[] = {
 	{0x8200, CMN_CDIAG_XCVRC_PWRI_OVRD}
 };
 
-static struct cdns_torrent_vals sl_usb_100_no_ssc_cmn_vals = {
+static const struct cdns_torrent_vals sl_usb_100_no_ssc_cmn_vals = {
 	.reg_pairs = sl_usb_100_no_ssc_cmn_regs,
 	.num_regs = ARRAY_SIZE(sl_usb_100_no_ssc_cmn_regs),
 };
 
-static struct cdns_reg_pairs usb_100_no_ssc_cmn_regs[] = {
+static const struct cdns_reg_pairs usb_100_no_ssc_cmn_regs[] = {
 	{0x8200, CMN_CDIAG_CDB_PWRI_OVRD},
 	{0x8200, CMN_CDIAG_XCVRC_PWRI_OVRD},
 	{0x007F, CMN_TXPUCAL_TUNE},
 	{0x007F, CMN_TXPDCAL_TUNE}
 };
 
-static struct cdns_reg_pairs usb_100_no_ssc_tx_ln_regs[] = {
+static const struct cdns_reg_pairs usb_100_no_ssc_tx_ln_regs[] = {
 	{0x02FF, TX_PSC_A0},
 	{0x06AF, TX_PSC_A1},
 	{0x06AE, TX_PSC_A2},
@@ -3899,7 +4032,7 @@ static struct cdns_reg_pairs usb_100_no_ssc_tx_ln_regs[] = {
 	{0x0003, XCVR_DIAG_PSC_OVRD}
 };
 
-static struct cdns_reg_pairs usb_100_no_ssc_rx_ln_regs[] = {
+static const struct cdns_reg_pairs usb_100_no_ssc_rx_ln_regs[] = {
 	{0x0D1D, RX_PSC_A0},
 	{0x0D1D, RX_PSC_A1},
 	{0x0D00, RX_PSC_A2},
@@ -3922,23 +4055,23 @@ static struct cdns_reg_pairs usb_100_no_ssc_rx_ln_regs[] = {
 	{0x0003, RX_CDRLF_CNFG3}
 };
 
-static struct cdns_torrent_vals usb_100_no_ssc_cmn_vals = {
+static const struct cdns_torrent_vals usb_100_no_ssc_cmn_vals = {
 	.reg_pairs = usb_100_no_ssc_cmn_regs,
 	.num_regs = ARRAY_SIZE(usb_100_no_ssc_cmn_regs),
 };
 
-static struct cdns_torrent_vals usb_100_no_ssc_tx_ln_vals = {
+static const struct cdns_torrent_vals usb_100_no_ssc_tx_ln_vals = {
 	.reg_pairs = usb_100_no_ssc_tx_ln_regs,
 	.num_regs = ARRAY_SIZE(usb_100_no_ssc_tx_ln_regs),
 };
 
-static struct cdns_torrent_vals usb_100_no_ssc_rx_ln_vals = {
+static const struct cdns_torrent_vals usb_100_no_ssc_rx_ln_vals = {
 	.reg_pairs = usb_100_no_ssc_rx_ln_regs,
 	.num_regs = ARRAY_SIZE(usb_100_no_ssc_rx_ln_regs),
 };
 
 /* Single link USB, 100 MHz Ref clk, internal SSC */
-static struct cdns_reg_pairs sl_usb_100_int_ssc_cmn_regs[] = {
+static const struct cdns_reg_pairs sl_usb_100_int_ssc_cmn_regs[] = {
 	{0x0004, CMN_PLL0_DSM_DIAG_M0},
 	{0x0004, CMN_PLL1_DSM_DIAG_M0},
 	{0x0509, CMN_PDIAG_PLL0_CP_PADJ_M0},
@@ -3979,48 +4112,48 @@ static struct cdns_reg_pairs sl_usb_100_int_ssc_cmn_regs[] = {
 	{0x8200, CMN_CDIAG_XCVRC_PWRI_OVRD}
 };
 
-static struct cdns_torrent_vals sl_usb_100_int_ssc_cmn_vals = {
+static const struct cdns_torrent_vals sl_usb_100_int_ssc_cmn_vals = {
 	.reg_pairs = sl_usb_100_int_ssc_cmn_regs,
 	.num_regs = ARRAY_SIZE(sl_usb_100_int_ssc_cmn_regs),
 };
 
 /* PCIe and SGMII/QSGMII Unique SSC link configuration */
-static struct cdns_reg_pairs pcie_sgmii_link_cmn_regs[] = {
+static const struct cdns_reg_pairs pcie_sgmii_link_cmn_regs[] = {
 	{0x0003, PHY_PLL_CFG},
 	{0x0601, CMN_PDIAG_PLL0_CLK_SEL_M0},
 	{0x0400, CMN_PDIAG_PLL0_CLK_SEL_M1},
 	{0x0601, CMN_PDIAG_PLL1_CLK_SEL_M0}
 };
 
-static struct cdns_reg_pairs pcie_sgmii_xcvr_diag_ln_regs[] = {
+static const struct cdns_reg_pairs pcie_sgmii_xcvr_diag_ln_regs[] = {
 	{0x0000, XCVR_DIAG_HSCLK_SEL},
 	{0x0001, XCVR_DIAG_HSCLK_DIV},
 	{0x0012, XCVR_DIAG_PLLDRC_CTRL}
 };
 
-static struct cdns_reg_pairs sgmii_pcie_xcvr_diag_ln_regs[] = {
+static const struct cdns_reg_pairs sgmii_pcie_xcvr_diag_ln_regs[] = {
 	{0x0011, XCVR_DIAG_HSCLK_SEL},
 	{0x0003, XCVR_DIAG_HSCLK_DIV},
 	{0x009B, XCVR_DIAG_PLLDRC_CTRL}
 };
 
-static struct cdns_torrent_vals pcie_sgmii_link_cmn_vals = {
+static const struct cdns_torrent_vals pcie_sgmii_link_cmn_vals = {
 	.reg_pairs = pcie_sgmii_link_cmn_regs,
 	.num_regs = ARRAY_SIZE(pcie_sgmii_link_cmn_regs),
 };
 
-static struct cdns_torrent_vals pcie_sgmii_xcvr_diag_ln_vals = {
+static const struct cdns_torrent_vals pcie_sgmii_xcvr_diag_ln_vals = {
 	.reg_pairs = pcie_sgmii_xcvr_diag_ln_regs,
 	.num_regs = ARRAY_SIZE(pcie_sgmii_xcvr_diag_ln_regs),
 };
 
-static struct cdns_torrent_vals sgmii_pcie_xcvr_diag_ln_vals = {
+static const struct cdns_torrent_vals sgmii_pcie_xcvr_diag_ln_vals = {
 	.reg_pairs = sgmii_pcie_xcvr_diag_ln_regs,
 	.num_regs = ARRAY_SIZE(sgmii_pcie_xcvr_diag_ln_regs),
 };
 
 /* SGMII 100 MHz Ref clk, no SSC */
-static struct cdns_reg_pairs sl_sgmii_100_no_ssc_cmn_regs[] = {
+static const struct cdns_reg_pairs sl_sgmii_100_no_ssc_cmn_regs[] = {
 	{0x0028, CMN_PDIAG_PLL1_CP_PADJ_M0},
 	{0x001E, CMN_PLL1_DSM_FBH_OVRD_M0},
 	{0x000C, CMN_PLL1_DSM_FBL_OVRD_M0},
@@ -4028,34 +4161,36 @@ static struct cdns_reg_pairs sl_sgmii_100_no_ssc_cmn_regs[] = {
 	{0x0003, CMN_PLL1_VCOCAL_TCTRL}
 };
 
-static struct cdns_torrent_vals sl_sgmii_100_no_ssc_cmn_vals = {
+static const struct cdns_torrent_vals sl_sgmii_100_no_ssc_cmn_vals = {
 	.reg_pairs = sl_sgmii_100_no_ssc_cmn_regs,
 	.num_regs = ARRAY_SIZE(sl_sgmii_100_no_ssc_cmn_regs),
 };
 
-static struct cdns_reg_pairs sgmii_100_no_ssc_cmn_regs[] = {
+static const struct cdns_reg_pairs sgmii_100_no_ssc_cmn_regs[] = {
 	{0x007F, CMN_TXPUCAL_TUNE},
 	{0x007F, CMN_TXPDCAL_TUNE}
 };
 
-static struct cdns_reg_pairs sgmii_100_no_ssc_tx_ln_regs[] = {
-	{0x00F3, TX_PSC_A0},
-	{0x04A2, TX_PSC_A2},
-	{0x04A2, TX_PSC_A3},
-	{0x0000, TX_TXCC_CPOST_MULT_00},
-	{0x00B3, DRV_DIAG_TX_DRV}
-};
-
-static struct cdns_reg_pairs ti_sgmii_100_no_ssc_tx_ln_regs[] = {
+static const struct cdns_reg_pairs sgmii_100_no_ssc_tx_ln_regs[] = {
 	{0x00F3, TX_PSC_A0},
 	{0x04A2, TX_PSC_A2},
 	{0x04A2, TX_PSC_A3},
 	{0x0000, TX_TXCC_CPOST_MULT_00},
 	{0x00B3, DRV_DIAG_TX_DRV},
-	{0x4000, XCVR_DIAG_RXCLK_CTRL},
+	{0x0002, XCVR_DIAG_PSC_OVRD}
 };
 
-static struct cdns_reg_pairs sgmii_100_no_ssc_rx_ln_regs[] = {
+static const struct cdns_reg_pairs ti_sgmii_100_no_ssc_tx_ln_regs[] = {
+	{0x00F3, TX_PSC_A0},
+	{0x04A2, TX_PSC_A2},
+	{0x04A2, TX_PSC_A3},
+	{0x0000, TX_TXCC_CPOST_MULT_00},
+	{0x00B3, DRV_DIAG_TX_DRV},
+	{0x0002, XCVR_DIAG_PSC_OVRD},
+	{0x4000, XCVR_DIAG_RXCLK_CTRL}
+};
+
+static const struct cdns_reg_pairs sgmii_100_no_ssc_rx_ln_regs[] = {
 	{0x091D, RX_PSC_A0},
 	{0x0900, RX_PSC_A2},
 	{0x0100, RX_PSC_A3},
@@ -4073,28 +4208,28 @@ static struct cdns_reg_pairs sgmii_100_no_ssc_rx_ln_regs[] = {
 	{0x018C, RX_CDRLF_CNFG},
 };
 
-static struct cdns_torrent_vals sgmii_100_no_ssc_cmn_vals = {
+static const struct cdns_torrent_vals sgmii_100_no_ssc_cmn_vals = {
 	.reg_pairs = sgmii_100_no_ssc_cmn_regs,
 	.num_regs = ARRAY_SIZE(sgmii_100_no_ssc_cmn_regs),
 };
 
-static struct cdns_torrent_vals sgmii_100_no_ssc_tx_ln_vals = {
+static const struct cdns_torrent_vals sgmii_100_no_ssc_tx_ln_vals = {
 	.reg_pairs = sgmii_100_no_ssc_tx_ln_regs,
 	.num_regs = ARRAY_SIZE(sgmii_100_no_ssc_tx_ln_regs),
 };
 
-static struct cdns_torrent_vals ti_sgmii_100_no_ssc_tx_ln_vals = {
+static const struct cdns_torrent_vals ti_sgmii_100_no_ssc_tx_ln_vals = {
 	.reg_pairs = ti_sgmii_100_no_ssc_tx_ln_regs,
 	.num_regs = ARRAY_SIZE(ti_sgmii_100_no_ssc_tx_ln_regs),
 };
 
-static struct cdns_torrent_vals sgmii_100_no_ssc_rx_ln_vals = {
+static const struct cdns_torrent_vals sgmii_100_no_ssc_rx_ln_vals = {
 	.reg_pairs = sgmii_100_no_ssc_rx_ln_regs,
 	.num_regs = ARRAY_SIZE(sgmii_100_no_ssc_rx_ln_regs),
 };
 
 /* TI J7200, multilink SGMII */
-static struct cdns_reg_pairs j7200_sgmii_100_no_ssc_tx_ln_regs[] = {
+static const struct cdns_reg_pairs j7200_sgmii_100_no_ssc_tx_ln_regs[] = {
 	{0x07A2, TX_RCVDET_ST_TMR},
 	{0x00F3, TX_PSC_A0},
 	{0x04A2, TX_PSC_A2},
@@ -4105,12 +4240,12 @@ static struct cdns_reg_pairs j7200_sgmii_100_no_ssc_tx_ln_regs[] = {
 	{0x4000, XCVR_DIAG_RXCLK_CTRL}
 };
 
-static struct cdns_torrent_vals j7200_sgmii_100_no_ssc_tx_ln_vals = {
+static const struct cdns_torrent_vals j7200_sgmii_100_no_ssc_tx_ln_vals = {
 	.reg_pairs = j7200_sgmii_100_no_ssc_tx_ln_regs,
 	.num_regs = ARRAY_SIZE(j7200_sgmii_100_no_ssc_tx_ln_regs),
 };
 
-static struct cdns_reg_pairs j7200_sgmii_100_no_ssc_rx_ln_regs[] = {
+static const struct cdns_reg_pairs j7200_sgmii_100_no_ssc_rx_ln_regs[] = {
 	{0x0014, RX_SDCAL0_INIT_TMR},
 	{0x0062, RX_SDCAL0_ITER_TMR},
 	{0x0014, RX_SDCAL1_INIT_TMR},
@@ -4132,13 +4267,13 @@ static struct cdns_reg_pairs j7200_sgmii_100_no_ssc_rx_ln_regs[] = {
 	{0x018C, RX_CDRLF_CNFG}
 };
 
-static struct cdns_torrent_vals j7200_sgmii_100_no_ssc_rx_ln_vals = {
+static const struct cdns_torrent_vals j7200_sgmii_100_no_ssc_rx_ln_vals = {
 	.reg_pairs = j7200_sgmii_100_no_ssc_rx_ln_regs,
 	.num_regs = ARRAY_SIZE(j7200_sgmii_100_no_ssc_rx_ln_regs),
 };
 
 /* SGMII 100 MHz Ref clk, internal SSC */
-static struct cdns_reg_pairs sgmii_100_int_ssc_cmn_regs[] = {
+static const struct cdns_reg_pairs sgmii_100_int_ssc_cmn_regs[] = {
 	{0x0004, CMN_PLL0_DSM_DIAG_M0},
 	{0x0004, CMN_PLL0_DSM_DIAG_M1},
 	{0x0004, CMN_PLL1_DSM_DIAG_M0},
@@ -4189,13 +4324,13 @@ static struct cdns_reg_pairs sgmii_100_int_ssc_cmn_regs[] = {
 	{0x007F, CMN_TXPDCAL_TUNE}
 };
 
-static struct cdns_torrent_vals sgmii_100_int_ssc_cmn_vals = {
+static const struct cdns_torrent_vals sgmii_100_int_ssc_cmn_vals = {
 	.reg_pairs = sgmii_100_int_ssc_cmn_regs,
 	.num_regs = ARRAY_SIZE(sgmii_100_int_ssc_cmn_regs),
 };
 
 /* QSGMII 100 MHz Ref clk, no SSC */
-static struct cdns_reg_pairs sl_qsgmii_100_no_ssc_cmn_regs[] = {
+static const struct cdns_reg_pairs sl_qsgmii_100_no_ssc_cmn_regs[] = {
 	{0x0028, CMN_PDIAG_PLL1_CP_PADJ_M0},
 	{0x001E, CMN_PLL1_DSM_FBH_OVRD_M0},
 	{0x000C, CMN_PLL1_DSM_FBL_OVRD_M0},
@@ -4203,36 +4338,38 @@ static struct cdns_reg_pairs sl_qsgmii_100_no_ssc_cmn_regs[] = {
 	{0x0003, CMN_PLL1_VCOCAL_TCTRL}
 };
 
-static struct cdns_torrent_vals sl_qsgmii_100_no_ssc_cmn_vals = {
+static const struct cdns_torrent_vals sl_qsgmii_100_no_ssc_cmn_vals = {
 	.reg_pairs = sl_qsgmii_100_no_ssc_cmn_regs,
 	.num_regs = ARRAY_SIZE(sl_qsgmii_100_no_ssc_cmn_regs),
 };
 
-static struct cdns_reg_pairs qsgmii_100_no_ssc_cmn_regs[] = {
+static const struct cdns_reg_pairs qsgmii_100_no_ssc_cmn_regs[] = {
 	{0x007F, CMN_TXPUCAL_TUNE},
 	{0x007F, CMN_TXPDCAL_TUNE}
 };
 
-static struct cdns_reg_pairs qsgmii_100_no_ssc_tx_ln_regs[] = {
-	{0x00F3, TX_PSC_A0},
-	{0x04A2, TX_PSC_A2},
-	{0x04A2, TX_PSC_A3},
-	{0x0000, TX_TXCC_CPOST_MULT_00},
-	{0x0011, TX_TXCC_MGNFS_MULT_100},
-	{0x0003, DRV_DIAG_TX_DRV}
-};
-
-static struct cdns_reg_pairs ti_qsgmii_100_no_ssc_tx_ln_regs[] = {
+static const struct cdns_reg_pairs qsgmii_100_no_ssc_tx_ln_regs[] = {
 	{0x00F3, TX_PSC_A0},
 	{0x04A2, TX_PSC_A2},
 	{0x04A2, TX_PSC_A3},
 	{0x0000, TX_TXCC_CPOST_MULT_00},
 	{0x0011, TX_TXCC_MGNFS_MULT_100},
 	{0x0003, DRV_DIAG_TX_DRV},
-	{0x4000, XCVR_DIAG_RXCLK_CTRL},
+	{0x0002, XCVR_DIAG_PSC_OVRD}
 };
 
-static struct cdns_reg_pairs qsgmii_100_no_ssc_rx_ln_regs[] = {
+static const struct cdns_reg_pairs ti_qsgmii_100_no_ssc_tx_ln_regs[] = {
+	{0x00F3, TX_PSC_A0},
+	{0x04A2, TX_PSC_A2},
+	{0x04A2, TX_PSC_A3},
+	{0x0000, TX_TXCC_CPOST_MULT_00},
+	{0x0011, TX_TXCC_MGNFS_MULT_100},
+	{0x0003, DRV_DIAG_TX_DRV},
+	{0x0002, XCVR_DIAG_PSC_OVRD},
+	{0x4000, XCVR_DIAG_RXCLK_CTRL}
+};
+
+static const struct cdns_reg_pairs qsgmii_100_no_ssc_rx_ln_regs[] = {
 	{0x091D, RX_PSC_A0},
 	{0x0900, RX_PSC_A2},
 	{0x0100, RX_PSC_A3},
@@ -4250,28 +4387,28 @@ static struct cdns_reg_pairs qsgmii_100_no_ssc_rx_ln_regs[] = {
 	{0x018C, RX_CDRLF_CNFG},
 };
 
-static struct cdns_torrent_vals qsgmii_100_no_ssc_cmn_vals = {
+static const struct cdns_torrent_vals qsgmii_100_no_ssc_cmn_vals = {
 	.reg_pairs = qsgmii_100_no_ssc_cmn_regs,
 	.num_regs = ARRAY_SIZE(qsgmii_100_no_ssc_cmn_regs),
 };
 
-static struct cdns_torrent_vals qsgmii_100_no_ssc_tx_ln_vals = {
+static const struct cdns_torrent_vals qsgmii_100_no_ssc_tx_ln_vals = {
 	.reg_pairs = qsgmii_100_no_ssc_tx_ln_regs,
 	.num_regs = ARRAY_SIZE(qsgmii_100_no_ssc_tx_ln_regs),
 };
 
-static struct cdns_torrent_vals ti_qsgmii_100_no_ssc_tx_ln_vals = {
+static const struct cdns_torrent_vals ti_qsgmii_100_no_ssc_tx_ln_vals = {
 	.reg_pairs = ti_qsgmii_100_no_ssc_tx_ln_regs,
 	.num_regs = ARRAY_SIZE(ti_qsgmii_100_no_ssc_tx_ln_regs),
 };
 
-static struct cdns_torrent_vals qsgmii_100_no_ssc_rx_ln_vals = {
+static const struct cdns_torrent_vals qsgmii_100_no_ssc_rx_ln_vals = {
 	.reg_pairs = qsgmii_100_no_ssc_rx_ln_regs,
 	.num_regs = ARRAY_SIZE(qsgmii_100_no_ssc_rx_ln_regs),
 };
 
 /* TI J7200, multilink QSGMII */
-static struct cdns_reg_pairs j7200_qsgmii_100_no_ssc_tx_ln_regs[] = {
+static const struct cdns_reg_pairs j7200_qsgmii_100_no_ssc_tx_ln_regs[] = {
 	{0x07A2, TX_RCVDET_ST_TMR},
 	{0x00F3, TX_PSC_A0},
 	{0x04A2, TX_PSC_A2},
@@ -4283,12 +4420,12 @@ static struct cdns_reg_pairs j7200_qsgmii_100_no_ssc_tx_ln_regs[] = {
 	{0x4000, XCVR_DIAG_RXCLK_CTRL}
 };
 
-static struct cdns_torrent_vals j7200_qsgmii_100_no_ssc_tx_ln_vals = {
+static const struct cdns_torrent_vals j7200_qsgmii_100_no_ssc_tx_ln_vals = {
 	.reg_pairs = j7200_qsgmii_100_no_ssc_tx_ln_regs,
 	.num_regs = ARRAY_SIZE(j7200_qsgmii_100_no_ssc_tx_ln_regs),
 };
 
-static struct cdns_reg_pairs j7200_qsgmii_100_no_ssc_rx_ln_regs[] = {
+static const struct cdns_reg_pairs j7200_qsgmii_100_no_ssc_rx_ln_regs[] = {
 	{0x0014, RX_SDCAL0_INIT_TMR},
 	{0x0062, RX_SDCAL0_ITER_TMR},
 	{0x0014, RX_SDCAL1_INIT_TMR},
@@ -4310,13 +4447,13 @@ static struct cdns_reg_pairs j7200_qsgmii_100_no_ssc_rx_ln_regs[] = {
 	{0x018C, RX_CDRLF_CNFG}
 };
 
-static struct cdns_torrent_vals j7200_qsgmii_100_no_ssc_rx_ln_vals = {
+static const struct cdns_torrent_vals j7200_qsgmii_100_no_ssc_rx_ln_vals = {
 	.reg_pairs = j7200_qsgmii_100_no_ssc_rx_ln_regs,
 	.num_regs = ARRAY_SIZE(j7200_qsgmii_100_no_ssc_rx_ln_regs),
 };
 
 /* QSGMII 100 MHz Ref clk, internal SSC */
-static struct cdns_reg_pairs qsgmii_100_int_ssc_cmn_regs[] = {
+static const struct cdns_reg_pairs qsgmii_100_int_ssc_cmn_regs[] = {
 	{0x0004, CMN_PLL0_DSM_DIAG_M0},
 	{0x0004, CMN_PLL0_DSM_DIAG_M1},
 	{0x0004, CMN_PLL1_DSM_DIAG_M0},
@@ -4367,35 +4504,35 @@ static struct cdns_reg_pairs qsgmii_100_int_ssc_cmn_regs[] = {
 	{0x007F, CMN_TXPDCAL_TUNE}
 };
 
-static struct cdns_torrent_vals qsgmii_100_int_ssc_cmn_vals = {
+static const struct cdns_torrent_vals qsgmii_100_int_ssc_cmn_vals = {
 	.reg_pairs = qsgmii_100_int_ssc_cmn_regs,
 	.num_regs = ARRAY_SIZE(qsgmii_100_int_ssc_cmn_regs),
 };
 
 /* Single SGMII/QSGMII link configuration */
-static struct cdns_reg_pairs sl_sgmii_link_cmn_regs[] = {
+static const struct cdns_reg_pairs sl_sgmii_link_cmn_regs[] = {
 	{0x0000, PHY_PLL_CFG},
 	{0x0601, CMN_PDIAG_PLL0_CLK_SEL_M0}
 };
 
-static struct cdns_reg_pairs sl_sgmii_xcvr_diag_ln_regs[] = {
+static const struct cdns_reg_pairs sl_sgmii_xcvr_diag_ln_regs[] = {
 	{0x0000, XCVR_DIAG_HSCLK_SEL},
 	{0x0003, XCVR_DIAG_HSCLK_DIV},
 	{0x0013, XCVR_DIAG_PLLDRC_CTRL}
 };
 
-static struct cdns_torrent_vals sl_sgmii_link_cmn_vals = {
+static const struct cdns_torrent_vals sl_sgmii_link_cmn_vals = {
 	.reg_pairs = sl_sgmii_link_cmn_regs,
 	.num_regs = ARRAY_SIZE(sl_sgmii_link_cmn_regs),
 };
 
-static struct cdns_torrent_vals sl_sgmii_xcvr_diag_ln_vals = {
+static const struct cdns_torrent_vals sl_sgmii_xcvr_diag_ln_vals = {
 	.reg_pairs = sl_sgmii_xcvr_diag_ln_regs,
 	.num_regs = ARRAY_SIZE(sl_sgmii_xcvr_diag_ln_regs),
 };
 
 /* Multi link PCIe, 100 MHz Ref clk, internal SSC */
-static struct cdns_reg_pairs pcie_100_int_ssc_cmn_regs[] = {
+static const struct cdns_reg_pairs pcie_100_int_ssc_cmn_regs[] = {
 	{0x0004, CMN_PLL0_DSM_DIAG_M0},
 	{0x0004, CMN_PLL0_DSM_DIAG_M1},
 	{0x0004, CMN_PLL1_DSM_DIAG_M0},
@@ -4444,13 +4581,13 @@ static struct cdns_reg_pairs pcie_100_int_ssc_cmn_regs[] = {
 	{0x0005, CMN_PLL1_LOCK_PLLCNT_THR}
 };
 
-static struct cdns_torrent_vals pcie_100_int_ssc_cmn_vals = {
+static const struct cdns_torrent_vals pcie_100_int_ssc_cmn_vals = {
 	.reg_pairs = pcie_100_int_ssc_cmn_regs,
 	.num_regs = ARRAY_SIZE(pcie_100_int_ssc_cmn_regs),
 };
 
 /* Single link PCIe, 100 MHz Ref clk, internal SSC */
-static struct cdns_reg_pairs sl_pcie_100_int_ssc_cmn_regs[] = {
+static const struct cdns_reg_pairs sl_pcie_100_int_ssc_cmn_regs[] = {
 	{0x0004, CMN_PLL0_DSM_DIAG_M0},
 	{0x0004, CMN_PLL0_DSM_DIAG_M1},
 	{0x0004, CMN_PLL1_DSM_DIAG_M0},
@@ -4499,35 +4636,35 @@ static struct cdns_reg_pairs sl_pcie_100_int_ssc_cmn_regs[] = {
 	{0x0005, CMN_PLL1_LOCK_PLLCNT_THR}
 };
 
-static struct cdns_torrent_vals sl_pcie_100_int_ssc_cmn_vals = {
+static const struct cdns_torrent_vals sl_pcie_100_int_ssc_cmn_vals = {
 	.reg_pairs = sl_pcie_100_int_ssc_cmn_regs,
 	.num_regs = ARRAY_SIZE(sl_pcie_100_int_ssc_cmn_regs),
 };
 
 /* PCIe, 100 MHz Ref clk, no SSC & external SSC */
-static struct cdns_reg_pairs pcie_100_ext_no_ssc_cmn_regs[] = {
+static const struct cdns_reg_pairs pcie_100_ext_no_ssc_cmn_regs[] = {
 	{0x0028, CMN_PDIAG_PLL1_CP_PADJ_M0},
 	{0x001E, CMN_PLL1_DSM_FBH_OVRD_M0},
 	{0x000C, CMN_PLL1_DSM_FBL_OVRD_M0}
 };
 
-static struct cdns_reg_pairs pcie_100_ext_no_ssc_rx_ln_regs[] = {
+static const struct cdns_reg_pairs pcie_100_ext_no_ssc_rx_ln_regs[] = {
 	{0x0019, RX_REE_TAP1_CLIP},
 	{0x0019, RX_REE_TAP2TON_CLIP},
 	{0x0001, RX_DIAG_ACYA}
 };
 
-static struct cdns_torrent_vals pcie_100_no_ssc_cmn_vals = {
+static const struct cdns_torrent_vals pcie_100_no_ssc_cmn_vals = {
 	.reg_pairs = pcie_100_ext_no_ssc_cmn_regs,
 	.num_regs = ARRAY_SIZE(pcie_100_ext_no_ssc_cmn_regs),
 };
 
-static struct cdns_torrent_vals pcie_100_no_ssc_rx_ln_vals = {
+static const struct cdns_torrent_vals pcie_100_no_ssc_rx_ln_vals = {
 	.reg_pairs = pcie_100_ext_no_ssc_rx_ln_regs,
 	.num_regs = ARRAY_SIZE(pcie_100_ext_no_ssc_rx_ln_regs),
 };
 
-static struct cdns_torrent_vals_entry link_cmn_vals_entries[] = {
+static const struct cdns_torrent_vals_entry link_cmn_vals_entries[] = {
 	{CDNS_TORRENT_KEY_ANYCLK(TYPE_DP, TYPE_NONE), &sl_dp_link_cmn_vals},
 	{CDNS_TORRENT_KEY_ANYCLK(TYPE_DP, TYPE_PCIE), &pcie_dp_link_cmn_vals},
 	{CDNS_TORRENT_KEY_ANYCLK(TYPE_DP, TYPE_USB), &usb_dp_link_cmn_vals},
@@ -4541,11 +4678,13 @@ static struct cdns_torrent_vals_entry link_cmn_vals_entries[] = {
 
 	{CDNS_TORRENT_KEY_ANYCLK(TYPE_SGMII, TYPE_NONE), &sl_sgmii_link_cmn_vals},
 	{CDNS_TORRENT_KEY_ANYCLK(TYPE_SGMII, TYPE_PCIE), &pcie_sgmii_link_cmn_vals},
+	{CDNS_TORRENT_KEY_ANYCLK(TYPE_SGMII, TYPE_QSGMII), &sgmii_qsgmii_link_cmn_vals},
 	{CDNS_TORRENT_KEY_ANYCLK(TYPE_SGMII, TYPE_USB), &usb_sgmii_link_cmn_vals},
 	{CDNS_TORRENT_KEY_ANYCLK(TYPE_SGMII, TYPE_USXGMII), &usxgmii_sgmii_link_cmn_vals},
 
 	{CDNS_TORRENT_KEY_ANYCLK(TYPE_QSGMII, TYPE_NONE), &sl_sgmii_link_cmn_vals},
 	{CDNS_TORRENT_KEY_ANYCLK(TYPE_QSGMII, TYPE_PCIE), &pcie_sgmii_link_cmn_vals},
+	{CDNS_TORRENT_KEY_ANYCLK(TYPE_QSGMII, TYPE_SGMII), &sgmii_qsgmii_link_cmn_vals},
 	{CDNS_TORRENT_KEY_ANYCLK(TYPE_QSGMII, TYPE_USB), &usb_sgmii_link_cmn_vals},
 	{CDNS_TORRENT_KEY_ANYCLK(TYPE_QSGMII, TYPE_USXGMII), &usxgmii_sgmii_link_cmn_vals},
 
@@ -4561,7 +4700,7 @@ static struct cdns_torrent_vals_entry link_cmn_vals_entries[] = {
 	{CDNS_TORRENT_KEY_ANYCLK(TYPE_USXGMII, TYPE_QSGMII), &usxgmii_sgmii_link_cmn_vals},
 };
 
-static struct cdns_torrent_vals_entry xcvr_diag_vals_entries[] = {
+static const struct cdns_torrent_vals_entry xcvr_diag_vals_entries[] = {
 	{CDNS_TORRENT_KEY_ANYCLK(TYPE_DP, TYPE_NONE), &sl_dp_xcvr_diag_ln_vals},
 	{CDNS_TORRENT_KEY_ANYCLK(TYPE_DP, TYPE_PCIE), &dp_pcie_xcvr_diag_ln_vals},
 	{CDNS_TORRENT_KEY_ANYCLK(TYPE_DP, TYPE_USB), &dp_usb_xcvr_diag_ln_vals},
@@ -4575,11 +4714,13 @@ static struct cdns_torrent_vals_entry xcvr_diag_vals_entries[] = {
 
 	{CDNS_TORRENT_KEY_ANYCLK(TYPE_SGMII, TYPE_NONE), &sl_sgmii_xcvr_diag_ln_vals},
 	{CDNS_TORRENT_KEY_ANYCLK(TYPE_SGMII, TYPE_PCIE), &sgmii_pcie_xcvr_diag_ln_vals},
+	{CDNS_TORRENT_KEY_ANYCLK(TYPE_SGMII, TYPE_QSGMII), &sgmii_qsgmii_xcvr_diag_ln_vals},
 	{CDNS_TORRENT_KEY_ANYCLK(TYPE_SGMII, TYPE_USB), &sgmii_usb_xcvr_diag_ln_vals},
 	{CDNS_TORRENT_KEY_ANYCLK(TYPE_SGMII, TYPE_USXGMII), &sgmii_usxgmii_xcvr_diag_ln_vals},
 
 	{CDNS_TORRENT_KEY_ANYCLK(TYPE_QSGMII, TYPE_NONE), &sl_sgmii_xcvr_diag_ln_vals},
 	{CDNS_TORRENT_KEY_ANYCLK(TYPE_QSGMII, TYPE_PCIE), &sgmii_pcie_xcvr_diag_ln_vals},
+	{CDNS_TORRENT_KEY_ANYCLK(TYPE_QSGMII, TYPE_SGMII), &sgmii_qsgmii_xcvr_diag_ln_vals},
 	{CDNS_TORRENT_KEY_ANYCLK(TYPE_QSGMII, TYPE_USB), &sgmii_usb_xcvr_diag_ln_vals},
 	{CDNS_TORRENT_KEY_ANYCLK(TYPE_QSGMII, TYPE_USXGMII), &sgmii_usxgmii_xcvr_diag_ln_vals},
 
@@ -4595,7 +4736,7 @@ static struct cdns_torrent_vals_entry xcvr_diag_vals_entries[] = {
 	{CDNS_TORRENT_KEY_ANYCLK(TYPE_USXGMII, TYPE_QSGMII), &usxgmii_sgmii_xcvr_diag_ln_vals},
 };
 
-static struct cdns_torrent_vals_entry pcs_cmn_vals_entries[] = {
+static const struct cdns_torrent_vals_entry pcs_cmn_vals_entries[] = {
 	{CDNS_TORRENT_KEY_ANYCLK(TYPE_USB, TYPE_NONE), &usb_phy_pcs_cmn_vals},
 	{CDNS_TORRENT_KEY_ANYCLK(TYPE_USB, TYPE_PCIE), &usb_phy_pcs_cmn_vals},
 	{CDNS_TORRENT_KEY_ANYCLK(TYPE_USB, TYPE_SGMII), &usb_phy_pcs_cmn_vals},
@@ -4603,7 +4744,7 @@ static struct cdns_torrent_vals_entry pcs_cmn_vals_entries[] = {
 	{CDNS_TORRENT_KEY_ANYCLK(TYPE_USB, TYPE_DP), &usb_phy_pcs_cmn_vals},
 };
 
-static struct cdns_torrent_vals_entry cmn_vals_entries[] = {
+static const struct cdns_torrent_vals_entry cmn_vals_entries[] = {
 	{CDNS_TORRENT_KEY(CLK_19_2_MHZ, CLK_19_2_MHZ, TYPE_DP, TYPE_NONE, NO_SSC), &sl_dp_19_2_no_ssc_cmn_vals},
 	{CDNS_TORRENT_KEY(CLK_25_MHZ, CLK_25_MHZ, TYPE_DP, TYPE_NONE, NO_SSC), &sl_dp_25_no_ssc_cmn_vals},
 
@@ -4635,6 +4776,8 @@ static struct cdns_torrent_vals_entry cmn_vals_entries[] = {
 	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_SGMII, TYPE_PCIE, EXTERNAL_SSC), &sgmii_100_no_ssc_cmn_vals},
 	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_SGMII, TYPE_PCIE, INTERNAL_SSC), &sgmii_100_int_ssc_cmn_vals},
 
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_SGMII, TYPE_QSGMII, NO_SSC), &sl_sgmii_100_no_ssc_cmn_vals},
+
 	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_SGMII, TYPE_USB, NO_SSC), &sgmii_100_no_ssc_cmn_vals},
 	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_SGMII, TYPE_USB, EXTERNAL_SSC), &sgmii_100_no_ssc_cmn_vals},
 	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_SGMII, TYPE_USB, INTERNAL_SSC), &sgmii_100_no_ssc_cmn_vals},
@@ -4644,6 +4787,8 @@ static struct cdns_torrent_vals_entry cmn_vals_entries[] = {
 	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_QSGMII, TYPE_PCIE, NO_SSC), &qsgmii_100_no_ssc_cmn_vals},
 	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_QSGMII, TYPE_PCIE, EXTERNAL_SSC), &qsgmii_100_no_ssc_cmn_vals},
 	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_QSGMII, TYPE_PCIE, INTERNAL_SSC), &qsgmii_100_int_ssc_cmn_vals},
+
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_QSGMII, TYPE_SGMII, NO_SSC), &sl_qsgmii_100_no_ssc_cmn_vals},
 
 	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_QSGMII, TYPE_USB, NO_SSC), &qsgmii_100_no_ssc_cmn_vals},
 	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_QSGMII, TYPE_USB, EXTERNAL_SSC), &qsgmii_100_no_ssc_cmn_vals},
@@ -4681,7 +4826,7 @@ static struct cdns_torrent_vals_entry cmn_vals_entries[] = {
 	{CDNS_TORRENT_KEY(CLK_156_25_MHZ, CLK_100_MHZ, TYPE_USXGMII, TYPE_QSGMII, NO_SSC), &ml_usxgmii_pll0_156_25_no_ssc_cmn_vals},
 };
 
-static struct cdns_torrent_vals_entry cdns_tx_ln_vals_entries[] = {
+static const struct cdns_torrent_vals_entry cdns_tx_ln_vals_entries[] = {
 	{CDNS_TORRENT_KEY(CLK_19_2_MHZ, CLK_19_2_MHZ, TYPE_DP, TYPE_NONE, NO_SSC), &sl_dp_19_2_no_ssc_tx_ln_vals},
 	{CDNS_TORRENT_KEY(CLK_25_MHZ, CLK_25_MHZ, TYPE_DP, TYPE_NONE, NO_SSC), &sl_dp_25_no_ssc_tx_ln_vals},
 
@@ -4713,6 +4858,8 @@ static struct cdns_torrent_vals_entry cdns_tx_ln_vals_entries[] = {
 	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_SGMII, TYPE_PCIE, EXTERNAL_SSC), &sgmii_100_no_ssc_tx_ln_vals},
 	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_SGMII, TYPE_PCIE, INTERNAL_SSC), &sgmii_100_no_ssc_tx_ln_vals},
 
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_SGMII, TYPE_QSGMII, NO_SSC), &sgmii_100_no_ssc_tx_ln_vals},
+
 	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_SGMII, TYPE_USB, NO_SSC), &sgmii_100_no_ssc_tx_ln_vals},
 	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_SGMII, TYPE_USB, EXTERNAL_SSC), &sgmii_100_no_ssc_tx_ln_vals},
 	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_SGMII, TYPE_USB, INTERNAL_SSC), &sgmii_100_no_ssc_tx_ln_vals},
@@ -4722,6 +4869,8 @@ static struct cdns_torrent_vals_entry cdns_tx_ln_vals_entries[] = {
 	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_QSGMII, TYPE_PCIE, NO_SSC), &qsgmii_100_no_ssc_tx_ln_vals},
 	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_QSGMII, TYPE_PCIE, EXTERNAL_SSC), &qsgmii_100_no_ssc_tx_ln_vals},
 	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_QSGMII, TYPE_PCIE, INTERNAL_SSC), &qsgmii_100_no_ssc_tx_ln_vals},
+
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_QSGMII, TYPE_SGMII, NO_SSC), &qsgmii_100_no_ssc_tx_ln_vals},
 
 	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_QSGMII, TYPE_USB, NO_SSC), &qsgmii_100_no_ssc_tx_ln_vals},
 	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_QSGMII, TYPE_USB, EXTERNAL_SSC), &qsgmii_100_no_ssc_tx_ln_vals},
@@ -4759,7 +4908,7 @@ static struct cdns_torrent_vals_entry cdns_tx_ln_vals_entries[] = {
 	{CDNS_TORRENT_KEY(CLK_156_25_MHZ, CLK_100_MHZ, TYPE_USXGMII, TYPE_QSGMII, NO_SSC), &ml_usxgmii_156_25_no_ssc_tx_ln_vals},
 };
 
-static struct cdns_torrent_vals_entry cdns_rx_ln_vals_entries[] = {
+static const struct cdns_torrent_vals_entry cdns_rx_ln_vals_entries[] = {
 	{CDNS_TORRENT_KEY(CLK_19_2_MHZ, CLK_19_2_MHZ, TYPE_DP, TYPE_NONE, NO_SSC), &sl_dp_19_2_no_ssc_rx_ln_vals},
 	{CDNS_TORRENT_KEY(CLK_25_MHZ, CLK_25_MHZ, TYPE_DP, TYPE_NONE, NO_SSC), &sl_dp_25_no_ssc_rx_ln_vals},
 
@@ -4791,6 +4940,8 @@ static struct cdns_torrent_vals_entry cdns_rx_ln_vals_entries[] = {
 	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_SGMII, TYPE_PCIE, EXTERNAL_SSC), &sgmii_100_no_ssc_rx_ln_vals},
 	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_SGMII, TYPE_PCIE, INTERNAL_SSC), &sgmii_100_no_ssc_rx_ln_vals},
 
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_SGMII, TYPE_QSGMII, NO_SSC), &sgmii_100_no_ssc_rx_ln_vals},
+
 	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_SGMII, TYPE_USB, NO_SSC), &sgmii_100_no_ssc_rx_ln_vals},
 	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_SGMII, TYPE_USB, EXTERNAL_SSC), &sgmii_100_no_ssc_rx_ln_vals},
 	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_SGMII, TYPE_USB, INTERNAL_SSC), &sgmii_100_no_ssc_rx_ln_vals},
@@ -4800,6 +4951,8 @@ static struct cdns_torrent_vals_entry cdns_rx_ln_vals_entries[] = {
 	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_QSGMII, TYPE_PCIE, NO_SSC), &qsgmii_100_no_ssc_rx_ln_vals},
 	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_QSGMII, TYPE_PCIE, EXTERNAL_SSC), &qsgmii_100_no_ssc_rx_ln_vals},
 	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_QSGMII, TYPE_PCIE, INTERNAL_SSC), &qsgmii_100_no_ssc_rx_ln_vals},
+
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_QSGMII, TYPE_SGMII, NO_SSC), &qsgmii_100_no_ssc_rx_ln_vals},
 
 	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_QSGMII, TYPE_USB, NO_SSC), &qsgmii_100_no_ssc_rx_ln_vals},
 	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_QSGMII, TYPE_USB, EXTERNAL_SSC), &qsgmii_100_no_ssc_rx_ln_vals},
@@ -4866,14 +5019,14 @@ static const struct cdns_torrent_data cdns_map_torrent = {
 	},
 };
 
-static struct cdns_torrent_vals_entry j721e_phy_pma_cmn_vals_entries[] = {
+static const struct cdns_torrent_vals_entry j721e_phy_pma_cmn_vals_entries[] = {
 	{CDNS_TORRENT_KEY_ANYCLK(TYPE_USXGMII, TYPE_NONE), &ti_usxgmii_phy_pma_cmn_vals},
 	{CDNS_TORRENT_KEY_ANYCLK(TYPE_USXGMII, TYPE_PCIE), &ti_usxgmii_phy_pma_cmn_vals},
 	{CDNS_TORRENT_KEY_ANYCLK(TYPE_USXGMII, TYPE_SGMII), &ti_usxgmii_phy_pma_cmn_vals},
 	{CDNS_TORRENT_KEY_ANYCLK(TYPE_USXGMII, TYPE_QSGMII), &ti_usxgmii_phy_pma_cmn_vals},
 };
 
-static struct cdns_torrent_vals_entry ti_tx_ln_vals_entries[] = {
+static const struct cdns_torrent_vals_entry ti_tx_ln_vals_entries[] = {
 	{CDNS_TORRENT_KEY(CLK_19_2_MHZ, CLK_19_2_MHZ, TYPE_DP, TYPE_NONE, NO_SSC), &sl_dp_19_2_no_ssc_tx_ln_vals},
 	{CDNS_TORRENT_KEY(CLK_25_MHZ, CLK_25_MHZ, TYPE_DP, TYPE_NONE, NO_SSC), &sl_dp_25_no_ssc_tx_ln_vals},
 
@@ -4905,6 +5058,8 @@ static struct cdns_torrent_vals_entry ti_tx_ln_vals_entries[] = {
 	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_SGMII, TYPE_PCIE, EXTERNAL_SSC), &ti_sgmii_100_no_ssc_tx_ln_vals},
 	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_SGMII, TYPE_PCIE, INTERNAL_SSC), &ti_sgmii_100_no_ssc_tx_ln_vals},
 
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_SGMII, TYPE_QSGMII, NO_SSC), &ti_sgmii_100_no_ssc_tx_ln_vals},
+
 	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_SGMII, TYPE_USB, NO_SSC), &ti_sgmii_100_no_ssc_tx_ln_vals},
 	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_SGMII, TYPE_USB, EXTERNAL_SSC), &ti_sgmii_100_no_ssc_tx_ln_vals},
 	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_SGMII, TYPE_USB, INTERNAL_SSC), &ti_sgmii_100_no_ssc_tx_ln_vals},
@@ -4914,6 +5069,8 @@ static struct cdns_torrent_vals_entry ti_tx_ln_vals_entries[] = {
 	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_QSGMII, TYPE_PCIE, NO_SSC), &ti_qsgmii_100_no_ssc_tx_ln_vals},
 	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_QSGMII, TYPE_PCIE, EXTERNAL_SSC), &ti_qsgmii_100_no_ssc_tx_ln_vals},
 	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_QSGMII, TYPE_PCIE, INTERNAL_SSC), &ti_qsgmii_100_no_ssc_tx_ln_vals},
+
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_QSGMII, TYPE_SGMII, NO_SSC), &ti_qsgmii_100_no_ssc_tx_ln_vals},
 
 	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_QSGMII, TYPE_USB, NO_SSC), &ti_qsgmii_100_no_ssc_tx_ln_vals},
 	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_QSGMII, TYPE_USB, EXTERNAL_SSC), &ti_qsgmii_100_no_ssc_tx_ln_vals},
@@ -4985,7 +5142,7 @@ static const struct cdns_torrent_data ti_j721e_map_torrent = {
 };
 
 /* TI J7200 (Torrent SD0805) */
-static struct cdns_torrent_vals_entry ti_j7200_cmn_vals_entries[] = {
+static const struct cdns_torrent_vals_entry ti_j7200_cmn_vals_entries[] = {
 	{CDNS_TORRENT_KEY(CLK_19_2_MHZ, CLK_19_2_MHZ, TYPE_DP, TYPE_NONE, NO_SSC), &sl_dp_19_2_no_ssc_cmn_vals},
 	{CDNS_TORRENT_KEY(CLK_25_MHZ, CLK_25_MHZ, TYPE_DP, TYPE_NONE, NO_SSC), &sl_dp_25_no_ssc_cmn_vals},
 
@@ -5017,6 +5174,8 @@ static struct cdns_torrent_vals_entry ti_j7200_cmn_vals_entries[] = {
 	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_SGMII, TYPE_PCIE, EXTERNAL_SSC), &sgmii_100_no_ssc_cmn_vals},
 	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_SGMII, TYPE_PCIE, INTERNAL_SSC), &sgmii_100_int_ssc_cmn_vals},
 
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_SGMII, TYPE_QSGMII, NO_SSC), &sl_sgmii_100_no_ssc_cmn_vals},
+
 	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_SGMII, TYPE_USB, NO_SSC), &sgmii_100_no_ssc_cmn_vals},
 	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_SGMII, TYPE_USB, EXTERNAL_SSC), &sgmii_100_no_ssc_cmn_vals},
 	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_SGMII, TYPE_USB, INTERNAL_SSC), &sgmii_100_no_ssc_cmn_vals},
@@ -5026,6 +5185,8 @@ static struct cdns_torrent_vals_entry ti_j7200_cmn_vals_entries[] = {
 	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_QSGMII, TYPE_PCIE, NO_SSC), &qsgmii_100_no_ssc_cmn_vals},
 	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_QSGMII, TYPE_PCIE, EXTERNAL_SSC), &qsgmii_100_no_ssc_cmn_vals},
 	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_QSGMII, TYPE_PCIE, INTERNAL_SSC), &qsgmii_100_int_ssc_cmn_vals},
+
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_QSGMII, TYPE_SGMII, NO_SSC), &sl_qsgmii_100_no_ssc_cmn_vals},
 
 	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_QSGMII, TYPE_USB, NO_SSC), &qsgmii_100_no_ssc_cmn_vals},
 	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_QSGMII, TYPE_USB, EXTERNAL_SSC), &qsgmii_100_no_ssc_cmn_vals},
@@ -5063,7 +5224,7 @@ static struct cdns_torrent_vals_entry ti_j7200_cmn_vals_entries[] = {
 	{CDNS_TORRENT_KEY(CLK_156_25_MHZ, CLK_100_MHZ, TYPE_USXGMII, TYPE_QSGMII, NO_SSC), &j7200_ml_usxgmii_pll0_156_25_no_ssc_cmn_vals},
 };
 
-static struct cdns_torrent_vals_entry ti_j7200_tx_ln_vals_entries[] = {
+static const struct cdns_torrent_vals_entry ti_j7200_tx_ln_vals_entries[] = {
 	{CDNS_TORRENT_KEY(CLK_19_2_MHZ, CLK_19_2_MHZ, TYPE_DP, TYPE_NONE, NO_SSC), &sl_dp_19_2_no_ssc_tx_ln_vals},
 	{CDNS_TORRENT_KEY(CLK_25_MHZ, CLK_25_MHZ, TYPE_DP, TYPE_NONE, NO_SSC), &sl_dp_25_no_ssc_tx_ln_vals},
 
@@ -5095,6 +5256,8 @@ static struct cdns_torrent_vals_entry ti_j7200_tx_ln_vals_entries[] = {
 	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_SGMII, TYPE_PCIE, EXTERNAL_SSC), &ti_sgmii_100_no_ssc_tx_ln_vals},
 	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_SGMII, TYPE_PCIE, INTERNAL_SSC), &ti_sgmii_100_no_ssc_tx_ln_vals},
 
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_SGMII, TYPE_QSGMII, NO_SSC), &ti_sgmii_100_no_ssc_tx_ln_vals},
+
 	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_SGMII, TYPE_USB, NO_SSC), &ti_sgmii_100_no_ssc_tx_ln_vals},
 	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_SGMII, TYPE_USB, EXTERNAL_SSC), &ti_sgmii_100_no_ssc_tx_ln_vals},
 	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_SGMII, TYPE_USB, INTERNAL_SSC), &ti_sgmii_100_no_ssc_tx_ln_vals},
@@ -5104,6 +5267,8 @@ static struct cdns_torrent_vals_entry ti_j7200_tx_ln_vals_entries[] = {
 	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_QSGMII, TYPE_PCIE, NO_SSC), &ti_qsgmii_100_no_ssc_tx_ln_vals},
 	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_QSGMII, TYPE_PCIE, EXTERNAL_SSC), &ti_qsgmii_100_no_ssc_tx_ln_vals},
 	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_QSGMII, TYPE_PCIE, INTERNAL_SSC), &ti_qsgmii_100_no_ssc_tx_ln_vals},
+
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_QSGMII, TYPE_SGMII, NO_SSC), &ti_qsgmii_100_no_ssc_tx_ln_vals},
 
 	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_QSGMII, TYPE_USB, NO_SSC), &ti_qsgmii_100_no_ssc_tx_ln_vals},
 	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_QSGMII, TYPE_USB, EXTERNAL_SSC), &ti_qsgmii_100_no_ssc_tx_ln_vals},
@@ -5141,7 +5306,7 @@ static struct cdns_torrent_vals_entry ti_j7200_tx_ln_vals_entries[] = {
 	{CDNS_TORRENT_KEY(CLK_156_25_MHZ, CLK_100_MHZ, TYPE_USXGMII, TYPE_QSGMII, NO_SSC), &usxgmii_156_25_no_ssc_tx_ln_vals},
 };
 
-static struct cdns_torrent_vals_entry ti_j7200_rx_ln_vals_entries[] = {
+static const struct cdns_torrent_vals_entry ti_j7200_rx_ln_vals_entries[] = {
 	{CDNS_TORRENT_KEY(CLK_19_2_MHZ, CLK_19_2_MHZ, TYPE_DP, TYPE_NONE, NO_SSC), &sl_dp_19_2_no_ssc_rx_ln_vals},
 	{CDNS_TORRENT_KEY(CLK_25_MHZ, CLK_25_MHZ, TYPE_DP, TYPE_NONE, NO_SSC), &sl_dp_25_no_ssc_rx_ln_vals},
 
@@ -5173,6 +5338,8 @@ static struct cdns_torrent_vals_entry ti_j7200_rx_ln_vals_entries[] = {
 	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_SGMII, TYPE_PCIE, EXTERNAL_SSC), &sgmii_100_no_ssc_rx_ln_vals},
 	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_SGMII, TYPE_PCIE, INTERNAL_SSC), &sgmii_100_no_ssc_rx_ln_vals},
 
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_SGMII, TYPE_QSGMII, NO_SSC), &sgmii_100_no_ssc_rx_ln_vals},
+
 	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_SGMII, TYPE_USB, NO_SSC), &sgmii_100_no_ssc_rx_ln_vals},
 	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_SGMII, TYPE_USB, EXTERNAL_SSC), &sgmii_100_no_ssc_rx_ln_vals},
 	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_SGMII, TYPE_USB, INTERNAL_SSC), &sgmii_100_no_ssc_rx_ln_vals},
@@ -5182,6 +5349,8 @@ static struct cdns_torrent_vals_entry ti_j7200_rx_ln_vals_entries[] = {
 	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_QSGMII, TYPE_PCIE, NO_SSC), &qsgmii_100_no_ssc_rx_ln_vals},
 	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_QSGMII, TYPE_PCIE, EXTERNAL_SSC), &qsgmii_100_no_ssc_rx_ln_vals},
 	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_QSGMII, TYPE_PCIE, INTERNAL_SSC), &qsgmii_100_no_ssc_rx_ln_vals},
+
+	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_QSGMII, TYPE_SGMII, NO_SSC), &qsgmii_100_no_ssc_rx_ln_vals},
 
 	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_QSGMII, TYPE_USB, NO_SSC), &qsgmii_100_no_ssc_rx_ln_vals},
 	{CDNS_TORRENT_KEY(CLK_100_MHZ, CLK_100_MHZ, TYPE_QSGMII, TYPE_USB, EXTERNAL_SSC), &qsgmii_100_no_ssc_rx_ln_vals},
@@ -5275,6 +5444,7 @@ static struct platform_driver cdns_torrent_phy_driver = {
 	.driver = {
 		.name	= "cdns-torrent-phy",
 		.of_match_table	= cdns_torrent_phy_of_match,
+		.pm	= pm_sleep_ptr(&cdns_torrent_phy_pm_ops),
 	}
 };
 module_platform_driver(cdns_torrent_phy_driver);

@@ -1161,14 +1161,16 @@ static int __init fnic_init_module(void)
 		goto err_create_fnic_ioreq_slab;
 	}
 
-	fnic_event_queue = create_singlethread_workqueue("fnic_event_wq");
+	fnic_event_queue =
+		alloc_ordered_workqueue("%s", WQ_MEM_RECLAIM, "fnic_event_wq");
 	if (!fnic_event_queue) {
 		printk(KERN_ERR PFX "fnic work queue create failed\n");
 		err = -ENOMEM;
 		goto err_create_fnic_workq;
 	}
 
-	fnic_fip_queue = create_singlethread_workqueue("fnic_fip_q");
+	fnic_fip_queue =
+		alloc_ordered_workqueue("%s", WQ_MEM_RECLAIM, "fnic_fip_q");
 	if (!fnic_fip_queue) {
 		printk(KERN_ERR PFX "fnic FIP work queue create failed\n");
 		err = -ENOMEM;

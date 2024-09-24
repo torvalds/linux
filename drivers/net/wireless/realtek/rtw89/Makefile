@@ -17,7 +17,8 @@ rtw89_core-y += core.o \
 		ps.o \
 		chan.o \
 		ser.o \
-		acpi.o
+		acpi.o \
+		util.o
 
 rtw89_core-$(CONFIG_PM) += wow.o
 
@@ -39,6 +40,9 @@ rtw89_8852a-objs := rtw8852a.o \
 obj-$(CONFIG_RTW89_8852AE) += rtw89_8852ae.o
 rtw89_8852ae-objs := rtw8852ae.o
 
+obj-$(CONFIG_RTW89_8852B_COMMON) += rtw89_8852b_common.o
+rtw89_8852b_common-objs := rtw8852b_common.o
+
 obj-$(CONFIG_RTW89_8852B) += rtw89_8852b.o
 rtw89_8852b-objs := rtw8852b.o \
 		    rtw8852b_table.o \
@@ -47,6 +51,14 @@ rtw89_8852b-objs := rtw8852b.o \
 
 obj-$(CONFIG_RTW89_8852BE) += rtw89_8852be.o
 rtw89_8852be-objs := rtw8852be.o
+
+obj-$(CONFIG_RTW89_8852BT) += rtw89_8852bt.o
+rtw89_8852bt-objs := rtw8852bt.o \
+		    rtw8852bt_rfk.o \
+		    rtw8852bt_rfk_table.o
+
+obj-$(CONFIG_RTW89_8852BTE) += rtw89_8852bte.o
+rtw89_8852bte-objs := rtw8852bte.o
 
 obj-$(CONFIG_RTW89_8852C) += rtw89_8852c.o
 rtw89_8852c-objs := rtw8852c.o \

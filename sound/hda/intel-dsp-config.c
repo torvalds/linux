@@ -56,10 +56,59 @@ static const struct config_entry config_table[] = {
 	},
 #endif
 /*
- * Apollolake (Broxton-P)
+ * Skylake, Kabylake, Apollolake
  * the legacy HDAudio driver is used except on Up Squared (SOF) and
  * Chromebooks (SST), as well as devices based on the ES8336 codec
  */
+#if IS_ENABLED(CONFIG_SND_SOC_INTEL_AVS)
+	{
+		.flags = FLAG_SST,
+		.device = PCI_DEVICE_ID_INTEL_HDA_SKL_LP,
+		.dmi_table = (const struct dmi_system_id []) {
+			{
+				.ident = "Google Chromebooks",
+				.matches = {
+					DMI_MATCH(DMI_SYS_VENDOR, "Google"),
+				}
+			},
+			{}
+		}
+	},
+	{
+		.flags = FLAG_SST | FLAG_SST_ONLY_IF_DMIC,
+		.device = PCI_DEVICE_ID_INTEL_HDA_SKL_LP,
+	},
+	{
+		.flags = FLAG_SST,
+		.device = PCI_DEVICE_ID_INTEL_HDA_KBL_LP,
+		.dmi_table = (const struct dmi_system_id []) {
+			{
+				.ident = "Google Chromebooks",
+				.matches = {
+					DMI_MATCH(DMI_SYS_VENDOR, "Google"),
+				}
+			},
+			{}
+		}
+	},
+	{
+		.flags = FLAG_SST | FLAG_SST_ONLY_IF_DMIC,
+		.device = PCI_DEVICE_ID_INTEL_HDA_KBL_LP,
+	},
+	{
+		.flags = FLAG_SST,
+		.device = PCI_DEVICE_ID_INTEL_HDA_APL,
+		.dmi_table = (const struct dmi_system_id []) {
+			{
+				.ident = "Google Chromebooks",
+				.matches = {
+					DMI_MATCH(DMI_SYS_VENDOR, "Google"),
+				}
+			},
+			{}
+		}
+	},
+#endif
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_APOLLOLAKE)
 	{
 		.flags = FLAG_SOF,
@@ -79,66 +128,6 @@ static const struct config_entry config_table[] = {
 		.flags = FLAG_SOF,
 		.device = PCI_DEVICE_ID_INTEL_HDA_APL,
 		.codec_hid =  &essx_83x6,
-	},
-#endif
-#if IS_ENABLED(CONFIG_SND_SOC_INTEL_APL)
-	{
-		.flags = FLAG_SST,
-		.device = PCI_DEVICE_ID_INTEL_HDA_APL,
-		.dmi_table = (const struct dmi_system_id []) {
-			{
-				.ident = "Google Chromebooks",
-				.matches = {
-					DMI_MATCH(DMI_SYS_VENDOR, "Google"),
-				}
-			},
-			{}
-		}
-	},
-#endif
-/*
- * Skylake and Kabylake use legacy HDAudio driver except for Google
- * Chromebooks (SST)
- */
-
-/* Sunrise Point-LP */
-#if IS_ENABLED(CONFIG_SND_SOC_INTEL_SKL)
-	{
-		.flags = FLAG_SST,
-		.device = PCI_DEVICE_ID_INTEL_HDA_SKL_LP,
-		.dmi_table = (const struct dmi_system_id []) {
-			{
-				.ident = "Google Chromebooks",
-				.matches = {
-					DMI_MATCH(DMI_SYS_VENDOR, "Google"),
-				}
-			},
-			{}
-		}
-	},
-	{
-		.flags = FLAG_SST | FLAG_SST_ONLY_IF_DMIC,
-		.device = PCI_DEVICE_ID_INTEL_HDA_SKL_LP,
-	},
-#endif
-/* Kabylake-LP */
-#if IS_ENABLED(CONFIG_SND_SOC_INTEL_KBL)
-	{
-		.flags = FLAG_SST,
-		.device = PCI_DEVICE_ID_INTEL_HDA_KBL_LP,
-		.dmi_table = (const struct dmi_system_id []) {
-			{
-				.ident = "Google Chromebooks",
-				.matches = {
-					DMI_MATCH(DMI_SYS_VENDOR, "Google"),
-				}
-			},
-			{}
-		}
-	},
-	{
-		.flags = FLAG_SST | FLAG_SST_ONLY_IF_DMIC,
-		.device = PCI_DEVICE_ID_INTEL_HDA_KBL_LP,
 	},
 #endif
 
@@ -543,6 +532,15 @@ static const struct config_entry config_table[] = {
 		.device = PCI_DEVICE_ID_INTEL_HDA_LNL_P,
 	},
 #endif
+
+	/* Panther Lake */
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_PANTHERLAKE)
+	{
+		.flags = FLAG_SOF | FLAG_SOF_ONLY_IF_DMIC_OR_SOUNDWIRE,
+		.device = PCI_DEVICE_ID_INTEL_HDA_PTL,
+	},
+#endif
+
 };
 
 static const struct config_entry *snd_intel_dsp_find_config

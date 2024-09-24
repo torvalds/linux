@@ -246,30 +246,10 @@ amdgpu_connector_find_encoder(struct drm_connector *connector,
 	return NULL;
 }
 
-struct edid *amdgpu_connector_edid(struct drm_connector *connector)
-{
-	struct amdgpu_connector *amdgpu_connector = to_amdgpu_connector(connector);
-	struct drm_property_blob *edid_blob = connector->edid_blob_ptr;
-
-	if (amdgpu_connector->edid) {
-		return amdgpu_connector->edid;
-	} else if (edid_blob) {
-		struct edid *edid = kmemdup(edid_blob->data, edid_blob->length, GFP_KERNEL);
-
-		if (edid)
-			amdgpu_connector->edid = edid;
-	}
-	return amdgpu_connector->edid;
-}
-
 static struct edid *
 amdgpu_connector_get_hardcoded_edid(struct amdgpu_device *adev)
 {
-	if (adev->mode_info.bios_hardcoded_edid) {
-		return kmemdup((unsigned char *)adev->mode_info.bios_hardcoded_edid,
-			       adev->mode_info.bios_hardcoded_edid_size, GFP_KERNEL);
-	}
-	return NULL;
+	return drm_edid_duplicate(drm_edid_raw(adev->mode_info.bios_hardcoded_edid));
 }
 
 static void amdgpu_connector_get_edid(struct drm_connector *connector)
@@ -458,6 +438,9 @@ static void amdgpu_connector_add_common_modes(struct drm_encoder *encoder,
 			continue;
 
 		mode = drm_cvt_mode(dev, common_modes[i].w, common_modes[i].h, 60, false, false, false);
+		if (!mode)
+			return;
+
 		drm_mode_probed_add(connector, mode);
 	}
 }

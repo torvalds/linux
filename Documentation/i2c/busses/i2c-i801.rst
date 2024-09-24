@@ -48,6 +48,7 @@ Supported adapters:
   * Intel Raptor Lake (PCH)
   * Intel Meteor Lake (SOC and PCH)
   * Intel Birch Stream (SOC)
+  * Intel Arrow Lake (SOC)
 
    Datasheets: Publicly available at the Intel website
 

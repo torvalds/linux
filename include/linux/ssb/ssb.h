@@ -325,7 +325,7 @@ struct ssb_driver {
 
 	struct device_driver drv;
 };
-#define drv_to_ssb_drv(_drv) container_of(_drv, struct ssb_driver, drv)
+#define drv_to_ssb_drv(_drv) container_of_const(_drv, struct ssb_driver, drv)
 
 extern int __ssb_driver_register(struct ssb_driver *drv, struct module *owner);
 #define ssb_driver_register(drv) \

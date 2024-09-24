@@ -64,7 +64,7 @@
 		  0x2 0x0 0x0 0x7fb00000 0x00000100>;
 	status = "okay";
 
-	nor@0,0 {
+	flash@0,0 {
 		compatible = "cfi-flash";
 		reg = <0x0 0x0 0x8000000>;
 		big-endian;
@@ -211,7 +211,7 @@
 };
 
 &fpga {
-	mdio-mux-emi1@54 {
+	mdio-mux@54 {
 		compatible = "mdio-mux-mmioreg", "mdio-mux";
 		mdio-parent-bus = <&mdio0>;
 		#address-cells = <1>;

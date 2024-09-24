@@ -82,6 +82,10 @@
 #define TCR_RXMSK	BIT(19)
 #define TCR_TXMSK	BIT(18)
 
+struct fsl_lpspi_devtype_data {
+	u8 prescale_max;
+};
+
 struct lpspi_config {
 	u8 bpw;
 	u8 chip_select;
@@ -119,10 +123,25 @@ struct fsl_lpspi_data {
 	bool usedma;
 	struct completion dma_rx_completion;
 	struct completion dma_tx_completion;
+
+	const struct fsl_lpspi_devtype_data *devtype_data;
+};
+
+/*
+ * ERR051608 fixed or not:
+ * https://www.nxp.com/docs/en/errata/i.MX93_1P87f.pdf
+ */
+static struct fsl_lpspi_devtype_data imx93_lpspi_devtype_data = {
+	.prescale_max = 1,
+};
+
+static struct fsl_lpspi_devtype_data imx7ulp_lpspi_devtype_data = {
+	.prescale_max = 7,
 };
 
 static const struct of_device_id fsl_lpspi_dt_ids[] = {
-	{ .compatible = "fsl,imx7ulp-spi", },
+	{ .compatible = "fsl,imx7ulp-spi", .data = &imx7ulp_lpspi_devtype_data,},
+	{ .compatible = "fsl,imx93-spi", .data = &imx93_lpspi_devtype_data,},
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, fsl_lpspi_dt_ids);
@@ -296,10 +315,12 @@ static void fsl_lpspi_set_watermark(struct fsl_lpspi_data *fsl_lpspi)
 static int fsl_lpspi_set_bitrate(struct fsl_lpspi_data *fsl_lpspi)
 {
 	struct lpspi_config config = fsl_lpspi->config;
-	unsigned int perclk_rate, scldiv;
+	unsigned int perclk_rate, scldiv, div;
+	u8 prescale_max;
 	u8 prescale;
 
 	perclk_rate = clk_get_rate(fsl_lpspi->clk_per);
+	prescale_max = fsl_lpspi->devtype_data->prescale_max;
 
 	if (!config.speed_hz) {
 		dev_err(fsl_lpspi->dev,
@@ -313,8 +334,10 @@ static int fsl_lpspi_set_bitrate(struct fsl_lpspi_data *fsl_lpspi)
 		return -EINVAL;
 	}
 
-	for (prescale = 0; prescale < 8; prescale++) {
-		scldiv = perclk_rate / config.speed_hz / (1 << prescale) - 2;
+	div = DIV_ROUND_UP(perclk_rate, config.speed_hz);
+
+	for (prescale = 0; prescale <= prescale_max; prescale++) {
+		scldiv = div / (1 << prescale) - 2;
 		if (scldiv < 256) {
 			fsl_lpspi->config.prescale = prescale;
 			break;
@@ -820,6 +843,7 @@ static int fsl_lpspi_init_rpm(struct fsl_lpspi_data *fsl_lpspi)
 
 static int fsl_lpspi_probe(struct platform_device *pdev)
 {
+	const struct fsl_lpspi_devtype_data *devtype_data;
 	struct fsl_lpspi_data *fsl_lpspi;
 	struct spi_controller *controller;
 	struct resource *res;
@@ -827,6 +851,10 @@ static int fsl_lpspi_probe(struct platform_device *pdev)
 	u32 num_cs;
 	u32 temp;
 	bool is_target;
+
+	devtype_data = of_device_get_match_data(&pdev->dev);
+	if (!devtype_data)
+		return -ENODEV;
 
 	is_target = of_property_read_bool((&pdev->dev)->of_node, "spi-slave");
 	if (is_target)
@@ -846,6 +874,7 @@ static int fsl_lpspi_probe(struct platform_device *pdev)
 	fsl_lpspi->is_target = is_target;
 	fsl_lpspi->is_only_cs1 = of_property_read_bool((&pdev->dev)->of_node,
 						"fsl,spi-only-use-cs1-sel");
+	fsl_lpspi->devtype_data = devtype_data;
 
 	init_completion(&fsl_lpspi->xfer_done);
 
@@ -960,13 +989,13 @@ static void fsl_lpspi_remove(struct platform_device *pdev)
 	pm_runtime_disable(fsl_lpspi->dev);
 }
 
-static int __maybe_unused fsl_lpspi_suspend(struct device *dev)
+static int fsl_lpspi_suspend(struct device *dev)
 {
 	pinctrl_pm_select_sleep_state(dev);
 	return pm_runtime_force_suspend(dev);
 }
 
-static int __maybe_unused fsl_lpspi_resume(struct device *dev)
+static int fsl_lpspi_resume(struct device *dev)
 {
 	int ret;
 
@@ -984,14 +1013,14 @@ static int __maybe_unused fsl_lpspi_resume(struct device *dev)
 static const struct dev_pm_ops fsl_lpspi_pm_ops = {
 	SET_RUNTIME_PM_OPS(fsl_lpspi_runtime_suspend,
 				fsl_lpspi_runtime_resume, NULL)
-	SET_SYSTEM_SLEEP_PM_OPS(fsl_lpspi_suspend, fsl_lpspi_resume)
+	SYSTEM_SLEEP_PM_OPS(fsl_lpspi_suspend, fsl_lpspi_resume)
 };
 
 static struct platform_driver fsl_lpspi_driver = {
 	.driver = {
 		.name = DRIVER_NAME,
 		.of_match_table = fsl_lpspi_dt_ids,
-		.pm = &fsl_lpspi_pm_ops,
+		.pm = pm_ptr(&fsl_lpspi_pm_ops),
 	},
 	.probe = fsl_lpspi_probe,
 	.remove_new = fsl_lpspi_remove,

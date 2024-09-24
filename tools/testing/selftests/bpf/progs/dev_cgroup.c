@@ -41,14 +41,14 @@ int bpf_prog1(struct bpf_cgroup_dev_ctx *ctx)
 	bpf_trace_printk(fmt, sizeof(fmt), ctx->major, ctx->minor);
 #endif
 
-	/* Allow access to /dev/zero and /dev/random.
+	/* Allow access to /dev/null and /dev/urandom.
 	 * Forbid everything else.
 	 */
 	if (ctx->major != 1 || type != BPF_DEVCG_DEV_CHAR)
 		return 0;
 
 	switch (ctx->minor) {
-	case 5: /* 1:5 /dev/zero */
+	case 3: /* 1:3 /dev/null */
 	case 9: /* 1:9 /dev/urandom */
 		return 1;
 	}

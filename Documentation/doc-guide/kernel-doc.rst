@@ -143,7 +143,7 @@ Return values
 ~~~~~~~~~~~~~
 
 The return value, if any, should be described in a dedicated section
-named ``Return``.
+named ``Return`` (or ``Returns``).
 
 .. note::
 
@@ -337,7 +337,7 @@ Typedefs with function prototypes can also be documented::
    * Description of the type.
    *
    * Context: Locking context.
-   * Return: Meaning of the return value.
+   * Returns: Meaning of the return value.
    */
    typedef void (*type_name)(struct v4l2_ctrl *arg1, void *arg2);
 

@@ -175,6 +175,7 @@
 #define QCOM_ID_SDA630			327
 #define QCOM_ID_MSM8905			331
 #define QCOM_ID_SDX202			333
+#define QCOM_ID_SDM670			336
 #define QCOM_ID_SDM450			338
 #define QCOM_ID_SM8150			339
 #define QCOM_ID_SDA845			341
@@ -233,11 +234,13 @@
 #define QCOM_ID_SA8540P			461
 #define QCOM_ID_QCM4290			469
 #define QCOM_ID_QCS4290			470
+#define QCOM_ID_SM7325			475
 #define QCOM_ID_SM8450_2		480
 #define QCOM_ID_SM8450_3		482
 #define QCOM_ID_SC7280			487
 #define QCOM_ID_SC7180P			495
 #define QCOM_ID_QCM6490			497
+#define QCOM_ID_SM7325P			499
 #define QCOM_ID_IPQ5000			503
 #define QCOM_ID_IPQ0509			504
 #define QCOM_ID_IPQ0518			505
@@ -272,6 +275,9 @@
 #define QCOM_ID_QCS8550			603
 #define QCOM_ID_QCM8550			604
 #define QCOM_ID_IPQ5300			624
+#define QCOM_ID_IPQ5321			650
+#define QCOM_ID_QCS8300			674
+#define QCOM_ID_QCS8275			675
 
 /*
  * The board type and revision information, used by Qualcomm bootloaders and

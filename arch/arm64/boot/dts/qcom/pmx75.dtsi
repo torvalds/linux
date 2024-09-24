@@ -10,7 +10,6 @@
 	thermal-zones {
 		pmx75-thermal {
 			polling-delay-passive = <100>;
-			polling-delay = <0>;
 
 			thermal-sensors = <&pmx75_temp_alarm>;
 

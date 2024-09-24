@@ -379,7 +379,7 @@ static int uinput_open(struct inode *inode, struct file *file)
 {
 	struct uinput_device *newdev;
 
-	newdev = kzalloc(sizeof(struct uinput_device), GFP_KERNEL);
+	newdev = kzalloc(sizeof(*newdev), GFP_KERNEL);
 	if (!newdev)
 		return -ENOMEM;
 
@@ -414,6 +414,20 @@ static int uinput_validate_absinfo(struct input_dev *dev, unsigned int code,
 		printk(KERN_DEBUG
 		       "%s: abs_flat #%02x out of range: %d (min:%d/max:%d)\n",
 		       UINPUT_NAME, code, abs->flat, min, max);
+		return -EINVAL;
+	}
+
+	/*
+	 * Limit number of contacts to a reasonable value (100). This
+	 * ensures that we need less than 2 pages for struct input_mt
+	 * (we are not using in-kernel slot assignment so not going to
+	 * allocate memory for the "red" table), and we should have no
+	 * trouble getting this much memory.
+	 */
+	if (code == ABS_MT_SLOT && max > 99) {
+		printk(KERN_DEBUG
+		       "%s: unreasonably large number of slots requested: %d\n",
+		       UINPUT_NAME, max);
 		return -EINVAL;
 	}
 

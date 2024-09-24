@@ -2,6 +2,8 @@
 #ifndef _TOOLS_LINUX_COMPILER_H_
 #define _TOOLS_LINUX_COMPILER_H_
 
+#ifndef __ASSEMBLY__
+
 #include <linux/compiler_types.h>
 
 #ifndef __compiletime_error
@@ -60,6 +62,10 @@
 
 #ifndef __nocf_check
 #define __nocf_check __attribute__((nocf_check))
+#endif
+
+#ifndef __naked
+#define __naked __attribute__((__naked__))
 #endif
 
 /* Are two types/vars the same type (ignoring qualifiers)? */
@@ -219,5 +225,7 @@ static __always_inline void __write_once_size(volatile void *p, void *res, int s
 #define OPTIMIZER_HIDE_VAR(var)						\
 	__asm__ ("" : "=r" (var) : "0" (var))
 #endif
+
+#endif /* __ASSEMBLY__ */
 
 #endif /* _TOOLS_LINUX_COMPILER_H */

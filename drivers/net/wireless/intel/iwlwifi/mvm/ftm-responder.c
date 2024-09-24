@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
  * Copyright (C) 2015-2017 Intel Deutschland GmbH
- * Copyright (C) 2018-2023 Intel Corporation
+ * Copyright (C) 2018-2024 Intel Corporation
  */
 #include <net/cfg80211.h>
 #include <linux/etherdevice.h>
@@ -88,7 +88,7 @@ static int iwl_mvm_ftm_responder_set_bw_v2(struct cfg80211_chan_def *chandef,
 
 static void
 iwl_mvm_ftm_responder_set_ndp(struct iwl_mvm *mvm,
-			      struct iwl_tof_responder_config_cmd_v9 *cmd)
+			      struct iwl_tof_responder_config_cmd *cmd)
 {
 	/* Up to 2 R2I STS are allowed on the responder */
 	u32 r2i_max_sts = IWL_MVM_FTM_R2I_MAX_STS < 2 ?
@@ -117,7 +117,7 @@ iwl_mvm_ftm_responder_cmd(struct iwl_mvm *mvm,
 	 * field interpretation is different), so the same struct can be use
 	 * for all cases.
 	 */
-	struct iwl_tof_responder_config_cmd_v9 cmd = {
+	struct iwl_tof_responder_config_cmd cmd = {
 		.channel_num = chandef->chan->hw_value,
 		.cmd_valid_fields =
 			cpu_to_le32(IWL_TOF_RESPONDER_CMD_VALID_CHAN_INFO |
@@ -131,8 +131,13 @@ iwl_mvm_ftm_responder_cmd(struct iwl_mvm *mvm,
 
 	lockdep_assert_held(&mvm->mutex);
 
+	if (cmd_ver == 10) {
+		cmd.band =
+			iwl_mvm_phy_band_from_nl80211(chandef->chan->band);
+	}
+
 	/* Use a default of bss_color=1 for now */
-	if (cmd_ver == 9) {
+	if (cmd_ver >= 9) {
 		cmd.cmd_valid_fields |=
 			cpu_to_le32(IWL_TOF_RESPONDER_CMD_VALID_BSS_COLOR |
 				    IWL_TOF_RESPONDER_CMD_VALID_MIN_MAX_TIME_BETWEEN_MSR);
@@ -148,7 +153,7 @@ iwl_mvm_ftm_responder_cmd(struct iwl_mvm *mvm,
 	}
 
 	if (cmd_ver >= 8)
-		iwl_mvm_ftm_responder_set_ndp(mvm, &cmd);
+		iwl_mvm_ftm_responder_set_ndp(mvm, (void *)&cmd);
 
 	if (cmd_ver >= 7)
 		err = iwl_mvm_ftm_responder_set_bw_v2(chandef, &cmd.format_bw,

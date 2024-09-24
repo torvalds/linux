@@ -311,7 +311,7 @@ static void virtio_transport_tx_work(struct work_struct *work)
 
 		virtqueue_disable_cb(vq);
 		while ((skb = virtqueue_get_buf(vq, &len)) != NULL) {
-			consume_skb(skb);
+			virtio_transport_consume_skb_sent(skb, true);
 			added = true;
 		}
 	} while (!virtqueue_enable_cb(vq));
@@ -540,6 +540,8 @@ static struct virtio_transport virtio_transport = {
 		.notify_buffer_size       = virtio_transport_notify_buffer_size,
 		.notify_set_rcvlowat      = virtio_transport_notify_set_rcvlowat,
 
+		.unsent_bytes             = virtio_transport_unsent_bytes,
+
 		.read_skb = virtio_transport_read_skb,
 	},
 
@@ -617,20 +619,14 @@ out:
 static int virtio_vsock_vqs_init(struct virtio_vsock *vsock)
 {
 	struct virtio_device *vdev = vsock->vdev;
-	static const char * const names[] = {
-		"rx",
-		"tx",
-		"event",
-	};
-	vq_callback_t *callbacks[] = {
-		virtio_vsock_rx_done,
-		virtio_vsock_tx_done,
-		virtio_vsock_event_done,
+	struct virtqueue_info vqs_info[] = {
+		{ "rx", virtio_vsock_rx_done },
+		{ "tx", virtio_vsock_tx_done },
+		{ "event", virtio_vsock_event_done },
 	};
 	int ret;
 
-	ret = virtio_find_vqs(vdev, VSOCK_VQ_MAX, vsock->vqs, callbacks, names,
-			      NULL);
+	ret = virtio_find_vqs(vdev, VSOCK_VQ_MAX, vsock->vqs, vqs_info, NULL);
 	if (ret < 0)
 		return ret;
 

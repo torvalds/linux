@@ -9,10 +9,9 @@
 #include <linux/stop_machine.h>
 
 #include <drm/drm_managed.h>
-#include <drm/i915_drm.h>
-#include <drm/intel-gtt.h>
+#include <drm/intel/i915_drm.h>
+#include <drm/intel/intel-gtt.h>
 
-#include "display/intel_display.h"
 #include "gem/i915_gem_lmem.h"
 
 #include "intel_context.h"

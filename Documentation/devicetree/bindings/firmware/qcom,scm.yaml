@@ -93,6 +93,11 @@ properties:
       protocol to handle sleeping SCM calls.
     maxItems: 1
 
+  memory-region:
+    description:
+      Phandle to the memory region reserved for the shared memory bridge to TZ.
+    maxItems: 1
+
   qcom,sdi-enabled:
     description:
       Indicates that the SDI (Secure Debug Image) has been enabled by TZ
@@ -193,6 +198,16 @@ allOf:
     then:
       properties:
         interrupts: false
+  - if:
+      not:
+        properties:
+          compatible:
+            contains:
+              enum:
+                - qcom,scm-sa8775p
+    then:
+      properties:
+        memory-region: false
 
 required:
   - compatible

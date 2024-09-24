@@ -234,7 +234,7 @@ static int imx8m_probe(struct snd_sof_dev *sdev)
 	/* set default mailbox offset for FW ready message */
 	sdev->dsp_box.offset = MBOX_OFFSET;
 
-	priv->regmap = syscon_regmap_lookup_by_compatible("fsl,dsp-ctrl");
+	priv->regmap = syscon_regmap_lookup_by_phandle(np, "fsl,dsp-ctrl");
 	if (IS_ERR(priv->regmap)) {
 		dev_err(sdev->dev, "cannot find dsp-ctrl registers");
 		ret = PTR_ERR(priv->regmap);
@@ -505,7 +505,7 @@ MODULE_DEVICE_TABLE(of, sof_of_imx8m_ids);
 /* DT driver definition */
 static struct platform_driver snd_sof_of_imx8m_driver = {
 	.probe = sof_of_probe,
-	.remove_new = sof_of_remove,
+	.remove = sof_of_remove,
 	.driver = {
 		.name = "sof-audio-of-imx8m",
 		.pm = &sof_of_pm,

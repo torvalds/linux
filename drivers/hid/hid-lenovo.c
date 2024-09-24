@@ -133,7 +133,7 @@ static const __u8 lenovo_tpIIbtkbd_need_fixup_collection[] = {
 	0x81, 0x01,		/*   Input (Const,Array,Abs,No Wrap,Linear,Preferred State,No Null Position) */
 };
 
-static __u8 *lenovo_report_fixup(struct hid_device *hdev, __u8 *rdesc,
+static const __u8 *lenovo_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 		unsigned int *rsize)
 {
 	switch (hdev->product) {
@@ -1442,4 +1442,5 @@ static struct hid_driver lenovo_driver = {
 };
 module_hid_driver(lenovo_driver);
 
+MODULE_DESCRIPTION("HID driver for IBM/Lenovo");
 MODULE_LICENSE("GPL");

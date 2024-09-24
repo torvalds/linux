@@ -307,7 +307,7 @@ static int elo_connect(struct serio *serio, struct serio_driver *drv)
 	struct input_dev *input_dev;
 	int err;
 
-	elo = kzalloc(sizeof(struct elo), GFP_KERNEL);
+	elo = kzalloc(sizeof(*elo), GFP_KERNEL);
 	input_dev = input_allocate_device();
 	if (!elo || !input_dev) {
 		err = -ENOMEM;

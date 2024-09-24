@@ -26,6 +26,8 @@ struct xe_devcoredump_snapshot {
 	ktime_t snapshot_time;
 	/** @boot_time:  Relative boot time so the uptime can be calculated. */
 	ktime_t boot_time;
+	/** @process_name: Name of process that triggered this gpu hang */
+	char process_name[TASK_COMM_LEN];
 
 	/** @gt: Affected GT, used by forcewake for delayed capture */
 	struct xe_gt *gt;
@@ -44,6 +46,14 @@ struct xe_devcoredump_snapshot {
 	struct xe_sched_job_snapshot *job;
 	/** @vm: Snapshot of VM state */
 	struct xe_vm_snapshot *vm;
+
+	/** @read: devcoredump in human readable format */
+	struct {
+		/** @read.size: size of devcoredump in human readable format */
+		ssize_t size;
+		/** @read.buffer: buffer of devcoredump in human readable format */
+		char *buffer;
+	} read;
 };
 
 /**

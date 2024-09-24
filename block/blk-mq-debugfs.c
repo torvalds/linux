@@ -5,6 +5,7 @@
 
 #include <linux/kernel.h>
 #include <linux/blkdev.h>
+#include <linux/build_bug.h>
 #include <linux/debugfs.h>
 
 #include "blk.h"
@@ -79,33 +80,19 @@ static int queue_pm_only_show(void *data, struct seq_file *m)
 
 #define QUEUE_FLAG_NAME(name) [QUEUE_FLAG_##name] = #name
 static const char *const blk_queue_flag_name[] = {
-	QUEUE_FLAG_NAME(STOPPED),
 	QUEUE_FLAG_NAME(DYING),
 	QUEUE_FLAG_NAME(NOMERGES),
 	QUEUE_FLAG_NAME(SAME_COMP),
 	QUEUE_FLAG_NAME(FAIL_IO),
-	QUEUE_FLAG_NAME(NONROT),
-	QUEUE_FLAG_NAME(IO_STAT),
 	QUEUE_FLAG_NAME(NOXMERGES),
-	QUEUE_FLAG_NAME(ADD_RANDOM),
-	QUEUE_FLAG_NAME(SYNCHRONOUS),
 	QUEUE_FLAG_NAME(SAME_FORCE),
 	QUEUE_FLAG_NAME(INIT_DONE),
-	QUEUE_FLAG_NAME(STABLE_WRITES),
-	QUEUE_FLAG_NAME(POLL),
-	QUEUE_FLAG_NAME(WC),
-	QUEUE_FLAG_NAME(FUA),
-	QUEUE_FLAG_NAME(DAX),
 	QUEUE_FLAG_NAME(STATS),
 	QUEUE_FLAG_NAME(REGISTERED),
 	QUEUE_FLAG_NAME(QUIESCED),
-	QUEUE_FLAG_NAME(PCI_P2PDMA),
-	QUEUE_FLAG_NAME(ZONE_RESETALL),
 	QUEUE_FLAG_NAME(RQ_ALLOC_TIME),
 	QUEUE_FLAG_NAME(HCTX_ACTIVE),
-	QUEUE_FLAG_NAME(NOWAIT),
 	QUEUE_FLAG_NAME(SQ_SCHED),
-	QUEUE_FLAG_NAME(SKIP_TAGSET_QUIESCE),
 };
 #undef QUEUE_FLAG_NAME
 
@@ -113,6 +100,7 @@ static int queue_state_show(void *data, struct seq_file *m)
 {
 	struct request_queue *q = data;
 
+	BUILD_BUG_ON(ARRAY_SIZE(blk_queue_flag_name) != QUEUE_FLAG_MAX);
 	blk_flags_show(m, q->queue_flags, blk_queue_flag_name,
 		       ARRAY_SIZE(blk_queue_flag_name));
 	seq_puts(m, "\n");
@@ -177,6 +165,7 @@ static int hctx_state_show(void *data, struct seq_file *m)
 {
 	struct blk_mq_hw_ctx *hctx = data;
 
+	BUILD_BUG_ON(ARRAY_SIZE(hctx_state_name) != BLK_MQ_S_MAX);
 	blk_flags_show(m, hctx->state, hctx_state_name,
 		       ARRAY_SIZE(hctx_state_name));
 	seq_puts(m, "\n");
@@ -194,10 +183,11 @@ static const char *const alloc_policy_name[] = {
 static const char *const hctx_flag_name[] = {
 	HCTX_FLAG_NAME(SHOULD_MERGE),
 	HCTX_FLAG_NAME(TAG_QUEUE_SHARED),
-	HCTX_FLAG_NAME(BLOCKING),
-	HCTX_FLAG_NAME(NO_SCHED),
 	HCTX_FLAG_NAME(STACKING),
 	HCTX_FLAG_NAME(TAG_HCTX_SHARED),
+	HCTX_FLAG_NAME(BLOCKING),
+	HCTX_FLAG_NAME(NO_SCHED),
+	HCTX_FLAG_NAME(NO_SCHED_BY_DEFAULT),
 };
 #undef HCTX_FLAG_NAME
 
@@ -205,6 +195,10 @@ static int hctx_flags_show(void *data, struct seq_file *m)
 {
 	struct blk_mq_hw_ctx *hctx = data;
 	const int alloc_policy = BLK_MQ_FLAG_TO_ALLOC_POLICY(hctx->flags);
+
+	BUILD_BUG_ON(ARRAY_SIZE(hctx_flag_name) !=
+			BLK_MQ_F_ALLOC_POLICY_START_BIT);
+	BUILD_BUG_ON(ARRAY_SIZE(alloc_policy_name) != BLK_TAG_ALLOC_MAX);
 
 	seq_puts(m, "alloc_policy=");
 	if (alloc_policy < ARRAY_SIZE(alloc_policy_name) &&
@@ -236,12 +230,17 @@ static const char *const cmd_flag_name[] = {
 	CMD_FLAG_NAME(RAHEAD),
 	CMD_FLAG_NAME(BACKGROUND),
 	CMD_FLAG_NAME(NOWAIT),
-	CMD_FLAG_NAME(NOUNMAP),
 	CMD_FLAG_NAME(POLLED),
+	CMD_FLAG_NAME(ALLOC_CACHE),
+	CMD_FLAG_NAME(SWAP),
+	CMD_FLAG_NAME(DRV),
+	CMD_FLAG_NAME(FS_PRIVATE),
+	CMD_FLAG_NAME(ATOMIC),
+	CMD_FLAG_NAME(NOUNMAP),
 };
 #undef CMD_FLAG_NAME
 
-#define RQF_NAME(name) [ilog2((__force u32)RQF_##name)] = #name
+#define RQF_NAME(name) [__RQF_##name] = #name
 static const char *const rqf_name[] = {
 	RQF_NAME(STARTED),
 	RQF_NAME(FLUSH_SEQ),
@@ -256,6 +255,7 @@ static const char *const rqf_name[] = {
 	RQF_NAME(HASHED),
 	RQF_NAME(STATS),
 	RQF_NAME(SPECIAL_PAYLOAD),
+	RQF_NAME(ZONE_WRITE_PLUGGING),
 	RQF_NAME(TIMED_OUT),
 	RQF_NAME(RESV),
 };
@@ -280,6 +280,9 @@ int __blk_mq_debugfs_rq_show(struct seq_file *m, struct request *rq)
 	const struct blk_mq_ops *const mq_ops = rq->q->mq_ops;
 	const enum req_op op = req_op(rq);
 	const char *op_str = blk_op_str(op);
+
+	BUILD_BUG_ON(ARRAY_SIZE(cmd_flag_name) != __REQ_NR_BITS);
+	BUILD_BUG_ON(ARRAY_SIZE(rqf_name) != __RQF_BITS);
 
 	seq_printf(m, "%p {.op=", rq);
 	if (strcmp(op_str, "UNKNOWN") == 0)

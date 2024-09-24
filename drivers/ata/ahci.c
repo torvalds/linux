@@ -1370,7 +1370,7 @@ static bool ahci_broken_suspend(struct pci_dev *pdev)
 		 * V1.03 is known to be broken.  V3.04 is known to
 		 * work.  Between, there are V1.06, V2.06 and V3.03
 		 * that we don't have much idea about.  For now,
-		 * blacklist anything older than V3.04.
+		 * assume that anything older than V3.04 is broken.
 		 *
 		 * http://bugzilla.kernel.org/show_bug.cgi?id=15104
 		 */
@@ -1732,8 +1732,10 @@ static void ahci_update_initial_lpm_policy(struct ata_port *ap)
 	 * Management Interaction in AHCI 1.3.1. Therefore, do not enable
 	 * LPM if the port advertises itself as an external port.
 	 */
-	if (ap->pflags & ATA_PFLAG_EXTERNAL)
+	if (ap->pflags & ATA_PFLAG_EXTERNAL) {
+		ata_port_dbg(ap, "external port, not enabling LPM\n");
 		return;
+	}
 
 	/* If no LPM states are supported by the HBA, do not bother with LPM */
 	if ((ap->host->flags & ATA_HOST_NO_PART) &&

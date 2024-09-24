@@ -18,7 +18,7 @@
 #include <linux/types.h>
 #include <linux/uaccess.h>
 
-#include <asm/intel_scu_ipc.h>
+#include <linux/platform_data/x86/intel_scu_ipc.h>
 
 static int major;
 

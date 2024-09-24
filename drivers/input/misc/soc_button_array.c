@@ -620,4 +620,5 @@ static struct platform_driver soc_button_driver = {
 };
 module_platform_driver(soc_button_driver);
 
+MODULE_DESCRIPTION("Windows-compatible SoC Button Array driver");
 MODULE_LICENSE("GPL");

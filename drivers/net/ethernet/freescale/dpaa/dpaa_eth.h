@@ -18,10 +18,6 @@
 
 /* Number of prioritised traffic classes */
 #define DPAA_TC_NUM		4
-/* Number of Tx queues per traffic class */
-#define DPAA_TC_TXQ_NUM		NR_CPUS
-/* Total number of Tx queues */
-#define DPAA_ETH_TXQ_NUM	(DPAA_TC_NUM * DPAA_TC_TXQ_NUM)
 
 /* More detailed FQ types - used for fine-grained WQ assignments */
 enum dpaa_fq_type {
@@ -142,8 +138,8 @@ struct dpaa_priv {
 	struct mac_device *mac_dev;
 	struct device *rx_dma_dev;
 	struct device *tx_dma_dev;
-	struct qman_fq *egress_fqs[DPAA_ETH_TXQ_NUM];
-	struct qman_fq *conf_fqs[DPAA_ETH_TXQ_NUM];
+	struct qman_fq **egress_fqs;
+	struct qman_fq **conf_fqs;
 
 	u16 channel;
 	struct list_head dpaa_fq_list;
@@ -185,4 +181,16 @@ extern const struct ethtool_ops dpaa_ethtool_ops;
 /* from dpaa_eth_sysfs.c */
 void dpaa_eth_sysfs_remove(struct device *dev);
 void dpaa_eth_sysfs_init(struct device *dev);
+
+static inline size_t dpaa_num_txqs_per_tc(void)
+{
+	return num_possible_cpus();
+}
+
+/* Total number of Tx queues */
+static inline size_t dpaa_max_num_txqs(void)
+{
+	return DPAA_TC_NUM * dpaa_num_txqs_per_tc();
+}
+
 #endif	/* __DPAA_H */

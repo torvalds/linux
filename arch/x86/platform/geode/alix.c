@@ -18,14 +18,11 @@
 #include <linux/io.h>
 #include <linux/string.h>
 #include <linux/moduleparam.h>
-#include <linux/leds.h>
-#include <linux/platform_device.h>
-#include <linux/input.h>
-#include <linux/gpio_keys.h>
-#include <linux/gpio/machine.h>
 #include <linux/dmi.h>
 
 #include <asm/geode.h>
+
+#include "geode-common.h"
 
 #define BIOS_SIGNATURE_TINYBIOS		0xf0000
 #define BIOS_SIGNATURE_COREBOOT		0x500
@@ -41,79 +38,16 @@ module_param(force, bool, 0444);
 /* FIXME: Award bios is not automatically detected as Alix platform */
 MODULE_PARM_DESC(force, "Force detection as ALIX.2/ALIX.3 platform");
 
-static struct gpio_keys_button alix_gpio_buttons[] = {
-	{
-		.code			= KEY_RESTART,
-		.gpio			= 24,
-		.active_low		= 1,
-		.desc			= "Reset button",
-		.type			= EV_KEY,
-		.wakeup			= 0,
-		.debounce_interval	= 100,
-		.can_disable		= 0,
-	}
-};
-static struct gpio_keys_platform_data alix_buttons_data = {
-	.buttons			= alix_gpio_buttons,
-	.nbuttons			= ARRAY_SIZE(alix_gpio_buttons),
-	.poll_interval			= 20,
-};
-
-static struct platform_device alix_buttons_dev = {
-	.name				= "gpio-keys-polled",
-	.id				= 1,
-	.dev = {
-		.platform_data		= &alix_buttons_data,
-	}
-};
-
-static struct gpio_led alix_leds[] = {
-	{
-		.name = "alix:1",
-		.default_trigger = "default-on",
-	},
-	{
-		.name = "alix:2",
-		.default_trigger = "default-off",
-	},
-	{
-		.name = "alix:3",
-		.default_trigger = "default-off",
-	},
-};
-
-static struct gpio_led_platform_data alix_leds_data = {
-	.num_leds = ARRAY_SIZE(alix_leds),
-	.leds = alix_leds,
-};
-
-static struct gpiod_lookup_table alix_leds_gpio_table = {
-	.dev_id = "leds-gpio",
-	.table = {
-		/* The Geode GPIOs should be on the CS5535 companion chip */
-		GPIO_LOOKUP_IDX("cs5535-gpio", 6, NULL, 0, GPIO_ACTIVE_LOW),
-		GPIO_LOOKUP_IDX("cs5535-gpio", 25, NULL, 1, GPIO_ACTIVE_LOW),
-		GPIO_LOOKUP_IDX("cs5535-gpio", 27, NULL, 2, GPIO_ACTIVE_LOW),
-		{ }
-	},
-};
-
-static struct platform_device alix_leds_dev = {
-	.name = "leds-gpio",
-	.id = -1,
-	.dev.platform_data = &alix_leds_data,
-};
-
-static struct platform_device *alix_devs[] __initdata = {
-	&alix_buttons_dev,
-	&alix_leds_dev,
+static const struct geode_led alix_leds[] __initconst = {
+	{ 6, true },
+	{ 25, false },
+	{ 27, false },
 };
 
 static void __init register_alix(void)
 {
-	/* Setup LED control through leds-gpio driver */
-	gpiod_add_lookup_table(&alix_leds_gpio_table);
-	platform_add_devices(alix_devs, ARRAY_SIZE(alix_devs));
+	geode_create_restart_key(24);
+	geode_create_leds("alix", alix_leds, ARRAY_SIZE(alix_leds));
 }
 
 static bool __init alix_present(unsigned long bios_phys,

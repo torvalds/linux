@@ -576,8 +576,10 @@ static void __init prefill_possible_map(void)
 
 	for (i = 0; i < possible; i++)
 		set_cpu_possible(i, true);
-	for (; i < NR_CPUS; i++)
+	for (; i < NR_CPUS; i++) {
+		set_cpu_present(i, false);
 		set_cpu_possible(i, false);
+	}
 
 	set_nr_cpu_ids(possible);
 }
@@ -601,6 +603,8 @@ void __init setup_arch(char **cmdline_p)
 	arch_mem_init(cmdline_p);
 
 	resource_init();
+	jump_label_init(); /* Initialise the static keys for paravirtualization */
+
 #ifdef CONFIG_SMP
 	plat_smp_setup();
 	prefill_possible_map();

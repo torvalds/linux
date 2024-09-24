@@ -174,6 +174,13 @@ static int export_features_show(struct seq_file *m, void *v)
 
 DEFINE_SHOW_ATTRIBUTE(export_features);
 
+static int nfsd_pool_stats_open(struct inode *inode, struct file *file)
+{
+	struct nfsd_net *nn = net_generic(inode->i_sb->s_fs_info, nfsd_net_id);
+
+	return svc_pool_stats_open(&nn->nfsd_info, file);
+}
+
 static const struct file_operations pool_stats_operations = {
 	.open		= nfsd_pool_stats_open,
 	.read		= seq_read,
@@ -406,7 +413,7 @@ static ssize_t write_threads(struct file *file, char *buf, size_t size)
 			return -EINVAL;
 		trace_nfsd_ctl_threads(net, newthreads);
 		mutex_lock(&nfsd_mutex);
-		rv = nfsd_svc(newthreads, net, file->f_cred, NULL);
+		rv = nfsd_svc(1, &newthreads, net, file->f_cred, NULL);
 		mutex_unlock(&nfsd_mutex);
 		if (rv < 0)
 			return rv;
@@ -481,6 +488,14 @@ static ssize_t write_pool_threads(struct file *file, char *buf, size_t size)
 				goto out_free;
 			trace_nfsd_ctl_pool_threads(net, i, nthreads[i]);
 		}
+
+		/*
+		 * There must always be a thread in pool 0; the admin
+		 * can't shut down NFS completely using pool_threads.
+		 */
+		if (nthreads[0] == 0)
+			nthreads[0] = 1;
+
 		rv = nfsd_set_nrthreads(i, nthreads, net);
 		if (rv)
 			goto out_free;
@@ -1637,7 +1652,7 @@ out_unlock:
  */
 int nfsd_nl_threads_set_doit(struct sk_buff *skb, struct genl_info *info)
 {
-	int nthreads = 0, count = 0, nrpools, ret = -EOPNOTSUPP, rem;
+	int *nthreads, count = 0, nrpools, i, ret = -EOPNOTSUPP, rem;
 	struct net *net = genl_info_net(info);
 	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
 	const struct nlattr *attr;
@@ -1654,15 +1669,22 @@ int nfsd_nl_threads_set_doit(struct sk_buff *skb, struct genl_info *info)
 
 	mutex_lock(&nfsd_mutex);
 
-	nrpools = nfsd_nrpools(net);
-	if (nrpools && count > nrpools)
-		count = nrpools;
-
-	/* XXX: make this handle non-global pool-modes */
-	if (count > 1)
+	nrpools = max(count, nfsd_nrpools(net));
+	nthreads = kcalloc(nrpools, sizeof(int), GFP_KERNEL);
+	if (!nthreads) {
+		ret = -ENOMEM;
 		goto out_unlock;
+	}
 
-	nthreads = nla_get_u32(info->attrs[NFSD_A_SERVER_THREADS]);
+	i = 0;
+	nlmsg_for_each_attr(attr, info->nlhdr, GENL_HDRLEN, rem) {
+		if (nla_type(attr) == NFSD_A_SERVER_THREADS) {
+			nthreads[i++] = nla_get_u32(attr);
+			if (i >= nrpools)
+				break;
+		}
+	}
+
 	if (info->attrs[NFSD_A_SERVER_GRACETIME] ||
 	    info->attrs[NFSD_A_SERVER_LEASETIME] ||
 	    info->attrs[NFSD_A_SERVER_SCOPE]) {
@@ -1696,12 +1718,13 @@ int nfsd_nl_threads_set_doit(struct sk_buff *skb, struct genl_info *info)
 			scope = nla_data(attr);
 	}
 
-	ret = nfsd_svc(nthreads, net, get_current_cred(), scope);
-
+	ret = nfsd_svc(nrpools, nthreads, net, get_current_cred(), scope);
+	if (ret > 0)
+		ret = 0;
 out_unlock:
 	mutex_unlock(&nfsd_mutex);
-
-	return ret == nthreads ? 0 : ret;
+	kfree(nthreads);
+	return ret;
 }
 
 /**
@@ -1746,7 +1769,7 @@ int nfsd_nl_threads_get_doit(struct sk_buff *skb, struct genl_info *info)
 			struct svc_pool *sp = &nn->nfsd_serv->sv_pools[i];
 
 			err = nla_put_u32(skb, NFSD_A_SERVER_THREADS,
-					  atomic_read(&sp->sp_nrthreads));
+					  sp->sp_nrthreads);
 			if (err)
 				goto err_unlock;
 		}
@@ -2053,8 +2076,7 @@ int nfsd_nl_listener_set_doit(struct sk_buff *skb, struct genl_info *info)
 			continue;
 		}
 
-		ret = svc_xprt_create_from_sa(serv, xcl_name, net, sa,
-					      SVC_SOCK_ANONYMOUS,
+		ret = svc_xprt_create_from_sa(serv, xcl_name, net, sa, 0,
 					      get_current_cred());
 		/* always save the latest error */
 		if (ret < 0)
@@ -2141,6 +2163,63 @@ err_free_msg:
 }
 
 /**
+ * nfsd_nl_pool_mode_set_doit - set the number of running threads
+ * @skb: reply buffer
+ * @info: netlink metadata and command arguments
+ *
+ * Return 0 on success or a negative errno.
+ */
+int nfsd_nl_pool_mode_set_doit(struct sk_buff *skb, struct genl_info *info)
+{
+	const struct nlattr *attr;
+
+	if (GENL_REQ_ATTR_CHECK(info, NFSD_A_POOL_MODE_MODE))
+		return -EINVAL;
+
+	attr = info->attrs[NFSD_A_POOL_MODE_MODE];
+	return sunrpc_set_pool_mode(nla_data(attr));
+}
+
+/**
+ * nfsd_nl_pool_mode_get_doit - get info about pool_mode
+ * @skb: reply buffer
+ * @info: netlink metadata and command arguments
+ *
+ * Return 0 on success or a negative errno.
+ */
+int nfsd_nl_pool_mode_get_doit(struct sk_buff *skb, struct genl_info *info)
+{
+	struct net *net = genl_info_net(info);
+	char buf[16];
+	void *hdr;
+	int err;
+
+	if (sunrpc_get_pool_mode(buf, ARRAY_SIZE(buf)) >= ARRAY_SIZE(buf))
+		return -ERANGE;
+
+	skb = genlmsg_new(GENLMSG_DEFAULT_SIZE, GFP_KERNEL);
+	if (!skb)
+		return -ENOMEM;
+
+	err = -EMSGSIZE;
+	hdr = genlmsg_iput(skb, info);
+	if (!hdr)
+		goto err_free_msg;
+
+	err = nla_put_string(skb, NFSD_A_POOL_MODE_MODE, buf) |
+	      nla_put_u32(skb, NFSD_A_POOL_MODE_NPOOLS, nfsd_nrpools(net));
+	if (err)
+		goto err_free_msg;
+
+	genlmsg_end(skb, hdr);
+	return genlmsg_reply(skb, info);
+
+err_free_msg:
+	nlmsg_free(skb);
+	return err;
+}
+
+/**
  * nfsd_net_init - Prepare the nfsd_net portion of a new net namespace
  * @net: a freshly-created network namespace
  *
@@ -2152,8 +2231,9 @@ err_free_msg:
  */
 static __net_init int nfsd_net_init(struct net *net)
 {
-	int retval;
 	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
+	int retval;
+	int i;
 
 	retval = nfsd_export_init(net);
 	if (retval)
@@ -2167,8 +2247,10 @@ static __net_init int nfsd_net_init(struct net *net)
 		goto out_repcache_error;
 	memset(&nn->nfsd_svcstats, 0, sizeof(nn->nfsd_svcstats));
 	nn->nfsd_svcstats.program = &nfsd_program;
-	nn->nfsd_versions = NULL;
-	nn->nfsd4_minorversions = NULL;
+	for (i = 0; i < sizeof(nn->nfsd_versions); i++)
+		nn->nfsd_versions[i] = nfsd_support_version(i);
+	for (i = 0; i < sizeof(nn->nfsd4_minorversions); i++)
+		nn->nfsd4_minorversions[i] = nfsd_support_version(4);
 	nn->nfsd_info.mutex = &nfsd_mutex;
 	nn->nfsd_serv = NULL;
 	nfsd4_init_leases_net(nn);
@@ -2199,7 +2281,6 @@ static __net_exit void nfsd_net_exit(struct net *net)
 	percpu_counter_destroy_many(nn->counter, NFSD_STATS_COUNTERS_NUM);
 	nfsd_idmap_shutdown(net);
 	nfsd_export_shutdown(net);
-	nfsd_netns_free_versions(nn);
 }
 
 static struct pernet_operations nfsd_net_ops = {

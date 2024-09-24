@@ -221,7 +221,7 @@ static inline int apei_smca_report_x86_error(struct cper_ia_proc_ctx *ctx_info,
 					     u64 lapic_id) { return -EINVAL; }
 #endif
 
-void mce_setup(struct mce *m);
+void mce_prep_record(struct mce *m);
 void mce_log(struct mce *m);
 DECLARE_PER_CPU(struct device *, mce_device);
 
@@ -261,7 +261,8 @@ enum mcp_flags {
 	MCP_DONTLOG	= BIT(2),	/* only clear, don't log */
 	MCP_QUEUE_LOG	= BIT(3),	/* only queue to genpool */
 };
-bool machine_check_poll(enum mcp_flags flags, mce_banks_t *b);
+
+void machine_check_poll(enum mcp_flags flags, mce_banks_t *b);
 
 int mce_notify_irq(void);
 

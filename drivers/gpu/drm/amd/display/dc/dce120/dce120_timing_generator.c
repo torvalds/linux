@@ -697,6 +697,7 @@ static void dce120_tg_program_timing(struct timing_generator *tg,
 	int vstartup_start,
 	int vupdate_offset,
 	int vupdate_width,
+	int pstate_keepout,
 	const enum signal_type signal,
 	bool use_vbios)
 {
@@ -1197,6 +1198,7 @@ static const struct timing_generator_funcs dce120_tg_funcs = {
 		.is_tg_enabled = dce120_is_tg_enabled,
 		.configure_crc = dce120_configure_crc,
 		.get_crc = dce120_get_crc,
+		.is_two_pixels_per_container = dce110_is_two_pixels_per_container,
 };
 
 

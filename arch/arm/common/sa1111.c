@@ -1339,10 +1339,10 @@ EXPORT_SYMBOL_GPL(sa1111_get_irq);
  *	We model this as a regular bus type, and hang devices directly
  *	off this.
  */
-static int sa1111_match(struct device *_dev, struct device_driver *_drv)
+static int sa1111_match(struct device *_dev, const struct device_driver *_drv)
 {
 	struct sa1111_dev *dev = to_sa1111_device(_dev);
-	struct sa1111_driver *drv = SA1111_DRV(_drv);
+	const struct sa1111_driver *drv = SA1111_DRV(_drv);
 
 	return !!(dev->devid & drv->devid);
 }

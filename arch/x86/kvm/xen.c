@@ -741,7 +741,7 @@ int kvm_xen_hvm_set_attr(struct kvm *kvm, struct kvm_xen_hvm_attr *data)
 		} else {
 			void __user * hva = u64_to_user_ptr(data->u.shared_info.hva);
 
-			if (!PAGE_ALIGNED(hva) || !access_ok(hva, PAGE_SIZE)) {
+			if (!PAGE_ALIGNED(hva)) {
 				r = -EINVAL;
 			} else if (!hva) {
 				kvm_gpc_deactivate(&kvm->arch.xen.shinfo_cache);
@@ -1270,7 +1270,7 @@ int kvm_xen_write_hypercall_page(struct kvm_vcpu *vcpu, u64 data)
 		instructions[0] = 0xb8;
 
 		/* vmcall / vmmcall */
-		static_call(kvm_x86_patch_hypercall)(vcpu, instructions + 5);
+		kvm_x86_call(patch_hypercall)(vcpu, instructions + 5);
 
 		/* ret */
 		instructions[8] = 0xc3;
@@ -1650,7 +1650,7 @@ int kvm_xen_hypercall(struct kvm_vcpu *vcpu)
 		params[5] = (u64)kvm_r9_read(vcpu);
 	}
 #endif
-	cpl = static_call(kvm_x86_get_cpl)(vcpu);
+	cpl = kvm_x86_call(get_cpl)(vcpu);
 	trace_kvm_xen_hypercall(cpl, input, params[0], params[1], params[2],
 				params[3], params[4], params[5]);
 

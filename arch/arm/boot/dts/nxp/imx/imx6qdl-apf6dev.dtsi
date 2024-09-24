@@ -121,11 +121,16 @@
 		mux-ext-port = <3>;
 	};
 
+	spdif_out: spdif-out {
+		compatible = "linux,spdif-dit";
+		#sound-dai-cells = <0>;
+	};
+
 	sound-spdif {
 		compatible = "fsl,imx-audio-spdif";
 		model = "imx-spdif";
-		spdif-controller = <&spdif>;
-		spdif-out;
+		audio-cpu = <&spdif>;
+		audio-codec = <&spdif_out>;
 	};
 };
 

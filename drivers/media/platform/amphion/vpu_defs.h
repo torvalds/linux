@@ -114,6 +114,7 @@ struct vpu_enc_pic_info {
 	u32 wptr;
 	u32 crc;
 	s64 timestamp;
+	u32 average_qp;
 };
 
 struct vpu_dec_codec_info {

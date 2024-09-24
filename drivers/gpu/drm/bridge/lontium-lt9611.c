@@ -1195,4 +1195,5 @@ static struct i2c_driver lt9611_driver = {
 };
 module_i2c_driver(lt9611_driver);
 
+MODULE_DESCRIPTION("Lontium LT9611 DSI/HDMI bridge driver");
 MODULE_LICENSE("GPL v2");

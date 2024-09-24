@@ -13,7 +13,7 @@ struct mini_Qdisc;
 struct tcx_entry {
 	struct mini_Qdisc __rcu *miniq;
 	struct bpf_mprog_bundle bundle;
-	bool miniq_active;
+	u32 miniq_active;
 	struct rcu_head rcu;
 };
 
@@ -125,11 +125,16 @@ static inline void tcx_skeys_dec(bool ingress)
 	tcx_dec();
 }
 
-static inline void tcx_miniq_set_active(struct bpf_mprog_entry *entry,
-					const bool active)
+static inline void tcx_miniq_inc(struct bpf_mprog_entry *entry)
 {
 	ASSERT_RTNL();
-	tcx_entry(entry)->miniq_active = active;
+	tcx_entry(entry)->miniq_active++;
+}
+
+static inline void tcx_miniq_dec(struct bpf_mprog_entry *entry)
+{
+	ASSERT_RTNL();
+	tcx_entry(entry)->miniq_active--;
 }
 
 static inline bool tcx_entry_is_active(struct bpf_mprog_entry *entry)

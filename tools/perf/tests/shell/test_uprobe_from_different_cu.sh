@@ -4,6 +4,13 @@
 
 set -e
 
+# Skip if there's no probe command.
+if ! perf | grep probe
+then
+        echo "Skip: probe command isn't present"
+        exit 2
+fi
+
 # skip if there's no gcc
 if ! [ -x "$(command -v gcc)" ]; then
         echo "failed: no gcc compiler"
@@ -77,7 +84,7 @@ gcc -g -Og -flto -c ${temp_dir}/testfile-foo.c -o ${temp_dir}/testfile-foo.o
 gcc -g -Og -c ${temp_dir}/testfile-main.c -o ${temp_dir}/testfile-main.o
 gcc -g -Og -o ${temp_dir}/testfile ${temp_dir}/testfile-foo.o ${temp_dir}/testfile-main.o
 
-perf probe -x ${temp_dir}/testfile --funcs foo
+perf probe -x ${temp_dir}/testfile --funcs foo | grep "foo"
 perf probe -x ${temp_dir}/testfile foo
 
 cleanup

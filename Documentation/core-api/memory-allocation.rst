@@ -45,8 +45,9 @@ here we briefly outline their recommended usage:
   * If the allocation is performed from an atomic context, e.g interrupt
     handler, use ``GFP_NOWAIT``. This flag prevents direct reclaim and
     IO or filesystem operations. Consequently, under memory pressure
-    ``GFP_NOWAIT`` allocation is likely to fail. Allocations which
-    have a reasonable fallback should be using ``GFP_NOWARN``.
+    ``GFP_NOWAIT`` allocation is likely to fail. Users of this flag need
+    to provide a suitable fallback to cope with such failures where
+    appropriate.
   * If you think that accessing memory reserves is justified and the kernel
     will be stressed unless allocation succeeds, you may use ``GFP_ATOMIC``.
   * Untrusted allocations triggered from userspace should be a subject
@@ -144,8 +145,10 @@ configuration, but it is a good practice to use `kmalloc` for objects
 smaller than page size.
 
 The address of a chunk allocated with `kmalloc` is aligned to at least
-ARCH_KMALLOC_MINALIGN bytes.  For sizes which are a power of two, the
-alignment is also guaranteed to be at least the respective size.
+ARCH_KMALLOC_MINALIGN bytes. For sizes which are a power of two, the
+alignment is also guaranteed to be at least the respective size. For other
+sizes, the alignment is guaranteed to be at least the largest power-of-two
+divisor of the size.
 
 Chunks allocated with kmalloc() can be resized with krealloc(). Similarly
 to kmalloc_array(): a helper for resizing arrays is provided in the form of

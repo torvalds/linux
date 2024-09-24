@@ -1,0 +1,57 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/net/fsl,enetc-mdio.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: ENETC external MDIO PCIe endpoint device
+
+description:
+  NETC provides an external master MDIO interface (EMDIO) for managing external
+  devices (PHYs). EMDIO supports both Clause 22 and 45 protocols. And the EMDIO
+  provides a means for different software modules to share a single set of MDIO
+  signals to access their PHYs.
+
+maintainers:
+  - Frank Li <Frank.Li@nxp.com>
+  - Vladimir Oltean <vladimir.oltean@nxp.com>
+  - Wei Fang <wei.fang@nxp.com>
+  - Claudiu Manoil <claudiu.manoil@nxp.com>
+
+properties:
+  compatible:
+    items:
+      - enum:
+          - pci1957,ee01
+      - const: fsl,enetc-mdio
+
+  reg:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+
+allOf:
+  - $ref: mdio.yaml
+  - $ref: /schemas/pci/pci-device.yaml
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    pcie{
+        #address-cells = <3>;
+        #size-cells = <2>;
+
+        mdio@0,3 {
+            compatible = "pci1957,ee01", "fsl,enetc-mdio";
+            reg = <0x000300 0 0 0 0>;
+            #address-cells = <1>;
+            #size-cells = <0>;
+
+            ethernet-phy@2 {
+                reg = <0x2>;
+            };
+        };
+    };

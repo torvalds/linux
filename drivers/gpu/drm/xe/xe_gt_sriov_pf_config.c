@@ -25,9 +25,11 @@
 #include "xe_guc_fwif.h"
 #include "xe_guc_id_mgr.h"
 #include "xe_guc_klv_helpers.h"
+#include "xe_guc_klv_thresholds_set.h"
 #include "xe_guc_submit.h"
 #include "xe_lmtt.h"
 #include "xe_map.h"
+#include "xe_migrate.h"
 #include "xe_sriov.h"
 #include "xe_ttm_vram_mgr.h"
 #include "xe_wopcm.h"
@@ -187,19 +189,34 @@ static int pf_push_vf_cfg_dbs(struct xe_gt *gt, unsigned int vfid, u32 begin, u3
 	return pf_push_vf_cfg_klvs(gt, vfid, 2, klvs, ARRAY_SIZE(klvs));
 }
 
-static int pf_push_vf_cfg_exec_quantum(struct xe_gt *gt, unsigned int vfid, u32 exec_quantum)
+static int pf_push_vf_cfg_exec_quantum(struct xe_gt *gt, unsigned int vfid, u32 *exec_quantum)
 {
-	return pf_push_vf_cfg_u32(gt, vfid, GUC_KLV_VF_CFG_EXEC_QUANTUM_KEY, exec_quantum);
+	/* GuC will silently clamp values exceeding max */
+	*exec_quantum = min_t(u32, *exec_quantum, GUC_KLV_VF_CFG_EXEC_QUANTUM_MAX_VALUE);
+
+	return pf_push_vf_cfg_u32(gt, vfid, GUC_KLV_VF_CFG_EXEC_QUANTUM_KEY, *exec_quantum);
 }
 
-static int pf_push_vf_cfg_preempt_timeout(struct xe_gt *gt, unsigned int vfid, u32 preempt_timeout)
+static int pf_push_vf_cfg_preempt_timeout(struct xe_gt *gt, unsigned int vfid, u32 *preempt_timeout)
 {
-	return pf_push_vf_cfg_u32(gt, vfid, GUC_KLV_VF_CFG_PREEMPT_TIMEOUT_KEY, preempt_timeout);
+	/* GuC will silently clamp values exceeding max */
+	*preempt_timeout = min_t(u32, *preempt_timeout, GUC_KLV_VF_CFG_PREEMPT_TIMEOUT_MAX_VALUE);
+
+	return pf_push_vf_cfg_u32(gt, vfid, GUC_KLV_VF_CFG_PREEMPT_TIMEOUT_KEY, *preempt_timeout);
 }
 
 static int pf_push_vf_cfg_lmem(struct xe_gt *gt, unsigned int vfid, u64 size)
 {
 	return pf_push_vf_cfg_u64(gt, vfid, GUC_KLV_VF_CFG_LMEM_SIZE_KEY, size);
+}
+
+static int pf_push_vf_cfg_threshold(struct xe_gt *gt, unsigned int vfid,
+				    enum xe_guc_klv_threshold_index index, u32 value)
+{
+	u32 key = xe_guc_klv_threshold_index_to_key(index);
+
+	xe_gt_assert(gt, key);
+	return pf_push_vf_cfg_u32(gt, vfid, key, value);
 }
 
 static struct xe_gt_sriov_config *pf_pick_vf_config(struct xe_gt *gt, unsigned int vfid)
@@ -216,14 +233,14 @@ static u32 encode_config_ggtt(u32 *cfg, const struct xe_gt_sriov_config *config)
 {
 	u32 n = 0;
 
-	if (drm_mm_node_allocated(&config->ggtt_region)) {
+	if (xe_ggtt_node_allocated(config->ggtt_region)) {
 		cfg[n++] = PREP_GUC_KLV_TAG(VF_CFG_GGTT_START);
-		cfg[n++] = lower_32_bits(config->ggtt_region.start);
-		cfg[n++] = upper_32_bits(config->ggtt_region.start);
+		cfg[n++] = lower_32_bits(config->ggtt_region->base.start);
+		cfg[n++] = upper_32_bits(config->ggtt_region->base.start);
 
 		cfg[n++] = PREP_GUC_KLV_TAG(VF_CFG_GGTT_SIZE);
-		cfg[n++] = lower_32_bits(config->ggtt_region.size);
-		cfg[n++] = upper_32_bits(config->ggtt_region.size);
+		cfg[n++] = lower_32_bits(config->ggtt_region->base.size);
+		cfg[n++] = upper_32_bits(config->ggtt_region->base.size);
 	}
 
 	return n;
@@ -259,6 +276,14 @@ static u32 encode_config(u32 *cfg, const struct xe_gt_sriov_config *config)
 
 	cfg[n++] = PREP_GUC_KLV_TAG(VF_CFG_PREEMPT_TIMEOUT);
 	cfg[n++] = config->preempt_timeout;
+
+#define encode_threshold_config(TAG, ...) ({					\
+	cfg[n++] = PREP_GUC_KLV_TAG(VF_CFG_THRESHOLD_##TAG);			\
+	cfg[n++] = config->thresholds[MAKE_XE_GUC_KLV_THRESHOLD_INDEX(TAG)];	\
+});
+
+	MAKE_XE_GUC_KLV_THRESHOLDS_SET(encode_threshold_config);
+#undef encode_threshold_config
 
 	return n;
 }
@@ -353,29 +378,28 @@ static int pf_distribute_config_ggtt(struct xe_tile *tile, unsigned int vfid, u6
 	return err ?: err2;
 }
 
-static void pf_release_ggtt(struct xe_tile *tile, struct drm_mm_node *node)
+static void pf_release_ggtt(struct xe_tile *tile, struct xe_ggtt_node *node)
 {
-	struct xe_ggtt *ggtt = tile->mem.ggtt;
-
-	if (drm_mm_node_allocated(node)) {
+	if (xe_ggtt_node_allocated(node)) {
 		/*
 		 * explicit GGTT PTE assignment to the PF using xe_ggtt_assign()
 		 * is redundant, as PTE will be implicitly re-assigned to PF by
 		 * the xe_ggtt_clear() called by below xe_ggtt_remove_node().
 		 */
-		xe_ggtt_remove_node(ggtt, node, false);
+		xe_ggtt_node_remove(node, false);
 	}
 }
 
 static void pf_release_vf_config_ggtt(struct xe_gt *gt, struct xe_gt_sriov_config *config)
 {
-	pf_release_ggtt(gt_to_tile(gt), &config->ggtt_region);
+	pf_release_ggtt(gt_to_tile(gt), config->ggtt_region);
+	config->ggtt_region = NULL;
 }
 
 static int pf_provision_vf_ggtt(struct xe_gt *gt, unsigned int vfid, u64 size)
 {
 	struct xe_gt_sriov_config *config = pf_pick_vf_config(gt, vfid);
-	struct drm_mm_node *node = &config->ggtt_region;
+	struct xe_ggtt_node *node;
 	struct xe_tile *tile = gt_to_tile(gt);
 	struct xe_ggtt *ggtt = tile->mem.ggtt;
 	u64 alignment = pf_get_ggtt_alignment(gt);
@@ -387,40 +411,48 @@ static int pf_provision_vf_ggtt(struct xe_gt *gt, unsigned int vfid, u64 size)
 
 	size = round_up(size, alignment);
 
-	if (drm_mm_node_allocated(node)) {
+	if (xe_ggtt_node_allocated(config->ggtt_region)) {
 		err = pf_distribute_config_ggtt(tile, vfid, 0, 0);
 		if (unlikely(err))
 			return err;
 
-		pf_release_ggtt(tile, node);
+		pf_release_vf_config_ggtt(gt, config);
 	}
-	xe_gt_assert(gt, !drm_mm_node_allocated(node));
+	xe_gt_assert(gt, !xe_ggtt_node_allocated(config->ggtt_region));
 
 	if (!size)
 		return 0;
 
-	err = xe_ggtt_insert_special_node(ggtt, node, size, alignment);
-	if (unlikely(err))
-		return err;
+	node = xe_ggtt_node_init(ggtt);
+	if (IS_ERR(node))
+		return PTR_ERR(node);
 
-	xe_ggtt_assign(ggtt, node, vfid);
+	err = xe_ggtt_node_insert(node, size, alignment);
+	if (unlikely(err))
+		goto err;
+
+	xe_ggtt_assign(node, vfid);
 	xe_gt_sriov_dbg_verbose(gt, "VF%u assigned GGTT %llx-%llx\n",
-				vfid, node->start, node->start + node->size - 1);
+				vfid, node->base.start, node->base.start + node->base.size - 1);
 
-	err = pf_distribute_config_ggtt(gt->tile, vfid, node->start, node->size);
+	err = pf_distribute_config_ggtt(gt->tile, vfid, node->base.start, node->base.size);
 	if (unlikely(err))
-		return err;
+		goto err;
 
+	config->ggtt_region = node;
 	return 0;
+err:
+	xe_ggtt_node_fini(node);
+	return err;
 }
 
 static u64 pf_get_vf_config_ggtt(struct xe_gt *gt, unsigned int vfid)
 {
 	struct xe_gt_sriov_config *config = pf_pick_vf_config(gt, vfid);
-	struct drm_mm_node *node = &config->ggtt_region;
+	struct xe_ggtt_node *node = config->ggtt_region;
 
 	xe_gt_assert(gt, !xe_gt_is_media_type(gt));
-	return drm_mm_node_allocated(node) ? node->size : 0;
+	return xe_ggtt_node_allocated(node) ? node->base.size : 0;
 }
 
 /**
@@ -571,30 +603,11 @@ int xe_gt_sriov_pf_config_bulk_set_ggtt(struct xe_gt *gt, unsigned int vfid,
 static u64 pf_get_max_ggtt(struct xe_gt *gt)
 {
 	struct xe_ggtt *ggtt = gt_to_tile(gt)->mem.ggtt;
-	const struct drm_mm *mm = &ggtt->mm;
-	const struct drm_mm_node *entry;
 	u64 alignment = pf_get_ggtt_alignment(gt);
 	u64 spare = pf_get_spare_ggtt(gt);
-	u64 hole_min_start = xe_wopcm_size(gt_to_xe(gt));
-	u64 hole_start, hole_end, hole_size;
-	u64 max_hole = 0;
+	u64 max_hole;
 
-	mutex_lock(&ggtt->lock);
-
-	drm_mm_for_each_hole(entry, mm, hole_start, hole_end) {
-		hole_start = max(hole_start, hole_min_start);
-		hole_start = ALIGN(hole_start, alignment);
-		hole_end = ALIGN_DOWN(hole_end, alignment);
-		if (hole_start >= hole_end)
-			continue;
-		hole_size = hole_end - hole_start;
-		xe_gt_sriov_dbg_verbose(gt, "HOLE start %llx size %lluK\n",
-					hole_start, hole_size / SZ_1K);
-		spare -= min3(spare, hole_size, max_hole);
-		max_hole = max(max_hole, hole_size);
-	}
-
-	mutex_unlock(&ggtt->lock);
+	max_hole = xe_ggtt_largest_hole(ggtt, alignment, &spare);
 
 	xe_gt_sriov_dbg_verbose(gt, "HOLE max %lluK reserved %lluK\n",
 				max_hole / SZ_1K, spare / SZ_1K);
@@ -1385,6 +1398,7 @@ static int pf_provision_vf_lmem(struct xe_gt *gt, unsigned int vfid, u64 size)
 				  ALIGN(size, PAGE_SIZE),
 				  ttm_bo_type_kernel,
 				  XE_BO_FLAG_VRAM_IF_DGFX(tile) |
+				  XE_BO_FLAG_NEEDS_2M |
 				  XE_BO_FLAG_PINNED);
 	if (IS_ERR(bo))
 		return PTR_ERR(bo);
@@ -1527,6 +1541,7 @@ static u64 pf_estimate_fair_lmem(struct xe_gt *gt, unsigned int num_vfs)
 	u64 fair;
 
 	fair = div_u64(available, num_vfs);
+	fair = rounddown_pow_of_two(fair);	/* XXX: ttm_vram_mgr & drm_buddy limitation */
 	fair = ALIGN_DOWN(fair, alignment);
 #ifdef MAX_FAIR_LMEM
 	fair = min_t(u64, MAX_FAIR_LMEM, fair);
@@ -1612,7 +1627,7 @@ static int pf_provision_exec_quantum(struct xe_gt *gt, unsigned int vfid,
 	struct xe_gt_sriov_config *config = pf_pick_vf_config(gt, vfid);
 	int err;
 
-	err = pf_push_vf_cfg_exec_quantum(gt, vfid, exec_quantum);
+	err = pf_push_vf_cfg_exec_quantum(gt, vfid, &exec_quantum);
 	if (unlikely(err))
 		return err;
 
@@ -1682,7 +1697,7 @@ static int pf_provision_preempt_timeout(struct xe_gt *gt, unsigned int vfid,
 	struct xe_gt_sriov_config *config = pf_pick_vf_config(gt, vfid);
 	int err;
 
-	err = pf_push_vf_cfg_preempt_timeout(gt, vfid, preempt_timeout);
+	err = pf_push_vf_cfg_preempt_timeout(gt, vfid, &preempt_timeout);
 	if (unlikely(err))
 		return err;
 
@@ -1750,6 +1765,95 @@ static void pf_reset_config_sched(struct xe_gt *gt, struct xe_gt_sriov_config *c
 	config->preempt_timeout = 0;
 }
 
+static int pf_provision_threshold(struct xe_gt *gt, unsigned int vfid,
+				  enum xe_guc_klv_threshold_index index, u32 value)
+{
+	struct xe_gt_sriov_config *config = pf_pick_vf_config(gt, vfid);
+	int err;
+
+	err = pf_push_vf_cfg_threshold(gt, vfid, index, value);
+	if (unlikely(err))
+		return err;
+
+	config->thresholds[index] = value;
+
+	return 0;
+}
+
+static int pf_get_threshold(struct xe_gt *gt, unsigned int vfid,
+			    enum xe_guc_klv_threshold_index index)
+{
+	struct xe_gt_sriov_config *config = pf_pick_vf_config(gt, vfid);
+
+	return config->thresholds[index];
+}
+
+static const char *threshold_unit(u32 threshold)
+{
+	return threshold ? "" : "(disabled)";
+}
+
+/**
+ * xe_gt_sriov_pf_config_set_threshold - Configure threshold for the VF.
+ * @gt: the &xe_gt
+ * @vfid: the VF identifier
+ * @index: the threshold index
+ * @value: requested value (0 means disabled)
+ *
+ * This function can only be called on PF.
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
+int xe_gt_sriov_pf_config_set_threshold(struct xe_gt *gt, unsigned int vfid,
+					enum xe_guc_klv_threshold_index index, u32 value)
+{
+	u32 key = xe_guc_klv_threshold_index_to_key(index);
+	const char *name = xe_guc_klv_key_to_string(key);
+	int err;
+
+	mutex_lock(xe_gt_sriov_pf_master_mutex(gt));
+	err = pf_provision_threshold(gt, vfid, index, value);
+	mutex_unlock(xe_gt_sriov_pf_master_mutex(gt));
+
+	return pf_config_set_u32_done(gt, vfid, value,
+				      xe_gt_sriov_pf_config_get_threshold(gt, vfid, index),
+				      name, threshold_unit, err);
+}
+
+/**
+ * xe_gt_sriov_pf_config_get_threshold - Get VF's threshold.
+ * @gt: the &xe_gt
+ * @vfid: the VF identifier
+ * @index: the threshold index
+ *
+ * This function can only be called on PF.
+ *
+ * Return: value of VF's (or PF's) threshold.
+ */
+u32 xe_gt_sriov_pf_config_get_threshold(struct xe_gt *gt, unsigned int vfid,
+					enum xe_guc_klv_threshold_index index)
+{
+	u32 value;
+
+	mutex_lock(xe_gt_sriov_pf_master_mutex(gt));
+	value = pf_get_threshold(gt, vfid, index);
+	mutex_unlock(xe_gt_sriov_pf_master_mutex(gt));
+
+	return value;
+}
+
+static void pf_reset_config_thresholds(struct xe_gt *gt, struct xe_gt_sriov_config *config)
+{
+	lockdep_assert_held(xe_gt_sriov_pf_master_mutex(gt));
+
+#define reset_threshold_config(TAG, ...) ({				\
+	config->thresholds[MAKE_XE_GUC_KLV_THRESHOLD_INDEX(TAG)] = 0;	\
+});
+
+	MAKE_XE_GUC_KLV_THRESHOLDS_SET(reset_threshold_config);
+#undef reset_threshold_config
+}
+
 static void pf_release_vf_config(struct xe_gt *gt, unsigned int vfid)
 {
 	struct xe_gt_sriov_config *config = pf_pick_vf_config(gt, vfid);
@@ -1765,6 +1869,7 @@ static void pf_release_vf_config(struct xe_gt *gt, unsigned int vfid)
 	pf_release_config_ctxs(gt, config);
 	pf_release_config_dbs(gt, config);
 	pf_reset_config_sched(gt, config);
+	pf_reset_config_thresholds(gt, config);
 }
 
 /**
@@ -1798,6 +1903,87 @@ int xe_gt_sriov_pf_config_release(struct xe_gt *gt, unsigned int vfid, bool forc
 	return force ? 0 : err;
 }
 
+static void pf_sanitize_ggtt(struct xe_ggtt_node *ggtt_region, unsigned int vfid)
+{
+	if (xe_ggtt_node_allocated(ggtt_region))
+		xe_ggtt_assign(ggtt_region, vfid);
+}
+
+static int pf_sanitize_lmem(struct xe_tile *tile, struct xe_bo *bo, long timeout)
+{
+	struct xe_migrate *m = tile->migrate;
+	struct dma_fence *fence;
+	int err;
+
+	if (!bo)
+		return 0;
+
+	xe_bo_lock(bo, false);
+	fence = xe_migrate_clear(m, bo, bo->ttm.resource, XE_MIGRATE_CLEAR_FLAG_FULL);
+	if (IS_ERR(fence)) {
+		err = PTR_ERR(fence);
+	} else if (!fence) {
+		err = -ENOMEM;
+	} else {
+		long ret = dma_fence_wait_timeout(fence, false, timeout);
+
+		err = ret > 0 ? 0 : ret < 0 ? ret : -ETIMEDOUT;
+		dma_fence_put(fence);
+		if (!err)
+			xe_gt_sriov_dbg_verbose(tile->primary_gt, "LMEM cleared in %dms\n",
+						jiffies_to_msecs(timeout - ret));
+	}
+	xe_bo_unlock(bo);
+
+	return err;
+}
+
+static int pf_sanitize_vf_resources(struct xe_gt *gt, u32 vfid, long timeout)
+{
+	struct xe_gt_sriov_config *config = pf_pick_vf_config(gt, vfid);
+	struct xe_tile *tile = gt_to_tile(gt);
+	struct xe_device *xe = gt_to_xe(gt);
+	int err = 0;
+
+	/*
+	 * Only GGTT and LMEM requires to be cleared by the PF.
+	 * GuC doorbell IDs and context IDs do not need any clearing.
+	 */
+	if (!xe_gt_is_media_type(gt)) {
+		pf_sanitize_ggtt(config->ggtt_region, vfid);
+		if (IS_DGFX(xe))
+			err = pf_sanitize_lmem(tile, config->lmem_obj, timeout);
+	}
+
+	return err;
+}
+
+/**
+ * xe_gt_sriov_pf_config_sanitize() - Sanitize VF's resources.
+ * @gt: the &xe_gt
+ * @vfid: the VF identifier (can't be PF)
+ * @timeout: maximum timeout to wait for completion in jiffies
+ *
+ * This function can only be called on PF.
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
+int xe_gt_sriov_pf_config_sanitize(struct xe_gt *gt, unsigned int vfid, long timeout)
+{
+	int err;
+
+	xe_gt_assert(gt, vfid != PFID);
+
+	mutex_lock(xe_gt_sriov_pf_master_mutex(gt));
+	err = pf_sanitize_vf_resources(gt, vfid, timeout);
+	mutex_unlock(xe_gt_sriov_pf_master_mutex(gt));
+
+	if (unlikely(err))
+		xe_gt_sriov_notice(gt, "VF%u resource sanitizing failed (%pe)\n",
+				   vfid, ERR_PTR(err));
+	return err;
+}
+
 /**
  * xe_gt_sriov_pf_config_push - Reprovision VF's configuration.
  * @gt: the &xe_gt
@@ -1829,6 +2015,89 @@ int xe_gt_sriov_pf_config_push(struct xe_gt *gt, unsigned int vfid, bool refresh
 	return err;
 }
 
+static int pf_validate_vf_config(struct xe_gt *gt, unsigned int vfid)
+{
+	struct xe_gt *primary_gt = gt_to_tile(gt)->primary_gt;
+	struct xe_device *xe = gt_to_xe(gt);
+	bool is_primary = !xe_gt_is_media_type(gt);
+	bool valid_ggtt, valid_ctxs, valid_dbs;
+	bool valid_any, valid_all;
+
+	valid_ggtt = pf_get_vf_config_ggtt(primary_gt, vfid);
+	valid_ctxs = pf_get_vf_config_ctxs(gt, vfid);
+	valid_dbs = pf_get_vf_config_dbs(gt, vfid);
+
+	/* note that GuC doorbells are optional */
+	valid_any = valid_ctxs || valid_dbs;
+	valid_all = valid_ctxs;
+
+	/* and GGTT/LMEM is configured on primary GT only */
+	valid_all = valid_all && valid_ggtt;
+	valid_any = valid_any || (valid_ggtt && is_primary);
+
+	if (IS_DGFX(xe)) {
+		bool valid_lmem = pf_get_vf_config_ggtt(primary_gt, vfid);
+
+		valid_any = valid_any || (valid_lmem && is_primary);
+		valid_all = valid_all && valid_lmem;
+	}
+
+	return valid_all ? 1 : valid_any ? -ENOKEY : -ENODATA;
+}
+
+/**
+ * xe_gt_sriov_pf_config_is_empty - Check VF's configuration.
+ * @gt: the &xe_gt
+ * @vfid: the VF identifier (can't be PF)
+ *
+ * This function can only be called on PF.
+ *
+ * Return: true if VF mandatory configuration (GGTT, LMEM, ...) is empty.
+ */
+bool xe_gt_sriov_pf_config_is_empty(struct xe_gt *gt, unsigned int vfid)
+{
+	bool empty;
+
+	xe_gt_assert(gt, IS_SRIOV_PF(gt_to_xe(gt)));
+	xe_gt_assert(gt, vfid);
+
+	mutex_lock(xe_gt_sriov_pf_master_mutex(gt));
+	empty = pf_validate_vf_config(gt, vfid) == -ENODATA;
+	mutex_unlock(xe_gt_sriov_pf_master_mutex(gt));
+
+	return empty;
+}
+
+/**
+ * xe_gt_sriov_pf_config_restart - Restart SR-IOV configurations after a GT reset.
+ * @gt: the &xe_gt
+ *
+ * Any prior configurations pushed to GuC are lost when the GT is reset.
+ * Push again all non-empty VF configurations to the GuC.
+ *
+ * This function can only be called on PF.
+ */
+void xe_gt_sriov_pf_config_restart(struct xe_gt *gt)
+{
+	unsigned int n, total_vfs = xe_sriov_pf_get_totalvfs(gt_to_xe(gt));
+	unsigned int fail = 0, skip = 0;
+
+	for (n = 1; n <= total_vfs; n++) {
+		if (xe_gt_sriov_pf_config_is_empty(gt, n))
+			skip++;
+		else if (xe_gt_sriov_pf_config_push(gt, n, false))
+			fail++;
+	}
+
+	if (fail)
+		xe_gt_sriov_notice(gt, "Failed to push %u of %u VF%s configurations\n",
+				   fail, total_vfs - skip, str_plural(total_vfs));
+
+	if (fail != total_vfs)
+		xe_gt_sriov_dbg(gt, "pushed %u skip %u of %u VF%s configurations\n",
+				total_vfs - skip - fail, skip, total_vfs, str_plural(total_vfs));
+}
+
 /**
  * xe_gt_sriov_pf_config_print_ggtt - Print GGTT configurations.
  * @gt: the &xe_gt
@@ -1847,13 +2116,15 @@ int xe_gt_sriov_pf_config_print_ggtt(struct xe_gt *gt, struct drm_printer *p)
 
 	for (n = 1; n <= total_vfs; n++) {
 		config = &gt->sriov.pf.vfs[n].config;
-		if (!drm_mm_node_allocated(&config->ggtt_region))
+		if (!xe_ggtt_node_allocated(config->ggtt_region))
 			continue;
 
-		string_get_size(config->ggtt_region.size, 1, STRING_UNITS_2, buf, sizeof(buf));
+		string_get_size(config->ggtt_region->base.size, 1, STRING_UNITS_2,
+				buf, sizeof(buf));
 		drm_printf(p, "VF%u:\t%#0llx-%#llx\t(%s)\n",
-			   n, config->ggtt_region.start,
-			   config->ggtt_region.start + config->ggtt_region.size - 1, buf);
+			   n, config->ggtt_region->base.start,
+			   config->ggtt_region->base.start + config->ggtt_region->base.size - 1,
+			   buf);
 	}
 
 	return 0;
@@ -1941,12 +2212,8 @@ int xe_gt_sriov_pf_config_print_dbs(struct xe_gt *gt, struct drm_printer *p)
 int xe_gt_sriov_pf_config_print_available_ggtt(struct xe_gt *gt, struct drm_printer *p)
 {
 	struct xe_ggtt *ggtt = gt_to_tile(gt)->mem.ggtt;
-	const struct drm_mm *mm = &ggtt->mm;
-	const struct drm_mm_node *entry;
 	u64 alignment = pf_get_ggtt_alignment(gt);
-	u64 hole_min_start = xe_wopcm_size(gt_to_xe(gt));
-	u64 hole_start, hole_end, hole_size;
-	u64 spare, avail, total = 0;
+	u64 spare, avail, total;
 	char buf[10];
 
 	xe_gt_assert(gt, IS_SRIOV_PF(gt_to_xe(gt)));
@@ -1954,24 +2221,8 @@ int xe_gt_sriov_pf_config_print_available_ggtt(struct xe_gt *gt, struct drm_prin
 	mutex_lock(xe_gt_sriov_pf_master_mutex(gt));
 
 	spare = pf_get_spare_ggtt(gt);
+	total = xe_ggtt_print_holes(ggtt, alignment, p);
 
-	mutex_lock(&ggtt->lock);
-
-	drm_mm_for_each_hole(entry, mm, hole_start, hole_end) {
-		hole_start = max(hole_start, hole_min_start);
-		hole_start = ALIGN(hole_start, alignment);
-		hole_end = ALIGN_DOWN(hole_end, alignment);
-		if (hole_start >= hole_end)
-			continue;
-		hole_size = hole_end - hole_start;
-		total += hole_size;
-
-		string_get_size(hole_size, 1, STRING_UNITS_2, buf, sizeof(buf));
-		drm_printf(p, "range:\t%#llx-%#llx\t(%s)\n",
-			   hole_start, hole_end - 1, buf);
-	}
-
-	mutex_unlock(&ggtt->lock);
 	mutex_unlock(xe_gt_sriov_pf_master_mutex(gt));
 
 	string_get_size(total, 1, STRING_UNITS_2, buf, sizeof(buf));

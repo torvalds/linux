@@ -159,7 +159,7 @@ static const u8 TMP51X_CURR_INPUT[2] = {
 	TMP51X_BUS_CURRENT_RESULT
 };
 
-static struct regmap_config tmp51x_regmap_config = {
+static const struct regmap_config tmp51x_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 16,
 	.max_register = TMP51X_MAX_REGISTER_ADDR,

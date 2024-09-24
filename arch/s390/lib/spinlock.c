@@ -75,7 +75,7 @@ static inline int arch_load_niai4(int *lock)
 	int owner;
 
 	asm_inline volatile(
-		ALTERNATIVE("nop", ".insn rre,0xb2fa0000,4,0", 49) /* NIAI 4 */
+		ALTERNATIVE("nop", ".insn rre,0xb2fa0000,4,0", ALT_FACILITY(49)) /* NIAI 4 */
 		"	l	%0,%1\n"
 		: "=d" (owner) : "Q" (*lock) : "memory");
 	return owner;
@@ -86,7 +86,7 @@ static inline int arch_cmpxchg_niai8(int *lock, int old, int new)
 	int expected = old;
 
 	asm_inline volatile(
-		ALTERNATIVE("nop", ".insn rre,0xb2fa0000,8,0", 49) /* NIAI 8 */
+		ALTERNATIVE("nop", ".insn rre,0xb2fa0000,8,0", ALT_FACILITY(49)) /* NIAI 8 */
 		"	cs	%0,%3,%1\n"
 		: "=d" (old), "=Q" (*lock)
 		: "0" (old), "d" (new), "Q" (*lock)
@@ -119,7 +119,7 @@ static inline void arch_spin_lock_queued(arch_spinlock_t *lp)
 	struct spin_wait *node, *next;
 	int lockval, ix, node_id, tail_id, old, new, owner, count;
 
-	ix = S390_lowcore.spinlock_index++;
+	ix = get_lowcore()->spinlock_index++;
 	barrier();
 	lockval = SPINLOCK_LOCKVAL;	/* cpu + 1 */
 	node = this_cpu_ptr(&spin_wait[ix]);
@@ -205,7 +205,7 @@ static inline void arch_spin_lock_queued(arch_spinlock_t *lp)
 	}
 
  out:
-	S390_lowcore.spinlock_index--;
+	get_lowcore()->spinlock_index--;
 }
 
 static inline void arch_spin_lock_classic(arch_spinlock_t *lp)
