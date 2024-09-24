@@ -2133,13 +2133,11 @@ static struct device *svs_get_subsys_device(struct svs_platform *svsp,
 	}
 
 	pdev = of_find_device_by_node(np);
+	of_node_put(np);
 	if (!pdev) {
-		of_node_put(np);
 		dev_err(svsp->dev, "cannot find pdev by %s\n", node_name);
 		return ERR_PTR(-ENXIO);
 	}
-
-	of_node_put(np);
 
 	return &pdev->dev;
 }
