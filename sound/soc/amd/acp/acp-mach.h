@@ -53,14 +53,6 @@ enum codec_endpoints {
 	ES83XX,
 };
 
-enum platform_end_point {
-	RENOIR = 0,
-	REMBRANDT,
-	ACP63,
-	ACP70,
-	ACP71,
-};
-
 struct acp_mach_ops {
 	int (*probe)(struct snd_soc_card *card);
 	int (*configure_link)(struct snd_soc_card *card, struct snd_soc_dai_link *dai_link);

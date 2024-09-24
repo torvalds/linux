@@ -201,7 +201,6 @@ struct acp_dev_data {
 	u32 xfer_tx_resolution[3];
 	u32 xfer_rx_resolution[3];
 	unsigned int flag;
-	unsigned int platform;
 };
 
 enum acp_config {

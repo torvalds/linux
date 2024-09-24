@@ -210,11 +210,6 @@ static int acp_acp70_audio_probe(struct platform_device *pdev)
 	adata->rsrc = &rsrc;
 	adata->machines = snd_soc_acpi_amd_acp70_acp_machines;
 	adata->acp_rev = chip->acp_rev;
-	if (chip->acp_rev == ACP70_PCI_ID)
-		adata->platform = ACP70;
-	else
-		adata->platform = ACP71;
-
 	adata->flag = chip->flag;
 	acp_machine_select(adata);
 
