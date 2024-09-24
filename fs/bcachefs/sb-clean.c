@@ -167,6 +167,7 @@ struct bch_sb_field_clean *bch2_read_superblock_clean(struct bch_fs *c)
 
 	ret = bch2_sb_clean_validate_late(c, clean, READ);
 	if (ret) {
+		kfree(clean);
 		mutex_unlock(&c->sb_lock);
 		return ERR_PTR(ret);
 	}
