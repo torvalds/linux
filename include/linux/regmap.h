@@ -54,7 +54,14 @@ struct sdw_slave;
 #define REGMAP_UPSHIFT(s)	(-(s))
 #define REGMAP_DOWNSHIFT(s)	(s)
 
-/* An enum of all the supported cache types */
+/*
+ * The supported cache types, the default is no cache.  Any new caches
+ * should usually use the maple tree cache unless they specifically
+ * require that there are never any allocations at runtime and can't
+ * provide defaults in which case they should use the flat cache.  The
+ * rbtree cache *may* have some performance advantage for very low end
+ * systems that make heavy use of cache syncs but is mainly legacy.
+ */
 enum regcache_type {
 	REGCACHE_NONE,
 	REGCACHE_RBTREE,
