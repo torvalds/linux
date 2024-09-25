@@ -84,6 +84,12 @@ static void ocelot_irq_unmask(struct irq_data *data)
 	u32 val;
 
 	irq_gc_lock(gc);
+	/*
+	 * Clear sticky bits for edge mode interrupts.
+	 * Serval has only one trigger register replication, but the adjacent
+	 * register is always read as zero, so there's no need to handle this
+	 * case separately.
+	 */
 	val = irq_reg_readl(gc, ICPU_CFG_INTR_INTR_TRIGGER(p, 0)) |
 		irq_reg_readl(gc, ICPU_CFG_INTR_INTR_TRIGGER(p, 1));
 	if (!(val & mask))
