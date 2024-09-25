@@ -10,7 +10,6 @@
  * shared outside of the drivers/base/ directory.
  *
  */
-#include <linux/async.h>
 #include <linux/notifier.h>
 
 /**
@@ -98,8 +97,6 @@ struct driver_private {
  *	the device; typically because it depends on another driver getting
  *	probed first.
  * @async_driver - pointer to device driver awaiting probe via async_probe
- * @shutdown_after - used during device shutdown to ensure correct shutdown
- *	ordering.
  * @device - pointer back to the struct device that this structure is
  * associated with.
  * @dead - This device is currently either in the process of or has been
@@ -117,7 +114,6 @@ struct device_private {
 	struct list_head deferred_probe;
 	const struct device_driver *async_driver;
 	char *deferred_probe_reason;
-	async_cookie_t shutdown_after;
 	struct device *device;
 	u8 dead:1;
 };
