@@ -1603,9 +1603,9 @@ static void sdma_v6_0_get_clockgating_state(void *handle, u64 *flags)
 {
 }
 
-static void sdma_v6_0_print_ip_state(void *handle, struct drm_printer *p)
+static void sdma_v6_0_print_ip_state(struct amdgpu_ip_block *ip_block, struct drm_printer *p)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	int i, j;
 	uint32_t reg_count = ARRAY_SIZE(sdma_reg_list_6_0);
 	uint32_t instance_offset;

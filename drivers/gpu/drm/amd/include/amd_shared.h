@@ -402,7 +402,7 @@ struct amd_ip_funcs {
 				     enum amd_powergating_state state);
 	void (*get_clockgating_state)(void *handle, u64 *flags);
 	void (*dump_ip_state)(struct amdgpu_ip_block *ip_block);
-	void (*print_ip_state)(void *handle, struct drm_printer *p);
+	void (*print_ip_state)(struct amdgpu_ip_block *ip_block, struct drm_printer *p);
 };
 
 

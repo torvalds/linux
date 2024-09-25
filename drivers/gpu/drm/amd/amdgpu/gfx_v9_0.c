@@ -7337,9 +7337,9 @@ static int gfx_v9_0_reset_kcq(struct amdgpu_ring *ring,
 	return amdgpu_ring_test_ring(ring);
 }
 
-static void gfx_v9_ip_print(void *handle, struct drm_printer *p)
+static void gfx_v9_ip_print(struct amdgpu_ip_block *ip_block, struct drm_printer *p)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	uint32_t i, j, k, reg, index = 0;
 	uint32_t reg_count = ARRAY_SIZE(gc_reg_list_9);
 
