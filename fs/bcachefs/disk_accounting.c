@@ -324,7 +324,8 @@ int bch2_accounting_mem_insert(struct bch_fs *c, struct bkey_s_c_accounting a,
 {
 	struct bch_replicas_padded r;
 
-	if (accounting_to_replicas(&r.e, a.k->p) &&
+	if (mode != BCH_ACCOUNTING_read &&
+	    accounting_to_replicas(&r.e, a.k->p) &&
 	    !bch2_replicas_marked_locked(c, &r.e))
 		return -BCH_ERR_btree_insert_need_mark_replicas;
 
@@ -592,7 +593,6 @@ fsck_err:
 static int accounting_read_key(struct btree_trans *trans, struct bkey_s_c k)
 {
 	struct bch_fs *c = trans->c;
-	struct printbuf buf = PRINTBUF;
 
 	if (k.k->type != KEY_TYPE_accounting)
 		return 0;
@@ -601,22 +601,6 @@ static int accounting_read_key(struct btree_trans *trans, struct bkey_s_c k)
 	int ret = bch2_accounting_mem_mod_locked(trans, bkey_s_c_to_accounting(k),
 						 BCH_ACCOUNTING_read);
 	percpu_up_read(&c->mark_lock);
-
-	if (bch2_accounting_key_is_zero(bkey_s_c_to_accounting(k)) &&
-	    ret == -BCH_ERR_btree_insert_need_mark_replicas)
-		ret = 0;
-
-	struct disk_accounting_pos acc;
-	bpos_to_disk_accounting_pos(&acc, k.k->p);
-
-	if (fsck_err_on(ret == -BCH_ERR_btree_insert_need_mark_replicas,
-			trans, accounting_replicas_not_marked,
-			"accounting not marked in superblock replicas\n  %s",
-			(bch2_accounting_key_to_text(&buf, &acc),
-			 buf.buf)))
-		ret = bch2_accounting_update_sb_one(c, k.k->p);
-fsck_err:
-	printbuf_exit(&buf);
 	return ret;
 }
 
@@ -628,6 +612,7 @@ int bch2_accounting_read(struct bch_fs *c)
 {
 	struct bch_accounting_mem *acc = &c->accounting;
 	struct btree_trans *trans = bch2_trans_get(c);
+	struct printbuf buf = PRINTBUF;
 
 	int ret = for_each_btree_key(trans, iter,
 				BTREE_ID_accounting, POS_MIN,
@@ -678,6 +663,30 @@ int bch2_accounting_read(struct bch_fs *c)
 	keys->gap = keys->nr = dst - keys->data;
 
 	percpu_down_read(&c->mark_lock);
+	for (unsigned i = 0; i < acc->k.nr; i++) {
+		u64 v[BCH_ACCOUNTING_MAX_COUNTERS];
+		bch2_accounting_mem_read_counters(acc, i, v, ARRAY_SIZE(v), false);
+
+		if (bch2_is_zero(v, sizeof(v[0]) * acc->k.data[i].nr_counters))
+			continue;
+
+		struct bch_replicas_padded r;
+
+		if (!accounting_to_replicas(&r.e, acc->k.data[i].pos))
+			continue;
+
+		struct disk_accounting_pos k;
+		bpos_to_disk_accounting_pos(&k, acc->k.data[i].pos);
+
+		if (fsck_err_on(!bch2_replicas_marked_locked(c, &r.e),
+				trans, accounting_replicas_not_marked,
+				"accounting not marked in superblock replicas\n  %s",
+				(printbuf_reset(&buf),
+				 bch2_accounting_key_to_text(&buf, &k),
+				 buf.buf)))
+			ret = bch2_accounting_update_sb_one(c, acc->k.data[i].pos);
+	}
+
 	preempt_disable();
 	struct bch_fs_usage_base *usage = this_cpu_ptr(c->usage);
 
@@ -713,8 +722,10 @@ int bch2_accounting_read(struct bch_fs *c)
 		}
 	}
 	preempt_enable();
+fsck_err:
 	percpu_up_read(&c->mark_lock);
 err:
+	printbuf_exit(&buf);
 	bch2_trans_put(trans);
 	bch_err_fn(c, ret);
 	return ret;
