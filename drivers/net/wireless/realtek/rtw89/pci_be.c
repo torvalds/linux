@@ -584,6 +584,8 @@ static int __maybe_unused rtw89_pci_resume_be(struct device *dev)
 	rtw89_write32_set(rtwdev, R_BE_SER_PL1_CTRL, B_BE_PL1_SER_PL1_EN);
 	rtw89_write32_set(rtwdev, R_BE_REG_PL1_MASK, B_BE_SER_PM_MASTER_IMR);
 
+	rtw89_pci_basic_cfg(rtwdev, true);
+
 	return 0;
 }
 
