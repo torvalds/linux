@@ -158,8 +158,14 @@ config_stmt: config_entry_start config_option_list
 			yynerrs++;
 		}
 
-		list_add_tail(&current_entry->sym->choice_link,
-			      &current_choice->choice_members);
+		/*
+		 * If the same symbol appears twice in a choice block, the list
+		 * node would be added twice, leading to a broken linked list.
+		 * list_empty() ensures that this symbol has not yet added.
+		 */
+		if (list_empty(&current_entry->sym->choice_link))
+			list_add_tail(&current_entry->sym->choice_link,
+				      &current_choice->choice_members);
 	}
 
 	printd(DEBUG_PARSE, "%s:%d:endconfig\n", cur_filename, cur_lineno);
