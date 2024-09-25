@@ -266,7 +266,7 @@ in the kernel. This file is write-only and accepts a PKCS#7 signed
 policy. Two checks will always be performed on this policy: First, the
 ``policy_names`` must match with the updated version and the existing
 version. Second the updated policy must have a policy version greater than
-or equal to the currently-running version. This is to prevent rollback attacks.
+the currently-running version. This is to prevent rollback attacks.
 
 The ``delete`` file is used to remove a policy that is no longer needed.
 This file is write-only and accepts a value of ``1`` to delete the policy.
