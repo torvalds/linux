@@ -71,7 +71,6 @@ static int i2c_dw_set_timings_master(struct dw_i2c_dev *dev)
 					ic_clk,
 					4000,	/* tHD;STA = tHIGH = 4.0 us */
 					sda_falling_time,
-					0,	/* 0: DW default, 1: Ideal */
 					0);	/* No offset */
 		dev->ss_lcnt =
 			i2c_dw_scl_lcnt(dev,
@@ -105,7 +104,6 @@ static int i2c_dw_set_timings_master(struct dw_i2c_dev *dev)
 						ic_clk,
 						260,	/* tHIGH = 260 ns */
 						sda_falling_time,
-						0,	/* DW default */
 						0);	/* No offset */
 			dev->fs_lcnt =
 				i2c_dw_scl_lcnt(dev,
@@ -129,7 +127,6 @@ static int i2c_dw_set_timings_master(struct dw_i2c_dev *dev)
 					ic_clk,
 					600,	/* tHD;STA = tHIGH = 0.6 us */
 					sda_falling_time,
-					0,	/* 0: DW default, 1: Ideal */
 					0);	/* No offset */
 		dev->fs_lcnt =
 			i2c_dw_scl_lcnt(dev,
@@ -161,7 +158,6 @@ static int i2c_dw_set_timings_master(struct dw_i2c_dev *dev)
 						ic_clk,
 						160,	/* tHIGH = 160 ns */
 						sda_falling_time,
-						0,	/* DW default */
 						0);	/* No offset */
 			dev->hs_lcnt =
 				i2c_dw_scl_lcnt(dev,
