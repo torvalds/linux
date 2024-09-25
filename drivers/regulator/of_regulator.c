@@ -668,8 +668,8 @@ struct regulator_dev *of_regulator_dev_lookup(struct device *dev, struct device_
 	return ERR_PTR(-ENODEV);
 }
 
-static struct regulator *_of_regulator_get(struct device *dev, struct device_node *node,
-					   const char *id, enum regulator_get_type get_type)
+struct regulator *_of_regulator_get(struct device *dev, struct device_node *node,
+				    const char *id, enum regulator_get_type get_type)
 {
 	struct regulator_dev *r;
 	int ret;
