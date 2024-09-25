@@ -2177,7 +2177,7 @@ smb3_enum_snapshots(const unsigned int xid, struct cifs_tcon *tcon,
 			NULL, 0 /* no input data */, max_response_size,
 			(char **)&retbuf,
 			&ret_data_len);
-	cifs_dbg(FYI, "enum snaphots ioctl returned %d and ret buflen is %d\n",
+	cifs_dbg(FYI, "enum snapshots ioctl returned %d and ret buflen is %d\n",
 			rc, ret_data_len);
 	if (rc)
 		return rc;
@@ -3588,7 +3588,7 @@ static long smb3_simple_falloc(struct file *file, struct cifs_tcon *tcon,
 		/*
 		 * At this point, we are trying to fallocate an internal
 		 * regions of a sparse file. Since smb2 does not have a
-		 * fallocate command we have two otions on how to emulate this.
+		 * fallocate command we have two options on how to emulate this.
 		 * We can either turn the entire file to become non-sparse
 		 * which we only do if the fallocate is for virtually
 		 * the whole file,  or we can overwrite the region with zeroes

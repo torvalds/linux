@@ -239,7 +239,7 @@ int cifs_verify_signature(struct smb_rqst *rqst,
 		cifs_dbg(FYI, "dummy signature received for smb command 0x%x\n",
 			 cifs_pdu->Command);
 
-	/* save off the origiginal signature so we can modify the smb and check
+	/* save off the original signature so we can modify the smb and check
 		its signature against what the server sent */
 	memcpy(server_response_sig, cifs_pdu->Signature.SecuritySignature, 8);
 

@@ -775,7 +775,7 @@ struct TCP_Server_Info {
 	} compression;
 	__u16	signing_algorithm;
 	__le16	cipher_type;
-	 /* save initital negprot hash */
+	 /* save initial negprot hash */
 	__u8	preauth_sha_hash[SMB2_PREAUTH_HASH_SIZE];
 	bool	signing_negotiated; /* true if valid signing context rcvd from server */
 	bool	posix_ext_supported;

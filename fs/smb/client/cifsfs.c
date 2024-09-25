@@ -161,7 +161,7 @@ __u32 cifs_lock_secret;
 
 /*
  * Bumps refcount for cifs super block.
- * Note that it should be only called if a referece to VFS super block is
+ * Note that it should be only called if a reference to VFS super block is
  * already held, e.g. in open-type syscalls context. Otherwise it can race with
  * atomic_dec_and_test in deactivate_locked_super.
  */
@@ -289,7 +289,7 @@ static void cifs_kill_sb(struct super_block *sb)
 	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
 
 	/*
-	 * We ned to release all dentries for the cached directories
+	 * We need to release all dentries for the cached directories
 	 * before we kill the sb.
 	 */
 	if (cifs_sb->root) {
