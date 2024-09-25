@@ -225,7 +225,7 @@ static void cgrp_refresh_hweight(struct cgroup *cgrp, struct fcg_cgrp_ctx *cgc)
 				break;
 
 			/*
-			 * We can be oppotunistic here and not grab the
+			 * We can be opportunistic here and not grab the
 			 * cgv_tree_lock and deal with the occasional races.
 			 * However, hweight updates are already cached and
 			 * relatively low-frequency. Let's just do the
@@ -258,8 +258,7 @@ static void cgrp_cap_budget(struct cgv_node *cgv_node, struct fcg_cgrp_ctx *cgc)
 	 * and thus can't be updated and repositioned. Instead, we collect the
 	 * vtime deltas separately and apply it asynchronously here.
 	 */
-	delta = cgc->cvtime_delta;
-	__sync_fetch_and_sub(&cgc->cvtime_delta, delta);
+	delta = __sync_fetch_and_sub(&cgc->cvtime_delta, cgc->cvtime_delta);
 	cvtime = cgv_node->cvtime + delta;
 
 	/*
