@@ -677,7 +677,7 @@ static struct platform_driver rockchip_sfc_driver = {
 		.of_match_table = rockchip_sfc_dt_ids,
 	},
 	.probe	= rockchip_sfc_probe,
-	.remove_new = rockchip_sfc_remove,
+	.remove = rockchip_sfc_remove,
 };
 module_platform_driver(rockchip_sfc_driver);
 

@@ -288,7 +288,7 @@ MODULE_DEVICE_TABLE(of, tiny_spi_match);
 
 static struct platform_driver tiny_spi_driver = {
 	.probe = tiny_spi_probe,
-	.remove_new = tiny_spi_remove,
+	.remove = tiny_spi_remove,
 	.driver = {
 		.name = DRV_NAME,
 		.pm = NULL,

@@ -1029,7 +1029,7 @@ static void lantiq_ssc_remove(struct platform_device *pdev)
 
 static struct platform_driver lantiq_ssc_driver = {
 	.probe = lantiq_ssc_probe,
-	.remove_new = lantiq_ssc_remove,
+	.remove = lantiq_ssc_remove,
 	.driver = {
 		.name = "spi-lantiq-ssc",
 		.of_match_table = lantiq_ssc_match,

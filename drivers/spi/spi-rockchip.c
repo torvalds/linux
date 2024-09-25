@@ -1036,7 +1036,7 @@ static struct platform_driver rockchip_spi_driver = {
 		.of_match_table = of_match_ptr(rockchip_spi_dt_match),
 	},
 	.probe = rockchip_spi_probe,
-	.remove_new = rockchip_spi_remove,
+	.remove = rockchip_spi_remove,
 };
 
 module_platform_driver(rockchip_spi_driver);

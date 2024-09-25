@@ -908,7 +908,7 @@ static struct platform_driver qcom_qspi_driver = {
 		.of_match_table = qcom_qspi_dt_match,
 	},
 	.probe = qcom_qspi_probe,
-	.remove_new = qcom_qspi_remove,
+	.remove = qcom_qspi_remove,
 };
 module_platform_driver(qcom_qspi_driver);
 

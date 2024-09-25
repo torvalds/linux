@@ -1477,7 +1477,7 @@ static void mtk_snand_remove(struct platform_device *pdev)
 
 static struct platform_driver mtk_snand_driver = {
 	.probe = mtk_snand_probe,
-	.remove_new = mtk_snand_remove,
+	.remove = mtk_snand_remove,
 	.driver = {
 		.name = "mtk-snand",
 		.of_match_table = mtk_snand_ids,

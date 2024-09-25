@@ -840,7 +840,7 @@ static struct platform_driver atmel_qspi_driver = {
 		.pm	= pm_ptr(&atmel_qspi_pm_ops),
 	},
 	.probe		= atmel_qspi_probe,
-	.remove_new	= atmel_qspi_remove,
+	.remove		= atmel_qspi_remove,
 };
 module_platform_driver(atmel_qspi_driver);
 

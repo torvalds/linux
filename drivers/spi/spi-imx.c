@@ -1956,7 +1956,7 @@ static struct platform_driver spi_imx_driver = {
 		   .pm = pm_ptr(&imx_spi_pm),
 	},
 	.probe = spi_imx_probe,
-	.remove_new = spi_imx_remove,
+	.remove = spi_imx_remove,
 };
 module_platform_driver(spi_imx_driver);
 

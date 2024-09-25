@@ -1469,7 +1469,7 @@ static struct platform_driver fsl_dspi_driver = {
 	.driver.of_match_table	= fsl_dspi_dt_ids,
 	.driver.pm		= &dspi_pm,
 	.probe			= dspi_probe,
-	.remove_new		= dspi_remove,
+	.remove			= dspi_remove,
 	.shutdown		= dspi_shutdown,
 };
 module_platform_driver(fsl_dspi_driver);

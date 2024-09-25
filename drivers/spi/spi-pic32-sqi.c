@@ -682,7 +682,7 @@ static struct platform_driver pic32_sqi_driver = {
 		.of_match_table = of_match_ptr(pic32_sqi_of_ids),
 	},
 	.probe = pic32_sqi_probe,
-	.remove_new = pic32_sqi_remove,
+	.remove = pic32_sqi_remove,
 };
 
 module_platform_driver(pic32_sqi_driver);

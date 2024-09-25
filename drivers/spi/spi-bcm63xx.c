@@ -656,7 +656,7 @@ static struct platform_driver bcm63xx_spi_driver = {
 	},
 	.id_table	= bcm63xx_spi_dev_match,
 	.probe		= bcm63xx_spi_probe,
-	.remove_new	= bcm63xx_spi_remove,
+	.remove		= bcm63xx_spi_remove,
 };
 
 module_platform_driver(bcm63xx_spi_driver);

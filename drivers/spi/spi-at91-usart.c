@@ -650,7 +650,7 @@ static struct platform_driver at91_usart_spi_driver = {
 		.pm = &at91_usart_spi_pm_ops,
 	},
 	.probe = at91_usart_spi_probe,
-	.remove_new = at91_usart_spi_remove,
+	.remove = at91_usart_spi_remove,
 };
 
 module_platform_driver(at91_usart_spi_driver);

@@ -818,7 +818,7 @@ static struct platform_driver synquacer_spi_driver = {
 		.acpi_match_table = ACPI_PTR(synquacer_hsspi_acpi_ids),
 	},
 	.probe = synquacer_spi_probe,
-	.remove_new = synquacer_spi_remove,
+	.remove = synquacer_spi_remove,
 };
 module_platform_driver(synquacer_spi_driver);
 

@@ -556,7 +556,7 @@ static struct platform_driver mtk_spi_slave_driver = {
 		.of_match_table = mtk_spi_slave_of_match,
 	},
 	.probe = mtk_spi_slave_probe,
-	.remove_new = mtk_spi_slave_remove,
+	.remove = mtk_spi_slave_remove,
 };
 
 module_platform_driver(mtk_spi_slave_driver);

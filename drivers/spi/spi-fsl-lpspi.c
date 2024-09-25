@@ -1020,7 +1020,7 @@ static struct platform_driver fsl_lpspi_driver = {
 		.pm = pm_ptr(&fsl_lpspi_pm_ops),
 	},
 	.probe = fsl_lpspi_probe,
-	.remove_new = fsl_lpspi_remove,
+	.remove = fsl_lpspi_remove,
 };
 module_platform_driver(fsl_lpspi_driver);
 

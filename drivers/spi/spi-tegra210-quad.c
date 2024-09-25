@@ -1724,7 +1724,7 @@ static struct platform_driver tegra_qspi_driver = {
 		.acpi_match_table = ACPI_PTR(tegra_qspi_acpi_match),
 	},
 	.probe =	tegra_qspi_probe,
-	.remove_new =	tegra_qspi_remove,
+	.remove =	tegra_qspi_remove,
 };
 module_platform_driver(tegra_qspi_driver);
 
