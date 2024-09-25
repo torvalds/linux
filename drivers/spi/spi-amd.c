@@ -114,12 +114,12 @@ struct amd_spi {
 
 static inline u8 amd_spi_readreg8(struct amd_spi *amd_spi, int idx)
 {
-	return ioread8((u8 __iomem *)amd_spi->io_remap_addr + idx);
+	return readb((u8 __iomem *)amd_spi->io_remap_addr + idx);
 }
 
 static inline void amd_spi_writereg8(struct amd_spi *amd_spi, int idx, u8 val)
 {
-	iowrite8(val, ((u8 __iomem *)amd_spi->io_remap_addr + idx));
+	writeb(val, ((u8 __iomem *)amd_spi->io_remap_addr + idx));
 }
 
 static void amd_spi_setclear_reg8(struct amd_spi *amd_spi, int idx, u8 set, u8 clear)
@@ -132,12 +132,12 @@ static void amd_spi_setclear_reg8(struct amd_spi *amd_spi, int idx, u8 set, u8 c
 
 static inline u32 amd_spi_readreg32(struct amd_spi *amd_spi, int idx)
 {
-	return ioread32((u8 __iomem *)amd_spi->io_remap_addr + idx);
+	return readl((u8 __iomem *)amd_spi->io_remap_addr + idx);
 }
 
 static inline void amd_spi_writereg32(struct amd_spi *amd_spi, int idx, u32 val)
 {
-	iowrite32(val, ((u8 __iomem *)amd_spi->io_remap_addr + idx));
+	writel(val, ((u8 __iomem *)amd_spi->io_remap_addr + idx));
 }
 
 static inline void amd_spi_setclear_reg32(struct amd_spi *amd_spi, int idx, u32 set, u32 clear)
