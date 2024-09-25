@@ -4816,7 +4816,7 @@ void device_shutdown(void)
 		spin_unlock(&devices_kset->list_lock);
 
 		/* hold lock to avoid race with probe/release */
-		if (parent && dev->bus && dev->bus->need_parent_lock)
+		if (parent)
 			device_lock(parent);
 		device_lock(dev);
 
@@ -4840,7 +4840,7 @@ void device_shutdown(void)
 		}
 
 		device_unlock(dev);
-		if (parent && dev->bus && dev->bus->need_parent_lock)
+		if (parent)
 			device_unlock(parent);
 
 		put_device(dev);
