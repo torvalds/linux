@@ -671,8 +671,14 @@ int bch2_accounting_read(struct bch_fs *c)
 			continue;
 
 		struct bch_replicas_padded r;
-
 		if (!accounting_to_replicas(&r.e, acc->k.data[i].pos))
+			continue;
+
+		/*
+		 * If the replicas entry is invalid it'll get cleaned up by
+		 * check_allocations:
+		 */
+		if (bch2_replicas_entry_validate(&r.e, c, &buf))
 			continue;
 
 		struct disk_accounting_pos k;
@@ -683,8 +689,17 @@ int bch2_accounting_read(struct bch_fs *c)
 				"accounting not marked in superblock replicas\n  %s",
 				(printbuf_reset(&buf),
 				 bch2_accounting_key_to_text(&buf, &k),
-				 buf.buf)))
-			ret = bch2_accounting_update_sb_one(c, acc->k.data[i].pos);
+				 buf.buf))) {
+			/*
+			 * We're not RW yet and still single threaded, dropping
+			 * and retaking lock is ok:
+			 */
+			percpu_up_read(&c->mark_lock);
+			ret = bch2_mark_replicas(c, &r.e);
+			if (ret)
+				goto fsck_err;
+			percpu_down_read(&c->mark_lock);
+		}
 	}
 
 	preempt_disable();
