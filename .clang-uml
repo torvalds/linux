@@ -56,9 +56,9 @@ diagrams:
       paths:
         - drivers/misc/ethosn/
         - drivers/misc/ethosn/uapi/
-  ethosn_write_message_sequence_diagram:
+  ethosn_send_inference_sequence_diagram:
     type: sequence
-    title: ethosn_write_message() sequence diagram
+    title: ethosn_send_inference() sequence diagram
     glob:
       - drivers/misc/ethosn/*.c
       - drivers/misc/ethosn/*.h
@@ -71,11 +71,13 @@ diagrams:
       paths:
         - drivers/misc/ethosn/
         - drivers/misc/ethosn/uapi/
-    exclude:
-      elements:
-        - 'ethosn_queue_get_free_space(const struct ethosn_queue *)'
+    # exclude:
+    #   elements:
+    #     - 'ethosn_queue_get_free_space(const struct ethosn_queue *)'
+    #     - '__compiletime_assert_305()'
+    #     - '__compiletime_assert_306()'
     from:
-      - function: 'ethosn_write_message(struct ethosn_core *,enum ethosn_message_type,void *,size_t)'
+      - function: 'ethosn_send_inference(struct ethosn_core *,dma_addr_t,uint64_t)'
   ethosn_queue_sequence_diagram:
     type: sequence
     title: ethosn_queue sequence diagram
@@ -125,3 +127,26 @@ diagrams:
       paths:
         - drivers/misc/ethosn/
         - drivers/misc/ethosn/uapi/
+  ethosn_device_init_sequence_diagram:
+    type: sequence
+    title: ethosn_device_init() sequence diagram
+    glob:
+      - drivers/misc/ethosn/*.c
+      - drivers/misc/ethosn/*.h
+      - drivers/misc/ethosn/uapi/*.h
+    fold_repeated_activities: true
+    generate_method_arguments: full
+    generate_return_types: true
+    combine_free_functions_into_file_participants: true
+    include:
+      paths:
+        - drivers/misc/ethosn/
+        - drivers/misc/ethosn/uapi/
+    exclude:
+      elements:
+        - 'ethosn_dma_get_addr_base(struct ethosn_dma_allocator *,enum ethosn_stream_type)'
+        - 'ethosn_dma_unmap_and_release(struct ethosn_dma_allocator *,struct ethosn_dma_info **)'
+        - '__compiletime_assert_305()'
+        - '__compiletime_assert_306()'
+    from:
+      - function: 'ethosn_device_init(struct ethosn_core *)'
