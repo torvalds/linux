@@ -402,6 +402,112 @@ do {									\
 })
 
 /**
+ * wait_var_event_any_lock - wait for a variable to be updated under a lock
+ * @var: the address of the variable being waited on
+ * @condition: condition to wait for
+ * @lock: the object that is locked to protect updates to the variable
+ * @type: prefix on lock and unlock operations
+ * @state: waiting state, %TASK_UNINTERRUPTIBLE etc.
+ *
+ * Wait for a condition which can only be reliably tested while holding
+ * a lock.  The variables assessed in the condition will normal be updated
+ * under the same lock, and the wake up should be signalled with
+ * wake_up_var_locked() under the same lock.
+ *
+ * This is similar to wait_var_event(), but assumes a lock is held
+ * while calling this function and while updating the variable.
+ *
+ * This must be called while the given lock is held and the lock will be
+ * dropped when schedule() is called to wait for a wake up, and will be
+ * reclaimed before testing the condition again.  The functions used to
+ * unlock and lock the object are constructed by appending _unlock and _lock
+ * to @type.
+ *
+ * Return %-ERESTARTSYS if a signal arrives which is allowed to interrupt
+ * the wait according to @state.
+ */
+#define wait_var_event_any_lock(var, condition, lock, type, state)	\
+({									\
+	int __ret = 0;							\
+	if (!(condition))						\
+		__ret = ___wait_var_event(var, condition, state, 0, 0,	\
+					  type ## _unlock(lock);	\
+					  schedule();			\
+					  type ## _lock(lock));		\
+	__ret;								\
+})
+
+/**
+ * wait_var_event_spinlock - wait for a variable to be updated under a spinlock
+ * @var: the address of the variable being waited on
+ * @condition: condition to wait for
+ * @lock: the spinlock which protects updates to the variable
+ *
+ * Wait for a condition which can only be reliably tested while holding
+ * a spinlock.  The variables assessed in the condition will normal be updated
+ * under the same spinlock, and the wake up should be signalled with
+ * wake_up_var_locked() under the same spinlock.
+ *
+ * This is similar to wait_var_event(), but assumes a spinlock is held
+ * while calling this function and while updating the variable.
+ *
+ * This must be called while the given lock is held and the lock will be
+ * dropped when schedule() is called to wait for a wake up, and will be
+ * reclaimed before testing the condition again.
+ */
+#define wait_var_event_spinlock(var, condition, lock)			\
+	wait_var_event_any_lock(var, condition, lock, spin, TASK_UNINTERRUPTIBLE)
+
+/**
+ * wait_var_event_mutex - wait for a variable to be updated under a mutex
+ * @var: the address of the variable being waited on
+ * @condition: condition to wait for
+ * @mutex: the mutex which protects updates to the variable
+ *
+ * Wait for a condition which can only be reliably tested while holding
+ * a mutex.  The variables assessed in the condition will normal be
+ * updated under the same mutex, and the wake up should be signalled
+ * with wake_up_var_locked() under the same mutex.
+ *
+ * This is similar to wait_var_event(), but assumes a mutex is held
+ * while calling this function and while updating the variable.
+ *
+ * This must be called while the given mutex is held and the mutex will be
+ * dropped when schedule() is called to wait for a wake up, and will be
+ * reclaimed before testing the condition again.
+ */
+#define wait_var_event_mutex(var, condition, lock)			\
+	wait_var_event_any_lock(var, condition, lock, mutex, TASK_UNINTERRUPTIBLE)
+
+/**
+ * wake_up_var_protected - wake up waiters for a variable asserting that it is safe
+ * @var: the address of the variable being waited on
+ * @cond: the condition which afirms this is safe
+ *
+ * When waking waiters which use wait_var_event_any_lock() the waker must be
+ * holding the reelvant lock to avoid races.  This version of wake_up_var()
+ * asserts that the relevant lock is held and so no barrier is needed.
+ * The @cond is only tested when CONFIG_LOCKDEP is enabled.
+ */
+#define wake_up_var_protected(var, cond)				\
+do {									\
+	lockdep_assert(cond);						\
+	wake_up_var(var);						\
+} while (0)
+
+/**
+ * wake_up_var_locked - wake up waiters for a variable while holding a spinlock or mutex
+ * @var: the address of the variable being waited on
+ * @lock: The spinlock or mutex what protects the variable
+ *
+ * Send a wake up for the given variable which should be waited for with
+ * wait_var_event_spinlock() or wait_var_event_mutex().  Unlike wake_up_var(),
+ * no extra barriers are needed as the locking provides sufficient sequencing.
+ */
+#define wake_up_var_locked(var, lock)					\
+	wake_up_var_protected(var, lockdep_is_held(lock))
+
+/**
  * clear_and_wake_up_bit - clear a bit and wake up anyone waiting on that bit
  * @bit: the bit of the word being waited on
  * @word: the address containing the bit being waited on
