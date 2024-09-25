@@ -2530,6 +2530,7 @@ int amdgpu_discovery_set_ip_blocks(struct amdgpu_device *adev)
 			adev->ip_versions[GC_HWIP][0] = IP_VERSION(9, 2, 2);
 			adev->ip_versions[UVD_HWIP][0] = IP_VERSION(1, 0, 1);
 			adev->ip_versions[DCE_HWIP][0] = IP_VERSION(1, 0, 1);
+			adev->ip_versions[ISP_HWIP][0] = IP_VERSION(2, 0, 0);
 		} else {
 			adev->ip_versions[MMHUB_HWIP][0] = IP_VERSION(9, 1, 0);
 			adev->ip_versions[ATHUB_HWIP][0] = IP_VERSION(9, 1, 0);
@@ -2546,6 +2547,7 @@ int amdgpu_discovery_set_ip_blocks(struct amdgpu_device *adev)
 			adev->ip_versions[GC_HWIP][0] = IP_VERSION(9, 1, 0);
 			adev->ip_versions[UVD_HWIP][0] = IP_VERSION(1, 0, 0);
 			adev->ip_versions[DCE_HWIP][0] = IP_VERSION(1, 0, 0);
+			adev->ip_versions[ISP_HWIP][0] = IP_VERSION(2, 0, 0);
 		}
 		break;
 	case CHIP_VEGA20:
