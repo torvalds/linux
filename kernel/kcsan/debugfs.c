@@ -179,8 +179,7 @@ retry_alloc:
 	}
 
 	/* Note: deduplicating should be done in userspace. */
-	report_filterlist.addrs[report_filterlist.used++] =
-		kallsyms_lookup_name(func);
+	report_filterlist.addrs[report_filterlist.used++] = addr;
 	report_filterlist.sorted = false;
 
 	raw_spin_unlock_irqrestore(&report_filterlist_lock, flags);
