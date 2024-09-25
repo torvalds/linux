@@ -25,8 +25,6 @@
 #include <dt-bindings/clock/meson8b-clkc.h>
 #include <dt-bindings/reset/amlogic,meson8b-clkc-reset.h>
 
-static DEFINE_SPINLOCK(meson_clk_lock);
-
 struct meson8b_clk_reset {
 	struct reset_controller_dev reset;
 	struct regmap *regmap;
@@ -3699,7 +3697,6 @@ static int meson8b_clk_reset_update(struct reset_controller_dev *rcdev,
 		container_of(rcdev, struct meson8b_clk_reset, reset);
 	const struct meson8b_clk_reset_line *reset;
 	unsigned int value = 0;
-	unsigned long flags;
 
 	if (id >= ARRAY_SIZE(meson8b_clk_reset_bits))
 		return -EINVAL;
@@ -3709,12 +3706,8 @@ static int meson8b_clk_reset_update(struct reset_controller_dev *rcdev,
 	if (assert != reset->active_low)
 		value = BIT(reset->bit_idx);
 
-	spin_lock_irqsave(&meson_clk_lock, flags);
-
 	regmap_update_bits(meson8b_clk_reset->regmap, reset->reg,
 			   BIT(reset->bit_idx), value);
-
-	spin_unlock_irqrestore(&meson_clk_lock, flags);
 
 	return 0;
 }
