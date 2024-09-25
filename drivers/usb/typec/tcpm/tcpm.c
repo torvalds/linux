@@ -7367,7 +7367,7 @@ static int tcpm_psy_get_input_power_limit(struct tcpm_port *port,
 			src_mv = pdo_fixed_voltage(pdo);
 			src_ma = pdo_max_current(pdo);
 			tmp = src_mv * src_ma;
-			max_src_uw = tmp > max_src_uw ? tmp : max_src_uw;
+			max_src_uw = max(tmp, max_src_uw);
 		}
 	}
 
