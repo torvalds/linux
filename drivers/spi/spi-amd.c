@@ -7,12 +7,12 @@
 // Author: Sanjay R Mehta <sanju.mehta@amd.com>
 
 #include <linux/acpi.h>
+#include <linux/delay.h>
 #include <linux/init.h>
+#include <linux/iopoll.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
-#include <linux/delay.h>
 #include <linux/spi/spi.h>
-#include <linux/iopoll.h>
 #include <linux/spi/spi-mem.h>
 
 #define AMD_SPI_CTRL0_REG	0x00
