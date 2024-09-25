@@ -1,33 +1,6 @@
-/*
- *
- * (C) COPYRIGHT 2018-2023 Arm Limited.
- *
- * This program is free software and is provided to you under the terms of the
- * GNU General Public License version 2 as published by the Free Software
- * Foundation, and any use by you of this program is subject to the terms
- * of such GNU licence.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you can access it online at
- * http://www.gnu.org/licenses/gpl-2.0.html.
- *
- * SPDX-License-Identifier: GPL-2.0-only
- *
- */
-
 #ifndef _ETHOSN_FIRMWARE_H_
 #define _ETHOSN_FIRMWARE_H_
 
-/* This file defines structs using zero-length arrays which are not available
- * in the C++ standard. The compilers we use do however support them as
- * extensions to the standard, so we can disable the warnings they produce.
- * Disabling of warnings is compiler-specific.
- */
 #if defined(_MSC_VER)
 #pragma warning(push)
 #pragma warning(disable : 4200)
@@ -42,16 +15,13 @@
 #endif
 
 /**
- * Version information
- *
- * This is common for the fat binary (ethosn.bin) and the individual
- * firmware binaries (sub-components of the fat binary).
+ * 这适用于 fat 二进制文件 (ethosn.bin) 和个别固件二进制文件 (fat 二进制文件的子组件).
  */
 #define ETHOSN_FIRMWARE_VERSION_MAJOR 15
 #define ETHOSN_FIRMWARE_VERSION_MINOR 0
 #define ETHOSN_FIRMWARE_VERSION_PATCH 0
 
-/** Max length of a cache line. Used to separate host and Ethos-N data. */
+/** 缓存行的最大长度. 用于分隔主机和 Ethos-N 数据. */
 #define ETHOSN_CACHE_LINE_SIZE 128
 
 #pragma pack(push, 1)
@@ -61,34 +31,23 @@
  ******************************************************************************/
 
 /**
- * Pointer to memory that will be accessed directly by the MCU should be 32 bit.
+ * 指向 MCU 将直接访问的内存的指针应为 32 位.
  *
- * Pointer to memory that will be copied with help of DMA may be up to 49 bits.
+ * 指向将借助 DMA 复制的内存的指针可达 49 位.
  */
 typedef uint64_t ethosn_address_t;
 
 /**
- * struct ethosn_queue - Dynamic size queue designed to be written from
- *                    one CPU and read from another.
- * @var capacity:	Size in bytes of the queue.
- * @var read:		Read index in bytes in the Data array.
- *                  The "reading" CPU advances this as it reads data from the
- *                  queue.
- *                  It should never read past the 'write' offset as that means
- *                  the end of the queue has been reached and it should wait
- *                  for the writing end to write some more data.
- * @var write:		Write index in bytes in the Data array.
- *                  The "writing" CPU advances this as it writes data into the
- *                  queue.
- *                  It should never write past the 'read' pointer as that means
- *                  the queue has become full and it should wait for the reading
- *                  end to catch up.
- * @var data:		Data array.
+ * struct ethosn_queue - 动态大小的队列, 设计用于一个 CPU 写入数据, 另一个 CPU 读取数据.
+ * @var capacity: 队列的总容量 (以字节为单位).
+ * @var read: 队列中的读取索引 (字节). 当读取数据时, "读取" CPU 会更新这个索引.
+ *             读取索引与写入索引相等时, 表示队列已空, 需要等待 "写入" CPU 写入更多数据.
+ * @var write: 队列中的写入索引 (字节). 当写入数据时, "写入" CPU 会更新这个索引.
+ *             写入索引与读取索引相等时, 表示队列已满, 需要等待 "读取" CPU 清空一些空间.
+ * @var data: 用于存储队列数据的数组.
  *
- *
- * The queue is empty if-and-only-if: read == write.
- * Note that the queue can never be completely full, as that would be
- * indistinguishable from being empty!
+ * 队列为空的条件是 read 索引和 write 索引相等.
+ * 需要注意的是, 队列永远不会被填满到容量的极限, 以确保空和满的状态可以明确区分.
  */
 struct ethosn_queue {
 	union {
@@ -97,97 +56,74 @@ struct ethosn_queue {
 			uint32_t read;
 		};
 
-		/* Padding added to avoid caching issues between non-coherent
-		 * CPUs.
-		 */
+		/* 添加填充以避免非一致 CPU 之间的缓存问题. */
 		uint8_t pad_0[ETHOSN_CACHE_LINE_SIZE];
 	};
 	union {
 		uint32_t write;
 
-		/* Padding added to avoid caching issues between non-coherent
-		 * CPUs.
-		 */
+		/* 添加填充以避免非一致 CPU 之间的缓存问题. */
 		uint8_t pad_1[ETHOSN_CACHE_LINE_SIZE];
 	};
 	uint8_t data[];
 };
 
 /**
- * Checks if data of the given size could ever fit in the queue, even
- * if it was completely empty. This is a simple check against the capacity,
- * but is wrapped in a function as the comparison is slightly different
- * to what you might naively expect.
+ * 检查给定大小的数据是否能被队列容纳, 即使队列是完全空的. 这是一个简单的容量检查, 但用函数封装是因为所涉及的比较可能与您的直觉不同.
  */
 static inline bool ethosn_queue_can_ever_fit(const struct ethosn_queue *queue,
 					     uint32_t size)
 {
-
-	/* Note we disallow the queue from ever becoming
-	 * completely full, as that would be indistinguishable from being
-	 * completely empty!
-	 */
+	/* 注意我们不允许队列变得完全满, 因为那会使得满的状态与空的状态无法区分! */
 	return size < queue->capacity;
 }
 
 /**
- * Gets the current size of the given queue, i.e. how many bytes are available
- * to read.
+ * 获取给定队列的当前大小, 即可读的字节数.
  */
 static inline uint32_t ethosn_queue_get_size(const struct ethosn_queue *queue)
 {
 	const uint32_t mask = queue->capacity - 1;
-
 	return (queue->write - queue->read) & mask;
 }
 
 /**
- * Gets the amount of free space in the given queue, i.e. how many bytes can be
- * written.
+ * 获取给定队列中的可用空间, 即可以写入的字节数.
  */
-static inline uint32_t ethosn_queue_get_free_space(
-	const struct ethosn_queue *queue)
+static inline uint32_t
+ethosn_queue_get_free_space(const struct ethosn_queue *queue)
 {
-
-	/* Note we subtract one to prevent the queue from ever becoming
-	 * completely full, as that would be indistinguishable from being
-	 * completely empty!
-	 */
+	/* 注意我们减去一个以防止队列变得完全满, 因为那将无法与完全空区分开! */
 	return queue->capacity - ethosn_queue_get_size(queue) - 1;
 }
 
 /**
- * Skips the given number of bytes from the queue. This is equivalent to reading
- * those bytes and discarding them.
- * Returns false if there is not enough data in the queue to skip.
+ * 从队列中跳过给定数量的字节. 这等同于读取这些字节并丢弃它们.
+ * 如果队列中的数据不足以跳过, 则返回 false.
  */
-static inline bool ethosn_queue_skip(struct ethosn_queue *queue,
-				     uint8_t size)
+static inline bool ethosn_queue_skip(struct ethosn_queue *queue, uint8_t size)
 {
 	const uint32_t mask = queue->capacity - 1;
-
-	/* Check that there is enough data for us to read */
+	/* 检查我们是否有足够的数据可读 */
 	if (size > ethosn_queue_get_size(queue))
 		return false;
 
 	queue->read = (queue->read + size) & mask;
-
 	return true;
 }
 
 /**
- * Reads the given number of bytes from the queue.
- * Returns false if there is not enough data in the queue to read.
+ * 从队列中读取给定数量的字节.
+ * 如果队列中的数据不足以读取, 则返回 false.
  */
-static inline bool ethosn_queue_read(struct ethosn_queue *queue,
-				     uint8_t *dst,
+static inline bool ethosn_queue_read(struct ethosn_queue *queue, uint8_t *dst,
 				     uint32_t size)
 {
 	const uint32_t mask = queue->capacity - 1;
 	uint32_t read = queue->read;
 	uint32_t i;
 
-	/* Check that there is enough data for us to read */
+	/* 检查我们是否有足够的数据可读 */
 	if (size > ethosn_queue_get_size(queue))
 		return false;
 
@@ -197,20 +133,15 @@ static inline bool ethosn_queue_read(struct ethosn_queue *queue,
 	}
 
 	queue->read = read;
-
 	return true;
 }
 
 /**
- * Writes the given buffers of bytes to the queue.
- * The caller is required to commit the out_write_pending pointer
- * to queue->write when they have ensured that the payload is
- * readable (e.g. flushed) by the "reading" CPU.
- * Returns false if there is not enough free space in the queue.
- * @buffers:	Array of length num_buffers, each element is a pointer to a
- *              buffer to be written to the queue.
- * @sizes:	Array of length num_buffers, each element is the length of the
- *              corrresponding buffer in @buffers
+ * 将给定的字节缓冲区写入队列.
+ * 调用者需确保在确认负载对 "读取" CPU 可读 (例如刷新) 后提交 out_write_pending 指针至 queue->write.
+ * 如果队列中没有足够的空闲空间, 则返回 false.
+ * @buffers: 缓冲区数组, 长度为 num_buffers, 每个元素是指向将写入队列的缓冲区的指针.
+ * @sizes: 数组, 长度为 num_buffers, 每个元素是 @buffers 中相应缓冲区的长度.
  */
 static inline bool ethosn_queue_write(struct ethosn_queue *queue,
 				      const uint8_t *const *buffers,
@@ -223,45 +154,43 @@ static inline bool ethosn_queue_write(struct ethosn_queue *queue,
 	uint32_t i, j;
 	uint32_t total_bytes = 0;
 
-	/* Check if there is enough space for our data */
+	/* 检查我们是否有足够的空间容纳我们的数据 */
 	for (i = 0; i < num_buffers; ++i)
 		total_bytes += sizes[i];
 
 	if (ethosn_queue_get_free_space(queue) < total_bytes)
 		return false;
 
-	/* Write each buffer, one after the other */
-	for (i = 0; i < num_buffers; ++i)
+	/* 依次写入每个缓冲区 */
+	for (i = 0; i < num_buffers; ++i) {
 		for (j = 0; j < sizes[i]; ++j) {
 			queue->data[write] = buffers[i][j];
 			write = (write + 1) & mask;
 		}
+	}
 
 	*out_write_pending = write;
-
 	return true;
 }
 
 /**
- * struct ethosn_mailbox - Mailbox structure
- * @var request:	Pointer to message queue going from host to Ethos-N .
- * @var response:	Pointer to message queue going from Ethos-N to host.
- * @var severity:	Log severity level. @see ethosn_log_severity.
+ * struct ethosn_mailbox - 邮箱结构
+ * @var request: 指向从主机到 Ethos-N 的消息队列的指针.
+ * @var response: 指向从 Ethos-N 到主机的消息队列的指针.
+ * @var severity: 日志严重级别. @see ethosn_log_severity.
  *
- * This is the interface between the host and the Ethos-N .
+ * 这是主机和 Ethos-N 之间的接口.
  */
 struct ethosn_mailbox {
 	ethosn_address_t request;
 	ethosn_address_t response;
-	uint32_t         severity;
+	uint32_t severity;
 };
 
 /**
- * struct ethosn_debug_monitor_channel - Two-way debug monitor communications
- * channel.
- * @var request:	Pointer to message queue going from host to Ethos-N .
- * @var response:	Pointer to message queue going from Ethos-N to host.
- *
+ * struct ethosn_debug_monitor_channel - 双向调试监控通信渠道.
+ * @var request: 指向从主机到 Ethos-N 的消息队列的指针.
+ * @var response: 指向从 Ethos-N 到主机的消息队列的指针.
  */
 struct ethosn_debug_monitor_channel {
 	ethosn_address_t request;
@@ -269,17 +198,14 @@ struct ethosn_debug_monitor_channel {
 };
 
 /******************************************************************************
- * Message types
+ * 消息类型
  ******************************************************************************/
 
 /**
- * Message types.
+ * 消息类型.
  */
 enum ethosn_message_type {
-	/* The order of the message type matters for the enriched RTL testing
-	 * system. Inference request and response must not change to avoid
-	 * problems.
-	 */
+	/* 消息类型的顺序对于增强的 RTL 测试系统很重要. 推理请求和响应不得更改, 以避免问题. */
 
 	/* ethosn_message_inference_request */
 	ETHOSN_MESSAGE_INFERENCE_REQUEST,
@@ -309,18 +235,16 @@ enum ethosn_message_type {
 };
 
 /**
- * struct ethosn_message_header - Message header
- * @var type:		Message type. @see ethosn_message_type.
- * @var length:		Length in bytes of Value array.
+ * struct ethosn_message_header - 消息头
+ * @var type: 消息类型. @see ethosn_message_type.
+ * @var length: Value 数组的长度 (字节).
  *
- * Every message between host and Ethos-N should begin with a message header.
- * The type of the message determines if the header is followed by additional
- * payload data.
+ * 主机和 Ethos-N 之间的每条消息都应以消息头开始. 消息的类型决定头部后是否跟随额外的有效负载数据.
  */
 struct ethosn_message_header {
 	uint32_t type;
 	uint32_t length;
-	uint8_t  value[];
+	uint8_t value[];
 };
 
 /******************************************************************************
@@ -336,32 +260,31 @@ enum ethosn_buffer_type {
 };
 
 /**
- * struct ethosn_buffer_desc - Buffer descriptor
- * @var address:	Pointer to buffer.
- * @var size:		Size in bytes of buffer.
- * @var type		Type of the buffer, as a member of ethosn_buffer_type.
- *			Stored as a uint32_t to have a well-defined size,
- *			as this struct needs to be consistent between kernel
- *			module and firmware.
+ * struct ethosn_buffer_desc - 缓冲区描述符
+ * @var address: 指向缓冲区的指针.
+ * @var size: 缓冲区的大小 (字节).
+ * @var type: 缓冲区的类型, 为 ethosn_buffer_type 的成员.
+ *            存储为 uint32_t 以具有明确定义的大小,
+ *            因为此结构需要在内核模块和固件之间保持一致.
  */
 struct ethosn_buffer_desc {
 	ethosn_address_t address;
-	uint32_t         size;
-	uint32_t         type;
+	uint32_t size;
+	uint32_t type;
 };
 
 /**
- * struct ethosn_buffer_array - Dynamic size buffer array
- * @var num_buffers:	Number of buffers.
- * @var buffers:	Array of buffer descriptors.
+ * struct ethosn_buffer_array - 动态大小缓冲区数组
+ * @var num_buffers: 缓冲区数量.
+ * @var buffers: 缓冲区描述符数组.
  */
 struct ethosn_buffer_array {
-	uint32_t                  num_buffers;
+	uint32_t num_buffers;
 	struct ethosn_buffer_desc buffers[];
 };
 
 /**
- * Inference status.
+ * 推理状态.
  */
 enum ethosn_inference_status {
 	ETHOSN_INFERENCE_STATUS_OK,
@@ -370,25 +293,24 @@ enum ethosn_inference_status {
 };
 
 /**
- * struct ethosn_message_inference_request - Inference request message
- * @var user_argument:	User argument.
- * @var buffer_array:	Pointer to buffer array. @see ethosn_buffer_header.
+ * struct ethosn_message_inference_request - 推理请求消息
+ * @var user_argument: 用户参数.
+ * @var buffer_array: 指向缓冲区数组的指针. @see ethosn_buffer_header.
  *
- * Following a ethosn_message_header.
+ * 遵循 ethosn_message_header.
  */
 struct ethosn_message_inference_request {
-	uint64_t         user_argument;
+	uint64_t user_argument;
 	ethosn_address_t buffer_array;
 };
 
 /**
- * struct ethosn_message_inference_response - Inference response message
- * @var user_argument:	User argument.
- * @var status:		Inference status.
- * @var cycle_count:	Number of cycles taken for the inference
- *			(as measured by the firmware).
+ * struct ethosn_message_inference_response - 推理响应消息
+ * @var user_argument: 用户参数.
+ * @var status: 推理状态.
+ * @var cycle_count: 推理所用的周期数 (由固件测量).
  *
- * Following a ethosn_message_header.
+ * 遵循 ethosn_message_header.
  */
 struct ethosn_message_inference_response {
 	uint64_t user_argument;
@@ -397,11 +319,11 @@ struct ethosn_message_inference_response {
 };
 
 /******************************************************************************
- * Text message logging
+ * 文本消息日志
  ******************************************************************************/
 
 /**
- * Severity of log message.
+ * 日志消息的严重性.
  */
 enum ethosn_log_severity {
 	ETHOSN_LOG_PANIC,
@@ -413,90 +335,75 @@ enum ethosn_log_severity {
 };
 
 /**
- * struct ethosn_message_text - Text message
- * @var severity:	Severity of log message.
+ * struct ethosn_message_text - 文本消息
+ * @var severity: 日志消息的严重性.
  *
- * Following a ethosn_message_type.
+ * 遵循 ethosn_message_type.
  */
 struct ethosn_message_text {
 	uint32_t severity;
-	char     text[];
+	char text[];
 };
 
 /******************************************************************************
- * Profiling
+ * 性能分析
  ******************************************************************************/
 
 /**
- * Max number of hardware profiling counters
+ * 硬件性能分析计数器的最大数量
  */
 #define ETHOSN_PROFILING_MAX_HW_COUNTERS 6U
 
 /**
- * struct ethosn_firmware_profiling_configuration - Message payload sent to the
- *	firmware for a ETHOSN_MESSAGE_CONFIGURE_PROFILING message. Describes the
- *	profiling configuration that the firmware should set itself to.
+ * struct ethosn_firmware_profiling_configuration - 发送给固件的消息有效负载, 用于 ETHOSN_MESSAGE_CONFIGURE_PROFILING 消息. 描述固件应设置的性能分析配置.
  *
- * @buffer_address: Firmware-accessible address to a struct of type
- *                  ethosn_profiling_buffer which is where the firmware should
- *                  write its profiling data.
+ * @buffer_address: 固件可访问的地址, 指向类型为 ethosn_profiling_buffer 的结构, 固件应将其性能分析数据写入该结构.
  */
 struct ethosn_firmware_profiling_configuration {
-	bool             enable_profiling;
+	bool enable_profiling;
 	ethosn_address_t buffer_address;
-	uint32_t         buffer_size;
-	uint32_t         num_hw_counters;
+	uint32_t buffer_size;
+	uint32_t num_hw_counters;
 	enum ethosn_profiling_hw_counter_types
-			 hw_counters[ETHOSN_PROFILING_MAX_HW_COUNTERS];
+		hw_counters[ETHOSN_PROFILING_MAX_HW_COUNTERS];
 };
 
 /**
- * struct ethosn_profiling_buffer - Layout of the firmware's profiling buffer.
- *	This is a circular buffer which the firmware writes into and the kernel
- *      reads from. When the firmware reaches the end, it simply starts
- *	overwriting at the beginning again. There is no mechanism in place to
- *	prevent the firmware from overwriting data which the kernel has not yet
- *	read.
- *      This is intentional as we do not want to stall the firmware waiting for
- *      the kernel (especially as there may not be anyone reading the profiling
- *      data at the other side!).
+ * struct ethosn_profiling_buffer - 固件的性能分析缓冲区布局.
+ * 这是一个循环缓冲区, 固件写入并且内核从中读取. 当固件到达末尾时, 它只是从头开始覆写. 没有机制防止固件覆写内核尚未读取的数据.
+ * 这是有意为之, 因为我们不希望固件在等待内核 (尤其是可能没有人读取性能分析数据的另一端!) 时停滞.
  *
- * @firmware_write_index: Index into the entries array that the firmware
- *                        should write to next. This is updated by the firmware
- *			  and read-only for the kernel.
- * @entries: Payload of the buffer.
+ * @firmware_write_index: 固件应写入的下一个条目数组索引. 由固件更新, 并且对内核只读.
+ * @entries: 缓冲区的有效负载.
  */
-
 struct ethosn_profiling_buffer {
 	union {
 		uint32_t firmware_write_index;
 
-		/* Padding to ensure firmware_write_index and entries are on
-		 * different cache lines, so flushing is independent.
-		 */
+		/* 添加填充以确保 firmware_write_index 和 entries 在不同的缓存行上, 因此刷新是独立的. */
 		uint8_t padding[ETHOSN_CACHE_LINE_SIZE];
 	};
 	struct ethosn_profiling_entry entries[];
 };
 
 /**
- * struct ethosn_message_profiling_entries - Profiling entries message
- * @num_entries: Number of entries.
- * @entries:	 @see ethosn_profiling_entry.
+ * struct ethosn_message_profiling_entries - 性能分析条目消息
+ * @num_entries: 条目数量.
+ * @entries: 条目列表. 见 ethosn_profiling_entry.
  *
- * Following a ethosn_message_type.
+ * 遵循 ethosn_message_type.
  */
 struct ethosn_message_profiling_entries {
-	uint32_t                      num_entries;
+	uint32_t num_entries;
 	struct ethosn_profiling_entry entries[];
 };
 
 /******************************************************************************
- * Error reporting
+ * 错误报告
  ******************************************************************************/
 
 /**
- * Request error status
+ * 请求错误状态
  */
 enum ethosn_error_status {
 	ETHOSN_ERROR_STATUS_INVALID_STATE,
@@ -506,11 +413,11 @@ enum ethosn_error_status {
 };
 
 /**
- * struct ethosn_message_error_response - Error response message
- * @var type:	Message type the error occured for
- * @var status: General error status
+ * struct ethosn_message_error_response - 错误响应消息
+ * @var type: 发生错误的消息类型
+ * @var status: 一般错误状态
  *
- * Following a ethosn_message_header.
+ * 遵循 ethosn_message_header.
  */
 struct ethosn_message_error_response {
 	uint32_t type;
@@ -518,53 +425,38 @@ struct ethosn_message_error_response {
 };
 
 /*
- * Define the DL1_GP registers to be used for special purpose communication
- * between kernel driver and firmware
+ * 定义 DL1_GP 寄存器, 用于内核驱动程序和固件之间的特殊目的通信
  */
-#define GP_MAILBOX                      DL1_GP1
-#define GP_BOOT_SUCCESS                 DL1_GP2
-#define GP_DEBUG_MONITOR_CHANNEL        DL1_GP4
-#define GP_MAILBOX_SIZE                 DL1_GP5
-#define GP_COMMAND_STREAM_SIZE          DL1_GP6
+#define GP_MAILBOX DL1_GP1
+#define GP_BOOT_SUCCESS DL1_GP2
+#define GP_DEBUG_MONITOR_CHANNEL DL1_GP4
+#define GP_MAILBOX_SIZE DL1_GP5
+#define GP_COMMAND_STREAM_SIZE DL1_GP6
 
-/* Special value stored in GP_BOOT_SUCCESS by the firmware to indicate
- * that it has successfully booted.
- */
+/* 固件存储在 GP_BOOT_SUCCESS 中的特殊值, 表示它已成功启动. */
 #define ETHOSN_FIRMWARE_BOOT_SUCCESS_MAGIC 0x12488421
 
 /*
- * Struct used for reporting faults from the firmware to the
- * kernel driver. This is passed in the GP registers
- * and so is limited to 8x4 = 32 bytes. Therefore the data has been packed
- * quite tightly to eliminate unused bits. Note that the order of the fields
- * is such that no fields straddle across the base type boundaries (8 bytes),
- * as the behaviour of this is compiler-dependent.
+ * 用于从固件报告故障的结构, 通过 GP 寄存器传递
+ * 并因此限制为 8x4 = 32 字节. 因此数据被紧凑地打包以消除未使用的位. 注意字段的顺序是
+ * 使得没有字段跨越基本类型边界 (8 字节), 因为这是编译器依赖的行为.
  */
 struct ethosn_firmware_dump {
-	/* Must be set to ETHOSN_FIRMWARE_DUMP_MAGIC, to indicate this struct
-	 * has been filled in by the firmware.
-	 */
+	/* 必须设置为 ETHOSN_FIRMWARE_DUMP_MAGIC, 以表示此结构已由固件填充. */
 	uint64_t magic : 32;
 
-	/* ISR field of the IPSR register. This is the exception number
-	 * currently being handled. *
-	 * We only have one additional interrupt, for a total of 17, so 5 bits
-	 * is sufficient
-	 */
+	/* 当前正在处理的异常号的 IPSR 寄存器的 ISR 字段.*
+     * 我们只有一个额外的中断, 总共 17 个, 所以 5 位就足够了 */
 	uint64_t ISR : 5;
 
-	/* Non-reserved bits from the MemManage Fault Status Register,
-	 * which is part of the Configurable Fault Status Register
-	 */
+	/* 可配置故障状态寄存器的 MemManage 故障状态寄存器中的非保留位 */
 	uint64_t CFSR_MMFSR_MMARVALID : 1;
 	uint64_t CFSR_MMFSR_MSTKERR : 1;
 	uint64_t CFSR_MMFSR_MUNSTKERR : 1;
 	uint64_t CFSR_MMFSR_DACCVIOL : 1;
 	uint64_t CFSR_MMFSR_IACCVIOL : 1;
 
-	/* Non-reserved bits from the BusFault Status Register,
-	 * which is part of the Configurable Fault Status Register
-	 */
+	/* 可配置故障状态寄存器的 BusFault 状态寄存器中的非保留位 */
 	uint64_t CFSR_BFSR_BFARVALID : 1;
 	uint64_t CFSR_BFSR_STKERR : 1;
 	uint64_t CFSR_BFSR_UNSTKERR : 1;
@@ -572,9 +464,7 @@ struct ethosn_firmware_dump {
 	uint64_t CFSR_BFSR_PRECISERR : 1;
 	uint64_t CFSR_BFSR_IBUSERR : 1;
 
-	/* Non-reserved bits from the UsageFault Status Register,
-	 * which is part of the Configurable Fault Status Register
-	 */
+	/* 可配置故障状态寄存器的 UsageFault 状态寄存器中的非保留位 */
 	uint64_t CFSR_UFSR_DIVBYZERO : 1;
 	uint64_t CFSR_UFSR_UNALIGNED : 1;
 	uint64_t CFSR_UFSR_NOCP : 1;
@@ -582,18 +472,18 @@ struct ethosn_firmware_dump {
 	uint64_t CFSR_UFSR_INVSTATE : 1;
 	uint64_t CFSR_UFSR_UNDEFINSTR : 1;
 
-	/* Non-reserved bits from the HardFault Status Register */
+	/* 硬件故障状态寄存器的非保留位 */
 	uint64_t HFSR_FORCED : 1;
 	uint64_t HFSR_VECTTBL : 1;
 
 	uint64_t unused : 8;
 
-	/* The entire MemManage Fault Address Register */
+	/* 整个 MemManage 故障地址寄存器 */
 	uint64_t MMFAR : 32;
-	/* The entire BusFault Address Register */
+	/* 整个 BusFault 地址寄存器 */
 	uint64_t BFAR : 32;
 
-	/* The 21 Non-reserved bits from the TOP_ERR_CAUSE register */
+	/* TOP_ERR_CAUSE 寄存器的 21 个非保留位 */
 	uint64_t TOP_ERR_CAUSE_ENGINE_RAM_CORRECTABLE_ERR : 1;
 	uint64_t TOP_ERR_CAUSE_ENGINE_RAM_UNCORRECTABLE_ERR : 1;
 	uint64_t TOP_ERR_CAUSE_TOP_TOLERABLE_RAM_ERR : 1;
@@ -616,7 +506,7 @@ struct ethosn_firmware_dump {
 	uint64_t TOP_ERR_CAUSE_SHADOW_ERR : 1;
 	uint64_t TOP_ERR_CAUSE_ENGINE_FUNC_ERR : 1;
 
-	/* The 24 Non-reserved bits from the TOP_ERR_ADDDRESS register */
+	/* TOP_ERR_ADDRESS 寄存器的 24 个非保留位 */
 	uint64_t TOP_ERR_ADDRESS_ADDRESS : 10;
 	uint64_t TOP_ERR_ADDRESS_BANK : 3;
 	uint64_t TOP_ERR_ADDRESS_NCU_MCU_ICACHE_TAG : 1;
@@ -631,15 +521,12 @@ struct ethosn_firmware_dump {
 	uint64_t TOP_ERR_ADDRESS_ERR_MULTI : 1;
 	uint64_t TOP_ERR_ADDRESS_ERR_UNCORRECTED : 1;
 
-	/* One bit per CE (LSB = CE 0, MSB = CE 7), to indicate if it had any
-	 * errors.
-	 * Further details for the first CE with an error are stored below.
-	 */
+	/* 一个 CE 的一位 (LSB = CE 0, MSB = CE 7), 表示它是否有任何错误.
+     * 更多细节用于第一个有错误的 CE 下面存储.
+     */
 	uint64_t cesWithError : 8;
 
-	/* The 14 Non-reserved bits from the CE_ERR_CAUSE register,
-	 * for the first CE that had an error (if any)
-	 */
+	/* 第一个发生错误的 CE 的 CE_ERR_CAUSE 寄存器的 14 个非保留位 (如果有) */
 	uint64_t CE_ERR_CAUSE_ENGINE_RAM_CORRECTABLE_ERR : 1;
 	uint64_t CE_ERR_CAUSE_ENGINE_RAM_UNCORRECTABLE_ERR : 1;
 	uint64_t CE_ERR_CAUSE_MCU_LOCKUP_ERR : 1;
@@ -655,9 +542,7 @@ struct ethosn_firmware_dump {
 	uint64_t CE_ERR_CAUSE_VE_DIV_0_ERR : 1;
 	uint64_t CE_ERR_CAUSE_PLE_LANE_ERR : 1;
 
-	/* The 31 Non-reserved bits from the CE_ERR_ADDRESS register,
-	 * for the first CE that had an error (if any)
-	 */
+	/* 第一个发生错误的 CE 的 CE_ERR_ADDRESS 寄存器的 31 个非保留位 (如果有) */
 	uint64_t CE_ERR_ADDRESS_ADDRESS : 12;
 	uint64_t CE_ERR_ADDRESS_BANK : 3;
 	uint64_t CE_ERR_ADDRESS_DFC_EMC0 : 1;
@@ -677,9 +562,7 @@ struct ethosn_firmware_dump {
 	uint64_t CE_ERR_ADDRESS_ERR_MULTI : 1;
 	uint64_t CE_ERR_ADDRESS_ERR_UNCORRECTED : 1;
 
-	/* The stacked program counter value, i.e. the value before the fault
-	 * was raised.
-	 */
+	/* 发生故障时的堆叠程序计数器值, 即故障触发之前的值. */
 	uint64_t pc : 30;
 };
 
@@ -687,7 +570,7 @@ struct ethosn_firmware_dump {
 
 #if defined(__cplusplus)
 static_assert(sizeof(ethosn_firmware_dump) <= 32,
-	      "ethosn_firmware_dump struct too big for GP regs");
+	      "ethosn_firmware_dump 结构过大, 无法适用于 GP 寄存器");
 #endif
 
 #pragma pack(pop)

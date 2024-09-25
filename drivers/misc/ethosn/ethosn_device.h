@@ -43,12 +43,12 @@ extern bool firmware_log_to_kernel_log;
 struct ethosn_inference;
 
 struct ethosn_addr_map {
-	u32              region;
+	u32 region;
 	ethosn_address_t extension;
 };
 
 struct ethosn_inference_queue {
-	struct mutex     inference_queue_mutex;
+	struct mutex inference_queue_mutex;
 	struct list_head inference_queue;
 };
 
@@ -91,59 +91,59 @@ enum ethosn_status_code {
 #ifdef ETHOSN_TZMP1
 struct ethosn_protected_firmware {
 	phys_addr_t addr;
-	size_t      size;
+	size_t size;
 
-	dma_addr_t  firmware_addr_base;
-	dma_addr_t  working_data_addr_base;
-	dma_addr_t  command_stream_addr_base;
+	dma_addr_t firmware_addr_base;
+	dma_addr_t working_data_addr_base;
+	dma_addr_t command_stream_addr_base;
 
-	uint32_t    ple_offset;
-	uint32_t    stack_offset;
+	uint32_t ple_offset;
+	uint32_t stack_offset;
 };
 #endif
 
 struct ethosn_device {
-	struct ethosn_core               **core;
-	struct device                    *dev;
-	struct cdev                      cdev;
-	struct mutex                     mutex;
-	int                              parent_id;
-	int                              num_cores;
-	struct ethosn_inference_queue    queue;
-	struct ethosn_dma_allocator      **asset_allocator;
-	int                              num_asset_allocs;
-	uint32_t                         current_busy_cores;
-	uint32_t                         status_mask;
-	bool                             smmu_available;
-	struct dentry                    *debug_dir;
+	struct ethosn_core **core;
+	struct device *dev;
+	struct cdev cdev;
+	struct mutex mutex;
+	int parent_id;
+	int num_cores;
+	struct ethosn_inference_queue queue;
+	struct ethosn_dma_allocator **asset_allocator;
+	int num_asset_allocs;
+	uint32_t current_busy_cores;
+	uint32_t status_mask;
+	bool smmu_available;
+	struct dentry *debug_dir;
 #ifdef ETHOSN_TZMP1
 	struct ethosn_protected_firmware protected_firmware;
 #endif
 };
 
 struct ethosn_core {
-	struct device               *dev;
-	uint32_t                    core_id;
-	struct dentry               *debug_dir;
-	struct debugfs_regset32     debug_regset;
+	struct device *dev;
+	uint32_t core_id;
+	struct dentry *debug_dir;
+	struct debugfs_regset32 debug_regset;
 
-	void __iomem                *top_regs;
-	uintptr_t                   phys_addr;
-	int                         queue_size;
-	uint32_t                    set_alloc_id;
+	void __iomem *top_regs;
+	uintptr_t phys_addr;
+	int queue_size;
+	uint32_t set_alloc_id;
 
-	struct ethosn_device        *parent;
+	struct ethosn_device *parent;
 	struct ethosn_dma_allocator *main_allocator;
-	struct ethosn_addr_map      dma_map;
-	struct ethosn_addr_map      firmware_map;
-	struct ethosn_addr_map      work_data_map;
-	struct ethosn_dma_info      *firmware;
-	dma_addr_t                  firmware_vtable_dma_addr;
-	struct ethosn_dma_info      *mailbox;
-	struct ethosn_dma_info      *mailbox_request;
-	struct ethosn_dma_info      *mailbox_response;
-	void                        *mailbox_message;
-	size_t                      mailbox_size;
+	struct ethosn_addr_map dma_map;
+	struct ethosn_addr_map firmware_map;
+	struct ethosn_addr_map work_data_map;
+	struct ethosn_dma_info *firmware;
+	dma_addr_t firmware_vtable_dma_addr;
+	struct ethosn_dma_info *mailbox;
+	struct ethosn_dma_info *mailbox_request;
+	struct ethosn_dma_info *mailbox_response;
+	void *mailbox_message;
+	size_t mailbox_size;
 
 	/*
 	 * Circular FIFO buffer to store firmware log messages. This is used as
@@ -187,19 +187,19 @@ struct ethosn_core {
 	struct timer_list debug_monitor_channel_timer;
 #endif
 
-	uint32_t          num_pongs_received;
-	bool              firmware_running;
+	uint32_t num_pongs_received;
+	bool firmware_running;
 	/* Indicates if the NPU is configured and ready to be used */
-	atomic_t          is_configured;
+	atomic_t is_configured;
 
 	/* Stores the response from the firmware containing capabilities data.
 	 * This is allocated when the data is received from the firmware and
 	 * copied into user space when requested via an ioctl.
 	 */
 	struct {
-		void   *data;
+		void *data;
 		size_t size;
-	}            fw_and_hw_caps;
+	} fw_and_hw_caps;
 
 	struct mutex mutex;
 
@@ -207,10 +207,10 @@ struct ethosn_core {
 	 * in all cases. This is set based on the interrupt configuration in
 	 * the .dts and used when booting the firmware.
 	 */
-	bool                    force_firmware_level_interrupts;
+	bool force_firmware_level_interrupts;
 	struct workqueue_struct *irq_wq;
-	struct work_struct      irq_work;
-	atomic_t                irq_status;
+	struct work_struct irq_work;
+	atomic_t irq_status;
 
 	struct ethosn_inference *current_inference;
 
@@ -223,23 +223,23 @@ struct ethosn_core {
 
 	/* Ram log */
 	struct {
-		struct mutex      mutex;
+		struct mutex mutex;
 		wait_queue_head_t wq;
-		struct dentry     *dentry;
-		size_t            size;
-		uint8_t           *data;
-		size_t            rpos;
-		size_t            wpos;
+		struct dentry *dentry;
+		size_t size;
+		uint8_t *data;
+		size_t rpos;
+		size_t wpos;
 	} ram_log;
 
 	struct {
 		struct ethosn_profiling_config config;
-		uint32_t                       mailbox_messages_sent;
-		uint32_t                       mailbox_messages_received;
-		uint32_t                       rpm_suspend_count;
-		uint32_t                       rpm_resume_count;
-		uint32_t                       pm_suspend_count;
-		uint32_t                       pm_resume_count;
+		uint32_t mailbox_messages_sent;
+		uint32_t mailbox_messages_received;
+		uint32_t rpm_suspend_count;
+		uint32_t rpm_resume_count;
+		uint32_t pm_suspend_count;
+		uint32_t pm_resume_count;
 
 		/* The buffer currently being written to by the firmware to
 		 * record profiling entries.
@@ -256,11 +256,11 @@ struct ethosn_core {
 		 * firmware and we are waiting for acknowledgement that it
 		 * is being used.
 		 */
-		bool                   is_waiting_for_firmware_ack;
+		bool is_waiting_for_firmware_ack;
 		struct ethosn_dma_info *firmware_buffer_pending;
 
-		uint64_t               wall_clock_time_at_firmware_zero;
-	}    profiling;
+		uint64_t wall_clock_time_at_firmware_zero;
+	} profiling;
 
 	/* Will tell if the core was set up for protected inferences or not*/
 	bool set_is_protected;
@@ -340,10 +340,8 @@ resource_size_t to_ethosn_addr(const resource_size_t linux_addr,
  * @offset:	Register offset.
  * @value:	Value to be written.
  */
-void ethosn_write_top_reg(struct ethosn_core *core,
-			  const u32 page,
-			  const u32 offset,
-			  const u32 value);
+void ethosn_write_top_reg(struct ethosn_core *core, const u32 page,
+			  const u32 offset, const u32 value);
 
 /**
  * ethosn_read_top_reg() - Read top register.
@@ -353,8 +351,7 @@ void ethosn_write_top_reg(struct ethosn_core *core,
  *
  * Return: Register value.
  */
-u32 ethosn_read_top_reg(struct ethosn_core *core,
-			const u32 page,
+u32 ethosn_read_top_reg(struct ethosn_core *core, const u32 page,
 			const u32 offset);
 
 /**
@@ -364,8 +361,7 @@ u32 ethosn_read_top_reg(struct ethosn_core *core,
  *
  * Return: 0 on success, else error code.
  */
-int ethosn_reset_and_start_ethosn(struct ethosn_core *core,
-				  uint32_t alloc_id);
+int ethosn_reset_and_start_ethosn(struct ethosn_core *core, uint32_t alloc_id);
 
 /**
  * ethosn_notify_firmware() - Trigger IRQ on Ethos-N .
@@ -381,17 +377,14 @@ void ethosn_notify_firmware(struct ethosn_core *core);
  *
  * Return: 0 on success, else error code.
  */
-int ethosn_reset(struct ethosn_core *core,
-		 bool halt,
-		 uint32_t alloc_id);
+int ethosn_reset(struct ethosn_core *core, bool halt, uint32_t alloc_id);
 
 /**
  * ethosn_set_power_ctrl() - Configure power control.
  * @core:	Pointer to Ethos-N core.
  * @clk_on:	Request clock on if true.
  */
-void ethosn_set_power_ctrl(struct ethosn_core *core,
-			   bool clk_on);
+void ethosn_set_power_ctrl(struct ethosn_core *core, bool clk_on);
 
 /**
  * ethosn_dump_gps() - Dump all general purpose registers.
@@ -411,8 +404,7 @@ void ethosn_dump_gps(struct ethosn_core *core);
  * Return: 0 on success, else error code.
  */
 int ethosn_read_message(struct ethosn_core *core,
-			struct ethosn_message_header *header,
-			void *data,
+			struct ethosn_message_header *header, void *data,
 			size_t length);
 
 /**
@@ -425,8 +417,7 @@ int ethosn_read_message(struct ethosn_core *core,
  * Return: 0 on success, else error code.
  */
 int ethosn_write_message(struct ethosn_core *core,
-			 enum ethosn_message_type type,
-			 void *data,
+			 enum ethosn_message_type type, void *data,
 			 size_t length);
 
 /**
@@ -460,9 +451,8 @@ int ethosn_send_stash_request(struct ethosn_core *core);
  *
  * Return: 0 on success, else error code.
  */
-int ethosn_configure_firmware_profiling(struct ethosn_core *core,
-					struct ethosn_profiling_config *
-					new_config);
+int ethosn_configure_firmware_profiling(
+	struct ethosn_core *core, struct ethosn_profiling_config *new_config);
 
 /**
  * ethosn_configure_firmware_profiling_ack() - Update internal state to
@@ -493,8 +483,7 @@ int ethosn_send_ping(struct ethosn_core *core);
  *
  * Return: 0 on success, else error code.
  */
-int ethosn_send_inference(struct ethosn_core *core,
-			  dma_addr_t buffer_array,
+int ethosn_send_inference(struct ethosn_core *core, dma_addr_t buffer_array,
 			  uint64_t user_arg);
 
 /* ethosn_profiling_enabled() - Get status of the profiling enabled switch.

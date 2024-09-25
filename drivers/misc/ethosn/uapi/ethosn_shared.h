@@ -104,7 +104,7 @@ enum ethosn_profiling_hw_counter_types {
 };
 
 #if defined(__cplusplus)
-enum class FirmwareCounterName: uint8_t {
+enum class FirmwareCounterName : uint8_t {
 	DwtSleepCycleCount,
 	EventQueueSize,
 	DmaNumReads,
@@ -127,7 +127,7 @@ enum class FirmwareCounterName: uint8_t {
 	NcuMcuBusWriteBeats,
 };
 
-enum class TimelineEventType: uint8_t {
+enum class TimelineEventType : uint8_t {
 	TimestampFull,
 	Inference,
 	UpdateProgress,

@@ -31,8 +31,8 @@
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
 
-static void ethosn_asset_allocator_unreserve(
-	struct ethosn_dma_allocator *asset_allocator)
+static void
+ethosn_asset_allocator_unreserve(struct ethosn_dma_allocator *asset_allocator)
 {
 	if (!asset_allocator)
 		return;
@@ -74,8 +74,8 @@ void ethosn_asset_allocator_get(struct ethosn_dma_allocator *asset_allocator)
  * * -EINVAL: If asset_allocator is NULL.
  * * 1 if the object was released and 0 otherwise.
  */
-int __must_check ethosn_asset_allocator_put(
-	struct ethosn_dma_allocator *asset_allocator)
+int __must_check
+ethosn_asset_allocator_put(struct ethosn_dma_allocator *asset_allocator)
 {
 	if (WARN_ON_ONCE(!asset_allocator))
 		return -EINVAL;
@@ -93,9 +93,8 @@ int __must_check ethosn_asset_allocator_put(
 	return kref_put(&asset_allocator->kref, &asset_allocator_kref_release);
 }
 
-struct ethosn_dma_allocator *ethosn_asset_allocator_find(
-	const struct ethosn_device *ethosn,
-	pid_t pid)
+struct ethosn_dma_allocator *
+ethosn_asset_allocator_find(const struct ethosn_device *ethosn, pid_t pid)
 {
 	unsigned int i;
 
@@ -104,8 +103,7 @@ struct ethosn_dma_allocator *ethosn_asset_allocator_find(
 		return NULL;
 
 	for (i = 0; i < ethosn->num_asset_allocs; i++)
-		if (ethosn->asset_allocator[i]->pid ==
-		    pid)
+		if (ethosn->asset_allocator[i]->pid == pid)
 			return ethosn->asset_allocator[i];
 
 	return NULL;
@@ -139,8 +137,7 @@ static int ethosn_asset_allocator_pdev_remove(struct platform_device *pdev)
 	of_platform_depopulate(&pdev->dev);
 
 	ret = ethosn_dma_top_allocator_destroy(
-		&pdev->dev,
-		&ethosn->asset_allocator[alloc_id]);
+		&pdev->dev, &ethosn->asset_allocator[alloc_id]);
 
 	if (ret)
 		return ret;
@@ -150,9 +147,8 @@ static int ethosn_asset_allocator_pdev_remove(struct platform_device *pdev)
 	return ret;
 }
 
-struct ethosn_dma_allocator *ethosn_asset_allocator_reserve(
-	struct ethosn_device *ethosn,
-	pid_t pid)
+struct ethosn_dma_allocator *
+ethosn_asset_allocator_reserve(struct ethosn_device *ethosn, pid_t pid)
 {
 	struct ethosn_dma_allocator *asset_allocator = NULL;
 	unsigned int i;
@@ -195,10 +191,8 @@ static int ethosn_asset_allocator_pdev_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	asset_allocator =
-		ethosn_dma_top_allocator_create(
-			ethosn->dev,
-			ETHOSN_ALLOCATOR_ASSET);
+	asset_allocator = ethosn_dma_top_allocator_create(
+		ethosn->dev, ETHOSN_ALLOCATOR_ASSET);
 
 	if (IS_ERR_OR_NULL(asset_allocator))
 		return -ENOMEM;

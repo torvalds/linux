@@ -23,11 +23,9 @@
 #include "ethosn_backport.h"
 
 #if (KERNEL_VERSION(5, 10, 0) > LINUX_VERSION_CODE)
-struct page *dma_alloc_pages(struct device *dev,
-			     size_t size,
+struct page *dma_alloc_pages(struct device *dev, size_t size,
 			     dma_addr_t *dma_handle,
-			     enum dma_data_direction dir,
-			     gfp_t gfp)
+			     enum dma_data_direction dir, gfp_t gfp)
 {
 	struct page *page;
 
@@ -43,22 +41,16 @@ struct page *dma_alloc_pages(struct device *dev,
 	if (!page)
 		return NULL;
 
-	*dma_handle = dma_map_page(dev, page, 0,
-				   size,
-				   dir);
+	*dma_handle = dma_map_page(dev, page, 0, size, dir);
 
 	return page;
 }
 
-void dma_free_pages(struct device *dev,
-		    size_t size,
-		    struct page *page,
-		    dma_addr_t dma_handle,
-		    enum dma_data_direction dir)
+void dma_free_pages(struct device *dev, size_t size, struct page *page,
+		    dma_addr_t dma_handle, enum dma_data_direction dir)
 {
 	if (dma_handle)
-		dma_unmap_page(dev, dma_handle,
-			       size, dir);
+		dma_unmap_page(dev, dma_handle, size, dir);
 
 	if (page)
 		__free_page(page);
@@ -116,24 +108,19 @@ struct iommu_domain *ethosn_iommu_get_domain_for_dev(struct device *dev)
 	return domain;
 }
 
-int ethosn_bitmap_find_next_zero_area(struct device *dev,
-				      void **bitmap,
-				      size_t *bits,
-				      int nr_pages,
-				      unsigned long *start,
-				      bool extend_bitmap)
+int ethosn_bitmap_find_next_zero_area(struct device *dev, void **bitmap,
+				      size_t *bits, int nr_pages,
+				      unsigned long *start, bool extend_bitmap)
 {
 #if (KERNEL_VERSION(4, 20, 0) > LINUX_VERSION_CODE)
-	*start = bitmap_find_next_zero_area(*bitmap, *bits, 0,
-					    nr_pages, 0);
+	*start = bitmap_find_next_zero_area(*bitmap, *bits, 0, nr_pages, 0);
 	if (*start > *bits)
 		return -ENOMEM;
 
 #else
 
 retry:
-	*start = bitmap_find_next_zero_area(*bitmap, *bits, 0,
-					    nr_pages, 0);
+	*start = bitmap_find_next_zero_area(*bitmap, *bits, 0, nr_pages, 0);
 
 	if (*start > *bits) {
 		size_t bitmap_size = 2 * (*bits / BITS_PER_BYTE);
@@ -158,8 +145,8 @@ retry:
 	return 0;
 }
 
-struct sg_table *ethosn_dma_buf_map_attachment(struct dma_buf_attachment
-					       *attach)
+struct sg_table *
+ethosn_dma_buf_map_attachment(struct dma_buf_attachment *attach)
 {
 #if (KERNEL_VERSION(5, 3, 0) > LINUX_VERSION_CODE)
 
@@ -176,7 +163,7 @@ struct device_node *of_get_compatible_child(const struct device_node *parent,
 {
 	struct device_node *current_child = NULL;
 
-	for_each_available_child_of_node(parent, current_child) {
+	for_each_available_child_of_node (parent, current_child) {
 		if (of_device_is_compatible(current_child, compatible))
 			break;
 	}
@@ -184,8 +171,7 @@ struct device_node *of_get_compatible_child(const struct device_node *parent,
 	return current_child;
 }
 
-bool of_node_name_eq(const struct device_node *node,
-		     const char *name)
+bool of_node_name_eq(const struct device_node *node, const char *name)
 {
 	size_t len;
 

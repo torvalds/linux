@@ -49,13 +49,12 @@
 struct ethosn_allocator_internal {
 	struct ethosn_dma_sub_allocator allocator;
 
-	struct device_node              *res_mem;
+	struct device_node *res_mem;
 };
 
-static struct ethosn_dma_info *carveout_alloc(
-	struct ethosn_dma_sub_allocator *allocator,
-	const size_t size,
-	gfp_t gfp)
+static struct ethosn_dma_info *
+carveout_alloc(struct ethosn_dma_sub_allocator *allocator, const size_t size,
+	       gfp_t gfp)
 {
 	struct ethosn_dma_info *dma_info;
 	void *cpu_addr = NULL;
@@ -63,31 +62,26 @@ static struct ethosn_dma_info *carveout_alloc(
 
 	/* FIXME:- We cannot allocate addresses at different 512MB offsets */
 	/* for the different streams. */
-	dma_info = devm_kzalloc(allocator->dev,
-				sizeof(struct ethosn_dma_info),
+	dma_info = devm_kzalloc(allocator->dev, sizeof(struct ethosn_dma_info),
 				GFP_KERNEL);
 	if (!dma_info)
 		return ERR_PTR(-ENOMEM);
 
 	if (size) {
-		cpu_addr =
-			dma_alloc_wc(allocator->dev, size, &dma_addr, gfp);
+		cpu_addr = dma_alloc_wc(allocator->dev, size, &dma_addr, gfp);
 		if (!cpu_addr) {
 			dev_dbg(allocator->dev,
-				"failed to dma_alloc %zu bytes\n",
-				size);
+				"failed to dma_alloc %zu bytes\n", size);
 			devm_kfree(allocator->dev, dma_info);
 
 			return ERR_PTR(-ENOMEM);
 		}
 	}
 
-	*dma_info = (struct ethosn_dma_info) {
-		.size = size,
-		.cpu_addr = cpu_addr,
-		.iova_addr = dma_addr,
-		.imported = false
-	};
+	*dma_info = (struct ethosn_dma_info){ .size = size,
+					      .cpu_addr = cpu_addr,
+					      .iova_addr = dma_addr,
+					      .imported = false };
 
 	return dma_info;
 }
@@ -102,7 +96,8 @@ static int carveout_map(struct ethosn_dma_sub_allocator *allocator,
 
 static void carveout_unmap(struct ethosn_dma_sub_allocator *allocator,
 			   struct ethosn_dma_info *dma_info)
-{}
+{
+}
 
 static void carveout_free(struct ethosn_dma_sub_allocator *allocator,
 			  struct ethosn_dma_info **dma_info)
@@ -115,8 +110,7 @@ static void carveout_free(struct ethosn_dma_sub_allocator *allocator,
 		/* Clear any data before freeing the memory */
 		memset((*dma_info)->cpu_addr, 0U, (*dma_info)->size);
 		dma_free_wc(allocator->dev, (*dma_info)->size,
-			    (*dma_info)->cpu_addr,
-			    dma_addr);
+			    (*dma_info)->cpu_addr, dma_addr);
 	}
 
 	memset(*dma_info, 0, sizeof(struct ethosn_dma_info));
@@ -127,11 +121,13 @@ static void carveout_free(struct ethosn_dma_sub_allocator *allocator,
 
 static void carveout_sync_for_device(struct ethosn_dma_sub_allocator *allocator,
 				     struct ethosn_dma_info *dma_info)
-{}
+{
+}
 
 static void carveout_sync_for_cpu(struct ethosn_dma_sub_allocator *allocator,
 				  struct ethosn_dma_info *dma_info)
-{}
+{
+}
 
 static int carveout_mmap(struct ethosn_dma_sub_allocator *allocator,
 			 struct vm_area_struct *const vma,
@@ -141,17 +137,18 @@ static int carveout_mmap(struct ethosn_dma_sub_allocator *allocator,
 	void *const cpu_addr = dma_info->cpu_addr;
 	const dma_addr_t dma_addr = dma_info->iova_addr;
 
-	const dma_addr_t mmap_addr =
-		((dma_addr >> PAGE_SHIFT) + vma->vm_pgoff) << PAGE_SHIFT;
+	const dma_addr_t mmap_addr = ((dma_addr >> PAGE_SHIFT) + vma->vm_pgoff)
+				     << PAGE_SHIFT;
 
 	int ret;
 
 	ret = dma_mmap_wc(allocator->dev, vma, cpu_addr, dma_addr, size);
 
 	if (ret)
-		dev_warn(allocator->dev,
-			 "Failed to DMA map buffer. handle=0x%pK, addr=0x%llx, size=%lu\n",
-			 dma_info, mmap_addr, vma->vm_end - vma->vm_start);
+		dev_warn(
+			allocator->dev,
+			"Failed to DMA map buffer. handle=0x%pK, addr=0x%llx, size=%lu\n",
+			dma_info, mmap_addr, vma->vm_end - vma->vm_start);
 	else
 		dev_dbg(allocator->dev,
 			"DMA map. handle=0x%pK, addr=0x%llx, start=0x%lx, size=%lu\n",
@@ -161,9 +158,9 @@ static int carveout_mmap(struct ethosn_dma_sub_allocator *allocator,
 	return ret;
 }
 
-static dma_addr_t carveout_get_addr_base(
-	struct ethosn_dma_sub_allocator *_allocator,
-	enum ethosn_stream_type stream_type)
+static dma_addr_t
+carveout_get_addr_base(struct ethosn_dma_sub_allocator *_allocator,
+		       enum ethosn_stream_type stream_type)
 {
 	struct ethosn_allocator_internal *allocator =
 		container_of(_allocator, typeof(*allocator), allocator);
@@ -178,9 +175,9 @@ static dma_addr_t carveout_get_addr_base(
 		return r.start;
 }
 
-static resource_size_t carveout_get_addr_size(
-	struct ethosn_dma_sub_allocator *_allocator,
-	enum ethosn_stream_type stream_type)
+static resource_size_t
+carveout_get_addr_size(struct ethosn_dma_sub_allocator *_allocator,
+		       enum ethosn_stream_type stream_type)
 {
 	struct ethosn_allocator_internal *allocator =
 		container_of(_allocator, typeof(*allocator), allocator);
@@ -195,8 +192,8 @@ static resource_size_t carveout_get_addr_size(
 		return resource_size(&r);
 }
 
-static void carveout_allocator_destroy(
-	struct ethosn_dma_sub_allocator *allocator)
+static void
+carveout_allocator_destroy(struct ethosn_dma_sub_allocator *allocator)
 {
 	struct device *dev;
 
@@ -209,20 +206,20 @@ static void carveout_allocator_destroy(
 	devm_kfree(dev, allocator);
 }
 
-struct ethosn_dma_sub_allocator *ethosn_dma_carveout_allocator_create(
-	struct device *dev)
+struct ethosn_dma_sub_allocator *
+ethosn_dma_carveout_allocator_create(struct device *dev)
 {
 	static struct ethosn_dma_allocator_ops ops = {
-		.destroy         = carveout_allocator_destroy,
-		.alloc           = carveout_alloc,
-		.map             = carveout_map,
-		.unmap           = carveout_unmap,
-		.free            = carveout_free,
+		.destroy = carveout_allocator_destroy,
+		.alloc = carveout_alloc,
+		.map = carveout_map,
+		.unmap = carveout_unmap,
+		.free = carveout_free,
 		.sync_for_device = carveout_sync_for_device,
-		.sync_for_cpu    = carveout_sync_for_cpu,
-		.mmap            = carveout_mmap,
-		.get_addr_base   = carveout_get_addr_base,
-		.get_addr_size   = carveout_get_addr_size,
+		.sync_for_cpu = carveout_sync_for_cpu,
+		.mmap = carveout_mmap,
+		.get_addr_base = carveout_get_addr_base,
+		.get_addr_size = carveout_get_addr_size,
 	};
 	struct ethosn_allocator_internal *allocator;
 	struct device_node *res_mem;
@@ -299,8 +296,7 @@ struct ethosn_dma_sub_allocator *ethosn_dma_carveout_allocator_create(
 		return ERR_PTR(-EINVAL);
 	}
 
-	allocator = devm_kzalloc(dev,
-				 sizeof(struct ethosn_allocator_internal),
+	allocator = devm_kzalloc(dev, sizeof(struct ethosn_allocator_internal),
 				 GFP_KERNEL);
 
 	if (!allocator)

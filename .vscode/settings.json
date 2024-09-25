@@ -16,4 +16,14 @@
       "--function-arg-placeholders=false",
       "--query-driver=aarch64-linux-gnu-gcc",
     ],
+    "favorites.resources": [
+        {
+            "filePath": "drivers/misc/ethosn",
+            "group": "Default"
+        },
+        {
+            "filePath": ".clang-uml",
+            "group": "Default"
+        }
+    ],
 }

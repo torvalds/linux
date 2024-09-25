@@ -36,7 +36,7 @@ struct ethosn_smc_aux_config {
 		uint32_t word;
 		struct {
 			uint32_t level_irq : 1; /* Change to level rising IRQ */
-			uint32_t stashing : 1;  /* Enable stashing */
+			uint32_t stashing : 1; /* Enable stashing */
 			uint32_t reserved : 30;
 		} bits;
 	};
@@ -60,8 +60,7 @@ int ethosn_smc_version_check(const struct device *dev);
  *
  * Return: 0 if unsecure, 1 if secure or negative error code on failure.
  */
-int ethosn_smc_is_secure(const struct device *dev,
-			 phys_addr_t core_addr);
+int ethosn_smc_is_secure(const struct device *dev, phys_addr_t core_addr);
 
 /**
  * ethosn_smc_core_reset() - Call SiP service to reset a NPU core
@@ -75,11 +74,8 @@ int ethosn_smc_is_secure(const struct device *dev,
  *
  * Return: 0 on success, else error code.
  */
-int ethosn_smc_core_reset(const struct device *dev,
-			  phys_addr_t core_addr,
-			  uint32_t asset_alloc_idx,
-			  bool halt,
-			  bool hard_reset,
+int ethosn_smc_core_reset(const struct device *dev, phys_addr_t core_addr,
+			  uint32_t asset_alloc_idx, bool halt, bool hard_reset,
 			  bool is_protected,
 			  const struct ethosn_smc_aux_config *aux_config);
 
@@ -107,8 +103,7 @@ int ethosn_smc_core_is_sleeping(const struct device *dev,
  * Return: 0 on success, negative error code on failure.
  */
 int ethosn_smc_get_firmware_version(const struct device *dev,
-				    uint32_t *out_major,
-				    uint32_t *out_minor,
+				    uint32_t *out_major, uint32_t *out_minor,
 				    uint32_t *out_patch);
 
 /**
@@ -121,8 +116,7 @@ int ethosn_smc_get_firmware_version(const struct device *dev,
  * Return: 0 on success, negative error code on failure.
  */
 int ethosn_smc_get_firmware_mem_info(const struct device *dev,
-				     phys_addr_t *out_addr,
-				     size_t *out_size);
+				     phys_addr_t *out_addr, size_t *out_size);
 
 /**
  * ethosn_smc_get_firmware_offsets() - Call SiP service to get the NPU firmware

@@ -57,19 +57,17 @@ static struct device *ifr_to_dev(const struct ethosn_inference *const ifr)
 	return net_to_dev(ifr->network);
 }
 
-static struct ethosn_buffer_array *get_inference_header(
-	const struct ethosn_network *const network,
-	uint32_t core_id)
+static struct ethosn_buffer_array *
+get_inference_header(const struct ethosn_network *const network,
+		     uint32_t core_id)
 {
 	return network->inference_data[core_id]->cpu_addr;
 }
 
-static int set_binding(struct ethosn_network *network,
-		       uint32_t core_id,
+static int set_binding(struct ethosn_network *network, uint32_t core_id,
 		       struct ethosn_buffer_info *buf_info,
 		       ethosn_address_t container_start,
-		       ethosn_address_t container_size,
-		       bool check_in_container,
+		       ethosn_address_t container_size, bool check_in_container,
 		       enum ethosn_buffer_type buffer_type)
 {
 	ethosn_address_t buf_start = container_start + buf_info->offset;
@@ -88,7 +86,8 @@ static int set_binding(struct ethosn_network *network,
 
 	if (check_in_container && (buf_end > container_end)) {
 		dev_err(dev,
-			"Inference binding outside of container: { %u, %u } > { 0, %llu }\n", buf_info->offset, buf_info->offset + buf_info->size,
+			"Inference binding outside of container: { %u, %u } > { 0, %llu }\n",
+			buf_info->offset, buf_info->offset + buf_info->size,
 			container_size);
 
 		return -EINVAL;
@@ -101,14 +100,12 @@ static int set_binding(struct ethosn_network *network,
 	return 0;
 }
 
-static int update_bindings(struct ethosn_network *network,
-			   uint32_t core_id,
+static int update_bindings(struct ethosn_network *network, uint32_t core_id,
 			   u32 num_buffer_infos,
 			   struct ethosn_buffer_info *buffer_infos,
 			   ethosn_address_t container_start,
 			   ethosn_address_t container_size,
-			   bool check_duplicates,
-			   bool check_in_container,
+			   bool check_duplicates, bool check_in_container,
 			   enum ethosn_buffer_type buffer_type)
 {
 	u32 i;
@@ -119,8 +116,7 @@ static int update_bindings(struct ethosn_network *network,
 	struct device *dev = net_to_dev(network);
 
 	for (i = 0; i < num_buffer_infos; ++i) {
-		struct ethosn_buffer_info *const buf_info =
-			&buffer_infos[i];
+		struct ethosn_buffer_info *const buf_info = &buffer_infos[i];
 		ethosn_address_t buf_start = buf_info->offset;
 		ethosn_address_t buf_end = buf_start + buf_info->size;
 		int ret;
@@ -140,12 +136,8 @@ static int update_bindings(struct ethosn_network *network,
 			return -EINVAL;
 		}
 
-		ret = set_binding(network,
-				  core_id,
-				  buf_info,
-				  container_start,
-				  container_size,
-				  check_in_container,
+		ret = set_binding(network, core_id, buf_info, container_start,
+				  container_size, check_in_container,
 				  buffer_type);
 		if (ret)
 			return ret;
@@ -179,8 +171,7 @@ static void put_network(struct ethosn_network *network)
 	fput(network->file);
 }
 
-static void free_buffers(struct device *dev,
-			 const u32 n,
+static void free_buffers(struct device *dev, const u32 n,
 			 struct ethosn_buffer **bufs)
 {
 	u32 i;
@@ -200,10 +191,8 @@ static void free_inference(struct ethosn_inference *inference)
 
 	dev_dbg(dev, "Freeing inference. handle=0x%pK\n", inference);
 
-	free_buffers(dev, inference->network->num_inputs,
-		     inference->inputs);
-	free_buffers(dev, inference->network->num_outputs,
-		     inference->outputs);
+	free_buffers(dev, inference->network->num_inputs, inference->inputs);
+	free_buffers(dev, inference->network->num_outputs, inference->outputs);
 
 	put_network(inference->network);
 
@@ -211,8 +200,7 @@ static void free_inference(struct ethosn_inference *inference)
 }
 
 static struct ethosn_buffer **read_buffer_fds(struct ethosn_network *network,
-					      u32 n,
-					      const int __user *fds,
+					      u32 n, const int __user *fds,
 					      struct ethosn_buffer_info *infos)
 {
 	struct ethosn_buffer **bufs;
@@ -264,8 +252,8 @@ static struct ethosn_buffer **read_buffer_fds(struct ethosn_network *network,
 
 		if (buf->dma_info->size < buf_size) {
 			dev_err(dev,
-				"Network size does not match buffer size. handle=0x%pK, buf_size=%zu, network_size=%u, fd=%d\n", buf, buf->dma_info->size, buf_size,
-				fd);
+				"Network size does not match buffer size. handle=0x%pK, buf_size=%zu, network_size=%u, fd=%d\n",
+				buf, buf->dma_info->size, buf_size, fd);
 			error = -EINVAL;
 			goto err_free_bufs;
 		}
@@ -322,10 +310,8 @@ static bool ethosn_check_if_ok_to_schedule(struct ethosn_device *ethosn,
 		if (core_inference->network == inference->network) {
 			dev_dbg(ethosn->dev,
 				"Network 0x%pK has already one running inference 0x%pK on core %d --> Do not schedule inference 0x%pK!\n",
-				core_inference->network,
-				core_inference,
-				ethosn->core[ii]->core_id,
-				inference);
+				core_inference->network, core_inference,
+				ethosn->core[ii]->core_id, inference);
 
 			return false;
 		}
@@ -361,8 +347,7 @@ int ethosn_schedule_inference(struct ethosn_inference *inference)
 	if (inference->status == ETHOSN_INFERENCE_RUNNING) {
 		dev_err(core_dev, "Core %d got an inference while busy",
 			core_id);
-		ethosn->status_mask |=
-			(1 << INFERENCE_SCHEDULED_ON_BUSY_CORE);
+		ethosn->status_mask |= (1 << INFERENCE_SCHEDULED_ON_BUSY_CORE);
 
 		return 0;
 	}
@@ -375,10 +360,11 @@ int ethosn_schedule_inference(struct ethosn_inference *inference)
 	    core->set_alloc_id != network->asset_allocator->alloc_id) {
 		dev_dbg(core_dev,
 			"Restarting core due to alloc_id changed (%d to %d) or protected context changed (%d to %d)",
-			core->set_alloc_id, network->asset_allocator->alloc_id, core->set_is_protected,
+			core->set_alloc_id, network->asset_allocator->alloc_id,
+			core->set_is_protected,
 			network->asset_allocator->is_protected);
-		ret = ethosn_reset_and_start_ethosn(core,
-						    network->asset_allocator->alloc_id);
+		ret = ethosn_reset_and_start_ethosn(
+			core, network->asset_allocator->alloc_id);
 		if (ret)
 			goto out_inference_error;
 	}
@@ -387,15 +373,9 @@ int ethosn_schedule_inference(struct ethosn_inference *inference)
 		struct ethosn_dma_info *dma_info =
 			inference->inputs[i]->dma_info;
 
-		ret = update_bindings(network,
-				      core_id,
-				      1,
-				      &network->inputs[i],
-				      dma_info->iova_addr,
-				      dma_info->size,
-				      false,
-				      true,
-				      ETHOSN_BUFFER_INPUT);
+		ret = update_bindings(network, core_id, 1, &network->inputs[i],
+				      dma_info->iova_addr, dma_info->size,
+				      false, true, ETHOSN_BUFFER_INPUT);
 		if (ret)
 			goto out_inference_error;
 	}
@@ -404,39 +384,31 @@ int ethosn_schedule_inference(struct ethosn_inference *inference)
 		struct ethosn_dma_info *dma_info =
 			inference->outputs[i]->dma_info;
 
-		ret = update_bindings(network,
-				      core_id,
-				      1,
-				      &network->outputs[i],
-				      dma_info->iova_addr,
-				      dma_info->size,
-				      false,
-				      true,
-				      ETHOSN_BUFFER_OUTPUT);
+		ret = update_bindings(network, core_id, 1, &network->outputs[i],
+				      dma_info->iova_addr, dma_info->size,
+				      false, true, ETHOSN_BUFFER_OUTPUT);
 		if (ret)
 			goto out_inference_error;
 	}
 
-	ret = update_bindings(network,
-			      core_id,
-			      network->num_intermediates,
-			      network->intermediates,
-			      network->intermediate_data[core_id] == NULL ? 0 :
-			      network->intermediate_data[core_id]->iova_addr,
-			      network->intermediate_data[core_id] == NULL ? 0 :
-			      network->intermediate_data[core_id]->size,
-			      false,
-			      true,
-			      ETHOSN_BUFFER_INTERMEDIATE);
+	ret = update_bindings(
+		network, core_id, network->num_intermediates,
+		network->intermediates,
+		network->intermediate_data[core_id] == NULL ?
+			0 :
+			network->intermediate_data[core_id]->iova_addr,
+		network->intermediate_data[core_id] == NULL ?
+			0 :
+			network->intermediate_data[core_id]->size,
+		false, true, ETHOSN_BUFFER_INTERMEDIATE);
 
 	if (ret)
 		goto out_inference_error;
 
 	/* kick off execution */
 	dev_dbg(core_dev, "Starting execution of inference");
-	ethosn_dma_sync_for_device(
-		network->asset_allocator,
-		network->inference_data[core_id]);
+	ethosn_dma_sync_for_device(network->asset_allocator,
+				   network->inference_data[core_id]);
 	core->current_inference = inference;
 
 	pm_runtime_get_sync(core->dev);
@@ -455,8 +427,7 @@ int ethosn_schedule_inference(struct ethosn_inference *inference)
 
 	ethosn->current_busy_cores |= (1 << core_id);
 	dev_dbg(core_dev, "Scheduled inference 0x%pK on core_id = %u\n",
-		inference,
-		core_id);
+		inference, core_id);
 
 	return 0;
 
@@ -487,8 +458,7 @@ void ethosn_schedule_queued_inference(struct ethosn_core *core)
 	 * The inference queue needs to be protected against concurrent
 	 * operation.
 	 */
-	ret = mutex_lock_interruptible(
-		&ethosn->queue.inference_queue_mutex);
+	ret = mutex_lock_interruptible(&ethosn->queue.inference_queue_mutex);
 	if (ret)
 		return;
 
@@ -500,12 +470,10 @@ void ethosn_schedule_queued_inference(struct ethosn_core *core)
 	 * If none, then the inference queue is checked again after next request
 	 */
 	if (!list_empty(&ethosn->queue.inference_queue)) {
-		list_for_each_entry(inference,
-				    &ethosn->queue.inference_queue,
-				    queue_node) {
+		list_for_each_entry (inference, &ethosn->queue.inference_queue,
+				     queue_node) {
 			schedule_inference = ethosn_check_if_ok_to_schedule(
-				ethosn,
-				inference);
+				ethosn, inference);
 			if (schedule_inference) {
 				list_del(&inference->queue_node);
 				break;
@@ -534,9 +502,9 @@ void ethosn_schedule_queued_inference(struct ethosn_core *core)
  *
  * Return: Valid pointer on success, else error pointer.
  */
-static
-struct ethosn_inference *inference_create(struct ethosn_network *network,
-					  struct ethosn_inference_req *ifr_req)
+static struct ethosn_inference *
+inference_create(struct ethosn_network *network,
+		 struct ethosn_inference_req *ifr_req)
 {
 	struct ethosn_inference *inference;
 	int ret;
@@ -561,19 +529,17 @@ struct ethosn_inference *inference_create(struct ethosn_network *network,
 	inference->status = ETHOSN_INFERENCE_SCHEDULED;
 	init_waitqueue_head(&inference->poll_wqh);
 
-	inference->inputs = read_buffer_fds(network,
-					    ifr_req->num_inputs,
-					    ifr_req->input_fds,
-					    network->inputs);
+	inference->inputs =
+		read_buffer_fds(network, ifr_req->num_inputs,
+				ifr_req->input_fds, network->inputs);
 	if (IS_ERR(inference->inputs)) {
 		ret = PTR_ERR(inference->inputs);
 		goto err_free_inference;
 	}
 
-	inference->outputs = read_buffer_fds(network,
-					     ifr_req->num_outputs,
-					     ifr_req->output_fds,
-					     network->outputs);
+	inference->outputs =
+		read_buffer_fds(network, ifr_req->num_outputs,
+				ifr_req->output_fds, network->outputs);
 	if (IS_ERR(inference->outputs)) {
 		ret = PTR_ERR(inference->outputs);
 		goto err_free_inference;
@@ -587,8 +553,7 @@ err_free_inference:
 	return ERR_PTR(ret);
 }
 
-static int inference_release(struct inode *inode,
-			     struct file *filep)
+static int inference_release(struct inode *inode, struct file *filep)
 {
 	struct ethosn_inference *inference = filep->private_data;
 	struct ethosn_core *core = inference->core;
@@ -612,25 +577,23 @@ static int inference_release(struct inode *inode,
 		 */
 		struct ethosn_device *ethosn = inference->network->ethosn;
 
-		mutex_lock(
-			&ethosn->queue.inference_queue_mutex);
+		mutex_lock(&ethosn->queue.inference_queue_mutex);
 
 		/* Inference might be running or completed by now */
 		if (inference->status == ETHOSN_INFERENCE_SCHEDULED)
 			list_del(&inference->queue_node);
 
-		mutex_unlock(
-			&ethosn->queue.inference_queue_mutex);
+		mutex_unlock(&ethosn->queue.inference_queue_mutex);
 	}
 
 	if (inference->status == ETHOSN_INFERENCE_RUNNING) {
 		/* Inference might be completed by now */
-		dev_warn(core->dev,
-			 "Reset Ethos-N due to error inference abort. handle=0x%pK\n",
-			 inference);
+		dev_warn(
+			core->dev,
+			"Reset Ethos-N due to error inference abort. handle=0x%pK\n",
+			inference);
 
-		(void)ethosn_reset_and_start_ethosn(core,
-						    core->set_alloc_id);
+		(void)ethosn_reset_and_start_ethosn(core, core->set_alloc_id);
 		ethosn_set_inference_done(core, inference,
 					  ETHOSN_INFERENCE_ERROR, 0);
 	}
@@ -644,8 +607,7 @@ static int inference_release(struct inode *inode,
 	return 0;
 }
 
-static __poll_t inference_poll(struct file *file,
-			       poll_table *wait)
+static __poll_t inference_poll(struct file *file, poll_table *wait)
 {
 	struct ethosn_inference *inference = file->private_data;
 	__poll_t ret = 0;
@@ -662,9 +624,7 @@ static __poll_t inference_poll(struct file *file,
 	return ret;
 }
 
-static ssize_t inference_read(struct file *file,
-			      char __user *buf,
-			      size_t count,
+static ssize_t inference_read(struct file *file, char __user *buf, size_t count,
 			      loff_t *ppos)
 {
 	struct ethosn_inference *inference = file->private_data;
@@ -676,9 +636,9 @@ static ssize_t inference_read(struct file *file,
 	if (count != sizeof(inference->status))
 		return -EINVAL;
 
-	return put_user(inference->status,
-			(int32_t __user *)buf) ? -EFAULT :
-	       sizeof(inference->status);
+	return put_user(inference->status, (int32_t __user *)buf) ?
+		       -EFAULT :
+		       sizeof(inference->status);
 }
 
 /**
@@ -691,8 +651,7 @@ static ssize_t inference_read(struct file *file,
  * * Zero on success
  * * Negative error code on failure
  */
-static long inference_ioctl(struct file *filep,
-			    unsigned int cmd,
+static long inference_ioctl(struct file *filep, unsigned int cmd,
 			    unsigned long arg)
 {
 	struct ethosn_inference *inference = filep->private_data;
@@ -726,13 +685,13 @@ static int ethosn_inference_register(struct ethosn_network *network,
 				     struct ethosn_inference_req *req)
 {
 	static const struct file_operations inference_fops = {
-		.owner          = THIS_MODULE,
-		.release        = &inference_release,
-		.poll           = &inference_poll,
-		.read           = &inference_read,
+		.owner = THIS_MODULE,
+		.release = &inference_release,
+		.poll = &inference_poll,
+		.read = &inference_read,
 		.unlocked_ioctl = &inference_ioctl,
 #ifdef CONFIG_COMPAT
-		.compat_ioctl   = &inference_ioctl,
+		.compat_ioctl = &inference_ioctl,
 #endif
 	};
 	int i = 0;
@@ -788,10 +747,8 @@ static int ethosn_inference_register(struct ethosn_network *network,
 			goto err_free_inference;
 		}
 
-	ret_fd = anon_inode_getfd("ethosn-inference",
-				  &inference_fops,
-				  inference,
-				  O_RDONLY | O_CLOEXEC);
+	ret_fd = anon_inode_getfd("ethosn-inference", &inference_fops,
+				  inference, O_RDONLY | O_CLOEXEC);
 
 	if (ret_fd < 0)
 		goto err_free_inference;
@@ -800,8 +757,7 @@ static int ethosn_inference_register(struct ethosn_network *network,
 		network->asset_allocator->is_protected ? "" : "non-",
 		inference);
 
-	ret = mutex_lock_interruptible(
-		&ethosn->queue.inference_queue_mutex);
+	ret = mutex_lock_interruptible(&ethosn->queue.inference_queue_mutex);
 	/* Return the file descriptor */
 	if (ret) {
 		/* Queue node hasn't been added to the list.
@@ -861,8 +817,7 @@ err_free_inference:
  * * Inference file descriptor on success
  * * Negative error code on failure
  */
-static long network_ioctl(struct file *filep,
-			  unsigned int cmd,
+static long network_ioctl(struct file *filep, unsigned int cmd,
 			  unsigned long arg)
 {
 	struct ethosn_network *network = filep->private_data;
@@ -884,23 +839,22 @@ static long network_ioctl(struct file *filep,
 
 		ret = ethosn_inference_register(network, &infer_req);
 
-		dev_dbg(dev, "SCHEDULE_INFERENCE: time %llu",
-			time);
+		dev_dbg(dev, "SCHEDULE_INFERENCE: time %llu", time);
 
 		break;
 	}
 	case ETHOSN_IOCTL_GET_INTERMEDIATE_BUFFER: {
 		if (network->asset_allocator->is_protected) {
-			dev_dbg(
-				dev,
+			dev_dbg(dev,
 				"Not allowed to get intermediate buffers while in protected context\n");
 			ret = -EPERM;
 			break;
 		}
 
 		if (network->ethosn->num_cores > 1)
-			dev_warn(dev,
-				 "Intermediate buffer for multi-core system: core 0 will be returned.");
+			dev_warn(
+				dev,
+				"Intermediate buffer for multi-core system: core 0 will be returned.");
 
 		ethosn_dma_sync_for_cpu(network->asset_allocator,
 					network->intermediate_data[0]);
@@ -918,15 +872,12 @@ static long network_ioctl(struct file *filep,
 	return ret;
 }
 
-static int init_bindings(struct ethosn_network *network,
-			 uint32_t core_id,
-			 u32 num_binfos,
-			 const struct ethosn_buffer_info __user *binfos_user,
-			 ethosn_address_t container_start,
-			 ethosn_address_t container_size,
-			 bool check_in_container,
-			 struct ethosn_buffer_info **binfos_save,
-			 enum ethosn_buffer_type buffer_type)
+static int
+init_bindings(struct ethosn_network *network, uint32_t core_id, u32 num_binfos,
+	      const struct ethosn_buffer_info __user *binfos_user,
+	      ethosn_address_t container_start, ethosn_address_t container_size,
+	      bool check_in_container, struct ethosn_buffer_info **binfos_save,
+	      enum ethosn_buffer_type buffer_type)
 {
 	struct ethosn_buffer_info *binfos;
 	size_t binfos_size;
@@ -947,15 +898,9 @@ static int init_bindings(struct ethosn_network *network,
 		goto out_free_binfos;
 	}
 
-	ret = update_bindings(network,
-			      core_id,
-			      num_binfos,
-			      binfos,
-			      container_start,
-			      container_size,
-			      true,
-			      check_in_container,
-			      buffer_type);
+	ret = update_bindings(network, core_id, num_binfos, binfos,
+			      container_start, container_size, true,
+			      check_in_container, buffer_type);
 
 	if (ret || !binfos_save)
 		goto out_free_binfos;
@@ -974,8 +919,7 @@ out_clean_binfos:
 }
 
 static int init_inference_data(struct ethosn_network *network,
-			       struct ethosn_core *core,
-			       u32 num_bindings,
+			       struct ethosn_core *core, u32 num_bindings,
 			       struct ethosn_network_req *net_req,
 			       uint32_t core_id)
 {
@@ -993,14 +937,10 @@ static int init_inference_data(struct ethosn_network *network,
 	if (network->constant_dma_data) {
 		ethosn_dma_sync_for_device(network->asset_allocator,
 					   network->constant_dma_data);
-		ret = init_bindings(network,
-				    core_id,
-				    net_req->dma_buffers.num,
+		ret = init_bindings(network, core_id, net_req->dma_buffers.num,
 				    net_req->dma_buffers.info,
 				    network->constant_dma_data->iova_addr,
-				    net_req->dma_data.size,
-				    true,
-				    NULL,
+				    net_req->dma_data.size, true, NULL,
 				    ETHOSN_BUFFER_CONSTANT);
 		if (ret)
 			return ret;
@@ -1008,43 +948,28 @@ static int init_inference_data(struct ethosn_network *network,
 
 	ethosn_dma_sync_for_device(network->asset_allocator,
 				   network->constant_cu_data);
-	ret = init_bindings(network,
-			    core_id,
-			    net_req->cu_buffers.num,
+	ret = init_bindings(network, core_id, net_req->cu_buffers.num,
 			    net_req->cu_buffers.info,
 			    to_ethosn_addr(network->constant_cu_data->iova_addr,
 					   &core->dma_map),
-			    net_req->cu_data.size,
-			    true,
-			    NULL,
+			    net_req->cu_data.size, true, NULL,
 			    ETHOSN_BUFFER_CMD_FW);
 	if (ret)
 		return ret;
 
-	ret = init_bindings(network,
-			    core_id,
+	ret = init_bindings(network, core_id,
 			    net_req->intermediate_desc.buffers.num,
-			    net_req->intermediate_desc.buffers.info,
-			    0,
-			    0,
-			    false,
-			    &network->intermediates,
+			    net_req->intermediate_desc.buffers.info, 0, 0,
+			    false, &network->intermediates,
 			    ETHOSN_BUFFER_INTERMEDIATE);
 	if (ret)
 		return ret;
 
-	network->num_intermediates =
-		net_req->intermediate_desc.buffers.num;
+	network->num_intermediates = net_req->intermediate_desc.buffers.num;
 
-	ret = init_bindings(network,
-			    core_id,
-			    net_req->input_buffers.num,
-			    net_req->input_buffers.info,
-			    0,
-			    0,
-			    false,
-			    &network->inputs,
-			    ETHOSN_BUFFER_INPUT);
+	ret = init_bindings(network, core_id, net_req->input_buffers.num,
+			    net_req->input_buffers.info, 0, 0, false,
+			    &network->inputs, ETHOSN_BUFFER_INPUT);
 	if (ret)
 		return ret;
 
@@ -1058,15 +983,9 @@ static int init_inference_data(struct ethosn_network *network,
 		network->inputs[i].offset = 0;
 	}
 
-	ret = init_bindings(network,
-			    core_id,
-			    net_req->output_buffers.num,
-			    net_req->output_buffers.info,
-			    0,
-			    0,
-			    false,
-			    &network->outputs,
-			    ETHOSN_BUFFER_OUTPUT);
+	ret = init_bindings(network, core_id, net_req->output_buffers.num,
+			    net_req->output_buffers.info, 0, 0, false,
+			    &network->outputs, ETHOSN_BUFFER_OUTPUT);
 	if (ret)
 		return ret;
 
@@ -1120,22 +1039,19 @@ static int import_intermediate_data(struct ethosn_network *network,
 	 * will still work.
 	 */
 	network->intermediate_data[0] =
-		ethosn_dma_import(
-			network->asset_allocator,
-			req->intermediate_desc.memory.dma_req.fd,
-			req->intermediate_desc.memory.dma_req.size,
-			ETHOSN_STREAM_INTERMEDIATE_BUFFER);
+		ethosn_dma_import(network->asset_allocator,
+				  req->intermediate_desc.memory.dma_req.fd,
+				  req->intermediate_desc.memory.dma_req.size,
+				  ETHOSN_STREAM_INTERMEDIATE_BUFFER);
 	if (IS_ERR_OR_NULL(network->intermediate_data[0])) {
 		dev_dbg(dev, "DMA import of intermediate buffer failed\n");
 
 		return ret;
 	}
 
-	ret = ethosn_dma_map(
-		network->asset_allocator,
-		network->intermediate_data[0],
-		ETHOSN_PROT_READ |
-		ETHOSN_PROT_WRITE);
+	ret = ethosn_dma_map(network->asset_allocator,
+			     network->intermediate_data[0],
+			     ETHOSN_PROT_READ | ETHOSN_PROT_WRITE);
 
 	if (ret < 0) {
 		dev_dbg(dev, "DMA mapping of intermediate buffer failed\n");
@@ -1146,8 +1062,7 @@ static int import_intermediate_data(struct ethosn_network *network,
 	/* Assign the imported intermediate data from core 0 to all cores */
 	for (i = 1; i < num_cores; i++)
 
-		network->intermediate_data[i] =
-			network->intermediate_data[0];
+		network->intermediate_data[i] = network->intermediate_data[0];
 
 	return ret;
 }
@@ -1176,14 +1091,12 @@ static int alloc_intermediate_data(struct ethosn_network *network,
 	}
 
 	for (i = 0; i < num_cores; ++i) {
-		network->intermediate_data[i] =
-			ethosn_dma_alloc_and_map(
-				network->asset_allocator,
-				req->intermediate_desc.memory.data_size,
-				ETHOSN_PROT_READ | ETHOSN_PROT_WRITE,
-				ETHOSN_STREAM_INTERMEDIATE_BUFFER,
-				GFP_KERNEL,
-				"network-intermediate-data");
+		network->intermediate_data[i] = ethosn_dma_alloc_and_map(
+			network->asset_allocator,
+			req->intermediate_desc.memory.data_size,
+			ETHOSN_PROT_READ | ETHOSN_PROT_WRITE,
+			ETHOSN_STREAM_INTERMEDIATE_BUFFER, GFP_KERNEL,
+			"network-intermediate-data");
 
 		if (IS_ERR_OR_NULL(network->intermediate_data[i])) {
 			dev_dbg(dev,
@@ -1212,8 +1125,8 @@ static int alloc_init_inference_data(struct ethosn_network *network,
 	num_bindings += req->input_buffers.num;
 	num_bindings += req->output_buffers.num;
 
-	size = sizeof(struct ethosn_buffer_array) + num_bindings *
-	       sizeof(struct ethosn_buffer_desc);
+	size = sizeof(struct ethosn_buffer_array) +
+	       num_bindings * sizeof(struct ethosn_buffer_desc);
 
 	/*
 	 * The inference data (which is ethosn_buffer_array) needs to be
@@ -1229,13 +1142,10 @@ static int alloc_init_inference_data(struct ethosn_network *network,
 		return ret;
 
 	for (i = 0; i < num_cores; i++) {
-		network->inference_data[i] =
-			ethosn_dma_alloc_and_map(
-				network->asset_allocator,
-				size, ETHOSN_PROT_READ,
-				ETHOSN_STREAM_COMMAND_STREAM,
-				GFP_KERNEL,
-				"network-inference-data");
+		network->inference_data[i] = ethosn_dma_alloc_and_map(
+			network->asset_allocator, size, ETHOSN_PROT_READ,
+			ETHOSN_STREAM_COMMAND_STREAM, GFP_KERNEL,
+			"network-inference-data");
 		if (IS_ERR_OR_NULL(network->inference_data[i])) {
 			dev_dbg(dev,
 				"DMA alloc and map of network-inference-data failed\n");
@@ -1249,10 +1159,9 @@ static int alloc_init_inference_data(struct ethosn_network *network,
 	 * this data during the execution of an inference.
 	 */
 
-	network->intermediate_data =
-		devm_kzalloc(dev,
-			     (sizeof(*(network->intermediate_data)) * num_cores),
-			     GFP_KERNEL);
+	network->intermediate_data = devm_kzalloc(
+		dev, (sizeof(*(network->intermediate_data)) * num_cores),
+		GFP_KERNEL);
 
 	if (!network->intermediate_data) {
 		ret = -ENOMEM;
@@ -1277,8 +1186,7 @@ static int alloc_init_inference_data(struct ethosn_network *network,
 		for (i = 0; i < num_cores; i++) {
 			ret = init_inference_data(network,
 						  network->ethosn->core[i],
-						  num_bindings,
-						  req, i);
+						  num_bindings, req, i);
 
 			if (ret) {
 				dev_dbg(dev, "Init inference data failed\n");
@@ -1331,8 +1239,7 @@ static void free_network(struct ethosn_network *network)
 		ethosn_dma_unmap(network->asset_allocator,
 				 network->constant_dma_data);
 
-	ethosn_dma_unmap(network->asset_allocator,
-			 network->constant_cu_data);
+	ethosn_dma_unmap(network->asset_allocator, network->constant_cu_data);
 
 	for (i = 0; i < ethosn->num_cores; i++) {
 		/* Free allocated DMA memory from core */
@@ -1375,10 +1282,9 @@ static void free_network(struct ethosn_network *network)
  *
  * Return: Network pointer on success, else error code.
  */
-static
-struct ethosn_network *create_network(struct ethosn_device *ethosn,
-				      struct ethosn_network_req *net_req,
-				      struct ethosn_dma_allocator *asset_alloc)
+static struct ethosn_network *
+create_network(struct ethosn_device *ethosn, struct ethosn_network_req *net_req,
+	       struct ethosn_dma_allocator *asset_alloc)
 {
 	/* Note:- We register network on ethosn.
 	 * For carveout :- We allocate constant data. inference data
@@ -1409,22 +1315,18 @@ struct ethosn_network *create_network(struct ethosn_device *ethosn,
 	get_device(dev);
 
 	if (net_req->dma_data.size > 0) {
-		network->constant_dma_data = ethosn_dma_alloc(
-			asset_alloc,
-			net_req->dma_data.size,
-			ETHOSN_STREAM_WEIGHT_DATA,
-			GFP_KERNEL,
-			"network-constant-dma-data");
+		network->constant_dma_data =
+			ethosn_dma_alloc(asset_alloc, net_req->dma_data.size,
+					 ETHOSN_STREAM_WEIGHT_DATA, GFP_KERNEL,
+					 "network-constant-dma-data");
 
 		if (IS_ERR_OR_NULL(network->constant_dma_data)) {
 			ret = -ENOMEM;
 			goto err_free_network;
 		}
 
-		ret = ethosn_dma_map(
-			asset_alloc,
-			network->constant_dma_data,
-			ETHOSN_PROT_READ);
+		ret = ethosn_dma_map(asset_alloc, network->constant_dma_data,
+				     ETHOSN_PROT_READ);
 		if (ret)
 			goto err_free_const_dma_data;
 
@@ -1438,25 +1340,21 @@ struct ethosn_network *create_network(struct ethosn_device *ethosn,
 	}
 
 	network->constant_cu_data =
-		ethosn_dma_alloc(asset_alloc,
-				 net_req->cu_data.size,
-				 ETHOSN_STREAM_COMMAND_STREAM,
-				 GFP_KERNEL,
+		ethosn_dma_alloc(asset_alloc, net_req->cu_data.size,
+				 ETHOSN_STREAM_COMMAND_STREAM, GFP_KERNEL,
 				 "network-constant-cu-data");
 	if (IS_ERR_OR_NULL(network->constant_cu_data)) {
 		ret = -ENOMEM;
 		goto err_unmap_const_dma_data;
 	}
 
-	ret = ethosn_dma_map(asset_alloc,
-			     network->constant_cu_data,
+	ret = ethosn_dma_map(asset_alloc, network->constant_cu_data,
 			     ETHOSN_PROT_READ);
 	if (ret)
 		goto err_free_const_cu_data;
 
 	if (copy_from_user(network->constant_cu_data->cpu_addr,
-			   net_req->cu_data.data,
-			   net_req->cu_data.size)) {
+			   net_req->cu_data.data, net_req->cu_data.size)) {
 		dev_err(dev, "Error reading constant cu data\n");
 		ret = -EINVAL;
 		goto err_unmap_const_cu_data;
@@ -1469,8 +1367,7 @@ struct ethosn_network *create_network(struct ethosn_device *ethosn,
 	return network;
 
 err_unmap_const_cu_data:
-	ethosn_dma_unmap(network->asset_allocator,
-			 network->constant_cu_data);
+	ethosn_dma_unmap(network->asset_allocator, network->constant_cu_data);
 err_free_const_cu_data:
 	ethosn_dma_release(network->asset_allocator,
 			   &network->constant_cu_data);
@@ -1492,8 +1389,7 @@ err_free_network:
 	return ERR_PTR(ret);
 }
 
-static int network_release(struct inode *inode,
-			   struct file *filep)
+static int network_release(struct inode *inode, struct file *filep)
 {
 	struct ethosn_network *network = filep->private_data;
 	struct ethosn_device *ethosn = network->ethosn;
@@ -1510,8 +1406,7 @@ static int network_release(struct inode *inode,
 
 	free_network(network);
 
-	dev_dbg(ethosn->dev,
-		"Release network asset_allocator->pid = %d",
+	dev_dbg(ethosn->dev, "Release network asset_allocator->pid = %d",
 		asset_allocator->pid);
 
 	if (asset_allocator->pid != ETHOSN_INVALID_PID)
@@ -1535,11 +1430,11 @@ int ethosn_network_register(struct ethosn_device *ethosn,
 			    struct ethosn_network_req *net_req)
 {
 	static const struct file_operations network_fops = {
-		.owner          = THIS_MODULE,
-		.release        = &network_release,
+		.owner = THIS_MODULE,
+		.release = &network_release,
 		.unlocked_ioctl = &network_ioctl,
 #ifdef CONFIG_COMPAT
-		.compat_ioctl   = &network_ioctl,
+		.compat_ioctl = &network_ioctl,
 #endif
 	};
 
@@ -1557,9 +1452,7 @@ int ethosn_network_register(struct ethosn_device *ethosn,
 	if (IS_ERR(network))
 		return PTR_ERR(network);
 
-	fd = anon_inode_getfd("ethosn-network",
-			      &network_fops,
-			      network,
+	fd = anon_inode_getfd("ethosn-network", &network_fops, network,
 			      O_RDONLY | O_CLOEXEC);
 	if (fd < 0) {
 		free_network(network);
@@ -1573,8 +1466,7 @@ int ethosn_network_register(struct ethosn_device *ethosn,
 	if (asset_allocator->pid != ETHOSN_INVALID_PID)
 		ethosn_asset_allocator_get(asset_allocator);
 
-	dev_dbg(ethosn->dev,
-		"Registered %sprotected network. handle=0x%pK\n",
+	dev_dbg(ethosn->dev, "Registered %sprotected network. handle=0x%pK\n",
 		network->asset_allocator->is_protected ? "" : "non-", network);
 
 	return fd;
@@ -1582,8 +1474,7 @@ int ethosn_network_register(struct ethosn_device *ethosn,
 
 void ethosn_set_inference_done(struct ethosn_core *core,
 			       struct ethosn_inference *inference,
-			       int new_status,
-			       u64 cycle_count)
+			       int new_status, u64 cycle_count)
 {
 	WARN_ON(new_status != ETHOSN_INFERENCE_COMPLETED &&
 		new_status != ETHOSN_INFERENCE_ERROR);

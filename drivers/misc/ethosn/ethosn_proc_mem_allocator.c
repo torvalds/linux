@@ -54,8 +54,7 @@ static bool is_ethosn_allocator_file(const struct file *const file)
  *
  * Return: 0 on success, else error code
  */
-static int proc_mem_allocator_release(struct inode *inode,
-				      struct file *filep)
+static int proc_mem_allocator_release(struct inode *inode, struct file *filep)
 {
 	struct ethosn_allocator *proc_mem_allocator = filep->private_data;
 	struct ethosn_device *ethosn;
@@ -89,8 +88,7 @@ static int proc_mem_allocator_release(struct inode *inode,
 	return ret;
 }
 
-static void print_buffer_info(struct ethosn_device *ethosn,
-			      const char *prefix,
+static void print_buffer_info(struct ethosn_device *ethosn, const char *prefix,
 			      u32 ninfos,
 			      const struct ethosn_buffer_info __user *infos)
 {
@@ -125,8 +123,7 @@ static void print_buffer_info(struct ethosn_device *ethosn,
  *
  * Return: File descriptor on success, else error code
  */
-static long proc_mem_allocator_ioctl(struct file *filep,
-				     unsigned int cmd,
+static long proc_mem_allocator_ioctl(struct file *filep, unsigned int cmd,
 				     unsigned long arg)
 {
 	struct ethosn_allocator *proc_mem_allocator = filep->private_data;
@@ -150,11 +147,9 @@ static long proc_mem_allocator_ioctl(struct file *filep,
 
 		dev_dbg(ethosn->dev,
 			"IOCTL: Register network. num_dma=%u, num_cu=%u, num_intermediates=%u, num_inputs=%u, num_outputs=%u\n",
-			net_req.dma_buffers.num,
-			net_req.cu_buffers.num,
+			net_req.dma_buffers.num, net_req.cu_buffers.num,
 			net_req.intermediate_desc.buffers.num,
-			net_req.input_buffers.num,
-			net_req.output_buffers.num);
+			net_req.input_buffers.num, net_req.output_buffers.num);
 
 		print_buffer_info(ethosn, "dma", net_req.dma_buffers.num,
 				  net_req.dma_buffers.info);
@@ -182,14 +177,11 @@ static long proc_mem_allocator_ioctl(struct file *filep,
 			break;
 
 		ret = ethosn_network_register(
-			ethosn,
-			proc_mem_allocator->asset_allocator,
-			&net_req);
+			ethosn, proc_mem_allocator->asset_allocator, &net_req);
 
 		mutex_unlock(&ethosn->mutex);
 
-		dev_dbg(ethosn->dev,
-			"IOCTL: Registered network. fd=%d\n", ret);
+		dev_dbg(ethosn->dev, "IOCTL: Registered network. fd=%d\n", ret);
 
 		break;
 	}
@@ -217,12 +209,9 @@ static long proc_mem_allocator_ioctl(struct file *filep,
 			buf_req.size, buf_req.flags);
 
 		ret = ethosn_buffer_register(
-			ethosn,
-			proc_mem_allocator->asset_allocator,
-			&buf_req);
+			ethosn, proc_mem_allocator->asset_allocator, &buf_req);
 
-		dev_dbg(ethosn->dev,
-			"IOCTL: Created buffer. fd=%d\n", ret);
+		dev_dbg(ethosn->dev, "IOCTL: Created buffer. fd=%d\n", ret);
 
 		mutex_unlock(&ethosn->mutex);
 
@@ -248,8 +237,7 @@ static long proc_mem_allocator_ioctl(struct file *filep,
 					   proc_mem_allocator->asset_allocator,
 					   &dma_buf_req);
 
-		dev_dbg(ethosn->dev,
-			"IOCTL: Imported buffer. fd=%d\n", ret);
+		dev_dbg(ethosn->dev, "IOCTL: Imported buffer. fd=%d\n", ret);
 
 		mutex_unlock(&ethosn->mutex);
 
@@ -264,13 +252,13 @@ static long proc_mem_allocator_ioctl(struct file *filep,
 }
 
 static const struct file_operations allocator_fops = {
-	.owner          = THIS_MODULE,
+	.owner = THIS_MODULE,
 	/* release the assigned asset allocator */
-	.release        = &proc_mem_allocator_release,
+	.release = &proc_mem_allocator_release,
 	/* IOCTLs for proc_mem_allocator creation */
 	.unlocked_ioctl = &proc_mem_allocator_ioctl,
 #ifdef CONFIG_COMPAT
-	.compat_ioctl   = &proc_mem_allocator_ioctl,
+	.compat_ioctl = &proc_mem_allocator_ioctl,
 #endif
 };
 
@@ -305,8 +293,7 @@ static const struct file_operations allocator_fops = {
  * -EINVAL - Invalid argument.
  * -ENOMEM - Failed to allocate memory or a free asset_allocator.
  */
-int ethosn_process_mem_allocator_create(struct ethosn_device *ethosn,
-					pid_t pid,
+int ethosn_process_mem_allocator_create(struct ethosn_device *ethosn, pid_t pid,
 					bool protected)
 {
 	int ret = 0;
@@ -336,9 +323,8 @@ int ethosn_process_mem_allocator_create(struct ethosn_device *ethosn,
 
 #endif
 
-	proc_mem_allocator = devm_kzalloc(ethosn->dev,
-					  sizeof(*proc_mem_allocator),
-					  GFP_KERNEL);
+	proc_mem_allocator = devm_kzalloc(
+		ethosn->dev, sizeof(*proc_mem_allocator), GFP_KERNEL);
 
 	if (!proc_mem_allocator)
 		return -ENOMEM;
@@ -374,10 +360,8 @@ int ethosn_process_mem_allocator_create(struct ethosn_device *ethosn,
 
 	proc_mem_allocator->asset_allocator->is_protected = protected;
 
-	fd = anon_inode_getfd("ethosn-memory-allocator",
-			      &allocator_fops,
-			      proc_mem_allocator,
-			      O_RDONLY | O_CLOEXEC);
+	fd = anon_inode_getfd("ethosn-memory-allocator", &allocator_fops,
+			      proc_mem_allocator, O_RDONLY | O_CLOEXEC);
 	if (fd < 0) {
 		ret = -ENOMEM;
 		goto get_fd_fail;

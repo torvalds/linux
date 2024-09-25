@@ -127,60 +127,57 @@
  */
 
 struct ethosn_buffer_info {
-	__u32 id;     /* <- id in command stream */
+	__u32 id; /* <- id in command stream */
 	__u32 offset; /* <- ignored for inputs/outputs */
 	__u32 size;
 };
 
 struct ethosn_buffer_infos {
-	__u32                           num;
+	__u32 num;
 	const struct ethosn_buffer_info __user *info;
 };
 
 struct ethosn_constant_data {
-	__u32             size;
+	__u32 size;
 	const void __user *data;
 };
 
 struct ethosn_dma_buf_req {
-	__u32           fd;
-	__u32           flags;
+	__u32 fd;
+	__u32 flags;
 	__kernel_size_t size;
 };
 
 struct ethosn_intermediate_desc {
 	struct ethosn_memory {
-		enum {
-			ALLOCATE,
-			IMPORT
-		} type;
+		enum { ALLOCATE, IMPORT } type;
 		union {
-			__u32                     data_size;
+			__u32 data_size;
 			struct ethosn_dma_buf_req dma_req;
 		};
-	}                          memory;
+	} memory;
 
 	struct ethosn_buffer_infos buffers;
 };
 
 struct ethosn_network_req {
-	struct ethosn_buffer_infos      dma_buffers;
-	struct ethosn_constant_data     dma_data;
+	struct ethosn_buffer_infos dma_buffers;
+	struct ethosn_constant_data dma_data;
 
-	struct ethosn_buffer_infos      cu_buffers;
-	struct ethosn_constant_data     cu_data;
+	struct ethosn_buffer_infos cu_buffers;
+	struct ethosn_constant_data cu_data;
 
 	struct ethosn_intermediate_desc intermediate_desc;
 
-	struct ethosn_buffer_infos      input_buffers;
-	struct ethosn_buffer_infos      output_buffers;
+	struct ethosn_buffer_infos input_buffers;
+	struct ethosn_buffer_infos output_buffers;
 };
 
 struct ethosn_inference_req {
-	__u32            num_inputs;
+	__u32 num_inputs;
 	const int __user *input_fds;
 
-	__u32            num_outputs;
+	__u32 num_outputs;
 	const int __user *output_fds;
 };
 
@@ -209,7 +206,7 @@ struct ethosn_proc_mem_allocator_req {
  * @size:	Size of data.
  */
 struct ethosn_fw_hw_capabilities {
-	void  *data;
+	void *data;
 	__u32 size;
 };
 
@@ -222,9 +219,9 @@ struct ethosn_fw_hw_capabilities {
  *      passed to ETHOSN_IOCTL_CONFIGURE_PROFILING.
  */
 struct ethosn_profiling_config {
-	bool                                   enable_profiling;
-	__u32                                  firmware_buffer_size;
-	__u32                                  num_hw_counters;
+	bool enable_profiling;
+	__u32 firmware_buffer_size;
+	__u32 num_hw_counters;
 	enum ethosn_profiling_hw_counter_types hw_counters[6];
 } __packed;
 
@@ -244,58 +241,47 @@ enum ethosn_poll_counter_name {
 	ETHOSN_POLL_COUNTER_NAME_PM_RESUME,
 };
 
-#define ETHOSN_IOCTL_BASE       0x01
-#define ETHOSN_IO(nr)           _IO(ETHOSN_IOCTL_BASE, nr)
-#define ETHOSN_IOR(nr, type)    _IOR(ETHOSN_IOCTL_BASE, nr, type)
-#define ETHOSN_IOW(nr, type)    _IOW(ETHOSN_IOCTL_BASE, nr, type)
-#define ETHOSN_IOWR(nr, type)   _IOWR(ETHOSN_IOCTL_BASE, nr, type)
+#define ETHOSN_IOCTL_BASE 0x01
+#define ETHOSN_IO(nr) _IO(ETHOSN_IOCTL_BASE, nr)
+#define ETHOSN_IOR(nr, type) _IOR(ETHOSN_IOCTL_BASE, nr, type)
+#define ETHOSN_IOW(nr, type) _IOW(ETHOSN_IOCTL_BASE, nr, type)
+#define ETHOSN_IOWR(nr, type) _IOWR(ETHOSN_IOCTL_BASE, nr, type)
 
-#define ETHOSN_IOCTL_CREATE_BUFFER \
-	ETHOSN_IOW(0x00, struct ethosn_buffer_req)
-#define ETHOSN_IOCTL_REGISTER_NETWORK \
+#define ETHOSN_IOCTL_CREATE_BUFFER ETHOSN_IOW(0x00, struct ethosn_buffer_req)
+#define ETHOSN_IOCTL_REGISTER_NETWORK                                          \
 	ETHOSN_IOW(0x01, struct ethosn_network_req)
-#define ETHOSN_IOCTL_SCHEDULE_INFERENCE	\
+#define ETHOSN_IOCTL_SCHEDULE_INFERENCE                                        \
 	ETHOSN_IOW(0x02, struct ethosn_inference_req)
-#define ETHOSN_IOCTL_FW_HW_CAPABILITIES	\
-	ETHOSN_IOR(0x03, void *)
-#define ETHOSN_IOCTL_LOG_CLEAR \
-	ETHOSN_IO(0x04)
-#define ETHOSN_IOCTL_GET_COUNTER_VALUE \
+#define ETHOSN_IOCTL_FW_HW_CAPABILITIES ETHOSN_IOR(0x03, void *)
+#define ETHOSN_IOCTL_LOG_CLEAR ETHOSN_IO(0x04)
+#define ETHOSN_IOCTL_GET_COUNTER_VALUE                                         \
 	ETHOSN_IOW(0x05, enum ethosn_poll_counter_name)
-#define ETHOSN_IOCTL_CONFIGURE_PROFILING \
+#define ETHOSN_IOCTL_CONFIGURE_PROFILING                                       \
 	ETHOSN_IOW(0x06, struct ethosn_profiling_config)
-#define ETHOSN_IOCTL_GET_CLOCK_FREQUENCY \
-	ETHOSN_IOW(0x07, void *)
-#define ETHOSN_IOCTL_PING \
-	ETHOSN_IO(0x08)
-#define ETHOSN_IOCTL_GET_INTERMEDIATE_BUFFER \
-	ETHOSN_IO(0x09)
-#define ETHOSN_IOCTL_GET_VERSION \
-	ETHOSN_IO(0x0a)
-#define ETHOSN_IOCTL_SYNC_FOR_CPU \
-	ETHOSN_IO(0x0b)
-#define ETHOSN_IOCTL_SYNC_FOR_DEVICE \
-	ETHOSN_IO(0x0c)
-#define ETHOSN_IOCTL_IMPORT_BUFFER \
-	ETHOSN_IO(0x0d)
-#define ETHOSN_IOCTL_CREATE_PROC_MEM_ALLOCATOR \
+#define ETHOSN_IOCTL_GET_CLOCK_FREQUENCY ETHOSN_IOW(0x07, void *)
+#define ETHOSN_IOCTL_PING ETHOSN_IO(0x08)
+#define ETHOSN_IOCTL_GET_INTERMEDIATE_BUFFER ETHOSN_IO(0x09)
+#define ETHOSN_IOCTL_GET_VERSION ETHOSN_IO(0x0a)
+#define ETHOSN_IOCTL_SYNC_FOR_CPU ETHOSN_IO(0x0b)
+#define ETHOSN_IOCTL_SYNC_FOR_DEVICE ETHOSN_IO(0x0c)
+#define ETHOSN_IOCTL_IMPORT_BUFFER ETHOSN_IO(0x0d)
+#define ETHOSN_IOCTL_CREATE_PROC_MEM_ALLOCATOR                                 \
 	ETHOSN_IOW(0x0e, struct ethosn_proc_mem_allocator_req)
-#define ETHOSN_IOCTL_GET_CYCLE_COUNT \
-	ETHOSN_IOW(0x0f, __u64 *)
+#define ETHOSN_IOCTL_GET_CYCLE_COUNT ETHOSN_IOW(0x0f, __u64 *)
 
 /*
  * Results from reading an inference file descriptor.
  * Note these must be kept in-sync with the driver library's definitions.
  */
-#define ETHOSN_INFERENCE_SCHEDULED   0
-#define ETHOSN_INFERENCE_RUNNING     1
-#define ETHOSN_INFERENCE_COMPLETED   2
-#define ETHOSN_INFERENCE_ERROR       3
+#define ETHOSN_INFERENCE_SCHEDULED 0
+#define ETHOSN_INFERENCE_RUNNING 1
+#define ETHOSN_INFERENCE_COMPLETED 2
+#define ETHOSN_INFERENCE_ERROR 3
 
 #define MB_RDONLY 00000000
 #define MB_WRONLY 00000001
-#define MB_RDWR   00000002
-#define MB_ZERO   00000010
+#define MB_RDWR 00000002
+#define MB_ZERO 00000010
 
 /* Version information */
 #define ETHOSN_KERNEL_MODULE_VERSION_MAJOR 6

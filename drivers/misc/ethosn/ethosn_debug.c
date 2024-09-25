@@ -58,8 +58,7 @@ int ethosn_get_dma_view_fd(struct ethosn_device *ethosn,
 	if (!buf)
 		return -ENOMEM;
 
-	dev_dbg(ethosn->dev,
-		"Create DMA view handle. handle=0x%pK\n", buf);
+	dev_dbg(ethosn->dev, "Create DMA view handle. handle=0x%pK\n", buf);
 
 	buf->ethosn = ethosn;
 	buf->dma_info = dma_info;

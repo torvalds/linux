@@ -55,14 +55,12 @@ static int ethosn_main_allocator_pdev_remove(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	dev_info(&pdev->dev,
-		 "Depopulate main allocator's child devices\n");
+	dev_info(&pdev->dev, "Depopulate main allocator's child devices\n");
 
 	of_platform_depopulate(&pdev->dev);
 
-	ret =
-		ethosn_dma_top_allocator_destroy(&pdev->dev,
-						 &core->main_allocator);
+	ret = ethosn_dma_top_allocator_destroy(&pdev->dev,
+					       &core->main_allocator);
 
 	if (ret)
 		return ret;
@@ -86,10 +84,8 @@ static int ethosn_main_allocator_pdev_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	main_allocator =
-		ethosn_dma_top_allocator_create(
-			&pdev->dev,
-			ETHOSN_ALLOCATOR_MAIN);
+	main_allocator = ethosn_dma_top_allocator_create(&pdev->dev,
+							 ETHOSN_ALLOCATOR_MAIN);
 
 	if (IS_ERR_OR_NULL(main_allocator))
 		return -ENOMEM;

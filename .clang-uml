@@ -63,7 +63,7 @@ diagrams:
       - drivers/misc/ethosn/*.c
       - drivers/misc/ethosn/*.h
       - drivers/misc/ethosn/uapi/*.h
-    generate_condition_statements: true
+    generate_condition_statements: false
     fold_repeated_activities: true
     generate_return_types: true
     combine_free_functions_into_file_participants: true
@@ -76,9 +76,27 @@ diagrams:
         - 'ethosn_queue_get_free_space(const struct ethosn_queue *)'
     from:
       - function: 'ethosn_write_message(struct ethosn_core *,enum ethosn_message_type,void *,size_t)'
-  ethosn_queue_write_sequence_diagram:
+  ethosn_queue_sequence_diagram:
     type: sequence
-    title: ethosn_queue_write() sequence diagram
+    title: ethosn_queue sequence diagram
+    glob:
+      - drivers/misc/ethosn/*.c
+      - drivers/misc/ethosn/*.h
+      - drivers/misc/ethosn/uapi/*.h
+    generate_condition_statements: true
+    fold_repeated_activities: true
+    generate_return_types: true
+    combine_free_functions_into_file_participants: true
+    include:
+      paths:
+        - drivers/misc/ethosn/
+        - drivers/misc/ethosn/uapi/
+    to:
+      - function: 'ethosn_queue_write(struct ethosn_queue *,const uint8_t *const *,const uint32_t *,uint32_t,uint32_t *)'
+      - function: 'ethosn_queue_read(struct ethosn_queue *,uint8_t *,uint32_t)'
+  mailbox_sequence_diagram:
+    type: sequence
+    title: mailbox_alloc() sequence diagram
     glob:
       - drivers/misc/ethosn/*.c
       - drivers/misc/ethosn/*.h
@@ -92,4 +110,18 @@ diagrams:
         - drivers/misc/ethosn/
         - drivers/misc/ethosn/uapi/
     from:
-      - function: 'ethosn_queue_write(struct ethosn_queue *,const uint8_t *const *,const uint32_t *,uint32_t,uint32_t *)'
+      - function: 'mailbox_alloc(struct ethosn_core *)'
+  ethosn_mailbox_class:
+    type: class
+    title: struct ethosn_mailbox diagram
+    glob:
+      - drivers/misc/ethosn/*.c
+      - drivers/misc/ethosn/*.h
+      - drivers/misc/ethosn/uapi/*.h
+    comment_parser: clang
+    include:
+      context:
+        - ethosn_mailbox
+      paths:
+        - drivers/misc/ethosn/
+        - drivers/misc/ethosn/uapi/

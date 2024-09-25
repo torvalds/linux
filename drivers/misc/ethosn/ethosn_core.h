@@ -28,15 +28,15 @@
 #include <linux/types.h>
 #include <linux/platform_device.h>
 
-#define ETHOSN_CORE_DRIVER_NAME    "ethosn-core"
+#define ETHOSN_CORE_DRIVER_NAME "ethosn-core"
 
-#define ETHOSN_CORE_NUM_MAX        64
+#define ETHOSN_CORE_NUM_MAX 64
 
 #ifdef CONFIG_PM
 #define ETHOSN_AUTOSUSPEND_DELAY_MS 500
 #else
 #define ETHOSN_AUTOSUSPEND_DELAY_MS 0
-#endif  /* CONFIG_PM */
+#endif /* CONFIG_PM */
 
 int ethosn_core_platform_driver_register(void);
 

@@ -29,13 +29,12 @@
 #include <linux/types.h>
 
 struct ethosn_allocator {
-	struct ethosn_device        *ethosn;
-	struct file                 *file;
+	struct ethosn_device *ethosn;
+	struct file *file;
 	struct ethosn_dma_allocator *asset_allocator;
 };
 
-int ethosn_process_mem_allocator_create(struct ethosn_device *ethosn,
-					pid_t pid,
+int ethosn_process_mem_allocator_create(struct ethosn_device *ethosn, pid_t pid,
 					bool proteced);
 
 #endif /* _ETHOSN_PROC_MEM_ALLOCATOR_H_ */

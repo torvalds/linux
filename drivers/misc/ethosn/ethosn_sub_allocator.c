@@ -41,11 +41,11 @@ struct platform_device *ethosn_get_global_buffer_data_pdev_for_testing(void)
 /* Exported for use by test module */
 EXPORT_SYMBOL(ethosn_get_global_buffer_data_pdev_for_testing);
 
-static struct ethosn_dma_allocator *ethosn_get_top_allocator(
-	struct platform_device *pdev)
+static struct ethosn_dma_allocator *
+ethosn_get_top_allocator(struct platform_device *pdev)
 {
-	struct ethosn_dma_allocator *top_allocator = dev_get_drvdata(
-		pdev->dev.parent);
+	struct ethosn_dma_allocator *top_allocator =
+		dev_get_drvdata(pdev->dev.parent);
 
 	return top_allocator;
 }
@@ -72,9 +72,9 @@ static enum ethosn_stream_type get_stream_type(struct platform_device *pdev)
 	return ETHOSN_STREAM_INVALID;
 }
 
-static phys_addr_t get_stream_speculative_page_addr(
-	struct ethosn_device *ethosn,
-	enum ethosn_stream_type stream_type)
+static phys_addr_t
+get_stream_speculative_page_addr(struct ethosn_device *ethosn,
+				 enum ethosn_stream_type stream_type)
 {
 #ifdef ETHOSN_TZMP1
 	/* Use page from firmware padding for speculative accesses */
@@ -213,14 +213,11 @@ static int ethosn_mem_stream_pdev_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	ret = ethosn_dma_sub_allocator_create(&pdev->dev, top_allocator,
-					      stream_type,
-					      get_stream_addr_base(ethosn,
-								   stream_type),
-					      get_stream_speculative_page_addr(
-						      ethosn,
-						      stream_type),
-					      ethosn->smmu_available);
+	ret = ethosn_dma_sub_allocator_create(
+		&pdev->dev, top_allocator, stream_type,
+		get_stream_addr_base(ethosn, stream_type),
+		get_stream_speculative_page_addr(ethosn, stream_type),
+		ethosn->smmu_available);
 
 	if (ret)
 		return ret;

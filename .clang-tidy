@@ -1,1 +1,1 @@
-Checks: '-*,clang-diagnostic-unused-includes'
+Checks: '-*,unused-includes'

@@ -23,7 +23,7 @@
 #ifndef _ETHOSN_SUB_ALLOCATOR_H_
 #define _ETHOSN_SUB_ALLOCATOR_H_
 
-#define ETHOSN_MEM_STREAM_DRIVER_NAME       "ethosn-memory"
+#define ETHOSN_MEM_STREAM_DRIVER_NAME "ethosn-memory"
 
 #include <linux/platform_device.h>
 

@@ -37,27 +37,27 @@ struct vm_area_struct;
 /**
  * Stream type
  */
-enum  ethosn_stream_type {
-	ETHOSN_STREAM_FIRMWARE            = 0,
-	ETHOSN_STREAM_WORKING_DATA        = 1,
-	ETHOSN_STREAM_COMMAND_STREAM      = 2,
-	ETHOSN_STREAM_DEBUG               = 3,
-	ETHOSN_STREAM_PLE_CODE            = 4,
-	ETHOSN_STREAM_WEIGHT_DATA         = 5,
-	ETHOSN_STREAM_IO_BUFFER           = 6,
+enum ethosn_stream_type {
+	ETHOSN_STREAM_FIRMWARE = 0,
+	ETHOSN_STREAM_WORKING_DATA = 1,
+	ETHOSN_STREAM_COMMAND_STREAM = 2,
+	ETHOSN_STREAM_DEBUG = 3,
+	ETHOSN_STREAM_PLE_CODE = 4,
+	ETHOSN_STREAM_WEIGHT_DATA = 5,
+	ETHOSN_STREAM_IO_BUFFER = 6,
 	ETHOSN_STREAM_INTERMEDIATE_BUFFER = 7,
-	ETHOSN_STREAM_RESERVED            = 8,
-	ETHOSN_STREAM_INVALID             = 9,
+	ETHOSN_STREAM_RESERVED = 8,
+	ETHOSN_STREAM_INVALID = 9,
 };
 
 /**
  * Allocator identifier
  */
-enum  ethosn_alloc_type {
-	ETHOSN_ALLOCATOR_MAIN     = 0,
-	ETHOSN_ALLOCATOR_ASSET    = 1,
+enum ethosn_alloc_type {
+	ETHOSN_ALLOCATOR_MAIN = 0,
+	ETHOSN_ALLOCATOR_ASSET = 1,
 	ETHOSN_ALLOCATOR_CARVEOUT = 2,
-	ETHOSN_ALLOCATOR_INVALID  = 3,
+	ETHOSN_ALLOCATOR_INVALID = 3,
 };
 
 /*
@@ -69,11 +69,11 @@ enum  ethosn_alloc_type {
  * imported is set if it represents a shared memory.
  */
 struct ethosn_dma_info {
-	size_t                  size;
-	void                    *cpu_addr;
-	dma_addr_t              iova_addr;
+	size_t size;
+	void *cpu_addr;
+	dma_addr_t iova_addr;
 	enum ethosn_stream_type stream_type;
-	bool                    imported;
+	bool imported;
 };
 
 /**
@@ -85,8 +85,8 @@ struct ethosn_dma_info {
  */
 struct ethosn_dma_sub_allocator {
 	const struct ethosn_dma_allocator_ops *ops;
-	u32                                   smmu_stream_id;
-	struct device                         *dev;
+	u32 smmu_stream_id;
+	struct device *dev;
 };
 
 /**
@@ -99,11 +99,11 @@ struct ethosn_dma_sub_allocator {
  */
 struct ethosn_dma_allocator {
 	enum ethosn_alloc_type type;
-	uint32_t               alloc_id;
-	struct device          *dev;
-	struct kref            kref;
-	pid_t                  pid;
-	__u8                   is_protected;
+	uint32_t alloc_id;
+	struct device *dev;
+	struct kref kref;
+	pid_t pid;
+	__u8 is_protected;
 };
 
 /**
@@ -113,7 +113,7 @@ struct ethosn_dma_allocator {
 struct ethosn_dma_prot_range {
 	size_t start;
 	size_t end;
-	int    prot;
+	int prot;
 };
 
 /**
@@ -122,7 +122,7 @@ struct ethosn_dma_prot_range {
 struct ethosn_main_allocator {
 	struct ethosn_dma_sub_allocator *firmware;
 	struct ethosn_dma_sub_allocator *working_data;
-	struct ethosn_dma_allocator     allocator;
+	struct ethosn_dma_allocator allocator;
 };
 
 struct ethosn_asset_allocator {
@@ -130,12 +130,12 @@ struct ethosn_asset_allocator {
 	struct ethosn_dma_sub_allocator *weight_data;
 	struct ethosn_dma_sub_allocator *io_buffer;
 	struct ethosn_dma_sub_allocator *intermediate_buffer;
-	struct ethosn_dma_allocator     allocator;
+	struct ethosn_dma_allocator allocator;
 };
 
 struct ethosn_carveout_allocator {
 	struct ethosn_dma_sub_allocator *carveout;
-	struct ethosn_dma_allocator     allocator;
+	struct ethosn_dma_allocator allocator;
 };
 
 /**
@@ -158,51 +158,39 @@ struct ethosn_carveout_allocator {
  * @get_addr_size      Get address size
  */
 struct ethosn_dma_allocator_ops {
-	void                   (*destroy)(struct ethosn_dma_sub_allocator *
-					  allocator);
+	void (*destroy)(struct ethosn_dma_sub_allocator *allocator);
 
-	struct ethosn_dma_info *(*alloc)(struct ethosn_dma_sub_allocator *
-					 allocator,
-					 size_t size,
-					 gfp_t gfp);
+	struct ethosn_dma_info *(*alloc)(
+		struct ethosn_dma_sub_allocator *allocator, size_t size,
+		gfp_t gfp);
 	int (*map)(struct ethosn_dma_sub_allocator *allocator,
 		   struct ethosn_dma_info *dma_info,
 		   struct ethosn_dma_prot_range *prot_ranges,
 		   size_t num_prot_ranges);
-	struct ethosn_dma_info *(*from_protected)(struct
-						  ethosn_dma_sub_allocator *
-						  allocator,
-						  phys_addr_t start_addr,
-						  size_t size);
-	struct ethosn_dma_info *(*import)(struct ethosn_dma_sub_allocator *
-					  allocator,
-					  int fd,
-					  size_t size);
-	void (*release)(struct ethosn_dma_sub_allocator *
-			allocator,
-			struct ethosn_dma_info **
-			dma_info);
+	struct ethosn_dma_info *(*from_protected)(
+		struct ethosn_dma_sub_allocator *allocator,
+		phys_addr_t start_addr, size_t size);
+	struct ethosn_dma_info *(*import)(
+		struct ethosn_dma_sub_allocator *allocator, int fd,
+		size_t size);
+	void (*release)(struct ethosn_dma_sub_allocator *allocator,
+			struct ethosn_dma_info **dma_info);
 	void (*unmap)(struct ethosn_dma_sub_allocator *allocator,
 		      struct ethosn_dma_info *dma_info);
 	void (*free)(struct ethosn_dma_sub_allocator *allocator,
 		     struct ethosn_dma_info **dma_info);
-	void (*sync_for_device)(struct ethosn_dma_sub_allocator *
-				allocator,
-				struct ethosn_dma_info *
-				dma_info);
-	void (*sync_for_cpu)(struct ethosn_dma_sub_allocator *
-			     allocator,
+	void (*sync_for_device)(struct ethosn_dma_sub_allocator *allocator,
+				struct ethosn_dma_info *dma_info);
+	void (*sync_for_cpu)(struct ethosn_dma_sub_allocator *allocator,
 			     struct ethosn_dma_info *dma_info);
-	int  (*mmap)(struct ethosn_dma_sub_allocator *allocator,
-		     struct vm_area_struct *const vma,
-		     const struct ethosn_dma_info *const
-		     dma_info);
-	dma_addr_t      (*get_addr_base)(struct ethosn_dma_sub_allocator *
-					 allocator,
-					 enum ethosn_stream_type stream_type);
-	resource_size_t (*get_addr_size)(struct ethosn_dma_sub_allocator *
-					 allocator,
-					 enum ethosn_stream_type stream_type);
+	int (*mmap)(struct ethosn_dma_sub_allocator *allocator,
+		    struct vm_area_struct *const vma,
+		    const struct ethosn_dma_info *const dma_info);
+	dma_addr_t (*get_addr_base)(struct ethosn_dma_sub_allocator *allocator,
+				    enum ethosn_stream_type stream_type);
+	resource_size_t (*get_addr_size)(
+		struct ethosn_dma_sub_allocator *allocator,
+		enum ethosn_stream_type stream_type);
 };
 
 /**
@@ -216,10 +204,9 @@ struct ethosn_dma_allocator_ops {
  *  Pointer to ethosn_dma_allocator struct representing the DMA memory allocator
  *  Or NULL or negative error code on failure
  */
-struct ethosn_dma_allocator *ethosn_dma_top_allocator_create(struct device *dev,
-							     enum
-							     ethosn_alloc_type
-							     type);
+struct ethosn_dma_allocator *
+ethosn_dma_top_allocator_create(struct device *dev,
+				enum ethosn_alloc_type type);
 
 /**
  * ethosn_dma_top_allocator_destroy() - Destroy the allocator container.
@@ -231,9 +218,8 @@ struct ethosn_dma_allocator *ethosn_dma_top_allocator_create(struct device *dev,
  * Return:
  *   0 or negative error code on failure
  */
-int ethosn_dma_top_allocator_destroy(struct device *dev,
-				     struct ethosn_dma_allocator
-				     **top_allocator);
+int ethosn_dma_top_allocator_destroy(
+	struct device *dev, struct ethosn_dma_allocator **top_allocator);
 
 /**
  * ethosn_dma_sub_allocator_create() - Initializes a DMA memory allocator
@@ -265,9 +251,8 @@ int ethosn_dma_sub_allocator_create(struct device *dev,
  * to be destroyed
  * @stream_type: Stream type to select the sub-allocator to destroy
  */
-void ethosn_dma_sub_allocator_destroy(
-	struct ethosn_dma_allocator *top_allocator,
-	enum ethosn_stream_type stream_type);
+void ethosn_dma_sub_allocator_destroy(struct ethosn_dma_allocator *top_allocator,
+				      enum ethosn_stream_type stream_type);
 
 /**
  * ethosn_dma_alloc_and_map() - Allocate and map DMA memory
@@ -283,13 +268,10 @@ void ethosn_dma_sub_allocator_destroy(
  *  Pointer to ethosn_dma_info struct representing the allocation
  *  Or NULL or negative error code on failure
  */
-struct ethosn_dma_info *ethosn_dma_alloc_and_map(
-	struct ethosn_dma_allocator *allocator,
-	size_t size,
-	int prot,
-	enum ethosn_stream_type stream_type,
-	gfp_t gfp,
-	const char *debug_tag);
+struct ethosn_dma_info *
+ethosn_dma_alloc_and_map(struct ethosn_dma_allocator *allocator, size_t size,
+			 int prot, enum ethosn_stream_type stream_type,
+			 gfp_t gfp, const char *debug_tag);
 
 /**
  * ethosn_dma_alloc() - Allocate DMA memory without mapping
@@ -304,12 +286,10 @@ struct ethosn_dma_info *ethosn_dma_alloc_and_map(
  *  Pointer to ethosn_dma_info struct representing the allocation
  *  Or NULL or negative error code on failure
  */
-struct ethosn_dma_info *ethosn_dma_alloc(
-	struct ethosn_dma_allocator *top_allocator,
-	size_t size,
-	enum ethosn_stream_type stream_type,
-	gfp_t gfp,
-	const char *debug_tag);
+struct ethosn_dma_info *
+ethosn_dma_alloc(struct ethosn_dma_allocator *top_allocator, size_t size,
+		 enum ethosn_stream_type stream_type, gfp_t gfp,
+		 const char *debug_tag);
 
 /**
  * ethosn_dma_firmware_from_protected() - Setup DMA memory for NPU firmware in
@@ -325,10 +305,9 @@ struct ethosn_dma_info *ethosn_dma_alloc(
  *  Pointer to ethosn_dma_info struct representing the protected memory
  *  Or NULL or negative error code on failure
  */
-struct ethosn_dma_info *ethosn_dma_firmware_from_protected(
-	struct ethosn_dma_allocator *top_allocator,
-	phys_addr_t start_addr,
-	size_t size);
+struct ethosn_dma_info *
+ethosn_dma_firmware_from_protected(struct ethosn_dma_allocator *top_allocator,
+				   phys_addr_t start_addr, size_t size);
 
 /**
  * ethosn_dma_map() - Map DMA memory
@@ -340,8 +319,7 @@ struct ethosn_dma_info *ethosn_dma_firmware_from_protected(
  *  0 or negative on failure
  */
 int ethosn_dma_map(struct ethosn_dma_allocator *top_allocator,
-		   struct ethosn_dma_info *dma_info,
-		   int prot);
+		   struct ethosn_dma_info *dma_info, int prot);
 
 /**
  * ethosn_dma_map_with_prot_ranges() - Same as ethosn_dma_map,
@@ -398,9 +376,9 @@ dma_addr_t ethosn_dma_get_addr_base(struct ethosn_dma_allocator *top_allocator,
  * Return:
  *  Size of address space or zero on failure
  */
-resource_size_t ethosn_dma_get_addr_size(
-	struct ethosn_dma_allocator *top_allocator,
-	enum ethosn_stream_type stream_type);
+resource_size_t
+ethosn_dma_get_addr_size(struct ethosn_dma_allocator *top_allocator,
+			 enum ethosn_stream_type stream_type);
 
 /**
  * ethosn_dma_mmap() - Do MMAP of DMA allocated memory
@@ -445,11 +423,9 @@ void ethosn_dma_sync_for_cpu(struct ethosn_dma_allocator *top_allocator,
  * * Pointer to DMA allocation information on success
  * * NULL or negative error code on failure
  */
-struct ethosn_dma_info *ethosn_dma_import(
-	struct ethosn_dma_allocator *top_allocator,
-	int fd,
-	size_t size,
-	enum ethosn_stream_type stream_type);
+struct ethosn_dma_info *
+ethosn_dma_import(struct ethosn_dma_allocator *top_allocator, int fd,
+		  size_t size, enum ethosn_stream_type stream_type);
 
 /**
  * ethosn_dma_release() - Release a DMA buffer. If the buffer was allocated
@@ -469,8 +445,8 @@ void ethosn_dma_release(struct ethosn_dma_allocator *top_allocator,
  * * Pointer to sub-allocator
  * * NULL on error or when sub-allocator doesn't exist
  */
-struct ethosn_dma_sub_allocator *ethosn_get_sub_allocator(
-	struct ethosn_dma_allocator *top_allocator,
-	enum ethosn_stream_type stream_type);
+struct ethosn_dma_sub_allocator *
+ethosn_get_sub_allocator(struct ethosn_dma_allocator *top_allocator,
+			 enum ethosn_stream_type stream_type);
 
 #endif /* _ETHOSN_DMA_H_ */

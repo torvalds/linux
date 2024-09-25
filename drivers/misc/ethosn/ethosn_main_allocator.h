@@ -23,7 +23,7 @@
 #ifndef _ETHOSN_MAIN_ALLOCATOR_H_
 #define _ETHOSN_MAIN_ALLOCATOR_H_
 
-#define ETHOSN_MAIN_ALLOCATOR_DRIVER_NAME   "ethosn-main_allocator"
+#define ETHOSN_MAIN_ALLOCATOR_DRIVER_NAME "ethosn-main_allocator"
 
 int ethosn_main_allocator_platform_driver_register(void);
 
