@@ -117,7 +117,7 @@ struct ov7740 {
 	struct v4l2_ctrl *brightness;
 	struct v4l2_ctrl *contrast;
 
-	struct mutex mutex;	/* To serialize asynchronus callbacks */
+	struct mutex mutex;	/* To serialize asynchronous callbacks */
 
 	struct gpio_desc *resetb_gpio;
 	struct gpio_desc *pwdn_gpio;

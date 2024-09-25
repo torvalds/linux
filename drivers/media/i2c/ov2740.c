@@ -530,7 +530,7 @@ struct ov2740 {
 	/* Current mode */
 	const struct ov2740_mode *cur_mode;
 
-	/* NVM data inforamtion */
+	/* NVM data information */
 	struct nvm_data *nvm;
 
 	/* Supported modes */
