@@ -39,18 +39,26 @@ static const struct regmap_config ap27700_regmap_config = {
 	.max_register		= 0x4,
 };
 
+#define AP72200_MAX_WRITE_RETRIES	4
+
 static int ap72200_vreg_enable(struct regulator_dev *rdev)
 {
 	struct ap72200_vreg *vreg = rdev_get_drvdata(rdev);
-	int rc, val;
+	int rc, val, retries;
 
 	gpiod_set_value_cansleep(vreg->ena_gpiod, 1);
 
 	val = DIV_ROUND_UP(vreg->rdesc.fixed_uV - AP72200_MIN_UV, AP72200_STEP_UV);
 
-	/* Set the voltage */
-	rc = regmap_write(vreg->regmap, AP72200_VSEL_REG_ADDR,
-				val);
+	retries = AP72200_MAX_WRITE_RETRIES;
+	do {
+		/* Set the voltage */
+		rc = regmap_write(vreg->regmap, AP72200_VSEL_REG_ADDR,
+					val);
+		if (!rc)
+			break;
+	} while (retries--);
+
 	if (rc) {
 		dev_err(vreg->dev, "Failed to set voltage rc: %d\n", rc);
 		return rc;
