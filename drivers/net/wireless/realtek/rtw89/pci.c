@@ -2363,8 +2363,10 @@ static void rtw89_pci_disable_eq_ax(struct rtw89_dev *rtwdev)
 	u16 g1_oobs, g2_oobs;
 	u32 backup_aspm;
 	u32 phy_offset;
+	u16 offset_cal;
 	u16 oobs_val;
 	int ret;
+	u8 gen;
 
 	if (rtwdev->chip->chip_id != RTL8852C)
 		return;
@@ -2399,6 +2401,28 @@ static void rtw89_pci_disable_eq_ax(struct rtw89_dev *rtwdev)
 			   OOBS_SEN_MASK, oobs_val);
 	rtw89_write16_set(rtwdev, R_RAC_DIRECT_OFFSET_G2 + RAC_ANA09 * RAC_MULT,
 			  BAC_OOBS_SEL);
+
+	/* offset K */
+	for (gen = 1; gen <= 2; gen++) {
+		phy_offset = gen == 1 ? R_RAC_DIRECT_OFFSET_G1 :
+					R_RAC_DIRECT_OFFSET_G2;
+
+		rtw89_write16_clr(rtwdev, phy_offset + RAC_ANA19 * RAC_MULT,
+				  B_PCIE_BIT_RD_SEL);
+	}
+
+	offset_cal = rtw89_read16_mask(rtwdev, R_RAC_DIRECT_OFFSET_G1 +
+					       RAC_ANA1F * RAC_MULT, OFFSET_CAL_MASK);
+
+	for (gen = 1; gen <= 2; gen++) {
+		phy_offset = gen == 1 ? R_RAC_DIRECT_OFFSET_G1 :
+					R_RAC_DIRECT_OFFSET_G2;
+
+		rtw89_write16_mask(rtwdev, phy_offset + RAC_ANA0B * RAC_MULT,
+				   MANUAL_LVL_MASK, offset_cal);
+		rtw89_write16_clr(rtwdev, phy_offset + RAC_ANA0D * RAC_MULT,
+				  OFFSET_CAL_MODE);
+	}
 
 out:
 	rtw89_write32(rtwdev, R_AX_PCIE_MIX_CFG_V1, backup_aspm);
