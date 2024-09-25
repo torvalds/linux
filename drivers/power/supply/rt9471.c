@@ -139,6 +139,19 @@ enum {
 	RT9471_PORTSTAT_DCP,
 };
 
+enum {
+	RT9471_ICSTAT_SLEEP = 0,
+	RT9471_ICSTAT_VBUSRDY,
+	RT9471_ICSTAT_TRICKLECHG,
+	RT9471_ICSTAT_PRECHG,
+	RT9471_ICSTAT_FASTCHG,
+	RT9471_ICSTAT_IEOC,
+	RT9471_ICSTAT_BGCHG,
+	RT9471_ICSTAT_CHGDONE,
+	RT9471_ICSTAT_CHGFAULT,
+	RT9471_ICSTAT_OTG = 15,
+};
+
 struct rt9471_chip {
 	struct device *dev;
 	struct regmap *regmap;
@@ -255,31 +268,32 @@ static int rt9471_get_ieoc(struct rt9471_chip *chip, int *microamp)
 
 static int rt9471_get_status(struct rt9471_chip *chip, int *status)
 {
-	unsigned int chg_ready, chg_done, fault_stat;
+	unsigned int ic_stat;
 	int ret;
 
-	ret = regmap_field_read(chip->rm_fields[F_ST_CHG_RDY], &chg_ready);
+	ret = regmap_field_read(chip->rm_fields[F_IC_STAT], &ic_stat);
 	if (ret)
 		return ret;
 
-	ret = regmap_field_read(chip->rm_fields[F_ST_CHG_DONE], &chg_done);
-	if (ret)
-		return ret;
-
-	ret = regmap_read(chip->regmap, RT9471_REG_STAT1, &fault_stat);
-	if (ret)
-		return ret;
-
-	fault_stat &= RT9471_CHGFAULT_MASK;
-
-	if (chg_ready && chg_done)
-		*status = POWER_SUPPLY_STATUS_FULL;
-	else if (chg_ready && fault_stat)
+	switch (ic_stat) {
+	case RT9471_ICSTAT_VBUSRDY:
+	case RT9471_ICSTAT_CHGFAULT:
 		*status = POWER_SUPPLY_STATUS_NOT_CHARGING;
-	else if (chg_ready && !fault_stat)
+		break;
+	case RT9471_ICSTAT_TRICKLECHG ... RT9471_ICSTAT_BGCHG:
 		*status = POWER_SUPPLY_STATUS_CHARGING;
-	else
+		break;
+	case RT9471_ICSTAT_CHGDONE:
+		*status = POWER_SUPPLY_STATUS_FULL;
+		break;
+	case RT9471_ICSTAT_SLEEP:
+	case RT9471_ICSTAT_OTG:
 		*status = POWER_SUPPLY_STATUS_DISCHARGING;
+		break;
+	default:
+		*status = POWER_SUPPLY_STATUS_UNKNOWN;
+		break;
+	}
 
 	return 0;
 }
