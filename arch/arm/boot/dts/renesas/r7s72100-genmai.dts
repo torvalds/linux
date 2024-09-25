@@ -249,7 +249,8 @@
 	codec: codec@0 {
 		compatible = "wlf,wm8978";
 		reg = <0>;
-		spi-max-frequency = <5000000>;
+		spi-max-frequency = <500000>;
+		#sound-dai-cells = <0>;
 	};
 };
 
