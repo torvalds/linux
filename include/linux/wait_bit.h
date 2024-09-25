@@ -8,7 +8,7 @@
 #include <linux/wait.h>
 
 struct wait_bit_key {
-	void			*flags;
+	unsigned long		*flags;
 	int			bit_nr;
 	unsigned long		timeout;
 };
@@ -23,14 +23,14 @@ struct wait_bit_queue_entry {
 
 typedef int wait_bit_action_f(struct wait_bit_key *key, int mode);
 
-void __wake_up_bit(struct wait_queue_head *wq_head, void *word, int bit);
+void __wake_up_bit(struct wait_queue_head *wq_head, unsigned long *word, int bit);
 int __wait_on_bit(struct wait_queue_head *wq_head, struct wait_bit_queue_entry *wbq_entry, wait_bit_action_f *action, unsigned int mode);
 int __wait_on_bit_lock(struct wait_queue_head *wq_head, struct wait_bit_queue_entry *wbq_entry, wait_bit_action_f *action, unsigned int mode);
-void wake_up_bit(void *word, int bit);
-int out_of_line_wait_on_bit(void *word, int, wait_bit_action_f *action, unsigned int mode);
-int out_of_line_wait_on_bit_timeout(void *word, int, wait_bit_action_f *action, unsigned int mode, unsigned long timeout);
-int out_of_line_wait_on_bit_lock(void *word, int, wait_bit_action_f *action, unsigned int mode);
-struct wait_queue_head *bit_waitqueue(void *word, int bit);
+void wake_up_bit(unsigned long *word, int bit);
+int out_of_line_wait_on_bit(unsigned long *word, int, wait_bit_action_f *action, unsigned int mode);
+int out_of_line_wait_on_bit_timeout(unsigned long *word, int, wait_bit_action_f *action, unsigned int mode, unsigned long timeout);
+int out_of_line_wait_on_bit_lock(unsigned long *word, int, wait_bit_action_f *action, unsigned int mode);
+struct wait_queue_head *bit_waitqueue(unsigned long *word, int bit);
 extern void __init wait_bit_init(void);
 
 int wake_bit_function(struct wait_queue_entry *wq_entry, unsigned mode, int sync, void *key);
@@ -327,7 +327,7 @@ do {									\
  * You can use this helper if bitflags are manipulated atomically rather than
  * non-atomically under a lock.
  */
-static inline void clear_and_wake_up_bit(int bit, void *word)
+static inline void clear_and_wake_up_bit(int bit, unsigned long *word)
 {
 	clear_bit_unlock(bit, word);
 	/* See wake_up_bit() for which memory barrier you need to use. */
