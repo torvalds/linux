@@ -53,19 +53,21 @@ extern int bit_wait_io_timeout(struct wait_bit_key *key, int mode);
 
 /**
  * wait_on_bit - wait for a bit to be cleared
- * @word: the word being waited on, a kernel virtual address
- * @bit: the bit of the word being waited on
+ * @word: the address containing the bit being waited on
+ * @bit: the bit at that address being waited on
  * @mode: the task state to sleep in
  *
- * There is a standard hashed waitqueue table for generic use. This
- * is the part of the hashtable's accessor API that waits on a bit.
- * For instance, if one were to have waiters on a bitflag, one would
- * call wait_on_bit() in threads waiting for the bit to clear.
- * One uses wait_on_bit() where one is waiting for the bit to clear,
- * but has no intention of setting it.
- * Returned value will be zero if the bit was cleared, or non-zero
- * if the process received a signal and the mode permitted wakeup
- * on that signal.
+ * Wait for the given bit in an unsigned long or bitmap (see DECLARE_BITMAP())
+ * to be cleared.  The clearing of the bit must be signalled with
+ * wake_up_bit(), often as clear_and_wake_up_bit().
+ *
+ * The process will wait on a waitqueue selected by hash from a shared
+ * pool.  It will only be woken on a wake_up for the target bit, even
+ * if other processes on the same queue are waiting for other bits.
+ *
+ * Returned value will be zero if the bit was cleared in which case the
+ * call has ACQUIRE semantics, or %-EINTR if the process received a
+ * signal and the mode permitted wake up on that signal.
  */
 static inline int
 wait_on_bit(unsigned long *word, int bit, unsigned mode)
@@ -80,17 +82,20 @@ wait_on_bit(unsigned long *word, int bit, unsigned mode)
 
 /**
  * wait_on_bit_io - wait for a bit to be cleared
- * @word: the word being waited on, a kernel virtual address
- * @bit: the bit of the word being waited on
+ * @word: the address containing the bit being waited on
+ * @bit: the bit at that address being waited on
  * @mode: the task state to sleep in
  *
- * Use the standard hashed waitqueue table to wait for a bit
- * to be cleared.  This is similar to wait_on_bit(), but calls
- * io_schedule() instead of schedule() for the actual waiting.
+ * Wait for the given bit in an unsigned long or bitmap (see DECLARE_BITMAP())
+ * to be cleared.  The clearing of the bit must be signalled with
+ * wake_up_bit(), often as clear_and_wake_up_bit().
  *
- * Returned value will be zero if the bit was cleared, or non-zero
- * if the process received a signal and the mode permitted wakeup
- * on that signal.
+ * This is similar to wait_on_bit(), but calls io_schedule() instead of
+ * schedule() for the actual waiting.
+ *
+ * Returned value will be zero if the bit was cleared in which case the
+ * call has ACQUIRE semantics, or %-EINTR if the process received a
+ * signal and the mode permitted wake up on that signal.
  */
 static inline int
 wait_on_bit_io(unsigned long *word, int bit, unsigned mode)
@@ -104,19 +109,24 @@ wait_on_bit_io(unsigned long *word, int bit, unsigned mode)
 }
 
 /**
- * wait_on_bit_timeout - wait for a bit to be cleared or a timeout elapses
- * @word: the word being waited on, a kernel virtual address
- * @bit: the bit of the word being waited on
+ * wait_on_bit_timeout - wait for a bit to be cleared or a timeout to elapse
+ * @word: the address containing the bit being waited on
+ * @bit: the bit at that address being waited on
  * @mode: the task state to sleep in
  * @timeout: timeout, in jiffies
  *
- * Use the standard hashed waitqueue table to wait for a bit
- * to be cleared. This is similar to wait_on_bit(), except also takes a
- * timeout parameter.
+ * Wait for the given bit in an unsigned long or bitmap (see
+ * DECLARE_BITMAP()) to be cleared, or for a timeout to expire.  The
+ * clearing of the bit must be signalled with wake_up_bit(), often as
+ * clear_and_wake_up_bit().
  *
- * Returned value will be zero if the bit was cleared before the
- * @timeout elapsed, or non-zero if the @timeout elapsed or process
- * received a signal and the mode permitted wakeup on that signal.
+ * This is similar to wait_on_bit(), except it also takes a timeout
+ * parameter.
+ *
+ * Returned value will be zero if the bit was cleared in which case the
+ * call has ACQUIRE semantics, or %-EINTR if the process received a
+ * signal and the mode permitted wake up on that signal, or %-EAGAIN if the
+ * timeout elapsed.
  */
 static inline int
 wait_on_bit_timeout(unsigned long *word, int bit, unsigned mode,
@@ -132,19 +142,21 @@ wait_on_bit_timeout(unsigned long *word, int bit, unsigned mode,
 
 /**
  * wait_on_bit_action - wait for a bit to be cleared
- * @word: the word being waited on, a kernel virtual address
- * @bit: the bit of the word being waited on
+ * @word: the address containing the bit waited on
+ * @bit: the bit at that address being waited on
  * @action: the function used to sleep, which may take special actions
  * @mode: the task state to sleep in
  *
- * Use the standard hashed waitqueue table to wait for a bit
- * to be cleared, and allow the waiting action to be specified.
- * This is like wait_on_bit() but allows fine control of how the waiting
- * is done.
+ * Wait for the given bit in an unsigned long or bitmap (see DECLARE_BITMAP())
+ * to be cleared.  The clearing of the bit must be signalled with
+ * wake_up_bit(), often as clear_and_wake_up_bit().
  *
- * Returned value will be zero if the bit was cleared, or non-zero
- * if the process received a signal and the mode permitted wakeup
- * on that signal.
+ * This is similar to wait_on_bit(), but calls @action() instead of
+ * schedule() for the actual waiting.
+ *
+ * Returned value will be zero if the bit was cleared in which case the
+ * call has ACQUIRE semantics, or the error code returned by @action if
+ * that call returned non-zero.
  */
 static inline int
 wait_on_bit_action(unsigned long *word, int bit, wait_bit_action_f *action,
@@ -157,23 +169,22 @@ wait_on_bit_action(unsigned long *word, int bit, wait_bit_action_f *action,
 }
 
 /**
- * wait_on_bit_lock - wait for a bit to be cleared, when wanting to set it
- * @word: the word being waited on, a kernel virtual address
- * @bit: the bit of the word being waited on
+ * wait_on_bit_lock - wait for a bit to be cleared, then set it
+ * @word: the address containing the bit being waited on
+ * @bit: the bit of the word being waited on and set
  * @mode: the task state to sleep in
  *
- * There is a standard hashed waitqueue table for generic use. This
- * is the part of the hashtable's accessor API that waits on a bit
- * when one intends to set it, for instance, trying to lock bitflags.
- * For instance, if one were to have waiters trying to set bitflag
- * and waiting for it to clear before setting it, one would call
- * wait_on_bit() in threads waiting to be able to set the bit.
- * One uses wait_on_bit_lock() where one is waiting for the bit to
- * clear with the intention of setting it, and when done, clearing it.
+ * Wait for the given bit in an unsigned long or bitmap (see
+ * DECLARE_BITMAP()) to be cleared.  The clearing of the bit must be
+ * signalled with wake_up_bit(), often as clear_and_wake_up_bit().  As
+ * soon as it is clear, atomically set it and return.
  *
- * Returns zero if the bit was (eventually) found to be clear and was
- * set.  Returns non-zero if a signal was delivered to the process and
- * the @mode allows that signal to wake the process.
+ * This is similar to wait_on_bit(), but sets the bit before returning.
+ *
+ * Returned value will be zero if the bit was successfully set in which
+ * case the call has the same memory sequencing semantics as
+ * test_and_clear_bit(), or %-EINTR if the process received a signal and
+ * the mode permitted wake up on that signal.
  */
 static inline int
 wait_on_bit_lock(unsigned long *word, int bit, unsigned mode)
@@ -185,15 +196,18 @@ wait_on_bit_lock(unsigned long *word, int bit, unsigned mode)
 }
 
 /**
- * wait_on_bit_lock_io - wait for a bit to be cleared, when wanting to set it
- * @word: the word being waited on, a kernel virtual address
- * @bit: the bit of the word being waited on
+ * wait_on_bit_lock_io - wait for a bit to be cleared, then set it
+ * @word: the address containing the bit being waited on
+ * @bit: the bit of the word being waited on and set
  * @mode: the task state to sleep in
  *
- * Use the standard hashed waitqueue table to wait for a bit
- * to be cleared and then to atomically set it.  This is similar
- * to wait_on_bit(), but calls io_schedule() instead of schedule()
- * for the actual waiting.
+ * Wait for the given bit in an unsigned long or bitmap (see
+ * DECLARE_BITMAP()) to be cleared.  The clearing of the bit must be
+ * signalled with wake_up_bit(), often as clear_and_wake_up_bit().  As
+ * soon as it is clear, atomically set it and return.
+ *
+ * This is similar to wait_on_bit_lock(), but calls io_schedule() instead
+ * of schedule().
  *
  * Returns zero if the bit was (eventually) found to be clear and was
  * set.  Returns non-zero if a signal was delivered to the process and
@@ -209,21 +223,19 @@ wait_on_bit_lock_io(unsigned long *word, int bit, unsigned mode)
 }
 
 /**
- * wait_on_bit_lock_action - wait for a bit to be cleared, when wanting to set it
- * @word: the word being waited on, a kernel virtual address
- * @bit: the bit of the word being waited on
+ * wait_on_bit_lock_action - wait for a bit to be cleared, then set it
+ * @word: the address containing the bit being waited on
+ * @bit: the bit of the word being waited on and set
  * @action: the function used to sleep, which may take special actions
  * @mode: the task state to sleep in
  *
- * Use the standard hashed waitqueue table to wait for a bit
- * to be cleared and then to set it, and allow the waiting action
- * to be specified.
- * This is like wait_on_bit() but allows fine control of how the waiting
- * is done.
+ * This is similar to wait_on_bit_lock(), but calls @action() instead of
+ * schedule() for the actual waiting.
  *
- * Returns zero if the bit was (eventually) found to be clear and was
- * set.  Returns non-zero if a signal was delivered to the process and
- * the @mode allows that signal to wake the process.
+ * Returned value will be zero if the bit was successfully set in which
+ * case the call has the same memory sequencing semantics as
+ * test_and_clear_bit(), or the error code returned by @action if that
+ * call returned non-zero.
  */
 static inline int
 wait_on_bit_lock_action(unsigned long *word, int bit, wait_bit_action_f *action,
@@ -320,12 +332,13 @@ do {									\
 
 /**
  * clear_and_wake_up_bit - clear a bit and wake up anyone waiting on that bit
- *
  * @bit: the bit of the word being waited on
- * @word: the word being waited on, a kernel virtual address
+ * @word: the address containing the bit being waited on
  *
- * You can use this helper if bitflags are manipulated atomically rather than
- * non-atomically under a lock.
+ * The designated bit is cleared and any tasks waiting in wait_on_bit()
+ * or similar will be woken.  This call has RELEASE semantics so that
+ * any changes to memory made before this call are guaranteed to be visible
+ * after the corresponding wait_on_bit() completes.
  */
 static inline void clear_and_wake_up_bit(int bit, unsigned long *word)
 {
