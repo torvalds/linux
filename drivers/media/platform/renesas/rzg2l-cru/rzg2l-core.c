@@ -325,7 +325,7 @@ static struct platform_driver rzg2l_cru_driver = {
 		.of_match_table = rzg2l_cru_of_id_table,
 	},
 	.probe = rzg2l_cru_probe,
-	.remove_new = rzg2l_cru_remove,
+	.remove = rzg2l_cru_remove,
 };
 
 module_platform_driver(rzg2l_cru_driver);

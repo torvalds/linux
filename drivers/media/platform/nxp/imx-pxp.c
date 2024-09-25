@@ -1943,7 +1943,7 @@ MODULE_DEVICE_TABLE(of, pxp_dt_ids);
 
 static struct platform_driver pxp_driver = {
 	.probe		= pxp_probe,
-	.remove_new	= pxp_remove,
+	.remove		= pxp_remove,
 	.driver		= {
 		.name	= MEM2MEM_NAME,
 		.of_match_table = pxp_dt_ids,

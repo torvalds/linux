@@ -164,7 +164,7 @@ MODULE_DEVICE_TABLE(of, rcar_fcp_of_match);
 
 static struct platform_driver rcar_fcp_platform_driver = {
 	.probe		= rcar_fcp_probe,
-	.remove_new	= rcar_fcp_remove,
+	.remove		= rcar_fcp_remove,
 	.driver		= {
 		.name	= "rcar-fcp",
 		.of_match_table = rcar_fcp_of_match,

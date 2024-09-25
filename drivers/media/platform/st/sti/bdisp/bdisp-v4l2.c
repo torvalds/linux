@@ -1411,7 +1411,7 @@ MODULE_DEVICE_TABLE(of, bdisp_match_types);
 
 static struct platform_driver bdisp_driver = {
 	.probe          = bdisp_probe,
-	.remove_new     = bdisp_remove,
+	.remove         = bdisp_remove,
 	.driver         = {
 		.name           = BDISP_NAME,
 		.of_match_table = bdisp_match_types,

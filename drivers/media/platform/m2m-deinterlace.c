@@ -993,7 +993,7 @@ static void deinterlace_remove(struct platform_device *pdev)
 
 static struct platform_driver deinterlace_pdrv = {
 	.probe		= deinterlace_probe,
-	.remove_new	= deinterlace_remove,
+	.remove		= deinterlace_remove,
 	.driver		= {
 		.name	= MEM2MEM_NAME,
 	},

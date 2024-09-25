@@ -1045,7 +1045,7 @@ MODULE_DEVICE_TABLE(of, meson_ge2d_match);
 
 static struct platform_driver ge2d_drv = {
 	.probe = ge2d_probe,
-	.remove_new = ge2d_remove,
+	.remove = ge2d_remove,
 	.driver = {
 		.name = "meson-ge2d",
 		.of_match_table = meson_ge2d_match,

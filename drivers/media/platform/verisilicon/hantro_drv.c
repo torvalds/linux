@@ -1277,7 +1277,7 @@ static const struct dev_pm_ops hantro_pm_ops = {
 
 static struct platform_driver hantro_driver = {
 	.probe = hantro_probe,
-	.remove_new = hantro_remove,
+	.remove = hantro_remove,
 	.driver = {
 		   .name = DRIVER_NAME,
 		   .of_match_table = of_hantro_match,

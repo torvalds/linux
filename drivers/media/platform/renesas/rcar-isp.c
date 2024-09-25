@@ -522,7 +522,7 @@ static struct platform_driver rcar_isp_driver = {
 		.of_match_table = risp_of_id_table,
 	},
 	.probe = risp_probe,
-	.remove_new = risp_remove,
+	.remove = risp_remove,
 };
 
 module_platform_driver(rcar_isp_driver);

@@ -2207,7 +2207,7 @@ static void vicodec_remove(struct platform_device *pdev)
 
 static struct platform_driver vicodec_pdrv = {
 	.probe		= vicodec_probe,
-	.remove_new	= vicodec_remove,
+	.remove		= vicodec_remove,
 	.driver		= {
 		.name	= VICODEC_NAME,
 	},

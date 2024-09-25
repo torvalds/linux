@@ -1163,7 +1163,7 @@ MODULE_DEVICE_TABLE(of, ti_csi2rx_of_match);
 
 static struct platform_driver ti_csi2rx_pdrv = {
 	.probe = ti_csi2rx_probe,
-	.remove_new = ti_csi2rx_remove,
+	.remove = ti_csi2rx_remove,
 	.driver = {
 		.name = TI_CSI2RX_MODULE_NAME,
 		.of_match_table = ti_csi2rx_of_match,

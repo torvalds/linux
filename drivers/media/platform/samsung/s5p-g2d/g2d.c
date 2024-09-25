@@ -777,7 +777,7 @@ MODULE_DEVICE_TABLE(of, exynos_g2d_match);
 
 static struct platform_driver g2d_pdrv = {
 	.probe		= g2d_probe,
-	.remove_new	= g2d_remove,
+	.remove		= g2d_remove,
 	.driver		= {
 		.name = G2D_NAME,
 		.of_match_table = exynos_g2d_match,

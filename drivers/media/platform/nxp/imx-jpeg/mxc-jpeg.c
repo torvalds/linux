@@ -2956,7 +2956,7 @@ MODULE_DEVICE_TABLE(of, mxc_jpeg_match);
 
 static struct platform_driver mxc_jpeg_driver = {
 	.probe = mxc_jpeg_probe,
-	.remove_new = mxc_jpeg_remove,
+	.remove = mxc_jpeg_remove,
 	.driver = {
 		.name = "mxc-jpeg",
 		.of_match_table = mxc_jpeg_match,

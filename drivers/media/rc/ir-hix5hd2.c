@@ -394,7 +394,7 @@ static struct platform_driver hix5hd2_ir_driver = {
 		.pm     = &hix5hd2_ir_pm_ops,
 	},
 	.probe = hix5hd2_ir_probe,
-	.remove_new = hix5hd2_ir_remove,
+	.remove = hix5hd2_ir_remove,
 };
 
 module_platform_driver(hix5hd2_ir_driver);

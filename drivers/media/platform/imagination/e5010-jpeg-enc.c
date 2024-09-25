@@ -1619,7 +1619,7 @@ MODULE_DEVICE_TABLE(of, e5010_of_match);
 
 static struct platform_driver e5010_driver = {
 	.probe = e5010_probe,
-	.remove_new = e5010_remove,
+	.remove = e5010_remove,
 	.driver = {
 		.name = E5010_MODULE_NAME,
 		.of_match_table = e5010_of_match,

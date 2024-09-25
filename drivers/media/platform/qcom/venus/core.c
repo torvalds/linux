@@ -949,7 +949,7 @@ MODULE_DEVICE_TABLE(of, venus_dt_match);
 
 static struct platform_driver qcom_venus_driver = {
 	.probe = venus_probe,
-	.remove_new = venus_remove,
+	.remove = venus_remove,
 	.driver = {
 		.name = "qcom-venus",
 		.of_match_table = venus_dt_match,

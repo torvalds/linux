@@ -1877,7 +1877,7 @@ MODULE_DEVICE_TABLE(of, vdec_dt_match);
 
 static struct platform_driver qcom_venus_dec_driver = {
 	.probe = vdec_probe,
-	.remove_new = vdec_remove,
+	.remove = vdec_remove,
 	.driver = {
 		.name = "qcom-venus-decoder",
 		.of_match_table = vdec_dt_match,

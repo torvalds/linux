@@ -1367,7 +1367,7 @@ static struct platform_driver atmel_isi_driver = {
 		.pm	= &atmel_isi_dev_pm_ops,
 	},
 	.probe		= atmel_isi_probe,
-	.remove_new	= atmel_isi_remove,
+	.remove		= atmel_isi_remove,
 };
 
 module_platform_driver(atmel_isi_driver);

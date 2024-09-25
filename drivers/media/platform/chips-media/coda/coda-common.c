@@ -3346,7 +3346,7 @@ static const struct dev_pm_ops coda_pm_ops = {
 
 static struct platform_driver coda_driver = {
 	.probe	= coda_probe,
-	.remove_new = coda_remove,
+	.remove = coda_remove,
 	.driver	= {
 		.name	= CODA_NAME,
 		.of_match_table = coda_dt_ids,

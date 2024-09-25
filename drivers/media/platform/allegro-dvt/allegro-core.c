@@ -4003,7 +4003,7 @@ static const struct dev_pm_ops allegro_pm_ops = {
 
 static struct platform_driver allegro_driver = {
 	.probe = allegro_probe,
-	.remove_new = allegro_remove,
+	.remove = allegro_remove,
 	.driver = {
 		.name = "allegro",
 		.of_match_table = allegro_dt_ids,

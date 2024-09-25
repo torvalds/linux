@@ -1814,7 +1814,7 @@ static struct platform_driver npcm_video_driver = {
 		.of_match_table = npcm_video_match,
 	},
 	.probe = npcm_video_probe,
-	.remove_new = npcm_video_remove,
+	.remove = npcm_video_remove,
 };
 
 module_platform_driver(npcm_video_driver);

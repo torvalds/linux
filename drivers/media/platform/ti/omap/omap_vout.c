@@ -1721,7 +1721,7 @@ static struct platform_driver omap_vout_driver = {
 	.driver = {
 		.name = VOUT_NAME,
 	},
-	.remove_new = omap_vout_remove,
+	.remove = omap_vout_remove,
 };
 
 static int __init omap_vout_init(void)

@@ -1654,7 +1654,7 @@ MODULE_DEVICE_TABLE(of, flite_of_match);
 
 static struct platform_driver fimc_lite_driver = {
 	.probe		= fimc_lite_probe,
-	.remove_new	= fimc_lite_remove,
+	.remove		= fimc_lite_remove,
 	.driver = {
 		.of_match_table = flite_of_match,
 		.name		= FIMC_LITE_DRV_NAME,

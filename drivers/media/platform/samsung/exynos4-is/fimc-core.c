@@ -1157,7 +1157,7 @@ static const struct dev_pm_ops fimc_pm_ops = {
 
 static struct platform_driver fimc_driver = {
 	.probe		= fimc_probe,
-	.remove_new	= fimc_remove,
+	.remove		= fimc_remove,
 	.driver = {
 		.of_match_table = fimc_of_match,
 		.name		= FIMC_DRIVER_NAME,

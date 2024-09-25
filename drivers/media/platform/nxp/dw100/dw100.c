@@ -1688,7 +1688,7 @@ MODULE_DEVICE_TABLE(of, dw100_dt_ids);
 
 static struct platform_driver dw100_driver = {
 	.probe		= dw100_probe,
-	.remove_new	= dw100_remove,
+	.remove		= dw100_remove,
 	.driver		= {
 		.name	= DRV_NAME,
 		.pm = &dw100_pm,

@@ -389,7 +389,7 @@ static struct platform_driver wave5_vpu_driver = {
 		.pm = &wave5_pm_ops,
 		},
 	.probe = wave5_vpu_probe,
-	.remove_new = wave5_vpu_remove,
+	.remove = wave5_vpu_remove,
 };
 
 module_platform_driver(wave5_vpu_driver);

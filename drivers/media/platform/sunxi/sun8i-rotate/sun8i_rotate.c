@@ -905,7 +905,7 @@ static const struct dev_pm_ops rotate_pm_ops = {
 
 static struct platform_driver rotate_driver = {
 	.probe		= rotate_probe,
-	.remove_new	= rotate_remove,
+	.remove		= rotate_remove,
 	.driver		= {
 		.name		= ROTATE_NAME,
 		.of_match_table	= rotate_dt_match,

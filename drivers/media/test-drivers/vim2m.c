@@ -1394,7 +1394,7 @@ static void vim2m_remove(struct platform_device *pdev)
 
 static struct platform_driver vim2m_pdrv = {
 	.probe		= vim2m_probe,
-	.remove_new	= vim2m_remove,
+	.remove		= vim2m_remove,
 	.driver		= {
 		.name	= MEM2MEM_NAME,
 	},

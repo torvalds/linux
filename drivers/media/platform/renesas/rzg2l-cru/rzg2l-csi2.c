@@ -868,7 +868,7 @@ static const struct of_device_id rzg2l_csi2_of_table[] = {
 MODULE_DEVICE_TABLE(of, rzg2l_csi2_of_table);
 
 static struct platform_driver rzg2l_csi2_pdrv = {
-	.remove_new = rzg2l_csi2_remove,
+	.remove = rzg2l_csi2_remove,
 	.probe	= rzg2l_csi2_probe,
 	.driver	= {
 		.name = "rzg2l-csi2",

@@ -2226,7 +2226,7 @@ static struct platform_driver aspeed_video_driver = {
 		.of_match_table = aspeed_video_of_match,
 	},
 	.probe = aspeed_video_probe,
-	.remove_new = aspeed_video_remove,
+	.remove = aspeed_video_remove,
 };
 
 module_platform_driver(aspeed_video_driver);

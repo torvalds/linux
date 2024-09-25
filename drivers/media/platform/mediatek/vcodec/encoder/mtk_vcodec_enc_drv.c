@@ -473,7 +473,7 @@ static void mtk_vcodec_enc_remove(struct platform_device *pdev)
 
 static struct platform_driver mtk_vcodec_enc_driver = {
 	.probe	= mtk_vcodec_probe,
-	.remove_new = mtk_vcodec_enc_remove,
+	.remove = mtk_vcodec_enc_remove,
 	.driver	= {
 		.name	= MTK_VCODEC_ENC_NAME,
 		.of_match_table = mtk_vcodec_enc_match,

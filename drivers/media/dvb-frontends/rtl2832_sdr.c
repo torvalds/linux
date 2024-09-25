@@ -1487,7 +1487,7 @@ static struct platform_driver rtl2832_sdr_driver = {
 		.name   = "rtl2832_sdr",
 	},
 	.probe          = rtl2832_sdr_probe,
-	.remove_new     = rtl2832_sdr_remove,
+	.remove         = rtl2832_sdr_remove,
 };
 module_platform_driver(rtl2832_sdr_driver);
 

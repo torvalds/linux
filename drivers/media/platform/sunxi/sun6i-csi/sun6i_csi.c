@@ -423,7 +423,7 @@ MODULE_DEVICE_TABLE(of, sun6i_csi_of_match);
 
 static struct platform_driver sun6i_csi_platform_driver = {
 	.probe	= sun6i_csi_probe,
-	.remove_new = sun6i_csi_remove,
+	.remove = sun6i_csi_remove,
 	.driver	= {
 		.name		= SUN6I_CSI_NAME,
 		.of_match_table	= sun6i_csi_of_match,

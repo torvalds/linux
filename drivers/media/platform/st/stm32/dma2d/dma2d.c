@@ -717,7 +717,7 @@ MODULE_DEVICE_TABLE(of, stm32_dma2d_match);
 
 static struct platform_driver dma2d_pdrv = {
 	.probe		= dma2d_probe,
-	.remove_new	= dma2d_remove,
+	.remove		= dma2d_remove,
 	.driver		= {
 		.name = DMA2D_NAME,
 		.of_match_table = stm32_dma2d_match,

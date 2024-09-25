@@ -1005,7 +1005,7 @@ MODULE_DEVICE_TABLE(of, vsp1_of_match);
 
 static struct platform_driver vsp1_platform_driver = {
 	.probe		= vsp1_probe,
-	.remove_new	= vsp1_remove,
+	.remove		= vsp1_remove,
 	.driver		= {
 		.name	= "vsp1",
 		.pm	= &vsp1_pm_ops,

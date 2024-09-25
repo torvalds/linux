@@ -486,7 +486,7 @@ MODULE_DEVICE_TABLE(of, video_mux_dt_ids);
 
 static struct platform_driver video_mux_driver = {
 	.probe		= video_mux_probe,
-	.remove_new	= video_mux_remove,
+	.remove		= video_mux_remove,
 	.driver		= {
 		.of_match_table = video_mux_dt_ids,
 		.name = "video-mux",

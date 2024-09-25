@@ -279,7 +279,7 @@ MODULE_DEVICE_TABLE(of, cec_gpio_match);
 
 static struct platform_driver cec_gpio_pdrv = {
 	.probe	= cec_gpio_probe,
-	.remove_new = cec_gpio_remove,
+	.remove = cec_gpio_remove,
 	.driver = {
 		.name		= "cec-gpio",
 		.of_match_table	= cec_gpio_match,

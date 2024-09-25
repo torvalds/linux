@@ -523,7 +523,7 @@ static void visl_remove(struct platform_device *pdev)
 
 static struct platform_driver visl_pdrv = {
 	.probe		= visl_probe,
-	.remove_new	= visl_remove,
+	.remove		= visl_remove,
 	.driver		= {
 		.name	= VISL_NAME,
 	},

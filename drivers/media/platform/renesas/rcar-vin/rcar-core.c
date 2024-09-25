@@ -1443,7 +1443,7 @@ static struct platform_driver rcar_vin_driver = {
 		.of_match_table = rvin_of_id_table,
 	},
 	.probe = rcar_vin_probe,
-	.remove_new = rcar_vin_remove,
+	.remove = rcar_vin_remove,
 };
 
 module_platform_driver(rcar_vin_driver);

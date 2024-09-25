@@ -3160,7 +3160,7 @@ static void *jpeg_get_drv_data(struct device *dev)
 
 static struct platform_driver s5p_jpeg_driver = {
 	.probe = s5p_jpeg_probe,
-	.remove_new = s5p_jpeg_remove,
+	.remove = s5p_jpeg_remove,
 	.driver = {
 		.of_match_table	= samsung_jpeg_match,
 		.name		= S5P_JPEG_M2M_NAME,

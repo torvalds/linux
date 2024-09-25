@@ -1954,7 +1954,7 @@ MODULE_DEVICE_TABLE(of, delta_match_types);
 
 static struct platform_driver delta_driver = {
 	.probe = delta_probe,
-	.remove_new = delta_remove,
+	.remove = delta_remove,
 	.driver = {
 		   .name = DELTA_NAME,
 		   .of_match_table = delta_match_types,

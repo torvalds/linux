@@ -1028,7 +1028,7 @@ static struct platform_driver xcsi2rxss_driver = {
 		.of_match_table	= xcsi2rxss_of_id_table,
 	},
 	.probe			= xcsi2rxss_probe,
-	.remove_new		= xcsi2rxss_remove,
+	.remove			= xcsi2rxss_remove,
 };
 
 module_platform_driver(xcsi2rxss_driver);

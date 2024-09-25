@@ -628,7 +628,7 @@ MODULE_DEVICE_TABLE(of, meson_ir_match);
 
 static struct platform_driver meson_ir_driver = {
 	.probe		= meson_ir_probe,
-	.remove_new	= meson_ir_remove,
+	.remove		= meson_ir_remove,
 	.shutdown	= meson_ir_shutdown,
 	.driver = {
 		.name		= DRIVER_NAME,

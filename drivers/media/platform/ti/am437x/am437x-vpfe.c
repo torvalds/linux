@@ -2617,7 +2617,7 @@ MODULE_DEVICE_TABLE(of, vpfe_of_match);
 
 static struct platform_driver vpfe_driver = {
 	.probe		= vpfe_probe,
-	.remove_new	= vpfe_remove,
+	.remove		= vpfe_remove,
 	.driver = {
 		.name	= VPFE_MODULE_NAME,
 		.pm	= &vpfe_pm_ops,

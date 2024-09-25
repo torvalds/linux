@@ -2649,7 +2649,7 @@ MODULE_DEVICE_TABLE(of, vpe_of_match);
 
 static struct platform_driver vpe_pdrv = {
 	.probe		= vpe_probe,
-	.remove_new	= vpe_remove,
+	.remove		= vpe_remove,
 	.driver		= {
 		.name	= VPE_MODULE_NAME,
 		.of_match_table = of_match_ptr(vpe_of_match),

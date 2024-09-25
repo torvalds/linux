@@ -1723,7 +1723,7 @@ static struct platform_driver ceu_driver = {
 		.of_match_table = of_match_ptr(ceu_of_match),
 	},
 	.probe		= ceu_probe,
-	.remove_new	= ceu_remove,
+	.remove		= ceu_remove,
 };
 
 module_platform_driver(ceu_driver);

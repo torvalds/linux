@@ -658,7 +658,7 @@ MODULE_DEVICE_TABLE(of, microchip_isc_of_match);
 
 static struct platform_driver microchip_isc_driver = {
 	.probe	= microchip_isc_probe,
-	.remove_new = microchip_isc_remove,
+	.remove = microchip_isc_remove,
 	.driver	= {
 		.name		= "microchip-sama5d2-isc",
 		.pm		= &microchip_isc_dev_pm_ops,

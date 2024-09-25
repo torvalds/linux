@@ -1456,7 +1456,7 @@ MODULE_DEVICE_TABLE(of, hva_match_types);
 
 static struct platform_driver hva_driver = {
 	.probe  = hva_probe,
-	.remove_new = hva_remove,
+	.remove = hva_remove,
 	.driver = {
 		.name		= HVA_NAME,
 		.of_match_table	= hva_match_types,

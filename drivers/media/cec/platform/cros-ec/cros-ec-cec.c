@@ -582,7 +582,7 @@ MODULE_DEVICE_TABLE(platform, cros_ec_cec_id);
 
 static struct platform_driver cros_ec_cec_driver = {
 	.probe = cros_ec_cec_probe,
-	.remove_new = cros_ec_cec_remove,
+	.remove = cros_ec_cec_remove,
 	.driver = {
 		.name = DRV_NAME,
 		.pm = &cros_ec_cec_pm_ops,

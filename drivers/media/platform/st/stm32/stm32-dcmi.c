@@ -2149,7 +2149,7 @@ static const struct dev_pm_ops dcmi_pm_ops = {
 
 static struct platform_driver stm32_dcmi_driver = {
 	.probe		= dcmi_probe,
-	.remove_new	= dcmi_remove,
+	.remove		= dcmi_remove,
 	.driver		= {
 		.name = DRV_NAME,
 		.of_match_table = of_match_ptr(stm32_dcmi_of_match),
