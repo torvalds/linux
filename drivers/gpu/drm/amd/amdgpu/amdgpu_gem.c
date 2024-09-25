@@ -46,6 +46,45 @@
 #include "amdgpu_vm.h"
 
 static int
+amdgpu_gem_add_input_fence(struct drm_file *filp,
+			   uint64_t syncobj_handles_array,
+			   uint32_t num_syncobj_handles)
+{
+	struct dma_fence *fence;
+	uint32_t *syncobj_handles;
+	int ret, i;
+
+	if (!num_syncobj_handles)
+		return 0;
+
+	syncobj_handles = memdup_user(u64_to_user_ptr(syncobj_handles_array),
+				      sizeof(uint32_t) * num_syncobj_handles);
+	if (IS_ERR(syncobj_handles))
+		return PTR_ERR(syncobj_handles);
+
+	for (i = 0; i < num_syncobj_handles; i++) {
+
+		if (!syncobj_handles[i]) {
+			ret = -EINVAL;
+			goto free_memdup;
+		}
+
+		ret = drm_syncobj_find_fence(filp, syncobj_handles[i], 0, 0, &fence);
+		if (ret)
+			goto free_memdup;
+
+		dma_fence_wait(fence, false);
+
+		/* TODO: optimize async handling */
+		dma_fence_put(fence);
+	}
+
+free_memdup:
+	kfree(syncobj_handles);
+	return ret;
+}
+
+static int
 amdgpu_gem_update_timeline_node(struct drm_file *filp,
 				uint32_t syncobj_handle,
 				uint64_t point,
@@ -854,6 +893,12 @@ int amdgpu_gem_va_ioctl(struct drm_device *dev, void *data,
 		abo = NULL;
 	}
 
+	r = amdgpu_gem_add_input_fence(filp,
+				       args->input_fence_syncobj_handles,
+				       args->num_syncobj_handles);
+	if (r)
+		goto error_put_gobj;
+
 	drm_exec_init(&exec, DRM_EXEC_INTERRUPTIBLE_WAIT |
 		      DRM_EXEC_IGNORE_DUPLICATES, 0);
 	drm_exec_until_all_locked(&exec) {
@@ -928,6 +973,7 @@ int amdgpu_gem_va_ioctl(struct drm_device *dev, void *data,
 
 error:
 	drm_exec_fini(&exec);
+error_put_gobj:
 	drm_gem_object_put(gobj);
 	return r;
 }

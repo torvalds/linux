@@ -884,6 +884,10 @@ struct drm_amdgpu_gem_va {
 	 * at vm_timeline_point.
 	 */
 	__u32 vm_timeline_syncobj_out;
+	/** the number of syncobj handles in @input_fence_syncobj_handles */
+	__u32 num_syncobj_handles;
+	/** Array of sync object handle to wait for given input fences */
+	__u64 input_fence_syncobj_handles;
 };
 
 #define AMDGPU_HW_IP_GFX          0
