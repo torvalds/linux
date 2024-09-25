@@ -820,9 +820,9 @@ static int qcom_smd_channel_open(struct qcom_smd_channel *channel,
 	int ret;
 
 	/*
-	 * Packets are maximum 4k, but reduce if the fifo is smaller
+	 * Packets are maximum 8k, but reduce if the fifo is smaller
 	 */
-	bb_size = min(channel->fifo_size, SZ_4K);
+	bb_size = min(channel->fifo_size, SZ_8K);
 	channel->bounce_buffer = kmalloc(bb_size, GFP_KERNEL);
 	if (!channel->bounce_buffer)
 		return -ENOMEM;
