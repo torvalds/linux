@@ -1022,13 +1022,16 @@ static void sdma_v7_0_vm_copy_pte(struct amdgpu_ib *ib,
 	unsigned bytes = count * 8;
 
 	ib->ptr[ib->length_dw++] = SDMA_PKT_COPY_LINEAR_HEADER_OP(SDMA_OP_COPY) |
-		SDMA_PKT_COPY_LINEAR_HEADER_SUB_OP(SDMA_SUBOP_COPY_LINEAR);
+		SDMA_PKT_COPY_LINEAR_HEADER_SUB_OP(SDMA_SUBOP_COPY_LINEAR) |
+		SDMA_PKT_COPY_LINEAR_HEADER_CPV(1);
+
 	ib->ptr[ib->length_dw++] = bytes - 1;
 	ib->ptr[ib->length_dw++] = 0; /* src/dst endian swap */
 	ib->ptr[ib->length_dw++] = lower_32_bits(src);
 	ib->ptr[ib->length_dw++] = upper_32_bits(src);
 	ib->ptr[ib->length_dw++] = lower_32_bits(pe);
 	ib->ptr[ib->length_dw++] = upper_32_bits(pe);
+	ib->ptr[ib->length_dw++] = 0;
 
 }
 
@@ -1631,7 +1634,7 @@ static void sdma_v7_0_set_buffer_funcs(struct amdgpu_device *adev)
 }
 
 static const struct amdgpu_vm_pte_funcs sdma_v7_0_vm_pte_funcs = {
-	.copy_pte_num_dw = 7,
+	.copy_pte_num_dw = 8,
 	.copy_pte = sdma_v7_0_vm_copy_pte,
 	.write_pte = sdma_v7_0_vm_write_pte,
 	.set_pte_pde = sdma_v7_0_vm_set_pte_pde,
