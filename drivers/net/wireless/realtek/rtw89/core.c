@@ -352,10 +352,6 @@ void rtw89_core_set_chip_txpwr(struct rtw89_dev *rtwdev)
 	enum rtw89_entity_mode mode;
 	bool entity_active;
 
-	entity_active = rtw89_get_entity_state(rtwdev);
-	if (!entity_active)
-		return;
-
 	mode = rtw89_get_entity_mode(rtwdev);
 	switch (mode) {
 	case RTW89_ENTITY_MODE_SCC:
@@ -375,6 +371,11 @@ void rtw89_core_set_chip_txpwr(struct rtw89_dev *rtwdev)
 		chanctx_idx = roc_idx;
 
 	phy_idx = RTW89_PHY_0;
+
+	entity_active = rtw89_get_entity_state(rtwdev, phy_idx);
+	if (!entity_active)
+		return;
+
 	chan = rtw89_chan_get(rtwdev, chanctx_idx);
 	chip->ops->set_txpwr(rtwdev, chan, phy_idx);
 }
@@ -392,8 +393,6 @@ int rtw89_set_channel(struct rtw89_dev *rtwdev)
 	struct rtw89_channel_help_params bak;
 	enum rtw89_entity_mode mode;
 	bool entity_active;
-
-	entity_active = rtw89_get_entity_state(rtwdev);
 
 	mode = rtw89_entity_recalc(rtwdev);
 	switch (mode) {
@@ -416,6 +415,8 @@ int rtw89_set_channel(struct rtw89_dev *rtwdev)
 	mac_idx = RTW89_MAC_0;
 	phy_idx = RTW89_PHY_0;
 
+	entity_active = rtw89_get_entity_state(rtwdev, phy_idx);
+
 	chan = rtw89_chan_get(rtwdev, chanctx_idx);
 	chan_rcd = rtw89_chan_rcd_get(rtwdev, chanctx_idx);
 
@@ -432,7 +433,7 @@ int rtw89_set_channel(struct rtw89_dev *rtwdev)
 		rtw89_chip_rfk_band_changed(rtwdev, phy_idx, chan);
 	}
 
-	rtw89_set_entity_state(rtwdev, true);
+	rtw89_set_entity_state(rtwdev, phy_idx, true);
 	return 0;
 }
 
