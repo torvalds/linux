@@ -87,8 +87,9 @@ static bool check_atom_bios(uint8_t *bios, size_t size)
  * part of the system bios.  On boot, the system bios puts a
  * copy of the igp rom at the start of vram if a discrete card is
  * present.
+ * For SR-IOV, the vbios image is also put in VRAM in the VF.
  */
-static bool igp_read_bios_from_vram(struct amdgpu_device *adev)
+static bool amdgpu_read_bios_from_vram(struct amdgpu_device *adev)
 {
 	uint8_t __iomem *bios;
 	resource_size_t vram_base;
@@ -414,7 +415,7 @@ static bool amdgpu_get_bios_apu(struct amdgpu_device *adev)
 		goto success;
 	}
 
-	if (igp_read_bios_from_vram(adev)) {
+	if (amdgpu_read_bios_from_vram(adev)) {
 		dev_info(adev->dev, "Fetched VBIOS from VRAM BAR\n");
 		goto success;
 	}
@@ -445,6 +446,12 @@ static bool amdgpu_get_bios_dgpu(struct amdgpu_device *adev)
 
 	if (amdgpu_acpi_vfct_bios(adev)) {
 		dev_info(adev->dev, "Fetched VBIOS from VFCT\n");
+		goto success;
+	}
+
+	/* this is required for SR-IOV */
+	if (amdgpu_read_bios_from_vram(adev)) {
+		dev_info(adev->dev, "Fetched VBIOS from VRAM BAR\n");
 		goto success;
 	}
 
