@@ -51,7 +51,7 @@ struct dw_scl_sda_cfg {
 	u16 fs_hcnt;
 	u16 ss_lcnt;
 	u16 fs_lcnt;
-	u32 sda_hold;
+	u32 sda_hold_time;
 };
 
 struct dw_pci_controller {
@@ -76,7 +76,7 @@ static struct dw_scl_sda_cfg byt_config = {
 	.fs_hcnt = 0x55,
 	.ss_lcnt = 0x200,
 	.fs_lcnt = 0x99,
-	.sda_hold = 0x6,
+	.sda_hold_time = 0x6,
 };
 
 /* Haswell HCNT/LCNT/SDA hold time */
@@ -85,14 +85,14 @@ static struct dw_scl_sda_cfg hsw_config = {
 	.fs_hcnt = 0x48,
 	.ss_lcnt = 0x01fb,
 	.fs_lcnt = 0xa0,
-	.sda_hold = 0x9,
+	.sda_hold_time = 0x9,
 };
 
 /* NAVI-AMD HCNT/LCNT/SDA hold time */
 static struct dw_scl_sda_cfg navi_amd_config = {
 	.ss_hcnt = 0x1ae,
 	.ss_lcnt = 0x23a,
-	.sda_hold = 0x9,
+	.sda_hold_time = 0x9,
 };
 
 static u32 mfld_get_clk_rate_khz(struct dw_i2c_dev *dev)
@@ -264,7 +264,7 @@ static int i2c_dw_pci_probe(struct pci_dev *pdev,
 		dev->fs_hcnt = cfg->fs_hcnt;
 		dev->ss_lcnt = cfg->ss_lcnt;
 		dev->fs_lcnt = cfg->fs_lcnt;
-		dev->sda_hold_time = cfg->sda_hold;
+		dev->sda_hold_time = cfg->sda_hold_time;
 	}
 
 	adap = &dev->adapter;
