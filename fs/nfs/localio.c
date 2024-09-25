@@ -18,7 +18,6 @@
 #include <net/addrconf.h>
 #include <linux/nfs_common.h>
 #include <linux/nfslocalio.h>
-#include <linux/module.h>
 #include <linux/bvec.h>
 
 #include <linux/nfs.h>
