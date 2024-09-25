@@ -999,7 +999,7 @@ void __init __weak arch_task_cache_init(void) { }
 static void __init set_max_threads(unsigned int max_threads_suggested)
 {
 	u64 threads;
-	unsigned long nr_pages = PHYS_PFN(memblock_phys_mem_size() - memblock_reserved_size());
+	unsigned long nr_pages = memblock_estimated_nr_free_pages();
 
 	/*
 	 * The number of threads shall be limited such that the thread

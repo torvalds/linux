@@ -1,10 +1,16 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#ifndef _LINUX_INIT_H
-#define _LINUX_INIT_H
+#ifndef _TOOLS_LINUX_INIT_H_
+#define _TOOLS_LINUX_INIT_H_
 
 #include <linux/compiler.h>
-#include <asm/export.h>
-#include <linux/memory_hotplug.h>
+
+#ifndef __init
+# define __init
+#endif
+
+#ifndef __exit
+# define __exit
+#endif
 
 #define __section(section)              __attribute__((__section__(section)))
 
@@ -28,7 +34,10 @@ struct obs_kernel_param {
 		__aligned(__alignof__(struct obs_kernel_param)) =	\
 		{ __setup_str_##unique_id, fn, early }
 
+#define __setup(str, fn)						\
+	__setup_param(str, fn, fn, 0)
+
 #define early_param(str, fn)						\
 	__setup_param(str, fn, fn, 1)
 
-#endif
+#endif /*  _TOOLS_LINUX_INIT_H_ */
