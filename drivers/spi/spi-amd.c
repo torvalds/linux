@@ -50,6 +50,21 @@
 #define AMD_SPI_MAX_HZ		100000000
 #define AMD_SPI_MIN_HZ		800000
 
+/* SPI read command opcodes */
+#define AMD_SPI_OP_READ          0x03	/* Read data bytes (low frequency) */
+#define AMD_SPI_OP_READ_FAST     0x0b	/* Read data bytes (high frequency) */
+#define AMD_SPI_OP_READ_1_1_2    0x3b	/* Read data bytes (Dual Output SPI) */
+#define AMD_SPI_OP_READ_1_2_2    0xbb	/* Read data bytes (Dual I/O SPI) */
+#define AMD_SPI_OP_READ_1_1_4    0x6b	/* Read data bytes (Quad Output SPI) */
+#define AMD_SPI_OP_READ_1_4_4    0xeb	/* Read data bytes (Quad I/O SPI) */
+
+/* SPI read command opcodes - 4B address */
+#define AMD_SPI_OP_READ_FAST_4B		0x0c    /* Read data bytes (high frequency) */
+#define AMD_SPI_OP_READ_1_1_2_4B	0x3c    /* Read data bytes (Dual Output SPI) */
+#define AMD_SPI_OP_READ_1_2_2_4B	0xbc    /* Read data bytes (Dual I/O SPI) */
+#define AMD_SPI_OP_READ_1_1_4_4B	0x6c    /* Read data bytes (Quad Output SPI) */
+#define AMD_SPI_OP_READ_1_4_4_4B	0xec    /* Read data bytes (Quad I/O SPI) */
+
 /**
  * enum amd_spi_versions - SPI controller versions
  * @AMD_SPI_V1:		AMDI0061 hardware version
@@ -360,13 +375,49 @@ fin_msg:
 	return message->status;
 }
 
+static inline bool amd_is_spi_read_cmd_4b(const u16 op)
+{
+	switch (op) {
+	case AMD_SPI_OP_READ_FAST_4B:
+	case AMD_SPI_OP_READ_1_1_2_4B:
+	case AMD_SPI_OP_READ_1_2_2_4B:
+	case AMD_SPI_OP_READ_1_1_4_4B:
+	case AMD_SPI_OP_READ_1_4_4_4B:
+		return true;
+	default:
+		return false;
+	}
+}
+
+static inline bool amd_is_spi_read_cmd(const u16 op)
+{
+	switch (op) {
+	case AMD_SPI_OP_READ:
+	case AMD_SPI_OP_READ_FAST:
+	case AMD_SPI_OP_READ_1_1_2:
+	case AMD_SPI_OP_READ_1_2_2:
+	case AMD_SPI_OP_READ_1_1_4:
+	case AMD_SPI_OP_READ_1_4_4:
+		return true;
+	default:
+		return amd_is_spi_read_cmd_4b(op);
+	}
+}
+
 static bool amd_spi_supports_op(struct spi_mem *mem,
 				const struct spi_mem_op *op)
 {
 	/* bus width is number of IO lines used to transmit */
-	if (op->cmd.buswidth > 1 || op->addr.buswidth > 1 ||
-	    op->data.buswidth > 1 || op->data.nbytes > AMD_SPI_MAX_DATA)
+	if (op->cmd.buswidth > 1 || op->addr.buswidth > 4 || op->data.nbytes > AMD_SPI_MAX_DATA)
 		return false;
+
+	/* AMD SPI controllers support quad mode only for read operations */
+	if (amd_is_spi_read_cmd(op->cmd.opcode)) {
+		if (op->data.buswidth > 4)
+			return false;
+	} else if (op->data.buswidth > 1) {
+		return false;
+	}
 
 	return spi_mem_default_supports_op(mem, op);
 }
@@ -514,7 +565,7 @@ static int amd_spi_probe(struct platform_device *pdev)
 	/* Initialize the spi_controller fields */
 	host->bus_num = 0;
 	host->num_chipselect = 4;
-	host->mode_bits = 0;
+	host->mode_bits = SPI_TX_DUAL | SPI_TX_QUAD | SPI_RX_DUAL | SPI_RX_QUAD;
 	host->flags = SPI_CONTROLLER_HALF_DUPLEX;
 	host->max_speed_hz = AMD_SPI_MAX_HZ;
 	host->min_speed_hz = AMD_SPI_MIN_HZ;
