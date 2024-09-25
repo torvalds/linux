@@ -2468,11 +2468,6 @@ int nvme_enable_ctrl(struct nvme_ctrl *ctrl)
 	if (ret)
 		return ret;
 
-	/* Flush write to device (required if transport is PCI) */
-	ret = ctrl->ops->reg_read32(ctrl, NVME_REG_CC, &ctrl->ctrl_config);
-	if (ret)
-		return ret;
-
 	/* CAP value may change after initial CC write */
 	ret = ctrl->ops->reg_read64(ctrl, NVME_REG_CAP, &ctrl->cap);
 	if (ret)
