@@ -1236,21 +1236,44 @@ static void devm_reset_control_release(struct device *dev, void *res)
 	reset_control_put(*(struct reset_control **)res);
 }
 
+static void devm_reset_control_release_deasserted(struct device *dev, void *res)
+{
+	struct reset_control *rstc = *(struct reset_control **)res;
+
+	reset_control_assert(rstc);
+	reset_control_put(rstc);
+}
+
 struct reset_control *
 __devm_reset_control_get(struct device *dev, const char *id, int index,
 			 enum reset_control_flags flags)
 {
 	struct reset_control **ptr, *rstc;
+	bool deasserted = flags & RESET_CONTROL_FLAGS_BIT_DEASSERTED;
 
-	ptr = devres_alloc(devm_reset_control_release, sizeof(*ptr),
+	ptr = devres_alloc(deasserted ? devm_reset_control_release_deasserted :
+			   devm_reset_control_release, sizeof(*ptr),
 			   GFP_KERNEL);
 	if (!ptr)
 		return ERR_PTR(-ENOMEM);
+
+	flags &= ~RESET_CONTROL_FLAGS_BIT_DEASSERTED;
 
 	rstc = __reset_control_get(dev, id, index, flags);
 	if (IS_ERR_OR_NULL(rstc)) {
 		devres_free(ptr);
 		return rstc;
+	}
+
+	if (deasserted) {
+		int ret;
+
+		ret = reset_control_deassert(rstc);
+		if (ret) {
+			reset_control_put(rstc);
+			devres_free(ptr);
+			return ERR_PTR(ret);
+		}
 	}
 
 	*ptr = rstc;
@@ -1272,22 +1295,43 @@ static void devm_reset_control_bulk_release(struct device *dev, void *res)
 	reset_control_bulk_put(devres->num_rstcs, devres->rstcs);
 }
 
+static void devm_reset_control_bulk_release_deasserted(struct device *dev, void *res)
+{
+	struct reset_control_bulk_devres *devres = res;
+
+	reset_control_bulk_assert(devres->num_rstcs, devres->rstcs);
+	reset_control_bulk_put(devres->num_rstcs, devres->rstcs);
+}
+
 int __devm_reset_control_bulk_get(struct device *dev, int num_rstcs,
 				  struct reset_control_bulk_data *rstcs,
 				  enum reset_control_flags flags)
 {
 	struct reset_control_bulk_devres *ptr;
+	bool deasserted = flags & RESET_CONTROL_FLAGS_BIT_DEASSERTED;
 	int ret;
 
-	ptr = devres_alloc(devm_reset_control_bulk_release, sizeof(*ptr),
+	ptr = devres_alloc(deasserted ? devm_reset_control_bulk_release_deasserted :
+			   devm_reset_control_bulk_release, sizeof(*ptr),
 			   GFP_KERNEL);
 	if (!ptr)
 		return -ENOMEM;
+
+	flags &= ~RESET_CONTROL_FLAGS_BIT_DEASSERTED;
 
 	ret = __reset_control_bulk_get(dev, num_rstcs, rstcs, flags);
 	if (ret < 0) {
 		devres_free(ptr);
 		return ret;
+	}
+
+	if (deasserted) {
+		ret = reset_control_bulk_deassert(num_rstcs, rstcs);
+		if (ret) {
+			reset_control_bulk_put(num_rstcs, rstcs);
+			devres_free(ptr);
+			return ret;
+		}
 	}
 
 	ptr->num_rstcs = num_rstcs;

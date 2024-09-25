@@ -28,6 +28,7 @@ struct reset_control_bulk_data {
 #define RESET_CONTROL_FLAGS_BIT_SHARED		BIT(0)	/* not exclusive */
 #define RESET_CONTROL_FLAGS_BIT_OPTIONAL	BIT(1)
 #define RESET_CONTROL_FLAGS_BIT_ACQUIRED	BIT(2)	/* iff exclusive, not released */
+#define RESET_CONTROL_FLAGS_BIT_DEASSERTED	BIT(3)
 
 /**
  * enum reset_control_flags - Flags that can be passed to the reset_control_get functions
@@ -35,21 +36,35 @@ struct reset_control_bulk_data {
  *                    These values cannot be OR'd.
  *
  * @RESET_CONTROL_EXCLUSIVE:				exclusive, acquired,
+ * @RESET_CONTROL_EXCLUSIVE_DEASSERTED:			exclusive, acquired, deasserted
  * @RESET_CONTROL_EXCLUSIVE_RELEASED:			exclusive, released,
  * @RESET_CONTROL_SHARED:				shared
+ * @RESET_CONTROL_SHARED_DEASSERTED:			shared, deasserted
  * @RESET_CONTROL_OPTIONAL_EXCLUSIVE:			optional, exclusive, acquired
+ * @RESET_CONTROL_OPTIONAL_EXCLUSIVE_DEASSERTED:	optional, exclusive, acquired, deasserted
  * @RESET_CONTROL_OPTIONAL_EXCLUSIVE_RELEASED:		optional, exclusive, released
  * @RESET_CONTROL_OPTIONAL_SHARED:			optional, shared
+ * @RESET_CONTROL_OPTIONAL_SHARED_DEASSERTED:		optional, shared, deasserted
  */
 enum reset_control_flags {
 	RESET_CONTROL_EXCLUSIVE				= RESET_CONTROL_FLAGS_BIT_ACQUIRED,
+	RESET_CONTROL_EXCLUSIVE_DEASSERTED		= RESET_CONTROL_FLAGS_BIT_ACQUIRED |
+							  RESET_CONTROL_FLAGS_BIT_DEASSERTED,
 	RESET_CONTROL_EXCLUSIVE_RELEASED		= 0,
 	RESET_CONTROL_SHARED				= RESET_CONTROL_FLAGS_BIT_SHARED,
+	RESET_CONTROL_SHARED_DEASSERTED			= RESET_CONTROL_FLAGS_BIT_SHARED |
+							  RESET_CONTROL_FLAGS_BIT_DEASSERTED,
 	RESET_CONTROL_OPTIONAL_EXCLUSIVE		= RESET_CONTROL_FLAGS_BIT_OPTIONAL |
 							  RESET_CONTROL_FLAGS_BIT_ACQUIRED,
+	RESET_CONTROL_OPTIONAL_EXCLUSIVE_DEASSERTED	= RESET_CONTROL_FLAGS_BIT_OPTIONAL |
+							  RESET_CONTROL_FLAGS_BIT_ACQUIRED |
+							  RESET_CONTROL_FLAGS_BIT_DEASSERTED,
 	RESET_CONTROL_OPTIONAL_EXCLUSIVE_RELEASED	= RESET_CONTROL_FLAGS_BIT_OPTIONAL,
 	RESET_CONTROL_OPTIONAL_SHARED			= RESET_CONTROL_FLAGS_BIT_OPTIONAL |
 							  RESET_CONTROL_FLAGS_BIT_SHARED,
+	RESET_CONTROL_OPTIONAL_SHARED_DEASSERTED	= RESET_CONTROL_FLAGS_BIT_OPTIONAL |
+							  RESET_CONTROL_FLAGS_BIT_SHARED |
+							  RESET_CONTROL_FLAGS_BIT_DEASSERTED,
 };
 
 #ifdef CONFIG_RESET_CONTROLLER
@@ -597,6 +612,25 @@ __must_check devm_reset_control_get_exclusive(struct device *dev,
 }
 
 /**
+ * devm_reset_control_get_exclusive_deasserted - resource managed
+ *                                    reset_control_get_exclusive() +
+ *                                    reset_control_deassert()
+ * @dev: device to be reset by the controller
+ * @id: reset line name
+ *
+ * Managed reset_control_get_exclusive() + reset_control_deassert(). For reset
+ * controllers returned from this function, reset_control_assert() +
+ * reset_control_put() is called automatically on driver detach.
+ *
+ * See reset_control_get_exclusive() for more information.
+ */
+static inline struct reset_control * __must_check
+devm_reset_control_get_exclusive_deasserted(struct device *dev, const char *id)
+{
+	return __devm_reset_control_get(dev, id, 0, RESET_CONTROL_EXCLUSIVE_DEASSERTED);
+}
+
+/**
  * devm_reset_control_bulk_get_exclusive - resource managed
  *                                         reset_control_bulk_get_exclusive()
  * @dev: device to be reset by the controller
@@ -713,6 +747,25 @@ static inline struct reset_control *devm_reset_control_get_shared(
 }
 
 /**
+ * devm_reset_control_get_shared_deasserted - resource managed
+ *                                            reset_control_get_shared() +
+ *                                            reset_control_deassert()
+ * @dev: device to be reset by the controller
+ * @id: reset line name
+ *
+ * Managed reset_control_get_shared() + reset_control_deassert(). For reset
+ * controllers returned from this function, reset_control_assert() +
+ * reset_control_put() is called automatically on driver detach.
+ *
+ * See devm_reset_control_get_shared() for more information.
+ */
+static inline struct reset_control * __must_check
+devm_reset_control_get_shared_deasserted(struct device *dev, const char *id)
+{
+	return __devm_reset_control_get(dev, id, 0, RESET_CONTROL_SHARED_DEASSERTED);
+}
+
+/**
  * devm_reset_control_bulk_get_shared - resource managed
  *                                      reset_control_bulk_get_shared()
  * @dev: device to be reset by the controller
@@ -733,6 +786,28 @@ devm_reset_control_bulk_get_shared(struct device *dev, int num_rstcs,
 }
 
 /**
+ * devm_reset_control_bulk_get_shared_deasserted - resource managed
+ *                                                 reset_control_bulk_get_shared() +
+ *                                                 reset_control_bulk_deassert()
+ * @dev: device to be reset by the controller
+ * @num_rstcs: number of entries in rstcs array
+ * @rstcs: array of struct reset_control_bulk_data with reset line names set
+ *
+ * Managed reset_control_bulk_get_shared() + reset_control_bulk_deassert(). For
+ * reset controllers returned from this function, reset_control_bulk_assert() +
+ * reset_control_bulk_put() are called automatically on driver detach.
+ *
+ * See devm_reset_control_bulk_get_shared() for more information.
+ */
+static inline int __must_check
+devm_reset_control_bulk_get_shared_deasserted(struct device *dev, int num_rstcs,
+					      struct reset_control_bulk_data *rstcs)
+{
+	return __devm_reset_control_bulk_get(dev, num_rstcs, rstcs,
+					     RESET_CONTROL_SHARED_DEASSERTED);
+}
+
+/**
  * devm_reset_control_get_optional_exclusive - resource managed
  *                                             reset_control_get_optional_exclusive()
  * @dev: device to be reset by the controller
@@ -748,6 +823,25 @@ static inline struct reset_control *devm_reset_control_get_optional_exclusive(
 					struct device *dev, const char *id)
 {
 	return __devm_reset_control_get(dev, id, 0, RESET_CONTROL_OPTIONAL_EXCLUSIVE);
+}
+
+/**
+ * devm_reset_control_get_optional_exclusive_deasserted - resource managed
+ *                                                        reset_control_get_optional_exclusive() +
+ *                                                        reset_control_deassert()
+ * @dev: device to be reset by the controller
+ * @id: reset line name
+ *
+ * Managed reset_control_get_optional_exclusive() + reset_control_deassert().
+ * For reset controllers returned from this function, reset_control_assert() +
+ * reset_control_put() is called automatically on driver detach.
+ *
+ * See devm_reset_control_get_optional_exclusive() for more information.
+ */
+static inline struct reset_control *
+devm_reset_control_get_optional_exclusive_deasserted(struct device *dev, const char *id)
+{
+	return __devm_reset_control_get(dev, id, 0, RESET_CONTROL_OPTIONAL_EXCLUSIVE_DEASSERTED);
 }
 
 /**
@@ -787,6 +881,25 @@ static inline struct reset_control *devm_reset_control_get_optional_shared(
 					struct device *dev, const char *id)
 {
 	return __devm_reset_control_get(dev, id, 0, RESET_CONTROL_OPTIONAL_SHARED);
+}
+
+/**
+ * devm_reset_control_get_optional_shared_deasserted - resource managed
+ *                                                     reset_control_get_optional_shared() +
+ *                                                     reset_control_deassert()
+ * @dev: device to be reset by the controller
+ * @id: reset line name
+ *
+ * Managed reset_control_get_optional_shared() + reset_control_deassert(). For
+ * reset controllers returned from this function, reset_control_assert() +
+ * reset_control_put() is called automatically on driver detach.
+ *
+ * See devm_reset_control_get_optional_shared() for more information.
+ */
+static inline struct reset_control *
+devm_reset_control_get_optional_shared_deasserted(struct device *dev, const char *id)
+{
+	return __devm_reset_control_get(dev, id, 0, RESET_CONTROL_OPTIONAL_SHARED_DEASSERTED);
 }
 
 /**
