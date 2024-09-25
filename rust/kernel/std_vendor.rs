@@ -136,7 +136,7 @@
 ///
 /// [`std::dbg`]: https://doc.rust-lang.org/std/macro.dbg.html
 /// [`eprintln`]: https://doc.rust-lang.org/std/macro.eprintln.html
-/// [`printk`]: https://www.kernel.org/doc/html/latest/core-api/printk-basics.html
+/// [`printk`]: https://docs.kernel.org/core-api/printk-basics.html
 /// [`pr_info`]: crate::pr_info!
 /// [`pr_debug`]: crate::pr_debug!
 #[macro_export]
