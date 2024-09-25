@@ -1031,7 +1031,7 @@ static int rtw89_ops_set_rts_threshold(struct ieee80211_hw *hw, u32 value)
 	mutex_lock(&rtwdev->mutex);
 	rtw89_leave_ps_mode(rtwdev);
 	if (test_bit(RTW89_FLAG_POWERON, rtwdev->flags))
-		rtw89_mac_update_rts_threshold(rtwdev, RTW89_MAC_0);
+		rtw89_mac_update_rts_threshold(rtwdev);
 	mutex_unlock(&rtwdev->mutex);
 
 	return 0;

@@ -3150,6 +3150,7 @@ void rtw89_roc_start(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif)
 	struct rtw89_vif_link *rtwvif_link;
 	struct cfg80211_chan_def roc_chan;
 	struct rtw89_vif *tmp_vif;
+	u32 reg;
 	int ret;
 
 	lockdep_assert_held(&rtwdev->mutex);
@@ -3185,9 +3186,9 @@ void rtw89_roc_start(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif)
 	cfg80211_chandef_create(&roc_chan, &roc->chan, NL80211_CHAN_NO_HT);
 	rtw89_config_roc_chandef(rtwdev, rtwvif_link->chanctx_idx, &roc_chan);
 	rtw89_set_channel(rtwdev);
-	rtw89_write32_clr(rtwdev,
-			  rtw89_mac_reg_by_idx(rtwdev, mac->rx_fltr, RTW89_MAC_0),
-			  B_AX_A_UC_CAM_MATCH | B_AX_A_BC_CAM_MATCH);
+
+	reg = rtw89_mac_reg_by_idx(rtwdev, mac->rx_fltr, rtwvif_link->mac_idx);
+	rtw89_write32_clr(rtwdev, reg, B_AX_A_UC_CAM_MATCH | B_AX_A_BC_CAM_MATCH);
 
 	ieee80211_ready_on_channel(hw);
 	cancel_delayed_work(&rtwvif->roc.roc_work);
@@ -3202,6 +3203,7 @@ void rtw89_roc_end(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif)
 	struct rtw89_roc *roc = &rtwvif->roc;
 	struct rtw89_vif_link *rtwvif_link;
 	struct rtw89_vif *tmp_vif;
+	u32 reg;
 	int ret;
 
 	lockdep_assert_held(&rtwdev->mutex);
@@ -3217,10 +3219,8 @@ void rtw89_roc_end(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif)
 		return;
 	}
 
-	rtw89_write32_mask(rtwdev,
-			   rtw89_mac_reg_by_idx(rtwdev, mac->rx_fltr, RTW89_MAC_0),
-			   B_AX_RX_FLTR_CFG_MASK,
-			   rtwdev->hal.rx_fltr);
+	reg = rtw89_mac_reg_by_idx(rtwdev, mac->rx_fltr, rtwvif_link->mac_idx);
+	rtw89_write32_mask(rtwdev, reg, B_AX_RX_FLTR_CFG_MASK, rtwdev->hal.rx_fltr);
 
 	roc->state = RTW89_ROC_IDLE;
 	rtw89_config_roc_chandef(rtwdev, rtwvif_link->chanctx_idx, NULL);
@@ -4399,8 +4399,8 @@ int rtw89_core_start(struct rtw89_dev *rtwdev)
 
 	rtw89_phy_dm_init(rtwdev);
 
-	rtw89_mac_cfg_ppdu_status(rtwdev, RTW89_MAC_0, true);
-	rtw89_mac_update_rts_threshold(rtwdev, RTW89_MAC_0);
+	rtw89_mac_cfg_ppdu_status_bands(rtwdev, true);
+	rtw89_mac_update_rts_threshold(rtwdev);
 
 	rtw89_tas_reset(rtwdev);
 
@@ -4751,7 +4751,7 @@ void rtw89_core_scan_start(struct rtw89_dev *rtwdev, struct rtw89_vif_link *rtwv
 		rtw89_leave_ips_by_hwflags(rtwdev);
 
 	ether_addr_copy(rtwvif_link->mac_addr, mac_addr);
-	rtw89_btc_ntfy_scan_start(rtwdev, RTW89_PHY_0, chan->band_type);
+	rtw89_btc_ntfy_scan_start(rtwdev, rtwvif_link->phy_idx, chan->band_type);
 	rtw89_chip_rfk_scan(rtwdev, rtwvif_link, true);
 	rtw89_hci_recalc_int_mit(rtwdev);
 	rtw89_phy_config_edcca(rtwdev, true);
@@ -4777,7 +4777,7 @@ void rtw89_core_scan_complete(struct rtw89_dev *rtwdev,
 	rtw89_fw_h2c_cam(rtwdev, rtwvif_link, NULL, NULL);
 
 	rtw89_chip_rfk_scan(rtwdev, rtwvif_link, false);
-	rtw89_btc_ntfy_scan_finish(rtwdev, RTW89_PHY_0);
+	rtw89_btc_ntfy_scan_finish(rtwdev, rtwvif_link->phy_idx);
 	rtw89_phy_config_edcca(rtwdev, false);
 
 	rtwdev->scanning = false;

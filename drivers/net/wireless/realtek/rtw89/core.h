@@ -6484,8 +6484,12 @@ static inline void rtw89_chip_set_txpwr_ctrl(struct rtw89_dev *rtwdev)
 {
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 
-	if (chip->ops->set_txpwr_ctrl)
-		chip->ops->set_txpwr_ctrl(rtwdev,  RTW89_PHY_0);
+	if (!chip->ops->set_txpwr_ctrl)
+		return;
+
+	chip->ops->set_txpwr_ctrl(rtwdev,  RTW89_PHY_0);
+	if (rtwdev->dbcc_en)
+		chip->ops->set_txpwr_ctrl(rtwdev,  RTW89_PHY_1);
 }
 
 static inline void rtw89_chip_power_trim(struct rtw89_dev *rtwdev)
@@ -6496,13 +6500,20 @@ static inline void rtw89_chip_power_trim(struct rtw89_dev *rtwdev)
 		chip->ops->power_trim(rtwdev);
 }
 
-static inline void rtw89_chip_init_txpwr_unit(struct rtw89_dev *rtwdev,
-					      enum rtw89_phy_idx phy_idx)
+static inline void __rtw89_chip_init_txpwr_unit(struct rtw89_dev *rtwdev,
+						enum rtw89_phy_idx phy_idx)
 {
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 
 	if (chip->ops->init_txpwr_unit)
 		chip->ops->init_txpwr_unit(rtwdev, phy_idx);
+}
+
+static inline void rtw89_chip_init_txpwr_unit(struct rtw89_dev *rtwdev)
+{
+	__rtw89_chip_init_txpwr_unit(rtwdev, RTW89_PHY_0);
+	if (rtwdev->dbcc_en)
+		__rtw89_chip_init_txpwr_unit(rtwdev, RTW89_PHY_1);
 }
 
 static inline u8 rtw89_chip_get_thermal(struct rtw89_dev *rtwdev,

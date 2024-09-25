@@ -773,7 +773,7 @@ static int dmac_init_be(struct rtw89_dev *rtwdev, u8 mac_idx)
 		return ret;
 	}
 
-	ret = rtw89_mac_preload_init(rtwdev, RTW89_MAC_0, rtwdev->mac.qta_mode);
+	ret = rtw89_mac_preload_init(rtwdev, mac_idx, rtwdev->mac.qta_mode);
 	if (ret) {
 		rtw89_err(rtwdev, "[ERR]preload init %d\n", ret);
 		return ret;

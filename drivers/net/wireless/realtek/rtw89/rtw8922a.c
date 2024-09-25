@@ -1991,14 +1991,23 @@ static void rtw8922a_rfk_init(struct rtw89_dev *rtwdev)
 	memset(rfk_mcc, 0, sizeof(*rfk_mcc));
 }
 
+static void __rtw8922a_rfk_init_late(struct rtw89_dev *rtwdev,
+				     enum rtw89_phy_idx phy_idx,
+				     const struct rtw89_chan *chan)
+{
+	rtw89_phy_rfk_pre_ntfy_and_wait(rtwdev, phy_idx, 5);
+
+	rtw89_phy_rfk_dack_and_wait(rtwdev, phy_idx, chan, 58);
+	rtw89_phy_rfk_rxdck_and_wait(rtwdev, phy_idx, chan, false, 32);
+}
+
 static void rtw8922a_rfk_init_late(struct rtw89_dev *rtwdev)
 {
 	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, RTW89_CHANCTX_0);
 
-	rtw89_phy_rfk_pre_ntfy_and_wait(rtwdev, RTW89_PHY_0, 5);
-
-	rtw89_phy_rfk_dack_and_wait(rtwdev, RTW89_PHY_0, chan, 58);
-	rtw89_phy_rfk_rxdck_and_wait(rtwdev, RTW89_PHY_0, chan, false, 32);
+	__rtw8922a_rfk_init_late(rtwdev, RTW89_PHY_0, chan);
+	if (rtwdev->dbcc_en)
+		__rtw8922a_rfk_init_late(rtwdev, RTW89_PHY_1, chan);
 }
 
 static void _wait_rx_mode(struct rtw89_dev *rtwdev, u8 kpath)

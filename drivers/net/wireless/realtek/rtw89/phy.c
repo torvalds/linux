@@ -1114,12 +1114,19 @@ static bool rtw89_chip_rf_v1(struct rtw89_dev *rtwdev)
 	return rtwdev->chip->ops->write_rf == rtw89_phy_write_rf_v1;
 }
 
-static void rtw89_phy_bb_reset(struct rtw89_dev *rtwdev,
-			       enum rtw89_phy_idx phy_idx)
+static void __rtw89_phy_bb_reset(struct rtw89_dev *rtwdev,
+				 enum rtw89_phy_idx phy_idx)
 {
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 
 	chip->ops->bb_reset(rtwdev, phy_idx);
+}
+
+static void rtw89_phy_bb_reset(struct rtw89_dev *rtwdev)
+{
+	__rtw89_phy_bb_reset(rtwdev, RTW89_PHY_0);
+	if (rtwdev->dbcc_en)
+		__rtw89_phy_bb_reset(rtwdev, RTW89_PHY_1);
 }
 
 static void rtw89_phy_config_bb_reg(struct rtw89_dev *rtwdev,
@@ -1667,13 +1674,15 @@ void rtw89_phy_init_bb_reg(struct rtw89_dev *rtwdev)
 	if (rtwdev->dbcc_en)
 		rtw89_phy_init_reg(rtwdev, bb_table, rtw89_phy_config_bb_reg,
 				   (void *)RTW89_PHY_1);
-	rtw89_chip_init_txpwr_unit(rtwdev, RTW89_PHY_0);
+
+	rtw89_chip_init_txpwr_unit(rtwdev);
 
 	bb_gain_table = elm_info->bb_gain ? elm_info->bb_gain : chip->bb_gain_table;
 	if (bb_gain_table)
 		rtw89_phy_init_reg(rtwdev, bb_gain_table,
 				   chip->phy_def->config_bb_gain, NULL);
-	rtw89_phy_bb_reset(rtwdev, RTW89_PHY_0);
+
+	rtw89_phy_bb_reset(rtwdev);
 }
 
 static u32 rtw89_phy_nctl_poll(struct rtw89_dev *rtwdev)
@@ -1792,6 +1801,24 @@ void rtw89_phy_write32_idx(struct rtw89_dev *rtwdev, u32 addr, u32 mask,
 	rtw89_phy_write32_mask(rtwdev, addr, mask, data);
 }
 EXPORT_SYMBOL(rtw89_phy_write32_idx);
+
+void rtw89_phy_write32_idx_set(struct rtw89_dev *rtwdev, u32 addr, u32 bits,
+			       enum rtw89_phy_idx phy_idx)
+{
+	if (rtwdev->dbcc_en && phy_idx == RTW89_PHY_1)
+		addr += rtw89_phy0_phy1_offset(rtwdev, addr);
+	rtw89_phy_write32_set(rtwdev, addr, bits);
+}
+EXPORT_SYMBOL(rtw89_phy_write32_idx_set);
+
+void rtw89_phy_write32_idx_clr(struct rtw89_dev *rtwdev, u32 addr, u32 bits,
+			       enum rtw89_phy_idx phy_idx)
+{
+	if (rtwdev->dbcc_en && phy_idx == RTW89_PHY_1)
+		addr += rtw89_phy0_phy1_offset(rtwdev, addr);
+	rtw89_phy_write32_clr(rtwdev, addr, bits);
+}
+EXPORT_SYMBOL(rtw89_phy_write32_idx_clr);
 
 u32 rtw89_phy_read32_idx(struct rtw89_dev *rtwdev, u32 addr, u32 mask,
 			 enum rtw89_phy_idx phy_idx)
@@ -5406,7 +5433,8 @@ static u32 rtw89_phy_get_ie_bitmap_addr(enum rtw89_phy_status_bitmap ie_page)
 }
 
 static u32 rtw89_physts_get_ie_bitmap(struct rtw89_dev *rtwdev,
-				      enum rtw89_phy_status_bitmap ie_page)
+				      enum rtw89_phy_status_bitmap ie_page,
+				      enum rtw89_phy_idx phy_idx)
 {
 	u32 addr;
 
@@ -5415,12 +5443,12 @@ static u32 rtw89_physts_get_ie_bitmap(struct rtw89_dev *rtwdev,
 
 	addr = rtw89_phy_get_ie_bitmap_addr(ie_page);
 
-	return rtw89_phy_read32(rtwdev, addr);
+	return rtw89_phy_read32_idx(rtwdev, addr, MASKDWORD, phy_idx);
 }
 
 static void rtw89_physts_set_ie_bitmap(struct rtw89_dev *rtwdev,
 				       enum rtw89_phy_status_bitmap ie_page,
-				       u32 val)
+				       u32 val, enum rtw89_phy_idx phy_idx)
 {
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 	u32 addr;
@@ -5432,22 +5460,22 @@ static void rtw89_physts_set_ie_bitmap(struct rtw89_dev *rtwdev,
 		val &= B_PHY_STS_BITMAP_MSK_52A;
 
 	addr = rtw89_phy_get_ie_bitmap_addr(ie_page);
-	rtw89_phy_write32(rtwdev, addr, val);
+	rtw89_phy_write32_idx(rtwdev, addr, MASKDWORD, val, phy_idx);
 }
 
 static void rtw89_physts_enable_ie_bitmap(struct rtw89_dev *rtwdev,
 					  enum rtw89_phy_status_bitmap bitmap,
 					  enum rtw89_phy_status_ie_type ie,
-					  bool enable)
+					  bool enable, enum rtw89_phy_idx phy_idx)
 {
-	u32 val = rtw89_physts_get_ie_bitmap(rtwdev, bitmap);
+	u32 val = rtw89_physts_get_ie_bitmap(rtwdev, bitmap, phy_idx);
 
 	if (enable)
 		val |= BIT(ie);
 	else
 		val &= ~BIT(ie);
 
-	rtw89_physts_set_ie_bitmap(rtwdev, bitmap, val);
+	rtw89_physts_set_ie_bitmap(rtwdev, bitmap, val, phy_idx);
 }
 
 static void rtw89_physts_enable_fail_report(struct rtw89_dev *rtwdev,
@@ -5458,44 +5486,52 @@ static void rtw89_physts_enable_fail_report(struct rtw89_dev *rtwdev,
 	const struct rtw89_physts_regs *physts = phy->physts;
 
 	if (enable) {
-		rtw89_phy_write32_clr(rtwdev, physts->setting_addr,
-				      physts->dis_trigger_fail_mask);
-		rtw89_phy_write32_clr(rtwdev, physts->setting_addr,
-				      physts->dis_trigger_brk_mask);
+		rtw89_phy_write32_idx_clr(rtwdev, physts->setting_addr,
+					  physts->dis_trigger_fail_mask, phy_idx);
+		rtw89_phy_write32_idx_clr(rtwdev, physts->setting_addr,
+					  physts->dis_trigger_brk_mask, phy_idx);
 	} else {
-		rtw89_phy_write32_set(rtwdev, physts->setting_addr,
-				      physts->dis_trigger_fail_mask);
-		rtw89_phy_write32_set(rtwdev, physts->setting_addr,
-				      physts->dis_trigger_brk_mask);
+		rtw89_phy_write32_idx_set(rtwdev, physts->setting_addr,
+					  physts->dis_trigger_fail_mask, phy_idx);
+		rtw89_phy_write32_idx_set(rtwdev, physts->setting_addr,
+					  physts->dis_trigger_brk_mask, phy_idx);
 	}
 }
 
-static void rtw89_physts_parsing_init(struct rtw89_dev *rtwdev)
+static void __rtw89_physts_parsing_init(struct rtw89_dev *rtwdev,
+					enum rtw89_phy_idx phy_idx)
 {
 	u8 i;
 
-	rtw89_physts_enable_fail_report(rtwdev, false, RTW89_PHY_0);
+	rtw89_physts_enable_fail_report(rtwdev, false, phy_idx);
 
 	for (i = 0; i < RTW89_PHYSTS_BITMAP_NUM; i++) {
 		if (i >= RTW89_CCK_PKT)
 			rtw89_physts_enable_ie_bitmap(rtwdev, i,
 						      RTW89_PHYSTS_IE09_FTR_0,
-						      true);
+						      true, phy_idx);
 		if ((i >= RTW89_CCK_BRK && i <= RTW89_VHT_MU) ||
 		    (i >= RTW89_RSVD_9 && i <= RTW89_CCK_PKT))
 			continue;
 		rtw89_physts_enable_ie_bitmap(rtwdev, i,
 					      RTW89_PHYSTS_IE24_OFDM_TD_PATH_A,
-					      true);
+					      true, phy_idx);
 	}
 	rtw89_physts_enable_ie_bitmap(rtwdev, RTW89_VHT_PKT,
-				      RTW89_PHYSTS_IE13_DL_MU_DEF, true);
+				      RTW89_PHYSTS_IE13_DL_MU_DEF, true, phy_idx);
 	rtw89_physts_enable_ie_bitmap(rtwdev, RTW89_HE_PKT,
-				      RTW89_PHYSTS_IE13_DL_MU_DEF, true);
+				      RTW89_PHYSTS_IE13_DL_MU_DEF, true, phy_idx);
 
 	/* force IE01 for channel index, only channel field is valid */
 	rtw89_physts_enable_ie_bitmap(rtwdev, RTW89_CCK_PKT,
-				      RTW89_PHYSTS_IE01_CMN_OFDM, true);
+				      RTW89_PHYSTS_IE01_CMN_OFDM, true, phy_idx);
+}
+
+static void rtw89_physts_parsing_init(struct rtw89_dev *rtwdev)
+{
+	__rtw89_physts_parsing_init(rtwdev, RTW89_PHY_0);
+	if (rtwdev->dbcc_en)
+		__rtw89_physts_parsing_init(rtwdev, RTW89_PHY_1);
 }
 
 static void rtw89_phy_dig_read_gain_table(struct rtw89_dev *rtwdev, int type)
@@ -6246,7 +6282,7 @@ void rtw89_phy_set_bss_color(struct rtw89_dev *rtwdev,
 	struct ieee80211_vif *vif = rtwvif_link_to_vif(rtwvif_link);
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 	const struct rtw89_reg_def *bss_clr_vld = &chip->bss_clr_vld;
-	enum rtw89_phy_idx phy_idx = RTW89_PHY_0;
+	enum rtw89_phy_idx phy_idx = rtwvif_link->phy_idx;
 	struct ieee80211_bss_conf *bss_conf;
 	u8 bss_color;
 

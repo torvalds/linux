@@ -5543,7 +5543,8 @@ int rtw89_mac_cfg_ppdu_status_ax(struct rtw89_dev *rtwdev, u8 mac_idx, bool enab
 	return 0;
 }
 
-void rtw89_mac_update_rts_threshold(struct rtw89_dev *rtwdev, u8 mac_idx)
+static
+void __rtw89_mac_update_rts_threshold(struct rtw89_dev *rtwdev, u8 mac_idx)
 {
 #define MAC_AX_TIME_TH_SH  5
 #define MAC_AX_LEN_TH_SH   4
@@ -5571,6 +5572,13 @@ void rtw89_mac_update_rts_threshold(struct rtw89_dev *rtwdev, u8 mac_idx)
 	reg = rtw89_mac_reg_by_idx(rtwdev, mac->agg_len_ht, mac_idx);
 	rtw89_write16_mask(rtwdev, reg, B_AX_RTS_TXTIME_TH_MASK, time_th);
 	rtw89_write16_mask(rtwdev, reg, B_AX_RTS_LEN_TH_MASK, len_th);
+}
+
+void rtw89_mac_update_rts_threshold(struct rtw89_dev *rtwdev)
+{
+	__rtw89_mac_update_rts_threshold(rtwdev, RTW89_MAC_0);
+	if (rtwdev->dbcc_en)
+		__rtw89_mac_update_rts_threshold(rtwdev, RTW89_MAC_1);
 }
 
 void rtw89_mac_flush_txq(struct rtw89_dev *rtwdev, u32 queues, bool drop)
@@ -6446,7 +6454,7 @@ void rtw89_mac_pkt_drop_sta(struct rtw89_dev *rtwdev,
 	struct rtw89_pkt_drop_params params = {0};
 	int i;
 
-	params.mac_band = RTW89_MAC_0;
+	params.mac_band = rtwvif_link->mac_idx;
 	params.macid = rtwsta_link->mac_id;
 	params.port = rtwvif_link->port;
 	params.mbssid = 0;
