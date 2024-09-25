@@ -24,6 +24,10 @@
         {
             "filePath": ".clang-uml",
             "group": "Default"
+        },
+        {
+            "filePath": "build/puml",
+            "group": "Default"
         }
     ],
 }
