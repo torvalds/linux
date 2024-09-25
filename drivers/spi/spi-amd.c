@@ -34,6 +34,7 @@
 #define AMD_SPI_TX_COUNT_REG	0x48
 #define AMD_SPI_RX_COUNT_REG	0x4B
 #define AMD_SPI_STATUS_REG	0x4C
+#define AMD_SPI_ADDR32CTRL_REG	0x50
 
 #define AMD_SPI_FIFO_SIZE	70
 #define AMD_SPI_MEM_SIZE	200
@@ -548,6 +549,17 @@ static void amd_spi_mem_data_in(struct amd_spi *amd_spi,
 					  nbytes + i - left_data);
 }
 
+static void amd_set_spi_addr_mode(struct amd_spi *amd_spi,
+				  const struct spi_mem_op *op)
+{
+	u32 val = amd_spi_readreg32(amd_spi, AMD_SPI_ADDR32CTRL_REG);
+
+	if (amd_is_spi_read_cmd_4b(op->cmd.opcode))
+		amd_spi_writereg32(amd_spi, AMD_SPI_ADDR32CTRL_REG, val | BIT(0));
+	else
+		amd_spi_writereg32(amd_spi, AMD_SPI_ADDR32CTRL_REG, val & ~BIT(0));
+}
+
 static int amd_spi_exec_mem_op(struct spi_mem *mem,
 			       const struct spi_mem_op *op)
 {
@@ -559,6 +571,9 @@ static int amd_spi_exec_mem_op(struct spi_mem *mem,
 	ret = amd_set_spi_freq(amd_spi, mem->spi->max_speed_hz);
 	if (ret)
 		return ret;
+
+	if (amd_spi->version == AMD_SPI_V2)
+		amd_set_spi_addr_mode(amd_spi, op);
 
 	switch (op->data.dir) {
 	case SPI_MEM_DATA_IN:
