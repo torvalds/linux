@@ -23,42 +23,28 @@
 #include <linux/rmap.h>
 #include "internal.h"
 
-/*
- * Regular page slots are stabilized by the page lock even without the tree
- * itself locked.  These unlocked entries need verification under the tree
- * lock.
- */
-static inline void __clear_shadow_entry(struct address_space *mapping,
-				pgoff_t index, void *entry)
-{
-	XA_STATE(xas, &mapping->i_pages, index);
-
-	xas_set_update(&xas, workingset_update_node);
-	if (xas_load(&xas) != entry)
-		return;
-	xas_store(&xas, NULL);
-}
-
 static void clear_shadow_entries(struct address_space *mapping,
-				 struct folio_batch *fbatch, pgoff_t *indices)
+				 unsigned long start, unsigned long max)
 {
-	int i;
+	XA_STATE(xas, &mapping->i_pages, start);
+	struct folio *folio;
 
 	/* Handled by shmem itself, or for DAX we do nothing. */
 	if (shmem_mapping(mapping) || dax_mapping(mapping))
 		return;
 
+	xas_set_update(&xas, workingset_update_node);
+
 	spin_lock(&mapping->host->i_lock);
-	xa_lock_irq(&mapping->i_pages);
+	xas_lock_irq(&xas);
 
-	for (i = 0; i < folio_batch_count(fbatch); i++) {
-		struct folio *folio = fbatch->folios[i];
-
+	/* Clear all shadow entries from start to max */
+	xas_for_each(&xas, folio, max) {
 		if (xa_is_value(folio))
-			__clear_shadow_entry(mapping, indices[i], folio);
+			xas_store(&xas, NULL);
 	}
 
-	xa_unlock_irq(&mapping->i_pages);
+	xas_unlock_irq(&xas);
 	if (mapping_shrinkable(mapping))
 		inode_add_lru(mapping->host);
 	spin_unlock(&mapping->host->i_lock);
@@ -481,7 +467,9 @@ unsigned long mapping_try_invalidate(struct address_space *mapping,
 
 	folio_batch_init(&fbatch);
 	while (find_lock_entries(mapping, &index, end, &fbatch, indices)) {
-		for (i = 0; i < folio_batch_count(&fbatch); i++) {
+		int nr = folio_batch_count(&fbatch);
+
+		for (i = 0; i < nr; i++) {
 			struct folio *folio = fbatch.folios[i];
 
 			/* We rely upon deletion not changing folio->index */
@@ -508,7 +496,7 @@ unsigned long mapping_try_invalidate(struct address_space *mapping,
 		}
 
 		if (xa_has_values)
-			clear_shadow_entries(mapping, &fbatch, indices);
+			clear_shadow_entries(mapping, indices[0], indices[nr-1]);
 
 		folio_batch_remove_exceptionals(&fbatch);
 		folio_batch_release(&fbatch);
@@ -612,7 +600,9 @@ int invalidate_inode_pages2_range(struct address_space *mapping,
 	folio_batch_init(&fbatch);
 	index = start;
 	while (find_get_entries(mapping, &index, end, &fbatch, indices)) {
-		for (i = 0; i < folio_batch_count(&fbatch); i++) {
+		int nr = folio_batch_count(&fbatch);
+
+		for (i = 0; i < nr; i++) {
 			struct folio *folio = fbatch.folios[i];
 
 			/* We rely upon deletion not changing folio->index */
@@ -658,7 +648,7 @@ int invalidate_inode_pages2_range(struct address_space *mapping,
 		}
 
 		if (xa_has_values)
-			clear_shadow_entries(mapping, &fbatch, indices);
+			clear_shadow_entries(mapping, indices[0], indices[nr-1]);
 
 		folio_batch_remove_exceptionals(&fbatch);
 		folio_batch_release(&fbatch);
