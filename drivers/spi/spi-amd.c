@@ -8,6 +8,7 @@
 
 #include <linux/acpi.h>
 #include <linux/delay.h>
+#include <linux/dma-mapping.h>
 #include <linux/init.h>
 #include <linux/io-64-nonatomic-lo-hi.h>
 #include <linux/iopoll.h>
@@ -50,8 +51,20 @@
 #define AMD_SPI_SPD7_SHIFT	8
 #define AMD_SPI_SPD7_MASK	GENMASK(13, AMD_SPI_SPD7_SHIFT)
 
+#define AMD_SPI_HID2_INPUT_RING_BUF0	0X100
+#define AMD_SPI_HID2_CNTRL		0x150
+#define AMD_SPI_HID2_INT_STATUS		0x154
+#define AMD_SPI_HID2_CMD_START		0x156
+#define AMD_SPI_HID2_INT_MASK		0x158
+#define AMD_SPI_HID2_READ_CNTRL0	0x170
+#define AMD_SPI_HID2_READ_CNTRL1	0x174
+#define AMD_SPI_HID2_READ_CNTRL2	0x180
+
 #define AMD_SPI_MAX_HZ		100000000
 #define AMD_SPI_MIN_HZ		800000
+
+#define AMD_SPI_IO_SLEEP_US	20
+#define AMD_SPI_IO_TIMEOUT_US	2000000
 
 /* SPI read command opcodes */
 #define AMD_SPI_OP_READ          0x03	/* Read data bytes (low frequency) */
@@ -108,11 +121,15 @@ struct amd_spi_freq {
 /**
  * struct amd_spi - SPI driver instance
  * @io_remap_addr:	Start address of the SPI controller registers
+ * @phy_dma_buf:	Physical address of DMA buffer
+ * @dma_virt_addr:	Virtual address of DMA buffer
  * @version:		SPI controller hardware version
  * @speed_hz:		Device frequency
  */
 struct amd_spi {
 	void __iomem *io_remap_addr;
+	dma_addr_t phy_dma_buf;
+	void *dma_virt_addr;
 	enum amd_spi_versions version;
 	unsigned int speed_hz;
 };
@@ -133,6 +150,16 @@ static void amd_spi_setclear_reg8(struct amd_spi *amd_spi, int idx, u8 set, u8 c
 
 	tmp = (tmp & ~clear) | set;
 	amd_spi_writereg8(amd_spi, idx, tmp);
+}
+
+static inline u16 amd_spi_readreg16(struct amd_spi *amd_spi, int idx)
+{
+	return readw((u8 __iomem *)amd_spi->io_remap_addr + idx);
+}
+
+static inline void amd_spi_writereg16(struct amd_spi *amd_spi, int idx, u16 val)
+{
+	writew(val, ((u8 __iomem *)amd_spi->io_remap_addr + idx));
 }
 
 static inline u32 amd_spi_readreg32(struct amd_spi *amd_spi, int idx)
@@ -517,6 +544,64 @@ static void amd_spi_mem_data_out(struct amd_spi *amd_spi,
 	amd_spi_execute_opcode(amd_spi);
 }
 
+static void amd_spi_hiddma_read(struct amd_spi *amd_spi, const struct spi_mem_op *op)
+{
+	u16 hid_cmd_start, val;
+	u32 hid_regval;
+
+	/* Set the opcode in hid2_read_control0 register */
+	hid_regval = amd_spi_readreg32(amd_spi, AMD_SPI_HID2_READ_CNTRL0);
+	hid_regval = (hid_regval & ~GENMASK(7, 0)) | op->cmd.opcode;
+
+	/*
+	 * Program the address in the hid2_read_control0 register [8:31]. The address should
+	 * be written starting from the 8th bit of the register, requiring an 8-bit shift.
+	 * Additionally, to convert a 2-byte spinand address to a 3-byte address, another
+	 * 8-bit shift is needed. Therefore, a total shift of 16 bits is required.
+	 */
+	hid_regval = (hid_regval & ~GENMASK(31, 8)) | (op->addr.val << 16);
+	amd_spi_writereg32(amd_spi, AMD_SPI_HID2_READ_CNTRL0, hid_regval);
+
+	/* Configure dummy clock cycles for fast read, dual, quad I/O commands */
+	hid_regval = amd_spi_readreg32(amd_spi, AMD_SPI_HID2_READ_CNTRL2);
+	/* Fast read dummy cycle */
+	hid_regval &= ~GENMASK(4, 0);
+
+	/* Fast read Dual I/O dummy cycle */
+	hid_regval &= ~GENMASK(12, 8);
+
+	/* Fast read Quad I/O dummy cycle */
+	hid_regval = (hid_regval & ~GENMASK(20, 16)) | BIT(17);
+
+	/* Set no of preamble bytecount */
+	hid_regval &= ~GENMASK(27, 24);
+	amd_spi_writereg32(amd_spi, AMD_SPI_HID2_READ_CNTRL2, hid_regval);
+
+	/*
+	 * Program the HID2 Input Ring Buffer0. 4k aligned buf_memory_addr[31:12],
+	 * buf_size[4:0], end_input_ring[5].
+	 */
+	hid_regval = amd_spi->phy_dma_buf | BIT(5) | BIT(0);
+	amd_spi_writereg32(amd_spi, AMD_SPI_HID2_INPUT_RING_BUF0, hid_regval);
+
+	/* Program max read length(no of DWs) in hid2_read_control1 register */
+	hid_regval = amd_spi_readreg32(amd_spi, AMD_SPI_HID2_READ_CNTRL1);
+	hid_regval = (hid_regval & ~GENMASK(15, 0)) | ((op->data.nbytes / 4) - 1);
+	amd_spi_writereg32(amd_spi, AMD_SPI_HID2_READ_CNTRL1, hid_regval);
+
+	/* Set cmd start bit in hid2_cmd_start register to trigger HID basic read operation */
+	hid_cmd_start = amd_spi_readreg16(amd_spi, AMD_SPI_HID2_CMD_START);
+	amd_spi_writereg16(amd_spi, AMD_SPI_HID2_CMD_START, (hid_cmd_start | BIT(3)));
+
+	/* Check interrupt status of HIDDMA basic read operation in hid2_int_status register */
+	readw_poll_timeout(amd_spi->io_remap_addr + AMD_SPI_HID2_INT_STATUS, val,
+			   (val & BIT(3)), AMD_SPI_IO_SLEEP_US, AMD_SPI_IO_TIMEOUT_US);
+
+	/* Clear the interrupts by writing to hid2_int_status register */
+	val = amd_spi_readreg16(amd_spi, AMD_SPI_HID2_INT_STATUS);
+	amd_spi_writereg16(amd_spi, AMD_SPI_HID2_INT_STATUS, val);
+}
+
 static void amd_spi_mem_data_in(struct amd_spi *amd_spi,
 				const struct spi_mem_op *op)
 {
@@ -524,29 +609,52 @@ static void amd_spi_mem_data_in(struct amd_spi *amd_spi,
 	u64 *buf_64 = (u64 *)op->data.buf.in;
 	u32 nbytes = op->data.nbytes;
 	u32 left_data = nbytes;
+	u32 data;
 	u8 *buf;
 	int i;
 
-	amd_spi_set_opcode(amd_spi, op->cmd.opcode);
-	amd_spi_set_addr(amd_spi, op);
-	amd_spi_set_tx_count(amd_spi, op->addr.nbytes + op->dummy.nbytes);
+	/*
+	 * Condition for using HID read mode. Only for reading complete page data, use HID read.
+	 * Use index mode otherwise.
+	 */
+	if (amd_spi->version == AMD_HID2_SPI && amd_is_spi_read_cmd(op->cmd.opcode)) {
+		amd_spi_hiddma_read(amd_spi, op);
 
-	for (i = 0; i < op->dummy.nbytes; i++)
-		amd_spi_writereg8(amd_spi, (base_addr + i), 0xff);
+		for (i = 0; left_data >= 8; i++, left_data -= 8)
+			*buf_64++ = readq((u8 __iomem *)amd_spi->dma_virt_addr + (i * 8));
 
-	amd_spi_set_rx_count(amd_spi, op->data.nbytes);
-	amd_spi_clear_fifo_ptr(amd_spi);
-	amd_spi_execute_opcode(amd_spi);
-	amd_spi_busy_wait(amd_spi);
+		buf = (u8 *)buf_64;
+		for (i = 0; i < left_data; i++)
+			buf[i] = readb((u8 __iomem *)amd_spi->dma_virt_addr +
+				       (nbytes - left_data + i));
 
-	for (i = 0; left_data >= 8; i++, left_data -= 8)
-		*buf_64++ = amd_spi_readreg64(amd_spi, base_addr + op->dummy.nbytes +
-					      (i * 8));
+		/* Reset HID RX memory logic */
+		data = amd_spi_readreg32(amd_spi, AMD_SPI_HID2_CNTRL);
+		amd_spi_writereg32(amd_spi, AMD_SPI_HID2_CNTRL, data | BIT(5));
+	} else {
+		/* Index mode */
+		amd_spi_set_opcode(amd_spi, op->cmd.opcode);
+		amd_spi_set_addr(amd_spi, op);
+		amd_spi_set_tx_count(amd_spi, op->addr.nbytes + op->dummy.nbytes);
 
-	buf = (u8 *)buf_64;
-	for (i = 0; i < left_data; i++)
-		buf[i] = amd_spi_readreg8(amd_spi, base_addr + op->dummy.nbytes +
-					  nbytes + i - left_data);
+		for (i = 0; i < op->dummy.nbytes; i++)
+			amd_spi_writereg8(amd_spi, (base_addr + i), 0xff);
+
+		amd_spi_set_rx_count(amd_spi, op->data.nbytes);
+		amd_spi_clear_fifo_ptr(amd_spi);
+		amd_spi_execute_opcode(amd_spi);
+		amd_spi_busy_wait(amd_spi);
+
+		for (i = 0; left_data >= 8; i++, left_data -= 8)
+			*buf_64++ = amd_spi_readreg64(amd_spi, base_addr + op->dummy.nbytes +
+						      (i * 8));
+
+		buf = (u8 *)buf_64;
+		for (i = 0; i < left_data; i++)
+			buf[i] = amd_spi_readreg8(amd_spi, base_addr + op->dummy.nbytes +
+						  nbytes + i - left_data);
+	}
+
 }
 
 static void amd_set_spi_addr_mode(struct amd_spi *amd_spi,
@@ -617,6 +725,31 @@ static size_t amd_spi_max_transfer_size(struct spi_device *spi)
 	return AMD_SPI_FIFO_SIZE;
 }
 
+static int amd_spi_setup_hiddma(struct amd_spi *amd_spi, struct device *dev)
+{
+	u32 hid_regval;
+
+	/* Allocate DMA buffer to use for HID basic read operation */
+	amd_spi->dma_virt_addr = dma_alloc_coherent(dev, AMD_SPI_HID2_DMA_SIZE,
+						    &amd_spi->phy_dma_buf, GFP_KERNEL);
+	if (!amd_spi->dma_virt_addr)
+		return -ENOMEM;
+
+	/*
+	 * Enable interrupts and set mask bits in hid2_int_mask register to generate interrupt
+	 * properly for HIDDMA basic read operations.
+	 */
+	hid_regval = amd_spi_readreg32(amd_spi, AMD_SPI_HID2_INT_MASK);
+	hid_regval = (hid_regval & GENMASK(31, 8)) | BIT(19);
+	amd_spi_writereg32(amd_spi, AMD_SPI_HID2_INT_MASK, hid_regval);
+
+	/* Configure buffer unit(4k) in hid2_control register */
+	hid_regval = amd_spi_readreg32(amd_spi, AMD_SPI_HID2_CNTRL);
+	amd_spi_writereg32(amd_spi, AMD_SPI_HID2_CNTRL, hid_regval & ~BIT(3));
+
+	return 0;
+}
+
 static int amd_spi_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -657,7 +790,10 @@ static int amd_spi_probe(struct platform_device *pdev)
 	if (err)
 		return dev_err_probe(dev, err, "error registering SPI controller\n");
 
-	return 0;
+	if (amd_spi->version == AMD_HID2_SPI)
+		err = amd_spi_setup_hiddma(amd_spi, dev);
+
+	return err;
 }
 
 #ifdef CONFIG_ACPI
