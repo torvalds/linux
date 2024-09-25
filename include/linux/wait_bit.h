@@ -281,6 +281,9 @@ __out:	__ret;								\
 #define __wait_var_event(var, condition)				\
 	___wait_var_event(var, condition, TASK_UNINTERRUPTIBLE, 0, 0,	\
 			  schedule())
+#define __wait_var_event_io(var, condition)				\
+	___wait_var_event(var, condition, TASK_UNINTERRUPTIBLE, 0, 0,	\
+			  io_schedule())
 
 /**
  * wait_var_event - wait for a variable to be updated and notified
@@ -304,6 +307,34 @@ do {									\
 	if (condition)							\
 		break;							\
 	__wait_var_event(var, condition);				\
+} while (0)
+
+/**
+ * wait_var_event_io - wait for a variable to be updated and notified
+ * @var: the address of variable being waited on
+ * @condition: the condition to wait for
+ *
+ * Wait for an IO related @condition to be true, only re-checking when a
+ * wake up is received for the given @var (an arbitrary kernel address
+ * which need not be directly related to the given condition, but
+ * usually is).
+ *
+ * The process will wait on a waitqueue selected by hash from a shared
+ * pool.  It will only be woken on a wake_up for the given address.
+ *
+ * This is similar to wait_var_event(), but calls io_schedule() instead
+ * of schedule().
+ *
+ * The condition should normally use smp_load_acquire() or a similarly
+ * ordered access to ensure that any changes to memory made before the
+ * condition became true will be visible after the wait completes.
+ */
+#define wait_var_event_io(var, condition)				\
+do {									\
+	might_sleep();							\
+	if (condition)							\
+		break;							\
+	__wait_var_event_io(var, condition);				\
 } while (0)
 
 #define __wait_var_event_killable(var, condition)			\
