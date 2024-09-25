@@ -857,6 +857,15 @@ struct drm_amdgpu_gem_va {
 	__u64 offset_in_bo;
 	/** Specify mapping size. Must be correctly aligned. */
 	__u64 map_size;
+	/**
+	 * vm_timeline_point is a sequence number used to add new timeline point.
+	 */
+	__u64 vm_timeline_point;
+	/**
+	 * The vm page table update fence is installed in given vm_timeline_syncobj_out
+	 * at vm_timeline_point.
+	 */
+	__u32 vm_timeline_syncobj_out;
 };
 
 #define AMDGPU_HW_IP_GFX          0

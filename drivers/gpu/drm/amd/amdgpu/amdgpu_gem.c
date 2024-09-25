@@ -36,6 +36,7 @@
 #include <drm/drm_exec.h>
 #include <drm/drm_gem_ttm_helper.h>
 #include <drm/ttm/ttm_tt.h>
+#include <drm/drm_syncobj.h>
 
 #include "amdgpu.h"
 #include "amdgpu_display.h"
@@ -43,6 +44,75 @@
 #include "amdgpu_hmm.h"
 #include "amdgpu_xgmi.h"
 #include "amdgpu_vm.h"
+
+static int
+amdgpu_gem_update_timeline_node(struct drm_file *filp,
+				uint32_t syncobj_handle,
+				uint64_t point,
+				struct drm_syncobj **syncobj,
+				struct dma_fence_chain **chain)
+{
+	if (!syncobj_handle)
+		return 0;
+
+	/* Find the sync object */
+	*syncobj = drm_syncobj_find(filp, syncobj_handle);
+	if (!*syncobj)
+		return -ENOENT;
+
+	if (!point)
+		return 0;
+
+	/* Allocate the chain node */
+	*chain = dma_fence_chain_alloc();
+	if (!*chain) {
+		drm_syncobj_put(*syncobj);
+		return -ENOMEM;
+	}
+
+	return 0;
+}
+
+static void
+amdgpu_gem_update_bo_mapping(struct drm_file *filp,
+			     struct amdgpu_bo_va *bo_va,
+			     uint32_t operation,
+			     uint64_t point,
+			     struct dma_fence *fence,
+			     struct drm_syncobj *syncobj,
+			     struct dma_fence_chain *chain)
+{
+	struct amdgpu_bo *bo = bo_va ? bo_va->base.bo : NULL;
+	struct amdgpu_fpriv *fpriv = filp->driver_priv;
+	struct amdgpu_vm *vm = &fpriv->vm;
+	struct dma_fence *last_update;
+
+	if (!syncobj)
+		return;
+
+	/* Find the last update fence */
+	switch (operation) {
+	case AMDGPU_VA_OP_MAP:
+	case AMDGPU_VA_OP_REPLACE:
+		if (bo && (bo->tbo.base.resv == vm->root.bo->tbo.base.resv))
+			last_update = vm->last_update;
+		else
+			last_update = bo_va->last_pt_update;
+		break;
+	case AMDGPU_VA_OP_UNMAP:
+	case AMDGPU_VA_OP_CLEAR:
+		last_update = fence;
+		break;
+	default:
+		return;
+	}
+
+	/* Add fence to timeline */
+	if (!point)
+		drm_syncobj_replace_fence(syncobj, last_update);
+	else
+		drm_syncobj_add_point(syncobj, chain, last_update, point);
+}
 
 static vm_fault_t amdgpu_gem_fault(struct vm_fault *vmf)
 {
@@ -638,18 +708,23 @@ out:
  *
  * Update the bo_va directly after setting its address. Errors are not
  * vital here, so they are not reported back to userspace.
+ *
+ * Returns resulting fence if freed BO(s) got cleared from the PT.
+ * otherwise stub fence in case of error.
  */
-static void amdgpu_gem_va_update_vm(struct amdgpu_device *adev,
-				    struct amdgpu_vm *vm,
-				    struct amdgpu_bo_va *bo_va,
-				    uint32_t operation)
+static struct dma_fence *
+amdgpu_gem_va_update_vm(struct amdgpu_device *adev,
+			struct amdgpu_vm *vm,
+			struct amdgpu_bo_va *bo_va,
+			uint32_t operation)
 {
+	struct dma_fence *fence = dma_fence_get_stub();
 	int r;
 
 	if (!amdgpu_vm_ready(vm))
-		return;
+		return fence;
 
-	r = amdgpu_vm_clear_freed(adev, vm, NULL);
+	r = amdgpu_vm_clear_freed(adev, vm, &fence);
 	if (r)
 		goto error;
 
@@ -665,6 +740,8 @@ static void amdgpu_gem_va_update_vm(struct amdgpu_device *adev,
 error:
 	if (r && r != -ERESTARTSYS)
 		DRM_ERROR("Couldn't update BO_VA (%d)\n", r);
+
+	return fence;
 }
 
 /**
@@ -713,6 +790,9 @@ int amdgpu_gem_va_ioctl(struct drm_device *dev, void *data,
 	struct amdgpu_fpriv *fpriv = filp->driver_priv;
 	struct amdgpu_bo *abo;
 	struct amdgpu_bo_va *bo_va;
+	struct drm_syncobj *timeline_syncobj = NULL;
+	struct dma_fence_chain *timeline_chain = NULL;
+	struct dma_fence *fence;
 	struct drm_exec exec;
 	uint64_t va_flags;
 	uint64_t vm_size;
@@ -827,9 +907,24 @@ int amdgpu_gem_va_ioctl(struct drm_device *dev, void *data,
 	default:
 		break;
 	}
-	if (!r && !(args->flags & AMDGPU_VM_DELAY_UPDATE) && !adev->debug_vm)
-		amdgpu_gem_va_update_vm(adev, &fpriv->vm, bo_va,
-					args->operation);
+	if (!r && !(args->flags & AMDGPU_VM_DELAY_UPDATE) && !adev->debug_vm) {
+
+		r = amdgpu_gem_update_timeline_node(filp,
+						    args->vm_timeline_syncobj_out,
+						    args->vm_timeline_point,
+						    &timeline_syncobj,
+						    &timeline_chain);
+
+		fence = amdgpu_gem_va_update_vm(adev, &fpriv->vm, bo_va,
+						args->operation);
+
+		if (!r)
+			amdgpu_gem_update_bo_mapping(filp, bo_va,
+						     args->operation,
+						     args->vm_timeline_point,
+						     fence, timeline_syncobj,
+						     timeline_chain);
+	}
 
 error:
 	drm_exec_fini(&exec);
