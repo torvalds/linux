@@ -261,6 +261,15 @@ int xe_memirq_init(struct xe_memirq *memirq)
 	return 0;
 }
 
+static u32 __memirq_source_page(struct xe_memirq *memirq, u16 instance)
+{
+	memirq_assert(memirq, instance <= XE_HW_ENGINE_MAX_INSTANCE);
+	memirq_assert(memirq, memirq->bo);
+
+	instance = hw_reports_to_instance_zero(memirq) ? instance : 0;
+	return xe_bo_ggtt_addr(memirq->bo) + XE_MEMIRQ_SOURCE_OFFSET(instance);
+}
+
 /**
  * xe_memirq_source_ptr - Get GGTT's offset of the `Interrupt Source Report Page`_.
  * @memirq: the &xe_memirq to query
@@ -273,14 +282,18 @@ int xe_memirq_init(struct xe_memirq *memirq)
  */
 u32 xe_memirq_source_ptr(struct xe_memirq *memirq, struct xe_hw_engine *hwe)
 {
-	u16 instance;
-
 	memirq_assert(memirq, xe_device_uses_memirq(memirq_to_xe(memirq)));
+
+	return __memirq_source_page(memirq, hwe->instance);
+}
+
+static u32 __memirq_status_page(struct xe_memirq *memirq, u16 instance)
+{
+	memirq_assert(memirq, instance <= XE_HW_ENGINE_MAX_INSTANCE);
 	memirq_assert(memirq, memirq->bo);
 
-	instance = hw_reports_to_instance_zero(memirq) ? hwe->instance : 0;
-
-	return xe_bo_ggtt_addr(memirq->bo) + XE_MEMIRQ_SOURCE_OFFSET(instance);
+	instance = hw_reports_to_instance_zero(memirq) ? instance : 0;
+	return xe_bo_ggtt_addr(memirq->bo) + XE_MEMIRQ_STATUS_OFFSET(instance);
 }
 
 /**
@@ -295,14 +308,9 @@ u32 xe_memirq_source_ptr(struct xe_memirq *memirq, struct xe_hw_engine *hwe)
  */
 u32 xe_memirq_status_ptr(struct xe_memirq *memirq, struct xe_hw_engine *hwe)
 {
-	u16 instance;
-
 	memirq_assert(memirq, xe_device_uses_memirq(memirq_to_xe(memirq)));
-	memirq_assert(memirq, memirq->bo);
 
-	instance = hw_reports_to_instance_zero(memirq) ? hwe->instance : 0;
-
-	return xe_bo_ggtt_addr(memirq->bo) + XE_MEMIRQ_STATUS_OFFSET(instance);
+	return __memirq_status_page(memirq, hwe->instance);
 }
 
 /**
@@ -343,10 +351,9 @@ int xe_memirq_init_guc(struct xe_memirq *memirq, struct xe_guc *guc)
 	int err;
 
 	memirq_assert(memirq, xe_device_uses_memirq(memirq_to_xe(memirq)));
-	memirq_assert(memirq, memirq->bo);
 
-	source = xe_memirq_source_ptr(memirq, NULL) + offset;
-	status = xe_memirq_status_ptr(memirq, NULL) + offset * SZ_16;
+	source = __memirq_source_page(memirq, 0) + offset;
+	status = __memirq_status_page(memirq, 0) + offset * SZ_16;
 
 	err = xe_guc_self_cfg64(guc, GUC_KLV_SELF_CFG_MEMIRQ_SOURCE_ADDR_KEY,
 				source);
