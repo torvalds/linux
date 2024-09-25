@@ -38,6 +38,7 @@
 #define AMD_SPI_FIFO_SIZE	70
 #define AMD_SPI_MEM_SIZE	200
 #define AMD_SPI_MAX_DATA	64
+#define AMD_SPI_HID2_DMA_SIZE   4096
 
 #define AMD_SPI_ENA_REG		0x20
 #define AMD_SPI_ALT_SPD_SHIFT	20
@@ -70,10 +71,12 @@
  * enum amd_spi_versions - SPI controller versions
  * @AMD_SPI_V1:		AMDI0061 hardware version
  * @AMD_SPI_V2:		AMDI0062 hardware version
+ * @AMD_HID2_SPI:	AMDI0063 hardware version
  */
 enum amd_spi_versions {
 	AMD_SPI_V1 = 1,
 	AMD_SPI_V2,
+	AMD_HID2_SPI,
 };
 
 enum amd_spi_speed {
@@ -182,6 +185,7 @@ static int amd_spi_set_opcode(struct amd_spi *amd_spi, u8 cmd_opcode)
 				       AMD_SPI_OPCODE_MASK);
 		return 0;
 	case AMD_SPI_V2:
+	case AMD_HID2_SPI:
 		amd_spi_writereg8(amd_spi, AMD_SPI_OPCODE_REG, cmd_opcode);
 		return 0;
 	default:
@@ -209,6 +213,7 @@ static int amd_spi_busy_wait(struct amd_spi *amd_spi)
 		reg = AMD_SPI_CTRL0_REG;
 		break;
 	case AMD_SPI_V2:
+	case AMD_HID2_SPI:
 		reg = AMD_SPI_STATUS_REG;
 		break;
 	default:
@@ -234,6 +239,7 @@ static int amd_spi_execute_opcode(struct amd_spi *amd_spi)
 				       AMD_SPI_EXEC_CMD);
 		return 0;
 	case AMD_SPI_V2:
+	case AMD_HID2_SPI:
 		/* Trigger the command execution */
 		amd_spi_setclear_reg8(amd_spi, AMD_SPI_CMD_TRIGGER_REG,
 				      AMD_SPI_TRIGGER_CMD, AMD_SPI_TRIGGER_CMD);
@@ -375,6 +381,7 @@ fin_msg:
 	case AMD_SPI_V1:
 		break;
 	case AMD_SPI_V2:
+	case AMD_HID2_SPI:
 		amd_spi_clear_chip(amd_spi, spi_get_chipselect(message->spi, 0));
 		break;
 	default:
@@ -418,15 +425,29 @@ static inline bool amd_is_spi_read_cmd(const u16 op)
 static bool amd_spi_supports_op(struct spi_mem *mem,
 				const struct spi_mem_op *op)
 {
+	struct amd_spi *amd_spi = spi_controller_get_devdata(mem->spi->controller);
+
 	/* bus width is number of IO lines used to transmit */
-	if (op->cmd.buswidth > 1 || op->addr.buswidth > 4 || op->data.nbytes > AMD_SPI_MAX_DATA)
+	if (op->cmd.buswidth > 1 || op->addr.buswidth > 4)
 		return false;
 
 	/* AMD SPI controllers support quad mode only for read operations */
 	if (amd_is_spi_read_cmd(op->cmd.opcode)) {
 		if (op->data.buswidth > 4)
 			return false;
-	} else if (op->data.buswidth > 1) {
+
+		/*
+		 * HID2 SPI controller supports DMA read up to 4K bytes and
+		 * doesn't support 4-byte address commands.
+		 */
+		if (amd_spi->version == AMD_HID2_SPI) {
+			if (amd_is_spi_read_cmd_4b(op->cmd.opcode) ||
+			    op->data.nbytes > AMD_SPI_HID2_DMA_SIZE)
+				return false;
+		} else if (op->data.nbytes > AMD_SPI_MAX_DATA) {
+			return false;
+		}
+	} else if (op->data.buswidth > 1 || op->data.nbytes > AMD_SPI_MAX_DATA) {
 		return false;
 	}
 
@@ -435,7 +456,19 @@ static bool amd_spi_supports_op(struct spi_mem *mem,
 
 static int amd_spi_adjust_op_size(struct spi_mem *mem, struct spi_mem_op *op)
 {
-	op->data.nbytes = clamp_val(op->data.nbytes, 0, AMD_SPI_MAX_DATA);
+	struct amd_spi *amd_spi = spi_controller_get_devdata(mem->spi->controller);
+
+	/*
+	 * HID2 SPI controller DMA read mode supports reading up to 4k
+	 * bytes in single transaction, where as SPI0 and HID2 SPI
+	 * controller index mode supports maximum of 64 bytes in a single
+	 * transaction.
+	 */
+	if (amd_spi->version == AMD_HID2_SPI && amd_is_spi_read_cmd(op->cmd.opcode))
+		op->data.nbytes = clamp_val(op->data.nbytes, 0, AMD_SPI_HID2_DMA_SIZE);
+	else
+		op->data.nbytes = clamp_val(op->data.nbytes, 0, AMD_SPI_MAX_DATA);
+
 	return 0;
 }
 
@@ -592,7 +625,7 @@ static int amd_spi_probe(struct platform_device *pdev)
 	amd_spi->version = (uintptr_t) device_get_match_data(dev);
 
 	/* Initialize the spi_controller fields */
-	host->bus_num = 0;
+	host->bus_num = (amd_spi->version == AMD_HID2_SPI) ? 2 : 0;
 	host->num_chipselect = 4;
 	host->mode_bits = SPI_TX_DUAL | SPI_TX_QUAD | SPI_RX_DUAL | SPI_RX_QUAD;
 	host->flags = SPI_CONTROLLER_HALF_DUPLEX;
@@ -616,6 +649,7 @@ static int amd_spi_probe(struct platform_device *pdev)
 static const struct acpi_device_id spi_acpi_match[] = {
 	{ "AMDI0061", AMD_SPI_V1 },
 	{ "AMDI0062", AMD_SPI_V2 },
+	{ "AMDI0063", AMD_HID2_SPI },
 	{},
 };
 MODULE_DEVICE_TABLE(acpi, spi_acpi_match);
