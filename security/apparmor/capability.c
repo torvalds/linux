@@ -111,7 +111,7 @@ static int audit_caps(struct apparmor_audit_data *ad, struct aa_profile *profile
  * @profile: profile being enforced    (NOT NULL, NOT unconfined)
  * @cap: capability to test if allowed
  * @opts: CAP_OPT_NOAUDIT bit determines whether audit record is generated
- * @ad: audit data (MAY BE NULL indicating no auditing)
+ * @ad: audit data (NOT NULL)
  *
  * Returns: 0 if allowed else -EPERM
  */
