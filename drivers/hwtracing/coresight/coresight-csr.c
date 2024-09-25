@@ -721,13 +721,14 @@ static ssize_t hbeat_val0_store(struct device *dev,
 				 size_t size)
 {
 	struct csr_drvdata *drvdata = dev_get_drvdata(dev->parent);
-	unsigned long val, flags;
+	unsigned long flags;
+	u64 val;
 	u32 val_lo, val_hi;
 
 	if (IS_ERR_OR_NULL(drvdata) || !drvdata->timestamp_support)
 		return -EINVAL;
 
-	if (kstrtoul(buf, 16, &val))
+	if (kstrtou64(buf, 16, &val))
 		return -EINVAL;
 
 	spin_lock_irqsave(&drvdata->spin_lock, flags);
@@ -763,13 +764,14 @@ static ssize_t hbeat_val1_store(struct device *dev,
 				 size_t size)
 {
 	struct csr_drvdata *drvdata = dev_get_drvdata(dev->parent);
-	unsigned long val, flags;
+	unsigned long flags;
+	u64 val;
 	u32 val_lo, val_hi;
 
 	if (IS_ERR_OR_NULL(drvdata) || !drvdata->timestamp_support)
 		return -EINVAL;
 
-	if (kstrtoul(buf, 16, &val))
+	if (kstrtou64(buf, 16, &val))
 		return -EINVAL;
 
 	spin_lock_irqsave(&drvdata->spin_lock, flags);
@@ -805,13 +807,14 @@ static ssize_t hbeat_mask0_store(struct device *dev,
 				 size_t size)
 {
 	struct csr_drvdata *drvdata = dev_get_drvdata(dev->parent);
-	unsigned long val, flags;
+	unsigned long flags;
+	u64 val;
 	u32 val_lo, val_hi;
 
 	if (IS_ERR_OR_NULL(drvdata) || !drvdata->timestamp_support)
 		return -EINVAL;
 
-	if (kstrtoul(buf, 16, &val))
+	if (kstrtou64(buf, 16, &val))
 		return -EINVAL;
 
 	spin_lock_irqsave(&drvdata->spin_lock, flags);
@@ -847,13 +850,14 @@ static ssize_t hbeat_mask1_store(struct device *dev,
 				 size_t size)
 {
 	struct csr_drvdata *drvdata = dev_get_drvdata(dev->parent);
-	unsigned long val, flags;
+	unsigned long flags;
+	u64 val;
 	u32 val_lo, val_hi;
 
 	if (IS_ERR_OR_NULL(drvdata) || !drvdata->timestamp_support)
 		return -EINVAL;
 
-	if (kstrtoul(buf, 16, &val))
+	if (kstrtou64(buf, 16, &val))
 		return -EINVAL;
 
 	spin_lock_irqsave(&drvdata->spin_lock, flags);
