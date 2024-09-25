@@ -311,7 +311,7 @@ dev_pm_opp_add_dynamic(struct device *dev, struct dev_pm_opp_data *opp)
 }
 
 static inline int
-dev_pm_opp_add(struct device *dev, struct dev_pm_opp_data *opp, unsigned long u_volt)
+dev_pm_opp_add(struct device *dev, unsigned long freq, unsigned long u_volt)
 {
 	return -EOPNOTSUPP;
 }
