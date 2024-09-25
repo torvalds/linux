@@ -564,12 +564,9 @@ static ssize_t ext4_dio_write_iter(struct kiocb *iocb, struct iov_iter *from)
 		}
 
 		ret = ext4_orphan_add(handle, inode);
-		if (ret) {
-			ext4_journal_stop(handle);
-			goto out;
-		}
-
 		ext4_journal_stop(handle);
+		if (ret)
+			goto out;
 	}
 
 	if (ilock_shared && !unwritten)
