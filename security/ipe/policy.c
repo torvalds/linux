@@ -107,7 +107,7 @@ int ipe_update_policy(struct inode *root, const char *text, size_t textlen,
 	}
 
 	if (ver_to_u64(old) > ver_to_u64(new)) {
-		rc = -EINVAL;
+		rc = -ESTALE;
 		goto err;
 	}
 
