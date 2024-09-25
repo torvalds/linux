@@ -343,7 +343,11 @@ static void amdgpu_dm_crtc_notify_ta_to_read(struct work_struct *work)
 	struct amdgpu_dm_connector *aconnector;
 	uint8_t phy_inst;
 	struct amdgpu_display_manager *dm;
+	struct crc_data crc_cpy[MAX_CRC_WINDOW_NUM];
+	unsigned long flags;
+	uint8_t roi_idx = 0;
 	int ret;
+	int i;
 
 	crtc_ctx = container_of(work, struct secure_display_crtc_context, notify_ta_work);
 	crtc = crtc_ctx->crtc;
@@ -372,18 +376,36 @@ static void amdgpu_dm_crtc_notify_ta_to_read(struct work_struct *work)
 	}
 	mutex_unlock(&crtc->dev->mode_config.mutex);
 
+	spin_lock_irqsave(&crtc->dev->event_lock, flags);
+	memcpy(crc_cpy, crtc_ctx->crc_info.crc, sizeof(struct crc_data) * MAX_CRC_WINDOW_NUM);
+	spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
+
 	/* need lock for multiple crtcs to use the command buffer */
 	mutex_lock(&psp->securedisplay_context.mutex);
-
-	psp_prep_securedisplay_cmd_buf(psp, &securedisplay_cmd,
-						TA_SECUREDISPLAY_COMMAND__SEND_ROI_CRC);
-
-	securedisplay_cmd->securedisplay_in_message.send_roi_crc.phy_id = phy_inst;
-
 	/* PSP TA is expected to finish data transmission over I2C within current frame,
 	 * even there are up to 4 crtcs request to send in this frame.
 	 */
-	ret = psp_securedisplay_invoke(psp, TA_SECUREDISPLAY_COMMAND__SEND_ROI_CRC);
+	if (dm->secure_display_ctx.support_mul_roi) {
+		psp_prep_securedisplay_cmd_buf(psp, &securedisplay_cmd,
+							TA_SECUREDISPLAY_COMMAND__SEND_ROI_CRC_V2);
+
+		securedisplay_cmd->securedisplay_in_message.send_roi_crc_v2.phy_id = phy_inst;
+
+		for (i = 0; i < MAX_CRC_WINDOW_NUM; i++) {
+			if (crc_cpy[i].crc_ready)
+				roi_idx |= 1 << i;
+		}
+		securedisplay_cmd->securedisplay_in_message.send_roi_crc_v2.roi_idx = roi_idx;
+
+		ret = psp_securedisplay_invoke(psp, TA_SECUREDISPLAY_COMMAND__SEND_ROI_CRC_V2);
+	} else {
+		psp_prep_securedisplay_cmd_buf(psp, &securedisplay_cmd,
+							TA_SECUREDISPLAY_COMMAND__SEND_ROI_CRC);
+
+		securedisplay_cmd->securedisplay_in_message.send_roi_crc.phy_id = phy_inst;
+
+		ret = psp_securedisplay_invoke(psp, TA_SECUREDISPLAY_COMMAND__SEND_ROI_CRC);
+	}
 
 	if (!ret) {
 		if (securedisplay_cmd->status != TA_SECUREDISPLAY_STATUS__SUCCESS)
