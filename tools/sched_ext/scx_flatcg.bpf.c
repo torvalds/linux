@@ -383,7 +383,7 @@ void BPF_STRUCT_OPS(fcg_enqueue, struct task_struct *p, u64 enq_flags)
 		return;
 	}
 
-	cgrp = scx_bpf_task_cgroup(p);
+	cgrp = __COMPAT_scx_bpf_task_cgroup(p);
 	cgc = find_cgrp_ctx(cgrp);
 	if (!cgc)
 		goto out_release;
@@ -509,7 +509,7 @@ void BPF_STRUCT_OPS(fcg_runnable, struct task_struct *p, u64 enq_flags)
 {
 	struct cgroup *cgrp;
 
-	cgrp = scx_bpf_task_cgroup(p);
+	cgrp = __COMPAT_scx_bpf_task_cgroup(p);
 	update_active_weight_sums(cgrp, true);
 	bpf_cgroup_release(cgrp);
 }
@@ -522,7 +522,7 @@ void BPF_STRUCT_OPS(fcg_running, struct task_struct *p)
 	if (fifo_sched)
 		return;
 
-	cgrp = scx_bpf_task_cgroup(p);
+	cgrp = __COMPAT_scx_bpf_task_cgroup(p);
 	cgc = find_cgrp_ctx(cgrp);
 	if (cgc) {
 		/*
@@ -565,7 +565,7 @@ void BPF_STRUCT_OPS(fcg_stopping, struct task_struct *p, bool runnable)
 	if (!taskc->bypassed_at)
 		return;
 
-	cgrp = scx_bpf_task_cgroup(p);
+	cgrp = __COMPAT_scx_bpf_task_cgroup(p);
 	cgc = find_cgrp_ctx(cgrp);
 	if (cgc) {
 		__sync_fetch_and_add(&cgc->cvtime_delta,
@@ -579,7 +579,7 @@ void BPF_STRUCT_OPS(fcg_quiescent, struct task_struct *p, u64 deq_flags)
 {
 	struct cgroup *cgrp;
 
-	cgrp = scx_bpf_task_cgroup(p);
+	cgrp = __COMPAT_scx_bpf_task_cgroup(p);
 	update_active_weight_sums(cgrp, false);
 	bpf_cgroup_release(cgrp);
 }
