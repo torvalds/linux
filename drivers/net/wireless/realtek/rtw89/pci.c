@@ -2358,7 +2358,7 @@ static int rtw89_pci_deglitch_setting(struct rtw89_dev *rtwdev)
 	return 0;
 }
 
-static void rtw89_pci_disable_eq(struct rtw89_dev *rtwdev)
+static void rtw89_pci_disable_eq_ax(struct rtw89_dev *rtwdev)
 {
 	u16 g1_oobs, g2_oobs;
 	u32 backup_aspm;
@@ -4254,6 +4254,8 @@ const struct rtw89_pci_gen_def rtw89_pci_gen_ax = {
 	.aspm_set = rtw89_pci_aspm_set_ax,
 	.clkreq_set = rtw89_pci_clkreq_set_ax,
 	.l1ss_set = rtw89_pci_l1ss_set_ax,
+
+	.disable_eq = rtw89_pci_disable_eq_ax,
 };
 EXPORT_SYMBOL(rtw89_pci_gen_ax);
 
