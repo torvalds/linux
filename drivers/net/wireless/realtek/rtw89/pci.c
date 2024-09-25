@@ -3724,19 +3724,16 @@ static void rtw89_pci_free_irq(struct rtw89_dev *rtwdev,
 	pci_free_irq_vectors(pdev);
 }
 
-static u16 gray_code_to_bin(u16 gray_code, u32 bit_num)
+static u16 gray_code_to_bin(u16 gray_code)
 {
-	u16 bin = 0, gray_bit;
-	u32 bit_idx;
+	u16 binary = gray_code;
 
-	for (bit_idx = 0; bit_idx < bit_num; bit_idx++) {
-		gray_bit = (gray_code >> bit_idx) & 0x1;
-		if (bit_num - bit_idx > 1)
-			gray_bit ^= (gray_code >> (bit_idx + 1)) & 0x1;
-		bin |= (gray_bit << bit_idx);
+	while (gray_code) {
+		gray_code >>= 1;
+		binary ^= gray_code;
 	}
 
-	return bin;
+	return binary;
 }
 
 static int rtw89_pci_filter_out(struct rtw89_dev *rtwdev)
@@ -3772,7 +3769,7 @@ static int rtw89_pci_filter_out(struct rtw89_dev *rtwdev)
 		val16 = rtw89_read16_mask(rtwdev,
 					  phy_offset + RAC_ANA1F * RAC_MULT,
 					  FILTER_OUT_EQ_MASK);
-		val16 = gray_code_to_bin(val16, hweight16(val16));
+		val16 = gray_code_to_bin(val16);
 		filter_out_val = rtw89_read16(rtwdev, phy_offset + RAC_ANA24 *
 					      RAC_MULT);
 		filter_out_val &= ~REG_FILTER_OUT_MASK;
