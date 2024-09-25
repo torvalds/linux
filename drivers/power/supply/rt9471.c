@@ -153,8 +153,8 @@ struct rt9471_chip {
 };
 
 static const struct reg_field rt9471_reg_fields[F_MAX_FIELDS] = {
-	[F_WDT]		= REG_FIELD(RT9471_REG_TOP, 0, 0),
-	[F_WDT_RST]	= REG_FIELD(RT9471_REG_TOP, 1, 1),
+	[F_WDT]		= REG_FIELD(RT9471_REG_TOP, 0, 1),
+	[F_WDT_RST]	= REG_FIELD(RT9471_REG_TOP, 2, 2),
 	[F_CHG_EN]	= REG_FIELD(RT9471_REG_FUNC, 0, 0),
 	[F_HZ]		= REG_FIELD(RT9471_REG_FUNC, 5, 5),
 	[F_BATFET_DIS]	= REG_FIELD(RT9471_REG_FUNC, 7, 7),
