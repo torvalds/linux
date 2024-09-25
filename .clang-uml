@@ -71,11 +71,6 @@ diagrams:
       paths:
         - drivers/misc/ethosn/
         - drivers/misc/ethosn/uapi/
-    # exclude:
-    #   elements:
-    #     - 'ethosn_queue_get_free_space(const struct ethosn_queue *)'
-    #     - '__compiletime_assert_305()'
-    #     - '__compiletime_assert_306()'
     from:
       - function: 'ethosn_send_inference(struct ethosn_core *,dma_addr_t,uint64_t)'
   ethosn_queue_sequence_diagram:
@@ -95,7 +90,6 @@ diagrams:
         - drivers/misc/ethosn/uapi/
     to:
       - function: 'ethosn_queue_write(struct ethosn_queue *,const uint8_t *const *,const uint32_t *,uint32_t,uint32_t *)'
-      - function: 'ethosn_queue_read(struct ethosn_queue *,uint8_t *,uint32_t)'
   mailbox_sequence_diagram:
     type: sequence
     title: mailbox_alloc() sequence diagram
