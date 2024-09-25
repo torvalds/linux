@@ -180,12 +180,12 @@ static int amd_spi_set_opcode(struct amd_spi *amd_spi, u8 cmd_opcode)
 
 static inline void amd_spi_set_rx_count(struct amd_spi *amd_spi, u8 rx_count)
 {
-	amd_spi_setclear_reg8(amd_spi, AMD_SPI_RX_COUNT_REG, rx_count, 0xff);
+	amd_spi_writereg8(amd_spi, AMD_SPI_RX_COUNT_REG, rx_count);
 }
 
 static inline void amd_spi_set_tx_count(struct amd_spi *amd_spi, u8 tx_count)
 {
-	amd_spi_setclear_reg8(amd_spi, AMD_SPI_TX_COUNT_REG, tx_count, 0xff);
+	amd_spi_writereg8(amd_spi, AMD_SPI_TX_COUNT_REG, tx_count);
 }
 
 static int amd_spi_busy_wait(struct amd_spi *amd_spi)
