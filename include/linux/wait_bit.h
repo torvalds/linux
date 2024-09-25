@@ -282,6 +282,22 @@ __out:	__ret;								\
 	___wait_var_event(var, condition, TASK_UNINTERRUPTIBLE, 0, 0,	\
 			  schedule())
 
+/**
+ * wait_var_event - wait for a variable to be updated and notified
+ * @var: the address of variable being waited on
+ * @condition: the condition to wait for
+ *
+ * Wait for a @condition to be true, only re-checking when a wake up is
+ * received for the given @var (an arbitrary kernel address which need
+ * not be directly related to the given condition, but usually is).
+ *
+ * The process will wait on a waitqueue selected by hash from a shared
+ * pool.  It will only be woken on a wake_up for the given address.
+ *
+ * The condition should normally use smp_load_acquire() or a similarly
+ * ordered access to ensure that any changes to memory made before the
+ * condition became true will be visible after the wait completes.
+ */
 #define wait_var_event(var, condition)					\
 do {									\
 	might_sleep();							\
@@ -294,6 +310,24 @@ do {									\
 	___wait_var_event(var, condition, TASK_KILLABLE, 0, 0,		\
 			  schedule())
 
+/**
+ * wait_var_event_killable - wait for a variable to be updated and notified
+ * @var: the address of variable being waited on
+ * @condition: the condition to wait for
+ *
+ * Wait for a @condition to be true or a fatal signal to be received,
+ * only re-checking the condition when a wake up is received for the given
+ * @var (an arbitrary kernel address which need not be directly related
+ * to the given condition, but usually is).
+ *
+ * This is similar to wait_var_event() but returns a value which is
+ * 0 if the condition became true, or %-ERESTARTSYS if a fatal signal
+ * was received.
+ *
+ * The condition should normally use smp_load_acquire() or a similarly
+ * ordered access to ensure that any changes to memory made before the
+ * condition became true will be visible after the wait completes.
+ */
 #define wait_var_event_killable(var, condition)				\
 ({									\
 	int __ret = 0;							\
@@ -308,6 +342,26 @@ do {									\
 			  TASK_UNINTERRUPTIBLE, 0, timeout,		\
 			  __ret = schedule_timeout(__ret))
 
+/**
+ * wait_var_event_timeout - wait for a variable to be updated or a timeout to expire
+ * @var: the address of variable being waited on
+ * @condition: the condition to wait for
+ * @timeout: maximum time to wait in jiffies
+ *
+ * Wait for a @condition to be true or a timeout to expire, only
+ * re-checking the condition when a wake up is received for the given
+ * @var (an arbitrary kernel address which need not be directly related
+ * to the given condition, but usually is).
+ *
+ * This is similar to wait_var_event() but returns a value which is 0 if
+ * the timeout expired and the condition was still false, or the
+ * remaining time left in the timeout (but at least 1) if the condition
+ * was found to be true.
+ *
+ * The condition should normally use smp_load_acquire() or a similarly
+ * ordered access to ensure that any changes to memory made before the
+ * condition became true will be visible after the wait completes.
+ */
 #define wait_var_event_timeout(var, condition, timeout)			\
 ({									\
 	long __ret = timeout;						\
@@ -321,6 +375,23 @@ do {									\
 	___wait_var_event(var, condition, TASK_INTERRUPTIBLE, 0, 0,	\
 			  schedule())
 
+/**
+ * wait_var_event_killable - wait for a variable to be updated and notified
+ * @var: the address of variable being waited on
+ * @condition: the condition to wait for
+ *
+ * Wait for a @condition to be true or a signal to be received, only
+ * re-checking the condition when a wake up is received for the given
+ * @var (an arbitrary kernel address which need not be directly related
+ * to the given condition, but usually is).
+ *
+ * This is similar to wait_var_event() but returns a value which is 0 if
+ * the condition became true, or %-ERESTARTSYS if a signal was received.
+ *
+ * The condition should normally use smp_load_acquire() or a similarly
+ * ordered access to ensure that any changes to memory made before the
+ * condition became true will be visible after the wait completes.
+ */
 #define wait_var_event_interruptible(var, condition)			\
 ({									\
 	int __ret = 0;							\
