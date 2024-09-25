@@ -918,9 +918,9 @@ static void cik_enable_sdma_mgls(struct amdgpu_device *adev,
 	}
 }
 
-static int cik_sdma_early_init(void *handle)
+static int cik_sdma_early_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	int r;
 
 	adev->sdma.num_instances = SDMA_MAX_INSTANCE;

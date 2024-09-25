@@ -54,9 +54,9 @@ static int amdgpu_ih_clientid_jpeg[] = {
  *
  * Set ring and irq function pointers
  */
-static int jpeg_v2_5_early_init(void *handle)
+static int jpeg_v2_5_early_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	u32 harvest;
 	int i;
 

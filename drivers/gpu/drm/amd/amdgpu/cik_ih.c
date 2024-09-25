@@ -283,9 +283,9 @@ static void cik_ih_set_rptr(struct amdgpu_device *adev,
 	WREG32(mmIH_RB_RPTR, ih->rptr);
 }
 
-static int cik_ih_early_init(void *handle)
+static int cik_ih_early_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	int ret;
 
 	ret = amdgpu_irq_add_domain(adev);

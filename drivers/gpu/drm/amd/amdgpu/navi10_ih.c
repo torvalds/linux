@@ -542,9 +542,9 @@ static void navi10_ih_set_self_irq_funcs(struct amdgpu_device *adev)
 	adev->irq.self_irq.funcs = &navi10_ih_self_irq_funcs;
 }
 
-static int navi10_ih_early_init(void *handle)
+static int navi10_ih_early_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	navi10_ih_set_interrupt_funcs(adev);
 	navi10_ih_set_self_irq_funcs(adev);

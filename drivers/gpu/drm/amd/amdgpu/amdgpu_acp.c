@@ -585,7 +585,7 @@ static int acp_resume(void *handle)
 	return 0;
 }
 
-static int acp_early_init(void *handle)
+static int acp_early_init(struct amdgpu_ip_block *ip_block)
 {
 	return 0;
 }

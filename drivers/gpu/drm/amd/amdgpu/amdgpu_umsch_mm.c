@@ -765,9 +765,9 @@ static int umsch_mm_init(struct amdgpu_device *adev)
 }
 
 
-static int umsch_mm_early_init(void *handle)
+static int umsch_mm_early_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	switch (amdgpu_ip_version(adev, VCN_HWIP, 0)) {
 	case IP_VERSION(4, 0, 5):

@@ -634,9 +634,9 @@ static const struct amdgpu_asic_funcs nv_asic_funcs = {
 	.query_video_codecs = &nv_query_video_codecs,
 };
 
-static int nv_common_early_init(void *handle)
+static int nv_common_early_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	adev->nbio.funcs->set_reg_remap(adev);
 	adev->smc_rreg = NULL;

@@ -556,9 +556,9 @@ static const struct amdgpu_asic_funcs soc21_asic_funcs = {
 	.update_umd_stable_pstate = &soc21_update_umd_stable_pstate,
 };
 
-static int soc21_common_early_init(void *handle)
+static int soc21_common_early_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	adev->nbio.funcs->set_reg_remap(adev);
 	adev->smc_rreg = NULL;

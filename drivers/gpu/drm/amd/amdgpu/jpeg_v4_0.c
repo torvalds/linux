@@ -52,9 +52,9 @@ static void jpeg_v4_0_dec_ring_set_wptr(struct amdgpu_ring *ring);
  *
  * Set ring and irq function pointers
  */
-static int jpeg_v4_0_early_init(void *handle)
+static int jpeg_v4_0_early_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 
 	adev->jpeg.num_jpeg_inst = 1;

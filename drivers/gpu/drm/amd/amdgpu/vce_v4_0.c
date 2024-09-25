@@ -407,9 +407,9 @@ static int vce_v4_0_stop(struct amdgpu_device *adev)
 	return 0;
 }
 
-static int vce_v4_0_early_init(void *handle)
+static int vce_v4_0_early_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	if (amdgpu_sriov_vf(adev)) /* currently only VCN0 support SRIOV */
 		adev->vce.num_rings = 1;

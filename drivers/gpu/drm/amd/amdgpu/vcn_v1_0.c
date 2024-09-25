@@ -100,9 +100,9 @@ static void vcn_v1_0_ring_begin_use(struct amdgpu_ring *ring);
  * Set ring and irq function pointers
  * Load microcode from filesystem
  */
-static int vcn_v1_0_early_init(void *handle)
+static int vcn_v1_0_early_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	adev->vcn.num_enc_rings = 2;
 
@@ -110,7 +110,7 @@ static int vcn_v1_0_early_init(void *handle)
 	vcn_v1_0_set_enc_ring_funcs(adev);
 	vcn_v1_0_set_irq_funcs(adev);
 
-	jpeg_v1_0_early_init(handle);
+	jpeg_v1_0_early_init(ip_block);
 
 	return amdgpu_vcn_early_init(adev);
 }

@@ -2851,9 +2851,9 @@ static int dce_v11_0_crtc_init(struct amdgpu_device *adev, int index)
 	return 0;
 }
 
-static int dce_v11_0_early_init(void *handle)
+static int dce_v11_0_early_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	adev->audio_endpt_rreg = &dce_v11_0_audio_endpt_rreg;
 	adev->audio_endpt_wreg = &dce_v11_0_audio_endpt_wreg;

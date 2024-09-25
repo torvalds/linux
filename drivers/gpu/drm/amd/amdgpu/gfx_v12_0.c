@@ -3695,9 +3695,9 @@ static uint64_t gfx_v12_0_get_gpu_clock_counter(struct amdgpu_device *adev)
 	return clock;
 }
 
-static int gfx_v12_0_early_init(void *handle)
+static int gfx_v12_0_early_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	adev->gfx.funcs = &gfx_v12_0_gfx_funcs;
 
