@@ -31,7 +31,7 @@ struct aa_sfs_entry aa_sfs_entry_caps[] = {
 };
 
 struct audit_cache {
-	struct aa_profile *profile;
+	const struct cred *ad_subj_cred;
 	/* Capabilities go from 0 to CAP_LAST_CAP */
 	u64 ktime_ns_expiration[CAP_LAST_CAP+1];
 };
@@ -94,16 +94,14 @@ static int audit_caps(struct apparmor_audit_data *ad, struct aa_profile *profile
 	/* Do simple duplicate message elimination */
 	ent = &get_cpu_var(audit_cache);
 	/* If the capability was never raised the timestamp check would also catch that */
-	if (profile == ent->profile && ktime_get_ns() <= ent->ktime_ns_expiration[cap]) {
+	if (ad->subj_cred == ent->ad_subj_cred && ktime_get_ns() <= ent->ktime_ns_expiration[cap]) {
 		put_cpu_var(audit_cache);
 		if (COMPLAIN_MODE(profile))
 			return complain_error(error);
 		return error;
 	} else {
-		aa_put_profile(ent->profile);
-		if (profile != ent->profile)
-			cap_clear(ent->caps);
-		ent->profile = aa_get_profile(profile);
+		put_cred(ent->ad_subj_cred);
+		ent->ad_subj_cred = get_cred(ad->subj_cred);
 		ent->ktime_ns_expiration[cap] = ktime_get_ns() + AUDIT_CACHE_TIMEOUT_NS;
 	}
 	put_cpu_var(audit_cache);
