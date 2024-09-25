@@ -9,6 +9,7 @@
 #include <linux/acpi.h>
 #include <linux/delay.h>
 #include <linux/init.h>
+#include <linux/io-64-nonatomic-lo-hi.h>
 #include <linux/iopoll.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
@@ -138,6 +139,16 @@ static inline u32 amd_spi_readreg32(struct amd_spi *amd_spi, int idx)
 static inline void amd_spi_writereg32(struct amd_spi *amd_spi, int idx, u32 val)
 {
 	writel(val, ((u8 __iomem *)amd_spi->io_remap_addr + idx));
+}
+
+static inline u64 amd_spi_readreg64(struct amd_spi *amd_spi, int idx)
+{
+	return readq((u8 __iomem *)amd_spi->io_remap_addr + idx);
+}
+
+static inline void amd_spi_writereg64(struct amd_spi *amd_spi, int idx, u64 val)
+{
+	writeq(val, ((u8 __iomem *)amd_spi->io_remap_addr + idx));
 }
 
 static inline void amd_spi_setclear_reg32(struct amd_spi *amd_spi, int idx, u32 set, u32 clear)
@@ -448,15 +459,23 @@ static void amd_spi_mem_data_out(struct amd_spi *amd_spi,
 				 const struct spi_mem_op *op)
 {
 	int base_addr = AMD_SPI_FIFO_BASE + op->addr.nbytes;
-	u8 *buf = (u8 *)op->data.buf.out;
+	u64 *buf_64 = (u64 *)op->data.buf.out;
 	u32 nbytes = op->data.nbytes;
+	u32 left_data = nbytes;
+	u8 *buf;
 	int i;
 
 	amd_spi_set_opcode(amd_spi, op->cmd.opcode);
 	amd_spi_set_addr(amd_spi, op);
 
-	for (i = 0; i < nbytes; i++)
-		amd_spi_writereg8(amd_spi, (base_addr + i), buf[i]);
+	for (i = 0; left_data >= 8; i++, left_data -= 8)
+		amd_spi_writereg64(amd_spi, base_addr + op->dummy.nbytes + (i * 8), *buf_64++);
+
+	buf = (u8 *)buf_64;
+	for (i = 0; i < left_data; i++) {
+		amd_spi_writereg8(amd_spi, base_addr + op->dummy.nbytes + nbytes + i - left_data,
+				  buf[i]);
+	}
 
 	amd_spi_set_tx_count(amd_spi, op->addr.nbytes + op->data.nbytes);
 	amd_spi_set_rx_count(amd_spi, 0);
@@ -467,23 +486,33 @@ static void amd_spi_mem_data_out(struct amd_spi *amd_spi,
 static void amd_spi_mem_data_in(struct amd_spi *amd_spi,
 				const struct spi_mem_op *op)
 {
-	int offset = (op->addr.nbytes == 0) ? 0 : 1;
-	u8 *buf = (u8 *)op->data.buf.in;
+	int base_addr = AMD_SPI_FIFO_BASE + op->addr.nbytes;
+	u64 *buf_64 = (u64 *)op->data.buf.in;
 	u32 nbytes = op->data.nbytes;
-	int base_addr, i;
-
-	base_addr = AMD_SPI_FIFO_BASE + op->addr.nbytes + offset;
+	u32 left_data = nbytes;
+	u8 *buf;
+	int i;
 
 	amd_spi_set_opcode(amd_spi, op->cmd.opcode);
 	amd_spi_set_addr(amd_spi, op);
-	amd_spi_set_tx_count(amd_spi, op->addr.nbytes);
-	amd_spi_set_rx_count(amd_spi, op->data.nbytes + 1);
+	amd_spi_set_tx_count(amd_spi, op->addr.nbytes + op->dummy.nbytes);
+
+	for (i = 0; i < op->dummy.nbytes; i++)
+		amd_spi_writereg8(amd_spi, (base_addr + i), 0xff);
+
+	amd_spi_set_rx_count(amd_spi, op->data.nbytes);
 	amd_spi_clear_fifo_ptr(amd_spi);
 	amd_spi_execute_opcode(amd_spi);
 	amd_spi_busy_wait(amd_spi);
 
-	for (i = 0; i < nbytes; i++)
-		buf[i] = amd_spi_readreg8(amd_spi, base_addr + i);
+	for (i = 0; left_data >= 8; i++, left_data -= 8)
+		*buf_64++ = amd_spi_readreg64(amd_spi, base_addr + op->dummy.nbytes +
+					      (i * 8));
+
+	buf = (u8 *)buf_64;
+	for (i = 0; i < left_data; i++)
+		buf[i] = amd_spi_readreg8(amd_spi, base_addr + op->dummy.nbytes +
+					  nbytes + i - left_data);
 }
 
 static int amd_spi_exec_mem_op(struct spi_mem *mem,
