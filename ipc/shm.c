@@ -1743,7 +1743,7 @@ long ksys_shmdt(char __user *shmaddr)
 	 * were modified by partial mlock or munmap calls:
 	 * - It first determines the size of the shm segment that should be
 	 *   unmapped: It searches for a vma that is backed by shm and that
-	 *   started at address shmaddr. It records it's size and then unmaps
+	 *   started at address shmaddr. It records its size and then unmaps
 	 *   it.
 	 * - Then it unmaps all shm vmas that started at shmaddr and that
 	 *   are within the initially determined size and that are from the
