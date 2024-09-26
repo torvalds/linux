@@ -16,6 +16,12 @@
 		rtc1 = &rk809;
 	};
 
+	/* allows userspace to control the gate of the ATtiny UPDI pass FET via sysfs */
+	attiny-updi-gate-regulator {
+		compatible = "regulator-output";
+		vout-supply = <&vg_attiny_updi>;
+	};
+
 	emmc_pwrseq: emmc-pwrseq {
 		compatible = "mmc-pwrseq-emmc";
 		pinctrl-0 = <&emmc_reset>;
@@ -281,6 +287,11 @@
 					regulator-off-in-suspend;
 					regulator-suspend-microvolt = <1800000>;
 				};
+			};
+
+			/* supplies the gate of the ATtiny UPDI pass FET */
+			vg_attiny_updi: SWITCH_REG1 {
+				regulator-name = "vg_attiny_updi";
 			};
 		};
 	};
