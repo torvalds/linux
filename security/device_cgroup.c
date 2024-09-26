@@ -243,6 +243,7 @@ static void devcgroup_css_free(struct cgroup_subsys_state *css)
 #define DEVCG_ALLOW 1
 #define DEVCG_DENY 2
 #define DEVCG_LIST 3
+#define DEVCG_INFO 4
 
 #define MAJMINLEN 13
 #define ACCLEN 4
@@ -305,6 +306,38 @@ static int devcgroup_seq_show(struct seq_file *m, void *v)
 			seq_printf(m, "%c %s:%s %s\n", type_to_char(ex->type),
 				   maj, min, acc);
 		}
+	}
+	rcu_read_unlock();
+
+	return 0;
+}
+
+static int devcgroup_seq_info(struct seq_file *m, void *v)
+{
+	struct dev_cgroup *devcgroup = css_to_devcgroup(seq_css(m));
+	struct dev_exception_item *ex;
+	char maj[MAJMINLEN], min[MAJMINLEN], acc[ACCLEN], behavior;
+
+	rcu_read_lock();
+	/*
+	 * Since the .list file remains as a "whitelist of devices"
+	 * getting additional information re: what exceptions to the
+	 * default behavior are present must come from an alternate
+	 * file -- thus, the .info file:
+	 */
+	if (devcgroup->behavior == DEVCG_DEFAULT_ALLOW) {
+		behavior = '-';
+		seq_printf(m, "ALLOW ALL\n");
+	} else {
+		behavior = '+';
+		seq_printf(m, "DENY ALL\n");
+	}
+	list_for_each_entry_rcu(ex, &devcgroup->exceptions, list) {
+		set_access(acc, ex->access);
+		set_majmin(maj, ex->major);
+		set_majmin(min, ex->minor);
+		seq_printf(m, "%c %c %s:%s %s\n", behavior, type_to_char(ex->type),
+			   maj, min, acc);
 	}
 	rcu_read_unlock();
 
@@ -416,14 +449,14 @@ static bool verify_new_ex(struct dev_cgroup *dev_cgroup,
 			/*
 			 * new exception in the child doesn't matter, only
 			 * adding extra restrictions
-			 */ 
+			 */
 			return true;
 		} else {
 			/*
 			 * new exception in the child will add more devices
 			 * that can be accessed, so it can't match any of
 			 * parent's exceptions, even slightly
-			 */ 
+			 */
 			match = match_exception_partial(&dev_cgroup->exceptions,
 							refex->type,
 							refex->major,
@@ -808,6 +841,11 @@ static struct cftype dev_cgroup_files[] = {
 		.name = "list",
 		.seq_show = devcgroup_seq_show,
 		.private = DEVCG_LIST,
+	},
+	{
+		.name = "info",
+		.seq_show = devcgroup_seq_info,
+		.private = DEVCG_INFO,
 	},
 	{ }	/* terminate */
 };
