@@ -244,7 +244,7 @@ static int pm8941_pwrkey_hw_init(struct pm8941_pwrkey *pwrkey)
 			delay_shift = PON_DBC_SHIFT_GEN1;
 		}
 
-		req_delay = (req_delay << delay_shift) / USEC_PER_SEC;
+		req_delay = (pwrkey->req_delay << delay_shift) / USEC_PER_SEC;
 		req_delay = ilog2(req_delay);
 
 		error = regmap_update_bits(pwrkey->regmap,
