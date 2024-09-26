@@ -352,6 +352,7 @@ static const struct acpi_device_id dw_i2c_acpi_match[] = {
 	{ "HISI02A1", 0 },
 	{ "HISI02A2", 0 },
 	{ "HISI02A3", 0 },
+	{ "HJMC3001", 0 },
 	{ "HYGO0010", ACCESS_INTR_MASK },
 	{ "INT33C2", 0 },
 	{ "INT33C3", 0 },
