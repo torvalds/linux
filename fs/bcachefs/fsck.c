@@ -1049,26 +1049,39 @@ static int check_inode(struct btree_trans *trans,
 	}
 
 	if (u.bi_flags & BCH_INODE_unlinked) {
-		ret = check_inode_deleted_list(trans, k.k->p);
-		if (ret < 0)
-			return ret;
+		if (!test_bit(BCH_FS_started, &c->flags)) {
+			/*
+			 * If we're not in online fsck, don't delete unlinked
+			 * inodes, just make sure they're on the deleted list.
+			 *
+			 * They might be referred to by a logged operation -
+			 * i.e. we might have crashed in the middle of a
+			 * truncate on an unlinked but open file - so we want to
+			 * let the delete_dead_inodes kill it after resuming
+			 * logged ops.
+			 */
+			ret = check_inode_deleted_list(trans, k.k->p);
+			if (ret < 0)
+				return ret;
 
-		fsck_err_on(!ret,
-			    trans, unlinked_inode_not_on_deleted_list,
-			    "inode %llu:%u unlinked, but not on deleted list",
-			    u.bi_inum, k.k->p.snapshot);
-		ret = 0;
-	}
+			fsck_err_on(!ret,
+				    trans, unlinked_inode_not_on_deleted_list,
+				    "inode %llu:%u unlinked, but not on deleted list",
+				    u.bi_inum, k.k->p.snapshot);
 
-	if (u.bi_flags & BCH_INODE_unlinked &&
-	    !bch2_inode_is_open(c, k.k->p) &&
-	    (!c->sb.clean ||
-	     fsck_err(trans, inode_unlinked_but_clean,
-		      "filesystem marked clean, but inode %llu unlinked",
-		      u.bi_inum))) {
-		ret = bch2_inode_rm_snapshot(trans, u.bi_inum, iter->pos.snapshot);
-		bch_err_msg(c, ret, "in fsck deleting inode");
-		return ret;
+			ret = bch2_btree_bit_mod_buffered(trans, BTREE_ID_deleted_inodes, k.k->p, 1);
+			if (ret)
+				goto err;
+		} else {
+			if (fsck_err_on(bch2_inode_is_open(c, k.k->p),
+					trans, inode_unlinked_and_not_open,
+				      "inode %llu%u unlinked and not open",
+				      u.bi_inum, u.bi_snapshot)) {
+				ret = bch2_inode_rm_snapshot(trans, u.bi_inum, iter->pos.snapshot);
+				bch_err_msg(c, ret, "in fsck deleting inode");
+				return ret;
+			}
+		}
 	}
 
 	if (u.bi_flags & BCH_INODE_i_size_dirty &&
