@@ -35,6 +35,9 @@ static DEFINE_SPINLOCK(kthread_create_lock);
 static LIST_HEAD(kthread_create_list);
 struct task_struct *kthreadd_task;
 
+static LIST_HEAD(kthreads_hotplug);
+static DEFINE_MUTEX(kthreads_hotplug_lock);
+
 struct kthread_create_info
 {
 	/* Information passed to kthread() from kthreadd. */
@@ -53,6 +56,7 @@ struct kthread_create_info
 struct kthread {
 	unsigned long flags;
 	unsigned int cpu;
+	unsigned int node;
 	int started;
 	int result;
 	int (*threadfn)(void *);
@@ -64,6 +68,8 @@ struct kthread {
 #endif
 	/* To store the full name if task comm is truncated. */
 	char *full_name;
+	struct task_struct *task;
+	struct list_head hotplug_node;
 };
 
 enum KTHREAD_BITS {
@@ -122,8 +128,11 @@ bool set_kthread_struct(struct task_struct *p)
 
 	init_completion(&kthread->exited);
 	init_completion(&kthread->parked);
+	INIT_LIST_HEAD(&kthread->hotplug_node);
 	p->vfork_done = &kthread->exited;
 
+	kthread->task = p;
+	kthread->node = tsk_fork_get_node(current);
 	p->worker_private = kthread;
 	return true;
 }
@@ -314,6 +323,11 @@ void __noreturn kthread_exit(long result)
 {
 	struct kthread *kthread = to_kthread(current);
 	kthread->result = result;
+	if (!list_empty(&kthread->hotplug_node)) {
+		mutex_lock(&kthreads_hotplug_lock);
+		list_del(&kthread->hotplug_node);
+		mutex_unlock(&kthreads_hotplug_lock);
+	}
 	do_exit(0);
 }
 EXPORT_SYMBOL(kthread_exit);
@@ -338,6 +352,48 @@ void __noreturn kthread_complete_and_exit(struct completion *comp, long code)
 	kthread_exit(code);
 }
 EXPORT_SYMBOL(kthread_complete_and_exit);
+
+static void kthread_fetch_affinity(struct kthread *kthread, struct cpumask *cpumask)
+{
+	cpumask_and(cpumask, cpumask_of_node(kthread->node),
+		    housekeeping_cpumask(HK_TYPE_KTHREAD));
+
+	if (cpumask_empty(cpumask))
+		cpumask_copy(cpumask, housekeeping_cpumask(HK_TYPE_KTHREAD));
+}
+
+static void kthread_affine_node(void)
+{
+	struct kthread *kthread = to_kthread(current);
+	cpumask_var_t affinity;
+
+	WARN_ON_ONCE(kthread_is_per_cpu(current));
+
+	if (kthread->node == NUMA_NO_NODE) {
+		housekeeping_affine(current, HK_TYPE_KTHREAD);
+	} else {
+		if (!zalloc_cpumask_var(&affinity, GFP_KERNEL)) {
+			WARN_ON_ONCE(1);
+			return;
+		}
+
+		mutex_lock(&kthreads_hotplug_lock);
+		WARN_ON_ONCE(!list_empty(&kthread->hotplug_node));
+		list_add_tail(&kthread->hotplug_node, &kthreads_hotplug);
+		/*
+		 * The node cpumask is racy when read from kthread() but:
+		 * - a racing CPU going down will either fail on the subsequent
+		 *   call to set_cpus_allowed_ptr() or be migrated to housekeepers
+		 *   afterwards by the scheduler.
+		 * - a racing CPU going up will be handled by kthreads_online_cpu()
+		 */
+		kthread_fetch_affinity(kthread, affinity);
+		set_cpus_allowed_ptr(current, affinity);
+		mutex_unlock(&kthreads_hotplug_lock);
+
+		free_cpumask_var(affinity);
+	}
+}
 
 static int kthread(void *_create)
 {
@@ -369,7 +425,6 @@ static int kthread(void *_create)
 	 * back to default in case they have been changed.
 	 */
 	sched_setscheduler_nocheck(current, SCHED_NORMAL, &param);
-	set_cpus_allowed_ptr(current, housekeeping_cpumask(HK_TYPE_KTHREAD));
 
 	/* OK, tell user we're spawned, wait for stop or wakeup */
 	__set_current_state(TASK_UNINTERRUPTIBLE);
@@ -384,6 +439,9 @@ static int kthread(void *_create)
 	preempt_enable();
 
 	self->started = 1;
+
+	if (!(current->flags & PF_NO_SETAFFINITY))
+		kthread_affine_node();
 
 	ret = -EINTR;
 	if (!test_bit(KTHREAD_SHOULD_STOP, &self->flags)) {
@@ -780,6 +838,52 @@ int kthreadd(void *unused)
 
 	return 0;
 }
+
+/*
+ * Re-affine kthreads according to their preferences
+ * and the newly online CPU. The CPU down part is handled
+ * by select_fallback_rq() which default re-affines to
+ * housekeepers in case the preferred affinity doesn't
+ * apply anymore.
+ */
+static int kthreads_online_cpu(unsigned int cpu)
+{
+	cpumask_var_t affinity;
+	struct kthread *k;
+	int ret;
+
+	guard(mutex)(&kthreads_hotplug_lock);
+
+	if (list_empty(&kthreads_hotplug))
+		return 0;
+
+	if (!zalloc_cpumask_var(&affinity, GFP_KERNEL))
+		return -ENOMEM;
+
+	ret = 0;
+
+	list_for_each_entry(k, &kthreads_hotplug, hotplug_node) {
+		if (WARN_ON_ONCE((k->task->flags & PF_NO_SETAFFINITY) ||
+				 kthread_is_per_cpu(k->task) ||
+				 k->node == NUMA_NO_NODE)) {
+			ret = -EINVAL;
+			continue;
+		}
+		kthread_fetch_affinity(k, affinity);
+		set_cpus_allowed_ptr(k->task, affinity);
+	}
+
+	free_cpumask_var(affinity);
+
+	return ret;
+}
+
+static int kthreads_init(void)
+{
+	return cpuhp_setup_state(CPUHP_AP_KTHREADS_ONLINE, "kthreads:online",
+				kthreads_online_cpu, NULL);
+}
+early_initcall(kthreads_init);
 
 void __kthread_init_worker(struct kthread_worker *worker,
 				const char *name,
