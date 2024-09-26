@@ -370,8 +370,8 @@ static struct regmap *qcom_icc_rpmh_map(struct platform_device *pdev,
 
 static bool is_voter_disabled(char *voter)
 {
-	if ((strnstr(voter, "disp", strlen(voter)) &&
-	    (socinfo_get_part_info(PART_DISPLAY) || socinfo_get_part_info(PART_DISPLAY1))) ||
+	if ((!strcmp(voter, "disp") && socinfo_get_part_info(PART_DISPLAY)) ||
+	    (!strcmp(voter, "disp2") && socinfo_get_part_info(PART_DISPLAY1)) ||
 	    (strnstr(voter, "cam", strlen(voter)) && socinfo_get_part_info(PART_CAMERA)))
 		return true;
 
@@ -405,7 +405,11 @@ static int qcom_icc_init_disabled_parts(struct qcom_icc_provider *qp)
 				if (!qn)
 					continue;
 
-				if (strnstr(qn->name, voter_name, strlen(qn->name)))
+				/* Find the ICC node to be disabled by comparing voter_name in
+				 * node name string, adjust the start position accordingly
+				 */
+				if (!strcmp(qn->name + (strlen(qn->name) - strlen(voter_name)),
+					    voter_name))
 					qn->disabled = true;
 			}
 		}
