@@ -61,7 +61,7 @@
 	};
 };
 
-&bsc {
+&lbsc {
 	flash@0 {
 		compatible = "cfi-flash";
 		reg = <0x0 0x04000000>;
