@@ -140,21 +140,18 @@ static int led_pwm_add(struct device *dev, struct led_pwm_priv *priv,
 
 static int led_pwm_create_fwnode(struct device *dev, struct led_pwm_priv *priv)
 {
-	struct fwnode_handle *fwnode;
 	struct led_pwm led;
 	int ret;
 
-	device_for_each_child_node(dev, fwnode) {
+	device_for_each_child_node_scoped(dev, fwnode) {
 		memset(&led, 0, sizeof(led));
 
 		ret = fwnode_property_read_string(fwnode, "label", &led.name);
 		if (ret && is_of_node(fwnode))
 			led.name = to_of_node(fwnode)->name;
 
-		if (!led.name) {
-			ret = -EINVAL;
-			goto err_child_out;
-		}
+		if (!led.name)
+			return -EINVAL;
 
 		led.active_low = fwnode_property_read_bool(fwnode,
 							   "active-low");
@@ -165,14 +162,10 @@ static int led_pwm_create_fwnode(struct device *dev, struct led_pwm_priv *priv)
 
 		ret = led_pwm_add(dev, priv, &led, fwnode);
 		if (ret)
-			goto err_child_out;
+			return ret;
 	}
 
 	return 0;
-
-err_child_out:
-	fwnode_handle_put(fwnode);
-	return ret;
 }
 
 static int led_pwm_probe(struct platform_device *pdev)
