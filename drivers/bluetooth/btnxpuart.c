@@ -34,16 +34,17 @@
 /* NXP HW err codes */
 #define BTNXPUART_IR_HW_ERR		0xb0
 
-#define FIRMWARE_W8987		"uart8987_bt_v0.bin"
+#define FIRMWARE_W8987		"uart8987_bt.bin"
 #define FIRMWARE_W8987_OLD	"uartuart8987_bt.bin"
 #define FIRMWARE_W8997		"uart8997_bt_v4.bin"
 #define FIRMWARE_W8997_OLD	"uartuart8997_bt_v4.bin"
 #define FIRMWARE_W9098		"uart9098_bt_v1.bin"
 #define FIRMWARE_W9098_OLD	"uartuart9098_bt_v1.bin"
-#define FIRMWARE_IW416		"uartiw416_bt_v0.bin"
+#define FIRMWARE_IW416		"uartiw416_bt.bin"
+#define FIRMWARE_IW416_OLD	"uartiw416_bt_v0.bin"
 #define FIRMWARE_IW612		"uartspi_n61x_v1.bin.se"
-#define FIRMWARE_IW615		"uartspi_iw610_v0.bin"
-#define FIRMWARE_SECURE_IW615	"uartspi_iw610_v0.bin.se"
+#define FIRMWARE_IW615		"uartspi_iw610.bin"
+#define FIRMWARE_SECURE_IW615	"uartspi_iw610.bin.se"
 #define FIRMWARE_IW624		"uartiw624_bt.bin"
 #define FIRMWARE_SECURE_IW624	"uartiw624_bt.bin.se"
 #define FIRMWARE_AW693		"uartaw693_bt.bin"
@@ -970,6 +971,9 @@ static char *nxp_get_old_fw_name_from_chipid(struct hci_dev *hdev, u16 chipid,
 	switch (chipid) {
 	case CHIP_ID_W9098:
 		fw_name_old = FIRMWARE_W9098_OLD;
+		break;
+	case CHIP_ID_IW416:
+		fw_name_old = FIRMWARE_IW416_OLD;
 		break;
 	}
 	return fw_name_old;
