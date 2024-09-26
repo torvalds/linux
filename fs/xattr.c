@@ -888,22 +888,41 @@ listxattr(struct dentry *d, char __user *list, size_t size)
 	return error;
 }
 
-static ssize_t path_listxattr(const char __user *pathname, char __user *list,
-			      size_t size, unsigned int lookup_flags)
+static
+ssize_t file_listxattr(struct file *f, char __user *list, size_t size)
+{
+	audit_file(f);
+	return listxattr(f->f_path.dentry, list, size);
+}
+
+/* unconditionally consumes filename */
+static
+ssize_t filename_listxattr(int dfd, struct filename *filename,
+			   unsigned int lookup_flags,
+			   char __user *list, size_t size)
 {
 	struct path path;
 	ssize_t error;
 retry:
-	error = user_path_at(AT_FDCWD, pathname, lookup_flags, &path);
+	error = filename_lookup(dfd, filename, lookup_flags, &path, NULL);
 	if (error)
-		return error;
+		goto out;
 	error = listxattr(path.dentry, list, size);
 	path_put(&path);
 	if (retry_estale(error, lookup_flags)) {
 		lookup_flags |= LOOKUP_REVAL;
 		goto retry;
 	}
+out:
+	putname(filename);
 	return error;
+}
+
+static ssize_t path_listxattr(const char __user *pathname, char __user *list,
+			      size_t size, unsigned int lookup_flags)
+{
+	return filename_listxattr(AT_FDCWD, getname(pathname), lookup_flags,
+				  list, size);
 }
 
 SYSCALL_DEFINE3(listxattr, const char __user *, pathname, char __user *, list,
@@ -924,8 +943,7 @@ SYSCALL_DEFINE3(flistxattr, int, fd, char __user *, list, size_t, size)
 
 	if (fd_empty(f))
 		return -EBADF;
-	audit_file(fd_file(f));
-	return listxattr(fd_file(f)->f_path.dentry, list, size);
+	return file_listxattr(fd_file(f), list, size);
 }
 
 /*
