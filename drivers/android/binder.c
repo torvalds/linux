@@ -5593,6 +5593,8 @@ static void binder_add_freeze_work(struct binder_proc *proc, bool is_frozen)
 		prev = node;
 		binder_node_unlock(node);
 		binder_inner_proc_lock(proc);
+		if (proc->is_dead)
+			break;
 	}
 	binder_inner_proc_unlock(proc);
 	if (prev)
