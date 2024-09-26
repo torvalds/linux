@@ -148,7 +148,6 @@ struct gpio_leds_priv {
 
 static struct gpio_leds_priv *gpio_leds_create(struct device *dev)
 {
-	struct fwnode_handle *child;
 	struct gpio_leds_priv *priv;
 	int count, used, ret;
 
@@ -162,7 +161,7 @@ static struct gpio_leds_priv *gpio_leds_create(struct device *dev)
 	priv->num_leds = count;
 	used = 0;
 
-	device_for_each_child_node(dev, child) {
+	device_for_each_child_node_scoped(dev, child) {
 		struct gpio_led_data *led_dat = &priv->leds[used];
 		struct gpio_led led = {};
 
@@ -176,7 +175,6 @@ static struct gpio_leds_priv *gpio_leds_create(struct device *dev)
 		if (IS_ERR(led.gpiod)) {
 			dev_err_probe(dev, PTR_ERR(led.gpiod), "Failed to get GPIO '%pfw'\n",
 				      child);
-			fwnode_handle_put(child);
 			return ERR_CAST(led.gpiod);
 		}
 
@@ -192,10 +190,9 @@ static struct gpio_leds_priv *gpio_leds_create(struct device *dev)
 			led.panic_indicator = 1;
 
 		ret = create_gpio_led(&led, led_dat, dev, child, NULL);
-		if (ret < 0) {
-			fwnode_handle_put(child);
+		if (ret < 0)
 			return ERR_PTR(ret);
-		}
+
 		/* Set gpiod label to match the corresponding LED name. */
 		gpiod_set_consumer_name(led_dat->gpiod,
 					led_dat->cdev.dev->kobj.name);
