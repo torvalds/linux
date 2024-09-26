@@ -735,6 +735,40 @@ bch2_trans_commit_write_locked(struct btree_trans *trans, unsigned flags,
 			goto fatal_err;
 	}
 
+	trans_for_each_update(trans, i) {
+		enum bch_validate_flags invalid_flags = 0;
+
+		if (!(flags & BCH_TRANS_COMMIT_no_journal_res))
+			invalid_flags |= BCH_VALIDATE_write|BCH_VALIDATE_commit;
+
+		ret = bch2_bkey_validate(c, bkey_i_to_s_c(i->k),
+					 i->bkey_type, invalid_flags);
+		if (unlikely(ret)){
+			bch2_trans_inconsistent(trans, "invalid bkey on insert from %s -> %ps\n",
+						trans->fn, (void *) i->ip_allocated);
+			goto fatal_err;
+		}
+		btree_insert_entry_checks(trans, i);
+	}
+
+	for (struct jset_entry *i = trans->journal_entries;
+	     i != (void *) ((u64 *) trans->journal_entries + trans->journal_entries_u64s);
+	     i = vstruct_next(i)) {
+		enum bch_validate_flags invalid_flags = 0;
+
+		if (!(flags & BCH_TRANS_COMMIT_no_journal_res))
+			invalid_flags |= BCH_VALIDATE_write|BCH_VALIDATE_commit;
+
+		ret = bch2_journal_entry_validate(c, NULL, i,
+						  bcachefs_metadata_version_current,
+						  CPU_BIG_ENDIAN, invalid_flags);
+		if (unlikely(ret)) {
+			bch2_trans_inconsistent(trans, "invalid journal entry on insert from %s\n",
+						trans->fn);
+			goto fatal_err;
+		}
+	}
+
 	if (likely(!(flags & BCH_TRANS_COMMIT_no_journal_res))) {
 		struct journal *j = &c->journal;
 		struct jset_entry *entry;
@@ -1018,40 +1052,6 @@ int __bch2_trans_commit(struct btree_trans *trans, unsigned flags)
 	ret = bch2_trans_commit_run_triggers(trans);
 	if (ret)
 		goto out_reset;
-
-	trans_for_each_update(trans, i) {
-		enum bch_validate_flags invalid_flags = 0;
-
-		if (!(flags & BCH_TRANS_COMMIT_no_journal_res))
-			invalid_flags |= BCH_VALIDATE_write|BCH_VALIDATE_commit;
-
-		ret = bch2_bkey_validate(c, bkey_i_to_s_c(i->k),
-					 i->bkey_type, invalid_flags);
-		if (unlikely(ret)){
-			bch2_trans_inconsistent(trans, "invalid bkey on insert from %s -> %ps\n",
-						trans->fn, (void *) i->ip_allocated);
-			return ret;
-		}
-		btree_insert_entry_checks(trans, i);
-	}
-
-	for (struct jset_entry *i = trans->journal_entries;
-	     i != (void *) ((u64 *) trans->journal_entries + trans->journal_entries_u64s);
-	     i = vstruct_next(i)) {
-		enum bch_validate_flags invalid_flags = 0;
-
-		if (!(flags & BCH_TRANS_COMMIT_no_journal_res))
-			invalid_flags |= BCH_VALIDATE_write|BCH_VALIDATE_commit;
-
-		ret = bch2_journal_entry_validate(c, NULL, i,
-						  bcachefs_metadata_version_current,
-						  CPU_BIG_ENDIAN, invalid_flags);
-		if (unlikely(ret)) {
-			bch2_trans_inconsistent(trans, "invalid journal entry on insert from %s\n",
-						trans->fn);
-			return ret;
-		}
-	}
 
 	if (unlikely(!test_bit(BCH_FS_may_go_rw, &c->flags))) {
 		ret = do_bch2_trans_commit_to_journal_replay(trans);
