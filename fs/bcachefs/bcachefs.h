@@ -776,7 +776,7 @@ struct bch_fs {
 		unsigned	nsec_per_time_unit;
 		u64		features;
 		u64		compat;
-		unsigned long	errors_silent[BITS_TO_LONGS(BCH_SB_ERR_MAX)];
+		unsigned long	errors_silent[BITS_TO_LONGS(BCH_FSCK_ERR_MAX)];
 		u64		btrees_lost_data;
 	}			sb;
 
