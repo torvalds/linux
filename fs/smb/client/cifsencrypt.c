@@ -735,13 +735,18 @@ cifs_crypto_secmech_release(struct TCP_Server_Info *server)
 	cifs_free_hash(&server->secmech.sha512);
 	cifs_free_hash(&server->secmech.hmacmd5);
 
-	if (server->secmech.enc) {
-		crypto_free_aead(server->secmech.enc);
-		server->secmech.enc = NULL;
-	}
+	if (!SERVER_IS_CHAN(server)) {
+		if (server->secmech.enc) {
+			crypto_free_aead(server->secmech.enc);
+			server->secmech.enc = NULL;
+		}
 
-	if (server->secmech.dec) {
-		crypto_free_aead(server->secmech.dec);
+		if (server->secmech.dec) {
+			crypto_free_aead(server->secmech.dec);
+			server->secmech.dec = NULL;
+		}
+	} else {
+		server->secmech.enc = NULL;
 		server->secmech.dec = NULL;
 	}
 }
