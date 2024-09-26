@@ -1202,6 +1202,15 @@ static int rk817_charger_probe(struct platform_device *pdev)
 	return 0;
 }
 
+static int __maybe_unused rk817_suspend(struct device *dev)
+{
+	struct rk817_charger *charger = dev_get_drvdata(dev);
+
+	cancel_delayed_work_sync(&charger->work);
+
+	return 0;
+}
+
 static int __maybe_unused rk817_resume(struct device *dev)
 {
 
@@ -1213,7 +1222,7 @@ static int __maybe_unused rk817_resume(struct device *dev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(rk817_charger_pm, NULL, rk817_resume);
+static SIMPLE_DEV_PM_OPS(rk817_charger_pm, rk817_suspend, rk817_resume);
 
 static struct platform_driver rk817_charger_driver = {
 	.probe    = rk817_charger_probe,
