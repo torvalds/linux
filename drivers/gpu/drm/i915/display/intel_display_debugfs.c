@@ -1343,6 +1343,7 @@ static ssize_t i915_joiner_write(struct file *file,
 
 	switch (force_joined_pipes) {
 	case 0:
+	case 1:
 	case 2:
 		connector->force_joined_pipes = force_joined_pipes;
 		break;
