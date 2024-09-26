@@ -1077,7 +1077,7 @@ static int pac1921_init(struct pac1921_priv *priv)
 	/*
 	 * Init control register:
 	 * - VPower free run integration mode
-	 * - OUT pin full scale range: 3V (HW detault)
+	 * - OUT pin full scale range: 3V (HW default)
 	 * - no timeout, no sleep, no sleep override, no recalc (HW defaults)
 	 */
 	val = FIELD_PREP(PAC1921_CONTROL_MXSL_MASK,

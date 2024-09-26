@@ -248,7 +248,7 @@ static const struct s16_fract twl4030_divider_ratios[16] = {
 	{15, 100},	/* CHANNEL 11 */
 	{1, 4},		/* CHANNEL 12 */
 	{1, 1},		/* CHANNEL 13 Reserved channels */
-	{1, 1},		/* CHANNEL 14 Reseved channels */
+	{1, 1},		/* CHANNEL 14 Reserved channels */
 	{5, 11},	/* CHANNEL 15 */
 };
 

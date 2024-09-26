@@ -494,7 +494,7 @@ static int tiadc_read_raw(struct iio_dev *indio_dev,
 	/*
 	 * We check the complete FIFO. We programmed just one entry but in case
 	 * something went wrong we left empty handed (-EAGAIN previously) and
-	 * then the value apeared somehow in the FIFO we would have two entries.
+	 * then the value appeared somehow in the FIFO we would have two entries.
 	 * Therefore we read every item and keep only the latest version of the
 	 * requested channel.
 	 */

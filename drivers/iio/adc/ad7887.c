@@ -41,7 +41,7 @@ enum ad7887_channels {
 };
 
 /**
- * struct ad7887_chip_info - chip specifc information
+ * struct ad7887_chip_info - chip specific information
  * @int_vref_mv:	the internal reference voltage
  * @channels:		channels specification
  * @num_channels:	number of channels
