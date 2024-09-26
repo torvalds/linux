@@ -347,7 +347,7 @@ static inline int audit_rate_check(void)
  * Emit at least 1 message per second, even if audit_rate_check is
  * throttling.
  * Always increment the lost messages counter.
-*/
+ */
 void audit_log_lost(const char *message)
 {
 	static unsigned long	last_msg = 0;
