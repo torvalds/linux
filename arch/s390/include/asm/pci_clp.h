@@ -110,7 +110,8 @@ struct clp_req_query_pci {
 struct clp_rsp_query_pci {
 	struct clp_rsp_hdr hdr;
 	u16 vfn;			/* virtual fn number */
-	u16			:  3;
+	u16			:  2;
+	u16 tid_avail		:  1;
 	u16 rid_avail		:  1;
 	u16 is_physfn		:  1;
 	u16 reserved1		:  1;
@@ -130,8 +131,9 @@ struct clp_rsp_query_pci {
 	u64 edma;			/* end dma as */
 #define ZPCI_RID_MASK_DEVFN 0x00ff
 	u16 rid;			/* BUS/DEVFN PCI address */
-	u16 reserved0;
-	u32 reserved[10];
+	u32 reserved0;
+	u16 tid;
+	u32 reserved[9];
 	u32 uid;			/* user defined id */
 	u8 util_str[CLP_UTIL_STR_LEN];	/* utility string */
 	u32 reserved2[16];
