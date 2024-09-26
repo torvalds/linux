@@ -268,6 +268,16 @@ config PINCTRL_K210
 	  Add support for the Canaan Kendryte K210 RISC-V SOC Field
 	  Programmable IO Array (FPIOA) controller.
 
+config PINCTRL_K230
+	bool "Pinctrl driver for the Canaan Kendryte K230 SoC"
+	depends on OF
+	select GENERIC_PINCTRL_GROUPS
+	select GENERIC_PINMUX_FUNCTIONS
+	select GENERIC_PINCONF
+	select REGMAP_MMIO
+	help
+	  Add support for the Canaan Kendryte K230 RISC-V SOC pin controller.
+
 config PINCTRL_KEEMBAY
 	tristate "Pinctrl driver for Intel Keem Bay SoC"
 	depends on ARCH_KEEMBAY || (ARM64 && COMPILE_TEST)
