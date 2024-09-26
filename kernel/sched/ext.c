@@ -1808,16 +1808,6 @@ static struct scx_dispatch_q *find_user_dsq(u64 dsq_id)
 	return rhashtable_lookup_fast(&dsq_hash, &dsq_id, dsq_hash_params);
 }
 
-static struct scx_dispatch_q *find_non_local_dsq(u64 dsq_id)
-{
-	lockdep_assert(rcu_read_lock_any_held());
-
-	if (dsq_id == SCX_DSQ_GLOBAL)
-		return &scx_dsq_global;
-	else
-		return find_user_dsq(dsq_id);
-}
-
 static struct scx_dispatch_q *find_dsq_for_dispatch(struct rq *rq, u64 dsq_id,
 						    struct task_struct *p)
 {
@@ -1835,7 +1825,11 @@ static struct scx_dispatch_q *find_dsq_for_dispatch(struct rq *rq, u64 dsq_id,
 		return &cpu_rq(cpu)->scx.local_dsq;
 	}
 
-	dsq = find_non_local_dsq(dsq_id);
+	if (dsq_id == SCX_DSQ_GLOBAL)
+		dsq = &scx_dsq_global;
+	else
+		dsq = find_user_dsq(dsq_id);
+
 	if (unlikely(!dsq)) {
 		scx_ops_error("non-existent DSQ 0x%llx for %s[%d]",
 			      dsq_id, p->comm, p->pid);
@@ -6176,7 +6170,7 @@ __bpf_kfunc bool scx_bpf_consume(u64 dsq_id)
 
 	flush_dispatch_buf(dspc->rq);
 
-	dsq = find_non_local_dsq(dsq_id);
+	dsq = find_user_dsq(dsq_id);
 	if (unlikely(!dsq)) {
 		scx_ops_error("invalid DSQ ID 0x%016llx", dsq_id);
 		return false;
@@ -6497,7 +6491,7 @@ __bpf_kfunc s32 scx_bpf_dsq_nr_queued(u64 dsq_id)
 			goto out;
 		}
 	} else {
-		dsq = find_non_local_dsq(dsq_id);
+		dsq = find_user_dsq(dsq_id);
 		if (dsq) {
 			ret = READ_ONCE(dsq->nr);
 			goto out;
@@ -6546,7 +6540,7 @@ __bpf_kfunc int bpf_iter_scx_dsq_new(struct bpf_iter_scx_dsq *it, u64 dsq_id,
 	if (flags & ~__SCX_DSQ_ITER_USER_FLAGS)
 		return -EINVAL;
 
-	kit->dsq = find_non_local_dsq(dsq_id);
+	kit->dsq = find_user_dsq(dsq_id);
 	if (!kit->dsq)
 		return -ENOENT;
 
