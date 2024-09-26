@@ -9,6 +9,7 @@ obj-$(CONFIG_PHY_QCOM_UFS)		+= phy-qcom-ufs.o
 obj-$(CONFIG_PHY_QCOM_UFS_V4)		+= phy-qcom-ufs-qmp-v4.o
 obj-$(CONFIG_PHY_QCOM_UFS_V3)           += phy-qcom-ufs-qmp-v3-660.o
 obj-$(CONFIG_PHY_QCOM_UFS_V4_PINEAPPLE)	+= phy-qcom-ufs-qmp-v4-pineapple.o
+obj-$(CONFIG_PHY_QCOM_UFS_V4_NIOBE)	+= phy-qcom-ufs-qmp-v4-niobe.o
 obj-$(CONFIG_PHY_QCOM_UFS_QRBTC_SDM845) += phy-qcom-ufs-qrbtc-sdm845.o
 obj-$(CONFIG_PHY_QCOM_UFS_V4_WAIPIO)    += phy-qcom-ufs-qmp-v4-waipio.o
 obj-$(CONFIG_PHY_QCOM_UFS_V4_BLAIR)	+= phy-qcom-ufs-qmp-v4-blair.o
