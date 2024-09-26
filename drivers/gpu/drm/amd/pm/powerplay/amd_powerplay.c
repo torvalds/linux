@@ -216,9 +216,9 @@ static void pp_reserve_vram_for_smu(struct amdgpu_device *adev)
 	}
 }
 
-static int pp_late_init(void *handle)
+static int pp_late_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	struct pp_hwmgr *hwmgr = adev->powerplay.pp_handle;
 
 	if (hwmgr && hwmgr->pm_en)

@@ -5271,9 +5271,9 @@ static int gfx_v8_0_early_init(struct amdgpu_ip_block *ip_block)
 	return 0;
 }
 
-static int gfx_v8_0_late_init(void *handle)
+static int gfx_v8_0_late_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	int r;
 
 	r = amdgpu_irq_get(adev, &adev->gfx.priv_reg_irq, 0);

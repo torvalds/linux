@@ -784,9 +784,9 @@ static int umsch_mm_early_init(struct amdgpu_ip_block *ip_block)
 	return 0;
 }
 
-static int umsch_mm_late_init(void *handle)
+static int umsch_mm_late_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	if (amdgpu_in_reset(adev) || adev->in_s0ix || adev->in_suspend)
 		return 0;
