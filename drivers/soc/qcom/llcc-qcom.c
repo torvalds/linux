@@ -31,6 +31,7 @@
 #define ATTR1_FIXED_SIZE_SHIFT        0x03
 #define ATTR1_PRIORITY_SHIFT          0x04
 #define ATTR1_MAX_CAP_SHIFT           0x10
+#define ATTR1_MAX_CAP_SHIFT_v31       0x0E
 #define ATTR0_RES_WAYS_MASK           GENMASK(15, 0)
 #define ATTR0_BONUS_WAYS_MASK         GENMASK(31, 16)
 #define ATTR0_BONUS_WAYS_SHIFT        0x10
@@ -41,8 +42,6 @@
 #define LLCC_COMMON_STATUS0_V2        0x0003000c
 #define LLCC_COMMON_STATUS0_V21       0x0003400c
 #define LLCC_COMMON_STATUS0           llcc_regs[LLCC_COMMON_STATUS0_num]
-#define LLCC_LB_CNT_MASK              GENMASK(31, 28)
-#define LLCC_LB_CNT_SHIFT             28
 
 #define MAX_CAP_TO_BYTES(n)           (n * SZ_1K)
 #define LLCC_TRP_ACT_CTRLn(n)         (n * SZ_4K)
@@ -491,6 +490,53 @@ static const struct llcc_slice_config niobe_data[] = {
 	{LLCC_EVA_3DR,   8, 1310, 3, 1, 0xFFFFFFFF, 0x0, 0, 0x0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 };
 
+static const struct llcc_slice_config neo_xr_data[] =  {
+};
+
+static const struct llcc_slice_config neo_xr_v2_data[] =  {
+};
+
+static const struct llcc_slice_config neo_xr_v3_data[] =  {
+};
+
+static const struct llcc_slice_config neo_sg_data[] =  {
+	{LLCC_CPUSS,     1,  4096, 1, 0, 0x3FF,  0x0,   0, 0, 0, 1, 1, 0, 0 },
+	{LLCC_VIDSC0,    2,   512, 3, 1, 0x3FF,  0x0,   0, 0, 0, 1, 0, 0, 0 },
+	{LLCC_AUDIO,     6,  1024, 3, 1, 0x3FF,  0x0,   0, 0, 0, 1, 0, 0, 0 },
+	{LLCC_CMPT,     10,  1024, 1, 1, 0x3FF,  0x0,   0, 0, 0, 1, 0, 0, 0 },
+	{LLCC_GPUHTW,   11,     0, 1, 1, 0x3FF,  0x0,   0, 0, 0, 1, 0, 0, 0 },
+	{LLCC_GPU,      12,     0, 3, 1, 0x3FF,  0x0,   0, 0, 0, 1, 0, 1, 0 },
+	{LLCC_MMUHWT,   13,   512, 1, 1, 0x3FF,  0x0,   0, 0, 0, 0, 1, 0, 0 },
+	{LLCC_DISP,     16,     0, 1, 1, 0x3FF,  0x0,   0, 0, 0, 1, 0, 0, 0 },
+	{LLCC_CVP,      28,   256, 3, 1, 0x3FF,  0x0,   0, 0, 0, 1, 0, 0, 0 },
+	{LLCC_APTCM,    26,  1024, 3, 1,   0x0,  0x3,   1, 0, 1, 1, 0, 0, 0 },
+	{LLCC_WRTCH,    31,   256, 1, 1, 0x3FF,  0x0,   0, 0, 0, 0, 1, 0, 0 },
+	{LLCC_AENPU,    30,  3072, 3, 1, 0x3FF,  0x0,   0, 0, 0, 1, 0, 0, 0 },
+	{LLCC_DISLFT,   17,     0, 1, 1,   0x0,  0x0,   0, 0, 0, 1, 0, 0, 0 },
+	{LLCC_DISRGHT,  18,     0, 1, 1,   0x0,  0x0,   0, 0, 0, 1, 0, 0, 0 },
+	{LLCC_EVCSLFT,  22,     0, 1, 1,   0x0,  0x0,   0, 0, 0, 1, 0, 0, 0 },
+	{LLCC_EVCSRGHT, 23,     0, 1, 1,   0x0,  0x0,   0, 0, 0, 1, 0, 0, 0 },
+};
+
+static const struct llcc_slice_config neo_sg_v2_data[] =  {
+	{LLCC_CPUSS,     1,  4096, 1, 0, 0x1FFF,  0x0,   0, 0, 0, 1, 1, 0, 0 },
+	{LLCC_VIDSC0,    2,   512, 3, 1, 0x1FFF,  0x0,   0, 0, 0, 1, 0, 0, 0 },
+	{LLCC_AUDIO,     6,  1024, 3, 1, 0x1FFF,  0x0,   0, 0, 0, 1, 0, 0, 0 },
+	{LLCC_CMPT,     10,  1024, 1, 1, 0x1FFF,  0x0,   0, 0, 0, 1, 0, 0, 0 },
+	{LLCC_GPUHTW,   11,     0, 1, 1, 0x1FFF,  0x0,   0, 0, 0, 1, 0, 0, 0 },
+	{LLCC_GPU,      12,  3072, 3, 1, 0x1FFF,  0x0,   0, 0, 0, 1, 0, 1, 0 },
+	{LLCC_MMUHWT,   13,   512, 1, 1, 0x1FFF,  0x0,   0, 0, 0, 0, 0, 0, 0 },
+	{LLCC_DISP,     16, 12800, 1, 1, 0x1FFF,  0x0,   0, 0, 0, 1, 0, 0, 0 },
+	{LLCC_CVP,      28,   256, 3, 1, 0x1FFF,  0x0,   0, 0, 0, 1, 0, 0, 0 },
+	{LLCC_APTCM,    26,  2048, 3, 1,    0x0,  0x3,   1, 0, 1, 1, 0, 0, 0 },
+	{LLCC_WRTCH,    31,   256, 1, 1, 0x1FFF,  0x0,   0, 0, 0, 0, 1, 0, 0 },
+	{LLCC_AENPU,    30,  3072, 3, 1, 0x1FFF,  0x0,   0, 0, 0, 1, 0, 0, 0 },
+	{LLCC_DISLFT,   17,     0, 1, 1,    0x0,  0x0,   0, 0, 0, 1, 0, 0, 0 },
+	{LLCC_DISRGHT,  18,     0, 1, 1,    0x0,  0x0,   0, 0, 0, 1, 0, 0, 0 },
+	{LLCC_EVCSLFT,  22,     0, 1, 1,    0x0,  0x0,   0, 0, 0, 1, 0, 0, 0 },
+	{LLCC_EVCSRGHT, 23,     0, 1, 1,    0x0,  0x0,   0, 0, 0, 1, 0, 0, 0 },
+};
+
 static const struct qcom_llcc_config sc7180_cfg = {
 	.sct_data	= sc7180_data,
 	.size		= ARRAY_SIZE(sc7180_data),
@@ -589,6 +635,30 @@ static const struct llcc_slice_config anorak_data[] =  {
 static const struct qcom_llcc_config anorak_cfg = {
 	.sct_data       = anorak_data,
 	.size           = ARRAY_SIZE(anorak_data),
+};
+
+static const struct qcom_llcc_config neo_cfg[] = {
+	{
+		.sct_data	= neo_xr_data,
+		.size		= ARRAY_SIZE(neo_xr_data),
+	},
+	{
+		.sct_data	= neo_xr_v2_data,
+		.size		= ARRAY_SIZE(neo_xr_v2_data),
+	},
+	{
+		.sct_data	= neo_xr_v3_data,
+		.size		= ARRAY_SIZE(neo_xr_v3_data),
+	},
+	{
+		.sct_data	= neo_sg_data,
+		.size		= ARRAY_SIZE(neo_sg_data),
+	},
+	{
+		.sct_data	= neo_sg_v2_data,
+		.size		= ARRAY_SIZE(neo_sg_v2_data),
+	},
+
 };
 
 static struct llcc_drv_data *drv_data = (void *) -EPROBE_DEFER;
@@ -1005,13 +1075,19 @@ static int qcom_llcc_cfg_program(struct platform_device *pdev)
 		 */
 		max_cap_cacheline = max_cap_cacheline / drv_data->num_banks;
 		max_cap_cacheline >>= CACHE_LINE_SIZE_SHIFT;
-		attr1_val |= max_cap_cacheline << ATTR1_MAX_CAP_SHIFT;
 
 		if (drv_data->llcc_ver >= 41) {
+			attr1_val |= max_cap_cacheline << ATTR1_MAX_CAP_SHIFT;
+			attr2_cfg = LLCC_TRP_ATTR2_CFGn(llcc_table[i].slice_id);
+			attr0_val = llcc_table[i].res_ways;
+			attr2_val = llcc_table[i].bonus_ways;
+		} else if (drv_data->llcc_ver >= 31) {
+			attr1_val |= max_cap_cacheline << ATTR1_MAX_CAP_SHIFT_v31;
 			attr2_cfg = LLCC_TRP_ATTR2_CFGn(llcc_table[i].slice_id);
 			attr0_val = llcc_table[i].res_ways;
 			attr2_val = llcc_table[i].bonus_ways;
 		} else {
+			attr1_val |= max_cap_cacheline << ATTR1_MAX_CAP_SHIFT;
 			attr0_val = llcc_table[i].res_ways & ATTR0_RES_WAYS_MASK;
 			attr0_val |= llcc_table[i].bonus_ways << ATTR0_BONUS_WAYS_SHIFT;
 		}
@@ -1024,7 +1100,7 @@ static int qcom_llcc_cfg_program(struct platform_device *pdev)
 					attr0_val);
 		if (ret)
 			return ret;
-		if (drv_data->llcc_ver >= 41) {
+		if (drv_data->llcc_ver >= 31) {
 			ret = regmap_write(drv_data->bcast_regmap, attr2_cfg,
 					attr2_val);
 			if (ret)
@@ -1179,7 +1255,6 @@ static struct regmap *qcom_llcc_init_mmio(struct platform_device *pdev,
 
 static int qcom_llcc_probe(struct platform_device *pdev)
 {
-	u32 num_banks;
 	struct device *dev = &pdev->dev;
 	int ret, i;
 	struct platform_device *llcc_edac;
@@ -1188,6 +1263,8 @@ static int qcom_llcc_probe(struct platform_device *pdev)
 	struct resource *res;
 	void __iomem *ch_reg = NULL;
 	u32 sz, max_banks, ch_reg_sz, ch_reg_off, ch_num;
+	bool multiple_llcc = false;
+	u32 sct_config;
 
 	if (!IS_ERR(drv_data))
 		return -EBUSY;
@@ -1197,6 +1274,7 @@ static int qcom_llcc_probe(struct platform_device *pdev)
 		ret = -ENOMEM;
 		goto err;
 	}
+
 
 	drv_data->regmap = qcom_llcc_init_mmio(pdev, "llcc_base");
 	if (IS_ERR(drv_data->regmap)) {
@@ -1216,16 +1294,19 @@ static int qcom_llcc_probe(struct platform_device *pdev)
 		drv_data->llcc_ver = 50;
 		llcc_regs = llcc_regs_v21;
 		drv_data->offsets = llcc_offsets_v41;
+		drv_data->num_banks = ARRAY_SIZE(llcc_offsets_v41);
 	} else if (of_property_match_string(dev->of_node,
 				    "compatible", "qcom,llcc-v41") >= 0) {
 		drv_data->llcc_ver = 41;
 		llcc_regs = llcc_regs_v21;
 		drv_data->offsets = llcc_offsets_v41;
+		drv_data->num_banks = ARRAY_SIZE(llcc_offsets_v41);
 	} else if (of_property_match_string(dev->of_node,
 				"compatible", "qcom,llcc-v31") >= 0) {
 		drv_data->llcc_ver = 31;
 		llcc_regs = llcc_regs_v21;
 		drv_data->offsets = llcc_offsets_v31;
+		drv_data->num_banks = ARRAY_SIZE(llcc_offsets_v31);
 		if (of_property_match_string(dev->of_node,
 				"compatible", "qcom,monaco_auto_ivi-llcc") >= 0)
 			drv_data->offsets = llcc_offsets_monaco_auto;
@@ -1234,25 +1315,17 @@ static int qcom_llcc_probe(struct platform_device *pdev)
 		drv_data->llcc_ver = 21;
 		llcc_regs = llcc_regs_v21;
 		drv_data->offsets = llcc_offsets_v21;
+		drv_data->num_banks = ARRAY_SIZE(llcc_offsets_v21);
 	} else {
 		drv_data->llcc_ver = 20;
 		llcc_regs = llcc_regs_v2;
 		drv_data->offsets = llcc_offsets_v2;
+		drv_data->num_banks = ARRAY_SIZE(llcc_offsets_v2);
 	}
-
-	ret = regmap_read(drv_data->regmap, LLCC_COMMON_STATUS0,
-						&num_banks);
-	if (ret)
-		goto err;
-
-	num_banks &= LLCC_LB_CNT_MASK;
-	num_banks >>= LLCC_LB_CNT_SHIFT;
 
 	/* some devices have more logical banks than we use, so check for max banks */
 	if (!of_property_read_u32(dev->of_node, "max-banks", &max_banks))
-		drv_data->num_banks = min(num_banks, max_banks);
-	else
-		drv_data->num_banks = num_banks;
+		drv_data->num_banks = min(drv_data->num_banks, max_banks);
 
 	cfg = of_device_get_match_data(&pdev->dev);
 	if (!cfg) {
@@ -1260,6 +1333,9 @@ static int qcom_llcc_probe(struct platform_device *pdev)
 		ret = -ENODEV;
 		goto err;
 	}
+
+	if (!of_property_read_u32(dev->of_node, "qcom,sct-config", &sct_config))
+		multiple_llcc = true;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "multi_ch_reg");
 	if (res)
@@ -1284,6 +1360,9 @@ static int qcom_llcc_probe(struct platform_device *pdev)
 
 		devm_iounmap(dev, ch_reg);
 		ch_reg = NULL;
+	} else if (multiple_llcc) {
+		llcc_cfg = cfg[sct_config].sct_data;
+		sz = cfg[sct_config].size;
 	} else {
 		llcc_cfg = cfg->sct_data;
 		sz = cfg->size;
@@ -1356,6 +1435,7 @@ static const struct of_device_id qcom_llcc_of_match[] = {
 	{ .compatible = "qcom,monaco_auto_ivi-llcc", .data = &monaco_auto_ivi_cfg },
 	{ .compatible = "qcom,niobe-llcc", .data = &niobe_cfg },
 	{ .compatible = "qcom,anorak-llcc", .data = &anorak_cfg },
+	{ .compatible = "qcom,neo-llcc", .data = &neo_cfg },
 	{ }
 };
 
