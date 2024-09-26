@@ -89,7 +89,7 @@ static void dw8250_set_divisor(struct uart_port *p, unsigned int baud,
 			       unsigned int quot, unsigned int quot_frac)
 {
 	dw8250_writel_ext(p, DW_UART_DLF, quot_frac);
-	serial8250_do_set_divisor(p, baud, quot, quot_frac);
+	serial8250_do_set_divisor(p, baud, quot);
 }
 
 void dw8250_do_set_termios(struct uart_port *p, struct ktermios *termios,
