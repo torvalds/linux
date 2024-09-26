@@ -516,10 +516,6 @@ struct drvextra_cmd_parm {
 
 /*------------------- Below are used for RF/BB tuning ---------------------*/
 
-struct	getcountjudge_rsp {
-	u8 count_judge[MAX_RATES_LENGTH];
-};
-
 struct addBaReq_parm {
 	unsigned int tid;
 	u8 addr[ETH_ALEN];
