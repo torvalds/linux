@@ -5,7 +5,7 @@
  *	    Chander Kashyap <k.chander@samsung.com>
  *
  * Common Clock Framework support for Exynos5420 SoC.
-*/
+ */
 
 #include <dt-bindings/clock/exynos5420.h>
 #include <linux/slab.h>
