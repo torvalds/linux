@@ -2187,6 +2187,14 @@ enum dc_status dc_commit_streams(struct dc *dc, struct dc_commit_streams_params 
 	context->power_source = params->power_source;
 
 	res = dc_validate_with_context(dc, set, params->stream_count, context, false);
+
+	/*
+	 * Only update link encoder to stream assignment after bandwidth validation passed.
+	 */
+	if (res == DC_OK && dc->res_pool->funcs->link_encs_assign)
+		dc->res_pool->funcs->link_encs_assign(
+			dc, context, context->streams, context->stream_count);
+
 	if (res != DC_OK) {
 		BREAK_TO_DEBUGGER();
 		goto fail;

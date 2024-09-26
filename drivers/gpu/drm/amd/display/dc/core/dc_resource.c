@@ -4091,14 +4091,6 @@ enum dc_status dc_validate_global_state(
 		if (!dc->res_pool->funcs->validate_bandwidth(dc, new_ctx, fast_validate))
 			result = DC_FAIL_BANDWIDTH_VALIDATE;
 
-	/*
-	 * Only update link encoder to stream assignment after bandwidth validation passed.
-	 * TODO: Split out assignment and validation.
-	 */
-	if (result == DC_OK && dc->res_pool->funcs->link_encs_assign && fast_validate == false)
-		dc->res_pool->funcs->link_encs_assign(
-			dc, new_ctx, new_ctx->streams, new_ctx->stream_count);
-
 	return result;
 }
 
