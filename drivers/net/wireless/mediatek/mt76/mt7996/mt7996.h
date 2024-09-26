@@ -447,6 +447,25 @@ mt7996_band_valid(struct mt7996_dev *dev, u8 band)
 	return band <= MT_BAND2;
 }
 
+static inline bool
+mt7996_has_background_radar(struct mt7996_dev *dev)
+{
+	switch (mt76_chip(&dev->mt76)) {
+	case 0x7990:
+		if (dev->var.type == MT7996_VAR_TYPE_233)
+			return false;
+		break;
+	case 0x7992:
+		if (dev->var.type == MT7992_VAR_TYPE_23)
+			return false;
+		break;
+	default:
+		return false;
+	}
+
+	return true;
+}
+
 extern const struct ieee80211_ops mt7996_ops;
 extern struct pci_driver mt7996_pci_driver;
 extern struct pci_driver mt7996_hif_driver;
