@@ -102,6 +102,7 @@ spi-pxa2xx-platform-objs		:= spi-pxa2xx.o spi-pxa2xx-dma.o
 obj-$(CONFIG_SPI_PXA2XX)		+= spi-pxa2xx-platform.o
 obj-$(CONFIG_SPI_PXA2XX_PCI)		+= spi-pxa2xx-pci.o
 obj-$(CONFIG_SPI_QCOM_GENI)		+= spi-geni-qcom.o
+obj-$(CONFIG_SPI_QCOM_GENI_MSM)		+= spi-geni-qcom-msm.o
 obj-$(CONFIG_Q2SPI_MSM_GENI)		+= q2spi-geni.o
 q2spi-geni-y				:= q2spi-msm-geni.o q2spi-gsi.o
 obj-$(CONFIG_SPI_MSM_GENI)		+= spi-msm-geni.o
