@@ -495,7 +495,6 @@ static int ktd202x_add_led(struct ktd202x *chip, struct fwnode_handle *fwnode, u
 
 static int ktd202x_probe_fw(struct ktd202x *chip)
 {
-	struct fwnode_handle *child;
 	struct device *dev = chip->dev;
 	int count;
 	int i = 0;
@@ -509,13 +508,12 @@ static int ktd202x_probe_fw(struct ktd202x *chip)
 	/* Allow the device to execute the complete reset */
 	usleep_range(200, 300);
 
-	device_for_each_child_node(dev, child) {
+	device_for_each_child_node_scoped(dev, child) {
 		int ret = ktd202x_add_led(chip, child, i);
 
-		if (ret) {
-			fwnode_handle_put(child);
+		if (ret)
 			return ret;
-		}
+
 		i++;
 	}
 
