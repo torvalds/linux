@@ -294,6 +294,7 @@ static void fbtft_update_display(struct fbtft_par *par, unsigned int start_line,
 			 "Display update: %ld kB/s, fps=%ld\n",
 			 throughput, fps);
 		par->first_update_done = true;
+		par->update_time = ts_start;
 	}
 }
 
