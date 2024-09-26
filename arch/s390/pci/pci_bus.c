@@ -168,9 +168,16 @@ void zpci_bus_scan_busses(void)
 	mutex_unlock(&zbus_list_lock);
 }
 
+static bool zpci_bus_is_multifunction_root(struct zpci_dev *zdev)
+{
+	return !s390_pci_no_rid && zdev->rid_available &&
+		zpci_is_device_configured(zdev) &&
+		!zdev->vfn;
+}
+
 /* zpci_bus_create_pci_bus - Create the PCI bus associated with this zbus
  * @zbus: the zbus holding the zdevices
- * @fr: PCI root function that will determine the bus's domain, and bus speeed
+ * @fr: PCI root function that will determine the bus's domain, and bus speed
  * @ops: the pci operations
  *
  * The PCI function @fr determines the domain (its UID), multifunction property
@@ -188,7 +195,7 @@ static int zpci_bus_create_pci_bus(struct zpci_bus *zbus, struct zpci_dev *fr, s
 		return domain;
 
 	zbus->domain_nr = domain;
-	zbus->multifunction = fr->rid_available;
+	zbus->multifunction = zpci_bus_is_multifunction_root(fr);
 	zbus->max_bus_speed = fr->max_bus_speed;
 
 	/*
@@ -238,6 +245,8 @@ static struct zpci_bus *zpci_bus_get(int topo, bool topo_is_tid)
 
 	mutex_lock(&zbus_list_lock);
 	list_for_each_entry(zbus, &zbus_list, bus_next) {
+		if (!zbus->multifunction)
+			continue;
 		if (topo_is_tid == zbus->topo_is_tid && topo == zbus->topo) {
 			kref_get(&zbus->kref);
 			goto out_unlock;
@@ -293,19 +302,22 @@ static int zpci_bus_add_device(struct zpci_bus *zbus, struct zpci_dev *zdev)
 {
 	int rc = -EINVAL;
 
+	if (zbus->multifunction) {
+		if (!zdev->rid_available) {
+			WARN_ONCE(1, "rid_available not set for multifunction\n");
+			return rc;
+		}
+		zdev->devfn = zdev->rid & ZPCI_RID_MASK_DEVFN;
+	}
+
 	if (zbus->function[zdev->devfn]) {
 		pr_err("devfn %04x is already assigned\n", zdev->devfn);
 		return rc;
 	}
-
 	zdev->zbus = zbus;
 	zbus->function[zdev->devfn] = zdev;
 	zpci_nb_devices++;
 
-	if (zbus->multifunction && !zdev->rid_available) {
-		WARN_ONCE(1, "rid_available not set for multifunction\n");
-		goto error;
-	}
 	rc = zpci_init_slot(zdev);
 	if (rc)
 		goto error;
@@ -332,13 +344,8 @@ int zpci_bus_device_register(struct zpci_dev *zdev, struct pci_ops *ops)
 		return -ENOSPC;
 	}
 
-	if (zdev->devfn >= ZPCI_FUNCTIONS_PER_BUS)
-		return -EINVAL;
-
 	topo = topo_is_tid ? zdev->tid : zdev->pchid;
-	if (!s390_pci_no_rid && zdev->rid_available)
-		zbus = zpci_bus_get(topo, topo_is_tid);
-
+	zbus = zpci_bus_get(topo, topo_is_tid);
 	if (!zbus) {
 		zbus = zpci_bus_alloc(topo, topo_is_tid);
 		if (!zbus)

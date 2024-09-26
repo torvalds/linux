@@ -168,8 +168,6 @@ static int clp_store_query_pci_fn(struct zpci_dev *zdev,
 	zdev->rid_available = response->rid_avail;
 	if (zdev->rid_available)
 		zdev->rid = response->rid;
-	if (!s390_pci_no_rid && zdev->rid_available)
-		zdev->devfn = response->rid & ZPCI_RID_MASK_DEVFN;
 	zdev->tid_avail = response->tid_avail;
 	if (zdev->tid_avail)
 		zdev->tid = response->tid;
