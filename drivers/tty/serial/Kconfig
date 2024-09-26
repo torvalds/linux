@@ -908,6 +908,15 @@ config SERIAL_QCOM_GENI
 	depends on QCOM_GENI_SE
 	select SERIAL_CORE
 
+config SERIAL_QCOM_GENI_MSM
+	tristate "QCOM on-chip GENI based serial port support with SCMI"
+	depends on ARCH_QCOM || COMPILE_TEST
+	depends on QCOM_GENI_SE_MSM
+	select SERIAL_CORE
+	help
+	  Serial driver for Qualcomm Technologies Inc's GENI based
+	  QUP hardware with SCMI support.
+
 config SERIAL_QCOM_GENI_CONSOLE
 	bool "QCOM GENI Serial Console support"
 	depends on SERIAL_QCOM_GENI

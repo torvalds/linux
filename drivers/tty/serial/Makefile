@@ -55,6 +55,7 @@ obj-$(CONFIG_SERIAL_ATMEL) += atmel_serial.o
 obj-$(CONFIG_SERIAL_UARTLITE) += uartlite.o
 obj-$(CONFIG_SERIAL_MSM) += msm_serial.o
 obj-$(CONFIG_SERIAL_QCOM_GENI) += qcom_geni_serial.o
+obj-$(CONFIG_SERIAL_QCOM_GENI_MSM) += qcom_geni_serial_msm.o
 CFLAGS_msm_geni_serial.o := -D__DISABLE_TRACE_MMIO__
 obj-$(CONFIG_SERIAL_MSM_GENI) += msm_geni_serial.o
 obj-$(CONFIG_SERIAL_MSM_HS) += msm_serial_hs.o
