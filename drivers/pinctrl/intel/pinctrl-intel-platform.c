@@ -158,7 +158,7 @@ static int intel_platform_pinctrl_prepare_soc_data(struct device *dev,
 	int ret;
 
 	/* Version 1.0 of the specification assumes only a single community per device node */
-	ncommunities = 1,
+	ncommunities = 1;
 	communities = devm_kcalloc(dev, ncommunities, sizeof(*communities), GFP_KERNEL);
 	if (!communities)
 		return -ENOMEM;
