@@ -232,13 +232,13 @@ static void zpci_bus_put(struct zpci_bus *zbus)
 	kref_put(&zbus->kref, zpci_bus_release);
 }
 
-static struct zpci_bus *zpci_bus_get(int pchid)
+static struct zpci_bus *zpci_bus_get(int topo, bool topo_is_tid)
 {
 	struct zpci_bus *zbus;
 
 	mutex_lock(&zbus_list_lock);
 	list_for_each_entry(zbus, &zbus_list, bus_next) {
-		if (pchid == zbus->pchid) {
+		if (topo_is_tid == zbus->topo_is_tid && topo == zbus->topo) {
 			kref_get(&zbus->kref);
 			goto out_unlock;
 		}
@@ -249,7 +249,7 @@ out_unlock:
 	return zbus;
 }
 
-static struct zpci_bus *zpci_bus_alloc(int pchid)
+static struct zpci_bus *zpci_bus_alloc(int topo, bool topo_is_tid)
 {
 	struct zpci_bus *zbus;
 
@@ -257,7 +257,8 @@ static struct zpci_bus *zpci_bus_alloc(int pchid)
 	if (!zbus)
 		return NULL;
 
-	zbus->pchid = pchid;
+	zbus->topo = topo;
+	zbus->topo_is_tid = topo_is_tid;
 	INIT_LIST_HEAD(&zbus->bus_next);
 	mutex_lock(&zbus_list_lock);
 	list_add_tail(&zbus->bus_next, &zbus_list);
@@ -321,8 +322,9 @@ error:
 
 int zpci_bus_device_register(struct zpci_dev *zdev, struct pci_ops *ops)
 {
+	bool topo_is_tid = zdev->tid_avail;
 	struct zpci_bus *zbus = NULL;
-	int rc = -EBADF;
+	int topo, rc = -EBADF;
 
 	if (zpci_nb_devices == ZPCI_NR_DEVICES) {
 		pr_warn("Adding PCI function %08x failed because the configured limit of %d is reached\n",
@@ -333,11 +335,12 @@ int zpci_bus_device_register(struct zpci_dev *zdev, struct pci_ops *ops)
 	if (zdev->devfn >= ZPCI_FUNCTIONS_PER_BUS)
 		return -EINVAL;
 
+	topo = topo_is_tid ? zdev->tid : zdev->pchid;
 	if (!s390_pci_no_rid && zdev->rid_available)
-		zbus = zpci_bus_get(zdev->pchid);
+		zbus = zpci_bus_get(topo, topo_is_tid);
 
 	if (!zbus) {
-		zbus = zpci_bus_alloc(zdev->pchid);
+		zbus = zpci_bus_alloc(topo, topo_is_tid);
 		if (!zbus)
 			return -ENOMEM;
 	}
