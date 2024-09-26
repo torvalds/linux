@@ -849,9 +849,9 @@
 	};
 
 	// OCP NIC1 FRU EEPROM
-	eeprom@50 {
+	eeprom@52 {
 		compatible = "atmel,24c64";
-		reg = <0x50>;
+		reg = <0x52>;
 	};
 };
 
