@@ -236,7 +236,6 @@ static int bd70528_probe(struct platform_device *pdev)
 {
 	struct bd70528_rtc *bd_rtc;
 	const struct rtc_class_ops *rtc_ops;
-	const char *irq_name;
 	int ret;
 	struct rtc_device *rtc;
 	int irq;
@@ -259,7 +258,6 @@ static int bd70528_probe(struct platform_device *pdev)
 
 	switch (chip) {
 	case ROHM_CHIP_TYPE_BD71815:
-		irq_name = "bd71815-rtc-alm-0";
 		bd_rtc->reg_time_start = BD71815_REG_RTC_START;
 
 		/*
@@ -276,7 +274,6 @@ static int bd70528_probe(struct platform_device *pdev)
 		hour_reg = BD71815_REG_HOUR;
 		break;
 	case ROHM_CHIP_TYPE_BD71828:
-		irq_name = "bd71828-rtc-alm-0";
 		bd_rtc->reg_time_start = BD71828_REG_RTC_START;
 		bd_rtc->bd718xx_alm_block_start = BD71828_REG_RTC_ALM_START;
 		hour_reg = BD71828_REG_RTC_HOUR;
@@ -286,7 +283,7 @@ static int bd70528_probe(struct platform_device *pdev)
 		return -ENOENT;
 	}
 
-	irq = platform_get_irq_byname(pdev, irq_name);
+	irq = platform_get_irq_byname(pdev, "bd70528-rtc-alm-0");
 
 	if (irq < 0)
 		return irq;
