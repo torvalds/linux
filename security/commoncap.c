@@ -145,15 +145,20 @@ int cap_ptrace_access_check(struct task_struct *child, unsigned int mode)
 		caller_caps = &cred->cap_effective;
 	else
 		caller_caps = &cred->cap_permitted;
-	if (cred->user_ns == child_cred->user_ns &&
-	    cap_issubset(child_cred->cap_permitted, *caller_caps))
-		goto out;
-	if (ns_capable(child_cred->user_ns, CAP_SYS_PTRACE))
-		goto out;
+
+	if ((cred->user_ns == child_cred->user_ns &&
+	    cap_issubset(child_cred->cap_permitted, *caller_caps)) || ns_capable(child_cred->user_ns, CAP_SYS_PTRACE)) {
+
+			rcu_read_unlock();
+			return ret;
+
+	} 
+
 	ret = -EPERM;
-out:
 	rcu_read_unlock();
 	return ret;
+		
+		
 }
 
 /**
@@ -177,13 +182,15 @@ int cap_ptrace_traceme(struct task_struct *parent)
 	rcu_read_lock();
 	cred = __task_cred(parent);
 	child_cred = current_cred();
-	if (cred->user_ns == child_cred->user_ns &&
-	    cap_issubset(child_cred->cap_permitted, cred->cap_permitted))
-		goto out;
-	if (has_ns_capability(parent, child_cred->user_ns, CAP_SYS_PTRACE))
-		goto out;
+	if ((cred->user_ns == child_cred->user_ns &&
+	    cap_issubset(child_cred->cap_permitted, cred->cap_permitted)) || has_ns_capability(parent, child_cred->user_ns, CAP_SYS_PTRACE)) {
+
+			rcu_read_unlock();
+			return ret;
+
+	} 
+	
 	ret = -EPERM;
-out:
 	rcu_read_unlock();
 	return ret;
 }
