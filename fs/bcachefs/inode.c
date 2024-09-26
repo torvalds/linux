@@ -1113,7 +1113,7 @@ static int may_delete_deleted_inode(struct btree_trans *trans,
 			pos.offset, pos.snapshot))
 		goto delete;
 
-	if (c->sb.clean &&
+	if (test_bit(BCH_FS_clean_recovery, &c->flags) &&
 	    !fsck_err(trans, deleted_inode_but_clean,
 		      "filesystem marked as clean but have deleted inode %llu:%u",
 		      pos.offset, pos.snapshot)) {

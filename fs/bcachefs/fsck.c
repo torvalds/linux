@@ -1084,8 +1084,9 @@ static int check_inode(struct btree_trans *trans,
 		}
 	}
 
+	/* i_size_dirty is vestigal, since we now have logged ops for truncate * */
 	if (u.bi_flags & BCH_INODE_i_size_dirty &&
-	    (!c->sb.clean ||
+	    (!test_bit(BCH_FS_clean_recovery, &c->flags) ||
 	     fsck_err(trans, inode_i_size_dirty_but_clean,
 		      "filesystem marked clean, but inode %llu has i_size dirty",
 		      u.bi_inum))) {
@@ -1114,8 +1115,9 @@ static int check_inode(struct btree_trans *trans,
 		do_update = true;
 	}
 
+	/* i_sectors_dirty is vestigal, i_sectors is always updated transactionally */
 	if (u.bi_flags & BCH_INODE_i_sectors_dirty &&
-	    (!c->sb.clean ||
+	    (!test_bit(BCH_FS_clean_recovery, &c->flags) ||
 	     fsck_err(trans, inode_i_sectors_dirty_but_clean,
 		      "filesystem marked clean, but inode %llu has i_sectors dirty",
 		      u.bi_inum))) {

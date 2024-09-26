@@ -594,6 +594,7 @@ struct bch_dev {
 #define BCH_FS_FLAGS()			\
 	x(new_fs)			\
 	x(started)			\
+	x(clean_recovery)		\
 	x(btree_running)		\
 	x(accounting_replay_done)	\
 	x(may_go_rw)			\

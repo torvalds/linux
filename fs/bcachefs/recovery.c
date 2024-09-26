@@ -717,6 +717,8 @@ int bch2_fs_recovery(struct bch_fs *c)
 
 	if (c->opts.fsck)
 		set_bit(BCH_FS_fsck_running, &c->flags);
+	if (c->sb.clean)
+		set_bit(BCH_FS_clean_recovery, &c->flags);
 
 	ret = bch2_blacklist_table_initialize(c);
 	if (ret) {
