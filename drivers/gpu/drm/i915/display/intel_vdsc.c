@@ -306,6 +306,12 @@ int intel_dsc_compute_params(struct intel_crtc_state *pipe_config)
 
 	vdsc_cfg->bits_per_component = pipe_config->pipe_bpp / 3;
 
+	if (vdsc_cfg->bits_per_component < 8) {
+		drm_dbg_kms(&dev_priv->drm, "DSC bpc requirements not met bpc: %d\n",
+			    vdsc_cfg->bits_per_component);
+		return -EINVAL;
+	}
+
 	drm_dsc_set_rc_buf_thresh(vdsc_cfg);
 
 	/*
