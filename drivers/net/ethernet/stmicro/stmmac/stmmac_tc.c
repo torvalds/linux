@@ -386,6 +386,7 @@ static int tc_setup_cbs(struct stmmac_priv *priv,
 			return ret;
 
 		priv->plat->tx_queues_cfg[queue].mode_to_use = MTL_QUEUE_DCB;
+		return 0;
 	}
 
 	/* Final adjustments for HW */

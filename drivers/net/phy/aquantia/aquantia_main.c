@@ -435,6 +435,9 @@ static int aqr107_set_tunable(struct phy_device *phydev,
 	}
 }
 
+#define AQR_FW_WAIT_SLEEP_US	20000
+#define AQR_FW_WAIT_TIMEOUT_US	2000000
+
 /* If we configure settings whilst firmware is still initializing the chip,
  * then these settings may be overwritten. Therefore make sure chip
  * initialization has completed. Use presence of the firmware ID as
@@ -444,11 +447,19 @@ static int aqr107_set_tunable(struct phy_device *phydev,
  */
 int aqr_wait_reset_complete(struct phy_device *phydev)
 {
-	int val;
+	int ret, val;
 
-	return phy_read_mmd_poll_timeout(phydev, MDIO_MMD_VEND1,
-					 VEND1_GLOBAL_FW_ID, val, val != 0,
-					 20000, 2000000, false);
+	ret = read_poll_timeout(phy_read_mmd, val, val != 0,
+				AQR_FW_WAIT_SLEEP_US, AQR_FW_WAIT_TIMEOUT_US,
+				false, phydev, MDIO_MMD_VEND1,
+				VEND1_GLOBAL_FW_ID);
+	if (val < 0) {
+		phydev_err(phydev, "Failed to read VEND1_GLOBAL_FW_ID: %pe\n",
+			   ERR_PTR(val));
+		return val;
+	}
+
+	return ret;
 }
 
 static void aqr107_chip_info(struct phy_device *phydev)
@@ -478,7 +489,7 @@ static int aqr107_config_init(struct phy_device *phydev)
 {
 	struct aqr107_priv *priv = phydev->priv;
 	u32 led_active_low;
-	int ret, index = 0;
+	int ret;
 
 	/* Check that the PHY interface type is compatible */
 	if (phydev->interface != PHY_INTERFACE_MODE_SGMII &&
@@ -505,10 +516,9 @@ static int aqr107_config_init(struct phy_device *phydev)
 
 	/* Restore LED polarity state after reset */
 	for_each_set_bit(led_active_low, &priv->leds_active_low, AQR_MAX_LEDS) {
-		ret = aqr_phy_led_active_low_set(phydev, index, led_active_low);
+		ret = aqr_phy_led_active_low_set(phydev, led_active_low, true);
 		if (ret)
 			return ret;
-		index++;
 	}
 
 	return 0;
