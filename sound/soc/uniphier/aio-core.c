@@ -921,16 +921,19 @@ int aio_src_set_param(struct uniphier_aio_sub *sub,
 {
 	struct regmap *r = sub->aio->chip->regmap;
 	u32 v;
+	int ret;
 
 	if (sub->swm->dir != PORT_DIR_OUTPUT)
 		return 0;
 
-	regmap_write(r, OPORTMXSRC1CTR(sub->swm->oport.map),
+	ret = regmap_write(r, OPORTMXSRC1CTR(sub->swm->oport.map),
 		     OPORTMXSRC1CTR_THMODE_SRC |
 		     OPORTMXSRC1CTR_SRCPATH_CALC |
 		     OPORTMXSRC1CTR_SYNC_ASYNC |
 		     OPORTMXSRC1CTR_FSIIPSEL_INNER |
 		     OPORTMXSRC1CTR_FSISEL_ACLK);
+	if (ret)
+		return ret;
 
 	switch (params_rate(params)) {
 	default:
@@ -951,12 +954,18 @@ int aio_src_set_param(struct uniphier_aio_sub *sub,
 		break;
 	}
 
-	regmap_write(r, OPORTMXRATE_I(sub->swm->oport.map),
+
+	ret = regmap_write(r, OPORTMXRATE_I(sub->swm->oport.map),
 		     v | OPORTMXRATE_I_ACLKSRC_APLL |
 		     OPORTMXRATE_I_LRCKSTP_STOP);
-	regmap_update_bits(r, OPORTMXRATE_I(sub->swm->oport.map),
+	if (ret)
+		return ret;
+
+	ret = regmap_update_bits(r, OPORTMXRATE_I(sub->swm->oport.map),
 			   OPORTMXRATE_I_LRCKSTP_MASK,
 			   OPORTMXRATE_I_LRCKSTP_START);
+	if (ret)
+		return ret;
 
 	return 0;
 }
