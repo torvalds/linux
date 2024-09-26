@@ -349,7 +349,7 @@ static const unsigned int eth_ref_clk_pins[]	= { DIF_3_N };
 static const unsigned int eth_mdc_pins[]	= { DIF_4_P };
 static const unsigned int eth_mdio_en_pins[]	= { DIF_4_N };
 
-static struct meson_pmx_group meson8b_cbus_groups[] = {
+static const struct meson_pmx_group meson8b_cbus_groups[] = {
 	GPIO_GROUP(GPIOX_0),
 	GPIO_GROUP(GPIOX_1),
 	GPIO_GROUP(GPIOX_2),
@@ -603,7 +603,7 @@ static struct meson_pmx_group meson8b_cbus_groups[] = {
 	GROUP(eth_rxd2,		7,	23),
 };
 
-static struct meson_pmx_group meson8b_aobus_groups[] = {
+static const struct meson_pmx_group meson8b_aobus_groups[] = {
 	GPIO_GROUP(GPIOAO_0),
 	GPIO_GROUP(GPIOAO_1),
 	GPIO_GROUP(GPIOAO_2),
@@ -869,7 +869,7 @@ static const char * const tsin_b_groups[] = {
 	"tsin_d0_b", "tsin_clk_b", "tsin_sop_b", "tsin_d_valid_b"
 };
 
-static struct meson_pmx_func meson8b_cbus_functions[] = {
+static const struct meson_pmx_func meson8b_cbus_functions[] = {
 	FUNCTION(gpio_periphs),
 	FUNCTION(sd_a),
 	FUNCTION(sdxc_a),
@@ -903,7 +903,7 @@ static struct meson_pmx_func meson8b_cbus_functions[] = {
 	FUNCTION(clk_24m),
 };
 
-static struct meson_pmx_func meson8b_aobus_functions[] = {
+static const struct meson_pmx_func meson8b_aobus_functions[] = {
 	FUNCTION(gpio_aobus),
 	FUNCTION(uart_ao),
 	FUNCTION(uart_ao_b),
@@ -917,7 +917,7 @@ static struct meson_pmx_func meson8b_aobus_functions[] = {
 	FUNCTION(hdmi_cec),
 };
 
-static struct meson_bank meson8b_cbus_banks[] = {
+static const struct meson_bank meson8b_cbus_banks[] = {
 	/*   name        first          last        irq       pullen   pull     dir      out      in   */
 	BANK("X0..11",	 GPIOX_0,	GPIOX_11,   97, 108,  4,  0,   4,  0,   0,  0,   1,  0,   2,  0),
 	BANK("X16..21",	 GPIOX_16,	GPIOX_21,  113, 118,  4, 16,   4, 16,   0, 16,   1, 16,   2, 16),
@@ -938,12 +938,12 @@ static struct meson_bank meson8b_cbus_banks[] = {
 	BANK("DIF",	 DIF_0_P,	DIF_4_N,    -1,  -1,  5,  8,   5,  8,  12, 12,  13, 12,  14, 12),
 };
 
-static struct meson_bank meson8b_aobus_banks[] = {
+static const struct meson_bank meson8b_aobus_banks[] = {
 	/*   name    first     lastc        irq    pullen  pull    dir     out     in  */
 	BANK("AO",   GPIOAO_0, GPIO_TEST_N, 0, 13, 0,  16, 0, 0,  0,  0,  0, 16,  1,  0),
 };
 
-static struct meson_pinctrl_data meson8b_cbus_pinctrl_data = {
+static const struct meson_pinctrl_data meson8b_cbus_pinctrl_data = {
 	.name		= "cbus-banks",
 	.pins		= meson8b_cbus_pins,
 	.groups		= meson8b_cbus_groups,
@@ -956,7 +956,7 @@ static struct meson_pinctrl_data meson8b_cbus_pinctrl_data = {
 	.pmx_ops	= &meson8_pmx_ops,
 };
 
-static struct meson_pinctrl_data meson8b_aobus_pinctrl_data = {
+static const struct meson_pinctrl_data meson8b_aobus_pinctrl_data = {
 	.name		= "aobus-banks",
 	.pins		= meson8b_aobus_pins,
 	.groups		= meson8b_aobus_groups,

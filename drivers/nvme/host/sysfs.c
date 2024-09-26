@@ -767,6 +767,7 @@ static struct attribute *nvme_tls_attrs[] = {
 	&dev_attr_tls_key.attr,
 	&dev_attr_tls_configured_key.attr,
 	&dev_attr_tls_keyring.attr,
+	NULL,
 };
 
 static umode_t nvme_tls_attrs_are_visible(struct kobject *kobj,

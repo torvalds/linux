@@ -4,7 +4,7 @@
 
 use super::{AllocError, Flags};
 use alloc::boxed::Box;
-use core::mem::MaybeUninit;
+use core::{mem::MaybeUninit, ptr, result::Result};
 
 /// Extensions to [`Box`].
 pub trait BoxExt<T>: Sized {
@@ -17,6 +17,24 @@ pub trait BoxExt<T>: Sized {
     ///
     /// The allocation may fail, in which case an error is returned.
     fn new_uninit(flags: Flags) -> Result<Box<MaybeUninit<T>>, AllocError>;
+
+    /// Drops the contents, but keeps the allocation.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use kernel::alloc::{flags, box_ext::BoxExt};
+    /// let value = Box::new([0; 32], flags::GFP_KERNEL)?;
+    /// assert_eq!(*value, [0; 32]);
+    /// let mut value = Box::drop_contents(value);
+    /// // Now we can re-use `value`:
+    /// value.write([1; 32]);
+    /// // SAFETY: We just wrote to it.
+    /// let value = unsafe { value.assume_init() };
+    /// assert_eq!(*value, [1; 32]);
+    /// # Ok::<(), Error>(())
+    /// ```
+    fn drop_contents(this: Self) -> Box<MaybeUninit<T>>;
 }
 
 impl<T> BoxExt<T> for Box<T> {
@@ -54,5 +72,18 @@ impl<T> BoxExt<T> for Box<T> {
         // SAFETY: For non-zero-sized types, we allocate above using the global allocator. For
         // zero-sized types, we use `NonNull::dangling`.
         Ok(unsafe { Box::from_raw(ptr) })
+    }
+
+    fn drop_contents(this: Self) -> Box<MaybeUninit<T>> {
+        let ptr = Box::into_raw(this);
+        // SAFETY: `ptr` is valid, because it came from `Box::into_raw`.
+        unsafe { ptr::drop_in_place(ptr) };
+
+        // CAST: `MaybeUninit<T>` is a transparent wrapper of `T`.
+        let ptr = ptr.cast::<MaybeUninit<T>>();
+
+        // SAFETY: `ptr` is valid for writes, because it came from `Box::into_raw` and it is valid for
+        // reads, since the pointer came from `Box::into_raw` and the type is `MaybeUninit<T>`.
+        unsafe { Box::from_raw(ptr) }
     }
 }

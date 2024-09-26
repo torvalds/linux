@@ -1,0 +1,16 @@
+{# SPDX-License-Identifier: GPL-2.0 #}
+
+{%if annotate %}
+/* Encode {{ argument }} arguments */
+{% endif %}
+static void {{ program }}_xdr_enc_{{ argument }}(struct rpc_rqst *req,
+		struct xdr_stream *xdr, const void *data)
+{
+{% if argument == 'void' %}
+	xdrgen_encode_void(xdr);
+{% else %}
+	const struct {{ argument }} *args = data;
+
+	xdrgen_encode_{{ argument }}(xdr, args);
+{% endif %}
+}

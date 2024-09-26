@@ -1396,24 +1396,16 @@ static bool alps_is_valid_package_ss4_v2(struct psmouse *psmouse)
 
 static DEFINE_MUTEX(alps_mutex);
 
-static void alps_register_bare_ps2_mouse(struct work_struct *work)
+static int alps_do_register_bare_ps2_mouse(struct alps_data *priv)
 {
-	struct alps_data *priv =
-		container_of(work, struct alps_data, dev3_register_work.work);
 	struct psmouse *psmouse = priv->psmouse;
 	struct input_dev *dev3;
-	int error = 0;
-
-	mutex_lock(&alps_mutex);
-
-	if (priv->dev3)
-		goto out;
+	int error;
 
 	dev3 = input_allocate_device();
 	if (!dev3) {
 		psmouse_err(psmouse, "failed to allocate secondary device\n");
-		error = -ENOMEM;
-		goto out;
+		return -ENOMEM;
 	}
 
 	snprintf(priv->phys3, sizeof(priv->phys3), "%s/%s",
@@ -1446,21 +1438,35 @@ static void alps_register_bare_ps2_mouse(struct work_struct *work)
 		psmouse_err(psmouse,
 			    "failed to register secondary device: %d\n",
 			    error);
-		input_free_device(dev3);
-		goto out;
+		goto err_free_input;
 	}
 
 	priv->dev3 = dev3;
+	return 0;
 
-out:
-	/*
-	 * Save the error code so that we can detect that we
-	 * already tried to create the device.
-	 */
-	if (error)
-		priv->dev3 = ERR_PTR(error);
+err_free_input:
+	input_free_device(dev3);
+	return error;
+}
 
-	mutex_unlock(&alps_mutex);
+static void alps_register_bare_ps2_mouse(struct work_struct *work)
+{
+	struct alps_data *priv = container_of(work, struct alps_data,
+					      dev3_register_work.work);
+	int error;
+
+	guard(mutex)(&alps_mutex);
+
+	if (!priv->dev3) {
+		error = alps_do_register_bare_ps2_mouse(priv);
+		if (error) {
+			/*
+			 * Save the error code so that we can detect that we
+			 * already tried to create the device.
+			 */
+			priv->dev3 = ERR_PTR(error);
+		}
+	}
 }
 
 static void alps_report_bare_ps2_packet(struct psmouse *psmouse,

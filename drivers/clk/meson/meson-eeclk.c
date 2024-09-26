@@ -57,7 +57,8 @@ int meson_eeclkc_probe(struct platform_device *pdev)
 
 	return devm_of_clk_add_hw_provider(dev, meson_clk_hw_get, (void *)&data->hw_clks);
 }
-EXPORT_SYMBOL_GPL(meson_eeclkc_probe);
+EXPORT_SYMBOL_NS_GPL(meson_eeclkc_probe, CLK_MESON);
 
 MODULE_DESCRIPTION("Amlogic Main Clock Controller Helpers");
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS(CLK_MESON);

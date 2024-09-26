@@ -2425,14 +2425,14 @@ static bool symbol__read_kptr_restrict(void)
 {
 	bool value = false;
 	FILE *fp = fopen("/proc/sys/kernel/kptr_restrict", "r");
+	bool used_root;
+	bool cap_syslog = perf_cap__capable(CAP_SYSLOG, &used_root);
 
 	if (fp != NULL) {
 		char line[8];
 
 		if (fgets(line, sizeof(line), fp) != NULL)
-			value = perf_cap__capable(CAP_SYSLOG) ?
-					(atoi(line) >= 2) :
-					(atoi(line) != 0);
+			value = cap_syslog ? (atoi(line) >= 2) : (atoi(line) != 0);
 
 		fclose(fp);
 	}
@@ -2440,7 +2440,7 @@ static bool symbol__read_kptr_restrict(void)
 	/* Per kernel/kallsyms.c:
 	 * we also restrict when perf_event_paranoid > 1 w/o CAP_SYSLOG
 	 */
-	if (perf_event_paranoid() > 1 && !perf_cap__capable(CAP_SYSLOG))
+	if (perf_event_paranoid() > 1 && !cap_syslog)
 		value = true;
 
 	return value;

@@ -1916,10 +1916,10 @@ static int prctl_set_mm_exe_file(struct mm_struct *mm, unsigned int fd)
 	int err;
 
 	exe = fdget(fd);
-	if (!exe.file)
+	if (!fd_file(exe))
 		return -EBADF;
 
-	inode = file_inode(exe.file);
+	inode = file_inode(fd_file(exe));
 
 	/*
 	 * Because the original mm->exe_file points to executable file, make
@@ -1927,14 +1927,14 @@ static int prctl_set_mm_exe_file(struct mm_struct *mm, unsigned int fd)
 	 * overall picture.
 	 */
 	err = -EACCES;
-	if (!S_ISREG(inode->i_mode) || path_noexec(&exe.file->f_path))
+	if (!S_ISREG(inode->i_mode) || path_noexec(&fd_file(exe)->f_path))
 		goto exit;
 
-	err = file_permission(exe.file, MAY_EXEC);
+	err = file_permission(fd_file(exe), MAY_EXEC);
 	if (err)
 		goto exit;
 
-	err = replace_mm_exe_file(mm, exe.file);
+	err = replace_mm_exe_file(mm, fd_file(exe));
 exit:
 	fdput(exe);
 	return err;

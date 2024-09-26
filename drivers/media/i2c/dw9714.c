@@ -279,8 +279,8 @@ static int  __maybe_unused dw9714_vcm_resume(struct device *dev)
 }
 
 static const struct i2c_device_id dw9714_id_table[] = {
-	{ DW9714_NAME, 0 },
-	{ { 0 } }
+	{ DW9714_NAME },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, dw9714_id_table);
 

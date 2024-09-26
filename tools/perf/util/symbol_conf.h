@@ -64,7 +64,7 @@ struct symbol_conf {
 			*sym_list_str,
 			*col_width_list_str,
 			*bt_stop_list_str;
-	char		*addr2line_path;
+	const char		*addr2line_path;
 	unsigned long	time_quantum;
        struct strlist	*dso_list,
 			*comm_list,

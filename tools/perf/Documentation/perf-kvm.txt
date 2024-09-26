@@ -115,9 +115,9 @@ STAT LIVE OPTIONS
 
 -m::
 --mmap-pages=::
-    Number of mmap data pages (must be a power of two) or size
-    specification with appended unit character - B/K/M/G. The
-    size is rounded up to have nearest pages power of two value.
+        Number of mmap data pages (must be a power of two) or size
+        specification in bytes with appended unit character - B/K/M/G.
+        The size is rounded up to the nearest power-of-two page value.
 
 -a::
 --all-cpus::

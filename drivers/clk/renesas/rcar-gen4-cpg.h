@@ -12,13 +12,12 @@
 enum rcar_gen4_clk_types {
 	CLK_TYPE_GEN4_MAIN = CLK_TYPE_CUSTOM,
 	CLK_TYPE_GEN4_PLL1,
-	CLK_TYPE_GEN4_PLL2,
-	CLK_TYPE_GEN4_PLL2_VAR,
 	CLK_TYPE_GEN4_PLL2X_3X,	/* r8a779a0 only */
-	CLK_TYPE_GEN4_PLL3,
-	CLK_TYPE_GEN4_PLL4,
 	CLK_TYPE_GEN4_PLL5,
-	CLK_TYPE_GEN4_PLL6,
+	CLK_TYPE_GEN4_PLL_F8_25,	/* Fixed fractional 8.25 PLL */
+	CLK_TYPE_GEN4_PLL_V8_25,	/* Variable fractional 8.25 PLL */
+	CLK_TYPE_GEN4_PLL_F9_24,	/* Fixed fractional 9.24 PLL */
+	CLK_TYPE_GEN4_PLL_V9_24,	/* Variable fractional 9.24 PLL */
 	CLK_TYPE_GEN4_SDSRC,
 	CLK_TYPE_GEN4_SDH,
 	CLK_TYPE_GEN4_SD,
@@ -47,6 +46,18 @@ enum rcar_gen4_clk_types {
 #define DEF_GEN4_OSC(_name, _id, _parent, _div)		\
 	DEF_BASE(_name, _id, CLK_TYPE_GEN4_OSC, _parent, .div = _div)
 
+#define DEF_GEN4_PLL_F8_25(_name, _idx, _id, _parent)	\
+	DEF_BASE(_name, _id, CLK_TYPE_GEN4_PLL_F8_25, _parent, .offset = _idx)
+
+#define DEF_GEN4_PLL_V8_25(_name, _idx, _id, _parent)	\
+	DEF_BASE(_name, _id, CLK_TYPE_GEN4_PLL_V8_25, _parent, .offset = _idx)
+
+#define DEF_GEN4_PLL_F9_24(_name, _idx, _id, _parent)	\
+	DEF_BASE(_name, _id, CLK_TYPE_GEN4_PLL_F9_24, _parent, .offset = _idx)
+
+#define DEF_GEN4_PLL_V9_24(_name, _idx, _id, _parent)	\
+	DEF_BASE(_name, _id, CLK_TYPE_GEN4_PLL_V9_24, _parent, .offset = _idx)
+
 #define DEF_GEN4_Z(_name, _id, _type, _parent, _div, _offset)	\
 	DEF_BASE(_name, _id, _type, _parent, .div = _div, .offset = _offset)
 
@@ -54,21 +65,16 @@ struct rcar_gen4_cpg_pll_config {
 	u8 extal_div;
 	u8 pll1_mult;
 	u8 pll1_div;
-	u8 pll2_mult;
-	u8 pll2_div;
-	u8 pll3_mult;
-	u8 pll3_div;
-	u8 pll4_mult;
-	u8 pll4_div;
 	u8 pll5_mult;
 	u8 pll5_div;
-	u8 pll6_mult;
-	u8 pll6_div;
 	u8 osc_prediv;
 };
 
-#define CPG_RPCCKCR	0x874
-#define SD0CKCR1	0x8a4
+#define CPG_SD0CKCR	0x870	/* SD-IF0 Clock Frequency Control Register */
+#define CPG_CANFDCKCR	0x878	/* CAN-FD Clock Frequency Control Register */
+#define CPG_MSOCKCR	0x87c	/* MSIOF Clock Frequency Control Register */
+#define CPG_CSICKCR	0x880	/* CSI Clock Frequency Control Register */
+#define CPG_DSIEXTCKCR	0x884	/* DSI Clock Frequency Control Register */
 
 struct clk *rcar_gen4_cpg_clk_register(struct device *dev,
 	const struct cpg_core_clk *core, const struct cpg_mssr_info *info,

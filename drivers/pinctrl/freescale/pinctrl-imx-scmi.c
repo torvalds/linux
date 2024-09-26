@@ -130,7 +130,7 @@ static int pinctrl_scmi_imx_dt_node_to_map(struct pinctrl_dev *pctldev,
 			cfg[j++] = pinconf_to_config_packed(IMX_SCMI_PIN_DAISY_CFG, input_val);
 		}
 
-		configs = kmemdup(cfg, ncfg * sizeof(unsigned long), GFP_KERNEL);
+		configs = kmemdup_array(cfg, ncfg, sizeof(unsigned long), GFP_KERNEL);
 
 		new_map[i].type = PIN_MAP_TYPE_CONFIGS_PIN;
 		new_map[i].data.configs.group_or_pin = pin_get_name(pctldev, pin_id);

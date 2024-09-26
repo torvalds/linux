@@ -874,7 +874,7 @@ static const struct dev_pm_ops msp3400_pm_ops = {
 };
 
 static const struct i2c_device_id msp_id[] = {
-	{ "msp3400", 0 },
+	{ "msp3400" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, msp_id);

@@ -239,8 +239,6 @@ static int da8xx_rproc_probe(struct platform_device *pdev)
 	struct da8xx_rproc *drproc;
 	struct rproc *rproc;
 	struct irq_data *irq_data;
-	struct resource *bootreg_res;
-	struct resource *chipsig_res;
 	struct clk *dsp_clk;
 	struct reset_control *dsp_reset;
 	void __iomem *chipsig;
@@ -258,15 +256,11 @@ static int da8xx_rproc_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	bootreg_res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
-						   "host1cfg");
-	bootreg = devm_ioremap_resource(dev, bootreg_res);
+	bootreg = devm_platform_ioremap_resource_byname(pdev, "host1cfg");
 	if (IS_ERR(bootreg))
 		return PTR_ERR(bootreg);
 
-	chipsig_res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
-						   "chipsig");
-	chipsig = devm_ioremap_resource(dev, chipsig_res);
+	chipsig = devm_platform_ioremap_resource_byname(pdev, "chipsig");
 	if (IS_ERR(chipsig))
 		return PTR_ERR(chipsig);
 

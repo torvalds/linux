@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * cros_ec_dev - expose the Chrome OS Embedded Controller to user-space
+ * ChromeOS Embedded Controller
  *
  * Copyright (C) 2014 Google, Inc.
  */
@@ -353,22 +353,17 @@ static int __init cros_ec_dev_init(void)
 {
 	int ret;
 
-	ret  = class_register(&cros_class);
+	ret = class_register(&cros_class);
 	if (ret) {
 		pr_err(CROS_EC_DEV_NAME ": failed to register device class\n");
 		return ret;
 	}
 
-	/* Register the driver */
 	ret = platform_driver_register(&cros_ec_dev_driver);
-	if (ret < 0) {
+	if (ret) {
 		pr_warn(CROS_EC_DEV_NAME ": can't register driver: %d\n", ret);
-		goto failed_devreg;
+		class_unregister(&cros_class);
 	}
-	return 0;
-
-failed_devreg:
-	class_unregister(&cros_class);
 	return ret;
 }
 
@@ -382,6 +377,6 @@ module_init(cros_ec_dev_init);
 module_exit(cros_ec_dev_exit);
 
 MODULE_AUTHOR("Bill Richardson <wfrichar@chromium.org>");
-MODULE_DESCRIPTION("Userspace interface to the Chrome OS Embedded Controller");
+MODULE_DESCRIPTION("ChromeOS Embedded Controller");
 MODULE_VERSION("1.0");
 MODULE_LICENSE("GPL");

@@ -26,7 +26,10 @@ MODULE_LICENSE("GPL");
 #define DEFAULT_SESS_QUEUE_DEPTH 512
 #define MAX_HDR_SIZE PAGE_SIZE
 
-static struct rtrs_rdma_dev_pd dev_pd;
+static const struct rtrs_rdma_dev_pd_ops dev_pd_ops;
+static struct rtrs_rdma_dev_pd dev_pd = {
+	.ops = &dev_pd_ops
+};
 const struct class rtrs_dev_class = {
 	.name = "rtrs-server",
 };
@@ -672,6 +675,10 @@ err:
 
 static void rtrs_srv_hb_err_handler(struct rtrs_con *c)
 {
+	struct rtrs_srv_con *con = container_of(c, typeof(*con), c);
+	struct rtrs_srv_path *srv_path = to_srv_path(con->c.path);
+
+	rtrs_err(con->c.path, "HB err handler for path=%s\n", kobject_name(&srv_path->kobj));
 	close_path(to_srv_path(c->path));
 }
 
@@ -931,12 +938,11 @@ static void rtrs_srv_info_req_done(struct ib_cq *cq, struct ib_wc *wc)
 	if (err)
 		goto close;
 
-out:
 	rtrs_iu_free(iu, srv_path->s.dev->ib_dev, 1);
 	return;
 close:
+	rtrs_iu_free(iu, srv_path->s.dev->ib_dev, 1);
 	close_path(srv_path);
-	goto out;
 }
 
 static int post_recv_info_req(struct rtrs_srv_con *con)
@@ -987,6 +993,16 @@ static int post_recv_path(struct rtrs_srv_path *srv_path)
 			q_size = SERVICE_CON_QUEUE_DEPTH;
 		else
 			q_size = srv->queue_depth;
+		if (srv_path->state != RTRS_SRV_CONNECTING) {
+			rtrs_err(s, "Path state invalid. state %s\n",
+				 rtrs_srv_state_str(srv_path->state));
+			return -EIO;
+		}
+
+		if (!srv_path->s.con[cid]) {
+			rtrs_err(s, "Conn not set for %d\n", cid);
+			return -EIO;
+		}
 
 		err = post_recv_io(to_srv_con(srv_path->s.con[cid]), q_size);
 		if (err) {
@@ -1229,6 +1245,7 @@ static void rtrs_srv_rdma_done(struct ib_cq *cq, struct ib_wc *wc)
 		 */
 		if (WARN_ON(wc->wr_cqe != &io_comp_cqe))
 			return;
+		srv_path->s.hb_missed_cnt = 0;
 		err = rtrs_post_recv_empty(&con->c, &io_comp_cqe);
 		if (err) {
 			rtrs_err(s, "rtrs_post_recv(), err: %d\n", err);
@@ -2254,6 +2271,34 @@ static int check_module_params(void)
 
 	return 0;
 }
+
+void rtrs_srv_ib_event_handler(struct ib_event_handler *handler,
+			       struct ib_event *ibevent)
+{
+	pr_info("Handling event: %s (%d).\n", ib_event_msg(ibevent->event),
+		ibevent->event);
+}
+
+static int rtrs_srv_ib_dev_init(struct rtrs_ib_dev *dev)
+{
+	INIT_IB_EVENT_HANDLER(&dev->event_handler, dev->ib_dev,
+			      rtrs_srv_ib_event_handler);
+	ib_register_event_handler(&dev->event_handler);
+
+	return 0;
+}
+
+static void rtrs_srv_ib_dev_deinit(struct rtrs_ib_dev *dev)
+{
+	ib_unregister_event_handler(&dev->event_handler);
+}
+
+
+static const struct rtrs_rdma_dev_pd_ops dev_pd_ops = {
+	.init = rtrs_srv_ib_dev_init,
+	.deinit = rtrs_srv_ib_dev_deinit
+};
+
 
 static int __init rtrs_server_init(void)
 {

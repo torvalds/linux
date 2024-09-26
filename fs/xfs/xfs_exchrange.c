@@ -829,9 +829,9 @@ xfs_ioc_exchange_range(
 	fxr.flags		= args.flags;
 
 	file1 = fdget(args.file1_fd);
-	if (!file1.file)
+	if (!fd_file(file1))
 		return -EBADF;
-	fxr.file1 = file1.file;
+	fxr.file1 = fd_file(file1);
 
 	error = xfs_exchange_range(&fxr);
 	fdput(file1);
@@ -935,9 +935,9 @@ xfs_ioc_commit_range(
 	fxr.file2_ctime.tv_nsec	= kern_f->file2_ctime_nsec;
 
 	file1 = fdget(args.file1_fd);
-	if (!file1.file)
+	if (fd_empty(file1))
 		return -EBADF;
-	fxr.file1 = file1.file;
+	fxr.file1 = fd_file(file1);
 
 	error = xfs_exchange_range(&fxr);
 	fdput(file1);

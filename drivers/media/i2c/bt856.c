@@ -230,7 +230,7 @@ static void bt856_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id bt856_id[] = {
-	{ "bt856", 0 },
+	{ "bt856" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, bt856_id);

@@ -214,7 +214,7 @@ bool bch2_btree_bset_insert_key(struct btree_trans *trans,
 
 	k = bch2_btree_node_iter_bset_pos(node_iter, b, bset_tree_last(b));
 overwrite:
-	bch2_bset_insert(b, node_iter, k, insert, clobber_u64s);
+	bch2_bset_insert(b, k, insert, clobber_u64s);
 	new_u64s = k->u64s;
 fix_iter:
 	if (clobber_u64s != new_u64s)

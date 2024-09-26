@@ -120,3 +120,5 @@ strcmp_zbb:
 .option pop
 #endif
 SYM_FUNC_END(strcmp)
+SYM_FUNC_ALIAS(__pi_strcmp, strcmp)
+EXPORT_SYMBOL(strcmp)

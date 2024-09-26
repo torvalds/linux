@@ -74,7 +74,7 @@ static struct platform_driver clk_mt7988_xfipll_drv = {
 		.of_match_table = of_match_clk_mt7988_xfipll,
 	},
 	.probe = clk_mt7988_xfipll_probe,
-	.remove_new = mtk_clk_simple_remove,
+	.remove = mtk_clk_simple_remove,
 };
 module_platform_driver(clk_mt7988_xfipll_drv);
 

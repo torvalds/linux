@@ -101,7 +101,7 @@ extern int mmap_rnd_compat_bits __read_mostly;
 # ifdef MAX_PHYSMEM_BITS
 # define PHYSMEM_END	((1ULL << MAX_PHYSMEM_BITS) - 1)
 # else
-# define PHYSMEM_END	(-1ULL)
+# define PHYSMEM_END	(((phys_addr_t)-1)&~(1ULL<<63))
 # endif
 #endif
 

@@ -1343,7 +1343,7 @@ Some Future Improvements
 Just as a reminder and in no particular order:
 
 - Add a virtual alsa driver to test audio
-- Add virtual sub-devices and media controller support
+- Add virtual sub-devices
 - Some support for testing compressed video
 - Add support to loop raw VBI output to raw VBI input
 - Add support to loop teletext sliced VBI output to VBI input
@@ -1358,4 +1358,4 @@ Just as a reminder and in no particular order:
 - Make a thread for the RDS generation, that would help in particular for the
   "Controls" RDS Rx I/O Mode as the read-only RDS controls could be updated
   in real-time.
-- Changing the EDID should cause hotplug detect emulation to happen.
+- Changing the EDID doesn't wait 100 ms before setting the HPD signal.

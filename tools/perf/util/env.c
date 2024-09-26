@@ -624,3 +624,18 @@ out:
 	free(cap_eq);
 	return NULL;
 }
+
+void perf_env__find_br_cntr_info(struct perf_env *env,
+				 unsigned int *nr,
+				 unsigned int *width)
+{
+	if (nr) {
+		*nr = env->cpu_pmu_caps ? env->br_cntr_nr :
+					  env->pmu_caps->br_cntr_nr;
+	}
+
+	if (width) {
+		*width = env->cpu_pmu_caps ? env->br_cntr_width :
+					     env->pmu_caps->br_cntr_width;
+	}
+}

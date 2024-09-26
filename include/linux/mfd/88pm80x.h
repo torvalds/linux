@@ -294,7 +294,7 @@ struct pm80x_chip {
 	struct i2c_client *client;
 	struct i2c_client *companion;
 	struct regmap *regmap;
-	struct regmap_irq_chip *regmap_irq_chip;
+	const struct regmap_irq_chip *regmap_irq_chip;
 	struct regmap_irq_chip_data *irq_data;
 	int type;
 	int irq;

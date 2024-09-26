@@ -387,12 +387,12 @@ static off_t ksys_lseek(unsigned int fd, off_t offset, unsigned int whence)
 {
 	off_t retval;
 	struct fd f = fdget_pos(fd);
-	if (!f.file)
+	if (!fd_file(f))
 		return -EBADF;
 
 	retval = -EINVAL;
 	if (whence <= SEEK_MAX) {
-		loff_t res = vfs_llseek(f.file, offset, whence);
+		loff_t res = vfs_llseek(fd_file(f), offset, whence);
 		retval = res;
 		if (res != (loff_t)retval)
 			retval = -EOVERFLOW;	/* LFS: should only happen on 32 bit platforms */
@@ -423,14 +423,14 @@ SYSCALL_DEFINE5(llseek, unsigned int, fd, unsigned long, offset_high,
 	struct fd f = fdget_pos(fd);
 	loff_t offset;
 
-	if (!f.file)
+	if (!fd_file(f))
 		return -EBADF;
 
 	retval = -EINVAL;
 	if (whence > SEEK_MAX)
 		goto out_putf;
 
-	offset = vfs_llseek(f.file, ((loff_t) offset_high << 32) | offset_low,
+	offset = vfs_llseek(fd_file(f), ((loff_t) offset_high << 32) | offset_low,
 			whence);
 
 	retval = (int)offset;
@@ -703,15 +703,15 @@ ssize_t ksys_read(unsigned int fd, char __user *buf, size_t count)
 	struct fd f = fdget_pos(fd);
 	ssize_t ret = -EBADF;
 
-	if (f.file) {
-		loff_t pos, *ppos = file_ppos(f.file);
+	if (fd_file(f)) {
+		loff_t pos, *ppos = file_ppos(fd_file(f));
 		if (ppos) {
 			pos = *ppos;
 			ppos = &pos;
 		}
-		ret = vfs_read(f.file, buf, count, ppos);
+		ret = vfs_read(fd_file(f), buf, count, ppos);
 		if (ret >= 0 && ppos)
-			f.file->f_pos = pos;
+			fd_file(f)->f_pos = pos;
 		fdput_pos(f);
 	}
 	return ret;
@@ -727,15 +727,15 @@ ssize_t ksys_write(unsigned int fd, const char __user *buf, size_t count)
 	struct fd f = fdget_pos(fd);
 	ssize_t ret = -EBADF;
 
-	if (f.file) {
-		loff_t pos, *ppos = file_ppos(f.file);
+	if (fd_file(f)) {
+		loff_t pos, *ppos = file_ppos(fd_file(f));
 		if (ppos) {
 			pos = *ppos;
 			ppos = &pos;
 		}
-		ret = vfs_write(f.file, buf, count, ppos);
+		ret = vfs_write(fd_file(f), buf, count, ppos);
 		if (ret >= 0 && ppos)
-			f.file->f_pos = pos;
+			fd_file(f)->f_pos = pos;
 		fdput_pos(f);
 	}
 
@@ -758,10 +758,10 @@ ssize_t ksys_pread64(unsigned int fd, char __user *buf, size_t count,
 		return -EINVAL;
 
 	f = fdget(fd);
-	if (f.file) {
+	if (fd_file(f)) {
 		ret = -ESPIPE;
-		if (f.file->f_mode & FMODE_PREAD)
-			ret = vfs_read(f.file, buf, count, &pos);
+		if (fd_file(f)->f_mode & FMODE_PREAD)
+			ret = vfs_read(fd_file(f), buf, count, &pos);
 		fdput(f);
 	}
 
@@ -792,10 +792,10 @@ ssize_t ksys_pwrite64(unsigned int fd, const char __user *buf,
 		return -EINVAL;
 
 	f = fdget(fd);
-	if (f.file) {
+	if (fd_file(f)) {
 		ret = -ESPIPE;
-		if (f.file->f_mode & FMODE_PWRITE)  
-			ret = vfs_write(f.file, buf, count, &pos);
+		if (fd_file(f)->f_mode & FMODE_PWRITE)
+			ret = vfs_write(fd_file(f), buf, count, &pos);
 		fdput(f);
 	}
 
@@ -1078,15 +1078,15 @@ static ssize_t do_readv(unsigned long fd, const struct iovec __user *vec,
 	struct fd f = fdget_pos(fd);
 	ssize_t ret = -EBADF;
 
-	if (f.file) {
-		loff_t pos, *ppos = file_ppos(f.file);
+	if (fd_file(f)) {
+		loff_t pos, *ppos = file_ppos(fd_file(f));
 		if (ppos) {
 			pos = *ppos;
 			ppos = &pos;
 		}
-		ret = vfs_readv(f.file, vec, vlen, ppos, flags);
+		ret = vfs_readv(fd_file(f), vec, vlen, ppos, flags);
 		if (ret >= 0 && ppos)
-			f.file->f_pos = pos;
+			fd_file(f)->f_pos = pos;
 		fdput_pos(f);
 	}
 
@@ -1102,15 +1102,15 @@ static ssize_t do_writev(unsigned long fd, const struct iovec __user *vec,
 	struct fd f = fdget_pos(fd);
 	ssize_t ret = -EBADF;
 
-	if (f.file) {
-		loff_t pos, *ppos = file_ppos(f.file);
+	if (fd_file(f)) {
+		loff_t pos, *ppos = file_ppos(fd_file(f));
 		if (ppos) {
 			pos = *ppos;
 			ppos = &pos;
 		}
-		ret = vfs_writev(f.file, vec, vlen, ppos, flags);
+		ret = vfs_writev(fd_file(f), vec, vlen, ppos, flags);
 		if (ret >= 0 && ppos)
-			f.file->f_pos = pos;
+			fd_file(f)->f_pos = pos;
 		fdput_pos(f);
 	}
 
@@ -1136,10 +1136,10 @@ static ssize_t do_preadv(unsigned long fd, const struct iovec __user *vec,
 		return -EINVAL;
 
 	f = fdget(fd);
-	if (f.file) {
+	if (fd_file(f)) {
 		ret = -ESPIPE;
-		if (f.file->f_mode & FMODE_PREAD)
-			ret = vfs_readv(f.file, vec, vlen, &pos, flags);
+		if (fd_file(f)->f_mode & FMODE_PREAD)
+			ret = vfs_readv(fd_file(f), vec, vlen, &pos, flags);
 		fdput(f);
 	}
 
@@ -1159,10 +1159,10 @@ static ssize_t do_pwritev(unsigned long fd, const struct iovec __user *vec,
 		return -EINVAL;
 
 	f = fdget(fd);
-	if (f.file) {
+	if (fd_file(f)) {
 		ret = -ESPIPE;
-		if (f.file->f_mode & FMODE_PWRITE)
-			ret = vfs_writev(f.file, vec, vlen, &pos, flags);
+		if (fd_file(f)->f_mode & FMODE_PWRITE)
+			ret = vfs_writev(fd_file(f), vec, vlen, &pos, flags);
 		fdput(f);
 	}
 
@@ -1328,19 +1328,19 @@ static ssize_t do_sendfile(int out_fd, int in_fd, loff_t *ppos,
 	 */
 	retval = -EBADF;
 	in = fdget(in_fd);
-	if (!in.file)
+	if (!fd_file(in))
 		goto out;
-	if (!(in.file->f_mode & FMODE_READ))
+	if (!(fd_file(in)->f_mode & FMODE_READ))
 		goto fput_in;
 	retval = -ESPIPE;
 	if (!ppos) {
-		pos = in.file->f_pos;
+		pos = fd_file(in)->f_pos;
 	} else {
 		pos = *ppos;
-		if (!(in.file->f_mode & FMODE_PREAD))
+		if (!(fd_file(in)->f_mode & FMODE_PREAD))
 			goto fput_in;
 	}
-	retval = rw_verify_area(READ, in.file, &pos, count);
+	retval = rw_verify_area(READ, fd_file(in), &pos, count);
 	if (retval < 0)
 		goto fput_in;
 	if (count > MAX_RW_COUNT)
@@ -1351,13 +1351,13 @@ static ssize_t do_sendfile(int out_fd, int in_fd, loff_t *ppos,
 	 */
 	retval = -EBADF;
 	out = fdget(out_fd);
-	if (!out.file)
+	if (!fd_file(out))
 		goto fput_in;
-	if (!(out.file->f_mode & FMODE_WRITE))
+	if (!(fd_file(out)->f_mode & FMODE_WRITE))
 		goto fput_out;
-	in_inode = file_inode(in.file);
-	out_inode = file_inode(out.file);
-	out_pos = out.file->f_pos;
+	in_inode = file_inode(fd_file(in));
+	out_inode = file_inode(fd_file(out));
+	out_pos = fd_file(out)->f_pos;
 
 	if (!max)
 		max = min(in_inode->i_sb->s_maxbytes, out_inode->i_sb->s_maxbytes);
@@ -1377,33 +1377,33 @@ static ssize_t do_sendfile(int out_fd, int in_fd, loff_t *ppos,
 	 * and the application is arguably buggy if it doesn't expect
 	 * EAGAIN on a non-blocking file descriptor.
 	 */
-	if (in.file->f_flags & O_NONBLOCK)
+	if (fd_file(in)->f_flags & O_NONBLOCK)
 		fl = SPLICE_F_NONBLOCK;
 #endif
-	opipe = get_pipe_info(out.file, true);
+	opipe = get_pipe_info(fd_file(out), true);
 	if (!opipe) {
-		retval = rw_verify_area(WRITE, out.file, &out_pos, count);
+		retval = rw_verify_area(WRITE, fd_file(out), &out_pos, count);
 		if (retval < 0)
 			goto fput_out;
-		retval = do_splice_direct(in.file, &pos, out.file, &out_pos,
+		retval = do_splice_direct(fd_file(in), &pos, fd_file(out), &out_pos,
 					  count, fl);
 	} else {
-		if (out.file->f_flags & O_NONBLOCK)
+		if (fd_file(out)->f_flags & O_NONBLOCK)
 			fl |= SPLICE_F_NONBLOCK;
 
-		retval = splice_file_to_pipe(in.file, opipe, &pos, count, fl);
+		retval = splice_file_to_pipe(fd_file(in), opipe, &pos, count, fl);
 	}
 
 	if (retval > 0) {
 		add_rchar(current, retval);
 		add_wchar(current, retval);
-		fsnotify_access(in.file);
-		fsnotify_modify(out.file);
-		out.file->f_pos = out_pos;
+		fsnotify_access(fd_file(in));
+		fsnotify_modify(fd_file(out));
+		fd_file(out)->f_pos = out_pos;
 		if (ppos)
 			*ppos = pos;
 		else
-			in.file->f_pos = pos;
+			fd_file(in)->f_pos = pos;
 	}
 
 	inc_syscr(current);
@@ -1676,11 +1676,11 @@ SYSCALL_DEFINE6(copy_file_range, int, fd_in, loff_t __user *, off_in,
 	ssize_t ret = -EBADF;
 
 	f_in = fdget(fd_in);
-	if (!f_in.file)
+	if (!fd_file(f_in))
 		goto out2;
 
 	f_out = fdget(fd_out);
-	if (!f_out.file)
+	if (!fd_file(f_out))
 		goto out1;
 
 	ret = -EFAULT;
@@ -1688,21 +1688,21 @@ SYSCALL_DEFINE6(copy_file_range, int, fd_in, loff_t __user *, off_in,
 		if (copy_from_user(&pos_in, off_in, sizeof(loff_t)))
 			goto out;
 	} else {
-		pos_in = f_in.file->f_pos;
+		pos_in = fd_file(f_in)->f_pos;
 	}
 
 	if (off_out) {
 		if (copy_from_user(&pos_out, off_out, sizeof(loff_t)))
 			goto out;
 	} else {
-		pos_out = f_out.file->f_pos;
+		pos_out = fd_file(f_out)->f_pos;
 	}
 
 	ret = -EINVAL;
 	if (flags != 0)
 		goto out;
 
-	ret = vfs_copy_file_range(f_in.file, pos_in, f_out.file, pos_out, len,
+	ret = vfs_copy_file_range(fd_file(f_in), pos_in, fd_file(f_out), pos_out, len,
 				  flags);
 	if (ret > 0) {
 		pos_in += ret;
@@ -1712,14 +1712,14 @@ SYSCALL_DEFINE6(copy_file_range, int, fd_in, loff_t __user *, off_in,
 			if (copy_to_user(off_in, &pos_in, sizeof(loff_t)))
 				ret = -EFAULT;
 		} else {
-			f_in.file->f_pos = pos_in;
+			fd_file(f_in)->f_pos = pos_in;
 		}
 
 		if (off_out) {
 			if (copy_to_user(off_out, &pos_out, sizeof(loff_t)))
 				ret = -EFAULT;
 		} else {
-			f_out.file->f_pos = pos_out;
+			fd_file(f_out)->f_pos = pos_out;
 		}
 	}
 

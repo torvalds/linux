@@ -472,6 +472,39 @@ static const struct imx283_mode supported_modes_12bit[] = {
 			.height = 3648,
 		},
 	},
+	{
+		/*
+		 * Readout mode 3 : 3/3 binned mode (1824x1216)
+		 */
+		.mode = IMX283_MODE_3,
+		.bpp = 12,
+		.width = 1824,
+		.height = 1216,
+		.min_hmax = 1894, /* Pixels (284 * 480MHz/72MHz + padding) */
+		.min_vmax = 4200, /* Lines */
+
+		/* 60.00 fps */
+		.default_hmax = 1900, /* 285 @ 480MHz/72Mhz */
+		.default_vmax = 4200,
+
+		.veff = 1234,
+		.vst = 0,
+		.vct = 0,
+
+		.hbin_ratio = 3,
+		.vbin_ratio = 3,
+
+		.min_shr = 16,
+		.horizontal_ob = 32,
+		.vertical_ob = 4,
+
+		.crop = {
+			.top = 40,
+			.left = 108,
+			.width = 5472,
+			.height = 3648,
+		},
+	},
 };
 
 static const struct imx283_mode supported_modes_10bit[] = {

@@ -75,9 +75,19 @@
     "BriefDescription": "Cycles in which an instruction or group of instructions were cancelled after being issued. This event increments once per occurrence, regardless of how many instructions are included in the issue group."
   },
   {
+    "EventCode": "0x44054",
+    "EventName": "PM_VECTOR_LD_CMPL",
+    "BriefDescription": "Vector load instruction completed."
+  },
+  {
     "EventCode": "0x44056",
     "EventName": "PM_VECTOR_ST_CMPL",
     "BriefDescription": "Vector store instruction completed."
+  },
+  {
+    "EventCode": "0x4D05E",
+    "EventName": "PM_BR_CMPL",
+    "BriefDescription": "A branch completed. All branches are included."
   },
   {
     "EventCode": "0x4E054",
@@ -85,8 +95,28 @@
     "BriefDescription": "Data TLB hit (DERAT reload) page size 1G. Implies radix translation. When MMCR1[16]=0 this event counts only for demand misses. When MMCR1[16]=1 this event includes demand misses and prefetches."
   },
   {
+    "EventCode": "0x400F6",
+    "EventName": "PM_BR_MPRED_CMPL",
+    "BriefDescription": "A mispredicted branch completed. Includes direction and target."
+  },
+  {
     "EventCode": "0x400FC",
     "EventName": "PM_ITLB_MISS",
     "BriefDescription": "Instruction TLB reload (after a miss), all page sizes. Includes only demand misses."
+  },
+  {
+    "EventCode": "0x00000048B4",
+    "EventName": "PM_BR_TKN_UNCOND_FIN",
+    "BriefDescription": "An unconditional branch finished. All unconditional branches are taken."
+  },
+  {
+    "EventCode": "0x00000040B8",
+    "EventName": "PM_PRED_BR_TKN_COND_DIR",
+    "BriefDescription": "A conditional branch finished with correctly predicted direction. Resolved taken."
+  },
+  {
+    "EventCode": "0x00000048B8",
+    "EventName": "PM_PRED_BR_NTKN_COND_DIR",
+    "BriefDescription": "A conditional branch finished with correctly predicted direction. Resolved not taken."
   }
 ]

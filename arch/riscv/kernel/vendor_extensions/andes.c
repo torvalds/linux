@@ -8,7 +8,7 @@
 #include <linux/types.h>
 
 /* All Andes vendor extensions supported in Linux */
-const struct riscv_isa_ext_data riscv_isa_vendor_ext_andes[] = {
+static const struct riscv_isa_ext_data riscv_isa_vendor_ext_andes[] = {
 	__RISCV_ISA_EXT_DATA(xandespmu, RISCV_ISA_VENDOR_EXT_XANDESPMU),
 };
 

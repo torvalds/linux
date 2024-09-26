@@ -1546,7 +1546,7 @@ static void ov772x_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id ov772x_id[] = {
-	{ "ov772x", 0 },
+	{ "ov772x" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ov772x_id);

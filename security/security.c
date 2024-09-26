@@ -5681,7 +5681,7 @@ int security_bpf_prog_load(struct bpf_prog *prog, union bpf_attr *attr,
  * Return: Returns 0 on success, error on failure.
  */
 int security_bpf_token_create(struct bpf_token *token, union bpf_attr *attr,
-			      struct path *path)
+			      const struct path *path)
 {
 	return call_int_hook(bpf_token_create, token, attr, path);
 }

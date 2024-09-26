@@ -62,7 +62,7 @@ EXPORT_SYMBOL(zero_page_mask);
 
 static void __init setup_zero_pages(void)
 {
-	unsigned long total_pages = PHYS_PFN(memblock_phys_mem_size() - memblock_reserved_size());
+	unsigned long total_pages = memblock_estimated_nr_free_pages();
 	unsigned int order;
 	struct page *page;
 	int i;
