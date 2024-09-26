@@ -1642,6 +1642,11 @@ const struct cpumask *system_32bit_el0_cpumask(void)
 	return cpu_possible_mask;
 }
 
+const struct cpumask *task_cpu_fallback_mask(struct task_struct *p)
+{
+	return __task_cpu_possible_mask(p, housekeeping_cpumask(HK_TYPE_TICK));
+}
+
 static int __init parse_32bit_el0_param(char *str)
 {
 	allow_mismatched_32bit_el0 = true;
