@@ -7130,15 +7130,8 @@ __bpf_kfunc struct cgroup *scx_bpf_task_cgroup(struct task_struct *p)
 	if (!scx_kf_allowed_on_arg_tasks(__SCX_KF_RQ_LOCKED, p))
 		goto out;
 
-	/*
-	 * A task_group may either be a cgroup or an autogroup. In the latter
-	 * case, @tg->css.cgroup is %NULL. A task_group can't become the other
-	 * kind once created.
-	 */
-	if (tg && tg->css.cgroup)
-		cgrp = tg->css.cgroup;
-	else
-		cgrp = &cgrp_dfl_root.cgrp;
+	cgrp = tg_cgrp(tg);
+
 out:
 	cgroup_get(cgrp);
 	return cgrp;
