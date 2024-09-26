@@ -199,7 +199,14 @@ static const struct flash_info macronix_nor_parts[] = {
 		.name = "mx25l3255e",
 		.size = SZ_4M,
 		.no_sfdp_flags = SECT_4K,
-	}
+	},
+	/*
+	 * This spares us of adding new flash entries for flashes that can be
+	 * initialized solely based on the SFDP data, but still need the
+	 * manufacturer hooks to set parameters that can't be discovered at SFDP
+	 * parsing time.
+	 */
+	{ .id = SNOR_ID(0xc2) }
 };
 
 static int macronix_nor_octal_dtr_en(struct spi_nor *nor)
