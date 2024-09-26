@@ -280,11 +280,9 @@ struct kernel_xattr_ctx {
 	unsigned int flags;
 };
 
-
-ssize_t do_getxattr(struct mnt_idmap *idmap,
-		    struct dentry *d,
-		    struct kernel_xattr_ctx *ctx);
-
+ssize_t file_getxattr(struct file *file, struct kernel_xattr_ctx *ctx);
+ssize_t filename_getxattr(int dfd, struct filename *filename,
+			  unsigned int lookup_flags, struct kernel_xattr_ctx *ctx);
 int file_setxattr(struct file *file, struct kernel_xattr_ctx *ctx);
 int filename_setxattr(int dfd, struct filename *filename,
 		      unsigned int lookup_flags, struct kernel_xattr_ctx *ctx);

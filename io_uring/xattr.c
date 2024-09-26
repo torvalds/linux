@@ -51,7 +51,7 @@ static int __io_getxattr_prep(struct io_kiocb *req,
 	ix->filename = NULL;
 	ix->ctx.kvalue = NULL;
 	name = u64_to_user_ptr(READ_ONCE(sqe->addr));
-	ix->ctx.cvalue = u64_to_user_ptr(READ_ONCE(sqe->addr2));
+	ix->ctx.value = u64_to_user_ptr(READ_ONCE(sqe->addr2));
 	ix->ctx.size = READ_ONCE(sqe->len);
 	ix->ctx.flags = READ_ONCE(sqe->xattr_flags);
 
@@ -94,12 +94,10 @@ int io_getxattr_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	path = u64_to_user_ptr(READ_ONCE(sqe->addr3));
 
 	ix->filename = getname(path);
-	if (IS_ERR(ix->filename)) {
-		ret = PTR_ERR(ix->filename);
-		ix->filename = NULL;
-	}
+	if (IS_ERR(ix->filename))
+		return PTR_ERR(ix->filename);
 
-	return ret;
+	return 0;
 }
 
 int io_fgetxattr(struct io_kiocb *req, unsigned int issue_flags)
@@ -109,10 +107,7 @@ int io_fgetxattr(struct io_kiocb *req, unsigned int issue_flags)
 
 	WARN_ON_ONCE(issue_flags & IO_URING_F_NONBLOCK);
 
-	ret = do_getxattr(file_mnt_idmap(req->file),
-			req->file->f_path.dentry,
-			&ix->ctx);
-
+	ret = file_getxattr(req->file, &ix->ctx);
 	io_xattr_finish(req, ret);
 	return IOU_OK;
 }
@@ -120,24 +115,12 @@ int io_fgetxattr(struct io_kiocb *req, unsigned int issue_flags)
 int io_getxattr(struct io_kiocb *req, unsigned int issue_flags)
 {
 	struct io_xattr *ix = io_kiocb_to_cmd(req, struct io_xattr);
-	unsigned int lookup_flags = LOOKUP_FOLLOW;
-	struct path path;
 	int ret;
 
 	WARN_ON_ONCE(issue_flags & IO_URING_F_NONBLOCK);
 
-retry:
-	ret = filename_lookup(AT_FDCWD, ix->filename, lookup_flags, &path, NULL);
-	if (!ret) {
-		ret = do_getxattr(mnt_idmap(path.mnt), path.dentry, &ix->ctx);
-
-		path_put(&path);
-		if (retry_estale(ret, lookup_flags)) {
-			lookup_flags |= LOOKUP_REVAL;
-			goto retry;
-		}
-	}
-
+	ret = filename_getxattr(AT_FDCWD, ix->filename, LOOKUP_FOLLOW, &ix->ctx);
+	ix->filename = NULL;
 	io_xattr_finish(req, ret);
 	return IOU_OK;
 }

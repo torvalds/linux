@@ -744,27 +744,28 @@ SYSCALL_DEFINE5(fsetxattr, int, fd, const char __user *, name,
 /*
  * Extended attribute GET operations
  */
-ssize_t
+static ssize_t
 do_getxattr(struct mnt_idmap *idmap, struct dentry *d,
 	struct kernel_xattr_ctx *ctx)
 {
 	ssize_t error;
 	char *kname = ctx->kname->name;
+	void *kvalue = NULL;
 
 	if (ctx->size) {
 		if (ctx->size > XATTR_SIZE_MAX)
 			ctx->size = XATTR_SIZE_MAX;
-		ctx->kvalue = kvzalloc(ctx->size, GFP_KERNEL);
-		if (!ctx->kvalue)
+		kvalue = kvzalloc(ctx->size, GFP_KERNEL);
+		if (!kvalue)
 			return -ENOMEM;
 	}
 
-	if (is_posix_acl_xattr(ctx->kname->name))
-		error = do_get_acl(idmap, d, kname, ctx->kvalue, ctx->size);
+	if (is_posix_acl_xattr(kname))
+		error = do_get_acl(idmap, d, kname, kvalue, ctx->size);
 	else
-		error = vfs_getxattr(idmap, d, kname, ctx->kvalue, ctx->size);
+		error = vfs_getxattr(idmap, d, kname, kvalue, ctx->size);
 	if (error > 0) {
-		if (ctx->size && copy_to_user(ctx->value, ctx->kvalue, error))
+		if (ctx->size && copy_to_user(ctx->value, kvalue, error))
 			error = -EFAULT;
 	} else if (error == -ERANGE && ctx->size >= XATTR_SIZE_MAX) {
 		/* The file system tried to returned a value bigger
@@ -772,18 +773,45 @@ do_getxattr(struct mnt_idmap *idmap, struct dentry *d,
 		error = -E2BIG;
 	}
 
+	kvfree(kvalue);
 	return error;
 }
 
-static ssize_t
-getxattr(struct mnt_idmap *idmap, struct dentry *d,
-	 const char __user *name, void __user *value, size_t size)
+ssize_t file_getxattr(struct file *f, struct kernel_xattr_ctx *ctx)
+{
+	audit_file(f);
+	return do_getxattr(file_mnt_idmap(f), f->f_path.dentry, ctx);
+}
+
+/* unconditionally consumes filename */
+ssize_t filename_getxattr(int dfd, struct filename *filename,
+			  unsigned int lookup_flags, struct kernel_xattr_ctx *ctx)
+{
+	struct path path;
+	ssize_t error;
+retry:
+	error = filename_lookup(dfd, filename, lookup_flags, &path, NULL);
+	if (error)
+		goto out;
+	error = do_getxattr(mnt_idmap(path.mnt), path.dentry, ctx);
+	path_put(&path);
+	if (retry_estale(error, lookup_flags)) {
+		lookup_flags |= LOOKUP_REVAL;
+		goto retry;
+	}
+out:
+	putname(filename);
+	return error;
+}
+
+static ssize_t path_getxattr(const char __user *pathname,
+			     const char __user *name, void __user *value,
+			     size_t size, unsigned int lookup_flags)
 {
 	ssize_t error;
 	struct xattr_name kname;
 	struct kernel_xattr_ctx ctx = {
 		.value    = value,
-		.kvalue   = NULL,
 		.size     = size,
 		.kname    = &kname,
 		.flags    = 0,
@@ -792,30 +820,7 @@ getxattr(struct mnt_idmap *idmap, struct dentry *d,
 	error = import_xattr_name(&kname, name);
 	if (error)
 		return error;
-
-	error =  do_getxattr(idmap, d, &ctx);
-
-	kvfree(ctx.kvalue);
-	return error;
-}
-
-static ssize_t path_getxattr(const char __user *pathname,
-			     const char __user *name, void __user *value,
-			     size_t size, unsigned int lookup_flags)
-{
-	struct path path;
-	ssize_t error;
-retry:
-	error = user_path_at(AT_FDCWD, pathname, lookup_flags, &path);
-	if (error)
-		return error;
-	error = getxattr(mnt_idmap(path.mnt), path.dentry, name, value, size);
-	path_put(&path);
-	if (retry_estale(error, lookup_flags)) {
-		lookup_flags |= LOOKUP_REVAL;
-		goto retry;
-	}
-	return error;
+	return filename_getxattr(AT_FDCWD, getname(pathname), lookup_flags, &ctx);
 }
 
 SYSCALL_DEFINE4(getxattr, const char __user *, pathname,
@@ -833,13 +838,22 @@ SYSCALL_DEFINE4(lgetxattr, const char __user *, pathname,
 SYSCALL_DEFINE4(fgetxattr, int, fd, const char __user *, name,
 		void __user *, value, size_t, size)
 {
+	ssize_t error;
+	struct xattr_name kname;
+	struct kernel_xattr_ctx ctx = {
+		.value    = value,
+		.size     = size,
+		.kname    = &kname,
+		.flags    = 0,
+	};
 	CLASS(fd, f)(fd);
 
 	if (fd_empty(f))
 		return -EBADF;
-	audit_file(fd_file(f));
-	return getxattr(file_mnt_idmap(fd_file(f)), fd_file(f)->f_path.dentry,
-			 name, value, size);
+	error = import_xattr_name(&kname, name);
+	if (error)
+		return error;
+	return file_getxattr(fd_file(f), &ctx);
 }
 
 /*
