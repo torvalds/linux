@@ -5,6 +5,8 @@
 #include <sys/mman.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <setjmp.h>
+#include <signal.h>
 
 #include "vm_util.h"
 #include "../kselftest.h"
@@ -14,10 +16,24 @@
 static char *huge_ptr;
 static size_t huge_page_size;
 
+static sigjmp_buf sigbuf;
+static bool sigbus_triggered;
+
+static void signal_handler(int signal)
+{
+	if (signal == SIGBUS) {
+		sigbus_triggered = true;
+		siglongjmp(sigbuf, 1);
+	}
+}
+
 /* Touch the memory while it is being madvised() */
 void *touch(void *unused)
 {
 	char *ptr = (char *)huge_ptr;
+
+	if (sigsetjmp(sigbuf, 1))
+		return NULL;
 
 	for (int i = 0; i < INLOOP_ITER; i++)
 		ptr[0] = '.';
@@ -44,12 +60,22 @@ int main(void)
 	 * interactions
 	 */
 	int max = 10000;
+	int err;
+
+	ksft_print_header();
+	ksft_set_plan(1);
 
 	srand(getpid());
+
+	if (signal(SIGBUS, signal_handler) == SIG_ERR)
+		ksft_exit_skip("Could not register signal handler.");
 
 	huge_page_size = default_huge_page_size();
 	if (!huge_page_size)
 		ksft_exit_skip("Could not detect default hugetlb page size.");
+
+	ksft_print_msg("[INFO] detected default hugetlb page size: %zu KiB\n",
+		       huge_page_size / 1024);
 
 	free_hugepages = get_free_hugepages();
 	if (free_hugepages != 1) {
@@ -73,5 +99,11 @@ int main(void)
 		munmap(huge_ptr, huge_page_size);
 	}
 
-	return KSFT_PASS;
+	ksft_test_result(!sigbus_triggered, "SIGBUS behavior\n");
+
+	err = ksft_get_fail_cnt();
+	if (err)
+		ksft_exit_fail_msg("%d out of %d tests failed\n",
+				   err, ksft_test_num());
+	ksft_exit_pass();
 }
