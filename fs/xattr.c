@@ -586,6 +586,17 @@ retry_deleg:
 }
 EXPORT_SYMBOL_GPL(vfs_removexattr);
 
+int import_xattr_name(struct xattr_name *kname, const char __user *name)
+{
+	int error = strncpy_from_user(kname->name, name,
+					sizeof(kname->name));
+	if (error == 0 || error == sizeof(kname->name))
+		return -ERANGE;
+	if (error < 0)
+		return error;
+	return 0;
+}
+
 /*
  * Extended attribute SET operations
  */
@@ -597,14 +608,10 @@ int setxattr_copy(const char __user *name, struct kernel_xattr_ctx *ctx)
 	if (ctx->flags & ~(XATTR_CREATE|XATTR_REPLACE))
 		return -EINVAL;
 
-	error = strncpy_from_user(ctx->kname->name, name,
-				sizeof(ctx->kname->name));
-	if (error == 0 || error == sizeof(ctx->kname->name))
-		return  -ERANGE;
-	if (error < 0)
+	error = import_xattr_name(ctx->kname, name);
+	if (error)
 		return error;
 
-	error = 0;
 	if (ctx->size) {
 		if (ctx->size > XATTR_SIZE_MAX)
 			return -E2BIG;
@@ -763,10 +770,8 @@ getxattr(struct mnt_idmap *idmap, struct dentry *d,
 		.flags    = 0,
 	};
 
-	error = strncpy_from_user(kname.name, name, sizeof(kname.name));
-	if (error == 0 || error == sizeof(kname.name))
-		error = -ERANGE;
-	if (error < 0)
+	error = import_xattr_name(&kname, name);
+	if (error)
 		return error;
 
 	error =  do_getxattr(idmap, d, &ctx);
@@ -906,12 +911,10 @@ static int path_removexattr(const char __user *pathname,
 {
 	struct path path;
 	int error;
-	char kname[XATTR_NAME_MAX + 1];
+	struct xattr_name kname;
 
-	error = strncpy_from_user(kname, name, sizeof(kname));
-	if (error == 0 || error == sizeof(kname))
-		error = -ERANGE;
-	if (error < 0)
+	error = import_xattr_name(&kname, name);
+	if (error)
 		return error;
 retry:
 	error = user_path_at(AT_FDCWD, pathname, lookup_flags, &path);
@@ -919,7 +922,7 @@ retry:
 		return error;
 	error = mnt_want_write(path.mnt);
 	if (!error) {
-		error = removexattr(mnt_idmap(path.mnt), path.dentry, kname);
+		error = removexattr(mnt_idmap(path.mnt), path.dentry, kname.name);
 		mnt_drop_write(path.mnt);
 	}
 	path_put(&path);
@@ -945,23 +948,21 @@ SYSCALL_DEFINE2(lremovexattr, const char __user *, pathname,
 SYSCALL_DEFINE2(fremovexattr, int, fd, const char __user *, name)
 {
 	CLASS(fd, f)(fd);
-	char kname[XATTR_NAME_MAX + 1];
+	struct xattr_name kname;
 	int error;
 
 	if (fd_empty(f))
 		return -EBADF;
 	audit_file(fd_file(f));
 
-	error = strncpy_from_user(kname, name, sizeof(kname));
-	if (error == 0 || error == sizeof(kname))
-		error = -ERANGE;
-	if (error < 0)
+	error = import_xattr_name(&kname, name);
+	if (error)
 		return error;
 
 	error = mnt_want_write_file(fd_file(f));
 	if (!error) {
 		error = removexattr(file_mnt_idmap(fd_file(f)),
-				    fd_file(f)->f_path.dentry, kname);
+				    fd_file(f)->f_path.dentry, kname.name);
 		mnt_drop_write_file(fd_file(f));
 	}
 	return error;

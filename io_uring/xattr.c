@@ -62,11 +62,8 @@ static int __io_getxattr_prep(struct io_kiocb *req,
 	if (!ix->ctx.kname)
 		return -ENOMEM;
 
-	ret = strncpy_from_user(ix->ctx.kname->name, name,
-				sizeof(ix->ctx.kname->name));
-	if (!ret || ret == sizeof(ix->ctx.kname->name))
-		ret = -ERANGE;
-	if (ret < 0) {
+	ret = import_xattr_name(ix->ctx.kname, name);
+	if (ret) {
 		kfree(ix->ctx.kname);
 		return ret;
 	}
