@@ -409,7 +409,6 @@ static int aw200xx_probe_get_display_rows(struct device *dev,
 
 static int aw200xx_probe_fw(struct device *dev, struct aw200xx *chip)
 {
-	struct fwnode_handle *child;
 	u32 current_min, current_max, min_uA;
 	int ret;
 	int i;
@@ -424,7 +423,7 @@ static int aw200xx_probe_fw(struct device *dev, struct aw200xx *chip)
 	min_uA = UINT_MAX;
 	i = 0;
 
-	device_for_each_child_node(dev, child) {
+	device_for_each_child_node_scoped(dev, child) {
 		struct led_init_data init_data = {};
 		struct aw200xx_led *led;
 		u32 source, imax;
@@ -468,10 +467,8 @@ static int aw200xx_probe_fw(struct device *dev, struct aw200xx *chip)
 
 		ret = devm_led_classdev_register_ext(dev, &led->cdev,
 						     &init_data);
-		if (ret) {
-			fwnode_handle_put(child);
+		if (ret)
 			break;
-		}
 
 		i++;
 	}
