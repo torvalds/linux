@@ -90,7 +90,7 @@ static inline ktime_t ktime_get_coarse_real(void)
 /**
  * ktime_get_boottime - Get monotonic time since boot in ktime_t format
  *
- * This is similar to CLOCK_MONTONIC/ktime_get, but also includes the
+ * This is similar to CLOCK_MONOTONIC/ktime_get, but also includes the
  * time spent in suspend.
  *
  * Returns: monotonic time since boot in ktime_t format
