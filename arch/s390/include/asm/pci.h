@@ -129,6 +129,7 @@ struct zpci_dev {
 	u16		vfn;		/* virtual function number */
 	u16		pchid;		/* physical channel ID */
 	u16		maxstbl;	/* Maximum store block size */
+	u16		rid;		/* RID as supplied by firmware */
 	u8		pfgid;		/* function group ID */
 	u8		pft;		/* pci function type */
 	u8		port;
@@ -210,12 +211,14 @@ extern struct airq_iv *zpci_aif_sbv;
 ----------------------------------------------------------------------------- */
 /* Base stuff */
 struct zpci_dev *zpci_create_device(u32 fid, u32 fh, enum zpci_state state);
+int zpci_add_device(struct zpci_dev *zdev);
 int zpci_enable_device(struct zpci_dev *);
 int zpci_disable_device(struct zpci_dev *);
 int zpci_scan_configured_device(struct zpci_dev *zdev, u32 fh);
 int zpci_deconfigure_device(struct zpci_dev *zdev);
 void zpci_device_reserved(struct zpci_dev *zdev);
 bool zpci_is_device_configured(struct zpci_dev *zdev);
+int zpci_scan_devices(void);
 
 int zpci_hot_reset_device(struct zpci_dev *zdev);
 int zpci_register_ioat(struct zpci_dev *, u8, u64, u64, u64, u8 *);
@@ -225,7 +228,7 @@ void zpci_update_fh(struct zpci_dev *zdev, u32 fh);
 
 /* CLP */
 int clp_setup_writeback_mio(void);
-int clp_scan_pci_devices(void);
+int clp_scan_pci_devices(struct list_head *scan_list);
 int clp_query_pci_fn(struct zpci_dev *zdev);
 int clp_enable_fh(struct zpci_dev *zdev, u32 *fh, u8 nr_dma_as);
 int clp_disable_fh(struct zpci_dev *zdev, u32 *fh);

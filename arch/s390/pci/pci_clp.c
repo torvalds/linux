@@ -164,8 +164,10 @@ static int clp_store_query_pci_fn(struct zpci_dev *zdev,
 	zdev->port = response->port;
 	zdev->uid = response->uid;
 	zdev->fmb_length = sizeof(u32) * response->fmb_len;
-	zdev->rid_available = response->rid_avail;
 	zdev->is_physfn = response->is_physfn;
+	zdev->rid_available = response->rid_avail;
+	if (zdev->rid_available)
+		zdev->rid = response->rid;
 	if (!s390_pci_no_rid && zdev->rid_available)
 		zdev->devfn = response->rid & ZPCI_RID_MASK_DEVFN;
 
@@ -407,6 +409,7 @@ static int clp_find_pci(struct clp_req_rsp_list_pci *rrb, u32 fid,
 
 static void __clp_add(struct clp_fh_list_entry *entry, void *data)
 {
+	struct list_head *scan_list = data;
 	struct zpci_dev *zdev;
 
 	if (!entry->vendor_id)
@@ -417,10 +420,11 @@ static void __clp_add(struct clp_fh_list_entry *entry, void *data)
 		zpci_zdev_put(zdev);
 		return;
 	}
-	zpci_create_device(entry->fid, entry->fh, entry->config_state);
+	zdev = zpci_create_device(entry->fid, entry->fh, entry->config_state);
+	list_add_tail(&zdev->entry, scan_list);
 }
 
-int clp_scan_pci_devices(void)
+int clp_scan_pci_devices(struct list_head *scan_list)
 {
 	struct clp_req_rsp_list_pci *rrb;
 	int rc;
@@ -429,7 +433,7 @@ int clp_scan_pci_devices(void)
 	if (!rrb)
 		return -ENOMEM;
 
-	rc = clp_list_pci(rrb, NULL, __clp_add);
+	rc = clp_list_pci(rrb, scan_list, __clp_add);
 
 	clp_free_block(rrb);
 	return rc;
