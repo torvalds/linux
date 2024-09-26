@@ -155,7 +155,6 @@ static int sun20i_gpadc_alloc_channels(struct iio_dev *indio_dev,
 	unsigned int channel;
 	int num_channels, i, ret;
 	struct iio_chan_spec *channels;
-	struct fwnode_handle *node;
 
 	num_channels = device_get_child_node_count(dev);
 	if (num_channels == 0)
@@ -167,12 +166,10 @@ static int sun20i_gpadc_alloc_channels(struct iio_dev *indio_dev,
 		return -ENOMEM;
 
 	i = 0;
-	device_for_each_child_node(dev, node) {
+	device_for_each_child_node_scoped(dev, node) {
 		ret = fwnode_property_read_u32(node, "reg", &channel);
-		if (ret) {
-			fwnode_handle_put(node);
+		if (ret)
 			return dev_err_probe(dev, ret, "invalid channel number\n");
-		}
 
 		channels[i].type = IIO_VOLTAGE;
 		channels[i].indexed = 1;
