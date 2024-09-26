@@ -3074,20 +3074,11 @@ static s32 scx_select_cpu_dfl(struct task_struct *p, s32 prev_cpu,
 	 * there is an idle core elsewhere on the system.
 	 */
 	cpu = smp_processor_id();
-	if ((wake_flags & SCX_WAKE_SYNC) && p->nr_cpus_allowed > 1 &&
+	if ((wake_flags & SCX_WAKE_SYNC) &&
 	    !cpumask_empty(idle_masks.cpu) && !(current->flags & PF_EXITING) &&
 	    cpu_rq(cpu)->scx.local_dsq.nr == 0) {
 		if (cpumask_test_cpu(cpu, p->cpus_ptr))
 			goto cpu_found;
-	}
-
-	if (p->nr_cpus_allowed == 1) {
-		if (test_and_clear_cpu_idle(prev_cpu)) {
-			cpu = prev_cpu;
-			goto cpu_found;
-		} else {
-			return prev_cpu;
-		}
 	}
 
 	/*
