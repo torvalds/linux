@@ -808,7 +808,7 @@ void icc_put(struct icc_path *path)
 	mutex_unlock(&icc_bw_lock);
 	mutex_unlock(&icc_lock);
 
-	kfree_const(path->name);
+	kfree(path->name);
 	kfree(path);
 }
 EXPORT_SYMBOL_GPL(icc_put);
