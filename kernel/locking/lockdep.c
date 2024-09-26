@@ -4586,6 +4586,30 @@ void lockdep_softirqs_off(unsigned long ip)
 		debug_atomic_inc(redundant_softirqs_off);
 }
 
+/**
+ * lockdep_cleanup_dead_cpu - Ensure CPU lockdep state is cleanly stopped
+ *
+ * @cpu: index of offlined CPU
+ * @idle: task pointer for offlined CPU's idle thread
+ *
+ * Invoked after the CPU is dead. Ensures that the tracing infrastructure
+ * is left in a suitable state for the CPU to be subsequently brought
+ * online again.
+ */
+void lockdep_cleanup_dead_cpu(unsigned int cpu, struct task_struct *idle)
+{
+	if (unlikely(!debug_locks))
+		return;
+
+	if (unlikely(per_cpu(hardirqs_enabled, cpu))) {
+		pr_warn("CPU %u left hardirqs enabled!", cpu);
+		if (idle)
+			print_irqtrace_events(idle);
+		/* Clean it up for when the CPU comes online again. */
+		per_cpu(hardirqs_enabled, cpu) = 0;
+	}
+}
+
 static int
 mark_usage(struct task_struct *curr, struct held_lock *hlock, int check)
 {
