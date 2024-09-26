@@ -1431,6 +1431,7 @@ void dc_hardware_init(struct dc *dc)
 	detect_edp_presence(dc);
 	if (dc->ctx->dce_environment != DCE_ENV_VIRTUAL_HW)
 		dc->hwss.init_hw(dc);
+	dc_dmub_srv_notify_fw_dc_power_state(dc->ctx->dmub_srv, DC_ACPI_CM_POWER_STATE_D0);
 }
 
 void dc_init_callbacks(struct dc *dc,
