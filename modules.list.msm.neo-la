@@ -9,9 +9,10 @@ qcom_edac.ko
 icc-test.ko
 icc-debug.ko
 qnoc-neo.ko
-qcom_ipcc.ko
+qcom-ipcc.ko
 dcvs_fp.ko
 qcom-dcvs.ko
+debug_symbol.ko
 qnoc-qos.ko
 msm-geni-se.ko
 qcom-pdc.ko
@@ -32,6 +33,7 @@ gh_msgq.ko
 gh_rm_drv.ko
 socinfo.ko
 qcom-dload-mode.ko
+minidump.ko
 deferred-free-helper.ko
 mem-offline.ko
 mem-hooks.ko
