@@ -753,9 +753,16 @@ static int _hardware_enqueue(struct ci_hw_ep *hwep, struct ci_hw_req *hwreq)
 		do {
 			hw_write(ci, OP_USBCMD, USBCMD_ATDTW, USBCMD_ATDTW);
 			tmp_stat = hw_read(ci, OP_ENDPTSTAT, BIT(n));
-		} while (!hw_read(ci, OP_USBCMD, USBCMD_ATDTW));
+		} while (!hw_read(ci, OP_USBCMD, USBCMD_ATDTW) && tmp_stat);
 		hw_write(ci, OP_USBCMD, USBCMD_ATDTW, 0);
 		if (tmp_stat)
+			goto done;
+
+		/* OP_ENDPTSTAT will be clear by HW when the endpoint met
+		 * err. This dTD don't push to dQH if current dTD point is
+		 * not the last one in previous request.
+		 */
+		if (hwep->qh.ptr->curr != cpu_to_le32(prevlastnode->dma))
 			goto done;
 	}
 
