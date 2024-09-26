@@ -293,7 +293,8 @@ enum bch_fsck_flags {
 	x(accounting_key_replicas_nr_devs_0,			278,	FSCK_AUTOFIX)	\
 	x(accounting_key_replicas_nr_required_bad,		279,	FSCK_AUTOFIX)	\
 	x(accounting_key_replicas_devs_unsorted,		280,	FSCK_AUTOFIX)	\
-	x(MAX,							282,	0)
+	x(accounting_key_version_0,				282,	FSCK_AUTOFIX)	\
+	x(MAX,							283,	0)
 
 enum bch_sb_error_id {
 #define x(t, n, ...) BCH_FSCK_ERR_##t = n,

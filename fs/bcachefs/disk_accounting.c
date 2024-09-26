@@ -134,6 +134,10 @@ int bch2_accounting_validate(struct bch_fs *c, struct bkey_s_c k,
 	void *end = &acc_k + 1;
 	int ret = 0;
 
+	bkey_fsck_err_on(bversion_zero(k.k->bversion),
+			 c, accounting_key_version_0,
+			 "accounting key with version=0");
+
 	switch (acc_k.type) {
 	case BCH_DISK_ACCOUNTING_nr_inodes:
 		end = field_end(acc_k, nr_inodes);

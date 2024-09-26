@@ -214,9 +214,9 @@ static __always_inline int bversion_cmp(struct bversion l, struct bversion r)
 #define ZERO_VERSION	((struct bversion) { .hi = 0, .lo = 0 })
 #define MAX_VERSION	((struct bversion) { .hi = ~0, .lo = ~0ULL })
 
-static __always_inline int bversion_zero(struct bversion v)
+static __always_inline bool bversion_zero(struct bversion v)
 {
-	return !bversion_cmp(v, ZERO_VERSION);
+	return bversion_cmp(v, ZERO_VERSION) == 0;
 }
 
 #ifdef CONFIG_BCACHEFS_DEBUG
