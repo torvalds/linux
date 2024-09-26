@@ -3856,7 +3856,6 @@ binder_request_freeze_notification(struct binder_proc *proc,
 {
 	struct binder_ref_freeze *freeze;
 	struct binder_ref *ref;
-	bool is_frozen;
 
 	freeze = kzalloc(sizeof(*freeze), GFP_KERNEL);
 	if (!freeze)
@@ -3872,32 +3871,31 @@ binder_request_freeze_notification(struct binder_proc *proc,
 	}
 
 	binder_node_lock(ref->node);
-
-	if (ref->freeze || !ref->node->proc) {
-		binder_user_error("%d:%d invalid BC_REQUEST_FREEZE_NOTIFICATION %s\n",
-				  proc->pid, thread->pid,
-				  ref->freeze ? "already set" : "dead node");
+	if (ref->freeze) {
+		binder_user_error("%d:%d BC_REQUEST_FREEZE_NOTIFICATION already set\n",
+				  proc->pid, thread->pid);
 		binder_node_unlock(ref->node);
 		binder_proc_unlock(proc);
 		kfree(freeze);
 		return -EINVAL;
 	}
-	binder_inner_proc_lock(ref->node->proc);
-	is_frozen = ref->node->proc->is_frozen;
-	binder_inner_proc_unlock(ref->node->proc);
 
 	binder_stats_created(BINDER_STAT_FREEZE);
 	INIT_LIST_HEAD(&freeze->work.entry);
 	freeze->cookie = handle_cookie->cookie;
 	freeze->work.type = BINDER_WORK_FROZEN_BINDER;
-	freeze->is_frozen = is_frozen;
-
 	ref->freeze = freeze;
 
-	binder_inner_proc_lock(proc);
-	binder_enqueue_work_ilocked(&ref->freeze->work, &proc->todo);
-	binder_wakeup_proc_ilocked(proc);
-	binder_inner_proc_unlock(proc);
+	if (ref->node->proc) {
+		binder_inner_proc_lock(ref->node->proc);
+		freeze->is_frozen = ref->node->proc->is_frozen;
+		binder_inner_proc_unlock(ref->node->proc);
+
+		binder_inner_proc_lock(proc);
+		binder_enqueue_work_ilocked(&freeze->work, &proc->todo);
+		binder_wakeup_proc_ilocked(proc);
+		binder_inner_proc_unlock(proc);
+	}
 
 	binder_node_unlock(ref->node);
 	binder_proc_unlock(proc);
