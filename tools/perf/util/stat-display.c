@@ -7,6 +7,7 @@
 #include <perf/cpumap.h>
 #include "color.h"
 #include "counts.h"
+#include "debug.h"
 #include "evlist.h"
 #include "evsel.h"
 #include "stat.h"
@@ -966,6 +967,13 @@ static bool should_skip_zero_counter(struct perf_stat_config *config,
 {
 	struct perf_cpu cpu;
 	int idx;
+
+	/*
+	 * Skip unsupported default events when not verbose. (default events
+	 * are all marked 'skippable').
+	 */
+	if (verbose == 0 && counter->skippable && !counter->supported)
+		return true;
 
 	/*
 	 * Skip value 0 when enabling --per-thread globally,
