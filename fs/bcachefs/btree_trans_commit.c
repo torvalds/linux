@@ -700,27 +700,31 @@ bch2_trans_commit_write_locked(struct btree_trans *trans, unsigned flags,
 
 	struct jset_entry *entry = trans->journal_entries;
 
-	if (likely(!(flags & BCH_TRANS_COMMIT_skip_accounting_apply))) {
-		percpu_down_read(&c->mark_lock);
+	percpu_down_read(&c->mark_lock);
 
-		for (entry = trans->journal_entries;
-		     entry != (void *) ((u64 *) trans->journal_entries + trans->journal_entries_u64s);
-		     entry = vstruct_next(entry))
-			if (jset_entry_is_key(entry) && entry->start->k.type == KEY_TYPE_accounting) {
-				struct bkey_i_accounting *a = bkey_i_to_accounting(entry->start);
+	for (entry = trans->journal_entries;
+	     entry != (void *) ((u64 *) trans->journal_entries + trans->journal_entries_u64s);
+	     entry = vstruct_next(entry))
+		if (entry->type == BCH_JSET_ENTRY_write_buffer_keys &&
+		    entry->start->k.type == KEY_TYPE_accounting) {
+			BUG_ON(!trans->journal_res.ref);
 
-				a->k.bversion = journal_pos_to_bversion(&trans->journal_res,
-								(u64 *) entry - (u64 *) trans->journal_entries);
-				BUG_ON(bversion_zero(a->k.bversion));
+			struct bkey_i_accounting *a = bkey_i_to_accounting(entry->start);
+
+			a->k.bversion = journal_pos_to_bversion(&trans->journal_res,
+							(u64 *) entry - (u64 *) trans->journal_entries);
+			BUG_ON(bversion_zero(a->k.bversion));
+
+			if (likely(!(flags & BCH_TRANS_COMMIT_skip_accounting_apply))) {
 				ret = bch2_accounting_mem_mod_locked(trans, accounting_i_to_s_c(a), BCH_ACCOUNTING_normal);
 				if (ret)
 					goto revert_fs_usage;
 			}
-		percpu_up_read(&c->mark_lock);
+		}
+	percpu_up_read(&c->mark_lock);
 
-		/* XXX: we only want to run this if deltas are nonzero */
-		bch2_trans_account_disk_usage_change(trans);
-	}
+	/* XXX: we only want to run this if deltas are nonzero */
+	bch2_trans_account_disk_usage_change(trans);
 
 	trans_for_each_update(trans, i)
 		if (btree_node_type_has_atomic_triggers(i->bkey_type)) {
