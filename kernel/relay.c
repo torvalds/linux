@@ -117,7 +117,7 @@ static void *relay_alloc_buf(struct rchan_buf *buf, size_t *size)
 	if (!buf->page_array)
 		return NULL;
 
-	for (i = 0; i < n_pages; i++) {
+	for (i = 0; i < n_pages; ++i) {
 		buf->page_array[i] = alloc_page(GFP_KERNEL);
 		if (unlikely(!buf->page_array[i]))
 			goto depopulate;
@@ -132,7 +132,7 @@ static void *relay_alloc_buf(struct rchan_buf *buf, size_t *size)
 	return mem;
 
 depopulate:
-	for (j = 0; j < i; j++)
+	for (j = 0; j < i; ++j)
 		__free_page(buf->page_array[j]);
 	relay_free_page_array(buf->page_array);
 	return NULL;
@@ -197,7 +197,7 @@ static void relay_destroy_buf(struct rchan_buf *buf)
 
 	if (likely(buf->start)) {
 		vunmap(buf->start);
-		for (i = 0; i < buf->page_count; i++)
+		for (i = 0; i < buf->page_count; ++i)
 			__free_page(buf->page_array[i]);
 		relay_free_page_array(buf->page_array);
 	}
@@ -299,7 +299,7 @@ static void __relay_reset(struct rchan_buf *buf, unsigned int init)
 	buf->data = buf->start;
 	buf->offset = 0;
 
-	for (i = 0; i < buf->chan->n_subbufs; i++)
+	for (i = 0; i < buf->chan->n_subbufs; ++i)
 		buf->padding[i] = 0;
 
 	relay_subbuf_start(buf, buf->data, NULL, 0);
