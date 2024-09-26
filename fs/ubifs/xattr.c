@@ -541,15 +541,13 @@ int ubifs_purge_xattrs(struct inode *host)
 
 		clear_nlink(xino);
 		err = remove_xattr(c, host, xino, &nm);
+		iput(xino);
 		if (err) {
 			kfree(pxent);
 			kfree(xent);
-			iput(xino);
 			ubifs_err(c, "cannot remove xattr, error %d", err);
 			goto out_err;
 		}
-
-		iput(xino);
 
 		kfree(pxent);
 		pxent = xent;
