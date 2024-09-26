@@ -237,22 +237,20 @@ static int el15203000_pattern_clear(struct led_classdev *ldev)
 static int el15203000_probe_dt(struct el15203000 *priv)
 {
 	struct el15203000_led	*led = priv->leds;
-	struct fwnode_handle	*child;
 	int			ret;
 
-	device_for_each_child_node(priv->dev, child) {
+	device_for_each_child_node_scoped(priv->dev, child) {
 		struct led_init_data init_data = {};
 
 		ret = fwnode_property_read_u32(child, "reg", &led->reg);
 		if (ret) {
 			dev_err(priv->dev, "LED without ID number");
-			goto err_child_out;
+			return ret;
 		}
 
 		if (led->reg > U8_MAX) {
 			dev_err(priv->dev, "LED value %d is invalid", led->reg);
-			ret = -EINVAL;
-			goto err_child_out;
+			return -EINVAL;
 		}
 
 		led->priv			  = priv;
@@ -274,17 +272,13 @@ static int el15203000_probe_dt(struct el15203000 *priv)
 			dev_err(priv->dev,
 				"failed to register LED device %s, err %d",
 				led->ldev.name, ret);
-			goto err_child_out;
+			return ret;
 		}
 
 		led++;
 	}
 
 	return 0;
-
-err_child_out:
-	fwnode_handle_put(child);
-	return ret;
 }
 
 static int el15203000_probe(struct spi_device *spi)
