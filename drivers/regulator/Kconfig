@@ -65,6 +65,16 @@ config REGULATOR_VIRTUAL_CONSUMER
 
 	  If unsure, say no.
 
+config REGULATOR_SPM
+        bool "SPM regulator driver"
+        depends on SPMI
+        help
+          Enable support for the SPM regulator driver which is used for
+          setting voltages of processor supply regulators via the SPM module
+          found inside chips of Qualcomm Technologies Inc. The SPM regulator
+          driver can be used on QTI SoCs where the APSS processor cores are
+          supplied by their own PMIC regulator.
+
 config REGULATOR_USERSPACE_CONSUMER
 	tristate "Userspace regulator consumer support"
 	help
