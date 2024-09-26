@@ -151,7 +151,7 @@ static int bch2_journal_replay_accounting_key(struct btree_trans *trans,
 	struct bkey_s_c old = bch2_btree_path_peek_slot(btree_iter_path(trans, &iter), &u);
 
 	/* Has this delta already been applied to the btree? */
-	if (bversion_cmp(old.k->version, k->k->k.version) >= 0) {
+	if (bversion_cmp(old.k->bversion, k->k->k.bversion) >= 0) {
 		ret = 0;
 		goto out;
 	}

@@ -554,8 +554,8 @@ static inline void bch2_bkey_pack_test(void) {}
 	x(BKEY_FIELD_OFFSET,		p.offset)			\
 	x(BKEY_FIELD_SNAPSHOT,		p.snapshot)			\
 	x(BKEY_FIELD_SIZE,		size)				\
-	x(BKEY_FIELD_VERSION_HI,	version.hi)			\
-	x(BKEY_FIELD_VERSION_LO,	version.lo)
+	x(BKEY_FIELD_VERSION_HI,	bversion.hi)			\
+	x(BKEY_FIELD_VERSION_LO,	bversion.lo)
 
 struct bkey_format_state {
 	u64 field_min[BKEY_NR_FIELDS];

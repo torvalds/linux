@@ -684,10 +684,10 @@ bch2_trans_commit_write_locked(struct btree_trans *trans, unsigned flags,
 	    !(flags & BCH_TRANS_COMMIT_no_journal_res)) {
 		if (bch2_journal_seq_verify)
 			trans_for_each_update(trans, i)
-				i->k->k.version.lo = trans->journal_res.seq;
+				i->k->k.bversion.lo = trans->journal_res.seq;
 		else if (bch2_inject_invalid_keys)
 			trans_for_each_update(trans, i)
-				i->k->k.version = MAX_VERSION;
+				i->k->k.bversion = MAX_VERSION;
 	}
 
 	h = trans->hooks;
@@ -709,9 +709,9 @@ bch2_trans_commit_write_locked(struct btree_trans *trans, unsigned flags,
 			if (jset_entry_is_key(entry) && entry->start->k.type == KEY_TYPE_accounting) {
 				struct bkey_i_accounting *a = bkey_i_to_accounting(entry->start);
 
-				a->k.version = journal_pos_to_bversion(&trans->journal_res,
+				a->k.bversion = journal_pos_to_bversion(&trans->journal_res,
 								(u64 *) entry - (u64 *) trans->journal_entries);
-				BUG_ON(bversion_zero(a->k.version));
+				BUG_ON(bversion_zero(a->k.bversion));
 				ret = bch2_accounting_mem_mod_locked(trans, accounting_i_to_s_c(a), BCH_ACCOUNTING_normal);
 				if (ret)
 					goto revert_fs_usage;

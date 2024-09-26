@@ -291,7 +291,7 @@ static int __bch2_accounting_mem_insert(struct bch_fs *c, struct bkey_s_c_accoun
 
 	struct accounting_mem_entry n = {
 		.pos		= a.k->p,
-		.version	= a.k->version,
+		.bversion	= a.k->bversion,
 		.nr_counters	= bch2_accounting_counters(a.k),
 		.v[0]		= __alloc_percpu_gfp(n.nr_counters * sizeof(u64),
 						     sizeof(u64), GFP_KERNEL),
@@ -636,7 +636,7 @@ int bch2_accounting_read(struct bch_fs *c)
 						accounting_pos_cmp, &k.k->p);
 
 			bool applied = idx < acc->k.nr &&
-				bversion_cmp(acc->k.data[idx].version, k.k->version) >= 0;
+				bversion_cmp(acc->k.data[idx].bversion, k.k->bversion) >= 0;
 
 			if (applied)
 				continue;
@@ -644,7 +644,7 @@ int bch2_accounting_read(struct bch_fs *c)
 			if (i + 1 < &darray_top(*keys) &&
 			    i[1].k->k.type == KEY_TYPE_accounting &&
 			    !journal_key_cmp(i, i + 1)) {
-				BUG_ON(bversion_cmp(i[0].k->k.version, i[1].k->k.version) >= 0);
+				BUG_ON(bversion_cmp(i[0].k->k.bversion, i[1].k->k.bversion) >= 0);
 
 				i[1].journal_seq = i[0].journal_seq;
 

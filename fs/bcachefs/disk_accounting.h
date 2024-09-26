@@ -36,8 +36,8 @@ static inline void bch2_accounting_accumulate(struct bkey_i_accounting *dst,
 
 	for (unsigned i = 0; i < bch2_accounting_counters(&dst->k); i++)
 		dst->v.d[i] += src.v->d[i];
-	if (bversion_cmp(dst->k.version, src.k->version) < 0)
-		dst->k.version = src.k->version;
+	if (bversion_cmp(dst->k.bversion, src.k->bversion) < 0)
+		dst->k.bversion = src.k->bversion;
 }
 
 static inline void fs_usage_data_type_to_base(struct bch_fs_usage_base *fs_usage,

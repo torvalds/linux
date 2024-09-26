@@ -601,15 +601,15 @@ static int bch2_gc_mark_key(struct btree_trans *trans, enum btree_id btree_id,
 
 	if (initial) {
 		BUG_ON(bch2_journal_seq_verify &&
-		       k.k->version.lo > atomic64_read(&c->journal.seq));
+		       k.k->bversion.lo > atomic64_read(&c->journal.seq));
 
 		if (fsck_err_on(btree_id != BTREE_ID_accounting &&
-				k.k->version.lo > atomic64_read(&c->key_version),
+				k.k->bversion.lo > atomic64_read(&c->key_version),
 				trans, bkey_version_in_future,
 				"key version number higher than recorded %llu\n  %s",
 				atomic64_read(&c->key_version),
 				(bch2_bkey_val_to_text(&buf, c, k), buf.buf)))
-			atomic64_set(&c->key_version, k.k->version.lo);
+			atomic64_set(&c->key_version, k.k->bversion.lo);
 	}
 
 	if (mustfix_fsck_err_on(level && !bch2_dev_btree_bitmap_marked(c, k),
