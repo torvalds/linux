@@ -1168,7 +1168,7 @@ struct perf_pmu *perf_pmu__create_placeholder_core_pmu(struct list_head *core_pm
 	return pmu;
 }
 
-static bool perf_pmu__is_fake(const struct perf_pmu *pmu)
+bool perf_pmu__is_fake(const struct perf_pmu *pmu)
 {
 	return pmu->type == PERF_PMU_TYPE_FAKE;
 }

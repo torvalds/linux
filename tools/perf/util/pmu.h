@@ -281,5 +281,6 @@ struct perf_pmu *perf_pmu__create_placeholder_core_pmu(struct list_head *core_pm
 void perf_pmu__delete(struct perf_pmu *pmu);
 struct perf_pmu *perf_pmus__find_core_pmu(void);
 const char *perf_pmu__name_from_config(struct perf_pmu *pmu, u64 config);
+bool perf_pmu__is_fake(const struct perf_pmu *pmu);
 
 #endif /* __PMU_H */
