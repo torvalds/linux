@@ -735,6 +735,48 @@ static __init int init_tracepoints(void)
 	return ret;
 }
 __initcall(init_tracepoints);
+
+/**
+ * for_each_tracepoint_in_module - iteration on all tracepoints in a module
+ * @mod: module
+ * @fct: callback
+ * @priv: private data
+ */
+void for_each_tracepoint_in_module(struct module *mod,
+				   void (*fct)(struct tracepoint *tp,
+				    struct module *mod, void *priv),
+				   void *priv)
+{
+	tracepoint_ptr_t *begin, *end, *iter;
+
+	lockdep_assert_held(&tracepoint_module_list_mutex);
+
+	if (!mod)
+		return;
+
+	begin = mod->tracepoints_ptrs;
+	end = mod->tracepoints_ptrs + mod->num_tracepoints;
+
+	for (iter = begin; iter < end; iter++)
+		fct(tracepoint_ptr_deref(iter), mod, priv);
+}
+
+/**
+ * for_each_module_tracepoint - iteration on all tracepoints in all modules
+ * @fct: callback
+ * @priv: private data
+ */
+void for_each_module_tracepoint(void (*fct)(struct tracepoint *tp,
+				 struct module *mod, void *priv),
+				void *priv)
+{
+	struct tp_module *tp_mod;
+
+	mutex_lock(&tracepoint_module_list_mutex);
+	list_for_each_entry(tp_mod, &tracepoint_module_list, list)
+		for_each_tracepoint_in_module(tp_mod->mod, fct, priv);
+	mutex_unlock(&tracepoint_module_list_mutex);
+}
 #endif /* CONFIG_MODULES */
 
 /**
