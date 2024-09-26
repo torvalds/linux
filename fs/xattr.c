@@ -626,7 +626,7 @@ int setxattr_copy(const char __user *name, struct kernel_xattr_ctx *ctx)
 	return error;
 }
 
-int do_setxattr(struct mnt_idmap *idmap, struct dentry *dentry,
+static int do_setxattr(struct mnt_idmap *idmap, struct dentry *dentry,
 		struct kernel_xattr_ctx *ctx)
 {
 	if (is_posix_acl_xattr(ctx->kname->name))
@@ -635,6 +635,45 @@ int do_setxattr(struct mnt_idmap *idmap, struct dentry *dentry,
 
 	return vfs_setxattr(idmap, dentry, ctx->kname->name,
 			ctx->kvalue, ctx->size, ctx->flags);
+}
+
+int file_setxattr(struct file *f, struct kernel_xattr_ctx *ctx)
+{
+	int error = mnt_want_write_file(f);
+
+	if (!error) {
+		audit_file(f);
+		error = do_setxattr(file_mnt_idmap(f), f->f_path.dentry, ctx);
+		mnt_drop_write_file(f);
+	}
+	return error;
+}
+
+/* unconditionally consumes filename */
+int filename_setxattr(int dfd, struct filename *filename,
+		      unsigned int lookup_flags, struct kernel_xattr_ctx *ctx)
+{
+	struct path path;
+	int error;
+
+retry:
+	error = filename_lookup(dfd, filename, lookup_flags, &path, NULL);
+	if (error)
+		goto out;
+	error = mnt_want_write(path.mnt);
+	if (!error) {
+		error = do_setxattr(mnt_idmap(path.mnt), path.dentry, ctx);
+		mnt_drop_write(path.mnt);
+	}
+	path_put(&path);
+	if (retry_estale(error, lookup_flags)) {
+		lookup_flags |= LOOKUP_REVAL;
+		goto retry;
+	}
+
+out:
+	putname(filename);
+	return error;
 }
 
 static int path_setxattr(const char __user *pathname,
@@ -649,29 +688,14 @@ static int path_setxattr(const char __user *pathname,
 		.kname    = &kname,
 		.flags    = flags,
 	};
-	struct path path;
 	int error;
 
 	error = setxattr_copy(name, &ctx);
 	if (error)
 		return error;
 
-retry:
-	error = user_path_at(AT_FDCWD, pathname, lookup_flags, &path);
-	if (error)
-		goto out;
-	error = mnt_want_write(path.mnt);
-	if (!error) {
-		error = do_setxattr(mnt_idmap(path.mnt), path.dentry, &ctx);
-		mnt_drop_write(path.mnt);
-	}
-	path_put(&path);
-	if (retry_estale(error, lookup_flags)) {
-		lookup_flags |= LOOKUP_REVAL;
-		goto retry;
-	}
-
-out:
+	error = filename_setxattr(AT_FDCWD, getname(pathname), lookup_flags,
+				  &ctx);
 	kvfree(ctx.kvalue);
 	return error;
 }
@@ -707,17 +731,12 @@ SYSCALL_DEFINE5(fsetxattr, int, fd, const char __user *, name,
 
 	if (fd_empty(f))
 		return -EBADF;
-	audit_file(fd_file(f));
+
 	error = setxattr_copy(name, &ctx);
 	if (error)
 		return error;
 
-	error = mnt_want_write_file(fd_file(f));
-	if (!error) {
-		error = do_setxattr(file_mnt_idmap(fd_file(f)),
-				    fd_file(f)->f_path.dentry, &ctx);
-		mnt_drop_write_file(fd_file(f));
-	}
+	error = file_setxattr(fd_file(f), &ctx);
 	kvfree(ctx.kvalue);
 	return error;
 }

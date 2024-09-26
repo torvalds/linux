@@ -285,10 +285,10 @@ ssize_t do_getxattr(struct mnt_idmap *idmap,
 		    struct dentry *d,
 		    struct kernel_xattr_ctx *ctx);
 
+int file_setxattr(struct file *file, struct kernel_xattr_ctx *ctx);
+int filename_setxattr(int dfd, struct filename *filename,
+		      unsigned int lookup_flags, struct kernel_xattr_ctx *ctx);
 int setxattr_copy(const char __user *name, struct kernel_xattr_ctx *ctx);
-int do_setxattr(struct mnt_idmap *idmap, struct dentry *dentry,
-		struct kernel_xattr_ctx *ctx);
-
 int import_xattr_name(struct xattr_name *kname, const char __user *name);
 
 int may_write_xattr(struct mnt_idmap *idmap, struct inode *inode);
