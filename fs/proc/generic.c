@@ -398,7 +398,7 @@ static struct proc_dir_entry *__proc_create(struct proc_dir_entry **parent,
 	struct qstr qstr;
 
 	if (xlate_proc_name(name, parent, &fn) != 0)
-		goto out;
+		return ent;
 	qstr.name = fn;
 	qstr.len = strlen(fn);
 	if (qstr.len == 0 || qstr.len >= 256) {
@@ -424,7 +424,7 @@ static struct proc_dir_entry *__proc_create(struct proc_dir_entry **parent,
 
 	ent = kmem_cache_zalloc(proc_dir_entry_cache, GFP_KERNEL);
 	if (!ent)
-		goto out;
+		return ent;
 
 	if (qstr.len + 1 <= SIZEOF_PDE_INLINE_NAME) {
 		ent->name = ent->inline_name;
@@ -451,7 +451,6 @@ static struct proc_dir_entry *__proc_create(struct proc_dir_entry **parent,
 	if ((*parent)->proc_dops == &proc_net_dentry_ops)
 		pde_force_lookup(ent);
 
-out:
 	return ent;
 }
 
