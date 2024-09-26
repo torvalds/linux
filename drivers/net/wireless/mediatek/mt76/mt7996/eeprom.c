@@ -86,8 +86,13 @@ static int mt7996_eeprom_load(struct mt7996_dev *dev)
 		/* read eeprom data from efuse */
 		block_num = DIV_ROUND_UP(MT7996_EEPROM_SIZE, eeprom_blk_size);
 		for (i = 0; i < block_num; i++) {
-			ret = mt7996_mcu_get_eeprom(dev, i * eeprom_blk_size);
-			if (ret < 0)
+			u32 len = eeprom_blk_size;
+
+			if (i == block_num - 1)
+				len = MT7996_EEPROM_SIZE % eeprom_blk_size;
+			ret = mt7996_mcu_get_eeprom(dev, i * eeprom_blk_size,
+						    NULL, len);
+			if (ret && ret != -EINVAL)
 				return ret;
 		}
 	}
