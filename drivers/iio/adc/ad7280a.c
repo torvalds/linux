@@ -7,6 +7,7 @@
 
 #include <linux/bitfield.h>
 #include <linux/bits.h>
+#include <linux/cleanup.h>
 #include <linux/crc8.h>
 #include <linux/delay.h>
 #include <linux/device.h>
@@ -803,16 +804,16 @@ static irqreturn_t ad7280_event_handler(int irq, void *private)
 {
 	struct iio_dev *indio_dev = private;
 	struct ad7280_state *st = iio_priv(indio_dev);
-	unsigned int *channels;
 	int i, ret;
 
-	channels = kcalloc(st->scan_cnt, sizeof(*channels), GFP_KERNEL);
+	unsigned int *channels __free(kfree) = kcalloc(st->scan_cnt, sizeof(*channels),
+						       GFP_KERNEL);
 	if (!channels)
 		return IRQ_HANDLED;
 
 	ret = ad7280_read_all_channels(st, st->scan_cnt, channels);
 	if (ret < 0)
-		goto out;
+		return IRQ_HANDLED;
 
 	for (i = 0; i < st->scan_cnt; i++) {
 		unsigned int val;
@@ -851,9 +852,6 @@ static irqreturn_t ad7280_event_handler(int irq, void *private)
 			}
 		}
 	}
-
-out:
-	kfree(channels);
 
 	return IRQ_HANDLED;
 }
@@ -1092,8 +1090,8 @@ static int ad7280_probe(struct spi_device *spi)
 }
 
 static const struct spi_device_id ad7280_id[] = {
-	{"ad7280a", 0},
-	{}
+	{ "ad7280a", 0 },
+	{ }
 };
 MODULE_DEVICE_TABLE(spi, ad7280_id);
 

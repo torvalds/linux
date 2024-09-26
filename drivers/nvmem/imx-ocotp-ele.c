@@ -14,8 +14,9 @@
 #include <linux/slab.h>
 
 enum fuse_type {
-	FUSE_FSB = 1,
-	FUSE_ELE = 2,
+	FUSE_FSB = BIT(0),
+	FUSE_ELE = BIT(1),
+	FUSE_ECC = BIT(2),
 	FUSE_INVALID = -1
 };
 
@@ -93,7 +94,10 @@ static int imx_ocotp_reg_read(void *context, unsigned int offset, void *val, siz
 			continue;
 		}
 
-		*buf++ = readl_relaxed(reg + (i << 2));
+		if (type & FUSE_ECC)
+			*buf++ = readl_relaxed(reg + (i << 2)) & GENMASK(15, 0);
+		else
+			*buf++ = readl_relaxed(reg + (i << 2));
 	}
 
 	memcpy(val, (u8 *)p, bytes);
@@ -155,8 +159,30 @@ static const struct ocotp_devtype_data imx93_ocotp_data = {
 	},
 };
 
+static const struct ocotp_devtype_data imx95_ocotp_data = {
+	.reg_off = 0x8000,
+	.reg_read = imx_ocotp_reg_read,
+	.size = 2048,
+	.num_entry = 12,
+	.entry = {
+		{ 0, 1, FUSE_FSB | FUSE_ECC },
+		{ 7, 1, FUSE_FSB | FUSE_ECC },
+		{ 9, 3, FUSE_FSB | FUSE_ECC },
+		{ 12, 24, FUSE_FSB },
+		{ 36, 2, FUSE_FSB  | FUSE_ECC },
+		{ 38, 14, FUSE_FSB },
+		{ 63, 1, FUSE_ELE },
+		{ 128, 16, FUSE_ELE },
+		{ 188, 1, FUSE_ELE },
+		{ 317, 2, FUSE_FSB | FUSE_ECC },
+		{ 320, 7, FUSE_FSB },
+		{ 328, 184, FUSE_FSB }
+	},
+};
+
 static const struct of_device_id imx_ele_ocotp_dt_ids[] = {
 	{ .compatible = "fsl,imx93-ocotp", .data = &imx93_ocotp_data, },
+	{ .compatible = "fsl,imx95-ocotp", .data = &imx95_ocotp_data, },
 	{},
 };
 MODULE_DEVICE_TABLE(of, imx_ele_ocotp_dt_ids);

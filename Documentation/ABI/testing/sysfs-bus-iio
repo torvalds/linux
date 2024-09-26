@@ -523,13 +523,27 @@ Description:
 What:		/sys/bus/iio/devices/iio:deviceX/in_accel_x_calibbias
 What:		/sys/bus/iio/devices/iio:deviceX/in_accel_y_calibbias
 What:		/sys/bus/iio/devices/iio:deviceX/in_accel_z_calibbias
+What:		/sys/bus/iio/devices/iio:deviceX/in_altvoltageY_i_calibbias
+What:		/sys/bus/iio/devices/iio:deviceX/in_altvoltageY_q_calibbias
 What:		/sys/bus/iio/devices/iio:deviceX/in_anglvel_x_calibbias
 What:		/sys/bus/iio/devices/iio:deviceX/in_anglvel_y_calibbias
 What:		/sys/bus/iio/devices/iio:deviceX/in_anglvel_z_calibbias
+What:		/sys/bus/iio/devices/iio:deviceX/in_capacitance_calibbias
+What:		/sys/bus/iio/devices/iio:deviceX/in_illuminance_calibbias
 What:		/sys/bus/iio/devices/iio:deviceX/in_illuminance0_calibbias
-What:		/sys/bus/iio/devices/iio:deviceX/in_proximity0_calibbias
-What:		/sys/bus/iio/devices/iio:deviceX/in_pressureY_calibbias
+What:		/sys/bus/iio/devices/iio:deviceX/in_intensityY_calibbias
+What:		/sys/bus/iio/devices/iio:deviceX/in_magn_x_calibbias
+What:		/sys/bus/iio/devices/iio:deviceX/in_magn_y_calibbias
+What:		/sys/bus/iio/devices/iio:deviceX/in_magn_z_calibbias
 What:		/sys/bus/iio/devices/iio:deviceX/in_pressure_calibbias
+What:		/sys/bus/iio/devices/iio:deviceX/in_pressureY_calibbias
+What:		/sys/bus/iio/devices/iio:deviceX/in_proximity_calibbias
+What:		/sys/bus/iio/devices/iio:deviceX/in_proximity0_calibbias
+What:		/sys/bus/iio/devices/iio:deviceX/in_resistance_calibbias
+What:		/sys/bus/iio/devices/iio:deviceX/in_temp_calibbias
+What:		/sys/bus/iio/devices/iio:deviceX/in_voltageY_calibbias
+What:		/sys/bus/iio/devices/iio:deviceX/out_currentY_calibbias
+What:		/sys/bus/iio/devices/iio:deviceX/out_voltageY_calibbias
 KernelVersion:	2.6.35
 Contact:	linux-iio@vger.kernel.org
 Description:
@@ -541,6 +555,10 @@ Description:
 
 What:		/sys/bus/iio/devices/iio:deviceX/in_accel_calibbias_available
 What:		/sys/bus/iio/devices/iio:deviceX/in_anglvel_calibbias_available
+What:		/sys/bus/iio/devices/iio:deviceX/in_temp_calibbias_available
+What:		/sys/bus/iio/devices/iio:deviceX/in_proximity_calibbias_available
+What:		/sys/bus/iio/devices/iio:deviceX/in_voltageY_calibbias_available
+What:		/sys/bus/iio/devices/iio:deviceX/out_voltageY_calibbias_available
 KernelVersion:  5.8
 Contact:        linux-iio@vger.kernel.org
 Description:
@@ -549,31 +567,54 @@ Description:
 		- a small discrete set of values like "0 2 4 6 8"
 		- a range specified as "[min step max]"
 
-What:		/sys/bus/iio/devices/iio:deviceX/in_voltageY_calibscale
-What:		/sys/bus/iio/devices/iio:deviceX/in_voltageY_supply_calibscale
-What:		/sys/bus/iio/devices/iio:deviceX/in_voltageY_i_calibscale
-What:		/sys/bus/iio/devices/iio:deviceX/in_voltageY_q_calibscale
-What:		/sys/bus/iio/devices/iio:deviceX/in_voltage_i_calibscale
-What:		/sys/bus/iio/devices/iio:deviceX/in_voltage_q_calibscale
-What:		/sys/bus/iio/devices/iio:deviceX/in_altvoltage_calibscale
-What:		/sys/bus/iio/devices/iio:deviceX/in_voltage_calibscale
 What:		/sys/bus/iio/devices/iio:deviceX/in_accel_x_calibscale
 What:		/sys/bus/iio/devices/iio:deviceX/in_accel_y_calibscale
 What:		/sys/bus/iio/devices/iio:deviceX/in_accel_z_calibscale
+What:		/sys/bus/iio/devices/iio:deviceX/in_altvoltage_calibscale
 What:		/sys/bus/iio/devices/iio:deviceX/in_anglvel_x_calibscale
 What:		/sys/bus/iio/devices/iio:deviceX/in_anglvel_y_calibscale
 What:		/sys/bus/iio/devices/iio:deviceX/in_anglvel_z_calibscale
-What:		/sys/bus/iio/devices/iio:deviceX/in_illuminance0_calibscale
-What:		/sys/bus/iio/devices/iio:deviceX/in_proximity0_calibscale
-What:		/sys/bus/iio/devices/iio:deviceX/in_pressureY_calibscale
-What:		/sys/bus/iio/devices/iio:deviceX/in_pressure_calibscale
+What:		/sys/bus/iio/devices/iio:deviceX/in_capacitance_calibscale
 What:		/sys/bus/iio/devices/iio:deviceX/in_illuminance_calibscale
+What:		/sys/bus/iio/devices/iio:deviceX/in_illuminance0_calibscale
+What:		/sys/bus/iio/devices/iio:deviceX/in_intensity_both_calibscale
+What:		/sys/bus/iio/devices/iio:deviceX/in_intensity_calibscale
+What:		/sys/bus/iio/devices/iio:deviceX/in_intensity_ir_calibscale
+What:		/sys/bus/iio/devices/iio:deviceX/in_magn_x_calibscale
+What:		/sys/bus/iio/devices/iio:deviceX/in_magn_y_calibscale
+What:		/sys/bus/iio/devices/iio:deviceX/in_magn_z_calibscale
+What:		/sys/bus/iio/devices/iio:deviceX/in_pressure_calibscale
+What:		/sys/bus/iio/devices/iio:deviceX/in_pressureY_calibscale
+What:		/sys/bus/iio/devices/iio:deviceX/in_proximity0_calibscale
+What:		/sys/bus/iio/devices/iio:deviceX/in_voltage_calibscale
+What:		/sys/bus/iio/devices/iio:deviceX/in_voltage_i_calibscale
+What:		/sys/bus/iio/devices/iio:deviceX/in_voltage_q_calibscale
+What:		/sys/bus/iio/devices/iio:deviceX/in_voltageY_calibscale
+What:		/sys/bus/iio/devices/iio:deviceX/in_voltageY_i_calibscale
+What:		/sys/bus/iio/devices/iio:deviceX/in_voltageY_q_calibscale
+What:		/sys/bus/iio/devices/iio:deviceX/in_voltageY_supply_calibscale
+What:		/sys/bus/iio/devices/iio:deviceX/out_currentY_calibscale
+What:		/sys/bus/iio/devices/iio:deviceX/out_voltageY_calibscale
 KernelVersion:	2.6.35
 Contact:	linux-iio@vger.kernel.org
 Description:
 		Hardware applied calibration scale factor (assumed to fix
 		production inaccuracies).  If shared across all channels,
 		<type>_calibscale is used.
+
+What:		/sys/bus/iio/devices/iio:deviceX/in_illuminanceY_calibscale_available
+What:		/sys/bus/iio/devices/iio:deviceX/in_intensityY_calibscale_available
+What:		/sys/bus/iio/devices/iio:deviceX/in_proximityY_calibscale_available
+What:		/sys/bus/iio/devices/iio:deviceX/in_voltageY_calibscale_available
+KernelVersion:	4.8
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Available values of calibscale. Maybe expressed as either of:
+
+		- a small discrete set of values like "1 8 16"
+		- a range specified as "[min step max]"
+
+		If shared across all channels, <type>_calibscale_available is used.
 
 What:		/sys/bus/iio/devices/iio:deviceX/in_activity_calibgender
 What:		/sys/bus/iio/devices/iio:deviceX/in_energy_calibgender
@@ -708,6 +749,7 @@ Description:
 		2.5kohm_to_gnd: connected to ground via a 2.5kOhm resistor,
 		6kohm_to_gnd: connected to ground via a 6kOhm resistor,
 		20kohm_to_gnd: connected to ground via a 20kOhm resistor,
+		42kohm_to_gnd: connected to ground via a 42kOhm resistor,
 		90kohm_to_gnd: connected to ground via a 90kOhm resistor,
 		100kohm_to_gnd: connected to ground via an 100kOhm resistor,
 		125kohm_to_gnd: connected to ground via an 125kOhm resistor,
@@ -2289,3 +2331,11 @@ KernelVersion:	6.7
 Contact:	linux-iio@vger.kernel.org
 Description:
 		List of available timeout value for tap gesture confirmation.
+
+What:		/sys/.../iio:deviceX/in_shunt_resistor
+What:		/sys/.../iio:deviceX/in_current_shunt_resistor
+What:		/sys/.../iio:deviceX/in_power_shunt_resistor
+KernelVersion:	6.10
+Contact:	linux-iio@vger.kernel.org
+Description:
+		The value of current sense resistor in Ohms.

@@ -217,7 +217,7 @@ static int lpc32xx_adc_probe(struct platform_device *pdev)
 
 static const struct of_device_id lpc32xx_adc_match[] = {
 	{ .compatible = "nxp,lpc3220-adc" },
-	{},
+	{ }
 };
 MODULE_DEVICE_TABLE(of, lpc32xx_adc_match);
 

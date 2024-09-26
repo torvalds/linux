@@ -54,7 +54,9 @@ properties:
           It's not present on stm32f4.
           It's required on stm32h7 and stm32mp1.
 
-  clock-names: true
+  clock-names:
+    minItems: 1
+    maxItems: 2
 
   st,max-clk-rate-hz:
     description:

@@ -918,7 +918,7 @@ static bool ltc2688_reg_writable(struct device *dev, unsigned int reg)
 	return false;
 }
 
-static struct regmap_bus ltc2688_regmap_bus = {
+static const struct regmap_bus ltc2688_regmap_bus = {
 	.read = ltc2688_spi_read,
 	.write = ltc2688_spi_write,
 	.read_flag_mask = LTC2688_READ_OPERATION,

@@ -79,6 +79,15 @@
 
 #include "ni_stc.h"
 
+static const struct comedi_lrange range_ni_E_ao_ext = {
+	4, {
+		BIP_RANGE(10),
+		UNI_RANGE(10),
+		RANGE_ext(-1, 1),
+		RANGE_ext(0, 1)
+	}
+};
+
 /* AT specific setup */
 static const struct ni_board_struct ni_boards[] = {
 	{

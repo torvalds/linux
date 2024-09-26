@@ -151,7 +151,7 @@ MODULE_DEVICE_TABLE(i2c, ltc2497_id);
 static const struct of_device_id ltc2497_of_match[] = {
 	{ .compatible = "lltc,ltc2497", .data = &ltc2497_info[TYPE_LTC2497] },
 	{ .compatible = "lltc,ltc2499", .data = &ltc2497_info[TYPE_LTC2499] },
-	{},
+	{ }
 };
 MODULE_DEVICE_TABLE(of, ltc2497_of_match);
 

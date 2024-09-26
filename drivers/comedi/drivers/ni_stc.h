@@ -1137,6 +1137,4 @@ struct ni_private {
 	u8 rgout0_usage;
 };
 
-static const struct comedi_lrange range_ni_E_ao_ext;
-
 #endif /* _COMEDI_NI_STC_H */

@@ -62,7 +62,7 @@ static int cros_ec_accel_legacy_read_cmd(struct iio_dev *indio_dev,
 		return ret;
 	}
 
-	for_each_set_bit(i, &scan_mask, indio_dev->masklength) {
+	for_each_set_bit(i, &scan_mask, iio_get_masklength(indio_dev)) {
 		*data = st->resp->dump.sensor[sensor_num].data[i] *
 			st->sign[i];
 		data++;
