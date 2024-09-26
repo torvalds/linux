@@ -154,6 +154,7 @@ static void amdgpu_dm_crtc_set_panel_sr_feature(
 
 			amdgpu_dm_psr_enable(vblank_work->stream);
 			if (dm->idle_workqueue &&
+			    (dm->dc->config.disable_ips == DMUB_IPS_ENABLE) &&
 			    dm->dc->idle_optimizations_allowed &&
 			    dm->idle_workqueue->enable &&
 			    !dm->idle_workqueue->running)
