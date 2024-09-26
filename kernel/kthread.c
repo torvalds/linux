@@ -1077,32 +1077,9 @@ kthread_create_worker_on_node(unsigned int flags, int node, const char namefmt[]
 	worker = __kthread_create_worker_on_node(flags, node, namefmt, args);
 	va_end(args);
 
-	if (worker)
-		wake_up_process(worker->task);
-
 	return worker;
 }
 EXPORT_SYMBOL(kthread_create_worker_on_node);
-
-static __printf(3, 4) struct kthread_worker *
-__kthread_create_worker_on_cpu(int cpu, unsigned int flags,
-			       const char namefmt[], ...)
-{
-	struct kthread_worker *worker;
-	va_list args;
-
-	va_start(args, namefmt);
-	worker = __kthread_create_worker_on_node(flags, cpu_to_node(cpu),
-						 namefmt, args);
-	va_end(args);
-
-	if (worker) {
-		kthread_bind(worker->task, cpu);
-		wake_up_process(worker->task);
-	}
-
-	return worker;
-}
 
 /**
  * kthread_create_worker_on_cpu - create a kthread worker and bind it
@@ -1144,7 +1121,13 @@ struct kthread_worker *
 kthread_create_worker_on_cpu(int cpu, unsigned int flags,
 			     const char namefmt[])
 {
-	return __kthread_create_worker_on_cpu(cpu, flags, namefmt, cpu);
+	struct kthread_worker *worker;
+
+	worker = kthread_create_worker_on_node(flags, cpu_to_node(cpu), namefmt, cpu);
+	if (!IS_ERR(worker))
+		kthread_bind(worker->task, cpu);
+
+	return worker;
 }
 EXPORT_SYMBOL(kthread_create_worker_on_cpu);
 

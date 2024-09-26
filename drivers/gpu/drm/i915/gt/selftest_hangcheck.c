@@ -1025,7 +1025,7 @@ static int __igt_reset_engines(struct intel_gt *gt,
 			threads[tmp].engine = other;
 			threads[tmp].flags = flags;
 
-			worker = kthread_create_worker(0, "igt/%s",
+			worker = kthread_run_worker(0, "igt/%s",
 						       other->name);
 			if (IS_ERR(worker)) {
 				err = PTR_ERR(worker);

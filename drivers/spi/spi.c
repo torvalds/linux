@@ -2060,7 +2060,7 @@ static int spi_init_queue(struct spi_controller *ctlr)
 	ctlr->busy = false;
 	ctlr->queue_empty = true;
 
-	ctlr->kworker = kthread_create_worker(0, dev_name(&ctlr->dev));
+	ctlr->kworker = kthread_run_worker(0, dev_name(&ctlr->dev));
 	if (IS_ERR(ctlr->kworker)) {
 		dev_err(&ctlr->dev, "failed to create message pump kworker\n");
 		return PTR_ERR(ctlr->kworker);

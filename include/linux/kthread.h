@@ -193,18 +193,52 @@ struct kthread_worker *kthread_create_worker_on_node(unsigned int flags,
 						     const char namefmt[], ...);
 
 #define kthread_create_worker(flags, namefmt, ...) \
-({									   \
-	struct kthread_worker *__kw					   \
-		= kthread_create_worker_on_node(flags, NUMA_NO_NODE,	   \
-						namefmt, ## __VA_ARGS__);  \
-	if (!IS_ERR(__kw))						   \
-		wake_up_process(__kw->task);				   \
-	__kw;								   \
+	kthread_create_worker_on_node(flags, NUMA_NO_NODE, namefmt, ## __VA_ARGS__);
+
+/**
+ * kthread_run_worker - create and wake a kthread worker.
+ * @flags: flags modifying the default behavior of the worker
+ * @namefmt: printf-style name for the thread.
+ *
+ * Description: Convenient wrapper for kthread_create_worker() followed by
+ * wake_up_process().  Returns the kthread_worker or ERR_PTR(-ENOMEM).
+ */
+#define kthread_run_worker(flags, namefmt, ...)					\
+({										\
+	struct kthread_worker *__kw						\
+		= kthread_create_worker(flags, namefmt, ## __VA_ARGS__);	\
+	if (!IS_ERR(__kw))							\
+		wake_up_process(__kw->task);					\
+	__kw;									\
 })
 
 struct kthread_worker *
 kthread_create_worker_on_cpu(int cpu, unsigned int flags,
 			     const char namefmt[]);
+
+/**
+ * kthread_run_worker_on_cpu - create and wake a cpu bound kthread worker.
+ * @cpu: CPU number
+ * @flags: flags modifying the default behavior of the worker
+ * @namefmt: printf-style name for the thread. Format is restricted
+ *	     to "name.*%u". Code fills in cpu number.
+ *
+ * Description: Convenient wrapper for kthread_create_worker_on_cpu()
+ * followed by wake_up_process().  Returns the kthread_worker or
+ * ERR_PTR(-ENOMEM).
+ */
+static inline struct kthread_worker *
+kthread_run_worker_on_cpu(int cpu, unsigned int flags,
+			  const char namefmt[])
+{
+	struct kthread_worker *kw;
+
+	kw = kthread_create_worker_on_cpu(cpu, flags, namefmt);
+	if (!IS_ERR(kw))
+		wake_up_process(kw->task);
+
+	return kw;
+}
 
 bool kthread_queue_work(struct kthread_worker *worker,
 			struct kthread_work *work);
