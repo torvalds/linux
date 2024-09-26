@@ -217,7 +217,7 @@ static irqreturn_t iproc_touchscreen_interrupt(int irq, void *data)
 			"pen up-down (%d)\n", priv->pen_status);
 	}
 
-	/* coordinates in FIFO exceed the theshold */
+	/* coordinates in FIFO exceed the threshold */
 	if (intr_status & TS_FIFO_INTR_MASK) {
 		for (i = 0; i < priv->cfg_params.fifo_threshold; i++) {
 			regmap_read(priv->regmap, FIFO_DATA, &raw_coordinate);
