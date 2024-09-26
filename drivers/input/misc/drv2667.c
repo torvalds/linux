@@ -16,7 +16,7 @@
 #include <linux/delay.h>
 #include <linux/regulator/consumer.h>
 
-/* Contol registers */
+/* Control registers */
 #define DRV2667_STATUS	0x00
 #define DRV2667_CTRL_1	0x01
 #define DRV2667_CTRL_2	0x02

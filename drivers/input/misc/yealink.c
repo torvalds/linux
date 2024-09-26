@@ -377,7 +377,7 @@ send_update:
 		if (len > sizeof(yld->ctl_data->data))
 			len = sizeof(yld->ctl_data->data);
 
-		/* Combine up to <len> consecutive LCD bytes in a singe request
+		/* Combine up to <len> consecutive LCD bytes in a single request
 		 */
 		yld->ctl_data->cmd	= CMD_LCD;
 		yld->ctl_data->offset	= cpu_to_be16(ix);
@@ -614,7 +614,7 @@ static ssize_t show_line3(struct device *dev, struct device_attribute *attr,
 	return show_line(dev, buf, LCD_LINE3_OFFSET, LCD_LINE4_OFFSET);
 }
 
-/* Writing to /sys/../lineX will set the coresponding LCD line.
+/* Writing to /sys/../lineX will set the corresponding LCD line.
  * - Excess characters are ignored.
  * - If less characters are written than allowed, the remaining digits are
  *   unchanged.

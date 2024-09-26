@@ -25,7 +25,7 @@
 /* CONTROL REGISTER 1 BITS */
 #define PC1_OFF			0x7F
 #define PC1_ON			(1 << 7)
-/* Data ready funtion enable bit: set during probe if using irq mode */
+/* Data ready function enable bit: set during probe if using irq mode */
 #define DRDYE			(1 << 5)
 /* DATA CONTROL REGISTER BITS */
 #define ODR12_5F		0

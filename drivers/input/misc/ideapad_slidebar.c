@@ -23,7 +23,7 @@
  *
  * The value is in byte range, however, I only figured out
  * how bits 0b10011001 work. Some other bits, probably,
- * are meaningfull too.
+ * are meaningful too.
  *
  * Possible states:
  *
