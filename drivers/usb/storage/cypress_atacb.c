@@ -33,7 +33,7 @@ MODULE_IMPORT_NS(USB_STORAGE);
 { USB_DEVICE_VER(id_vendor, id_product, bcdDeviceMin, bcdDeviceMax), \
   .driver_info = (flags) }
 
-static struct usb_device_id cypress_usb_ids[] = {
+static const struct usb_device_id cypress_usb_ids[] = {
 #	include "unusual_cypress.h"
 	{ }		/* Terminating entry */
 };
@@ -55,7 +55,7 @@ MODULE_DEVICE_TABLE(usb, cypress_usb_ids);
 	.initFunction = init_function,	\
 }
 
-static struct us_unusual_dev cypress_unusual_dev_list[] = {
+static const struct us_unusual_dev cypress_unusual_dev_list[] = {
 #	include "unusual_cypress.h"
 	{ }		/* Terminating entry */
 };

@@ -346,7 +346,7 @@ static void dbc_rx_push(struct tasklet_struct *t)
 			port->n_read = 0;
 		}
 
-		list_move(&req->list_pool, &port->read_pool);
+		list_move_tail(&req->list_pool, &port->read_pool);
 	}
 
 	if (do_push)

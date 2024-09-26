@@ -69,7 +69,6 @@ MODULE_DEVICE_TABLE(usb, id_table);
 
 static struct usb_serial_driver mct_u232_device = {
 	.driver = {
-		.owner =	THIS_MODULE,
 		.name =		"mct_u232",
 	},
 	.description =	     "MCT U232",

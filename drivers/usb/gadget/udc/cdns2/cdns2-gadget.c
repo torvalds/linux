@@ -2033,8 +2033,8 @@ static void cdns2_quiesce(struct cdns2_device *pdev)
 	set_reg_bit_8(&pdev->usb_regs->usbcs, USBCS_DISCON);
 
 	/* Disable interrupt. */
-	writeb(0, &pdev->interrupt_regs->extien),
-	writeb(0, &pdev->interrupt_regs->usbien),
+	writeb(0, &pdev->interrupt_regs->extien);
+	writeb(0, &pdev->interrupt_regs->usbien);
 	writew(0, &pdev->adma_regs->ep_ien);
 
 	/* Clear interrupt line. */
