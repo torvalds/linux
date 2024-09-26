@@ -2148,7 +2148,7 @@ static int si_common_early_init(struct amdgpu_ip_block *ip_block)
 	return 0;
 }
 
-static int si_common_sw_init(void *handle)
+static int si_common_sw_init(struct amdgpu_ip_block *ip_block)
 {
 	return 0;
 }

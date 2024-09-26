@@ -415,9 +415,9 @@ static int vce_v3_0_early_init(struct amdgpu_ip_block *ip_block)
 	return 0;
 }
 
-static int vce_v3_0_sw_init(void *handle)
+static int vce_v3_0_sw_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	struct amdgpu_ring *ring;
 	int r, i;
 

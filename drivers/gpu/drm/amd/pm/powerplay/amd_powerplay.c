@@ -130,9 +130,9 @@ static void pp_swctf_delayed_work_handler(struct work_struct *work)
 	orderly_poweroff(true);
 }
 
-static int pp_sw_init(void *handle)
+static int pp_sw_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	struct pp_hwmgr *hwmgr = adev->powerplay.pp_handle;
 	int ret = 0;
 

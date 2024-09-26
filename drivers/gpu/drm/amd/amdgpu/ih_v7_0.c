@@ -537,10 +537,10 @@ static int ih_v7_0_early_init(struct amdgpu_ip_block *ip_block)
 	return 0;
 }
 
-static int ih_v7_0_sw_init(void *handle)
+static int ih_v7_0_sw_init(struct amdgpu_ip_block *ip_block)
 {
 	int r;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	bool use_bus_addr;
 
 	r = amdgpu_irq_add_id(adev, SOC21_IH_CLIENTID_IH, 0,

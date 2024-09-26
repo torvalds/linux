@@ -1106,11 +1106,11 @@ static int sdma_v3_0_early_init(struct amdgpu_ip_block *ip_block)
 	return 0;
 }
 
-static int sdma_v3_0_sw_init(void *handle)
+static int sdma_v3_0_sw_init(struct amdgpu_ip_block *ip_block)
 {
 	struct amdgpu_ring *ring;
 	int r, i;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	/* SDMA trap event */
 	r = amdgpu_irq_add_id(adev, AMDGPU_IRQ_CLIENTID_LEGACY, VISLANDS30_IV_SRCID_SDMA_TRAP,

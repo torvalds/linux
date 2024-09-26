@@ -4343,10 +4343,10 @@ static int gfx_v7_0_compute_ring_init(struct amdgpu_device *adev, int ring_id,
 	return 0;
 }
 
-static int gfx_v7_0_sw_init(void *handle)
+static int gfx_v7_0_sw_init(struct amdgpu_ip_block *ip_block)
 {
 	struct amdgpu_ring *ring;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	int i, j, k, r, ring_id;
 
 	switch (adev->asic_type) {

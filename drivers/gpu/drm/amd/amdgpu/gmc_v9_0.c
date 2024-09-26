@@ -1987,10 +1987,10 @@ static void gmc_v9_4_3_init_vram_info(struct amdgpu_device *adev)
 	adev->gmc.vram_width = 128 * 64;
 }
 
-static int gmc_v9_0_sw_init(void *handle)
+static int gmc_v9_0_sw_init(struct amdgpu_ip_block *ip_block)
 {
 	int r, vram_width = 0, vram_type = 0, vram_vendor = 0, dma_addr_bits;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	unsigned long inst_mask = adev->aid_mask;
 
 	adev->gfxhub.funcs->init(adev);

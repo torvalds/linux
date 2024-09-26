@@ -33,7 +33,7 @@
 #include "isp_v4_1_0.h"
 #include "isp_v4_1_1.h"
 
-static int isp_sw_init(void *handle)
+static int isp_sw_init(struct amdgpu_ip_block *ip_block)
 {
 	return 0;
 }

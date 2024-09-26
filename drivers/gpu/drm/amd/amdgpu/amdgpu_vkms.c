@@ -493,10 +493,10 @@ const struct drm_mode_config_funcs amdgpu_vkms_mode_funcs = {
 	.atomic_commit = drm_atomic_helper_commit,
 };
 
-static int amdgpu_vkms_sw_init(void *handle)
+static int amdgpu_vkms_sw_init(struct amdgpu_ip_block *ip_block)
 {
 	int r, i;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	adev->amdgpu_vkms_output = kcalloc(adev->mode_info.num_crtc,
 		sizeof(struct amdgpu_vkms_output), GFP_KERNEL);

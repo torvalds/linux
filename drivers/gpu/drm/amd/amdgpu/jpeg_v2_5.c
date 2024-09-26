@@ -85,11 +85,11 @@ static int jpeg_v2_5_early_init(struct amdgpu_ip_block *ip_block)
  *
  * Load firmware and sw initialization
  */
-static int jpeg_v2_5_sw_init(void *handle)
+static int jpeg_v2_5_sw_init(struct amdgpu_ip_block *ip_block)
 {
 	struct amdgpu_ring *ring;
 	int i, r;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	for (i = 0; i < adev->jpeg.num_jpeg_inst; ++i) {
 		if (adev->jpeg.harvest_config & (1 << i))

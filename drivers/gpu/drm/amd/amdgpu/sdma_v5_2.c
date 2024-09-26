@@ -1314,11 +1314,11 @@ static unsigned sdma_v5_2_seq_to_trap_id(int seq_num)
 	return -EINVAL;
 }
 
-static int sdma_v5_2_sw_init(void *handle)
+static int sdma_v5_2_sw_init(struct amdgpu_ip_block *ip_block)
 {
 	struct amdgpu_ring *ring;
 	int r, i;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	uint32_t reg_count = ARRAY_SIZE(sdma_reg_list_5_2);
 	uint32_t *ptr;
 

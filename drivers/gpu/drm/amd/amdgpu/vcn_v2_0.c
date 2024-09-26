@@ -128,13 +128,13 @@ static int vcn_v2_0_early_init(struct amdgpu_ip_block *ip_block)
  *
  * Load firmware and sw initialization
  */
-static int vcn_v2_0_sw_init(void *handle)
+static int vcn_v2_0_sw_init(struct amdgpu_ip_block *ip_block)
 {
 	struct amdgpu_ring *ring;
 	int i, r;
 	uint32_t reg_count = ARRAY_SIZE(vcn_reg_list_2_0);
 	uint32_t *ptr;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	volatile struct amdgpu_fw_shared *fw_shared;
 
 	/* VCN DEC TRAP */

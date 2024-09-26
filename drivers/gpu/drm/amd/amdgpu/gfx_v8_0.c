@@ -1894,12 +1894,12 @@ static int gfx_v8_0_compute_ring_init(struct amdgpu_device *adev, int ring_id,
 
 static void gfx_v8_0_sq_irq_work_func(struct work_struct *work);
 
-static int gfx_v8_0_sw_init(void *handle)
+static int gfx_v8_0_sw_init(struct amdgpu_ip_block *ip_block)
 {
 	int i, j, k, r, ring_id;
 	int xcc_id = 0;
 	struct amdgpu_ring *ring;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	switch (adev->asic_type) {
 	case CHIP_TONGA:

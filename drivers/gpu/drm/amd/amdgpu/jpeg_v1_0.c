@@ -481,9 +481,9 @@ int jpeg_v1_0_early_init(struct amdgpu_ip_block *ip_block)
  * @handle: amdgpu_device pointer
  *
  */
-int jpeg_v1_0_sw_init(void *handle)
+int jpeg_v1_0_sw_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	struct amdgpu_ring *ring;
 	int r;
 

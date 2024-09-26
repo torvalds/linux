@@ -551,10 +551,10 @@ static int navi10_ih_early_init(struct amdgpu_ip_block *ip_block)
 	return 0;
 }
 
-static int navi10_ih_sw_init(void *handle)
+static int navi10_ih_sw_init(struct amdgpu_ip_block *ip_block)
 {
 	int r;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	bool use_bus_addr;
 
 	r = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_IH, 0,

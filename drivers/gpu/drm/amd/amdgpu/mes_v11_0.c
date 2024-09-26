@@ -1361,9 +1361,9 @@ static int mes_v11_0_mqd_sw_init(struct amdgpu_device *adev,
 	return 0;
 }
 
-static int mes_v11_0_sw_init(void *handle)
+static int mes_v11_0_sw_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	int pipe, r;
 
 	adev->mes.funcs = &mes_v11_0_funcs;

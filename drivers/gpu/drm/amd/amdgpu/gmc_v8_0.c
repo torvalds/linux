@@ -1076,10 +1076,10 @@ static unsigned int gmc_v8_0_get_vbios_fb_size(struct amdgpu_device *adev)
 
 #define mmMC_SEQ_MISC0_FIJI 0xA71
 
-static int gmc_v8_0_sw_init(void *handle)
+static int gmc_v8_0_sw_init(struct amdgpu_ip_block *ip_block)
 {
 	int r;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	set_bit(AMDGPU_GFXHUB(0), adev->vmhubs_mask);
 

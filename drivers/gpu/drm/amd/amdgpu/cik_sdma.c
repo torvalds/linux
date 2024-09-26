@@ -937,10 +937,10 @@ static int cik_sdma_early_init(struct amdgpu_ip_block *ip_block)
 	return 0;
 }
 
-static int cik_sdma_sw_init(void *handle)
+static int cik_sdma_sw_init(struct amdgpu_ip_block *ip_block)
 {
 	struct amdgpu_ring *ring;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	int r, i;
 
 	/* SDMA trap event */

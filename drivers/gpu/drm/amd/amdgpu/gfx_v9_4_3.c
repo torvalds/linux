@@ -1049,10 +1049,10 @@ static void gfx_v9_4_3_alloc_ip_dump(struct amdgpu_device *adev)
 	}
 }
 
-static int gfx_v9_4_3_sw_init(void *handle)
+static int gfx_v9_4_3_sw_init(struct amdgpu_ip_block *ip_block)
 {
 	int i, j, k, r, ring_id, xcc_id, num_xcc;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	switch (amdgpu_ip_version(adev, GC_HWIP, 0)) {
 	case IP_VERSION(9, 4, 3):

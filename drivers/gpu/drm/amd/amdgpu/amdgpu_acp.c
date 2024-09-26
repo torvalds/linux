@@ -98,9 +98,9 @@ enum {
 	ACP_TILE_DSP2,
 };
 
-static int acp_sw_init(void *handle)
+static int acp_sw_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	adev->acp.parent = adev->dev;
 
