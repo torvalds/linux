@@ -14,11 +14,23 @@
 	char *_fw;						\
 	switch (mt76_chip(&(_dev)->mt76)) {			\
 	case 0x7992:						\
-		_fw = MT7992_##name;				\
+		switch ((_dev)->var.type) {			\
+		case MT7992_VAR_TYPE_23:			\
+			_fw = MT7992_##name##_23;		\
+			break;					\
+		default:					\
+			_fw = MT7992_##name;			\
+		}						\
 		break;						\
 	case 0x7990:						\
 	default:						\
-		_fw = MT7996_##name;				\
+		switch ((_dev)->var.type) {			\
+		case MT7996_VAR_TYPE_233:			\
+			_fw = MT7996_##name##_233;		\
+			break;					\
+		default:					\
+			_fw = MT7996_##name;			\
+		}						\
 		break;						\
 	}							\
 	_fw;							\

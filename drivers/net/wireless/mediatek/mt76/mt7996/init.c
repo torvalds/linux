@@ -881,6 +881,76 @@ out:
 #endif
 }
 
+static int mt7996_variant_type_init(struct mt7996_dev *dev)
+{
+	u32 val = mt76_rr(dev, MT_PAD_GPIO);
+	u8 var_type;
+
+	switch (mt76_chip(&dev->mt76)) {
+	case 0x7990:
+		if (val & MT_PAD_GPIO_2ADIE_TBTC)
+			var_type = MT7996_VAR_TYPE_233;
+		else
+			var_type = MT7996_VAR_TYPE_444;
+		break;
+	case 0x7992:
+		if (val & MT_PAD_GPIO_ADIE_SINGLE)
+			var_type = MT7992_VAR_TYPE_23;
+		else if (u32_get_bits(val, MT_PAD_GPIO_ADIE_COMB_7992))
+			var_type = MT7992_VAR_TYPE_44;
+		else
+			return -EINVAL;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	dev->var.type = var_type;
+	return 0;
+}
+
+static int mt7996_variant_fem_init(struct mt7996_dev *dev)
+{
+#define MT7976C_EFUSE_OFFSET	0x470
+	u8 buf[MT7996_EEPROM_BLOCK_SIZE], idx, adie_idx, adie_comb;
+	u32 regval, val = mt76_rr(dev, MT_PAD_GPIO);
+	u16 adie_id, adie_ver;
+	bool is_7976c;
+	int ret;
+
+	if (is_mt7992(&dev->mt76)) {
+		adie_idx = (val & MT_PAD_GPIO_ADIE_SINGLE) ? 0 : 1;
+		adie_comb = u32_get_bits(val, MT_PAD_GPIO_ADIE_COMB_7992);
+	} else {
+		adie_idx = 0;
+		adie_comb = u32_get_bits(val, MT_PAD_GPIO_ADIE_COMB);
+	}
+
+	ret = mt7996_mcu_rf_regval(dev, MT_ADIE_CHIP_ID(adie_idx), &regval, false);
+	if (ret)
+		return ret;
+
+	ret = mt7996_mcu_get_eeprom(dev, MT7976C_EFUSE_OFFSET, buf, sizeof(buf));
+	if (ret && ret != -EINVAL)
+		return ret;
+
+	adie_ver = u32_get_bits(regval, MT_ADIE_VERSION_MASK);
+	idx = MT7976C_EFUSE_OFFSET % MT7996_EEPROM_BLOCK_SIZE;
+	is_7976c = adie_ver == 0x8a10 || adie_ver == 0x8b00 ||
+		   adie_ver == 0x8c10 || buf[idx] == 0xc;
+
+	adie_id = u32_get_bits(regval, MT_ADIE_CHIP_ID_MASK);
+	if (adie_id == 0x7975 || adie_id == 0x7979 ||
+	    (adie_id == 0x7976 && is_7976c))
+		dev->var.fem = MT7996_FEM_INT;
+	else if (adie_id == 0x7977 && adie_comb == 1)
+		dev->var.fem = MT7996_FEM_MIX;
+	else
+		dev->var.fem = MT7996_FEM_EXT;
+
+	return 0;
+}
+
 static int mt7996_init_hardware(struct mt7996_dev *dev)
 {
 	int ret, idx;
@@ -896,6 +966,10 @@ static int mt7996_init_hardware(struct mt7996_dev *dev)
 	INIT_LIST_HEAD(&dev->wed_rro.poll_list);
 	spin_lock_init(&dev->wed_rro.lock);
 
+	ret = mt7996_variant_type_init(dev);
+	if (ret)
+		return ret;
+
 	ret = mt7996_dma_init(dev);
 	if (ret)
 		return ret;
@@ -907,6 +981,10 @@ static int mt7996_init_hardware(struct mt7996_dev *dev)
 		return ret;
 
 	ret = mt7996_wed_rro_init(dev);
+	if (ret)
+		return ret;
+
+	ret = mt7996_variant_fem_init(dev);
 	if (ret)
 		return ret;
 
