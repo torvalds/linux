@@ -1181,10 +1181,10 @@ static int gfx_v9_4_3_sw_init(struct amdgpu_ip_block *ip_block)
 	return 0;
 }
 
-static int gfx_v9_4_3_sw_fini(void *handle)
+static int gfx_v9_4_3_sw_fini(struct amdgpu_ip_block *ip_block)
 {
 	int i, num_xcc;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	num_xcc = NUM_XCC(adev->gfx.xcc_mask);
 	for (i = 0; i < adev->gfx.num_compute_rings * num_xcc; i++)

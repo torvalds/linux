@@ -147,9 +147,9 @@ static int pp_sw_init(struct amdgpu_ip_block *ip_block)
 	return ret;
 }
 
-static int pp_sw_fini(void *handle)
+static int pp_sw_fini(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	struct pp_hwmgr *hwmgr = adev->powerplay.pp_handle;
 
 	hwmgr_sw_fini(hwmgr);

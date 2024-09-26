@@ -217,16 +217,16 @@ static int vcn_v1_0_sw_init(struct amdgpu_ip_block *ip_block)
  *
  * VCN suspend and free up sw allocation
  */
-static int vcn_v1_0_sw_fini(void *handle)
+static int vcn_v1_0_sw_fini(struct amdgpu_ip_block *ip_block)
 {
 	int r;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	r = amdgpu_vcn_suspend(adev);
 	if (r)
 		return r;
 
-	jpeg_v1_0_sw_fini(handle);
+	jpeg_v1_0_sw_fini(ip_block);
 
 	r = amdgpu_vcn_sw_fini(adev);
 

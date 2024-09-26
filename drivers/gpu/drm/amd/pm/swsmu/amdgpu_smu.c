@@ -1314,9 +1314,9 @@ static int smu_sw_init(struct amdgpu_ip_block *ip_block)
 	return 0;
 }
 
-static int smu_sw_fini(void *handle)
+static int smu_sw_fini(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	struct smu_context *smu = adev->powerplay.pp_handle;
 	int ret;
 

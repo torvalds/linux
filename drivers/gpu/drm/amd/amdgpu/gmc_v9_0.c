@@ -2198,9 +2198,9 @@ static int gmc_v9_0_sw_init(struct amdgpu_ip_block *ip_block)
 	return 0;
 }
 
-static int gmc_v9_0_sw_fini(void *handle)
+static int gmc_v9_0_sw_fini(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	if (amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(9, 4, 3) ||
 	    amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(9, 4, 4))

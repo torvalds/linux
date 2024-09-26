@@ -3378,7 +3378,7 @@ static int amdgpu_device_ip_fini(struct amdgpu_device *adev)
 			amdgpu_seq64_fini(adev);
 		}
 
-		r = adev->ip_blocks[i].version->funcs->sw_fini((void *)adev);
+		r = adev->ip_blocks[i].version->funcs->sw_fini(&adev->ip_blocks[i]);
 		/* XXX handle errors */
 		if (r) {
 			DRM_DEBUG("sw_fini of IP block <%s> failed %d\n",

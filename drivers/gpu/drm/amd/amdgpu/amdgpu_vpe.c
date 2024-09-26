@@ -381,9 +381,9 @@ out:
 	return ret;
 }
 
-static int vpe_sw_fini(void *handle)
+static int vpe_sw_fini(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	struct amdgpu_vpe *vpe = &adev->vpe;
 
 	release_firmware(vpe->fw);

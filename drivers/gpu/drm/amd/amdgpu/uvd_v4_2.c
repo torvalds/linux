@@ -130,10 +130,10 @@ static int uvd_v4_2_sw_init(struct amdgpu_ip_block *ip_block)
 	return r;
 }
 
-static int uvd_v4_2_sw_fini(void *handle)
+static int uvd_v4_2_sw_fini(struct amdgpu_ip_block *ip_block)
 {
 	int r;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	r = amdgpu_uvd_suspend(adev);
 	if (r)

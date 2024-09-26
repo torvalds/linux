@@ -177,9 +177,9 @@ static int si_ih_sw_init(struct amdgpu_ip_block *ip_block)
 	return amdgpu_irq_init(adev);
 }
 
-static int si_ih_sw_fini(void *handle)
+static int si_ih_sw_fini(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	amdgpu_irq_fini_sw(adev);
 

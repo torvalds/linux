@@ -513,9 +513,9 @@ int jpeg_v1_0_sw_init(struct amdgpu_ip_block *ip_block)
  *
  * JPEG free up sw allocation
  */
-void jpeg_v1_0_sw_fini(void *handle)
+void jpeg_v1_0_sw_fini(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	amdgpu_ring_fini(adev->jpeg.inst->ring_dec);
 }

@@ -536,9 +536,9 @@ static int amdgpu_vkms_sw_init(struct amdgpu_ip_block *ip_block)
 	return 0;
 }
 
-static int amdgpu_vkms_sw_fini(void *handle)
+static int amdgpu_vkms_sw_fini(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	int i = 0;
 
 	for (i = 0; i < adev->mode_info.num_crtc; i++)

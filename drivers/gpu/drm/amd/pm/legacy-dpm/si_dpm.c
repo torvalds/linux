@@ -7765,9 +7765,9 @@ dpm_failed:
 	return ret;
 }
 
-static int si_dpm_sw_fini(void *handle)
+static int si_dpm_sw_fini(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	flush_work(&adev->pm.dpm.thermal.work);
 

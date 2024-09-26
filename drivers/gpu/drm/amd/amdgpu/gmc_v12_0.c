@@ -841,9 +841,9 @@ static void gmc_v12_0_gart_fini(struct amdgpu_device *adev)
 	amdgpu_gart_table_vram_free(adev);
 }
 
-static int gmc_v12_0_sw_fini(void *handle)
+static int gmc_v12_0_sw_fini(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	amdgpu_vm_manager_fini(adev);
 	gmc_v12_0_gart_fini(adev);

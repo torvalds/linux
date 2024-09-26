@@ -1231,9 +1231,9 @@ static int soc15_common_sw_init(struct amdgpu_ip_block *ip_block)
 	return 0;
 }
 
-static int soc15_common_sw_fini(void *handle)
+static int soc15_common_sw_fini(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	if (adev->df.funcs &&
 	    adev->df.funcs->sw_fini)

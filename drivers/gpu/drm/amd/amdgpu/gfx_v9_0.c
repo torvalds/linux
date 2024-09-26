@@ -2398,10 +2398,10 @@ static int gfx_v9_0_sw_init(struct amdgpu_ip_block *ip_block)
 }
 
 
-static int gfx_v9_0_sw_fini(void *handle)
+static int gfx_v9_0_sw_fini(struct amdgpu_ip_block *ip_block)
 {
 	int i;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	if (adev->gfx.mcbp && adev->gfx.num_gfx_rings) {
 		for (i = 0; i < GFX9_NUM_SW_GFX_RINGS; i++)

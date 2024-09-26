@@ -465,7 +465,7 @@ static int soc24_common_sw_init(struct amdgpu_ip_block *ip_block)
 	return 0;
 }
 
-static int soc24_common_sw_fini(void *handle)
+static int soc24_common_sw_fini(struct amdgpu_ip_block *ip_block)
 {
 	return 0;
 }

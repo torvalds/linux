@@ -112,9 +112,9 @@ static int acp_sw_init(struct amdgpu_ip_block *ip_block)
 	return 0;
 }
 
-static int acp_sw_fini(void *handle)
+static int acp_sw_fini(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	if (adev->acp.cgs_device)
 		amdgpu_cgs_destroy_device(adev->acp.cgs_device);

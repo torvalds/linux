@@ -191,9 +191,9 @@ static int vcn_v5_0_0_sw_init(struct amdgpu_ip_block *ip_block)
  *
  * VCN suspend and free up sw allocation
  */
-static int vcn_v5_0_0_sw_fini(void *handle)
+static int vcn_v5_0_0_sw_fini(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	int i, r, idx;
 
 	if (drm_dev_enter(adev_to_drm(adev), &idx)) {

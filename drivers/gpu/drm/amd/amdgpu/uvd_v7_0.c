@@ -487,10 +487,10 @@ static int uvd_v7_0_sw_init(struct amdgpu_ip_block *ip_block)
 	return r;
 }
 
-static int uvd_v7_0_sw_fini(void *handle)
+static int uvd_v7_0_sw_fini(struct amdgpu_ip_block *ip_block)
 {
 	int i, j, r;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	amdgpu_virt_free_mm_table(adev);
 

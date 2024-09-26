@@ -4439,9 +4439,9 @@ static int gfx_v7_0_sw_init(struct amdgpu_ip_block *ip_block)
 	return r;
 }
 
-static int gfx_v7_0_sw_fini(void *handle)
+static int gfx_v7_0_sw_fini(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	int i;
 
 	for (i = 0; i < adev->gfx.num_gfx_rings; i++)

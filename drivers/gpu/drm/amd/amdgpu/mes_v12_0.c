@@ -1362,9 +1362,9 @@ static int mes_v12_0_sw_init(struct amdgpu_ip_block *ip_block)
 	return 0;
 }
 
-static int mes_v12_0_sw_fini(void *handle)
+static int mes_v12_0_sw_fini(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	int pipe;
 
 	for (pipe = 0; pipe < AMDGPU_MAX_MES_PIPES; pipe++) {

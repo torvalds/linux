@@ -4866,10 +4866,10 @@ static void gfx_v10_0_me_fini(struct amdgpu_device *adev)
 			      (void **)&adev->gfx.me.me_fw_ptr);
 }
 
-static int gfx_v10_0_sw_fini(void *handle)
+static int gfx_v10_0_sw_fini(struct amdgpu_ip_block *ip_block)
 {
 	int i;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	for (i = 0; i < adev->gfx.num_gfx_rings; i++)
 		amdgpu_ring_fini(&adev->gfx.gfx_ring[i]);

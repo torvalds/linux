@@ -493,10 +493,10 @@ static int vce_v4_0_sw_init(struct amdgpu_ip_block *ip_block)
 	return r;
 }
 
-static int vce_v4_0_sw_fini(void *handle)
+static int vce_v4_0_sw_fini(struct amdgpu_ip_block *ip_block)
 {
 	int r;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	/* free MM table */
 	amdgpu_virt_free_mm_table(adev);
