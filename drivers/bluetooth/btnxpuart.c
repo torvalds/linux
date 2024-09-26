@@ -43,8 +43,8 @@
 #define FIRMWARE_IW416		"uartiw416_bt.bin"
 #define FIRMWARE_IW416_OLD	"uartiw416_bt_v0.bin"
 #define FIRMWARE_IW612		"uartspi_n61x_v1.bin.se"
-#define FIRMWARE_IW615		"uartspi_iw610.bin"
-#define FIRMWARE_SECURE_IW615	"uartspi_iw610.bin.se"
+#define FIRMWARE_IW610		"uartspi_iw610.bin"
+#define FIRMWARE_SECURE_IW610	"uartspi_iw610.bin.se"
 #define FIRMWARE_IW624		"uartiw624_bt.bin"
 #define FIRMWARE_SECURE_IW624	"uartiw624_bt.bin.se"
 #define FIRMWARE_AW693		"uartaw693_bt.bin"
@@ -60,8 +60,8 @@
 #define CHIP_ID_IW624c		0x8001
 #define CHIP_ID_AW693a0		0x8200
 #define CHIP_ID_AW693a1		0x8201
-#define CHIP_ID_IW615a0		0x8800
-#define CHIP_ID_IW615a1		0x8801
+#define CHIP_ID_IW610a0		0x8800
+#define CHIP_ID_IW610a1		0x8801
 
 #define FW_SECURE_MASK		0xc0
 #define FW_OPEN			0x00
@@ -947,12 +947,12 @@ static char *nxp_get_fw_name_from_chipid(struct hci_dev *hdev, u16 chipid,
 		else
 			bt_dev_err(hdev, "Illegal loader version %02x", loader_ver);
 		break;
-	case CHIP_ID_IW615a0:
-	case CHIP_ID_IW615a1:
+	case CHIP_ID_IW610a0:
+	case CHIP_ID_IW610a1:
 		if ((loader_ver & FW_SECURE_MASK) == FW_OPEN)
-			fw_name = FIRMWARE_IW615;
+			fw_name = FIRMWARE_IW610;
 		else if ((loader_ver & FW_SECURE_MASK) != FW_AUTH_ILLEGAL)
-			fw_name = FIRMWARE_SECURE_IW615;
+			fw_name = FIRMWARE_SECURE_IW610;
 		else
 			bt_dev_err(hdev, "Illegal loader version %02x", loader_ver);
 		break;
