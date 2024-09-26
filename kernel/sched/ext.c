@@ -925,8 +925,15 @@ static unsigned long __percpu *scx_kick_cpus_pnt_seqs;
  */
 static DEFINE_PER_CPU(struct task_struct *, direct_dispatch_task);
 
-/* dispatch queues */
-static struct scx_dispatch_q __cacheline_aligned_in_smp scx_dsq_global;
+/*
+ * Dispatch queues.
+ *
+ * The global DSQ (%SCX_DSQ_GLOBAL) is split per-node for scalability. This is
+ * to avoid live-locking in bypass mode where all tasks are dispatched to
+ * %SCX_DSQ_GLOBAL and all CPUs consume from it. If per-node split isn't
+ * sufficient, it can be further split.
+ */
+static struct scx_dispatch_q **global_dsqs;
 
 static const struct rhashtable_params dsq_hash_params = {
 	.key_len		= 8,
@@ -1027,6 +1034,11 @@ static u32 highest_bit(u32 flags)
 static bool u32_before(u32 a, u32 b)
 {
 	return (s32)(a - b) < 0;
+}
+
+static struct scx_dispatch_q *find_global_dsq(struct task_struct *p)
+{
+	return global_dsqs[cpu_to_node(task_cpu(p))];
 }
 
 static struct scx_dispatch_q *find_user_dsq(u64 dsq_id)
@@ -1642,7 +1654,7 @@ static void dispatch_enqueue(struct scx_dispatch_q *dsq, struct task_struct *p,
 			scx_ops_error("attempting to dispatch to a destroyed dsq");
 			/* fall back to the global dsq */
 			raw_spin_unlock(&dsq->lock);
-			dsq = &scx_dsq_global;
+			dsq = find_global_dsq(p);
 			raw_spin_lock(&dsq->lock);
 		}
 	}
@@ -1820,20 +1832,20 @@ static struct scx_dispatch_q *find_dsq_for_dispatch(struct rq *rq, u64 dsq_id,
 		s32 cpu = dsq_id & SCX_DSQ_LOCAL_CPU_MASK;
 
 		if (!ops_cpu_valid(cpu, "in SCX_DSQ_LOCAL_ON dispatch verdict"))
-			return &scx_dsq_global;
+			return find_global_dsq(p);
 
 		return &cpu_rq(cpu)->scx.local_dsq;
 	}
 
 	if (dsq_id == SCX_DSQ_GLOBAL)
-		dsq = &scx_dsq_global;
+		dsq = find_global_dsq(p);
 	else
 		dsq = find_user_dsq(dsq_id);
 
 	if (unlikely(!dsq)) {
 		scx_ops_error("non-existent DSQ 0x%llx for %s[%d]",
 			      dsq_id, p->comm, p->pid);
-		return &scx_dsq_global;
+		return find_global_dsq(p);
 	}
 
 	return dsq;
@@ -2005,7 +2017,7 @@ local_norefill:
 global:
 	touch_core_sched(rq, p);	/* see the comment in local: */
 	p->scx.slice = SCX_SLICE_DFL;
-	dispatch_enqueue(&scx_dsq_global, p, enq_flags);
+	dispatch_enqueue(find_global_dsq(p), p, enq_flags);
 }
 
 static bool task_runnable(const struct task_struct *p)
@@ -2391,6 +2403,13 @@ retry:
 	return false;
 }
 
+static bool consume_global_dsq(struct rq *rq)
+{
+	int node = cpu_to_node(cpu_of(rq));
+
+	return consume_dispatch_q(rq, global_dsqs[node]);
+}
+
 /**
  * dispatch_to_local_dsq - Dispatch a task to a local dsq
  * @rq: current rq which is locked
@@ -2424,7 +2443,8 @@ static void dispatch_to_local_dsq(struct rq *rq, struct scx_dispatch_q *dst_dsq,
 
 #ifdef CONFIG_SMP
 	if (unlikely(!task_can_run_on_remote_rq(p, dst_rq, true))) {
-		dispatch_enqueue(&scx_dsq_global, p, enq_flags | SCX_ENQ_CLEAR_OPSS);
+		dispatch_enqueue(find_global_dsq(p), p,
+				 enq_flags | SCX_ENQ_CLEAR_OPSS);
 		return;
 	}
 
@@ -2624,7 +2644,7 @@ static int balance_one(struct rq *rq, struct task_struct *prev)
 	if (rq->scx.local_dsq.nr)
 		goto has_tasks;
 
-	if (consume_dispatch_q(rq, &scx_dsq_global))
+	if (consume_global_dsq(rq))
 		goto has_tasks;
 
 	if (!SCX_HAS_OP(dispatch) || scx_rq_bypassing(rq) || !scx_rq_online(rq))
@@ -2649,7 +2669,7 @@ static int balance_one(struct rq *rq, struct task_struct *prev)
 
 		if (rq->scx.local_dsq.nr)
 			goto has_tasks;
-		if (consume_dispatch_q(rq, &scx_dsq_global))
+		if (consume_global_dsq(rq))
 			goto has_tasks;
 
 		/*
@@ -4924,7 +4944,7 @@ static int scx_ops_enable(struct sched_ext_ops *ops, struct bpf_link *link)
 	struct scx_task_iter sti;
 	struct task_struct *p;
 	unsigned long timeout;
-	int i, cpu, ret;
+	int i, cpu, node, ret;
 
 	if (!cpumask_equal(housekeeping_cpumask(HK_TYPE_DOMAIN),
 			   cpu_possible_mask)) {
@@ -4941,6 +4961,34 @@ static int scx_ops_enable(struct sched_ext_ops *ops, struct bpf_link *link)
 			ret = -ENOMEM;
 			goto err_unlock;
 		}
+	}
+
+	if (!global_dsqs) {
+		struct scx_dispatch_q **dsqs;
+
+		dsqs = kcalloc(nr_node_ids, sizeof(dsqs[0]), GFP_KERNEL);
+		if (!dsqs) {
+			ret = -ENOMEM;
+			goto err_unlock;
+		}
+
+		for_each_node_state(node, N_POSSIBLE) {
+			struct scx_dispatch_q *dsq;
+
+			dsq = kzalloc_node(sizeof(*dsq), GFP_KERNEL, node);
+			if (!dsq) {
+				for_each_node_state(node, N_POSSIBLE)
+					kfree(dsqs[node]);
+				kfree(dsqs);
+				ret = -ENOMEM;
+				goto err_unlock;
+			}
+
+			init_dsq(dsq, SCX_DSQ_GLOBAL);
+			dsqs[node] = dsq;
+		}
+
+		global_dsqs = dsqs;
 	}
 
 	if (scx_ops_enable_state() != SCX_OPS_DISABLED) {
@@ -5777,7 +5825,6 @@ void __init init_sched_ext_class(void)
 		   SCX_TG_ONLINE);
 
 	BUG_ON(rhashtable_init(&dsq_hash, &dsq_hash_params));
-	init_dsq(&scx_dsq_global, SCX_DSQ_GLOBAL);
 #ifdef CONFIG_SMP
 	BUG_ON(!alloc_cpumask_var(&idle_masks.cpu, GFP_KERNEL));
 	BUG_ON(!alloc_cpumask_var(&idle_masks.smt, GFP_KERNEL));
@@ -6053,7 +6100,7 @@ static bool scx_dispatch_from_dsq(struct bpf_iter_scx_dsq_kern *kit,
 	if (dst_dsq->id == SCX_DSQ_LOCAL) {
 		dst_rq = container_of(dst_dsq, struct rq, scx.local_dsq);
 		if (!task_can_run_on_remote_rq(p, dst_rq, true)) {
-			dst_dsq = &scx_dsq_global;
+			dst_dsq = find_global_dsq(p);
 			dst_rq = src_rq;
 		}
 	} else {
