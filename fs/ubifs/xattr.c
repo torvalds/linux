@@ -532,8 +532,6 @@ int ubifs_purge_xattrs(struct inode *host)
 			ubifs_err(c, "dead directory entry '%s', error %d",
 				  xent->name, err);
 			ubifs_ro_mode(c, err);
-			kfree(pxent);
-			kfree(xent);
 			goto out_err;
 		}
 
@@ -543,8 +541,6 @@ int ubifs_purge_xattrs(struct inode *host)
 		err = remove_xattr(c, host, xino, &nm);
 		iput(xino);
 		if (err) {
-			kfree(pxent);
-			kfree(xent);
 			ubifs_err(c, "cannot remove xattr, error %d", err);
 			goto out_err;
 		}
@@ -564,6 +560,8 @@ int ubifs_purge_xattrs(struct inode *host)
 	return 0;
 
 out_err:
+	kfree(pxent);
+	kfree(xent);
 	up_write(&ubifs_inode(host)->xattr_sem);
 	return err;
 }
