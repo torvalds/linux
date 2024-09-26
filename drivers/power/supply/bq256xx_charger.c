@@ -17,6 +17,7 @@
 #include <linux/moduleparam.h>
 #include <linux/slab.h>
 #include <linux/acpi.h>
+#include <linux/extcon-provider.h>
 
 #define BQ256XX_MANUFACTURER "Texas Instruments"
 
@@ -114,6 +115,7 @@
 #define BQ256XX_VBUS_STAT_USB_CDP	BIT(6)
 #define BQ256XX_VBUS_STAT_USB_DCP	(BIT(6) | BIT(5))
 #define BQ256XX_VBUS_STAT_USB_OTG	(BIT(7) | BIT(6) | BIT(5))
+#define BQ256XX_VBUS_GD_USB		BIT(7)
 
 #define BQ256XX_CHRG_STAT_MASK		GENMASK(4, 3)
 #define BQ256XX_CHRG_STAT_NOT_CHRGING	0
@@ -175,6 +177,8 @@ struct bq256xx_init_data {
  * @bat_fault: battery fault according to BQ256XX_CHARGER_STATUS_1
  * @chrg_fault: charging fault according to BQ256XX_CHARGER_STATUS_1
  * @ntc_fault: TS fault according to BQ256XX_CHARGER_STATUS_1
+ *
+ * @vbus_gd: VBUS status according to BQ256XX_CHARGER_STATUS_2
  */
 struct bq256xx_state {
 	u8 vbus_stat;
@@ -185,6 +189,13 @@ struct bq256xx_state {
 	u8 bat_fault;
 	u8 chrg_fault;
 	u8 ntc_fault;
+
+	u8 vbus_gd;
+};
+
+static const unsigned int usb_extcon_cable[] = {
+	EXTCON_USB,
+	EXTCON_NONE,
 };
 
 enum bq256xx_id {
@@ -239,6 +250,8 @@ struct bq256xx_device {
 	const struct bq256xx_chip_info *chip_info;
 	struct bq256xx_state state;
 	int watchdog_timer;
+	/* extcon for VBUS / ID notification to USB*/
+	struct extcon_dev       *extcon;
 };
 
 /**
@@ -425,6 +438,7 @@ static int bq256xx_get_state(struct bq256xx_device *bq,
 {
 	unsigned int charger_status_0;
 	unsigned int charger_status_1;
+	unsigned int charger_status_2;
 	int ret;
 
 	ret = regmap_read(bq->regmap, BQ256XX_CHARGER_STATUS_0,
@@ -437,6 +451,11 @@ static int bq256xx_get_state(struct bq256xx_device *bq,
 	if (ret)
 		return ret;
 
+	ret = regmap_read(bq->regmap, BQ256XX_CHARGER_STATUS_2,
+						&charger_status_2);
+	if (ret)
+		return ret;
+
 	state->vbus_stat = charger_status_0 & BQ256XX_VBUS_STAT_MASK;
 	state->chrg_stat = charger_status_0 & BQ256XX_CHRG_STAT_MASK;
 	state->online = charger_status_0 & BQ256XX_PG_STAT_MASK;
@@ -445,6 +464,7 @@ static int bq256xx_get_state(struct bq256xx_device *bq,
 	state->bat_fault = charger_status_1 & BQ256XX_BAT_FAULT_MASK;
 	state->chrg_fault = charger_status_1 & BQ256XX_CHRG_FAULT_MASK;
 	state->ntc_fault = charger_status_1 & BQ256XX_NTC_FAULT_MASK;
+	state->vbus_gd =  charger_status_2 & BQ256XX_VBUS_GD_USB;
 
 	return 0;
 }
@@ -1139,6 +1159,8 @@ static bool bq256xx_state_changed(struct bq256xx_device *bq,
 	old_state = bq->state;
 	mutex_unlock(&bq->lock);
 
+	extcon_set_state_sync(bq->extcon, EXTCON_USB, !!new_state->vbus_gd);
+
 	return memcmp(&old_state, new_state, sizeof(struct bq256xx_state)) != 0;
 }
 
@@ -1628,6 +1650,7 @@ static int bq256xx_probe(struct i2c_client *client,
 	struct device *dev = &client->dev;
 	struct bq256xx_device *bq;
 	struct power_supply_config psy_cfg = { };
+	struct bq256xx_state state;
 
 	int ret;
 
@@ -1701,6 +1724,28 @@ static int bq256xx_probe(struct i2c_client *client,
 		dev_err(dev, "Cannot initialize the chip.\n");
 		return ret;
 	}
+
+	bq->extcon = devm_extcon_dev_allocate(bq->dev, usb_extcon_cable);
+	if (IS_ERR(bq->extcon)) {
+		ret = PTR_ERR(bq->extcon);
+		dev_err(bq->dev, "failed to allocate extcon device ret=%d\n",
+			ret);
+		return ret;
+	}
+
+	ret = devm_extcon_dev_register(bq->dev, bq->extcon);
+	if (ret < 0) {
+		dev_err(bq->dev, "failed to register extcon device ret=%d\n",
+			ret);
+		return ret;
+	}
+
+	/* Set extcon state depending upon USB connect/disconnect state on boot */
+	ret = bq256xx_get_state(bq, &state);
+	if (ret)
+		return ret;
+
+	extcon_set_state_sync(bq->extcon, EXTCON_USB, !!state.vbus_gd);
 
 	return ret;
 }
