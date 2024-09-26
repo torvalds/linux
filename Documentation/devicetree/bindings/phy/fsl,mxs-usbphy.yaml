@@ -32,6 +32,7 @@ properties:
           - enum:
               - fsl,imx8dxl-usbphy
               - fsl,imx8qm-usbphy
+              - fsl,imx8qxp-usbphy
               - fsl,imx8ulp-usbphy
           - const: fsl,imx7ulp-usbphy
 
