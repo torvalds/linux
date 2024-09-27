@@ -25,6 +25,7 @@ The acquisition orders for mutexes are as follows:
   must not take either kvm->slots_lock or kvm->slots_arch_lock.
 
 cpus_read_lock() vs kvm_lock:
+
 - Taking cpus_read_lock() outside of kvm_lock is problematic, despite that
   being the official ordering, as it is quite easy to unknowingly trigger
   cpus_read_lock() while holding kvm_lock.  Use caution when walking vm_list,
