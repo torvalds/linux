@@ -9,23 +9,11 @@
 
 .text
 
-/* Salsa20 quarter-round */
-.macro	QR	a b c d
-	add.w		\a, \a, \b
-	xor		\d, \d, \a
-	rotri.w		\d, \d, 16
-
-	add.w		\c, \c, \d
-	xor		\b, \b, \c
-	rotri.w		\b, \b, 20
-
-	add.w		\a, \a, \b
-	xor		\d, \d, \a
-	rotri.w		\d, \d, 24
-
-	add.w		\c, \c, \d
-	xor		\b, \b, \c
-	rotri.w		\b, \b, 25
+.macro	OP_4REG	op d0 d1 d2 d3 s0 s1 s2 s3
+	\op	\d0, \d0, \s0
+	\op	\d1, \d1, \s1
+	\op	\d2, \d2, \s2
+	\op	\d3, \d3, \s3
 .endm
 
 /*
@@ -73,6 +61,23 @@ SYM_FUNC_START(__arch_chacha20_blocks_nostack)
 
 /* Reuse i as copy3 */
 #define copy3		i
+
+/* Packs to be used with OP_4REG */
+#define line0		state0, state1, state2, state3
+#define line1		state4, state5, state6, state7
+#define line2		state8, state9, state10, state11
+#define line3		state12, state13, state14, state15
+
+#define line1_perm	state5, state6, state7, state4
+#define line2_perm	state10, state11, state8, state9
+#define line3_perm	state15, state12, state13, state14
+
+#define copy		copy0, copy1, copy2, copy3
+
+#define _16		16, 16, 16, 16
+#define _20		20, 20, 20, 20
+#define _24		24, 24, 24, 24
+#define _25		25, 25, 25, 25
 
 	/*
 	 * The ABI requires s0-s9 saved, and sp aligned to 16-byte.
@@ -126,16 +131,38 @@ SYM_FUNC_START(__arch_chacha20_blocks_nostack)
 	li.w		i, 10
 .Lpermute:
 	/* odd round */
-	QR		state0, state4, state8, state12
-	QR		state1, state5, state9, state13
-	QR		state2, state6, state10, state14
-	QR		state3, state7, state11, state15
+	OP_4REG	add.w	line0, line1
+	OP_4REG	xor	line3, line0
+	OP_4REG	rotri.w	line3, _16
+
+	OP_4REG	add.w	line2, line3
+	OP_4REG	xor	line1, line2
+	OP_4REG	rotri.w	line1, _20
+
+	OP_4REG	add.w	line0, line1
+	OP_4REG	xor	line3, line0
+	OP_4REG	rotri.w	line3, _24
+
+	OP_4REG	add.w	line2, line3
+	OP_4REG	xor	line1, line2
+	OP_4REG	rotri.w	line1, _25
 
 	/* even round */
-	QR		state0, state5, state10, state15
-	QR		state1, state6, state11, state12
-	QR		state2, state7, state8, state13
-	QR		state3, state4, state9, state14
+	OP_4REG	add.w	line0, line1_perm
+	OP_4REG	xor	line3_perm, line0
+	OP_4REG	rotri.w	line3_perm, _16
+
+	OP_4REG	add.w	line2_perm, line3_perm
+	OP_4REG	xor	line1_perm, line2_perm
+	OP_4REG	rotri.w	line1_perm, _20
+
+	OP_4REG	add.w	line0, line1_perm
+	OP_4REG	xor	line3_perm, line0
+	OP_4REG	rotri.w	line3_perm, _24
+
+	OP_4REG	add.w	line2_perm, line3_perm
+	OP_4REG	xor	line1_perm, line2_perm
+	OP_4REG	rotri.w	line1_perm, _25
 
 	addi.w		i, i, -1
 	bnez		i, .Lpermute
@@ -147,10 +174,7 @@ SYM_FUNC_START(__arch_chacha20_blocks_nostack)
 	li.w		copy3, 0x6b206574
 
 	/* output[0,1,2,3] = copy[0,1,2,3] + state[0,1,2,3] */
-	add.w		state0, state0, copy0
-	add.w		state1, state1, copy1
-	add.w		state2, state2, copy2
-	add.w		state3, state3, copy3
+	OP_4REG	add.w	line0, copy
 	st.w		state0, output, 0
 	st.w		state1, output, 4
 	st.w		state2, output, 8
@@ -165,10 +189,7 @@ SYM_FUNC_START(__arch_chacha20_blocks_nostack)
 	ld.w		state3, key, 12
 
 	/* output[4,5,6,7] = state[0,1,2,3] + state[4,5,6,7] */
-	add.w		state4, state4, state0
-	add.w		state5, state5, state1
-	add.w		state6, state6, state2
-	add.w		state7, state7, state3
+	OP_4REG	add.w	line1, line0
 	st.w		state4, output, 16
 	st.w		state5, output, 20
 	st.w		state6, output, 24
@@ -181,10 +202,7 @@ SYM_FUNC_START(__arch_chacha20_blocks_nostack)
 	ld.w		state3, key, 28
 
 	/* output[8,9,10,11] = state[0,1,2,3] + state[8,9,10,11] */
-	add.w		state8, state8, state0
-	add.w		state9, state9, state1
-	add.w		state10, state10, state2
-	add.w		state11, state11, state3
+	OP_4REG	add.w	line2, line0
 	st.w		state8, output, 32
 	st.w		state9, output, 36
 	st.w		state10, output, 40
