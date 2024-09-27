@@ -3600,13 +3600,11 @@ void amdgpu_dm_update_connector_after_detect(
 					"failed to create aconnector->requested_timing\n");
 		}
 
-		drm_edid_connector_update(connector, aconnector->drm_edid);
 		amdgpu_dm_update_freesync_caps(connector, aconnector->drm_edid);
 		update_connector_ext_caps(aconnector);
 	} else {
 		drm_dp_cec_unset_edid(&aconnector->dm_dp_aux.aux);
 		amdgpu_dm_update_freesync_caps(connector, NULL);
-		drm_edid_connector_update(connector, NULL);
 		aconnector->num_modes = 0;
 		dc_sink_release(aconnector->dc_sink);
 		aconnector->dc_sink = NULL;
@@ -12157,6 +12155,8 @@ void amdgpu_dm_update_freesync_caps(struct drm_connector *connector,
 	sink = amdgpu_dm_connector->dc_sink ?
 		amdgpu_dm_connector->dc_sink :
 		amdgpu_dm_connector->dc_em_sink;
+
+	drm_edid_connector_update(connector, drm_edid);
 
 	if (!drm_edid || !sink) {
 		dm_con_state = to_dm_connector_state(connector->state);
