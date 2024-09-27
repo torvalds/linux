@@ -29,7 +29,7 @@ static void kill_off_processes(void)
 		t = find_lock_task_mm(p);
 		if (!t)
 			continue;
-		pid = t->mm->context.id.u.pid;
+		pid = t->mm->context.id.pid;
 		task_unlock(t);
 		os_kill_ptraced_process(pid, 1);
 	}
