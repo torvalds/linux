@@ -550,11 +550,11 @@ static bool device_init_rings(struct vnt_private *priv)
 		priv->opts.tx_descs[0] * sizeof(struct vnt_tx_desc);
 
 	/* vir_pool: pvoid type */
-	priv->apTD0Rings = vir_pool
+	priv->ap_td0_rings = vir_pool
 		+ priv->opts.rx_descs0 * sizeof(struct vnt_rx_desc)
 		+ priv->opts.rx_descs1 * sizeof(struct vnt_rx_desc);
 
-	priv->apTD1Rings = vir_pool
+	priv->ap_td1_rings = vir_pool
 		+ priv->opts.rx_descs0 * sizeof(struct vnt_rx_desc)
 		+ priv->opts.rx_descs1 * sizeof(struct vnt_rx_desc)
 		+ priv->opts.tx_descs[0] * sizeof(struct vnt_tx_desc);
@@ -720,7 +720,7 @@ static int device_init_td0_ring(struct vnt_private *priv)
 	curr = priv->td0_pool_dma;
 	for (i = 0; i < priv->opts.tx_descs[0];
 	     i++, curr += sizeof(struct vnt_tx_desc)) {
-		desc = &priv->apTD0Rings[i];
+		desc = &priv->ap_td0_rings[i];
 		desc->td_info = kzalloc(sizeof(*desc->td_info), GFP_KERNEL);
 		if (!desc->td_info) {
 			ret = -ENOMEM;
@@ -730,20 +730,20 @@ static int device_init_td0_ring(struct vnt_private *priv)
 		desc->td_info->buf = priv->tx0_bufs + i * PKT_BUF_SZ;
 		desc->td_info->buf_dma = priv->tx_bufs_dma0 + i * PKT_BUF_SZ;
 
-		desc->next = &(priv->apTD0Rings[(i + 1) % priv->opts.tx_descs[0]]);
+		desc->next = &(priv->ap_td0_rings[(i + 1) % priv->opts.tx_descs[0]]);
 		desc->next_desc = cpu_to_le32(curr +
 					      sizeof(struct vnt_tx_desc));
 	}
 
 	if (i > 0)
-		priv->apTD0Rings[i - 1].next_desc = cpu_to_le32(priv->td0_pool_dma);
-	priv->tail_td[0] = priv->apCurrTD[0] = &priv->apTD0Rings[0];
+		priv->ap_td0_rings[i - 1].next_desc = cpu_to_le32(priv->td0_pool_dma);
+	priv->tail_td[0] = priv->apCurrTD[0] = &priv->ap_td0_rings[0];
 
 	return 0;
 
 err_free_desc:
 	while (i--) {
-		desc = &priv->apTD0Rings[i];
+		desc = &priv->ap_td0_rings[i];
 		kfree(desc->td_info);
 	}
 
@@ -761,7 +761,7 @@ static int device_init_td1_ring(struct vnt_private *priv)
 	curr = priv->td1_pool_dma;
 	for (i = 0; i < priv->opts.tx_descs[1];
 	     i++, curr += sizeof(struct vnt_tx_desc)) {
-		desc = &priv->apTD1Rings[i];
+		desc = &priv->ap_td1_rings[i];
 		desc->td_info = kzalloc(sizeof(*desc->td_info), GFP_KERNEL);
 		if (!desc->td_info) {
 			ret = -ENOMEM;
@@ -771,19 +771,19 @@ static int device_init_td1_ring(struct vnt_private *priv)
 		desc->td_info->buf = priv->tx1_bufs + i * PKT_BUF_SZ;
 		desc->td_info->buf_dma = priv->tx_bufs_dma1 + i * PKT_BUF_SZ;
 
-		desc->next = &(priv->apTD1Rings[(i + 1) % priv->opts.tx_descs[1]]);
+		desc->next = &(priv->ap_td1_rings[(i + 1) % priv->opts.tx_descs[1]]);
 		desc->next_desc = cpu_to_le32(curr + sizeof(struct vnt_tx_desc));
 	}
 
 	if (i > 0)
-		priv->apTD1Rings[i - 1].next_desc = cpu_to_le32(priv->td1_pool_dma);
-	priv->tail_td[1] = priv->apCurrTD[1] = &priv->apTD1Rings[0];
+		priv->ap_td1_rings[i - 1].next_desc = cpu_to_le32(priv->td1_pool_dma);
+	priv->tail_td[1] = priv->apCurrTD[1] = &priv->ap_td1_rings[0];
 
 	return 0;
 
 err_free_desc:
 	while (i--) {
-		desc = &priv->apTD1Rings[i];
+		desc = &priv->ap_td1_rings[i];
 		kfree(desc->td_info);
 	}
 
@@ -795,7 +795,7 @@ static void device_free_td0_ring(struct vnt_private *priv)
 	int i;
 
 	for (i = 0; i < priv->opts.tx_descs[0]; i++) {
-		struct vnt_tx_desc *desc = &priv->apTD0Rings[i];
+		struct vnt_tx_desc *desc = &priv->ap_td0_rings[i];
 		struct vnt_td_info *td_info = desc->td_info;
 
 		dev_kfree_skb(td_info->skb);
@@ -808,7 +808,7 @@ static void device_free_td1_ring(struct vnt_private *priv)
 	int i;
 
 	for (i = 0; i < priv->opts.tx_descs[1]; i++) {
-		struct vnt_tx_desc *desc = &priv->apTD1Rings[i];
+		struct vnt_tx_desc *desc = &priv->ap_td1_rings[i];
 		struct vnt_td_info *td_info = desc->td_info;
 
 		dev_kfree_skb(td_info->skb);
@@ -1140,7 +1140,7 @@ static void vnt_interrupt_process(struct vnt_private *priv)
 				PSbIsNextTBTTWakeUp((void *)priv);
 
 			if ((priv->op_mode == NL80211_IFTYPE_AP ||
-			    priv->op_mode == NL80211_IFTYPE_ADHOC) &&
+			     priv->op_mode == NL80211_IFTYPE_ADHOC) &&
 			    priv->vif->bss_conf.enable_beacon)
 				MACvOneShotTimer1MicroSec(priv,
 							  (priv->vif->bss_conf.beacon_int -
@@ -1535,7 +1535,7 @@ static void vnt_bss_info_changed(struct ieee80211_hw *hw,
 	    priv->op_mode != NL80211_IFTYPE_AP) {
 		if (vif->cfg.assoc && conf->beacon_rate) {
 			card_update_tsf(priv, conf->beacon_rate->hw_value,
-				       conf->sync_tsf);
+					conf->sync_tsf);
 
 			card_set_beacon_period(priv, conf->beacon_int);
 
@@ -1763,7 +1763,7 @@ vt6655_probe(struct pci_dev *pcid, const struct pci_device_id *ent)
 	priv->memaddr = pci_resource_start(pcid, 0);
 	priv->ioaddr = pci_resource_start(pcid, 1);
 	priv->port_offset = ioremap(priv->memaddr & PCI_BASE_ADDRESS_MEM_MASK,
-				   256);
+				    256);
 	if (!priv->port_offset) {
 		dev_err(&pcid->dev, ": Failed to IO remapping ..\n");
 		device_free_info(priv);
