@@ -3068,34 +3068,6 @@ int btrfs_finish_one_ordered(struct btrfs_ordered_extent *ordered_extent)
 			goto out;
 	}
 
-	if (test_bit(BTRFS_ORDERED_NOCOW, &ordered_extent->flags)) {
-		BUG_ON(!list_empty(&ordered_extent->list)); /* Logic error */
-
-		btrfs_inode_safe_disk_i_size_write(inode, 0);
-		if (freespace_inode)
-			trans = btrfs_join_transaction_spacecache(root);
-		else
-			trans = btrfs_join_transaction(root);
-		if (IS_ERR(trans)) {
-			ret = PTR_ERR(trans);
-			trans = NULL;
-			goto out;
-		}
-		trans->block_rsv = &inode->block_rsv;
-		ret = btrfs_update_inode_fallback(trans, inode);
-		if (ret) /* -ENOMEM or corruption */
-			btrfs_abort_transaction(trans, ret);
-
-		ret = btrfs_insert_raid_extent(trans, ordered_extent);
-		if (ret)
-			btrfs_abort_transaction(trans, ret);
-
-		goto out;
-	}
-
-	clear_bits |= EXTENT_LOCKED;
-	lock_extent(io_tree, start, end, &cached_state);
-
 	if (freespace_inode)
 		trans = btrfs_join_transaction_spacecache(root);
 	else
@@ -3109,8 +3081,26 @@ int btrfs_finish_one_ordered(struct btrfs_ordered_extent *ordered_extent)
 	trans->block_rsv = &inode->block_rsv;
 
 	ret = btrfs_insert_raid_extent(trans, ordered_extent);
-	if (ret)
+	if (ret) {
+		btrfs_abort_transaction(trans, ret);
 		goto out;
+	}
+
+	if (test_bit(BTRFS_ORDERED_NOCOW, &ordered_extent->flags)) {
+		/* Logic error */
+		BUG_ON(!list_empty(&ordered_extent->list));
+
+		btrfs_inode_safe_disk_i_size_write(inode, 0);
+		ret = btrfs_update_inode_fallback(trans, inode);
+		if (ret) {
+			/* -ENOMEM or corruption */
+			btrfs_abort_transaction(trans, ret);
+		}
+		goto out;
+	}
+
+	clear_bits |= EXTENT_LOCKED;
+	lock_extent(io_tree, start, end, &cached_state);
 
 	if (test_bit(BTRFS_ORDERED_COMPRESSED, &ordered_extent->flags))
 		compress_type = ordered_extent->compress_type;
