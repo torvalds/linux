@@ -2269,7 +2269,7 @@ static bool ppp_channel_bridge_input(struct channel *pch, struct sk_buff *skb)
 	if (!pchb)
 		goto out_rcu;
 
-	spin_lock(&pchb->downl);
+	spin_lock_bh(&pchb->downl);
 	if (!pchb->chan) {
 		/* channel got unregistered */
 		kfree_skb(skb);
@@ -2281,7 +2281,7 @@ static bool ppp_channel_bridge_input(struct channel *pch, struct sk_buff *skb)
 		kfree_skb(skb);
 
 outl:
-	spin_unlock(&pchb->downl);
+	spin_unlock_bh(&pchb->downl);
 out_rcu:
 	rcu_read_unlock();
 
