@@ -51,32 +51,6 @@ static int mana_hwc_verify_resp_msg(const struct hwc_caller_ctx *caller_ctx,
 	return 0;
 }
 
-static void mana_hwc_handle_resp(struct hw_channel_context *hwc, u32 resp_len,
-				 const struct gdma_resp_hdr *resp_msg)
-{
-	struct hwc_caller_ctx *ctx;
-	int err;
-
-	if (!test_bit(resp_msg->response.hwc_msg_id,
-		      hwc->inflight_msg_res.map)) {
-		dev_err(hwc->dev, "hwc_rx: invalid msg_id = %u\n",
-			resp_msg->response.hwc_msg_id);
-		return;
-	}
-
-	ctx = hwc->caller_ctx + resp_msg->response.hwc_msg_id;
-	err = mana_hwc_verify_resp_msg(ctx, resp_msg, resp_len);
-	if (err)
-		goto out;
-
-	ctx->status_code = resp_msg->status;
-
-	memcpy(ctx->output_buf, resp_msg, resp_len);
-out:
-	ctx->error = err;
-	complete(&ctx->comp_event);
-}
-
 static int mana_hwc_post_rx_wqe(const struct hwc_wq *hwc_rxq,
 				struct hwc_work_request *req)
 {
@@ -98,6 +72,40 @@ static int mana_hwc_post_rx_wqe(const struct hwc_wq *hwc_rxq,
 	if (err)
 		dev_err(dev, "Failed to post WQE on HWC RQ: %d\n", err);
 	return err;
+}
+
+static void mana_hwc_handle_resp(struct hw_channel_context *hwc, u32 resp_len,
+				 struct hwc_work_request *rx_req)
+{
+	const struct gdma_resp_hdr *resp_msg = rx_req->buf_va;
+	struct hwc_caller_ctx *ctx;
+	int err;
+
+	if (!test_bit(resp_msg->response.hwc_msg_id,
+		      hwc->inflight_msg_res.map)) {
+		dev_err(hwc->dev, "hwc_rx: invalid msg_id = %u\n",
+			resp_msg->response.hwc_msg_id);
+		mana_hwc_post_rx_wqe(hwc->rxq, rx_req);
+		return;
+	}
+
+	ctx = hwc->caller_ctx + resp_msg->response.hwc_msg_id;
+	err = mana_hwc_verify_resp_msg(ctx, resp_msg, resp_len);
+	if (err)
+		goto out;
+
+	ctx->status_code = resp_msg->status;
+
+	memcpy(ctx->output_buf, resp_msg, resp_len);
+out:
+	ctx->error = err;
+
+	/* Must post rx wqe before complete(), otherwise the next rx may
+	 * hit no_wqe error.
+	 */
+	mana_hwc_post_rx_wqe(hwc->rxq, rx_req);
+
+	complete(&ctx->comp_event);
 }
 
 static void mana_hwc_init_event_handler(void *ctx, struct gdma_queue *q_self,
@@ -216,14 +224,12 @@ static void mana_hwc_rx_event_handler(void *ctx, u32 gdma_rxq_id,
 		return;
 	}
 
-	mana_hwc_handle_resp(hwc, rx_oob->tx_oob_data_size, resp);
+	mana_hwc_handle_resp(hwc, rx_oob->tx_oob_data_size, rx_req);
 
-	/* Do no longer use 'resp', because the buffer is posted to the HW
-	 * in the below mana_hwc_post_rx_wqe().
+	/* Can no longer use 'resp', because the buffer is posted to the HW
+	 * in mana_hwc_handle_resp() above.
 	 */
 	resp = NULL;
-
-	mana_hwc_post_rx_wqe(hwc_rxq, rx_req);
 }
 
 static void mana_hwc_tx_event_handler(void *ctx, u32 gdma_txq_id,
