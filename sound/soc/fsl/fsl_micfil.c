@@ -58,6 +58,7 @@ struct fsl_micfil {
 	int vad_detected;
 	struct fsl_micfil_verid verid;
 	struct fsl_micfil_param param;
+	bool mclk_flag;  /* mclk enable flag */
 };
 
 struct fsl_micfil_soc_data {
@@ -693,7 +694,6 @@ static int fsl_micfil_reparent_rootclk(struct fsl_micfil *micfil, unsigned int s
 	clk = micfil->mclk;
 
 	/* Disable clock first, for it was enabled by pm_runtime */
-	clk_disable_unprepare(clk);
 	fsl_asoc_reparent_pll_clocks(dev, clk, micfil->pll8k_clk,
 				     micfil->pll11k_clk, ratio);
 	ret = clk_prepare_enable(clk);
@@ -730,6 +730,8 @@ static int fsl_micfil_hw_params(struct snd_pcm_substream *substream,
 	if (ret)
 		return ret;
 
+	micfil->mclk_flag = true;
+
 	ret = clk_set_rate(micfil->mclk, rate * clk_div * osr * 8);
 	if (ret)
 		return ret;
@@ -760,6 +762,17 @@ static int fsl_micfil_hw_params(struct snd_pcm_substream *substream,
 	micfil->dma_params_rx.maxburst = channels * MICFIL_DMA_MAXBURST_RX;
 	if (micfil->soc->use_edma)
 		micfil->dma_params_rx.maxburst = channels;
+
+	return 0;
+}
+
+static int fsl_micfil_hw_free(struct snd_pcm_substream *substream,
+			      struct snd_soc_dai *dai)
+{
+	struct fsl_micfil *micfil = snd_soc_dai_get_drvdata(dai);
+
+	clk_disable_unprepare(micfil->mclk);
+	micfil->mclk_flag = false;
 
 	return 0;
 }
@@ -806,6 +819,7 @@ static const struct snd_soc_dai_ops fsl_micfil_dai_ops = {
 	.startup	= fsl_micfil_startup,
 	.trigger	= fsl_micfil_trigger,
 	.hw_params	= fsl_micfil_hw_params,
+	.hw_free	= fsl_micfil_hw_free,
 };
 
 static struct snd_soc_dai_driver fsl_micfil_dai = {
@@ -1279,7 +1293,8 @@ static int fsl_micfil_runtime_suspend(struct device *dev)
 
 	regcache_cache_only(micfil->regmap, true);
 
-	clk_disable_unprepare(micfil->mclk);
+	if (micfil->mclk_flag)
+		clk_disable_unprepare(micfil->mclk);
 	clk_disable_unprepare(micfil->busclk);
 
 	return 0;
@@ -1294,10 +1309,12 @@ static int fsl_micfil_runtime_resume(struct device *dev)
 	if (ret < 0)
 		return ret;
 
-	ret = clk_prepare_enable(micfil->mclk);
-	if (ret < 0) {
-		clk_disable_unprepare(micfil->busclk);
-		return ret;
+	if (micfil->mclk_flag) {
+		ret = clk_prepare_enable(micfil->mclk);
+		if (ret < 0) {
+			clk_disable_unprepare(micfil->busclk);
+			return ret;
+		}
 	}
 
 	regcache_cache_only(micfil->regmap, false);
