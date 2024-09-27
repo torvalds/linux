@@ -61,7 +61,7 @@ static void amd_asf_process_target(struct work_struct *work)
 	unsigned short piix4_smba = dev->port_addr->start;
 	u8 data[ASF_BLOCK_MAX_BYTES];
 	u8 bank, reg, cmd;
-	u8 len, idx, val;
+	u8 len = 0, idx, val;
 
 	/* Read target status register */
 	reg = inb_p(ASFSLVSTA);
