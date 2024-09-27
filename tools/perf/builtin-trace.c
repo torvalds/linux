@@ -5449,6 +5449,10 @@ init_augmented_syscall_tp:
 	if (trace.summary_only)
 		trace.summary = trace.summary_only;
 
+	/* Keep exited threads, otherwise information might be lost for summary */
+	if (trace.summary)
+		symbol_conf.keep_exited_threads = true;
+
 	if (output_name != NULL) {
 		err = trace__open_output(&trace, output_name);
 		if (err < 0) {
