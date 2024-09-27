@@ -808,6 +808,20 @@ static void dmub_hpd_callback(struct amdgpu_device *adev,
 }
 
 /**
+ * dmub_hpd_sense_callback - DMUB HPD sense processing callback.
+ * @adev: amdgpu_device pointer
+ * @notify: dmub notification structure
+ *
+ * HPD sense changes can occur during low power states and need to be
+ * notified from firmware to driver.
+ */
+static void dmub_hpd_sense_callback(struct amdgpu_device *adev,
+			      struct dmub_notification *notify)
+{
+	DRM_DEBUG_DRIVER("DMUB HPD SENSE callback.\n");
+}
+
+/**
  * register_dmub_notify_callback - Sets callback for DMUB notify
  * @adev: amdgpu_device pointer
  * @type: Type of dmub notification
@@ -1757,25 +1771,41 @@ static struct dml2_soc_bb *dm_dmub_get_vbios_bounding_box(struct amdgpu_device *
 static enum dmub_ips_disable_type dm_get_default_ips_mode(
 	struct amdgpu_device *adev)
 {
-	/*
-	 * On DCN35 systems with Z8 enabled, it's possible for IPS2 + Z8 to
-	 * cause a hard hang. A fix exists for newer PMFW.
-	 *
-	 * As a workaround, for non-fixed PMFW, force IPS1+RCG as the deepest
-	 * IPS state in all cases, except for s0ix and all displays off (DPMS),
-	 * where IPS2 is allowed.
-	 *
-	 * When checking pmfw version, use the major and minor only.
-	 */
-	if (amdgpu_ip_version(adev, DCE_HWIP, 0) == IP_VERSION(3, 5, 0) &&
-	    (adev->pm.fw_version & 0x00FFFF00) < 0x005D6300)
-		return DMUB_IPS_RCG_IN_ACTIVE_IPS2_IN_OFF;
+	enum dmub_ips_disable_type ret = DMUB_IPS_ENABLE;
 
-	if (amdgpu_ip_version(adev, DCE_HWIP, 0) >= IP_VERSION(3, 5, 0))
-		return DMUB_IPS_ENABLE;
+	switch (amdgpu_ip_version(adev, DCE_HWIP, 0)) {
+	case IP_VERSION(3, 5, 0):
+		/*
+		 * On DCN35 systems with Z8 enabled, it's possible for IPS2 + Z8 to
+		 * cause a hard hang. A fix exists for newer PMFW.
+		 *
+		 * As a workaround, for non-fixed PMFW, force IPS1+RCG as the deepest
+		 * IPS state in all cases, except for s0ix and all displays off (DPMS),
+		 * where IPS2 is allowed.
+		 *
+		 * When checking pmfw version, use the major and minor only.
+		 */
+		if ((adev->pm.fw_version & 0x00FFFF00) < 0x005D6300)
+			ret = DMUB_IPS_RCG_IN_ACTIVE_IPS2_IN_OFF;
+		else if (amdgpu_ip_version(adev, GC_HWIP, 0) > IP_VERSION(11, 5, 0))
+			/*
+			 * Other ASICs with DCN35 that have residency issues with
+			 * IPS2 in idle.
+			 * We want them to use IPS2 only in display off cases.
+			 */
+			ret =  DMUB_IPS_RCG_IN_ACTIVE_IPS2_IN_OFF;
+		break;
+	case IP_VERSION(3, 5, 1):
+		ret =  DMUB_IPS_RCG_IN_ACTIVE_IPS2_IN_OFF;
+		break;
+	default:
+		/* ASICs older than DCN35 do not have IPSs */
+		if (amdgpu_ip_version(adev, DCE_HWIP, 0) < IP_VERSION(3, 5, 0))
+			ret = DMUB_IPS_DISABLE_ALL;
+		break;
+	}
 
-	/* ASICs older than DCN35 do not have IPSs */
-	return DMUB_IPS_DISABLE_ALL;
+	return ret;
 }
 
 static int amdgpu_dm_init(struct amdgpu_device *adev)
@@ -3808,6 +3838,12 @@ static int register_hpd_handlers(struct amdgpu_device *adev)
 			DRM_ERROR("amdgpu: fail to register dmub hpd callback");
 			return -EINVAL;
 		}
+
+		if (!register_dmub_notify_callback(adev, DMUB_NOTIFICATION_HPD_SENSE_NOTIFY,
+			dmub_hpd_sense_callback, true)) {
+			DRM_ERROR("amdgpu: fail to register dmub hpd sense callback");
+			return -EINVAL;
+		}
 	}
 
 	list_for_each_entry(connector,
@@ -4449,6 +4485,7 @@ static int amdgpu_dm_mode_config_init(struct amdgpu_device *adev)
 
 #define AMDGPU_DM_DEFAULT_MIN_BACKLIGHT 12
 #define AMDGPU_DM_DEFAULT_MAX_BACKLIGHT 255
+#define AMDGPU_DM_MIN_SPREAD ((AMDGPU_DM_DEFAULT_MAX_BACKLIGHT - AMDGPU_DM_DEFAULT_MIN_BACKLIGHT) / 2)
 #define AUX_BL_DEFAULT_TRANSITION_TIME_MS 50
 
 static void amdgpu_dm_update_backlight_caps(struct amdgpu_display_manager *dm,
@@ -4463,6 +4500,21 @@ static void amdgpu_dm_update_backlight_caps(struct amdgpu_display_manager *dm,
 		return;
 
 	amdgpu_acpi_get_backlight_caps(&caps);
+
+	/* validate the firmware value is sane */
+	if (caps.caps_valid) {
+		int spread = caps.max_input_signal - caps.min_input_signal;
+
+		if (caps.max_input_signal > AMDGPU_DM_DEFAULT_MAX_BACKLIGHT ||
+		    caps.min_input_signal < 0 ||
+		    spread > AMDGPU_DM_DEFAULT_MAX_BACKLIGHT ||
+		    spread < AMDGPU_DM_MIN_SPREAD) {
+			DRM_DEBUG_KMS("DM: Invalid backlight caps: min=%d, max=%d\n",
+				      caps.min_input_signal, caps.max_input_signal);
+			caps.caps_valid = false;
+		}
+	}
+
 	if (caps.caps_valid) {
 		dm->backlight_caps[bl_idx].caps_valid = true;
 		if (caps.aux_support)
