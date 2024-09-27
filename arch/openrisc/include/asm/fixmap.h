@@ -26,29 +26,18 @@
 #include <linux/bug.h>
 #include <asm/page.h>
 
-/*
- * On OpenRISC we use these special fixed_addresses for doing ioremap
- * early in the boot process before memory initialization is complete.
- * This is used, in particular, by the early serial console code.
- *
- * It's not really 'fixmap', per se, but fits loosely into the same
- * paradigm.
- */
 enum fixed_addresses {
-	/*
-	 * FIX_IOREMAP entries are useful for mapping physical address
-	 * space before ioremap() is useable, e.g. really early in boot
-	 * before kmalloc() is working.
-	 */
-#define FIX_N_IOREMAPS  32
-	FIX_IOREMAP_BEGIN,
-	FIX_IOREMAP_END = FIX_IOREMAP_BEGIN + FIX_N_IOREMAPS - 1,
+	FIX_EARLYCON_MEM_BASE,
 	__end_of_fixed_addresses
 };
 
 #define FIXADDR_SIZE		(__end_of_fixed_addresses << PAGE_SHIFT)
 /* FIXADDR_BOTTOM might be a better name here... */
 #define FIXADDR_START		(FIXADDR_TOP - FIXADDR_SIZE)
+#define FIXMAP_PAGE_IO		PAGE_KERNEL_NOCACHE
+
+extern void __set_fixmap(enum fixed_addresses idx,
+			 phys_addr_t phys, pgprot_t flags);
 
 #include <asm-generic/fixmap.h>
 

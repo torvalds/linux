@@ -207,6 +207,43 @@ void __init mem_init(void)
 	return;
 }
 
+static int __init map_page(unsigned long va, phys_addr_t pa, pgprot_t prot)
+{
+	p4d_t *p4d;
+	pud_t *pud;
+	pmd_t *pmd;
+	pte_t *pte;
+
+	p4d = p4d_offset(pgd_offset_k(va), va);
+	pud = pud_offset(p4d, va);
+	pmd = pmd_offset(pud, va);
+	pte = pte_alloc_kernel(pmd, va);
+
+	if (pte == NULL)
+		return -ENOMEM;
+
+	if (pgprot_val(prot))
+		set_pte_at(&init_mm, va, pte, pfn_pte(pa >> PAGE_SHIFT, prot));
+	else
+		pte_clear(&init_mm, va, pte);
+
+	local_flush_tlb_page(NULL, va);
+	return 0;
+}
+
+void __init __set_fixmap(enum fixed_addresses idx,
+			 phys_addr_t phys, pgprot_t prot)
+{
+	unsigned long address = __fix_to_virt(idx);
+
+	if (idx >= __end_of_fixed_addresses) {
+		BUG();
+		return;
+	}
+
+	map_page(address, phys, prot);
+}
+
 static const pgprot_t protection_map[16] = {
 	[VM_NONE]					= PAGE_NONE,
 	[VM_READ]					= PAGE_READONLY_X,

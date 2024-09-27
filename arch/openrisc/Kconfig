@@ -65,6 +65,9 @@ config STACKTRACE_SUPPORT
 config LOCKDEP_SUPPORT
 	def_bool  y
 
+config FIX_EARLYCON_MEM
+	def_bool y
+
 menu "Processor type and features"
 
 choice
