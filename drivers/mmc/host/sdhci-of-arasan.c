@@ -2046,7 +2046,7 @@ static struct platform_driver sdhci_arasan_driver = {
 		.pm = &sdhci_arasan_dev_pm_ops,
 	},
 	.probe = sdhci_arasan_probe,
-	.remove_new = sdhci_arasan_remove,
+	.remove = sdhci_arasan_remove,
 };
 
 module_platform_driver(sdhci_arasan_driver);

@@ -1130,7 +1130,7 @@ static struct platform_driver sdhci_am654_driver = {
 		.of_match_table = sdhci_am654_of_match,
 	},
 	.probe = sdhci_am654_probe,
-	.remove_new = sdhci_am654_remove,
+	.remove = sdhci_am654_remove,
 };
 
 module_platform_driver(sdhci_am654_driver);

@@ -85,7 +85,7 @@ static struct platform_driver npcm_sdhci_driver = {
 		.pm	= &sdhci_pltfm_pmops,
 	},
 	.probe		= npcm_sdhci_probe,
-	.remove_new	= sdhci_pltfm_remove,
+	.remove		= sdhci_pltfm_remove,
 };
 module_platform_driver(npcm_sdhci_driver);
 

@@ -326,7 +326,7 @@ MODULE_DEVICE_TABLE(of, octeon_mmc_match);
 
 static struct platform_driver octeon_mmc_driver = {
 	.probe		= octeon_mmc_probe,
-	.remove_new	= octeon_mmc_remove,
+	.remove		= octeon_mmc_remove,
 	.driver		= {
 		.name	= KBUILD_MODNAME,
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,

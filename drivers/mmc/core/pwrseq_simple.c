@@ -151,7 +151,7 @@ static void mmc_pwrseq_simple_remove(struct platform_device *pdev)
 
 static struct platform_driver mmc_pwrseq_simple_driver = {
 	.probe = mmc_pwrseq_simple_probe,
-	.remove_new = mmc_pwrseq_simple_remove,
+	.remove = mmc_pwrseq_simple_remove,
 	.driver = {
 		.name = "pwrseq_simple",
 		.of_match_table = mmc_pwrseq_simple_of_match,

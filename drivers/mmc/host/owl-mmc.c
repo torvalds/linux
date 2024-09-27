@@ -692,7 +692,7 @@ static struct platform_driver owl_mmc_driver = {
 		.of_match_table = owl_mmc_of_match,
 	},
 	.probe		= owl_mmc_probe,
-	.remove_new	= owl_mmc_remove,
+	.remove		= owl_mmc_remove,
 };
 module_platform_driver(owl_mmc_driver);
 

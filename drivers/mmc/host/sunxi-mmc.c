@@ -1554,7 +1554,7 @@ static struct platform_driver sunxi_mmc_driver = {
 		.pm = &sunxi_mmc_pm_ops,
 	},
 	.probe		= sunxi_mmc_probe,
-	.remove_new	= sunxi_mmc_remove,
+	.remove		= sunxi_mmc_remove,
 };
 module_platform_driver(sunxi_mmc_driver);
 

@@ -545,7 +545,7 @@ static struct platform_driver sdhci_brcmstb_driver = {
 		.of_match_table = of_match_ptr(sdhci_brcm_of_match),
 	},
 	.probe		= sdhci_brcmstb_probe,
-	.remove_new	= sdhci_pltfm_remove,
+	.remove		= sdhci_pltfm_remove,
 	.shutdown	= sdhci_brcmstb_shutdown,
 };
 
