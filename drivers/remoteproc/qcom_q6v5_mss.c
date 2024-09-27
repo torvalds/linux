@@ -216,6 +216,7 @@ enum {
 	MSS_MSM8998,
 	MSS_SC7180,
 	MSS_SDM845,
+	MSS_MDM9607,
 };
 
 static int q6v5_regulator_init(struct device *dev, struct reg_info *regs,
@@ -708,6 +709,79 @@ static int q6v5proc_reset(struct q6v5 *qproc)
 			 * array to turn on.
 			 */
 			val |= readl(qproc->reg_base + mem_pwr_ctl);
+			udelay(1);
+		}
+		/* Remove word line clamp */
+		val = readl(qproc->reg_base + QDSP6SS_PWR_CTL_REG);
+		val &= ~QDSP6v56_CLAMP_WL;
+		writel(val, qproc->reg_base + QDSP6SS_PWR_CTL_REG);
+	} else if (qproc->version == MSS_MDM9607) {
+		int mem_pwr_ctl;
+		/* Override the ACC value if required */
+		writel(QDSP6SS_ACC_OVERRIDE_VAL,
+			qproc->reg_base + QDSP6SS_STRAP_ACC);
+
+		/* Assert resets, stop core */
+		val = readl(qproc->reg_base + QDSP6SS_RESET_REG);
+		val |= Q6SS_CORE_ARES | Q6SS_BUS_ARES_ENABLE | Q6SS_STOP_CORE;
+		writel(val, qproc->reg_base + QDSP6SS_RESET_REG);
+
+		/* BHS require xo cbcr to be enabled */
+		val = readl(qproc->reg_base + QDSP6SS_XO_CBCR);
+		val |= Q6SS_CBCR_CLKEN;
+		writel(val, qproc->reg_base + QDSP6SS_XO_CBCR);
+
+		/* Read CLKOFF bit to go low indicating CLK is enabled */
+		ret = readl_poll_timeout(qproc->reg_base + QDSP6SS_XO_CBCR,
+								val, !(val & Q6SS_CBCR_CLKOFF), 1,
+								Q6SS_CBCR_TIMEOUT_US);
+		if (ret) {
+			dev_err(qproc->dev,
+					"xo cbcr enabling timed out (rc:%d)\n", ret);
+			return ret;
+		}
+		/* Enable power block headswitch and wait for it to stabilize */
+		val = readl(qproc->reg_base + QDSP6SS_PWR_CTL_REG);
+		val |= QDSP6v56_BHS_ON;
+		writel(val, qproc->reg_base + QDSP6SS_PWR_CTL_REG);
+		val |= readl(qproc->reg_base + QDSP6SS_PWR_CTL_REG);
+		udelay(1);
+
+		/* Put LDO in bypass mode */
+		val |= QDSP6v56_LDO_BYP;
+		writel(val, qproc->reg_base + QDSP6SS_PWR_CTL_REG);
+
+		/* Deassert QDSP6 compiler memory clamp */
+		val = readl(qproc->reg_base + QDSP6SS_PWR_CTL_REG);
+		val &= ~QDSP6v56_CLAMP_QMC_MEM;
+		writel(val, qproc->reg_base + QDSP6SS_PWR_CTL_REG);
+
+		/* Deassert memory peripheral sleep and L2 memory standby */
+		val |= Q6SS_L2DATA_STBY_N | Q6SS_SLP_RET_N;
+		writel(val, qproc->reg_base + QDSP6SS_PWR_CTL_REG);
+
+		mem_pwr_ctl = QDSP6SS_MEM_PWR_CTL;
+		val = readl(qproc->reg_base + mem_pwr_ctl);
+		for (i = 19; i >= 6; i--) {
+			val |= BIT(i);
+			writel(val, qproc->reg_base + mem_pwr_ctl);
+			/*
+			 * Read back value to ensure the write is done then
+			 * wait for 1us for both memory peripheral and data
+			 * array to turn on.
+			 */
+			val |= readl(qproc->reg_base + mem_pwr_ctl);
+			udelay(1);
+		}
+		for (i = 0 ; i <= 5 ; i++) {
+			val |= BIT(i);
+			writel(val, qproc->reg_base + QDSP6SS_MEM_PWR_CTL);
+			/*
+			 * Read back value to ensure the write is done then
+			 * wait for 1us for both memory peripheral and data
+			 * array to turn on.
+			 */
+			val |= readl(qproc->reg_base + QDSP6SS_MEM_PWR_CTL);
 			udelay(1);
 		}
 		/* Remove word line clamp */
@@ -2081,6 +2155,40 @@ static const struct rproc_hexagon_res msm8974_mss = {
 	.version = MSS_MSM8974,
 };
 
+static const struct rproc_hexagon_res mdm9607_mss = {
+	.hexagon_mba_image = "mba.mbn",
+	.proxy_supply = (struct qcom_mss_reg_res[]) {
+		{
+			.supply = "mx",
+		},
+		{
+			.supply = "cx",
+		},
+		{}
+	},
+	.active_supply = (struct qcom_mss_reg_res[]) {
+		{
+			.supply = "pll",
+		},
+		{}
+	},
+	.proxy_clk_names = (char*[]){
+		"xo",
+		NULL
+	},
+	.active_clk_names = (char*[]){
+		"iface",
+		"bus",
+		"mem",
+		NULL
+	},
+	.need_mem_protection = false,
+	.has_alt_reset = false,
+	.has_mba_logs = false,
+	.has_spare_reg = false,
+	.version = MSS_MDM9607,
+};
+
 static const struct of_device_id q6v5_of_match[] = {
 	{ .compatible = "qcom,q6v5-pil", .data = &msm8916_mss},
 	{ .compatible = "qcom,msm8916-mss-pil", .data = &msm8916_mss},
@@ -2089,6 +2197,7 @@ static const struct of_device_id q6v5_of_match[] = {
 	{ .compatible = "qcom,msm8998-mss-pil", .data = &msm8998_mss},
 	{ .compatible = "qcom,sc7180-mss-pil", .data = &sc7180_mss},
 	{ .compatible = "qcom,sdm845-mss-pil", .data = &sdm845_mss},
+	{ .compatible = "qcom,mdm9607-mss-pil", .data = &mdm9607_mss},
 	{ },
 };
 MODULE_DEVICE_TABLE(of, q6v5_of_match);
