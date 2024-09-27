@@ -134,6 +134,7 @@ def define_neo_la():
         "drivers/soc/qcom/smp2p_sleepstate.ko",
         "drivers/soc/qcom/socinfo.ko",
         "drivers/soc/qcom/sps/sps_drv.ko",
+        "drivers/soc/qcom/sys_pm_vx.ko",
         "drivers/soc/qcom/sysmon_subsystem_stats.ko",
         "drivers/spi/spi-msm-geni.ko",
         "drivers/thermal/qcom/cpu_hotplug.ko",
