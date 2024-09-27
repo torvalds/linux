@@ -102,6 +102,9 @@ int exfat_write_inode(struct inode *inode, struct writeback_control *wbc)
 {
 	int ret;
 
+	if (unlikely(exfat_forced_shutdown(inode->i_sb)))
+		return -EIO;
+
 	mutex_lock(&EXFAT_SB(inode->i_sb)->s_lock);
 	ret = __exfat_write_inode(inode, wbc->sync_mode == WB_SYNC_ALL);
 	mutex_unlock(&EXFAT_SB(inode->i_sb)->s_lock);
@@ -130,11 +133,9 @@ static int exfat_map_cluster(struct inode *inode, unsigned int clu_offset,
 	struct exfat_sb_info *sbi = EXFAT_SB(sb);
 	struct exfat_inode_info *ei = EXFAT_I(inode);
 	unsigned int local_clu_offset = clu_offset;
-	unsigned int num_to_be_allocated = 0, num_clusters = 0;
+	unsigned int num_to_be_allocated = 0, num_clusters;
 
-	if (ei->i_size_ondisk > 0)
-		num_clusters =
-			EXFAT_B_TO_CLU_ROUND_UP(ei->i_size_ondisk, sbi);
+	num_clusters = EXFAT_B_TO_CLU(exfat_ondisk_size(inode), sbi);
 
 	if (clu_offset >= num_clusters)
 		num_to_be_allocated = clu_offset - num_clusters + 1;
@@ -260,21 +261,6 @@ static int exfat_map_cluster(struct inode *inode, unsigned int clu_offset,
 	return 0;
 }
 
-static int exfat_map_new_buffer(struct exfat_inode_info *ei,
-		struct buffer_head *bh, loff_t pos)
-{
-	if (buffer_delay(bh) && pos > ei->i_size_aligned)
-		return -EIO;
-	set_buffer_new(bh);
-
-	/*
-	 * Adjust i_size_aligned if i_size_ondisk is bigger than it.
-	 */
-	if (ei->i_size_ondisk > ei->i_size_aligned)
-		ei->i_size_aligned = ei->i_size_ondisk;
-	return 0;
-}
-
 static int exfat_get_block(struct inode *inode, sector_t iblock,
 		struct buffer_head *bh_result, int create)
 {
@@ -288,7 +274,6 @@ static int exfat_get_block(struct inode *inode, sector_t iblock,
 	sector_t last_block;
 	sector_t phys = 0;
 	sector_t valid_blks;
-	loff_t pos;
 
 	mutex_lock(&sbi->s_lock);
 	last_block = EXFAT_B_TO_BLK_ROUND_UP(i_size_read(inode), sb);
@@ -316,12 +301,6 @@ static int exfat_get_block(struct inode *inode, sector_t iblock,
 	mapped_blocks = sbi->sect_per_clus - sec_offset;
 	max_blocks = min(mapped_blocks, max_blocks);
 
-	pos = EXFAT_BLK_TO_B((iblock + 1), sb);
-	if ((create && iblock >= last_block) || buffer_delay(bh_result)) {
-		if (ei->i_size_ondisk < pos)
-			ei->i_size_ondisk = pos;
-	}
-
 	map_bh(bh_result, sb, phys);
 	if (buffer_delay(bh_result))
 		clear_buffer_delay(bh_result);
@@ -342,13 +321,7 @@ static int exfat_get_block(struct inode *inode, sector_t iblock,
 		}
 
 		/* The area has not been written, map and mark as new. */
-		err = exfat_map_new_buffer(ei, bh_result, pos);
-		if (err) {
-			exfat_fs_error(sb,
-					"requested for bmap out of range(pos : (%llu) > i_size_aligned(%llu)\n",
-					pos, ei->i_size_aligned);
-			goto unlock_ret;
-		}
+		set_buffer_new(bh_result);
 
 		ei->valid_size = EXFAT_BLK_TO_B(iblock + max_blocks, sb);
 		mark_inode_dirty(inode);
@@ -371,7 +344,7 @@ static int exfat_get_block(struct inode *inode, sector_t iblock,
 			 * The block has been partially written,
 			 * zero the unwritten part and map the block.
 			 */
-			loff_t size, off;
+			loff_t size, off, pos;
 
 			max_blocks = 1;
 
@@ -382,7 +355,7 @@ static int exfat_get_block(struct inode *inode, sector_t iblock,
 			if (!bh_result->b_folio)
 				goto done;
 
-			pos -= sb->s_blocksize;
+			pos = EXFAT_BLK_TO_B(iblock, sb);
 			size = ei->valid_size - pos;
 			off = pos & (PAGE_SIZE - 1);
 
@@ -432,6 +405,9 @@ static void exfat_readahead(struct readahead_control *rac)
 static int exfat_writepages(struct address_space *mapping,
 		struct writeback_control *wbc)
 {
+	if (unlikely(exfat_forced_shutdown(mapping->host->i_sb)))
+		return -EIO;
+
 	return mpage_writepages(mapping, wbc, exfat_get_block);
 }
 
@@ -452,6 +428,9 @@ static int exfat_write_begin(struct file *file, struct address_space *mapping,
 {
 	int ret;
 
+	if (unlikely(exfat_forced_shutdown(mapping->host->i_sb)))
+		return -EIO;
+
 	ret = block_write_begin(mapping, pos, len, foliop, exfat_get_block);
 
 	if (ret < 0)
@@ -469,14 +448,6 @@ static int exfat_write_end(struct file *file, struct address_space *mapping,
 	int err;
 
 	err = generic_write_end(file, mapping, pos, len, copied, folio, fsdata);
-
-	if (ei->i_size_aligned < i_size_read(inode)) {
-		exfat_fs_error(inode->i_sb,
-			"invalid size(size(%llu) > aligned(%llu)\n",
-			i_size_read(inode), ei->i_size_aligned);
-		return -EIO;
-	}
-
 	if (err < len)
 		exfat_write_failed(mapping, pos+len);
 
@@ -504,20 +475,6 @@ static ssize_t exfat_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
 	int rw = iov_iter_rw(iter);
 	ssize_t ret;
 
-	if (rw == WRITE) {
-		/*
-		 * FIXME: blockdev_direct_IO() doesn't use ->write_begin(),
-		 * so we need to update the ->i_size_aligned to block boundary.
-		 *
-		 * But we must fill the remaining area or hole by nul for
-		 * updating ->i_size_aligned
-		 *
-		 * Return 0, and fallback to normal buffered write.
-		 */
-		if (EXFAT_I(inode)->i_size_aligned < size)
-			return 0;
-	}
-
 	/*
 	 * Need to use the DIO_LOCKING for avoiding the race
 	 * condition of exfat_get_block() and ->truncate().
@@ -531,8 +488,18 @@ static ssize_t exfat_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
 	} else
 		size = pos + ret;
 
-	/* zero the unwritten part in the partially written block */
-	if (rw == READ && pos < ei->valid_size && ei->valid_size < size) {
+	if (rw == WRITE) {
+		/*
+		 * If the block had been partially written before this write,
+		 * ->valid_size will not be updated in exfat_get_block(),
+		 * update it here.
+		 */
+		if (ei->valid_size < size) {
+			ei->valid_size = size;
+			mark_inode_dirty(inode);
+		}
+	} else if (pos < ei->valid_size && ei->valid_size < size) {
+		/* zero the unwritten part in the partially written block */
 		iov_iter_revert(iter, size - ei->valid_size);
 		iov_iter_zero(size - ei->valid_size, iter);
 	}
@@ -666,15 +633,6 @@ static int exfat_fill_inode(struct inode *inode, struct exfat_dir_entry *info)
 	}
 
 	i_size_write(inode, size);
-
-	/* ondisk and aligned size should be aligned with block size */
-	if (size & (inode->i_sb->s_blocksize - 1)) {
-		size |= (inode->i_sb->s_blocksize - 1);
-		size++;
-	}
-
-	ei->i_size_aligned = size;
-	ei->i_size_ondisk = size;
 
 	exfat_save_attr(inode, info->attr);
 

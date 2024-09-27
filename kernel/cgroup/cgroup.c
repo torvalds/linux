@@ -6968,10 +6968,10 @@ struct cgroup *cgroup_v1v2_get_from_fd(int fd)
 {
 	struct cgroup *cgrp;
 	struct fd f = fdget_raw(fd);
-	if (!f.file)
+	if (!fd_file(f))
 		return ERR_PTR(-EBADF);
 
-	cgrp = cgroup_v1v2_get_from_file(f.file);
+	cgrp = cgroup_v1v2_get_from_file(fd_file(f));
 	fdput(f);
 	return cgrp;
 }

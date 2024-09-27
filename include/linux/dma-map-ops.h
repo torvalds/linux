@@ -24,11 +24,6 @@ struct dma_map_ops {
 			gfp_t gfp);
 	void (*free_pages)(struct device *dev, size_t size, struct page *vaddr,
 			dma_addr_t dma_handle, enum dma_data_direction dir);
-	struct sg_table *(*alloc_noncontiguous)(struct device *dev, size_t size,
-			enum dma_data_direction dir, gfp_t gfp,
-			unsigned long attrs);
-	void (*free_noncontiguous)(struct device *dev, size_t size,
-			struct sg_table *sgt, enum dma_data_direction dir);
 	int (*mmap)(struct device *, struct vm_area_struct *,
 			void *, dma_addr_t, size_t, unsigned long attrs);
 
@@ -205,20 +200,6 @@ static inline int dma_mmap_from_global_coherent(struct vm_area_struct *vma,
 	return 0;
 }
 #endif /* CONFIG_DMA_GLOBAL_POOL */
-
-/*
- * This is the actual return value from the ->alloc_noncontiguous method.
- * The users of the DMA API should only care about the sg_table, but to make
- * the DMA-API internal vmaping and freeing easier we stash away the page
- * array as well (except for the fallback case).  This can go away any time,
- * e.g. when a vmap-variant that takes a scatterlist comes along.
- */
-struct dma_sgt_handle {
-	struct sg_table sgt;
-	struct page **pages;
-};
-#define sgt_handle(sgt) \
-	container_of((sgt), struct dma_sgt_handle, sgt)
 
 int dma_common_get_sgtable(struct device *dev, struct sg_table *sgt,
 		void *cpu_addr, dma_addr_t dma_addr, size_t size,

@@ -1639,8 +1639,8 @@ static void si4713_remove(struct i2c_client *client)
 
 /* si4713_i2c_driver - i2c driver interface */
 static const struct i2c_device_id si4713_id[] = {
-	{ "si4713" , 0 },
-	{ },
+	{ "si4713" },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, si4713_id);
 

@@ -301,13 +301,13 @@ static int ad7292_probe(struct spi_device *spi)
 
 static const struct spi_device_id ad7292_id_table[] = {
 	{ "ad7292", 0 },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(spi, ad7292_id_table);
 
 static const struct of_device_id ad7292_of_match[] = {
 	{ .compatible = "adi,ad7292" },
-	{ },
+	{ }
 };
 MODULE_DEVICE_TABLE(of, ad7292_of_match);
 

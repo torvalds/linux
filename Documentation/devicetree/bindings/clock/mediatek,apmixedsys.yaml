@@ -35,7 +35,7 @@ properties:
               - mediatek,mt2701-apmixedsys
               - mediatek,mt2712-apmixedsys
               - mediatek,mt6765-apmixedsys
-              - mediatek,mt6779-apmixedsys
+              - mediatek,mt6779-apmixed
               - mediatek,mt6795-apmixedsys
               - mediatek,mt7629-apmixedsys
               - mediatek,mt8167-apmixedsys

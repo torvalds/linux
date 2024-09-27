@@ -353,26 +353,32 @@ int aqr_firmware_load(struct phy_device *phydev)
 {
 	int ret;
 
-	ret = aqr_wait_reset_complete(phydev);
-	if (ret)
-		return ret;
-
-	/* Check if the firmware is not already loaded by pooling
-	 * the current version returned by the PHY. If 0 is returned,
-	 * no firmware is loaded.
+	/* Check if the firmware is not already loaded by polling
+	 * the current version returned by the PHY.
 	 */
-	ret = phy_read_mmd(phydev, MDIO_MMD_VEND1, VEND1_GLOBAL_FW_ID);
-	if (ret > 0)
-		goto exit;
+	ret = aqr_wait_reset_complete(phydev);
+	switch (ret) {
+	case 0:
+		/* Some firmware is loaded => do nothing */
+		return 0;
+	case -ETIMEDOUT:
+		/* VEND1_GLOBAL_FW_ID still reads 0 after 2 seconds of polling.
+		 * We don't have full confidence that no firmware is loaded (in
+		 * theory it might just not have loaded yet), but we will
+		 * assume that, and load a new image.
+		 */
+		ret = aqr_firmware_load_nvmem(phydev);
+		if (!ret)
+			return ret;
 
-	ret = aqr_firmware_load_nvmem(phydev);
-	if (!ret)
-		goto exit;
-
-	ret = aqr_firmware_load_fs(phydev);
-	if (ret)
+		ret = aqr_firmware_load_fs(phydev);
+		if (ret)
+			return ret;
+		break;
+	default:
+		/* PHY read error, propagate it to the caller */
 		return ret;
+	}
 
-exit:
 	return 0;
 }

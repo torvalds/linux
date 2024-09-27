@@ -160,6 +160,7 @@ config MODULE_UNLOAD_TAINT_TRACKING
 
 config MODVERSIONS
 	bool "Module versioning support"
+	depends on !COMPILE_TEST
 	help
 	  Usually, you have to use modules compiled with your kernel.
 	  Saying Y here makes it sometimes possible to use modules

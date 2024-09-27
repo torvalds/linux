@@ -559,28 +559,33 @@ config I2C_DAVINCI
 	  For details please see http://www.ti.com/davinci
 
 config I2C_DESIGNWARE_CORE
-	tristate
+	tristate "Synopsys DesignWare I2C adapter"
 	select REGMAP
+	help
+	  This option enables support for the Synopsys DesignWare I2C adapter.
+	  This driver includes support for the I2C host on the Synopsys
+	  Designware I2C adapter.
+
+	  To compile the driver as a module, choose M here: the module will be
+	  called i2c-designware-core.
+
+if I2C_DESIGNWARE_CORE
 
 config I2C_DESIGNWARE_SLAVE
 	bool "Synopsys DesignWare Slave"
-	depends on I2C_DESIGNWARE_CORE
 	select I2C_SLAVE
 	help
 	  If you say yes to this option, support will be included for the
 	  Synopsys DesignWare I2C slave adapter.
 
-	  This is not a standalone module, this module compiles together with
-	  i2c-designware-core.
-
 config I2C_DESIGNWARE_PLATFORM
-	tristate "Synopsys DesignWare Platform"
+	tristate "Synopsys DesignWare Platform driver"
 	depends on (ACPI && COMMON_CLK) || !ACPI
-	select I2C_DESIGNWARE_CORE
 	select MFD_SYSCON if MIPS_BAIKAL_T1
+	default I2C_DESIGNWARE_CORE
 	help
 	  If you say yes to this option, support will be included for the
-	  Synopsys DesignWare I2C adapter.
+	  Synopsys DesignWare I2C adapters on the platform bus.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-designware-platform.
@@ -613,16 +618,18 @@ config I2C_DESIGNWARE_BAYTRAIL
 	  a BayTrail system using the AXP288.
 
 config I2C_DESIGNWARE_PCI
-	tristate "Synopsys DesignWare PCI"
+	tristate "Synopsys DesignWare PCI driver"
 	depends on PCI
-	select I2C_DESIGNWARE_CORE
 	select I2C_CCGX_UCSI
 	help
 	  If you say yes to this option, support will be included for the
-	  Synopsys DesignWare I2C adapter. Only master mode is supported.
+	  Synopsys DesignWare I2C adapters on the PCI bus. Only master mode is
+	  supported.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-designware-pci.
+
+endif
 
 config I2C_DIGICOLOR
 	tristate "Conexant Digicolor I2C driver"
@@ -771,6 +778,17 @@ config I2C_JZ4780
 	 Ingenic JZ4780 I2C controller.
 
 	 If you don't know what to do here, say N.
+
+config I2C_KEBA
+	tristate "KEBA I2C controller support"
+	depends on HAS_IOMEM
+	select AUXILIARY_BUS
+	help
+	  This driver supports the I2C controller found in KEBA system FPGA
+	  devices.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called i2c-keba.
 
 config I2C_KEMPLD
 	tristate "Kontron COM I2C Controller"

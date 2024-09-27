@@ -552,62 +552,30 @@ static int bch2_dir_emit(struct dir_context *ctx, struct bkey_s_c_dirent d, subv
 
 int bch2_readdir(struct bch_fs *c, subvol_inum inum, struct dir_context *ctx)
 {
-	struct btree_trans *trans = bch2_trans_get(c);
-	struct btree_iter iter;
-	struct bkey_s_c k;
-	subvol_inum target;
-	u32 snapshot;
 	struct bkey_buf sk;
-	int ret;
-
 	bch2_bkey_buf_init(&sk);
-retry:
-	bch2_trans_begin(trans);
 
-	ret = bch2_subvolume_get_snapshot(trans, inum.subvol, &snapshot);
-	if (ret)
-		goto err;
+	int ret = bch2_trans_run(c,
+		for_each_btree_key_in_subvolume_upto(trans, iter, BTREE_ID_dirents,
+				   POS(inum.inum, ctx->pos),
+				   POS(inum.inum, U64_MAX),
+				   inum.subvol, 0, k, ({
+			if (k.k->type != KEY_TYPE_dirent)
+				continue;
 
-	for_each_btree_key_upto_norestart(trans, iter, BTREE_ID_dirents,
-			   SPOS(inum.inum, ctx->pos, snapshot),
-			   POS(inum.inum, U64_MAX), 0, k, ret) {
-		if (k.k->type != KEY_TYPE_dirent)
-			continue;
+			/* dir_emit() can fault and block: */
+			bch2_bkey_buf_reassemble(&sk, c, k);
+			struct bkey_s_c_dirent dirent = bkey_i_to_s_c_dirent(sk.k);
 
-		/* dir_emit() can fault and block: */
-		bch2_bkey_buf_reassemble(&sk, c, k);
-		struct bkey_s_c_dirent dirent = bkey_i_to_s_c_dirent(sk.k);
+			subvol_inum target;
+			int ret2 = bch2_dirent_read_target(trans, inum, dirent, &target);
+			if (ret2 > 0)
+				continue;
 
-		ret = bch2_dirent_read_target(trans, inum, dirent, &target);
-		if (ret < 0)
-			break;
-		if (ret)
-			continue;
+			ret2 ?: drop_locks_do(trans, bch2_dir_emit(ctx, dirent, target));
+		})));
 
-		/*
-		 * read_target looks up subvolumes, we can overflow paths if the
-		 * directory has many subvolumes in it
-		 *
-		 * XXX: btree_trans_too_many_iters() is something we'd like to
-		 * get rid of, and there's no good reason to be using it here
-		 * except that we don't yet have a for_each_btree_key() helper
-		 * that does subvolume_get_snapshot().
-		 */
-		ret =   drop_locks_do(trans,
-				bch2_dir_emit(ctx, dirent, target)) ?:
-			btree_trans_too_many_iters(trans);
-		if (ret) {
-			ret = ret < 0 ? ret : 0;
-			break;
-		}
-	}
-	bch2_trans_iter_exit(trans, &iter);
-err:
-	if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
-		goto retry;
-
-	bch2_trans_put(trans);
 	bch2_bkey_buf_exit(&sk, c);
 
-	return ret;
+	return ret < 0 ? ret : 0;
 }

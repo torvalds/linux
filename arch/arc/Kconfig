@@ -554,7 +554,7 @@ config ARC_BUILTIN_DTB_NAME
 	string "Built in DTB"
 	help
 	  Set the name of the DTB to embed in the vmlinux binary
-	  Leaving it blank selects the minimal "skeleton" dtb
+	  Leaving it blank selects the "nsim_700" dtb.
 
 endmenu	 # "ARC Architecture Configuration"
 

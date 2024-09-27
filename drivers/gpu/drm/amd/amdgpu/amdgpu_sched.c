@@ -42,10 +42,10 @@ static int amdgpu_sched_process_priority_override(struct amdgpu_device *adev,
 	uint32_t id;
 	int r;
 
-	if (!f.file)
+	if (!fd_file(f))
 		return -EINVAL;
 
-	r = amdgpu_file_to_fpriv(f.file, &fpriv);
+	r = amdgpu_file_to_fpriv(fd_file(f), &fpriv);
 	if (r) {
 		fdput(f);
 		return r;
@@ -71,10 +71,10 @@ static int amdgpu_sched_context_priority_override(struct amdgpu_device *adev,
 	struct amdgpu_ctx *ctx;
 	int r;
 
-	if (!f.file)
+	if (!fd_file(f))
 		return -EINVAL;
 
-	r = amdgpu_file_to_fpriv(f.file, &fpriv);
+	r = amdgpu_file_to_fpriv(fd_file(f), &fpriv);
 	if (r) {
 		fdput(f);
 		return r;

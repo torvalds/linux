@@ -439,14 +439,6 @@ static void init_once(void *foo)
 }
 
 /*
- * inode->i_lock must be held
- */
-void __iget(struct inode *inode)
-{
-	atomic_inc(&inode->i_count);
-}
-
-/*
  * get additional reference to inode; caller must already hold one.
  */
 void ihold(struct inode *inode)

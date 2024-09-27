@@ -339,7 +339,7 @@ static const unsigned int tst_out11_pins[]		= { GPIOA_11 };
 static const unsigned int mute_key_pins[]		= { GPIOA_4 };
 static const unsigned int mute_en_pins[]		= { GPIOA_5 };
 
-static struct meson_pmx_group meson_a1_periphs_groups[] = {
+static const struct meson_pmx_group meson_a1_periphs_groups[] = {
 	GPIO_GROUP(GPIOP_0),
 	GPIO_GROUP(GPIOP_1),
 	GPIO_GROUP(GPIOP_2),
@@ -832,7 +832,7 @@ static const char * const mute_groups[] = {
 	"mute_key", "mute_en",
 };
 
-static struct meson_pmx_func meson_a1_periphs_functions[] = {
+static const struct meson_pmx_func meson_a1_periphs_functions[] = {
 	FUNCTION(gpio_periphs),
 	FUNCTION(psram),
 	FUNCTION(pwm_a),
@@ -875,7 +875,7 @@ static struct meson_pmx_func meson_a1_periphs_functions[] = {
 	FUNCTION(mute),
 };
 
-static struct meson_bank meson_a1_periphs_banks[] = {
+static const struct meson_bank meson_a1_periphs_banks[] = {
 	/* name  first  last  irq  pullen  pull  dir  out  in  ds*/
 	BANK_DS("P",  GPIOP_0,  GPIOP_12,  0,  12, 0x3,  0,  0x4,  0,
 		0x2,  0,  0x1,  0,  0x0,  0,  0x5,  0),
@@ -889,7 +889,7 @@ static struct meson_bank meson_a1_periphs_banks[] = {
 		0x42,  0,  0x41,  0,  0x40,  0,  0x45,  0),
 };
 
-static struct meson_pmx_bank meson_a1_periphs_pmx_banks[] = {
+static const struct meson_pmx_bank meson_a1_periphs_pmx_banks[] = {
 	/*  name	 first	    lask    reg	offset  */
 	BANK_PMX("P",    GPIOP_0, GPIOP_12, 0x0, 0),
 	BANK_PMX("B",    GPIOB_0, GPIOB_6,  0x2, 0),
@@ -898,12 +898,12 @@ static struct meson_pmx_bank meson_a1_periphs_pmx_banks[] = {
 	BANK_PMX("A",    GPIOA_0, GPIOA_11, 0x8, 0),
 };
 
-static struct meson_axg_pmx_data meson_a1_periphs_pmx_banks_data = {
+static const struct meson_axg_pmx_data meson_a1_periphs_pmx_banks_data = {
 	.pmx_banks	= meson_a1_periphs_pmx_banks,
 	.num_pmx_banks	= ARRAY_SIZE(meson_a1_periphs_pmx_banks),
 };
 
-static struct meson_pinctrl_data meson_a1_periphs_pinctrl_data = {
+static const struct meson_pinctrl_data meson_a1_periphs_pinctrl_data = {
 	.name		= "periphs-banks",
 	.pins		= meson_a1_periphs_pins,
 	.groups		= meson_a1_periphs_groups,

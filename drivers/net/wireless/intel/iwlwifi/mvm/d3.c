@@ -3768,7 +3768,6 @@ static int iwl_mvm_d3_test_release(struct inode *inode, struct file *file)
 }
 
 const struct file_operations iwl_dbgfs_d3_test_ops = {
-	.llseek = no_llseek,
 	.open = iwl_mvm_d3_test_open,
 	.read = iwl_mvm_d3_test_read,
 	.release = iwl_mvm_d3_test_release,

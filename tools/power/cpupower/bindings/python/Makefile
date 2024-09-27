@@ -20,13 +20,13 @@ _raw_pylibcpupower.so: raw_pylibcpupower_wrap.o
 raw_pylibcpupower_wrap.o: raw_pylibcpupower_wrap.c
 	$(CC) -fPIC -c raw_pylibcpupower_wrap.c $(PY_INCLUDE)
 
-raw_pylibcpupower_wrap.c: raw_pylibcpupower.i
+raw_pylibcpupower_wrap.c: raw_pylibcpupower.swg
 ifeq ($(HAVE_SWIG),0)
 	$(error "swig was not found. Make sure you have it installed and in the PATH to generate the bindings.")
 else ifeq ($(HAVE_PYCONFIG),0)
 	$(error "python-config was not found. Make sure you have it installed and in the PATH to generate the bindings.")
 endif
-	swig -python raw_pylibcpupower.i
+	swig -python raw_pylibcpupower.swg
 
 # Will only clean the bindings folder; will not clean the actual cpupower folder
 clean:

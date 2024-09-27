@@ -119,4 +119,20 @@ config I2C_MUX_MLXCPLD
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-mux-mlxcpld.
 
+config I2C_MUX_MULE
+	tristate "Theobroma Systems Mule I2C device multiplexer"
+	depends on OF && SENSORS_AMC6821
+	help
+	  Mule is an MCU that emulates a set of I2C devices, among which
+	  devices that are reachable through an I2C-mux. The devices on the mux
+	  can be selected by writing the appropriate device number to an I2C
+	  configuration register.
+
+	  If you say yes to this option, support will be included for a
+	  Theobroma Systems Mule I2C multiplexer. This driver provides access to
+	  I2C devices connected on this mux.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-mux-mule.
+
 endmenu

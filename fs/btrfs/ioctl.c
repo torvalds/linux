@@ -1310,12 +1310,12 @@ static noinline int __btrfs_ioctl_snap_create(struct file *file,
 	} else {
 		struct fd src = fdget(fd);
 		struct inode *src_inode;
-		if (!src.file) {
+		if (!fd_file(src)) {
 			ret = -EINVAL;
 			goto out_drop_write;
 		}
 
-		src_inode = file_inode(src.file);
+		src_inode = file_inode(fd_file(src));
 		if (src_inode->i_sb != file_inode(file)->i_sb) {
 			btrfs_info(BTRFS_I(file_inode(file))->root->fs_info,
 				   "Snapshot src from another FS");

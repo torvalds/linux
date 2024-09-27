@@ -54,7 +54,7 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 	struct vm_area_struct *vma;
 	struct mm_struct *mm = current->mm;
 	static struct vm_special_mapping vdso_mapping = {
-		name = "[vdso]",
+		.name = "[vdso]",
 	};
 
 	if (mmap_write_lock_killable(mm))

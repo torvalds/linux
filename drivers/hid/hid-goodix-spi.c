@@ -786,14 +786,6 @@ static const struct acpi_device_id goodix_spi_acpi_match[] = {
 MODULE_DEVICE_TABLE(acpi, goodix_spi_acpi_match);
 #endif
 
-#ifdef CONFIG_OF
-static const struct of_device_id goodix_spi_of_match[] = {
-	{ .compatible = "goodix,gt7986u", },
-	{ }
-};
-MODULE_DEVICE_TABLE(of, goodix_spi_of_match);
-#endif
-
 static const struct spi_device_id goodix_spi_ids[] = {
 	{ "gt7986u" },
 	{ },
@@ -804,7 +796,6 @@ static struct spi_driver goodix_spi_driver = {
 	.driver = {
 		.name = "goodix-spi-hid",
 		.acpi_match_table = ACPI_PTR(goodix_spi_acpi_match),
-		.of_match_table = of_match_ptr(goodix_spi_of_match),
 		.pm = pm_sleep_ptr(&goodix_spi_pm_ops),
 	},
 	.probe =	goodix_spi_probe,

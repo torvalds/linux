@@ -4,13 +4,14 @@
 #ifndef __IOMMUFD_PRIVATE_H
 #define __IOMMUFD_PRIVATE_H
 
-#include <linux/rwsem.h>
-#include <linux/xarray.h>
-#include <linux/refcount.h>
-#include <linux/uaccess.h>
 #include <linux/iommu.h>
 #include <linux/iova_bitmap.h>
+#include <linux/refcount.h>
+#include <linux/rwsem.h>
+#include <linux/uaccess.h>
+#include <linux/xarray.h>
 #include <uapi/linux/iommufd.h>
+
 #include "../iommu-priv.h"
 
 struct iommu_domain;
@@ -324,6 +325,25 @@ to_hwpt_paging(struct iommufd_hw_pagetable *hwpt)
 	return container_of(hwpt, struct iommufd_hwpt_paging, common);
 }
 
+static inline struct iommufd_hwpt_nested *
+to_hwpt_nested(struct iommufd_hw_pagetable *hwpt)
+{
+	return container_of(hwpt, struct iommufd_hwpt_nested, common);
+}
+
+static inline struct iommufd_hwpt_paging *
+find_hwpt_paging(struct iommufd_hw_pagetable *hwpt)
+{
+	switch (hwpt->obj.type) {
+	case IOMMUFD_OBJ_HWPT_PAGING:
+		return to_hwpt_paging(hwpt);
+	case IOMMUFD_OBJ_HWPT_NESTED:
+		return to_hwpt_nested(hwpt)->parent;
+	default:
+		return NULL;
+	}
+}
+
 static inline struct iommufd_hwpt_paging *
 iommufd_get_hwpt_paging(struct iommufd_ucmd *ucmd, u32 id)
 {
@@ -490,8 +510,10 @@ static inline int iommufd_hwpt_attach_device(struct iommufd_hw_pagetable *hwpt,
 static inline void iommufd_hwpt_detach_device(struct iommufd_hw_pagetable *hwpt,
 					      struct iommufd_device *idev)
 {
-	if (hwpt->fault)
+	if (hwpt->fault) {
 		iommufd_fault_domain_detach_dev(hwpt, idev);
+		return;
+	}
 
 	iommu_detach_group(hwpt->domain, idev->igroup->group);
 }

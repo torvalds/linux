@@ -2196,6 +2196,10 @@ unsigned filemap_get_folios_contig(struct address_space *mapping,
 		if (xa_is_value(folio))
 			goto update_start;
 
+		/* If we landed in the middle of a THP, continue at its end. */
+		if (xa_is_sibling(folio))
+			goto update_start;
+
 		if (!folio_try_get(folio))
 			goto retry;
 
@@ -4423,7 +4427,7 @@ SYSCALL_DEFINE4(cachestat, unsigned int, fd,
 	struct cachestat cs;
 	pgoff_t first_index, last_index;
 
-	if (!f.file)
+	if (!fd_file(f))
 		return -EBADF;
 
 	if (copy_from_user(&csr, cstat_range,
@@ -4433,7 +4437,7 @@ SYSCALL_DEFINE4(cachestat, unsigned int, fd,
 	}
 
 	/* hugetlbfs is not supported */
-	if (is_file_hugepages(f.file)) {
+	if (is_file_hugepages(fd_file(f))) {
 		fdput(f);
 		return -EOPNOTSUPP;
 	}
@@ -4447,7 +4451,7 @@ SYSCALL_DEFINE4(cachestat, unsigned int, fd,
 	last_index =
 		csr.len == 0 ? ULONG_MAX : (csr.off + csr.len - 1) >> PAGE_SHIFT;
 	memset(&cs, 0, sizeof(struct cachestat));
-	mapping = f.file->f_mapping;
+	mapping = fd_file(f)->f_mapping;
 	filemap_cachestat(mapping, first_index, last_index, &cs);
 	fdput(f);
 

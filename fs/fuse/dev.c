@@ -22,6 +22,9 @@
 #include <linux/splice.h>
 #include <linux/sched.h>
 
+#define CREATE_TRACE_POINTS
+#include "fuse_trace.h"
+
 MODULE_ALIAS_MISCDEV(FUSE_MINOR);
 MODULE_ALIAS("devname:fuse");
 
@@ -105,11 +108,17 @@ static void fuse_drop_waiting(struct fuse_conn *fc)
 
 static void fuse_put_request(struct fuse_req *req);
 
-static struct fuse_req *fuse_get_req(struct fuse_mount *fm, bool for_background)
+static struct fuse_req *fuse_get_req(struct mnt_idmap *idmap,
+				     struct fuse_mount *fm,
+				     bool for_background)
 {
 	struct fuse_conn *fc = fm->fc;
 	struct fuse_req *req;
+	bool no_idmap = !fm->sb || (fm->sb->s_iflags & SB_I_NOIDMAP);
+	kuid_t fsuid;
+	kgid_t fsgid;
 	int err;
+
 	atomic_inc(&fc->num_waiting);
 
 	if (fuse_block_alloc(fc, for_background)) {
@@ -137,19 +146,32 @@ static struct fuse_req *fuse_get_req(struct fuse_mount *fm, bool for_background)
 		goto out;
 	}
 
-	req->in.h.uid = from_kuid(fc->user_ns, current_fsuid());
-	req->in.h.gid = from_kgid(fc->user_ns, current_fsgid());
 	req->in.h.pid = pid_nr_ns(task_pid(current), fc->pid_ns);
 
 	__set_bit(FR_WAITING, &req->flags);
 	if (for_background)
 		__set_bit(FR_BACKGROUND, &req->flags);
 
-	if (unlikely(req->in.h.uid == ((uid_t)-1) ||
-		     req->in.h.gid == ((gid_t)-1))) {
+	/*
+	 * Keep the old behavior when idmappings support was not
+	 * declared by a FUSE server.
+	 *
+	 * For those FUSE servers who support idmapped mounts,
+	 * we send UID/GID only along with "inode creation"
+	 * fuse requests, otherwise idmap == &invalid_mnt_idmap and
+	 * req->in.h.{u,g}id will be equal to FUSE_INVALID_UIDGID.
+	 */
+	fsuid = no_idmap ? current_fsuid() : mapped_fsuid(idmap, fc->user_ns);
+	fsgid = no_idmap ? current_fsgid() : mapped_fsgid(idmap, fc->user_ns);
+	req->in.h.uid = from_kuid(fc->user_ns, fsuid);
+	req->in.h.gid = from_kgid(fc->user_ns, fsgid);
+
+	if (no_idmap && unlikely(req->in.h.uid == ((uid_t)-1) ||
+				 req->in.h.gid == ((gid_t)-1))) {
 		fuse_put_request(req);
 		return ERR_PTR(-EOVERFLOW);
 	}
+
 	return req;
 
  out:
@@ -194,10 +216,21 @@ unsigned int fuse_len_args(unsigned int numargs, struct fuse_arg *args)
 }
 EXPORT_SYMBOL_GPL(fuse_len_args);
 
-u64 fuse_get_unique(struct fuse_iqueue *fiq)
+static u64 fuse_get_unique_locked(struct fuse_iqueue *fiq)
 {
 	fiq->reqctr += FUSE_REQ_ID_STEP;
 	return fiq->reqctr;
+}
+
+u64 fuse_get_unique(struct fuse_iqueue *fiq)
+{
+	u64 ret;
+
+	spin_lock(&fiq->lock);
+	ret = fuse_get_unique_locked(fiq);
+	spin_unlock(&fiq->lock);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(fuse_get_unique);
 
@@ -217,22 +250,70 @@ __releases(fiq->lock)
 	spin_unlock(&fiq->lock);
 }
 
+static void fuse_dev_queue_forget(struct fuse_iqueue *fiq, struct fuse_forget_link *forget)
+{
+	spin_lock(&fiq->lock);
+	if (fiq->connected) {
+		fiq->forget_list_tail->next = forget;
+		fiq->forget_list_tail = forget;
+		fuse_dev_wake_and_unlock(fiq);
+	} else {
+		kfree(forget);
+		spin_unlock(&fiq->lock);
+	}
+}
+
+static void fuse_dev_queue_interrupt(struct fuse_iqueue *fiq, struct fuse_req *req)
+{
+	spin_lock(&fiq->lock);
+	if (list_empty(&req->intr_entry)) {
+		list_add_tail(&req->intr_entry, &fiq->interrupts);
+		/*
+		 * Pairs with smp_mb() implied by test_and_set_bit()
+		 * from fuse_request_end().
+		 */
+		smp_mb();
+		if (test_bit(FR_FINISHED, &req->flags)) {
+			list_del_init(&req->intr_entry);
+			spin_unlock(&fiq->lock);
+		} else  {
+			fuse_dev_wake_and_unlock(fiq);
+		}
+	} else {
+		spin_unlock(&fiq->lock);
+	}
+}
+
+static void fuse_dev_queue_req(struct fuse_iqueue *fiq, struct fuse_req *req)
+{
+	spin_lock(&fiq->lock);
+	if (fiq->connected) {
+		if (req->in.h.opcode != FUSE_NOTIFY_REPLY)
+			req->in.h.unique = fuse_get_unique_locked(fiq);
+		list_add_tail(&req->list, &fiq->pending);
+		fuse_dev_wake_and_unlock(fiq);
+	} else {
+		spin_unlock(&fiq->lock);
+		req->out.h.error = -ENOTCONN;
+		clear_bit(FR_PENDING, &req->flags);
+		fuse_request_end(req);
+	}
+}
+
 const struct fuse_iqueue_ops fuse_dev_fiq_ops = {
-	.wake_forget_and_unlock		= fuse_dev_wake_and_unlock,
-	.wake_interrupt_and_unlock	= fuse_dev_wake_and_unlock,
-	.wake_pending_and_unlock	= fuse_dev_wake_and_unlock,
+	.send_forget	= fuse_dev_queue_forget,
+	.send_interrupt	= fuse_dev_queue_interrupt,
+	.send_req	= fuse_dev_queue_req,
 };
 EXPORT_SYMBOL_GPL(fuse_dev_fiq_ops);
 
-static void queue_request_and_unlock(struct fuse_iqueue *fiq,
-				     struct fuse_req *req)
-__releases(fiq->lock)
+static void fuse_send_one(struct fuse_iqueue *fiq, struct fuse_req *req)
 {
 	req->in.h.len = sizeof(struct fuse_in_header) +
 		fuse_len_args(req->args->in_numargs,
 			      (struct fuse_arg *) req->args->in_args);
-	list_add_tail(&req->list, &fiq->pending);
-	fiq->ops->wake_pending_and_unlock(fiq);
+	trace_fuse_request_send(req);
+	fiq->ops->send_req(fiq, req);
 }
 
 void fuse_queue_forget(struct fuse_conn *fc, struct fuse_forget_link *forget,
@@ -243,15 +324,7 @@ void fuse_queue_forget(struct fuse_conn *fc, struct fuse_forget_link *forget,
 	forget->forget_one.nodeid = nodeid;
 	forget->forget_one.nlookup = nlookup;
 
-	spin_lock(&fiq->lock);
-	if (fiq->connected) {
-		fiq->forget_list_tail->next = forget;
-		fiq->forget_list_tail = forget;
-		fiq->ops->wake_forget_and_unlock(fiq);
-	} else {
-		kfree(forget);
-		spin_unlock(&fiq->lock);
-	}
+	fiq->ops->send_forget(fiq, forget);
 }
 
 static void flush_bg_queue(struct fuse_conn *fc)
@@ -265,9 +338,7 @@ static void flush_bg_queue(struct fuse_conn *fc)
 		req = list_first_entry(&fc->bg_queue, struct fuse_req, list);
 		list_del(&req->list);
 		fc->active_background++;
-		spin_lock(&fiq->lock);
-		req->in.h.unique = fuse_get_unique(fiq);
-		queue_request_and_unlock(fiq, req);
+		fuse_send_one(fiq, req);
 	}
 }
 
@@ -288,6 +359,7 @@ void fuse_request_end(struct fuse_req *req)
 	if (test_and_set_bit(FR_FINISHED, &req->flags))
 		goto put_request;
 
+	trace_fuse_request_end(req);
 	/*
 	 * test_and_set_bit() implies smp_mb() between bit
 	 * changing and below FR_INTERRUPTED check. Pairs with
@@ -337,29 +409,12 @@ static int queue_interrupt(struct fuse_req *req)
 {
 	struct fuse_iqueue *fiq = &req->fm->fc->iq;
 
-	spin_lock(&fiq->lock);
 	/* Check for we've sent request to interrupt this req */
-	if (unlikely(!test_bit(FR_INTERRUPTED, &req->flags))) {
-		spin_unlock(&fiq->lock);
+	if (unlikely(!test_bit(FR_INTERRUPTED, &req->flags)))
 		return -EINVAL;
-	}
 
-	if (list_empty(&req->intr_entry)) {
-		list_add_tail(&req->intr_entry, &fiq->interrupts);
-		/*
-		 * Pairs with smp_mb() implied by test_and_set_bit()
-		 * from fuse_request_end().
-		 */
-		smp_mb();
-		if (test_bit(FR_FINISHED, &req->flags)) {
-			list_del_init(&req->intr_entry);
-			spin_unlock(&fiq->lock);
-			return 0;
-		}
-		fiq->ops->wake_interrupt_and_unlock(fiq);
-	} else {
-		spin_unlock(&fiq->lock);
-	}
+	fiq->ops->send_interrupt(fiq, req);
+
 	return 0;
 }
 
@@ -414,21 +469,15 @@ static void __fuse_request_send(struct fuse_req *req)
 	struct fuse_iqueue *fiq = &req->fm->fc->iq;
 
 	BUG_ON(test_bit(FR_BACKGROUND, &req->flags));
-	spin_lock(&fiq->lock);
-	if (!fiq->connected) {
-		spin_unlock(&fiq->lock);
-		req->out.h.error = -ENOTCONN;
-	} else {
-		req->in.h.unique = fuse_get_unique(fiq);
-		/* acquire extra reference, since request is still needed
-		   after fuse_request_end() */
-		__fuse_get_request(req);
-		queue_request_and_unlock(fiq, req);
 
-		request_wait_answer(req);
-		/* Pairs with smp_wmb() in fuse_request_end() */
-		smp_rmb();
-	}
+	/* acquire extra reference, since request is still needed after
+	   fuse_request_end() */
+	__fuse_get_request(req);
+	fuse_send_one(fiq, req);
+
+	request_wait_answer(req);
+	/* Pairs with smp_wmb() in fuse_request_end() */
+	smp_rmb();
 }
 
 static void fuse_adjust_compat(struct fuse_conn *fc, struct fuse_args *args)
@@ -468,8 +517,14 @@ static void fuse_force_creds(struct fuse_req *req)
 {
 	struct fuse_conn *fc = req->fm->fc;
 
-	req->in.h.uid = from_kuid_munged(fc->user_ns, current_fsuid());
-	req->in.h.gid = from_kgid_munged(fc->user_ns, current_fsgid());
+	if (!req->fm->sb || req->fm->sb->s_iflags & SB_I_NOIDMAP) {
+		req->in.h.uid = from_kuid_munged(fc->user_ns, current_fsuid());
+		req->in.h.gid = from_kgid_munged(fc->user_ns, current_fsgid());
+	} else {
+		req->in.h.uid = FUSE_INVALID_UIDGID;
+		req->in.h.gid = FUSE_INVALID_UIDGID;
+	}
+
 	req->in.h.pid = pid_nr_ns(task_pid(current), fc->pid_ns);
 }
 
@@ -484,7 +539,9 @@ static void fuse_args_to_req(struct fuse_req *req, struct fuse_args *args)
 		__set_bit(FR_ASYNC, &req->flags);
 }
 
-ssize_t fuse_simple_request(struct fuse_mount *fm, struct fuse_args *args)
+ssize_t __fuse_simple_request(struct mnt_idmap *idmap,
+			      struct fuse_mount *fm,
+			      struct fuse_args *args)
 {
 	struct fuse_conn *fc = fm->fc;
 	struct fuse_req *req;
@@ -501,7 +558,7 @@ ssize_t fuse_simple_request(struct fuse_mount *fm, struct fuse_args *args)
 		__set_bit(FR_FORCE, &req->flags);
 	} else {
 		WARN_ON(args->nocreds);
-		req = fuse_get_req(fm, false);
+		req = fuse_get_req(idmap, fm, false);
 		if (IS_ERR(req))
 			return PTR_ERR(req);
 	}
@@ -562,7 +619,7 @@ int fuse_simple_background(struct fuse_mount *fm, struct fuse_args *args,
 		__set_bit(FR_BACKGROUND, &req->flags);
 	} else {
 		WARN_ON(args->nocreds);
-		req = fuse_get_req(fm, true);
+		req = fuse_get_req(&invalid_mnt_idmap, fm, true);
 		if (IS_ERR(req))
 			return PTR_ERR(req);
 	}
@@ -583,9 +640,8 @@ static int fuse_simple_notify_reply(struct fuse_mount *fm,
 {
 	struct fuse_req *req;
 	struct fuse_iqueue *fiq = &fm->fc->iq;
-	int err = 0;
 
-	req = fuse_get_req(fm, false);
+	req = fuse_get_req(&invalid_mnt_idmap, fm, false);
 	if (IS_ERR(req))
 		return PTR_ERR(req);
 
@@ -594,16 +650,9 @@ static int fuse_simple_notify_reply(struct fuse_mount *fm,
 
 	fuse_args_to_req(req, args);
 
-	spin_lock(&fiq->lock);
-	if (fiq->connected) {
-		queue_request_and_unlock(fiq, req);
-	} else {
-		err = -ENODEV;
-		spin_unlock(&fiq->lock);
-		fuse_put_request(req);
-	}
+	fuse_send_one(fiq, req);
 
-	return err;
+	return 0;
 }
 
 /*
@@ -1075,9 +1124,9 @@ __releases(fiq->lock)
 	return err ? err : reqsize;
 }
 
-struct fuse_forget_link *fuse_dequeue_forget(struct fuse_iqueue *fiq,
-					     unsigned int max,
-					     unsigned int *countp)
+static struct fuse_forget_link *fuse_dequeue_forget(struct fuse_iqueue *fiq,
+						    unsigned int max,
+						    unsigned int *countp)
 {
 	struct fuse_forget_link *head = fiq->forget_list_head.next;
 	struct fuse_forget_link **newhead = &head;
@@ -1096,7 +1145,6 @@ struct fuse_forget_link *fuse_dequeue_forget(struct fuse_iqueue *fiq,
 
 	return head;
 }
-EXPORT_SYMBOL(fuse_dequeue_forget);
 
 static int fuse_read_single_forget(struct fuse_iqueue *fiq,
 				   struct fuse_copy_state *cs,
@@ -1111,7 +1159,7 @@ __releases(fiq->lock)
 	struct fuse_in_header ih = {
 		.opcode = FUSE_FORGET,
 		.nodeid = forget->forget_one.nodeid,
-		.unique = fuse_get_unique(fiq),
+		.unique = fuse_get_unique_locked(fiq),
 		.len = sizeof(ih) + sizeof(arg),
 	};
 
@@ -1142,7 +1190,7 @@ __releases(fiq->lock)
 	struct fuse_batch_forget_in arg = { .count = 0 };
 	struct fuse_in_header ih = {
 		.opcode = FUSE_BATCH_FORGET,
-		.unique = fuse_get_unique(fiq),
+		.unique = fuse_get_unique_locked(fiq),
 		.len = sizeof(ih) + sizeof(arg),
 	};
 
@@ -1830,7 +1878,7 @@ static void fuse_resend(struct fuse_conn *fc)
 	}
 	/* iq and pq requests are both oldest to newest */
 	list_splice(&to_queue, &fiq->pending);
-	fiq->ops->wake_pending_and_unlock(fiq);
+	fuse_dev_wake_and_unlock(fiq);
 }
 
 static int fuse_notify_resend(struct fuse_conn *fc)
@@ -2329,15 +2377,15 @@ static long fuse_dev_ioctl_clone(struct file *file, __u32 __user *argp)
 		return -EFAULT;
 
 	f = fdget(oldfd);
-	if (!f.file)
+	if (!fd_file(f))
 		return -EINVAL;
 
 	/*
 	 * Check against file->f_op because CUSE
 	 * uses the same ioctl handler.
 	 */
-	if (f.file->f_op == file->f_op)
-		fud = fuse_get_dev(f.file);
+	if (fd_file(f)->f_op == file->f_op)
+		fud = fuse_get_dev(fd_file(f));
 
 	res = -EINVAL;
 	if (fud) {
@@ -2408,7 +2456,6 @@ static long fuse_dev_ioctl(struct file *file, unsigned int cmd,
 const struct file_operations fuse_dev_operations = {
 	.owner		= THIS_MODULE,
 	.open		= fuse_dev_open,
-	.llseek		= no_llseek,
 	.read_iter	= fuse_dev_read,
 	.splice_read	= fuse_dev_splice_read,
 	.write_iter	= fuse_dev_write,
