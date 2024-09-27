@@ -4921,6 +4921,8 @@ static void rtw89_phy_stat_init(struct rtw89_dev *rtwdev)
 
 	memset(&phystat->cur_pkt_stat, 0, sizeof(phystat->cur_pkt_stat));
 	memset(&phystat->last_pkt_stat, 0, sizeof(phystat->last_pkt_stat));
+
+	ewma_rssi_init(&phystat->bcn_rssi);
 }
 
 void rtw89_phy_stat_track(struct rtw89_dev *rtwdev)

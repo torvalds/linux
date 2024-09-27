@@ -3673,13 +3673,16 @@ static int rtw89_debug_priv_phy_info_get(struct seq_file *m, void *v)
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 	const struct rtw89_rx_rate_cnt_info *info;
 	enum rtw89_hw_rate first_rate;
+	u8 rssi;
 	int i;
+
+	rssi = ewma_rssi_read(&rtwdev->phystat.bcn_rssi);
 
 	seq_printf(m, "TP TX: %u [%u] Mbps (lv: %d), RX: %u [%u] Mbps (lv: %d)\n",
 		   stats->tx_throughput, stats->tx_throughput_raw, stats->tx_tfc_lv,
 		   stats->rx_throughput, stats->rx_throughput_raw, stats->rx_tfc_lv);
-	seq_printf(m, "Beacon: %u, TF: %u\n", pkt_stat->beacon_nr,
-		   stats->rx_tf_periodic);
+	seq_printf(m, "Beacon: %u (%d dBm), TF: %u\n", pkt_stat->beacon_nr,
+		   RTW89_RSSI_RAW_TO_DBM(rssi), stats->rx_tf_periodic);
 	seq_printf(m, "Avg packet length: TX=%u, RX=%u\n", stats->tx_avg_len,
 		   stats->rx_avg_len);
 

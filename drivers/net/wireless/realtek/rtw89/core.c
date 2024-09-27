@@ -2110,6 +2110,9 @@ static void rtw89_vif_rx_stats_iter(void *data, u8 *mac,
 			rtw89_fw_h2c_rssi_offload(rtwdev, phy_ppdu);
 		}
 		pkt_stat->beacon_nr++;
+
+		if (phy_ppdu)
+			ewma_rssi_add(&rtwdev->phystat.bcn_rssi, phy_ppdu->rssi_avg);
 	}
 
 	if (!ether_addr_equal(bss_conf->addr, hdr->addr1))
