@@ -1065,10 +1065,10 @@ static void i915_irq_postinstall(struct drm_i915_private *dev_priv)
 		I915_USER_INTERRUPT;
 
 	if (I915_HAS_HOTPLUG(dev_priv)) {
-		/* Enable in IER... */
-		enable_mask |= I915_DISPLAY_PORT_INTERRUPT;
 		/* and unmask in IMR */
 		dev_priv->irq_mask &= ~I915_DISPLAY_PORT_INTERRUPT;
+		/* Enable in IER... */
+		enable_mask |= I915_DISPLAY_PORT_INTERRUPT;
 	}
 
 	GEN3_IRQ_INIT(uncore, GEN2_, dev_priv->irq_mask, enable_mask);
