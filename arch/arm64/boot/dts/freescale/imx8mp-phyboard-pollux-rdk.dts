@@ -352,15 +352,16 @@
 
 &gpio1 {
 	gpio-line-names = "", "", "X_PMIC_WDOG_B", "",
-		"PMIC_SD_VSEL", "", "", "", "", "",
-		"", "", "USB1_OTG_PWR", "", "", "X_nETHPHY_INT";
+		"PMIC_SD_VSEL", "", "", "", "PCIe_nPERST", "LVDS1REG_EN",
+		"PCIe_nWAKE", "PCIe_nCLKREQ", "USB1_OTG_PWR", "",
+		"PCIe_nW_DISABLE";
 };
 
 &gpio2 {
 	gpio-line-names = "", "", "", "",
 		"", "", "", "", "", "",
 		"", "", "X_SD2_CD_B", "", "", "",
-		"", "", "", "SD2_RESET_B";
+		"", "", "", "SD2_RESET_B", "LVDS1_BL_EN";
 };
 
 &gpio3 {
@@ -374,7 +375,12 @@
 	gpio-line-names = "", "", "", "",
 		"", "", "", "", "", "",
 		"", "", "", "", "", "",
-		"", "", "X_PMIC_IRQ_B", "", "nENET0_INT_PWDN";
+		"", "", "X_PMIC_IRQ_B", "nRTC_INT", "nENET0_INT_PWDN";
+};
+
+&gpio5 {
+	gpio-line-names = "", "", "", "",
+		"", "", "", "", "", "X_ECSPI1_SSO";
 };
 
 &iomuxc {
