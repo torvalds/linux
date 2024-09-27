@@ -647,7 +647,19 @@ static const struct rpmhpd_desc qcs8300_desc = {
 	.num_pds = ARRAY_SIZE(qcs8300_rpmhpds),
 };
 
+/* QCS615 RPMH powerdomains */
+static struct rpmhpd *qcs615_rpmhpds[] = {
+	[RPMHPD_CX] = &cx,
+	[RPMHPD_CX_AO] = &cx_ao,
+};
+
+static const struct rpmhpd_desc qcs615_desc = {
+	.rpmhpds = qcs615_rpmhpds,
+	.num_pds = ARRAY_SIZE(qcs615_rpmhpds),
+};
+
 static const struct of_device_id rpmhpd_match_table[] = {
+	{ .compatible = "qcom,qcs615-rpmhpd", .data = &qcs615_desc },
 	{ .compatible = "qcom,qcs8300-rpmhpd", .data = &qcs8300_desc },
 	{ .compatible = "qcom,qdu1000-rpmhpd", .data = &qdu1000_desc },
 	{ .compatible = "qcom,sa8155p-rpmhpd", .data = &sa8155p_desc },
