@@ -21,8 +21,6 @@
 #include <linux/slab.h>
 #include <linux/types.h>
 
-#include "leds.h"
-
 struct gpio_led_data {
 	struct led_classdev cdev;
 	struct gpio_desc *gpiod;
