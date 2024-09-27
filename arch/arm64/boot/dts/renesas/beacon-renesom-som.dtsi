@@ -166,6 +166,8 @@
 		#clock-cells = <1>;
 		clocks = <&x304_clk>;
 		clock-names = "xin";
+		idt,shutdown = <0>;
+		idt,output-enable-active = <0>;
 		/* du_dotclkin0, du_dotclkin2, usb_extal, avb_txcrefclk */
 		assigned-clocks = <&versaclock5 1>,
 				   <&versaclock5 2>,
