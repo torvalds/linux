@@ -696,6 +696,7 @@ enum scx_enq_flags {
 	/* expose select ENQUEUE_* flags as enums */
 	SCX_ENQ_WAKEUP		= ENQUEUE_WAKEUP,
 	SCX_ENQ_HEAD		= ENQUEUE_HEAD,
+	SCX_ENQ_CPU_SELECTED	= ENQUEUE_RQ_SELECTED,
 
 	/* high 32bits are SCX specific */
 
