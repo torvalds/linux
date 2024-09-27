@@ -17,7 +17,6 @@
 #include <linux/err.h>
 #include <linux/pwm.h>
 #include <linux/slab.h>
-#include "leds.h"
 
 struct led_pwm {
 	const char	*name;
