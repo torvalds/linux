@@ -55,7 +55,13 @@ struct dmub_notification;
 
 #define DC_VER "3.2.319"
 
+/**
+ * MAX_SURFACES - representative of the upper bound of surfaces that can be piped to a single CRTC
+ */
 #define MAX_SURFACES 4
+/**
+ * MAX_PLANES - representative of the upper bound of planes that are supported by the HW
+ */
 #define MAX_PLANES 6
 #define MAX_STREAMS 6
 #define MIN_VIEWPORT_SIZE 12
