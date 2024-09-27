@@ -5049,7 +5049,8 @@ static int scx_ops_enable(struct sched_ext_ops *ops, struct bpf_link *link)
 		ret = SCX_CALL_OP_RET(SCX_KF_UNLOCKED, init);
 		if (ret) {
 			ret = ops_sanitize_err("init", ret);
-			goto err_disable_unlock_cpus;
+			cpus_read_unlock();
+			goto err_disable;
 		}
 	}
 
@@ -5092,54 +5093,30 @@ static int scx_ops_enable(struct sched_ext_ops *ops, struct bpf_link *link)
 	 */
 	scx_ops_bypass(true);
 
-	/*
-	 * Lock out forks, cgroup on/offlining and moves before opening the
-	 * floodgate so that they don't wander into the operations prematurely.
-	 *
-	 * We don't need to keep the CPUs stable but static_branch_*() requires
-	 * cpus_read_lock() and scx_cgroup_rwsem must nest inside
-	 * cpu_hotplug_lock because of the following dependency chain:
-	 *
-	 *   cpu_hotplug_lock --> cgroup_threadgroup_rwsem --> scx_cgroup_rwsem
-	 *
-	 * So, we need to do cpus_read_lock() before scx_cgroup_lock() and use
-	 * static_branch_*_cpuslocked().
-	 *
-	 * Note that cpu_hotplug_lock must nest inside scx_fork_rwsem due to the
-	 * following dependency chain:
-	 *
-	 *   scx_fork_rwsem --> pernet_ops_rwsem --> cpu_hotplug_lock
-	 */
-	percpu_down_write(&scx_fork_rwsem);
-	cpus_read_lock();
-	scx_cgroup_lock();
-
 	for (i = SCX_OPI_NORMAL_BEGIN; i < SCX_OPI_NORMAL_END; i++)
 		if (((void (**)(void))ops)[i])
-			static_branch_enable_cpuslocked(&scx_has_op[i]);
+			static_branch_enable(&scx_has_op[i]);
 
 	if (ops->flags & SCX_OPS_ENQ_LAST)
-		static_branch_enable_cpuslocked(&scx_ops_enq_last);
+		static_branch_enable(&scx_ops_enq_last);
 
 	if (ops->flags & SCX_OPS_ENQ_EXITING)
-		static_branch_enable_cpuslocked(&scx_ops_enq_exiting);
+		static_branch_enable(&scx_ops_enq_exiting);
 	if (scx_ops.cpu_acquire || scx_ops.cpu_release)
-		static_branch_enable_cpuslocked(&scx_ops_cpu_preempt);
+		static_branch_enable(&scx_ops_cpu_preempt);
 
 	if (!ops->update_idle || (ops->flags & SCX_OPS_KEEP_BUILTIN_IDLE)) {
 		reset_idle_masks();
-		static_branch_enable_cpuslocked(&scx_builtin_idle_enabled);
+		static_branch_enable(&scx_builtin_idle_enabled);
 	} else {
-		static_branch_disable_cpuslocked(&scx_builtin_idle_enabled);
+		static_branch_disable(&scx_builtin_idle_enabled);
 	}
 
 	/*
-	 * All cgroups should be initialized before letting in tasks. cgroup
-	 * on/offlining and task migrations are already locked out.
+	 * Lock out forks, cgroup on/offlining and moves before opening the
+	 * floodgate so that they don't wander into the operations prematurely.
 	 */
-	ret = scx_cgroup_init();
-	if (ret)
-		goto err_disable_unlock_all;
+	percpu_down_write(&scx_fork_rwsem);
 
 	WARN_ON_ONCE(scx_ops_init_task_enabled);
 	scx_ops_init_task_enabled = true;
@@ -5150,7 +5127,18 @@ static int scx_ops_enable(struct sched_ext_ops *ops, struct bpf_link *link)
 	 * leaving as sched_ext_free() can handle both prepped and enabled
 	 * tasks. Prep all tasks first and then enable them with preemption
 	 * disabled.
+	 *
+	 * All cgroups should be initialized before scx_ops_init_task() so that
+	 * the BPF scheduler can reliably track each task's cgroup membership
+	 * from scx_ops_init_task(). Lock out cgroup on/offlining and task
+	 * migrations while tasks are being initialized so that
+	 * scx_cgroup_can_attach() never sees uninitialized tasks.
 	 */
+	scx_cgroup_lock();
+	ret = scx_cgroup_init();
+	if (ret)
+		goto err_disable_unlock_all;
+
 	spin_lock_irq(&scx_tasks_lock);
 	scx_task_iter_init(&sti);
 	while ((p = scx_task_iter_next_locked(&sti))) {
@@ -5183,19 +5171,22 @@ static int scx_ops_enable(struct sched_ext_ops *ops, struct bpf_link *link)
 	}
 	scx_task_iter_exit(&sti);
 	spin_unlock_irq(&scx_tasks_lock);
+	scx_cgroup_unlock();
+	percpu_up_write(&scx_fork_rwsem);
 
 	/*
 	 * All tasks are READY. It's safe to turn on scx_enabled() and switch
 	 * all eligible tasks.
 	 */
 	WRITE_ONCE(scx_switching_all, !(ops->flags & SCX_OPS_SWITCH_PARTIAL));
-	static_branch_enable_cpuslocked(&__scx_ops_enabled);
+	static_branch_enable(&__scx_ops_enabled);
 
 	/*
 	 * We're fully committed and can't fail. The task READY -> ENABLED
 	 * transitions here are synchronized against sched_ext_free() through
 	 * scx_tasks_lock.
 	 */
+	percpu_down_write(&scx_fork_rwsem);
 	spin_lock_irq(&scx_tasks_lock);
 	scx_task_iter_init(&sti);
 	while ((p = scx_task_iter_next_locked(&sti))) {
@@ -5213,10 +5204,8 @@ static int scx_ops_enable(struct sched_ext_ops *ops, struct bpf_link *link)
 	}
 	scx_task_iter_exit(&sti);
 	spin_unlock_irq(&scx_tasks_lock);
-
-	scx_cgroup_unlock();
-	cpus_read_unlock();
 	percpu_up_write(&scx_fork_rwsem);
+
 	scx_ops_bypass(false);
 
 	/*
@@ -5259,8 +5248,6 @@ err_disable_unlock_all:
 	scx_cgroup_unlock();
 	percpu_up_write(&scx_fork_rwsem);
 	scx_ops_bypass(false);
-err_disable_unlock_cpus:
-	cpus_read_unlock();
 err_disable:
 	mutex_unlock(&scx_ops_enable_mutex);
 	/* must be fully disabled before returning */
