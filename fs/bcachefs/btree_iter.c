@@ -748,8 +748,6 @@ static inline int btree_path_lock_root(struct btree_trans *trans,
 		ret = btree_node_lock(trans, path, &b->c,
 				      path->level, lock_type, trace_ip);
 		if (unlikely(ret)) {
-			if (bch2_err_matches(ret, BCH_ERR_lock_fail_root_changed))
-				continue;
 			if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
 				return ret;
 			BUG();
