@@ -4456,21 +4456,23 @@ static void scx_ops_disable_workfn(struct kthread_work *work)
 	WRITE_ONCE(scx_switching_all, false);
 
 	/*
-	 * Avoid racing against fork and cgroup changes. See scx_ops_enable()
-	 * for explanation on the locking order.
+	 * Shut down cgroup support before tasks so that the cgroup attach path
+	 * doesn't race against scx_ops_exit_task().
+	 */
+	scx_cgroup_lock();
+	scx_cgroup_exit();
+	scx_cgroup_unlock();
+
+	/*
+	 * The BPF scheduler is going away. All tasks including %TASK_DEAD ones
+	 * must be switched out and exited synchronously.
 	 */
 	percpu_down_write(&scx_fork_rwsem);
-	cpus_read_lock();
-	scx_cgroup_lock();
 
 	scx_ops_init_task_enabled = false;
 
 	spin_lock_irq(&scx_tasks_lock);
 	scx_task_iter_init(&sti);
-	/*
-	 * The BPF scheduler is going away. All tasks including %TASK_DEAD ones
-	 * must be switched out and exited synchronously.
-	 */
 	while ((p = scx_task_iter_next_locked(&sti))) {
 		const struct sched_class *old_class = p->sched_class;
 		struct sched_enq_and_set_ctx ctx;
@@ -4488,22 +4490,17 @@ static void scx_ops_disable_workfn(struct kthread_work *work)
 	}
 	scx_task_iter_exit(&sti);
 	spin_unlock_irq(&scx_tasks_lock);
+	percpu_up_write(&scx_fork_rwsem);
 
 	/* no task is on scx, turn off all the switches and flush in-progress calls */
-	static_branch_disable_cpuslocked(&__scx_ops_enabled);
+	static_branch_disable(&__scx_ops_enabled);
 	for (i = SCX_OPI_BEGIN; i < SCX_OPI_END; i++)
-		static_branch_disable_cpuslocked(&scx_has_op[i]);
-	static_branch_disable_cpuslocked(&scx_ops_enq_last);
-	static_branch_disable_cpuslocked(&scx_ops_enq_exiting);
-	static_branch_disable_cpuslocked(&scx_ops_cpu_preempt);
-	static_branch_disable_cpuslocked(&scx_builtin_idle_enabled);
+		static_branch_disable(&scx_has_op[i]);
+	static_branch_disable(&scx_ops_enq_last);
+	static_branch_disable(&scx_ops_enq_exiting);
+	static_branch_disable(&scx_ops_cpu_preempt);
+	static_branch_disable(&scx_builtin_idle_enabled);
 	synchronize_rcu();
-
-	scx_cgroup_exit();
-
-	scx_cgroup_unlock();
-	cpus_read_unlock();
-	percpu_up_write(&scx_fork_rwsem);
 
 	if (ei->kind >= SCX_EXIT_ERROR) {
 		pr_err("sched_ext: BPF scheduler \"%s\" disabled (%s)\n",
