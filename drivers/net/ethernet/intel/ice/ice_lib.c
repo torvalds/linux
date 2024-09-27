@@ -1818,8 +1818,8 @@ void ice_update_eth_stats(struct ice_vsi *vsi)
 void ice_vsi_cfg_frame_size(struct ice_vsi *vsi)
 {
 	if (!vsi->netdev || test_bit(ICE_FLAG_LEGACY_RX, vsi->back->flags)) {
-		vsi->max_frame = ICE_AQ_SET_MAC_FRAME_SIZE_MAX;
-		vsi->rx_buf_len = ICE_RXBUF_2048;
+		vsi->max_frame = ICE_MAX_FRAME_LEGACY_RX;
+		vsi->rx_buf_len = ICE_RXBUF_1664;
 #if (PAGE_SIZE < 8192)
 	} else if (!ICE_2K_TOO_SMALL_WITH_PADDING &&
 		   (vsi->netdev->mtu <= ETH_DATA_LEN)) {
@@ -1828,11 +1828,7 @@ void ice_vsi_cfg_frame_size(struct ice_vsi *vsi)
 #endif
 	} else {
 		vsi->max_frame = ICE_AQ_SET_MAC_FRAME_SIZE_MAX;
-#if (PAGE_SIZE < 8192)
 		vsi->rx_buf_len = ICE_RXBUF_3072;
-#else
-		vsi->rx_buf_len = ICE_RXBUF_2048;
-#endif
 	}
 }
 

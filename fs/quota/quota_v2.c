@@ -166,14 +166,17 @@ static int v2_read_file_info(struct super_block *sb, int type)
 		    i_size_read(sb_dqopt(sb)->files[type]));
 		goto out_free;
 	}
-	if (qinfo->dqi_free_blk >= qinfo->dqi_blocks) {
-		quota_error(sb, "Free block number too big (%u >= %u).",
-			    qinfo->dqi_free_blk, qinfo->dqi_blocks);
+	if (qinfo->dqi_free_blk && (qinfo->dqi_free_blk <= QT_TREEOFF ||
+	    qinfo->dqi_free_blk >= qinfo->dqi_blocks)) {
+		quota_error(sb, "Free block number %u out of range (%u, %u).",
+			    qinfo->dqi_free_blk, QT_TREEOFF, qinfo->dqi_blocks);
 		goto out_free;
 	}
-	if (qinfo->dqi_free_entry >= qinfo->dqi_blocks) {
-		quota_error(sb, "Block with free entry too big (%u >= %u).",
-			    qinfo->dqi_free_entry, qinfo->dqi_blocks);
+	if (qinfo->dqi_free_entry && (qinfo->dqi_free_entry <= QT_TREEOFF ||
+	    qinfo->dqi_free_entry >= qinfo->dqi_blocks)) {
+		quota_error(sb, "Block with free entry %u out of range (%u, %u).",
+			    qinfo->dqi_free_entry, QT_TREEOFF,
+			    qinfo->dqi_blocks);
 		goto out_free;
 	}
 	ret = 0;
