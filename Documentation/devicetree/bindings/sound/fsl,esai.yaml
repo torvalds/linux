@@ -65,6 +65,9 @@ properties:
       - const: rx
       - const: tx
 
+  power-domains:
+    maxItems: 1
+
   fsl,fifo-depth:
     $ref: /schemas/types.yaml#/definitions/uint32
     default: 64
@@ -101,6 +104,17 @@ unevaluatedProperties: false
 
 allOf:
   - $ref: dai-common.yaml#
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: fsl,imx8qm-esai
+    then:
+      required:
+        - power-domains
+    else:
+      properties:
+        power-domains: false
 
 examples:
   - |
