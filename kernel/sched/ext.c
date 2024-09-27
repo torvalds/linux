@@ -779,7 +779,6 @@ enum scx_tg_flags {
 };
 
 enum scx_ops_enable_state {
-	SCX_OPS_PREPPING,
 	SCX_OPS_ENABLING,
 	SCX_OPS_ENABLED,
 	SCX_OPS_DISABLING,
@@ -787,7 +786,6 @@ enum scx_ops_enable_state {
 };
 
 static const char *scx_ops_enable_state_str[] = {
-	[SCX_OPS_PREPPING]	= "prepping",
 	[SCX_OPS_ENABLING]	= "enabling",
 	[SCX_OPS_ENABLED]	= "enabled",
 	[SCX_OPS_DISABLING]	= "disabling",
@@ -5016,12 +5014,12 @@ static int scx_ops_enable(struct sched_ext_ops *ops, struct bpf_link *link)
 	}
 
 	/*
-	 * Set scx_ops, transition to PREPPING and clear exit info to arm the
+	 * Set scx_ops, transition to ENABLING and clear exit info to arm the
 	 * disable path. Failure triggers full disabling from here on.
 	 */
 	scx_ops = *ops;
 
-	WARN_ON_ONCE(scx_ops_set_enable_state(SCX_OPS_PREPPING) !=
+	WARN_ON_ONCE(scx_ops_set_enable_state(SCX_OPS_ENABLING) !=
 		     SCX_OPS_DISABLED);
 
 	atomic_set(&scx_exit_kind, SCX_EXIT_NONE);
@@ -5175,23 +5173,6 @@ static int scx_ops_enable(struct sched_ext_ops *ops, struct bpf_link *link)
 	preempt_disable();
 
 	/*
-	 * From here on, the disable path must assume that tasks have ops
-	 * enabled and need to be recovered.
-	 *
-	 * Transition to ENABLING fails iff the BPF scheduler has already
-	 * triggered scx_bpf_error(). Returning an error code here would lose
-	 * the recorded error information. Exit indicating success so that the
-	 * error is notified through ops.exit() with all the details.
-	 */
-	if (!scx_ops_tryset_enable_state(SCX_OPS_ENABLING, SCX_OPS_PREPPING)) {
-		preempt_enable();
-		spin_unlock_irq(&scx_tasks_lock);
-		WARN_ON_ONCE(atomic_read(&scx_exit_kind) == SCX_EXIT_NONE);
-		ret = 0;
-		goto err_disable_unlock_all;
-	}
-
-	/*
 	 * We're fully committed and can't fail. The PREPPED -> ENABLED
 	 * transitions here are synchronized against sched_ext_free() through
 	 * scx_tasks_lock.
@@ -5221,7 +5202,11 @@ static int scx_ops_enable(struct sched_ext_ops *ops, struct bpf_link *link)
 	cpus_read_unlock();
 	percpu_up_write(&scx_fork_rwsem);
 
-	/* see above ENABLING transition for the explanation on exiting with 0 */
+	/*
+	 * Returning an error code here would lose the recorded error
+	 * information. Exit indicating success so that the error is notified
+	 * through ops.exit() with all the details.
+	 */
 	if (!scx_ops_tryset_enable_state(SCX_OPS_ENABLED, SCX_OPS_ENABLING)) {
 		WARN_ON_ONCE(atomic_read(&scx_exit_kind) == SCX_EXIT_NONE);
 		ret = 0;
