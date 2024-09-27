@@ -272,14 +272,17 @@ void i915_disable_pipestat(struct drm_i915_private *dev_priv,
 	intel_uncore_posting_read(&dev_priv->uncore, reg);
 }
 
-static bool i915_has_asle(struct drm_i915_private *i915)
+static bool i915_has_legacy_blc_interrupt(struct intel_display *display)
 {
-	struct intel_display *display = &i915->display;
+	struct drm_i915_private *i915 = to_i915(display->drm);
 
-	if (!IS_PINEVIEW(i915) && !IS_MOBILE(i915))
-		return false;
+	if (IS_I85X(i915))
+		return true;
 
-	return intel_opregion_asle_present(display);
+	if (IS_PINEVIEW(i915))
+		return true;
+
+	return IS_DISPLAY_VER(display, 3, 4) && IS_MOBILE(i915);
 }
 
 /**
@@ -288,7 +291,12 @@ static bool i915_has_asle(struct drm_i915_private *i915)
  */
 void i915_enable_asle_pipestat(struct drm_i915_private *dev_priv)
 {
-	if (!i915_has_asle(dev_priv))
+	struct intel_display *display = &dev_priv->display;
+
+	if (!intel_opregion_asle_present(display))
+		return;
+
+	if (!i915_has_legacy_blc_interrupt(display))
 		return;
 
 	spin_lock_irq(&dev_priv->irq_lock);
