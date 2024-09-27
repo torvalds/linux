@@ -5050,6 +5050,7 @@ static int scx_ops_enable(struct sched_ext_ops *ops, struct bpf_link *link)
 		if (((void (**)(void))ops)[i])
 			static_branch_enable_cpuslocked(&scx_has_op[i]);
 
+	check_hotplug_seq(ops);
 	cpus_read_unlock();
 
 	ret = validate_ops(ops);
@@ -5097,8 +5098,6 @@ static int scx_ops_enable(struct sched_ext_ops *ops, struct bpf_link *link)
 	percpu_down_write(&scx_fork_rwsem);
 	cpus_read_lock();
 	scx_cgroup_lock();
-
-	check_hotplug_seq(ops);
 
 	for (i = SCX_OPI_NORMAL_BEGIN; i < SCX_OPI_NORMAL_END; i++)
 		if (((void (**)(void))ops)[i])
