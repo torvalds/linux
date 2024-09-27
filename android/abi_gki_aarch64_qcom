@@ -1879,6 +1879,7 @@
   lowpan_register_netdevice
   lowpan_unregister_netdev
   lowpan_unregister_netdevice
+  lru_gen_caps
   mac_pton
   mas_find
   match_string
@@ -3769,6 +3770,7 @@
   __uio_register_device
   uio_unregister_device
   unlock_page
+  unpack_shadow
   unregister_blkdev
   unregister_candev
   __unregister_chrdev
