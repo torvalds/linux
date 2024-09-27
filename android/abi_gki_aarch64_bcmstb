@@ -355,7 +355,6 @@
   nr_cpu_ids
   ns_capable
   of_address_to_resource
-  of_alias_get_id
   of_clk_get_by_name
   of_count_phandle_with_args
   of_device_get_match_data
@@ -422,7 +421,6 @@
   __platform_driver_register
   platform_driver_unregister
   platform_get_irq
-  platform_get_irq_byname
   platform_get_irq_byname_optional
   platform_get_irq_optional
   platform_get_resource
@@ -747,18 +745,6 @@
   vlan_vid_add
   vlan_vid_del
 
-# required by 8250_bcm7271.ko
-  serial8250_do_set_termios
-  serial8250_do_shutdown
-  serial8250_do_startup
-  serial8250_get_port
-  serial8250_handle_irq
-  serial8250_register_8250_port
-  serial8250_resume_port
-  serial8250_suspend_port
-  serial8250_unregister_port
-  uart_write_wakeup
-
 # required by ahci_brcm.ko
   phy_calibrate
 
@@ -797,6 +783,7 @@
   dma_sync_single_for_cpu
   of_get_ethdev_address
   of_platform_populate
+  platform_get_irq_byname
   __skb_pad
   synchronize_irq
 
@@ -1069,6 +1056,7 @@
   netif_schedule_queue
   netif_set_real_num_rx_queues
   netif_set_real_num_tx_queues
+  of_alias_get_id
   of_get_compatible_child
   of_phy_find_device
   phy_attach

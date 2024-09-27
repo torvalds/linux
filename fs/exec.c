@@ -73,6 +73,7 @@
 #include "internal.h"
 
 #include <trace/events/sched.h>
+#include <trace/hooks/sched.h>
 
 static int bprm_creds_from_file(struct linux_binprm *bprm);
 
@@ -1238,6 +1239,7 @@ void __set_task_comm(struct task_struct *tsk, const char *buf, bool exec)
 	task_lock(tsk);
 	trace_task_rename(tsk, buf);
 	strscpy_pad(tsk->comm, buf, sizeof(tsk->comm));
+	trace_android_vh_set_task_comm(tsk);
 	task_unlock(tsk);
 	perf_event_comm(tsk, exec);
 }

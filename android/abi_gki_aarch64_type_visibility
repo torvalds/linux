@@ -3,3 +3,6 @@
 # for type visibility
   ANDROID_GKI_struct_dwc3
   ANDROID_GKI_struct_kernel_all_info
+
+# symbol no longer needed
+  serial8250_handle_irq
