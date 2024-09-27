@@ -46,6 +46,15 @@ config PINCTRL_IPQ5332
 	  Qualcomm Technologies Inc TLMM block found on the Qualcomm
 	  Technologies Inc IPQ5332 platform.
 
+config PINCTRL_IPQ5424
+	tristate "Qualcomm Technologies, Inc. IPQ5424 pin controller driver"
+	depends on ARM64 || COMPILE_TEST
+	help
+	  This is the pinctrl, pinmux, pinconf and gpiolib driver for
+          the Qualcomm Technologies Inc. TLMM block found on the
+          Qualcomm Technologies Inc. IPQ5424 platform. Select this for
+          IPQ5424.
+
 config PINCTRL_IPQ8074
 	tristate "Qualcomm Technologies, Inc. IPQ8074 pin controller driver"
 	depends on ARM64 || COMPILE_TEST
