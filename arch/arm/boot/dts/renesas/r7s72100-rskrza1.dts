@@ -280,3 +280,8 @@
 	pinctrl-0 = <&scif2_pins>;
 	status = "okay";
 };
+
+&wdt {
+	timeout-sec = <60>;
+	status = "okay";
+};
