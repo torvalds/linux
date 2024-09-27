@@ -6,6 +6,7 @@
 #include "xe_device.h"
 
 #include <linux/delay.h>
+#include <linux/fault-inject.h>
 #include <linux/units.h>
 
 #include <drm/drm_aperture.h>
@@ -382,6 +383,7 @@ struct xe_device *xe_device_create(struct pci_dev *pdev,
 err:
 	return ERR_PTR(err);
 }
+ALLOW_ERROR_INJECTION(xe_device_create, ERRNO); /* See xe_pci_probe() */
 
 static bool xe_driver_flr_disabled(struct xe_device *xe)
 {
@@ -550,6 +552,7 @@ static int wait_for_lmem_ready(struct xe_device *xe)
 
 	return 0;
 }
+ALLOW_ERROR_INJECTION(wait_for_lmem_ready, ERRNO); /* See xe_pci_probe() */
 
 static void update_device_info(struct xe_device *xe)
 {

@@ -765,6 +765,25 @@ static void xe_pci_remove(struct pci_dev *pdev)
 	pci_set_drvdata(pdev, NULL);
 }
 
+/*
+ * Probe the PCI device, initialize various parts of the driver.
+ *
+ * Fault injection is used to test the error paths of some initialization
+ * functions called either directly from xe_pci_probe() or indirectly for
+ * example through xe_device_probe(). Those functions use the kernel fault
+ * injection capabilities infrastructure, see
+ * Documentation/fault-injection/fault-injection.rst for details. The macro
+ * ALLOW_ERROR_INJECTION() is used to conditionally skip function execution
+ * at runtime and use a provided return value. The first requirement for
+ * error injectable functions is proper handling of the error code by the
+ * caller for recovery, which is always the case here. The second
+ * requirement is that no state is changed before the first error return.
+ * It is not strictly fullfilled for all initialization functions using the
+ * ALLOW_ERROR_INJECTION() macro but this is acceptable because for those
+ * error cases at probe time, the error code is simply propagated up by the
+ * caller. Therefore there is no consequence on those specific callers when
+ * function error injection skips the whole function.
+ */
 static int xe_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	const struct xe_device_desc *desc = (const void *)ent->driver_data;

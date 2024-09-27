@@ -5,6 +5,8 @@
 
 #include "xe_guc_log.h"
 
+#include <linux/fault-inject.h>
+
 #include <drm/drm_managed.h>
 
 #include "xe_bo.h"
@@ -96,3 +98,4 @@ int xe_guc_log_init(struct xe_guc_log *log)
 
 	return 0;
 }
+ALLOW_ERROR_INJECTION(xe_guc_log_init, ERRNO); /* See xe_pci_probe() */
