@@ -623,7 +623,7 @@ int cx231xx_set_video_input_mux(struct cx231xx *dev, u8 input)
 }
 
 int cx231xx_set_decoder_video_input(struct cx231xx *dev,
-				u8 pin_type, u8 input)
+				u8 pin_type, u32 input)
 {
 	int status = 0;
 	u32 value = 0;

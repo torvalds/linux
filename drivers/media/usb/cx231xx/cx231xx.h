@@ -916,7 +916,7 @@ int cx231xx_enable_i2c_port_3(struct cx231xx *dev, bool is_port_3);
 /* video audio decoder related functions */
 void video_mux(struct cx231xx *dev, int index);
 int cx231xx_set_video_input_mux(struct cx231xx *dev, u8 input);
-int cx231xx_set_decoder_video_input(struct cx231xx *dev, u8 pin_type, u8 input);
+int cx231xx_set_decoder_video_input(struct cx231xx *dev, u8 pin_type, u32 input);
 int cx231xx_do_mode_ctrl_overrides(struct cx231xx *dev);
 int cx231xx_set_audio_input(struct cx231xx *dev, u8 input);
 
