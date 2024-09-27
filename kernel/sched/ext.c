@@ -5076,6 +5076,14 @@ static int scx_ops_enable(struct sched_ext_ops *ops, struct bpf_link *link)
 			   scx_watchdog_timeout / 2);
 
 	/*
+	 * Once __scx_ops_enabled is set, %current can be switched to SCX
+	 * anytime. This can lead to stalls as some BPF schedulers (e.g.
+	 * userspace scheduling) may not function correctly before all tasks are
+	 * switched. Init in bypass mode to guarantee forward progress.
+	 */
+	scx_ops_bypass(true);
+
+	/*
 	 * Lock out forks, cgroup on/offlining and moves before opening the
 	 * floodgate so that they don't wander into the operations prematurely.
 	 *
@@ -5134,7 +5142,6 @@ static int scx_ops_enable(struct sched_ext_ops *ops, struct bpf_link *link)
 	 * disabled.
 	 */
 	spin_lock_irq(&scx_tasks_lock);
-
 	scx_task_iter_init(&sti);
 	while ((p = scx_task_iter_next_locked(&sti))) {
 		/*
@@ -5163,22 +5170,19 @@ static int scx_ops_enable(struct sched_ext_ops *ops, struct bpf_link *link)
 		spin_lock_irq(&scx_tasks_lock);
 	}
 	scx_task_iter_exit(&sti);
+	spin_unlock_irq(&scx_tasks_lock);
 
 	/*
-	 * All tasks are prepped but are still ops-disabled. Ensure that
-	 * %current can't be scheduled out and switch everyone.
-	 * preempt_disable() is necessary because we can't guarantee that
-	 * %current won't be starved if scheduled out while switching.
+	 * All tasks are prepped but the tasks are not enabled. Switch everyone.
 	 */
-	preempt_disable();
+	WRITE_ONCE(scx_switching_all, !(ops->flags & SCX_OPS_SWITCH_PARTIAL));
 
 	/*
 	 * We're fully committed and can't fail. The PREPPED -> ENABLED
 	 * transitions here are synchronized against sched_ext_free() through
 	 * scx_tasks_lock.
 	 */
-	WRITE_ONCE(scx_switching_all, !(ops->flags & SCX_OPS_SWITCH_PARTIAL));
-
+	spin_lock_irq(&scx_tasks_lock);
 	scx_task_iter_init(&sti);
 	while ((p = scx_task_iter_next_locked(&sti))) {
 		const struct sched_class *old_class = p->sched_class;
@@ -5195,12 +5199,12 @@ static int scx_ops_enable(struct sched_ext_ops *ops, struct bpf_link *link)
 		check_class_changed(task_rq(p), p, old_class, p->prio);
 	}
 	scx_task_iter_exit(&sti);
-
 	spin_unlock_irq(&scx_tasks_lock);
-	preempt_enable();
+
 	scx_cgroup_unlock();
 	cpus_read_unlock();
 	percpu_up_write(&scx_fork_rwsem);
+	scx_ops_bypass(false);
 
 	/*
 	 * Returning an error code here would lose the recorded error
@@ -5241,6 +5245,7 @@ err_unlock:
 err_disable_unlock_all:
 	scx_cgroup_unlock();
 	percpu_up_write(&scx_fork_rwsem);
+	scx_ops_bypass(false);
 err_disable_unlock_cpus:
 	cpus_read_unlock();
 err_disable:
