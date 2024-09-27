@@ -92,20 +92,6 @@ void gen3_irq_reset(struct intel_uncore *uncore, i915_reg_t imr,
 	intel_uncore_posting_read(uncore, iir);
 }
 
-static void gen2_irq_reset(struct intel_uncore *uncore)
-{
-	intel_uncore_write16(uncore, GEN2_IMR, 0xffff);
-	intel_uncore_posting_read16(uncore, GEN2_IMR);
-
-	intel_uncore_write16(uncore, GEN2_IER, 0);
-
-	/* IIR can theoretically queue up two events. Be paranoid. */
-	intel_uncore_write16(uncore, GEN2_IIR, 0xffff);
-	intel_uncore_posting_read16(uncore, GEN2_IIR);
-	intel_uncore_write16(uncore, GEN2_IIR, 0xffff);
-	intel_uncore_posting_read16(uncore, GEN2_IIR);
-}
-
 /*
  * We should clear IMR at preinstall/uninstall, and just check at postinstall.
  */
@@ -125,22 +111,6 @@ void gen3_assert_iir_is_zero(struct intel_uncore *uncore, i915_reg_t reg)
 	intel_uncore_posting_read(uncore, reg);
 }
 
-static void gen2_assert_iir_is_zero(struct intel_uncore *uncore)
-{
-	u16 val = intel_uncore_read16(uncore, GEN2_IIR);
-
-	if (val == 0)
-		return;
-
-	drm_WARN(&uncore->i915->drm, 1,
-		 "Interrupt register 0x%x is not zero: 0x%08x\n",
-		 i915_mmio_reg_offset(GEN2_IIR), val);
-	intel_uncore_write16(uncore, GEN2_IIR, 0xffff);
-	intel_uncore_posting_read16(uncore, GEN2_IIR);
-	intel_uncore_write16(uncore, GEN2_IIR, 0xffff);
-	intel_uncore_posting_read16(uncore, GEN2_IIR);
-}
-
 void gen3_irq_init(struct intel_uncore *uncore,
 		   i915_reg_t imr, u32 imr_val,
 		   i915_reg_t ier, u32 ier_val,
@@ -151,16 +121,6 @@ void gen3_irq_init(struct intel_uncore *uncore,
 	intel_uncore_write(uncore, ier, ier_val);
 	intel_uncore_write(uncore, imr, imr_val);
 	intel_uncore_posting_read(uncore, imr);
-}
-
-static void gen2_irq_init(struct intel_uncore *uncore,
-			  u32 imr_val, u32 ier_val)
-{
-	gen2_assert_iir_is_zero(uncore);
-
-	intel_uncore_write16(uncore, GEN2_IER, ier_val);
-	intel_uncore_write16(uncore, GEN2_IMR, imr_val);
-	intel_uncore_posting_read16(uncore, GEN2_IMR);
 }
 
 /**
@@ -845,16 +805,6 @@ static void cherryview_irq_postinstall(struct drm_i915_private *dev_priv)
 	intel_uncore_posting_read(&dev_priv->uncore, GEN8_MASTER_IRQ);
 }
 
-static void i8xx_irq_reset(struct drm_i915_private *dev_priv)
-{
-	struct intel_uncore *uncore = &dev_priv->uncore;
-
-	i9xx_display_irq_reset(dev_priv);
-
-	gen2_irq_reset(uncore);
-	dev_priv->irq_mask = ~0u;
-}
-
 static u32 i9xx_error_mask(struct drm_i915_private *i915)
 {
 	/*
@@ -874,75 +824,6 @@ static u32 i9xx_error_mask(struct drm_i915_private *i915)
 	else
 		return ~(I915_ERROR_PAGE_TABLE |
 			 I915_ERROR_MEMORY_REFRESH);
-}
-
-static void i8xx_irq_postinstall(struct drm_i915_private *dev_priv)
-{
-	struct intel_uncore *uncore = &dev_priv->uncore;
-	u16 enable_mask;
-
-	intel_uncore_write16(uncore, EMR, i9xx_error_mask(dev_priv));
-
-	dev_priv->irq_mask =
-		~(I915_DISPLAY_PIPE_A_EVENT_INTERRUPT |
-		  I915_DISPLAY_PIPE_B_EVENT_INTERRUPT |
-		  I915_MASTER_ERROR_INTERRUPT);
-
-	enable_mask =
-		I915_DISPLAY_PIPE_A_EVENT_INTERRUPT |
-		I915_DISPLAY_PIPE_B_EVENT_INTERRUPT |
-		I915_MASTER_ERROR_INTERRUPT |
-		I915_USER_INTERRUPT;
-
-	gen2_irq_init(uncore, dev_priv->irq_mask, enable_mask);
-
-	/* Interrupt setup is already guaranteed to be single-threaded, this is
-	 * just to make the assert_spin_locked check happy. */
-	spin_lock_irq(&dev_priv->irq_lock);
-	i915_enable_pipestat(dev_priv, PIPE_A, PIPE_CRC_DONE_INTERRUPT_STATUS);
-	i915_enable_pipestat(dev_priv, PIPE_B, PIPE_CRC_DONE_INTERRUPT_STATUS);
-	spin_unlock_irq(&dev_priv->irq_lock);
-}
-
-static void i8xx_error_irq_ack(struct drm_i915_private *i915,
-			       u16 *eir, u16 *eir_stuck)
-{
-	struct intel_uncore *uncore = &i915->uncore;
-	u16 emr;
-
-	*eir = intel_uncore_read16(uncore, EIR);
-	intel_uncore_write16(uncore, EIR, *eir);
-
-	*eir_stuck = intel_uncore_read16(uncore, EIR);
-	if (*eir_stuck == 0)
-		return;
-
-	/*
-	 * Toggle all EMR bits to make sure we get an edge
-	 * in the ISR master error bit if we don't clear
-	 * all the EIR bits. Otherwise the edge triggered
-	 * IIR on i965/g4x wouldn't notice that an interrupt
-	 * is still pending. Also some EIR bits can't be
-	 * cleared except by handling the underlying error
-	 * (or by a GPU reset) so we mask any bit that
-	 * remains set.
-	 */
-	emr = intel_uncore_read16(uncore, EMR);
-	intel_uncore_write16(uncore, EMR, 0xffff);
-	intel_uncore_write16(uncore, EMR, emr | *eir_stuck);
-}
-
-static void i8xx_error_irq_handler(struct drm_i915_private *dev_priv,
-				   u16 eir, u16 eir_stuck)
-{
-	drm_dbg(&dev_priv->drm, "Master Error: EIR 0x%04x\n", eir);
-
-	if (eir_stuck)
-		drm_dbg(&dev_priv->drm, "EIR stuck: 0x%04x, masked\n",
-			eir_stuck);
-
-	drm_dbg(&dev_priv->drm, "PGTBL_ER: 0x%08x\n",
-		intel_uncore_read(&dev_priv->uncore, PGTBL_ER));
 }
 
 static void i9xx_error_irq_ack(struct drm_i915_private *dev_priv,
@@ -985,53 +866,6 @@ static void i9xx_error_irq_handler(struct drm_i915_private *dev_priv,
 		intel_uncore_read(&dev_priv->uncore, PGTBL_ER));
 }
 
-static irqreturn_t i8xx_irq_handler(int irq, void *arg)
-{
-	struct drm_i915_private *dev_priv = arg;
-	irqreturn_t ret = IRQ_NONE;
-
-	if (!intel_irqs_enabled(dev_priv))
-		return IRQ_NONE;
-
-	/* IRQs are synced during runtime_suspend, we don't require a wakeref */
-	disable_rpm_wakeref_asserts(&dev_priv->runtime_pm);
-
-	do {
-		u32 pipe_stats[I915_MAX_PIPES] = {};
-		u16 eir = 0, eir_stuck = 0;
-		u16 iir;
-
-		iir = intel_uncore_read16(&dev_priv->uncore, GEN2_IIR);
-		if (iir == 0)
-			break;
-
-		ret = IRQ_HANDLED;
-
-		/* Call regardless, as some status bits might not be
-		 * signalled in IIR */
-		i9xx_pipestat_irq_ack(dev_priv, iir, pipe_stats);
-
-		if (iir & I915_MASTER_ERROR_INTERRUPT)
-			i8xx_error_irq_ack(dev_priv, &eir, &eir_stuck);
-
-		intel_uncore_write16(&dev_priv->uncore, GEN2_IIR, iir);
-
-		if (iir & I915_USER_INTERRUPT)
-			intel_engine_cs_irq(to_gt(dev_priv)->engine[RCS0], iir);
-
-		if (iir & I915_MASTER_ERROR_INTERRUPT)
-			i8xx_error_irq_handler(dev_priv, eir, eir_stuck);
-
-		i8xx_pipestat_irq_handler(dev_priv, iir, pipe_stats);
-	} while (0);
-
-	pmu_irq_stats(dev_priv, ret);
-
-	enable_rpm_wakeref_asserts(&dev_priv->runtime_pm);
-
-	return ret;
-}
-
 static void i915_irq_reset(struct drm_i915_private *dev_priv)
 {
 	struct intel_uncore *uncore = &dev_priv->uncore;
@@ -1050,17 +884,20 @@ static void i915_irq_postinstall(struct drm_i915_private *dev_priv)
 	intel_uncore_write(uncore, EMR, i9xx_error_mask(dev_priv));
 
 	dev_priv->irq_mask =
-		~(I915_ASLE_INTERRUPT |
-		  I915_DISPLAY_PIPE_A_EVENT_INTERRUPT |
+		~(I915_DISPLAY_PIPE_A_EVENT_INTERRUPT |
 		  I915_DISPLAY_PIPE_B_EVENT_INTERRUPT |
 		  I915_MASTER_ERROR_INTERRUPT);
 
 	enable_mask =
-		I915_ASLE_INTERRUPT |
 		I915_DISPLAY_PIPE_A_EVENT_INTERRUPT |
 		I915_DISPLAY_PIPE_B_EVENT_INTERRUPT |
 		I915_MASTER_ERROR_INTERRUPT |
 		I915_USER_INTERRUPT;
+
+	if (DISPLAY_VER(dev_priv) >= 3) {
+		dev_priv->irq_mask &= ~I915_ASLE_INTERRUPT;
+		enable_mask |= I915_ASLE_INTERRUPT;
+	}
 
 	if (I915_HAS_HOTPLUG(dev_priv)) {
 		dev_priv->irq_mask &= ~I915_DISPLAY_PORT_INTERRUPT;
@@ -1303,10 +1140,8 @@ static irq_handler_t intel_irq_handler(struct drm_i915_private *dev_priv)
 			return valleyview_irq_handler;
 		else if (GRAPHICS_VER(dev_priv) == 4)
 			return i965_irq_handler;
-		else if (GRAPHICS_VER(dev_priv) == 3)
-			return i915_irq_handler;
 		else
-			return i8xx_irq_handler;
+			return i915_irq_handler;
 	} else {
 		if (GRAPHICS_VER_FULL(dev_priv) >= IP_VER(12, 10))
 			return dg1_irq_handler;
@@ -1328,10 +1163,8 @@ static void intel_irq_reset(struct drm_i915_private *dev_priv)
 			valleyview_irq_reset(dev_priv);
 		else if (GRAPHICS_VER(dev_priv) == 4)
 			i965_irq_reset(dev_priv);
-		else if (GRAPHICS_VER(dev_priv) == 3)
-			i915_irq_reset(dev_priv);
 		else
-			i8xx_irq_reset(dev_priv);
+			i915_irq_reset(dev_priv);
 	} else {
 		if (GRAPHICS_VER_FULL(dev_priv) >= IP_VER(12, 10))
 			dg1_irq_reset(dev_priv);
@@ -1353,10 +1186,8 @@ static void intel_irq_postinstall(struct drm_i915_private *dev_priv)
 			valleyview_irq_postinstall(dev_priv);
 		else if (GRAPHICS_VER(dev_priv) == 4)
 			i965_irq_postinstall(dev_priv);
-		else if (GRAPHICS_VER(dev_priv) == 3)
-			i915_irq_postinstall(dev_priv);
 		else
-			i8xx_irq_postinstall(dev_priv);
+			i915_irq_postinstall(dev_priv);
 	} else {
 		if (GRAPHICS_VER_FULL(dev_priv) >= IP_VER(12, 10))
 			dg1_irq_postinstall(dev_priv);
