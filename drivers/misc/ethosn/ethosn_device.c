@@ -25,6 +25,7 @@
 
 #include "ethosn_firmware.h"
 #include "ethosn_smc.h"
+#include "linux/dev_printk.h"
 #include "scylla_addr_fields_public.h"
 #include "scylla_regs_public.h"
 
@@ -488,7 +489,7 @@ void ethosn_write_top_reg(struct ethosn_core *core, const u32 page,
 }
 
 /* Exported for use by test module * */
-EXPORT_SYMBOL(ethosn_write_top_reg);
+// EXPORT_SYMBOL(ethosn_write_top_reg);
 
 u32 ethosn_read_top_reg(struct ethosn_core *core, const u32 page,
 			const u32 offset)
@@ -508,7 +509,7 @@ u32 ethosn_read_top_reg(struct ethosn_core *core, const u32 page,
 }
 
 /* Exported for use by test module */
-EXPORT_SYMBOL(ethosn_read_top_reg);
+// EXPORT_SYMBOL(ethosn_read_top_reg);
 
 /**
  * ethosn_boot_firmware() - Boot firmware.
@@ -664,7 +665,7 @@ int ethosn_reset(struct ethosn_core *core, bool halt, uint32_t alloc_id)
 }
 
 /* Exported for use by test module */
-EXPORT_SYMBOL(ethosn_reset);
+// EXPORT_SYMBOL(ethosn_reset);
 
 void ethosn_set_power_ctrl(struct ethosn_core *core, bool clk_on)
 {
@@ -1036,7 +1037,7 @@ int ethosn_read_message(struct ethosn_core *core,
 }
 
 /* Exported for use by test module * */
-EXPORT_SYMBOL(ethosn_read_message);
+// EXPORT_SYMBOL(ethosn_read_message);
 
 /**
  * ethosn_write_message() - Write message to queue.
@@ -1104,7 +1105,7 @@ int ethosn_write_message(struct ethosn_core *core,
 }
 
 /* Exported for use by test module * */
-EXPORT_SYMBOL(ethosn_write_message);
+// EXPORT_SYMBOL(ethosn_write_message);
 
 int ethosn_send_fw_hw_capabilities_request(struct ethosn_core *core)
 {
@@ -1281,6 +1282,7 @@ int ethosn_send_inference(struct ethosn_core *core, dma_addr_t buffer_array,
 			  uint64_t user_arg)
 {
 	struct ethosn_message_inference_request request;
+    int ret = 0;
 
 	request.buffer_array = to_ethosn_addr(buffer_array, &core->dma_map);
 	request.user_argument = user_arg;
@@ -1288,9 +1290,13 @@ int ethosn_send_inference(struct ethosn_core *core, dma_addr_t buffer_array,
 	dev_dbg(core->dev,
 		"-> Inference. buffer_array=0x%08llx, user_args=0x%llx\n",
 		request.buffer_array, request.user_argument);
-
-	return ethosn_write_message(core, ETHOSN_MESSAGE_INFERENCE_REQUEST,
+    
+	ret = ethosn_write_message(core, ETHOSN_MESSAGE_INFERENCE_REQUEST,
 				    &request, sizeof(request));
+
+    dev_dbg(core->dev, "ret = %d", ret);
+
+    return ret;
 }
 
 /****************************************************************************
@@ -1767,7 +1773,7 @@ int ethosn_reset_and_start_ethosn(struct ethosn_core *core, uint32_t alloc_id)
 }
 
 /* Exported for use by test module */
-EXPORT_SYMBOL(ethosn_reset_and_start_ethosn);
+// EXPORT_SYMBOL(ethosn_reset_and_start_ethosn);
 
 /**
  * ethosn_firmware_deinit - Free firmware resources.
@@ -2480,7 +2486,7 @@ int ethosn_clock_frequency(void)
 }
 
 /* Exported for use by test module */
-EXPORT_SYMBOL(ethosn_clock_frequency);
+// EXPORT_SYMBOL(ethosn_clock_frequency);
 
 bool ethosn_stashing_enabled(void)
 {
@@ -2488,7 +2494,7 @@ bool ethosn_stashing_enabled(void)
 }
 
 /* Exported for use by test module */
-EXPORT_SYMBOL(ethosn_stashing_enabled);
+// EXPORT_SYMBOL(ethosn_stashing_enabled);
 
 struct ethosn_core *ethosn_get_global_core_for_testing(void)
 {
@@ -2496,4 +2502,4 @@ struct ethosn_core *ethosn_get_global_core_for_testing(void)
 }
 
 /* Exported for use by test module */
-EXPORT_SYMBOL(ethosn_get_global_core_for_testing);
+// EXPORT_SYMBOL(ethosn_get_global_core_for_testing);

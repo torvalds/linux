@@ -1,3 +1,3 @@
 CompileFlags:
   Add: [-Wno-pragma-pack]
-  Remove: [-fno-allow-store-data-races, -fconserve-stack, -mabi=lp64]
+  Remove: [-fno-allow-store-data-races, -fconserve-stack, -mabi=lp64, -Wunknown-attributes]

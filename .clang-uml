@@ -5,17 +5,19 @@ add_compile_flags:
   - -Wno-gnu-variable-sized-type-not-at-end
   - -Wno-unknown-warning-option
   - -fparse-all-comments
+  - -fno-optimize-sibling-calls   # 禁用尾调用优化
+  - -Wno-unknown-attributes
 remove_compile_flags:
-  - '-mpreferred-stack-boundary=3'
-  - '-mindirect-branch=thunk-extern'
-  - '-mindirect-branch-register'
-  - '-fno-allow-store-data-races'
-  - '-fconserve-stack'
-  - '-falign-jumps=1'
-  - '-mrecord-mcount'
-  - '-fsanitize=bounds-strict'
-  - '-mabi=lp64'
-  - '-ftrivial-auto-var-init=zero'
+  - "-mpreferred-stack-boundary=3"
+  - "-mindirect-branch=thunk-extern"
+  - "-mindirect-branch-register"
+  - "-fno-allow-store-data-races"
+  - "-fconserve-stack"
+  - "-falign-jumps=1"
+  - "-mrecord-mcount"
+  - "-fsanitize=bounds-strict"
+  - "-mabi=lp64"
+  - "-ftrivial-auto-var-init=zero"
 diagrams:
   ethosn_init_sequence_diagram:
     type: sequence
@@ -34,13 +36,13 @@ diagrams:
         - include/linux/
     exclude:
       elements:
-        - 'ethosn_major_cleanup()'
+        - "ethosn_major_cleanup()"
       paths:
         - include/linux/printk.h
         - include/linux/fs.h
         - include/linux/device/class.h
     from:
-      - function: 'ethosn_init()'
+      - function: "ethosn_init()"
   ethosn_device_core_class:
     type: class
     title: struct ethosn_device_core diagram
@@ -71,8 +73,22 @@ diagrams:
       paths:
         - drivers/misc/ethosn/
         - drivers/misc/ethosn/uapi/
+        - include/linux/
+    exclude:
+      paths:
+        - include/linux/dev_printk.h
+        - include/linux/kernel.h
+      elements:
+        - "IS_ERR_OR_NULL(const void *)"
+        - "__compiletime_assert_307()"
+        - "__compiletime_assert_306()"
+        - "__compiletime_assert_305()"
+        - "ethosn_queue_get_free_space(const struct ethosn_queue *)"
+        - "ethosn_queue_get_size(const struct ethosn_queue *)"
+        - "scnprintf(char *,size_t,const char *)"
     from:
       - function: 'ethosn_send_inference(struct ethosn_core *,dma_addr_t,uint64_t)'
+      - function: 'ethosn_read_message(struct ethosn_core *,struct ethosn_message_header *,void *,size_t)'
   ethosn_queue_sequence_diagram:
     type: sequence
     title: ethosn_queue sequence diagram
@@ -89,7 +105,7 @@ diagrams:
         - drivers/misc/ethosn/
         - drivers/misc/ethosn/uapi/
     to:
-      - function: 'ethosn_queue_write(struct ethosn_queue *,const uint8_t *const *,const uint32_t *,uint32_t,uint32_t *)'
+      - function: "ethosn_queue_write(struct ethosn_queue *,const uint8_t *const *,const uint32_t *,uint32_t,uint32_t *)"
   mailbox_sequence_diagram:
     type: sequence
     title: mailbox_alloc() sequence diagram
@@ -106,7 +122,7 @@ diagrams:
         - drivers/misc/ethosn/
         - drivers/misc/ethosn/uapi/
     from:
-      - function: 'mailbox_alloc(struct ethosn_core *)'
+      - function: "mailbox_alloc(struct ethosn_core *)"
   ethosn_mailbox_class:
     type: class
     title: struct ethosn_mailbox diagram
@@ -138,9 +154,9 @@ diagrams:
         - drivers/misc/ethosn/uapi/
     exclude:
       elements:
-        - 'ethosn_dma_get_addr_base(struct ethosn_dma_allocator *,enum ethosn_stream_type)'
-        - 'ethosn_dma_unmap_and_release(struct ethosn_dma_allocator *,struct ethosn_dma_info **)'
-        - '__compiletime_assert_305()'
-        - '__compiletime_assert_306()'
+        - "ethosn_dma_get_addr_base(struct ethosn_dma_allocator *,enum ethosn_stream_type)"
+        - "ethosn_dma_unmap_and_release(struct ethosn_dma_allocator *,struct ethosn_dma_info **)"
+        - "__compiletime_assert_305()"
+        - "__compiletime_assert_306()"
     from:
-      - function: 'ethosn_device_init(struct ethosn_core *)'
+      - function: "ethosn_device_init(struct ethosn_core *)"

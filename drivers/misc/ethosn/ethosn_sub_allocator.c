@@ -24,7 +24,6 @@
 #include "ethosn_dma.h"
 #include "ethosn_dma_iommu.h"
 #include "ethosn_sub_allocator.h"
-#include "ethosn_backport.h"
 
 #include <linux/device.h>
 #include <linux/module.h>
@@ -39,7 +38,7 @@ struct platform_device *ethosn_get_global_buffer_data_pdev_for_testing(void)
 }
 
 /* Exported for use by test module */
-EXPORT_SYMBOL(ethosn_get_global_buffer_data_pdev_for_testing);
+// EXPORT_SYMBOL(ethosn_get_global_buffer_data_pdev_for_testing);
 
 static struct ethosn_dma_allocator *
 ethosn_get_top_allocator(struct platform_device *pdev)

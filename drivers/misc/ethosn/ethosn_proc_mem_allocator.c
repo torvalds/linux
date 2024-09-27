@@ -386,4 +386,4 @@ asset_allocator_reserve_fail:
 }
 
 /* Exported for use by test module */
-EXPORT_SYMBOL(ethosn_process_mem_allocator_create);
+// EXPORT_SYMBOL(ethosn_process_mem_allocator_create);

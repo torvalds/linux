@@ -18,7 +18,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
 
-ccflags-y += -Wall -Werror $(EXTRA_CCFLAGS)
+ccflags-y += -Wall -O1 -g -Werror $(EXTRA_CCFLAGS)
 
 obj-m := ethosn.o
 

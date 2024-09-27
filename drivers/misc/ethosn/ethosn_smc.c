@@ -119,7 +119,7 @@ int ethosn_smc_is_secure(const struct device *dev, phys_addr_t core_addr)
 }
 
 /* Exported for use by test module */
-EXPORT_SYMBOL(ethosn_smc_is_secure);
+// EXPORT_SYMBOL(ethosn_smc_is_secure);
 
 int ethosn_smc_core_reset(const struct device *dev, phys_addr_t core_addr,
 			  uint32_t asset_alloc_idx, bool halt, bool hard_reset,
@@ -162,7 +162,7 @@ int ethosn_smc_core_is_sleeping(const struct device *dev, phys_addr_t core_addr)
 }
 
 /* Exported for use by test module */
-EXPORT_SYMBOL(ethosn_smc_core_is_sleeping);
+// EXPORT_SYMBOL(ethosn_smc_core_is_sleeping);
 
 #ifdef ETHOSN_TZMP1
 

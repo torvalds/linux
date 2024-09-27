@@ -705,4 +705,4 @@ void ethosn_dma_sync_for_cpu(struct ethosn_dma_allocator *top_allocator,
 }
 
 /* Exported for use by test module */
-EXPORT_SYMBOL(ethosn_dma_sync_for_cpu);
+// EXPORT_SYMBOL(ethosn_dma_sync_for_cpu);

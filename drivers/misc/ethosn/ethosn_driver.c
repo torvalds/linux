@@ -2188,7 +2188,7 @@ struct ethosn_device *ethosn_get_global_device_for_testing(void)
 }
 
 /* Exported for use by test module */
-EXPORT_SYMBOL(ethosn_get_global_device_for_testing);
+// EXPORT_SYMBOL(ethosn_get_global_device_for_testing);
 
 static const struct of_device_id ethosn_pdev_match[] = {
 	{ .compatible = ETHOSN_DRIVER_NAME },
