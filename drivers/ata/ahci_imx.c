@@ -511,7 +511,7 @@ static int imx_sata_enable(struct ahci_host_priv *hpriv)
 
 	if (imxpriv->type == AHCI_IMX6Q || imxpriv->type == AHCI_IMX6QP) {
 		/*
-		 * set PHY Paremeters, two steps to configure the GPR13,
+		 * set PHY Parameters, two steps to configure the GPR13,
 		 * one write for rest of parameters, mask of first write
 		 * is 0x07ffffff, and the other one write for setting
 		 * the mpll_clk_en.

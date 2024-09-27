@@ -183,7 +183,7 @@ static void octeon_cf_set_piomode(struct ata_port *ap, struct ata_device *dev)
 	reg_tim.s.ale = 0;
 	/* Not used */
 	reg_tim.s.page = 0;
-	/* Time after IORDY to coninue to assert the data */
+	/* Time after IORDY to continue to assert the data */
 	reg_tim.s.wait = 0;
 	/* Time to wait to complete the cycle. */
 	reg_tim.s.pause = pause;
