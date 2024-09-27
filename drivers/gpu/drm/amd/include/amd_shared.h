@@ -339,6 +339,11 @@ enum DC_DEBUG_MASK {
 	 * @DC_FORCE_IPS_ENABLE: If set, force enable all IPS, all the time.
 	 */
 	DC_FORCE_IPS_ENABLE = 0x4000,
+	/**
+	 * @DC_DISABLE_ACPI_EDID: If set, don't attempt to fetch EDID for
+	 * eDP display from ACPI _DDC method.
+	 */
+	DC_DISABLE_ACPI_EDID = 0x8000,
 };
 
 enum amd_dpm_forced_level;
