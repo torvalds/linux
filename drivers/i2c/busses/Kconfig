@@ -782,6 +782,7 @@ config I2C_JZ4780
 config I2C_KEBA
 	tristate "KEBA I2C controller support"
 	depends on HAS_IOMEM
+	depends on KEBA_CP500 || COMPILE_TEST
 	select AUXILIARY_BUS
 	help
 	  This driver supports the I2C controller found in KEBA system FPGA
