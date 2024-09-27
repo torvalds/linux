@@ -178,7 +178,7 @@ struct ipe_policy *ipe_new_policy(const char *text, size_t textlen,
 					    VERIFYING_UNSPECIFIED_SIGNATURE,
 					    set_pkcs7_data, new);
 #ifdef CONFIG_IPE_POLICY_SIG_PLATFORM_KEYRING
-		if (rc == -ENOKEY)
+		if (rc == -ENOKEY || rc == -EKEYREJECTED)
 			rc = verify_pkcs7_signature(NULL, 0, new->pkcs7, pkcs7len,
 						    VERIFY_USE_PLATFORM_KEYRING,
 						    VERIFYING_UNSPECIFIED_SIGNATURE,
