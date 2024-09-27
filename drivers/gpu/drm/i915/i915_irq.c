@@ -298,7 +298,7 @@ static irqreturn_t valleyview_irq_handler(int irq, void *arg)
 			hotplug_status = i9xx_hpd_irq_ack(dev_priv);
 
 		/* Call regardless, as some status bits might not be
-		 * signalled in iir */
+		 * signalled in IIR */
 		i9xx_pipestat_irq_ack(dev_priv, iir, pipe_stats);
 
 		if (iir & (I915_LPE_PIPE_A_INTERRUPT |
@@ -380,7 +380,7 @@ static irqreturn_t cherryview_irq_handler(int irq, void *arg)
 			hotplug_status = i9xx_hpd_irq_ack(dev_priv);
 
 		/* Call regardless, as some status bits might not be
-		 * signalled in iir */
+		 * signalled in IIR */
 		i9xx_pipestat_irq_ack(dev_priv, iir, pipe_stats);
 
 		if (iir & (I915_LPE_PIPE_A_INTERRUPT |
@@ -883,7 +883,6 @@ static void i8xx_irq_postinstall(struct drm_i915_private *dev_priv)
 
 	intel_uncore_write16(uncore, EMR, i9xx_error_mask(dev_priv));
 
-	/* Unmask the interrupts that we always want on. */
 	dev_priv->irq_mask =
 		~(I915_DISPLAY_PIPE_A_EVENT_INTERRUPT |
 		  I915_DISPLAY_PIPE_B_EVENT_INTERRUPT |
@@ -1009,7 +1008,7 @@ static irqreturn_t i8xx_irq_handler(int irq, void *arg)
 		ret = IRQ_HANDLED;
 
 		/* Call regardless, as some status bits might not be
-		 * signalled in iir */
+		 * signalled in IIR */
 		i9xx_pipestat_irq_ack(dev_priv, iir, pipe_stats);
 
 		if (iir & I915_MASTER_ERROR_INTERRUPT)
@@ -1050,7 +1049,6 @@ static void i915_irq_postinstall(struct drm_i915_private *dev_priv)
 
 	intel_uncore_write(uncore, EMR, i9xx_error_mask(dev_priv));
 
-	/* Unmask the interrupts that we always want on. */
 	dev_priv->irq_mask =
 		~(I915_ASLE_INTERRUPT |
 		  I915_DISPLAY_PIPE_A_EVENT_INTERRUPT |
@@ -1065,9 +1063,7 @@ static void i915_irq_postinstall(struct drm_i915_private *dev_priv)
 		I915_USER_INTERRUPT;
 
 	if (I915_HAS_HOTPLUG(dev_priv)) {
-		/* and unmask in IMR */
 		dev_priv->irq_mask &= ~I915_DISPLAY_PORT_INTERRUPT;
-		/* Enable in IER... */
 		enable_mask |= I915_DISPLAY_PORT_INTERRUPT;
 	}
 
@@ -1111,7 +1107,7 @@ static irqreturn_t i915_irq_handler(int irq, void *arg)
 			hotplug_status = i9xx_hpd_irq_ack(dev_priv);
 
 		/* Call regardless, as some status bits might not be
-		 * signalled in iir */
+		 * signalled in IIR */
 		i9xx_pipestat_irq_ack(dev_priv, iir, pipe_stats);
 
 		if (iir & I915_MASTER_ERROR_INTERRUPT)
@@ -1174,7 +1170,6 @@ static void i965_irq_postinstall(struct drm_i915_private *dev_priv)
 
 	intel_uncore_write(uncore, EMR, i965_error_mask(dev_priv));
 
-	/* Unmask the interrupts that we always want on. */
 	dev_priv->irq_mask =
 		~(I915_ASLE_INTERRUPT |
 		  I915_DISPLAY_PORT_INTERRUPT |
@@ -1233,7 +1228,7 @@ static irqreturn_t i965_irq_handler(int irq, void *arg)
 			hotplug_status = i9xx_hpd_irq_ack(dev_priv);
 
 		/* Call regardless, as some status bits might not be
-		 * signalled in iir */
+		 * signalled in IIR */
 		i9xx_pipestat_irq_ack(dev_priv, iir, pipe_stats);
 
 		if (iir & I915_MASTER_ERROR_INTERRUPT)
