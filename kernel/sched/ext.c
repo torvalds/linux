@@ -5166,6 +5166,8 @@ static int scx_ops_enable(struct sched_ext_ops *ops, struct bpf_link *link)
 			goto err_disable_unlock_all;
 		}
 
+		scx_set_task_state(p, SCX_TASK_READY);
+
 		put_task_struct(p);
 		spin_lock_irq(&scx_tasks_lock);
 	}
@@ -5178,7 +5180,7 @@ static int scx_ops_enable(struct sched_ext_ops *ops, struct bpf_link *link)
 	WRITE_ONCE(scx_switching_all, !(ops->flags & SCX_OPS_SWITCH_PARTIAL));
 
 	/*
-	 * We're fully committed and can't fail. The PREPPED -> ENABLED
+	 * We're fully committed and can't fail. The task READY -> ENABLED
 	 * transitions here are synchronized against sched_ext_free() through
 	 * scx_tasks_lock.
 	 */
@@ -5190,7 +5192,6 @@ static int scx_ops_enable(struct sched_ext_ops *ops, struct bpf_link *link)
 
 		sched_deq_and_put_task(p, DEQUEUE_SAVE | DEQUEUE_MOVE, &ctx);
 
-		scx_set_task_state(p, SCX_TASK_READY);
 		__setscheduler_prio(p, p->prio);
 		check_class_changing(task_rq(p), p, old_class);
 
