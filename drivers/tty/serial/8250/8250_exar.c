@@ -500,7 +500,7 @@ static unsigned int xr17v35x_get_divisor(struct uart_port *p, unsigned int baud,
 static void xr17v35x_set_divisor(struct uart_port *p, unsigned int baud,
 				 unsigned int quot, unsigned int quot_frac)
 {
-	serial8250_do_set_divisor(p, baud, quot, quot_frac);
+	serial8250_do_set_divisor(p, baud, quot);
 
 	/* Preserve bits not related to baudrate; DLD[7:4]. */
 	quot_frac |= serial_port_in(p, 0x2) & 0xf0;

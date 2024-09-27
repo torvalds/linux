@@ -22,6 +22,7 @@
 /**
  * struct nilfs_inode_info - nilfs inode data in memory
  * @i_flags: inode flags
+ * @i_type: inode type (combination of flags that inidicate usage)
  * @i_state: dynamic state flags
  * @i_bmap: pointer on i_bmap_data
  * @i_bmap_data: raw block mapping
@@ -37,6 +38,7 @@
  */
 struct nilfs_inode_info {
 	__u32 i_flags;
+	unsigned int i_type;
 	unsigned long  i_state;		/* Dynamic state flags */
 	struct nilfs_bmap *i_bmap;
 	struct nilfs_bmap i_bmap_data;
@@ -90,9 +92,16 @@ enum {
 	NILFS_I_UPDATED,		/* The file has been written back */
 	NILFS_I_INODE_SYNC,		/* dsync is not allowed for inode */
 	NILFS_I_BMAP,			/* has bmap and btnode_cache */
-	NILFS_I_GCINODE,		/* inode for GC, on memory only */
-	NILFS_I_BTNC,			/* inode for btree node cache */
-	NILFS_I_SHADOW,			/* inode for shadowed page cache */
+};
+
+/*
+ * Flags to identify the usage of on-memory inodes (i_type)
+ */
+enum {
+	NILFS_I_TYPE_NORMAL =	0,
+	NILFS_I_TYPE_GC =	0x0001,	/* For data caching during GC */
+	NILFS_I_TYPE_BTNC =	0x0002,	/* For btree node cache */
+	NILFS_I_TYPE_SHADOW =	0x0004,	/* For shadowed page cache */
 };
 
 /*
@@ -102,6 +111,18 @@ enum {
 	NILFS_SB_COMMIT = 0,	/* Commit a super block alternately */
 	NILFS_SB_COMMIT_ALL	/* Commit both super blocks */
 };
+
+/**
+ * define NILFS_MAX_VOLUME_NAME - maximum number of characters (bytes) in a
+ *                                file system volume name
+ *
+ * Defined by the size of the volume name field in the on-disk superblocks.
+ * This volume name does not include the terminating NULL byte if the string
+ * length matches the field size, so use (NILFS_MAX_VOLUME_NAME + 1) for the
+ * size of the buffer that requires a NULL byte termination.
+ */
+#define NILFS_MAX_VOLUME_NAME  \
+	sizeof_field(struct nilfs_super_block, s_volume_name)
 
 /*
  * Macros to check inode numbers

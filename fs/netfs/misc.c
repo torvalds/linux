@@ -8,6 +8,100 @@
 #include <linux/swap.h>
 #include "internal.h"
 
+/*
+ * Append a folio to the rolling queue.
+ */
+int netfs_buffer_append_folio(struct netfs_io_request *rreq, struct folio *folio,
+			      bool needs_put)
+{
+	struct folio_queue *tail = rreq->buffer_tail;
+	unsigned int slot, order = folio_order(folio);
+
+	if (WARN_ON_ONCE(!rreq->buffer && tail) ||
+	    WARN_ON_ONCE(rreq->buffer && !tail))
+		return -EIO;
+
+	if (!tail || folioq_full(tail)) {
+		tail = kmalloc(sizeof(*tail), GFP_NOFS);
+		if (!tail)
+			return -ENOMEM;
+		netfs_stat(&netfs_n_folioq);
+		folioq_init(tail);
+		tail->prev = rreq->buffer_tail;
+		if (tail->prev)
+			tail->prev->next = tail;
+		rreq->buffer_tail = tail;
+		if (!rreq->buffer) {
+			rreq->buffer = tail;
+			iov_iter_folio_queue(&rreq->io_iter, ITER_SOURCE, tail, 0, 0, 0);
+		}
+		rreq->buffer_tail_slot = 0;
+	}
+
+	rreq->io_iter.count += PAGE_SIZE << order;
+
+	slot = folioq_append(tail, folio);
+	/* Store the counter after setting the slot. */
+	smp_store_release(&rreq->buffer_tail_slot, slot);
+	return 0;
+}
+
+/*
+ * Delete the head of a rolling queue.
+ */
+struct folio_queue *netfs_delete_buffer_head(struct netfs_io_request *wreq)
+{
+	struct folio_queue *head = wreq->buffer, *next = head->next;
+
+	if (next)
+		next->prev = NULL;
+	netfs_stat_d(&netfs_n_folioq);
+	kfree(head);
+	wreq->buffer = next;
+	return next;
+}
+
+/*
+ * Clear out a rolling queue.
+ */
+void netfs_clear_buffer(struct netfs_io_request *rreq)
+{
+	struct folio_queue *p;
+
+	while ((p = rreq->buffer)) {
+		rreq->buffer = p->next;
+		for (int slot = 0; slot < folioq_nr_slots(p); slot++) {
+			struct folio *folio = folioq_folio(p, slot);
+			if (!folio)
+				continue;
+			if (folioq_is_marked(p, slot)) {
+				trace_netfs_folio(folio, netfs_folio_trace_put);
+				folio_put(folio);
+			}
+		}
+		netfs_stat_d(&netfs_n_folioq);
+		kfree(p);
+	}
+}
+
+/*
+ * Reset the subrequest iterator to refer just to the region remaining to be
+ * read.  The iterator may or may not have been advanced by socket ops or
+ * extraction ops to an extent that may or may not match the amount actually
+ * read.
+ */
+void netfs_reset_iter(struct netfs_io_subrequest *subreq)
+{
+	struct iov_iter *io_iter = &subreq->io_iter;
+	size_t remain = subreq->len - subreq->transferred;
+
+	if (io_iter->count > remain)
+		iov_iter_advance(io_iter, io_iter->count - remain);
+	else if (io_iter->count < remain)
+		iov_iter_revert(io_iter, remain - io_iter->count);
+	iov_iter_truncate(&subreq->io_iter, remain);
+}
+
 /**
  * netfs_dirty_folio - Mark folio dirty and pin a cache object for writeback
  * @mapping: The mapping the folio belongs to.

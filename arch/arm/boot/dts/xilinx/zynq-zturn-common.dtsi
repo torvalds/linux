@@ -97,9 +97,9 @@
 	status = "okay";
 	clock-frequency = <400000>;
 
-	stlm75@49 {
+	temperature-sensor@49 {
 		status = "okay";
-		compatible = "lm75";
+		compatible = "st,stlm75";
 		reg = <0x49>;
 	};
 

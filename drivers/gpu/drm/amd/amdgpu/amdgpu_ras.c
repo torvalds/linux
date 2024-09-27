@@ -1223,11 +1223,11 @@ static void amdgpu_rasmgr_error_data_statistic_update(struct ras_manager *obj, s
 		for_each_ras_error(err_node, err_data) {
 			err_info = &err_node->err_info;
 			amdgpu_ras_error_statistic_de_count(&obj->err_data,
-					&err_info->mcm_info, NULL, err_info->de_count);
+					&err_info->mcm_info, err_info->de_count);
 			amdgpu_ras_error_statistic_ce_count(&obj->err_data,
-					&err_info->mcm_info, NULL, err_info->ce_count);
+					&err_info->mcm_info, err_info->ce_count);
 			amdgpu_ras_error_statistic_ue_count(&obj->err_data,
-					&err_info->mcm_info, NULL, err_info->ue_count);
+					&err_info->mcm_info, err_info->ue_count);
 		}
 	} else {
 		/* for legacy asic path which doesn't has error source info */
@@ -2153,7 +2153,7 @@ static void amdgpu_ras_interrupt_poison_consumption_handler(struct ras_manager *
 	/* gpu reset is fallback for failed and default cases.
 	 * For RMA case, amdgpu_umc_poison_handler will handle gpu reset.
 	 */
-	if (poison_stat && !con->is_rma) {
+	if (poison_stat && !amdgpu_ras_is_rma(adev)) {
 		event_id = amdgpu_ras_acquire_event_id(adev, type);
 		RAS_EVENT_LOG(adev, event_id,
 			      "GPU reset for %s RAS poison consumption is issued!\n",
@@ -2881,9 +2881,6 @@ static void amdgpu_ras_ecc_log_init(struct ras_ecc_log_info *ecc_log)
 {
 	mutex_init(&ecc_log->lock);
 
-	/* Set any value as siphash key */
-	memset(&ecc_log->ecc_key, 0xad, sizeof(ecc_log->ecc_key));
-
 	INIT_RADIX_TREE(&ecc_log->de_page_tree, GFP_KERNEL);
 	ecc_log->de_queried_count = 0;
 	ecc_log->prev_de_queried_count = 0;
@@ -2948,7 +2945,7 @@ static void amdgpu_ras_do_page_retirement(struct work_struct *work)
 
 	amdgpu_ras_error_data_fini(&err_data);
 
-	if (err_cnt && con->is_rma)
+	if (err_cnt && amdgpu_ras_is_rma(adev))
 		amdgpu_ras_reset_gpu(adev);
 
 	amdgpu_ras_schedule_retirement_dwork(con,
@@ -3049,7 +3046,7 @@ static int amdgpu_ras_poison_consumption_handler(struct amdgpu_device *adev,
 	}
 
 	/* for RMA, amdgpu_ras_poison_creation_handler will trigger gpu reset */
-	if (reset_flags && !con->is_rma) {
+	if (reset_flags && !amdgpu_ras_is_rma(adev)) {
 		if (reset_flags & AMDGPU_RAS_GPU_RESET_MODE1_RESET)
 			reset = AMDGPU_RAS_GPU_RESET_MODE1_RESET;
 		else if (reset_flags & AMDGPU_RAS_GPU_RESET_MODE2_RESET)
@@ -3195,7 +3192,7 @@ int amdgpu_ras_recovery_init(struct amdgpu_device *adev)
 	 * This calling fails when is_rma is true or
 	 * ret != 0.
 	 */
-	if (con->is_rma || ret)
+	if (amdgpu_ras_is_rma(adev) || ret)
 		goto free;
 
 	if (con->eeprom_control.ras_num_recs) {
@@ -3244,7 +3241,7 @@ out:
 	 * Except error threshold exceeding case, other failure cases in this
 	 * function would not fail amdgpu driver init.
 	 */
-	if (!con->is_rma)
+	if (!amdgpu_ras_is_rma(adev))
 		ret = 0;
 	else
 		ret = -EINVAL;
@@ -4287,7 +4284,7 @@ int amdgpu_ras_reset_gpu(struct amdgpu_device *adev)
 	struct amdgpu_ras *ras = amdgpu_ras_get_context(adev);
 
 	/* mode1 is the only selection for RMA status */
-	if (ras->is_rma) {
+	if (amdgpu_ras_is_rma(adev)) {
 		ras->gpu_reset_flags = 0;
 		ras->gpu_reset_flags |= AMDGPU_RAS_GPU_RESET_MODE1_RESET;
 	}
@@ -4611,8 +4608,6 @@ static struct ras_err_info *amdgpu_ras_error_get_info(struct ras_err_data *err_d
 	if (!err_node)
 		return NULL;
 
-	INIT_LIST_HEAD(&err_node->err_info.err_addr_list);
-
 	memcpy(&err_node->err_info.mcm_info, mcm_info, sizeof(*mcm_info));
 
 	err_data->err_list_count++;
@@ -4622,21 +4617,9 @@ static struct ras_err_info *amdgpu_ras_error_get_info(struct ras_err_data *err_d
 	return &err_node->err_info;
 }
 
-void amdgpu_ras_add_mca_err_addr(struct ras_err_info *err_info, struct ras_err_addr *err_addr)
-{
-	/* This function will be retired. */
-	return;
-}
-
-void amdgpu_ras_del_mca_err_addr(struct ras_err_info *err_info, struct ras_err_addr *mca_err_addr)
-{
-	list_del(&mca_err_addr->node);
-	kfree(mca_err_addr);
-}
-
 int amdgpu_ras_error_statistic_ue_count(struct ras_err_data *err_data,
-		struct amdgpu_smuio_mcm_config_info *mcm_info,
-		struct ras_err_addr *err_addr, u64 count)
+					struct amdgpu_smuio_mcm_config_info *mcm_info,
+					u64 count)
 {
 	struct ras_err_info *err_info;
 
@@ -4650,9 +4633,6 @@ int amdgpu_ras_error_statistic_ue_count(struct ras_err_data *err_data,
 	if (!err_info)
 		return -EINVAL;
 
-	if (err_addr && err_addr->err_status)
-		amdgpu_ras_add_mca_err_addr(err_info, err_addr);
-
 	err_info->ue_count += count;
 	err_data->ue_count += count;
 
@@ -4660,8 +4640,8 @@ int amdgpu_ras_error_statistic_ue_count(struct ras_err_data *err_data,
 }
 
 int amdgpu_ras_error_statistic_ce_count(struct ras_err_data *err_data,
-		struct amdgpu_smuio_mcm_config_info *mcm_info,
-		struct ras_err_addr *err_addr, u64 count)
+					struct amdgpu_smuio_mcm_config_info *mcm_info,
+					u64 count)
 {
 	struct ras_err_info *err_info;
 
@@ -4682,8 +4662,8 @@ int amdgpu_ras_error_statistic_ce_count(struct ras_err_data *err_data,
 }
 
 int amdgpu_ras_error_statistic_de_count(struct ras_err_data *err_data,
-		struct amdgpu_smuio_mcm_config_info *mcm_info,
-		struct ras_err_addr *err_addr, u64 count)
+					struct amdgpu_smuio_mcm_config_info *mcm_info,
+					u64 count)
 {
 	struct ras_err_info *err_info;
 
@@ -4696,9 +4676,6 @@ int amdgpu_ras_error_statistic_de_count(struct ras_err_data *err_data,
 	err_info = amdgpu_ras_error_get_info(err_data, mcm_info);
 	if (!err_info)
 		return -EINVAL;
-
-	if (err_addr && err_addr->err_status)
-		amdgpu_ras_add_mca_err_addr(err_info, err_addr);
 
 	err_info->de_count += count;
 	err_data->de_count += count;
@@ -4771,6 +4748,16 @@ static void amdgpu_ras_boot_time_error_reporting(struct amdgpu_device *adev,
 		dev_info(adev->dev,
 			 "socket: %d, aid: %d, hbm: %d, fw_status: 0x%x, hbm bist test failed\n",
 			 socket_id, aid_id, hbm_id, fw_status);
+
+	if (AMDGPU_RAS_GPU_ERR_DATA_ABORT(boot_error))
+		dev_info(adev->dev,
+			 "socket: %d, aid: %d, fw_status: 0x%x, data abort exception\n",
+			 socket_id, aid_id, fw_status);
+
+	if (AMDGPU_RAS_GPU_ERR_UNKNOWN(boot_error))
+		dev_info(adev->dev,
+			 "socket: %d, aid: %d, fw_status: 0x%x, unknown boot time errors\n",
+			 socket_id, aid_id, fw_status);
 }
 
 static bool amdgpu_ras_boot_error_detected(struct amdgpu_device *adev,
@@ -4836,4 +4823,14 @@ void amdgpu_ras_event_log_print(struct amdgpu_device *adev, u64 event_id,
 		dev_printk(KERN_INFO, adev->dev, "%pV", &vaf);
 
 	va_end(args);
+}
+
+bool amdgpu_ras_is_rma(struct amdgpu_device *adev)
+{
+	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
+
+	if (!con)
+		return false;
+
+	return con->is_rma;
 }

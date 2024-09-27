@@ -14,5 +14,4 @@ int pds_vdpa_cmd_init_vq(struct pds_vdpa_device *pdsv, u16 qid, u16 invert_idx,
 			 struct pds_vdpa_vq_info *vq_info);
 int pds_vdpa_cmd_reset_vq(struct pds_vdpa_device *pdsv, u16 qid, u16 invert_idx,
 			  struct pds_vdpa_vq_info *vq_info);
-int pds_vdpa_cmd_set_features(struct pds_vdpa_device *pdsv, u64 features);
 #endif /* _VDPA_CMDS_H_ */

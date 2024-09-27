@@ -75,6 +75,8 @@ static void aqua_vanjaram_set_xcp_id(struct amdgpu_device *adev,
 	uint32_t inst_mask;
 
 	ring->xcp_id = AMDGPU_XCP_NO_PARTITION;
+	if (ring->funcs->type == AMDGPU_RING_TYPE_COMPUTE)
+		adev->gfx.enforce_isolation[0].xcp_id = ring->xcp_id;
 	if (adev->xcp_mgr->mode == AMDGPU_XCP_MODE_NONE)
 		return;
 
@@ -103,6 +105,8 @@ static void aqua_vanjaram_set_xcp_id(struct amdgpu_device *adev,
 	for (xcp_id = 0; xcp_id < adev->xcp_mgr->num_xcps; xcp_id++) {
 		if (adev->xcp_mgr->xcp[xcp_id].ip[ip_blk].inst_mask & inst_mask) {
 			ring->xcp_id = xcp_id;
+			if (ring->funcs->type == AMDGPU_RING_TYPE_COMPUTE)
+				adev->gfx.enforce_isolation[xcp_id].xcp_id = xcp_id;
 			break;
 		}
 	}

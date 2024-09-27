@@ -681,6 +681,11 @@ int amdgpu_vm_flush(struct amdgpu_ring *ring, struct amdgpu_job *job,
 	pasid_mapping_needed &= adev->gmc.gmc_funcs->emit_pasid_mapping &&
 		ring->funcs->emit_wreg;
 
+	if (adev->gfx.enable_cleaner_shader &&
+	    ring->funcs->emit_cleaner_shader &&
+	    job->enforce_isolation)
+		ring->funcs->emit_cleaner_shader(ring);
+
 	if (!vm_flush_needed && !gds_switch_needed && !need_pipe_sync)
 		return 0;
 
@@ -742,6 +747,7 @@ int amdgpu_vm_flush(struct amdgpu_ring *ring, struct amdgpu_job *job,
 		amdgpu_ring_emit_switch_buffer(ring);
 		amdgpu_ring_emit_switch_buffer(ring);
 	}
+
 	amdgpu_ring_ib_end(ring);
 	return 0;
 }
@@ -838,7 +844,7 @@ int amdgpu_vm_update_pdes(struct amdgpu_device *adev,
 	params.vm = vm;
 	params.immediate = immediate;
 
-	r = vm->update_funcs->prepare(&params, NULL, AMDGPU_SYNC_EXPLICIT);
+	r = vm->update_funcs->prepare(&params, NULL);
 	if (r)
 		goto error;
 
@@ -902,10 +908,12 @@ amdgpu_vm_tlb_flush(struct amdgpu_vm_update_params *params,
 {
 	struct amdgpu_vm *vm = params->vm;
 
-	if (!fence || !*fence)
-		return;
-
 	tlb_cb->vm = vm;
+	if (!fence || !*fence) {
+		amdgpu_vm_tlb_seq_cb(NULL, &tlb_cb->cb);
+		return;
+	}
+
 	if (!dma_fence_add_callback(*fence, &tlb_cb->cb,
 				    amdgpu_vm_tlb_seq_cb)) {
 		dma_fence_put(vm->last_tlb_flush);
@@ -933,7 +941,7 @@ amdgpu_vm_tlb_flush(struct amdgpu_vm_update_params *params,
  * @unlocked: unlocked invalidation during MM callback
  * @flush_tlb: trigger tlb invalidation after update completed
  * @allow_override: change MTYPE for local NUMA nodes
- * @resv: fences we need to sync to
+ * @sync: fences we need to sync to
  * @start: start of mapped range
  * @last: last mapped entry
  * @flags: flags for the entries
@@ -949,16 +957,16 @@ amdgpu_vm_tlb_flush(struct amdgpu_vm_update_params *params,
  * 0 for success, negative erro code for failure.
  */
 int amdgpu_vm_update_range(struct amdgpu_device *adev, struct amdgpu_vm *vm,
-			   bool immediate, bool unlocked, bool flush_tlb, bool allow_override,
-			   struct dma_resv *resv, uint64_t start, uint64_t last,
-			   uint64_t flags, uint64_t offset, uint64_t vram_base,
+			   bool immediate, bool unlocked, bool flush_tlb,
+			   bool allow_override, struct amdgpu_sync *sync,
+			   uint64_t start, uint64_t last, uint64_t flags,
+			   uint64_t offset, uint64_t vram_base,
 			   struct ttm_resource *res, dma_addr_t *pages_addr,
 			   struct dma_fence **fence)
 {
 	struct amdgpu_vm_tlb_seq_struct *tlb_cb;
 	struct amdgpu_vm_update_params params;
 	struct amdgpu_res_cursor cursor;
-	enum amdgpu_sync_mode sync_mode;
 	int r, idx;
 
 	if (!drm_dev_enter(adev_to_drm(adev), &idx))
@@ -991,14 +999,6 @@ int amdgpu_vm_update_range(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 	params.allow_override = allow_override;
 	INIT_LIST_HEAD(&params.tlb_flush_waitlist);
 
-	/* Implicitly sync to command submissions in the same VM before
-	 * unmapping. Sync to moving fences before mapping.
-	 */
-	if (!(flags & AMDGPU_PTE_VALID))
-		sync_mode = AMDGPU_SYNC_EQ_OWNER;
-	else
-		sync_mode = AMDGPU_SYNC_EXPLICIT;
-
 	amdgpu_vm_eviction_lock(vm);
 	if (vm->evicting) {
 		r = -EBUSY;
@@ -1013,7 +1013,7 @@ int amdgpu_vm_update_range(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 		dma_fence_put(tmp);
 	}
 
-	r = vm->update_funcs->prepare(&params, resv, sync_mode);
+	r = vm->update_funcs->prepare(&params, sync);
 	if (r)
 		goto error_free;
 
@@ -1155,23 +1155,30 @@ int amdgpu_vm_bo_update(struct amdgpu_device *adev, struct amdgpu_bo_va *bo_va,
 	struct amdgpu_bo *bo = bo_va->base.bo;
 	struct amdgpu_vm *vm = bo_va->base.vm;
 	struct amdgpu_bo_va_mapping *mapping;
+	struct dma_fence **last_update;
 	dma_addr_t *pages_addr = NULL;
 	struct ttm_resource *mem;
-	struct dma_fence **last_update;
+	struct amdgpu_sync sync;
 	bool flush_tlb = clear;
-	bool uncached;
-	struct dma_resv *resv;
 	uint64_t vram_base;
 	uint64_t flags;
+	bool uncached;
 	int r;
 
+	amdgpu_sync_create(&sync);
 	if (clear || !bo) {
 		mem = NULL;
-		resv = vm->root.bo->tbo.base.resv;
+
+		/* Implicitly sync to command submissions in the same VM before
+		 * unmapping.
+		 */
+		r = amdgpu_sync_resv(adev, &sync, vm->root.bo->tbo.base.resv,
+				     AMDGPU_SYNC_EQ_OWNER, vm);
+		if (r)
+			goto error_free;
 	} else {
 		struct drm_gem_object *obj = &bo->tbo.base;
 
-		resv = bo->tbo.base.resv;
 		if (obj->import_attach && bo_va->is_xgmi) {
 			struct dma_buf *dma_buf = obj->import_attach->dmabuf;
 			struct drm_gem_object *gobj = dma_buf->priv;
@@ -1185,6 +1192,12 @@ int amdgpu_vm_bo_update(struct amdgpu_device *adev, struct amdgpu_bo_va *bo_va,
 		if (mem && (mem->mem_type == TTM_PL_TT ||
 			    mem->mem_type == AMDGPU_PL_PREEMPT))
 			pages_addr = bo->tbo.ttm->dma_address;
+
+		/* Implicitly sync to moving fences before mapping anything */
+		r = amdgpu_sync_resv(adev, &sync, bo->tbo.base.resv,
+				     AMDGPU_SYNC_EXPLICIT, vm);
+		if (r)
+			goto error_free;
 	}
 
 	if (bo) {
@@ -1234,12 +1247,12 @@ int amdgpu_vm_bo_update(struct amdgpu_device *adev, struct amdgpu_bo_va *bo_va,
 		trace_amdgpu_vm_bo_update(mapping);
 
 		r = amdgpu_vm_update_range(adev, vm, false, false, flush_tlb,
-					   !uncached, resv, mapping->start, mapping->last,
-					   update_flags, mapping->offset,
-					   vram_base, mem, pages_addr,
-					   last_update);
+					   !uncached, &sync, mapping->start,
+					   mapping->last, update_flags,
+					   mapping->offset, vram_base, mem,
+					   pages_addr, last_update);
 		if (r)
-			return r;
+			goto error_free;
 	}
 
 	/* If the BO is not in its preferred location add it back to
@@ -1267,7 +1280,9 @@ int amdgpu_vm_bo_update(struct amdgpu_device *adev, struct amdgpu_bo_va *bo_va,
 			trace_amdgpu_vm_bo_mapping(mapping);
 	}
 
-	return 0;
+error_free:
+	amdgpu_sync_free(&sync);
+	return r;
 }
 
 /**
@@ -1414,11 +1429,21 @@ int amdgpu_vm_clear_freed(struct amdgpu_device *adev,
 			  struct amdgpu_vm *vm,
 			  struct dma_fence **fence)
 {
-	struct dma_resv *resv = vm->root.bo->tbo.base.resv;
 	struct amdgpu_bo_va_mapping *mapping;
-	uint64_t init_pte_value = 0;
 	struct dma_fence *f = NULL;
+	struct amdgpu_sync sync;
 	int r;
+
+
+	/*
+	 * Implicitly sync to command submissions in the same VM before
+	 * unmapping.
+	 */
+	amdgpu_sync_create(&sync);
+	r = amdgpu_sync_resv(adev, &sync, vm->root.bo->tbo.base.resv,
+			     AMDGPU_SYNC_EQ_OWNER, vm);
+	if (r)
+		goto error_free;
 
 	while (!list_empty(&vm->freed)) {
 		mapping = list_first_entry(&vm->freed,
@@ -1426,13 +1451,12 @@ int amdgpu_vm_clear_freed(struct amdgpu_device *adev,
 		list_del(&mapping->list);
 
 		r = amdgpu_vm_update_range(adev, vm, false, false, true, false,
-					   resv, mapping->start, mapping->last,
-					   init_pte_value, 0, 0, NULL, NULL,
-					   &f);
+					   &sync, mapping->start, mapping->last,
+					   0, 0, 0, NULL, NULL, &f);
 		amdgpu_vm_free_mapping(adev, vm, mapping, f);
 		if (r) {
 			dma_fence_put(f);
-			return r;
+			goto error_free;
 		}
 	}
 
@@ -1443,7 +1467,9 @@ int amdgpu_vm_clear_freed(struct amdgpu_device *adev,
 		dma_fence_put(f);
 	}
 
-	return 0;
+error_free:
+	amdgpu_sync_free(&sync);
+	return r;
 
 }
 
@@ -2218,7 +2244,7 @@ void amdgpu_vm_adjust_size(struct amdgpu_device *adev, uint32_t min_vm_size,
 		phys_ram_gb = ((uint64_t)si.totalram * si.mem_unit +
 			       (1 << 30) - 1) >> 30;
 		vm_size = roundup_pow_of_two(
-			min(max(phys_ram_gb * 3, min_vm_size), max_size));
+			clamp(phys_ram_gb * 3, min_vm_size, max_size));
 	}
 
 	adev->vm_manager.max_pfn = (uint64_t)vm_size << 18;
@@ -2421,6 +2447,8 @@ int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 	if (r)
 		return r;
 
+	ttm_lru_bulk_move_init(&vm->lru_bulk_move);
+
 	vm->is_compute_context = false;
 
 	vm->use_cpu_for_update = !!(adev->vm_manager.vm_update_mode &
@@ -2485,6 +2513,7 @@ error_free_root:
 error_free_delayed:
 	dma_fence_put(vm->last_tlb_flush);
 	dma_fence_put(vm->last_unlocked);
+	ttm_lru_bulk_move_fini(&adev->mman.bdev, &vm->lru_bulk_move);
 	amdgpu_vm_fini_entities(vm);
 
 	return r;
@@ -2641,6 +2670,7 @@ void amdgpu_vm_fini(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 		}
 	}
 
+	ttm_lru_bulk_move_fini(&adev->mman.bdev, &vm->lru_bulk_move);
 }
 
 /**
@@ -2754,6 +2784,7 @@ int amdgpu_vm_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
  * amdgpu_vm_handle_fault - graceful handling of VM faults.
  * @adev: amdgpu device pointer
  * @pasid: PASID of the VM
+ * @ts: Timestamp of the fault
  * @vmid: VMID, only used for GFX 9.4.3.
  * @node_id: Node_id received in IH cookie. Only applicable for
  *           GFX 9.4.3.
@@ -2764,7 +2795,7 @@ int amdgpu_vm_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
  * shouldn't be reported any more.
  */
 bool amdgpu_vm_handle_fault(struct amdgpu_device *adev, u32 pasid,
-			    u32 vmid, u32 node_id, uint64_t addr,
+			    u32 vmid, u32 node_id, uint64_t addr, uint64_t ts,
 			    bool write_fault)
 {
 	bool is_compute_context = false;
@@ -2790,7 +2821,7 @@ bool amdgpu_vm_handle_fault(struct amdgpu_device *adev, u32 pasid,
 	addr /= AMDGPU_GPU_PAGE_SIZE;
 
 	if (is_compute_context && !svm_range_restore_pages(adev, pasid, vmid,
-	    node_id, addr, write_fault)) {
+	    node_id, addr, ts, write_fault)) {
 		amdgpu_bo_unref(&root);
 		return true;
 	}

@@ -50,6 +50,7 @@ struct sort_datum {
 	int type_rank;
 	const char *sort_name;
 	const char *own_name;
+	__u64 disambig_hash;
 };
 
 static const char *btf_int_enc_str(__u8 encoding)
@@ -561,9 +562,10 @@ static const char *btf_type_sort_name(const struct btf *btf, __u32 index, bool f
 	case BTF_KIND_ENUM64: {
 		int name_off = t->name_off;
 
-		/* Use name of the first element for anonymous enums if allowed */
-		if (!from_ref && !t->name_off && btf_vlen(t))
-			name_off = btf_enum(t)->name_off;
+		if (!from_ref && !name_off && btf_vlen(t))
+			name_off = btf_kind(t) == BTF_KIND_ENUM64 ?
+				btf_enum64(t)->name_off :
+				btf_enum(t)->name_off;
 
 		return btf__name_by_offset(btf, name_off);
 	}
@@ -583,20 +585,88 @@ static const char *btf_type_sort_name(const struct btf *btf, __u32 index, bool f
 	return NULL;
 }
 
+static __u64 hasher(__u64 hash, __u64 val)
+{
+	return hash * 31 + val;
+}
+
+static __u64 btf_name_hasher(__u64 hash, const struct btf *btf, __u32 name_off)
+{
+	if (!name_off)
+		return hash;
+
+	return hasher(hash, str_hash(btf__name_by_offset(btf, name_off)));
+}
+
+static __u64 btf_type_disambig_hash(const struct btf *btf, __u32 id, bool include_members)
+{
+	const struct btf_type *t = btf__type_by_id(btf, id);
+	int i;
+	size_t hash = 0;
+
+	hash = btf_name_hasher(hash, btf, t->name_off);
+
+	switch (btf_kind(t)) {
+	case BTF_KIND_ENUM:
+	case BTF_KIND_ENUM64:
+		for (i = 0; i < btf_vlen(t); i++) {
+			__u32 name_off = btf_is_enum(t) ?
+				btf_enum(t)[i].name_off :
+				btf_enum64(t)[i].name_off;
+
+			hash = btf_name_hasher(hash, btf, name_off);
+		}
+		break;
+	case BTF_KIND_STRUCT:
+	case BTF_KIND_UNION:
+		if (!include_members)
+			break;
+		for (i = 0; i < btf_vlen(t); i++) {
+			const struct btf_member *m = btf_members(t) + i;
+
+			hash = btf_name_hasher(hash, btf, m->name_off);
+			/* resolve field type's name and hash it as well */
+			hash = hasher(hash, btf_type_disambig_hash(btf, m->type, false));
+		}
+		break;
+	case BTF_KIND_TYPE_TAG:
+	case BTF_KIND_CONST:
+	case BTF_KIND_PTR:
+	case BTF_KIND_VOLATILE:
+	case BTF_KIND_RESTRICT:
+	case BTF_KIND_TYPEDEF:
+	case BTF_KIND_DECL_TAG:
+		hash = hasher(hash, btf_type_disambig_hash(btf, t->type, include_members));
+		break;
+	case BTF_KIND_ARRAY: {
+		struct btf_array *arr = btf_array(t);
+
+		hash = hasher(hash, arr->nelems);
+		hash = hasher(hash, btf_type_disambig_hash(btf, arr->type, include_members));
+		break;
+	}
+	default:
+		break;
+	}
+	return hash;
+}
+
 static int btf_type_compare(const void *left, const void *right)
 {
 	const struct sort_datum *d1 = (const struct sort_datum *)left;
 	const struct sort_datum *d2 = (const struct sort_datum *)right;
 	int r;
 
-	if (d1->type_rank != d2->type_rank)
-		return d1->type_rank < d2->type_rank ? -1 : 1;
-
-	r = strcmp(d1->sort_name, d2->sort_name);
+	r = d1->type_rank - d2->type_rank;
+	r = r ?: strcmp(d1->sort_name, d2->sort_name);
+	r = r ?: strcmp(d1->own_name, d2->own_name);
 	if (r)
 		return r;
 
-	return strcmp(d1->own_name, d2->own_name);
+	if (d1->disambig_hash != d2->disambig_hash)
+		return d1->disambig_hash < d2->disambig_hash ? -1 : 1;
+
+	return d1->index - d2->index;
 }
 
 static struct sort_datum *sort_btf_c(const struct btf *btf)
@@ -617,6 +687,7 @@ static struct sort_datum *sort_btf_c(const struct btf *btf)
 		d->type_rank = btf_type_rank(btf, i, false);
 		d->sort_name = btf_type_sort_name(btf, i, false);
 		d->own_name = btf__name_by_offset(btf, t->name_off);
+		d->disambig_hash = btf_type_disambig_hash(btf, i, true);
 	}
 
 	qsort(datums, n, sizeof(struct sort_datum), btf_type_compare);

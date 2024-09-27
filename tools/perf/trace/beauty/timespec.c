@@ -7,7 +7,7 @@
 
 static size_t syscall_arg__scnprintf_augmented_timespec(struct syscall_arg *arg, char *bf, size_t size)
 {
-	struct timespec *ts = (struct timespec *)arg->augmented.args;
+	struct timespec *ts = (struct timespec *)arg->augmented.args->value;
 
 	return scnprintf(bf, size, "{ .tv_sec: %" PRIu64 ", .tv_nsec: %" PRIu64 " }", ts->tv_sec, ts->tv_nsec);
 }

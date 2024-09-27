@@ -1144,6 +1144,109 @@ void kgd_gfx_v9_program_trap_handler_settings(struct amdgpu_device *adev,
 	kgd_gfx_v9_unlock_srbm(adev, inst);
 }
 
+uint64_t kgd_gfx_v9_hqd_get_pq_addr(struct amdgpu_device *adev,
+				    uint32_t pipe_id, uint32_t queue_id,
+				    uint32_t inst)
+{
+	uint32_t low, high;
+	uint64_t queue_addr = 0;
+
+	if (!adev->debug_exp_resets &&
+	    !adev->gfx.num_gfx_rings)
+		return 0;
+
+	kgd_gfx_v9_acquire_queue(adev, pipe_id, queue_id, inst);
+	amdgpu_gfx_rlc_enter_safe_mode(adev, inst);
+
+	if (!RREG32_SOC15(GC, GET_INST(GC, inst), mmCP_HQD_ACTIVE))
+		goto unlock_out;
+
+	low = RREG32_SOC15(GC, GET_INST(GC, inst), mmCP_HQD_PQ_BASE);
+	high = RREG32_SOC15(GC, GET_INST(GC, inst), mmCP_HQD_PQ_BASE_HI);
+
+	/* only concerned with user queues. */
+	if (!high)
+		goto unlock_out;
+
+	queue_addr = (((queue_addr | high) << 32) | low) << 8;
+
+unlock_out:
+	amdgpu_gfx_rlc_exit_safe_mode(adev, inst);
+	kgd_gfx_v9_release_queue(adev, inst);
+
+	return queue_addr;
+}
+
+/* assume queue acquired  */
+static int kgd_gfx_v9_hqd_dequeue_wait(struct amdgpu_device *adev, uint32_t inst,
+				       unsigned int utimeout)
+{
+	unsigned long end_jiffies = (utimeout * HZ / 1000) + jiffies;
+
+	while (true) {
+		uint32_t temp = RREG32_SOC15(GC, GET_INST(GC, inst), mmCP_HQD_ACTIVE);
+
+		if (!(temp & CP_HQD_ACTIVE__ACTIVE_MASK))
+			return 0;
+
+		if (time_after(jiffies, end_jiffies))
+			return -ETIME;
+
+		usleep_range(500, 1000);
+	}
+}
+
+uint64_t kgd_gfx_v9_hqd_reset(struct amdgpu_device *adev,
+			      uint32_t pipe_id, uint32_t queue_id,
+			      uint32_t inst, unsigned int utimeout)
+{
+	uint32_t low, high, pipe_reset_data = 0;
+	uint64_t queue_addr = 0;
+
+	kgd_gfx_v9_acquire_queue(adev, pipe_id, queue_id, inst);
+	amdgpu_gfx_rlc_enter_safe_mode(adev, inst);
+
+	if (!RREG32_SOC15(GC, GET_INST(GC, inst), mmCP_HQD_ACTIVE))
+		goto unlock_out;
+
+	low = RREG32_SOC15(GC, GET_INST(GC, inst), mmCP_HQD_PQ_BASE);
+	high = RREG32_SOC15(GC, GET_INST(GC, inst), mmCP_HQD_PQ_BASE_HI);
+
+	/* only concerned with user queues. */
+	if (!high)
+		goto unlock_out;
+
+	queue_addr = (((queue_addr | high) << 32) | low) << 8;
+
+	pr_debug("Attempting queue reset on XCC %i pipe id %i queue id %i\n",
+		 inst, pipe_id, queue_id);
+
+	/* assume previous dequeue request issued will take affect after reset */
+	WREG32_SOC15(GC, GET_INST(GC, inst), mmSPI_COMPUTE_QUEUE_RESET, 0x1);
+
+	if (!kgd_gfx_v9_hqd_dequeue_wait(adev, inst, utimeout))
+		goto unlock_out;
+
+	pr_debug("Attempting pipe reset on XCC %i pipe id %i\n", inst, pipe_id);
+
+	pipe_reset_data = REG_SET_FIELD(pipe_reset_data, CP_MEC_CNTL, MEC_ME1_PIPE0_RESET, 1);
+	pipe_reset_data = pipe_reset_data << pipe_id;
+
+	WREG32_SOC15(GC, GET_INST(GC, inst), mmCP_MEC_CNTL, pipe_reset_data);
+	WREG32_SOC15(GC, GET_INST(GC, inst), mmCP_MEC_CNTL, 0);
+
+	if (kgd_gfx_v9_hqd_dequeue_wait(adev, inst, utimeout))
+		queue_addr = 0;
+
+unlock_out:
+	pr_debug("queue reset on XCC %i pipe id %i queue id %i %s\n",
+		 inst, pipe_id, queue_id, !!queue_addr ? "succeeded!" : "failed!");
+	amdgpu_gfx_rlc_exit_safe_mode(adev, inst);
+	kgd_gfx_v9_release_queue(adev, inst);
+
+	return queue_addr;
+}
+
 const struct kfd2kgd_calls gfx_v9_kfd2kgd = {
 	.program_sh_mem_settings = kgd_gfx_v9_program_sh_mem_settings,
 	.set_pasid_vmid_mapping = kgd_gfx_v9_set_pasid_vmid_mapping,
@@ -1172,4 +1275,6 @@ const struct kfd2kgd_calls gfx_v9_kfd2kgd = {
 	.build_grace_period_packet_info = kgd_gfx_v9_build_grace_period_packet_info,
 	.get_cu_occupancy = kgd_gfx_v9_get_cu_occupancy,
 	.program_trap_handler_settings = kgd_gfx_v9_program_trap_handler_settings,
+	.hqd_get_pq_addr = kgd_gfx_v9_hqd_get_pq_addr,
+	.hqd_reset = kgd_gfx_v9_hqd_reset
 };

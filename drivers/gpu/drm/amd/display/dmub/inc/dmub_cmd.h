@@ -111,7 +111,7 @@
 #define DMUB_MAX_PHANTOM_PLANES ((DMUB_MAX_PLANES) / 2)
 
 /* Trace buffer offset for entry */
-#define TRACE_BUFFER_ENTRY_OFFSET  16
+#define TRACE_BUFFER_ENTRY_OFFSET 16
 
 /**
  * Maximum number of dirty rects supported by FW.
@@ -336,6 +336,10 @@ union dmub_psr_debug_flags {
 		 */
 		uint32_t back_to_back_flip : 1;
 
+		/**
+		 * Enable visual confirm for IPS
+		 */
+		uint32_t enable_ips_visual_confirm : 1;
 	} bitfields;
 
 	/**
@@ -1875,7 +1879,12 @@ enum dmub_cmd_idle_opt_type {
 	/**
 	 * DCN hardware notify idle.
 	 */
-	DMUB_CMD__IDLE_OPT_DCN_NOTIFY_IDLE = 2
+	DMUB_CMD__IDLE_OPT_DCN_NOTIFY_IDLE = 2,
+
+	/**
+	 * DCN hardware notify power state.
+	 */
+	DMUB_CMD__IDLE_OPT_SET_DC_POWER_STATE = 3,
 };
 
 /**
@@ -1900,6 +1909,33 @@ struct dmub_dcn_notify_idle_cntl_data {
 struct dmub_rb_cmd_idle_opt_dcn_notify_idle {
 	struct dmub_cmd_header header; /**< header */
 	struct dmub_dcn_notify_idle_cntl_data cntl_data;
+};
+
+/**
+ * enum dmub_idle_opt_dc_power_state - DC power states.
+ */
+enum dmub_idle_opt_dc_power_state {
+	DMUB_IDLE_OPT_DC_POWER_STATE_UNKNOWN = 0,
+	DMUB_IDLE_OPT_DC_POWER_STATE_D0 = 1,
+	DMUB_IDLE_OPT_DC_POWER_STATE_D1 = 2,
+	DMUB_IDLE_OPT_DC_POWER_STATE_D2 = 4,
+	DMUB_IDLE_OPT_DC_POWER_STATE_D3 = 8,
+};
+
+/**
+ * struct dmub_idle_opt_set_dc_power_state_data - Data passed to FW in a DMUB_CMD__IDLE_OPT_SET_DC_POWER_STATE command.
+ */
+struct dmub_idle_opt_set_dc_power_state_data {
+	uint8_t power_state; /**< power state */
+	uint8_t pad[3]; /**< padding */
+};
+
+/**
+ * struct dmub_rb_cmd_idle_opt_set_dc_power_state - Data passed to FW in a DMUB_CMD__IDLE_OPT_SET_DC_POWER_STATE command.
+ */
+struct dmub_rb_cmd_idle_opt_set_dc_power_state {
+	struct dmub_cmd_header header; /**< header */
+	struct dmub_idle_opt_set_dc_power_state_data data;
 };
 
 /**
@@ -3024,14 +3060,6 @@ struct dmub_cmd_update_dirty_rect_data {
 	 * Currently the support is only for 0 or 1
 	 */
 	uint8_t panel_inst;
-	/**
-	 * 16-bit value dicated by driver that indicates the coasting vtotal high byte part.
-	 */
-	uint16_t coasting_vtotal_high;
-	/**
-	 * Explicit padding to 4 byte boundary.
-	 */
-	uint8_t pad[2];
 };
 
 /**
@@ -5302,6 +5330,10 @@ union dmub_rb_cmd {
 	 * Definition of a DMUB_CMD__IDLE_OPT_DCN_NOTIFY_IDLE command.
 	 */
 	struct dmub_rb_cmd_idle_opt_dcn_notify_idle idle_opt_notify_idle;
+	/**
+	 * Definition of a DMUB_CMD__IDLE_OPT_SET_DC_POWER_STATE command.
+	 */
+	struct dmub_rb_cmd_idle_opt_set_dc_power_state idle_opt_set_dc_power_state;
 	/*
 	 * Definition of a DMUB_CMD__REPLAY_COPY_SETTINGS command.
 	 */

@@ -501,10 +501,6 @@
 	vdd3-supply = <&vreg_l14b_3p0>;
 };
 
-&smb2360_2 {
-	status = "disabled";
-};
-
 &tlmm {
 	gpio-reserved-ranges = <34 2>, /* Unused */
 			       <44 4>, /* SPI (TPM) */

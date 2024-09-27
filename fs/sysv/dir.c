@@ -28,17 +28,17 @@ const struct file_operations sysv_dir_operations = {
 	.fsync		= generic_file_fsync,
 };
 
-static void dir_commit_chunk(struct page *page, loff_t pos, unsigned len)
+static void dir_commit_chunk(struct folio *folio, loff_t pos, unsigned len)
 {
-	struct address_space *mapping = page->mapping;
+	struct address_space *mapping = folio->mapping;
 	struct inode *dir = mapping->host;
 
-	block_write_end(NULL, mapping, pos, len, len, page, NULL);
+	block_write_end(NULL, mapping, pos, len, len, folio, NULL);
 	if (pos+len > dir->i_size) {
 		i_size_write(dir, pos+len);
 		mark_inode_dirty(dir);
 	}
-	unlock_page(page);
+	folio_unlock(folio);
 }
 
 static int sysv_handle_dirsync(struct inode *dir)
@@ -52,20 +52,21 @@ static int sysv_handle_dirsync(struct inode *dir)
 }
 
 /*
- * Calls to dir_get_page()/unmap_and_put_page() must be nested according to the
+ * Calls to dir_get_folio()/folio_release_kmap() must be nested according to the
  * rules documented in mm/highmem.rst.
  *
- * NOTE: sysv_find_entry() and sysv_dotdot() act as calls to dir_get_page()
+ * NOTE: sysv_find_entry() and sysv_dotdot() act as calls to dir_get_folio()
  * and must be treated accordingly for nesting purposes.
  */
-static void *dir_get_page(struct inode *dir, unsigned long n, struct page **p)
+static void *dir_get_folio(struct inode *dir, unsigned long n,
+		struct folio **foliop)
 {
-	struct address_space *mapping = dir->i_mapping;
-	struct page *page = read_mapping_page(mapping, n, NULL);
-	if (IS_ERR(page))
-		return ERR_CAST(page);
-	*p = page;
-	return kmap_local_page(page);
+	struct folio *folio = read_mapping_folio(dir->i_mapping, n, NULL);
+
+	if (IS_ERR(folio))
+		return ERR_CAST(folio);
+	*foliop = folio;
+	return kmap_local_folio(folio, 0);
 }
 
 static int sysv_readdir(struct file *file, struct dir_context *ctx)
@@ -87,9 +88,9 @@ static int sysv_readdir(struct file *file, struct dir_context *ctx)
 	for ( ; n < npages; n++, offset = 0) {
 		char *kaddr, *limit;
 		struct sysv_dir_entry *de;
-		struct page *page;
+		struct folio *folio;
 
-		kaddr = dir_get_page(inode, n, &page);
+		kaddr = dir_get_folio(inode, n, &folio);
 		if (IS_ERR(kaddr))
 			continue;
 		de = (struct sysv_dir_entry *)(kaddr+offset);
@@ -103,11 +104,11 @@ static int sysv_readdir(struct file *file, struct dir_context *ctx)
 			if (!dir_emit(ctx, name, strnlen(name,SYSV_NAMELEN),
 					fs16_to_cpu(SYSV_SB(sb), de->inode),
 					DT_UNKNOWN)) {
-				unmap_and_put_page(page, kaddr);
+				folio_release_kmap(folio, kaddr);
 				return 0;
 			}
 		}
-		unmap_and_put_page(page, kaddr);
+		folio_release_kmap(folio, kaddr);
 	}
 	return 0;
 }
@@ -126,27 +127,23 @@ static inline int namecompare(int len, int maxlen,
 /*
  *	sysv_find_entry()
  *
- * finds an entry in the specified directory with the wanted name. It
- * returns the cache buffer in which the entry was found, and the entry
- * itself (as a parameter - res_dir). It does NOT read the inode of the
+ * finds an entry in the specified directory with the wanted name.
+ * It does NOT read the inode of the
  * entry - you'll have to do that yourself if you want to.
  *
- * On Success unmap_and_put_page() should be called on *res_page.
+ * On Success folio_release_kmap() should be called on *foliop.
  *
- * sysv_find_entry() acts as a call to dir_get_page() and must be treated
+ * sysv_find_entry() acts as a call to dir_get_folio() and must be treated
  * accordingly for nesting purposes.
  */
-struct sysv_dir_entry *sysv_find_entry(struct dentry *dentry, struct page **res_page)
+struct sysv_dir_entry *sysv_find_entry(struct dentry *dentry, struct folio **foliop)
 {
 	const char * name = dentry->d_name.name;
 	int namelen = dentry->d_name.len;
 	struct inode * dir = d_inode(dentry->d_parent);
 	unsigned long start, n;
 	unsigned long npages = dir_pages(dir);
-	struct page *page = NULL;
 	struct sysv_dir_entry *de;
-
-	*res_page = NULL;
 
 	start = SYSV_I(dir)->i_dir_start_lookup;
 	if (start >= npages)
@@ -154,11 +151,11 @@ struct sysv_dir_entry *sysv_find_entry(struct dentry *dentry, struct page **res_
 	n = start;
 
 	do {
-		char *kaddr = dir_get_page(dir, n, &page);
+		char *kaddr = dir_get_folio(dir, n, foliop);
 
 		if (!IS_ERR(kaddr)) {
 			de = (struct sysv_dir_entry *)kaddr;
-			kaddr += PAGE_SIZE - SYSV_DIRSIZE;
+			kaddr += folio_size(*foliop) - SYSV_DIRSIZE;
 			for ( ; (char *) de <= kaddr ; de++) {
 				if (!de->inode)
 					continue;
@@ -166,7 +163,7 @@ struct sysv_dir_entry *sysv_find_entry(struct dentry *dentry, struct page **res_
 							name, de->name))
 					goto found;
 			}
-			unmap_and_put_page(page, kaddr);
+			folio_release_kmap(*foliop, kaddr);
 		}
 
 		if (++n >= npages)
@@ -177,7 +174,6 @@ struct sysv_dir_entry *sysv_find_entry(struct dentry *dentry, struct page **res_
 
 found:
 	SYSV_I(dir)->i_dir_start_lookup = n;
-	*res_page = page;
 	return de;
 }
 
@@ -186,7 +182,7 @@ int sysv_add_link(struct dentry *dentry, struct inode *inode)
 	struct inode *dir = d_inode(dentry->d_parent);
 	const char * name = dentry->d_name.name;
 	int namelen = dentry->d_name.len;
-	struct page *page = NULL;
+	struct folio *folio = NULL;
 	struct sysv_dir_entry * de;
 	unsigned long npages = dir_pages(dir);
 	unsigned long n;
@@ -196,7 +192,7 @@ int sysv_add_link(struct dentry *dentry, struct inode *inode)
 
 	/* We take care of directory expansion in the same loop */
 	for (n = 0; n <= npages; n++) {
-		kaddr = dir_get_page(dir, n, &page);
+		kaddr = dir_get_folio(dir, n, &folio);
 		if (IS_ERR(kaddr))
 			return PTR_ERR(kaddr);
 		de = (struct sysv_dir_entry *)kaddr;
@@ -206,49 +202,49 @@ int sysv_add_link(struct dentry *dentry, struct inode *inode)
 				goto got_it;
 			err = -EEXIST;
 			if (namecompare(namelen, SYSV_NAMELEN, name, de->name)) 
-				goto out_page;
+				goto out_folio;
 			de++;
 		}
-		unmap_and_put_page(page, kaddr);
+		folio_release_kmap(folio, kaddr);
 	}
 	BUG();
 	return -EINVAL;
 
 got_it:
-	pos = page_offset(page) + offset_in_page(de);
-	lock_page(page);
-	err = sysv_prepare_chunk(page, pos, SYSV_DIRSIZE);
+	pos = folio_pos(folio) + offset_in_folio(folio, de);
+	folio_lock(folio);
+	err = sysv_prepare_chunk(folio, pos, SYSV_DIRSIZE);
 	if (err)
 		goto out_unlock;
 	memcpy (de->name, name, namelen);
 	memset (de->name + namelen, 0, SYSV_DIRSIZE - namelen - 2);
 	de->inode = cpu_to_fs16(SYSV_SB(inode->i_sb), inode->i_ino);
-	dir_commit_chunk(page, pos, SYSV_DIRSIZE);
+	dir_commit_chunk(folio, pos, SYSV_DIRSIZE);
 	inode_set_mtime_to_ts(dir, inode_set_ctime_current(dir));
 	mark_inode_dirty(dir);
 	err = sysv_handle_dirsync(dir);
-out_page:
-	unmap_and_put_page(page, kaddr);
+out_folio:
+	folio_release_kmap(folio, kaddr);
 	return err;
 out_unlock:
-	unlock_page(page);
-	goto out_page;
+	folio_unlock(folio);
+	goto out_folio;
 }
 
-int sysv_delete_entry(struct sysv_dir_entry *de, struct page *page)
+int sysv_delete_entry(struct sysv_dir_entry *de, struct folio *folio)
 {
-	struct inode *inode = page->mapping->host;
-	loff_t pos = page_offset(page) + offset_in_page(de);
+	struct inode *inode = folio->mapping->host;
+	loff_t pos = folio_pos(folio) + offset_in_folio(folio, de);
 	int err;
 
-	lock_page(page);
-	err = sysv_prepare_chunk(page, pos, SYSV_DIRSIZE);
+	folio_lock(folio);
+	err = sysv_prepare_chunk(folio, pos, SYSV_DIRSIZE);
 	if (err) {
-		unlock_page(page);
+		folio_unlock(folio);
 		return err;
 	}
 	de->inode = 0;
-	dir_commit_chunk(page, pos, SYSV_DIRSIZE);
+	dir_commit_chunk(folio, pos, SYSV_DIRSIZE);
 	inode_set_mtime_to_ts(inode, inode_set_ctime_current(inode));
 	mark_inode_dirty(inode);
 	return sysv_handle_dirsync(inode);
@@ -256,33 +252,33 @@ int sysv_delete_entry(struct sysv_dir_entry *de, struct page *page)
 
 int sysv_make_empty(struct inode *inode, struct inode *dir)
 {
-	struct page *page = grab_cache_page(inode->i_mapping, 0);
+	struct folio *folio = filemap_grab_folio(inode->i_mapping, 0);
 	struct sysv_dir_entry * de;
-	char *base;
+	char *kaddr;
 	int err;
 
-	if (!page)
-		return -ENOMEM;
-	err = sysv_prepare_chunk(page, 0, 2 * SYSV_DIRSIZE);
+	if (IS_ERR(folio))
+		return PTR_ERR(folio);
+	err = sysv_prepare_chunk(folio, 0, 2 * SYSV_DIRSIZE);
 	if (err) {
-		unlock_page(page);
+		folio_unlock(folio);
 		goto fail;
 	}
-	base = kmap_local_page(page);
-	memset(base, 0, PAGE_SIZE);
+	kaddr = kmap_local_folio(folio, 0);
+	memset(kaddr, 0, folio_size(folio));
 
-	de = (struct sysv_dir_entry *) base;
+	de = (struct sysv_dir_entry *)kaddr;
 	de->inode = cpu_to_fs16(SYSV_SB(inode->i_sb), inode->i_ino);
 	strcpy(de->name,".");
 	de++;
 	de->inode = cpu_to_fs16(SYSV_SB(inode->i_sb), dir->i_ino);
 	strcpy(de->name,"..");
 
-	kunmap_local(base);
-	dir_commit_chunk(page, 0, 2 * SYSV_DIRSIZE);
+	kunmap_local(kaddr);
+	dir_commit_chunk(folio, 0, 2 * SYSV_DIRSIZE);
 	err = sysv_handle_dirsync(inode);
 fail:
-	put_page(page);
+	folio_put(folio);
 	return err;
 }
 
@@ -292,19 +288,19 @@ fail:
 int sysv_empty_dir(struct inode * inode)
 {
 	struct super_block *sb = inode->i_sb;
-	struct page *page = NULL;
+	struct folio *folio = NULL;
 	unsigned long i, npages = dir_pages(inode);
 	char *kaddr;
 
 	for (i = 0; i < npages; i++) {
 		struct sysv_dir_entry *de;
 
-		kaddr = dir_get_page(inode, i, &page);
+		kaddr = dir_get_folio(inode, i, &folio);
 		if (IS_ERR(kaddr))
 			continue;
 
 		de = (struct sysv_dir_entry *)kaddr;
-		kaddr += PAGE_SIZE-SYSV_DIRSIZE;
+		kaddr += folio_size(folio) - SYSV_DIRSIZE;
 
 		for ( ;(char *)de <= kaddr; de++) {
 			if (!de->inode)
@@ -321,46 +317,46 @@ int sysv_empty_dir(struct inode * inode)
 			if (de->name[1] != '.' || de->name[2])
 				goto not_empty;
 		}
-		unmap_and_put_page(page, kaddr);
+		folio_release_kmap(folio, kaddr);
 	}
 	return 1;
 
 not_empty:
-	unmap_and_put_page(page, kaddr);
+	folio_release_kmap(folio, kaddr);
 	return 0;
 }
 
 /* Releases the page */
-int sysv_set_link(struct sysv_dir_entry *de, struct page *page,
-	struct inode *inode)
+int sysv_set_link(struct sysv_dir_entry *de, struct folio *folio,
+		struct inode *inode)
 {
-	struct inode *dir = page->mapping->host;
-	loff_t pos = page_offset(page) + offset_in_page(de);
+	struct inode *dir = folio->mapping->host;
+	loff_t pos = folio_pos(folio) + offset_in_folio(folio, de);
 	int err;
 
-	lock_page(page);
-	err = sysv_prepare_chunk(page, pos, SYSV_DIRSIZE);
+	folio_lock(folio);
+	err = sysv_prepare_chunk(folio, pos, SYSV_DIRSIZE);
 	if (err) {
-		unlock_page(page);
+		folio_unlock(folio);
 		return err;
 	}
 	de->inode = cpu_to_fs16(SYSV_SB(inode->i_sb), inode->i_ino);
-	dir_commit_chunk(page, pos, SYSV_DIRSIZE);
+	dir_commit_chunk(folio, pos, SYSV_DIRSIZE);
 	inode_set_mtime_to_ts(dir, inode_set_ctime_current(dir));
 	mark_inode_dirty(dir);
 	return sysv_handle_dirsync(inode);
 }
 
 /*
- * Calls to dir_get_page()/unmap_and_put_page() must be nested according to the
+ * Calls to dir_get_folio()/folio_release_kmap() must be nested according to the
  * rules documented in mm/highmem.rst.
  *
- * sysv_dotdot() acts as a call to dir_get_page() and must be treated
+ * sysv_dotdot() acts as a call to dir_get_folio() and must be treated
  * accordingly for nesting purposes.
  */
-struct sysv_dir_entry *sysv_dotdot(struct inode *dir, struct page **p)
+struct sysv_dir_entry *sysv_dotdot(struct inode *dir, struct folio **foliop)
 {
-	struct sysv_dir_entry *de = dir_get_page(dir, 0, p);
+	struct sysv_dir_entry *de = dir_get_folio(dir, 0, foliop);
 
 	if (IS_ERR(de))
 		return NULL;
@@ -370,13 +366,13 @@ struct sysv_dir_entry *sysv_dotdot(struct inode *dir, struct page **p)
 
 ino_t sysv_inode_by_name(struct dentry *dentry)
 {
-	struct page *page;
-	struct sysv_dir_entry *de = sysv_find_entry (dentry, &page);
+	struct folio *folio;
+	struct sysv_dir_entry *de = sysv_find_entry (dentry, &folio);
 	ino_t res = 0;
 	
 	if (de) {
 		res = fs16_to_cpu(SYSV_SB(dentry->d_sb), de->inode);
-		unmap_and_put_page(page, de);
+		folio_release_kmap(folio, de);
 	}
 	return res;
 }

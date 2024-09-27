@@ -120,11 +120,10 @@ void dpp401_set_cursor_attributes(
 	enum dc_cursor_color_format color_format = cursor_attributes->color_format;
 	int cur_rom_en = 0;
 
+	// DCN4 should always do Cursor degamma for Cursor Color modes
 	if (color_format == CURSOR_MODE_COLOR_PRE_MULTIPLIED_ALPHA ||
 		color_format == CURSOR_MODE_COLOR_UN_PRE_MULTIPLIED_ALPHA) {
-		if (cursor_attributes->attribute_flags.bits.ENABLE_CURSOR_DEGAMMA) {
-			cur_rom_en = 1;
-		}
+		cur_rom_en = 1;
 	}
 
 	REG_UPDATE_3(CURSOR0_CONTROL,
@@ -246,16 +245,6 @@ void dpp401_set_cursor_matrix(
 	enum dc_color_space color_space,
 	struct dc_csc_transform cursor_csc_color_matrix)
 {
-	struct dpp_input_csc_matrix cursor_tbl_entry;
-	unsigned int i;
-
-	if (cursor_csc_color_matrix.enable_adjustment == true) {
-		for (i = 0; i < 12; i++)
-			cursor_tbl_entry.regval[i] = cursor_csc_color_matrix.matrix[i];
-
-		cursor_tbl_entry.color_space = color_space;
-		dpp401_program_cursor_csc(dpp_base, color_space, &cursor_tbl_entry);
-	} else {
-		dpp401_program_cursor_csc(dpp_base, color_space, NULL);
-	}
+	//Since we don't have cursor matrix information, force bypass mode by passing in unknown color space
+	dpp401_program_cursor_csc(dpp_base, COLOR_SPACE_UNKNOWN, NULL);
 }

@@ -1665,6 +1665,5 @@ Credits
 TODO
 ====
 
-- Describe how kbuild supports shipped files with _shipped.
 - Generating offset header files.
 - Add more variables to chapters 7 or 9?

@@ -77,32 +77,24 @@ static int amdgpu_vm_sdma_alloc_job(struct amdgpu_vm_update_params *p,
  * amdgpu_vm_sdma_prepare - prepare SDMA command submission
  *
  * @p: see amdgpu_vm_update_params definition
- * @resv: reservation object with embedded fence
- * @sync_mode: synchronization mode
+ * @sync: amdgpu_sync object with fences to wait for
  *
  * Returns:
  * Negativ errno, 0 for success.
  */
 static int amdgpu_vm_sdma_prepare(struct amdgpu_vm_update_params *p,
-				  struct dma_resv *resv,
-				  enum amdgpu_sync_mode sync_mode)
+				  struct amdgpu_sync *sync)
 {
-	struct amdgpu_sync sync;
 	int r;
 
 	r = amdgpu_vm_sdma_alloc_job(p, 0);
 	if (r)
 		return r;
 
-	if (!resv)
+	if (!sync)
 		return 0;
 
-	amdgpu_sync_create(&sync);
-	r = amdgpu_sync_resv(p->adev, &sync, resv, sync_mode, p->vm);
-	if (!r)
-		r = amdgpu_sync_push_to_job(&sync, p->job);
-	amdgpu_sync_free(&sync);
-
+	r = amdgpu_sync_push_to_job(sync, p->job);
 	if (r) {
 		p->num_dw_left = 0;
 		amdgpu_job_free(p->job);

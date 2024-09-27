@@ -2957,7 +2957,7 @@ MODULE_DEVICE_TABLE(of, wcd937x_of_match);
 
 static struct platform_driver wcd937x_codec_driver = {
 	.probe = wcd937x_probe,
-	.remove_new = wcd937x_remove,
+	.remove = wcd937x_remove,
 	.driver = {
 		.name = "wcd937x_codec",
 		.of_match_table = of_match_ptr(wcd937x_of_match),

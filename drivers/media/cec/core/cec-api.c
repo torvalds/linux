@@ -580,7 +580,7 @@ static int cec_open(struct inode *inode, struct file *filp)
 	fh->mode_initiator = CEC_MODE_INITIATOR;
 	fh->adap = adap;
 
-	err = cec_get_device(devnode);
+	err = cec_get_device(adap);
 	if (err) {
 		kfree(fh);
 		return err;
@@ -686,7 +686,7 @@ static int cec_release(struct inode *inode, struct file *filp)
 	mutex_unlock(&fh->lock);
 	kfree(fh);
 
-	cec_put_device(devnode);
+	cec_put_device(adap);
 	filp->private_data = NULL;
 	return 0;
 }

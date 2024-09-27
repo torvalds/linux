@@ -30,6 +30,7 @@
 #include <linux/rcupdate.h>
 #include <linux/sched/task.h>
 #include <linux/sort.h>
+#include <linux/jiffies.h>
 
 static void bch2_discard_one_bucket_fast(struct bch_dev *, u64);
 
@@ -2183,7 +2184,7 @@ int bch2_dev_freespace_init(struct bch_fs *c, struct bch_dev *ca,
 	 * freespace/need_discard/need_gc_gens btrees as needed:
 	 */
 	while (1) {
-		if (last_updated + HZ * 10 < jiffies) {
+		if (time_after(jiffies, last_updated + HZ * 10)) {
 			bch_info(ca, "%s: currently at %llu/%llu",
 				 __func__, iter.pos.offset, ca->mi.nbuckets);
 			last_updated = jiffies;
@@ -2295,6 +2296,36 @@ int bch2_fs_freespace_init(struct bch_fs *c)
 	}
 
 	return 0;
+}
+
+/* device removal */
+
+int bch2_dev_remove_alloc(struct bch_fs *c, struct bch_dev *ca)
+{
+	struct bpos start	= POS(ca->dev_idx, 0);
+	struct bpos end		= POS(ca->dev_idx, U64_MAX);
+	int ret;
+
+	/*
+	 * We clear the LRU and need_discard btrees first so that we don't race
+	 * with bch2_do_invalidates() and bch2_do_discards()
+	 */
+	ret =   bch2_dev_remove_stripes(c, ca->dev_idx) ?:
+		bch2_btree_delete_range(c, BTREE_ID_lru, start, end,
+					BTREE_TRIGGER_norun, NULL) ?:
+		bch2_btree_delete_range(c, BTREE_ID_need_discard, start, end,
+					BTREE_TRIGGER_norun, NULL) ?:
+		bch2_btree_delete_range(c, BTREE_ID_freespace, start, end,
+					BTREE_TRIGGER_norun, NULL) ?:
+		bch2_btree_delete_range(c, BTREE_ID_backpointers, start, end,
+					BTREE_TRIGGER_norun, NULL) ?:
+		bch2_btree_delete_range(c, BTREE_ID_bucket_gens, start, end,
+					BTREE_TRIGGER_norun, NULL) ?:
+		bch2_btree_delete_range(c, BTREE_ID_alloc, start, end,
+					BTREE_TRIGGER_norun, NULL) ?:
+		bch2_dev_usage_remove(c, ca->dev_idx);
+	bch_err_msg(ca, ret, "removing dev alloc info");
+	return ret;
 }
 
 /* Bucket IO clocks: */
@@ -2432,12 +2463,14 @@ static bool bch2_dev_has_open_write_point(struct bch_fs *c, struct bch_dev *ca)
 /* device goes ro: */
 void bch2_dev_allocator_remove(struct bch_fs *c, struct bch_dev *ca)
 {
-	unsigned i;
+	lockdep_assert_held(&c->state_lock);
 
 	/* First, remove device from allocation groups: */
 
-	for (i = 0; i < ARRAY_SIZE(c->rw_devs); i++)
+	for (unsigned i = 0; i < ARRAY_SIZE(c->rw_devs); i++)
 		clear_bit(ca->dev_idx, c->rw_devs[i].d);
+
+	c->rw_devs_change_count++;
 
 	/*
 	 * Capacity is calculated based off of devices in allocation groups:
@@ -2467,11 +2500,13 @@ void bch2_dev_allocator_remove(struct bch_fs *c, struct bch_dev *ca)
 /* device goes rw: */
 void bch2_dev_allocator_add(struct bch_fs *c, struct bch_dev *ca)
 {
-	unsigned i;
+	lockdep_assert_held(&c->state_lock);
 
-	for (i = 0; i < ARRAY_SIZE(c->rw_devs); i++)
+	for (unsigned i = 0; i < ARRAY_SIZE(c->rw_devs); i++)
 		if (ca->mi.data_allowed & (1 << i))
 			set_bit(ca->dev_idx, c->rw_devs[i].d);
+
+	c->rw_devs_change_count++;
 }
 
 void bch2_dev_allocator_background_exit(struct bch_dev *ca)

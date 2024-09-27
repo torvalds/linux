@@ -367,8 +367,11 @@ Metadata only copy up
 
 When the "metacopy" feature is enabled, overlayfs will only copy
 up metadata (as opposed to whole file), when a metadata specific operation
-like chown/chmod is performed. Full file will be copied up later when
-file is opened for WRITE operation.
+like chown/chmod is performed. An upper file in this state is marked with
+"trusted.overlayfs.metacopy" xattr which indicates that the upper file
+contains no data.  The data will be copied up later when file is opened for
+WRITE operation.  After the lower file's data is copied up,
+the "trusted.overlayfs.metacopy" xattr is removed from the upper file.
 
 In other words, this is delayed data copy up operation and data is copied
 up when there is a need to actually modify data.

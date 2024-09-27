@@ -91,7 +91,7 @@ struct r600_audio_pin *dce6_audio_get_pin(struct radeon_device *rdev)
 			pin = &rdev->audio.pin[i];
 			pin_count = 0;
 
-			list_for_each_entry(encoder, &rdev->ddev->mode_config.encoder_list, head) {
+			list_for_each_entry(encoder, &rdev_to_drm(rdev)->mode_config.encoder_list, head) {
 				if (radeon_encoder_is_digital(encoder)) {
 					radeon_encoder = to_radeon_encoder(encoder);
 					dig = radeon_encoder->enc_priv;

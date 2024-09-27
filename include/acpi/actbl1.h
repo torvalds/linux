@@ -567,6 +567,10 @@ struct acpi_cedt_cxims {
 	u64 xormap_list[];
 };
 
+struct acpi_cedt_cxims_target_element {
+	u64 xormap;
+};
+
 /* 3: CXL RCEC Downstream Port Association Structure */
 
 struct acpi_cedt_rdpas {
@@ -751,6 +755,7 @@ struct acpi_dbg2_device {
 #define ACPI_DBG2_16550_WITH_GAS    0x0012
 #define ACPI_DBG2_SDM845_7_372MHZ   0x0013
 #define ACPI_DBG2_INTEL_LPSS        0x0014
+#define ACPI_DBG2_RISCV_SBI_CON     0x0015
 
 #define ACPI_DBG2_1394_STANDARD     0x0000
 
@@ -1791,7 +1796,7 @@ struct acpi_hmat_cache {
 	u32 reserved1;
 	u64 cache_size;
 	u32 cache_attributes;
-	u16 reserved2;
+	u16 address_mode;
 	u16 number_of_SMBIOShandles;
 };
 
@@ -1802,6 +1807,9 @@ struct acpi_hmat_cache {
 #define ACPI_HMAT_CACHE_ASSOCIATIVITY   (0x00000F00)
 #define ACPI_HMAT_WRITE_POLICY          (0x0000F000)
 #define ACPI_HMAT_CACHE_LINE_SIZE       (0xFFFF0000)
+
+#define ACPI_HMAT_CACHE_MODE_UNKNOWN            (0)
+#define ACPI_HMAT_CACHE_MODE_EXTENDED_LINEAR    (1)
 
 /* Values for cache associativity flag */
 

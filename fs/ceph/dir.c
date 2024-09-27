@@ -707,7 +707,6 @@ static loff_t ceph_dir_llseek(struct file *file, loff_t offset, int whence)
 
 		if (offset != file->f_pos) {
 			file->f_pos = offset;
-			file->f_version = 0;
 			dfi->file_info.flags &= ~CEPH_F_ATEND;
 		}
 		retval = offset;

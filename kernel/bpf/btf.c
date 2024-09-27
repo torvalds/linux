@@ -212,7 +212,7 @@ enum btf_kfunc_hook {
 	BTF_KFUNC_HOOK_TRACING,
 	BTF_KFUNC_HOOK_SYSCALL,
 	BTF_KFUNC_HOOK_FMODRET,
-	BTF_KFUNC_HOOK_CGROUP_SKB,
+	BTF_KFUNC_HOOK_CGROUP,
 	BTF_KFUNC_HOOK_SCHED_ACT,
 	BTF_KFUNC_HOOK_SK_SKB,
 	BTF_KFUNC_HOOK_SOCKET_FILTER,
@@ -790,7 +790,7 @@ const char *btf_str_by_offset(const struct btf *btf, u32 offset)
 	return NULL;
 }
 
-static bool __btf_name_valid(const struct btf *btf, u32 offset)
+static bool btf_name_valid_identifier(const struct btf *btf, u32 offset)
 {
 	/* offset must be valid */
 	const char *src = btf_str_by_offset(btf, offset);
@@ -809,11 +809,6 @@ static bool __btf_name_valid(const struct btf *btf, u32 offset)
 	}
 
 	return !*src;
-}
-
-static bool btf_name_valid_identifier(const struct btf *btf, u32 offset)
-{
-	return __btf_name_valid(btf, offset);
 }
 
 /* Allow any printable character in DATASEC names */
@@ -3761,6 +3756,7 @@ static int btf_find_field(const struct btf *btf, const struct btf_type *t,
 	return -EINVAL;
 }
 
+/* Callers have to ensure the life cycle of btf if it is program BTF */
 static int btf_parse_kptr(const struct btf *btf, struct btf_field *field,
 			  struct btf_field_info *info)
 {
@@ -3789,7 +3785,6 @@ static int btf_parse_kptr(const struct btf *btf, struct btf_field *field,
 		field->kptr.dtor = NULL;
 		id = info->kptr.type_id;
 		kptr_btf = (struct btf *)btf;
-		btf_get(kptr_btf);
 		goto found_dtor;
 	}
 	if (id < 0)
@@ -4631,7 +4626,7 @@ static s32 btf_var_check_meta(struct btf_verifier_env *env,
 	}
 
 	if (!t->name_off ||
-	    !__btf_name_valid(env->btf, t->name_off)) {
+	    !btf_name_valid_identifier(env->btf, t->name_off)) {
 		btf_verifier_log_type(env, t, "Invalid name");
 		return -EINVAL;
 	}
@@ -5519,36 +5514,72 @@ static const char *alloc_obj_fields[] = {
 static struct btf_struct_metas *
 btf_parse_struct_metas(struct bpf_verifier_log *log, struct btf *btf)
 {
-	union {
-		struct btf_id_set set;
-		struct {
-			u32 _cnt;
-			u32 _ids[ARRAY_SIZE(alloc_obj_fields)];
-		} _arr;
-	} aof;
 	struct btf_struct_metas *tab = NULL;
+	struct btf_id_set *aof;
 	int i, n, id, ret;
 
 	BUILD_BUG_ON(offsetof(struct btf_id_set, cnt) != 0);
 	BUILD_BUG_ON(sizeof(struct btf_id_set) != sizeof(u32));
 
-	memset(&aof, 0, sizeof(aof));
+	aof = kmalloc(sizeof(*aof), GFP_KERNEL | __GFP_NOWARN);
+	if (!aof)
+		return ERR_PTR(-ENOMEM);
+	aof->cnt = 0;
+
 	for (i = 0; i < ARRAY_SIZE(alloc_obj_fields); i++) {
 		/* Try to find whether this special type exists in user BTF, and
 		 * if so remember its ID so we can easily find it among members
 		 * of structs that we iterate in the next loop.
 		 */
+		struct btf_id_set *new_aof;
+
 		id = btf_find_by_name_kind(btf, alloc_obj_fields[i], BTF_KIND_STRUCT);
 		if (id < 0)
 			continue;
-		aof.set.ids[aof.set.cnt++] = id;
+
+		new_aof = krealloc(aof, offsetof(struct btf_id_set, ids[aof->cnt + 1]),
+				   GFP_KERNEL | __GFP_NOWARN);
+		if (!new_aof) {
+			ret = -ENOMEM;
+			goto free_aof;
+		}
+		aof = new_aof;
+		aof->ids[aof->cnt++] = id;
 	}
 
-	if (!aof.set.cnt)
-		return NULL;
-	sort(&aof.set.ids, aof.set.cnt, sizeof(aof.set.ids[0]), btf_id_cmp_func, NULL);
-
 	n = btf_nr_types(btf);
+	for (i = 1; i < n; i++) {
+		/* Try to find if there are kptrs in user BTF and remember their ID */
+		struct btf_id_set *new_aof;
+		struct btf_field_info tmp;
+		const struct btf_type *t;
+
+		t = btf_type_by_id(btf, i);
+		if (!t) {
+			ret = -EINVAL;
+			goto free_aof;
+		}
+
+		ret = btf_find_kptr(btf, t, 0, 0, &tmp);
+		if (ret != BTF_FIELD_FOUND)
+			continue;
+
+		new_aof = krealloc(aof, offsetof(struct btf_id_set, ids[aof->cnt + 1]),
+				   GFP_KERNEL | __GFP_NOWARN);
+		if (!new_aof) {
+			ret = -ENOMEM;
+			goto free_aof;
+		}
+		aof = new_aof;
+		aof->ids[aof->cnt++] = i;
+	}
+
+	if (!aof->cnt) {
+		kfree(aof);
+		return NULL;
+	}
+	sort(&aof->ids, aof->cnt, sizeof(aof->ids[0]), btf_id_cmp_func, NULL);
+
 	for (i = 1; i < n; i++) {
 		struct btf_struct_metas *new_tab;
 		const struct btf_member *member;
@@ -5558,17 +5589,13 @@ btf_parse_struct_metas(struct bpf_verifier_log *log, struct btf *btf)
 		int j, tab_cnt;
 
 		t = btf_type_by_id(btf, i);
-		if (!t) {
-			ret = -EINVAL;
-			goto free;
-		}
 		if (!__btf_type_is_struct(t))
 			continue;
 
 		cond_resched();
 
 		for_each_member(j, t, member) {
-			if (btf_id_set_contains(&aof.set, member->type))
+			if (btf_id_set_contains(aof, member->type))
 				goto parse;
 		}
 		continue;
@@ -5587,7 +5614,8 @@ btf_parse_struct_metas(struct bpf_verifier_log *log, struct btf *btf)
 		type = &tab->types[tab->cnt];
 		type->btf_id = i;
 		record = btf_parse_fields(btf, t, BPF_SPIN_LOCK | BPF_LIST_HEAD | BPF_LIST_NODE |
-						  BPF_RB_ROOT | BPF_RB_NODE | BPF_REFCOUNT, t->size);
+						  BPF_RB_ROOT | BPF_RB_NODE | BPF_REFCOUNT |
+						  BPF_KPTR, t->size);
 		/* The record cannot be unset, treat it as an error if so */
 		if (IS_ERR_OR_NULL(record)) {
 			ret = PTR_ERR_OR_ZERO(record) ?: -EFAULT;
@@ -5596,9 +5624,12 @@ btf_parse_struct_metas(struct bpf_verifier_log *log, struct btf *btf)
 		type->record = record;
 		tab->cnt++;
 	}
+	kfree(aof);
 	return tab;
 free:
 	btf_struct_metas_free(tab);
+free_aof:
+	kfree(aof);
 	return ERR_PTR(ret);
 }
 
@@ -6245,12 +6276,11 @@ static struct btf *btf_parse_module(const char *module_name, const void *data,
 	btf->kernel_btf = true;
 	snprintf(btf->name, sizeof(btf->name), "%s", module_name);
 
-	btf->data = kvmalloc(data_size, GFP_KERNEL | __GFP_NOWARN);
+	btf->data = kvmemdup(data, data_size, GFP_KERNEL | __GFP_NOWARN);
 	if (!btf->data) {
 		err = -ENOMEM;
 		goto errout;
 	}
-	memcpy(btf->data, data, data_size);
 	btf->data_size = data_size;
 
 	err = btf_parse_hdr(env);
@@ -6418,8 +6448,11 @@ bool btf_ctx_access(int off, int size, enum bpf_access_type type,
 
 	if (arg == nr_args) {
 		switch (prog->expected_attach_type) {
-		case BPF_LSM_CGROUP:
 		case BPF_LSM_MAC:
+			/* mark we are accessing the return value */
+			info->is_retval = true;
+			fallthrough;
+		case BPF_LSM_CGROUP:
 		case BPF_TRACE_FEXIT:
 			/* When LSM programs are attached to void LSM hooks
 			 * they use FEXIT trampolines and when attached to
@@ -7678,21 +7711,16 @@ int btf_new_fd(const union bpf_attr *attr, bpfptr_t uattr, u32 uattr_size)
 struct btf *btf_get_by_fd(int fd)
 {
 	struct btf *btf;
-	struct fd f;
+	CLASS(fd, f)(fd);
 
-	f = fdget(fd);
-
-	if (!f.file)
+	if (fd_empty(f))
 		return ERR_PTR(-EBADF);
 
-	if (f.file->f_op != &btf_fops) {
-		fdput(f);
+	if (fd_file(f)->f_op != &btf_fops)
 		return ERR_PTR(-EINVAL);
-	}
 
-	btf = f.file->private_data;
+	btf = fd_file(f)->private_data;
 	refcount_inc(&btf->refcnt);
-	fdput(f);
 
 	return btf;
 }
@@ -8054,15 +8082,44 @@ BTF_ID_LIST_GLOBAL(btf_tracing_ids, MAX_BTF_TRACING_TYPE)
 BTF_TRACING_TYPE_xxx
 #undef BTF_TRACING_TYPE
 
+/* Validate well-formedness of iter argument type.
+ * On success, return positive BTF ID of iter state's STRUCT type.
+ * On error, negative error is returned.
+ */
+int btf_check_iter_arg(struct btf *btf, const struct btf_type *func, int arg_idx)
+{
+	const struct btf_param *arg;
+	const struct btf_type *t;
+	const char *name;
+	int btf_id;
+
+	if (btf_type_vlen(func) <= arg_idx)
+		return -EINVAL;
+
+	arg = &btf_params(func)[arg_idx];
+	t = btf_type_skip_modifiers(btf, arg->type, NULL);
+	if (!t || !btf_type_is_ptr(t))
+		return -EINVAL;
+	t = btf_type_skip_modifiers(btf, t->type, &btf_id);
+	if (!t || !__btf_type_is_struct(t))
+		return -EINVAL;
+
+	name = btf_name_by_offset(btf, t->name_off);
+	if (!name || strncmp(name, ITER_PREFIX, sizeof(ITER_PREFIX) - 1))
+		return -EINVAL;
+
+	return btf_id;
+}
+
 static int btf_check_iter_kfuncs(struct btf *btf, const char *func_name,
 				 const struct btf_type *func, u32 func_flags)
 {
 	u32 flags = func_flags & (KF_ITER_NEW | KF_ITER_NEXT | KF_ITER_DESTROY);
-	const char *name, *sfx, *iter_name;
-	const struct btf_param *arg;
+	const char *sfx, *iter_name;
 	const struct btf_type *t;
 	char exp_name[128];
 	u32 nr_args;
+	int btf_id;
 
 	/* exactly one of KF_ITER_{NEW,NEXT,DESTROY} can be set */
 	if (!flags || (flags & (flags - 1)))
@@ -8073,28 +8130,21 @@ static int btf_check_iter_kfuncs(struct btf *btf, const char *func_name,
 	if (nr_args < 1)
 		return -EINVAL;
 
-	arg = &btf_params(func)[0];
-	t = btf_type_skip_modifiers(btf, arg->type, NULL);
-	if (!t || !btf_type_is_ptr(t))
-		return -EINVAL;
-	t = btf_type_skip_modifiers(btf, t->type, NULL);
-	if (!t || !__btf_type_is_struct(t))
-		return -EINVAL;
-
-	name = btf_name_by_offset(btf, t->name_off);
-	if (!name || strncmp(name, ITER_PREFIX, sizeof(ITER_PREFIX) - 1))
-		return -EINVAL;
+	btf_id = btf_check_iter_arg(btf, func, 0);
+	if (btf_id < 0)
+		return btf_id;
 
 	/* sizeof(struct bpf_iter_<type>) should be a multiple of 8 to
 	 * fit nicely in stack slots
 	 */
+	t = btf_type_by_id(btf, btf_id);
 	if (t->size == 0 || (t->size % 8))
 		return -EINVAL;
 
 	/* validate bpf_iter_<type>_{new,next,destroy}(struct bpf_iter_<type> *)
 	 * naming pattern
 	 */
-	iter_name = name + sizeof(ITER_PREFIX) - 1;
+	iter_name = btf_name_by_offset(btf, t->name_off) + sizeof(ITER_PREFIX) - 1;
 	if (flags & KF_ITER_NEW)
 		sfx = "new";
 	else if (flags & KF_ITER_NEXT)
@@ -8309,13 +8359,19 @@ static int bpf_prog_type_to_kfunc_hook(enum bpf_prog_type prog_type)
 	case BPF_PROG_TYPE_STRUCT_OPS:
 		return BTF_KFUNC_HOOK_STRUCT_OPS;
 	case BPF_PROG_TYPE_TRACING:
+	case BPF_PROG_TYPE_TRACEPOINT:
+	case BPF_PROG_TYPE_PERF_EVENT:
 	case BPF_PROG_TYPE_LSM:
 		return BTF_KFUNC_HOOK_TRACING;
 	case BPF_PROG_TYPE_SYSCALL:
 		return BTF_KFUNC_HOOK_SYSCALL;
 	case BPF_PROG_TYPE_CGROUP_SKB:
+	case BPF_PROG_TYPE_CGROUP_SOCK:
+	case BPF_PROG_TYPE_CGROUP_DEVICE:
 	case BPF_PROG_TYPE_CGROUP_SOCK_ADDR:
-		return BTF_KFUNC_HOOK_CGROUP_SKB;
+	case BPF_PROG_TYPE_CGROUP_SOCKOPT:
+	case BPF_PROG_TYPE_CGROUP_SYSCTL:
+		return BTF_KFUNC_HOOK_CGROUP;
 	case BPF_PROG_TYPE_SCHED_ACT:
 		return BTF_KFUNC_HOOK_SCHED_ACT;
 	case BPF_PROG_TYPE_SK_SKB:
@@ -8891,6 +8947,7 @@ int bpf_core_apply(struct bpf_core_ctx *ctx, const struct bpf_core_relo *relo,
 	struct bpf_core_cand_list cands = {};
 	struct bpf_core_relo_res targ_res;
 	struct bpf_core_spec *specs;
+	const struct btf_type *type;
 	int err;
 
 	/* ~4k of temp memory necessary to convert LLVM spec like "0:1:0:5"
@@ -8899,6 +8956,13 @@ int bpf_core_apply(struct bpf_core_ctx *ctx, const struct bpf_core_relo *relo,
 	specs = kcalloc(3, sizeof(*specs), GFP_KERNEL);
 	if (!specs)
 		return -ENOMEM;
+
+	type = btf_type_by_id(ctx->btf, relo->type_id);
+	if (!type) {
+		bpf_log(ctx->log, "relo #%u: bad type id %u\n",
+			relo_idx, relo->type_id);
+		return -EINVAL;
+	}
 
 	if (need_cands) {
 		struct bpf_cand_cache *cc;

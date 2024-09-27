@@ -155,7 +155,7 @@ struct bch_sb_field_clean *bch2_read_superblock_clean(struct bch_fs *c)
 		SET_BCH_SB_CLEAN(c->disk_sb.sb, false);
 		c->sb.clean = false;
 		mutex_unlock(&c->sb_lock);
-		return NULL;
+		return ERR_PTR(-BCH_ERR_invalid_sb_clean);
 	}
 
 	clean = kmemdup(sb_clean, vstruct_bytes(&sb_clean->field),

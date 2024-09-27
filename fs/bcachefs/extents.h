@@ -357,7 +357,7 @@ out:									\
 	__bkey_for_each_ptr_decode(_k, (_p).start, (_p).end,		\
 				   _ptr, _entry)
 
-#define bkey_crc_next(_k, _start, _end, _crc, _iter)			\
+#define bkey_crc_next(_k, _end, _crc, _iter)			\
 ({									\
 	__bkey_extent_entry_for_each_from(_iter, _end, _iter)		\
 		if (extent_entry_is_crc(_iter)) {			\
@@ -372,7 +372,7 @@ out:									\
 #define __bkey_for_each_crc(_k, _start, _end, _crc, _iter)		\
 	for ((_crc) = bch2_extent_crc_unpack(_k, NULL),			\
 	     (_iter) = (_start);					\
-	     bkey_crc_next(_k, _start, _end, _crc, _iter);		\
+	     bkey_crc_next(_k, _end, _crc, _iter);		\
 	     (_iter) = extent_entry_next(_iter))
 
 #define bkey_for_each_crc(_k, _p, _crc, _iter)				\
@@ -611,9 +611,6 @@ unsigned bch2_extent_ptr_desired_durability(struct bch_fs *, struct extent_ptr_d
 unsigned bch2_extent_ptr_durability(struct bch_fs *, struct extent_ptr_decoded *);
 unsigned bch2_bkey_durability(struct bch_fs *, struct bkey_s_c);
 
-void bch2_bkey_drop_device(struct bkey_s, unsigned);
-void bch2_bkey_drop_device_noerror(struct bkey_s, unsigned);
-
 const struct bch_extent_ptr *bch2_bkey_has_device_c(struct bkey_s_c, unsigned);
 
 static inline struct bch_extent_ptr *bch2_bkey_has_device(struct bkey_s k, unsigned dev)
@@ -651,6 +648,23 @@ void bch2_extent_ptr_decoded_append(struct bkey_i *,
 				    struct extent_ptr_decoded *);
 void bch2_bkey_drop_ptr_noerror(struct bkey_s, struct bch_extent_ptr *);
 void bch2_bkey_drop_ptr(struct bkey_s, struct bch_extent_ptr *);
+
+void bch2_bkey_drop_device_noerror(struct bkey_s, unsigned);
+void bch2_bkey_drop_device(struct bkey_s, unsigned);
+
+#define bch2_bkey_drop_ptrs_noerror(_k, _ptr, _cond)			\
+do {									\
+	__label__ _again;						\
+	struct bkey_ptrs _ptrs;						\
+_again:									\
+	_ptrs = bch2_bkey_ptrs(_k);					\
+									\
+	bkey_for_each_ptr(_ptrs, _ptr)					\
+		if (_cond) {						\
+			bch2_bkey_drop_ptr_noerror(_k, _ptr);		\
+			goto _again;					\
+		}							\
+} while (0)
 
 #define bch2_bkey_drop_ptrs(_k, _ptr, _cond)				\
 do {									\

@@ -120,25 +120,40 @@ static int dcn35_get_active_display_cnt_wa(
 
 	return display_count;
 }
-
 static void dcn35_disable_otg_wa(struct clk_mgr *clk_mgr_base, struct dc_state *context,
 		bool safe_to_lower, bool disable)
 {
 	struct dc *dc = clk_mgr_base->ctx->dc;
 	int i;
 
+	if (dc->ctx->dce_environment == DCE_ENV_DIAG)
+		return;
+
 	for (i = 0; i < dc->res_pool->pipe_count; ++i) {
+		struct pipe_ctx *old_pipe = &dc->current_state->res_ctx.pipe_ctx[i];
+		struct pipe_ctx *new_pipe = &context->res_ctx.pipe_ctx[i];
 		struct pipe_ctx *pipe = safe_to_lower
 			? &context->res_ctx.pipe_ctx[i]
 			: &dc->current_state->res_ctx.pipe_ctx[i];
-
+		bool stream_changed_otg_dig_on = false;
 		if (pipe->top_pipe || pipe->prev_odm_pipe)
 			continue;
+		stream_changed_otg_dig_on = old_pipe->stream && new_pipe->stream &&
+		old_pipe->stream != new_pipe->stream &&
+		old_pipe->stream_res.tg == new_pipe->stream_res.tg &&
+		new_pipe->stream->link_enc && !new_pipe->stream->dpms_off &&
+		new_pipe->stream->link_enc->funcs->is_dig_enabled &&
+		new_pipe->stream->link_enc->funcs->is_dig_enabled(
+		new_pipe->stream->link_enc) &&
+		new_pipe->stream_res.stream_enc &&
+		new_pipe->stream_res.stream_enc->funcs->is_fifo_enabled &&
+		new_pipe->stream_res.stream_enc->funcs->is_fifo_enabled(new_pipe->stream_res.stream_enc);
 		if (pipe->stream && (pipe->stream->dpms_off || dc_is_virtual_signal(pipe->stream->signal) ||
-				     !pipe->stream->link_enc)) {
+			!pipe->stream->link_enc) && !stream_changed_otg_dig_on) {
+			/* This w/a should not trigger when we have a dig active */
 			if (disable) {
-				if (pipe->stream_res.tg && pipe->stream_res.tg->funcs->disable_crtc)
-					pipe->stream_res.tg->funcs->disable_crtc(pipe->stream_res.tg);
+				if (pipe->stream_res.tg && pipe->stream_res.tg->funcs->immediate_disable_crtc)
+					pipe->stream_res.tg->funcs->immediate_disable_crtc(pipe->stream_res.tg);
 
 				reset_sync_context_for_pipe(dc, context, i);
 			} else {
@@ -366,6 +381,9 @@ void dcn35_update_clocks(struct clk_mgr *clk_mgr_base,
 
 	if (should_set_clock(safe_to_lower, new_clocks->dispclk_khz, clk_mgr_base->clks.dispclk_khz)) {
 		dcn35_disable_otg_wa(clk_mgr_base, context, safe_to_lower, true);
+
+		if (dc->debug.min_disp_clk_khz > 0 && new_clocks->dispclk_khz < dc->debug.min_disp_clk_khz)
+			new_clocks->dispclk_khz = dc->debug.min_disp_clk_khz;
 
 		clk_mgr_base->clks.dispclk_khz = new_clocks->dispclk_khz;
 		dcn35_smu_set_dispclk(clk_mgr, clk_mgr_base->clks.dispclk_khz);
@@ -1082,7 +1100,7 @@ void dcn35_clk_mgr_construct(
 
 	clk_mgr->smu_wm_set.wm_set = (struct dcn35_watermarks *)dm_helpers_allocate_gpu_mem(
 				clk_mgr->base.base.ctx,
-				DC_MEM_ALLOC_TYPE_FRAME_BUFFER,
+				DC_MEM_ALLOC_TYPE_GART,
 				sizeof(struct dcn35_watermarks),
 				&clk_mgr->smu_wm_set.mc_address.quad_part);
 
@@ -1094,7 +1112,7 @@ void dcn35_clk_mgr_construct(
 
 	smu_dpm_clks.dpm_clks = (DpmClocks_t_dcn35 *)dm_helpers_allocate_gpu_mem(
 				clk_mgr->base.base.ctx,
-				DC_MEM_ALLOC_TYPE_FRAME_BUFFER,
+				DC_MEM_ALLOC_TYPE_GART,
 				sizeof(DpmClocks_t_dcn35),
 				&smu_dpm_clks.mc_address.quad_part);
 
@@ -1191,7 +1209,7 @@ void dcn35_clk_mgr_construct(
 	}
 
 	if (smu_dpm_clks.dpm_clks && smu_dpm_clks.mc_address.quad_part != 0)
-		dm_helpers_free_gpu_mem(clk_mgr->base.base.ctx, DC_MEM_ALLOC_TYPE_FRAME_BUFFER,
+		dm_helpers_free_gpu_mem(clk_mgr->base.base.ctx, DC_MEM_ALLOC_TYPE_GART,
 				smu_dpm_clks.dpm_clks);
 
 	if (ctx->dc->config.disable_ips != DMUB_IPS_DISABLE_ALL) {

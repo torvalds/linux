@@ -162,13 +162,18 @@ iv_large_sectors
 
 
 Module parameters::
-
    max_read_size
-   max_write_size
-      Maximum size of read or write requests. When a request larger than this size
+      Maximum size of read requests. When a request larger than this size
       is received, dm-crypt will split the request. The splitting improves
       concurrency (the split requests could be encrypted in parallel by multiple
-      cores), but it also causes overhead. The user should tune these parameters to
+      cores), but it also causes overhead. The user should tune this parameters to
+      fit the actual workload.
+
+   max_write_size
+      Maximum size of write requests. When a request larger than this size
+      is received, dm-crypt will split the request. The splitting improves
+      concurrency (the split requests could be encrypted in parallel by multiple
+      cores), but it also causes overhead. The user should tune this parameters to
       fit the actual workload.
 
 

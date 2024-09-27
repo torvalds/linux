@@ -175,8 +175,8 @@
 		gpio-controller;
 	};
 
-	sensor2: lm75@49 {
-		compatible = "lm75";
+	sensor2: temperature-sensor@49 {
+		compatible = "national,lm75b";
 		reg = <0x49>;
 	};
 };

@@ -27,7 +27,7 @@ irqreturn_t pdacf_interrupt(int irq, void *dev)
 	stat = inw(chip->port + PDAUDIOCF_REG_ISR);
 	if (stat & (PDAUDIOCF_IRQLVL|PDAUDIOCF_IRQOVR)) {
 		if (stat & PDAUDIOCF_IRQOVR)	/* should never happen */
-			snd_printk(KERN_ERR "PDAUDIOCF SRAM buffer overrun detected!\n");
+			dev_err(chip->card->dev, "PDAUDIOCF SRAM buffer overrun detected!\n");
 		if (chip->pcm_substream)
 			wake_thread = true;
 		if (!(stat & PDAUDIOCF_IRQAKM))
@@ -257,7 +257,6 @@ irqreturn_t pdacf_threaded_irq(int irq, void *dev)
 
 	rdp = inw(chip->port + PDAUDIOCF_REG_RDP);
 	wdp = inw(chip->port + PDAUDIOCF_REG_WDP);
-	/* printk(KERN_DEBUG "TASKLET: rdp = %x, wdp = %x\n", rdp, wdp); */
 	size = wdp - rdp;
 	if (size < 0)
 		size += 0x10000;

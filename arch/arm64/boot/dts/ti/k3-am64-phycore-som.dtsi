@@ -185,6 +185,7 @@
 &cpsw3g {
 	pinctrl-names = "default";
 	pinctrl-0 = <&cpsw_rgmii1_pins_default>;
+	status = "okay";
 };
 
 &cpsw3g_mdio {
@@ -208,10 +209,7 @@
 &cpsw_port1 {
 	phy-mode = "rgmii-rxid";
 	phy-handle = <&cpsw3g_phy1>;
-};
-
-&cpsw_port2 {
-	status = "disabled";
+	status = "okay";
 };
 
 &mailbox0_cluster2 {

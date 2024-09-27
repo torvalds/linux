@@ -387,7 +387,7 @@ again:
 	seen = buf->buf.nr;
 	char *n = memchr(buf->buf.data, '\n', seen);
 
-	if (!n && timeout != MAX_SCHEDULE_TIMEOUT && jiffies >= until) {
+	if (!n && timeout != MAX_SCHEDULE_TIMEOUT && time_after_eq(jiffies, until)) {
 		spin_unlock(&buf->lock);
 		return -ETIME;
 	}

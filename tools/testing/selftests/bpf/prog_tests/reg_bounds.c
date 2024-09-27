@@ -433,6 +433,19 @@ static struct range range_refine(enum num_t x_t, struct range x, enum num_t y_t,
 
 	y_cast = range_cast(y_t, x_t, y);
 
+	/* If we know that
+	 *   - *x* is in the range of signed 32bit value, and
+	 *   - *y_cast* range is 32-bit signed non-negative
+	 * then *x* range can be improved with *y_cast* such that *x* range
+	 * is 32-bit signed non-negative. Otherwise, if the new range for *x*
+	 * allows upper 32-bit * 0xffffffff then the eventual new range for
+	 * *x* will be out of signed 32-bit range which violates the origin
+	 * *x* range.
+	 */
+	if (x_t == S64 && y_t == S32 && y_cast.a <= S32_MAX  && y_cast.b <= S32_MAX &&
+	    (s64)x.a >= S32_MIN && (s64)x.b <= S32_MAX)
+		return range_improve(x_t, x, y_cast);
+
 	/* the case when new range knowledge, *y*, is a 32-bit subregister
 	 * range, while previous range knowledge, *x*, is a full register
 	 * 64-bit range, needs special treatment to take into account upper 32
@@ -490,7 +503,7 @@ static const char *op_str(enum op op)
 
 /* Can register with range [x.a, x.b] *EVER* satisfy
  * OP (<, <=, >, >=, ==, !=) relation to
- * a regsiter with range [y.a, y.b]
+ * a register with range [y.a, y.b]
  * _in *num_t* domain_
  */
 static bool range_canbe_op(enum num_t t, struct range x, struct range y, enum op op)
@@ -519,7 +532,7 @@ static bool range_canbe_op(enum num_t t, struct range x, struct range y, enum op
 
 /* Does register with range [x.a, x.b] *ALWAYS* satisfy
  * OP (<, <=, >, >=, ==, !=) relation to
- * a regsiter with range [y.a, y.b]
+ * a register with range [y.a, y.b]
  * _in *num_t* domain_
  */
 static bool range_always_op(enum num_t t, struct range x, struct range y, enum op op)
@@ -530,7 +543,7 @@ static bool range_always_op(enum num_t t, struct range x, struct range y, enum o
 
 /* Does register with range [x.a, x.b] *NEVER* satisfy
  * OP (<, <=, >, >=, ==, !=) relation to
- * a regsiter with range [y.a, y.b]
+ * a register with range [y.a, y.b]
  * _in *num_t* domain_
  */
 static bool range_never_op(enum num_t t, struct range x, struct range y, enum op op)
@@ -1005,11 +1018,11 @@ static int parse_reg_state(const char *s, struct reg_state *reg)
 	 *     - umin=%llu, if missing, assumed 0;
 	 *     - umax=%llu, if missing, assumed U64_MAX;
 	 *     - smin=%lld, if missing, assumed S64_MIN;
-	 *     - smax=%lld, if missing, assummed S64_MAX;
+	 *     - smax=%lld, if missing, assumed S64_MAX;
 	 *     - umin32=%d, if missing, assumed 0;
 	 *     - umax32=%d, if missing, assumed U32_MAX;
 	 *     - smin32=%d, if missing, assumed S32_MIN;
-	 *     - smax32=%d, if missing, assummed S32_MAX;
+	 *     - smax32=%d, if missing, assumed S32_MAX;
 	 *     - var_off=(%#llx; %#llx), tnum part, we don't care about it.
 	 *
 	 * If some of the values are equal, they will be grouped (but min/max
@@ -1474,7 +1487,7 @@ static int verify_case_opt(struct ctx *ctx, enum num_t init_t, enum num_t cond_t
 			u64 elapsed_ns = get_time_ns() - ctx->start_ns;
 			double remain_ns = elapsed_ns / progress * (1 - progress);
 
-			fprintf(env.stderr, "PROGRESS (%s): %d/%d (%.2lf%%), "
+			fprintf(env.stderr_saved, "PROGRESS (%s): %d/%d (%.2lf%%), "
 					    "elapsed %llu mins (%.2lf hrs), "
 					    "ETA %.0lf mins (%.2lf hrs)\n",
 				ctx->progress_ctx,
@@ -1871,7 +1884,7 @@ cleanup:
  * envvar is not set, this test is skipped during test_progs testing.
  *
  * We split this up into smaller subsets based on initialization and
- * conditiona numeric domains to get an easy parallelization with test_progs'
+ * conditional numeric domains to get an easy parallelization with test_progs'
  * -j argument.
  */
 
@@ -1925,7 +1938,7 @@ static u64 rand_u64()
 {
 	/* RAND_MAX is guaranteed to be at least 1<<15, but in practice it
 	 * seems to be 1<<31, so we need to call it thrice to get full u64;
-	 * we'll use rougly equal split: 22 + 21 + 21 bits
+	 * we'll use roughly equal split: 22 + 21 + 21 bits
 	 */
 	return ((u64)random() << 42) |
 	       (((u64)random() & RAND_21BIT_MASK) << 21) |
@@ -2108,6 +2121,9 @@ static struct subtest_case crafted_cases[] = {
 	{S32, U32, {(u32)S32_MIN, 0}, {0, 0}},
 	{S32, U32, {(u32)S32_MIN, 0}, {(u32)S32_MIN, (u32)S32_MIN}},
 	{S32, U32, {(u32)S32_MIN, S32_MAX}, {S32_MAX, S32_MAX}},
+	{S64, U32, {0x0, 0x1f}, {0xffffffff80000000ULL, 0x000000007fffffffULL}},
+	{S64, U32, {0x0, 0x1f}, {0xffffffffffff8000ULL, 0x0000000000007fffULL}},
+	{S64, U32, {0x0, 0x1f}, {0xffffffffffffff80ULL, 0x000000000000007fULL}},
 };
 
 /* Go over crafted hard-coded cases. This is fast, so we do it as part of

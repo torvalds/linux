@@ -50,11 +50,8 @@ static inline void put_unaligned_be32(u32 val, void *p)
 /* prevent the inclusion of the xz-preboot MM headers */
 #define DECOMPR_MM_H
 #define memmove memmove
-#define XZ_EXTERN static
 
 /* xz.h needs to be included directly since we need enum xz_mode */
 #include "../../../include/linux/xz.h"
-
-#undef XZ_EXTERN
 
 #endif

@@ -70,6 +70,8 @@ struct pmu_metric {
 struct pmu_events_table;
 struct pmu_metrics_table;
 
+#define PMU_EVENTS__NOT_FOUND -1000
+
 typedef int (*pmu_event_iter_fn)(const struct pmu_event *pe,
 				 const struct pmu_events_table *table,
 				 void *data);
@@ -82,6 +84,13 @@ int pmu_events_table__for_each_event(const struct pmu_events_table *table,
 				    struct perf_pmu *pmu,
 				    pmu_event_iter_fn fn,
 				    void *data);
+/*
+ * Search for table and entry matching with pmu__name_match. Each matching event
+ * has fn called on it. 0 implies to success/continue the search while non-zero
+ * means to terminate. The special value PMU_EVENTS__NOT_FOUND is used to
+ * indicate no event was found in one of the tables which doesn't terminate the
+ * search of all tables.
+ */
 int pmu_events_table__find_event(const struct pmu_events_table *table,
                                  struct perf_pmu *pmu,
                                  const char *name,

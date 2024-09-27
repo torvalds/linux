@@ -1400,7 +1400,7 @@ static void tgl_dkl_phy_set_signal_levels(struct intel_encoder *encoder,
 static int translate_signal_level(struct intel_dp *intel_dp,
 				  u8 signal_levels)
 {
-	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
+	struct intel_display *display = to_intel_display(intel_dp);
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(index_to_dp_signal_levels); i++) {
@@ -1408,7 +1408,7 @@ static int translate_signal_level(struct intel_dp *intel_dp,
 			return i;
 	}
 
-	drm_WARN(&i915->drm, 1,
+	drm_WARN(display->drm, 1,
 		 "Unsupported voltage swing/pre-emphasis level: 0x%x\n",
 		 signal_levels);
 
@@ -2211,14 +2211,14 @@ static void intel_dp_sink_set_msa_timing_par_ignore_state(struct intel_dp *intel
 							  const struct intel_crtc_state *crtc_state,
 							  bool enable)
 {
-	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
+	struct intel_display *display = to_intel_display(intel_dp);
 
 	if (!crtc_state->vrr.enable)
 		return;
 
 	if (drm_dp_dpcd_writeb(&intel_dp->aux, DP_DOWNSPREAD_CTRL,
 			       enable ? DP_MSA_TIMING_PAR_IGNORE_EN : 0) <= 0)
-		drm_dbg_kms(&i915->drm,
+		drm_dbg_kms(display->drm,
 			    "Failed to %s MSA_TIMING_PAR_IGNORE in the sink\n",
 			    str_enable_disable(enable));
 }
@@ -2227,20 +2227,20 @@ static void intel_dp_sink_set_fec_ready(struct intel_dp *intel_dp,
 					const struct intel_crtc_state *crtc_state,
 					bool enable)
 {
-	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
+	struct intel_display *display = to_intel_display(intel_dp);
 
 	if (!crtc_state->fec_enable)
 		return;
 
 	if (drm_dp_dpcd_writeb(&intel_dp->aux, DP_FEC_CONFIGURATION,
 			       enable ? DP_FEC_READY : 0) <= 0)
-		drm_dbg_kms(&i915->drm, "Failed to set FEC_READY to %s in the sink\n",
+		drm_dbg_kms(display->drm, "Failed to set FEC_READY to %s in the sink\n",
 			    enable ? "enabled" : "disabled");
 
 	if (enable &&
 	    drm_dp_dpcd_writeb(&intel_dp->aux, DP_FEC_STATUS,
 			       DP_FEC_DECODE_EN_DETECTED | DP_FEC_DECODE_DIS_DETECTED) <= 0)
-		drm_dbg_kms(&i915->drm, "Failed to clear FEC detected flags\n");
+		drm_dbg_kms(display->drm, "Failed to clear FEC detected flags\n");
 }
 
 static int read_fec_detected_status(struct drm_dp_aux *aux)
@@ -4172,7 +4172,8 @@ static void intel_ddi_sync_state(struct intel_encoder *encoder,
 		intel_tc_port_sanitize_mode(enc_to_dig_port(encoder),
 					    crtc_state);
 
-	if (intel_encoder_is_dp(encoder))
+	if ((crtc_state && intel_crtc_has_dp_encoder(crtc_state)) ||
+	    (!crtc_state && intel_encoder_is_dp(encoder)))
 		intel_dp_sync_state(encoder, crtc_state);
 }
 
@@ -4853,9 +4854,10 @@ static bool port_in_use(struct drm_i915_private *i915, enum port port)
 	return false;
 }
 
-void intel_ddi_init(struct drm_i915_private *dev_priv,
+void intel_ddi_init(struct intel_display *display,
 		    const struct intel_bios_encoder_data *devdata)
 {
+	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	struct intel_digital_port *dig_port;
 	struct intel_encoder *encoder;
 	bool init_hdmi, init_dp;
@@ -4898,7 +4900,7 @@ void intel_ddi_init(struct drm_i915_private *dev_priv,
 	 * driver.  In that case we should skip initializing the corresponding
 	 * outputs.
 	 */
-	if (intel_hti_uses_phy(dev_priv, phy)) {
+	if (intel_hti_uses_phy(display, phy)) {
 		drm_dbg_kms(&dev_priv->drm, "PORT %c / PHY %c reserved by HTI\n",
 			    port_name(port), phy_name(phy));
 		return;
@@ -4972,7 +4974,7 @@ void intel_ddi_init(struct drm_i915_private *dev_priv,
 	} else {
 		drm_encoder_init(&dev_priv->drm, &encoder->base, &intel_ddi_funcs,
 				 DRM_MODE_ENCODER_TMDS,
-				 "DDI %c/PHY %c", port_name(port),  phy_name(phy));
+				 "DDI %c/PHY %c", port_name(port), phy_name(phy));
 	}
 
 	intel_encoder_link_check_init(encoder, intel_ddi_link_check);

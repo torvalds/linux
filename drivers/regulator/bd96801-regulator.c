@@ -34,6 +34,7 @@
  * conflict in your downstream driver ;)
  */
 
+#include <linux/cleanup.h>
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/interrupt.h>
@@ -453,15 +454,14 @@ static int bd96801_walk_regulator_dt(struct device *dev, struct regmap *regmap,
 				     int num)
 {
 	int i, ret;
-	struct device_node *np;
-	struct device_node *nproot = dev->parent->of_node;
 
-	nproot = of_get_child_by_name(nproot, "regulators");
+	struct device_node *nproot __free(device_node) =
+		of_get_child_by_name(dev->parent->of_node, "regulators");
 	if (!nproot) {
 		dev_err(dev, "failed to find regulators node\n");
 		return -ENODEV;
 	}
-	for_each_child_of_node(nproot, np)
+	for_each_child_of_node_scoped(nproot, np) {
 		for (i = 0; i < num; i++) {
 			if (!of_node_name_eq(np, data[i].desc.of_match))
 				continue;
@@ -476,11 +476,9 @@ static int bd96801_walk_regulator_dt(struct device *dev, struct regmap *regmap,
 				dev_err(dev,
 					"Initializing voltages for %s failed\n",
 					data[i].desc.name);
-				of_node_put(np);
-				of_node_put(nproot);
-
 				return ret;
 			}
+
 			if (of_property_read_bool(np, "rohm,keep-on-stby")) {
 				ret = regmap_set_bits(regmap,
 						      BD96801_ALWAYS_ON_REG,
@@ -489,14 +487,11 @@ static int bd96801_walk_regulator_dt(struct device *dev, struct regmap *regmap,
 					dev_err(dev,
 						"failed to set %s on-at-stby\n",
 						data[i].desc.name);
-					of_node_put(np);
-					of_node_put(nproot);
-
 					return ret;
 				}
 			}
 		}
-	of_node_put(nproot);
+	}
 
 	return 0;
 }
@@ -853,8 +848,6 @@ static int bd96801_probe(struct platform_device *pdev)
 			ldo_errs_arr[temp_notif_ldos] = rdesc[i].ldo_errs;
 			temp_notif_ldos++;
 		}
-		if (!idesc)
-			continue;
 
 		/* Register INTB handlers for configured protections */
 		for (j = 0; j < idesc->num_irqs; j++) {
