@@ -853,6 +853,7 @@ DEFINE_STATIC_KEY_FALSE(__scx_ops_enabled);
 DEFINE_STATIC_PERCPU_RWSEM(scx_fork_rwsem);
 static atomic_t scx_ops_enable_state_var = ATOMIC_INIT(SCX_OPS_DISABLED);
 static atomic_t scx_ops_bypass_depth = ATOMIC_INIT(0);
+static bool scx_ops_init_task_enabled;
 static bool scx_switching_all;
 DEFINE_STATIC_KEY_FALSE(__scx_switched_all);
 
@@ -3565,7 +3566,7 @@ int scx_fork(struct task_struct *p)
 {
 	percpu_rwsem_assert_held(&scx_fork_rwsem);
 
-	if (scx_enabled())
+	if (scx_ops_init_task_enabled)
 		return scx_ops_init_task(p, task_group(p), true);
 	else
 		return 0;
@@ -3573,7 +3574,7 @@ int scx_fork(struct task_struct *p)
 
 void scx_post_fork(struct task_struct *p)
 {
-	if (scx_enabled()) {
+	if (scx_ops_init_task_enabled) {
 		scx_set_task_state(p, SCX_TASK_READY);
 
 		/*
@@ -4453,6 +4454,8 @@ static void scx_ops_disable_workfn(struct kthread_work *work)
 	cpus_read_lock();
 	scx_cgroup_lock();
 
+	scx_ops_init_task_enabled = false;
+
 	spin_lock_irq(&scx_tasks_lock);
 	scx_task_iter_init(&sti);
 	/*
@@ -5132,7 +5135,8 @@ static int scx_ops_enable(struct sched_ext_ops *ops, struct bpf_link *link)
 	if (ret)
 		goto err_disable_unlock_all;
 
-	static_branch_enable_cpuslocked(&__scx_ops_enabled);
+	WARN_ON_ONCE(scx_ops_init_task_enabled);
+	scx_ops_init_task_enabled = true;
 
 	/*
 	 * Enable ops for every task. Fork is excluded by scx_fork_rwsem
@@ -5175,9 +5179,11 @@ static int scx_ops_enable(struct sched_ext_ops *ops, struct bpf_link *link)
 	spin_unlock_irq(&scx_tasks_lock);
 
 	/*
-	 * All tasks are prepped but the tasks are not enabled. Switch everyone.
+	 * All tasks are READY. It's safe to turn on scx_enabled() and switch
+	 * all eligible tasks.
 	 */
 	WRITE_ONCE(scx_switching_all, !(ops->flags & SCX_OPS_SWITCH_PARTIAL));
+	static_branch_enable_cpuslocked(&__scx_ops_enabled);
 
 	/*
 	 * We're fully committed and can't fail. The task READY -> ENABLED
