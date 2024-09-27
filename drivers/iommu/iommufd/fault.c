@@ -360,7 +360,6 @@ static const struct file_operations iommufd_fault_fops = {
 	.write		= iommufd_fault_fops_write,
 	.poll		= iommufd_fault_fops_poll,
 	.release	= iommufd_fault_fops_release,
-	.llseek		= no_llseek,
 };
 
 int iommufd_fault_alloc(struct iommufd_ucmd *ucmd)

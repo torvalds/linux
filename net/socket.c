@@ -153,7 +153,6 @@ static void sock_show_fdinfo(struct seq_file *m, struct file *f)
 
 static const struct file_operations socket_file_ops = {
 	.owner =	THIS_MODULE,
-	.llseek =	no_llseek,
 	.read_iter =	sock_read_iter,
 	.write_iter =	sock_write_iter,
 	.poll =		sock_poll,

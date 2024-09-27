@@ -1592,7 +1592,6 @@ static int cache_release_procfs(struct inode *inode, struct file *filp)
 }
 
 static const struct proc_ops cache_channel_proc_ops = {
-	.proc_lseek	= no_llseek,
 	.proc_read	= cache_read_procfs,
 	.proc_write	= cache_write_procfs,
 	.proc_poll	= cache_poll_procfs,
@@ -1658,7 +1657,6 @@ static const struct proc_ops cache_flush_proc_ops = {
 	.proc_read	= read_flush_procfs,
 	.proc_write	= write_flush_procfs,
 	.proc_release	= release_flush_procfs,
-	.proc_lseek	= no_llseek,
 };
 
 static void remove_cache_proc_entries(struct cache_detail *cd)
@@ -1811,7 +1809,6 @@ static int cache_release_pipefs(struct inode *inode, struct file *filp)
 
 const struct file_operations cache_file_operations_pipefs = {
 	.owner		= THIS_MODULE,
-	.llseek		= no_llseek,
 	.read		= cache_read_pipefs,
 	.write		= cache_write_pipefs,
 	.poll		= cache_poll_pipefs,
@@ -1877,7 +1874,6 @@ const struct file_operations cache_flush_operations_pipefs = {
 	.read		= read_flush_pipefs,
 	.write		= write_flush_pipefs,
 	.release	= release_flush_pipefs,
-	.llseek		= no_llseek,
 };
 
 int sunrpc_cache_register_pipefs(struct dentry *parent,

@@ -706,7 +706,6 @@ static const struct file_operations lirc_fops = {
 	.poll		= lirc_poll,
 	.open		= lirc_open,
 	.release	= lirc_close,
-	.llseek		= no_llseek,
 };
 
 static void lirc_release_device(struct device *ld)

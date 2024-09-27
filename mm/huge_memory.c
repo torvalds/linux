@@ -4115,7 +4115,6 @@ out:
 static const struct file_operations split_huge_pages_fops = {
 	.owner	 = THIS_MODULE,
 	.write	 = split_huge_pages_write,
-	.llseek  = no_llseek,
 };
 
 static int __init split_huge_pages_debugfs(void)

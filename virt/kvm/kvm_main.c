@@ -6186,7 +6186,6 @@ static const struct file_operations stat_fops_per_vm = {
 	.release = kvm_debugfs_release,
 	.read = simple_attr_read,
 	.write = simple_attr_write,
-	.llseek = no_llseek,
 };
 
 static int vm_stat_get(void *_offset, u64 *val)
