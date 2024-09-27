@@ -3706,6 +3706,7 @@ bool scx_can_stop_tick(struct rq *rq)
 #ifdef CONFIG_EXT_GROUP_SCHED
 
 DEFINE_STATIC_PERCPU_RWSEM(scx_cgroup_rwsem);
+static bool scx_cgroup_enabled;
 static bool cgroup_warned_missing_weight;
 static bool cgroup_warned_missing_idle;
 
@@ -3725,8 +3726,7 @@ static void scx_cgroup_warn_missing_weight(struct task_group *tg)
 
 static void scx_cgroup_warn_missing_idle(struct task_group *tg)
 {
-	if (scx_ops_enable_state() == SCX_OPS_DISABLED ||
-	    cgroup_warned_missing_idle)
+	if (!scx_cgroup_enabled || cgroup_warned_missing_idle)
 		return;
 
 	if (!tg->idle)
@@ -3747,15 +3747,18 @@ int scx_tg_online(struct task_group *tg)
 
 	scx_cgroup_warn_missing_weight(tg);
 
-	if (SCX_HAS_OP(cgroup_init)) {
-		struct scx_cgroup_init_args args = { .weight = tg->scx_weight };
+	if (scx_cgroup_enabled) {
+		if (SCX_HAS_OP(cgroup_init)) {
+			struct scx_cgroup_init_args args =
+				{ .weight = tg->scx_weight };
 
-		ret = SCX_CALL_OP_RET(SCX_KF_UNLOCKED, cgroup_init,
-				      tg->css.cgroup, &args);
-		if (!ret)
+			ret = SCX_CALL_OP_RET(SCX_KF_UNLOCKED, cgroup_init,
+					      tg->css.cgroup, &args);
+			if (ret)
+				ret = ops_sanitize_err("cgroup_init", ret);
+		}
+		if (ret == 0)
 			tg->scx_flags |= SCX_TG_ONLINE | SCX_TG_INITED;
-		else
-			ret = ops_sanitize_err("cgroup_init", ret);
 	} else {
 		tg->scx_flags |= SCX_TG_ONLINE;
 	}
@@ -3786,7 +3789,7 @@ int scx_cgroup_can_attach(struct cgroup_taskset *tset)
 	/* released in scx_finish/cancel_attach() */
 	percpu_down_read(&scx_cgroup_rwsem);
 
-	if (!scx_enabled())
+	if (!scx_cgroup_enabled)
 		return 0;
 
 	cgroup_taskset_for_each(p, css, tset) {
@@ -3829,7 +3832,7 @@ err:
 
 void scx_move_task(struct task_struct *p)
 {
-	if (!scx_enabled())
+	if (!scx_cgroup_enabled)
 		return;
 
 	/*
@@ -3865,7 +3868,7 @@ void scx_cgroup_cancel_attach(struct cgroup_taskset *tset)
 	struct cgroup_subsys_state *css;
 	struct task_struct *p;
 
-	if (!scx_enabled())
+	if (!scx_cgroup_enabled)
 		goto out_unlock;
 
 	cgroup_taskset_for_each(p, css, tset) {
@@ -3882,7 +3885,7 @@ void scx_group_set_weight(struct task_group *tg, unsigned long weight)
 {
 	percpu_down_read(&scx_cgroup_rwsem);
 
-	if (tg->scx_weight != weight) {
+	if (scx_cgroup_enabled && tg->scx_weight != weight) {
 		if (SCX_HAS_OP(cgroup_set_weight))
 			SCX_CALL_OP(SCX_KF_UNLOCKED, cgroup_set_weight,
 				    tg_cgrp(tg), weight);
@@ -4054,6 +4057,9 @@ static void scx_cgroup_exit(void)
 
 	percpu_rwsem_assert_held(&scx_cgroup_rwsem);
 
+	WARN_ON_ONCE(!scx_cgroup_enabled);
+	scx_cgroup_enabled = false;
+
 	/*
 	 * scx_tg_on/offline() are excluded through scx_cgroup_rwsem. If we walk
 	 * cgroups and exit all the inited ones, all online cgroups are exited.
@@ -4128,6 +4134,9 @@ static int scx_cgroup_init(void)
 		css_put(css);
 	}
 	rcu_read_unlock();
+
+	WARN_ON_ONCE(scx_cgroup_enabled);
+	scx_cgroup_enabled = true;
 
 	return 0;
 }
