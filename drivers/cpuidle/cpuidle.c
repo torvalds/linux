@@ -406,7 +406,7 @@ void cpuidle_reflect(struct cpuidle_device *dev, int index)
  * Min polling interval of 10usec is a guess. It is assuming that
  * for most users, the time for a single ping-pong workload like
  * perf bench pipe would generally complete within 10usec but
- * this is hardware dependant. Actual time can be estimated with
+ * this is hardware dependent. Actual time can be estimated with
  *
  * perf bench sched pipe -l 10000
  *
