@@ -31,10 +31,19 @@ static const struct uvc_format_desc *to_uvc_format(struct uvcg_format *uformat)
 {
 	char guid[16] = UVC_GUID_FORMAT_MJPEG;
 	const struct uvc_format_desc *format;
-	struct uvcg_uncompressed *unc;
 
 	if (uformat->type == UVCG_UNCOMPRESSED) {
+		struct uvcg_uncompressed *unc;
+
 		unc = to_uvcg_uncompressed(&uformat->group.cg_item);
+		if (!unc)
+			return ERR_PTR(-EINVAL);
+
+		memcpy(guid, unc->desc.guidFormat, sizeof(guid));
+	} else if (uformat->type == UVCG_FRAMEBASED) {
+		struct uvcg_framebased *unc;
+
+		unc = to_uvcg_framebased(&uformat->group.cg_item);
 		if (!unc)
 			return ERR_PTR(-EINVAL);
 
