@@ -801,7 +801,6 @@ struct mwifiex_auto_tdls_peer {
 	unsigned long rssi_jiffies;
 	u8 failure_count;
 	u8 do_discover;
-	u8 do_setup;
 };
 
 #define MWIFIEX_TYPE_AGGR_DATA_V2 11
