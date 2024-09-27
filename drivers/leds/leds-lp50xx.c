@@ -16,8 +16,6 @@
 
 #include <linux/led-class-multicolor.h>
 
-#include "leds.h"
-
 #define LP50XX_DEV_CFG0		0x00
 #define LP50XX_DEV_CFG1		0x01
 #define LP50XX_LED_CFG0		0x02
