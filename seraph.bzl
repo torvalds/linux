@@ -8,6 +8,8 @@ def define_seraph():
     _seraph_in_tree_modules = [
         # keep sorted
         # TODO: Need to add GKI modules
+        "drivers/bus/mhi/devices/mhi_dev_uci.ko",
+        "drivers/bus/mhi/host/mhi.ko",
         "drivers/clk/qcom/clk-dummy.ko",
         "drivers/clk/qcom/clk-qcom.ko",
         "drivers/clk/qcom/gcc-seraph.ko",
@@ -33,6 +35,7 @@ def define_seraph():
         "drivers/mmc/host/cqhci.ko",
         "drivers/mmc/host/sdhci-msm.ko",
         "drivers/nvmem/nvmem_qfprom.ko",
+        "drivers/pci/controller/pci-msm-drv.ko",
         "drivers/pinctrl/qcom/pinctrl-msm.ko",
         "drivers/pinctrl/qcom/pinctrl-seraph.ko",
         "drivers/regulator/stub-regulator.ko",
