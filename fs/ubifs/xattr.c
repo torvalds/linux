@@ -48,19 +48,6 @@
 #include <linux/slab.h>
 #include <linux/xattr.h>
 
-/*
- * Extended attribute type constants.
- *
- * USER_XATTR: user extended attribute ("user.*")
- * TRUSTED_XATTR: trusted extended attribute ("trusted.*)
- * SECURITY_XATTR: security extended attribute ("security.*")
- */
-enum {
-	USER_XATTR,
-	TRUSTED_XATTR,
-	SECURITY_XATTR,
-};
-
 static const struct inode_operations empty_iops;
 static const struct file_operations empty_fops;
 
