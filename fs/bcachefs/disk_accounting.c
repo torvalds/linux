@@ -648,7 +648,7 @@ int bch2_accounting_read(struct bch_fs *c)
 			if (i + 1 < &darray_top(*keys) &&
 			    i[1].k->k.type == KEY_TYPE_accounting &&
 			    !journal_key_cmp(i, i + 1)) {
-				BUG_ON(bversion_cmp(i[0].k->k.bversion, i[1].k->k.bversion) >= 0);
+				WARN_ON(bversion_cmp(i[0].k->k.bversion, i[1].k->k.bversion) >= 0);
 
 				i[1].journal_seq = i[0].journal_seq;
 
