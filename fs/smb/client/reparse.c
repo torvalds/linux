@@ -294,7 +294,7 @@ static int mknod_nfs(unsigned int xid, struct inode *inode,
 
 	data = (struct cifs_open_info_data) {
 		.reparse_point = true,
-		.reparse = { .tag = IO_REPARSE_TAG_NFS, .posix = p, },
+		.reparse = { .tag = IO_REPARSE_TAG_NFS, .buf = (struct reparse_data_buffer *)p, },
 	};
 
 	new = smb2_get_reparse_inode(&data, inode->i_sb, xid,
@@ -816,8 +816,7 @@ static bool posix_reparse_to_fattr(struct cifs_sb_info *cifs_sb,
 				   struct cifs_fattr *fattr,
 				   struct cifs_open_info_data *data)
 {
-	struct reparse_posix_data *buf = data->reparse.posix;
-
+	struct reparse_posix_data *buf = (struct reparse_posix_data *)data->reparse.buf;
 
 	if (buf == NULL)
 		return true;
