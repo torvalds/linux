@@ -505,9 +505,17 @@ out:
 	return rc;
 }
 
-static int wsl_set_reparse_buf(struct reparse_data_buffer *buf,
-			       mode_t mode, struct kvec *iov)
+static int wsl_set_reparse_buf(struct reparse_data_buffer **buf,
+			       mode_t mode, const char *symname,
+			       struct cifs_sb_info *cifs_sb,
+			       struct kvec *iov)
 {
+	struct reparse_wsl_symlink_data_buffer *symlink_buf;
+	__le16 *symname_utf16;
+	int symname_utf16_len;
+	int symname_utf8_maxlen;
+	int symname_utf8_len;
+	size_t buf_len;
 	u32 tag;
 
 	switch ((tag = reparse_mode_wsl_tag(mode))) {
@@ -515,17 +523,45 @@ static int wsl_set_reparse_buf(struct reparse_data_buffer *buf,
 	case IO_REPARSE_TAG_LX_CHR:
 	case IO_REPARSE_TAG_LX_FIFO:
 	case IO_REPARSE_TAG_AF_UNIX:
+		buf_len = sizeof(struct reparse_data_buffer);
+		*buf = kzalloc(buf_len, GFP_KERNEL);
+		if (!*buf)
+			return -ENOMEM;
 		break;
-	case IO_REPARSE_TAG_LX_SYMLINK: /* TODO: add support for WSL symlinks */
+	case IO_REPARSE_TAG_LX_SYMLINK:
+		symname_utf16 = cifs_strndup_to_utf16(symname, strlen(symname),
+						      &symname_utf16_len,
+						      cifs_sb->local_nls,
+						      NO_MAP_UNI_RSVD);
+		if (!symname_utf16)
+			return -ENOMEM;
+		symname_utf8_maxlen = symname_utf16_len/2*3;
+		symlink_buf = kzalloc(sizeof(struct reparse_wsl_symlink_data_buffer) +
+				      symname_utf8_maxlen, GFP_KERNEL);
+		if (!symlink_buf) {
+			kfree(symname_utf16);
+			return -ENOMEM;
+		}
+		/* Flag 0x02000000 is unknown, but all wsl symlinks have this value */
+		symlink_buf->Flags = cpu_to_le32(0x02000000);
+		/* PathBuffer is in UTF-8 but without trailing null-term byte */
+		symname_utf8_len = utf16s_to_utf8s((wchar_t *)symname_utf16, symname_utf16_len/2,
+						   UTF16_LITTLE_ENDIAN,
+						   symlink_buf->PathBuffer,
+						   symname_utf8_maxlen);
+		*buf = (struct reparse_data_buffer *)symlink_buf;
+		buf_len = sizeof(struct reparse_wsl_symlink_data_buffer) + symname_utf8_len;
+		kfree(symname_utf16);
+		break;
 	default:
 		return -EOPNOTSUPP;
 	}
 
-	buf->ReparseTag = cpu_to_le32(tag);
-	buf->Reserved = 0;
-	buf->ReparseDataLength = 0;
-	iov->iov_base = buf;
-	iov->iov_len = sizeof(*buf);
+	(*buf)->ReparseTag = cpu_to_le32(tag);
+	(*buf)->Reserved = 0;
+	(*buf)->ReparseDataLength = cpu_to_le16(buf_len - sizeof(struct reparse_data_buffer));
+	iov->iov_base = *buf;
+	iov->iov_len = buf_len;
 	return 0;
 }
 
@@ -617,25 +653,29 @@ static int mknod_wsl(unsigned int xid, struct inode *inode,
 		     const char *full_path, umode_t mode, dev_t dev,
 		     const char *symname)
 {
+	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
 	struct cifs_open_info_data data;
-	struct reparse_data_buffer buf;
+	struct reparse_data_buffer *buf;
 	struct smb2_create_ea_ctx *cc;
 	struct inode *new;
 	unsigned int len;
 	struct kvec reparse_iov, xattr_iov;
 	int rc;
 
-	rc = wsl_set_reparse_buf(&buf, mode, &reparse_iov);
+	rc = wsl_set_reparse_buf(&buf, mode, symname, cifs_sb, &reparse_iov);
 	if (rc)
 		return rc;
 
 	rc = wsl_set_xattrs(inode, mode, dev, &xattr_iov);
-	if (rc)
+	if (rc) {
+		kfree(buf);
 		return rc;
+	}
 
 	data = (struct cifs_open_info_data) {
 		.reparse_point = true,
-		.reparse = { .tag = le32_to_cpu(buf.ReparseTag), .buf = &buf, },
+		.reparse = { .tag = le32_to_cpu(buf->ReparseTag), .buf = buf, },
+		.symlink_target = kstrdup(symname, GFP_KERNEL),
 	};
 
 	cc = xattr_iov.iov_base;
@@ -652,6 +692,7 @@ static int mknod_wsl(unsigned int xid, struct inode *inode,
 		rc = PTR_ERR(new);
 	cifs_free_open_info(&data);
 	kfree(xattr_iov.iov_base);
+	kfree(buf);
 	return rc;
 }
 
