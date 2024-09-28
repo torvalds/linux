@@ -647,6 +647,52 @@ static int parse_reparse_symlink(struct reparse_symlink_data_buffer *sym,
 					 cifs_sb);
 }
 
+static int parse_reparse_wsl_symlink(struct reparse_wsl_symlink_data_buffer *buf,
+				     struct cifs_sb_info *cifs_sb,
+				     struct cifs_open_info_data *data)
+{
+	int len = le16_to_cpu(buf->ReparseDataLength);
+	int symname_utf8_len;
+	__le16 *symname_utf16;
+	int symname_utf16_len;
+
+	if (len <= sizeof(buf->Flags)) {
+		cifs_dbg(VFS, "srv returned malformed wsl symlink buffer\n");
+		return -EIO;
+	}
+
+	/* PathBuffer is in UTF-8 but without trailing null-term byte */
+	symname_utf8_len = len - sizeof(buf->Flags);
+	/*
+	 * Check that buffer does not contain null byte
+	 * because Linux cannot process symlink with null byte.
+	 */
+	if (strnlen(buf->PathBuffer, symname_utf8_len) != symname_utf8_len) {
+		cifs_dbg(VFS, "srv returned null byte in wsl symlink target location\n");
+		return -EIO;
+	}
+	symname_utf16 = kzalloc(symname_utf8_len * 2, GFP_KERNEL);
+	if (!symname_utf16)
+		return -ENOMEM;
+	symname_utf16_len = utf8s_to_utf16s(buf->PathBuffer, symname_utf8_len,
+					    UTF16_LITTLE_ENDIAN,
+					    symname_utf16, symname_utf8_len * 2);
+	if (symname_utf16_len < 0) {
+		kfree(symname_utf16);
+		return symname_utf16_len;
+	}
+	symname_utf16_len *= 2; /* utf8s_to_utf16s() returns number of u16 items, not byte length */
+
+	data->symlink_target = cifs_strndup_from_utf16((u8 *)symname_utf16,
+						       symname_utf16_len, true,
+						       cifs_sb->local_nls);
+	kfree(symname_utf16);
+	if (!data->symlink_target)
+		return -ENOMEM;
+
+	return 0;
+}
+
 int parse_reparse_point(struct reparse_data_buffer *buf,
 			u32 plen, struct cifs_sb_info *cifs_sb,
 			const char *full_path,
@@ -666,6 +712,9 @@ int parse_reparse_point(struct reparse_data_buffer *buf,
 			(struct reparse_symlink_data_buffer *)buf,
 			plen, unicode, cifs_sb, full_path, data);
 	case IO_REPARSE_TAG_LX_SYMLINK:
+		return parse_reparse_wsl_symlink(
+			(struct reparse_wsl_symlink_data_buffer *)buf,
+			cifs_sb, data);
 	case IO_REPARSE_TAG_AF_UNIX:
 	case IO_REPARSE_TAG_LX_FIFO:
 	case IO_REPARSE_TAG_LX_CHR:
