@@ -354,13 +354,12 @@ static int reattach_inode(struct btree_trans *trans,
 	if (ret)
 		return ret;
 
-	if (S_ISDIR(inode->bi_mode)) {
-		lostfound.bi_nlink++;
+	lostfound.bi_nlink += S_ISDIR(inode->bi_mode);
 
-		ret = __bch2_fsck_write_inode(trans, &lostfound, U32_MAX);
-		if (ret)
-			return ret;
-	}
+	/* ensure lost+found inode is also present in inode snapshot */
+	ret = __bch2_fsck_write_inode(trans, &lostfound, inode_snapshot);
+	if (ret)
+		return ret;
 
 	dir_hash = bch2_hash_info_init(c, &lostfound);
 
