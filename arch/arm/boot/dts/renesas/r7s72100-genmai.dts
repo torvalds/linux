@@ -70,7 +70,8 @@
 	};
 
 	leds {
-		status = "okay";
+		/* Needs SDHI0 to be disabled */
+		status = "disabled";
 		compatible = "gpio-leds";
 
 		led1 {
@@ -226,6 +227,18 @@
 		/* P3_0 as TxD2; P3_2 as RxD2 */
 		pinmux = <RZA1_PINMUX(3, 0, 6)>, <RZA1_PINMUX(3, 2, 4)>;
 	};
+
+	sdhi0_pins: sdhi0 {
+		/* SDHI0: P4_8 up to P4_15 */
+		pinmux = <RZA1_PINMUX(4, 8, 3)>,	/* SD_CD_0 */
+			 <RZA1_PINMUX(4, 9, 3)>,	/* SD_WP_0 */
+			 <RZA1_PINMUX(4, 10, 3)>,	/* SD_D1_0 */
+			 <RZA1_PINMUX(4, 11, 3)>,	/* SD_D0_0 */
+			 <RZA1_PINMUX(4, 12, 3)>,	/* SD_CLK_0 */
+			 <RZA1_PINMUX(4, 13, 3)>,	/* SD_CMD_0 */
+			 <RZA1_PINMUX(4, 14, 3)>,	/* SD_D3_0 */
+			 <RZA1_PINMUX(4, 15, 3)>;	/* SD_D2_0 */
+	};
 };
 
 &rtc_x1_clk {
@@ -240,6 +253,14 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&scif2_pins>;
 
+	status = "okay";
+};
+
+&sdhi0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&sdhi0_pins>;
+
+	bus-width = <4>;
 	status = "okay";
 };
 
