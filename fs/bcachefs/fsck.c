@@ -1826,6 +1826,21 @@ static int check_dirent_inode_dirent(struct btree_trans *trans,
 	if (inode_points_to_dirent(target, d))
 		return 0;
 
+	if (!target->bi_dir &&
+	    !target->bi_dir_offset) {
+		fsck_err_on(S_ISDIR(target->bi_mode),
+			    trans, inode_dir_missing_backpointer,
+			    "directory with missing backpointer\n%s",
+			    (bch2_bkey_val_to_text(&buf, c, d.s_c),
+			     prt_printf(&buf, "\n  "),
+			     bch2_inode_unpacked_to_text(&buf, target),
+			     buf.buf));
+
+		target->bi_dir		= d.k->p.inode;
+		target->bi_dir_offset	= d.k->p.offset;
+		return __bch2_fsck_write_inode(trans, target, target_snapshot);
+	}
+
 	if (bch2_inode_should_have_bp(target) &&
 	    !fsck_err(trans, inode_wrong_backpointer,
 		      "dirent points to inode that does not point back:\n  %s",
@@ -1834,13 +1849,6 @@ static int check_dirent_inode_dirent(struct btree_trans *trans,
 		       bch2_inode_unpacked_to_text(&buf, target),
 		       buf.buf)))
 		goto err;
-
-	if (!target->bi_dir &&
-	    !target->bi_dir_offset) {
-		target->bi_dir		= d.k->p.inode;
-		target->bi_dir_offset	= d.k->p.offset;
-		return __bch2_fsck_write_inode(trans, target, target_snapshot);
-	}
 
 	struct bkey_s_c_dirent bp_dirent = dirent_get_by_pos(trans, &bp_iter,
 			      SPOS(target->bi_dir, target->bi_dir_offset, target_snapshot));
