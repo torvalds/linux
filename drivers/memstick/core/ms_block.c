@@ -2279,7 +2279,7 @@ out:
 
 #endif /* CONFIG_PM */
 
-static struct memstick_device_id msb_id_tbl[] = {
+static const struct memstick_device_id msb_id_tbl[] = {
 	{MEMSTICK_MATCH_ALL, MEMSTICK_TYPE_LEGACY, MEMSTICK_CATEGORY_STORAGE,
 	 MEMSTICK_CLASS_FLASH},
 
