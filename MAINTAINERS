@@ -15678,6 +15678,9 @@ F:	include/dt-bindings/clock/mobileye,eyeq5-clk.h
 
 MODULE SUPPORT
 M:	Luis Chamberlain <mcgrof@kernel.org>
+R:	Petr Pavlu <petr.pavlu@suse.com>
+R:	Sami Tolvanen <samitolvanen@google.com>
+R:	Daniel Gomez <da.gomez@samsung.com>
 L:	linux-modules@vger.kernel.org
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
