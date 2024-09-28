@@ -12152,6 +12152,7 @@ F:	include/linux/randomize_kstack.h
 F:	kernel/configs/hardening.config
 F:	lib/usercopy_kunit.c
 F:	mm/usercopy.c
+F:	security/Kconfig.hardening
 K:	\b(add|choose)_random_kstack_offset\b
 K:	\b__check_(object_size|heap_object)\b
 K:	\b__counted_by\b
