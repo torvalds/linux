@@ -533,6 +533,10 @@ static void __bch2_inode_unpacked_to_text(struct printbuf *out,
 	prt_printf(out, "(%x)\n", inode->bi_flags);
 
 	prt_printf(out, "journal_seq=%llu\n",	inode->bi_journal_seq);
+	prt_printf(out, "hash_seed=%llx\n",	inode->bi_hash_seed);
+	prt_printf(out, "hash_type=");
+	bch2_prt_str_hash_type(out, INODE_STR_HASH(inode));
+	prt_newline(out);
 	prt_printf(out, "bi_size=%llu\n",	inode->bi_size);
 	prt_printf(out, "bi_sectors=%llu\n",	inode->bi_sectors);
 	prt_printf(out, "bi_version=%llu\n",	inode->bi_version);
