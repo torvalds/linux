@@ -628,7 +628,7 @@ static struct bch_inode_info *bch2_lookup_trans(struct btree_trans *trans,
 		goto err;
 
 	/* regular files may have hardlinks: */
-	if (bch2_fs_inconsistent_on(bch2_inode_should_have_bp(&inode_u) &&
+	if (bch2_fs_inconsistent_on(bch2_inode_should_have_single_bp(&inode_u) &&
 				    !bkey_eq(k.k->p, POS(inode_u.bi_dir, inode_u.bi_dir_offset)),
 				    c,
 				    "dirent points to inode that does not point back:\n  %s",
