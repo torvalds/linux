@@ -41,6 +41,7 @@ bcachefs-y		:=	\
 	extents.o		\
 	extent_update.o		\
 	eytzinger.o		\
+	fast_list.o		\
 	fs.o			\
 	fs-ioctl.o		\
 	fs-io.o			\
