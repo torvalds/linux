@@ -231,10 +231,12 @@ err:
 	bch2_trans_iter_exit(trans, &iter);
 
 	if (ret) {
-		bch_err_inum_offset_ratelimited(c,
-				iter.pos.inode,
-				iter.pos.offset << 9,
-				"read error %i from btree lookup", ret);
+		struct printbuf buf = PRINTBUF;
+		bch2_inum_offset_err_msg_trans(trans, &buf, inum, iter.pos.offset << 9);
+		prt_printf(&buf, "read error %i from btree lookup", ret);
+		bch_err_ratelimited(c, "%s", buf.buf);
+		printbuf_exit(&buf);
+
 		rbio->bio.bi_status = BLK_STS_IOERR;
 		bio_endio(&rbio->bio);
 	}

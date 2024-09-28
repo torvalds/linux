@@ -113,11 +113,13 @@ int bch2_extent_fallocate(struct btree_trans *trans,
 err:
 	if (!ret && sectors_allocated)
 		bch2_increment_clock(c, sectors_allocated, WRITE);
-	if (should_print_err(ret))
-		bch_err_inum_offset_ratelimited(c,
-			inum.inum,
-			iter->pos.offset << 9,
-			"%s(): error: %s", __func__, bch2_err_str(ret));
+	if (should_print_err(ret)) {
+		struct printbuf buf = PRINTBUF;
+		bch2_inum_offset_err_msg_trans(trans, &buf, inum, iter->pos.offset << 9);
+		prt_printf(&buf, "fallocate error: %s", bch2_err_str(ret));
+		bch_err_ratelimited(c, "%s", buf.buf);
+		printbuf_exit(&buf);
+	}
 err_noprint:
 	bch2_open_buckets_put(c, &open_buckets);
 	bch2_disk_reservation_put(c, &disk_res);

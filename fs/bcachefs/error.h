@@ -238,4 +238,10 @@ void bch2_io_error(struct bch_dev *, enum bch_member_error_type);
 	_ret;								\
 })
 
+int bch2_inum_err_msg_trans(struct btree_trans *, struct printbuf *, subvol_inum);
+int bch2_inum_offset_err_msg_trans(struct btree_trans *, struct printbuf *, subvol_inum, u64);
+
+void bch2_inum_err_msg(struct bch_fs *, struct printbuf *, subvol_inum);
+void bch2_inum_offset_err_msg(struct bch_fs *, struct printbuf *, subvol_inum, u64);
+
 #endif /* _BCACHEFS_ERROR_H */

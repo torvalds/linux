@@ -3,6 +3,7 @@
 #include "btree_cache.h"
 #include "btree_iter.h"
 #include "error.h"
+#include "fs-common.h"
 #include "journal.h"
 #include "recovery_passes.h"
 #include "super.h"
@@ -514,4 +515,37 @@ void bch2_flush_fsck_errs(struct bch_fs *c)
 	}
 
 	mutex_unlock(&c->fsck_error_msgs_lock);
+}
+
+int bch2_inum_err_msg_trans(struct btree_trans *trans, struct printbuf *out, subvol_inum inum)
+{
+	u32 restart_count = trans->restart_count;
+	int ret = 0;
+
+	/* XXX: we don't yet attempt to print paths when we don't know the subvol */
+	if (inum.subvol)
+		ret = lockrestart_do(trans, bch2_inum_to_path(trans, inum, out));
+	if (!inum.subvol || ret)
+		prt_printf(out, "inum %llu:%llu", inum.subvol, inum.inum);
+
+	return trans_was_restarted(trans, restart_count);
+}
+
+int bch2_inum_offset_err_msg_trans(struct btree_trans *trans, struct printbuf *out,
+				    subvol_inum inum, u64 offset)
+{
+	int ret = bch2_inum_err_msg_trans(trans, out, inum);
+	prt_printf(out, " offset %llu: ", offset);
+	return ret;
+}
+
+void bch2_inum_err_msg(struct bch_fs *c, struct printbuf *out, subvol_inum inum)
+{
+	bch2_trans_run(c, bch2_inum_err_msg_trans(trans, out, inum));
+}
+
+void bch2_inum_offset_err_msg(struct bch_fs *c, struct printbuf *out,
+			      subvol_inum inum, u64 offset)
+{
+	bch2_trans_run(c, bch2_inum_offset_err_msg_trans(trans, out, inum, offset));
 }

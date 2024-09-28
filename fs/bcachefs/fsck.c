@@ -212,6 +212,7 @@ static int lookup_lostfound(struct btree_trans *trans, u32 snapshot,
 {
 	struct bch_fs *c = trans->c;
 	struct qstr lostfound_str = QSTR("lost+found");
+	struct btree_iter lostfound_iter = { NULL };
 	u64 inum = 0;
 	unsigned d_type = 0;
 	int ret;
@@ -290,11 +291,16 @@ create_lostfound:
 	 * XXX: we could have a nicer log message here  if we had a nice way to
 	 * walk backpointers to print a path
 	 */
-	bch_notice(c, "creating lost+found in subvol %llu snapshot %u",
-		   root_inum.subvol, le32_to_cpu(st.root_snapshot));
+	struct printbuf path = PRINTBUF;
+	ret = bch2_inum_to_path(trans, root_inum, &path);
+	if (ret)
+		goto err;
+
+	bch_notice(c, "creating %s/lost+found in subvol %llu snapshot %u",
+		   path.buf, root_inum.subvol, snapshot);
+	printbuf_exit(&path);
 
 	u64 now = bch2_current_time(c);
-	struct btree_iter lostfound_iter = { NULL };
 	u64 cpu = raw_smp_processor_id();
 
 	bch2_inode_init_early(c, lostfound);

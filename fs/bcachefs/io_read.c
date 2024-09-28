@@ -322,6 +322,20 @@ nopromote:
 
 /* Read */
 
+static int bch2_read_err_msg_trans(struct btree_trans *trans, struct printbuf *out,
+				   struct bch_read_bio *rbio, struct bpos read_pos)
+{
+	return bch2_inum_offset_err_msg_trans(trans, out,
+		(subvol_inum) { rbio->subvol, read_pos.inode },
+		read_pos.offset << 9);
+}
+
+static void bch2_read_err_msg(struct bch_fs *c, struct printbuf *out,
+			      struct bch_read_bio *rbio, struct bpos read_pos)
+{
+	bch2_trans_run(c, bch2_read_err_msg_trans(trans, out, rbio, read_pos));
+}
+
 #define READ_RETRY_AVOID	1
 #define READ_RETRY		2
 #define READ_ERR		3
@@ -500,6 +514,29 @@ static void bch2_rbio_error(struct bch_read_bio *rbio, int retry,
 	}
 }
 
+static void bch2_read_io_err(struct work_struct *work)
+{
+	struct bch_read_bio *rbio =
+		container_of(work, struct bch_read_bio, work);
+	struct bio *bio = &rbio->bio;
+	struct bch_fs *c	= rbio->c;
+	struct bch_dev *ca = rbio->have_ioref ? bch2_dev_have_ref(c, rbio->pick.ptr.dev) : NULL;
+	struct printbuf buf = PRINTBUF;
+
+	bch2_read_err_msg(c, &buf, rbio, rbio->read_pos);
+	prt_printf(&buf, "data read error: %s", bch2_blk_status_to_str(bio->bi_status));
+
+	if (ca) {
+		bch2_io_error(ca, BCH_MEMBER_ERROR_read);
+		bch_err_ratelimited(ca, "%s", buf.buf);
+	} else {
+		bch_err_ratelimited(c, "%s", buf.buf);
+	}
+
+	printbuf_exit(&buf);
+	bch2_rbio_error(rbio, READ_RETRY_AVOID, bio->bi_status);
+}
+
 static int __bch2_rbio_narrow_crcs(struct btree_trans *trans,
 				   struct bch_read_bio *rbio)
 {
@@ -561,6 +598,73 @@ static noinline void bch2_rbio_narrow_crcs(struct bch_read_bio *rbio)
 {
 	bch2_trans_commit_do(rbio->c, NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
 			     __bch2_rbio_narrow_crcs(trans, rbio));
+}
+
+static void bch2_read_csum_err(struct work_struct *work)
+{
+	struct bch_read_bio *rbio =
+		container_of(work, struct bch_read_bio, work);
+	struct bch_fs *c	= rbio->c;
+	struct bio *src		= &rbio->bio;
+	struct bch_extent_crc_unpacked crc = rbio->pick.crc;
+	struct nonce nonce = extent_nonce(rbio->version, crc);
+	struct bch_csum csum = bch2_checksum_bio(c, crc.csum_type, nonce, src);
+	struct printbuf buf = PRINTBUF;
+
+	bch2_read_err_msg(c, &buf, rbio, rbio->read_pos);
+	prt_str(&buf, "data ");
+	bch2_csum_err_msg(&buf, crc.csum_type, rbio->pick.crc.csum, csum);
+
+	struct bch_dev *ca = rbio->have_ioref ? bch2_dev_have_ref(c, rbio->pick.ptr.dev) : NULL;
+	if (ca) {
+		bch2_io_error(ca, BCH_MEMBER_ERROR_checksum);
+		bch_err_ratelimited(ca, "%s", buf.buf);
+	} else {
+		bch_err_ratelimited(c, "%s", buf.buf);
+	}
+
+	bch2_rbio_error(rbio, READ_RETRY_AVOID, BLK_STS_IOERR);
+	printbuf_exit(&buf);
+}
+
+static void bch2_read_decompress_err(struct work_struct *work)
+{
+	struct bch_read_bio *rbio =
+		container_of(work, struct bch_read_bio, work);
+	struct bch_fs *c	= rbio->c;
+	struct printbuf buf = PRINTBUF;
+
+	bch2_read_err_msg(c, &buf, rbio, rbio->read_pos);
+	prt_str(&buf, "decompression error");
+
+	struct bch_dev *ca = rbio->have_ioref ? bch2_dev_have_ref(c, rbio->pick.ptr.dev) : NULL;
+	if (ca)
+		bch_err_ratelimited(ca, "%s", buf.buf);
+	else
+		bch_err_ratelimited(c, "%s", buf.buf);
+
+	bch2_rbio_error(rbio, READ_ERR, BLK_STS_IOERR);
+	printbuf_exit(&buf);
+}
+
+static void bch2_read_decrypt_err(struct work_struct *work)
+{
+	struct bch_read_bio *rbio =
+		container_of(work, struct bch_read_bio, work);
+	struct bch_fs *c	= rbio->c;
+	struct printbuf buf = PRINTBUF;
+
+	bch2_read_err_msg(c, &buf, rbio, rbio->read_pos);
+	prt_str(&buf, "decrypt error");
+
+	struct bch_dev *ca = rbio->have_ioref ? bch2_dev_have_ref(c, rbio->pick.ptr.dev) : NULL;
+	if (ca)
+		bch_err_ratelimited(ca, "%s", buf.buf);
+	else
+		bch_err_ratelimited(c, "%s", buf.buf);
+
+	bch2_rbio_error(rbio, READ_ERR, BLK_STS_IOERR);
+	printbuf_exit(&buf);
 }
 
 /* Inner part that may run in process context */
@@ -669,33 +773,13 @@ csum_err:
 		goto out;
 	}
 
-	struct printbuf buf = PRINTBUF;
-	buf.atomic++;
-	prt_str(&buf, "data ");
-	bch2_csum_err_msg(&buf, crc.csum_type, rbio->pick.crc.csum, csum);
-
-	struct bch_dev *ca = rbio->have_ioref ? bch2_dev_have_ref(c, rbio->pick.ptr.dev) : NULL;
-	if (ca) {
-		bch_err_inum_offset_ratelimited(ca,
-			rbio->read_pos.inode,
-			rbio->read_pos.offset << 9,
-			"data %s", buf.buf);
-		bch2_io_error(ca, BCH_MEMBER_ERROR_checksum);
-	}
-	printbuf_exit(&buf);
-	bch2_rbio_error(rbio, READ_RETRY_AVOID, BLK_STS_IOERR);
+	bch2_rbio_punt(rbio, bch2_read_csum_err, RBIO_CONTEXT_UNBOUND, system_unbound_wq);
 	goto out;
 decompression_err:
-	bch_err_inum_offset_ratelimited(c, rbio->read_pos.inode,
-					rbio->read_pos.offset << 9,
-					"decompression error");
-	bch2_rbio_error(rbio, READ_ERR, BLK_STS_IOERR);
+	bch2_rbio_punt(rbio, bch2_read_decompress_err, RBIO_CONTEXT_UNBOUND, system_unbound_wq);
 	goto out;
 decrypt_err:
-	bch_err_inum_offset_ratelimited(c, rbio->read_pos.inode,
-					rbio->read_pos.offset << 9,
-					"decrypt error");
-	bch2_rbio_error(rbio, READ_ERR, BLK_STS_IOERR);
+	bch2_rbio_punt(rbio, bch2_read_decrypt_err, RBIO_CONTEXT_UNBOUND, system_unbound_wq);
 	goto out;
 }
 
@@ -716,16 +800,8 @@ static void bch2_read_endio(struct bio *bio)
 	if (!rbio->split)
 		rbio->bio.bi_end_io = rbio->end_io;
 
-	if (bio->bi_status) {
-		if (ca) {
-			bch_err_inum_offset_ratelimited(ca,
-				rbio->read_pos.inode,
-				rbio->read_pos.offset,
-				"data read error: %s",
-				bch2_blk_status_to_str(bio->bi_status));
-			bch2_io_error(ca, BCH_MEMBER_ERROR_read);
-		}
-		bch2_rbio_error(rbio, READ_RETRY_AVOID, bio->bi_status);
+	if (unlikely(bio->bi_status)) {
+		bch2_rbio_punt(rbio, bch2_read_io_err, RBIO_CONTEXT_UNBOUND, system_unbound_wq);
 		return;
 	}
 
@@ -832,25 +908,22 @@ retry_pick:
 
 	if (unlikely(pick_ret < 0)) {
 		struct printbuf buf = PRINTBUF;
+		bch2_read_err_msg_trans(trans, &buf, orig, read_pos);
+		prt_printf(&buf, "no device to read from: %s\n  ", bch2_err_str(pick_ret));
 		bch2_bkey_val_to_text(&buf, c, k);
 
-		bch_err_inum_offset_ratelimited(c,
-				read_pos.inode, read_pos.offset << 9,
-				"no device to read from: %s\n  %s",
-				bch2_err_str(pick_ret),
-				buf.buf);
+		bch_err_ratelimited(c, "%s", buf.buf);
 		printbuf_exit(&buf);
 		goto err;
 	}
 
 	if (unlikely(bch2_csum_type_is_encryption(pick.crc.csum_type)) && !c->chacha20) {
 		struct printbuf buf = PRINTBUF;
+		bch2_read_err_msg_trans(trans, &buf, orig, read_pos);
+		prt_printf(&buf, "attempting to read encrypted data without encryption key\n  ");
 		bch2_bkey_val_to_text(&buf, c, k);
 
-		bch_err_inum_offset_ratelimited(c,
-				read_pos.inode, read_pos.offset << 9,
-				"attempting to read encrypted data without encryption key\n  %s",
-				buf.buf);
+		bch_err_ratelimited(c, "%s", buf.buf);
 		printbuf_exit(&buf);
 		goto err;
 	}
@@ -1036,11 +1109,15 @@ get_bio:
 	}
 
 	if (!rbio->pick.idx) {
-		if (!rbio->have_ioref) {
-			bch_err_inum_offset_ratelimited(c,
-					read_pos.inode,
-					read_pos.offset << 9,
-					"no device to read from");
+		if (unlikely(!rbio->have_ioref)) {
+			struct printbuf buf = PRINTBUF;
+			bch2_read_err_msg_trans(trans, &buf, rbio, read_pos);
+			prt_printf(&buf, "no device to read from:\n  ");
+			bch2_bkey_val_to_text(&buf, c, k);
+
+			bch_err_ratelimited(c, "%s", buf.buf);
+			printbuf_exit(&buf);
+
 			bch2_rbio_error(rbio, READ_RETRY_AVOID, BLK_STS_IOERR);
 			goto out;
 		}
@@ -1202,16 +1279,20 @@ err:
 	}
 
 	bch2_trans_iter_exit(trans, &iter);
-	bch2_trans_put(trans);
-	bch2_bkey_buf_exit(&sk, c);
 
 	if (ret) {
-		bch_err_inum_offset_ratelimited(c, inum.inum,
-						bvec_iter.bi_sector << 9,
-						"read error %i from btree lookup", ret);
+		struct printbuf buf = PRINTBUF;
+		bch2_inum_offset_err_msg_trans(trans, &buf, inum, bvec_iter.bi_sector << 9);
+		prt_printf(&buf, "read error %i from btree lookup", ret);
+		bch_err_ratelimited(c, "%s", buf.buf);
+		printbuf_exit(&buf);
+
 		rbio->bio.bi_status = BLK_STS_IOERR;
 		bch2_rbio_done(rbio);
 	}
+
+	bch2_trans_put(trans);
+	bch2_bkey_buf_exit(&sk, c);
 }
 
 void bch2_fs_io_read_exit(struct bch_fs *c)
