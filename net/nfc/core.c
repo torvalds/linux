@@ -40,27 +40,19 @@ int nfc_fw_download(struct nfc_dev *dev, const char *firmware_name)
 
 	if (dev->shutting_down) {
 		rc = -ENODEV;
-		goto error;
-	}
-
-	if (dev->dev_up) {
+	}else if (dev->dev_up) {
 		rc = -EBUSY;
-		goto error;
-	}
-
-	if (!dev->ops->fw_download) {
+	}else if (!dev->ops->fw_download) {
 		rc = -EOPNOTSUPP;
-		goto error;
-	}
+	}else{
+		dev->fw_download_in_progress = true;
+		rc = dev->ops->fw_download(dev, firmware_name);
+		if (rc)
+			dev->fw_download_in_progress = false;
+		}
 
-	dev->fw_download_in_progress = true;
-	rc = dev->ops->fw_download(dev, firmware_name);
-	if (rc)
-		dev->fw_download_in_progress = false;
-
-error:
-	device_unlock(&dev->dev);
-	return rc;
+		device_unlock(&dev->dev);
+		return rc;
 }
 
 /**
