@@ -46,6 +46,9 @@
 #include <xen/page.h>
 #include <xen/xen-ops.h>
 #include <xen/balloon.h>
+#ifdef CONFIG_XEN_ACPI
+#include <xen/acpi.h>
+#endif
 
 #include "privcmd.h"
 
@@ -844,6 +847,31 @@ out:
 	return rc;
 }
 
+static long privcmd_ioctl_pcidev_get_gsi(struct file *file, void __user *udata)
+{
+#if defined(CONFIG_XEN_ACPI)
+	int rc = -EINVAL;
+	struct privcmd_pcidev_get_gsi kdata;
+
+	if (copy_from_user(&kdata, udata, sizeof(kdata)))
+		return -EFAULT;
+
+	if (IS_REACHABLE(CONFIG_XEN_PCIDEV_BACKEND))
+		rc = pcistub_get_gsi_from_sbdf(kdata.sbdf);
+
+	if (rc < 0)
+		return rc;
+
+	kdata.gsi = rc;
+	if (copy_to_user(udata, &kdata, sizeof(kdata)))
+		return -EFAULT;
+
+	return 0;
+#else
+	return -EINVAL;
+#endif
+}
+
 #ifdef CONFIG_XEN_PRIVCMD_EVENTFD
 /* Irqfd support */
 static struct workqueue_struct *irqfd_cleanup_wq;
@@ -1541,6 +1569,10 @@ static long privcmd_ioctl(struct file *file,
 
 	case IOCTL_PRIVCMD_IOEVENTFD:
 		ret = privcmd_ioctl_ioeventfd(file, udata);
+		break;
+
+	case IOCTL_PRIVCMD_PCIDEV_GET_GSI:
+		ret = privcmd_ioctl_pcidev_get_gsi(file, udata);
 		break;
 
 	default:

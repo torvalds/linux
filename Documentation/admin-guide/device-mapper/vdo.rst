@@ -251,7 +251,12 @@ The messages are:
 		by the vdostats userspace program to interpret the output
 		buffer.
 
-        dump:
+	config:
+		Outputs useful vdo configuration information. Mostly used
+		by users who want to recreate a similar VDO volume and
+		want to know the creation configuration used.
+
+	dump:
 		Dumps many internal structures to the system log. This is
 		not always safe to run, so it should only be used to debug
 		a hung vdo. Optional parameters to specify structures to

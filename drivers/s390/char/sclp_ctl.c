@@ -115,7 +115,6 @@ static const struct file_operations sclp_ctl_fops = {
 	.open = nonseekable_open,
 	.unlocked_ioctl = sclp_ctl_ioctl,
 	.compat_ioctl = sclp_ctl_ioctl,
-	.llseek = no_llseek,
 };
 
 /*

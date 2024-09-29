@@ -13,9 +13,6 @@
 /* Lock for protecting policy. */
 DEFINE_MUTEX(tomoyo_policy_lock);
 
-/* Has /sbin/init started? */
-bool tomoyo_policy_loaded;
-
 /*
  * Mapping table from "enum tomoyo_mac_index" to
  * "enum tomoyo_mac_category_index".

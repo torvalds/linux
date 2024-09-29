@@ -212,6 +212,12 @@ static int handle_pagefault(struct xe_gt *gt, struct pagefault *pf)
 	 * TODO: Change to read lock? Using write lock for simplicity.
 	 */
 	down_write(&vm->lock);
+
+	if (xe_vm_is_closed(vm)) {
+		err = -ENOENT;
+		goto unlock_vm;
+	}
+
 	vma = lookup_vma(vm, pf->page_addr);
 	if (!vma) {
 		err = -EINVAL;

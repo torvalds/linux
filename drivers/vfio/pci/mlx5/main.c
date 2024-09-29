@@ -587,7 +587,6 @@ static const struct file_operations mlx5vf_save_fops = {
 	.unlocked_ioctl = mlx5vf_precopy_ioctl,
 	.compat_ioctl = compat_ptr_ioctl,
 	.release = mlx5vf_release_file,
-	.llseek = no_llseek,
 };
 
 static int mlx5vf_pci_save_device_inc_data(struct mlx5vf_pci_core_device *mvdev)
@@ -1000,7 +999,6 @@ static const struct file_operations mlx5vf_resume_fops = {
 	.owner = THIS_MODULE,
 	.write = mlx5vf_resume_write,
 	.release = mlx5vf_release_file,
-	.llseek = no_llseek,
 };
 
 static struct mlx5_vf_migration_file *

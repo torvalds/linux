@@ -9,34 +9,66 @@
 #include "internal.h"
 
 /*
+ * Make sure there's space in the rolling queue.
+ */
+struct folio_queue *netfs_buffer_make_space(struct netfs_io_request *rreq)
+{
+	struct folio_queue *tail = rreq->buffer_tail, *prev;
+	unsigned int prev_nr_slots = 0;
+
+	if (WARN_ON_ONCE(!rreq->buffer && tail) ||
+	    WARN_ON_ONCE(rreq->buffer && !tail))
+		return ERR_PTR(-EIO);
+
+	prev = tail;
+	if (prev) {
+		if (!folioq_full(tail))
+			return tail;
+		prev_nr_slots = folioq_nr_slots(tail);
+	}
+
+	tail = kmalloc(sizeof(*tail), GFP_NOFS);
+	if (!tail)
+		return ERR_PTR(-ENOMEM);
+	netfs_stat(&netfs_n_folioq);
+	folioq_init(tail);
+	tail->prev = prev;
+	if (prev)
+		/* [!] NOTE: After we set prev->next, the consumer is entirely
+		 * at liberty to delete prev.
+		 */
+		WRITE_ONCE(prev->next, tail);
+
+	rreq->buffer_tail = tail;
+	if (!rreq->buffer) {
+		rreq->buffer = tail;
+		iov_iter_folio_queue(&rreq->io_iter, ITER_SOURCE, tail, 0, 0, 0);
+	} else {
+		/* Make sure we don't leave the master iterator pointing to a
+		 * block that might get immediately consumed.
+		 */
+		if (rreq->io_iter.folioq == prev &&
+		    rreq->io_iter.folioq_slot == prev_nr_slots) {
+			rreq->io_iter.folioq = tail;
+			rreq->io_iter.folioq_slot = 0;
+		}
+	}
+	rreq->buffer_tail_slot = 0;
+	return tail;
+}
+
+/*
  * Append a folio to the rolling queue.
  */
 int netfs_buffer_append_folio(struct netfs_io_request *rreq, struct folio *folio,
 			      bool needs_put)
 {
-	struct folio_queue *tail = rreq->buffer_tail;
+	struct folio_queue *tail;
 	unsigned int slot, order = folio_order(folio);
 
-	if (WARN_ON_ONCE(!rreq->buffer && tail) ||
-	    WARN_ON_ONCE(rreq->buffer && !tail))
-		return -EIO;
-
-	if (!tail || folioq_full(tail)) {
-		tail = kmalloc(sizeof(*tail), GFP_NOFS);
-		if (!tail)
-			return -ENOMEM;
-		netfs_stat(&netfs_n_folioq);
-		folioq_init(tail);
-		tail->prev = rreq->buffer_tail;
-		if (tail->prev)
-			tail->prev->next = tail;
-		rreq->buffer_tail = tail;
-		if (!rreq->buffer) {
-			rreq->buffer = tail;
-			iov_iter_folio_queue(&rreq->io_iter, ITER_SOURCE, tail, 0, 0, 0);
-		}
-		rreq->buffer_tail_slot = 0;
-	}
+	tail = netfs_buffer_make_space(rreq);
+	if (IS_ERR(tail))
+		return PTR_ERR(tail);
 
 	rreq->io_iter.count += PAGE_SIZE << order;
 

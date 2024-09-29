@@ -117,7 +117,7 @@ static int ovl_real_fdget_meta(const struct file *file, struct fd *real,
 		struct file *f = ovl_open_realfile(file, &realpath);
 		if (IS_ERR(f))
 			return PTR_ERR(f);
-		real->word = (unsigned long)ovl_open_realfile(file, &realpath) | FDPUT_FPUT;
+		real->word = (unsigned long)f | FDPUT_FPUT;
 		return 0;
 	}
 

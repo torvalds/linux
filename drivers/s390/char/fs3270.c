@@ -515,7 +515,6 @@ static const struct file_operations fs3270_fops = {
 	.compat_ioctl	 = fs3270_ioctl,	/* ioctl */
 	.open		 = fs3270_open,		/* open */
 	.release	 = fs3270_close,	/* release */
-	.llseek		= no_llseek,
 };
 
 static void fs3270_create_cb(int minor)

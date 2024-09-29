@@ -2320,6 +2320,20 @@ void xe_bo_put_commit(struct llist_head *deferred)
 		drm_gem_object_free(&bo->ttm.base.refcount);
 }
 
+void xe_bo_put(struct xe_bo *bo)
+{
+	might_sleep();
+	if (bo) {
+#ifdef CONFIG_PROC_FS
+		if (bo->client)
+			might_lock(&bo->client->bos_lock);
+#endif
+		if (bo->ggtt_node && bo->ggtt_node->ggtt)
+			might_lock(&bo->ggtt_node->ggtt->lock);
+		drm_gem_object_put(&bo->ttm.base);
+	}
+}
+
 /**
  * xe_bo_dumb_create - Create a dumb bo as backing for a fb
  * @file_priv: ...
