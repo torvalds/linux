@@ -27,6 +27,16 @@
 
 #define HGSL_CONTEXT_NUM 256
 
+#define HGSL_MAX_IOC_SIZE (128)
+#define HGSL_IOCTL_FUNC(_cmd, _func) \
+	[_IOC_NR((_cmd))] = \
+		{ .cmd = (_cmd), .func = (_func) }
+
+struct hgsl_ioctl {
+	unsigned int cmd;
+	int (*func)(struct file *filep, void *data);
+};
+
 struct qcom_hgsl;
 struct hgsl_hsync_timeline;
 

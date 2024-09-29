@@ -135,7 +135,7 @@ struct hgsl_ioctl_ctxt_create_params {
 	__u32 padding;
 };
 
-#define HGSL_IOCTL_CTXT_CREATE	HGSL_IOW(0x10,  \
+#define HGSL_IOCTL_CTXT_CREATE	HGSL_IORW(0x10,  \
 	struct hgsl_ioctl_ctxt_create_params)
 
 struct hgsl_ioctl_ctxt_destroy_params {
@@ -145,7 +145,7 @@ struct hgsl_ioctl_ctxt_destroy_params {
 	__u32 padding;
 };
 
-#define HGSL_IOCTL_CTXT_DESTROY	HGSL_IOW(0x11,  \
+#define HGSL_IOCTL_CTXT_DESTROY	HGSL_IORW(0x11,  \
 	struct hgsl_ioctl_ctxt_destroy_params)
 
 /**
@@ -163,7 +163,7 @@ struct hgsl_wait_ts_info {
 };
 
 #define HGSL_IOCTL_WAIT_TIMESTAMP \
-	HGSL_IOW(0x12,  struct hgsl_wait_ts_info)
+	HGSL_IORW(0x12,  struct hgsl_wait_ts_info)
 
 /**
  * struct hgsl_ioctl_issueib_params - submit cmds to GPU
@@ -406,13 +406,13 @@ struct hgsl_hsync_fence_create {
 };
 
 #define HGSL_IOCTL_HSYNC_FENCE_CREATE \
-				HGSL_IOW(0x13, struct hgsl_hsync_fence_create)
+				HGSL_IORW(0x13, struct hgsl_hsync_fence_create)
 
 /**
  * Create an i-fence timeline - param is id of the new timeline
  */
 #define HGSL_IOCTL_ISYNC_TIMELINE_CREATE \
-				HGSL_IOW(0x14, __u32)
+				HGSL_IORW(0x14, __u32)
 
 /**
  * Destroy an i-fence timeline - param is id of timeline to be released
@@ -436,7 +436,7 @@ struct hgsl_isync_create_fence {
 	__u32 padding;
 };
 #define HGSL_IOCTL_ISYNC_FENCE_CREATE	\
-				HGSL_IOW(0x16,  \
+				HGSL_IORW(0x16,  \
 					 struct hgsl_isync_create_fence)
 
 /**
