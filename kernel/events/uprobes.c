@@ -1646,21 +1646,19 @@ static unsigned long xol_take_insn_slot(struct xol_area *area)
 
 /*
  * xol_get_insn_slot - allocate a slot for xol.
- * Returns the allocated slot address or 0.
  */
-static unsigned long xol_get_insn_slot(struct uprobe *uprobe)
+static bool xol_get_insn_slot(struct uprobe *uprobe)
 {
-	struct xol_area *area;
-	unsigned long xol_vaddr;
+	struct uprobe_task *utask = current->utask;
+	struct xol_area *area = get_xol_area();
 
-	area = get_xol_area();
 	if (!area)
-		return 0;
+		return false;
 
-	xol_vaddr = xol_take_insn_slot(area);
-	arch_uprobe_copy_ixol(area->page, xol_vaddr,
+	utask->xol_vaddr = xol_take_insn_slot(area);
+	arch_uprobe_copy_ixol(area->page, utask->xol_vaddr,
 			      &uprobe->arch.ixol, sizeof(uprobe->arch.ixol));
-	return xol_vaddr;
+	return true;
 }
 
 /*
@@ -1948,21 +1946,17 @@ static int
 pre_ssout(struct uprobe *uprobe, struct pt_regs *regs, unsigned long bp_vaddr)
 {
 	struct uprobe_task *utask = current->utask;
-	unsigned long xol_vaddr;
 	int err;
 
 	if (!try_get_uprobe(uprobe))
 		return -EINVAL;
 
-	xol_vaddr = xol_get_insn_slot(uprobe);
-	if (!xol_vaddr) {
+	if (!xol_get_insn_slot(uprobe)) {
 		err = -ENOMEM;
 		goto err_out;
 	}
 
-	utask->xol_vaddr = xol_vaddr;
 	utask->vaddr = bp_vaddr;
-
 	err = arch_uprobe_pre_xol(&uprobe->arch, regs);
 	if (unlikely(err)) {
 		xol_free_insn_slot(current);
