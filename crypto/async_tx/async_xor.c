@@ -389,32 +389,6 @@ async_xor_val_offs(struct page *dest, unsigned int offset,
 }
 EXPORT_SYMBOL_GPL(async_xor_val_offs);
 
-/**
- * async_xor_val - attempt a xor parity check with a dma engine.
- * @dest: destination page used if the xor is performed synchronously
- * @src_list: array of source pages
- * @offset: offset in pages to start transaction
- * @src_cnt: number of source pages
- * @len: length in bytes
- * @result: 0 if sum == 0 else non-zero
- * @submit: submission / completion modifiers
- *
- * honored flags: ASYNC_TX_ACK
- *
- * src_list note: if the dest is also a source it must be at index zero.
- * The contents of this array will be overwritten if a scribble region
- * is not specified.
- */
-struct dma_async_tx_descriptor *
-async_xor_val(struct page *dest, struct page **src_list, unsigned int offset,
-	      int src_cnt, size_t len, enum sum_check_flags *result,
-	      struct async_submit_ctl *submit)
-{
-	return async_xor_val_offs(dest, offset, src_list, NULL, src_cnt,
-			len, result, submit);
-}
-EXPORT_SYMBOL_GPL(async_xor_val);
-
 MODULE_AUTHOR("Intel Corporation");
 MODULE_DESCRIPTION("asynchronous xor/xor-zero-sum api");
 MODULE_LICENSE("GPL");
