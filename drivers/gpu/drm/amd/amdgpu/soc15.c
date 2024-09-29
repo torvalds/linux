@@ -1473,7 +1473,7 @@ static void soc15_common_get_clockgating_state(void *handle, u64 *flags)
 		adev->df.funcs->get_clockgating_state(adev, flags);
 }
 
-static int soc15_common_set_powergating_state(void *handle,
+static int soc15_common_set_powergating_state(struct amdgpu_ip_block *ip_block,
 					    enum amd_powergating_state state)
 {
 	/* todo */
