@@ -1472,9 +1472,15 @@ static vm_fault_t xol_fault(const struct vm_special_mapping *sm,
 	return 0;
 }
 
+static int xol_mremap(const struct vm_special_mapping *sm, struct vm_area_struct *new_vma)
+{
+	return -EPERM;
+}
+
 static const struct vm_special_mapping xol_mapping = {
 	.name = "[uprobes]",
 	.fault = xol_fault,
+	.mremap = xol_mremap,
 };
 
 /* Slot allocation for XOL */
@@ -1667,21 +1673,19 @@ static void xol_free_insn_slot(struct uprobe_task *utask)
 {
 	struct xol_area *area = current->mm->uprobes_state.xol_area;
 	unsigned long offset = utask->xol_vaddr - area->vaddr;
+	unsigned int slot_nr;
 
 	utask->xol_vaddr = 0;
-	/*
-	 * xol_vaddr must fit into [area->vaddr, area->vaddr + PAGE_SIZE).
-	 * This check can only fail if the "[uprobes]" vma was mremap'ed.
-	 */
-	if (offset < PAGE_SIZE) {
-		int slot_nr = offset / UPROBE_XOL_SLOT_BYTES;
+	/* xol_vaddr must fit into [area->vaddr, area->vaddr + PAGE_SIZE) */
+	if (WARN_ON_ONCE(offset >= PAGE_SIZE))
+		return;
 
-		clear_bit(slot_nr, area->bitmap);
-		atomic_dec(&area->slot_count);
-		smp_mb__after_atomic(); /* pairs with prepare_to_wait() */
-		if (waitqueue_active(&area->wq))
-			wake_up(&area->wq);
-	}
+	slot_nr = offset / UPROBE_XOL_SLOT_BYTES;
+	clear_bit(slot_nr, area->bitmap);
+	atomic_dec(&area->slot_count);
+	smp_mb__after_atomic(); /* pairs with prepare_to_wait() */
+	if (waitqueue_active(&area->wq))
+		wake_up(&area->wq);
 }
 
 void __weak arch_uprobe_copy_ixol(struct page *page, unsigned long vaddr,
