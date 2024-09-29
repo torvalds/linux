@@ -376,7 +376,7 @@ struct lir {
 #define PARAMS_LEN	10	/* PARAMS=xx,xxxxxx */
 #define NODEID_LEN	35	/* NODEID=tttttt/mdl,mmm.ppssssssssssss,xxxx */
 
-/* Copy EBCIDC text, convert to ASCII and optionally add delimiter. */
+/* Copy EBCDIC text, convert to ASCII and optionally add delimiter. */
 static char *store_ebcdic(char *dest, const char *src, unsigned long len,
 			  char delim)
 {

@@ -46,7 +46,7 @@
 /* indices for READCMB */
 enum cmb_index {
 	avg_utilization = -1,
- /* basic and exended format: */
+ /* basic and extended format: */
 	cmb_ssch_rsch_count = 0,
 	cmb_sample_count,
 	cmb_device_connect_time,
@@ -135,7 +135,7 @@ static inline u64 time_to_nsec(u32 value)
  * Users are usually interested in average times,
  * not accumulated time.
  * This also helps us with atomicity problems
- * when reading sinlge values.
+ * when reading single values.
  */
 static inline u64 time_to_avg_nsec(u32 value, u32 count)
 {
@@ -1227,7 +1227,7 @@ int cmf_readall(struct ccw_device *cdev, struct cmbdata *data)
 	return cmbops->readall(cdev, data);
 }
 
-/* Reenable cmf when a disconnected device becomes available again. */
+/* Re-enable cmf when a disconnected device becomes available again. */
 int cmf_reenable(struct ccw_device *cdev)
 {
 	cmbops->reset(cdev);
