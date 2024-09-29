@@ -336,35 +336,6 @@ int __auxiliary_device_add(struct auxiliary_device *auxdev, const char *modname)
 EXPORT_SYMBOL_GPL(__auxiliary_device_add);
 
 /**
- * auxiliary_find_device - auxiliary device iterator for locating a particular device.
- * @start: Device to begin with
- * @data: Data to pass to match function
- * @match: Callback function to check device
- *
- * This function returns a reference to a device that is 'found'
- * for later use, as determined by the @match callback.
- *
- * The reference returned should be released with put_device().
- *
- * The callback should return 0 if the device doesn't match and non-zero
- * if it does.  If the callback returns non-zero, this function will
- * return to the caller and not iterate over any more devices.
- */
-struct auxiliary_device *auxiliary_find_device(struct device *start,
-					       const void *data,
-					       device_match_t match)
-{
-	struct device *dev;
-
-	dev = bus_find_device(&auxiliary_bus_type, start, data, match);
-	if (!dev)
-		return NULL;
-
-	return to_auxiliary_dev(dev);
-}
-EXPORT_SYMBOL_GPL(auxiliary_find_device);
-
-/**
  * __auxiliary_driver_register - register a driver for auxiliary bus devices
  * @auxdrv: auxiliary_driver structure
  * @owner: owning module/driver
