@@ -42,36 +42,36 @@ static int veml6070_read(struct veml6070_data *data)
 	int ret;
 	u8 msb, lsb;
 
-	mutex_lock(&data->lock);
+	guard(mutex)(&data->lock);
 
 	/* disable shutdown */
 	ret = i2c_smbus_write_byte(data->client1,
 	    data->config & ~VEML6070_COMMAND_SD);
 	if (ret < 0)
-		goto out;
+		return ret;
 
 	msleep(125 + 10); /* measurement takes up to 125 ms for IT 1x */
 
 	ret = i2c_smbus_read_byte(data->client2); /* read MSB, address 0x39 */
 	if (ret < 0)
-		goto out;
+		return ret;
+
 	msb = ret;
 
 	ret = i2c_smbus_read_byte(data->client1); /* read LSB, address 0x38 */
 	if (ret < 0)
-		goto out;
+		return ret;
+
 	lsb = ret;
 
 	/* shutdown again */
 	ret = i2c_smbus_write_byte(data->client1, data->config);
 	if (ret < 0)
-		goto out;
+		return ret;
 
 	ret = (msb << 8) | lsb;
 
-out:
-	mutex_unlock(&data->lock);
-	return ret;
+	return 0;
 }
 
 static const struct iio_chan_spec veml6070_channels[] = {
