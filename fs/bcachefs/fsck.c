@@ -1085,7 +1085,6 @@ static int check_inode_dirent_inode(struct btree_trans *trans,
 		 */
 		inode->bi_dir = 0;
 		inode->bi_dir_offset = 0;
-		inode->bi_flags &= ~BCH_INODE_backptr_untrusted;
 		*write_inode = true;
 	}
 
@@ -1117,8 +1116,7 @@ static int check_inode(struct btree_trans *trans,
 		       struct btree_iter *iter,
 		       struct bkey_s_c k,
 		       struct bch_inode_unpacked *prev,
-		       struct snapshots_seen *s,
-		       bool full)
+		       struct snapshots_seen *s)
 {
 	struct bch_fs *c = trans->c;
 	struct printbuf buf = PRINTBUF;
@@ -1140,12 +1138,6 @@ static int check_inode(struct btree_trans *trans,
 		return 0;
 
 	BUG_ON(bch2_inode_unpack(k, &u));
-
-	if (!full &&
-	    !(u.bi_flags & (BCH_INODE_i_size_dirty|
-			    BCH_INODE_i_sectors_dirty|
-			    BCH_INODE_unlinked)))
-		return 0;
 
 	if (prev->bi_inum != u.bi_inum)
 		*prev = u;
@@ -1192,7 +1184,7 @@ static int check_inode(struct btree_trans *trans,
 		ret = 0;
 	}
 
-	if ((u.bi_flags & (BCH_INODE_i_size_dirty|BCH_INODE_unlinked)) &&
+	if ((u.bi_flags & BCH_INODE_unlinked) &&
 	    bch2_key_has_snapshot_overwrites(trans, BTREE_ID_inodes, k.k->p)) {
 		struct bpos new_min_pos;
 
@@ -1200,7 +1192,7 @@ static int check_inode(struct btree_trans *trans,
 		if (ret)
 			goto err;
 
-		u.bi_flags &= ~BCH_INODE_i_size_dirty|BCH_INODE_unlinked;
+		u.bi_flags &= ~BCH_INODE_unlinked;
 
 		ret = __bch2_fsck_write_inode(trans, &u);
 
@@ -1247,66 +1239,6 @@ static int check_inode(struct btree_trans *trans,
 				goto err_noprint;
 			}
 		}
-	}
-
-	/* i_size_dirty is vestigal, since we now have logged ops for truncate * */
-	if (u.bi_flags & BCH_INODE_i_size_dirty &&
-	    (!test_bit(BCH_FS_clean_recovery, &c->flags) ||
-	     fsck_err(trans, inode_i_size_dirty_but_clean,
-		      "filesystem marked clean, but inode %llu has i_size dirty",
-		      u.bi_inum))) {
-		bch_verbose(c, "truncating inode %llu", u.bi_inum);
-
-		/*
-		 * XXX: need to truncate partial blocks too here - or ideally
-		 * just switch units to bytes and that issue goes away
-		 */
-		ret = bch2_btree_delete_range_trans(trans, BTREE_ID_extents,
-				SPOS(u.bi_inum, round_up(u.bi_size, block_bytes(c)) >> 9,
-				     iter->pos.snapshot),
-				POS(u.bi_inum, U64_MAX),
-				0, NULL);
-		bch_err_msg(c, ret, "in fsck truncating inode");
-		if (ret)
-			return ret;
-
-		/*
-		 * We truncated without our normal sector accounting hook, just
-		 * make sure we recalculate it:
-		 */
-		u.bi_flags |= BCH_INODE_i_sectors_dirty;
-
-		u.bi_flags &= ~BCH_INODE_i_size_dirty;
-		do_update = true;
-	}
-
-	/* i_sectors_dirty is vestigal, i_sectors is always updated transactionally */
-	if (u.bi_flags & BCH_INODE_i_sectors_dirty &&
-	    (!test_bit(BCH_FS_clean_recovery, &c->flags) ||
-	     fsck_err(trans, inode_i_sectors_dirty_but_clean,
-		      "filesystem marked clean, but inode %llu has i_sectors dirty",
-		      u.bi_inum))) {
-		s64 sectors;
-
-		bch_verbose(c, "recounting sectors for inode %llu",
-			    u.bi_inum);
-
-		sectors = bch2_count_inode_sectors(trans, u.bi_inum, iter->pos.snapshot);
-		if (sectors < 0) {
-			bch_err_msg(c, sectors, "in fsck recounting inode sectors");
-			return sectors;
-		}
-
-		u.bi_sectors = sectors;
-		u.bi_flags &= ~BCH_INODE_i_sectors_dirty;
-		do_update = true;
-	}
-
-	if (u.bi_flags & BCH_INODE_backptr_untrusted) {
-		u.bi_dir = 0;
-		u.bi_dir_offset = 0;
-		u.bi_flags &= ~BCH_INODE_backptr_untrusted;
-		do_update = true;
 	}
 
 	if (fsck_err_on(u.bi_parent_subvol &&
@@ -1365,7 +1297,6 @@ err_noprint:
 
 int bch2_check_inodes(struct bch_fs *c)
 {
-	bool full = c->opts.fsck;
 	struct bch_inode_unpacked prev = { 0 };
 	struct snapshots_seen s;
 
@@ -1376,7 +1307,7 @@ int bch2_check_inodes(struct bch_fs *c)
 				POS_MIN,
 				BTREE_ITER_prefetch|BTREE_ITER_all_snapshots, k,
 				NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
-			check_inode(trans, &iter, k, &prev, &s, full)));
+			check_inode(trans, &iter, k, &prev, &s)));
 
 	snapshots_seen_exit(&s);
 	bch_err_fn(c, ret);
@@ -1876,8 +1807,7 @@ static int check_extent(struct btree_trans *trans, struct btree_iter *iter,
 			    !key_visible_in_snapshot(c, s, i->snapshot, k.k->p.snapshot))
 				continue;
 
-			if (fsck_err_on(!(i->inode.bi_flags & BCH_INODE_i_size_dirty) &&
-					k.k->p.offset > round_up(i->inode.bi_size, block_bytes(c)) >> 9 &&
+			if (fsck_err_on(k.k->p.offset > round_up(i->inode.bi_size, block_bytes(c)) >> 9 &&
 					!bkey_extent_is_reservation(k),
 					trans, extent_past_end_of_inode,
 					"extent type past end of inode %llu:%u, i_size %llu\n  %s",
