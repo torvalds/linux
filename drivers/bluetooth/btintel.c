@@ -1040,7 +1040,7 @@ static int btintel_download_firmware_payload(struct hci_dev *hdev,
 		 * as needed.
 		 *
 		 * Send set of commands with 4 byte alignment from the
-		 * firmware data buffer as a single Data fragement.
+		 * firmware data buffer as a single Data fragment.
 		 */
 		if (!(frag_len % 4)) {
 			err = btintel_secure_send(hdev, 0x01, frag_len, fw_ptr);
@@ -2835,7 +2835,7 @@ void btintel_set_msft_opcode(struct hci_dev *hdev, u8 hw_variant)
 	case 0x12:	/* ThP */
 	case 0x13:	/* HrP */
 	case 0x14:	/* CcP */
-	/* All Intel new genration controllers support the Microsoft vendor
+	/* All Intel new generation controllers support the Microsoft vendor
 	 * extension are using 0xFC1E for VsMsftOpCode.
 	 */
 	case 0x17:

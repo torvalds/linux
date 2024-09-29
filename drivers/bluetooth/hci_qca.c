@@ -873,7 +873,7 @@ static void device_woke_up(struct hci_uart *hu)
 	hci_uart_tx_wakeup(hu);
 }
 
-/* Enqueue frame for transmittion (padding, crc, etc) may be called from
+/* Enqueue frame for transmission (padding, crc, etc) may be called from
  * two simultaneous tasklets.
  */
 static int qca_enqueue(struct hci_uart *hu, struct sk_buff *skb)
@@ -1059,7 +1059,7 @@ static void qca_controller_memdump(struct work_struct *work)
 		if (!seq_no) {
 
 			/* This is the first frame of memdump packet from
-			 * the controller, Disable IBS to recevie dump
+			 * the controller, Disable IBS to receive dump
 			 * with out any interruption, ideally time required for
 			 * the controller to send the dump is 8 seconds. let us
 			 * start timer to handle this asynchronous activity.
@@ -2358,7 +2358,7 @@ static int qca_serdev_probe(struct serdev_device *serdev)
 			 * Backward compatibility with old DT sources. If the
 			 * node doesn't have the 'enable-gpios' property then
 			 * let's use the power sequencer. Otherwise, let's
-			 * drive everything outselves.
+			 * drive everything ourselves.
 			 */
 			qcadev->bt_power->pwrseq = devm_pwrseq_get(&serdev->dev,
 								   "bluetooth");
@@ -2530,7 +2530,7 @@ static void qca_serdev_shutdown(struct device *dev)
 		    hci_dev_test_flag(hdev, HCI_SETUP))
 			return;
 
-		/* The serdev must be in open state when conrol logic arrives
+		/* The serdev must be in open state when control logic arrives
 		 * here, so also fix the use-after-free issue caused by that
 		 * the serdev is flushed or wrote after it is closed.
 		 */

@@ -324,7 +324,7 @@ int btmtk_setup_firmware(struct hci_dev *hdev, const char *fwname,
 	wmt_params.data = NULL;
 	wmt_params.status = NULL;
 
-	/* Activate funciton the firmware providing to */
+	/* Activate function the firmware providing to */
 	err = wmt_cmd_sync(hdev, &wmt_params);
 	if (err < 0) {
 		bt_dev_err(hdev, "Failed to send wmt rst (%d)", err);

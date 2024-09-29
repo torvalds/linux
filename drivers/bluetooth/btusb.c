@@ -1068,7 +1068,7 @@ static inline void btusb_free_frags(struct btusb_data *data)
 static int btusb_recv_event(struct btusb_data *data, struct sk_buff *skb)
 {
 	if (data->intr_interval) {
-		/* Trigger dequeue immediatelly if an event is received */
+		/* Trigger dequeue immediately if an event is received */
 		schedule_delayed_work(&data->rx_work, 0);
 	}
 

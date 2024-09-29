@@ -681,7 +681,7 @@ static int btmtksdio_open(struct hci_dev *hdev)
 	if (err < 0)
 		goto err_release_irq;
 
-	/* Explitly set write-1-clear method */
+	/* Explicitly set write-1-clear method */
 	val = sdio_readl(bdev->func, MTK_REG_CHCR, &err);
 	if (err < 0)
 		goto err_release_irq;
@@ -1396,7 +1396,7 @@ static int btmtksdio_probe(struct sdio_func *func,
 	if (pm_runtime_enabled(bdev->dev))
 		pm_runtime_disable(bdev->dev);
 
-	/* As explaination in drivers/mmc/core/sdio_bus.c tells us:
+	/* As explanation in drivers/mmc/core/sdio_bus.c tells us:
 	 * Unbound SDIO functions are always suspended.
 	 * During probe, the function is set active and the usage count
 	 * is incremented.  If the driver supports runtime PM,
