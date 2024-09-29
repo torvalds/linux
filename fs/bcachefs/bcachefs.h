@@ -293,6 +293,8 @@ do {									\
 
 #define bch_info(c, fmt, ...) \
 	bch2_print(c, KERN_INFO bch2_fmt(c, fmt), ##__VA_ARGS__)
+#define bch_info_ratelimited(c, fmt, ...) \
+	bch2_print_ratelimited(c, KERN_INFO bch2_fmt(c, fmt), ##__VA_ARGS__)
 #define bch_notice(c, fmt, ...) \
 	bch2_print(c, KERN_NOTICE bch2_fmt(c, fmt), ##__VA_ARGS__)
 #define bch_warn(c, fmt, ...) \
@@ -350,6 +352,12 @@ do {									\
 do {									\
 	if ((c)->opts.verbose)						\
 		bch_info(c, fmt, ##__VA_ARGS__);			\
+} while (0)
+
+#define bch_verbose_ratelimited(c, fmt, ...)				\
+do {									\
+	if ((c)->opts.verbose)						\
+		bch_info_ratelimited(c, fmt, ##__VA_ARGS__);		\
 } while (0)
 
 #define pr_verbose_init(opts, fmt, ...)					\

@@ -1380,7 +1380,8 @@ again:
 					NULL, NULL, BCH_TRANS_COMMIT_no_enospc, ({
 		ret = may_delete_deleted_inode(trans, &iter, k.k->p, &need_another_pass);
 		if (ret > 0) {
-			bch_verbose(c, "deleting unlinked inode %llu:%u", k.k->p.offset, k.k->p.snapshot);
+			bch_verbose_ratelimited(c, "deleting unlinked inode %llu:%u",
+						k.k->p.offset, k.k->p.snapshot);
 
 			ret = bch2_inode_rm_snapshot(trans, k.k->p.offset, k.k->p.snapshot);
 			/*
