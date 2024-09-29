@@ -170,6 +170,11 @@
 #pragma pack(push, 1)
 #define ABM_NUM_OF_ACE_SEGMENTS         5
 
+/**
+ * Debug FW state offset
+ */
+#define DMUB_DEBUG_FW_STATE_OFFSET 0x300
+
 union abm_flags {
 	struct {
 		/**
