@@ -255,7 +255,7 @@ struct mhi_chan {
 	/*
 	 * Important: When consuming, increment tre_ring first and when
 	 * releasing, decrement buf_ring first. If tre_ring has space, buf_ring
-	 * is guranteed to have space so we do not need to check both rings.
+	 * is guaranteed to have space so we do not need to check both rings.
 	 */
 	struct mhi_ring buf_ring;
 	struct mhi_ring tre_ring;
