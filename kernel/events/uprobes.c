@@ -1628,25 +1628,20 @@ void uprobe_dup_mmap(struct mm_struct *oldmm, struct mm_struct *newmm)
  */
 static unsigned long xol_take_insn_slot(struct xol_area *area)
 {
-	unsigned long slot_addr;
-	int slot_nr;
+	unsigned int slot_nr;
 
-	do {
+	for (;;) {
 		slot_nr = find_first_zero_bit(area->bitmap, UINSNS_PER_PAGE);
 		if (slot_nr < UINSNS_PER_PAGE) {
 			if (!test_and_set_bit(slot_nr, area->bitmap))
 				break;
-
-			slot_nr = UINSNS_PER_PAGE;
 			continue;
 		}
 		wait_event(area->wq, (atomic_read(&area->slot_count) < UINSNS_PER_PAGE));
-	} while (slot_nr >= UINSNS_PER_PAGE);
+	}
 
-	slot_addr = area->vaddr + (slot_nr * UPROBE_XOL_SLOT_BYTES);
 	atomic_inc(&area->slot_count);
-
-	return slot_addr;
+	return area->vaddr + slot_nr * UPROBE_XOL_SLOT_BYTES;
 }
 
 /*
@@ -1663,12 +1658,8 @@ static unsigned long xol_get_insn_slot(struct uprobe *uprobe)
 		return 0;
 
 	xol_vaddr = xol_take_insn_slot(area);
-	if (unlikely(!xol_vaddr))
-		return 0;
-
 	arch_uprobe_copy_ixol(area->page, xol_vaddr,
 			      &uprobe->arch.ixol, sizeof(uprobe->arch.ixol));
-
 	return xol_vaddr;
 }
 
