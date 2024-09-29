@@ -16,6 +16,7 @@
 #include <asm/insn-eval.h>
 #include <asm/pgtable.h>
 #include <asm/set_memory.h>
+#include <asm/traps.h>
 
 /* MMIO direction */
 #define EPT_READ	0
@@ -431,6 +432,11 @@ static int handle_mmio(struct pt_regs *regs, struct ve_info *ve)
 		reg = insn_get_modrm_reg_ptr(&insn, regs);
 		if (!reg)
 			return -EINVAL;
+	}
+
+	if (!fault_in_kernel_space(ve->gla)) {
+		WARN_ONCE(1, "Access to userspace address is not supported");
+		return -EINVAL;
 	}
 
 	/*
