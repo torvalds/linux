@@ -893,7 +893,7 @@ static struct platform_driver st_i2c_driver = {
 		.pm = pm_sleep_ptr(&st_i2c_pm),
 	},
 	.probe = st_i2c_probe,
-	.remove_new = st_i2c_remove,
+	.remove = st_i2c_remove,
 };
 
 module_platform_driver(st_i2c_driver);

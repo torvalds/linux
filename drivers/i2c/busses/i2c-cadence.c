@@ -1652,7 +1652,7 @@ static struct platform_driver cdns_i2c_drv = {
 		.pm = &cdns_i2c_dev_pm_ops,
 	},
 	.probe  = cdns_i2c_probe,
-	.remove_new = cdns_i2c_remove,
+	.remove = cdns_i2c_remove,
 };
 
 module_platform_driver(cdns_i2c_drv);

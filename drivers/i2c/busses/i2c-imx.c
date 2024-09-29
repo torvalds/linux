@@ -1576,7 +1576,7 @@ static const struct dev_pm_ops i2c_imx_pm_ops = {
 
 static struct platform_driver i2c_imx_driver = {
 	.probe = i2c_imx_probe,
-	.remove_new = i2c_imx_remove,
+	.remove = i2c_imx_remove,
 	.driver = {
 		.name = DRIVER_NAME,
 		.pm = pm_ptr(&i2c_imx_pm_ops),
