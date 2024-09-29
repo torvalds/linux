@@ -168,10 +168,9 @@ static int veml6070_probe(struct i2c_client *client)
 		return ret;
 
 	data->client2 = i2c_new_dummy_device(client->adapter, VEML6070_ADDR_DATA_LSB);
-	if (IS_ERR(data->client2)) {
-		dev_err(&client->dev, "i2c device for second chip address failed\n");
-		return PTR_ERR(data->client2);
-	}
+	if (IS_ERR(data->client2))
+		return dev_err_probe(&client->dev, PTR_ERR(data->client2),
+				     "i2c device for second chip address failed\n");
 
 	data->config = VEML6070_IT_10 | VEML6070_COMMAND_RSRVD |
 		VEML6070_COMMAND_SD;
