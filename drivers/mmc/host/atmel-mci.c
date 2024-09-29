@@ -860,7 +860,7 @@ static void atmci_send_stop_cmd(struct atmel_mci *host, struct mmc_data *data)
 }
 
 /*
- * Configure given PDC buffer taking care of alignement issues.
+ * Configure given PDC buffer taking care of alignment issues.
  * Update host->data_size and host->sg.
  */
 static void atmci_pdc_set_single_buf(struct atmel_mci *host,

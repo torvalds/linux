@@ -879,7 +879,7 @@ static void meson_mmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	/*
 	 * The memory at the end of the controller used as bounce buffer for
 	 * the dram_access_quirk only accepts 32bit read/write access,
-	 * check the aligment and length of the data before starting the request.
+	 * check the alignment and length of the data before starting the request.
 	 */
 	if (host->dram_access_quirk && mrq->data) {
 		mrq->cmd->error = meson_mmc_validate_dram_access(mmc, mrq->data);

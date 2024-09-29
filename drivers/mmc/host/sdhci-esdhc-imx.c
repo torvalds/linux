@@ -1529,7 +1529,7 @@ static void sdhci_esdhc_imx_hwinit(struct sdhci_host *host)
 			writel(tmp, host->ioaddr + ESDHC_TUNING_CTRL);
 		} else if (imx_data->socdata->flags & ESDHC_FLAG_MAN_TUNING) {
 			/*
-			 * ESDHC_STD_TUNING_EN may be configed in bootloader
+			 * ESDHC_STD_TUNING_EN may be configured in bootloader
 			 * or ROM code, so clear this bit here to make sure
 			 * the manual tuning can work.
 			 */
@@ -1631,7 +1631,7 @@ sdhci_esdhc_imx_probe_dt(struct platform_device *pdev,
 
 	/*
 	 * If we have this property, then activate WP check.
-	 * Retrieveing and requesting the actual WP GPIO will happen
+	 * Retrieving and requesting the actual WP GPIO will happen
 	 * in the call to mmc_of_parse().
 	 */
 	if (of_property_read_bool(np, "wp-gpios"))

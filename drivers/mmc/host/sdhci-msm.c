@@ -2601,7 +2601,7 @@ static int sdhci_msm_probe(struct platform_device *pdev)
 	sdhci_msm_handle_pwr_irq(host, 0);
 
 	/*
-	 * Ensure that above writes are propogated before interrupt enablement
+	 * Ensure that above writes are propagated before interrupt enablement
 	 * in GIC.
 	 */
 	mb();

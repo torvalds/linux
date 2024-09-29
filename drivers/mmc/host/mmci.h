@@ -77,7 +77,7 @@
 #define MCI_CPSM_INTERRUPT	BIT(8)
 #define MCI_CPSM_PENDING	BIT(9)
 #define MCI_CPSM_ENABLE		BIT(10)
-/* Command register flag extenstions in the ST Micro versions */
+/* Command register flag extensions in the ST Micro versions */
 #define MCI_CPSM_ST_SDIO_SUSP		BIT(11)
 #define MCI_CPSM_ST_ENCMD_COMPL		BIT(12)
 #define MCI_CPSM_ST_NIEN		BIT(13)
