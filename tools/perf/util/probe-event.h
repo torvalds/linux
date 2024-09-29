@@ -159,7 +159,6 @@ void line_range__clear(struct line_range *lr);
 /* Initialize line range */
 int line_range__init(struct line_range *lr);
 
-int add_perf_probe_events(struct perf_probe_event *pevs, int npevs);
 int convert_perf_probe_events(struct perf_probe_event *pevs, int npevs);
 int apply_perf_probe_events(struct perf_probe_event *pevs, int npevs);
 int show_probe_trace_events(struct perf_probe_event *pevs, int npevs);
