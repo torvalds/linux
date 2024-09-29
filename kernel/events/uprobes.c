@@ -1673,28 +1673,16 @@ static unsigned long xol_get_insn_slot(struct uprobe *uprobe)
 }
 
 /*
- * xol_free_insn_slot - If slot was earlier allocated by
- * @xol_get_insn_slot(), make the slot available for
- * subsequent requests.
+ * xol_free_insn_slot - free the slot allocated by xol_get_insn_slot()
  */
 static void xol_free_insn_slot(struct task_struct *tsk)
 {
-	struct xol_area *area;
-	unsigned long slot_addr;
-	unsigned long offset;
-
-	if (!tsk->mm || !tsk->mm->uprobes_state.xol_area || !tsk->utask)
-		return;
-
-	slot_addr = tsk->utask->xol_vaddr;
-	if (unlikely(!slot_addr))
-		return;
+	struct xol_area *area = tsk->mm->uprobes_state.xol_area;
+	unsigned long offset = tsk->utask->xol_vaddr - area->vaddr;
 
 	tsk->utask->xol_vaddr = 0;
-	area = tsk->mm->uprobes_state.xol_area;
-	offset = slot_addr - area->vaddr;
 	/*
-	 * slot_addr must fit into [area->vaddr, area->vaddr + PAGE_SIZE).
+	 * xol_vaddr must fit into [area->vaddr, area->vaddr + PAGE_SIZE).
 	 * This check can only fail if the "[uprobes]" vma was mremap'ed.
 	 */
 	if (offset < PAGE_SIZE) {
@@ -1764,14 +1752,12 @@ void uprobe_free_utask(struct task_struct *t)
 	if (!utask)
 		return;
 
-	if (utask->active_uprobe)
-		put_uprobe(utask->active_uprobe);
+	WARN_ON_ONCE(utask->active_uprobe || utask->xol_vaddr);
 
 	ri = utask->return_instances;
 	while (ri)
 		ri = free_ret_instance(ri);
 
-	xol_free_insn_slot(t);
 	kfree(utask);
 	t->utask = NULL;
 }
