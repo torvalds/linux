@@ -37,6 +37,14 @@ static int resume_logged_op(struct btree_trans *trans, struct btree_iter *iter,
 	const struct bch_logged_op_fn *fn = logged_op_fn(k.k->type);
 	struct bkey_buf sk;
 	u32 restart_count = trans->restart_count;
+	struct printbuf buf = PRINTBUF;
+	int ret = 0;
+
+	fsck_err_on(test_bit(BCH_FS_clean_recovery, &c->flags),
+		    trans, logged_op_but_clean,
+		    "filesystem marked as clean but have logged op\n%s",
+		    (bch2_bkey_val_to_text(&buf, c, k),
+		     buf.buf));
 
 	if (!fn)
 		return 0;
@@ -47,8 +55,9 @@ static int resume_logged_op(struct btree_trans *trans, struct btree_iter *iter,
 	fn->resume(trans, sk.k);
 
 	bch2_bkey_buf_exit(&sk, c);
-
-	return trans_was_restarted(trans, restart_count);
+fsck_err:
+	printbuf_exit(&buf);
+	return ret ?: trans_was_restarted(trans, restart_count);
 }
 
 int bch2_resume_logged_ops(struct bch_fs *c)

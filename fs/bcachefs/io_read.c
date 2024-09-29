@@ -517,7 +517,7 @@ static int __bch2_rbio_narrow_crcs(struct btree_trans *trans,
 	if ((ret = bkey_err(k)))
 		goto out;
 
-	if (bversion_cmp(k.k->version, rbio->version) ||
+	if (bversion_cmp(k.k->bversion, rbio->version) ||
 	    !bch2_bkey_matches_ptr(c, k, rbio->pick.ptr, data_offset))
 		goto out;
 
@@ -1031,7 +1031,7 @@ get_bio:
 	rbio->read_pos		= read_pos;
 	rbio->data_btree	= data_btree;
 	rbio->data_pos		= data_pos;
-	rbio->version		= k.k->version;
+	rbio->version		= k.k->bversion;
 	rbio->promote		= promote;
 	INIT_WORK(&rbio->work, NULL);
 
