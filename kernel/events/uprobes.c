@@ -1647,9 +1647,8 @@ static unsigned long xol_take_insn_slot(struct xol_area *area)
 /*
  * xol_get_insn_slot - allocate a slot for xol.
  */
-static bool xol_get_insn_slot(struct uprobe *uprobe)
+static bool xol_get_insn_slot(struct uprobe *uprobe, struct uprobe_task *utask)
 {
-	struct uprobe_task *utask = current->utask;
 	struct xol_area *area = get_xol_area();
 
 	if (!area)
@@ -1664,12 +1663,12 @@ static bool xol_get_insn_slot(struct uprobe *uprobe)
 /*
  * xol_free_insn_slot - free the slot allocated by xol_get_insn_slot()
  */
-static void xol_free_insn_slot(struct task_struct *tsk)
+static void xol_free_insn_slot(struct uprobe_task *utask)
 {
-	struct xol_area *area = tsk->mm->uprobes_state.xol_area;
-	unsigned long offset = tsk->utask->xol_vaddr - area->vaddr;
+	struct xol_area *area = current->mm->uprobes_state.xol_area;
+	unsigned long offset = utask->xol_vaddr - area->vaddr;
 
-	tsk->utask->xol_vaddr = 0;
+	utask->xol_vaddr = 0;
 	/*
 	 * xol_vaddr must fit into [area->vaddr, area->vaddr + PAGE_SIZE).
 	 * This check can only fail if the "[uprobes]" vma was mremap'ed.
@@ -1951,7 +1950,7 @@ pre_ssout(struct uprobe *uprobe, struct pt_regs *regs, unsigned long bp_vaddr)
 	if (!try_get_uprobe(uprobe))
 		return -EINVAL;
 
-	if (!xol_get_insn_slot(uprobe)) {
+	if (!xol_get_insn_slot(uprobe, utask)) {
 		err = -ENOMEM;
 		goto err_out;
 	}
@@ -1959,7 +1958,7 @@ pre_ssout(struct uprobe *uprobe, struct pt_regs *regs, unsigned long bp_vaddr)
 	utask->vaddr = bp_vaddr;
 	err = arch_uprobe_pre_xol(&uprobe->arch, regs);
 	if (unlikely(err)) {
-		xol_free_insn_slot(current);
+		xol_free_insn_slot(utask);
 		goto err_out;
 	}
 
@@ -2307,7 +2306,7 @@ static void handle_singlestep(struct uprobe_task *utask, struct pt_regs *regs)
 	put_uprobe(uprobe);
 	utask->active_uprobe = NULL;
 	utask->state = UTASK_RUNNING;
-	xol_free_insn_slot(current);
+	xol_free_insn_slot(utask);
 
 	spin_lock_irq(&current->sighand->siglock);
 	recalc_sigpending(); /* see uprobe_deny_signal() */
