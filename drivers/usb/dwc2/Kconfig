@@ -21,7 +21,7 @@ config USB_DWC2
 if USB_DWC2
 
 choice
-	bool "DWC2 Mode Selection"
+	prompt "DWC2 Mode Selection"
 	default USB_DWC2_DUAL_ROLE if (USB && USB_GADGET)
 	default USB_DWC2_HOST if (USB && !USB_GADGET)
 	default USB_DWC2_PERIPHERAL if (!USB && USB_GADGET)

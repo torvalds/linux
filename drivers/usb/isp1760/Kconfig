@@ -26,7 +26,7 @@ config USB_ISP1761_UDC
 if USB_ISP1760
 
 choice
-	bool "ISP1760 Mode Selection"
+	prompt "ISP1760 Mode Selection"
 	default USB_ISP1760_DUAL_ROLE if (USB && USB_GADGET)
 	default USB_ISP1760_HOST_ROLE if (USB && !USB_GADGET)
 	default USB_ISP1760_GADGET_ROLE if (!USB && USB_GADGET)
