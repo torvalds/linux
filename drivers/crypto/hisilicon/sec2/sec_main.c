@@ -322,7 +322,7 @@ static int sec_pf_q_num_set(const char *val, const struct kernel_param *kp)
 {
 	pf_q_num_flag = true;
 
-	return q_num_set(val, kp, PCI_DEVICE_ID_HUAWEI_SEC_PF);
+	return hisi_qm_q_num_set(val, kp, PCI_DEVICE_ID_HUAWEI_SEC_PF);
 }
 
 static const struct kernel_param_ops sec_pf_q_num_ops = {

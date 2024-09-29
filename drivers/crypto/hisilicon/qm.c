@@ -451,6 +451,37 @@ static struct qm_typical_qos_table shaper_cbs_s[] = {
 
 static void qm_irqs_unregister(struct hisi_qm *qm);
 static int qm_reset_device(struct hisi_qm *qm);
+int hisi_qm_q_num_set(const char *val, const struct kernel_param *kp,
+		      unsigned int device)
+{
+	struct pci_dev *pdev;
+	u32 n, q_num;
+	int ret;
+
+	if (!val)
+		return -EINVAL;
+
+	pdev = pci_get_device(PCI_VENDOR_ID_HUAWEI, device, NULL);
+	if (!pdev) {
+		q_num = min_t(u32, QM_QNUM_V1, QM_QNUM_V2);
+		pr_info("No device found currently, suppose queue number is %u\n",
+			q_num);
+	} else {
+		if (pdev->revision == QM_HW_V1)
+			q_num = QM_QNUM_V1;
+		else
+			q_num = QM_QNUM_V2;
+
+		pci_dev_put(pdev);
+	}
+
+	ret = kstrtou32(val, 10, &n);
+	if (ret || n < QM_MIN_QNUM || n > q_num)
+		return -EINVAL;
+
+	return param_set_int(val, kp);
+}
+EXPORT_SYMBOL_GPL(hisi_qm_q_num_set);
 
 static u32 qm_get_hw_error_status(struct hisi_qm *qm)
 {

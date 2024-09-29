@@ -436,37 +436,6 @@ struct hisi_qp {
 	struct uacce_queue *uacce_q;
 };
 
-static inline int q_num_set(const char *val, const struct kernel_param *kp,
-			    unsigned int device)
-{
-	struct pci_dev *pdev;
-	u32 n, q_num;
-	int ret;
-
-	if (!val)
-		return -EINVAL;
-
-	pdev = pci_get_device(PCI_VENDOR_ID_HUAWEI, device, NULL);
-	if (!pdev) {
-		q_num = min_t(u32, QM_QNUM_V1, QM_QNUM_V2);
-		pr_info("No device found currently, suppose queue number is %u\n",
-			q_num);
-	} else {
-		if (pdev->revision == QM_HW_V1)
-			q_num = QM_QNUM_V1;
-		else
-			q_num = QM_QNUM_V2;
-
-		pci_dev_put(pdev);
-	}
-
-	ret = kstrtou32(val, 10, &n);
-	if (ret || n < QM_MIN_QNUM || n > q_num)
-		return -EINVAL;
-
-	return param_set_int(val, kp);
-}
-
 static inline int vfs_num_set(const char *val, const struct kernel_param *kp)
 {
 	u32 n;
@@ -526,6 +495,8 @@ static inline void hisi_qm_del_list(struct hisi_qm *qm, struct hisi_qm_list *qm_
 	mutex_unlock(&qm_list->lock);
 }
 
+int hisi_qm_q_num_set(const char *val, const struct kernel_param *kp,
+		      unsigned int device);
 int hisi_qm_init(struct hisi_qm *qm);
 void hisi_qm_uninit(struct hisi_qm *qm);
 int hisi_qm_start(struct hisi_qm *qm);
