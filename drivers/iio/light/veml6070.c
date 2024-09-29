@@ -179,15 +179,7 @@ static int veml6070_probe(struct i2c_client *client)
 	if (ret < 0)
 		return ret;
 
-	return iio_device_register(indio_dev);
-}
-
-static void veml6070_remove(struct i2c_client *client)
-{
-	struct iio_dev *indio_dev = i2c_get_clientdata(client);
-	struct veml6070_data *data = iio_priv(indio_dev);
-
-	iio_device_unregister(indio_dev);
+	return devm_iio_device_register(&client->dev, indio_dev);
 }
 
 static const struct i2c_device_id veml6070_id[] = {
@@ -201,7 +193,6 @@ static struct i2c_driver veml6070_driver = {
 		.name   = VEML6070_DRV_NAME,
 	},
 	.probe = veml6070_probe,
-	.remove  = veml6070_remove,
 	.id_table = veml6070_id,
 };
 
