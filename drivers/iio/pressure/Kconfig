@@ -253,6 +253,7 @@ config MS5637
 config SDP500
 	tristate "Sensirion SDP500 differential pressure sensor I2C driver"
 	depends on I2C
+	select CRC8
 	help
 	  Say Y here to build support for Sensirion SDP500 differential pressure
 	  sensor I2C driver.
