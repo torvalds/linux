@@ -362,7 +362,7 @@ static u16 exar_ee_read(struct exar8250 *priv, u8 ee_addr)
  * @priv: Device's private structure
  * @mpio_num: MPIO number/offset to configure
  *
- * Configure a single MPIO as an output and disable tristate. It is reccomended
+ * Configure a single MPIO as an output and disable tristate. It is recommended
  * to set the level with exar_mpio_set_high()/exar_mpio_set_low() prior to
  * calling this function to ensure default MPIO pin state.
  *
@@ -518,7 +518,7 @@ static int xr17v35x_startup(struct uart_port *port)
 	serial_port_out(port, UART_XR_EFR, UART_EFR_ECB);
 
 	/*
-	 * Make sure all interrups are masked until initialization is
+	 * Make sure all interrupts are masked until initialization is
 	 * complete and the FIFOs are cleared
 	 *
 	 * Synchronize UART_IER access against the console.
