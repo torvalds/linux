@@ -527,6 +527,9 @@ lpfc_dev_loss_tmo_handler(struct lpfc_nodelist *ndlp)
 		 * the following lpfc_nlp_put is necessary after fabric node is
 		 * recovered.
 		 */
+		spin_lock_irqsave(&ndlp->lock, iflags);
+		ndlp->nlp_flag &= ~NLP_IN_DEV_LOSS;
+		spin_unlock_irqrestore(&ndlp->lock, iflags);
 		if (recovering) {
 			lpfc_printf_vlog(vport, KERN_INFO,
 					 LOG_DISCOVERY | LOG_NODE,
@@ -539,6 +542,7 @@ lpfc_dev_loss_tmo_handler(struct lpfc_nodelist *ndlp)
 			spin_lock_irqsave(&ndlp->lock, iflags);
 			ndlp->save_flags |= NLP_IN_RECOV_POST_DEV_LOSS;
 			spin_unlock_irqrestore(&ndlp->lock, iflags);
+			return fcf_inuse;
 		} else if (ndlp->nlp_state == NLP_STE_UNMAPPED_NODE) {
 			/* Fabric node fully recovered before this dev_loss_tmo
 			 * queue work is processed.  Thus, ignore the
@@ -552,15 +556,9 @@ lpfc_dev_loss_tmo_handler(struct lpfc_nodelist *ndlp)
 					 ndlp->nlp_DID, kref_read(&ndlp->kref),
 					 ndlp, ndlp->nlp_flag,
 					 vport->port_state);
-			spin_lock_irqsave(&ndlp->lock, iflags);
-			ndlp->nlp_flag &= ~NLP_IN_DEV_LOSS;
-			spin_unlock_irqrestore(&ndlp->lock, iflags);
 			return fcf_inuse;
 		}
 
-		spin_lock_irqsave(&ndlp->lock, iflags);
-		ndlp->nlp_flag &= ~NLP_IN_DEV_LOSS;
-		spin_unlock_irqrestore(&ndlp->lock, iflags);
 		lpfc_nlp_put(ndlp);
 		return fcf_inuse;
 	}

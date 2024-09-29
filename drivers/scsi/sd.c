@@ -38,7 +38,6 @@
 #include <linux/fs.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
-#include <linux/bio-integrity.h>
 #include <linux/hdreg.h>
 #include <linux/errno.h>
 #include <linux/idr.h>
@@ -3404,7 +3403,7 @@ static void sd_read_block_characteristics(struct scsi_disk *sdkp,
 	rcu_read_lock();
 	vpd = rcu_dereference(sdkp->device->vpd_pgb1);
 
-	if (!vpd || vpd->len < 8) {
+	if (!vpd || vpd->len <= 8) {
 		rcu_read_unlock();
 	        return;
 	}
@@ -4093,9 +4092,38 @@ static int sd_start_stop_device(struct scsi_disk *sdkp, int start)
 {
 	unsigned char cmd[6] = { START_STOP };	/* START_VALID */
 	struct scsi_sense_hdr sshdr;
+	struct scsi_failure failure_defs[] = {
+		{
+			/* Power on, reset, or bus device reset occurred */
+			.sense = UNIT_ATTENTION,
+			.asc = 0x29,
+			.ascq = 0,
+			.result = SAM_STAT_CHECK_CONDITION,
+		},
+		{
+			/* Power on occurred */
+			.sense = UNIT_ATTENTION,
+			.asc = 0x29,
+			.ascq = 1,
+			.result = SAM_STAT_CHECK_CONDITION,
+		},
+		{
+			/* SCSI bus reset */
+			.sense = UNIT_ATTENTION,
+			.asc = 0x29,
+			.ascq = 2,
+			.result = SAM_STAT_CHECK_CONDITION,
+		},
+		{}
+	};
+	struct scsi_failures failures = {
+		.total_allowed = 3,
+		.failure_definitions = failure_defs,
+	};
 	const struct scsi_exec_args exec_args = {
 		.sshdr = &sshdr,
 		.req_flags = BLK_MQ_REQ_PM,
+		.failures = &failures,
 	};
 	struct scsi_device *sdp = sdkp->device;
 	int res;
