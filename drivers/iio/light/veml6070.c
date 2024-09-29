@@ -135,6 +135,13 @@ static const struct iio_info veml6070_info = {
 	.read_raw = veml6070_read_raw,
 };
 
+static void veml6070_i2c_unreg(void *p)
+{
+	struct veml6070_data *data = p;
+
+	i2c_unregister_device(data->client2);
+}
+
 static int veml6070_probe(struct i2c_client *client)
 {
 	struct veml6070_data *data;
@@ -166,17 +173,13 @@ static int veml6070_probe(struct i2c_client *client)
 		VEML6070_COMMAND_SD;
 	ret = i2c_smbus_write_byte(data->client1, data->config);
 	if (ret < 0)
-		goto fail;
+		return ret;
 
-	ret = iio_device_register(indio_dev);
+	ret = devm_add_action_or_reset(&client->dev, veml6070_i2c_unreg, data);
 	if (ret < 0)
-		goto fail;
+		return ret;
 
-	return ret;
-
-fail:
-	i2c_unregister_device(data->client2);
-	return ret;
+	return iio_device_register(indio_dev);
 }
 
 static void veml6070_remove(struct i2c_client *client)
@@ -185,7 +188,6 @@ static void veml6070_remove(struct i2c_client *client)
 	struct veml6070_data *data = iio_priv(indio_dev);
 
 	iio_device_unregister(indio_dev);
-	i2c_unregister_device(data->client2);
 }
 
 static const struct i2c_device_id veml6070_id[] = {
