@@ -1905,16 +1905,12 @@ static void cleanup_return_instances(struct uprobe_task *utask, bool chained,
 
 static void prepare_uretprobe(struct uprobe *uprobe, struct pt_regs *regs)
 {
-	struct return_instance *ri;
-	struct uprobe_task *utask;
+	struct uprobe_task *utask = current->utask;
 	unsigned long orig_ret_vaddr, trampoline_vaddr;
+	struct return_instance *ri;
 	bool chained;
 
 	if (!get_xol_area())
-		return;
-
-	utask = get_utask();
-	if (!utask)
 		return;
 
 	if (utask->depth >= MAX_URETPROBE_DEPTH) {
@@ -1977,13 +1973,9 @@ fail:
 static int
 pre_ssout(struct uprobe *uprobe, struct pt_regs *regs, unsigned long bp_vaddr)
 {
-	struct uprobe_task *utask;
+	struct uprobe_task *utask = current->utask;
 	unsigned long xol_vaddr;
 	int err;
-
-	utask = get_utask();
-	if (!utask)
-		return -ENOMEM;
 
 	if (!try_get_uprobe(uprobe))
 		return -EINVAL;
