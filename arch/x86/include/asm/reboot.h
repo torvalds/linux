@@ -31,6 +31,8 @@ void cpu_emergency_register_virt_callback(cpu_emergency_virt_cb *callback);
 void cpu_emergency_unregister_virt_callback(cpu_emergency_virt_cb *callback);
 void cpu_emergency_disable_virtualization(void);
 #else
+static inline void cpu_emergency_register_virt_callback(cpu_emergency_virt_cb *callback) {}
+static inline void cpu_emergency_unregister_virt_callback(cpu_emergency_virt_cb *callback) {}
 static inline void cpu_emergency_disable_virtualization(void) {}
 #endif /* CONFIG_KVM_INTEL || CONFIG_KVM_AMD */
 
