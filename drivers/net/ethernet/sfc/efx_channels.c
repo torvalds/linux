@@ -1209,6 +1209,8 @@ static int efx_process_channel(struct efx_channel *channel, int budget)
 						  tx_queue->pkts_compl,
 						  tx_queue->bytes_compl);
 		}
+		tx_queue->complete_packets += tx_queue->pkts_compl;
+		tx_queue->complete_bytes += tx_queue->bytes_compl;
 	}
 
 	/* Receive any packets we queued up */

@@ -193,6 +193,10 @@ struct efx_tx_buffer {
  * @initialised: Has hardware queue been initialised?
  * @timestamping: Is timestamping enabled for this channel?
  * @xdp_tx: Is this an XDP tx queue?
+ * @old_complete_packets: Value of @complete_packets as of last
+ *	efx_init_tx_queue()
+ * @old_complete_bytes: Value of @complete_bytes as of last
+ *	efx_init_tx_queue()
  * @read_count: Current read pointer.
  *	This is the number of buffers that have been removed from both rings.
  * @old_write_count: The value of @write_count when last checked.
@@ -202,6 +206,16 @@ struct efx_tx_buffer {
  *	avoid cache-line ping-pong between the xmit path and the
  *	completion path.
  * @merge_events: Number of TX merged completion events
+ * @bytes_compl: Number of bytes completed during this NAPI poll
+ *	(efx_process_channel()).  For BQL.
+ * @pkts_compl: Number of packets completed during this NAPI poll.
+ * @complete_packets: Number of packets completed since this struct was
+ *	created.  Only counts SKB packets, not XDP TX (it accumulates
+ *	the same values that are reported to BQL).
+ * @complete_bytes: Number of bytes completed since this struct was
+ *	created.  For TSO, counts the superframe size, not the sizes of
+ *	generated frames on the wire (i.e. the headers are only counted
+ *	once)
  * @completed_timestamp_major: Top part of the most recent tx timestamp.
  * @completed_timestamp_minor: Low part of the most recent tx timestamp.
  * @insert_count: Current insert pointer
@@ -232,6 +246,7 @@ struct efx_tx_buffer {
  * @xmit_pending: Are any packets waiting to be pushed to the NIC
  * @cb_packets: Number of times the TX copybreak feature has been used
  * @notify_count: Count of notified descriptors to the NIC
+ * @tx_packets: Number of packets sent since this struct was created
  * @empty_read_count: If the completion path has seen the queue as empty
  *	and the transmission path has not yet checked this, the value of
  *	@read_count bitwise-added to %EFX_EMPTY_COUNT_VALID; otherwise 0.
@@ -255,6 +270,8 @@ struct efx_tx_queue {
 	bool initialised;
 	bool timestamping;
 	bool xdp_tx;
+	unsigned long old_complete_packets;
+	unsigned long old_complete_bytes;
 
 	/* Members used mainly on the completion path */
 	unsigned int read_count ____cacheline_aligned_in_smp;
@@ -262,6 +279,8 @@ struct efx_tx_queue {
 	unsigned int merge_events;
 	unsigned int bytes_compl;
 	unsigned int pkts_compl;
+	unsigned long complete_packets;
+	unsigned long complete_bytes;
 	u32 completed_timestamp_major;
 	u32 completed_timestamp_minor;
 
@@ -370,6 +389,8 @@ struct efx_rx_page_state {
  * @recycle_count: RX buffer recycle counter.
  * @slow_fill: Timer used to defer efx_nic_generate_fill_event().
  * @grant_work: workitem used to grant credits to the MAE if @grant_credits
+ * @rx_packets: Number of packets received since this struct was created
+ * @old_rx_packets: Value of @rx_packets as of last efx_init_rx_queue()
  * @xdp_rxq_info: XDP specific RX queue information.
  * @xdp_rxq_info_valid: Is xdp_rxq_info valid data?.
  */
@@ -406,6 +427,7 @@ struct efx_rx_queue {
 	struct work_struct grant_work;
 	/* Statistics to supplement MAC stats */
 	unsigned long rx_packets;
+	unsigned long old_rx_packets;
 	struct xdp_rxq_info xdp_rxq_info;
 	bool xdp_rxq_info_valid;
 };
