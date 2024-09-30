@@ -9589,7 +9589,7 @@ static void amdgpu_dm_commit_streams(struct drm_atomic_state *state,
 	WARN_ON(!dc_commit_streams(dm->dc, &params));
 
 	/* Allow idle optimization when vblank count is 0 for display off */
-	if (dm->active_vblank_irq_count == 0)
+	if ((dm->active_vblank_irq_count == 0) && amdgpu_dm_is_headless(dm->adev))
 		dc_allow_idle_optimizations(dm->dc, true);
 	mutex_unlock(&dm->dc_lock);
 
