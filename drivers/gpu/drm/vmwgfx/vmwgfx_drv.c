@@ -35,7 +35,6 @@
 #include "vmwgfx_vkms.h"
 #include "ttm_object.h"
 
-#include <drm/drm_aperture.h>
 #include <drm/drm_client_setup.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_fbdev_ttm.h>
@@ -50,6 +49,8 @@
 #ifdef CONFIG_X86
 #include <asm/hypervisor.h>
 #endif
+
+#include <linux/aperture.h>
 #include <linux/cc_platform.h>
 #include <linux/dma-mapping.h>
 #include <linux/module.h>
@@ -1654,7 +1655,7 @@ static int vmw_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct vmw_private *vmw;
 	int ret;
 
-	ret = drm_aperture_remove_conflicting_pci_framebuffers(pdev, &driver);
+	ret = aperture_remove_conflicting_pci_devices(pdev, driver.name);
 	if (ret)
 		goto out_error;
 
