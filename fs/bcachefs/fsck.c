@@ -1083,6 +1083,23 @@ static int check_inode(struct btree_trans *trans,
 		do_update = true;
 	}
 
+	if (S_ISDIR(u.bi_mode) && (u.bi_flags & BCH_INODE_unlinked)) {
+		/* Check for this early so that check_unreachable_inode() will reattach it */
+
+		ret = bch2_empty_dir_snapshot(trans, k.k->p.offset, 0, k.k->p.snapshot);
+		if (ret && ret != -BCH_ERR_ENOTEMPTY_dir_not_empty)
+			goto err;
+
+		fsck_err_on(ret, trans, inode_dir_unlinked_but_not_empty,
+			    "dir unlinked but not empty\n%s",
+			    (printbuf_reset(&buf),
+			     bch2_inode_unpacked_to_text(&buf, &u),
+			     buf.buf));
+		u.bi_flags &= ~BCH_INODE_unlinked;
+		do_update = true;
+		ret = 0;
+	}
+
 	if ((u.bi_flags & (BCH_INODE_i_size_dirty|BCH_INODE_unlinked)) &&
 	    bch2_key_has_snapshot_overwrites(trans, BTREE_ID_inodes, k.k->p)) {
 		struct bpos new_min_pos;

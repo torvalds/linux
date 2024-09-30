@@ -221,6 +221,7 @@ enum bch_fsck_flags {
 	x(inode_dir_wrong_nlink,				205,	FSCK_AUTOFIX)	\
 	x(inode_dir_multiple_links,				206,	FSCK_AUTOFIX)	\
 	x(inode_dir_missing_backpointer,			284,	FSCK_AUTOFIX)	\
+	x(inode_dir_unlinked_but_not_empty,			286,	FSCK_AUTOFIX)	\
 	x(inode_multiple_links_but_nlink_0,			207,	FSCK_AUTOFIX)	\
 	x(inode_wrong_backpointer,				208,	FSCK_AUTOFIX)	\
 	x(inode_wrong_nlink,					209,	FSCK_AUTOFIX)	\
@@ -297,7 +298,7 @@ enum bch_fsck_flags {
 	x(accounting_key_replicas_devs_unsorted,		280,	FSCK_AUTOFIX)	\
 	x(accounting_key_version_0,				282,	FSCK_AUTOFIX)	\
 	x(logged_op_but_clean,					283,	FSCK_AUTOFIX)	\
-	x(MAX,							286,	0)
+	x(MAX,							287,	0)
 
 enum bch_sb_error_id {
 #define x(t, n, ...) BCH_FSCK_ERR_##t = n,
