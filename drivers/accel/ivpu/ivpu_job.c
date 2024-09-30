@@ -354,7 +354,7 @@ static int ivpu_cmdq_push_job(struct ivpu_cmdq *cmdq, struct ivpu_job *job)
 		return -EBUSY;
 	}
 
-	entry = &cmdq->jobq->job[tail];
+	entry = &cmdq->jobq->slot[tail].job;
 	entry->batch_buf_addr = job->cmd_buf_vpu_addr;
 	entry->job_id = job->job_id;
 	entry->flags = 0;
