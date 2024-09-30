@@ -1270,8 +1270,9 @@ struct intel_crtc_state {
 	/* Only valid on TGL+ */
 	enum transcoder mst_master_transcoder;
 
-	/* For DSB based color LUT updates */
-	struct intel_dsb *dsb_color_vblank, *dsb_color_commit;
+	/* For DSB based pipe updates */
+	struct intel_dsb *dsb_color_vblank, *dsb_commit;
+	bool use_dsb;
 
 	u32 psr2_man_track_ctl;
 
