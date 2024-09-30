@@ -26,7 +26,6 @@ struct jadard_panel_desc {
 	unsigned int lanes;
 	enum mipi_dsi_pixel_format format;
 	int (*init)(struct jadard *jadard);
-	u32 num_init_cmds;
 	bool lp11_before_reset;
 	bool reset_before_power_off_vcioo;
 	unsigned int vcioo_to_lp11_delay_ms;
