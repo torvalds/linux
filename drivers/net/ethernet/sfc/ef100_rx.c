@@ -135,6 +135,7 @@ void __ef100_rx_packet(struct efx_channel *channel)
 	}
 
 	++rx_queue->rx_packets;
+	rx_queue->rx_bytes += rx_buf->len;
 
 	efx_rx_packet_gro(channel, rx_buf, channel->rx_pkt_n_frags, eh, csum);
 	goto out;

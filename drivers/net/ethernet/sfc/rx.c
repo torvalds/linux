@@ -393,6 +393,7 @@ void __efx_rx_packet(struct efx_channel *channel)
 	}
 
 	rx_queue->rx_packets++;
+	rx_queue->rx_bytes += rx_buf->len;
 
 	if (!efx_do_xdp(efx, channel, rx_buf, &eh))
 		goto out;
