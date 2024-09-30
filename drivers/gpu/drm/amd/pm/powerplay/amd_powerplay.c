@@ -230,9 +230,9 @@ static int pp_late_init(struct amdgpu_ip_block *ip_block)
 	return 0;
 }
 
-static void pp_late_fini(void *handle)
+static void pp_late_fini(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	if (adev->pm.smu_prv_buffer)
 		amdgpu_bo_free_kernel(&adev->pm.smu_prv_buffer, NULL, NULL);

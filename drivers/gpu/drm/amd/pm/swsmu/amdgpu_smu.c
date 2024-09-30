@@ -2042,9 +2042,9 @@ static int smu_hw_fini(void *handle)
 	return 0;
 }
 
-static void smu_late_fini(void *handle)
+static void smu_late_fini(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	struct smu_context *smu = adev->powerplay.pp_handle;
 
 	kfree(smu);
