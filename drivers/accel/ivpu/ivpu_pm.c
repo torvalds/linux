@@ -20,6 +20,7 @@
 #include "ivpu_mmu.h"
 #include "ivpu_ms.h"
 #include "ivpu_pm.h"
+#include "ivpu_trace.h"
 #include "vpu_boot_api.h"
 
 static bool ivpu_disable_recovery;
@@ -198,6 +199,7 @@ int ivpu_pm_suspend_cb(struct device *dev)
 	struct ivpu_device *vdev = to_ivpu_device(drm);
 	unsigned long timeout;
 
+	trace_pm("suspend");
 	ivpu_dbg(vdev, PM, "Suspend..\n");
 
 	timeout = jiffies + msecs_to_jiffies(vdev->timeout.tdr);
@@ -215,6 +217,7 @@ int ivpu_pm_suspend_cb(struct device *dev)
 	ivpu_pm_prepare_warm_boot(vdev);
 
 	ivpu_dbg(vdev, PM, "Suspend done.\n");
+	trace_pm("suspend done");
 
 	return 0;
 }
@@ -225,6 +228,7 @@ int ivpu_pm_resume_cb(struct device *dev)
 	struct ivpu_device *vdev = to_ivpu_device(drm);
 	int ret;
 
+	trace_pm("resume");
 	ivpu_dbg(vdev, PM, "Resume..\n");
 
 	ret = ivpu_resume(vdev);
@@ -232,6 +236,7 @@ int ivpu_pm_resume_cb(struct device *dev)
 		ivpu_err(vdev, "Failed to resume: %d\n", ret);
 
 	ivpu_dbg(vdev, PM, "Resume done.\n");
+	trace_pm("resume done");
 
 	return ret;
 }
@@ -246,6 +251,7 @@ int ivpu_pm_runtime_suspend_cb(struct device *dev)
 	drm_WARN_ON(&vdev->drm, !xa_empty(&vdev->submitted_jobs_xa));
 	drm_WARN_ON(&vdev->drm, work_pending(&vdev->pm->recovery_work));
 
+	trace_pm("runtime suspend");
 	ivpu_dbg(vdev, PM, "Runtime suspend..\n");
 
 	ivpu_mmu_disable(vdev);
@@ -272,6 +278,7 @@ int ivpu_pm_runtime_suspend_cb(struct device *dev)
 	}
 
 	ivpu_dbg(vdev, PM, "Runtime suspend done.\n");
+	trace_pm("runtime suspend done");
 
 	return 0;
 }
@@ -282,6 +289,7 @@ int ivpu_pm_runtime_resume_cb(struct device *dev)
 	struct ivpu_device *vdev = to_ivpu_device(drm);
 	int ret;
 
+	trace_pm("runtime resume");
 	ivpu_dbg(vdev, PM, "Runtime resume..\n");
 
 	ret = ivpu_resume(vdev);
@@ -289,6 +297,7 @@ int ivpu_pm_runtime_resume_cb(struct device *dev)
 		ivpu_err(vdev, "Failed to set RESUME state: %d\n", ret);
 
 	ivpu_dbg(vdev, PM, "Runtime resume done.\n");
+	trace_pm("runtime resume done");
 
 	return ret;
 }

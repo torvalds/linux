@@ -15,6 +15,7 @@
 #include "ivpu_ipc.h"
 #include "ivpu_jsm_msg.h"
 #include "ivpu_pm.h"
+#include "ivpu_trace.h"
 
 #define IPC_MAX_RX_MSG	128
 
@@ -227,6 +228,7 @@ int ivpu_ipc_send(struct ivpu_device *vdev, struct ivpu_ipc_consumer *cons, stru
 		goto unlock;
 
 	ivpu_ipc_tx(vdev, cons->tx_vpu_addr);
+	trace_jsm("[tx]", req);
 
 unlock:
 	mutex_unlock(&ipc->lock);
@@ -284,6 +286,7 @@ int ivpu_ipc_receive(struct ivpu_device *vdev, struct ivpu_ipc_consumer *cons,
 
 		if (jsm_msg)
 			memcpy(jsm_msg, rx_msg->jsm_msg, size);
+		trace_jsm("[rx]", rx_msg->jsm_msg);
 	}
 
 	ivpu_ipc_rx_msg_del(vdev, rx_msg);
