@@ -1029,6 +1029,7 @@ static int check_inode(struct btree_trans *trans,
 		       bool full)
 {
 	struct bch_fs *c = trans->c;
+	struct printbuf buf = PRINTBUF;
 	struct bch_inode_unpacked u;
 	bool do_update = false;
 	int ret;
@@ -1062,7 +1063,24 @@ static int check_inode(struct btree_trans *trans,
 			trans, inode_snapshot_mismatch,
 			"inodes in different snapshots don't match")) {
 		bch_err(c, "repair not implemented yet");
-		return -BCH_ERR_fsck_repair_unimplemented;
+		ret = -BCH_ERR_fsck_repair_unimplemented;
+		goto err_noprint;
+	}
+
+	if (u.bi_dir || u.bi_dir_offset) {
+		ret = check_inode_dirent_inode(trans, &u, &do_update);
+		if (ret)
+			goto err;
+	}
+
+	if (fsck_err_on(u.bi_dir && (u.bi_flags & BCH_INODE_unlinked),
+			trans, inode_unlinked_but_has_dirent,
+			"inode unlinked but has dirent\n%s",
+			(printbuf_reset(&buf),
+			 bch2_inode_unpacked_to_text(&buf, &u),
+			 buf.buf))) {
+		u.bi_flags &= ~BCH_INODE_unlinked;
+		do_update = true;
 	}
 
 	if ((u.bi_flags & (BCH_INODE_i_size_dirty|BCH_INODE_unlinked)) &&
@@ -1079,11 +1097,11 @@ static int check_inode(struct btree_trans *trans,
 
 		bch_err_msg(c, ret, "in fsck updating inode");
 		if (ret)
-			return ret;
+			goto err_noprint;
 
 		if (!bpos_eq(new_min_pos, POS_MIN))
 			bch2_btree_iter_set_pos(iter, bpos_predecessor(new_min_pos));
-		return 0;
+		goto err_noprint;
 	}
 
 	if (u.bi_flags & BCH_INODE_unlinked) {
@@ -1100,7 +1118,7 @@ static int check_inode(struct btree_trans *trans,
 			 */
 			ret = check_inode_deleted_list(trans, k.k->p);
 			if (ret < 0)
-				return ret;
+				goto err_noprint;
 
 			fsck_err_on(!ret,
 				    trans, unlinked_inode_not_on_deleted_list,
@@ -1117,7 +1135,7 @@ static int check_inode(struct btree_trans *trans,
 				      u.bi_inum, u.bi_snapshot)) {
 				ret = bch2_inode_rm_snapshot(trans, u.bi_inum, iter->pos.snapshot);
 				bch_err_msg(c, ret, "in fsck deleting inode");
-				return ret;
+				goto err_noprint;
 			}
 		}
 	}
@@ -1182,12 +1200,6 @@ static int check_inode(struct btree_trans *trans,
 		do_update = true;
 	}
 
-	if (u.bi_dir || u.bi_dir_offset) {
-		ret = check_inode_dirent_inode(trans, &u, &do_update);
-		if (ret)
-			goto err;
-	}
-
 	if (fsck_err_on(u.bi_parent_subvol &&
 			(u.bi_subvol == 0 ||
 			 u.bi_subvol == BCACHEFS_ROOT_SUBVOL),
@@ -1232,11 +1244,13 @@ do_update:
 		ret = __bch2_fsck_write_inode(trans, &u, iter->pos.snapshot);
 		bch_err_msg(c, ret, "in fsck updating inode");
 		if (ret)
-			return ret;
+			goto err_noprint;
 	}
 err:
 fsck_err:
 	bch_err_fn(c, ret);
+err_noprint:
+	printbuf_exit(&buf);
 	return ret;
 }
 
@@ -1831,11 +1845,22 @@ static int check_dirent_inode_dirent(struct btree_trans *trans,
 		fsck_err_on(S_ISDIR(target->bi_mode),
 			    trans, inode_dir_missing_backpointer,
 			    "directory with missing backpointer\n%s",
-			    (bch2_bkey_val_to_text(&buf, c, d.s_c),
-			     prt_printf(&buf, "\n  "),
+			    (printbuf_reset(&buf),
+			     bch2_bkey_val_to_text(&buf, c, d.s_c),
+			     prt_printf(&buf, "\n"),
 			     bch2_inode_unpacked_to_text(&buf, target),
 			     buf.buf));
 
+		fsck_err_on(target->bi_flags & BCH_INODE_unlinked,
+			    trans, inode_unlinked_but_has_dirent,
+			    "inode unlinked but has dirent\n%s",
+			    (printbuf_reset(&buf),
+			     bch2_bkey_val_to_text(&buf, c, d.s_c),
+			     prt_printf(&buf, "\n"),
+			     bch2_inode_unpacked_to_text(&buf, target),
+			     buf.buf));
+
+		target->bi_flags &= ~BCH_INODE_unlinked;
 		target->bi_dir		= d.k->p.inode;
 		target->bi_dir_offset	= d.k->p.offset;
 		return __bch2_fsck_write_inode(trans, target, target_snapshot);
