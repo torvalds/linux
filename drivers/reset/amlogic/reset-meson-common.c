@@ -45,7 +45,7 @@ static int meson_reset_reset(struct reset_controller_dev *rcdev,
 }
 
 static int meson_reset_level(struct reset_controller_dev *rcdev,
-			    unsigned long id, bool assert)
+			     unsigned long id, bool assert)
 {
 	struct meson_reset *data =
 		container_of(rcdev, struct meson_reset, rcdev);
