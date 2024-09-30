@@ -197,7 +197,7 @@ int ivpu_jsm_dyndbg_control(struct ivpu_device *vdev, char *command, size_t size
 	strscpy(req.payload.dyndbg_control.dyndbg_cmd, command, VPU_DYNDBG_CMD_MAX_LEN);
 
 	ret = ivpu_ipc_send_receive(vdev, &req, VPU_JSM_MSG_DYNDBG_CONTROL_RSP, &resp,
-				    VPU_IPC_CHAN_ASYNC_CMD, vdev->timeout.jsm);
+				    VPU_IPC_CHAN_GEN_CMD, vdev->timeout.jsm);
 	if (ret)
 		ivpu_warn_ratelimited(vdev, "Failed to send command \"%s\": ret %d\n",
 				      command, ret);
