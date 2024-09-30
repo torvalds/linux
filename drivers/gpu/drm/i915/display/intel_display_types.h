@@ -909,6 +909,10 @@ struct intel_csc_matrix {
 	u16 postoff[3];
 };
 
+void intel_io_mmio_fw_write(void *ctx, i915_reg_t reg, u32 val);
+
+typedef void (*intel_io_reg_write)(void *ctx, i915_reg_t reg, u32 val);
+
 struct intel_crtc_state {
 	/*
 	 * uapi (drm) state. This is the software state shown to userspace.
@@ -1452,22 +1456,26 @@ struct intel_plane {
 				   u32 pixel_format, u64 modifier,
 				   unsigned int rotation);
 	/* Write all non-self arming plane registers */
-	void (*update_noarm)(struct intel_plane *plane,
+	void (*update_noarm)(struct intel_dsb *dsb,
+			     struct intel_plane *plane,
 			     const struct intel_crtc_state *crtc_state,
 			     const struct intel_plane_state *plane_state);
 	/* Write all self-arming plane registers */
-	void (*update_arm)(struct intel_plane *plane,
+	void (*update_arm)(struct intel_dsb *dsb,
+			   struct intel_plane *plane,
 			   const struct intel_crtc_state *crtc_state,
 			   const struct intel_plane_state *plane_state);
 	/* Disable the plane, must arm */
-	void (*disable_arm)(struct intel_plane *plane,
+	void (*disable_arm)(struct intel_dsb *dsb,
+			    struct intel_plane *plane,
 			    const struct intel_crtc_state *crtc_state);
 	bool (*get_hw_state)(struct intel_plane *plane, enum pipe *pipe);
 	int (*check_plane)(struct intel_crtc_state *crtc_state,
 			   struct intel_plane_state *plane_state);
 	int (*min_cdclk)(const struct intel_crtc_state *crtc_state,
 			 const struct intel_plane_state *plane_state);
-	void (*async_flip)(struct intel_plane *plane,
+	void (*async_flip)(struct intel_dsb *dsb,
+			   struct intel_plane *plane,
 			   const struct intel_crtc_state *crtc_state,
 			   const struct intel_plane_state *plane_state,
 			   bool async_flip);

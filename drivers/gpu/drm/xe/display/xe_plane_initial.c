@@ -248,7 +248,7 @@ intel_find_initial_plane_obj(struct intel_crtc *crtc,
 	 * the lookup of sysmem scratch pages.
 	 */
 	plane->check_plane(crtc_state, plane_state);
-	plane->async_flip(plane, crtc_state, plane_state, true);
+	plane->async_flip(NULL, plane, crtc_state, plane_state, true);
 	return;
 
 nofb:

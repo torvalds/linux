@@ -1915,7 +1915,7 @@ void intel_color_modeset(const struct intel_crtc_state *crtc_state)
 		struct intel_plane *plane = to_intel_plane(crtc->base.primary);
 
 		/* update DSPCNTR to configure gamma/csc for pipe bottom color */
-		plane->disable_arm(plane, crtc_state);
+		plane->disable_arm(NULL, plane, crtc_state);
 	}
 }
 
