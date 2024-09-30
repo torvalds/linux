@@ -185,7 +185,7 @@ int intel_gt_init_hw(struct intel_gt *gt)
 	if (IS_HASWELL(i915))
 		intel_uncore_write(uncore,
 				   HSW_MI_PREDICATE_RESULT_2,
-				   IS_HASWELL_GT3(i915) ?
+				   INTEL_INFO(i915)->gt == 3 ?
 				   LOWER_SLICE_ENABLED : LOWER_SLICE_DISABLED);
 
 	/* Apply the GT workarounds... */

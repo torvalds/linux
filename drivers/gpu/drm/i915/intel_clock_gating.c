@@ -502,7 +502,7 @@ static void ivb_init_clock_gating(struct drm_i915_private *i915)
 			   CHICKEN3_DGMG_REQ_OUT_FIX_DISABLE |
 			   CHICKEN3_DGMG_DONE_FIX_DISABLE);
 
-	if (IS_IVB_GT1(i915))
+	if (INTEL_INFO(i915)->gt == 1)
 		intel_uncore_write(&i915->uncore, GEN7_ROW_CHICKEN2,
 				   _MASKED_BIT_ENABLE(DOP_CLOCK_GATING_DISABLE));
 	else {
