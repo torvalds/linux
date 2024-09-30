@@ -2843,25 +2843,20 @@ static int mv643xx_eth_shared_probe(struct platform_device *pdev)
 	struct mv643xx_eth_shared_platform_data *pd;
 	struct mv643xx_eth_shared_private *msp;
 	const struct mbus_dram_target_info *dram;
-	struct resource *res;
 	int ret;
 
 	if (!mv643xx_eth_version_printed++)
 		pr_notice("MV-643xx 10/100/1000 ethernet driver version %s\n",
 			  mv643xx_eth_driver_version);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (res == NULL)
-		return -EINVAL;
-
 	msp = devm_kzalloc(&pdev->dev, sizeof(*msp), GFP_KERNEL);
 	if (msp == NULL)
 		return -ENOMEM;
 	platform_set_drvdata(pdev, msp);
 
-	msp->base = devm_ioremap(&pdev->dev, res->start, resource_size(res));
-	if (msp->base == NULL)
-		return -ENOMEM;
+	msp->base = devm_platform_ioremap_resource(pdev, 0);
+	if (IS_ERR(msp->base))
+		return PTR_ERR(msp->base);
 
 	msp->clk = devm_clk_get(&pdev->dev, NULL);
 	if (!IS_ERR(msp->clk))
