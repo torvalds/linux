@@ -486,7 +486,6 @@ bool dcn30_mmhubbub_warmup(
 	}
 	/*following is the original: warmup each DWB's mcif buffer*/
 	for (i = 0; i < num_dwb; i++) {
-		dwb = dc->res_pool->dwbc[wb_info[i].dwb_pipe_inst];
 		mcif_wb = dc->res_pool->mcif_wb[wb_info[i].dwb_pipe_inst];
 		/*warmup is for VM mode only*/
 		if (wb_info[i].mcif_buf_params.p_vmid == 0)
