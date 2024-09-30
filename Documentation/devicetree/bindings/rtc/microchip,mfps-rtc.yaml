@@ -16,8 +16,11 @@ maintainers:
 
 properties:
   compatible:
-    enum:
-      - microchip,mpfs-rtc
+    oneOf:
+      - items:
+          - const: microchip,pic64gx-rtc
+          - const: microchip,mpfs-rtc
+      - const: microchip,mpfs-rtc
 
   reg:
     maxItems: 1
