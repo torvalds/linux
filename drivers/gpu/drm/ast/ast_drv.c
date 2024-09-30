@@ -26,11 +26,11 @@
  * Authors: Dave Airlie <airlied@redhat.com>
  */
 
+#include <linux/aperture.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/pci.h>
 
-#include <drm/drm_aperture.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_client_setup.h>
 #include <drm/drm_drv.h>
@@ -281,7 +281,7 @@ static int ast_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct drm_device *drm;
 	bool need_post = false;
 
-	ret = drm_aperture_remove_conflicting_pci_framebuffers(pdev, &ast_driver);
+	ret = aperture_remove_conflicting_pci_devices(pdev, ast_driver.name);
 	if (ret)
 		return ret;
 
