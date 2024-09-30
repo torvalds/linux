@@ -5070,7 +5070,7 @@ static int amdgpu_device_ip_post_soft_reset(struct amdgpu_device *adev)
 			continue;
 		if (adev->ip_blocks[i].status.hang &&
 		    adev->ip_blocks[i].version->funcs->post_soft_reset)
-			r = adev->ip_blocks[i].version->funcs->post_soft_reset(adev);
+			r = adev->ip_blocks[i].version->funcs->post_soft_reset(&adev->ip_blocks[i]);
 		if (r)
 			return r;
 	}

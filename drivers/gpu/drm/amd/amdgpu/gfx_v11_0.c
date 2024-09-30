@@ -4931,12 +4931,13 @@ static bool gfx_v11_0_check_soft_reset(struct amdgpu_ip_block *ip_block)
 	return false;
 }
 
-static int gfx_v11_0_post_soft_reset(void *handle)
+static int gfx_v11_0_post_soft_reset(struct amdgpu_ip_block *ip_block)
 {
+	struct amdgpu_device *adev = ip_block->adev;
 	/**
 	 * GFX soft reset will impact MES, need resume MES when do GFX soft reset
 	 */
-	return amdgpu_mes_resume((struct amdgpu_device *)handle);
+	return amdgpu_mes_resume(adev);
 }
 
 static uint64_t gfx_v11_0_get_gpu_clock_counter(struct amdgpu_device *adev)

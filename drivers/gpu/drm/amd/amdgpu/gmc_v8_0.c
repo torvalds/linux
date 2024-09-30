@@ -1361,9 +1361,9 @@ static int gmc_v8_0_soft_reset(struct amdgpu_ip_block *ip_block)
 	return 0;
 }
 
-static int gmc_v8_0_post_soft_reset(void *handle)
+static int gmc_v8_0_post_soft_reset(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	if (!adev->gmc.srbm_soft_reset)
 		return 0;
