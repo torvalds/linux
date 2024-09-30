@@ -93,7 +93,7 @@ static int __init lockdown_lsm_init(void)
 	return 0;
 }
 
-static ssize_t lockdown_read(struct file *filp, char __user *buf, size_t count,
+static ssize_t lockdown_read(struct file *file, char __user *buf, size_t count,
 			     loff_t *ppos)
 {
 	char temp[80];
