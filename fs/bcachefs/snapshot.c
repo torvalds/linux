@@ -1735,18 +1735,10 @@ int __bch2_key_has_snapshot_overwrites(struct btree_trans *trans,
 	struct bkey_s_c k;
 	int ret;
 
-	bch2_trans_iter_init(trans, &iter, id, pos,
-			     BTREE_ITER_not_extents|
-			     BTREE_ITER_all_snapshots);
-	while (1) {
-		k = bch2_btree_iter_prev(&iter);
-		ret = bkey_err(k);
-		if (ret)
-			break;
-
-		if (!k.k)
-			break;
-
+	for_each_btree_key_reverse_norestart(trans, iter, id, bpos_predecessor(pos),
+					     BTREE_ITER_not_extents|
+					     BTREE_ITER_all_snapshots,
+					     k, ret) {
 		if (!bkey_eq(pos, k.k->p))
 			break;
 
