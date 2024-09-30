@@ -39,7 +39,8 @@ struct intel_color_funcs {
 	 * the next vblank start, alongside any other double buffered
 	 * registers involved with the same commit. This hook is optional.
 	 */
-	void (*color_commit_noarm)(const struct intel_crtc_state *crtc_state);
+	void (*color_commit_noarm)(struct intel_dsb *dsb,
+				   const struct intel_crtc_state *crtc_state);
 	/*
 	 * Program arming double buffered color management registers
 	 * during vblank evasion. The registers (and whatever other registers
@@ -47,7 +48,8 @@ struct intel_color_funcs {
 	 * during the next vblank start, alongside any other double buffered
 	 * registers involved with the same commit.
 	 */
-	void (*color_commit_arm)(const struct intel_crtc_state *crtc_state);
+	void (*color_commit_arm)(struct intel_dsb *dsb,
+				 const struct intel_crtc_state *crtc_state);
 	/*
 	 * Perform any extra tasks needed after all the
 	 * double buffered registers have been latched.
@@ -205,37 +207,44 @@ static u64 *ctm_mult_by_limited(u64 *result, const u64 *input)
 	return result;
 }
 
-static void ilk_update_pipe_csc(struct intel_crtc *crtc,
+static void ilk_update_pipe_csc(struct intel_dsb *dsb,
+				struct intel_crtc *crtc,
 				const struct intel_csc_matrix *csc)
 {
-	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
+	struct intel_display *display = to_intel_display(crtc->base.dev);
 	enum pipe pipe = crtc->pipe;
 
-	intel_de_write_fw(i915, PIPE_CSC_PREOFF_HI(pipe), csc->preoff[0]);
-	intel_de_write_fw(i915, PIPE_CSC_PREOFF_ME(pipe), csc->preoff[1]);
-	intel_de_write_fw(i915, PIPE_CSC_PREOFF_LO(pipe), csc->preoff[2]);
+	intel_de_write_dsb(display, dsb, PIPE_CSC_PREOFF_HI(pipe),
+			   csc->preoff[0]);
+	intel_de_write_dsb(display, dsb, PIPE_CSC_PREOFF_ME(pipe),
+			   csc->preoff[1]);
+	intel_de_write_dsb(display, dsb, PIPE_CSC_PREOFF_LO(pipe),
+			   csc->preoff[2]);
 
-	intel_de_write_fw(i915, PIPE_CSC_COEFF_RY_GY(pipe),
-			  csc->coeff[0] << 16 | csc->coeff[1]);
-	intel_de_write_fw(i915, PIPE_CSC_COEFF_BY(pipe),
-			  csc->coeff[2] << 16);
+	intel_de_write_dsb(display, dsb, PIPE_CSC_COEFF_RY_GY(pipe),
+			   csc->coeff[0] << 16 | csc->coeff[1]);
+	intel_de_write_dsb(display, dsb, PIPE_CSC_COEFF_BY(pipe),
+			   csc->coeff[2] << 16);
 
-	intel_de_write_fw(i915, PIPE_CSC_COEFF_RU_GU(pipe),
-			  csc->coeff[3] << 16 | csc->coeff[4]);
-	intel_de_write_fw(i915, PIPE_CSC_COEFF_BU(pipe),
-			  csc->coeff[5] << 16);
+	intel_de_write_dsb(display, dsb, PIPE_CSC_COEFF_RU_GU(pipe),
+			   csc->coeff[3] << 16 | csc->coeff[4]);
+	intel_de_write_dsb(display, dsb, PIPE_CSC_COEFF_BU(pipe),
+			   csc->coeff[5] << 16);
 
-	intel_de_write_fw(i915, PIPE_CSC_COEFF_RV_GV(pipe),
-			  csc->coeff[6] << 16 | csc->coeff[7]);
-	intel_de_write_fw(i915, PIPE_CSC_COEFF_BV(pipe),
-			  csc->coeff[8] << 16);
+	intel_de_write_dsb(display, dsb, PIPE_CSC_COEFF_RV_GV(pipe),
+			   csc->coeff[6] << 16 | csc->coeff[7]);
+	intel_de_write_dsb(display, dsb, PIPE_CSC_COEFF_BV(pipe),
+			   csc->coeff[8] << 16);
 
-	if (DISPLAY_VER(i915) < 7)
+	if (DISPLAY_VER(display) < 7)
 		return;
 
-	intel_de_write_fw(i915, PIPE_CSC_POSTOFF_HI(pipe), csc->postoff[0]);
-	intel_de_write_fw(i915, PIPE_CSC_POSTOFF_ME(pipe), csc->postoff[1]);
-	intel_de_write_fw(i915, PIPE_CSC_POSTOFF_LO(pipe), csc->postoff[2]);
+	intel_de_write_dsb(display, dsb, PIPE_CSC_POSTOFF_HI(pipe),
+			   csc->postoff[0]);
+	intel_de_write_dsb(display, dsb, PIPE_CSC_POSTOFF_ME(pipe),
+			   csc->postoff[1]);
+	intel_de_write_dsb(display, dsb, PIPE_CSC_POSTOFF_LO(pipe),
+			   csc->postoff[2]);
 }
 
 static void ilk_read_pipe_csc(struct intel_crtc *crtc,
@@ -304,34 +313,41 @@ static void skl_read_csc(struct intel_crtc_state *crtc_state)
 		ilk_read_pipe_csc(crtc, &crtc_state->csc);
 }
 
-static void icl_update_output_csc(struct intel_crtc *crtc,
+static void icl_update_output_csc(struct intel_dsb *dsb,
+				  struct intel_crtc *crtc,
 				  const struct intel_csc_matrix *csc)
 {
-	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
+	struct intel_display *display = to_intel_display(crtc->base.dev);
 	enum pipe pipe = crtc->pipe;
 
-	intel_de_write_fw(i915, PIPE_CSC_OUTPUT_PREOFF_HI(pipe), csc->preoff[0]);
-	intel_de_write_fw(i915, PIPE_CSC_OUTPUT_PREOFF_ME(pipe), csc->preoff[1]);
-	intel_de_write_fw(i915, PIPE_CSC_OUTPUT_PREOFF_LO(pipe), csc->preoff[2]);
+	intel_de_write_dsb(display, dsb, PIPE_CSC_OUTPUT_PREOFF_HI(pipe),
+			   csc->preoff[0]);
+	intel_de_write_dsb(display, dsb, PIPE_CSC_OUTPUT_PREOFF_ME(pipe),
+			   csc->preoff[1]);
+	intel_de_write_dsb(display, dsb, PIPE_CSC_OUTPUT_PREOFF_LO(pipe),
+			   csc->preoff[2]);
 
-	intel_de_write_fw(i915, PIPE_CSC_OUTPUT_COEFF_RY_GY(pipe),
-			  csc->coeff[0] << 16 | csc->coeff[1]);
-	intel_de_write_fw(i915, PIPE_CSC_OUTPUT_COEFF_BY(pipe),
-			  csc->coeff[2] << 16);
+	intel_de_write_dsb(display, dsb, PIPE_CSC_OUTPUT_COEFF_RY_GY(pipe),
+			   csc->coeff[0] << 16 | csc->coeff[1]);
+	intel_de_write_dsb(display, dsb, PIPE_CSC_OUTPUT_COEFF_BY(pipe),
+			   csc->coeff[2] << 16);
 
-	intel_de_write_fw(i915, PIPE_CSC_OUTPUT_COEFF_RU_GU(pipe),
-			  csc->coeff[3] << 16 | csc->coeff[4]);
-	intel_de_write_fw(i915, PIPE_CSC_OUTPUT_COEFF_BU(pipe),
-			  csc->coeff[5] << 16);
+	intel_de_write_dsb(display, dsb, PIPE_CSC_OUTPUT_COEFF_RU_GU(pipe),
+			   csc->coeff[3] << 16 | csc->coeff[4]);
+	intel_de_write_dsb(display, dsb, PIPE_CSC_OUTPUT_COEFF_BU(pipe),
+			   csc->coeff[5] << 16);
 
-	intel_de_write_fw(i915, PIPE_CSC_OUTPUT_COEFF_RV_GV(pipe),
-			  csc->coeff[6] << 16 | csc->coeff[7]);
-	intel_de_write_fw(i915, PIPE_CSC_OUTPUT_COEFF_BV(pipe),
-			  csc->coeff[8] << 16);
+	intel_de_write_dsb(display, dsb, PIPE_CSC_OUTPUT_COEFF_RV_GV(pipe),
+			   csc->coeff[6] << 16 | csc->coeff[7]);
+	intel_de_write_dsb(display, dsb, PIPE_CSC_OUTPUT_COEFF_BV(pipe),
+			   csc->coeff[8] << 16);
 
-	intel_de_write_fw(i915, PIPE_CSC_OUTPUT_POSTOFF_HI(pipe), csc->postoff[0]);
-	intel_de_write_fw(i915, PIPE_CSC_OUTPUT_POSTOFF_ME(pipe), csc->postoff[1]);
-	intel_de_write_fw(i915, PIPE_CSC_OUTPUT_POSTOFF_LO(pipe), csc->postoff[2]);
+	intel_de_write_dsb(display, dsb, PIPE_CSC_OUTPUT_POSTOFF_HI(pipe),
+			   csc->postoff[0]);
+	intel_de_write_dsb(display, dsb, PIPE_CSC_OUTPUT_POSTOFF_ME(pipe),
+			   csc->postoff[1]);
+	intel_de_write_dsb(display, dsb, PIPE_CSC_OUTPUT_POSTOFF_LO(pipe),
+			   csc->postoff[2]);
 }
 
 static void icl_read_output_csc(struct intel_crtc *crtc,
@@ -526,12 +542,13 @@ static void ilk_assign_csc(struct intel_crtc_state *crtc_state)
 	}
 }
 
-static void ilk_load_csc_matrix(const struct intel_crtc_state *crtc_state)
+static void ilk_load_csc_matrix(struct intel_dsb *dsb,
+				const struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 
 	if (crtc_state->csc_enable)
-		ilk_update_pipe_csc(crtc, &crtc_state->csc);
+		ilk_update_pipe_csc(dsb, crtc, &crtc_state->csc);
 }
 
 static void icl_assign_csc(struct intel_crtc_state *crtc_state)
@@ -563,15 +580,16 @@ static void icl_assign_csc(struct intel_crtc_state *crtc_state)
 	}
 }
 
-static void icl_load_csc_matrix(const struct intel_crtc_state *crtc_state)
+static void icl_load_csc_matrix(struct intel_dsb *dsb,
+				const struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 
 	if (crtc_state->csc_mode & ICL_CSC_ENABLE)
-		ilk_update_pipe_csc(crtc, &crtc_state->csc);
+		ilk_update_pipe_csc(dsb, crtc, &crtc_state->csc);
 
 	if (crtc_state->csc_mode & ICL_OUTPUT_CSC_ENABLE)
-		icl_update_output_csc(crtc, &crtc_state->output_csc);
+		icl_update_output_csc(dsb, crtc, &crtc_state->output_csc);
 }
 
 static u16 ctm_to_twos_complement(u64 coeff, int int_bits, int frac_bits)
@@ -953,7 +971,8 @@ static void ilk_lut_12p4_pack(struct drm_color_lut *entry, u32 ldw, u32 udw)
 		REG_FIELD_GET(PREC_PALETTE_12P4_BLUE_LDW_MASK, ldw);
 }
 
-static void icl_color_commit_noarm(const struct intel_crtc_state *crtc_state)
+static void icl_color_commit_noarm(struct intel_dsb *dsb,
+				   const struct intel_crtc_state *crtc_state)
 {
 	/*
 	 * Despite Wa_1406463849, ICL no longer suffers from the SKL
@@ -963,10 +982,11 @@ static void icl_color_commit_noarm(const struct intel_crtc_state *crtc_state)
 	 *
 	 * On TGL+ all CSC arming issues have been properly fixed.
 	 */
-	icl_load_csc_matrix(crtc_state);
+	icl_load_csc_matrix(dsb, crtc_state);
 }
 
-static void skl_color_commit_noarm(const struct intel_crtc_state *crtc_state)
+static void skl_color_commit_noarm(struct intel_dsb *dsb,
+				   const struct intel_crtc_state *crtc_state)
 {
 	/*
 	 * Possibly related to display WA #1184, SKL CSC loses the latched
@@ -979,21 +999,24 @@ static void skl_color_commit_noarm(const struct intel_crtc_state *crtc_state)
 	 * which is called after PSR exit.
 	 */
 	if (!crtc_state->has_psr)
-		ilk_load_csc_matrix(crtc_state);
+		ilk_load_csc_matrix(dsb, crtc_state);
 }
 
-static void ilk_color_commit_noarm(const struct intel_crtc_state *crtc_state)
+static void ilk_color_commit_noarm(struct intel_dsb *dsb,
+				   const struct intel_crtc_state *crtc_state)
 {
-	ilk_load_csc_matrix(crtc_state);
+	ilk_load_csc_matrix(dsb, crtc_state);
 }
 
-static void i9xx_color_commit_arm(const struct intel_crtc_state *crtc_state)
+static void i9xx_color_commit_arm(struct intel_dsb *dsb,
+				  const struct intel_crtc_state *crtc_state)
 {
 	/* update TRANSCONF GAMMA_MODE */
 	i9xx_set_pipeconf(crtc_state);
 }
 
-static void ilk_color_commit_arm(const struct intel_crtc_state *crtc_state)
+static void ilk_color_commit_arm(struct intel_dsb *dsb,
+				 const struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
@@ -1005,7 +1028,8 @@ static void ilk_color_commit_arm(const struct intel_crtc_state *crtc_state)
 			  crtc_state->csc_mode);
 }
 
-static void hsw_color_commit_arm(const struct intel_crtc_state *crtc_state)
+static void hsw_color_commit_arm(struct intel_dsb *dsb,
+				 const struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
@@ -1076,15 +1100,16 @@ static void skl_get_config(struct intel_crtc_state *crtc_state)
 		crtc_state->csc_enable = true;
 }
 
-static void skl_color_commit_arm(const struct intel_crtc_state *crtc_state)
+static void skl_color_commit_arm(struct intel_dsb *dsb,
+				 const struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
-	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
+	struct intel_display *display = to_intel_display(crtc->base.dev);
 	enum pipe pipe = crtc->pipe;
 	u32 val = 0;
 
 	if (crtc_state->has_psr)
-		ilk_load_csc_matrix(crtc_state);
+		ilk_load_csc_matrix(dsb, crtc_state);
 
 	/*
 	 * We don't (yet) allow userspace to control the pipe background color,
@@ -1095,32 +1120,29 @@ static void skl_color_commit_arm(const struct intel_crtc_state *crtc_state)
 		val |= SKL_BOTTOM_COLOR_GAMMA_ENABLE;
 	if (crtc_state->csc_enable)
 		val |= SKL_BOTTOM_COLOR_CSC_ENABLE;
-	intel_de_write(i915, SKL_BOTTOM_COLOR(pipe), val);
+	intel_de_write_dsb(display, dsb, SKL_BOTTOM_COLOR(pipe), val);
 
-	intel_de_write(i915, GAMMA_MODE(crtc->pipe),
-		       crtc_state->gamma_mode);
+	intel_de_write_dsb(display, dsb, GAMMA_MODE(crtc->pipe), crtc_state->gamma_mode);
 
-	intel_de_write_fw(i915, PIPE_CSC_MODE(crtc->pipe),
-			  crtc_state->csc_mode);
+	intel_de_write_dsb(display, dsb, PIPE_CSC_MODE(crtc->pipe), crtc_state->csc_mode);
 }
 
-static void icl_color_commit_arm(const struct intel_crtc_state *crtc_state)
+static void icl_color_commit_arm(struct intel_dsb *dsb,
+				 const struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
-	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
+	struct intel_display *display = to_intel_display(crtc->base.dev);
 	enum pipe pipe = crtc->pipe;
 
 	/*
 	 * We don't (yet) allow userspace to control the pipe background color,
 	 * so force it to black.
 	 */
-	intel_de_write(i915, SKL_BOTTOM_COLOR(pipe), 0);
+	intel_de_write_dsb(display, dsb, SKL_BOTTOM_COLOR(pipe), 0);
 
-	intel_de_write(i915, GAMMA_MODE(crtc->pipe),
-		       crtc_state->gamma_mode);
+	intel_de_write_dsb(display, dsb, GAMMA_MODE(crtc->pipe), crtc_state->gamma_mode);
 
-	intel_de_write_fw(i915, PIPE_CSC_MODE(crtc->pipe),
-			  crtc_state->csc_mode);
+	intel_de_write_dsb(display, dsb, PIPE_CSC_MODE(crtc->pipe), crtc_state->csc_mode);
 }
 
 static void icl_color_post_update(const struct intel_crtc_state *crtc_state)
@@ -1876,19 +1898,21 @@ void intel_color_load_luts(const struct intel_crtc_state *crtc_state)
 	i915->display.funcs.color->load_luts(crtc_state);
 }
 
-void intel_color_commit_noarm(const struct intel_crtc_state *crtc_state)
+void intel_color_commit_noarm(struct intel_dsb *dsb,
+			      const struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *i915 = to_i915(crtc_state->uapi.crtc->dev);
 
 	if (i915->display.funcs.color->color_commit_noarm)
-		i915->display.funcs.color->color_commit_noarm(crtc_state);
+		i915->display.funcs.color->color_commit_noarm(dsb, crtc_state);
 }
 
-void intel_color_commit_arm(const struct intel_crtc_state *crtc_state)
+void intel_color_commit_arm(struct intel_dsb *dsb,
+			    const struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *i915 = to_i915(crtc_state->uapi.crtc->dev);
 
-	i915->display.funcs.color->color_commit_arm(crtc_state);
+	i915->display.funcs.color->color_commit_arm(dsb, crtc_state);
 
 	if (crtc_state->dsb_color_commit)
 		intel_dsb_commit(crtc_state->dsb_color_commit, false);
@@ -1907,8 +1931,8 @@ void intel_color_modeset(const struct intel_crtc_state *crtc_state)
 	struct intel_display *display = to_intel_display(crtc_state);
 
 	intel_color_load_luts(crtc_state);
-	intel_color_commit_noarm(crtc_state);
-	intel_color_commit_arm(crtc_state);
+	intel_color_commit_noarm(NULL, crtc_state);
+	intel_color_commit_arm(NULL, crtc_state);
 
 	if (DISPLAY_VER(display) < 9) {
 		struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);

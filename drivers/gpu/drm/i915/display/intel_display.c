@@ -7072,7 +7072,7 @@ static void commit_pipe_pre_planes(struct intel_atomic_state *state,
 	 */
 	if (!modeset) {
 		if (intel_crtc_needs_color_update(new_crtc_state))
-			intel_color_commit_arm(new_crtc_state);
+			intel_color_commit_arm(NULL, new_crtc_state);
 
 		if (DISPLAY_VER(dev_priv) >= 9 || IS_BROADWELL(dev_priv))
 			bdw_set_pipe_misc(NULL, new_crtc_state);
@@ -7173,7 +7173,7 @@ static void intel_pre_update_crtc(struct intel_atomic_state *state,
 
 	if (!modeset &&
 	    intel_crtc_needs_color_update(new_crtc_state))
-		intel_color_commit_noarm(new_crtc_state);
+		intel_color_commit_noarm(NULL, new_crtc_state);
 
 	intel_crtc_planes_update_noarm(NULL, state, crtc);
 }

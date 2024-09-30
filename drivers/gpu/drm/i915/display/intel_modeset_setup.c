@@ -493,8 +493,8 @@ static bool intel_sanitize_crtc(struct intel_crtc *crtc,
 		}
 
 		/* Disable any background color/etc. set by the BIOS */
-		intel_color_commit_noarm(crtc_state);
-		intel_color_commit_arm(crtc_state);
+		intel_color_commit_noarm(NULL, crtc_state);
+		intel_color_commit_arm(NULL, crtc_state);
 	}
 
 	if (!crtc_state->hw.active ||

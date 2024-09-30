@@ -11,6 +11,7 @@
 struct intel_atomic_state;
 struct intel_crtc_state;
 struct intel_crtc;
+struct intel_dsb;
 struct drm_i915_private;
 struct drm_property_blob;
 
@@ -24,8 +25,10 @@ void intel_color_prepare_commit(struct intel_atomic_state *state,
 void intel_color_cleanup_commit(struct intel_crtc_state *crtc_state);
 bool intel_color_uses_dsb(const struct intel_crtc_state *crtc_state);
 void intel_color_wait_commit(const struct intel_crtc_state *crtc_state);
-void intel_color_commit_noarm(const struct intel_crtc_state *crtc_state);
-void intel_color_commit_arm(const struct intel_crtc_state *crtc_state);
+void intel_color_commit_noarm(struct intel_dsb *dsb,
+			      const struct intel_crtc_state *crtc_state);
+void intel_color_commit_arm(struct intel_dsb *dsb,
+			    const struct intel_crtc_state *crtc_state);
 void intel_color_post_update(const struct intel_crtc_state *crtc_state);
 void intel_color_load_luts(const struct intel_crtc_state *crtc_state);
 void intel_color_modeset(const struct intel_crtc_state *crtc_state);
