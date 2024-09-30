@@ -7832,6 +7832,8 @@ F:	drivers/gpu/drm/xlnx/
 DRM GPU SCHEDULER
 M:	Luben Tuikov <ltuikov89@gmail.com>
 M:	Matthew Brost <matthew.brost@intel.com>
+M:	Danilo Krummrich <dakr@kernel.org>
+M:	Philipp Stanner <pstanner@redhat.com>
 L:	dri-devel@lists.freedesktop.org
 S:	Maintained
 T:	git https://gitlab.freedesktop.org/drm/misc/kernel.git

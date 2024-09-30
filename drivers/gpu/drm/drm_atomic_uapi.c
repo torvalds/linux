@@ -543,7 +543,7 @@ static int drm_atomic_plane_set_property(struct drm_plane *plane,
 					&state->fb_damage_clips,
 					val,
 					-1,
-					sizeof(struct drm_rect),
+					sizeof(struct drm_mode_rect),
 					&replaced);
 		return ret;
 	} else if (property == plane->scaling_filter_property) {
