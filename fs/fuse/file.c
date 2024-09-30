@@ -483,14 +483,19 @@ static void fuse_wait_on_page_writeback(struct inode *inode, pgoff_t index)
 	wait_event(fi->page_waitq, !fuse_page_is_writeback(inode, index));
 }
 
+static inline bool fuse_folio_is_writeback(struct inode *inode,
+					   struct folio *folio)
+{
+	pgoff_t last = folio_next_index(folio) - 1;
+	return fuse_range_is_writeback(inode, folio_index(folio), last);
+}
+
 static void fuse_wait_on_folio_writeback(struct inode *inode,
 					 struct folio *folio)
 {
 	struct fuse_inode *fi = get_fuse_inode(inode);
-	pgoff_t last = folio_next_index(folio) - 1;
 
-	wait_event(fi->page_waitq,
-		   !fuse_range_is_writeback(inode, folio_index(folio), last));
+	wait_event(fi->page_waitq, !fuse_folio_is_writeback(inode, folio));
 }
 
 /*
@@ -2288,7 +2293,7 @@ static bool fuse_writepage_add(struct fuse_writepage_args *new_wpa,
 	return false;
 }
 
-static bool fuse_writepage_need_send(struct fuse_conn *fc, struct page *page,
+static bool fuse_writepage_need_send(struct fuse_conn *fc, struct folio *folio,
 				     struct fuse_args_pages *ap,
 				     struct fuse_fill_wb_data *data)
 {
@@ -2300,7 +2305,7 @@ static bool fuse_writepage_need_send(struct fuse_conn *fc, struct page *page,
 	 * the pages are faulted with get_user_pages(), and then after the read
 	 * completed.
 	 */
-	if (fuse_page_is_writeback(data->inode, page->index))
+	if (fuse_folio_is_writeback(data->inode, folio))
 		return true;
 
 	/* Reached max pages */
@@ -2312,7 +2317,7 @@ static bool fuse_writepage_need_send(struct fuse_conn *fc, struct page *page,
 		return true;
 
 	/* Discontinuity */
-	if (data->orig_pages[ap->num_pages - 1]->index + 1 != page->index)
+	if (data->orig_pages[ap->num_pages - 1]->index + 1 != folio_index(folio))
 		return true;
 
 	/* Need to grow the pages array?  If so, did the expansion fail? */
@@ -2341,7 +2346,7 @@ static int fuse_writepages_fill(struct folio *folio,
 			goto out_unlock;
 	}
 
-	if (wpa && fuse_writepage_need_send(fc, &folio->page, ap, data)) {
+	if (wpa && fuse_writepage_need_send(fc, folio, ap, data)) {
 		fuse_writepages_send(data);
 		data->wpa = NULL;
 	}
