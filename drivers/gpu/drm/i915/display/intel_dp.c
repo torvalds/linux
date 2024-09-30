@@ -896,25 +896,31 @@ static u32 small_joiner_ram_max_bpp(struct intel_display *display,
 	return max_bpp;
 }
 
+static int ultrajoiner_ram_bits(void)
+{
+	return 4 * 72 * 512;
+}
+
+static u32 ultrajoiner_ram_max_bpp(u32 mode_hdisplay)
+{
+	return ultrajoiner_ram_bits() / mode_hdisplay;
+}
+
 static
 u32 get_max_compressed_bpp_with_joiner(struct drm_i915_private *i915,
 				       u32 mode_clock, u32 mode_hdisplay,
 				       int num_joined_pipes)
 {
 	struct intel_display *display = to_intel_display(&i915->drm);
-	u32 max_bpp_small_joiner_ram;
+	u32 max_bpp = small_joiner_ram_max_bpp(display, mode_hdisplay, num_joined_pipes);
 
-	max_bpp_small_joiner_ram = small_joiner_ram_max_bpp(display, mode_hdisplay,
-							    num_joined_pipes);
+	if (num_joined_pipes > 1)
+		max_bpp = min(max_bpp, bigjoiner_bw_max_bpp(display, mode_clock,
+							    num_joined_pipes));
+	if (num_joined_pipes == 4)
+		max_bpp = min(max_bpp, ultrajoiner_ram_max_bpp(mode_hdisplay));
 
-	if (num_joined_pipes == 2) {
-		u32 max_bpp_bigjoiner = bigjoiner_bw_max_bpp(display, mode_clock,
-							     num_joined_pipes);
-
-		return min(max_bpp_small_joiner_ram, max_bpp_bigjoiner);
-	}
-
-	return max_bpp_small_joiner_ram;
+	return max_bpp;
 }
 
 u16 intel_dp_dsc_get_max_compressed_bpp(struct drm_i915_private *i915,
