@@ -136,6 +136,30 @@ beauty_check () {
   check_2 "tools/perf/trace/beauty/$file" "$file" "$@"
 }
 
+check_ignore_some_hunks () {
+  orig_file="$1"
+  tools_file="tools/$orig_file"
+  hunks_to_ignore="tools/perf/check-header_ignore_hunks/$orig_file"
+
+  if [ ! -f "$hunks_to_ignore" ]; then
+    echo "$hunks_to_ignore not found. Skipping $orig_file check."
+    FAILURES+=(
+      "$tools_file $orig_file"
+    )
+    return
+  fi
+
+  cmd="diff -u \"$tools_file\" \"$orig_file\" | grep -vf \"$hunks_to_ignore\" | wc -l | grep -qw 0"
+
+  if [ -f "$orig_file" ] && ! eval "$cmd"
+  then
+    FAILURES+=(
+      "$tools_file $orig_file"
+    )
+  fi
+}
+
+
 # Check if we have the kernel headers (tools/perf/../../include), else
 # we're probably on a detached tarball, so no point in trying to check
 # differences.
