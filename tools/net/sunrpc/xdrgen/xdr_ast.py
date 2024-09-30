@@ -12,6 +12,7 @@ from lark.tree import Meta
 
 this_module = sys.modules[__name__]
 
+big_endian = []
 excluded_apis = []
 header_name = "none"
 public_apis = []
@@ -480,6 +481,8 @@ class ParseToAst(Transformer):
         """Instantiate one _Pragma object"""
         directive = children[0].children[0].data
         match directive:
+            case "big_endian_directive":
+                big_endian.append(children[1].symbol)
             case "exclude_directive":
                 excluded_apis.append(children[1].symbol)
             case "header_directive":

@@ -4,7 +4,7 @@
 """Generate code to handle XDR enum types"""
 
 from generators import SourceGenerator, create_jinja2_environment
-from xdr_ast import _XdrEnum, public_apis
+from xdr_ast import _XdrEnum, public_apis, big_endian
 
 
 class XdrEnumGenerator(SourceGenerator):
@@ -30,15 +30,24 @@ class XdrEnumGenerator(SourceGenerator):
         for enumerator in node.enumerators:
             print(template.render(name=enumerator.name, value=enumerator.value))
 
-        template = self.environment.get_template("definition/close.j2")
+        if node.name in big_endian:
+            template = self.environment.get_template("definition/close_be.j2")
+        else:
+            template = self.environment.get_template("definition/close.j2")
         print(template.render(name=node.name))
 
     def emit_decoder(self, node: _XdrEnum) -> None:
         """Emit one decoder function for an XDR enum type"""
-        template = self.environment.get_template("decoder/enum.j2")
+        if node.name in big_endian:
+            template = self.environment.get_template("decoder/enum_be.j2")
+        else:
+            template = self.environment.get_template("decoder/enum.j2")
         print(template.render(name=node.name))
 
     def emit_encoder(self, node: _XdrEnum) -> None:
         """Emit one encoder function for an XDR enum type"""
-        template = self.environment.get_template("encoder/enum.j2")
+        if node.name in big_endian:
+            template = self.environment.get_template("encoder/enum_be.j2")
+        else:
+            template = self.environment.get_template("encoder/enum.j2")
         print(template.render(name=node.name))
