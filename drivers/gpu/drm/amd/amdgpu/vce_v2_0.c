@@ -532,9 +532,9 @@ static int vce_v2_0_resume(void *handle)
 	return vce_v2_0_hw_init(adev);
 }
 
-static int vce_v2_0_soft_reset(void *handle)
+static int vce_v2_0_soft_reset(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	WREG32_FIELD(SRBM_SOFT_RESET, SOFT_RESET_VCE, 1);
 	mdelay(5);

@@ -5024,9 +5024,9 @@ static int gfx_v8_0_pre_soft_reset(struct amdgpu_ip_block *ip_block)
 	return 0;
 }
 
-static int gfx_v8_0_soft_reset(void *handle)
+static int gfx_v8_0_soft_reset(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	u32 grbm_soft_reset = 0, srbm_soft_reset = 0;
 	u32 tmp;
 

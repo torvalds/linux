@@ -2960,10 +2960,10 @@ static bool dce_v10_0_check_soft_reset(struct amdgpu_ip_block *ip_block)
 	return dce_v10_0_is_display_hung(adev);
 }
 
-static int dce_v10_0_soft_reset(void *handle)
+static int dce_v10_0_soft_reset(struct amdgpu_ip_block *ip_block)
 {
 	u32 srbm_soft_reset = 0, tmp;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	if (dce_v10_0_is_display_hung(adev))
 		srbm_soft_reset |= SRBM_SOFT_RESET__SOFT_RESET_DC_MASK;

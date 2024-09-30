@@ -2053,6 +2053,7 @@ static void smu_late_fini(struct amdgpu_ip_block *ip_block)
 static int smu_reset(struct smu_context *smu)
 {
 	struct amdgpu_device *adev = smu->adev;
+	struct amdgpu_ip_block *ip_block;
 	int ret;
 
 	ret = smu_hw_fini(adev);
@@ -2063,7 +2064,11 @@ static int smu_reset(struct smu_context *smu)
 	if (ret)
 		return ret;
 
-	ret = smu_late_init(&adev->ip_blocks[AMD_IP_BLOCK_TYPE_SMC]);
+	ip_block = amdgpu_device_ip_get_ip_block(adev, AMD_IP_BLOCK_TYPE_SMC);
+	if (!ip_block)
+		return -EINVAL;
+
+	ret = smu_late_init(ip_block);
 	if (ret)
 		return ret;
 

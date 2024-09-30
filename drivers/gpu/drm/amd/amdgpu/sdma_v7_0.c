@@ -747,9 +747,9 @@ static int sdma_v7_0_load_microcode(struct amdgpu_device *adev)
 	return 0;
 }
 
-static int sdma_v7_0_soft_reset(void *handle)
+static int sdma_v7_0_soft_reset(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	u32 tmp;
 	int i;
 

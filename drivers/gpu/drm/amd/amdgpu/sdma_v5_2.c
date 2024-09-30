@@ -761,9 +761,9 @@ static int sdma_v5_2_load_microcode(struct amdgpu_device *adev)
 	return 0;
 }
 
-static int sdma_v5_2_soft_reset(void *handle)
+static int sdma_v5_2_soft_reset(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	u32 grbm_soft_reset;
 	u32 tmp;
 	int i;
@@ -803,6 +803,7 @@ static int sdma_v5_2_soft_reset(void *handle)
 static int sdma_v5_2_start(struct amdgpu_device *adev)
 {
 	int r = 0;
+	struct amdgpu_ip_block *ip_block;
 
 	if (amdgpu_sriov_vf(adev)) {
 		sdma_v5_2_ctx_switch_enable(adev, false);
@@ -823,7 +824,11 @@ static int sdma_v5_2_start(struct amdgpu_device *adev)
 			msleep(1000);
 	}
 
-	sdma_v5_2_soft_reset(adev);
+	ip_block = amdgpu_device_ip_get_ip_block(adev, AMD_IP_BLOCK_TYPE_SDMA);
+	if (!ip_block)
+		return -EINVAL;
+
+	sdma_v5_2_soft_reset(ip_block);
 	/* unhalt the MEs */
 	sdma_v5_2_enable(adev, true);
 	/* enable sdma ring preemption */

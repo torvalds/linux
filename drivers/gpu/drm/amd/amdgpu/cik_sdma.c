@@ -54,7 +54,7 @@ static void cik_sdma_set_ring_funcs(struct amdgpu_device *adev);
 static void cik_sdma_set_irq_funcs(struct amdgpu_device *adev);
 static void cik_sdma_set_buffer_funcs(struct amdgpu_device *adev);
 static void cik_sdma_set_vm_pte_funcs(struct amdgpu_device *adev);
-static int cik_sdma_soft_reset(void *handle);
+static int cik_sdma_soft_reset(struct amdgpu_ip_block *ip_block);
 
 MODULE_FIRMWARE("amdgpu/bonaire_sdma.bin");
 MODULE_FIRMWARE("amdgpu/bonaire_sdma1.bin");
@@ -1056,10 +1056,10 @@ static int cik_sdma_wait_for_idle(void *handle)
 	return -ETIMEDOUT;
 }
 
-static int cik_sdma_soft_reset(void *handle)
+static int cik_sdma_soft_reset(struct amdgpu_ip_block *ip_block)
 {
 	u32 srbm_soft_reset = 0;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	u32 tmp;
 
 	/* sdma0 */

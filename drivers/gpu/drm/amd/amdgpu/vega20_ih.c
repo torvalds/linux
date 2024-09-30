@@ -642,7 +642,7 @@ static int vega20_ih_wait_for_idle(void *handle)
 	return -ETIMEDOUT;
 }
 
-static int vega20_ih_soft_reset(void *handle)
+static int vega20_ih_soft_reset(struct amdgpu_ip_block *ip_block)
 {
 	/* todo */
 

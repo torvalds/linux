@@ -2177,7 +2177,7 @@ static int cik_common_wait_for_idle(void *handle)
 	return 0;
 }
 
-static int cik_common_soft_reset(void *handle)
+static int cik_common_soft_reset(struct amdgpu_ip_block *ip_block)
 {
 	/* XXX hard reset?? */
 	return 0;

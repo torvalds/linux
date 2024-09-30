@@ -4776,12 +4776,12 @@ int gfx_v11_0_request_gfx_index_mutex(struct amdgpu_device *adev,
 	return 0;
 }
 
-static int gfx_v11_0_soft_reset(void *handle)
+static int gfx_v11_0_soft_reset(struct amdgpu_ip_block *ip_block)
 {
 	u32 grbm_soft_reset = 0;
 	u32 tmp;
 	int r, i, j, k;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	amdgpu_gfx_rlc_enter_safe_mode(adev, 0);
 

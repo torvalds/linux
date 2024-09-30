@@ -939,7 +939,7 @@ static int soc21_common_wait_for_idle(void *handle)
 	return 0;
 }
 
-static int soc21_common_soft_reset(void *handle)
+static int soc21_common_soft_reset(struct amdgpu_ip_block *ip_block)
 {
 	return 0;
 }

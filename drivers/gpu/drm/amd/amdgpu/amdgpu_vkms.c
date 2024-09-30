@@ -637,7 +637,7 @@ static int amdgpu_vkms_wait_for_idle(void *handle)
 	return 0;
 }
 
-static int amdgpu_vkms_soft_reset(void *handle)
+static int amdgpu_vkms_soft_reset(struct amdgpu_ip_block *ip_block)
 {
 	return 0;
 }

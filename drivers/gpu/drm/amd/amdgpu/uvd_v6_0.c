@@ -1195,9 +1195,9 @@ static int uvd_v6_0_pre_soft_reset(struct amdgpu_ip_block *ip_block)
 	return 0;
 }
 
-static int uvd_v6_0_soft_reset(void *handle)
+static int uvd_v6_0_soft_reset(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	u32 srbm_soft_reset;
 
 	if (!adev->uvd.inst->srbm_soft_reset)

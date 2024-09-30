@@ -394,7 +394,7 @@ struct amd_ip_funcs {
 	int (*wait_for_idle)(void *handle);
 	bool (*check_soft_reset)(struct amdgpu_ip_block *ip_block);
 	int (*pre_soft_reset)(struct amdgpu_ip_block *ip_block);
-	int (*soft_reset)(void *handle);
+	int (*soft_reset)(struct amdgpu_ip_block *ip_block);
 	int (*post_soft_reset)(void *handle);
 	int (*set_clockgating_state)(void *handle,
 				     enum amd_clockgating_state state);

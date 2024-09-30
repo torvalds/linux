@@ -250,7 +250,7 @@ static int pp_wait_for_idle(void *handle)
 	return 0;
 }
 
-static int pp_sw_reset(void *handle)
+static int pp_sw_reset(struct amdgpu_ip_block *ip_block)
 {
 	return 0;
 }

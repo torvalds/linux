@@ -1559,7 +1559,7 @@ static int sdma_v4_4_2_wait_for_idle(void *handle)
 	return -ETIMEDOUT;
 }
 
-static int sdma_v4_4_2_soft_reset(void *handle)
+static int sdma_v4_4_2_soft_reset(struct amdgpu_ip_block *ip_block)
 {
 	/* todo */
 

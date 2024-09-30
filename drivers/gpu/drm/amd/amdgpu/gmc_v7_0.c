@@ -1167,9 +1167,9 @@ static int gmc_v7_0_wait_for_idle(void *handle)
 
 }
 
-static int gmc_v7_0_soft_reset(void *handle)
+static int gmc_v7_0_soft_reset(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	u32 srbm_soft_reset = 0;
 	u32 tmp = RREG32(mmSRBM_STATUS);
 

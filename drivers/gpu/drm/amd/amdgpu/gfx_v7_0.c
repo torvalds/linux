@@ -4540,11 +4540,11 @@ static int gfx_v7_0_wait_for_idle(void *handle)
 	return -ETIMEDOUT;
 }
 
-static int gfx_v7_0_soft_reset(void *handle)
+static int gfx_v7_0_soft_reset(struct amdgpu_ip_block *ip_block)
 {
 	u32 grbm_soft_reset = 0, srbm_soft_reset = 0;
 	u32 tmp;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	/* GRBM_STATUS */
 	tmp = RREG32(mmGRBM_STATUS);

@@ -368,10 +368,10 @@ static int iceland_ih_wait_for_idle(void *handle)
 	return -ETIMEDOUT;
 }
 
-static int iceland_ih_soft_reset(void *handle)
+static int iceland_ih_soft_reset(struct amdgpu_ip_block *ip_block)
 {
 	u32 srbm_soft_reset = 0;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	u32 tmp = RREG32(mmSRBM_STATUS);
 
 	if (tmp & SRBM_STATUS__IH_BUSY_MASK)
