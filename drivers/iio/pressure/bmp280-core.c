@@ -1023,7 +1023,8 @@ static irqreturn_t bmp280_trigger_handler(int irq, void *p)
 	struct iio_poll_func *pf = p;
 	struct iio_dev *indio_dev = pf->indio_dev;
 	struct bmp280_data *data = iio_priv(indio_dev);
-	s32 adc_temp, adc_press, t_fine;
+	u32 adc_temp, adc_press;
+	s32 t_fine;
 	int ret;
 
 	guard(mutex)(&data->lock);
@@ -1137,7 +1138,8 @@ static irqreturn_t bme280_trigger_handler(int irq, void *p)
 	struct iio_poll_func *pf = p;
 	struct iio_dev *indio_dev = pf->indio_dev;
 	struct bmp280_data *data = iio_priv(indio_dev);
-	s32 adc_temp, adc_press, adc_humidity, t_fine;
+	u32 adc_temp, adc_press, adc_humidity;
+	s32 t_fine;
 	int ret;
 
 	guard(mutex)(&data->lock);
@@ -1616,7 +1618,8 @@ static irqreturn_t bmp380_trigger_handler(int irq, void *p)
 	struct iio_poll_func *pf = p;
 	struct iio_dev *indio_dev = pf->indio_dev;
 	struct bmp280_data *data = iio_priv(indio_dev);
-	s32 adc_temp, adc_press, t_fine;
+	u32 adc_temp, adc_press;
+	s32 t_fine;
 	int ret;
 
 	guard(mutex)(&data->lock);
