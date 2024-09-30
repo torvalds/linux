@@ -1096,22 +1096,6 @@ fsck_err:
 	return ret;
 }
 
-static bool bch2_inode_is_open(struct bch_fs *c, struct bpos p)
-{
-	subvol_inum inum = {
-		.subvol = snapshot_t(c, p.snapshot)->subvol,
-		.inum	= p.offset,
-	};
-
-	/* snapshot tree corruption, can't safely delete */
-	if (!inum.subvol) {
-		bch_warn_ratelimited(c, "%s(): snapshot %u has no subvol, unlinked but can't safely delete", __func__, p.snapshot);
-		return true;
-	}
-
-	return __bch2_inode_hash_find(c, inum) != NULL;
-}
-
 static int check_inode(struct btree_trans *trans,
 		       struct btree_iter *iter,
 		       struct bkey_s_c k,
@@ -1184,28 +1168,27 @@ static int check_inode(struct btree_trans *trans,
 		ret = 0;
 	}
 
-	if ((u.bi_flags & BCH_INODE_unlinked) &&
-	    bch2_key_has_snapshot_overwrites(trans, BTREE_ID_inodes, k.k->p)) {
-		struct bpos new_min_pos;
+	ret = bch2_inode_has_child_snapshots(trans, k.k->p);
+	if (ret < 0)
+		goto err;
 
-		ret = bch2_propagate_key_to_snapshot_leaves(trans, iter->btree_id, k, &new_min_pos);
+	if (fsck_err_on(ret != !!(u.bi_flags & BCH_INODE_has_child_snapshot),
+			trans, inode_has_child_snapshots_wrong,
+			"inode has_child_snapshots flag wrong (should be %u)\n%s",
+			ret,
+			(printbuf_reset(&buf),
+			 bch2_inode_unpacked_to_text(&buf, &u),
+			 buf.buf))) {
 		if (ret)
-			goto err;
-
-		u.bi_flags &= ~BCH_INODE_unlinked;
-
-		ret = __bch2_fsck_write_inode(trans, &u);
-
-		bch_err_msg(c, ret, "in fsck updating inode");
-		if (ret)
-			goto err_noprint;
-
-		if (!bpos_eq(new_min_pos, POS_MIN))
-			bch2_btree_iter_set_pos(iter, bpos_predecessor(new_min_pos));
-		goto err_noprint;
+			u.bi_flags |= BCH_INODE_has_child_snapshot;
+		else
+			u.bi_flags &= ~BCH_INODE_has_child_snapshot;
+		do_update = true;
 	}
+	ret = 0;
 
-	if (u.bi_flags & BCH_INODE_unlinked) {
+	if ((u.bi_flags & BCH_INODE_unlinked) &&
+	    !(u.bi_flags & BCH_INODE_has_child_snapshot)) {
 		if (!test_bit(BCH_FS_started, &c->flags)) {
 			/*
 			 * If we're not in online fsck, don't delete unlinked

@@ -133,7 +133,8 @@ enum inode_opt_id {
 	x(i_size_dirty,			5)	\
 	x(i_sectors_dirty,		6)	\
 	x(unlinked,			7)	\
-	x(backptr_untrusted,		8)
+	x(backptr_untrusted,		8)	\
+	x(has_child_snapshot,		9)
 
 /* bits 20+ reserved for packed fields below: */
 

@@ -174,9 +174,28 @@ static const struct rhashtable_params bch2_vfs_inodes_params = {
 	.automatic_shrinking	= true,
 };
 
-struct bch_inode_info *__bch2_inode_hash_find(struct bch_fs *c, subvol_inum inum)
+static struct bch_inode_info *__bch2_inode_hash_find(struct bch_fs *c, subvol_inum inum)
 {
 	return rhashtable_lookup_fast(&c->vfs_inodes_table, &inum, bch2_vfs_inodes_params);
+}
+
+bool bch2_inode_is_open(struct bch_fs *c, struct bpos p)
+{
+	if (!test_bit(BCH_FS_started, &c->flags))
+		return false;
+
+	subvol_inum inum = {
+		.subvol = snapshot_t(c, p.snapshot)->subvol,
+		.inum	= p.offset,
+	};
+
+	/* snapshot tree interior node, can't safely delete while online (yet) */
+	if (!inum.subvol) {
+		bch_warn_ratelimited(c, "%s(): snapshot %u has no subvol, unlinked but can't safely delete", __func__, p.snapshot);
+		return true;
+	}
+
+	return __bch2_inode_hash_find(c, inum) != NULL;
 }
 
 static void __wait_on_freeing_inode(struct bch_fs *c,
