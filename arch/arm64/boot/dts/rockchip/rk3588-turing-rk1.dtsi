@@ -682,3 +682,68 @@
 	pinctrl-0 = <&uart9m0_xfer>;
 	status = "okay";
 };
+
+/* USB 0: USB 2.0 only, OTG-capable */
+&u2phy0 {
+	status = "okay";
+};
+
+&u2phy0_otg {
+	status = "okay";
+};
+
+&usbdp_phy0 {
+	/*
+	 * TODO: On the RK1, USBDP0 drives the DisplayPort pins and is not
+	 * involved in this USB2-only bus. The bus controller (below) needs to
+	 * know that it doesn't have a USB3 port so it can ignore any
+	 * USB3-related signals. This is handled in hardware by updating the
+	 * GRFs corresponding to that bus controller. Alas, Linux currently
+	 * puts the code to do that in the USBDP driver, so USBDP0 must be
+	 * enabled for now.
+	 */
+	rockchip,dp-lane-mux = <0 1 2 3>; /* "No USB lanes" */
+	status = "okay";
+};
+
+&usb_host0_xhci {
+	extcon = <&u2phy0>;
+	maximum-speed = "high-speed";
+	status = "okay";
+};
+
+/* USB 1: USB 3.0, host only */
+&u2phy1 {
+	status = "okay";
+};
+
+&u2phy1_otg {
+	status = "okay";
+};
+
+&usbdp_phy1 {
+	status = "okay";
+};
+
+&usb_host1_xhci {
+	dr_mode = "host";
+	extcon = <&u2phy1>;
+	status = "okay";
+};
+
+/* USB 2: USB 2.0, host only */
+&u2phy2 {
+	status = "okay";
+};
+
+&u2phy2_host {
+	status = "okay";
+};
+
+&usb_host0_ehci {
+	status = "okay";
+};
+
+&usb_host0_ohci {
+	status = "okay";
+};
