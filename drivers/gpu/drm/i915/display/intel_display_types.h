@@ -1576,9 +1576,6 @@ struct intel_psr {
 #define I915_PSR_DEBUG_PANEL_REPLAY_DISABLE	0x40
 
 	u32 debug;
-	bool is_dpkgc_configured;
-	bool is_dc5_entry_possible;
-	bool is_wa_delayed_vblank_limit;
 	bool sink_support;
 	bool source_support;
 	bool enabled;
