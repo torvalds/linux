@@ -58,10 +58,13 @@ static bool __kprobes aarch64_insn_is_steppable(u32 insn)
 	 * Instructions which load PC relative literals are not going to work
 	 * when executed from an XOL slot. Instructions doing an exclusive
 	 * load/store are not going to complete successfully when single-step
-	 * exception handling happens in the middle of the sequence.
+	 * exception handling happens in the middle of the sequence. Memory
+	 * copy/set instructions require that all three instructions be placed
+	 * consecutively in memory.
 	 */
 	if (aarch64_insn_uses_literal(insn) ||
-	    aarch64_insn_is_exclusive(insn))
+	    aarch64_insn_is_exclusive(insn) ||
+	    aarch64_insn_is_mops(insn))
 		return false;
 
 	return true;
