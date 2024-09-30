@@ -3079,19 +3079,12 @@ int qed_mcp_nvm_read(struct qed_dev *cdev, u32 addr, u8 *p_buf, u32 len)
 					 DRV_MB_PARAM_NVM_LEN_OFFSET),
 					&resp, &resp_param,
 					&read_len,
-					(u32 *)(p_buf + offset), false);
+					(u32 *)(p_buf + offset), true);
 
 		if (rc || (resp != FW_MSG_CODE_NVM_OK)) {
 			DP_NOTICE(cdev, "MCP command rc = %d\n", rc);
 			break;
 		}
-
-		/* This can be a lengthy process, and it's possible scheduler
-		 * isn't preemptible. Sleep a bit to prevent CPU hogging.
-		 */
-		if (bytes_left % 0x1000 <
-		    (bytes_left - read_len) % 0x1000)
-			usleep_range(1000, 2000);
 
 		offset += read_len;
 		bytes_left -= read_len;
