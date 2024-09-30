@@ -561,9 +561,10 @@ static const struct irq_chip xgpio_irq_chip = {
  */
 static int xgpio_probe(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
 	struct xgpio_instance *chip;
 	int status = 0;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_node *np = dev->of_node;
 	u32 is_dual = 0;
 	u32 width[2];
 	u32 state[2];
@@ -571,7 +572,7 @@ static int xgpio_probe(struct platform_device *pdev)
 	struct gpio_irq_chip *girq;
 	u32 temp;
 
-	chip = devm_kzalloc(&pdev->dev, sizeof(*chip), GFP_KERNEL);
+	chip = devm_kzalloc(dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
 		return -ENOMEM;
 
@@ -624,7 +625,7 @@ static int xgpio_probe(struct platform_device *pdev)
 
 	chip->gc.base = -1;
 	chip->gc.ngpio = bitmap_weight(chip->hw_map, 64);
-	chip->gc.parent = &pdev->dev;
+	chip->gc.parent = dev;
 	chip->gc.direction_input = xgpio_dir_in;
 	chip->gc.direction_output = xgpio_dir_out;
 	chip->gc.get = xgpio_get;
@@ -633,21 +634,21 @@ static int xgpio_probe(struct platform_device *pdev)
 	chip->gc.free = xgpio_free;
 	chip->gc.set_multiple = xgpio_set_multiple;
 
-	chip->gc.label = dev_name(&pdev->dev);
+	chip->gc.label = dev_name(dev);
 
 	chip->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(chip->regs)) {
-		dev_err(&pdev->dev, "failed to ioremap memory resource\n");
+		dev_err(dev, "failed to ioremap memory resource\n");
 		return PTR_ERR(chip->regs);
 	}
 
-	chip->clk = devm_clk_get_optional_enabled(&pdev->dev, NULL);
+	chip->clk = devm_clk_get_optional_enabled(dev, NULL);
 	if (IS_ERR(chip->clk))
-		return dev_err_probe(&pdev->dev, PTR_ERR(chip->clk), "input clock not found.\n");
+		return dev_err_probe(dev, PTR_ERR(chip->clk), "input clock not found.\n");
 
-	pm_runtime_get_noresume(&pdev->dev);
-	pm_runtime_set_active(&pdev->dev);
-	pm_runtime_enable(&pdev->dev);
+	pm_runtime_get_noresume(dev);
+	pm_runtime_set_active(dev);
+	pm_runtime_enable(dev);
 
 	xgpio_save_regs(chip);
 
@@ -667,8 +668,7 @@ static int xgpio_probe(struct platform_device *pdev)
 	gpio_irq_chip_set_chip(girq, &xgpio_irq_chip);
 	girq->parent_handler = xgpio_irqhandler;
 	girq->num_parents = 1;
-	girq->parents = devm_kcalloc(&pdev->dev, 1,
-				     sizeof(*girq->parents),
+	girq->parents = devm_kcalloc(dev, 1, sizeof(*girq->parents),
 				     GFP_KERNEL);
 	if (!girq->parents) {
 		status = -ENOMEM;
@@ -679,18 +679,18 @@ static int xgpio_probe(struct platform_device *pdev)
 	girq->handler = handle_bad_irq;
 
 skip_irq:
-	status = devm_gpiochip_add_data(&pdev->dev, &chip->gc, chip);
+	status = devm_gpiochip_add_data(dev, &chip->gc, chip);
 	if (status) {
-		dev_err(&pdev->dev, "failed to add GPIO chip\n");
+		dev_err(dev, "failed to add GPIO chip\n");
 		goto err_pm_put;
 	}
 
-	pm_runtime_put(&pdev->dev);
+	pm_runtime_put(dev);
 	return 0;
 
 err_pm_put:
-	pm_runtime_disable(&pdev->dev);
-	pm_runtime_put_noidle(&pdev->dev);
+	pm_runtime_disable(dev);
+	pm_runtime_put_noidle(dev);
 	return status;
 }
 
