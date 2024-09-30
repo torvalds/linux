@@ -1292,6 +1292,58 @@ int bch2_check_inodes(struct bch_fs *c)
 	return ret;
 }
 
+static int check_unreachable_inode(struct btree_trans *trans,
+				   struct btree_iter *iter,
+				   struct bkey_s_c k)
+{
+	struct bch_fs *c = trans->c;
+	struct printbuf buf = PRINTBUF;
+	int ret = 0;
+
+	if (!bkey_is_inode(k.k))
+		return 0;
+
+	struct bch_inode_unpacked inode;
+	BUG_ON(bch2_inode_unpack(k, &inode));
+
+	if (inode.bi_subvol)
+		return 0;
+
+	if (inode.bi_flags & BCH_INODE_unlinked)
+		return 0;
+
+	if (fsck_err_on(!inode.bi_dir,
+			trans, inode_unreachable,
+			"unreachable inode:\n%s",
+			(printbuf_reset(&buf),
+			 bch2_bkey_val_to_text(&buf, c, k),
+			 buf.buf)))
+		ret = reattach_inode(trans, &inode);
+fsck_err:
+	printbuf_exit(&buf);
+	return ret;
+}
+
+/*
+ * Reattach unreachable (but not unlinked) inodes
+ *
+ * Run after check_inodes() and check_dirents(), so we node that inode
+ * backpointer fields point to valid dirents, and every inode that has a dirent
+ * that points to it has its backpointer field set - so we're just looking for
+ * non-unlinked inodes without backpointers:
+ */
+int bch2_check_unreachable_inodes(struct bch_fs *c)
+{
+	int ret = bch2_trans_run(c,
+		for_each_btree_key_commit(trans, iter, BTREE_ID_inodes,
+				POS_MIN,
+				BTREE_ITER_prefetch|BTREE_ITER_all_snapshots, k,
+				NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
+			check_unreachable_inode(trans, &iter, k)));
+	bch_err_fn(c, ret);
+	return ret;
+}
+
 static inline bool btree_matches_i_mode(enum btree_id btree, unsigned mode)
 {
 	switch (btree) {
@@ -2450,22 +2502,6 @@ static int check_subvol_path(struct btree_trans *trans, struct btree_iter *iter,
 		if (ret)
 			break;
 
-		/*
-		 * We've checked that inode backpointers point to valid dirents;
-		 * here, it's sufficient to check that the subvolume root has a
-		 * dirent:
-		 */
-		if (fsck_err_on(!subvol_root.bi_dir,
-				trans, subvol_unreachable,
-				"unreachable subvolume %s",
-				(bch2_bkey_val_to_text(&buf, c, s.s_c),
-				 prt_newline(&buf),
-				 bch2_inode_unpacked_to_text(&buf, &subvol_root),
-				 buf.buf))) {
-			ret = reattach_subvol(trans, s);
-			break;
-		}
-
 		u32 parent = le32_to_cpu(s.v->fs_path_parent);
 
 		if (darray_u32_has(&subvol_path, parent)) {
@@ -2526,12 +2562,6 @@ static bool path_is_dup(pathbuf *p, u64 inum, u32 snapshot)
 	return false;
 }
 
-/*
- * Check that a given inode is reachable from its subvolume root - we already
- * verified subvolume connectivity:
- *
- * XXX: we should also be verifying that inodes are in the right subvolumes
- */
 static int check_path(struct btree_trans *trans, pathbuf *p, struct bkey_s_c inode_k)
 {
 	struct bch_fs *c = trans->c;
@@ -2544,6 +2574,9 @@ static int check_path(struct btree_trans *trans, pathbuf *p, struct bkey_s_c ino
 	p->nr = 0;
 
 	BUG_ON(bch2_inode_unpack(inode_k, &inode));
+
+	if (!S_ISDIR(inode.bi_mode))
+		return 0;
 
 	while (!inode.bi_subvol) {
 		struct btree_iter dirent_iter;
@@ -2559,20 +2592,14 @@ static int check_path(struct btree_trans *trans, pathbuf *p, struct bkey_s_c ino
 			bch2_trans_iter_exit(trans, &dirent_iter);
 
 		if (bch2_err_matches(ret, ENOENT)) {
-			ret = 0;
-			if (fsck_err(trans, inode_unreachable,
-				     "unreachable inode\n%s",
-				     (printbuf_reset(&buf),
-				      bch2_bkey_val_to_text(&buf, c, inode_k),
-				      buf.buf)))
-				ret = reattach_inode(trans, &inode);
+			printbuf_reset(&buf);
+			bch2_bkey_val_to_text(&buf, c, inode_k);
+			bch_err(c, "unreachable inode in check_directory_structure: %s\n%s",
+				bch2_err_str(ret), buf.buf);
 			goto out;
 		}
 
 		bch2_trans_iter_exit(trans, &dirent_iter);
-
-		if (!S_ISDIR(inode.bi_mode))
-			break;
 
 		ret = darray_push(p, ((struct pathbuf_entry) {
 			.inum		= inode.bi_inum,
@@ -2626,9 +2653,8 @@ fsck_err:
 }
 
 /*
- * Check for unreachable inodes, as well as loops in the directory structure:
- * After bch2_check_dirents(), if an inode backpointer doesn't exist that means it's
- * unreachable:
+ * Check for loops in the directory structure: all other connectivity issues
+ * have been fixed by prior passes
  */
 int bch2_check_directory_structure(struct bch_fs *c)
 {
@@ -2756,6 +2782,10 @@ static int check_nlinks_find_hardlinks(struct bch_fs *c,
 			if (S_ISDIR(u.bi_mode))
 				continue;
 
+			/*
+			 * Previous passes ensured that bi_nlink is nonzero if
+			 * it had multiple hardlinks:
+			 */
 			if (!u.bi_nlink)
 				continue;
 
