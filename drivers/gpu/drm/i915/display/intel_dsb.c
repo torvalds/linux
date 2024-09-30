@@ -637,6 +637,17 @@ void intel_dsb_chain(struct intel_atomic_state *state,
 			 wait_for_vblank ? DSB_WAIT_FOR_VBLANK : 0);
 }
 
+void intel_dsb_wait_vblank_delay(struct intel_atomic_state *state,
+				 struct intel_dsb *dsb)
+{
+	struct intel_crtc *crtc = dsb->crtc;
+	const struct intel_crtc_state *crtc_state = pre_commit_crtc_state(state, crtc);
+	int usecs = intel_scanlines_to_usecs(&crtc_state->hw.adjusted_mode,
+					     dsb_vblank_delay(crtc_state)) + 1;
+
+	intel_dsb_wait_usec(dsb, usecs);
+}
+
 static void _intel_dsb_commit(struct intel_dsb *dsb, u32 ctrl,
 			      int hw_dewake_scanline)
 {
