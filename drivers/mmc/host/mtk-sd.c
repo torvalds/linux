@@ -2794,9 +2794,8 @@ static int msdc_drv_probe(struct platform_device *pdev)
 	if (!(mmc->caps2 & MMC_CAP2_NO_MMC)) {
 		host->crypto_clk = devm_clk_get_optional(&pdev->dev, "crypto");
 		if (IS_ERR(host->crypto_clk))
-			host->crypto_clk = NULL;
-		else
-			mmc->caps2 |= MMC_CAP2_CRYPTO;
+			return PTR_ERR(host->crypto_clk);
+		mmc->caps2 |= MMC_CAP2_CRYPTO;
 	}
 
 	host->irq = platform_get_irq(pdev, 0);
