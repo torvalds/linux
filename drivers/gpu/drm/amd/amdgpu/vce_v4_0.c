@@ -539,11 +539,16 @@ static int vce_v4_0_hw_init(void *handle)
 static int vce_v4_0_hw_fini(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_ip_block *ip_block;
+
+	ip_block = amdgpu_device_ip_get_ip_block(adev, AMD_IP_BLOCK_TYPE_VCE);
+	if (!ip_block)
+		return -EINVAL;
 
 	cancel_delayed_work_sync(&adev->vce.idle_work);
 
 	if (!amdgpu_sriov_vf(adev)) {
-		/* vce_v4_0_wait_for_idle(handle); */
+		/* vce_v4_0_wait_for_idle(ip_block); */
 		vce_v4_0_stop(adev);
 	} else {
 		/* full access mode, so don't touch any VCE register */
@@ -703,10 +708,10 @@ static bool vce_v4_0_is_idle(void *handle)
 	return !(RREG32(mmSRBM_STATUS2) & mask);
 }
 
-static int vce_v4_0_wait_for_idle(void *handle)
+static int vce_v4_0_wait_for_idle(struct amdgpu_ip_block *ip_block)
 {
 	unsigned i;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	for (i = 0; i < adev->usec_timeout; i++)
 		if (vce_v4_0_is_idle(handle))

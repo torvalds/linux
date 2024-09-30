@@ -1039,11 +1039,11 @@ static bool cik_sdma_is_idle(void *handle)
 	return true;
 }
 
-static int cik_sdma_wait_for_idle(void *handle)
+static int cik_sdma_wait_for_idle(struct amdgpu_ip_block *ip_block)
 {
 	unsigned i;
 	u32 tmp;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	for (i = 0; i < adev->usec_timeout; i++) {
 		tmp = RREG32(mmSRBM_STATUS2) & (SRBM_STATUS2__SDMA_BUSY_MASK |

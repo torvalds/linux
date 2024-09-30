@@ -2030,11 +2030,11 @@ static bool sdma_v4_0_is_idle(void *handle)
 	return true;
 }
 
-static int sdma_v4_0_wait_for_idle(void *handle)
+static int sdma_v4_0_wait_for_idle(struct amdgpu_ip_block *ip_block)
 {
 	unsigned i, j;
 	u32 sdma[AMDGPU_MAX_SDMA_INSTANCES];
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	for (i = 0; i < adev->usec_timeout; i++) {
 		for (j = 0; j < adev->sdma.num_instances; j++) {

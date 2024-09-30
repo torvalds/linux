@@ -2948,7 +2948,7 @@ static bool dce_v10_0_is_idle(void *handle)
 	return true;
 }
 
-static int dce_v10_0_wait_for_idle(void *handle)
+static int dce_v10_0_wait_for_idle(struct amdgpu_ip_block *ip_block)
 {
 	return 0;
 }

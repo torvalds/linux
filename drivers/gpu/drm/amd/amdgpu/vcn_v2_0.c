@@ -1326,9 +1326,9 @@ static bool vcn_v2_0_is_idle(void *handle)
 	return (RREG32_SOC15(VCN, 0, mmUVD_STATUS) == UVD_STATUS__IDLE);
 }
 
-static int vcn_v2_0_wait_for_idle(void *handle)
+static int vcn_v2_0_wait_for_idle(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	int ret;
 
 	ret = SOC15_WAIT_ON_RREG(VCN, 0, mmUVD_STATUS, UVD_STATUS__IDLE,

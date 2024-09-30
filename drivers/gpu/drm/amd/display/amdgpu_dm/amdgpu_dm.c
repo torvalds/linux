@@ -320,7 +320,7 @@ static bool dm_is_idle(void *handle)
 	return true;
 }
 
-static int dm_wait_for_idle(void *handle)
+static int dm_wait_for_idle(struct amdgpu_ip_block *ip_block)
 {
 	/* XXX todo */
 	return 0;

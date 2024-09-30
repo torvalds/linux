@@ -227,13 +227,13 @@ static bool si_ih_is_idle(void *handle)
 	return true;
 }
 
-static int si_ih_wait_for_idle(void *handle)
+static int si_ih_wait_for_idle(struct amdgpu_ip_block *ip_block)
 {
 	unsigned i;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	for (i = 0; i < adev->usec_timeout; i++) {
-		if (si_ih_is_idle(handle))
+		if (si_ih_is_idle(adev))
 			return 0;
 		udelay(1);
 	}

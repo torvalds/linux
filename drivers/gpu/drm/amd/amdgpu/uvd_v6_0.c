@@ -1151,13 +1151,13 @@ static bool uvd_v6_0_is_idle(void *handle)
 	return !(RREG32(mmSRBM_STATUS) & SRBM_STATUS__UVD_BUSY_MASK);
 }
 
-static int uvd_v6_0_wait_for_idle(void *handle)
+static int uvd_v6_0_wait_for_idle(struct amdgpu_ip_block *ip_block)
 {
 	unsigned i;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	for (i = 0; i < adev->usec_timeout; i++) {
-		if (uvd_v6_0_is_idle(handle))
+		if (uvd_v6_0_is_idle(adev))
 			return 0;
 	}
 	return -ETIMEDOUT;
@@ -1455,11 +1455,16 @@ static int uvd_v6_0_set_clockgating_state(void *handle,
 					  enum amd_clockgating_state state)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_ip_block *ip_block;
 	bool enable = (state == AMD_CG_STATE_GATE);
+
+	ip_block = amdgpu_device_ip_get_ip_block(adev, AMD_IP_BLOCK_TYPE_UVD);
+	if (!ip_block)
+		return -EINVAL;
 
 	if (enable) {
 		/* wait for STATUS to clear */
-		if (uvd_v6_0_wait_for_idle(handle))
+		if (uvd_v6_0_wait_for_idle(ip_block))
 			return -EBUSY;
 		uvd_v6_0_enable_clock_gating(adev, true);
 		/* enable HW gates because UVD is idle */

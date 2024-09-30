@@ -459,9 +459,9 @@ static bool jpeg_v3_0_is_idle(void *handle)
 	return ret;
 }
 
-static int jpeg_v3_0_wait_for_idle(void *handle)
+static int jpeg_v3_0_wait_for_idle(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	return SOC15_WAIT_ON_RREG(JPEG, 0, mmUVD_JRBC_STATUS,
 		UVD_JRBC_STATUS__RB_JOB_DONE_MASK,

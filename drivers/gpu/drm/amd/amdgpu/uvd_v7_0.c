@@ -1471,10 +1471,10 @@ static bool uvd_v7_0_is_idle(void *handle)
 	return !(RREG32(mmSRBM_STATUS) & SRBM_STATUS__UVD_BUSY_MASK);
 }
 
-static int uvd_v7_0_wait_for_idle(void *handle)
+static int uvd_v7_0_wait_for_idle(struct amdgpu_ip_block *ip_block)
 {
 	unsigned i;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	for (i = 0; i < adev->usec_timeout; i++) {
 		if (uvd_v7_0_is_idle(handle))
@@ -1728,6 +1728,11 @@ static int uvd_v7_0_set_clockgating_state(void *handle,
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	bool enable = (state == AMD_CG_STATE_GATE);
+	struct amdgpu_ip_block *ip_block;
+
+	ip_block = amdgpu_device_ip_get_ip_block(adev, AMD_IP_BLOCK_TYPE_UVD);
+	if (!ip_block)
+		return -EINVAL;
 
 	uvd_v7_0_set_bypass_mode(adev, enable);
 
@@ -1739,7 +1744,7 @@ static int uvd_v7_0_set_clockgating_state(void *handle,
 		uvd_v7_0_set_sw_clock_gating(adev);
 	} else {
 		/* wait for STATUS to clear */
-		if (uvd_v7_0_wait_for_idle(handle))
+		if (uvd_v7_0_wait_for_idle(ip_block))
 			return -EBUSY;
 
 		/* enable HW gates because UVD is idle */

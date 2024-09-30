@@ -550,6 +550,7 @@ static int si_dma_resume(void *handle)
 static bool si_dma_is_idle(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
 	u32 tmp = RREG32(SRBM_STATUS2);
 
 	if (tmp & (DMA_BUSY_MASK | DMA1_BUSY_MASK))
@@ -558,13 +559,13 @@ static bool si_dma_is_idle(void *handle)
 	return true;
 }
 
-static int si_dma_wait_for_idle(void *handle)
+static int si_dma_wait_for_idle(struct amdgpu_ip_block *ip_block)
 {
 	unsigned i;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	for (i = 0; i < adev->usec_timeout; i++) {
-		if (si_dma_is_idle(handle))
+		if (si_dma_is_idle(adev))
 			return 0;
 		udelay(1);
 	}

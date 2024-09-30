@@ -590,7 +590,7 @@ static bool acp_is_idle(void *handle)
 	return true;
 }
 
-static int acp_wait_for_idle(void *handle)
+static int acp_wait_for_idle(struct amdgpu_ip_block *ip_block)
 {
 	return 0;
 }

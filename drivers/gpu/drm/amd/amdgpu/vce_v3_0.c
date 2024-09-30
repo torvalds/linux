@@ -64,7 +64,7 @@
 static void vce_v3_0_mc_resume(struct amdgpu_device *adev, int idx);
 static void vce_v3_0_set_ring_funcs(struct amdgpu_device *adev);
 static void vce_v3_0_set_irq_funcs(struct amdgpu_device *adev);
-static int vce_v3_0_wait_for_idle(void *handle);
+static int vce_v3_0_wait_for_idle(struct amdgpu_ip_block *ip_block);
 static int vce_v3_0_set_clockgating_state(void *handle,
 					  enum amd_clockgating_state state);
 /**
@@ -489,10 +489,15 @@ static int vce_v3_0_hw_fini(void *handle)
 {
 	int r;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_ip_block *ip_block;
+
+	ip_block = amdgpu_device_ip_get_ip_block(adev, AMD_IP_BLOCK_TYPE_VCE);
+	if (!ip_block)
+		return -EINVAL;
 
 	cancel_delayed_work_sync(&adev->vce.idle_work);
 
-	r = vce_v3_0_wait_for_idle(handle);
+	r = vce_v3_0_wait_for_idle(ip_block);
 	if (r)
 		return r;
 
@@ -609,13 +614,13 @@ static bool vce_v3_0_is_idle(void *handle)
 	return !(RREG32(mmSRBM_STATUS2) & mask);
 }
 
-static int vce_v3_0_wait_for_idle(void *handle)
+static int vce_v3_0_wait_for_idle(struct amdgpu_ip_block *ip_block)
 {
 	unsigned i;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	for (i = 0; i < adev->usec_timeout; i++)
-		if (vce_v3_0_is_idle(handle))
+		if (vce_v3_0_is_idle(adev))
 			return 0;
 
 	return -ETIMEDOUT;

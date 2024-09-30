@@ -43,7 +43,7 @@
 
 static void gmc_v6_0_set_gmc_funcs(struct amdgpu_device *adev);
 static void gmc_v6_0_set_irq_funcs(struct amdgpu_device *adev);
-static int gmc_v6_0_wait_for_idle(void *handle);
+static int gmc_v6_0_wait_for_idle(struct amdgpu_ip_block *ip_block);
 
 MODULE_FIRMWARE("amdgpu/tahiti_mc.bin");
 MODULE_FIRMWARE("amdgpu/pitcairn_mc.bin");
@@ -64,8 +64,13 @@ MODULE_FIRMWARE("amdgpu/si58_mc.bin");
 static void gmc_v6_0_mc_stop(struct amdgpu_device *adev)
 {
 	u32 blackout;
+	struct amdgpu_ip_block *ip_block;
 
-	gmc_v6_0_wait_for_idle((void *)adev);
+	ip_block = amdgpu_device_ip_get_ip_block(adev, AMD_IP_BLOCK_TYPE_GMC);
+	if (!ip_block)
+		return;
+
+	gmc_v6_0_wait_for_idle(ip_block);
 
 	blackout = RREG32(mmMC_SHARED_BLACKOUT_CNTL);
 	if (REG_GET_FIELD(blackout, MC_SHARED_BLACKOUT_CNTL, BLACKOUT_MODE) != 1) {
@@ -213,6 +218,8 @@ static void gmc_v6_0_vram_gtt_location(struct amdgpu_device *adev,
 static void gmc_v6_0_mc_program(struct amdgpu_device *adev)
 {
 	int i, j;
+	struct amdgpu_ip_block *ip_block;
+
 
 	/* Initialize HDP */
 	for (i = 0, j = 0; i < 32; i++, j += 0x6) {
@@ -224,7 +231,11 @@ static void gmc_v6_0_mc_program(struct amdgpu_device *adev)
 	}
 	WREG32(mmHDP_REG_COHERENCY_FLUSH_CNTL, 0);
 
-	if (gmc_v6_0_wait_for_idle((void *)adev))
+	ip_block = amdgpu_device_ip_get_ip_block(adev, AMD_IP_BLOCK_TYPE_GMC);
+	if (!ip_block)
+		return;
+
+	if (gmc_v6_0_wait_for_idle(ip_block))
 		dev_warn(adev->dev, "Wait for MC idle timedout !\n");
 
 	if (adev->mode_info.num_crtc) {
@@ -251,7 +262,7 @@ static void gmc_v6_0_mc_program(struct amdgpu_device *adev)
 	WREG32(mmMC_VM_AGP_TOP, adev->gmc.agp_end >> 22);
 	WREG32(mmMC_VM_AGP_BOT, adev->gmc.agp_start >> 22);
 
-	if (gmc_v6_0_wait_for_idle((void *)adev))
+	if (gmc_v6_0_wait_for_idle(ip_block))
 		dev_warn(adev->dev, "Wait for MC idle timedout !\n");
 }
 
@@ -950,6 +961,7 @@ static int gmc_v6_0_resume(void *handle)
 static bool gmc_v6_0_is_idle(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
 	u32 tmp = RREG32(mmSRBM_STATUS);
 
 	if (tmp & (SRBM_STATUS__MCB_BUSY_MASK | SRBM_STATUS__MCB_NON_DISPLAY_BUSY_MASK |
@@ -959,13 +971,13 @@ static bool gmc_v6_0_is_idle(void *handle)
 	return true;
 }
 
-static int gmc_v6_0_wait_for_idle(void *handle)
+static int gmc_v6_0_wait_for_idle(struct amdgpu_ip_block *ip_block)
 {
 	unsigned int i;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	for (i = 0; i < adev->usec_timeout; i++) {
-		if (gmc_v6_0_is_idle(handle))
+		if (gmc_v6_0_is_idle(adev))
 			return 0;
 		udelay(1);
 	}
@@ -976,6 +988,7 @@ static int gmc_v6_0_wait_for_idle(void *handle)
 static int gmc_v6_0_soft_reset(struct amdgpu_ip_block *ip_block)
 {
 	struct amdgpu_device *adev = ip_block->adev;
+
 	u32 srbm_soft_reset = 0;
 	u32 tmp = RREG32(mmSRBM_STATUS);
 
@@ -992,7 +1005,8 @@ static int gmc_v6_0_soft_reset(struct amdgpu_ip_block *ip_block)
 
 	if (srbm_soft_reset) {
 		gmc_v6_0_mc_stop(adev);
-		if (gmc_v6_0_wait_for_idle(adev))
+
+		if (gmc_v6_0_wait_for_idle(ip_block))
 			dev_warn(adev->dev, "Wait for GMC idle timed out !\n");
 
 		tmp = RREG32(mmSRBM_SOFT_RESET);

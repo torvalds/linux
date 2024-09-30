@@ -923,9 +923,9 @@ static bool jpeg_v4_0_3_is_idle(void *handle)
 	return ret;
 }
 
-static int jpeg_v4_0_3_wait_for_idle(void *handle)
+static int jpeg_v4_0_3_wait_for_idle(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	int ret = 0;
 	int i, j;
 

@@ -990,7 +990,7 @@ static bool gmc_v11_0_is_idle(void *handle)
 	return true;
 }
 
-static int gmc_v11_0_wait_for_idle(void *handle)
+static int gmc_v11_0_wait_for_idle(struct amdgpu_ip_block *ip_block)
 {
 	/* There is no need to wait for MC idle in GMC v11.*/
 	return 0;

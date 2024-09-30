@@ -52,7 +52,7 @@
 
 static void gmc_v7_0_set_gmc_funcs(struct amdgpu_device *adev);
 static void gmc_v7_0_set_irq_funcs(struct amdgpu_device *adev);
-static int gmc_v7_0_wait_for_idle(void *handle);
+static int gmc_v7_0_wait_for_idle(struct amdgpu_ip_block *ip_block);
 
 MODULE_FIRMWARE("amdgpu/bonaire_mc.bin");
 MODULE_FIRMWARE("amdgpu/hawaii_mc.bin");
@@ -1146,11 +1146,11 @@ static bool gmc_v7_0_is_idle(void *handle)
 	return true;
 }
 
-static int gmc_v7_0_wait_for_idle(void *handle)
+static int gmc_v7_0_wait_for_idle(struct amdgpu_ip_block *ip_block)
 {
 	unsigned int i;
 	u32 tmp;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	for (i = 0; i < adev->usec_timeout; i++) {
 		/* read MC_STATUS */

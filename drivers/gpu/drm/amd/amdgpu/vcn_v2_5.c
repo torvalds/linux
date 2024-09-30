@@ -1786,9 +1786,9 @@ static bool vcn_v2_5_is_idle(void *handle)
 	return ret;
 }
 
-static int vcn_v2_5_wait_for_idle(void *handle)
+static int vcn_v2_5_wait_for_idle(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	int i, ret = 0;
 
 	for (i = 0; i < adev->vcn.num_vcn_inst; ++i) {
