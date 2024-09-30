@@ -4949,7 +4949,8 @@ static bool amdgpu_device_ip_check_soft_reset(struct amdgpu_device *adev)
 			continue;
 		if (adev->ip_blocks[i].version->funcs->check_soft_reset)
 			adev->ip_blocks[i].status.hang =
-				adev->ip_blocks[i].version->funcs->check_soft_reset(adev);
+				adev->ip_blocks[i].version->funcs->check_soft_reset(
+					&adev->ip_blocks[i]);
 		if (adev->ip_blocks[i].status.hang) {
 			dev_info(adev->dev, "IP block:%s is hung!\n", adev->ip_blocks[i].version->funcs->name);
 			asic_hang = true;

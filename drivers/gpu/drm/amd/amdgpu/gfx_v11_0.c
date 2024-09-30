@@ -4907,10 +4907,10 @@ static int gfx_v11_0_soft_reset(void *handle)
 	return gfx_v11_0_cp_resume(adev);
 }
 
-static bool gfx_v11_0_check_soft_reset(void *handle)
+static bool gfx_v11_0_check_soft_reset(struct amdgpu_ip_block *ip_block)
 {
 	int i, r;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	struct amdgpu_ring *ring;
 	long tmo = msecs_to_jiffies(1000);
 

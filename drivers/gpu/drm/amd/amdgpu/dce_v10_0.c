@@ -2953,9 +2953,9 @@ static int dce_v10_0_wait_for_idle(void *handle)
 	return 0;
 }
 
-static bool dce_v10_0_check_soft_reset(void *handle)
+static bool dce_v10_0_check_soft_reset(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	return dce_v10_0_is_display_hung(adev);
 }

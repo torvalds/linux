@@ -791,9 +791,9 @@ static int sdma_v6_0_soft_reset(void *handle)
 	return sdma_v6_0_start(adev);
 }
 
-static bool sdma_v6_0_check_soft_reset(void *handle)
+static bool sdma_v6_0_check_soft_reset(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	struct amdgpu_ring *ring;
 	int i, r;
 	long tmo = msecs_to_jiffies(1000);

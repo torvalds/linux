@@ -627,9 +627,9 @@ static int vce_v3_0_wait_for_idle(void *handle)
 #define  AMDGPU_VCE_STATUS_BUSY_MASK (VCE_STATUS_VCPU_REPORT_AUTO_BUSY_MASK | \
 				      VCE_STATUS_VCPU_REPORT_RB0_BUSY_MASK)
 
-static bool vce_v3_0_check_soft_reset(void *handle)
+static bool vce_v3_0_check_soft_reset(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	u32 srbm_soft_reset = 0;
 
 	/* According to VCE team , we should use VCE_STATUS instead

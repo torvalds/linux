@@ -326,7 +326,7 @@ static int dm_wait_for_idle(void *handle)
 	return 0;
 }
 
-static bool dm_check_soft_reset(void *handle)
+static bool dm_check_soft_reset(struct amdgpu_ip_block *ip_block)
 {
 	return false;
 }

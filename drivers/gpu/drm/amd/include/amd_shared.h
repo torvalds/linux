@@ -392,7 +392,7 @@ struct amd_ip_funcs {
 	int (*resume)(void *handle);
 	bool (*is_idle)(void *handle);
 	int (*wait_for_idle)(void *handle);
-	bool (*check_soft_reset)(void *handle);
+	bool (*check_soft_reset)(struct amdgpu_ip_block *ip_block);
 	int (*pre_soft_reset)(void *handle);
 	int (*soft_reset)(void *handle);
 	int (*post_soft_reset)(void *handle);
