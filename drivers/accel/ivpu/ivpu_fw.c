@@ -25,7 +25,6 @@
 #define FW_SHAVE_NN_MAX_SIZE	SZ_2M
 #define FW_RUNTIME_MIN_ADDR	(FW_GLOBAL_MEM_START)
 #define FW_RUNTIME_MAX_ADDR	(FW_GLOBAL_MEM_END - FW_SHARED_MEM_SIZE)
-#define FW_VERSION_HEADER_SIZE	SZ_4K
 #define FW_FILE_IMAGE_OFFSET	(VPU_FW_HEADER_SIZE + FW_VERSION_HEADER_SIZE)
 
 #define WATCHDOG_MSS_REDIRECT	32
@@ -191,8 +190,10 @@ static int ivpu_fw_parse(struct ivpu_device *vdev)
 	ivpu_dbg(vdev, FW_BOOT, "Header version: 0x%x, format 0x%x\n",
 		 fw_hdr->header_version, fw_hdr->image_format);
 
-	ivpu_info(vdev, "Firmware: %s, version: %s", fw->name,
-		  (const char *)fw_hdr + VPU_FW_HEADER_SIZE);
+	if (!scnprintf(fw->version, sizeof(fw->version), "%s", fw->file->data + VPU_FW_HEADER_SIZE))
+		ivpu_warn(vdev, "Missing firmware version\n");
+
+	ivpu_info(vdev, "Firmware: %s, version: %s\n", fw->name, fw->version);
 
 	if (IVPU_FW_CHECK_API_COMPAT(vdev, fw_hdr, BOOT, 3))
 		return -EINVAL;
