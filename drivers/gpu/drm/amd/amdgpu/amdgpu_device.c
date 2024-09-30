@@ -25,6 +25,8 @@
  *          Alex Deucher
  *          Jerome Glisse
  */
+
+#include <linux/aperture.h>
 #include <linux/power_supply.h>
 #include <linux/kthread.h>
 #include <linux/module.h>
@@ -35,7 +37,6 @@
 #include <linux/pci-p2pdma.h>
 #include <linux/apple-gmux.h>
 
-#include <drm/drm_aperture.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_fb_helper.h>
@@ -4199,7 +4200,7 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 		return r;
 
 	/* Get rid of things like offb */
-	r = drm_aperture_remove_conflicting_pci_framebuffers(adev->pdev, &amdgpu_kms_driver);
+	r = aperture_remove_conflicting_pci_devices(adev->pdev, amdgpu_kms_driver.name);
 	if (r)
 		return r;
 
