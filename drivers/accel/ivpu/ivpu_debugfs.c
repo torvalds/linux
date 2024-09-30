@@ -337,49 +337,23 @@ static const struct file_operations ivpu_force_recovery_fops = {
 	.write = ivpu_force_recovery_fn,
 };
 
-static ssize_t
-ivpu_reset_engine_fn(struct file *file, const char __user *user_buf, size_t size, loff_t *pos)
+static int ivpu_reset_engine_fn(void *data, u64 val)
 {
-	struct ivpu_device *vdev = file->private_data;
+	struct ivpu_device *vdev = (struct ivpu_device *)data;
 
-	if (!size)
-		return -EINVAL;
-
-	if (ivpu_jsm_reset_engine(vdev, DRM_IVPU_ENGINE_COMPUTE))
-		return -ENODEV;
-	if (ivpu_jsm_reset_engine(vdev, DRM_IVPU_ENGINE_COPY))
-		return -ENODEV;
-
-	return size;
+	return ivpu_jsm_reset_engine(vdev, (u32)val);
 }
 
-static const struct file_operations ivpu_reset_engine_fops = {
-	.owner = THIS_MODULE,
-	.open = simple_open,
-	.write = ivpu_reset_engine_fn,
-};
+DEFINE_DEBUGFS_ATTRIBUTE(ivpu_reset_engine_fops, NULL, ivpu_reset_engine_fn, "0x%02llx\n");
 
-static ssize_t
-ivpu_resume_engine_fn(struct file *file, const char __user *user_buf, size_t size, loff_t *pos)
+static int ivpu_resume_engine_fn(void *data, u64 val)
 {
-	struct ivpu_device *vdev = file->private_data;
+	struct ivpu_device *vdev = (struct ivpu_device *)data;
 
-	if (!size)
-		return -EINVAL;
-
-	if (ivpu_jsm_hws_resume_engine(vdev, DRM_IVPU_ENGINE_COMPUTE))
-		return -ENODEV;
-	if (ivpu_jsm_hws_resume_engine(vdev, DRM_IVPU_ENGINE_COPY))
-		return -ENODEV;
-
-	return size;
+	return ivpu_jsm_hws_resume_engine(vdev, (u32)val);
 }
 
-static const struct file_operations ivpu_resume_engine_fops = {
-	.owner = THIS_MODULE,
-	.open = simple_open,
-	.write = ivpu_resume_engine_fn,
-};
+DEFINE_DEBUGFS_ATTRIBUTE(ivpu_resume_engine_fops, NULL, ivpu_resume_engine_fn, "0x%02llx\n");
 
 static int dct_active_get(void *data, u64 *active_percent)
 {
