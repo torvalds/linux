@@ -303,9 +303,9 @@ class ParseToAst(Transformer):
                 c_classifier=c_classifier,
             )
 
-        token = children[0].data
+        name = children[0].data.value
         return _XdrBuiltInType(
-            type_name=token.value,
+            type_name=name,
             c_classifier=c_classifier,
         )
 
