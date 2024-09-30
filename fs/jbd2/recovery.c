@@ -485,6 +485,105 @@ static int jbd2_block_tag_csum_verify(journal_t *j, journal_block_tag_t *tag,
 		return tag->t_checksum == cpu_to_be16(csum32);
 }
 
+static __always_inline int jbd2_do_replay(journal_t *journal,
+					  struct recovery_info *info,
+					  struct buffer_head *bh,
+					  unsigned long *next_log_block,
+					  unsigned int next_commit_ID,
+					  int *success, int *block_error)
+{
+	char *tagp;
+	int flags;
+	int err;
+	int tag_bytes = journal_tag_bytes(journal);
+	int descr_csum_size = 0;
+	unsigned long io_block;
+	journal_block_tag_t tag;
+	struct buffer_head *obh;
+	struct buffer_head *nbh;
+
+	if (jbd2_journal_has_csum_v2or3(journal))
+		descr_csum_size = sizeof(struct jbd2_journal_block_tail);
+
+	tagp = &bh->b_data[sizeof(journal_header_t)];
+	while (tagp - bh->b_data + tag_bytes <=
+	       journal->j_blocksize - descr_csum_size) {
+
+		memcpy(&tag, tagp, sizeof(tag));
+		flags = be16_to_cpu(tag.t_flags);
+
+		io_block = (*next_log_block)++;
+		wrap(journal, *next_log_block);
+		err = jread(&obh, journal, io_block);
+		if (err) {
+			/* Recover what we can, but report failure at the end. */
+			*success = err;
+			pr_err("JBD2: IO error %d recovering block %lu in log\n",
+			      err, io_block);
+		} else {
+			unsigned long long blocknr;
+
+			J_ASSERT(obh != NULL);
+			blocknr = read_tag_block(journal, &tag);
+
+			/* If the block has been revoked, then we're all done here. */
+			if (jbd2_journal_test_revoke(journal, blocknr,
+						     next_commit_ID)) {
+				brelse(obh);
+				++info->nr_revoke_hits;
+				goto skip_write;
+			}
+
+			/* Look for block corruption */
+			if (!jbd2_block_tag_csum_verify(journal, &tag,
+					(journal_block_tag3_t *)tagp,
+					obh->b_data, next_commit_ID)) {
+				brelse(obh);
+				*success = -EFSBADCRC;
+				pr_err("JBD2: Invalid checksum recovering data block %llu in journal block %lu\n",
+				      blocknr, io_block);
+				*block_error = 1;
+				goto skip_write;
+			}
+
+			/* Find a buffer for the new data being restored */
+			nbh = __getblk(journal->j_fs_dev, blocknr,
+				       journal->j_blocksize);
+			if (nbh == NULL) {
+				pr_err("JBD2: Out of memory during recovery.\n");
+				brelse(obh);
+				return -ENOMEM;
+			}
+
+			lock_buffer(nbh);
+			memcpy(nbh->b_data, obh->b_data, journal->j_blocksize);
+			if (flags & JBD2_FLAG_ESCAPE) {
+				*((__be32 *)nbh->b_data) =
+				cpu_to_be32(JBD2_MAGIC_NUMBER);
+			}
+
+			BUFFER_TRACE(nbh, "marking dirty");
+			set_buffer_uptodate(nbh);
+			mark_buffer_dirty(nbh);
+			BUFFER_TRACE(nbh, "marking uptodate");
+			++info->nr_replays;
+			unlock_buffer(nbh);
+			brelse(obh);
+			brelse(nbh);
+		}
+
+skip_write:
+		tagp += tag_bytes;
+		if (!(flags & JBD2_FLAG_SAME_UUID))
+			tagp += 16;
+
+		if (flags & JBD2_FLAG_LAST_TAG)
+			break;
+	}
+
+	return 0;
+}
+
 static int do_one_pass(journal_t *journal,
 			struct recovery_info *info, enum passtype pass)
 {
@@ -496,9 +595,7 @@ static int do_one_pass(journal_t *journal,
 	struct buffer_head	*bh = NULL;
 	unsigned int		sequence;
 	int			blocktype;
-	int			tag_bytes = journal_tag_bytes(journal);
 	__u32			crc32_sum = ~0; /* Transactional Checksums */
-	int			descr_csum_size = 0;
 	int			block_error = 0;
 	bool			need_check_commit_time = false;
 	__u64			last_trans_commit_time = 0, commit_time;
@@ -528,12 +625,6 @@ static int do_one_pass(journal_t *journal,
 	 */
 
 	while (1) {
-		int			flags;
-		char *			tagp;
-		journal_block_tag_t	tag;
-		struct buffer_head *	obh;
-		struct buffer_head *	nbh;
-
 		cond_resched();
 
 		/* If we already know where to stop the log traversal,
@@ -587,11 +678,7 @@ static int do_one_pass(journal_t *journal,
 		switch(blocktype) {
 		case JBD2_DESCRIPTOR_BLOCK:
 			/* Verify checksum first */
-			if (jbd2_journal_has_csum_v2or3(journal))
-				descr_csum_size =
-					sizeof(struct jbd2_journal_block_tail);
-			if (descr_csum_size > 0 &&
-			    !jbd2_descriptor_block_csum_verify(journal,
+			if (!jbd2_descriptor_block_csum_verify(journal,
 							       bh->b_data)) {
 				/*
 				 * PASS_SCAN can see stale blocks due to lazy
@@ -628,102 +715,16 @@ static int do_one_pass(journal_t *journal,
 				continue;
 			}
 
-			/* A descriptor block: we can now write all of
-			 * the data blocks.  Yay, useful work is finally
-			 * getting done here! */
-
-			tagp = &bh->b_data[sizeof(journal_header_t)];
-			while ((tagp - bh->b_data + tag_bytes)
-			       <= journal->j_blocksize - descr_csum_size) {
-				unsigned long io_block;
-
-				memcpy(&tag, tagp, sizeof(tag));
-				flags = be16_to_cpu(tag.t_flags);
-
-				io_block = next_log_block++;
-				wrap(journal, next_log_block);
-				err = jread(&obh, journal, io_block);
-				if (err) {
-					/* Recover what we can, but
-					 * report failure at the end. */
-					success = err;
-					printk(KERN_ERR
-						"JBD2: IO error %d recovering "
-						"block %lu in log\n",
-						err, io_block);
-				} else {
-					unsigned long long blocknr;
-
-					J_ASSERT(obh != NULL);
-					blocknr = read_tag_block(journal,
-								 &tag);
-
-					/* If the block has been
-					 * revoked, then we're all done
-					 * here. */
-					if (jbd2_journal_test_revoke
-					    (journal, blocknr,
-					     next_commit_ID)) {
-						brelse(obh);
-						++info->nr_revoke_hits;
-						goto skip_write;
-					}
-
-					/* Look for block corruption */
-					if (!jbd2_block_tag_csum_verify(
-			journal, &tag, (journal_block_tag3_t *)tagp,
-			obh->b_data, be32_to_cpu(tmp->h_sequence))) {
-						brelse(obh);
-						success = -EFSBADCRC;
-						printk(KERN_ERR "JBD2: Invalid "
-						       "checksum recovering "
-						       "data block %llu in "
-						       "journal block %lu\n",
-						       blocknr, io_block);
-						block_error = 1;
-						goto skip_write;
-					}
-
-					/* Find a buffer for the new
-					 * data being restored */
-					nbh = __getblk(journal->j_fs_dev,
-							blocknr,
-							journal->j_blocksize);
-					if (nbh == NULL) {
-						printk(KERN_ERR
-						       "JBD2: Out of memory "
-						       "during recovery.\n");
-						err = -ENOMEM;
-						brelse(obh);
-						goto failed;
-					}
-
-					lock_buffer(nbh);
-					memcpy(nbh->b_data, obh->b_data,
-							journal->j_blocksize);
-					if (flags & JBD2_FLAG_ESCAPE) {
-						*((__be32 *)nbh->b_data) =
-						cpu_to_be32(JBD2_MAGIC_NUMBER);
-					}
-
-					BUFFER_TRACE(nbh, "marking dirty");
-					set_buffer_uptodate(nbh);
-					mark_buffer_dirty(nbh);
-					BUFFER_TRACE(nbh, "marking uptodate");
-					++info->nr_replays;
-					unlock_buffer(nbh);
-					brelse(obh);
-					brelse(nbh);
-				}
-
-			skip_write:
-				tagp += tag_bytes;
-				if (!(flags & JBD2_FLAG_SAME_UUID))
-					tagp += 16;
-
-				if (flags & JBD2_FLAG_LAST_TAG)
-					break;
-			}
+			/*
+			 * A descriptor block: we can now write all of the
+			 * data blocks. Yay, useful work is finally getting
+			 * done here!
+			 */
+			err = jbd2_do_replay(journal, info, bh, &next_log_block,
+					     next_commit_ID, &success,
+					     &block_error);
+			if (err)
+				goto failed;
 
 			continue;
 
