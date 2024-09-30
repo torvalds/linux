@@ -493,7 +493,7 @@ static int do_one_pass(journal_t *journal,
 	int			err, success = 0;
 	journal_superblock_t *	sb;
 	journal_header_t *	tmp;
-	struct buffer_head *	bh;
+	struct buffer_head	*bh = NULL;
 	unsigned int		sequence;
 	int			blocktype;
 	int			tag_bytes = journal_tag_bytes(journal);
@@ -552,6 +552,8 @@ static int do_one_pass(journal_t *journal,
 		 * record. */
 
 		jbd2_debug(3, "JBD2: checking block %ld\n", next_log_block);
+		brelse(bh);
+		bh = NULL;
 		err = jread(&bh, journal, next_log_block);
 		if (err)
 			goto failed;
@@ -567,20 +569,16 @@ static int do_one_pass(journal_t *journal,
 
 		tmp = (journal_header_t *)bh->b_data;
 
-		if (tmp->h_magic != cpu_to_be32(JBD2_MAGIC_NUMBER)) {
-			brelse(bh);
+		if (tmp->h_magic != cpu_to_be32(JBD2_MAGIC_NUMBER))
 			break;
-		}
 
 		blocktype = be32_to_cpu(tmp->h_blocktype);
 		sequence = be32_to_cpu(tmp->h_sequence);
 		jbd2_debug(3, "Found magic %d, sequence %d\n",
 			  blocktype, sequence);
 
-		if (sequence != next_commit_ID) {
-			brelse(bh);
+		if (sequence != next_commit_ID)
 			break;
-		}
 
 		/* OK, we have a valid descriptor block which matches
 		 * all of the sequence number checks.  What are we going
@@ -603,7 +601,6 @@ static int do_one_pass(journal_t *journal,
 					pr_err("JBD2: Invalid checksum recovering block %lu in log\n",
 					       next_log_block);
 					err = -EFSBADCRC;
-					brelse(bh);
 					goto failed;
 				}
 				need_check_commit_time = true;
@@ -622,16 +619,12 @@ static int do_one_pass(journal_t *journal,
 				    !info->end_transaction) {
 					if (calc_chksums(journal, bh,
 							&next_log_block,
-							&crc32_sum)) {
-						put_bh(bh);
+							&crc32_sum))
 						break;
-					}
-					put_bh(bh);
 					continue;
 				}
 				next_log_block += count_tags(journal, bh);
 				wrap(journal, next_log_block);
-				put_bh(bh);
 				continue;
 			}
 
@@ -701,7 +694,6 @@ static int do_one_pass(journal_t *journal,
 						       "JBD2: Out of memory "
 						       "during recovery.\n");
 						err = -ENOMEM;
-						brelse(bh);
 						brelse(obh);
 						goto failed;
 					}
@@ -733,7 +725,6 @@ static int do_one_pass(journal_t *journal,
 					break;
 			}
 
-			brelse(bh);
 			continue;
 
 		case JBD2_COMMIT_BLOCK:
@@ -781,7 +772,6 @@ static int do_one_pass(journal_t *journal,
 					pr_err("JBD2: Invalid checksum found in transaction %u\n",
 					       next_commit_ID);
 					err = -EFSBADCRC;
-					brelse(bh);
 					goto failed;
 				}
 			ignore_crc_mismatch:
@@ -791,7 +781,6 @@ static int do_one_pass(journal_t *journal,
 				 */
 				jbd2_debug(1, "JBD2: Invalid checksum ignored in transaction %u, likely stale data\n",
 					  next_commit_ID);
-				brelse(bh);
 				goto done;
 			}
 
@@ -811,7 +800,6 @@ static int do_one_pass(journal_t *journal,
 				if (info->end_transaction) {
 					journal->j_failed_commit =
 						info->end_transaction;
-					brelse(bh);
 					break;
 				}
 
@@ -847,7 +835,6 @@ static int do_one_pass(journal_t *journal,
 				if (!jbd2_has_feature_async_commit(journal)) {
 					journal->j_failed_commit =
 						next_commit_ID;
-					brelse(bh);
 					break;
 				}
 			}
@@ -856,7 +843,6 @@ static int do_one_pass(journal_t *journal,
 				last_trans_commit_time = commit_time;
 				head_block = next_log_block;
 			}
-			brelse(bh);
 			next_commit_ID++;
 			continue;
 
@@ -875,14 +861,11 @@ static int do_one_pass(journal_t *journal,
 
 			/* If we aren't in the REVOKE pass, then we can
 			 * just skip over this block. */
-			if (pass != PASS_REVOKE) {
-				brelse(bh);
+			if (pass != PASS_REVOKE)
 				continue;
-			}
 
 			err = scan_revoke_records(journal, bh,
 						  next_commit_ID, info);
-			brelse(bh);
 			if (err)
 				goto failed;
 			continue;
@@ -890,12 +873,12 @@ static int do_one_pass(journal_t *journal,
 		default:
 			jbd2_debug(3, "Unrecognised magic %d, end of scan.\n",
 				  blocktype);
-			brelse(bh);
 			goto done;
 		}
 	}
 
  done:
+	brelse(bh);
 	/*
 	 * We broke out of the log scan loop: either we came to the
 	 * known end of the log or we found an unexpected block in the
@@ -931,6 +914,7 @@ static int do_one_pass(journal_t *journal,
 	return success;
 
  failed:
+	brelse(bh);
 	return err;
 }
 
