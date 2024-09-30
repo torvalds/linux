@@ -898,9 +898,11 @@ static int gc2145_config_mipi_mode(struct gc2145 *gc2145,
 	return ret;
 }
 
-static int gc2145_start_streaming(struct gc2145 *gc2145,
-				  struct v4l2_subdev_state *state)
+static int gc2145_enable_streams(struct v4l2_subdev *sd,
+				 struct v4l2_subdev_state *state, u32 pad,
+				 u64 streams_mask)
 {
+	struct gc2145 *gc2145 = to_gc2145(sd);
 	struct i2c_client *client = v4l2_get_subdevdata(&gc2145->sd);
 	const struct gc2145_format *gc2145_format;
 	struct v4l2_mbus_framefmt *fmt;
@@ -966,8 +968,11 @@ err_rpm_put:
 	return ret;
 }
 
-static void gc2145_stop_streaming(struct gc2145 *gc2145)
+static int gc2145_disable_streams(struct v4l2_subdev *sd,
+				  struct v4l2_subdev_state *state, u32 pad,
+				  u64 streams_mask)
 {
+	struct gc2145 *gc2145 = to_gc2145(sd);
 	struct i2c_client *client = v4l2_get_subdevdata(&gc2145->sd);
 	int ret = 0;
 
@@ -982,22 +987,6 @@ static void gc2145_stop_streaming(struct gc2145 *gc2145)
 
 	pm_runtime_mark_last_busy(&client->dev);
 	pm_runtime_put_autosuspend(&client->dev);
-}
-
-static int gc2145_set_stream(struct v4l2_subdev *sd, int enable)
-{
-	struct gc2145 *gc2145 = to_gc2145(sd);
-	struct v4l2_subdev_state *state;
-	int ret = 0;
-
-	state = v4l2_subdev_lock_and_get_active_state(sd);
-
-	if (enable)
-		ret = gc2145_start_streaming(gc2145, state);
-	else
-		gc2145_stop_streaming(gc2145);
-
-	v4l2_subdev_unlock_state(state);
 
 	return ret;
 }
@@ -1123,7 +1112,7 @@ static const u8 test_pattern_val[] = {
 };
 
 static const struct v4l2_subdev_video_ops gc2145_video_ops = {
-	.s_stream = gc2145_set_stream,
+	.s_stream = v4l2_subdev_s_stream_helper,
 };
 
 static const struct v4l2_subdev_pad_ops gc2145_pad_ops = {
@@ -1132,6 +1121,8 @@ static const struct v4l2_subdev_pad_ops gc2145_pad_ops = {
 	.set_fmt = gc2145_set_pad_format,
 	.get_selection = gc2145_get_selection,
 	.enum_frame_size = gc2145_enum_frame_size,
+	.enable_streams = gc2145_enable_streams,
+	.disable_streams = gc2145_disable_streams,
 };
 
 static const struct v4l2_subdev_ops gc2145_subdev_ops = {
