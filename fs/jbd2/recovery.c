@@ -490,7 +490,7 @@ static __always_inline int jbd2_do_replay(journal_t *journal,
 					  struct buffer_head *bh,
 					  unsigned long *next_log_block,
 					  unsigned int next_commit_ID,
-					  int *success, int *block_error)
+					  int *success)
 {
 	char *tagp;
 	int flags;
@@ -542,7 +542,6 @@ static __always_inline int jbd2_do_replay(journal_t *journal,
 				*success = -EFSBADCRC;
 				pr_err("JBD2: Invalid checksum recovering data block %llu in journal block %lu\n",
 				      blocknr, io_block);
-				*block_error = 1;
 				goto skip_write;
 			}
 
@@ -596,7 +595,6 @@ static int do_one_pass(journal_t *journal,
 	unsigned int		sequence;
 	int			blocktype;
 	__u32			crc32_sum = ~0; /* Transactional Checksums */
-	int			block_error = 0;
 	bool			need_check_commit_time = false;
 	__u64			last_trans_commit_time = 0, commit_time;
 
@@ -721,8 +719,7 @@ static int do_one_pass(journal_t *journal,
 			 * done here!
 			 */
 			err = jbd2_do_replay(journal, info, bh, &next_log_block,
-					     next_commit_ID, &success,
-					     &block_error);
+					     next_commit_ID, &success);
 			if (err)
 				goto failed;
 
@@ -913,8 +910,6 @@ chksum_ok:
 			success = err;
 	}
 
-	if (block_error && success == 0)
-		success = -EIO;
 	return success;
 
  failed:
