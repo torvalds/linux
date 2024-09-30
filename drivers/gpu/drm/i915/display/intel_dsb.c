@@ -37,9 +37,16 @@ struct intel_dsb {
 	unsigned int free_pos;
 
 	/*
-	 * ins_start_offset will help to store start dword of the dsb
-	 * instuction and help in identifying the batch of auto-increment
-	 * register.
+	 * Previously emitted DSB instruction. Used to
+	 * identify/adjust the instruction for indexed
+	 * register writes.
+	 */
+	u32 ins[2];
+
+	/*
+	 * Start of the previously emitted DSB instruction.
+	 * Used to adjust the instruction for indexed
+	 * register writes.
 	 */
 	unsigned int ins_start_offset;
 
@@ -215,9 +222,11 @@ static void intel_dsb_emit(struct intel_dsb *dsb, u32 ldw, u32 udw)
 	dsb->free_pos = ALIGN(dsb->free_pos, 2);
 
 	dsb->ins_start_offset = dsb->free_pos;
+	dsb->ins[0] = ldw;
+	dsb->ins[1] = udw;
 
-	intel_dsb_buffer_write(&dsb->dsb_buf, dsb->free_pos++, ldw);
-	intel_dsb_buffer_write(&dsb->dsb_buf, dsb->free_pos++, udw);
+	intel_dsb_buffer_write(&dsb->dsb_buf, dsb->free_pos++, dsb->ins[0]);
+	intel_dsb_buffer_write(&dsb->dsb_buf, dsb->free_pos++, dsb->ins[1]);
 }
 
 static bool intel_dsb_prev_ins_is_write(struct intel_dsb *dsb,
@@ -233,10 +242,8 @@ static bool intel_dsb_prev_ins_is_write(struct intel_dsb *dsb,
 	if (dsb->free_pos == 0)
 		return false;
 
-	prev_opcode = intel_dsb_buffer_read(&dsb->dsb_buf,
-					    dsb->ins_start_offset + 1) & ~DSB_REG_VALUE_MASK;
-	prev_reg =  intel_dsb_buffer_read(&dsb->dsb_buf,
-					  dsb->ins_start_offset + 1) & DSB_REG_VALUE_MASK;
+	prev_opcode = dsb->ins[1] & ~DSB_REG_VALUE_MASK;
+	prev_reg =  dsb->ins[1] & DSB_REG_VALUE_MASK;
 
 	return prev_opcode == opcode && prev_reg == i915_mmio_reg_offset(reg);
 }
@@ -269,8 +276,6 @@ static bool intel_dsb_prev_ins_is_indexed_write(struct intel_dsb *dsb, i915_reg_
 void intel_dsb_reg_write(struct intel_dsb *dsb,
 			 i915_reg_t reg, u32 val)
 {
-	u32 old_val;
-
 	/*
 	 * For example the buffer will look like below for 3 dwords for auto
 	 * increment register:
@@ -299,23 +304,27 @@ void intel_dsb_reg_write(struct intel_dsb *dsb,
 
 		/* convert to indexed write? */
 		if (intel_dsb_prev_ins_is_mmio_write(dsb, reg)) {
-			u32 prev_val = intel_dsb_buffer_read(&dsb->dsb_buf,
-							     dsb->ins_start_offset + 0);
+			u32 prev_val = dsb->ins[0];
 
-			intel_dsb_buffer_write(&dsb->dsb_buf,
-					       dsb->ins_start_offset + 0, 1); /* count */
+			dsb->ins[0] = 1; /* count */
+			dsb->ins[1] = (DSB_OPCODE_INDEXED_WRITE << DSB_OPCODE_SHIFT) |
+				i915_mmio_reg_offset(reg);
+
+			intel_dsb_buffer_write(&dsb->dsb_buf, dsb->ins_start_offset + 0,
+					       dsb->ins[0]);
 			intel_dsb_buffer_write(&dsb->dsb_buf, dsb->ins_start_offset + 1,
-					       (DSB_OPCODE_INDEXED_WRITE << DSB_OPCODE_SHIFT) |
-					       i915_mmio_reg_offset(reg));
-			intel_dsb_buffer_write(&dsb->dsb_buf, dsb->ins_start_offset + 2, prev_val);
+					       dsb->ins[1]);
+			intel_dsb_buffer_write(&dsb->dsb_buf, dsb->ins_start_offset + 2,
+					       prev_val);
 
 			dsb->free_pos++;
 		}
 
 		intel_dsb_buffer_write(&dsb->dsb_buf, dsb->free_pos++, val);
 		/* Update the count */
-		old_val = intel_dsb_buffer_read(&dsb->dsb_buf, dsb->ins_start_offset);
-		intel_dsb_buffer_write(&dsb->dsb_buf, dsb->ins_start_offset, old_val + 1);
+		dsb->ins[0]++;
+		intel_dsb_buffer_write(&dsb->dsb_buf, dsb->ins_start_offset + 0,
+				       dsb->ins[0]);
 
 		/* if number of data words is odd, then the last dword should be 0.*/
 		if (dsb->free_pos & 0x1)
@@ -671,6 +680,9 @@ void intel_dsb_wait(struct intel_dsb *dsb)
 	/* Attempt to reset it */
 	dsb->free_pos = 0;
 	dsb->ins_start_offset = 0;
+	dsb->ins[0] = 0;
+	dsb->ins[1] = 0;
+
 	intel_de_write_fw(display, DSB_CTRL(pipe, dsb->id), 0);
 
 	intel_de_write_fw(display, DSB_INTERRUPT(pipe, dsb->id),
@@ -727,8 +739,6 @@ struct intel_dsb *intel_dsb_prepare(struct intel_atomic_state *state,
 	dsb->id = dsb_id;
 	dsb->crtc = crtc;
 	dsb->size = size / 4; /* in dwords */
-	dsb->free_pos = 0;
-	dsb->ins_start_offset = 0;
 
 	dsb->chicken = dsb_chicken(state, crtc);
 	dsb->hw_dewake_scanline =
