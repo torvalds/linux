@@ -864,16 +864,21 @@ static int bigjoiner_interface_bits(struct intel_display *display)
 	return DISPLAY_VER(display) >= 14 ? 36 : 24;
 }
 
-static u32 bigjoiner_bw_max_bpp(struct intel_display *display, u32 mode_clock)
+static u32 bigjoiner_bw_max_bpp(struct intel_display *display, u32 mode_clock,
+				int num_joined_pipes)
 {
 	u32 max_bpp;
 	/* With bigjoiner multiple dsc engines are used in parallel so PPC is 2 */
 	int ppc = 2;
+	int num_big_joiners = num_joined_pipes / 2;
 
 	max_bpp = display->cdclk.max_cdclk_freq * ppc * bigjoiner_interface_bits(display) /
 		  intel_dp_mode_to_fec_clock(mode_clock);
 
+	max_bpp *= num_big_joiners;
+
 	return max_bpp;
+
 }
 
 static u32 small_joiner_ram_max_bpp(struct intel_display *display,
@@ -903,7 +908,8 @@ u32 get_max_compressed_bpp_with_joiner(struct drm_i915_private *i915,
 							    num_joined_pipes);
 
 	if (num_joined_pipes == 2) {
-		u32 max_bpp_bigjoiner = bigjoiner_bw_max_bpp(display, mode_clock);
+		u32 max_bpp_bigjoiner = bigjoiner_bw_max_bpp(display, mode_clock,
+							     num_joined_pipes);
 
 		return min(max_bpp_small_joiner_ram, max_bpp_bigjoiner);
 	}
