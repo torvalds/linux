@@ -89,7 +89,7 @@ void btrfs_schedule_zone_finish_bg(struct btrfs_block_group *bg,
 				   struct extent_buffer *eb);
 void btrfs_clear_data_reloc_bg(struct btrfs_block_group *bg);
 void btrfs_free_zone_cache(struct btrfs_fs_info *fs_info);
-bool btrfs_zoned_should_reclaim(struct btrfs_fs_info *fs_info);
+bool btrfs_zoned_should_reclaim(const struct btrfs_fs_info *fs_info);
 void btrfs_zoned_release_data_reloc_bg(struct btrfs_fs_info *fs_info, u64 logical,
 				       u64 length);
 int btrfs_zone_finish_one_bg(struct btrfs_fs_info *fs_info);
@@ -242,7 +242,7 @@ static inline void btrfs_clear_data_reloc_bg(struct btrfs_block_group *bg) { }
 
 static inline void btrfs_free_zone_cache(struct btrfs_fs_info *fs_info) { }
 
-static inline bool btrfs_zoned_should_reclaim(struct btrfs_fs_info *fs_info)
+static inline bool btrfs_zoned_should_reclaim(const struct btrfs_fs_info *fs_info)
 {
 	return false;
 }

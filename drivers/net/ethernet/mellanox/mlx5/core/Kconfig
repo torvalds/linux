@@ -172,6 +172,16 @@ config MLX5_SW_STEERING
 	help
 	Build support for software-managed steering in the NIC.
 
+config MLX5_HW_STEERING
+	bool "Mellanox Technologies hardware-managed steering"
+	depends on MLX5_CORE_EN && MLX5_ESWITCH
+	default y
+	help
+	Build support for Hardware-Managed Flow Steering (HMFS) in the NIC.
+	HMFS is a new approach to managing steering rules where STEs are
+	written to ICM by HW (as opposed to SW in software-managed steering),
+	which allows higher rate of rule insertion.
+
 config MLX5_SF
 	bool "Mellanox Technologies subfunction device support using auxiliary device"
 	depends on MLX5_CORE && MLX5_CORE_EN

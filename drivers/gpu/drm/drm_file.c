@@ -103,7 +103,6 @@ bool drm_dev_needs_global_mutex(struct drm_device *dev)
  *             .compat_ioctl = drm_compat_ioctl, // NULL if CONFIG_COMPAT=n
  *             .poll = drm_poll,
  *             .read = drm_read,
- *             .llseek = no_llseek,
  *             .mmap = drm_gem_mmap,
  *     };
  *
@@ -310,6 +309,8 @@ int drm_open_helper(struct file *filp, struct drm_minor *minor)
 	if (dev->switch_power_state != DRM_SWITCH_POWER_ON &&
 	    dev->switch_power_state != DRM_SWITCH_POWER_DYNAMIC_OFF)
 		return -EINVAL;
+	if (WARN_ON_ONCE(!(filp->f_op->fop_flags & FOP_UNSIGNED_OFFSET)))
+		return -EINVAL;
 
 	drm_dbg_core(dev, "comm=\"%s\", pid=%d, minor=%d\n",
 		     current->comm, task_pid_nr(current), minor->index);
@@ -327,7 +328,6 @@ int drm_open_helper(struct file *filp, struct drm_minor *minor)
 	}
 
 	filp->private_data = priv;
-	filp->f_mode |= FMODE_UNSIGNED_OFFSET;
 	priv->filp = filp;
 
 	mutex_lock(&dev->filelist_mutex);

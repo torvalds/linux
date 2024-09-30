@@ -20,6 +20,7 @@ struct ocfs2_alloc_context;
 enum ocfs2_alloc_restarted;
 
 struct ocfs2_file_private {
+	u64			cookie;
 	struct file		*fp_file;
 	struct mutex		fp_mutex;
 	struct ocfs2_lock_res	fp_flock;

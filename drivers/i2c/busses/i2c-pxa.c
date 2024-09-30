@@ -218,7 +218,7 @@ static const struct platform_device_id i2c_pxa_id_table[] = {
 	{ "ce4100-i2c",		REGS_CE4100 },
 	{ "pxa910-i2c",		REGS_PXA910 },
 	{ "armada-3700-i2c",	REGS_A3700  },
-	{ },
+	{ }
 };
 MODULE_DEVICE_TABLE(platform, i2c_pxa_id_table);
 

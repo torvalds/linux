@@ -193,10 +193,10 @@ int ksys_fadvise64_64(int fd, loff_t offset, loff_t len, int advice)
 	struct fd f = fdget(fd);
 	int ret;
 
-	if (!f.file)
+	if (!fd_file(f))
 		return -EBADF;
 
-	ret = vfs_fadvise(f.file, offset, len, advice);
+	ret = vfs_fadvise(fd_file(f), offset, len, advice);
 
 	fdput(f);
 	return ret;

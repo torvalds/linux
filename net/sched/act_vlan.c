@@ -96,6 +96,7 @@ out:
 	if (skb_at_tc_ingress(skb))
 		skb_pull_rcsum(skb, skb->mac_len);
 
+	skb_reset_mac_len(skb);
 	return action;
 
 drop:

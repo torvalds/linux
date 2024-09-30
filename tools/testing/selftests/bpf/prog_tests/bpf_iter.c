@@ -1218,7 +1218,7 @@ out:
 	bpf_iter_bpf_sk_storage_helpers__destroy(skel);
 }
 
-static void test_bpf_sk_stoarge_map_iter_fd(void)
+static void test_bpf_sk_storage_map_iter_fd(void)
 {
 	struct bpf_iter_bpf_sk_storage_map *skel;
 
@@ -1693,7 +1693,7 @@ void test_bpf_iter(void)
 	if (test__start_subtest("bpf_sk_storage_map"))
 		test_bpf_sk_storage_map();
 	if (test__start_subtest("bpf_sk_storage_map_iter_fd"))
-		test_bpf_sk_stoarge_map_iter_fd();
+		test_bpf_sk_storage_map_iter_fd();
 	if (test__start_subtest("bpf_sk_storage_delete"))
 		test_bpf_sk_storage_delete();
 	if (test__start_subtest("bpf_sk_storage_get"))

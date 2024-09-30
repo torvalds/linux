@@ -123,7 +123,7 @@ static int nvmem_layout_bus_populate(struct nvmem_device *nvmem,
 	int ret;
 
 	/* Make sure it has a compatible property */
-	if (!of_get_property(layout_dn, "compatible", NULL)) {
+	if (!of_property_present(layout_dn, "compatible")) {
 		pr_debug("%s() - skipping %pOF, no compatible prop\n",
 			 __func__, layout_dn);
 		return 0;

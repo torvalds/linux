@@ -433,8 +433,17 @@ static int nilfs_prepare_segment_for_recovery(struct the_nilfs *nilfs,
 	 * The next segment is invalidated by this recovery.
 	 */
 	err = nilfs_sufile_free(sufile, segnum[1]);
-	if (unlikely(err))
+	if (unlikely(err)) {
+		if (err == -ENOENT) {
+			nilfs_err(sb,
+				  "checkpoint log inconsistency at block %llu (segment %llu): next segment %llu is unallocated",
+				  (unsigned long long)nilfs->ns_last_pseg,
+				  (unsigned long long)nilfs->ns_segnum,
+				  (unsigned long long)segnum[1]);
+			err = -EINVAL;
+		}
 		goto failed;
+	}
 
 	for (i = 1; i < 4; i++) {
 		err = nilfs_segment_list_add(head, segnum[i]);
@@ -498,7 +507,7 @@ static int nilfs_recover_dsync_blocks(struct the_nilfs *nilfs,
 	struct inode *inode;
 	struct nilfs_recovery_block *rb, *n;
 	unsigned int blocksize = nilfs->ns_blocksize;
-	struct page *page;
+	struct folio *folio;
 	loff_t pos;
 	int err = 0, err2 = 0;
 
@@ -512,7 +521,7 @@ static int nilfs_recover_dsync_blocks(struct the_nilfs *nilfs,
 
 		pos = rb->blkoff << inode->i_blkbits;
 		err = block_write_begin(inode->i_mapping, pos, blocksize,
-					&page, nilfs_get_block);
+					&folio, nilfs_get_block);
 		if (unlikely(err)) {
 			loff_t isize = inode->i_size;
 
@@ -522,7 +531,7 @@ static int nilfs_recover_dsync_blocks(struct the_nilfs *nilfs,
 			goto failed_inode;
 		}
 
-		err = nilfs_recovery_copy_block(nilfs, rb, pos, page);
+		err = nilfs_recovery_copy_block(nilfs, rb, pos, &folio->page);
 		if (unlikely(err))
 			goto failed_page;
 
@@ -531,17 +540,17 @@ static int nilfs_recover_dsync_blocks(struct the_nilfs *nilfs,
 			goto failed_page;
 
 		block_write_end(NULL, inode->i_mapping, pos, blocksize,
-				blocksize, page, NULL);
+				blocksize, folio, NULL);
 
-		unlock_page(page);
-		put_page(page);
+		folio_unlock(folio);
+		folio_put(folio);
 
 		(*nr_salvaged_blocks)++;
 		goto next;
 
  failed_page:
-		unlock_page(page);
-		put_page(page);
+		folio_unlock(folio);
+		folio_put(folio);
 
  failed_inode:
 		nilfs_warn(sb,

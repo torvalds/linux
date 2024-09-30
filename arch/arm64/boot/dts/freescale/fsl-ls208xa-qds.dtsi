@@ -64,7 +64,7 @@
 		reg = <3 0 0x1000>;
 		ranges = <0 3 0 0x1000>;
 
-		mdio-mux-emi1@54 {
+		mdio-mux@54 {
 			compatible = "mdio-mux-mmioreg", "mdio-mux";
 			mdio-parent-bus = <&emdio1>;
 			reg = <0x54 1>;		/* BRDCFG4 */

@@ -2407,10 +2407,9 @@ static int destroy_queue_cpsch(struct device_queue_manager *dqm,
 		pdd->sdma_past_activity_counter += sdma_val;
 	}
 
-	list_del(&q->list);
-	qpd->queue_count--;
 	if (q->properties.is_active) {
 		decrement_queue_count(dqm, qpd, q);
+		q->properties.is_active = false;
 		if (!dqm->dev->kfd->shared_resources.enable_mes) {
 			retval = execute_queues_cpsch(dqm,
 						      KFD_UNMAP_QUEUES_FILTER_DYNAMIC_QUEUES, 0,
@@ -2421,6 +2420,8 @@ static int destroy_queue_cpsch(struct device_queue_manager *dqm,
 			retval = remove_queue_mes(dqm, q, qpd);
 		}
 	}
+	list_del(&q->list);
+	qpd->queue_count--;
 
 	/*
 	 * Unconditionally decrement this counter, regardless of the queue's
@@ -3539,6 +3540,30 @@ int debug_refresh_runlist(struct device_queue_manager *dqm)
 	return debug_map_and_unlock(dqm);
 }
 
+bool kfd_dqm_is_queue_in_process(struct device_queue_manager *dqm,
+				 struct qcm_process_device *qpd,
+				 int doorbell_off, u32 *queue_format)
+{
+	struct queue *q;
+	bool r = false;
+
+	if (!queue_format)
+		return r;
+
+	dqm_lock(dqm);
+
+	list_for_each_entry(q, &qpd->queues_list, list) {
+		if (q->properties.doorbell_off == doorbell_off) {
+			*queue_format = q->properties.format;
+			r = true;
+			goto out;
+		}
+	}
+
+out:
+	dqm_unlock(dqm);
+	return r;
+}
 #if defined(CONFIG_DEBUG_FS)
 
 static void seq_reg_dump(struct seq_file *m,

@@ -24,7 +24,9 @@
 	#address-cells = <2>;
 	#size-cells = <2>;
 
-	chosen { };
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
 
 	aliases {
 		serial0 = &v2m_serial0;

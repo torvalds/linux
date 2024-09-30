@@ -43,8 +43,6 @@ struct max77650_regulator_desc {
 	unsigned int regB;
 };
 
-static struct max77650_regulator_desc max77651_SBB1_desc;
-
 static const unsigned int max77651_sbb1_volt_range_sel[] = {
 	0x0, 0x1, 0x2, 0x3
 };
@@ -66,11 +64,11 @@ static const unsigned int max77650_current_limit_table[] = {
 
 static int max77650_regulator_is_enabled(struct regulator_dev *rdev)
 {
-	struct max77650_regulator_desc *rdesc;
+	const struct max77650_regulator_desc *rdesc;
 	struct regmap *map;
 	int val, rv, en;
 
-	rdesc = rdev_get_drvdata(rdev);
+	rdesc = container_of(rdev->desc, struct max77650_regulator_desc, desc);
 	map = rdev_get_regmap(rdev);
 
 	rv = regmap_read(map, rdesc->regB, &val);
@@ -84,10 +82,10 @@ static int max77650_regulator_is_enabled(struct regulator_dev *rdev)
 
 static int max77650_regulator_enable(struct regulator_dev *rdev)
 {
-	struct max77650_regulator_desc *rdesc;
+	const struct max77650_regulator_desc *rdesc;
 	struct regmap *map;
 
-	rdesc = rdev_get_drvdata(rdev);
+	rdesc = container_of(rdev->desc, struct max77650_regulator_desc, desc);
 	map = rdev_get_regmap(rdev);
 
 	return regmap_update_bits(map, rdesc->regB,
@@ -97,10 +95,10 @@ static int max77650_regulator_enable(struct regulator_dev *rdev)
 
 static int max77650_regulator_disable(struct regulator_dev *rdev)
 {
-	struct max77650_regulator_desc *rdesc;
+	const struct max77650_regulator_desc *rdesc;
 	struct regmap *map;
 
-	rdesc = rdev_get_drvdata(rdev);
+	rdesc = container_of(rdev->desc, struct max77650_regulator_desc, desc);
 	map = rdev_get_regmap(rdev);
 
 	return regmap_update_bits(map, rdesc->regB,
@@ -145,7 +143,7 @@ static const struct regulator_ops max77651_SBB1_regulator_ops = {
 	.set_active_discharge	= regulator_set_active_discharge_regmap,
 };
 
-static struct max77650_regulator_desc max77650_LDO_desc = {
+static const struct max77650_regulator_desc max77650_LDO_desc = {
 	.desc = {
 		.name			= "ldo",
 		.of_match		= of_match_ptr("ldo"),
@@ -171,7 +169,7 @@ static struct max77650_regulator_desc max77650_LDO_desc = {
 	.regB		= MAX77650_REG_CNFG_LDO_B,
 };
 
-static struct max77650_regulator_desc max77650_SBB0_desc = {
+static const struct max77650_regulator_desc max77650_SBB0_desc = {
 	.desc = {
 		.name			= "sbb0",
 		.of_match		= of_match_ptr("sbb0"),
@@ -201,7 +199,7 @@ static struct max77650_regulator_desc max77650_SBB0_desc = {
 	.regB		= MAX77650_REG_CNFG_SBB0_B,
 };
 
-static struct max77650_regulator_desc max77650_SBB1_desc = {
+static const struct max77650_regulator_desc max77650_SBB1_desc = {
 	.desc = {
 		.name			= "sbb1",
 		.of_match		= of_match_ptr("sbb1"),
@@ -231,7 +229,7 @@ static struct max77650_regulator_desc max77650_SBB1_desc = {
 	.regB		= MAX77650_REG_CNFG_SBB1_B,
 };
 
-static struct max77650_regulator_desc max77651_SBB1_desc = {
+static const struct max77650_regulator_desc max77651_SBB1_desc = {
 	.desc = {
 		.name			= "sbb1",
 		.of_match		= of_match_ptr("sbb1"),
@@ -264,7 +262,7 @@ static struct max77650_regulator_desc max77651_SBB1_desc = {
 	.regB		= MAX77650_REG_CNFG_SBB1_B,
 };
 
-static struct max77650_regulator_desc max77650_SBB2_desc = {
+static const struct max77650_regulator_desc max77650_SBB2_desc = {
 	.desc = {
 		.name			= "sbb2",
 		.of_match		= of_match_ptr("sbb2"),
@@ -294,7 +292,7 @@ static struct max77650_regulator_desc max77650_SBB2_desc = {
 	.regB		= MAX77650_REG_CNFG_SBB2_B,
 };
 
-static struct max77650_regulator_desc max77651_SBB2_desc = {
+static const struct max77650_regulator_desc max77651_SBB2_desc = {
 	.desc = {
 		.name			= "sbb2",
 		.of_match		= of_match_ptr("sbb2"),
@@ -326,8 +324,8 @@ static struct max77650_regulator_desc max77651_SBB2_desc = {
 
 static int max77650_regulator_probe(struct platform_device *pdev)
 {
-	struct max77650_regulator_desc **rdescs;
-	struct max77650_regulator_desc *rdesc;
+	const struct max77650_regulator_desc **rdescs;
+	const struct max77650_regulator_desc *rdesc;
 	struct regulator_config config = { };
 	struct device *dev, *parent;
 	struct regulator_dev *rdev;
@@ -376,7 +374,6 @@ static int max77650_regulator_probe(struct platform_device *pdev)
 
 	for (i = 0; i < MAX77650_REGULATOR_NUM_REGULATORS; i++) {
 		rdesc = rdescs[i];
-		config.driver_data = rdesc;
 
 		rdev = devm_regulator_register(dev, &rdesc->desc, &config);
 		if (IS_ERR(rdev))

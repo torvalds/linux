@@ -399,7 +399,7 @@ static void pf_release_vf_config_ggtt(struct xe_gt *gt, struct xe_gt_sriov_confi
 static int pf_provision_vf_ggtt(struct xe_gt *gt, unsigned int vfid, u64 size)
 {
 	struct xe_gt_sriov_config *config = pf_pick_vf_config(gt, vfid);
-	struct xe_ggtt_node *node = config->ggtt_region;
+	struct xe_ggtt_node *node;
 	struct xe_tile *tile = gt_to_tile(gt);
 	struct xe_ggtt *ggtt = tile->mem.ggtt;
 	u64 alignment = pf_get_ggtt_alignment(gt);
@@ -411,14 +411,14 @@ static int pf_provision_vf_ggtt(struct xe_gt *gt, unsigned int vfid, u64 size)
 
 	size = round_up(size, alignment);
 
-	if (xe_ggtt_node_allocated(node)) {
+	if (xe_ggtt_node_allocated(config->ggtt_region)) {
 		err = pf_distribute_config_ggtt(tile, vfid, 0, 0);
 		if (unlikely(err))
 			return err;
 
-		pf_release_ggtt(tile, node);
+		pf_release_vf_config_ggtt(gt, config);
 	}
-	xe_gt_assert(gt, !xe_ggtt_node_allocated(node));
+	xe_gt_assert(gt, !xe_ggtt_node_allocated(config->ggtt_region));
 
 	if (!size)
 		return 0;

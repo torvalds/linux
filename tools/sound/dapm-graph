@@ -8,6 +8,8 @@
 
 set -eu
 
+STYLE_COMPONENT_ON="color=dodgerblue;style=bold"
+STYLE_COMPONENT_OFF="color=gray40;style=filled;fillcolor=gray90"
 STYLE_NODE_ON="shape=box,style=bold,color=green4"
 STYLE_NODE_OFF="shape=box,style=filled,color=gray30,fillcolor=gray95"
 
@@ -132,11 +134,17 @@ process_dapm_widget()
 	    # Collect any links. We could use "in" links or "out" links,
 	    # let's use "in" links
 	    if echo "${line}" | grep -q '^in '; then
+		local w_route=$(echo "$line" | awk -F\" '{print $2}')
 		local w_src=$(echo "$line" |
 				  awk -F\" '{print $6 "_" $4}' |
 				  sed  's/^(null)_/ROOT_/')
 		dbg_echo "     - Input route from: ${w_src}"
-		echo "  \"${w_src}\" -> \"$w_tag\"" >> "${links_file}"
+		dbg_echo "     - Route: ${w_route}"
+		local w_edge_attrs=""
+		if [ "${w_route}" != "static" ]; then
+		    w_edge_attrs=" [label=\"${w_route}\"]"
+		fi
+		echo "  \"${w_src}\" -> \"$w_tag\"${w_edge_attrs}" >> "${links_file}"
 	    fi
 	done
 
@@ -150,16 +158,20 @@ process_dapm_widget()
 #
 # $1 = temporary work dir
 # $2 = component directory
-# $3 = forced component name (extracted for path if empty)
+# $3 = "ROOT" for the root card directory, empty otherwise
 process_dapm_component()
 {
     local tmp_dir="${1}"
     local c_dir="${2}"
     local c_name="${3}"
+    local is_component=0
     local dot_file="${tmp_dir}/main.dot"
     local links_file="${tmp_dir}/links.dot"
+    local c_attribs=""
 
     if [ -z "${c_name}" ]; then
+	is_component=1
+
 	# Extract directory name into component name:
 	#   "./cs42l51.0-004a/dapm" -> "cs42l51.0-004a"
 	c_name="$(basename $(dirname "${c_dir}"))"
@@ -167,11 +179,23 @@ process_dapm_component()
 
     dbg_echo " * Component: ${c_name}"
 
-    echo ""                           >> "${dot_file}"
-    echo "  subgraph \"${c_name}\" {" >> "${dot_file}"
-    echo "    cluster = true"         >> "${dot_file}"
-    echo "    label = \"${c_name}\""  >> "${dot_file}"
-    echo "    color=dodgerblue"       >> "${dot_file}"
+    if [ ${is_component} = 1 ]; then
+	if [ -f "${c_dir}/bias_level" ]; then
+	    c_onoff=$(sed -n -e 1p "${c_dir}/bias_level" | awk '{print $1}')
+	    dbg_echo "   - bias_level: ${c_onoff}"
+	    if [ "$c_onoff" = "On" ]; then
+		c_attribs="${STYLE_COMPONENT_ON}"
+	    elif [ "$c_onoff" = "Off" ]; then
+		c_attribs="${STYLE_COMPONENT_OFF}"
+	    fi
+	fi
+
+	echo ""                           >> "${dot_file}"
+	echo "  subgraph \"${c_name}\" {" >> "${dot_file}"
+	echo "    cluster = true"         >> "${dot_file}"
+	echo "    label = \"${c_name}\""  >> "${dot_file}"
+	echo "    ${c_attribs}"           >> "${dot_file}"
+    fi
 
     # Create empty file to ensure it will exist in all cases
     >"${links_file}"
@@ -181,7 +205,9 @@ process_dapm_component()
 	process_dapm_widget "${tmp_dir}" "${c_name}" "${w_file}"
     done
 
-    echo "  }" >> "${dot_file}"
+    if [ ${is_component} = 1 ]; then
+	echo "  }" >> "${dot_file}"
+    fi
 
     cat "${links_file}" >> "${dot_file}"
 }
@@ -200,7 +226,7 @@ process_dapm_tree()
     echo "digraph G {" > "${dot_file}"
     echo "  fontname=\"sans-serif\"" >> "${dot_file}"
     echo "  node [fontname=\"sans-serif\"]" >> "${dot_file}"
-
+    echo "  edge [fontname=\"sans-serif\"]" >> "${dot_file}"
 
     # Process root directory (no component)
     process_dapm_component "${tmp_dir}" "${dapm_dir}/dapm" "ROOT"

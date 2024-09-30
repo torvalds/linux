@@ -6,7 +6,6 @@
  ******************************************************************************/
 
 #include <drv_types.h>
-#include <rtw_debug.h>
 #include <hal_com_h2c.h>
 
 static unsigned char ARTHEROS_OUI1[] = {0x00, 0x03, 0x7f};
@@ -333,7 +332,7 @@ inline unsigned long rtw_get_on_cur_ch_time(struct adapter *adapter)
 		return 0;
 }
 
-void SelectChannel(struct adapter *padapter, unsigned char channel)
+void r8723bs_select_channel(struct adapter *padapter, unsigned char channel)
 {
 	if (mutex_lock_interruptible(&(adapter_to_dvobj(padapter)->setch_mutex)))
 		return;

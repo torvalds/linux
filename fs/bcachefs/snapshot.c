@@ -469,6 +469,7 @@ static u32 bch2_snapshot_tree_oldest_subvol(struct bch_fs *c, u32 snapshot_root)
 	u32 id = snapshot_root;
 	u32 subvol = 0, s;
 
+	rcu_read_lock();
 	while (id) {
 		s = snapshot_t(c, id)->subvol;
 
@@ -477,6 +478,7 @@ static u32 bch2_snapshot_tree_oldest_subvol(struct bch_fs *c, u32 snapshot_root)
 
 		id = bch2_snapshot_tree_next(c, id);
 	}
+	rcu_read_unlock();
 
 	return subvol;
 }
@@ -1782,6 +1784,7 @@ static int bch2_propagate_key_to_snapshot_leaf(struct btree_trans *trans,
 	new->k.p.snapshot = leaf_id;
 	ret = bch2_trans_update(trans, &iter, new, 0);
 out:
+	bch2_set_btree_iter_dontneed(&iter);
 	bch2_trans_iter_exit(trans, &iter);
 	return ret;
 }

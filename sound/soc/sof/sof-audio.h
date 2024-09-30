@@ -314,12 +314,12 @@ struct sof_token_info {
 
 /**
  * struct snd_sof_pcm_stream_pipeline_list - List of pipelines associated with a PCM stream
- * @count: number of pipeline widgets in the @pipe_widgets array
  * @pipelines: array of pipelines
+ * @count: number of pipeline widgets in the @pipe_widgets array
  */
 struct snd_sof_pcm_stream_pipeline_list {
-	u32 count;
 	struct snd_sof_pipeline **pipelines;
+	u32 count;
 };
 
 /* PCM stream, mapped to FW component  */
@@ -347,12 +347,14 @@ struct snd_sof_pcm_stream {
 /* ALSA SOF PCM device */
 struct snd_sof_pcm {
 	struct snd_soc_component *scomp;
-	struct snd_soc_tplg_pcm pcm;
 	struct snd_sof_pcm_stream stream[2];
 	struct list_head list;	/* list in sdev pcm list */
 	struct snd_pcm_hw_params params[2];
 	bool prepared[2]; /* PCM_PARAMS set successfully */
 	bool pending_stop[2]; /* only used if (!pcm_ops->platform_stop_during_hw_free) */
+
+	/* Must be last - ends in a flex-array member. */
+	struct snd_soc_tplg_pcm pcm;
 };
 
 struct snd_sof_led_control {

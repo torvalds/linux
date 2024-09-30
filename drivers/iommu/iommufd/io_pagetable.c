@@ -8,17 +8,17 @@
  * The datastructure uses the iopt_pages to optimize the storage of the PFNs
  * between the domains and xarray.
  */
+#include <linux/err.h>
+#include <linux/errno.h>
+#include <linux/iommu.h>
 #include <linux/iommufd.h>
 #include <linux/lockdep.h>
-#include <linux/iommu.h>
 #include <linux/sched/mm.h>
-#include <linux/err.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
 #include <uapi/linux/iommufd.h>
 
-#include "io_pagetable.h"
 #include "double_span.h"
+#include "io_pagetable.h"
 
 struct iopt_pages_list {
 	struct iopt_pages *pages;
@@ -112,6 +112,7 @@ static int iopt_alloc_iova(struct io_pagetable *iopt, unsigned long *iova,
 	unsigned long page_offset = uptr % PAGE_SIZE;
 	struct interval_tree_double_span_iter used_span;
 	struct interval_tree_span_iter allowed_span;
+	unsigned long max_alignment = PAGE_SIZE;
 	unsigned long iova_alignment;
 
 	lockdep_assert_held(&iopt->iova_rwsem);
@@ -130,6 +131,13 @@ static int iopt_alloc_iova(struct io_pagetable *iopt, unsigned long *iova,
 		iova_alignment = min_t(unsigned long,
 				       roundup_pow_of_two(length),
 				       1UL << __ffs64(uptr));
+
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+	max_alignment = HPAGE_SIZE;
+#endif
+	/* Protect against ALIGN() overflow */
+	if (iova_alignment >= max_alignment)
+		iova_alignment = max_alignment;
 
 	if (iova_alignment < iopt->iova_alignment)
 		return -EINVAL;

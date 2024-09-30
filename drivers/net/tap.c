@@ -1162,7 +1162,6 @@ static const struct file_operations tap_fops = {
 	.read_iter	= tap_read_iter,
 	.write_iter	= tap_write_iter,
 	.poll		= tap_poll,
-	.llseek		= no_llseek,
 	.unlocked_ioctl	= tap_ioctl,
 	.compat_ioctl	= compat_ptr_ioctl,
 };

@@ -2281,24 +2281,39 @@ int c4iw_create_qp(struct ib_qp *qp, struct ib_qp_init_attr *attrs,
 		if (ret)
 			goto err_free_ma_sync_key;
 		sq_key_mm->key = uresp.sq_key;
-		sq_key_mm->addr = qhp->wq.sq.phys_addr;
+		sq_key_mm->addr = 0;
+		sq_key_mm->vaddr = qhp->wq.sq.queue;
+		sq_key_mm->dma_addr = qhp->wq.sq.dma_addr;
 		sq_key_mm->len = PAGE_ALIGN(qhp->wq.sq.memsize);
+		insert_flag_to_mmap(&rhp->rdev, sq_key_mm, sq_key_mm->addr);
 		insert_mmap(ucontext, sq_key_mm);
 		if (!attrs->srq) {
 			rq_key_mm->key = uresp.rq_key;
-			rq_key_mm->addr = virt_to_phys(qhp->wq.rq.queue);
+			rq_key_mm->addr = 0;
+			rq_key_mm->vaddr = qhp->wq.rq.queue;
+			rq_key_mm->dma_addr = qhp->wq.rq.dma_addr;
 			rq_key_mm->len = PAGE_ALIGN(qhp->wq.rq.memsize);
+			insert_flag_to_mmap(&rhp->rdev, rq_key_mm,
+					    rq_key_mm->addr);
 			insert_mmap(ucontext, rq_key_mm);
 		}
 		sq_db_key_mm->key = uresp.sq_db_gts_key;
 		sq_db_key_mm->addr = (u64)(unsigned long)qhp->wq.sq.bar2_pa;
+		sq_db_key_mm->vaddr = NULL;
+		sq_db_key_mm->dma_addr = 0;
 		sq_db_key_mm->len = PAGE_SIZE;
+		insert_flag_to_mmap(&rhp->rdev, sq_db_key_mm,
+				    sq_db_key_mm->addr);
 		insert_mmap(ucontext, sq_db_key_mm);
 		if (!attrs->srq) {
 			rq_db_key_mm->key = uresp.rq_db_gts_key;
 			rq_db_key_mm->addr =
 				(u64)(unsigned long)qhp->wq.rq.bar2_pa;
 			rq_db_key_mm->len = PAGE_SIZE;
+			rq_db_key_mm->vaddr = NULL;
+			rq_db_key_mm->dma_addr = 0;
+			insert_flag_to_mmap(&rhp->rdev, rq_db_key_mm,
+					    rq_db_key_mm->addr);
 			insert_mmap(ucontext, rq_db_key_mm);
 		}
 		if (ma_sync_key_mm) {
@@ -2307,6 +2322,10 @@ int c4iw_create_qp(struct ib_qp *qp, struct ib_qp_init_attr *attrs,
 				(pci_resource_start(rhp->rdev.lldi.pdev, 0) +
 				PCIE_MA_SYNC_A) & PAGE_MASK;
 			ma_sync_key_mm->len = PAGE_SIZE;
+			ma_sync_key_mm->vaddr = NULL;
+			ma_sync_key_mm->dma_addr = 0;
+			insert_flag_to_mmap(&rhp->rdev, ma_sync_key_mm,
+					    ma_sync_key_mm->addr);
 			insert_mmap(ucontext, ma_sync_key_mm);
 		}
 
@@ -2761,12 +2780,19 @@ int c4iw_create_srq(struct ib_srq *ib_srq, struct ib_srq_init_attr *attrs,
 		if (ret)
 			goto err_free_srq_db_key_mm;
 		srq_key_mm->key = uresp.srq_key;
-		srq_key_mm->addr = virt_to_phys(srq->wq.queue);
+		srq_key_mm->addr = 0;
 		srq_key_mm->len = PAGE_ALIGN(srq->wq.memsize);
+		srq_key_mm->vaddr = srq->wq.queue;
+		srq_key_mm->dma_addr = srq->wq.dma_addr;
+		insert_flag_to_mmap(&rhp->rdev, srq_key_mm, srq_key_mm->addr);
 		insert_mmap(ucontext, srq_key_mm);
 		srq_db_key_mm->key = uresp.srq_db_gts_key;
 		srq_db_key_mm->addr = (u64)(unsigned long)srq->wq.bar2_pa;
 		srq_db_key_mm->len = PAGE_SIZE;
+		srq_db_key_mm->vaddr = NULL;
+		srq_db_key_mm->dma_addr = 0;
+		insert_flag_to_mmap(&rhp->rdev, srq_db_key_mm,
+				    srq_db_key_mm->addr);
 		insert_mmap(ucontext, srq_db_key_mm);
 	}
 

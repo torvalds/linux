@@ -282,9 +282,9 @@ static inline bool cs35l56_is_otp_register(unsigned int reg)
 	return (reg >> 16) == 3;
 }
 
-extern struct regmap_config cs35l56_regmap_i2c;
-extern struct regmap_config cs35l56_regmap_spi;
-extern struct regmap_config cs35l56_regmap_sdw;
+extern const struct regmap_config cs35l56_regmap_i2c;
+extern const struct regmap_config cs35l56_regmap_spi;
+extern const struct regmap_config cs35l56_regmap_sdw;
 
 extern const struct cirrus_amp_cal_controls cs35l56_calibration_controls;
 

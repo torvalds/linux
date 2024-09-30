@@ -1397,14 +1397,23 @@ static ssize_t amdgpu_gfx_get_available_compute_partition(struct device *dev,
 static int amdgpu_gfx_run_cleaner_shader_job(struct amdgpu_ring *ring)
 {
 	struct amdgpu_device *adev = ring->adev;
-	long timeout = msecs_to_jiffies(1000);
-	struct dma_fence *f = NULL;
+	struct drm_gpu_scheduler *sched = &ring->sched;
+	struct drm_sched_entity entity;
+	struct dma_fence *f;
 	struct amdgpu_job *job;
 	struct amdgpu_ib *ib;
 	int i, r;
 
-	r = amdgpu_job_alloc_with_ib(adev, NULL, NULL,
-				     64, AMDGPU_IB_POOL_DIRECT,
+	/* Initialize the scheduler entity */
+	r = drm_sched_entity_init(&entity, DRM_SCHED_PRIORITY_NORMAL,
+				  &sched, 1, NULL);
+	if (r) {
+		dev_err(adev->dev, "Failed setting up GFX kernel entity.\n");
+		goto err;
+	}
+
+	r = amdgpu_job_alloc_with_ib(ring->adev, &entity, NULL,
+				     64, 0,
 				     &job);
 	if (r)
 		goto err;
@@ -1416,24 +1425,18 @@ static int amdgpu_gfx_run_cleaner_shader_job(struct amdgpu_ring *ring)
 		ib->ptr[i] = ring->funcs->nop;
 	ib->length_dw = ring->funcs->align_mask + 1;
 
-	r = amdgpu_job_submit_direct(job, ring, &f);
+	f = amdgpu_job_submit(job);
+
+	r = dma_fence_wait(f, false);
 	if (r)
-		goto err_free;
+		goto err;
 
-	r = dma_fence_wait_timeout(f, false, timeout);
-	if (r == 0)
-		r = -ETIMEDOUT;
-	else if (r > 0)
-		r = 0;
-
-	amdgpu_ib_free(adev, ib, f);
 	dma_fence_put(f);
 
+	/* Clean up the scheduler entity */
+	drm_sched_entity_destroy(&entity);
 	return 0;
 
-err_free:
-	amdgpu_job_free(job);
-	amdgpu_ib_free(adev, ib, f);
 err:
 	return r;
 }

@@ -102,8 +102,6 @@ properties:
       As described in IEEE Std 1275-1994, but must provide at least a
       definition of non-prefetchable memory. One or both of prefetchable Memory
       and IO Space may also be provided.
-    minItems: 1
-    maxItems: 3
 
   dma-coherent: true
   iommu-map: true

@@ -607,12 +607,8 @@ static int parse_group_terminal_block(struct snd_usb_midi2_ump *rmidi,
 		return 0;
 	}
 
-	if (ump->info.protocol && ump->info.protocol != protocol)
-		usb_audio_info(rmidi->umidi->chip,
-			       "Overriding preferred MIDI protocol in GTB %d: %x -> %x\n",
-			       rmidi->usb_block_id, ump->info.protocol,
-			       protocol);
-	ump->info.protocol = protocol;
+	if (!ump->info.protocol)
+		ump->info.protocol = protocol;
 
 	protocol_caps = protocol;
 	switch (desc->bMIDIProtocol) {
@@ -624,13 +620,7 @@ static int parse_group_terminal_block(struct snd_usb_midi2_ump *rmidi,
 		break;
 	}
 
-	if (ump->info.protocol_caps && ump->info.protocol_caps != protocol_caps)
-		usb_audio_info(rmidi->umidi->chip,
-			       "Overriding MIDI protocol caps in GTB %d: %x -> %x\n",
-			       rmidi->usb_block_id, ump->info.protocol_caps,
-			       protocol_caps);
-	ump->info.protocol_caps = protocol_caps;
-
+	ump->info.protocol_caps |= protocol_caps;
 	return 0;
 }
 
@@ -873,9 +863,25 @@ static int create_gtb_block(struct snd_usb_midi2_ump *rmidi, int dir, int blk)
 		fb->info.flags |= SNDRV_UMP_BLOCK_IS_MIDI1 |
 			SNDRV_UMP_BLOCK_IS_LOWSPEED;
 
+	/* if MIDI 2.0 protocol is supported and yet the GTB shows MIDI 1.0,
+	 * treat it as a MIDI 1.0-specific block
+	 */
+	if (rmidi->ump->info.protocol_caps & SNDRV_UMP_EP_INFO_PROTO_MIDI2) {
+		switch (desc->bMIDIProtocol) {
+		case USB_MS_MIDI_PROTO_1_0_64:
+		case USB_MS_MIDI_PROTO_1_0_64_JRTS:
+		case USB_MS_MIDI_PROTO_1_0_128:
+		case USB_MS_MIDI_PROTO_1_0_128_JRTS:
+			fb->info.flags |= SNDRV_UMP_BLOCK_IS_MIDI1;
+			break;
+		}
+	}
+
+	snd_ump_update_group_attrs(rmidi->ump);
+
 	usb_audio_dbg(umidi->chip,
-		      "Created a UMP block %d from GTB, name=%s\n",
-		      blk, fb->info.name);
+		      "Created a UMP block %d from GTB, name=%s, flags=0x%x\n",
+		      blk, fb->info.name, fb->info.flags);
 	return 0;
 }
 

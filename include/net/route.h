@@ -27,6 +27,7 @@
 #include <net/ip_fib.h>
 #include <net/arp.h>
 #include <net/ndisc.h>
+#include <net/inet_dscp.h>
 #include <linux/in_route.h>
 #include <linux/rtnetlink.h>
 #include <linux/rcupdate.h>
@@ -45,7 +46,7 @@ static inline __u8 ip_sock_rt_scope(const struct sock *sk)
 
 static inline __u8 ip_sock_rt_tos(const struct sock *sk)
 {
-	return RT_TOS(READ_ONCE(inet_sk(sk)->tos));
+	return READ_ONCE(inet_sk(sk)->tos) & INET_DSCP_MASK;
 }
 
 struct ip_tunnel_info;
@@ -264,8 +265,6 @@ static inline void ip_rt_put(struct rtable *rt)
 	BUILD_BUG_ON(offsetof(struct rtable, dst) != 0);
 	dst_release(&rt->dst);
 }
-
-#define IPTOS_RT_MASK	(IPTOS_TOS_MASK & ~3)
 
 extern const __u8 ip_tos2prio[16];
 

@@ -15,7 +15,7 @@
  * To explore any of the IUCV functions, one must first register their
  * program using iucv_register(). Once your program has successfully
  * completed a register, it can exploit the other functions.
- * For furthur reference on all IUCV functionality, refer to the
+ * For further reference on all IUCV functionality, refer to the
  * CP Programming Services book, also available on the web thru
  * www.vm.ibm.com/pubs, manual # SC24-6084
  *

@@ -16,6 +16,7 @@
 #include <linux/pm_opp.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
+#include <linux/sys_soc.h>
 
 #define REVISION_MASK				0xF
 #define REVISION_SHIFT				28
@@ -90,6 +91,9 @@ struct ti_cpufreq_soc_data {
 	unsigned long efuse_shift;
 	unsigned long rev_offset;
 	bool multi_regulator;
+/* Backward compatibility hack: Might have missing syscon */
+#define TI_QUIRK_SYSCON_MAY_BE_MISSING	0x1
+	u8 quirks;
 };
 
 struct ti_cpufreq_data {
@@ -254,6 +258,7 @@ static struct ti_cpufreq_soc_data omap34xx_soc_data = {
 	.efuse_mask = BIT(3),
 	.rev_offset = OMAP3_CONTROL_IDCODE - OMAP3_SYSCON_BASE,
 	.multi_regulator = false,
+	.quirks = TI_QUIRK_SYSCON_MAY_BE_MISSING,
 };
 
 /*
@@ -281,6 +286,7 @@ static struct ti_cpufreq_soc_data omap36xx_soc_data = {
 	.efuse_mask = BIT(9),
 	.rev_offset = OMAP3_CONTROL_IDCODE - OMAP3_SYSCON_BASE,
 	.multi_regulator = true,
+	.quirks = TI_QUIRK_SYSCON_MAY_BE_MISSING,
 };
 
 /*
@@ -295,6 +301,14 @@ static struct ti_cpufreq_soc_data am3517_soc_data = {
 	.efuse_mask = 0,
 	.rev_offset = OMAP3_CONTROL_IDCODE - OMAP3_SYSCON_BASE,
 	.multi_regulator = false,
+	.quirks = TI_QUIRK_SYSCON_MAY_BE_MISSING,
+};
+
+static const struct soc_device_attribute k3_cpufreq_soc[] = {
+	{ .family = "AM62X", .revision = "SR1.0" },
+	{ .family = "AM62AX", .revision = "SR1.0" },
+	{ .family = "AM62PX", .revision = "SR1.0" },
+	{ /* sentinel */ }
 };
 
 static struct ti_cpufreq_soc_data am625_soc_data = {
@@ -340,7 +354,7 @@ static int ti_cpufreq_get_efuse(struct ti_cpufreq_data *opp_data,
 
 	ret = regmap_read(opp_data->syscon, opp_data->soc_data->efuse_offset,
 			  &efuse);
-	if (ret == -EIO) {
+	if (opp_data->soc_data->quirks & TI_QUIRK_SYSCON_MAY_BE_MISSING && ret == -EIO) {
 		/* not a syscon register! */
 		void __iomem *regs = ioremap(OMAP3_SYSCON_BASE +
 				opp_data->soc_data->efuse_offset, 4);
@@ -378,10 +392,20 @@ static int ti_cpufreq_get_rev(struct ti_cpufreq_data *opp_data,
 	struct device *dev = opp_data->cpu_dev;
 	u32 revision;
 	int ret;
+	if (soc_device_match(k3_cpufreq_soc)) {
+		/*
+		 * Since the SR is 1.0, hard code the revision_value as
+		 * 0x1 here. This way we avoid re using the same register
+		 * that is giving us required information inside socinfo
+		 * anyway.
+		 */
+		*revision_value = 0x1;
+		goto done;
+	}
 
 	ret = regmap_read(opp_data->syscon, opp_data->soc_data->rev_offset,
 			  &revision);
-	if (ret == -EIO) {
+	if (opp_data->soc_data->quirks & TI_QUIRK_SYSCON_MAY_BE_MISSING && ret == -EIO) {
 		/* not a syscon register! */
 		void __iomem *regs = ioremap(OMAP3_SYSCON_BASE +
 				opp_data->soc_data->rev_offset, 4);
@@ -400,6 +424,7 @@ static int ti_cpufreq_get_rev(struct ti_cpufreq_data *opp_data,
 
 	*revision_value = BIT((revision >> REVISION_SHIFT) & REVISION_MASK);
 
+done:
 	return 0;
 }
 
@@ -419,7 +444,7 @@ static int ti_cpufreq_setup_syscon_register(struct ti_cpufreq_data *opp_data)
 	return 0;
 }
 
-static const struct of_device_id ti_cpufreq_of_match[] = {
+static const struct of_device_id ti_cpufreq_of_match[]  __maybe_unused = {
 	{ .compatible = "ti,am33xx", .data = &am3x_soc_data, },
 	{ .compatible = "ti,am3517", .data = &am3517_soc_data, },
 	{ .compatible = "ti,am43", .data = &am4x_soc_data, },

@@ -68,25 +68,25 @@ static const struct linear_range voutL1_xvd_ranges[] = {
 	REGULATOR_LINEAR_RANGE(220000, 0x6e, 0x7f, 0),
 };
 
-static struct linear_range voutS1_ocw_ranges_internal[] = {
+static const struct linear_range voutS1_ocw_ranges_internal[] = {
 	REGULATOR_LINEAR_RANGE(200000, 0x01, 0x04, 0),
 	REGULATOR_LINEAR_RANGE(250000, 0x05, 0x18, 50000),
 	REGULATOR_LINEAR_RANGE(1200000, 0x19, 0x3f, 0),
 };
 
-static struct linear_range voutS1_ocw_ranges[] = {
+static const struct linear_range voutS1_ocw_ranges[] = {
 	REGULATOR_LINEAR_RANGE(50000, 0x01, 0x04, 0),
 	REGULATOR_LINEAR_RANGE(60000, 0x05, 0x18, 10000),
 	REGULATOR_LINEAR_RANGE(250000, 0x19, 0x3f, 0),
 };
 
-static struct linear_range voutS1_ocp_ranges_internal[] = {
+static const struct linear_range voutS1_ocp_ranges_internal[] = {
 	REGULATOR_LINEAR_RANGE(300000, 0x01, 0x06, 0),
 	REGULATOR_LINEAR_RANGE(350000, 0x7, 0x1b, 50000),
 	REGULATOR_LINEAR_RANGE(1350000, 0x1c, 0x3f, 0),
 };
 
-static struct linear_range voutS1_ocp_ranges[] = {
+static const struct linear_range voutS1_ocp_ranges[] = {
 	REGULATOR_LINEAR_RANGE(70000, 0x01, 0x06, 0),
 	REGULATOR_LINEAR_RANGE(80000, 0x7, 0x1b, 10000),
 	REGULATOR_LINEAR_RANGE(280000, 0x1c, 0x3f, 0),

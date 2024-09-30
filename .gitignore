@@ -24,6 +24,7 @@
 *.dwo
 *.elf
 *.gcno
+*.gcda
 *.gz
 *.i
 *.ko
@@ -46,7 +47,6 @@
 *.so.dbg
 *.su
 *.symtypes
-*.symversions
 *.tab.[ch]
 *.tar
 *.xz
@@ -70,6 +70,7 @@ modules.order
 /Module.markers
 /modules.builtin
 /modules.builtin.modinfo
+/modules.builtin.ranges
 /modules.nsdeps
 
 #
@@ -142,7 +143,6 @@ GTAGS
 # id-utils files
 ID
 
-*.orig
 *~
 \#*#
 

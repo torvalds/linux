@@ -167,11 +167,23 @@ static void event_interrupt_poison_consumption_v9(struct kfd_node *dev,
 	case SOC15_IH_CLIENTID_SE3SH:
 	case SOC15_IH_CLIENTID_UTCL2:
 		block = AMDGPU_RAS_BLOCK__GFX;
-		if (amdgpu_ip_version(dev->adev, GC_HWIP, 0) == IP_VERSION(9, 4, 3) ||
-			amdgpu_ip_version(dev->adev, GC_HWIP, 0) == IP_VERSION(9, 4, 4))
-			reset = AMDGPU_RAS_GPU_RESET_MODE1_RESET;
-		else
+		if (amdgpu_ip_version(dev->adev, GC_HWIP, 0) == IP_VERSION(9, 4, 3)) {
+			/* driver mode-2 for gfx poison is only supported by
+			 * pmfw 0x00557300 and onwards */
+			if (dev->adev->pm.fw_version < 0x00557300)
+				reset = AMDGPU_RAS_GPU_RESET_MODE1_RESET;
+			else
+				reset = AMDGPU_RAS_GPU_RESET_MODE2_RESET;
+		} else if (amdgpu_ip_version(dev->adev, GC_HWIP, 0) == IP_VERSION(9, 4, 4)) {
+			/* driver mode-2 for gfx poison is only supported by
+			 * pmfw 0x05550C00 and onwards */
+			if (dev->adev->pm.fw_version < 0x05550C00)
+				reset = AMDGPU_RAS_GPU_RESET_MODE1_RESET;
+			else
+				reset = AMDGPU_RAS_GPU_RESET_MODE2_RESET;
+		} else {
 			reset = AMDGPU_RAS_GPU_RESET_MODE2_RESET;
+		}
 		break;
 	case SOC15_IH_CLIENTID_VMC:
 	case SOC15_IH_CLIENTID_VMC1:
@@ -184,11 +196,23 @@ static void event_interrupt_poison_consumption_v9(struct kfd_node *dev,
 	case SOC15_IH_CLIENTID_SDMA3:
 	case SOC15_IH_CLIENTID_SDMA4:
 		block = AMDGPU_RAS_BLOCK__SDMA;
-		if (amdgpu_ip_version(dev->adev, GC_HWIP, 0) == IP_VERSION(9, 4, 3) ||
-			amdgpu_ip_version(dev->adev, GC_HWIP, 0) == IP_VERSION(9, 4, 4))
-			reset = AMDGPU_RAS_GPU_RESET_MODE1_RESET;
-		else
+		if (amdgpu_ip_version(dev->adev, SDMA0_HWIP, 0) == IP_VERSION(4, 4, 2)) {
+			/* driver mode-2 for gfx poison is only supported by
+			 * pmfw 0x00557300 and onwards */
+			if (dev->adev->pm.fw_version < 0x00557300)
+				reset = AMDGPU_RAS_GPU_RESET_MODE1_RESET;
+			else
+				reset = AMDGPU_RAS_GPU_RESET_MODE2_RESET;
+		} else if (amdgpu_ip_version(dev->adev, SDMA0_HWIP, 0) == IP_VERSION(4, 4, 5)) {
+			/* driver mode-2 for gfx poison is only supported by
+			 * pmfw 0x05550C00 and onwards */
+			if (dev->adev->pm.fw_version < 0x05550C00)
+				reset = AMDGPU_RAS_GPU_RESET_MODE1_RESET;
+			else
+				reset = AMDGPU_RAS_GPU_RESET_MODE2_RESET;
+		} else {
 			reset = AMDGPU_RAS_GPU_RESET_MODE2_RESET;
+		}
 		break;
 	default:
 		dev_warn(dev->adev->dev,

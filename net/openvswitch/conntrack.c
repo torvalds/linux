@@ -1368,11 +1368,8 @@ bool ovs_ct_verify(struct net *net, enum ovs_key_attr attr)
 	    attr == OVS_KEY_ATTR_CT_MARK)
 		return true;
 	if (IS_ENABLED(CONFIG_NF_CONNTRACK_LABELS) &&
-	    attr == OVS_KEY_ATTR_CT_LABELS) {
-		struct ovs_net *ovs_net = net_generic(net, ovs_net_id);
-
-		return ovs_net->xt_label;
-	}
+	    attr == OVS_KEY_ATTR_CT_LABELS)
+		return true;
 
 	return false;
 }
@@ -1381,6 +1378,7 @@ int ovs_ct_copy_action(struct net *net, const struct nlattr *attr,
 		       const struct sw_flow_key *key,
 		       struct sw_flow_actions **sfa,  bool log)
 {
+	unsigned int n_bits = sizeof(struct ovs_key_ct_labels) * BITS_PER_BYTE;
 	struct ovs_conntrack_info ct_info;
 	const char *helper = NULL;
 	u16 family;
@@ -1407,6 +1405,12 @@ int ovs_ct_copy_action(struct net *net, const struct nlattr *attr,
 	if (!ct_info.ct) {
 		OVS_NLERR(log, "Failed to allocate conntrack template");
 		return -ENOMEM;
+	}
+
+	if (nf_connlabels_get(net, n_bits - 1)) {
+		nf_ct_tmpl_free(ct_info.ct);
+		OVS_NLERR(log, "Failed to set connlabel length");
+		return -EOPNOTSUPP;
 	}
 
 	if (ct_info.timeout[0]) {
@@ -1577,6 +1581,7 @@ static void __ovs_ct_free_action(struct ovs_conntrack_info *ct_info)
 	if (ct_info->ct) {
 		if (ct_info->timeout[0])
 			nf_ct_destroy_timeout(ct_info->ct);
+		nf_connlabels_put(nf_ct_net(ct_info->ct));
 		nf_ct_tmpl_free(ct_info->ct);
 	}
 }
@@ -1603,8 +1608,7 @@ static int ovs_ct_limit_init(struct net *net, struct ovs_net *ovs_net)
 	for (i = 0; i < CT_LIMIT_HASH_BUCKETS; i++)
 		INIT_HLIST_HEAD(&ovs_net->ct_limit_info->limits[i]);
 
-	ovs_net->ct_limit_info->data =
-		nf_conncount_init(net, NFPROTO_INET, sizeof(u32));
+	ovs_net->ct_limit_info->data = nf_conncount_init(net, sizeof(u32));
 
 	if (IS_ERR(ovs_net->ct_limit_info->data)) {
 		err = PTR_ERR(ovs_net->ct_limit_info->data);
@@ -1621,7 +1625,7 @@ static void ovs_ct_limit_exit(struct net *net, struct ovs_net *ovs_net)
 	const struct ovs_ct_limit_info *info = ovs_net->ct_limit_info;
 	int i;
 
-	nf_conncount_destroy(net, NFPROTO_INET, info->data);
+	nf_conncount_destroy(net, info->data);
 	for (i = 0; i < CT_LIMIT_HASH_BUCKETS; ++i) {
 		struct hlist_head *head = &info->limits[i];
 		struct ovs_ct_limit *ct_limit;
@@ -2002,17 +2006,9 @@ struct genl_family dp_ct_limit_genl_family __ro_after_init = {
 
 int ovs_ct_init(struct net *net)
 {
-	unsigned int n_bits = sizeof(struct ovs_key_ct_labels) * BITS_PER_BYTE;
+#if	IS_ENABLED(CONFIG_NETFILTER_CONNCOUNT)
 	struct ovs_net *ovs_net = net_generic(net, ovs_net_id);
 
-	if (nf_connlabels_get(net, n_bits - 1)) {
-		ovs_net->xt_label = false;
-		OVS_NLERR(true, "Failed to set connlabel length");
-	} else {
-		ovs_net->xt_label = true;
-	}
-
-#if	IS_ENABLED(CONFIG_NETFILTER_CONNCOUNT)
 	return ovs_ct_limit_init(net, ovs_net);
 #else
 	return 0;
@@ -2021,12 +2017,9 @@ int ovs_ct_init(struct net *net)
 
 void ovs_ct_exit(struct net *net)
 {
+#if	IS_ENABLED(CONFIG_NETFILTER_CONNCOUNT)
 	struct ovs_net *ovs_net = net_generic(net, ovs_net_id);
 
-#if	IS_ENABLED(CONFIG_NETFILTER_CONNCOUNT)
 	ovs_ct_limit_exit(net, ovs_net);
 #endif
-
-	if (ovs_net->xt_label)
-		nf_connlabels_put(net);
 }

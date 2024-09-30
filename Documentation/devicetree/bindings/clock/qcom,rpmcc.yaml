@@ -139,7 +139,7 @@ examples:
   - |
     rpm {
         rpm-requests {
-            compatible = "qcom,rpm-msm8916";
+            compatible = "qcom,rpm-msm8916", "qcom,smd-rpm";
             qcom,smd-channels = "rpm_requests";
 
             clock-controller {

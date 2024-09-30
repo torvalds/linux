@@ -94,8 +94,6 @@ static void aqua_vanjaram_set_xcp_id(struct amdgpu_device *adev,
 	case AMDGPU_RING_TYPE_VCN_ENC:
 	case AMDGPU_RING_TYPE_VCN_JPEG:
 		ip_blk = AMDGPU_XCP_VCN;
-		if (aqua_vanjaram_xcp_vcn_shared(adev))
-			inst_mask = 1 << (inst_idx * 2);
 		break;
 	default:
 		DRM_ERROR("Not support ring type %d!", ring->funcs->type);
@@ -105,6 +103,8 @@ static void aqua_vanjaram_set_xcp_id(struct amdgpu_device *adev,
 	for (xcp_id = 0; xcp_id < adev->xcp_mgr->num_xcps; xcp_id++) {
 		if (adev->xcp_mgr->xcp[xcp_id].ip[ip_blk].inst_mask & inst_mask) {
 			ring->xcp_id = xcp_id;
+			dev_dbg(adev->dev, "ring:%s xcp_id :%u", ring->name,
+				ring->xcp_id);
 			if (ring->funcs->type == AMDGPU_RING_TYPE_COMPUTE)
 				adev->gfx.enforce_isolation[xcp_id].xcp_id = xcp_id;
 			break;
@@ -394,38 +394,31 @@ static int __aqua_vanjaram_get_xcp_ip_info(struct amdgpu_xcp_mgr *xcp_mgr, int x
 				    struct amdgpu_xcp_ip *ip)
 {
 	struct amdgpu_device *adev = xcp_mgr->adev;
+	int num_sdma, num_vcn, num_shared_vcn, num_xcp;
 	int num_xcc_xcp, num_sdma_xcp, num_vcn_xcp;
-	int num_sdma, num_vcn;
 
 	num_sdma = adev->sdma.num_instances;
 	num_vcn = adev->vcn.num_vcn_inst;
+	num_shared_vcn = 1;
+
+	num_xcc_xcp = adev->gfx.num_xcc_per_xcp;
+	num_xcp = NUM_XCC(adev->gfx.xcc_mask) / num_xcc_xcp;
 
 	switch (xcp_mgr->mode) {
 	case AMDGPU_SPX_PARTITION_MODE:
-		num_sdma_xcp = num_sdma;
-		num_vcn_xcp = num_vcn;
-		break;
 	case AMDGPU_DPX_PARTITION_MODE:
-		num_sdma_xcp = num_sdma / 2;
-		num_vcn_xcp = num_vcn / 2;
-		break;
 	case AMDGPU_TPX_PARTITION_MODE:
-		num_sdma_xcp = num_sdma / 3;
-		num_vcn_xcp = num_vcn / 3;
-		break;
 	case AMDGPU_QPX_PARTITION_MODE:
-		num_sdma_xcp = num_sdma / 4;
-		num_vcn_xcp = num_vcn / 4;
-		break;
 	case AMDGPU_CPX_PARTITION_MODE:
-		num_sdma_xcp = 2;
-		num_vcn_xcp = num_vcn ? 1 : 0;
+		num_sdma_xcp = DIV_ROUND_UP(num_sdma, num_xcp);
+		num_vcn_xcp = DIV_ROUND_UP(num_vcn, num_xcp);
 		break;
 	default:
 		return -EINVAL;
 	}
 
-	num_xcc_xcp = adev->gfx.num_xcc_per_xcp;
+	if (num_vcn && num_xcp > num_vcn)
+		num_shared_vcn = num_xcp / num_vcn;
 
 	switch (ip_id) {
 	case AMDGPU_XCP_GFXHUB:
@@ -441,7 +434,8 @@ static int __aqua_vanjaram_get_xcp_ip_info(struct amdgpu_xcp_mgr *xcp_mgr, int x
 		ip->ip_funcs = &sdma_v4_4_2_xcp_funcs;
 		break;
 	case AMDGPU_XCP_VCN:
-		ip->inst_mask = XCP_INST_MASK(num_vcn_xcp, xcp_id);
+		ip->inst_mask =
+			XCP_INST_MASK(num_vcn_xcp, xcp_id / num_shared_vcn);
 		/* TODO : Assign IP funcs */
 		break;
 	default:

@@ -64,6 +64,7 @@ static void try_server_run(const char *tst_name, unsigned int port,
 		else
 			test_ok("%s: server alive", tst_name);
 	}
+	synchronize_threads(); /* 3: counters checks */
 	if (test_get_tcp_ao_counters(sk, &ao2))
 		test_error("test_get_tcp_ao_counters()");
 	after_cnt = netstat_get_one(cnt_name, NULL);
@@ -71,10 +72,10 @@ static void try_server_run(const char *tst_name, unsigned int port,
 	test_tcp_ao_counters_cmp(tst_name, &ao1, &ao2, cnt_expected);
 
 	if (after_cnt <= before_cnt) {
-		test_fail("%s: %s counter did not increase: %zu <= %zu",
+		test_fail("%s: %s counter did not increase: %" PRIu64 " <= %" PRIu64,
 				tst_name, cnt_name, after_cnt, before_cnt);
 	} else {
-		test_ok("%s: counter %s increased %zu => %zu",
+		test_ok("%s: counter %s increased %" PRIu64 " => %" PRIu64,
 			tst_name, cnt_name, before_cnt, after_cnt);
 	}
 
@@ -82,7 +83,7 @@ static void try_server_run(const char *tst_name, unsigned int port,
 	 * Before close() as that will send FIN and move the peer in TCP_CLOSE
 	 * and that will prevent reading AO counters from the peer's socket.
 	 */
-	synchronize_threads(); /* 3: verified => closed */
+	synchronize_threads(); /* 4: verified => closed */
 out:
 	close(sk);
 }
@@ -176,6 +177,7 @@ static void test_sk_restore(const char *tst_name, unsigned int server_port,
 		else
 			test_ok("%s: post-migrate connection is alive", tst_name);
 	}
+	synchronize_threads(); /* 3: counters checks */
 	if (test_get_tcp_ao_counters(sk, &ao2))
 		test_error("test_get_tcp_ao_counters()");
 	after_cnt = netstat_get_one(cnt_name, NULL);
@@ -183,13 +185,13 @@ static void test_sk_restore(const char *tst_name, unsigned int server_port,
 	test_tcp_ao_counters_cmp(tst_name, &ao1, &ao2, cnt_expected);
 
 	if (after_cnt <= before_cnt) {
-		test_fail("%s: %s counter did not increase: %zu <= %zu",
+		test_fail("%s: %s counter did not increase: %" PRIu64 " <= %" PRIu64,
 				tst_name, cnt_name, after_cnt, before_cnt);
 	} else {
-		test_ok("%s: counter %s increased %zu => %zu",
+		test_ok("%s: counter %s increased %" PRIu64 " => %" PRIu64,
 			tst_name, cnt_name, before_cnt, after_cnt);
 	}
-	synchronize_threads(); /* 3: verified => closed */
+	synchronize_threads(); /* 4: verified => closed */
 	close(sk);
 }
 
@@ -206,22 +208,36 @@ static void *client_fn(void *arg)
 
 	test_get_sk_checkpoint(port, &saddr, &tcp_img, &ao_img);
 	ao_img.snt_isn += 1;
+	trace_ao_event_expect(TCP_AO_MISMATCH, this_ip_addr, this_ip_dest,
+			      -1, port, 0, -1, -1, -1, -1, -1, 100, 100, -1);
+	trace_ao_event_expect(TCP_AO_MISMATCH, this_ip_dest, this_ip_addr,
+			      port, -1, 0, -1, -1, -1, -1, -1, 100, 100, -1);
 	test_sk_restore("TCP-AO with wrong send ISN", port++,
 			&saddr, &tcp_img, &ao_img, FAULT_TIMEOUT, TEST_CNT_BAD);
 
 	test_get_sk_checkpoint(port, &saddr, &tcp_img, &ao_img);
 	ao_img.rcv_isn += 1;
+	trace_ao_event_expect(TCP_AO_MISMATCH, this_ip_addr, this_ip_dest,
+			      -1, port, 0, -1, -1, -1, -1, -1, 100, 100, -1);
+	trace_ao_event_expect(TCP_AO_MISMATCH, this_ip_dest, this_ip_addr,
+			      port, -1, 0, -1, -1, -1, -1, -1, 100, 100, -1);
 	test_sk_restore("TCP-AO with wrong receive ISN", port++,
 			&saddr, &tcp_img, &ao_img, FAULT_TIMEOUT, TEST_CNT_BAD);
 
 	test_get_sk_checkpoint(port, &saddr, &tcp_img, &ao_img);
 	ao_img.snd_sne += 1;
+	trace_ao_event_expect(TCP_AO_MISMATCH, this_ip_addr, this_ip_dest,
+			      -1, port, 0, -1, -1, -1, -1, -1, 100, 100, -1);
+	/* not expecting server => client mismatches as only snd sne is broken */
 	test_sk_restore("TCP-AO with wrong send SEQ ext number", port++,
 			&saddr, &tcp_img, &ao_img, FAULT_TIMEOUT,
 			TEST_CNT_NS_BAD | TEST_CNT_GOOD);
 
 	test_get_sk_checkpoint(port, &saddr, &tcp_img, &ao_img);
 	ao_img.rcv_sne += 1;
+	/* not expecting client => server mismatches as only rcv sne is broken */
+	trace_ao_event_expect(TCP_AO_MISMATCH, this_ip_dest, this_ip_addr,
+			      port, -1, 0, -1, -1, -1, -1, -1, 100, 100, -1);
 	test_sk_restore("TCP-AO with wrong receive SEQ ext number", port++,
 			&saddr, &tcp_img, &ao_img, FAULT_TIMEOUT,
 			TEST_CNT_NS_GOOD | TEST_CNT_BAD);
@@ -231,6 +247,6 @@ static void *client_fn(void *arg)
 
 int main(int argc, char *argv[])
 {
-	test_init(20, server_fn, client_fn);
+	test_init(21, server_fn, client_fn);
 	return 0;
 }

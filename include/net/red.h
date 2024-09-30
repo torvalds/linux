@@ -40,7 +40,7 @@
 	max_P should be small (not 1), usually 0.01..0.02 is good value.
 
 	max_P is chosen as a number, so that max_P/(th_max-th_min)
-	is a negative power of two in order arithmetics to contain
+	is a negative power of two in order arithmetic to contain
 	only shifts.
 
 
@@ -159,7 +159,7 @@ static inline u32 red_maxp(u8 Plog)
 static inline void red_set_vars(struct red_vars *v)
 {
 	/* Reset average queue length, the value is strictly bound
-	 * to the parameters below, reseting hurts a bit but leaving
+	 * to the parameters below, resetting hurts a bit but leaving
 	 * it might result in an unreasonable qavg for a while. --TGR
 	 */
 	v->qavg		= 0;
@@ -340,7 +340,7 @@ static inline unsigned long red_calc_qavg_no_idle_time(const struct red_parms *p
 {
 	/*
 	 * NOTE: v->qavg is fixed point number with point at Wlog.
-	 * The formula below is equvalent to floating point
+	 * The formula below is equivalent to floating point
 	 * version:
 	 *
 	 * 	qavg = qavg*(1-W) + backlog*W;
@@ -375,7 +375,7 @@ static inline int red_mark_probability(const struct red_parms *p,
 	   OK. qR is random number in the interval
 		(0..1/max_P)*(qth_max-qth_min)
 	   i.e. 0..(2^Plog). If we used floating point
-	   arithmetics, it would be: (2^Plog)*rnd_num,
+	   arithmetic, it would be: (2^Plog)*rnd_num,
 	   where rnd_num is less 1.
 
 	   Taking into account, that qavg have fixed

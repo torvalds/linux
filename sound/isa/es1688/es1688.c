@@ -213,7 +213,7 @@ static int snd_card_es968_pnp(struct snd_card *card, unsigned int n,
 
 	error = pnp_activate_dev(pdev);
 	if (error < 0) {
-		snd_printk(KERN_ERR "ES968 pnp configure failure\n");
+		dev_err(card->dev, "ES968 pnp configure failure\n");
 		return error;
 	}
 	port[n] = pnp_port_start(pdev, 0);

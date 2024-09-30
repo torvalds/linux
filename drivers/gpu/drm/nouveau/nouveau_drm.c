@@ -1292,6 +1292,7 @@ nouveau_driver_fops = {
 	.compat_ioctl = nouveau_compat_ioctl,
 #endif
 	.llseek = noop_llseek,
+	.fop_flags = FOP_UNSIGNED_OFFSET,
 };
 
 static struct drm_driver

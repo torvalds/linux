@@ -1767,7 +1767,7 @@ bool dc_validate_boot_timing(const struct dc *dc,
 		if (crtc_timing->pix_clk_100hz != pix_clk_100hz)
 			return false;
 
-		if (!se->funcs->dp_get_pixel_format)
+		if (!se || !se->funcs->dp_get_pixel_format)
 			return false;
 
 		if (!se->funcs->dp_get_pixel_format(
@@ -2376,7 +2376,7 @@ static bool is_surface_in_context(
 	return false;
 }
 
-static enum surface_update_type get_plane_info_update_type(const struct dc_surface_update *u)
+static enum surface_update_type get_plane_info_update_type(const struct dc *dc, const struct dc_surface_update *u)
 {
 	union surface_update_flags *update_flags = &u->surface->update_flags;
 	enum surface_update_type update_type = UPDATE_TYPE_FAST;
@@ -2455,7 +2455,7 @@ static enum surface_update_type get_plane_info_update_type(const struct dc_surfa
 		/* todo: below are HW dependent, we should add a hook to
 		 * DCE/N resource and validated there.
 		 */
-		if (u->plane_info->tiling_info.gfx9.swizzle != DC_SW_LINEAR) {
+		if (!dc->debug.skip_full_updated_if_possible) {
 			/* swizzled mode requires RQ to be setup properly,
 			 * thus need to run DML to calculate RQ settings
 			 */
@@ -2547,7 +2547,7 @@ static enum surface_update_type det_surface_update(const struct dc *dc,
 
 	update_flags->raw = 0; // Reset all flags
 
-	type = get_plane_info_update_type(u);
+	type = get_plane_info_update_type(dc, u);
 	elevate_update_type(&overall_type, type);
 
 	type = get_scaling_info_update_type(dc, u);
@@ -2594,6 +2594,12 @@ static enum surface_update_type det_surface_update(const struct dc *dc,
 		if (u->hdr_mult.value != u->surface->hdr_mult.value) {
 			update_flags->bits.hdr_mult = 1;
 			elevate_update_type(&overall_type, UPDATE_TYPE_MED);
+		}
+
+	if (u->sdr_white_level_nits)
+		if (u->sdr_white_level_nits != u->surface->sdr_white_level_nits) {
+			update_flags->bits.sdr_white_level_nits = 1;
+			elevate_update_type(&overall_type, UPDATE_TYPE_FULL);
 		}
 
 	if (u->cm2_params) {
@@ -2875,6 +2881,10 @@ static void copy_surface_update_to_plane(
 	if (srf_update->hdr_mult.value)
 		surface->hdr_mult =
 				srf_update->hdr_mult;
+
+	if (srf_update->sdr_white_level_nits)
+		surface->sdr_white_level_nits =
+				srf_update->sdr_white_level_nits;
 
 	if (srf_update->blend_tf)
 		memcpy(&surface->blend_tf, srf_update->blend_tf,
@@ -4679,6 +4689,8 @@ static bool full_update_required(struct dc *dc,
 				srf_updates[i].scaling_info ||
 				(srf_updates[i].hdr_mult.value &&
 				srf_updates[i].hdr_mult.value != srf_updates->surface->hdr_mult.value) ||
+				(srf_updates[i].sdr_white_level_nits &&
+				srf_updates[i].sdr_white_level_nits != srf_updates->surface->sdr_white_level_nits) ||
 				srf_updates[i].in_transfer_func ||
 				srf_updates[i].func_shaper ||
 				srf_updates[i].lut3d_func ||
@@ -5741,6 +5753,27 @@ enum dc_status dc_process_dmub_set_mst_slots(const struct dc *dc,
 	}
 
 	return DC_OK;
+}
+
+/**
+ * dc_process_dmub_dpia_set_tps_notification - Submits tps notification
+ *
+ * @dc: [in] dc structure
+ * @link_index: [in] link index
+ * @tps: [in] request tps
+ *
+ * Submits set_tps_notification command to dmub via inbox message
+ */
+void dc_process_dmub_dpia_set_tps_notification(const struct dc *dc, uint32_t link_index, uint8_t tps)
+{
+	union dmub_rb_cmd cmd = {0};
+
+	cmd.set_tps_notification.header.type = DMUB_CMD__DPIA;
+	cmd.set_tps_notification.header.sub_type = DMUB_CMD__DPIA_SET_TPS_NOTIFICATION;
+	cmd.set_tps_notification.tps_notification.instance = dc->links[link_index]->ddc_hw_inst;
+	cmd.set_tps_notification.tps_notification.tps = tps;
+
+	dc_wake_and_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
 }
 
 /**

@@ -5,6 +5,7 @@
  * USB-C module to reduce wakeups due to contaminants.
  */
 
+#include <linux/bitfield.h>
 #include <linux/device.h>
 #include <linux/irqreturn.h>
 #include <linux/module.h>
@@ -45,14 +46,9 @@ enum fladc_select {
 #define READ1_SLEEP_MS			10
 #define READ2_SLEEP_MS			5
 
-#define STATUS_CHECK(reg, mask, val)	(((reg) & (mask)) == (val))
-
 #define IS_CC_OPEN(cc_status) \
-	(STATUS_CHECK((cc_status), TCPC_CC_STATUS_CC1_MASK << TCPC_CC_STATUS_CC1_SHIFT,  \
-		      TCPC_CC_STATE_SRC_OPEN) && STATUS_CHECK((cc_status),               \
-							      TCPC_CC_STATUS_CC2_MASK << \
-							      TCPC_CC_STATUS_CC2_SHIFT,  \
-							      TCPC_CC_STATE_SRC_OPEN))
+	(FIELD_GET(TCPC_CC_STATUS_CC1, cc_status) == TCPC_CC_STATE_SRC_OPEN \
+	 && FIELD_GET(TCPC_CC_STATUS_CC2, cc_status) == TCPC_CC_STATE_SRC_OPEN)
 
 static int max_contaminant_adc_to_mv(struct max_tcpci_chip *chip, enum fladc_select channel,
 				     bool ua_src, u8 fladc)
@@ -80,8 +76,8 @@ static int max_contaminant_read_adc_mv(struct max_tcpci_chip *chip, enum fladc_s
 	int ret;
 
 	/* Channel & scale select */
-	ret = regmap_update_bits(regmap, TCPC_VENDOR_ADC_CTRL1, ADCINSEL_MASK,
-				 channel << ADC_CHANNEL_OFFSET);
+	ret = regmap_update_bits(regmap, TCPC_VENDOR_ADC_CTRL1, ADCINSEL,
+				 FIELD_PREP(ADCINSEL, channel));
 	if (ret < 0)
 		return ret;
 
@@ -100,7 +96,8 @@ static int max_contaminant_read_adc_mv(struct max_tcpci_chip *chip, enum fladc_s
 	if (ret < 0)
 		return ret;
 
-	ret = regmap_update_bits(regmap, TCPC_VENDOR_ADC_CTRL1, ADCINSEL_MASK, 0);
+	ret = regmap_update_bits(regmap, TCPC_VENDOR_ADC_CTRL1, ADCINSEL,
+				 FIELD_PREP(ADCINSEL, 0));
 	if (ret < 0)
 		return ret;
 
@@ -120,13 +117,14 @@ static int max_contaminant_read_resistance_kohm(struct max_tcpci_chip *chip,
 	if (channel == CC1_SCALE1 || channel == CC2_SCALE1 || channel == CC1_SCALE2 ||
 	    channel == CC2_SCALE2) {
 		/* Enable 1uA current source */
-		ret = regmap_update_bits(regmap, TCPC_VENDOR_CC_CTRL2, CCLPMODESEL_MASK,
-					 ULTRA_LOW_POWER_MODE);
+		ret = regmap_update_bits(regmap, TCPC_VENDOR_CC_CTRL2, CCLPMODESEL,
+					 FIELD_PREP(CCLPMODESEL, ULTRA_LOW_POWER_MODE));
 		if (ret < 0)
 			return ret;
 
 		/* Enable 1uA current source */
-		ret = regmap_update_bits(regmap, TCPC_VENDOR_CC_CTRL2, CCRPCTRL_MASK, UA_1_SRC);
+		ret = regmap_update_bits(regmap, TCPC_VENDOR_CC_CTRL2, CCRPCTRL,
+					 FIELD_PREP(CCRPCTRL, UA_1_SRC));
 		if (ret < 0)
 			return ret;
 
@@ -180,7 +178,8 @@ static int max_contaminant_read_comparators(struct max_tcpci_chip *chip, u8 *ven
 	int ret;
 
 	/* Enable 80uA source */
-	ret = regmap_update_bits(regmap, TCPC_VENDOR_CC_CTRL2, CCRPCTRL_MASK, UA_80_SRC);
+	ret = regmap_update_bits(regmap, TCPC_VENDOR_CC_CTRL2, CCRPCTRL,
+				 FIELD_PREP(CCRPCTRL, UA_80_SRC));
 	if (ret < 0)
 		return ret;
 
@@ -213,7 +212,8 @@ static int max_contaminant_read_comparators(struct max_tcpci_chip *chip, u8 *ven
 	if (ret < 0)
 		return ret;
 
-	ret = regmap_update_bits(regmap, TCPC_VENDOR_CC_CTRL2, CCRPCTRL_MASK, 0);
+	ret = regmap_update_bits(regmap, TCPC_VENDOR_CC_CTRL2, CCRPCTRL,
+				 FIELD_PREP(CCRPCTRL, 0));
 	if (ret < 0)
 		return ret;
 
@@ -284,10 +284,11 @@ static int max_contaminant_enable_dry_detection(struct max_tcpci_chip *chip)
 	u8 temp;
 	int ret;
 
-	ret = regmap_update_bits(regmap, TCPC_VENDOR_CC_CTRL3, CCWTRDEB_MASK | CCWTRSEL_MASK
-				    | WTRCYCLE_MASK, CCWTRDEB_1MS << CCWTRDEB_SHIFT |
-				    CCWTRSEL_1V << CCWTRSEL_SHIFT | WTRCYCLE_4_8_S <<
-				    WTRCYCLE_SHIFT);
+	ret = regmap_update_bits(regmap, TCPC_VENDOR_CC_CTRL3,
+				 CCWTRDEB | CCWTRSEL | WTRCYCLE,
+				 FIELD_PREP(CCWTRDEB, CCWTRDEB_1MS)
+				 | FIELD_PREP(CCWTRSEL, CCWTRSEL_1V)
+				 | FIELD_PREP(WTRCYCLE, WTRCYCLE_4_8_S));
 	if (ret < 0)
 		return ret;
 
@@ -302,8 +303,9 @@ static int max_contaminant_enable_dry_detection(struct max_tcpci_chip *chip)
 	if (ret < 0)
 		return ret;
 
-	ret = regmap_update_bits(regmap, TCPC_VENDOR_CC_CTRL2, CCLPMODESEL_MASK,
-				 ULTRA_LOW_POWER_MODE);
+	ret = regmap_update_bits(regmap, TCPC_VENDOR_CC_CTRL2, CCLPMODESEL,
+				 FIELD_PREP(CCLPMODESEL,
+					    ULTRA_LOW_POWER_MODE));
 	if (ret < 0)
 		return ret;
 	ret = max_tcpci_read8(chip, TCPC_VENDOR_CC_CTRL2, &temp);
@@ -322,10 +324,13 @@ static int max_contaminant_enable_dry_detection(struct max_tcpci_chip *chip)
 	return 0;
 }
 
-bool max_contaminant_is_contaminant(struct max_tcpci_chip *chip, bool disconnect_while_debounce)
+bool max_contaminant_is_contaminant(struct max_tcpci_chip *chip, bool disconnect_while_debounce,
+				    bool *cc_handled)
 {
 	u8 cc_status, pwr_cntl;
 	int ret;
+
+	*cc_handled = true;
 
 	ret = max_tcpci_read8(chip, TCPC_CC_STATUS, &cc_status);
 	if (ret < 0)
@@ -368,9 +373,8 @@ bool max_contaminant_is_contaminant(struct max_tcpci_chip *chip, bool disconnect
 				return true;
 			}
 		}
-		return false;
 	} else if (chip->contaminant_state == DETECTED) {
-		if (STATUS_CHECK(cc_status, TCPC_CC_STATUS_TOGGLING, 0)) {
+		if (!(cc_status & TCPC_CC_STATUS_TOGGLING)) {
 			chip->contaminant_state = max_contaminant_detect_contaminant(chip);
 			if (chip->contaminant_state == DETECTED) {
 				max_contaminant_enable_dry_detection(chip);
@@ -379,6 +383,7 @@ bool max_contaminant_is_contaminant(struct max_tcpci_chip *chip, bool disconnect
 		}
 	}
 
+	*cc_handled = false;
 	return false;
 }
 
