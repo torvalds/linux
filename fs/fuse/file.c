@@ -483,6 +483,16 @@ static void fuse_wait_on_page_writeback(struct inode *inode, pgoff_t index)
 	wait_event(fi->page_waitq, !fuse_page_is_writeback(inode, index));
 }
 
+static void fuse_wait_on_folio_writeback(struct inode *inode,
+					 struct folio *folio)
+{
+	struct fuse_inode *fi = get_fuse_inode(inode);
+	pgoff_t last = folio_next_index(folio) - 1;
+
+	wait_event(fi->page_waitq,
+		   !fuse_range_is_writeback(inode, folio_index(folio), last));
+}
+
 /*
  * Wait for all pending writepages on the inode to finish.
  *
@@ -2558,17 +2568,17 @@ static void fuse_vma_close(struct vm_area_struct *vma)
  */
 static vm_fault_t fuse_page_mkwrite(struct vm_fault *vmf)
 {
-	struct page *page = vmf->page;
+	struct folio *folio = page_folio(vmf->page);
 	struct inode *inode = file_inode(vmf->vma->vm_file);
 
 	file_update_time(vmf->vma->vm_file);
-	lock_page(page);
-	if (page->mapping != inode->i_mapping) {
-		unlock_page(page);
+	folio_lock(folio);
+	if (folio->mapping != inode->i_mapping) {
+		folio_unlock(folio);
 		return VM_FAULT_NOPAGE;
 	}
 
-	fuse_wait_on_page_writeback(inode, page->index);
+	fuse_wait_on_folio_writeback(inode, folio);
 	return VM_FAULT_LOCKED;
 }
 
