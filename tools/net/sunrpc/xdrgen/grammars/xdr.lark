@@ -3,7 +3,7 @@
 
 declaration             : "opaque" identifier "[" value "]"            -> fixed_length_opaque
                         | "opaque" identifier "<" [ value ] ">"        -> variable_length_opaque
-                        | "string" identifier "<" [ value ] ">"        -> variable_length_string
+                        | "string" identifier "<" [ value ] ">"        -> string
                         | type_specifier identifier "[" value "]"      -> fixed_length_array
                         | type_specifier identifier "<" [ value ] ">"  -> variable_length_array
                         | type_specifier "*" identifier                -> optional_data

@@ -8,7 +8,7 @@ from jinja2 import Environment
 from generators import SourceGenerator, kernel_c_type
 from generators import create_jinja2_environment, get_jinja2_template
 
-from xdr_ast import _XdrBasic, _XdrTypedef, _XdrVariableLengthString
+from xdr_ast import _XdrBasic, _XdrTypedef, _XdrString
 from xdr_ast import _XdrFixedLengthOpaque, _XdrVariableLengthOpaque
 from xdr_ast import _XdrFixedLengthArray, _XdrVariableLengthArray
 from xdr_ast import _XdrOptionalData, _XdrVoid, _XdrDeclaration
@@ -28,7 +28,7 @@ def emit_typedef_declaration(environment: Environment, node: _XdrDeclaration) ->
                 classifier=node.spec.c_classifier,
             )
         )
-    elif isinstance(node, _XdrVariableLengthString):
+    elif isinstance(node, _XdrString):
         template = get_jinja2_template(environment, "declaration", node.template)
         print(template.render(name=node.name))
     elif isinstance(node, _XdrFixedLengthOpaque):
@@ -74,7 +74,7 @@ def emit_type_definition(environment: Environment, node: _XdrDeclaration) -> Non
                 classifier=node.spec.c_classifier,
             )
         )
-    elif isinstance(node, _XdrVariableLengthString):
+    elif isinstance(node, _XdrString):
         template = get_jinja2_template(environment, "definition", node.template)
         print(template.render(name=node.name))
     elif isinstance(node, _XdrFixedLengthOpaque):
@@ -119,7 +119,7 @@ def emit_typedef_decoder(environment: Environment, node: _XdrDeclaration) -> Non
                 type=node.spec.type_name,
             )
         )
-    elif isinstance(node, _XdrVariableLengthString):
+    elif isinstance(node, _XdrString):
         template = get_jinja2_template(environment, "decoder", node.template)
         print(
             template.render(
@@ -180,7 +180,7 @@ def emit_typedef_encoder(environment: Environment, node: _XdrDeclaration) -> Non
                 type=node.spec.type_name,
             )
         )
-    elif isinstance(node, _XdrVariableLengthString):
+    elif isinstance(node, _XdrString):
         template = get_jinja2_template(environment, "encoder", node.template)
         print(
             template.render(

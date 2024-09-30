@@ -88,12 +88,12 @@ class _XdrVariableLengthOpaque(_XdrDeclaration):
 
 
 @dataclass
-class _XdrVariableLengthString(_XdrDeclaration):
+class _XdrString(_XdrDeclaration):
     """A (NUL-terminated) variable-length string declaration"""
 
     name: str
     maxsize: str
-    template: str = "variable_length_string"
+    template: str = "string"
 
 
 @dataclass
@@ -350,15 +350,15 @@ class ParseToAst(Transformer):
 
         return _XdrVariableLengthOpaque(name, maxsize)
 
-    def variable_length_string(self, children):
-        """Instantiate one _XdrVariableLengthString declaration object"""
+    def string(self, children):
+        """Instantiate one _XdrString declaration object"""
         name = children[0].symbol
         if children[1] is not None:
             maxsize = children[1].value
         else:
             maxsize = "0"
 
-        return _XdrVariableLengthString(name, maxsize)
+        return _XdrString(name, maxsize)
 
     def fixed_length_array(self, children):
         """Instantiate one _XdrFixedLengthArray declaration object"""
