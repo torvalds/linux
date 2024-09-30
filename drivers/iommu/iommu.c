@@ -2216,8 +2216,8 @@ EXPORT_SYMBOL_GPL(iommu_attach_group);
 
 /**
  * iommu_group_replace_domain - replace the domain that a group is attached to
- * @new_domain: new IOMMU domain to replace with
  * @group: IOMMU group that will be attached to the new domain
+ * @new_domain: new IOMMU domain to replace with
  *
  * This API allows the group to switch domains without being forced to go to
  * the blocking domain in-between.
