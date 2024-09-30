@@ -3,12 +3,12 @@
  * Copyright 2021 Microsoft
  */
 
+#include <linux/aperture.h>
 #include <linux/efi.h>
 #include <linux/hyperv.h>
 #include <linux/module.h>
 #include <linux/pci.h>
 
-#include <drm/drm_aperture.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_client_setup.h>
 #include <drm/drm_drv.h>
@@ -126,7 +126,7 @@ static int hyperv_vmbus_probe(struct hv_device *hdev,
 		goto err_hv_set_drv_data;
 	}
 
-	drm_aperture_remove_framebuffers(&hyperv_driver);
+	aperture_remove_all_conflicting_devices(hyperv_driver.name);
 
 	ret = hyperv_setup_vram(hv, hdev);
 	if (ret)
