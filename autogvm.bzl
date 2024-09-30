@@ -73,7 +73,6 @@ def define_autogvm():
         "drivers/pinctrl/qcom/pinctrl-spmi-gpio.ko",
         "drivers/pinctrl/qcom/pinctrl-spmi-mpp.ko",
         "drivers/power/reset/msm-vm-poweroff.ko",
-        "drivers/regulator/debug-regulator.ko",
         "drivers/regulator/stub-regulator.ko",
         "drivers/regulator/virtio_regulator.ko",
         "drivers/remoteproc/rproc_qcom_common.ko",
