@@ -7596,6 +7596,8 @@ static void intel_atomic_commit_tail(struct intel_atomic_state *state)
 
 	intel_td_flush(dev_priv);
 
+	intel_atomic_prepare_plane_clear_colors(state);
+
 	drm_atomic_helper_wait_for_dependencies(&state->base);
 	drm_dp_mst_atomic_wait_for_dependencies(&state->base);
 	intel_atomic_global_state_wait_for_dependencies(state);
@@ -7628,8 +7630,6 @@ static void intel_atomic_commit_tail(struct intel_atomic_state *state)
 	 * skl_read_csc() and skl_color_commit_noarm()).
 	 */
 	wakeref = intel_display_power_get(dev_priv, POWER_DOMAIN_DC_OFF);
-
-	intel_atomic_prepare_plane_clear_colors(state);
 
 	for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state,
 					    new_crtc_state, i) {
