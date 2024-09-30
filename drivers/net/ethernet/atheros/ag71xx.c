@@ -1915,8 +1915,6 @@ static int ag71xx_probe(struct platform_device *pdev)
 	if (err)
 		return err;
 
-	platform_set_drvdata(pdev, ndev);
-
 	err = ag71xx_phylink_setup(ag);
 	if (err)
 		return dev_err_probe(&pdev->dev, err,
@@ -1925,7 +1923,6 @@ static int ag71xx_probe(struct platform_device *pdev)
 	err = devm_register_netdev(&pdev->dev, ndev);
 	if (err) {
 		netif_err(ag, probe, ndev, "unable to register net device\n");
-		platform_set_drvdata(pdev, NULL);
 		return err;
 	}
 
