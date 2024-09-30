@@ -728,6 +728,11 @@ static int do_one_pass(journal_t *journal,
 			continue;
 
 		case JBD2_COMMIT_BLOCK:
+			if (pass != PASS_SCAN) {
+				next_commit_ID++;
+				continue;
+			}
+
 			/*     How to differentiate between interrupted commit
 			 *               and journal corruption ?
 			 *
@@ -790,8 +795,7 @@ static int do_one_pass(journal_t *journal,
 			 * much to do other than move on to the next sequence
 			 * number.
 			 */
-			if (pass == PASS_SCAN &&
-			    jbd2_has_feature_checksum(journal)) {
+			if (jbd2_has_feature_checksum(journal)) {
 				struct commit_header *cbh =
 					(struct commit_header *)bh->b_data;
 				unsigned found_chksum =
@@ -815,34 +819,33 @@ static int do_one_pass(journal_t *journal,
 					goto chksum_error;
 
 				crc32_sum = ~0;
+				goto chksum_ok;
 			}
-			if (pass == PASS_SCAN &&
-			    !jbd2_commit_block_csum_verify(journal,
-							   bh->b_data)) {
-				if (jbd2_commit_block_csum_verify_partial(
-								  journal,
-								  bh->b_data)) {
-					pr_notice("JBD2: Find incomplete commit block in transaction %u block %lu\n",
-						  next_commit_ID, next_log_block);
-					goto chksum_ok;
-				}
-			chksum_error:
-				if (commit_time < last_trans_commit_time)
-					goto ignore_crc_mismatch;
-				info->end_transaction = next_commit_ID;
-				info->head_block = head_block;
 
-				if (!jbd2_has_feature_async_commit(journal)) {
-					journal->j_failed_commit =
-						next_commit_ID;
-					break;
-				}
+			if (jbd2_commit_block_csum_verify(journal, bh->b_data))
+				goto chksum_ok;
+
+			if (jbd2_commit_block_csum_verify_partial(journal,
+								  bh->b_data)) {
+				pr_notice("JBD2: Find incomplete commit block in transaction %u block %lu\n",
+					  next_commit_ID, next_log_block);
+				goto chksum_ok;
 			}
-			if (pass == PASS_SCAN) {
-			chksum_ok:
-				last_trans_commit_time = commit_time;
-				head_block = next_log_block;
+
+chksum_error:
+			if (commit_time < last_trans_commit_time)
+				goto ignore_crc_mismatch;
+			info->end_transaction = next_commit_ID;
+			info->head_block = head_block;
+
+			if (!jbd2_has_feature_async_commit(journal)) {
+				journal->j_failed_commit = next_commit_ID;
+				break;
 			}
+
+chksum_ok:
+			last_trans_commit_time = commit_time;
+			head_block = next_log_block;
 			next_commit_ID++;
 			continue;
 
