@@ -11,10 +11,10 @@
  *	Jianhua Li <lijianhua@huawei.com>
  */
 
+#include <linux/aperture.h>
 #include <linux/module.h>
 #include <linux/pci.h>
 
-#include <drm/drm_aperture.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_client_setup.h>
 #include <drm/drm_drv.h>
@@ -308,7 +308,7 @@ static int hibmc_pci_probe(struct pci_dev *pdev,
 	struct drm_device *dev;
 	int ret;
 
-	ret = drm_aperture_remove_conflicting_pci_framebuffers(pdev, &hibmc_driver);
+	ret = aperture_remove_conflicting_pci_devices(pdev, hibmc_driver.name);
 	if (ret)
 		return ret;
 
