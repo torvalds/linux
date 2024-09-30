@@ -106,7 +106,6 @@ extern int cifs_flush(struct file *, fl_owner_t id);
 extern int cifs_file_mmap(struct file *file, struct vm_area_struct *vma);
 extern int cifs_file_strict_mmap(struct file *file, struct vm_area_struct *vma);
 extern const struct file_operations cifs_dir_ops;
-extern int cifs_dir_open(struct inode *inode, struct file *file);
 extern int cifs_readdir(struct file *file, struct dir_context *ctx);
 
 /* Functions related to dir entries */
@@ -147,6 +146,6 @@ extern const struct export_operations cifs_export_ops;
 #endif /* CONFIG_CIFS_NFSD_EXPORT */
 
 /* when changing internal version - update following two lines at same time */
-#define SMB3_PRODUCT_BUILD 50
-#define CIFS_VERSION   "2.50"
+#define SMB3_PRODUCT_BUILD 51
+#define CIFS_VERSION   "2.51"
 #endif				/* _CIFSFS_H */

@@ -143,8 +143,8 @@ static int max11100_probe(struct spi_device *spi)
 }
 
 static const struct of_device_id max11100_ids[] = {
-	{.compatible = "maxim,max11100"},
-	{ },
+	{ .compatible = "maxim,max11100" },
+	{ }
 };
 MODULE_DEVICE_TABLE(of, max11100_ids);
 

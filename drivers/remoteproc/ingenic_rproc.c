@@ -183,8 +183,7 @@ static int ingenic_rproc_probe(struct platform_device *pdev)
 	vpu->dev = &pdev->dev;
 	platform_set_drvdata(pdev, vpu);
 
-	mem = platform_get_resource_byname(pdev, IORESOURCE_MEM, "aux");
-	vpu->aux_base = devm_ioremap_resource(dev, mem);
+	vpu->aux_base = devm_platform_ioremap_resource_byname(pdev, "aux");
 	if (IS_ERR(vpu->aux_base)) {
 		dev_err(dev, "Failed to ioremap\n");
 		return PTR_ERR(vpu->aux_base);

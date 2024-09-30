@@ -2978,7 +2978,6 @@ static void edge_port_remove(struct usb_serial_port *port)
 
 static struct usb_serial_driver edgeport_2port_device = {
 	.driver = {
-		.owner		= THIS_MODULE,
 		.name		= "edgeport_2",
 	},
 	.description		= "Edgeport 2 port adapter",
@@ -3013,7 +3012,6 @@ static struct usb_serial_driver edgeport_2port_device = {
 
 static struct usb_serial_driver edgeport_4port_device = {
 	.driver = {
-		.owner		= THIS_MODULE,
 		.name		= "edgeport_4",
 	},
 	.description		= "Edgeport 4 port adapter",
@@ -3048,7 +3046,6 @@ static struct usb_serial_driver edgeport_4port_device = {
 
 static struct usb_serial_driver edgeport_8port_device = {
 	.driver = {
-		.owner		= THIS_MODULE,
 		.name		= "edgeport_8",
 	},
 	.description		= "Edgeport 8 port adapter",
@@ -3083,7 +3080,6 @@ static struct usb_serial_driver edgeport_8port_device = {
 
 static struct usb_serial_driver epic_device = {
 	.driver = {
-		.owner		= THIS_MODULE,
 		.name		= "epic",
 	},
 	.description		= "EPiC device",

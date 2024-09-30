@@ -540,13 +540,13 @@ struct pid *pidfd_get_pid(unsigned int fd, unsigned int *flags)
 	struct pid *pid;
 
 	f = fdget(fd);
-	if (!f.file)
+	if (!fd_file(f))
 		return ERR_PTR(-EBADF);
 
-	pid = pidfd_pid(f.file);
+	pid = pidfd_pid(fd_file(f));
 	if (!IS_ERR(pid)) {
 		get_pid(pid);
-		*flags = f.file->f_flags;
+		*flags = fd_file(f)->f_flags;
 	}
 
 	fdput(f);
@@ -755,10 +755,10 @@ SYSCALL_DEFINE3(pidfd_getfd, int, pidfd, int, fd,
 		return -EINVAL;
 
 	f = fdget(pidfd);
-	if (!f.file)
+	if (!fd_file(f))
 		return -EBADF;
 
-	pid = pidfd_pid(f.file);
+	pid = pidfd_pid(fd_file(f));
 	if (IS_ERR(pid))
 		ret = PTR_ERR(pid);
 	else

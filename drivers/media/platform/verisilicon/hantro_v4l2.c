@@ -303,11 +303,7 @@ static int hantro_try_fmt(const struct hantro_ctx *ctx,
 
 	coded = capture == ctx->is_encoder;
 
-	vpu_debug(4, "trying format %c%c%c%c\n",
-		  (pix_mp->pixelformat & 0x7f),
-		  (pix_mp->pixelformat >> 8) & 0x7f,
-		  (pix_mp->pixelformat >> 16) & 0x7f,
-		  (pix_mp->pixelformat >> 24) & 0x7f);
+	vpu_debug(4, "trying format %p4cc\n", &pix_mp->pixelformat);
 
 	fmt = hantro_find_format(ctx, pix_mp->pixelformat);
 	if (!fmt) {

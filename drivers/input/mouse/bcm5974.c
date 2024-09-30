@@ -834,13 +834,11 @@ static int bcm5974_open(struct input_dev *input)
 	if (error)
 		return error;
 
-	mutex_lock(&dev->pm_mutex);
-
-	error = bcm5974_start_traffic(dev);
-	if (!error)
-		dev->opened = 1;
-
-	mutex_unlock(&dev->pm_mutex);
+	scoped_guard(mutex, &dev->pm_mutex) {
+		error = bcm5974_start_traffic(dev);
+		if (!error)
+			dev->opened = 1;
+	}
 
 	if (error)
 		usb_autopm_put_interface(dev->intf);
@@ -852,12 +850,10 @@ static void bcm5974_close(struct input_dev *input)
 {
 	struct bcm5974 *dev = input_get_drvdata(input);
 
-	mutex_lock(&dev->pm_mutex);
-
-	bcm5974_pause_traffic(dev);
-	dev->opened = 0;
-
-	mutex_unlock(&dev->pm_mutex);
+	scoped_guard(mutex, &dev->pm_mutex) {
+		bcm5974_pause_traffic(dev);
+		dev->opened = 0;
+	}
 
 	usb_autopm_put_interface(dev->intf);
 }
@@ -866,12 +862,10 @@ static int bcm5974_suspend(struct usb_interface *iface, pm_message_t message)
 {
 	struct bcm5974 *dev = usb_get_intfdata(iface);
 
-	mutex_lock(&dev->pm_mutex);
+	guard(mutex)(&dev->pm_mutex);
 
 	if (dev->opened)
 		bcm5974_pause_traffic(dev);
-
-	mutex_unlock(&dev->pm_mutex);
 
 	return 0;
 }
@@ -879,16 +873,13 @@ static int bcm5974_suspend(struct usb_interface *iface, pm_message_t message)
 static int bcm5974_resume(struct usb_interface *iface)
 {
 	struct bcm5974 *dev = usb_get_intfdata(iface);
-	int error = 0;
 
-	mutex_lock(&dev->pm_mutex);
+	guard(mutex)(&dev->pm_mutex);
 
 	if (dev->opened)
-		error = bcm5974_start_traffic(dev);
+		return bcm5974_start_traffic(dev);
 
-	mutex_unlock(&dev->pm_mutex);
-
-	return error;
+	return 0;
 }
 
 static int bcm5974_probe(struct usb_interface *iface,

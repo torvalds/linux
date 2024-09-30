@@ -60,7 +60,7 @@ static int test__thread_map(struct test_suite *test __maybe_unused, int subtest 
 	return 0;
 }
 
-static int process_event(struct perf_tool *tool __maybe_unused,
+static int process_event(const struct perf_tool *tool __maybe_unused,
 			 union perf_event *event,
 			 struct perf_sample *sample __maybe_unused,
 			 struct machine *machine __maybe_unused)

@@ -220,7 +220,8 @@ static inline struct bkey_i *__bch2_bkey_make_mut_noupdate(struct btree_trans *t
 	if (type && k.k->type != type)
 		return ERR_PTR(-ENOENT);
 
-	mut = bch2_trans_kmalloc_nomemzero(trans, bytes);
+	/* extra padding for varint_decode_fast... */
+	mut = bch2_trans_kmalloc_nomemzero(trans, bytes + 8);
 	if (!IS_ERR(mut)) {
 		bkey_reassemble(mut, k);
 

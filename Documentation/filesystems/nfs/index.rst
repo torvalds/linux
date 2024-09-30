@@ -8,6 +8,7 @@ NFS
 
    client-identifier
    exporting
+   localio
    pnfs
    rpc-cache
    rpc-server-gss

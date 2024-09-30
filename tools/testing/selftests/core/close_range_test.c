@@ -26,6 +26,10 @@
 #define F_DUPFD_QUERY (F_LINUX_SPECIFIC_BASE + 3)
 #endif
 
+#ifndef F_CREATED_QUERY
+#define F_CREATED_QUERY (F_LINUX_SPECIFIC_BASE + 4)
+#endif
+
 static inline int sys_close_range(unsigned int fd, unsigned int max_fd,
 				  unsigned int flags)
 {
@@ -622,6 +626,41 @@ TEST(close_range_bitmap_corruption)
 	EXPECT_EQ(waitpid(pid, &status, 0), pid);
 	EXPECT_EQ(true, WIFEXITED(status));
 	EXPECT_EQ(0, WEXITSTATUS(status));
+}
+
+TEST(fcntl_created)
+{
+	for (int i = 0; i < 101; i++) {
+		int fd;
+		char path[PATH_MAX];
+
+		fd = open("/dev/null", O_RDONLY | O_CLOEXEC);
+		ASSERT_GE(fd, 0) {
+			if (errno == ENOENT)
+				SKIP(return,
+					   "Skipping test since /dev/null does not exist");
+		}
+
+		/* We didn't create "/dev/null". */
+		EXPECT_EQ(fcntl(fd, F_CREATED_QUERY, 0), 0);
+		close(fd);
+
+		sprintf(path, "aaaa_%d", i);
+		fd = open(path, O_CREAT | O_RDONLY | O_CLOEXEC, 0600);
+		ASSERT_GE(fd, 0);
+
+		/* We created "aaaa_%d". */
+		EXPECT_EQ(fcntl(fd, F_CREATED_QUERY, 0), 1);
+		close(fd);
+
+		fd = open(path, O_RDONLY | O_CLOEXEC);
+		ASSERT_GE(fd, 0);
+
+		/* We're opening it again, so no positive creation check. */
+		EXPECT_EQ(fcntl(fd, F_CREATED_QUERY, 0), 0);
+		close(fd);
+		unlink(path);
+	}
 }
 
 TEST_HARNESS_MAIN

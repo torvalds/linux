@@ -255,7 +255,9 @@ int mmc_regulator_get_supply(struct mmc_host *mmc)
 
 	if (IS_ERR(mmc->supply.vmmc)) {
 		if (PTR_ERR(mmc->supply.vmmc) == -EPROBE_DEFER)
-			return -EPROBE_DEFER;
+			return dev_err_probe(dev, -EPROBE_DEFER,
+					     "vmmc regulator not available\n");
+
 		dev_dbg(dev, "No vmmc regulator found\n");
 	} else {
 		ret = mmc_regulator_get_ocrmask(mmc->supply.vmmc);
@@ -267,7 +269,9 @@ int mmc_regulator_get_supply(struct mmc_host *mmc)
 
 	if (IS_ERR(mmc->supply.vqmmc)) {
 		if (PTR_ERR(mmc->supply.vqmmc) == -EPROBE_DEFER)
-			return -EPROBE_DEFER;
+			return dev_err_probe(dev, -EPROBE_DEFER,
+					     "vqmmc regulator not available\n");
+
 		dev_dbg(dev, "No vqmmc regulator found\n");
 	}
 

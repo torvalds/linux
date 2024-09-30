@@ -1,0 +1,55 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/watchdog/ti,davinci-wdt.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: TI DaVinci/Keystone Watchdog Timer Controller
+
+maintainers:
+  - Kousik Sanagavarapu <five231003@gmail.com>
+
+description: |
+  TI's Watchdog Timer Controller for DaVinci and Keystone Processors.
+
+  Datasheets
+
+    Davinci DM646x - https://www.ti.com/lit/ug/spruer5b/spruer5b.pdf
+    Keystone - https://www.ti.com/lit/ug/sprugv5a/sprugv5a.pdf
+
+allOf:
+  - $ref: watchdog.yaml#
+
+properties:
+  compatible:
+    oneOf:
+      - items:
+          - const: ti,keystone-wdt
+          - const: ti,davinci-wdt
+      - items:
+          - const: ti,davinci-wdt
+
+  reg:
+    maxItems: 1
+
+  power-domains:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    wdt: watchdog@22f0080 {
+        compatible = "ti,keystone-wdt", "ti,davinci-wdt";
+        reg = <0x022f0080 0x80>;
+        clocks = <&clkwdtimer0>;
+    };
+
+...

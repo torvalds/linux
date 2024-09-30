@@ -219,8 +219,8 @@ static void free_pref(struct prelim_ref *ref)
  * A -1 return indicates ref1 is a 'lower' block than ref2, while 1
  * indicates a 'higher' block.
  */
-static int prelim_ref_compare(struct prelim_ref *ref1,
-			      struct prelim_ref *ref2)
+static int prelim_ref_compare(const struct prelim_ref *ref1,
+			      const struct prelim_ref *ref2)
 {
 	if (ref1->level < ref2->level)
 		return -1;
@@ -251,7 +251,7 @@ static int prelim_ref_compare(struct prelim_ref *ref1,
 }
 
 static void update_share_count(struct share_check *sc, int oldcount,
-			       int newcount, struct prelim_ref *newref)
+			       int newcount, const struct prelim_ref *newref)
 {
 	if ((!sc) || (oldcount == 0 && newcount < 1))
 		return;

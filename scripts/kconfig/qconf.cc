@@ -22,6 +22,7 @@
 
 #include <stdlib.h>
 
+#include <xalloc.h>
 #include "lkc.h"
 #include "qconf.h"
 
@@ -1094,7 +1095,6 @@ QString ConfigInfoView::debug_info(struct symbol *sym)
 		case P_RANGE:
 		case P_COMMENT:
 		case P_IMPLY:
-		case P_SYMBOL:
 			stream << prop_get_type_name(prop->type);
 			stream << ": ";
 			expr_print(prop->expr, expr_print_help,

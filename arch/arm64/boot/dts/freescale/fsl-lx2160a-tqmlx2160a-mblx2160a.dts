@@ -320,7 +320,7 @@
 		reg = <1>;
 		peer-hub = <&hub_3_0>;
 		reset-gpios = <&gpioex1 0 GPIO_ACTIVE_LOW>;
-		vcc-supply = <&reg_vcc3v3>;
+		vdd-supply = <&reg_vcc3v3>;
 	};
 
 	hub_3_0: hub@2 {
@@ -328,7 +328,7 @@
 		reg = <2>;
 		peer-hub = <&hub_2_0>;
 		reset-gpios = <&gpioex1 0 GPIO_ACTIVE_LOW>;
-		vcc-supply = <&reg_vcc3v3>;
+		vdd-supply = <&reg_vcc3v3>;
 	};
 };
 

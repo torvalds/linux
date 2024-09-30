@@ -69,7 +69,7 @@
  *
  * By design there should only be *one* "controlling" process. In practice
  * multiple write accesses gives unpredictable result. Understood by "write"
- * to /proc gives result code thats should be read be the "writer".
+ * to /proc gives result code that should be read be the "writer".
  * For practical use this should be no problem.
  *
  * Note when adding devices to a specific CPU there good idea to also assign
@@ -2371,11 +2371,11 @@ static void get_ipsec_sa(struct pktgen_dev *pkt_dev, int flow)
 
 		if (pkt_dev->spi) {
 			/* We need as quick as possible to find the right SA
-			 * Searching with minimum criteria to archieve this.
+			 * Searching with minimum criteria to achieve, this.
 			 */
 			x = xfrm_state_lookup_byspi(pn->net, htonl(pkt_dev->spi), AF_INET);
 		} else {
-			/* slow path: we dont already have xfrm_state */
+			/* slow path: we don't already have xfrm_state */
 			x = xfrm_stateonly_find(pn->net, DUMMY_MARK, 0,
 						(xfrm_address_t *)&pkt_dev->cur_daddr,
 						(xfrm_address_t *)&pkt_dev->cur_saddr,
@@ -3838,8 +3838,8 @@ static int pktgen_add_device(struct pktgen_thread *t, const char *ifname)
 	pkt_dev->ipsmode = XFRM_MODE_TRANSPORT;
 	pkt_dev->ipsproto = IPPROTO_ESP;
 
-	/* xfrm tunnel mode needs additional dst to extract outter
-	 * ip header protocol/ttl/id field, here creat a phony one.
+	/* xfrm tunnel mode needs additional dst to extract outer
+	 * ip header protocol/ttl/id field, here create a phony one.
 	 * instead of looking for a valid rt, which definitely hurting
 	 * performance under such circumstance.
 	 */

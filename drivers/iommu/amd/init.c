@@ -192,6 +192,8 @@ bool amdr_ivrs_remap_support __read_mostly;
 
 bool amd_iommu_force_isolation __read_mostly;
 
+unsigned long amd_iommu_pgsize_bitmap __ro_after_init = AMD_IOMMU_PGSIZES;
+
 /*
  * AMD IOMMU allows up to 2^16 different protection domains. This is a bitmap
  * to know which ones are already in use.
@@ -2042,14 +2044,12 @@ static int __init iommu_init_pci(struct amd_iommu *iommu)
 		int glxval;
 		u64 pasmax;
 
-		pasmax = amd_iommu_efr & FEATURE_PASID_MASK;
-		pasmax >>= FEATURE_PASID_SHIFT;
+		pasmax = FIELD_GET(FEATURE_PASMAX, amd_iommu_efr);
 		iommu->iommu.max_pasids = (1 << (pasmax + 1)) - 1;
 
 		BUG_ON(iommu->iommu.max_pasids & ~PASID_MASK);
 
-		glxval   = amd_iommu_efr & FEATURE_GLXVAL_MASK;
-		glxval >>= FEATURE_GLXVAL_SHIFT;
+		glxval = FIELD_GET(FEATURE_GLX, amd_iommu_efr);
 
 		if (amd_iommu_max_glx_val == -1)
 			amd_iommu_max_glx_val = glxval;
@@ -3088,7 +3088,7 @@ static int __init early_amd_iommu_init(void)
 
 	/* 5 level guest page table */
 	if (cpu_feature_enabled(X86_FEATURE_LA57) &&
-	    check_feature_gpt_level() == GUEST_PGTABLE_5_LEVEL)
+	    FIELD_GET(FEATURE_GATS, amd_iommu_efr) == GUEST_PGTABLE_5_LEVEL)
 		amd_iommu_gpt_level = PAGE_MODE_5_LEVEL;
 
 	/* Disable any previously enabled IOMMUs */
@@ -3494,6 +3494,12 @@ static int __init parse_amd_iommu_options(char *str)
 			amd_iommu_pgtable = AMD_IOMMU_V2;
 		} else if (strncmp(str, "irtcachedis", 11) == 0) {
 			amd_iommu_irtcachedis = true;
+		} else if (strncmp(str, "nohugepages", 11) == 0) {
+			pr_info("Restricting V1 page-sizes to 4KiB");
+			amd_iommu_pgsize_bitmap = AMD_IOMMU_PGSIZES_4K;
+		} else if (strncmp(str, "v2_pgsizes_only", 15) == 0) {
+			pr_info("Restricting V1 page-sizes to 4KiB/2MiB/1GiB");
+			amd_iommu_pgsize_bitmap = AMD_IOMMU_PGSIZES_V2;
 		} else {
 			pr_notice("Unknown option - '%s'\n", str);
 		}

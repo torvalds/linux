@@ -50,6 +50,7 @@ extern const struct ieee80211_ops rtw_ops;
 #define RTW_MAX_CHANNEL_NUM_5G 49
 
 struct rtw_dev;
+struct rtw_debugfs;
 
 enum rtw_hci_type {
 	RTW_HCI_TYPE_PCIE,
@@ -622,6 +623,7 @@ struct rtw_rx_pkt_stat {
 	bool crc_err;
 	bool decrypted;
 	bool is_c2h;
+	bool channel_invalid;
 
 	s32 signal_power;
 	u16 pkt_len;
@@ -740,7 +742,6 @@ struct rtw_txq {
 	unsigned long flags;
 };
 
-#define RTW_BC_MC_MACID 1
 DECLARE_EWMA(rssi, 10, 16);
 
 struct rtw_sta_info {
@@ -803,7 +804,7 @@ struct rtw_bf_info {
 struct rtw_vif {
 	enum rtw_net_type net_type;
 	u16 aid;
-	u8 mac_id; /* for STA mode only */
+	u8 mac_id;
 	u8 mac_addr[ETH_ALEN];
 	u8 bssid[ETH_ALEN];
 	u8 port;
@@ -1785,6 +1786,8 @@ struct rtw_efuse {
 	bool share_ant;
 	u8 bt_setting;
 
+	u8 usb_mode_switch;
+
 	struct {
 		u8 hci;
 		u8 bw;
@@ -2051,7 +2054,7 @@ struct rtw_dev {
 	bool beacon_loss;
 	struct completion lps_leave_check;
 
-	struct dentry *debugfs;
+	struct rtw_debugfs *debugfs;
 
 	u8 sta_cnt;
 	u32 rts_threshold;
@@ -2125,6 +2128,17 @@ static inline bool rtw_chip_has_rx_ldpc(struct rtw_dev *rtwdev)
 static inline bool rtw_chip_has_tx_stbc(struct rtw_dev *rtwdev)
 {
 	return rtwdev->chip->tx_stbc;
+}
+
+static inline u8 rtw_acquire_macid(struct rtw_dev *rtwdev)
+{
+	unsigned long mac_id;
+
+	mac_id = find_first_zero_bit(rtwdev->mac_id_map, RTW_MAX_MAC_ID_NUM);
+	if (mac_id < RTW_MAX_MAC_ID_NUM)
+		set_bit(mac_id, rtwdev->mac_id_map);
+
+	return mac_id;
 }
 
 static inline void rtw_release_macid(struct rtw_dev *rtwdev, u8 mac_id)

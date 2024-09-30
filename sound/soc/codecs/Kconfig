@@ -157,6 +157,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_MC13783
 	imply SND_SOC_ML26124
 	imply SND_SOC_MT6351
+	imply SND_SOC_MT6357
 	imply SND_SOC_MT6358
 	imply SND_SOC_MT6359
 	imply SND_SOC_MT6660
@@ -2500,6 +2501,12 @@ config SND_SOC_ML26124
 
 config SND_SOC_MT6351
 	tristate "MediaTek MT6351 Codec"
+
+config SND_SOC_MT6357
+	tristate "MediaTek MT6357 Codec"
+	help
+	  Enable support for the platform which uses MT6357 as
+	  external codec device.
 
 config SND_SOC_MT6358
 	tristate "MediaTek MT6358 Codec"

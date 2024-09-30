@@ -5,7 +5,7 @@
 
 /dts-v1/;
 #include <dt-bindings/pwm/pwm.h>
-#include "rk3399.dtsi"
+#include "rk3399-base.dtsi"
 
 / {
 	model = "Rockchip RK3399 Evaluation Board";

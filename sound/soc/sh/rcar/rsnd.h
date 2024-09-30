@@ -576,7 +576,6 @@ int rsnd_rdai_ssi_lane_ctrl(struct rsnd_dai *rdai,
 #define rsnd_rdai_width_get(rdai) \
 	rsnd_rdai_width_ctrl(rdai, 0)
 int rsnd_rdai_width_ctrl(struct rsnd_dai *rdai, int width);
-void rsnd_dai_period_elapsed(struct rsnd_dai_stream *io);
 int rsnd_dai_connect(struct rsnd_mod *mod,
 		     struct rsnd_dai_stream *io,
 		     enum rsnd_mod_type type);
@@ -871,15 +870,6 @@ void rsnd_cmd_remove(struct rsnd_priv *priv);
 int rsnd_cmd_attach(struct rsnd_dai_stream *io, int id);
 
 void rsnd_mod_make_sure(struct rsnd_mod *mod, enum rsnd_mod_type type);
-#ifdef DEBUG
-#define rsnd_mod_confirm_ssi(mssi)	rsnd_mod_make_sure(mssi, RSND_MOD_SSI)
-#define rsnd_mod_confirm_src(msrc)	rsnd_mod_make_sure(msrc, RSND_MOD_SRC)
-#define rsnd_mod_confirm_dvc(mdvc)	rsnd_mod_make_sure(mdvc, RSND_MOD_DVC)
-#else
-#define rsnd_mod_confirm_ssi(mssi)
-#define rsnd_mod_confirm_src(msrc)
-#define rsnd_mod_confirm_dvc(mdvc)
-#endif
 
 /*
  * If you don't need interrupt status debug message,

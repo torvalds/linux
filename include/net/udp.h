@@ -79,7 +79,8 @@ struct udp_table {
 extern struct udp_table udp_table;
 void udp_table_init(struct udp_table *, const char *);
 static inline struct udp_hslot *udp_hashslot(struct udp_table *table,
-					     struct net *net, unsigned int num)
+					     const struct net *net,
+					     unsigned int num)
 {
 	return &table->hash[udp_hashfn(net, num, table->mask)];
 }
@@ -231,7 +232,7 @@ static inline __be16 udp_flow_src_port(struct net *net, struct sk_buff *skb,
 	}
 
 	/* Since this is being sent on the wire obfuscate hash a bit
-	 * to minimize possbility that any useful information to an
+	 * to minimize possibility that any useful information to an
 	 * attacker is leaked. Only upper 16 bits are relevant in the
 	 * computation for 16 bit port value.
 	 */
@@ -245,7 +246,7 @@ static inline int udp_rqueue_get(struct sock *sk)
 	return sk_rmem_alloc_get(sk) - READ_ONCE(udp_sk(sk)->forward_deficit);
 }
 
-static inline bool udp_sk_bound_dev_eq(struct net *net, int bound_dev_if,
+static inline bool udp_sk_bound_dev_eq(const struct net *net, int bound_dev_if,
 				       int dif, int sdif)
 {
 #if IS_ENABLED(CONFIG_NET_L3_MASTER_DEV)
@@ -296,18 +297,19 @@ int udp_lib_getsockopt(struct sock *sk, int level, int optname,
 int udp_lib_setsockopt(struct sock *sk, int level, int optname,
 		       sockptr_t optval, unsigned int optlen,
 		       int (*push_pending_frames)(struct sock *));
-struct sock *udp4_lib_lookup(struct net *net, __be32 saddr, __be16 sport,
+struct sock *udp4_lib_lookup(const struct net *net, __be32 saddr, __be16 sport,
 			     __be32 daddr, __be16 dport, int dif);
-struct sock *__udp4_lib_lookup(struct net *net, __be32 saddr, __be16 sport,
+struct sock *__udp4_lib_lookup(const struct net *net, __be32 saddr,
+			       __be16 sport,
 			       __be32 daddr, __be16 dport, int dif, int sdif,
 			       struct udp_table *tbl, struct sk_buff *skb);
 struct sock *udp4_lib_lookup_skb(const struct sk_buff *skb,
 				 __be16 sport, __be16 dport);
-struct sock *udp6_lib_lookup(struct net *net,
+struct sock *udp6_lib_lookup(const struct net *net,
 			     const struct in6_addr *saddr, __be16 sport,
 			     const struct in6_addr *daddr, __be16 dport,
 			     int dif);
-struct sock *__udp6_lib_lookup(struct net *net,
+struct sock *__udp6_lib_lookup(const struct net *net,
 			       const struct in6_addr *saddr, __be16 sport,
 			       const struct in6_addr *daddr, __be16 dport,
 			       int dif, int sdif, struct udp_table *tbl,

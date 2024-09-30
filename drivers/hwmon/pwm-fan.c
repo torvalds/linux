@@ -167,7 +167,7 @@ disable_regulator:
 	return ret;
 }
 
-static int pwm_fan_power_off(struct pwm_fan_ctx *ctx)
+static int pwm_fan_power_off(struct pwm_fan_ctx *ctx, bool force_disable)
 {
 	struct pwm_state *state = &ctx->pwm_state;
 	bool enable_regulator = false;
@@ -180,7 +180,8 @@ static int pwm_fan_power_off(struct pwm_fan_ctx *ctx)
 				    state,
 				    &enable_regulator);
 
-	state->enabled = false;
+	if (force_disable)
+		state->enabled = false;
 	state->duty_cycle = 0;
 	ret = pwm_apply_might_sleep(ctx->pwm, state);
 	if (ret) {
@@ -213,7 +214,7 @@ static int  __set_pwm(struct pwm_fan_ctx *ctx, unsigned long pwm)
 			return ret;
 		ret = pwm_fan_power_on(ctx);
 	} else {
-		ret = pwm_fan_power_off(ctx);
+		ret = pwm_fan_power_off(ctx, false);
 	}
 	if (!ret)
 		ctx->pwm_value = pwm;
@@ -468,7 +469,7 @@ static void pwm_fan_cleanup(void *__ctx)
 	del_timer_sync(&ctx->rpm_timer);
 	/* Switch off everything */
 	ctx->enable_mode = pwm_disable_reg_disable;
-	pwm_fan_power_off(ctx);
+	pwm_fan_power_off(ctx, true);
 }
 
 static int pwm_fan_probe(struct platform_device *pdev)
@@ -661,7 +662,7 @@ static int pwm_fan_suspend(struct device *dev)
 {
 	struct pwm_fan_ctx *ctx = dev_get_drvdata(dev);
 
-	return pwm_fan_power_off(ctx);
+	return pwm_fan_power_off(ctx, true);
 }
 
 static int pwm_fan_resume(struct device *dev)

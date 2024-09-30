@@ -159,6 +159,43 @@ static void iwl_mvm_rx_esr_mode_notif(struct iwl_mvm *mvm,
 				  iwl_mvm_get_primary_link(vif));
 }
 
+static void iwl_mvm_rx_esr_trans_fail_notif(struct iwl_mvm *mvm,
+					    struct iwl_rx_cmd_buffer *rxb)
+{
+	struct iwl_rx_packet *pkt = rxb_addr(rxb);
+	struct iwl_esr_trans_fail_notif *notif = (void *)pkt->data;
+	struct ieee80211_vif *vif = iwl_mvm_get_bss_vif(mvm);
+	u8 fw_link_id = le32_to_cpu(notif->link_id);
+	struct ieee80211_bss_conf *bss_conf;
+
+	if (IS_ERR_OR_NULL(vif))
+		return;
+
+	IWL_DEBUG_INFO(mvm, "Failed to %s eSR on link %d, reason %d\n",
+		       le32_to_cpu(notif->activation) ? "enter" : "exit",
+		       le32_to_cpu(notif->link_id),
+		       le32_to_cpu(notif->err_code));
+
+	/* we couldn't go back to single link, disconnect */
+	if (!le32_to_cpu(notif->activation)) {
+		iwl_mvm_connection_loss(mvm, vif, "emlsr exit failed");
+		return;
+	}
+
+	bss_conf = iwl_mvm_rcu_fw_link_id_to_link_conf(mvm, fw_link_id, false);
+	if (IWL_FW_CHECK(mvm, !bss_conf,
+			 "FW reported failure to activate EMLSR on a non-existing link: %d\n",
+			 fw_link_id))
+		return;
+
+	/*
+	 * We failed to activate the second link and enter EMLSR, we need to go
+	 * back to single link.
+	 */
+	iwl_mvm_exit_esr(mvm, vif, IWL_MVM_ESR_EXIT_FAIL_ENTRY,
+			 bss_conf->link_id);
+}
+
 static void iwl_mvm_rx_monitor_notif(struct iwl_mvm *mvm,
 				     struct iwl_rx_cmd_buffer *rxb)
 {
@@ -261,6 +298,12 @@ static void iwl_mvm_rx_thermal_dual_chain_req(struct iwl_mvm *mvm,
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_thermal_dual_chain_request *req = (void *)pkt->data;
 
+	/* firmware is expected to handle that in RLC offload mode */
+	if (IWL_FW_CHECK(mvm, iwl_mvm_has_rlc_offload(mvm),
+			 "Got THERMAL_DUAL_CHAIN_REQUEST (0x%x) in RLC offload mode\n",
+			 req->event))
+		return;
+
 	/*
 	 * We could pass it to the iterator data, but also need to remember
 	 * it for new interfaces that are added while in this state.
@@ -325,7 +368,7 @@ struct iwl_rx_handlers {
  */
 static const struct iwl_rx_handlers iwl_mvm_rx_handlers[] = {
 	RX_HANDLER(TX_CMD, iwl_mvm_rx_tx_cmd, RX_HANDLER_SYNC,
-		   struct iwl_mvm_tx_resp),
+		   struct iwl_tx_resp),
 	RX_HANDLER(BA_NOTIF, iwl_mvm_rx_ba_notif, RX_HANDLER_SYNC,
 		   struct iwl_mvm_ba_notif),
 
@@ -333,9 +376,12 @@ static const struct iwl_rx_handlers iwl_mvm_rx_handlers[] = {
 		       iwl_mvm_tlc_update_notif, RX_HANDLER_SYNC,
 		       struct iwl_tlc_update_notif),
 
-	RX_HANDLER(BT_PROFILE_NOTIFICATION, iwl_mvm_rx_bt_coex_notif,
+	RX_HANDLER(BT_PROFILE_NOTIFICATION, iwl_mvm_rx_bt_coex_old_notif,
 		   RX_HANDLER_ASYNC_LOCKED_WIPHY,
-		   struct iwl_bt_coex_profile_notif),
+		   struct iwl_bt_coex_prof_old_notif),
+	RX_HANDLER_GRP(BT_COEX_GROUP, PROFILE_NOTIF, iwl_mvm_rx_bt_coex_notif,
+		       RX_HANDLER_ASYNC_LOCKED_WIPHY,
+		       struct iwl_bt_coex_profile_notif),
 	RX_HANDLER_NO_SIZE(BEACON_NOTIFICATION, iwl_mvm_rx_beacon_notif,
 			   RX_HANDLER_ASYNC_LOCKED),
 	RX_HANDLER_NO_SIZE(STATISTICS_NOTIFICATION, iwl_mvm_rx_statistics,
@@ -385,10 +431,15 @@ static const struct iwl_rx_handlers iwl_mvm_rx_handlers[] = {
 		   iwl_mvm_rx_umac_scan_iter_complete_notif, RX_HANDLER_SYNC,
 		   struct iwl_umac_scan_iter_complete_notif),
 
-	RX_HANDLER(MISSED_BEACONS_NOTIFICATION, iwl_mvm_rx_missed_beacons_notif,
+	RX_HANDLER(MISSED_BEACONS_NOTIFICATION,
+		   iwl_mvm_rx_missed_beacons_notif_legacy,
 		   RX_HANDLER_ASYNC_LOCKED_WIPHY,
-		   struct iwl_missed_beacons_notif),
+		   struct iwl_missed_beacons_notif_v4),
 
+	RX_HANDLER_GRP(MAC_CONF_GROUP, MISSED_BEACONS_NOTIF,
+		       iwl_mvm_rx_missed_beacons_notif,
+		       RX_HANDLER_ASYNC_LOCKED_WIPHY,
+		       struct iwl_missed_beacons_notif),
 	RX_HANDLER(REPLY_ERROR, iwl_mvm_rx_fw_error, RX_HANDLER_SYNC,
 		   struct iwl_error_resp),
 	RX_HANDLER(PSM_UAPSD_AP_MISBEHAVING_NOTIFICATION,
@@ -472,6 +523,10 @@ static const struct iwl_rx_handlers iwl_mvm_rx_handlers[] = {
 	RX_HANDLER_GRP(SCAN_GROUP, CHANNEL_SURVEY_NOTIF,
 		       iwl_mvm_rx_channel_survey_notif, RX_HANDLER_ASYNC_LOCKED,
 		       struct iwl_umac_scan_channel_survey_notif),
+	RX_HANDLER_GRP(MAC_CONF_GROUP, EMLSR_TRANS_FAIL_NOTIF,
+		       iwl_mvm_rx_esr_trans_fail_notif,
+		       RX_HANDLER_ASYNC_LOCKED_WIPHY,
+		       struct iwl_esr_trans_fail_notif),
 };
 #undef RX_HANDLER
 #undef RX_HANDLER_GRP
@@ -602,6 +657,7 @@ static const struct iwl_hcmd_names iwl_mvm_mac_conf_names[] = {
 	HCMD_NAME(STA_REMOVE_CMD),
 	HCMD_NAME(STA_DISABLE_TX_CMD),
 	HCMD_NAME(ROC_CMD),
+	HCMD_NAME(EMLSR_TRANS_FAIL_NOTIF),
 	HCMD_NAME(ROC_NOTIF),
 	HCMD_NAME(CHANNEL_SWITCH_ERROR_NOTIF),
 	HCMD_NAME(MISSED_VAP_NOTIF),
@@ -713,6 +769,13 @@ static const struct iwl_hcmd_names iwl_mvm_regulatory_and_nvm_names[] = {
 	HCMD_NAME(TAS_CONFIG),
 };
 
+/* Please keep this array *SORTED* by hex value.
+ * Access is done through binary search
+ */
+static const struct iwl_hcmd_names iwl_mvm_bt_coex_names[] = {
+	HCMD_NAME(PROFILE_NOTIF),
+};
+
 static const struct iwl_hcmd_arr iwl_mvm_groups[] = {
 	[LEGACY_GROUP] = HCMD_ARR(iwl_mvm_legacy_names),
 	[LONG_GROUP] = HCMD_ARR(iwl_mvm_legacy_names),
@@ -722,6 +785,7 @@ static const struct iwl_hcmd_arr iwl_mvm_groups[] = {
 	[DATA_PATH_GROUP] = HCMD_ARR(iwl_mvm_data_path_names),
 	[SCAN_GROUP] = HCMD_ARR(iwl_mvm_scan_names),
 	[LOCATION_GROUP] = HCMD_ARR(iwl_mvm_location_names),
+	[BT_COEX_GROUP] = HCMD_ARR(iwl_mvm_bt_coex_names),
 	[PROT_OFFLOAD_GROUP] = HCMD_ARR(iwl_mvm_prot_offload_names),
 	[REGULATORY_AND_NVM_GROUP] =
 		HCMD_ARR(iwl_mvm_regulatory_and_nvm_names),
@@ -1223,12 +1287,12 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	struct iwl_mvm_csme_conn_info *csme_conn_info __maybe_unused;
 
 	/*
-	 * We use IWL_MVM_STATION_COUNT_MAX to check the validity of the station
+	 * We use IWL_STATION_COUNT_MAX to check the validity of the station
 	 * index all over the driver - check that its value corresponds to the
 	 * array size.
 	 */
 	BUILD_BUG_ON(ARRAY_SIZE(mvm->fw_id_to_mac_id) !=
-		     IWL_MVM_STATION_COUNT_MAX);
+		     IWL_STATION_COUNT_MAX);
 
 	/********************************
 	 * 1. Allocating and configuring HW data
@@ -1287,6 +1351,7 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	}
 
 	mvm->fw_restart = iwlwifi_mod_params.fw_restart ? -1 : 0;
+	mvm->bios_enable_puncturing = iwl_uefi_get_puncturing(&mvm->fwrt);
 
 	if (iwl_mvm_has_new_tx_api(mvm)) {
 		/*
@@ -1385,10 +1450,6 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 
 	trans_cfg.cb_data_offs = offsetof(struct ieee80211_tx_info,
 					  driver_data[2]);
-
-	/* Set a short watchdog for the command queue */
-	trans_cfg.cmd_q_wdg_timeout =
-		iwl_mvm_get_wd_timeout(mvm, NULL, false, true);
 
 	snprintf(mvm->hw->wiphy->fw_version,
 		 sizeof(mvm->hw->wiphy->fw_version),
@@ -2094,6 +2155,7 @@ static void iwl_op_mode_mvm_time_point(struct iwl_op_mode *op_mode,
 	iwl_dbg_tlv_time_point(&mvm->fwrt, tp_id, tp_data);
 }
 
+#ifdef CONFIG_PM_SLEEP
 static void iwl_op_mode_mvm_device_powered_off(struct iwl_op_mode *op_mode)
 {
 	struct iwl_mvm *mvm = IWL_OP_MODE_GET_MVM(op_mode);
@@ -2102,11 +2164,13 @@ static void iwl_op_mode_mvm_device_powered_off(struct iwl_op_mode *op_mode)
 	clear_bit(IWL_MVM_STATUS_IN_D3, &mvm->status);
 	mvm->trans->system_pm_mode = IWL_PLAT_PM_MODE_DISABLED;
 	iwl_mvm_stop_device(mvm);
-#ifdef CONFIG_PM
 	mvm->fast_resume = false;
-#endif
 	mutex_unlock(&mvm->mutex);
 }
+#else
+static void iwl_op_mode_mvm_device_powered_off(struct iwl_op_mode *op_mode)
+{}
+#endif
 
 #define IWL_MVM_COMMON_OPS					\
 	/* these could be differentiated */			\

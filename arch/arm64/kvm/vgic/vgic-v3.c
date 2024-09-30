@@ -292,6 +292,18 @@ void vgic_v3_enable(struct kvm_vcpu *vcpu)
 
 	/* Get the show on the road... */
 	vgic_v3->vgic_hcr = ICH_HCR_EN;
+}
+
+void vcpu_set_ich_hcr(struct kvm_vcpu *vcpu)
+{
+	struct vgic_v3_cpu_if *vgic_v3 = &vcpu->arch.vgic_cpu.vgic_v3;
+
+	/* Hide GICv3 sysreg if necessary */
+	if (!kvm_has_gicv3(vcpu->kvm)) {
+		vgic_v3->vgic_hcr |= ICH_HCR_TALL0 | ICH_HCR_TALL1 | ICH_HCR_TC;
+		return;
+	}
+
 	if (group0_trap)
 		vgic_v3->vgic_hcr |= ICH_HCR_TALL0;
 	if (group1_trap)

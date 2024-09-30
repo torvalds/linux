@@ -133,4 +133,29 @@ config SCHED_CORE
 	  which is the likely usage by Linux distributions, there should
 	  be no measurable impact on performance.
 
+config SCHED_CLASS_EXT
+	bool "Extensible Scheduling Class"
+	depends on BPF_SYSCALL && BPF_JIT && DEBUG_INFO_BTF
+	select STACKTRACE if STACKTRACE_SUPPORT
+	help
+	  This option enables a new scheduler class sched_ext (SCX), which
+	  allows scheduling policies to be implemented as BPF programs to
+	  achieve the following:
 
+	  - Ease of experimentation and exploration: Enabling rapid
+	    iteration of new scheduling policies.
+	  - Customization: Building application-specific schedulers which
+	    implement policies that are not applicable to general-purpose
+	    schedulers.
+	  - Rapid scheduler deployments: Non-disruptive swap outs of
+	    scheduling policies in production environments.
+
+	  sched_ext leverages BPF struct_ops feature to define a structure
+	  which exports function callbacks and flags to BPF programs that
+	  wish to implement scheduling policies. The struct_ops structure
+	  exported by sched_ext is struct sched_ext_ops, and is conceptually
+	  similar to struct sched_class.
+
+	  For more information:
+	    Documentation/scheduler/sched-ext.rst
+	    https://github.com/sched-ext/scx

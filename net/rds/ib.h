@@ -369,9 +369,6 @@ int rds_ib_conn_alloc(struct rds_connection *conn, gfp_t gfp);
 void rds_ib_conn_free(void *arg);
 int rds_ib_conn_path_connect(struct rds_conn_path *cp);
 void rds_ib_conn_path_shutdown(struct rds_conn_path *cp);
-void rds_ib_state_change(struct sock *sk);
-int rds_ib_listen_init(void);
-void rds_ib_listen_stop(void);
 __printf(2, 3)
 void __rds_ib_conn_error(struct rds_connection *conn, const char *, ...);
 int rds_ib_cm_handle_connect(struct rdma_cm_id *cm_id,
@@ -402,7 +399,6 @@ void rds_ib_inc_free(struct rds_incoming *inc);
 int rds_ib_inc_copy_to_user(struct rds_incoming *inc, struct iov_iter *to);
 void rds_ib_recv_cqe_handler(struct rds_ib_connection *ic, struct ib_wc *wc,
 			     struct rds_ib_ack_state *state);
-void rds_ib_recv_tasklet_fn(unsigned long data);
 void rds_ib_recv_init_ring(struct rds_ib_connection *ic);
 void rds_ib_recv_clear_ring(struct rds_ib_connection *ic);
 void rds_ib_recv_init_ack(struct rds_ib_connection *ic);

@@ -694,7 +694,6 @@ static const struct file_operations evtchn_fops = {
 	.fasync  = evtchn_fasync,
 	.open    = evtchn_open,
 	.release = evtchn_release,
-	.llseek	 = no_llseek,
 };
 
 static struct miscdevice evtchn_miscdev = {

@@ -114,37 +114,23 @@ static void vnet_get_strings(struct net_device *dev, u32 stringset, u8 *buf)
 {
 	struct vnet *vp = (struct vnet *)netdev_priv(dev);
 	struct vnet_port *port;
-	char *p = (char *)buf;
 
 	switch (stringset) {
 	case ETH_SS_STATS:
 		memcpy(buf, &ethtool_stats_keys, sizeof(ethtool_stats_keys));
-		p += sizeof(ethtool_stats_keys);
+		buf += sizeof(ethtool_stats_keys);
 
 		rcu_read_lock();
 		list_for_each_entry_rcu(port, &vp->port_list, list) {
-			snprintf(p, ETH_GSTRING_LEN, "p%u.%s-%pM",
-				 port->q_index, port->switch_port ? "s" : "q",
-				 port->raddr);
-			p += ETH_GSTRING_LEN;
-			snprintf(p, ETH_GSTRING_LEN, "p%u.rx_packets",
-				 port->q_index);
-			p += ETH_GSTRING_LEN;
-			snprintf(p, ETH_GSTRING_LEN, "p%u.tx_packets",
-				 port->q_index);
-			p += ETH_GSTRING_LEN;
-			snprintf(p, ETH_GSTRING_LEN, "p%u.rx_bytes",
-				 port->q_index);
-			p += ETH_GSTRING_LEN;
-			snprintf(p, ETH_GSTRING_LEN, "p%u.tx_bytes",
-				 port->q_index);
-			p += ETH_GSTRING_LEN;
-			snprintf(p, ETH_GSTRING_LEN, "p%u.event_up",
-				 port->q_index);
-			p += ETH_GSTRING_LEN;
-			snprintf(p, ETH_GSTRING_LEN, "p%u.event_reset",
-				 port->q_index);
-			p += ETH_GSTRING_LEN;
+			ethtool_sprintf(&buf, "p%u.%s-%pM", port->q_index,
+					port->switch_port ? "s" : "q",
+					port->raddr);
+			ethtool_sprintf(&buf, "p%u.rx_packets", port->q_index);
+			ethtool_sprintf(&buf, "p%u.tx_packets", port->q_index);
+			ethtool_sprintf(&buf, "p%u.rx_bytes", port->q_index);
+			ethtool_sprintf(&buf, "p%u.tx_bytes", port->q_index);
+			ethtool_sprintf(&buf, "p%u.event_up", port->q_index);
+			ethtool_sprintf(&buf, "p%u.event_reset", port->q_index);
 		}
 		rcu_read_unlock();
 		break;

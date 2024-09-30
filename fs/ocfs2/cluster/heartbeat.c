@@ -1785,17 +1785,17 @@ static ssize_t o2hb_region_dev_store(struct config_item *item,
 		goto out;
 
 	f = fdget(fd);
-	if (f.file == NULL)
+	if (fd_file(f) == NULL)
 		goto out;
 
 	if (reg->hr_blocks == 0 || reg->hr_start_block == 0 ||
 	    reg->hr_block_bytes == 0)
 		goto out2;
 
-	if (!S_ISBLK(f.file->f_mapping->host->i_mode))
+	if (!S_ISBLK(fd_file(f)->f_mapping->host->i_mode))
 		goto out2;
 
-	reg->hr_bdev_file = bdev_file_open_by_dev(f.file->f_mapping->host->i_rdev,
+	reg->hr_bdev_file = bdev_file_open_by_dev(fd_file(f)->f_mapping->host->i_rdev,
 			BLK_OPEN_WRITE | BLK_OPEN_READ, NULL, NULL);
 	if (IS_ERR(reg->hr_bdev_file)) {
 		ret = PTR_ERR(reg->hr_bdev_file);

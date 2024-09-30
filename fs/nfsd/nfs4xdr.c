@@ -1246,14 +1246,6 @@ nfsd4_decode_putfh(struct nfsd4_compoundargs *argp, union nfsd4_op_u *u)
 }
 
 static __be32
-nfsd4_decode_putpubfh(struct nfsd4_compoundargs *argp, union nfsd4_op_u *p)
-{
-	if (argp->minorversion == 0)
-		return nfs_ok;
-	return nfserr_notsupp;
-}
-
-static __be32
 nfsd4_decode_read(struct nfsd4_compoundargs *argp, union nfsd4_op_u *u)
 {
 	struct nfsd4_read *read = &u->read;
@@ -2374,7 +2366,7 @@ static const nfsd4_dec nfsd4_dec_ops[] = {
 	[OP_OPEN_CONFIRM]	= nfsd4_decode_open_confirm,
 	[OP_OPEN_DOWNGRADE]	= nfsd4_decode_open_downgrade,
 	[OP_PUTFH]		= nfsd4_decode_putfh,
-	[OP_PUTPUBFH]		= nfsd4_decode_putpubfh,
+	[OP_PUTPUBFH]		= nfsd4_decode_noop,
 	[OP_PUTROOTFH]		= nfsd4_decode_noop,
 	[OP_READ]		= nfsd4_decode_read,
 	[OP_READDIR]		= nfsd4_decode_readdir,
@@ -5731,6 +5723,23 @@ __be32 nfsd4_check_resp_size(struct nfsd4_compoundres *resp, u32 respsize)
 	return nfserr_rep_too_big;
 }
 
+static __be32 nfsd4_map_status(__be32 status, u32 minor)
+{
+	switch (status) {
+	case nfs_ok:
+		break;
+	case nfserr_wrong_type:
+		/* RFC 8881 - 15.1.2.9 */
+		if (minor == 0)
+			status = nfserr_inval;
+		break;
+	case nfserr_symlink_not_dir:
+		status = nfserr_symlink;
+		break;
+	}
+	return status;
+}
+
 void
 nfsd4_encode_operation(struct nfsd4_compoundres *resp, struct nfsd4_op *op)
 {
@@ -5798,6 +5807,8 @@ nfsd4_encode_operation(struct nfsd4_compoundres *resp, struct nfsd4_op *op)
 						so->so_replay.rp_buf, len);
 	}
 status:
+	op->status = nfsd4_map_status(op->status,
+				      resp->cstate.minorversion);
 	*p = op->status;
 release:
 	if (opdesc && opdesc->op_release)

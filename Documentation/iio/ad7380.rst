@@ -1,0 +1,130 @@
+.. SPDX-License-Identifier: GPL-2.0-only
+
+=============
+AD7380 driver
+=============
+
+ADC driver for Analog Devices Inc. AD7380 and similar devices. The module name
+is ``ad7380``.
+
+
+Supported devices
+=================
+
+The following chips are supported by this driver:
+
+* `AD7380 <https://www.analog.com/en/products/ad7380.html>`_
+* `AD7381 <https://www.analog.com/en/products/ad7381.html>`_
+* `AD7383 <https://www.analog.com/en/products/ad7383.html>`_
+* `AD7384 <https://www.analog.com/en/products/ad7384.html>`_
+* `AD7386 <https://www.analog.com/en/products/ad7386.html>`_
+* `AD7387 <https://www.analog.com/en/products/ad7387.html>`_
+* `AD7388 <https://www.analog.com/en/products/ad7388.html>`_
+* `AD7380-4 <https://www.analog.com/en/products/ad7380-4.html>`_
+* `AD7381-4 <https://www.analog.com/en/products/ad7381-4.html>`_
+* `AD7383-4 <https://www.analog.com/en/products/ad7383-4.html>`_
+* `AD7384-4 <https://www.analog.com/en/products/ad7384-4.html>`_
+* `AD7386-4 <https://www.analog.com/en/products/ad7386-4.html>`_
+* `AD7387-4 <https://www.analog.com/en/products/ad7387-4.html>`_
+* `AD7388-4 <https://www.analog.com/en/products/ad7388-4.html>`_
+
+
+Supported features
+==================
+
+SPI wiring modes
+----------------
+
+ad738x ADCs can output data on several SDO lines (1/2/4). The driver currently
+supports only 1 SDO line.
+
+Reference voltage
+-----------------
+
+2 possible reference voltage sources are supported:
+
+- Internal reference (2.5V)
+- External reference (2.5V to 3.3V)
+
+The source is determined by the device tree. If ``refio-supply`` is present,
+then the external reference is used, else the internal reference is used.
+
+Oversampling and resolution boost
+---------------------------------
+
+This family supports 2 types of oversampling: normal average and rolling
+average. Only normal average is supported by the driver, as rolling average can
+be achieved by processing a captured data buffer. The following ratios are
+available: 1 (oversampling disabled)/2/4/8/16/32.
+
+When the on-chip oversampling function is enabled the performance of the ADC can
+exceed the default resolution. To accommodate the performance boost achievable,
+it is possible to enable an additional two bits of resolution. Because the
+resolution boost feature can only be enabled when oversampling is enabled and
+oversampling is not as useful without the resolution boost, the driver
+automatically enables the resolution boost if and only if oversampling is
+enabled.
+
+Since the resolution boost feature causes 16-bit chips to now have 18-bit data
+which means the storagebits has to change from 16 to 32 bits, we use the new
+ext_scan_type feature to allow changing the scan_type at runtime. Unfortunately
+libiio does not support it. So when enabling or disabling oversampling, user
+must restart iiod using the following command:
+
+.. code-block:: bash
+
+	root:~# systemctl restart iiod
+
+Channel selection and sequencer (single-end chips only)
+-------------------------------------------------------
+
+Single-ended chips of this family (ad7386/7/8(-4)) have a 2:1 multiplexer in
+front of each ADC. They also include additional configuration registers that
+allow for either manual selection or automatic switching (sequencer mode), of
+the multiplexer inputs.
+
+From an IIO point of view, all inputs are exported, i.e ad7386/7/8
+export 4 channels and ad7386-4/7-4/8-4 export 8 channels.
+
+Inputs ``AinX0`` of multiplexers correspond to the first half of IIO channels (i.e
+0-1 or 0-3) and inputs ``AinX1`` correspond to second half (i.e 2-3 or 4-7).
+Example for AD7386/7/8 (2 channels parts):
+
+.. code-block::
+
+	   IIO   | AD7386/7/8
+	         |         +----------------------------
+	         |         |     _____        ______
+	         |         |    |     |      |      |
+	voltage0 | AinA0 --|--->|     |      |      |
+	         |         |    | mux |----->| ADCA |---
+	voltage2 | AinA1 --|--->|     |      |      |
+	         |         |    |_____|      |_____ |
+	         |         |     _____        ______
+	         |         |    |     |      |      |
+	voltage1 | AinB0 --|--->|     |      |      |
+	         |         |    | mux |----->| ADCB |---
+	voltage3 | AinB1 --|--->|     |      |      |
+	         |         |    |_____|      |______|
+	         |         |
+	         |         +----------------------------
+
+
+When enabling sequencer mode, the effective sampling rate is divided by two.
+
+Unimplemented features
+----------------------
+
+- 2/4 SDO lines
+- Rolling average oversampling
+- Power down mode
+- CRC indication
+- Alert
+
+
+Device buffers
+==============
+
+This driver supports IIO triggered buffers.
+
+See :doc:`iio_devbuf` for more information.

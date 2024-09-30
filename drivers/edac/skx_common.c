@@ -363,7 +363,7 @@ int skx_get_dimm_info(u32 mtr, u32 mcmtr, u32 amap, struct dimm_info *dimm,
 	if (imc->hbm_mc) {
 		banks = 32;
 		mtype = MEM_HBM2;
-	} else if (cfg->support_ddr5 && (amap & 0x8)) {
+	} else if (cfg->support_ddr5) {
 		banks = 32;
 		mtype = MEM_DDR5;
 	} else {
@@ -738,6 +738,53 @@ void skx_remove(void)
 	}
 }
 EXPORT_SYMBOL_GPL(skx_remove);
+
+#ifdef CONFIG_EDAC_DEBUG
+/*
+ * Debug feature.
+ * Exercise the address decode logic by writing an address to
+ * /sys/kernel/debug/edac/{skx,i10nm}_test/addr.
+ */
+static struct dentry *skx_test;
+
+static int debugfs_u64_set(void *data, u64 val)
+{
+	struct mce m;
+
+	pr_warn_once("Fake error to 0x%llx injected via debugfs\n", val);
+
+	memset(&m, 0, sizeof(m));
+	/* ADDRV + MemRd + Unknown channel */
+	m.status = MCI_STATUS_ADDRV + 0x90;
+	/* One corrected error */
+	m.status |= BIT_ULL(MCI_STATUS_CEC_SHIFT);
+	m.addr = val;
+	skx_mce_check_error(NULL, 0, &m);
+
+	return 0;
+}
+DEFINE_SIMPLE_ATTRIBUTE(fops_u64_wo, NULL, debugfs_u64_set, "%llu\n");
+
+void skx_setup_debug(const char *name)
+{
+	skx_test = edac_debugfs_create_dir(name);
+	if (!skx_test)
+		return;
+
+	if (!edac_debugfs_create_file("addr", 0200, skx_test,
+				      NULL, &fops_u64_wo)) {
+		debugfs_remove(skx_test);
+		skx_test = NULL;
+	}
+}
+EXPORT_SYMBOL_GPL(skx_setup_debug);
+
+void skx_teardown_debug(void)
+{
+	debugfs_remove_recursive(skx_test);
+}
+EXPORT_SYMBOL_GPL(skx_teardown_debug);
+#endif /*CONFIG_EDAC_DEBUG*/
 
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Tony Luck");

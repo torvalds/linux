@@ -16,6 +16,7 @@ maintainers:
 
 allOf:
   - $ref: touchscreen.yaml#
+  - $ref: ../input.yaml#
 
 properties:
   $nodename:
@@ -78,6 +79,15 @@ properties:
       1 and 2. Mode 2 is the default and preferred.
     $ref: /schemas/types.yaml#/definitions/uint32
     enum: [1, 2]
+
+  linux,keycodes:
+    description:
+      This property specifies an array of keycodes assigned to the
+      touch-keys that can be present in some touchscreen configurations.
+      If the touch-keys are enabled, controller firmware will assign some
+      touch sense lines to those keys.
+    minItems: 1
+    maxItems: 8
 
   touchscreen-size-x: true
   touchscreen-size-y: true

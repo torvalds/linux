@@ -109,6 +109,8 @@ static struct gmin_cfg_var lenovo_ideapad_miix_310_vars[] = {
 static struct gmin_cfg_var xiaomi_mipad2_vars[] = {
 	/* _DSM contains the wrong CsiPort for the front facing OV5693 sensor */
 	{ "INT33BE:00", "CsiPort", "0" },
+	/* _DSM contains the wrong CsiLanes for the back facing T4KA3 sensor */
+	{ "XMCC0003:00", "CsiLanes", "4" },
 	{}
 };
 
