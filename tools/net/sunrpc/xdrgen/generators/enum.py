@@ -18,7 +18,7 @@ class XdrEnumGenerator(SourceGenerator):
     def emit_declaration(self, node: _XdrEnum) -> None:
         """Emit one declaration pair for an XDR enum type"""
         if node.name in public_apis:
-            template = self.environment.get_template("declaration/close.j2")
+            template = self.environment.get_template("declaration/enum.j2")
             print(template.render(name=node.name))
 
     def emit_definition(self, node: _XdrEnum) -> None:
