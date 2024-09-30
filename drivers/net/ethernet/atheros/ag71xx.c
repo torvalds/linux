@@ -1841,9 +1841,9 @@ static int ag71xx_probe(struct platform_device *pdev)
 		return PTR_ERR(ag->mac_reset);
 	}
 
-	ag->mac_base = devm_ioremap(&pdev->dev, res->start, resource_size(res));
-	if (!ag->mac_base)
-		return -ENOMEM;
+	ag->mac_base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(ag->mac_base))
+		return PTR_ERR(ag->mac_base);
 
 	/* ensure that HW is in manual polling mode before interrupts are
 	 * activated. Otherwise ag71xx_interrupt might call napi_schedule
