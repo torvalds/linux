@@ -263,13 +263,15 @@ static int io_alloc_hash_table(struct io_hash_table *table, unsigned bits)
 {
 	unsigned hash_buckets = 1U << bits;
 	size_t hash_size = hash_buckets * sizeof(table->hbs[0]);
+	int i;
 
 	table->hbs = kmalloc(hash_size, GFP_KERNEL);
 	if (!table->hbs)
 		return -ENOMEM;
 
 	table->hash_bits = bits;
-	init_hash_table(table, hash_buckets);
+	for (i = 0; i < hash_buckets; i++)
+		INIT_HLIST_HEAD(&table->hbs[i].list);
 	return 0;
 }
 
