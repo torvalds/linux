@@ -128,6 +128,12 @@ pre_commit_crtc_state(struct intel_atomic_state *state,
 		return old_crtc_state;
 }
 
+static int dsb_vblank_delay(const struct intel_crtc_state *crtc_state)
+{
+	return intel_mode_vblank_start(&crtc_state->hw.adjusted_mode) -
+		intel_mode_vdisplay(&crtc_state->hw.adjusted_mode);
+}
+
 static int dsb_vtotal(struct intel_atomic_state *state,
 		      struct intel_crtc *crtc)
 {
@@ -525,6 +531,31 @@ static u32 dsb_error_int_en(struct intel_display *display)
 		errors |= DSB_ATS_FAULT_INT_EN;
 
 	return errors;
+}
+
+void intel_dsb_vblank_evade(struct intel_atomic_state *state,
+			    struct intel_dsb *dsb)
+{
+	struct intel_crtc *crtc = dsb->crtc;
+	const struct intel_crtc_state *crtc_state = pre_commit_crtc_state(state, crtc);
+	/* FIXME calibrate sensibly */
+	int latency = intel_usecs_to_scanlines(&crtc_state->hw.adjusted_mode, 20);
+	int vblank_delay = dsb_vblank_delay(crtc_state);
+	int start, end;
+
+	if (pre_commit_is_vrr_active(state, crtc)) {
+		end = intel_vrr_vmin_vblank_start(crtc_state);
+		start = end - vblank_delay - latency;
+		intel_dsb_wait_scanline_out(state, dsb, start, end);
+
+		end = intel_vrr_vmax_vblank_start(crtc_state);
+		start = end - vblank_delay - latency;
+		intel_dsb_wait_scanline_out(state, dsb, start, end);
+	} else {
+		end = intel_mode_vblank_start(&crtc_state->hw.adjusted_mode);
+		start = end - vblank_delay - latency;
+		intel_dsb_wait_scanline_out(state, dsb, start, end);
+	}
 }
 
 static void _intel_dsb_chain(struct intel_atomic_state *state,
