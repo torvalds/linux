@@ -489,12 +489,11 @@ static __always_inline int jbd2_do_replay(journal_t *journal,
 					  struct recovery_info *info,
 					  struct buffer_head *bh,
 					  unsigned long *next_log_block,
-					  unsigned int next_commit_ID,
-					  int *success)
+					  unsigned int next_commit_ID)
 {
 	char *tagp;
 	int flags;
-	int err;
+	int ret = 0;
 	int tag_bytes = journal_tag_bytes(journal);
 	int descr_csum_size = 0;
 	unsigned long io_block;
@@ -508,6 +507,7 @@ static __always_inline int jbd2_do_replay(journal_t *journal,
 	tagp = &bh->b_data[sizeof(journal_header_t)];
 	while (tagp - bh->b_data + tag_bytes <=
 	       journal->j_blocksize - descr_csum_size) {
+		int err;
 
 		memcpy(&tag, tagp, sizeof(tag));
 		flags = be16_to_cpu(tag.t_flags);
@@ -517,7 +517,7 @@ static __always_inline int jbd2_do_replay(journal_t *journal,
 		err = jread(&obh, journal, io_block);
 		if (err) {
 			/* Recover what we can, but report failure at the end. */
-			*success = err;
+			ret = err;
 			pr_err("JBD2: IO error %d recovering block %lu in log\n",
 			      err, io_block);
 		} else {
@@ -539,7 +539,7 @@ static __always_inline int jbd2_do_replay(journal_t *journal,
 					(journal_block_tag3_t *)tagp,
 					obh->b_data, next_commit_ID)) {
 				brelse(obh);
-				*success = -EFSBADCRC;
+				ret = -EFSBADCRC;
 				pr_err("JBD2: Invalid checksum recovering data block %llu in journal block %lu\n",
 				      blocknr, io_block);
 				goto skip_write;
@@ -580,7 +580,7 @@ skip_write:
 			break;
 	}
 
-	return 0;
+	return ret;
 }
 
 static int do_one_pass(journal_t *journal,
@@ -719,9 +719,12 @@ static int do_one_pass(journal_t *journal,
 			 * done here!
 			 */
 			err = jbd2_do_replay(journal, info, bh, &next_log_block,
-					     next_commit_ID, &success);
-			if (err)
-				goto failed;
+					     next_commit_ID);
+			if (err) {
+				if (err == -ENOMEM)
+					goto failed;
+				success = err;
+			}
 
 			continue;
 
