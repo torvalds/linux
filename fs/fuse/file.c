@@ -865,12 +865,13 @@ static void fuse_short_read(struct inode *inode, u64 attr_ver, size_t num_read,
 	}
 }
 
-static int fuse_do_readpage(struct file *file, struct page *page)
+static int fuse_do_readfolio(struct file *file, struct folio *folio)
 {
-	struct inode *inode = page->mapping->host;
+	struct inode *inode = folio->mapping->host;
 	struct fuse_mount *fm = get_fuse_mount(inode);
-	loff_t pos = page_offset(page);
+	loff_t pos = folio_pos(folio);
 	struct fuse_page_desc desc = { .length = PAGE_SIZE };
+	struct page *page = &folio->page;
 	struct fuse_io_args ia = {
 		.ap.args.page_zeroing = true,
 		.ap.args.out_pages = true,
@@ -882,11 +883,11 @@ static int fuse_do_readpage(struct file *file, struct page *page)
 	u64 attr_ver;
 
 	/*
-	 * Page writeback can extend beyond the lifetime of the
-	 * page-cache page, so make sure we read a properly synced
-	 * page.
+	 * With the temporary pages that are used to complete writeback, we can
+	 * have writeback that extends beyond the lifetime of the folio.  So
+	 * make sure we read a properly synced folio.
 	 */
-	fuse_wait_on_page_writeback(inode, page->index);
+	fuse_wait_on_folio_writeback(inode, folio);
 
 	attr_ver = fuse_get_attr_version(fm->fc);
 
@@ -904,25 +905,24 @@ static int fuse_do_readpage(struct file *file, struct page *page)
 	if (res < desc.length)
 		fuse_short_read(inode, attr_ver, res, &ia.ap);
 
-	SetPageUptodate(page);
+	folio_mark_uptodate(folio);
 
 	return 0;
 }
 
 static int fuse_read_folio(struct file *file, struct folio *folio)
 {
-	struct page *page = &folio->page;
-	struct inode *inode = page->mapping->host;
+	struct inode *inode = folio->mapping->host;
 	int err;
 
 	err = -EIO;
 	if (fuse_is_bad(inode))
 		goto out;
 
-	err = fuse_do_readpage(file, page);
+	err = fuse_do_readfolio(file, folio);
 	fuse_invalidate_atime(inode);
  out:
-	unlock_page(page);
+	folio_unlock(folio);
 	return err;
 }
 
@@ -2475,7 +2475,7 @@ static int fuse_write_begin(struct file *file, struct address_space *mapping,
 			folio_zero_segment(folio, 0, off);
 		goto success;
 	}
-	err = fuse_do_readpage(file, &folio->page);
+	err = fuse_do_readfolio(file, folio);
 	if (err)
 		goto cleanup;
 success:
