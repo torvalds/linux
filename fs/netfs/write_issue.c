@@ -317,6 +317,7 @@ static int netfs_write_folio(struct netfs_io_request *wreq,
 	struct netfs_io_stream *stream;
 	struct netfs_group *fgroup; /* TODO: Use this with ceph */
 	struct netfs_folio *finfo;
+	size_t iter_off = 0;
 	size_t fsize = folio_size(folio), flen = fsize, foff = 0;
 	loff_t fpos = folio_pos(folio), i_size;
 	bool to_eof = false, streamw = false;
@@ -472,7 +473,12 @@ static int netfs_write_folio(struct netfs_io_request *wreq,
 		if (choose_s < 0)
 			break;
 		stream = &wreq->io_streams[choose_s];
-		wreq->io_iter.iov_offset = stream->submit_off;
+
+		/* Advance the iterator(s). */
+		if (stream->submit_off > iter_off) {
+			iov_iter_advance(&wreq->io_iter, stream->submit_off - iter_off);
+			iter_off = stream->submit_off;
+		}
 
 		atomic64_set(&wreq->issued_to, fpos + stream->submit_off);
 		stream->submit_extendable_to = fsize - stream->submit_off;
@@ -487,8 +493,8 @@ static int netfs_write_folio(struct netfs_io_request *wreq,
 			debug = true;
 	}
 
-	wreq->io_iter.iov_offset = 0;
-	iov_iter_advance(&wreq->io_iter, fsize);
+	if (fsize > iter_off)
+		iov_iter_advance(&wreq->io_iter, fsize - iter_off);
 	atomic64_set(&wreq->issued_to, fpos + fsize);
 
 	if (!debug)
