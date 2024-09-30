@@ -311,9 +311,6 @@ static void pwr_island_trickle_drive_40xx(struct ivpu_device *vdev, bool enable)
 		val = REG_CLR_FLD(VPU_40XX_HOST_SS_AON_PWR_ISLAND_TRICKLE_EN0, CSS_CPU, val);
 
 	REGV_WR32(VPU_40XX_HOST_SS_AON_PWR_ISLAND_TRICKLE_EN0, val);
-
-	if (enable)
-		ndelay(500);
 }
 
 static void pwr_island_drive_37xx(struct ivpu_device *vdev, bool enable)
@@ -326,9 +323,6 @@ static void pwr_island_drive_37xx(struct ivpu_device *vdev, bool enable)
 		val = REG_CLR_FLD(VPU_40XX_HOST_SS_AON_PWR_ISLAND_EN0, CSS_CPU, val);
 
 	REGV_WR32(VPU_40XX_HOST_SS_AON_PWR_ISLAND_EN0, val);
-
-	if (!enable)
-		ndelay(500);
 }
 
 static void pwr_island_drive_40xx(struct ivpu_device *vdev, bool enable)
@@ -347,9 +341,11 @@ static void pwr_island_enable(struct ivpu_device *vdev)
 {
 	if (ivpu_hw_ip_gen(vdev) == IVPU_HW_IP_37XX) {
 		pwr_island_trickle_drive_37xx(vdev, true);
+		ndelay(500);
 		pwr_island_drive_37xx(vdev, true);
 	} else {
 		pwr_island_trickle_drive_40xx(vdev, true);
+		ndelay(500);
 		pwr_island_drive_40xx(vdev, true);
 	}
 }
