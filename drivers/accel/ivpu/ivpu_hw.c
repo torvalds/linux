@@ -94,7 +94,7 @@ static void timeouts_init(struct ivpu_device *vdev)
 		vdev->timeout.boot = 50;
 		vdev->timeout.jsm = 500;
 		vdev->timeout.tdr = 10000;
-		vdev->timeout.autosuspend = -1;
+		vdev->timeout.autosuspend = 100;
 		vdev->timeout.d0i3_entry_msg = 100;
 		vdev->timeout.state_dump_msg = 10;
 	} else {
