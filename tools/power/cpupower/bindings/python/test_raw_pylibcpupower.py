@@ -31,6 +31,22 @@ match cstate_disabled:
     case _:
         print(f"Not documented: {cstate_disabled}")
 
+"""
+Test cstate is disabled
+"""
+is_cstate_disabled = p.cpuidle_is_state_disabled(0, 0)
+
+match is_cstate_disabled:
+    case 1:
+        print(f"CPU is disabled")
+    case 0:
+        print(f"CPU is enabled")
+    case -1:
+        print(f"Idlestate not available")
+    case -2:
+        print(f"Disabling is not supported by kernel")
+    case _:
+        print(f"Not documented: {is_cstate_disabled}")
 
 # Pointer example
 
