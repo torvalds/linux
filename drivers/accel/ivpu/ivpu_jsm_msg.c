@@ -270,9 +270,8 @@ int ivpu_jsm_pwr_d0i3_enter(struct ivpu_device *vdev)
 
 	req.payload.pwr_d0i3_enter.send_response = 1;
 
-	ret = ivpu_ipc_send_receive_active(vdev, &req, VPU_JSM_MSG_PWR_D0I3_ENTER_DONE,
-					   &resp, VPU_IPC_CHAN_GEN_CMD,
-					   vdev->timeout.d0i3_entry_msg);
+	ret = ivpu_ipc_send_receive_internal(vdev, &req, VPU_JSM_MSG_PWR_D0I3_ENTER_DONE, &resp,
+					     VPU_IPC_CHAN_GEN_CMD, vdev->timeout.d0i3_entry_msg);
 	if (ret)
 		return ret;
 
@@ -430,8 +429,8 @@ int ivpu_jsm_hws_setup_priority_bands(struct ivpu_device *vdev)
 
 	req.payload.hws_priority_band_setup.normal_band_percentage = 10;
 
-	ret = ivpu_ipc_send_receive_active(vdev, &req, VPU_JSM_MSG_SET_PRIORITY_BAND_SETUP_RSP,
-					   &resp, VPU_IPC_CHAN_ASYNC_CMD, vdev->timeout.jsm);
+	ret = ivpu_ipc_send_receive_internal(vdev, &req, VPU_JSM_MSG_SET_PRIORITY_BAND_SETUP_RSP,
+					     &resp, VPU_IPC_CHAN_ASYNC_CMD, vdev->timeout.jsm);
 	if (ret)
 		ivpu_warn_ratelimited(vdev, "Failed to set priority bands: %d\n", ret);
 
@@ -544,9 +543,8 @@ int ivpu_jsm_dct_enable(struct ivpu_device *vdev, u32 active_us, u32 inactive_us
 	req.payload.pwr_dct_control.dct_active_us = active_us;
 	req.payload.pwr_dct_control.dct_inactive_us = inactive_us;
 
-	return ivpu_ipc_send_receive_active(vdev, &req, VPU_JSM_MSG_DCT_ENABLE_DONE,
-					    &resp, VPU_IPC_CHAN_ASYNC_CMD,
-					    vdev->timeout.jsm);
+	return ivpu_ipc_send_receive_internal(vdev, &req, VPU_JSM_MSG_DCT_ENABLE_DONE, &resp,
+					      VPU_IPC_CHAN_ASYNC_CMD, vdev->timeout.jsm);
 }
 
 int ivpu_jsm_dct_disable(struct ivpu_device *vdev)
@@ -554,7 +552,6 @@ int ivpu_jsm_dct_disable(struct ivpu_device *vdev)
 	struct vpu_jsm_msg req = { .type = VPU_JSM_MSG_DCT_DISABLE };
 	struct vpu_jsm_msg resp;
 
-	return ivpu_ipc_send_receive_active(vdev, &req, VPU_JSM_MSG_DCT_DISABLE_DONE,
-					    &resp, VPU_IPC_CHAN_ASYNC_CMD,
-					    vdev->timeout.jsm);
+	return ivpu_ipc_send_receive_internal(vdev, &req, VPU_JSM_MSG_DCT_DISABLE_DONE, &resp,
+					      VPU_IPC_CHAN_ASYNC_CMD, vdev->timeout.jsm);
 }
