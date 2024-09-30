@@ -34,7 +34,6 @@ endif
 subdir-ccflags-$(CONFIG_DRM_WERROR) += -Werror
 
 drm-y := \
-	drm_aperture.o \
 	drm_atomic.o \
 	drm_atomic_uapi.o \
 	drm_auth.o \
