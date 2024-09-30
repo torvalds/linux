@@ -387,7 +387,7 @@ struct amd_ip_funcs {
 	int (*hw_init)(void *handle);
 	int (*hw_fini)(void *handle);
 	void (*late_fini)(struct amdgpu_ip_block *ip_block);
-	int (*prepare_suspend)(void *handle);
+	int (*prepare_suspend)(struct amdgpu_ip_block *ip_block);
 	int (*suspend)(void *handle);
 	int (*resume)(void *handle);
 	bool (*is_idle)(void *handle);

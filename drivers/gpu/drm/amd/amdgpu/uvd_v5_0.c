@@ -216,9 +216,9 @@ static int uvd_v5_0_hw_fini(void *handle)
 	return 0;
 }
 
-static int uvd_v5_0_prepare_suspend(void *handle)
+static int uvd_v5_0_prepare_suspend(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	return amdgpu_uvd_prepare_suspend(adev);
 }
