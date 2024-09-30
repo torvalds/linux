@@ -606,9 +606,9 @@ static int vce_v4_0_suspend(struct amdgpu_ip_block *ip_block)
 	return amdgpu_vce_suspend(adev);
 }
 
-static int vce_v4_0_resume(void *handle)
+static int vce_v4_0_resume(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	int r, idx;
 
 	if (adev->vce.vcpu_bo == NULL)

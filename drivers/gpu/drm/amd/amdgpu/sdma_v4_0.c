@@ -2001,9 +2001,9 @@ static int sdma_v4_0_suspend(struct amdgpu_ip_block *ip_block)
 	return sdma_v4_0_hw_fini(adev);
 }
 
-static int sdma_v4_0_resume(void *handle)
+static int sdma_v4_0_resume(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	/* SMU restores SDMA state for us */
 	if (adev->in_s0ix) {

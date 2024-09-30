@@ -88,7 +88,7 @@ static int isp_suspend(struct amdgpu_ip_block *ip_block)
 	return 0;
 }
 
-static int isp_resume(void *handle)
+static int isp_resume(struct amdgpu_ip_block *ip_block)
 {
 	return 0;
 }

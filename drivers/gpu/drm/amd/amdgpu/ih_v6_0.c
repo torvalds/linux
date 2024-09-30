@@ -651,9 +651,9 @@ static int ih_v6_0_suspend(struct amdgpu_ip_block *ip_block)
 	return ih_v6_0_hw_fini(adev);
 }
 
-static int ih_v6_0_resume(void *handle)
+static int ih_v6_0_resume(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	return ih_v6_0_hw_init(adev);
 }

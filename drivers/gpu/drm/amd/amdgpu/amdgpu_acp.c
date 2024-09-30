@@ -575,9 +575,9 @@ static int acp_suspend(struct amdgpu_ip_block *ip_block)
 	return 0;
 }
 
-static int acp_resume(void *handle)
+static int acp_resume(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	/* power down again on resume */
 	if (!adev->acp.acp_cell)

@@ -198,9 +198,9 @@ static int jpeg_v5_0_0_suspend(struct amdgpu_ip_block *ip_block)
  *
  * Resume firmware and hw init JPEG block
  */
-static int jpeg_v5_0_0_resume(void *handle)
+static int jpeg_v5_0_0_resume(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	int r;
 
 	r = amdgpu_jpeg_resume(adev);

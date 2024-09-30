@@ -352,9 +352,9 @@ static int tonga_ih_suspend(struct amdgpu_ip_block *ip_block)
 	return tonga_ih_hw_fini(adev);
 }
 
-static int tonga_ih_resume(void *handle)
+static int tonga_ih_resume(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	return tonga_ih_hw_init(adev);
 }

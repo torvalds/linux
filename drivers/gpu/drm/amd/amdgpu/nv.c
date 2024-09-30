@@ -1036,9 +1036,9 @@ static int nv_common_suspend(struct amdgpu_ip_block *ip_block)
 	return nv_common_hw_fini(adev);
 }
 
-static int nv_common_resume(void *handle)
+static int nv_common_resume(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	return nv_common_hw_init(adev);
 }

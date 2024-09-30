@@ -352,9 +352,9 @@ static int vcn_v4_0_3_suspend(struct amdgpu_ip_block *ip_block)
  *
  * Resume firmware and hw init VCN block
  */
-static int vcn_v4_0_3_resume(void *handle)
+static int vcn_v4_0_3_resume(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	int r;
 
 	r = amdgpu_vcn_resume(adev);

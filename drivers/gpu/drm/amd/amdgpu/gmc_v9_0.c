@@ -2435,10 +2435,10 @@ static int gmc_v9_0_suspend(struct amdgpu_ip_block *ip_block)
 	return gmc_v9_0_hw_fini(adev);
 }
 
-static int gmc_v9_0_resume(void *handle)
+static int gmc_v9_0_resume(struct amdgpu_ip_block *ip_block)
 {
 	int r;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	r = gmc_v9_0_hw_init(adev);
 	if (r)

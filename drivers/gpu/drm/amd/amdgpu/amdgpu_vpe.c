@@ -443,9 +443,9 @@ static int vpe_suspend(struct amdgpu_ip_block *ip_block)
 	return vpe_hw_fini(adev);
 }
 
-static int vpe_resume(void *handle)
+static int vpe_resume(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	return vpe_hw_init(adev);
 }

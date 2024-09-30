@@ -1325,9 +1325,9 @@ static int soc15_common_suspend(struct amdgpu_ip_block *ip_block)
 	return soc15_common_hw_fini(adev);
 }
 
-static int soc15_common_resume(void *handle)
+static int soc15_common_resume(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	if (soc15_need_reset_on_resume(adev)) {
 		dev_info(adev->dev, "S3 suspend abort case, let's reset ASIC.\n");

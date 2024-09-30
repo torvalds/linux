@@ -1641,10 +1641,10 @@ static int mes_v11_0_suspend(struct amdgpu_ip_block *ip_block)
 	return mes_v11_0_hw_fini(adev);
 }
 
-static int mes_v11_0_resume(void *handle)
+static int mes_v11_0_resume(struct amdgpu_ip_block *ip_block)
 {
 	int r;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	r = mes_v11_0_hw_init(adev);
 	if (r)

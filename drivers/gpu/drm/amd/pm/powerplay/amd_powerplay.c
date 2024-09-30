@@ -271,9 +271,9 @@ static int pp_suspend(struct amdgpu_ip_block *ip_block)
 	return hwmgr_suspend(hwmgr);
 }
 
-static int pp_resume(void *handle)
+static int pp_resume(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	struct pp_hwmgr *hwmgr = adev->powerplay.pp_handle;
 
 	return hwmgr_resume(hwmgr);

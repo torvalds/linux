@@ -4506,9 +4506,9 @@ static int gfx_v7_0_suspend(struct amdgpu_ip_block *ip_block)
 	return gfx_v7_0_hw_fini(adev);
 }
 
-static int gfx_v7_0_resume(void *handle)
+static int gfx_v7_0_resume(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	return gfx_v7_0_hw_init(adev);
 }

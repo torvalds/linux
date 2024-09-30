@@ -917,9 +917,9 @@ static bool soc21_need_reset_on_resume(struct amdgpu_device *adev)
 	return false;
 }
 
-static int soc21_common_resume(void *handle)
+static int soc21_common_resume(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	if (soc21_need_reset_on_resume(adev)) {
 		dev_info(adev->dev, "S3 suspend aborted, resetting...");

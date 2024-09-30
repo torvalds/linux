@@ -1018,11 +1018,11 @@ static int cik_sdma_suspend(struct amdgpu_ip_block *ip_block)
 	return cik_sdma_hw_fini(adev);
 }
 
-static int cik_sdma_resume(void *handle)
+static int cik_sdma_resume(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
-	cik_sdma_soft_reset(handle);
+	cik_sdma_soft_reset(ip_block);
 
 	return cik_sdma_hw_init(adev);
 }

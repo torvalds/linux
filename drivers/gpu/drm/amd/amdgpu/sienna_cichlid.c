@@ -175,7 +175,7 @@ static int sienna_cichlid_mode2_restore_ip(struct amdgpu_device *adev)
 
 	for (i = 0; i < adev->num_ip_blocks; i++) {
 		if (adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_IH) {
-			r = adev->ip_blocks[i].version->funcs->resume(adev);
+			r = adev->ip_blocks[i].version->funcs->resume(&adev->ip_blocks[i]);
 			if (r) {
 				dev_err(adev->dev,
 					"resume of IP block <%s> failed %d\n",
@@ -193,7 +193,7 @@ static int sienna_cichlid_mode2_restore_ip(struct amdgpu_device *adev)
 		      adev->ip_blocks[i].version->type ==
 			      AMD_IP_BLOCK_TYPE_SDMA))
 			continue;
-		r = adev->ip_blocks[i].version->funcs->resume(adev);
+		r = adev->ip_blocks[i].version->funcs->resume(&adev->ip_blocks[i]);
 		if (r) {
 			dev_err(adev->dev,
 				"resume of IP block <%s> failed %d\n",

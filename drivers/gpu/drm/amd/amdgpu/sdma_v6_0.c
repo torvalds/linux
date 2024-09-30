@@ -1407,9 +1407,9 @@ static int sdma_v6_0_suspend(struct amdgpu_ip_block *ip_block)
 	return sdma_v6_0_hw_fini(adev);
 }
 
-static int sdma_v6_0_resume(void *handle)
+static int sdma_v6_0_resume(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	return sdma_v6_0_hw_init(adev);
 }

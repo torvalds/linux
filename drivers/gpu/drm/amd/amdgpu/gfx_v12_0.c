@@ -3650,9 +3650,9 @@ static int gfx_v12_0_suspend(struct amdgpu_ip_block *ip_block)
 	return gfx_v12_0_hw_fini(adev);
 }
 
-static int gfx_v12_0_resume(void *handle)
+static int gfx_v12_0_resume(struct amdgpu_ip_block *ip_block)
 {
-	return gfx_v12_0_hw_init(handle);
+	return gfx_v12_0_hw_init(ip_block->adev);
 }
 
 static bool gfx_v12_0_is_idle(void *handle)

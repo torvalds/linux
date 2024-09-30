@@ -540,10 +540,10 @@ static int vce_v3_0_suspend(struct amdgpu_ip_block *ip_block)
 	return amdgpu_vce_suspend(adev);
 }
 
-static int vce_v3_0_resume(void *handle)
+static int vce_v3_0_resume(struct amdgpu_ip_block *ip_block)
 {
 	int r;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	r = amdgpu_vce_resume(adev);
 	if (r)
@@ -726,7 +726,7 @@ static int vce_v3_0_post_soft_reset(struct amdgpu_ip_block *ip_block)
 
 	mdelay(5);
 
-	return vce_v3_0_resume(adev);
+	return vce_v3_0_resume(ip_block);
 }
 
 static int vce_v3_0_set_interrupt_state(struct amdgpu_device *adev,

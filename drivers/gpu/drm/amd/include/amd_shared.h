@@ -389,7 +389,7 @@ struct amd_ip_funcs {
 	void (*late_fini)(struct amdgpu_ip_block *ip_block);
 	int (*prepare_suspend)(struct amdgpu_ip_block *ip_block);
 	int (*suspend)(struct amdgpu_ip_block *ip_block);
-	int (*resume)(void *handle);
+	int (*resume)(struct amdgpu_ip_block *ip_block);
 	bool (*is_idle)(void *handle);
 	int (*wait_for_idle)(struct amdgpu_ip_block *ip_block);
 	bool (*check_soft_reset)(struct amdgpu_ip_block *ip_block);

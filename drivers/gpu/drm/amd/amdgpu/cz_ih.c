@@ -340,9 +340,9 @@ static int cz_ih_suspend(struct amdgpu_ip_block *ip_block)
 	return cz_ih_hw_fini(adev);
 }
 
-static int cz_ih_resume(void *handle)
+static int cz_ih_resume(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	return cz_ih_hw_init(adev);
 }
