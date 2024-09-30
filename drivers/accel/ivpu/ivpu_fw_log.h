@@ -8,8 +8,6 @@
 
 #include <linux/types.h>
 
-#include <drm/drm_print.h>
-
 #include "ivpu_drv.h"
 
 #define IVPU_FW_LOG_DEFAULT 0
@@ -29,11 +27,5 @@ void ivpu_fw_log_print(struct ivpu_device *vdev, bool only_new_msgs, struct drm_
 void ivpu_fw_log_mark_read(struct ivpu_device *vdev);
 void ivpu_fw_log_reset(struct ivpu_device *vdev);
 
-static inline void ivpu_fw_log_dump(struct ivpu_device *vdev)
-{
-	struct drm_printer p = drm_info_printer(vdev->drm.dev);
-
-	ivpu_fw_log_print(vdev, false, &p);
-}
 
 #endif /* __IVPU_FW_LOG_H__ */
