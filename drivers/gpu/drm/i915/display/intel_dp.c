@@ -859,25 +859,51 @@ u32 intel_dp_dsc_nearest_valid_bpp(struct drm_i915_private *i915, u32 bpp, u32 p
 	return bits_per_pixel;
 }
 
+static int bigjoiner_interface_bits(struct intel_display *display)
+{
+	return DISPLAY_VER(display) >= 14 ? 36 : 24;
+}
+
+static u32 bigjoiner_bw_max_bpp(struct intel_display *display, u32 mode_clock)
+{
+	u32 max_bpp;
+	/* With bigjoiner multiple dsc engines are used in parallel so PPC is 2 */
+	int ppc = 2;
+
+	max_bpp = display->cdclk.max_cdclk_freq * ppc * bigjoiner_interface_bits(display) /
+		  intel_dp_mode_to_fec_clock(mode_clock);
+
+	return max_bpp;
+}
+
+static u32 small_joiner_ram_max_bpp(struct intel_display *display,
+				    u32 mode_hdisplay,
+				    int num_joined_pipes)
+{
+	struct drm_i915_private *i915 = to_i915(display->drm);
+	u32 max_bpp;
+
+	/* Small Joiner Check: output bpp <= joiner RAM (bits) / Horiz. width */
+	max_bpp = small_joiner_ram_size_bits(i915) / mode_hdisplay;
+
+	max_bpp *= num_joined_pipes;
+
+	return max_bpp;
+}
+
 static
 u32 get_max_compressed_bpp_with_joiner(struct drm_i915_private *i915,
 				       u32 mode_clock, u32 mode_hdisplay,
 				       int num_joined_pipes)
 {
+	struct intel_display *display = to_intel_display(&i915->drm);
 	u32 max_bpp_small_joiner_ram;
 
-	/* Small Joiner Check: output bpp <= joiner RAM (bits) / Horiz. width */
-	max_bpp_small_joiner_ram = small_joiner_ram_size_bits(i915) / mode_hdisplay;
+	max_bpp_small_joiner_ram = small_joiner_ram_max_bpp(display, mode_hdisplay,
+							    num_joined_pipes);
 
 	if (num_joined_pipes == 2) {
-		int bigjoiner_interface_bits = DISPLAY_VER(i915) >= 14 ? 36 : 24;
-		/* With bigjoiner multiple dsc engines are used in parallel so PPC is 2 */
-		int ppc = 2;
-		u32 max_bpp_bigjoiner =
-			i915->display.cdclk.max_cdclk_freq * ppc * bigjoiner_interface_bits /
-			intel_dp_mode_to_fec_clock(mode_clock);
-
-		max_bpp_small_joiner_ram *= 2;
+		u32 max_bpp_bigjoiner = bigjoiner_bw_max_bpp(display, mode_clock);
 
 		return min(max_bpp_small_joiner_ram, max_bpp_bigjoiner);
 	}
