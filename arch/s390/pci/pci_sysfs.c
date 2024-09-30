@@ -23,7 +23,7 @@ static ssize_t name##_show(struct device *dev,				\
 {									\
 	struct zpci_dev *zdev = to_zpci(to_pci_dev(dev));		\
 									\
-	return sprintf(buf, fmt, zdev->member);				\
+	return sysfs_emit(buf, fmt, zdev->member);				\
 }									\
 static DEVICE_ATTR_RO(name)
 
@@ -45,7 +45,7 @@ static ssize_t mio_enabled_show(struct device *dev,
 {
 	struct zpci_dev *zdev = to_zpci(to_pci_dev(dev));
 
-	return sprintf(buf, zpci_use_mio(zdev) ? "1\n" : "0\n");
+	return sysfs_emit(buf, zpci_use_mio(zdev) ? "1\n" : "0\n");
 }
 static DEVICE_ATTR_RO(mio_enabled);
 
