@@ -388,8 +388,8 @@ static struct hotplug_slot *get_slot_from_name(const char *name)
 
 /**
  * __pci_hp_register - register a hotplug_slot with the PCI hotplug subsystem
- * @bus: bus this slot is on
  * @slot: pointer to the &struct hotplug_slot to register
+ * @bus: bus this slot is on
  * @devnr: device number
  * @name: name registered with kobject core
  * @owner: caller module owner
