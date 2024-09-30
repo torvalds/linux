@@ -367,7 +367,6 @@ static const struct intel_device_info ivb_q_info = {
 static const struct intel_device_info vlv_info = {
 	PLATFORM(INTEL_VALLEYVIEW),
 	GEN(7),
-	.is_lp = 1,
 	.has_runtime_pm = 1,
 	.has_rc6 = 1,
 	.has_reset_engine = true,
@@ -451,7 +450,6 @@ static const struct intel_device_info bdw_gt3_info = {
 static const struct intel_device_info chv_info = {
 	PLATFORM(INTEL_CHERRYVIEW),
 	GEN(8),
-	.is_lp = 1,
 	.platform_engine_mask = BIT(RCS0) | BIT(VCS0) | BIT(BCS0) | BIT(VECS0),
 	.has_64bit_reloc = 1,
 	.has_runtime_pm = 1,
@@ -512,7 +510,6 @@ static const struct intel_device_info skl_gt4_info = {
 
 #define GEN9_LP_FEATURES \
 	GEN(9), \
-	.is_lp = 1, \
 	.platform_engine_mask = BIT(RCS0) | BIT(VCS0) | BIT(BCS0) | BIT(VECS0), \
 	.has_3d_pipeline = 1, \
 	.has_64bit_reloc = 1, \
