@@ -112,8 +112,8 @@ static inline int bch2_inode_write(struct btree_trans *trans,
 	return bch2_inode_write_flags(trans, iter, inode, 0);
 }
 
-int __bch2_fsck_write_inode(struct btree_trans *, struct bch_inode_unpacked *, u32);
-int bch2_fsck_write_inode(struct btree_trans *, struct bch_inode_unpacked *, u32);
+int __bch2_fsck_write_inode(struct btree_trans *, struct bch_inode_unpacked *);
+int bch2_fsck_write_inode(struct btree_trans *, struct bch_inode_unpacked *);
 
 void bch2_inode_init_early(struct bch_fs *,
 			   struct bch_inode_unpacked *);

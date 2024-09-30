@@ -102,7 +102,8 @@ static int check_subvol(struct btree_trans *trans,
 				inode.bi_inum, inode.bi_snapshot,
 				inode.bi_subvol, subvol.k->p.offset)) {
 			inode.bi_subvol = subvol.k->p.offset;
-			ret = __bch2_fsck_write_inode(trans, &inode, le32_to_cpu(subvol.v->snapshot));
+			inode.bi_snapshot = le32_to_cpu(subvol.v->snapshot);
+			ret = __bch2_fsck_write_inode(trans, &inode);
 			if (ret)
 				goto err;
 		}

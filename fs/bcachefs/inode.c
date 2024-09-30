@@ -387,9 +387,7 @@ int bch2_inode_write_flags(struct btree_trans *trans,
 	return bch2_trans_update(trans, iter, &inode_p->inode.k_i, flags);
 }
 
-int __bch2_fsck_write_inode(struct btree_trans *trans,
-			 struct bch_inode_unpacked *inode,
-			 u32 snapshot)
+int __bch2_fsck_write_inode(struct btree_trans *trans, struct bch_inode_unpacked *inode)
 {
 	struct bkey_inode_buf *inode_p =
 		bch2_trans_kmalloc(trans, sizeof(*inode_p));
@@ -398,19 +396,17 @@ int __bch2_fsck_write_inode(struct btree_trans *trans,
 		return PTR_ERR(inode_p);
 
 	bch2_inode_pack(inode_p, inode);
-	inode_p->inode.k.p.snapshot = snapshot;
+	inode_p->inode.k.p.snapshot = inode->bi_snapshot;
 
 	return bch2_btree_insert_nonextent(trans, BTREE_ID_inodes,
 				&inode_p->inode.k_i,
 				BTREE_UPDATE_internal_snapshot_node);
 }
 
-int bch2_fsck_write_inode(struct btree_trans *trans,
-			    struct bch_inode_unpacked *inode,
-			    u32 snapshot)
+int bch2_fsck_write_inode(struct btree_trans *trans, struct bch_inode_unpacked *inode)
 {
 	int ret = commit_do(trans, NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
-			    __bch2_fsck_write_inode(trans, inode, snapshot));
+			    __bch2_fsck_write_inode(trans, inode));
 	bch_err_fn(trans->c, ret);
 	return ret;
 }
