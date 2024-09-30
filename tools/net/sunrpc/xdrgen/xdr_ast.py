@@ -15,7 +15,6 @@ this_module = sys.modules[__name__]
 excluded_apis = []
 header_name = "none"
 public_apis = []
-enums = set()
 structs = set()
 pass_by_reference = set()
 
@@ -294,8 +293,6 @@ class ParseToAst(Transformer):
         c_classifier = ""
         if isinstance(children[0], _XdrIdentifier):
             name = children[0].symbol
-            if name in enums:
-                c_classifier = "enum "
             if name in structs:
                 c_classifier = "struct "
             return _XdrDefinedType(
@@ -320,7 +317,6 @@ class ParseToAst(Transformer):
     def enum(self, children):
         """Instantiate one _XdrEnum object"""
         enum_name = children[0].symbol
-        enums.add(enum_name)
 
         i = 0
         enumerators = []
