@@ -690,6 +690,9 @@ static void efx_get_base_stats(struct net_device *net_dev,
 				tx->packets += tx_queue->old_complete_packets;
 				tx->bytes += tx_queue->old_complete_bytes;
 			}
+			/* Include XDP TX in device-wide stats */
+			tx->packets += tx_queue->complete_xdp_packets;
+			tx->bytes += tx_queue->complete_xdp_bytes;
 		}
 	}
 }

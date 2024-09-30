@@ -216,6 +216,10 @@ struct efx_tx_buffer {
  *	created.  For TSO, counts the superframe size, not the sizes of
  *	generated frames on the wire (i.e. the headers are only counted
  *	once)
+ * @complete_xdp_packets: Number of XDP TX packets completed since this
+ *	struct was created.
+ * @complete_xdp_bytes: Number of XDP TX bytes completed since this
+ *	struct was created.
  * @completed_timestamp_major: Top part of the most recent tx timestamp.
  * @completed_timestamp_minor: Low part of the most recent tx timestamp.
  * @insert_count: Current insert pointer
@@ -281,6 +285,8 @@ struct efx_tx_queue {
 	unsigned int pkts_compl;
 	unsigned long complete_packets;
 	unsigned long complete_bytes;
+	unsigned long complete_xdp_packets;
+	unsigned long complete_xdp_bytes;
 	u32 completed_timestamp_major;
 	u32 completed_timestamp_minor;
 
