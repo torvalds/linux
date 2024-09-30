@@ -1075,8 +1075,8 @@ EXPORT_SYMBOL_GPL(firmware_request_platform);
 
 /**
  * firmware_request_cache() - cache firmware for suspend so resume can use it
- * @name: name of firmware file
  * @device: device for which firmware should be cached for
+ * @name: name of firmware file
  *
  * There are some devices with an optimization that enables the device to not
  * require loading firmware on system reboot. This optimization may still
