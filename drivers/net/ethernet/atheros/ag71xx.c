@@ -1822,10 +1822,9 @@ static int ag71xx_probe(struct platform_device *pdev)
 	}
 
 	clk_eth = devm_clk_get_enabled(&pdev->dev, "eth");
-	if (IS_ERR(clk_eth)) {
-		netif_err(ag, probe, ndev, "Failed to get eth clk.\n");
-		return PTR_ERR(clk_eth);
-	}
+	if (IS_ERR(clk_eth))
+		return dev_err_probe(&pdev->dev, PTR_ERR(clk_eth),
+				     "Failed to get eth clk.");
 
 	SET_NETDEV_DEV(ndev, &pdev->dev);
 
@@ -1836,10 +1835,9 @@ static int ag71xx_probe(struct platform_device *pdev)
 	memcpy(ag->fifodata, dcfg->fifodata, sizeof(ag->fifodata));
 
 	ag->mac_reset = devm_reset_control_get(&pdev->dev, "mac");
-	if (IS_ERR(ag->mac_reset)) {
-		netif_err(ag, probe, ndev, "missing mac reset\n");
-		return PTR_ERR(ag->mac_reset);
-	}
+	if (IS_ERR(ag->mac_reset))
+		return dev_err_probe(&pdev->dev, PTR_ERR(ag->mac_reset),
+				     "missing mac reset");
 
 	ag->mac_base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(ag->mac_base))
@@ -1920,10 +1918,9 @@ static int ag71xx_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, ndev);
 
 	err = ag71xx_phylink_setup(ag);
-	if (err) {
-		netif_err(ag, probe, ndev, "failed to setup phylink (%d)\n", err);
-		return err;
-	}
+	if (err)
+		return dev_err_probe(&pdev->dev, err,
+				     "failed to setup phylink");
 
 	err = devm_register_netdev(&pdev->dev, ndev);
 	if (err) {
