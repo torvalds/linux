@@ -1646,6 +1646,7 @@ static int ag71xx_rx_packets(struct ag71xx *ag, int limit)
 
 		skb->dev = ndev;
 		skb->ip_summed = CHECKSUM_NONE;
+		skb->protocol = eth_type_trans(skb, ndev);
 		list_add_tail(&skb->list, &rx_list);
 
 next:
@@ -1657,8 +1658,6 @@ next:
 
 	ag71xx_ring_rx_refill(ag);
 
-	list_for_each_entry(skb, &rx_list, list)
-		skb->protocol = eth_type_trans(skb, ndev);
 	netif_receive_skb_list(&rx_list);
 
 	netif_dbg(ag, rx_status, ndev, "rx finish, curr=%u, dirty=%u, done=%d\n",
