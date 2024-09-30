@@ -4,6 +4,8 @@
  *
  */
 
+#include <drm/drm_vblank.h>
+
 #include "i915_drv.h"
 #include "i915_irq.h"
 #include "i915_reg.h"
@@ -379,6 +381,12 @@ void intel_dsb_nonpost_end(struct intel_dsb *dsb)
 	intel_dsb_noop(dsb, 4);
 }
 
+void intel_dsb_interrupt(struct intel_dsb *dsb)
+{
+	intel_dsb_emit(dsb, 0,
+		       DSB_OPCODE_INTERRUPT << DSB_OPCODE_SHIFT);
+}
+
 static void intel_dsb_emit_wait_dsl(struct intel_dsb *dsb,
 				    u32 opcode, int lower, int upper)
 {
@@ -544,7 +552,7 @@ static void _intel_dsb_chain(struct intel_atomic_state *state,
 
 	intel_dsb_reg_write(dsb, DSB_INTERRUPT(pipe, chained_dsb->id),
 			    dsb_error_int_status(display) | DSB_PROG_INT_STATUS |
-			    dsb_error_int_en(display));
+			    dsb_error_int_en(display) | DSB_PROG_INT_EN);
 
 	if (ctrl & DSB_WAIT_FOR_VBLANK) {
 		int dewake_scanline = dsb_dewake_scanline_start(state, crtc);
@@ -612,7 +620,7 @@ static void _intel_dsb_commit(struct intel_dsb *dsb, u32 ctrl,
 
 	intel_de_write_fw(display, DSB_INTERRUPT(pipe, dsb->id),
 			  dsb_error_int_status(display) | DSB_PROG_INT_STATUS |
-			  dsb_error_int_en(display));
+			  dsb_error_int_en(display) | DSB_PROG_INT_EN);
 
 	intel_de_write_fw(display, DSB_HEAD(pipe, dsb->id),
 			  intel_dsb_buffer_ggtt_offset(&dsb->dsb_buf));
@@ -778,6 +786,23 @@ void intel_dsb_irq_handler(struct intel_display *display,
 
 	tmp = intel_de_read_fw(display, DSB_INTERRUPT(pipe, dsb_id));
 	intel_de_write_fw(display, DSB_INTERRUPT(pipe, dsb_id), tmp);
+
+	if (tmp & DSB_PROG_INT_STATUS) {
+		spin_lock(&display->drm->event_lock);
+
+		if (crtc->dsb_event) {
+			/*
+			 * Update vblank counter/timestmap in case it
+			 * hasn't been done yet for this frame.
+			 */
+			drm_crtc_accurate_vblank_count(&crtc->base);
+
+			drm_crtc_send_vblank_event(&crtc->base, crtc->dsb_event);
+			crtc->dsb_event = NULL;
+		}
+
+		spin_unlock(&display->drm->event_lock);
+	}
 
 	errors = tmp & dsb_error_int_status(display);
 	if (errors)
