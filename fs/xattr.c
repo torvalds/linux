@@ -957,23 +957,33 @@ removexattr(struct mnt_idmap *idmap, struct dentry *d, const char *name)
 	return vfs_removexattr(idmap, d, name);
 }
 
-static int path_removexattr(const char __user *pathname,
-			    const char __user *name, unsigned int lookup_flags)
+static int file_removexattr(struct file *f, struct xattr_name *kname)
+{
+	int error = mnt_want_write_file(f);
+
+	if (!error) {
+		audit_file(f);
+		error = removexattr(file_mnt_idmap(f),
+				    f->f_path.dentry, kname->name);
+		mnt_drop_write_file(f);
+	}
+	return error;
+}
+
+/* unconditionally consumes filename */
+static int filename_removexattr(int dfd, struct filename *filename,
+				unsigned int lookup_flags, struct xattr_name *kname)
 {
 	struct path path;
 	int error;
-	struct xattr_name kname;
 
-	error = import_xattr_name(&kname, name);
-	if (error)
-		return error;
 retry:
-	error = user_path_at(AT_FDCWD, pathname, lookup_flags, &path);
+	error = filename_lookup(dfd, filename, lookup_flags, &path, NULL);
 	if (error)
-		return error;
+		goto out;
 	error = mnt_want_write(path.mnt);
 	if (!error) {
-		error = removexattr(mnt_idmap(path.mnt), path.dentry, kname.name);
+		error = removexattr(mnt_idmap(path.mnt), path.dentry, kname->name);
 		mnt_drop_write(path.mnt);
 	}
 	path_put(&path);
@@ -981,7 +991,22 @@ retry:
 		lookup_flags |= LOOKUP_REVAL;
 		goto retry;
 	}
+out:
+	putname(filename);
 	return error;
+}
+
+static int path_removexattr(const char __user *pathname,
+			    const char __user *name, unsigned int lookup_flags)
+{
+	struct xattr_name kname;
+	int error;
+
+	error = import_xattr_name(&kname, name);
+	if (error)
+		return error;
+	return filename_removexattr(AT_FDCWD, getname(pathname), lookup_flags,
+				    &kname);
 }
 
 SYSCALL_DEFINE2(removexattr, const char __user *, pathname,
@@ -1004,19 +1029,11 @@ SYSCALL_DEFINE2(fremovexattr, int, fd, const char __user *, name)
 
 	if (fd_empty(f))
 		return -EBADF;
-	audit_file(fd_file(f));
 
 	error = import_xattr_name(&kname, name);
 	if (error)
 		return error;
-
-	error = mnt_want_write_file(fd_file(f));
-	if (!error) {
-		error = removexattr(file_mnt_idmap(fd_file(f)),
-				    fd_file(f)->f_path.dentry, kname.name);
-		mnt_drop_write_file(fd_file(f));
-	}
-	return error;
+	return file_removexattr(fd_file(f), &kname);
 }
 
 int xattr_list_one(char **buffer, ssize_t *remaining_size, const char *name)
