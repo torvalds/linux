@@ -43,4 +43,6 @@ int ivpu_jsm_metric_streamer_info(struct ivpu_device *vdev, u64 metric_group_mas
 				  u64 buffer_size, u32 *sample_size, u64 *info_size);
 int ivpu_jsm_dct_enable(struct ivpu_device *vdev, u32 active_us, u32 inactive_us);
 int ivpu_jsm_dct_disable(struct ivpu_device *vdev);
+int ivpu_jsm_state_dump(struct ivpu_device *vdev);
+
 #endif

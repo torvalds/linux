@@ -125,6 +125,7 @@ static void ivpu_pm_recovery_work(struct work_struct *work)
 	if (ret)
 		ivpu_err(vdev, "Failed to resume NPU: %d\n", ret);
 
+	ivpu_jsm_state_dump(vdev);
 	ivpu_dev_coredump(vdev);
 
 	atomic_inc(&vdev->pm->reset_counter);
