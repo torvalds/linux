@@ -405,9 +405,9 @@ static bool tonga_ih_check_soft_reset(struct amdgpu_ip_block *ip_block)
 	}
 }
 
-static int tonga_ih_pre_soft_reset(void *handle)
+static int tonga_ih_pre_soft_reset(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	if (!adev->irq.srbm_soft_reset)
 		return 0;

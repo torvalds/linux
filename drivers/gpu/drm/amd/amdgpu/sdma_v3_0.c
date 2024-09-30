@@ -1252,9 +1252,9 @@ static bool sdma_v3_0_check_soft_reset(struct amdgpu_ip_block *ip_block)
 	}
 }
 
-static int sdma_v3_0_pre_soft_reset(void *handle)
+static int sdma_v3_0_pre_soft_reset(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	u32 srbm_soft_reset = 0;
 
 	if (!adev->sdma.srbm_soft_reset)
