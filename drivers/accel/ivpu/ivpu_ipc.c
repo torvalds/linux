@@ -533,7 +533,6 @@ void ivpu_ipc_fini(struct ivpu_device *vdev)
 {
 	struct ivpu_ipc_info *ipc = vdev->ipc;
 
-	drm_WARN_ON(&vdev->drm, ipc->on);
 	drm_WARN_ON(&vdev->drm, !list_empty(&ipc->cons_list));
 	drm_WARN_ON(&vdev->drm, !list_empty(&ipc->cb_msg_list));
 	drm_WARN_ON(&vdev->drm, atomic_read(&ipc->rx_msg_count) > 0);

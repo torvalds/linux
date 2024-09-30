@@ -117,8 +117,6 @@ void ivpu_file_priv_put(struct ivpu_file_priv **link)
 	struct ivpu_file_priv *file_priv = *link;
 	struct ivpu_device *vdev = file_priv->vdev;
 
-	drm_WARN_ON(&vdev->drm, !file_priv);
-
 	ivpu_dbg(vdev, KREF, "file_priv put: ctx %u refcount %u\n",
 		 file_priv->ctx.id, kref_read(&file_priv->ref));
 
