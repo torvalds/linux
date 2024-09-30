@@ -2049,8 +2049,8 @@ EXPORT_SYMBOL(d_obtain_root);
 
 /**
  * d_add_ci - lookup or allocate new dentry with case-exact name
- * @inode:  the inode case-insensitive lookup has found
  * @dentry: the negative dentry that was passed to the parent's lookup func
+ * @inode:  the inode case-insensitive lookup has found
  * @name:   the case-exact name to be associated with the returned dentry
  *
  * This is to avoid filling the dcache with case-insensitive names to the
@@ -2103,8 +2103,8 @@ EXPORT_SYMBOL(d_add_ci);
 
 /**
  * d_same_name - compare dentry name with case-exact name
- * @parent: parent dentry
  * @dentry: the negative dentry that was passed to the parent's lookup func
+ * @parent: parent dentry
  * @name:   the case-exact name to be associated with the returned dentry
  *
  * Return: true if names are same, or false

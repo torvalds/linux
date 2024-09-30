@@ -562,8 +562,8 @@ int cdev_device_add(struct cdev *cdev, struct device *dev)
 
 /**
  * cdev_device_del() - inverse of cdev_device_add
- * @dev: the device structure
  * @cdev: the cdev structure
+ * @dev: the device structure
  *
  * cdev_device_del() is a helper function to call cdev_del and device_del.
  * It should be used whenever cdev_device_add is used.
