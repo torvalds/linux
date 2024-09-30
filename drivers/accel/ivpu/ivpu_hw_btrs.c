@@ -315,10 +315,6 @@ static void prepare_wp_request(struct ivpu_device *vdev, struct wp_request *wp, 
 		wp->cdyn = enable ? PLL_CDYN_DEFAULT : 0;
 		wp->epp = enable ? PLL_EPP_DEFAULT : 0;
 	}
-
-	/* Simics cannot start without at least one tile */
-	if (enable && ivpu_is_simics(vdev))
-		wp->cfg = 1;
 }
 
 static int wait_for_pll_lock(struct ivpu_device *vdev, bool enable)
