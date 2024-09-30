@@ -1213,7 +1213,7 @@ static ssize_t fuse_fill_write_pages(struct fuse_io_args *ia,
 
 	do {
 		size_t tmp;
-		struct page *page;
+		struct folio *folio;
 		pgoff_t index = pos >> PAGE_SHIFT;
 		size_t bytes = min_t(size_t, PAGE_SIZE - offset,
 				     iov_iter_count(ii));
@@ -1225,25 +1225,27 @@ static ssize_t fuse_fill_write_pages(struct fuse_io_args *ia,
 		if (fault_in_iov_iter_readable(ii, bytes))
 			break;
 
-		err = -ENOMEM;
-		page = grab_cache_page_write_begin(mapping, index);
-		if (!page)
+		folio = __filemap_get_folio(mapping, index, FGP_WRITEBEGIN,
+					    mapping_gfp_mask(mapping));
+		if (IS_ERR(folio)) {
+			err = PTR_ERR(folio);
 			break;
+		}
 
 		if (mapping_writably_mapped(mapping))
-			flush_dcache_page(page);
+			flush_dcache_folio(folio);
 
-		tmp = copy_page_from_iter_atomic(page, offset, bytes, ii);
-		flush_dcache_page(page);
+		tmp = copy_folio_from_iter_atomic(folio, offset, bytes, ii);
+		flush_dcache_folio(folio);
 
 		if (!tmp) {
-			unlock_page(page);
-			put_page(page);
+			folio_unlock(folio);
+			folio_put(folio);
 			goto again;
 		}
 
 		err = 0;
-		ap->pages[ap->num_pages] = page;
+		ap->pages[ap->num_pages] = &folio->page;
 		ap->descs[ap->num_pages].length = tmp;
 		ap->num_pages++;
 
@@ -1255,10 +1257,10 @@ static ssize_t fuse_fill_write_pages(struct fuse_io_args *ia,
 
 		/* If we copied full page, mark it uptodate */
 		if (tmp == PAGE_SIZE)
-			SetPageUptodate(page);
+			folio_mark_uptodate(folio);
 
-		if (PageUptodate(page)) {
-			unlock_page(page);
+		if (folio_test_uptodate(folio)) {
+			folio_unlock(folio);
 		} else {
 			ia->write.page_locked = true;
 			break;
