@@ -3062,9 +3062,9 @@ static int kv_dpm_hw_fini(void *handle)
 	return 0;
 }
 
-static int kv_dpm_suspend(void *handle)
+static int kv_dpm_suspend(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	if (adev->pm.dpm_enabled) {
 		/* disable dpm */

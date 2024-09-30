@@ -83,7 +83,7 @@ static int isp_hw_fini(void *handle)
 	return -ENODEV;
 }
 
-static int isp_suspend(void *handle)
+static int isp_suspend(struct amdgpu_ip_block *ip_block)
 {
 	return 0;
 }

@@ -1508,9 +1508,9 @@ static int sdma_v4_4_2_hw_fini(void *handle)
 static int sdma_v4_4_2_set_clockgating_state(void *handle,
 					     enum amd_clockgating_state state);
 
-static int sdma_v4_4_2_suspend(void *handle)
+static int sdma_v4_4_2_suspend(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	if (amdgpu_in_reset(adev))
 		sdma_v4_4_2_set_clockgating_state(adev, AMD_CG_STATE_UNGATE);

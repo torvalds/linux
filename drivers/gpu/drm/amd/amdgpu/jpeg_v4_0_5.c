@@ -241,9 +241,9 @@ static int jpeg_v4_0_5_hw_fini(void *handle)
  *
  * HW fini and suspend JPEG block
  */
-static int jpeg_v4_0_5_suspend(void *handle)
+static int jpeg_v4_0_5_suspend(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	int r;
 
 	r = jpeg_v4_0_5_hw_fini(adev);

@@ -3026,10 +3026,10 @@ static int psp_hw_fini(void *handle)
 	return 0;
 }
 
-static int psp_suspend(void *handle)
+static int psp_suspend(struct amdgpu_ip_block *ip_block)
 {
 	int ret = 0;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	struct psp_context *psp = &adev->psp;
 
 	if (adev->gmc.xgmi.num_physical_nodes > 1 &&

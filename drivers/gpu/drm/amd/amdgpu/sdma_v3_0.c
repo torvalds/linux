@@ -1188,9 +1188,9 @@ static int sdma_v3_0_hw_fini(void *handle)
 	return 0;
 }
 
-static int sdma_v3_0_suspend(void *handle)
+static int sdma_v3_0_suspend(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	return sdma_v3_0_hw_fini(adev);
 }

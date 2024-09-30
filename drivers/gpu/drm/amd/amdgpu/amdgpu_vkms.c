@@ -605,15 +605,15 @@ static int amdgpu_vkms_hw_fini(void *handle)
 	return 0;
 }
 
-static int amdgpu_vkms_suspend(void *handle)
+static int amdgpu_vkms_suspend(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	int r;
 
 	r = drm_mode_config_helper_suspend(adev_to_drm(adev));
 	if (r)
 		return r;
-	return amdgpu_vkms_hw_fini(handle);
+	return amdgpu_vkms_hw_fini(adev);
 }
 
 static int amdgpu_vkms_resume(void *handle)

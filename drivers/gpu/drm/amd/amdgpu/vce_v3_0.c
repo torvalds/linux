@@ -505,10 +505,10 @@ static int vce_v3_0_hw_fini(void *handle)
 	return vce_v3_0_set_clockgating_state(adev, AMD_CG_STATE_GATE);
 }
 
-static int vce_v3_0_suspend(void *handle)
+static int vce_v3_0_suspend(struct amdgpu_ip_block *ip_block)
 {
 	int r;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	/*
 	 * Proper cleanups before halting the HW engine:
@@ -713,7 +713,7 @@ static int vce_v3_0_pre_soft_reset(struct amdgpu_ip_block *ip_block)
 
 	mdelay(5);
 
-	return vce_v3_0_suspend(adev);
+	return vce_v3_0_suspend(ip_block);
 }
 
 

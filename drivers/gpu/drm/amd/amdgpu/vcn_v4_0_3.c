@@ -331,9 +331,9 @@ static int vcn_v4_0_3_hw_fini(void *handle)
  *
  * HW fini and suspend VCN block
  */
-static int vcn_v4_0_3_suspend(void *handle)
+static int vcn_v4_0_3_suspend(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	int r;
 
 	r = vcn_v4_0_3_hw_fini(adev);

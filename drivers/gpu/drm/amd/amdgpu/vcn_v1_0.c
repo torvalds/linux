@@ -294,10 +294,10 @@ static int vcn_v1_0_hw_fini(void *handle)
  *
  * HW fini and suspend VCN block
  */
-static int vcn_v1_0_suspend(void *handle)
+static int vcn_v1_0_suspend(struct amdgpu_ip_block *ip_block)
 {
 	int r;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	bool idle_work_unexecuted;
 
 	idle_work_unexecuted = cancel_delayed_work_sync(&adev->vcn.idle_work);

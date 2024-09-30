@@ -85,7 +85,7 @@ static int aldebaran_mode2_suspend_ip(struct amdgpu_device *adev)
 			      AMD_IP_BLOCK_TYPE_SDMA))
 			continue;
 
-		r = adev->ip_blocks[i].version->funcs->suspend(adev);
+		r = adev->ip_blocks[i].version->funcs->suspend(&adev->ip_blocks[i]);
 
 		if (r) {
 			dev_err(adev->dev,

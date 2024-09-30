@@ -565,9 +565,9 @@ static int acp_hw_fini(void *handle)
 	return 0;
 }
 
-static int acp_suspend(void *handle)
+static int acp_suspend(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	/* power up on suspend */
 	if (!adev->acp.acp_cell)

@@ -434,9 +434,9 @@ static int vpe_hw_fini(void *handle)
 	return 0;
 }
 
-static int vpe_suspend(void *handle)
+static int vpe_suspend(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	cancel_delayed_work_sync(&adev->vpe.idle_work);
 

@@ -4917,9 +4917,11 @@ static int gfx_v8_0_hw_fini(void *handle)
 	return 0;
 }
 
-static int gfx_v8_0_suspend(void *handle)
+static int gfx_v8_0_suspend(struct amdgpu_ip_block *ip_block)
 {
-	return gfx_v8_0_hw_fini(handle);
+	struct amdgpu_device *adev = ip_block->adev;
+
+	return gfx_v8_0_hw_fini(adev);
 }
 
 static int gfx_v8_0_resume(void *handle)

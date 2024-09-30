@@ -2386,9 +2386,11 @@ static int gfx_v9_4_3_hw_fini(void *handle)
 	return 0;
 }
 
-static int gfx_v9_4_3_suspend(void *handle)
+static int gfx_v9_4_3_suspend(struct amdgpu_ip_block *ip_block)
 {
-	return gfx_v9_4_3_hw_fini(handle);
+	struct amdgpu_device *adev = ip_block->adev;
+
+	return gfx_v9_4_3_hw_fini(adev);
 }
 
 static int gfx_v9_4_3_resume(void *handle)

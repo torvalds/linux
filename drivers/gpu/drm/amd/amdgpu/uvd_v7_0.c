@@ -615,10 +615,10 @@ static int uvd_v7_0_prepare_suspend(struct amdgpu_ip_block *ip_block)
 	return amdgpu_uvd_prepare_suspend(adev);
 }
 
-static int uvd_v7_0_suspend(void *handle)
+static int uvd_v7_0_suspend(struct amdgpu_ip_block *ip_block)
 {
 	int r;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	/*
 	 * Proper cleanups before halting the HW engine:

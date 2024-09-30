@@ -512,9 +512,9 @@ static int soc24_common_hw_fini(void *handle)
 	return 0;
 }
 
-static int soc24_common_suspend(void *handle)
+static int soc24_common_suspend(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	return soc24_common_hw_fini(adev);
 }

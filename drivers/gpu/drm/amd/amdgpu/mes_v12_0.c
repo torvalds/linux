@@ -1593,10 +1593,10 @@ static int mes_v12_0_hw_fini(void *handle)
 	return 0;
 }
 
-static int mes_v12_0_suspend(void *handle)
+static int mes_v12_0_suspend(struct amdgpu_ip_block *ip_block)
 {
 	int r;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	r = amdgpu_mes_suspend(adev);
 	if (r)

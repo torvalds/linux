@@ -623,9 +623,9 @@ static int ih_v6_1_hw_fini(void *handle)
 	return 0;
 }
 
-static int ih_v6_1_suspend(void *handle)
+static int ih_v6_1_suspend(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	return ih_v6_1_hw_fini(adev);
 }

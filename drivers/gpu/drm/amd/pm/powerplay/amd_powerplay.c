@@ -261,9 +261,9 @@ static int pp_set_powergating_state(void *handle,
 	return 0;
 }
 
-static int pp_suspend(void *handle)
+static int pp_suspend(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	struct pp_hwmgr *hwmgr = adev->powerplay.pp_handle;
 
 	cancel_delayed_work_sync(&hwmgr->swctf_delayed_work);

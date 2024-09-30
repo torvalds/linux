@@ -40,7 +40,7 @@ static int amdgpu_reset_xgmi_reset_on_init_suspend(struct amdgpu_device *adev)
 			continue;
 
 		/* XXX handle errors */
-		r = adev->ip_blocks[i].version->funcs->suspend(adev);
+		r = adev->ip_blocks[i].version->funcs->suspend(&adev->ip_blocks[i]);
 		/* XXX handle errors */
 		if (r) {
 			dev_err(adev->dev, "suspend of IP block <%s> failed %d",

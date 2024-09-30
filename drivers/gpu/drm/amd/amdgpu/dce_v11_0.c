@@ -3043,9 +3043,9 @@ static int dce_v11_0_hw_fini(void *handle)
 	return 0;
 }
 
-static int dce_v11_0_suspend(void *handle)
+static int dce_v11_0_suspend(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	int r;
 
 	r = amdgpu_display_suspend_helper(adev);
@@ -3055,7 +3055,7 @@ static int dce_v11_0_suspend(void *handle)
 	adev->mode_info.bl_level =
 		amdgpu_atombios_encoder_get_backlight_level_from_reg(adev);
 
-	return dce_v11_0_hw_fini(handle);
+	return dce_v11_0_hw_fini(adev);
 }
 
 static int dce_v11_0_resume(void *handle)

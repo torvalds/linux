@@ -2075,9 +2075,9 @@ static int smu_reset(struct smu_context *smu)
 	return 0;
 }
 
-static int smu_suspend(void *handle)
+static int smu_suspend(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	struct smu_context *smu = adev->powerplay.pp_handle;
 	int ret;
 	uint64_t count;
