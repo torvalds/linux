@@ -2858,9 +2858,9 @@ static int mv643xx_eth_shared_probe(struct platform_device *pdev)
 	if (IS_ERR(msp->base))
 		return PTR_ERR(msp->base);
 
-	msp->clk = devm_clk_get(&pdev->dev, NULL);
-	if (!IS_ERR(msp->clk))
-		clk_prepare_enable(msp->clk);
+	msp->clk = devm_clk_get_optional_enabled(&pdev->dev, NULL);
+	if (IS_ERR(msp->clk))
+		return PTR_ERR(msp->clk);
 
 	/*
 	 * (Re-)program MBUS remapping windows if we are asked to.
@@ -2871,7 +2871,7 @@ static int mv643xx_eth_shared_probe(struct platform_device *pdev)
 
 	ret = mv643xx_eth_shared_of_probe(pdev);
 	if (ret)
-		goto err_put_clk;
+		return ret;
 	pd = dev_get_platdata(&pdev->dev);
 
 	msp->tx_csum_limit = (pd != NULL && pd->tx_csum_limit) ?
@@ -2879,20 +2879,11 @@ static int mv643xx_eth_shared_probe(struct platform_device *pdev)
 	infer_hw_params(msp);
 
 	return 0;
-
-err_put_clk:
-	if (!IS_ERR(msp->clk))
-		clk_disable_unprepare(msp->clk);
-	return ret;
 }
 
 static void mv643xx_eth_shared_remove(struct platform_device *pdev)
 {
-	struct mv643xx_eth_shared_private *msp = platform_get_drvdata(pdev);
-
 	mv643xx_eth_shared_of_remove();
-	if (!IS_ERR(msp->clk))
-		clk_disable_unprepare(msp->clk);
 }
 
 static struct platform_driver mv643xx_eth_shared_driver = {
