@@ -76,9 +76,6 @@ static inline struct drm_i915_private *to_i915(const struct drm_device *dev)
 
 #define IS_MOBILE(xe) (xe && 0)
 
-#define IS_GEN9_LP(xe) ((xe) && 0)
-#define IS_GEN9_BC(xe) ((xe) && 0)
-
 #define IS_TIGERLAKE_UY(xe) (xe && 0)
 #define IS_COMETLAKE_ULX(xe) (xe && 0)
 #define IS_COFFEELAKE_ULX(xe) (xe && 0)
