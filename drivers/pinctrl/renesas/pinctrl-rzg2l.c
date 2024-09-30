@@ -168,7 +168,6 @@
 #define RZG2L_PIN_ID_TO_PIN(id)		((id) % RZG2L_PINS_PER_PORT)
 
 #define RZG2L_TINT_MAX_INTERRUPT	32
-#define RZG2L_TINT_IRQ_START_INDEX	9
 #define RZG2L_PACK_HWIRQ(t, i)		(((t) << 16) | (i))
 
 /* Custom pinconf parameters */
@@ -247,6 +246,7 @@ enum rzg2l_iolh_index {
  * @iolh_groupb_ua: IOLH group B uA specific values
  * @iolh_groupc_ua: IOLH group C uA specific values
  * @iolh_groupb_oi: IOLH group B output impedance specific values
+ * @tint_start_index: the start index for the TINT interrupts
  * @drive_strength_ua: drive strength in uA is supported (otherwise mA is supported)
  * @func_base: base number for port function (see register PFC)
  * @oen_max_pin: the maximum pin number supporting output enable
@@ -258,6 +258,7 @@ struct rzg2l_hwcfg {
 	u16 iolh_groupb_ua[RZG2L_IOLH_IDX_MAX];
 	u16 iolh_groupc_ua[RZG2L_IOLH_IDX_MAX];
 	u16 iolh_groupb_oi[4];
+	u16 tint_start_index;
 	bool drive_strength_ua;
 	u8 func_base;
 	u8 oen_max_pin;
@@ -2379,7 +2380,7 @@ static int rzg2l_gpio_child_to_parent_hwirq(struct gpio_chip *gc,
 
 	rzg2l_gpio_irq_endisable(pctrl, child, true);
 	pctrl->hwirq[irq] = child;
-	irq += RZG2L_TINT_IRQ_START_INDEX;
+	irq += pctrl->data->hwcfg->tint_start_index;
 
 	/* All these interrupts are level high in the CPU */
 	*parent_type = IRQ_TYPE_LEVEL_HIGH;
@@ -3034,6 +3035,7 @@ static const struct rzg2l_hwcfg rzg2l_hwcfg = {
 		[RZG2L_IOLH_IDX_3V3] = 2000, 4000, 8000, 12000,
 	},
 	.iolh_groupb_oi = { 100, 66, 50, 33, },
+	.tint_start_index = 9,
 	.oen_max_pin = 0,
 };
 
@@ -3063,6 +3065,7 @@ static const struct rzg2l_hwcfg rzg3s_hwcfg = {
 		/* 3v3 power source */
 		[RZG2L_IOLH_IDX_3V3] = 4500, 5200, 5700, 6050,
 	},
+	.tint_start_index = 9,
 	.drive_strength_ua = true,
 	.func_base = 1,
 	.oen_max_pin = 1, /* Pin 1 of P0 and P7 is the maximum OEN pin. */
@@ -3073,6 +3076,7 @@ static const struct rzg2l_hwcfg rzv2h_hwcfg = {
 	.regs = {
 		.pwpr = 0x3c04,
 	},
+	.tint_start_index = 17,
 };
 
 static struct rzg2l_pinctrl_data r9a07g043_data = {
