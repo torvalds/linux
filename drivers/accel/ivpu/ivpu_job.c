@@ -60,6 +60,7 @@ static int ivpu_preemption_buffers_create(struct ivpu_device *vdev,
 
 err_free_primary:
 	ivpu_bo_free(cmdq->primary_preempt_buf);
+	cmdq->primary_preempt_buf = NULL;
 	return -ENOMEM;
 }
 
@@ -69,10 +70,10 @@ static void ivpu_preemption_buffers_free(struct ivpu_device *vdev,
 	if (vdev->fw->sched_mode != VPU_SCHEDULING_MODE_HW)
 		return;
 
-	drm_WARN_ON(&vdev->drm, !cmdq->primary_preempt_buf);
-	drm_WARN_ON(&vdev->drm, !cmdq->secondary_preempt_buf);
-	ivpu_bo_free(cmdq->primary_preempt_buf);
-	ivpu_bo_free(cmdq->secondary_preempt_buf);
+	if (cmdq->primary_preempt_buf)
+		ivpu_bo_free(cmdq->primary_preempt_buf);
+	if (cmdq->secondary_preempt_buf)
+		ivpu_bo_free(cmdq->secondary_preempt_buf);
 }
 
 static int ivpu_id_alloc(struct xarray *xa, u32 *id, void *entry, struct xa_limit *limit,
@@ -120,12 +121,10 @@ static struct ivpu_cmdq *ivpu_cmdq_alloc(struct ivpu_file_priv *file_priv)
 
 	ret = ivpu_preemption_buffers_create(vdev, file_priv, cmdq);
 	if (ret)
-		goto err_free_cmdq_mem;
+		ivpu_warn(vdev, "Failed to allocate preemption buffers, preemption limited\n");
 
 	return cmdq;
 
-err_free_cmdq_mem:
-	ivpu_bo_free(cmdq->mem);
 err_erase_xa:
 	xa_erase(&vdev->db_xa, cmdq->db_id);
 err_free_cmdq:
@@ -388,10 +387,16 @@ static int ivpu_cmdq_push_job(struct ivpu_cmdq *cmdq, struct ivpu_job *job)
 
 	if (vdev->fw->sched_mode == VPU_SCHEDULING_MODE_HW &&
 	    (unlikely(!(ivpu_test_mode & IVPU_TEST_MODE_PREEMPTION_DISABLE)))) {
-		entry->primary_preempt_buf_addr = cmdq->primary_preempt_buf->vpu_addr;
-		entry->primary_preempt_buf_size = ivpu_bo_size(cmdq->primary_preempt_buf);
-		entry->secondary_preempt_buf_addr = cmdq->secondary_preempt_buf->vpu_addr;
-		entry->secondary_preempt_buf_size = ivpu_bo_size(cmdq->secondary_preempt_buf);
+		if (cmdq->primary_preempt_buf) {
+			entry->primary_preempt_buf_addr = cmdq->primary_preempt_buf->vpu_addr;
+			entry->primary_preempt_buf_size = ivpu_bo_size(cmdq->primary_preempt_buf);
+		}
+
+		if (cmdq->secondary_preempt_buf) {
+			entry->secondary_preempt_buf_addr = cmdq->secondary_preempt_buf->vpu_addr;
+			entry->secondary_preempt_buf_size =
+				ivpu_bo_size(cmdq->secondary_preempt_buf);
+		}
 	}
 
 	wmb(); /* Ensure that tail is updated after filling entry */
