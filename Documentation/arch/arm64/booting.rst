@@ -385,6 +385,9 @@ Before jumping into the kernel, the following conditions must be met:
 
     - HCRX_EL2.MSCEn (bit 11) must be initialised to 0b1.
 
+    - HCRX_EL2.MCE2 (bit 10) must be initialised to 0b1. The exception
+      handler must set PSTATE.SS to 0b0.
+
   For CPUs with the Extended Translation Control Register feature (FEAT_TCR2):
 
   - If EL3 is present:
