@@ -15,9 +15,9 @@
 #include <linux/io.h>
 #include <linux/irq.h>
 #include <linux/module.h>
-#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
+#include <linux/property.h>
 #include <linux/slab.h>
 
 /* Register Offset Definitions */
@@ -564,7 +564,6 @@ static int xgpio_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct xgpio_instance *chip;
 	int status = 0;
-	struct device_node *np = dev->of_node;
 	u32 is_dual = 0;
 	u32 width[2];
 	u32 state[2];
@@ -579,7 +578,7 @@ static int xgpio_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, chip);
 
 	/* First, check if the device is dual-channel */
-	of_property_read_u32(np, "xlnx,is-dual", &is_dual);
+	device_property_read_u32(dev, "xlnx,is-dual", &is_dual);
 
 	/* Setup defaults */
 	memset32(width, 0, ARRAY_SIZE(width));
@@ -587,14 +586,14 @@ static int xgpio_probe(struct platform_device *pdev)
 	memset32(dir, 0xFFFFFFFF, ARRAY_SIZE(dir));
 
 	/* Update GPIO state shadow register with default value */
-	of_property_read_u32(np, "xlnx,dout-default", &state[0]);
-	of_property_read_u32(np, "xlnx,dout-default-2", &state[1]);
+	device_property_read_u32(dev, "xlnx,dout-default", &state[0]);
+	device_property_read_u32(dev, "xlnx,dout-default-2", &state[1]);
 
 	bitmap_from_arr32(chip->state, state, 64);
 
 	/* Update GPIO direction shadow register with default value */
-	of_property_read_u32(np, "xlnx,tri-default", &dir[0]);
-	of_property_read_u32(np, "xlnx,tri-default-2", &dir[1]);
+	device_property_read_u32(dev, "xlnx,tri-default", &dir[0]);
+	device_property_read_u32(dev, "xlnx,tri-default-2", &dir[1]);
 
 	bitmap_from_arr32(chip->dir, dir, 64);
 
@@ -602,13 +601,13 @@ static int xgpio_probe(struct platform_device *pdev)
 	 * Check device node and parent device node for device width
 	 * and assume default width of 32
 	 */
-	if (of_property_read_u32(np, "xlnx,gpio-width", &width[0]))
+	if (device_property_read_u32(dev, "xlnx,gpio-width", &width[0]))
 		width[0] = 32;
 
 	if (width[0] > 32)
 		return -EINVAL;
 
-	if (is_dual && of_property_read_u32(np, "xlnx,gpio2-width", &width[1]))
+	if (is_dual && device_property_read_u32(dev, "xlnx,gpio2-width", &width[1]))
 		width[1] = 32;
 
 	if (width[1] > 32)
