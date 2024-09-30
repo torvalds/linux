@@ -129,7 +129,7 @@ static void io_poll_req_insert(struct io_kiocb *req)
 	spin_unlock(&hb->lock);
 }
 
-static void io_poll_req_delete(struct io_kiocb *req, struct io_ring_ctx *ctx)
+static void io_poll_req_delete(struct io_kiocb *req)
 {
 	struct io_hash_table *table = &req->ctx->cancel_table;
 	u32 index = hash_long(req->cqe.user_data, table->hash_bits);
@@ -165,7 +165,7 @@ static void io_poll_tw_hash_eject(struct io_kiocb *req, struct io_tw_state *ts)
 		hash_del(&req->hash_node);
 		req->flags &= ~REQ_F_HASH_LOCKED;
 	} else {
-		io_poll_req_delete(req, ctx);
+		io_poll_req_delete(req);
 	}
 }
 
