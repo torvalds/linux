@@ -3156,8 +3156,6 @@ xfs_alloc_put_freelist(
 		logflags |= XFS_AGF_BTREEBLKS;
 	}
 
-	xfs_alloc_log_agf(tp, agbp, logflags);
-
 	ASSERT(be32_to_cpu(agf->agf_flcount) <= xfs_agfl_size(mp));
 
 	agfl_bno = xfs_buf_to_agfl_bno(agflbp);
