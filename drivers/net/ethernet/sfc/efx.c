@@ -654,11 +654,21 @@ static void efx_get_queue_stats_tx(struct net_device *net_dev, int idx,
 	channel = efx_get_tx_channel(efx, idx);
 	stats->packets = 0;
 	stats->bytes = 0;
+	stats->hw_gso_packets = 0;
+	stats->hw_gso_wire_packets = 0;
 	efx_for_each_channel_tx_queue(tx_queue, channel) {
 		stats->packets += tx_queue->complete_packets -
 				  tx_queue->old_complete_packets;
 		stats->bytes += tx_queue->complete_bytes -
 				tx_queue->old_complete_bytes;
+		/* Note that, unlike stats->packets and stats->bytes,
+		 * these count TXes enqueued, rather than completed,
+		 * which may not be what users expect.
+		 */
+		stats->hw_gso_packets += tx_queue->tso_bursts -
+					 tx_queue->old_tso_bursts;
+		stats->hw_gso_wire_packets += tx_queue->tso_packets -
+					      tx_queue->old_tso_packets;
 	}
 }
 
@@ -676,6 +686,8 @@ static void efx_get_base_stats(struct net_device *net_dev,
 	rx->hw_drop_overruns = 0;
 	tx->packets = 0;
 	tx->bytes = 0;
+	tx->hw_gso_packets = 0;
+	tx->hw_gso_wire_packets = 0;
 
 	/* Count all packets on non-core queues, and packets before last
 	 * datapath start on core queues.
@@ -697,9 +709,13 @@ static void efx_get_base_stats(struct net_device *net_dev,
 						net_dev->real_num_tx_queues) {
 				tx->packets += tx_queue->complete_packets;
 				tx->bytes += tx_queue->complete_bytes;
+				tx->hw_gso_packets += tx_queue->tso_bursts;
+				tx->hw_gso_wire_packets += tx_queue->tso_packets;
 			} else {
 				tx->packets += tx_queue->old_complete_packets;
 				tx->bytes += tx_queue->old_complete_bytes;
+				tx->hw_gso_packets += tx_queue->old_tso_bursts;
+				tx->hw_gso_wire_packets += tx_queue->old_tso_packets;
 			}
 			/* Include XDP TX in device-wide stats */
 			tx->packets += tx_queue->complete_xdp_packets;

@@ -197,6 +197,8 @@ struct efx_tx_buffer {
  *	efx_init_tx_queue()
  * @old_complete_bytes: Value of @complete_bytes as of last
  *	efx_init_tx_queue()
+ * @old_tso_bursts: Value of @tso_bursts as of last efx_init_tx_queue()
+ * @old_tso_packets: Value of @tso_packets as of last efx_init_tx_queue()
  * @read_count: Current read pointer.
  *	This is the number of buffers that have been removed from both rings.
  * @old_write_count: The value of @write_count when last checked.
@@ -276,6 +278,8 @@ struct efx_tx_queue {
 	bool xdp_tx;
 	unsigned long old_complete_packets;
 	unsigned long old_complete_bytes;
+	unsigned int old_tso_bursts;
+	unsigned int old_tso_packets;
 
 	/* Members used mainly on the completion path */
 	unsigned int read_count ____cacheline_aligned_in_smp;

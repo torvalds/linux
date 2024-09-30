@@ -88,6 +88,8 @@ void efx_init_tx_queue(struct efx_tx_queue *tx_queue)
 
 	tx_queue->old_complete_packets = tx_queue->complete_packets;
 	tx_queue->old_complete_bytes = tx_queue->complete_bytes;
+	tx_queue->old_tso_bursts = tx_queue->tso_bursts;
+	tx_queue->old_tso_packets = tx_queue->tso_packets;
 
 	tx_queue->xdp_tx = efx_channel_is_xdp_tx(tx_queue->channel);
 	tx_queue->tso_version = 0;
