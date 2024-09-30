@@ -324,6 +324,7 @@ extern const struct ice_vernier_info_e82x e822_vernier[NUM_ICE_PTP_LNK_SPD];
  */
 #define ICE_E810_PLL_FREQ		812500000
 #define ICE_PTP_NOMINAL_INCVAL_E810	0x13b13b13bULL
+#define ICE_E810_E830_SYNC_DELAY	0
 
 /* Device agnostic functions */
 u8 ice_get_ptp_src_clock_index(struct ice_hw *hw);
@@ -432,6 +433,7 @@ static inline u64 ice_get_base_incval(struct ice_hw *hw)
 {
 	switch (hw->mac_type) {
 	case ICE_MAC_E810:
+	case ICE_MAC_E830:
 		return ICE_PTP_NOMINAL_INCVAL_E810;
 	case ICE_MAC_GENERIC:
 		return ice_e82x_nominal_incval(ice_e82x_time_ref(hw));
@@ -648,6 +650,12 @@ static inline bool ice_is_dual(struct ice_hw *hw)
 
 /* E810 timer command register */
 #define E810_ETH_GLTSYN_CMD		0x03000344
+
+/* E830 timer command register */
+#define E830_ETH_GLTSYN_CMD		0x00088814
+
+/* E810 PHC time register */
+#define E830_GLTSYN_TIME_L(_tmr_idx)	(0x0008A000 + 0x1000 * (_tmr_idx))
 
 /* Source timer incval macros */
 #define INCVAL_HIGH_M			0xFF
