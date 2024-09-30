@@ -38,6 +38,7 @@ static void cs_amp_lib_test_init_dummy_cal_blob(struct kunit *test, int num_amps
 {
 	struct cs_amp_lib_test_priv *priv = test->priv;
 	unsigned int blob_size;
+	int i;
 
 	blob_size = offsetof(struct cirrus_amp_efi_data, data) +
 		    sizeof(struct cirrus_amp_cal_data) * num_amps;
@@ -49,6 +50,14 @@ static void cs_amp_lib_test_init_dummy_cal_blob(struct kunit *test, int num_amps
 	priv->cal_blob->count = num_amps;
 
 	get_random_bytes(priv->cal_blob->data, sizeof(struct cirrus_amp_cal_data) * num_amps);
+
+	/* Ensure all timestamps are non-zero to mark the entry valid. */
+	for (i = 0; i < num_amps; i++)
+		priv->cal_blob->data[i].calTime[0] |= 1;
+
+	/* Ensure that all UIDs are non-zero and unique. */
+	for (i = 0; i < num_amps; i++)
+		*(u8 *)&priv->cal_blob->data[i].calTarget[0] = i + 1;
 }
 
 static u64 cs_amp_lib_test_get_target_uid(struct kunit *test)
@@ -506,6 +515,49 @@ static void cs_amp_lib_test_get_efi_cal_zero_not_matched_test(struct kunit *test
 	kunit_deactivate_static_stub(test, cs_amp_test_hooks->get_efi_variable);
 }
 
+/*
+ * If an entry has a timestamp of 0 it should be ignored even if it has
+ * a matching target UID.
+ */
+static void cs_amp_lib_test_get_efi_cal_empty_entry_test(struct kunit *test)
+{
+	struct cs_amp_lib_test_priv *priv = test->priv;
+	struct cirrus_amp_cal_data result_data;
+	u64 uid;
+
+	cs_amp_lib_test_init_dummy_cal_blob(test, 8);
+
+	/* Mark the 3rd entry invalid by zeroing calTime */
+	priv->cal_blob->data[2].calTime[0] = 0;
+	priv->cal_blob->data[2].calTime[1] = 0;
+
+	/* Get the UID value of the 3rd entry */
+	uid = priv->cal_blob->data[2].calTarget[1];
+	uid <<= 32;
+	uid |= priv->cal_blob->data[2].calTarget[0];
+
+	/* Redirect calls to get EFI data */
+	kunit_activate_static_stub(test,
+				   cs_amp_test_hooks->get_efi_variable,
+				   cs_amp_lib_test_get_efi_variable);
+
+	/* Lookup by UID should not find it */
+	KUNIT_EXPECT_EQ(test,
+			cs_amp_get_efi_calibration_data(&priv->amp_pdev.dev,
+							uid, -1,
+							&result_data),
+			-ENOENT);
+
+	/* Get by index should ignore it */
+	KUNIT_EXPECT_EQ(test,
+			cs_amp_get_efi_calibration_data(&priv->amp_pdev.dev,
+							0, 2,
+							&result_data),
+			-ENOENT);
+
+	kunit_deactivate_static_stub(test, cs_amp_test_hooks->get_efi_variable);
+}
+
 static const struct cirrus_amp_cal_controls cs_amp_lib_test_calibration_controls = {
 	.alg_id =	0x9f210,
 	.mem_region =	WMFW_ADSP2_YM,
@@ -687,6 +739,7 @@ static struct kunit_case cs_amp_lib_test_cases[] = {
 			 cs_amp_lib_test_get_cal_gen_params),
 	KUNIT_CASE_PARAM(cs_amp_lib_test_get_efi_cal_by_index_fallback_test,
 			 cs_amp_lib_test_get_cal_gen_params),
+	KUNIT_CASE(cs_amp_lib_test_get_efi_cal_empty_entry_test),
 
 	/* Tests for writing calibration data */
 	KUNIT_CASE(cs_amp_lib_test_write_cal_data_test),

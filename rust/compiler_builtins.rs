@@ -40,16 +40,19 @@ macro_rules! define_panicking_intrinsics(
 define_panicking_intrinsics!("`f32` should not be used", {
     __addsf3,
     __eqsf2,
+    __extendsfdf2,
     __gesf2,
     __lesf2,
     __ltsf2,
     __mulsf3,
     __nesf2,
+    __truncdfsf2,
     __unordsf2,
 });
 
 define_panicking_intrinsics!("`f64` should not be used", {
     __adddf3,
+    __eqdf2,
     __ledf2,
     __ltdf2,
     __muldf3,

@@ -15,6 +15,8 @@ but not `std <https://doc.rust-lang.org/std/>`_. Crates for use in the
 kernel must opt into this behavior using the ``#![no_std]`` attribute.
 
 
+.. _rust_code_documentation:
+
 Code documentation
 ------------------
 
@@ -22,10 +24,17 @@ Rust kernel code is documented using ``rustdoc``, its built-in documentation
 generator.
 
 The generated HTML docs include integrated search, linked items (e.g. types,
-functions, constants), source code, etc. They may be read at (TODO: link when
-in mainline and generated alongside the rest of the documentation):
+functions, constants), source code, etc. They may be read at:
 
-	http://kernel.org/
+	https://rust.docs.kernel.org
+
+For linux-next, please see:
+
+	https://rust.docs.kernel.org/next/
+
+There are also tags for each main release, e.g.:
+
+	https://rust.docs.kernel.org/6.10/
 
 The docs can also be easily generated and read locally. This is quite fast
 (same order as compiling the code itself) and no special tools or environment
@@ -75,7 +84,7 @@ should provide as-safe-as-possible abstractions as needed.
 .. code-block::
 
 	                                                rust/bindings/
-	                                               (rust/helpers.c)
+	                                               (rust/helpers/)
 
 	                                                   include/ -----+ <-+
 	                                                                 |   |
@@ -112,7 +121,7 @@ output files in the ``rust/bindings/`` directory.
 
 For parts of the C header that ``bindgen`` does not auto generate, e.g. C
 ``inline`` functions or non-trivial macros, it is acceptable to add a small
-wrapper function to ``rust/helpers.c`` to make it available for the Rust side as
+wrapper function to ``rust/helpers/`` to make it available for the Rust side as
 well.
 
 Abstractions
@@ -142,3 +151,11 @@ configuration:
 	#[cfg(CONFIG_X="y")]   // Enabled as a built-in (`y`)
 	#[cfg(CONFIG_X="m")]   // Enabled as a module   (`m`)
 	#[cfg(not(CONFIG_X))]  // Disabled
+
+For other predicates that Rust's ``cfg`` does not support, e.g. expressions with
+numerical comparisons, one may define a new Kconfig symbol:
+
+.. code-block:: kconfig
+
+	config RUSTC_VERSION_MIN_107900
+		def_bool y if RUSTC_VERSION >= 107900

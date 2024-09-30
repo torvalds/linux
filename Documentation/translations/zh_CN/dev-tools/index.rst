@@ -21,6 +21,7 @@ Documentation/translations/zh_CN/dev-tools/testing-overview.rst
    testing-overview
    sparse
    kcov
+   kcsan
    gcov
    kasan
    ubsan
@@ -32,7 +33,6 @@ Todolist:
  - checkpatch
  - coccinelle
  - kmsan
- - kcsan
  - kfence
  - kgdb
  - kselftest

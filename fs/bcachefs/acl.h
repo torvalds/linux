@@ -28,7 +28,7 @@ void bch2_acl_to_text(struct printbuf *, const void *, size_t);
 
 #ifdef CONFIG_BCACHEFS_POSIX_ACL
 
-struct posix_acl *bch2_get_acl(struct mnt_idmap *, struct dentry *, int);
+struct posix_acl *bch2_get_acl(struct inode *, int, bool);
 
 int bch2_set_acl_trans(struct btree_trans *, subvol_inum,
 		       struct bch_inode_unpacked *,

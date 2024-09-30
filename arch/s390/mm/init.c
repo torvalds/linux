@@ -62,7 +62,7 @@ EXPORT_SYMBOL(zero_page_mask);
 
 static void __init setup_zero_pages(void)
 {
-	unsigned long total_pages = PHYS_PFN(memblock_phys_mem_size() - memblock_reserved_size());
+	unsigned long total_pages = memblock_estimated_nr_free_pages();
 	unsigned int order;
 	struct page *page;
 	int i;
@@ -97,7 +97,7 @@ void __init paging_init(void)
 
 	vmem_map_init();
 	sparse_init();
-	zone_dma_bits = 31;
+	zone_dma_limit = DMA_BIT_MASK(31);
 	memset(max_zone_pfns, 0, sizeof(max_zone_pfns));
 	max_zone_pfns[ZONE_DMA] = virt_to_pfn(MAX_DMA_ADDRESS);
 	max_zone_pfns[ZONE_NORMAL] = max_low_pfn;
@@ -108,6 +108,8 @@ void mark_rodata_ro(void)
 {
 	unsigned long size = __end_ro_after_init - __start_ro_after_init;
 
+	if (MACHINE_HAS_NX)
+		system_ctl_set_bit(0, CR0_INSTRUCTION_EXEC_PROTECTION_BIT);
 	__set_memory_ro(__start_ro_after_init, __end_ro_after_init);
 	pr_info("Write protected read-only-after-init data: %luk\n", size >> 10);
 }
@@ -168,13 +170,6 @@ void __init mem_init(void)
 	/* this will put all low memory onto the freelists */
 	memblock_free_all();
 	setup_zero_pages();	/* Setup zeroed pages. */
-}
-
-void free_initmem(void)
-{
-	set_memory_rwnx((unsigned long)_sinittext,
-			(unsigned long)(_einittext - _sinittext) >> PAGE_SHIFT);
-	free_initmem_default(POISON_FREE_INITMEM);
 }
 
 unsigned long memory_block_size_bytes(void)

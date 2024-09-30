@@ -837,7 +837,6 @@ static int ch341_reset_resume(struct usb_serial *serial)
 
 static struct usb_serial_driver ch341_device = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= "ch341-uart",
 	},
 	.id_table          = id_table,
@@ -863,4 +862,5 @@ static struct usb_serial_driver * const serial_drivers[] = {
 
 module_usb_serial_driver(serial_drivers, id_table);
 
+MODULE_DESCRIPTION("Winchiphead CH341 USB Serial driver");
 MODULE_LICENSE("GPL v2");

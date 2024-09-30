@@ -22,22 +22,11 @@
 /* force a value to a lower even value */
 #define EVEN_FLOOR(x)        ((x) & ~1)
 
-/* for preprocessor and array sizing use MIN and MAX
-   otherwise use min and max */
-#define MAX(a, b)            (((a) > (b)) ? (a) : (b))
-#define MIN(a, b)            (((a) < (b)) ? (a) : (b))
-
 #define CEIL_DIV(a, b)       (((b) != 0) ? ((a) + (b) - 1) / (b) : 0)
 #define CEIL_MUL(a, b)       (CEIL_DIV(a, b) * (b))
 #define CEIL_MUL2(a, b)      (((a) + (b) - 1) & ~((b) - 1))
 #define CEIL_SHIFT(a, b)     (((a) + (1 << (b)) - 1) >> (b))
 #define CEIL_SHIFT_MUL(a, b) (CEIL_SHIFT(a, b) << (b))
-
-#if !defined(PIPE_GENERATION)
-
-#define ceil_div(a, b)		(CEIL_DIV(a, b))
-
-#endif /* !defined(PIPE_GENERATION) */
 
 /*
  * For SP and ISP, SDK provides the definition of OP_std_modadd.

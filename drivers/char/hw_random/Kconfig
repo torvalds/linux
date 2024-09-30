@@ -555,6 +555,7 @@ config HW_RANDOM_ARM_SMCCC_TRNG
 config HW_RANDOM_CN10K
        tristate "Marvell CN10K Random Number Generator support"
        depends on HW_RANDOM && PCI && (ARM64 || (64BIT && COMPILE_TEST))
+       default HW_RANDOM if ARCH_THUNDER
        help
 	 This driver provides support for the True Random Number
 	 generator available in Marvell CN10K SoCs.
@@ -571,6 +572,20 @@ config HW_RANDOM_JH7110
 
 	  To compile this driver as a module, choose M here.
 	  The module will be called jh7110-trng.
+
+config HW_RANDOM_ROCKCHIP
+	tristate "Rockchip True Random Number Generator"
+	depends on HW_RANDOM && (ARCH_ROCKCHIP || COMPILE_TEST)
+	depends on HAS_IOMEM
+	default HW_RANDOM
+	help
+	  This driver provides kernel-side support for the True Random Number
+	  Generator hardware found on some Rockchip SoC like RK3566 or RK3568.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called rockchip-rng.
+
+	  If unsure, say Y.
 
 endif # HW_RANDOM
 

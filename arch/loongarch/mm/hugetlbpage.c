@@ -39,11 +39,11 @@ pte_t *huge_pte_offset(struct mm_struct *mm, unsigned long addr,
 	pmd_t *pmd = NULL;
 
 	pgd = pgd_offset(mm, addr);
-	if (pgd_present(*pgd)) {
+	if (pgd_present(pgdp_get(pgd))) {
 		p4d = p4d_offset(pgd, addr);
-		if (p4d_present(*p4d)) {
+		if (p4d_present(p4dp_get(p4d))) {
 			pud = pud_offset(p4d, addr);
-			if (pud_present(*pud))
+			if (pud_present(pudp_get(pud)))
 				pmd = pmd_offset(pud, addr);
 		}
 	}

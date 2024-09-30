@@ -28,14 +28,14 @@
 // ----------------------------------------------------------------------------
 #define K1212_DEBUG_LEVEL		0
 #if K1212_DEBUG_LEVEL > 0
-#define K1212_DEBUG_PRINTK(fmt,args...)	printk(KERN_DEBUG fmt,##args)
+#define K1212_DEBUG_PRINTK(fmt, args...) pr_debug(fmt, ##args)
 #else
-#define K1212_DEBUG_PRINTK(fmt,...)	do { } while (0)
+#define K1212_DEBUG_PRINTK(fmt, ...)	do { } while (0)
 #endif
 #if K1212_DEBUG_LEVEL > 1
-#define K1212_DEBUG_PRINTK_VERBOSE(fmt,args...)	printk(KERN_DEBUG fmt,##args)
+#define K1212_DEBUG_PRINTK_VERBOSE(fmt, args...) pr_debug(fmt, ##args)
 #else
-#define K1212_DEBUG_PRINTK_VERBOSE(fmt,...)
+#define K1212_DEBUG_PRINTK_VERBOSE(fmt, ...)
 #endif
 
 // ----------------------------------------------------------------------------
@@ -602,7 +602,7 @@ static void snd_korg1212_timer_func(struct timer_list *t)
 			/* reprogram timer */
 			mod_timer(&korg1212->timer, jiffies + 1);
 		} else {
-			snd_printd("korg1212_timer_func timeout\n");
+			dev_dbg(korg1212->card->dev, "korg1212_timer_func timeout\n");
 			korg1212->sharedBufferPtr->cardCommand = 0;
 			korg1212->dsp_stop_is_processed = 1;
 			wake_up(&korg1212->wait);
@@ -1131,7 +1131,7 @@ static irqreturn_t snd_korg1212_interrupt(int irq, void *dev_id)
 			K1212_DEBUG_PRINTK_VERBOSE("K1212_DEBUG: IRQ DMAE count - %ld, %x, [%s].\n",
 						   korg1212->irqcount, doorbellValue,
 						   stateName[korg1212->cardState]);
-			snd_printk(KERN_ERR "korg1212: DMA Error\n");
+			dev_err(korg1212->card->dev, "korg1212: DMA Error\n");
 			korg1212->errorcnt++;
 			korg1212->totalerrorcnt++;
 			korg1212->sharedBufferPtr->cardCommand = 0;
@@ -1272,8 +1272,8 @@ static int snd_korg1212_silence(struct snd_korg1212 *korg1212, int pos, int coun
 #if K1212_DEBUG_LEVEL > 0
 		if ( (void *) dst < (void *) korg1212->playDataBufsPtr ||
 		     (void *) dst > (void *) korg1212->playDataBufsPtr[8].bufferData ) {
-			printk(KERN_DEBUG "K1212_DEBUG: snd_korg1212_silence KERNEL EFAULT dst=%p iter=%d\n",
-			       dst, i);
+			pr_debug("K1212_DEBUG: %s KERNEL EFAULT dst=%p iter=%d\n",
+				 __func__, dst, i);
 			return -EFAULT;
 		}
 #endif
@@ -1305,7 +1305,8 @@ static int snd_korg1212_copy_to(struct snd_pcm_substream *substream,
 #if K1212_DEBUG_LEVEL > 0
 		if ( (void *) src < (void *) korg1212->recordDataBufsPtr ||
 		     (void *) src > (void *) korg1212->recordDataBufsPtr[8].bufferData ) {
-			printk(KERN_DEBUG "K1212_DEBUG: snd_korg1212_copy_to KERNEL EFAULT, src=%p dst=%p iter=%d\n", src, dst->kvec.iov_base, i);
+			pr_debug("K1212_DEBUG: %s KERNEL EFAULT, src=%p dst=%p iter=%d\n",
+				 __func__, src, dst->kvec.iov_base, i);
 			return -EFAULT;
 		}
 #endif
@@ -1330,8 +1331,8 @@ static int snd_korg1212_copy_from(struct snd_pcm_substream *substream,
 	size = korg1212->channels * 2;
 	dst = korg1212->playDataBufsPtr[0].bufferData + pos;
 
-	K1212_DEBUG_PRINTK_VERBOSE("K1212_DEBUG: snd_korg1212_copy_from pos=%d size=%d count=%d\n",
-				   pos, size, count);
+	K1212_DEBUG_PRINTK_VERBOSE("K1212_DEBUG: %s pos=%d size=%d count=%d\n",
+				   __func__, pos, size, count);
 
 	if (snd_BUG_ON(pos + count > K1212_MAX_SAMPLES))
 		return -EINVAL;
@@ -1340,7 +1341,8 @@ static int snd_korg1212_copy_from(struct snd_pcm_substream *substream,
 #if K1212_DEBUG_LEVEL > 0
 		if ( (void *) dst < (void *) korg1212->playDataBufsPtr ||
 		     (void *) dst > (void *) korg1212->playDataBufsPtr[8].bufferData ) {
-			printk(KERN_DEBUG "K1212_DEBUG: snd_korg1212_copy_from KERNEL EFAULT, src=%p dst=%p iter=%d\n", src->kvec.iov_base, dst, i);
+			pr_debug("K1212_DEBUG: %s KERNEL EFAULT, src=%p dst=%p iter=%d\n",
+				 __func__, src->kvec.iov_base, dst, i);
 			return -EFAULT;
 		}
 #endif
@@ -2135,7 +2137,7 @@ static int snd_korg1212_create(struct snd_card *card, struct pci_dev *pci)
                           KBUILD_MODNAME, korg1212);
 
         if (err) {
-		snd_printk(KERN_ERR "korg1212: unable to grab IRQ %d\n", pci->irq);
+		dev_err(&pci->dev, "korg1212: unable to grab IRQ %d\n", pci->irq);
                 return -EBUSY;
         }
 
@@ -2232,7 +2234,7 @@ static int snd_korg1212_create(struct snd_card *card, struct pci_dev *pci)
 
 	err = request_firmware(&dsp_code, "korg/k1212.dsp", &pci->dev);
 	if (err < 0) {
-		snd_printk(KERN_ERR "firmware not available\n");
+		dev_err(&pci->dev, "firmware not available\n");
 		return err;
 	}
 

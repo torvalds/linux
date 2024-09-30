@@ -49,7 +49,6 @@ MODULE_DEVICE_TABLE(usb, id_table);
 
 static struct usb_serial_driver zyxel_omninet_device = {
 	.driver = {
-		.owner =	THIS_MODULE,
 		.name =		"omninet",
 	},
 	.description =		"ZyXEL - omni.net usb",

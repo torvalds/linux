@@ -260,6 +260,36 @@ int amdgpu_sync_resv(struct amdgpu_device *adev, struct amdgpu_sync *sync,
 	return 0;
 }
 
+/**
+ * amdgpu_sync_kfd - sync to KFD fences
+ *
+ * @sync: sync object to add KFD fences to
+ * @resv: reservation object with KFD fences
+ *
+ * Extract all KFD fences and add them to the sync object.
+ */
+int amdgpu_sync_kfd(struct amdgpu_sync *sync, struct dma_resv *resv)
+{
+	struct dma_resv_iter cursor;
+	struct dma_fence *f;
+	int r = 0;
+
+	dma_resv_iter_begin(&cursor, resv, DMA_RESV_USAGE_BOOKKEEP);
+	dma_resv_for_each_fence_unlocked(&cursor, f) {
+		void *fence_owner = amdgpu_sync_get_owner(f);
+
+		if (fence_owner != AMDGPU_FENCE_OWNER_KFD)
+			continue;
+
+		r = amdgpu_sync_fence(sync, f);
+		if (r)
+			break;
+	}
+	dma_resv_iter_end(&cursor);
+
+	return r;
+}
+
 /* Free the entry back to the slab */
 static void amdgpu_sync_entry_free(struct amdgpu_sync_entry *e)
 {

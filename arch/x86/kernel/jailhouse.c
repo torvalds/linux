@@ -12,6 +12,7 @@
 #include <linux/kernel.h>
 #include <linux/reboot.h>
 #include <linux/serial_8250.h>
+#include <linux/acpi.h>
 #include <asm/apic.h>
 #include <asm/io_apic.h>
 #include <asm/acpi.h>

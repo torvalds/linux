@@ -447,6 +447,7 @@ BCH_DEBUG_PARAMS_DEBUG()
 	x(blocked_journal_low_on_space)		\
 	x(blocked_journal_low_on_pin)		\
 	x(blocked_journal_max_in_flight)	\
+	x(blocked_key_cache_flush)		\
 	x(blocked_allocate)			\
 	x(blocked_allocate_open_bucket)		\
 	x(blocked_write_buffer_full)		\
@@ -541,7 +542,7 @@ struct bch_dev {
 	 * gc_gens_lock, for device resize - holding any is sufficient for
 	 * access: Or rcu_read_lock(), but only for dev_ptr_stale():
 	 */
-	struct bucket_array __rcu *buckets_gc;
+	GENRADIX(struct bucket)	buckets_gc;
 	struct bucket_gens __rcu *bucket_gens;
 	u8			*oldest_gen;
 	unsigned long		*buckets_nouse;
@@ -593,6 +594,7 @@ struct bch_dev {
 #define BCH_FS_FLAGS()			\
 	x(new_fs)			\
 	x(started)			\
+	x(clean_recovery)		\
 	x(btree_running)		\
 	x(accounting_replay_done)	\
 	x(may_go_rw)			\
@@ -775,7 +777,7 @@ struct bch_fs {
 		unsigned	nsec_per_time_unit;
 		u64		features;
 		u64		compat;
-		unsigned long	errors_silent[BITS_TO_LONGS(BCH_SB_ERR_MAX)];
+		unsigned long	errors_silent[BITS_TO_LONGS(BCH_FSCK_ERR_MAX)];
 		u64		btrees_lost_data;
 	}			sb;
 
@@ -870,6 +872,7 @@ struct bch_fs {
 
 	/* ALLOCATION */
 	struct bch_devs_mask	rw_devs[BCH_DATA_NR];
+	unsigned long		rw_devs_change_count;
 
 	u64			capacity; /* sectors */
 	u64			reserved; /* sectors */
@@ -892,6 +895,8 @@ struct bch_fs {
 	seqcount_t			usage_lock;
 	struct bch_fs_usage_base __percpu *usage;
 	u64 __percpu		*online_reserved;
+
+	unsigned long		allocator_last_stuck;
 
 	struct io_clock		io_clock[2];
 
@@ -1020,6 +1025,7 @@ struct bch_fs {
 	/* fs.c */
 	struct list_head	vfs_inodes_list;
 	struct mutex		vfs_inodes_lock;
+	struct rhashtable	vfs_inodes_table;
 
 	/* VFS IO PATH - fs-io.c */
 	struct bio_set		writepage_bioset;
@@ -1041,8 +1047,6 @@ struct bch_fs {
 	 * for signaling to the toplevel code which pass we want to run now.
 	 */
 	enum bch_recovery_pass	curr_recovery_pass;
-	/* bitmap of explicitly enabled recovery passes: */
-	u64			recovery_passes_explicit;
 	/* bitmask of recovery passes that we actually ran */
 	u64			recovery_passes_complete;
 	/* never rewinds version of curr_recovery_pass */
@@ -1082,7 +1086,6 @@ struct bch_fs {
 	u64 __percpu		*counters;
 
 	unsigned		copy_gc_enabled:1;
-	bool			promote_whole_extents;
 
 	struct bch2_time_stats	times[BCH_TIME_STAT_NR];
 
@@ -1192,12 +1195,15 @@ static inline bool btree_id_cached(const struct bch_fs *c, enum btree_id btree)
 static inline struct timespec64 bch2_time_to_timespec(const struct bch_fs *c, s64 time)
 {
 	struct timespec64 t;
+	s64 sec;
 	s32 rem;
 
 	time += c->sb.time_base_lo;
 
-	t.tv_sec = div_s64_rem(time, c->sb.time_units_per_sec, &rem);
-	t.tv_nsec = rem * c->sb.nsec_per_time_unit;
+	sec = div_s64_rem(time, c->sb.time_units_per_sec, &rem);
+
+	set_normalized_timespec64(&t, sec, rem * (s64)c->sb.nsec_per_time_unit);
+
 	return t;
 }
 

@@ -62,11 +62,11 @@
 #define MAX_BANK		8
 #define BANK_SZ			8
 #define MAX_LINE		(MAX_BANK * BANK_SZ)
-#define MUXED_STRIDE		(CY8C95X0_DRV_HIZ - CY8C95X0_INTMASK)
+#define MUXED_STRIDE		16
 #define CY8C95X0_GPIO_MASK	GENMASK(7, 0)
-#define CY8C95X0_VIRTUAL	(CY8C95X0_COMMAND + 1)
+#define CY8C95X0_VIRTUAL	0x40
 #define CY8C95X0_MUX_REGMAP_TO_OFFSET(x, p) \
-	(CY8C95X0_VIRTUAL + (x) - CY8C95X0_INTMASK + (p) * MUXED_STRIDE)
+	(CY8C95X0_VIRTUAL + (x) - CY8C95X0_PORTSEL + (p) * MUXED_STRIDE)
 
 static const struct i2c_device_id cy8c95x0_id[] = {
 	{ "cy8c9520", 20, },
@@ -329,7 +329,11 @@ static int cypress_get_pin_mask(struct cy8c95x0_pinctrl *chip, unsigned int pin)
 
 static bool cy8c95x0_readable_register(struct device *dev, unsigned int reg)
 {
-	if (reg >= CY8C95X0_VIRTUAL)
+	/*
+	 * Only 12 registers are present per port (see Table 6 in the
+	 * datasheet).
+	 */
+	if (reg >= CY8C95X0_VIRTUAL && (reg % MUXED_STRIDE) < 12)
 		return true;
 
 	switch (reg) {
@@ -444,7 +448,7 @@ static const struct regmap_range_cfg cy8c95x0_ranges[] = {
 		.selector_reg = CY8C95X0_PORTSEL,
 		.selector_mask = 0x07,
 		.selector_shift = 0x0,
-		.window_start = CY8C95X0_INTMASK,
+		.window_start = CY8C95X0_PORTSEL,
 		.window_len = MUXED_STRIDE,
 	}
 };

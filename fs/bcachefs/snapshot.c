@@ -31,15 +31,14 @@ void bch2_snapshot_tree_to_text(struct printbuf *out, struct bch_fs *c,
 		   le32_to_cpu(t.v->root_snapshot));
 }
 
-int bch2_snapshot_tree_invalid(struct bch_fs *c, struct bkey_s_c k,
-			       enum bch_validate_flags flags,
-			       struct printbuf *err)
+int bch2_snapshot_tree_validate(struct bch_fs *c, struct bkey_s_c k,
+			       enum bch_validate_flags flags)
 {
 	int ret = 0;
 
 	bkey_fsck_err_on(bkey_gt(k.k->p, POS(0, U32_MAX)) ||
-			 bkey_lt(k.k->p, POS(0, 1)), c, err,
-			 snapshot_tree_pos_bad,
+			 bkey_lt(k.k->p, POS(0, 1)),
+			 c, snapshot_tree_pos_bad,
 			 "bad pos");
 fsck_err:
 	return ret;
@@ -225,55 +224,54 @@ void bch2_snapshot_to_text(struct printbuf *out, struct bch_fs *c,
 			   le32_to_cpu(s.v->skip[2]));
 }
 
-int bch2_snapshot_invalid(struct bch_fs *c, struct bkey_s_c k,
-			  enum bch_validate_flags flags,
-			  struct printbuf *err)
+int bch2_snapshot_validate(struct bch_fs *c, struct bkey_s_c k,
+			  enum bch_validate_flags flags)
 {
 	struct bkey_s_c_snapshot s;
 	u32 i, id;
 	int ret = 0;
 
 	bkey_fsck_err_on(bkey_gt(k.k->p, POS(0, U32_MAX)) ||
-			 bkey_lt(k.k->p, POS(0, 1)), c, err,
-			 snapshot_pos_bad,
+			 bkey_lt(k.k->p, POS(0, 1)),
+			 c, snapshot_pos_bad,
 			 "bad pos");
 
 	s = bkey_s_c_to_snapshot(k);
 
 	id = le32_to_cpu(s.v->parent);
-	bkey_fsck_err_on(id && id <= k.k->p.offset, c, err,
-			 snapshot_parent_bad,
+	bkey_fsck_err_on(id && id <= k.k->p.offset,
+			 c, snapshot_parent_bad,
 			 "bad parent node (%u <= %llu)",
 			 id, k.k->p.offset);
 
-	bkey_fsck_err_on(le32_to_cpu(s.v->children[0]) < le32_to_cpu(s.v->children[1]), c, err,
-			 snapshot_children_not_normalized,
+	bkey_fsck_err_on(le32_to_cpu(s.v->children[0]) < le32_to_cpu(s.v->children[1]),
+			 c, snapshot_children_not_normalized,
 			 "children not normalized");
 
-	bkey_fsck_err_on(s.v->children[0] && s.v->children[0] == s.v->children[1], c, err,
-			 snapshot_child_duplicate,
+	bkey_fsck_err_on(s.v->children[0] && s.v->children[0] == s.v->children[1],
+			 c, snapshot_child_duplicate,
 			 "duplicate child nodes");
 
 	for (i = 0; i < 2; i++) {
 		id = le32_to_cpu(s.v->children[i]);
 
-		bkey_fsck_err_on(id >= k.k->p.offset, c, err,
-				 snapshot_child_bad,
+		bkey_fsck_err_on(id >= k.k->p.offset,
+				 c, snapshot_child_bad,
 				 "bad child node (%u >= %llu)",
 				 id, k.k->p.offset);
 	}
 
 	if (bkey_val_bytes(k.k) > offsetof(struct bch_snapshot, skip)) {
 		bkey_fsck_err_on(le32_to_cpu(s.v->skip[0]) > le32_to_cpu(s.v->skip[1]) ||
-				 le32_to_cpu(s.v->skip[1]) > le32_to_cpu(s.v->skip[2]), c, err,
-				 snapshot_skiplist_not_normalized,
+				 le32_to_cpu(s.v->skip[1]) > le32_to_cpu(s.v->skip[2]),
+				 c, snapshot_skiplist_not_normalized,
 				 "skiplist not normalized");
 
 		for (i = 0; i < ARRAY_SIZE(s.v->skip); i++) {
 			id = le32_to_cpu(s.v->skip[i]);
 
-			bkey_fsck_err_on(id && id < le32_to_cpu(s.v->parent), c, err,
-					 snapshot_skiplist_bad,
+			bkey_fsck_err_on(id && id < le32_to_cpu(s.v->parent),
+					 c, snapshot_skiplist_bad,
 					 "bad skiplist node %u", id);
 		}
 	}
@@ -471,6 +469,7 @@ static u32 bch2_snapshot_tree_oldest_subvol(struct bch_fs *c, u32 snapshot_root)
 	u32 id = snapshot_root;
 	u32 subvol = 0, s;
 
+	rcu_read_lock();
 	while (id) {
 		s = snapshot_t(c, id)->subvol;
 
@@ -479,6 +478,7 @@ static u32 bch2_snapshot_tree_oldest_subvol(struct bch_fs *c, u32 snapshot_root)
 
 		id = bch2_snapshot_tree_next(c, id);
 	}
+	rcu_read_unlock();
 
 	return subvol;
 }
@@ -1784,6 +1784,7 @@ static int bch2_propagate_key_to_snapshot_leaf(struct btree_trans *trans,
 	new->k.p.snapshot = leaf_id;
 	ret = bch2_trans_update(trans, &iter, new, 0);
 out:
+	bch2_set_btree_iter_dontneed(&iter);
 	bch2_trans_iter_exit(trans, &iter);
 	return ret;
 }

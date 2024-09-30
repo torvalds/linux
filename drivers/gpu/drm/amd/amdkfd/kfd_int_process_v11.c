@@ -330,11 +330,14 @@ static void event_interrupt_wq_v11(struct kfd_node *dev,
 		if (source_id == SOC15_INTSRC_CP_END_OF_PIPE)
 			kfd_signal_event_interrupt(pasid, context_id0, 32);
 		else if (source_id == SOC15_INTSRC_CP_BAD_OPCODE &&
-			 KFD_DBG_EC_TYPE_IS_PACKET(KFD_CTXID0_CP_BAD_OP_ECODE(context_id0)))
-			kfd_set_dbg_ev_from_interrupt(dev, pasid,
-				KFD_CTXID0_DOORBELL_ID(context_id0),
+			 KFD_DBG_EC_TYPE_IS_PACKET(KFD_CTXID0_CP_BAD_OP_ECODE(context_id0))) {
+			u32 doorbell_id = KFD_CTXID0_DOORBELL_ID(context_id0);
+
+			kfd_set_dbg_ev_from_interrupt(dev, pasid, doorbell_id,
 				KFD_EC_MASK(KFD_CTXID0_CP_BAD_OP_ECODE(context_id0)),
 				NULL, 0);
+			kfd_dqm_suspend_bad_queue_mes(dev, pasid, doorbell_id);
+		}
 
 		/* SDMA */
 		else if (source_id == SOC21_INTSRC_SDMA_TRAP)

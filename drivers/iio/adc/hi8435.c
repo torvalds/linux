@@ -524,7 +524,7 @@ static int hi8435_probe(struct spi_device *spi)
 
 static const struct of_device_id hi8435_dt_ids[] = {
 	{ .compatible = "holt,hi8435" },
-	{},
+	{ }
 };
 MODULE_DEVICE_TABLE(of, hi8435_dt_ids);
 

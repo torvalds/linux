@@ -14,15 +14,15 @@ extern const char * const bch2_bkey_types[];
 extern const struct bkey_ops bch2_bkey_null_ops;
 
 /*
- * key_invalid: checks validity of @k, returns 0 if good or -EINVAL if bad. If
+ * key_validate: checks validity of @k, returns 0 if good or -EINVAL if bad. If
  * invalid, entire key will be deleted.
  *
  * When invalid, error string is returned via @err. @rw indicates whether key is
  * being read or written; more aggressive checks can be enabled when rw == WRITE.
  */
 struct bkey_ops {
-	int		(*key_invalid)(struct bch_fs *c, struct bkey_s_c k,
-				       enum bch_validate_flags flags, struct printbuf *err);
+	int		(*key_validate)(struct bch_fs *c, struct bkey_s_c k,
+					enum bch_validate_flags flags);
 	void		(*val_to_text)(struct printbuf *, struct bch_fs *,
 				       struct bkey_s_c);
 	void		(*swab)(struct bkey_s);
@@ -48,14 +48,13 @@ static inline const struct bkey_ops *bch2_bkey_type_ops(enum bch_bkey_type type)
 		: &bch2_bkey_null_ops;
 }
 
-int bch2_bkey_val_invalid(struct bch_fs *, struct bkey_s_c,
-			  enum bch_validate_flags, struct printbuf *);
-int __bch2_bkey_invalid(struct bch_fs *, struct bkey_s_c, enum btree_node_type,
-			enum bch_validate_flags, struct printbuf *);
-int bch2_bkey_invalid(struct bch_fs *, struct bkey_s_c, enum btree_node_type,
-		      enum bch_validate_flags, struct printbuf *);
-int bch2_bkey_in_btree_node(struct bch_fs *, struct btree *,
-			    struct bkey_s_c, struct printbuf *);
+int bch2_bkey_val_validate(struct bch_fs *, struct bkey_s_c, enum bch_validate_flags);
+int __bch2_bkey_validate(struct bch_fs *, struct bkey_s_c, enum btree_node_type,
+			 enum bch_validate_flags);
+int bch2_bkey_validate(struct bch_fs *, struct bkey_s_c, enum btree_node_type,
+		       enum bch_validate_flags);
+int bch2_bkey_in_btree_node(struct bch_fs *, struct btree *, struct bkey_s_c,
+			    enum bch_validate_flags);
 
 void bch2_bpos_to_text(struct printbuf *, struct bpos);
 void bch2_bkey_to_text(struct printbuf *, const struct bkey *);
@@ -71,7 +70,7 @@ bool bch2_bkey_normalize(struct bch_fs *, struct bkey_s);
 static inline bool bch2_bkey_maybe_mergable(const struct bkey *l, const struct bkey *r)
 {
 	return l->type == r->type &&
-		!bversion_cmp(l->version, r->version) &&
+		!bversion_cmp(l->bversion, r->bversion) &&
 		bpos_eq(l->p, bkey_start_pos(r));
 }
 

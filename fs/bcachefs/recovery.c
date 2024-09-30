@@ -97,7 +97,7 @@ static void bch2_reconstruct_alloc(struct bch_fs *c)
 	bch2_write_super(c);
 	mutex_unlock(&c->sb_lock);
 
-	c->recovery_passes_explicit |= bch2_recovery_passes_from_stable(le64_to_cpu(ext->recovery_passes_required[0]));
+	c->opts.recovery_passes |= bch2_recovery_passes_from_stable(le64_to_cpu(ext->recovery_passes_required[0]));
 
 
 	bch2_shoot_down_journal_keys(c, BTREE_ID_alloc,
@@ -151,7 +151,7 @@ static int bch2_journal_replay_accounting_key(struct btree_trans *trans,
 	struct bkey_s_c old = bch2_btree_path_peek_slot(btree_iter_path(trans, &iter), &u);
 
 	/* Has this delta already been applied to the btree? */
-	if (bversion_cmp(old.k->version, k->k->k.version) >= 0) {
+	if (bversion_cmp(old.k->bversion, k->k->k.bversion) >= 0) {
 		ret = 0;
 		goto out;
 	}
@@ -241,7 +241,13 @@ static int journal_sort_seq_cmp(const void *_l, const void *_r)
 	const struct journal_key *l = *((const struct journal_key **)_l);
 	const struct journal_key *r = *((const struct journal_key **)_r);
 
-	return cmp_int(l->journal_seq, r->journal_seq);
+	/*
+	 * Map 0 to U64_MAX, so that keys with journal_seq === 0 come last
+	 *
+	 * journal_seq == 0 means that the key comes from early repair, and
+	 * should be inserted last so as to avoid overflowing the journal
+	 */
+	return cmp_int(l->journal_seq - 1, r->journal_seq - 1);
 }
 
 int bch2_journal_replay(struct bch_fs *c)
@@ -322,6 +328,7 @@ int bch2_journal_replay(struct bch_fs *c)
 		}
 	}
 
+	bch2_trans_unlock_long(trans);
 	/*
 	 * Now, replay any remaining keys in the order in which they appear in
 	 * the journal, unpinning those journal entries as we go:
@@ -518,17 +525,17 @@ static int read_btree_roots(struct bch_fs *c)
 					"error reading btree root %s l=%u: %s",
 					bch2_btree_id_str(i), r->level, bch2_err_str(ret))) {
 			if (btree_id_is_alloc(i)) {
-				c->recovery_passes_explicit |= BIT_ULL(BCH_RECOVERY_PASS_check_allocations);
-				c->recovery_passes_explicit |= BIT_ULL(BCH_RECOVERY_PASS_check_alloc_info);
-				c->recovery_passes_explicit |= BIT_ULL(BCH_RECOVERY_PASS_check_lrus);
-				c->recovery_passes_explicit |= BIT_ULL(BCH_RECOVERY_PASS_check_extents_to_backpointers);
-				c->recovery_passes_explicit |= BIT_ULL(BCH_RECOVERY_PASS_check_alloc_to_lru_refs);
+				c->opts.recovery_passes |= BIT_ULL(BCH_RECOVERY_PASS_check_allocations);
+				c->opts.recovery_passes |= BIT_ULL(BCH_RECOVERY_PASS_check_alloc_info);
+				c->opts.recovery_passes |= BIT_ULL(BCH_RECOVERY_PASS_check_lrus);
+				c->opts.recovery_passes |= BIT_ULL(BCH_RECOVERY_PASS_check_extents_to_backpointers);
+				c->opts.recovery_passes |= BIT_ULL(BCH_RECOVERY_PASS_check_alloc_to_lru_refs);
 				c->sb.compat &= ~(1ULL << BCH_COMPAT_alloc_info);
 				r->error = 0;
-			} else if (!(c->recovery_passes_explicit & BIT_ULL(BCH_RECOVERY_PASS_scan_for_btree_nodes))) {
+			} else if (!(c->opts.recovery_passes & BIT_ULL(BCH_RECOVERY_PASS_scan_for_btree_nodes))) {
 				bch_info(c, "will run btree node scan");
-				c->recovery_passes_explicit |= BIT_ULL(BCH_RECOVERY_PASS_scan_for_btree_nodes);
-				c->recovery_passes_explicit |= BIT_ULL(BCH_RECOVERY_PASS_check_topology);
+				c->opts.recovery_passes |= BIT_ULL(BCH_RECOVERY_PASS_scan_for_btree_nodes);
+				c->opts.recovery_passes |= BIT_ULL(BCH_RECOVERY_PASS_check_topology);
 			}
 
 			ret = 0;
@@ -699,17 +706,19 @@ int bch2_fs_recovery(struct bch_fs *c)
 	if (check_version_upgrade(c))
 		write_sb = true;
 
-	c->recovery_passes_explicit |= bch2_recovery_passes_from_stable(le64_to_cpu(ext->recovery_passes_required[0]));
+	c->opts.recovery_passes |= bch2_recovery_passes_from_stable(le64_to_cpu(ext->recovery_passes_required[0]));
 
 	if (write_sb)
 		bch2_write_super(c);
 	mutex_unlock(&c->sb_lock);
 
 	if (c->opts.fsck && IS_ENABLED(CONFIG_BCACHEFS_DEBUG))
-		c->recovery_passes_explicit |= BIT_ULL(BCH_RECOVERY_PASS_check_topology);
+		c->opts.recovery_passes |= BIT_ULL(BCH_RECOVERY_PASS_check_topology);
 
 	if (c->opts.fsck)
 		set_bit(BCH_FS_fsck_running, &c->flags);
+	if (c->sb.clean)
+		set_bit(BCH_FS_clean_recovery, &c->flags);
 
 	ret = bch2_blacklist_table_initialize(c);
 	if (ret) {
@@ -854,6 +863,9 @@ use_clean:
 		goto err;
 
 	clear_bit(BCH_FS_fsck_running, &c->flags);
+
+	/* in case we don't run journal replay, i.e. norecovery mode */
+	set_bit(BCH_FS_accounting_replay_done, &c->flags);
 
 	/* fsync if we fixed errors */
 	if (test_bit(BCH_FS_errors_fixed, &c->flags) &&

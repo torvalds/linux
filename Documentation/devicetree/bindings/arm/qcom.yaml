@@ -157,11 +157,18 @@ properties:
 
       - items:
           - enum:
+              - wingtech,wt82918hd
+          - const: qcom,msm8929
+
+      - items:
+          - enum:
               - huawei,kiwi
               - longcheer,l9100
               - samsung,a7
               - sony,kanuti-tulip
               - square,apq8039-t2
+              - wingtech,wt82918
+              - wingtech,wt82918hdhw39
           - const: qcom,msm8939
 
       - items:
@@ -228,12 +235,15 @@ properties:
               - samsung,grandprimelte
               - samsung,gt510
               - samsung,gt58
+              - samsung,j3ltetw
               - samsung,j5
               - samsung,j5x
               - samsung,rossa
               - samsung,serranove
               - thwc,uf896
               - thwc,ufi001c
+              - wingtech,wt86518
+              - wingtech,wt86528
               - wingtech,wt88047
               - yiming,uz801-v3
           - const: qcom,msm8916
@@ -250,6 +260,7 @@ properties:
       - items:
           - enum:
               - lg,bullhead
+              - lg,h815
               - microsoft,talkman
               - xiaomi,libra
           - const: qcom,msm8992
@@ -1040,8 +1051,16 @@ properties:
 
       - items:
           - enum:
+              - lenovo,thinkpad-t14s
+          - const: qcom,x1e78100
+          - const: qcom,x1e80100
+
+      - items:
+          - enum:
               - asus,vivobook-s15
               - lenovo,yoga-slim7x
+              - microsoft,romulus13
+              - microsoft,romulus15
               - qcom,x1e80100-crd
               - qcom,x1e80100-qcp
           - const: qcom,x1e80100

@@ -6,8 +6,8 @@
 #ifndef __INTEL_DISPLAY_DEBUGFS_PARAMS__
 #define __INTEL_DISPLAY_DEBUGFS_PARAMS__
 
-struct drm_i915_private;
+struct intel_display;
 
-void intel_display_debugfs_params(struct drm_i915_private *i915);
+void intel_display_debugfs_params(struct intel_display *display);
 
 #endif /* __INTEL_DISPLAY_DEBUGFS_PARAMS__ */

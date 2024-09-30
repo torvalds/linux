@@ -56,7 +56,7 @@
 		reg = <0x80000000 0x80000>;
 		ranges;
 
-		apbh@80000000 {
+		apbh-bus@80000000 {
 			compatible = "simple-bus";
 			#address-cells = <1>;
 			#size-cells = <1>;
@@ -1092,7 +1092,7 @@
 			};
 		};
 
-		apbx@80040000 {
+		apbx-bus@80040000 {
 			compatible = "simple-bus";
 			#address-cells = <1>;
 			#size-cells = <1>;

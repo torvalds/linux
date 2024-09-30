@@ -429,14 +429,23 @@ static int rc5t619_rtc_probe(struct platform_device *pdev)
 	return devm_rtc_register_device(rtc->rtc);
 }
 
+static const struct platform_device_id rc5t619_rtc_id[] = {
+	{
+		.name = "rc5t619-rtc",
+	}, {
+		/* sentinel */
+	}
+};
+MODULE_DEVICE_TABLE(platform, rc5t619_rtc_id);
+
 static struct platform_driver rc5t619_rtc_driver = {
 	.driver	= {
 		.name	= "rc5t619-rtc",
 	},
 	.probe	= rc5t619_rtc_probe,
+	.id_table = rc5t619_rtc_id,
 };
-
 module_platform_driver(rc5t619_rtc_driver);
-MODULE_ALIAS("platform:rc5t619-rtc");
+
 MODULE_DESCRIPTION("RICOH RC5T619 RTC driver");
 MODULE_LICENSE("GPL");

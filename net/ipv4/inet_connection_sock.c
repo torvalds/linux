@@ -236,7 +236,7 @@ static bool inet_bhash2_conflict(const struct sock *sk,
 
 #define sk_for_each_bound_bhash(__sk, __tb2, __tb)			\
 	hlist_for_each_entry(__tb2, &(__tb)->bhash2, bhash_node)	\
-		sk_for_each_bound(sk2, &(__tb2)->owners)
+		sk_for_each_bound((__sk), &(__tb2)->owners)
 
 /* This should be called only when the tb and tb2 hashbuckets' locks are held */
 static int inet_csk_bind_conflict(const struct sock *sk,
@@ -714,6 +714,7 @@ struct sock *inet_csk_accept(struct sock *sk, struct proto_accept_arg *arg)
 out:
 	release_sock(sk);
 	if (newsk && mem_cgroup_sockets_enabled) {
+		gfp_t gfp = GFP_KERNEL | __GFP_NOFAIL;
 		int amt = 0;
 
 		/* atomically get the memory usage, set and charge the
@@ -731,8 +732,8 @@ out:
 		}
 
 		if (amt)
-			mem_cgroup_charge_skmem(newsk->sk_memcg, amt,
-						GFP_KERNEL | __GFP_NOFAIL);
+			mem_cgroup_charge_skmem(newsk->sk_memcg, amt, gfp);
+		kmem_cache_charge(newsk, gfp);
 
 		release_sock(newsk);
 	}

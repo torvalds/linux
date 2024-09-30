@@ -24,6 +24,7 @@
  * @bp_index: index of child node
  * @bp_oldreq: ptr end request for old ptr
  * @bp_newreq: ptr alloc request for new ptr
+ * @bp_ctxt: context information for changing the key of a b-tree node block
  * @bp_op: rebalance operation
  */
 struct nilfs_btree_path {

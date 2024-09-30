@@ -19,7 +19,7 @@ enum dvfsrc_regulator_id {
 };
 
 struct dvfsrc_regulator_pdata {
-	struct regulator_desc *descs;
+	const struct regulator_desc *descs;
 	u32 size;
 };
 
@@ -107,7 +107,7 @@ static const unsigned int mt6873_voltages[] = {
 	725000,
 };
 
-static struct regulator_desc mt6873_regulators[] = {
+static const struct regulator_desc mt6873_regulators[] = {
 	MTK_DVFSRC_VREG("dvfsrc-vcore", VCORE, mt6873_voltages),
 	MTK_DVFSRC_VREG("dvfsrc-vscp", VSCP, mt6873_voltages),
 };
@@ -122,7 +122,7 @@ static const unsigned int mt8183_voltages[] = {
 	800000,
 };
 
-static struct regulator_desc mt8183_regulators[] = {
+static const struct regulator_desc mt8183_regulators[] = {
 	MTK_DVFSRC_VREG("dvfsrc-vcore", VCORE, mt8183_voltages),
 };
 
@@ -138,7 +138,7 @@ static const unsigned int mt8195_voltages[] = {
 	750000,
 };
 
-static struct regulator_desc mt8195_regulators[] = {
+static const struct regulator_desc mt8195_regulators[] = {
 	MTK_DVFSRC_VREG("dvfsrc-vcore", VCORE, mt8195_voltages),
 	MTK_DVFSRC_VREG("dvfsrc-vscp", VSCP, mt8195_voltages),
 };
@@ -159,7 +159,7 @@ static int dvfsrc_vcore_regulator_probe(struct platform_device *pdev)
 		return -EINVAL;
 
 	for (i = 0; i < pdata->size; i++) {
-		struct regulator_desc *vrdesc = &pdata->descs[i];
+		const struct regulator_desc *vrdesc = &pdata->descs[i];
 		struct regulator_dev *rdev;
 
 		rdev = devm_regulator_register(&pdev->dev, vrdesc, &config);

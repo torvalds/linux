@@ -718,7 +718,6 @@ static const struct file_operations joydev_fops = {
 	.compat_ioctl	= joydev_compat_ioctl,
 #endif
 	.fasync		= joydev_fasync,
-	.llseek		= no_llseek,
 };
 
 /*

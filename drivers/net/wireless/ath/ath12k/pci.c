@@ -473,7 +473,8 @@ static void __ath12k_pci_ext_irq_disable(struct ath12k_base *ab)
 {
 	int i;
 
-	clear_bit(ATH12K_FLAG_EXT_IRQ_ENABLED, &ab->dev_flags);
+	if (!test_and_clear_bit(ATH12K_FLAG_EXT_IRQ_ENABLED, &ab->dev_flags))
+		return;
 
 	for (i = 0; i < ATH12K_EXT_IRQ_GRP_NUM_MAX; i++) {
 		struct ath12k_ext_irq_grp *irq_grp = &ab->ext_irq_grp[i];
@@ -953,7 +954,8 @@ static void ath12k_pci_update_qrtr_node_id(struct ath12k_base *ab)
 
 static void ath12k_pci_aspm_restore(struct ath12k_pci *ab_pci)
 {
-	if (test_and_clear_bit(ATH12K_PCI_ASPM_RESTORE, &ab_pci->flags))
+	if (ab_pci->ab->hw_params->supports_aspm &&
+	    test_and_clear_bit(ATH12K_PCI_ASPM_RESTORE, &ab_pci->flags))
 		pcie_capability_clear_and_set_word(ab_pci->pdev, PCI_EXP_LNKCTL,
 						   PCI_EXP_LNKCTL_ASPMC,
 						   ab_pci->link_ctl &

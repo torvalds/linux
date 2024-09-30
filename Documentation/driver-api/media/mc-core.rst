@@ -144,7 +144,8 @@ valid values are described at :c:func:`media_create_pad_link()` and
 Graph traversal
 ^^^^^^^^^^^^^^^
 
-The media framework provides APIs to iterate over entities in a graph.
+The media framework provides APIs to traverse media graphs, locating connected
+entities and links.
 
 To iterate over all entities belonging to a media device, drivers can use
 the media_device_for_each_entity macro, defined in
@@ -158,31 +159,6 @@ the media_device_for_each_entity macro, defined in
     // entity will point to each entity in turn
     ...
     }
-
-Drivers might also need to iterate over all entities in a graph that can be
-reached only through enabled links starting at a given entity. The media
-framework provides a depth-first graph traversal API for that purpose.
-
-.. note::
-
-   Graphs with cycles (whether directed or undirected) are **NOT**
-   supported by the graph traversal API. To prevent infinite loops, the graph
-   traversal code limits the maximum depth to ``MEDIA_ENTITY_ENUM_MAX_DEPTH``,
-   currently defined as 16.
-
-Drivers initiate a graph traversal by calling
-:c:func:`media_graph_walk_start()`
-
-The graph structure, provided by the caller, is initialized to start graph
-traversal at the given entity.
-
-Drivers can then retrieve the next entity by calling
-:c:func:`media_graph_walk_next()`
-
-When the graph traversal is complete the function will return ``NULL``.
-
-Graph traversal can be interrupted at any moment. No cleanup function call
-is required and the graph structure can be freed normally.
 
 Helper functions can be used to find a link between two given pads, or a pad
 connected to another pad through an enabled link
@@ -275,6 +251,45 @@ properties of the hardware) what matching actually means.
 Subsystems should facilitate link validation by providing subsystem specific
 helper functions to provide easy access for commonly needed information, and
 in the end provide a way to use driver-specific callbacks.
+
+Pipeline traversal
+^^^^^^^^^^^^^^^^^^
+
+Once a pipeline has been constructed with :c:func:`media_pipeline_start()`,
+drivers can iterate over entities or pads in the pipeline with the
+:c:macro:´media_pipeline_for_each_entity` and
+:c:macro:´media_pipeline_for_each_pad` macros. Iterating over pads is
+straightforward:
+
+.. code-block:: c
+
+   media_pipeline_pad_iter iter;
+   struct media_pad *pad;
+
+   media_pipeline_for_each_pad(pipe, &iter, pad) {
+       /* 'pad' will point to each pad in turn */
+       ...
+   }
+
+To iterate over entities, the iterator needs to be initialized and cleaned up
+as an additional steps:
+
+.. code-block:: c
+
+   media_pipeline_entity_iter iter;
+   struct media_entity *entity;
+   int ret;
+
+   ret = media_pipeline_entity_iter_init(pipe, &iter);
+   if (ret)
+       ...;
+
+   media_pipeline_for_each_entity(pipe, &iter, entity) {
+       /* 'entity' will point to each entity in turn */
+       ...
+   }
+
+   media_pipeline_entity_iter_cleanup(&iter);
 
 Media Controller Device Allocator API
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

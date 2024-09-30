@@ -687,17 +687,30 @@ static void rtw89_wow_enter_deep_ps(struct rtw89_dev *rtwdev)
 	__rtw89_enter_ps_mode(rtwdev, rtwvif);
 }
 
-static void rtw89_wow_enter_lps(struct rtw89_dev *rtwdev)
+static void rtw89_wow_enter_ps(struct rtw89_dev *rtwdev)
 {
 	struct ieee80211_vif *wow_vif = rtwdev->wow.wow_vif;
 	struct rtw89_vif *rtwvif = (struct rtw89_vif *)wow_vif->drv_priv;
 
-	rtw89_enter_lps(rtwdev, rtwvif, false);
+	if (rtw89_wow_mgd_linked(rtwdev))
+		rtw89_enter_lps(rtwdev, rtwvif, false);
+	else if (rtw89_wow_no_link(rtwdev))
+		rtw89_fw_h2c_fwips(rtwdev, rtwvif, true);
 }
 
-static void rtw89_wow_leave_lps(struct rtw89_dev *rtwdev)
+static void rtw89_wow_leave_ps(struct rtw89_dev *rtwdev, bool enable_wow)
 {
-	rtw89_leave_lps(rtwdev);
+	struct ieee80211_vif *wow_vif = rtwdev->wow.wow_vif;
+	struct rtw89_vif *rtwvif = (struct rtw89_vif *)wow_vif->drv_priv;
+
+	if (rtw89_wow_mgd_linked(rtwdev)) {
+		rtw89_leave_lps(rtwdev);
+	} else if (rtw89_wow_no_link(rtwdev)) {
+		if (enable_wow)
+			rtw89_leave_ips(rtwdev);
+		else
+			rtw89_fw_h2c_fwips(rtwdev, rtwvif, false);
+	}
 }
 
 static int rtw89_wow_config_mac(struct rtw89_dev *rtwdev, bool enable_wow)
@@ -781,17 +794,22 @@ static void rtw89_wow_vif_iter(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvi
 	struct rtw89_wow_param *rtw_wow = &rtwdev->wow;
 	struct ieee80211_vif *vif = rtwvif_to_vif(rtwvif);
 
-	/* Current wowlan function support setting of only one STATION vif.
-	 * So when one suitable vif is found, stop the iteration.
+	/* Current WoWLAN function support setting of only vif in
+	 * infra mode or no link mode. When one suitable vif is found,
+	 * stop the iteration.
 	 */
 	if (rtw_wow->wow_vif || vif->type != NL80211_IFTYPE_STATION)
 		return;
 
 	switch (rtwvif->net_type) {
 	case RTW89_NET_TYPE_INFRA:
-		rtw_wow->wow_vif = vif;
+		if (rtw_wow_has_mgd_features(rtwdev))
+			rtw_wow->wow_vif = vif;
 		break;
 	case RTW89_NET_TYPE_NO_LINK:
+		if (rtw_wow->pno_inited)
+			rtw_wow->wow_vif = vif;
+		break;
 	default:
 		break;
 	}
@@ -1025,6 +1043,23 @@ static void rtw89_wow_clear_wakeups(struct rtw89_dev *rtwdev)
 	rtw_wow->wow_vif = NULL;
 	rtw89_core_release_all_bits_map(rtw_wow->flags, RTW89_WOW_FLAG_NUM);
 	rtw_wow->pattern_cnt = 0;
+	rtw_wow->pno_inited = false;
+}
+
+static void rtw89_wow_init_pno(struct rtw89_dev *rtwdev,
+			       struct cfg80211_sched_scan_request *nd_config)
+{
+	struct rtw89_wow_param *rtw_wow = &rtwdev->wow;
+
+	if (!nd_config->n_match_sets || !nd_config->n_channels)
+		return;
+
+	rtw_wow->nd_config = nd_config;
+	rtw_wow->pno_inited = true;
+
+	INIT_LIST_HEAD(&rtw_wow->pno_pkt_list);
+
+	rtw89_debug(rtwdev, RTW89_DBG_WOW, "WOW: net-detect is enabled\n");
 }
 
 static int rtw89_wow_set_wakeups(struct rtw89_dev *rtwdev,
@@ -1037,6 +1072,11 @@ static int rtw89_wow_set_wakeups(struct rtw89_dev *rtwdev,
 		set_bit(RTW89_WOW_FLAG_EN_DISCONNECT, rtw_wow->flags);
 	if (wowlan->magic_pkt)
 		set_bit(RTW89_WOW_FLAG_EN_MAGIC_PKT, rtw_wow->flags);
+	if (wowlan->n_patterns && wowlan->patterns)
+		set_bit(RTW89_WOW_FLAG_EN_PATTERN, rtw_wow->flags);
+
+	if (wowlan->nd_config)
+		rtw89_wow_init_pno(rtwdev, wowlan->nd_config);
 
 	rtw89_for_each_rtwvif(rtwdev, rtwvif)
 		rtw89_wow_vif_iter(rtwdev, rtwvif);
@@ -1046,6 +1086,34 @@ static int rtw89_wow_set_wakeups(struct rtw89_dev *rtwdev,
 
 	rtwvif = (struct rtw89_vif *)rtw_wow->wow_vif->drv_priv;
 	return rtw89_wow_parse_patterns(rtwdev, rtwvif, wowlan);
+}
+
+static int rtw89_wow_cfg_wake_pno(struct rtw89_dev *rtwdev, bool wow)
+{
+	struct rtw89_wow_param *rtw_wow = &rtwdev->wow;
+	struct ieee80211_vif *wow_vif = rtw_wow->wow_vif;
+	struct rtw89_vif *rtwvif = (struct rtw89_vif *)wow_vif->drv_priv;
+	int ret;
+
+	ret = rtw89_fw_h2c_cfg_pno(rtwdev, rtwvif, true);
+	if (ret) {
+		rtw89_err(rtwdev, "failed to config pno\n");
+		return ret;
+	}
+
+	ret = rtw89_fw_h2c_wow_wakeup_ctrl(rtwdev, rtwvif, wow);
+	if (ret) {
+		rtw89_err(rtwdev, "failed to fw wow wakeup ctrl\n");
+		return ret;
+	}
+
+	ret = rtw89_fw_h2c_wow_global(rtwdev, rtwvif, wow);
+	if (ret) {
+		rtw89_err(rtwdev, "failed to fw wow global\n");
+		return ret;
+	}
+
+	return 0;
 }
 
 static int rtw89_wow_cfg_wake(struct rtw89_dev *rtwdev, bool wow)
@@ -1308,100 +1376,239 @@ static int rtw89_wow_disable_trx_post(struct rtw89_dev *rtwdev)
 	return ret;
 }
 
+static void rtw89_fw_release_pno_pkt_list(struct rtw89_dev *rtwdev,
+					  struct rtw89_vif *rtwvif)
+{
+	struct rtw89_wow_param *rtw_wow = &rtwdev->wow;
+	struct list_head *pkt_list = &rtw_wow->pno_pkt_list;
+	struct rtw89_pktofld_info *info, *tmp;
+
+	list_for_each_entry_safe(info, tmp, pkt_list, list) {
+		rtw89_fw_h2c_del_pkt_offload(rtwdev, info->id);
+		list_del(&info->list);
+		kfree(info);
+	}
+}
+
+static int rtw89_pno_scan_update_probe_req(struct rtw89_dev *rtwdev,
+					   struct rtw89_vif *rtwvif)
+{
+	struct rtw89_wow_param *rtw_wow = &rtwdev->wow;
+	struct cfg80211_sched_scan_request *nd_config = rtw_wow->nd_config;
+	u8 num = nd_config->n_match_sets, i;
+	struct rtw89_pktofld_info *info;
+	struct sk_buff *skb;
+	int ret;
+
+	for (i = 0; i < num; i++) {
+		skb = ieee80211_probereq_get(rtwdev->hw, rtwvif->mac_addr,
+					     nd_config->match_sets[i].ssid.ssid,
+					     nd_config->match_sets[i].ssid.ssid_len,
+					     nd_config->ie_len);
+		if (!skb)
+			return -ENOMEM;
+
+		skb_put_data(skb, nd_config->ie, nd_config->ie_len);
+
+		info = kzalloc(sizeof(*info), GFP_KERNEL);
+		if (!info) {
+			kfree_skb(skb);
+			rtw89_fw_release_pno_pkt_list(rtwdev, rtwvif);
+			return -ENOMEM;
+		}
+
+		ret = rtw89_fw_h2c_add_pkt_offload(rtwdev, &info->id, skb);
+		if (ret) {
+			kfree_skb(skb);
+			kfree(info);
+			rtw89_fw_release_pno_pkt_list(rtwdev, rtwvif);
+			return ret;
+		}
+
+		list_add_tail(&info->list, &rtw_wow->pno_pkt_list);
+		kfree_skb(skb);
+	}
+
+	return 0;
+}
+
+static int rtw89_pno_scan_offload(struct rtw89_dev *rtwdev, bool enable)
+{
+	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
+	struct rtw89_wow_param *rtw_wow = &rtwdev->wow;
+	struct ieee80211_vif *wow_vif = rtw_wow->wow_vif;
+	struct rtw89_vif *rtwvif = (struct rtw89_vif *)wow_vif->drv_priv;
+	int interval = rtw_wow->nd_config->scan_plans[0].interval;
+	struct rtw89_scan_option opt = {};
+	int ret;
+
+	if (enable) {
+		ret = rtw89_pno_scan_update_probe_req(rtwdev, rtwvif);
+		if (ret) {
+			rtw89_err(rtwdev, "Update probe request failed\n");
+			return ret;
+		}
+
+		ret = mac->add_chan_list_pno(rtwdev, rtwvif);
+		if (ret) {
+			rtw89_err(rtwdev, "Update channel list failed\n");
+			return ret;
+		}
+	}
+
+	opt.enable = enable;
+	opt.repeat = RTW89_SCAN_NORMAL;
+	opt.norm_pd = max(interval, 1) * 10; /* in unit of 100ms */
+	opt.delay = max(rtw_wow->nd_config->delay, 1);
+
+	if (rtwdev->chip->chip_gen == RTW89_CHIP_BE) {
+		opt.operation = enable ? RTW89_SCAN_OP_START : RTW89_SCAN_OP_STOP;
+		opt.scan_mode = RTW89_SCAN_MODE_SA;
+		opt.band = RTW89_PHY_0;
+		opt.num_macc_role = 0;
+		opt.mlo_mode = rtwdev->mlo_dbcc_mode;
+		opt.num_opch = 0;
+		opt.opch_end = RTW89_CHAN_INVALID;
+	}
+
+	mac->scan_offload(rtwdev, &opt, rtwvif, true);
+
+	return 0;
+}
+
 static int rtw89_wow_fw_start(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_wow_param *rtw_wow = &rtwdev->wow;
-	struct rtw89_vif *rtwvif = (struct rtw89_vif *)rtw_wow->wow_vif->drv_priv;
+	struct ieee80211_vif *wow_vif = rtw_wow->wow_vif;
+	struct rtw89_vif *rtwvif = (struct rtw89_vif *)wow_vif->drv_priv;
 	int ret;
 
-	rtw89_wow_pattern_write(rtwdev);
-	rtw89_wow_construct_key_info(rtwdev);
+	if (rtw89_wow_no_link(rtwdev)) {
+		ret = rtw89_pno_scan_offload(rtwdev, false);
+		if (ret) {
+			rtw89_err(rtwdev, "wow: failed to disable pno scan offload\n");
+			return ret;
+		}
 
-	ret = rtw89_fw_h2c_keep_alive(rtwdev, rtwvif, true);
-	if (ret) {
-		rtw89_err(rtwdev, "wow: failed to enable keep alive\n");
-		return ret;
+		ret = rtw89_pno_scan_offload(rtwdev, true);
+		if (ret) {
+			rtw89_err(rtwdev, "wow: failed to enable pno scan offload\n");
+			return ret;
+		}
+	} else {
+		rtw89_wow_pattern_write(rtwdev);
+		rtw89_wow_construct_key_info(rtwdev);
+
+		ret = rtw89_fw_h2c_keep_alive(rtwdev, rtwvif, true);
+		if (ret) {
+			rtw89_err(rtwdev, "wow: failed to enable keep alive\n");
+			return ret;
+		}
+
+		ret = rtw89_fw_h2c_disconnect_detect(rtwdev, rtwvif, true);
+		if (ret) {
+			rtw89_err(rtwdev, "wow: failed to enable disconnect detect\n");
+			return ret;
+		}
+
+		ret = rtw89_fw_h2c_wow_gtk_ofld(rtwdev, rtwvif, true);
+		if (ret) {
+			rtw89_err(rtwdev, "wow: failed to enable GTK offload\n");
+			return ret;
+		}
+
+		ret = rtw89_fw_h2c_arp_offload(rtwdev, rtwvif, true);
+		if (ret)
+			rtw89_warn(rtwdev, "wow: failed to enable arp offload\n");
 	}
 
-	ret = rtw89_fw_h2c_disconnect_detect(rtwdev, rtwvif, true);
-	if (ret) {
-		rtw89_err(rtwdev, "wow: failed to enable disconnect detect\n");
-		goto out;
-	}
-
-	ret = rtw89_fw_h2c_wow_gtk_ofld(rtwdev, rtwvif, true);
-	if (ret) {
-		rtw89_err(rtwdev, "wow: failed to enable GTK offload\n");
-		goto out;
-	}
-
-	ret = rtw89_fw_h2c_arp_offload(rtwdev, rtwvif, true);
-	if (ret)
-		rtw89_warn(rtwdev, "wow: failed to enable arp offload\n");
-
-	ret = rtw89_wow_cfg_wake(rtwdev, true);
-	if (ret) {
-		rtw89_err(rtwdev, "wow: failed to config wake\n");
-		goto out;
+	if (rtw89_wow_no_link(rtwdev)) {
+		ret = rtw89_wow_cfg_wake_pno(rtwdev, true);
+		if (ret) {
+			rtw89_err(rtwdev, "wow: failed to config wake PNO\n");
+			return ret;
+		}
+	} else {
+		ret = rtw89_wow_cfg_wake(rtwdev, true);
+		if (ret) {
+			rtw89_err(rtwdev, "wow: failed to config wake\n");
+			return ret;
+		}
 	}
 
 	ret = rtw89_wow_check_fw_status(rtwdev, true);
 	if (ret) {
 		rtw89_err(rtwdev, "wow: failed to check enable fw ready\n");
-		goto out;
+		return ret;
 	}
 
-out:
-	return ret;
+	return 0;
 }
 
 static int rtw89_wow_fw_stop(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_wow_param *rtw_wow = &rtwdev->wow;
-	struct rtw89_vif *rtwvif = (struct rtw89_vif *)rtw_wow->wow_vif->drv_priv;
+	struct ieee80211_vif *wow_vif = rtw_wow->wow_vif;
+	struct rtw89_vif *rtwvif = (struct rtw89_vif *)wow_vif->drv_priv;
 	int ret;
 
-	rtw89_wow_pattern_clear(rtwdev);
+	if (rtw89_wow_no_link(rtwdev)) {
+		ret = rtw89_pno_scan_offload(rtwdev, false);
+		if (ret) {
+			rtw89_err(rtwdev, "wow: failed to disable pno scan offload\n");
+			return ret;
+		}
 
-	ret = rtw89_fw_h2c_keep_alive(rtwdev, rtwvif, false);
-	if (ret) {
-		rtw89_err(rtwdev, "wow: failed to disable keep alive\n");
-		goto out;
+		ret = rtw89_fw_h2c_cfg_pno(rtwdev, rtwvif, false);
+		if (ret) {
+			rtw89_err(rtwdev, "wow: failed to disable pno\n");
+			return ret;
+		}
+
+		rtw89_fw_release_pno_pkt_list(rtwdev, rtwvif);
+	} else {
+		rtw89_wow_pattern_clear(rtwdev);
+
+		ret = rtw89_fw_h2c_keep_alive(rtwdev, rtwvif, false);
+		if (ret) {
+			rtw89_err(rtwdev, "wow: failed to disable keep alive\n");
+			return ret;
+		}
+
+		ret = rtw89_fw_h2c_disconnect_detect(rtwdev, rtwvif, false);
+		if (ret) {
+			rtw89_err(rtwdev, "wow: failed to disable disconnect detect\n");
+			return ret;
+		}
+
+		ret = rtw89_fw_h2c_wow_gtk_ofld(rtwdev, rtwvif, false);
+		if (ret) {
+			rtw89_err(rtwdev, "wow: failed to disable GTK offload\n");
+			return ret;
+		}
+
+		ret = rtw89_fw_h2c_arp_offload(rtwdev, rtwvif, false);
+		if (ret)
+			rtw89_warn(rtwdev, "wow: failed to disable arp offload\n");
+
+		rtw89_wow_key_clear(rtwdev);
+		rtw89_fw_release_general_pkt_list(rtwdev, true);
 	}
 
-	ret = rtw89_fw_h2c_disconnect_detect(rtwdev, rtwvif, false);
-	if (ret) {
-		rtw89_err(rtwdev, "wow: failed to disable disconnect detect\n");
-		goto out;
-	}
-
-	ret = rtw89_fw_h2c_wow_gtk_ofld(rtwdev, rtwvif, false);
-	if (ret) {
-		rtw89_err(rtwdev, "wow: failed to disable GTK offload\n");
-		goto out;
-	}
-
-	ret = rtw89_fw_h2c_arp_offload(rtwdev, rtwvif, false);
-	if (ret)
-		rtw89_warn(rtwdev, "wow: failed to disable arp offload\n");
-
-	rtw89_wow_key_clear(rtwdev);
-	rtw89_fw_release_general_pkt_list(rtwdev, true);
 
 	ret = rtw89_wow_cfg_wake(rtwdev, false);
 	if (ret) {
 		rtw89_err(rtwdev, "wow: failed to disable config wake\n");
-		goto out;
+		return ret;
 	}
 
 	ret = rtw89_wow_check_fw_status(rtwdev, false);
 	if (ret) {
 		rtw89_err(rtwdev, "wow: failed to check disable fw ready\n");
-		goto out;
+		return ret;
 	}
 
-out:
-	return ret;
+	return 0;
 }
 
 static int rtw89_wow_enable(struct rtw89_dev *rtwdev)
@@ -1430,7 +1637,7 @@ static int rtw89_wow_enable(struct rtw89_dev *rtwdev)
 		goto out;
 	}
 
-	rtw89_wow_enter_lps(rtwdev);
+	rtw89_wow_enter_ps(rtwdev);
 
 	ret = rtw89_wow_enable_trx_post(rtwdev);
 	if (ret) {
@@ -1455,7 +1662,7 @@ static int rtw89_wow_disable(struct rtw89_dev *rtwdev)
 		goto out;
 	}
 
-	rtw89_wow_leave_lps(rtwdev);
+	rtw89_wow_leave_ps(rtwdev, false);
 
 	ret = rtw89_wow_fw_stop(rtwdev);
 	if (ret) {
@@ -1478,6 +1685,12 @@ static int rtw89_wow_disable(struct rtw89_dev *rtwdev)
 out:
 	clear_bit(RTW89_FLAG_WOWLAN, rtwdev->flags);
 	return ret;
+}
+
+static void rtw89_wow_restore_ps(struct rtw89_dev *rtwdev)
+{
+	if (rtw89_wow_no_link(rtwdev))
+		rtw89_enter_ips(rtwdev);
 }
 
 int rtw89_wow_resume(struct rtw89_dev *rtwdev)
@@ -1504,6 +1717,7 @@ int rtw89_wow_resume(struct rtw89_dev *rtwdev)
 	if (ret)
 		rtw89_err(rtwdev, "failed to disable wow\n");
 
+	rtw89_wow_restore_ps(rtwdev);
 out:
 	rtw89_wow_clear_wakeups(rtwdev);
 	return ret;
@@ -1519,7 +1733,7 @@ int rtw89_wow_suspend(struct rtw89_dev *rtwdev, struct cfg80211_wowlan *wowlan)
 		return ret;
 	}
 
-	rtw89_wow_leave_lps(rtwdev);
+	rtw89_wow_leave_ps(rtwdev, true);
 
 	ret = rtw89_wow_enable(rtwdev);
 	if (ret) {

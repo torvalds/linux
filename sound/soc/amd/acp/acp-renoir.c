@@ -244,7 +244,7 @@ static const struct dev_pm_ops rn_dma_pm_ops = {
 
 static struct platform_driver renoir_driver = {
 	.probe = renoir_audio_probe,
-	.remove_new = renoir_audio_remove,
+	.remove = renoir_audio_remove,
 	.driver = {
 		.name = "acp_asoc_renoir",
 		.pm = &rn_dma_pm_ops,

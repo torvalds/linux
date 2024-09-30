@@ -23,6 +23,79 @@
 /* Register addresses are offset when sent over SoundWire */
 #define CS35L56_SDW_ADDR_OFFSET		0x8000
 
+/* Cirrus bus bridge registers */
+#define CS35L56_SDW_MEM_ACCESS_STATUS	0xd0
+#define CS35L56_SDW_MEM_READ_DATA	0xd8
+
+#define CS35L56_SDW_LAST_LATE		BIT(3)
+#define CS35L56_SDW_CMD_IN_PROGRESS	BIT(2)
+#define CS35L56_SDW_RDATA_RDY		BIT(0)
+
+#define CS35L56_LATE_READ_POLL_US	10
+#define CS35L56_LATE_READ_TIMEOUT_US	1000
+
+static int cs35l56_sdw_poll_mem_status(struct sdw_slave *peripheral,
+				       unsigned int mask,
+				       unsigned int match)
+{
+	int ret, val;
+
+	ret = read_poll_timeout(sdw_read_no_pm, val,
+				(val < 0) || ((val & mask) == match),
+				CS35L56_LATE_READ_POLL_US, CS35L56_LATE_READ_TIMEOUT_US,
+				false, peripheral, CS35L56_SDW_MEM_ACCESS_STATUS);
+	if (ret < 0)
+		return ret;
+
+	if (val < 0)
+		return val;
+
+	return 0;
+}
+
+static int cs35l56_sdw_slow_read(struct sdw_slave *peripheral, unsigned int reg,
+				 u8 *buf, size_t val_size)
+{
+	int ret, i;
+
+	reg += CS35L56_SDW_ADDR_OFFSET;
+
+	for (i = 0; i < val_size; i += sizeof(u32)) {
+		/* Poll for bus bridge idle */
+		ret = cs35l56_sdw_poll_mem_status(peripheral,
+						  CS35L56_SDW_CMD_IN_PROGRESS,
+						  0);
+		if (ret < 0) {
+			dev_err(&peripheral->dev, "!CMD_IN_PROGRESS fail: %d\n", ret);
+			return ret;
+		}
+
+		/* Reading LSByte triggers read of register to holding buffer */
+		sdw_read_no_pm(peripheral, reg + i);
+
+		/* Wait for data available */
+		ret = cs35l56_sdw_poll_mem_status(peripheral,
+						  CS35L56_SDW_RDATA_RDY,
+						  CS35L56_SDW_RDATA_RDY);
+		if (ret < 0) {
+			dev_err(&peripheral->dev, "RDATA_RDY fail: %d\n", ret);
+			return ret;
+		}
+
+		/* Read data from buffer */
+		ret = sdw_nread_no_pm(peripheral, CS35L56_SDW_MEM_READ_DATA,
+				      sizeof(u32), &buf[i]);
+		if (ret) {
+			dev_err(&peripheral->dev, "Late read @%#x failed: %d\n", reg + i, ret);
+			return ret;
+		}
+
+		swab32s((u32 *)&buf[i]);
+	}
+
+	return 0;
+}
+
 static int cs35l56_sdw_read_one(struct sdw_slave *peripheral, unsigned int reg, void *buf)
 {
 	int ret;
@@ -48,6 +121,10 @@ static int cs35l56_sdw_read(void *context, const void *reg_buf,
 	int ret;
 
 	reg = le32_to_cpu(*(const __le32 *)reg_buf);
+
+	if (cs35l56_is_otp_register(reg))
+		return cs35l56_sdw_slow_read(peripheral, reg, buf8, val_size);
+
 	reg += CS35L56_SDW_ADDR_OFFSET;
 
 	if (val_size == 4)

@@ -332,7 +332,6 @@ static int journal_validate_key(struct bch_fs *c,
 {
 	int write = flags & BCH_VALIDATE_write;
 	void *next = vstruct_next(entry);
-	struct printbuf buf = PRINTBUF;
 	int ret = 0;
 
 	if (journal_entry_err_on(!k->k.u64s,
@@ -368,34 +367,21 @@ static int journal_validate_key(struct bch_fs *c,
 		bch2_bkey_compat(level, btree_id, version, big_endian,
 				 write, NULL, bkey_to_packed(k));
 
-	if (bch2_bkey_invalid(c, bkey_i_to_s_c(k),
-			      __btree_node_type(level, btree_id), write, &buf)) {
-		printbuf_reset(&buf);
-		journal_entry_err_msg(&buf, version, jset, entry);
-		prt_newline(&buf);
-		printbuf_indent_add(&buf, 2);
-
-		bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(k));
-		prt_newline(&buf);
-		bch2_bkey_invalid(c, bkey_i_to_s_c(k),
-				  __btree_node_type(level, btree_id), write, &buf);
-
-		mustfix_fsck_err(c, journal_entry_bkey_invalid,
-				 "%s", buf.buf);
-
+	ret = bch2_bkey_validate(c, bkey_i_to_s_c(k),
+				 __btree_node_type(level, btree_id), write);
+	if (ret == -BCH_ERR_fsck_delete_bkey) {
 		le16_add_cpu(&entry->u64s, -((u16) k->k.u64s));
 		memmove(k, bkey_next(k), next - (void *) bkey_next(k));
 		journal_entry_null_range(vstruct_next(entry), next);
-
-		printbuf_exit(&buf);
 		return FSCK_DELETED_KEY;
 	}
+	if (ret)
+		goto fsck_err;
 
 	if (write)
 		bch2_bkey_compat(level, btree_id, version, big_endian,
 				 write, NULL, bkey_to_packed(k));
 fsck_err:
-	printbuf_exit(&buf);
 	return ret;
 }
 
@@ -619,7 +605,7 @@ static int journal_entry_data_usage_validate(struct bch_fs *c,
 		goto out;
 	}
 
-	if (journal_entry_err_on(bch2_replicas_entry_validate(&u->r, c->disk_sb.sb, &err),
+	if (journal_entry_err_on(bch2_replicas_entry_validate(&u->r, c, &err),
 				 c, version, jset, entry,
 				 journal_entry_data_usage_bad_size,
 				 "invalid journal entry usage: %s", err.buf)) {
@@ -1367,6 +1353,7 @@ int bch2_journal_read(struct bch_fs *c,
 	genradix_for_each(&c->journal_entries, radix_iter, _i) {
 		struct bch_replicas_padded replicas = {
 			.e.data_type = BCH_DATA_journal,
+			.e.nr_devs = 0,
 			.e.nr_required = 1,
 		};
 
@@ -1393,7 +1380,7 @@ int bch2_journal_read(struct bch_fs *c,
 			goto err;
 
 		darray_for_each(i->ptrs, ptr)
-			replicas.e.devs[replicas.e.nr_devs++] = ptr->dev;
+			replicas_entry_add_dev(&replicas.e, ptr->dev);
 
 		bch2_replicas_entry_sort(&replicas.e);
 
@@ -1964,7 +1951,8 @@ static int bch2_journal_write_pick_flush(struct journal *j, struct journal_buf *
 	if (error ||
 	    w->noflush ||
 	    (!w->must_flush &&
-	     (jiffies - j->last_flush_write) < msecs_to_jiffies(c->opts.journal_flush_delay) &&
+	     time_before(jiffies, j->last_flush_write +
+		 msecs_to_jiffies(c->opts.journal_flush_delay)) &&
 	     test_bit(JOURNAL_may_skip_flush, &j->flags))) {
 		w->noflush = true;
 		SET_JSET_NO_FLUSH(w->data, true);

@@ -353,7 +353,6 @@ static const struct file_operations ds1620_fops = {
 	.open		= ds1620_open,
 	.read		= ds1620_read,
 	.unlocked_ioctl	= ds1620_unlocked_ioctl,
-	.llseek		= no_llseek,
 };
 
 static struct miscdevice ds1620_miscdev = {
@@ -421,4 +420,5 @@ static void __exit ds1620_exit(void)
 module_init(ds1620_init);
 module_exit(ds1620_exit);
 
+MODULE_DESCRIPTION("Dallas Semiconductor DS1620 thermometer driver");
 MODULE_LICENSE("GPL");

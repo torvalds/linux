@@ -159,6 +159,7 @@ static int rt5033_battery_probe(struct i2c_client *client)
 		return -EINVAL;
 	}
 
+	i2c_set_clientdata(client, battery);
 	psy_cfg.of_node = client->dev.of_node;
 	psy_cfg.drv_data = battery;
 

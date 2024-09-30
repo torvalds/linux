@@ -6,7 +6,7 @@
 #include <linux/errno.h>
 #include <linux/sysctl.h>
 
-#include <drm/xe_drm.h>
+#include <uapi/drm/xe_drm.h>
 
 #include "xe_oa.h"
 #include "xe_observation.h"
@@ -66,7 +66,6 @@ static struct ctl_table observation_ctl_table[] = {
 	 .extra1 = SYSCTL_ZERO,
 	 .extra2 = SYSCTL_ONE,
 	 },
-	{}
 };
 
 /**

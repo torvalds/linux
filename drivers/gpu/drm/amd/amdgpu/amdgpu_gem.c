@@ -43,8 +43,6 @@
 #include "amdgpu_hmm.h"
 #include "amdgpu_xgmi.h"
 
-static const struct drm_gem_object_funcs amdgpu_gem_object_funcs;
-
 static vm_fault_t amdgpu_gem_fault(struct vm_fault *vmf)
 {
 	struct ttm_buffer_object *bo = vmf->vma->vm_private_data;
@@ -87,11 +85,11 @@ static const struct vm_operations_struct amdgpu_gem_vm_ops = {
 
 static void amdgpu_gem_object_free(struct drm_gem_object *gobj)
 {
-	struct amdgpu_bo *robj = gem_to_amdgpu_bo(gobj);
+	struct amdgpu_bo *aobj = gem_to_amdgpu_bo(gobj);
 
-	if (robj) {
-		amdgpu_hmm_unregister(robj);
-		amdgpu_bo_unref(&robj);
+	if (aobj) {
+		amdgpu_hmm_unregister(aobj);
+		ttm_bo_put(&aobj->tbo);
 	}
 }
 
@@ -126,7 +124,6 @@ int amdgpu_gem_object_create(struct amdgpu_device *adev, unsigned long size,
 
 	bo = &ubo->bo;
 	*obj = &bo->tbo.base;
-	(*obj)->funcs = &amdgpu_gem_object_funcs;
 
 	return 0;
 }
@@ -295,7 +292,7 @@ static int amdgpu_gem_object_mmap(struct drm_gem_object *obj, struct vm_area_str
 	return drm_gem_ttm_mmap(obj, vma);
 }
 
-static const struct drm_gem_object_funcs amdgpu_gem_object_funcs = {
+const struct drm_gem_object_funcs amdgpu_gem_object_funcs = {
 	.free = amdgpu_gem_object_free,
 	.open = amdgpu_gem_object_open,
 	.close = amdgpu_gem_object_close,
@@ -347,6 +344,9 @@ int amdgpu_gem_create_ioctl(struct drm_device *dev, void *data,
 		DRM_NOTE_ONCE("Cannot allocate secure buffer since TMZ is disabled\n");
 		return -EINVAL;
 	}
+
+	/* always clear VRAM */
+	flags |= AMDGPU_GEM_CREATE_VRAM_CLEARED;
 
 	/* create a gem object to contain this object in */
 	if (args->in.domains & (AMDGPU_GEM_DOMAIN_GDS |
