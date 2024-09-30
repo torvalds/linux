@@ -1761,10 +1761,9 @@ static int qmc_qe_init_resources(struct qmc *qmc, struct platform_device *pdev)
 	 */
 	info = devm_qe_muram_alloc(qmc->dev, UCC_SLOW_PRAM_SIZE + 2 * 64,
 				   ALIGNMENT_OF_UCC_SLOW_PRAM);
-	if (IS_ERR_VALUE(info)) {
-		dev_err(qmc->dev, "cannot allocate MURAM for PRAM");
-		return -ENOMEM;
-	}
+	if (info < 0)
+		return info;
+
 	if (!qe_issue_cmd(QE_ASSIGN_PAGE_TO_DEVICE, qmc->qe_subblock,
 			  QE_CR_PROTOCOL_UNSPECIFIED, info)) {
 		dev_err(qmc->dev, "QE_ASSIGN_PAGE_TO_DEVICE cmd failed");
