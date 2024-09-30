@@ -459,9 +459,6 @@ int ivpu_hw_btrs_wait_for_clock_res_own_ack(struct ivpu_device *vdev)
 	if (ivpu_hw_btrs_gen(vdev) == IVPU_HW_BTRS_MTL)
 		return 0;
 
-	if (ivpu_is_simics(vdev))
-		return 0;
-
 	return REGB_POLL_FLD(VPU_HW_BTRS_LNL_VPU_STATUS, CLOCK_RESOURCE_OWN_ACK, 1, TIMEOUT_US);
 }
 
