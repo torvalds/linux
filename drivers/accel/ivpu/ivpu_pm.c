@@ -423,7 +423,7 @@ int ivpu_pm_dct_enable(struct ivpu_device *vdev, u8 active_percent)
 
 	ret = ivpu_jsm_dct_enable(vdev, active_us, inactive_us);
 	if (ret) {
-		ivpu_err_ratelimited(vdev, "Filed to enable DCT: %d\n", ret);
+		ivpu_err_ratelimited(vdev, "Failed to enable DCT: %d\n", ret);
 		return ret;
 	}
 
@@ -440,7 +440,7 @@ int ivpu_pm_dct_disable(struct ivpu_device *vdev)
 
 	ret = ivpu_jsm_dct_disable(vdev);
 	if (ret) {
-		ivpu_err_ratelimited(vdev, "Filed to disable DCT: %d\n", ret);
+		ivpu_err_ratelimited(vdev, "Failed to disable DCT: %d\n", ret);
 		return ret;
 	}
 
