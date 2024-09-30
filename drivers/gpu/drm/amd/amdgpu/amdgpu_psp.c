@@ -2270,7 +2270,7 @@ bool amdgpu_psp_tos_reload_needed(struct amdgpu_device *adev)
 {
 	struct psp_context *psp = &adev->psp;
 
-	if (amdgpu_sriov_vf(adev))
+	if (amdgpu_sriov_vf(adev) || (adev->flags & AMD_IS_APU))
 		return false;
 
 	if (psp->funcs && psp->funcs->is_reload_needed)
