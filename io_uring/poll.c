@@ -128,20 +128,6 @@ static void io_poll_req_insert(struct io_kiocb *req)
 	hlist_add_head(&req->hash_node, &table->hbs[index].list);
 }
 
-static void io_poll_tw_hash_eject(struct io_kiocb *req, struct io_tw_state *ts)
-{
-	struct io_ring_ctx *ctx = req->ctx;
-
-	/*
-	 * ->cancel_table_locked is protected by ->uring_lock in
-	 * contrast to per bucket spinlocks. Likely, tctx_task_work()
-	 * already grabbed the mutex for us, but there is a chance it
-	 * failed.
-	 */
-	io_tw_lock(ctx, ts);
-	hash_del(&req->hash_node);
-}
-
 static void io_init_poll_iocb(struct io_poll *poll, __poll_t events)
 {
 	poll->head = NULL;
@@ -336,7 +322,8 @@ void io_poll_task_func(struct io_kiocb *req, struct io_tw_state *ts)
 		return;
 	}
 	io_poll_remove_entries(req);
-	io_poll_tw_hash_eject(req, ts);
+	/* task_work always has ->uring_lock held */
+	hash_del(&req->hash_node);
 
 	if (req->opcode == IORING_OP_POLL_ADD) {
 		if (ret == IOU_POLL_DONE) {
