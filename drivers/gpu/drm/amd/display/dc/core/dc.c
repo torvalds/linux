@@ -621,8 +621,8 @@ dc_stream_forward_crc_window(struct dc_stream_state *stream,
  * dc_stream_configure_crc() - Configure CRC capture for the given stream.
  * @dc: DC Object
  * @stream: The stream to configure CRC on.
- * @enable: Enable CRC if true, disable otherwise.
  * @crc_window: CRC window (x/y start/end) information
+ * @enable: Enable CRC if true, disable otherwise.
  * @continuous: Capture CRC on every frame if true. Otherwise, only capture
  *              once.
  *
