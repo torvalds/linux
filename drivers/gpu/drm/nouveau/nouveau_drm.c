@@ -22,6 +22,7 @@
  * Authors: Ben Skeggs
  */
 
+#include <linux/aperture.h>
 #include <linux/delay.h>
 #include <linux/module.h>
 #include <linux/pci.h>
@@ -30,7 +31,6 @@
 #include <linux/mmu_notifier.h>
 #include <linux/dynamic_debug.h>
 
-#include <drm/drm_aperture.h>
 #include <drm/drm_client_setup.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_fbdev_ttm.h>
@@ -851,7 +851,7 @@ static int nouveau_drm_probe(struct pci_dev *pdev,
 		return ret;
 
 	/* Remove conflicting drivers (vesafb, efifb etc). */
-	ret = drm_aperture_remove_conflicting_pci_framebuffers(pdev, &driver_pci);
+	ret = aperture_remove_conflicting_pci_devices(pdev, driver_pci.name);
 	if (ret)
 		return ret;
 
