@@ -494,6 +494,10 @@ enum efx_sync_events_state {
  * @n_rx_xdp_redirect: Count of RX packets redirected to a different NIC by XDP
  * @n_rx_mport_bad: Count of RX packets dropped because their ingress mport was
  *	not recognised
+ * @old_n_rx_hw_drops: Count of all RX packets dropped for any reason as of last
+ *	efx_start_channels()
+ * @old_n_rx_hw_drop_overruns: Value of @n_rx_nodesc_trunc as of last
+ *	efx_start_channels()
  * @rx_pkt_n_frags: Number of fragments in next packet to be delivered by
  *	__efx_rx_packet(), or zero if there is none
  * @rx_pkt_index: Ring index of first buffer for next packet to be delivered
@@ -555,6 +559,9 @@ struct efx_channel {
 	unsigned int n_rx_xdp_tx;
 	unsigned int n_rx_xdp_redirect;
 	unsigned int n_rx_mport_bad;
+
+	unsigned int old_n_rx_hw_drops;
+	unsigned int old_n_rx_hw_drop_overruns;
 
 	unsigned int rx_pkt_n_frags;
 	unsigned int rx_pkt_index;
