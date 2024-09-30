@@ -483,6 +483,17 @@ int intel_usecs_to_scanlines(const struct drm_display_mode *adjusted_mode,
 				1000 * adjusted_mode->crtc_htotal);
 }
 
+int intel_scanlines_to_usecs(const struct drm_display_mode *adjusted_mode,
+			     int scanlines)
+{
+	/* paranoia */
+	if (!adjusted_mode->crtc_clock)
+		return 1;
+
+	return DIV_ROUND_UP_ULL(mul_u32_u32(scanlines, adjusted_mode->crtc_htotal * 1000),
+				adjusted_mode->crtc_clock);
+}
+
 /**
  * intel_pipe_update_start() - start update of a set of display registers
  * @state: the atomic state
