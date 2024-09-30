@@ -261,13 +261,19 @@ static __cold void io_fallback_req_func(struct work_struct *work)
 
 static int io_alloc_hash_table(struct io_hash_table *table, unsigned bits)
 {
-	unsigned hash_buckets = 1U << bits;
-	size_t hash_size = hash_buckets * sizeof(table->hbs[0]);
+	unsigned int hash_buckets;
 	int i;
 
-	table->hbs = kmalloc(hash_size, GFP_KERNEL);
-	if (!table->hbs)
-		return -ENOMEM;
+	do {
+		hash_buckets = 1U << bits;
+		table->hbs = kvmalloc_array(hash_buckets, sizeof(table->hbs[0]),
+						GFP_KERNEL_ACCOUNT);
+		if (table->hbs)
+			break;
+		if (bits == 1)
+			return -ENOMEM;
+		bits--;
+	} while (1);
 
 	table->hash_bits = bits;
 	for (i = 0; i < hash_buckets; i++)
@@ -360,7 +366,7 @@ err:
 	io_alloc_cache_free(&ctx->uring_cache, kfree);
 	io_alloc_cache_free(&ctx->msg_cache, io_msg_cache_free);
 	io_futex_cache_free(ctx);
-	kfree(ctx->cancel_table.hbs);
+	kvfree(ctx->cancel_table.hbs);
 	xa_destroy(&ctx->io_bl_xa);
 	kfree(ctx);
 	return NULL;
@@ -2772,7 +2778,7 @@ static __cold void io_ring_ctx_free(struct io_ring_ctx *ctx)
 	if (ctx->hash_map)
 		io_wq_put_hash(ctx->hash_map);
 	io_napi_free(ctx);
-	kfree(ctx->cancel_table.hbs);
+	kvfree(ctx->cancel_table.hbs);
 	xa_destroy(&ctx->io_bl_xa);
 	kfree(ctx);
 }
