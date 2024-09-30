@@ -451,10 +451,8 @@ enum efx_sync_events_state {
  * @filter_work: Work item for efx_filter_rfs_expire()
  * @rps_flow_id: Flow IDs of filters allocated for accelerated RFS,
  *      indexed by filter ID
- * @n_rx_tobe_disc: Count of RX_TOBE_DISC errors
  * @n_rx_ip_hdr_chksum_err: Count of RX IP header checksum errors
  * @n_rx_tcp_udp_chksum_err: Count of RX TCP and UDP checksum errors
- * @n_rx_mcast_mismatch: Count of unmatched multicast frames
  * @n_rx_frm_trunc: Count of RX_FRM_TRUNC errors
  * @n_rx_overlength: Count of RX_OVERLENGTH errors
  * @n_skbuff_leaks: Count of skbuffs leaked due to RX overrun
@@ -511,7 +509,6 @@ struct efx_channel {
 	u32 *rps_flow_id;
 #endif
 
-	unsigned int n_rx_tobe_disc;
 	unsigned int n_rx_ip_hdr_chksum_err;
 	unsigned int n_rx_tcp_udp_chksum_err;
 	unsigned int n_rx_outer_ip_hdr_chksum_err;
@@ -519,7 +516,6 @@ struct efx_channel {
 	unsigned int n_rx_inner_ip_hdr_chksum_err;
 	unsigned int n_rx_inner_tcp_udp_chksum_err;
 	unsigned int n_rx_eth_crc_err;
-	unsigned int n_rx_mcast_mismatch;
 	unsigned int n_rx_frm_trunc;
 	unsigned int n_rx_overlength;
 	unsigned int n_skbuff_leaks;
