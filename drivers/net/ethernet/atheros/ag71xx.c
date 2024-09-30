@@ -1598,8 +1598,8 @@ static int ag71xx_rx_packets(struct ag71xx *ag, int limit)
 	int ring_mask, ring_size, done = 0;
 	unsigned int pktlen_mask, offset;
 	struct ag71xx_ring *ring;
-	struct list_head rx_list;
 	struct sk_buff *skb;
+	LIST_HEAD(rx_list);
 
 	ring = &ag->rx_ring;
 	pktlen_mask = ag->dcfg->desc_pktlen_mask;
@@ -1609,8 +1609,6 @@ static int ag71xx_rx_packets(struct ag71xx *ag, int limit)
 
 	netif_dbg(ag, rx_status, ndev, "rx packets, limit=%d, curr=%u, dirty=%u\n",
 		  limit, ring->curr, ring->dirty);
-
-	INIT_LIST_HEAD(&rx_list);
 
 	while (done < limit) {
 		unsigned int i = ring->curr & ring_mask;
