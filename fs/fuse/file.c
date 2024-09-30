@@ -992,11 +992,16 @@ static void fuse_send_readpages(struct fuse_io_args *ia, struct file *file)
 static void fuse_readahead(struct readahead_control *rac)
 {
 	struct inode *inode = rac->mapping->host;
+	struct fuse_inode *fi = get_fuse_inode(inode);
 	struct fuse_conn *fc = get_fuse_conn(inode);
 	unsigned int i, max_pages, nr_pages = 0;
+	pgoff_t first = readahead_index(rac);
+	pgoff_t last = first + readahead_count(rac) - 1;
 
 	if (fuse_is_bad(inode))
 		return;
+
+	wait_event(fi->page_waitq, !fuse_range_is_writeback(inode, first, last));
 
 	max_pages = min_t(unsigned int, fc->max_pages,
 			fc->max_read / PAGE_SIZE);
@@ -1024,8 +1029,6 @@ static void fuse_readahead(struct readahead_control *rac)
 		ap = &ia->ap;
 		nr_pages = __readahead_batch(rac, ap->pages, nr_pages);
 		for (i = 0; i < nr_pages; i++) {
-			fuse_wait_on_page_writeback(inode,
-						    readahead_index(rac) + i);
 			ap->descs[i].length = PAGE_SIZE;
 		}
 		ap->num_pages = nr_pages;
