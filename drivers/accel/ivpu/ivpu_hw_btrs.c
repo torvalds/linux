@@ -163,7 +163,6 @@ static int info_init_mtl(struct ivpu_device *vdev)
 	hw->tile_fuse = BTRS_MTL_TILE_FUSE_ENABLE_BOTH;
 	hw->sku = BTRS_MTL_TILE_SKU_BOTH;
 	hw->config = BTRS_MTL_WP_CONFIG_2_TILE_4_3_RATIO;
-	hw->sched_mode = ivpu_sched_mode;
 
 	return 0;
 }
@@ -178,7 +177,6 @@ static int info_init_lnl(struct ivpu_device *vdev)
 	if (ret)
 		return ret;
 
-	hw->sched_mode = ivpu_sched_mode;
 	hw->tile_fuse = tile_fuse_config;
 	hw->pll.profiling_freq = PLL_PROFILING_FREQ_DEFAULT;
 
