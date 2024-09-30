@@ -728,7 +728,6 @@ __cold bool io_poll_remove_all(struct io_ring_ctx *ctx, struct task_struct *tsk,
 	for (i = 0; i < nr_buckets; i++) {
 		struct io_hash_bucket *hb = &ctx->cancel_table.hbs[i];
 
-		spin_lock(&hb->lock);
 		hlist_for_each_entry_safe(req, tmp, &hb->list, hash_node) {
 			if (io_match_task_safe(req, tsk, cancel_all)) {
 				hlist_del_init(&req->hash_node);
@@ -736,22 +735,17 @@ __cold bool io_poll_remove_all(struct io_ring_ctx *ctx, struct task_struct *tsk,
 				found = true;
 			}
 		}
-		spin_unlock(&hb->lock);
 	}
 	return found;
 }
 
 static struct io_kiocb *io_poll_find(struct io_ring_ctx *ctx, bool poll_only,
-				     struct io_cancel_data *cd,
-				     struct io_hash_bucket **out_bucket)
+				     struct io_cancel_data *cd)
 {
 	struct io_kiocb *req;
 	u32 index = hash_long(cd->data, ctx->cancel_table.hash_bits);
 	struct io_hash_bucket *hb = &ctx->cancel_table.hbs[index];
 
-	*out_bucket = NULL;
-
-	spin_lock(&hb->lock);
 	hlist_for_each_entry(req, &hb->list, hash_node) {
 		if (cd->data != req->cqe.user_data)
 			continue;
@@ -761,34 +755,25 @@ static struct io_kiocb *io_poll_find(struct io_ring_ctx *ctx, bool poll_only,
 			if (io_cancel_match_sequence(req, cd->seq))
 				continue;
 		}
-		*out_bucket = hb;
 		return req;
 	}
-	spin_unlock(&hb->lock);
 	return NULL;
 }
 
 static struct io_kiocb *io_poll_file_find(struct io_ring_ctx *ctx,
-					  struct io_cancel_data *cd,
-					  struct io_hash_bucket **out_bucket)
+					  struct io_cancel_data *cd)
 {
 	unsigned nr_buckets = 1U << ctx->cancel_table.hash_bits;
 	struct io_kiocb *req;
 	int i;
 
-	*out_bucket = NULL;
-
 	for (i = 0; i < nr_buckets; i++) {
 		struct io_hash_bucket *hb = &ctx->cancel_table.hbs[i];
 
-		spin_lock(&hb->lock);
 		hlist_for_each_entry(req, &hb->list, hash_node) {
-			if (io_cancel_req_match(req, cd)) {
-				*out_bucket = hb;
+			if (io_cancel_req_match(req, cd))
 				return req;
-			}
 		}
-		spin_unlock(&hb->lock);
 	}
 	return NULL;
 }
@@ -806,20 +791,19 @@ static int io_poll_disarm(struct io_kiocb *req)
 
 static int __io_poll_cancel(struct io_ring_ctx *ctx, struct io_cancel_data *cd)
 {
-	struct io_hash_bucket *bucket;
 	struct io_kiocb *req;
 
 	if (cd->flags & (IORING_ASYNC_CANCEL_FD | IORING_ASYNC_CANCEL_OP |
 			 IORING_ASYNC_CANCEL_ANY))
-		req = io_poll_file_find(ctx, cd, &bucket);
+		req = io_poll_file_find(ctx, cd);
 	else
-		req = io_poll_find(ctx, false, cd, &bucket);
+		req = io_poll_find(ctx, false, cd);
 
-	if (req)
+	if (req) {
 		io_poll_cancel_req(req);
-	if (bucket)
-		spin_unlock(&bucket->lock);
-	return req ? 0 : -ENOENT;
+		return 0;
+	}
+	return -ENOENT;
 }
 
 int io_poll_cancel(struct io_ring_ctx *ctx, struct io_cancel_data *cd,
@@ -918,15 +902,12 @@ int io_poll_remove(struct io_kiocb *req, unsigned int issue_flags)
 	struct io_poll_update *poll_update = io_kiocb_to_cmd(req, struct io_poll_update);
 	struct io_ring_ctx *ctx = req->ctx;
 	struct io_cancel_data cd = { .ctx = ctx, .data = poll_update->old_user_data, };
-	struct io_hash_bucket *bucket;
 	struct io_kiocb *preq;
 	int ret2, ret = 0;
 
 	io_ring_submit_lock(ctx, issue_flags);
-	preq = io_poll_find(ctx, true, &cd, &bucket);
+	preq = io_poll_find(ctx, true, &cd);
 	ret2 = io_poll_disarm(preq);
-	if (bucket)
-		spin_unlock(&bucket->lock);
 	if (ret2) {
 		ret = ret2;
 		goto out;

@@ -67,7 +67,6 @@ struct io_file_table {
 };
 
 struct io_hash_bucket {
-	spinlock_t		lock;
 	struct hlist_head	list;
 } ____cacheline_aligned_in_smp;
 
