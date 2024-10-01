@@ -609,14 +609,6 @@ static noinline int bch2_trans_commit_run_gc_triggers(struct btree_trans *trans)
 	return 0;
 }
 
-static struct bversion journal_pos_to_bversion(struct journal_res *res, unsigned offset)
-{
-	return (struct bversion) {
-		.hi = res->seq >> 32,
-		.lo = (res->seq << 32) | (res->offset + offset),
-	};
-}
-
 static inline int
 bch2_trans_commit_write_locked(struct btree_trans *trans, unsigned flags,
 			       struct btree_insert_entry **stopped_at,
@@ -701,25 +693,14 @@ bch2_trans_commit_write_locked(struct btree_trans *trans, unsigned flags,
 	struct jset_entry *entry = trans->journal_entries;
 
 	percpu_down_read(&c->mark_lock);
-
 	for (entry = trans->journal_entries;
 	     entry != (void *) ((u64 *) trans->journal_entries + trans->journal_entries_u64s);
 	     entry = vstruct_next(entry))
 		if (entry->type == BCH_JSET_ENTRY_write_buffer_keys &&
 		    entry->start->k.type == KEY_TYPE_accounting) {
-			BUG_ON(!trans->journal_res.ref);
-
-			struct bkey_i_accounting *a = bkey_i_to_accounting(entry->start);
-
-			a->k.bversion = journal_pos_to_bversion(&trans->journal_res,
-							(u64 *) entry - (u64 *) trans->journal_entries);
-			BUG_ON(bversion_zero(a->k.bversion));
-
-			if (likely(!(flags & BCH_TRANS_COMMIT_skip_accounting_apply))) {
-				ret = bch2_accounting_mem_mod_locked(trans, accounting_i_to_s_c(a), BCH_ACCOUNTING_normal);
-				if (ret)
-					goto revert_fs_usage;
-			}
+			ret = bch2_accounting_trans_commit_hook(trans, bkey_i_to_accounting(entry->start), flags);
+			if (ret)
+				goto revert_fs_usage;
 		}
 	percpu_up_read(&c->mark_lock);
 
@@ -833,13 +814,9 @@ revert_fs_usage:
 	     entry2 != entry;
 	     entry2 = vstruct_next(entry2))
 		if (entry2->type == BCH_JSET_ENTRY_write_buffer_keys &&
-		    entry2->start->k.type == KEY_TYPE_accounting) {
-			struct bkey_s_accounting a = bkey_i_to_s_accounting(entry2->start);
-
-			bch2_accounting_neg(a);
-			bch2_accounting_mem_mod_locked(trans, a.c, BCH_ACCOUNTING_normal);
-			bch2_accounting_neg(a);
-		}
+		    entry2->start->k.type == KEY_TYPE_accounting)
+			bch2_accounting_trans_commit_revert(trans,
+					bkey_i_to_accounting(entry2->start), flags);
 	percpu_up_read(&c->mark_lock);
 	return ret;
 }
