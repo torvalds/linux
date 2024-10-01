@@ -561,7 +561,7 @@ static void rt1320_load_mcu_patch(struct rt1320_sdw_priv *rt1320)
 				val = (ptr[i + 4] & 0xff) | (ptr[i + 5] & 0xff) << 8 |
 					(ptr[i + 6] & 0xff) << 16 | (ptr[i + 7] & 0xff) << 24;
 
-				if (addr > 0x10007ffff || addr < 0x10007000) {
+				if (addr > 0x10007fff || addr < 0x10007000) {
 					dev_err(&slave->dev, "%s: the address 0x%x is wrong", __func__, addr);
 					goto _exit_;
 				}
