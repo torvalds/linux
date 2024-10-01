@@ -55,8 +55,7 @@
 #define NFSDBG_FACILITY		NFSDBG_CLIENT
 
 static DECLARE_WAIT_QUEUE_HEAD(nfs_client_active_wq);
-static DEFINE_SPINLOCK(nfs_version_lock);
-static DEFINE_MUTEX(nfs_version_mutex);
+static DEFINE_RWLOCK(nfs_version_lock);
 static LIST_HEAD(nfs_versions);
 
 /*
@@ -79,16 +78,16 @@ const struct rpc_program nfs_program = {
 static struct nfs_subversion *find_nfs_version(unsigned int version)
 {
 	struct nfs_subversion *nfs;
-	spin_lock(&nfs_version_lock);
+	read_lock(&nfs_version_lock);
 
 	list_for_each_entry(nfs, &nfs_versions, list) {
 		if (nfs->rpc_ops->version == version) {
-			spin_unlock(&nfs_version_lock);
+			read_unlock(&nfs_version_lock);
 			return nfs;
 		}
 	}
 
-	spin_unlock(&nfs_version_lock);
+	read_unlock(&nfs_version_lock);
 	return ERR_PTR(-EPROTONOSUPPORT);
 }
 
@@ -97,10 +96,8 @@ struct nfs_subversion *get_nfs_version(unsigned int version)
 	struct nfs_subversion *nfs = find_nfs_version(version);
 
 	if (IS_ERR(nfs)) {
-		mutex_lock(&nfs_version_mutex);
 		request_module("nfsv%d", version);
 		nfs = find_nfs_version(version);
-		mutex_unlock(&nfs_version_mutex);
 	}
 
 	if (!IS_ERR(nfs) && !try_module_get(nfs->owner))
@@ -115,23 +112,23 @@ void put_nfs_version(struct nfs_subversion *nfs)
 
 void register_nfs_version(struct nfs_subversion *nfs)
 {
-	spin_lock(&nfs_version_lock);
+	write_lock(&nfs_version_lock);
 
 	list_add(&nfs->list, &nfs_versions);
 	nfs_version[nfs->rpc_ops->version] = nfs->rpc_vers;
 
-	spin_unlock(&nfs_version_lock);
+	write_unlock(&nfs_version_lock);
 }
 EXPORT_SYMBOL_GPL(register_nfs_version);
 
 void unregister_nfs_version(struct nfs_subversion *nfs)
 {
-	spin_lock(&nfs_version_lock);
+	write_lock(&nfs_version_lock);
 
 	nfs_version[nfs->rpc_ops->version] = NULL;
 	list_del(&nfs->list);
 
-	spin_unlock(&nfs_version_lock);
+	write_unlock(&nfs_version_lock);
 }
 EXPORT_SYMBOL_GPL(unregister_nfs_version);
 
