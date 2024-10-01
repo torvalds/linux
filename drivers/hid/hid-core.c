@@ -685,7 +685,14 @@ static void hid_close_report(struct hid_device *device)
 		INIT_LIST_HEAD(&report_enum->report_list);
 	}
 
-	kfree(device->rdesc);
+	/*
+	 * If the HID driver had a rdesc_fixup() callback, dev->rdesc
+	 * will be allocated by hid-core and needs to be freed.
+	 * Otherwise, it is either equal to dev_rdesc or bpf_rdesc, in
+	 * which cases it'll be freed later on device removal or destroy.
+	 */
+	if (device->rdesc != device->dev_rdesc && device->rdesc != device->bpf_rdesc)
+		kfree(device->rdesc);
 	device->rdesc = NULL;
 	device->rsize = 0;
 
@@ -1214,7 +1221,6 @@ int hid_open_report(struct hid_device *device)
 	struct hid_item item;
 	unsigned int size;
 	const __u8 *start;
-	__u8 *buf = NULL;
 	const __u8 *end;
 	const __u8 *next;
 	int ret;
@@ -1241,17 +1247,23 @@ int hid_open_report(struct hid_device *device)
 		 * on a copy of our report descriptor so it can
 		 * change it.
 		 */
-		buf = kmemdup(start, size, GFP_KERNEL);
+		__u8 *buf = kmemdup(start, size, GFP_KERNEL);
+
 		if (buf == NULL)
 			return -ENOMEM;
 
 		start = device->driver->report_fixup(device, buf, &size);
-	}
 
-	start = kmemdup(start, size, GFP_KERNEL);
-	kfree(buf);
-	if (start == NULL)
-		return -ENOMEM;
+		/*
+		 * The second kmemdup is required in case report_fixup() returns
+		 * a static read-only memory, but we have no idea if that memory
+		 * needs to be cleaned up or not at the end.
+		 */
+		start = kmemdup(start, size, GFP_KERNEL);
+		kfree(buf);
+		if (start == NULL)
+			return -ENOMEM;
+	}
 
 	device->rdesc = start;
 	device->rsize = size;
