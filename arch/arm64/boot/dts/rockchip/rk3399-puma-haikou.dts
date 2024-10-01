@@ -30,6 +30,12 @@
 			linux,code = <KEY_BATTERY>;
 		};
 
+		button-pwrbtn-n {
+			gpios = <&gpio0 RK_PA1 GPIO_ACTIVE_LOW>;
+			label = "PWRBTN#";
+			linux,code = <KEY_POWER>;
+		};
+
 		button-slp-btn-n {
 			gpios = <&gpio0 RK_PB3 GPIO_ACTIVE_LOW>;
 			label = "SLP_BTN#";
@@ -203,6 +209,8 @@
 	buttons {
 		haikou_keys_pin: haikou-keys-pin {
 			rockchip,pins =
+			  /* PWRBTN# */
+			  <0 RK_PA1 RK_FUNC_GPIO &pcfg_pull_up>,
 			  /* LID_BTN */
 			  <0 RK_PA4 RK_FUNC_GPIO &pcfg_pull_up>,
 			  /* BATLOW# */
