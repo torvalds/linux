@@ -44,7 +44,7 @@
 #include <linux/mutex.h>
 #include <linux/slab.h>
 #include <linux/file.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <net/slhc_vj.h>
 #include <linux/atomic.h>
 #include <linux/refcount.h>

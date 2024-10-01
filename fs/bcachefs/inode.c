@@ -20,7 +20,7 @@
 
 #include <linux/random.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #define x(name, ...)	#name,
 const char * const bch2_inode_opts[] = {

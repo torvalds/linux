@@ -13,7 +13,7 @@
 #include <linux/module.h>
 #include <linux/netdevice.h>
 #include <linux/crc-ccitt.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include <net/mac802154.h>
 #include <net/ieee802154_netdev.h>

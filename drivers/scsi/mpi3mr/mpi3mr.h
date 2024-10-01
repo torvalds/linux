@@ -31,7 +31,7 @@
 #include <linux/uaccess.h>
 #include <linux/utsname.h>
 #include <linux/workqueue.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <scsi/scsi.h>
 #include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_dbg.h>

@@ -23,7 +23,7 @@
 #include <linux/iio/buffer.h>
 #include <linux/iio/kfifo_buf.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 /* Commands */
 #define ADS1298_CMD_WAKEUP	0x02

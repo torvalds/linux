@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Copyright(c) 2021 Intel Corporation. All rights reserved. */
 #include <linux/libnvdimm.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/device.h>
 #include <linux/module.h>
 #include <linux/ndctl.h>

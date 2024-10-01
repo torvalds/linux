@@ -16,7 +16,7 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/mm.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/types.h>
 #include <crypto/blowfish.h>
 

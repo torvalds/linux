@@ -8,7 +8,7 @@
  *  Copyright (c) 2023 David Yang
  */
 
-#include <asm-generic/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/device.h>
 #include <linux/hid.h>
 #include <linux/module.h>

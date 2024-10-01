@@ -9,7 +9,7 @@
  *          Rolf Neugebauer <rolf.neugebauer@netronome.com>
  */
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/bitfield.h>
 #include <linux/delay.h>
 #include <linux/kernel.h>

@@ -40,7 +40,7 @@
 #include <linux/crc32.h>
 #include <linux/usb.h>
 #include <linux/timer.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include "hid-ids.h"
 

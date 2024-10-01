@@ -22,7 +22,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/usb.h>
 #include <linux/usb/hcd.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include "ohci.h"
 

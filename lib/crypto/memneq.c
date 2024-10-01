@@ -59,7 +59,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <crypto/algapi.h>
 #include <linux/module.h>
 

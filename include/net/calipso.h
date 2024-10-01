@@ -25,7 +25,7 @@
 #include <net/netlabel.h>
 #include <net/request_sock.h>
 #include <linux/refcount.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 /* known doi values */
 #define CALIPSO_DOI_UNKNOWN          0x00000000

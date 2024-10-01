@@ -17,7 +17,7 @@
 #include <linux/of.h>
 #include <linux/mfd/rsmu.h>
 #include <linux/mfd/idt8a340_reg.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include "ptp_private.h"
 #include "ptp_clockmatrix.h"

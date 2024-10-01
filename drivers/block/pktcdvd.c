@@ -71,7 +71,7 @@
 #include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_ioctl.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #define DRIVER_NAME	"pktcdvd"
 

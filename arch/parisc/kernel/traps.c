@@ -36,7 +36,7 @@
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/traps.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/atomic.h>
 #include <asm/smp.h>
 #include <asm/pdc.h>
