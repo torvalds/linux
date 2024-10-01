@@ -2488,6 +2488,7 @@
   power_supply_get_property
   power_supply_put
   power_supply_register
+  power_supply_register_no_ws
   power_supply_reg_notifier
   power_supply_set_property
   power_supply_unregister
