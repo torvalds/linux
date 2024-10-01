@@ -890,7 +890,7 @@ retry_same_fence:
 			goto retry_same_fence;
 
 		if (!g2h_fence_needs_alloc(&g2h_fence))
-			xa_erase_irq(&ct->fence_lookup, g2h_fence.seqno);
+			xa_erase(&ct->fence_lookup, g2h_fence.seqno);
 
 		return ret;
 	}
@@ -907,7 +907,7 @@ retry_same_fence:
 	if (!ret) {
 		xe_gt_err(gt, "Timed out wait for G2H, fence %u, action %04x, done %s",
 			  g2h_fence.seqno, action[0], str_yes_no(g2h_fence.done));
-		xa_erase_irq(&ct->fence_lookup, g2h_fence.seqno);
+		xa_erase(&ct->fence_lookup, g2h_fence.seqno);
 		mutex_unlock(&ct->lock);
 		return -ETIME;
 	}
