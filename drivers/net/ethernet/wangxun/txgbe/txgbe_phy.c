@@ -122,7 +122,7 @@ static int txgbe_pcs_write(struct mii_bus *bus, int addr, int devnum, int regnum
 static int txgbe_mdio_pcs_init(struct txgbe *txgbe)
 {
 	struct mii_bus *mii_bus;
-	struct dw_xpcs *xpcs;
+	struct phylink_pcs *pcs;
 	struct pci_dev *pdev;
 	struct wx *wx;
 	int ret = 0;
@@ -147,11 +147,11 @@ static int txgbe_mdio_pcs_init(struct txgbe *txgbe)
 	if (ret)
 		return ret;
 
-	xpcs = xpcs_create_mdiodev(mii_bus, 0, PHY_INTERFACE_MODE_10GBASER);
-	if (IS_ERR(xpcs))
-		return PTR_ERR(xpcs);
+	pcs = xpcs_create_pcs_mdiodev(mii_bus, 0);
+	if (IS_ERR(pcs))
+		return PTR_ERR(pcs);
 
-	txgbe->xpcs = xpcs;
+	txgbe->pcs = pcs;
 
 	return 0;
 }
@@ -163,7 +163,7 @@ static struct phylink_pcs *txgbe_phylink_mac_select(struct phylink_config *confi
 	struct txgbe *txgbe = wx->priv;
 
 	if (interface == PHY_INTERFACE_MODE_10GBASER)
-		return &txgbe->xpcs->pcs;
+		return txgbe->pcs;
 
 	return NULL;
 }
@@ -302,7 +302,7 @@ irqreturn_t txgbe_link_irq_handler(int irq, void *data)
 	status = rd32(wx, TXGBE_CFG_PORT_ST);
 	up = !!(status & TXGBE_CFG_PORT_ST_LINK_UP);
 
-	phylink_pcs_change(&txgbe->xpcs->pcs, up);
+	phylink_pcs_change(txgbe->pcs, up);
 
 	return IRQ_HANDLED;
 }
@@ -778,7 +778,7 @@ err_unregister_clk:
 err_destroy_phylink:
 	phylink_destroy(wx->phylink);
 err_destroy_xpcs:
-	xpcs_destroy(txgbe->xpcs);
+	xpcs_destroy_pcs(txgbe->pcs);
 err_unregister_swnode:
 	software_node_unregister_node_group(txgbe->nodes.group);
 
@@ -798,6 +798,6 @@ void txgbe_remove_phy(struct txgbe *txgbe)
 	clkdev_drop(txgbe->clock);
 	clk_unregister(txgbe->clk);
 	phylink_destroy(txgbe->wx->phylink);
-	xpcs_destroy(txgbe->xpcs);
+	xpcs_destroy_pcs(txgbe->pcs);
 	software_node_unregister_node_group(txgbe->nodes.group);
 }
