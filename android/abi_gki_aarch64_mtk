@@ -17,6 +17,7 @@
   alarm_start_relative
   alarm_try_to_cancel
   alloc_chrdev_region
+  alloc_contig_range
   alloc_etherdev_mqs
   alloc_io_pgtable_ops
   alloc_netdev_mqs
@@ -964,6 +965,7 @@
   frame_vector_destroy
   frame_vector_to_pages
   frame_vector_to_pfns
+  free_contig_range
   free_io_pgtable_ops
   free_irq
   free_netdev
