@@ -472,7 +472,6 @@ static int add_changeset_node(struct overlay_changeset *ovcs,
 static int build_changeset_next_level(struct overlay_changeset *ovcs,
 		struct target *target, const struct device_node *overlay_node)
 {
-	struct device_node *child;
 	struct property *prop;
 	int ret;
 
@@ -485,12 +484,11 @@ static int build_changeset_next_level(struct overlay_changeset *ovcs,
 		}
 	}
 
-	for_each_child_of_node(overlay_node, child) {
+	for_each_child_of_node_scoped(overlay_node, child) {
 		ret = add_changeset_node(ovcs, target, child);
 		if (ret) {
 			pr_debug("Failed to apply node @%pOF/%pOFn, err=%d\n",
 				 target->np, child, ret);
-			of_node_put(child);
 			return ret;
 		}
 	}
@@ -1078,16 +1076,12 @@ EXPORT_SYMBOL_GPL(of_overlay_fdt_apply);
  */
 static int find_node(struct device_node *tree, struct device_node *np)
 {
-	struct device_node *child;
-
 	if (tree == np)
 		return 1;
 
-	for_each_child_of_node(tree, child) {
-		if (find_node(child, np)) {
-			of_node_put(child);
+	for_each_child_of_node_scoped(tree, child) {
+		if (find_node(child, np))
 			return 1;
-		}
 	}
 
 	return 0;

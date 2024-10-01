@@ -3904,6 +3904,18 @@ static void nfs4_close_context(struct nfs_open_context *ctx, int is_sync)
 #define FATTR4_WORD2_NFS41_MASK (2*FATTR4_WORD2_SUPPATTR_EXCLCREAT - 1UL)
 #define FATTR4_WORD2_NFS42_MASK (2*FATTR4_WORD2_OPEN_ARGUMENTS - 1UL)
 
+#define FATTR4_WORD2_NFS42_TIME_DELEG_MASK \
+	(FATTR4_WORD2_TIME_DELEG_MODIFY|FATTR4_WORD2_TIME_DELEG_ACCESS)
+static bool nfs4_server_delegtime_capable(struct nfs4_server_caps_res *res)
+{
+	u32 share_access_want = res->open_caps.oa_share_access_want[0];
+	u32 attr_bitmask = res->attr_bitmask[2];
+
+	return (share_access_want & NFS4_SHARE_WANT_DELEG_TIMESTAMPS) &&
+	       ((attr_bitmask & FATTR4_WORD2_NFS42_TIME_DELEG_MASK) ==
+					FATTR4_WORD2_NFS42_TIME_DELEG_MASK);
+}
+
 static int _nfs4_server_capabilities(struct nfs_server *server, struct nfs_fh *fhandle)
 {
 	u32 minorversion = server->nfs_client->cl_minorversion;
@@ -3931,7 +3943,8 @@ static int _nfs4_server_capabilities(struct nfs_server *server, struct nfs_fh *f
 		     FATTR4_WORD0_CASE_INSENSITIVE |
 		     FATTR4_WORD0_CASE_PRESERVING;
 	if (minorversion)
-		bitmask[2] = FATTR4_WORD2_SUPPATTR_EXCLCREAT;
+		bitmask[2] = FATTR4_WORD2_SUPPATTR_EXCLCREAT |
+			     FATTR4_WORD2_OPEN_ARGUMENTS;
 
 	status = nfs4_call_sync(server->client, server, &msg, &args.seq_args, &res.seq_res, 0);
 	if (status == 0) {
@@ -3981,8 +3994,6 @@ static int _nfs4_server_capabilities(struct nfs_server *server, struct nfs_fh *f
 #endif
 		if (res.attr_bitmask[0] & FATTR4_WORD0_FS_LOCATIONS)
 			server->caps |= NFS_CAP_FS_LOCATIONS;
-		if (res.attr_bitmask[2] & FATTR4_WORD2_TIME_DELEG_MODIFY)
-			server->caps |= NFS_CAP_DELEGTIME;
 		if (!(res.attr_bitmask[0] & FATTR4_WORD0_FILEID))
 			server->fattr_valid &= ~NFS_ATTR_FATTR_FILEID;
 		if (!(res.attr_bitmask[1] & FATTR4_WORD1_MODE))
@@ -4010,6 +4021,8 @@ static int _nfs4_server_capabilities(struct nfs_server *server, struct nfs_fh *f
 		if (res.open_caps.oa_share_access_want[0] &
 		    NFS4_SHARE_WANT_OPEN_XOR_DELEGATION)
 			server->caps |= NFS_CAP_OPEN_XOR;
+		if (nfs4_server_delegtime_capable(&res))
+			server->caps |= NFS_CAP_DELEGTIME;
 
 		memcpy(server->cache_consistency_bitmask, res.attr_bitmask, sizeof(server->cache_consistency_bitmask));
 		server->cache_consistency_bitmask[0] &= FATTR4_WORD0_CHANGE|FATTR4_WORD0_SIZE;
@@ -9997,6 +10010,7 @@ static void nfs4_layoutreturn_done(struct rpc_task *task, void *calldata)
 		fallthrough;
 	default:
 		task->tk_status = 0;
+		lrp->res.lrs_present = 0;
 		fallthrough;
 	case 0:
 		break;
@@ -10010,9 +10024,11 @@ static void nfs4_layoutreturn_done(struct rpc_task *task, void *calldata)
 		task->tk_status = 0;
 		break;
 	case -NFS4ERR_DELAY:
-		if (nfs4_async_handle_error(task, server, NULL, NULL) != -EAGAIN)
-			break;
-		goto out_restart;
+		if (nfs4_async_handle_error(task, server, NULL, NULL) ==
+		    -EAGAIN)
+			goto out_restart;
+		lrp->res.lrs_present = 0;
+		break;
 	}
 	return;
 out_restart:

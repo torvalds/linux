@@ -144,8 +144,10 @@ void amdgpu_ring_commit(struct amdgpu_ring *ring)
 	/* We pad to match fetch size */
 	count = ring->funcs->align_mask + 1 -
 		(ring->wptr & ring->funcs->align_mask);
-	count %= ring->funcs->align_mask + 1;
-	ring->funcs->insert_nop(ring, count);
+	count &= ring->funcs->align_mask;
+
+	if (count != 0)
+		ring->funcs->insert_nop(ring, count);
 
 	mb();
 	amdgpu_ring_set_wptr(ring);
@@ -212,6 +214,8 @@ int amdgpu_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring,
 	 */
 	if (ring->funcs->type == AMDGPU_RING_TYPE_KIQ)
 		sched_hw_submission = max(sched_hw_submission, 256);
+	if (ring->funcs->type == AMDGPU_RING_TYPE_MES)
+		sched_hw_submission = 8;
 	else if (ring == &adev->sdma.instance[0].page)
 		sched_hw_submission = 256;
 

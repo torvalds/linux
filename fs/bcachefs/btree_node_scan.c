@@ -275,7 +275,7 @@ static int read_btree_nodes(struct find_btree_nodes *f)
 		w->ca		= ca;
 
 		t = kthread_run(read_btree_nodes_worker, w, "read_btree_nodes/%s", ca->name);
-		ret = IS_ERR_OR_NULL(t);
+		ret = PTR_ERR_OR_ZERO(t);
 		if (ret) {
 			percpu_ref_put(&ca->io_ref);
 			closure_put(&cl);
@@ -530,7 +530,7 @@ int bch2_get_scanned_nodes(struct bch_fs *c, enum btree_id btree,
 		bch_verbose(c, "%s(): recovering %s", __func__, buf.buf);
 		printbuf_exit(&buf);
 
-		BUG_ON(bch2_bkey_invalid(c, bkey_i_to_s_c(&tmp.k), BKEY_TYPE_btree, 0, NULL));
+		BUG_ON(bch2_bkey_validate(c, bkey_i_to_s_c(&tmp.k), BKEY_TYPE_btree, 0));
 
 		ret = bch2_journal_key_insert(c, btree, level + 1, &tmp.k);
 		if (ret)

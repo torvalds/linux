@@ -95,7 +95,6 @@ struct ltq_etop_priv {
 	struct mii_bus *mii_bus;
 
 	struct ltq_etop_chan ch[MAX_DMA_CHAN];
-	int tx_free[MAX_DMA_CHAN >> 1];
 
 	int tx_burst_len;
 	int rx_burst_len;

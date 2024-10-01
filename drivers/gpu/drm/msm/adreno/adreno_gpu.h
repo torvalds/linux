@@ -191,12 +191,42 @@ struct adreno_gpu {
 	const struct firmware *fw[ADRENO_FW_MAX];
 
 	struct {
+		/**
+		 * @rgb565_predicator: Unknown, introduced with A650 family,
+		 * related to UBWC mode/ver 4
+		 */
 		u32 rgb565_predicator;
+		/** @uavflagprd_inv: Unknown, introduced with A650 family */
 		u32 uavflagprd_inv;
+		/** @min_acc_len: Whether the minimum access length is 64 bits */
 		u32 min_acc_len;
-		u32 ubwc_mode;
+		/**
+		 * @ubwc_swizzle: Whether to enable level 1, 2 & 3 bank swizzling.
+		 *
+		 * UBWC 1.0 always enables all three levels.
+		 * UBWC 2.0 removes level 1 bank swizzling, leaving levels 2 & 3.
+		 * UBWC 4.0 adds the optional ability to disable levels 2 & 3.
+		 *
+		 * This is a bitmask where BIT(0) enables level 1, BIT(1)
+		 * controls level 2, and BIT(2) enables level 3.
+		 */
+		u32 ubwc_swizzle;
+		/**
+		 * @highest_bank_bit: Highest Bank Bit
+		 *
+		 * The Highest Bank Bit value represents the bit of the highest
+		 * DDR bank.  This should ideally use DRAM type detection.
+		 */
 		u32 highest_bank_bit;
 		u32 amsbc;
+		/**
+		 * @macrotile_mode: Macrotile Mode
+		 *
+		 * Whether to use 4-channel macrotiling mode or the newer
+		 * 8-channel macrotiling mode introduced in UBWC 3.1. 0 is
+		 * 4-channel and 1 is 8-channel.
+		 */
+		u32 macrotile_mode;
 	} ubwc_config;
 
 	/*
@@ -294,6 +324,12 @@ static inline bool adreno_is_a306(const struct adreno_gpu *gpu)
 	return adreno_is_revn(gpu, 307);
 }
 
+static inline bool adreno_is_a306a(const struct adreno_gpu *gpu)
+{
+	/* a306a (marketing name is a308) */
+	return adreno_is_revn(gpu, 308);
+}
+
 static inline bool adreno_is_a320(const struct adreno_gpu *gpu)
 {
 	return adreno_is_revn(gpu, 320);
@@ -384,6 +420,11 @@ static inline int adreno_is_a619_holi(const struct adreno_gpu *gpu)
 	return adreno_is_a619(gpu) && adreno_has_gmu_wrapper(gpu);
 }
 
+static inline int adreno_is_a621(const struct adreno_gpu *gpu)
+{
+	return gpu->info->chip_ids[0] == 0x06020100;
+}
+
 static inline int adreno_is_a630(const struct adreno_gpu *gpu)
 {
 	return adreno_is_revn(gpu, 630);
@@ -433,7 +474,13 @@ static inline int adreno_is_a610_family(const struct adreno_gpu *gpu)
 	return adreno_is_a610(gpu) || adreno_is_a702(gpu);
 }
 
-/* check for a615, a616, a618, a619 or any a630 derivatives */
+/* TODO: 615/616 */
+static inline int adreno_is_a615_family(const struct adreno_gpu *gpu)
+{
+	return adreno_is_a618(gpu) ||
+	       adreno_is_a619(gpu);
+}
+
 static inline int adreno_is_a630_family(const struct adreno_gpu *gpu)
 {
 	if (WARN_ON_ONCE(!gpu->info))

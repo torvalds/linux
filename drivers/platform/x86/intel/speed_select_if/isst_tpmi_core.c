@@ -1549,8 +1549,7 @@ int tpmi_sst_dev_add(struct auxiliary_device *auxdev)
 			goto unlock_free;
 		}
 
-		ret = sst_main(auxdev, &pd_info[i]);
-		if (ret) {
+		if (sst_main(auxdev, &pd_info[i])) {
 			/*
 			 * This entry is not valid, hardware can partially
 			 * populate dies. In this case MMIO will have 0xFFs.

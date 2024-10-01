@@ -684,9 +684,6 @@ void dpp1_set_degamma(
 		BREAK_TO_DEBUGGER();
 		break;
 	}
-
-	REG_SEQ_SUBMIT();
-	REG_SEQ_WAIT_DONE();
 }
 
 void dpp1_degamma_ram_select(

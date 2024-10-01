@@ -381,6 +381,7 @@ const struct riscv_isa_ext_data riscv_isa_ext[] = {
 	__RISCV_ISA_EXT_DATA(svinval, RISCV_ISA_EXT_SVINVAL),
 	__RISCV_ISA_EXT_DATA(svnapot, RISCV_ISA_EXT_SVNAPOT),
 	__RISCV_ISA_EXT_DATA(svpbmt, RISCV_ISA_EXT_SVPBMT),
+	__RISCV_ISA_EXT_DATA(svvptc, RISCV_ISA_EXT_SVVPTC),
 };
 
 const size_t riscv_isa_ext_count = ARRAY_SIZE(riscv_isa_ext);
@@ -432,28 +433,26 @@ static void __init riscv_resolve_isa(unsigned long *source_isa,
 		bitmap_copy(prev_resolved_isa, resolved_isa, RISCV_ISA_EXT_MAX);
 		for_each_set_bit(bit, source_isa, RISCV_ISA_EXT_MAX) {
 			ext = riscv_get_isa_ext_data(bit);
-			if (!ext)
-				continue;
 
-			if (ext->validate) {
+			if (ext && ext->validate) {
 				ret = ext->validate(ext, resolved_isa);
 				if (ret == -EPROBE_DEFER) {
 					loop = true;
 					continue;
 				} else if (ret) {
 					/* Disable the extension entirely */
-					clear_bit(ext->id, source_isa);
+					clear_bit(bit, source_isa);
 					continue;
 				}
 			}
 
-			set_bit(ext->id, resolved_isa);
+			set_bit(bit, resolved_isa);
 			/* No need to keep it in source isa now that it is enabled */
-			clear_bit(ext->id, source_isa);
+			clear_bit(bit, source_isa);
 
 			/* Single letter extensions get set in hwcap */
-			if (ext->id < RISCV_ISA_EXT_BASE)
-				*this_hwcap |= isa2hwcap[ext->id];
+			if (bit < RISCV_ISA_EXT_BASE)
+				*this_hwcap |= isa2hwcap[bit];
 		}
 	} while (loop && memcmp(prev_resolved_isa, resolved_isa, sizeof(prev_resolved_isa)));
 }

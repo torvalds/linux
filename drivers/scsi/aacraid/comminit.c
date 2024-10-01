@@ -522,8 +522,7 @@ struct aac_dev *aac_init_adapter(struct aac_dev *dev)
 	spin_lock_init(&dev->iq_lock);
 	dev->max_fib_size = sizeof(struct hw_fib);
 	dev->sg_tablesize = host->sg_tablesize = (dev->max_fib_size
-		- sizeof(struct aac_fibhdr)
-		- sizeof(struct aac_write) + sizeof(struct sgentry))
+		- sizeof(struct aac_fibhdr) - sizeof(struct aac_write))
 			/ sizeof(struct sgentry);
 	dev->comm_interface = AAC_COMM_PRODUCER;
 	dev->raw_io_interface = dev->raw_io_64 = 0;
@@ -642,6 +641,7 @@ struct aac_dev *aac_init_adapter(struct aac_dev *dev)
 
 	if (aac_comm_init(dev)<0){
 		kfree(dev->queues);
+		dev->queues = NULL;
 		return NULL;
 	}
 	/*
@@ -649,6 +649,7 @@ struct aac_dev *aac_init_adapter(struct aac_dev *dev)
 	 */
 	if (aac_fib_setup(dev) < 0) {
 		kfree(dev->queues);
+		dev->queues = NULL;
 		return NULL;
 	}
 		

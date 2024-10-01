@@ -37,6 +37,8 @@
 
 #include "../kernel/head.h"
 
+u64 new_vmalloc[NR_CPUS / sizeof(u64) + 1];
+
 struct kernel_mapping kernel_map __ro_after_init;
 EXPORT_SYMBOL(kernel_map);
 #ifdef CONFIG_XIP_KERNEL
@@ -234,8 +236,6 @@ static void __init setup_bootmem(void)
 	 */
 	memblock_reserve(vmlinux_start, vmlinux_end - vmlinux_start);
 
-	phys_ram_end = memblock_end_of_DRAM();
-
 	/*
 	 * Make sure we align the start of the memory on a PMD boundary so that
 	 * at worst, we map the linear mapping with PMD mappings.
@@ -249,6 +249,16 @@ static void __init setup_bootmem(void)
 	 */
 	if (IS_ENABLED(CONFIG_64BIT) && IS_ENABLED(CONFIG_MMU))
 		kernel_map.va_pa_offset = PAGE_OFFSET - phys_ram_base;
+
+	/*
+	 * The size of the linear page mapping may restrict the amount of
+	 * usable RAM.
+	 */
+	if (IS_ENABLED(CONFIG_64BIT) && IS_ENABLED(CONFIG_MMU)) {
+		max_mapped_addr = __pa(PAGE_OFFSET) + KERN_VIRT_SIZE;
+		memblock_cap_memory_range(phys_ram_base,
+					  max_mapped_addr - phys_ram_base);
+	}
 
 	/*
 	 * Reserve physical address space that would be mapped to virtual
@@ -266,6 +276,7 @@ static void __init setup_bootmem(void)
 		memblock_reserve(max_mapped_addr, (phys_addr_t)-max_mapped_addr);
 	}
 
+	phys_ram_end = memblock_end_of_DRAM();
 	min_low_pfn = PFN_UP(phys_ram_base);
 	max_low_pfn = max_pfn = PFN_DOWN(phys_ram_end);
 	high_memory = (void *)(__va(PFN_PHYS(max_low_pfn)));
@@ -908,7 +919,7 @@ static void __init relocate_kernel(void)
 static void __init create_kernel_page_table(pgd_t *pgdir,
 					    __always_unused bool early)
 {
-	uintptr_t va, end_va;
+	uintptr_t va, start_va, end_va;
 
 	/* Map the flash resident part */
 	end_va = kernel_map.virt_addr + kernel_map.xiprom_sz;
@@ -918,10 +929,11 @@ static void __init create_kernel_page_table(pgd_t *pgdir,
 				   PMD_SIZE, PAGE_KERNEL_EXEC);
 
 	/* Map the data in RAM */
-	end_va = kernel_map.virt_addr + XIP_OFFSET + kernel_map.size;
-	for (va = kernel_map.virt_addr + XIP_OFFSET; va < end_va; va += PMD_SIZE)
+	start_va = kernel_map.virt_addr + (uintptr_t)&_sdata - (uintptr_t)&_start;
+	end_va = kernel_map.virt_addr + kernel_map.size;
+	for (va = start_va; va < end_va; va += PMD_SIZE)
 		create_pgd_mapping(pgdir, va,
-				   kernel_map.phys_addr + (va - (kernel_map.virt_addr + XIP_OFFSET)),
+				   kernel_map.phys_addr + (va - start_va),
 				   PMD_SIZE, PAGE_KERNEL);
 }
 #else
@@ -1039,6 +1051,7 @@ static void __init pt_ops_set_late(void)
 #ifdef CONFIG_RANDOMIZE_BASE
 extern bool __init __pi_set_nokaslr_from_cmdline(uintptr_t dtb_pa);
 extern u64 __init __pi_get_kaslr_seed(uintptr_t dtb_pa);
+extern u64 __init __pi_get_kaslr_seed_zkr(const uintptr_t dtb_pa);
 
 static int __init print_nokaslr(char *p)
 {
@@ -1059,10 +1072,12 @@ asmlinkage void __init setup_vm(uintptr_t dtb_pa)
 
 #ifdef CONFIG_RANDOMIZE_BASE
 	if (!__pi_set_nokaslr_from_cmdline(dtb_pa)) {
-		u64 kaslr_seed = __pi_get_kaslr_seed(dtb_pa);
+		u64 kaslr_seed = __pi_get_kaslr_seed_zkr(dtb_pa);
 		u32 kernel_size = (uintptr_t)(&_end) - (uintptr_t)(&_start);
 		u32 nr_pos;
 
+		if (kaslr_seed == 0)
+			kaslr_seed = __pi_get_kaslr_seed(dtb_pa);
 		/*
 		 * Compute the number of positions available: we are limited
 		 * by the early page table that only has one PUD and we must
@@ -1087,13 +1102,16 @@ asmlinkage void __init setup_vm(uintptr_t dtb_pa)
 
 	phys_ram_base = CONFIG_PHYS_RAM_BASE;
 	kernel_map.phys_addr = (uintptr_t)CONFIG_PHYS_RAM_BASE;
-	kernel_map.size = (uintptr_t)(&_end) - (uintptr_t)(&_sdata);
+	kernel_map.size = (uintptr_t)(&_end) - (uintptr_t)(&_start);
 
-	kernel_map.va_kernel_xip_pa_offset = kernel_map.virt_addr - kernel_map.xiprom;
+	kernel_map.va_kernel_xip_text_pa_offset = kernel_map.virt_addr - kernel_map.xiprom;
+	kernel_map.va_kernel_xip_data_pa_offset = kernel_map.virt_addr - kernel_map.phys_addr
+						+ (uintptr_t)&_sdata - (uintptr_t)&_start;
 #else
 	kernel_map.page_offset = _AC(CONFIG_PAGE_OFFSET, UL);
 	kernel_map.phys_addr = (uintptr_t)(&_start);
 	kernel_map.size = (uintptr_t)(&_end) - kernel_map.phys_addr;
+	kernel_map.va_kernel_pa_offset = kernel_map.virt_addr - kernel_map.phys_addr;
 #endif
 
 #if defined(CONFIG_64BIT) && !defined(CONFIG_XIP_KERNEL)
@@ -1115,15 +1133,8 @@ asmlinkage void __init setup_vm(uintptr_t dtb_pa)
 	 */
 	kernel_map.va_pa_offset = IS_ENABLED(CONFIG_64BIT) ?
 				0UL : PAGE_OFFSET - kernel_map.phys_addr;
-	kernel_map.va_kernel_pa_offset = kernel_map.virt_addr - kernel_map.phys_addr;
 
-	/*
-	 * The default maximal physical memory size is KERN_VIRT_SIZE for 32-bit
-	 * kernel, whereas for 64-bit kernel, the end of the virtual address
-	 * space is occupied by the modules/BPF/kernel mappings which reduces
-	 * the available size of the linear mapping.
-	 */
-	memory_limit = KERN_VIRT_SIZE - (IS_ENABLED(CONFIG_64BIT) ? SZ_4G : 0);
+	memory_limit = KERN_VIRT_SIZE;
 
 	/* Sanity check alignment and size */
 	BUG_ON((PAGE_OFFSET % PGDIR_SIZE) != 0);
@@ -1284,8 +1295,6 @@ static void __init create_linear_mapping_page_table(void)
 		if (start <= __pa(PAGE_OFFSET) &&
 		    __pa(PAGE_OFFSET) < end)
 			start = __pa(PAGE_OFFSET);
-		if (end >= __pa(PAGE_OFFSET) + memory_limit)
-			end = __pa(PAGE_OFFSET) + memory_limit;
 
 		create_linear_mapping_range(start, end, 0, NULL);
 	}

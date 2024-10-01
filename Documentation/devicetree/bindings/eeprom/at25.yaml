@@ -28,6 +28,7 @@ properties:
               - anvo,anv32e61w
               - atmel,at25256B
               - fujitsu,mb85rs1mt
+              - fujitsu,mb85rs256
               - fujitsu,mb85rs64
               - microchip,at25160bn
               - microchip,25lc040

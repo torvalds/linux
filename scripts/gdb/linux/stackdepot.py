@@ -13,6 +13,13 @@ if constants.LX_CONFIG_STACKDEPOT:
     stack_record_type = utils.CachedType('struct stack_record')
     DEPOT_STACK_ALIGN = 4
 
+def help():
+    t = """Usage: lx-stack_depot_lookup [Hex handle value]
+    Example:
+        lx-stack_depot_lookup 0x00c80300\n"""
+    gdb.write("Unrecognized command\n")
+    raise gdb.GdbError(t)
+
 def stack_depot_fetch(handle):
     global DEPOT_STACK_ALIGN
     global stack_record_type
@@ -57,3 +64,23 @@ def stack_depot_print(handle):
                 gdb.execute("x /i 0x%x" % (int(entries[i])))
             except Exception as e:
                 gdb.write("%s\n" % e)
+
+class StackDepotLookup(gdb.Command):
+    """Search backtrace by handle"""
+
+    def __init__(self):
+        if constants.LX_CONFIG_STACKDEPOT:
+            super(StackDepotLookup, self).__init__("lx-stack_depot_lookup", gdb.COMMAND_SUPPORT)
+
+    def invoke(self, args, from_tty):
+        if not constants.LX_CONFIG_STACKDEPOT:
+            raise gdb.GdbError('CONFIG_STACKDEPOT is not set')
+
+        argv = gdb.string_to_argv(args)
+        if len(argv) == 1:
+            handle = int(argv[0], 16)
+            stack_depot_print(gdb.Value(handle).cast(utils.get_uint_type()))
+        else:
+            help()
+
+StackDepotLookup()

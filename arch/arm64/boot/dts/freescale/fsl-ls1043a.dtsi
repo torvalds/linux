@@ -214,7 +214,7 @@
 			};
 		};
 
-		core-cluster-thermal {
+		cluster-thermal {
 			polling-delay-passive = <1000>;
 			polling-delay = <5000>;
 			thermal-sensors = <&tmu 3>;
@@ -431,7 +431,6 @@
 			clock-frequency = <0>;
 			voltage-ranges = <1800 1800 3300 3300>;
 			sdhci,auto-cmd12;
-			big-endian;
 			bus-width = <4>;
 		};
 
@@ -439,7 +438,6 @@
 			compatible = "fsl,qoriq-memory-controller";
 			reg = <0x0 0x1080000 0x0 0x1000>;
 			interrupts = <GIC_SPI 144 IRQ_TYPE_LEVEL_HIGH>;
-			big-endian;
 		};
 
 		tmu: tmu@1f00000 {
@@ -653,7 +651,7 @@
 			#interrupt-cells = <2>;
 		};
 
-		uqe: uqe@2400000 {
+		uqe: uqe-bus@2400000 {
 			#address-cells = <1>;
 			#size-cells = <1>;
 			compatible = "fsl,qe", "simple-bus";
@@ -667,7 +665,6 @@
 			qeic: qeic@80 {
 				compatible = "fsl,qe-ic";
 				reg = <0x80 0x80>;
-				#address-cells = <0>;
 				interrupt-controller;
 				#interrupt-cells = <1>;
 				interrupts = <GIC_SPI 77 IRQ_TYPE_LEVEL_HIGH>,
@@ -675,16 +672,12 @@
 			};
 
 			si1: si@700 {
-				#address-cells = <1>;
-				#size-cells = <0>;
 				compatible = "fsl,ls1043-qe-si",
 						"fsl,t1040-qe-si";
 				reg = <0x700 0x80>;
 			};
 
 			siram1: siram@1000 {
-				#address-cells = <1>;
-				#size-cells = <1>;
 				compatible = "fsl,ls1043-qe-siram",
 						"fsl,t1040-qe-siram";
 				reg = <0x1000 0x800>;
@@ -804,7 +797,7 @@
 					    QORIQ_CLK_PLL_DIV(1)>;
 		};
 
-		aux_bus: aux-bus {
+		aux_bus: bus {
 			#address-cells = <2>;
 			#size-cells = <2>;
 			compatible = "simple-bus";
@@ -962,7 +955,7 @@
 		};
 
 		qdma: dma-controller@8380000 {
-			compatible = "fsl,ls1021a-qdma", "fsl,ls1043a-qdma";
+			compatible = "fsl,ls1043a-qdma", "fsl,ls1021a-qdma";
 			reg = <0x0 0x8380000 0x0 0x1000>, /* Controller regs */
 			      <0x0 0x8390000 0x0 0x10000>, /* Status regs */
 			      <0x0 0x83a0000 0x0 0x40000>; /* Block regs */
@@ -983,7 +976,7 @@
 			big-endian;
 		};
 
-		rcpm: power-controller@1ee2140 {
+		rcpm: wakeup-controller@1ee2140 {
 			compatible = "fsl,ls1043a-rcpm", "fsl,qoriq-rcpm-2.1+";
 			reg = <0x0 0x1ee2140 0x0 0x4>;
 			#fsl,rcpm-wakeup-cells = <1>;

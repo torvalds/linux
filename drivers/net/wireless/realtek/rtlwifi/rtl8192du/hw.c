@@ -181,11 +181,11 @@ static void _rtl92du_init_queue_reserved_page(struct ieee80211_hw *hw,
 	struct rtl_hal *rtlhal = rtl_hal(rtlpriv);
 	u32 txqpagenum, txqpageunit;
 	u32 txqremainingpage;
+	u32 value32 = 0;
 	u32 numhq = 0;
 	u32 numlq = 0;
 	u32 numnq = 0;
 	u32 numpubq;
-	u32 value32;
 
 	if (rtlhal->macphymode != SINGLEMAC_SINGLEPHY) {
 		numpubq = NORMAL_PAGE_NUM_PUBQ_92D_DUAL_MAC;

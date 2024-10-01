@@ -671,11 +671,11 @@ int auxtrace_record__read_finish(struct auxtrace_record *itr, int idx)
 {
 	struct evsel *evsel;
 
-	if (!itr->evlist || !itr->pmu)
+	if (!itr->evlist)
 		return -EINVAL;
 
 	evlist__for_each_entry(itr->evlist, evsel) {
-		if (evsel->core.attr.type == itr->pmu->type) {
+		if (evsel__is_aux_event(evsel)) {
 			if (evsel->disabled)
 				return 0;
 			return evlist__enable_event_idx(itr->evlist, evsel, idx);
@@ -1240,7 +1240,7 @@ void auxtrace_synth_error(struct perf_record_auxtrace_error *auxtrace_error, int
 }
 
 int perf_event__synthesize_auxtrace_info(struct auxtrace_record *itr,
-					 struct perf_tool *tool,
+					 const struct perf_tool *tool,
 					 struct perf_session *session,
 					 perf_event__handler_t process)
 {
@@ -1831,7 +1831,7 @@ int __weak compat_auxtrace_mmap__write_tail(struct auxtrace_mmap *mm, u64 tail)
 
 static int __auxtrace_mmap__read(struct mmap *map,
 				 struct auxtrace_record *itr,
-				 struct perf_tool *tool, process_auxtrace_t fn,
+				 const struct perf_tool *tool, process_auxtrace_t fn,
 				 bool snapshot, size_t snapshot_size)
 {
 	struct auxtrace_mmap *mm = &map->auxtrace_mmap;
@@ -1942,14 +1942,14 @@ static int __auxtrace_mmap__read(struct mmap *map,
 }
 
 int auxtrace_mmap__read(struct mmap *map, struct auxtrace_record *itr,
-			struct perf_tool *tool, process_auxtrace_t fn)
+			const struct perf_tool *tool, process_auxtrace_t fn)
 {
 	return __auxtrace_mmap__read(map, itr, tool, fn, false, 0);
 }
 
 int auxtrace_mmap__read_snapshot(struct mmap *map,
 				 struct auxtrace_record *itr,
-				 struct perf_tool *tool, process_auxtrace_t fn,
+				 const struct perf_tool *tool, process_auxtrace_t fn,
 				 size_t snapshot_size)
 {
 	return __auxtrace_mmap__read(map, itr, tool, fn, true, snapshot_size);
@@ -2829,7 +2829,7 @@ int auxtrace_parse_filters(struct evlist *evlist)
 }
 
 int auxtrace__process_event(struct perf_session *session, union perf_event *event,
-			    struct perf_sample *sample, struct perf_tool *tool)
+			    struct perf_sample *sample, const struct perf_tool *tool)
 {
 	if (!session->auxtrace)
 		return 0;
@@ -2847,7 +2847,7 @@ void auxtrace__dump_auxtrace_sample(struct perf_session *session,
 	session->auxtrace->dump_auxtrace_sample(session, sample);
 }
 
-int auxtrace__flush_events(struct perf_session *session, struct perf_tool *tool)
+int auxtrace__flush_events(struct perf_session *session, const struct perf_tool *tool)
 {
 	if (!session->auxtrace)
 		return 0;

@@ -100,6 +100,8 @@ struct cs42l43_codec {
 	struct delayed_work hp_ilimit_clear_work;
 	bool hp_ilimited;
 	int hp_ilimit_count;
+
+	struct snd_kcontrol *kctl[5];
 };
 
 #if IS_REACHABLE(CONFIG_SND_SOC_CS42L43_SDW)

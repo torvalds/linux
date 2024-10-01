@@ -19,3 +19,7 @@ config AMD_ATL
 
 	  Enable this option if using DRAM ECC on Zen-based systems
 	  and OS-based error handling.
+
+config AMD_ATL_PRM
+	depends on AMD_ATL && ACPI_PRMT
+	def_bool y

@@ -18,9 +18,6 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
-/* Fake PMUs created in temp directory. */
-static LIST_HEAD(test_pmus);
-
 /* Cleanup test PMU directory. */
 static int test_pmu_put(const char *dir, struct perf_pmu *pmu)
 {
@@ -456,13 +453,15 @@ static int test__name_cmp(struct test_suite *test __maybe_unused, int subtest __
 /**
  * Test perf_pmu__match() that's used to search for a PMU given a name passed
  * on the command line. The name that's passed may also be a filename type glob
- * match.
+ * match. If the name does not match, perf_pmu__match() attempts to match the
+ * alias of the PMU, if provided.
  */
 static int test__pmu_match(struct test_suite *test __maybe_unused, int subtest __maybe_unused)
 {
-	struct perf_pmu test_pmu;
+	struct perf_pmu test_pmu = {
+		.name = "pmuname",
+	};
 
-	test_pmu.name = "pmuname";
 	TEST_ASSERT_EQUAL("Exact match", perf_pmu__match(&test_pmu, "pmuname"),	     true);
 	TEST_ASSERT_EQUAL("Longer token", perf_pmu__match(&test_pmu, "longertoken"), false);
 	TEST_ASSERT_EQUAL("Shorter token", perf_pmu__match(&test_pmu, "pmu"),	     false);

@@ -360,7 +360,7 @@ static int lmp92064_adc_probe(struct spi_device *spi)
 
 static const struct spi_device_id lmp92064_id_table[] = {
 	{ "lmp92064" },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(spi, lmp92064_id_table);
 

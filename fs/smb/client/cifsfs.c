@@ -75,9 +75,9 @@ unsigned int sign_CIFS_PDUs = 1;
 /*
  * Global transaction id (XID) information
  */
-unsigned int GlobalCurrentXid;	/* protected by GlobalMid_Sem */
-unsigned int GlobalTotalActiveXid; /* prot by GlobalMid_Sem */
-unsigned int GlobalMaxActiveXid;	/* prot by GlobalMid_Sem */
+unsigned int GlobalCurrentXid;	/* protected by GlobalMid_Lock */
+unsigned int GlobalTotalActiveXid; /* prot by GlobalMid_Lock */
+unsigned int GlobalMaxActiveXid;	/* prot by GlobalMid_Lock */
 spinlock_t GlobalMid_Lock; /* protects above & list operations on midQ entries */
 
 /*
@@ -1341,7 +1341,6 @@ ssize_t cifs_file_copychunk_range(unsigned int xid,
 	struct cifsFileInfo *smb_file_target;
 	struct cifs_tcon *src_tcon;
 	struct cifs_tcon *target_tcon;
-	unsigned long long destend, fstart, fend;
 	ssize_t rc;
 
 	cifs_dbg(FYI, "copychunk range\n");
@@ -1391,25 +1390,13 @@ ssize_t cifs_file_copychunk_range(unsigned int xid,
 			goto unlock;
 	}
 
-	destend = destoff + len - 1;
-
-	/* Flush the folios at either end of the destination range to prevent
-	 * accidental loss of dirty data outside of the range.
+	/* Flush and invalidate all the folios in the destination region.  If
+	 * the copy was successful, then some of the flush is extra overhead,
+	 * but we need to allow for the copy failing in some way (eg. ENOSPC).
 	 */
-	fstart = destoff;
-	fend = destend;
-
-	rc = cifs_flush_folio(target_inode, destoff, &fstart, &fend, true);
+	rc = filemap_invalidate_inode(target_inode, true, destoff, destoff + len - 1);
 	if (rc)
 		goto unlock;
-	rc = cifs_flush_folio(target_inode, destend, &fstart, &fend, false);
-	if (rc)
-		goto unlock;
-	if (fend > target_cifsi->netfs.zero_point)
-		target_cifsi->netfs.zero_point = fend + 1;
-
-	/* Discard all the folios that overlap the destination region. */
-	truncate_inode_pages_range(&target_inode->i_data, fstart, fend);
 
 	fscache_invalidate(cifs_inode_cookie(target_inode), NULL,
 			   i_size_read(target_inode), 0);

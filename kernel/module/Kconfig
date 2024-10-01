@@ -160,6 +160,7 @@ config MODULE_UNLOAD_TAINT_TRACKING
 
 config MODVERSIONS
 	bool "Module versioning support"
+	depends on !COMPILE_TEST
 	help
 	  Usually, you have to use modules compiled with your kernel.
 	  Saying Y here makes it sometimes possible to use modules
@@ -228,7 +229,7 @@ comment "Do not forget to sign required modules with scripts/sign-file"
 	depends on MODULE_SIG_FORCE && !MODULE_SIG_ALL
 
 choice
-	prompt "Which hash algorithm should modules be signed with?"
+	prompt "Hash algorithm to sign modules"
 	depends on MODULE_SIG || IMA_APPRAISE_MODSIG
 	help
 	  This determines which sort of hashing algorithm will be used during
@@ -238,31 +239,31 @@ choice
 	  the signature on that module.
 
 config MODULE_SIG_SHA1
-	bool "Sign modules with SHA-1"
+	bool "SHA-1"
 	select CRYPTO_SHA1
 
 config MODULE_SIG_SHA256
-	bool "Sign modules with SHA-256"
+	bool "SHA-256"
 	select CRYPTO_SHA256
 
 config MODULE_SIG_SHA384
-	bool "Sign modules with SHA-384"
+	bool "SHA-384"
 	select CRYPTO_SHA512
 
 config MODULE_SIG_SHA512
-	bool "Sign modules with SHA-512"
+	bool "SHA-512"
 	select CRYPTO_SHA512
 
 config MODULE_SIG_SHA3_256
-	bool "Sign modules with SHA3-256"
+	bool "SHA3-256"
 	select CRYPTO_SHA3
 
 config MODULE_SIG_SHA3_384
-	bool "Sign modules with SHA3-384"
+	bool "SHA3-384"
 	select CRYPTO_SHA3
 
 config MODULE_SIG_SHA3_512
-	bool "Sign modules with SHA3-512"
+	bool "SHA3-512"
 	select CRYPTO_SHA3
 
 endchoice
@@ -278,64 +279,65 @@ config MODULE_SIG_HASH
 	default "sha3-384" if MODULE_SIG_SHA3_384
 	default "sha3-512" if MODULE_SIG_SHA3_512
 
-choice
-	prompt "Module compression mode"
+config MODULE_COMPRESS
+	bool "Module compression"
 	help
-	  This option allows you to choose the algorithm which will be used to
-	  compress modules when 'make modules_install' is run. (or, you can
-	  choose to not compress modules at all.)
-
-	  External modules will also be compressed in the same way during the
-	  installation.
-
-	  For modules inside an initrd or initramfs, it's more efficient to
-	  compress the whole initrd or initramfs instead.
-
+	  Enable module compression to reduce on-disk size of module binaries.
 	  This is fully compatible with signed modules.
 
-	  Please note that the tool used to load modules needs to support the
-	  corresponding algorithm. module-init-tools MAY support gzip, and kmod
-	  MAY support gzip, xz and zstd.
+	  The tool used to work with modules needs to support the selected
+	  compression type. kmod MAY support gzip, xz and zstd. Other tools
+	  might have a limited selection of the supported types.
 
-	  Your build system needs to provide the appropriate compression tool
-	  to compress the modules.
+	  Note that for modules inside an initrd or initramfs, it's more
+	  efficient to compress the whole ramdisk instead.
 
-	  If in doubt, select 'None'.
+	  If unsure, say N.
 
-config MODULE_COMPRESS_NONE
-	bool "None"
+choice
+	prompt "Module compression type"
+	depends on MODULE_COMPRESS
 	help
-	  Do not compress modules. The installed modules are suffixed
-	  with .ko.
+	  Choose the supported algorithm for module compression.
 
 config MODULE_COMPRESS_GZIP
 	bool "GZIP"
 	help
-	  Compress modules with GZIP. The installed modules are suffixed
-	  with .ko.gz.
+	  Support modules compressed with GZIP. The installed modules are
+	  suffixed with .ko.gz.
 
 config MODULE_COMPRESS_XZ
 	bool "XZ"
 	help
-	  Compress modules with XZ. The installed modules are suffixed
-	  with .ko.xz.
+	  Support modules compressed with XZ. The installed modules are
+	  suffixed with .ko.xz.
 
 config MODULE_COMPRESS_ZSTD
 	bool "ZSTD"
 	help
-	  Compress modules with ZSTD. The installed modules are suffixed
-	  with .ko.zst.
+	  Support modules compressed with ZSTD. The installed modules are
+	  suffixed with .ko.zst.
 
 endchoice
 
+config MODULE_COMPRESS_ALL
+	bool "Automatically compress all modules"
+	default y
+	depends on MODULE_COMPRESS
+	help
+	  Compress all modules during 'make modules_install'.
+
+	  Your build system needs to provide the appropriate compression tool
+	  for the selected compression type. External modules will also be
+	  compressed in the same way during the installation.
+
 config MODULE_DECOMPRESS
 	bool "Support in-kernel module decompression"
-	depends on MODULE_COMPRESS_GZIP || MODULE_COMPRESS_XZ || MODULE_COMPRESS_ZSTD
+	depends on MODULE_COMPRESS
 	select ZLIB_INFLATE if MODULE_COMPRESS_GZIP
 	select XZ_DEC if MODULE_COMPRESS_XZ
 	select ZSTD_DECOMPRESS if MODULE_COMPRESS_ZSTD
 	help
-
 	  Support for decompressing kernel modules by the kernel itself
 	  instead of relying on userspace to perform this task. Useful when
 	  load pinning security policy is enabled.

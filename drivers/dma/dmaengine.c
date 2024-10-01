@@ -1070,7 +1070,7 @@ static int __dma_async_device_channel_register(struct dma_device *device,
 	if (!name)
 		dev_set_name(&chan->dev->device, "dma%dchan%d", device->dev_id, chan->chan_id);
 	else
-		dev_set_name(&chan->dev->device, name);
+		dev_set_name(&chan->dev->device, "%s", name);
 	rc = device_register(&chan->dev->device);
 	if (rc)
 		goto err_out_ida;

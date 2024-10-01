@@ -126,16 +126,12 @@ static bool mlx5_sd_is_supported(struct mlx5_core_dev *dev, u8 host_buses)
 }
 
 static int mlx5_query_sd(struct mlx5_core_dev *dev, bool *sdm,
-			 u8 *host_buses, u8 *sd_group)
+			 u8 *host_buses)
 {
 	u32 out[MLX5_ST_SZ_DW(mpir_reg)];
 	int err;
 
 	err = mlx5_query_mpir_reg(dev, out);
-	if (err)
-		return err;
-
-	err = mlx5_query_nic_vport_sd_group(dev, sd_group);
 	if (err)
 		return err;
 
@@ -166,17 +162,21 @@ static int sd_init(struct mlx5_core_dev *dev)
 	if (mlx5_core_is_ecpf(dev))
 		return 0;
 
+	err = mlx5_query_nic_vport_sd_group(dev, &sd_group);
+	if (err)
+		return err;
+
+	if (!sd_group)
+		return 0;
+
 	if (!MLX5_CAP_MCAM_REG(dev, mpir))
 		return 0;
 
-	err = mlx5_query_sd(dev, &sdm, &host_buses, &sd_group);
+	err = mlx5_query_sd(dev, &sdm, &host_buses);
 	if (err)
 		return err;
 
 	if (!sdm)
-		return 0;
-
-	if (!sd_group)
 		return 0;
 
 	group_id = mlx5_sd_group_id(dev, sd_group);

@@ -26,7 +26,6 @@ static struct io_napi_entry *io_napi_hash_find(struct hlist_head *hash_list,
 	hlist_for_each_entry_rcu(e, hash_list, node) {
 		if (e->napi_id != napi_id)
 			continue;
-		e->timeout = jiffies + NAPI_TIMEOUT;
 		return e;
 	}
 
@@ -205,7 +204,6 @@ void io_napi_init(struct io_ring_ctx *ctx)
 void io_napi_free(struct io_ring_ctx *ctx)
 {
 	struct io_napi_entry *e;
-	LIST_HEAD(napi_list);
 	unsigned int i;
 
 	spin_lock(&ctx->napi_lock);
@@ -272,27 +270,6 @@ int io_unregister_napi(struct io_ring_ctx *ctx, void __user *arg)
 }
 
 /*
- * __io_napi_adjust_timeout() - adjust busy loop timeout
- * @ctx: pointer to io-uring context structure
- * @iowq: pointer to io wait queue
- * @ts: pointer to timespec or NULL
- *
- * Adjust the busy loop timeout according to timespec and busy poll timeout.
- * If the specified NAPI timeout is bigger than the wait timeout, then adjust
- * the NAPI timeout accordingly.
- */
-void __io_napi_adjust_timeout(struct io_ring_ctx *ctx, struct io_wait_queue *iowq,
-			      ktime_t to_wait)
-{
-	ktime_t poll_dt = READ_ONCE(ctx->napi_busy_poll_dt);
-
-	if (to_wait)
-		poll_dt = min(poll_dt, to_wait);
-
-	iowq->napi_busy_poll_dt = poll_dt;
-}
-
-/*
  * __io_napi_busy_loop() - execute busy poll loop
  * @ctx: pointer to io-uring context structure
  * @iowq: pointer to io wait queue
@@ -301,10 +278,18 @@ void __io_napi_adjust_timeout(struct io_ring_ctx *ctx, struct io_wait_queue *iow
  */
 void __io_napi_busy_loop(struct io_ring_ctx *ctx, struct io_wait_queue *iowq)
 {
-	iowq->napi_prefer_busy_poll = READ_ONCE(ctx->napi_prefer_busy_poll);
+	if (ctx->flags & IORING_SETUP_SQPOLL)
+		return;
 
-	if (!(ctx->flags & IORING_SETUP_SQPOLL) && ctx->napi_enabled)
-		io_napi_blocking_busy_loop(ctx, iowq);
+	iowq->napi_busy_poll_dt = READ_ONCE(ctx->napi_busy_poll_dt);
+	if (iowq->timeout != KTIME_MAX) {
+		ktime_t dt = ktime_sub(iowq->timeout, io_get_time(ctx));
+
+		iowq->napi_busy_poll_dt = min_t(u64, iowq->napi_busy_poll_dt, dt);
+	}
+
+	iowq->napi_prefer_busy_poll = READ_ONCE(ctx->napi_prefer_busy_poll);
+	io_napi_blocking_busy_loop(ctx, iowq);
 }
 
 /*
@@ -315,7 +300,6 @@ void __io_napi_busy_loop(struct io_ring_ctx *ctx, struct io_wait_queue *iowq)
  */
 int io_napi_sqpoll_busy_poll(struct io_ring_ctx *ctx)
 {
-	LIST_HEAD(napi_list);
 	bool is_stale = false;
 
 	if (!READ_ONCE(ctx->napi_busy_poll_dt))

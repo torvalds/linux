@@ -132,7 +132,8 @@ extern void pxa2xx_spi_dma_stop(struct driver_data *drv_data);
 extern int pxa2xx_spi_dma_setup(struct driver_data *drv_data);
 extern void pxa2xx_spi_dma_release(struct driver_data *drv_data);
 
-int pxa2xx_spi_probe(struct device *dev, struct ssp_device *ssp);
+int pxa2xx_spi_probe(struct device *dev, struct ssp_device *ssp,
+		     struct pxa2xx_spi_controller *platform_info);
 void pxa2xx_spi_remove(struct device *dev);
 
 extern const struct dev_pm_ops pxa2xx_spi_pm_ops;

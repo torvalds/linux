@@ -39,7 +39,9 @@ static u32 transcoder_to_stream_enc_status(enum transcoder cpu_transcoder)
 static void intel_dp_hdcp_wait_for_cp_irq(struct intel_connector *connector,
 					  int timeout)
 {
-	struct intel_hdcp *hdcp = &connector->hdcp;
+	struct intel_digital_port *dig_port = intel_attached_dig_port(connector);
+	struct intel_dp *dp = &dig_port->dp;
+	struct intel_hdcp *hdcp = &dp->attached_connector->hdcp;
 	long ret;
 
 #define C (hdcp->cp_irq_count_cached != atomic_read(&hdcp->cp_irq_count))
@@ -150,7 +152,7 @@ int intel_dp_hdcp_repeater_present(struct intel_digital_port *dig_port,
 	ssize_t ret;
 	u8 bcaps;
 
-	ret = intel_dp_hdcp_read_bcaps(&dig_port->dp.aux, i915,  &bcaps);
+	ret = intel_dp_hdcp_read_bcaps(&dig_port->dp.aux, i915, &bcaps);
 	if (ret)
 		return ret;
 
@@ -675,8 +677,15 @@ static
 int intel_dp_hdcp2_get_capability(struct intel_connector *connector,
 				  bool *capable)
 {
-	struct intel_digital_port *dig_port = intel_attached_dig_port(connector);
-	struct drm_dp_aux *aux = &dig_port->dp.aux;
+	struct intel_digital_port *dig_port;
+	struct drm_dp_aux *aux;
+
+	*capable = false;
+	if (!intel_attached_encoder(connector))
+		return -EINVAL;
+
+	dig_port = intel_attached_dig_port(connector);
+	aux = &dig_port->dp.aux;
 
 	return _intel_dp_hdcp2_get_capability(aux, capable);
 }

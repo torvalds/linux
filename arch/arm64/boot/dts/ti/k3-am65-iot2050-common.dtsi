@@ -627,11 +627,62 @@
 		reg = <0>;
 		ti,rx-internal-delay = <DP83867_RGMIIDCTL_2_00_NS>;
 		ti,fifo-depth = <DP83867_PHYCR_FIFO_DEPTH_4_B_NIB>;
+
+		leds {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			led@0 {
+				reg = <0>;
+				color = <LED_COLOR_ID_GREEN>;
+				function = LED_FUNCTION_LAN;
+			};
+
+			led@1 {
+				reg = <1>;
+				color = <LED_COLOR_ID_GREEN>;
+				function = LED_FUNCTION_SPEED_LAN;
+			};
+
+			led@2 {
+				reg = <2>;
+				color = <LED_COLOR_ID_YELLOW>;
+				function = LED_FUNCTION_SPEED_LAN;
+			};
+		};
 	};
 
 	icssg0_eth1_phy: ethernet-phy@1 {
 		reg = <1>;
 		ti,rx-internal-delay = <DP83867_RGMIIDCTL_2_00_NS>;
 		ti,fifo-depth = <DP83867_PHYCR_FIFO_DEPTH_4_B_NIB>;
+
+		leds {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			led@0 {
+				reg = <0>;
+				color = <LED_COLOR_ID_GREEN>;
+				function = LED_FUNCTION_LAN;
+			};
+
+			led@1 {
+				reg = <1>;
+				color = <LED_COLOR_ID_GREEN>;
+				function = LED_FUNCTION_SPEED_LAN;
+			};
+
+			led@2 {
+				reg = <2>;
+				color = <LED_COLOR_ID_YELLOW>;
+				function = LED_FUNCTION_SPEED_LAN;
+			};
+		};
 	};
+};
+
+&mcu_r5fss0 {
+	/* lock-step mode not supported on iot2050 boards */
+	ti,cluster-mode = <0>;
 };

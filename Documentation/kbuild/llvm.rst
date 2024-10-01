@@ -126,7 +126,7 @@ Ccache
 
 ``ccache`` can be used with ``clang`` to improve subsequent builds, (though
 KBUILD_BUILD_TIMESTAMP_ should be set to a deterministic value between builds
-in order to avoid 100% cache misses, see Reproducible_builds_ for more info):
+in order to avoid 100% cache misses, see Reproducible_builds_ for more info)::
 
 	KBUILD_BUILD_TIMESTAMP='' make LLVM=1 CC="ccache clang"
 

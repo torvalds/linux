@@ -1,0 +1,13 @@
+// SPDX-License-Identifier: BSD-3-Clause
+/*
+ * Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ */
+
+/dts-v1/;
+
+#include "x1e80100-microsoft-romulus.dtsi"
+
+/ {
+	model = "Microsoft Surface Laptop 7 (15 inch)";
+	compatible = "microsoft,romulus15", "qcom,x1e80100";
+};

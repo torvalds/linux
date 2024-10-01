@@ -259,6 +259,8 @@ static inline struct dma_resv *xe_vm_resv(struct xe_vm *vm)
 	return drm_gpuvm_resv(&vm->gpuvm);
 }
 
+void xe_vm_kill(struct xe_vm *vm, bool unlocked);
+
 /**
  * xe_vm_assert_held(vm) - Assert that the vm's reservation object is held.
  * @vm: The vm

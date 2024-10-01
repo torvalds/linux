@@ -85,7 +85,7 @@ static int tegra210_i2s_set_clock_rate(struct device *dev,
 }
 
 static int tegra210_i2s_sw_reset(struct snd_soc_component *compnt,
-				 bool is_playback)
+				 int stream)
 {
 	struct device *dev = compnt->dev;
 	struct tegra210_i2s *i2s = dev_get_drvdata(dev);
@@ -95,7 +95,7 @@ static int tegra210_i2s_sw_reset(struct snd_soc_component *compnt,
 	unsigned int cif_ctrl, stream_ctrl, i2s_ctrl, val;
 	int err;
 
-	if (is_playback) {
+	if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		reset_reg = TEGRA210_I2S_RX_SOFT_RESET;
 		cif_reg = TEGRA210_I2S_RX_CIF_CTRL;
 		stream_reg = TEGRA210_I2S_RX_CTRL;
@@ -118,7 +118,7 @@ static int tegra210_i2s_sw_reset(struct snd_soc_component *compnt,
 				       10, 10000);
 	if (err) {
 		dev_err(dev, "timeout: failed to reset I2S for %s\n",
-			is_playback ? "playback" : "capture");
+			snd_pcm_direction_name(stream));
 		return err;
 	}
 
@@ -137,16 +137,16 @@ static int tegra210_i2s_init(struct snd_soc_dapm_widget *w,
 	struct device *dev = compnt->dev;
 	struct tegra210_i2s *i2s = dev_get_drvdata(dev);
 	unsigned int val, status_reg;
-	bool is_playback;
+	int stream;
 	int err;
 
 	switch (w->reg) {
 	case TEGRA210_I2S_RX_ENABLE:
-		is_playback = true;
+		stream = SNDRV_PCM_STREAM_PLAYBACK;
 		status_reg = TEGRA210_I2S_RX_STATUS;
 		break;
 	case TEGRA210_I2S_TX_ENABLE:
-		is_playback = false;
+		stream = SNDRV_PCM_STREAM_CAPTURE;
 		status_reg = TEGRA210_I2S_TX_STATUS;
 		break;
 	default:
@@ -159,11 +159,11 @@ static int tegra210_i2s_init(struct snd_soc_dapm_widget *w,
 				       10, 10000);
 	if (err) {
 		dev_err(dev, "timeout: previous I2S %s is still active\n",
-			is_playback ? "playback" : "capture");
+			snd_pcm_direction_name(stream));
 		return err;
 	}
 
-	return tegra210_i2s_sw_reset(compnt, is_playback);
+	return tegra210_i2s_sw_reset(compnt, stream);
 }
 
 static int __maybe_unused tegra210_i2s_runtime_suspend(struct device *dev)
@@ -1019,7 +1019,7 @@ static struct platform_driver tegra210_i2s_driver = {
 		.pm = &tegra210_i2s_pm_ops,
 	},
 	.probe = tegra210_i2s_probe,
-	.remove_new = tegra210_i2s_remove,
+	.remove = tegra210_i2s_remove,
 };
 module_platform_driver(tegra210_i2s_driver)
 

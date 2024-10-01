@@ -239,7 +239,19 @@ int __bch2_fsck_err(struct bch_fs *c,
 	if (!c)
 		c = trans->c;
 
-	WARN_ON(!trans && bch2_current_has_btree_trans(c));
+	/*
+	 * Ugly: if there's a transaction in the current task it has to be
+	 * passed in to unlock if we prompt for user input.
+	 *
+	 * But, plumbing a transaction and transaction restarts into
+	 * bkey_validate() is problematic.
+	 *
+	 * So:
+	 * - make all bkey errors AUTOFIX, they're simple anyways (we just
+	 *   delete the key)
+	 * - and we don't need to warn if we're not prompting
+	 */
+	WARN_ON(!(flags & FSCK_AUTOFIX) && !trans && bch2_current_has_btree_trans(c));
 
 	if ((flags & FSCK_CAN_FIX) &&
 	    test_bit(err, c->sb.errors_silent))
@@ -412,6 +424,28 @@ int __bch2_fsck_err(struct bch_fs *c,
 err:
 	if (action != action_orig)
 		kfree(action);
+	printbuf_exit(&buf);
+	return ret;
+}
+
+int __bch2_bkey_fsck_err(struct bch_fs *c,
+			 struct bkey_s_c k,
+			 enum bch_fsck_flags flags,
+			 enum bch_sb_error_id err,
+			 const char *fmt, ...)
+{
+	struct printbuf buf = PRINTBUF;
+	va_list args;
+
+	prt_str(&buf, "invalid bkey ");
+	bch2_bkey_val_to_text(&buf, c, k);
+	prt_str(&buf, "\n  ");
+	va_start(args, fmt);
+	prt_vprintf(&buf, fmt, args);
+	va_end(args);
+	prt_str(&buf, ": delete?");
+
+	int ret = __bch2_fsck_err(c, NULL, flags, err, "%s", buf.buf);
 	printbuf_exit(&buf);
 	return ret;
 }

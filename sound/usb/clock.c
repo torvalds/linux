@@ -76,11 +76,14 @@ static bool validate_clock_multiplier(void *p, int id, int proto)
 }
 
 #define DEFINE_FIND_HELPER(name, obj, validator, type2, type3)		\
-static obj *name(struct snd_usb_audio *chip, int id, int proto)	\
+static obj *name(struct snd_usb_audio *chip, int id,	\
+				const struct audioformat *fmt)	\
 {									\
-	return find_uac_clock_desc(chip->ctrl_intf, id, validator,	\
-				   proto == UAC_VERSION_3 ? (type3) : (type2), \
-				   proto);				\
+	struct usb_host_interface *ctrl_intf =	\
+		snd_usb_find_ctrl_interface(chip, fmt->iface); \
+	return find_uac_clock_desc(ctrl_intf, id, validator,	\
+				   fmt->protocol == UAC_VERSION_3 ? (type3) : (type2), \
+				   fmt->protocol);				\
 }
 
 DEFINE_FIND_HELPER(snd_usb_find_clock_source,
@@ -93,16 +96,19 @@ DEFINE_FIND_HELPER(snd_usb_find_clock_multiplier,
 		   union uac23_clock_multiplier_desc, validate_clock_multiplier,
 		   UAC2_CLOCK_MULTIPLIER, UAC3_CLOCK_MULTIPLIER);
 
-static int uac_clock_selector_get_val(struct snd_usb_audio *chip, int selector_id)
+static int uac_clock_selector_get_val(struct snd_usb_audio *chip,
+				int selector_id, int iface_no)
 {
+	struct usb_host_interface *ctrl_intf;
 	unsigned char buf;
 	int ret;
 
+	ctrl_intf = snd_usb_find_ctrl_interface(chip, iface_no);
 	ret = snd_usb_ctl_msg(chip->dev, usb_rcvctrlpipe(chip->dev, 0),
 			      UAC2_CS_CUR,
 			      USB_RECIP_INTERFACE | USB_TYPE_CLASS | USB_DIR_IN,
 			      UAC2_CX_CLOCK_SELECTOR << 8,
-			      snd_usb_ctrl_intf(chip) | (selector_id << 8),
+			      snd_usb_ctrl_intf(ctrl_intf) | (selector_id << 8),
 			      &buf, sizeof(buf));
 
 	if (ret < 0)
@@ -111,16 +117,18 @@ static int uac_clock_selector_get_val(struct snd_usb_audio *chip, int selector_i
 	return buf;
 }
 
-static int uac_clock_selector_set_val(struct snd_usb_audio *chip, int selector_id,
-					unsigned char pin)
+static int uac_clock_selector_set_val(struct snd_usb_audio *chip,
+					int selector_id, unsigned char pin, int iface_no)
 {
+	struct usb_host_interface *ctrl_intf;
 	int ret;
 
+	ctrl_intf = snd_usb_find_ctrl_interface(chip, iface_no);
 	ret = snd_usb_ctl_msg(chip->dev, usb_sndctrlpipe(chip->dev, 0),
 			      UAC2_CS_CUR,
 			      USB_RECIP_INTERFACE | USB_TYPE_CLASS | USB_DIR_OUT,
 			      UAC2_CX_CLOCK_SELECTOR << 8,
-			      snd_usb_ctrl_intf(chip) | (selector_id << 8),
+			      snd_usb_ctrl_intf(ctrl_intf) | (selector_id << 8),
 			      &pin, sizeof(pin));
 	if (ret < 0)
 		return ret;
@@ -132,7 +140,7 @@ static int uac_clock_selector_set_val(struct snd_usb_audio *chip, int selector_i
 		return -EINVAL;
 	}
 
-	ret = uac_clock_selector_get_val(chip, selector_id);
+	ret = uac_clock_selector_get_val(chip, selector_id, iface_no);
 	if (ret < 0)
 		return ret;
 
@@ -155,8 +163,10 @@ static bool uac_clock_source_is_valid_quirk(struct snd_usb_audio *chip,
 	unsigned char data;
 	struct usb_device *dev = chip->dev;
 	union uac23_clock_source_desc *cs_desc;
+	struct usb_host_interface *ctrl_intf;
 
-	cs_desc = snd_usb_find_clock_source(chip, source_id, fmt->protocol);
+	ctrl_intf = snd_usb_find_ctrl_interface(chip, fmt->iface);
+	cs_desc = snd_usb_find_clock_source(chip, source_id, fmt);
 	if (!cs_desc)
 		return false;
 
@@ -191,7 +201,7 @@ static bool uac_clock_source_is_valid_quirk(struct snd_usb_audio *chip,
 			err = snd_usb_ctl_msg(dev, usb_rcvctrlpipe(dev, 0), UAC2_CS_CUR,
 					      USB_TYPE_CLASS | USB_RECIP_INTERFACE | USB_DIR_IN,
 					      UAC2_CS_CONTROL_CLOCK_VALID << 8,
-					      snd_usb_ctrl_intf(chip) | (source_id << 8),
+					      snd_usb_ctrl_intf(ctrl_intf) | (source_id << 8),
 					      &data, sizeof(data));
 			if (err < 0) {
 				dev_warn(&dev->dev,
@@ -217,8 +227,10 @@ static bool uac_clock_source_is_valid(struct snd_usb_audio *chip,
 	struct usb_device *dev = chip->dev;
 	u32 bmControls;
 	union uac23_clock_source_desc *cs_desc;
+	struct usb_host_interface *ctrl_intf;
 
-	cs_desc = snd_usb_find_clock_source(chip, source_id, fmt->protocol);
+	ctrl_intf = snd_usb_find_ctrl_interface(chip, fmt->iface);
+	cs_desc = snd_usb_find_clock_source(chip, source_id, fmt);
 	if (!cs_desc)
 		return false;
 
@@ -235,7 +247,7 @@ static bool uac_clock_source_is_valid(struct snd_usb_audio *chip,
 	err = snd_usb_ctl_msg(dev, usb_rcvctrlpipe(dev, 0), UAC2_CS_CUR,
 			      USB_TYPE_CLASS | USB_RECIP_INTERFACE | USB_DIR_IN,
 			      UAC2_CS_CONTROL_CLOCK_VALID << 8,
-			      snd_usb_ctrl_intf(chip) | (source_id << 8),
+			      snd_usb_ctrl_intf(ctrl_intf) | (source_id << 8),
 			      &data, sizeof(data));
 
 	if (err < 0) {
@@ -274,7 +286,7 @@ static int __uac_clock_find_source(struct snd_usb_audio *chip,
 	}
 
 	/* first, see if the ID we're looking at is a clock source already */
-	source = snd_usb_find_clock_source(chip, entity_id, proto);
+	source = snd_usb_find_clock_source(chip, entity_id, fmt);
 	if (source) {
 		entity_id = GET_VAL(source, proto, bClockID);
 		if (validate && !uac_clock_source_is_valid(chip, fmt,
@@ -287,7 +299,7 @@ static int __uac_clock_find_source(struct snd_usb_audio *chip,
 		return entity_id;
 	}
 
-	selector = snd_usb_find_clock_selector(chip, entity_id, proto);
+	selector = snd_usb_find_clock_selector(chip, entity_id, fmt);
 	if (selector) {
 		pins = GET_VAL(selector, proto, bNrInPins);
 		clock_id = GET_VAL(selector, proto, bClockID);
@@ -317,7 +329,7 @@ static int __uac_clock_find_source(struct snd_usb_audio *chip,
 
 		/* the entity ID we are looking at is a selector.
 		 * find out what it currently selects */
-		ret = uac_clock_selector_get_val(chip, clock_id);
+		ret = uac_clock_selector_get_val(chip, clock_id, fmt->iface);
 		if (ret < 0) {
 			if (!chip->autoclock)
 				return ret;
@@ -346,7 +358,7 @@ static int __uac_clock_find_source(struct snd_usb_audio *chip,
 			if (chip->quirk_flags & QUIRK_FLAG_SKIP_CLOCK_SELECTOR ||
 			    !writeable)
 				return ret;
-			err = uac_clock_selector_set_val(chip, entity_id, cur);
+			err = uac_clock_selector_set_val(chip, entity_id, cur, fmt->iface);
 			if (err < 0) {
 				if (pins == 1) {
 					usb_audio_dbg(chip,
@@ -377,7 +389,7 @@ static int __uac_clock_find_source(struct snd_usb_audio *chip,
 			if (ret < 0)
 				continue;
 
-			err = uac_clock_selector_set_val(chip, entity_id, i);
+			err = uac_clock_selector_set_val(chip, entity_id, i, fmt->iface);
 			if (err < 0)
 				continue;
 
@@ -391,7 +403,7 @@ static int __uac_clock_find_source(struct snd_usb_audio *chip,
 	}
 
 	/* FIXME: multipliers only act as pass-thru element for now */
-	multiplier = snd_usb_find_clock_multiplier(chip, entity_id, proto);
+	multiplier = snd_usb_find_clock_multiplier(chip, entity_id, fmt);
 	if (multiplier)
 		return __uac_clock_find_source(chip, fmt,
 					       GET_VAL(multiplier, proto, bCSourceID),
@@ -491,11 +503,13 @@ static int get_sample_rate_v2v3(struct snd_usb_audio *chip, int iface,
 	struct usb_device *dev = chip->dev;
 	__le32 data;
 	int err;
+	struct usb_host_interface *ctrl_intf;
 
+	ctrl_intf = snd_usb_find_ctrl_interface(chip, iface);
 	err = snd_usb_ctl_msg(dev, usb_rcvctrlpipe(dev, 0), UAC2_CS_CUR,
 			      USB_TYPE_CLASS | USB_RECIP_INTERFACE | USB_DIR_IN,
 			      UAC2_CS_CONTROL_SAM_FREQ << 8,
-			      snd_usb_ctrl_intf(chip) | (clock << 8),
+			      snd_usb_ctrl_intf(ctrl_intf) | (clock << 8),
 			      &data, sizeof(data));
 	if (err < 0) {
 		dev_warn(&dev->dev, "%d:%d: cannot get freq (v2/v3): err %d\n",
@@ -524,8 +538,10 @@ int snd_usb_set_sample_rate_v2v3(struct snd_usb_audio *chip,
 	__le32 data;
 	int err;
 	union uac23_clock_source_desc *cs_desc;
+	struct usb_host_interface *ctrl_intf;
 
-	cs_desc = snd_usb_find_clock_source(chip, clock, fmt->protocol);
+	ctrl_intf = snd_usb_find_ctrl_interface(chip, fmt->iface);
+	cs_desc = snd_usb_find_clock_source(chip, clock, fmt);
 
 	if (!cs_desc)
 		return 0;
@@ -544,7 +560,7 @@ int snd_usb_set_sample_rate_v2v3(struct snd_usb_audio *chip,
 	err = snd_usb_ctl_msg(chip->dev, usb_sndctrlpipe(chip->dev, 0), UAC2_CS_CUR,
 			      USB_TYPE_CLASS | USB_RECIP_INTERFACE | USB_DIR_OUT,
 			      UAC2_CS_CONTROL_SAM_FREQ << 8,
-			      snd_usb_ctrl_intf(chip) | (clock << 8),
+			      snd_usb_ctrl_intf(ctrl_intf) | (clock << 8),
 			      &data, sizeof(data));
 	if (err < 0)
 		return err;

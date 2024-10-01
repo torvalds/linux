@@ -183,6 +183,10 @@ static int hid_bpf_reg(void *kdata, struct bpf_link *link)
 	struct hid_device *hdev;
 	int count, err = 0;
 
+	/* prevent multiple attach of the same struct_ops */
+	if (ops->hdev)
+		return -EINVAL;
+
 	hdev = hid_get_device(ops->hid_id);
 	if (IS_ERR(hdev))
 		return PTR_ERR(hdev);
@@ -248,6 +252,7 @@ static void hid_bpf_unreg(void *kdata, struct bpf_link *link)
 
 	list_del_rcu(&ops->list);
 	synchronize_srcu(&hdev->bpf.srcu);
+	ops->hdev = NULL;
 
 	reconnect = hdev->bpf.rdesc_ops == ops;
 	if (reconnect)

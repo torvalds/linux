@@ -147,8 +147,7 @@ snap-pkg:
 PHONY += pacman-pkg
 pacman-pkg:
 	@ln -srf $(srctree)/scripts/package/PKGBUILD $(objtree)/PKGBUILD
-	+objtree="$(realpath $(objtree))" \
-		BUILDDIR="$(realpath $(objtree))/pacman" \
+	+BUILDDIR="$(realpath $(objtree))/pacman" \
 		CARCH="$(UTS_MACHINE)" \
 		KBUILD_MAKEFLAGS="$(MAKEFLAGS)" \
 		KBUILD_REVISION="$(shell $(srctree)/scripts/build-version)" \

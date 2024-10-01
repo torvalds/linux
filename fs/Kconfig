@@ -288,6 +288,10 @@ config HUGETLB_PAGE_OPTIMIZE_VMEMMAP
 	depends on ARCH_WANT_OPTIMIZE_HUGETLB_VMEMMAP
 	depends on SPARSEMEM_VMEMMAP
 
+config HUGETLB_PMD_PAGE_TABLE_SHARING
+	def_bool HUGETLB_PAGE
+	depends on ARCH_WANT_HUGE_PMD_SHARE && SPLIT_PMD_PTLOCKS
+
 config ARCH_HAS_GIGANTIC_PAGE
 	bool
 
@@ -381,6 +385,29 @@ config NFS_COMMON
 	bool
 	depends on NFSD || NFS_FS || LOCKD
 	default y
+
+config NFS_COMMON_LOCALIO_SUPPORT
+	tristate
+	default n
+	default y if NFSD=y || NFS_FS=y
+	default m if NFSD=m && NFS_FS=m
+	select SUNRPC
+
+config NFS_LOCALIO
+	bool "NFS client and server support for LOCALIO auxiliary protocol"
+	depends on NFSD && NFS_FS
+	select NFS_COMMON_LOCALIO_SUPPORT
+	default n
+	help
+	  Some NFS servers support an auxiliary NFS LOCALIO protocol
+	  that is not an official part of the NFS protocol.
+
+	  This option enables support for the LOCALIO protocol in the
+	  kernel's NFS server and client. Enable this to permit local
+	  NFS clients to bypass the network when issuing reads and
+	  writes to the local NFS server.
+
+	  If unsure, say N.
 
 config NFS_V4_2_SSC_HELPER
 	bool

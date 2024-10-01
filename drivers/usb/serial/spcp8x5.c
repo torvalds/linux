@@ -49,16 +49,6 @@ static const struct usb_device_id id_table[] = {
 };
 MODULE_DEVICE_TABLE(usb, id_table);
 
-struct spcp8x5_usb_ctrl_arg {
-	u8	type;
-	u8	cmd;
-	u8	cmd_type;
-	u16	value;
-	u16	index;
-	u16	length;
-};
-
-
 /* spcp8x5 spec register define */
 #define MCR_CONTROL_LINE_RTS		0x02
 #define MCR_CONTROL_LINE_DTR		0x01
@@ -462,7 +452,6 @@ static int spcp8x5_tiocmget(struct tty_struct *tty)
 
 static struct usb_serial_driver spcp8x5_device = {
 	.driver = {
-		.owner =	THIS_MODULE,
 		.name =		"SPCP8x5",
 	},
 	.id_table		= id_table,

@@ -498,7 +498,7 @@ static int pmem_attach_disk(struct device *dev,
 	}
 	if (fua)
 		lim.features |= BLK_FEAT_FUA;
-	if (is_nd_pfn(dev))
+	if (is_nd_pfn(dev) || pmem_should_map_pages(dev))
 		lim.features |= BLK_FEAT_DAX;
 
 	if (!devm_request_mem_region(dev, res->start, resource_size(res),

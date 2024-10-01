@@ -96,6 +96,13 @@ properties:
           - const: coolpi,pi-cm5
           - const: rockchip,rk3588
 
+      - description: Cool Pi CM5 GenBook
+        items:
+          - enum:
+              - coolpi,pi-cm5-genbook
+          - const: coolpi,pi-cm5
+          - const: rockchip,rk3588
+
       - description: Cool Pi 4 Model B
         items:
           - const: coolpi,pi-4b
@@ -146,6 +153,12 @@ properties:
         items:
           - const: engicam,px30-core-edimm2.2
           - const: engicam,px30-core
+          - const: rockchip,px30
+
+      - description: Firefly Core-PX30-JD4 on MB-JD4-PX30 baseboard
+        items:
+          - const: firefly,px30-jd4-core-mb
+          - const: firefly,px30-jd4-core
           - const: rockchip,px30
 
       - description: Firefly Firefly-RK3288
@@ -216,6 +229,7 @@ properties:
               - friendlyarm,nanopi-r2c
               - friendlyarm,nanopi-r2c-plus
               - friendlyarm,nanopi-r2s
+              - friendlyarm,nanopi-r2s-plus
           - const: rockchip,rk3328
 
       - description: FriendlyElec NanoPi4 series boards
@@ -243,9 +257,11 @@ properties:
               - friendlyarm,nanopi-r6s
           - const: rockchip,rk3588s
 
-      - description: FriendlyElec NanoPC T6
+      - description: FriendlyElec NanoPC T6 series boards
         items:
-          - const: friendlyarm,nanopc-t6
+          - enum:
+              - friendlyarm,nanopc-t6
+              - friendlyarm,nanopc-t6-lts
           - const: rockchip,rk3588
 
       - description: FriendlyElec CM3588-based boards
@@ -254,6 +270,11 @@ properties:
               - friendlyarm,cm3588-nas
           - const: friendlyarm,cm3588
           - const: rockchip,rk3588
+
+      - description: GameForce Ace
+        items:
+          - const: gameforce,ace
+          - const: rockchip,rk3588s
 
       - description: GameForce Chi
         items:
@@ -581,8 +602,18 @@ properties:
 
       - description: Hardkernel Odroid M1
         items:
-          - const: rockchip,rk3568-odroid-m1
+          - const: hardkernel,odroid-m1
           - const: rockchip,rk3568
+
+      - description: Hardkernel Odroid M1S
+        items:
+          - const: hardkernel,odroid-m1s
+          - const: rockchip,rk3566
+
+      - description: Hardkernel Odroid M2
+        items:
+          - const: hardkernel,odroid-m2
+          - const: rockchip,rk3588s
 
       - description: Hugsun X99 TV Box
         items:
@@ -621,6 +652,11 @@ properties:
         items:
           - const: leez,p710
           - const: rockchip,rk3399
+
+      - description: LCKFB Taishan Pi RK3566
+        items:
+          - const: lckfb,tspi-rk3566
+          - const: rockchip,rk3566
 
       - description: Lunzn FastRhino R66S / R68S
         items:

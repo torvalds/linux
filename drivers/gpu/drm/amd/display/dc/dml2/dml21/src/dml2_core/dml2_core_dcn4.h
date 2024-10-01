@@ -2,7 +2,6 @@
 //
 // Copyright 2024 Advanced Micro Devices, Inc.
 
-
 #ifndef __DML2_CORE_DCN4_H__
 #define __DML2_CORE_DCN4_H__
 bool core_dcn4_initialize(struct dml2_core_initialize_in_out *in_out);

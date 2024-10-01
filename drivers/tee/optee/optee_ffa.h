@@ -92,6 +92,8 @@
 #define OPTEE_FFA_SEC_CAP_ARG_OFFSET	BIT(0)
 /* OP-TEE supports asynchronous notification via FF-A */
 #define OPTEE_FFA_SEC_CAP_ASYNC_NOTIF	BIT(1)
+/* OP-TEE supports probing for RPMB device if needed */
+#define OPTEE_FFA_SEC_CAP_RPMB_PROBE	BIT(2)
 
 #define OPTEE_FFA_EXCHANGE_CAPABILITIES OPTEE_FFA_BLOCKING_CALL(2)
 

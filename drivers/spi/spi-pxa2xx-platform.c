@@ -7,6 +7,7 @@
 #include <linux/init.h>
 #include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 #include <linux/property.h>
 #include <linux/types.h>
 
@@ -63,7 +64,7 @@ static struct ssp_device *pxa2xx_spi_ssp_request(struct platform_device *pdev)
 
 	ssp = pxa_ssp_request(pdev->id, pdev->name);
 	if (!ssp)
-		return ssp;
+		return NULL;
 
 	status = devm_add_action_or_reset(&pdev->dev, pxa2xx_spi_ssp_release, ssp);
 	if (status)
@@ -142,14 +143,13 @@ static int pxa2xx_spi_platform_probe(struct platform_device *pdev)
 	struct pxa2xx_spi_controller *platform_info;
 	struct device *dev = &pdev->dev;
 	struct ssp_device *ssp;
+	int ret;
 
 	platform_info = dev_get_platdata(dev);
 	if (!platform_info) {
 		platform_info = pxa2xx_spi_init_pdata(pdev);
 		if (IS_ERR(platform_info))
 			return dev_err_probe(dev, PTR_ERR(platform_info), "missing platform data\n");
-
-		dev->platform_data = platform_info;
 	}
 
 	ssp = pxa2xx_spi_ssp_request(pdev);
@@ -158,12 +158,28 @@ static int pxa2xx_spi_platform_probe(struct platform_device *pdev)
 	if (!ssp)
 		ssp = &platform_info->ssp;
 
-	return pxa2xx_spi_probe(dev, ssp);
+	pm_runtime_set_autosuspend_delay(dev, 50);
+	pm_runtime_use_autosuspend(dev);
+	pm_runtime_set_active(dev);
+	pm_runtime_enable(dev);
+
+	ret = pxa2xx_spi_probe(dev, ssp, platform_info);
+	if (ret)
+		pm_runtime_disable(dev);
+
+	return ret;
 }
 
 static void pxa2xx_spi_platform_remove(struct platform_device *pdev)
 {
-	pxa2xx_spi_remove(&pdev->dev);
+	struct device *dev = &pdev->dev;
+
+	pm_runtime_get_sync(dev);
+
+	pxa2xx_spi_remove(dev);
+
+	pm_runtime_put_noidle(dev);
+	pm_runtime_disable(dev);
 }
 
 static const struct acpi_device_id pxa2xx_spi_acpi_match[] = {

@@ -455,6 +455,6 @@ static void *client_fn(void *arg)
 
 int main(int argc, char *argv[])
 {
-	test_init(14, server_fn, client_fn);
+	test_init(15, server_fn, client_fn);
 	return 0;
 }

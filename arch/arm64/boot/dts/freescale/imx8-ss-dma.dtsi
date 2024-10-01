@@ -34,6 +34,8 @@ dma_subsys: bus@5a000000 {
 		assigned-clocks = <&clk IMX_SC_R_SPI_0 IMX_SC_PM_CLK_PER>;
 		assigned-clock-rates = <60000000>;
 		power-domains = <&pd IMX_SC_R_SPI_0>;
+		dmas = <&edma2 1 0 0>, <&edma2 0 0 FSL_EDMA_RX>;
+		dma-names = "tx", "rx";
 		status = "disabled";
 	};
 
@@ -50,6 +52,8 @@ dma_subsys: bus@5a000000 {
 		assigned-clocks = <&clk IMX_SC_R_SPI_1 IMX_SC_PM_CLK_PER>;
 		assigned-clock-rates = <60000000>;
 		power-domains = <&pd IMX_SC_R_SPI_1>;
+		dmas = <&edma2 3 0 0>, <&edma2 2 0 FSL_EDMA_RX>;
+		dma-names = "tx", "rx";
 		status = "disabled";
 	};
 
@@ -66,6 +70,8 @@ dma_subsys: bus@5a000000 {
 		assigned-clocks = <&clk IMX_SC_R_SPI_2 IMX_SC_PM_CLK_PER>;
 		assigned-clock-rates = <60000000>;
 		power-domains = <&pd IMX_SC_R_SPI_2>;
+		dmas = <&edma2 5 0 0>, <&edma2 4 0 FSL_EDMA_RX>;
+		dma-names = "tx", "rx";
 		status = "disabled";
 	};
 
@@ -82,6 +88,8 @@ dma_subsys: bus@5a000000 {
 		assigned-clocks = <&clk IMX_SC_R_SPI_3 IMX_SC_PM_CLK_PER>;
 		assigned-clock-rates = <60000000>;
 		power-domains = <&pd IMX_SC_R_SPI_3>;
+		dmas = <&edma2 7 0 0>, <&edma2 6 0 FSL_EDMA_RX>;
+		dma-names = "tx", "rx";
 		status = "disabled";
 	};
 
@@ -303,6 +311,8 @@ dma_subsys: bus@5a000000 {
 
 	i2c0: i2c@5a800000 {
 		reg = <0x5a800000 0x4000>;
+		#address-cells = <1>;
+		#size-cells = <0>;
 		interrupts = <GIC_SPI 220 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&i2c0_lpcg IMX_LPCG_CLK_0>,
 			 <&i2c0_lpcg IMX_LPCG_CLK_4>;
@@ -315,6 +325,8 @@ dma_subsys: bus@5a000000 {
 
 	i2c1: i2c@5a810000 {
 		reg = <0x5a810000 0x4000>;
+		#address-cells = <1>;
+		#size-cells = <0>;
 		interrupts = <GIC_SPI 221 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&i2c1_lpcg IMX_LPCG_CLK_0>,
 			 <&i2c1_lpcg IMX_LPCG_CLK_4>;
@@ -327,6 +339,8 @@ dma_subsys: bus@5a000000 {
 
 	i2c2: i2c@5a820000 {
 		reg = <0x5a820000 0x4000>;
+		#address-cells = <1>;
+		#size-cells = <0>;
 		interrupts = <GIC_SPI 222 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&i2c2_lpcg IMX_LPCG_CLK_0>,
 			 <&i2c2_lpcg IMX_LPCG_CLK_4>;
@@ -339,6 +353,8 @@ dma_subsys: bus@5a000000 {
 
 	i2c3: i2c@5a830000 {
 		reg = <0x5a830000 0x4000>;
+		#address-cells = <1>;
+		#size-cells = <0>;
 		interrupts = <GIC_SPI 223 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&i2c3_lpcg IMX_LPCG_CLK_0>,
 			 <&i2c3_lpcg IMX_LPCG_CLK_4>;
@@ -362,7 +378,7 @@ dma_subsys: bus@5a000000 {
 		assigned-clock-rates = <24000000>;
 		power-domains = <&pd IMX_SC_R_ADC_0>;
 		status = "disabled";
-	 };
+	};
 
 	adc1: adc@5a890000 {
 		compatible = "nxp,imx8qxp-adc";

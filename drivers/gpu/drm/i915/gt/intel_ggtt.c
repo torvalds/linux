@@ -12,7 +12,6 @@
 #include <drm/intel/i915_drm.h>
 #include <drm/intel/intel-gtt.h>
 
-#include "display/intel_display.h"
 #include "gem/i915_gem_lmem.h"
 
 #include "intel_context.h"

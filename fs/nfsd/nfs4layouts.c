@@ -740,6 +740,7 @@ static const struct nfsd4_callback_ops nfsd4_cb_layout_ops = {
 	.prepare	= nfsd4_cb_layout_prepare,
 	.done		= nfsd4_cb_layout_done,
 	.release	= nfsd4_cb_layout_release,
+	.opcode		= OP_CB_LAYOUTRECALL,
 };
 
 static bool

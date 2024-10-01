@@ -2362,6 +2362,20 @@ ra_honor_pio_life - BOOLEAN
 
 	Default: 0 (disabled)
 
+ra_honor_pio_pflag - BOOLEAN
+	The Prefix Information Option P-flag indicates the network can
+	allocate a unique IPv6 prefix per client using DHCPv6-PD.
+	This sysctl can be enabled when a userspace DHCPv6-PD client
+	is running to cause the P-flag to take effect: i.e. the
+	P-flag suppresses any effects of the A-flag within the same
+	PIO. For a given PIO, P=1 and A=1 is treated as A=0.
+
+	- If disabled, the P-flag is ignored.
+	- If enabled, the P-flag will disable SLAAC autoconfiguration
+	  for the given Prefix Information Option.
+
+	Default: 0 (disabled)
+
 accept_ra_rt_info_min_plen - INTEGER
 	Minimum prefix length of Route Information in RA.
 

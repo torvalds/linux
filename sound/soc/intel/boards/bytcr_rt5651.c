@@ -910,7 +910,7 @@ static int snd_byt_rt5651_mc_probe(struct platform_device *pdev)
 
 	/* fix index of codec dai */
 	for (i = 0; i < ARRAY_SIZE(byt_rt5651_dais); i++) {
-		if (byt_rt5651_dais[i].codecs->name &&
+		if (byt_rt5651_dais[i].num_codecs &&
 		    !strcmp(byt_rt5651_dais[i].codecs->name,
 			    "i2c-10EC5651:00")) {
 			dai_index = i;
@@ -926,7 +926,7 @@ static int snd_byt_rt5651_mc_probe(struct platform_device *pdev)
 		byt_rt5651_dais[dai_index].codecs->name = byt_rt5651_codec_name;
 	} else {
 		dev_err(dev, "Error cannot find '%s' dev\n", mach->id);
-		return -ENXIO;
+		return -ENOENT;
 	}
 
 	codec_dev = acpi_get_first_physical_node(adev);
@@ -1142,7 +1142,7 @@ static struct platform_driver snd_byt_rt5651_mc_driver = {
 		.name = "bytcr_rt5651",
 	},
 	.probe = snd_byt_rt5651_mc_probe,
-	.remove_new = snd_byt_rt5651_mc_remove,
+	.remove = snd_byt_rt5651_mc_remove,
 };
 
 module_platform_driver(snd_byt_rt5651_mc_driver);

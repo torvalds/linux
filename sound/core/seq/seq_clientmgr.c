@@ -70,7 +70,7 @@ static int bounce_error_event(struct snd_seq_client *client,
 			      int err, int atomic, int hop);
 static int snd_seq_deliver_single_event(struct snd_seq_client *client,
 					struct snd_seq_event *event,
-					int filter, int atomic, int hop);
+					int atomic, int hop);
 
 #if IS_ENABLED(CONFIG_SND_SEQ_UMP)
 static void free_ump_info(struct snd_seq_client *client);
@@ -525,10 +525,8 @@ static int check_port_perm(struct snd_seq_client_port *port, unsigned int flags)
 
 /*
  * check if the destination client is available, and return the pointer
- * if filter is non-zero, client filter bitmap is tested.
  */
-static struct snd_seq_client *get_event_dest_client(struct snd_seq_event *event,
-						    int filter)
+static struct snd_seq_client *get_event_dest_client(struct snd_seq_event *event)
 {
 	struct snd_seq_client *dest;
 
@@ -537,10 +535,11 @@ static struct snd_seq_client *get_event_dest_client(struct snd_seq_event *event,
 		return NULL;
 	if (! dest->accept_input)
 		goto __not_avail;
+	if (snd_seq_ev_is_ump(event))
+		return dest; /* ok - no filter checks */
+
 	if ((dest->filter & SNDRV_SEQ_FILTER_USE_EVENT) &&
 	    ! test_bit(event->type, dest->event_filter))
-		goto __not_avail;
-	if (filter && !(dest->filter & filter))
 		goto __not_avail;
 
 	return dest; /* ok - accessible */
@@ -585,7 +584,7 @@ static int bounce_error_event(struct snd_seq_client *client,
 	bounce_ev.data.quote.origin = event->dest;
 	bounce_ev.data.quote.event = event;
 	bounce_ev.data.quote.value = -err; /* use positive value */
-	result = snd_seq_deliver_single_event(NULL, &bounce_ev, 0, atomic, hop + 1);
+	result = snd_seq_deliver_single_event(NULL, &bounce_ev, atomic, hop + 1);
 	if (result < 0) {
 		client->event_lost++;
 		return result;
@@ -652,7 +651,7 @@ int __snd_seq_deliver_single_event(struct snd_seq_client *dest,
  */
 static int snd_seq_deliver_single_event(struct snd_seq_client *client,
 					struct snd_seq_event *event,
-					int filter, int atomic, int hop)
+					int atomic, int hop)
 {
 	struct snd_seq_client *dest = NULL;
 	struct snd_seq_client_port *dest_port = NULL;
@@ -661,7 +660,7 @@ static int snd_seq_deliver_single_event(struct snd_seq_client *client,
 
 	direct = snd_seq_ev_is_direct(event);
 
-	dest = get_event_dest_client(event, filter);
+	dest = get_event_dest_client(event);
 	if (dest == NULL)
 		goto __skip;
 	dest_port = snd_seq_port_use_ptr(dest, event->dest.port);
@@ -741,8 +740,7 @@ static int __deliver_to_subscribers(struct snd_seq_client *client,
 			/* convert time according to flag with subscription */
 			update_timestamp_of_queue(event, subs->info.queue,
 						  subs->info.flags & SNDRV_SEQ_PORT_SUBS_TIME_REAL);
-		err = snd_seq_deliver_single_event(client, event,
-						   0, atomic, hop);
+		err = snd_seq_deliver_single_event(client, event, atomic, hop);
 		if (err < 0) {
 			/* save first error that occurs and continue */
 			if (!result)
@@ -815,7 +813,7 @@ static int snd_seq_deliver_event(struct snd_seq_client *client, struct snd_seq_e
 	    event->dest.client == SNDRV_SEQ_ADDRESS_SUBSCRIBERS)
 		result = deliver_to_subscribers(client, event, atomic, hop);
 	else
-		result = snd_seq_deliver_single_event(client, event, 0, atomic, hop);
+		result = snd_seq_deliver_single_event(client, event, atomic, hop);
 
 	return result;
 }
@@ -2633,13 +2631,18 @@ static void snd_seq_info_dump_ports(struct snd_info_buffer *buffer,
 	list_for_each_entry(p, &client->ports_list_head, list) {
 		if (p->capability & SNDRV_SEQ_PORT_CAP_INACTIVE)
 			continue;
-		snd_iprintf(buffer, "  Port %3d : \"%s\" (%c%c%c%c) [%s]\n",
+		snd_iprintf(buffer, "  Port %3d : \"%s\" (%c%c%c%c) [%s]",
 			    p->addr.port, p->name,
 			    FLAG_PERM_RD(p->capability),
 			    FLAG_PERM_WR(p->capability),
 			    FLAG_PERM_EX(p->capability),
 			    FLAG_PERM_DUPLEX(p->capability),
 			    port_direction_name(p->direction));
+#if IS_ENABLED(CONFIG_SND_SEQ_UMP)
+		if (snd_seq_client_is_midi2(client) && p->is_midi1)
+			snd_iprintf(buffer, " [MIDI1]");
+#endif
+		snd_iprintf(buffer, "\n");
 		snd_seq_info_dump_subscribers(buffer, &p->c_src, 1, "    Connecting To: ");
 		snd_seq_info_dump_subscribers(buffer, &p->c_dest, 0, "    Connected From: ");
 	}
@@ -2719,7 +2722,6 @@ static const struct file_operations snd_seq_f_ops =
 	.write =	snd_seq_write,
 	.open =		snd_seq_open,
 	.release =	snd_seq_release,
-	.llseek =	no_llseek,
 	.poll =		snd_seq_poll,
 	.unlocked_ioctl =	snd_seq_ioctl,
 	.compat_ioctl =	snd_seq_ioctl_compat,

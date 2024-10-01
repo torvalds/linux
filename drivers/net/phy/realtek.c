@@ -555,7 +555,7 @@ static int rtl8211f_led_hw_control_set(struct phy_device *phydev, u8 index,
 				       unsigned long rules)
 {
 	const u16 mask = RTL8211F_LEDCR_MASK << (RTL8211F_LEDCR_SHIFT * index);
-	u16 reg = RTL8211F_LEDCR_MODE;	/* Mode B */
+	u16 reg = 0;
 
 	if (index >= RTL8211F_LED_COUNT)
 		return -EINVAL;
@@ -575,6 +575,7 @@ static int rtl8211f_led_hw_control_set(struct phy_device *phydev, u8 index,
 	}
 
 	reg <<= RTL8211F_LEDCR_SHIFT * index;
+	reg |= RTL8211F_LEDCR_MODE;	 /* Mode B */
 
 	return phy_modify_paged(phydev, 0xd04, RTL8211F_LEDCR, mask, reg);
 }
@@ -1465,6 +1466,13 @@ static struct phy_driver realtek_drvs[] = {
 		.handle_interrupt = genphy_handle_interrupt_no_ack,
 		.suspend	= genphy_suspend,
 		.resume		= genphy_resume,
+	}, {
+		PHY_ID_MATCH_EXACT(0x001cc960),
+		.name		= "RTL8366S Gigabit Ethernet",
+		.suspend	= genphy_suspend,
+		.resume		= genphy_resume,
+		.read_mmd	= genphy_read_mmd_unsupported,
+		.write_mmd	= genphy_write_mmd_unsupported,
 	},
 };
 

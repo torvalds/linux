@@ -1872,7 +1872,7 @@ void xhci_mem_cleanup(struct xhci_hcd *xhci)
 
 	cancel_delayed_work_sync(&xhci->cmd_timer);
 
-	for (i = 0; i < xhci->max_interrupters; i++) {
+	for (i = 0; xhci->interrupters && i < xhci->max_interrupters; i++) {
 		if (xhci->interrupters[i]) {
 			xhci_remove_interrupter(xhci, xhci->interrupters[i]);
 			xhci_free_interrupter(xhci, xhci->interrupters[i]);
@@ -2332,7 +2332,8 @@ xhci_add_interrupter(struct xhci_hcd *xhci, struct xhci_interrupter *ir,
 }
 
 struct xhci_interrupter *
-xhci_create_secondary_interrupter(struct usb_hcd *hcd, unsigned int segs)
+xhci_create_secondary_interrupter(struct usb_hcd *hcd, unsigned int segs,
+				  u32 imod_interval)
 {
 	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
 	struct xhci_interrupter *ir;
@@ -2364,6 +2365,11 @@ xhci_create_secondary_interrupter(struct usb_hcd *hcd, unsigned int segs)
 		xhci_free_interrupter(xhci, ir);
 		return NULL;
 	}
+
+	err = xhci_set_interrupter_moderation(ir, imod_interval);
+	if (err)
+		xhci_warn(xhci, "Failed to set interrupter %d moderation to %uns\n",
+			  i, imod_interval);
 
 	xhci_dbg(xhci, "Add secondary interrupter %d, max interrupters %d\n",
 		 i, xhci->max_interrupters);

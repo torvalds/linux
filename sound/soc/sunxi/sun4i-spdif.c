@@ -726,7 +726,7 @@ static struct platform_driver sun4i_spdif_driver = {
 		.pm	= &sun4i_spdif_pm,
 	},
 	.probe		= sun4i_spdif_probe,
-	.remove_new	= sun4i_spdif_remove,
+	.remove		= sun4i_spdif_remove,
 };
 
 module_platform_driver(sun4i_spdif_driver);

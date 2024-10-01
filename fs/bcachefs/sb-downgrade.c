@@ -61,6 +61,23 @@
 	  BCH_FSCK_ERR_dev_usage_buckets_wrong,			\
 	  BCH_FSCK_ERR_dev_usage_sectors_wrong,			\
 	  BCH_FSCK_ERR_dev_usage_fragmented_wrong,		\
+	  BCH_FSCK_ERR_accounting_mismatch)			\
+	x(disk_accounting_v3,					\
+	  BIT_ULL(BCH_RECOVERY_PASS_check_allocations),		\
+	  BCH_FSCK_ERR_bkey_version_in_future,			\
+	  BCH_FSCK_ERR_dev_usage_buckets_wrong,			\
+	  BCH_FSCK_ERR_dev_usage_sectors_wrong,			\
+	  BCH_FSCK_ERR_dev_usage_fragmented_wrong,		\
+	  BCH_FSCK_ERR_accounting_mismatch,			\
+	  BCH_FSCK_ERR_accounting_key_replicas_nr_devs_0,	\
+	  BCH_FSCK_ERR_accounting_key_replicas_nr_required_bad,	\
+	  BCH_FSCK_ERR_accounting_key_replicas_devs_unsorted,	\
+	  BCH_FSCK_ERR_accounting_key_junk_at_end)		\
+	x(disk_accounting_inum,					\
+	  BIT_ULL(BCH_RECOVERY_PASS_check_allocations),		\
+	  BCH_FSCK_ERR_accounting_mismatch)			\
+	x(rebalance_work_acct_fix,				\
+	  BIT_ULL(BCH_RECOVERY_PASS_check_allocations),		\
 	  BCH_FSCK_ERR_accounting_mismatch)
 
 #define DOWNGRADE_TABLE()					\
@@ -79,7 +96,25 @@
 	  BCH_FSCK_ERR_fs_usage_nr_inodes_wrong,		\
 	  BCH_FSCK_ERR_fs_usage_persistent_reserved_wrong,	\
 	  BCH_FSCK_ERR_fs_usage_replicas_wrong,			\
-	  BCH_FSCK_ERR_bkey_version_in_future)
+	  BCH_FSCK_ERR_bkey_version_in_future)			\
+	x(disk_accounting_v3,					\
+	  BIT_ULL(BCH_RECOVERY_PASS_check_allocations),		\
+	  BCH_FSCK_ERR_dev_usage_buckets_wrong,			\
+	  BCH_FSCK_ERR_dev_usage_sectors_wrong,			\
+	  BCH_FSCK_ERR_dev_usage_fragmented_wrong,		\
+	  BCH_FSCK_ERR_fs_usage_hidden_wrong,			\
+	  BCH_FSCK_ERR_fs_usage_btree_wrong,			\
+	  BCH_FSCK_ERR_fs_usage_data_wrong,			\
+	  BCH_FSCK_ERR_fs_usage_cached_wrong,			\
+	  BCH_FSCK_ERR_fs_usage_reserved_wrong,			\
+	  BCH_FSCK_ERR_fs_usage_nr_inodes_wrong,		\
+	  BCH_FSCK_ERR_fs_usage_persistent_reserved_wrong,	\
+	  BCH_FSCK_ERR_fs_usage_replicas_wrong,			\
+	  BCH_FSCK_ERR_accounting_replicas_not_marked,		\
+	  BCH_FSCK_ERR_bkey_version_in_future)			\
+	x(rebalance_work_acct_fix,				\
+	  BIT_ULL(BCH_RECOVERY_PASS_check_allocations),		\
+	  BCH_FSCK_ERR_accounting_mismatch)
 
 struct upgrade_downgrade_entry {
 	u64		recovery_passes;
@@ -277,8 +312,7 @@ static void bch2_sb_downgrade_to_text(struct printbuf *out, struct bch_sb *sb,
 			if (!first)
 				prt_char(out, ',');
 			first = false;
-			unsigned e = le16_to_cpu(i->errors[j]);
-			prt_str(out, e < BCH_SB_ERR_MAX ? bch2_sb_error_strs[e] : "(unknown)");
+			bch2_sb_error_id_to_text(out, le16_to_cpu(i->errors[j]));
 		}
 		prt_newline(out);
 	}
@@ -318,7 +352,9 @@ int bch2_sb_downgrade_update(struct bch_fs *c)
 		for (unsigned i = 0; i < src->nr_errors; i++)
 			dst->errors[i] = cpu_to_le16(src->errors[i]);
 
-		downgrade_table_extra(c, &table);
+		ret = downgrade_table_extra(c, &table);
+		if (ret)
+			goto out;
 
 		if (!dst->recovery_passes[0] &&
 		    !dst->recovery_passes[1] &&
@@ -364,7 +400,7 @@ void bch2_sb_set_downgrade(struct bch_fs *c, unsigned new_minor, unsigned old_mi
 
 			for (unsigned j = 0; j < le16_to_cpu(i->nr_errors); j++) {
 				unsigned e = le16_to_cpu(i->errors[j]);
-				if (e < BCH_SB_ERR_MAX)
+				if (e < BCH_FSCK_ERR_MAX)
 					__set_bit(e, c->sb.errors_silent);
 				if (e < sizeof(ext->errors_silent) * 8)
 					__set_bit_le64(e, ext->errors_silent);

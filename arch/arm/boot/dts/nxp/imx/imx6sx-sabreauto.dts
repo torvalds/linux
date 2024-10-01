@@ -97,11 +97,16 @@
 			"AIN2R", "Line In Jack";
 	};
 
+	spdif_in: spdif-in {
+		compatible = "linux,spdif-dir";
+		#sound-dai-cells = <0>;
+	};
+
 	sound-spdif {
 		compatible = "fsl,imx-audio-spdif";
 		model = "imx-spdif";
-		spdif-controller = <&spdif>;
-		spdif-in;
+		audio-cpu = <&spdif>;
+		audio-codec = <&spdif_in>;
 	};
 };
 

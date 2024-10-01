@@ -139,7 +139,6 @@ static void cypress_write_int_callback(struct urb *urb);
 
 static struct usb_serial_driver cypress_earthmate_device = {
 	.driver = {
-		.owner =		THIS_MODULE,
 		.name =			"earthmate",
 	},
 	.description =			"DeLorme Earthmate USB",
@@ -166,7 +165,6 @@ static struct usb_serial_driver cypress_earthmate_device = {
 
 static struct usb_serial_driver cypress_hidcom_device = {
 	.driver = {
-		.owner =		THIS_MODULE,
 		.name =			"cyphidcom",
 	},
 	.description =			"HID->COM RS232 Adapter",
@@ -192,7 +190,6 @@ static struct usb_serial_driver cypress_hidcom_device = {
 
 static struct usb_serial_driver cypress_ca42v2_device = {
 	.driver = {
-		.owner =		THIS_MODULE,
 		.name =			"nokiaca42v2",
 	},
 	.description =			"Nokia CA-42 V2 Adapter",

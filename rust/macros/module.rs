@@ -217,7 +217,11 @@ pub(crate) fn module(ts: TokenStream) -> TokenStream {
             // freed until the module is unloaded.
             #[cfg(MODULE)]
             static THIS_MODULE: kernel::ThisModule = unsafe {{
-                kernel::ThisModule::from_ptr(&kernel::bindings::__this_module as *const _ as *mut _)
+                extern \"C\" {{
+                    static __this_module: kernel::types::Opaque<kernel::bindings::module>;
+                }}
+
+                kernel::ThisModule::from_ptr(__this_module.get())
             }};
             #[cfg(not(MODULE))]
             static THIS_MODULE: kernel::ThisModule = unsafe {{
@@ -258,6 +262,12 @@ pub(crate) fn module(ts: TokenStream) -> TokenStream {
 
                     #[cfg(MODULE)]
                     #[doc(hidden)]
+                    #[used]
+                    #[link_section = \".init.data\"]
+                    static __UNIQUE_ID___addressable_init_module: unsafe extern \"C\" fn() -> i32 = init_module;
+
+                    #[cfg(MODULE)]
+                    #[doc(hidden)]
                     #[no_mangle]
                     pub extern \"C\" fn cleanup_module() {{
                         // SAFETY:
@@ -268,6 +278,12 @@ pub(crate) fn module(ts: TokenStream) -> TokenStream {
                         //   (which delegates to `__init`).
                         unsafe {{ __exit() }}
                     }}
+
+                    #[cfg(MODULE)]
+                    #[doc(hidden)]
+                    #[used]
+                    #[link_section = \".exit.data\"]
+                    static __UNIQUE_ID___addressable_cleanup_module: extern \"C\" fn() = cleanup_module;
 
                     // Built-in modules are initialized through an initcall pointer
                     // and the identifiers need to be unique.

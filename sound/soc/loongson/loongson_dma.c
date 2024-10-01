@@ -17,11 +17,11 @@
 #include "loongson_i2s.h"
 
 /* DMA dma_order Register */
-#define DMA_ORDER_STOP          (1 << 4) /* DMA stop */
-#define DMA_ORDER_START         (1 << 3) /* DMA start */
-#define DMA_ORDER_ASK_VALID     (1 << 2) /* DMA ask valid flag */
-#define DMA_ORDER_AXI_UNCO      (1 << 1) /* Uncache access */
-#define DMA_ORDER_ADDR_64       (1 << 0) /* 64bits address support */
+#define DMA_ORDER_STOP          BIT(4) /* DMA stop */
+#define DMA_ORDER_START         BIT(3) /* DMA start */
+#define DMA_ORDER_ASK_VALID     BIT(2) /* DMA ask valid flag */
+#define DMA_ORDER_AXI_UNCO      BIT(1) /* Uncache access */
+#define DMA_ORDER_ADDR_64       BIT(0) /* 64bits address support */
 
 #define DMA_ORDER_ASK_MASK      (~0x1fUL) /* Ask addr mask */
 #define DMA_ORDER_CTRL_MASK     (0x0fUL)  /* Control mask  */
@@ -95,7 +95,6 @@ static int loongson_pcm_trigger(struct snd_soc_component *component,
 	struct device *dev = substream->pcm->card->dev;
 	void __iomem *order_reg = prtd->dma_data->order_addr;
 	u64 val;
-	int ret = 0;
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
@@ -129,7 +128,7 @@ static int loongson_pcm_trigger(struct snd_soc_component *component,
 		return -EINVAL;
 	}
 
-	return ret;
+	return 0;
 }
 
 static int loongson_pcm_hw_params(struct snd_soc_component *component,
@@ -230,7 +229,6 @@ static int loongson_pcm_open(struct snd_soc_component *component,
 	struct snd_card *card = substream->pcm->card;
 	struct loongson_runtime_data *prtd;
 	struct loongson_dma_data *dma_data;
-	int ret;
 
 	/*
 	 * For mysterious reasons (and despite what the manual says)
@@ -252,20 +250,17 @@ static int loongson_pcm_open(struct snd_soc_component *component,
 	prtd->dma_desc_arr = dma_alloc_coherent(card->dev, PAGE_SIZE,
 						&prtd->dma_desc_arr_phy,
 						GFP_KERNEL);
-	if (!prtd->dma_desc_arr) {
-		ret = -ENOMEM;
+	if (!prtd->dma_desc_arr)
 		goto desc_err;
-	}
+
 	prtd->dma_desc_arr_size = PAGE_SIZE / sizeof(*prtd->dma_desc_arr);
 
 	prtd->dma_pos_desc = dma_alloc_coherent(card->dev,
 						sizeof(*prtd->dma_pos_desc),
 						&prtd->dma_pos_desc_phy,
 						GFP_KERNEL);
-	if (!prtd->dma_pos_desc) {
-		ret = -ENOMEM;
+	if (!prtd->dma_pos_desc)
 		goto pos_err;
-	}
 
 	dma_data = snd_soc_dai_get_dma_data(snd_soc_rtd_to_cpu(rtd, 0), substream);
 	prtd->dma_data = dma_data;
@@ -279,7 +274,7 @@ pos_err:
 desc_err:
 	kfree(prtd);
 
-	return ret;
+	return -ENOMEM;
 }
 
 static int loongson_pcm_close(struct snd_soc_component *component,

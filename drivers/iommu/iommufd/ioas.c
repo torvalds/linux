@@ -3,8 +3,8 @@
  * Copyright (c) 2021-2022, NVIDIA CORPORATION & AFFILIATES
  */
 #include <linux/interval_tree.h>
-#include <linux/iommufd.h>
 #include <linux/iommu.h>
+#include <linux/iommufd.h>
 #include <uapi/linux/iommufd.h>
 
 #include "io_pagetable.h"
@@ -213,6 +213,10 @@ int iommufd_ioas_map(struct iommufd_ucmd *ucmd)
 	if (cmd->iova >= ULONG_MAX || cmd->length >= ULONG_MAX)
 		return -EOVERFLOW;
 
+	if (!(cmd->flags &
+	      (IOMMU_IOAS_MAP_WRITEABLE | IOMMU_IOAS_MAP_READABLE)))
+		return -EINVAL;
+
 	ioas = iommufd_get_ioas(ucmd->ictx, cmd->ioas_id);
 	if (IS_ERR(ioas))
 		return PTR_ERR(ioas);
@@ -252,6 +256,10 @@ int iommufd_ioas_copy(struct iommufd_ucmd *ucmd)
 	if (cmd->length >= ULONG_MAX || cmd->src_iova >= ULONG_MAX ||
 	    cmd->dst_iova >= ULONG_MAX)
 		return -EOVERFLOW;
+
+	if (!(cmd->flags &
+	      (IOMMU_IOAS_MAP_WRITEABLE | IOMMU_IOAS_MAP_READABLE)))
+		return -EINVAL;
 
 	src_ioas = iommufd_get_ioas(ucmd->ictx, cmd->src_ioas_id);
 	if (IS_ERR(src_ioas))

@@ -9,7 +9,7 @@
 #include "smb_common.h"
 #include "server.h"
 #include "misc.h"
-#include "smbstatus.h"
+#include "../common/smb2status.h"
 #include "connection.h"
 #include "ksmbd_work.h"
 #include "mgmt/user_session.h"
@@ -488,7 +488,7 @@ int ksmbd_populate_dot_dotdot_entries(struct ksmbd_work *work, int info_level,
  * @shortname:	destination short filename
  *
  * Return:	shortname length or 0 when source long name is '.' or '..'
- * TODO: Though this function comforms the restriction of 8.3 Filename spec,
+ * TODO: Though this function conforms the restriction of 8.3 Filename spec,
  * but the result is different with Windows 7's one. need to check.
  */
 int ksmbd_extract_shortname(struct ksmbd_conn *conn, const char *longname,
@@ -732,10 +732,10 @@ bool is_asterisk(char *p)
 	return p && p[0] == '*';
 }
 
-int ksmbd_override_fsids(struct ksmbd_work *work)
+int __ksmbd_override_fsids(struct ksmbd_work *work,
+		struct ksmbd_share_config *share)
 {
 	struct ksmbd_session *sess = work->sess;
-	struct ksmbd_share_config *share = work->tcon->share_conf;
 	struct cred *cred;
 	struct group_info *gi;
 	unsigned int uid;
@@ -773,6 +773,11 @@ int ksmbd_override_fsids(struct ksmbd_work *work)
 		return -EINVAL;
 	}
 	return 0;
+}
+
+int ksmbd_override_fsids(struct ksmbd_work *work)
+{
+	return __ksmbd_override_fsids(work, work->tcon->share_conf);
 }
 
 void ksmbd_revert_fsids(struct ksmbd_work *work)

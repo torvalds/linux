@@ -5,10 +5,11 @@
 
 #include <drm/drm_managed.h>
 
-#include "regs/xe_sriov_regs.h"
+#include "regs/xe_regs.h"
 
 #include "xe_gt_sriov_pf.h"
 #include "xe_gt_sriov_pf_config.h"
+#include "xe_gt_sriov_pf_control.h"
 #include "xe_gt_sriov_pf_helpers.h"
 #include "xe_gt_sriov_pf_service.h"
 #include "xe_mmio.h"
@@ -57,6 +58,10 @@ int xe_gt_sriov_pf_init_early(struct xe_gt *gt)
 	if (err)
 		return err;
 
+	err = xe_gt_sriov_pf_control_init(gt);
+	if (err)
+		return err;
+
 	return 0;
 }
 
@@ -93,4 +98,5 @@ void xe_gt_sriov_pf_init_hw(struct xe_gt *gt)
 void xe_gt_sriov_pf_restart(struct xe_gt *gt)
 {
 	xe_gt_sriov_pf_config_restart(gt);
+	xe_gt_sriov_pf_control_restart(gt);
 }

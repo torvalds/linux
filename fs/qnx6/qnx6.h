@@ -126,11 +126,4 @@ static inline __fs16 cpu_to_fs16(struct qnx6_sb_info *sbi, __u16 n)
 extern struct qnx6_super_block *qnx6_mmi_fill_super(struct super_block *s,
 						    int silent);
 
-static inline void qnx6_put_page(struct page *page)
-{
-	kunmap(page);
-	put_page(page);
-}
-
-extern unsigned qnx6_find_entry(int len, struct inode *dir, const char *name,
-				struct page **res_page);
+unsigned qnx6_find_ino(int len, struct inode *dir, const char *name);

@@ -619,8 +619,8 @@ static void adv7183_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id adv7183_id[] = {
-	{"adv7183", 0},
-	{},
+	{ "adv7183" },
+	{}
 };
 
 MODULE_DEVICE_TABLE(i2c, adv7183_id);

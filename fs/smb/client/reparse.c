@@ -108,8 +108,8 @@ static int nfs_set_reparse_buf(struct reparse_posix_data *buf,
 	buf->InodeType = cpu_to_le64(type);
 	buf->ReparseDataLength = cpu_to_le16(len + dlen -
 					     sizeof(struct reparse_data_buffer));
-	*(__le64 *)buf->DataBuffer = cpu_to_le64(((u64)MAJOR(dev) << 32) |
-						 MINOR(dev));
+	*(__le64 *)buf->DataBuffer = cpu_to_le64(((u64)MINOR(dev) << 32) |
+						 MAJOR(dev));
 	iov->iov_base = buf;
 	iov->iov_len = len + dlen;
 	return 0;
@@ -378,6 +378,8 @@ int parse_reparse_point(struct reparse_data_buffer *buf,
 			u32 plen, struct cifs_sb_info *cifs_sb,
 			bool unicode, struct cifs_open_info_data *data)
 {
+	struct cifs_tcon *tcon = cifs_sb_master_tcon(cifs_sb);
+
 	data->reparse.buf = buf;
 
 	/* See MS-FSCC 2.1.2 */
@@ -394,12 +396,13 @@ int parse_reparse_point(struct reparse_data_buffer *buf,
 	case IO_REPARSE_TAG_LX_FIFO:
 	case IO_REPARSE_TAG_LX_CHR:
 	case IO_REPARSE_TAG_LX_BLK:
-		return 0;
+		break;
 	default:
-		cifs_dbg(VFS, "%s: unhandled reparse tag: 0x%08x\n",
-			 __func__, le32_to_cpu(buf->ReparseTag));
-		return -EOPNOTSUPP;
+		cifs_tcon_dbg(VFS | ONCE, "unhandled reparse tag: 0x%08x\n",
+			      le32_to_cpu(buf->ReparseTag));
+		break;
 	}
+	return 0;
 }
 
 int smb2_parse_reparse_point(struct cifs_sb_info *cifs_sb,
@@ -465,7 +468,7 @@ static void wsl_to_fattr(struct cifs_open_info_data *data,
 		else if (!strncmp(name, SMB2_WSL_XATTR_MODE, nlen))
 			fattr->cf_mode = (umode_t)le32_to_cpu(*(__le32 *)v);
 		else if (!strncmp(name, SMB2_WSL_XATTR_DEV, nlen))
-			fattr->cf_rdev = wsl_mkdev(v);
+			fattr->cf_rdev = reparse_mkdev(v);
 	} while (next);
 out:
 	fattr->cf_dtype = S_DT(fattr->cf_mode);
@@ -482,11 +485,11 @@ bool cifs_reparse_point_to_fattr(struct cifs_sb_info *cifs_sb,
 		switch (le64_to_cpu(buf->InodeType)) {
 		case NFS_SPECFILE_CHR:
 			fattr->cf_mode |= S_IFCHR;
-			fattr->cf_rdev = reparse_nfs_mkdev(buf);
+			fattr->cf_rdev = reparse_mkdev(buf->DataBuffer);
 			break;
 		case NFS_SPECFILE_BLK:
 			fattr->cf_mode |= S_IFBLK;
-			fattr->cf_rdev = reparse_nfs_mkdev(buf);
+			fattr->cf_rdev = reparse_mkdev(buf->DataBuffer);
 			break;
 		case NFS_SPECFILE_FIFO:
 			fattr->cf_mode |= S_IFIFO;
@@ -505,6 +508,10 @@ bool cifs_reparse_point_to_fattr(struct cifs_sb_info *cifs_sb,
 	}
 
 	switch (tag) {
+	case IO_REPARSE_TAG_INTERNAL:
+		if (!(fattr->cf_cifsattrs & ATTR_DIRECTORY))
+			return false;
+		fallthrough;
 	case IO_REPARSE_TAG_DFS:
 	case IO_REPARSE_TAG_DFSR:
 	case IO_REPARSE_TAG_MOUNT_POINT:

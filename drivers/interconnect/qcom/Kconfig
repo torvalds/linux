@@ -26,6 +26,15 @@ config INTERCONNECT_QCOM_MSM8916
 	  This is a driver for the Qualcomm Network-on-Chip on msm8916-based
 	  platforms.
 
+config INTERCONNECT_QCOM_MSM8937
+	tristate "Qualcomm MSM8937 interconnect driver"
+	depends on INTERCONNECT_QCOM
+	depends on QCOM_SMD_RPM
+	select INTERCONNECT_QCOM_SMD_RPM
+	help
+	  This is a driver for the Qualcomm Network-on-Chip on msm8937-based
+	  platforms.
+
 config INTERCONNECT_QCOM_MSM8939
 	tristate "Qualcomm MSM8939 interconnect driver"
 	depends on INTERCONNECT_QCOM
@@ -52,6 +61,15 @@ config INTERCONNECT_QCOM_MSM8974
 	help
 	 This is a driver for the Qualcomm Network-on-Chip on msm8974-based
 	 platforms.
+
+config INTERCONNECT_QCOM_MSM8976
+	tristate "Qualcomm MSM8976 interconnect driver"
+	depends on INTERCONNECT_QCOM
+	depends on QCOM_SMD_RPM
+	select INTERCONNECT_QCOM_SMD_RPM
+	help
+	  This is a driver for the Qualcomm Network-on-Chip on msm8976-based
+	  platforms.
 
 config INTERCONNECT_QCOM_MSM8996
 	tristate "Qualcomm MSM8996 interconnect driver"

@@ -6,6 +6,12 @@
 #include <linux/compiler.h>
 #include <linux/rbtree.h>
 #include <linux/types.h>
+#include "dwarf-regs.h"
+#include "annotate.h"
+
+#ifdef HAVE_DWARF_SUPPORT
+#include "debuginfo.h"
+#endif
 
 struct annotated_op_loc;
 struct debuginfo;
@@ -14,6 +20,23 @@ struct hist_browser_timer;
 struct hist_entry;
 struct map_symbol;
 struct thread;
+
+#define pr_debug_dtp(fmt, ...)					\
+do {								\
+	if (debug_type_profile)					\
+		pr_info(fmt, ##__VA_ARGS__);			\
+	else							\
+		pr_debug3(fmt, ##__VA_ARGS__);			\
+} while (0)
+
+enum type_state_kind {
+	TSR_KIND_INVALID = 0,
+	TSR_KIND_TYPE,
+	TSR_KIND_PERCPU_BASE,
+	TSR_KIND_CONST,
+	TSR_KIND_POINTER,
+	TSR_KIND_CANARY,
+};
 
 /**
  * struct annotated_member - Type of member field
@@ -100,9 +123,9 @@ struct data_loc_info {
 	u64 var_addr;
 	u8 cpumode;
 	struct annotated_op_loc *op;
+	struct debuginfo *di;
 
 	/* These are used internally */
-	struct debuginfo *di;
 	int fbreg;
 	bool fb_cfa;
 
@@ -143,6 +166,52 @@ struct annotated_data_stat {
 extern struct annotated_data_stat ann_data_stat;
 
 #ifdef HAVE_DWARF_SUPPORT
+/*
+ * Type information in a register, valid when @ok is true.
+ * The @caller_saved registers are invalidated after a function call.
+ */
+struct type_state_reg {
+	Dwarf_Die type;
+	u32 imm_value;
+	bool ok;
+	bool caller_saved;
+	u8 kind;
+	u8 copied_from;
+};
+
+/* Type information in a stack location, dynamically allocated */
+struct type_state_stack {
+	struct list_head list;
+	Dwarf_Die type;
+	int offset;
+	int size;
+	bool compound;
+	u8 kind;
+};
+
+/* FIXME: This should be arch-dependent */
+#ifdef __powerpc__
+#define TYPE_STATE_MAX_REGS  32
+#else
+#define TYPE_STATE_MAX_REGS  16
+#endif
+
+/*
+ * State table to maintain type info in each register and stack location.
+ * It'll be updated when new variable is allocated or type info is moved
+ * to a new location (register or stack).  As it'd be used with the
+ * shortest path of basic blocks, it only maintains a single table.
+ */
+struct type_state {
+	/* state of general purpose registers */
+	struct type_state_reg regs[TYPE_STATE_MAX_REGS];
+	/* state of stack location */
+	struct list_head stack_vars;
+	/* return value register */
+	int ret_reg;
+	/* stack pointer register */
+	int stack_reg;
+};
 
 /* Returns data type at the location (ip, reg, offset) */
 struct annotated_data_type *find_data_type(struct data_loc_info *dloc);
@@ -159,6 +228,21 @@ void annotated_data_type__tree_delete(struct rb_root *root);
 void global_var_type__tree_delete(struct rb_root *root);
 
 int hist_entry__annotate_data_tty(struct hist_entry *he, struct evsel *evsel);
+
+bool has_reg_type(struct type_state *state, int reg);
+struct type_state_stack *findnew_stack_state(struct type_state *state,
+						int offset, u8 kind,
+						Dwarf_Die *type_die);
+void set_stack_state(struct type_state_stack *stack, int offset, u8 kind,
+				Dwarf_Die *type_die);
+struct type_state_stack *find_stack_state(struct type_state *state,
+						int offset);
+bool get_global_var_type(Dwarf_Die *cu_die, struct data_loc_info *dloc,
+				u64 ip, u64 var_addr, int *var_offset,
+				Dwarf_Die *type_die);
+bool get_global_var_info(struct data_loc_info *dloc, u64 addr,
+				const char **var_name, int *var_offset);
+void pr_debug_type_name(Dwarf_Die *die, enum type_state_kind kind);
 
 #else /* HAVE_DWARF_SUPPORT */
 

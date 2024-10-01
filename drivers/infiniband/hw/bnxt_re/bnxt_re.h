@@ -91,6 +91,15 @@ struct bnxt_re_ring_attr {
 	u8		mode;
 };
 
+/*
+ * Data structure and defines to handle
+ * recovery
+ */
+#define BNXT_RE_PRE_RECOVERY_REMOVE 0x1
+#define BNXT_RE_COMPLETE_REMOVE 0x2
+#define BNXT_RE_POST_RECOVERY_INIT 0x4
+#define BNXT_RE_COMPLETE_INIT 0x8
+
 struct bnxt_re_sqp_entries {
 	struct bnxt_qplib_sge sge;
 	u64 wrid;
@@ -105,6 +114,11 @@ struct bnxt_re_gsi_context {
 	struct	bnxt_re_qp *gsi_sqp;
 	struct	bnxt_re_ah *gsi_sah;
 	struct	bnxt_re_sqp_entries *sqp_tbl;
+};
+
+struct bnxt_re_en_dev_info {
+	struct bnxt_en_dev *en_dev;
+	struct bnxt_re_dev *rdev;
 };
 
 #define BNXT_RE_AEQ_IDX			0
@@ -141,6 +155,7 @@ struct bnxt_re_pacing {
 #define BNXT_RE_GRC_FIFO_REG_BASE 0x2000
 
 #define MAX_CQ_HASH_BITS		(16)
+#define MAX_SRQ_HASH_BITS		(16)
 struct bnxt_re_dev {
 	struct ib_device		ibdev;
 	struct list_head		list;
@@ -154,6 +169,7 @@ struct bnxt_re_dev {
 #define BNXT_RE_FLAG_ERR_DEVICE_DETACHED       17
 #define BNXT_RE_FLAG_ISSUE_ROCE_STATS          29
 	struct net_device		*netdev;
+	struct auxiliary_device         *adev;
 	struct notifier_block		nb;
 	unsigned int			version, major, minor;
 	struct bnxt_qplib_chip_ctx	*chip_ctx;
@@ -196,6 +212,7 @@ struct bnxt_re_dev {
 	struct work_struct dbq_fifo_check_work;
 	struct delayed_work dbq_pacing_work;
 	DECLARE_HASHTABLE(cq_hash, MAX_CQ_HASH_BITS);
+	DECLARE_HASHTABLE(srq_hash, MAX_SRQ_HASH_BITS);
 };
 
 #define to_bnxt_re_dev(ptr, member)	\
@@ -216,4 +233,10 @@ static inline struct device *rdev_to_dev(struct bnxt_re_dev *rdev)
 }
 
 extern const struct uapi_definition bnxt_re_uapi_defs[];
+
+static inline void bnxt_re_set_pacing_dev_state(struct bnxt_re_dev *rdev)
+{
+	rdev->qplib_res.pacing_data->dev_err_state =
+		test_bit(BNXT_RE_FLAG_ERR_DEVICE_DETACHED, &rdev->flags);
+}
 #endif

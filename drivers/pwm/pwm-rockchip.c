@@ -386,7 +386,7 @@ static struct platform_driver rockchip_pwm_driver = {
 		.of_match_table = rockchip_pwm_dt_ids,
 	},
 	.probe = rockchip_pwm_probe,
-	.remove_new = rockchip_pwm_remove,
+	.remove = rockchip_pwm_remove,
 };
 module_platform_driver(rockchip_pwm_driver);
 

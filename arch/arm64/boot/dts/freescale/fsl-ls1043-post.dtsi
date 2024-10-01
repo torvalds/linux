@@ -29,6 +29,7 @@
 
 	enet1: ethernet@e2000 {
 		pcsphy-handle = <&pcsphy1>, <&qsgmiib_pcs1>;
+		pcs-handle = <&pcsphy1>, <&qsgmiib_pcs1>;
 		pcs-handle-names = "sgmii", "qsgmii";
 	};
 
@@ -40,11 +41,13 @@
 
 	enet4: ethernet@e8000 {
 		pcsphy-handle = <&pcsphy4>, <&qsgmiib_pcs2>;
+		pcs-handle = <&pcsphy4>, <&qsgmiib_pcs2>;
 		pcs-handle-names = "sgmii", "qsgmii";
 	};
 
 	enet5: ethernet@ea000 {
 		pcsphy-handle = <&pcsphy5>, <&qsgmiib_pcs3>;
+		pcs-handle = <&pcsphy5>, <&qsgmiib_pcs3>;
 		pcs-handle-names = "sgmii", "qsgmii";
 	};
 

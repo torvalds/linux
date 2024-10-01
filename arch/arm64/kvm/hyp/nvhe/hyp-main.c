@@ -62,6 +62,8 @@ static void fpsimd_sve_flush(void)
 
 static void fpsimd_sve_sync(struct kvm_vcpu *vcpu)
 {
+	bool has_fpmr;
+
 	if (!guest_owns_fp_regs())
 		return;
 
@@ -73,10 +75,17 @@ static void fpsimd_sve_sync(struct kvm_vcpu *vcpu)
 	else
 		__fpsimd_save_state(&vcpu->arch.ctxt.fp_regs);
 
+	has_fpmr = kvm_has_fpmr(kern_hyp_va(vcpu->kvm));
+	if (has_fpmr)
+		__vcpu_sys_reg(vcpu, FPMR) = read_sysreg_s(SYS_FPMR);
+
 	if (system_supports_sve())
 		__hyp_sve_restore_host();
 	else
 		__fpsimd_restore_state(*host_data_ptr(fpsimd_state));
+
+	if (has_fpmr)
+		write_sysreg_s(*host_data_ptr(fpmr), SYS_FPMR);
 
 	*host_data_ptr(fp_owner) = FP_STATE_HOST_OWNED;
 }

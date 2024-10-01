@@ -395,11 +395,6 @@ apply_relocate(Elf32_Shdr *sechdrs, const char *strtab, unsigned int symindex,
 	return 0;
 }
 
-struct mod_unwind_map {
-	const Elf_Shdr *unw_sec;
-	const Elf_Shdr *txt_sec;
-};
-
 static const Elf_Shdr *find_mod_section(const Elf32_Ehdr *hdr,
 	const Elf_Shdr *sechdrs, const char *name)
 {

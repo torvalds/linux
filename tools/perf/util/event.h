@@ -267,71 +267,75 @@ struct perf_tool;
 void perf_event__read_stat_config(struct perf_stat_config *config,
 				  struct perf_record_stat_config *event);
 
-int perf_event__process_comm(struct perf_tool *tool,
+int perf_event__process_comm(const struct perf_tool *tool,
 			     union perf_event *event,
 			     struct perf_sample *sample,
 			     struct machine *machine);
-int perf_event__process_lost(struct perf_tool *tool,
+int perf_event__process_lost(const struct perf_tool *tool,
 			     union perf_event *event,
 			     struct perf_sample *sample,
 			     struct machine *machine);
-int perf_event__process_lost_samples(struct perf_tool *tool,
+int perf_event__process_lost_samples(const struct perf_tool *tool,
 				     union perf_event *event,
 				     struct perf_sample *sample,
 				     struct machine *machine);
-int perf_event__process_aux(struct perf_tool *tool,
+int perf_event__process_aux(const struct perf_tool *tool,
 			    union perf_event *event,
 			    struct perf_sample *sample,
 			    struct machine *machine);
-int perf_event__process_itrace_start(struct perf_tool *tool,
+int perf_event__process_itrace_start(const struct perf_tool *tool,
 				     union perf_event *event,
 				     struct perf_sample *sample,
 				     struct machine *machine);
-int perf_event__process_aux_output_hw_id(struct perf_tool *tool,
+int perf_event__process_aux_output_hw_id(const struct perf_tool *tool,
 					 union perf_event *event,
 					 struct perf_sample *sample,
 					 struct machine *machine);
-int perf_event__process_switch(struct perf_tool *tool,
+int perf_event__process_switch(const struct perf_tool *tool,
 			       union perf_event *event,
 			       struct perf_sample *sample,
 			       struct machine *machine);
-int perf_event__process_namespaces(struct perf_tool *tool,
+int perf_event__process_namespaces(const struct perf_tool *tool,
 				   union perf_event *event,
 				   struct perf_sample *sample,
 				   struct machine *machine);
-int perf_event__process_cgroup(struct perf_tool *tool,
+int perf_event__process_cgroup(const struct perf_tool *tool,
 			       union perf_event *event,
 			       struct perf_sample *sample,
 			       struct machine *machine);
-int perf_event__process_mmap(struct perf_tool *tool,
+int perf_event__process_mmap(const struct perf_tool *tool,
 			     union perf_event *event,
 			     struct perf_sample *sample,
 			     struct machine *machine);
-int perf_event__process_mmap2(struct perf_tool *tool,
+int perf_event__process_mmap2(const struct perf_tool *tool,
 			     union perf_event *event,
 			     struct perf_sample *sample,
 			     struct machine *machine);
-int perf_event__process_fork(struct perf_tool *tool,
+int perf_event__process_fork(const struct perf_tool *tool,
 			     union perf_event *event,
 			     struct perf_sample *sample,
 			     struct machine *machine);
-int perf_event__process_exit(struct perf_tool *tool,
+int perf_event__process_exit(const struct perf_tool *tool,
 			     union perf_event *event,
 			     struct perf_sample *sample,
 			     struct machine *machine);
-int perf_event__process_ksymbol(struct perf_tool *tool,
+int perf_event__exit_del_thread(const struct perf_tool *tool,
 				union perf_event *event,
 				struct perf_sample *sample,
 				struct machine *machine);
-int perf_event__process_bpf(struct perf_tool *tool,
+int perf_event__process_ksymbol(const struct perf_tool *tool,
+				union perf_event *event,
+				struct perf_sample *sample,
+				struct machine *machine);
+int perf_event__process_bpf(const struct perf_tool *tool,
 			    union perf_event *event,
 			    struct perf_sample *sample,
 			    struct machine *machine);
-int perf_event__process_text_poke(struct perf_tool *tool,
+int perf_event__process_text_poke(const struct perf_tool *tool,
 				  union perf_event *event,
 				  struct perf_sample *sample,
 				  struct machine *machine);
-int perf_event__process(struct perf_tool *tool,
+int perf_event__process(const struct perf_tool *tool,
 			union perf_event *event,
 			struct perf_sample *sample,
 			struct machine *machine);

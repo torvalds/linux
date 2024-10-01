@@ -312,8 +312,8 @@ static int ionic_lif_filter_add(struct ionic_lif *lif,
 	int err = 0;
 
 	ctx.cmd.rx_filter_add = *ac;
-	ctx.cmd.rx_filter_add.opcode = IONIC_CMD_RX_FILTER_ADD,
-	ctx.cmd.rx_filter_add.lif_index = cpu_to_le16(lif->index),
+	ctx.cmd.rx_filter_add.opcode = IONIC_CMD_RX_FILTER_ADD;
+	ctx.cmd.rx_filter_add.lif_index = cpu_to_le16(lif->index);
 
 	spin_lock_bh(&lif->rx_filters.lock);
 	f = ionic_rx_filter_find(lif, &ctx.cmd.rx_filter_add);

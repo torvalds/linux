@@ -336,7 +336,6 @@ struct trace_array {
 	bool			allocated_snapshot;
 	spinlock_t		snapshot_trigger_lock;
 	unsigned int		snapshot;
-	unsigned int		mapped;
 	unsigned long		max_latency;
 #ifdef CONFIG_FSNOTIFY
 	struct dentry		*d_max_latency;
@@ -344,6 +343,13 @@ struct trace_array {
 	struct irq_work		fsnotify_irqwork;
 #endif
 #endif
+	/* The below is for memory mapped ring buffer */
+	unsigned int		mapped;
+	unsigned long		range_addr_start;
+	unsigned long		range_addr_size;
+	long			text_delta;
+	long			data_delta;
+
 	struct trace_pid_list	__rcu *filtered_pids;
 	struct trace_pid_list	__rcu *filtered_no_pids;
 	/*
@@ -423,7 +429,8 @@ struct trace_array {
 };
 
 enum {
-	TRACE_ARRAY_FL_GLOBAL	= (1 << 0)
+	TRACE_ARRAY_FL_GLOBAL	= BIT(0),
+	TRACE_ARRAY_FL_BOOT	= BIT(1),
 };
 
 extern struct list_head ftrace_trace_arrays;
@@ -643,6 +650,8 @@ trace_buffer_lock_reserve(struct trace_buffer *buffer,
 			  int type,
 			  unsigned long len,
 			  unsigned int trace_ctx);
+
+int ring_buffer_meta_seq_init(struct file *file, struct trace_buffer *buffer, int cpu);
 
 struct trace_entry *tracing_get_trace_entry(struct trace_array *tr,
 						struct trace_array_cpu *data);
@@ -1312,6 +1321,7 @@ extern int trace_get_user(struct trace_parser *parser, const char __user *ubuf,
 		C(IRQ_INFO,		"irq-info"),		\
 		C(MARKERS,		"markers"),		\
 		C(EVENT_FORK,		"event-fork"),		\
+		C(TRACE_PRINTK,		"trace_printk_dest"),	\
 		C(PAUSE_ON_TRACE,	"pause-on-trace"),	\
 		C(HASH_PTR,		"hash-ptr"),	/* Print hashed pointer */ \
 		FUNCTION_FLAGS					\
@@ -1633,6 +1643,29 @@ static inline void *event_file_data(struct file *filp)
 
 extern struct mutex event_mutex;
 extern struct list_head ftrace_events;
+
+/*
+ * When the trace_event_file is the filp->i_private pointer,
+ * it must be taken under the event_mutex lock, and then checked
+ * if the EVENT_FILE_FL_FREED flag is set. If it is, then the
+ * data pointed to by the trace_event_file can not be trusted.
+ *
+ * Use the event_file_file() to access the trace_event_file from
+ * the filp the first time under the event_mutex and check for
+ * NULL. If it is needed to be retrieved again and the event_mutex
+ * is still held, then the event_file_data() can be used and it
+ * is guaranteed to be valid.
+ */
+static inline struct trace_event_file *event_file_file(struct file *filp)
+{
+	struct trace_event_file *file;
+
+	lockdep_assert_held(&event_mutex);
+	file = READ_ONCE(file_inode(filp)->i_private);
+	if (!file || file->flags & EVENT_FILE_FL_FREED)
+		return NULL;
+	return file;
+}
 
 extern const struct file_operations event_trigger_fops;
 extern const struct file_operations event_hist_fops;

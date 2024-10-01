@@ -490,10 +490,10 @@ int gb_spilib_master_init(struct gb_connection *connection, struct device *dev,
 	int ret;
 	u8 i;
 
-	/* Allocate master with space for data */
-	ctlr = spi_alloc_master(dev, sizeof(*spi));
+	/* Allocate host with space for data */
+	ctlr = spi_alloc_host(dev, sizeof(*spi));
 	if (!ctlr) {
-		dev_err(dev, "cannot alloc SPI master\n");
+		dev_err(dev, "cannot alloc SPI host\n");
 		return -ENOMEM;
 	}
 
