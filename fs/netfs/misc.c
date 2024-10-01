@@ -102,7 +102,7 @@ void netfs_clear_buffer(struct netfs_io_request *rreq)
 
 	while ((p = rreq->buffer)) {
 		rreq->buffer = p->next;
-		for (int slot = 0; slot < folioq_nr_slots(p); slot++) {
+		for (int slot = 0; slot < folioq_count(p); slot++) {
 			struct folio *folio = folioq_folio(p, slot);
 			if (!folio)
 				continue;
