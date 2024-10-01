@@ -366,9 +366,15 @@ int dvb_vb2_querybuf(struct dvb_vb2_ctx *ctx, struct dmx_buffer *b)
 int dvb_vb2_expbuf(struct dvb_vb2_ctx *ctx, struct dmx_exportbuffer *exp)
 {
 	struct vb2_queue *q = &ctx->vb_q;
+	struct vb2_buffer *vb2 = vb2_get_buffer(q, exp->index);
 	int ret;
 
-	ret = vb2_core_expbuf(&ctx->vb_q, &exp->fd, q->type, q->bufs[exp->index],
+	if (!vb2) {
+		dprintk(1, "[%s] invalid buffer index\n", ctx->name);
+		return -EINVAL;
+	}
+
+	ret = vb2_core_expbuf(&ctx->vb_q, &exp->fd, q->type, vb2,
 			      0, exp->flags);
 	if (ret) {
 		dprintk(1, "[%s] index=%d errno=%d\n", ctx->name,
