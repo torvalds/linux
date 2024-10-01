@@ -22,6 +22,7 @@ struct nfs_subversion {
 };
 
 struct nfs_subversion *find_nfs_version(unsigned int);
+int get_nfs_version(struct nfs_subversion *);
 void put_nfs_version(struct nfs_subversion *);
 void register_nfs_version(struct nfs_subversion *);
 void unregister_nfs_version(struct nfs_subversion *);

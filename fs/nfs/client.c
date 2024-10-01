@@ -100,11 +100,17 @@ struct nfs_subversion *find_nfs_version(unsigned int version)
 	if (!nfs)
 		return ERR_PTR(-EPROTONOSUPPORT);
 
-	if (!try_module_get(nfs->owner))
+	if (!get_nfs_version(nfs))
 		return ERR_PTR(-EAGAIN);
 
 	return nfs;
 }
+
+int get_nfs_version(struct nfs_subversion *nfs)
+{
+	return try_module_get(nfs->owner);
+}
+EXPORT_SYMBOL_GPL(get_nfs_version);
 
 void put_nfs_version(struct nfs_subversion *nfs)
 {
@@ -149,7 +155,7 @@ struct nfs_client *nfs_alloc_client(const struct nfs_client_initdata *cl_init)
 
 	clp->cl_minorversion = cl_init->minorversion;
 	clp->cl_nfs_mod = cl_init->nfs_mod;
-	if (!try_module_get(clp->cl_nfs_mod->owner))
+	if (!get_nfs_version(clp->cl_nfs_mod))
 		goto error_dealloc;
 
 	clp->rpc_ops = clp->cl_nfs_mod->rpc_ops;
