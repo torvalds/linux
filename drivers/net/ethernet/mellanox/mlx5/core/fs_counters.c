@@ -53,7 +53,7 @@ struct mlx5_fc {
 	u32 id;
 	bool aging;
 	struct mlx5_fc_bulk *bulk;
-	struct mlx5_fc_cache cache ____cacheline_aligned_in_smp;
+	struct mlx5_fc_cache cache;
 	/* last{packets,bytes} are used for calculating deltas since last reading. */
 	u64 lastpackets;
 	u64 lastbytes;
