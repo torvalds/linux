@@ -393,7 +393,6 @@ static void __release_guc_id(struct xe_guc *guc, struct xe_exec_queue *q, u32 xa
 static int alloc_guc_id(struct xe_guc *guc, struct xe_exec_queue *q)
 {
 	int ret;
-	void *ptr;
 	int i;
 
 	/*
@@ -413,12 +412,10 @@ static int alloc_guc_id(struct xe_guc *guc, struct xe_exec_queue *q)
 	q->guc->id = ret;
 
 	for (i = 0; i < q->width; ++i) {
-		ptr = xa_store(&guc->submission_state.exec_queue_lookup,
-			       q->guc->id + i, q, GFP_NOWAIT);
-		if (IS_ERR(ptr)) {
-			ret = PTR_ERR(ptr);
+		ret = xa_err(xa_store(&guc->submission_state.exec_queue_lookup,
+				      q->guc->id + i, q, GFP_NOWAIT));
+		if (ret)
 			goto err_release;
-		}
 	}
 
 	return 0;
