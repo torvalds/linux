@@ -393,6 +393,14 @@ int __bch2_fsck_err(struct bch_fs *c,
 	     !(flags & FSCK_CAN_IGNORE)))
 		ret = -BCH_ERR_fsck_errors_not_fixed;
 
+	bool exiting =
+		test_bit(BCH_FS_fsck_running, &c->flags) &&
+		(ret != -BCH_ERR_fsck_fix &&
+		 ret != -BCH_ERR_fsck_ignore);
+
+	if (exiting)
+		print = true;
+
 	if (print) {
 		if (bch2_fs_stdio_redirect(c))
 			bch2_print(c, "%s\n", out->buf);
@@ -400,9 +408,7 @@ int __bch2_fsck_err(struct bch_fs *c,
 			bch2_print_string_as_lines(KERN_ERR, out->buf);
 	}
 
-	if (test_bit(BCH_FS_fsck_running, &c->flags) &&
-	    (ret != -BCH_ERR_fsck_fix &&
-	     ret != -BCH_ERR_fsck_ignore))
+	if (exiting)
 		bch_err(c, "Unable to continue, halting");
 	else if (suppressing)
 		bch_err(c, "Ratelimiting new instances of previous error");
