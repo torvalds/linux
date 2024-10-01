@@ -276,6 +276,11 @@ struct pwm_capture {
  * @request: optional hook for requesting a PWM
  * @free: optional hook for freeing a PWM
  * @capture: capture and report PWM signal
+ * @sizeof_wfhw: size (in bytes) of driver specific waveform presentation
+ * @round_waveform_tohw: convert a struct pwm_waveform to driver specific presentation
+ * @round_waveform_fromhw: convert a driver specific waveform presentation to struct pwm_waveform
+ * @read_waveform: read driver specific waveform presentation from hardware
+ * @write_waveform: write driver specific waveform presentation to hardware
  * @apply: atomically apply a new PWM config
  * @get_state: get the current PWM state.
  */
