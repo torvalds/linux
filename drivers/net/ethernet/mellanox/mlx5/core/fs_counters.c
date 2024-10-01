@@ -78,7 +78,6 @@ struct mlx5_fc_stats {
 	unsigned long sampling_interval; /* jiffies */
 	u32 *bulk_query_out;
 	int bulk_query_len;
-	size_t num_counters;  /* Also protected by xarray->xa_lock. */
 	bool bulk_query_alloc_failed;
 	unsigned long next_bulk_query_alloc;
 	struct mlx5_fc_pool fc_pool;
@@ -217,21 +216,28 @@ static void mlx5_fc_stats_bulk_query_buf_realloc(struct mlx5_core_dev *dev,
 		       bulk_query_len);
 }
 
+static int mlx5_fc_num_counters(struct mlx5_fc_stats *fc_stats)
+{
+	struct mlx5_fc *counter;
+	int num_counters = 0;
+	unsigned long id;
+
+	xa_for_each(&fc_stats->counters, id, counter)
+		num_counters++;
+	return num_counters;
+}
+
 static void mlx5_fc_stats_work(struct work_struct *work)
 {
 	struct mlx5_fc_stats *fc_stats = container_of(work, struct mlx5_fc_stats,
 						      work.work);
 	struct mlx5_core_dev *dev = fc_stats->fc_pool.dev;
-	int num_counters;
 
 	queue_delayed_work(fc_stats->wq, &fc_stats->work, fc_stats->sampling_interval);
 
-	/* num_counters is only needed for determining whether to increase the buffer. */
-	xa_lock(&fc_stats->counters);
-	num_counters = fc_stats->num_counters;
-	xa_unlock(&fc_stats->counters);
-	if (fc_stats->bulk_query_len < get_max_bulk_query_len(dev) &&
-	    num_counters > get_init_bulk_query_len(dev))
+	/* Grow the bulk query buffer to max if not maxed and enough counters are present. */
+	if (unlikely(fc_stats->bulk_query_len < get_max_bulk_query_len(dev) &&
+		     mlx5_fc_num_counters(fc_stats) > get_init_bulk_query_len(dev)))
 		mlx5_fc_stats_bulk_query_buf_realloc(dev, get_max_bulk_query_len(dev));
 
 	mlx5_fc_stats_query_all_counters(dev);
@@ -287,15 +293,9 @@ struct mlx5_fc *mlx5_fc_create_ex(struct mlx5_core_dev *dev, bool aging)
 		counter->lastbytes = counter->cache.bytes;
 		counter->lastpackets = counter->cache.packets;
 
-		xa_lock(&fc_stats->counters);
-
-		err = xa_err(__xa_store(&fc_stats->counters, id, counter, GFP_KERNEL));
-		if (err != 0) {
-			xa_unlock(&fc_stats->counters);
+		err = xa_err(xa_store(&fc_stats->counters, id, counter, GFP_KERNEL));
+		if (err != 0)
 			goto err_out_alloc;
-		}
-		fc_stats->num_counters++;
-		xa_unlock(&fc_stats->counters);
 	}
 
 	return counter;
@@ -324,12 +324,8 @@ void mlx5_fc_destroy(struct mlx5_core_dev *dev, struct mlx5_fc *counter)
 	if (!counter)
 		return;
 
-	if (counter->aging) {
-		xa_lock(&fc_stats->counters);
-		fc_stats->num_counters--;
-		__xa_erase(&fc_stats->counters, counter->id);
-		xa_unlock(&fc_stats->counters);
-	}
+	if (counter->aging)
+		xa_erase(&fc_stats->counters, counter->id);
 	mlx5_fc_release(dev, counter);
 }
 EXPORT_SYMBOL(mlx5_fc_destroy);
