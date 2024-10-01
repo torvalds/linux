@@ -2709,6 +2709,12 @@ static int __hid_device_probe(struct hid_device *hdev, struct hid_driver *hdrv)
 	int ret;
 
 	if (!hdev->bpf_rsize) {
+		unsigned int quirks;
+
+		/* reset the quirks that has been previously set */
+		quirks = hid_lookup_quirk(hdev);
+		hdev->quirks = quirks;
+
 		/* in case a bpf program gets detached, we need to free the old one */
 		hid_free_bpf_rdesc(hdev);
 
@@ -2718,6 +2724,9 @@ static int __hid_device_probe(struct hid_device *hdev, struct hid_driver *hdrv)
 		/* call_hid_bpf_rdesc_fixup will always return a valid pointer */
 		hdev->bpf_rdesc = call_hid_bpf_rdesc_fixup(hdev, hdev->dev_rdesc,
 							   &hdev->bpf_rsize);
+		if (quirks ^ hdev->quirks)
+			hid_info(hdev, "HID-BPF toggled quirks on the device: %04x",
+				 quirks ^ hdev->quirks);
 	}
 
 	if (!hid_check_device_match(hdev, hdrv, &id))
@@ -2727,8 +2736,6 @@ static int __hid_device_probe(struct hid_device *hdev, struct hid_driver *hdrv)
 	if (!hdev->devres_group_id)
 		return -ENOMEM;
 
-	/* reset the quirks that has been previously set */
-	hdev->quirks = hid_lookup_quirk(hdev);
 	hdev->driver = hdrv;
 
 	if (hdrv->probe) {
