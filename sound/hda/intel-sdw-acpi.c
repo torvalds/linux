@@ -63,7 +63,6 @@ sdw_intel_scan_controller(struct sdw_intel_acpi_info *info)
 		return -EINVAL;
 
 	/* Found controller, find links supported */
-	count = 0;
 	ret = fwnode_property_read_u8_array(acpi_fwnode_handle(adev),
 					    "mipi-sdw-master-count", &count, 1);
 
@@ -82,7 +81,7 @@ sdw_intel_scan_controller(struct sdw_intel_acpi_info *info)
 	if (ret) {
 		dev_err(&adev->dev,
 			"Failed to read mipi-sdw-master-count: %d\n", ret);
-		return -EINVAL;
+		return ret;
 	}
 
 	/* Check count is within bounds */
