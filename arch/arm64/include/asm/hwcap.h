@@ -92,6 +92,7 @@
 #define KERNEL_HWCAP_SB			__khwcap_feature(SB)
 #define KERNEL_HWCAP_PACA		__khwcap_feature(PACA)
 #define KERNEL_HWCAP_PACG		__khwcap_feature(PACG)
+#define KERNEL_HWCAP_GCS		__khwcap_feature(GCS)
 
 #define __khwcap2_feature(x)		(const_ilog2(HWCAP2_ ## x) + 64)
 #define KERNEL_HWCAP_DCPODP		__khwcap2_feature(DCPODP)

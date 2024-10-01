@@ -170,6 +170,10 @@ HWCAP_PACG
     ID_AA64ISAR1_EL1.GPI == 0b0001, as described by
     Documentation/arch/arm64/pointer-authentication.rst.
 
+HWCAP_GCS
+    Functionality implied by ID_AA64PFR1_EL1.GCS == 0b1, as
+    described by Documentation/arch/arm64/gcs.rst.
+
 HWCAP2_DCPODP
     Functionality implied by ID_AA64ISAR1_EL1.DPB == 0b0010.
 
