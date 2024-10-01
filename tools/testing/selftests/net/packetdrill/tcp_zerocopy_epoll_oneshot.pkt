@@ -1,0 +1,66 @@
+// SPDX-License-Identifier: GPL-2.0
+// epoll zerocopy test:
+//
+// This is a test to confirm that EPOLLERR is only fired once for an FD when
+// EPOLLONESHOT is set.
+//
+// fire two sends with MSG_ZEROCOPY and receive the acks. confirm that EPOLLERR
+// is correctly fired only once, when EPOLLONESHOT is set. send another packet
+// with MSG_ZEROCOPY. confirm that EPOLLERR is not fired. Rearm the FD and
+// confirm that EPOLLERR is correctly set.
+`./defaults.sh`
+
+    0 socket(..., SOCK_STREAM, IPPROTO_TCP) = 3
+   +0 setsockopt(3, SOL_SOCKET, SO_REUSEADDR, [1], 4) = 0
+   +0 setsockopt(3, SOL_SOCKET, SO_ZEROCOPY, [1], 4) = 0
+   +0 bind(3, ..., ...) = 0
+   +0 listen(3, 1) = 0
+
+   +0 < S 0:0(0) win 32792 <mss 1000,sackOK,nop,nop,nop,wscale 7>
+   +0 > S. 0:0(0) ack 1 <mss 1460,nop,nop,sackOK,nop,wscale 8>
+   +0 < . 1:1(0) ack 1 win 257
+
+   +0 accept(3, ..., ...) = 4
+
+   +0 fcntl(4, F_SETFL, O_RDWR|O_NONBLOCK) = 0
+   +0 epoll_create(1) = 5
+   +0 epoll_ctl(5, EPOLL_CTL_ADD, 4,
+		{events=EPOLLOUT|EPOLLET|EPOLLONESHOT, fd=4}) = 0
+
+   +0 send(4, ..., 4000, MSG_ZEROCOPY) = 4000
+   +0 > P. 1:4001(4000) ack 1
+   +0 < . 1:1(0) ack 4001 win 257
+
+   +0 send(4, ..., 4000, MSG_ZEROCOPY) = 4000
+   +0 > P. 4001:8001(4000) ack 1
+   +0 < . 1:1(0) ack 8001 win 257
+
+// receive only one EPOLLERR for the two sends above.
+   +0 epoll_wait(5, {events=EPOLLERR|EPOLLOUT, fd=4}, 1, 0) = 1
+   +0 epoll_wait(5, {events=0, ptr=0}, 1, 0) = 0
+
+   +0 send(4, ..., 4000, MSG_ZEROCOPY) = 4000
+   +0 > P. 8001:12001(4000) ack 1
+   +0 < . 1:1(0) ack 12001 win 257
+
+// receive no EPOLLERR for the third send above.
+   +0 epoll_wait(5, {events=0, ptr=0}, 1, 0) = 0
+
+// rearm the FD and verify the EPOLLERR is fired again.
+   +0 epoll_ctl(5, EPOLL_CTL_MOD, 4, {events=EPOLLOUT|EPOLLONESHOT, fd=4}) = 0
+   +0 epoll_wait(5, {events=EPOLLERR|EPOLLOUT, fd=4}, 1, 0) = 1
+   +0 epoll_wait(5, {events=0, ptr=0}, 1, 0) = 0
+
+   +0 recvmsg(4, {msg_name(...)=...,
+                  msg_iov(1)=[{...,0}],
+                  msg_flags=MSG_ERRQUEUE,
+                  msg_control=[
+                        {cmsg_level=CMSG_LEVEL_IP,
+                         cmsg_type=CMSG_TYPE_RECVERR,
+                         cmsg_data={ee_errno=0,
+                                    ee_origin=SO_EE_ORIGIN_ZEROCOPY,
+                                    ee_type=0,
+                                    ee_code=SO_EE_CODE_ZEROCOPY_COPIED,
+                                    ee_info=0,
+                                    ee_data=2}}
+                   ]}, MSG_ERRQUEUE) = 0

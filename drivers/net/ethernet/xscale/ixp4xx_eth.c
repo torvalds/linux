@@ -1026,9 +1026,7 @@ static int ixp4xx_get_ts_info(struct net_device *dev,
 
 	if (info->phc_index < 0) {
 		info->so_timestamping =
-			SOF_TIMESTAMPING_TX_SOFTWARE |
-			SOF_TIMESTAMPING_RX_SOFTWARE |
-			SOF_TIMESTAMPING_SOFTWARE;
+			SOF_TIMESTAMPING_TX_SOFTWARE;
 		return 0;
 	}
 	info->so_timestamping =

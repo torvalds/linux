@@ -1229,7 +1229,7 @@ static inline u64 file_mmap_size_max(struct file *file, struct inode *inode)
 		return MAX_LFS_FILESIZE;
 
 	/* Special "we do even unsigned file positions" case */
-	if (file->f_mode & FMODE_UNSIGNED_OFFSET)
+	if (file->f_op->fop_flags & FOP_UNSIGNED_OFFSET)
 		return 0;
 
 	/* Yes, random drivers might want more. But I'm tired of buggy drivers */

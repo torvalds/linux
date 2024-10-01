@@ -10,7 +10,7 @@ maintainers:
   - Fabio Estevam <festevam@gmail.com>
 
 allOf:
-  - $ref: usb-hcd.yaml#
+  - $ref: usb-device.yaml#
 
 properties:
   compatible:
@@ -35,6 +35,13 @@ properties:
 required:
   - compatible
   - reg
+
+patternProperties:
+  "^.*@[0-9a-f]{1,2}$":
+    description: The hard wired USB devices
+    type: object
+    $ref: /schemas/usb/usb-device.yaml
+    additionalProperties: true
 
 unevaluatedProperties: false
 

@@ -692,7 +692,11 @@ enum drm_panthor_group_priority {
 	/** @PANTHOR_GROUP_PRIORITY_MEDIUM: Medium priority group. */
 	PANTHOR_GROUP_PRIORITY_MEDIUM,
 
-	/** @PANTHOR_GROUP_PRIORITY_HIGH: High priority group. */
+	/**
+	 * @PANTHOR_GROUP_PRIORITY_HIGH: High priority group.
+	 *
+	 * Requires CAP_SYS_NICE or DRM_MASTER.
+	 */
 	PANTHOR_GROUP_PRIORITY_HIGH,
 };
 

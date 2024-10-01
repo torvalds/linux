@@ -386,7 +386,8 @@ static int ipsec_fs_roce_tx_mpv_create(struct mlx5_core_dev *mdev,
 		return -EOPNOTSUPP;
 
 	peer_priv = mlx5_devcom_get_next_peer_data(*ipsec_roce->devcom, &tmp);
-	if (!peer_priv) {
+	if (!peer_priv || !peer_priv->ipsec) {
+		mlx5_core_err(mdev, "IPsec not supported on master device\n");
 		err = -EOPNOTSUPP;
 		goto release_peer;
 	}
@@ -455,7 +456,8 @@ static int ipsec_fs_roce_rx_mpv_create(struct mlx5_core_dev *mdev,
 		return -EOPNOTSUPP;
 
 	peer_priv = mlx5_devcom_get_next_peer_data(*ipsec_roce->devcom, &tmp);
-	if (!peer_priv) {
+	if (!peer_priv || !peer_priv->ipsec) {
+		mlx5_core_err(mdev, "IPsec not supported on master device\n");
 		err = -EOPNOTSUPP;
 		goto release_peer;
 	}

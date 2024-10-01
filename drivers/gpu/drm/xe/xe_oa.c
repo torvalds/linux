@@ -440,6 +440,10 @@ static void xe_oa_enable(struct xe_oa_stream *stream)
 	val = __format_to_oactrl(format, regs->oa_ctrl_counter_select_mask) |
 		__oa_ccs_select(stream) | OAG_OACONTROL_OA_COUNTER_ENABLE;
 
+	if (GRAPHICS_VER(stream->oa->xe) >= 20 &&
+	    stream->hwe->oa_unit->type == DRM_XE_OA_UNIT_TYPE_OAG)
+		val |= OAG_OACONTROL_OA_PES_DISAG_EN;
+
 	xe_mmio_write32(stream->gt, regs->oa_ctrl, val);
 }
 

@@ -241,7 +241,13 @@ static int journal_sort_seq_cmp(const void *_l, const void *_r)
 	const struct journal_key *l = *((const struct journal_key **)_l);
 	const struct journal_key *r = *((const struct journal_key **)_r);
 
-	return cmp_int(l->journal_seq, r->journal_seq);
+	/*
+	 * Map 0 to U64_MAX, so that keys with journal_seq === 0 come last
+	 *
+	 * journal_seq == 0 means that the key comes from early repair, and
+	 * should be inserted last so as to avoid overflowing the journal
+	 */
+	return cmp_int(l->journal_seq - 1, r->journal_seq - 1);
 }
 
 int bch2_journal_replay(struct bch_fs *c)
@@ -322,6 +328,7 @@ int bch2_journal_replay(struct bch_fs *c)
 		}
 	}
 
+	bch2_trans_unlock_long(trans);
 	/*
 	 * Now, replay any remaining keys in the order in which they appear in
 	 * the journal, unpinning those journal entries as we go:

@@ -2277,6 +2277,42 @@ DEFINE_CLIENT_DEVICE_EVENT(rpcrdma_client_remove_one);
 DEFINE_CLIENT_DEVICE_EVENT(rpcrdma_client_wait_on);
 DEFINE_CLIENT_DEVICE_EVENT(rpcrdma_client_remove_one_done);
 
+DECLARE_EVENT_CLASS(rpcrdma_client_register_class,
+	TP_PROTO(
+		const struct ib_device *device,
+		const struct rpcrdma_notification *rn
+	),
+
+	TP_ARGS(device, rn),
+
+	TP_STRUCT__entry(
+		__string(name, device->name)
+		__field(void *, callback)
+		__field(u32, index)
+	),
+
+	TP_fast_assign(
+		__assign_str(name);
+		__entry->callback = rn->rn_done;
+		__entry->index = rn->rn_index;
+	),
+
+	TP_printk("device=%s index=%u done callback=%pS\n",
+		__get_str(name), __entry->index, __entry->callback
+	)
+);
+
+#define DEFINE_CLIENT_REGISTER_EVENT(name)				\
+	DEFINE_EVENT(rpcrdma_client_register_class, name,		\
+	TP_PROTO(							\
+		const struct ib_device *device,				\
+		const struct rpcrdma_notification *rn			\
+	),								\
+	TP_ARGS(device, rn))
+
+DEFINE_CLIENT_REGISTER_EVENT(rpcrdma_client_register);
+DEFINE_CLIENT_REGISTER_EVENT(rpcrdma_client_unregister);
+
 #endif /* _TRACE_RPCRDMA_H */
 
 #include <trace/define_trace.h>

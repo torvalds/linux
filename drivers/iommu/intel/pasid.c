@@ -683,6 +683,7 @@ static void device_pasid_table_teardown(struct device *dev, u8 bus, u8 devfn)
 	struct device_domain_info *info = dev_iommu_priv_get(dev);
 	struct intel_iommu *iommu = info->iommu;
 	struct context_entry *context;
+	u16 did;
 
 	spin_lock(&iommu->lock);
 	context = iommu_context_addr(iommu, bus, devfn, false);
@@ -691,10 +692,11 @@ static void device_pasid_table_teardown(struct device *dev, u8 bus, u8 devfn)
 		return;
 	}
 
+	did = context_domain_id(context);
 	context_clear_entry(context);
 	__iommu_flush_cache(iommu, context, sizeof(*context));
 	spin_unlock(&iommu->lock);
-	intel_context_flush_present(info, context, false);
+	intel_context_flush_present(info, context, did, false);
 }
 
 static int pci_pasid_table_teardown(struct pci_dev *pdev, u16 alias, void *data)
@@ -885,10 +887,9 @@ static void __context_flush_dev_iotlb(struct device_domain_info *info)
  */
 void intel_context_flush_present(struct device_domain_info *info,
 				 struct context_entry *context,
-				 bool flush_domains)
+				 u16 did, bool flush_domains)
 {
 	struct intel_iommu *iommu = info->iommu;
-	u16 did = context_domain_id(context);
 	struct pasid_entry *pte;
 	int i;
 

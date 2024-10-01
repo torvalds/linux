@@ -199,19 +199,23 @@ static size_t idma32_block2bytes(struct dw_dma_chan *dwc, u32 block, u32 width)
 	return IDMA32C_CTLH_BLOCK_TS(block);
 }
 
+static inline u8 idma32_encode_maxburst(u32 maxburst)
+{
+	return maxburst > 1 ? fls(maxburst) - 1 : 0;
+}
+
 static u32 idma32_prepare_ctllo(struct dw_dma_chan *dwc)
 {
 	struct dma_slave_config	*sconfig = &dwc->dma_sconfig;
-	u8 smsize = (dwc->direction == DMA_DEV_TO_MEM) ? sconfig->src_maxburst : 0;
-	u8 dmsize = (dwc->direction == DMA_MEM_TO_DEV) ? sconfig->dst_maxburst : 0;
+	u8 smsize = 0, dmsize = 0;
+
+	if (dwc->direction == DMA_MEM_TO_DEV)
+		dmsize = idma32_encode_maxburst(sconfig->dst_maxburst);
+	else if (dwc->direction == DMA_DEV_TO_MEM)
+		smsize = idma32_encode_maxburst(sconfig->src_maxburst);
 
 	return DWC_CTLL_LLP_D_EN | DWC_CTLL_LLP_S_EN |
 	       DWC_CTLL_DST_MSIZE(dmsize) | DWC_CTLL_SRC_MSIZE(smsize);
-}
-
-static void idma32_encode_maxburst(struct dw_dma_chan *dwc, u32 *maxburst)
-{
-	*maxburst = *maxburst > 1 ? fls(*maxburst) - 1 : 0;
 }
 
 static void idma32_set_device_name(struct dw_dma *dw, int id)
@@ -270,7 +274,6 @@ int idma32_dma_probe(struct dw_dma_chip *chip)
 	dw->suspend_chan = idma32_suspend_chan;
 	dw->resume_chan = idma32_resume_chan;
 	dw->prepare_ctllo = idma32_prepare_ctllo;
-	dw->encode_maxburst = idma32_encode_maxburst;
 	dw->bytes2block = idma32_bytes2block;
 	dw->block2bytes = idma32_block2bytes;
 

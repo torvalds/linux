@@ -108,7 +108,6 @@ void ethtool_cmis_cdb_check_completion_flag(u8 cmis_rev, u8 *flags);
 
 void ethtool_cmis_page_init(struct ethtool_module_eeprom *page_data,
 			    u8 page, u32 offset, u32 length);
-void ethtool_cmis_page_fini(struct ethtool_module_eeprom *page_data);
 
 struct ethtool_cmis_cdb *
 ethtool_cmis_cdb_init(struct net_device *dev,

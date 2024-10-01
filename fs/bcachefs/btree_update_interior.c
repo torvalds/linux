@@ -317,6 +317,12 @@ static struct btree *__bch2_btree_node_alloc(struct btree_trans *trans,
 		: 0;
 	int ret;
 
+	b = bch2_btree_node_mem_alloc(trans, interior_node);
+	if (IS_ERR(b))
+		return b;
+
+	BUG_ON(b->ob.nr);
+
 	mutex_lock(&c->btree_reserve_cache_lock);
 	if (c->btree_reserve_cache_nr > nr_reserve) {
 		struct btree_alloc *a =
@@ -325,10 +331,9 @@ static struct btree *__bch2_btree_node_alloc(struct btree_trans *trans,
 		obs = a->ob;
 		bkey_copy(&tmp.k, &a->k);
 		mutex_unlock(&c->btree_reserve_cache_lock);
-		goto mem_alloc;
+		goto out;
 	}
 	mutex_unlock(&c->btree_reserve_cache_lock);
-
 retry:
 	ret = bch2_alloc_sectors_start_trans(trans,
 				      c->opts.metadata_target ?:
@@ -341,7 +346,7 @@ retry:
 					  c->opts.metadata_replicas_required),
 				      watermark, 0, cl, &wp);
 	if (unlikely(ret))
-		return ERR_PTR(ret);
+		goto err;
 
 	if (wp->sectors_free < btree_sectors(c)) {
 		struct open_bucket *ob;
@@ -360,19 +365,16 @@ retry:
 
 	bch2_open_bucket_get(c, wp, &obs);
 	bch2_alloc_sectors_done(c, wp);
-mem_alloc:
-	b = bch2_btree_node_mem_alloc(trans, interior_node);
+out:
+	bkey_copy(&b->key, &tmp.k);
+	b->ob = obs;
 	six_unlock_write(&b->c.lock);
 	six_unlock_intent(&b->c.lock);
 
-	/* we hold cannibalize_lock: */
-	BUG_ON(IS_ERR(b));
-	BUG_ON(b->ob.nr);
-
-	bkey_copy(&b->key, &tmp.k);
-	b->ob = obs;
-
 	return b;
+err:
+	bch2_btree_node_to_freelist(c, b);
+	return ERR_PTR(ret);
 }
 
 static struct btree *bch2_btree_node_alloc(struct btree_update *as,
@@ -2439,6 +2441,9 @@ int bch2_btree_node_update_key(struct btree_trans *trans, struct btree_iter *ite
 		}
 
 		new_hash = bch2_btree_node_mem_alloc(trans, false);
+		ret = PTR_ERR_OR_ZERO(new_hash);
+		if (ret)
+			goto err;
 	}
 
 	path->intent_ref++;
@@ -2446,14 +2451,9 @@ int bch2_btree_node_update_key(struct btree_trans *trans, struct btree_iter *ite
 					   commit_flags, skip_triggers);
 	--path->intent_ref;
 
-	if (new_hash) {
-		mutex_lock(&c->btree_cache.lock);
-		list_move(&new_hash->list, &c->btree_cache.freeable);
-		mutex_unlock(&c->btree_cache.lock);
-
-		six_unlock_write(&new_hash->c.lock);
-		six_unlock_intent(&new_hash->c.lock);
-	}
+	if (new_hash)
+		bch2_btree_node_to_freelist(c, new_hash);
+err:
 	closure_sync(&cl);
 	bch2_btree_cache_cannibalize_unlock(trans);
 	return ret;
@@ -2522,6 +2522,10 @@ int bch2_btree_root_alloc_fake_trans(struct btree_trans *trans, enum btree_id id
 	b = bch2_btree_node_mem_alloc(trans, false);
 	bch2_btree_cache_cannibalize_unlock(trans);
 
+	ret = PTR_ERR_OR_ZERO(b);
+	if (ret)
+		return ret;
+
 	set_btree_node_fake(b);
 	set_btree_node_need_rewrite(b);
 	b->c.level	= level;
@@ -2553,7 +2557,7 @@ int bch2_btree_root_alloc_fake_trans(struct btree_trans *trans, enum btree_id id
 
 void bch2_btree_root_alloc_fake(struct bch_fs *c, enum btree_id id, unsigned level)
 {
-	bch2_trans_run(c, bch2_btree_root_alloc_fake_trans(trans, id, level));
+	bch2_trans_run(c, lockrestart_do(trans, bch2_btree_root_alloc_fake_trans(trans, id, level)));
 }
 
 static void bch2_btree_update_to_text(struct printbuf *out, struct btree_update *as)

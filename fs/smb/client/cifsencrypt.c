@@ -21,127 +21,21 @@
 #include <linux/random.h>
 #include <linux/highmem.h>
 #include <linux/fips.h>
+#include <linux/iov_iter.h>
 #include "../common/arc4.h"
 #include <crypto/aead.h>
 
-/*
- * Hash data from a BVEC-type iterator.
- */
-static int cifs_shash_bvec(const struct iov_iter *iter, ssize_t maxsize,
-			   struct shash_desc *shash)
+static size_t cifs_shash_step(void *iter_base, size_t progress, size_t len,
+			      void *priv, void *priv2)
 {
-	const struct bio_vec *bv = iter->bvec;
-	unsigned long start = iter->iov_offset;
-	unsigned int i;
-	void *p;
-	int ret;
+	struct shash_desc *shash = priv;
+	int ret, *pret = priv2;
 
-	for (i = 0; i < iter->nr_segs; i++) {
-		size_t off, len;
-
-		len = bv[i].bv_len;
-		if (start >= len) {
-			start -= len;
-			continue;
-		}
-
-		len = min_t(size_t, maxsize, len - start);
-		off = bv[i].bv_offset + start;
-
-		p = kmap_local_page(bv[i].bv_page);
-		ret = crypto_shash_update(shash, p + off, len);
-		kunmap_local(p);
-		if (ret < 0)
-			return ret;
-
-		maxsize -= len;
-		if (maxsize <= 0)
-			break;
-		start = 0;
+	ret = crypto_shash_update(shash, iter_base, len);
+	if (ret < 0) {
+		*pret = ret;
+		return len;
 	}
-
-	return 0;
-}
-
-/*
- * Hash data from a KVEC-type iterator.
- */
-static int cifs_shash_kvec(const struct iov_iter *iter, ssize_t maxsize,
-			   struct shash_desc *shash)
-{
-	const struct kvec *kv = iter->kvec;
-	unsigned long start = iter->iov_offset;
-	unsigned int i;
-	int ret;
-
-	for (i = 0; i < iter->nr_segs; i++) {
-		size_t len;
-
-		len = kv[i].iov_len;
-		if (start >= len) {
-			start -= len;
-			continue;
-		}
-
-		len = min_t(size_t, maxsize, len - start);
-		ret = crypto_shash_update(shash, kv[i].iov_base + start, len);
-		if (ret < 0)
-			return ret;
-		maxsize -= len;
-
-		if (maxsize <= 0)
-			break;
-		start = 0;
-	}
-
-	return 0;
-}
-
-/*
- * Hash data from an XARRAY-type iterator.
- */
-static ssize_t cifs_shash_xarray(const struct iov_iter *iter, ssize_t maxsize,
-				 struct shash_desc *shash)
-{
-	struct folio *folios[16], *folio;
-	unsigned int nr, i, j, npages;
-	loff_t start = iter->xarray_start + iter->iov_offset;
-	pgoff_t last, index = start / PAGE_SIZE;
-	ssize_t ret = 0;
-	size_t len, offset, foffset;
-	void *p;
-
-	if (maxsize == 0)
-		return 0;
-
-	last = (start + maxsize - 1) / PAGE_SIZE;
-	do {
-		nr = xa_extract(iter->xarray, (void **)folios, index, last,
-				ARRAY_SIZE(folios), XA_PRESENT);
-		if (nr == 0)
-			return -EIO;
-
-		for (i = 0; i < nr; i++) {
-			folio = folios[i];
-			npages = folio_nr_pages(folio);
-			foffset = start - folio_pos(folio);
-			offset = foffset % PAGE_SIZE;
-			for (j = foffset / PAGE_SIZE; j < npages; j++) {
-				len = min_t(size_t, maxsize, PAGE_SIZE - offset);
-				p = kmap_local_page(folio_page(folio, j));
-				ret = crypto_shash_update(shash, p, len);
-				kunmap_local(p);
-				if (ret < 0)
-					return ret;
-				maxsize -= len;
-				if (maxsize <= 0)
-					return 0;
-				start += len;
-				offset = 0;
-				index++;
-			}
-		}
-	} while (nr == ARRAY_SIZE(folios));
 	return 0;
 }
 
@@ -151,21 +45,13 @@ static ssize_t cifs_shash_xarray(const struct iov_iter *iter, ssize_t maxsize,
 static int cifs_shash_iter(const struct iov_iter *iter, size_t maxsize,
 			   struct shash_desc *shash)
 {
-	if (maxsize == 0)
-		return 0;
+	struct iov_iter tmp_iter = *iter;
+	int err = -EIO;
 
-	switch (iov_iter_type(iter)) {
-	case ITER_BVEC:
-		return cifs_shash_bvec(iter, maxsize, shash);
-	case ITER_KVEC:
-		return cifs_shash_kvec(iter, maxsize, shash);
-	case ITER_XARRAY:
-		return cifs_shash_xarray(iter, maxsize, shash);
-	default:
-		pr_err("cifs_shash_iter(%u) unsupported\n", iov_iter_type(iter));
-		WARN_ON_ONCE(1);
-		return -EIO;
-	}
+	if (iterate_and_advance_kernel(&tmp_iter, maxsize, shash, &err,
+				       cifs_shash_step) != maxsize)
+		return err;
+	return 0;
 }
 
 int __cifs_calc_signature(struct smb_rqst *rqst,

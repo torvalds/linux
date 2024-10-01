@@ -2225,6 +2225,12 @@ static int __tty_fasync(int fd, struct file *filp, int on)
 	if (tty_paranoia_check(tty, file_inode(filp), "tty_fasync"))
 		goto out;
 
+	if (on) {
+		retval = file_f_owner_allocate(filp);
+		if (retval)
+			goto out;
+	}
+
 	retval = fasync_helper(fd, filp, on, &tty->fasync);
 	if (retval <= 0)
 		goto out;

@@ -7,6 +7,8 @@
 
 #include <drm/xe_drm.h>
 
+#include <generated/xe_wa_oob.h>
+
 #include "regs/xe_reg_defs.h"
 #include "xe_assert.h"
 #include "xe_device.h"
@@ -15,6 +17,7 @@
 #include "xe_gt_mcr.h"
 #include "xe_mmio.h"
 #include "xe_sriov.h"
+#include "xe_wa.h"
 
 #define _PAT_ATS				0x47fc
 #define _PAT_INDEX(index)			_PICK_EVEN_2RANGES(index, 8, \
@@ -382,7 +385,13 @@ void xe_pat_init_early(struct xe_device *xe)
 	if (GRAPHICS_VER(xe) == 20) {
 		xe->pat.ops = &xe2_pat_ops;
 		xe->pat.table = xe2_pat_table;
-		xe->pat.n_entries = ARRAY_SIZE(xe2_pat_table);
+
+		/* Wa_16023588340. XXX: Should use XE_WA */
+		if (GRAPHICS_VERx100(xe) == 2001)
+			xe->pat.n_entries = 28; /* Disable CLOS3 */
+		else
+			xe->pat.n_entries = ARRAY_SIZE(xe2_pat_table);
+
 		xe->pat.idx[XE_CACHE_NONE] = 3;
 		xe->pat.idx[XE_CACHE_WT] = 15;
 		xe->pat.idx[XE_CACHE_WB] = 2;

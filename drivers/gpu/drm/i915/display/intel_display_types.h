@@ -1885,6 +1885,10 @@ struct intel_dp {
 	} alpm_parameters;
 
 	u8 alpm_dpcd;
+
+	struct {
+		unsigned long mask;
+	} quirks;
 };
 
 enum lspcon_vendor {

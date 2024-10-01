@@ -115,7 +115,6 @@ static struct cmn2asic_msg_mapping smu_v14_0_2_message_map[SMU_MSG_MAX_COUNT] = 
 	MSG_MAP(SetMGpuFanBoostLimitRpm,	PPSMC_MSG_SetMGpuFanBoostLimitRpm,     0),
 	MSG_MAP(GetPptLimit,			PPSMC_MSG_GetPptLimit,                 0),
 	MSG_MAP(NotifyPowerSource,		PPSMC_MSG_NotifyPowerSource,           0),
-	MSG_MAP(Mode1Reset,			PPSMC_MSG_Mode1Reset,                  0),
 	MSG_MAP(PrepareMp1ForUnload,		PPSMC_MSG_PrepareMp1ForUnload,         0),
 	MSG_MAP(DFCstateControl,		PPSMC_MSG_SetExternalClientDfCstateAllow, 0),
 	MSG_MAP(ArmD3,				PPSMC_MSG_ArmD3,                       0),
@@ -188,6 +187,15 @@ static struct cmn2asic_mapping smu_v14_0_2_feature_mask_map[SMU_FEATURE_COUNT] =
 	FEA_MAP(MEM_TEMP_READ),
 	FEA_MAP(ATHUB_MMHUB_PG),
 	FEA_MAP(SOC_PCC),
+	FEA_MAP(EDC_PWRBRK),
+	FEA_MAP(SOC_EDC_XVMIN),
+	FEA_MAP(GFX_PSM_DIDT),
+	FEA_MAP(APT_ALL_ENABLE),
+	FEA_MAP(APT_SQ_THROTTLE),
+	FEA_MAP(APT_PF_DCS),
+	FEA_MAP(GFX_EDC_XVMIN),
+	FEA_MAP(GFX_DIDT_XVMIN),
+	FEA_MAP(FAN_ABNORMAL),
 	[SMU_FEATURE_DPM_VCLK_BIT] = {1, FEATURE_MM_DPM_BIT},
 	[SMU_FEATURE_DPM_DCLK_BIT] = {1, FEATURE_MM_DPM_BIT},
 	[SMU_FEATURE_PPT_BIT] = {1, FEATURE_THROTTLERS_BIT},
@@ -675,6 +683,9 @@ static int smu_v14_0_2_set_default_dpm_table(struct smu_context *smu)
 		pcie_table->clk_freq[pcie_table->num_of_link_levels] =
 					skutable->LclkFreq[link_level];
 		pcie_table->num_of_link_levels++;
+
+		if (link_level == 0)
+			link_level++;
 	}
 
 	/* dcefclk dpm table setup */
@@ -1824,50 +1835,6 @@ static void smu_v14_0_2_set_smu_mailbox_registers(struct smu_context *smu)
 	smu->debug_resp_reg = SOC15_REG_OFFSET(MP1, 0, regMP1_SMN_C2PMSG_54);
 }
 
-static int smu_v14_0_2_smu_send_bad_mem_page_num(struct smu_context *smu,
-		uint32_t size)
-{
-	int ret = 0;
-
-	/* message SMU to update the bad page number on SMUBUS */
-	ret = smu_cmn_send_smc_msg_with_param(smu,
-					  SMU_MSG_SetNumBadMemoryPagesRetired,
-					  size, NULL);
-	if (ret)
-		dev_err(smu->adev->dev,
-			  "[%s] failed to message SMU to update bad memory pages number\n",
-			  __func__);
-
-	return ret;
-}
-
-static int smu_v14_0_2_send_bad_mem_channel_flag(struct smu_context *smu,
-		uint32_t size)
-{
-	int ret = 0;
-
-	/* message SMU to update the bad channel info on SMUBUS */
-	ret = smu_cmn_send_smc_msg_with_param(smu,
-				  SMU_MSG_SetBadMemoryPagesRetiredFlagsPerChannel,
-				  size, NULL);
-	if (ret)
-		dev_err(smu->adev->dev,
-			  "[%s] failed to message SMU to update bad memory pages channel info\n",
-			  __func__);
-
-	return ret;
-}
-
-static ssize_t smu_v14_0_2_get_ecc_info(struct smu_context *smu,
-					void *table)
-{
-	int ret = 0;
-
-	// TODO
-
-	return ret;
-}
-
 static ssize_t smu_v14_0_2_get_gpu_metrics(struct smu_context *smu,
 					   void **table)
 {
@@ -2015,12 +1982,9 @@ static const struct pptable_funcs smu_v14_0_2_ppt_funcs = {
 	.enable_gfx_features = smu_v14_0_2_enable_gfx_features,
 	.set_mp1_state = smu_v14_0_2_set_mp1_state,
 	.set_df_cstate = smu_v14_0_2_set_df_cstate,
-	.send_hbm_bad_pages_num = smu_v14_0_2_smu_send_bad_mem_page_num,
-	.send_hbm_bad_channel_flag = smu_v14_0_2_send_bad_mem_channel_flag,
 #if 0
 	.gpo_control = smu_v14_0_gpo_control,
 #endif
-	.get_ecc_info = smu_v14_0_2_get_ecc_info,
 };
 
 void smu_v14_0_2_set_ppt_funcs(struct smu_context *smu)

@@ -141,8 +141,7 @@ int hda_component_manager_bind(struct hda_codec *cdc,
 	int ret;
 
 	/* Init shared and component specific data */
-	memset(parent, 0, sizeof(*parent));
-	mutex_init(&parent->mutex);
+	memset(parent->comps, 0, sizeof(parent->comps));
 	parent->codec = cdc;
 
 	mutex_lock(&parent->mutex);
@@ -163,6 +162,8 @@ int hda_component_manager_init(struct hda_codec *cdc,
 	struct component_match *match = NULL;
 	struct hda_scodec_match *sm;
 	int ret, i;
+
+	mutex_init(&parent->mutex);
 
 	for (i = 0; i < count; i++) {
 		sm = devm_kmalloc(dev, sizeof(*sm), GFP_KERNEL);

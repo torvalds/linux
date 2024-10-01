@@ -1861,7 +1861,7 @@ static int copy_signal(unsigned long clone_flags, struct task_struct *tsk)
 	prev_cputime_init(&sig->prev_cputime);
 
 #ifdef CONFIG_POSIX_TIMERS
-	INIT_LIST_HEAD(&sig->posix_timers);
+	INIT_HLIST_HEAD(&sig->posix_timers);
 	hrtimer_init(&sig->real_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	sig->real_timer.function = it_real_fn;
 #endif
@@ -2053,23 +2053,10 @@ static int __pidfd_prepare(struct pid *pid, unsigned int flags, struct file **re
  */
 int pidfd_prepare(struct pid *pid, unsigned int flags, struct file **ret)
 {
-	if (!pid)
+	bool thread = flags & PIDFD_THREAD;
+
+	if (!pid || !pid_has_task(pid, thread ? PIDTYPE_PID : PIDTYPE_TGID))
 		return -EINVAL;
-
-	scoped_guard(rcu) {
-		struct task_struct *tsk;
-
-		if (flags & PIDFD_THREAD)
-			tsk = pid_task(pid, PIDTYPE_PID);
-		else
-			tsk = pid_task(pid, PIDTYPE_TGID);
-		if (!tsk)
-			return -EINVAL;
-
-		/* Don't create pidfds for kernel threads for now. */
-		if (tsk->flags & PF_KTHREAD)
-			return -EINVAL;
-	}
 
 	return __pidfd_prepare(pid, flags, ret);
 }
@@ -2415,12 +2402,6 @@ __latent_entropy struct task_struct *copy_process(
 	 */
 	if (clone_flags & CLONE_PIDFD) {
 		int flags = (clone_flags & CLONE_THREAD) ? PIDFD_THREAD : 0;
-
-		/* Don't create pidfds for kernel threads for now. */
-		if (args->kthread) {
-			retval = -EINVAL;
-			goto bad_fork_free_pid;
-		}
 
 		/* Note that no task has been attached to @pid yet. */
 		retval = __pidfd_prepare(pid, flags, &pidfile);

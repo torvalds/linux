@@ -110,7 +110,7 @@ void set_timer_ms(struct timer_list *t, unsigned long timeout)
 	 * Paranoia to make sure the compiler computes the timeout before
 	 * loading 'jiffies' as jiffies is volatile and may be updated in
 	 * the background by a timer tick. All to reduce the complexity
-	 * of the addition and reduce the risk of losing a jiffie.
+	 * of the addition and reduce the risk of losing a jiffy.
 	 */
 	barrier();
 

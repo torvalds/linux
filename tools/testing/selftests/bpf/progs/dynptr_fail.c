@@ -6,6 +6,7 @@
 #include <stdbool.h>
 #include <linux/bpf.h>
 #include <bpf/bpf_helpers.h>
+#include <bpf/bpf_tracing.h>
 #include <linux/if_ether.h>
 #include "bpf_misc.h"
 #include "bpf_kfuncs.h"
@@ -1250,6 +1251,30 @@ int skb_invalid_ctx(void *ctx)
 
 	/* this should fail */
 	bpf_dynptr_from_skb(ctx, 0, &ptr);
+
+	return 0;
+}
+
+SEC("fentry/skb_tx_error")
+__failure __msg("must be referenced or trusted")
+int BPF_PROG(skb_invalid_ctx_fentry, void *skb)
+{
+	struct bpf_dynptr ptr;
+
+	/* this should fail */
+	bpf_dynptr_from_skb(skb, 0, &ptr);
+
+	return 0;
+}
+
+SEC("fexit/skb_tx_error")
+__failure __msg("must be referenced or trusted")
+int BPF_PROG(skb_invalid_ctx_fexit, void *skb)
+{
+	struct bpf_dynptr ptr;
+
+	/* this should fail */
+	bpf_dynptr_from_skb(skb, 0, &ptr);
 
 	return 0;
 }

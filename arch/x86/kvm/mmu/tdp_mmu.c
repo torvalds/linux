@@ -359,10 +359,10 @@ static void handle_removed_pt(struct kvm *kvm, tdp_ptep_t pt, bool shared)
 			/*
 			 * Set the SPTE to a nonpresent value that other
 			 * threads will not overwrite. If the SPTE was
-			 * already marked as removed then another thread
+			 * already marked as frozen then another thread
 			 * handling a page fault could overwrite it, so
 			 * set the SPTE until it is set from some other
-			 * value to the removed SPTE value.
+			 * value to the frozen SPTE value.
 			 */
 			for (;;) {
 				old_spte = kvm_tdp_mmu_write_spte_atomic(sptep, FROZEN_SPTE);
@@ -536,8 +536,8 @@ static inline int __must_check __tdp_mmu_set_spte_atomic(struct tdp_iter *iter,
 	u64 *sptep = rcu_dereference(iter->sptep);
 
 	/*
-	 * The caller is responsible for ensuring the old SPTE is not a REMOVED
-	 * SPTE.  KVM should never attempt to zap or manipulate a REMOVED SPTE,
+	 * The caller is responsible for ensuring the old SPTE is not a FROZEN
+	 * SPTE.  KVM should never attempt to zap or manipulate a FROZEN SPTE,
 	 * and pre-checking before inserting a new SPTE is advantageous as it
 	 * avoids unnecessary work.
 	 */

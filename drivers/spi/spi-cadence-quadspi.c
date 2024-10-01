@@ -2000,13 +2000,25 @@ static int cqspi_runtime_resume(struct device *dev)
 static int cqspi_suspend(struct device *dev)
 {
 	struct cqspi_st *cqspi = dev_get_drvdata(dev);
+	int ret;
 
-	return spi_controller_suspend(cqspi->host);
+	ret = spi_controller_suspend(cqspi->host);
+	if (ret)
+		return ret;
+
+	return pm_runtime_force_suspend(dev);
 }
 
 static int cqspi_resume(struct device *dev)
 {
 	struct cqspi_st *cqspi = dev_get_drvdata(dev);
+	int ret;
+
+	ret = pm_runtime_force_resume(dev);
+	if (ret) {
+		dev_err(dev, "pm_runtime_force_resume failed on resume\n");
+		return ret;
+	}
 
 	return spi_controller_resume(cqspi->host);
 }

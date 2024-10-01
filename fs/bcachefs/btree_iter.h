@@ -569,6 +569,15 @@ static inline struct bkey_s_c bch2_bkey_get_iter(struct btree_trans *trans,
 	bkey_s_c_to_##_type(__bch2_bkey_get_iter(_trans, _iter,			\
 				       _btree_id, _pos, _flags, KEY_TYPE_##_type))
 
+#define bkey_val_copy(_dst_v, _src_k)					\
+do {									\
+	unsigned b = min_t(unsigned, sizeof(*_dst_v),			\
+			   bkey_val_bytes(_src_k.k));			\
+	memcpy(_dst_v, _src_k.v, b);					\
+	if (b < sizeof(*_dst_v))					\
+		memset((void *) (_dst_v) + b, 0, sizeof(*_dst_v) - b);	\
+} while (0)
+
 static inline int __bch2_bkey_get_val_typed(struct btree_trans *trans,
 				unsigned btree_id, struct bpos pos,
 				unsigned flags, unsigned type,

@@ -21,7 +21,7 @@
 
 &gpio3 {
 	pinctrl-names = "default";
-	pinctrcl-0 = <&pinctrl_gpio3_hog>;
+	pinctrl-0 = <&pinctrl_gpio3_hog>;
 
 	uart4_rs485_en {
 		gpio-hog;

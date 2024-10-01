@@ -461,7 +461,7 @@ STORE(bch2_fs)
 
 		sc.gfp_mask = GFP_KERNEL;
 		sc.nr_to_scan = strtoul_or_return(buf);
-		c->btree_key_cache.shrink->scan_objects(c->btree_cache.shrink, &sc);
+		c->btree_key_cache.shrink->scan_objects(c->btree_key_cache.shrink, &sc);
 	}
 
 	if (attr == &sysfs_trigger_gc)

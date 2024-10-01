@@ -754,6 +754,8 @@ static const char *cmd_status_str(u8 status)
 		return "bad resource";
 	case MLX5_CMD_STAT_RES_BUSY:
 		return "resource busy";
+	case MLX5_CMD_STAT_NOT_READY:
+		return "FW not ready";
 	case MLX5_CMD_STAT_LIM_ERR:
 		return "limits exceeded";
 	case MLX5_CMD_STAT_BAD_RES_STATE_ERR:
@@ -787,6 +789,7 @@ static int cmd_status_to_err(u8 status)
 	case MLX5_CMD_STAT_BAD_SYS_STATE_ERR:		return -EIO;
 	case MLX5_CMD_STAT_BAD_RES_ERR:			return -EINVAL;
 	case MLX5_CMD_STAT_RES_BUSY:			return -EBUSY;
+	case MLX5_CMD_STAT_NOT_READY:			return -EAGAIN;
 	case MLX5_CMD_STAT_LIM_ERR:			return -ENOMEM;
 	case MLX5_CMD_STAT_BAD_RES_STATE_ERR:		return -EINVAL;
 	case MLX5_CMD_STAT_IX_ERR:			return -EINVAL;
@@ -815,14 +818,16 @@ EXPORT_SYMBOL(mlx5_cmd_out_err);
 static void cmd_status_print(struct mlx5_core_dev *dev, void *in, void *out)
 {
 	u16 opcode, op_mod;
+	u8 status;
 	u16 uid;
 
 	opcode = in_to_opcode(in);
 	op_mod = MLX5_GET(mbox_in, in, op_mod);
 	uid    = MLX5_GET(mbox_in, in, uid);
+	status = MLX5_GET(mbox_out, out, status);
 
 	if (!uid && opcode != MLX5_CMD_OP_DESTROY_MKEY &&
-	    opcode != MLX5_CMD_OP_CREATE_UCTX)
+	    opcode != MLX5_CMD_OP_CREATE_UCTX && status != MLX5_CMD_STAT_NOT_READY)
 		mlx5_cmd_out_err(dev, opcode, op_mod, out);
 }
 

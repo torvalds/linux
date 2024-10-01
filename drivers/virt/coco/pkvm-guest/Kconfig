@@ -1,0 +1,10 @@
+config ARM_PKVM_GUEST
+	bool "Arm pKVM protected guest driver"
+	depends on ARM64
+	help
+	  Protected guests running under the pKVM hypervisor on arm64
+	  are isolated from the host and must issue hypercalls to enable
+	  interaction with virtual devices. This driver implements
+	  support for probing and issuing these hypercalls.
+
+	  If unsure, say 'N'.

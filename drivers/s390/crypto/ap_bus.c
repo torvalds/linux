@@ -971,11 +971,16 @@ int ap_driver_register(struct ap_driver *ap_drv, struct module *owner,
 		       char *name)
 {
 	struct device_driver *drv = &ap_drv->driver;
+	int rc;
 
 	drv->bus = &ap_bus_type;
 	drv->owner = owner;
 	drv->name = name;
-	return driver_register(drv);
+	rc = driver_register(drv);
+
+	ap_check_bindings_complete();
+
+	return rc;
 }
 EXPORT_SYMBOL(ap_driver_register);
 

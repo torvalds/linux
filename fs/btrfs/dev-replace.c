@@ -824,22 +824,45 @@ static void btrfs_dev_replace_update_device_in_mapping_tree(
 						struct btrfs_device *srcdev,
 						struct btrfs_device *tgtdev)
 {
-	u64 start = 0;
-	int i;
+	struct rb_node *node;
+
+	/*
+	 * The chunk mutex must be held so that no new chunks can be created
+	 * while we are updating existing chunks. This guarantees we don't miss
+	 * any new chunk that gets created for a range that falls before the
+	 * range of the last chunk we processed.
+	 */
+	lockdep_assert_held(&fs_info->chunk_mutex);
 
 	write_lock(&fs_info->mapping_tree_lock);
-	do {
+	node = rb_first_cached(&fs_info->mapping_tree);
+	while (node) {
+		struct rb_node *next = rb_next(node);
 		struct btrfs_chunk_map *map;
+		u64 next_start;
 
-		map = btrfs_find_chunk_map_nolock(fs_info, start, U64_MAX);
-		if (!map)
-			break;
-		for (i = 0; i < map->num_stripes; i++)
+		map = rb_entry(node, struct btrfs_chunk_map, rb_node);
+		next_start = map->start + map->chunk_len;
+
+		for (int i = 0; i < map->num_stripes; i++)
 			if (srcdev == map->stripes[i].dev)
 				map->stripes[i].dev = tgtdev;
-		start = map->start + map->chunk_len;
-		btrfs_free_chunk_map(map);
-	} while (start);
+
+		if (cond_resched_rwlock_write(&fs_info->mapping_tree_lock)) {
+			map = btrfs_find_chunk_map_nolock(fs_info, next_start, U64_MAX);
+			if (!map)
+				break;
+			node = &map->rb_node;
+			/*
+			 * Drop the lookup reference since we are holding the
+			 * lock in write mode and no one can remove the chunk
+			 * map from the tree and drop its tree reference.
+			 */
+			btrfs_free_chunk_map(map);
+		} else {
+			node = next;
+		}
+	}
 	write_unlock(&fs_info->mapping_tree_lock);
 }
 

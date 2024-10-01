@@ -400,26 +400,23 @@ $(obj)/%.dtb.S: $(obj)/%.dtb FORCE
 $(obj)/%.dtbo.S: $(obj)/%.dtbo FORCE
 	$(call if_changed,wrap_S_dtb)
 
-quiet_cmd_dtc = DTC     $@
+quiet_dtb_check_tag = $(if $(dtb-check-enabled),[C],   )
+cmd_dtb_check = $(if $(dtb-check-enabled),; $(DT_CHECKER) $(DT_CHECKER_FLAGS) -u $(srctree)/$(DT_BINDING_DIR) -p $(DT_TMP_SCHEMA) $@ || true)
+
+quiet_cmd_dtc = DTC $(quiet_dtb_check_tag) $@
 cmd_dtc = $(HOSTCC) -E $(dtc_cpp_flags) -x assembler-with-cpp -o $(dtc-tmp) $< ; \
 	$(DTC) -o $@ -b 0 \
 		$(addprefix -i,$(dir $<) $(DTC_INCLUDE)) $(DTC_FLAGS) \
 		-d $(depfile).dtc.tmp $(dtc-tmp) ; \
-	cat $(depfile).pre.tmp $(depfile).dtc.tmp > $(depfile)
-
-DT_CHECK_CMD = $(DT_CHECKER) $(DT_CHECKER_FLAGS) -u $(srctree)/$(DT_BINDING_DIR) -p $(DT_TMP_SCHEMA)
+	cat $(depfile).pre.tmp $(depfile).dtc.tmp > $(depfile) \
+	$(cmd_dtb_check)
 
 # NOTE:
 # Do not replace $(filter %.dtb %.dtbo, $^) with $(real-prereqs). When a single
 # DTB is turned into a multi-blob DTB, $^ will contain header file dependencies
 # recorded in the .*.cmd file.
-ifneq ($(CHECK_DTBS),)
-quiet_cmd_fdtoverlay = DTOVLCH $@
-      cmd_fdtoverlay = $(objtree)/scripts/dtc/fdtoverlay -o $@ -i $(filter %.dtb %.dtbo, $^) ; $(DT_CHECK_CMD) $@ || true
-else
-quiet_cmd_fdtoverlay = DTOVL   $@
-      cmd_fdtoverlay = $(objtree)/scripts/dtc/fdtoverlay -o $@ -i $(filter %.dtb %.dtbo, $^)
-endif
+quiet_cmd_fdtoverlay = OVL $(quiet_dtb_check_tag) $@
+      cmd_fdtoverlay = $(objtree)/scripts/dtc/fdtoverlay -o $@ -i $(filter %.dtb %.dtbo, $^) $(cmd_dtb_check)
 
 $(multi-dtb-y): FORCE
 	$(call if_changed,fdtoverlay)
@@ -430,16 +427,11 @@ DT_CHECKER ?= dt-validate
 DT_CHECKER_FLAGS ?= $(if $(DT_SCHEMA_FILES),-l $(DT_SCHEMA_FILES),-m)
 DT_BINDING_DIR := Documentation/devicetree/bindings
 DT_TMP_SCHEMA := $(objtree)/$(DT_BINDING_DIR)/processed-schema.json
-
-quiet_cmd_dtb =	DTC_CHK $@
-      cmd_dtb =	$(cmd_dtc) ; $(DT_CHECK_CMD) $@ || true
-else
-quiet_cmd_dtb = $(quiet_cmd_dtc)
-      cmd_dtb = $(cmd_dtc)
+dtb-check-enabled = $(if $(filter %.dtb, $@),y)
 endif
 
 $(obj)/%.dtb: $(obj)/%.dts $(DTC) $(DT_TMP_SCHEMA) FORCE
-	$(call if_changed_dep,dtb)
+	$(call if_changed_dep,dtc)
 
 $(obj)/%.dtbo: $(src)/%.dtso $(DTC) FORCE
 	$(call if_changed_dep,dtc)

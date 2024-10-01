@@ -328,7 +328,7 @@ and an HDMI input, one input for each input type. Those are described in more
 detail below.
 
 Special attention has been given to the rate at which new frames become
-available. The jitter will be around 1 jiffie (that depends on the HZ
+available. The jitter will be around 1 jiffy (that depends on the HZ
 configuration of your kernel, so usually 1/100, 1/250 or 1/1000 of a second),
 but the long-term behavior is exactly following the framerate. So a
 framerate of 59.94 Hz is really different from 60 Hz. If the framerate

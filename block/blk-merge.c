@@ -105,9 +105,33 @@ static unsigned int bio_allowed_max_sectors(const struct queue_limits *lim)
 	return round_down(UINT_MAX, lim->logical_block_size) >> SECTOR_SHIFT;
 }
 
-static struct bio *bio_split_discard(struct bio *bio,
-				     const struct queue_limits *lim,
-				     unsigned *nsegs, struct bio_set *bs)
+static struct bio *bio_submit_split(struct bio *bio, int split_sectors)
+{
+	if (unlikely(split_sectors < 0)) {
+		bio->bi_status = errno_to_blk_status(split_sectors);
+		bio_endio(bio);
+		return NULL;
+	}
+
+	if (split_sectors) {
+		struct bio *split;
+
+		split = bio_split(bio, split_sectors, GFP_NOIO,
+				&bio->bi_bdev->bd_disk->bio_split);
+		split->bi_opf |= REQ_NOMERGE;
+		blkcg_bio_issue_init(split);
+		bio_chain(split, bio);
+		trace_block_split(split, bio->bi_iter.bi_sector);
+		WARN_ON_ONCE(bio_zone_write_plugging(bio));
+		submit_bio_noacct(bio);
+		return split;
+	}
+
+	return bio;
+}
+
+struct bio *bio_split_discard(struct bio *bio, const struct queue_limits *lim,
+		unsigned *nsegs)
 {
 	unsigned int max_discard_sectors, granularity;
 	sector_t tmp;
@@ -121,10 +145,10 @@ static struct bio *bio_split_discard(struct bio *bio,
 		min(lim->max_discard_sectors, bio_allowed_max_sectors(lim));
 	max_discard_sectors -= max_discard_sectors % granularity;
 	if (unlikely(!max_discard_sectors))
-		return NULL;
+		return bio;
 
 	if (bio_sectors(bio) <= max_discard_sectors)
-		return NULL;
+		return bio;
 
 	split_sectors = max_discard_sectors;
 
@@ -139,19 +163,18 @@ static struct bio *bio_split_discard(struct bio *bio,
 	if (split_sectors > tmp)
 		split_sectors -= tmp;
 
-	return bio_split(bio, split_sectors, GFP_NOIO, bs);
+	return bio_submit_split(bio, split_sectors);
 }
 
-static struct bio *bio_split_write_zeroes(struct bio *bio,
-					  const struct queue_limits *lim,
-					  unsigned *nsegs, struct bio_set *bs)
+struct bio *bio_split_write_zeroes(struct bio *bio,
+		const struct queue_limits *lim, unsigned *nsegs)
 {
 	*nsegs = 0;
 	if (!lim->max_write_zeroes_sectors)
-		return NULL;
+		return bio;
 	if (bio_sectors(bio) <= lim->max_write_zeroes_sectors)
-		return NULL;
-	return bio_split(bio, lim->max_write_zeroes_sectors, GFP_NOIO, bs);
+		return bio;
+	return bio_submit_split(bio, lim->max_write_zeroes_sectors);
 }
 
 static inline unsigned int blk_boundary_sectors(const struct queue_limits *lim,
@@ -274,27 +297,19 @@ static bool bvec_split_segs(const struct queue_limits *lim,
 }
 
 /**
- * bio_split_rw - split a bio in two bios
+ * bio_split_rw_at - check if and where to split a read/write bio
  * @bio:  [in] bio to be split
  * @lim:  [in] queue limits to split based on
  * @segs: [out] number of segments in the bio with the first half of the sectors
- * @bs:	  [in] bio set to allocate the clone from
  * @max_bytes: [in] maximum number of bytes per bio
  *
- * Clone @bio, update the bi_iter of the clone to represent the first sectors
- * of @bio and update @bio->bi_iter to represent the remaining sectors. The
- * following is guaranteed for the cloned bio:
- * - That it has at most @max_bytes worth of data
- * - That it has at most queue_max_segments(@q) segments.
- *
- * Except for discard requests the cloned bio will point at the bi_io_vec of
- * the original bio. It is the responsibility of the caller to ensure that the
- * original bio is not freed before the cloned bio. The caller is also
- * responsible for ensuring that @bs is only destroyed after processing of the
- * split bio has finished.
+ * Find out if @bio needs to be split to fit the queue limits in @lim and a
+ * maximum size of @max_bytes.  Returns a negative error number if @bio can't be
+ * split, 0 if the bio doesn't have to be split, or a positive sector offset if
+ * @bio needs to be split.
  */
-struct bio *bio_split_rw(struct bio *bio, const struct queue_limits *lim,
-		unsigned *segs, struct bio_set *bs, unsigned max_bytes)
+int bio_split_rw_at(struct bio *bio, const struct queue_limits *lim,
+		unsigned *segs, unsigned max_bytes)
 {
 	struct bio_vec bv, bvprv, *bvprvp = NULL;
 	struct bvec_iter iter;
@@ -324,22 +339,17 @@ struct bio *bio_split_rw(struct bio *bio, const struct queue_limits *lim,
 	}
 
 	*segs = nsegs;
-	return NULL;
+	return 0;
 split:
-	if (bio->bi_opf & REQ_ATOMIC) {
-		bio->bi_status = BLK_STS_INVAL;
-		bio_endio(bio);
-		return ERR_PTR(-EINVAL);
-	}
+	if (bio->bi_opf & REQ_ATOMIC)
+		return -EINVAL;
+
 	/*
 	 * We can't sanely support splitting for a REQ_NOWAIT bio. End it
 	 * with EAGAIN if splitting is required and return an error pointer.
 	 */
-	if (bio->bi_opf & REQ_NOWAIT) {
-		bio->bi_status = BLK_STS_AGAIN;
-		bio_endio(bio);
-		return ERR_PTR(-EAGAIN);
-	}
+	if (bio->bi_opf & REQ_NOWAIT)
+		return -EAGAIN;
 
 	*segs = nsegs;
 
@@ -356,58 +366,36 @@ split:
 	 * big IO can be trival, disable iopoll when split needed.
 	 */
 	bio_clear_polled(bio);
-	return bio_split(bio, bytes >> SECTOR_SHIFT, GFP_NOIO, bs);
+	return bytes >> SECTOR_SHIFT;
 }
-EXPORT_SYMBOL_GPL(bio_split_rw);
+EXPORT_SYMBOL_GPL(bio_split_rw_at);
 
-/**
- * __bio_split_to_limits - split a bio to fit the queue limits
- * @bio:     bio to be split
- * @lim:     queue limits to split based on
- * @nr_segs: returns the number of segments in the returned bio
- *
- * Check if @bio needs splitting based on the queue limits, and if so split off
- * a bio fitting the limits from the beginning of @bio and return it.  @bio is
- * shortened to the remainder and re-submitted.
- *
- * The split bio is allocated from @q->bio_split, which is provided by the
- * block layer.
- */
-struct bio *__bio_split_to_limits(struct bio *bio,
-				  const struct queue_limits *lim,
-				  unsigned int *nr_segs)
+struct bio *bio_split_rw(struct bio *bio, const struct queue_limits *lim,
+		unsigned *nr_segs)
 {
-	struct bio_set *bs = &bio->bi_bdev->bd_disk->bio_split;
-	struct bio *split;
+	return bio_submit_split(bio,
+		bio_split_rw_at(bio, lim, nr_segs,
+			get_max_io_size(bio, lim) << SECTOR_SHIFT));
+}
 
-	switch (bio_op(bio)) {
-	case REQ_OP_DISCARD:
-	case REQ_OP_SECURE_ERASE:
-		split = bio_split_discard(bio, lim, nr_segs, bs);
-		break;
-	case REQ_OP_WRITE_ZEROES:
-		split = bio_split_write_zeroes(bio, lim, nr_segs, bs);
-		break;
-	default:
-		split = bio_split_rw(bio, lim, nr_segs, bs,
-				get_max_io_size(bio, lim) << SECTOR_SHIFT);
-		if (IS_ERR(split))
-			return NULL;
-		break;
-	}
+/*
+ * REQ_OP_ZONE_APPEND bios must never be split by the block layer.
+ *
+ * But we want the nr_segs calculation provided by bio_split_rw_at, and having
+ * a good sanity check that the submitter built the bio correctly is nice to
+ * have as well.
+ */
+struct bio *bio_split_zone_append(struct bio *bio,
+		const struct queue_limits *lim, unsigned *nr_segs)
+{
+	unsigned int max_sectors = queue_limits_max_zone_append_sectors(lim);
+	int split_sectors;
 
-	if (split) {
-		/* there isn't chance to merge the split bio */
-		split->bi_opf |= REQ_NOMERGE;
-
-		blkcg_bio_issue_init(split);
-		bio_chain(split, bio);
-		trace_block_split(split, bio->bi_iter.bi_sector);
-		WARN_ON_ONCE(bio_zone_write_plugging(bio));
-		submit_bio_noacct(bio);
-		return split;
-	}
-	return bio;
+	split_sectors = bio_split_rw_at(bio, lim, nr_segs,
+			max_sectors << SECTOR_SHIFT);
+	if (WARN_ON_ONCE(split_sectors > 0))
+		split_sectors = -EINVAL;
+	return bio_submit_split(bio, split_sectors);
 }
 
 /**
@@ -426,9 +414,7 @@ struct bio *bio_split_to_limits(struct bio *bio)
 	const struct queue_limits *lim = &bdev_get_queue(bio->bi_bdev)->limits;
 	unsigned int nr_segs;
 
-	if (bio_may_exceed_limits(bio, lim))
-		return __bio_split_to_limits(bio, lim, &nr_segs);
-	return bio;
+	return __bio_split_to_limits(bio, lim, &nr_segs);
 }
 EXPORT_SYMBOL(bio_split_to_limits);
 

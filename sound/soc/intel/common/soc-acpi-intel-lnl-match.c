@@ -208,6 +208,7 @@ static const struct snd_soc_acpi_link_adr lnl_cs42l43_l0[] = {
 		.num_adr = ARRAY_SIZE(cs42l43_0_adr),
 		.adr_d = cs42l43_0_adr,
 	},
+	{}
 };
 
 static const struct snd_soc_acpi_link_adr lnl_rvp[] = {

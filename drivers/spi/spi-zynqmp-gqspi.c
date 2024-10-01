@@ -1033,6 +1033,18 @@ static int __maybe_unused zynqmp_runtime_resume(struct device *dev)
 	return 0;
 }
 
+static unsigned long zynqmp_qspi_timeout(struct zynqmp_qspi *xqspi, u8 bits,
+					 unsigned long bytes)
+{
+	unsigned long timeout;
+
+	/* Assume we are at most 2x slower than the nominal bus speed */
+	timeout = mult_frac(bytes, 2 * 8 * MSEC_PER_SEC,
+			    bits * xqspi->speed_hz);
+	/* And add 100 ms for scheduling delays */
+	return msecs_to_jiffies(timeout + 100);
+}
+
 /**
  * zynqmp_qspi_exec_op() - Initiates the QSPI transfer
  * @mem: The SPI memory
@@ -1049,6 +1061,7 @@ static int zynqmp_qspi_exec_op(struct spi_mem *mem,
 {
 	struct zynqmp_qspi *xqspi = spi_controller_get_devdata
 				    (mem->spi->controller);
+	unsigned long timeout;
 	int err = 0, i;
 	u32 genfifoentry = 0;
 	u16 opcode = op->cmd.opcode;
@@ -1077,8 +1090,10 @@ static int zynqmp_qspi_exec_op(struct spi_mem *mem,
 		zynqmp_gqspi_write(xqspi, GQSPI_IER_OFST,
 				   GQSPI_IER_GENFIFOEMPTY_MASK |
 				   GQSPI_IER_TXNOT_FULL_MASK);
-		if (!wait_for_completion_timeout
-		    (&xqspi->data_completion, msecs_to_jiffies(1000))) {
+		timeout = zynqmp_qspi_timeout(xqspi, op->cmd.buswidth,
+					      op->cmd.nbytes);
+		if (!wait_for_completion_timeout(&xqspi->data_completion,
+						 timeout)) {
 			err = -ETIMEDOUT;
 			goto return_err;
 		}
@@ -1104,8 +1119,10 @@ static int zynqmp_qspi_exec_op(struct spi_mem *mem,
 				   GQSPI_IER_TXEMPTY_MASK |
 				   GQSPI_IER_GENFIFOEMPTY_MASK |
 				   GQSPI_IER_TXNOT_FULL_MASK);
-		if (!wait_for_completion_timeout
-		    (&xqspi->data_completion, msecs_to_jiffies(1000))) {
+		timeout = zynqmp_qspi_timeout(xqspi, op->addr.buswidth,
+					      op->addr.nbytes);
+		if (!wait_for_completion_timeout(&xqspi->data_completion,
+						 timeout)) {
 			err = -ETIMEDOUT;
 			goto return_err;
 		}
@@ -1173,8 +1190,9 @@ static int zynqmp_qspi_exec_op(struct spi_mem *mem,
 						   GQSPI_IER_RXEMPTY_MASK);
 			}
 		}
-		if (!wait_for_completion_timeout
-		    (&xqspi->data_completion, msecs_to_jiffies(1000)))
+		timeout = zynqmp_qspi_timeout(xqspi, op->data.buswidth,
+					      op->data.nbytes);
+		if (!wait_for_completion_timeout(&xqspi->data_completion, timeout))
 			err = -ETIMEDOUT;
 	}
 

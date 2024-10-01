@@ -412,7 +412,7 @@ static int stm32_pwm_enable(struct stm32_pwm *priv, unsigned int ch)
 	/* Enable channel */
 	mask = TIM_CCER_CCxE(ch + 1);
 	if (priv->have_complementary_output)
-		mask |= TIM_CCER_CCxNE(ch);
+		mask |= TIM_CCER_CCxNE(ch + 1);
 
 	regmap_set_bits(priv->regmap, TIM_CCER, mask);
 

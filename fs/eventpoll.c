@@ -420,7 +420,7 @@ static bool busy_loop_ep_timeout(unsigned long start_time,
 
 static bool ep_busy_loop_on(struct eventpoll *ep)
 {
-	return !!ep->busy_poll_usecs || net_busy_loop_on();
+	return !!READ_ONCE(ep->busy_poll_usecs) || net_busy_loop_on();
 }
 
 static bool ep_busy_loop_end(void *p, unsigned long start_time)
@@ -2200,11 +2200,6 @@ static int do_epoll_create(int flags)
 		error = PTR_ERR(file);
 		goto out_free_fd;
 	}
-#ifdef CONFIG_NET_RX_BUSY_POLL
-	ep->busy_poll_usecs = 0;
-	ep->busy_poll_budget = 0;
-	ep->prefer_busy_poll = false;
-#endif
 	ep->file = file;
 	fd_install(fd, file);
 	return fd;

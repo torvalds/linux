@@ -141,7 +141,7 @@ mt7615_tm_init(struct mt7615_phy *phy)
 	mt7615_mcu_set_sku_en(phy, phy->mt76->test.state == MT76_TM_STATE_OFF);
 
 	mutex_unlock(&dev->mt76.mutex);
-	mt7615_set_channel(phy);
+	mt76_update_channel(phy->mt76);
 	mt7615_ops.configure_filter(phy->mt76->hw, 0, &total_flags, 0);
 	mutex_lock(&dev->mt76.mutex);
 
