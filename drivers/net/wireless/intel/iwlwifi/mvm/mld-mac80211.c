@@ -331,37 +331,24 @@ __iwl_mvm_mld_assign_vif_chanctx(struct iwl_mvm *mvm,
 	if (ret)
 		goto out;
 
-	/* Initialize rate control for the AP station, since we might be
-	 * doing a link switch here - we cannot initialize it before since
-	 * this needs the phy context assigned (and in FW?), and we cannot
-	 * do it later because it needs to be initialized as soon as we're
-	 * able to TX on the link, i.e. when active.
+	/*
+	 * if link switching (link not active yet) we'll activate it in
+	 * firmware later on link-info change, which mac80211 guarantees
+	 * for link switch after the stations are set up
 	 */
-	if (mvmvif->ap_sta) {
-		struct ieee80211_link_sta *link_sta;
-
-		rcu_read_lock();
-		link_sta = rcu_dereference(mvmvif->ap_sta->link[link_id]);
-
-		if (!WARN_ON_ONCE(!link_sta))
-			iwl_mvm_rs_rate_init(mvm, vif, mvmvif->ap_sta,
-					     link_conf, link_sta,
-					     phy_ctxt->channel->band);
-		rcu_read_unlock();
+	if (ieee80211_vif_link_active(vif, link_conf->link_id)) {
+		ret = iwl_mvm_link_changed(mvm, vif, link_conf,
+					   LINK_CONTEXT_MODIFY_ACTIVE |
+					   LINK_CONTEXT_MODIFY_RATES_INFO,
+					   true);
+		if (ret)
+			goto out;
 	}
 
 	if (vif->type == NL80211_IFTYPE_STATION)
 		iwl_mvm_send_ap_tx_power_constraint_cmd(mvm, vif,
 							link_conf,
 							false);
-
-	/* then activate */
-	ret = iwl_mvm_link_changed(mvm, vif, link_conf,
-				   LINK_CONTEXT_MODIFY_ACTIVE |
-				   LINK_CONTEXT_MODIFY_RATES_INFO,
-				   true);
-	if (ret)
-		goto out;
 
 	/*
 	 * Power state must be updated before quotas,
@@ -774,6 +761,11 @@ iwl_mvm_mld_link_info_changed_station(struct iwl_mvm *mvm,
 
 	if (WARN_ON_ONCE(!mvmvif->link[link_conf->link_id]))
 		return;
+
+	/* not yet marked active in vif means during link switch */
+	if (!ieee80211_vif_link_active(vif, link_conf->link_id) &&
+	    vif->cfg.assoc && mvmvif->link[link_conf->link_id]->phy_ctxt)
+		link_changes |= LINK_CONTEXT_MODIFY_ACTIVE;
 
 	has_he = link_conf->he_support && !iwlwifi_mod_params.disable_11ax;
 	has_eht = link_conf->eht_support && !iwlwifi_mod_params.disable_11be;
