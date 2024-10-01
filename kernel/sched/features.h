@@ -19,7 +19,7 @@ SCHED_FEAT(PLACE_REL_DEADLINE, true)
  */
 SCHED_FEAT(RUN_TO_PARITY, true)
 /*
- * Allow wakeup of tasks with a shorter slice to cancel RESPECT_SLICE for
+ * Allow wakeup of tasks with a shorter slice to cancel RUN_TO_PARITY for
  * current.
  */
 SCHED_FEAT(PREEMPT_SHORT, true)
