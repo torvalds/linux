@@ -1,7 +1,7 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-2.0-only
 
-set -e
+set -ex
 
 # Detect files that are tracked but ignored by git. This is checked only when
 # ${KBUILD_EXTRA_WARN} contains 1, git is installed, and the source tree is

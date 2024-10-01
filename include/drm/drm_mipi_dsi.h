@@ -448,7 +448,7 @@ void mipi_dsi_dcs_set_tear_scanline_multi(struct mipi_dsi_multi_context *ctx,
  * @cmd: Command
  * @seq: buffer containing data to be transmitted
  */
-#define mipi_dsi_dcs_write_seq_multi(ctx, cmd, seq...)                  \
+/*#define mipi_dsi_dcs_write_seq_multi(ctx, cmd, seq...)                  \
 	do {                                                            \
 		static const u8 d[] = { cmd, seq };                     \
 		mipi_dsi_dcs_write_buffer_multi(ctx, d, ARRAY_SIZE(d)); \
@@ -469,7 +469,7 @@ void mipi_dsi_dcs_set_tear_scanline_multi(struct mipi_dsi_multi_context *ctx,
 					(end) >> 8, (end) & 0xff };     \
 		mipi_dsi_dcs_write_buffer_multi(ctx, d, ARRAY_SIZE(d)); \
 	} while (0)
-
+*/
 /**
  * mipi_dsi_dcs_write_long_multi - transmit a DCS long command with payload
  * @ctx: Context for multiple DSI transactions
