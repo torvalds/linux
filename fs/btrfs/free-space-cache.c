@@ -1457,8 +1457,7 @@ static int __btrfs_write_out_cache(struct inode *inode,
 	io_ctl_zero_remaining_pages(io_ctl);
 
 	/* Everything is written out, now we dirty the pages in the file. */
-	ret = btrfs_dirty_pages(BTRFS_I(inode), io_ctl->pages,
-				io_ctl->num_pages, 0, i_size_read(inode),
+	ret = btrfs_dirty_pages(BTRFS_I(inode), io_ctl->pages, 0, i_size_read(inode),
 				&cached_state, false);
 	if (ret)
 		goto out_nospc;

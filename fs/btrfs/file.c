@@ -124,12 +124,14 @@ static void btrfs_drop_pages(struct btrfs_fs_info *fs_info,
  * - Update inode size for past EOF write
  */
 int btrfs_dirty_pages(struct btrfs_inode *inode, struct page **pages,
-		      size_t num_pages, loff_t pos, size_t write_bytes,
+		      loff_t pos, size_t write_bytes,
 		      struct extent_state **cached, bool noreserve)
 {
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 	int ret = 0;
 	int i;
+	const int num_pages = (round_up(pos + write_bytes, PAGE_SIZE) -
+			       round_down(pos, PAGE_SIZE)) >> PAGE_SHIFT;
 	u64 num_bytes;
 	u64 start_pos;
 	u64 end_of_last_block;
@@ -1242,7 +1244,6 @@ ssize_t btrfs_buffered_write(struct kiocb *iocb, struct iov_iter *i)
 					 offset);
 		size_t num_pages;
 		size_t reserve_bytes;
-		size_t dirty_pages;
 		size_t copied;
 		size_t dirty_sectors;
 		size_t num_sectors;
@@ -1361,11 +1362,8 @@ again:
 		if (copied == 0) {
 			force_page_uptodate = true;
 			dirty_sectors = 0;
-			dirty_pages = 0;
 		} else {
 			force_page_uptodate = false;
-			dirty_pages = DIV_ROUND_UP(copied + offset,
-						   PAGE_SIZE);
 		}
 
 		if (num_sectors > dirty_sectors) {
@@ -1375,13 +1373,10 @@ again:
 				btrfs_delalloc_release_metadata(BTRFS_I(inode),
 							release_bytes, true);
 			} else {
-				u64 __pos;
-
-				__pos = round_down(pos,
-						   fs_info->sectorsize) +
-					(dirty_pages << PAGE_SHIFT);
+				u64 release_start = round_up(pos + copied,
+							     fs_info->sectorsize);
 				btrfs_delalloc_release_space(BTRFS_I(inode),
-						data_reserved, __pos,
+						data_reserved, release_start,
 						release_bytes, true);
 			}
 		}
@@ -1390,7 +1385,7 @@ again:
 					fs_info->sectorsize);
 
 		ret = btrfs_dirty_pages(BTRFS_I(inode), pages,
-					dirty_pages, pos, copied,
+					pos, copied,
 					&cached_state, only_release_metadata);
 
 		/*
