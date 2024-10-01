@@ -80,7 +80,7 @@ const struct rpc_program nfs_program = {
 	.pipe_dir_name		= NFS_PIPE_DIRNAME,
 };
 
-static struct nfs_subversion *find_nfs_version(unsigned int version)
+static struct nfs_subversion *__find_nfs_version(unsigned int version)
 {
 	struct nfs_subversion *nfs;
 
@@ -93,13 +93,13 @@ static struct nfs_subversion *find_nfs_version(unsigned int version)
 	return nfs;
 }
 
-struct nfs_subversion *get_nfs_version(unsigned int version)
+struct nfs_subversion *find_nfs_version(unsigned int version)
 {
-	struct nfs_subversion *nfs = find_nfs_version(version);
+	struct nfs_subversion *nfs = __find_nfs_version(version);
 
 	if (IS_ERR(nfs)) {
 		request_module("nfsv%d", version);
-		nfs = find_nfs_version(version);
+		nfs = __find_nfs_version(version);
 	}
 
 	if (!IS_ERR(nfs) && !try_module_get(nfs->owner))

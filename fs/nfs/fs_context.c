@@ -1467,7 +1467,7 @@ static int nfs_fs_context_validate(struct fs_context *fc)
 
 	/* Load the NFS protocol module if we haven't done so yet */
 	if (!ctx->nfs_mod) {
-		nfs_mod = get_nfs_version(ctx->version);
+		nfs_mod = find_nfs_version(ctx->version);
 		if (IS_ERR(nfs_mod)) {
 			ret = PTR_ERR(nfs_mod);
 			goto out_version_unavailable;

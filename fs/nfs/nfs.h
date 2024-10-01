@@ -21,7 +21,7 @@ struct nfs_subversion {
 	const struct xattr_handler * const *xattr;	/* NFS xattr handlers */
 };
 
-struct nfs_subversion *get_nfs_version(unsigned int);
+struct nfs_subversion *find_nfs_version(unsigned int);
 void put_nfs_version(struct nfs_subversion *);
 void register_nfs_version(struct nfs_subversion *);
 void unregister_nfs_version(struct nfs_subversion *);
