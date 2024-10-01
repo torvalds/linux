@@ -482,6 +482,13 @@ static int reattach_inode(struct btree_trans *trans, struct bch_inode_unpacked *
 	return ret;
 }
 
+static struct bkey_s_c_dirent dirent_get_by_pos(struct btree_trans *trans,
+						struct btree_iter *iter,
+						struct bpos pos)
+{
+	return bch2_bkey_get_iter_typed(trans, iter, BTREE_ID_dirents, pos, 0, dirent);
+}
+
 static int remove_backpointer(struct btree_trans *trans,
 			      struct bch_inode_unpacked *inode)
 {
@@ -490,13 +497,11 @@ static int remove_backpointer(struct btree_trans *trans,
 
 	struct bch_fs *c = trans->c;
 	struct btree_iter iter;
-	struct bkey_s_c_dirent d =
-		bch2_bkey_get_iter_typed(trans, &iter, BTREE_ID_dirents,
-				     SPOS(inode->bi_dir, inode->bi_dir_offset, inode->bi_snapshot), 0,
-				     dirent);
-	int ret =   bkey_err(d) ?:
-		dirent_points_to_inode(c, d, inode) ?:
-		__remove_dirent(trans, d.k->p);
+	struct bkey_s_c_dirent d = dirent_get_by_pos(trans, &iter,
+				     SPOS(inode->bi_dir, inode->bi_dir_offset, inode->bi_snapshot));
+	int ret = bkey_err(d) ?:
+		  dirent_points_to_inode(c, d, inode) ?:
+		  __remove_dirent(trans, d.k->p);
 	bch2_trans_iter_exit(trans, &iter);
 	return ret;
 }
@@ -1164,13 +1169,6 @@ duplicate_entries:
 	ret = bch2_trans_commit(trans, NULL, NULL, 0) ?:
 		-BCH_ERR_transaction_restart_nested;
 	goto out;
-}
-
-static struct bkey_s_c_dirent dirent_get_by_pos(struct btree_trans *trans,
-						struct btree_iter *iter,
-						struct bpos pos)
-{
-	return bch2_bkey_get_iter_typed(trans, iter, BTREE_ID_dirents, pos, 0, dirent);
 }
 
 static struct bkey_s_c_dirent inode_get_dirent(struct btree_trans *trans,
