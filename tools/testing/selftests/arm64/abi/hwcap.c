@@ -98,6 +98,17 @@ static void fpmr_sigill(void)
 	asm volatile("mrs x0, S3_3_C4_C4_2" : : : "x0");
 }
 
+static void gcs_sigill(void)
+{
+	unsigned long *gcspr;
+
+	asm volatile(
+		"mrs	%0, S3_3_C2_C5_1"
+	: "=r" (gcspr)
+	:
+	: "cc");
+}
+
 static void ilrcpc_sigill(void)
 {
 	/* LDAPUR W0, [SP, #8] */
@@ -532,6 +543,14 @@ static const struct hwcap_data {
 		.hwcap_bit = HWCAP2_FPMR,
 		.cpuinfo = "fpmr",
 		.sigill_fn = fpmr_sigill,
+		.sigill_reliable = true,
+	},
+	{
+		.name = "GCS",
+		.at_hwcap = AT_HWCAP,
+		.hwcap_bit = HWCAP_GCS,
+		.cpuinfo = "gcs",
+		.sigill_fn = gcs_sigill,
 		.sigill_reliable = true,
 	},
 	{
