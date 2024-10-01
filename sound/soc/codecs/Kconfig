@@ -2565,6 +2565,19 @@ config SND_SOC_NAU8825
 	tristate
 	depends on I2C
 
+config SND_SOC_NTPFW
+	tristate
+
+config SND_SOC_NTP8918
+	select SND_SOC_NTPFW
+	tristate "NeoFidelity NTP8918 amplifier"
+	depends on I2C
+
+config SND_SOC_NTP8835
+	select SND_SOC_NTPFW
+	tristate "NeoFidelity NTP8835 and NTP8835C amplifiers"
+	depends on I2C
+
 config SND_SOC_TPA6130A2
 	tristate "Texas Instruments TPA6130A2 headphone amplifier"
 	depends on I2C
