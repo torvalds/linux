@@ -53,7 +53,7 @@
 #define STM_SAI_PROTOCOL_IS_SPDIF(ip)	((ip)->spdif)
 #define STM_SAI_HAS_SPDIF(x)	((x)->pdata->conf.has_spdif_pdm)
 #define STM_SAI_HAS_PDM(x)	((x)->pdata->conf.has_spdif_pdm)
-#define STM_SAI_HAS_EXT_SYNC(x) (!STM_SAI_IS_F4(sai->pdata))
+#define STM_SAI_HAS_EXT_SYNC(x) (!STM_SAI_IS_F4((x)->pdata))
 
 #define SAI_IEC60958_BLOCK_FRAMES	192
 #define SAI_IEC60958_STATUS_BYTES	24
