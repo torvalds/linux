@@ -115,8 +115,8 @@ enum bch_fsck_flags {
 	x(alloc_key_data_type_inconsistency,			101,	0)		\
 	x(alloc_key_to_missing_dev_bucket,			102,	0)		\
 	x(alloc_key_cached_inconsistency,			103,	0)		\
-	x(alloc_key_cached_but_read_time_zero,			104,	0)		\
-	x(alloc_key_to_missing_lru_entry,			105,	0)		\
+	x(alloc_key_cached_but_read_time_zero,			104,	FSCK_AUTOFIX)	\
+	x(alloc_key_to_missing_lru_entry,			105,	FSCK_AUTOFIX)	\
 	x(alloc_key_data_type_wrong,				106,	FSCK_AUTOFIX)	\
 	x(alloc_key_gen_wrong,					107,	FSCK_AUTOFIX)	\
 	x(alloc_key_dirty_sectors_wrong,			108,	FSCK_AUTOFIX)	\

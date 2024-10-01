@@ -133,7 +133,9 @@ static int bch2_check_lru_key(struct btree_trans *trans,
 	u64 idx;
 	int ret;
 
-	if (fsck_err_on(!bch2_dev_bucket_exists(c, alloc_pos),
+	struct bch_dev *ca = bch2_dev_bucket_tryget_noerror(c, alloc_pos);
+
+	if (fsck_err_on(!ca,
 			trans, lru_entry_to_invalid_bucket,
 			"lru key points to nonexistent device:bucket %llu:%llu",
 			alloc_pos.inode, alloc_pos.offset))
@@ -151,7 +153,7 @@ static int bch2_check_lru_key(struct btree_trans *trans,
 		idx = alloc_lru_idx_read(*a);
 		break;
 	case BCH_LRU_fragmentation:
-		idx = a->fragmentation_lru;
+		idx = alloc_lru_idx_fragmentation(*a, ca);
 		break;
 	}
 
@@ -174,6 +176,7 @@ static int bch2_check_lru_key(struct btree_trans *trans,
 err:
 fsck_err:
 	bch2_trans_iter_exit(trans, &iter);
+	bch2_dev_put(ca);
 	printbuf_exit(&buf2);
 	printbuf_exit(&buf1);
 	return ret;
