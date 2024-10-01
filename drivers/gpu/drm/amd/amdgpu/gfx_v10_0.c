@@ -7366,10 +7366,10 @@ static void gfx_v10_0_disable_gpa_mode(struct amdgpu_device *adev)
 	WREG32_SOC15(GC, 0, mmCPG_PSP_DEBUG, data);
 }
 
-static int gfx_v10_0_hw_init(void *handle)
+static int gfx_v10_0_hw_init(struct amdgpu_ip_block *ip_block)
 {
 	int r;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	if (!amdgpu_emu_mode)
 		gfx_v10_0_init_golden_registers(adev);
@@ -7465,7 +7465,7 @@ static int gfx_v10_0_suspend(struct amdgpu_ip_block *ip_block)
 
 static int gfx_v10_0_resume(struct amdgpu_ip_block *ip_block)
 {
-	return gfx_v10_0_hw_init(ip_block->adev);
+	return gfx_v10_0_hw_init(ip_block);
 }
 
 static bool gfx_v10_0_is_idle(void *handle)

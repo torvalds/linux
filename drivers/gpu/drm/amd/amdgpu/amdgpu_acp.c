@@ -222,7 +222,7 @@ static const struct dmi_system_id acp_quirk_table[] = {
  * @handle: handle used to pass amdgpu_device pointer
  *
  */
-static int acp_hw_init(void *handle)
+static int acp_hw_init(struct amdgpu_ip_block *ip_block)
 {
 	int r;
 	u64 acp_base;
@@ -230,13 +230,7 @@ static int acp_hw_init(void *handle)
 	u32 count = 0;
 	struct i2s_platform_data *i2s_pdata = NULL;
 
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-
-	const struct amdgpu_ip_block *ip_block =
-		amdgpu_device_ip_get_ip_block(adev, AMD_IP_BLOCK_TYPE_ACP);
-
-	if (!ip_block)
-		return -EINVAL;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	r = amd_acp_hw_init(adev->acp.cgs_device,
 			    ip_block->version->major, ip_block->version->minor);

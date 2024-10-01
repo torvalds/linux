@@ -142,9 +142,9 @@ static int jpeg_v3_0_sw_fini(struct amdgpu_ip_block *ip_block)
  * @handle: amdgpu_device pointer
  *
  */
-static int jpeg_v3_0_hw_init(void *handle)
+static int jpeg_v3_0_hw_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	struct amdgpu_ring *ring = adev->jpeg.inst->ring_dec;
 
 	adev->nbio.funcs->vcn_doorbell_range(adev, ring->use_doorbell,
@@ -203,14 +203,13 @@ static int jpeg_v3_0_suspend(struct amdgpu_ip_block *ip_block)
  */
 static int jpeg_v3_0_resume(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = ip_block->adev;
 	int r;
 
-	r = amdgpu_jpeg_resume(adev);
+	r = amdgpu_jpeg_resume(ip_block->adev);
 	if (r)
 		return r;
 
-	r = jpeg_v3_0_hw_init(adev);
+	r = jpeg_v3_0_hw_init(ip_block);
 
 	return r;
 }

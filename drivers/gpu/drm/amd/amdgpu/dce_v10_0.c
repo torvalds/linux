@@ -2862,10 +2862,10 @@ static int dce_v10_0_sw_fini(struct amdgpu_ip_block *ip_block)
 	return 0;
 }
 
-static int dce_v10_0_hw_init(void *handle)
+static int dce_v10_0_hw_init(struct amdgpu_ip_block *ip_block)
 {
 	int i;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	dce_v10_0_init_golden_registers(adev);
 
@@ -2928,7 +2928,7 @@ static int dce_v10_0_resume(struct amdgpu_ip_block *ip_block)
 	amdgpu_atombios_encoder_set_backlight_level_to_reg(adev,
 							   adev->mode_info.bl_level);
 
-	ret = dce_v10_0_hw_init(adev);
+	ret = dce_v10_0_hw_init(ip_block);
 
 	/* turn on the BL */
 	if (adev->mode_info.bl_encoder) {

@@ -265,9 +265,9 @@ static int vcn_v4_0_5_sw_fini(struct amdgpu_ip_block *ip_block)
  *
  * Initialize the hardware, boot up the VCPU and do some testing
  */
-static int vcn_v4_0_5_hw_init(void *handle)
+static int vcn_v4_0_5_hw_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	struct amdgpu_ring *ring;
 	int i, r;
 
@@ -348,13 +348,12 @@ static int vcn_v4_0_5_suspend(struct amdgpu_ip_block *ip_block)
 static int vcn_v4_0_5_resume(struct amdgpu_ip_block *ip_block)
 {
 	int r;
-	struct amdgpu_device *adev = ip_block->adev;
 
-	r = amdgpu_vcn_resume(adev);
+	r = amdgpu_vcn_resume(ip_block->adev);
 	if (r)
 		return r;
 
-	r = vcn_v4_0_5_hw_init(adev);
+	r = vcn_v4_0_5_hw_init(ip_block);
 
 	return r;
 }

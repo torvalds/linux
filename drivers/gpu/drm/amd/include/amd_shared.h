@@ -384,7 +384,7 @@ struct amd_ip_funcs {
 	int (*sw_init)(struct amdgpu_ip_block *ip_block);
 	int (*sw_fini)(struct amdgpu_ip_block *ip_block);
 	int (*early_fini)(struct amdgpu_ip_block *ip_block);
-	int (*hw_init)(void *handle);
+	int (*hw_init)(struct amdgpu_ip_block *ip_block);
 	int (*hw_fini)(void *handle);
 	void (*late_fini)(struct amdgpu_ip_block *ip_block);
 	int (*prepare_suspend)(struct amdgpu_ip_block *ip_block);

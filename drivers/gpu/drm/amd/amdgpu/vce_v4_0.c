@@ -513,10 +513,10 @@ static int vce_v4_0_sw_fini(struct amdgpu_ip_block *ip_block)
 	return amdgpu_vce_sw_fini(adev);
 }
 
-static int vce_v4_0_hw_init(void *handle)
+static int vce_v4_0_hw_init(struct amdgpu_ip_block *ip_block)
 {
 	int r, i;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	if (amdgpu_sriov_vf(adev))
 		r = vce_v4_0_sriov_start(adev);
@@ -629,7 +629,7 @@ static int vce_v4_0_resume(struct amdgpu_ip_block *ip_block)
 			return r;
 	}
 
-	return vce_v4_0_hw_init(adev);
+	return vce_v4_0_hw_init(ip_block);
 }
 
 static void vce_v4_0_mc_resume(struct amdgpu_device *adev)

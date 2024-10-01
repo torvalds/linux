@@ -988,9 +988,9 @@ static int nv_common_sw_fini(struct amdgpu_ip_block *ip_block)
 	return 0;
 }
 
-static int nv_common_hw_init(void *handle)
+static int nv_common_hw_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	if (adev->nbio.funcs->apply_lc_spc_mode_wa)
 		adev->nbio.funcs->apply_lc_spc_mode_wa(adev);
@@ -1038,9 +1038,7 @@ static int nv_common_suspend(struct amdgpu_ip_block *ip_block)
 
 static int nv_common_resume(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = ip_block->adev;
-
-	return nv_common_hw_init(adev);
+	return nv_common_hw_init(ip_block);
 }
 
 static bool nv_common_is_idle(void *handle)

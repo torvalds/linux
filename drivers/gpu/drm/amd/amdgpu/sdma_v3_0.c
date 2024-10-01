@@ -1164,10 +1164,10 @@ static int sdma_v3_0_sw_fini(struct amdgpu_ip_block *ip_block)
 	return 0;
 }
 
-static int sdma_v3_0_hw_init(void *handle)
+static int sdma_v3_0_hw_init(struct amdgpu_ip_block *ip_block)
 {
 	int r;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	sdma_v3_0_init_golden_registers(adev);
 
@@ -1197,9 +1197,7 @@ static int sdma_v3_0_suspend(struct amdgpu_ip_block *ip_block)
 
 static int sdma_v3_0_resume(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = ip_block->adev;
-
-	return sdma_v3_0_hw_init(adev);
+	return sdma_v3_0_hw_init(ip_block);
 }
 
 static bool sdma_v3_0_is_idle(void *handle)

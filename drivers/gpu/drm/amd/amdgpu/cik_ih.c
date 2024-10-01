@@ -321,9 +321,9 @@ static int cik_ih_sw_fini(struct amdgpu_ip_block *ip_block)
 	return 0;
 }
 
-static int cik_ih_hw_init(void *handle)
+static int cik_ih_hw_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	return cik_ih_irq_init(adev);
 }
@@ -346,9 +346,7 @@ static int cik_ih_suspend(struct amdgpu_ip_block *ip_block)
 
 static int cik_ih_resume(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = ip_block->adev;
-
-	return cik_ih_hw_init(adev);
+	return cik_ih_hw_init(ip_block);
 }
 
 static bool cik_ih_is_idle(void *handle)

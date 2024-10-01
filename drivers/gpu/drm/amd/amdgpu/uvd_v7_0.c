@@ -514,9 +514,9 @@ static int uvd_v7_0_sw_fini(struct amdgpu_ip_block *ip_block)
  *
  * Initialize the hardware, boot up the VCPU and do some testing
  */
-static int uvd_v7_0_hw_init(void *handle)
+static int uvd_v7_0_hw_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	struct amdgpu_ring *ring;
 	uint32_t tmp;
 	int i, j, r;
@@ -654,13 +654,12 @@ static int uvd_v7_0_suspend(struct amdgpu_ip_block *ip_block)
 static int uvd_v7_0_resume(struct amdgpu_ip_block *ip_block)
 {
 	int r;
-	struct amdgpu_device *adev = ip_block->adev;
 
-	r = amdgpu_uvd_resume(adev);
+	r = amdgpu_uvd_resume(ip_block->adev);
 	if (r)
 		return r;
 
-	return uvd_v7_0_hw_init(adev);
+	return uvd_v7_0_hw_init(ip_block);
 }
 
 /**

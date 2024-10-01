@@ -4783,10 +4783,10 @@ static void gfx_v8_0_cp_enable(struct amdgpu_device *adev, bool enable)
 	gfx_v8_0_cp_compute_enable(adev, enable);
 }
 
-static int gfx_v8_0_hw_init(void *handle)
+static int gfx_v8_0_hw_init(struct amdgpu_ip_block *ip_block)
 {
 	int r;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	gfx_v8_0_init_golden_registers(adev);
 	gfx_v8_0_constants_init(adev);
@@ -4926,7 +4926,7 @@ static int gfx_v8_0_suspend(struct amdgpu_ip_block *ip_block)
 
 static int gfx_v8_0_resume(struct amdgpu_ip_block *ip_block)
 {
-	return gfx_v8_0_hw_init(ip_block->adev);
+	return gfx_v8_0_hw_init(ip_block);
 }
 
 static bool gfx_v8_0_check_soft_reset(struct amdgpu_ip_block *ip_block)

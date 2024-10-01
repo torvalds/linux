@@ -847,9 +847,9 @@ static int soc21_common_sw_fini(struct amdgpu_ip_block *ip_block)
 	return 0;
 }
 
-static int soc21_common_hw_init(void *handle)
+static int soc21_common_hw_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	/* enable aspm */
 	soc21_program_aspm(adev);
@@ -926,7 +926,7 @@ static int soc21_common_resume(struct amdgpu_ip_block *ip_block)
 		soc21_asic_reset(adev);
 	}
 
-	return soc21_common_hw_init(adev);
+	return soc21_common_hw_init(ip_block);
 }
 
 static bool soc21_common_is_idle(void *handle)

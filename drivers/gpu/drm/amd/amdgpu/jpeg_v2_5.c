@@ -177,9 +177,9 @@ static int jpeg_v2_5_sw_fini(struct amdgpu_ip_block *ip_block)
  * @handle: amdgpu_device pointer
  *
  */
-static int jpeg_v2_5_hw_init(void *handle)
+static int jpeg_v2_5_hw_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	struct amdgpu_ring *ring;
 	int i, r;
 
@@ -258,14 +258,13 @@ static int jpeg_v2_5_suspend(struct amdgpu_ip_block *ip_block)
  */
 static int jpeg_v2_5_resume(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = ip_block->adev;
 	int r;
 
-	r = amdgpu_jpeg_resume(adev);
+	r = amdgpu_jpeg_resume(ip_block->adev);
 	if (r)
 		return r;
 
-	r = jpeg_v2_5_hw_init(adev);
+	r = jpeg_v2_5_hw_init(ip_block);
 
 	return r;
 }

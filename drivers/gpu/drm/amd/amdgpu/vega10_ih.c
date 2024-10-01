@@ -534,11 +534,9 @@ static int vega10_ih_sw_fini(struct amdgpu_ip_block *ip_block)
 	return 0;
 }
 
-static int vega10_ih_hw_init(void *handle)
+static int vega10_ih_hw_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-
-	return vega10_ih_irq_init(adev);
+	return vega10_ih_irq_init(ip_block->adev);
 }
 
 static int vega10_ih_hw_fini(void *handle)
@@ -559,9 +557,7 @@ static int vega10_ih_suspend(struct amdgpu_ip_block *ip_block)
 
 static int vega10_ih_resume(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = ip_block->adev;
-
-	return vega10_ih_hw_init(adev);
+	return vega10_ih_hw_init(ip_block);
 }
 
 static bool vega10_ih_is_idle(void *handle)

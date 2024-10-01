@@ -302,9 +302,9 @@ static int jpeg_v4_0_3_start_sriov(struct amdgpu_device *adev)
  * @handle: amdgpu_device pointer
  *
  */
-static int jpeg_v4_0_3_hw_init(void *handle)
+static int jpeg_v4_0_3_hw_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	struct amdgpu_ring *ring;
 	int i, j, r, jpeg_inst;
 
@@ -407,14 +407,13 @@ static int jpeg_v4_0_3_suspend(struct amdgpu_ip_block *ip_block)
  */
 static int jpeg_v4_0_3_resume(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = ip_block->adev;
 	int r;
 
-	r = amdgpu_jpeg_resume(adev);
+	r = amdgpu_jpeg_resume(ip_block->adev);
 	if (r)
 		return r;
 
-	r = jpeg_v4_0_3_hw_init(adev);
+	r = jpeg_v4_0_3_hw_init(ip_block);
 
 	return r;
 }

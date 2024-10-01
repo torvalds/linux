@@ -462,10 +462,10 @@ static int vce_v2_0_sw_fini(struct amdgpu_ip_block *ip_block)
 	return amdgpu_vce_sw_fini(adev);
 }
 
-static int vce_v2_0_hw_init(void *handle)
+static int vce_v2_0_hw_init(struct amdgpu_ip_block *ip_block)
 {
 	int r, i;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	amdgpu_asic_set_vce_clocks(adev, 10000, 10000);
 	vce_v2_0_enable_mgcg(adev, true, false);
@@ -529,13 +529,12 @@ static int vce_v2_0_suspend(struct amdgpu_ip_block *ip_block)
 static int vce_v2_0_resume(struct amdgpu_ip_block *ip_block)
 {
 	int r;
-	struct amdgpu_device *adev = ip_block->adev;
 
-	r = amdgpu_vce_resume(adev);
+	r = amdgpu_vce_resume(ip_block->adev);
 	if (r)
 		return r;
 
-	return vce_v2_0_hw_init(adev);
+	return vce_v2_0_hw_init(ip_block);
 }
 
 static int vce_v2_0_soft_reset(struct amdgpu_ip_block *ip_block)

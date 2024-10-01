@@ -595,10 +595,10 @@ static int vega20_ih_sw_fini(struct amdgpu_ip_block *ip_block)
 	return 0;
 }
 
-static int vega20_ih_hw_init(void *handle)
+static int vega20_ih_hw_init(struct amdgpu_ip_block *ip_block)
 {
 	int r;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	r = vega20_ih_irq_init(adev);
 	if (r)
@@ -625,9 +625,7 @@ static int vega20_ih_suspend(struct amdgpu_ip_block *ip_block)
 
 static int vega20_ih_resume(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = ip_block->adev;
-
-	return vega20_ih_hw_init(adev);
+	return vega20_ih_hw_init(ip_block);
 }
 
 static bool vega20_ih_is_idle(void *handle)

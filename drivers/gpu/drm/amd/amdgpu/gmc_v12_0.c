@@ -894,10 +894,10 @@ static int gmc_v12_0_gart_enable(struct amdgpu_device *adev)
 	return 0;
 }
 
-static int gmc_v12_0_hw_init(void *handle)
+static int gmc_v12_0_hw_init(struct amdgpu_ip_block *ip_block)
 {
 	int r;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	/* The sequence of these two function calls matters.*/
 	gmc_v12_0_init_golden_registers(adev);
@@ -957,13 +957,12 @@ static int gmc_v12_0_suspend(struct amdgpu_ip_block *ip_block)
 static int gmc_v12_0_resume(struct amdgpu_ip_block *ip_block)
 {
 	int r;
-	struct amdgpu_device *adev = ip_block->adev;
 
-	r = gmc_v12_0_hw_init(adev);
+	r = gmc_v12_0_hw_init(ip_block);
 	if (r)
 		return r;
 
-	amdgpu_vmid_reset_all(adev);
+	amdgpu_vmid_reset_all(ip_block->adev);
 
 	return 0;
 }

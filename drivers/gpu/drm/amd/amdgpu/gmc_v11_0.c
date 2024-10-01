@@ -908,9 +908,9 @@ static int gmc_v11_0_gart_enable(struct amdgpu_device *adev)
 	return 0;
 }
 
-static int gmc_v11_0_hw_init(void *handle)
+static int gmc_v11_0_hw_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	int r;
 
 	adev->gmc.flush_pasid_uses_kiq = !amdgpu_emu_mode;
@@ -973,13 +973,12 @@ static int gmc_v11_0_suspend(struct amdgpu_ip_block *ip_block)
 static int gmc_v11_0_resume(struct amdgpu_ip_block *ip_block)
 {
 	int r;
-	struct amdgpu_device *adev = ip_block->adev;
 
-	r = gmc_v11_0_hw_init(adev);
+	r = gmc_v11_0_hw_init(ip_block);
 	if (r)
 		return r;
 
-	amdgpu_vmid_reset_all(adev);
+	amdgpu_vmid_reset_all(ip_block->adev);
 
 	return 0;
 }

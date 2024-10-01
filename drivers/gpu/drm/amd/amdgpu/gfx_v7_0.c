@@ -4465,10 +4465,10 @@ static int gfx_v7_0_sw_fini(struct amdgpu_ip_block *ip_block)
 	return 0;
 }
 
-static int gfx_v7_0_hw_init(void *handle)
+static int gfx_v7_0_hw_init(struct amdgpu_ip_block *ip_block)
 {
 	int r;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	gfx_v7_0_constants_init(adev);
 
@@ -4508,9 +4508,7 @@ static int gfx_v7_0_suspend(struct amdgpu_ip_block *ip_block)
 
 static int gfx_v7_0_resume(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = ip_block->adev;
-
-	return gfx_v7_0_hw_init(adev);
+	return gfx_v7_0_hw_init(ip_block);
 }
 
 static bool gfx_v7_0_is_idle(void *handle)

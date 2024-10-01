@@ -398,9 +398,9 @@ static int vpe_sw_fini(struct amdgpu_ip_block *ip_block)
 	return 0;
 }
 
-static int vpe_hw_init(void *handle)
+static int vpe_hw_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	struct amdgpu_vpe *vpe = &adev->vpe;
 	int ret;
 
@@ -445,9 +445,7 @@ static int vpe_suspend(struct amdgpu_ip_block *ip_block)
 
 static int vpe_resume(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = ip_block->adev;
-
-	return vpe_hw_init(adev);
+	return vpe_hw_init(ip_block);
 }
 
 static void vpe_ring_insert_nop(struct amdgpu_ring *ring, uint32_t count)
