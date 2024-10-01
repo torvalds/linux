@@ -56,15 +56,17 @@ static int
 sdw_intel_scan_controller(struct sdw_intel_acpi_info *info)
 {
 	struct acpi_device *adev = acpi_fetch_acpi_dev(info->handle);
+	struct fwnode_handle *fwnode;
 	u8 count, i;
 	int ret;
 
 	if (!adev)
 		return -EINVAL;
 
+	fwnode = acpi_fwnode_handle(adev);
+
 	/* Found controller, find links supported */
-	ret = fwnode_property_read_u8_array(acpi_fwnode_handle(adev),
-					    "mipi-sdw-master-count", &count, 1);
+	ret = fwnode_property_read_u8_array(fwnode, "mipi-sdw-master-count", &count, 1);
 
 	/*
 	 * In theory we could check the number of links supported in
@@ -107,7 +109,7 @@ sdw_intel_scan_controller(struct sdw_intel_acpi_info *info)
 			continue;
 		}
 
-		if (!is_link_enabled(acpi_fwnode_handle(adev), i)) {
+		if (!is_link_enabled(fwnode, i)) {
 			dev_dbg(&adev->dev,
 				"Link %d not selected in firmware\n", i);
 			continue;
