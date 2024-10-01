@@ -19,7 +19,6 @@ struct nfs_subversion {
 	const struct nfs_rpc_ops *rpc_ops;	/* NFS operations */
 	const struct super_operations *sops;	/* NFS Super operations */
 	const struct xattr_handler * const *xattr;	/* NFS xattr handlers */
-	struct list_head list;		/* List of NFS versions */
 };
 
 struct nfs_subversion *get_nfs_version(unsigned int);

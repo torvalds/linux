@@ -56,7 +56,12 @@
 
 static DECLARE_WAIT_QUEUE_HEAD(nfs_client_active_wq);
 static DEFINE_RWLOCK(nfs_version_lock);
-static LIST_HEAD(nfs_versions);
+
+static struct nfs_subversion *nfs_version_mods[5] = {
+	[2] = NULL,
+	[3] = NULL,
+	[4] = NULL,
+};
 
 /*
  * RPC cruft for NFS
@@ -78,17 +83,14 @@ const struct rpc_program nfs_program = {
 static struct nfs_subversion *find_nfs_version(unsigned int version)
 {
 	struct nfs_subversion *nfs;
+
 	read_lock(&nfs_version_lock);
-
-	list_for_each_entry(nfs, &nfs_versions, list) {
-		if (nfs->rpc_ops->version == version) {
-			read_unlock(&nfs_version_lock);
-			return nfs;
-		}
-	}
-
+	nfs = nfs_version_mods[version];
 	read_unlock(&nfs_version_lock);
-	return ERR_PTR(-EPROTONOSUPPORT);
+
+	if (nfs == NULL)
+		return ERR_PTR(-EPROTONOSUPPORT);
+	return nfs;
 }
 
 struct nfs_subversion *get_nfs_version(unsigned int version)
@@ -114,7 +116,7 @@ void register_nfs_version(struct nfs_subversion *nfs)
 {
 	write_lock(&nfs_version_lock);
 
-	list_add(&nfs->list, &nfs_versions);
+	nfs_version_mods[nfs->rpc_ops->version] = nfs;
 	nfs_version[nfs->rpc_ops->version] = nfs->rpc_vers;
 
 	write_unlock(&nfs_version_lock);
@@ -126,7 +128,7 @@ void unregister_nfs_version(struct nfs_subversion *nfs)
 	write_lock(&nfs_version_lock);
 
 	nfs_version[nfs->rpc_ops->version] = NULL;
-	list_del(&nfs->list);
+	nfs_version_mods[nfs->rpc_ops->version] = NULL;
 
 	write_unlock(&nfs_version_lock);
 }
