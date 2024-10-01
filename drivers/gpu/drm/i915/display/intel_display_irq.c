@@ -1259,9 +1259,6 @@ void gen11_display_irq_handler(struct drm_i915_private *i915)
 	enable_rpm_wakeref_asserts(&i915->runtime_pm);
 }
 
-/* Called from drm generic code, passed 'crtc' which
- * we use as a pipe index
- */
 int i8xx_enable_vblank(struct drm_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->dev);
@@ -1394,9 +1391,6 @@ int bdw_enable_vblank(struct drm_crtc *_crtc)
 	return 0;
 }
 
-/* Called from drm generic code, passed 'crtc' which
- * we use as a pipe index
- */
 void i8xx_disable_vblank(struct drm_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->dev);
