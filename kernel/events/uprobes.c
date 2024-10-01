@@ -1641,28 +1641,19 @@ static unsigned long xol_get_slot_nr(struct xol_area *area)
 }
 
 /*
- *  - search for a free slot.
- */
-static unsigned long xol_take_insn_slot(struct xol_area *area)
-{
-	unsigned long slot_nr;
-
-	wait_event(area->wq, (slot_nr = xol_get_slot_nr(area)) < UINSNS_PER_PAGE);
-
-	return area->vaddr + slot_nr * UPROBE_XOL_SLOT_BYTES;
-}
-
-/*
  * xol_get_insn_slot - allocate a slot for xol.
  */
 static bool xol_get_insn_slot(struct uprobe *uprobe, struct uprobe_task *utask)
 {
 	struct xol_area *area = get_xol_area();
+	unsigned long slot_nr;
 
 	if (!area)
 		return false;
 
-	utask->xol_vaddr = xol_take_insn_slot(area);
+	wait_event(area->wq, (slot_nr = xol_get_slot_nr(area)) < UINSNS_PER_PAGE);
+
+	utask->xol_vaddr = area->vaddr + slot_nr * UPROBE_XOL_SLOT_BYTES;
 	arch_uprobe_copy_ixol(area->page, utask->xol_vaddr,
 			      &uprobe->arch.ixol, sizeof(uprobe->arch.ixol));
 	return true;
