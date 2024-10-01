@@ -80,7 +80,7 @@ struct aw9523 {
 	struct regmap *regmap;
 	struct mutex i2c_lock;
 	struct gpio_desc *reset_gpio;
-	struct regulator *vio_vreg;
+	int vio_vreg;
 	struct pinctrl_dev *pctl;
 	struct gpio_chip gpio;
 	struct aw9523_irq *irq;
@@ -972,16 +972,9 @@ static int aw9523_probe(struct i2c_client *client)
 	if (IS_ERR(awi->regmap))
 		return PTR_ERR(awi->regmap);
 
-	awi->vio_vreg = devm_regulator_get_optional(dev, "vio");
-	if (IS_ERR(awi->vio_vreg)) {
-		if (PTR_ERR(awi->vio_vreg) == -EPROBE_DEFER)
-			return -EPROBE_DEFER;
-		awi->vio_vreg = NULL;
-	} else {
-		ret = regulator_enable(awi->vio_vreg);
-		if (ret)
-			return ret;
-	}
+	awi->vio_vreg = devm_regulator_get_enable_optional(dev, "vio");
+	if (awi->vio_vreg && awi->vio_vreg != -ENODEV)
+		return awi->vio_vreg;
 
 	mutex_init(&awi->i2c_lock);
 	lockdep_set_subclass(&awi->i2c_lock, i2c_adapter_depth(client->adapter));
@@ -1025,8 +1018,6 @@ static int aw9523_probe(struct i2c_client *client)
 	return ret;
 
 err_disable_vregs:
-	if (awi->vio_vreg)
-		regulator_disable(awi->vio_vreg);
 	mutex_destroy(&awi->i2c_lock);
 	return ret;
 }
@@ -1041,9 +1032,7 @@ static void aw9523_remove(struct i2c_client *client)
 	 * set the pins to hardware defaults before removing the driver
 	 * to leave it in a clean, safe and predictable state.
 	 */
-	if (awi->vio_vreg) {
-		regulator_disable(awi->vio_vreg);
-	} else {
+	if (awi->vio_vreg == -ENODEV) {
 		mutex_lock(&awi->i2c_lock);
 		aw9523_hw_init(awi);
 		mutex_unlock(&awi->i2c_lock);
