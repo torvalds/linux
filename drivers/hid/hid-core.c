@@ -754,35 +754,32 @@ static const u8 *fetch_item(const __u8 *start, const __u8 *end, struct hid_item 
 	}
 
 	item->format = HID_ITEM_FORMAT_SHORT;
-	item->size = b & 3;
+	item->size = BIT(b & 3) >> 1; /* 0, 1, 2, 3 -> 0, 1, 2, 4 */
+
+	if (end - start < item->size)
+		return NULL;
 
 	switch (item->size) {
 	case 0:
-		return start;
+		break;
 
 	case 1:
-		if ((end - start) < 1)
-			return NULL;
-		item->data.u8 = *start++;
-		return start;
+		item->data.u8 = *start;
+		break;
 
 	case 2:
-		if ((end - start) < 2)
-			return NULL;
 		item->data.u16 = get_unaligned_le16(start);
-		start = (__u8 *)((__le16 *)start + 1);
-		return start;
+		break;
 
-	case 3:
-		item->size++;
-		if ((end - start) < 4)
-			return NULL;
+	case 4:
 		item->data.u32 = get_unaligned_le32(start);
-		start = (__u8 *)((__le32 *)start + 1);
-		return start;
+		break;
+
+	default:
+		unreachable();
 	}
 
-	return NULL;
+	return start + item->size;
 }
 
 static void hid_scan_input_usage(struct hid_parser *parser, u32 usage)
