@@ -7155,13 +7155,17 @@ static void __vmx_complete_interrupts(struct kvm_vcpu *vcpu,
 	case INTR_TYPE_SOFT_EXCEPTION:
 		vcpu->arch.event_exit_inst_len = vmcs_read32(instr_len_field);
 		fallthrough;
-	case INTR_TYPE_HARD_EXCEPTION:
-		if (idt_vectoring_info & VECTORING_INFO_DELIVER_CODE_MASK) {
-			u32 err = vmcs_read32(error_code_field);
-			kvm_requeue_exception_e(vcpu, vector, err);
-		} else
-			kvm_requeue_exception(vcpu, vector);
+	case INTR_TYPE_HARD_EXCEPTION: {
+		u32 error_code = 0;
+
+		if (idt_vectoring_info & VECTORING_INFO_DELIVER_CODE_MASK)
+			error_code = vmcs_read32(error_code_field);
+
+		kvm_requeue_exception(vcpu, vector,
+				      idt_vectoring_info & VECTORING_INFO_DELIVER_CODE_MASK,
+				      error_code);
 		break;
+	}
 	case INTR_TYPE_SOFT_INTR:
 		vcpu->arch.event_exit_inst_len = vmcs_read32(instr_len_field);
 		fallthrough;

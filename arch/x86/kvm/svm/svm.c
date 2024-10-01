@@ -4116,20 +4116,23 @@ static void svm_complete_interrupts(struct kvm_vcpu *vcpu)
 		vcpu->arch.nmi_injected = true;
 		svm->nmi_l1_to_l2 = nmi_l1_to_l2;
 		break;
-	case SVM_EXITINTINFO_TYPE_EXEPT:
+	case SVM_EXITINTINFO_TYPE_EXEPT: {
+		u32 error_code = 0;
+
 		/*
 		 * Never re-inject a #VC exception.
 		 */
 		if (vector == X86_TRAP_VC)
 			break;
 
-		if (exitintinfo & SVM_EXITINTINFO_VALID_ERR) {
-			u32 err = svm->vmcb->control.exit_int_info_err;
-			kvm_requeue_exception_e(vcpu, vector, err);
+		if (exitintinfo & SVM_EXITINTINFO_VALID_ERR)
+			error_code = svm->vmcb->control.exit_int_info_err;
 
-		} else
-			kvm_requeue_exception(vcpu, vector);
+		kvm_requeue_exception(vcpu, vector,
+				      exitintinfo & SVM_EXITINTINFO_VALID_ERR,
+				      error_code);
 		break;
+	}
 	case SVM_EXITINTINFO_TYPE_INTR:
 		kvm_queue_interrupt(vcpu, vector, false);
 		break;
