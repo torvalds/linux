@@ -275,7 +275,7 @@ static struct mlx5_fc *mlx5_fc_acquire(struct mlx5_core_dev *dev, bool aging)
 	return mlx5_fc_single_alloc(dev);
 }
 
-struct mlx5_fc *mlx5_fc_create_ex(struct mlx5_core_dev *dev, bool aging)
+struct mlx5_fc *mlx5_fc_create(struct mlx5_core_dev *dev, bool aging)
 {
 	struct mlx5_fc *counter = mlx5_fc_acquire(dev, aging);
 	struct mlx5_fc_stats *fc_stats = dev->priv.fc_stats;
@@ -303,11 +303,6 @@ struct mlx5_fc *mlx5_fc_create_ex(struct mlx5_core_dev *dev, bool aging)
 err_out_alloc:
 	mlx5_fc_release(dev, counter);
 	return ERR_PTR(err);
-}
-
-struct mlx5_fc *mlx5_fc_create(struct mlx5_core_dev *dev, bool aging)
-{
-	return mlx5_fc_create_ex(dev, aging);
 }
 EXPORT_SYMBOL(mlx5_fc_create);
 
