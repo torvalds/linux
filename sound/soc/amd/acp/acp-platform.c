@@ -143,9 +143,6 @@ static irqreturn_t i2s_irq_handler(int irq, void *data)
 	u16 i2s_flag = 0;
 	u32 ext_intr_stat, ext_intr_stat1;
 
-	if (!adata)
-		return IRQ_NONE;
-
 	if (adata->rsrc->no_of_ctrls == 2)
 		ext_intr_stat1 = readl(ACP_EXTERNAL_INTR_STAT(adata, (rsrc->irqp_used - 1)));
 
