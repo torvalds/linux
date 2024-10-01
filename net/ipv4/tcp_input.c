@@ -2522,6 +2522,16 @@ static bool tcp_any_retrans_done(const struct sock *sk)
 	return false;
 }
 
+/* If loss recovery is finished and there are no retransmits out in the
+ * network, then we clear retrans_stamp so that upon the next loss recovery
+ * retransmits_timed_out() and timestamp-undo are using the correct value.
+ */
+static void tcp_retrans_stamp_cleanup(struct sock *sk)
+{
+	if (!tcp_any_retrans_done(sk))
+		tcp_sk(sk)->retrans_stamp = 0;
+}
+
 static void DBGUNDO(struct sock *sk, const char *msg)
 {
 #if FASTRETRANS_DEBUG > 1
@@ -2888,6 +2898,9 @@ void tcp_enter_recovery(struct sock *sk, bool ece_ack)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	int mib_idx;
+
+	/* Start the clock with our fast retransmit, for undo and ETIMEDOUT. */
+	tcp_retrans_stamp_cleanup(sk);
 
 	if (tcp_is_reno(tp))
 		mib_idx = LINUX_MIB_TCPRENORECOVERY;
