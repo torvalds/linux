@@ -10241,10 +10241,6 @@ static u32 xdp_convert_ctx_access(enum bpf_access_type type,
 		}							       \
 	} while (0)
 
-#define SOCK_ADDR_LOAD_OR_STORE_NESTED_FIELD(S, NS, F, NF, TF)		       \
-	SOCK_ADDR_LOAD_OR_STORE_NESTED_FIELD_SIZE_OFF(			       \
-		S, NS, F, NF, BPF_FIELD_SIZEOF(NS, NF), 0, TF)
-
 static u32 sock_addr_convert_ctx_access(enum bpf_access_type type,
 					const struct bpf_insn *si,
 					struct bpf_insn *insn_buf,
