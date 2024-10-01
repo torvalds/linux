@@ -410,6 +410,12 @@ static int __must_check zswap_pool_tryget(struct zswap_pool *pool)
 	return percpu_ref_tryget(&pool->ref);
 }
 
+/* The caller must already have a reference. */
+static void zswap_pool_get(struct zswap_pool *pool)
+{
+	percpu_ref_get(&pool->ref);
+}
+
 static void zswap_pool_put(struct zswap_pool *pool)
 {
 	percpu_ref_put(&pool->ref);
@@ -1403,68 +1409,38 @@ resched:
 /*********************************
 * main API
 **********************************/
-bool zswap_store(struct folio *folio)
+
+static ssize_t zswap_store_page(struct page *page,
+				struct obj_cgroup *objcg,
+				struct zswap_pool *pool)
 {
-	swp_entry_t swp = folio->swap;
-	pgoff_t offset = swp_offset(swp);
-	struct xarray *tree = swap_zswap_tree(swp);
 	struct zswap_entry *entry, *old;
-	struct obj_cgroup *objcg = NULL;
-	struct mem_cgroup *memcg = NULL;
-
-	VM_WARN_ON_ONCE(!folio_test_locked(folio));
-	VM_WARN_ON_ONCE(!folio_test_swapcache(folio));
-
-	/* Large folios aren't supported */
-	if (folio_test_large(folio))
-		return false;
-
-	if (!zswap_enabled)
-		goto check_old;
-
-	/* Check cgroup limits */
-	objcg = get_obj_cgroup_from_folio(folio);
-	if (objcg && !obj_cgroup_may_zswap(objcg)) {
-		memcg = get_mem_cgroup_from_objcg(objcg);
-		if (shrink_memcg(memcg)) {
-			mem_cgroup_put(memcg);
-			goto reject;
-		}
-		mem_cgroup_put(memcg);
-	}
-
-	if (zswap_check_limits())
-		goto reject;
 
 	/* allocate entry */
-	entry = zswap_entry_cache_alloc(GFP_KERNEL, folio_nid(folio));
+	entry = zswap_entry_cache_alloc(GFP_KERNEL, page_to_nid(page));
 	if (!entry) {
 		zswap_reject_kmemcache_fail++;
 		goto reject;
 	}
 
+	/* zswap_store() already holds a ref on 'objcg' and 'pool' */
+	if (objcg)
+		obj_cgroup_get(objcg);
+	zswap_pool_get(pool);
+
 	/* if entry is successfully added, it keeps the reference */
-	entry->pool = zswap_pool_current_get();
-	if (!entry->pool)
-		goto freepage;
+	entry->pool = pool;
 
-	if (objcg) {
-		memcg = get_mem_cgroup_from_objcg(objcg);
-		if (memcg_list_lru_alloc(memcg, &zswap_list_lru, GFP_KERNEL)) {
-			mem_cgroup_put(memcg);
-			goto put_pool;
-		}
-		mem_cgroup_put(memcg);
-	}
+	if (!zswap_compress(page, entry))
+		goto put_pool_objcg;
 
-	if (!zswap_compress(&folio->page, entry))
-		goto put_pool;
-
-	entry->swpentry = swp;
+	entry->swpentry = page_swap_entry(page);
 	entry->objcg = objcg;
 	entry->referenced = true;
 
-	old = xa_store(tree, offset, entry, GFP_KERNEL);
+	old = xa_store(swap_zswap_tree(entry->swpentry),
+		       swp_offset(entry->swpentry),
+		       entry, GFP_KERNEL);
 	if (xa_is_err(old)) {
 		int err = xa_err(old);
 
@@ -1481,11 +1457,6 @@ bool zswap_store(struct folio *folio)
 	if (old)
 		zswap_entry_free(old);
 
-	if (objcg) {
-		obj_cgroup_charge_zswap(objcg, entry->length);
-		count_objcg_events(objcg, ZSWPOUT, 1);
-	}
-
 	/*
 	 * We finish initializing the entry while it's already in xarray.
 	 * This is safe because:
@@ -1501,32 +1472,114 @@ bool zswap_store(struct folio *folio)
 		zswap_lru_add(&zswap_list_lru, entry);
 	}
 
-	/* update stats */
-	atomic_long_inc(&zswap_stored_pages);
-	count_vm_event(ZSWPOUT);
-
-	return true;
+	/*
+	 * We shouldn't have any possibility of failure after the entry is
+	 * added in the xarray. The pool/objcg refs obtained here will only
+	 * be dropped if/when zswap_entry_free() gets called.
+	 */
+	return entry->length;
 
 store_failed:
 	zpool_free(entry->pool->zpool, entry->handle);
-put_pool:
-	zswap_pool_put(entry->pool);
-freepage:
+put_pool_objcg:
+	zswap_pool_put(pool);
+	obj_cgroup_put(objcg);
 	zswap_entry_cache_free(entry);
 reject:
+	return -EINVAL;
+}
+
+bool zswap_store(struct folio *folio)
+{
+	long nr_pages = folio_nr_pages(folio);
+	swp_entry_t swp = folio->swap;
+	struct obj_cgroup *objcg = NULL;
+	struct mem_cgroup *memcg = NULL;
+	struct zswap_pool *pool;
+	size_t compressed_bytes = 0;
+	bool ret = false;
+	long index;
+
+	VM_WARN_ON_ONCE(!folio_test_locked(folio));
+	VM_WARN_ON_ONCE(!folio_test_swapcache(folio));
+
+	if (!zswap_enabled)
+		goto check_old;
+
+	objcg = get_obj_cgroup_from_folio(folio);
+	if (objcg && !obj_cgroup_may_zswap(objcg)) {
+		memcg = get_mem_cgroup_from_objcg(objcg);
+		if (shrink_memcg(memcg)) {
+			mem_cgroup_put(memcg);
+			goto put_objcg;
+		}
+		mem_cgroup_put(memcg);
+	}
+
+	if (zswap_check_limits())
+		goto put_objcg;
+
+	pool = zswap_pool_current_get();
+	if (!pool)
+		goto put_objcg;
+
+	if (objcg) {
+		memcg = get_mem_cgroup_from_objcg(objcg);
+		if (memcg_list_lru_alloc(memcg, &zswap_list_lru, GFP_KERNEL)) {
+			mem_cgroup_put(memcg);
+			goto put_pool;
+		}
+		mem_cgroup_put(memcg);
+	}
+
+	for (index = 0; index < nr_pages; ++index) {
+		struct page *page = folio_page(folio, index);
+		ssize_t bytes;
+
+		bytes = zswap_store_page(page, objcg, pool);
+		if (bytes < 0)
+			goto put_pool;
+		compressed_bytes += bytes;
+	}
+
+	if (objcg) {
+		obj_cgroup_charge_zswap(objcg, compressed_bytes);
+		count_objcg_events(objcg, ZSWPOUT, nr_pages);
+	}
+
+	atomic_long_add(nr_pages, &zswap_stored_pages);
+	count_vm_events(ZSWPOUT, nr_pages);
+
+	ret = true;
+
+put_pool:
+	zswap_pool_put(pool);
+put_objcg:
 	obj_cgroup_put(objcg);
-	if (zswap_pool_reached_full)
+	if (!ret && zswap_pool_reached_full)
 		queue_work(shrink_wq, &zswap_shrink_work);
 check_old:
 	/*
-	 * If the zswap store fails or zswap is disabled, we must invalidate the
-	 * possibly stale entry which was previously stored at this offset.
-	 * Otherwise, writeback could overwrite the new data in the swapfile.
+	 * If the zswap store fails or zswap is disabled, we must invalidate
+	 * the possibly stale entries which were previously stored at the
+	 * offsets corresponding to each page of the folio. Otherwise,
+	 * writeback could overwrite the new data in the swapfile.
 	 */
-	entry = xa_erase(tree, offset);
-	if (entry)
-		zswap_entry_free(entry);
-	return false;
+	if (!ret) {
+		unsigned type = swp_type(swp);
+		pgoff_t offset = swp_offset(swp);
+		struct zswap_entry *entry;
+		struct xarray *tree;
+
+		for (index = 0; index < nr_pages; ++index) {
+			tree = swap_zswap_tree(swp_entry(type, offset + index));
+			entry = xa_erase(tree, offset + index);
+			if (entry)
+				zswap_entry_free(entry);
+		}
+	}
+
+	return ret;
 }
 
 bool zswap_load(struct folio *folio)
