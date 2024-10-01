@@ -19,7 +19,7 @@ description: |
   by the PMIC that is defined as a Multi-Function Device (MFD).
 
   For MediaTek MT6323/MT6397 PMIC bindings see
-  Documentation/devicetree/bindings/mfd/mt6397.txt
+  Documentation/devicetree/bindings/mfd/mediatek,mt6397.yaml
 
 properties:
   compatible:
