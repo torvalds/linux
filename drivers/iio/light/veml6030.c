@@ -58,25 +58,24 @@ struct veml6030_data {
 	int cur_integration_time;
 };
 
-/* Integration time available in seconds */
-static IIO_CONST_ATTR(in_illuminance_integration_time_available,
-				"0.025 0.05 0.1 0.2 0.4 0.8");
+static const int veml6030_it_times[][2] = {
+	{ 0, 25000 },
+	{ 0, 50000 },
+	{ 0, 100000 },
+	{ 0, 200000 },
+	{ 0, 400000 },
+	{ 0, 800000 },
+};
 
 /*
  * Scale is 1/gain. Value 0.125 is ALS gain x (1/8), 0.25 is
  * ALS gain x (1/4), 1.0 = ALS gain x 1 and 2.0 is ALS gain x 2.
  */
-static IIO_CONST_ATTR(in_illuminance_scale_available,
-				"0.125 0.25 1.0 2.0");
-
-static struct attribute *veml6030_attributes[] = {
-	&iio_const_attr_in_illuminance_integration_time_available.dev_attr.attr,
-	&iio_const_attr_in_illuminance_scale_available.dev_attr.attr,
-	NULL
-};
-
-static const struct attribute_group veml6030_attr_group = {
-	.attrs = veml6030_attributes,
+static const int veml6030_scale_vals[][2] = {
+	{ 0, 125000 },
+	{ 0, 250000 },
+	{ 1, 0 },
+	{ 2, 0 },
 };
 
 /*
@@ -200,6 +199,8 @@ static const struct iio_chan_spec veml6030_channels[] = {
 				BIT(IIO_CHAN_INFO_PROCESSED) |
 				BIT(IIO_CHAN_INFO_INT_TIME) |
 				BIT(IIO_CHAN_INFO_SCALE),
+		.info_mask_shared_by_all_available = BIT(IIO_CHAN_INFO_INT_TIME) |
+						     BIT(IIO_CHAN_INFO_SCALE),
 		.event_spec = veml6030_event_spec,
 		.num_event_specs = ARRAY_SIZE(veml6030_event_spec),
 	},
@@ -209,7 +210,11 @@ static const struct iio_chan_spec veml6030_channels[] = {
 		.modified = 1,
 		.channel2 = IIO_MOD_LIGHT_BOTH,
 		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
-				BIT(IIO_CHAN_INFO_PROCESSED),
+				BIT(IIO_CHAN_INFO_PROCESSED) |
+				BIT(IIO_CHAN_INFO_INT_TIME) |
+				BIT(IIO_CHAN_INFO_SCALE),
+		.info_mask_shared_by_all_available = BIT(IIO_CHAN_INFO_INT_TIME) |
+						     BIT(IIO_CHAN_INFO_SCALE),
 	},
 };
 
@@ -555,16 +560,33 @@ static int veml6030_read_raw(struct iio_dev *indio_dev,
 			return -EINVAL;
 		}
 	case IIO_CHAN_INFO_INT_TIME:
-		if (chan->type == IIO_LIGHT)
-			return veml6030_get_intgrn_tm(indio_dev, val, val2);
-		return -EINVAL;
+		return veml6030_get_intgrn_tm(indio_dev, val, val2);
 	case IIO_CHAN_INFO_SCALE:
-		if (chan->type == IIO_LIGHT)
-			return veml6030_get_als_gain(indio_dev, val, val2);
-		return -EINVAL;
+		return veml6030_get_als_gain(indio_dev, val, val2);
 	default:
 		return -EINVAL;
 	}
+}
+
+static int veml6030_read_avail(struct iio_dev *indio_dev,
+			       struct iio_chan_spec const *chan,
+			       const int **vals, int *type, int *length,
+			       long mask)
+{
+	switch (mask) {
+	case IIO_CHAN_INFO_INT_TIME:
+		*vals = (int *)&veml6030_it_times;
+		*length = 2 * ARRAY_SIZE(veml6030_it_times);
+		*type = IIO_VAL_INT_PLUS_MICRO;
+		return IIO_AVAIL_LIST;
+	case IIO_CHAN_INFO_SCALE:
+		*vals = (int *)&veml6030_scale_vals;
+		*length = 2 * ARRAY_SIZE(veml6030_scale_vals);
+		*type = IIO_VAL_INT_PLUS_MICRO;
+		return IIO_AVAIL_LIST;
+	}
+
+	return -EINVAL;
 }
 
 static int veml6030_write_raw(struct iio_dev *indio_dev,
@@ -573,19 +595,9 @@ static int veml6030_write_raw(struct iio_dev *indio_dev,
 {
 	switch (mask) {
 	case IIO_CHAN_INFO_INT_TIME:
-		switch (chan->type) {
-		case IIO_LIGHT:
-			return veml6030_set_intgrn_tm(indio_dev, val, val2);
-		default:
-			return -EINVAL;
-		}
+		return veml6030_set_intgrn_tm(indio_dev, val, val2);
 	case IIO_CHAN_INFO_SCALE:
-		switch (chan->type) {
-		case IIO_LIGHT:
-			return veml6030_set_als_gain(indio_dev, val, val2);
-		default:
-			return -EINVAL;
-		}
+		return veml6030_set_als_gain(indio_dev, val, val2);
 	default:
 		return -EINVAL;
 	}
@@ -684,19 +696,19 @@ static int veml6030_write_interrupt_config(struct iio_dev *indio_dev,
 
 static const struct iio_info veml6030_info = {
 	.read_raw  = veml6030_read_raw,
+	.read_avail  = veml6030_read_avail,
 	.write_raw = veml6030_write_raw,
 	.read_event_value = veml6030_read_event_val,
 	.write_event_value	= veml6030_write_event_val,
 	.read_event_config = veml6030_read_interrupt_config,
 	.write_event_config	= veml6030_write_interrupt_config,
-	.attrs = &veml6030_attr_group,
 	.event_attrs = &veml6030_event_attr_group,
 };
 
 static const struct iio_info veml6030_info_no_irq = {
 	.read_raw  = veml6030_read_raw,
+	.read_avail  = veml6030_read_avail,
 	.write_raw = veml6030_write_raw,
-	.attrs = &veml6030_attr_group,
 };
 
 static irqreturn_t veml6030_event_handler(int irq, void *private)
