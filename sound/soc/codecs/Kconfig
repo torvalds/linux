@@ -1545,6 +1545,11 @@ config SND_SOC_RL6231
 	default m if SND_SOC_RT1305=m
 	default m if SND_SOC_RT1308=m
 
+config SND_SOC_RT_SDW_COMMON
+	tristate
+	default y if SND_SOC_RT721_SDCA_SDW=y
+	default m if SND_SOC_RT721_SDCA_SDW=m
+
 config SND_SOC_RL6347A
 	tristate
 	default y if SND_SOC_RT274=y
