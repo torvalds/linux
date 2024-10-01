@@ -1255,7 +1255,8 @@ struct pptable_funcs {
 	 * @set_soft_freq_limited_range: Set the soft frequency range of a clock
 	 *                               domain in MHz.
 	 */
-	int (*set_soft_freq_limited_range)(struct smu_context *smu, enum smu_clk_type clk_type, uint32_t min, uint32_t max);
+	int (*set_soft_freq_limited_range)(struct smu_context *smu, enum smu_clk_type clk_type, uint32_t min, uint32_t max,
+					   bool automatic);
 
 	/**
 	 * @set_power_source: Notify the SMU of the current power source.

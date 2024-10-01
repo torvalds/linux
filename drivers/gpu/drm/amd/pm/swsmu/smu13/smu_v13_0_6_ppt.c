@@ -1758,7 +1758,7 @@ static int smu_v13_0_6_set_performance_level(struct smu_context *smu,
 		if (uclk_table->max != pstate_table->uclk_pstate.curr.max) {
 			/* Min UCLK is not expected to be changed */
 			ret = smu_v13_0_set_soft_freq_limited_range(
-				smu, SMU_UCLK, 0, uclk_table->max);
+				smu, SMU_UCLK, 0, uclk_table->max, false);
 			if (ret)
 				return ret;
 			pstate_table->uclk_pstate.curr.max = uclk_table->max;
@@ -1777,7 +1777,8 @@ static int smu_v13_0_6_set_performance_level(struct smu_context *smu,
 
 static int smu_v13_0_6_set_soft_freq_limited_range(struct smu_context *smu,
 						   enum smu_clk_type clk_type,
-						   uint32_t min, uint32_t max)
+						   uint32_t min, uint32_t max,
+						   bool automatic)
 {
 	struct smu_dpm_context *smu_dpm = &(smu->smu_dpm);
 	struct smu_13_0_dpm_context *dpm_context = smu_dpm->dpm_context;
@@ -1825,7 +1826,7 @@ static int smu_v13_0_6_set_soft_freq_limited_range(struct smu_context *smu,
 				return -EOPNOTSUPP;
 			/* Only max clock limiting is allowed for UCLK */
 			ret = smu_v13_0_set_soft_freq_limited_range(
-				smu, SMU_UCLK, 0, max);
+				smu, SMU_UCLK, 0, max, false);
 			if (!ret)
 				pstate_table->uclk_pstate.curr.max = max;
 		}
@@ -1965,7 +1966,7 @@ static int smu_v13_0_6_usr_edit_dpm_table(struct smu_context *smu,
 			max_clk = dpm_context->dpm_tables.gfx_table.max;
 
 			ret = smu_v13_0_6_set_soft_freq_limited_range(
-				smu, SMU_GFXCLK, min_clk, max_clk);
+				smu, SMU_GFXCLK, min_clk, max_clk, false);
 
 			if (ret)
 				return ret;
@@ -1973,7 +1974,7 @@ static int smu_v13_0_6_usr_edit_dpm_table(struct smu_context *smu,
 			min_clk = dpm_context->dpm_tables.uclk_table.min;
 			max_clk = dpm_context->dpm_tables.uclk_table.max;
 			ret = smu_v13_0_6_set_soft_freq_limited_range(
-				smu, SMU_UCLK, min_clk, max_clk);
+				smu, SMU_UCLK, min_clk, max_clk, false);
 			if (ret)
 				return ret;
 			pstate_table->uclk_pstate.custom.max = 0;
@@ -1997,7 +1998,7 @@ static int smu_v13_0_6_usr_edit_dpm_table(struct smu_context *smu,
 			max_clk = pstate_table->gfxclk_pstate.custom.max;
 
 			ret = smu_v13_0_6_set_soft_freq_limited_range(
-				smu, SMU_GFXCLK, min_clk, max_clk);
+				smu, SMU_GFXCLK, min_clk, max_clk, false);
 
 			if (ret)
 				return ret;
@@ -2008,7 +2009,7 @@ static int smu_v13_0_6_usr_edit_dpm_table(struct smu_context *smu,
 			min_clk = pstate_table->uclk_pstate.curr.min;
 			max_clk = pstate_table->uclk_pstate.custom.max;
 			return smu_v13_0_6_set_soft_freq_limited_range(
-				smu, SMU_UCLK, min_clk, max_clk);
+				smu, SMU_UCLK, min_clk, max_clk, false);
 		}
 		break;
 	default:

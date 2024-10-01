@@ -140,7 +140,8 @@ int smu_set_soft_freq_range(struct smu_context *smu,
 		ret = smu->ppt_funcs->set_soft_freq_limited_range(smu,
 								  clk_type,
 								  min,
-								  max);
+								  max,
+								  false);
 
 	return ret;
 }
