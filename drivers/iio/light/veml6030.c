@@ -740,45 +740,44 @@ static irqreturn_t veml6030_event_handler(int irq, void *private)
  * interrupt disabled by default. First shutdown the sensor,
  * update registers and then power on the sensor.
  */
-static int veml6030_hw_init(struct iio_dev *indio_dev)
+static int veml6030_hw_init(struct iio_dev *indio_dev, struct device *dev)
 {
 	int ret, val;
 	struct veml6030_data *data = iio_priv(indio_dev);
-	struct i2c_client *client = data->client;
 
 	ret = veml6030_als_shut_down(data);
 	if (ret)
-		return dev_err_probe(&client->dev, ret, "can't shutdown als\n");
+		return dev_err_probe(dev, ret, "can't shutdown als\n");
 
 	ret = regmap_write(data->regmap, VEML6030_REG_ALS_CONF, 0x1001);
 	if (ret)
-		return dev_err_probe(&client->dev, ret,
-				     "can't setup als configs\n");
+		return dev_err_probe(dev, ret, "can't setup als configs\n");
 
 	ret = regmap_update_bits(data->regmap, VEML6030_REG_ALS_PSM,
 				 VEML6030_PSM | VEML6030_PSM_EN, 0x03);
 	if (ret)
-		return dev_err_probe(&client->dev, ret,
-				     "can't setup default PSM\n");
+		return dev_err_probe(dev, ret, "can't setup default PSM\n");
 
 	ret = regmap_write(data->regmap, VEML6030_REG_ALS_WH, 0xFFFF);
 	if (ret)
-		return dev_err_probe(&client->dev, ret,
-				     "can't setup high threshold\n");
+		return dev_err_probe(dev, ret, "can't setup high threshold\n");
 
 	ret = regmap_write(data->regmap, VEML6030_REG_ALS_WL, 0x0000);
 	if (ret)
-		return dev_err_probe(&client->dev, ret,
-				     "can't setup low threshold\n");
+		return dev_err_probe(dev, ret, "can't setup low threshold\n");
 
 	ret = veml6030_als_pwr_on(data);
 	if (ret)
-		return dev_err_probe(&client->dev, ret, "can't poweron als\n");
+		return dev_err_probe(dev, ret, "can't poweron als\n");
+
+	ret = devm_add_action_or_reset(dev, veml6030_als_shut_down_action, data);
+	if (ret < 0)
+		return ret;
 
 	/* Clear stale interrupt status bits if any during start */
 	ret = regmap_read(data->regmap, VEML6030_REG_ALS_INT, &val);
 	if (ret < 0)
-		return dev_err_probe(&client->dev, ret,
+		return dev_err_probe(dev, ret,
 				     "can't clear als interrupt status\n");
 
 	/* Cache currently active measurement parameters */
@@ -839,12 +838,7 @@ static int veml6030_probe(struct i2c_client *client)
 		indio_dev->info = &veml6030_info_no_irq;
 	}
 
-	ret = veml6030_hw_init(indio_dev);
-	if (ret < 0)
-		return ret;
-
-	ret = devm_add_action_or_reset(&client->dev,
-					veml6030_als_shut_down_action, data);
+	ret = veml6030_hw_init(indio_dev, &client->dev);
 	if (ret < 0)
 		return ret;
 
