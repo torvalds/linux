@@ -58,7 +58,7 @@ FIXTURE_SETUP(hid_bpf)
 {
 	int err;
 
-	err = setup_uhid(_metadata, &self->hid);
+	err = setup_uhid(_metadata, &self->hid, BUS_USB, 0x0001, 0x0a36, rdesc, sizeof(rdesc));
 	ASSERT_OK(err);
 }
 

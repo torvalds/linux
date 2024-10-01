@@ -36,7 +36,7 @@ FIXTURE_SETUP(hidraw)
 {
 	int err;
 
-	err = setup_uhid(_metadata, &self->hid);
+	err = setup_uhid(_metadata, &self->hid, BUS_USB, 0x0001, 0x0a37, rdesc, sizeof(rdesc));
 	ASSERT_OK(err);
 
 	self->hidraw_fd = open_hidraw(&self->hid);
