@@ -129,20 +129,20 @@ enum bch_fsck_flags {
 	x(freespace_key_wrong,					115,	0)		\
 	x(freespace_hole_missing,				116,	0)		\
 	x(bucket_gens_val_size_bad,				117,	0)		\
-	x(bucket_gens_key_wrong,				118,	0)		\
-	x(bucket_gens_hole_wrong,				119,	0)		\
-	x(bucket_gens_to_invalid_dev,				120,	0)		\
-	x(bucket_gens_to_invalid_buckets,			121,	0)		\
-	x(bucket_gens_nonzero_for_invalid_buckets,		122,	0)		\
+	x(bucket_gens_key_wrong,				118,	FSCK_AUTOFIX)	\
+	x(bucket_gens_hole_wrong,				119,	FSCK_AUTOFIX)	\
+	x(bucket_gens_to_invalid_dev,				120,	FSCK_AUTOFIX)	\
+	x(bucket_gens_to_invalid_buckets,			121,	FSCK_AUTOFIX)	\
+	x(bucket_gens_nonzero_for_invalid_buckets,		122,	FSCK_AUTOFIX)	\
 	x(need_discard_freespace_key_to_invalid_dev_bucket,	123,	0)		\
 	x(need_discard_freespace_key_bad,			124,	0)		\
 	x(backpointer_bucket_offset_wrong,			125,	0)		\
 	x(backpointer_to_missing_device,			126,	0)		\
 	x(backpointer_to_missing_alloc,				127,	0)		\
 	x(backpointer_to_missing_ptr,				128,	0)		\
-	x(lru_entry_at_time_0,					129,	0)		\
-	x(lru_entry_to_invalid_bucket,				130,	0)		\
-	x(lru_entry_bad,					131,	0)		\
+	x(lru_entry_at_time_0,					129,	FSCK_AUTOFIX)	\
+	x(lru_entry_to_invalid_bucket,				130,	FSCK_AUTOFIX)	\
+	x(lru_entry_bad,					131,	FSCK_AUTOFIX)	\
 	x(btree_ptr_val_too_big,				132,	0)		\
 	x(btree_ptr_v2_val_too_big,				133,	0)		\
 	x(btree_ptr_has_non_ptr,				134,	0)		\
@@ -158,9 +158,9 @@ enum bch_fsck_flags {
 	x(ptr_after_last_bucket,				144,	0)		\
 	x(ptr_before_first_bucket,				145,	0)		\
 	x(ptr_spans_multiple_buckets,				146,	0)		\
-	x(ptr_to_missing_backpointer,				147,	0)		\
-	x(ptr_to_missing_alloc_key,				148,	0)		\
-	x(ptr_to_missing_replicas_entry,			149,	0)		\
+	x(ptr_to_missing_backpointer,				147,	FSCK_AUTOFIX)	\
+	x(ptr_to_missing_alloc_key,				148,	FSCK_AUTOFIX)	\
+	x(ptr_to_missing_replicas_entry,			149,	FSCK_AUTOFIX)	\
 	x(ptr_to_missing_stripe,				150,	0)		\
 	x(ptr_to_incorrect_stripe,				151,	0)		\
 	x(ptr_gen_newer_than_bucket_gen,			152,	0)		\
@@ -194,7 +194,7 @@ enum bch_fsck_flags {
 	x(snapshot_skiplist_not_normalized,			180,	0)		\
 	x(snapshot_skiplist_bad,				181,	0)		\
 	x(snapshot_should_not_have_subvol,			182,	0)		\
-	x(snapshot_to_bad_snapshot_tree,			183,	0)		\
+	x(snapshot_to_bad_snapshot_tree,			183,	FSCK_AUTOFIX)	\
 	x(snapshot_bad_depth,					184,	0)		\
 	x(snapshot_bad_skiplist,				185,	0)		\
 	x(subvol_pos_bad,					186,	0)		\
