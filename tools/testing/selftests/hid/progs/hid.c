@@ -598,3 +598,15 @@ SEC(".struct_ops.link")
 struct hid_bpf_ops test_infinite_loop_input_report = {
 	.hid_device_event = (void *)hid_test_infinite_loop_input_report,
 };
+
+SEC("?struct_ops.s/hid_rdesc_fixup")
+int BPF_PROG(hid_test_driver_probe, struct hid_bpf_ctx *hid_ctx)
+{
+	hid_ctx->hid->quirks |= HID_QUIRK_IGNORE_SPECIAL_DRIVER;
+	return 0;
+}
+
+SEC(".struct_ops.link")
+struct hid_bpf_ops test_driver_probe = {
+	.hid_rdesc_fixup = (void *)hid_test_driver_probe,
+};
