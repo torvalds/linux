@@ -1841,6 +1841,37 @@ static int btintel_boot_wait(struct hci_dev *hdev, ktime_t calltime, int msec)
 	return 0;
 }
 
+static int btintel_boot_wait_d0(struct hci_dev *hdev, ktime_t calltime,
+				int msec)
+{
+	ktime_t delta, rettime;
+	unsigned long long duration;
+	int err;
+
+	bt_dev_info(hdev, "Waiting for device transition to d0");
+
+	err = btintel_wait_on_flag_timeout(hdev, INTEL_WAIT_FOR_D0,
+					   TASK_INTERRUPTIBLE,
+					   msecs_to_jiffies(msec));
+	if (err == -EINTR) {
+		bt_dev_err(hdev, "Device d0 move interrupted");
+		return -EINTR;
+	}
+
+	if (err) {
+		bt_dev_err(hdev, "Device d0 move timeout");
+		return -ETIMEDOUT;
+	}
+
+	rettime = ktime_get();
+	delta = ktime_sub(rettime, calltime);
+	duration = (unsigned long long)ktime_to_ns(delta) >> 10;
+
+	bt_dev_info(hdev, "Device moved to D0 in %llu usecs", duration);
+
+	return 0;
+}
+
 static int btintel_boot(struct hci_dev *hdev, u32 boot_addr)
 {
 	ktime_t calltime;
@@ -1849,6 +1880,7 @@ static int btintel_boot(struct hci_dev *hdev, u32 boot_addr)
 	calltime = ktime_get();
 
 	btintel_set_flag(hdev, INTEL_BOOTING);
+	btintel_set_flag(hdev, INTEL_WAIT_FOR_D0);
 
 	err = btintel_send_intel_reset(hdev, boot_addr);
 	if (err) {
@@ -1861,13 +1893,28 @@ static int btintel_boot(struct hci_dev *hdev, u32 boot_addr)
 	 * is done by the operational firmware sending bootup notification.
 	 *
 	 * Booting into operational firmware should not take longer than
-	 * 1 second. However if that happens, then just fail the setup
+	 * 5 second. However if that happens, then just fail the setup
 	 * since something went wrong.
 	 */
-	err = btintel_boot_wait(hdev, calltime, 1000);
-	if (err == -ETIMEDOUT)
+	err = btintel_boot_wait(hdev, calltime, 5000);
+	if (err == -ETIMEDOUT) {
 		btintel_reset_to_bootloader(hdev);
+		goto exit_error;
+	}
 
+	if (hdev->bus == HCI_PCI) {
+		/* In case of PCIe, after receiving bootup event, driver performs
+		 * D0 entry by writing 0 to sleep control register (check
+		 * btintel_pcie_recv_event())
+		 * Firmware acks with alive interrupt indicating host is full ready to
+		 * perform BT operation. Lets wait here till INTEL_WAIT_FOR_D0
+		 * bit is cleared.
+		 */
+		calltime = ktime_get();
+		err = btintel_boot_wait_d0(hdev, calltime, 2000);
+	}
+
+exit_error:
 	return err;
 }
 
@@ -3273,7 +3320,7 @@ int btintel_configure_setup(struct hci_dev *hdev, const char *driver_name)
 }
 EXPORT_SYMBOL_GPL(btintel_configure_setup);
 
-static int btintel_diagnostics(struct hci_dev *hdev, struct sk_buff *skb)
+int btintel_diagnostics(struct hci_dev *hdev, struct sk_buff *skb)
 {
 	struct intel_tlv *tlv = (void *)&skb->data[5];
 
@@ -3301,6 +3348,7 @@ static int btintel_diagnostics(struct hci_dev *hdev, struct sk_buff *skb)
 recv_frame:
 	return hci_recv_frame(hdev, skb);
 }
+EXPORT_SYMBOL_GPL(btintel_diagnostics);
 
 int btintel_recv_event(struct hci_dev *hdev, struct sk_buff *skb)
 {
