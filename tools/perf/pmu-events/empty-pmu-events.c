@@ -380,7 +380,7 @@ int pmu_events_table__for_each_event(const struct pmu_events_table *table,
                         continue;
 
                 ret = pmu_events_table__for_each_event_pmu(table, table_pmu, fn, data);
-                if (pmu || ret)
+                if (ret)
                         return ret;
         }
         return 0;
