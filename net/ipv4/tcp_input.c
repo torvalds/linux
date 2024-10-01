@@ -6684,10 +6684,17 @@ static void tcp_rcv_synrecv_state_fastopen(struct sock *sk)
 	if (inet_csk(sk)->icsk_ca_state == TCP_CA_Loss && !tp->packets_out)
 		tcp_try_undo_recovery(sk);
 
-	/* Reset rtx states to prevent spurious retransmits_timed_out() */
 	tcp_update_rto_time(tp);
-	tp->retrans_stamp = 0;
 	inet_csk(sk)->icsk_retransmits = 0;
+	/* In tcp_fastopen_synack_timer() on the first SYNACK RTO we set
+	 * retrans_stamp but don't enter CA_Loss, so in case that happened we
+	 * need to zero retrans_stamp here to prevent spurious
+	 * retransmits_timed_out(). However, if the ACK of our SYNACK caused us
+	 * to enter CA_Recovery then we need to leave retrans_stamp as it was
+	 * set entering CA_Recovery, for correct retransmits_timed_out() and
+	 * undo behavior.
+	 */
+	tcp_retrans_stamp_cleanup(sk);
 
 	/* Once we leave TCP_SYN_RECV or TCP_FIN_WAIT_1,
 	 * we no longer need req so release it.
