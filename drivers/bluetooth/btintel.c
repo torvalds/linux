@@ -1252,6 +1252,12 @@ static void btintel_reset_to_bootloader(struct hci_dev *hdev)
 	struct intel_reset params;
 	struct sk_buff *skb;
 
+	/* PCIe transport uses shared hardware reset mechanism for recovery
+	 * which gets triggered in pcie *setup* function on error.
+	 */
+	if (hdev->bus == HCI_PCI)
+		return;
+
 	/* Send Intel Reset command. This will result in
 	 * re-enumeration of BT controller.
 	 *
@@ -1267,6 +1273,7 @@ static void btintel_reset_to_bootloader(struct hci_dev *hdev)
 	 * boot_param:    Boot address
 	 *
 	 */
+
 	params.reset_type = 0x01;
 	params.patch_enable = 0x01;
 	params.ddc_reload = 0x01;
@@ -2795,6 +2802,13 @@ int btintel_bootloader_setup_tlv(struct hci_dev *hdev,
 	 * command while downloading the firmware.
 	 */
 	boot_param = 0x00000000;
+
+	/* In case of PCIe, this function might get called multiple times with
+	 * same hdev instance if there is any error on firmware download.
+	 * Need to clear stale bits of previous firmware download attempt.
+	 */
+	for (int i = 0; i < __INTEL_NUM_FLAGS; i++)
+		btintel_clear_flag(hdev, i);
 
 	btintel_set_flag(hdev, INTEL_BOOTLOADER);
 
